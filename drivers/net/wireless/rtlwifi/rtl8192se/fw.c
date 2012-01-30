@@ -364,7 +364,7 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 	u8 fwstatus = FW_STATUS_INIT;
 	bool rtstatus = true;
 
-	if (!rtlhal->pfirmware)
+	if (rtlpriv->max_fw_size == 0 || !rtlhal->pfirmware)
 		return 1;
 
 	firmware = (struct rt_firmware *)rtlhal->pfirmware;

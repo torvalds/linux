@@ -76,10 +76,13 @@ void rtl92se_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
 
 void rtl92se_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_priv *rtlpriv;
 	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 	u8 ledcfg;
 
+	rtlpriv = rtl_priv(hw);
+	if (!rtlpriv || rtlpriv->max_fw_size)
+		return;
 	RT_TRACE(rtlpriv, COMP_LED, DBG_LOUD, "LedAddr:%X ledpin=%d\n",
 		 LEDCFG, pled->ledpin);
 

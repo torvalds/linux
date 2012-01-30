@@ -410,6 +410,7 @@ void rtl_init_rfkill(struct ieee80211_hw *hw)
 
 	wiphy_rfkill_start_polling(hw->wiphy);
 }
+EXPORT_SYMBOL(rtl_init_rfkill);
 
 void rtl_deinit_rfkill(struct ieee80211_hw *hw)
 {

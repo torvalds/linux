@@ -40,4 +40,6 @@
 #define RTL_SUPPORTED_CTRL_FILTER	0xFF
 
 extern const struct ieee80211_ops rtl_ops;
+void rtl_fw_cb(const struct firmware *firmware, void *context);
+
 #endif

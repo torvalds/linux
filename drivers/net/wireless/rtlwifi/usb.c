@@ -664,15 +664,17 @@ static int rtl_usb_start(struct ieee80211_hw *hw)
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 
 	err = rtlpriv->cfg->ops->hw_init(hw);
-	rtl_init_rx_config(hw);
+	if (!err) {
+		rtl_init_rx_config(hw);
 
-	/* Enable software */
-	SET_USB_START(rtlusb);
-	/* should after adapter start and interrupt enable. */
-	set_hal_start(rtlhal);
+		/* Enable software */
+		SET_USB_START(rtlusb);
+		/* should after adapter start and interrupt enable. */
+		set_hal_start(rtlhal);
 
-	/* Start bulk IN */
-	_rtl_usb_receive(hw);
+		/* Start bulk IN */
+		_rtl_usb_receive(hw);
+	}
 
 	return err;
 }
@@ -949,6 +951,7 @@ int __devinit rtl_usb_probe(struct usb_interface *intf,
 		return -ENOMEM;
 	}
 	rtlpriv = hw->priv;
+	init_completion(&rtlpriv->firmware_loading_complete);
 	SET_IEEE80211_DEV(hw, &intf->dev);
 	udev = interface_to_usbdev(intf);
 	usb_get_dev(udev);
@@ -982,24 +985,12 @@ int __devinit rtl_usb_probe(struct usb_interface *intf,
 		goto error_out;
 	}
 
-	/*init rfkill */
-	/* rtl_init_rfkill(hw); */
-
-	err = ieee80211_register_hw(hw);
-	if (err) {
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_EMERG,
-			 "Can't register mac80211 hw\n");
-		goto error_out;
-	} else {
-		rtlpriv->mac80211.mac80211_registered = 1;
-	}
-	set_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status);
 	return 0;
 error_out:
 	rtl_deinit_core(hw);
 	_rtl_usb_io_handler_release(hw);
-	ieee80211_free_hw(hw);
 	usb_put_dev(udev);
+	complete(&rtlpriv->firmware_loading_complete);
 	return -ENODEV;
 }
 EXPORT_SYMBOL(rtl_usb_probe);
@@ -1013,6 +1004,9 @@ void rtl_usb_disconnect(struct usb_interface *intf)
 
 	if (unlikely(!rtlpriv))
 		return;
+
+	/* just in case driver is removed before firmware callback */
+	wait_for_completion(&rtlpriv->firmware_loading_complete);
 	/*ieee80211_unregister_hw will call ops_stop */
 	if (rtlmac->mac80211_registered == 1) {
 		ieee80211_unregister_hw(hw);
