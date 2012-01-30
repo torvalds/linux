@@ -1015,14 +1015,11 @@ capinc_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	int idx = tty->index;
 	struct capiminor *mp = capiminor_get(idx);
-	int ret = tty_init_termios(tty);
+	int ret = tty_standard_install(driver, tty);
 
-	if (ret == 0) {
-		tty_driver_kref_get(driver);
-		tty->count++;
+	if (ret == 0)
 		tty->driver_data = mp;
-		driver->ttys[idx] = tty;
-	} else
+	else
 		capiminor_put(mp);
 	return ret;
 }

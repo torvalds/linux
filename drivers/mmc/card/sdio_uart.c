@@ -750,15 +750,12 @@ static int sdio_uart_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	int idx = tty->index;
 	struct sdio_uart_port *port = sdio_uart_port_get(idx);
-	int ret = tty_init_termios(tty);
+	int ret = tty_standard_install(driver, tty);
 
-	if (ret == 0) {
-		tty_driver_kref_get(driver);
-		tty->count++;
+	if (ret == 0)
 		/* This is the ref sdio_uart_port get provided */
 		tty->driver_data = port;
-		driver->ttys[idx] = tty;
-	} else
+	else
 		sdio_uart_port_put(port);
 	return ret;
 }
