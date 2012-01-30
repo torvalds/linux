@@ -38,40 +38,46 @@ void ion_system_heap_free(struct ion_buffer *buffer)
 	vfree(buffer->priv_virt);
 }
 
-struct scatterlist *ion_system_heap_map_dma(struct ion_heap *heap,
-					    struct ion_buffer *buffer)
+struct sg_table *ion_system_heap_map_dma(struct ion_heap *heap,
+					 struct ion_buffer *buffer)
 {
-	struct scatterlist *sglist;
-	struct page *page;
+	struct sg_table *table;
+	struct scatterlist *sg;
 	int i;
 	int npages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
 	void *vaddr = buffer->priv_virt;
+	int ret;
 
-	sglist = vmalloc(npages * sizeof(struct scatterlist));
-	if (!sglist)
+	table = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
+	if (!table)
 		return ERR_PTR(-ENOMEM);
-	memset(sglist, 0, npages * sizeof(struct scatterlist));
-	sg_init_table(sglist, npages);
-	for (i = 0; i < npages; i++) {
+	ret = sg_alloc_table(table, npages, GFP_KERNEL);
+	if (ret)
+		goto err0;
+	for_each_sg(table->sgl, sg, table->nents, i) {
+		struct page *page;
 		page = vmalloc_to_page(vaddr);
-		if (!page)
-			goto end;
-		sg_set_page(&sglist[i], page, PAGE_SIZE, 0);
+		if (!page) {
+			ret = -ENOMEM;
+			goto err1;
+		}
+		sg_set_page(sg, page, PAGE_SIZE, 0);
 		vaddr += PAGE_SIZE;
 	}
-	/* XXX do cache maintenance for dma? */
-	return sglist;
-end:
-	vfree(sglist);
-	return NULL;
+	return table;
+err1:
+	sg_free_table(table);
+err0:
+	kfree(table);
+	return ERR_PTR(ret);
 }
 
 void ion_system_heap_unmap_dma(struct ion_heap *heap,
 			       struct ion_buffer *buffer)
 {
-	/* XXX undo cache maintenance for dma? */
-	if (buffer->sglist)
-		vfree(buffer->sglist);
+	if (buffer->sg_table)
+		sg_free_table(buffer->sg_table);
+	kfree(buffer->sg_table);
 }
 
 void *ion_system_heap_map_kernel(struct ion_heap *heap,
@@ -144,17 +150,23 @@ static int ion_system_contig_heap_phys(struct ion_heap *heap,
 	return 0;
 }
 
-struct scatterlist *ion_system_contig_heap_map_dma(struct ion_heap *heap,
+struct sg_table *ion_system_contig_heap_map_dma(struct ion_heap *heap,
 						   struct ion_buffer *buffer)
 {
-	struct scatterlist *sglist;
+	struct sg_table *table;
+	int ret;
 
-	sglist = vmalloc(sizeof(struct scatterlist));
-	if (!sglist)
+	table = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
+	if (!table)
 		return ERR_PTR(-ENOMEM);
-	sg_init_table(sglist, 1);
-	sg_set_page(sglist, virt_to_page(buffer->priv_virt), buffer->size, 0);
-	return sglist;
+	ret = sg_alloc_table(table, 1, GFP_KERNEL);
+	if (ret) {
+		kfree(table);
+		return ERR_PTR(ret);
+	}
+	sg_set_page(table->sgl, virt_to_page(buffer->priv_virt), buffer->size,
+		    0);
+	return table;
 }
 
 int ion_system_contig_heap_map_user(struct ion_heap *heap,
