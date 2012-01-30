@@ -451,6 +451,7 @@ enum ath6kl_vif_state {
 	DTIM_PERIOD_AVAIL,
 	WLAN_ENABLED,
 	STATS_UPDATE_PEND,
+	HOST_SLEEP_MODE_CMD_PROCESSED,
 };
 
 struct ath6kl_vif {

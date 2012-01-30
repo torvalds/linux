@@ -2590,6 +2590,18 @@ int ath6kl_wmi_set_host_sleep_mode_cmd(struct wmi *wmi, u8 if_idx,
 	return ret;
 }
 
+/* This command has zero length payload */
+static int ath6kl_wmi_host_sleep_mode_cmd_prcd_evt_rx(struct wmi *wmi,
+						      struct ath6kl_vif *vif)
+{
+	struct ath6kl *ar = wmi->parent_dev;
+
+	set_bit(HOST_SLEEP_MODE_CMD_PROCESSED, &vif->flags);
+	wake_up(&ar->event_wq);
+
+	return 0;
+}
+
 int ath6kl_wmi_set_wow_mode_cmd(struct wmi *wmi, u8 if_idx,
 				enum ath6kl_wow_mode wow_mode,
 				u32 filter, u16 host_req_delay)
@@ -3555,6 +3567,11 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 	case WMI_TX_COMPLETE_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_TX_COMPLETE_EVENTID\n");
 		ret = ath6kl_wmi_tx_complete_event_rx(datap, len);
+		break;
+	case WMI_SET_HOST_SLEEP_MODE_CMD_PROCESSED_EVENTID:
+		ath6kl_dbg(ATH6KL_DBG_WMI,
+			   "WMI_SET_HOST_SLEEP_MODE_CMD_PROCESSED_EVENTID");
+		ret = ath6kl_wmi_host_sleep_mode_cmd_prcd_evt_rx(wmi, vif);
 		break;
 	case WMI_REMAIN_ON_CHNL_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_REMAIN_ON_CHNL_EVENTID\n");

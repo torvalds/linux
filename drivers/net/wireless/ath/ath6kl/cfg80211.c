@@ -1975,10 +1975,25 @@ skip_arp:
 	if (ret)
 		return ret;
 
+	clear_bit(HOST_SLEEP_MODE_CMD_PROCESSED, &vif->flags);
+
 	ret = ath6kl_wmi_set_host_sleep_mode_cmd(ar->wmi, vif->fw_vif_idx,
 						 ATH6KL_HOST_MODE_ASLEEP);
 	if (ret)
 		return ret;
+
+	left = wait_event_interruptible_timeout(ar->event_wq,
+			test_bit(HOST_SLEEP_MODE_CMD_PROCESSED, &vif->flags),
+			WMI_TIMEOUT);
+	if (left == 0) {
+		ath6kl_warn("timeout, didn't get host sleep cmd "
+			    "processed event\n");
+		ret = -ETIMEDOUT;
+	} else if (left < 0) {
+		ath6kl_warn("error while waiting for host sleep cmd "
+			    "processed event %d\n", left);
+		ret = left;
+	}
 
 	if (ar->tx_pending[ar->ctrl_ep]) {
 		left = wait_event_interruptible_timeout(ar->event_wq,
