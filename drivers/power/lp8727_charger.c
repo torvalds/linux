@@ -1,6 +1,7 @@
 /*
  * Driver for LP8727 Micro/Mini USB IC with intergrated charger
  *
+ *			Copyright (C) 2011 Texas Instruments
  *			Copyright (C) 2011 National Semiconductor
  *
  * This program is free software; you can redistribute it and/or modify
@@ -489,7 +490,7 @@ static void __exit lp8727_exit(void)
 module_init(lp8727_init);
 module_exit(lp8727_exit);
 
-MODULE_DESCRIPTION("National Semiconductor LP8727 charger driver");
+MODULE_DESCRIPTION("TI/National Semiconductor LP8727 charger driver");
 MODULE_AUTHOR
     ("Woogyom Kim <milo.kim@ti.com>, Daniel Jeong <daniel.jeong@ti.com>");
 MODULE_LICENSE("GPL");

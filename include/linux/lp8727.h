@@ -1,4 +1,7 @@
 /*
+ * LP8727 Micro/Mini USB IC with intergrated charger
+ *
+ *			Copyright (C) 2011 Texas Instruments
  *			Copyright (C) 2011 National Semiconductor
  *
  * This program is free software; you can redistribute it and/or modify
