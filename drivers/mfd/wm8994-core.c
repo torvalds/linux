@@ -387,7 +387,7 @@ static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
 			      NULL, 0);
 	if (ret != 0) {
 		dev_err(wm8994->dev, "Failed to add children: %d\n", ret);
-		goto err_regmap;
+		goto err;
 	}
 
 	switch (wm8994->type) {
@@ -402,7 +402,7 @@ static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		break;
 	default:
 		BUG();
-		goto err_regmap;
+		goto err;
 	}
 
 	wm8994->supplies = devm_kzalloc(wm8994->dev,
@@ -410,7 +410,7 @@ static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
 					wm8994->num_supplies, GFP_KERNEL);
 	if (!wm8994->supplies) {
 		ret = -ENOMEM;
-		goto err_regmap;
+		goto err;
 	}
 
 	switch (wm8994->type) {
@@ -428,14 +428,14 @@ static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		break;
 	default:
 		BUG();
-		goto err_regmap;
+		goto err;
 	}
 		
 	ret = regulator_bulk_get(wm8994->dev, wm8994->num_supplies,
 				 wm8994->supplies);
 	if (ret != 0) {
 		dev_err(wm8994->dev, "Failed to get supplies: %d\n", ret);
-		goto err_regmap;
+		goto err;
 	}
 
 	ret = regulator_bulk_enable(wm8994->num_supplies,
@@ -567,7 +567,7 @@ static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		if (ret != 0) {
 			dev_err(wm8994->dev, "Failed to register patch: %d\n",
 				ret);
-			goto err_regmap;
+			goto err;
 		}
 	}
 
@@ -633,8 +633,7 @@ err_enable:
 			       wm8994->supplies);
 err_get:
 	regulator_bulk_free(wm8994->num_supplies, wm8994->supplies);
-err_regmap:
-	regmap_exit(wm8994->regmap);
+err:
 	mfd_remove_devices(wm8994->dev);
 	return ret;
 }
@@ -647,7 +646,6 @@ static __devexit void wm8994_device_exit(struct wm8994 *wm8994)
 	regulator_bulk_disable(wm8994->num_supplies,
 			       wm8994->supplies);
 	regulator_bulk_free(wm8994->num_supplies, wm8994->supplies);
-	regmap_exit(wm8994->regmap);
 }
 
 static const struct of_device_id wm8994_of_match[] = {
@@ -673,7 +671,7 @@ static __devinit int wm8994_i2c_probe(struct i2c_client *i2c,
 	wm8994->irq = i2c->irq;
 	wm8994->type = id->driver_data;
 
-	wm8994->regmap = regmap_init_i2c(i2c, &wm8994_base_regmap_config);
+	wm8994->regmap = devm_regmap_init_i2c(i2c, &wm8994_base_regmap_config);
 	if (IS_ERR(wm8994->regmap)) {
 		ret = PTR_ERR(wm8994->regmap);
 		dev_err(wm8994->dev, "Failed to allocate register map: %d\n",
