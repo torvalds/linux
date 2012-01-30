@@ -6135,6 +6135,9 @@ static s32 wl_event_handler(void *data)
 	tsk_ctl_t *tsk = (tsk_ctl_t *)data;
 
 	wl = (struct wl_priv *)tsk->parent;
+
+	DAEMONIZE("wl_event_handler");
+
 	complete(&tsk->completed);
 
 	while (down_interruptible (&tsk->sema) == 0) {
