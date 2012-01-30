@@ -172,7 +172,7 @@ static struct pci_device_id gx_chipset_tbl[] __initdata = {
 	{ PCI_VDEVICE(CYRIX, PCI_DEVICE_ID_CYRIX_5510), },
 	{ 0, },
 };
-MODULE_DEVICE_TABLE(gx_chipset_tbl);
+MODULE_DEVICE_TABLE(pci, gx_chipset_tbl);
 
 static void gx_write_byte(int reg, int value)
 {
