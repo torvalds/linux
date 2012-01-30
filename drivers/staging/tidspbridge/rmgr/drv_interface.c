@@ -147,7 +147,7 @@ static int bridge_open(struct inode *ip, struct file *filp)
 #ifdef CONFIG_TIDSPBRIDGE_RECOVERY
 	if (recover) {
 		if (filp->f_flags & O_NONBLOCK ||
-			wait_for_completion_interruptible(&bridge_open_comp))
+		    wait_for_completion_interruptible(&bridge_open_comp))
 			return -EBUSY;
 	}
 #endif
@@ -245,7 +245,7 @@ static long bridge_ioctl(struct file *filp, unsigned int code,
 
 	if (!status) {
 		status = api_call_dev_ioctl(code, &buf_in, &retval,
-					     filp->private_data);
+					    filp->private_data);
 
 		if (!status) {
 			status = retval;
@@ -363,10 +363,10 @@ void bridge_recover_schedule(void)
 #endif
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 static int dspbridge_scale_notification(struct notifier_block *op,
-		unsigned long val, void *ptr)
+					unsigned long val, void *ptr)
 {
 	struct omap_dsp_platform_data *pdata =
-		omap_dspbridge_dev->dev.platform_data;
+	    omap_dspbridge_dev->dev.platform_data;
 
 	if (CPUFREQ_POSTCHANGE == val && pdata->dsp_get_opp)
 		pwr_pm_post_scale(PRCM_VDD1, pdata->dsp_get_opp());
@@ -471,7 +471,7 @@ err2:
 err1:
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 	cpufreq_unregister_notifier(&iva_clk_notifier,
-					CPUFREQ_TRANSITION_NOTIFIER);
+				    CPUFREQ_TRANSITION_NOTIFIER);
 #endif
 	dsp_clk_exit();
 
@@ -550,7 +550,7 @@ static int __devexit omap34_xx_bridge_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 	if (cpufreq_unregister_notifier(&iva_clk_notifier,
-						CPUFREQ_TRANSITION_NOTIFIER))
+					CPUFREQ_TRANSITION_NOTIFIER))
 		pr_err("%s: cpufreq_unregister_notifier failed for iva2_ck\n",
 		       __func__);
 #endif /* #ifdef CONFIG_TIDSPBRIDGE_DVFS */
