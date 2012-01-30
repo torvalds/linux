@@ -52,6 +52,7 @@ extern void __exit bcma_host_pci_exit(void);
 u32 bcma_pcie_read(struct bcma_drv_pci *pc, u32 address);
 
 #ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
+bool __devinit bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc);
 void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc);
 #endif /* CONFIG_BCMA_DRIVER_PCI_HOSTMODE */
 

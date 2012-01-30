@@ -2,7 +2,7 @@
  * Broadcom specific AMBA
  * PCI Core
  *
- * Copyright 2005, Broadcom Corporation
+ * Copyright 2005, 2011, Broadcom Corporation
  * Copyright 2006, 2007, Michael Buesch <m@bues.ch>
  * Copyright 2011, 2012, Hauke Mehrtens <hauke@hauke-m.de>
  *
@@ -179,47 +179,19 @@ static void __devinit bcma_core_pci_clientmode_init(struct bcma_drv_pci *pc)
 	bcma_pcicore_serdes_workaround(pc);
 }
 
-static bool __devinit bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc)
-{
-	struct bcma_bus *bus = pc->core->bus;
-	u16 chipid_top;
-
-	chipid_top = (bus->chipinfo.id & 0xFF00);
-	if (chipid_top != 0x4700 &&
-	    chipid_top != 0x5300)
-		return false;
-
-#ifdef CONFIG_SSB_DRIVER_PCICORE
-	if (bus->sprom.boardflags_lo & SSB_BFL_NOPCI)
-		return false;
-#endif /* CONFIG_SSB_DRIVER_PCICORE */
-
-#if 0
-	/* TODO: on BCMA we use address from EROM instead of magic formula */
-	u32 tmp;
-	return !mips_busprobe32(tmp, (bus->mmio +
-		(pc->core->core_index * BCMA_CORE_SIZE)));
-#endif
-
-	return true;
-}
-
 void __devinit bcma_core_pci_init(struct bcma_drv_pci *pc)
 {
 	if (pc->setup_done)
 		return;
 
-	if (bcma_core_pci_is_in_hostmode(pc)) {
 #ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
+	pc->hostmode = bcma_core_pci_is_in_hostmode(pc);
+	if (pc->hostmode)
 		bcma_core_pci_hostmode_init(pc);
-#else
-		pr_err("Driver compiled without support for hostmode PCI\n");
 #endif /* CONFIG_BCMA_DRIVER_PCI_HOSTMODE */
-	} else {
-		bcma_core_pci_clientmode_init(pc);
-	}
 
-	pc->setup_done = true;
+	if (!pc->hostmode)
+		bcma_core_pci_clientmode_init(pc);
 }
 
 int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc, struct bcma_device *core,

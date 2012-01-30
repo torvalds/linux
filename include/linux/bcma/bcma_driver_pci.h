@@ -160,9 +160,44 @@ struct pci_dev;
 /* PCIcore specific boardflags */
 #define BCMA_CORE_PCI_BFL_NOPCI			0x00000400 /* Board leaves PCI floating */
 
+/* PCIE Config space accessing MACROS */
+#define BCMA_CORE_PCI_CFG_BUS_SHIFT		24	/* Bus shift */
+#define BCMA_CORE_PCI_CFG_SLOT_SHIFT		19	/* Slot/Device shift */
+#define BCMA_CORE_PCI_CFG_FUN_SHIFT		16	/* Function shift */
+#define BCMA_CORE_PCI_CFG_OFF_SHIFT		0	/* Register shift */
+
+#define BCMA_CORE_PCI_CFG_BUS_MASK		0xff	/* Bus mask */
+#define BCMA_CORE_PCI_CFG_SLOT_MASK		0x1f	/* Slot/Device mask */
+#define BCMA_CORE_PCI_CFG_FUN_MASK		7	/* Function mask */
+#define BCMA_CORE_PCI_CFG_OFF_MASK		0xfff	/* Register mask */
+
+/* PCIE Root Capability Register bits (Host mode only) */
+#define BCMA_CORE_PCI_RC_CRS_VISIBILITY		0x0001
+
+struct bcma_drv_pci;
+
+#ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
+struct bcma_drv_pci_host {
+	struct bcma_drv_pci *pdev;
+
+	u32 host_cfg_addr;
+	spinlock_t cfgspace_lock;
+
+	struct pci_controller pci_controller;
+	struct pci_ops pci_ops;
+	struct resource mem_resource;
+	struct resource io_resource;
+};
+#endif
+
 struct bcma_drv_pci {
 	struct bcma_device *core;
 	u8 setup_done:1;
+	u8 hostmode:1;
+
+#ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
+	struct bcma_drv_pci_host *host_controller;
+#endif
 };
 
 /* Register access */
@@ -172,5 +207,8 @@ struct bcma_drv_pci {
 extern void __devinit bcma_core_pci_init(struct bcma_drv_pci *pc);
 extern int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc,
 				 struct bcma_device *core, bool enable);
+
+extern int bcma_core_pci_pcibios_map_irq(const struct pci_dev *dev);
+extern int bcma_core_pci_plat_dev_init(struct pci_dev *dev);
 
 #endif /* LINUX_BCMA_DRIVER_PCI_H_ */
