@@ -1019,6 +1019,22 @@ static int fimc_cap_dqbuf(struct file *file, void *priv,
 	return vb2_dqbuf(&fimc->vid_cap.vbq, buf, file->f_flags & O_NONBLOCK);
 }
 
+static int fimc_cap_create_bufs(struct file *file, void *priv,
+				struct v4l2_create_buffers *create)
+{
+	struct fimc_dev *fimc = video_drvdata(file);
+
+	return vb2_create_bufs(&fimc->vid_cap.vbq, create);
+}
+
+static int fimc_cap_prepare_buf(struct file *file, void *priv,
+				struct v4l2_buffer *b)
+{
+	struct fimc_dev *fimc = video_drvdata(file);
+
+	return vb2_prepare_buf(&fimc->vid_cap.vbq, b);
+}
+
 static int fimc_cap_cropcap(struct file *file, void *fh,
 			    struct v4l2_cropcap *cr)
 {
@@ -1081,6 +1097,9 @@ static const struct v4l2_ioctl_ops fimc_capture_ioctl_ops = {
 
 	.vidioc_qbuf			= fimc_cap_qbuf,
 	.vidioc_dqbuf			= fimc_cap_dqbuf,
+
+	.vidioc_prepare_buf		= fimc_cap_prepare_buf,
+	.vidioc_create_bufs		= fimc_cap_create_bufs,
 
 	.vidioc_streamon		= fimc_cap_streamon,
 	.vidioc_streamoff		= fimc_cap_streamoff,
