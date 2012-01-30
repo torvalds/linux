@@ -87,10 +87,11 @@ struct cmd_buf {
 #define HIF_USB_START BIT(0)
 
 struct hif_device_usb {
-	u16 device_id;
 	struct usb_device *udev;
 	struct usb_interface *interface;
+	const struct usb_device_id *usb_device_id;
 	const struct firmware *firmware;
+	struct completion fw_done;
 	struct htc_target *htc_handle;
 	struct hif_usb_tx tx;
 	struct usb_anchor regout_submitted;
