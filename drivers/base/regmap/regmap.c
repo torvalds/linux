@@ -36,6 +36,9 @@ bool regmap_readable(struct regmap *map, unsigned int reg)
 	if (map->max_register && reg > map->max_register)
 		return false;
 
+	if (map->format.format_write)
+		return false;
+
 	if (map->readable_reg)
 		return map->readable_reg(map->dev, reg);
 
@@ -44,7 +47,7 @@ bool regmap_readable(struct regmap *map, unsigned int reg)
 
 bool regmap_volatile(struct regmap *map, unsigned int reg)
 {
-	if (map->max_register && reg > map->max_register)
+	if (!regmap_readable(map, reg))
 		return false;
 
 	if (map->volatile_reg)
@@ -55,7 +58,7 @@ bool regmap_volatile(struct regmap *map, unsigned int reg)
 
 bool regmap_precious(struct regmap *map, unsigned int reg)
 {
-	if (map->max_register && reg > map->max_register)
+	if (!regmap_readable(map, reg))
 		return false;
 
 	if (map->precious_reg)
