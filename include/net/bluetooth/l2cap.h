@@ -614,7 +614,7 @@ static inline void l2cap_set_timer(struct l2cap_chan *chan,
 {
 	BT_DBG("chan %p state %d timeout %ld", chan, chan->state, timeout);
 
-	if (!__cancel_delayed_work(work))
+	if (!cancel_delayed_work(work))
 		l2cap_chan_hold(chan);
 	schedule_delayed_work(work, timeout);
 }
@@ -624,7 +624,7 @@ static inline bool l2cap_clear_timer(struct l2cap_chan *chan,
 {
 	bool ret;
 
-	ret = __cancel_delayed_work(work);
+	ret = cancel_delayed_work(work);
 	if (ret)
 		l2cap_chan_put(chan);
 
