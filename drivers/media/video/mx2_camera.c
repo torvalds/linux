@@ -373,7 +373,7 @@ static int mx2_camera_add_device(struct soc_camera_device *icd)
 	writel(pcdev->csicr1, pcdev->base_csi + CSICR1);
 
 	pcdev->icd = icd;
-	pcdev->frame_count = 0;
+	pcdev->frame_count = -1;
 
 	dev_info(icd->parent, "Camera driver attached to camera %d\n",
 		 icd->devnum);
@@ -644,11 +644,79 @@ static void mx2_videobuf_release(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&pcdev->lock, flags);
 }
 
+static int mx2_start_streaming(struct vb2_queue *q, unsigned int count)
+{
+	struct soc_camera_device *icd = soc_camera_from_vb2q(q);
+	struct soc_camera_host *ici =
+		to_soc_camera_host(icd->parent);
+	struct mx2_camera_dev *pcdev = ici->priv;
+	struct mx2_fmt_cfg *prp = pcdev->emma_prp;
+
+	if (cpu_is_mx27()) {
+		unsigned long flags;
+		if (count < 2)
+			return -EINVAL;
+
+		spin_lock_irqsave(&pcdev->lock, flags);
+		if (prp->cfg.channel == 1) {
+			writel(PRP_CNTL_CH1EN |
+				PRP_CNTL_CSIEN |
+				prp->cfg.in_fmt |
+				prp->cfg.out_fmt |
+				PRP_CNTL_CH1_LEN |
+				PRP_CNTL_CH1BYP |
+				PRP_CNTL_CH1_TSKIP(0) |
+				PRP_CNTL_IN_TSKIP(0),
+				pcdev->base_emma + PRP_CNTL);
+		} else {
+			writel(PRP_CNTL_CH2EN |
+				PRP_CNTL_CSIEN |
+				prp->cfg.in_fmt |
+				prp->cfg.out_fmt |
+				PRP_CNTL_CH2_LEN |
+				PRP_CNTL_CH2_TSKIP(0) |
+				PRP_CNTL_IN_TSKIP(0),
+				pcdev->base_emma + PRP_CNTL);
+		}
+		spin_unlock_irqrestore(&pcdev->lock, flags);
+	}
+
+	return 0;
+}
+
+static int mx2_stop_streaming(struct vb2_queue *q)
+{
+	struct soc_camera_device *icd = soc_camera_from_vb2q(q);
+	struct soc_camera_host *ici =
+		to_soc_camera_host(icd->parent);
+	struct mx2_camera_dev *pcdev = ici->priv;
+	struct mx2_fmt_cfg *prp = pcdev->emma_prp;
+	unsigned long flags;
+	u32 cntl;
+
+	spin_lock_irqsave(&pcdev->lock, flags);
+	if (cpu_is_mx27()) {
+		cntl = readl(pcdev->base_emma + PRP_CNTL);
+		if (prp->cfg.channel == 1) {
+			writel(cntl & ~PRP_CNTL_CH1EN,
+			       pcdev->base_emma + PRP_CNTL);
+		} else {
+			writel(cntl & ~PRP_CNTL_CH2EN,
+			       pcdev->base_emma + PRP_CNTL);
+		}
+	}
+	spin_unlock_irqrestore(&pcdev->lock, flags);
+
+	return 0;
+}
+
 static struct vb2_ops mx2_videobuf_ops = {
-	.queue_setup	= mx2_videobuf_setup,
-	.buf_prepare	= mx2_videobuf_prepare,
-	.buf_queue	= mx2_videobuf_queue,
-	.buf_cleanup	= mx2_videobuf_release,
+	.queue_setup	 = mx2_videobuf_setup,
+	.buf_prepare	 = mx2_videobuf_prepare,
+	.buf_queue	 = mx2_videobuf_queue,
+	.buf_cleanup	 = mx2_videobuf_release,
+	.start_streaming = mx2_start_streaming,
+	.stop_streaming	 = mx2_stop_streaming,
 };
 
 static int mx2_camera_init_videobuf(struct vb2_queue *q,
@@ -706,16 +774,6 @@ static void mx27_camera_emma_buf_init(struct soc_camera_device *icd,
 		writel(pcdev->discard_buffer_dma,
 				pcdev->base_emma + PRP_DEST_RGB2_PTR);
 
-		writel(PRP_CNTL_CH1EN |
-				PRP_CNTL_CSIEN |
-				prp->cfg.in_fmt |
-				prp->cfg.out_fmt |
-				PRP_CNTL_CH1_LEN |
-				PRP_CNTL_CH1BYP |
-				PRP_CNTL_CH1_TSKIP(0) |
-				PRP_CNTL_IN_TSKIP(0),
-				pcdev->base_emma + PRP_CNTL);
-
 		writel((icd->user_width << 16) | icd->user_height,
 			pcdev->base_emma + PRP_SRC_FRAME_SIZE);
 		writel((icd->user_width << 16) | icd->user_height,
@@ -742,15 +800,6 @@ static void mx27_camera_emma_buf_init(struct soc_camera_device *icd,
 			writel(pcdev->discard_buffer_dma + ((5 * imgsize) / 4),
 				pcdev->base_emma + PRP_SOURCE_CR_PTR);
 		}
-
-		writel(PRP_CNTL_CH2EN |
-			PRP_CNTL_CSIEN |
-			prp->cfg.in_fmt |
-			prp->cfg.out_fmt |
-			PRP_CNTL_CH2_LEN |
-			PRP_CNTL_CH2_TSKIP(0) |
-			PRP_CNTL_IN_TSKIP(0),
-			pcdev->base_emma + PRP_CNTL);
 
 		writel((icd->user_width << 16) | icd->user_height,
 			pcdev->base_emma + PRP_SRC_FRAME_SIZE);
@@ -1156,10 +1205,11 @@ static void mx27_camera_frame_done_emma(struct mx2_camera_dev *pcdev,
 
 		list_del_init(&buf->queue);
 		do_gettimeofday(&vb->v4l2_buf.timestamp);
-		pcdev->frame_count++;
 		vb->v4l2_buf.sequence = pcdev->frame_count;
 		vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
 	}
+
+	pcdev->frame_count++;
 
 	if (list_empty(&pcdev->capture)) {
 		if (prp->cfg.channel == 1) {
