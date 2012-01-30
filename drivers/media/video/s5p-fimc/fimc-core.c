@@ -1602,24 +1602,35 @@ static void fimc_clk_put(struct fimc_dev *fimc)
 {
 	int i;
 	for (i = 0; i < fimc->num_clocks; i++) {
-		if (fimc->clock[i])
-			clk_put(fimc->clock[i]);
+		if (IS_ERR_OR_NULL(fimc->clock[i]))
+			continue;
+		clk_unprepare(fimc->clock[i]);
+		clk_put(fimc->clock[i]);
+		fimc->clock[i] = NULL;
 	}
 }
 
 static int fimc_clk_get(struct fimc_dev *fimc)
 {
-	int i;
+	int i, ret;
+
 	for (i = 0; i < fimc->num_clocks; i++) {
 		fimc->clock[i] = clk_get(&fimc->pdev->dev, fimc_clocks[i]);
-		if (!IS_ERR_OR_NULL(fimc->clock[i]))
-			continue;
-		dev_err(&fimc->pdev->dev, "failed to get fimc clock: %s\n",
-			fimc_clocks[i]);
-		return -ENXIO;
+		if (IS_ERR(fimc->clock[i]))
+			goto err;
+		ret = clk_prepare(fimc->clock[i]);
+		if (ret < 0) {
+			clk_put(fimc->clock[i]);
+			fimc->clock[i] = NULL;
+			goto err;
+		}
 	}
-
 	return 0;
+err:
+	fimc_clk_put(fimc);
+	dev_err(&fimc->pdev->dev, "failed to get clock: %s\n",
+		fimc_clocks[i]);
+	return -ENXIO;
 }
 
 static int fimc_m2m_suspend(struct fimc_dev *fimc)

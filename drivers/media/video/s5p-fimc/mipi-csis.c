@@ -258,26 +258,36 @@ static void s5pcsis_clk_put(struct csis_state *state)
 {
 	int i;
 
-	for (i = 0; i < NUM_CSIS_CLOCKS; i++)
-		if (!IS_ERR_OR_NULL(state->clock[i]))
-			clk_put(state->clock[i]);
+	for (i = 0; i < NUM_CSIS_CLOCKS; i++) {
+		if (IS_ERR_OR_NULL(state->clock[i]))
+			continue;
+		clk_unprepare(state->clock[i]);
+		clk_put(state->clock[i]);
+		state->clock[i] = NULL;
+	}
 }
 
 static int s5pcsis_clk_get(struct csis_state *state)
 {
 	struct device *dev = &state->pdev->dev;
-	int i;
+	int i, ret;
 
 	for (i = 0; i < NUM_CSIS_CLOCKS; i++) {
 		state->clock[i] = clk_get(dev, csi_clock_name[i]);
-		if (IS_ERR(state->clock[i])) {
-			s5pcsis_clk_put(state);
-			dev_err(dev, "failed to get clock: %s\n",
-				csi_clock_name[i]);
-			return -ENXIO;
+		if (IS_ERR(state->clock[i]))
+			goto err;
+		ret = clk_prepare(state->clock[i]);
+		if (ret < 0) {
+			clk_put(state->clock[i]);
+			state->clock[i] = NULL;
+			goto err;
 		}
 	}
 	return 0;
+err:
+	s5pcsis_clk_put(state);
+	dev_err(dev, "failed to get clock: %s\n", csi_clock_name[i]);
+	return -ENXIO;
 }
 
 static int s5pcsis_s_power(struct v4l2_subdev *sd, int on)
