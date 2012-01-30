@@ -13,8 +13,6 @@
 static int host_has_cmov = 1;
 static jmp_buf cmov_test_return;
 
-#define TASK_PID(task) *((int *) &(((char *) (task))[HOST_TASK_PID]))
-
 static void cmov_sigill_test_handler(int sig)
 {
 	host_has_cmov = 0;
@@ -51,7 +49,7 @@ void arch_examine_signal(int sig, struct uml_pt_regs *regs)
 	 * This is testing for a cmov (0x0f 0x4x) instruction causing a
 	 * SIGILL in init.
 	 */
-	if ((sig != SIGILL) || (TASK_PID(get_current()) != 1))
+	if ((sig != SIGILL) || (get_current_pid() != 1))
 		return;
 
 	if (copy_from_user_proc(tmp, (void *) UPT_IP(regs), 2)) {
