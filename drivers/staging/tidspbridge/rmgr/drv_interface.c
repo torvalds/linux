@@ -52,7 +52,6 @@
 #endif
 
 /*  ----------------------------------- Globals */
-#define DRIVER_NAME  "DspBridge"
 #define DSPBRIDGE_VERSION	"0.3"
 s32 dsp_debug;
 
@@ -120,8 +119,6 @@ MODULE_PARM_DESC(tc_wordswapon, "TC Word Swap Option. default = 0");
 MODULE_AUTHOR("Texas Instruments");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DSPBRIDGE_VERSION);
-
-static char *driver_name = DRIVER_NAME;
 
 /*
  * This function is called when an application opens handle to the
@@ -490,7 +487,7 @@ static int __devinit omap34_xx_bridge_probe(struct platform_device *pdev)
 		goto err1;
 
 	/* use 2.6 device model */
-	err = alloc_chrdev_region(&dev, 0, 1, driver_name);
+	err = alloc_chrdev_region(&dev, 0, 1, "DspBridge");
 	if (err) {
 		pr_err("%s: Can't get major %d\n", __func__, driver_major);
 		goto err1;
