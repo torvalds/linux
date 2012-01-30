@@ -257,7 +257,6 @@ err:
 /* This function maps kernel space memory to user space memory. */
 static int bridge_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	u32 offset = vma->vm_pgoff << PAGE_SHIFT;
 	u32 status;
 
 	DBC_ASSERT(vma->vm_start < vma->vm_end);
@@ -265,8 +264,8 @@ static int bridge_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_RESERVED | VM_IO;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-	dev_dbg(bridge, "%s: vm filp %p offset %x start %lx end %lx page_prot "
-		"%ulx flags %lx\n", __func__, filp, offset,
+	dev_dbg(bridge, "%s: vm filp %p start %lx end %lx page_prot %ulx "
+		"flags %lx\n", __func__, filp,
 		vma->vm_start, vma->vm_end, vma->vm_page_prot,
 		vma->vm_flags);
 
