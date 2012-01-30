@@ -1271,6 +1271,19 @@ int tty_init_termios(struct tty_struct *tty)
 }
 EXPORT_SYMBOL_GPL(tty_init_termios);
 
+int tty_standard_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	int ret = tty_init_termios(tty);
+	if (ret)
+		return ret;
+
+	tty_driver_kref_get(driver);
+	tty->count++;
+	driver->ttys[tty->index] = tty;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tty_standard_install);
+
 /**
  *	tty_driver_install_tty() - install a tty entry in the driver
  *	@driver: the driver for the tty
@@ -1286,21 +1299,8 @@ EXPORT_SYMBOL_GPL(tty_init_termios);
 static int tty_driver_install_tty(struct tty_driver *driver,
 						struct tty_struct *tty)
 {
-	int idx = tty->index;
-	int ret;
-
-	if (driver->ops->install) {
-		ret = driver->ops->install(driver, tty);
-		return ret;
-	}
-
-	if (tty_init_termios(tty) == 0) {
-		tty_driver_kref_get(driver);
-		tty->count++;
-		driver->ttys[idx] = tty;
-		return 0;
-	}
-	return -ENOMEM;
+	return driver->ops->install ? driver->ops->install(driver, tty) :
+		tty_standard_install(driver, tty);
 }
 
 /**
