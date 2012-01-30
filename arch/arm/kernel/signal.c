@@ -227,6 +227,8 @@ static int restore_vfp_context(struct vfp_sigframe __user *frame)
 	if (magic != VFP_MAGIC || size != VFP_STORAGE_SIZE)
 		return -EINVAL;
 
+	vfp_flush_hwstate(thread);
+
 	/*
 	 * Copy the floating point registers. There can be unused
 	 * registers see asm/hwcap.h for details.
@@ -250,9 +252,6 @@ static int restore_vfp_context(struct vfp_sigframe __user *frame)
 
 	__get_user_error(h->fpinst, &frame->ufp_exc.fpinst, err);
 	__get_user_error(h->fpinst2, &frame->ufp_exc.fpinst2, err);
-
-	if (!err)
-		vfp_flush_hwstate(thread);
 
 	return err ? -EFAULT : 0;
 }
