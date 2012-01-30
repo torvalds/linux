@@ -314,7 +314,7 @@ static int nfsd_get_default_max_blksize(void)
 	unsigned long ret;
 
 	si_meminfo(&i);
-	target = i.totalram << PAGE_SHIFT;
+	target = (i.totalram - i.totalhigh) << PAGE_SHIFT;
 	/*
 	 * Aim for 1/4096 of memory per thread This gives 1MB on 4Gig
 	 * machines, but only uses 32K on 128M machines.  Bottom out at
