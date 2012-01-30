@@ -340,9 +340,7 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
 		fastcc = false;
 
 	ath_dbg(common, CONFIG, "Reset to %u MHz, HT40: %d fastcc: %d\n",
-		hchan->channel, !!(hchan->channelFlags & (CHANNEL_HT40MINUS |
-							  CHANNEL_HT40PLUS)),
-		fastcc);
+		hchan->channel, IS_CHAN_HT40(hchan), fastcc);
 
 	r = ath9k_hw_reset(ah, hchan, caldata, fastcc);
 	if (r) {
