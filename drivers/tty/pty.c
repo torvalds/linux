@@ -54,10 +54,7 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 	wake_up_interruptible(&tty->link->write_wait);
 	if (tty->driver->subtype == PTY_TYPE_MASTER) {
 		set_bit(TTY_OTHER_CLOSED, &tty->flags);
-#ifdef CONFIG_UNIX98_PTYS
-		if (tty->driver == ptm_driver)
-			devpts_pty_kill(tty->link);
-#endif
+		devpts_pty_kill(tty->link);
 		tty_unlock();
 		tty_vhangup(tty->link);
 		tty_lock();
