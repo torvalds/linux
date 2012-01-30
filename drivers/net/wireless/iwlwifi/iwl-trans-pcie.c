@@ -1504,7 +1504,7 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 	err = iwl_prepare_card_hw(trans);
 	if (err) {
 		IWL_ERR(trans, "Error while preparing HW: %d", err);
-		goto error;
+		goto err_free_irq;
 	}
 
 	iwl_apm_init(trans);
@@ -1522,6 +1522,8 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 
 	return err;
 
+err_free_irq:
+	free_irq(trans->irq, trans);
 error:
 	iwl_free_isr_ict(trans);
 	tasklet_kill(&trans_pcie->irq_tasklet);
