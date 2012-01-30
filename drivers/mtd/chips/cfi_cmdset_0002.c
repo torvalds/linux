@@ -192,7 +192,7 @@ static void fixup_use_write_buffers(struct mtd_info *mtd)
 	struct cfi_private *cfi = map->fldrv_priv;
 	if (cfi->cfiq->BufWriteTimeoutTyp) {
 		pr_debug("Using buffer write method\n" );
-		mtd->write = cfi_amdstd_write_buffers;
+		mtd->_write = cfi_amdstd_write_buffers;
 	}
 }
 
@@ -231,8 +231,8 @@ static void fixup_convert_atmel_pri(struct mtd_info *mtd)
 static void fixup_use_secsi(struct mtd_info *mtd)
 {
 	/* Setup for chips with a secsi area */
-	mtd->read_user_prot_reg = cfi_amdstd_secsi_read;
-	mtd->read_fact_prot_reg = cfi_amdstd_secsi_read;
+	mtd->_read_user_prot_reg = cfi_amdstd_secsi_read;
+	mtd->_read_fact_prot_reg = cfi_amdstd_secsi_read;
 }
 
 static void fixup_use_erase_chip(struct mtd_info *mtd)
@@ -241,7 +241,7 @@ static void fixup_use_erase_chip(struct mtd_info *mtd)
 	struct cfi_private *cfi = map->fldrv_priv;
 	if ((cfi->cfiq->NumEraseRegions == 1) &&
 		((cfi->cfiq->EraseRegionInfo[0] & 0xffff) == 0)) {
-		mtd->erase = cfi_amdstd_erase_chip;
+		mtd->_erase = cfi_amdstd_erase_chip;
 	}
 
 }
@@ -252,8 +252,8 @@ static void fixup_use_erase_chip(struct mtd_info *mtd)
  */
 static void fixup_use_atmel_lock(struct mtd_info *mtd)
 {
-	mtd->lock = cfi_atmel_lock;
-	mtd->unlock = cfi_atmel_unlock;
+	mtd->_lock = cfi_atmel_lock;
+	mtd->_unlock = cfi_atmel_unlock;
 	mtd->flags |= MTD_POWERUP_LOCK;
 }
 
@@ -432,12 +432,12 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 	mtd->type = MTD_NORFLASH;
 
 	/* Fill in the default mtd operations */
-	mtd->erase   = cfi_amdstd_erase_varsize;
-	mtd->write   = cfi_amdstd_write_words;
-	mtd->read    = cfi_amdstd_read;
-	mtd->sync    = cfi_amdstd_sync;
-	mtd->suspend = cfi_amdstd_suspend;
-	mtd->resume  = cfi_amdstd_resume;
+	mtd->_erase   = cfi_amdstd_erase_varsize;
+	mtd->_write   = cfi_amdstd_write_words;
+	mtd->_read    = cfi_amdstd_read;
+	mtd->_sync    = cfi_amdstd_sync;
+	mtd->_suspend = cfi_amdstd_suspend;
+	mtd->_resume  = cfi_amdstd_resume;
 	mtd->flags   = MTD_CAP_NORFLASH;
 	mtd->name    = map->name;
 	mtd->writesize = 1;
@@ -446,7 +446,7 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 	pr_debug("MTD %s(): write buffer size %d\n", __func__,
 			mtd->writebufsize);
 
-	mtd->panic_write = cfi_amdstd_panic_write;
+	mtd->_panic_write = cfi_amdstd_panic_write;
 	mtd->reboot_notifier.notifier_call = cfi_amdstd_reboot;
 
 	if (cfi->cfi_mode==CFI_MODE_CFI){

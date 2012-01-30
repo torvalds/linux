@@ -64,11 +64,11 @@ static struct mtd_info *map_ram_probe(struct map_info *map)
 	mtd->name = map->name;
 	mtd->type = MTD_RAM;
 	mtd->size = map->size;
-	mtd->erase = mapram_erase;
-	mtd->get_unmapped_area = mapram_unmapped_area;
-	mtd->read = mapram_read;
-	mtd->write = mapram_write;
-	mtd->sync = mapram_nop;
+	mtd->_erase = mapram_erase;
+	mtd->_get_unmapped_area = mapram_unmapped_area;
+	mtd->_read = mapram_read;
+	mtd->_write = mapram_write;
+	mtd->_sync = mapram_nop;
 	mtd->flags = MTD_CAP_RAM;
 	mtd->writesize = 1;
 

@@ -635,9 +635,9 @@ static int __init lart_flash_init (void)
    mtd.erasesize = FLASH_BLOCKSIZE_MAIN;
    mtd.numeraseregions = ARRAY_SIZE(erase_regions);
    mtd.eraseregions = erase_regions;
-   mtd.erase = flash_erase;
-   mtd.read = flash_read;
-   mtd.write = flash_write;
+   mtd._erase = flash_erase;
+   mtd._read = flash_read;
+   mtd._write = flash_write;
    mtd.owner = THIS_MODULE;
 
 #ifdef LART_DEBUG

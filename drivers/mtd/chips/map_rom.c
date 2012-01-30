@@ -41,11 +41,11 @@ static struct mtd_info *map_rom_probe(struct map_info *map)
 	mtd->name = map->name;
 	mtd->type = MTD_ROM;
 	mtd->size = map->size;
-	mtd->get_unmapped_area = maprom_unmapped_area;
-	mtd->read = maprom_read;
-	mtd->write = maprom_write;
-	mtd->sync = maprom_nop;
-	mtd->erase = maprom_erase;
+	mtd->_get_unmapped_area = maprom_unmapped_area;
+	mtd->_read = maprom_read;
+	mtd->_write = maprom_write;
+	mtd->_sync = maprom_nop;
+	mtd->_erase = maprom_erase;
 	mtd->flags = MTD_CAP_ROM;
 	mtd->erasesize = map->size;
 	mtd->writesize = 1;

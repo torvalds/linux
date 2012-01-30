@@ -263,10 +263,10 @@ static int efx_mtd_probe_device(struct efx_nic *efx, struct efx_mtd *efx_mtd)
 		part->mtd.owner = THIS_MODULE;
 		part->mtd.priv = efx_mtd;
 		part->mtd.name = part->name;
-		part->mtd.erase = efx_mtd_erase;
-		part->mtd.read = efx_mtd->ops->read;
-		part->mtd.write = efx_mtd->ops->write;
-		part->mtd.sync = efx_mtd_sync;
+		part->mtd._erase = efx_mtd_erase;
+		part->mtd._read = efx_mtd->ops->read;
+		part->mtd._write = efx_mtd->ops->write;
+		part->mtd._sync = efx_mtd_sync;
 
 		if (mtd_device_register(&part->mtd, NULL, 0))
 			goto fail;

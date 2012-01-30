@@ -340,11 +340,11 @@ static int gluebi_create(struct ubi_device_info *di,
 	mtd->owner      = THIS_MODULE;
 	mtd->writesize  = di->min_io_size;
 	mtd->erasesize  = vi->usable_leb_size;
-	mtd->read       = gluebi_read;
-	mtd->write      = gluebi_write;
-	mtd->erase      = gluebi_erase;
-	mtd->get_device = gluebi_get_device;
-	mtd->put_device = gluebi_put_device;
+	mtd->_read       = gluebi_read;
+	mtd->_write      = gluebi_write;
+	mtd->_erase      = gluebi_erase;
+	mtd->_get_device = gluebi_get_device;
+	mtd->_put_device = gluebi_put_device;
 
 	/*
 	 * In case of dynamic a volume, MTD device size is just volume size. In

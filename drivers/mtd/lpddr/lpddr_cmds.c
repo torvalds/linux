@@ -63,18 +63,18 @@ struct mtd_info *lpddr_cmdset(struct map_info *map)
 	mtd->type = MTD_NORFLASH;
 
 	/* Fill in the default mtd operations */
-	mtd->read = lpddr_read;
+	mtd->_read = lpddr_read;
 	mtd->type = MTD_NORFLASH;
 	mtd->flags = MTD_CAP_NORFLASH;
 	mtd->flags &= ~MTD_BIT_WRITEABLE;
-	mtd->erase = lpddr_erase;
-	mtd->write = lpddr_write_buffers;
-	mtd->writev = lpddr_writev;
-	mtd->lock = lpddr_lock;
-	mtd->unlock = lpddr_unlock;
+	mtd->_erase = lpddr_erase;
+	mtd->_write = lpddr_write_buffers;
+	mtd->_writev = lpddr_writev;
+	mtd->_lock = lpddr_lock;
+	mtd->_unlock = lpddr_unlock;
 	if (map_is_linear(map)) {
-		mtd->point = lpddr_point;
-		mtd->unpoint = lpddr_unpoint;
+		mtd->_point = lpddr_point;
+		mtd->_unpoint = lpddr_unpoint;
 	}
 	mtd->size = 1 << lpddr->qinfo->DevSizeShift;
 	mtd->erasesize = 1 << lpddr->qinfo->UniformBlockSizeShift;

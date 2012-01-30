@@ -228,15 +228,15 @@ static struct mtd_info *cfi_staa_setup(struct map_info *map)
 		}
 
 	/* Also select the correct geometry setup too */
-	mtd->erase = cfi_staa_erase_varsize;
-	mtd->read = cfi_staa_read;
-        mtd->write = cfi_staa_write_buffers;
-	mtd->writev = cfi_staa_writev;
-	mtd->sync = cfi_staa_sync;
-	mtd->lock = cfi_staa_lock;
-	mtd->unlock = cfi_staa_unlock;
-	mtd->suspend = cfi_staa_suspend;
-	mtd->resume = cfi_staa_resume;
+	mtd->_erase = cfi_staa_erase_varsize;
+	mtd->_read = cfi_staa_read;
+	mtd->_write = cfi_staa_write_buffers;
+	mtd->_writev = cfi_staa_writev;
+	mtd->_sync = cfi_staa_sync;
+	mtd->_lock = cfi_staa_lock;
+	mtd->_unlock = cfi_staa_unlock;
+	mtd->_suspend = cfi_staa_suspend;
+	mtd->_resume = cfi_staa_resume;
 	mtd->flags = MTD_CAP_NORFLASH & ~MTD_BIT_WRITEABLE;
 	mtd->writesize = 8; /* FIXME: Should be 0 for STMicro flashes w/out ECC */
 	mtd->writebufsize = cfi_interleave(cfi) << cfi->cfiq->MaxBufWriteSize;

@@ -611,16 +611,16 @@ static int dataflash_write_user_otp(struct mtd_info *mtd,
 
 static char *otp_setup(struct mtd_info *device, char revision)
 {
-	device->get_fact_prot_info = dataflash_get_otp_info;
-	device->read_fact_prot_reg = dataflash_read_fact_otp;
-	device->get_user_prot_info = dataflash_get_otp_info;
-	device->read_user_prot_reg = dataflash_read_user_otp;
+	device->_get_fact_prot_info = dataflash_get_otp_info;
+	device->_read_fact_prot_reg = dataflash_read_fact_otp;
+	device->_get_user_prot_info = dataflash_get_otp_info;
+	device->_read_user_prot_reg = dataflash_read_user_otp;
 
 	/* rev c parts (at45db321c and at45db1281 only!) use a
 	 * different write procedure; not (yet?) implemented.
 	 */
 	if (revision > 'c')
-		device->write_user_prot_reg = dataflash_write_user_otp;
+		device->_write_user_prot_reg = dataflash_write_user_otp;
 
 	return ", OTP";
 }
@@ -672,9 +672,9 @@ add_dataflash_otp(struct spi_device *spi, char *name,
 	device->owner = THIS_MODULE;
 	device->type = MTD_DATAFLASH;
 	device->flags = MTD_WRITEABLE;
-	device->erase = dataflash_erase;
-	device->read = dataflash_read;
-	device->write = dataflash_write;
+	device->_erase = dataflash_erase;
+	device->_read = dataflash_read;
+	device->_write = dataflash_write;
 	device->priv = priv;
 
 	device->dev.parent = &spi->dev;

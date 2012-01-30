@@ -200,11 +200,11 @@ static int register_device(char *name, unsigned long start, unsigned long length
 	(*curmtd)->mtdinfo->name = name;
 	(*curmtd)->mtdinfo->size = length;
 	(*curmtd)->mtdinfo->flags = MTD_CAP_RAM;
-        (*curmtd)->mtdinfo->erase = slram_erase;
-	(*curmtd)->mtdinfo->point = slram_point;
-	(*curmtd)->mtdinfo->unpoint = slram_unpoint;
-	(*curmtd)->mtdinfo->read = slram_read;
-	(*curmtd)->mtdinfo->write = slram_write;
+	(*curmtd)->mtdinfo->_erase = slram_erase;
+	(*curmtd)->mtdinfo->_point = slram_point;
+	(*curmtd)->mtdinfo->_unpoint = slram_unpoint;
+	(*curmtd)->mtdinfo->_read = slram_read;
+	(*curmtd)->mtdinfo->_write = slram_write;
 	(*curmtd)->mtdinfo->owner = THIS_MODULE;
 	(*curmtd)->mtdinfo->type = MTD_RAM;
 	(*curmtd)->mtdinfo->erasesize = SLRAM_BLK_SZ;

@@ -262,7 +262,7 @@ static int part_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 void mtd_erase_callback(struct erase_info *instr)
 {
-	if (instr->mtd->erase == part_erase) {
+	if (instr->mtd->_erase == part_erase) {
 		struct mtd_part *part = PART(instr->mtd);
 
 		if (instr->fail_addr != MTD_FAIL_ADDR_UNKNOWN)
@@ -410,54 +410,55 @@ static struct mtd_part *allocate_partition(struct mtd_info *master,
 	 */
 	slave->mtd.dev.parent = master->dev.parent;
 
-	slave->mtd.read = part_read;
-	slave->mtd.write = part_write;
+	slave->mtd._read = part_read;
+	slave->mtd._write = part_write;
 
-	if (master->panic_write)
-		slave->mtd.panic_write = part_panic_write;
+	if (master->_panic_write)
+		slave->mtd._panic_write = part_panic_write;
 
-	if (master->point && master->unpoint) {
-		slave->mtd.point = part_point;
-		slave->mtd.unpoint = part_unpoint;
+	if (master->_point && master->_unpoint) {
+		slave->mtd._point = part_point;
+		slave->mtd._unpoint = part_unpoint;
 	}
 
-	if (master->get_unmapped_area)
-		slave->mtd.get_unmapped_area = part_get_unmapped_area;
-	if (master->read_oob)
-		slave->mtd.read_oob = part_read_oob;
-	if (master->write_oob)
-		slave->mtd.write_oob = part_write_oob;
-	if (master->read_user_prot_reg)
-		slave->mtd.read_user_prot_reg = part_read_user_prot_reg;
-	if (master->read_fact_prot_reg)
-		slave->mtd.read_fact_prot_reg = part_read_fact_prot_reg;
-	if (master->write_user_prot_reg)
-		slave->mtd.write_user_prot_reg = part_write_user_prot_reg;
-	if (master->lock_user_prot_reg)
-		slave->mtd.lock_user_prot_reg = part_lock_user_prot_reg;
-	if (master->get_user_prot_info)
-		slave->mtd.get_user_prot_info = part_get_user_prot_info;
-	if (master->get_fact_prot_info)
-		slave->mtd.get_fact_prot_info = part_get_fact_prot_info;
-	if (master->sync)
-		slave->mtd.sync = part_sync;
-	if (!partno && !master->dev.class && master->suspend && master->resume) {
-			slave->mtd.suspend = part_suspend;
-			slave->mtd.resume = part_resume;
+	if (master->_get_unmapped_area)
+		slave->mtd._get_unmapped_area = part_get_unmapped_area;
+	if (master->_read_oob)
+		slave->mtd._read_oob = part_read_oob;
+	if (master->_write_oob)
+		slave->mtd._write_oob = part_write_oob;
+	if (master->_read_user_prot_reg)
+		slave->mtd._read_user_prot_reg = part_read_user_prot_reg;
+	if (master->_read_fact_prot_reg)
+		slave->mtd._read_fact_prot_reg = part_read_fact_prot_reg;
+	if (master->_write_user_prot_reg)
+		slave->mtd._write_user_prot_reg = part_write_user_prot_reg;
+	if (master->_lock_user_prot_reg)
+		slave->mtd._lock_user_prot_reg = part_lock_user_prot_reg;
+	if (master->_get_user_prot_info)
+		slave->mtd._get_user_prot_info = part_get_user_prot_info;
+	if (master->_get_fact_prot_info)
+		slave->mtd._get_fact_prot_info = part_get_fact_prot_info;
+	if (master->_sync)
+		slave->mtd._sync = part_sync;
+	if (!partno && !master->dev.class && master->_suspend &&
+	    master->_resume) {
+			slave->mtd._suspend = part_suspend;
+			slave->mtd._resume = part_resume;
 	}
-	if (master->writev)
-		slave->mtd.writev = part_writev;
-	if (master->lock)
-		slave->mtd.lock = part_lock;
-	if (master->unlock)
-		slave->mtd.unlock = part_unlock;
-	if (master->is_locked)
-		slave->mtd.is_locked = part_is_locked;
-	if (master->block_isbad)
-		slave->mtd.block_isbad = part_block_isbad;
-	if (master->block_markbad)
-		slave->mtd.block_markbad = part_block_markbad;
-	slave->mtd.erase = part_erase;
+	if (master->_writev)
+		slave->mtd._writev = part_writev;
+	if (master->_lock)
+		slave->mtd._lock = part_lock;
+	if (master->_unlock)
+		slave->mtd._unlock = part_unlock;
+	if (master->_is_locked)
+		slave->mtd._is_locked = part_is_locked;
+	if (master->_block_isbad)
+		slave->mtd._block_isbad = part_block_isbad;
+	if (master->_block_markbad)
+		slave->mtd._block_markbad = part_block_markbad;
+	slave->mtd._erase = part_erase;
 	slave->master = master;
 	slave->offset = part->offset;
 
@@ -549,7 +550,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *master,
 	}
 
 	slave->mtd.ecclayout = master->ecclayout;
-	if (master->block_isbad) {
+	if (master->_block_isbad) {
 		uint64_t offs = 0;
 
 		while (offs < slave->mtd.size) {

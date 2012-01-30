@@ -3483,21 +3483,21 @@ int nand_scan_tail(struct mtd_info *mtd)
 	mtd->type = MTD_NANDFLASH;
 	mtd->flags = (chip->options & NAND_ROM) ? MTD_CAP_ROM :
 						MTD_CAP_NANDFLASH;
-	mtd->erase = nand_erase;
-	mtd->point = NULL;
-	mtd->unpoint = NULL;
-	mtd->read = nand_read;
-	mtd->write = nand_write;
-	mtd->panic_write = panic_nand_write;
-	mtd->read_oob = nand_read_oob;
-	mtd->write_oob = nand_write_oob;
-	mtd->sync = nand_sync;
-	mtd->lock = NULL;
-	mtd->unlock = NULL;
-	mtd->suspend = nand_suspend;
-	mtd->resume = nand_resume;
-	mtd->block_isbad = nand_block_isbad;
-	mtd->block_markbad = nand_block_markbad;
+	mtd->_erase = nand_erase;
+	mtd->_point = NULL;
+	mtd->_unpoint = NULL;
+	mtd->_read = nand_read;
+	mtd->_write = nand_write;
+	mtd->_panic_write = panic_nand_write;
+	mtd->_read_oob = nand_read_oob;
+	mtd->_write_oob = nand_write_oob;
+	mtd->_sync = nand_sync;
+	mtd->_lock = NULL;
+	mtd->_unlock = NULL;
+	mtd->_suspend = nand_suspend;
+	mtd->_resume = nand_resume;
+	mtd->_block_isbad = nand_block_isbad;
+	mtd->_block_markbad = nand_block_markbad;
 	mtd->writebufsize = mtd->writesize;
 
 	/* propagate ecc.layout to mtd_info */

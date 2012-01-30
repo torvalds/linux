@@ -846,9 +846,9 @@ static int spear_smi_setup_banks(struct platform_device *pdev, u32 bank)
 	flash->mtd.erasesize = flash_devices[flash_index].sectorsize;
 	flash->page_size = flash_devices[flash_index].pagesize;
 	flash->erase_cmd = flash_devices[flash_index].erase_cmd;
-	flash->mtd.erase = spear_mtd_erase;
-	flash->mtd.read = spear_mtd_read;
-	flash->mtd.write = spear_mtd_write;
+	flash->mtd._erase = spear_mtd_erase;
+	flash->mtd._read = spear_mtd_read;
+	flash->mtd._write = spear_mtd_write;
 	flash->dev_id = flash_devices[flash_index].device_id;
 
 	dev_info(&dev->pdev->dev, "mtd .name=%s .size=%llx(%lluM)\n",

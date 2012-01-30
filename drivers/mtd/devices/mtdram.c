@@ -126,12 +126,12 @@ int mtdram_init_device(struct mtd_info *mtd, void *mapped_address,
 	mtd->priv = mapped_address;
 
 	mtd->owner = THIS_MODULE;
-	mtd->erase = ram_erase;
-	mtd->point = ram_point;
-	mtd->unpoint = ram_unpoint;
-	mtd->get_unmapped_area = ram_get_unmapped_area;
-	mtd->read = ram_read;
-	mtd->write = ram_write;
+	mtd->_erase = ram_erase;
+	mtd->_point = ram_point;
+	mtd->_unpoint = ram_unpoint;
+	mtd->_get_unmapped_area = ram_get_unmapped_area;
+	mtd->_read = ram_read;
+	mtd->_write = ram_write;
 
 	if (mtd_device_register(mtd, NULL, 0))
 		return -EIO;

@@ -262,9 +262,9 @@ static void fixup_st_m28w320cb(struct mtd_info *mtd)
 static void fixup_use_point(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
-	if (!mtd->point && map_is_linear(map)) {
-		mtd->point   = cfi_intelext_point;
-		mtd->unpoint = cfi_intelext_unpoint;
+	if (!mtd->_point && map_is_linear(map)) {
+		mtd->_point   = cfi_intelext_point;
+		mtd->_unpoint = cfi_intelext_unpoint;
 	}
 }
 
@@ -274,8 +274,8 @@ static void fixup_use_write_buffers(struct mtd_info *mtd)
 	struct cfi_private *cfi = map->fldrv_priv;
 	if (cfi->cfiq->BufWriteTimeoutTyp) {
 		printk(KERN_INFO "Using buffer write method\n" );
-		mtd->write = cfi_intelext_write_buffers;
-		mtd->writev = cfi_intelext_writev;
+		mtd->_write = cfi_intelext_write_buffers;
+		mtd->_writev = cfi_intelext_writev;
 	}
 }
 
@@ -443,15 +443,15 @@ struct mtd_info *cfi_cmdset_0001(struct map_info *map, int primary)
 	mtd->type = MTD_NORFLASH;
 
 	/* Fill in the default mtd operations */
-	mtd->erase   = cfi_intelext_erase_varsize;
-	mtd->read    = cfi_intelext_read;
-	mtd->write   = cfi_intelext_write_words;
-	mtd->sync    = cfi_intelext_sync;
-	mtd->lock    = cfi_intelext_lock;
-	mtd->unlock  = cfi_intelext_unlock;
-	mtd->is_locked = cfi_intelext_is_locked;
-	mtd->suspend = cfi_intelext_suspend;
-	mtd->resume  = cfi_intelext_resume;
+	mtd->_erase   = cfi_intelext_erase_varsize;
+	mtd->_read    = cfi_intelext_read;
+	mtd->_write   = cfi_intelext_write_words;
+	mtd->_sync    = cfi_intelext_sync;
+	mtd->_lock    = cfi_intelext_lock;
+	mtd->_unlock  = cfi_intelext_unlock;
+	mtd->_is_locked = cfi_intelext_is_locked;
+	mtd->_suspend = cfi_intelext_suspend;
+	mtd->_resume  = cfi_intelext_resume;
 	mtd->flags   = MTD_CAP_NORFLASH;
 	mtd->name    = map->name;
 	mtd->writesize = 1;
@@ -600,12 +600,12 @@ static struct mtd_info *cfi_intelext_setup(struct mtd_info *mtd)
 	}
 
 #ifdef CONFIG_MTD_OTP
-	mtd->read_fact_prot_reg = cfi_intelext_read_fact_prot_reg;
-	mtd->read_user_prot_reg = cfi_intelext_read_user_prot_reg;
-	mtd->write_user_prot_reg = cfi_intelext_write_user_prot_reg;
-	mtd->lock_user_prot_reg = cfi_intelext_lock_user_prot_reg;
-	mtd->get_fact_prot_info = cfi_intelext_get_fact_prot_info;
-	mtd->get_user_prot_info = cfi_intelext_get_user_prot_info;
+	mtd->_read_fact_prot_reg = cfi_intelext_read_fact_prot_reg;
+	mtd->_read_user_prot_reg = cfi_intelext_read_user_prot_reg;
+	mtd->_write_user_prot_reg = cfi_intelext_write_user_prot_reg;
+	mtd->_lock_user_prot_reg = cfi_intelext_lock_user_prot_reg;
+	mtd->_get_fact_prot_info = cfi_intelext_get_fact_prot_info;
+	mtd->_get_user_prot_info = cfi_intelext_get_user_prot_info;
 #endif
 
 	/* This function has the potential to distort the reality

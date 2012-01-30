@@ -585,10 +585,10 @@ static int alauda_init_media(struct alauda *al)
 	mtd->writesize = 1<<card->pageshift;
 	mtd->type = MTD_NANDFLASH;
 	mtd->flags = MTD_CAP_NANDFLASH;
-	mtd->read = alauda_read;
-	mtd->write = alauda_write;
-	mtd->erase = alauda_erase;
-	mtd->block_isbad = alauda_isbad;
+	mtd->_read = alauda_read;
+	mtd->_write = alauda_write;
+	mtd->_erase = alauda_erase;
+	mtd->_block_isbad = alauda_isbad;
 	mtd->priv = al;
 	mtd->owner = THIS_MODULE;
 

@@ -544,9 +544,9 @@ static void vmu_queryblocks(struct mapleq *mq)
 	mtd_cur->flags = MTD_WRITEABLE|MTD_NO_ERASE;
 	mtd_cur->size = part_cur->numblocks * card->blocklen;
 	mtd_cur->erasesize = card->blocklen;
-	mtd_cur->write = vmu_flash_write;
-	mtd_cur->read = vmu_flash_read;
-	mtd_cur->sync = vmu_flash_sync;
+	mtd_cur->_write = vmu_flash_write;
+	mtd_cur->_read = vmu_flash_read;
+	mtd_cur->_sync = vmu_flash_sync;
 	mtd_cur->writesize = card->blocklen;
 
 	mpart = kmalloc(sizeof(struct mdev_part), GFP_KERNEL);
