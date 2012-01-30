@@ -25,13 +25,13 @@
 #include "cfg80211.h"
 
 unsigned int debug_mask;
-static bool suspend_cutpower;
+static unsigned int suspend_mode;
 static unsigned int uart_debug;
 static unsigned int ath6kl_p2p;
 static unsigned int testmode;
 
 module_param(debug_mask, uint, 0644);
-module_param(suspend_cutpower, bool, 0444);
+module_param(suspend_mode, uint, 0644);
 module_param(uart_debug, uint, 0644);
 module_param(ath6kl_p2p, uint, 0644);
 module_param(testmode, uint, 0644);
@@ -147,8 +147,12 @@ int ath6kl_core_init(struct ath6kl *ar)
 	ar->conf_flags = ATH6KL_CONF_IGNORE_ERP_BARKER |
 			 ATH6KL_CONF_ENABLE_11N | ATH6KL_CONF_ENABLE_TX_BURST;
 
-	if (suspend_cutpower)
-		ar->conf_flags |= ATH6KL_CONF_SUSPEND_CUTPOWER;
+	if (suspend_mode &&
+		suspend_mode >= WLAN_POWER_STATE_CUT_PWR &&
+		suspend_mode <= WLAN_POWER_STATE_WOW)
+		ar->suspend_mode = suspend_mode;
+	else
+		ar->suspend_mode = 0;
 
 	if (uart_debug)
 		ar->conf_flags |= ATH6KL_CONF_UART_DEBUG;

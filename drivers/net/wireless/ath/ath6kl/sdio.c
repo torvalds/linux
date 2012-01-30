@@ -779,7 +779,7 @@ out:
 	return ret;
 }
 
-static int ath6kl_sdio_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
+static int ath6kl_set_sdio_pm_caps(struct ath6kl *ar)
 {
 	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
 	struct sdio_func *func = ar_sdio->func;
@@ -790,60 +790,82 @@ static int ath6kl_sdio_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 
 	ath6kl_dbg(ATH6KL_DBG_SUSPEND, "sdio suspend pm_caps 0x%x\n", flags);
 
-	if (!(flags & MMC_PM_KEEP_POWER) ||
-	    (ar->conf_flags & ATH6KL_CONF_SUSPEND_CUTPOWER)) {
-		/* as host doesn't support keep power we need to cut power */
-		return ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_CUTPOWER,
-					       NULL);
-	}
+	if (!(flags & MMC_PM_WAKE_SDIO_IRQ) ||
+	    !(flags & MMC_PM_KEEP_POWER))
+		return -EINVAL;
 
 	ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
 	if (ret) {
-		printk(KERN_ERR "ath6kl: set sdio pm flags failed: %d\n",
-		       ret);
+		ath6kl_err("set sdio keep pwr flag failed: %d\n", ret);
 		return ret;
 	}
 
-	if (!(flags & MMC_PM_WAKE_SDIO_IRQ))
-		goto deepsleep;
-
 	/* sdio irq wakes up host */
+	ret = sdio_set_host_pm_flags(func, MMC_PM_WAKE_SDIO_IRQ);
+	if (ret)
+		ath6kl_err("set sdio wake irq flag failed: %d\n", ret);
+
+	return ret;
+}
+
+static int ath6kl_sdio_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
+{
+	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
+	struct sdio_func *func = ar_sdio->func;
+	mmc_pm_flag_t flags;
+	int ret;
 
 	if (ar->state == ATH6KL_STATE_SCHED_SCAN) {
+		ath6kl_dbg(ATH6KL_DBG_SUSPEND, "sched scan is in progress\n");
+
+		ret = ath6kl_set_sdio_pm_caps(ar);
+		if (ret)
+			goto cut_pwr;
+
 		ret =  ath6kl_cfg80211_suspend(ar,
 					       ATH6KL_CFG_SUSPEND_SCHED_SCAN,
 					       NULL);
-		if (ret) {
-			ath6kl_warn("Schedule scan suspend failed: %d", ret);
-			return ret;
-		}
-
-		ret = sdio_set_host_pm_flags(func, MMC_PM_WAKE_SDIO_IRQ);
 		if (ret)
-			ath6kl_warn("set sdio wake irq flag failed: %d\n", ret);
+			goto cut_pwr;
 
-		return ret;
+		return 0;
 	}
 
-	if (wow) {
-		/*
-		 * The host sdio controller is capable of keep power and
-		 * sdio irq wake up at this point. It's fine to continue
-		 * wow suspend operation.
-		 */
+	if (ar->suspend_mode == WLAN_POWER_STATE_WOW ||
+	    (!ar->suspend_mode && wow)) {
+
+		ret = ath6kl_set_sdio_pm_caps(ar);
+		if (ret)
+			goto cut_pwr;
+
 		ret = ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_WOW, wow);
 		if (ret)
-			return ret;
+			goto cut_pwr;
 
-		ret = sdio_set_host_pm_flags(func, MMC_PM_WAKE_SDIO_IRQ);
-		if (ret)
-			ath6kl_err("set sdio wake irq flag failed: %d\n", ret);
-
-		return ret;
+		return 0;
 	}
 
-deepsleep:
-	return ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_DEEPSLEEP, NULL);
+	if (ar->suspend_mode == WLAN_POWER_STATE_DEEP_SLEEP ||
+	    !ar->suspend_mode) {
+
+		flags = sdio_get_host_pm_caps(func);
+		if (!(flags & MMC_PM_KEEP_POWER))
+			goto cut_pwr;
+
+		ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
+		if (ret)
+			goto cut_pwr;
+
+		ret = ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_DEEPSLEEP,
+					      NULL);
+		if (ret)
+			goto cut_pwr;
+
+		return 0;
+	}
+
+cut_pwr:
+	return ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_CUTPOWER, NULL);
 }
 
 static int ath6kl_sdio_resume(struct ath6kl *ar)
