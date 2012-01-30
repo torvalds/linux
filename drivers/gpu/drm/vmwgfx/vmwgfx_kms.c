@@ -378,7 +378,7 @@ int vmw_framebuffer_create_handle(struct drm_framebuffer *fb,
 				  unsigned int *handle)
 {
 	if (handle)
-		handle = 0;
+		*handle = 0;
 
 	return 0;
 }
