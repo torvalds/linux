@@ -38,7 +38,6 @@
 #include <asm/cache.h>
 #include <asm/byteorder.h>
 
-#include <linux/device.h>
 #include <linux/percpu.h>
 #include <linux/rculist.h>
 #include <linux/dmaengine.h>
@@ -56,6 +55,7 @@
 #include <linux/netdev_features.h>
 
 struct netpoll_info;
+struct device;
 struct phy_device;
 /* 802.11 specific */
 struct wireless_dev;

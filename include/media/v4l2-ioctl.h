@@ -11,7 +11,6 @@
 
 #include <linux/poll.h>
 #include <linux/fs.h>
-#include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/compiler.h> /* need __user */
 #include <linux/videodev2.h>

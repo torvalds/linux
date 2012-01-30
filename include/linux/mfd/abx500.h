@@ -14,8 +14,9 @@
  * Author: Rickard Andersson <rickard.andersson@stericsson.com>
  */
 
-#include <linux/device.h>
 #include <linux/regulator/machine.h>
+
+struct device;
 
 #ifndef MFD_ABX500_H
 #define MFD_ABX500_H
