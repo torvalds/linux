@@ -56,7 +56,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_INIT_WIDTH	640			/* Sensor pixel size for sensor_init_data array */
 #define SENSOR_INIT_HEIGHT  480
 #define SENSOR_INIT_WINSEQADR sensor_vga
-#define SENSOR_INIT_PIXFMT V4L2_PIX_FMT_UYVY
+#define SENSOR_INIT_PIXFMT V4L2_MBUS_FMT_UYVY8_2X8
 
 #define CONFIG_SENSOR_WhiteBalance	1
 #define CONFIG_SENSOR_Brightness	0
@@ -96,6 +96,8 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define SENSOR_AF_IS_ERR    (0x00<<0)
 #define SENSOR_AF_IS_OK		(0x01<<0)
+#define SENSOR_INIT_IS_ERR   (0x00<<28)
+#define SENSOR_INIT_IS_OK    (0x01<<28)
 
 #if CONFIG_SENSOR_Focus
 #define SENSOR_AF_MODE_INFINITY    0
@@ -1372,10 +1374,13 @@ static int sensor_suspend(struct soc_camera_device *icd, pm_message_t pm_msg);
 static int sensor_resume(struct soc_camera_device *icd);
 static int sensor_set_bus_param(struct soc_camera_device *icd,unsigned long flags);
 static unsigned long sensor_query_bus_param(struct soc_camera_device *icd);
+#if CONFIG_SENSOR_Effect
 static int sensor_set_effect(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value);
+#endif
+#if CONFIG_SENSOR_WhiteBalance
 static int sensor_set_whiteBalance(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value);
+#endif
 static int sensor_deactivate(struct i2c_client *client);
-
 static struct soc_camera_ops sensor_ops =
 {
     .suspend                     = sensor_suspend,
@@ -1387,17 +1392,28 @@ static struct soc_camera_ops sensor_ops =
     .num_controls		= ARRAY_SIZE(sensor_controls),
     .num_menus		= ARRAY_SIZE(sensor_menus),
 };
+/* only one fixed colorspace per pixelcode */
+struct sensor_datafmt {
+	enum v4l2_mbus_pixelcode code;
+	enum v4l2_colorspace colorspace;
+};
 
-#define COL_FMT(_name, _depth, _fourcc, _colorspace) \
-	{ .name = _name, .depth = _depth, .fourcc = _fourcc, \
-	.colorspace = _colorspace }
+/* Find a data format by a pixel code in an array */
+static const struct sensor_datafmt *sensor_find_datafmt(
+	enum v4l2_mbus_pixelcode code, const struct sensor_datafmt *fmt,
+	int n)
+{
+	int i;
+	for (i = 0; i < n; i++)
+		if (fmt[i].code == code)
+			return fmt + i;
 
-#define JPG_FMT(_name, _depth, _fourcc) \
-	COL_FMT(_name, _depth, _fourcc, V4L2_COLORSPACE_JPEG)
+	return NULL;
+}
 
-static const struct soc_camera_data_format sensor_colour_formats[] = {
-	JPG_FMT(SENSOR_NAME_STRING(UYVY), 16, V4L2_PIX_FMT_UYVY),
-	JPG_FMT(SENSOR_NAME_STRING(YUYV), 16, V4L2_PIX_FMT_YUYV),
+static const struct sensor_datafmt sensor_colour_fmts[] = {
+    {V4L2_MBUS_FMT_UYVY8_2X8, V4L2_COLORSPACE_JPEG},
+    {V4L2_MBUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_JPEG}	
 };
 enum sensor_work_state
 {
@@ -1434,7 +1450,7 @@ typedef struct sensor_info_priv_s
 	int preview_w;
 	int preview_h;
     struct reginfo *winseqe_cur_addr;
-	unsigned int pixfmt;
+	struct sensor_datafmt fmt;
 	unsigned int enable;
 	unsigned int funmodule_state;
 } sensor_info_priv_t;
@@ -1754,10 +1770,11 @@ sensor_power_end:
 }
 static int sensor_init(struct v4l2_subdev *sd, u32 val)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
 	const struct v4l2_queryctrl *qctrl;
+    const struct sensor_datafmt *fmt;
     int ret;
 #if (SENSOR_ID_REG != SEQUENCE_END)    
     u16 pid = 0;
@@ -1818,7 +1835,13 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     sensor->info_priv.capture_w = SENSOR_MAX_WIDTH;
     sensor->info_priv.capture_h = SENSOR_MAX_HEIGHT;
     sensor->info_priv.winseqe_cur_addr  = SENSOR_INIT_WINSEQADR;
-	sensor->info_priv.pixfmt = SENSOR_INIT_PIXFMT;
+    fmt = sensor_find_datafmt(SENSOR_INIT_PIXFMT,sensor_colour_fmts, ARRAY_SIZE(sensor_colour_fmts));
+    if (!fmt) {
+        SENSOR_TR("error: %s initial array colour fmts is not support!!",SENSOR_NAME_STRING());
+        ret = -EINVAL;
+        goto sensor_INIT_ERR;
+    }
+	sensor->info_priv.fmt = *fmt;
 
     /* sensor sensor information for initialization  */
 	qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_DO_WHITE_BALANCE);
@@ -1948,74 +1971,79 @@ static unsigned long sensor_query_bus_param(struct soc_camera_device *icd)
 
     return soc_camera_apply_sensor_flags(icl, flags);
 }
-
-static int sensor_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int sensor_g_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
-    struct v4l2_pix_format *pix = &f->fmt.pix;
 
-    pix->width		= icd->user_width;
-    pix->height		= icd->user_height;
-    pix->pixelformat	= sensor->info_priv.pixfmt;
-    pix->field		= V4L2_FIELD_NONE;
-    pix->colorspace		= V4L2_COLORSPACE_JPEG;
+    mf->width	= icd->user_width;
+	mf->height	= icd->user_height;
+	mf->code	= sensor->info_priv.fmt.code;
+	mf->colorspace	= sensor->info_priv.fmt.colorspace;
+	mf->field	= V4L2_FIELD_NONE;
 
     return 0;
 }
-static bool sensor_fmt_capturechk(struct v4l2_subdev *sd, struct v4l2_format *f)
+static bool sensor_fmt_capturechk(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 {
     bool ret = false;
 
-	if ((f->fmt.pix.width == 1024) && (f->fmt.pix.height == 768)) {
+	if ((mf->width == 1024) && (mf->height == 768)) {
 		ret = true;
-	} else if ((f->fmt.pix.width == 1280) && (f->fmt.pix.height == 1024)) {
+	} else if ((mf->width == 1280) && (mf->height == 1024)) {
 		ret = true;
-	} else if ((f->fmt.pix.width == 1600) && (f->fmt.pix.height == 1200)) {
+	} else if ((mf->width == 1600) && (mf->height == 1200)) {
 		ret = true;
-	} else if ((f->fmt.pix.width == 2048) && (f->fmt.pix.height == 1536)) {
+	} else if ((mf->width == 2048) && (mf->height == 1536)) {
 		ret = true;
-	} else if ((f->fmt.pix.width == 2592) && (f->fmt.pix.height == 1944)) {
+	} else if ((mf->width == 2592) && (mf->height == 1944)) {
 		ret = true;
 	}
 
 	if (ret == true)
-		SENSOR_DG("%s %dx%d is capture format\n", __FUNCTION__, f->fmt.pix.width, f->fmt.pix.height);
+		SENSOR_DG("%s %dx%d is capture format\n", __FUNCTION__, mf->width, mf->height);
 	return ret;
 }
 
-static bool sensor_fmt_videochk(struct v4l2_subdev *sd, struct v4l2_format *f)
+static bool sensor_fmt_videochk(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 {
     bool ret = false;
 
-	if ((f->fmt.pix.width == 1280) && (f->fmt.pix.height == 720)) {
+	if ((mf->width == 1280) && (mf->height == 720)) {
 		ret = true;
-	} else if ((f->fmt.pix.width == 1920) && (f->fmt.pix.height == 1080)) {
+	} else if ((mf->width == 1920) && (mf->height == 1080)) {
 		ret = true;
 	}
 
 	if (ret == true)
-		SENSOR_DG("%s %dx%d is video format\n", __FUNCTION__, f->fmt.pix.width, f->fmt.pix.height);
+		SENSOR_DG("%s %dx%d is video format\n", __FUNCTION__, mf->width, mf->height);
 	return ret;
 }
-static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct sensor *sensor = to_sensor(client);
-    struct v4l2_pix_format *pix = &f->fmt.pix;
+    const struct sensor_datafmt *fmt;
     struct reginfo *winseqe_set_addr=NULL;
     int ret = 0, set_w,set_h;
 
-	if (sensor->info_priv.pixfmt != pix->pixelformat) {
-		switch (pix->pixelformat)
+	fmt = sensor_find_datafmt(mf->code, sensor_colour_fmts,
+				   ARRAY_SIZE(sensor_colour_fmts));
+	if (!fmt) {
+        ret = -EINVAL;
+        goto sensor_s_fmt_end;
+    }
+
+	if (sensor->info_priv.fmt.code != mf->code) {
+		switch (mf->code)
 		{
-			case V4L2_PIX_FMT_YUYV:
+			case V4L2_MBUS_FMT_YUYV8_2X8:
 			{
 				winseqe_set_addr = sensor_ClrFmt_YUYV;
 				break;
 			}
-			case V4L2_PIX_FMT_UYVY:
+			case V4L2_MBUS_FMT_UYVY8_2X8:
 			{
 				winseqe_set_addr = sensor_ClrFmt_UYVY;
 				break;
@@ -2025,17 +2053,16 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 		}
 		if (winseqe_set_addr != NULL) {
             sensor_write_array(client, winseqe_set_addr);
-			sensor->info_priv.pixfmt = pix->pixelformat;
-
-			SENSOR_DG("%s Pixelformat(0x%x) set success!\n", SENSOR_NAME_STRING(),pix->pixelformat);
+			sensor->info_priv.fmt.code = mf->code;
+            sensor->info_priv.fmt.colorspace= mf->colorspace;            
+			SENSOR_DG("%s v4l2_mbus_code:%d set success!\n", SENSOR_NAME_STRING(),mf->code);
 		} else {
-			SENSOR_TR("%s Pixelformat(0x%x) is invalidate!\n", SENSOR_NAME_STRING(),pix->pixelformat);
+			SENSOR_TR("%s v4l2_mbus_code:%d is invalidate!\n", SENSOR_NAME_STRING(),mf->code);
 		}
 	}
 
-    set_w = pix->width;
-    set_h = pix->height;
-
+    set_w = mf->width;
+    set_h = mf->height;
 	if (((set_w <= 176) && (set_h <= 144)) && (sensor_qcif[0].reg!=SEQUENCE_END))
 	{
 		winseqe_set_addr = sensor_qcif;
@@ -2133,57 +2160,58 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 		sensor->info_priv.capture_h = set_h;
 		sensor->info_priv.snap2preview = true;
 	} else if (sensor->info_priv.snap2preview == true) {
-		if (winseqe_set_addr || ((sensor->info_priv.preview_w == pix->width) && (sensor->info_priv.preview_h == pix->height))) {
+		if (winseqe_set_addr || ((sensor->info_priv.preview_w == mf->width) && (sensor->info_priv.preview_h == mf->height))) {
 			ret |= sensor_write_array(client, sensor_Capture2Preview);
 			if (ret != 0) {
 	        	SENSOR_TR("%s Capture 2 Preview failed\n", SENSOR_NAME_STRING());
 	        	goto sensor_s_fmt_end;
 	    	}
-			sensor->info_priv.preview_w = pix->width;
-			sensor->info_priv.preview_h = pix->height;
+			sensor->info_priv.preview_w = mf->width;
+			sensor->info_priv.preview_h = mf->height;
 			sensor->info_priv.snap2preview = false;
 		} else {
-			SENSOR_TR("\n %s..%s Format is Invalidate. pix->width = %d.. pix->height = %d\n",SENSOR_NAME_STRING(),__FUNCTION__,pix->width,pix->height);
+			SENSOR_TR("\n %s..%s Format is Invalidate. pix->width = %d.. pix->height = %d\n",SENSOR_NAME_STRING(),__FUNCTION__,mf->width,mf->height);
 		}
 	}
 
-	pix->width = set_w;
-	pix->height = set_h;
+	mf->width = set_w;
+	mf->height = set_h;
 sensor_s_fmt_end:
     return ret;
 }
 
-static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 {
-    struct v4l2_pix_format *pix = &f->fmt.pix;
-    bool bayer = pix->pixelformat == V4L2_PIX_FMT_UYVY ||
-        pix->pixelformat == V4L2_PIX_FMT_YUYV;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
+    struct sensor *sensor = to_sensor(client);
+    const struct sensor_datafmt *fmt;
+    int ret = 0;
+   
+	fmt = sensor_find_datafmt(mf->code, sensor_colour_fmts,
+				   ARRAY_SIZE(sensor_colour_fmts));
+	if (fmt == NULL) {
+		fmt = &sensor->info_priv.fmt;
+        mf->code = fmt->code;
+	} 
 
-    /*
-    * With Bayer format enforce even side lengths, but let the user play
-    * with the starting pixel
-    */
+    if (mf->height > SENSOR_MAX_HEIGHT)
+        mf->height = SENSOR_MAX_HEIGHT;
+    else if (mf->height < SENSOR_MIN_HEIGHT)
+        mf->height = SENSOR_MIN_HEIGHT;
 
-    if (pix->height > SENSOR_MAX_HEIGHT)
-        pix->height = SENSOR_MAX_HEIGHT;
-    else if (pix->height < SENSOR_MIN_HEIGHT)
-        pix->height = SENSOR_MIN_HEIGHT;
-    else if (bayer)
-        pix->height = ALIGN(pix->height, 2);
+    if (mf->width > SENSOR_MAX_WIDTH)
+        mf->width = SENSOR_MAX_WIDTH;
+    else if (mf->width < SENSOR_MIN_WIDTH)
+        mf->width = SENSOR_MIN_WIDTH;
 
-    if (pix->width > SENSOR_MAX_WIDTH)
-        pix->width = SENSOR_MAX_WIDTH;
-    else if (pix->width < SENSOR_MIN_WIDTH)
-        pix->width = SENSOR_MIN_WIDTH;
-    else if (bayer)
-        pix->width = ALIGN(pix->width, 2);
-
-    return 0;
+    mf->colorspace = fmt->colorspace;
+    
+    return ret;
 }
 
  static int sensor_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *id)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
 
     if (id->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
         return -EINVAL;
@@ -2571,7 +2599,7 @@ static int sensor_set_focus_mode(struct soc_camera_device *icd, const struct v4l
 #endif
 static int sensor_g_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct sensor *sensor = to_sensor(client);
     const struct v4l2_queryctrl *qctrl;
 
@@ -2630,7 +2658,7 @@ static int sensor_g_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 static int sensor_s_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct sensor *sensor = to_sensor(client);
     struct soc_camera_device *icd = client->dev.platform_data;
     const struct v4l2_queryctrl *qctrl;
@@ -2947,7 +2975,7 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
 
 static int sensor_g_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_controls *ext_ctrl)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct soc_camera_device *icd = client->dev.platform_data;
     int i, error_cnt=0, error_idx=-1;
 
@@ -2972,7 +3000,7 @@ static int sensor_g_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_control
 
 static int sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_controls *ext_ctrl)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct soc_camera_device *icd = client->dev.platform_data;
     int i, error_cnt=0, error_idx=-1;
 
@@ -2996,7 +3024,7 @@ static int sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_control
 
 static int sensor_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct sensor *sensor = to_sensor(client);
 
 	if (enable == 1) {
@@ -3065,8 +3093,6 @@ static int sensor_video_probe(struct soc_camera_device *icd,
         goto sensor_video_probe_err;
     }
 
-    icd->formats = sensor_colour_formats;
-    icd->num_formats = ARRAY_SIZE(sensor_colour_formats);
 
     return 0;
 
@@ -3075,7 +3101,7 @@ sensor_video_probe_err:
 }
 static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
     int ret = 0;
@@ -3134,7 +3160,15 @@ sensor_ioctl_end:
 	return ret;
 
 }
+static int sensor_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
+			    enum v4l2_mbus_pixelcode *code)
+{
+	if (index >= ARRAY_SIZE(sensor_colour_fmts))
+		return -EINVAL;
 
+	*code = sensor_colour_fmts[index].code;
+	return 0;
+}
 static struct v4l2_subdev_core_ops sensor_subdev_core_ops = {
 	.init		= sensor_init,
 	.g_ctrl		= sensor_g_control,
@@ -3146,10 +3180,10 @@ static struct v4l2_subdev_core_ops sensor_subdev_core_ops = {
 };
 
 static struct v4l2_subdev_video_ops sensor_subdev_video_ops = {
-	.s_fmt		= sensor_s_fmt,
-	.g_fmt		= sensor_g_fmt,
-	.try_fmt	= sensor_try_fmt,
-	.s_stream   = sensor_s_stream,
+	.s_mbus_fmt	= sensor_s_fmt,
+	.g_mbus_fmt	= sensor_g_fmt,
+	.try_mbus_fmt	= sensor_try_fmt,
+	.enum_mbus_fmt	= sensor_enum_fmt,
 };
 
 static struct v4l2_subdev_ops sensor_subdev_ops = {
@@ -3192,7 +3226,7 @@ static int sensor_probe(struct i2c_client *client,
 
     /* Second stage probe - when a capture adapter is there */
     icd->ops		= &sensor_ops;
-    icd->y_skip_top		= 0;
+    sensor->info_priv.fmt = sensor_colour_fmts[0];
 	#if CONFIG_SENSOR_I2C_NOSCHED
 	atomic_set(&sensor->tasklock_cnt,0);
 	#endif

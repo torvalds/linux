@@ -817,26 +817,26 @@ config SOC_CAMERA_MT9T031
 	  This driver supports MT9T031 cameras from Micron.
 
 config SOC_CAMERA_MT9T111
-	tristate "mt9t111 support"
+	tristate "mt9t111 support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This driver supports MT9T111 cameras from Micron.
+	  This driver supports MT9T111 cameras from Micron for rockchip.
 config SOC_CAMERA_MT9P111
-	tristate "mt9p111 support"
+	tristate "mt9p111 support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This driver supports MT9P111 cameras from Micron.
+	  This driver supports MT9P111 cameras from Micron for rockchip.
 config SOC_CAMERA_MT9D112
-	tristate "mt9d112 support"
+	tristate "mt9d112 support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This driver supports MT9D112 cameras from Micron
+	  This driver supports MT9D112 cameras from Micron for rockchip
 
 config SOC_CAMERA_MT9D113
-	tristate "mt9d113 support"
+	tristate "mt9d113 support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This driver supports MT9D113 cameras from Micron
+	  This driver supports MT9D113 cameras from Micron for rockchip
 
 config SOC_CAMERA_MT9T112
 	tristate "mt9t112 support"
@@ -888,46 +888,46 @@ config SOC_CAMERA_OV772X
 	  This is a ov772x camera driver
 
 config SOC_CAMERA_OV7675
-	tristate "ov7675 camera support"
+	tristate "ov7675 camera support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a ov7675 camera driver
+	  This is a ov7675 camera driver for rockchip
 
 config SOC_CAMERA_OV2655
-	tristate "ov2655 camera support"
+	tristate "ov2655 camera support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a ov2655 camera driver
+	  This is a ov2655 camera driver for rockchip
 
 config SOC_CAMERA_OV2659
-	tristate "ov2659 camera support"
+	tristate "ov2659 camera support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a ov2659 camera driver
+	  This is a ov2659 camera driver for rockchip
 	  
 config SOC_CAMERA_OV7690
-	tristate "ov7690 camera support"
+	tristate "ov7690 camera support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a ov7690 camera driver	  
+	  This is a ov7690 camera driver for rockchip	  
 
 config SOC_CAMERA_OV9650
-	tristate "ov9650 camera support"
+	tristate "ov9650 camera support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a ov9650 camera driver
+	  This is a ov9650 camera driver for rockchip
 
-config SOC_CAMERA_OV2640
-	tristate "ov2640 camera support"
+config SOC_CAMERA_OV2640_RK
+	tristate "ov2640 camera support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a ov2640 camera driver
+	  This is a ov2640 camera driver for rockchip
 
 config SOC_CAMERA_OV3640
-	tristate "ov3640 camera support"
+	tristate "ov3640 camera support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a ov3640 camera driver
+	  This is a ov3640 camera driver for rockchip
 choice
 	prompt "OV3640 Module Focus select"
 	depends on SOC_CAMERA_OV3640
@@ -942,10 +942,10 @@ config OV3640_FIXEDFOCUS
 endchoice
 
 config SOC_CAMERA_OV5642
-	tristate "ov5642 camera support"
+	tristate "ov5642 camera support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a ov5642 camera driver
+	  This is a ov5642 camera driver for rockchip
 choice
 	prompt "OV5642 Module Focus select"
 	depends on SOC_CAMERA_OV5642
@@ -960,10 +960,10 @@ config OV5642_FIXEDFOCUS
 endchoice
 
 config SOC_CAMERA_OV5640
-	tristate "ov5640 camera support"
+	tristate "ov5640 camera support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a ov5640 camera driver
+	  This is a ov5640 camera driver for rockchip
 choice
 	prompt "OV5640 Module Focus select"
 	depends on SOC_CAMERA_OV5640
@@ -996,34 +996,34 @@ config OV5640_FIXEDFOCUS_FOR_TD8801
 endchoice
 
 config SOC_CAMERA_S5K6AA
-	tristate "Samsung S5K6AA camera support"
+	tristate "Samsung S5K6AA camera support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a samsung S5K6AA camera driver
+	  This is a samsung S5K6AA camera driver for rockchip
 
 config SOC_CAMERA_GT2005
-	tristate "GT2005 support"
+	tristate "GT2005 support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a GT2005 camera driver
+	  This is a GT2005 camera driver for rockchip
 
 config SOC_CAMERA_GC0307
-	tristate "GC0307 support"
+	tristate "GC0307 support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a GC0307 camera driver	   
+	  This is a GC0307 camera driver for rockchip	   
 
 config SOC_CAMERA_GC0308
-	tristate "GC0308 support"
+	tristate "GC0308 support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a GC0308 camera driver
+	  This is a GC0308 camera driver for rockchip
 
 config SOC_CAMERA_GC0309
-	tristate "GC0309 support"
+	tristate "GC0309 support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a GC0309 camera driver
+	  This is a GC0309 camera driver for rockchip
 config SOC_CAMERA_GC0309_FOR_TD8801
 	tristate "GC0309 support for td8801"
 	depends on SOC_CAMERA && I2C
@@ -1031,40 +1031,40 @@ config SOC_CAMERA_GC0309_FOR_TD8801
 	  This is a GC0309 camera driver for td8801
 
 config SOC_CAMERA_GC2015
-	tristate "GC2015 support"
+	tristate "GC2015 support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a GC2015 camera driver
+	  This is a GC2015 camera driver for rockchip
 
 config SOC_CAMERA_HI253
-	tristate "HI253 support"
+	tristate "HI253 support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a HI253 camera driver
+	  This is a HI253 camera driver for rockchip
 
 config SOC_CAMERA_HI704
-	tristate "HI704 support"
+	tristate "HI704 support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a HI704 camera driver
+	  This is a HI704 camera driver for rockchip
 
 config SOC_CAMERA_SIV120B
-	tristate "siv120b support"
+	tristate "siv120b support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a SIV120B camera driver
+	  This is a SIV120B camera driver for rockchip
 
 config SOC_CAMERA_SID130B
-	tristate "sid130b support"
+	tristate "sid130b support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a SID130B camera driver
+	  This is a SID130B camera driver for rockchip
 
 config SOC_CAMERA_NT99250
-	tristate "NT99250 support"
+	tristate "NT99250 support for rockchip"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a NT99250 camera driver
+	  This is a NT99250 camera driver for rockchip
 
 config SOC_CAMERA_OV9640
 	tristate "ov9640 camera support"

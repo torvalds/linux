@@ -2157,7 +2157,7 @@ sensor_power_end:
 }
 static int sensor_init(struct v4l2_subdev *sd, u32 val)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
 	const struct v4l2_queryctrl *qctrl;
@@ -2356,7 +2356,7 @@ static unsigned long sensor_query_bus_param(struct soc_camera_device *icd)
 
 static int sensor_g_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
 
@@ -2405,7 +2405,7 @@ static bool sensor_fmt_videochk(struct v4l2_subdev *sd, struct v4l2_mbus_framefm
 }
 static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct sensor *sensor = to_sensor(client);
     const struct sensor_datafmt *fmt;
 	const struct v4l2_queryctrl *qctrl;
@@ -2587,7 +2587,7 @@ sensor_s_fmt_end:
 
 static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct sensor *sensor = to_sensor(client);
     const struct sensor_datafmt *fmt;
     int ret = 0;
@@ -2616,7 +2616,7 @@ static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 
  static int sensor_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *id)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
 
     if (id->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
         return -EINVAL;
@@ -2900,7 +2900,7 @@ static int sensor_set_flash(struct soc_camera_device *icd, const struct v4l2_que
 
 static int sensor_g_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct sensor *sensor = to_sensor(client);
     const struct v4l2_queryctrl *qctrl;
 
@@ -2959,7 +2959,7 @@ static int sensor_g_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 static int sensor_s_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct sensor *sensor = to_sensor(client);
     struct soc_camera_device *icd = client->dev.platform_data;
     const struct v4l2_queryctrl *qctrl;
@@ -3249,7 +3249,7 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
 
 static int sensor_g_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_controls *ext_ctrl)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct soc_camera_device *icd = client->dev.platform_data;
     int i, error_cnt=0, error_idx=-1;
 
@@ -3274,7 +3274,7 @@ static int sensor_g_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_control
 
 static int sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_controls *ext_ctrl)
 {
-    struct i2c_client *client = sd->priv;
+    struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct soc_camera_device *icd = client->dev.platform_data;
     int i, error_cnt=0, error_idx=-1;
 
@@ -3351,7 +3351,7 @@ sensor_video_probe_err:
 }
 static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-	struct i2c_client *client = sd->priv;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
     int ret = 0;
