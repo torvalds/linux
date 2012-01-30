@@ -16,11 +16,8 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/*  ----------------------------------- Host OS */
-
 #include <plat/dsp.h>
 
-#include <dspbridge/host_os.h>
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
@@ -38,10 +35,8 @@
 
 /*  ----------------------------------- OS Adaptation Layer */
 #include <dspbridge/clk.h>
-#include <dspbridge/sync.h>
 
 /*  ----------------------------------- Platform Manager */
-#include <dspbridge/dspapi-ioctl.h>
 #include <dspbridge/dspapi.h>
 #include <dspbridge/dspdrv.h>
 
@@ -49,10 +44,8 @@
 #include <dspbridge/pwr.h>
 
 #include <dspbridge/resourcecleanup.h>
-#include <dspbridge/chnl.h>
 #include <dspbridge/proc.h>
 #include <dspbridge/dev.h>
-#include <dspbridge/drv.h>
 
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 #include <mach-omap2/omap3-opp.h>
