@@ -531,7 +531,6 @@ err1:
 static int __devexit omap34_xx_bridge_remove(struct platform_device *pdev)
 {
 	dev_t devno;
-	bool ret;
 	int status = 0;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
@@ -551,9 +550,8 @@ static int __devexit omap34_xx_bridge_remove(struct platform_device *pdev)
 
 	if (driver_context) {
 		/* Put the DSP in reset state */
-		ret = dsp_deinit(driver_context);
+		dsp_deinit(driver_context);
 		driver_context = 0;
-		DBC_ASSERT(ret == true);
 	}
 
 func_cont:
