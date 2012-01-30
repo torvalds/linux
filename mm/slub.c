@@ -29,6 +29,7 @@
 #include <linux/math64.h>
 #include <linux/fault-inject.h>
 #include <linux/stacktrace.h>
+#include <linux/prefetch.h>
 
 #include <trace/events/kmem.h>
 
