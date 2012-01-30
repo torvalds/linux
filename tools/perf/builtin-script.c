@@ -304,12 +304,22 @@ static void print_sample_start(struct perf_sample *sample,
 	}
 }
 
+static bool is_bts_event(struct perf_event_attr *attr)
+{
+	return ((attr->type == PERF_TYPE_HARDWARE) &&
+		(attr->config & PERF_COUNT_HW_BRANCH_INSTRUCTIONS) &&
+		(attr->sample_period == 1));
+}
+
 static bool sample_addr_correlates_sym(struct perf_event_attr *attr)
 {
 	if ((attr->type == PERF_TYPE_SOFTWARE) &&
 	    ((attr->config == PERF_COUNT_SW_PAGE_FAULTS) ||
 	     (attr->config == PERF_COUNT_SW_PAGE_FAULTS_MIN) ||
 	     (attr->config == PERF_COUNT_SW_PAGE_FAULTS_MAJ)))
+		return true;
+
+	if (is_bts_event(attr))
 		return true;
 
 	return false;
@@ -353,6 +363,33 @@ static void print_sample_addr(union perf_event *event,
 	}
 }
 
+static void print_sample_bts(union perf_event *event,
+			     struct perf_sample *sample,
+			     struct perf_evsel *evsel,
+			     struct machine *machine,
+			     struct thread *thread)
+{
+	struct perf_event_attr *attr = &evsel->attr;
+
+	/* print branch_from information */
+	if (PRINT_FIELD(IP)) {
+		if (!symbol_conf.use_callchain)
+			printf(" ");
+		else
+			printf("\n");
+		perf_event__print_ip(event, sample, machine, evsel,
+				     PRINT_FIELD(SYM), PRINT_FIELD(DSO));
+	}
+
+	printf(" => ");
+
+	/* print branch_to information */
+	if (PRINT_FIELD(ADDR))
+		print_sample_addr(event, sample, machine, thread, attr);
+
+	printf("\n");
+}
+
 static void process_event(union perf_event *event __unused,
 			  struct perf_sample *sample,
 			  struct perf_evsel *evsel,
@@ -365,6 +402,11 @@ static void process_event(union perf_event *event __unused,
 		return;
 
 	print_sample_start(sample, thread, attr);
+
+	if (is_bts_event(attr)) {
+		print_sample_bts(event, sample, evsel, machine, thread);
+		return;
+	}
 
 	if (PRINT_FIELD(TRACE))
 		print_trace_event(sample->cpu, sample->raw_data,
