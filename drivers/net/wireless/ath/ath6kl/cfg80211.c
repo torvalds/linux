@@ -1723,32 +1723,14 @@ static int ath6kl_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
 	return 0;
 }
 
-static int ath6kl_wow_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
+static int ath6kl_wow_usr(struct ath6kl *ar, struct ath6kl_vif *vif,
+			  struct cfg80211_wowlan *wow, u32 *filter)
 {
-	struct in_device *in_dev;
-	struct in_ifaddr *ifa;
-	struct ath6kl_vif *vif;
-	int ret, pos, left;
-	u32 filter = 0;
+	int ret, pos;
+	u8 mask[WOW_MASK_SIZE];
 	u16 i;
-	u8 mask[WOW_MASK_SIZE], index = 0;
-	__be32 ips[MAX_IP_ADDRS];
 
-	vif = ath6kl_vif_first(ar);
-	if (!vif)
-		return -EIO;
-
-	if (!ath6kl_cfg80211_ready(vif))
-		return -EIO;
-
-	if (!test_bit(CONNECTED, &vif->flags))
-		return -EINVAL;
-
-	/* Clear existing WOW patterns */
-	for (i = 0; i < WOW_MAX_FILTERS_PER_LIST; i++)
-		ath6kl_wmi_del_wow_pattern_cmd(ar->wmi, vif->fw_vif_idx,
-					       WOW_LIST_ID, i);
-	/* Configure new WOW patterns */
+	/* Configure the patterns that we received from the user. */
 	for (i = 0; i < wow->n_patterns; i++) {
 
 		/*
@@ -1771,13 +1753,193 @@ static int ath6kl_wow_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 		 * matched from the first byte of received pkt in the firmware.
 		 */
 		ret = ath6kl_wmi_add_wow_pattern_cmd(ar->wmi,
-					vif->fw_vif_idx, WOW_LIST_ID,
-					wow->patterns[i].pattern_len,
-					0 /* pattern offset */,
-					wow->patterns[i].pattern, mask);
+				vif->fw_vif_idx, WOW_LIST_ID,
+				wow->patterns[i].pattern_len,
+				0 /* pattern offset */,
+				wow->patterns[i].pattern, mask);
 		if (ret)
 			return ret;
 	}
+
+	if (wow->disconnect)
+		*filter |= WOW_FILTER_OPTION_NWK_DISASSOC;
+
+	if (wow->magic_pkt)
+		*filter |= WOW_FILTER_OPTION_MAGIC_PACKET;
+
+	if (wow->gtk_rekey_failure)
+		*filter |= WOW_FILTER_OPTION_GTK_ERROR;
+
+	if (wow->eap_identity_req)
+		*filter |= WOW_FILTER_OPTION_EAP_REQ;
+
+	if (wow->four_way_handshake)
+		*filter |= WOW_FILTER_OPTION_8021X_4WAYHS;
+
+	return 0;
+}
+
+static int ath6kl_wow_ap(struct ath6kl *ar, struct ath6kl_vif *vif)
+{
+	static const u8 unicst_pattern[] = { 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x08 };
+	static const u8 unicst_mask[] = { 0x01, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x7f };
+	u8 unicst_offset = 0;
+	static const u8 arp_pattern[] = { 0x08, 0x06 };
+	static const u8 arp_mask[] = { 0xff, 0xff };
+	u8 arp_offset = 20;
+	static const u8 discvr_pattern[] = { 0xe0, 0x00, 0x00, 0xf8 };
+	static const u8 discvr_mask[] = { 0xf0, 0x00, 0x00, 0xf8 };
+	u8 discvr_offset = 38;
+	static const u8 dhcp_pattern[] = { 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x43 /* port 67 */ };
+	static const u8 dhcp_mask[] = { 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0xff, 0xff /* port 67 */ };
+	u8 dhcp_offset = 0;
+	int ret;
+
+	/* Setup unicast IP, EAPOL-like and ARP pkt pattern */
+	ret = ath6kl_wmi_add_wow_pattern_cmd(ar->wmi,
+			vif->fw_vif_idx, WOW_LIST_ID,
+			sizeof(unicst_pattern), unicst_offset,
+			unicst_pattern, unicst_mask);
+	if (ret) {
+		ath6kl_err("failed to add WOW unicast IP pattern\n");
+		return ret;
+	}
+
+	/* Setup all ARP pkt pattern */
+	ret = ath6kl_wmi_add_wow_pattern_cmd(ar->wmi,
+			vif->fw_vif_idx, WOW_LIST_ID,
+			sizeof(arp_pattern), arp_offset,
+			arp_pattern, arp_mask);
+	if (ret) {
+		ath6kl_err("failed to add WOW ARP pattern\n");
+		return ret;
+	}
+
+	/*
+	 * Setup multicast pattern for mDNS 224.0.0.251,
+	 * SSDP 239.255.255.250 and LLMNR  224.0.0.252
+	 */
+	ret = ath6kl_wmi_add_wow_pattern_cmd(ar->wmi,
+			vif->fw_vif_idx, WOW_LIST_ID,
+			sizeof(discvr_pattern), discvr_offset,
+			discvr_pattern, discvr_mask);
+	if (ret) {
+		ath6kl_err("failed to add WOW mDNS/SSDP/LLMNR pattern\n");
+		return ret;
+	}
+
+	/* Setup all DHCP broadcast pkt pattern */
+	ret = ath6kl_wmi_add_wow_pattern_cmd(ar->wmi,
+			vif->fw_vif_idx, WOW_LIST_ID,
+			sizeof(dhcp_pattern), dhcp_offset,
+			dhcp_pattern, dhcp_mask);
+	if (ret) {
+		ath6kl_err("failed to add WOW DHCP broadcast pattern\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int ath6kl_wow_sta(struct ath6kl *ar, struct ath6kl_vif *vif)
+{
+	struct net_device *ndev = vif->ndev;
+	static const u8 discvr_pattern[] = { 0xe0, 0x00, 0x00, 0xf8 };
+	static const u8 discvr_mask[] = { 0xf0, 0x00, 0x00, 0xf8 };
+	u8 discvr_offset = 38;
+	u8 mac_mask[ETH_ALEN];
+	int ret;
+
+	/* Setup unicast pkt pattern */
+	memset(mac_mask, 0xff, ETH_ALEN);
+	ret = ath6kl_wmi_add_wow_pattern_cmd(ar->wmi,
+				vif->fw_vif_idx, WOW_LIST_ID,
+				ETH_ALEN, 0, ndev->dev_addr,
+				mac_mask);
+	if (ret) {
+		ath6kl_err("failed to add WOW unicast pattern\n");
+		return ret;
+	}
+
+	/*
+	 * Setup multicast pattern for mDNS 224.0.0.251,
+	 * SSDP 239.255.255.250 and LLMNR 224.0.0.252
+	 */
+	if ((ndev->flags & IFF_ALLMULTI) ||
+	    (ndev->flags & IFF_MULTICAST && netdev_mc_count(ndev) > 0)) {
+		ret = ath6kl_wmi_add_wow_pattern_cmd(ar->wmi,
+				vif->fw_vif_idx, WOW_LIST_ID,
+				sizeof(discvr_pattern), discvr_offset,
+				discvr_pattern, discvr_mask);
+		if (ret) {
+			ath6kl_err("failed to add WOW mDNS/SSDP/LLMNR "
+				   "pattern\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int ath6kl_wow_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
+{
+	struct in_device *in_dev;
+	struct in_ifaddr *ifa;
+	struct ath6kl_vif *vif;
+	int ret, left;
+	u32 filter = 0;
+	u16 i;
+	u8 index = 0;
+	__be32 ips[MAX_IP_ADDRS];
+
+	vif = ath6kl_vif_first(ar);
+	if (!vif)
+		return -EIO;
+
+	if (!ath6kl_cfg80211_ready(vif))
+		return -EIO;
+
+	if (!test_bit(CONNECTED, &vif->flags))
+		return -EINVAL;
+
+	if (wow && (wow->n_patterns > WOW_MAX_FILTERS_PER_LIST))
+		return -EINVAL;
+
+	/* Clear existing WOW patterns */
+	for (i = 0; i < WOW_MAX_FILTERS_PER_LIST; i++)
+		ath6kl_wmi_del_wow_pattern_cmd(ar->wmi, vif->fw_vif_idx,
+					       WOW_LIST_ID, i);
+
+	/*
+	 * Skip the default WOW pattern configuration
+	 * if the driver receives any WOW patterns from
+	 * the user.
+	 */
+	if (wow)
+		ret = ath6kl_wow_usr(ar, vif, wow, &filter);
+	else if (vif->nw_type == AP_NETWORK)
+		ret = ath6kl_wow_ap(ar, vif);
+	else
+		ret = ath6kl_wow_sta(ar, vif);
+
+	if (ret)
+		return ret;
 
 	/* Setup own IP addr for ARP agent. */
 	in_dev = __in_dev_get_rtnl(vif->ndev);
@@ -1806,21 +1968,6 @@ static int ath6kl_wow_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 	}
 
 skip_arp:
-	if (wow->disconnect)
-		filter |= WOW_FILTER_OPTION_NWK_DISASSOC;
-
-	if (wow->magic_pkt)
-		filter |= WOW_FILTER_OPTION_MAGIC_PACKET;
-
-	if (wow->gtk_rekey_failure)
-		filter |= WOW_FILTER_OPTION_GTK_ERROR;
-
-	if (wow->eap_identity_req)
-		filter |= WOW_FILTER_OPTION_EAP_REQ;
-
-	if (wow->four_way_handshake)
-		filter |= WOW_FILTER_OPTION_8021X_4WAYHS;
-
 	ret = ath6kl_wmi_set_wow_mode_cmd(ar->wmi, vif->fw_vif_idx,
 					  ATH6KL_WOW_MODE_ENABLE,
 					  filter,

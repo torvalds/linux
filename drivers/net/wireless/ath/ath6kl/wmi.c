@@ -2620,7 +2620,8 @@ int ath6kl_wmi_set_wow_mode_cmd(struct wmi *wmi, u8 if_idx,
 
 int ath6kl_wmi_add_wow_pattern_cmd(struct wmi *wmi, u8 if_idx,
 				   u8 list_id, u8 filter_size,
-				   u8 filter_offset, u8 *filter, u8 *mask)
+				   u8 filter_offset, const u8 *filter,
+				   const u8 *mask)
 {
 	struct sk_buff *skb;
 	struct wmi_add_wow_pattern_cmd *cmd;
