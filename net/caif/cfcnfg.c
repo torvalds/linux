@@ -309,7 +309,6 @@ int caif_connect_client(struct net *net, struct caif_connect_request *conn_req,
 	int err;
 	struct cfctrl_link_param param;
 	struct cfcnfg *cfg = get_cfcnfg(net);
-	caif_assert(cfg != NULL);
 
 	rcu_read_lock();
 	err = caif_connect_req_to_link_param(cfg, conn_req, &param);
