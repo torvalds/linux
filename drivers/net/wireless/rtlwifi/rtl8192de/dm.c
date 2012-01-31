@@ -294,7 +294,7 @@ static void rtl92d_dm_find_minimum_rssi(struct ieee80211_hw *hw)
 		de_digtable.min_undecorated_pwdb_for_dm =
 		    rtlpriv->dm.UNDEC_SM_PWDB;
 		RT_TRACE(rtlpriv, COMP_BB_POWERSAVING, DBG_LOUD,
-			 "AP Ext Port or disconnet PWDB = 0x%x\n",
+			 "AP Ext Port or disconnect PWDB = 0x%x\n",
 			 de_digtable.min_undecorated_pwdb_for_dm);
 	}
 
