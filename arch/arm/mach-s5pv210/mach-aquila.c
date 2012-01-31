@@ -616,6 +616,7 @@ static struct platform_device *aquila_devices[] __initdata = {
 	&s5p_device_fimc0,
 	&s5p_device_fimc1,
 	&s5p_device_fimc2,
+	&s5p_device_fimc_md,
 	&s5pv210_device_iis0,
 	&wm8994_fixed_voltage0,
 	&wm8994_fixed_voltage1,
