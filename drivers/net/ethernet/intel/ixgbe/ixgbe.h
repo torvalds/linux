@@ -535,12 +535,16 @@ enum ixbge_state_t {
 	__IXGBE_IN_SFP_INIT,
 };
 
-struct ixgbe_rsc_cb {
+struct ixgbe_cb {
+	union {				/* Union defining head/tail partner */
+		struct sk_buff *head;
+		struct sk_buff *tail;
+	};
 	dma_addr_t dma;
-	u16 skb_cnt;
+	u16 append_cnt;
 	bool delay_unmap;
 };
-#define IXGBE_RSC_CB(skb) ((struct ixgbe_rsc_cb *)(skb)->cb)
+#define IXGBE_CB(skb) ((struct ixgbe_cb *)(skb)->cb)
 
 enum ixgbe_boards {
 	board_82598,
