@@ -280,8 +280,8 @@ static inline void __ew32flash(struct e1000_hw *hw, unsigned long reg, u32 val)
 
 #define er16flash(reg)		__er16flash(hw, (reg))
 #define er32flash(reg)		__er32flash(hw, (reg))
-#define ew16flash(reg,val)	__ew16flash(hw, (reg), (val))
-#define ew32flash(reg,val)	__ew32flash(hw, (reg), (val))
+#define ew16flash(reg, val)	__ew16flash(hw, (reg), (val))
+#define ew32flash(reg, val)	__ew32flash(hw, (reg), (val))
 
 static void e1000_toggle_lanphypc_value_ich8lan(struct e1000_hw *hw)
 {

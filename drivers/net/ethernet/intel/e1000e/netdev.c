@@ -1267,43 +1267,49 @@ static bool e1000_clean_rx_irq_ps(struct e1000_ring *rx_ring, int *work_done,
 		skb_put(skb, length);
 
 		{
-		/*
-		 * this looks ugly, but it seems compiler issues make it
-		 * more efficient than reusing j
-		 */
-		int l1 = le16_to_cpu(rx_desc->wb.upper.length[0]);
-
-		/*
-		 * page alloc/put takes too long and effects small packet
-		 * throughput, so unsplit small packets and save the alloc/put
-		 * only valid in softirq (napi) context to call kmap_*
-		 */
-		if (l1 && (l1 <= copybreak) &&
-		    ((length + l1) <= adapter->rx_ps_bsize0)) {
-			u8 *vaddr;
-
-			ps_page = &buffer_info->ps_pages[0];
+			/*
+			 * this looks ugly, but it seems compiler issues make
+			 * it more efficient than reusing j
+			 */
+			int l1 = le16_to_cpu(rx_desc->wb.upper.length[0]);
 
 			/*
-			 * there is no documentation about how to call
-			 * kmap_atomic, so we can't hold the mapping
-			 * very long
+			 * page alloc/put takes too long and effects small
+			 * packet throughput, so unsplit small packets and
+			 * save the alloc/put only valid in softirq (napi)
+			 * context to call kmap_*
 			 */
-			dma_sync_single_for_cpu(&pdev->dev, ps_page->dma,
-						PAGE_SIZE, DMA_FROM_DEVICE);
-			vaddr = kmap_atomic(ps_page->page, KM_SKB_DATA_SOFTIRQ);
-			memcpy(skb_tail_pointer(skb), vaddr, l1);
-			kunmap_atomic(vaddr, KM_SKB_DATA_SOFTIRQ);
-			dma_sync_single_for_device(&pdev->dev, ps_page->dma,
-						   PAGE_SIZE, DMA_FROM_DEVICE);
+			if (l1 && (l1 <= copybreak) &&
+			    ((length + l1) <= adapter->rx_ps_bsize0)) {
+				u8 *vaddr;
 
-			/* remove the CRC */
-			if (!(adapter->flags2 & FLAG2_CRC_STRIPPING))
-				l1 -= 4;
+				ps_page = &buffer_info->ps_pages[0];
 
-			skb_put(skb, l1);
-			goto copydone;
-		} /* if */
+				/*
+				 * there is no documentation about how to call
+				 * kmap_atomic, so we can't hold the mapping
+				 * very long
+				 */
+				dma_sync_single_for_cpu(&pdev->dev,
+							ps_page->dma,
+							PAGE_SIZE,
+							DMA_FROM_DEVICE);
+				vaddr = kmap_atomic(ps_page->page,
+						    KM_SKB_DATA_SOFTIRQ);
+				memcpy(skb_tail_pointer(skb), vaddr, l1);
+				kunmap_atomic(vaddr, KM_SKB_DATA_SOFTIRQ);
+				dma_sync_single_for_device(&pdev->dev,
+							   ps_page->dma,
+							   PAGE_SIZE,
+							   DMA_FROM_DEVICE);
+
+				/* remove the CRC */
+				if (!(adapter->flags2 & FLAG2_CRC_STRIPPING))
+					l1 -= 4;
+
+				skb_put(skb, l1);
+				goto copydone;
+			} /* if */
 		}
 
 		for (j = 0; j < PS_PAGE_BUFFERS; j++) {
@@ -4969,7 +4975,7 @@ static int e1000_maybe_stop_tx(struct e1000_ring *tx_ring, int size)
 	return __e1000_maybe_stop_tx(tx_ring, size);
 }
 
-#define TXD_USE_COUNT(S, X) (((S) >> (X)) + 1 )
+#define TXD_USE_COUNT(S, X) (((S) >> (X)) + 1)
 static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 				    struct net_device *netdev)
 {
