@@ -950,11 +950,19 @@ static void svc_clear_pools(struct svc_serv *serv)
 	}
 }
 
-void svc_close_all(struct svc_serv *serv)
+static void svc_clear_list(struct list_head *xprt_list)
 {
 	struct svc_xprt *xprt;
 	struct svc_xprt *tmp;
 
+	list_for_each_entry_safe(xprt, tmp, xprt_list, xpt_list) {
+		svc_delete_xprt(xprt);
+	}
+	BUG_ON(!list_empty(xprt_list));
+}
+
+void svc_close_all(struct svc_serv *serv)
+{
 	svc_close_list(&serv->sv_tempsocks);
 	svc_close_list(&serv->sv_permsocks);
 
@@ -964,13 +972,8 @@ void svc_close_all(struct svc_serv *serv)
 	 * svc_enqueue will not add new entries without taking the
 	 * sp_lock and checking XPT_BUSY.
 	 */
-	list_for_each_entry_safe(xprt, tmp, &serv->sv_tempsocks, xpt_list)
-		svc_delete_xprt(xprt);
-	list_for_each_entry_safe(xprt, tmp, &serv->sv_permsocks, xpt_list)
-		svc_delete_xprt(xprt);
-
-	BUG_ON(!list_empty(&serv->sv_permsocks));
-	BUG_ON(!list_empty(&serv->sv_tempsocks));
+	svc_clear_list(&serv->sv_tempsocks);
+	svc_clear_list(&serv->sv_permsocks);
 }
 
 /*
