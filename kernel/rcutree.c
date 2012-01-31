@@ -320,25 +320,18 @@ static struct rcu_node *rcu_get_root(struct rcu_state *rsp)
 static int rcu_implicit_offline_qs(struct rcu_data *rdp)
 {
 	/*
-	 * If the CPU is offline, it is in a quiescent state.  We can
-	 * trust its state not to change because interrupts are disabled.
+	 * If the CPU is offline for more than a jiffy, it is in a quiescent
+	 * state.  We can trust its state not to change because interrupts
+	 * are disabled.  The reason for the jiffy's worth of slack is to
+	 * handle CPUs initializing on the way up and finding their way
+	 * to the idle loop on the way down.
 	 */
-	if (cpu_is_offline(rdp->cpu)) {
+	if (cpu_is_offline(rdp->cpu) &&
+	    ULONG_CMP_LT(rdp->rsp->gp_start + 2, jiffies)) {
 		trace_rcu_fqs(rdp->rsp->name, rdp->gpnum, rdp->cpu, "ofl");
 		rdp->offline_fqs++;
 		return 1;
 	}
-
-	/*
-	 * The CPU is online, so send it a reschedule IPI.  This forces
-	 * it through the scheduler, and (inefficiently) also handles cases
-	 * where idle loops fail to inform RCU about the CPU being idle.
-	 */
-	if (rdp->cpu != smp_processor_id())
-		smp_send_reschedule(rdp->cpu);
-	else
-		set_need_resched();
-	rdp->resched_ipi++;
 	return 0;
 }
 
@@ -601,19 +594,33 @@ EXPORT_SYMBOL(rcu_is_cpu_idle);
  * this task being preempted, its old CPU being taken offline, resuming
  * on some other CPU, then determining that its old CPU is now offline.
  * It is OK to use RCU on an offline processor during initial boot, hence
- * the check for rcu_scheduler_fully_active.
+ * the check for rcu_scheduler_fully_active.  Note also that it is OK
+ * for a CPU coming online to use RCU for one jiffy prior to marking itself
+ * online in the cpu_online_mask.  Similarly, it is OK for a CPU going
+ * offline to continue to use RCU for one jiffy after marking itself
+ * offline in the cpu_online_mask.  This leniency is necessary given the
+ * non-atomic nature of the online and offline processing, for example,
+ * the fact that a CPU enters the scheduler after completing the CPU_DYING
+ * notifiers.
+ *
+ * This is also why RCU internally marks CPUs online during the
+ * CPU_UP_PREPARE phase and offline during the CPU_DEAD phase.
  *
  * Disable checking if in an NMI handler because we cannot safely report
  * errors from NMI handlers anyway.
  */
 bool rcu_lockdep_current_cpu_online(void)
 {
+	struct rcu_data *rdp;
+	struct rcu_node *rnp;
 	bool ret;
 
 	if (in_nmi())
 		return 1;
 	preempt_disable();
-	ret = cpu_online(smp_processor_id()) ||
+	rdp = &__get_cpu_var(rcu_sched_data);
+	rnp = rdp->mynode;
+	ret = (rdp->grpmask & rnp->qsmaskinit) ||
 	      !rcu_scheduler_fully_active;
 	preempt_enable();
 	return ret;
@@ -1308,14 +1315,12 @@ rcu_check_quiescent_state(struct rcu_state *rsp, struct rcu_data *rdp)
  */
 static void rcu_cleanup_dying_cpu(struct rcu_state *rsp)
 {
-	unsigned long flags;
 	int i;
 	unsigned long mask;
-	int need_report;
 	int receive_cpu = cpumask_any(cpu_online_mask);
 	struct rcu_data *rdp = this_cpu_ptr(rsp->rda);
 	struct rcu_data *receive_rdp = per_cpu_ptr(rsp->rda, receive_cpu);
-	struct rcu_node *rnp = rdp->mynode; /* For dying CPU. */
+	RCU_TRACE(struct rcu_node *rnp = rdp->mynode); /* For dying CPU. */
 
 	/* First, adjust the counts. */
 	if (rdp->nxtlist != NULL) {
@@ -1381,32 +1386,6 @@ static void rcu_cleanup_dying_cpu(struct rcu_state *rsp)
 			       "cpuofl");
 	rcu_report_qs_rdp(smp_processor_id(), rsp, rdp, rsp->gpnum);
 	/* Note that rcu_report_qs_rdp() might call trace_rcu_grace_period(). */
-
-	/*
-	 * Remove the dying CPU from the bitmasks in the rcu_node
-	 * hierarchy.  Because we are in stop_machine() context, we
-	 * automatically exclude ->onofflock critical sections.
-	 */
-	do {
-		raw_spin_lock_irqsave(&rnp->lock, flags);
-		rnp->qsmaskinit &= ~mask;
-		if (rnp->qsmaskinit != 0) {
-			raw_spin_unlock_irqrestore(&rnp->lock, flags);
-			break;
-		}
-		if (rnp == rdp->mynode) {
-			need_report = rcu_preempt_offline_tasks(rsp, rnp, rdp);
-			if (need_report & RCU_OFL_TASKS_NORM_GP)
-				rcu_report_unblock_qs_rnp(rnp, flags);
-			else
-				raw_spin_unlock_irqrestore(&rnp->lock, flags);
-			if (need_report & RCU_OFL_TASKS_EXP_GP)
-				rcu_report_exp_rnp(rsp, rnp, true);
-		} else
-			raw_spin_unlock_irqrestore(&rnp->lock, flags);
-		mask = rnp->grpmask;
-		rnp = rnp->parent;
-	} while (rnp != NULL);
 }
 
 /*
@@ -1417,11 +1396,53 @@ static void rcu_cleanup_dying_cpu(struct rcu_state *rsp)
  */
 static void rcu_cleanup_dead_cpu(int cpu, struct rcu_state *rsp)
 {
+	unsigned long flags;
+	unsigned long mask;
+	int need_report = 0;
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
-	struct rcu_node *rnp = rdp->mynode;
+	struct rcu_node *rnp = rdp->mynode;  /* Outgoing CPU's rnp. */
 
+	/* Adjust any no-longer-needed kthreads. */
 	rcu_stop_cpu_kthread(cpu);
 	rcu_node_kthread_setaffinity(rnp, -1);
+
+	/* Remove the dying CPU from the bitmasks in the rcu_node hierarchy. */
+
+	/* Exclude any attempts to start a new grace period. */
+	raw_spin_lock_irqsave(&rsp->onofflock, flags);
+
+	/* Remove the outgoing CPU from the masks in the rcu_node hierarchy. */
+	mask = rdp->grpmask;	/* rnp->grplo is constant. */
+	do {
+		raw_spin_lock(&rnp->lock);	/* irqs already disabled. */
+		rnp->qsmaskinit &= ~mask;
+		if (rnp->qsmaskinit != 0) {
+			if (rnp != rdp->mynode)
+				raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
+			break;
+		}
+		if (rnp == rdp->mynode)
+			need_report = rcu_preempt_offline_tasks(rsp, rnp, rdp);
+		else
+			raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
+		mask = rnp->grpmask;
+		rnp = rnp->parent;
+	} while (rnp != NULL);
+
+	/*
+	 * We still hold the leaf rcu_node structure lock here, and
+	 * irqs are still disabled.  The reason for this subterfuge is
+	 * because invoking rcu_report_unblock_qs_rnp() with ->onofflock
+	 * held leads to deadlock.
+	 */
+	raw_spin_unlock(&rsp->onofflock); /* irqs remain disabled. */
+	rnp = rdp->mynode;
+	if (need_report & RCU_OFL_TASKS_NORM_GP)
+		rcu_report_unblock_qs_rnp(rnp, flags);
+	else
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	if (need_report & RCU_OFL_TASKS_EXP_GP)
+		rcu_report_exp_rnp(rsp, rnp, true);
 }
 
 #else /* #ifdef CONFIG_HOTPLUG_CPU */
