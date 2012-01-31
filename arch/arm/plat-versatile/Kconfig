@@ -11,7 +11,7 @@ config PLAT_VERSATILE_LEDS
 	depends on ARCH_REALVIEW || ARCH_VERSATILE
 
 config PLAT_VERSATILE_SCHED_CLOCK
-	def_bool y if !ARCH_INTEGRATOR_AP
+	def_bool y
 	select HAVE_SCHED_CLOCK
 
 endif
