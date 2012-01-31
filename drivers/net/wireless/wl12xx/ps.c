@@ -160,7 +160,7 @@ out:
 }
 
 int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
-		       enum wl1271_cmd_ps_mode mode, u32 rates, bool send)
+		       enum wl1271_cmd_ps_mode mode)
 {
 	int ret;
 	u16 timeout = wl->conf.conn.dynamic_ps_timeout;

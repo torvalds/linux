@@ -2472,8 +2472,7 @@ static int wl12xx_config_vif(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags)) {
 			wl1271_debug(DEBUG_PSM, "psm enabled");
 			ret = wl1271_ps_set_mode(wl, wlvif,
-						 STATION_POWER_SAVE_MODE,
-						 wlvif->basic_rate, true);
+						 STATION_AUTO_PS_MODE);
 		}
 	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
 		   test_bit(WLVIF_FLAG_PSM_REQUESTED, &wlvif->flags)) {
@@ -2483,8 +2482,7 @@ static int wl12xx_config_vif(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 		if (test_bit(WLVIF_FLAG_PSM, &wlvif->flags))
 			ret = wl1271_ps_set_mode(wl, wlvif,
-						 STATION_ACTIVE_MODE,
-						 wlvif->basic_rate, true);
+						 STATION_ACTIVE_MODE);
 	}
 
 	if (conf->power_level != wlvif->power_level) {
@@ -3824,9 +3822,7 @@ sta_not_found:
 		    !test_bit(WLVIF_FLAG_PSM, &wlvif->flags)) {
 
 			ret = wl1271_ps_set_mode(wl, wlvif,
-						 STATION_AUTO_PS_MODE,
-						 wlvif->basic_rate,
-						 true);
+						 STATION_AUTO_PS_MODE);
 			if (ret < 0)
 				goto out;
 		}

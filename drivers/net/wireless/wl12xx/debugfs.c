@@ -359,9 +359,7 @@ static ssize_t dynamic_ps_timeout_write(struct file *file,
 
 	wl12xx_for_each_wlvif_sta(wl, wlvif) {
 		if (test_bit(WLVIF_FLAG_PSM, &wlvif->flags))
-			wl1271_ps_set_mode(wl, wlvif, STATION_AUTO_PS_MODE,
-					   wlvif->basic_rate, true);
-
+			wl1271_ps_set_mode(wl, wlvif, STATION_AUTO_PS_MODE);
 	}
 
 	wl1271_ps_elp_sleep(wl);
