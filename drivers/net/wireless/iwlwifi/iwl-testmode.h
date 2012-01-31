@@ -99,7 +99,7 @@
  *	to user application
  * @IWL_TM_CMD_DEV2APP_UCODE_RX_PKT:
  *	commands from kernel space to multicast the spontaneous messages
- *	to user application
+ *	to user application, or reply of host commands
  * @IWL_TM_CMD_DEV2APP_EEPROM_RSP:
  *	commands from kernel space to carry the eeprom response
  *	to user application
@@ -173,8 +173,6 @@ enum iwl_tm_cmd_t {
  *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_UCODE,
  *	The mandatory fields are :
  *	IWL_TM_ATTR_UCODE_CMD_ID for recognizable command ID;
- *	IWL_TM_ATTR_COMMAND_FLAG for the flags of the commands;
- *	The optional fields are:
  *	IWL_TM_ATTR_UCODE_CMD_DATA for the actual command payload
  *	to the ucode
  *
@@ -254,6 +252,10 @@ enum iwl_tm_cmd_t {
  *	IWL_TM_ATTR_FW_INST_SIZE for the size of instruction section
  *	IWL_TM_ATTR_FW_DATA_SIZE for the size of data section
  *
+ * @IWL_TM_ATTR_UCODE_CMD_SKB:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_UCODE this flag
+ *	indicates that the user wants to receive the response of the command
+ *	in a reply SKB. If it's not present, the response is not returned.
  */
 enum iwl_tm_attr_t {
 	IWL_TM_ATTR_NOT_APPLICABLE		= 0,
@@ -279,7 +281,8 @@ enum iwl_tm_attr_t {
 	IWL_TM_ATTR_FW_TYPE			= 20,
 	IWL_TM_ATTR_FW_INST_SIZE		= 21,
 	IWL_TM_ATTR_FW_DATA_SIZE		= 22,
-	IWL_TM_ATTR_MAX				= 23,
+	IWL_TM_ATTR_UCODE_CMD_SKB		= 23,
+	IWL_TM_ATTR_MAX				= 24,
 };
 
 /* uCode trace buffer */
