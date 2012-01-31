@@ -659,8 +659,8 @@ int __devinit dwc3_debugfs_init(struct dwc3 *dwc)
 	int			ret;
 
 	root = debugfs_create_dir(dev_name(dwc->dev), NULL);
-	if (IS_ERR(root)) {
-		ret = PTR_ERR(root);
+	if (!root) {
+		ret = -ENOMEM;
 		goto err0;
 	}
 
@@ -668,29 +668,29 @@ int __devinit dwc3_debugfs_init(struct dwc3 *dwc)
 
 	file = debugfs_create_file("regdump", S_IRUGO, root, dwc,
 			&dwc3_regdump_fops);
-	if (IS_ERR(file)) {
-		ret = PTR_ERR(file);
+	if (!file) {
+		ret = -ENOMEM;
 		goto err1;
 	}
 
 	file = debugfs_create_file("mode", S_IRUGO | S_IWUSR, root,
 			dwc, &dwc3_mode_fops);
-	if (IS_ERR(file)) {
-		ret = PTR_ERR(file);
+	if (!file) {
+		ret = -ENOMEM;
 		goto err1;
 	}
 
 	file = debugfs_create_file("testmode", S_IRUGO | S_IWUSR, root,
 			dwc, &dwc3_testmode_fops);
-	if (IS_ERR(file)) {
-		ret = PTR_ERR(file);
+	if (!file) {
+		ret = -ENOMEM;
 		goto err1;
 	}
 
 	file = debugfs_create_file("link_state", S_IRUGO | S_IWUSR, root,
 			dwc, &dwc3_link_state_fops);
-	if (IS_ERR(file)) {
-		ret = PTR_ERR(file);
+	if (!file) {
+		ret = -ENOMEM;
 		goto err1;
 	}
 
