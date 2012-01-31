@@ -766,10 +766,14 @@ out:
 
 static u8 wl1271_tx_get_rate_flags(u8 rate_class_index)
 {
+	u8 flags = 0;
+
 	if (rate_class_index >= CONF_HW_RXTX_RATE_MCS_MIN &&
 	    rate_class_index <= CONF_HW_RXTX_RATE_MCS_MAX)
-		return IEEE80211_TX_RC_MCS;
-	return 0;
+		flags |= IEEE80211_TX_RC_MCS;
+	if (rate_class_index == CONF_HW_RXTX_RATE_MCS7_SGI)
+		flags |= IEEE80211_TX_RC_SHORT_GI;
+	return flags;
 }
 
 static void wl1271_tx_complete_packet(struct wl1271 *wl,
