@@ -364,6 +364,7 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 void bcma_init_bus(struct bcma_bus *bus)
 {
 	s32 tmp;
+	struct bcma_chipinfo *chipinfo = &(bus->chipinfo);
 
 	if (bus->init_done)
 		return;
@@ -374,9 +375,12 @@ void bcma_init_bus(struct bcma_bus *bus)
 	bcma_scan_switch_core(bus, BCMA_ADDR_BASE);
 
 	tmp = bcma_scan_read32(bus, 0, BCMA_CC_ID);
-	bus->chipinfo.id = (tmp & BCMA_CC_ID_ID) >> BCMA_CC_ID_ID_SHIFT;
-	bus->chipinfo.rev = (tmp & BCMA_CC_ID_REV) >> BCMA_CC_ID_REV_SHIFT;
-	bus->chipinfo.pkg = (tmp & BCMA_CC_ID_PKG) >> BCMA_CC_ID_PKG_SHIFT;
+	chipinfo->id = (tmp & BCMA_CC_ID_ID) >> BCMA_CC_ID_ID_SHIFT;
+	chipinfo->rev = (tmp & BCMA_CC_ID_REV) >> BCMA_CC_ID_REV_SHIFT;
+	chipinfo->pkg = (tmp & BCMA_CC_ID_PKG) >> BCMA_CC_ID_PKG_SHIFT;
+	pr_info("Found chip with id 0x%04X, rev 0x%02X and package 0x%02X\n",
+		chipinfo->id, chipinfo->rev, chipinfo->pkg);
+
 	bus->init_done = true;
 }
 
