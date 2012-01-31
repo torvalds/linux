@@ -615,6 +615,7 @@ do_sas_phy_reset(struct device *dev, size_t count, int hard_reset)
 	error = i->f->phy_reset(phy, hard_reset);
 	if (error)
 		return error;
+	phy->enabled = 1;
 	return count;
 };
 
