@@ -208,22 +208,22 @@ void radeon_benchmark(struct radeon_device *rdev, int test_number)
 		break;
 	case 3:
 		/* GTT to VRAM, buffer size sweep, powers of 2 */
-		for (i = 1; i <= 65536; i <<= 1)
-			radeon_benchmark_move(rdev, i*1024,
+		for (i = 1; i <= 16384; i <<= 1)
+			radeon_benchmark_move(rdev, i * RADEON_GPU_PAGE_SIZE,
 					      RADEON_GEM_DOMAIN_GTT,
 					      RADEON_GEM_DOMAIN_VRAM);
 		break;
 	case 4:
 		/* VRAM to GTT, buffer size sweep, powers of 2 */
-		for (i = 1; i <= 65536; i <<= 1)
-			radeon_benchmark_move(rdev, i*1024,
+		for (i = 1; i <= 16384; i <<= 1)
+			radeon_benchmark_move(rdev, i * RADEON_GPU_PAGE_SIZE,
 					      RADEON_GEM_DOMAIN_VRAM,
 					      RADEON_GEM_DOMAIN_GTT);
 		break;
 	case 5:
 		/* VRAM to VRAM, buffer size sweep, powers of 2 */
-		for (i = 1; i <= 65536; i <<= 1)
-			radeon_benchmark_move(rdev, i*1024,
+		for (i = 1; i <= 16384; i <<= 1)
+			radeon_benchmark_move(rdev, i * RADEON_GPU_PAGE_SIZE,
 					      RADEON_GEM_DOMAIN_VRAM,
 					      RADEON_GEM_DOMAIN_VRAM);
 		break;
