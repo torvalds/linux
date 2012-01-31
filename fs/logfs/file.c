@@ -230,7 +230,9 @@ int logfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 		return ret;
 
 	mutex_lock(&inode->i_mutex);
+	logfs_get_wblocks(sb, NULL, WF_LOCK);
 	logfs_write_anchor(sb);
+	logfs_put_wblocks(sb, NULL, WF_LOCK);
 	mutex_unlock(&inode->i_mutex);
 
 	return 0;
