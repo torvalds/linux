@@ -251,6 +251,45 @@ out_err:
 	return err;
 }
 
+static int lockd_up_net(struct net *net)
+{
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
+	struct svc_serv *serv = nlmsvc_rqst->rq_server;
+	int error;
+
+	if (ln->nlmsvc_users)
+		return 0;
+
+	error = svc_rpcb_setup(serv, net);
+	if (error)
+		goto err_rpcb;
+
+	error = make_socks(serv, net);
+	if (error < 0)
+		goto err_socks;
+	return 0;
+
+err_socks:
+	svc_rpcb_cleanup(serv, net);
+err_rpcb:
+	return error;
+}
+
+static void lockd_down_net(struct net *net)
+{
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
+	struct svc_serv *serv = nlmsvc_rqst->rq_server;
+
+	if (ln->nlmsvc_users) {
+		if (--ln->nlmsvc_users == 0)
+			svc_shutdown_net(serv, net);
+	} else {
+		printk(KERN_ERR "lockd_down_net: no users! task=%p, net=%p\n",
+				nlmsvc_task, net);
+		BUG();
+	}
+}
+
 /*
  * Bring up the lockd process if it's not already up.
  */
@@ -264,8 +303,10 @@ int lockd_up(void)
 	/*
 	 * Check whether we're already up and running.
 	 */
-	if (nlmsvc_rqst)
+	if (nlmsvc_rqst) {
+		error = lockd_up_net(net);
 		goto out;
+	}
 
 	/*
 	 * Sanity check: if there's no pid,
@@ -339,8 +380,10 @@ lockd_down(void)
 {
 	mutex_lock(&nlmsvc_mutex);
 	if (nlmsvc_users) {
-		if (--nlmsvc_users)
+		if (--nlmsvc_users) {
+			lockd_down_net(current->nsproxy->net_ns);
 			goto out;
+		}
 	} else {
 		printk(KERN_ERR "lockd_down: no users! task=%p\n",
 			nlmsvc_task);
