@@ -255,16 +255,20 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	int aligned_len, ac, rate_idx;
 	s64 hosttime;
 	u16 tx_attr = 0;
+	__le16 frame_control;
+	struct ieee80211_hdr *hdr;
+	u8 *frame_start;
 	bool is_dummy;
 
 	desc = (struct wl1271_tx_hw_descr *) skb->data;
+	frame_start = (u8 *)(desc + 1);
+	hdr = (struct ieee80211_hdr *)(frame_start + extra);
+	frame_control = hdr->frame_control;
 
 	/* relocate space for security header */
 	if (extra) {
-		void *framestart = skb->data + sizeof(*desc);
-		u16 fc = *(u16 *)(framestart + extra);
-		int hdrlen = ieee80211_hdrlen(cpu_to_le16(fc));
-		memmove(framestart, framestart + extra, hdrlen);
+		int hdrlen = ieee80211_hdrlen(frame_control);
+		memmove(frame_start, hdr, hdrlen);
 	}
 
 	/* configure packet life time */
@@ -352,6 +356,11 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			     le16_to_cpu(desc->life_time),
 			     desc->wl127x_mem.total_mem_blocks);
 	}
+
+	/* for WEP shared auth - no fw encryption is needed */
+	if (ieee80211_is_auth(frame_control) &&
+	    ieee80211_has_protected(frame_control))
+		tx_attr |= TX_HW_ATTR_HOST_ENCRYPT;
 
 	desc->tx_attr = cpu_to_le16(tx_attr);
 }
