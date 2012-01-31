@@ -1,0 +1,24 @@
+ALC5632 audio CODEC
+
+This device supports I2C only.
+
+Required properties:
+
+  - compatible : "realtek,alc5632"
+
+  - reg : the I2C address of the device.
+
+  - gpio-controller : Indicates this device is a GPIO controller.
+
+  - #gpio-cells : Should be two. The first cell is the pin number and the
+    second cell is used to specify optional parameters (currently unused).
+
+Example:
+
+alc5632: alc5632@1e {
+	compatible = "realtek,alc5632";
+	reg = <0x1a>;
+
+	gpio-controller;
+	#gpio-cells = <2>;
+};
