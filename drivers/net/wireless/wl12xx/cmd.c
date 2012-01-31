@@ -1022,8 +1022,9 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
-			    void *buf, size_t buf_len, int index, u32 rates)
+int wl1271_cmd_template_set(struct wl1271 *wl, u8 role_id,
+			    u16 template_id, void *buf, size_t buf_len,
+			    int index, u32 rates)
 {
 	struct wl1271_cmd_template_set *cmd;
 	int ret = 0;
@@ -1039,6 +1040,8 @@ int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
 		goto out;
 	}
 
+	/* during initialization wlvif is NULL */
+	cmd->role_id = role_id;
 	cmd->len = cpu_to_le16(buf_len);
 	cmd->template_type = template_id;
 	cmd->enabled_rates = cpu_to_le32(rates);
@@ -1082,7 +1085,8 @@ int wl12xx_cmd_build_null_data(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		ptr = skb->data;
 	}
 
-	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, ptr, size, 0,
+	ret = wl1271_cmd_template_set(wl, wlvif->role_id,
+				      CMD_TEMPL_NULL_DATA, ptr, size, 0,
 				      wlvif->basic_rate);
 
 out:
@@ -1105,7 +1109,7 @@ int wl12xx_cmd_build_klv_null_data(struct wl1271 *wl,
 	if (!skb)
 		goto out;
 
-	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_KLV,
+	ret = wl1271_cmd_template_set(wl, wlvif->role_id, CMD_TEMPL_KLV,
 				      skb->data, skb->len,
 				      CMD_TEMPL_KLV_IDX_NULL_DATA,
 				      wlvif->basic_rate);
@@ -1130,7 +1134,8 @@ int wl1271_cmd_build_ps_poll(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (!skb)
 		goto out;
 
-	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_PS_POLL, skb->data,
+	ret = wl1271_cmd_template_set(wl, wlvif->role_id,
+				      CMD_TEMPL_PS_POLL, skb->data,
 				      skb->len, 0, wlvif->basic_rate_set);
 
 out:
@@ -1138,9 +1143,10 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			       u8 role_id, u8 band,
 			       const u8 *ssid, size_t ssid_len,
-			       const u8 *ie, size_t ie_len, u8 band)
+			       const u8 *ie, size_t ie_len)
 {
 	struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 	struct sk_buff *skb;
@@ -1158,10 +1164,12 @@ int wl1271_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	rate = wl1271_tx_min_rate_get(wl, wlvif->bitrate_masks[band]);
 	if (band == IEEE80211_BAND_2GHZ)
-		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4,
+		ret = wl1271_cmd_template_set(wl, role_id,
+					      CMD_TEMPL_CFG_PROBE_REQ_2_4,
 					      skb->data, skb->len, 0, rate);
 	else
-		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
+		ret = wl1271_cmd_template_set(wl, role_id,
+					      CMD_TEMPL_CFG_PROBE_REQ_5,
 					      skb->data, skb->len, 0, rate);
 
 out:
@@ -1186,10 +1194,12 @@ struct sk_buff *wl1271_cmd_build_ap_probe_req(struct wl1271 *wl,
 
 	rate = wl1271_tx_min_rate_get(wl, wlvif->bitrate_masks[wlvif->band]);
 	if (wlvif->band == IEEE80211_BAND_2GHZ)
-		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4,
+		ret = wl1271_cmd_template_set(wl, wlvif->role_id,
+					      CMD_TEMPL_CFG_PROBE_REQ_2_4,
 					      skb->data, skb->len, 0, rate);
 	else
-		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
+		ret = wl1271_cmd_template_set(wl, wlvif->role_id,
+					      CMD_TEMPL_CFG_PROBE_REQ_5,
 					      skb->data, skb->len, 0, rate);
 
 	if (ret < 0)
@@ -1235,7 +1245,7 @@ int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	memcpy(tmpl.sender_hw, vif->addr, ETH_ALEN);
 	tmpl.sender_ip = ip_addr;
 
-	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_ARP_RSP,
+	ret = wl1271_cmd_template_set(wl, wlvif->role_id, CMD_TEMPL_ARP_RSP,
 				      &tmpl, sizeof(tmpl), 0,
 				      wlvif->basic_rate);
 
@@ -1260,7 +1270,8 @@ int wl1271_build_qos_null_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 	/* FIXME: not sure what priority to use here */
 	template.qos_ctrl = cpu_to_le16(0);
 
-	return wl1271_cmd_template_set(wl, CMD_TEMPL_QOS_NULL_DATA, &template,
+	return wl1271_cmd_template_set(wl, wlvif->role_id,
+				       CMD_TEMPL_QOS_NULL_DATA, &template,
 				       sizeof(template), 0,
 				       wlvif->basic_rate);
 }

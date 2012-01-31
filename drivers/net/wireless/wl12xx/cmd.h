@@ -54,14 +54,16 @@ int wl1271_cmd_ps_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		       u8 ps_mode);
 int wl1271_cmd_read_memory(struct wl1271 *wl, u32 addr, void *answer,
 			   size_t len);
-int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
-			    void *buf, size_t buf_len, int index, u32 rates);
+int wl1271_cmd_template_set(struct wl1271 *wl, u8 role_id,
+			    u16 template_id, void *buf, size_t buf_len,
+			    int index, u32 rates);
 int wl12xx_cmd_build_null_data(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 int wl1271_cmd_build_ps_poll(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			     u16 aid);
-int wl1271_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			       u8 role_id, u8 band,
 			       const u8 *ssid, size_t ssid_len,
-			       const u8 *ie, size_t ie_len, u8 band);
+			       const u8 *ie, size_t ie_len);
 struct sk_buff *wl1271_cmd_build_ap_probe_req(struct wl1271 *wl,
 					      struct wl12xx_vif *wlvif,
 					      struct sk_buff *skb);
@@ -191,7 +193,7 @@ enum cmd_templ {
 /* unit ms */
 #define WL1271_COMMAND_TIMEOUT     2000
 #define WL1271_CMD_TEMPL_DFLT_SIZE 252
-#define WL1271_CMD_TEMPL_MAX_SIZE  548
+#define WL1271_CMD_TEMPL_MAX_SIZE  512
 #define WL1271_EVENT_TIMEOUT       750
 
 struct wl1271_cmd_header {
@@ -364,14 +366,18 @@ struct cmd_enabledisable_path {
 struct wl1271_cmd_template_set {
 	struct wl1271_cmd_header header;
 
-	__le16 len;
+	u8 role_id;
 	u8 template_type;
+	__le16 len;
 	u8 index;  /* relevant only for KLV_TEMPLATE type */
+	u8 padding[3];
+
 	__le32 enabled_rates;
 	u8 short_retry_limit;
 	u8 long_retry_limit;
 	u8 aflags;
 	u8 reserved;
+
 	u8 template_data[WL1271_CMD_TEMPL_MAX_SIZE];
 } __packed;
 

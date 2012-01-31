@@ -217,9 +217,11 @@ static int wl1271_scan_send(struct wl1271 *wl, struct ieee80211_vif *vif,
 
 	memcpy(cmd->addr, vif->addr, ETH_ALEN);
 
-	ret = wl1271_cmd_build_probe_req(wl, wlvif, wl->scan.ssid,
-					 wl->scan.ssid_len, wl->scan.req->ie,
-					 wl->scan.req->ie_len, band);
+	ret = wl12xx_cmd_build_probe_req(wl, wlvif,
+					 wlvif->role_id, band,
+					 wl->scan.ssid, wl->scan.ssid_len,
+					 wl->scan.req->ie,
+					 wl->scan.req->ie_len);
 	if (ret < 0) {
 		wl1271_error("PROBE request template failed");
 		goto out;
@@ -658,11 +660,13 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	}
 
 	if (!force_passive && cfg->active[0]) {
-		ret = wl1271_cmd_build_probe_req(wl, wlvif, req->ssids[0].ssid,
+		u8 band = IEEE80211_BAND_2GHZ;
+		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
+						 wlvif->role_id, band,
+						 req->ssids[0].ssid,
 						 req->ssids[0].ssid_len,
-						 ies->ie[IEEE80211_BAND_2GHZ],
-						 ies->len[IEEE80211_BAND_2GHZ],
-						 IEEE80211_BAND_2GHZ);
+						 ies->ie[band],
+						 ies->len[band]);
 		if (ret < 0) {
 			wl1271_error("2.4GHz PROBE request template failed");
 			goto out;
@@ -670,11 +674,13 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	}
 
 	if (!force_passive && cfg->active[1]) {
-		ret = wl1271_cmd_build_probe_req(wl, wlvif, req->ssids[0].ssid,
+		u8 band = IEEE80211_BAND_5GHZ;
+		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
+						 wlvif->role_id, band,
+						 req->ssids[0].ssid,
 						 req->ssids[0].ssid_len,
-						 ies->ie[IEEE80211_BAND_5GHZ],
-						 ies->len[IEEE80211_BAND_5GHZ],
-						 IEEE80211_BAND_5GHZ);
+						 ies->ie[band],
+						 ies->len[band]);
 		if (ret < 0) {
 			wl1271_error("5GHz PROBE request template failed");
 			goto out;

@@ -35,8 +35,8 @@
 #include "conf.h"
 #include "ini.h"
 
-#define WL127X_FW_NAME "ti-connectivity/wl127x-fw-3.bin"
-#define WL128X_FW_NAME "ti-connectivity/wl128x-fw-3.bin"
+#define WL127X_FW_NAME "ti-connectivity/wl127x-fw-4-sr.bin"
+#define WL128X_FW_NAME "ti-connectivity/wl128x-fw-4-sr.bin"
 
 /*
  * wl127x and wl128x are using the same NVS file name. However, the
