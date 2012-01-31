@@ -120,16 +120,11 @@ static const struct s5m_voltage_desc *reg_voltage_map[] = {
 	[S5M8767_BUCK9] = &buck_voltage_val3,
 };
 
-static inline int s5m8767_get_reg_id(struct regulator_dev *rdev)
-{
-	return rdev_get_id(rdev);
-}
-
 static int s5m8767_list_voltage(struct regulator_dev *rdev,
 				unsigned int selector)
 {
 	const struct s5m_voltage_desc *desc;
-	int reg_id = s5m8767_get_reg_id(rdev);
+	int reg_id = rdev_get_id(rdev);
 	int val;
 
 	if (reg_id >= ARRAY_SIZE(reg_voltage_map) || reg_id < 0)
@@ -148,7 +143,7 @@ static int s5m8767_list_voltage(struct regulator_dev *rdev,
 
 static int s5m8767_get_register(struct regulator_dev *rdev, int *reg)
 {
-	int reg_id = s5m8767_get_reg_id(rdev);
+	int reg_id = rdev_get_id(rdev);
 
 	switch (reg_id) {
 	case S5M8767_LDO1 ... S5M8767_LDO2:
@@ -224,7 +219,7 @@ static int s5m8767_reg_disable(struct regulator_dev *rdev)
 
 static int s5m8767_get_voltage_register(struct regulator_dev *rdev, int *_reg)
 {
-	int reg_id = s5m8767_get_reg_id(rdev);
+	int reg_id = rdev_get_id(rdev);
 	int reg;
 
 	switch (reg_id) {
@@ -265,7 +260,7 @@ static int s5m8767_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct s5m8767_info *s5m8767 = rdev_get_drvdata(rdev);
 	int reg, mask = 0xff, ret;
-	int reg_id = s5m8767_get_reg_id(rdev);
+	int reg_id = rdev_get_id(rdev);
 	u8 val;
 
 	ret = s5m8767_get_voltage_register(rdev, &reg);
@@ -325,7 +320,7 @@ static int s5m8767_set_voltage(struct regulator_dev *rdev,
 	struct s5m8767_info *s5m8767 = rdev_get_drvdata(rdev);
 	int min_vol = min_uV, max_vol = max_uV;
 	const struct s5m_voltage_desc *desc;
-	int reg_id = s5m8767_get_reg_id(rdev);
+	int reg_id = rdev_get_id(rdev);
 	int reg, mask, ret;
 	int i;
 	u8 val;
@@ -387,7 +382,7 @@ static int s5m8767_set_voltage_buck(struct regulator_dev *rdev,
 				    int min_uV, int max_uV, unsigned *selector)
 {
 	struct s5m8767_info *s5m8767 = rdev_get_drvdata(rdev);
-	int reg_id = s5m8767_get_reg_id(rdev);
+	int reg_id = rdev_get_id(rdev);
 	const struct s5m_voltage_desc *desc;
 	int new_val, old_val, i = 0;
 	int min_vol = min_uV, max_vol = max_uV;
@@ -456,7 +451,7 @@ static int s5m8767_set_voltage_time_sel(struct regulator_dev *rdev,
 {
 	struct s5m8767_info *s5m8767 = rdev_get_drvdata(rdev);
 	const struct s5m_voltage_desc *desc;
-	int reg_id = s5m8767_get_reg_id(rdev);
+	int reg_id = rdev_get_id(rdev);
 	int mask;
 	int new_val, old_val;
 
