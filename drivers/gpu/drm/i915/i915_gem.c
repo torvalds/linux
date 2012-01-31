@@ -3685,12 +3685,15 @@ void i915_gem_init_swizzling(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	if (INTEL_INFO(dev)->gen < 6 ||
+	if (INTEL_INFO(dev)->gen < 5 ||
 	    dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_NONE)
 		return;
 
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 				 DISP_TILE_SURFACE_SWIZZLING);
+
+	if (IS_GEN5(dev))
+		return;
 
 	I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_SWZCTL);
 	if (IS_GEN6(dev))
