@@ -2654,13 +2654,6 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_STATION:
-		/* disallow things sta doesn't support */
-		if (params.plink_action)
-			return -EINVAL;
-		if (params.ht_capa)
-			return -EINVAL;
-		if (params.listen_interval >= 0)
-			return -EINVAL;
 		/*
 		 * Don't allow userspace to change the TDLS_PEER flag,
 		 * but silently ignore attempts to change it since we
@@ -2668,7 +2661,15 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 		 * to change the flag.
 		 */
 		params.sta_flags_mask &= ~BIT(NL80211_STA_FLAG_TDLS_PEER);
-
+		/* fall through */
+	case NL80211_IFTYPE_ADHOC:
+		/* disallow things sta doesn't support */
+		if (params.plink_action)
+			return -EINVAL;
+		if (params.ht_capa)
+			return -EINVAL;
+		if (params.listen_interval >= 0)
+			return -EINVAL;
 		/* reject any changes other than AUTHORIZED */
 		if (params.sta_flags_mask & ~BIT(NL80211_STA_FLAG_AUTHORIZED))
 			return -EINVAL;
@@ -4801,6 +4802,9 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 		if (IS_ERR(connkeys))
 			return PTR_ERR(connkeys);
 	}
+
+	ibss.control_port =
+		nla_get_flag(info->attrs[NL80211_ATTR_CONTROL_PORT]);
 
 	err = cfg80211_join_ibss(rdev, dev, &ibss, connkeys);
 	if (err)

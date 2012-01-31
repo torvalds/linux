@@ -268,7 +268,10 @@ static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta,
 
 	sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
 	sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
-	sta_info_pre_move_state(sta, IEEE80211_STA_AUTHORIZED);
+	/* authorize the station only if the network is not RSN protected. If
+	 * not wait for the userspace to authorize it */
+	if (!sta->sdata->u.ibss.control_port)
+		sta_info_pre_move_state(sta, IEEE80211_STA_AUTHORIZED);
 
 	rate_control_rate_init(sta);
 
@@ -1075,6 +1078,7 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 		sdata->u.ibss.fixed_bssid = false;
 
 	sdata->u.ibss.privacy = params->privacy;
+	sdata->u.ibss.control_port = params->control_port;
 	sdata->u.ibss.basic_rates = params->basic_rates;
 	memcpy(sdata->vif.bss_conf.mcast_rate, params->mcast_rate,
 	       sizeof(params->mcast_rate));
