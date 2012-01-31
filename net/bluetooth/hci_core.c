@@ -1553,7 +1553,7 @@ int hci_add_adv_entry(struct hci_dev *hdev,
 	if (hci_find_adv_entry(hdev, &ev->bdaddr))
 		return 0;
 
-	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 
