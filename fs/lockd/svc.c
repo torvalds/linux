@@ -35,6 +35,8 @@
 #include <linux/lockd/lockd.h>
 #include <linux/nfs.h>
 
+#include "netns.h"
+
 #define NLMDBG_FACILITY		NLMDBG_SVC
 #define LOCKD_BUFSIZE		(1024 + NLMSVC_XDRSIZE)
 #define ALLOWED_SIGS		(sigmask(SIGKILL))
@@ -49,6 +51,8 @@ static unsigned int		nlmsvc_users;
 static struct task_struct	*nlmsvc_task;
 static struct svc_rqst		*nlmsvc_rqst;
 unsigned long			nlmsvc_timeout;
+
+int lockd_net_id;
 
 /*
  * These can be set at insmod time (useful for NFS as root filesystem),
@@ -316,8 +320,12 @@ int lockd_up(void)
 destroy_and_out:
 	svc_destroy(serv);
 out:
-	if (!error)
+	if (!error) {
+		struct lockd_net *ln = net_generic(net, lockd_net_id);
+
+		ln->nlmsvc_users++;
 		nlmsvc_users++;
+	}
 	mutex_unlock(&nlmsvc_mutex);
 	return error;
 }
@@ -500,24 +508,55 @@ module_param_call(nlm_tcpport, param_set_port, param_get_int,
 module_param(nsm_use_hostnames, bool, 0644);
 module_param(nlm_max_connections, uint, 0644);
 
+static int lockd_init_net(struct net *net)
+{
+	return 0;
+}
+
+static void lockd_exit_net(struct net *net)
+{
+}
+
+static struct pernet_operations lockd_net_ops = {
+	.init = lockd_init_net,
+	.exit = lockd_exit_net,
+	.id = &lockd_net_id,
+	.size = sizeof(struct lockd_net),
+};
+
+
 /*
  * Initialising and terminating the module.
  */
 
 static int __init init_nlm(void)
 {
+	int err;
+
 #ifdef CONFIG_SYSCTL
+	err = -ENOMEM;
 	nlm_sysctl_table = register_sysctl_table(nlm_sysctl_root);
-	return nlm_sysctl_table ? 0 : -ENOMEM;
-#else
-	return 0;
+	if (nlm_sysctl_table == NULL)
+		goto err_sysctl;
 #endif
+	err = register_pernet_subsys(&lockd_net_ops);
+	if (err)
+		goto err_pernet;
+	return 0;
+
+err_pernet:
+#ifdef CONFIG_SYSCTL
+	unregister_sysctl_table(nlm_sysctl_table);
+#endif
+err_sysctl:
+	return err;
 }
 
 static void __exit exit_nlm(void)
 {
 	/* FIXME: delete all NLM clients */
 	nlm_shutdown_hosts();
+	unregister_pernet_subsys(&lockd_net_ops);
 #ifdef CONFIG_SYSCTL
 	unregister_sysctl_table(nlm_sysctl_table);
 #endif
