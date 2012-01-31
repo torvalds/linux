@@ -190,6 +190,7 @@ struct ixgbe_rx_queue_stats {
 	u64 non_eop_descs;
 	u64 alloc_rx_page_failed;
 	u64 alloc_rx_buff_failed;
+	u64 csum_err;
 };
 
 enum ixbge_ring_state_t {
@@ -198,6 +199,7 @@ enum ixbge_ring_state_t {
 	__IXGBE_HANG_CHECK_ARMED,
 	__IXGBE_RX_PS_ENABLED,
 	__IXGBE_RX_RSC_ENABLED,
+	__IXGBE_RX_CSUM_UDP_ZERO_ERR,
 };
 
 #define ring_is_ps_enabled(ring) \
@@ -379,7 +381,6 @@ struct ixgbe_adapter {
 	 * thus the additional *_CAPABLE flags.
 	 */
 	u32 flags;
-#define IXGBE_FLAG_RX_CSUM_ENABLED              (u32)(1)
 #define IXGBE_FLAG_MSI_CAPABLE                  (u32)(1 << 1)
 #define IXGBE_FLAG_MSI_ENABLED                  (u32)(1 << 2)
 #define IXGBE_FLAG_MSIX_CAPABLE                 (u32)(1 << 3)
