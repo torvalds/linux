@@ -1865,7 +1865,7 @@ static void e1000_power_down_phy_copper_82571(struct e1000_hw *hw)
 	struct e1000_phy_info *phy = &hw->phy;
 	struct e1000_mac_info *mac = &hw->mac;
 
-	if (!(phy->ops.check_reset_block))
+	if (!phy->ops.check_reset_block)
 		return;
 
 	/* If the management interface is not enabled, then power down */

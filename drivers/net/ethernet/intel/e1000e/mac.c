@@ -511,8 +511,8 @@ s32 e1000e_check_for_fiber_link(struct e1000_hw *hw)
 	 * was just plugged in. The autoneg_failed flag does this.
 	 */
 	/* (ctrl & E1000_CTRL_SWDPIN1) == 1 == have signal */
-	if ((ctrl & E1000_CTRL_SWDPIN1) && (!(status & E1000_STATUS_LU)) &&
-	    (!(rxcw & E1000_RXCW_C))) {
+	if ((ctrl & E1000_CTRL_SWDPIN1) && !(status & E1000_STATUS_LU) &&
+	    !(rxcw & E1000_RXCW_C)) {
 		if (mac->autoneg_failed == 0) {
 			mac->autoneg_failed = 1;
 			return 0;
@@ -577,7 +577,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 	 * time to complete.
 	 */
 	/* (ctrl & E1000_CTRL_SWDPIN1) == 1 == have signal */
-	if ((!(status & E1000_STATUS_LU)) && (!(rxcw & E1000_RXCW_C))) {
+	if (!(status & E1000_STATUS_LU) && !(rxcw & E1000_RXCW_C)) {
 		if (mac->autoneg_failed == 0) {
 			mac->autoneg_failed = 1;
 			return 0;

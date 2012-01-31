@@ -132,7 +132,7 @@ s32 e1000e_get_phy_id(struct e1000_hw *hw)
 	u16 phy_id;
 	u16 retry_count = 0;
 
-	if (!(phy->ops.read_reg))
+	if (!phy->ops.read_reg)
 		goto out;
 
 	while (retry_count < 2) {
@@ -382,7 +382,7 @@ static s32 __e1000e_read_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 *data,
 	s32 ret_val = 0;
 
 	if (!locked) {
-		if (!(hw->phy.ops.acquire))
+		if (!hw->phy.ops.acquire)
 			goto out;
 
 		ret_val = hw->phy.ops.acquire(hw);
@@ -453,7 +453,7 @@ static s32 __e1000e_write_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 data,
 	s32 ret_val = 0;
 
 	if (!locked) {
-		if (!(hw->phy.ops.acquire))
+		if (!hw->phy.ops.acquire)
 			goto out;
 
 		ret_val = hw->phy.ops.acquire(hw);
@@ -526,7 +526,7 @@ static s32 __e1000_read_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 *data,
 	s32 ret_val = 0;
 
 	if (!locked) {
-		if (!(hw->phy.ops.acquire))
+		if (!hw->phy.ops.acquire)
 			goto out;
 
 		ret_val = hw->phy.ops.acquire(hw);
@@ -599,7 +599,7 @@ static s32 __e1000_write_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 data,
 	s32 ret_val = 0;
 
 	if (!locked) {
-		if (!(hw->phy.ops.acquire))
+		if (!hw->phy.ops.acquire)
 			goto out;
 
 		ret_val = hw->phy.ops.acquire(hw);

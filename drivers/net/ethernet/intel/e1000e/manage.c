@@ -78,7 +78,7 @@ static s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
 	u32 hicr;
 	u8 i;
 
-	if (!(hw->mac.arc_subsystem_valid)) {
+	if (!hw->mac.arc_subsystem_valid) {
 		e_dbg("ARC subsystem not valid.\n");
 		return -E1000_ERR_HOST_INTERFACE_COMMAND;
 	}
