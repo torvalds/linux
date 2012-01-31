@@ -1056,7 +1056,8 @@ static irqreturn_t intel_mid_dma_interrupt(int irq, void *data)
 	}
 	err_status &= mid->intr_mask;
 	if (err_status) {
-		iowrite32(MASK_INTR_REG(err_status), mid->dma_base + MASK_ERR);
+		iowrite32((err_status << INT_MASK_WE),
+			  mid->dma_base + MASK_ERR);
 		call_tasklet = 1;
 	}
 	if (call_tasklet)
