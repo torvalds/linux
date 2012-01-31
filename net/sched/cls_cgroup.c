@@ -22,9 +22,8 @@
 #include <net/sock.h>
 #include <net/cls_cgroup.h>
 
-static struct cgroup_subsys_state *cgrp_create(struct cgroup_subsys *ss,
-					       struct cgroup *cgrp);
-static void cgrp_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp);
+static struct cgroup_subsys_state *cgrp_create(struct cgroup *cgrp);
+static void cgrp_destroy(struct cgroup *cgrp);
 static int cgrp_populate(struct cgroup_subsys *ss, struct cgroup *cgrp);
 
 struct cgroup_subsys net_cls_subsys = {
@@ -51,8 +50,7 @@ static inline struct cgroup_cls_state *task_cls_state(struct task_struct *p)
 			    struct cgroup_cls_state, css);
 }
 
-static struct cgroup_subsys_state *cgrp_create(struct cgroup_subsys *ss,
-						 struct cgroup *cgrp)
+static struct cgroup_subsys_state *cgrp_create(struct cgroup *cgrp)
 {
 	struct cgroup_cls_state *cs;
 
@@ -66,7 +64,7 @@ static struct cgroup_subsys_state *cgrp_create(struct cgroup_subsys *ss,
 	return &cs->css;
 }
 
-static void cgrp_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp)
+static void cgrp_destroy(struct cgroup *cgrp)
 {
 	kfree(cgrp_cls_state(cgrp));
 }
