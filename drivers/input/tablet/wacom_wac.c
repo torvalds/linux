@@ -1317,7 +1317,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	case TABLETPC2FG:
-		if (features->device_type == BTN_TOOL_DOUBLETAP) {
+		if (features->device_type == BTN_TOOL_FINGER) {
 
 			input_mt_init_slots(input_dev, 2);
 			input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
@@ -1366,7 +1366,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
 
-		if (features->device_type == BTN_TOOL_DOUBLETAP) {
+		if (features->device_type == BTN_TOOL_FINGER) {
 			__set_bit(BTN_LEFT, input_dev->keybit);
 			__set_bit(BTN_FORWARD, input_dev->keybit);
 			__set_bit(BTN_BACK, input_dev->keybit);
