@@ -19,7 +19,6 @@
  *
  */
 
-#define _GNU_SOURCE
 #include <sys/utsname.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -33,7 +32,6 @@
 #include <limits.h>
 #include <elf.h>
 
-#undef _GNU_SOURCE
 #include "util.h"
 #include "event.h"
 #include "string.h"
