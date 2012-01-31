@@ -535,7 +535,7 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 	}
 
 	if (type & PERF_SAMPLE_READ) {
-		fprintf(stderr, "PERF_SAMPLE_READ is unsuported for now\n");
+		fprintf(stderr, "PERF_SAMPLE_READ is unsupported for now\n");
 		return -1;
 	}
 

@@ -212,6 +212,21 @@ size_t map__fprintf(struct map *self, FILE *fp)
 		       self->start, self->end, self->pgoff, self->dso->name);
 }
 
+size_t map__fprintf_dsoname(struct map *map, FILE *fp)
+{
+	const char *dsoname;
+
+	if (map && map->dso && (map->dso->name || map->dso->long_name)) {
+		if (symbol_conf.show_kernel_path && map->dso->long_name)
+			dsoname = map->dso->long_name;
+		else if (map->dso->name)
+			dsoname = map->dso->name;
+	} else
+		dsoname = "[unknown]";
+
+	return fprintf(fp, "%s", dsoname);
+}
+
 /*
  * objdump wants/reports absolute IPs for ET_EXEC, and RIPs for ET_DYN.
  * map->dso->adjust_symbols==1 for ET_EXEC-like cases.

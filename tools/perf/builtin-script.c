@@ -40,6 +40,7 @@ enum perf_output_field {
 	PERF_OUTPUT_SYM             = 1U << 8,
 	PERF_OUTPUT_DSO             = 1U << 9,
 	PERF_OUTPUT_ADDR            = 1U << 10,
+	PERF_OUTPUT_SYMOFFSET       = 1U << 11,
 };
 
 struct output_option {
@@ -57,6 +58,7 @@ struct output_option {
 	{.str = "sym",   .field = PERF_OUTPUT_SYM},
 	{.str = "dso",   .field = PERF_OUTPUT_DSO},
 	{.str = "addr",  .field = PERF_OUTPUT_ADDR},
+	{.str = "symoff", .field = PERF_OUTPUT_SYMOFFSET},
 };
 
 /* default set to maintain compatibility with current format */
@@ -193,6 +195,11 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 		       "to symbols.\n");
 		return -EINVAL;
 	}
+	if (PRINT_FIELD(SYMOFFSET) && !PRINT_FIELD(SYM)) {
+		pr_err("Display of offsets requested but symbol is not"
+		       "selected.\n");
+		return -EINVAL;
+	}
 	if (PRINT_FIELD(DSO) && !PRINT_FIELD(IP) && !PRINT_FIELD(ADDR)) {
 		pr_err("Display of DSO requested but neither sample IP nor "
 			   "sample address\nis selected. Hence, no addresses to convert "
@@ -300,8 +307,15 @@ static void print_sample_start(struct perf_sample *sample,
 		} else
 			evname = __event_name(attr->type, attr->config);
 
-		printf("%s: ", evname ? evname : "(unknown)");
+		printf("%s: ", evname ? evname : "[unknown]");
 	}
+}
+
+static bool is_bts_event(struct perf_event_attr *attr)
+{
+	return ((attr->type == PERF_TYPE_HARDWARE) &&
+		(attr->config & PERF_COUNT_HW_BRANCH_INSTRUCTIONS) &&
+		(attr->sample_period == 1));
 }
 
 static bool sample_addr_correlates_sym(struct perf_event_attr *attr)
@@ -310,6 +324,9 @@ static bool sample_addr_correlates_sym(struct perf_event_attr *attr)
 	    ((attr->config == PERF_COUNT_SW_PAGE_FAULTS) ||
 	     (attr->config == PERF_COUNT_SW_PAGE_FAULTS_MIN) ||
 	     (attr->config == PERF_COUNT_SW_PAGE_FAULTS_MAJ)))
+		return true;
+
+	if (is_bts_event(attr))
 		return true;
 
 	return false;
@@ -323,7 +340,6 @@ static void print_sample_addr(union perf_event *event,
 {
 	struct addr_location al;
 	u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-	const char *symname, *dsoname;
 
 	printf("%16" PRIx64, sample->addr);
 
@@ -343,22 +359,46 @@ static void print_sample_addr(union perf_event *event,
 		al.sym = map__find_symbol(al.map, al.addr, NULL);
 
 	if (PRINT_FIELD(SYM)) {
-		if (al.sym && al.sym->name)
-			symname = al.sym->name;
+		printf(" ");
+		if (PRINT_FIELD(SYMOFFSET))
+			symbol__fprintf_symname_offs(al.sym, &al, stdout);
 		else
-			symname = "";
-
-		printf(" %16s", symname);
+			symbol__fprintf_symname(al.sym, stdout);
 	}
 
 	if (PRINT_FIELD(DSO)) {
-		if (al.map && al.map->dso && al.map->dso->name)
-			dsoname = al.map->dso->name;
-		else
-			dsoname = "";
-
-		printf(" (%s)", dsoname);
+		printf(" (");
+		map__fprintf_dsoname(al.map, stdout);
+		printf(")");
 	}
+}
+
+static void print_sample_bts(union perf_event *event,
+			     struct perf_sample *sample,
+			     struct perf_evsel *evsel,
+			     struct machine *machine,
+			     struct thread *thread)
+{
+	struct perf_event_attr *attr = &evsel->attr;
+
+	/* print branch_from information */
+	if (PRINT_FIELD(IP)) {
+		if (!symbol_conf.use_callchain)
+			printf(" ");
+		else
+			printf("\n");
+		perf_event__print_ip(event, sample, machine, evsel,
+				     PRINT_FIELD(SYM), PRINT_FIELD(DSO),
+				     PRINT_FIELD(SYMOFFSET));
+	}
+
+	printf(" => ");
+
+	/* print branch_to information */
+	if (PRINT_FIELD(ADDR))
+		print_sample_addr(event, sample, machine, thread, attr);
+
+	printf("\n");
 }
 
 static void process_event(union perf_event *event __unused,
@@ -374,6 +414,11 @@ static void process_event(union perf_event *event __unused,
 
 	print_sample_start(sample, thread, attr);
 
+	if (is_bts_event(attr)) {
+		print_sample_bts(event, sample, evsel, machine, thread);
+		return;
+	}
+
 	if (PRINT_FIELD(TRACE))
 		print_trace_event(sample->cpu, sample->raw_data,
 				  sample->raw_size);
@@ -387,7 +432,8 @@ static void process_event(union perf_event *event __unused,
 		else
 			printf("\n");
 		perf_event__print_ip(event, sample, machine, evsel,
-				     PRINT_FIELD(SYM), PRINT_FIELD(DSO));
+				     PRINT_FIELD(SYM), PRINT_FIELD(DSO),
+				     PRINT_FIELD(SYMOFFSET));
 	}
 
 	printf("\n");
@@ -1097,7 +1143,10 @@ static const struct option options[] = {
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
 	OPT_CALLBACK('f', "fields", NULL, "str",
-		     "comma separated output fields prepend with 'type:'. Valid types: hw,sw,trace,raw. Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,addr",
+		     "comma separated output fields prepend with 'type:'. "
+		     "Valid types: hw,sw,trace,raw. "
+		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
+		     "addr,symoff",
 		     parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		     "system-wide collection from all CPUs"),
@@ -1106,6 +1155,9 @@ static const struct option options[] = {
 		   "only display events for these comms"),
 	OPT_BOOLEAN('I', "show-info", &show_full_info,
 		    "display extended information from perf.data file"),
+	OPT_BOOLEAN('\0', "show-kernel-path", &symbol_conf.show_kernel_path,
+		    "Show the path of [kernel.kallsyms]"),
+
 	OPT_END()
 };
 
