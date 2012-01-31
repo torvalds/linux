@@ -410,6 +410,9 @@ static int __devexit omap34_xx_bridge_remove(struct platform_device *pdev)
 		DBC_ASSERT(ret == true);
 	}
 
+	kfree(drv_datap);
+	dev_set_drvdata(bridge, NULL);
+
 func_cont:
 	mem_ext_phys_pool_release();
 
