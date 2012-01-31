@@ -20,6 +20,7 @@
 #include <linux/anon_inodes.h>
 #include <linux/ion.h>
 #include <linux/list.h>
+#include <linux/memblock.h>
 #include <linux/miscdevice.h>
 #include <linux/export.h>
 #include <linux/mm.h>
@@ -1184,4 +1185,20 @@ void ion_device_destroy(struct ion_device *dev)
 	misc_deregister(&dev->dev);
 	/* XXX need to free the heaps and clients ? */
 	kfree(dev);
+}
+
+void __init ion_reserve(struct ion_platform_data *data)
+{
+	int i, ret;
+
+	for (i = 0; i < data->nr; i++) {
+		if (data->heaps[i].size == 0)
+			continue;
+		ret = memblock_reserve(data->heaps[i].base,
+				       data->heaps[i].size);
+		if (ret)
+			pr_err("memblock reserve of %x@%lx failed\n",
+			       data->heaps[i].size,
+			       data->heaps[i].base);
+	}
 }
