@@ -1270,9 +1270,7 @@ static int __init probe_docg4(struct platform_device *pdev)
 
 	virtadr = ioremap(r->start, resource_size(r));
 	if (!virtadr) {
-		dev_err(dev, "Diskonchip ioremap failed: "
-			"0x%x bytes at 0x%x\n",
-			resource_size(r), r->start);
+		dev_err(dev, "Diskonchip ioremap failed: %pR\n", r);
 		return -EIO;
 	}
 
