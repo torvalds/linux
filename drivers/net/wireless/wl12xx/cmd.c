@@ -566,7 +566,7 @@ static int wl12xx_cmd_role_stop_dev(struct wl1271 *wl,
 		goto out_free;
 	}
 
-	ret = wl1271_cmd_wait_for_event(wl, DISCONNECT_EVENT_COMPLETE_ID);
+	ret = wl1271_cmd_wait_for_event(wl, ROLE_STOP_COMPLETE_EVENT_ID);
 	if (ret < 0) {
 		wl1271_error("cmd role stop dev event completion error");
 		goto out_free;
@@ -715,6 +715,8 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	cmd->ap.beacon_interval = cpu_to_le16(wlvif->beacon_int);
 	cmd->ap.dtim_interval = bss_conf->dtim_period;
 	cmd->ap.beacon_expiry = WL1271_AP_DEF_BEACON_EXP;
+	/* FIXME: Change when adding DFS */
+	cmd->ap.reset_tsf = 1;  /* By default reset AP TSF */
 	cmd->channel = wlvif->channel;
 
 	if (!bss_conf->hidden_ssid) {
@@ -1756,6 +1758,7 @@ out:
 }
 
 int wl12xx_cmd_channel_switch(struct wl1271 *wl,
+			      struct wl12xx_vif *wlvif,
 			      struct ieee80211_channel_switch *ch_switch)
 {
 	struct wl12xx_cmd_channel_switch *cmd;
@@ -1769,10 +1772,13 @@ int wl12xx_cmd_channel_switch(struct wl1271 *wl,
 		goto out;
 	}
 
+	cmd->role_id = wlvif->role_id;
 	cmd->channel = ch_switch->channel->hw_value;
 	cmd->switch_time = ch_switch->count;
-	cmd->tx_suspend = ch_switch->block_tx;
-	cmd->flush = 0; /* this value is ignored by the FW */
+	cmd->stop_tx = ch_switch->block_tx;
+
+	/* FIXME: control from mac80211 in the future */
+	cmd->post_switch_tx_disable = 0;  /* Enable TX on the target channel */
 
 	ret = wl1271_cmd_send(wl, CMD_CHANNEL_SWITCH, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {

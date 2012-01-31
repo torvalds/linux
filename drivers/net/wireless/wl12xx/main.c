@@ -4409,7 +4409,7 @@ static void wl12xx_op_channel_switch(struct ieee80211_hw *hw,
 
 	/* TODO: change mac80211 to pass vif as param */
 	wl12xx_for_each_wlvif_sta(wl, wlvif) {
-		ret = wl12xx_cmd_channel_switch(wl, ch_switch);
+		ret = wl12xx_cmd_channel_switch(wl, wlvif, ch_switch);
 
 		if (!ret)
 			set_bit(WLVIF_FLAG_CS_PROGRESS, &wlvif->flags);
