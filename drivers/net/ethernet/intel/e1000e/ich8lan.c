@@ -2286,7 +2286,7 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 			}
 			udelay(1);
 		}
-		if (ret_val == 0) {
+		if (!ret_val) {
 			/*
 			 * Successful in waiting for previous cycle to timeout,
 			 * now set the Flash Cycle Done.
@@ -2404,7 +2404,7 @@ static s32 e1000_read_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 		udelay(1);
 		/* Steps */
 		ret_val = e1000_flash_cycle_init_ich8lan(hw);
-		if (ret_val != 0)
+		if (ret_val)
 			break;
 
 		hsflctl.regval = er16flash(ICH_FLASH_HSFCTL);
@@ -2424,7 +2424,7 @@ static s32 e1000_read_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 		 * read in (shift in) the Flash Data0, the order is
 		 * least significant byte first msb to lsb
 		 */
-		if (ret_val == 0) {
+		if (!ret_val) {
 			flash_data = er32flash(ICH_FLASH_FDATA0);
 			if (size == 1)
 				*data = (u8)(flash_data & 0x000000FF);
@@ -2936,7 +2936,7 @@ static s32 e1000_erase_flash_bank_ich8lan(struct e1000_hw *hw, u32 bank)
 
 			ret_val = e1000_flash_cycle_ich8lan(hw,
 					       ICH_FLASH_ERASE_COMMAND_TIMEOUT);
-			if (ret_val == 0)
+			if (!ret_val)
 				break;
 
 			/*
