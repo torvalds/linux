@@ -2127,14 +2127,9 @@ srom_search(struct net_device *dev, struct pci_dev *pdev)
     u_long iobase = 0;                     /* Clear upper 32 bits in Alphas */
     int i, j;
     struct de4x5_private *lp = netdev_priv(dev);
-    struct list_head *walk;
+    struct pci_dev *this_dev;
 
-    list_for_each(walk, &pdev->bus_list) {
-	struct pci_dev *this_dev = pci_dev_b(walk);
-
-	/* Skip the pci_bus list entry */
-	if (list_entry(walk, struct pci_bus, devices) == pdev->bus) continue;
-
+    list_for_each_entry(this_dev, &pdev->bus->devices, bus_list) {
 	vendor = this_dev->vendor;
 	device = this_dev->device << 8;
 	if (!(is_DC21040 || is_DC21041 || is_DC21140 || is_DC2114x)) continue;
@@ -5196,7 +5191,7 @@ de4x5_parse_params(struct net_device *dev)
     struct de4x5_private *lp = netdev_priv(dev);
     char *p, *q, t;
 
-    lp->params.fdx = 0;
+    lp->params.fdx = false;
     lp->params.autosense = AUTO;
 
     if (args == NULL) return;
@@ -5206,7 +5201,7 @@ de4x5_parse_params(struct net_device *dev)
 	t = *q;
 	*q = '\0';
 
-	if (strstr(p, "fdx") || strstr(p, "FDX")) lp->params.fdx = 1;
+	if (strstr(p, "fdx") || strstr(p, "FDX")) lp->params.fdx = true;
 
 	if (strstr(p, "autosense") || strstr(p, "AUTOSENSE")) {
 	    if (strstr(p, "TP")) {

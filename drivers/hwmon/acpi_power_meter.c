@@ -58,7 +58,7 @@ ACPI_MODULE_NAME(ACPI_POWER_METER_NAME);
 #define POWER_ALARM_NAME	"power1_alarm"
 
 static int cap_in_hardware;
-static int force_cap_on;
+static bool force_cap_on;
 
 static int can_cap_in_hardware(void)
 {
@@ -170,7 +170,7 @@ static ssize_t set_avg_interval(struct device *dev,
 	unsigned long long data;
 	acpi_status status;
 
-	res = strict_strtoul(buf, 10, &temp);
+	res = kstrtoul(buf, 10, &temp);
 	if (res)
 		return res;
 
@@ -241,7 +241,7 @@ static ssize_t set_cap(struct device *dev, struct device_attribute *devattr,
 	unsigned long long data;
 	acpi_status status;
 
-	res = strict_strtoul(buf, 10, &temp);
+	res = kstrtoul(buf, 10, &temp);
 	if (res)
 		return res;
 
@@ -311,7 +311,7 @@ static ssize_t set_trip(struct device *dev, struct device_attribute *devattr,
 	int res;
 	unsigned long temp;
 
-	res = strict_strtoul(buf, 10, &temp);
+	res = kstrtoul(buf, 10, &temp);
 	if (res)
 		return res;
 

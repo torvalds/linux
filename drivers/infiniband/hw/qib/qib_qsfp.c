@@ -480,18 +480,6 @@ void qib_qsfp_init(struct qib_qsfp_data *qd,
 	udelay(20); /* Generous RST dwell */
 
 	dd->f_gpio_mod(dd, mask, mask, mask);
-	/* Spec says module can take up to two seconds! */
-	mask = QSFP_GPIO_MOD_PRS_N;
-	if (qd->ppd->hw_pidx)
-		mask <<= QSFP_GPIO_PORT2_SHIFT;
-
-	/* Do not try to wait here. Better to let event handle it */
-	if (!qib_qsfp_mod_present(qd->ppd))
-		goto bail;
-	/* We see a module, but it may be unwise to look yet. Just schedule */
-	qd->t_insert = get_jiffies_64();
-	queue_work(ib_wq, &qd->work);
-bail:
 	return;
 }
 

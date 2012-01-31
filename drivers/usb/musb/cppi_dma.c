@@ -513,7 +513,7 @@ static inline int cppi_autoreq_update(struct cppi_channel *rx,
 		if (!(val & MUSB_RXCSR_H_REQPKT)) {
 			val |= MUSB_RXCSR_H_REQPKT | MUSB_RXCSR_H_WZC_BITS;
 			musb_writew(regs, MUSB_RXCSR, val);
-			/* flush writebufer */
+			/* flush writebuffer */
 			val = musb_readw(regs, MUSB_RXCSR);
 		}
 	}
@@ -750,7 +750,7 @@ cppi_next_tx_segment(struct musb *musb, struct cppi_channel *tx)
  * So this module parameter lets the heuristic be disabled.  When using
  * gadgetfs, the heuristic will probably need to be disabled.
  */
-static int cppi_rx_rndis = 1;
+static bool cppi_rx_rndis = 1;
 
 module_param(cppi_rx_rndis, bool, 0);
 MODULE_PARM_DESC(cppi_rx_rndis, "enable/disable RX RNDIS heuristic");

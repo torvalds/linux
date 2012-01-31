@@ -32,6 +32,7 @@ struct dib8000_config {
 	u8 div_cfg;
 	u8 output_mode;
 	u8 refclksel;
+	u8 enMpegOutput:1;
 };
 
 #define DEFAULT_DIB8000_I2C_ADDRESS 18
@@ -40,7 +41,8 @@ struct dib8000_config {
 extern struct dvb_frontend *dib8000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, struct dib8000_config *cfg);
 extern struct i2c_adapter *dib8000_get_i2c_master(struct dvb_frontend *, enum dibx000_i2c_interface, int);
 
-extern int dib8000_i2c_enumeration(struct i2c_adapter *host, int no_of_demods, u8 default_addr, u8 first_addr);
+extern int dib8000_i2c_enumeration(struct i2c_adapter *host, int no_of_demods,
+		u8 default_addr, u8 first_addr, u8 is_dib8096p);
 
 extern int dib8000_set_gpio(struct dvb_frontend *, u8 num, u8 dir, u8 val);
 extern int dib8000_set_wbd_ref(struct dvb_frontend *, u16 value);
@@ -50,6 +52,13 @@ extern int dib8000_set_tune_state(struct dvb_frontend *fe, enum frontend_tune_st
 extern enum frontend_tune_state dib8000_get_tune_state(struct dvb_frontend *fe);
 extern void dib8000_pwm_agc_reset(struct dvb_frontend *fe);
 extern s32 dib8000_get_adc_power(struct dvb_frontend *fe, u8 mode);
+extern struct i2c_adapter *dib8096p_get_i2c_tuner(struct dvb_frontend *fe);
+extern int dib8096p_tuner_sleep(struct dvb_frontend *fe, int onoff);
+extern int dib8090p_get_dc_power(struct dvb_frontend *fe, u8 IQ);
+extern u32 dib8000_ctrl_timf(struct dvb_frontend *fe,
+		uint8_t op, uint32_t timf);
+extern int dib8000_update_pll(struct dvb_frontend *fe,
+		struct dibx000_bandwidth_config *pll);
 extern int dib8000_set_slave_frontend(struct dvb_frontend *fe, struct dvb_frontend *fe_slave);
 extern int dib8000_remove_slave_frontend(struct dvb_frontend *fe);
 extern struct dvb_frontend *dib8000_get_slave_frontend(struct dvb_frontend *fe, int slave_index);
@@ -66,7 +75,9 @@ static inline struct i2c_adapter *dib8000_get_i2c_master(struct dvb_frontend *fe
 	return NULL;
 }
 
-static inline int dib8000_i2c_enumeration(struct i2c_adapter *host, int no_of_demods, u8 default_addr, u8 first_addr)
+static inline int dib8000_i2c_enumeration(struct i2c_adapter *host,
+		int no_of_demods, u8 default_addr, u8 first_addr,
+		u8 is_dib8096p)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return -ENODEV;
@@ -109,10 +120,37 @@ static inline void dib8000_pwm_agc_reset(struct dvb_frontend *fe)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 }
+static inline struct i2c_adapter *dib8096p_get_i2c_tuner(struct dvb_frontend *fe)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return NULL;
+}
+static inline int dib8096p_tuner_sleep(struct dvb_frontend *fe, int onoff)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return 0;
+}
 static inline s32 dib8000_get_adc_power(struct dvb_frontend *fe, u8 mode)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return 0;
+}
+static inline int dib8090p_get_dc_power(struct dvb_frontend *fe, u8 IQ)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return 0;
+}
+static inline u32 dib8000_ctrl_timf(struct dvb_frontend *fe,
+		uint8_t op, uint32_t timf)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return 0;
+}
+static inline int dib8000_update_pll(struct dvb_frontend *fe,
+		struct dibx000_bandwidth_config *pll)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+	return -ENODEV;
 }
 static inline int dib8000_set_slave_frontend(struct dvb_frontend *fe, struct dvb_frontend *fe_slave)
 {

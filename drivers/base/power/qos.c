@@ -47,21 +47,29 @@ static DEFINE_MUTEX(dev_pm_qos_mtx);
 static BLOCKING_NOTIFIER_HEAD(dev_pm_notifiers);
 
 /**
- * dev_pm_qos_read_value - Get PM QoS constraint for a given device.
+ * __dev_pm_qos_read_value - Get PM QoS constraint for a given device.
+ * @dev: Device to get the PM QoS constraint value for.
+ *
+ * This routine must be called with dev->power.lock held.
+ */
+s32 __dev_pm_qos_read_value(struct device *dev)
+{
+	struct pm_qos_constraints *c = dev->power.constraints;
+
+	return c ? pm_qos_read_value(c) : 0;
+}
+
+/**
+ * dev_pm_qos_read_value - Get PM QoS constraint for a given device (locked).
  * @dev: Device to get the PM QoS constraint value for.
  */
 s32 dev_pm_qos_read_value(struct device *dev)
 {
-	struct pm_qos_constraints *c;
 	unsigned long flags;
-	s32 ret = 0;
+	s32 ret;
 
 	spin_lock_irqsave(&dev->power.lock, flags);
-
-	c = dev->power.constraints;
-	if (c)
-		ret = pm_qos_read_value(c);
-
+	ret = __dev_pm_qos_read_value(dev);
 	spin_unlock_irqrestore(&dev->power.lock, flags);
 
 	return ret;
@@ -412,3 +420,28 @@ int dev_pm_qos_remove_global_notifier(struct notifier_block *notifier)
 	return blocking_notifier_chain_unregister(&dev_pm_notifiers, notifier);
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_remove_global_notifier);
+
+/**
+ * dev_pm_qos_add_ancestor_request - Add PM QoS request for device's ancestor.
+ * @dev: Device whose ancestor to add the request for.
+ * @req: Pointer to the preallocated handle.
+ * @value: Constraint latency value.
+ */
+int dev_pm_qos_add_ancestor_request(struct device *dev,
+				    struct dev_pm_qos_request *req, s32 value)
+{
+	struct device *ancestor = dev->parent;
+	int error = -ENODEV;
+
+	while (ancestor && !ancestor->power.ignore_children)
+		ancestor = ancestor->parent;
+
+	if (ancestor)
+		error = dev_pm_qos_add_request(ancestor, req, value);
+
+	if (error)
+		req->dev = NULL;
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(dev_pm_qos_add_ancestor_request);

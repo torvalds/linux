@@ -6,7 +6,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/string.h>
 #include "ext2.h"
 #include "xattr.h"

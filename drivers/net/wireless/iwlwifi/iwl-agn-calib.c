@@ -82,56 +82,64 @@ struct statistics_general_data {
 	u32 beacon_energy_c;
 };
 
-int iwl_send_calib_results(struct iwl_priv *priv)
+int iwl_send_calib_results(struct iwl_trans *trans)
 {
-	int ret = 0;
-	int i = 0;
-
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_PHY_CALIBRATION_CMD,
 		.flags = CMD_SYNC,
 	};
+	struct iwl_calib_result *res;
 
-	for (i = 0; i < IWL_CALIB_MAX; i++) {
-		if ((BIT(i) & hw_params(priv).calib_init_cfg) &&
-		    priv->calib_results[i].buf) {
-			hcmd.len[0] = priv->calib_results[i].buf_len;
-			hcmd.data[0] = priv->calib_results[i].buf;
-			hcmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
-			ret = iwl_trans_send_cmd(trans(priv), &hcmd);
-			if (ret) {
-				IWL_ERR(priv, "Error %d iteration %d\n",
-					ret, i);
-				break;
-			}
+	list_for_each_entry(res, &trans->calib_results, list) {
+		int ret;
+
+		hcmd.len[0] = res->cmd_len;
+		hcmd.data[0] = &res->hdr;
+		hcmd.dataflags[0] = IWL_HCMD_DFL_NOCOPY;
+		ret = iwl_trans_send_cmd(trans, &hcmd);
+		if (ret) {
+			IWL_ERR(trans, "Error %d on calib cmd %d\n",
+				ret, res->hdr.op_code);
+			return ret;
 		}
 	}
 
-	return ret;
-}
-
-int iwl_calib_set(struct iwl_calib_result *res, const u8 *buf, int len)
-{
-	if (res->buf_len != len) {
-		kfree(res->buf);
-		res->buf = kzalloc(len, GFP_ATOMIC);
-	}
-	if (unlikely(res->buf == NULL))
-		return -ENOMEM;
-
-	res->buf_len = len;
-	memcpy(res->buf, buf, len);
 	return 0;
 }
 
-void iwl_calib_free_results(struct iwl_priv *priv)
+int iwl_calib_set(struct iwl_trans *trans,
+		  const struct iwl_calib_hdr *cmd, int len)
 {
-	int i;
+	struct iwl_calib_result *res, *tmp;
 
-	for (i = 0; i < IWL_CALIB_MAX; i++) {
-		kfree(priv->calib_results[i].buf);
-		priv->calib_results[i].buf = NULL;
-		priv->calib_results[i].buf_len = 0;
+	res = kmalloc(sizeof(*res) + len - sizeof(struct iwl_calib_hdr),
+		      GFP_ATOMIC);
+	if (!res)
+		return -ENOMEM;
+	memcpy(&res->hdr, cmd, len);
+	res->cmd_len = len;
+
+	list_for_each_entry(tmp, &trans->calib_results, list) {
+		if (tmp->hdr.op_code == res->hdr.op_code) {
+			list_replace(&tmp->list, &res->list);
+			kfree(tmp);
+			return 0;
+		}
+	}
+
+	/* wasn't in list already */
+	list_add_tail(&res->list, &trans->calib_results);
+
+	return 0;
+}
+
+void iwl_calib_free_results(struct iwl_trans *trans)
+{
+	struct iwl_calib_result *res, *tmp;
+
+	list_for_each_entry_safe(res, tmp, &trans->calib_results, list) {
+		list_del(&res->list);
+		kfree(res);
 	}
 }
 
@@ -505,7 +513,7 @@ static int iwl_enhance_sensitivity_write(struct iwl_priv *priv)
 
 	iwl_prepare_legacy_sensitivity_tbl(priv, data, &cmd.enhance_table[0]);
 
-	if (priv->cfg->base_params->hd_v2) {
+	if (cfg(priv)->base_params->hd_v2) {
 		cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX] =
 			HD_INA_NON_SQUARE_DET_OFDM_DATA_V2;
 		cmd.enhance_table[HD_INA_NON_SQUARE_DET_CCK_INDEX] =
@@ -839,7 +847,7 @@ static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 			 * connect the first valid tx chain
 			 */
 			first_chain =
-				find_first_chain(priv->cfg->valid_tx_ant);
+				find_first_chain(cfg(priv)->valid_tx_ant);
 			data->disconn_array[first_chain] = 0;
 			active_chains |= BIT(first_chain);
 			IWL_DEBUG_CALIB(priv,
@@ -882,7 +890,7 @@ static void iwlagn_gain_computation(struct iwl_priv *priv,
 			continue;
 		}
 
-		delta_g = (priv->cfg->base_params->chain_noise_scale *
+		delta_g = (cfg(priv)->base_params->chain_noise_scale *
 			((s32)average_noise[default_chain] -
 			(s32)average_noise[i])) / 1500;
 
@@ -1039,8 +1047,8 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 		return;
 
 	/* Analyze signal for disconnected antenna */
-	if (priv->cfg->bt_params &&
-	    priv->cfg->bt_params->advanced_bt_coexist) {
+	if (cfg(priv)->bt_params &&
+	    cfg(priv)->bt_params->advanced_bt_coexist) {
 		/* Disable disconnected antenna algorithm for advanced
 		   bt coex, assuming valid antennas are connected */
 		data->active_chains = hw_params(priv).valid_rx_ant;
@@ -1074,7 +1082,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 
 	iwlagn_gain_computation(priv, average_noise,
 				min_average_noise_antenna_i, min_average_noise,
-				find_first_chain(priv->cfg->valid_rx_ant));
+				find_first_chain(cfg(priv)->valid_rx_ant));
 
 	/* Some power changes may have been made during the calibration.
 	 * Update and commit the RXON

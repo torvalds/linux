@@ -62,7 +62,8 @@ early_param("memory_corruption_check_size", set_corruption_check_size);
 
 void __init setup_bios_corruption_check(void)
 {
-	u64 addr = PAGE_SIZE;	/* assume first page is reserved anyway */
+	phys_addr_t start, end;
+	u64 i;
 
 	if (memory_corruption_check == -1) {
 		memory_corruption_check =
@@ -82,28 +83,23 @@ void __init setup_bios_corruption_check(void)
 
 	corruption_check_size = round_up(corruption_check_size, PAGE_SIZE);
 
-	while (addr < corruption_check_size && num_scan_areas < MAX_SCAN_AREAS) {
-		u64 size;
-		addr = memblock_x86_find_in_range_size(addr, &size, PAGE_SIZE);
+	for_each_free_mem_range(i, MAX_NUMNODES, &start, &end, NULL) {
+		start = clamp_t(phys_addr_t, round_up(start, PAGE_SIZE),
+				PAGE_SIZE, corruption_check_size);
+		end = clamp_t(phys_addr_t, round_down(end, PAGE_SIZE),
+			      PAGE_SIZE, corruption_check_size);
+		if (start >= end)
+			continue;
 
-		if (addr == MEMBLOCK_ERROR)
-			break;
-
-		if (addr >= corruption_check_size)
-			break;
-
-		if ((addr + size) > corruption_check_size)
-			size = corruption_check_size - addr;
-
-		memblock_x86_reserve_range(addr, addr + size, "SCAN RAM");
-		scan_areas[num_scan_areas].addr = addr;
-		scan_areas[num_scan_areas].size = size;
-		num_scan_areas++;
+		memblock_reserve(start, end - start);
+		scan_areas[num_scan_areas].addr = start;
+		scan_areas[num_scan_areas].size = end - start;
 
 		/* Assume we've already mapped this early memory */
-		memset(__va(addr), 0, size);
+		memset(__va(start), 0, end - start);
 
-		addr += size;
+		if (++num_scan_areas >= MAX_SCAN_AREAS)
+			break;
 	}
 
 	if (num_scan_areas)

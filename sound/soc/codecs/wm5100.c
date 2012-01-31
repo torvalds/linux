@@ -1377,6 +1377,7 @@ static int wm5100_set_bias_level(struct snd_soc_codec *codec,
 
 			switch (wm5100->rev) {
 			case 0:
+				regcache_cache_bypass(wm5100->regmap, true);
 				snd_soc_write(codec, 0x11, 0x3);
 				snd_soc_write(codec, 0x203, 0xc);
 				snd_soc_write(codec, 0x206, 0);
@@ -1392,6 +1393,7 @@ static int wm5100_set_bias_level(struct snd_soc_codec *codec,
 					snd_soc_write(codec,
 						      wm5100_reva_patches[i].reg,
 						      wm5100_reva_patches[i].val);
+				regcache_cache_bypass(wm5100->regmap, false);
 				break;
 			default:
 				break;
@@ -1402,6 +1404,8 @@ static int wm5100_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_OFF:
+		regcache_cache_only(wm5100->regmap, true);
+		regcache_mark_dirty(wm5100->regmap);
 		if (wm5100->pdata.ldo_ena)
 			gpio_set_value_cansleep(wm5100->pdata.ldo_ena, 0);
 		regulator_bulk_disable(ARRAY_SIZE(wm5100->core_supplies),
@@ -2180,6 +2184,7 @@ static void wm5100_micd_irq(struct snd_soc_codec *codec)
 		if (wm5100->jack_detecting) {
 			dev_dbg(codec->dev, "Microphone detected\n");
 			wm5100->jack_mic = true;
+			wm5100->jack_detecting = false;
 			snd_soc_jack_report(wm5100->jack,
 					    SND_JACK_HEADSET,
 					    SND_JACK_HEADSET | SND_JACK_BTN_0);
@@ -2218,6 +2223,7 @@ static void wm5100_micd_irq(struct snd_soc_codec *codec)
 					    SND_JACK_BTN_0);
 		} else if (wm5100->jack_detecting) {
 			dev_dbg(codec->dev, "Headphone detected\n");
+			wm5100->jack_detecting = false;
 			snd_soc_jack_report(wm5100->jack, SND_JACK_HEADPHONE,
 					    SND_JACK_HEADPHONE);
 
@@ -2607,6 +2613,13 @@ static const struct regmap_config wm5100_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
+static const unsigned int wm5100_mic_ctrl_reg[] = {
+	WM5100_IN1L_CONTROL,
+	WM5100_IN2L_CONTROL,
+	WM5100_IN3L_CONTROL,
+	WM5100_IN4L_CONTROL,
+};
+
 static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
@@ -2739,7 +2752,7 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wm5100->pdata.in_mode); i++) {
-		regmap_update_bits(wm5100->regmap, WM5100_IN1L_CONTROL,
+		regmap_update_bits(wm5100->regmap, wm5100_mic_ctrl_reg[i],
 				   WM5100_IN1_MODE_MASK |
 				   WM5100_IN1_DMIC_SUP_MASK,
 				   (wm5100->pdata.in_mode[i] <<

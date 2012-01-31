@@ -215,6 +215,7 @@ int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 
 int tps65910_irq_exit(struct tps65910 *tps65910)
 {
-	free_irq(tps65910->chip_irq, tps65910);
+	if (tps65910->chip_irq)
+		free_irq(tps65910->chip_irq, tps65910);
 	return 0;
 }

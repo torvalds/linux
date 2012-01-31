@@ -49,6 +49,7 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 	const __u8 tclass = DEFAULT_TOS_VALUE;
 	struct dst_entry *dst = NULL;
 	u8 proto;
+	__be16 frag_off;
 	struct flowi6 fl6;
 
 	if ((!(ipv6_addr_type(&oip6h->saddr) & IPV6_ADDR_UNICAST)) ||
@@ -58,7 +59,7 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 	}
 
 	proto = oip6h->nexthdr;
-	tcphoff = ipv6_skip_exthdr(oldskb, ((u8*)(oip6h+1) - oldskb->data), &proto);
+	tcphoff = ipv6_skip_exthdr(oldskb, ((u8*)(oip6h+1) - oldskb->data), &proto, &frag_off);
 
 	if ((tcphoff < 0) || (tcphoff > oldskb->len)) {
 		pr_debug("Cannot get TCP header.\n");
@@ -93,8 +94,8 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 
 	memset(&fl6, 0, sizeof(fl6));
 	fl6.flowi6_proto = IPPROTO_TCP;
-	ipv6_addr_copy(&fl6.saddr, &oip6h->daddr);
-	ipv6_addr_copy(&fl6.daddr, &oip6h->saddr);
+	fl6.saddr = oip6h->daddr;
+	fl6.daddr = oip6h->saddr;
 	fl6.fl6_sport = otcph.dest;
 	fl6.fl6_dport = otcph.source;
 	security_skb_classify_flow(oldskb, flowi6_to_flowi(&fl6));
@@ -129,8 +130,8 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 	*(__be32 *)ip6h =  htonl(0x60000000 | (tclass << 20));
 	ip6h->hop_limit = ip6_dst_hoplimit(dst);
 	ip6h->nexthdr = IPPROTO_TCP;
-	ipv6_addr_copy(&ip6h->saddr, &oip6h->daddr);
-	ipv6_addr_copy(&ip6h->daddr, &oip6h->saddr);
+	ip6h->saddr = oip6h->daddr;
+	ip6h->daddr = oip6h->saddr;
 
 	tcph = (struct tcphdr *)skb_put(nskb, sizeof(struct tcphdr));
 	/* Truncate to length (no data) */

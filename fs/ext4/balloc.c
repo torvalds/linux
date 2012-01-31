@@ -23,6 +23,8 @@
 
 #include <trace/events/ext4.h>
 
+static unsigned ext4_num_base_meta_clusters(struct super_block *sb,
+					    ext4_group_t block_group);
 /*
  * balloc.c contains the blocks allocation and deallocation routines
  */
@@ -668,7 +670,7 @@ unsigned long ext4_bg_num_gdb(struct super_block *sb, ext4_group_t group)
  * This function returns the number of file system metadata clusters at
  * the beginning of a block group, including the reserved gdt blocks.
  */
-unsigned ext4_num_base_meta_clusters(struct super_block *sb,
+static unsigned ext4_num_base_meta_clusters(struct super_block *sb,
 				     ext4_group_t block_group)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);

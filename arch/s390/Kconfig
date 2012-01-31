@@ -87,11 +87,13 @@ config S390
 	select HAVE_KERNEL_LZMA
 	select HAVE_KERNEL_LZO
 	select HAVE_KERNEL_XZ
-	select HAVE_GET_USER_PAGES_FAST
 	select HAVE_ARCH_MUTEX_CPU_RELAX
 	select HAVE_ARCH_JUMP_LABEL if !MARCH_G5
 	select HAVE_RCU_TABLE_FREE if SMP
 	select ARCH_SAVE_PAGE_KEYS if HIBERNATION
+	select HAVE_MEMBLOCK
+	select HAVE_MEMBLOCK_NODE_MAP
+	select ARCH_DISCARD_MEMBLOCK
 	select ARCH_INLINE_SPIN_TRYLOCK
 	select ARCH_INLINE_SPIN_TRYLOCK_BH
 	select ARCH_INLINE_SPIN_LOCK
@@ -191,18 +193,13 @@ config HOTPLUG_CPU
 	  Say N if you want to disable CPU hotplug.
 
 config SCHED_MC
-	def_bool y
-	prompt "Multi-core scheduler support"
-	depends on SMP
-	help
-	  Multi-core scheduler support improves the CPU scheduler's decision
-	  making when dealing with multi-core CPU chips at a cost of slightly
-	  increased overhead in some places.
+	def_bool n
 
 config SCHED_BOOK
 	def_bool y
 	prompt "Book scheduler support"
-	depends on SMP && SCHED_MC
+	depends on SMP
+	select SCHED_MC
 	help
 	  Book scheduler support improves the CPU scheduler's decision making
 	  when dealing with machines that have several books.
@@ -344,9 +341,6 @@ config WARN_DYNAMIC_STACK
 	  that dynamically allocate stack space using alloca.
 
 	  Say N if you are unsure.
-
-config ARCH_POPULATES_NODE_MAP
-	def_bool y
 
 comment "Kernel preemption"
 

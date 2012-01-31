@@ -1,5 +1,6 @@
 /*
- * AD5760, AD5780, AD5781, AD5791 Voltage Output Digital to Analog Converter
+ * AD5760, AD5780, AD5781, AD5790, AD5791 Voltage Output Digital to Analog
+ * Converter
  *
  * Copyright 2011 Analog Devices Inc.
  *
@@ -77,8 +78,8 @@ static int ad5791_spi_read(struct spi_device *spi, u8 addr, u32 *val)
 	.indexed = 1,					\
 	.address = AD5791_ADDR_DAC0,			\
 	.channel = 0,					\
-	.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED) | \
-		(1 << IIO_CHAN_INFO_OFFSET_SHARED),	\
+	.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT | \
+		IIO_CHAN_INFO_OFFSET_SHARED_BIT,	\
 	.scan_type = IIO_ST('u', bits, 24, shift)	\
 }
 
@@ -237,11 +238,11 @@ static int ad5791_read_raw(struct iio_dev *indio_dev,
 		*val &= AD5791_DAC_MASK;
 		*val >>= chan->scan_type.shift;
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
 		*val2 = (((u64)st->vref_mv) * 1000000ULL) >> chan->scan_type.realbits;
 		return IIO_VAL_INT_PLUS_MICRO;
-	case (1 << IIO_CHAN_INFO_OFFSET_SHARED):
+	case IIO_CHAN_INFO_OFFSET:
 		val64 = (((u64)st->vref_neg_mv) << chan->scan_type.realbits);
 		do_div(val64, st->vref_mv);
 		*val = -val64;
@@ -397,9 +398,11 @@ static const struct spi_device_id ad5791_id[] = {
 	{"ad5760", ID_AD5760},
 	{"ad5780", ID_AD5780},
 	{"ad5781", ID_AD5781},
+	{"ad5790", ID_AD5791},
 	{"ad5791", ID_AD5791},
 	{}
 };
+MODULE_DEVICE_TABLE(spi, ad5791_id);
 
 static struct spi_driver ad5791_driver = {
 	.driver = {
@@ -410,19 +413,8 @@ static struct spi_driver ad5791_driver = {
 	.remove = __devexit_p(ad5791_remove),
 	.id_table = ad5791_id,
 };
-
-static __init int ad5791_spi_init(void)
-{
-	return spi_register_driver(&ad5791_driver);
-}
-module_init(ad5791_spi_init);
-
-static __exit void ad5791_spi_exit(void)
-{
-	spi_unregister_driver(&ad5791_driver);
-}
-module_exit(ad5791_spi_exit);
+module_spi_driver(ad5791_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
-MODULE_DESCRIPTION("Analog Devices AD5760/AD5780/AD5781/AD5791 DAC");
+MODULE_DESCRIPTION("Analog Devices AD5760/AD5780/AD5781/AD5790/AD5791 DAC");
 MODULE_LICENSE("GPL v2");

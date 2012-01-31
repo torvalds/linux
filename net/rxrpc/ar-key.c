@@ -306,10 +306,9 @@ static int rxrpc_krb5_decode_tagged_data(struct krb5_tagged_data *td,
 	td->data_len = len;
 
 	if (len > 0) {
-		td->data = kmalloc(len, GFP_KERNEL);
+		td->data = kmemdup(xdr, len, GFP_KERNEL);
 		if (!td->data)
 			return -ENOMEM;
-		memcpy(td->data, xdr, len);
 		len = (len + 3) & ~3;
 		toklen -= len;
 		xdr += len >> 2;
@@ -401,10 +400,9 @@ static int rxrpc_krb5_decode_ticket(u8 **_ticket, u16 *_tktlen,
 	_debug("ticket len %u", len);
 
 	if (len > 0) {
-		*_ticket = kmalloc(len, GFP_KERNEL);
+		*_ticket = kmemdup(xdr, len, GFP_KERNEL);
 		if (!*_ticket)
 			return -ENOMEM;
-		memcpy(*_ticket, xdr, len);
 		len = (len + 3) & ~3;
 		toklen -= len;
 		xdr += len >> 2;

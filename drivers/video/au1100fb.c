@@ -60,18 +60,6 @@
 
 #include "au1100fb.h"
 
-/*
- * Sanity check. If this is a new Au1100 based board, search for
- * the PB1100 ifdefs to make sure you modify the code accordingly.
- */
-#if defined(CONFIG_MIPS_PB1100)
-  #include <asm/mach-pb1x00/pb1100.h>
-#elif defined(CONFIG_MIPS_DB1100)
-  #include <asm/mach-db1x00/db1x00.h>
-#else
-  #error "Unknown Au1100 board, Au1100 FB driver not supported"
-#endif
-
 #define DRIVER_NAME "au1100fb"
 #define DRIVER_DESC "LCD controller driver for AU1100 processors"
 

@@ -30,6 +30,7 @@
 #include <linux/dmaengine.h>
 #include <linux/hrtimer.h>
 #include <linux/dma-mapping.h>
+#include <linux/netdev_features.h>
 
 /* Don't change this without changing skb_csum_unnecessary! */
 #define CHECKSUM_NONE 0
@@ -87,7 +88,6 @@
  *	at device setup time.
  *	NETIF_F_HW_CSUM	- it is clever device, it is able to checksum
  *			  everything.
- *	NETIF_F_NO_CSUM - loopback or reliable single hop media.
  *	NETIF_F_IP_CSUM - device is dumb. It is able to csum only
  *			  TCP/UDP over IPv4. Sigh. Vendors like this
  *			  way by an unknown reason. Though, see comment above
@@ -128,13 +128,17 @@ struct sk_buff_head {
 
 struct sk_buff;
 
-/* To allow 64K frame to be packed as single skb without frag_list. Since
- * GRO uses frags we allocate at least 16 regardless of page size.
+/* To allow 64K frame to be packed as single skb without frag_list we
+ * require 64K/PAGE_SIZE pages plus 1 additional page to allow for
+ * buffers which do not start on a page boundary.
+ *
+ * Since GRO uses frags we allocate at least 16 regardless of page
+ * size.
  */
-#if (65536/PAGE_SIZE + 2) < 16
+#if (65536/PAGE_SIZE + 1) < 16
 #define MAX_SKB_FRAGS 16UL
 #else
-#define MAX_SKB_FRAGS (65536/PAGE_SIZE + 2)
+#define MAX_SKB_FRAGS (65536/PAGE_SIZE + 1)
 #endif
 
 typedef struct skb_frag_struct skb_frag_t;
@@ -218,6 +222,9 @@ enum {
 
 	/* device driver supports TX zero-copy buffers */
 	SKBTX_DEV_ZEROCOPY = 1 << 4,
+
+	/* generate wifi status information (where possible) */
+	SKBTX_WIFI_STATUS = 1 << 5,
 };
 
 /*
@@ -235,15 +242,15 @@ struct ubuf_info {
  * the end of the header data, ie. at skb->end.
  */
 struct skb_shared_info {
-	unsigned short	nr_frags;
+	unsigned char	nr_frags;
+	__u8		tx_flags;
 	unsigned short	gso_size;
 	/* Warning: this field is not always filled in (UFO)! */
 	unsigned short	gso_segs;
 	unsigned short  gso_type;
-	__be32          ip6_frag_id;
-	__u8		tx_flags;
 	struct sk_buff	*frag_list;
 	struct skb_shared_hwtstamps hwtstamps;
+	__be32          ip6_frag_id;
 
 	/*
 	 * Warning : all fields before dataref are cleared in __alloc_skb()
@@ -352,6 +359,8 @@ typedef unsigned char *sk_buff_data_t;
  *	@ooo_okay: allow the mapping of a socket to a queue to be changed
  *	@l4_rxhash: indicate rxhash is a canonical 4-tuple hash over transport
  *		ports.
+ *	@wifi_acked_valid: wifi_acked was set
+ *	@wifi_acked: whether frame was acked on wifi or not
  *	@dma_cookie: a cookie to one of several possible DMA operations
  *		done by skb DMA functions
  *	@secmark: security marking
@@ -445,9 +454,10 @@ struct sk_buff {
 #endif
 	__u8			ooo_okay:1;
 	__u8			l4_rxhash:1;
+	__u8			wifi_acked_valid:1;
+	__u8			wifi_acked:1;
+	/* 10/12 bit hole (depending on ndisc_nodetype presence) */
 	kmemcheck_bitfield_end(flags2);
-
-	/* 0/13 bit hole */
 
 #ifdef CONFIG_NET_DMA
 	dma_cookie_t		dma_cookie;
@@ -540,6 +550,7 @@ extern void consume_skb(struct sk_buff *skb);
 extern void	       __kfree_skb(struct sk_buff *skb);
 extern struct sk_buff *__alloc_skb(unsigned int size,
 				   gfp_t priority, int fclone, int node);
+extern struct sk_buff *build_skb(void *data);
 static inline struct sk_buff *alloc_skb(unsigned int size,
 					gfp_t priority)
 {
@@ -561,8 +572,9 @@ extern struct sk_buff *skb_clone(struct sk_buff *skb,
 				 gfp_t priority);
 extern struct sk_buff *skb_copy(const struct sk_buff *skb,
 				gfp_t priority);
-extern struct sk_buff *pskb_copy(struct sk_buff *skb,
-				 gfp_t gfp_mask);
+extern struct sk_buff *__pskb_copy(struct sk_buff *skb,
+				 int headroom, gfp_t gfp_mask);
+
 extern int	       pskb_expand_head(struct sk_buff *skb,
 					int nhead, int ntail,
 					gfp_t gfp_mask);
@@ -1662,38 +1674,6 @@ static inline struct sk_buff *netdev_alloc_skb_ip_align(struct net_device *dev,
 }
 
 /**
- *	__netdev_alloc_page - allocate a page for ps-rx on a specific device
- *	@dev: network device to receive on
- *	@gfp_mask: alloc_pages_node mask
- *
- * 	Allocate a new page. dev currently unused.
- *
- * 	%NULL is returned if there is no free memory.
- */
-static inline struct page *__netdev_alloc_page(struct net_device *dev, gfp_t gfp_mask)
-{
-	return alloc_pages_node(NUMA_NO_NODE, gfp_mask, 0);
-}
-
-/**
- *	netdev_alloc_page - allocate a page for ps-rx on a specific device
- *	@dev: network device to receive on
- *
- * 	Allocate a new page. dev currently unused.
- *
- * 	%NULL is returned if there is no free memory.
- */
-static inline struct page *netdev_alloc_page(struct net_device *dev)
-{
-	return __netdev_alloc_page(dev, GFP_ATOMIC);
-}
-
-static inline void netdev_free_page(struct net_device *dev, struct page *page)
-{
-	__free_page(page);
-}
-
-/**
  * skb_frag_page - retrieve the page refered to by a paged fragment
  * @frag: the paged fragment
  *
@@ -1822,6 +1802,12 @@ static inline dma_addr_t skb_frag_dma_map(struct device *dev,
 {
 	return dma_map_page(dev, skb_frag_page(frag),
 			    frag->page_offset + offset, size, dir);
+}
+
+static inline struct sk_buff *pskb_copy(struct sk_buff *skb,
+					gfp_t gfp_mask)
+{
+	return __pskb_copy(skb, skb_headroom(skb), gfp_mask);
 }
 
 /**
@@ -2105,7 +2091,8 @@ extern void	       skb_split(struct sk_buff *skb,
 extern int	       skb_shift(struct sk_buff *tgt, struct sk_buff *skb,
 				 int shiftlen);
 
-extern struct sk_buff *skb_segment(struct sk_buff *skb, u32 features);
+extern struct sk_buff *skb_segment(struct sk_buff *skb,
+				   netdev_features_t features);
 
 static inline void *skb_header_pointer(const struct sk_buff *skb, int offset,
 				       int len, void *buffer)
@@ -2262,6 +2249,15 @@ static inline void skb_tx_timestamp(struct sk_buff *skb)
 	skb_clone_tx_timestamp(skb);
 	sw_tx_timestamp(skb);
 }
+
+/**
+ * skb_complete_wifi_ack - deliver skb with wifi status
+ *
+ * @skb: the original outgoing packet
+ * @acked: ack status
+ *
+ */
+void skb_complete_wifi_ack(struct sk_buff *skb, bool acked);
 
 extern __sum16 __skb_checksum_complete_head(struct sk_buff *skb, int len);
 extern __sum16 __skb_checksum_complete(struct sk_buff *skb);

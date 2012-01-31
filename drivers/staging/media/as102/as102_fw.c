@@ -26,7 +26,6 @@
 #include "as102_drv.h"
 #include "as102_fw.h"
 
-#if defined(CONFIG_FW_LOADER) || defined(CONFIG_FW_LOADER_MODULE)
 char as102_st_fw1[] = "as102_data1_st.hex";
 char as102_st_fw2[] = "as102_data2_st.hex";
 char as102_dt_fw1[] = "as102_data1_dt.hex";
@@ -59,7 +58,7 @@ static int parse_hex_line(unsigned char *fw_data, unsigned char *addr,
 	unsigned char *src, dst;
 
 	if (*fw_data++ != ':') {
-		printk(KERN_ERR "invalid firmware file\n");
+		pr_err("invalid firmware file\n");
 		return -EFAULT;
 	}
 
@@ -102,7 +101,7 @@ static int parse_hex_line(unsigned char *fw_data, unsigned char *addr,
 	return (count * 2) + 2;
 }
 
-static int as102_firmware_upload(struct as102_bus_adapter_t *bus_adap,
+static int as102_firmware_upload(struct as10x_bus_adapter_t *bus_adap,
 				 unsigned char *cmd,
 				 const struct firmware *firmware) {
 
@@ -163,19 +162,14 @@ error:
 	return (errno == 0) ? total_read_bytes : errno;
 }
 
-int as102_fw_upload(struct as102_bus_adapter_t *bus_adap)
+int as102_fw_upload(struct as10x_bus_adapter_t *bus_adap)
 {
 	int errno = -EFAULT;
 	const struct firmware *firmware;
 	unsigned char *cmd_buf = NULL;
 	char *fw1, *fw2;
-
-#if defined(CONFIG_AS102_USB)
 	struct usb_device *dev = bus_adap->usb_dev;
-#endif
-#if defined(CONFIG_AS102_SPI)
-	struct spi_device *dev = bus_adap->spi_dev;
-#endif
+
 	ENTER();
 
 	/* select fw file to upload */
@@ -187,7 +181,6 @@ int as102_fw_upload(struct as102_bus_adapter_t *bus_adap)
 		fw2 = as102_st_fw2;
 	}
 
-#if defined(CONFIG_FW_LOADER) || defined(CONFIG_FW_LOADER_MODULE)
 	/* allocate buffer to store firmware upload command and data */
 	cmd_buf = kzalloc(MAX_FW_PKT_SIZE, GFP_KERNEL);
 	if (cmd_buf == NULL) {
@@ -198,21 +191,21 @@ int as102_fw_upload(struct as102_bus_adapter_t *bus_adap)
 	/* request kernel to locate firmware file: part1 */
 	errno = request_firmware(&firmware, fw1, &dev->dev);
 	if (errno < 0) {
-		printk(KERN_ERR "%s: unable to locate firmware file: %s\n",
-				 DRIVER_NAME, fw1);
+		pr_err("%s: unable to locate firmware file: %s\n",
+		       DRIVER_NAME, fw1);
 		goto error;
 	}
 
 	/* initiate firmware upload */
 	errno = as102_firmware_upload(bus_adap, cmd_buf, firmware);
 	if (errno < 0) {
-		printk(KERN_ERR "%s: error during firmware upload part1\n",
-				 DRIVER_NAME);
+		pr_err("%s: error during firmware upload part1\n",
+		       DRIVER_NAME);
 		goto error;
 	}
 
-	printk(KERN_INFO "%s: fimrware: %s loaded with success\n",
-			 DRIVER_NAME, fw1);
+	pr_info("%s: firmware: %s loaded with success\n",
+		DRIVER_NAME, fw1);
 	release_firmware(firmware);
 
 	/* wait for boot to complete */
@@ -221,31 +214,28 @@ int as102_fw_upload(struct as102_bus_adapter_t *bus_adap)
 	/* request kernel to locate firmware file: part2 */
 	errno = request_firmware(&firmware, fw2, &dev->dev);
 	if (errno < 0) {
-		printk(KERN_ERR "%s: unable to locate firmware file: %s\n",
-				 DRIVER_NAME, fw2);
+		pr_err("%s: unable to locate firmware file: %s\n",
+		       DRIVER_NAME, fw2);
 		goto error;
 	}
 
 	/* initiate firmware upload */
 	errno = as102_firmware_upload(bus_adap, cmd_buf, firmware);
 	if (errno < 0) {
-		printk(KERN_ERR "%s: error during firmware upload part2\n",
-				 DRIVER_NAME);
+		pr_err("%s: error during firmware upload part2\n",
+		       DRIVER_NAME);
 		goto error;
 	}
 
-	printk(KERN_INFO "%s: fimrware: %s loaded with success\n",
-			DRIVER_NAME, fw2);
+	pr_info("%s: firmware: %s loaded with success\n",
+		DRIVER_NAME, fw2);
 error:
 	/* free data buffer */
 	kfree(cmd_buf);
 	/* release firmware if needed */
 	if (firmware != NULL)
 		release_firmware(firmware);
-#endif
+
 	LEAVE();
 	return errno;
 }
-#endif
-
-/* EOF - vim: set textwidth=80 ts=8 sw=8 sts=8 noet: */

@@ -516,17 +516,7 @@ static struct platform_driver spear_rtc_driver = {
 	},
 };
 
-static int __init rtc_init(void)
-{
-	return platform_driver_register(&spear_rtc_driver);
-}
-module_init(rtc_init);
-
-static void __exit rtc_exit(void)
-{
-	platform_driver_unregister(&spear_rtc_driver);
-}
-module_exit(rtc_exit);
+module_platform_driver(spear_rtc_driver);
 
 MODULE_ALIAS("platform:rtc-spear");
 MODULE_AUTHOR("Rajeev Kumar <rajeev-dlh.kumar@st.com>");

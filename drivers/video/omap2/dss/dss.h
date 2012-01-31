@@ -28,7 +28,7 @@
 #endif
 
 #ifdef DEBUG
-extern unsigned int dss_debug;
+extern bool dss_debug;
 #ifdef DSS_SUBSYS_NAME
 #define DSSDBG(format, ...) \
 	if (dss_debug) \
@@ -163,6 +163,34 @@ struct bus_type *dss_get_bus(void);
 struct regulator *dss_get_vdds_dsi(void);
 struct regulator *dss_get_vdds_sdi(void);
 
+/* apply */
+void dss_apply_init(void);
+int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr);
+int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl);
+void dss_mgr_start_update(struct omap_overlay_manager *mgr);
+int omap_dss_mgr_apply(struct omap_overlay_manager *mgr);
+
+int dss_mgr_enable(struct omap_overlay_manager *mgr);
+void dss_mgr_disable(struct omap_overlay_manager *mgr);
+int dss_mgr_set_info(struct omap_overlay_manager *mgr,
+		struct omap_overlay_manager_info *info);
+void dss_mgr_get_info(struct omap_overlay_manager *mgr,
+		struct omap_overlay_manager_info *info);
+int dss_mgr_set_device(struct omap_overlay_manager *mgr,
+		struct omap_dss_device *dssdev);
+int dss_mgr_unset_device(struct omap_overlay_manager *mgr);
+
+bool dss_ovl_is_enabled(struct omap_overlay *ovl);
+int dss_ovl_enable(struct omap_overlay *ovl);
+int dss_ovl_disable(struct omap_overlay *ovl);
+int dss_ovl_set_info(struct omap_overlay *ovl,
+		struct omap_overlay_info *info);
+void dss_ovl_get_info(struct omap_overlay *ovl,
+		struct omap_overlay_info *info);
+int dss_ovl_set_manager(struct omap_overlay *ovl,
+		struct omap_overlay_manager *mgr);
+int dss_ovl_unset_manager(struct omap_overlay *ovl);
+
 /* display */
 int dss_suspend_all_devices(void);
 int dss_resume_all_devices(void);
@@ -181,21 +209,22 @@ void default_get_overlay_fifo_thresholds(enum omap_plane plane,
 /* manager */
 int dss_init_overlay_managers(struct platform_device *pdev);
 void dss_uninit_overlay_managers(struct platform_device *pdev);
-int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl);
-void dss_setup_partial_planes(struct omap_dss_device *dssdev,
-				u16 *x, u16 *y, u16 *w, u16 *h,
-				bool enlarge_update_area);
-void dss_start_update(struct omap_dss_device *dssdev);
+int dss_mgr_simple_check(struct omap_overlay_manager *mgr,
+		const struct omap_overlay_manager_info *info);
+int dss_mgr_check(struct omap_overlay_manager *mgr,
+		struct omap_dss_device *dssdev,
+		struct omap_overlay_manager_info *info,
+		struct omap_overlay_info **overlay_infos);
 
 /* overlay */
 void dss_init_overlays(struct platform_device *pdev);
 void dss_uninit_overlays(struct platform_device *pdev);
-int dss_check_overlay(struct omap_overlay *ovl, struct omap_dss_device *dssdev);
 void dss_overlay_setup_dispc_manager(struct omap_overlay_manager *mgr);
-#ifdef L4_EXAMPLE
-void dss_overlay_setup_l4_manager(struct omap_overlay_manager *mgr);
-#endif
 void dss_recheck_connections(struct omap_dss_device *dssdev, bool force);
+int dss_ovl_simple_check(struct omap_overlay *ovl,
+		const struct omap_overlay_info *info);
+int dss_ovl_check(struct omap_overlay *ovl,
+		struct omap_overlay_info *info, struct omap_dss_device *dssdev);
 
 /* DSS */
 int dss_init_platform_driver(void);
@@ -399,21 +428,22 @@ int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 		struct dispc_clock_info *cinfo);
 
 
+void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high);
 u32 dispc_ovl_get_fifo_size(enum omap_plane plane);
 u32 dispc_ovl_get_burst_size(enum omap_plane plane);
 int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
-		bool ilace, enum omap_channel channel, bool replication,
-		u32 fifo_low, u32 fifo_high);
+		bool ilace, bool replication);
 int dispc_ovl_enable(enum omap_plane plane, bool enable);
-
+void dispc_ovl_set_channel_out(enum omap_plane plane,
+		enum omap_channel channel);
 
 void dispc_mgr_enable_fifohandcheck(enum omap_channel channel, bool enable);
 void dispc_mgr_set_lcd_size(enum omap_channel channel, u16 width, u16 height);
-void dispc_mgr_enable_cpr(enum omap_channel channel, bool enable);
-void dispc_mgr_set_cpr_coef(enum omap_channel channel,
-		struct omap_dss_cpr_coefs *coefs);
+u32 dispc_mgr_get_vsync_irq(enum omap_channel channel);
+u32 dispc_mgr_get_framedone_irq(enum omap_channel channel);
 bool dispc_mgr_go_busy(enum omap_channel channel);
 void dispc_mgr_go(enum omap_channel channel);
+bool dispc_mgr_is_enabled(enum omap_channel channel);
 void dispc_mgr_enable(enum omap_channel channel, bool enable);
 bool dispc_mgr_is_channel_enabled(enum omap_channel channel);
 void dispc_mgr_set_io_pad_mode(enum dss_io_pad_mode mode);
@@ -421,18 +451,6 @@ void dispc_mgr_enable_stallmode(enum omap_channel channel, bool enable);
 void dispc_mgr_set_tft_data_lines(enum omap_channel channel, u8 data_lines);
 void dispc_mgr_set_lcd_display_type(enum omap_channel channel,
 		enum omap_lcd_display_type type);
-void dispc_mgr_set_default_color(enum omap_channel channel, u32 color);
-u32 dispc_mgr_get_default_color(enum omap_channel channel);
-void dispc_mgr_set_trans_key(enum omap_channel ch,
-		enum omap_dss_trans_key_type type,
-		u32 trans_key);
-void dispc_mgr_get_trans_key(enum omap_channel ch,
-		enum omap_dss_trans_key_type *type,
-		u32 *trans_key);
-void dispc_mgr_enable_trans_key(enum omap_channel ch, bool enable);
-void dispc_mgr_enable_alpha_fixed_zorder(enum omap_channel ch, bool enable);
-bool dispc_mgr_trans_key_enabled(enum omap_channel ch);
-bool dispc_mgr_alpha_fixed_zorder_enabled(enum omap_channel ch);
 void dispc_mgr_set_lcd_timings(enum omap_channel channel,
 		struct omap_video_timings *timings);
 void dispc_mgr_set_pol_freq(enum omap_channel channel,
@@ -443,6 +461,8 @@ int dispc_mgr_set_clock_div(enum omap_channel channel,
 		struct dispc_clock_info *cinfo);
 int dispc_mgr_get_clock_div(enum omap_channel channel,
 		struct dispc_clock_info *cinfo);
+void dispc_mgr_setup(enum omap_channel channel,
+		struct omap_overlay_manager_info *info);
 
 /* VENC */
 #ifdef CONFIG_OMAP2_DSS_VENC

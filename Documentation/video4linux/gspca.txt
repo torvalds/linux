@@ -189,6 +189,7 @@ ov519		05a9:0511	Video Blaster WebCam 3/WebCam Plus, D-Link USB Digital Video Ca
 ov519		05a9:0518	Creative WebCam
 ov519		05a9:0519	OV519 Microphone
 ov519		05a9:0530	OmniVision
+ov534_9		05a9:1550	OmniVision VEHO Filmscanner
 ov519		05a9:2800	OmniVision SuperCAM
 ov519		05a9:4519	Webcam Classic
 ov534_9		05a9:8065	OmniVision test kit ov538+ov9712
@@ -278,6 +279,7 @@ pac7302		093a:2628	Genius iLook 300
 pac7302		093a:2629	Genious iSlim 300
 pac7302		093a:262a	Webcam 300k
 pac7302		093a:262c	Philips SPC 230 NC
+jl2005bcd	0979:0227	Various brands, 19 known cameras supported
 jeilinj		0979:0280	Sakar 57379
 jeilinj		0979:0280	Sportscam DV15
 zc3xx		0ac8:0302	Z-star Vimicro zc0302

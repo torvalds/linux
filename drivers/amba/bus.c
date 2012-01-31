@@ -52,6 +52,10 @@ static int amba_uevent(struct device *dev, struct kobj_uevent_env *env)
 	int retval = 0;
 
 	retval = add_uevent_var(env, "AMBA_ID=%08x", pcdev->periphid);
+	if (retval)
+		return retval;
+
+	retval = add_uevent_var(env, "MODALIAS=amba:d%08X", pcdev->periphid);
 	return retval;
 }
 #else
@@ -109,31 +113,7 @@ static int amba_legacy_resume(struct device *dev)
 	return ret;
 }
 
-static int amba_pm_prepare(struct device *dev)
-{
-	struct device_driver *drv = dev->driver;
-	int ret = 0;
-
-	if (drv && drv->pm && drv->pm->prepare)
-		ret = drv->pm->prepare(dev);
-
-	return ret;
-}
-
-static void amba_pm_complete(struct device *dev)
-{
-	struct device_driver *drv = dev->driver;
-
-	if (drv && drv->pm && drv->pm->complete)
-		drv->pm->complete(dev);
-}
-
-#else /* !CONFIG_PM_SLEEP */
-
-#define amba_pm_prepare		NULL
-#define amba_pm_complete		NULL
-
-#endif /* !CONFIG_PM_SLEEP */
+#endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_SUSPEND
 
@@ -150,22 +130,6 @@ static int amba_pm_suspend(struct device *dev)
 			ret = drv->pm->suspend(dev);
 	} else {
 		ret = amba_legacy_suspend(dev, PMSG_SUSPEND);
-	}
-
-	return ret;
-}
-
-static int amba_pm_suspend_noirq(struct device *dev)
-{
-	struct device_driver *drv = dev->driver;
-	int ret = 0;
-
-	if (!drv)
-		return 0;
-
-	if (drv->pm) {
-		if (drv->pm->suspend_noirq)
-			ret = drv->pm->suspend_noirq(dev);
 	}
 
 	return ret;
@@ -189,28 +153,10 @@ static int amba_pm_resume(struct device *dev)
 	return ret;
 }
 
-static int amba_pm_resume_noirq(struct device *dev)
-{
-	struct device_driver *drv = dev->driver;
-	int ret = 0;
-
-	if (!drv)
-		return 0;
-
-	if (drv->pm) {
-		if (drv->pm->resume_noirq)
-			ret = drv->pm->resume_noirq(dev);
-	}
-
-	return ret;
-}
-
 #else /* !CONFIG_SUSPEND */
 
 #define amba_pm_suspend		NULL
 #define amba_pm_resume		NULL
-#define amba_pm_suspend_noirq	NULL
-#define amba_pm_resume_noirq	NULL
 
 #endif /* !CONFIG_SUSPEND */
 
@@ -234,22 +180,6 @@ static int amba_pm_freeze(struct device *dev)
 	return ret;
 }
 
-static int amba_pm_freeze_noirq(struct device *dev)
-{
-	struct device_driver *drv = dev->driver;
-	int ret = 0;
-
-	if (!drv)
-		return 0;
-
-	if (drv->pm) {
-		if (drv->pm->freeze_noirq)
-			ret = drv->pm->freeze_noirq(dev);
-	}
-
-	return ret;
-}
-
 static int amba_pm_thaw(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
@@ -263,22 +193,6 @@ static int amba_pm_thaw(struct device *dev)
 			ret = drv->pm->thaw(dev);
 	} else {
 		ret = amba_legacy_resume(dev);
-	}
-
-	return ret;
-}
-
-static int amba_pm_thaw_noirq(struct device *dev)
-{
-	struct device_driver *drv = dev->driver;
-	int ret = 0;
-
-	if (!drv)
-		return 0;
-
-	if (drv->pm) {
-		if (drv->pm->thaw_noirq)
-			ret = drv->pm->thaw_noirq(dev);
 	}
 
 	return ret;
@@ -302,22 +216,6 @@ static int amba_pm_poweroff(struct device *dev)
 	return ret;
 }
 
-static int amba_pm_poweroff_noirq(struct device *dev)
-{
-	struct device_driver *drv = dev->driver;
-	int ret = 0;
-
-	if (!drv)
-		return 0;
-
-	if (drv->pm) {
-		if (drv->pm->poweroff_noirq)
-			ret = drv->pm->poweroff_noirq(dev);
-	}
-
-	return ret;
-}
-
 static int amba_pm_restore(struct device *dev)
 {
 	struct device_driver *drv = dev->driver;
@@ -336,32 +234,12 @@ static int amba_pm_restore(struct device *dev)
 	return ret;
 }
 
-static int amba_pm_restore_noirq(struct device *dev)
-{
-	struct device_driver *drv = dev->driver;
-	int ret = 0;
-
-	if (!drv)
-		return 0;
-
-	if (drv->pm) {
-		if (drv->pm->restore_noirq)
-			ret = drv->pm->restore_noirq(dev);
-	}
-
-	return ret;
-}
-
 #else /* !CONFIG_HIBERNATE_CALLBACKS */
 
 #define amba_pm_freeze		NULL
 #define amba_pm_thaw		NULL
 #define amba_pm_poweroff		NULL
 #define amba_pm_restore		NULL
-#define amba_pm_freeze_noirq	NULL
-#define amba_pm_thaw_noirq		NULL
-#define amba_pm_poweroff_noirq	NULL
-#define amba_pm_restore_noirq	NULL
 
 #endif /* !CONFIG_HIBERNATE_CALLBACKS */
 
@@ -402,20 +280,12 @@ static int amba_pm_runtime_resume(struct device *dev)
 #ifdef CONFIG_PM
 
 static const struct dev_pm_ops amba_pm = {
-	.prepare	= amba_pm_prepare,
-	.complete	= amba_pm_complete,
 	.suspend	= amba_pm_suspend,
 	.resume		= amba_pm_resume,
 	.freeze		= amba_pm_freeze,
 	.thaw		= amba_pm_thaw,
 	.poweroff	= amba_pm_poweroff,
 	.restore	= amba_pm_restore,
-	.suspend_noirq	= amba_pm_suspend_noirq,
-	.resume_noirq	= amba_pm_resume_noirq,
-	.freeze_noirq	= amba_pm_freeze_noirq,
-	.thaw_noirq	= amba_pm_thaw_noirq,
-	.poweroff_noirq	= amba_pm_poweroff_noirq,
-	.restore_noirq	= amba_pm_restore_noirq,
 	SET_RUNTIME_PM_OPS(
 		amba_pm_runtime_suspend,
 		amba_pm_runtime_resume,

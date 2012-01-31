@@ -24,9 +24,9 @@ MODULE_DESCRIPTION("Xtables: 1:1 NAT mapping of IPv4 subnets");
 
 static int netmap_tg_check(const struct xt_tgchk_param *par)
 {
-	const struct nf_nat_multi_range_compat *mr = par->targinfo;
+	const struct nf_nat_ipv4_multi_range_compat *mr = par->targinfo;
 
-	if (!(mr->range[0].flags & IP_NAT_RANGE_MAP_IPS)) {
+	if (!(mr->range[0].flags & NF_NAT_RANGE_MAP_IPS)) {
 		pr_debug("bad MAP_IPS.\n");
 		return -EINVAL;
 	}
@@ -43,8 +43,8 @@ netmap_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
 	__be32 new_ip, netmask;
-	const struct nf_nat_multi_range_compat *mr = par->targinfo;
-	struct nf_nat_range newrange;
+	const struct nf_nat_ipv4_multi_range_compat *mr = par->targinfo;
+	struct nf_nat_ipv4_range newrange;
 
 	NF_CT_ASSERT(par->hooknum == NF_INET_PRE_ROUTING ||
 		     par->hooknum == NF_INET_POST_ROUTING ||
@@ -61,8 +61,8 @@ netmap_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		new_ip = ip_hdr(skb)->saddr & ~netmask;
 	new_ip |= mr->range[0].min_ip & netmask;
 
-	newrange = ((struct nf_nat_range)
-		{ mr->range[0].flags | IP_NAT_RANGE_MAP_IPS,
+	newrange = ((struct nf_nat_ipv4_range)
+		{ mr->range[0].flags | NF_NAT_RANGE_MAP_IPS,
 		  new_ip, new_ip,
 		  mr->range[0].min, mr->range[0].max });
 
@@ -74,7 +74,7 @@ static struct xt_target netmap_tg_reg __read_mostly = {
 	.name 		= "NETMAP",
 	.family		= NFPROTO_IPV4,
 	.target 	= netmap_tg,
-	.targetsize	= sizeof(struct nf_nat_multi_range_compat),
+	.targetsize	= sizeof(struct nf_nat_ipv4_multi_range_compat),
 	.table		= "nat",
 	.hooks		= (1 << NF_INET_PRE_ROUTING) |
 			  (1 << NF_INET_POST_ROUTING) |

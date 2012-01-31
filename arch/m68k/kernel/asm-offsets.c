@@ -24,8 +24,7 @@ int main(void)
 	/* offsets into the task struct */
 	DEFINE(TASK_THREAD, offsetof(struct task_struct, thread));
 	DEFINE(TASK_MM, offsetof(struct task_struct, mm));
-	DEFINE(TASK_INFO, offsetof(struct task_struct, thread.info));
-	DEFINE(TASK_TINFO, offsetof(struct task_struct, thread.info));
+	DEFINE(TASK_STACK, offsetof(struct task_struct, stack));
 
 	/* offsets into the thread struct */
 	DEFINE(THREAD_KSP, offsetof(struct thread_struct, ksp));

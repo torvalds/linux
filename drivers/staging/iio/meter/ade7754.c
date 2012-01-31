@@ -600,19 +600,9 @@ static struct spi_driver ade7754_driver = {
 	.probe = ade7754_probe,
 	.remove = __devexit_p(ade7754_remove),
 };
-
-static __init int ade7754_init(void)
-{
-	return spi_register_driver(&ade7754_driver);
-}
-module_init(ade7754_init);
-
-static __exit void ade7754_exit(void)
-{
-	spi_unregister_driver(&ade7754_driver);
-}
-module_exit(ade7754_exit);
+module_spi_driver(ade7754_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADE7754 Polyphase Multifunction Energy Metering IC Driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:ad7754");

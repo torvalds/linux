@@ -71,9 +71,9 @@ queue_put:
 	ld b32 $r9 D[$r13 + 0x4]	// PUT
 	xor $r8 8
 	cmpu b32 $r8 $r9
-	bra ne queue_put_next
+	bra ne #queue_put_next
 		mov $r15 E_CMD_OVERFLOW
-		call error
+		call #error
 		ret
 
 	// store cmd/data on queue
@@ -104,7 +104,7 @@ queue_get:
 	ld b32 $r8 D[$r13 + 0x0]	// GET
 	ld b32 $r9 D[$r13 + 0x4]	// PUT
 	cmpu b32 $r8 $r9
-	bra e queue_get_done
+	bra e #queue_get_done
 		// fetch first cmd/data pair
 		and $r9 $r8 7
 		shl b32 $r9 3
@@ -135,9 +135,9 @@ nv_rd32:
 	nv_rd32_wait:
 		iord $r12 I[$r11 + 0x000]
 		xbit $r12 $r12 31
-		bra ne nv_rd32_wait
+		bra ne #nv_rd32_wait
 	mov $r10 6			// DONE_MMIO_RD
-	call wait_doneo
+	call #wait_doneo
 	iord $r15 I[$r11 + 0x100]	// MMIO_RDVAL
 	ret
 
@@ -157,7 +157,7 @@ nv_wr32:
 	nv_wr32_wait:
 		iord $r12 I[$r11 + 0x000]
 		xbit $r12 $r12 31
-		bra ne nv_wr32_wait
+		bra ne #nv_wr32_wait
 	ret
 
 // (re)set watchdog timer
@@ -193,7 +193,7 @@ $1:
 		shl b32 $r8 6
 		iord $r8 I[$r8 + 0x000]	// DONE
 		xbit $r8 $r8 $r10
-		bra $2 wait_done_$1
+		bra $2 #wait_done_$1
 	trace_clr(T_WAIT)
 	ret
 ')
@@ -216,7 +216,7 @@ mmctx_size:
 		add b32 $r9 $r8
 		add b32 $r14 4
 		cmpu b32 $r14 $r15
-		bra ne nv_mmctx_size_loop
+		bra ne #nv_mmctx_size_loop
 	mov b32 $r15 $r9
 	ret
 
@@ -238,12 +238,12 @@ mmctx_xfer:
 	shl b32 $r8 6
 	clear b32 $r9
 	or $r11 $r11
-	bra e mmctx_base_disabled
+	bra e #mmctx_base_disabled
 		iowr I[$r8 + 0x000] $r11	// MMCTX_BASE
 		bset $r9 0			// BASE_EN
 	mmctx_base_disabled:
 	or $r14 $r14
-	bra e mmctx_multi_disabled
+	bra e #mmctx_multi_disabled
 		iowr I[$r8 + 0x200] $r14 	// MMCTX_MULTI_STRIDE
 		iowr I[$r8 + 0x300] $r15 	// MMCTX_MULTI_MASK
 		bset $r9 1			// MULTI_EN
@@ -264,7 +264,7 @@ mmctx_xfer:
 		mmctx_wait_free:
 			iord $r14 I[$r8 + 0x000] // MMCTX_CTRL
 			and $r14 0x1f
-			bra e mmctx_wait_free
+			bra e #mmctx_wait_free
 
 		// queue up an entry
 		ld b32 $r14 D[$r12]
@@ -272,19 +272,19 @@ mmctx_xfer:
 		iowr I[$r8 + 0x300] $r14
 		add b32 $r12 4
 		cmpu b32 $r12 $r13
-		bra ne mmctx_exec_loop
+		bra ne #mmctx_exec_loop
 
 	xbit $r11 $r10 2
-	bra ne mmctx_stop
+	bra ne #mmctx_stop
 		// wait for queue to empty
 		mmctx_fini_wait:
 			iord $r11 I[$r8 + 0x000]	// MMCTX_CTRL
 			and $r11 0x1f
 			cmpu b32 $r11 0x10
-			bra ne mmctx_fini_wait
+			bra ne #mmctx_fini_wait
 		mov $r10 2				// DONE_MMCTX
-		call wait_donez
-		bra mmctx_done
+		call #wait_donez
+		bra #mmctx_done
 	mmctx_stop:
 		xbit $r11 $r10 0
 		shl b32 $r11 16			// DIR
@@ -295,7 +295,7 @@ mmctx_xfer:
 			// wait for STOP_TRIGGER to clear
 			iord $r11 I[$r8 + 0x000] // MMCTX_CTRL
 			xbit $r11 $r11 18
-			bra ne mmctx_stop_wait
+			bra ne #mmctx_stop_wait
 	mmctx_done:
 	trace_clr(T_MMCTX)
 	ret
@@ -305,7 +305,7 @@ mmctx_xfer:
 strand_wait:
 	push $r10
 	mov $r10 2
-	call wait_donez
+	call #wait_donez
 	pop $r10
 	ret
 
@@ -316,7 +316,7 @@ strand_pre:
 	sethi $r8 0x20000
 	mov $r9 0xc
 	iowr I[$r8] $r9
-	call strand_wait
+	call #strand_wait
 	ret
 
 // unknown - call after issuing strand commands
@@ -326,7 +326,7 @@ strand_post:
 	sethi $r8 0x20000
 	mov $r9 0xd
 	iowr I[$r8] $r9
-	call strand_wait
+	call #strand_wait
 	ret
 
 // Selects strand set?!
@@ -341,11 +341,11 @@ strand_set:
 	iowr I[$r10 + 0x000] $r12		// 0x93c = 0xf
 	mov $r12 0xb
 	iowr I[$r11 + 0x000] $r12		// 0x928 = 0xb
-	call strand_wait
+	call #strand_wait
 	iowr I[$r10 + 0x000] $r14		// 0x93c = <id>
 	mov $r12 0xa
 	iowr I[$r11 + 0x000] $r12		// 0x928 = 0xa
-	call strand_wait
+	call #strand_wait
 	ret
 
 // Initialise strand context data
@@ -357,22 +357,22 @@ strand_set:
 //
 strand_ctx_init:
 	trace_set(T_STRINIT)
-	call strand_pre
+	call #strand_pre
 	mov $r14 3
-	call strand_set
+	call #strand_set
 	mov $r10 0x46fc
 	sethi $r10 0x20000
 	add b32 $r11 $r10 0x400
 	iowr I[$r10 + 0x100] $r0	// STRAND_FIRST_GENE = 0
 	mov $r12 1
 	iowr I[$r11 + 0x000] $r12	// STRAND_CMD = LATCH_FIRST_GENE
-	call strand_wait
+	call #strand_wait
 	sub b32 $r12 $r0 1
 	iowr I[$r10 + 0x000] $r12	// STRAND_GENE_CNT = 0xffffffff
 	mov $r12 2
 	iowr I[$r11 + 0x000] $r12	// STRAND_CMD = LATCH_GENE_CNT
-	call strand_wait
-	call strand_post
+	call #strand_wait
+	call #strand_post
 
 	// read the size of each strand, poke the context offset of
 	// each into STRAND_{SAVE,LOAD}_SWBASE now, no need to worry
@@ -391,7 +391,7 @@ strand_ctx_init:
 		add b32 $r14 $r10
 		add b32 $r8 4
 		sub b32 $r9 1
-		bra ne ctx_init_strand_loop
+		bra ne #ctx_init_strand_loop
 
 	shl b32 $r14 8
 	sub b32 $r15 $r14 $r15

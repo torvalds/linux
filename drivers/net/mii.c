@@ -35,26 +35,11 @@
 
 static u32 mii_get_an(struct mii_if_info *mii, u16 addr)
 {
-	u32 result = 0;
 	int advert;
 
 	advert = mii->mdio_read(mii->dev, mii->phy_id, addr);
-	if (advert & LPA_LPACK)
-		result |= ADVERTISED_Autoneg;
-	if (advert & ADVERTISE_10HALF)
-		result |= ADVERTISED_10baseT_Half;
-	if (advert & ADVERTISE_10FULL)
-		result |= ADVERTISED_10baseT_Full;
-	if (advert & ADVERTISE_100HALF)
-		result |= ADVERTISED_100baseT_Half;
-	if (advert & ADVERTISE_100FULL)
-		result |= ADVERTISED_100baseT_Full;
-	if (advert & ADVERTISE_PAUSE_CAP)
-		result |= ADVERTISED_Pause;
-	if (advert & ADVERTISE_PAUSE_ASYM)
-		result |= ADVERTISED_Asym_Pause;
 
-	return result;
+	return mii_lpa_to_ethtool_lpa_t(advert);
 }
 
 /**
@@ -104,19 +89,14 @@ int mii_ethtool_gset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 		ecmd->autoneg = AUTONEG_ENABLE;
 
 		ecmd->advertising |= mii_get_an(mii, MII_ADVERTISE);
-		if (ctrl1000 & ADVERTISE_1000HALF)
-			ecmd->advertising |= ADVERTISED_1000baseT_Half;
-		if (ctrl1000 & ADVERTISE_1000FULL)
-			ecmd->advertising |= ADVERTISED_1000baseT_Full;
+		if (mii->supports_gmii)
+			ecmd->advertising |=
+					mii_ctrl1000_to_ethtool_adv_t(ctrl1000);
 
 		if (bmsr & BMSR_ANEGCOMPLETE) {
 			ecmd->lp_advertising = mii_get_an(mii, MII_LPA);
-			if (stat1000 & LPA_1000HALF)
-				ecmd->lp_advertising |=
-					ADVERTISED_1000baseT_Half;
-			if (stat1000 & LPA_1000FULL)
-				ecmd->lp_advertising |=
-					ADVERTISED_1000baseT_Full;
+			ecmd->lp_advertising |=
+					mii_stat1000_to_ethtool_lpa_t(stat1000);
 		} else {
 			ecmd->lp_advertising = 0;
 		}
@@ -204,20 +184,11 @@ int mii_ethtool_sset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 			advert2 = mii->mdio_read(dev, mii->phy_id, MII_CTRL1000);
 			tmp2 = advert2 & ~(ADVERTISE_1000HALF | ADVERTISE_1000FULL);
 		}
-		if (ecmd->advertising & ADVERTISED_10baseT_Half)
-			tmp |= ADVERTISE_10HALF;
-		if (ecmd->advertising & ADVERTISED_10baseT_Full)
-			tmp |= ADVERTISE_10FULL;
-		if (ecmd->advertising & ADVERTISED_100baseT_Half)
-			tmp |= ADVERTISE_100HALF;
-		if (ecmd->advertising & ADVERTISED_100baseT_Full)
-			tmp |= ADVERTISE_100FULL;
-		if (mii->supports_gmii) {
-			if (ecmd->advertising & ADVERTISED_1000baseT_Half)
-				tmp2 |= ADVERTISE_1000HALF;
-			if (ecmd->advertising & ADVERTISED_1000baseT_Full)
-				tmp2 |= ADVERTISE_1000FULL;
-		}
+		tmp |= ethtool_adv_to_mii_adv_t(ecmd->advertising);
+
+		if (mii->supports_gmii)
+			tmp2 |=
+			      ethtool_adv_to_mii_ctrl1000_t(ecmd->advertising);
 		if (advert != tmp) {
 			mii->mdio_write(dev, mii->phy_id, MII_ADVERTISE, tmp);
 			mii->advertising = tmp;

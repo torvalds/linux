@@ -119,8 +119,8 @@ struct resource eseries_tmio_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = IRQ_GPIO(GPIO_ESERIES_TMIO_IRQ),
-		.end    = IRQ_GPIO(GPIO_ESERIES_TMIO_IRQ),
+		.start  = PXA_GPIO_TO_IRQ(GPIO_ESERIES_TMIO_IRQ),
+		.end    = PXA_GPIO_TO_IRQ(GPIO_ESERIES_TMIO_IRQ),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -196,6 +196,7 @@ MACHINE_START(E330, "Toshiba e330")
 	.fixup		= eseries_fixup,
 	.init_machine	= e330_init,
 	.timer		= &pxa_timer,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif
 
@@ -246,6 +247,7 @@ MACHINE_START(E350, "Toshiba e350")
 	.fixup		= eseries_fixup,
 	.init_machine	= e350_init,
 	.timer		= &pxa_timer,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif
 
@@ -369,6 +371,7 @@ MACHINE_START(E400, "Toshiba e400")
 	.fixup		= eseries_fixup,
 	.init_machine	= e400_init,
 	.timer		= &pxa_timer,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif
 
@@ -564,6 +567,7 @@ MACHINE_START(E740, "Toshiba e740")
 	.fixup		= eseries_fixup,
 	.init_machine	= e740_init,
 	.timer		= &pxa_timer,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif
 
@@ -762,6 +766,7 @@ MACHINE_START(E750, "Toshiba e750")
 	.fixup		= eseries_fixup,
 	.init_machine	= e750_init,
 	.timer		= &pxa_timer,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif
 
@@ -973,5 +978,6 @@ MACHINE_START(E800, "Toshiba e800")
 	.fixup		= eseries_fixup,
 	.init_machine	= e800_init,
 	.timer		= &pxa_timer,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif

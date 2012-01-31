@@ -652,10 +652,12 @@ struct twl4030_power_data {
 	unsigned num;
 	struct twl4030_resconfig *resource_config;
 #define TWL4030_RESCONFIG_UNDEF	((u8)-1)
+	bool use_poweroff;	/* Board is wired for TWL poweroff */
 };
 
 extern void twl4030_power_init(struct twl4030_power_data *triton2_scripts);
 extern int twl4030_remove_script(u8 flags);
+extern void twl4030_power_off(void);
 
 struct twl4030_codec_data {
 	unsigned int digimic_delay; /* in ms */

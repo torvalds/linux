@@ -317,7 +317,7 @@ static int serial_probe(struct pcmcia_device *link)
 	info->p_dev = link;
 	link->priv = info;
 
-	link->config_flags |= CONF_ENABLE_IRQ;
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 	if (do_sound)
 		link->config_flags |= CONF_ENABLE_SPKR;
 
@@ -445,7 +445,7 @@ static int simple_config(struct pcmcia_device *link)
 
 	/* First pass: look for a config entry that looks normal.
 	 * Two tries: without IO aliases, then with aliases */
-	link->config_flags |= CONF_AUTO_SET_VPP | CONF_AUTO_SET_IO;
+	link->config_flags |= CONF_AUTO_SET_VPP;
 	for (try = 0; try < 4; try++)
 		if (!pcmcia_loop_config(link, simple_config_check, &try))
 			goto found_port;
@@ -501,7 +501,8 @@ static int multi_config_check_notpicky(struct pcmcia_device *p_dev,
 {
 	int *base2 = priv_data;
 
-	if (!p_dev->resource[0]->end || !p_dev->resource[1]->end)
+	if (!p_dev->resource[0]->end || !p_dev->resource[1]->end ||
+		p_dev->resource[0]->start + 8 != p_dev->resource[1]->start)
 		return -ENODEV;
 
 	p_dev->resource[0]->end = p_dev->resource[1]->end = 8;
@@ -520,7 +521,6 @@ static int multi_config(struct pcmcia_device *link)
 	struct serial_info *info = link->priv;
 	int i, base2 = 0;
 
-	link->config_flags |= CONF_AUTO_SET_IO;
 	/* First, look for a generic full-sized window */
 	if (!pcmcia_loop_config(link, multi_config_check, &info->multi))
 		base2 = link->resource[0]->start + 8;

@@ -76,8 +76,8 @@ MODULE_PARM_DESC(video_nr,
 		 "\none and for every other camera."
 		 "\n");
 
-static short force_munmap[] = {[0 ... ET61X251_MAX_DEVICES-1] =
-			       ET61X251_FORCE_MUNMAP};
+static bool force_munmap[] = {[0 ... ET61X251_MAX_DEVICES-1] =
+			      ET61X251_FORCE_MUNMAP};
 module_param_array(force_munmap, bool, NULL, 0444);
 MODULE_PARM_DESC(force_munmap,
 		 "\n<0|1[,...]> Force the application to unmap previously"
@@ -2680,27 +2680,4 @@ static struct usb_driver et61x251_usb_driver = {
 	.disconnect = et61x251_usb_disconnect,
 };
 
-/*****************************************************************************/
-
-static int __init et61x251_module_init(void)
-{
-	int err = 0;
-
-	KDBG(2, ET61X251_MODULE_NAME " v" ET61X251_MODULE_VERSION);
-	KDBG(3, ET61X251_MODULE_AUTHOR);
-
-	if ((err = usb_register(&et61x251_usb_driver)))
-		KDBG(1, "usb_register() failed");
-
-	return err;
-}
-
-
-static void __exit et61x251_module_exit(void)
-{
-	usb_deregister(&et61x251_usb_driver);
-}
-
-
-module_init(et61x251_module_init);
-module_exit(et61x251_module_exit);
+module_usb_driver(et61x251_usb_driver);

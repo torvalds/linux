@@ -49,7 +49,7 @@ module_param(default_audio_input, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(default_audio_input, "default audio input: 0=RCA back / "
 		 "1=RCA front / 2=S/PDIF");
 
-static int boost_audio;
+static bool boost_audio;
 module_param(boost_audio, bool, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(boost_audio, "boost the audio signal");
 
@@ -452,26 +452,7 @@ static struct usb_driver hdpvr_usb_driver = {
 	.id_table =	hdpvr_table,
 };
 
-static int __init hdpvr_init(void)
-{
-	int result;
-
-	/* register this driver with the USB subsystem */
-	result = usb_register(&hdpvr_usb_driver);
-	if (result)
-		err("usb_register failed. Error number %d", result);
-
-	return result;
-}
-
-static void __exit hdpvr_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&hdpvr_usb_driver);
-}
-
-module_init(hdpvr_init);
-module_exit(hdpvr_exit);
+module_usb_driver(hdpvr_usb_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.2.1");

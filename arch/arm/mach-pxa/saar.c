@@ -96,8 +96,8 @@ static struct resource smc91x_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= gpio_to_irq(mfp_to_gpio(MFP_PIN_GPIO97)),
-		.end	= gpio_to_irq(mfp_to_gpio(MFP_PIN_GPIO97)),
+		.start	= PXA_GPIO_TO_IRQ(mfp_to_gpio(MFP_PIN_GPIO97)),
+		.end	= PXA_GPIO_TO_IRQ(mfp_to_gpio(MFP_PIN_GPIO97)),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	}
 };
@@ -502,7 +502,7 @@ static struct i2c_board_info saar_i2c_info[] = {
 		.type		= "da9034",
 		.addr		= 0x34,
 		.platform_data	= &saar_da9034_info,
-		.irq		= gpio_to_irq(mfp_to_gpio(MFP_PIN_GPIO83)),
+		.irq		= PXA_GPIO_TO_IRQ(mfp_to_gpio(MFP_PIN_GPIO83)),
 	},
 };
 
@@ -602,4 +602,5 @@ MACHINE_START(SAAR, "PXA930 Handheld Platform (aka SAAR)")
 	.handle_irq       = pxa3xx_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = saar_init,
+	.restart	= pxa_restart,
 MACHINE_END

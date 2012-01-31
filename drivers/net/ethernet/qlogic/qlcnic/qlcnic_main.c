@@ -97,8 +97,8 @@ static int qlcnicvf_config_bridged_mode(struct qlcnic_adapter *, u32);
 static int qlcnicvf_start_firmware(struct qlcnic_adapter *);
 static void qlcnic_set_netdev_features(struct qlcnic_adapter *,
 				struct qlcnic_esw_func_cfg *);
-static void qlcnic_vlan_rx_add(struct net_device *, u16);
-static void qlcnic_vlan_rx_del(struct net_device *, u16);
+static int qlcnic_vlan_rx_add(struct net_device *, u16);
+static int qlcnic_vlan_rx_del(struct net_device *, u16);
 
 /*  PCI Device ID Table  */
 #define ENTRY(device) \
@@ -735,20 +735,22 @@ qlcnic_set_vlan_config(struct qlcnic_adapter *adapter,
 		adapter->pvid = 0;
 }
 
-static void
+static int
 qlcnic_vlan_rx_add(struct net_device *netdev, u16 vid)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	set_bit(vid, adapter->vlans);
+	return 0;
 }
 
-static void
+static int
 qlcnic_vlan_rx_del(struct net_device *netdev, u16 vid)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 
 	qlcnic_restore_indev_addr(netdev, NETDEV_DOWN);
 	clear_bit(vid, adapter->vlans);
+	return 0;
 }
 
 static void
@@ -792,7 +794,7 @@ qlcnic_set_netdev_features(struct qlcnic_adapter *adapter,
 		struct qlcnic_esw_func_cfg *esw_cfg)
 {
 	struct net_device *netdev = adapter->netdev;
-	unsigned long features, vlan_features;
+	netdev_features_t features, vlan_features;
 
 	features = (NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_RXCSUM |
 			NETIF_F_IPV6_CSUM | NETIF_F_GRO);

@@ -42,7 +42,7 @@ obj-$(CONFIG_ADM8211)	+= adm8211.o
 obj-$(CONFIG_MWL8K)	+= mwl8k.o
 
 obj-$(CONFIG_IWLWIFI)	+= iwlwifi/
-obj-$(CONFIG_IWLWIFI_LEGACY)	+= iwlegacy/
+obj-$(CONFIG_IWLEGACY)	+= iwlegacy/
 obj-$(CONFIG_RT2X00)	+= rt2x00/
 
 obj-$(CONFIG_P54_COMMON)	+= p54/
@@ -58,6 +58,6 @@ obj-$(CONFIG_WL12XX_PLATFORM_DATA)	+= wl12xx/
 obj-$(CONFIG_IWM)	+= iwmc3200wifi/
 
 obj-$(CONFIG_MWIFIEX)	+= mwifiex/
-obj-$(CONFIG_BRCMFMAC) += brcm80211/
-obj-$(CONFIG_BRCMUMAC) += brcm80211/
-obj-$(CONFIG_BRCMSMAC) += brcm80211/
+
+obj-$(CONFIG_BRCMFMAC)	+= brcm80211/
+obj-$(CONFIG_BRCMSMAC)	+= brcm80211/

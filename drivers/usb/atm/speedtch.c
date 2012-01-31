@@ -73,9 +73,9 @@ static const char speedtch_driver_name[] = "speedtch";
 #define DEFAULT_SW_BUFFERING	0
 
 static unsigned int altsetting = 0; /* zero means: use the default */
-static int dl_512_first = DEFAULT_DL_512_FIRST;
-static int enable_isoc = DEFAULT_ENABLE_ISOC;
-static int sw_buffering = DEFAULT_SW_BUFFERING;
+static bool dl_512_first = DEFAULT_DL_512_FIRST;
+static bool enable_isoc = DEFAULT_ENABLE_ISOC;
+static bool sw_buffering = DEFAULT_SW_BUFFERING;
 
 #define DEFAULT_B_MAX_DSL	8128
 #define DEFAULT_MODEM_MODE	11
@@ -953,22 +953,7 @@ static int speedtch_usb_probe(struct usb_interface *intf, const struct usb_devic
 	return usbatm_usb_probe(intf, id, &speedtch_usbatm_driver);
 }
 
-static int __init speedtch_usb_init(void)
-{
-	dbg("%s: driver version %s", __func__, DRIVER_VERSION);
-
-	return usb_register(&speedtch_usb_driver);
-}
-
-static void __exit speedtch_usb_cleanup(void)
-{
-	dbg("%s", __func__);
-
-	usb_deregister(&speedtch_usb_driver);
-}
-
-module_init(speedtch_usb_init);
-module_exit(speedtch_usb_cleanup);
+module_usb_driver(speedtch_usb_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

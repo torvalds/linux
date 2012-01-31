@@ -625,6 +625,8 @@ static void oops_to_nvram(struct kmsg_dumper *dumper,
 {
 	static unsigned int oops_count = 0;
 	static bool panicking = false;
+	static DEFINE_SPINLOCK(lock);
+	unsigned long flags;
 	size_t text_len;
 	unsigned int err_type = ERR_TYPE_KERNEL_PANIC_GZ;
 	int rc = -1;
@@ -636,7 +638,6 @@ static void oops_to_nvram(struct kmsg_dumper *dumper,
 		/* These are almost always orderly shutdowns. */
 		return;
 	case KMSG_DUMP_OOPS:
-	case KMSG_DUMP_KEXEC:
 		break;
 	case KMSG_DUMP_PANIC:
 		panicking = true;
@@ -655,6 +656,9 @@ static void oops_to_nvram(struct kmsg_dumper *dumper,
 	if (clobbering_unread_rtas_event())
 		return;
 
+	if (!spin_trylock_irqsave(&lock, flags))
+		return;
+
 	if (big_oops_buf) {
 		text_len = capture_last_msgs(old_msgs, old_len,
 			new_msgs, new_len, big_oops_buf, big_oops_buf_sz);
@@ -670,4 +674,6 @@ static void oops_to_nvram(struct kmsg_dumper *dumper,
 
 	(void) nvram_write_os_partition(&oops_log_partition, oops_buf,
 		(int) (sizeof(*oops_len) + *oops_len), err_type, ++oops_count);
+
+	spin_unlock_irqrestore(&lock, flags);
 }

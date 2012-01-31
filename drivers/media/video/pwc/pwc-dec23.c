@@ -27,7 +27,6 @@
 #include "pwc-timon.h"
 #include "pwc-kiara.h"
 #include "pwc-dec23.h"
-#include <media/pwc-ioctl.h>
 
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -50,13 +49,6 @@
 # undef USE_LOOKUP_TABLE_TO_CLAMP
 # define USE_LOOKUP_TABLE_TO_CLAMP 1
 #endif
-
-/*
- * ENABLE_BAYER_DECODER
- *   0: bayer decoder is not build (save some space)
- *   1: bayer decoder is build and can be used
- */
-#define ENABLE_BAYER_DECODER 0
 
 static void build_subblock_pattern(struct pwc_dec23_private *pdec)
 {
@@ -302,20 +294,17 @@ static unsigned char pwc_crop_table[256 + 2*MAX_OUTER_CROP_VALUE];
 
 
 /* If the type or the command change, we rebuild the lookup table */
-int pwc_dec23_init(struct pwc_device *pwc, int type, unsigned char *cmd)
+void pwc_dec23_init(struct pwc_device *pdev, const unsigned char *cmd)
 {
 	int flags, version, shift, i;
-	struct pwc_dec23_private *pdec;
+	struct pwc_dec23_private *pdec = &pdev->dec23;
 
-	if (pwc->decompress_data == NULL) {
-		pdec = kmalloc(sizeof(struct pwc_dec23_private), GFP_KERNEL);
-		if (pdec == NULL)
-			return -ENOMEM;
-		pwc->decompress_data = pdec;
-	}
-	pdec = pwc->decompress_data;
+	mutex_init(&pdec->lock);
 
-	if (DEVICE_USE_CODEC3(type)) {
+	if (pdec->last_cmd_valid && pdec->last_cmd == cmd[2])
+		return;
+
+	if (DEVICE_USE_CODEC3(pdev->type)) {
 		flags = cmd[2] & 0x18;
 		if (flags == 8)
 			pdec->nbits = 7;	/* More bits, mean more bits to encode the stream, but better quality */
@@ -362,7 +351,8 @@ int pwc_dec23_init(struct pwc_device *pwc, int type, unsigned char *cmd)
 		pwc_crop_table[MAX_OUTER_CROP_VALUE+256+i] = 255;
 #endif
 
-	return 0;
+	pdec->last_cmd = cmd[2];
+	pdec->last_cmd_valid = 1;
 }
 
 /*
@@ -466,123 +456,6 @@ static void copy_image_block_CrCb(const int *src, unsigned char *dst, unsigned i
 	}
 #endif
 }
-
-#if ENABLE_BAYER_DECODER
-/*
- * Format: 8x2 pixels
- *   . G . G . G . G . G . G . G
- *   . . . . . . . . . . . . . .
- *   . G . G . G . G . G . G . G
- *   . . . . . . . . . . . . . .
- *   or
- *   . . . . . . . . . . . . . .
- *   G . G . G . G . G . G . G .
- *   . . . . . . . . . . . . . .
- *   G . G . G . G . G . G . G .
-*/
-static void copy_image_block_Green(const int *src, unsigned char *dst, unsigned int bytes_per_line, unsigned int scalebits)
-{
-#if UNROLL_LOOP_FOR_COPY
-	/* Unroll all loops */
-	const unsigned char *cm = pwc_crop_table+MAX_OUTER_CROP_VALUE;
-	unsigned char *d = dst;
-	const int *c = src;
-
-	d[0] = cm[c[0] >> scalebits];
-	d[2] = cm[c[1] >> scalebits];
-	d[4] = cm[c[2] >> scalebits];
-	d[6] = cm[c[3] >> scalebits];
-	d[8] = cm[c[4] >> scalebits];
-	d[10] = cm[c[5] >> scalebits];
-	d[12] = cm[c[6] >> scalebits];
-	d[14] = cm[c[7] >> scalebits];
-
-	d = dst + bytes_per_line;
-	d[0] = cm[c[8] >> scalebits];
-	d[2] = cm[c[9] >> scalebits];
-	d[4] = cm[c[10] >> scalebits];
-	d[6] = cm[c[11] >> scalebits];
-	d[8] = cm[c[12] >> scalebits];
-	d[10] = cm[c[13] >> scalebits];
-	d[12] = cm[c[14] >> scalebits];
-	d[14] = cm[c[15] >> scalebits];
-#else
-	int i;
-	unsigned char *d;
-	const int *c = src;
-
-	d = dst;
-	for (i = 0; i < 8; i++, c++)
-		d[i*2] = CLAMP((*c) >> scalebits);
-
-	d = dst + bytes_per_line;
-	for (i = 0; i < 8; i++, c++)
-		d[i*2] = CLAMP((*c) >> scalebits);
-#endif
-}
-#endif
-
-#if ENABLE_BAYER_DECODER
-/*
- * Format: 4x4 pixels
- *   R . R . R . R
- *   . B . B . B .
- *   R . R . R . R
- *   . B . B . B .
- */
-static void copy_image_block_RedBlue(const int *src, unsigned char *dst, unsigned int bytes_per_line, unsigned int scalebits)
-{
-#if UNROLL_LOOP_FOR_COPY
-	/* Unroll all loops */
-	const unsigned char *cm = pwc_crop_table+MAX_OUTER_CROP_VALUE;
-	unsigned char *d = dst;
-	const int *c = src;
-
-	d[0] = cm[c[0] >> scalebits];
-	d[2] = cm[c[1] >> scalebits];
-	d[4] = cm[c[2] >> scalebits];
-	d[6] = cm[c[3] >> scalebits];
-
-	d = dst + bytes_per_line;
-	d[1] = cm[c[4] >> scalebits];
-	d[3] = cm[c[5] >> scalebits];
-	d[5] = cm[c[6] >> scalebits];
-	d[7] = cm[c[7] >> scalebits];
-
-	d = dst + bytes_per_line*2;
-	d[0] = cm[c[8] >> scalebits];
-	d[2] = cm[c[9] >> scalebits];
-	d[4] = cm[c[10] >> scalebits];
-	d[6] = cm[c[11] >> scalebits];
-
-	d = dst + bytes_per_line*3;
-	d[1] = cm[c[12] >> scalebits];
-	d[3] = cm[c[13] >> scalebits];
-	d[5] = cm[c[14] >> scalebits];
-	d[7] = cm[c[15] >> scalebits];
-#else
-	int i;
-	unsigned char *d;
-	const int *c = src;
-
-	d = dst;
-	for (i = 0; i < 4; i++, c++)
-		d[i*2] = CLAMP((*c) >> scalebits);
-
-	d = dst + bytes_per_line;
-	for (i = 0; i < 4; i++, c++)
-		d[i*2+1] = CLAMP((*c) >> scalebits);
-
-	d = dst + bytes_per_line*2;
-	for (i = 0; i < 4; i++, c++)
-		d[i*2] = CLAMP((*c) >> scalebits);
-
-	d = dst + bytes_per_line*3;
-	for (i = 0; i < 4; i++, c++)
-		d[i*2+1] = CLAMP((*c) >> scalebits);
-#endif
-}
-#endif
 
 /*
  * To manage the stream, we keep bits in a 32 bits register.
@@ -775,146 +648,44 @@ static void DecompressBand23(struct pwc_dec23_private *pdec,
 
 }
 
-#if ENABLE_BAYER_DECODER
-/*
- * Size need to be a multiple of 8 in width
- *
- * Return a block of four line encoded like this:
- *
- *   G R G R G R G R G R G R G R G R
- *   B G B G B G B G B G B G B G B G
- *   G R G R G R G R G R G R G R G R
- *   B G B G B G B G B G B G B G B G
- *
- */
-static void DecompressBandBayer(struct pwc_dec23_private *pdec,
-				const unsigned char *rawyuv,
-				unsigned char *rgbbayer,
-				unsigned int   compressed_image_width,
-				unsigned int   real_image_width)
-{
-	int compression_index, nblocks;
-	const unsigned char *ptable0004;
-	const unsigned char *ptable8004;
-	unsigned char *dest;
-
-	pdec->reservoir = 0;
-	pdec->nbits_in_reservoir = 0;
-	pdec->stream = rawyuv + 1;	/* The first byte of the stream is skipped */
-
-	get_nbits(pdec, 4, compression_index);
-
-	/* pass 1: uncompress RB component */
-	nblocks = compressed_image_width / 4;
-
-	ptable0004 = pdec->table_0004_pass1[compression_index];
-	ptable8004 = pdec->table_8004_pass1[compression_index];
-	dest = rgbbayer;
-
-	/* Each block decode a square of 4x4 */
-	while (nblocks) {
-		decode_block(pdec, ptable0004, ptable8004);
-		copy_image_block_RedBlue(pdec->temp_colors, rgbbayer, real_image_width, pdec->scalebits);
-		dest += 8;
-		nblocks--;
-	}
-
-	/* pass 2: uncompress G component */
-	nblocks = compressed_image_width / 8;
-
-	ptable0004 = pdec->table_0004_pass2[compression_index];
-	ptable8004 = pdec->table_8004_pass2[compression_index];
-
-	/* Each block decode a square of 4x4 */
-	while (nblocks) {
-		decode_block(pdec, ptable0004, ptable8004);
-		copy_image_block_Green(pdec->temp_colors, rgbbayer+1, real_image_width, pdec->scalebits);
-
-		decode_block(pdec, ptable0004, ptable8004);
-		copy_image_block_Green(pdec->temp_colors, rgbbayer+real_image_width, real_image_width, pdec->scalebits);
-
-		rgbbayer += 16;
-		nblocks -= 2;
-	}
-}
-#endif
-
-
 /**
  *
  * Uncompress a pwc23 buffer.
  *
- * pwc.view: size of the image wanted
- * pwc.image: size of the image returned by the camera
- * pwc.offset: (x,y) to displayer image in the view
- *
  * src: raw data
  * dst: image output
- * flags: PWCX_FLAG_PLANAR or PWCX_FLAG_BAYER
  */
-void pwc_dec23_decompress(const struct pwc_device *pwc,
+void pwc_dec23_decompress(struct pwc_device *pdev,
 			  const void *src,
-			  void *dst,
-			  int flags)
+			  void *dst)
 {
-	int bandlines_left, stride, bytes_per_block;
+	int bandlines_left, bytes_per_block;
+	struct pwc_dec23_private *pdec = &pdev->dec23;
 
-	bandlines_left = pwc->image.y / 4;
-	bytes_per_block = pwc->view.x * 4;
+	/* YUV420P image format */
+	unsigned char *pout_planar_y;
+	unsigned char *pout_planar_u;
+	unsigned char *pout_planar_v;
+	unsigned int   plane_size;
 
-	if (flags & PWCX_FLAG_BAYER) {
-#if ENABLE_BAYER_DECODER
-		/* RGB Bayer format */
-		unsigned char *rgbout;
+	mutex_lock(&pdec->lock);
 
-		stride = pwc->view.x * pwc->offset.y;
-		rgbout = dst + stride + pwc->offset.x;
+	bandlines_left = pdev->height / 4;
+	bytes_per_block = pdev->width * 4;
+	plane_size = pdev->height * pdev->width;
 
+	pout_planar_y = dst;
+	pout_planar_u = dst + plane_size;
+	pout_planar_v = dst + plane_size + plane_size / 4;
 
-		while (bandlines_left--) {
-
-			DecompressBandBayer(pwc->decompress_data,
-					    src,
-					    rgbout,
-					    pwc->image.x, pwc->view.x);
-
-			src += pwc->vbandlength;
-			rgbout += bytes_per_block;
-
-		}
-#else
-		memset(dst, 0, pwc->view.x * pwc->view.y);
-#endif
-
-	} else {
-		/* YUV420P image format */
-		unsigned char *pout_planar_y;
-		unsigned char *pout_planar_u;
-		unsigned char *pout_planar_v;
-		unsigned int   plane_size;
-
-		plane_size = pwc->view.x * pwc->view.y;
-
-		/* offset in Y plane */
-		stride = pwc->view.x * pwc->offset.y;
-		pout_planar_y = dst + stride + pwc->offset.x;
-
-		/* offsets in U/V planes */
-		stride = (pwc->view.x * pwc->offset.y) / 4 + pwc->offset.x / 2;
-		pout_planar_u = dst + plane_size + stride;
-		pout_planar_v = dst + plane_size + plane_size / 4 + stride;
-
-		while (bandlines_left--) {
-
-			DecompressBand23(pwc->decompress_data,
-					 src,
-					 pout_planar_y, pout_planar_u, pout_planar_v,
-					 pwc->image.x, pwc->view.x);
-			src += pwc->vbandlength;
-			pout_planar_y += bytes_per_block;
-			pout_planar_u += pwc->view.x;
-			pout_planar_v += pwc->view.x;
-
-		}
+	while (bandlines_left--) {
+		DecompressBand23(pdec, src,
+				 pout_planar_y, pout_planar_u, pout_planar_v,
+				 pdev->width, pdev->width);
+		src += pdev->vbandlength;
+		pout_planar_y += bytes_per_block;
+		pout_planar_u += pdev->width;
+		pout_planar_v += pdev->width;
 	}
+	mutex_unlock(&pdec->lock);
 }

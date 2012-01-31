@@ -70,7 +70,7 @@ static int phison_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 }
 
 static DEFINE_PCI_DEVICE_TABLE(phison_pci_tbl) = {
-	{ PCI_VENDOR_ID_PHISON, PCI_DEVICE_ID_PS5000, PCI_ANY_ID, PCI_ANY_ID,
+	{ PCI_DEVICE(PCI_VENDOR_ID_PHISON, PCI_DEVICE_ID_PS5000),
 	  PCI_CLASS_STORAGE_IDE << 8, 0xffff00, 0 },
 	{ 0, },
 };

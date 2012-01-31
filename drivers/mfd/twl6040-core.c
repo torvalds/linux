@@ -509,13 +509,10 @@ static int __devinit twl6040_probe(struct platform_device *pdev)
 		twl6040->audpwron = -EINVAL;
 
 	if (gpio_is_valid(twl6040->audpwron)) {
-		ret = gpio_request(twl6040->audpwron, "audpwron");
+		ret = gpio_request_one(twl6040->audpwron, GPIOF_OUT_INIT_LOW,
+				       "audpwron");
 		if (ret)
 			goto gpio1_err;
-
-		ret = gpio_direction_output(twl6040->audpwron, 0);
-		if (ret)
-			goto gpio2_err;
 	}
 
 	/* codec interrupt */
@@ -619,18 +616,7 @@ static struct platform_driver twl6040_driver = {
 	},
 };
 
-static int __devinit twl6040_init(void)
-{
-	return platform_driver_register(&twl6040_driver);
-}
-module_init(twl6040_init);
-
-static void __devexit twl6040_exit(void)
-{
-	platform_driver_unregister(&twl6040_driver);
-}
-
-module_exit(twl6040_exit);
+module_platform_driver(twl6040_driver);
 
 MODULE_DESCRIPTION("TWL6040 MFD");
 MODULE_AUTHOR("Misael Lopez Cruz <misael.lopez@ti.com>");

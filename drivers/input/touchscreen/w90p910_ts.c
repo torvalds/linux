@@ -331,19 +331,7 @@ static struct platform_driver w90x900ts_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init w90x900ts_init(void)
-{
-	return platform_driver_register(&w90x900ts_driver);
-}
-
-static void __exit w90x900ts_exit(void)
-{
-	platform_driver_unregister(&w90x900ts_driver);
-}
-
-module_init(w90x900ts_init);
-module_exit(w90x900ts_exit);
+module_platform_driver(w90x900ts_driver);
 
 MODULE_AUTHOR("Wan ZongShun <mcuos.com@gmail.com>");
 MODULE_DESCRIPTION("w90p910 touch screen driver!");

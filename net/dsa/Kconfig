@@ -1,5 +1,5 @@
-menuconfig NET_DSA
-	bool "Distributed Switch Architecture support"
+config NET_DSA
+	tristate "Distributed Switch Architecture support"
 	default n
 	depends on EXPERIMENTAL && NETDEVICES && !S390
 	select PHYLIB
@@ -22,39 +22,5 @@ config NET_DSA_TAG_EDSA
 config NET_DSA_TAG_TRAILER
 	bool
 	default n
-
-
-# switch drivers
-config NET_DSA_MV88E6XXX
-	bool
-	default n
-
-config NET_DSA_MV88E6060
-	bool "Marvell 88E6060 ethernet switch chip support"
-	select NET_DSA_TAG_TRAILER
-	---help---
-	  This enables support for the Marvell 88E6060 ethernet switch
-	  chip.
-
-config NET_DSA_MV88E6XXX_NEED_PPU
-	bool
-	default n
-
-config NET_DSA_MV88E6131
-	bool "Marvell 88E6085/6095/6095F/6131 ethernet switch chip support"
-	select NET_DSA_MV88E6XXX
-	select NET_DSA_MV88E6XXX_NEED_PPU
-	select NET_DSA_TAG_DSA
-	---help---
-	  This enables support for the Marvell 88E6085/6095/6095F/6131
-	  ethernet switch chips.
-
-config NET_DSA_MV88E6123_61_65
-	bool "Marvell 88E6123/6161/6165 ethernet switch chip support"
-	select NET_DSA_MV88E6XXX
-	select NET_DSA_TAG_EDSA
-	---help---
-	  This enables support for the Marvell 88E6123/6161/6165
-	  ethernet switch chips.
 
 endif

@@ -18,6 +18,7 @@
 #include "hw-ops.h"
 #include "ar9003_phy.h"
 #include "ar9003_rtt.h"
+#include "ar9003_mci.h"
 
 #define MAX_MEASUREMENT	MAX_IQCAL_MEASUREMENT
 #define MAX_MAG_DELTA	11
@@ -51,7 +52,7 @@ static void ar9003_hw_setup_calibration(struct ath_hw *ah,
 		currCal->calData->calCountMax);
 		REG_WRITE(ah, AR_PHY_CALMODE, AR_PHY_CALMODE_IQ);
 
-		ath_dbg(common, ATH_DBG_CALIBRATE,
+		ath_dbg(common, CALIBRATE,
 			"starting IQ Mismatch Calibration\n");
 
 		/* Kick-off cal */
@@ -63,7 +64,7 @@ static void ar9003_hw_setup_calibration(struct ath_hw *ah,
 		REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_THERM,
 			      AR_PHY_65NM_CH0_THERM_START, 1);
 
-		ath_dbg(common, ATH_DBG_CALIBRATE,
+		ath_dbg(common, CALIBRATE,
 			"starting Temperature Compensation Calibration\n");
 		break;
 	}
@@ -193,7 +194,7 @@ static void ar9003_hw_iqcal_collect(struct ath_hw *ah)
 				REG_READ(ah, AR_PHY_CAL_MEAS_1(i));
 			ah->totalIqCorrMeas[i] +=
 				(int32_t) REG_READ(ah, AR_PHY_CAL_MEAS_2(i));
-			ath_dbg(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
+			ath_dbg(ath9k_hw_common(ah), CALIBRATE,
 				"%d: Chn %d pmi=0x%08x;pmq=0x%08x;iqcm=0x%08x;\n",
 				ah->cal_samples, i, ah->totalPowerMeasI[i],
 				ah->totalPowerMeasQ[i],
@@ -220,12 +221,11 @@ static void ar9003_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 		powerMeasQ = ah->totalPowerMeasQ[i];
 		iqCorrMeas = ah->totalIqCorrMeas[i];
 
-		ath_dbg(common, ATH_DBG_CALIBRATE,
-			"Starting IQ Cal and Correction for Chain %d\n",
-			i);
+		ath_dbg(common, CALIBRATE,
+			"Starting IQ Cal and Correction for Chain %d\n", i);
 
-		ath_dbg(common, ATH_DBG_CALIBRATE,
-			"Orignal: Chn %diq_corr_meas = 0x%08x\n",
+		ath_dbg(common, CALIBRATE,
+			"Original: Chn %d iq_corr_meas = 0x%08x\n",
 			i, ah->totalIqCorrMeas[i]);
 
 		iqCorrNeg = 0;
@@ -235,12 +235,11 @@ static void ar9003_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 			iqCorrNeg = 1;
 		}
 
-		ath_dbg(common, ATH_DBG_CALIBRATE,
-			"Chn %d pwr_meas_i = 0x%08x\n", i, powerMeasI);
-		ath_dbg(common, ATH_DBG_CALIBRATE,
-			"Chn %d pwr_meas_q = 0x%08x\n", i, powerMeasQ);
-		ath_dbg(common, ATH_DBG_CALIBRATE, "iqCorrNeg is 0x%08x\n",
-			iqCorrNeg);
+		ath_dbg(common, CALIBRATE, "Chn %d pwr_meas_i = 0x%08x\n",
+			i, powerMeasI);
+		ath_dbg(common, CALIBRATE, "Chn %d pwr_meas_q = 0x%08x\n",
+			i, powerMeasQ);
+		ath_dbg(common, CALIBRATE, "iqCorrNeg is 0x%08x\n", iqCorrNeg);
 
 		iCoffDenom = (powerMeasI / 2 + powerMeasQ / 2) / 256;
 		qCoffDenom = powerMeasQ / 64;
@@ -248,10 +247,10 @@ static void ar9003_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 		if ((iCoffDenom != 0) && (qCoffDenom != 0)) {
 			iCoff = iqCorrMeas / iCoffDenom;
 			qCoff = powerMeasI / qCoffDenom - 64;
-			ath_dbg(common, ATH_DBG_CALIBRATE,
-				"Chn %d iCoff = 0x%08x\n", i, iCoff);
-			ath_dbg(common, ATH_DBG_CALIBRATE,
-				"Chn %d qCoff = 0x%08x\n", i, qCoff);
+			ath_dbg(common, CALIBRATE, "Chn %d iCoff = 0x%08x\n",
+				i, iCoff);
+			ath_dbg(common, CALIBRATE, "Chn %d qCoff = 0x%08x\n",
+				i, qCoff);
 
 			/* Force bounds on iCoff */
 			if (iCoff >= 63)
@@ -272,10 +271,10 @@ static void ar9003_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 			iCoff = iCoff & 0x7f;
 			qCoff = qCoff & 0x7f;
 
-			ath_dbg(common, ATH_DBG_CALIBRATE,
+			ath_dbg(common, CALIBRATE,
 				"Chn %d : iCoff = 0x%x  qCoff = 0x%x\n",
 				i, iCoff, qCoff);
-			ath_dbg(common, ATH_DBG_CALIBRATE,
+			ath_dbg(common, CALIBRATE,
 				"Register offset (0x%04x) before update = 0x%x\n",
 				offset_array[i],
 				REG_READ(ah, offset_array[i]));
@@ -286,25 +285,25 @@ static void ar9003_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 			REG_RMW_FIELD(ah, offset_array[i],
 				      AR_PHY_RX_IQCAL_CORR_IQCORR_Q_Q_COFF,
 				      qCoff);
-			ath_dbg(common, ATH_DBG_CALIBRATE,
+			ath_dbg(common, CALIBRATE,
 				"Register offset (0x%04x) QI COFF (bitfields 0x%08x) after update = 0x%x\n",
 				offset_array[i],
 				AR_PHY_RX_IQCAL_CORR_IQCORR_Q_I_COFF,
 				REG_READ(ah, offset_array[i]));
-			ath_dbg(common, ATH_DBG_CALIBRATE,
+			ath_dbg(common, CALIBRATE,
 				"Register offset (0x%04x) QQ COFF (bitfields 0x%08x) after update = 0x%x\n",
 				offset_array[i],
 				AR_PHY_RX_IQCAL_CORR_IQCORR_Q_Q_COFF,
 				REG_READ(ah, offset_array[i]));
 
-			ath_dbg(common, ATH_DBG_CALIBRATE,
+			ath_dbg(common, CALIBRATE,
 				"IQ Cal and Correction done for Chain %d\n", i);
 		}
 	}
 
 	REG_SET_BIT(ah, AR_PHY_RX_IQCAL_CORR_B0,
 		    AR_PHY_RX_IQCAL_CORR_IQCORR_ENABLE);
-	ath_dbg(common, ATH_DBG_CALIBRATE,
+	ath_dbg(common, CALIBRATE,
 		"IQ Cal and Correction (offset 0x%04x) enabled (bit position 0x%08x). New Value 0x%08x\n",
 		(unsigned) (AR_PHY_RX_IQCAL_CORR_B0),
 		AR_PHY_RX_IQCAL_CORR_IQCORR_ENABLE,
@@ -348,7 +347,7 @@ static bool ar9003_hw_solve_iq_cal(struct ath_hw *ah,
 	f2 = (f1 * f1 + f3 * f3) / result_shift;
 
 	if (!f2) {
-		ath_dbg(common, ATH_DBG_CALIBRATE, "Divide by 0\n");
+		ath_dbg(common, CALIBRATE, "Divide by 0\n");
 		return false;
 	}
 
@@ -469,7 +468,7 @@ static bool ar9003_hw_calc_iq_corr(struct ath_hw *ah,
 
 	if ((i2_p_q2_a0_d0 == 0) || (i2_p_q2_a0_d1 == 0) ||
 	    (i2_p_q2_a1_d0 == 0) || (i2_p_q2_a1_d1 == 0)) {
-		ath_dbg(common, ATH_DBG_CALIBRATE,
+		ath_dbg(common, CALIBRATE,
 			"Divide by 0:\n"
 			"a0_d0=%d\n"
 			"a0_d1=%d\n"
@@ -509,8 +508,7 @@ static bool ar9003_hw_calc_iq_corr(struct ath_hw *ah,
 	mag2 = ar9003_hw_find_mag_approx(ah, cos_2phi_2, sin_2phi_2);
 
 	if ((mag1 == 0) || (mag2 == 0)) {
-		ath_dbg(common, ATH_DBG_CALIBRATE,
-			"Divide by 0: mag1=%d, mag2=%d\n",
+		ath_dbg(common, CALIBRATE, "Divide by 0: mag1=%d, mag2=%d\n",
 			mag1, mag2);
 		return false;
 	}
@@ -528,8 +526,8 @@ static bool ar9003_hw_calc_iq_corr(struct ath_hw *ah,
 			     mag_a0_d0, phs_a0_d0,
 			     mag_a1_d0,
 			     phs_a1_d0, solved_eq)) {
-		ath_dbg(common, ATH_DBG_CALIBRATE,
-			"Call to ar9003_hw_solve_iq_cal() failed.\n");
+		ath_dbg(common, CALIBRATE,
+			"Call to ar9003_hw_solve_iq_cal() failed\n");
 		return false;
 	}
 
@@ -538,12 +536,12 @@ static bool ar9003_hw_calc_iq_corr(struct ath_hw *ah,
 	mag_rx = solved_eq[2];
 	phs_rx = solved_eq[3];
 
-	ath_dbg(common, ATH_DBG_CALIBRATE,
+	ath_dbg(common, CALIBRATE,
 		"chain %d: mag mismatch=%d phase mismatch=%d\n",
 		chain_idx, mag_tx/res_scale, phs_tx/res_scale);
 
 	if (res_scale == mag_tx) {
-		ath_dbg(common, ATH_DBG_CALIBRATE,
+		ath_dbg(common, CALIBRATE,
 			"Divide by 0: mag_tx=%d, res_scale=%d\n",
 			mag_tx, res_scale);
 		return false;
@@ -556,8 +554,7 @@ static bool ar9003_hw_calc_iq_corr(struct ath_hw *ah,
 	q_q_coff = (mag_corr_tx * 128 / res_scale);
 	q_i_coff = (phs_corr_tx * 256 / res_scale);
 
-	ath_dbg(common, ATH_DBG_CALIBRATE,
-		"tx chain %d: mag corr=%d  phase corr=%d\n",
+	ath_dbg(common, CALIBRATE, "tx chain %d: mag corr=%d  phase corr=%d\n",
 		chain_idx, q_q_coff, q_i_coff);
 
 	if (q_i_coff < -63)
@@ -571,12 +568,11 @@ static bool ar9003_hw_calc_iq_corr(struct ath_hw *ah,
 
 	iqc_coeff[0] = (q_q_coff * 128) + q_i_coff;
 
-	ath_dbg(common, ATH_DBG_CALIBRATE,
-		"tx chain %d: iq corr coeff=%x\n",
+	ath_dbg(common, CALIBRATE, "tx chain %d: iq corr coeff=%x\n",
 		chain_idx, iqc_coeff[0]);
 
 	if (-mag_rx == res_scale) {
-		ath_dbg(common, ATH_DBG_CALIBRATE,
+		ath_dbg(common, CALIBRATE,
 			"Divide by 0: mag_rx=%d, res_scale=%d\n",
 			mag_rx, res_scale);
 		return false;
@@ -589,8 +585,7 @@ static bool ar9003_hw_calc_iq_corr(struct ath_hw *ah,
 	q_q_coff = (mag_corr_rx * 128 / res_scale);
 	q_i_coff = (phs_corr_rx * 256 / res_scale);
 
-	ath_dbg(common, ATH_DBG_CALIBRATE,
-		"rx chain %d: mag corr=%d  phase corr=%d\n",
+	ath_dbg(common, CALIBRATE, "rx chain %d: mag corr=%d  phase corr=%d\n",
 		chain_idx, q_q_coff, q_i_coff);
 
 	if (q_i_coff < -63)
@@ -604,8 +599,7 @@ static bool ar9003_hw_calc_iq_corr(struct ath_hw *ah,
 
 	iqc_coeff[1] = (q_q_coff * 128) + q_i_coff;
 
-	ath_dbg(common, ATH_DBG_CALIBRATE,
-		"rx chain %d: iq corr coeff=%x\n",
+	ath_dbg(common, CALIBRATE, "rx chain %d: iq corr coeff=%x\n",
 		chain_idx, iqc_coeff[1]);
 
 	return true;
@@ -752,8 +746,7 @@ static bool ar9003_hw_tx_iq_cal_run(struct ath_hw *ah)
 	if (!ath9k_hw_wait(ah, AR_PHY_TX_IQCAL_START,
 			AR_PHY_TX_IQCAL_START_DO_CAL, 0,
 			AH_WAIT_TIMEOUT)) {
-		ath_dbg(common, ATH_DBG_CALIBRATE,
-			"Tx IQ Cal is not completed.\n");
+		ath_dbg(common, CALIBRATE, "Tx IQ Cal is not completed\n");
 		return false;
 	}
 	return true;
@@ -791,13 +784,13 @@ static void ar9003_hw_tx_iq_cal_post_proc(struct ath_hw *ah, bool is_reusable)
 			nmeasurement = MAX_MEASUREMENT;
 
 		for (im = 0; im < nmeasurement; im++) {
-			ath_dbg(common, ATH_DBG_CALIBRATE,
-				"Doing Tx IQ Cal for chain %d.\n", i);
+			ath_dbg(common, CALIBRATE,
+				"Doing Tx IQ Cal for chain %d\n", i);
 
 			if (REG_READ(ah, txiqcal_status[i]) &
 					AR_PHY_TX_IQCAL_STATUS_FAILED) {
-				ath_dbg(common, ATH_DBG_CALIBRATE,
-					"Tx IQ Cal failed for chain %d.\n", i);
+				ath_dbg(common, CALIBRATE,
+					"Tx IQ Cal failed for chain %d\n", i);
 				goto tx_iqcal_fail;
 			}
 
@@ -823,18 +816,16 @@ static void ar9003_hw_tx_iq_cal_post_proc(struct ath_hw *ah, bool is_reusable)
 				iq_res[idx + 1] = 0xffff & REG_READ(ah,
 						chan_info_tab[i] + offset);
 
-				ath_dbg(common, ATH_DBG_CALIBRATE,
-					"IQ RES[%d]=0x%x"
-					"IQ_RES[%d]=0x%x\n",
+				ath_dbg(common, CALIBRATE,
+					"IQ_RES[%d]=0x%x IQ_RES[%d]=0x%x\n",
 					idx, iq_res[idx], idx + 1,
 					iq_res[idx + 1]);
 			}
 
 			if (!ar9003_hw_calc_iq_corr(ah, i, iq_res,
 						coeff.iqc_coeff)) {
-				ath_dbg(common, ATH_DBG_CALIBRATE,
-					"Failed in calculation of \
-					IQ correction.\n");
+				ath_dbg(common, CALIBRATE,
+					"Failed in calculation of IQ correction\n");
 				goto tx_iqcal_fail;
 			}
 
@@ -854,7 +845,7 @@ static void ar9003_hw_tx_iq_cal_post_proc(struct ath_hw *ah, bool is_reusable)
 	return;
 
 tx_iqcal_fail:
-	ath_dbg(common, ATH_DBG_CALIBRATE, "Tx IQ Cal failed\n");
+	ath_dbg(common, CALIBRATE, "Tx IQ Cal failed\n");
 	return;
 }
 
@@ -934,10 +925,12 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
+	struct ath9k_hw_mci *mci_hw = &ah->btcoex_hw.mci;
 	bool txiqcal_done = false, txclcal_done = false;
 	bool is_reusable = true, status = true;
 	bool run_rtt_cal = false, run_agc_cal;
 	bool rtt = !!(ah->caps.hw_caps & ATH9K_HW_CAP_RTT);
+	bool mci = !!(ah->caps.hw_caps & ATH9K_HW_CAP_MCI);
 	u32 agc_ctrl = 0, agc_supp_cals = AR_PHY_AGC_CONTROL_OFFSET_CAL |
 					  AR_PHY_AGC_CONTROL_FLTR_CAL   |
 					  AR_PHY_AGC_CONTROL_PKDET_CAL;
@@ -950,7 +943,7 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 		if (!ar9003_hw_rtt_restore(ah, chan))
 			run_rtt_cal = true;
 
-		ath_dbg(common, ATH_DBG_CALIBRATE, "RTT restore %s\n",
+		ath_dbg(common, CALIBRATE, "RTT restore %s\n",
 			run_rtt_cal ? "failed" : "succeed");
 	}
 	run_agc_cal = run_rtt_cal;
@@ -1005,6 +998,31 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	} else if (caldata && !caldata->done_txiqcal_once)
 		run_agc_cal = true;
 
+	if (mci && IS_CHAN_2GHZ(chan) &&
+	    (mci_hw->bt_state  == MCI_BT_AWAKE) &&
+	    run_agc_cal &&
+	    !(mci_hw->config & ATH_MCI_CONFIG_DISABLE_MCI_CAL)) {
+
+		u32 pld[4] = {0, 0, 0, 0};
+
+		/* send CAL_REQ only when BT is AWAKE. */
+		ath_dbg(common, MCI, "MCI send WLAN_CAL_REQ 0x%x\n",
+			mci_hw->wlan_cal_seq);
+		MCI_GPM_SET_CAL_TYPE(pld, MCI_GPM_WLAN_CAL_REQ);
+		pld[MCI_GPM_WLAN_CAL_W_SEQUENCE] = mci_hw->wlan_cal_seq++;
+		ar9003_mci_send_message(ah, MCI_GPM, 0, pld, 16, true, false);
+
+		/* Wait BT_CAL_GRANT for 50ms */
+		ath_dbg(common, MCI, "MCI wait for BT_CAL_GRANT\n");
+
+		if (ar9003_mci_wait_for_gpm(ah, MCI_GPM_BT_CAL_GRANT, 0, 50000))
+			ath_dbg(common, MCI, "MCI got BT_CAL_GRANT\n");
+		else {
+			is_reusable = false;
+			ath_dbg(common, MCI, "\nMCI BT is not responding\n");
+		}
+	}
+
 	txiqcal_done = ar9003_hw_tx_iq_cal_run(ah);
 	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
 	udelay(5);
@@ -1022,6 +1040,21 @@ skip_tx_iqcal:
 				       AR_PHY_AGC_CONTROL_CAL,
 				       0, AH_WAIT_TIMEOUT);
 	}
+
+	if (mci && IS_CHAN_2GHZ(chan) &&
+	    (mci_hw->bt_state  == MCI_BT_AWAKE)	&&
+	    run_agc_cal	&&
+	    !(mci_hw->config & ATH_MCI_CONFIG_DISABLE_MCI_CAL)) {
+
+		u32 pld[4] = {0, 0, 0, 0};
+
+		ath_dbg(common, MCI, "MCI Send WLAN_CAL_DONE 0x%x\n",
+			mci_hw->wlan_cal_done);
+		MCI_GPM_SET_CAL_TYPE(pld, MCI_GPM_WLAN_CAL_DONE);
+		pld[MCI_GPM_WLAN_CAL_W_SEQUENCE] = mci_hw->wlan_cal_done++;
+		ar9003_mci_send_message(ah, MCI_GPM, 0, pld, 16, true, false);
+	}
+
 	if (rtt && !run_rtt_cal) {
 		agc_ctrl |= agc_supp_cals;
 		REG_WRITE(ah, AR_PHY_AGC_CONTROL, agc_ctrl);
@@ -1031,9 +1064,8 @@ skip_tx_iqcal:
 		if (run_rtt_cal)
 			ar9003_hw_rtt_disable(ah);
 
-		ath_dbg(common, ATH_DBG_CALIBRATE,
-			"offset calibration failed to complete in 1ms;"
-			"noisy environment?\n");
+		ath_dbg(common, CALIBRATE,
+			"offset calibration failed to complete in 1ms; noisy environment?\n");
 		return false;
 	}
 
@@ -1092,15 +1124,14 @@ skip_tx_iqcal:
 	if (ah->supp_cals & IQ_MISMATCH_CAL) {
 		INIT_CAL(&ah->iq_caldata);
 		INSERT_CAL(ah, &ah->iq_caldata);
-		ath_dbg(common, ATH_DBG_CALIBRATE,
-			"enabling IQ Calibration.\n");
+		ath_dbg(common, CALIBRATE, "enabling IQ Calibration\n");
 	}
 
 	if (ah->supp_cals & TEMP_COMP_CAL) {
 		INIT_CAL(&ah->tempCompCalData);
 		INSERT_CAL(ah, &ah->tempCompCalData);
-		ath_dbg(common, ATH_DBG_CALIBRATE,
-			"enabling Temperature Compensation Calibration.\n");
+		ath_dbg(common, CALIBRATE,
+			"enabling Temperature Compensation Calibration\n");
 	}
 
 	/* Initialize current pointer to first element in list */

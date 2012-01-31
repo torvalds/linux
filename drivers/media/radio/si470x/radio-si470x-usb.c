@@ -861,33 +861,7 @@ static struct usb_driver si470x_usb_driver = {
 	.supports_autosuspend	= 1,
 };
 
-
-
-/**************************************************************************
- * Module Interface
- **************************************************************************/
-
-/*
- * si470x_module_init - module init
- */
-static int __init si470x_module_init(void)
-{
-	printk(KERN_INFO DRIVER_DESC ", Version " DRIVER_VERSION "\n");
-	return usb_register(&si470x_usb_driver);
-}
-
-
-/*
- * si470x_module_exit - module exit
- */
-static void __exit si470x_module_exit(void)
-{
-	usb_deregister(&si470x_usb_driver);
-}
-
-
-module_init(si470x_module_init);
-module_exit(si470x_module_exit);
+module_usb_driver(si470x_usb_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRIVER_AUTHOR);

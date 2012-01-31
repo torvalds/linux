@@ -43,12 +43,12 @@
 #include <scsi/scsi_host.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_transport.h>
-#include <target/target_core_fabric_ops.h>
+#include <target/target_core_backend.h>
+#include <target/target_core_fabric.h>
 #include <target/target_core_configfs.h>
 #include <target/configfs_macros.h>
 
-#include "target_core_hba.h"
+#include "target_core_internal.h"
 
 #ifndef INITIAL_JIFFIES
 #define INITIAL_JIFFIES ((unsigned long)(unsigned int) (-300*HZ))
@@ -1755,8 +1755,7 @@ static ssize_t target_stat_scsi_att_intr_port_show_attr_port_ident(
 	/* scsiAttIntrPortName+scsiAttIntrPortIdentifier */
 	memset(buf, 0, 64);
 	if (tpg->se_tpg_tfo->sess_get_initiator_sid != NULL)
-		tpg->se_tpg_tfo->sess_get_initiator_sid(se_sess,
-				(unsigned char *)&buf[0], 64);
+		tpg->se_tpg_tfo->sess_get_initiator_sid(se_sess, buf, 64);
 
 	ret = snprintf(page, PAGE_SIZE, "%s+i+%s\n", nacl->initiatorname, buf);
 	spin_unlock_irq(&nacl->nacl_sess_lock);

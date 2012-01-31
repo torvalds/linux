@@ -163,9 +163,8 @@ typedef struct xfs_trans_header {
  */
 struct xfs_log_item_desc {
 	struct xfs_log_item	*lid_item;
-	ushort			lid_size;
-	unsigned char		lid_flags;
 	struct list_head	lid_trans;
+	unsigned char		lid_flags;
 };
 
 #define XFS_LID_DIRTY		0x1

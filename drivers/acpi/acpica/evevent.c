@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,6 +71,12 @@ acpi_status acpi_ev_initialize_events(void)
 
 	ACPI_FUNCTION_TRACE(ev_initialize_events);
 
+	/* If Hardware Reduced flag is set, there are no fixed events */
+
+	if (acpi_gbl_reduced_hardware) {
+		return_ACPI_STATUS(AE_OK);
+	}
+
 	/*
 	 * Initialize the Fixed and General Purpose Events. This is done prior to
 	 * enabling SCIs to prevent interrupts from occurring before the handlers
@@ -110,6 +116,12 @@ acpi_status acpi_ev_install_xrupt_handlers(void)
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ev_install_xrupt_handlers);
+
+	/* If Hardware Reduced flag is set, there is no ACPI h/w */
+
+	if (acpi_gbl_reduced_hardware) {
+		return_ACPI_STATUS(AE_OK);
+	}
 
 	/* Install the SCI handler */
 

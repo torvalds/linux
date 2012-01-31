@@ -33,14 +33,9 @@
 #include <scsi/scsi_cmnd.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_transport.h>
-#include <target/target_core_fabric_ops.h>
+#include <target/target_core_fabric.h>
 #include <target/target_core_fabric_configfs.h>
-#include <target/target_core_fabric_lib.h>
 #include <target/target_core_configfs.h>
-#include <target/target_core_device.h>
-#include <target/target_core_tpg.h>
-#include <target/target_core_tmr.h>
 
 #include "tcm_loop.h"
 
@@ -113,11 +108,9 @@ static struct se_cmd *tcm_loop_allocate_core_cmd(
 			scsi_bufflen(sc), sc->sc_data_direction, sam_task_attr,
 			&tl_cmd->tl_sense_buf[0]);
 
-	/*
-	 * Signal BIDI usage with T_TASK(cmd)->t_tasks_bidi
-	 */
 	if (scsi_bidi_cmnd(sc))
-		se_cmd->t_tasks_bidi = 1;
+		se_cmd->se_cmd_flags |= SCF_BIDI;
+
 	/*
 	 * Locate the struct se_lun pointer and attach it to struct se_cmd
 	 */
@@ -148,27 +141,13 @@ static int tcm_loop_new_cmd_map(struct se_cmd *se_cmd)
 	 * Allocate the necessary tasks to complete the received CDB+data
 	 */
 	ret = transport_generic_allocate_tasks(se_cmd, sc->cmnd);
-	if (ret == -ENOMEM) {
-		/* Out of Resources */
-		return PYX_TRANSPORT_LU_COMM_FAILURE;
-	} else if (ret == -EINVAL) {
-		/*
-		 * Handle case for SAM_STAT_RESERVATION_CONFLICT
-		 */
-		if (se_cmd->se_cmd_flags & SCF_SCSI_RESERVATION_CONFLICT)
-			return PYX_TRANSPORT_RESERVATION_CONFLICT;
-		/*
-		 * Otherwise, return SAM_STAT_CHECK_CONDITION and return
-		 * sense data.
-		 */
-		return PYX_TRANSPORT_USE_SENSE_REASON;
-	}
-
+	if (ret != 0)
+		return ret;
 	/*
 	 * For BIDI commands, pass in the extra READ buffer
 	 * to transport_generic_map_mem_to_cmd() below..
 	 */
-	if (se_cmd->t_tasks_bidi) {
+	if (se_cmd->se_cmd_flags & SCF_BIDI) {
 		struct scsi_data_buffer *sdb = scsi_in(sc);
 
 		sgl_bidi = sdb->table.sgl;
@@ -194,12 +173,8 @@ static int tcm_loop_new_cmd_map(struct se_cmd *se_cmd)
 	}
 
 	/* Tell the core about our preallocated memory */
-	ret = transport_generic_map_mem_to_cmd(se_cmd, scsi_sglist(sc),
+	return transport_generic_map_mem_to_cmd(se_cmd, scsi_sglist(sc),
 			scsi_sg_count(sc), sgl_bidi, sgl_bidi_count);
-	if (ret < 0)
-		return PYX_TRANSPORT_LU_COMM_FAILURE;
-
-	return 0;
 }
 
 /*
@@ -441,11 +416,11 @@ static struct scsi_host_template tcm_loop_driver_template = {
 	.queuecommand		= tcm_loop_queuecommand,
 	.change_queue_depth	= tcm_loop_change_queue_depth,
 	.eh_device_reset_handler = tcm_loop_device_reset,
-	.can_queue		= TL_SCSI_CAN_QUEUE,
+	.can_queue		= 1024,
 	.this_id		= -1,
-	.sg_tablesize		= TL_SCSI_SG_TABLESIZE,
-	.cmd_per_lun		= TL_SCSI_CMD_PER_LUN,
-	.max_sectors		= TL_SCSI_MAX_SECTORS,
+	.sg_tablesize		= 256,
+	.cmd_per_lun		= 1024,
+	.max_sectors		= 0xFFFF,
 	.use_clustering		= DISABLE_CLUSTERING,
 	.slave_alloc		= tcm_loop_slave_alloc,
 	.slave_configure	= tcm_loop_slave_configure,
@@ -584,8 +559,7 @@ static char *tcm_loop_get_fabric_name(void)
 
 static u8 tcm_loop_get_fabric_proto_ident(struct se_portal_group *se_tpg)
 {
-	struct tcm_loop_tpg *tl_tpg =
-			(struct tcm_loop_tpg *)se_tpg->se_tpg_fabric_ptr;
+	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
 	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
 	/*
 	 * tl_proto_id is set at tcm_loop_configfs.c:tcm_loop_make_scsi_hba()
@@ -612,8 +586,7 @@ static u8 tcm_loop_get_fabric_proto_ident(struct se_portal_group *se_tpg)
 
 static char *tcm_loop_get_endpoint_wwn(struct se_portal_group *se_tpg)
 {
-	struct tcm_loop_tpg *tl_tpg =
-		(struct tcm_loop_tpg *)se_tpg->se_tpg_fabric_ptr;
+	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
 	/*
 	 * Return the passed NAA identifier for the SAS Target Port
 	 */
@@ -622,8 +595,7 @@ static char *tcm_loop_get_endpoint_wwn(struct se_portal_group *se_tpg)
 
 static u16 tcm_loop_get_tag(struct se_portal_group *se_tpg)
 {
-	struct tcm_loop_tpg *tl_tpg =
-		(struct tcm_loop_tpg *)se_tpg->se_tpg_fabric_ptr;
+	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
 	/*
 	 * This Tag is used when forming SCSI Name identifier in EVPD=1 0x83
 	 * to represent the SCSI Target Port.
@@ -643,8 +615,7 @@ static u32 tcm_loop_get_pr_transport_id(
 	int *format_code,
 	unsigned char *buf)
 {
-	struct tcm_loop_tpg *tl_tpg =
-			(struct tcm_loop_tpg *)se_tpg->se_tpg_fabric_ptr;
+	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
 	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
 
 	switch (tl_hba->tl_proto_id) {
@@ -673,8 +644,7 @@ static u32 tcm_loop_get_pr_transport_id_len(
 	struct t10_pr_registration *pr_reg,
 	int *format_code)
 {
-	struct tcm_loop_tpg *tl_tpg =
-			(struct tcm_loop_tpg *)se_tpg->se_tpg_fabric_ptr;
+	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
 	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
 
 	switch (tl_hba->tl_proto_id) {
@@ -707,8 +677,7 @@ static char *tcm_loop_parse_pr_out_transport_id(
 	u32 *out_tid_len,
 	char **port_nexus_ptr)
 {
-	struct tcm_loop_tpg *tl_tpg =
-			(struct tcm_loop_tpg *)se_tpg->se_tpg_fabric_ptr;
+	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
 	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
 
 	switch (tl_hba->tl_proto_id) {
@@ -1360,17 +1329,16 @@ void tcm_loop_drop_scsi_hba(
 {
 	struct tcm_loop_hba *tl_hba = container_of(wwn,
 				struct tcm_loop_hba, tl_hba_wwn);
-	int host_no = tl_hba->sh->host_no;
+
+	pr_debug("TCM_Loop_ConfigFS: Deallocating emulated Target"
+		" SAS Address: %s at Linux/SCSI Host ID: %d\n",
+		tl_hba->tl_wwn_address, tl_hba->sh->host_no);
 	/*
 	 * Call device_unregister() on the original tl_hba->dev.
 	 * tcm_loop_fabric_scsi.c:tcm_loop_release_adapter() will
 	 * release *tl_hba;
 	 */
 	device_unregister(&tl_hba->dev);
-
-	pr_debug("TCM_Loop_ConfigFS: Deallocated emulated Target"
-		" SAS Address: %s at Linux/SCSI Host ID: %d\n",
-		config_item_name(&wwn->wwn_group.cg_item), host_no);
 }
 
 /* Start items for tcm_loop_cit */

@@ -58,7 +58,7 @@ static int distance_lookup_table[MAX_NUMNODES][MAX_DISTANCE_REF_POINTS];
  * Allocate node_to_cpumask_map based on number of available nodes
  * Requires node_possible_map to be valid.
  *
- * Note: node_to_cpumask() is not valid until after this is done.
+ * Note: cpumask_of_node() is not valid until after this is done.
  */
 static void __init setup_node_to_cpumask_map(void)
 {
@@ -127,45 +127,25 @@ static int __cpuinit fake_numa_create_new_node(unsigned long end_pfn,
 }
 
 /*
- * get_active_region_work_fn - A helper function for get_node_active_region
- *	Returns datax set to the start_pfn and end_pfn if they contain
- *	the initial value of datax->start_pfn between them
- * @start_pfn: start page(inclusive) of region to check
- * @end_pfn: end page(exclusive) of region to check
- * @datax: comes in with ->start_pfn set to value to search for and
- *	goes out with active range if it contains it
- * Returns 1 if search value is in range else 0
- */
-static int __init get_active_region_work_fn(unsigned long start_pfn,
-					unsigned long end_pfn, void *datax)
-{
-	struct node_active_region *data;
-	data = (struct node_active_region *)datax;
-
-	if (start_pfn <= data->start_pfn && end_pfn > data->start_pfn) {
-		data->start_pfn = start_pfn;
-		data->end_pfn = end_pfn;
-		return 1;
-	}
-	return 0;
-
-}
-
-/*
- * get_node_active_region - Return active region containing start_pfn
+ * get_node_active_region - Return active region containing pfn
  * Active range returned is empty if none found.
- * @start_pfn: The page to return the region for.
- * @node_ar: Returned set to the active region containing start_pfn
+ * @pfn: The page to return the region for
+ * @node_ar: Returned set to the active region containing @pfn
  */
-static void __init get_node_active_region(unsigned long start_pfn,
-		       struct node_active_region *node_ar)
+static void __init get_node_active_region(unsigned long pfn,
+					  struct node_active_region *node_ar)
 {
-	int nid = early_pfn_to_nid(start_pfn);
+	unsigned long start_pfn, end_pfn;
+	int i, nid;
 
-	node_ar->nid = nid;
-	node_ar->start_pfn = start_pfn;
-	node_ar->end_pfn = start_pfn;
-	work_with_active_regions(nid, get_active_region_work_fn, node_ar);
+	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid) {
+		if (pfn >= start_pfn && pfn < end_pfn) {
+			node_ar->nid = nid;
+			node_ar->start_pfn = start_pfn;
+			node_ar->end_pfn = end_pfn;
+			break;
+		}
+	}
 }
 
 static void map_cpu_to_node(int cpu, int node)
@@ -406,7 +386,7 @@ static void __init get_n_mem_cells(int *n_addr_cells, int *n_size_cells)
 	of_node_put(memory);
 }
 
-static unsigned long __devinit read_n_cells(int n, const unsigned int **buf)
+static unsigned long read_n_cells(int n, const unsigned int **buf)
 {
 	unsigned long result = 0;
 
@@ -521,7 +501,7 @@ static int of_get_assoc_arrays(struct device_node *memory,
 	aa->n_arrays = *prop++;
 	aa->array_sz = *prop++;
 
-	/* Now that we know the number of arrrays and size of each array,
+	/* Now that we know the number of arrays and size of each array,
 	 * revalidate the size of the property read in.
 	 */
 	if (len < (aa->n_arrays * aa->array_sz + 2) * sizeof(unsigned int))
@@ -710,9 +690,7 @@ static void __init parse_drconf_memory(struct device_node *memory)
 			node_set_online(nid);
 			sz = numa_enforce_memory_limit(base, size);
 			if (sz)
-				add_active_range(nid, base >> PAGE_SHIFT,
-						 (base >> PAGE_SHIFT)
-						 + (sz >> PAGE_SHIFT));
+				memblock_set_node(base, sz, nid);
 		} while (--ranges);
 	}
 }
@@ -802,8 +780,7 @@ new_range:
 				continue;
 		}
 
-		add_active_range(nid, start >> PAGE_SHIFT,
-				(start >> PAGE_SHIFT) + (size >> PAGE_SHIFT));
+		memblock_set_node(start, size, nid);
 
 		if (--ranges)
 			goto new_range;
@@ -839,7 +816,8 @@ static void __init setup_nonnuma(void)
 		end_pfn = memblock_region_memory_end_pfn(reg);
 
 		fake_numa_create_new_node(end_pfn, &nid);
-		add_active_range(nid, start_pfn, end_pfn);
+		memblock_set_node(PFN_PHYS(start_pfn),
+				  PFN_PHYS(end_pfn - start_pfn), nid);
 		node_set_online(nid);
 	}
 }
@@ -969,7 +947,7 @@ static struct notifier_block __cpuinitdata ppc64_numa_nb = {
 	.priority = 1 /* Must run before sched domains notifier. */
 };
 
-static void mark_reserved_regions_for_nid(int nid)
+static void __init mark_reserved_regions_for_nid(int nid)
 {
 	struct pglist_data *node = NODE_DATA(nid);
 	struct memblock_region *reg;
@@ -1462,7 +1440,7 @@ int arch_update_cpu_topology(void)
 {
 	int cpu, nid, old_nid;
 	unsigned int associativity[VPHN_ASSOC_BUFSIZE] = {0};
-	struct sys_device *sysdev;
+	struct device *dev;
 
 	for_each_cpu(cpu,&cpu_associativity_changes_mask) {
 		vphn_get_associativity(cpu, associativity);
@@ -1483,9 +1461,9 @@ int arch_update_cpu_topology(void)
 		register_cpu_under_node(cpu, nid);
 		put_online_cpus();
 
-		sysdev = get_cpu_sysdev(cpu);
-		if (sysdev)
-			kobject_uevent(&sysdev->kobj, KOBJ_CHANGE);
+		dev = get_cpu_device(cpu);
+		if (dev)
+			kobject_uevent(&dev->kobj, KOBJ_CHANGE);
 	}
 
 	return 1;

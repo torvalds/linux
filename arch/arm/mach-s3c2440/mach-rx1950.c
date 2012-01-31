@@ -24,7 +24,7 @@
 #include <linux/serial_core.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 #include <linux/pwm.h>
@@ -62,19 +62,12 @@
 
 #include <sound/uda1380.h>
 
+#include "common.h"
+
 #define LCD_PWM_PERIOD 192960
 #define LCD_PWM_DUTY 127353
 
 static struct map_desc rx1950_iodesc[] __initdata = {
-};
-
-static struct s3c24xx_uart_clksrc rx1950_serial_clocks[] = {
-	[0] = {
-	       .name = "fclk",
-	       .divisor = 0x0a,
-	       .min_baud = 0,
-	       .max_baud = 0,
-	},
 };
 
 static struct s3c2410_uartcfg rx1950_uartcfgs[] __initdata = {
@@ -84,8 +77,7 @@ static struct s3c2410_uartcfg rx1950_uartcfgs[] __initdata = {
 	       .ucon = 0x3c5,
 	       .ulcon = 0x03,
 	       .ufcon = 0x51,
-	       .clocks = rx1950_serial_clocks,
-	       .clocks_size = ARRAY_SIZE(rx1950_serial_clocks),
+		.clk_sel = S3C2410_UCON_CLKSEL3,
 	},
 	[1] = {
 	       .hwport = 1,
@@ -93,8 +85,7 @@ static struct s3c2410_uartcfg rx1950_uartcfgs[] __initdata = {
 	       .ucon = 0x3c5,
 	       .ulcon = 0x03,
 	       .ufcon = 0x51,
-	       .clocks = rx1950_serial_clocks,
-	       .clocks_size = ARRAY_SIZE(rx1950_serial_clocks),
+		.clk_sel = S3C2410_UCON_CLKSEL3,
 	},
 	/* IR port */
 	[2] = {
@@ -103,8 +94,7 @@ static struct s3c2410_uartcfg rx1950_uartcfgs[] __initdata = {
 	       .ucon = 0x3c5,
 	       .ulcon = 0x43,
 	       .ufcon = 0xf1,
-	       .clocks = rx1950_serial_clocks,
-	       .clocks_size = ARRAY_SIZE(rx1950_serial_clocks),
+		.clk_sel = S3C2410_UCON_CLKSEL3,
 	},
 };
 
@@ -832,4 +822,5 @@ MACHINE_START(RX1950, "HP iPAQ RX1950")
 	.init_irq = s3c24xx_init_irq,
 	.init_machine = rx1950_init_machine,
 	.timer = &s3c24xx_timer,
+	.restart	= s3c2440_restart,
 MACHINE_END

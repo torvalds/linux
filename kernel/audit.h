@@ -36,12 +36,8 @@ enum audit_state {
 	AUDIT_DISABLED,		/* Do not create per-task audit_context.
 				 * No syscall-specific audit records can
 				 * be generated. */
-	AUDIT_SETUP_CONTEXT,	/* Create the per-task audit_context,
-				 * but don't necessarily fill it in at
-				 * syscall entry time (i.e., filter
-				 * instead). */
 	AUDIT_BUILD_CONTEXT,	/* Create the per-task audit_context,
-				 * and always fill it in at syscall
+				 * and fill it in at syscall
 				 * entry time.  This makes a full
 				 * syscall record available if some
 				 * other part of the kernel decides it

@@ -109,11 +109,6 @@ static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
 			spin_unlock(&sdev->ud.lock);
 			return -EINVAL;
 		}
-#if 0
-		setnodelay(socket);
-		setkeepalive(socket);
-		setreuse(socket);
-#endif
 		sdev->ud.tcp_socket = socket;
 
 		spin_unlock(&sdev->ud.lock);

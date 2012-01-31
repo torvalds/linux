@@ -14,7 +14,7 @@
 #ifndef _LINUX_CPU_H_
 #define _LINUX_CPU_H_
 
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/node.h>
 #include <linux/compiler.h>
 #include <linux/cpumask.h>
@@ -22,19 +22,20 @@
 struct cpu {
 	int node_id;		/* The node which contains the CPU */
 	int hotpluggable;	/* creates sysfs control file if hotpluggable */
-	struct sys_device sysdev;
+	struct device dev;
 };
 
 extern int register_cpu(struct cpu *cpu, int num);
-extern struct sys_device *get_cpu_sysdev(unsigned cpu);
+extern struct device *get_cpu_device(unsigned cpu);
+extern bool cpu_is_hotpluggable(unsigned cpu);
 
-extern int cpu_add_sysdev_attr(struct sysdev_attribute *attr);
-extern void cpu_remove_sysdev_attr(struct sysdev_attribute *attr);
+extern int cpu_add_dev_attr(struct device_attribute *attr);
+extern void cpu_remove_dev_attr(struct device_attribute *attr);
 
-extern int cpu_add_sysdev_attr_group(struct attribute_group *attrs);
-extern void cpu_remove_sysdev_attr_group(struct attribute_group *attrs);
+extern int cpu_add_dev_attr_group(struct attribute_group *attrs);
+extern void cpu_remove_dev_attr_group(struct attribute_group *attrs);
 
-extern int sched_create_sysfs_power_savings_entries(struct sysdev_class *cls);
+extern int sched_create_sysfs_power_savings_entries(struct device *dev);
 
 #ifdef CONFIG_HOTPLUG_CPU
 extern void unregister_cpu(struct cpu *cpu);
@@ -160,7 +161,7 @@ static inline void cpu_maps_update_done(void)
 }
 
 #endif /* CONFIG_SMP */
-extern struct sysdev_class cpu_sysdev_class;
+extern struct bus_type cpu_subsys;
 
 #ifdef CONFIG_HOTPLUG_CPU
 /* Stop CPUs going up and down. */

@@ -61,7 +61,7 @@ static struct s5p_mfc_fmt formats[] = {
 		.num_planes = 1,
 	},
 	{
-		.name = "H264 Encoded Stream",
+		.name = "H263 Encoded Stream",
 		.fourcc = V4L2_PIX_FMT_H263,
 		.codec_mode = S5P_FIMV_CODEC_H263_ENC,
 		.type = MFC_FMT_ENC,

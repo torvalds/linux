@@ -295,7 +295,8 @@ set this field to zero.</entry>
 	    <entry>The device is capable of non-destructive overlays.
 When the driver clears this flag, only destructive overlays are
 supported. There are no drivers yet which support both destructive and
-non-destructive overlays.</entry>
+non-destructive overlays. Video Output Overlays are in practice always
+non-destructive.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_FBUF_CAP_CHROMAKEY</constant></entry>
@@ -339,8 +340,8 @@ blending makes no sense for destructive overlays.</entry>
 	  <row>
 	    <entry><constant>V4L2_FBUF_CAP_SRC_CHROMAKEY</constant></entry>
 	    <entry>0x0080</entry>
-	    <entry>The device supports Source Chroma-keying. Framebuffer pixels
-with the chroma-key colors are replaced by video pixels, which is exactly opposite of
+	    <entry>The device supports Source Chroma-keying. Video pixels
+with the chroma-key colors are replaced by framebuffer pixels, which is exactly opposite of
 <constant>V4L2_FBUF_CAP_CHROMAKEY</constant></entry>
 	  </row>
 	</tbody>
@@ -356,21 +357,27 @@ with the chroma-key colors are replaced by video pixels, which is exactly opposi
 	    <entry><constant>V4L2_FBUF_FLAG_PRIMARY</constant></entry>
 	    <entry>0x0001</entry>
 	    <entry>The framebuffer is the primary graphics surface.
-In other words, the overlay is destructive. [?]</entry>
+In other words, the overlay is destructive. This flag is typically set by any
+driver that doesn't have the <constant>V4L2_FBUF_CAP_EXTERNOVERLAY</constant>
+capability and it is cleared otherwise.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_FBUF_FLAG_OVERLAY</constant></entry>
 	    <entry>0x0002</entry>
-	    <entry>The frame buffer is an overlay surface the same
-size as the capture. [?]</entry>
-	  </row>
-	  <row>
-	    <entry spanname="hspan">The purpose of
-<constant>V4L2_FBUF_FLAG_PRIMARY</constant> and
-<constant>V4L2_FBUF_FLAG_OVERLAY</constant> was never quite clear.
-Most drivers seem to ignore these flags. For compatibility with the
-<wordasword>bttv</wordasword> driver applications should set the
-<constant>V4L2_FBUF_FLAG_OVERLAY</constant> flag.</entry>
+	    <entry>If this flag is set for a video capture device, then the
+driver will set the initial overlay size to cover the full framebuffer size,
+otherwise the existing overlay size (as set by &VIDIOC-S-FMT;) will be used.
+
+Only one video capture driver (bttv) supports this flag. The use of this flag
+for capture devices is deprecated. There is no way to detect which drivers
+support this flag, so the only reliable method of setting the overlay size is
+through &VIDIOC-S-FMT;.
+
+If this flag is set for a video output device, then the video output overlay
+window is relative to the top-left corner of the framebuffer and restricted
+to the size of the framebuffer. If it is cleared, then the video output
+overlay window is relative to the video output display.
+            </entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_FBUF_FLAG_CHROMAKEY</constant></entry>

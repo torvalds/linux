@@ -18,13 +18,15 @@
 #define RC_TYPE_JVC	(1  << 3)	/* JVC protocol */
 #define RC_TYPE_SONY	(1  << 4)	/* Sony12/15/20 protocol */
 #define RC_TYPE_RC5_SZ	(1  << 5)	/* RC5 variant used by Streamzap */
+#define RC_TYPE_SANYO   (1  << 6)	/* Sanyo protocol */
 #define RC_TYPE_MCE_KBD	(1  << 29)	/* RC6-ish MCE keyboard/mouse */
 #define RC_TYPE_LIRC	(1  << 30)	/* Pass raw IR to lirc userspace */
 #define RC_TYPE_OTHER	(1u << 31)
 
-#define RC_TYPE_ALL (RC_TYPE_RC5 | RC_TYPE_NEC  | RC_TYPE_RC6  | \
-		     RC_TYPE_JVC | RC_TYPE_SONY | RC_TYPE_LIRC | \
-		     RC_TYPE_RC5_SZ | RC_TYPE_MCE_KBD | RC_TYPE_OTHER)
+#define RC_TYPE_ALL (RC_TYPE_RC5    | RC_TYPE_NEC   | RC_TYPE_RC6     | \
+		     RC_TYPE_JVC    | RC_TYPE_SONY  | RC_TYPE_LIRC    | \
+		     RC_TYPE_RC5_SZ | RC_TYPE_SANYO | RC_TYPE_MCE_KBD | \
+		     RC_TYPE_OTHER)
 
 struct rc_map_table {
 	u32	scancode;
@@ -145,7 +147,7 @@ void rc_map_init(void);
 #define RC_MAP_TREKSTOR                  "rc-trekstor"
 #define RC_MAP_TT_1500                   "rc-tt-1500"
 #define RC_MAP_TWINHAN_VP1027_DVBS       "rc-twinhan1027"
-#define RC_MAP_VIDEOMATE_M1F             "rc-videomate-m1f"
+#define RC_MAP_VIDEOMATE_K100            "rc-videomate-k100"
 #define RC_MAP_VIDEOMATE_S350            "rc-videomate-s350"
 #define RC_MAP_VIDEOMATE_TV_PVR          "rc-videomate-tv-pvr"
 #define RC_MAP_WINFAST                   "rc-winfast"

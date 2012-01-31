@@ -44,7 +44,7 @@
 static void ncp_evict_inode(struct inode *);
 static void ncp_put_super(struct super_block *);
 static int  ncp_statfs(struct dentry *, struct kstatfs *);
-static int  ncp_show_options(struct seq_file *, struct vfsmount *);
+static int  ncp_show_options(struct seq_file *, struct dentry *);
 
 static struct kmem_cache * ncp_inode_cachep;
 
@@ -60,7 +60,6 @@ static struct inode *ncp_alloc_inode(struct super_block *sb)
 static void ncp_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(ncp_inode_cachep, NCP_FINFO(inode));
 }
 
@@ -323,9 +322,9 @@ static void ncp_stop_tasks(struct ncp_server *server) {
 		flush_work_sync(&server->timeout_tq);
 }
 
-static int  ncp_show_options(struct seq_file *seq, struct vfsmount *mnt)
+static int  ncp_show_options(struct seq_file *seq, struct dentry *root)
 {
-	struct ncp_server *server = NCP_SBP(mnt->mnt_sb);
+	struct ncp_server *server = NCP_SBP(root->d_sb);
 	unsigned int tmp;
 
 	if (server->m.uid != 0)
@@ -548,7 +547,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 
 	error = bdi_setup_and_register(&server->bdi, "ncpfs", BDI_CAP_MAP_COPY);
 	if (error)
-		goto out_bdi;
+		goto out_fput;
 
 	server->ncp_filp = ncp_filp;
 	server->ncp_sock = sock;
@@ -559,7 +558,7 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 		error = -EBADF;
 		server->info_filp = fget(data.info_fd);
 		if (!server->info_filp)
-			goto out_fput;
+			goto out_bdi;
 		error = -ENOTSOCK;
 		sock_inode = server->info_filp->f_path.dentry->d_inode;
 		if (!S_ISSOCK(sock_inode->i_mode))
@@ -746,9 +745,9 @@ out_nls:
 out_fput2:
 	if (server->info_filp)
 		fput(server->info_filp);
-out_fput:
-	bdi_destroy(&server->bdi);
 out_bdi:
+	bdi_destroy(&server->bdi);
+out_fput:
 	/* 23/12/1998 Marcin Dalecki <dalecki@cs.net.pl>:
 	 * 
 	 * The previously used put_filp(ncp_filp); was bogus, since

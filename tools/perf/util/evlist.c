@@ -6,12 +6,16 @@
  *
  * Released under the GPL v2. (and only v2, not any later version)
  */
+#include "util.h"
+#include "debugfs.h"
 #include <poll.h>
 #include "cpumap.h"
 #include "thread_map.h"
 #include "evlist.h"
 #include "evsel.h"
-#include "util.h"
+#include <unistd.h>
+
+#include "parse-events.h"
 
 #include <sys/mman.h>
 
@@ -30,6 +34,7 @@ void perf_evlist__init(struct perf_evlist *evlist, struct cpu_map *cpus,
 		INIT_HLIST_HEAD(&evlist->heads[i]);
 	INIT_LIST_HEAD(&evlist->entries);
 	perf_evlist__set_maps(evlist, cpus, threads);
+	evlist->workload.pid = -1;
 }
 
 struct perf_evlist *perf_evlist__new(struct cpu_map *cpus,
@@ -41,6 +46,22 @@ struct perf_evlist *perf_evlist__new(struct cpu_map *cpus,
 		perf_evlist__init(evlist, cpus, threads);
 
 	return evlist;
+}
+
+void perf_evlist__config_attrs(struct perf_evlist *evlist,
+			       struct perf_record_opts *opts)
+{
+	struct perf_evsel *evsel;
+
+	if (evlist->cpus->map[0] < 0)
+		opts->no_inherit = true;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		perf_evsel__config(evsel, opts);
+
+		if (evlist->nr_entries > 1)
+			evsel->attr.sample_type |= PERF_SAMPLE_ID;
+	}
 }
 
 static void perf_evlist__purge(struct perf_evlist *evlist)
@@ -76,14 +97,25 @@ void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry)
 	++evlist->nr_entries;
 }
 
+static void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
+					  struct list_head *list,
+					  int nr_entries)
+{
+	list_splice_tail(list, &evlist->entries);
+	evlist->nr_entries += nr_entries;
+}
+
 int perf_evlist__add_default(struct perf_evlist *evlist)
 {
 	struct perf_event_attr attr = {
 		.type = PERF_TYPE_HARDWARE,
 		.config = PERF_COUNT_HW_CPU_CYCLES,
 	};
-	struct perf_evsel *evsel = perf_evsel__new(&attr, 0);
+	struct perf_evsel *evsel;
 
+	event_attr_init(&attr);
+
+	evsel = perf_evsel__new(&attr, 0);
 	if (evsel == NULL)
 		goto error;
 
@@ -98,6 +130,126 @@ error_free:
 	perf_evsel__delete(evsel);
 error:
 	return -ENOMEM;
+}
+
+int perf_evlist__add_attrs(struct perf_evlist *evlist,
+			   struct perf_event_attr *attrs, size_t nr_attrs)
+{
+	struct perf_evsel *evsel, *n;
+	LIST_HEAD(head);
+	size_t i;
+
+	for (i = 0; i < nr_attrs; i++) {
+		evsel = perf_evsel__new(attrs + i, evlist->nr_entries + i);
+		if (evsel == NULL)
+			goto out_delete_partial_list;
+		list_add_tail(&evsel->node, &head);
+	}
+
+	perf_evlist__splice_list_tail(evlist, &head, nr_attrs);
+
+	return 0;
+
+out_delete_partial_list:
+	list_for_each_entry_safe(evsel, n, &head, node)
+		perf_evsel__delete(evsel);
+	return -1;
+}
+
+static int trace_event__id(const char *evname)
+{
+	char *filename, *colon;
+	int err = -1, fd;
+
+	if (asprintf(&filename, "%s/%s/id", tracing_events_path, evname) < 0)
+		return -1;
+
+	colon = strrchr(filename, ':');
+	if (colon != NULL)
+		*colon = '/';
+
+	fd = open(filename, O_RDONLY);
+	if (fd >= 0) {
+		char id[16];
+		if (read(fd, id, sizeof(id)) > 0)
+			err = atoi(id);
+		close(fd);
+	}
+
+	free(filename);
+	return err;
+}
+
+int perf_evlist__add_tracepoints(struct perf_evlist *evlist,
+				 const char *tracepoints[],
+				 size_t nr_tracepoints)
+{
+	int err;
+	size_t i;
+	struct perf_event_attr *attrs = zalloc(nr_tracepoints * sizeof(*attrs));
+
+	if (attrs == NULL)
+		return -1;
+
+	for (i = 0; i < nr_tracepoints; i++) {
+		err = trace_event__id(tracepoints[i]);
+
+		if (err < 0)
+			goto out_free_attrs;
+
+		attrs[i].type	       = PERF_TYPE_TRACEPOINT;
+		attrs[i].config	       = err;
+	        attrs[i].sample_type   = (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME |
+					  PERF_SAMPLE_CPU);
+		attrs[i].sample_period = 1;
+	}
+
+	err = perf_evlist__add_attrs(evlist, attrs, nr_tracepoints);
+out_free_attrs:
+	free(attrs);
+	return err;
+}
+
+static struct perf_evsel *
+	perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id)
+{
+	struct perf_evsel *evsel;
+
+	list_for_each_entry(evsel, &evlist->entries, node) {
+		if (evsel->attr.type   == PERF_TYPE_TRACEPOINT &&
+		    (int)evsel->attr.config == id)
+			return evsel;
+	}
+
+	return NULL;
+}
+
+int perf_evlist__set_tracepoints_handlers(struct perf_evlist *evlist,
+					  const struct perf_evsel_str_handler *assocs,
+					  size_t nr_assocs)
+{
+	struct perf_evsel *evsel;
+	int err;
+	size_t i;
+
+	for (i = 0; i < nr_assocs; i++) {
+		err = trace_event__id(assocs[i].name);
+		if (err < 0)
+			goto out;
+
+		evsel = perf_evlist__find_tracepoint_by_id(evlist, err);
+		if (evsel == NULL)
+			continue;
+
+		err = -EEXIST;
+		if (evsel->handler.func != NULL)
+			goto out;
+		evsel->handler.func = assocs[i].handler;
+	}
+
+	err = 0;
+out:
+	return err;
 }
 
 void perf_evlist__disable(struct perf_evlist *evlist)
@@ -126,7 +278,7 @@ void perf_evlist__enable(struct perf_evlist *evlist)
 	}
 }
 
-int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
+static int perf_evlist__alloc_pollfd(struct perf_evlist *evlist)
 {
 	int nfds = evlist->cpus->nr * evlist->threads->nr * evlist->nr_entries;
 	evlist->pollfd = malloc(sizeof(struct pollfd) * nfds);
@@ -282,7 +434,7 @@ void perf_evlist__munmap(struct perf_evlist *evlist)
 	evlist->mmap = NULL;
 }
 
-int perf_evlist__alloc_mmap(struct perf_evlist *evlist)
+static int perf_evlist__alloc_mmap(struct perf_evlist *evlist)
 {
 	evlist->nr_mmaps = evlist->cpus->nr;
 	if (evlist->cpus->map[0] == -1)
@@ -298,8 +450,10 @@ static int __perf_evlist__mmap(struct perf_evlist *evlist,
 	evlist->mmap[idx].mask = mask;
 	evlist->mmap[idx].base = mmap(NULL, evlist->mmap_len, prot,
 				      MAP_SHARED, fd, 0);
-	if (evlist->mmap[idx].base == MAP_FAILED)
+	if (evlist->mmap[idx].base == MAP_FAILED) {
+		evlist->mmap[idx].base = NULL;
 		return -1;
+	}
 
 	perf_evlist__add_pollfd(evlist, fd);
 	return 0;
@@ -400,14 +554,22 @@ out_unmap:
  *
  * Using perf_evlist__read_on_cpu does this automatically.
  */
-int perf_evlist__mmap(struct perf_evlist *evlist, int pages, bool overwrite)
+int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
+		      bool overwrite)
 {
 	unsigned int page_size = sysconf(_SC_PAGE_SIZE);
-	int mask = pages * page_size - 1;
 	struct perf_evsel *evsel;
 	const struct cpu_map *cpus = evlist->cpus;
 	const struct thread_map *threads = evlist->threads;
-	int prot = PROT_READ | (overwrite ? 0 : PROT_WRITE);
+	int prot = PROT_READ | (overwrite ? 0 : PROT_WRITE), mask;
+
+        /* 512 kiB: default amount of unprivileged mlocked memory */
+        if (pages == UINT_MAX)
+                pages = (512 * 1024) / page_size;
+	else if (!is_power_of_2(pages))
+		return -EINVAL;
+
+	mask = pages * page_size - 1;
 
 	if (evlist->mmap == NULL && perf_evlist__alloc_mmap(evlist) < 0)
 		return -ENOMEM;
@@ -512,6 +674,38 @@ u64 perf_evlist__sample_type(const struct perf_evlist *evlist)
 	return first->attr.sample_type;
 }
 
+u16 perf_evlist__id_hdr_size(const struct perf_evlist *evlist)
+{
+	struct perf_evsel *first;
+	struct perf_sample *data;
+	u64 sample_type;
+	u16 size = 0;
+
+	first = list_entry(evlist->entries.next, struct perf_evsel, node);
+
+	if (!first->attr.sample_id_all)
+		goto out;
+
+	sample_type = first->attr.sample_type;
+
+	if (sample_type & PERF_SAMPLE_TID)
+		size += sizeof(data->tid) * 2;
+
+       if (sample_type & PERF_SAMPLE_TIME)
+		size += sizeof(data->time);
+
+	if (sample_type & PERF_SAMPLE_ID)
+		size += sizeof(data->id);
+
+	if (sample_type & PERF_SAMPLE_STREAM_ID)
+		size += sizeof(data->stream_id);
+
+	if (sample_type & PERF_SAMPLE_CPU)
+		size += sizeof(data->cpu) * 2;
+out:
+	return size;
+}
+
 bool perf_evlist__valid_sample_id_all(const struct perf_evlist *evlist)
 {
 	struct perf_evsel *pos, *first;
@@ -568,4 +762,98 @@ out_err:
 		perf_evsel__close(evsel, ncpus, nthreads);
 
 	return err;
+}
+
+int perf_evlist__prepare_workload(struct perf_evlist *evlist,
+				  struct perf_record_opts *opts,
+				  const char *argv[])
+{
+	int child_ready_pipe[2], go_pipe[2];
+	char bf;
+
+	if (pipe(child_ready_pipe) < 0) {
+		perror("failed to create 'ready' pipe");
+		return -1;
+	}
+
+	if (pipe(go_pipe) < 0) {
+		perror("failed to create 'go' pipe");
+		goto out_close_ready_pipe;
+	}
+
+	evlist->workload.pid = fork();
+	if (evlist->workload.pid < 0) {
+		perror("failed to fork");
+		goto out_close_pipes;
+	}
+
+	if (!evlist->workload.pid) {
+		if (opts->pipe_output)
+			dup2(2, 1);
+
+		close(child_ready_pipe[0]);
+		close(go_pipe[1]);
+		fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
+
+		/*
+		 * Do a dummy execvp to get the PLT entry resolved,
+		 * so we avoid the resolver overhead on the real
+		 * execvp call.
+		 */
+		execvp("", (char **)argv);
+
+		/*
+		 * Tell the parent we're ready to go
+		 */
+		close(child_ready_pipe[1]);
+
+		/*
+		 * Wait until the parent tells us to go.
+		 */
+		if (read(go_pipe[0], &bf, 1) == -1)
+			perror("unable to read pipe");
+
+		execvp(argv[0], (char **)argv);
+
+		perror(argv[0]);
+		kill(getppid(), SIGUSR1);
+		exit(-1);
+	}
+
+	if (!opts->system_wide && opts->target_tid == -1 && opts->target_pid == -1)
+		evlist->threads->map[0] = evlist->workload.pid;
+
+	close(child_ready_pipe[1]);
+	close(go_pipe[0]);
+	/*
+	 * wait for child to settle
+	 */
+	if (read(child_ready_pipe[0], &bf, 1) == -1) {
+		perror("unable to read pipe");
+		goto out_close_pipes;
+	}
+
+	evlist->workload.cork_fd = go_pipe[1];
+	close(child_ready_pipe[0]);
+	return 0;
+
+out_close_pipes:
+	close(go_pipe[0]);
+	close(go_pipe[1]);
+out_close_ready_pipe:
+	close(child_ready_pipe[0]);
+	close(child_ready_pipe[1]);
+	return -1;
+}
+
+int perf_evlist__start_workload(struct perf_evlist *evlist)
+{
+	if (evlist->workload.cork_fd > 0) {
+		/*
+		 * Remove the cork, let it rip!
+		 */
+		return close(evlist->workload.cork_fd);
+	}
+
+	return 0;
 }

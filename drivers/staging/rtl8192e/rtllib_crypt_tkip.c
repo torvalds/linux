@@ -9,7 +9,6 @@
  * more details.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -60,10 +59,9 @@ static void *rtllib_tkip_init(int key_idx)
 {
 	struct rtllib_tkip_data *priv;
 
-	priv = kmalloc(sizeof(*priv), GFP_ATOMIC);
+	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
 	if (priv == NULL)
 		goto fail;
-	memset(priv, 0, sizeof(*priv));
 	priv->key_idx = key_idx;
 	priv->tx_tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0,
 			CRYPTO_ALG_ASYNC);
@@ -598,8 +596,7 @@ static void rtllib_michael_mic_failure(struct net_device *dev,
 }
 
 static int rtllib_michael_mic_verify(struct sk_buff *skb, int keyidx,
-				     int hdr_len, void *priv,
-				     struct rtllib_device *ieee)
+				     int hdr_len, void *priv)
 {
 	struct rtllib_tkip_data *tkey = priv;
 	u8 mic[8];
@@ -618,23 +615,20 @@ static int rtllib_michael_mic_verify(struct sk_buff *skb, int keyidx,
 			skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
 		return -1;
 
-	if ((memcmp(mic, skb->data + skb->len - 8, 8) != 0) ||
-	   (ieee->force_mic_error)) {
+	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
 		struct rtllib_hdr_4addr *hdr;
 		hdr = (struct rtllib_hdr_4addr *) skb->data;
 		printk(KERN_DEBUG "%s: Michael MIC verification failed for "
 		       "MSDU from %pM keyidx=%d\n",
 		       skb->dev ? skb->dev->name : "N/A", hdr->addr2,
 		       keyidx);
-		printk(KERN_DEBUG "%d, force_mic_error = %d\n",
-		       (memcmp(mic, skb->data + skb->len - 8, 8) != 0),\
-			ieee->force_mic_error);
+		printk(KERN_DEBUG "%d\n",
+		       memcmp(mic, skb->data + skb->len - 8, 8) != 0);
 		if (skb->dev) {
 			printk(KERN_INFO "skb->dev != NULL\n");
 			rtllib_michael_mic_failure(skb->dev, hdr, keyidx);
 		}
 		tkey->dot11RSNAStatsTKIPLocalMICFailures++;
-		ieee->force_mic_error = false;
 		return -1;
 	}
 
@@ -740,9 +734,8 @@ static char *rtllib_tkip_print_stats(char *p, void *priv)
 	return p;
 }
 
-
-static struct rtllib_crypto_ops rtllib_crypt_tkip = {
-	.name			= "TKIP",
+static struct lib80211_crypto_ops rtllib_crypt_tkip = {
+	.name			= "R-TKIP",
 	.init			= rtllib_tkip_init,
 	.deinit			= rtllib_tkip_deinit,
 	.encrypt_mpdu		= rtllib_tkip_encrypt,
@@ -752,24 +745,25 @@ static struct rtllib_crypto_ops rtllib_crypt_tkip = {
 	.set_key		= rtllib_tkip_set_key,
 	.get_key		= rtllib_tkip_get_key,
 	.print_stats		= rtllib_tkip_print_stats,
-	.extra_prefix_len	= 4 + 4, /* IV + ExtIV */
-	.extra_postfix_len	= 8 + 4, /* MIC + ICV */
+	.extra_mpdu_prefix_len = 4 + 4,	/* IV + ExtIV */
+	.extra_mpdu_postfix_len = 4,	/* ICV */
+	.extra_msdu_postfix_len = 8,	/* MIC */
 	.owner			= THIS_MODULE,
 };
 
 
 int __init rtllib_crypto_tkip_init(void)
 {
-	return rtllib_register_crypto_ops(&rtllib_crypt_tkip);
+	return lib80211_register_crypto_ops(&rtllib_crypt_tkip);
 }
 
 
 void __exit rtllib_crypto_tkip_exit(void)
 {
-	rtllib_unregister_crypto_ops(&rtllib_crypt_tkip);
+	lib80211_unregister_crypto_ops(&rtllib_crypt_tkip);
 }
 
-void rtllib_tkip_null(void)
-{
-	return;
-}
+module_init(rtllib_crypto_tkip_init);
+module_exit(rtllib_crypto_tkip_exit);
+
+MODULE_LICENSE("GPL");

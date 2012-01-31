@@ -226,17 +226,7 @@ static struct platform_driver wm831x_backup_driver = {
 	},
 };
 
-static int __init wm831x_backup_init(void)
-{
-	return platform_driver_register(&wm831x_backup_driver);
-}
-module_init(wm831x_backup_init);
-
-static void __exit wm831x_backup_exit(void)
-{
-	platform_driver_unregister(&wm831x_backup_driver);
-}
-module_exit(wm831x_backup_exit);
+module_platform_driver(wm831x_backup_driver);
 
 MODULE_DESCRIPTION("Backup battery charger driver for WM831x PMICs");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

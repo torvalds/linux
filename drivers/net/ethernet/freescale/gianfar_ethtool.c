@@ -519,12 +519,12 @@ static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rva
 	return err;
 }
 
-int gfar_set_features(struct net_device *dev, u32 features)
+int gfar_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	unsigned long flags;
 	int err = 0, i = 0;
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 
 	if (changed & (NETIF_F_HW_VLAN_TX|NETIF_F_HW_VLAN_RX))
 		gfar_vlan_mode(dev, features);
@@ -1410,10 +1410,9 @@ static int gfar_optimize_filer_masks(struct filer_table *tab)
 
 	/* We need a copy of the filer table because
 	 * we want to change its order */
-	temp_table = kmalloc(sizeof(*temp_table), GFP_KERNEL);
+	temp_table = kmemdup(tab, sizeof(*temp_table), GFP_KERNEL);
 	if (temp_table == NULL)
 		return -ENOMEM;
-	memcpy(temp_table, tab, sizeof(*temp_table));
 
 	mask_table = kcalloc(MAX_FILER_CACHE_IDX / 2 + 1,
 			sizeof(struct gfar_mask_entry), GFP_KERNEL);
@@ -1693,8 +1692,9 @@ static int gfar_set_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 		ret = gfar_set_hash_opts(priv, cmd);
 		break;
 	case ETHTOOL_SRXCLSRLINS:
-		if (cmd->fs.ring_cookie != RX_CLS_FLOW_DISC &&
-			cmd->fs.ring_cookie >= priv->num_rx_queues) {
+		if ((cmd->fs.ring_cookie != RX_CLS_FLOW_DISC &&
+		     cmd->fs.ring_cookie >= priv->num_rx_queues) ||
+		    cmd->fs.location >= MAX_FILER_IDX) {
 			ret = -EINVAL;
 			break;
 		}

@@ -132,13 +132,12 @@ static struct mt9p031 *to_mt9p031(struct v4l2_subdev *sd)
 
 static int mt9p031_read(struct i2c_client *client, u8 reg)
 {
-	s32 data = i2c_smbus_read_word_data(client, reg);
-	return data < 0 ? data : be16_to_cpu(data);
+	return i2c_smbus_read_word_swapped(client, reg);
 }
 
 static int mt9p031_write(struct i2c_client *client, u8 reg, u16 data)
 {
-	return i2c_smbus_write_word_data(client, reg, cpu_to_be16(data));
+	return i2c_smbus_write_word_swapped(client, reg, data);
 }
 
 static int mt9p031_set_output_control(struct mt9p031 *mt9p031, u16 clear,

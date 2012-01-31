@@ -155,35 +155,16 @@ int security_capset(struct cred *new, const struct cred *old,
 				    effective, inheritable, permitted);
 }
 
-int security_capable(struct user_namespace *ns, const struct cred *cred,
+int security_capable(const struct cred *cred, struct user_namespace *ns,
 		     int cap)
 {
-	return security_ops->capable(current, cred, ns, cap,
-				     SECURITY_CAP_AUDIT);
+	return security_ops->capable(cred, ns, cap, SECURITY_CAP_AUDIT);
 }
 
-int security_real_capable(struct task_struct *tsk, struct user_namespace *ns,
-			  int cap)
+int security_capable_noaudit(const struct cred *cred, struct user_namespace *ns,
+			     int cap)
 {
-	const struct cred *cred;
-	int ret;
-
-	cred = get_task_cred(tsk);
-	ret = security_ops->capable(tsk, cred, ns, cap, SECURITY_CAP_AUDIT);
-	put_cred(cred);
-	return ret;
-}
-
-int security_real_capable_noaudit(struct task_struct *tsk,
-				  struct user_namespace *ns, int cap)
-{
-	const struct cred *cred;
-	int ret;
-
-	cred = get_task_cred(tsk);
-	ret = security_ops->capable(tsk, cred, ns, cap, SECURITY_CAP_NOAUDIT);
-	put_cred(cred);
-	return ret;
+	return security_ops->capable(cred, ns, cap, SECURITY_CAP_NOAUDIT);
 }
 
 int security_quotactl(int cmds, int type, int id, struct super_block *sb)
@@ -381,14 +362,14 @@ int security_old_inode_init_security(struct inode *inode, struct inode *dir,
 				     void **value, size_t *len)
 {
 	if (unlikely(IS_PRIVATE(inode)))
-		return 0;
+		return -EOPNOTSUPP;
 	return security_ops->inode_init_security(inode, dir, qstr, name, value,
 						 len);
 }
 EXPORT_SYMBOL(security_old_inode_init_security);
 
 #ifdef CONFIG_SECURITY_PATH
-int security_path_mknod(struct path *dir, struct dentry *dentry, int mode,
+int security_path_mknod(struct path *dir, struct dentry *dentry, umode_t mode,
 			unsigned int dev)
 {
 	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
@@ -397,7 +378,7 @@ int security_path_mknod(struct path *dir, struct dentry *dentry, int mode,
 }
 EXPORT_SYMBOL(security_path_mknod);
 
-int security_path_mkdir(struct path *dir, struct dentry *dentry, int mode)
+int security_path_mkdir(struct path *dir, struct dentry *dentry, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
 		return 0;
@@ -454,12 +435,11 @@ int security_path_truncate(struct path *path)
 	return security_ops->path_truncate(path);
 }
 
-int security_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
-			mode_t mode)
+int security_path_chmod(struct path *path, umode_t mode)
 {
-	if (unlikely(IS_PRIVATE(dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
 		return 0;
-	return security_ops->path_chmod(dentry, mnt, mode);
+	return security_ops->path_chmod(path, mode);
 }
 
 int security_path_chown(struct path *path, uid_t uid, gid_t gid)
@@ -475,7 +455,7 @@ int security_path_chroot(struct path *path)
 }
 #endif
 
-int security_inode_create(struct inode *dir, struct dentry *dentry, int mode)
+int security_inode_create(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
@@ -506,7 +486,7 @@ int security_inode_symlink(struct inode *dir, struct dentry *dentry,
 	return security_ops->inode_symlink(dir, dentry, old_name);
 }
 
-int security_inode_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+int security_inode_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
@@ -521,7 +501,7 @@ int security_inode_rmdir(struct inode *dir, struct dentry *dentry)
 	return security_ops->inode_rmdir(dir, dentry);
 }
 
-int security_inode_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
+int security_inode_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
@@ -994,12 +974,6 @@ int security_netlink_send(struct sock *sk, struct sk_buff *skb)
 {
 	return security_ops->netlink_send(sk, skb);
 }
-
-int security_netlink_recv(struct sk_buff *skb, int cap)
-{
-	return security_ops->netlink_recv(skb, cap);
-}
-EXPORT_SYMBOL(security_netlink_recv);
 
 int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 {

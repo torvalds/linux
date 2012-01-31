@@ -465,8 +465,9 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_CHROMA_GAIN:		return "Chroma Gain";
 	case V4L2_CID_ILLUMINATORS_1:		return "Illuminator 1";
 	case V4L2_CID_ILLUMINATORS_2:		return "Illuminator 2";
-	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:	return "Minimum Number of Capture Buffers";
-	case V4L2_CID_MIN_BUFFERS_FOR_OUTPUT:	return "Minimum Number of Output Buffers";
+	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:	return "Min Number of Capture Buffers";
+	case V4L2_CID_MIN_BUFFERS_FOR_OUTPUT:	return "Min Number of Output Buffers";
+	case V4L2_CID_ALPHA_COMPONENT:		return "Alpha Component";
 
 	/* MPEG controls */
 	/* Keep the order of the 'case's the same as in videodev2.h! */
@@ -505,25 +506,25 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MPEG_VIDEO_MUTE_YUV:	return "Video Mute YUV";
 	case V4L2_CID_MPEG_VIDEO_DECODER_SLICE_INTERFACE:	return "Decoder Slice Interface";
 	case V4L2_CID_MPEG_VIDEO_DECODER_MPEG4_DEBLOCK_FILTER:	return "MPEG4 Loop Filter Enable";
-	case V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB:	return "The Number of Intra Refresh MBs";
+	case V4L2_CID_MPEG_VIDEO_CYCLIC_INTRA_REFRESH_MB:	return "Number of Intra Refresh MBs";
 	case V4L2_CID_MPEG_VIDEO_FRAME_RC_ENABLE:		return "Frame Level Rate Control Enable";
 	case V4L2_CID_MPEG_VIDEO_MB_RC_ENABLE:			return "H264 MB Level Rate Control";
 	case V4L2_CID_MPEG_VIDEO_HEADER_MODE:			return "Sequence Header Mode";
-	case V4L2_CID_MPEG_VIDEO_MAX_REF_PIC:			return "The Max Number of Reference Picture";
+	case V4L2_CID_MPEG_VIDEO_MAX_REF_PIC:			return "Max Number of Reference Pics";
 	case V4L2_CID_MPEG_VIDEO_H263_I_FRAME_QP:		return "H263 I-Frame QP Value";
-	case V4L2_CID_MPEG_VIDEO_H263_P_FRAME_QP:		return "H263 P frame QP Value";
-	case V4L2_CID_MPEG_VIDEO_H263_B_FRAME_QP:		return "H263 B frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_H263_P_FRAME_QP:		return "H263 P-Frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_H263_B_FRAME_QP:		return "H263 B-Frame QP Value";
 	case V4L2_CID_MPEG_VIDEO_H263_MIN_QP:			return "H263 Minimum QP Value";
 	case V4L2_CID_MPEG_VIDEO_H263_MAX_QP:			return "H263 Maximum QP Value";
 	case V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP:		return "H264 I-Frame QP Value";
-	case V4L2_CID_MPEG_VIDEO_H264_P_FRAME_QP:		return "H264 P frame QP Value";
-	case V4L2_CID_MPEG_VIDEO_H264_B_FRAME_QP:		return "H264 B frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_H264_P_FRAME_QP:		return "H264 P-Frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_H264_B_FRAME_QP:		return "H264 B-Frame QP Value";
 	case V4L2_CID_MPEG_VIDEO_H264_MAX_QP:			return "H264 Maximum QP Value";
 	case V4L2_CID_MPEG_VIDEO_H264_MIN_QP:			return "H264 Minimum QP Value";
 	case V4L2_CID_MPEG_VIDEO_H264_8X8_TRANSFORM:		return "H264 8x8 Transform Enable";
 	case V4L2_CID_MPEG_VIDEO_H264_CPB_SIZE:			return "H264 CPB Buffer Size";
-	case V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE:		return "H264 Entorpy Mode";
-	case V4L2_CID_MPEG_VIDEO_H264_I_PERIOD:			return "H264 I Period";
+	case V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE:		return "H264 Entropy Mode";
+	case V4L2_CID_MPEG_VIDEO_H264_I_PERIOD:			return "H264 I-Frame Period";
 	case V4L2_CID_MPEG_VIDEO_H264_LEVEL:			return "H264 Level";
 	case V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_ALPHA:	return "H264 Loop Filter Alpha Offset";
 	case V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_BETA:		return "H264 Loop Filter Beta Offset";
@@ -534,16 +535,16 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_ENABLE:		return "Aspect Ratio VUI Enable";
 	case V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC:		return "VUI Aspect Ratio IDC";
 	case V4L2_CID_MPEG_VIDEO_MPEG4_I_FRAME_QP:		return "MPEG4 I-Frame QP Value";
-	case V4L2_CID_MPEG_VIDEO_MPEG4_P_FRAME_QP:		return "MPEG4 P frame QP Value";
-	case V4L2_CID_MPEG_VIDEO_MPEG4_B_FRAME_QP:		return "MPEG4 B frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_MPEG4_P_FRAME_QP:		return "MPEG4 P-Frame QP Value";
+	case V4L2_CID_MPEG_VIDEO_MPEG4_B_FRAME_QP:		return "MPEG4 B-Frame QP Value";
 	case V4L2_CID_MPEG_VIDEO_MPEG4_MIN_QP:			return "MPEG4 Minimum QP Value";
 	case V4L2_CID_MPEG_VIDEO_MPEG4_MAX_QP:			return "MPEG4 Maximum QP Value";
 	case V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL:			return "MPEG4 Level";
 	case V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE:			return "MPEG4 Profile";
 	case V4L2_CID_MPEG_VIDEO_MPEG4_QPEL:			return "Quarter Pixel Search Enable";
-	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_BYTES:		return "The Maximum Bytes Per Slice";
-	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_MB:		return "The Number of MB in a Slice";
-	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE:		return "The Slice Partitioning Method";
+	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_BYTES:		return "Maximum Bytes in a Slice";
+	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_MB:		return "Number of MBs in a Slice";
+	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE:		return "Slice Partitioning Method";
 	case V4L2_CID_MPEG_VIDEO_VBV_SIZE:			return "VBV Buffer Size";
 
 	/* CAMERA controls */
@@ -579,7 +580,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_AUDIO_LIMITER_ENABLED:	return "Audio Limiter Feature Enabled";
 	case V4L2_CID_AUDIO_LIMITER_RELEASE_TIME: return "Audio Limiter Release Time";
 	case V4L2_CID_AUDIO_LIMITER_DEVIATION:	return "Audio Limiter Deviation";
-	case V4L2_CID_AUDIO_COMPRESSION_ENABLED: return "Audio Compression Feature Enabled";
+	case V4L2_CID_AUDIO_COMPRESSION_ENABLED: return "Audio Compression Enabled";
 	case V4L2_CID_AUDIO_COMPRESSION_GAIN:	return "Audio Compression Gain";
 	case V4L2_CID_AUDIO_COMPRESSION_THRESHOLD: return "Audio Compression Threshold";
 	case V4L2_CID_AUDIO_COMPRESSION_ATTACK_TIME: return "Audio Compression Attack Time";
@@ -587,24 +588,24 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_PILOT_TONE_ENABLED:	return "Pilot Tone Feature Enabled";
 	case V4L2_CID_PILOT_TONE_DEVIATION:	return "Pilot Tone Deviation";
 	case V4L2_CID_PILOT_TONE_FREQUENCY:	return "Pilot Tone Frequency";
-	case V4L2_CID_TUNE_PREEMPHASIS:		return "Pre-emphasis settings";
+	case V4L2_CID_TUNE_PREEMPHASIS:		return "Pre-Emphasis";
 	case V4L2_CID_TUNE_POWER_LEVEL:		return "Tune Power Level";
 	case V4L2_CID_TUNE_ANTENNA_CAPACITOR:	return "Tune Antenna Capacitor";
 
 	/* Flash controls */
-	case V4L2_CID_FLASH_CLASS:		return "Flash controls";
-	case V4L2_CID_FLASH_LED_MODE:		return "LED mode";
-	case V4L2_CID_FLASH_STROBE_SOURCE:	return "Strobe source";
+	case V4L2_CID_FLASH_CLASS:		return "Flash Controls";
+	case V4L2_CID_FLASH_LED_MODE:		return "LED Mode";
+	case V4L2_CID_FLASH_STROBE_SOURCE:	return "Strobe Source";
 	case V4L2_CID_FLASH_STROBE:		return "Strobe";
-	case V4L2_CID_FLASH_STROBE_STOP:	return "Stop strobe";
-	case V4L2_CID_FLASH_STROBE_STATUS:	return "Strobe status";
-	case V4L2_CID_FLASH_TIMEOUT:		return "Strobe timeout";
-	case V4L2_CID_FLASH_INTENSITY:		return "Intensity, flash mode";
-	case V4L2_CID_FLASH_TORCH_INTENSITY:	return "Intensity, torch mode";
-	case V4L2_CID_FLASH_INDICATOR_INTENSITY: return "Intensity, indicator";
+	case V4L2_CID_FLASH_STROBE_STOP:	return "Stop Strobe";
+	case V4L2_CID_FLASH_STROBE_STATUS:	return "Strobe Status";
+	case V4L2_CID_FLASH_TIMEOUT:		return "Strobe Timeout";
+	case V4L2_CID_FLASH_INTENSITY:		return "Intensity, Flash Mode";
+	case V4L2_CID_FLASH_TORCH_INTENSITY:	return "Intensity, Torch Mode";
+	case V4L2_CID_FLASH_INDICATOR_INTENSITY: return "Intensity, Indicator";
 	case V4L2_CID_FLASH_FAULT:		return "Faults";
 	case V4L2_CID_FLASH_CHARGE:		return "Charge";
-	case V4L2_CID_FLASH_READY:		return "Ready to strobe";
+	case V4L2_CID_FLASH_READY:		return "Ready to Strobe";
 
 	default:
 		return NULL;
@@ -1108,8 +1109,8 @@ int v4l2_ctrl_handler_init(struct v4l2_ctrl_handler *hdl,
 	INIT_LIST_HEAD(&hdl->ctrls);
 	INIT_LIST_HEAD(&hdl->ctrl_refs);
 	hdl->nr_of_buckets = 1 + nr_of_controls_hint / 8;
-	hdl->buckets = kzalloc(sizeof(hdl->buckets[0]) * hdl->nr_of_buckets,
-								GFP_KERNEL);
+	hdl->buckets = kcalloc(hdl->nr_of_buckets, sizeof(hdl->buckets[0]),
+			       GFP_KERNEL);
 	hdl->error = hdl->buckets ? 0 : -ENOMEM;
 	return hdl->error;
 }

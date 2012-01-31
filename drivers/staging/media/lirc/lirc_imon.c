@@ -63,7 +63,7 @@ static int display_open(struct inode *inode, struct file *file);
 static int display_close(struct inode *inode, struct file *file);
 
 /* VFD write operation */
-static ssize_t vfd_write(struct file *file, const char *buf,
+static ssize_t vfd_write(struct file *file, const char __user *buf,
 			 size_t n_bytes, loff_t *pos);
 
 /* LIRC driver function prototypes */
@@ -369,7 +369,7 @@ static int send_packet(struct imon_context *context)
  * than 32 bytes are provided spaces will be appended to
  * generate a full screen.
  */
-static ssize_t vfd_write(struct file *file, const char *buf,
+static ssize_t vfd_write(struct file *file, const char __user *buf,
 			 size_t n_bytes, loff_t *pos)
 {
 	int i;
@@ -1025,26 +1025,4 @@ static int imon_resume(struct usb_interface *intf)
 	return rc;
 }
 
-static int __init imon_init(void)
-{
-	int rc;
-
-	printk(KERN_INFO MOD_NAME ": " MOD_DESC ", v" MOD_VERSION "\n");
-
-	rc = usb_register(&imon_driver);
-	if (rc) {
-		err("%s: usb register failed(%d)", __func__, rc);
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-static void __exit imon_exit(void)
-{
-	usb_deregister(&imon_driver);
-	printk(KERN_INFO MOD_NAME ": module removed. Goodbye!\n");
-}
-
-module_init(imon_init);
-module_exit(imon_exit);
+module_usb_driver(imon_driver);

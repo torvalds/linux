@@ -60,11 +60,10 @@ struct iwl_tx_queue;
 
 /* Default noise level to report when noise measurement is not available.
  *   This may be because we're:
- *   1)  Not associated (4965, no beacon statistics being sent to driver)
+ *   1)  Not associated  no beacon statistics being sent to driver)
  *   2)  Scanning (noise measurement does not apply to associated channel)
- *   3)  Receiving CCK (3945 delivers noise info only for OFDM frames)
  * Use default noise value of -127 ... this is below the range of measurable
- *   Rx dBm for either 3945 or 4965, so it can indicate "unmeasurable" to user.
+ *   Rx dBm for all agn devices, so it can indicate "unmeasurable" to user.
  *   Also, -127 works better than 0 when averaging frames with/without
  *   noise info (e.g. averaging might be done in app); measured dBm values are
  *   always negative ... using a negative value as the default keeps all
@@ -190,6 +189,69 @@ struct iwl_qos_info {
 	struct iwl_qosparam_cmd def_qos_parm;
 };
 
+/**
+ * enum iwl_agg_state
+ *
+ * The state machine of the BA agreement establishment / tear down.
+ * These states relate to a specific RA / TID.
+ *
+ * @IWL_AGG_OFF: aggregation is not used
+ * @IWL_AGG_ON: aggregation session is up
+ * @IWL_EMPTYING_HW_QUEUE_ADDBA: establishing a BA session - waiting for the
+ *	HW queue to be empty from packets for this RA /TID.
+ * @IWL_EMPTYING_HW_QUEUE_DELBA: tearing down a BA session - waiting for the
+ *	HW queue to be empty from packets for this RA /TID.
+ */
+enum iwl_agg_state {
+	IWL_AGG_OFF = 0,
+	IWL_AGG_ON,
+	IWL_EMPTYING_HW_QUEUE_ADDBA,
+	IWL_EMPTYING_HW_QUEUE_DELBA,
+};
+
+/**
+ * struct iwl_ht_agg - aggregation state machine
+
+ * This structs holds the states for the BA agreement establishment and tear
+ * down. It also holds the state during the BA session itself. This struct is
+ * duplicated for each RA / TID.
+
+ * @rate_n_flags: Rate at which Tx was attempted. Holds the data between the
+ *	Tx response (REPLY_TX), and the block ack notification
+ *	(REPLY_COMPRESSED_BA).
+ * @state: state of the BA agreement establishment / tear down.
+ * @txq_id: Tx queue used by the BA session - used by the transport layer.
+ *	Needed by the upper layer for debugfs only.
+ * @ssn: the first packet to be sent in AGG HW queue in Tx AGG start flow, or
+ *	the first packet to be sent in legacy HW queue in Tx AGG stop flow.
+ *	Basically when next_reclaimed reaches ssn, we can tell mac80211 that
+ *	we are ready to finish the Tx AGG stop / start flow.
+ * @wait_for_ba: Expect block-ack before next Tx reply
+ */
+struct iwl_ht_agg {
+	u32 rate_n_flags;
+	enum iwl_agg_state state;
+	u16 txq_id;
+	u16 ssn;
+	bool wait_for_ba;
+};
+
+/**
+ * struct iwl_tid_data - one for each RA / TID
+
+ * This structs holds the states for each RA / TID.
+
+ * @seq_number: the next WiFi sequence number to use
+ * @next_reclaimed: the WiFi sequence number of the next packet to be acked.
+ *	This is basically (last acked packet++).
+ * @agg: aggregation state machine
+ */
+struct iwl_tid_data {
+	u16 seq_number;
+	u16 next_reclaimed;
+	struct iwl_ht_agg agg;
+};
+
 /*
  * Structure should be accessed with sta_lock held. When station addition
  * is in progress (IWL_STA_UCODE_INPROGRESS) it is possible to access only
@@ -228,17 +290,6 @@ struct iwl_station_priv {
 struct iwl_vif_priv {
 	struct iwl_rxon_context *ctx;
 	u8 ibss_bssid_sta_id;
-};
-
-/* one for each uCode image (inst/data, boot/init/runtime) */
-struct fw_desc {
-	void *v_addr;		/* access by driver */
-	dma_addr_t p_addr;	/* access by card's busmaster DMA */
-	u32 len;		/* bytes */
-};
-
-struct fw_img {
-	struct fw_desc code, data;
 };
 
 /* v1/v2 uCode file layout */
@@ -452,29 +503,6 @@ enum iwlagn_chain_noise_state {
 	IWL_CHAIN_NOISE_DONE,
 };
 
-
-/*
- * enum iwl_calib
- * defines the order in which results of initial calibrations
- * should be sent to the runtime uCode
- */
-enum iwl_calib {
-	IWL_CALIB_XTAL,
-	IWL_CALIB_DC,
-	IWL_CALIB_LO,
-	IWL_CALIB_TX_IQ,
-	IWL_CALIB_TX_IQ_PERD,
-	IWL_CALIB_BASE_BAND,
-	IWL_CALIB_TEMP_OFFSET,
-	IWL_CALIB_MAX
-};
-
-/* Opaque calibration results */
-struct iwl_calib_result {
-	void *buf;
-	size_t buf_len;
-};
-
 /* Sensitivity calib data */
 struct iwl_sensitivity_data {
 	u32 auto_corr_ofdm;
@@ -545,16 +573,6 @@ enum iwl_nvm_type {
 enum iwl_access_mode {
 	IWL_OTP_ACCESS_ABSOLUTE,
 	IWL_OTP_ACCESS_RELATIVE,
-};
-
-/**
- * enum iwl_pa_type - Power Amplifier type
- * @IWL_PA_SYSTEM:  based on uCode configuration
- * @IWL_PA_INTERNAL: use Internal only
- */
-enum iwl_pa_type {
-	IWL_PA_SYSTEM = 0,
-	IWL_PA_INTERNAL = 1,
 };
 
 /* reply_tx_statistics (for _agn devices) */
@@ -714,35 +732,6 @@ struct iwl_force_reset {
  */
 #define IWLAGN_EXT_BEACON_TIME_POS	22
 
-/**
- * struct iwl_notification_wait - notification wait entry
- * @list: list head for global list
- * @fn: function called with the notification
- * @cmd: command ID
- *
- * This structure is not used directly, to wait for a
- * notification declare it on the stack, and call
- * iwlagn_init_notification_wait() with appropriate
- * parameters. Then do whatever will cause the ucode
- * to notify the driver, and to wait for that then
- * call iwlagn_wait_notification().
- *
- * Each notification is one-shot. If at some point we
- * need to support multi-shot notifications (which
- * can't be allocated on the stack) we need to modify
- * the code for them.
- */
-struct iwl_notification_wait {
-	struct list_head list;
-
-	void (*fn)(struct iwl_priv *priv, struct iwl_rx_packet *pkt,
-		   void *data);
-	void *fn_data;
-
-	u8 cmd;
-	bool triggered, aborted;
-};
-
 struct iwl_rxon_context {
 	struct ieee80211_vif *vif;
 
@@ -805,14 +794,7 @@ enum iwl_scan_type {
 	IWL_SCAN_ROC,
 };
 
-enum iwlagn_ucode_type {
-	IWL_UCODE_NONE,
-	IWL_UCODE_REGULAR,
-	IWL_UCODE_INIT,
-	IWL_UCODE_WOWLAN,
-};
-
-#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 struct iwl_testmode_trace {
 	u32 buff_size;
 	u32 total_size;
@@ -822,7 +804,19 @@ struct iwl_testmode_trace {
 	dma_addr_t dma_addr;
 	bool trace_enabled;
 };
+struct iwl_testmode_sram {
+	u32 buff_size;
+	u32 num_chunks;
+	u8 *buff_addr;
+	bool sram_readed;
+};
 #endif
+
+struct iwl_wipan_noa_data {
+	struct rcu_head rcu_head;
+	u32 length;
+	u8 data[];
+};
 
 struct iwl_priv {
 
@@ -835,7 +829,6 @@ struct iwl_priv {
 	struct ieee80211_channel *ieee_channels;
 	struct ieee80211_rate *ieee_rates;
 	struct kmem_cache *tx_cmd_pool;
-	struct iwl_cfg *cfg;
 
 	enum ieee80211_band band;
 
@@ -880,8 +873,7 @@ struct iwl_priv {
 	s32 temperature;	/* Celsius */
 	s32 last_temperature;
 
-	/* init calibration results */
-	struct iwl_calib_result calib_results[IWL_CALIB_MAX];
+	struct iwl_wipan_noa_data __rcu *noa_data;
 
 	/* Scan related variables */
 	unsigned long scan_start;
@@ -907,22 +899,11 @@ struct iwl_priv {
 	u32 ucode_ver;			/* version of ucode, copy of
 					   iwl_ucode.ver */
 
-	struct fw_img ucode_rt;
-	struct fw_img ucode_init;
-	struct fw_img ucode_wowlan;
-
-	enum iwlagn_ucode_type ucode_type;
-	u8 ucode_write_complete;	/* the image write is complete */
 	char firmware_name[25];
 
 	struct iwl_rxon_context contexts[NUM_IWL_RXON_CTX];
 
 	__le16 switch_channel;
-
-	struct {
-		u32 error_event_table;
-		u32 log_event_table;
-	} device_pointers;
 
 	u16 active_rate;
 
@@ -951,16 +932,12 @@ struct iwl_priv {
 	int num_stations;
 	struct iwl_station_entry stations[IWLAGN_STATION_COUNT];
 	unsigned long ucode_key_table;
+	struct iwl_tid_data tid_data[IWLAGN_STATION_COUNT][IWL_MAX_TID_COUNT];
 
 	u8 mac80211_registered;
 
 	/* Indication if ieee80211_ops->open has been called */
 	u8 is_open;
-
-	/* eeprom -- this is in the card's little endian byte order */
-	u8 *eeprom;
-	int    nvm_device_type;
-	struct iwl_eeprom_calib_info *calib_info;
 
 	enum nl80211_iftype iw_mode;
 
@@ -1017,10 +994,6 @@ struct iwl_priv {
 	/* counts reply_tx error */
 	struct reply_tx_error_statistics reply_tx_stats;
 	struct reply_agg_tx_error_statistics reply_agg_tx_stats;
-	/* notification wait support */
-	struct list_head notif_waits;
-	spinlock_t notif_wait_lock;
-	wait_queue_head_t notif_waitq;
 
 	/* remain-on-channel offload support */
 	struct ieee80211_channel *hw_roc_channel;
@@ -1098,8 +1071,9 @@ struct iwl_priv {
 	struct led_classdev led;
 	unsigned long blink_on, blink_off;
 	bool led_registered;
-#ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
+#ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 	struct iwl_testmode_trace testmode_trace;
+	struct iwl_testmode_sram testmode_sram;
 	u32 tm_fixed_rate;
 #endif
 

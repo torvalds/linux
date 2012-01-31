@@ -92,7 +92,7 @@ static struct i2c_board_info saarb_i2c_info[] = {
 		.type		= "88PM860x",
 		.addr		= 0x34,
 		.platform_data	= &saarb_pm8607_info,
-		.irq		= gpio_to_irq(mfp_to_gpio(MFP_PIN_GPIO83)),
+		.irq		= PXA_GPIO_TO_IRQ(mfp_to_gpio(MFP_PIN_GPIO83)),
 	},
 };
 
@@ -111,5 +111,6 @@ MACHINE_START(SAARB, "PXA955 Handheld Platform (aka SAARB)")
 	.handle_irq	= pxa3xx_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = saarb_init,
+	.restart	= pxa_restart,
 MACHINE_END
 

@@ -29,8 +29,8 @@ static void __register_request(struct ceph_osd_client *osdc,
 			       struct ceph_osd_request *req);
 static void __unregister_linger_request(struct ceph_osd_client *osdc,
 					struct ceph_osd_request *req);
-static int __send_request(struct ceph_osd_client *osdc,
-			  struct ceph_osd_request *req);
+static void __send_request(struct ceph_osd_client *osdc,
+			   struct ceph_osd_request *req);
 
 static int op_needs_trail(int op)
 {
@@ -1022,8 +1022,8 @@ out:
 /*
  * caller should hold map_sem (for read) and request_mutex
  */
-static int __send_request(struct ceph_osd_client *osdc,
-			  struct ceph_osd_request *req)
+static void __send_request(struct ceph_osd_client *osdc,
+			   struct ceph_osd_request *req)
 {
 	struct ceph_osd_request_head *reqhead;
 
@@ -1041,7 +1041,6 @@ static int __send_request(struct ceph_osd_client *osdc,
 	ceph_msg_get(req->r_request); /* send consumes a ref */
 	ceph_con_send(&req->r_osd->o_con, req->r_request);
 	req->r_sent = req->r_osd->o_incarnation;
-	return 0;
 }
 
 /*
@@ -1726,17 +1725,9 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 			dout("send_request %p no up osds in pg\n", req);
 			ceph_monc_request_next_osdmap(&osdc->client->monc);
 		} else {
-			rc = __send_request(osdc, req);
-			if (rc) {
-				if (nofail) {
-					dout("osdc_start_request failed send, "
-					     " will retry %lld\n", req->r_tid);
-					rc = 0;
-				} else {
-					__unregister_request(osdc, req);
-				}
-			}
+			__send_request(osdc, req);
 		}
+		rc = 0;
 	}
 
 out_unlock:

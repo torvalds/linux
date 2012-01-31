@@ -19,7 +19,8 @@ header-y += processor-flags.h
 header-y += ptrace-abi.h
 header-y += sigcontext32.h
 header-y += ucontext.h
-header-y += unistd_32.h
-header-y += unistd_64.h
 header-y += vm86.h
 header-y += vsyscall.h
+
+genhdr-y += unistd_32.h
+genhdr-y += unistd_64.h

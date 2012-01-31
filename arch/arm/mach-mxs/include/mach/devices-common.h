@@ -94,6 +94,7 @@ struct platform_device *__init mxs_add_mxs_pwm(
 		resource_size_t iobase, int id);
 
 /* saif */
+#include <sound/saif.h>
 struct mxs_saif_data {
 	int id;
 	resource_size_t iobase;
@@ -103,4 +104,5 @@ struct mxs_saif_data {
 };
 
 struct platform_device *__init mxs_add_saif(
-		const struct mxs_saif_data *data);
+		const struct mxs_saif_data *data,
+		const struct mxs_saif_platform_data *pdata);

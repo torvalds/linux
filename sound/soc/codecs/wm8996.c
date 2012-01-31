@@ -108,7 +108,7 @@ static int wm8996_regulator_event_##n(struct notifier_block *nb, \
 	struct wm8996_priv *wm8996 = container_of(nb, struct wm8996_priv, \
 						  disable_nb[n]); \
 	if (event & REGULATOR_EVENT_DISABLE) { \
-		regcache_cache_only(wm8996->regmap, true);	\
+		regcache_mark_dirty(wm8996->regmap);	\
 	} \
 	return 0; \
 }
@@ -1120,7 +1120,8 @@ SND_SOC_DAPM_SUPPLY_S("SYSCLK", 1, WM8996_AIF_CLOCKING_1, 0, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY_S("SYSDSPCLK", 2, WM8996_CLOCKING_1, 1, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY_S("AIFCLK", 2, WM8996_CLOCKING_1, 2, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY_S("Charge Pump", 2, WM8996_CHARGE_PUMP_1, 15, 0, cp_event,
-		      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+		      SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+		      SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("Bandgap", SND_SOC_NOPM, 0, 0, bg_event,
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("LDO2", WM8996_POWER_MANAGEMENT_2, 1, 0, NULL, 0),
@@ -2007,6 +2008,7 @@ static int wm8996_set_sysclk(struct snd_soc_dai *dai,
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
 	int lfclk = 0;
 	int ratediv = 0;
+	int sync = WM8996_REG_SYNC;
 	int src;
 	int old;
 
@@ -2051,6 +2053,7 @@ static int wm8996_set_sysclk(struct snd_soc_dai *dai,
 	case 32000:
 	case 32768:
 		lfclk = WM8996_LFCLK_ENA;
+		sync = 0;
 		break;
 	default:
 		dev_warn(codec->dev, "Unsupported clock rate %dHz\n",
@@ -2064,6 +2067,8 @@ static int wm8996_set_sysclk(struct snd_soc_dai *dai,
 			    WM8996_SYSCLK_SRC_MASK | WM8996_SYSCLK_DIV_MASK,
 			    src << WM8996_SYSCLK_SRC_SHIFT | ratediv);
 	snd_soc_update_bits(codec, WM8996_CLOCKING_1, WM8996_LFCLK_ENA, lfclk);
+	snd_soc_update_bits(codec, WM8996_CONTROL_INTERFACE_1,
+			    WM8996_REG_SYNC, sync);
 	snd_soc_update_bits(codec, WM8996_AIF_CLOCKING_1,
 			    WM8996_SYSCLK_ENA, old);
 

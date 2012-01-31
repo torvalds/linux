@@ -110,7 +110,6 @@ struct bfad_ioim_s;
 struct bfad_tskim_s;
 
 typedef void    (*bfa_fcpim_profile_t) (struct bfa_ioim_s *ioim);
-typedef bfa_boolean_t (*bfa_ioim_lm_proc_rsp_data_t) (struct bfa_ioim_s *ioim);
 
 struct bfa_fcpim_s {
 	struct bfa_s		*bfa;
@@ -124,7 +123,6 @@ struct bfa_fcpim_s {
 	u32			path_tov;
 	u16			q_depth;
 	u8			reqq;		/*  Request queue to be used */
-	u8			lun_masking_pending;
 	struct list_head	itnim_q;	/*  queue of active itnim */
 	struct list_head	ioim_resfree_q; /*  IOs waiting for f/w */
 	struct list_head	ioim_comp_q;	/*  IO global comp Q	*/
@@ -181,7 +179,6 @@ struct bfa_ioim_s {
 	u8			reqq;		/*  Request queue for I/O */
 	u8			mode;		/*  IO is passthrough or not */
 	u64			start_time;	/*  IO's Profile start val */
-	bfa_ioim_lm_proc_rsp_data_t proc_rsp_data; /* RSP data adjust */
 };
 
 struct bfa_ioim_sp_s {
@@ -260,10 +257,6 @@ struct bfa_itnim_s {
 	k++; (__ioim)->iotag &= BFA_IOIM_IOTAG_MASK;			\
 	(__ioim)->iotag |= k << BFA_IOIM_RETRY_TAG_OFFSET;		\
 } while (0)
-
-#define BFA_IOIM_TO_LPS(__ioim)		\
-	BFA_LPS_FROM_TAG(BFA_LPS_MOD(__ioim->bfa),	\
-		__ioim->itnim->rport->rport_info.lp_tag)
 
 static inline bfa_boolean_t
 bfa_ioim_maxretry_reached(struct bfa_ioim_s *ioim)

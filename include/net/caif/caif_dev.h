@@ -9,6 +9,7 @@
 
 #include <net/caif/caif_layer.h>
 #include <net/caif/cfcnfg.h>
+#include <net/caif/caif_device.h>
 #include <linux/caif/caif_socket.h>
 #include <linux/if.h>
 #include <linux/net.h>
@@ -103,5 +104,25 @@ void caif_client_register_refcnt(struct cflayer *adapt_layer,
  * this function.
  */
 void caif_free_client(struct cflayer *adap_layer);
+
+/**
+ * struct caif_enroll_dev - Enroll a net-device as a CAIF Link layer
+ * @dev:		Network device to enroll.
+ * @caifdev:		Configuration information from CAIF Link Layer
+ * @link_support:	Link layer support layer
+ * @head_room:		Head room needed by link support layer
+ * @layer:		Lowest layer in CAIF stack
+ * @rcv_fun:		Receive function for CAIF stack.
+ *
+ * This function enroll a CAIF link layer into CAIF Stack and
+ * expects the interface to be able to handle CAIF payload.
+ * The link_support layer is used to add any Link Layer specific
+ * framing.
+ */
+void caif_enroll_dev(struct net_device *dev, struct caif_dev_common *caifdev,
+			struct cflayer *link_support, int head_room,
+			struct cflayer **layer, int (**rcv_func)(
+				struct sk_buff *, struct net_device *,
+				struct packet_type *, struct net_device *));
 
 #endif /* CAIF_DEV_H_ */

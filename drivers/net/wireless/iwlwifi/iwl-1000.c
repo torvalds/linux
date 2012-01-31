@@ -124,10 +124,10 @@ static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
-		priv->cfg->base_params->num_of_queues =
+		cfg(priv)->base_params->num_of_queues =
 			iwlagn_mod_params.num_of_queues;
 
-	hw_params(priv).max_txq_num = priv->cfg->base_params->num_of_queues;
+	hw_params(priv).max_txq_num = cfg(priv)->base_params->num_of_queues;
 	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
 
 	hw_params(priv).max_data_size = IWLAGN_RTC_DATA_SIZE;
@@ -135,28 +135,19 @@ static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 
 	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ);
 
-	hw_params(priv).tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
-	if (priv->cfg->rx_with_siso_diversity)
+	hw_params(priv).tx_chains_num = num_of_ant(cfg(priv)->valid_tx_ant);
+	if (cfg(priv)->rx_with_siso_diversity)
 		hw_params(priv).rx_chains_num = 1;
 	else
 		hw_params(priv).rx_chains_num =
-			num_of_ant(priv->cfg->valid_rx_ant);
-	hw_params(priv).valid_tx_ant = priv->cfg->valid_tx_ant;
-	hw_params(priv).valid_rx_ant = priv->cfg->valid_rx_ant;
+			num_of_ant(cfg(priv)->valid_rx_ant);
+	hw_params(priv).valid_tx_ant = cfg(priv)->valid_tx_ant;
+	hw_params(priv).valid_rx_ant = cfg(priv)->valid_rx_ant;
 
 	iwl1000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
-	/* Set initial calibration set */
 	hw_params(priv).sens = &iwl1000_sensitivity;
-	hw_params(priv).calib_init_cfg =
-			BIT(IWL_CALIB_XTAL)		|
-			BIT(IWL_CALIB_LO)		|
-			BIT(IWL_CALIB_TX_IQ) 		|
-			BIT(IWL_CALIB_TX_IQ_PERD)	|
-			BIT(IWL_CALIB_BASE_BAND);
-	if (priv->cfg->need_dc_calib)
-		hw_params(priv).calib_init_cfg |= BIT(IWL_CALIB_DC);
 
 	return 0;
 }
@@ -191,6 +182,7 @@ static struct iwl_base_params iwl1000_base_params = {
 	.chain_noise_scale = 1000,
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 128,
+	.wd_disable = true,
 };
 static struct iwl_ht_params iwl1000_ht_params = {
 	.ht_greenfield_support = true,

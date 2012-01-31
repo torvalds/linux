@@ -19,6 +19,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
+#include "../events.h"
 
 /*
  * Simplified handling
@@ -500,7 +501,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
-	case (1 << IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE):
+	case IIO_CHAN_INFO_AVERAGE_RAW:
 		ret = i2c_smbus_read_word_data(chip->client,
 					       AD7291_T_AVERAGE);
 			if (ret < 0)
@@ -509,18 +510,24 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 				AD7291_VALUE_MASK) << 4) >> 4;
 			*val = signval;
 			return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
-		scale_uv = (chip->int_vref_mv * 1000) >> AD7291_BITS;
-		*val =  scale_uv / 1000;
-		*val2 = (scale_uv % 1000) * 1000;
-		return IIO_VAL_INT_PLUS_MICRO;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
-		/*
-		* One LSB of the ADC corresponds to 0.25 deg C.
-		* The temperature reading is in 12-bit twos complement format
-		*/
-		*val = 250;
-		return IIO_VAL_INT;
+	case IIO_CHAN_INFO_SCALE:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			scale_uv = (chip->int_vref_mv * 1000) >> AD7291_BITS;
+			*val =  scale_uv / 1000;
+			*val2 = (scale_uv % 1000) * 1000;
+			return IIO_VAL_INT_PLUS_MICRO;
+		case IIO_TEMP:
+			/*
+			 * One LSB of the ADC corresponds to 0.25 deg C.
+			 * The temperature reading is in 12-bit twos
+			 * complement format
+			 */
+			*val = 250;
+			return IIO_VAL_INT;
+		default:
+			return -EINVAL;
+		}
 	default:
 		return -EINVAL;
 	}
@@ -529,7 +536,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 #define AD7291_VOLTAGE_CHAN(_chan)					\
 {									\
 	.type = IIO_VOLTAGE,						\
-	.info_mask = (1 << IIO_CHAN_INFO_SCALE_SHARED),			\
+	.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,			\
 	.indexed = 1,							\
 	.channel = _chan,						\
 	.event_mask = IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING)|\
@@ -547,8 +554,8 @@ static const struct iio_chan_spec ad7291_channels[] = {
 	AD7291_VOLTAGE_CHAN(7),
 	{
 		.type = IIO_TEMP,
-		.info_mask = (1 << IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE) |
-				(1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		.info_mask = IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE_BIT |
+				IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.indexed = 1,
 		.channel = 0,
 		.event_mask =
@@ -700,20 +707,8 @@ static struct i2c_driver ad7291_driver = {
 	.remove = __devexit_p(ad7291_remove),
 	.id_table = ad7291_id,
 };
-
-static __init int ad7291_init(void)
-{
-	return i2c_add_driver(&ad7291_driver);
-}
-
-static __exit void ad7291_exit(void)
-{
-	i2c_del_driver(&ad7291_driver);
-}
+module_i2c_driver(ad7291_driver);
 
 MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7291 ADC driver");
 MODULE_LICENSE("GPL v2");
-
-module_init(ad7291_init);
-module_exit(ad7291_exit);

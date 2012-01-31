@@ -43,7 +43,7 @@
 static int mlx4_en_test_registers(struct mlx4_en_priv *priv)
 {
 	return mlx4_cmd(priv->mdev->dev, 0, 0, 0, MLX4_CMD_HW_HEALTH_CHECK,
-			MLX4_CMD_TIME_CLASS_A);
+			MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 }
 
 static int mlx4_en_test_loopback_xmit(struct mlx4_en_priv *priv)

@@ -63,7 +63,7 @@ struct platform_device_info {
 		u64 dma_mask;
 };
 extern struct platform_device *platform_device_register_full(
-		struct platform_device_info *pdevinfo);
+		const struct platform_device_info *pdevinfo);
 
 /**
  * platform_device_register_resndata - add a platform-level device with
@@ -196,16 +196,8 @@ static inline void platform_set_drvdata(struct platform_device *pdev, void *data
  * calling it replaces module_init() and module_exit()
  */
 #define module_platform_driver(__platform_driver) \
-static int __init __platform_driver##_init(void) \
-{ \
-	return platform_driver_register(&(__platform_driver)); \
-} \
-module_init(__platform_driver##_init); \
-static void __exit __platform_driver##_exit(void) \
-{ \
-	platform_driver_unregister(&(__platform_driver)); \
-} \
-module_exit(__platform_driver##_exit);
+	module_driver(__platform_driver, platform_driver_register, \
+			platform_driver_unregister)
 
 extern struct platform_device *platform_create_bundle(struct platform_driver *driver,
 					int (*probe)(struct platform_device *),
@@ -264,62 +256,34 @@ static inline char *early_platform_driver_setup_func(void)		\
 }
 #endif /* MODULE */
 
-#ifdef CONFIG_PM_SLEEP
-extern int platform_pm_prepare(struct device *dev);
-extern void platform_pm_complete(struct device *dev);
-#else
-#define platform_pm_prepare	NULL
-#define platform_pm_complete	NULL
-#endif
-
 #ifdef CONFIG_SUSPEND
 extern int platform_pm_suspend(struct device *dev);
-extern int platform_pm_suspend_noirq(struct device *dev);
 extern int platform_pm_resume(struct device *dev);
-extern int platform_pm_resume_noirq(struct device *dev);
 #else
 #define platform_pm_suspend		NULL
 #define platform_pm_resume		NULL
-#define platform_pm_suspend_noirq	NULL
-#define platform_pm_resume_noirq	NULL
 #endif
 
 #ifdef CONFIG_HIBERNATE_CALLBACKS
 extern int platform_pm_freeze(struct device *dev);
-extern int platform_pm_freeze_noirq(struct device *dev);
 extern int platform_pm_thaw(struct device *dev);
-extern int platform_pm_thaw_noirq(struct device *dev);
 extern int platform_pm_poweroff(struct device *dev);
-extern int platform_pm_poweroff_noirq(struct device *dev);
 extern int platform_pm_restore(struct device *dev);
-extern int platform_pm_restore_noirq(struct device *dev);
 #else
 #define platform_pm_freeze		NULL
 #define platform_pm_thaw		NULL
 #define platform_pm_poweroff		NULL
 #define platform_pm_restore		NULL
-#define platform_pm_freeze_noirq	NULL
-#define platform_pm_thaw_noirq		NULL
-#define platform_pm_poweroff_noirq	NULL
-#define platform_pm_restore_noirq	NULL
 #endif
 
 #ifdef CONFIG_PM_SLEEP
 #define USE_PLATFORM_PM_SLEEP_OPS \
-	.prepare = platform_pm_prepare, \
-	.complete = platform_pm_complete, \
 	.suspend = platform_pm_suspend, \
 	.resume = platform_pm_resume, \
 	.freeze = platform_pm_freeze, \
 	.thaw = platform_pm_thaw, \
 	.poweroff = platform_pm_poweroff, \
-	.restore = platform_pm_restore, \
-	.suspend_noirq = platform_pm_suspend_noirq, \
-	.resume_noirq = platform_pm_resume_noirq, \
-	.freeze_noirq = platform_pm_freeze_noirq, \
-	.thaw_noirq = platform_pm_thaw_noirq, \
-	.poweroff_noirq = platform_pm_poweroff_noirq, \
-	.restore_noirq = platform_pm_restore_noirq,
+	.restore = platform_pm_restore,
 #else
 #define USE_PLATFORM_PM_SLEEP_OPS
 #endif

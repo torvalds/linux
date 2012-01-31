@@ -135,13 +135,20 @@ static void iwl_pci_apm_config(struct iwl_bus *bus)
 	}
 }
 
-static void iwl_pci_get_hw_id(struct iwl_bus *bus, char buf[],
+static void iwl_pci_get_hw_id_string(struct iwl_bus *bus, char buf[],
 			      int buf_len)
 {
 	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
 
 	snprintf(buf, buf_len, "PCI ID: 0x%04X:0x%04X", pci_dev->device,
 		 pci_dev->subsystem_device);
+}
+
+static u32 iwl_pci_get_hw_id(struct iwl_bus *bus)
+{
+	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
+
+	return (pci_dev->device << 16) + pci_dev->subsystem_device;
 }
 
 static void iwl_pci_write8(struct iwl_bus *bus, u32 ofs, u8 val)
@@ -163,6 +170,7 @@ static u32 iwl_pci_read32(struct iwl_bus *bus, u32 ofs)
 static const struct iwl_bus_ops bus_ops_pci = {
 	.get_pm_support = iwl_pci_is_pm_supported,
 	.apm_config = iwl_pci_apm_config,
+	.get_hw_id_string = iwl_pci_get_hw_id_string,
 	.get_hw_id = iwl_pci_get_hw_id,
 	.write8 = iwl_pci_write8,
 	.write32 = iwl_pci_write32,
@@ -256,6 +264,8 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x0082, 0xC020, iwl6005_2agn_sff_cfg)},
 	{IWL_PCI_DEVICE(0x0085, 0xC220, iwl6005_2agn_sff_cfg)},
 	{IWL_PCI_DEVICE(0x0082, 0x1341, iwl6005_2agn_d_cfg)},
+	{IWL_PCI_DEVICE(0x0082, 0x1304, iwl6005_2agn_cfg)},/* low 5GHz active */
+	{IWL_PCI_DEVICE(0x0082, 0x1305, iwl6005_2agn_cfg)},/* high 5GHz active */
 
 /* 6x30 Series */
 	{IWL_PCI_DEVICE(0x008A, 0x5305, iwl1030_bgn_cfg)},
@@ -325,46 +335,28 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x0890, 0x4022, iwl2000_2bgn_cfg)},
 	{IWL_PCI_DEVICE(0x0891, 0x4222, iwl2000_2bgn_cfg)},
 	{IWL_PCI_DEVICE(0x0890, 0x4422, iwl2000_2bgn_cfg)},
-	{IWL_PCI_DEVICE(0x0890, 0x4026, iwl2000_2bg_cfg)},
-	{IWL_PCI_DEVICE(0x0891, 0x4226, iwl2000_2bg_cfg)},
-	{IWL_PCI_DEVICE(0x0890, 0x4426, iwl2000_2bg_cfg)},
 	{IWL_PCI_DEVICE(0x0890, 0x4822, iwl2000_2bgn_d_cfg)},
 
 /* 2x30 Series */
 	{IWL_PCI_DEVICE(0x0887, 0x4062, iwl2030_2bgn_cfg)},
 	{IWL_PCI_DEVICE(0x0888, 0x4262, iwl2030_2bgn_cfg)},
 	{IWL_PCI_DEVICE(0x0887, 0x4462, iwl2030_2bgn_cfg)},
-	{IWL_PCI_DEVICE(0x0887, 0x4066, iwl2030_2bg_cfg)},
-	{IWL_PCI_DEVICE(0x0888, 0x4266, iwl2030_2bg_cfg)},
-	{IWL_PCI_DEVICE(0x0887, 0x4466, iwl2030_2bg_cfg)},
 
 /* 6x35 Series */
 	{IWL_PCI_DEVICE(0x088E, 0x4060, iwl6035_2agn_cfg)},
 	{IWL_PCI_DEVICE(0x088F, 0x4260, iwl6035_2agn_cfg)},
 	{IWL_PCI_DEVICE(0x088E, 0x4460, iwl6035_2agn_cfg)},
-	{IWL_PCI_DEVICE(0x088E, 0x4064, iwl6035_2abg_cfg)},
-	{IWL_PCI_DEVICE(0x088F, 0x4264, iwl6035_2abg_cfg)},
-	{IWL_PCI_DEVICE(0x088E, 0x4464, iwl6035_2abg_cfg)},
-	{IWL_PCI_DEVICE(0x088E, 0x4066, iwl6035_2bg_cfg)},
-	{IWL_PCI_DEVICE(0x088F, 0x4266, iwl6035_2bg_cfg)},
-	{IWL_PCI_DEVICE(0x088E, 0x4466, iwl6035_2bg_cfg)},
 
 /* 105 Series */
 	{IWL_PCI_DEVICE(0x0894, 0x0022, iwl105_bgn_cfg)},
 	{IWL_PCI_DEVICE(0x0895, 0x0222, iwl105_bgn_cfg)},
 	{IWL_PCI_DEVICE(0x0894, 0x0422, iwl105_bgn_cfg)},
-	{IWL_PCI_DEVICE(0x0894, 0x0026, iwl105_bg_cfg)},
-	{IWL_PCI_DEVICE(0x0895, 0x0226, iwl105_bg_cfg)},
-	{IWL_PCI_DEVICE(0x0894, 0x0426, iwl105_bg_cfg)},
 	{IWL_PCI_DEVICE(0x0894, 0x0822, iwl105_bgn_d_cfg)},
 
 /* 135 Series */
 	{IWL_PCI_DEVICE(0x0892, 0x0062, iwl135_bgn_cfg)},
 	{IWL_PCI_DEVICE(0x0893, 0x0262, iwl135_bgn_cfg)},
 	{IWL_PCI_DEVICE(0x0892, 0x0462, iwl135_bgn_cfg)},
-	{IWL_PCI_DEVICE(0x0892, 0x0066, iwl135_bg_cfg)},
-	{IWL_PCI_DEVICE(0x0893, 0x0266, iwl135_bg_cfg)},
-	{IWL_PCI_DEVICE(0x0892, 0x0466, iwl135_bg_cfg)},
 
 	{0}
 };

@@ -1082,7 +1082,7 @@ until the time in the timestamp field has arrived. I would like to
 follow SGI's lead, and adopt a multimedia timestamping system like
 their UST (Unadjusted System Time). See
 http://web.archive.org/web/*/http://reality.sgi.com
-/cpirazzi_engr/lg/time/intro.html. 
+/cpirazzi_engr/lg/time/intro.html.
 UST uses timestamps that are 64-bit signed integers
 (not struct timeval's) and given in nanosecond units. The UST clock
 starts at zero when the system is booted and runs continuously and
@@ -2376,6 +2376,23 @@ that used it. It was originally scheduled for removal in 2.6.35.
         <listitem>
 	  <para>V4L2_CTRL_FLAG_VOLATILE was added to signal volatile controls to userspace.</para>
         </listitem>
+        <listitem>
+	  <para>Add selection API for extended control over cropping and
+composing. Does not affect the compatibility of current drivers and
+applications.  See <link linkend="selection-api"> selection API </link> for
+details.</para>
+        </listitem>
+      </orderedlist>
+    </section>
+
+    <section>
+      <title>V4L2 in Linux 3.3</title>
+      <orderedlist>
+        <listitem>
+	  <para>Added <constant>V4L2_CID_ALPHA_COMPONENT</constant> control
+	    to the <link linkend="control">User controls class</link>.
+	  </para>
+        </listitem>
       </orderedlist>
     </section>
 
@@ -2489,6 +2506,9 @@ ioctls.</para>
         <listitem>
 	  <para>&VIDIOC-CREATE-BUFS; and &VIDIOC-PREPARE-BUF; ioctls.</para>
         </listitem>
+        <listitem>
+	  <para>Selection API. <xref linkend="selection-api" /></para>
+        </listitem>
       </itemizedlist>
     </section>
 
@@ -2507,11 +2527,3 @@ interfaces and should not be implemented in new drivers.</para>
       </itemizedlist>
     </section>
   </section>
-
-  <!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
-  -->

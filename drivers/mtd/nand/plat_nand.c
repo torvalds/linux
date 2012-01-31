@@ -148,18 +148,7 @@ static struct platform_driver plat_nand_driver = {
 	},
 };
 
-static int __init plat_nand_init(void)
-{
-	return platform_driver_register(&plat_nand_driver);
-}
-
-static void __exit plat_nand_exit(void)
-{
-	platform_driver_unregister(&plat_nand_driver);
-}
-
-module_init(plat_nand_init);
-module_exit(plat_nand_exit);
+module_platform_driver(plat_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vitaly Wool");

@@ -153,9 +153,7 @@ size_t vme_get_size(struct vme_resource *resource)
 	int enabled, retval;
 	unsigned long long base, size;
 	dma_addr_t buf_base;
-	vme_address_t aspace;
-	vme_cycle_t cycle;
-	vme_width_t dwidth;
+	u32 aspace, cycle, dwidth;
 
 	switch (resource->type) {
 	case VME_MASTER:
@@ -181,7 +179,7 @@ size_t vme_get_size(struct vme_resource *resource)
 }
 EXPORT_SYMBOL(vme_get_size);
 
-static int vme_check_window(vme_address_t aspace, unsigned long long vme_base,
+static int vme_check_window(u32 aspace, unsigned long long vme_base,
 	unsigned long long size)
 {
 	int retval = 0;
@@ -232,8 +230,8 @@ static int vme_check_window(vme_address_t aspace, unsigned long long vme_base,
  * Request a slave image with specific attributes, return some unique
  * identifier.
  */
-struct vme_resource *vme_slave_request(struct vme_dev *vdev,
-	vme_address_t address, vme_cycle_t cycle)
+struct vme_resource *vme_slave_request(struct vme_dev *vdev, u32 address,
+	u32 cycle)
 {
 	struct vme_bridge *bridge;
 	struct list_head *slave_pos = NULL;
@@ -298,7 +296,7 @@ EXPORT_SYMBOL(vme_slave_request);
 
 int vme_slave_set(struct vme_resource *resource, int enabled,
 	unsigned long long vme_base, unsigned long long size,
-	dma_addr_t buf_base, vme_address_t aspace, vme_cycle_t cycle)
+	dma_addr_t buf_base, u32 aspace, u32 cycle)
 {
 	struct vme_bridge *bridge = find_bridge(resource);
 	struct vme_slave_resource *image;
@@ -333,7 +331,7 @@ EXPORT_SYMBOL(vme_slave_set);
 
 int vme_slave_get(struct vme_resource *resource, int *enabled,
 	unsigned long long *vme_base, unsigned long long *size,
-	dma_addr_t *buf_base, vme_address_t *aspace, vme_cycle_t *cycle)
+	dma_addr_t *buf_base, u32 *aspace, u32 *cycle)
 {
 	struct vme_bridge *bridge = find_bridge(resource);
 	struct vme_slave_resource *image;
@@ -388,8 +386,8 @@ EXPORT_SYMBOL(vme_slave_free);
  * Request a master image with specific attributes, return some unique
  * identifier.
  */
-struct vme_resource *vme_master_request(struct vme_dev *vdev,
-	vme_address_t address, vme_cycle_t cycle, vme_width_t dwidth)
+struct vme_resource *vme_master_request(struct vme_dev *vdev, u32 address,
+	u32 cycle, u32 dwidth)
 {
 	struct vme_bridge *bridge;
 	struct list_head *master_pos = NULL;
@@ -456,8 +454,8 @@ err_bus:
 EXPORT_SYMBOL(vme_master_request);
 
 int vme_master_set(struct vme_resource *resource, int enabled,
-	unsigned long long vme_base, unsigned long long size,
-	vme_address_t aspace, vme_cycle_t cycle, vme_width_t dwidth)
+	unsigned long long vme_base, unsigned long long size, u32 aspace,
+	u32 cycle, u32 dwidth)
 {
 	struct vme_bridge *bridge = find_bridge(resource);
 	struct vme_master_resource *image;
@@ -492,8 +490,8 @@ int vme_master_set(struct vme_resource *resource, int enabled,
 EXPORT_SYMBOL(vme_master_set);
 
 int vme_master_get(struct vme_resource *resource, int *enabled,
-	unsigned long long *vme_base, unsigned long long *size,
-	vme_address_t *aspace, vme_cycle_t *cycle, vme_width_t *dwidth)
+	unsigned long long *vme_base, unsigned long long *size, u32 *aspace,
+	u32 *cycle, u32 *dwidth)
 {
 	struct vme_bridge *bridge = find_bridge(resource);
 	struct vme_master_resource *image;
@@ -646,8 +644,7 @@ EXPORT_SYMBOL(vme_master_free);
  * Request a DMA controller with specific attributes, return some unique
  * identifier.
  */
-struct vme_resource *vme_dma_request(struct vme_dev *vdev,
-	vme_dma_route_t route)
+struct vme_resource *vme_dma_request(struct vme_dev *vdev, u32 route)
 {
 	struct vme_bridge *bridge;
 	struct list_head *dma_pos = NULL;
@@ -743,8 +740,7 @@ EXPORT_SYMBOL(vme_new_dma_list);
 /*
  * Create "Pattern" type attributes
  */
-struct vme_dma_attr *vme_dma_pattern_attribute(u32 pattern,
-	vme_pattern_t type)
+struct vme_dma_attr *vme_dma_pattern_attribute(u32 pattern, u32 type)
 {
 	struct vme_dma_attr *attributes;
 	struct vme_dma_pattern *pattern_attr;
@@ -822,7 +818,7 @@ EXPORT_SYMBOL(vme_dma_pci_attribute);
  * Create "VME" type attributes
  */
 struct vme_dma_attr *vme_dma_vme_attribute(unsigned long long address,
-	vme_address_t aspace, vme_cycle_t cycle, vme_width_t dwidth)
+	u32 aspace, u32 cycle, u32 dwidth)
 {
 	struct vme_dma_attr *attributes;
 	struct vme_dma_vme *vme_attr;
@@ -1173,7 +1169,7 @@ int vme_lm_count(struct vme_resource *resource)
 EXPORT_SYMBOL(vme_lm_count);
 
 int vme_lm_set(struct vme_resource *resource, unsigned long long lm_base,
-	vme_address_t aspace, vme_cycle_t cycle)
+	u32 aspace, u32 cycle)
 {
 	struct vme_bridge *bridge = find_bridge(resource);
 	struct vme_lm_resource *lm;
@@ -1195,7 +1191,7 @@ int vme_lm_set(struct vme_resource *resource, unsigned long long lm_base,
 EXPORT_SYMBOL(vme_lm_set);
 
 int vme_lm_get(struct vme_resource *resource, unsigned long long *lm_base,
-	vme_address_t *aspace, vme_cycle_t *cycle)
+	u32 *aspace, u32 *cycle)
 {
 	struct vme_bridge *bridge = find_bridge(resource);
 	struct vme_lm_resource *lm;
@@ -1307,7 +1303,12 @@ EXPORT_SYMBOL(vme_slot_get);
 
 /* - Bridge Registration --------------------------------------------------- */
 
-static int vme_add_bus(struct vme_bridge *bridge)
+static void vme_dev_release(struct device *dev)
+{
+	kfree(dev_to_vme_dev(dev));
+}
+
+int vme_register_bridge(struct vme_bridge *bridge)
 {
 	int i;
 	int ret = -1;
@@ -1327,8 +1328,9 @@ static int vme_add_bus(struct vme_bridge *bridge)
 
 	return ret;
 }
+EXPORT_SYMBOL(vme_register_bridge);
 
-static void vme_remove_bus(struct vme_bridge *bridge)
+void vme_unregister_bridge(struct vme_bridge *bridge)
 {
 	struct vme_dev *vdev;
 	struct vme_dev *tmp;
@@ -1342,22 +1344,6 @@ static void vme_remove_bus(struct vme_bridge *bridge)
 	}
 	list_del(&bridge->bus_list);
 	mutex_unlock(&vme_buses_lock);
-}
-
-static void vme_dev_release(struct device *dev)
-{
-	kfree(dev_to_vme_dev(dev));
-}
-
-int vme_register_bridge(struct vme_bridge *bridge)
-{
-	return vme_add_bus(bridge);
-}
-EXPORT_SYMBOL(vme_register_bridge);
-
-void vme_unregister_bridge(struct vme_bridge *bridge)
-{
-	vme_remove_bus(bridge);
 }
 EXPORT_SYMBOL(vme_unregister_bridge);
 
@@ -1421,10 +1407,7 @@ static int __vme_register_driver(struct vme_driver *drv, unsigned int ndevs)
 		 * and if the bridge is removed, it will have to go through
 		 * vme_unregister_bridge() to do it (which calls remove() on
 		 * the bridge which in turn tries to acquire vme_buses_lock and
-		 * will have to wait). The probe() called after device
-		 * registration in __vme_register_driver below will also fail
-		 * as the bridge is being removed (since the probe() calls
-		 * vme_bridge_get()).
+		 * will have to wait).
 		 */
 		err = __vme_register_driver_bus(drv, bridge, ndevs);
 		if (err)

@@ -585,9 +585,9 @@ static int s5h1411_register_reset(struct dvb_frontend *fe)
 }
 
 /* Talk to the demod, set the FEC, GUARD, QAM settings etc */
-static int s5h1411_set_frontend(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+static int s5h1411_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct s5h1411_state *state = fe->demodulator_priv;
 
 	dprintk("%s(frequency=%d)\n", __func__, p->frequency);
@@ -596,13 +596,13 @@ static int s5h1411_set_frontend(struct dvb_frontend *fe,
 
 	state->current_frequency = p->frequency;
 
-	s5h1411_enable_modulation(fe, p->u.vsb.modulation);
+	s5h1411_enable_modulation(fe, p->modulation);
 
 	if (fe->ops.tuner_ops.set_params) {
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 1);
 
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
@@ -794,7 +794,36 @@ static int s5h1411_read_snr(struct dvb_frontend *fe, u16 *snr)
 static int s5h1411_read_signal_strength(struct dvb_frontend *fe,
 	u16 *signal_strength)
 {
-	return s5h1411_read_snr(fe, signal_strength);
+	/* borrowed from lgdt330x.c
+	 *
+	 * Calculate strength from SNR up to 35dB
+	 * Even though the SNR can go higher than 35dB,
+	 * there is some comfort factor in having a range of
+	 * strong signals that can show at 100%
+	 */
+	u16 snr;
+	u32 tmp;
+	int ret = s5h1411_read_snr(fe, &snr);
+
+	*signal_strength = 0;
+
+	if (0 == ret) {
+		/* The following calculation method was chosen
+		 * purely for the sake of code re-use from the
+		 * other demod drivers that use this method */
+
+		/* Convert from SNR in dB * 10 to 8.24 fixed-point */
+		tmp = (snr * ((1 << 24) / 10));
+
+		/* Convert from 8.24 fixed-point to
+		 * scale the range 0 - 35*2^24 into 0 - 65535*/
+		if (tmp >= 8960 * 0x10000)
+			*signal_strength = 0xffff;
+		else
+			*signal_strength = tmp / 8960;
+	}
+
+	return ret;
 }
 
 static int s5h1411_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
@@ -811,13 +840,13 @@ static int s5h1411_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return s5h1411_read_ucblocks(fe, ber);
 }
 
-static int s5h1411_get_frontend(struct dvb_frontend *fe,
-				struct dvb_frontend_parameters *p)
+static int s5h1411_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct s5h1411_state *state = fe->demodulator_priv;
 
 	p->frequency = state->current_frequency;
-	p->u.vsb.modulation = state->current_modulation;
+	p->modulation = state->current_modulation;
 
 	return 0;
 }
@@ -886,10 +915,9 @@ error:
 EXPORT_SYMBOL(s5h1411_attach);
 
 static struct dvb_frontend_ops s5h1411_ops = {
-
+	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name			= "Samsung S5H1411 QAM/8VSB Frontend",
-		.type			= FE_ATSC,
 		.frequency_min		= 54000000,
 		.frequency_max		= 858000000,
 		.frequency_stepsize	= 62500,

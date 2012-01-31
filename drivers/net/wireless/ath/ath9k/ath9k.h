@@ -25,6 +25,7 @@
 
 #include "debug.h"
 #include "common.h"
+#include "mci.h"
 
 /*
  * Header for the ath9k.ko driver core *only* -- hw code nor any other driver
@@ -96,7 +97,7 @@ enum buffer_type {
 #define bf_isampdu(bf)		(bf->bf_state.bf_type & BUF_AMPDU)
 #define bf_isaggr(bf)		(bf->bf_state.bf_type & BUF_AGGR)
 
-#define ATH_TXSTATUS_RING_SIZE 64
+#define ATH_TXSTATUS_RING_SIZE 512
 
 #define	DS2PHYS(_dd, _ds)						\
 	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
@@ -158,6 +159,9 @@ void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 /* return block-ack bitmap index given sequence and starting sequence */
 #define ATH_BA_INDEX(_st, _seq) (((_seq) - (_st)) & (IEEE80211_SEQ_MAX - 1))
 
+/* return the seqno for _start + _offset */
+#define ATH_BA_INDEX2SEQ(_seq, _offset) (((_seq) + (_offset)) & (IEEE80211_SEQ_MAX - 1))
+
 /* returns delimiter padding required given the packet length */
 #define ATH_AGGR_GET_NDELIM(_len)					\
        (((_len) >= ATH_AGGR_MINPLEN) ? 0 :                             \
@@ -192,6 +196,7 @@ struct ath_txq {
 	u8 txq_headidx;
 	u8 txq_tailidx;
 	int pending_frames;
+	struct sk_buff_head complete_q;
 };
 
 struct ath_atx_ac {
@@ -237,6 +242,7 @@ struct ath_atx_tid {
 	struct ath_node *an;
 	struct ath_atx_ac *ac;
 	unsigned long tx_buf[BITS_TO_LONGS(ATH_TID_MAX_BUFS)];
+	int bar_index;
 	u16 seq_start;
 	u16 seq_next;
 	u16 baw_size;
@@ -251,8 +257,9 @@ struct ath_atx_tid {
 struct ath_node {
 #ifdef CONFIG_ATH9K_DEBUGFS
 	struct list_head list; /* for sc->nodes */
-	struct ieee80211_sta *sta; /* station struct we're part of */
 #endif
+	struct ieee80211_sta *sta; /* station struct we're part of */
+	struct ieee80211_vif *vif; /* interface with which we're associated */
 	struct ath_atx_tid tid[WME_NUM_TID];
 	struct ath_atx_ac ac[WME_NUM_AC];
 	int ps_key;
@@ -274,7 +281,6 @@ struct ath_tx_control {
 };
 
 #define ATH_TX_ERROR        0x01
-#define ATH_TX_BAR          0x02
 
 /**
  * @txq_map:  Index is mac80211 queue number.  This is
@@ -443,7 +449,9 @@ struct ath_btcoex {
 	u32 btcoex_no_stomp; /* in usec */
 	u32 btcoex_period; /* in usec */
 	u32 btscan_no_stomp; /* in usec */
+	u32 duty_cycle;
 	struct ath_gen_timer *no_stomp_timer; /* Timer for no BT stomping */
+	struct ath_mci_profile mci;
 };
 
 int ath_init_btcoex_timer(struct ath_softc *sc);
@@ -458,7 +466,7 @@ void ath9k_btcoex_timer_pause(struct ath_softc *sc);
 #define ATH_LED_PIN_9287		8
 #define ATH_LED_PIN_9300		10
 #define ATH_LED_PIN_9485		6
-#define ATH_LED_PIN_9462		0
+#define ATH_LED_PIN_9462		4
 
 #ifdef CONFIG_MAC80211_LEDS
 void ath_init_leds(struct ath_softc *sc);
@@ -538,7 +546,7 @@ struct ath_ant_comb {
 #define DEFAULT_CACHELINE       32
 #define ATH_REGCLASSIDS_MAX     10
 #define ATH_CABQ_READY_TIME     80      /* % of beacon interval */
-#define ATH_MAX_SW_RETRIES      10
+#define ATH_MAX_SW_RETRIES      30
 #define ATH_CHAN_MAX            255
 
 #define ATH_TXPOWER_MAX         100     /* .5 dBm units */
@@ -643,6 +651,7 @@ struct ath_softc {
 	struct delayed_work tx_complete_work;
 	struct delayed_work hw_pll_work;
 	struct ath_btcoex btcoex;
+	struct ath_mci_coex mci_coex;
 
 	struct ath_descdma txsdma;
 
@@ -670,7 +679,6 @@ void ath9k_deinit_device(struct ath_softc *sc);
 void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw);
 void ath9k_reload_chainmask_settings(struct ath_softc *sc);
 
-void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw);
 bool ath9k_uses_beacons(int type);
 
 #ifdef CONFIG_ATH9K_PCI

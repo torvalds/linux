@@ -35,11 +35,11 @@
 #include <linux/input/eeti_ts.h>
 #include <linux/slab.h>
 
-static int flip_x;
+static bool flip_x;
 module_param(flip_x, bool, 0644);
 MODULE_PARM_DESC(flip_x, "flip x coordinate");
 
-static int flip_y;
+static bool flip_y;
 module_param(flip_y, bool, 0644);
 MODULE_PARM_DESC(flip_y, "flip y coordinate");
 

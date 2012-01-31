@@ -129,6 +129,7 @@ struct extent_buffer {
 	struct list_head leak_list;
 	struct rcu_head rcu_head;
 	atomic_t refs;
+	pid_t lock_owner;
 
 	/* count of read lock holders on the extent buffer */
 	atomic_t write_locks;
@@ -137,6 +138,7 @@ struct extent_buffer {
 	atomic_t blocking_readers;
 	atomic_t spinning_readers;
 	atomic_t spinning_writers;
+	int lock_nested;
 
 	/* protects write locks */
 	rwlock_t lock;

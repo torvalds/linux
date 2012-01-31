@@ -17,7 +17,7 @@
  */
 
 #include <linux/pci.h>
-#include <linux/export.h>
+#include <linux/module.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
 #include <acpi/acpi_bus.h>
@@ -27,7 +27,7 @@ struct ioapic {
 	u32		gsi_base;
 };
 
-static int ioapic_probe(struct pci_dev *dev, const struct pci_device_id *ent)
+static int __devinit ioapic_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 {
 	acpi_handle handle;
 	acpi_status status;
@@ -88,7 +88,7 @@ exit_free:
 	return -ENODEV;
 }
 
-static void ioapic_remove(struct pci_dev *dev)
+static void __devexit ioapic_remove(struct pci_dev *dev)
 {
 	struct ioapic *ioapic = pci_get_drvdata(dev);
 
@@ -99,13 +99,12 @@ static void ioapic_remove(struct pci_dev *dev)
 }
 
 
-static struct pci_device_id ioapic_devices[] = {
-	{ PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID,
-	  PCI_CLASS_SYSTEM_PIC_IOAPIC << 8, 0xffff00, },
-	{ PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID,
-	  PCI_CLASS_SYSTEM_PIC_IOXAPIC << 8, 0xffff00, },
+static DEFINE_PCI_DEVICE_TABLE(ioapic_devices) = {
+	{ PCI_DEVICE_CLASS(PCI_CLASS_SYSTEM_PIC_IOAPIC, ~0) },
+	{ PCI_DEVICE_CLASS(PCI_CLASS_SYSTEM_PIC_IOXAPIC, ~0) },
 	{ }
 };
+MODULE_DEVICE_TABLE(pci, ioapic_devices);
 
 static struct pci_driver ioapic_driver = {
 	.name		= "ioapic",

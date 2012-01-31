@@ -427,6 +427,23 @@ static int s5pcsis_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	return 0;
 }
 
+static int s5pcsis_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+{
+	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(fh, 0);
+
+	format->colorspace = V4L2_COLORSPACE_JPEG;
+	format->code = s5pcsis_formats[0].code;
+	format->width = S5PCSIS_DEF_PIX_WIDTH;
+	format->height = S5PCSIS_DEF_PIX_HEIGHT;
+	format->field = V4L2_FIELD_NONE;
+
+	return 0;
+}
+
+static const struct v4l2_subdev_internal_ops s5pcsis_sd_internal_ops = {
+	.open = s5pcsis_open,
+};
+
 static struct v4l2_subdev_core_ops s5pcsis_core_ops = {
 	.s_power = s5pcsis_s_power,
 };
@@ -544,7 +561,12 @@ static int __devinit s5pcsis_probe(struct platform_device *pdev)
 	v4l2_subdev_init(&state->sd, &s5pcsis_subdev_ops);
 	state->sd.owner = THIS_MODULE;
 	strlcpy(state->sd.name, dev_name(&pdev->dev), sizeof(state->sd.name));
+	state->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	state->csis_fmt = &s5pcsis_formats[0];
+
+	state->format.code = s5pcsis_formats[0].code;
+	state->format.width = S5PCSIS_DEF_PIX_WIDTH;
+	state->format.height = S5PCSIS_DEF_PIX_HEIGHT;
 
 	state->pads[CSIS_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	state->pads[CSIS_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;

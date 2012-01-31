@@ -372,24 +372,4 @@ static void disconnect(struct usb_interface *intf)
 	kfree(ttusbir);
 }
 
-static int ttusbir_init_module(void)
-{
-	int result;
-
-	DPRINTK(KERN_DEBUG "Module ttusbir init\n");
-
-	/* register this driver with the USB subsystem */
-	result = usb_register(&usb_driver);
-	if (result)
-		err("usb_register failed. Error number %d", result);
-	return result;
-}
-
-static void ttusbir_exit_module(void)
-{
-	printk(KERN_DEBUG "Module ttusbir exit\n");
-	usb_deregister(&usb_driver);
-}
-
-module_init(ttusbir_init_module);
-module_exit(ttusbir_exit_module);
+module_usb_driver(usb_driver);

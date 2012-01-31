@@ -18,7 +18,6 @@
 #include <linux/bitops.h>
 #include <linux/genhd.h>
 #include <linux/device.h>
-#include <linux/buffer_head.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/swap.h>
@@ -774,8 +773,7 @@ static int enough_swap(unsigned int nr_pages, unsigned int flags)
 
 	pr_debug("PM: Free swap pages: %u\n", free_swap);
 
-	required = PAGES_FOR_IO + ((flags & SF_NOCOMPRESS_MODE) ?
-		nr_pages : (nr_pages * LZO_CMP_PAGES) / LZO_UNC_PAGES + 1);
+	required = PAGES_FOR_IO + nr_pages;
 	return free_swap > required;
 }
 
@@ -803,10 +801,12 @@ int swsusp_write(unsigned int flags)
 		printk(KERN_ERR "PM: Cannot get swap writer\n");
 		return error;
 	}
-	if (!enough_swap(pages, flags)) {
-		printk(KERN_ERR "PM: Not enough free swap\n");
-		error = -ENOSPC;
-		goto out_finish;
+	if (flags & SF_NOCOMPRESS_MODE) {
+		if (!enough_swap(pages, flags)) {
+			printk(KERN_ERR "PM: Not enough free swap\n");
+			error = -ENOSPC;
+			goto out_finish;
+		}
 	}
 	memset(&snapshot, 0, sizeof(struct snapshot_handle));
 	error = snapshot_read_next(&snapshot);

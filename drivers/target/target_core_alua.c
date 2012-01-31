@@ -32,13 +32,12 @@
 #include <scsi/scsi_cmnd.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_device.h>
-#include <target/target_core_transport.h>
-#include <target/target_core_fabric_ops.h>
+#include <target/target_core_backend.h>
+#include <target/target_core_fabric.h>
 #include <target/target_core_configfs.h>
 
+#include "target_core_internal.h"
 #include "target_core_alua.h"
-#include "target_core_hba.h"
 #include "target_core_ua.h"
 
 static int core_alua_check_transition(int state, int *primary);
@@ -191,9 +190,10 @@ int target_emulate_set_target_port_groups(struct se_task *task)
 	int alua_access_state, primary = 0, rc;
 	u16 tg_pt_id, rtpi;
 
-	if (!l_port)
-		return PYX_TRANSPORT_LU_COMM_FAILURE;
-
+	if (!l_port) {
+		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		return -EINVAL;
+	}
 	buf = transport_kmap_first_data_page(cmd);
 
 	/*
@@ -203,7 +203,8 @@ int target_emulate_set_target_port_groups(struct se_task *task)
 	l_tg_pt_gp_mem = l_port->sep_alua_tg_pt_gp_mem;
 	if (!l_tg_pt_gp_mem) {
 		pr_err("Unable to access l_port->sep_alua_tg_pt_gp_mem\n");
-		rc = PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
+		rc = -EINVAL;
 		goto out;
 	}
 	spin_lock(&l_tg_pt_gp_mem->tg_pt_gp_mem_lock);
@@ -211,7 +212,8 @@ int target_emulate_set_target_port_groups(struct se_task *task)
 	if (!l_tg_pt_gp) {
 		spin_unlock(&l_tg_pt_gp_mem->tg_pt_gp_mem_lock);
 		pr_err("Unable to access *l_tg_pt_gp_mem->tg_pt_gp\n");
-		rc = PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
+		rc = -EINVAL;
 		goto out;
 	}
 	rc = (l_tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_EXPLICT_ALUA);
@@ -220,7 +222,8 @@ int target_emulate_set_target_port_groups(struct se_task *task)
 	if (!rc) {
 		pr_debug("Unable to process SET_TARGET_PORT_GROUPS"
 				" while TPGS_EXPLICT_ALUA is disabled\n");
-		rc = PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
+		rc = -EINVAL;
 		goto out;
 	}
 
@@ -245,7 +248,8 @@ int target_emulate_set_target_port_groups(struct se_task *task)
 			 * REQUEST, and the additional sense code set to INVALID
 			 * FIELD IN PARAMETER LIST.
 			 */
-			rc = PYX_TRANSPORT_INVALID_PARAMETER_LIST;
+			cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
+			rc = -EINVAL;
 			goto out;
 		}
 		rc = -1;
@@ -298,7 +302,8 @@ int target_emulate_set_target_port_groups(struct se_task *task)
 			 * throw an exception with ASCQ: INVALID_PARAMETER_LIST
 			 */
 			if (rc != 0) {
-				rc = PYX_TRANSPORT_INVALID_PARAMETER_LIST;
+				cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
+				rc = -EINVAL;
 				goto out;
 			}
 		} else {
@@ -335,7 +340,8 @@ int target_emulate_set_target_port_groups(struct se_task *task)
 			 * INVALID_PARAMETER_LIST
 			 */
 			if (rc != 0) {
-				rc = PYX_TRANSPORT_INVALID_PARAMETER_LIST;
+				cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
+				rc = -EINVAL;
 				goto out;
 			}
 		}
@@ -1184,7 +1190,6 @@ void core_alua_free_lu_gp(struct t10_alua_lu_gp *lu_gp)
 	 * struct t10_alua_lu_gp.
 	 */
 	spin_lock(&lu_gps_lock);
-	atomic_set(&lu_gp->lu_gp_shutdown, 1);
 	list_del(&lu_gp->lu_gp_node);
 	alua_lu_gps_count--;
 	spin_unlock(&lu_gps_lock);
@@ -1438,7 +1443,6 @@ struct t10_alua_tg_pt_gp_member *core_alua_allocate_tg_pt_gp_mem(
 
 	tg_pt_gp_mem->tg_pt = port;
 	port->sep_alua_tg_pt_gp_mem = tg_pt_gp_mem;
-	atomic_set(&port->sep_tg_pt_gp_active, 1);
 
 	return tg_pt_gp_mem;
 }

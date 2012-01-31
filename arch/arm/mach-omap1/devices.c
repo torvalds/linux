@@ -22,13 +22,15 @@
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
 
-#include <plat/common.h>
+#include "common.h"
 #include <plat/tc.h>
 #include <plat/board.h>
 #include <plat/mux.h>
 #include <plat/mmc.h>
 #include <plat/omap7xx.h>
 #include <plat/mcbsp.h>
+
+#include "clock.h"
 
 /*-------------------------------------------------------------------------*/
 
@@ -293,6 +295,7 @@ static int __init omap1_init_devices(void)
 		return -ENODEV;
 
 	omap_sram_init();
+	omap1_clk_late_init();
 
 	/* please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.

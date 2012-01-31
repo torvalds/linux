@@ -104,7 +104,7 @@ int netlbl_domhsh_walk(u32 *skip_bkt,
 		     int (*callback) (struct netlbl_dom_map *entry, void *arg),
 		     void *cb_arg);
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 struct netlbl_domaddr6_map *netlbl_domhsh_getentry_af6(const char *domain,
 						  const struct in6_addr *addr);
 #endif /* IPv6 */

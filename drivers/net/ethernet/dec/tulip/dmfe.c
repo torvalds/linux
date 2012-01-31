@@ -1085,10 +1085,11 @@ static void dmfe_ethtool_get_drvinfo(struct net_device *dev,
 {
 	struct dmfe_board_info *np = netdev_priv(dev);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	if (np->pdev)
-		strcpy(info->bus_info, pci_name(np->pdev));
+		strlcpy(info->bus_info, pci_name(np->pdev),
+			sizeof(info->bus_info));
 	else
 		sprintf(info->bus_info, "EISA 0x%lx %d",
 			dev->base_addr, dev->irq);

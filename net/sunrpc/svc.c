@@ -167,6 +167,7 @@ svc_pool_map_alloc_arrays(struct svc_pool_map *m, unsigned int maxpools)
 
 fail_free:
 	kfree(m->to_pool);
+	m->to_pool = NULL;
 fail:
 	return -ENOMEM;
 }
@@ -285,9 +286,10 @@ svc_pool_map_put(void)
 	mutex_lock(&svc_pool_map_mutex);
 
 	if (!--m->count) {
-		m->mode = SVC_POOL_DEFAULT;
 		kfree(m->to_pool);
+		m->to_pool = NULL;
 		kfree(m->pool_to);
+		m->pool_to = NULL;
 		m->npools = 0;
 	}
 
@@ -527,16 +529,19 @@ svc_destroy(struct svc_serv *serv)
 		printk("svc_destroy: no threads for serv=%p!\n", serv);
 
 	del_timer_sync(&serv->sv_temptimer);
-
-	svc_close_all(&serv->sv_tempsocks);
+	/*
+	 * The set of xprts (contained in the sv_tempsocks and
+	 * sv_permsocks lists) is now constant, since it is modified
+	 * only by accepting new sockets (done by service threads in
+	 * svc_recv) or aging old ones (done by sv_temptimer), or
+	 * configuration changes (excluded by whatever locking the
+	 * caller is using--nfsd_mutex in the case of nfsd).  So it's
+	 * safe to traverse those lists and shut everything down:
+	 */
+	svc_close_all(serv);
 
 	if (serv->sv_shutdown)
 		serv->sv_shutdown(serv);
-
-	svc_close_all(&serv->sv_permsocks);
-
-	BUG_ON(!list_empty(&serv->sv_permsocks));
-	BUG_ON(!list_empty(&serv->sv_tempsocks));
 
 	cache_clean_deferred(serv);
 
@@ -683,8 +688,8 @@ found_pool:
  * Create or destroy enough new threads to make the number
  * of threads the given number.  If `pool' is non-NULL, applies
  * only to threads in that pool, otherwise round-robins between
- * all pools.  Must be called with a svc_get() reference and
- * the BKL or another lock to protect access to svc_serv fields.
+ * all pools.  Caller must ensure that mutual exclusion between this and
+ * server startup or shutdown.
  *
  * Destroying threads relies on the service threads filling in
  * rqstp->rq_task, which only the nfs ones do.  Assumes the serv
@@ -826,7 +831,7 @@ static int __svc_rpcb_register4(const u32 program, const u32 version,
 	return error;
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 /*
  * Register an "inet6" protocol family netid with the local
  * rpcbind daemon via an rpcbind v4 SET request.
@@ -872,7 +877,7 @@ static int __svc_rpcb_register6(const u32 program, const u32 version,
 
 	return error;
 }
-#endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
+#endif	/* IS_ENABLED(CONFIG_IPV6) */
 
 /*
  * Register a kernel RPC service via rpcbind version 4.
@@ -893,11 +898,11 @@ static int __svc_register(const char *progname,
 		error = __svc_rpcb_register4(program, version,
 						protocol, port);
 		break;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	case PF_INET6:
 		error = __svc_rpcb_register6(program, version,
 						protocol, port);
-#endif	/* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */
+#endif
 	}
 
 	if (error < 0)

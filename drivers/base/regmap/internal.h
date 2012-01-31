@@ -119,10 +119,7 @@ unsigned int regcache_get_val(const void *base, unsigned int idx,
 bool regcache_set_val(void *base, unsigned int idx,
 		      unsigned int val, unsigned int word_size);
 int regcache_lookup_reg(struct regmap *map, unsigned int reg);
-int regcache_insert_reg(struct regmap *map, unsigned int reg,
-			unsigned int val);
 
-extern struct regcache_ops regcache_indexed_ops;
 extern struct regcache_ops regcache_rbtree_ops;
 extern struct regcache_ops regcache_lzo_ops;
 
