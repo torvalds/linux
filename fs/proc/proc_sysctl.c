@@ -869,6 +869,7 @@ static struct ctl_dir *get_subdir(struct ctl_dir *dir,
 {
 	struct ctl_table_set *set = dir->header.set;
 	struct ctl_dir *subdir, *new = NULL;
+	int err;
 
 	spin_lock(&sysctl_lock);
 	subdir = find_subdir(dir, name, namelen);
@@ -890,7 +891,9 @@ static struct ctl_dir *get_subdir(struct ctl_dir *dir,
 	if (PTR_ERR(subdir) != -ENOENT)
 		goto failed;
 
-	if (insert_header(dir, &new->header))
+	err = insert_header(dir, &new->header);
+	subdir = ERR_PTR(err);
+	if (err)
 		goto failed;
 	subdir = new;
 found:
