@@ -103,6 +103,7 @@ struct fw_resource {
  *		    the virtio device features, 'pa' holds the virtio guest
  *		    features, 'len' holds the virtio status, and 'flags' holds
  *		    the virtio id (currently only VIRTIO_ID_RPMSG is supported).
+ * @RSC_LAST:       just keep this one at the end
  *
  * Most of the resource entries share the basic idea of address/length
  * negotiation with the host: the firmware usually asks (on behalf of the
@@ -115,6 +116,11 @@ struct fw_resource {
  * will contain the expected device addresses (today we actually only support
  * this scheme, as there aren't yet any use cases for dynamically allocated
  * device addresses).
+ *
+ * Please note that these values are used as indices to the rproc_handle_rsc
+ * lookup table, so please keep them sane. Moreover, @RSC_LAST is used to
+ * check the validity of an index before the lookup table is accessed, so
+ * please update it as needed.
  */
 enum fw_resource_type {
 	RSC_CARVEOUT	= 0,
@@ -122,6 +128,7 @@ enum fw_resource_type {
 	RSC_TRACE	= 2,
 	RSC_VRING	= 3,
 	RSC_VIRTIO_DEV	= 4,
+	RSC_LAST	= 5,
 };
 
 /**

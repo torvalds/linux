@@ -64,6 +64,8 @@ static DEFINE_KLIST(rprocs, klist_rproc_get, klist_rproc_put);
 
 typedef int (*rproc_handle_resources_t)(struct rproc *rproc,
 				struct fw_resource *rsc, int len);
+typedef int (*rproc_handle_resource_t)(struct rproc *rproc,
+				struct fw_resource *rsc);
 
 /*
  * This is the IOMMU fault handler we register with the IOMMU API
@@ -658,44 +660,43 @@ free_mapping:
 	return ret;
 }
 
+/*
+ * A lookup table for resource handlers. The indices are defined in
+ * enum fw_resource_type.
+ */
+static rproc_handle_resource_t rproc_handle_rsc[] = {
+	[RSC_CARVEOUT] = rproc_handle_carveout,
+	[RSC_DEVMEM] = rproc_handle_devmem,
+	[RSC_TRACE] = rproc_handle_trace,
+	[RSC_VRING] = rproc_handle_vring,
+	[RSC_VIRTIO_DEV] = NULL, /* handled early upon registration */
+};
+
 /* handle firmware resource entries before booting the remote processor */
 static int
 rproc_handle_boot_rsc(struct rproc *rproc, struct fw_resource *rsc, int len)
 {
 	struct device *dev = rproc->dev;
+	rproc_handle_resource_t handler;
 	int ret = 0;
 
-	while (len >= sizeof(*rsc)) {
+	for (; len >= sizeof(*rsc); rsc++, len -= sizeof(*rsc)) {
 		dev_dbg(dev, "rsc: type %d, da 0x%llx, pa 0x%llx, len 0x%x, "
 			"id %d, name %s, flags %x\n", rsc->type, rsc->da,
 			rsc->pa, rsc->len, rsc->id, rsc->name, rsc->flags);
 
-		switch (rsc->type) {
-		case RSC_CARVEOUT:
-			ret = rproc_handle_carveout(rproc, rsc);
-			break;
-		case RSC_DEVMEM:
-			ret = rproc_handle_devmem(rproc, rsc);
-			break;
-		case RSC_TRACE:
-			ret = rproc_handle_trace(rproc, rsc);
-			break;
-		case RSC_VRING:
-			ret = rproc_handle_vring(rproc, rsc);
-			break;
-		case RSC_VIRTIO_DEV:
-			/* this one is handled early upon registration */
-			break;
-		default:
+		if (rsc->type >= RSC_LAST) {
 			dev_warn(dev, "unsupported resource %d\n", rsc->type);
-			break;
+			continue;
 		}
 
+		handler = rproc_handle_rsc[rsc->type];
+		if (!handler)
+			continue;
+
+		ret = handler(rproc, rsc);
 		if (ret)
 			break;
-
-		rsc++;
-		len -= sizeof(*rsc);
 	}
 
 	return ret;
