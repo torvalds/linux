@@ -565,12 +565,6 @@ struct wl12xx_vif {
 	/* Session counter for the chipset */
 	int session_counter;
 
-	struct completion *ps_compl;
-	struct delayed_work pspoll_work;
-
-	/* counter for ps-poll delivery failures */
-	int ps_poll_failures;
-
 	/* retry counter for PSM entries */
 	u8 psm_entry_retry;
 

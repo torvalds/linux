@@ -471,7 +471,6 @@ static ssize_t vifs_state_read(struct file *file, char __user *user_buf,
 		VIF_STATE_PRINT_INT(default_key);
 		VIF_STATE_PRINT_INT(aid);
 		VIF_STATE_PRINT_INT(session_counter);
-		VIF_STATE_PRINT_INT(ps_poll_failures);
 		VIF_STATE_PRINT_INT(psm_entry_retry);
 		VIF_STATE_PRINT_INT(power_level);
 		VIF_STATE_PRINT_INT(rssi_thold);

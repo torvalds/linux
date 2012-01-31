@@ -235,7 +235,6 @@ static struct conf_drv_settings default_conf = {
 		.broadcast_timeout           = 20000,
 		.rx_broadcast_in_ps          = 1,
 		.ps_poll_threshold           = 10,
-		.ps_poll_recovery_period     = 700,
 		.bet_enable                  = CONF_BET_MODE_ENABLE,
 		.bet_max_consecutive         = 50,
 		.psm_entry_retries           = 8,
@@ -1570,57 +1569,6 @@ static struct notifier_block wl1271_dev_notifier = {
 };
 
 #ifdef CONFIG_PM
-static int wl1271_configure_suspend_sta(struct wl1271 *wl,
-					struct wl12xx_vif *wlvif)
-{
-	int ret = 0;
-
-	mutex_lock(&wl->mutex);
-
-	if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
-		goto out_unlock;
-
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
-		goto out_unlock;
-
-	/* enter psm if needed*/
-	if (!test_bit(WLVIF_FLAG_PSM, &wlvif->flags)) {
-		DECLARE_COMPLETION_ONSTACK(compl);
-
-		wlvif->ps_compl = &compl;
-		ret = wl1271_ps_set_mode(wl, wlvif, STATION_POWER_SAVE_MODE,
-				   wlvif->basic_rate, true);
-		if (ret < 0)
-			goto out_sleep;
-
-		/* we must unlock here so we will be able to get events */
-		wl1271_ps_elp_sleep(wl);
-		mutex_unlock(&wl->mutex);
-
-		ret = wait_for_completion_timeout(
-			&compl, msecs_to_jiffies(WL1271_PS_COMPLETE_TIMEOUT));
-
-		mutex_lock(&wl->mutex);
-		if (ret <= 0) {
-			wl1271_warning("couldn't enter ps mode!");
-			ret = -EBUSY;
-			goto out_cleanup;
-		}
-
-		ret = wl1271_ps_elp_wakeup(wl);
-		if (ret < 0)
-			goto out_cleanup;
-	}
-out_sleep:
-	wl1271_ps_elp_sleep(wl);
-out_cleanup:
-	wlvif->ps_compl = NULL;
-out_unlock:
-	mutex_unlock(&wl->mutex);
-	return ret;
-
-}
 
 static int wl1271_configure_suspend_ap(struct wl1271 *wl,
 				       struct wl12xx_vif *wlvif)
@@ -1648,8 +1596,6 @@ out_unlock:
 static int wl1271_configure_suspend(struct wl1271 *wl,
 				    struct wl12xx_vif *wlvif)
 {
-	if (wlvif->bss_type == BSS_TYPE_STA_BSS)
-		return wl1271_configure_suspend_sta(wl, wlvif);
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
 		return wl1271_configure_suspend_ap(wl, wlvif);
 	return 0;
@@ -1659,10 +1605,9 @@ static void wl1271_configure_resume(struct wl1271 *wl,
 				    struct wl12xx_vif *wlvif)
 {
 	int ret;
-	bool is_sta = wlvif->bss_type == BSS_TYPE_STA_BSS;
 	bool is_ap = wlvif->bss_type == BSS_TYPE_AP_BSS;
 
-	if (!is_sta && !is_ap)
+	if (!is_ap)
 		return;
 
 	mutex_lock(&wl->mutex);
@@ -1670,14 +1615,7 @@ static void wl1271_configure_resume(struct wl1271 *wl,
 	if (ret < 0)
 		goto out;
 
-	if (is_sta) {
-		/* exit psm if it wasn't configured */
-		if (!test_bit(WLVIF_FLAG_PSM_REQUESTED, &wlvif->flags))
-			wl1271_ps_set_mode(wl, wlvif, STATION_ACTIVE_MODE,
-					   wlvif->basic_rate, true);
-	} else if (is_ap) {
-		wl1271_acx_beacon_filter_opt(wl, wlvif, false);
-	}
+	wl1271_acx_beacon_filter_opt(wl, wlvif, false);
 
 	wl1271_ps_elp_sleep(wl);
 out:
@@ -1719,9 +1657,6 @@ static int wl1271_op_suspend(struct ieee80211_hw *hw,
 
 	wl1271_enable_interrupts(wl);
 	flush_work(&wl->tx_work);
-	wl12xx_for_each_wlvif(wl, wlvif) {
-		flush_delayed_work(&wlvif->pspoll_work);
-	}
 	flush_delayed_work(&wl->elp_work);
 
 	return 0;
@@ -1994,7 +1929,6 @@ static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 		  wl1271_rx_streaming_enable_work);
 	INIT_WORK(&wlvif->rx_streaming_disable_work,
 		  wl1271_rx_streaming_disable_work);
-	INIT_DELAYED_WORK(&wlvif->pspoll_work, wl1271_pspoll_work);
 	INIT_LIST_HEAD(&wlvif->list);
 
 	setup_timer(&wlvif->rx_streaming_timer, wl1271_rx_streaming_timer,
@@ -2278,10 +2212,10 @@ deinit:
 		wl->sta_count--;
 
 	mutex_unlock(&wl->mutex);
+
 	del_timer_sync(&wlvif->rx_streaming_timer);
 	cancel_work_sync(&wlvif->rx_streaming_enable_work);
 	cancel_work_sync(&wlvif->rx_streaming_disable_work);
-	cancel_delayed_work_sync(&wlvif->pspoll_work);
 
 	mutex_lock(&wl->mutex);
 }
@@ -2527,13 +2461,6 @@ static int wl12xx_config_vif(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			}
 		}
 	}
-
-	/*
-	 * if mac80211 changes the PSM mode, make sure the mode is not
-	 * incorrectly changed after the pspoll failure active window.
-	 */
-	if (changed & IEEE80211_CONF_CHANGE_PS)
-		clear_bit(WLVIF_FLAG_PSPOLL_FAILURE, &wlvif->flags);
 
 	if (conf->flags & IEEE80211_CONF_PS &&
 	    !test_bit(WLVIF_FLAG_PSM_REQUESTED, &wlvif->flags)) {
@@ -3707,8 +3634,6 @@ sta_not_found:
 			int ieoffset;
 			wlvif->aid = bss_conf->aid;
 			set_assoc = true;
-
-			wlvif->ps_poll_failures = 0;
 
 			/*
 			 * use basic rates from AP, and determine lowest rate
