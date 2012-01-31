@@ -562,8 +562,8 @@ SOC_DAPM_SINGLE("Left Output Switch", WM8993_LINE_MIXER1, 0, 1, 0),
 };
 
 static const struct snd_kcontrol_new line2_mix[] = {
-SOC_DAPM_SINGLE("IN2R Switch", WM8993_LINE_MIXER2, 2, 1, 0),
-SOC_DAPM_SINGLE("IN2L Switch", WM8993_LINE_MIXER2, 1, 1, 0),
+SOC_DAPM_SINGLE("IN1R Switch", WM8993_LINE_MIXER2, 2, 1, 0),
+SOC_DAPM_SINGLE("IN1L Switch", WM8993_LINE_MIXER2, 1, 1, 0),
 SOC_DAPM_SINGLE("Output Switch", WM8993_LINE_MIXER2, 0, 1, 0),
 };
 
@@ -808,8 +808,8 @@ static const struct snd_soc_dapm_route lineout1_se_routes[] = {
 };
 
 static const struct snd_soc_dapm_route lineout2_diff_routes[] = {
-	{ "LINEOUT2 Mixer", "IN2L Switch", "IN2L PGA" },
-	{ "LINEOUT2 Mixer", "IN2R Switch", "IN2R PGA" },
+	{ "LINEOUT2 Mixer", "IN1L Switch", "IN1L PGA" },
+	{ "LINEOUT2 Mixer", "IN1R Switch", "IN1R PGA" },
 	{ "LINEOUT2 Mixer", "Output Switch", "Right Output PGA" },
 
 	{ "LINEOUT2N Driver", NULL, "LINEOUT2 Mixer" },
