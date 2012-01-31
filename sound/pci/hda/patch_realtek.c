@@ -4747,7 +4747,6 @@ enum {
 	ALC262_FIXUP_FSC_H270,
 	ALC262_FIXUP_HP_Z200,
 	ALC262_FIXUP_TYAN,
-	ALC262_FIXUP_TOSHIBA_RX1,
 	ALC262_FIXUP_LENOVO_3000,
 	ALC262_FIXUP_BENQ,
 	ALC262_FIXUP_BENQ_T31,
@@ -4775,16 +4774,6 @@ static const struct alc_fixup alc262_fixups[] = {
 		.v.pins = (const struct alc_pincfg[]) {
 			{ 0x14, 0x1993e1f0 }, /* int AUX */
 			{ }
-		}
-	},
-	[ALC262_FIXUP_TOSHIBA_RX1] = {
-		.type = ALC_FIXUP_PINS,
-		.v.pins = (const struct alc_pincfg[]) {
-			{ 0x14, 0x90170110 }, /* speaker */
-			{ 0x15, 0x0421101f }, /* HP */
-			{ 0x1a, 0x40f000f0 }, /* N/A */
-			{ 0x1b, 0x40f000f0 }, /* N/A */
-			{ 0x1e, 0x40f000f0 }, /* N/A */
 		}
 	},
 	[ALC262_FIXUP_LENOVO_3000] = {
@@ -4819,8 +4808,6 @@ static const struct snd_pci_quirk alc262_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x10cf, 0x1397, "Fujitsu", ALC262_FIXUP_BENQ),
 	SND_PCI_QUIRK(0x10cf, 0x142d, "Fujitsu Lifebook E8410", ALC262_FIXUP_BENQ),
 	SND_PCI_QUIRK(0x10f1, 0x2915, "Tyan Thunder n6650W", ALC262_FIXUP_TYAN),
-	SND_PCI_QUIRK(0x1179, 0x0001, "Toshiba dynabook SS RX1",
-		      ALC262_FIXUP_TOSHIBA_RX1),
 	SND_PCI_QUIRK(0x1734, 0x1147, "FSC Celsius H270", ALC262_FIXUP_FSC_H270),
 	SND_PCI_QUIRK(0x17aa, 0x384e, "Lenovo 3000", ALC262_FIXUP_LENOVO_3000),
 	SND_PCI_QUIRK(0x17ff, 0x0560, "Benq ED8", ALC262_FIXUP_BENQ),
