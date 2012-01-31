@@ -183,18 +183,18 @@ static void e1000e_dump(struct e1000_adapter *adapter)
 	struct e1000_ring *tx_ring = adapter->tx_ring;
 	struct e1000_tx_desc *tx_desc;
 	struct my_u0 {
-		u64 a;
-		u64 b;
+		__le64 a;
+		__le64 b;
 	} *u0;
 	struct e1000_buffer *buffer_info;
 	struct e1000_ring *rx_ring = adapter->rx_ring;
 	union e1000_rx_desc_packet_split *rx_desc_ps;
 	union e1000_rx_desc_extended *rx_desc;
 	struct my_u1 {
-		u64 a;
-		u64 b;
-		u64 c;
-		u64 d;
+		__le64 a;
+		__le64 b;
+		__le64 c;
+		__le64 d;
 	} *u1;
 	u32 staterr;
 	int i = 0;
@@ -5963,7 +5963,8 @@ static void e1000_eeprom_checks(struct e1000_adapter *adapter)
 		return;
 
 	ret_val = e1000_read_nvm(hw, NVM_INIT_CONTROL2_REG, 1, &buf);
-	if (!ret_val && (!(le16_to_cpu(buf) & (1 << 0)))) {
+	le16_to_cpus(&buf);
+	if (!ret_val && (!(buf & (1 << 0)))) {
 		/* Deep Smart Power Down (DSPD) */
 		dev_warn(&adapter->pdev->dev,
 			 "Warning: detected DSPD enabled in EEPROM\n");
