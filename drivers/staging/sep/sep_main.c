@@ -214,7 +214,7 @@ static int sep_allocate_dmatables_region(struct sep_device *sep,
 		return -EINVAL;
 	}
 
-	dev_dbg(&sep->pdev->dev, "[PID%d] newlen = 0x%08X\n",
+	dev_dbg(&sep->pdev->dev, "[PID%d] newlen = 0x%08zX\n",
 				current->pid, new_len);
 	dev_dbg(&sep->pdev->dev, "[PID%d] oldlen = 0x%08X\n", current->pid,
 				dma_ctx->dmatables_len);
@@ -3344,7 +3344,7 @@ static ssize_t sep_activate_msgarea_context(struct sep_device *sep,
 	if (!msg_region || !(*msg_region) ||
 	    SEP_DRIVER_MESSAGE_SHARED_AREA_SIZE_IN_BYTES < msg_len) {
 		dev_warn(&sep->pdev->dev,
-			 "[PID%d] invalid act msgarea len 0x%08X\n",
+			 "[PID%d] invalid act msgarea len 0x%08zX\n",
 			 current->pid, msg_len);
 		return -EINVAL;
 	}
@@ -3376,7 +3376,7 @@ static ssize_t sep_create_msgarea_context(struct sep_device *sep,
 	    SEP_DRIVER_MAX_MESSAGE_SIZE_IN_BYTES < msg_len ||
 	    SEP_DRIVER_MIN_MESSAGE_SIZE_IN_BYTES > msg_len) {
 		dev_warn(&sep->pdev->dev,
-			 "[PID%d] invalid creat msgarea len 0x%08X\n",
+			 "[PID%d] invalid creat msgarea len 0x%08zX\n",
 			 current->pid, msg_len);
 		error = -EINVAL;
 		goto end_function;
@@ -3463,7 +3463,7 @@ static ssize_t sep_read(struct file *filp,
 
 	sep_dump_message(sep);
 
-	dev_dbg(&sep->pdev->dev, "[PID%d] count_user = 0x%08X\n",
+	dev_dbg(&sep->pdev->dev, "[PID%d] count_user = 0x%08zX\n",
 		current->pid, count_user);
 
 	/* In case user has allocated bigger buffer */
@@ -3522,7 +3522,7 @@ static inline ssize_t sep_fastcall_args_get(struct sep_device *sep,
 
 	if (count_user < sizeof(struct sep_fastcall_hdr)) {
 		dev_warn(&sep->pdev->dev,
-			 "[PID%d] too small message size 0x%08X\n",
+			 "[PID%d] too small message size 0x%08zX\n",
 			 current->pid, count_user);
 		error = -EINVAL;
 		goto end_function;
@@ -3563,7 +3563,7 @@ static inline ssize_t sep_fastcall_args_get(struct sep_device *sep,
 	if (actual_count != count_user) {
 		dev_warn(&sep->pdev->dev,
 			 "[PID%d] inconsistent message "
-			 "sizes 0x%08X vs 0x%08X\n",
+			 "sizes 0x%08zX vs 0x%08zX\n",
 			 current->pid, actual_count, count_user);
 		error = -EMSGSIZE;
 		goto end_function;
