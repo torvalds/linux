@@ -1723,15 +1723,32 @@ static int nfs4_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *sta
 }
 
 #if defined(CONFIG_NFS_V4_1)
-static int nfs41_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *state)
+static int nfs41_check_expired_stateid(struct nfs4_state *state, nfs4_stateid *stateid, unsigned int flags)
 {
-	int status;
+	int status = NFS_OK;
 	struct nfs_server *server = NFS_SERVER(state->inode);
 
-	status = nfs41_test_stateid(server, &state->stateid);
-	if (status == NFS_OK)
-		return 0;
-	nfs41_free_stateid(server, &state->stateid);
+	if (state->flags & flags) {
+		status = nfs41_test_stateid(server, stateid);
+		if (status != NFS_OK) {
+			nfs41_free_stateid(server, stateid);
+			state->flags &= ~flags;
+		}
+	}
+	return status;
+}
+
+static int nfs41_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *state)
+{
+	int deleg_status, open_status;
+	int deleg_flags = 1 << NFS_DELEGATED_STATE;
+	int open_flags = (1 << NFS_O_RDONLY_STATE) | (1 << NFS_O_WRONLY_STATE) | (1 << NFS_O_RDWR_STATE);
+
+	deleg_status = nfs41_check_expired_stateid(state, &state->stateid, deleg_flags);
+	open_status = nfs41_check_expired_stateid(state,  &state->open_stateid, open_flags);
+
+	if ((deleg_status == NFS_OK) && (open_status == NFS_OK))
+		return NFS_OK;
 	return nfs4_open_expired(sp, state);
 }
 #endif
@@ -4504,15 +4521,34 @@ out:
 }
 
 #if defined(CONFIG_NFS_V4_1)
-static int nfs41_lock_expired(struct nfs4_state *state, struct file_lock *request)
+static int nfs41_check_expired_locks(struct nfs4_state *state)
 {
-	int status;
+	int status, ret = NFS_OK;
+	struct nfs4_lock_state *lsp;
 	struct nfs_server *server = NFS_SERVER(state->inode);
 
-	status = nfs41_test_stateid(server, &state->stateid);
+	list_for_each_entry(lsp, &state->lock_states, ls_locks) {
+		if (lsp->ls_flags & NFS_LOCK_INITIALIZED) {
+			status = nfs41_test_stateid(server, &lsp->ls_stateid);
+			if (status != NFS_OK) {
+				nfs41_free_stateid(server, &lsp->ls_stateid);
+				lsp->ls_flags &= ~NFS_LOCK_INITIALIZED;
+				ret = status;
+			}
+		}
+	};
+
+	return ret;
+}
+
+static int nfs41_lock_expired(struct nfs4_state *state, struct file_lock *request)
+{
+	int status = NFS_OK;
+
+	if (test_bit(LK_STATE_IN_USE, &state->flags))
+		status = nfs41_check_expired_locks(state);
 	if (status == NFS_OK)
-		return 0;
-	nfs41_free_stateid(server, &state->stateid);
+		return status;
 	return nfs4_lock_expired(state, request);
 }
 #endif
