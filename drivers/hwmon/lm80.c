@@ -60,6 +60,10 @@ static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 #define LM80_REG_FANDIV			0x05
 #define LM80_REG_RES			0x06
 
+#define LM96080_REG_CONV_RATE		0x07
+#define LM96080_REG_MAN_ID		0x3e
+#define LM96080_REG_DEV_ID		0x3f
+
 
 /*
  * Conversions. Rounding and limit checking is only done on the TO_REG
@@ -147,6 +151,7 @@ static int lm80_write_value(struct i2c_client *client, u8 reg, u8 value);
 
 static const struct i2c_device_id lm80_id[] = {
 	{ "lm80", 0 },
+	{ "lm96080", 1 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm80_id);
@@ -490,23 +495,44 @@ static const struct attribute_group lm80_group = {
 static int lm80_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	int i, cur;
+	int i, cur, man_id, dev_id;
+	const char *name = NULL;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	/* Now, we do the remaining detection. It is lousy. */
-	if (lm80_read_value(client, LM80_REG_ALARM2) & 0xc0)
+	/* First check for unused bits, common to both chip types */
+	if ((lm80_read_value(client, LM80_REG_ALARM2) & 0xc0)
+	 || (lm80_read_value(client, LM80_REG_CONFIG) & 0x80))
 		return -ENODEV;
-	for (i = 0x2a; i <= 0x3d; i++) {
-		cur = i2c_smbus_read_byte_data(client, i);
-		if ((i2c_smbus_read_byte_data(client, i + 0x40) != cur)
-		 || (i2c_smbus_read_byte_data(client, i + 0x80) != cur)
-		 || (i2c_smbus_read_byte_data(client, i + 0xc0) != cur))
+
+	/*
+	 * The LM96080 has manufacturer and stepping/die rev registers so we
+	 * can just check that. The LM80 does not have such registers so we
+	 * have to use a more expensive trick.
+	 */
+	man_id = lm80_read_value(client, LM96080_REG_MAN_ID);
+	dev_id = lm80_read_value(client, LM96080_REG_DEV_ID);
+	if (man_id == 0x01 && dev_id == 0x08) {
+		/* Check more unused bits for confirmation */
+		if (lm80_read_value(client, LM96080_REG_CONV_RATE) & 0xfe)
 			return -ENODEV;
+
+		name = "lm96080";
+	} else {
+		/* Check 6-bit addressing */
+		for (i = 0x2a; i <= 0x3d; i++) {
+			cur = i2c_smbus_read_byte_data(client, i);
+			if ((i2c_smbus_read_byte_data(client, i + 0x40) != cur)
+			 || (i2c_smbus_read_byte_data(client, i + 0x80) != cur)
+			 || (i2c_smbus_read_byte_data(client, i + 0xc0) != cur))
+				return -ENODEV;
+		}
+
+		name = "lm80";
 	}
 
-	strlcpy(info->type, "lm80", I2C_NAME_SIZE);
+	strlcpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;
 }
