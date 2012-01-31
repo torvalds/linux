@@ -415,7 +415,7 @@ config INPUT_PCF8574
 	tristate "PCF8574 Keypad input device"
 	depends on I2C && EXPERIMENTAL
 	help
-	  Say Y here if you want to support a keypad connetced via I2C
+	  Say Y here if you want to support a keypad connected via I2C
 	  with a PCF8574.
 
 	  To compile this driver as a module, choose M here: the
