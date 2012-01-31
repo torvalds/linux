@@ -915,6 +915,12 @@ struct conf_conn_settings {
 	u8 psm_entry_nullfunc_retries;
 
 	/*
+	 * Specifies the dynamic PS timeout in ms that will be used
+	 * by the FW when in AUTO_PS mode
+	 */
+	u16 dynamic_ps_timeout;
+
+	/*
 	 *
 	 * Specifies the interval of the connection keep-alive null-func
 	 * frame in ms.

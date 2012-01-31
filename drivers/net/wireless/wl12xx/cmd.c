@@ -996,7 +996,7 @@ out:
 }
 
 int wl1271_cmd_ps_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
-		       u8 ps_mode)
+		       u8 ps_mode, u16 auto_ps_timeout)
 {
 	struct wl1271_cmd_ps_params *ps_params = NULL;
 	int ret = 0;
@@ -1011,6 +1011,7 @@ int wl1271_cmd_ps_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	ps_params->role_id = wlvif->role_id;
 	ps_params->ps_mode = ps_mode;
+	ps_params->auto_ps_timeout = auto_ps_timeout;
 
 	ret = wl1271_cmd_send(wl, CMD_SET_PS_MODE, ps_params,
 			      sizeof(*ps_params), 0);

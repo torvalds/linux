@@ -51,7 +51,7 @@ int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf, size_t len);
 int wl1271_cmd_configure(struct wl1271 *wl, u16 id, void *buf, size_t len);
 int wl1271_cmd_data_path(struct wl1271 *wl, bool enable);
 int wl1271_cmd_ps_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
-		       u8 ps_mode);
+		       u8 ps_mode, u16 auto_ps_timeout);
 int wl1271_cmd_read_memory(struct wl1271 *wl, u32 addr, void *answer,
 			   size_t len);
 int wl1271_cmd_template_set(struct wl1271 *wl, u8 role_id,
@@ -400,6 +400,7 @@ struct wl1271_tim {
 } __packed;
 
 enum wl1271_cmd_ps_mode {
+	STATION_AUTO_PS_MODE,   /* Dynamic Power Save */
 	STATION_ACTIVE_MODE,
 	STATION_POWER_SAVE_MODE
 };
@@ -409,7 +410,7 @@ struct wl1271_cmd_ps_params {
 
 	u8 role_id;
 	u8 ps_mode; /* STATION_* */
-	u8 padding[2];
+	u16 auto_ps_timeout;
 } __packed;
 
 /* HW encryption keys */

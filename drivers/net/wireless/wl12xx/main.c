@@ -1,3 +1,4 @@
+
 /*
  * This file is part of wl1271
  *
@@ -240,6 +241,7 @@ static struct conf_drv_settings default_conf = {
 		.psm_entry_retries           = 8,
 		.psm_exit_retries            = 16,
 		.psm_entry_nullfunc_retries  = 3,
+		.dynamic_ps_timeout          = 100,
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
 	},
@@ -2142,10 +2144,6 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 
 	wl1271_info("down");
 
-	/* enable dyn ps just in case (if left on due to fw crash etc) */
-	if (wlvif->bss_type == BSS_TYPE_STA_BSS)
-		ieee80211_enable_dyn_ps(vif);
-
 	if (wl->scan.state != WL1271_SCAN_STATE_IDLE &&
 	    wl->scan_vif == vif) {
 		wl->scan.state = WL1271_SCAN_STATE_IDLE;
@@ -3694,9 +3692,6 @@ sta_not_found:
 			dev_kfree_skb(wlvif->probereq);
 			wlvif->probereq = NULL;
 
-			/* re-enable dynamic ps - just in case */
-			ieee80211_enable_dyn_ps(vif);
-
 			/* revert back to minimum rates for the current band */
 			wl1271_set_band_rate(wl, wlvif);
 			wlvif->basic_rate =
@@ -3827,10 +3822,9 @@ sta_not_found:
 		/* If we want to go in PSM but we're not there yet */
 		if (test_bit(WLVIF_FLAG_PSM_REQUESTED, &wlvif->flags) &&
 		    !test_bit(WLVIF_FLAG_PSM, &wlvif->flags)) {
-			enum wl1271_cmd_ps_mode mode;
 
-			mode = STATION_POWER_SAVE_MODE;
-			ret = wl1271_ps_set_mode(wl, wlvif, mode,
+			ret = wl1271_ps_set_mode(wl, wlvif,
+						 STATION_AUTO_PS_MODE,
 						 wlvif->basic_rate,
 						 true);
 			if (ret < 0)
@@ -4976,6 +4970,7 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 
 	wl->hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		IEEE80211_HW_SUPPORTS_PS |
+		IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
 		IEEE80211_HW_SUPPORTS_UAPSD |
 		IEEE80211_HW_HAS_RATE_CONTROL |
 		IEEE80211_HW_CONNECTION_MONITOR |

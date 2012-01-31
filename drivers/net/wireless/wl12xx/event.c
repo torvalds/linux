@@ -78,21 +78,13 @@ static void wl1271_stop_ba_event(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 static void wl12xx_event_soft_gemini_sense(struct wl1271 *wl,
 					       u8 enable)
 {
-	struct ieee80211_vif *vif;
 	struct wl12xx_vif *wlvif;
 
 	if (enable) {
-		/* disable dynamic PS when requested by the firmware */
-		wl12xx_for_each_wlvif_sta(wl, wlvif) {
-			vif = wl12xx_wlvif_to_vif(wlvif);
-			ieee80211_disable_dyn_ps(vif);
-		}
 		set_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags);
 	} else {
 		clear_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags);
 		wl12xx_for_each_wlvif_sta(wl, wlvif) {
-			vif = wl12xx_wlvif_to_vif(wlvif);
-			ieee80211_enable_dyn_ps(vif);
 			wl1271_recalc_rx_streaming(wl, wlvif);
 		}
 	}

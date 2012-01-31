@@ -163,10 +163,12 @@ int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		       enum wl1271_cmd_ps_mode mode, u32 rates, bool send)
 {
 	int ret;
+	u16 timeout = wl->conf.conn.dynamic_ps_timeout;
 
 	switch (mode) {
-	case STATION_POWER_SAVE_MODE:
-		wl1271_debug(DEBUG_PSM, "entering psm");
+	case STATION_AUTO_PS_MODE:
+		wl1271_debug(DEBUG_PSM, "entering psm (mode=%d,timeout=%u)",
+			     mode, timeout);
 
 		ret = wl1271_acx_wake_up_conditions(wl, wlvif);
 		if (ret < 0) {
@@ -174,14 +176,13 @@ int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			return ret;
 		}
 
-		ret = wl1271_cmd_ps_mode(wl, wlvif, STATION_POWER_SAVE_MODE);
+		ret = wl1271_cmd_ps_mode(wl, wlvif, mode, timeout);
 		if (ret < 0)
 			return ret;
 
 		set_bit(WLVIF_FLAG_PSM, &wlvif->flags);
 		break;
 	case STATION_ACTIVE_MODE:
-	default:
 		wl1271_debug(DEBUG_PSM, "leaving psm");
 
 		/* disable beacon early termination */
@@ -191,12 +192,16 @@ int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 				return ret;
 		}
 
-		ret = wl1271_cmd_ps_mode(wl, wlvif, STATION_ACTIVE_MODE);
+		ret = wl1271_cmd_ps_mode(wl, wlvif, mode, 0);
 		if (ret < 0)
 			return ret;
 
 		clear_bit(WLVIF_FLAG_PSM, &wlvif->flags);
 		break;
+	case STATION_POWER_SAVE_MODE:
+	default:
+		wl1271_warning("trying to set ps to unsupported mode %d", mode);
+		ret = -EINVAL;
 	}
 
 	return ret;
