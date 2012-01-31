@@ -3273,17 +3273,8 @@ out_mod_timer:
 
 static void rtl_schedule_task(struct rtl8169_private *tp, enum rtl_flag flag)
 {
-	spin_lock(&tp->lock);
 	if (!test_and_set_bit(flag, tp->wk.flags))
 		schedule_work(&tp->wk.work);
-	spin_unlock(&tp->lock);
-}
-
-static void rtl_schedule_task_bh(struct rtl8169_private *tp, enum rtl_flag flag)
-{
-	local_bh_disable();
-	rtl_schedule_task(tp, flag);
-	local_bh_enable();
 }
 
 static void rtl8169_phy_timer(unsigned long __opaque)
@@ -3291,7 +3282,7 @@ static void rtl8169_phy_timer(unsigned long __opaque)
 	struct net_device *dev = (struct net_device *)__opaque;
 	struct rtl8169_private *tp = netdev_priv(dev);
 
-	rtl_schedule_task_bh(tp, RTL_FLAG_TASK_PHY_PENDING);
+	rtl_schedule_task(tp, RTL_FLAG_TASK_PHY_PENDING);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -5635,7 +5626,7 @@ static void rtl8169_pcierr_interrupt(struct net_device *dev)
 
 	rtl8169_hw_reset(tp);
 
-	rtl_schedule_task_bh(tp, RTL_FLAG_TASK_RESET_PENDING);
+	rtl_schedule_task(tp, RTL_FLAG_TASK_RESET_PENDING);
 }
 
 static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp)
@@ -5852,7 +5843,7 @@ static void rtl_slow_event_work(struct rtl8169_private *tp)
 		/* Work around for rx fifo overflow */
 		case RTL_GIGA_MAC_VER_11:
 			netif_stop_queue(dev);
-			rtl_schedule_task_bh(tp, RTL_FLAG_TASK_RESET_PENDING);
+			rtl_schedule_task(tp, RTL_FLAG_TASK_RESET_PENDING);
 		default:
 			break;
 		}
@@ -5894,10 +5885,7 @@ static void rtl_task(struct work_struct *work)
 	for (i = 0; i < ARRAY_SIZE(rtl_work); i++) {
 		bool pending;
 
-		spin_lock_bh(&tp->lock);
 		pending = test_and_clear_bit(rtl_work[i].bitnr, tp->wk.flags);
-		spin_unlock_bh(&tp->lock);
-
 		if (pending)
 			rtl_work[i].action(tp);
 	}
@@ -6116,7 +6104,7 @@ static void __rtl8169_resume(struct net_device *dev)
 
 	tp->wk.enabled = true;
 
-	rtl_schedule_task_bh(tp, RTL_FLAG_TASK_RESET_PENDING);
+	rtl_schedule_task(tp, RTL_FLAG_TASK_RESET_PENDING);
 }
 
 static int rtl8169_resume(struct device *device)
