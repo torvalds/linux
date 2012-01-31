@@ -221,7 +221,7 @@ static void e1000e_dump(struct e1000_adapter *adapter)
 
 	/* Print Tx Ring Summary */
 	if (!netdev || !netif_running(netdev))
-		goto exit;
+		return;
 
 	dev_info(&adapter->pdev->dev, "Tx Ring Summary\n");
 	pr_info("Queue [NTU] [NTC] [bi(ntc)->dma  ] leng ntw timestamp\n");
@@ -308,7 +308,7 @@ rx_ring_summary:
 
 	/* Print Rx Ring */
 	if (!netif_msg_rx_status(adapter))
-		goto exit;
+		return;
 
 	dev_info(&adapter->pdev->dev, "Rx Ring Dump\n");
 	switch (adapter->rx_ps_pages) {
@@ -449,9 +449,6 @@ rx_ring_summary:
 			}
 		}
 	}
-
-exit:
-	return;
 }
 
 /**

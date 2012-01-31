@@ -1661,7 +1661,7 @@ void e1000e_reset_adaptive(struct e1000_hw *hw)
 
 	if (!mac->adaptive_ifs) {
 		e_dbg("Not in Adaptive IFS mode!\n");
-		goto out;
+		return;
 	}
 
 	mac->current_ifs_val = 0;
@@ -1672,8 +1672,6 @@ void e1000e_reset_adaptive(struct e1000_hw *hw)
 
 	mac->in_ifs_mode = false;
 	ew32(AIT, 0);
-out:
-	return;
 }
 
 /**
@@ -1689,7 +1687,7 @@ void e1000e_update_adaptive(struct e1000_hw *hw)
 
 	if (!mac->adaptive_ifs) {
 		e_dbg("Not in Adaptive IFS mode!\n");
-		goto out;
+		return;
 	}
 
 	if ((mac->collision_delta * mac->ifs_ratio) > mac->tx_packet_delta) {
@@ -1712,6 +1710,4 @@ void e1000e_update_adaptive(struct e1000_hw *hw)
 			ew32(AIT, 0);
 		}
 	}
-out:
-	return;
 }
