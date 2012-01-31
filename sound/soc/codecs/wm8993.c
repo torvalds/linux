@@ -1622,6 +1622,12 @@ static int wm8993_probe(struct snd_soc_codec *codec)
 	wm_hubs_add_analogue_routes(codec, wm8993->pdata.lineout1_diff,
 				    wm8993->pdata.lineout2_diff);
 
+	/* If the line outputs are differential then we aren't presenting
+	 * VMID as an output and can disable it.
+	 */
+	if (wm8993->pdata.lineout1_diff && wm8993->pdata.lineout2_diff)
+		codec->dapm.idle_bias_off = 1;
+
 	return 0;
 
 }

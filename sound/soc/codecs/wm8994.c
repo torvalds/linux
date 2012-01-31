@@ -3396,10 +3396,18 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	pm_runtime_enable(codec->dev);
 	pm_runtime_resume(codec->dev);
 
+	/* By default use idle_bias_off, will override for WM8994 */
+	codec->dapm.idle_bias_off = 1;
+
 	/* Set revision-specific configuration */
 	wm8994->revision = snd_soc_read(codec, WM8994_CHIP_REVISION);
 	switch (control->type) {
 	case WM8994:
+		/* Single ended line outputs should have VMID on. */
+		if (!wm8994->pdata->lineout1_diff ||
+		    !wm8994->pdata->lineout2_diff)
+			codec->dapm.idle_bias_off = 0;
+
 		switch (wm8994->revision) {
 		case 2:
 		case 3:
