@@ -39,6 +39,7 @@
 #include <linux/elf.h>
 #include <linux/virtio_ids.h>
 #include <linux/virtio_ring.h>
+#include <asm/byteorder.h>
 
 #include "remoteproc_internal.h"
 
@@ -850,6 +851,16 @@ static int rproc_fw_sanity_check(struct rproc *rproc, const struct firmware *fw)
 	}
 
 	ehdr = (struct elf32_hdr *)fw->data;
+
+	/* We assume the firmware has the same endianess as the host */
+# ifdef __LITTLE_ENDIAN
+	if (ehdr->e_ident[EI_DATA] != ELFDATA2LSB) {
+# else /* BIG ENDIAN */
+	if (ehdr->e_ident[EI_DATA] != ELFDATA2MSB) {
+# endif
+		dev_err(dev, "Unsupported firmware endianess\n");
+		return -EINVAL;
+	}
 
 	if (fw->size < ehdr->e_shoff + sizeof(struct elf32_shdr)) {
 		dev_err(dev, "Image is too small\n");
