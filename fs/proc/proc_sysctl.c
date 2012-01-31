@@ -833,9 +833,9 @@ static struct ctl_dir *find_subdir(struct ctl_dir *dir,
 	entry = find_entry(&head, dir, name, namelen);
 	if (!entry)
 		return ERR_PTR(-ENOENT);
-	if (S_ISDIR(entry->mode))
-		return container_of(head, struct ctl_dir, header);
-	return ERR_PTR(-ENOTDIR);
+	if (!S_ISDIR(entry->mode))
+		return ERR_PTR(-ENOTDIR);
+	return container_of(head, struct ctl_dir, header);
 }
 
 static struct ctl_dir *new_dir(struct ctl_table_set *set,
