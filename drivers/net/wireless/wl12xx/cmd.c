@@ -1029,7 +1029,8 @@ int wl1271_cmd_template_set(struct wl1271 *wl, u8 role_id,
 	struct wl1271_cmd_template_set *cmd;
 	int ret = 0;
 
-	wl1271_debug(DEBUG_CMD, "cmd template_set %d", template_id);
+	wl1271_debug(DEBUG_CMD, "cmd template_set %d (role %d)",
+		     template_id, role_id);
 
 	WARN_ON(buf_len > WL1271_CMD_TEMPL_MAX_SIZE);
 	buf_len = min_t(size_t, buf_len, WL1271_CMD_TEMPL_MAX_SIZE);

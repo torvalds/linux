@@ -3070,7 +3070,7 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 
 	/* cancel ROC before scanning */
 	if (wl12xx_dev_role_started(wlvif))
-		wl12xx_stop_dev(wl, wlvif);
+		wl12xx_croc(wl, wlvif->dev_role_id);
 
 	ret = wl1271_scan(hw->priv, vif, ssid, len, req);
 out_sleep:

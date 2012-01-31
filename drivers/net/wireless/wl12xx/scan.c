@@ -77,7 +77,10 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	     (is_ibss && !test_bit(WLVIF_FLAG_IBSS_JOINED, &wlvif->flags))) &&
 	    !test_bit(wlvif->dev_role_id, wl->roc_map)) {
 		/* restore remain on channel */
-		wl12xx_start_dev(wl, wlvif);
+		if (wlvif->dev_hlid == WL12XX_INVALID_LINK_ID)
+			wl12xx_start_dev(wl, wlvif);
+		else
+			wl12xx_roc(wl, wlvif, wlvif->dev_role_id);
 	}
 	wl1271_ps_elp_sleep(wl);
 
@@ -185,11 +188,16 @@ static int wl1271_scan_send(struct wl1271 *wl, struct ieee80211_vif *vif,
 	if (passive)
 		scan_options |= WL1271_SCAN_OPT_PASSIVE;
 
-	if (WARN_ON(wlvif->role_id == WL12XX_INVALID_ROLE_ID)) {
+	if (WARN_ON(wlvif->role_id == WL12XX_INVALID_ROLE_ID ||
+		    wlvif->dev_role_id == WL12XX_INVALID_ROLE_ID)) {
 		ret = -EINVAL;
 		goto out;
 	}
-	cmd->params.role_id = wlvif->role_id;
+	if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
+		cmd->params.role_id = wlvif->role_id;
+	else
+		cmd->params.role_id = wlvif->dev_role_id;
+
 	cmd->params.scan_options = cpu_to_le16(scan_options);
 
 	cmd->params.n_ch = wl1271_get_scan_channels(wl, wl->scan.req,
@@ -218,7 +226,7 @@ static int wl1271_scan_send(struct wl1271 *wl, struct ieee80211_vif *vif,
 	memcpy(cmd->addr, vif->addr, ETH_ALEN);
 
 	ret = wl12xx_cmd_build_probe_req(wl, wlvif,
-					 wlvif->role_id, band,
+					 cmd->params.role_id, band,
 					 wl->scan.ssid, wl->scan.ssid_len,
 					 wl->scan.req->ie,
 					 wl->scan.req->ie_len);
@@ -662,7 +670,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	if (!force_passive && cfg->active[0]) {
 		u8 band = IEEE80211_BAND_2GHZ;
 		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
-						 wlvif->role_id, band,
+						 wlvif->dev_role_id, band,
 						 req->ssids[0].ssid,
 						 req->ssids[0].ssid_len,
 						 ies->ie[band],
@@ -676,7 +684,7 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	if (!force_passive && cfg->active[1]) {
 		u8 band = IEEE80211_BAND_5GHZ;
 		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
-						 wlvif->role_id, band,
+						 wlvif->dev_role_id, band,
 						 req->ssids[0].ssid,
 						 req->ssids[0].ssid_len,
 						 ies->ie[band],
