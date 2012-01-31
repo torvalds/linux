@@ -571,8 +571,6 @@ static int tcp_v6_parse_md5_keys (struct sock *sk, char __user *optval,
 		return -EINVAL;
 
 	if (!cmd.tcpm_keylen) {
-		if (!tcp_sk(sk)->md5sig_info)
-			return -ENOENT;
 		if (ipv6_addr_v4mapped(&sin6->sin6_addr))
 			return tcp_md5_do_del(sk, (union tcp_md5_addr *)&sin6->sin6_addr.s6_addr32[3],
 					      AF_INET);

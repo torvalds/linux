@@ -463,7 +463,7 @@ struct tcp_sock {
 	const struct tcp_sock_af_ops	*af_specific;
 
 /* TCP MD5 Signature Option information */
-	struct tcp_md5sig_info	*md5sig_info;
+	struct tcp_md5sig_info	__rcu *md5sig_info;
 #endif
 
 	/* When the cookie options are generated and exchanged, then this

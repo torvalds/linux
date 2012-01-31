@@ -1150,6 +1150,7 @@ struct tcp_md5sig_key {
 /* - sock block */
 struct tcp_md5sig_info {
 	struct hlist_head	head;
+	struct rcu_head		rcu;
 };
 
 /* - pseudo header */
