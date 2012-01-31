@@ -943,11 +943,11 @@ int tcp_md5_do_add(struct sock *sk, const union tcp_md5_addr *addr,
 		tp->md5sig_info = md5sig;
 	}
 
-	key = kmalloc(sizeof(*key), gfp);
+	key = sock_kmalloc(sk, sizeof(*key), gfp);
 	if (!key)
 		return -ENOMEM;
 	if (hlist_empty(&md5sig->head) && !tcp_alloc_md5sig_pool(sk)) {
-		kfree(key);
+		sock_kfree_s(sk, key, sizeof(*key));
 		return -ENOMEM;
 	}
 
@@ -971,6 +971,7 @@ int tcp_md5_do_del(struct sock *sk, const union tcp_md5_addr *addr, int family)
 	if (!key)
 		return -ENOENT;
 	hlist_del_rcu(&key->node);
+	atomic_sub(sizeof(*key), &sk->sk_omem_alloc);
 	kfree_rcu(key, rcu);
 	if (hlist_empty(&tp->md5sig_info->head))
 		tcp_free_md5sig_pool();
@@ -988,6 +989,7 @@ void tcp_clear_md5_list(struct sock *sk)
 		tcp_free_md5sig_pool();
 	hlist_for_each_entry_safe(key, pos, n, &tp->md5sig_info->head, node) {
 		hlist_del_rcu(&key->node);
+		atomic_sub(sizeof(*key), &sk->sk_omem_alloc);
 		kfree_rcu(key, rcu);
 	}
 }
