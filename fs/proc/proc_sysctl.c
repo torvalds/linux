@@ -451,10 +451,12 @@ static struct dentry *proc_sys_lookup(struct inode *dir, struct dentry *dentry,
 	if (!p)
 		goto out;
 
-	ret = sysctl_follow_link(&h, &p, current->nsproxy);
-	err = ERR_PTR(ret);
-	if (ret)
-		goto out;
+	if (S_ISLNK(p->mode)) {
+		ret = sysctl_follow_link(&h, &p, current->nsproxy);
+		err = ERR_PTR(ret);
+		if (ret)
+			goto out;
+	}
 
 	err = ERR_PTR(-ENOMEM);
 	inode = proc_sys_make_inode(dir->i_sb, h ? h : head, p);
@@ -601,10 +603,12 @@ static int proc_sys_link_fill_cache(struct file *filp, void *dirent,
 	int err, ret = 0;
 	head = sysctl_head_grab(head);
 
-	/* It is not an error if we can not follow the link ignore it */
-	err = sysctl_follow_link(&head, &table, current->nsproxy);
-	if (err)
-		goto out;
+	if (S_ISLNK(table->mode)) {
+		/* It is not an error if we can not follow the link ignore it */
+		err = sysctl_follow_link(&head, &table, current->nsproxy);
+		if (err)
+			goto out;
+	}
 
 	ret = proc_sys_fill_cache(filp, dirent, filldir, head, table);
 out:
@@ -949,10 +953,6 @@ static int sysctl_follow_link(struct ctl_table_header **phead,
 	struct ctl_table *entry;
 	struct ctl_dir *dir;
 	int ret;
-
-	/* Get out quickly if not a link */
-	if (!S_ISLNK((*pentry)->mode))
-		return 0;
 
 	ret = 0;
 	spin_lock(&sysctl_lock);
