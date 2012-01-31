@@ -626,13 +626,6 @@ static int tcp_v6_md5_do_add(struct sock *sk, const struct in6_addr *peer,
 	return 0;
 }
 
-static int tcp_v6_md5_add_func(struct sock *sk, struct sock *addr_sk,
-			       u8 *newkey, __u8 newkeylen)
-{
-	return tcp_v6_md5_do_add(sk, &inet6_sk(addr_sk)->daddr,
-				 newkey, newkeylen);
-}
-
 static int tcp_v6_md5_do_del(struct sock *sk, const struct in6_addr *peer)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -1898,7 +1891,6 @@ static const struct inet_connection_sock_af_ops ipv6_specific = {
 static const struct tcp_sock_af_ops tcp_sock_ipv6_specific = {
 	.md5_lookup	=	tcp_v6_md5_lookup,
 	.calc_md5_hash	=	tcp_v6_md5_hash_skb,
-	.md5_add	=	tcp_v6_md5_add_func,
 	.md5_parse	=	tcp_v6_parse_md5_keys,
 };
 #endif
@@ -1930,7 +1922,6 @@ static const struct inet_connection_sock_af_ops ipv6_mapped = {
 static const struct tcp_sock_af_ops tcp_sock_ipv6_mapped_specific = {
 	.md5_lookup	=	tcp_v4_md5_lookup,
 	.calc_md5_hash	=	tcp_v4_md5_hash_skb,
-	.md5_add	=	tcp_v6_md5_add_func,
 	.md5_parse	=	tcp_v6_parse_md5_keys,
 };
 #endif

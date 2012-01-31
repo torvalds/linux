@@ -967,13 +967,6 @@ int tcp_v4_md5_do_add(struct sock *sk, __be32 addr,
 }
 EXPORT_SYMBOL(tcp_v4_md5_do_add);
 
-static int tcp_v4_md5_add_func(struct sock *sk, struct sock *addr_sk,
-			       u8 *newkey, u8 newkeylen)
-{
-	return tcp_v4_md5_do_add(sk, inet_sk(addr_sk)->inet_daddr,
-				 newkey, newkeylen);
-}
-
 int tcp_v4_md5_do_del(struct sock *sk, __be32 addr)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -1853,7 +1846,6 @@ EXPORT_SYMBOL(ipv4_specific);
 static const struct tcp_sock_af_ops tcp_sock_ipv4_specific = {
 	.md5_lookup		= tcp_v4_md5_lookup,
 	.calc_md5_hash		= tcp_v4_md5_hash_skb,
-	.md5_add		= tcp_v4_md5_add_func,
 	.md5_parse		= tcp_v4_parse_md5_keys,
 };
 #endif
