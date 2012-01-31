@@ -1856,11 +1856,11 @@ static int e1000_set_phys_id(struct net_device *netdev,
 		break;
 
 	case ETHTOOL_ID_ON:
-		adapter->hw.mac.ops.led_on(&adapter->hw);
+		hw->mac.ops.led_on(hw);
 		break;
 
 	case ETHTOOL_ID_OFF:
-		adapter->hw.mac.ops.led_off(&adapter->hw);
+		hw->mac.ops.led_off(hw);
 		break;
 	}
 	return 0;
