@@ -36,6 +36,7 @@
 
 struct tegra_alc5632 {
 	struct tegra_asoc_utils_data util_data;
+	struct platform_device *pcm_dev;
 };
 
 static int tegra_alc5632_asoc_hw_params(struct snd_pcm_substream *substream,
@@ -128,9 +129,7 @@ static int tegra_alc5632_asoc_init(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_dai_link tegra_alc5632_dai = {
 	.name = "ALC5632",
 	.stream_name = "ALC5632 PCM",
-	.codec_name = "alc5632.0-001e",
 	.platform_name = "tegra-pcm-audio",
-	.cpu_dai_name = "tegra-i2s.0",
 	.codec_dai_name = "alc5632-hifi",
 	.init = tegra_alc5632_asoc_init,
 	.ops = &tegra_alc5632_asoc_ops,
@@ -163,26 +162,78 @@ static __devinit int tegra_alc5632_probe(struct platform_device *pdev)
 			sizeof(struct tegra_alc5632), GFP_KERNEL);
 	if (!alc5632) {
 		dev_err(&pdev->dev, "Can't allocate tegra_alc5632\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
-
-	ret = tegra_asoc_utils_init(&alc5632->util_data, &pdev->dev);
-	if (ret)
-		return ret;
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, alc5632);
 
+	alc5632->pcm_dev = ERR_PTR(-EINVAL);
+
+	if (!(pdev->dev.of_node)) {
+		dev_err(&pdev->dev, "Must be instantiated using device tree\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	ret = snd_soc_of_parse_card_name(card, "nvidia,model");
+	if (ret)
+		goto err;
+
+	ret = snd_soc_of_parse_audio_routing(card, "nvidia,audio-routing");
+	if (ret)
+		goto err;
+
+	tegra_alc5632_dai.codec_of_node = of_parse_phandle(
+			pdev->dev.of_node, "nvidia,audio-codec", 0);
+
+	if (!tegra_alc5632_dai.codec_of_node) {
+		dev_err(&pdev->dev,
+			"Property 'nvidia,audio-codec' missing or invalid\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	tegra_alc5632_dai.cpu_dai_of_node = of_parse_phandle(
+			pdev->dev.of_node, "nvidia,i2s-controller", 0);
+	if (!tegra_alc5632_dai.cpu_dai_of_node) {
+		dev_err(&pdev->dev,
+		"Property 'nvidia,i2s-controller' missing or invalid\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	alc5632->pcm_dev = platform_device_register_simple(
+		"tegra-pcm-audio", -1, NULL, 0);
+	if (IS_ERR(alc5632->pcm_dev)) {
+		dev_err(&pdev->dev,
+			"Can't instantiate tegra-pcm-audio\n");
+		ret = PTR_ERR(alc5632->pcm_dev);
+		goto err;
+	}
+
+	ret = tegra_asoc_utils_init(&alc5632->util_data, &pdev->dev);
+	if (ret)
+		goto err_unregister;
+
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
 			ret);
-		tegra_asoc_utils_fini(&alc5632->util_data);
-		return ret;
+		goto err_fini_utils;
 	}
 
 	return 0;
+
+err_fini_utils:
+	tegra_asoc_utils_fini(&alc5632->util_data);
+err_unregister:
+	if (!IS_ERR(alc5632->pcm_dev))
+		platform_device_unregister(alc5632->pcm_dev);
+err:
+	return ret;
 }
 
 static int __devexit tegra_alc5632_remove(struct platform_device *pdev)
@@ -193,15 +244,23 @@ static int __devexit tegra_alc5632_remove(struct platform_device *pdev)
 	snd_soc_unregister_card(card);
 
 	tegra_asoc_utils_fini(&alc5632->util_data);
+	if (!IS_ERR(alc5632->pcm_dev))
+		platform_device_unregister(alc5632->pcm_dev);
 
 	return 0;
 }
+
+static const struct of_device_id tegra_alc5632_of_match[] __devinitconst = {
+	{ .compatible = "nvidia,tegra-audio-alc5632", },
+	{},
+};
 
 static struct platform_driver tegra_alc5632_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
 		.pm = &snd_soc_pm_ops,
+		.of_match_table = tegra_alc5632_of_match,
 	},
 	.probe = tegra_alc5632_probe,
 	.remove = __devexit_p(tegra_alc5632_remove),
@@ -212,3 +271,4 @@ MODULE_AUTHOR("Leon Romanovsky <leon@leon.nu>");
 MODULE_DESCRIPTION("Tegra+ALC5632 machine ASoC driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
+MODULE_DEVICE_TABLE(of, tegra_alc5632_of_match);
