@@ -517,6 +517,8 @@ EXPORT_SYMBOL_GPL(svc_create_pooled);
 void
 svc_destroy(struct svc_serv *serv)
 {
+	struct net *net = current->nsproxy->net_ns;
+
 	dprintk("svc: svc_destroy(%s, %d)\n",
 				serv->sv_program->pg_name,
 				serv->sv_nrthreads);
@@ -539,10 +541,17 @@ svc_destroy(struct svc_serv *serv)
 	 * caller is using--nfsd_mutex in the case of nfsd).  So it's
 	 * safe to traverse those lists and shut everything down:
 	 */
-	svc_close_all(serv);
+	svc_close_net(serv, net);
+
+	/*
+	 * The last user is gone and thus all sockets have to be destroyed to
+	 * the point. Check this.
+	 */
+	BUG_ON(!list_empty(&serv->sv_permsocks));
+	BUG_ON(!list_empty(&serv->sv_tempsocks));
 
 	if (serv->sv_shutdown)
-		serv->sv_shutdown(serv, current->nsproxy->net_ns);
+		serv->sv_shutdown(serv, net);
 
 	cache_clean_deferred(serv);
 
