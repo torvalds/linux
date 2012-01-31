@@ -886,8 +886,8 @@ loff_t mem_lseek(struct file *file, loff_t offset, int orig)
 static int mem_release(struct inode *inode, struct file *file)
 {
 	struct mm_struct *mm = file->private_data;
-
-	mmput(mm);
+	if (mm)
+		mmput(mm);
 	return 0;
 }
 
