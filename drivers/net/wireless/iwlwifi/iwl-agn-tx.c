@@ -620,7 +620,7 @@ int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	sta_priv->lq_sta.lq.agg_params.agg_frame_cnt_limit =
 		sta_priv->max_agg_bufsize;
 
-	IWL_INFO(priv, "Tx aggregation enabled on ra = %pM tid = %d\n",
+	IWL_DEBUG_HT(priv, "Tx aggregation enabled on ra = %pM tid = %d\n",
 		 sta->addr, tid);
 
 	return iwl_send_lq_cmd(priv, ctx,
