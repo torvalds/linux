@@ -995,15 +995,17 @@ struct wl1271_acx_ba_receiver_setup {
 	u8 padding[2];
 } __packed;
 
-struct wl1271_acx_fw_tsf_information {
+struct wl12xx_acx_fw_tsf_information {
 	struct acx_header header;
 
+	u8 role_id;
+	u8 padding1[3];
 	__le32 current_tsf_high;
 	__le32 current_tsf_low;
 	__le32 last_bttt_high;
 	__le32 last_tbtt_low;
 	u8 last_dtim_count;
-	u8 padding[3];
+	u8 padding2[3];
 } __packed;
 
 struct wl1271_acx_ps_rx_streaming {
@@ -1296,7 +1298,8 @@ int wl12xx_acx_set_ba_initiator_policy(struct wl1271 *wl,
 				       struct wl12xx_vif *wlvif);
 int wl12xx_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index,
 				       u16 ssn, bool enable, u8 peer_hlid);
-int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime);
+int wl12xx_acx_tsf_info(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			u64 *mactime);
 int wl1271_acx_ps_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			       bool enable);
 int wl1271_acx_ap_max_tx_retry(struct wl1271 *wl, struct wl12xx_vif *wlvif);

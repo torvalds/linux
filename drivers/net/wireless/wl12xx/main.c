@@ -4047,6 +4047,7 @@ static u64 wl1271_op_get_tsf(struct ieee80211_hw *hw,
 {
 
 	struct wl1271 *wl = hw->priv;
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	u64 mactime = ULLONG_MAX;
 	int ret;
 
@@ -4061,7 +4062,7 @@ static u64 wl1271_op_get_tsf(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_acx_tsf_info(wl, &mactime);
+	ret = wl12xx_acx_tsf_info(wl, wlvif, &mactime);
 	if (ret < 0)
 		goto out_sleep;
 

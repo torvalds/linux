@@ -1459,9 +1459,10 @@ out:
 	return ret;
 }
 
-int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime)
+int wl12xx_acx_tsf_info(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			u64 *mactime)
 {
-	struct wl1271_acx_fw_tsf_information *tsf_info;
+	struct wl12xx_acx_fw_tsf_information *tsf_info;
 	int ret;
 
 	tsf_info = kzalloc(sizeof(*tsf_info), GFP_KERNEL);
@@ -1469,6 +1470,8 @@ int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime)
 		ret = -ENOMEM;
 		goto out;
 	}
+
+	tsf_info->role_id = wlvif->role_id;
 
 	ret = wl1271_cmd_interrogate(wl, ACX_TSF_INFO,
 				     tsf_info, sizeof(*tsf_info));
