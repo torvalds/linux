@@ -607,7 +607,8 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 			SAS_DPRINTK("task 0x%p is not at LU: I_T recover\n",
 				    task);
 			tmf_resp = sas_recover_I_T(task->dev);
-			if (tmf_resp == TMF_RESP_FUNC_COMPLETE) {
+			if (tmf_resp == TMF_RESP_FUNC_COMPLETE ||
+			    tmf_resp == -ENODEV) {
 				struct domain_device *dev = task->dev;
 				SAS_DPRINTK("I_T %016llx recovered\n",
 					    SAS_ADDR(task->dev->sas_addr));

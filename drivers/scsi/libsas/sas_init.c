@@ -298,6 +298,9 @@ int sas_phy_reset(struct sas_phy *phy, int hard_reset)
 	int ret;
 	enum phy_func reset_type;
 
+	if (!phy->enabled)
+		return -ENODEV;
+
 	if (hard_reset)
 		reset_type = PHY_FUNC_HARD_RESET;
 	else

@@ -192,7 +192,7 @@ int asd_I_T_nexus_reset(struct domain_device *dev)
 	ASD_DPRINTK("sending %s reset to %s\n",
 		    reset_type ? "hard" : "soft", dev_name(&phy->dev));
 	res = sas_phy_reset(phy, reset_type);
-	if (res == TMF_RESP_FUNC_COMPLETE) {
+	if (res == TMF_RESP_FUNC_COMPLETE || res == -ENODEV) {
 		/* wait for the maximum settle time */
 		msleep(500);
 		/* clear all outstanding commands (keep nexus suspended) */
