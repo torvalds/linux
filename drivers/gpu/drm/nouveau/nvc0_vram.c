@@ -116,6 +116,7 @@ nvc0_vram_init(struct drm_device *dev)
 	NV_DEBUG(dev, "parts 0x%08x bcast_mem_amount 0x%08x\n", parts, bsize);
 
 	dev_priv->vram_type = nouveau_mem_vbios_type(dev);
+	dev_priv->vram_rank_B = !!(nv_rd32(dev, 0x10f200) & 0x00000004);
 
 	/* read amount of vram attached to each memory controller */
 	part = 0;
