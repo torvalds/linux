@@ -817,6 +817,8 @@ static struct s3c_fb_pd_win universal_fb_win0 = {
 	},
 	.max_bpp	= 32,
 	.default_bpp	= 16,
+	.virtual_x	= 480,
+	.virtual_y	= 2 * 800,
 };
 
 static struct s3c_fb_platdata universal_lcd_pdata __initdata = {
