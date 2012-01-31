@@ -116,6 +116,9 @@ static struct conf_drv_settings default_conf = {
 			[CONF_AP_CONNECTION_PROTECTION_TIME] = 0,
 			[CONF_AP_BT_ACL_VAL_BT_SERVE_TIME] = 25,
 			[CONF_AP_BT_ACL_VAL_WL_SERVE_TIME] = 25,
+			/* CTS Diluting params */
+			[CONF_SG_CTS_DILUTED_BAD_RX_PACKETS_TH] = 0,
+			[CONF_SG_CTS_CHOP_IN_DUAL_ANT_SCO_MASTER] = 0,
 		},
 		.state = CONF_SG_PROTECTIVE,
 	},
