@@ -1019,25 +1019,23 @@ static inline bool ixgbe_rx_is_fcoe(struct ixgbe_adapter *adapter,
  * ixgbe_receive_skb - Send a completed packet up the stack
  * @adapter: board private structure
  * @skb: packet to send up
- * @status: hardware indication of status of receive
  * @rx_ring: rx descriptor ring (for a specific queue) to setup
  * @rx_desc: rx descriptor
  **/
 static void ixgbe_receive_skb(struct ixgbe_q_vector *q_vector,
-			      struct sk_buff *skb, u8 status,
+			      struct sk_buff *skb,
 			      struct ixgbe_ring *ring,
 			      union ixgbe_adv_rx_desc *rx_desc)
 {
 	struct ixgbe_adapter *adapter = q_vector->adapter;
-	struct napi_struct *napi = &q_vector->napi;
-	bool is_vlan = (status & IXGBE_RXD_STAT_VP);
-	u16 tag = le16_to_cpu(rx_desc->wb.upper.vlan);
 
-	if (is_vlan && (tag & VLAN_VID_MASK))
-		__vlan_hwaccel_put_tag(skb, tag);
+	if (ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_VP)) {
+		u16 vid = le16_to_cpu(rx_desc->wb.upper.vlan);
+		__vlan_hwaccel_put_tag(skb, vid);
+	}
 
 	if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL))
-		napi_gro_receive(napi, skb);
+		napi_gro_receive(&q_vector->napi, skb);
 	else
 		netif_rx(skb);
 }
@@ -1047,12 +1045,10 @@ static void ixgbe_receive_skb(struct ixgbe_q_vector *q_vector,
  * @adapter: address of board private structure
  * @status_err: hardware indication of status of receive
  * @skb: skb currently being received and modified
- * @status_err: status error value of last descriptor in packet
  **/
 static inline void ixgbe_rx_checksum(struct ixgbe_adapter *adapter,
 				     union ixgbe_adv_rx_desc *rx_desc,
-				     struct sk_buff *skb,
-				     u32 status_err)
+				     struct sk_buff *skb)
 {
 	skb->ip_summed = CHECKSUM_NONE;
 
@@ -1061,16 +1057,16 @@ static inline void ixgbe_rx_checksum(struct ixgbe_adapter *adapter,
 		return;
 
 	/* if IP and error */
-	if ((status_err & IXGBE_RXD_STAT_IPCS) &&
-	    (status_err & IXGBE_RXDADV_ERR_IPE)) {
+	if (ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_IPCS) &&
+	    ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_ERR_IPE)) {
 		adapter->hw_csum_rx_error++;
 		return;
 	}
 
-	if (!(status_err & IXGBE_RXD_STAT_L4CS))
+	if (!ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_L4CS))
 		return;
 
-	if (status_err & IXGBE_RXDADV_ERR_TCPE) {
+	if (ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_ERR_TCPE)) {
 		u16 pkt_info = rx_desc->wb.lower.lo_dword.hs_rss.pkt_info;
 
 		/*
@@ -1091,6 +1087,7 @@ static inline void ixgbe_rx_checksum(struct ixgbe_adapter *adapter,
 
 static inline void ixgbe_release_rx_desc(struct ixgbe_ring *rx_ring, u32 val)
 {
+	rx_ring->next_to_use = val;
 	/*
 	 * Force memory writes to complete before letting h/w
 	 * know there are new descriptors to fetch.  (Only
@@ -1219,10 +1216,8 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_ring *rx_ring, u16 cleaned_count)
 
 	i += rx_ring->count;
 
-	if (rx_ring->next_to_use != i) {
-		rx_ring->next_to_use = i;
+	if (rx_ring->next_to_use != i)
 		ixgbe_release_rx_desc(rx_ring, i);
-	}
 }
 
 static inline u16 ixgbe_get_hlen(union ixgbe_adv_rx_desc *rx_desc)
@@ -1469,15 +1464,13 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 #ifdef IXGBE_FCOE
 	int ddp_bytes = 0;
 #endif /* IXGBE_FCOE */
-	u32 staterr;
 	u16 i;
 	u16 cleaned_count = 0;
 
 	i = rx_ring->next_to_clean;
 	rx_desc = IXGBE_RX_DESC_ADV(rx_ring, i);
-	staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 
-	while (staterr & IXGBE_RXD_STAT_DD) {
+	while (ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_DD)) {
 		u32 upper_len = 0;
 
 		rmb(); /* read descriptor and rx_buffer_info after status DD */
@@ -1553,12 +1546,13 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		prefetch(next_rxd);
 		cleaned_count++;
 
-		if (!(staterr & IXGBE_RXD_STAT_EOP)) {
+		if ((!ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_EOP))) {
 			struct ixgbe_rx_buffer *next_buffer;
 			u32 nextp;
 
 			if (IXGBE_CB(skb)->append_cnt) {
-				nextp = staterr & IXGBE_RXDADV_NEXTP_MASK;
+				nextp = le32_to_cpu(
+						rx_desc->wb.upper.status_error);
 				nextp >>= IXGBE_RXDADV_NEXTP_SHIFT;
 			} else {
 				nextp = i;
@@ -1597,12 +1591,13 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		ixgbe_update_rsc_stats(rx_ring, skb);
 
 		/* ERR_MASK will only have valid bits if EOP set */
-		if (unlikely(staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK)) {
+		if (unlikely(ixgbe_test_staterr(rx_desc,
+					    IXGBE_RXDADV_ERR_FRAME_ERR_MASK))) {
 			dev_kfree_skb_any(skb);
 			goto next_desc;
 		}
 
-		ixgbe_rx_checksum(adapter, rx_desc, skb, staterr);
+		ixgbe_rx_checksum(adapter, rx_desc, skb);
 		if (adapter->netdev->features & NETIF_F_RXHASH)
 			ixgbe_rx_hash(rx_desc, skb);
 
@@ -1614,15 +1609,14 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 #ifdef IXGBE_FCOE
 		/* if ddp, not passing to ULD unless for FCP_RSP or error */
 		if (ixgbe_rx_is_fcoe(adapter, rx_desc)) {
-			ddp_bytes = ixgbe_fcoe_ddp(adapter, rx_desc, skb,
-						   staterr);
+			ddp_bytes = ixgbe_fcoe_ddp(adapter, rx_desc, skb);
 			if (!ddp_bytes) {
 				dev_kfree_skb_any(skb);
 				goto next_desc;
 			}
 		}
 #endif /* IXGBE_FCOE */
-		ixgbe_receive_skb(q_vector, skb, staterr, rx_ring, rx_desc);
+		ixgbe_receive_skb(q_vector, skb, rx_ring, rx_desc);
 
 		budget--;
 next_desc:
@@ -1637,7 +1631,6 @@ next_desc:
 
 		/* use prefetched values */
 		rx_desc = next_rxd;
-		staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	}
 
 	rx_ring->next_to_clean = i;

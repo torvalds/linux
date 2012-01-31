@@ -329,6 +329,13 @@ struct ixgbe_q_vector {
 #define IXGBE_10K_ITR		400
 #define IXGBE_8K_ITR		500
 
+/* ixgbe_test_staterr - tests bits in Rx descriptor status and error fields */
+static inline __le32 ixgbe_test_staterr(union ixgbe_adv_rx_desc *rx_desc,
+					const u32 stat_err_bits)
+{
+	return rx_desc->wb.upper.status_error & cpu_to_le32(stat_err_bits);
+}
+
 static inline u16 ixgbe_desc_unused(struct ixgbe_ring *ring)
 {
 	u16 ntc = ring->next_to_clean;
@@ -618,8 +625,7 @@ extern int ixgbe_fso(struct ixgbe_ring *tx_ring, struct sk_buff *skb,
 extern void ixgbe_cleanup_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 			  union ixgbe_adv_rx_desc *rx_desc,
-			  struct sk_buff *skb,
-			  u32 staterr);
+			  struct sk_buff *skb);
 extern int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
                               struct scatterlist *sgl, unsigned int sgc);
 extern int ixgbe_fcoe_ddp_target(struct net_device *netdev, u16 xid,
