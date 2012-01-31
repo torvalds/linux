@@ -707,6 +707,7 @@ static int nfs_start_lockd(struct nfs_server *server)
 		.nfs_version	= clp->rpc_ops->version,
 		.noresvport	= server->flags & NFS_MOUNT_NORESVPORT ?
 					1 : 0,
+		.net		= clp->net,
 	};
 
 	if (nlm_init.nfs_version > 3)
