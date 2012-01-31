@@ -1068,13 +1068,9 @@ void hdmi_core_audio_config(struct hdmi_ip_data *ip_data,
 	u32 r;
 	void __iomem *av_base = hdmi_av_base(ip_data);
 
-	/* audio clock recovery parameters */
-	r = hdmi_read_reg(av_base, HDMI_CORE_AV_ACR_CTRL);
-	r = FLD_MOD(r, cfg->use_mclk, 2, 2);
-	r = FLD_MOD(r, cfg->en_acr_pkt, 1, 1);
-	r = FLD_MOD(r, cfg->cts_mode, 0, 0);
-	hdmi_write_reg(av_base, HDMI_CORE_AV_ACR_CTRL, r);
-
+	/*
+	 * Parameters for generation of Audio Clock Recovery packets
+	 */
 	REG_FLD_MOD(av_base, HDMI_CORE_AV_N_SVAL1, cfg->n, 7, 0);
 	REG_FLD_MOD(av_base, HDMI_CORE_AV_N_SVAL2, cfg->n >> 8, 7, 0);
 	REG_FLD_MOD(av_base, HDMI_CORE_AV_N_SVAL3, cfg->n >> 16, 7, 0);
@@ -1086,14 +1082,6 @@ void hdmi_core_audio_config(struct hdmi_ip_data *ip_data,
 		REG_FLD_MOD(av_base,
 				HDMI_CORE_AV_CTS_SVAL3, cfg->cts >> 16, 7, 0);
 	} else {
-		/*
-		 * HDMI IP uses this configuration to divide the MCLK to
-		 * update CTS value.
-		 */
-		REG_FLD_MOD(av_base,
-				HDMI_CORE_AV_FREQ_SVAL, cfg->mclk_mode, 2, 0);
-
-		/* Configure clock for audio packets */
 		REG_FLD_MOD(av_base, HDMI_CORE_AV_AUD_PAR_BUSCLK_1,
 				cfg->aud_par_busclk, 7, 0);
 		REG_FLD_MOD(av_base, HDMI_CORE_AV_AUD_PAR_BUSCLK_2,
@@ -1101,6 +1089,25 @@ void hdmi_core_audio_config(struct hdmi_ip_data *ip_data,
 		REG_FLD_MOD(av_base, HDMI_CORE_AV_AUD_PAR_BUSCLK_3,
 				(cfg->aud_par_busclk >> 16), 7, 0);
 	}
+
+	/* Set ACR clock divisor */
+	REG_FLD_MOD(av_base,
+			HDMI_CORE_AV_FREQ_SVAL, cfg->mclk_mode, 2, 0);
+
+	r = hdmi_read_reg(av_base, HDMI_CORE_AV_ACR_CTRL);
+	/*
+	 * Use TMDS clock for ACR packets. For devices that use
+	 * the MCLK, this is the first part of the MCLK initialization.
+	 */
+	r = FLD_MOD(r, 0, 2, 2);
+
+	r = FLD_MOD(r, cfg->en_acr_pkt, 1, 1);
+	r = FLD_MOD(r, cfg->cts_mode, 0, 0);
+	hdmi_write_reg(av_base, HDMI_CORE_AV_ACR_CTRL, r);
+
+	/* For devices using MCLK, this completes its initialization. */
+	if (cfg->use_mclk)
+		REG_FLD_MOD(av_base, HDMI_CORE_AV_ACR_CTRL, 1, 2, 2);
 
 	/* Override of SPDIF sample frequency with value in I2S_CHST4 */
 	REG_FLD_MOD(av_base, HDMI_CORE_AV_SPDIF_CTRL,
