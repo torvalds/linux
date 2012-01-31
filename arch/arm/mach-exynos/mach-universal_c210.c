@@ -910,7 +910,7 @@ static struct s5p_fimc_isp_info universal_camera_sensors[] = {
 		.bus_type	= FIMC_MIPI_CSI2,
 		.board_info	= &m5mols_board_info,
 		.i2c_bus_num	= 0,
-		.clk_frequency	= 21600000UL,
+		.clk_frequency	= 24000000UL,
 		.csi_data_align	= 32,
 	},
 };
