@@ -5671,7 +5671,8 @@ static int decode_test_stateid(struct xdr_stream *xdr,
 	if (unlikely(!p))
 		goto out_overflow;
 	res->status = be32_to_cpup(p++);
-	return res->status;
+
+	return status;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
 out:
