@@ -234,6 +234,7 @@ struct rpc_clnt * nlm_bind_host(struct nlm_host *);
 void		  nlm_rebind_host(struct nlm_host *);
 struct nlm_host * nlm_get_host(struct nlm_host *);
 void		  nlm_shutdown_hosts(void);
+void		  nlm_shutdown_hosts_net(struct net *net);
 void		  nlm_host_rebooted(const struct nlm_reboot *);
 
 /*

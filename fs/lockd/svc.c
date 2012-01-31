@@ -281,8 +281,10 @@ static void lockd_down_net(struct net *net)
 	struct svc_serv *serv = nlmsvc_rqst->rq_server;
 
 	if (ln->nlmsvc_users) {
-		if (--ln->nlmsvc_users == 0)
+		if (--ln->nlmsvc_users == 0) {
+			nlm_shutdown_hosts_net(net);
 			svc_shutdown_net(serv, net);
+		}
 	} else {
 		printk(KERN_ERR "lockd_down_net: no users! task=%p, net=%p\n",
 				nlmsvc_task, net);

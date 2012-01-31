@@ -565,12 +565,8 @@ void nlm_host_rebooted(const struct nlm_reboot *info)
 	nsm_release(nsm);
 }
 
-/*
- * Shut down the hosts module.
- * Note that this routine is called only at server shutdown time.
- */
 void
-nlm_shutdown_hosts(void)
+nlm_shutdown_hosts_net(struct net *net)
 {
 	struct hlist_head *chain;
 	struct hlist_node *pos;
@@ -582,6 +578,8 @@ nlm_shutdown_hosts(void)
 	/* First, make all hosts eligible for gc */
 	dprintk("lockd: nuking all hosts...\n");
 	for_each_host(host, pos, chain, nlm_server_hosts) {
+		if (net && host->net != net)
+			continue;
 		host->h_expires = jiffies - 1;
 		if (host->h_rpcclnt) {
 			rpc_shutdown_client(host->h_rpcclnt);
@@ -592,15 +590,29 @@ nlm_shutdown_hosts(void)
 	/* Then, perform a garbage collection pass */
 	nlm_gc_hosts();
 	mutex_unlock(&nlm_host_mutex);
+}
+
+/*
+ * Shut down the hosts module.
+ * Note that this routine is called only at server shutdown time.
+ */
+void
+nlm_shutdown_hosts(void)
+{
+	struct hlist_head *chain;
+	struct hlist_node *pos;
+	struct nlm_host	*host;
+
+	nlm_shutdown_hosts_net(NULL);
 
 	/* complain if any hosts are left */
 	if (nrhosts != 0) {
 		printk(KERN_WARNING "lockd: couldn't shutdown host module!\n");
 		dprintk("lockd: %lu hosts left:\n", nrhosts);
 		for_each_host(host, pos, chain, nlm_server_hosts) {
-			dprintk("       %s (cnt %d use %d exp %ld)\n",
+			dprintk("       %s (cnt %d use %d exp %ld net %p)\n",
 				host->h_name, atomic_read(&host->h_count),
-				host->h_inuse, host->h_expires);
+				host->h_inuse, host->h_expires, host->net);
 		}
 	}
 }
