@@ -421,6 +421,7 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 		qp->uobject    = NULL;
 		qp->qp_type    = qp_init_attr->qp_type;
 
+		atomic_set(&qp->usecnt, 0);
 		if (qp_init_attr->qp_type == IB_QPT_XRC_TGT) {
 			qp->event_handler = __ib_shared_qp_event_handler;
 			qp->qp_context = qp;
@@ -430,7 +431,6 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 			qp->xrcd = qp_init_attr->xrcd;
 			atomic_inc(&qp_init_attr->xrcd->usecnt);
 			INIT_LIST_HEAD(&qp->open_list);
-			atomic_set(&qp->usecnt, 0);
 
 			real_qp = qp;
 			qp = __ib_open_qp(real_qp, qp_init_attr->event_handler,
