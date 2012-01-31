@@ -137,7 +137,7 @@ static const struct e1000_reg_info e1000_reg_info_tbl[] = {
 	{E1000_TDFPC, "TDFPC"},
 
 	/* List Terminator */
-	{}
+	{0, NULL}
 };
 
 /*
@@ -6502,7 +6502,7 @@ static DEFINE_PCI_DEVICE_TABLE(e1000_pci_tbl) = {
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH2_LV_LM), board_pch2lan },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH2_LV_V), board_pch2lan },
 
-	{ }	/* terminate list */
+	{ 0, 0, 0, 0, 0, 0, 0 }	/* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, e1000_pci_tbl);
 
@@ -6521,7 +6521,9 @@ static struct pci_driver e1000_driver = {
 	.probe    = e1000_probe,
 	.remove   = __devexit_p(e1000_remove),
 #ifdef CONFIG_PM
-	.driver.pm = &e1000_pm_ops,
+	.driver   = {
+		.pm = &e1000_pm_ops,
+	},
 #endif
 	.shutdown = e1000_shutdown,
 	.err_handler = &e1000_err_handler
