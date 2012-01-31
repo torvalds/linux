@@ -593,6 +593,10 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 	struct ip_reply_arg arg;
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_md5sig_key *key;
+	const __u8 *hash_location = NULL;
+	unsigned char newhash[16];
+	int genhash;
+	struct sock *sk1 = NULL;
 #endif
 	struct net *net;
 
@@ -623,9 +627,36 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 	arg.iov[0].iov_len  = sizeof(rep.th);
 
 #ifdef CONFIG_TCP_MD5SIG
-	key = sk ? tcp_md5_do_lookup(sk,
-				     (union tcp_md5_addr *)&ip_hdr(skb)->saddr,
-				     AF_INET) : NULL;
+	hash_location = tcp_parse_md5sig_option(th);
+	if (!sk && hash_location) {
+		/*
+		 * active side is lost. Try to find listening socket through
+		 * source port, and then find md5 key through listening socket.
+		 * we are not loose security here:
+		 * Incoming packet is checked with md5 hash with finding key,
+		 * no RST generated if md5 hash doesn't match.
+		 */
+		sk1 = __inet_lookup_listener(dev_net(skb_dst(skb)->dev),
+					     &tcp_hashinfo, ip_hdr(skb)->daddr,
+					     ntohs(th->source), inet_iif(skb));
+		/* don't send rst if it can't find key */
+		if (!sk1)
+			return;
+		rcu_read_lock();
+		key = tcp_md5_do_lookup(sk1, (union tcp_md5_addr *)
+					&ip_hdr(skb)->saddr, AF_INET);
+		if (!key)
+			goto release_sk1;
+
+		genhash = tcp_v4_md5_hash_skb(newhash, key, NULL, NULL, skb);
+		if (genhash || memcmp(hash_location, newhash, 16) != 0)
+			goto release_sk1;
+	} else {
+		key = sk ? tcp_md5_do_lookup(sk, (union tcp_md5_addr *)
+					     &ip_hdr(skb)->saddr,
+					     AF_INET) : NULL;
+	}
+
 	if (key) {
 		rep.opt[0] = htonl((TCPOPT_NOP << 24) |
 				   (TCPOPT_NOP << 16) |
@@ -653,6 +684,14 @@ static void tcp_v4_send_reset(struct sock *sk, struct sk_buff *skb)
 
 	TCP_INC_STATS_BH(net, TCP_MIB_OUTSEGS);
 	TCP_INC_STATS_BH(net, TCP_MIB_OUTRSTS);
+
+#ifdef CONFIG_TCP_MD5SIG
+release_sk1:
+	if (sk1) {
+		rcu_read_unlock();
+		sock_put(sk1);
+	}
+#endif
 }
 
 /* The code following below sending ACKs in SYN-RECV and TIME-WAIT states
