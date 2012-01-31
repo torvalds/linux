@@ -177,7 +177,7 @@ u32 _rtl92c_phy_calculate_bit_shift(u32 bitmask)
 	u32 i;
 
 	for (i = 0; i <= 31; i++) {
-		if (((bitmask >> i) & 0x1) == 1)
+		if ((bitmask >> i) & 0x1)
 			break;
 	}
 	return i;
