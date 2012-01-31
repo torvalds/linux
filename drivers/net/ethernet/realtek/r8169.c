@@ -5843,7 +5843,8 @@ static void rtl_slow_event_work(struct rtl8169_private *tp)
 		/* Work around for rx fifo overflow */
 		case RTL_GIGA_MAC_VER_11:
 			netif_stop_queue(dev);
-			rtl_schedule_task(tp, RTL_FLAG_TASK_RESET_PENDING);
+			/* XXX - Hack alert. See rtl_task(). */
+			set_bit(RTL_FLAG_TASK_RESET_PENDING, tp->wk.flags);
 		default:
 			break;
 		}
@@ -5868,6 +5869,7 @@ static void rtl_task(struct work_struct *work)
 		int bitnr;
 		void (*action)(struct rtl8169_private *);
 	} rtl_work[] = {
+		/* XXX - keep rtl_slow_event_work() as first element. */
 		{ RTL_FLAG_TASK_SLOW_PENDING,	rtl_slow_event_work },
 		{ RTL_FLAG_TASK_RESET_PENDING,	rtl_reset_work },
 		{ RTL_FLAG_TASK_PHY_PENDING,	rtl_phy_work }
