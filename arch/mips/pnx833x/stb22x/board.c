@@ -91,7 +91,7 @@ void __init pnx833x_board_setup(void)
 	pnx833x_gpio_select_function_alt(32);
 	pnx833x_gpio_select_function_alt(33);
 
-#if defined(CONFIG_MTD_NAND_PLATFORM) || defined(CONFIG_MTD_NAND_PLATFORM_MODULE)
+#if IS_ENABLED(CONFIG_MTD_NAND_PLATFORM)
 	/* Setup MIU for NAND access on CS0...
 	 *
 	 * (it seems that we must also configure CS1 for reliable operation,
@@ -117,7 +117,7 @@ void __init pnx833x_board_setup(void)
 	pnx833x_gpio_select_output(5);
 	pnx833x_gpio_write(1, 5);
 
-#elif defined(CONFIG_MTD_CFI) || defined(CONFIG_MTD_CFI_MODULE)
+#elif IS_ENABLED(CONFIG_MTD_CFI)
 
 	/* Set up MIU for 16-bit NOR access on CS0 and CS1... */
 
