@@ -164,6 +164,7 @@ struct nvc0_pm_clock {
 };
 
 struct nvc0_pm_state {
+	struct nouveau_pm_level *perflvl;
 	struct nvc0_pm_clock eng[16];
 };
 
@@ -335,6 +336,7 @@ nvc0_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 		return ERR_PTR(ret);
 	}
 
+	info->perflvl = perflvl;
 	return info;
 }
 
@@ -375,11 +377,125 @@ prog_clk(struct drm_device *dev, int clk, struct nvc0_pm_clock *info)
 	nv_mask(dev, 0x137250 + (clk * 0x04), 0x00003f3f, info->mdiv);
 }
 
+static void
+mclk_precharge(struct nouveau_mem_exec_func *exec)
+{
+}
+
+static void
+mclk_refresh(struct nouveau_mem_exec_func *exec)
+{
+}
+
+static void
+mclk_refresh_auto(struct nouveau_mem_exec_func *exec, bool enable)
+{
+	nv_wr32(exec->dev, 0x10f210, enable ? 0x80000000 : 0x00000000);
+}
+
+static void
+mclk_refresh_self(struct nouveau_mem_exec_func *exec, bool enable)
+{
+}
+
+static void
+mclk_wait(struct nouveau_mem_exec_func *exec, u32 nsec)
+{
+	udelay((nsec + 500) / 1000);
+}
+
+static u32
+mclk_mrg(struct nouveau_mem_exec_func *exec, int mr)
+{
+	struct drm_device *dev = exec->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	if (dev_priv->vram_type != NV_MEM_TYPE_GDDR5) {
+		if (mr <= 1)
+			return nv_rd32(dev, 0x10f300 + ((mr - 0) * 4));
+		return nv_rd32(dev, 0x10f320 + ((mr - 2) * 4));
+	} else {
+		if (mr == 0)
+			return nv_rd32(dev, 0x10f300 + (mr * 4));
+		else
+		if (mr <= 7)
+			return nv_rd32(dev, 0x10f32c + (mr * 4));
+		return nv_rd32(dev, 0x10f34c);
+	}
+}
+
+static void
+mclk_mrs(struct nouveau_mem_exec_func *exec, int mr, u32 data)
+{
+	struct drm_device *dev = exec->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	if (dev_priv->vram_type != NV_MEM_TYPE_GDDR5) {
+		if (mr <= 1) {
+			nv_wr32(dev, 0x10f300 + ((mr - 0) * 4), data);
+			if (dev_priv->vram_rank_B)
+				nv_wr32(dev, 0x10f308 + ((mr - 0) * 4), data);
+		} else
+		if (mr <= 3) {
+			nv_wr32(dev, 0x10f320 + ((mr - 2) * 4), data);
+			if (dev_priv->vram_rank_B)
+				nv_wr32(dev, 0x10f328 + ((mr - 2) * 4), data);
+		}
+	} else {
+		if      (mr ==  0) nv_wr32(dev, 0x10f300 + (mr * 4), data);
+		else if (mr <=  7) nv_wr32(dev, 0x10f32c + (mr * 4), data);
+		else if (mr == 15) nv_wr32(dev, 0x10f34c, data);
+	}
+}
+
+static void
+mclk_clock_set(struct nouveau_mem_exec_func *exec)
+{
+}
+
+static void
+mclk_timing_set(struct nouveau_mem_exec_func *exec)
+{
+	struct nvc0_pm_state *info = exec->priv;
+	struct nouveau_pm_level *perflvl = info->perflvl;
+	int i;
+
+	for (i = 0; i < 5; i++)
+		nv_wr32(exec->dev, 0x10f290 + (i * 4), perflvl->timing.reg[i]);
+}
+
+static void
+prog_mem(struct drm_device *dev, struct nvc0_pm_state *info)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_mem_exec_func exec = {
+		.dev = dev,
+		.precharge = mclk_precharge,
+		.refresh = mclk_refresh,
+		.refresh_auto = mclk_refresh_auto,
+		.refresh_self = mclk_refresh_self,
+		.wait = mclk_wait,
+		.mrg = mclk_mrg,
+		.mrs = mclk_mrs,
+		.clock_set = mclk_clock_set,
+		.timing_set = mclk_timing_set,
+		.priv = info
+	};
+
+	if (dev_priv->chipset < 0xd0)
+		nv_wr32(dev, 0x611200, 0x00003300);
+
+	nouveau_mem_exec(&exec, info->perflvl);
+
+	if (dev_priv->chipset < 0xd0)
+		nv_wr32(dev, 0x611200, 0x00003300);
+}
 int
 nvc0_pm_clocks_set(struct drm_device *dev, void *data)
 {
 	struct nvc0_pm_state *info = data;
 	int i;
+
+	if (0)
+		prog_mem(dev, info);
 
 	for (i = 0; i < 16; i++) {
 		if (!info->eng[i].freq)
