@@ -194,7 +194,7 @@ static int ath6kl_set_auth_type(struct ath6kl_vif *vif,
 		break;
 
 	default:
-		ath6kl_err("%s: 0x%x not spported\n", __func__, auth_type);
+		ath6kl_err("%s: 0x%x not supported\n", __func__, auth_type);
 		return -ENOTSUPP;
 	}
 
