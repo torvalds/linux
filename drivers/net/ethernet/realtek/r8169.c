@@ -680,7 +680,6 @@ struct rtl8169_private {
 	struct pci_dev *pci_dev;
 	struct net_device *dev;
 	struct napi_struct napi;
-	spinlock_t lock;
 	u32 msg_enable;
 	u16 txd_version;
 	u16 mac_version;
@@ -1723,9 +1722,7 @@ static void rtl8169_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 		regs->len = R8169_REGS_SIZE;
 
 	rtl_lock_work(tp);
-	spin_lock_bh(&tp->lock);
 	memcpy_fromio(p, tp->mmio_addr, regs->len);
-	spin_unlock_bh(&tp->lock);
 	rtl_unlock_work(tp);
 }
 
@@ -4151,7 +4148,6 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		tp->do_ioctl = rtl_xmii_ioctl;
 	}
 
-	spin_lock_init(&tp->lock);
 	mutex_init(&tp->wk.mutex);
 
 	/* Get MAC address */
@@ -6031,8 +6027,6 @@ static void rtl_set_rx_mode(struct net_device *dev)
 		}
 	}
 
-	spin_lock_bh(&tp->lock);
-
 	tmp = (RTL_R32(RxConfig) & ~RX_CONFIG_ACCEPT_MASK) | rx_mode;
 
 	if (tp->mac_version > RTL_GIGA_MAC_VER_06) {
@@ -6046,8 +6040,6 @@ static void rtl_set_rx_mode(struct net_device *dev)
 	RTL_W32(MAR0 + 0, mc_filter[0]);
 
 	RTL_W32(RxConfig, tmp);
-
-	spin_unlock_bh(&tp->lock);
 }
 
 /**
