@@ -667,13 +667,15 @@ static int hdmi_audio_hw_params(struct snd_pcm_substream *substream,
 	if (dss_has_feature(FEAT_HDMI_CTS_SWMODE)) {
 		core_cfg.aud_par_busclk = 0;
 		core_cfg.cts_mode = HDMI_AUDIO_CTS_MODE_SW;
-		core_cfg.use_mclk = false;
+		core_cfg.use_mclk = dss_has_feature(FEAT_HDMI_AUDIO_USE_MCLK);
 	} else {
 		core_cfg.aud_par_busclk = (((128 * 31) - 1) << 8);
 		core_cfg.cts_mode = HDMI_AUDIO_CTS_MODE_HW;
 		core_cfg.use_mclk = true;
-		core_cfg.mclk_mode = HDMI_AUDIO_MCLK_128FS;
 	}
+
+	if (core_cfg.use_mclk)
+		core_cfg.mclk_mode = HDMI_AUDIO_MCLK_128FS;
 	core_cfg.layout = HDMI_AUDIO_LAYOUT_2CH;
 	core_cfg.en_spdif = false;
 	/* Use sample frequency from channel status word */
