@@ -38,6 +38,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/s3c24xx.h>
 
 #include <linux/mmc/host.h>
 
@@ -73,7 +74,6 @@
 #include <mach/regs-gpioj.h>
 #include <mach/fb.h>
 
-#include <mach/spi.h>
 #include <plat/usb-control.h>
 #include <mach/regs-mem.h>
 #include <mach/hardware.h>
