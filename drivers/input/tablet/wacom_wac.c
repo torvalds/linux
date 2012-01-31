@@ -832,12 +832,24 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 
 	dbg("wacom_tpc_irq: received report #%d", data[0]);
 
-	if (len == WACOM_PKGLEN_TPC1FG || data[0] == WACOM_REPORT_TPC1FG)
-		return wacom_tpc_single_touch(wacom, len);
-	else if (data[0] == WACOM_REPORT_TPC2FG)
-		return wacom_tpc_mt_touch(wacom);
-	else if (data[0] == WACOM_REPORT_PENABLED)
-		return wacom_tpc_pen(wacom);
+	switch (len) {
+	case WACOM_PKGLEN_TPC1FG:
+		 return wacom_tpc_single_touch(wacom, len);
+
+	case WACOM_PKGLEN_TPC2FG:
+ 		return wacom_tpc_mt_touch(wacom);
+
+	default:
+		switch (data[0]) {
+		case WACOM_REPORT_TPC1FG:
+		case WACOM_REPORT_TPCHID:
+		case WACOM_REPORT_TPCST:
+			return wacom_tpc_single_touch(wacom, len);
+
+		case WACOM_REPORT_PENABLED:
+			return wacom_tpc_pen(wacom);
+		}
+	}
 
 	return 0;
 }
