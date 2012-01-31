@@ -328,7 +328,7 @@ static void headset_timer_callback(unsigned long arg)
 	struct rk_headset_pdata *pdata = headset->pdata;
 	int i,level = 0;
 	
-	printk("headset_timer_callback,headset->headset_status=%d\n",headset->headset_status);	
+//	printk("headset_timer_callback,headset->headset_status=%d\n",headset->headset_status);	
 
 	if(headset->headset_status == HEADSET_OUT)
 	{
@@ -338,7 +338,7 @@ static void headset_timer_callback(unsigned long arg)
 	#ifdef CONFIG_SND_SOC_WM8994
 	if(wm8994_set_status() != 0)
 	{
-		printk("with wm8994 set the MICB2\n");
+	//	printk("wait wm8994 set the MICB2\n");
 	//	headset_info->headset_timer.expires = jiffies + 500;
 		headset_info->headset_timer.expires = jiffies + 10;
 		add_timer(&headset_info->headset_timer);	

@@ -119,23 +119,36 @@ struct wm8958_enh_eq_cfg {
 
 struct wm8994_pdata {
 	int gpio_base;
-
 	/**
 	 * Default values for GPIOs if non-zero, WM8994_CONFIGURE_GPIO
 	 * can be used for all zero values.
 	 */
 	int gpio_defaults[WM8994_NUM_GPIO];
-
 	struct wm8994_ldo_pdata ldo[WM8994_NUM_LDO];
+	
+	int num_drc_cfgs;
+	struct wm8994_drc_cfg *drc_cfgs;
+	int num_retune_mobile_cfgs;
+	struct wm8994_retune_mobile_cfg *retune_mobile_cfgs;
+	
+	/* LINEOUT can be differential or single ended */
+	unsigned int lineout1_diff:1;
+	unsigned int lineout2_diff:1;//do not use	
+	/* Common mode feedback */
+	unsigned int lineout1fb:1;
+	unsigned int lineout2fb:1;//do not use
+
+	//If an external amplifier speakers wm8994		enable>0 disable=0
+	unsigned int PA_control_pin;
+	char	PA_iomux_name[50];
+	int		PA_iomux_mode;		
+
+
+	
+
 	
 	/** Base IRQ number for WM8994, required for IRQs */
 	int irq_base;  	//do not use
-
-        int num_drc_cfgs;
-        struct wm8994_drc_cfg *drc_cfgs;
-
-        int num_retune_mobile_cfgs;
-        struct wm8994_retune_mobile_cfg *retune_mobile_cfgs;
 
 	int num_mbc_cfgs;
 	struct wm8958_mbc_cfg *mbc_cfgs;
@@ -149,34 +162,21 @@ struct wm8994_pdata {
 	int num_enh_eq_cfgs;
 	struct wm8958_enh_eq_cfg *enh_eq_cfgs;
 
-        /* LINEOUT can be differential or single ended */
-        unsigned int lineout1_diff:1;
-        unsigned int lineout2_diff:1;//do not use
-
-        /* Common mode feedback */
-        unsigned int lineout1fb:1;
-        unsigned int lineout2fb:1;//do not use
-
 	/* IRQ for microphone detection if brought out directly as a
 	 * signal.
 	 */
 	int micdet_irq;//do not use
 
-        /* WM8994 microphone biases: 0=0.9*AVDD1 1=0.65*AVVD1 */
-        unsigned int micbias1_lvl:1;//do not use
-        unsigned int micbias2_lvl:1;//do not use
+	/* WM8994 microphone biases: 0=0.9*AVDD1 1=0.65*AVVD1 */
+	unsigned int micbias1_lvl:1;//default 0	Do not set
+	unsigned int micbias2_lvl:1;//default 0	Do not set
 
-        /* WM8994 jack detect threashold levels, see datasheet for values */
-        unsigned int jd_scthr:2;//do not use
-        unsigned int jd_thr:2;//do not use
+	/* WM8994 jack detect threashold levels, see datasheet for values */
+	unsigned int jd_scthr:2;//do not use
+	unsigned int jd_thr:2;//do not use
 
 	/* WM8958 microphone bias configuration */
 	int micbias[2];
-
-	//If an external amplifier speakers wm8994		enable>0 disable=0
-	unsigned int PA_control_pin;
-	char	PA_iomux_name[50];
-	int		PA_iomux_mode;		
 	
 };
 

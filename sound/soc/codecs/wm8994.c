@@ -268,7 +268,7 @@ static int configure_aif_clock(struct snd_soc_codec *codec, int aif)
 	}
 
 	if (rate && rate < 3000000)
-		DBG_INFO(codec->dev, "AIF%dCLK is %dHz, should be >=3MHz for optimal performance\n",
+		dev_dbg(codec->dev, "AIF%dCLK is %dHz, should be >=3MHz for optimal performance\n",
 			 aif + 1, rate);//dev_warn
 
 	wm8994->aifclk[aif] = rate;
@@ -1686,7 +1686,7 @@ static int wm8994_get_fll_config(struct fll_div *fll,
 	u64 Kpart;
 	unsigned int K, Ndiv, Nmod;
 
-	pr_debug("FLL input=%dHz, output=%dHz\n", freq_in, freq_out);
+	DBG_CLK("FLL input=%dHz, output=%dHz\n", freq_in, freq_out);
 
 	/* Scale the input frequency down to <= 13.5MHz */
 	fll->clk_ref_div = 0;
@@ -1697,7 +1697,7 @@ static int wm8994_get_fll_config(struct fll_div *fll,
 		if (fll->clk_ref_div > 3)
 			return -EINVAL;
 	}
-	pr_debug("CLK_REF_DIV=%d, Fref=%dHz\n", fll->clk_ref_div, freq_in);
+	DBG_CLK("CLK_REF_DIV=%d, Fref=%dHz\n", fll->clk_ref_div, freq_in);
 
 	/* Scale the output to give 90MHz<=Fvco<=100MHz */
 	fll->outdiv = 3;
@@ -1707,7 +1707,7 @@ static int wm8994_get_fll_config(struct fll_div *fll,
 			return -EINVAL;
 	}
 	freq_out *= fll->outdiv + 1;
-	pr_debug("OUTDIV=%d, Fvco=%dHz\n", fll->outdiv, freq_out);
+	DBG_CLK("OUTDIV=%d, Fvco=%dHz\n", fll->outdiv, freq_out);
 
 	if (freq_in > 1000000) {
 		fll->fll_fratio = 0;
@@ -1724,14 +1724,14 @@ static int wm8994_get_fll_config(struct fll_div *fll,
 		fll->fll_fratio = 4;
 		freq_in *= 16;
 	}
-	pr_debug("FLL_FRATIO=%d, Fref=%dHz\n", fll->fll_fratio, freq_in);
+	DBG_CLK("FLL_FRATIO=%d, Fref=%dHz\n", fll->fll_fratio, freq_in);
 
 	/* Now, calculate N.K */
 	Ndiv = freq_out / freq_in;
 
 	fll->n = Ndiv;
 	Nmod = freq_out % freq_in;
-	pr_debug("Nmod=%d\n", Nmod);
+	DBG_CLK("Nmod=%d\n", Nmod);
 
 	/* Calculate fractional part - scale up so we can round. */
 	Kpart = FIXED_FLL_SIZE * (long long)Nmod;
@@ -1746,7 +1746,7 @@ static int wm8994_get_fll_config(struct fll_div *fll,
 	/* Move down to proper range now rounding is done */
 	fll->k = K / 10;
 
-	pr_debug("N=%x K=%x\n", fll->n, fll->k);
+	DBG_CLK("N=%x K=%x\n", fll->n, fll->k);
 
 	return 0;
 }
