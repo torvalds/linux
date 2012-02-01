@@ -13,6 +13,18 @@
 
 #define DW_DMA_MAX_NR_CHANNELS	8
 
+/* flow controller */
+enum dw_dma_fc {
+	DW_DMA_FC_D_M2M,
+	DW_DMA_FC_D_M2P,
+	DW_DMA_FC_D_P2M,
+	DW_DMA_FC_D_P2P,
+	DW_DMA_FC_P_P2M,
+	DW_DMA_FC_SP_P2P,
+	DW_DMA_FC_P_M2P,
+	DW_DMA_FC_DP_P2P,
+};
+
 /*
  * Redefine this macro to handle differences between 32- and 64-bit
  * addressing, big vs. little endian, etc.
