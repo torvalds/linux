@@ -715,9 +715,7 @@ void xprt_connect(struct rpc_task *task)
 	if (xprt_connected(xprt))
 		xprt_release_write(xprt, task);
 	else {
-		if (task->tk_rqstp)
-			task->tk_rqstp->rq_bytes_sent = 0;
-
+		task->tk_rqstp->rq_bytes_sent = 0;
 		task->tk_timeout = task->tk_rqstp->rq_timeout;
 		rpc_sleep_on(&xprt->pending, task, xprt_connect_status);
 
