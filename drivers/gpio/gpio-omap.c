@@ -50,7 +50,6 @@ struct gpio_regs {
 
 struct gpio_bank {
 	struct list_head node;
-	unsigned long pbase;
 	void __iomem *base;
 	u16 irq;
 	u16 virtual_irq_start;
@@ -77,7 +76,6 @@ struct gpio_bank {
 	int stride;
 	u32 width;
 	int context_loss_count;
-	u16 id;
 	int power_mode;
 	bool workaround_enabled;
 
@@ -155,7 +153,7 @@ static inline void _gpio_rmw(void __iomem *base, u32 reg, u32 mask, bool set)
 {
 	int l = __raw_readl(base + reg);
 
-	if (set) 
+	if (set)
 		l |= mask;
 	else
 		l &= ~mask;
@@ -495,7 +493,7 @@ static int _set_gpio_wakeup(struct gpio_bank *bank, int gpio, int enable)
 	unsigned long flags;
 
 	if (bank->non_wakeup_gpios & gpio_bit) {
-		dev_err(bank->dev, 
+		dev_err(bank->dev,
 			"Unable to modify wakeup on non-wakeup GPIO%d\n", gpio);
 		return -EINVAL;
 	}
@@ -1048,37 +1046,36 @@ static void __devinit omap_gpio_chip_init(struct gpio_bank *bank)
 
 static int __devinit omap_gpio_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct omap_gpio_platform_data *pdata;
 	struct resource *res;
 	struct gpio_bank *bank;
 	int ret = 0;
 
-	if (!pdev->dev.platform_data) {
+	if (!dev->platform_data) {
 		ret = -EINVAL;
 		goto err_exit;
 	}
 
 	bank = kzalloc(sizeof(struct gpio_bank), GFP_KERNEL);
 	if (!bank) {
-		dev_err(&pdev->dev, "Memory alloc failed for gpio_bank\n");
+		dev_err(dev, "Memory alloc failed\n");
 		ret = -ENOMEM;
 		goto err_exit;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (unlikely(!res)) {
-		dev_err(&pdev->dev, "GPIO Bank %i Invalid IRQ resource\n",
-				pdev->id);
+		dev_err(dev, "Invalid IRQ resource\n");
 		ret = -ENODEV;
 		goto err_free;
 	}
 
 	bank->irq = res->start;
-	bank->id = pdev->id;
 
 	pdata = pdev->dev.platform_data;
 	bank->virtual_irq_start = pdata->virtual_irq_start;
-	bank->dev = &pdev->dev;
+	bank->dev = dev;
 	bank->dbck_flag = pdata->dbck_flag;
 	bank->stride = pdata->bank_stride;
 	bank->width = pdata->bank_width;
@@ -1098,16 +1095,14 @@ static int __devinit omap_gpio_probe(struct platform_device *pdev)
 	/* Static mapping, never released */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (unlikely(!res)) {
-		dev_err(&pdev->dev, "GPIO Bank %i Invalid mem resource\n",
-				pdev->id);
+		dev_err(dev, "Invalid mem resource\n");
 		ret = -ENODEV;
 		goto err_free;
 	}
 
 	bank->base = ioremap(res->start, resource_size(res));
 	if (!bank->base) {
-		dev_err(&pdev->dev, "Could not ioremap gpio bank%i\n",
-				pdev->id);
+		dev_err(dev, "Could not ioremap\n");
 		ret = -ENOMEM;
 		goto err_free;
 	}
