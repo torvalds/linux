@@ -58,11 +58,15 @@ while true; do
 	esac
 done
 
-
+INITFILE=$1
+shift;
 
 MERGE_LIST=$*
 SED_CONFIG_EXP="s/^\(# \)\{0,1\}\(CONFIG_[a-zA-Z0-9_]*\)[= ].*/\2/p"
 TMP_FILE=$(mktemp ./.tmp.config.XXXXXXXXXX)
+
+echo "Using $INITFILE as base"
+cat $INITFILE > $TMP_FILE
 
 # Merge files, printing warnings on overrided values
 for MERGE_FILE in $MERGE_LIST ; do
