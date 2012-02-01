@@ -1341,7 +1341,7 @@ static int rk29_sensor_io_init(void)
             
             #if CONFIG_SENSOR_QCIF_FPS_FIXED_0
             rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_QCIF_FPS_FIXED_0;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1;
+            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
             rk29_camera_platform_data.info[i].fival[j].index = 0;
             rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
             rk29_camera_platform_data.info[i].fival[j].width = 176;
@@ -1352,7 +1352,7 @@ static int rk29_sensor_io_init(void)
 
             #if CONFIG_SENSOR_QVGA_FPS_FIXED_0
             rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_QVGA_FPS_FIXED_0;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1;
+            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
             rk29_camera_platform_data.info[i].fival[j].index = 0;
             rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
             rk29_camera_platform_data.info[i].fival[j].width = 320;
@@ -1363,7 +1363,7 @@ static int rk29_sensor_io_init(void)
 
             #if CONFIG_SENSOR_CIF_FPS_FIXED_0
             rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_CIF_FPS_FIXED_0;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1;
+            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
             rk29_camera_platform_data.info[i].fival[j].index = 0;
             rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
             rk29_camera_platform_data.info[i].fival[j].width = 352;
@@ -1374,7 +1374,7 @@ static int rk29_sensor_io_init(void)
 
             #if CONFIG_SENSOR_VGA_FPS_FIXED_0
             rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_VGA_FPS_FIXED_0;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1;
+            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
             rk29_camera_platform_data.info[i].fival[j].index = 0;
             rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
             rk29_camera_platform_data.info[i].fival[j].width = 640;
@@ -1385,7 +1385,7 @@ static int rk29_sensor_io_init(void)
 
             #if CONFIG_SENSOR_480P_FPS_FIXED_0
             rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_480P_FPS_FIXED_0;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1;
+            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
             rk29_camera_platform_data.info[i].fival[j].index = 0;
             rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
             rk29_camera_platform_data.info[i].fival[j].width = 720;
@@ -1396,7 +1396,7 @@ static int rk29_sensor_io_init(void)
 
             #if CONFIG_SENSOR_SVGA_FPS_FIXED_0
             rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_SVGA_FPS_FIXED_0;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1;
+            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
             rk29_camera_platform_data.info[i].fival[j].index = 0;
             rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
             rk29_camera_platform_data.info[i].fival[j].width = 800;
@@ -1407,7 +1407,7 @@ static int rk29_sensor_io_init(void)
 
             #if CONFIG_SENSOR_720P_FPS_FIXED_0
             rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_720P_FPS_FIXED_0;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1;
+            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
             rk29_camera_platform_data.info[i].fival[j].index = 0;
             rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
             rk29_camera_platform_data.info[i].fival[j].width = 1280;
@@ -1419,7 +1419,7 @@ static int rk29_sensor_io_init(void)
         } else {
             #if CONFIG_SENSOR_QCIF_FPS_FIXED_1
             rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_QCIF_FPS_FIXED_1;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1;
+            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
             rk29_camera_platform_data.info[i].fival[j].index = 0;
             rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
             rk29_camera_platform_data.info[i].fival[j].width = 176;
@@ -1430,7 +1430,7 @@ static int rk29_sensor_io_init(void)
 
             #if CONFIG_SENSOR_QVGA_FPS_FIXED_1
             rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_QVGA_FPS_FIXED_1;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1;
+            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
             rk29_camera_platform_data.info[i].fival[j].index = 0;
             rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
             rk29_camera_platform_data.info[i].fival[j].width = 320;
@@ -1441,7 +1441,7 @@ static int rk29_sensor_io_init(void)
 
             #if CONFIG_SENSOR_CIF_FPS_FIXED_1
             rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_CIF_FPS_FIXED_1;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1;
+            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
             rk29_camera_platform_data.info[i].fival[j].index = 0;
             rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
             rk29_camera_platform_data.info[i].fival[j].width = 352;
@@ -1452,7 +1452,7 @@ static int rk29_sensor_io_init(void)
 
             #if CONFIG_SENSOR_VGA_FPS_FIXED_1
             rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_VGA_FPS_FIXED_1;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1;
+            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
             rk29_camera_platform_data.info[i].fival[j].index = 0;
             rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
             rk29_camera_platform_data.info[i].fival[j].width = 640;
@@ -1463,7 +1463,7 @@ static int rk29_sensor_io_init(void)
 
             #if CONFIG_SENSOR_480P_FPS_FIXED_1
             rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_480P_FPS_FIXED_1;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1;
+            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
             rk29_camera_platform_data.info[i].fival[j].index = 0;
             rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
             rk29_camera_platform_data.info[i].fival[j].width = 720;
@@ -1474,7 +1474,7 @@ static int rk29_sensor_io_init(void)
 
             #if CONFIG_SENSOR_SVGA_FPS_FIXED_1
             rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_SVGA_FPS_FIXED_1;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1;
+            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
             rk29_camera_platform_data.info[i].fival[j].index = 0;
             rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
             rk29_camera_platform_data.info[i].fival[j].width = 800;
@@ -1485,7 +1485,7 @@ static int rk29_sensor_io_init(void)
 
             #if CONFIG_SENSOR_720P_FPS_FIXED_1
             rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_720P_FPS_FIXED_1;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1;
+            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
             rk29_camera_platform_data.info[i].fival[j].index = 0;
             rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
             rk29_camera_platform_data.info[i].fival[j].width = 1280;
