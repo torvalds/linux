@@ -721,8 +721,14 @@ static void i915_ring_error_state(struct seq_file *m,
 	if (INTEL_INFO(dev)->gen >= 6) {
 		seq_printf(m, "  FADDR: 0x%08x\n", error->faddr[ring]);
 		seq_printf(m, "  FAULT_REG: 0x%08x\n", error->fault_reg[ring]);
+		seq_printf(m, "  SYNC_0: 0x%08x\n",
+			   error->semaphore_mboxes[ring][0]);
+		seq_printf(m, "  SYNC_1: 0x%08x\n",
+			   error->semaphore_mboxes[ring][1]);
 	}
 	seq_printf(m, "  seqno: 0x%08x\n", error->seqno[ring]);
+	seq_printf(m, "  ring->head: 0x%08x\n", error->cpu_ring_head[ring]);
+	seq_printf(m, "  ring->tail: 0x%08x\n", error->cpu_ring_tail[ring]);
 }
 
 static int i915_error_state(struct seq_file *m, void *unused)

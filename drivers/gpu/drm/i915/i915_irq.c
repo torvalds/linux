@@ -903,6 +903,10 @@ static void i915_record_ring_state(struct drm_device *dev,
 	if (INTEL_INFO(dev)->gen >= 6) {
 		error->faddr[ring->id] = I915_READ(RING_DMA_FADD(ring->mmio_base));
 		error->fault_reg[ring->id] = I915_READ(RING_FAULT_REG(ring));
+		error->semaphore_mboxes[ring->id][0]
+			= I915_READ(RING_SYNC_0(ring->mmio_base));
+		error->semaphore_mboxes[ring->id][1]
+			= I915_READ(RING_SYNC_1(ring->mmio_base));
 	}
 
 	if (INTEL_INFO(dev)->gen >= 4) {
@@ -925,6 +929,9 @@ static void i915_record_ring_state(struct drm_device *dev,
 	error->acthd[ring->id] = intel_ring_get_active_head(ring);
 	error->head[ring->id] = I915_READ_HEAD(ring);
 	error->tail[ring->id] = I915_READ_TAIL(ring);
+
+	error->cpu_ring_head[ring->id] = ring->head;
+	error->cpu_ring_tail[ring->id] = ring->tail;
 }
 
 /**
