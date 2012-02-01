@@ -35,7 +35,6 @@ struct drm_fb_helper;
 #include <linux/kgdb.h>
 
 struct drm_fb_helper_crtc {
-	uint32_t crtc_id;
 	struct drm_mode_set mode_set;
 	struct drm_display_mode *desired_mode;
 };

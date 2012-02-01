@@ -417,7 +417,6 @@ int drm_fb_helper_init(struct drm_device *dev,
 
 	i = 0;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		fb_helper->crtc_info[i].crtc_id = crtc->base.id;
 		fb_helper->crtc_info[i].mode_set.crtc = crtc;
 		i++;
 	}
