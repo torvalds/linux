@@ -24,6 +24,18 @@ union jump_code_union {
 	} __attribute__((packed));
 };
 
+static void bug_at(unsigned char *ip, int line)
+{
+	/*
+	 * The location is not an op that we were expecting.
+	 * Something went wrong. Crash the box, as something could be
+	 * corrupting the kernel.
+	 */
+	pr_warning("Unexpected op at %pS [%p] (%02x %02x %02x %02x %02x) %s:%d\n",
+	       ip, ip, ip[0], ip[1], ip[2], ip[3], ip[4], __FILE__, line);
+	BUG();
+}
+
 static void __jump_label_transform(struct jump_entry *entry,
 				   enum jump_label_type type,
 				   void *(*poker)(void *, const void *, size_t),
@@ -37,7 +49,8 @@ static void __jump_label_transform(struct jump_entry *entry,
 		 * We are enabling this jump label. If it is not a nop
 		 * then something must have gone wrong.
 		 */
-		BUG_ON(memcmp((void *)entry->code, ideal_nop, 5) != 0);
+		if (unlikely(memcmp((void *)entry->code, ideal_nop, 5) != 0))
+			bug_at((void *)entry->code, __LINE__);
 
 		code.jump = 0xe9;
 		code.offset = entry->target -
@@ -51,12 +64,14 @@ static void __jump_label_transform(struct jump_entry *entry,
 		 */
 		if (init) {
 			const unsigned char default_nop[] = { STATIC_KEY_INIT_NOP };
-			BUG_ON(memcmp((void *)entry->code, default_nop, 5) != 0);
+			if (unlikely(memcmp((void *)entry->code, default_nop, 5) != 0))
+				bug_at((void *)entry->code, __LINE__);
 		} else {
 			code.jump = 0xe9;
 			code.offset = entry->target -
 				(entry->code + JUMP_LABEL_NOP_SIZE);
-			BUG_ON(memcmp((void *)entry->code, &code, 5) != 0);
+			if (unlikely(memcmp((void *)entry->code, &code, 5) != 0))
+				bug_at((void *)entry->code, __LINE__);
 		}
 		memcpy(&code, ideal_nops[NOP_ATOMIC5], JUMP_LABEL_NOP_SIZE);
 	}
