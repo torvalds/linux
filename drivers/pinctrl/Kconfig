@@ -28,6 +28,21 @@ config PINCTRL_SIRF
 	depends on ARCH_PRIMA2
 	select PINMUX
 
+config PINCTRL_TEGRA
+	bool
+
+config PINCTRL_TEGRA20
+	bool
+	select PINMUX
+	select PINCONF
+	select PINCTRL_TEGRA
+
+config PINCTRL_TEGRA30
+	bool
+	select PINMUX
+	select PINCONF
+	select PINCTRL_TEGRA
+
 config PINCTRL_U300
 	bool "U300 pin controller driver"
 	depends on ARCH_U300
