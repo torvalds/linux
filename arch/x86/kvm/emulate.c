@@ -1892,6 +1892,17 @@ setup_syscalls_segments(struct x86_emulate_ctxt *ctxt,
 	ss->p = 1;
 }
 
+static bool vendor_intel(struct x86_emulate_ctxt *ctxt)
+{
+	u32 eax, ebx, ecx, edx;
+
+	eax = ecx = 0;
+	return ctxt->ops->get_cpuid(ctxt, &eax, &ebx, &ecx, &edx)
+		&& ebx == X86EMUL_CPUID_VENDOR_GenuineIntel_ebx
+		&& ecx == X86EMUL_CPUID_VENDOR_GenuineIntel_ecx
+		&& edx == X86EMUL_CPUID_VENDOR_GenuineIntel_edx;
+}
+
 static bool em_syscall_is_enabled(struct x86_emulate_ctxt *ctxt)
 {
 	struct x86_emulate_ops *ops = ctxt->ops;
@@ -2007,6 +2018,14 @@ static int em_sysenter(struct x86_emulate_ctxt *ctxt)
 	/* inject #GP if in real mode */
 	if (ctxt->mode == X86EMUL_MODE_REAL)
 		return emulate_gp(ctxt, 0);
+
+	/*
+	 * Not recognized on AMD in compat mode (but is recognized in legacy
+	 * mode).
+	 */
+	if ((ctxt->mode == X86EMUL_MODE_PROT32) && (efer & EFER_LMA)
+	    && !vendor_intel(ctxt))
+		return emulate_ud(ctxt);
 
 	/* XXX sysenter/sysexit have not been tested in 64bit mode.
 	* Therefore, we inject an #UD.
