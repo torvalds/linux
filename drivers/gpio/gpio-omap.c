@@ -19,7 +19,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/slab.h>
+#include <linux/device.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm.h>
 
@@ -1052,23 +1052,19 @@ static int __devinit omap_gpio_probe(struct platform_device *pdev)
 	struct gpio_bank *bank;
 	int ret = 0;
 
-	if (!dev->platform_data) {
-		ret = -EINVAL;
-		goto err_exit;
-	}
+	if (!dev->platform_data)
+		return -EINVAL;
 
-	bank = kzalloc(sizeof(struct gpio_bank), GFP_KERNEL);
+	bank = devm_kzalloc(&pdev->dev, sizeof(struct gpio_bank), GFP_KERNEL);
 	if (!bank) {
 		dev_err(dev, "Memory alloc failed\n");
-		ret = -ENOMEM;
-		goto err_exit;
+		return -ENOMEM;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (unlikely(!res)) {
 		dev_err(dev, "Invalid IRQ resource\n");
-		ret = -ENODEV;
-		goto err_free;
+		return -ENODEV;
 	}
 
 	bank->irq = res->start;
@@ -1096,15 +1092,19 @@ static int __devinit omap_gpio_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (unlikely(!res)) {
 		dev_err(dev, "Invalid mem resource\n");
-		ret = -ENODEV;
-		goto err_free;
+		return -ENODEV;
 	}
 
-	bank->base = ioremap(res->start, resource_size(res));
+	if (!devm_request_mem_region(dev, res->start, resource_size(res),
+				     pdev->name)) {
+		dev_err(dev, "Region already claimed\n");
+		return -EBUSY;
+	}
+
+	bank->base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!bank->base) {
 		dev_err(dev, "Could not ioremap\n");
-		ret = -ENOMEM;
-		goto err_free;
+		return -ENOMEM;
 	}
 
 	platform_set_drvdata(pdev, bank);
@@ -1124,11 +1124,6 @@ static int __devinit omap_gpio_probe(struct platform_device *pdev)
 
 	list_add_tail(&bank->node, &omap_gpio_list);
 
-	return ret;
-
-err_free:
-	kfree(bank);
-err_exit:
 	return ret;
 }
 
