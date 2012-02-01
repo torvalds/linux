@@ -632,8 +632,6 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_ttmvram;
 
-	nouveau_pm_init(dev);
-
 	if (!dev_priv->noaccel) {
 		switch (dev_priv->card_type) {
 		case NV_04:
@@ -738,11 +736,12 @@ nouveau_card_init(struct drm_device *dev)
 		goto out_irq;
 
 	nouveau_backlight_init(dev);
+	nouveau_pm_init(dev);
 
 	if (dev_priv->eng[NVOBJ_ENGINE_GR]) {
 		ret = nouveau_fence_init(dev);
 		if (ret)
-			goto out_disp;
+			goto out_pm;
 
 		ret = nouveau_channel_alloc(dev, &dev_priv->channel, NULL,
 					    NvDmaFB, NvDmaTT);
@@ -766,7 +765,8 @@ out_chan:
 	nouveau_channel_put_unlocked(&dev_priv->channel);
 out_fence:
 	nouveau_fence_fini(dev);
-out_disp:
+out_pm:
+	nouveau_pm_fini(dev);
 	nouveau_backlight_exit(dev);
 	nouveau_display_destroy(dev);
 out_irq:
@@ -783,7 +783,6 @@ out_engine:
 			dev_priv->eng[e]->destroy(dev,e );
 		}
 	}
-	nouveau_pm_fini(dev);
 	nouveau_mem_gart_fini(dev);
 out_ttmvram:
 	nouveau_mem_vram_fini(dev);
@@ -826,6 +825,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 		nouveau_fence_fini(dev);
 	}
 
+	nouveau_pm_fini(dev);
 	nouveau_backlight_exit(dev);
 	nouveau_display_destroy(dev);
 
@@ -853,8 +853,6 @@ static void nouveau_card_takedown(struct drm_device *dev)
 
 	engine->instmem.takedown(dev);
 	nouveau_gpuobj_takedown(dev);
-
-	nouveau_pm_fini(dev);
 
 	nouveau_gpio_destroy(dev);
 	engine->vram.takedown(dev);
