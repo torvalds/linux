@@ -1321,6 +1321,7 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 			continue;
 		}
 		/* count everything else */
+		sdata->vif.bss_conf.idle = false;
 		count++;
 	}
 
