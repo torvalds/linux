@@ -21,6 +21,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of_platform.h>
 #include <asm/io.h>
 
