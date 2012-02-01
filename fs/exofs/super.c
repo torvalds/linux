@@ -565,7 +565,7 @@ int __alloc_dev_table(struct exofs_sb_info *sbi, unsigned numdevs,
 
 	aoded = kzalloc(sizeof(*aoded), GFP_KERNEL);
 	if (unlikely(!aoded)) {
-		EXOFS_ERR("ERROR: faild allocating Device array[%d]\n",
+		EXOFS_ERR("ERROR: failed allocating Device array[%d]\n",
 			  numdevs);
 		return -ENOMEM;
 	}
