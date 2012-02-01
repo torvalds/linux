@@ -22,8 +22,6 @@
 #include <sound/soc.h>
 #include "wm9712.h"
 
-#define WM9712_VERSION "0.4"
-
 static unsigned int ac97_read(struct snd_soc_codec *codec,
 	unsigned int reg);
 static int ac97_write(struct snd_soc_codec *codec,
@@ -618,8 +616,6 @@ static int wm9712_soc_resume(struct snd_soc_codec *codec)
 static int wm9712_soc_probe(struct snd_soc_codec *codec)
 {
 	int ret = 0;
-
-	printk(KERN_INFO "WM9711/WM9712 SoC Audio Codec %s\n", WM9712_VERSION);
 
 	ret = snd_soc_new_ac97_codec(codec, &soc_ac97_ops, 0);
 	if (ret < 0) {
