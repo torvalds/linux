@@ -3024,7 +3024,7 @@ void drm_mode_connector_detach_encoder(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_mode_connector_detach_encoder);
 
-bool drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
+int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 				  int gamma_size)
 {
 	crtc->gamma_size = gamma_size;
@@ -3032,10 +3032,10 @@ bool drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 	crtc->gamma_store = kzalloc(gamma_size * sizeof(uint16_t) * 3, GFP_KERNEL);
 	if (!crtc->gamma_store) {
 		crtc->gamma_size = 0;
-		return false;
+		return -ENOMEM;
 	}
 
-	return true;
+	return 0;
 }
 EXPORT_SYMBOL(drm_mode_crtc_set_gamma_size);
 
