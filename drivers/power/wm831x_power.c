@@ -1130,6 +1130,7 @@ static __devinit int wm831x_power_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_WM831X_WITH_BATTERY
+	int i;
 	for (i = 0; i < ARRAY_SIZE(wm831x_bat_irqs); i++) {
 		irq = platform_get_irq_byname(pdev, wm831x_bat_irqs[i]);
 		ret = request_threaded_irq(irq, NULL, wm831x_bat_irq,
@@ -1197,6 +1198,7 @@ static __devexit int wm831x_power_remove(struct platform_device *pdev)
 	struct wm831x_power *wm831x_power = platform_get_drvdata(pdev);
 	int irq;
 #ifdef CONFIG_WM831X_WITH_BATTERY
+	int i;
 	for (i = 0; i < ARRAY_SIZE(wm831x_bat_irqs); i++) {
 		irq = platform_get_irq_byname(pdev, wm831x_bat_irqs[i]);
 		free_irq(irq, wm831x_power);
