@@ -51,6 +51,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 #include <linux/delay.h>
+#include <linux/types.h>
 
 #include <asm/io.h>
 #include <asm/sizes.h>
@@ -270,6 +271,7 @@ static void pl011_dma_probe_initcall(struct uart_amba_port *uap)
 		.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE,
 		.direction = DMA_MEM_TO_DEV,
 		.dst_maxburst = uap->fifosize >> 1,
+		.device_fc = false,
 	};
 	struct dma_chan *chan;
 	dma_cap_mask_t mask;
@@ -303,6 +305,7 @@ static void pl011_dma_probe_initcall(struct uart_amba_port *uap)
 			.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE,
 			.direction = DMA_DEV_TO_MEM,
 			.src_maxburst = uap->fifosize >> 1,
+			.device_fc = false,
 		};
 
 		chan = dma_request_channel(mask, plat->dma_filter, plat->dma_rx_param);

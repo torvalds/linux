@@ -33,6 +33,7 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/dmaengine.h>
+#include <linux/types.h>
 
 #include <asm/dma.h>
 #include <asm/irq.h>
@@ -711,6 +712,7 @@ static int mxcmci_setup_dma(struct mmc_host *mmc)
 	config->src_addr_width = 4;
 	config->dst_maxburst = host->burstlen;
 	config->src_maxburst = host->burstlen;
+	config->device_fc = false;
 
 	return dmaengine_slave_config(host->dma, config);
 }
