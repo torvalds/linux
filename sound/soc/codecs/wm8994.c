@@ -3455,6 +3455,35 @@ MODULE_ALIAS("platform:wm8994-codec");
 //=====================================================================
 //Proc
 #ifdef WM8994_PROC
+void mainMIC_to_BB_to_earpiece(void)
+{
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
+//	wm8994_write(wm8994_codec,0x0000,0x0000);
+//	wm8994_write(wm8994_codec,0x0001,0x0023);
+//	wm8994_write(wm8994_codec,0x0200,0x0000);
+//	wm8994_write(wm8994_codec,0x0222,0x0000);
+//	wm8994_write(wm8994_codec,0x0223,0x0400);
+//	wm8994_write(wm8994_codec,0x0220,0x0005);
+//	wm8994_write(wm8994_codec,0x0208,0x000a);
+//	wm8994_write(wm8994_codec,0x0210,0x0073);
+//	wm8994_write(wm8994_codec,0x0200,0x0011);
+
+	wm8994_write(wm8994_codec,0x0034,0x0004);
+	wm8994_write(wm8994_codec,0x002b,0x0007);
+	wm8994_write(wm8994_codec,0x002e,0x0081);
+	
+//	wm8994_write(wm8994_codec,0x0601,0x0001);
+//	wm8994_write(wm8994_codec,0x0610,0x01c0);
+//	wm8994_write(wm8994_codec,0x0611,0x01c0);
+	wm8994_write(wm8994_codec,0x0033,0x0018);
+//	wm8994_write(wm8994_codec,0x0031,0x0000);
+//	wm8994_write(wm8994_codec,0x004c,0x9f25);
+//	wm8994_write(wm8994_codec,0x0001,0x0833);
+	
+//	wm8994_write(wm8994_codec,0x0020,0x0179);
+//	wm8994_write(wm8994_codec,0x0021,0x0179);
+}
 void BT_BB(void)
 {//
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
@@ -3732,6 +3761,9 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 	case 'b':
 		BT_BB();
 		break;
+	case 'c':
+		mainMIC_to_BB_to_earpiece();
+		break;
 	default:
 		printk("Help for wm8994_ts .\n-->The Cmd list: \n");
 		printk("-->'d&&D' Open or Off the debug\n");
@@ -3747,7 +3779,7 @@ static const struct file_operations wm8994_proc_fops = {
 	//.open		= snd_mem_proc_open,
 	//.read		= seq_read,
 //#ifdef CONFIG_PCI
-	.write		= wm8994_proc_write,
+//	.write		= wm8994_proc_write,
 //#endif
 	//.llseek	= seq_lseek,
 	//.release	= single_release,
