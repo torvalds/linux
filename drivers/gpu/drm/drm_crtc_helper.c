@@ -44,12 +44,12 @@ module_param_named(poll, drm_kms_helper_poll, bool, 0600);
 static void drm_mode_validate_flag(struct drm_connector *connector,
 				   int flags)
 {
-	struct drm_display_mode *mode, *t;
+	struct drm_display_mode *mode;
 
 	if (flags == (DRM_MODE_FLAG_DBLSCAN | DRM_MODE_FLAG_INTERLACE))
 		return;
 
-	list_for_each_entry_safe(mode, t, &connector->modes, head) {
+	list_for_each_entry(mode, &connector->modes, head) {
 		if ((mode->flags & DRM_MODE_FLAG_INTERLACE) &&
 				!(flags & DRM_MODE_FLAG_INTERLACE))
 			mode->status = MODE_NO_INTERLACE;
@@ -87,7 +87,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 					    uint32_t maxX, uint32_t maxY)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_display_mode *mode, *t;
+	struct drm_display_mode *mode;
 	struct drm_connector_helper_funcs *connector_funcs =
 		connector->helper_private;
 	int count = 0;
@@ -96,7 +96,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id,
 			drm_get_connector_name(connector));
 	/* set all modes to the unverified state */
-	list_for_each_entry_safe(mode, t, &connector->modes, head)
+	list_for_each_entry(mode, &connector->modes, head)
 		mode->status = MODE_UNVERIFIED;
 
 	if (connector->force) {
@@ -136,7 +136,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 		mode_flags |= DRM_MODE_FLAG_DBLSCAN;
 	drm_mode_validate_flag(connector, mode_flags);
 
-	list_for_each_entry_safe(mode, t, &connector->modes, head) {
+	list_for_each_entry(mode, &connector->modes, head) {
 		if (mode->status == MODE_OK)
 			mode->status = connector_funcs->mode_valid(connector,
 								   mode);
@@ -152,7 +152,7 @@ prune:
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] probed modes :\n", connector->base.id,
 			drm_get_connector_name(connector));
-	list_for_each_entry_safe(mode, t, &connector->modes, head) {
+	list_for_each_entry(mode, &connector->modes, head) {
 		mode->vrefresh = drm_mode_vrefresh(mode);
 
 		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
