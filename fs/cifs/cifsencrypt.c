@@ -327,7 +327,7 @@ build_avpair_blob(struct cifs_ses *ses, const struct nls_table *nls_cp)
 	attrptr->type = cpu_to_le16(NTLMSSP_AV_NB_DOMAIN_NAME);
 	attrptr->length = cpu_to_le16(2 * dlen);
 	blobptr = (unsigned char *)attrptr + sizeof(struct ntlmssp2_name);
-	cifs_strtoUCS((__le16 *)blobptr, ses->domainName, dlen, nls_cp);
+	cifs_strtoUTF16((__le16 *)blobptr, ses->domainName, dlen, nls_cp);
 
 	return 0;
 }
@@ -376,7 +376,7 @@ find_domain_name(struct cifs_ses *ses, const struct nls_table *nls_cp)
 					kmalloc(attrsize + 1, GFP_KERNEL);
 				if (!ses->domainName)
 						return -ENOMEM;
-				cifs_from_ucs2(ses->domainName,
+				cifs_from_utf16(ses->domainName,
 					(__le16 *)blobptr, attrsize, attrsize,
 					nls_cp, false);
 				break;
@@ -420,15 +420,20 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 	}
 
 	/* convert ses->user_name to unicode and uppercase */
-	len = strlen(ses->user_name);
+	len = ses->user_name ? strlen(ses->user_name) : 0;
 	user = kmalloc(2 + (len * 2), GFP_KERNEL);
 	if (user == NULL) {
 		cERROR(1, "calc_ntlmv2_hash: user mem alloc failure\n");
 		rc = -ENOMEM;
 		return rc;
 	}
-	len = cifs_strtoUCS((__le16 *)user, ses->user_name, len, nls_cp);
-	UniStrupr(user);
+
+	if (len) {
+		len = cifs_strtoUTF16((__le16 *)user, ses->user_name, len, nls_cp);
+		UniStrupr(user);
+	} else {
+		memset(user, '\0', 2);
+	}
 
 	rc = crypto_shash_update(&ses->server->secmech.sdeschmacmd5->shash,
 				(char *)user, 2 * len);
@@ -448,8 +453,8 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 			rc = -ENOMEM;
 			return rc;
 		}
-		len = cifs_strtoUCS((__le16 *)domain, ses->domainName, len,
-					nls_cp);
+		len = cifs_strtoUTF16((__le16 *)domain, ses->domainName, len,
+				      nls_cp);
 		rc =
 		crypto_shash_update(&ses->server->secmech.sdeschmacmd5->shash,
 					(char *)domain, 2 * len);
@@ -468,7 +473,7 @@ static int calc_ntlmv2_hash(struct cifs_ses *ses, char *ntlmv2_hash,
 			rc = -ENOMEM;
 			return rc;
 		}
-		len = cifs_strtoUCS((__le16 *)server, ses->serverName, len,
+		len = cifs_strtoUTF16((__le16 *)server, ses->serverName, len,
 					nls_cp);
 		rc =
 		crypto_shash_update(&ses->server->secmech.sdeschmacmd5->shash,

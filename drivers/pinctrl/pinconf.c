@@ -205,8 +205,10 @@ int pin_config_group_set(const char *dev_name, const char *pin_group,
 }
 EXPORT_SYMBOL(pin_config_group_set);
 
-int pinconf_check_ops(const struct pinconf_ops *ops)
+int pinconf_check_ops(struct pinctrl_dev *pctldev)
 {
+	const struct pinconf_ops *ops = pctldev->desc->confops;
+
 	/* We must be able to read out pin status */
 	if (!ops->pin_config_get && !ops->pin_config_group_get)
 		return -EINVAL;
@@ -236,7 +238,7 @@ static int pinconf_pins_show(struct seq_file *s, void *what)
 	seq_puts(s, "Format: pin (name): pinmux setting array\n");
 
 	/* The pin number can be retrived from the pin controller descriptor */
-	for (i = 0; pin < pctldev->desc->npins; i++) {
+	for (i = 0; i < pctldev->desc->npins; i++) {
 		struct pin_desc *desc;
 
 		pin = pctldev->desc->pins[i].number;

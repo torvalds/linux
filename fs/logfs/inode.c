@@ -286,7 +286,7 @@ static int logfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	if (logfs_inode(inode)->li_flags & LOGFS_IF_STILLBORN)
 		return 0;
 
-	ret = __logfs_write_inode(inode, flags);
+	ret = __logfs_write_inode(inode, NULL, flags);
 	LOGFS_BUG_ON(ret, inode->i_sb);
 	return ret;
 }
@@ -363,7 +363,9 @@ static void logfs_init_once(void *_li)
 
 static int logfs_sync_fs(struct super_block *sb, int wait)
 {
+	logfs_get_wblocks(sb, NULL, WF_LOCK);
 	logfs_write_anchor(sb);
+	logfs_put_wblocks(sb, NULL, WF_LOCK);
 	return 0;
 }
 

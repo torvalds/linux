@@ -357,14 +357,29 @@ extern bool pm_save_wakeup_count(unsigned int count);
 
 static inline void lock_system_sleep(void)
 {
-	freezer_do_not_count();
+	current->flags |= PF_FREEZER_SKIP;
 	mutex_lock(&pm_mutex);
 }
 
 static inline void unlock_system_sleep(void)
 {
+	/*
+	 * Don't use freezer_count() because we don't want the call to
+	 * try_to_freeze() here.
+	 *
+	 * Reason:
+	 * Fundamentally, we just don't need it, because freezing condition
+	 * doesn't come into effect until we release the pm_mutex lock,
+	 * since the freezer always works with pm_mutex held.
+	 *
+	 * More importantly, in the case of hibernation,
+	 * unlock_system_sleep() gets called in snapshot_read() and
+	 * snapshot_write() when the freezing condition is still in effect.
+	 * Which means, if we use try_to_freeze() here, it would make them
+	 * enter the refrigerator, thus causing hibernation to lockup.
+	 */
+	current->flags &= ~PF_FREEZER_SKIP;
 	mutex_unlock(&pm_mutex);
-	freezer_count();
 }
 
 #else /* !CONFIG_PM_SLEEP */

@@ -57,6 +57,10 @@ struct page *ecryptfs_get_locked_page(struct inode *inode, loff_t index)
  * @page: Page that is locked before this call is made
  *
  * Returns zero on success; non-zero otherwise
+ *
+ * This is where we encrypt the data and pass the encrypted data to
+ * the lower filesystem.  In OpenPGP-compatible mode, we operate on
+ * entire underlying packets.
  */
 static int ecryptfs_writepage(struct page *page, struct writeback_control *wbc)
 {
@@ -481,10 +485,6 @@ int ecryptfs_write_inode_size_to_metadata(struct inode *ecryptfs_inode)
  * @copied: The amount of data copied
  * @page: The eCryptfs page
  * @fsdata: The fsdata (unused)
- *
- * This is where we encrypt the data and pass the encrypted data to
- * the lower filesystem.  In OpenPGP-compatible mode, we operate on
- * entire underlying packets.
  */
 static int ecryptfs_write_end(struct file *file,
 			struct address_space *mapping,

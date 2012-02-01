@@ -17,7 +17,7 @@
 
 /*****************************************************************************/
 /*
- * the payload for a key of type "user"
+ * the payload for a key of type "user" or "logon"
  * - once filled in and attached to a key:
  *   - the payload struct is invariant may not be changed, only replaced
  *   - the payload must be read with RCU procedures or with the key semaphore
@@ -33,6 +33,7 @@ struct user_key_payload {
 };
 
 extern struct key_type key_type_user;
+extern struct key_type key_type_logon;
 
 extern int user_instantiate(struct key *key, const void *data, size_t datalen);
 extern int user_update(struct key *key, const void *data, size_t datalen);

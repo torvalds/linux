@@ -1319,6 +1319,7 @@ store_pwm_mode(struct device *dev, struct device_attribute *attr,
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	struct w83627ehf_sio_data *sio_data = dev->platform_data;
 	int nr = sensor_attr->index;
 	unsigned long val;
 	int err;
@@ -1330,6 +1331,11 @@ store_pwm_mode(struct device *dev, struct device_attribute *attr,
 
 	if (val > 1)
 		return -EINVAL;
+
+	/* On NCT67766F, DC mode is only supported for pwm1 */
+	if (sio_data->kind == nct6776 && nr && val != 1)
+		return -EINVAL;
+
 	mutex_lock(&data->update_lock);
 	reg = w83627ehf_read_value(data, W83627EHF_REG_PWM_ENABLE[nr]);
 	data->pwm_mode[nr] = val;

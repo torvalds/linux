@@ -466,10 +466,8 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	mutex_lock(&dev->struct_mutex);
 
 	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
-	if (ret) {
-		DRM_ERROR("failed to pin object\n");
+	if (ret)
 		goto out_unlock;
-	}
 
 	intel_plane->obj = obj;
 
@@ -632,10 +630,8 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 	unsigned long possible_crtcs;
 	int ret;
 
-	if (!(IS_GEN6(dev) || IS_GEN7(dev))) {
-		DRM_ERROR("new plane code only for SNB+\n");
+	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
 		return -ENODEV;
-	}
 
 	intel_plane = kzalloc(sizeof(struct intel_plane), GFP_KERNEL);
 	if (!intel_plane)

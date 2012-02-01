@@ -853,6 +853,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	struct mlx4_en_rss_map *rss_map = &priv->rss_map;
 	struct mlx4_qp_context context;
 	struct mlx4_rss_context *rss_context;
+	int rss_rings;
 	void *ptr;
 	u8 rss_mask = (MLX4_RSS_IPV4 | MLX4_RSS_TCP_IPV4 | MLX4_RSS_IPV6 |
 			MLX4_RSS_TCP_IPV6);
@@ -893,10 +894,15 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	mlx4_en_fill_qp_context(priv, 0, 0, 0, 1, priv->base_qpn,
 				priv->rx_ring[0].cqn, &context);
 
+	if (!priv->prof->rss_rings || priv->prof->rss_rings > priv->rx_ring_num)
+		rss_rings = priv->rx_ring_num;
+	else
+		rss_rings = priv->prof->rss_rings;
+
 	ptr = ((void *) &context) + offsetof(struct mlx4_qp_context, pri_path)
 					+ MLX4_RSS_OFFSET_IN_QPC_PRI_PATH;
 	rss_context = ptr;
-	rss_context->base_qpn = cpu_to_be32(ilog2(priv->rx_ring_num) << 24 |
+	rss_context->base_qpn = cpu_to_be32(ilog2(rss_rings) << 24 |
 					    (rss_map->base_qpn));
 	rss_context->default_qpn = cpu_to_be32(rss_map->base_qpn);
 	if (priv->mdev->profile.udp_rss) {

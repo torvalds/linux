@@ -152,12 +152,12 @@ static long wafwdt_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 
 		if (options & WDIOS_DISABLECARD) {
-			wafwdt_start();
+			wafwdt_stop();
 			retval = 0;
 		}
 
 		if (options & WDIOS_ENABLECARD) {
-			wafwdt_stop();
+			wafwdt_start();
 			retval = 0;
 		}
 

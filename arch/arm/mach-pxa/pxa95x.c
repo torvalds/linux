@@ -217,7 +217,6 @@ static struct clk_lookup pxa95x_clkregs[] = {
 	INIT_CLKREG(&clk_pxa95x_pout, NULL, "CLK_POUT"),
 	/* Power I2C clock is always on */
 	INIT_CLKREG(&clk_dummy, "pxa3xx-pwri2c.1", NULL),
-	INIT_CLKREG(&clk_dummy, "sa1100-rtc", NULL),
 	INIT_CLKREG(&clk_pxa95x_lcd, "pxa2xx-fb", NULL),
 	INIT_CLKREG(&clk_pxa95x_ffuart, "pxa2xx-uart.0", NULL),
 	INIT_CLKREG(&clk_pxa95x_btuart, "pxa2xx-uart.1", NULL),

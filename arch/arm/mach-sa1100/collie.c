@@ -27,7 +27,6 @@
 #include <linux/timer.h>
 #include <linux/gpio.h>
 #include <linux/pda_power.h>
-#include <linux/mfd/ucb1x00.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -86,15 +85,10 @@ static struct scoop_pcmcia_config collie_pcmcia_config = {
 	.num_devs	= 1,
 };
 
-static struct ucb1x00_plat_data collie_ucb1x00_data = {
-	.gpio_base	= COLLIE_TC35143_GPIO_BASE,
-};
-
 static struct mcp_plat_data collie_mcp_data = {
 	.mccr0		= MCCR0_ADM | MCCR0_ExtClk,
 	.sclk_rate	= 9216000,
-	.codec		= "ucb1x00",
-	.codec_pdata	= &collie_ucb1x00_data,
+	.gpio_base	= COLLIE_TC35143_GPIO_BASE,
 };
 
 /*
@@ -144,8 +138,6 @@ static struct pda_power_pdata collie_power_data = {
 static struct resource collie_power_resource[] = {
 	{
 		.name		= "ac",
-		.start		= gpio_to_irq(COLLIE_GPIO_AC_IN),
-		.end		= gpio_to_irq(COLLIE_GPIO_AC_IN),
 		.flags		= IORESOURCE_IRQ |
 				  IORESOURCE_IRQ_HIGHEDGE |
 				  IORESOURCE_IRQ_LOWEDGE,
@@ -347,7 +339,8 @@ static void __init collie_init(void)
 
 	GPSR |= _COLLIE_GPIO_UCB1x00_RESET;
 
-
+	collie_power_resource[0].start = gpio_to_irq(COLLIE_GPIO_AC_IN);
+	collie_power_resource[0].end = gpio_to_irq(COLLIE_GPIO_AC_IN);
 	platform_scoop_config = &collie_pcmcia_config;
 
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
@@ -357,16 +350,6 @@ static void __init collie_init(void)
 
 	sa11x0_register_mtd(&collie_flash_data, collie_flash_resources,
 			    ARRAY_SIZE(collie_flash_resources));
-
-	/*
-	 * Setup the PPC unit correctly.
-	 */
-	PPDR &= ~PPC_RXD4;
-	PPDR |= PPC_TXD4 | PPC_SCLK | PPC_SFRM;
-	PSDR |= PPC_RXD4;
-	PSDR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
-	PPSR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
-
 	sa11x0_register_mcp(&collie_mcp_data);
 
 	sharpsl_save_param();

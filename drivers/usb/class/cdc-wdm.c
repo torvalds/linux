@@ -57,6 +57,8 @@ MODULE_DEVICE_TABLE (usb, wdm_ids);
 
 #define WDM_MAX			16
 
+/* CDC-WMC r1.1 requires wMaxCommand to be "at least 256 decimal (0x100)" */
+#define WDM_DEFAULT_BUFSIZE	256
 
 static DEFINE_MUTEX(wdm_mutex);
 
@@ -88,7 +90,8 @@ struct wdm_device {
 	int			count;
 	dma_addr_t		shandle;
 	dma_addr_t		ihandle;
-	struct mutex		lock;
+	struct mutex		wlock;
+	struct mutex		rlock;
 	wait_queue_head_t	wait;
 	struct work_struct	rxwork;
 	int			werr;
@@ -323,7 +326,7 @@ static ssize_t wdm_write
 	}
 
 	/* concurrent writes and disconnect */
-	r = mutex_lock_interruptible(&desc->lock);
+	r = mutex_lock_interruptible(&desc->wlock);
 	rv = -ERESTARTSYS;
 	if (r) {
 		kfree(buf);
@@ -386,7 +389,7 @@ static ssize_t wdm_write
 out:
 	usb_autopm_put_interface(desc->intf);
 outnp:
-	mutex_unlock(&desc->lock);
+	mutex_unlock(&desc->wlock);
 outnl:
 	return rv < 0 ? rv : count;
 }
@@ -399,7 +402,7 @@ static ssize_t wdm_read
 	struct wdm_device *desc = file->private_data;
 
 
-	rv = mutex_lock_interruptible(&desc->lock); /*concurrent reads */
+	rv = mutex_lock_interruptible(&desc->rlock); /*concurrent reads */
 	if (rv < 0)
 		return -ERESTARTSYS;
 
@@ -467,14 +470,16 @@ retry:
 	for (i = 0; i < desc->length - cntr; i++)
 		desc->ubuf[i] = desc->ubuf[i + cntr];
 
+	spin_lock_irq(&desc->iuspin);
 	desc->length -= cntr;
+	spin_unlock_irq(&desc->iuspin);
 	/* in case we had outstanding data */
 	if (!desc->length)
 		clear_bit(WDM_READ, &desc->flags);
 	rv = cntr;
 
 err:
-	mutex_unlock(&desc->lock);
+	mutex_unlock(&desc->rlock);
 	return rv;
 }
 
@@ -540,7 +545,8 @@ static int wdm_open(struct inode *inode, struct file *file)
 	}
 	intf->needs_remote_wakeup = 1;
 
-	mutex_lock(&desc->lock);
+	/* using write lock to protect desc->count */
+	mutex_lock(&desc->wlock);
 	if (!desc->count++) {
 		desc->werr = 0;
 		desc->rerr = 0;
@@ -553,7 +559,7 @@ static int wdm_open(struct inode *inode, struct file *file)
 	} else {
 		rv = 0;
 	}
-	mutex_unlock(&desc->lock);
+	mutex_unlock(&desc->wlock);
 	usb_autopm_put_interface(desc->intf);
 out:
 	mutex_unlock(&wdm_mutex);
@@ -565,9 +571,11 @@ static int wdm_release(struct inode *inode, struct file *file)
 	struct wdm_device *desc = file->private_data;
 
 	mutex_lock(&wdm_mutex);
-	mutex_lock(&desc->lock);
+
+	/* using write lock to protect desc->count */
+	mutex_lock(&desc->wlock);
 	desc->count--;
-	mutex_unlock(&desc->lock);
+	mutex_unlock(&desc->wlock);
 
 	if (!desc->count) {
 		dev_dbg(&desc->intf->dev, "wdm_release: cleanup");
@@ -630,7 +638,7 @@ static int wdm_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	struct usb_cdc_dmm_desc *dmhd;
 	u8 *buffer = intf->altsetting->extra;
 	int buflen = intf->altsetting->extralen;
-	u16 maxcom = 0;
+	u16 maxcom = WDM_DEFAULT_BUFSIZE;
 
 	if (!buffer)
 		goto out;
@@ -665,7 +673,8 @@ next_desc:
 	desc = kzalloc(sizeof(struct wdm_device), GFP_KERNEL);
 	if (!desc)
 		goto out;
-	mutex_init(&desc->lock);
+	mutex_init(&desc->rlock);
+	mutex_init(&desc->wlock);
 	spin_lock_init(&desc->iuspin);
 	init_waitqueue_head(&desc->wait);
 	desc->wMaxCommand = maxcom;
@@ -716,7 +725,7 @@ next_desc:
 		goto err;
 
 	desc->inbuf = usb_alloc_coherent(interface_to_usbdev(intf),
-					 desc->bMaxPacketSize0,
+					 desc->wMaxCommand,
 					 GFP_KERNEL,
 					 &desc->response->transfer_dma);
 	if (!desc->inbuf)
@@ -779,11 +788,13 @@ static void wdm_disconnect(struct usb_interface *intf)
 	/* to terminate pending flushes */
 	clear_bit(WDM_IN_USE, &desc->flags);
 	spin_unlock_irqrestore(&desc->iuspin, flags);
-	mutex_lock(&desc->lock);
+	wake_up_all(&desc->wait);
+	mutex_lock(&desc->rlock);
+	mutex_lock(&desc->wlock);
 	kill_urbs(desc);
 	cancel_work_sync(&desc->rxwork);
-	mutex_unlock(&desc->lock);
-	wake_up_all(&desc->wait);
+	mutex_unlock(&desc->wlock);
+	mutex_unlock(&desc->rlock);
 	if (!desc->count)
 		cleanup(desc);
 	mutex_unlock(&wdm_mutex);
@@ -798,8 +809,10 @@ static int wdm_suspend(struct usb_interface *intf, pm_message_t message)
 	dev_dbg(&desc->intf->dev, "wdm%d_suspend\n", intf->minor);
 
 	/* if this is an autosuspend the caller does the locking */
-	if (!PMSG_IS_AUTO(message))
-		mutex_lock(&desc->lock);
+	if (!PMSG_IS_AUTO(message)) {
+		mutex_lock(&desc->rlock);
+		mutex_lock(&desc->wlock);
+	}
 	spin_lock_irq(&desc->iuspin);
 
 	if (PMSG_IS_AUTO(message) &&
@@ -815,8 +828,10 @@ static int wdm_suspend(struct usb_interface *intf, pm_message_t message)
 		kill_urbs(desc);
 		cancel_work_sync(&desc->rxwork);
 	}
-	if (!PMSG_IS_AUTO(message))
-		mutex_unlock(&desc->lock);
+	if (!PMSG_IS_AUTO(message)) {
+		mutex_unlock(&desc->wlock);
+		mutex_unlock(&desc->rlock);
+	}
 
 	return rv;
 }
@@ -854,7 +869,8 @@ static int wdm_pre_reset(struct usb_interface *intf)
 {
 	struct wdm_device *desc = usb_get_intfdata(intf);
 
-	mutex_lock(&desc->lock);
+	mutex_lock(&desc->rlock);
+	mutex_lock(&desc->wlock);
 	kill_urbs(desc);
 
 	/*
@@ -876,7 +892,8 @@ static int wdm_post_reset(struct usb_interface *intf)
 	int rv;
 
 	rv = recover_from_urb_loss(desc);
-	mutex_unlock(&desc->lock);
+	mutex_unlock(&desc->wlock);
+	mutex_unlock(&desc->rlock);
 	return 0;
 }
 
