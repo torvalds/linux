@@ -135,6 +135,20 @@ struct fw_card {
 	__be32 maint_utility_register;
 };
 
+static inline struct fw_card *fw_card_get(struct fw_card *card)
+{
+	kref_get(&card->kref);
+
+	return card;
+}
+
+void fw_card_release(struct kref *kref);
+
+static inline void fw_card_put(struct fw_card *card)
+{
+	kref_put(&card->kref, fw_card_release);
+}
+
 struct fw_attribute_group {
 	struct attribute_group *groups[2];
 	struct attribute_group group;
