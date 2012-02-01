@@ -35,6 +35,11 @@ static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(0x413c, 0x8171)},	/* Dell Gobi QDL device */
 	{USB_DEVICE(0x1410, 0xa001)},	/* Novatel Gobi Modem device */
 	{USB_DEVICE(0x1410, 0xa008)},	/* Novatel Gobi QDL device */
+	{USB_DEVICE(0x1410, 0xa010)},	/* Novatel Gobi QDL device */
+	{USB_DEVICE(0x1410, 0xa011)},	/* Novatel Gobi QDL device */
+	{USB_DEVICE(0x1410, 0xa012)},	/* Novatel Gobi QDL device */
+	{USB_DEVICE(0x1410, 0xa013)},	/* Novatel Gobi QDL device */
+	{USB_DEVICE(0x1410, 0xa014)},	/* Novatel Gobi QDL device */
 	{USB_DEVICE(0x0b05, 0x1776)},	/* Asus Gobi Modem device */
 	{USB_DEVICE(0x0b05, 0x1774)},	/* Asus Gobi QDL device */
 	{USB_DEVICE(0x19d2, 0xfff3)},	/* ONDA Gobi Modem device */
@@ -85,7 +90,16 @@ static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(0x16d8, 0x8002)},	/* CMDTech Gobi 2000 Modem device (VU922) */
 	{USB_DEVICE(0x05c6, 0x9204)},	/* Gobi 2000 QDL device */
 	{USB_DEVICE(0x05c6, 0x9205)},	/* Gobi 2000 Modem device */
+
+	{USB_DEVICE(0x05c6, 0x920c)},	/* Gobi 3000 QDL */
+	{USB_DEVICE(0x05c6, 0x920d)},	/* Gobi 3000 Composite */
+	{USB_DEVICE(0x1410, 0xa020)},   /* Novatel Gobi 3000 QDL */
+	{USB_DEVICE(0x1410, 0xa021)},	/* Novatel Gobi 3000 Composite */
+	{USB_DEVICE(0x413c, 0x8193)},	/* Dell Gobi 3000 QDL */
+	{USB_DEVICE(0x413c, 0x8194)},	/* Dell Gobi 3000 Composite */
 	{USB_DEVICE(0x1199, 0x9013)},	/* Sierra Wireless Gobi 3000 Modem device (MC8355) */
+	{USB_DEVICE(0x12D1, 0x14F0)},	/* Sony Gobi 3000 QDL */
+	{USB_DEVICE(0x12D1, 0x14F1)},	/* Sony Gobi 3000 Composite */
 	{ }				/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, id_table);
