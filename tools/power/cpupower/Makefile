@@ -228,8 +228,6 @@ compile-bench: libcpupower.so.$(LIB_MAJ)
 clean:
 	-find . \( -not -type d \) -and \( -name '*~' -o -name '*.[oas]' \) -type f -print \
 	 | xargs rm -f
-	-rm -f $(UTIL_BINS)
-	-rm -f $(IDLE_OBJS)
 	-rm -f cpupower
 	-rm -f libcpupower.so*
 	-rm -rf po/*.gmo po/*.pot
