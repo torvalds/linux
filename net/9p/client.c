@@ -740,9 +740,17 @@ p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...)
 			c->status = Disconnected;
 		goto reterr;
 	}
+again:
 	/* Wait for the response */
 	err = wait_event_interruptible(*req->wq,
 				       req->status >= REQ_STATUS_RCVD);
+
+	if ((err == -ERESTARTSYS) && (c->status == Connected)
+				  && (type == P9_TFLUSH)) {
+		sigpending = 1;
+		clear_thread_flag(TIF_SIGPENDING);
+		goto again;
+	}
 
 	if (req->status == REQ_STATUS_ERROR) {
 		p9_debug(P9_DEBUG_ERROR, "req_status error %d\n", req->t_err);
