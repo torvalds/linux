@@ -454,7 +454,7 @@ EXPORT_SYMBOL(drm_mode_remove);
  * @name: user visible name of the connector
  *
  * LOCKING:
- * Caller must hold @dev's mode_config lock.
+ * Takes mode config lock.
  *
  * Initialises a preallocated connector. Connectors should be
  * subclassed as part of driver connector objects.
@@ -497,7 +497,7 @@ EXPORT_SYMBOL(drm_connector_init);
  * @connector: connector to cleanup
  *
  * LOCKING:
- * Caller must hold @dev's mode_config lock.
+ * Takes mode config lock.
  *
  * Cleans up the connector but doesn't free the object.
  */
@@ -1314,7 +1314,7 @@ out:
  * @arg: arg from ioctl
  *
  * LOCKING:
- * Caller? (FIXME)
+ * Takes mode config lock.
  *
  * Construct a CRTC configuration structure to return to the user.
  *
@@ -1374,7 +1374,7 @@ out:
  * @arg: arg from ioctl
  *
  * LOCKING:
- * Caller? (FIXME)
+ * Takes mode config lock.
  *
  * Construct a connector configuration structure to return to the user.
  *
@@ -1556,6 +1556,9 @@ out:
  * @data: ioctl data
  * @file_priv: DRM file info
  *
+ * LOCKING:
+ * Takes mode config lock.
+ *
  * Return an plane count and set of IDs.
  */
 int drm_mode_getplane_res(struct drm_device *dev, void *data,
@@ -1601,6 +1604,9 @@ out:
  * @dev: DRM device
  * @data: ioctl data
  * @file_priv: DRM file info
+ *
+ * LOCKING:
+ * Takes mode config lock.
  *
  * Return plane info, including formats supported, gamma size, any
  * current fb, etc.
@@ -1666,6 +1672,9 @@ out:
  * @dev: DRM device
  * @data: ioctl data*
  * @file_prive: DRM file info
+ *
+ * LOCKING:
+ * Takes mode config lock.
  *
  * Set plane info, including placement, fb, scaling, and other factors.
  * Or pass a NULL fb to disable.
@@ -1797,7 +1806,7 @@ out:
  * @arg: arg from ioctl
  *
  * LOCKING:
- * Caller? (FIXME)
+ * Takes mode config lock.
  *
  * Build a new CRTC configuration based on user request.
  *
@@ -2278,7 +2287,7 @@ out:
  * @arg: arg from ioctl
  *
  * LOCKING:
- * Caller? (FIXME)
+ * Takes mode config lock.
  *
  * Lookup the FB given its ID and return info about it.
  *
