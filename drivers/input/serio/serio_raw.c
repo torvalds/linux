@@ -164,7 +164,8 @@ static ssize_t serio_raw_read(struct file *file, char __user *buffer,
 	struct serio_raw_client *client = file->private_data;
 	struct serio_raw *serio_raw = client->serio_raw;
 	char uninitialized_var(c);
-	ssize_t retval = 0;
+	ssize_t read = 0;
+	int retval;
 
 	if (serio_raw->dead)
 		return -ENODEV;
@@ -180,13 +181,15 @@ static ssize_t serio_raw_read(struct file *file, char __user *buffer,
 	if (serio_raw->dead)
 		return -ENODEV;
 
-	while (retval < count && serio_raw_fetch_byte(serio_raw, &c)) {
-		if (put_user(c, buffer++))
-			return -EFAULT;
-		retval++;
+	while (read < count && serio_raw_fetch_byte(serio_raw, &c)) {
+		if (put_user(c, buffer++)) {
+			retval = -EFAULT;
+			break;
+		}
+		read++;
 	}
 
-	return retval;
+	return read ?: retval;
 }
 
 static ssize_t serio_raw_write(struct file *file, const char __user *buffer,
