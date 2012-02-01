@@ -2892,6 +2892,7 @@ struct ixgbe_hw {
 	u8				revision_id;
 	bool				adapter_stopped;
 	bool				force_full_reset;
+	bool				allow_unsupported_sfp;
 };
 
 struct ixgbe_info {
