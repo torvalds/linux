@@ -430,8 +430,11 @@ static void drm_fb_helper_crtc_free(struct drm_fb_helper *helper)
 	for (i = 0; i < helper->connector_count; i++)
 		kfree(helper->connector_info[i]);
 	kfree(helper->connector_info);
-	for (i = 0; i < helper->crtc_count; i++)
+	for (i = 0; i < helper->crtc_count; i++) {
 		kfree(helper->crtc_info[i].mode_set.connectors);
+		if (helper->crtc_info[i].mode_set.mode)
+			drm_mode_destroy(helper->dev, helper->crtc_info[i].mode_set.mode);
+	}
 	kfree(helper->crtc_info);
 }
 
