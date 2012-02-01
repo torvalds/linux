@@ -321,6 +321,25 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 	data_offset = RNDIS_HEADER_SIZE + rndis_pkt->data_offset;
 
 	pkt->total_data_buflen -= data_offset;
+
+	/*
+	 * Make sure we got a valid RNDIS message, now total_data_buflen
+	 * should be the data packet size plus the trailer padding size
+	 */
+	if (pkt->total_data_buflen < rndis_pkt->data_len) {
+		netdev_err(dev->net_dev->ndev, "rndis message buffer "
+			   "overflow detected (got %u, min %u)"
+			   "...dropping this message!\n",
+			   pkt->total_data_buflen, rndis_pkt->data_len);
+		return;
+	}
+
+	/*
+	 * Remove the rndis trailer padding from rndis packet message
+	 * rndis_pkt->data_len tell us the real data length, we only copy
+	 * the data packet to the stack, without the rndis trailer padding
+	 */
+	pkt->total_data_buflen = rndis_pkt->data_len;
 	pkt->data = (void *)((unsigned long)pkt->data + data_offset);
 
 	pkt->is_data_pkt = true;
