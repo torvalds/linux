@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/gpio.h>
+#include <linux/types.h>
 #include <linux/io.h>
 
 #include <sound/core.h>
@@ -1014,16 +1015,28 @@ static int __devinit atmel_ac97c_probe(struct platform_device *pdev)
 
 	if (cpu_is_at32ap7000()) {
 		if (pdata->rx_dws.dma_dev) {
-			struct dw_dma_slave *dws = &pdata->rx_dws;
 			dma_cap_mask_t mask;
-
-			dws->rx_reg = regs->start + AC97C_CARHR + 2;
 
 			dma_cap_zero(mask);
 			dma_cap_set(DMA_SLAVE, mask);
 
 			chip->dma.rx_chan = dma_request_channel(mask, filter,
-								dws);
+								&pdata->rx_dws);
+			if (chip->dma.rx_chan) {
+				struct dma_slave_config dma_conf = {
+					.src_addr = regs->start + AC97C_CARHR +
+						2,
+					.src_addr_width =
+						DMA_SLAVE_BUSWIDTH_2_BYTES,
+					.src_maxburst = 1,
+					.dst_maxburst = 1,
+					.direction = DMA_DEV_TO_MEM,
+					.device_fc = false,
+				};
+
+				dmaengine_slave_config(chip->dma.rx_chan,
+						&dma_conf);
+			}
 
 			dev_info(&chip->pdev->dev, "using %s for DMA RX\n",
 				dev_name(&chip->dma.rx_chan->dev->device));
@@ -1031,16 +1044,28 @@ static int __devinit atmel_ac97c_probe(struct platform_device *pdev)
 		}
 
 		if (pdata->tx_dws.dma_dev) {
-			struct dw_dma_slave *dws = &pdata->tx_dws;
 			dma_cap_mask_t mask;
-
-			dws->tx_reg = regs->start + AC97C_CATHR + 2;
 
 			dma_cap_zero(mask);
 			dma_cap_set(DMA_SLAVE, mask);
 
 			chip->dma.tx_chan = dma_request_channel(mask, filter,
-								dws);
+								&pdata->tx_dws);
+			if (chip->dma.tx_chan) {
+				struct dma_slave_config dma_conf = {
+					.dst_addr = regs->start + AC97C_CATHR +
+						2,
+					.dst_addr_width =
+						DMA_SLAVE_BUSWIDTH_2_BYTES,
+					.src_maxburst = 1,
+					.dst_maxburst = 1,
+					.direction = DMA_MEM_TO_DEV,
+					.device_fc = false,
+				};
+
+				dmaengine_slave_config(chip->dma.tx_chan,
+						&dma_conf);
+			}
 
 			dev_info(&chip->pdev->dev, "using %s for DMA TX\n",
 				dev_name(&chip->dma.tx_chan->dev->device));
