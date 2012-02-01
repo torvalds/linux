@@ -745,9 +745,10 @@ static int ti_hecc_error(struct net_device *ndev, int int_status,
 		}
 	}
 
-	netif_receive_skb(skb);
+	netif_rx(skb);
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
+
 	return 0;
 }
 
