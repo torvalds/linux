@@ -816,13 +816,23 @@ config CACHE_FEROCEON_L2_WRITETHROUGH
 	  Say Y here to use the Feroceon L2 cache in writethrough mode.
 	  Unless you specifically require this, say N for writeback mode.
 
+config MIGHT_HAVE_CACHE_L2X0
+	bool
+	help
+	  This option should be selected by machines which have a L2x0
+	  or PL310 cache controller, but where its use is optional.
+
+	  The only effect of this option is to make CACHE_L2X0 and
+	  related options available to the user for configuration.
+
+	  Boards or SoCs which always require the cache controller
+	  support to be present should select CACHE_L2X0 directly
+	  instead of this option, thus preventing the user from
+	  inadvertently configuring a broken kernel.
+
 config CACHE_L2X0
-	bool "Enable the L2x0 outer cache controller"
-	depends on REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || MACH_REALVIEW_PB1176 || \
-		   REALVIEW_EB_A9MP || SOC_IMX35 || SOC_IMX31 || MACH_REALVIEW_PBX || \
-		   ARCH_NOMADIK || ARCH_OMAP4 || ARCH_EXYNOS4 || ARCH_TEGRA || \
-		   ARCH_U8500 || ARCH_VEXPRESS_CA9X4 || ARCH_SHMOBILE
-	default y
+	bool "Enable the L2x0 outer cache controller" if MIGHT_HAVE_CACHE_L2X0
+	default MIGHT_HAVE_CACHE_L2X0
 	select OUTER_CACHE
 	select OUTER_CACHE_SYNC
 	help
