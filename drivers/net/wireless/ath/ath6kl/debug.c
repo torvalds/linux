@@ -1441,6 +1441,8 @@ static ssize_t ath6kl_create_qos_write(struct file *file,
 		return -EINVAL;
 	pstream.medium_time = cpu_to_le32(val32);
 
+	pstream.nominal_phy = le32_to_cpu(pstream.min_phy_rate) / 1000000;
+
 	ath6kl_wmi_create_pstream_cmd(ar->wmi, vif->fw_vif_idx, &pstream);
 
 	return count;
