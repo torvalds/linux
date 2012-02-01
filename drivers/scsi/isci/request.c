@@ -3193,7 +3193,7 @@ sci_io_request_construct(struct isci_host *ihost,
 
 	if (dev->dev_type == SAS_END_DEV)
 		/* pass */;
-	else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP))
+	else if (dev_is_sata(dev))
 		memset(&ireq->stp.cmd, 0, sizeof(ireq->stp.cmd));
 	else if (dev_is_expander(dev))
 		/* pass */;
@@ -3215,8 +3215,7 @@ enum sci_status sci_task_request_construct(struct isci_host *ihost,
 	/* Build the common part of the request */
 	sci_general_request_construct(ihost, idev, ireq);
 
-	if (dev->dev_type == SAS_END_DEV ||
-	    dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
+	if (dev->dev_type == SAS_END_DEV || dev_is_sata(dev)) {
 		set_bit(IREQ_TMF, &ireq->flags);
 		memset(ireq->tc, 0, sizeof(struct scu_task_context));
 	} else

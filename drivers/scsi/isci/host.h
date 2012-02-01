@@ -55,6 +55,7 @@
 #ifndef _SCI_HOST_H_
 #define _SCI_HOST_H_
 
+#include <scsi/sas_ata.h>
 #include "remote_device.h"
 #include "phy.h"
 #include "isci.h"
@@ -378,8 +379,7 @@ static inline int sci_remote_device_node_count(struct isci_remote_device *idev)
 {
 	struct domain_device *dev = idev->domain_dev;
 
-	if ((dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) &&
-	    !idev->is_direct_attached)
+	if (dev_is_sata(dev) && dev->parent)
 		return SCU_STP_REMOTE_NODE_COUNT;
 	return SCU_SSP_REMOTE_NODE_COUNT;
 }

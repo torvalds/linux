@@ -94,7 +94,6 @@ struct isci_remote_device {
 	struct sci_base_state_machine sm;
 	u32 device_port_width;
 	enum sas_linkrate connection_rate;
-	bool is_direct_attached;
 	struct isci_port *owning_port;
 	struct sci_remote_node_context rnc;
 	/* XXX unify with device reference counting and delete */

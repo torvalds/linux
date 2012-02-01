@@ -1113,32 +1113,19 @@ static enum sci_status sci_remote_device_da_construct(struct isci_port *iport,
 {
 	enum sci_status status;
 	struct sci_port_properties properties;
-	struct domain_device *dev = idev->domain_dev;
 
 	sci_remote_device_construct(iport, idev);
-
-	/*
-	 * This information is request to determine how many remote node context
-	 * entries will be needed to store the remote node.
-	 */
-	idev->is_direct_attached = true;
 
 	sci_port_get_properties(iport, &properties);
 	/* Get accurate port width from port's phy mask for a DA device. */
 	idev->device_port_width = hweight32(properties.phy_mask);
 
 	status = sci_controller_allocate_remote_node_context(iport->owning_controller,
-								  idev,
-								  &idev->rnc.remote_node_index);
+							     idev,
+							     &idev->rnc.remote_node_index);
 
 	if (status != SCI_SUCCESS)
 		return status;
-
-	if (dev->dev_type == SAS_END_DEV || dev->dev_type == SATA_DEV ||
-	    (dev->tproto & SAS_PROTOCOL_STP) || dev_is_expander(dev))
-		/* pass */;
-	else
-		return SCI_FAILURE_UNSUPPORTED_PROTOCOL;
 
 	idev->connection_rate = sci_port_get_max_allowed_speed(iport);
 
@@ -1171,19 +1158,13 @@ static enum sci_status sci_remote_device_ea_construct(struct isci_port *iport,
 	if (status != SCI_SUCCESS)
 		return status;
 
-	if (dev->dev_type == SAS_END_DEV || dev->dev_type == SATA_DEV ||
-	    (dev->tproto & SAS_PROTOCOL_STP) || dev_is_expander(dev))
-		/* pass */;
-	else
-		return SCI_FAILURE_UNSUPPORTED_PROTOCOL;
-
-	/*
-	 * For SAS-2 the physical link rate is actually a logical link
+	/* For SAS-2 the physical link rate is actually a logical link
 	 * rate that incorporates multiplexing.  The SCU doesn't
 	 * incorporate multiplexing and for the purposes of the
 	 * connection the logical link rate is that same as the
 	 * physical.  Furthermore, the SAS-2 and SAS-1.1 fields overlay
-	 * one another, so this code works for both situations. */
+	 * one another, so this code works for both situations.
+	 */
 	idev->connection_rate = min_t(u16, sci_port_get_max_allowed_speed(iport),
 					 dev->linkrate);
 

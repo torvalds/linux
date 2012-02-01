@@ -131,7 +131,7 @@ static void sci_remote_node_context_construct_buffer(struct sci_remote_node_cont
 
 	rnc->ssp.arbitration_wait_time = 0;
 
-	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
+	if (dev_is_sata(dev)) {
 		rnc->ssp.connection_occupancy_timeout =
 			ihost->user_parameters.stp_max_occupancy_timeout;
 		rnc->ssp.connection_inactivity_timeout =
@@ -219,13 +219,12 @@ static void sci_remote_node_context_validate_context_buffer(struct sci_remote_no
 
 	rnc_buffer->ssp.is_valid = true;
 
-	if (!idev->is_direct_attached &&
-	    (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP))) {
+	if (dev_is_sata(dev) && dev->parent) {
 		sci_remote_device_post_request(idev, SCU_CONTEXT_COMMAND_POST_RNC_96);
 	} else {
 		sci_remote_device_post_request(idev, SCU_CONTEXT_COMMAND_POST_RNC_32);
 
-		if (idev->is_direct_attached)
+		if (!dev->parent)
 			sci_port_setup_transports(idev->owning_port,
 						  sci_rnc->remote_node_index);
 	}
@@ -287,10 +286,8 @@ static void sci_remote_node_context_resuming_state_enter(struct sci_base_state_m
 	 * resume because of a target reset we also need to update
 	 * the STPTLDARNI register with the RNi of the device
 	 */
-	if ((dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) &&
-	    idev->is_direct_attached)
-		sci_port_setup_transports(idev->owning_port,
-					       rnc->remote_node_index);
+	if (dev_is_sata(dev) && !dev->parent)
+		sci_port_setup_transports(idev->owning_port, rnc->remote_node_index);
 
 	sci_remote_device_post_request(idev, SCU_CONTEXT_COMMAND_POST_RNC_RESUME);
 }
@@ -553,18 +550,10 @@ enum sci_status sci_remote_node_context_resume(struct sci_remote_node_context *s
 
 		sci_remote_node_context_setup_to_resume(sci_rnc, cb_fn, cb_p);
 
-		/* TODO: consider adding a resume action of NONE, INVALIDATE, WRITE_TLCR */
-		if (dev->dev_type == SAS_END_DEV || dev_is_expander(dev))
+		if (dev_is_sata(dev) && dev->parent)
+			sci_change_state(&sci_rnc->sm, SCI_RNC_INVALIDATING);
+		else
 			sci_change_state(&sci_rnc->sm, SCI_RNC_RESUMING);
-		else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
-			if (idev->is_direct_attached) {
-				/* @todo Fix this since I am being silly in writing to the STPTLDARNI register. */
-				sci_change_state(&sci_rnc->sm, SCI_RNC_RESUMING);
-			} else {
-				sci_change_state(&sci_rnc->sm, SCI_RNC_INVALIDATING);
-			}
-		} else
-			return SCI_FAILURE;
 		return SCI_SUCCESS;
 	}
 	case SCI_RNC_TX_RX_SUSPENDED:
