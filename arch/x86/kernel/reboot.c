@@ -150,6 +150,80 @@ static int __init set_bios_reboot(const struct dmi_system_id *d)
 	return 0;
 }
 
+extern const unsigned char machine_real_restart_asm[];
+extern const u64 machine_real_restart_gdt[3];
+
+void machine_real_restart(unsigned int type)
+{
+	void *restart_va;
+	unsigned long restart_pa;
+	void (*restart_lowmem)(unsigned int);
+	u64 *lowmem_gdt;
+
+	local_irq_disable();
+
+	/* Write zero to CMOS register number 0x0f, which the BIOS POST
+	   routine will recognize as telling it to do a proper reboot.  (Well
+	   that's what this book in front of me says -- it may only apply to
+	   the Phoenix BIOS though, it's not clear).  At the same time,
+	   disable NMIs by setting the top bit in the CMOS address register,
+	   as we're about to do peculiar things to the CPU.  I'm not sure if
+	   `outb_p' is needed instead of just `outb'.  Use it to be on the
+	   safe side.  (Yes, CMOS_WRITE does outb_p's. -  Paul G.)
+	 */
+	spin_lock(&rtc_lock);
+	CMOS_WRITE(0x00, 0x8f);
+	spin_unlock(&rtc_lock);
+
+	/*
+	 * Switch back to the initial page table.
+	 */
+	load_cr3(initial_page_table);
+
+	/* Write 0x1234 to absolute memory location 0x472.  The BIOS reads
+	   this on booting to tell it to "Bypass memory test (also warm
+	   boot)".  This seems like a fairly standard thing that gets set by
+	   REBOOT.COM programs, and the previous reset routine did this
+	   too. */
+	*((unsigned short *)0x472) = reboot_mode;
+
+	/* Patch the GDT in the low memory trampoline */
+	lowmem_gdt = TRAMPOLINE_SYM(machine_real_restart_gdt);
+
+	restart_va = TRAMPOLINE_SYM(machine_real_restart_asm);
+	restart_pa = virt_to_phys(restart_va);
+	restart_lowmem = (void (*)(unsigned int))restart_pa;
+
+	/* GDT[0]: GDT self-pointer */
+	lowmem_gdt[0] =
+		(u64)(sizeof(machine_real_restart_gdt) - 1) +
+		((u64)virt_to_phys(lowmem_gdt) << 16);
+	/* GDT[1]: 64K real mode code segment */
+	lowmem_gdt[1] =
+		GDT_ENTRY(0x009b, restart_pa, 0xffff);
+
+	/* Jump to the identity-mapped low memory code */
+	restart_lowmem(type);
+}
+#ifdef CONFIG_APM_MODULE
+EXPORT_SYMBOL(machine_real_restart);
+#endif
+
+#endif /* CONFIG_X86_32 */
+
+/*
+ * Some Apple MacBook and MacBookPro's needs reboot=p to be able to reboot
+ */
+static int __init set_pci_reboot(const struct dmi_system_id *d)
+{
+	if (reboot_type != BOOT_CF9) {
+		reboot_type = BOOT_CF9;
+		printk(KERN_INFO "%s series board detected. "
+		       "Selecting PCI-method for reboots.\n", d->ident);
+	}
+	return 0;
+}
+
 static int __init set_kbd_reboot(const struct dmi_system_id *d)
 {
 	if (reboot_type != BOOT_KBD) {
@@ -159,7 +233,11 @@ static int __init set_kbd_reboot(const struct dmi_system_id *d)
 	return 0;
 }
 
+/* This is a single dmi_table handling all reboot quirks.  Note that
+ * REBOOT_BIOS is only available for 32bit
+ */
 static struct dmi_system_id __initdata reboot_dmi_table[] = {
+#ifdef CONFIG_X86_32
 	{	/* Handle problems with rebooting on Dell E520's */
 		.callback = set_bios_reboot,
 		.ident = "Dell E520",
@@ -309,6 +387,8 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "P4S800"),
 		},
 	},
+#endif /* CONFIG_X86_32 */
+
 	{ /* Handle reboot issue on Acer Aspire one */
 		.callback = set_kbd_reboot,
 		.ident = "Acer Aspire One A110",
@@ -317,96 +397,6 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "AOA110"),
 		},
 	},
-	{ }
-};
-
-static int __init reboot_init(void)
-{
-	/* Only do the DMI check if reboot_type hasn't been overridden
-	 * on the command line
-	 */
-	if (reboot_default) {
-		dmi_check_system(reboot_dmi_table);
-	}
-	return 0;
-}
-core_initcall(reboot_init);
-
-extern const unsigned char machine_real_restart_asm[];
-extern const u64 machine_real_restart_gdt[3];
-
-void machine_real_restart(unsigned int type)
-{
-	void *restart_va;
-	unsigned long restart_pa;
-	void (*restart_lowmem)(unsigned int);
-	u64 *lowmem_gdt;
-
-	local_irq_disable();
-
-	/* Write zero to CMOS register number 0x0f, which the BIOS POST
-	   routine will recognize as telling it to do a proper reboot.  (Well
-	   that's what this book in front of me says -- it may only apply to
-	   the Phoenix BIOS though, it's not clear).  At the same time,
-	   disable NMIs by setting the top bit in the CMOS address register,
-	   as we're about to do peculiar things to the CPU.  I'm not sure if
-	   `outb_p' is needed instead of just `outb'.  Use it to be on the
-	   safe side.  (Yes, CMOS_WRITE does outb_p's. -  Paul G.)
-	 */
-	spin_lock(&rtc_lock);
-	CMOS_WRITE(0x00, 0x8f);
-	spin_unlock(&rtc_lock);
-
-	/*
-	 * Switch back to the initial page table.
-	 */
-	load_cr3(initial_page_table);
-
-	/* Write 0x1234 to absolute memory location 0x472.  The BIOS reads
-	   this on booting to tell it to "Bypass memory test (also warm
-	   boot)".  This seems like a fairly standard thing that gets set by
-	   REBOOT.COM programs, and the previous reset routine did this
-	   too. */
-	*((unsigned short *)0x472) = reboot_mode;
-
-	/* Patch the GDT in the low memory trampoline */
-	lowmem_gdt = TRAMPOLINE_SYM(machine_real_restart_gdt);
-
-	restart_va = TRAMPOLINE_SYM(machine_real_restart_asm);
-	restart_pa = virt_to_phys(restart_va);
-	restart_lowmem = (void (*)(unsigned int))restart_pa;
-
-	/* GDT[0]: GDT self-pointer */
-	lowmem_gdt[0] =
-		(u64)(sizeof(machine_real_restart_gdt) - 1) +
-		((u64)virt_to_phys(lowmem_gdt) << 16);
-	/* GDT[1]: 64K real mode code segment */
-	lowmem_gdt[1] =
-		GDT_ENTRY(0x009b, restart_pa, 0xffff);
-
-	/* Jump to the identity-mapped low memory code */
-	restart_lowmem(type);
-}
-#ifdef CONFIG_APM_MODULE
-EXPORT_SYMBOL(machine_real_restart);
-#endif
-
-#endif /* CONFIG_X86_32 */
-
-/*
- * Some Apple MacBook and MacBookPro's needs reboot=p to be able to reboot
- */
-static int __init set_pci_reboot(const struct dmi_system_id *d)
-{
-	if (reboot_type != BOOT_CF9) {
-		reboot_type = BOOT_CF9;
-		printk(KERN_INFO "%s series board detected. "
-		       "Selecting PCI-method for reboots.\n", d->ident);
-	}
-	return 0;
-}
-
-static struct dmi_system_id __initdata pci_reboot_dmi_table[] = {
 	{	/* Handle problems with rebooting on Apple MacBook5 */
 		.callback = set_pci_reboot,
 		.ident = "Apple MacBook5",
@@ -474,17 +464,17 @@ static struct dmi_system_id __initdata pci_reboot_dmi_table[] = {
 	{ }
 };
 
-static int __init pci_reboot_init(void)
+static int __init reboot_init(void)
 {
 	/* Only do the DMI check if reboot_type hasn't been overridden
 	 * on the command line
 	 */
 	if (reboot_default) {
-		dmi_check_system(pci_reboot_dmi_table);
+		dmi_check_system(reboot_dmi_table);
 	}
 	return 0;
 }
-core_initcall(pci_reboot_init);
+core_initcall(reboot_init);
 
 static inline void kb_wait(void)
 {
