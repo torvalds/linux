@@ -41,3 +41,9 @@ Boards:
 
 - OMAP4 PandaBoard : Low cost community board
   compatible = "ti,omap4-panda", "ti,omap4430"
+
+- OMAP3 EVM : Software Developement Board for OMAP35x, AM/DM37x
+  compatible = "ti,omap3-evm", "ti,omap3"
+
+- AM335X EVM : Software Developement Board for AM335x
+  compatible = "ti,am335x-evm", "ti,am33xx", "ti,omap3"
