@@ -224,6 +224,20 @@ static int bfin_can_set_mode(struct net_device *dev, enum can_mode mode)
 	return 0;
 }
 
+static int bfin_can_get_berr_counter(const struct net_device *dev,
+				     struct can_berr_counter *bec)
+{
+	struct bfin_can_priv *priv = netdev_priv(dev);
+	struct bfin_can_regs __iomem *reg = priv->membase;
+
+	u16 cec = bfin_read(&reg->cec);
+
+	bec->txerr = cec >> 8;
+	bec->rxerr = cec;
+
+	return 0;
+}
+
 static int bfin_can_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bfin_can_priv *priv = netdev_priv(dev);
@@ -509,6 +523,7 @@ struct net_device *alloc_bfin_candev(void)
 	priv->can.bittiming_const = &bfin_can_bittiming_const;
 	priv->can.do_set_bittiming = bfin_can_set_bittiming;
 	priv->can.do_set_mode = bfin_can_set_mode;
+	priv->can.do_get_berr_counter = bfin_can_get_berr_counter;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
 
 	return dev;

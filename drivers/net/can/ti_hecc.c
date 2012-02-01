@@ -458,6 +458,17 @@ static int ti_hecc_do_set_mode(struct net_device *ndev, enum can_mode mode)
 	return ret;
 }
 
+static int ti_hecc_get_berr_counter(const struct net_device *ndev,
+					struct can_berr_counter *bec)
+{
+	struct ti_hecc_priv *priv = netdev_priv(ndev);
+
+	bec->txerr = hecc_read(priv, HECC_CANTEC);
+	bec->rxerr = hecc_read(priv, HECC_CANREC);
+
+	return 0;
+}
+
 /*
  * ti_hecc_xmit: HECC Transmit
  *
@@ -922,6 +933,7 @@ static int ti_hecc_probe(struct platform_device *pdev)
 	priv->can.bittiming_const = &ti_hecc_bittiming_const;
 	priv->can.do_set_mode = ti_hecc_do_set_mode;
 	priv->can.do_get_state = ti_hecc_get_state;
+	priv->can.do_get_berr_counter = ti_hecc_get_berr_counter;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
 
 	spin_lock_init(&priv->mbx_lock);

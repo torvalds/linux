@@ -560,6 +560,18 @@ static int mscan_do_set_bittiming(struct net_device *dev)
 	return 0;
 }
 
+static int mscan_get_berr_counter(const struct net_device *dev,
+				  struct can_berr_counter *bec)
+{
+	struct mscan_priv *priv = netdev_priv(dev);
+	struct mscan_regs __iomem *regs = priv->reg_base;
+
+	bec->txerr = in_8(&regs->cantxerr);
+	bec->rxerr = in_8(&regs->canrxerr);
+
+	return 0;
+}
+
 static int mscan_open(struct net_device *dev)
 {
 	int ret;
@@ -639,8 +651,10 @@ int register_mscandev(struct net_device *dev, int mscan_clksrc)
 	else
 		ctl1 &= ~MSCAN_CLKSRC;
 
-	if (priv->type == MSCAN_TYPE_MPC5121)
+	if (priv->type == MSCAN_TYPE_MPC5121) {
+		priv->can.do_get_berr_counter = mscan_get_berr_counter;
 		ctl1 |= MSCAN_BORM; /* bus-off recovery upon request */
+	}
 
 	ctl1 |= MSCAN_CANE;
 	out_8(&regs->canctl1, ctl1);
