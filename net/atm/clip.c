@@ -328,6 +328,8 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 	struct atmarp_entry *entry;
 	struct neighbour *n;
 	struct atm_vcc *vcc;
+	struct rtable *rt;
+	__be32 *daddr;
 	int old;
 	unsigned long flags;
 
@@ -338,7 +340,12 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 		dev->stats.tx_dropped++;
 		return NETDEV_TX_OK;
 	}
-	n = dst_get_neighbour_noref(dst);
+	rt = (struct rtable *) dst;
+	if (rt->rt_gateway)
+		daddr = &rt->rt_gateway;
+	else
+		daddr = &ip_hdr(skb)->daddr;
+	n = dst_neigh_lookup(dst, daddr);
 	if (!n) {
 		pr_err("NO NEIGHBOUR !\n");
 		dev_kfree_skb(skb);
@@ -358,7 +365,7 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 			dev_kfree_skb(skb);
 			dev->stats.tx_dropped++;
 		}
-		return NETDEV_TX_OK;
+		goto out_release_neigh;
 	}
 	pr_debug("neigh %p, vccs %p\n", entry, entry->vccs);
 	ATM_SKB(skb)->vcc = vcc = entry->vccs->vcc;
@@ -377,14 +384,14 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 	old = xchg(&entry->vccs->xoff, 1);	/* assume XOFF ... */
 	if (old) {
 		pr_warning("XOFF->XOFF transition\n");
-		return NETDEV_TX_OK;
+		goto out_release_neigh;
 	}
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 	vcc->send(vcc, skb);
 	if (atm_may_send(vcc, 0)) {
 		entry->vccs->xoff = 0;
-		return NETDEV_TX_OK;
+		goto out_release_neigh;
 	}
 	spin_lock_irqsave(&clip_priv->xoff_lock, flags);
 	netif_stop_queue(dev);	/* XOFF -> throttle immediately */
@@ -396,6 +403,8 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 	   of the brief netif_stop_queue. If this isn't true or if it
 	   changes, use netif_wake_queue instead. */
 	spin_unlock_irqrestore(&clip_priv->xoff_lock, flags);
+out_release_neigh:
+	neigh_release(n);
 	return NETDEV_TX_OK;
 }
 
