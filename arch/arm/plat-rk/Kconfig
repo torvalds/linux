@@ -1,0 +1,109 @@
+if PLAT_RK
+
+choice DDR_TYPE
+	prompt "DDR Memory Type"
+	default DDR_TYPE_DDR3_DEFAULT 
+
+config DDR_TYPE_DDRII
+	bool "DDRII"
+	help
+	  Support for DDRII memory
+
+config DDR_TYPE_LPDDR
+	bool "mobile DDR"
+	help
+	  Support for mobile DDR, MCP device
+
+config DDR_TYPE_DDR3_800D
+	bool "DDR3-800 5-5-5"
+
+config DDR_TYPE_DDR3_800E
+	bool "DDR3-800 6-6-6"
+
+config DDR_TYPE_DDR3_1066E
+	bool "DDR3-1066 6-6-6"
+
+config DDR_TYPE_DDR3_1066F
+	bool "DDR3-1066 7-7-7"
+
+config DDR_TYPE_DDR3_1066G
+	bool "DDR3-1066 8-8-8"
+
+config DDR_TYPE_DDR3_1333F
+	bool "DDR3-1333 7-7-7"
+
+config DDR_TYPE_DDR3_1333G
+	bool "DDR3-1333 8-8-8"
+
+config DDR_TYPE_DDR3_1333H
+	bool "DDR3-1333 9-9-9"
+
+config DDR_TYPE_DDR3_1333J
+	bool "DDR3-1333 10-10-10"
+
+config DDR_TYPE_DDR3_1600G
+	bool "DDR3-1600 8-8-8"
+
+config DDR_TYPE_DDR3_1600H
+	bool "DDR3-1600 9-9-9"
+
+config DDR_TYPE_DDR3_1600J
+	bool "DDR3-1600 10-10-10"
+
+config DDR_TYPE_DDR3_1600K
+	bool "DDR3-1600 11-11-11"
+
+config DDR_TYPE_DDR3_1866J
+	bool "DDR3-1866 10-10-10"
+
+config DDR_TYPE_DDR3_1866K
+	bool "DDR3-1866 11-11-11"
+
+config DDR_TYPE_DDR3_1866L
+	bool "DDR3-1866 12-12-12"
+
+config DDR_TYPE_DDR3_1866M
+	bool "DDR3-1866 13-13-13"
+
+config DDR_TYPE_DDR3_2133K
+	bool "DDR3-2133 11-11-11"
+
+config DDR_TYPE_DDR3_2133L
+	bool "DDR3-2133 12-12-12"
+
+config DDR_TYPE_DDR3_2133M
+	bool "DDR3-2133 13-13-13"
+
+config DDR_TYPE_DDR3_2133N
+	bool "DDR3-2133 14-14-14"
+
+config DDR_TYPE_DDR3_DEFAULT
+	bool "DDR3 (Type default)"
+
+endchoice
+
+config DDR_SDRAM_FREQ
+	int "DDR SDRAM frequence (in MHz)"
+	default 400
+
+config DDR_FREQ
+	bool "Enable DDR frequency scaling"
+
+config WIFI_CONTROL_FUNC
+        bool "Enable WiFi control function abstraction"
+        help
+          Enables Power/Reset/Carddetect function abstraction
+
+config RK29_VPU
+	bool "VPU (Video Processing Unit) service driver in kernel"
+	depends on ARCH_RK29 || ARCH_RK30
+	default y
+
+config RK29_LAST_LOG
+	bool "Save the last kernel log on /proc/last_log"
+	depends on DEBUG_KERNEL && PRINTK
+	default y
+	help
+	  It is only intended for debugging.
+
+endif
