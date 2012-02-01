@@ -448,6 +448,7 @@ static int __devinit ioh_gpio_probe(struct pci_dev *pdev,
 		chip->reg = chip->base;
 		chip->ch = i;
 		mutex_init(&chip->lock);
+		spin_lock_init(&chip->spinlock);
 		ioh_gpio_setup(chip, num_ports[i]);
 		ret = gpiochip_add(&chip->gpio);
 		if (ret) {
