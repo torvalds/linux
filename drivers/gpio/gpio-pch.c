@@ -392,6 +392,7 @@ static int __devinit pch_gpio_probe(struct pci_dev *pdev,
 	chip->reg = chip->base;
 	pci_set_drvdata(pdev, chip);
 	mutex_init(&chip->lock);
+	spin_lock_init(&chip->spinlock);
 	pch_gpio_setup(chip);
 	ret = gpiochip_add(&chip->gpio);
 	if (ret) {
