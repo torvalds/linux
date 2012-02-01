@@ -77,13 +77,6 @@ enum isci_request_status {
 	dead        = 0x07
 };
 
-enum sci_request_protocol {
-	SCIC_NO_PROTOCOL,
-	SCIC_SMP_PROTOCOL,
-	SCIC_SSP_PROTOCOL,
-	SCIC_STP_PROTOCOL
-}; /* XXX remove me, use sas_task.{dev|task_proto} instead */;
-
 /**
  * isci_stp_request - extra request infrastructure to handle pio/atapi protocol
  * @pio_len - number of bytes requested at PIO setup
@@ -140,7 +133,7 @@ struct isci_request {
 	struct isci_host *owning_controller;
 	struct isci_remote_device *target_device;
 	u16 io_tag;
-	enum sci_request_protocol protocol;
+	enum sas_protocol protocol;
 	u32 scu_status; /* hardware result */
 	u32 sci_status; /* upper layer disposition */
 	u32 post_context;

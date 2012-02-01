@@ -580,7 +580,7 @@ static void sci_phy_start_sas_link_training(struct isci_phy *iphy)
 
 	sci_change_state(&iphy->sm, SCI_PHY_SUB_AWAIT_SAS_SPEED_EN);
 
-	iphy->protocol = SCIC_SDS_PHY_PROTOCOL_SAS;
+	iphy->protocol = SAS_PROTOCOL_SSP;
 }
 
 static void sci_phy_start_sata_link_training(struct isci_phy *iphy)
@@ -591,7 +591,7 @@ static void sci_phy_start_sata_link_training(struct isci_phy *iphy)
 	 */
 	sci_change_state(&iphy->sm, SCI_PHY_SUB_AWAIT_SATA_POWER);
 
-	iphy->protocol = SCIC_SDS_PHY_PROTOCOL_SATA;
+	iphy->protocol = SAS_PROTOCOL_SATA;
 }
 
 /**
@@ -797,7 +797,7 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			 */
 			break;
 		case SCU_EVENT_SATA_PHY_DETECTED:
-			iphy->protocol = SCIC_SDS_PHY_PROTOCOL_SATA;
+			iphy->protocol = SAS_PROTOCOL_SATA;
 
 			/* We have received the SATA PHY notification change state */
 			sci_change_state(&iphy->sm, SCI_PHY_SUB_AWAIT_SATA_SPEED_EN);
@@ -1215,7 +1215,7 @@ static void sci_phy_starting_state_enter(struct sci_base_state_machine *sm)
 	scu_link_layer_start_oob(iphy);
 
 	/* We don't know what kind of phy we are going to be just yet */
-	iphy->protocol = SCIC_SDS_PHY_PROTOCOL_UNKNOWN;
+	iphy->protocol = SAS_PROTOCOL_NONE;
 	iphy->bcn_received_while_port_unassigned = false;
 
 	if (iphy->sm.previous_state_id == SCI_PHY_READY)
@@ -1250,7 +1250,7 @@ static void sci_phy_resetting_state_enter(struct sci_base_state_machine *sm)
 	 */
 	sci_port_deactivate_phy(iphy->owning_port, iphy, false);
 
-	if (iphy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
+	if (iphy->protocol == SAS_PROTOCOL_SSP) {
 		scu_link_layer_tx_hard_reset(iphy);
 	} else {
 		/* The SCU does not need to have a discrete reset state so
@@ -1316,7 +1316,7 @@ void sci_phy_construct(struct isci_phy *iphy,
 	iphy->owning_port = iport;
 	iphy->phy_index = phy_index;
 	iphy->bcn_received_while_port_unassigned = false;
-	iphy->protocol = SCIC_SDS_PHY_PROTOCOL_UNKNOWN;
+	iphy->protocol = SAS_PROTOCOL_NONE;
 	iphy->link_layer_registers = NULL;
 	iphy->max_negotiated_speed = SAS_LINK_RATE_UNKNOWN;
 

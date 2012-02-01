@@ -730,7 +730,7 @@ static enum sci_status sci_io_request_construct_basic_ssp(struct isci_request *i
 {
 	struct sas_task *task = isci_request_access_task(ireq);
 
-	ireq->protocol = SCIC_SSP_PROTOCOL;
+	ireq->protocol = SAS_PROTOCOL_SSP;
 
 	scu_ssp_io_request_construct_task_context(ireq,
 						  task->data_dir,
@@ -763,7 +763,7 @@ static enum sci_status sci_io_request_construct_basic_sata(struct isci_request *
 	bool copy = false;
 	struct sas_task *task = isci_request_access_task(ireq);
 
-	ireq->protocol = SCIC_STP_PROTOCOL;
+	ireq->protocol = SAS_PROTOCOL_STP;
 
 	copy = (task->data_dir == DMA_NONE) ? false : true;
 
@@ -1070,7 +1070,7 @@ request_started_state_tc_event(struct isci_request *ireq,
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_UNEXP_SDBFIS):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_REG_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SDB_ERR):
-		if (ireq->protocol == SCIC_STP_PROTOCOL) {
+		if (ireq->protocol == SAS_PROTOCOL_STP) {
 			ireq->scu_status = SCU_GET_COMPLETION_TL_STATUS(completion_code) >>
 					   SCU_COMPLETION_TL_STATUS_SHIFT;
 			ireq->sci_status = SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED;
@@ -3169,7 +3169,7 @@ sci_general_request_construct(struct isci_host *ihost,
 	sci_init_sm(&ireq->sm, sci_request_state_table, SCI_REQ_INIT);
 
 	ireq->target_device = idev;
-	ireq->protocol = SCIC_NO_PROTOCOL;
+	ireq->protocol = SAS_PROTOCOL_NONE;
 	ireq->saved_rx_frame_index = SCU_INVALID_FRAME_INDEX;
 
 	ireq->sci_status   = SCI_SUCCESS;
@@ -3310,7 +3310,7 @@ sci_io_request_construct_smp(struct device *dev,
 	if (!dma_map_sg(dev, sg, 1, DMA_TO_DEVICE))
 		return SCI_FAILURE;
 
-	ireq->protocol = SCIC_SMP_PROTOCOL;
+	ireq->protocol = SAS_PROTOCOL_SMP;
 
 	/* byte swap the smp request. */
 

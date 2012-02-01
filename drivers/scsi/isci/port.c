@@ -184,7 +184,7 @@ static void isci_port_link_up(struct isci_host *isci_host,
 
 	sci_port_get_properties(iport, &properties);
 
-	if (iphy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA) {
+	if (iphy->protocol == SAS_PROTOCOL_SATA) {
 		u64 attached_sas_address;
 
 		iphy->sas_phy.oob_mode = SATA_OOB_MODE;
@@ -204,7 +204,7 @@ static void isci_port_link_up(struct isci_host *isci_host,
 
 		memcpy(&iphy->sas_phy.attached_sas_addr,
 		       &attached_sas_address, sizeof(attached_sas_address));
-	} else if (iphy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
+	} else if (iphy->protocol == SAS_PROTOCOL_SSP) {
 		iphy->sas_phy.oob_mode = SAS_OOB_MODE;
 		iphy->sas_phy.frame_rcvd_size = sizeof(struct sas_identify_frame);
 
@@ -517,7 +517,7 @@ void sci_port_get_attached_sas_address(struct isci_port *iport, struct sci_sas_a
 	 */
 	iphy = sci_port_get_a_connected_phy(iport);
 	if (iphy) {
-		if (iphy->protocol != SCIC_SDS_PHY_PROTOCOL_SATA) {
+		if (iphy->protocol != SAS_PROTOCOL_SATA) {
 			sci_phy_get_attached_sas_address(iphy, sas);
 		} else {
 			sci_phy_get_sas_address(iphy, sas);
@@ -624,7 +624,7 @@ static void sci_port_activate_phy(struct isci_port *iport,
 {
 	struct isci_host *ihost = iport->owning_controller;
 
-	if (iphy->protocol != SCIC_SDS_PHY_PROTOCOL_SATA && (flags & PF_RESUME))
+	if (iphy->protocol != SAS_PROTOCOL_SATA && (flags & PF_RESUME))
 		sci_phy_resume(iphy);
 
 	iport->active_phy_mask |= 1 << iphy->phy_index;
@@ -751,12 +751,10 @@ static bool sci_port_is_wide(struct isci_port *iport)
  * wide ports and direct attached phys.  Since there are no wide ported SATA
  * devices this could become an invalid port configuration.
  */
-bool sci_port_link_detected(
-	struct isci_port *iport,
-	struct isci_phy *iphy)
+bool sci_port_link_detected(struct isci_port *iport, struct isci_phy *iphy)
 {
 	if ((iport->logical_port_index != SCIC_SDS_DUMMY_PORT) &&
-	    (iphy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA)) {
+	    (iphy->protocol == SAS_PROTOCOL_SATA)) {
 		if (sci_port_is_wide(iport)) {
 			sci_port_invalid_link_up(iport, iphy);
 			return false;

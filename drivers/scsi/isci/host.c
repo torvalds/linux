@@ -1911,7 +1911,7 @@ static void power_control_timeout(unsigned long data)
 		ihost->power_control.phys_granted_power++;
 		sci_phy_consume_power_handler(iphy);
 
-		if (iphy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS) {
+		if (iphy->protocol == SAS_PROTOCOL_SSP) {
 			u8 j;
 
 			for (j = 0; j < SCI_MAX_PHYS; j++) {
@@ -1985,7 +1985,7 @@ void sci_controller_power_control_queue_insert(struct isci_host *ihost,
 				       sizeof(current_phy->frame_rcvd.iaf.sas_addr));
 
 			if (current_phy->sm.current_state_id == SCI_PHY_READY &&
-			    current_phy->protocol == SCIC_SDS_PHY_PROTOCOL_SAS &&
+			    current_phy->protocol == SAS_PROTOCOL_SSP &&
 			    other == 0) {
 				sci_phy_consume_power_handler(iphy);
 				break;
