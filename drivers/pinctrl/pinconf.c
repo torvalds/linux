@@ -51,7 +51,7 @@ int pin_config_get(const char *dev_name, const char *name,
 	struct pinctrl_dev *pctldev;
 	int pin;
 
-	pctldev = get_pinctrl_dev_from_dev(NULL, dev_name);
+	pctldev = get_pinctrl_dev_from_devname(dev_name);
 	if (!pctldev)
 		return -EINVAL;
 
@@ -99,7 +99,7 @@ int pin_config_set(const char *dev_name, const char *name,
 	struct pinctrl_dev *pctldev;
 	int pin;
 
-	pctldev = get_pinctrl_dev_from_dev(NULL, dev_name);
+	pctldev = get_pinctrl_dev_from_devname(dev_name);
 	if (!pctldev)
 		return -EINVAL;
 
@@ -118,7 +118,7 @@ int pin_config_group_get(const char *dev_name, const char *pin_group,
 	const struct pinconf_ops *ops;
 	int selector;
 
-	pctldev = get_pinctrl_dev_from_dev(NULL, dev_name);
+	pctldev = get_pinctrl_dev_from_devname(dev_name);
 	if (!pctldev)
 		return -EINVAL;
 	ops = pctldev->desc->confops;
@@ -151,7 +151,7 @@ int pin_config_group_set(const char *dev_name, const char *pin_group,
 	int ret;
 	int i;
 
-	pctldev = get_pinctrl_dev_from_dev(NULL, dev_name);
+	pctldev = get_pinctrl_dev_from_devname(dev_name);
 	if (!pctldev)
 		return -EINVAL;
 	ops = pctldev->desc->confops;

@@ -48,31 +48,23 @@ void *pinctrl_dev_get_drvdata(struct pinctrl_dev *pctldev)
 EXPORT_SYMBOL_GPL(pinctrl_dev_get_drvdata);
 
 /**
- * get_pinctrl_dev_from_dev() - look up pin controller device
- * @dev: a device pointer, this may be NULL but then devname needs to be
- *	defined instead
- * @devname: the name of a device instance, as returned by dev_name(), this
- *	may be NULL but then dev needs to be defined instead
+ * get_pinctrl_dev_from_devname() - look up pin controller device
+ * @devname: the name of a device instance, as returned by dev_name()
  *
  * Looks up a pin control device matching a certain device name or pure device
  * pointer, the pure device pointer will take precedence.
  */
-struct pinctrl_dev *get_pinctrl_dev_from_dev(struct device *dev,
-					     const char *devname)
+struct pinctrl_dev *get_pinctrl_dev_from_devname(const char *devname)
 {
 	struct pinctrl_dev *pctldev = NULL;
 	bool found = false;
 
+	if (!devname)
+		return NULL;
+
 	mutex_lock(&pinctrldev_list_mutex);
 	list_for_each_entry(pctldev, &pinctrldev_list, node) {
-		if (dev && pctldev->dev == dev) {
-			/* Matched on device pointer */
-			found = true;
-			break;
-		}
-
-		if (devname &&
-		    !strcmp(dev_name(pctldev->dev), devname)) {
+		if (!strcmp(dev_name(pctldev->dev), devname)) {
 			/* Matched on device name */
 			found = true;
 			break;

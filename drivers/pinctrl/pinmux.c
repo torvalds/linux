@@ -354,7 +354,7 @@ int __init pinmux_register_mappings(struct pinmux_map const *maps,
 			return -EINVAL;
 		}
 
-		if (!maps[i].ctrl_dev && !maps[i].ctrl_dev_name) {
+		if (!maps[i].ctrl_dev_name) {
 			pr_err("failed to register map %s (%d): no pin control device given\n",
 			       maps[i].name, i);
 			return -EINVAL;
@@ -366,7 +366,7 @@ int __init pinmux_register_mappings(struct pinmux_map const *maps,
 			return -EINVAL;
 		}
 
-		if (!maps[i].dev && !maps[i].dev_name)
+		if (!maps[i].dev_name)
 			pr_debug("add system map %s function %s with no device\n",
 				 maps[i].name,
 				 maps[i].function);
@@ -721,20 +721,12 @@ struct pinmux *pinmux_get(struct device *dev, const char *name)
 		/*
 		 * First, try to find the pctldev given in the map
 		 */
-		pctldev = get_pinctrl_dev_from_dev(map->ctrl_dev,
-						   map->ctrl_dev_name);
+		pctldev = get_pinctrl_dev_from_devname(map->ctrl_dev_name);
 		if (!pctldev) {
-			const char *devname = NULL;
-
-			if (map->ctrl_dev)
-				devname = dev_name(map->ctrl_dev);
-			else if (map->ctrl_dev_name)
-				devname = map->ctrl_dev_name;
-
 			pr_warning("could not find a pinctrl device for pinmux function %s, fishy, they shall all have one\n",
 				   map->function);
 			pr_warning("given pinctrl device name: %s",
-				   devname ? devname : "UNDEFINED");
+				   map->ctrl_dev_name);
 
 			/* Continue to check the other mappings anyway... */
 			continue;
@@ -925,7 +917,7 @@ static int pinmux_hog_map(struct pinctrl_dev *pctldev,
 	struct pinmux *pmx;
 	int ret;
 
-	if (map->dev || map->dev_name) {
+	if (map->dev_name) {
 		/*
 		 * TODO: the day we have device tree support, we can
 		 * traverse the device tree and hog to specific device nodes
@@ -996,9 +988,8 @@ int pinmux_hog_maps(struct pinctrl_dev *pctldev)
 		if (!map->hog_on_boot)
 			continue;
 
-		if ((map->ctrl_dev == dev) ||
-			(map->ctrl_dev_name &&
-				!strcmp(map->ctrl_dev_name, devname))) {
+		if (map->ctrl_dev_name &&
+		    !strcmp(map->ctrl_dev_name, devname)) {
 			/* OK time to hog! */
 			ret = pinmux_hog_map(pctldev, map);
 			if (ret)
@@ -1156,14 +1147,12 @@ static int pinmux_maps_show(struct seq_file *s, void *what)
 		struct pinmux_map const *map = &pinmux_maps[i];
 
 		seq_printf(s, "%s:\n", map->name);
-		if (map->dev || map->dev_name)
+		if (map->dev_name)
 			seq_printf(s, "  device: %s\n",
-				   map->dev ? dev_name(map->dev) :
 				   map->dev_name);
 		else
 			seq_printf(s, "  SYSTEM MUX\n");
 		seq_printf(s, "  controlling device %s\n",
-			   map->ctrl_dev ? dev_name(map->ctrl_dev) :
 			   map->ctrl_dev_name);
 		seq_printf(s, "  function: %s\n", map->function);
 		seq_printf(s, "  group: %s\n", map->group ? map->group :

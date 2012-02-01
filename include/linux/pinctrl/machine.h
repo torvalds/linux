@@ -17,22 +17,16 @@
  * @name: the name of this specific map entry for the particular machine.
  *	This is the second parameter passed to pinmux_get() when you want
  *	to have several mappings to the same device
- * @ctrl_dev: the pin control device to be used by this mapping, may be NULL
- *	if you provide .ctrl_dev_name instead (this is more common)
  * @ctrl_dev_name: the name of the device controlling this specific mapping,
- *	the name must be the same as in your struct device*, may be NULL if
- *	you provide .ctrl_dev instead
+ *	the name must be the same as in your struct device*
  * @function: a function in the driver to use for this mapping, the driver
  *	will lookup the function referenced by this ID on the specified
  *	pin control device
  * @group: sometimes a function can map to different pin groups, so this
  *	selects a certain specific pin group to activate for the function, if
  *	left as NULL, the first applicable group will be used
- * @dev: the device using this specific mapping, may be NULL if you provide
- *	.dev_name instead (this is more common)
  * @dev_name: the name of the device using this specific mapping, the name
- *	must be the same as in your struct device*, may be NULL if you
- *	provide .dev instead
+ *	must be the same as in your struct device*
  * @hog_on_boot: if this is set to true, the pin control subsystem will itself
  *	hog the mappings as the pinmux device drivers are attached, so this is
  *	typically used with system maps (mux mappings without an assigned
@@ -42,11 +36,9 @@
  */
 struct pinmux_map {
 	const char *name;
-	struct device *ctrl_dev;
 	const char *ctrl_dev_name;
 	const char *function;
 	const char *group;
-	struct device *dev;
 	const char *dev_name;
 	bool hog_on_boot;
 };

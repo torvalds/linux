@@ -805,10 +805,7 @@ must match a function provided by the pinmux driver handling this pin range.
 
 As you can see we may have several pin controllers on the system and thus
 we need to specify which one of them that contain the functions we wish
-to map. The map can also use struct device * directly, so there is no
-inherent need to use strings to specify .dev_name or .ctrl_dev_name, these
-are for the situation where you do not have a handle to the struct device *,
-for example if they are not yet instantiated or cumbersome to obtain.
+to map.
 
 You register this pinmux mapping to the pinmux subsystem by simply:
 
