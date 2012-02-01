@@ -172,6 +172,8 @@ static inline int srcu_read_lock(struct srcu_struct *sp) __acquires(sp)
 	int retval = __srcu_read_lock(sp);
 
 	rcu_lock_acquire(&(sp)->dep_map);
+	rcu_lockdep_assert(!rcu_is_cpu_idle(),
+			   "srcu_read_lock() used illegally while idle");
 	return retval;
 }
 
@@ -185,6 +187,8 @@ static inline int srcu_read_lock(struct srcu_struct *sp) __acquires(sp)
 static inline void srcu_read_unlock(struct srcu_struct *sp, int idx)
 	__releases(sp)
 {
+	rcu_lockdep_assert(!rcu_is_cpu_idle(),
+			   "srcu_read_unlock() used illegally while idle");
 	rcu_lock_release(&(sp)->dep_map);
 	__srcu_read_unlock(sp, idx);
 }
