@@ -20,6 +20,7 @@
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -2479,9 +2480,6 @@ static void wm8962_configure_bclk(struct snd_soc_codec *codec)
 static int wm8962_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	struct wm8962_priv *wm8962 = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
 	if (level == codec->dapm.bias_level)
 		return 0;
 
@@ -2498,51 +2496,15 @@ static int wm8962_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
-			ret = regulator_bulk_enable(ARRAY_SIZE(wm8962->supplies),
-						    wm8962->supplies);
-			if (ret != 0) {
-				dev_err(codec->dev,
-					"Failed to enable supplies: %d\n",
-					ret);
-				return ret;
-			}
-
-			regcache_cache_only(wm8962->regmap, false);
-			regcache_sync(wm8962->regmap);
-
-			snd_soc_update_bits(codec, WM8962_ANTI_POP,
-					    WM8962_STARTUP_BIAS_ENA |
-					    WM8962_VMID_BUF_ENA,
-					    WM8962_STARTUP_BIAS_ENA |
-					    WM8962_VMID_BUF_ENA);
-
-			/* Bias enable at 2*50k for ramp */
-			snd_soc_update_bits(codec, WM8962_PWR_MGMT_1,
-					    WM8962_VMID_SEL_MASK |
-					    WM8962_BIAS_ENA,
-					    WM8962_BIAS_ENA | 0x180);
-
-			msleep(5);
-		}
-
 		/* VMID 2*250k */
 		snd_soc_update_bits(codec, WM8962_PWR_MGMT_1,
 				    WM8962_VMID_SEL_MASK, 0x100);
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		snd_soc_update_bits(codec, WM8962_PWR_MGMT_1,
-				    WM8962_VMID_SEL_MASK | WM8962_BIAS_ENA, 0);
-
-		snd_soc_update_bits(codec, WM8962_ANTI_POP,
-				    WM8962_STARTUP_BIAS_ENA |
-				    WM8962_VMID_BUF_ENA, 0);
-
-		regulator_bulk_disable(ARRAY_SIZE(wm8962->supplies),
-				       wm8962->supplies);
 		break;
 	}
+
 	codec->dapm.bias_level = level;
 	return 0;
 }
@@ -2844,6 +2806,8 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 		snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1,
 				    WM8962_FLL_ENA, 0);
 
+		pm_runtime_put(codec->dev);
+
 		return 0;
 	}
 
@@ -2892,6 +2856,7 @@ static int wm8962_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 
 	try_wait_for_completion(&wm8962->fll_lock);
 
+	pm_runtime_get_sync(codec->dev);
 
 	snd_soc_update_bits(codec, WM8962_FLL_CONTROL_1,
 			    WM8962_FLL_FRAC | WM8962_FLL_REFCLK_SRC_MASK |
@@ -3689,7 +3654,9 @@ static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 				ret);
 	}
 
-	regcache_cache_only(wm8962->regmap, true);
+	pm_runtime_set_active(&i2c->dev);
+	pm_runtime_enable(&i2c->dev);
+	pm_request_idle(&i2c->dev);
 
 	ret = snd_soc_register_codec(&i2c->dev,
 				     &soc_codec_dev_wm8962, &wm8962_dai, 1);
@@ -3721,6 +3688,69 @@ static __devexit int wm8962_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_PM_RUNTIME
+static int wm8962_runtime_resume(struct device *dev)
+{
+	struct wm8962_priv *wm8962 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(wm8962->supplies),
+				    wm8962->supplies);
+	if (ret != 0) {
+		dev_err(dev,
+			"Failed to enable supplies: %d\n", ret);
+		return ret;
+	}
+
+	regcache_cache_only(wm8962->regmap, false);
+	regcache_sync(wm8962->regmap);
+
+	regmap_update_bits(wm8962->regmap, WM8962_ANTI_POP,
+			   WM8962_STARTUP_BIAS_ENA | WM8962_VMID_BUF_ENA,
+			   WM8962_STARTUP_BIAS_ENA | WM8962_VMID_BUF_ENA);
+
+	/* Bias enable at 2*50k for ramp */
+	regmap_update_bits(wm8962->regmap, WM8962_PWR_MGMT_1,
+			   WM8962_VMID_SEL_MASK | WM8962_BIAS_ENA,
+			   WM8962_BIAS_ENA | 0x180);
+
+	msleep(5);
+
+	/* VMID back to 2x250k for standby */
+	regmap_update_bits(wm8962->regmap, WM8962_PWR_MGMT_1,
+			   WM8962_VMID_SEL_MASK, 0x100);
+
+	dev_crit(dev, "RESUME\n");
+
+	return 0;
+}
+
+static int wm8962_runtime_suspend(struct device *dev)
+{
+	struct wm8962_priv *wm8962 = dev_get_drvdata(dev);
+
+	dev_crit(dev, "SUSPEND\n");
+
+	regmap_update_bits(wm8962->regmap, WM8962_PWR_MGMT_1,
+			   WM8962_VMID_SEL_MASK | WM8962_BIAS_ENA, 0);
+
+	regmap_update_bits(wm8962->regmap, WM8962_ANTI_POP,
+			   WM8962_STARTUP_BIAS_ENA |
+			   WM8962_VMID_BUF_ENA, 0);
+
+	regcache_cache_only(wm8962->regmap, true);
+
+	regulator_bulk_disable(ARRAY_SIZE(wm8962->supplies),
+			       wm8962->supplies);
+
+	return 0;
+}
+#endif
+
+static struct dev_pm_ops wm8962_pm = {
+	SET_RUNTIME_PM_OPS(wm8962_runtime_suspend, wm8962_runtime_resume, NULL)
+};
+
 static const struct i2c_device_id wm8962_i2c_id[] = {
 	{ "wm8962", 0 },
 	{ }
@@ -3731,6 +3761,7 @@ static struct i2c_driver wm8962_i2c_driver = {
 	.driver = {
 		.name = "wm8962",
 		.owner = THIS_MODULE,
+		.pm = &wm8962_pm,
 	},
 	.probe =    wm8962_i2c_probe,
 	.remove =   __devexit_p(wm8962_i2c_remove),
