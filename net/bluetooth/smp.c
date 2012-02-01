@@ -263,8 +263,11 @@ static void smp_failure(struct l2cap_conn *conn, u8 reason, u8 send)
 
 	clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->hcon->flags);
 	mgmt_auth_failed(conn->hcon->hdev, conn->dst, reason);
-	cancel_delayed_work_sync(&conn->security_timer);
-	smp_chan_destroy(conn);
+
+	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags)) {
+		cancel_delayed_work_sync(&conn->security_timer);
+		smp_chan_destroy(conn);
+	}
 }
 
 #define JUST_WORKS	0x00
@@ -506,7 +509,7 @@ void smp_chan_destroy(struct l2cap_conn *conn)
 {
 	struct smp_chan *smp = conn->smp_chan;
 
-	clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags);
+	BUG_ON(!smp);
 
 	if (smp->tfm)
 		crypto_free_blkcipher(smp->tfm);
