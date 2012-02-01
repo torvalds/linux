@@ -633,7 +633,7 @@ vmxnet3_rq_alloc_rx_buf(struct vmxnet3_rx_queue *rq, u32 ring_idx,
 
 	dev_dbg(&adapter->netdev->dev,
 		"alloc_rx_buf: %d allocated, next2fill %u, next2comp "
-		"%u, uncommited %u\n", num_allocated, ring->next2fill,
+		"%u, uncommitted %u\n", num_allocated, ring->next2fill,
 		ring->next2comp, rq->uncommitted[ring_idx]);
 
 	/* so that the device can distinguish a full ring and an empty ring */
