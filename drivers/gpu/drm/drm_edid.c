@@ -750,7 +750,7 @@ drm_mode_std(struct drm_connector *connector, struct edid *edid,
 		 */
 		mode = drm_gtf_mode(dev, hsize, vsize, vrefresh_rate, 0, 0);
 		if (drm_mode_hsync(mode) > drm_gtf2_hbreak(edid)) {
-			kfree(mode);
+			drm_mode_destroy(dev, mode);
 			mode = drm_gtf_mode_complex(dev, hsize, vsize,
 						    vrefresh_rate, 0, 0,
 						    drm_gtf2_m(edid),
