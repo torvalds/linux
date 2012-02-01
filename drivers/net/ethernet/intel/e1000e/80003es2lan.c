@@ -201,13 +201,12 @@ static s32 e1000_init_nvm_params_80003es2lan(struct e1000_hw *hw)
  *  e1000_init_mac_params_80003es2lan - Init ESB2 MAC func ptrs.
  *  @hw: pointer to the HW structure
  **/
-static s32 e1000_init_mac_params_80003es2lan(struct e1000_adapter *adapter)
+static s32 e1000_init_mac_params_80003es2lan(struct e1000_hw *hw)
 {
-	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_mac_info *mac = &hw->mac;
 
 	/* Set media type and media-dependent function pointers */
-	switch (adapter->pdev->device) {
+	switch (hw->adapter->pdev->device) {
 	case E1000_DEV_ID_80003ES2LAN_SERDES_DPT:
 		hw->phy.media_type = e1000_media_type_internal_serdes;
 		mac->ops.check_for_link = e1000e_check_for_serdes_link;
@@ -246,7 +245,7 @@ static s32 e1000_get_variants_80003es2lan(struct e1000_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	s32 rc;
 
-	rc = e1000_init_mac_params_80003es2lan(adapter);
+	rc = e1000_init_mac_params_80003es2lan(hw);
 	if (rc)
 		return rc;
 

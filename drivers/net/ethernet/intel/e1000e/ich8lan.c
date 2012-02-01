@@ -553,9 +553,8 @@ static s32 e1000_init_nvm_params_ich8lan(struct e1000_hw *hw)
  *  Initialize family-specific MAC parameters and function
  *  pointers.
  **/
-static s32 e1000_init_mac_params_ich8lan(struct e1000_adapter *adapter)
+static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 {
-	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_mac_info *mac = &hw->mac;
 
 	/* Set media type function pointer */
@@ -775,7 +774,7 @@ static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	s32 rc;
 
-	rc = e1000_init_mac_params_ich8lan(adapter);
+	rc = e1000_init_mac_params_ich8lan(hw);
 	if (rc)
 		return rc;
 

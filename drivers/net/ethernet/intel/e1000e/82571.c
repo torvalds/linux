@@ -235,16 +235,15 @@ static s32 e1000_init_nvm_params_82571(struct e1000_hw *hw)
  *  e1000_init_mac_params_82571 - Init MAC func ptrs.
  *  @hw: pointer to the HW structure
  **/
-static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
+static s32 e1000_init_mac_params_82571(struct e1000_hw *hw)
 {
-	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_mac_info *mac = &hw->mac;
 	u32 swsm = 0;
 	u32 swsm2 = 0;
 	bool force_clear_smbi = false;
 
 	/* Set media type and media-dependent function pointers */
-	switch (adapter->pdev->device) {
+	switch (hw->adapter->pdev->device) {
 	case E1000_DEV_ID_82571EB_FIBER:
 	case E1000_DEV_ID_82572EI_FIBER:
 	case E1000_DEV_ID_82571EB_QUAD_FIBER:
@@ -371,7 +370,7 @@ static s32 e1000_get_variants_82571(struct e1000_adapter *adapter)
 	int is_port_b = er32(STATUS) & E1000_STATUS_FUNC_1;
 	s32 rc;
 
-	rc = e1000_init_mac_params_82571(adapter);
+	rc = e1000_init_mac_params_82571(hw);
 	if (rc)
 		return rc;
 
