@@ -315,34 +315,34 @@ static void do_bus_err(struct net_device *dev,
 	cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
 
 	if (reg_esr & FLEXCAN_ESR_BIT1_ERR) {
-		dev_dbg(dev->dev.parent, "BIT1_ERR irq\n");
+		netdev_dbg(dev, "BIT1_ERR irq\n");
 		cf->data[2] |= CAN_ERR_PROT_BIT1;
 		tx_errors = 1;
 	}
 	if (reg_esr & FLEXCAN_ESR_BIT0_ERR) {
-		dev_dbg(dev->dev.parent, "BIT0_ERR irq\n");
+		netdev_dbg(dev, "BIT0_ERR irq\n");
 		cf->data[2] |= CAN_ERR_PROT_BIT0;
 		tx_errors = 1;
 	}
 	if (reg_esr & FLEXCAN_ESR_ACK_ERR) {
-		dev_dbg(dev->dev.parent, "ACK_ERR irq\n");
+		netdev_dbg(dev, "ACK_ERR irq\n");
 		cf->can_id |= CAN_ERR_ACK;
 		cf->data[3] |= CAN_ERR_PROT_LOC_ACK;
 		tx_errors = 1;
 	}
 	if (reg_esr & FLEXCAN_ESR_CRC_ERR) {
-		dev_dbg(dev->dev.parent, "CRC_ERR irq\n");
+		netdev_dbg(dev, "CRC_ERR irq\n");
 		cf->data[2] |= CAN_ERR_PROT_BIT;
 		cf->data[3] |= CAN_ERR_PROT_LOC_CRC_SEQ;
 		rx_errors = 1;
 	}
 	if (reg_esr & FLEXCAN_ESR_FRM_ERR) {
-		dev_dbg(dev->dev.parent, "FRM_ERR irq\n");
+		netdev_dbg(dev, "FRM_ERR irq\n");
 		cf->data[2] |= CAN_ERR_PROT_FORM;
 		rx_errors = 1;
 	}
 	if (reg_esr & FLEXCAN_ESR_STF_ERR) {
-		dev_dbg(dev->dev.parent, "STF_ERR irq\n");
+		netdev_dbg(dev, "STF_ERR irq\n");
 		cf->data[2] |= CAN_ERR_PROT_STUFF;
 		rx_errors = 1;
 	}
@@ -389,7 +389,7 @@ static void do_state(struct net_device *dev,
 		 */
 		if (new_state >= CAN_STATE_ERROR_WARNING &&
 		    new_state <= CAN_STATE_BUS_OFF) {
-			dev_dbg(dev->dev.parent, "Error Warning IRQ\n");
+			netdev_dbg(dev, "Error Warning IRQ\n");
 			priv->can.can_stats.error_warning++;
 
 			cf->can_id |= CAN_ERR_CRTL;
@@ -405,7 +405,7 @@ static void do_state(struct net_device *dev,
 		 */
 		if (new_state >= CAN_STATE_ERROR_PASSIVE &&
 		    new_state <= CAN_STATE_BUS_OFF) {
-			dev_dbg(dev->dev.parent, "Error Passive IRQ\n");
+			netdev_dbg(dev, "Error Passive IRQ\n");
 			priv->can.can_stats.error_passive++;
 
 			cf->can_id |= CAN_ERR_CRTL;
@@ -415,8 +415,8 @@ static void do_state(struct net_device *dev,
 		}
 		break;
 	case CAN_STATE_BUS_OFF:
-		dev_err(dev->dev.parent,
-			"BUG! hardware recovered automatically from BUS_OFF\n");
+		netdev_err(dev, "BUG! "
+			   "hardware recovered automatically from BUS_OFF\n");
 		break;
 	default:
 		break;
@@ -425,7 +425,7 @@ static void do_state(struct net_device *dev,
 	/* process state changes depending on the new state */
 	switch (new_state) {
 	case CAN_STATE_ERROR_ACTIVE:
-		dev_dbg(dev->dev.parent, "Error Active\n");
+		netdev_dbg(dev, "Error Active\n");
 		cf->can_id |= CAN_ERR_PROT;
 		cf->data[2] = CAN_ERR_PROT_ACTIVE;
 		break;
@@ -644,12 +644,12 @@ static void flexcan_set_bittiming(struct net_device *dev)
 	if (priv->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES)
 		reg |= FLEXCAN_CTRL_SMP;
 
-	dev_info(dev->dev.parent, "writing ctrl=0x%08x\n", reg);
+	netdev_info(dev, "writing ctrl=0x%08x\n", reg);
 	flexcan_write(reg, &regs->ctrl);
 
 	/* print chip status */
-	dev_dbg(dev->dev.parent, "%s: mcr=0x%08x ctrl=0x%08x\n", __func__,
-		flexcan_read(&regs->mcr), flexcan_read(&regs->ctrl));
+	netdev_dbg(dev, "%s: mcr=0x%08x ctrl=0x%08x\n", __func__,
+		   flexcan_read(&regs->mcr), flexcan_read(&regs->ctrl));
 }
 
 /*
@@ -675,9 +675,8 @@ static int flexcan_chip_start(struct net_device *dev)
 
 	reg_mcr = flexcan_read(&regs->mcr);
 	if (reg_mcr & FLEXCAN_MCR_SOFTRST) {
-		dev_err(dev->dev.parent,
-			"Failed to softreset can module (mcr=0x%08x)\n",
-			reg_mcr);
+		netdev_err(dev, "Failed to softreset can module (mcr=0x%08x)\n",
+			   reg_mcr);
 		err = -ENODEV;
 		goto out;
 	}
@@ -700,7 +699,7 @@ static int flexcan_chip_start(struct net_device *dev)
 	reg_mcr |= FLEXCAN_MCR_FRZ | FLEXCAN_MCR_FEN | FLEXCAN_MCR_HALT |
 		FLEXCAN_MCR_SUPV | FLEXCAN_MCR_WRN_EN |
 		FLEXCAN_MCR_IDAM_C | FLEXCAN_MCR_SRX_DIS;
-	dev_dbg(dev->dev.parent, "%s: writing mcr=0x%08x", __func__, reg_mcr);
+	netdev_dbg(dev, "%s: writing mcr=0x%08x", __func__, reg_mcr);
 	flexcan_write(reg_mcr, &regs->mcr);
 
 	/*
@@ -726,7 +725,7 @@ static int flexcan_chip_start(struct net_device *dev)
 
 	/* save for later use */
 	priv->reg_ctrl_default = reg_ctrl;
-	dev_dbg(dev->dev.parent, "%s: writing ctrl=0x%08x", __func__, reg_ctrl);
+	netdev_dbg(dev, "%s: writing ctrl=0x%08x", __func__, reg_ctrl);
 	flexcan_write(reg_ctrl, &regs->ctrl);
 
 	for (i = 0; i < ARRAY_SIZE(regs->cantxfg); i++) {
@@ -758,8 +757,8 @@ static int flexcan_chip_start(struct net_device *dev)
 	flexcan_write(FLEXCAN_IFLAG_DEFAULT, &regs->imask1);
 
 	/* print chip status */
-	dev_dbg(dev->dev.parent, "%s: reading mcr=0x%08x ctrl=0x%08x\n",
-		__func__, flexcan_read(&regs->mcr), flexcan_read(&regs->ctrl));
+	netdev_dbg(dev, "%s: reading mcr=0x%08x ctrl=0x%08x\n", __func__,
+		   flexcan_read(&regs->mcr), flexcan_read(&regs->ctrl));
 
 	return 0;
 
@@ -897,8 +896,7 @@ static int __devinit register_flexcandev(struct net_device *dev)
 	 */
 	reg = flexcan_read(&regs->mcr);
 	if (!(reg & FLEXCAN_MCR_FEN)) {
-		dev_err(dev->dev.parent,
-			"Could not enable RX FIFO, unsupported core\n");
+		netdev_err(dev, "Could not enable RX FIFO, unsupported core\n");
 		err = -ENODEV;
 		goto out;
 	}
