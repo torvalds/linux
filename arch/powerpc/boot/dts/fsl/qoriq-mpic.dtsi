@@ -53,7 +53,7 @@ timer@41100 {
 
 msi0: msi@41600 {
 	compatible = "fsl,mpic-msi";
-	reg = <0x41600 0x200>;
+	reg = <0x41600 0x200 0x44140 4>;
 	msi-available-ranges = <0 0x100>;
 	interrupts = <
 		0xe0 0 0 0
@@ -68,7 +68,7 @@ msi0: msi@41600 {
 
 msi1: msi@41800 {
 	compatible = "fsl,mpic-msi";
-	reg = <0x41800 0x200>;
+	reg = <0x41800 0x200 0x45140 4>;
 	msi-available-ranges = <0 0x100>;
 	interrupts = <
 		0xe8 0 0 0
@@ -83,7 +83,7 @@ msi1: msi@41800 {
 
 msi2: msi@41a00 {
 	compatible = "fsl,mpic-msi";
-	reg = <0x41a00 0x200>;
+	reg = <0x41a00 0x200 0x46140 4>;
 	msi-available-ranges = <0 0x100>;
 	interrupts = <
 		0xf0 0 0 0
