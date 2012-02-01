@@ -5410,7 +5410,7 @@ static bool ht_rateset_to_mask(struct ieee80211_supported_band *sband,
 		rbit = BIT(rates[i] % 8);
 
 		/* check validity */
-		if ((ridx < 0) || (ridx > IEEE80211_HT_MCS_MASK_LEN))
+		if ((ridx < 0) || (ridx >= IEEE80211_HT_MCS_MASK_LEN))
 			return false;
 
 		/* check availability */

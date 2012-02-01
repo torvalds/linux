@@ -324,7 +324,7 @@ static bool rate_idx_match_mcs_mask(struct ieee80211_tx_rate *rate,
 	rbit = rate->idx % 8;
 
 	/* sanity check */
-	if (ridx < 0 || ridx > IEEE80211_HT_MCS_MASK_LEN)
+	if (ridx < 0 || ridx >= IEEE80211_HT_MCS_MASK_LEN)
 		return false;
 
 	/* See whether the selected rate or anything below it is allowed. */
