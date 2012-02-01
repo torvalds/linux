@@ -421,7 +421,7 @@ int drm_fb_helper_init(struct drm_device *dev,
 		fb_helper->crtc_info[i].mode_set.crtc = crtc;
 		i++;
 	}
-	fb_helper->conn_limit = max_conn_count;
+
 	return 0;
 out_free:
 	drm_fb_helper_crtc_free(fb_helper);
