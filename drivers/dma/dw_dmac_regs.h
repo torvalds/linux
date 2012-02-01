@@ -153,6 +153,9 @@ struct dw_dma_chan {
 	struct dw_cyclic_desc	*cdesc;
 
 	unsigned int		descs_allocated;
+
+	/* configuration passed via DMA_SLAVE_CONFIG */
+	struct dma_slave_config dma_sconfig;
 };
 
 static inline struct dw_dma_chan_regs __iomem *
