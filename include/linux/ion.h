@@ -176,63 +176,23 @@ void *ion_map_kernel(struct ion_client *client, struct ion_handle *handle);
 void ion_unmap_kernel(struct ion_client *client, struct ion_handle *handle);
 
 /**
- * ion_map_dma - create a dma mapping for a given handle
+ * ion_share_dma_buf() - given an ion client, create a dma-buf fd
  * @client:	the client
- * @handle:	handle to map
- *
- * Return an sg_table describing the given handle
+ * @handle:	the handle
  */
-struct sg_table *ion_map_dma(struct ion_client *client,
-			     struct ion_handle *handle);
+int ion_share_dma_buf(struct ion_client *client, struct ion_handle *handle);
 
 /**
- * ion_unmap_dma() - destroy a dma mapping for a handle
+ * ion_import_dma_buf() - given an dma-buf fd from the ion exporter get handle
  * @client:	the client
- * @handle:	handle to unmap
+ * @fd:		the dma-buf fd
+ *
+ * Given an dma-buf fd that was allocated through ion via ion_share_dma_buf,
+ * import that fd and return a handle representing it.  If a dma-buf from
+ * another exporter is passed in this function will return ERR_PTR(-EINVAL)
  */
-void ion_unmap_dma(struct ion_client *client, struct ion_handle *handle);
+struct ion_handle *ion_import_dma_buf(struct ion_client *client, int fd);
 
-/**
- * ion_share() - given a handle, obtain a buffer to pass to other clients
- * @client:	the client
- * @handle:	the handle to share
- *
- * Given a handle, return a buffer, which exists in a global name
- * space, and can be passed to other clients.  Should be passed into ion_import
- * to obtain a new handle for this buffer.
- *
- * NOTE: This function does do not an extra reference.  The burden is on the
- * caller to make sure the buffer doesn't go away while it's being passed to
- * another client.  That is, ion_free should not be called on this handle until
- * the buffer has been imported into the other client.
- */
-struct ion_buffer *ion_share(struct ion_client *client,
-			     struct ion_handle *handle);
-
-/**
- * ion_import() - given an buffer in another client, import it
- * @client:	this blocks client
- * @buffer:	the buffer to import (as obtained from ion_share)
- *
- * Given a buffer, add it to the client and return the handle to use to refer
- * to it further.  This is called to share a handle from one kernel client to
- * another.
- */
-struct ion_handle *ion_import(struct ion_client *client,
-			      struct ion_buffer *buffer);
-
-/**
- * ion_import_fd() - given an fd obtained via ION_IOC_SHARE ioctl, import it
- * @client:	this blocks client
- * @fd:		the fd
- *
- * A helper function for drivers that will be recieving ion buffers shared
- * with them from userspace.  These buffers are represented by a file
- * descriptor obtained as the return from the ION_IOC_SHARE ioctl.
- * This function coverts that fd into the underlying buffer, and returns
- * the handle to use to refer to it further.
- */
-struct ion_handle *ion_import_fd(struct ion_client *client, int fd);
 #endif /* __KERNEL__ */
 
 /**
