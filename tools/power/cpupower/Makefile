@@ -199,9 +199,7 @@ cpupower: $(UTIL_OBJS) libcpupower.so.$(LIB_MAJ)
 po/$(PACKAGE).pot: $(UTIL_SRC)
 	$(ECHO) "  GETTEXT " $@
 	$(QUIET) xgettext --default-domain=$(PACKAGE) --add-comments \
-		--keyword=_ --keyword=N_ $(UTIL_SRC) && \
-	test -f $(PACKAGE).po && \
-	mv -f $(PACKAGE).po po/$(PACKAGE).pot
+		--keyword=_ --keyword=N_ $(UTIL_SRC) -p $(@D) -o $(@F)
 
 po/%.gmo: po/%.po
 	$(ECHO) "  MSGFMT  " $@
