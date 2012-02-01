@@ -1652,7 +1652,7 @@ static irqreturn_t e1000_intr_msi(int irq, void *data)
 	 */
 
 	if (icr & E1000_ICR_LSC) {
-		hw->mac.get_link_status = 1;
+		hw->mac.get_link_status = true;
 		/*
 		 * ICH8 workaround-- Call gig speed drop workaround on cable
 		 * disconnect (LSC) before accessing any PHY registers
@@ -1718,7 +1718,7 @@ static irqreturn_t e1000_intr(int irq, void *data)
 	 */
 
 	if (icr & E1000_ICR_LSC) {
-		hw->mac.get_link_status = 1;
+		hw->mac.get_link_status = true;
 		/*
 		 * ICH8 workaround-- Call gig speed drop workaround on cable
 		 * disconnect (LSC) before accessing any PHY registers
@@ -1775,7 +1775,7 @@ static irqreturn_t e1000_msix_other(int irq, void *data)
 	if (icr & E1000_ICR_OTHER) {
 		if (!(icr & E1000_ICR_LSC))
 			goto no_link_interrupt;
-		hw->mac.get_link_status = 1;
+		hw->mac.get_link_status = true;
 		/* guard against interrupt when we're going down */
 		if (!test_bit(__E1000_DOWN, &adapter->state))
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);

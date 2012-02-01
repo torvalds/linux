@@ -1141,7 +1141,7 @@ static s32 e1000_copper_link_autoneg(struct e1000_hw *hw)
 		}
 	}
 
-	hw->mac.get_link_status = 1;
+	hw->mac.get_link_status = true;
 
 	return ret_val;
 }
