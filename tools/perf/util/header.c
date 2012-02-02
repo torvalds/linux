@@ -63,9 +63,20 @@ char *perf_header__find_event(u64 id)
 	return NULL;
 }
 
-static const char *__perf_magic = "PERFFILE";
+/*
+ * magic2 = "PERFILE2"
+ * must be a numerical value to let the endianness
+ * determine the memory layout. That way we are able
+ * to detect endianness when reading the perf.data file
+ * back.
+ *
+ * we check for legacy (PERFFILE) format.
+ */
+static const char *__perf_magic1 = "PERFFILE";
+static const u64 __perf_magic2    = 0x32454c4946524550ULL;
+static const u64 __perf_magic2_sw = 0x50455246494c4532ULL;
 
-#define PERF_MAGIC	(*(u64 *)__perf_magic)
+#define PERF_MAGIC	__perf_magic2
 
 struct perf_file_attr {
 	struct perf_event_attr	attr;
@@ -1620,24 +1631,59 @@ out_free:
 	return err;
 }
 
+static int check_magic_endian(u64 *magic, struct perf_file_header *header,
+			      struct perf_header *ph)
+{
+	int ret;
+
+	/* check for legacy format */
+	ret = memcmp(magic, __perf_magic1, sizeof(*magic));
+	if (ret == 0) {
+		pr_debug("legacy perf.data format\n");
+		if (!header)
+			return -1;
+
+		if (header->attr_size != sizeof(struct perf_file_attr)) {
+			u64 attr_size = bswap_64(header->attr_size);
+
+			if (attr_size != sizeof(struct perf_file_attr))
+				return -1;
+
+			ph->needs_swap = true;
+		}
+		return 0;
+	}
+
+	/* check magic number with same endianness */
+	if (*magic == __perf_magic2)
+		return 0;
+
+	/* check magic number but opposite endianness */
+	if (*magic != __perf_magic2_sw)
+		return -1;
+
+	ph->needs_swap = true;
+
+	return 0;
+}
+
 int perf_file_header__read(struct perf_file_header *header,
 			   struct perf_header *ph, int fd)
 {
+	int ret;
+
 	lseek(fd, 0, SEEK_SET);
 
-	if (readn(fd, header, sizeof(*header)) <= 0 ||
-	    memcmp(&header->magic, __perf_magic, sizeof(header->magic)))
+	ret = readn(fd, header, sizeof(*header));
+	if (ret <= 0)
 		return -1;
 
-	if (header->attr_size != sizeof(struct perf_file_attr)) {
-		u64 attr_size = bswap_64(header->attr_size);
+	if (check_magic_endian(&header->magic, header, ph) < 0)
+		return -1;
 
-		if (attr_size != sizeof(struct perf_file_attr))
-			return -1;
-
+	if (ph->needs_swap) {
 		mem_bswap_64(header, offsetof(struct perf_file_header,
-					    adds_features));
-		ph->needs_swap = true;
+			     adds_features));
 	}
 
 	if (header->size != sizeof(*header)) {
@@ -1873,8 +1919,13 @@ static int perf_file_header__read_pipe(struct perf_pipe_file_header *header,
 				       struct perf_header *ph, int fd,
 				       bool repipe)
 {
-	if (readn(fd, header, sizeof(*header)) <= 0 ||
-	    memcmp(&header->magic, __perf_magic, sizeof(header->magic)))
+	int ret;
+
+	ret = readn(fd, header, sizeof(*header));
+	if (ret <= 0)
+		return -1;
+
+	 if (check_magic_endian(&header->magic, NULL, ph) < 0)
 		return -1;
 
 	if (repipe && do_write(STDOUT_FILENO, header, sizeof(*header)) < 0)
