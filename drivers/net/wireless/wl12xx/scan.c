@@ -175,15 +175,16 @@ static int wl1271_scan_send(struct wl1271 *wl, struct ieee80211_vif *vif,
 	if (passive)
 		scan_options |= WL1271_SCAN_OPT_PASSIVE;
 
-	if (WARN_ON(wlvif->role_id == WL12XX_INVALID_ROLE_ID ||
-		    wlvif->dev_role_id == WL12XX_INVALID_ROLE_ID)) {
-		ret = -EINVAL;
-		goto out;
-	}
-	if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
+	if (wlvif->bss_type == BSS_TYPE_AP_BSS ||
+	    test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
 		cmd->params.role_id = wlvif->role_id;
 	else
 		cmd->params.role_id = wlvif->dev_role_id;
+
+	if (WARN_ON(cmd->params.role_id == WL12XX_INVALID_ROLE_ID)) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	cmd->params.scan_options = cpu_to_le16(scan_options);
 
