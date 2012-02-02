@@ -797,6 +797,19 @@ int rndis_filter_send(struct hv_device *dev,
 			(unsigned long)rndisMessage & (PAGE_SIZE-1);
 	pkt->page_buf[0].len = rndisMessageSize;
 
+	/* Add one page_buf if the rndis msg goes beyond page boundary */
+	if (pkt->page_buf[0].offset + rndisMessageSize > PAGE_SIZE) {
+		int i;
+		for (i = pkt->page_buf_cnt; i > 1; i--)
+			pkt->page_buf[i] = pkt->page_buf[i-1];
+		pkt->page_buf_cnt++;
+		pkt->page_buf[0].len = PAGE_SIZE - pkt->page_buf[0].offset;
+		pkt->page_buf[1].pfn = virt_to_phys((void *)((ulong)
+			rndisMessage + pkt->page_buf[0].len)) >> PAGE_SHIFT;
+		pkt->page_buf[1].offset = 0;
+		pkt->page_buf[1].len = rndisMessageSize - pkt->page_buf[0].len;
+	}
+
 	/* Save the packet send completion and context */
 	filterPacket->completion = pkt->completion.send.send_completion;
 	filterPacket->completion_ctx =

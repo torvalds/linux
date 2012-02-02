@@ -151,10 +151,10 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	int ret;
 	unsigned int i, num_pages, npg_data;
 
-	/* Add multipage for skb->data and additional one for RNDIS */
+	/* Add multipages for skb->data and additional 2 for RNDIS */
 	npg_data = (((unsigned long)skb->data + skb_headlen(skb) - 1)
 		>> PAGE_SHIFT) - ((unsigned long)skb->data >> PAGE_SHIFT) + 1;
-	num_pages = skb_shinfo(skb)->nr_frags + npg_data + 1;
+	num_pages = skb_shinfo(skb)->nr_frags + npg_data + 2;
 
 	/* Allocate a netvsc packet based on # of frags. */
 	packet = kzalloc(sizeof(struct hv_netvsc_packet) +
@@ -173,8 +173,8 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 				sizeof(struct hv_netvsc_packet) +
 				    (num_pages * sizeof(struct hv_page_buffer));
 
-	/* Setup the rndis header */
-	packet->page_buf_cnt = num_pages;
+	/* If the rndis msg goes beyond 1 page, we will add 1 later */
+	packet->page_buf_cnt = num_pages - 1;
 
 	/* Initialize it from the skb */
 	packet->total_data_buflen = skb->len;
