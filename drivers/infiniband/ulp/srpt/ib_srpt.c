@@ -3264,8 +3264,7 @@ static void srpt_add_one(struct ib_device *device)
 	for (i = 0; i < sdev->srq_size; ++i)
 		srpt_post_recv(sdev, sdev->ioctx_ring[i]);
 
-	WARN_ON(sdev->device->phys_port_cnt
-		> sizeof(sdev->port)/sizeof(sdev->port[0]));
+	WARN_ON(sdev->device->phys_port_cnt > ARRAY_SIZE(sdev->port));
 
 	for (i = 1; i <= sdev->device->phys_port_cnt; i++) {
 		sport = &sdev->port[i - 1];
