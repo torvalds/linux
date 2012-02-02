@@ -236,17 +236,25 @@ nva3_pm_clocks_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 
 struct nva3_pm_state {
 	struct nouveau_pm_level *perflvl;
+
 	struct creg nclk;
 	struct creg sclk;
-	struct creg mclk;
 	struct creg vdec;
 	struct creg unka0;
+
+	struct creg mclk;
+	u8 *rammap;
+	u8  rammap_ver;
+	u8  rammap_len;
+	u8 *ramcfg;
+	u8  ramcfg_len;
 };
 
 void *
 nva3_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 {
 	struct nva3_pm_state *info;
+	u8 ramcfg_cnt;
 	int ret;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
@@ -272,6 +280,19 @@ nva3_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	ret = calc_clk(dev, 0x21, 0x0000, perflvl->vdec, &info->vdec);
 	if (ret < 0)
 		goto out;
+
+	info->rammap = nouveau_perf_rammap(dev, perflvl->memory,
+					   &info->rammap_ver,
+					   &info->rammap_len,
+					   &ramcfg_cnt, &info->ramcfg_len);
+	if (info->rammap_ver != 0x10 || info->rammap_len < 5)
+		info->rammap = NULL;
+
+	info->ramcfg = nouveau_perf_ramcfg(dev, perflvl->memory,
+					   &info->rammap_ver,
+					   &info->ramcfg_len);
+	if (info->rammap_ver != 0x10)
+		info->ramcfg = NULL;
 
 	info->perflvl = perflvl;
 out:
@@ -356,9 +377,6 @@ mclk_clock_set(struct nouveau_mem_exec_func *exec)
 {
 	struct drm_device *dev = exec->dev;
 	struct nva3_pm_state *info = exec->priv;
-	struct nouveau_pm_level *perflvl = info->perflvl;
-	u32 freq = perflvl->memory;
-	u8 *rammap, *ramcfg, ver, hdr, cnt, len;
 
 	if (!info->mclk.pll) {
 		nv_mask(dev, 0x004168, 0x003f3040, info->mclk.clk);
@@ -367,15 +385,14 @@ mclk_clock_set(struct nouveau_mem_exec_func *exec)
 		nv_wr32(dev, 0x004018, 0x1000d000); /*XXX*/
 	}
 
-	rammap = nouveau_perf_rammap(dev, freq, &ver, &hdr, &cnt, &len);
-	if (rammap && ver == 0x10 && hdr >= 5) {
-		ramcfg = nouveau_perf_ramcfg(dev, freq, &ver, &len);
-		if (ramcfg && (rammap[4] & 0x08)) {
-			u32 unk5a0 = (ROM16(ramcfg[5]) << 8) | ramcfg[5];
-			u32 unk5a4 = ROM16(ramcfg[7]);
-			u32 unk804 = (ramcfg[9] & 0xf0) << 16 |
-				     (ramcfg[3] & 0x0f) << 16 |
-				     (ramcfg[9] & 0x0f) |
+	if (info->rammap) {
+		if (info->ramcfg && (info->rammap[4] & 0x08)) {
+			u32 unk5a0 = (ROM16(info->ramcfg[5]) << 8) |
+				      info->ramcfg[5];
+			u32 unk5a4 = ROM16(info->ramcfg[7]);
+			u32 unk804 = (info->ramcfg[9] & 0xf0) << 16 |
+				     (info->ramcfg[3] & 0x0f) << 16 |
+				     (info->ramcfg[9] & 0x0f) |
 				     0x80000000;
 			nv_wr32(dev, 0x1005a0, unk5a0);
 			nv_wr32(dev, 0x1005a4, unk5a4);
@@ -399,28 +416,31 @@ mclk_timing_set(struct nouveau_mem_exec_func *exec)
 	struct drm_device *dev = exec->dev;
 	struct nva3_pm_state *info = exec->priv;
 	struct nouveau_pm_level *perflvl = info->perflvl;
-	u8 *ramcfg, ver, len;
 	int i;
 
 	for (i = 0; i < 9; i++)
 		nv_wr32(dev, 0x100220 + (i * 4), perflvl->timing.reg[i]);
 
-	ramcfg = nouveau_perf_ramcfg(dev, perflvl->memory, &ver, &len);
-	if (ramcfg) {
+	if (info->ramcfg) {
+		u32 data = (info->ramcfg[2] & 0x08) ? 0x00000000 : 0x00001000;
+		nv_mask(dev, 0x100200, 0x00001000, data);
+	}
+
+	if (info->ramcfg) {
 		u32 unk714 = nv_rd32(dev, 0x100714) & ~0xf0000010;
 		u32 unk718 = nv_rd32(dev, 0x100718) & ~0x00000100;
 		u32 unk71c = nv_rd32(dev, 0x10071c) & ~0x00000100;
-		if ( (ramcfg[2] & 0x20))
+		if ( (info->ramcfg[2] & 0x20))
 			unk714 |= 0xf0000000;
-		if (!(ramcfg[2] & 0x04))
+		if (!(info->ramcfg[2] & 0x04))
 			unk714 |= 0x00000010;
 		nv_wr32(dev, 0x100714, unk714);
 
-		if (ramcfg[2] & 0x01)
+		if (info->ramcfg[2] & 0x01)
 			unk71c |= 0x00000100;
 		nv_wr32(dev, 0x10071c, unk71c);
 
-		if (ramcfg[2] & 0x02)
+		if (info->ramcfg[2] & 0x02)
 			unk718 |= 0x00000100;
 		nv_wr32(dev, 0x100718, unk718);
 	}
@@ -463,9 +483,15 @@ prog_mem(struct drm_device *dev, struct nva3_pm_state *info)
 		}
 	}
 
+	if (info->rammap && !(info->rammap[4] & 0x02))
+		nv_mask(dev, 0x100200, 0x00000800, 0x00000000);
 	nv_wr32(dev, 0x611200, 0x00003300);
+
 	nouveau_mem_exec(&exec, info->perflvl);
+
 	nv_wr32(dev, 0x611200, 0x00003330);
+	if (info->rammap && (info->rammap[4] & 0x02))
+		nv_mask(dev, 0x100200, 0x00000800, 0x00000800);
 
 	if (info->mclk.pll) {
 		nv_mask(dev, 0x004168, 0x00000001, 0x00000000);
