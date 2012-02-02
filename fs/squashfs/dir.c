@@ -173,8 +173,7 @@ static int squashfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 
 		dir_count = le32_to_cpu(dirh.count) + 1;
 
-		/* dir_count should never be larger than 256 */
-		if (dir_count > 256)
+		if (dir_count > SQUASHFS_DIR_COUNT)
 			goto failed_read;
 
 		while (dir_count--) {

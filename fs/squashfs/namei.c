@@ -177,8 +177,7 @@ static struct dentry *squashfs_lookup(struct inode *dir, struct dentry *dentry,
 
 		dir_count = le32_to_cpu(dirh.count) + 1;
 
-		/* dir_count should never be larger than 256 */
-		if (dir_count > 256)
+		if (dir_count > SQUASHFS_DIR_COUNT)
 			goto data_error;
 
 		while (dir_count--) {

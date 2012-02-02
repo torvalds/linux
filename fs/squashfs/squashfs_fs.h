@@ -52,6 +52,9 @@
 /* Max length of filename (not 255) */
 #define SQUASHFS_NAME_LEN		256
 
+/* Max value for directory header count*/
+#define SQUASHFS_DIR_COUNT		256
+
 #define SQUASHFS_INVALID_FRAG		(0xffffffffU)
 #define SQUASHFS_INVALID_XATTR		(0xffffffffU)
 #define SQUASHFS_INVALID_BLK		(-1LL)
