@@ -1279,3 +1279,4 @@ static struct usb_driver go7007_usb_driver = {
 };
 
 module_usb_driver(go7007_usb_driver);
+MODULE_LICENSE("GPL v2");
