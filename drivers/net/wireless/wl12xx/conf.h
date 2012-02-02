@@ -943,6 +943,12 @@ struct conf_conn_settings {
 	u16 dynamic_ps_timeout;
 
 	/*
+	 * Specifies whether dynamic PS should be disabled and PSM forced.
+	 * This is required for certain WiFi certification tests.
+	 */
+	u8 forced_ps;
+
+	/*
 	 *
 	 * Specifies the interval of the connection keep-alive null-func
 	 * frame in ms.

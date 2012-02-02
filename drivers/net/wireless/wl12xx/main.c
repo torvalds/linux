@@ -247,6 +247,7 @@ static struct conf_drv_settings default_conf = {
 		.psm_exit_retries            = 16,
 		.psm_entry_nullfunc_retries  = 3,
 		.dynamic_ps_timeout          = 100,
+		.forced_ps                   = false,
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
 	},
@@ -2510,17 +2511,29 @@ static int wl12xx_config_vif(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 		if ((conf->flags & IEEE80211_CONF_PS) &&
 		    test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags) &&
-		    !test_bit(WLVIF_FLAG_IN_AUTO_PS, &wlvif->flags)) {
+		    !test_bit(WLVIF_FLAG_IN_PS, &wlvif->flags)) {
 
-			wl1271_debug(DEBUG_PSM, "auto ps enabled");
+			int ps_mode;
+			char *ps_mode_str;
 
-			ret = wl1271_ps_set_mode(wl, wlvif,
-						 STATION_AUTO_PS_MODE);
+			if (wl->conf.conn.forced_ps) {
+				ps_mode = STATION_POWER_SAVE_MODE;
+				ps_mode_str = "forced";
+			} else {
+				ps_mode = STATION_AUTO_PS_MODE;
+				ps_mode_str = "auto";
+			}
+
+			wl1271_debug(DEBUG_PSM, "%s ps enabled", ps_mode_str);
+
+			ret = wl1271_ps_set_mode(wl, wlvif, ps_mode);
+
 			if (ret < 0)
-				wl1271_warning("enter auto ps failed %d", ret);
+				wl1271_warning("enter %s ps failed %d",
+					       ps_mode_str, ret);
 
 		} else if (!(conf->flags & IEEE80211_CONF_PS) &&
-			   test_bit(WLVIF_FLAG_IN_AUTO_PS, &wlvif->flags)) {
+			   test_bit(WLVIF_FLAG_IN_PS, &wlvif->flags)) {
 
 			wl1271_debug(DEBUG_PSM, "auto ps disabled");
 

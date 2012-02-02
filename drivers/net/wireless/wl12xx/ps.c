@@ -56,7 +56,7 @@ void wl1271_elp_work(struct work_struct *work)
 		if (wlvif->bss_type == BSS_TYPE_AP_BSS)
 			goto out;
 
-		if (!test_bit(WLVIF_FLAG_IN_AUTO_PS, &wlvif->flags) &&
+		if (!test_bit(WLVIF_FLAG_IN_PS, &wlvif->flags) &&
 		    test_bit(WLVIF_FLAG_IN_USE, &wlvif->flags))
 			goto out;
 	}
@@ -84,7 +84,7 @@ void wl1271_ps_elp_sleep(struct wl1271 *wl)
 		if (wlvif->bss_type == BSS_TYPE_AP_BSS)
 			return;
 
-		if (!test_bit(WLVIF_FLAG_IN_AUTO_PS, &wlvif->flags) &&
+		if (!test_bit(WLVIF_FLAG_IN_PS, &wlvif->flags) &&
 		    test_bit(WLVIF_FLAG_IN_USE, &wlvif->flags))
 			return;
 	}
@@ -167,6 +167,7 @@ int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	switch (mode) {
 	case STATION_AUTO_PS_MODE:
+	case STATION_POWER_SAVE_MODE:
 		wl1271_debug(DEBUG_PSM, "entering psm (mode=%d,timeout=%u)",
 			     mode, timeout);
 
@@ -182,7 +183,7 @@ int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		if (ret < 0)
 			return ret;
 
-		set_bit(WLVIF_FLAG_IN_AUTO_PS, &wlvif->flags);
+		set_bit(WLVIF_FLAG_IN_PS, &wlvif->flags);
 
 		/* enable beacon early termination. Not relevant for 5GHz */
 		if (wlvif->band == IEEE80211_BAND_2GHZ) {
@@ -205,9 +206,8 @@ int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		if (ret < 0)
 			return ret;
 
-		clear_bit(WLVIF_FLAG_IN_AUTO_PS, &wlvif->flags);
+		clear_bit(WLVIF_FLAG_IN_PS, &wlvif->flags);
 		break;
-	case STATION_POWER_SAVE_MODE:
 	default:
 		wl1271_warning("trying to set ps to unsupported mode %d", mode);
 		ret = -EINVAL;
