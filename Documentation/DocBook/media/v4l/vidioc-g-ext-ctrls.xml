@@ -278,6 +278,12 @@ These controls are described in <xref
 	    source controls. These controls are described in <xref
 	    linkend="image-source-controls" />.</entry>
 	  </row>
+	  <row>
+	    <entry><constant>V4L2_CTRL_CLASS_IMAGE_PROC</constant></entry>
+	    <entry>0x9f0000</entry> <entry>The class containing image
+	    processing controls. These controls are described in <xref
+	    linkend="image-process-controls" />.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>

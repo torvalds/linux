@@ -3685,4 +3685,86 @@ interface and may change in the future.</para>
 
     </section>
 
+    <section id="image-process-controls">
+      <title>Image Process Control Reference</title>
+
+      <note>
+	<title>Experimental</title>
+
+	<para>This is an <link
+	linkend="experimental">experimental</link> interface and may
+	change in the future.</para>
+      </note>
+
+      <para>
+	The Image Source control class is intended for low-level control of
+	image processing functions. Unlike
+	<constant>V4L2_CID_IMAGE_SOURCE_CLASS</constant>, the controls in
+	this class affect processing the image, and do not control capturing
+	of it.
+      </para>
+
+      <table pgwide="1" frame="none" id="image-process-control-id">
+      <title>Image Source Control IDs</title>
+
+      <tgroup cols="4">
+	<colspec colname="c1" colwidth="1*" />
+	<colspec colname="c2" colwidth="6*" />
+	<colspec colname="c3" colwidth="2*" />
+	<colspec colname="c4" colwidth="6*" />
+	<spanspec namest="c1" nameend="c2" spanname="id" />
+	<spanspec namest="c2" nameend="c4" spanname="descr" />
+	<thead>
+	  <row>
+	    <entry spanname="id" align="left">ID</entry>
+	    <entry align="left">Type</entry>
+	  </row><row rowsep="1"><entry spanname="descr" align="left">Description</entry>
+	  </row>
+	</thead>
+	<tbody valign="top">
+	  <row><entry></entry></row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_IMAGE_PROC_CLASS</constant></entry>
+	    <entry>class</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">The IMAGE_PROC class descriptor.</entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_LINK_FREQ</constant></entry>
+	    <entry>integer menu</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Data bus frequency. Together with the
+	    media bus pixel code, bus type (clock cycles per sample), the
+	    data bus frequency defines the pixel rate
+	    (<constant>V4L2_CID_PIXEL_RATE</constant>) in the
+	    pixel array (or possibly elsewhere, if the device is not an
+	    image sensor). The frame rate can be calculated from the pixel
+	    clock, image width and height and horizontal and vertical
+	    blanking. While the pixel rate control may be defined elsewhere
+	    than in the subdev containing the pixel array, the frame rate
+	    cannot be obtained from that information. This is because only
+	    on the pixel array it can be assumed that the vertical and
+	    horizontal blanking information is exact: no other blanking is
+	    allowed in the pixel array. The selection of frame rate is
+	    performed by selecting the desired horizontal and vertical
+	    blanking. The unit of this control is Hz. </entry>
+	  </row>
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_PIXEL_RATE</constant></entry>
+	    <entry>64-bit integer</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Pixel rate in the source pads of
+	    the subdev. This control is read-only and its unit is
+	    pixels / second.
+	    </entry>
+	  </row>
+	  <row><entry></entry></row>
+	</tbody>
+      </tgroup>
+      </table>
+
+    </section>
 </section>
