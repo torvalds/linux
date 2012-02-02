@@ -38,7 +38,6 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	struct ieee80211_vif *vif;
 	struct wl12xx_vif *wlvif;
 	int ret;
-	bool is_sta, is_ibss;
 
 	dwork = container_of(work, struct delayed_work, work);
 	wl = container_of(dwork, struct wl1271, scan_complete_work);
@@ -70,18 +69,6 @@ void wl1271_scan_complete_work(struct work_struct *work)
 		wl1271_cmd_build_ap_probe_req(wl, wlvif, wlvif->probereq);
 	}
 
-	/* return to ROC if needed */
-	is_sta = (wlvif->bss_type == BSS_TYPE_STA_BSS);
-	is_ibss = (wlvif->bss_type == BSS_TYPE_IBSS);
-	if (((is_sta && !test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags)) ||
-	     (is_ibss && !test_bit(WLVIF_FLAG_IBSS_JOINED, &wlvif->flags))) &&
-	    !test_bit(wlvif->dev_role_id, wl->roc_map)) {
-		/* restore remain on channel */
-		if (wlvif->dev_hlid == WL12XX_INVALID_LINK_ID)
-			wl12xx_start_dev(wl, wlvif);
-		else
-			wl12xx_roc(wl, wlvif, wlvif->dev_role_id);
-	}
 	wl1271_ps_elp_sleep(wl);
 
 	if (wl->scan.failed) {
