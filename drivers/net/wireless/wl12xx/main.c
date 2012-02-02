@@ -5063,10 +5063,10 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	 * should be the maximum length possible for a template, without
 	 * the IEEE80211 header of the template
 	 */
-	wl->hw->wiphy->max_scan_ie_len = WL1271_CMD_TEMPL_DFLT_SIZE -
+	wl->hw->wiphy->max_scan_ie_len = WL1271_CMD_TEMPL_MAX_SIZE -
 			sizeof(struct ieee80211_header);
 
-	wl->hw->wiphy->max_sched_scan_ie_len = WL1271_CMD_TEMPL_DFLT_SIZE -
+	wl->hw->wiphy->max_sched_scan_ie_len = WL1271_CMD_TEMPL_MAX_SIZE -
 		sizeof(struct ieee80211_header);
 
 	wl->hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
