@@ -2154,26 +2154,36 @@ static int rbd_init_watch_dev(struct rbd_device *rbd_dev)
 static atomic64_t rbd_id_max = ATOMIC64_INIT(0);
 
 /*
- * Get a unique rbd identifier.  The minimum rbd id is 1.
+ * Get a unique rbd identifier for the given new rbd_dev, and add
+ * the rbd_dev to the global list.  The minimum rbd id is 1.
  */
-static int rbd_id_get(void)
+static void rbd_id_get(struct rbd_device *rbd_dev)
 {
-	return atomic64_inc_return(&rbd_id_max);
+	rbd_dev->id = atomic64_inc_return(&rbd_id_max);
+
+	spin_lock(&rbd_dev_list_lock);
+	list_add_tail(&rbd_dev->node, &rbd_dev_list);
+	spin_unlock(&rbd_dev_list_lock);
 }
 
 /*
- * Record that an rbd identifier is no longer in use.
+ * Remove an rbd_dev from the global list, and record that its
+ * identifier is no longer in use.
  */
-static void rbd_id_put(int rbd_id)
+static void rbd_id_put(struct rbd_device *rbd_dev)
 {
-	BUG_ON(rbd_id < 1);
+	BUG_ON(rbd_dev->id < 1);
+
+	spin_lock(&rbd_dev_list_lock);
+	list_del_init(&rbd_dev->node);
+	spin_unlock(&rbd_dev_list_lock);
 
 	/*
 	 * New id's are always one more than the current maximum.
 	 * If the id being "put" *is* that maximum, decrement the
 	 * maximum so the next one requested just reuses this one.
 	 */
-	atomic64_cmpxchg(&rbd_id_max, rbd_id, rbd_id - 1);
+	atomic64_cmpxchg(&rbd_id_max, rbd_dev->id, rbd_dev->id - 1);
 }
 
 static ssize_t rbd_add(struct bus_type *bus,
@@ -2211,12 +2221,7 @@ static ssize_t rbd_add(struct bus_type *bus,
 	init_rwsem(&rbd_dev->header.snap_rwsem);
 
 	/* generate unique id: one more than highest used so far */
-	rbd_dev->id = rbd_id_get();
-
-	/* add to global list */
-	spin_lock(&rbd_dev_list_lock);
-	list_add_tail(&rbd_dev->node, &rbd_dev_list);
-	spin_unlock(&rbd_dev_list_lock);
+	rbd_id_get(rbd_dev);
 
 	/* parse add command */
 	if (sscanf(buf, "%" __stringify(RBD_MAX_OPT_LEN) "s "
@@ -2279,10 +2284,7 @@ static ssize_t rbd_add(struct bus_type *bus,
 	return count;
 
 err_out_bus:
-	spin_lock(&rbd_dev_list_lock);
-	list_del_init(&rbd_dev->node);
-	spin_unlock(&rbd_dev_list_lock);
-	rbd_id_put(target_id);
+	rbd_id_put(rbd_dev);
 
 	/* this will also clean up rest of rbd_dev stuff */
 
@@ -2296,10 +2298,7 @@ err_out_blkdev:
 err_out_client:
 	rbd_put_client(rbd_dev);
 err_out_slot:
-	spin_lock(&rbd_dev_list_lock);
-	list_del_init(&rbd_dev->node);
-	spin_unlock(&rbd_dev_list_lock);
-	rbd_id_put(target_id);
+	rbd_id_put(rbd_dev);
 
 	kfree(rbd_dev);
 err_out_opt:
@@ -2380,11 +2379,7 @@ static ssize_t rbd_remove(struct bus_type *bus,
 		goto done;
 	}
 
-	spin_lock(&rbd_dev_list_lock);
-	list_del_init(&rbd_dev->node);
-	spin_unlock(&rbd_dev_list_lock);
-
-	rbd_id_put(target_id);
+	rbd_id_put(rbd_dev);
 
 	__rbd_remove_all_snaps(rbd_dev);
 	rbd_bus_del_dev(rbd_dev);
