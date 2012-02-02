@@ -72,8 +72,6 @@ void intel_pmu_lbr_enable(struct perf_event *event)
 	if (!x86_pmu.lbr_nr)
 		return;
 
-	WARN_ON_ONCE(cpuc->enabled);
-
 	/*
 	 * Reset the LBR stack if we changed task context to
 	 * avoid data leaks.
