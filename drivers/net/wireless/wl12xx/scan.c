@@ -172,6 +172,9 @@ static int wl1271_scan_send(struct wl1271 *wl, struct ieee80211_vif *vif,
 		goto out;
 	}
 
+	if (wl->conf.scan.split_scan_timeout)
+		scan_options |= WL1271_SCAN_OPT_SPLIT_SCAN;
+
 	if (passive)
 		scan_options |= WL1271_SCAN_OPT_PASSIVE;
 
@@ -198,7 +201,7 @@ static int wl1271_scan_send(struct wl1271 *wl, struct ieee80211_vif *vif,
 
 	cmd->params.tx_rate = cpu_to_le32(basic_rate);
 	cmd->params.n_probe_reqs = wl->conf.scan.num_probe_reqs;
-	cmd->params.tid_trigger = 0;
+	cmd->params.tid_trigger = CONF_TX_AC_ANY_TID;
 	cmd->params.scan_tag = WL1271_SCAN_DEFAULT_TAG;
 
 	if (band == IEEE80211_BAND_2GHZ)
@@ -223,8 +226,7 @@ static int wl1271_scan_send(struct wl1271 *wl, struct ieee80211_vif *vif,
 		goto out;
 	}
 
-	/* disable the timeout */
-	trigger->timeout = 0;
+	trigger->timeout = cpu_to_le32(wl->conf.scan.split_scan_timeout);
 	ret = wl1271_cmd_send(wl, CMD_TRIGGER_SCAN_TO, trigger,
 			      sizeof(*trigger), 0);
 	if (ret < 0) {

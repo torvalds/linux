@@ -1082,6 +1082,14 @@ struct conf_scan_settings {
 	 */
 	u16 num_probe_reqs;
 
+	/*
+	 * Scan trigger (split scan) timeout. The FW will split the scan
+	 * operation into slices of the given time and allow the FW to schedule
+	 * other tasks in between.
+	 *
+	 * Range: u32 Microsecs
+	 */
+	u32 split_scan_timeout;
 };
 
 struct conf_sched_scan_settings {
