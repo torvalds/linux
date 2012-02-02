@@ -172,6 +172,7 @@ int dwc3_gadget_resize_tx_fifos(struct dwc3 *dwc)
 	for (num = 0; num < DWC3_ENDPOINTS_NUM; num++) {
 		struct dwc3_ep	*dep = dwc->eps[num];
 		int		fifo_number = dep->number >> 1;
+		int		mult = 1;
 		int		tmp;
 
 		if (!(dep->number & 1))
@@ -180,11 +181,26 @@ int dwc3_gadget_resize_tx_fifos(struct dwc3 *dwc)
 		if (!(dep->flags & DWC3_EP_ENABLED))
 			continue;
 
-		tmp = dep->endpoint.maxpacket;
-		tmp += mdwidth;
+		if (usb_endpoint_xfer_bulk(dep->desc)
+				|| usb_endpoint_xfer_isoc(dep->desc))
+			mult = 3;
+
+		/*
+		 * REVISIT: the following assumes we will always have enough
+		 * space available on the FIFO RAM for all possible use cases.
+		 * Make sure that's true somehow and change FIFO allocation
+		 * accordingly.
+		 *
+		 * If we have Bulk or Isochronous endpoints, we want
+		 * them to be able to be very, very fast. So we're giving
+		 * those endpoints a fifo_size which is enough for 3 full
+		 * packets
+		 */
+		tmp = mult * (dep->endpoint.maxpacket + mdwidth);
 		tmp += mdwidth;
 
 		fifo_size = DIV_ROUND_UP(tmp, mdwidth);
+
 		fifo_size |= (last_fifo_depth << 16);
 
 		dev_vdbg(dwc->dev, "%s: Fifo Addr %04x Size %d\n",
