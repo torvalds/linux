@@ -360,14 +360,12 @@ mclk_clock_set(struct nouveau_mem_exec_func *exec)
 	u32 freq = perflvl->memory;
 	u8 *rammap, *ramcfg, ver, hdr, cnt, len;
 
-	nv_wr32(dev, 0x004018, 0x00001000);
-
-	prog_pll(dev, 0x02, 0x004000, &info->mclk);
-
-	if (nv_rd32(dev, 0x4000) & 0x00000008)
-		nv_wr32(dev, 0x004018, 0x1000d000);
-	else
-		nv_wr32(dev, 0x004018, 0x10005000);
+	if (!info->mclk.pll) {
+		nv_mask(dev, 0x004168, 0x003f3040, info->mclk.clk);
+		nv_mask(dev, 0x004000, 0x00000008, 0x00000008);
+		nv_mask(dev, 0x1110e0, 0x00088000, 0x00088000);
+		nv_wr32(dev, 0x004018, 0x1000d000); /*XXX*/
+	}
 
 	rammap = nouveau_perf_rammap(dev, freq, &ver, &hdr, &cnt, &len);
 	if (rammap && ver == 0x10 && hdr >= 5) {
@@ -387,6 +385,11 @@ mclk_clock_set(struct nouveau_mem_exec_func *exec)
 			nv_mask(dev, 0x10053c, 0x00001000, 0x00001000);
 			nv_mask(dev, 0x10f804, 0x80000000, 0x00000000);
 		}
+	}
+
+	if (info->mclk.pll) {
+		nv_mask(dev, 0x1110e0, 0x00088000, 0x00011000);
+		nv_mask(dev, 0x004000, 0x00000008, 0x00000000);
 	}
 }
 
@@ -439,10 +442,39 @@ prog_mem(struct drm_device *dev, struct nva3_pm_state *info)
 		.timing_set = mclk_timing_set,
 		.priv = info
 	};
+	u32 ctrl;
+
+	ctrl = nv_rd32(dev, 0x004000);
+	if (ctrl & 0x00000008) {
+		if (info->mclk.pll) {
+			nv_mask(dev, 0x004128, 0x00000101, 0x00000101);
+			nv_wr32(dev, 0x004004, info->mclk.pll);
+			nv_wr32(dev, 0x004000, (ctrl |= 0x00000001));
+			nv_wr32(dev, 0x004000, (ctrl &= 0xffffffef));
+			nv_wait(dev, 0x004000, 0x00020000, 0x00020000);
+			nv_wr32(dev, 0x004000, (ctrl |= 0x00000010));
+			nv_wr32(dev, 0x004018, 0x00005000); /*XXX*/
+			nv_wr32(dev, 0x004000, (ctrl |= 0x00000004));
+		}
+	} else {
+		if (!info->mclk.pll) {
+			nv_mask(dev, 0x004168, 0x003f3141,
+					       0x00000101 | info->mclk.clk);
+		}
+	}
 
 	nv_wr32(dev, 0x611200, 0x00003300);
 	nouveau_mem_exec(&exec, info->perflvl);
 	nv_wr32(dev, 0x611200, 0x00003330);
+
+	if (info->mclk.pll) {
+		nv_mask(dev, 0x004168, 0x00000001, 0x00000000);
+		nv_mask(dev, 0x004168, 0x00000100, 0x00000000);
+	} else {
+		nv_mask(dev, 0x004000, 0x00000001, 0x00000000);
+		nv_mask(dev, 0x004128, 0x00000001, 0x00000000);
+		nv_mask(dev, 0x004128, 0x00000100, 0x00000000);
+	}
 }
 
 int
