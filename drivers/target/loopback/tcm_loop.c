@@ -49,59 +49,7 @@ static struct kmem_cache *tcm_loop_cmd_cache;
 
 static int tcm_loop_hba_no_cnt;
 
-/*
- * Called by struct target_core_fabric_ops->new_cmd_map()
- *
- * Always called in process context.  A non zero return value
- * here will signal to handle an exception based on the return code.
- */
-static int tcm_loop_new_cmd_map(struct se_cmd *se_cmd)
-{
-	struct tcm_loop_cmd *tl_cmd = container_of(se_cmd,
-				struct tcm_loop_cmd, tl_se_cmd);
-	struct scsi_cmnd *sc = tl_cmd->sc;
-	struct scatterlist *sgl_bidi = NULL;
-	u32 sgl_bidi_count = 0;
-	int ret;
-	/*
-	 * Allocate the necessary tasks to complete the received CDB+data
-	 */
-	ret = transport_generic_allocate_tasks(se_cmd, sc->cmnd);
-	if (ret != 0)
-		return ret;
-	/*
-	 * For BIDI commands, pass in the extra READ buffer
-	 * to transport_generic_map_mem_to_cmd() below..
-	 */
-	if (se_cmd->se_cmd_flags & SCF_BIDI) {
-		struct scsi_data_buffer *sdb = scsi_in(sc);
-
-		sgl_bidi = sdb->table.sgl;
-		sgl_bidi_count = sdb->table.nents;
-	}
-	/*
-	 * Because some userspace code via scsi-generic do not memset their
-	 * associated read buffers, go ahead and do that here for type
-	 * SCF_SCSI_CONTROL_SG_IO_CDB.  Also note that this is currently
-	 * guaranteed to be a single SGL for SCF_SCSI_CONTROL_SG_IO_CDB
-	 * by target core in transport_generic_allocate_tasks() ->
-	 * transport_generic_cmd_sequencer().
-	 */
-	if (se_cmd->se_cmd_flags & SCF_SCSI_CONTROL_SG_IO_CDB &&
-	    se_cmd->data_direction == DMA_FROM_DEVICE) {
-		struct scatterlist *sg = scsi_sglist(sc);
-		unsigned char *buf = kmap(sg_page(sg)) + sg->offset;
-
-		if (buf != NULL) {
-			memset(buf, 0, sg->length);
-			kunmap(sg_page(sg));
-		}
-	}
-
-	/* Tell the core about our preallocated memory */
-	return transport_generic_map_mem_to_cmd(se_cmd, scsi_sglist(sc),
-			scsi_sg_count(sc), sgl_bidi, sgl_bidi_count);
-}
+static int tcm_loop_queue_status(struct se_cmd *se_cmd);
 
 /*
  * Called from struct target_core_fabric_ops->check_stop_free()
@@ -216,6 +164,9 @@ static void tcm_loop_submission_work(struct work_struct *work)
 	struct tcm_loop_nexus *tl_nexus;
 	struct tcm_loop_hba *tl_hba;
 	struct tcm_loop_tpg *tl_tpg;
+	struct scatterlist *sgl_bidi = NULL;
+	u32 sgl_bidi_count = 0;
+	int ret;
 
 	tl_hba = *(struct tcm_loop_hba **)shost_priv(sc->device->host);
 	tl_tpg = &tl_hba->tl_hba_tpgs[sc->device->id];
@@ -242,8 +193,14 @@ static void tcm_loop_submission_work(struct work_struct *work)
 			scsi_bufflen(sc), sc->sc_data_direction,
 			tcm_loop_sam_attr(sc), &tl_cmd->tl_sense_buf[0]);
 
-	if (scsi_bidi_cmnd(sc))
+	if (scsi_bidi_cmnd(sc)) {
+		struct scsi_data_buffer *sdb = scsi_in(sc);
+
+		sgl_bidi = sdb->table.sgl;
+		sgl_bidi_count = sdb->table.nents;
 		se_cmd->se_cmd_flags |= SCF_BIDI;
+
+	}
 
 	if (transport_lookup_cmd_lun(se_cmd, tl_cmd->sc->device->lun) < 0) {
 		kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
@@ -251,7 +208,51 @@ static void tcm_loop_submission_work(struct work_struct *work)
 		goto out_done;
 	}
 
-	transport_generic_handle_cdb_map(se_cmd);
+	/*
+	 * Because some userspace code via scsi-generic do not memset their
+	 * associated read buffers, go ahead and do that here for type
+	 * SCF_SCSI_CONTROL_SG_IO_CDB.  Also note that this is currently
+	 * guaranteed to be a single SGL for SCF_SCSI_CONTROL_SG_IO_CDB
+	 * by target core in transport_generic_allocate_tasks() ->
+	 * transport_generic_cmd_sequencer().
+	 */
+	if (se_cmd->se_cmd_flags & SCF_SCSI_CONTROL_SG_IO_CDB &&
+	    se_cmd->data_direction == DMA_FROM_DEVICE) {
+		struct scatterlist *sg = scsi_sglist(sc);
+		unsigned char *buf = kmap(sg_page(sg)) + sg->offset;
+
+		if (buf != NULL) {
+			memset(buf, 0, sg->length);
+			kunmap(sg_page(sg));
+		}
+	}
+
+	ret = transport_generic_allocate_tasks(se_cmd, sc->cmnd);
+	if (ret == -ENOMEM) {
+		transport_send_check_condition_and_sense(se_cmd,
+				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE, 0);
+		transport_generic_free_cmd(se_cmd, 0);
+		return;
+	}
+	if (ret == -EINVAL) {
+		if (se_cmd->se_cmd_flags & SCF_SCSI_RESERVATION_CONFLICT)
+			tcm_loop_queue_status(se_cmd);
+		else
+			transport_send_check_condition_and_sense(se_cmd,
+					se_cmd->scsi_sense_reason, 0);
+		transport_generic_free_cmd(se_cmd, 0);
+		return;
+	}
+
+	ret = transport_generic_map_mem_to_cmd(se_cmd, scsi_sglist(sc),
+			scsi_sg_count(sc), sgl_bidi, sgl_bidi_count);
+	if (ret) {
+		transport_send_check_condition_and_sense(se_cmd,
+					se_cmd->scsi_sense_reason, 0);
+		transport_generic_free_cmd(se_cmd, 0);
+		return;
+	}
+	transport_handle_cdb_direct(se_cmd);
 	return;
 
 out_done:
@@ -1380,7 +1381,6 @@ static int tcm_loop_register_configfs(void)
 	/*
 	 * Used for setting up remaining TCM resources in process context
 	 */
-	fabric->tf_ops.new_cmd_map = &tcm_loop_new_cmd_map;
 	fabric->tf_ops.check_stop_free = &tcm_loop_check_stop_free;
 	fabric->tf_ops.release_cmd = &tcm_loop_release_cmd;
 	fabric->tf_ops.shutdown_session = &tcm_loop_shutdown_session;
