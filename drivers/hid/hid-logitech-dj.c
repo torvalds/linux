@@ -445,7 +445,7 @@ static int logi_dj_recv_switch_to_dj_mode(struct dj_receiver_dev *djrcv_dev,
 	dj_report.report_id = REPORT_ID_DJ_SHORT;
 	dj_report.device_index = 0xFF;
 	dj_report.report_type = REPORT_TYPE_CMD_SWITCH;
-	dj_report.report_params[CMD_SWITCH_PARAM_DEVBITFIELD] = 0x1F;
+	dj_report.report_params[CMD_SWITCH_PARAM_DEVBITFIELD] = 0x3F;
 	dj_report.report_params[CMD_SWITCH_PARAM_TIMEOUT_SECONDS] = (u8)timeout;
 	return logi_dj_recv_send_report(djrcv_dev, &dj_report);
 }
