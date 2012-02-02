@@ -278,7 +278,7 @@ The following script may be used to torture RCU:
 	#!/bin/sh
 
 	modprobe rcutorture
-	sleep 100
+	sleep 3600
 	rmmod rcutorture
 	dmesg | grep torture:
 
