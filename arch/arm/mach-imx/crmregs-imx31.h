@@ -64,6 +64,7 @@
 #define MXC_CCM_CCMR_SSI2S_MASK                 (0x3 << 21)
 #define MXC_CCM_CCMR_LPM_OFFSET                 14
 #define MXC_CCM_CCMR_LPM_MASK                   (0x3 << 14)
+#define MXC_CCM_CCMR_LPM_WAIT_MX35		(0x1 << 14)
 #define MXC_CCM_CCMR_FIRS_OFFSET                11
 #define MXC_CCM_CCMR_FIRS_MASK                  (0x3 << 11)
 #define MXC_CCM_CCMR_UPE                        (1 << 9)

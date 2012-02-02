@@ -34,6 +34,8 @@ static void imx3_idle(void)
 {
 	unsigned long reg = 0;
 
+	mx3_cpu_lp_set(MX3_WAIT);
+
 	if (!need_resched())
 		__asm__ __volatile__(
 			/* disable I and D cache */
