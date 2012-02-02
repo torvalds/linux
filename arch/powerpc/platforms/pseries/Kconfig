@@ -122,7 +122,7 @@ config DTL
 	  Say N if you are unsure.
 
 config PSERIES_IDLE
-	tristate "Cpuidle driver for pSeries platforms"
+	bool "Cpuidle driver for pSeries platforms"
 	depends on CPU_IDLE
 	depends on PPC_PSERIES
 	default y

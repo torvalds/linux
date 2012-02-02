@@ -887,8 +887,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 
 		/* attach demod */
 		adap->fe_adap[state->fe_id].fe = dvb_attach(cxd2820r_attach,
-				&anysee_cxd2820r_config, &adap->dev->i2c_adap,
-				NULL);
+				&anysee_cxd2820r_config, &adap->dev->i2c_adap);
 
 		state->has_ci = true;
 
@@ -1186,6 +1185,14 @@ static int anysee_ci_init(struct dvb_usb_device *d)
 	state->ci.data                = d;
 
 	ret = anysee_wr_reg_mask(d, REG_IOA, (1 << 7), 0x80);
+	if (ret)
+		return ret;
+
+	ret = anysee_wr_reg_mask(d, REG_IOD, (0 << 2)|(0 << 1)|(0 << 0), 0x07);
+	if (ret)
+		return ret;
+
+	ret = anysee_wr_reg_mask(d, REG_IOD, (1 << 2)|(1 << 1)|(1 << 0), 0x07);
 	if (ret)
 		return ret;
 

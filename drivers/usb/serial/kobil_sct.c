@@ -38,7 +38,7 @@
 #include <linux/ioctl.h>
 #include "kobil_sct.h"
 
-static int debug;
+static bool debug;
 
 /* Version Information */
 #define DRIVER_VERSION "21/05/2004"

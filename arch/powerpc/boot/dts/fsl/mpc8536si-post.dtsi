@@ -236,6 +236,10 @@
 	};
 
 /include/ "pq3-esdhc-0.dtsi"
+	sdhc@2e000 {
+		compatible = "fsl,mpc8536-esdhc", "fsl,esdhc";
+	};
+
 /include/ "pq3-sec3.0-0.dtsi"
 /include/ "pq3-mpic.dtsi"
 /include/ "pq3-mpic-timer-B.dtsi"

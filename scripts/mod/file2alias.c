@@ -823,16 +823,6 @@ static int do_spi_entry(const char *filename, struct spi_device_id *id,
 }
 ADD_TO_DEVTABLE("spi", struct spi_device_id, do_spi_entry);
 
-/* Looks like: mcp:S */
-static int do_mcp_entry(const char *filename, struct mcp_device_id *id,
-			char *alias)
-{
-	sprintf(alias, MCP_MODULE_PREFIX "%s", id->name);
-
-	return 1;
-}
-ADD_TO_DEVTABLE("mcp", struct mcp_device_id, do_mcp_entry); 
-
 static const struct dmifield {
 	const char *prefix;
 	int field;

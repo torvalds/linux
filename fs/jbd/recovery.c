@@ -20,6 +20,7 @@
 #include <linux/fs.h>
 #include <linux/jbd.h>
 #include <linux/errno.h>
+#include <linux/blkdev.h>
 #endif
 
 /*
@@ -263,6 +264,9 @@ int journal_recover(journal_t *journal)
 	err2 = sync_blockdev(journal->j_fs_dev);
 	if (!err)
 		err = err2;
+	/* Flush disk caches to get replayed data on the permanent storage */
+	if (journal->j_flags & JFS_BARRIER)
+		blkdev_issue_flush(journal->j_fs_dev, GFP_KERNEL, NULL);
 
 	return err;
 }

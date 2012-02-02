@@ -233,6 +233,10 @@ certainly invest a bit more effort into libata core layer).
   6. List of managed interfaces
   -----------------------------
 
+MEM
+  devm_kzalloc()
+  devm_kfree()
+
 IO region
   devm_request_region()
   devm_request_mem_region()

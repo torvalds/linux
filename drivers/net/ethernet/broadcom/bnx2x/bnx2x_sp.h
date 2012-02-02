@@ -161,6 +161,10 @@ typedef int (*exe_q_validate)(struct bnx2x *bp,
 			      union bnx2x_qable_obj *o,
 			      struct bnx2x_exeq_elem *elem);
 
+typedef int (*exe_q_remove)(struct bnx2x *bp,
+			    union bnx2x_qable_obj *o,
+			    struct bnx2x_exeq_elem *elem);
+
 /**
  * @return positive is entry was optimized, 0 - if not, negative
  *         in case of an error.
@@ -203,10 +207,17 @@ struct bnx2x_exe_queue_obj {
 	 */
 	exe_q_validate		validate;
 
+	/**
+	 * Called before removing pending commands, cleaning allocated
+	 * resources (e.g., credits from validate)
+	 */
+	 exe_q_remove		remove;
 
 	/**
 	 * This will try to cancel the current pending commands list
 	 * considering the new command.
+	 *
+	 * Returns the number of optimized commands or a negative error code
 	 *
 	 * Must run under exe_queue->lock
 	 */

@@ -217,15 +217,10 @@ static struct platform_device sa11x0uart3_device = {
 static struct resource sa11x0mcp_resources[] = {
 	[0] = {
 		.start	= __PREG(Ser4MCCR0),
-		.end	= __PREG(Ser4MCCR0) + 0x1C - 1,
+		.end	= __PREG(Ser4MCCR0) + 0xffff,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= __PREG(Ser4MCCR1),
-		.end	= __PREG(Ser4MCCR1) + 0x4 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[2] = {
 		.start	= IRQ_Ser4MCP,
 		.end	= IRQ_Ser4MCP,
 		.flags	= IORESOURCE_IRQ,
@@ -350,29 +345,9 @@ void sa11x0_register_irda(struct irda_platform_data *irda)
 	sa11x0_register_device(&sa11x0ir_device, irda);
 }
 
-static struct resource sa11x0rtc_resources[] = {
-	[0] = {
-		.start	= 0x90010000,
-		.end	= 0x900100ff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_RTC1Hz,
-		.end	= IRQ_RTC1Hz,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[2] = {
-		.start	= IRQ_RTCAlrm,
-		.end	= IRQ_RTCAlrm,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
 static struct platform_device sa11x0rtc_device = {
 	.name		= "sa1100-rtc",
 	.id		= -1,
-	.resource	= sa11x0rtc_resources,
-	.num_resources	= ARRAY_SIZE(sa11x0rtc_resources),
 };
 
 static struct platform_device *sa11x0_devices[] __initdata = {

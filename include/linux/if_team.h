@@ -46,6 +46,10 @@ struct team_port {
 	u32 speed;
 	u8 duplex;
 
+	/* Custom gennetlink interface related flags */
+	bool changed;
+	bool removed;
+
 	struct rcu_head rcu;
 };
 
@@ -72,6 +76,10 @@ struct team_option {
 	enum team_option_type type;
 	int (*getter)(struct team *team, void *arg);
 	int (*setter)(struct team *team, void *arg);
+
+	/* Custom gennetlink interface related flags */
+	bool changed;
+	bool removed;
 };
 
 struct team_mode {
@@ -207,6 +215,7 @@ enum {
 	TEAM_ATTR_OPTION_CHANGED,	/* flag */
 	TEAM_ATTR_OPTION_TYPE,		/* u8 */
 	TEAM_ATTR_OPTION_DATA,		/* dynamic */
+	TEAM_ATTR_OPTION_REMOVED,	/* flag */
 
 	__TEAM_ATTR_OPTION_MAX,
 	TEAM_ATTR_OPTION_MAX = __TEAM_ATTR_OPTION_MAX - 1,
@@ -227,6 +236,7 @@ enum {
 	TEAM_ATTR_PORT_LINKUP,		/* flag */
 	TEAM_ATTR_PORT_SPEED,		/* u32 */
 	TEAM_ATTR_PORT_DUPLEX,		/* u8 */
+	TEAM_ATTR_PORT_REMOVED,		/* flag */
 
 	__TEAM_ATTR_PORT_MAX,
 	TEAM_ATTR_PORT_MAX = __TEAM_ATTR_PORT_MAX - 1,

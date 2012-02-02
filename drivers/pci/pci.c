@@ -2802,7 +2802,7 @@ pci_intx(struct pci_dev *pdev, int enable)
 
 /**
  * pci_intx_mask_supported - probe for INTx masking support
- * @pdev: the PCI device to operate on
+ * @dev: the PCI device to operate on
  *
  * Check if the device dev support INTx masking via the config space
  * command word.
@@ -2884,7 +2884,7 @@ done:
 
 /**
  * pci_check_and_mask_intx - mask INTx on pending interrupt
- * @pdev: the PCI device to operate on
+ * @dev: the PCI device to operate on
  *
  * Check if the device dev has its INTx line asserted, mask it and
  * return true in that case. False is returned if not interrupt was
@@ -2898,7 +2898,7 @@ EXPORT_SYMBOL_GPL(pci_check_and_mask_intx);
 
 /**
  * pci_check_and_mask_intx - unmask INTx of no interrupt is pending
- * @pdev: the PCI device to operate on
+ * @dev: the PCI device to operate on
  *
  * Check if the device dev has its INTx line asserted, unmask it if not
  * and return true. False is returned and the mask remains active if

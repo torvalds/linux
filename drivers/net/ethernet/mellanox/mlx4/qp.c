@@ -162,7 +162,7 @@ static int __mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 	((struct mlx4_qp_context *) (mailbox->buf + 8))->local_qpn =
 		cpu_to_be32(qp->qpn);
 
-	ret = mlx4_cmd(dev, mailbox->dma | dev->caps.function,
+	ret = mlx4_cmd(dev, mailbox->dma,
 		       qp->qpn | (!!sqd_event << 31),
 		       new_state == MLX4_QP_STATE_RST ? 2 : 0,
 		       op[cur_state][new_state], MLX4_CMD_TIME_CLASS_C, native);

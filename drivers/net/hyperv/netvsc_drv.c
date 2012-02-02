@@ -68,11 +68,11 @@ static void do_set_multicast(struct work_struct *w)
 
 	nvdev = hv_get_drvdata(ndevctx->device_ctx);
 	if (nvdev == NULL)
-		return;
+		goto out;
 
 	rdev = nvdev->extension;
 	if (rdev == NULL)
-		return;
+		goto out;
 
 	if (net->flags & IFF_PROMISC)
 		rndis_filter_set_packet_filter(rdev,
@@ -83,6 +83,7 @@ static void do_set_multicast(struct work_struct *w)
 			NDIS_PACKET_TYPE_ALL_MULTICAST |
 			NDIS_PACKET_TYPE_DIRECTED);
 
+out:
 	kfree(w);
 }
 

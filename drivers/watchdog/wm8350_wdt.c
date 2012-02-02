@@ -212,10 +212,10 @@ static long wm8350_wdt_ioctl(struct file *file, unsigned int cmd,
 
 		/* Setting both simultaneously means at least one must fail */
 		if (options == WDIOS_DISABLECARD)
-			ret = wm8350_wdt_start(wm8350);
+			ret = wm8350_wdt_stop(wm8350);
 
 		if (options == WDIOS_ENABLECARD)
-			ret = wm8350_wdt_stop(wm8350);
+			ret = wm8350_wdt_start(wm8350);
 		break;
 	}
 

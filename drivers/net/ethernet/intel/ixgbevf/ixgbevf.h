@@ -279,12 +279,12 @@ enum ixgbevf_boards {
 	board_X540_vf,
 };
 
-extern struct ixgbevf_info ixgbevf_82599_vf_info;
-extern struct ixgbevf_info ixgbevf_X540_vf_info;
-extern struct ixgbe_mbx_operations ixgbevf_mbx_ops;
+extern const struct ixgbevf_info ixgbevf_82599_vf_info;
+extern const struct ixgbevf_info ixgbevf_X540_vf_info;
+extern const struct ixgbe_mbx_operations ixgbevf_mbx_ops;
 
 /* needed by ethtool.c */
-extern char ixgbevf_driver_name[];
+extern const char ixgbevf_driver_name[];
 extern const char ixgbevf_driver_version[];
 
 extern int ixgbevf_up(struct ixgbevf_adapter *adapter);

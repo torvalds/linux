@@ -136,6 +136,8 @@ static char mv643xx_eth_driver_version[] = "1.4";
 #define INT_MASK			0x0068
 #define INT_MASK_EXT			0x006c
 #define TX_FIFO_URGENT_THRESHOLD	0x0074
+#define RX_DISCARD_FRAME_CNT		0x0084
+#define RX_OVERRUN_FRAME_CNT		0x0088
 #define TXQ_FIX_PRIO_CONF_MOVED		0x00dc
 #define TX_BW_RATE_MOVED		0x00e0
 #define TX_BW_MTU_MOVED			0x00e8
@@ -334,6 +336,9 @@ struct mib_counters {
 	u32 bad_crc_event;
 	u32 collision;
 	u32 late_collision;
+	/* Non MIB hardware counters */
+	u32 rx_discard;
+	u32 rx_overrun;
 };
 
 struct lro_counters {
@@ -1225,6 +1230,10 @@ static void mib_counters_clear(struct mv643xx_eth_private *mp)
 
 	for (i = 0; i < 0x80; i += 4)
 		mib_read(mp, i);
+
+	/* Clear non MIB hw counters also */
+	rdlp(mp, RX_DISCARD_FRAME_CNT);
+	rdlp(mp, RX_OVERRUN_FRAME_CNT);
 }
 
 static void mib_counters_update(struct mv643xx_eth_private *mp)
@@ -1262,6 +1271,9 @@ static void mib_counters_update(struct mv643xx_eth_private *mp)
 	p->bad_crc_event += mib_read(mp, 0x74);
 	p->collision += mib_read(mp, 0x78);
 	p->late_collision += mib_read(mp, 0x7c);
+	/* Non MIB hardware counters */
+	p->rx_discard += rdlp(mp, RX_DISCARD_FRAME_CNT);
+	p->rx_overrun += rdlp(mp, RX_OVERRUN_FRAME_CNT);
 	spin_unlock_bh(&mp->mib_counters_lock);
 
 	mod_timer(&mp->mib_counters_timer, jiffies + 30 * HZ);
@@ -1413,6 +1425,8 @@ static const struct mv643xx_eth_stats mv643xx_eth_stats[] = {
 	MIBSTAT(bad_crc_event),
 	MIBSTAT(collision),
 	MIBSTAT(late_collision),
+	MIBSTAT(rx_discard),
+	MIBSTAT(rx_overrun),
 	LROSTAT(lro_aggregated),
 	LROSTAT(lro_flushed),
 	LROSTAT(lro_no_desc),

@@ -15,7 +15,7 @@ test at least a couple of times in a row for confidence.  [This is necessary,
 because some problems only show up on a second attempt at suspending and
 resuming the system.]  Moreover, hibernating in the "reboot" and "shutdown"
 modes causes the PM core to skip some platform-related callbacks which on ACPI
-systems might be necessary to make hibernation work.  Thus, if you machine fails
+systems might be necessary to make hibernation work.  Thus, if your machine fails
 to hibernate or resume in the "reboot" mode, you should try the "platform" mode:
 
 # echo platform > /sys/power/disk

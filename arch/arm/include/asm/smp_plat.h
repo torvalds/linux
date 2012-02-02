@@ -43,4 +43,10 @@ static inline int cache_ops_need_broadcast(void)
 }
 #endif
 
+/*
+ * Logical CPU mapping.
+ */
+extern int __cpu_logical_map[];
+#define cpu_logical_map(cpu)	__cpu_logical_map[cpu]
+
 #endif

@@ -195,6 +195,7 @@ struct acpi_processor_flags {
 	u8 has_cst:1;
 	u8 power_setup_done:1;
 	u8 bm_rld_set:1;
+	u8 need_hotplug_init:1;
 };
 
 struct acpi_processor {

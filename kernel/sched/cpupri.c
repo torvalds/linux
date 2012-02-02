@@ -129,7 +129,7 @@ int cpupri_find(struct cpupri *cp, struct task_struct *p,
  * cpupri_set - update the cpu priority setting
  * @cp: The cpupri context
  * @cpu: The target cpu
- * @pri: The priority (INVALID-RT99) to assign to this CPU
+ * @newpri: The priority (INVALID-RT99) to assign to this CPU
  *
  * Note: Assumes cpu_rq(cpu)->lock is locked
  *
@@ -200,7 +200,6 @@ void cpupri_set(struct cpupri *cp, int cpu, int newpri)
 /**
  * cpupri_init - initialize the cpupri structure
  * @cp: The cpupri context
- * @bootmem: true if allocations need to use bootmem
  *
  * Returns: -ENOMEM if memory fails.
  */

@@ -109,7 +109,7 @@ int ecryptfs_parse_packet_length(unsigned char *data, size_t *size,
 		(*size) += ((unsigned char)(data[1]) + 192);
 		(*length_size) = 2;
 	} else if (data[0] == 255) {
-		/* Five-byte length; we're not supposed to see this */
+		/* If support is added, adjust ECRYPTFS_MAX_PKT_LEN_SIZE */
 		ecryptfs_printk(KERN_ERR, "Five-byte packet length not "
 				"supported\n");
 		rc = -EINVAL;
@@ -126,7 +126,7 @@ out:
 /**
  * ecryptfs_write_packet_length
  * @dest: The byte array target into which to write the length. Must
- *        have at least 5 bytes allocated.
+ *        have at least ECRYPTFS_MAX_PKT_LEN_SIZE bytes allocated.
  * @size: The length to write.
  * @packet_size_length: The number of bytes used to encode the packet
  *                      length is written to this address.
@@ -146,6 +146,7 @@ int ecryptfs_write_packet_length(char *dest, size_t size,
 		dest[1] = ((size - 192) % 256);
 		(*packet_size_length) = 2;
 	} else {
+		/* If support is added, adjust ECRYPTFS_MAX_PKT_LEN_SIZE */
 		rc = -EINVAL;
 		ecryptfs_printk(KERN_WARNING,
 				"Unsupported packet size: [%zd]\n", size);
