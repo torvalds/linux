@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/utsname.h>
 
-#include "u_audio.h"
+#include "u_uac1.h"
 
 #define DRIVER_DESC		"Linux USB Audio Gadget"
 #define DRIVER_VERSION		"Dec 18, 2008"
@@ -33,8 +33,8 @@
 #include "config.c"
 #include "epautoconf.c"
 
-#include "u_audio.c"
-#include "f_audio.c"
+#include "u_uac1.c"
+#include "f_uac1.c"
 
 /*-------------------------------------------------------------------------*/
 
