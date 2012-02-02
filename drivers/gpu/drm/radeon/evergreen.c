@@ -3191,6 +3191,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 	if (r) {
 		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 		rdev->accel_working = false;
+		return r;
 	}
 
 	r = r600_audio_init(rdev);
