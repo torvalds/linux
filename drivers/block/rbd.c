@@ -384,17 +384,15 @@ static int parse_rbd_opts_token(char *c, void *private)
  * Get a ceph client with specific addr and configuration, if one does
  * not exist create it.
  */
-static int rbd_get_client(struct rbd_device *rbd_dev, const char *mon_addr,
-			  char *options)
+static struct rbd_client *rbd_get_client(const char *mon_addr, char *options)
 {
 	struct rbd_client *rbdc;
 	struct ceph_options *opt;
-	int ret;
 	struct rbd_options *rbd_opts;
 
 	rbd_opts = kzalloc(sizeof(*rbd_opts), GFP_KERNEL);
 	if (!rbd_opts)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	rbd_opts->notify_timeout = RBD_NOTIFY_TIMEOUT_DEFAULT;
 
@@ -402,8 +400,8 @@ static int rbd_get_client(struct rbd_device *rbd_dev, const char *mon_addr,
 				mon_addr + strlen(mon_addr),
 				parse_rbd_opts_token, rbd_opts);
 	if (IS_ERR(opt)) {
-		ret = PTR_ERR(opt);
-		goto done_err;
+		kfree(rbd_opts);
+		return ERR_CAST(opt);
 	}
 
 	spin_lock(&rbd_client_list_lock);
@@ -413,27 +411,19 @@ static int rbd_get_client(struct rbd_device *rbd_dev, const char *mon_addr,
 		kref_get(&rbdc->kref);
 		spin_unlock(&rbd_client_list_lock);
 
-		rbd_dev->rbd_client = rbdc;
-
 		ceph_destroy_options(opt);
 		kfree(rbd_opts);
 
-		return 0;
+		return rbdc;
 	}
 	spin_unlock(&rbd_client_list_lock);
 
 	rbdc = rbd_client_create(opt, rbd_opts);
 
-	if (IS_ERR(rbdc)) {
-		ret = PTR_ERR(rbdc);
-		goto done_err;
-	}
+	if (IS_ERR(rbdc))
+		kfree(rbd_opts);
 
-	rbd_dev->rbd_client = rbdc;
-	return 0;
-done_err:
-	kfree(rbd_opts);
-	return ret;
+	return rbdc;
 }
 
 /*
@@ -2290,9 +2280,11 @@ static ssize_t rbd_add(struct bus_type *bus,
 	/* initialize rest of new object */
 	snprintf(rbd_dev->name, DEV_NAME_LEN, RBD_DRV_NAME "%d", rbd_dev->id);
 
-	rc = rbd_get_client(rbd_dev, mon_dev_name, options);
-	if (rc < 0)
+	rbd_dev->rbd_client = rbd_get_client(mon_dev_name, options);
+	if (IS_ERR(rbd_dev->rbd_client)) {
+		rc = PTR_ERR(rbd_dev->rbd_client);
 		goto err_put_id;
+	}
 
 	/* pick the pool */
 	osdc = &rbd_dev->rbd_client->client->osdc;
