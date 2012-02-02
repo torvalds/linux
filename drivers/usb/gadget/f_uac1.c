@@ -216,29 +216,6 @@ static struct usb_descriptor_header *f_audio_desc[] __initdata = {
 	NULL,
 };
 
-/* string IDs are assigned dynamically */
-
-#define STRING_MANUFACTURER_IDX		0
-#define STRING_PRODUCT_IDX		1
-
-static char manufacturer[50];
-
-static struct usb_string strings_dev[] = {
-	[STRING_MANUFACTURER_IDX].s = manufacturer,
-	[STRING_PRODUCT_IDX].s = DRIVER_DESC,
-	{  } /* end of list */
-};
-
-static struct usb_gadget_strings stringtab_dev = {
-	.language	= 0x0409,	/* en-us */
-	.strings	= strings_dev,
-};
-
-static struct usb_gadget_strings *audio_strings[] = {
-	&stringtab_dev,
-	NULL,
-};
-
 /*
  * This function is an ALSA sound card following USB Audio Class Spec 1.0.
  */

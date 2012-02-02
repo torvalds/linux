@@ -33,6 +33,29 @@
 #include "config.c"
 #include "epautoconf.c"
 
+/* string IDs are assigned dynamically */
+
+#define STRING_MANUFACTURER_IDX		0
+#define STRING_PRODUCT_IDX		1
+
+static char manufacturer[50];
+
+static struct usb_string strings_dev[] = {
+	[STRING_MANUFACTURER_IDX].s = manufacturer,
+	[STRING_PRODUCT_IDX].s = DRIVER_DESC,
+	{  } /* end of list */
+};
+
+static struct usb_gadget_strings stringtab_dev = {
+	.language = 0x0409,	/* en-us */
+	.strings = strings_dev,
+};
+
+static struct usb_gadget_strings *audio_strings[] = {
+	&stringtab_dev,
+	NULL,
+};
+
 #include "u_uac1.c"
 #include "f_uac1.c"
 
