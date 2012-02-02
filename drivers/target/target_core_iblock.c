@@ -488,6 +488,13 @@ iblock_get_bio(struct se_task *task, sector_t lba, u32 sg_num)
 	struct iblock_req *ib_req = IBLOCK_REQ(task);
 	struct bio *bio;
 
+	/*
+	 * Only allocate as many vector entries as the bio code allows us to,
+	 * we'll loop later on until we have handled the whole request.
+	 */
+	if (sg_num > BIO_MAX_PAGES)
+		sg_num = BIO_MAX_PAGES;
+
 	bio = bio_alloc_bioset(GFP_NOIO, sg_num, ib_dev->ibd_bio_set);
 	if (!bio) {
 		pr_err("Unable to allocate memory for bio\n");
