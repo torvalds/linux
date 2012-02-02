@@ -221,6 +221,8 @@ static struct conf_drv_settings default_conf = {
 	.conn = {
 		.wake_up_event               = CONF_WAKE_UP_EVENT_DTIM,
 		.listen_interval             = 1,
+		.suspend_wake_up_event       = CONF_WAKE_UP_EVENT_N_DTIM,
+		.suspend_listen_interval     = 3,
 		.bcn_filt_mode               = CONF_BCN_FILT_MODE_ENABLED,
 		.bcn_filt_ie_count           = 2,
 		.bcn_filt_ie = {
@@ -1574,6 +1576,35 @@ static struct notifier_block wl1271_dev_notifier = {
 };
 
 #ifdef CONFIG_PM
+static int wl1271_configure_suspend_sta(struct wl1271 *wl,
+					struct wl12xx_vif *wlvif)
+{
+	int ret = 0;
+
+	mutex_lock(&wl->mutex);
+
+	if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
+		goto out_unlock;
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out_unlock;
+
+	ret = wl1271_acx_wake_up_conditions(wl, wlvif,
+				    wl->conf.conn.suspend_wake_up_event,
+				    wl->conf.conn.suspend_listen_interval);
+
+	if (ret < 0)
+		wl1271_error("suspend: set wake up conditions failed: %d", ret);
+
+
+	wl1271_ps_elp_sleep(wl);
+
+out_unlock:
+	mutex_unlock(&wl->mutex);
+	return ret;
+
+}
 
 static int wl1271_configure_suspend_ap(struct wl1271 *wl,
 				       struct wl12xx_vif *wlvif)
@@ -1601,6 +1632,8 @@ out_unlock:
 static int wl1271_configure_suspend(struct wl1271 *wl,
 				    struct wl12xx_vif *wlvif)
 {
+	if (wlvif->bss_type == BSS_TYPE_STA_BSS)
+		return wl1271_configure_suspend_sta(wl, wlvif);
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
 		return wl1271_configure_suspend_ap(wl, wlvif);
 	return 0;
@@ -1609,10 +1642,11 @@ static int wl1271_configure_suspend(struct wl1271 *wl,
 static void wl1271_configure_resume(struct wl1271 *wl,
 				    struct wl12xx_vif *wlvif)
 {
-	int ret;
+	int ret = 0;
 	bool is_ap = wlvif->bss_type == BSS_TYPE_AP_BSS;
+	bool is_sta = wlvif->bss_type == BSS_TYPE_STA_BSS;
 
-	if (!is_ap)
+	if ((!is_ap) && (!is_sta))
 		return;
 
 	mutex_lock(&wl->mutex);
@@ -1620,7 +1654,18 @@ static void wl1271_configure_resume(struct wl1271 *wl,
 	if (ret < 0)
 		goto out;
 
-	wl1271_acx_beacon_filter_opt(wl, wlvif, false);
+	if (is_sta) {
+		ret = wl1271_acx_wake_up_conditions(wl, wlvif,
+				    wl->conf.conn.wake_up_event,
+				    wl->conf.conn.listen_interval);
+
+		if (ret < 0)
+			wl1271_error("resume: wake up conditions failed: %d",
+				     ret);
+
+	} else if (is_ap) {
+		ret = wl1271_acx_beacon_filter_opt(wl, wlvif, false);
+	}
 
 	wl1271_ps_elp_sleep(wl);
 out:

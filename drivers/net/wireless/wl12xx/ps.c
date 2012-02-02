@@ -170,7 +170,9 @@ int wl1271_ps_set_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		wl1271_debug(DEBUG_PSM, "entering psm (mode=%d,timeout=%u)",
 			     mode, timeout);
 
-		ret = wl1271_acx_wake_up_conditions(wl, wlvif);
+		ret = wl1271_acx_wake_up_conditions(wl, wlvif,
+					    wl->conf.conn.wake_up_event,
+					    wl->conf.conn.listen_interval);
 		if (ret < 0) {
 			wl1271_error("couldn't set wake up conditions");
 			return ret;

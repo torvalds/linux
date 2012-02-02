@@ -819,6 +819,19 @@ struct conf_conn_settings {
 	u8 listen_interval;
 
 	/*
+	 * Firmware wakeup conditions during suspend
+	 * Range: CONF_WAKE_UP_EVENT_*
+	 */
+	u8 suspend_wake_up_event;
+
+	/*
+	 * Listen interval during suspend.
+	 * Currently will be in DTIMs (1-10)
+	 *
+	 */
+	u8 suspend_listen_interval;
+
+	/*
 	 * Enable or disable the beacon filtering.
 	 *
 	 * Range: CONF_BCN_FILT_MODE_*
