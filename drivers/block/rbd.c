@@ -2220,12 +2220,43 @@ static void rbd_id_put(struct rbd_device *rbd_dev)
 	atomic64_cmpxchg(&rbd_id_max, rbd_id, max_id);
 }
 
+/*
+ * This fills in the pool_name, obj, obj_len, snap_name, obj_len,
+ * rbd_dev, rbd_md_name, and name fields of the given rbd_dev, based
+ * on the list of monitor addresses and other options provided via
+ * /sys/bus/rbd/add.
+ */
+static int rbd_add_parse_args(struct rbd_device *rbd_dev,
+			      const char *buf,
+			      char *mon_addrs,
+			      char *options)
+{
+	if (sscanf(buf, "%" __stringify(RBD_MAX_OPT_LEN) "s "
+		   "%" __stringify(RBD_MAX_OPT_LEN) "s "
+		   "%" __stringify(RBD_MAX_POOL_NAME_LEN) "s "
+		   "%" __stringify(RBD_MAX_OBJ_NAME_LEN) "s"
+		   "%" __stringify(RBD_MAX_SNAP_NAME_LEN) "s",
+		   mon_addrs, options, rbd_dev->pool_name,
+		   rbd_dev->obj, rbd_dev->snap_name) < 4)
+		return -EINVAL;
+
+	if (rbd_dev->snap_name[0] == 0)
+		memcpy(rbd_dev->snap_name, RBD_SNAP_HEAD_NAME,
+			sizeof (RBD_SNAP_HEAD_NAME));
+
+	rbd_dev->obj_len = strlen(rbd_dev->obj);
+	snprintf(rbd_dev->obj_md_name, sizeof(rbd_dev->obj_md_name), "%s%s",
+		 rbd_dev->obj, RBD_SUFFIX);
+
+	return 0;
+}
+
 static ssize_t rbd_add(struct bus_type *bus,
 		       const char *buf,
 		       size_t count)
 {
 	struct rbd_device *rbd_dev;
-	char *mon_dev_name = NULL;
+	char *mon_addrs = NULL;
 	char *options = NULL;
 	struct ceph_osd_client *osdc;
 	int rc = -ENOMEM;
@@ -2236,8 +2267,8 @@ static ssize_t rbd_add(struct bus_type *bus,
 	rbd_dev = kzalloc(sizeof(*rbd_dev), GFP_KERNEL);
 	if (!rbd_dev)
 		goto err_nomem;
-	mon_dev_name = kmalloc(count, GFP_KERNEL);
-	if (!mon_dev_name)
+	mon_addrs = kmalloc(count, GFP_KERNEL);
+	if (!mon_addrs)
 		goto err_nomem;
 	options = kmalloc(count, GFP_KERNEL);
 	if (!options)
@@ -2253,30 +2284,15 @@ static ssize_t rbd_add(struct bus_type *bus,
 	/* generate unique id: find highest unique id, add one */
 	rbd_id_get(rbd_dev);
 
-	/* parse add command */
-	if (sscanf(buf, "%" __stringify(RBD_MAX_OPT_LEN) "s "
-		   "%" __stringify(RBD_MAX_OPT_LEN) "s "
-		   "%" __stringify(RBD_MAX_POOL_NAME_LEN) "s "
-		   "%" __stringify(RBD_MAX_OBJ_NAME_LEN) "s"
-		   "%" __stringify(RBD_MAX_SNAP_NAME_LEN) "s",
-		   mon_dev_name, options, rbd_dev->pool_name,
-		   rbd_dev->obj, rbd_dev->snap_name) < 4) {
-		rc = -EINVAL;
-		goto err_put_id;
-	}
-
-	if (rbd_dev->snap_name[0] == 0)
-		memcpy(rbd_dev->snap_name, RBD_SNAP_HEAD_NAME,
-			sizeof (RBD_SNAP_HEAD_NAME));
-
-	rbd_dev->obj_len = strlen(rbd_dev->obj);
-	snprintf(rbd_dev->obj_md_name, sizeof(rbd_dev->obj_md_name), "%s%s",
-		 rbd_dev->obj, RBD_SUFFIX);
-
-	/* initialize rest of new object */
+	/* Fill in the device name, now that we have its id. */
 	snprintf(rbd_dev->name, DEV_NAME_LEN, RBD_DRV_NAME "%d", rbd_dev->id);
 
-	rbd_dev->rbd_client = rbd_get_client(mon_dev_name, options);
+	/* parse add command */
+	rc = rbd_add_parse_args(rbd_dev, buf, mon_addrs, options);
+	if (rc)
+		goto err_put_id;
+
+	rbd_dev->rbd_client = rbd_get_client(mon_addrs, options);
 	if (IS_ERR(rbd_dev->rbd_client)) {
 		rc = PTR_ERR(rbd_dev->rbd_client);
 		goto err_put_id;
@@ -2317,7 +2333,7 @@ err_out_bus:
 
 	rbd_bus_del_dev(rbd_dev);
 	kfree(options);
-	kfree(mon_dev_name);
+	kfree(mon_addrs);
 	return rc;
 
 err_out_blkdev:
@@ -2328,7 +2344,7 @@ err_put_id:
 	rbd_id_put(rbd_dev);
 err_nomem:
 	kfree(options);
-	kfree(mon_dev_name);
+	kfree(mon_addrs);
 	kfree(rbd_dev);
 
 	dout("Error adding device %s\n", buf);
