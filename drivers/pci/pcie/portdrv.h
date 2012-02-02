@@ -34,6 +34,18 @@ struct pci_dev;
 
 extern void pcie_clear_root_pme_status(struct pci_dev *dev);
 
+#ifdef CONFIG_HOTPLUG_PCI_PCIE
+extern bool pciehp_msi_disabled;
+
+static inline bool pciehp_no_msi(void)
+{
+	return pciehp_msi_disabled;
+}
+
+#else  /* !CONFIG_HOTPLUG_PCI_PCIE */
+static inline bool pciehp_no_msi(void) { return false; }
+#endif /* !CONFIG_HOTPLUG_PCI_PCIE */
+
 #ifdef CONFIG_PCIE_PME
 extern bool pcie_pme_msi_disabled;
 
