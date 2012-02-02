@@ -391,7 +391,9 @@ static int parse_rbd_opts_token(char *c, void *private)
  * Get a ceph client with specific addr and configuration, if one does
  * not exist create it.
  */
-static struct rbd_client *rbd_get_client(const char *mon_addr, char *options)
+static struct rbd_client *rbd_get_client(const char *mon_addr,
+					 size_t mon_addr_len,
+					 char *options)
 {
 	struct rbd_client *rbdc;
 	struct ceph_options *opt;
@@ -404,7 +406,7 @@ static struct rbd_client *rbd_get_client(const char *mon_addr, char *options)
 	rbd_opts->notify_timeout = RBD_NOTIFY_TIMEOUT_DEFAULT;
 
 	opt = ceph_parse_options(options, mon_addr,
-				mon_addr + strlen(mon_addr),
+				mon_addr + mon_addr_len,
 				parse_rbd_opts_token, rbd_opts);
 	if (IS_ERR(opt)) {
 		kfree(rbd_opts);
@@ -2283,7 +2285,7 @@ static inline size_t copy_token(const char **buf,
 static int rbd_add_parse_args(struct rbd_device *rbd_dev,
 			      const char *buf,
 			      char *mon_addrs,
-			      size_t mon_addrs_size,
+			      size_t *mon_addrs_size,
 			      char *options,
 			      size_t options_size)
 {
@@ -2291,9 +2293,10 @@ static int rbd_add_parse_args(struct rbd_device *rbd_dev,
 
 	/* The first four tokens are required */
 
-	len = copy_token(&buf, mon_addrs, mon_addrs_size);
-	if (!len || len >= mon_addrs_size)
+	len = copy_token(&buf, mon_addrs, *mon_addrs_size);
+	if (!len || len >= *mon_addrs_size)
 		return -EINVAL;
+	*mon_addrs_size = len + 1;
 
 	len = copy_token(&buf, options, options_size);
 	if (!len || len >= options_size)
@@ -2335,6 +2338,7 @@ static ssize_t rbd_add(struct bus_type *bus,
 {
 	struct rbd_device *rbd_dev;
 	char *mon_addrs = NULL;
+	size_t mon_addrs_size;
 	char *options = NULL;
 	struct ceph_osd_client *osdc;
 	int rc = -ENOMEM;
@@ -2368,12 +2372,14 @@ static ssize_t rbd_add(struct bus_type *bus,
 	sprintf(rbd_dev->name, "%s%d", RBD_DRV_NAME, rbd_dev->id);
 
 	/* parse add command */
-	rc = rbd_add_parse_args(rbd_dev, buf, mon_addrs, count,
+	mon_addrs_size = count;
+	rc = rbd_add_parse_args(rbd_dev, buf, mon_addrs, &mon_addrs_size,
 				options, count);
 	if (rc)
 		goto err_put_id;
 
-	rbd_dev->rbd_client = rbd_get_client(mon_addrs, options);
+	rbd_dev->rbd_client = rbd_get_client(mon_addrs, mon_addrs_size - 1,
+						options);
 	if (IS_ERR(rbd_dev->rbd_client)) {
 		rc = PTR_ERR(rbd_dev->rbd_client);
 		goto err_put_id;
