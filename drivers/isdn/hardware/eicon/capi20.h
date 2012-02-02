@@ -117,7 +117,7 @@ typedef struct api_profile_s {
 /*------------------------------------------------------------------*/
         /* ALERT-REQUEST                                            */
 typedef struct {
-  byte structs[1];      /* Additional Info */
+  byte structs[0];      /* Additional Info */
 } _ALT_REQP;
         /* ALERT-CONFIRM                                            */
 typedef struct {
@@ -126,7 +126,7 @@ typedef struct {
         /* CONNECT-REQUEST                                          */
 typedef struct {
   word CIP_Value;
-  byte structs[1];      /* Called party number,
+  byte structs[0];      /* Called party number,
                            Called party subaddress,
                            Calling party number,
                            Calling party subaddress,
@@ -143,7 +143,7 @@ typedef struct {
         /* CONNECT-INDICATION                                       */
 typedef struct {
   word CIP_Value;
-  byte structs[1];      /* Called party number,
+  byte structs[0];      /* Called party number,
                            Called party subaddress,
                            Calling party number,
                            Calling party subaddress,
@@ -155,24 +155,24 @@ typedef struct {
         /* CONNECT-RESPONSE                                         */
 typedef struct {
   word Accept;
-  byte structs[1];      /* B_protocol,
+  byte structs[0];      /* B_protocol,
                            Connected party number,
                            Connected party subaddress,
                            LLC */
 } _CON_RESP;
         /* CONNECT-ACTIVE-INDICATION                                */
 typedef struct {
-  byte structs[1];      /* Connected party number,
+  byte structs[0];      /* Connected party number,
                            Connected party subaddress,
                            LLC */
 } _CON_A_INDP;
         /* CONNECT-ACTIVE-RESPONSE                                  */
 typedef struct {
-  byte structs[1];      /* empty */
+  byte structs[0];      /* empty */
 } _CON_A_RESP;
         /* DISCONNECT-REQUEST                                       */
 typedef struct {
-  byte structs[1];      /* Additional Info */
+  byte structs[0];      /* Additional Info */
 } _DIS_REQP;
         /* DISCONNECT-CONFIRM                                       */
 typedef struct {
@@ -184,13 +184,13 @@ typedef struct {
 } _DIS_INDP;
         /* DISCONNECT-RESPONSE                                      */
 typedef struct {
-  byte structs[1];      /* empty */
+  byte structs[0];      /* empty */
 } _DIS_RESP;
         /* LISTEN-REQUEST                                           */
 typedef struct {
   dword Info_Mask;
   dword CIP_Mask;
-  byte structs[1];      /* Calling party number,
+  byte structs[0];      /* Calling party number,
                            Calling party subaddress */
 } _LIS_REQP;
         /* LISTEN-CONFIRM                                           */
@@ -199,7 +199,7 @@ typedef struct {
 } _LIS_CONP;
         /* INFO-REQUEST                                             */
 typedef struct {
-  byte structs[1];      /* Called party number,
+  byte structs[0];      /* Called party number,
                            Additional Info */
 } _INF_REQP;
         /* INFO-CONFIRM                                             */
@@ -209,15 +209,15 @@ typedef struct {
         /* INFO-INDICATION                                          */
 typedef struct {
   word Number;
-  byte structs[1];      /* Info element */
+  byte structs[0];      /* Info element */
 } _INF_INDP;
         /* INFO-RESPONSE                                            */
 typedef struct {
-  byte structs[1];      /* empty */
+  byte structs[0];      /* empty */
 } _INF_RESP;
         /* SELECT-B-REQUEST                                         */
 typedef struct {
-  byte structs[1];      /* B-protocol */
+  byte structs[0];      /* B-protocol */
 } _SEL_B_REQP;
         /* SELECT-B-CONFIRM                                         */
 typedef struct {
@@ -226,7 +226,7 @@ typedef struct {
         /* FACILITY-REQUEST */
 typedef struct {
   word Selector;
-  byte structs[1];      /* Facility parameters */
+  byte structs[0];      /* Facility parameters */
 } _FAC_REQP;
         /* FACILITY-CONFIRM STRUCT FOR SUPPLEMENT. SERVICES */
 typedef struct {
@@ -240,21 +240,21 @@ typedef struct {
 typedef struct {
   word Info;
   word Selector;
-  byte structs[1];      /* Facility parameters */
+  byte structs[0];      /* Facility parameters */
 } _FAC_CONP;
         /* FACILITY-INDICATION */
 typedef struct {
   word Selector;
-  byte structs[1];      /* Facility parameters */
+  byte structs[0];      /* Facility parameters */
 } _FAC_INDP;
         /* FACILITY-RESPONSE */
 typedef struct {
   word Selector;
-  byte structs[1];      /* Facility parameters */
+  byte structs[0];      /* Facility parameters */
 } _FAC_RESP;
         /* CONNECT-B3-REQUEST                                       */
 typedef struct {
-  byte structs[1];      /* NCPI */
+  byte structs[0];      /* NCPI */
 } _CON_B3_REQP;
         /* CONNECT-B3-CONFIRM                                       */
 typedef struct {
@@ -262,24 +262,24 @@ typedef struct {
 } _CON_B3_CONP;
         /* CONNECT-B3-INDICATION                                    */
 typedef struct {
-  byte structs[1];      /* NCPI */
+  byte structs[0];      /* NCPI */
 } _CON_B3_INDP;
         /* CONNECT-B3-RESPONSE                                      */
 typedef struct {
   word Accept;
-  byte structs[1];      /* NCPI */
+  byte structs[0];      /* NCPI */
 } _CON_B3_RESP;
         /* CONNECT-B3-ACTIVE-INDICATION                             */
 typedef struct {
-  byte structs[1];      /* NCPI */
+  byte structs[0];      /* NCPI */
 } _CON_B3_A_INDP;
         /* CONNECT-B3-ACTIVE-RESPONSE                               */
 typedef struct {
-  byte structs[1];      /* empty */
+  byte structs[0];      /* empty */
 } _CON_B3_A_RESP;
         /* DISCONNECT-B3-REQUEST                                    */
 typedef struct {
-  byte structs[1];      /* NCPI */
+  byte structs[0];      /* NCPI */
 } _DIS_B3_REQP;
         /* DISCONNECT-B3-CONFIRM                                    */
 typedef struct {
@@ -288,11 +288,11 @@ typedef struct {
         /* DISCONNECT-B3-INDICATION                                 */
 typedef struct {
   word Info;
-  byte structs[1];      /* NCPI */
+  byte structs[0];      /* NCPI */
 } _DIS_B3_INDP;
         /* DISCONNECT-B3-RESPONSE                                   */
 typedef struct {
-  byte structs[1];      /* empty */
+  byte structs[0];      /* empty */
 } _DIS_B3_RESP;
         /* DATA-B3-REQUEST                                          */
 typedef struct {
@@ -335,7 +335,7 @@ typedef struct {
 } _DAT_B3_RESP;
         /* RESET-B3-REQUEST                                         */
 typedef struct {
-  byte structs[1];      /* NCPI */
+  byte structs[0];      /* NCPI */
 } _RES_B3_REQP;
         /* RESET-B3-CONFIRM                                         */
 typedef struct {
@@ -343,20 +343,20 @@ typedef struct {
 } _RES_B3_CONP;
         /* RESET-B3-INDICATION                                      */
 typedef struct {
-  byte structs[1];      /* NCPI */
+  byte structs[0];      /* NCPI */
 } _RES_B3_INDP;
         /* RESET-B3-RESPONSE                                        */
 typedef struct {
-  byte structs[1];      /* empty */
+  byte structs[0];      /* empty */
 } _RES_B3_RESP;
         /* CONNECT-B3-T90-ACTIVE-INDICATION                         */
 typedef struct {
-  byte structs[1];      /* NCPI */
+  byte structs[0];      /* NCPI */
 } _CON_B3_T90_A_INDP;
         /* CONNECT-B3-T90-ACTIVE-RESPONSE                           */
 typedef struct {
   word Reject;
-  byte structs[1];      /* NCPI */
+  byte structs[0];      /* NCPI */
 } _CON_B3_T90_A_RESP;
 /*------------------------------------------------------------------*/
 /* message structure                                                */
