@@ -2234,11 +2234,11 @@ static ssize_t rbd_add(struct bus_type *bus,
 	if (!try_module_get(THIS_MODULE))
 		return -ENODEV;
 
-	mon_dev_name = kmalloc(RBD_MAX_OPT_LEN, GFP_KERNEL);
+	mon_dev_name = kmalloc(count, GFP_KERNEL);
 	if (!mon_dev_name)
 		goto err_out_mod;
 
-	options = kmalloc(RBD_MAX_OPT_LEN, GFP_KERNEL);
+	options = kmalloc(count, GFP_KERNEL);
 	if (!options)
 		goto err_mon_dev;
 
