@@ -39,6 +39,14 @@ static int reboot_mode;
 enum reboot_type reboot_type = BOOT_ACPI;
 int reboot_force;
 
+/* This variable is used privately to keep track of whether or not
+ * reboot_type is still set to its default value (i.e., reboot= hasn't
+ * been set on the command line).  This is needed so that we can
+ * suppress DMI scanning for reboot quirks.  Without it, it's
+ * impossible to override a faulty reboot quirk without recompiling.
+ */
+static int reboot_default = 1;
+
 #if defined(CONFIG_X86_32) && defined(CONFIG_SMP)
 static int reboot_cpu = -1;
 #endif
@@ -67,6 +75,12 @@ bool port_cf9_safe = false;
 static int __init reboot_setup(char *str)
 {
 	for (;;) {
+		/* Having anything passed on the command line via
+		 * reboot= will cause us to disable DMI checking
+		 * below.
+		 */
+		reboot_default = 0;
+
 		switch (*str) {
 		case 'w':
 			reboot_mode = 0x1234;
@@ -295,14 +309,6 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "P4S800"),
 		},
 	},
-	{	/* Handle problems with rebooting on VersaLogic Menlow boards */
-		.callback = set_bios_reboot,
-		.ident = "VersaLogic Menlow based board",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "VersaLogic Corporation"),
-			DMI_MATCH(DMI_BOARD_NAME, "VersaLogic Menlow board"),
-		},
-	},
 	{ /* Handle reboot issue on Acer Aspire one */
 		.callback = set_kbd_reboot,
 		.ident = "Acer Aspire One A110",
@@ -316,7 +322,12 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 
 static int __init reboot_init(void)
 {
-	dmi_check_system(reboot_dmi_table);
+	/* Only do the DMI check if reboot_type hasn't been overridden
+	 * on the command line
+	 */
+	if (reboot_default) {
+		dmi_check_system(reboot_dmi_table);
+	}
 	return 0;
 }
 core_initcall(reboot_init);
@@ -465,7 +476,12 @@ static struct dmi_system_id __initdata pci_reboot_dmi_table[] = {
 
 static int __init pci_reboot_init(void)
 {
-	dmi_check_system(pci_reboot_dmi_table);
+	/* Only do the DMI check if reboot_type hasn't been overridden
+	 * on the command line
+	 */
+	if (reboot_default) {
+		dmi_check_system(pci_reboot_dmi_table);
+	}
 	return 0;
 }
 core_initcall(pci_reboot_init);
