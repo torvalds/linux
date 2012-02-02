@@ -52,7 +52,9 @@
 #define TX_HW_RESULT_QUEUE_LEN_MASK      0xf
 
 #define WL1271_TX_ALIGN_TO 4
-#define WL1271_TKIP_IV_SPACE 4
+#define WL1271_EXTRA_SPACE_TKIP 4
+#define WL1271_EXTRA_SPACE_AES  8
+#define WL1271_EXTRA_SPACE_MAX  8
 
 /* Used for management frames and dummy packets */
 #define WL1271_TID_MGMT 7

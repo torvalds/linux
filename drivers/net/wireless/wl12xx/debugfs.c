@@ -579,6 +579,7 @@ static ssize_t vifs_state_read(struct file *file, char __user *user_buf,
 			VIF_STATE_PRINT_INT(sta.basic_rate_idx);
 			VIF_STATE_PRINT_INT(sta.ap_rate_idx);
 			VIF_STATE_PRINT_INT(sta.p2p_rate_idx);
+			VIF_STATE_PRINT_INT(sta.qos);
 		} else {
 			VIF_STATE_PRINT_INT(ap.global_hlid);
 			VIF_STATE_PRINT_INT(ap.bcast_hlid);

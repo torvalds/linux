@@ -386,7 +386,7 @@ static int wl1271_prepare_tx_frame(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	if (info->control.hw_key &&
 	    info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP)
-		extra = WL1271_TKIP_IV_SPACE;
+		extra = WL1271_EXTRA_SPACE_TKIP;
 
 	if (info->control.hw_key) {
 		bool is_wep;
@@ -861,8 +861,9 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 	if (info->control.hw_key &&
 	    info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 		int hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-		memmove(skb->data + WL1271_TKIP_IV_SPACE, skb->data, hdrlen);
-		skb_pull(skb, WL1271_TKIP_IV_SPACE);
+		memmove(skb->data + WL1271_EXTRA_SPACE_TKIP, skb->data,
+			hdrlen);
+		skb_pull(skb, WL1271_EXTRA_SPACE_TKIP);
 	}
 
 	wl1271_debug(DEBUG_TX, "tx status id %u skb 0x%p failures %u rate 0x%x"
@@ -1004,9 +1005,9 @@ void wl12xx_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 			    info->control.hw_key->cipher ==
 			    WLAN_CIPHER_SUITE_TKIP) {
 				int hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-				memmove(skb->data + WL1271_TKIP_IV_SPACE,
+				memmove(skb->data + WL1271_EXTRA_SPACE_TKIP,
 					skb->data, hdrlen);
-				skb_pull(skb, WL1271_TKIP_IV_SPACE);
+				skb_pull(skb, WL1271_EXTRA_SPACE_TKIP);
 			}
 
 			info->status.rates[0].idx = -1;

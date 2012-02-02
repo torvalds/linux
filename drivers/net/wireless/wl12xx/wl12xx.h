@@ -507,6 +507,8 @@ struct wl12xx_vif {
 			u8 basic_rate_idx;
 			u8 ap_rate_idx;
 			u8 p2p_rate_idx;
+
+			bool qos;
 		} sta;
 		struct {
 			u8 global_hlid;
@@ -572,6 +574,10 @@ struct wl12xx_vif {
 
 	int rssi_thold;
 	int last_rssi_event;
+
+	/* save the current encryption type for auto-arp config */
+	u8 encryption_type;
+	__be32 ip_addr;
 
 	/* RX BA constraint value */
 	bool ba_support;

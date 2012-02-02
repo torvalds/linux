@@ -67,8 +67,7 @@ int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 struct sk_buff *wl1271_cmd_build_ap_probe_req(struct wl1271 *wl,
 					      struct wl12xx_vif *wlvif,
 					      struct sk_buff *skb);
-int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif,
-			     __be32 ip_addr);
+int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 int wl1271_build_qos_null_data(struct wl1271 *wl, struct ieee80211_vif *vif);
 int wl12xx_cmd_build_klv_null_data(struct wl1271 *wl,
 				   struct wl12xx_vif *wlvif);

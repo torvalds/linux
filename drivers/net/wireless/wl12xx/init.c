@@ -37,6 +37,7 @@
 int wl1271_init_templates_config(struct wl1271 *wl)
 {
 	int ret, i;
+	size_t max_size;
 
 	/* send empty templates for fw memory reservation */
 	ret = wl1271_cmd_template_set(wl, WL12XX_INVALID_ROLE_ID,
@@ -89,10 +90,11 @@ int wl1271_init_templates_config(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
+	max_size = sizeof(struct wl12xx_arp_rsp_template) +
+		   WL1271_EXTRA_SPACE_MAX;
 	ret = wl1271_cmd_template_set(wl, WL12XX_INVALID_ROLE_ID,
 				      CMD_TEMPL_ARP_RSP, NULL,
-				      sizeof
-				      (struct wl12xx_arp_rsp_template),
+				      max_size,
 				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
