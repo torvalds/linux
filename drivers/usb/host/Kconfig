@@ -130,7 +130,7 @@ config USB_FSL_MPH_DR_OF
 	tristate
 
 config USB_EHCI_FSL
-	bool "Support for Freescale on-chip EHCI USB controller"
+	bool "Support for Freescale PPC on-chip EHCI USB controller"
 	depends on USB_EHCI_HCD && FSL_SOC
 	select USB_EHCI_ROOT_HUB_TT
 	select USB_FSL_MPH_DR_OF if OF
@@ -138,7 +138,7 @@ config USB_EHCI_FSL
 	  Variation of ARC USB block used in some Freescale chips.
 
 config USB_EHCI_MXC
-	bool "Support for Freescale on-chip EHCI USB controller"
+	bool "Support for Freescale i.MX on-chip EHCI USB controller"
 	depends on USB_EHCI_HCD && ARCH_MXC
 	select USB_EHCI_ROOT_HUB_TT
 	---help---
