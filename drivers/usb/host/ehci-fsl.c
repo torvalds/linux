@@ -239,7 +239,7 @@ static void ehci_fsl_setup_phy(struct ehci_hcd *ehci,
 	ehci_writel(ehci, portsc, &ehci->regs->port_status[port_offset]);
 }
 
-static void ehci_fsl_usb_setup(struct ehci_hcd *ehci)
+static int ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 {
 	struct usb_hcd *hcd = ehci_to_hcd(ehci);
 	struct fsl_usb2_platform_data *pdata;
@@ -299,12 +299,19 @@ static void ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 #endif
 		out_be32(non_ehci + FSL_SOC_USB_SICTRL, 0x00000001);
 	}
+
+	if (!(in_be32(non_ehci + FSL_SOC_USB_CTRL) & CTRL_PHY_CLK_VALID)) {
+		printk(KERN_WARNING "fsl-ehci: USB PHY clock invalid\n");
+		return -ENODEV;
+	}
+	return 0;
 }
 
 /* called after powerup, by probe or system-pm "wakeup" */
 static int ehci_fsl_reinit(struct ehci_hcd *ehci)
 {
-	ehci_fsl_usb_setup(ehci);
+	if (ehci_fsl_usb_setup(ehci))
+		return -ENODEV;
 	ehci_port_power(ehci, 0);
 
 	return 0;
