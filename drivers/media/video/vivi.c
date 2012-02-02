@@ -959,14 +959,6 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	return vb2_streamoff(&dev->vb_vidq, i);
 }
 
-static int vidioc_log_status(struct file *file, void *priv)
-{
-	struct vivi_dev *dev = video_drvdata(file);
-
-	v4l2_ctrl_handler_log_status(&dev->ctrl_handler, dev->v4l2_dev.name);
-	return 0;
-}
-
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *i)
 {
 	return 0;
@@ -1210,7 +1202,7 @@ static const struct v4l2_ioctl_ops vivi_ioctl_ops = {
 	.vidioc_s_input       = vidioc_s_input,
 	.vidioc_streamon      = vidioc_streamon,
 	.vidioc_streamoff     = vidioc_streamoff,
-	.vidioc_log_status    = vidioc_log_status,
+	.vidioc_log_status    = v4l2_ctrl_log_status,
 	.vidioc_subscribe_event = vidioc_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };

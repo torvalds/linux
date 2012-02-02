@@ -492,6 +492,10 @@ void v4l2_ctrl_add_event(struct v4l2_ctrl *ctrl,
 void v4l2_ctrl_del_event(struct v4l2_ctrl *ctrl,
 		struct v4l2_subscribed_event *sev);
 
+/* Can be used as a vidioc_log_status function that just dumps all controls
+   associated with the filehandle. */
+int v4l2_ctrl_log_status(struct file *file, void *fh);
+
 /* Helpers for ioctl_ops. If hdl == NULL then they will all return -EINVAL. */
 int v4l2_queryctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_queryctrl *qc);
 int v4l2_querymenu(struct v4l2_ctrl_handler *hdl, struct v4l2_querymenu *qm);

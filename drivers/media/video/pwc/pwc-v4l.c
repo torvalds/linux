@@ -1146,14 +1146,6 @@ leave:
 	return ret;
 }
 
-static int pwc_log_status(struct file *file, void *priv)
-{
-	struct pwc_device *pdev = video_drvdata(file);
-
-	v4l2_ctrl_handler_log_status(&pdev->ctrl_handler, PWC_NAME);
-	return 0;
-}
-
 const struct v4l2_ioctl_ops pwc_ioctl_ops = {
 	.vidioc_querycap		    = pwc_querycap,
 	.vidioc_enum_input		    = pwc_enum_input,
@@ -1169,7 +1161,7 @@ const struct v4l2_ioctl_ops pwc_ioctl_ops = {
 	.vidioc_dqbuf			    = pwc_dqbuf,
 	.vidioc_streamon		    = pwc_streamon,
 	.vidioc_streamoff		    = pwc_streamoff,
-	.vidioc_log_status		    = pwc_log_status,
+	.vidioc_log_status		    = v4l2_ctrl_log_status,
 	.vidioc_enum_framesizes		    = pwc_enum_framesizes,
 	.vidioc_enum_frameintervals	    = pwc_enum_frameintervals,
 	.vidioc_g_parm			    = pwc_g_parm,

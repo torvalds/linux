@@ -1939,7 +1939,13 @@ static long __video_do_ioctl(struct file *file,
 	{
 		if (!ops->vidioc_log_status)
 			break;
+		if (vfd->v4l2_dev)
+			pr_info("%s: =================  START STATUS  =================\n",
+				vfd->v4l2_dev->name);
 		ret = ops->vidioc_log_status(file, fh);
+		if (vfd->v4l2_dev)
+			pr_info("%s: ==================  END STATUS  ==================\n",
+				vfd->v4l2_dev->name);
 		break;
 	}
 #ifdef CONFIG_VIDEO_ADV_DEBUG

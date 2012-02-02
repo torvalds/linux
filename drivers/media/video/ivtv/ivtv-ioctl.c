@@ -1485,8 +1485,6 @@ static int ivtv_log_status(struct file *file, void *fh)
 	struct v4l2_audio audin;
 	int i;
 
-	IVTV_INFO("=================  START STATUS CARD #%d  =================\n",
-		       itv->instance);
 	IVTV_INFO("Version: %s Card: %s\n", IVTV_VERSION, itv->card_name);
 	if (itv->hw_flags & IVTV_HW_TVEEPROM) {
 		struct tveeprom tv;
@@ -1568,9 +1566,6 @@ static int ivtv_log_status(struct file *file, void *fh)
 	IVTV_INFO("Read MPG/VBI: %lld/%lld bytes\n",
 			(long long)itv->mpg_data_received,
 			(long long)itv->vbi_data_inserted);
-	IVTV_INFO("==================  END STATUS CARD #%d  ==================\n",
-			itv->instance);
-
 	return 0;
 }
 
