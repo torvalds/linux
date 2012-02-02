@@ -1470,6 +1470,7 @@ static int via_build_controls(struct hda_codec *codec)
 	struct snd_kcontrol *kctl;
 	int err, i;
 
+	spec->no_pin_power_ctl = 1;
 	if (spec->set_widgets_power_state)
 		if (!via_clone_control(spec, &via_pin_power_ctl_enum))
 			return -ENOMEM;
