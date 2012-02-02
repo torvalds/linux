@@ -104,20 +104,6 @@ static const struct snd_soc_dapm_widget tegra_alc5632_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 };
 
-static const struct snd_soc_dapm_route tegra_alc5632_audio_map[] = {
-	/* Internal Speaker */
-	{"Int Spk", NULL, "SPKOUT"},
-	{"Int Spk", NULL, "SPKOUTN"},
-
-	/* Headset Mic */
-	{"MIC1", NULL, "MICBIAS1"},
-	{"MICBIAS1", NULL, "Headset Mic"},
-
-	/* Headset Stereophone */
-	{"Headset Stereophone", NULL, "HPR"},
-	{"Headset Stereophone", NULL, "HPL"},
-};
-
 static const struct snd_kcontrol_new tegra_alc5632_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Int Spk"),
 };
@@ -172,8 +158,6 @@ static struct snd_soc_card snd_soc_tegra_alc5632 = {
 	.num_controls = ARRAY_SIZE(tegra_alc5632_controls),
 	.dapm_widgets = tegra_alc5632_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(tegra_alc5632_dapm_widgets),
-	.dapm_routes = tegra_alc5632_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(tegra_alc5632_audio_map),
 	.fully_routed = true,
 };
 
