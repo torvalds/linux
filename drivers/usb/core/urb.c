@@ -403,20 +403,17 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	 * cause problems in HCDs if they get it wrong.
 	 */
 	{
-	unsigned int	orig_flags = urb->transfer_flags;
 	unsigned int	allowed;
 	static int pipetypes[4] = {
 		PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
 	};
 
 	/* Check that the pipe's type matches the endpoint's type */
-	if (usb_pipetype(urb->pipe) != pipetypes[xfertype]) {
-		dev_err(&dev->dev, "BOGUS urb xfer, pipe %x != type %x\n",
+	if (usb_pipetype(urb->pipe) != pipetypes[xfertype])
+		dev_WARN(&dev->dev, "BOGUS urb xfer, pipe %x != type %x\n",
 			usb_pipetype(urb->pipe), pipetypes[xfertype]);
-		return -EPIPE;		/* The most suitable error code :-) */
-	}
 
-	/* enforce simple/standard policy */
+	/* Check against a simple/standard policy */
 	allowed = (URB_NO_TRANSFER_DMA_MAP | URB_NO_INTERRUPT | URB_DIR_MASK |
 			URB_FREE_BUFFER);
 	switch (xfertype) {
@@ -435,14 +432,12 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		allowed |= URB_ISO_ASAP;
 		break;
 	}
-	urb->transfer_flags &= allowed;
+	allowed &= urb->transfer_flags;
 
-	/* fail if submitter gave bogus flags */
-	if (urb->transfer_flags != orig_flags) {
-		dev_err(&dev->dev, "BOGUS urb flags, %x --> %x\n",
-			orig_flags, urb->transfer_flags);
-		return -EINVAL;
-	}
+	/* warn if submitter gave bogus flags */
+	if (allowed != urb->transfer_flags)
+		dev_WARN(&dev->dev, "BOGUS urb flags, %x --> %x\n",
+			urb->transfer_flags, allowed);
 	}
 #endif
 	/*
