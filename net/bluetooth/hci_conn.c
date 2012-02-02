@@ -975,10 +975,10 @@ int hci_chan_del(struct hci_chan *chan)
 
 void hci_chan_list_flush(struct hci_conn *conn)
 {
-	struct hci_chan *chan;
+	struct hci_chan *chan, *n;
 
 	BT_DBG("conn %p", conn);
 
-	list_for_each_entry_rcu(chan, &conn->chan_list, list)
+	list_for_each_entry_safe(chan, n, &conn->chan_list, list)
 		hci_chan_del(chan);
 }
