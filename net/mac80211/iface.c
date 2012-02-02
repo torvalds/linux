@@ -1332,7 +1332,8 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 		wk->sdata->vif.bss_conf.idle = false;
 	}
 
-	if (local->scan_sdata) {
+	if (local->scan_sdata &&
+	    !(local->hw.flags & IEEE80211_HW_SCAN_WHILE_IDLE)) {
 		scanning = true;
 		local->scan_sdata->vif.bss_conf.idle = false;
 	}
