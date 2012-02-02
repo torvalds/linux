@@ -374,10 +374,18 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!bus) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			   "Couldn't allocate iwl_pci_bus");
+		return -ENOMEM;
+	}
+
+	bus->shrd = kzalloc(sizeof(*bus->shrd), GFP_KERNEL);
+	if (!bus->shrd) {
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "Couldn't allocate iwl_shared");
 		err = -ENOMEM;
 		goto out_no_pci;
 	}
 
+	bus->shrd->bus = bus;
 	pci_bus = IWL_BUS_GET_PCI_BUS(bus);
 	pci_bus->pci_dev = pdev;
 
@@ -472,6 +480,7 @@ out_pci_release_regions:
 out_pci_disable_device:
 	pci_disable_device(pdev);
 out_no_pci:
+	kfree(bus->shrd);
 	kfree(bus);
 	return err;
 }
@@ -491,6 +500,7 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pci_dev);
 	pci_set_drvdata(pci_dev, NULL);
 
+	kfree(bus->shrd);
 	kfree(bus);
 }
 

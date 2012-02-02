@@ -821,7 +821,6 @@ struct iwl_wipan_noa_data {
 struct iwl_priv {
 
 	/*data shared among all the driver's layers */
-	struct iwl_shared _shrd;
 	struct iwl_shared *shrd;
 
 	/* ieee device used by generic ieee processing code */

@@ -1780,9 +1780,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	}
 
 	priv = hw->priv;
-	priv->shrd = &priv->_shrd;
-	bus->shrd = priv->shrd;
-	priv->shrd->bus = bus;
+	priv->shrd = bus->shrd;
 	priv->shrd->priv = priv;
 
 	priv->shrd->trans = trans_ops->alloc(priv->shrd);
