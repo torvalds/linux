@@ -1594,6 +1594,54 @@ unlock:
 	return err;
 }
 
+static int cancel_pair_device(struct sock *sk, u16 index,
+						unsigned char *data, u16 len)
+{
+	struct mgmt_addr_info *addr = (void *) data;
+	struct hci_dev *hdev;
+	struct pending_cmd *cmd;
+	struct hci_conn *conn;
+	int err;
+
+	BT_DBG("");
+
+	if (len != sizeof(*addr))
+		return cmd_status(sk, index, MGMT_OP_CANCEL_PAIR_DEVICE,
+						MGMT_STATUS_INVALID_PARAMS);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_CANCEL_PAIR_DEVICE,
+						MGMT_STATUS_INVALID_PARAMS);
+
+	hci_dev_lock(hdev);
+
+	cmd = mgmt_pending_find(MGMT_OP_PAIR_DEVICE, hdev);
+	if (!cmd) {
+		err = cmd_status(sk, index, MGMT_OP_CANCEL_PAIR_DEVICE,
+						MGMT_STATUS_INVALID_PARAMS);
+		goto unlock;
+	}
+
+	conn = cmd->user_data;
+
+	if (bacmp(&addr->bdaddr, &conn->dst) != 0) {
+		err = cmd_status(sk, index, MGMT_OP_CANCEL_PAIR_DEVICE,
+						MGMT_STATUS_INVALID_PARAMS);
+		goto unlock;
+	}
+
+	pairing_complete(cmd, MGMT_STATUS_CANCELLED);
+
+	err = cmd_complete(sk, index, MGMT_OP_CANCEL_PAIR_DEVICE, addr,
+								sizeof(*addr));
+unlock:
+	hci_dev_unlock(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 static int user_pairing_resp(struct sock *sk, u16 index, bdaddr_t *bdaddr,
 					u16 mgmt_op, u16 hci_op, __le32 passkey)
 {
@@ -2270,6 +2318,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_PAIR_DEVICE:
 		err = pair_device(sk, index, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_CANCEL_PAIR_DEVICE:
+		err = cancel_pair_device(sk, index, buf + sizeof(*hdr), len);
 		break;
 	case MGMT_OP_USER_CONFIRM_REPLY:
 		err = user_confirm_reply(sk, index, buf + sizeof(*hdr), len);
