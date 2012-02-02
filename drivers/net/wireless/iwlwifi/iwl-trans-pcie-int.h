@@ -211,6 +211,8 @@ struct iwl_tx_queue {
  * @txq_ctx_active_msk: what queue is active
  * queue_stopped: tracks what queue is stopped
  * queue_stop_count: tracks what SW queue is stopped
+ * @pci_dev: basic pci-network driver stuff
+ * @hw_base: pci hardware address support
  */
 struct iwl_trans_pcie {
 	struct iwl_rx_queue rxq;
@@ -241,6 +243,10 @@ struct iwl_trans_pcie {
 #define IWL_MAX_HW_QUEUES	32
 	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
 	atomic_t queue_stop_count[4];
+
+	/* PCI bus related data */
+	struct pci_dev *pci_dev;
+	void __iomem *hw_base;
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \

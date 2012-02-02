@@ -60,6 +60,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
+#include <linux/pci.h>
+#include <linux/pci-aspm.h>
 #include <linux/interrupt.h>
 #include <linux/debugfs.h>
 #include <linux/bitops.h>
@@ -1042,7 +1044,7 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	spin_unlock_irqrestore(&trans->shrd->lock, flags);
 
 	/* wait to make sure we flush pending tasklet*/
-	synchronize_irq(bus(trans)->irq);
+	synchronize_irq(trans->irq);
 	tasklet_kill(&trans_pcie->irq_tasklet);
 
 	/* stop and reset the on-board processor */
@@ -1246,10 +1248,10 @@ static int iwl_trans_pcie_request_irq(struct iwl_trans *trans)
 
 	iwl_alloc_isr_ict(trans);
 
-	err = request_irq(bus(trans)->irq, iwl_isr_ict, IRQF_SHARED,
+	err = request_irq(trans->irq, iwl_isr_ict, IRQF_SHARED,
 		DRV_NAME, trans);
 	if (err) {
-		IWL_ERR(trans, "Error allocating IRQ %d\n", bus(trans)->irq);
+		IWL_ERR(trans, "Error allocating IRQ %d\n", trans->irq);
 		iwl_free_isr_ict(trans);
 		return err;
 	}
@@ -1299,13 +1301,22 @@ static int iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 
 static void iwl_trans_pcie_free(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+
 	iwl_calib_free_results(trans);
 	iwl_trans_pcie_tx_free(trans);
 #ifndef CONFIG_IWLWIFI_IDI
 	iwl_trans_pcie_rx_free(trans);
 #endif
-	free_irq(bus(trans)->irq, trans);
+	free_irq(trans->irq, trans);
 	iwl_free_isr_ict(trans);
+
+	pci_disable_msi(trans_pcie->pci_dev);
+	pci_iounmap(trans_pcie->pci_dev, trans_pcie->hw_base);
+	pci_release_regions(trans_pcie->pci_dev);
+	pci_disable_device(trans_pcie->pci_dev);
+
 	trans->shrd->trans = NULL;
 	kfree(trans);
 }
@@ -1372,30 +1383,6 @@ static void iwl_trans_pcie_wake_any_queue(struct iwl_trans *trans,
 			      ? "stopped" : "awake");
 		iwl_wake_queue(trans, &trans_pcie->txq[txq_id], msg);
 	}
-}
-
-const struct iwl_trans_ops trans_ops_pcie;
-
-struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
-				       struct pci_dev *pdev,
-				       const struct pci_device_id *ent)
-{
-	struct iwl_trans_pcie *trans_pcie;
-	struct iwl_trans *iwl_trans = kzalloc(sizeof(struct iwl_trans) +
-					      sizeof(struct iwl_trans_pcie),
-					      GFP_KERNEL);
-
-	if (WARN_ON(!iwl_trans))
-		return NULL;
-
-	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(iwl_trans);
-
-	iwl_trans->ops = &trans_ops_pcie;
-	iwl_trans->shrd = shrd;
-	trans_pcie->trans = iwl_trans;
-	spin_lock_init(&iwl_trans->hcmd_lock);
-
-	return iwl_trans;
 }
 
 static void iwl_trans_pcie_stop_queue(struct iwl_trans *trans, int txq_id,
@@ -1949,3 +1936,129 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.resume = iwl_trans_pcie_resume,
 #endif
 };
+
+/* TODO: remove this hack - will be possible when all the io{write/read} ops
+ * will be done through the transport
+ */
+struct iwl_pci_bus {
+	/* basic pci-network driver stuff */
+	struct pci_dev *pci_dev;
+
+	/* pci hardware address support */
+	void __iomem *hw_base;
+};
+
+#define IWL_BUS_GET_PCI_BUS(_iwl_bus) \
+			((struct iwl_pci_bus *) ((_iwl_bus)->bus_specific))
+
+/* PCI registers */
+#define PCI_CFG_RETRY_TIMEOUT	0x041
+
+struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
+				       struct pci_dev *pdev,
+				       const struct pci_device_id *ent)
+{
+	struct iwl_pci_bus *iwl_pci_bus = IWL_BUS_GET_PCI_BUS(shrd->bus);
+	struct iwl_trans_pcie *trans_pcie;
+	struct iwl_trans *trans;
+	u16 pci_cmd;
+	int err;
+
+	trans = kzalloc(sizeof(struct iwl_trans) +
+			     sizeof(struct iwl_trans_pcie), GFP_KERNEL);
+
+	if (WARN_ON(!trans))
+		return NULL;
+
+	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	trans->ops = &trans_ops_pcie;
+	trans->shrd = shrd;
+	trans_pcie->trans = trans;
+	spin_lock_init(&trans->hcmd_lock);
+
+	/* W/A - seems to solve weird behavior. We need to remove this if we
+	 * don't want to stay in L1 all the time. This wastes a lot of power */
+	pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1 |
+				PCIE_LINK_STATE_CLKPM);
+
+	if (pci_enable_device(pdev)) {
+		err = -ENODEV;
+		goto out_no_pci;
+	}
+
+	pci_set_master(pdev);
+
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(36));
+	if (!err)
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(36));
+	if (err) {
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		if (!err)
+			err = pci_set_consistent_dma_mask(pdev,
+							DMA_BIT_MASK(32));
+		/* both attempts failed: */
+		if (err) {
+			dev_printk(KERN_ERR, &pdev->dev,
+				   "No suitable DMA available.\n");
+			goto out_pci_disable_device;
+		}
+	}
+
+	err = pci_request_regions(pdev, DRV_NAME);
+	if (err) {
+		dev_printk(KERN_ERR, &pdev->dev, "pci_request_regions failed");
+		goto out_pci_disable_device;
+	}
+
+	trans_pcie->hw_base = pci_iomap(pdev, 0, 0);
+	if (!trans_pcie->hw_base) {
+		dev_printk(KERN_ERR, &pdev->dev, "pci_iomap failed");
+		err = -ENODEV;
+		goto out_pci_release_regions;
+	}
+
+	/* TODO: remove this hack */
+	iwl_pci_bus->hw_base = trans_pcie->hw_base;
+
+	dev_printk(KERN_INFO, &pdev->dev,
+		"pci_resource_len = 0x%08llx\n",
+		(unsigned long long) pci_resource_len(pdev, 0));
+	dev_printk(KERN_INFO, &pdev->dev,
+		"pci_resource_base = %p\n", trans_pcie->hw_base);
+
+	dev_printk(KERN_INFO, &pdev->dev,
+		"HW Revision ID = 0x%X\n", pdev->revision);
+
+	/* We disable the RETRY_TIMEOUT register (0x41) to keep
+	 * PCI Tx retries from interfering with C3 CPU state */
+	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
+
+	err = pci_enable_msi(pdev);
+	if (err)
+		dev_printk(KERN_ERR, &pdev->dev,
+			"pci_enable_msi failed(0X%x)", err);
+
+	trans->dev = &pdev->dev;
+	trans->irq = pdev->irq;
+	trans_pcie->pci_dev = pdev;
+
+	/* TODO: Move this away, not needed if not MSI */
+	/* enable rfkill interrupt: hw bug w/a */
+	pci_read_config_word(pdev, PCI_COMMAND, &pci_cmd);
+	if (pci_cmd & PCI_COMMAND_INTX_DISABLE) {
+		pci_cmd &= ~PCI_COMMAND_INTX_DISABLE;
+		pci_write_config_word(pdev, PCI_COMMAND, pci_cmd);
+	}
+
+	return trans;
+
+out_pci_release_regions:
+	pci_release_regions(pdev);
+out_pci_disable_device:
+	pci_disable_device(pdev);
+out_no_pci:
+	kfree(trans);
+	return NULL;
+}
+

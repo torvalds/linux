@@ -148,7 +148,6 @@ struct iwl_bus_ops {
  * @shrd - pointer to iwl_shared which holds shared data from the upper layer
  *	NB: for the time being this needs to be set by the upper layer since
  *	it allocates the shared data
- * @irq - the irq number for the device
  * @reg_lock - protect hw register access
  */
 struct iwl_bus {
@@ -156,7 +155,6 @@ struct iwl_bus {
 	const struct iwl_bus_ops *ops;
 	struct iwl_shared *shrd;
 
-	unsigned int irq;
 	spinlock_t reg_lock;
 
 	/* pointer to bus specific struct */
