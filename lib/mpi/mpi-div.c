@@ -149,6 +149,9 @@ int mpi_tdiv_qr(MPI quot, MPI rem, MPI num, MPI den)
 	mpi_ptr_t marker[5];
 	int markidx = 0;
 
+	if (!dsize)
+		return -EINVAL;
+
 	memset(marker, 0, sizeof(marker));
 
 	/* Ensure space is enough for quotient and remainder.
@@ -207,6 +210,8 @@ int mpi_tdiv_qr(MPI quot, MPI rem, MPI num, MPI den)
 		 * numerator would be gradually overwritten by the quotient limbs.  */
 		if (qp == np) {	/* Copy NP object to temporary space.  */
 			np = marker[markidx++] = mpi_alloc_limb_space(nsize);
+			if (!np)
+				goto nomem;
 			MPN_COPY(np, qp, nsize);
 		}
 	} else			/* Put quotient at top of remainder. */

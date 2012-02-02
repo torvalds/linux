@@ -57,8 +57,6 @@ struct gcry_mpi {
 
 typedef struct gcry_mpi *MPI;
 
-#define MPI_NULL NULL
-
 #define mpi_get_nlimbs(a)     ((a)->nlimbs)
 #define mpi_is_neg(a)	      ((a)->sign)
 

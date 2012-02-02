@@ -33,6 +33,7 @@ config SPARC
 config SPARC32
 	def_bool !64BIT
 	select GENERIC_ATOMIC64
+	select CLZ_TAB
 
 config SPARC64
 	def_bool 64BIT
