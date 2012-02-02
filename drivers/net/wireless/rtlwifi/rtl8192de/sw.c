@@ -27,11 +27,6 @@
  *
  *****************************************************************************/
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-#include <linux/vmalloc.h>
-#include <linux/module.h>
-
 #include "../wifi.h"
 #include "../core.h"
 #include "../pci.h"
@@ -43,6 +38,8 @@
 #include "sw.h"
 #include "trx.h"
 #include "led.h"
+
+#include <linux/module.h>
 
 static void rtl92d_init_aspm_vars(struct ieee80211_hw *hw)
 {
@@ -94,7 +91,6 @@ static int rtl92d_init_sw_vars(struct ieee80211_hw *hw)
 	u8 tid;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	const struct firmware *firmware;
 	static int header_print;
 
 	rtlpriv->dm.dm_initialgain_enable = true;
@@ -170,6 +166,15 @@ static int rtl92d_init_sw_vars(struct ieee80211_hw *hw)
 	else if (rtlpriv->psc.reg_fwctrl_lps == 3)
 		rtlpriv->psc.fwctrl_psmode = FW_PS_DTIM_MODE;
 
+	/* for early mode */
+	rtlpriv->rtlhal.earlymode_enable = true;
+	for (tid = 0; tid < 8; tid++)
+		skb_queue_head_init(&rtlpriv->mac80211.skb_waitq[tid]);
+
+	/* Only load firmware for first MAC */
+	if (header_print)
+		return 0;
+
 	/* for firmware buf */
 	rtlpriv->rtlhal.pfirmware = vzalloc(0x8000);
 	if (!rtlpriv->rtlhal.pfirmware) {
@@ -178,33 +183,21 @@ static int rtl92d_init_sw_vars(struct ieee80211_hw *hw)
 		return 1;
 	}
 
-	if (!header_print) {
-		pr_info("Driver for Realtek RTL8192DE WLAN interface\n");
-		pr_info("Loading firmware file %s\n", rtlpriv->cfg->fw_name);
-		header_print++;
-	}
+	rtlpriv->max_fw_size = 0x8000;
+	pr_info("Driver for Realtek RTL8192DE WLAN interface\n");
+	pr_info("Loading firmware file %s\n", rtlpriv->cfg->fw_name);
+	header_print++;
+
 	/* request fw */
-	err = request_firmware(&firmware, rtlpriv->cfg->fw_name,
-			       rtlpriv->io.dev);
+	err = request_firmware_nowait(THIS_MODULE, 1, rtlpriv->cfg->fw_name,
+				      rtlpriv->io.dev, GFP_KERNEL, hw,
+				      rtl_fw_cb);
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "Failed to request firmware!\n");
 		return 1;
 	}
-	if (firmware->size > 0x8000) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Firmware is too big!\n");
-		release_firmware(firmware);
-		return 1;
-	}
-	memcpy(rtlpriv->rtlhal.pfirmware, firmware->data, firmware->size);
-	rtlpriv->rtlhal.fwsize = firmware->size;
-	release_firmware(firmware);
 
-	/* for early mode */
-	rtlpriv->rtlhal.earlymode_enable = true;
-	for (tid = 0; tid < 8; tid++)
-		skb_queue_head_init(&rtlpriv->mac80211.skb_waitq[tid]);
 	return 0;
 }
 

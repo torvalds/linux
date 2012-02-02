@@ -27,8 +27,6 @@
  *
  *****************************************************************************/
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include "../wifi.h"
 #include "../efuse.h"
 #include "../base.h"
@@ -999,10 +997,7 @@ int rtl92cu_hw_init(struct ieee80211_hw *hw)
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 "Failed to download FW. Init HW without FW now..\n");
 		err = 1;
-		rtlhal->fw_ready = false;
 		return err;
-	} else {
-		rtlhal->fw_ready = true;
 	}
 	rtlhal->last_hmeboxnum = 0; /* h2c */
 	_rtl92cu_phy_param_tab_init(hw);
@@ -1096,23 +1091,21 @@ static void  _ResetDigitalProcedure1(struct ieee80211_hw *hw, bool bWithoutHWSM)
 		if (rtl_read_byte(rtlpriv, REG_MCUFWDL) & BIT(1)) {
 			/* reset MCU ready status */
 			rtl_write_byte(rtlpriv, REG_MCUFWDL, 0);
-			if (rtlhal->fw_ready) {
-				/* 8051 reset by self */
-				rtl_write_byte(rtlpriv, REG_HMETFR+3, 0x20);
-				while ((retry_cnts++ < 100) &&
-				       (FEN_CPUEN & rtl_read_word(rtlpriv,
-				       REG_SYS_FUNC_EN))) {
-					udelay(50);
-				}
-				if (retry_cnts >= 100) {
-					RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-						 "#####=> 8051 reset failed!.........................\n");
-					/* if 8051 reset fail, reset MAC. */
-					rtl_write_byte(rtlpriv,
-						       REG_SYS_FUNC_EN + 1,
-						       0x50);
-					udelay(100);
-				}
+			/* 8051 reset by self */
+			rtl_write_byte(rtlpriv, REG_HMETFR+3, 0x20);
+			while ((retry_cnts++ < 100) &&
+			       (FEN_CPUEN & rtl_read_word(rtlpriv,
+			       REG_SYS_FUNC_EN))) {
+				udelay(50);
+			}
+			if (retry_cnts >= 100) {
+				RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
+					 "#####=> 8051 reset failed!.........................\n");
+				/* if 8051 reset fail, reset MAC. */
+				rtl_write_byte(rtlpriv,
+					       REG_SYS_FUNC_EN + 1,
+					       0x50);
+				udelay(100);
 			}
 		}
 		/* Reset MAC and Enable 8051 */

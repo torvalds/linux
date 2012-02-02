@@ -403,6 +403,8 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 		sta_info_hash_add(local, sta);
 
 		list_add(&sta->list, &local->sta_list);
+
+		set_sta_flag(sta, WLAN_STA_INSERTED);
 	} else {
 		sta->dummy = false;
 	}
@@ -707,7 +709,7 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	return have_buffered;
 }
 
-static int __must_check __sta_info_destroy(struct sta_info *sta)
+int __must_check __sta_info_destroy(struct sta_info *sta)
 {
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
@@ -721,6 +723,8 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	local = sta->local;
 	sdata = sta->sdata;
+
+	lockdep_assert_held(&local->sta_mtx);
 
 	/*
 	 * Before removing the station from the driver and
@@ -746,25 +750,19 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	sta->dead = true;
 
-	if (test_sta_flag(sta, WLAN_STA_PS_STA) ||
-	    test_sta_flag(sta, WLAN_STA_PS_DRIVER)) {
-		BUG_ON(!sdata->bss);
-
-		clear_sta_flag(sta, WLAN_STA_PS_STA);
-		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
-
-		atomic_dec(&sdata->bss->num_sta_ps);
-		sta_info_recalc_tim(sta);
-	}
-
 	local->num_sta--;
 	local->sta_generation++;
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		RCU_INIT_POINTER(sdata->u.vlan.sta, NULL);
 
-	while (sta->sta_state > IEEE80211_STA_NONE)
-		sta_info_move_state(sta, sta->sta_state - 1);
+	while (sta->sta_state > IEEE80211_STA_NONE) {
+		int err = sta_info_move_state(sta, sta->sta_state - 1);
+		if (err) {
+			WARN_ON_ONCE(1);
+			break;
+		}
+	}
 
 	if (sta->uploaded) {
 		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
@@ -782,6 +780,15 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	 * associated with this station that we clean up below.
 	 */
 	synchronize_rcu();
+
+	if (test_sta_flag(sta, WLAN_STA_PS_STA)) {
+		BUG_ON(!sdata->bss);
+
+		clear_sta_flag(sta, WLAN_STA_PS_STA);
+
+		atomic_dec(&sdata->bss->num_sta_ps);
+		sta_info_recalc_tim(sta);
+	}
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		local->total_ps_buffered -= skb_queue_len(&sta->ps_tx_buf[ac]);
@@ -990,9 +997,11 @@ EXPORT_SYMBOL(ieee80211_find_sta);
 static void clear_sta_ps_flags(void *_sta)
 {
 	struct sta_info *sta = _sta;
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
 
 	clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
-	clear_sta_flag(sta, WLAN_STA_PS_STA);
+	if (test_and_clear_sta_flag(sta, WLAN_STA_PS_STA))
+		atomic_dec(&sdata->bss->num_sta_ps);
 }
 
 /* powersave support code */
@@ -1391,8 +1400,8 @@ void ieee80211_sta_set_buffered(struct ieee80211_sta *pubsta,
 }
 EXPORT_SYMBOL(ieee80211_sta_set_buffered);
 
-int sta_info_move_state_checked(struct sta_info *sta,
-				enum ieee80211_sta_state new_state)
+int sta_info_move_state(struct sta_info *sta,
+			enum ieee80211_sta_state new_state)
 {
 	might_sleep();
 

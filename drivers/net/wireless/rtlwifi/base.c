@@ -27,10 +27,6 @@
  *
  *****************************************************************************/
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-#include <linux/ip.h>
-#include <linux/module.h>
 #include "wifi.h"
 #include "rc.h"
 #include "base.h"
@@ -38,6 +34,9 @@
 #include "cam.h"
 #include "ps.h"
 #include "regd.h"
+
+#include <linux/ip.h>
+#include <linux/module.h>
 
 /*
  *NOTICE!!!: This file will be very big, we hsould
@@ -411,6 +410,7 @@ void rtl_init_rfkill(struct ieee80211_hw *hw)
 
 	wiphy_rfkill_start_polling(hw->wiphy);
 }
+EXPORT_SYMBOL(rtl_init_rfkill);
 
 void rtl_deinit_rfkill(struct ieee80211_hw *hw)
 {

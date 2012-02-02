@@ -27,8 +27,8 @@
  *
  *****************************************************************************/
 
-#include <linux/module.h>
 #include "../wifi.h"
+#include <linux/module.h>
 
 
 MODULE_AUTHOR("lizhaoming	<chaoming_li@realsil.com.cn>");

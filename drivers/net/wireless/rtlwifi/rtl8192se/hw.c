@@ -27,8 +27,6 @@
  *
  *****************************************************************************/
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include "../wifi.h"
 #include "../efuse.h"
 #include "../base.h"
@@ -951,10 +949,9 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 	rtstatus = rtl92s_download_fw(hw);
 	if (!rtstatus) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-			 "Failed to download FW. Init HW without FW now... Please copy FW into /lib/firmware/rtlwifi\n");
-		rtlhal->fw_ready = false;
-	} else {
-		rtlhal->fw_ready = true;
+			 "Failed to download FW. Init HW without FW now... "
+			 "Please copy FW into /lib/firmware/rtlwifi\n");
+		return 1;
 	}
 
 	/* After FW download, we have to reset MAC register */
@@ -1217,9 +1214,14 @@ void rtl92se_enable_interrupt(struct ieee80211_hw *hw)
 
 void rtl92se_disable_interrupt(struct ieee80211_hw *hw)
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
+	struct rtl_priv *rtlpriv;
+	struct rtl_pci *rtlpci;
 
+	rtlpriv = rtl_priv(hw);
+	/* if firmware not available, no interrupts */
+	if (!rtlpriv || !rtlpriv->max_fw_size)
+		return;
+	rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	rtl_write_dword(rtlpriv, INTA_MASK, 0);
 	rtl_write_dword(rtlpriv, INTA_MASK + 4, 0);
 

@@ -931,10 +931,7 @@ int rtl92de_hw_init(struct ieee80211_hw *hw)
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 "Failed to download FW. Init HW without FW..\n");
-		rtlhal->fw_ready = false;
 		return 1;
-	} else {
-		rtlhal->fw_ready = true;
 	}
 	rtlhal->last_hmeboxnum = 0;
 	rtlpriv->psc.fw_current_inpsmode = false;

@@ -27,10 +27,6 @@
  *
 ****************************************************************************/
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-#include <linux/module.h>
-
 #include "../wifi.h"
 #include "../pci.h"
 #include "../usb.h"
@@ -43,6 +39,8 @@
 #include "dm.h"
 #include "mac.h"
 #include "trx.h"
+
+#include <linux/module.h>
 
 /* macro to shorten lines */
 
