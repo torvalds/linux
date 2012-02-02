@@ -15,11 +15,13 @@
 #include <linux/err.h>
 #include <linux/opp.h>
 #include <linux/export.h>
+#include <linux/suspend.h>
 
 #include <plat/omap-pm.h>
 #include <plat/omap_device.h>
 #include "common.h"
 
+#include "prcm-common.h"
 #include "voltage.h"
 #include "powerdomain.h"
 #include "clockdomain.h"
@@ -27,6 +29,12 @@
 #include "twl-common.h"
 
 static struct omap_device_pm_latency *pm_lats;
+
+/*
+ * omap_pm_suspend: points to a function that does the SoC-specific
+ * suspend work
+ */
+int (*omap_pm_suspend)(void);
 
 static int __init _init_omap_device(char *name)
 {
@@ -134,6 +142,8 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 pwrst)
 	return ret;
 }
 
+
+
 /*
  * This API is to be called during init to set the various voltage
  * domains to the voltage as per the opp table. Typically we boot up
@@ -201,6 +211,56 @@ exit:
 	return -EINVAL;
 }
 
+#ifdef CONFIG_SUSPEND
+static int omap_pm_enter(suspend_state_t suspend_state)
+{
+	int ret = 0;
+
+	if (!omap_pm_suspend)
+		return -ENOENT; /* XXX doublecheck */
+
+	switch (suspend_state) {
+	case PM_SUSPEND_STANDBY:
+	case PM_SUSPEND_MEM:
+		ret = omap_pm_suspend();
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static int omap_pm_begin(suspend_state_t state)
+{
+	disable_hlt();
+	if (cpu_is_omap34xx())
+		omap_prcm_irq_prepare();
+	return 0;
+}
+
+static void omap_pm_end(void)
+{
+	enable_hlt();
+	return;
+}
+
+static void omap_pm_finish(void)
+{
+	if (cpu_is_omap34xx())
+		omap_prcm_irq_complete();
+}
+
+static const struct platform_suspend_ops omap_pm_ops = {
+	.begin		= omap_pm_begin,
+	.end		= omap_pm_end,
+	.enter		= omap_pm_enter,
+	.finish		= omap_pm_finish,
+	.valid		= suspend_valid_only_mem,
+};
+
+#endif /* CONFIG_SUSPEND */
+
 static void __init omap3_init_voltages(void)
 {
 	if (!cpu_is_omap34xx())
@@ -242,6 +302,10 @@ static int __init omap2_common_pm_late_init(void)
 
 	/* Smartreflex device init */
 	omap_devinit_smartreflex();
+
+#ifdef CONFIG_SUSPEND
+	suspend_set_ops(&omap_pm_ops);
+#endif
 
 	return 0;
 }

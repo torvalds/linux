@@ -83,41 +83,6 @@ static int omap4_pm_suspend(void)
 
 	return 0;
 }
-
-static int omap4_pm_enter(suspend_state_t suspend_state)
-{
-	int ret = 0;
-
-	switch (suspend_state) {
-	case PM_SUSPEND_STANDBY:
-	case PM_SUSPEND_MEM:
-		ret = omap4_pm_suspend();
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
-	return ret;
-}
-
-static int omap4_pm_begin(suspend_state_t state)
-{
-	disable_hlt();
-	return 0;
-}
-
-static void omap4_pm_end(void)
-{
-	enable_hlt();
-	return;
-}
-
-static const struct platform_suspend_ops omap_pm_ops = {
-	.begin		= omap4_pm_begin,
-	.end		= omap4_pm_end,
-	.enter		= omap4_pm_enter,
-	.valid		= suspend_valid_only_mem,
-};
 #endif /* CONFIG_SUSPEND */
 
 static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
@@ -234,8 +199,8 @@ static int __init omap4_pm_init(void)
 	(void) clkdm_for_each(omap_pm_clkdms_setup, NULL);
 
 #ifdef CONFIG_SUSPEND
-	suspend_set_ops(&omap_pm_ops);
-#endif /* CONFIG_SUSPEND */
+	omap_pm_suspend = omap4_pm_suspend;
+#endif
 
 	/* Overwrite the default cpu_do_idle() */
 	arm_pm_idle = omap_default_idle;

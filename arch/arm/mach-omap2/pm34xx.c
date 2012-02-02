@@ -50,10 +50,6 @@
 #include "sdrc.h"
 #include "control.h"
 
-#ifdef CONFIG_SUSPEND
-static suspend_state_t suspend_state = PM_SUSPEND_ON;
-#endif
-
 /* pm34xx errata defined in pm.h */
 u16 pm34xx_errata;
 
@@ -472,50 +468,6 @@ restore:
 	return ret;
 }
 
-static int omap3_pm_enter(suspend_state_t unused)
-{
-	int ret = 0;
-
-	switch (suspend_state) {
-	case PM_SUSPEND_STANDBY:
-	case PM_SUSPEND_MEM:
-		ret = omap3_pm_suspend();
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
-	return ret;
-}
-
-/* Hooks to enable / disable UART interrupts during suspend */
-static int omap3_pm_begin(suspend_state_t state)
-{
-	disable_hlt();
-	suspend_state = state;
-	omap_prcm_irq_prepare();
-	return 0;
-}
-
-static void omap3_pm_end(void)
-{
-	suspend_state = PM_SUSPEND_ON;
-	enable_hlt();
-	return;
-}
-
-static void omap3_pm_finish(void)
-{
-	omap_prcm_irq_complete();
-}
-
-static const struct platform_suspend_ops omap_pm_ops = {
-	.begin		= omap3_pm_begin,
-	.end		= omap3_pm_end,
-	.enter		= omap3_pm_enter,
-	.finish		= omap3_pm_finish,
-	.valid		= suspend_valid_only_mem,
-};
 #endif /* CONFIG_SUSPEND */
 
 
@@ -823,8 +775,8 @@ static int __init omap3_pm_init(void)
 	core_clkdm = clkdm_lookup("core_clkdm");
 
 #ifdef CONFIG_SUSPEND
-	suspend_set_ops(&omap_pm_ops);
-#endif /* CONFIG_SUSPEND */
+	omap_pm_suspend = omap3_pm_suspend;
+#endif
 
 	arm_pm_idle = omap3_pm_idle;
 	omap3_idle_init();
