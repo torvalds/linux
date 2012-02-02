@@ -54,9 +54,6 @@
 #define EFX_FLUSH_INTERVAL 10
 #define EFX_FLUSH_POLL_COUNT 100
 
-/* Size and alignment of special buffers (4KB) */
-#define EFX_BUF_SIZE 4096
-
 /* Depth of RX flush request fifo */
 #define EFX_RX_FLUSH_COUNT 4
 
@@ -196,7 +193,7 @@ efx_init_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
 	/* Write buffer descriptors to NIC */
 	for (i = 0; i < buffer->entries; i++) {
 		index = buffer->index + i;
-		dma_addr = buffer->dma_addr + (i * 4096);
+		dma_addr = buffer->dma_addr + (i * EFX_BUF_SIZE);
 		netif_dbg(efx, probe, efx->net_dev,
 			  "mapping special buffer %d at %llx\n",
 			  index, (unsigned long long)dma_addr);
