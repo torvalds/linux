@@ -2221,6 +2221,53 @@ static void rbd_id_put(struct rbd_device *rbd_dev)
 }
 
 /*
+ * Skips over white space at *buf, and updates *buf to point to the
+ * first found non-space character (if any). Returns the length of
+ * the token (string of non-white space characters) found.
+ */
+static inline size_t next_token(const char **buf)
+{
+        /*
+        * These are the characters that produce nonzero for
+        * isspace() in the "C" and "POSIX" locales.
+        */
+        const char *spaces = " \f\n\r\t\v";
+
+        *buf += strspn(*buf, spaces);	/* Find start of token */
+
+	return strcspn(*buf, spaces);   /* Return token length */
+}
+
+/*
+ * Finds the next token in *buf, and if the provided token buffer is
+ * big enough, copies the found token into it.  The result, if
+ * copied, is guaranteed to be terminated with '\0'.
+ *
+ * Returns the length of the token found (not including the '\0').
+ * Return value will be 0 if no token is found, and it will be >=
+ * token_size if the token would not fit.
+ *
+ * The *buf pointer will be updated point beyond the end of the
+ * found token.  Note that this occurs even if the token buffer is
+ * too small to hold it.
+ */
+static inline size_t copy_token(const char **buf,
+				char *token,
+				size_t token_size)
+{
+        size_t len;
+
+	len = next_token(buf);
+	if (len < token_size) {
+		memcpy(token, *buf, len);
+		*(token + len) = '\0';
+	}
+	*buf += len;
+
+        return len;
+}
+
+/*
  * This fills in the pool_name, obj, obj_len, snap_name, obj_len,
  * rbd_dev, rbd_md_name, and name fields of the given rbd_dev, based
  * on the list of monitor addresses and other options provided via
@@ -2229,24 +2276,47 @@ static void rbd_id_put(struct rbd_device *rbd_dev)
 static int rbd_add_parse_args(struct rbd_device *rbd_dev,
 			      const char *buf,
 			      char *mon_addrs,
-			      char *options)
+			      size_t mon_addrs_size,
+			      char *options,
+			      size_t options_size)
 {
-	if (sscanf(buf, "%" __stringify(RBD_MAX_OPT_LEN) "s "
-		   "%" __stringify(RBD_MAX_OPT_LEN) "s "
-		   "%" __stringify(RBD_MAX_POOL_NAME_LEN) "s "
-		   "%" __stringify(RBD_MAX_OBJ_NAME_LEN) "s"
-		   "%" __stringify(RBD_MAX_SNAP_NAME_LEN) "s",
-		   mon_addrs, options, rbd_dev->pool_name,
-		   rbd_dev->obj, rbd_dev->snap_name) < 4)
+	size_t	len;
+
+	/* The first four tokens are required */
+
+	len = copy_token(&buf, mon_addrs, mon_addrs_size);
+	if (!len || len >= mon_addrs_size)
 		return -EINVAL;
 
-	if (rbd_dev->snap_name[0] == 0)
-		memcpy(rbd_dev->snap_name, RBD_SNAP_HEAD_NAME,
-			sizeof (RBD_SNAP_HEAD_NAME));
+	len = copy_token(&buf, options, options_size);
+	if (!len || len >= options_size)
+		return -EINVAL;
 
-	rbd_dev->obj_len = strlen(rbd_dev->obj);
+	len = copy_token(&buf, rbd_dev->pool_name, sizeof (rbd_dev->pool_name));
+	if (!len || len >= sizeof (rbd_dev->pool_name))
+		return -EINVAL;
+
+	len = copy_token(&buf, rbd_dev->obj, sizeof (rbd_dev->obj));
+	if (!len || len >= sizeof (rbd_dev->obj))
+		return -EINVAL;
+
+	/* We have the object length in hand, save it. */
+
+	rbd_dev->obj_len = len;
+
 	snprintf(rbd_dev->obj_md_name, sizeof(rbd_dev->obj_md_name), "%s%s",
 		 rbd_dev->obj, RBD_SUFFIX);
+
+	/*
+	 * The snapshot name is optional, but it's an error if it's
+	 * too long.  If no snapshot is supplied, fill in the default.
+	 */
+	len = copy_token(&buf, rbd_dev->snap_name, sizeof (rbd_dev->snap_name));
+	if (!len)
+		memcpy(rbd_dev->snap_name, RBD_SNAP_HEAD_NAME,
+			sizeof (RBD_SNAP_HEAD_NAME));
+	else if (len >= sizeof (rbd_dev->snap_name))
+		return -EINVAL;
 
 	return 0;
 }
@@ -2288,7 +2358,8 @@ static ssize_t rbd_add(struct bus_type *bus,
 	snprintf(rbd_dev->name, DEV_NAME_LEN, RBD_DRV_NAME "%d", rbd_dev->id);
 
 	/* parse add command */
-	rc = rbd_add_parse_args(rbd_dev, buf, mon_addrs, options);
+	rc = rbd_add_parse_args(rbd_dev, buf, mon_addrs, count,
+				options, count);
 	if (rc)
 		goto err_put_id;
 
