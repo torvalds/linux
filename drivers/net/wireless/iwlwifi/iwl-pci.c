@@ -463,14 +463,28 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bus->ops = &bus_ops_pci;
 
 #ifdef CONFIG_IWLWIFI_IDI
+	trans(bus) = iwl_trans_idi_alloc(bus->shrd, pdev, ent);
+	if (trans(bus) == NULL) {
+		err = -ENOMEM;
+		goto out_disable_msi;
+	}
+
 	err = iwl_probe(bus, &trans_ops_idi, cfg);
 #else
+	trans(bus) = iwl_trans_pcie_alloc(bus->shrd, pdev, ent);
+	if (trans(bus) == NULL) {
+		err = -ENOMEM;
+		goto out_disable_msi;
+	}
+
 	err = iwl_probe(bus, &trans_ops_pcie, cfg);
 #endif
 	if (err)
-		goto out_disable_msi;
+		goto out_free_trans;
 	return 0;
 
+out_free_trans:
+	iwl_trans_free(trans(bus));
 out_disable_msi:
 	pci_disable_msi(pdev);
 	pci_iounmap(pdev, pci_bus->hw_base);
@@ -493,6 +507,7 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 	struct iwl_shared *shrd = bus->shrd;
 
 	iwl_remove(shrd->priv);
+	iwl_trans_free(shrd->trans);
 
 	pci_disable_msi(pci_dev);
 	pci_iounmap(pci_dev, pci_bus->hw_base);

@@ -1783,12 +1783,6 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	priv->shrd = bus->shrd;
 	priv->shrd->priv = priv;
 
-	priv->shrd->trans = trans_ops->alloc(priv->shrd);
-	if (priv->shrd->trans == NULL) {
-		err = -ENOMEM;
-		goto out_free_traffic_mem;
-	}
-
 	/* At this point both hw and priv are allocated. */
 
 	SET_IEEE80211_DEV(hw, bus(priv)->dev);
@@ -1835,12 +1829,12 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 
 	err = iwl_trans_request_irq(trans(priv));
 	if (err)
-		goto out_free_trans;
+		goto out_free_traffic_mem;
 
 	if (iwl_trans_prepare_card_hw(trans(priv))) {
 		err = -EIO;
 		IWL_WARN(priv, "Failed, HW not ready\n");
-		goto out_free_trans;
+		goto out_free_traffic_mem;
 	}
 
 	/*****************
@@ -1854,7 +1848,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	iwl_apm_stop(priv);
 	if (err) {
 		IWL_ERR(priv, "Unable to init EEPROM\n");
-		goto out_free_trans;
+		goto out_free_traffic_mem;
 	}
 	err = iwl_eeprom_check_version(priv);
 	if (err)
@@ -1935,8 +1929,6 @@ out_destroy_workqueue:
 	iwl_uninit_drv(priv);
 out_free_eeprom:
 	iwl_eeprom_free(priv->shrd);
-out_free_trans:
-	iwl_trans_free(trans(priv));
 out_free_traffic_mem:
 	iwl_free_traffic_mem(priv);
 	ieee80211_free_hw(priv->hw);
@@ -1979,8 +1971,6 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	destroy_workqueue(priv->shrd->workqueue);
 	priv->shrd->workqueue = NULL;
 	iwl_free_traffic_mem(priv);
-
-	iwl_trans_free(trans(priv));
 
 	iwl_uninit_drv(priv);
 

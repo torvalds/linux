@@ -133,7 +133,6 @@ struct iwl_host_cmd {
 
 /**
  * struct iwl_trans_ops - transport specific operations
- * @alloc: allocates the meta data (not the queues themselves)
  * @request_irq: requests IRQ - will be called before the FW load in probe flow
  * @start_device: allocates and inits all the resources for the transport
  *                layer.
@@ -162,7 +161,6 @@ struct iwl_host_cmd {
  */
 struct iwl_trans_ops {
 
-	struct iwl_trans *(*alloc)(struct iwl_shared *shrd);
 	int (*request_irq)(struct iwl_trans *iwl_trans);
 	int (*start_device)(struct iwl_trans *trans);
 	void (*fw_alive)(struct iwl_trans *trans);
@@ -380,11 +378,8 @@ static inline int iwl_trans_resume(struct iwl_trans *trans)
 #endif
 
 /*****************************************************
-* Transport layers implementations
+* Utils functions
 ******************************************************/
-extern const struct iwl_trans_ops trans_ops_pcie;
-extern const struct iwl_trans_ops trans_ops_idi;
-
 int iwl_alloc_fw_desc(struct iwl_bus *bus, struct fw_desc *desc,
 		      const void *data, size_t len);
 void iwl_dealloc_ucode(struct iwl_trans *trans);
@@ -394,4 +389,18 @@ int iwl_calib_set(struct iwl_trans *trans,
 		  const struct iwl_calib_hdr *cmd, int len);
 void iwl_calib_free_results(struct iwl_trans *trans);
 
+/*****************************************************
+* Transport layers implementations + their allocation function
+******************************************************/
+struct pci_dev;
+struct pci_device_id;
+extern const struct iwl_trans_ops trans_ops_pcie;
+struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
+				       struct pci_dev *pdev,
+				       const struct pci_device_id *ent);
+
+extern const struct iwl_trans_ops trans_ops_idi;
+struct iwl_trans *iwl_trans_idi_alloc(struct iwl_shared *shrd,
+				      void *pdev_void,
+				      const void *ent_void);
 #endif /* __iwl_trans_h__ */

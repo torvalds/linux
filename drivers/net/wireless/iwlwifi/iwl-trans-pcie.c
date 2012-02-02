@@ -1376,19 +1376,24 @@ static void iwl_trans_pcie_wake_any_queue(struct iwl_trans *trans,
 
 const struct iwl_trans_ops trans_ops_pcie;
 
-static struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd)
+struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
+				       struct pci_dev *pdev,
+				       const struct pci_device_id *ent)
 {
+	struct iwl_trans_pcie *trans_pcie;
 	struct iwl_trans *iwl_trans = kzalloc(sizeof(struct iwl_trans) +
 					      sizeof(struct iwl_trans_pcie),
 					      GFP_KERNEL);
-	if (iwl_trans) {
-		struct iwl_trans_pcie *trans_pcie =
-			IWL_TRANS_GET_PCIE_TRANS(iwl_trans);
-		iwl_trans->ops = &trans_ops_pcie;
-		iwl_trans->shrd = shrd;
-		trans_pcie->trans = iwl_trans;
-		spin_lock_init(&iwl_trans->hcmd_lock);
-	}
+
+	if (WARN_ON(!iwl_trans))
+		return NULL;
+
+	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(iwl_trans);
+
+	iwl_trans->ops = &trans_ops_pcie;
+	iwl_trans->shrd = shrd;
+	trans_pcie->trans = iwl_trans;
+	spin_lock_init(&iwl_trans->hcmd_lock);
 
 	return iwl_trans;
 }
@@ -1912,7 +1917,6 @@ static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
 #endif /*CONFIG_IWLWIFI_DEBUGFS */
 
 const struct iwl_trans_ops trans_ops_pcie = {
-	.alloc = iwl_trans_pcie_alloc,
 	.request_irq = iwl_trans_pcie_request_irq,
 	.fw_alive = iwl_trans_pcie_fw_alive,
 	.start_device = iwl_trans_pcie_start_device,
