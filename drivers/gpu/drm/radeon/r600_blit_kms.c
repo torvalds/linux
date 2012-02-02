@@ -468,27 +468,42 @@ set_default_state(struct radeon_device *rdev)
 	radeon_ring_write(ring, sq_stack_resource_mgmt_2);
 }
 
+#define I2F_MAX_BITS 15
+#define I2F_MAX_INPUT  ((1 << I2F_MAX_BITS) - 1)
+#define I2F_SHIFT (24 - I2F_MAX_BITS)
+
+/*
+ * Converts unsigned integer into 32-bit IEEE floating point representation.
+ * Conversion is not universal and only works for the range from 0
+ * to 2^I2F_MAX_BITS-1. Currently we only use it with inputs between
+ * 0 and 16384 (inclusive), so I2F_MAX_BITS=15 is enough. If necessary,
+ * I2F_MAX_BITS can be increased, but that will add to the loop iterations
+ * and slow us down. Conversion is done by shifting the input and counting
+ * down until the first 1 reaches bit position 23. The resulting counter
+ * and the shifted input are, respectively, the exponent and the fraction.
+ * The sign is always zero.
+ */
 static uint32_t i2f(uint32_t input)
 {
 	u32 result, i, exponent, fraction;
 
-	if ((input & 0x3fff) == 0)
-		result = 0; /* 0 is a special case */
+	WARN_ON_ONCE(input > I2F_MAX_INPUT);
+
+	if ((input & I2F_MAX_INPUT) == 0)
+		result = 0;
 	else {
-		exponent = 140; /* exponent biased by 127; */
-		fraction = (input & 0x3fff) << 10; /* cheat and only
-						      handle numbers below 2^^15 */
-		for (i = 0; i < 14; i++) {
+		exponent = 126 + I2F_MAX_BITS;
+		fraction = (input & I2F_MAX_INPUT) << I2F_SHIFT;
+
+		for (i = 0; i < I2F_MAX_BITS; i++) {
 			if (fraction & 0x800000)
 				break;
 			else {
-				fraction = fraction << 1; /* keep
-							     shifting left until top bit = 1 */
+				fraction = fraction << 1;
 				exponent = exponent - 1;
 			}
 		}
-		result = exponent << 23 | (fraction & 0x7fffff); /* mask
-								    off top bit; assumed 1 */
+		result = exponent << 23 | (fraction & 0x7fffff);
 	}
 	return result;
 }
