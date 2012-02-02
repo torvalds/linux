@@ -53,7 +53,14 @@
 
 #define RBD_SNAP_HEAD_NAME	"-"
 
+/*
+ * An RBD device name will be "rbd#", where the "rbd" comes from
+ * RBD_DRV_NAME above, and # is a unique integer identifier.
+ * MAX_INT_FORMAT_WIDTH is used in ensuring DEV_NAME_LEN is big
+ * enough to hold all possible device names.
+ */
 #define DEV_NAME_LEN		32
+#define MAX_INT_FORMAT_WIDTH	((5 * sizeof (int)) / 2 + 1)
 
 #define RBD_NOTIFY_TIMEOUT_DEFAULT 10
 
@@ -2304,8 +2311,9 @@ static int rbd_add_parse_args(struct rbd_device *rbd_dev,
 
 	rbd_dev->obj_len = len;
 
-	snprintf(rbd_dev->obj_md_name, sizeof(rbd_dev->obj_md_name), "%s%s",
-		 rbd_dev->obj, RBD_SUFFIX);
+	BUILD_BUG_ON(RBD_MAX_MD_NAME_LEN
+				< RBD_MAX_OBJ_NAME_LEN + sizeof (RBD_SUFFIX));
+	sprintf(rbd_dev->obj_md_name, "%s%s", rbd_dev->obj, RBD_SUFFIX);
 
 	/*
 	 * The snapshot name is optional, but it's an error if it's
@@ -2355,7 +2363,9 @@ static ssize_t rbd_add(struct bus_type *bus,
 	rbd_id_get(rbd_dev);
 
 	/* Fill in the device name, now that we have its id. */
-	snprintf(rbd_dev->name, DEV_NAME_LEN, RBD_DRV_NAME "%d", rbd_dev->id);
+	BUILD_BUG_ON(DEV_NAME_LEN
+			< sizeof (RBD_DRV_NAME) + MAX_INT_FORMAT_WIDTH);
+	sprintf(rbd_dev->name, "%s%d", RBD_DRV_NAME, rbd_dev->id);
 
 	/* parse add command */
 	rc = rbd_add_parse_args(rbd_dev, buf, mon_addrs, count,
