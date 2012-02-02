@@ -283,17 +283,6 @@ static const struct platform_suspend_ops omap_pm_ops = {
 static const struct platform_suspend_ops __initdata omap_pm_ops;
 #endif /* CONFIG_SUSPEND */
 
-/* XXX This function should be shareable between OMAP2xxx and OMAP3 */
-static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
-{
-	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
-		clkdm_allow_idle(clkdm);
-	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&
-		 atomic_read(&clkdm->usecount) == 0)
-		clkdm_sleep(clkdm);
-	return 0;
-}
-
 static void __init prcm_setup_regs(void)
 {
 	int i, num_mem_banks;
@@ -335,7 +324,7 @@ static void __init prcm_setup_regs(void)
 	clkdm_sleep(gfx_clkdm);
 
 	/* Enable hardware-supervised idle for all clkdms */
-	clkdm_for_each(clkdms_setup, NULL);
+	clkdm_for_each(omap_pm_clkdms_setup, NULL);
 	clkdm_add_wkdep(mpu_clkdm, wkup_clkdm);
 
 	/* REVISIT: Configure number of 32 kHz clock cycles for sys_clk

@@ -736,21 +736,6 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 }
 
 /*
- * Enable hw supervised mode for all clockdomains if it's
- * supported. Initiate sleep transition for other clockdomains, if
- * they are not used
- */
-static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
-{
-	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
-		clkdm_allow_idle(clkdm);
-	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&
-		 atomic_read(&clkdm->usecount) == 0)
-		clkdm_sleep(clkdm);
-	return 0;
-}
-
-/*
  * Push functions to SRAM
  *
  * The minimum set of functions is pushed to SRAM for execution:
@@ -819,7 +804,7 @@ static int __init omap3_pm_init(void)
 		goto err2;
 	}
 
-	(void) clkdm_for_each(clkdms_setup, NULL);
+	(void) clkdm_for_each(omap_pm_clkdms_setup, NULL);
 
 	mpu_pwrdm = pwrdm_lookup("mpu_pwrdm");
 	if (mpu_pwrdm == NULL) {

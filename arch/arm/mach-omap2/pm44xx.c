@@ -120,22 +120,6 @@ static const struct platform_suspend_ops omap_pm_ops = {
 };
 #endif /* CONFIG_SUSPEND */
 
-/*
- * Enable hardware supervised mode for all clockdomains if it's
- * supported. Initiate sleep transition for other clockdomains, if
- * they are not used
- */
-static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
-{
-	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
-		clkdm_allow_idle(clkdm);
-	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&
-			atomic_read(&clkdm->usecount) == 0)
-		clkdm_sleep(clkdm);
-	return 0;
-}
-
-
 static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 {
 	struct power_state *pwrst;
@@ -247,7 +231,7 @@ static int __init omap4_pm_init(void)
 		goto err2;
 	}
 
-	(void) clkdm_for_each(clkdms_setup, NULL);
+	(void) clkdm_for_each(omap_pm_clkdms_setup, NULL);
 
 #ifdef CONFIG_SUSPEND
 	suspend_set_ops(&omap_pm_ops);
