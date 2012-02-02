@@ -402,6 +402,7 @@ void rcu_idle_enter(void)
 	rcu_idle_enter_common(rdtp, oldval);
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL_GPL(rcu_idle_enter);
 
 /**
  * rcu_irq_exit - inform RCU that current CPU is exiting irq towards idle
@@ -493,6 +494,7 @@ void rcu_idle_exit(void)
 	rcu_idle_exit_common(rdtp, oldval);
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL_GPL(rcu_idle_exit);
 
 /**
  * rcu_irq_enter - inform RCU that current CPU is entering irq away from idle

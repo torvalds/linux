@@ -97,6 +97,7 @@ void rcu_idle_enter(void)
 	rcu_idle_enter_common(oldval);
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL_GPL(rcu_idle_enter);
 
 /*
  * Exit an interrupt handler towards idle.
@@ -153,6 +154,7 @@ void rcu_idle_exit(void)
 	rcu_idle_exit_common(oldval);
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL_GPL(rcu_idle_exit);
 
 /*
  * Enter an interrupt handler, moving away from idle.
