@@ -564,9 +564,21 @@ int radeon_dp_get_panel_mode(struct drm_encoder *encoder,
 	    ENCODER_OBJECT_ID_NUTMEG)
 		panel_mode = DP_PANEL_MODE_INTERNAL_DP1_MODE;
 	else if (radeon_connector_encoder_get_dp_bridge_encoder_id(connector) ==
-		 ENCODER_OBJECT_ID_TRAVIS)
-		panel_mode = DP_PANEL_MODE_INTERNAL_DP2_MODE;
-	else if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+		 ENCODER_OBJECT_ID_TRAVIS) {
+		u8 id[6];
+		int i;
+		for (i = 0; i < 6; i++)
+			id[i] = radeon_read_dpcd_reg(radeon_connector, 0x503 + i);
+		if (id[0] == 0x73 &&
+		    id[1] == 0x69 &&
+		    id[2] == 0x76 &&
+		    id[3] == 0x61 &&
+		    id[4] == 0x72 &&
+		    id[5] == 0x54)
+			panel_mode = DP_PANEL_MODE_INTERNAL_DP1_MODE;
+		else
+			panel_mode = DP_PANEL_MODE_INTERNAL_DP2_MODE;
+	} else if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
 		u8 tmp = radeon_read_dpcd_reg(radeon_connector, DP_EDP_CONFIGURATION_CAP);
 		if (tmp & 1)
 			panel_mode = DP_PANEL_MODE_INTERNAL_DP2_MODE;
