@@ -1558,7 +1558,17 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 			r100_cs_dump_packet(p, pkt);
 			return r;
 		}
-		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
+		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+				tile_flags |= RADEON_TXO_MACRO_TILE;
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+				tile_flags |= RADEON_TXO_MICRO_TILE_X2;
+
+			tmp = idx_value & ~(0x7 << 2);
+			tmp |= tile_flags;
+			ib[idx] = tmp + ((u32)reloc->lobj.gpu_offset);
+		} else
+			ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
 		track->textures[i].robj = reloc->robj;
 		track->tex_dirty = true;
 		break;
