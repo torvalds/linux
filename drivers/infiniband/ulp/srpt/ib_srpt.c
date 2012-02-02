@@ -69,8 +69,8 @@ MODULE_LICENSE("Dual BSD/GPL");
  */
 
 static u64 srpt_service_guid;
-static spinlock_t srpt_dev_lock;       /* Protects srpt_dev_list. */
-static struct list_head srpt_dev_list; /* List of srpt_device structures. */
+static DEFINE_SPINLOCK(srpt_dev_lock);	/* Protects srpt_dev_list. */
+static LIST_HEAD(srpt_dev_list);	/* List of srpt_device structures. */
 
 static unsigned srp_max_req_size = DEFAULT_MAX_REQ_SIZE;
 module_param(srp_max_req_size, int, 0444);
@@ -4009,9 +4009,6 @@ static int __init srpt_init_module(void)
 		       srpt_srq_size, MIN_SRPT_SRQ_SIZE, MAX_SRPT_SRQ_SIZE);
 		goto out;
 	}
-
-	spin_lock_init(&srpt_dev_lock);
-	INIT_LIST_HEAD(&srpt_dev_list);
 
 	ret = -ENODEV;
 	srpt_target = target_fabric_configfs_init(THIS_MODULE, "srpt");
