@@ -44,6 +44,7 @@
 /* Local pointer to allocated TCM configfs fabric module */
 static struct target_fabric_configfs *tcm_loop_fabric_configfs;
 
+static struct workqueue_struct *tcm_loop_workqueue;
 static struct kmem_cache *tcm_loop_cmd_cache;
 
 static int tcm_loop_hba_no_cnt;
@@ -206,32 +207,19 @@ static int tcm_loop_sam_attr(struct scsi_cmnd *sc)
 	return MSG_SIMPLE_TAG;
 }
 
-/*
- * Main entry point from struct scsi_host_template for incoming SCSI CDB+Data
- * from Linux/SCSI subsystem for SCSI low level device drivers (LLDs)
- */
-static int tcm_loop_queuecommand(
-	struct Scsi_Host *sh,
-	struct scsi_cmnd *sc)
+static void tcm_loop_submission_work(struct work_struct *work)
 {
-	struct se_cmd *se_cmd;
-	struct se_portal_group *se_tpg;
+	struct tcm_loop_cmd *tl_cmd =
+		container_of(work, struct tcm_loop_cmd, work);
+	struct se_cmd *se_cmd = &tl_cmd->tl_se_cmd;
+	struct scsi_cmnd *sc = tl_cmd->sc;
+	struct tcm_loop_nexus *tl_nexus;
 	struct tcm_loop_hba *tl_hba;
 	struct tcm_loop_tpg *tl_tpg;
-	struct se_session *se_sess;
-	struct tcm_loop_nexus *tl_nexus;
-	struct tcm_loop_cmd *tl_cmd;
 
-
-	pr_debug("tcm_loop_queuecommand() %d:%d:%d:%d got CDB: 0x%02x"
-		" scsi_buf_len: %u\n", sc->device->host->host_no,
-		sc->device->id, sc->device->channel, sc->device->lun,
-		sc->cmnd[0], scsi_bufflen(sc));
-	/*
-	 * Locate the tcm_loop_hba_t pointer
-	 */
 	tl_hba = *(struct tcm_loop_hba **)shost_priv(sc->device->host);
 	tl_tpg = &tl_hba->tl_hba_tpgs[sc->device->id];
+
 	/*
 	 * Ensure that this tl_tpg reference from the incoming sc->device->id
 	 * has already been configured via tcm_loop_make_naa_tpg().
@@ -240,7 +228,6 @@ static int tcm_loop_queuecommand(
 		set_host_byte(sc, DID_NO_CONNECT);
 		goto out_done;
 	}
-	se_tpg = &tl_tpg->tl_se_tpg;
 
 	tl_nexus = tl_hba->tl_nexus;
 	if (!tl_nexus) {
@@ -249,18 +236,9 @@ static int tcm_loop_queuecommand(
 		set_host_byte(sc, DID_ERROR);
 		goto out_done;
 	}
-	se_sess = tl_nexus->se_sess;
 
-	tl_cmd = kmem_cache_zalloc(tcm_loop_cmd_cache, GFP_ATOMIC);
-	if (!tl_cmd) {
-		pr_err("Unable to allocate struct tcm_loop_cmd\n");
-		set_host_byte(sc, DID_ERROR);
-		goto out_done;
-	}
-	se_cmd = &tl_cmd->tl_se_cmd;
-	tl_cmd->sc = sc;
-
-	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess,
+	transport_init_se_cmd(se_cmd, tl_tpg->tl_se_tpg.se_tpg_tfo,
+			tl_nexus->se_sess,
 			scsi_bufflen(sc), sc->sc_data_direction,
 			tcm_loop_sam_attr(sc), &tl_cmd->tl_sense_buf[0]);
 
@@ -274,10 +252,37 @@ static int tcm_loop_queuecommand(
 	}
 
 	transport_generic_handle_cdb_map(se_cmd);
-	return 0;
+	return;
 
 out_done:
 	sc->scsi_done(sc);
+	return;
+}
+
+/*
+ * ->queuecommand can be and usually is called from interrupt context, so
+ * defer the actual submission to a workqueue.
+ */
+static int tcm_loop_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *sc)
+{
+	struct tcm_loop_cmd *tl_cmd;
+
+	pr_debug("tcm_loop_queuecommand() %d:%d:%d:%d got CDB: 0x%02x"
+		" scsi_buf_len: %u\n", sc->device->host->host_no,
+		sc->device->id, sc->device->channel, sc->device->lun,
+		sc->cmnd[0], scsi_bufflen(sc));
+
+	tl_cmd = kmem_cache_zalloc(tcm_loop_cmd_cache, GFP_ATOMIC);
+	if (!tl_cmd) {
+		pr_err("Unable to allocate struct tcm_loop_cmd\n");
+		set_host_byte(sc, DID_ERROR);
+		sc->scsi_done(sc);
+		return 0;
+	}
+
+	tl_cmd->sc = sc;
+	INIT_WORK(&tl_cmd->work, tcm_loop_submission_work);
+	queue_work(tcm_loop_workqueue, &tl_cmd->work);
 	return 0;
 }
 
@@ -1458,7 +1463,11 @@ static void tcm_loop_deregister_configfs(void)
 
 static int __init tcm_loop_fabric_init(void)
 {
-	int ret;
+	int ret = -ENOMEM;
+
+	tcm_loop_workqueue = alloc_workqueue("tcm_loop", 0, 0);
+	if (!tcm_loop_workqueue)
+		goto out;
 
 	tcm_loop_cmd_cache = kmem_cache_create("tcm_loop_cmd_cache",
 				sizeof(struct tcm_loop_cmd),
@@ -1467,20 +1476,27 @@ static int __init tcm_loop_fabric_init(void)
 	if (!tcm_loop_cmd_cache) {
 		pr_debug("kmem_cache_create() for"
 			" tcm_loop_cmd_cache failed\n");
-		return -ENOMEM;
+		goto out_destroy_workqueue;
 	}
 
 	ret = tcm_loop_alloc_core_bus();
 	if (ret)
-		return ret;
+		goto out_destroy_cache;
 
 	ret = tcm_loop_register_configfs();
-	if (ret) {
-		tcm_loop_release_core_bus();
-		return ret;
-	}
+	if (ret)
+		goto out_release_core_bus;
 
 	return 0;
+
+out_release_core_bus:
+	tcm_loop_release_core_bus();
+out_destroy_cache:
+	kmem_cache_destroy(tcm_loop_cmd_cache);
+out_destroy_workqueue:
+	destroy_workqueue(tcm_loop_workqueue);
+out:
+	return ret;
 }
 
 static void __exit tcm_loop_fabric_exit(void)
@@ -1488,6 +1504,7 @@ static void __exit tcm_loop_fabric_exit(void)
 	tcm_loop_deregister_configfs();
 	tcm_loop_release_core_bus();
 	kmem_cache_destroy(tcm_loop_cmd_cache);
+	destroy_workqueue(tcm_loop_workqueue);
 }
 
 MODULE_DESCRIPTION("TCM loopback virtual Linux/SCSI fabric module");
