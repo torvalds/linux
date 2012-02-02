@@ -1758,8 +1758,8 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
 			RT_ASSERT(false,
 				  "Unable to obtain 32bit DMA for consistent allocations\n");
-			pci_disable_device(pdev);
-			return -ENOMEM;
+			err = -ENOMEM;
+			goto fail1;
 		}
 	}
 
@@ -1801,7 +1801,7 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 	err = pci_request_regions(pdev, KBUILD_MODNAME);
 	if (err) {
 		RT_ASSERT(false, "Can't obtain PCI resources\n");
-		goto fail2;
+		goto fail1;
 	}
 
 	pmem_start = pci_resource_start(pdev, rtlpriv->cfg->bar_id);
@@ -1814,6 +1814,7 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 			rtlpriv->cfg->bar_id, pmem_len);
 	if (rtlpriv->io.pci_mem_start == 0) {
 		RT_ASSERT(false, "Can't map PCI mem\n");
+		err = -ENOMEM;
 		goto fail2;
 	}
 
@@ -1830,8 +1831,10 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 	pci_write_config_byte(pdev, 0x04, 0x07);
 
 	/* find adapter */
-	if (!_rtl_pci_find_adapter(pdev, hw))
+	if (!_rtl_pci_find_adapter(pdev, hw)) {
+		err = -ENODEV;
 		goto fail3;
+	}
 
 	/* Init IO handler */
 	_rtl_pci_io_handler_init(&pdev->dev, hw);
@@ -1841,6 +1844,7 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 
 	if (rtlpriv->cfg->ops->init_sw_vars(hw)) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Can't init_sw_vars\n");
+		err = -ENODEV;
 		goto fail3;
 	}
 
@@ -1885,7 +1889,6 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 	return 0;
 
 fail3:
-	pci_set_drvdata(pdev, NULL);
 	rtl_deinit_core(hw);
 	_rtl_pci_io_handler_release(hw);
 
@@ -1897,10 +1900,12 @@ fail2:
 	complete(&rtlpriv->firmware_loading_complete);
 
 fail1:
-
+	if (hw)
+		ieee80211_free_hw(hw);
+	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 
-	return -ENODEV;
+	return err;
 
 }
 EXPORT_SYMBOL(rtl_pci_probe);
