@@ -49,81 +49,6 @@ static struct kmem_cache *tcm_loop_cmd_cache;
 static int tcm_loop_hba_no_cnt;
 
 /*
- * Allocate a tcm_loop cmd descriptor from target_core_mod code
- *
- * Can be called from interrupt context in tcm_loop_queuecommand() below
- */
-static struct se_cmd *tcm_loop_allocate_core_cmd(
-	struct tcm_loop_hba *tl_hba,
-	struct se_portal_group *se_tpg,
-	struct scsi_cmnd *sc)
-{
-	struct se_cmd *se_cmd;
-	struct se_session *se_sess;
-	struct tcm_loop_nexus *tl_nexus = tl_hba->tl_nexus;
-	struct tcm_loop_cmd *tl_cmd;
-	int sam_task_attr;
-
-	if (!tl_nexus) {
-		scmd_printk(KERN_ERR, sc, "TCM_Loop I_T Nexus"
-				" does not exist\n");
-		set_host_byte(sc, DID_ERROR);
-		return NULL;
-	}
-	se_sess = tl_nexus->se_sess;
-
-	tl_cmd = kmem_cache_zalloc(tcm_loop_cmd_cache, GFP_ATOMIC);
-	if (!tl_cmd) {
-		pr_err("Unable to allocate struct tcm_loop_cmd\n");
-		set_host_byte(sc, DID_ERROR);
-		return NULL;
-	}
-	se_cmd = &tl_cmd->tl_se_cmd;
-	/*
-	 * Save the pointer to struct scsi_cmnd *sc
-	 */
-	tl_cmd->sc = sc;
-	/*
-	 * Locate the SAM Task Attr from struct scsi_cmnd *
-	 */
-	if (sc->device->tagged_supported) {
-		switch (sc->tag) {
-		case HEAD_OF_QUEUE_TAG:
-			sam_task_attr = MSG_HEAD_TAG;
-			break;
-		case ORDERED_QUEUE_TAG:
-			sam_task_attr = MSG_ORDERED_TAG;
-			break;
-		default:
-			sam_task_attr = MSG_SIMPLE_TAG;
-			break;
-		}
-	} else
-		sam_task_attr = MSG_SIMPLE_TAG;
-
-	/*
-	 * Initialize struct se_cmd descriptor from target_core_mod infrastructure
-	 */
-	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess,
-			scsi_bufflen(sc), sc->sc_data_direction, sam_task_attr,
-			&tl_cmd->tl_sense_buf[0]);
-
-	if (scsi_bidi_cmnd(sc))
-		se_cmd->se_cmd_flags |= SCF_BIDI;
-
-	/*
-	 * Locate the struct se_lun pointer and attach it to struct se_cmd
-	 */
-	if (transport_lookup_cmd_lun(se_cmd, tl_cmd->sc->device->lun) < 0) {
-		kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
-		set_host_byte(sc, DID_NO_CONNECT);
-		return NULL;
-	}
-
-	return se_cmd;
-}
-
-/*
  * Called by struct target_core_fabric_ops->new_cmd_map()
  *
  * Always called in process context.  A non zero return value
@@ -263,6 +188,25 @@ static int tcm_loop_change_queue_depth(
 }
 
 /*
+ * Locate the SAM Task Attr from struct scsi_cmnd *
+ */
+static int tcm_loop_sam_attr(struct scsi_cmnd *sc)
+{
+	if (sc->device->tagged_supported) {
+		switch (sc->tag) {
+		case HEAD_OF_QUEUE_TAG:
+			return MSG_HEAD_TAG;
+		case ORDERED_QUEUE_TAG:
+			return MSG_ORDERED_TAG;
+		default:
+			break;
+		}
+	}
+
+	return MSG_SIMPLE_TAG;
+}
+
+/*
  * Main entry point from struct scsi_host_template for incoming SCSI CDB+Data
  * from Linux/SCSI subsystem for SCSI low level device drivers (LLDs)
  */
@@ -274,6 +218,10 @@ static int tcm_loop_queuecommand(
 	struct se_portal_group *se_tpg;
 	struct tcm_loop_hba *tl_hba;
 	struct tcm_loop_tpg *tl_tpg;
+	struct se_session *se_sess;
+	struct tcm_loop_nexus *tl_nexus;
+	struct tcm_loop_cmd *tl_cmd;
+
 
 	pr_debug("tcm_loop_queuecommand() %d:%d:%d:%d got CDB: 0x%02x"
 		" scsi_buf_len: %u\n", sc->device->host->host_no,
@@ -290,23 +238,46 @@ static int tcm_loop_queuecommand(
 	 */
 	if (!tl_tpg->tl_hba) {
 		set_host_byte(sc, DID_NO_CONNECT);
-		sc->scsi_done(sc);
-		return 0;
+		goto out_done;
 	}
 	se_tpg = &tl_tpg->tl_se_tpg;
-	/*
-	 * Determine the SAM Task Attribute and allocate tl_cmd and
-	 * tl_cmd->tl_se_cmd from TCM infrastructure
-	 */
-	se_cmd = tcm_loop_allocate_core_cmd(tl_hba, se_tpg, sc);
-	if (!se_cmd) {
-		sc->scsi_done(sc);
-		return 0;
+
+	tl_nexus = tl_hba->tl_nexus;
+	if (!tl_nexus) {
+		scmd_printk(KERN_ERR, sc, "TCM_Loop I_T Nexus"
+				" does not exist\n");
+		set_host_byte(sc, DID_ERROR);
+		goto out_done;
 	}
-	/*
-	 * Queue up the newly allocated to be processed in TCM thread context.
-	*/
+	se_sess = tl_nexus->se_sess;
+
+	tl_cmd = kmem_cache_zalloc(tcm_loop_cmd_cache, GFP_ATOMIC);
+	if (!tl_cmd) {
+		pr_err("Unable to allocate struct tcm_loop_cmd\n");
+		set_host_byte(sc, DID_ERROR);
+		goto out_done;
+	}
+	se_cmd = &tl_cmd->tl_se_cmd;
+	tl_cmd->sc = sc;
+
+	transport_init_se_cmd(se_cmd, se_tpg->se_tpg_tfo, se_sess,
+			scsi_bufflen(sc), sc->sc_data_direction,
+			tcm_loop_sam_attr(sc), &tl_cmd->tl_sense_buf[0]);
+
+	if (scsi_bidi_cmnd(sc))
+		se_cmd->se_cmd_flags |= SCF_BIDI;
+
+	if (transport_lookup_cmd_lun(se_cmd, tl_cmd->sc->device->lun) < 0) {
+		kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
+		set_host_byte(sc, DID_NO_CONNECT);
+		goto out_done;
+	}
+
 	transport_generic_handle_cdb_map(se_cmd);
+	return 0;
+
+out_done:
+	sc->scsi_done(sc);
 	return 0;
 }
 
