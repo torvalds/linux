@@ -2224,28 +2224,24 @@ static ssize_t rbd_add(struct bus_type *bus,
 		       const char *buf,
 		       size_t count)
 {
-	struct ceph_osd_client *osdc;
 	struct rbd_device *rbd_dev;
-	ssize_t rc = -ENOMEM;
-	int irc;
-	char *mon_dev_name;
-	char *options;
+	char *mon_dev_name = NULL;
+	char *options = NULL;
+	struct ceph_osd_client *osdc;
+	int rc = -ENOMEM;
 
 	if (!try_module_get(THIS_MODULE))
 		return -ENODEV;
 
-	mon_dev_name = kmalloc(count, GFP_KERNEL);
-	if (!mon_dev_name)
-		goto err_out_mod;
-
-	options = kmalloc(count, GFP_KERNEL);
-	if (!options)
-		goto err_mon_dev;
-
-	/* new rbd_device object */
 	rbd_dev = kzalloc(sizeof(*rbd_dev), GFP_KERNEL);
 	if (!rbd_dev)
-		goto err_out_opt;
+		goto err_nomem;
+	mon_dev_name = kmalloc(count, GFP_KERNEL);
+	if (!mon_dev_name)
+		goto err_nomem;
+	options = kmalloc(count, GFP_KERNEL);
+	if (!options)
+		goto err_nomem;
 
 	/* static rbd_device initialization */
 	spin_lock_init(&rbd_dev->lock);
@@ -2294,12 +2290,10 @@ static ssize_t rbd_add(struct bus_type *bus,
 	rbd_dev->poolid = rc;
 
 	/* register our block device */
-	irc = register_blkdev(0, rbd_dev->name);
-	if (irc < 0) {
-		rc = irc;
+	rc = register_blkdev(0, rbd_dev->name);
+	if (rc < 0)
 		goto err_out_client;
-	}
-	rbd_dev->major = irc;
+	rbd_dev->major = rc;
 
 	rc = rbd_bus_add_dev(rbd_dev);
 	if (rc)
@@ -2332,15 +2326,15 @@ err_out_client:
 	rbd_put_client(rbd_dev);
 err_put_id:
 	rbd_id_put(rbd_dev);
-	kfree(rbd_dev);
-err_out_opt:
+err_nomem:
 	kfree(options);
-err_mon_dev:
 	kfree(mon_dev_name);
-err_out_mod:
+	kfree(rbd_dev);
+
 	dout("Error adding device %s\n", buf);
 	module_put(THIS_MODULE);
-	return rc;
+
+	return (ssize_t) rc;
 }
 
 static struct rbd_device *__rbd_get_dev(unsigned long id)
