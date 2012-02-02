@@ -14,6 +14,22 @@
 		clock-frequency = < 408000000 >;
 	};
 
+	serial@70006040 {
+		status = "disable";
+	};
+
+	serial@70006200 {
+		status = "disable";
+	};
+
+	serial@70006300 {
+		status = "disable";
+	};
+
+	serial@70006400 {
+		status = "disable";
+	};
+
 	i2c@7000c000 {
 		clock-frequency = <100000>;
 	};

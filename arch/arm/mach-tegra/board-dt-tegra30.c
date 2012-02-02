@@ -56,7 +56,7 @@ struct of_dev_auxdata tegra30_auxdata_lookup[] __initdata = {
 
 static __initdata struct tegra_clk_init_table tegra_dt_clk_init_table[] = {
 	/* name		parent		rate		enabled */
-	{ "uartd",	"pll_p",	408000000,	true },
+	{ "uarta",	"pll_p",	408000000,	true },
 	{ NULL,		NULL,		0,		0},
 };
 
