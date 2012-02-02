@@ -14,10 +14,8 @@
 #include <linux/kernel.h>
 #include <linux/utsname.h>
 
-#include "u_uac1.h"
-
 #define DRIVER_DESC		"Linux USB Audio Gadget"
-#define DRIVER_VERSION		"Dec 18, 2008"
+#define DRIVER_VERSION		"Feb 2, 2012"
 
 /*-------------------------------------------------------------------------*/
 
@@ -56,8 +54,13 @@ static struct usb_gadget_strings *audio_strings[] = {
 	NULL,
 };
 
+#ifdef CONFIG_GADGET_UAC1
+#include "u_uac1.h"
 #include "u_uac1.c"
 #include "f_uac1.c"
+#else
+#include "f_uac2.c"
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -77,9 +80,15 @@ static struct usb_device_descriptor device_desc = {
 
 	.bcdUSB =		__constant_cpu_to_le16(0x200),
 
+#ifdef CONFIG_GADGET_UAC1
 	.bDeviceClass =		USB_CLASS_PER_INTERFACE,
 	.bDeviceSubClass =	0,
 	.bDeviceProtocol =	0,
+#else
+	.bDeviceClass =		USB_CLASS_MISC,
+	.bDeviceSubClass =	0x02,
+	.bDeviceProtocol =	0x01,
+#endif
 	/* .bMaxPacketSize0 = f(hardware) */
 
 	/* Vendor and product id defaults change according to what configs
@@ -131,6 +140,9 @@ static struct usb_configuration audio_config_driver = {
 	.bConfigurationValue	= 1,
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
+#ifndef CONFIG_GADGET_UAC1
+	.unbind			= uac2_unbind_config,
+#endif
 };
 
 /*-------------------------------------------------------------------------*/
@@ -180,7 +192,9 @@ fail:
 
 static int __exit audio_unbind(struct usb_composite_dev *cdev)
 {
+#ifdef CONFIG_GADGET_UAC1
 	gaudio_cleanup();
+#endif
 	return 0;
 }
 
