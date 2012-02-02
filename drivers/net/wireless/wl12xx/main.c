@@ -3840,40 +3840,6 @@ sta_not_found:
 	if (ret < 0)
 		goto out;
 
-	if ((changed & BSS_CHANGED_ARP_FILTER) ||
-	    (!is_ibss && (changed & BSS_CHANGED_QOS))) {
-		__be32 addr = bss_conf->arp_addr_list[0];
-		wlvif->sta.qos = bss_conf->qos;
-		WARN_ON(wlvif->bss_type != BSS_TYPE_STA_BSS);
-
-		if (bss_conf->arp_addr_cnt == 1 &&
-		    bss_conf->arp_filter_enabled) {
-			wlvif->ip_addr = addr;
-			/*
-			 * The template should have been configured only upon
-			 * association. however, it seems that the correct ip
-			 * isn't being set (when sending), so we have to
-			 * reconfigure the template upon every ip change.
-			 */
-			ret = wl1271_cmd_build_arp_rsp(wl, wlvif);
-			if (ret < 0) {
-				wl1271_warning("build arp rsp failed: %d", ret);
-				goto out;
-			}
-
-			ret = wl1271_acx_arp_ip_filter(wl, wlvif,
-				(ACX_ARP_FILTER_ARP_FILTERING |
-				 ACX_ARP_FILTER_AUTO_ARP),
-				addr);
-		} else {
-			wlvif->ip_addr = 0;
-			ret = wl1271_acx_arp_ip_filter(wl, wlvif, 0, addr);
-		}
-
-		if (ret < 0)
-			goto out;
-	}
-
 	if (do_join) {
 		ret = wl1271_join(wl, wlvif, set_assoc);
 		if (ret < 0) {
@@ -3938,6 +3904,41 @@ sta_not_found:
 			wl1271_warning("Set ht information failed %d", ret);
 			goto out;
 		}
+	}
+
+	/* Handle arp filtering. Done after join. */
+	if ((changed & BSS_CHANGED_ARP_FILTER) ||
+	    (!is_ibss && (changed & BSS_CHANGED_QOS))) {
+		__be32 addr = bss_conf->arp_addr_list[0];
+		wlvif->sta.qos = bss_conf->qos;
+		WARN_ON(wlvif->bss_type != BSS_TYPE_STA_BSS);
+
+		if (bss_conf->arp_addr_cnt == 1 &&
+		    bss_conf->arp_filter_enabled) {
+			wlvif->ip_addr = addr;
+			/*
+			 * The template should have been configured only upon
+			 * association. however, it seems that the correct ip
+			 * isn't being set (when sending), so we have to
+			 * reconfigure the template upon every ip change.
+			 */
+			ret = wl1271_cmd_build_arp_rsp(wl, wlvif);
+			if (ret < 0) {
+				wl1271_warning("build arp rsp failed: %d", ret);
+				goto out;
+			}
+
+			ret = wl1271_acx_arp_ip_filter(wl, wlvif,
+				(ACX_ARP_FILTER_ARP_FILTERING |
+				 ACX_ARP_FILTER_AUTO_ARP),
+				addr);
+		} else {
+			wlvif->ip_addr = 0;
+			ret = wl1271_acx_arp_ip_filter(wl, wlvif, 0, addr);
+		}
+
+		if (ret < 0)
+			goto out;
 	}
 
 out:
