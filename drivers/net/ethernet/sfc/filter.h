@@ -20,6 +20,8 @@
  * @EFX_FILTER_UDP_WILD: Matching UDP/IPv4 destination (host, port)
  * @EFX_FILTER_MAC_FULL: Matching Ethernet destination MAC address, VID
  * @EFX_FILTER_MAC_WILD: Matching Ethernet destination MAC address
+ * @EFX_FILTER_UC_DEF: Matching all otherwise unmatched unicast
+ * @EFX_FILTER_MC_DEF: Matching all otherwise unmatched multicast
  * @EFX_FILTER_UNSPEC: Match type is unspecified
  *
  * Falcon NICs only support the TCP/IPv4 and UDP/IPv4 filter types.
@@ -31,6 +33,8 @@ enum efx_filter_type {
 	EFX_FILTER_UDP_WILD,
 	EFX_FILTER_MAC_FULL = 4,
 	EFX_FILTER_MAC_WILD,
+	EFX_FILTER_UC_DEF = 8,
+	EFX_FILTER_MC_DEF,
 	EFX_FILTER_TYPE_COUNT,		/* number of specific types */
 	EFX_FILTER_UNSPEC = 0xf,
 };
@@ -117,6 +121,8 @@ extern int efx_filter_set_eth_local(struct efx_filter_spec *spec,
 				    u16 vid, const u8 *addr);
 extern int efx_filter_get_eth_local(const struct efx_filter_spec *spec,
 				    u16 *vid, u8 *addr);
+extern int efx_filter_set_uc_def(struct efx_filter_spec *spec);
+extern int efx_filter_set_mc_def(struct efx_filter_spec *spec);
 enum {
 	EFX_FILTER_VID_UNSPEC = 0xffff,
 };
