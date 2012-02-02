@@ -1208,7 +1208,7 @@ static int i915_load_gem_init(struct drm_device *dev)
 	i915_gem_do_init(dev, 0, mappable_size, gtt_size - PAGE_SIZE);
 
 	mutex_lock(&dev->struct_mutex);
-	ret = i915_gem_init_ringbuffer(dev);
+	ret = i915_gem_init_hw(dev);
 	mutex_unlock(&dev->struct_mutex);
 	if (ret)
 		return ret;

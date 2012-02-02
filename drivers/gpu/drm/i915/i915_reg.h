@@ -295,6 +295,12 @@
 #define FENCE_REG_SANDYBRIDGE_0		0x100000
 #define   SANDYBRIDGE_FENCE_PITCH_SHIFT	32
 
+/* control register for cpu gtt access */
+#define TILECTL				0x101000
+#define   TILECTL_SWZCTL			(1 << 0)
+#define   TILECTL_TLB_PREFETCH_DIS	(1 << 2)
+#define   TILECTL_BACKSNOOP_DIS		(1 << 3)
+
 /*
  * Instruction and interrupt control regs
  */
@@ -318,6 +324,11 @@
 #define RING_MAX_IDLE(base)	((base)+0x54)
 #define RING_HWS_PGA(base)	((base)+0x80)
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
+#define ARB_MODE		0x04030
+#define   ARB_MODE_SWIZZLE_SNB	(1<<4)
+#define   ARB_MODE_SWIZZLE_IVB	(1<<5)
+#define   ARB_MODE_ENABLE(x)	GFX_MODE_ENABLE(x)
+#define   ARB_MODE_DISABLE(x)	GFX_MODE_DISABLE(x)
 #define RENDER_HWS_PGA_GEN7	(0x04080)
 #define RING_FAULT_REG(ring)	(0x4094 + 0x100*(ring)->id)
 #define DONE_REG		0x40b0
@@ -1036,6 +1047,29 @@
 /** 965 MCH register controlling DRAM channel configuration */
 #define C0DRB3			0x10206
 #define C1DRB3			0x10606
+
+/** snb MCH registers for reading the DRAM channel configuration */
+#define MAD_DIMM_C0			(MCHBAR_MIRROR_BASE_SNB + 0x5004)
+#define MAD_DIMM_C1			(MCHBAR_MIRROR_BASE_SNB + 0x5008)
+#define MAD_DIMM_C2			(MCHBAR_MIRROR_BASE_SNB + 0x500C)
+#define   MAD_DIMM_ECC_MASK		(0x3 << 24)
+#define   MAD_DIMM_ECC_OFF		(0x0 << 24)
+#define   MAD_DIMM_ECC_IO_ON_LOGIC_OFF	(0x1 << 24)
+#define   MAD_DIMM_ECC_IO_OFF_LOGIC_ON	(0x2 << 24)
+#define   MAD_DIMM_ECC_ON		(0x3 << 24)
+#define   MAD_DIMM_ENH_INTERLEAVE	(0x1 << 22)
+#define   MAD_DIMM_RANK_INTERLEAVE	(0x1 << 21)
+#define   MAD_DIMM_B_WIDTH_X16		(0x1 << 20) /* X8 chips if unset */
+#define   MAD_DIMM_A_WIDTH_X16		(0x1 << 19) /* X8 chips if unset */
+#define   MAD_DIMM_B_DUAL_RANK		(0x1 << 18)
+#define   MAD_DIMM_A_DUAL_RANK		(0x1 << 17)
+#define   MAD_DIMM_A_SELECT		(0x1 << 16)
+/* DIMM sizes are in multiples of 256mb. */
+#define   MAD_DIMM_B_SIZE_SHIFT		8
+#define   MAD_DIMM_B_SIZE_MASK		(0xff << MAD_DIMM_B_SIZE_SHIFT)
+#define   MAD_DIMM_A_SIZE_SHIFT		0
+#define   MAD_DIMM_A_SIZE_MASK		(0xff << MAD_DIMM_A_SIZE_SHIFT)
+
 
 /* Clocking configuration register */
 #define CLKCFG			0x10c00

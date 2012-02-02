@@ -495,7 +495,7 @@ static int i915_drm_thaw(struct drm_device *dev)
 		mutex_lock(&dev->struct_mutex);
 		dev_priv->mm.suspended = 0;
 
-		error = i915_gem_init_ringbuffer(dev);
+		error = i915_gem_init_hw(dev);
 		mutex_unlock(&dev->struct_mutex);
 
 		if (HAS_PCH_SPLIT(dev))
@@ -685,6 +685,8 @@ int i915_reset(struct drm_device *dev, u8 flags)
 	if (drm_core_check_feature(dev, DRIVER_MODESET) ||
 			!dev_priv->mm.suspended) {
 		dev_priv->mm.suspended = 0;
+
+		i915_gem_init_swizzling(dev);
 
 		dev_priv->ring[RCS].init(&dev_priv->ring[RCS]);
 		if (HAS_BSD(dev))
