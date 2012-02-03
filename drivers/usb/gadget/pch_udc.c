@@ -15,6 +15,13 @@
 #include <linux/interrupt.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/gpio.h>
+
+/* GPIO port for VBUS detecting */
+static int vbus_gpio_port = -1;		/* GPIO port number (-1:Not used) */
+
+#define PCH_VBUS_PERIOD		3000	/* VBUS polling period (msec) */
+#define PCH_VBUS_INTERVAL	10	/* VBUS polling interval (msec) */
 
 /* Address offset of Registers */
 #define UDC_EP_REG_SHIFT	0x20	/* Offset to next EP */
@@ -296,6 +303,17 @@ struct pch_udc_ep {
 };
 
 /**
+ * struct pch_vbus_gpio_data - Structure holding GPIO informaton
+ *					for detecting VBUS
+ * @port:		gpio port number
+ * @irq_work_fall	Structure for WorkQueue
+ */
+struct pch_vbus_gpio_data {
+	int			port;
+	struct work_struct	irq_work_fall;
+};
+
+/**
  * struct pch_udc_dev - Structure holding complete information
  *			of the PCH USB device
  * @gadget:		gadget driver data
@@ -323,6 +341,7 @@ struct pch_udc_ep {
  * @base_addr:		for mapped device memory
  * @irq:		IRQ line for the device
  * @cfg_data:		current cfg, intf, and alt in use
+ * @vbus_gpio:		GPIO informaton for detecting VBUS
  */
 struct pch_udc_dev {
 	struct usb_gadget		gadget;
@@ -349,7 +368,8 @@ struct pch_udc_dev {
 	unsigned long			phys_addr;
 	void __iomem			*base_addr;
 	unsigned			irq;
-	struct pch_udc_cfg_data	cfg_data;
+	struct pch_udc_cfg_data		cfg_data;
+	struct pch_vbus_gpio_data	vbus_gpio;
 };
 
 #define PCH_UDC_PCI_BAR			1
@@ -1224,6 +1244,115 @@ static const struct usb_gadget_ops pch_udc_ops = {
 	.start	= pch_udc_start,
 	.stop	= pch_udc_stop,
 };
+
+/**
+ * pch_vbus_gpio_get_value() - This API gets value of GPIO port as VBUS status.
+ * @dev:	Reference to the driver structure
+ *
+ * Return value:
+ *	1: VBUS is high
+ *	0: VBUS is low
+ *     -1: It is not enable to detect VBUS using GPIO
+ */
+static int pch_vbus_gpio_get_value(struct pch_udc_dev *dev)
+{
+	int vbus = 0;
+
+	if (dev->vbus_gpio.port)
+		vbus = gpio_get_value(dev->vbus_gpio.port) ? 1 : 0;
+	else
+		vbus = -1;
+
+	return vbus;
+}
+
+/**
+ * pch_vbus_gpio_work_fall() - This API keeps watch on VBUS becoming Low.
+ *                             If VBUS is Low, disconnect is processed
+ * @irq_work:	Structure for WorkQueue
+ *
+ */
+static void pch_vbus_gpio_work_fall(struct work_struct *irq_work)
+{
+	struct pch_vbus_gpio_data *vbus_gpio = container_of(irq_work,
+		struct pch_vbus_gpio_data, irq_work_fall);
+	struct pch_udc_dev *dev =
+		container_of(vbus_gpio, struct pch_udc_dev, vbus_gpio);
+	int vbus_saved = -1;
+	int vbus;
+	int count;
+
+	if (!dev->vbus_gpio.port)
+		return;
+
+	for (count = 0; count < (PCH_VBUS_PERIOD / PCH_VBUS_INTERVAL);
+		count++) {
+		vbus = pch_vbus_gpio_get_value(dev);
+
+		if ((vbus_saved == vbus) && (vbus == 0)) {
+			dev_dbg(&dev->pdev->dev, "VBUS fell");
+			if (dev->driver
+				&& dev->driver->disconnect) {
+				dev->driver->disconnect(
+					&dev->gadget);
+			}
+			pch_udc_reconnect(dev);
+			dev_dbg(&dev->pdev->dev, "VBUS fell");
+			return;
+		}
+		vbus_saved = vbus;
+		mdelay(PCH_VBUS_INTERVAL);
+	}
+}
+
+/**
+ * pch_vbus_gpio_init() - This API initializes GPIO port detecting VBUS.
+ * @dev:	Reference to the driver structure
+ * @vbus_gpio	Number of GPIO port to detect gpio
+ *
+ * Return codes:
+ *	0: Success
+ *	-EINVAL: GPIO port is invalid or can't be initialized.
+ */
+static int pch_vbus_gpio_init(struct pch_udc_dev *dev, int vbus_gpio_port)
+{
+	int err;
+
+	dev->vbus_gpio.port = 0;
+
+	if (vbus_gpio_port <= -1)
+		return -EINVAL;
+
+	err = gpio_is_valid(vbus_gpio_port);
+	if (!err) {
+		pr_err("%s: gpio port %d is invalid\n",
+			__func__, vbus_gpio_port);
+		return -EINVAL;
+	}
+
+	err = gpio_request(vbus_gpio_port, "pch_vbus");
+	if (err) {
+		pr_err("%s: can't request gpio port %d, err: %d\n",
+			__func__, vbus_gpio_port, err);
+		return -EINVAL;
+	}
+
+	dev->vbus_gpio.port = vbus_gpio_port;
+	gpio_direction_input(vbus_gpio_port);
+	INIT_WORK(&dev->vbus_gpio.irq_work_fall, pch_vbus_gpio_work_fall);
+
+	return 0;
+}
+
+/**
+ * pch_vbus_gpio_free() - This API frees resources of GPIO port
+ * @dev:	Reference to the driver structure
+ */
+static void pch_vbus_gpio_free(struct pch_udc_dev *dev)
+{
+	if (dev->vbus_gpio.port)
+		gpio_free(dev->vbus_gpio.port);
+}
 
 /**
  * complete_req() - This API is invoked from the driver when processing
@@ -2510,6 +2639,8 @@ static void pch_udc_svc_cfg_interrupt(struct pch_udc_dev *dev)
  */
 static void pch_udc_dev_isr(struct pch_udc_dev *dev, u32 dev_intr)
 {
+	int vbus;
+
 	/* USB Reset Interrupt */
 	if (dev_intr & UDC_DEVINT_UR) {
 		pch_udc_svc_ur_interrupt(dev);
@@ -2535,14 +2666,19 @@ static void pch_udc_dev_isr(struct pch_udc_dev *dev, u32 dev_intr)
 			spin_lock(&dev->lock);
 		}
 
-		if (dev->vbus_session == 0) {
+		vbus = pch_vbus_gpio_get_value(dev);
+		if ((dev->vbus_session == 0)
+			&& (vbus != 1)) {
 			if (dev->driver && dev->driver->disconnect) {
 				spin_unlock(&dev->lock);
 				dev->driver->disconnect(&dev->gadget);
 				spin_lock(&dev->lock);
 			}
 			pch_udc_reconnect(dev);
-		}
+		} else if ((dev->vbus_session == 0)
+			&& (vbus == 1))
+			schedule_work(&dev->vbus_gpio.irq_work_fall);
+
 		dev_dbg(&dev->pdev->dev, "USB_SUSPEND\n");
 	}
 	/* Clear the SOF interrupt, if enabled */
@@ -2704,6 +2840,7 @@ static int pch_udc_pcd_init(struct pch_udc_dev *dev)
 {
 	pch_udc_init(dev);
 	pch_udc_pcd_reinit(dev);
+	pch_vbus_gpio_init(dev, vbus_gpio_port);
 	return 0;
 }
 
@@ -2881,6 +3018,8 @@ static void pch_udc_remove(struct pci_dev *pdev)
 		dma_unmap_single(&dev->pdev->dev, dev->dma_addr,
 				 UDC_EP0OUT_BUFF_SIZE * 4, DMA_FROM_DEVICE);
 	kfree(dev->ep0out_buf);
+
+	pch_vbus_gpio_free(dev);
 
 	pch_udc_exit(dev);
 
