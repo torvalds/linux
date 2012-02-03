@@ -116,7 +116,7 @@
 
 #define FSI_FMTS (SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE)
 
-typedef int (*set_rate_func)(struct device *dev, int is_porta, int rate, int enable);
+typedef int (*set_rate_func)(struct device *dev, int rate, int enable);
 
 /*
  * FSI driver use below type name for variable
@@ -185,6 +185,7 @@ struct fsi_stream {
 struct fsi_priv {
 	void __iomem *base;
 	struct fsi_master *master;
+	struct sh_fsi_port_info *info;
 
 	struct fsi_stream playback;
 	struct fsi_stream capture;
@@ -227,7 +228,6 @@ struct fsi_master {
 	struct fsi_priv fsia;
 	struct fsi_priv fsib;
 	struct fsi_core *core;
-	struct sh_fsi_platform_info *info;
 	spinlock_t lock;
 };
 
@@ -346,24 +346,20 @@ static struct fsi_priv *fsi_get_priv(struct snd_pcm_substream *substream)
 	return fsi_get_priv_frm_dai(fsi_get_dai(substream));
 }
 
-static set_rate_func fsi_get_info_set_rate(struct fsi_master *master)
+static set_rate_func fsi_get_info_set_rate(struct fsi_priv *fsi)
 {
-	if (!master->info)
+	if (!fsi->info)
 		return NULL;
 
-	return master->info->set_rate;
+	return fsi->info->set_rate;
 }
 
 static u32 fsi_get_info_flags(struct fsi_priv *fsi)
 {
-	int is_porta = fsi_is_port_a(fsi);
-	struct fsi_master *master = fsi_get_master(fsi);
-
-	if (!master->info)
+	if (!fsi->info)
 		return 0;
 
-	return is_porta ? master->info->porta_flags :
-		master->info->portb_flags;
+	return fsi->info->flags;
 }
 
 static u32 fsi_get_port_shift(struct fsi_priv *fsi, struct fsi_stream *io)
@@ -628,11 +624,14 @@ static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
 			      long rate, int enable)
 {
 	struct fsi_master *master = fsi_get_master(fsi);
-	set_rate_func set_rate = fsi_get_info_set_rate(master);
+	set_rate_func set_rate = fsi_get_info_set_rate(fsi);
 	int fsi_ver = master->core->ver;
 	int ret;
 
-	ret = set_rate(dev, fsi_is_port_a(fsi), rate, enable);
+	if (!set_rate)
+		return 0;
+
+	ret = set_rate(dev, rate, enable);
 	if (ret < 0) /* error */
 		return ret;
 
@@ -1093,8 +1092,7 @@ static int fsi_set_fmt_spdif(struct fsi_priv *fsi)
 static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct fsi_priv *fsi = fsi_get_priv_frm_dai(dai);
-	struct fsi_master *master = fsi_get_master(fsi);
-	set_rate_func set_rate = fsi_get_info_set_rate(master);
+	set_rate_func set_rate = fsi_get_info_set_rate(fsi);
 	u32 flags = fsi_get_info_flags(fsi);
 	int ret;
 
@@ -1312,6 +1310,7 @@ static int fsi_probe(struct platform_device *pdev)
 {
 	struct fsi_master *master;
 	const struct platform_device_id	*id_entry;
+	struct sh_fsi_platform_info *info = pdev->dev.platform_data;
 	struct resource *res;
 	unsigned int irq;
 	int ret;
@@ -1346,13 +1345,13 @@ static int fsi_probe(struct platform_device *pdev)
 
 	/* master setting */
 	master->irq		= irq;
-	master->info		= pdev->dev.platform_data;
 	master->core		= (struct fsi_core *)id_entry->driver_data;
 	spin_lock_init(&master->lock);
 
 	/* FSI A setting */
 	master->fsia.base	= master->base;
 	master->fsia.master	= master;
+	master->fsia.info	= &info->port_a;
 	fsi_handler_init(&master->fsia);
 	ret = fsi_stream_probe(&master->fsia);
 	if (ret < 0) {
@@ -1363,6 +1362,7 @@ static int fsi_probe(struct platform_device *pdev)
 	/* FSI B setting */
 	master->fsib.base	= master->base + 0x40;
 	master->fsib.master	= master;
+	master->fsib.info	= &info->port_b;
 	fsi_handler_init(&master->fsib);
 	ret = fsi_stream_probe(&master->fsib);
 	if (ret < 0) {

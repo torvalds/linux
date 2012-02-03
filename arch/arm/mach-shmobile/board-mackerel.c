@@ -901,7 +901,7 @@ static int __fsi_set_round_rate(struct clk *clk, long rate, int enable)
 	return clk_enable(clk);
 }
 
-static int fsi_set_rate(struct device *dev, int is_porta, int rate, int enable)
+static int fsi_b_set_rate(struct device *dev, int rate, int enable)
 {
 	struct clk *fsib_clk;
 	struct clk *fdiv_clk = &sh7372_fsidivb_clk;
@@ -909,10 +909,6 @@ static int fsi_set_rate(struct device *dev, int is_porta, int rate, int enable)
 	long fdiv_rate = 0;
 	int ackmd_bpfmd;
 	int ret;
-
-	/* FSIA is slave mode. nothing to do here */
-	if (is_porta)
-		return 0;
 
 	/* clock start */
 	switch (rate) {
@@ -957,14 +953,16 @@ fsi_set_rate_end:
 }
 
 static struct sh_fsi_platform_info fsi_info = {
-	.porta_flags =	SH_FSI_BRS_INV,
-
-	.portb_flags =	SH_FSI_BRS_INV	|
+	.port_a = {
+		.flags = SH_FSI_BRS_INV,
+	},
+	.port_b = {
+		.flags = SH_FSI_BRS_INV	|
 			SH_FSI_BRM_INV	|
 			SH_FSI_LRS_INV	|
 			SH_FSI_FMT_SPDIF,
-
-	.set_rate = fsi_set_rate,
+		.set_rate = fsi_b_set_rate,
+	}
 };
 
 static struct resource fsi_resources[] = {
