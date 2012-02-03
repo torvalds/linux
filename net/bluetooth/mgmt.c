@@ -2191,6 +2191,60 @@ done:
 	return err;
 }
 
+static int load_long_term_keys(struct sock *sk, u16 index,
+					void *cp_data, u16 len)
+{
+	struct hci_dev *hdev;
+	struct mgmt_cp_load_long_term_keys *cp = cp_data;
+	u16 key_count, expected_len;
+	int i;
+
+	if (len < sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_LOAD_LONG_TERM_KEYS,
+								EINVAL);
+
+	key_count = get_unaligned_le16(&cp->key_count);
+
+	expected_len = sizeof(*cp) + key_count *
+					sizeof(struct mgmt_ltk_info);
+	if (expected_len != len) {
+		BT_ERR("load_keys: expected %u bytes, got %u bytes",
+							len, expected_len);
+		return cmd_status(sk, index, MGMT_OP_LOAD_LONG_TERM_KEYS,
+								EINVAL);
+	}
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_LOAD_LONG_TERM_KEYS,
+								ENODEV);
+
+	BT_DBG("hci%u key_count %u", index, key_count);
+
+	hci_dev_lock(hdev);
+
+	hci_smp_ltks_clear(hdev);
+
+	for (i = 0; i < key_count; i++) {
+		struct mgmt_ltk_info *key = &cp->keys[i];
+		u8 type;
+
+		if (key->master)
+			type = HCI_SMP_LTK;
+		else
+			type = HCI_SMP_LTK_SLAVE;
+
+		hci_add_ltk(hdev, &key->addr.bdaddr, key->addr.type,
+					type, 0, key->authenticated, key->val,
+					key->enc_size, key->ediv, key->rand);
+	}
+
+	hci_dev_unlock(hdev);
+	hci_dev_put(hdev);
+
+	return 0;
+}
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 {
 	void *buf;
@@ -2324,6 +2378,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_UNBLOCK_DEVICE:
 		err = unblock_device(sk, index, cp, len);
+		break;
+	case MGMT_OP_LOAD_LONG_TERM_KEYS:
+		err = load_long_term_keys(sk, index, cp, len);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);
@@ -2476,6 +2533,29 @@ int mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 	ev.key.pin_len = key->pin_len;
 
 	return mgmt_event(MGMT_EV_NEW_LINK_KEY, hdev, &ev, sizeof(ev), NULL);
+}
+
+int mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, u8 persistent)
+{
+	struct mgmt_ev_new_long_term_key ev;
+
+	memset(&ev, 0, sizeof(ev));
+
+	ev.store_hint = persistent;
+	bacpy(&ev.key.addr.bdaddr, &key->bdaddr);
+	ev.key.addr.type = key->bdaddr_type;
+	ev.key.authenticated = key->authenticated;
+	ev.key.enc_size = key->enc_size;
+	ev.key.ediv = key->ediv;
+
+	if (key->type == HCI_SMP_LTK)
+		ev.key.master = 1;
+
+	memcpy(ev.key.rand, key->rand, sizeof(key->rand));
+	memcpy(ev.key.val, key->val, sizeof(key->val));
+
+	return mgmt_event(MGMT_EV_NEW_LONG_TERM_KEY, hdev,
+						&ev, sizeof(ev), NULL);
 }
 
 int mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
