@@ -122,6 +122,12 @@ struct adv_entry {
 	u8 bdaddr_type;
 };
 
+struct le_scan_params {
+	u8 type;
+	u16 interval;
+	u16 window;
+};
+
 #define NUM_REASSEMBLY 4
 struct hci_dev {
 	struct list_head list;
@@ -260,6 +266,8 @@ struct hci_dev {
 	struct rfkill		*rfkill;
 
 	unsigned long		dev_flags;
+
+	struct delayed_work	le_scan_disable;
 
 	int (*open)(struct hci_dev *hdev);
 	int (*close)(struct hci_dev *hdev);
