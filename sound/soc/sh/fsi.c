@@ -159,18 +159,27 @@ typedef int (*set_rate_func)(struct device *dev, int is_porta, int rate, int ena
  *		struct
  */
 
+struct fsi_stream_handler;
 struct fsi_stream {
-	struct snd_pcm_substream *substream;
 
+	/*
+	 * these are initialized by fsi_stream_init()
+	 */
+	struct snd_pcm_substream *substream;
 	int fifo_sample_capa;	/* sample capacity of FSI FIFO */
 	int buff_sample_capa;	/* sample capacity of ALSA buffer */
 	int buff_sample_pos;	/* sample position of ALSA buffer */
 	int period_samples;	/* sample number / 1 period */
 	int period_pos;		/* current period position */
 	int sample_width;	/* sample width */
-
 	int uerr_num;
 	int oerr_num;
+
+	/*
+	 * thse are initialized by fsi_handler_init()
+	 */
+	struct fsi_stream_handler *handler;
+	struct fsi_priv		*priv;
 };
 
 struct fsi_priv {
@@ -189,6 +198,16 @@ struct fsi_priv {
 
 	long rate;
 };
+
+struct fsi_stream_handler {
+	int (*probe)(struct fsi_priv *fsi, struct fsi_stream *io);
+	int (*transfer)(struct fsi_priv *fsi, struct fsi_stream *io);
+	int (*remove)(struct fsi_priv *fsi, struct fsi_stream *io);
+};
+#define fsi_stream_handler_call(io, func, args...)	\
+	(!(io) ? -ENODEV :				\
+	 !((io)->handler->func) ? 0 :			\
+	 (io)->handler->func(args))
 
 struct fsi_core {
 	int ver;
@@ -435,6 +454,11 @@ static int fsi_stream_is_working(struct fsi_priv *fsi,
 	return ret;
 }
 
+static struct fsi_priv *fsi_stream_to_priv(struct fsi_stream *io)
+{
+	return io->priv;
+}
+
 static void fsi_stream_init(struct fsi_priv *fsi,
 			    int is_play,
 			    struct snd_pcm_substream *substream)
@@ -480,6 +504,53 @@ static void fsi_stream_quit(struct fsi_priv *fsi, int is_play)
 	io->oerr_num	= 0;
 	io->uerr_num	= 0;
 	spin_unlock_irqrestore(&master->lock, flags);
+}
+
+static int fsi_stream_transfer(struct fsi_stream *io)
+{
+	struct fsi_priv *fsi = fsi_stream_to_priv(io);
+	if (!fsi)
+		return -EIO;
+
+	return fsi_stream_handler_call(io, transfer, fsi, io);
+}
+
+static int fsi_stream_probe(struct fsi_priv *fsi)
+{
+	struct fsi_stream *io;
+	int ret1, ret2;
+
+	io = &fsi->playback;
+	ret1 = fsi_stream_handler_call(io, probe, fsi, io);
+
+	io = &fsi->capture;
+	ret2 = fsi_stream_handler_call(io, probe, fsi, io);
+
+	if (ret1 < 0)
+		return ret1;
+	if (ret2 < 0)
+		return ret2;
+
+	return 0;
+}
+
+static int fsi_stream_remove(struct fsi_priv *fsi)
+{
+	struct fsi_stream *io;
+	int ret1, ret2;
+
+	io = &fsi->playback;
+	ret1 = fsi_stream_handler_call(io, remove, fsi, io);
+
+	io = &fsi->capture;
+	ret2 = fsi_stream_handler_call(io, remove, fsi, io);
+
+	if (ret1 < 0)
+		return ret1;
+	if (ret2 < 0)
+		return ret2;
+
+	return 0;
 }
 
 /*
@@ -743,13 +814,11 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, struct fsi_stream *io,
 	return 0;
 }
 
-static int fsi_data_pop(struct fsi_priv *fsi)
+static int fsi_pio_pop(struct fsi_priv *fsi, struct fsi_stream *io)
 {
-	int is_play = 0;
 	int sample_residues;	/* samples in FSI fifo */
 	int sample_space;	/* ALSA free samples space */
 	int samples;
-	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
 
 	sample_residues	= fsi_get_current_fifo_samples(fsi, io);
 	sample_space	= io->buff_sample_capa - io->buff_sample_pos;
@@ -762,13 +831,11 @@ static int fsi_data_pop(struct fsi_priv *fsi)
 				  samples);
 }
 
-static int fsi_data_push(struct fsi_priv *fsi)
+static int fsi_pio_push(struct fsi_priv *fsi, struct fsi_stream *io)
 {
-	int is_play = 1;
 	int sample_residues;	/* ALSA residue samples */
 	int sample_space;	/* FSI fifo free samples space */
 	int samples;
-	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
 
 	sample_residues	= io->buff_sample_capa - io->buff_sample_pos;
 	sample_space	= io->fifo_sample_capa -
@@ -782,6 +849,14 @@ static int fsi_data_push(struct fsi_priv *fsi)
 				  samples);
 }
 
+static struct fsi_stream_handler fsi_pio_push_handler = {
+	.transfer	= fsi_pio_push,
+};
+
+static struct fsi_stream_handler fsi_pio_pop_handler = {
+	.transfer	= fsi_pio_pop,
+};
+
 static irqreturn_t fsi_interrupt(int irq, void *data)
 {
 	struct fsi_master *master = data;
@@ -792,13 +867,13 @@ static irqreturn_t fsi_interrupt(int irq, void *data)
 	fsi_master_mask_set(master, SOFT_RST, IR, IR);
 
 	if (int_st & AB_IO(1, AO_SHIFT))
-		fsi_data_push(&master->fsia);
+		fsi_stream_transfer(&master->fsia.playback);
 	if (int_st & AB_IO(1, BO_SHIFT))
-		fsi_data_push(&master->fsib);
+		fsi_stream_transfer(&master->fsib.playback);
 	if (int_st & AB_IO(1, AI_SHIFT))
-		fsi_data_pop(&master->fsia);
+		fsi_stream_transfer(&master->fsia.capture);
 	if (int_st & AB_IO(1, BI_SHIFT))
-		fsi_data_pop(&master->fsib);
+		fsi_stream_transfer(&master->fsib.capture);
 
 	fsi_count_fifo_err(&master->fsia);
 	fsi_count_fifo_err(&master->fsib);
@@ -955,14 +1030,16 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 			   struct snd_soc_dai *dai)
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
+	struct fsi_stream *io = fsi_stream_get(fsi, fsi_is_play(substream));
 	int is_play = fsi_is_play(substream);
 	int ret = 0;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		fsi_stream_init(fsi, is_play, substream);
-		ret = is_play ? fsi_data_push(fsi) : fsi_data_pop(fsi);
-		fsi_port_start(fsi, is_play);
+		ret = fsi_stream_transfer(io);
+		if (0 == ret)
+			fsi_port_start(fsi, is_play);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		fsi_port_stop(fsi, is_play);
@@ -1224,6 +1301,13 @@ static struct snd_soc_platform_driver fsi_soc_platform = {
 /*
  *		platform function
  */
+static void fsi_handler_init(struct fsi_priv *fsi)
+{
+	fsi->playback.handler	= &fsi_pio_push_handler; /* default PIO */
+	fsi->playback.priv	= fsi;
+	fsi->capture.handler	= &fsi_pio_pop_handler;  /* default PIO */
+	fsi->capture.priv	= fsi;
+}
 
 static int fsi_probe(struct platform_device *pdev)
 {
@@ -1270,10 +1354,22 @@ static int fsi_probe(struct platform_device *pdev)
 	/* FSI A setting */
 	master->fsia.base	= master->base;
 	master->fsia.master	= master;
+	fsi_handler_init(&master->fsia);
+	ret = fsi_stream_probe(&master->fsia);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "FSIA stream probe failed\n");
+		goto exit_iounmap;
+	}
 
 	/* FSI B setting */
 	master->fsib.base	= master->base + 0x40;
 	master->fsib.master	= master;
+	fsi_handler_init(&master->fsib);
+	ret = fsi_stream_probe(&master->fsib);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "FSIB stream probe failed\n");
+		goto exit_fsia;
+	}
 
 	pm_runtime_enable(&pdev->dev);
 	dev_set_drvdata(&pdev->dev, master);
@@ -1282,7 +1378,7 @@ static int fsi_probe(struct platform_device *pdev)
 			  id_entry->name, master);
 	if (ret) {
 		dev_err(&pdev->dev, "irq request err\n");
-		goto exit_iounmap;
+		goto exit_fsib;
 	}
 
 	ret = snd_soc_register_platform(&pdev->dev, &fsi_soc_platform);
@@ -1304,6 +1400,10 @@ exit_snd_soc:
 	snd_soc_unregister_platform(&pdev->dev);
 exit_free_irq:
 	free_irq(irq, master);
+exit_fsib:
+	fsi_stream_remove(&master->fsib);
+exit_fsia:
+	fsi_stream_remove(&master->fsia);
 exit_iounmap:
 	iounmap(master->base);
 	pm_runtime_disable(&pdev->dev);
@@ -1325,6 +1425,9 @@ static int fsi_remove(struct platform_device *pdev)
 
 	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(fsi_soc_dai));
 	snd_soc_unregister_platform(&pdev->dev);
+
+	fsi_stream_remove(&master->fsia);
+	fsi_stream_remove(&master->fsib);
 
 	iounmap(master->base);
 	kfree(master);
