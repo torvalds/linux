@@ -248,6 +248,11 @@ skip:
 		}
 	}
 
+	if (!netif_running(dev) || !adapter->ahw.linkup) {
+		ecmd->duplex = DUPLEX_UNKNOWN;
+		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
+	}
+
 	return 0;
 }
 
