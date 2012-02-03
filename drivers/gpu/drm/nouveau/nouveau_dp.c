@@ -432,7 +432,7 @@ dp_link_train_commit(struct drm_device *dev, struct dp_state *dp)
 		dp->conf[i] = (lpre << 3) | lvsw;
 		if (lvsw == DP_TRAIN_VOLTAGE_SWING_1200)
 			dp->conf[i] |= DP_TRAIN_MAX_SWING_REACHED;
-		if (lpre == DP_TRAIN_PRE_EMPHASIS_9_5)
+		if ((lpre << 3) == DP_TRAIN_PRE_EMPHASIS_9_5)
 			dp->conf[i] |= DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
 
 		NV_DEBUG_KMS(dev, "config lane %d %02x\n", i, dp->conf[i]);
