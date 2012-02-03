@@ -159,10 +159,8 @@ static void rds_ib_remove_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr)
 	}
 	spin_unlock_irq(&rds_ibdev->spinlock);
 
-	if (to_free) {
-		synchronize_rcu();
-		kfree(to_free);
-	}
+	if (to_free)
+		kfree_rcu(to_free, rcu);
 }
 
 int rds_ib_update_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr)
