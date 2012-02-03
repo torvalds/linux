@@ -456,6 +456,9 @@ mclk_timing_set(struct nouveau_mem_exec_func *exec)
 		if (info->ramcfg[2] & 0x02)
 			unk718 |= 0x00000100;
 		nv_wr32(dev, 0x100718, unk718);
+
+		if (info->ramcfg[2] & 0x10)
+			nv_wr32(dev, 0x111100, 0x48000000); /*XXX*/
 	}
 }
 
@@ -498,15 +501,33 @@ prog_mem(struct drm_device *dev, struct nva3_pm_state *info)
 		nv_mask(dev, 0x004168, 0x003f3141, ctrl);
 	}
 
+	if (info->ramcfg) {
+		if (info->ramcfg[2] & 0x10) {
+			nv_mask(dev, 0x111104, 0x00000600, 0x00000000);
+		} else {
+			nv_mask(dev, 0x111100, 0x40000000, 0x40000000);
+			nv_mask(dev, 0x111104, 0x00000180, 0x00000000);
+		}
+	}
 	if (info->rammap && !(info->rammap[4] & 0x02))
 		nv_mask(dev, 0x100200, 0x00000800, 0x00000000);
 	nv_wr32(dev, 0x611200, 0x00003300);
+	if (!(info->ramcfg[2] & 0x10))
+		nv_wr32(dev, 0x111100, 0x4c020000); /*XXX*/
 
 	nouveau_mem_exec(&exec, info->perflvl);
 
 	nv_wr32(dev, 0x611200, 0x00003330);
 	if (info->rammap && (info->rammap[4] & 0x02))
 		nv_mask(dev, 0x100200, 0x00000800, 0x00000800);
+	if (info->ramcfg) {
+		if (info->ramcfg[2] & 0x10) {
+			nv_mask(dev, 0x111104, 0x00000180, 0x00000180);
+			nv_mask(dev, 0x111100, 0x40000000, 0x00000000);
+		} else {
+			nv_mask(dev, 0x111104, 0x00000600, 0x00000600);
+		}
+	}
 
 	if (info->mclk.pll) {
 		nv_mask(dev, 0x004168, 0x00000001, 0x00000000);
