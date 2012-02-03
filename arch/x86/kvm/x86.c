@@ -2253,13 +2253,8 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	kvm_x86_ops->vcpu_load(vcpu, cpu);
 	if (unlikely(vcpu->cpu != cpu) || check_tsc_unstable()) {
-		/* Make sure TSC doesn't go backwards */
-		s64 tsc_delta;
-		u64 tsc;
-
-		tsc = kvm_x86_ops->read_l1_tsc(vcpu);
-		tsc_delta = tsc - vcpu->arch.last_guest_tsc;
-
+		s64 tsc_delta = !vcpu->arch.last_host_tsc ? 0 :
+				native_read_tsc() - vcpu->arch.last_host_tsc;
 		if (tsc_delta < 0)
 			mark_tsc_unstable("KVM discovered backwards TSC");
 		if (check_tsc_unstable()) {
@@ -2282,7 +2277,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	kvm_x86_ops->vcpu_put(vcpu);
 	kvm_put_guest_fpu(vcpu);
-	vcpu->arch.last_guest_tsc = kvm_x86_ops->read_l1_tsc(vcpu);
+	vcpu->arch.last_host_tsc = native_read_tsc();
 }
 
 static int kvm_vcpu_ioctl_get_lapic(struct kvm_vcpu *vcpu,
