@@ -4042,11 +4042,8 @@ static bool check_same_owner(struct task_struct *p)
 
 	rcu_read_lock();
 	pcred = __task_cred(p);
-	if (cred->user_ns == pcred->user_ns)
-		match = (cred->euid == pcred->euid ||
-			 cred->euid == pcred->uid);
-	else
-		match = false;
+	match = (uid_eq(cred->euid, pcred->euid) ||
+		 uid_eq(cred->euid, pcred->uid));
 	rcu_read_unlock();
 	return match;
 }
