@@ -9,7 +9,6 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
-#include <linux/module.h>
 #include <linux/cleancache.h>
 
 /* temporary ifdef until include/linux/frontswap.h is upstream */
@@ -128,15 +127,13 @@ static int xen_tmem_flush_object(u32 pool_id, struct tmem_oid oid)
 	return xen_tmem_op(TMEM_FLUSH_OBJECT, pool_id, oid, 0, 0, 0, 0, 0);
 }
 
-int tmem_enabled __read_mostly;
-EXPORT_SYMBOL(tmem_enabled);
+bool __read_mostly tmem_enabled = false;
 
 static int __init enable_tmem(char *s)
 {
-	tmem_enabled = 1;
+	tmem_enabled = true;
 	return 1;
 }
-
 __setup("tmem", enable_tmem);
 
 #ifdef CONFIG_CLEANCACHE
@@ -229,17 +226,16 @@ static int tmem_cleancache_init_shared_fs(char *uuid, size_t pagesize)
 	return xen_tmem_new_pool(shared_uuid, TMEM_POOL_SHARED, pagesize);
 }
 
-static int use_cleancache = 1;
+static bool __initdata use_cleancache = true;
 
 static int __init no_cleancache(char *s)
 {
-	use_cleancache = 0;
+	use_cleancache = false;
 	return 1;
 }
-
 __setup("nocleancache", no_cleancache);
 
-static struct cleancache_ops tmem_cleancache_ops = {
+static struct cleancache_ops __initdata tmem_cleancache_ops = {
 	.put_page = tmem_cleancache_put_page,
 	.get_page = tmem_cleancache_get_page,
 	.flush_page = tmem_cleancache_flush_page,
@@ -356,17 +352,16 @@ static void tmem_frontswap_init(unsigned ignored)
 		    xen_tmem_new_pool(private, TMEM_POOL_PERSIST, PAGE_SIZE);
 }
 
-static int __initdata use_frontswap = 1;
+static bool __initdata use_frontswap = true;
 
 static int __init no_frontswap(char *s)
 {
-	use_frontswap = 0;
+	use_frontswap = false;
 	return 1;
 }
-
 __setup("nofrontswap", no_frontswap);
 
-static struct frontswap_ops tmem_frontswap_ops = {
+static struct frontswap_ops __initdata tmem_frontswap_ops = {
 	.put_page = tmem_frontswap_put_page,
 	.get_page = tmem_frontswap_get_page,
 	.flush_page = tmem_frontswap_flush_page,
