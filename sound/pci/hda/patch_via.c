@@ -1442,25 +1442,9 @@ static const struct hda_pcm_stream via_pcm_digital_capture = {
 /*
  * slave controls for virtual master
  */
-static const char * const via_slave_vols[] = {
-	"Front Playback Volume",
-	"Surround Playback Volume",
-	"Center Playback Volume",
-	"LFE Playback Volume",
-	"Side Playback Volume",
-	"Headphone Playback Volume",
-	"Speaker Playback Volume",
-	NULL,
-};
-
-static const char * const via_slave_sws[] = {
-	"Front Playback Switch",
-	"Surround Playback Switch",
-	"Center Playback Switch",
-	"LFE Playback Switch",
-	"Side Playback Switch",
-	"Headphone Playback Switch",
-	"Speaker Playback Switch",
+static const char * const via_slave_pfxs[] = {
+	"Front", "Surround", "Center", "LFE", "Side",
+	"Headphone", "Speaker",
 	NULL,
 };
 
@@ -1505,13 +1489,15 @@ static int via_build_controls(struct hda_codec *codec)
 		snd_hda_set_vmaster_tlv(codec, spec->multiout.dac_nids[0],
 					HDA_OUTPUT, vmaster_tlv);
 		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
-					  vmaster_tlv, via_slave_vols);
+					  vmaster_tlv, via_slave_pfxs,
+					  "Playback Volume");
 		if (err < 0)
 			return err;
 	}
 	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
 		err = snd_hda_add_vmaster(codec, "Master Playback Switch",
-					  NULL, via_slave_sws);
+					  NULL, via_slave_pfxs,
+					  "Playback Switch");
 		if (err < 0)
 			return err;
 	}

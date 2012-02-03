@@ -465,21 +465,8 @@ static const struct snd_kcontrol_new cxt_beep_mixer[] = {
 };
 #endif
 
-static const char * const slave_vols[] = {
-	"Headphone Playback Volume",
-	"Speaker Playback Volume",
-	"Front Playback Volume",
-	"Surround Playback Volume",
-	"CLFE Playback Volume",
-	NULL
-};
-
-static const char * const slave_sws[] = {
-	"Headphone Playback Switch",
-	"Speaker Playback Switch",
-	"Front Playback Switch",
-	"Surround Playback Switch",
-	"CLFE Playback Switch",
+static const char * const slave_pfxs[] = {
+	"Headphone", "Speaker", "Front", "Surround", "CLFE",
 	NULL
 };
 
@@ -519,14 +506,16 @@ static int conexant_build_controls(struct hda_codec *codec)
 		snd_hda_set_vmaster_tlv(codec, spec->vmaster_nid,
 					HDA_OUTPUT, vmaster_tlv);
 		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
-					  vmaster_tlv, slave_vols);
+					  vmaster_tlv, slave_pfxs,
+					  "Playback Volume");
 		if (err < 0)
 			return err;
 	}
 	if (spec->vmaster_nid &&
 	    !snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
 		err = snd_hda_add_vmaster(codec, "Master Playback Switch",
-					  NULL, slave_sws);
+					  NULL, slave_pfxs,
+					  "Playback Switch");
 		if (err < 0)
 			return err;
 	}
