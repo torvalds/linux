@@ -559,7 +559,11 @@ nx_fw_cmd_query_phy(struct netxen_adapter *adapter, u32 reg, u32 *val)
 	if (rcode != NX_RCODE_SUCCESS)
 		return -EIO;
 
-	return cmd.rsp.arg1;
+	if (val == NULL)
+		return -EIO;
+
+	*val = cmd.rsp.arg1;
+	return 0;
 }
 
 int
