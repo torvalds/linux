@@ -755,12 +755,16 @@ twl6030smps_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
 	case 0:
 		if (min_uV == 0)
 			vsel = 0;
-		else if ((min_uV >= 600000) && (max_uV <= 1300000)) {
+		else if ((min_uV >= 600000) && (min_uV <= 1300000)) {
+			int calc_uV;
 			vsel = (min_uV - 600000) / 125;
 			if (vsel % 100)
 				vsel += 100;
 			vsel /= 100;
 			vsel++;
+			calc_uV = twl6030smps_list_voltage(rdev, vsel);
+			if (calc_uV > max_uV)
+				return -EINVAL;
 		}
 		/* Values 1..57 for vsel are linear and can be calculated
 		 * values 58..62 are non linear.
@@ -781,12 +785,16 @@ twl6030smps_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
 	case SMPS_OFFSET_EN:
 		if (min_uV == 0)
 			vsel = 0;
-		else if ((min_uV >= 700000) && (max_uV <= 1420000)) {
+		else if ((min_uV >= 700000) && (min_uV <= 1420000)) {
+			int calc_uV;
 			vsel = (min_uV - 700000) / 125;
 			if (vsel % 100)
 				vsel += 100;
 			vsel /= 100;
 			vsel++;
+			calc_uV = twl6030smps_list_voltage(rdev, vsel);
+			if (calc_uV > max_uV)
+				return -EINVAL;
 		}
 		/* Values 1..57 for vsel are linear and can be calculated
 		 * values 58..62 are non linear.
@@ -819,7 +827,7 @@ twl6030smps_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
 		if (min_uV == 0)
 			vsel = 0;
 		else if ((min_uV >= 2161000) && (max_uV <= 4321000)) {
-			vsel = (min_uV - 1852000) / 386;
+			vsel = (min_uV - 2161000) / 386;
 			if (vsel % 100)
 				vsel += 100;
 			vsel /= 100;
