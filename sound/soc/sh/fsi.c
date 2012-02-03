@@ -364,8 +364,9 @@ static u32 fsi_get_info_flags(struct fsi_priv *fsi)
 		master->info->portb_flags;
 }
 
-static u32 fsi_get_port_shift(struct fsi_priv *fsi, int is_play)
+static u32 fsi_get_port_shift(struct fsi_priv *fsi, struct fsi_stream *io)
 {
+	int is_play = fsi_stream_is_play(fsi, io);
 	int is_porta = fsi_is_port_a(fsi);
 	u32 shift;
 
@@ -434,15 +435,14 @@ static inline int fsi_stream_is_play(struct fsi_priv *fsi,
 }
 
 static inline struct fsi_stream *fsi_stream_get(struct fsi_priv *fsi,
-						int is_play)
+					struct snd_pcm_substream *substream)
 {
-	return is_play ? &fsi->playback : &fsi->capture;
+	return fsi_is_play(substream) ? &fsi->playback : &fsi->capture;
 }
 
 static int fsi_stream_is_working(struct fsi_priv *fsi,
-				  int is_play)
+				 struct fsi_stream *io)
 {
-	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
 	struct fsi_master *master = fsi_get_master(fsi);
 	unsigned long flags;
 	int ret;
@@ -460,10 +460,9 @@ static struct fsi_priv *fsi_stream_to_priv(struct fsi_stream *io)
 }
 
 static void fsi_stream_init(struct fsi_priv *fsi,
-			    int is_play,
+			    struct fsi_stream *io,
 			    struct snd_pcm_substream *substream)
 {
-	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsi_master *master = fsi_get_master(fsi);
 	unsigned long flags;
@@ -480,9 +479,8 @@ static void fsi_stream_init(struct fsi_priv *fsi,
 	spin_unlock_irqrestore(&master->lock, flags);
 }
 
-static void fsi_stream_quit(struct fsi_priv *fsi, int is_play)
+static void fsi_stream_quit(struct fsi_priv *fsi, struct fsi_stream *io)
 {
-	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
 	struct snd_soc_dai *dai = fsi_get_dai(io->substream);
 	struct fsi_master *master = fsi_get_master(fsi);
 	unsigned long flags;
@@ -557,18 +555,18 @@ static int fsi_stream_remove(struct fsi_priv *fsi)
  *		irq function
  */
 
-static void fsi_irq_enable(struct fsi_priv *fsi, int is_play)
+static void fsi_irq_enable(struct fsi_priv *fsi, struct fsi_stream *io)
 {
-	u32 data = AB_IO(1, fsi_get_port_shift(fsi, is_play));
+	u32 data = AB_IO(1, fsi_get_port_shift(fsi, io));
 	struct fsi_master *master = fsi_get_master(fsi);
 
 	fsi_core_mask_set(master, imsk,  data, data);
 	fsi_core_mask_set(master, iemsk, data, data);
 }
 
-static void fsi_irq_disable(struct fsi_priv *fsi, int is_play)
+static void fsi_irq_disable(struct fsi_priv *fsi, struct fsi_stream *io)
 {
-	u32 data = AB_IO(1, fsi_get_port_shift(fsi, is_play));
+	u32 data = AB_IO(1, fsi_get_port_shift(fsi, io));
 	struct fsi_master *master = fsi_get_master(fsi);
 
 	fsi_core_mask_set(master, imsk,  data, 0);
@@ -585,8 +583,8 @@ static void fsi_irq_clear_status(struct fsi_priv *fsi)
 	u32 data = 0;
 	struct fsi_master *master = fsi_get_master(fsi);
 
-	data |= AB_IO(1, fsi_get_port_shift(fsi, 0));
-	data |= AB_IO(1, fsi_get_port_shift(fsi, 1));
+	data |= AB_IO(1, fsi_get_port_shift(fsi, &fsi->playback));
+	data |= AB_IO(1, fsi_get_port_shift(fsi, &fsi->capture));
 
 	/* clear interrupt factor */
 	fsi_core_mask_set(master, int_st, data, 0);
@@ -695,15 +693,16 @@ static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
 
 #define fsi_port_start(f, i)	__fsi_port_clk_ctrl(f, i, 1)
 #define fsi_port_stop(f, i)	__fsi_port_clk_ctrl(f, i, 0)
-static void __fsi_port_clk_ctrl(struct fsi_priv *fsi, int is_play, int enable)
+static void __fsi_port_clk_ctrl(struct fsi_priv *fsi, struct fsi_stream *io,
+				int enable)
 {
 	struct fsi_master *master = fsi_get_master(fsi);
 	u32 clk  = fsi_is_port_a(fsi) ? CRA  : CRB;
 
 	if (enable)
-		fsi_irq_enable(fsi, is_play);
+		fsi_irq_enable(fsi, io);
 	else
-		fsi_irq_disable(fsi, is_play);
+		fsi_irq_disable(fsi, io);
 
 	if (fsi_is_clk_master(fsi))
 		fsi_master_mask_set(master, CLK_RST, clk, (enable) ? clk : 0);
@@ -885,17 +884,17 @@ static irqreturn_t fsi_interrupt(int irq, void *data)
  *		dai ops
  */
 static void fsi_fifo_init(struct fsi_priv *fsi,
-			  int is_play,
+			  struct fsi_stream *io,
 			  struct device *dev)
 {
 	struct fsi_master *master = fsi_get_master(fsi);
-	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
+	int is_play = fsi_stream_is_play(fsi, io);
 	u32 shift, i;
 	int frame_capa;
 
 	/* get on-chip RAM capacity */
 	shift = fsi_master_read(master, FIFO_SZ);
-	shift >>= fsi_get_port_shift(fsi, is_play);
+	shift >>= fsi_get_port_shift(fsi, io);
 	shift &= FIFO_SZ_MASK;
 	frame_capa = 256 << shift;
 	dev_dbg(dev, "fifo = %d words\n", frame_capa);
@@ -940,7 +939,7 @@ static void fsi_fifo_init(struct fsi_priv *fsi,
 }
 
 static int fsi_hw_startup(struct fsi_priv *fsi,
-			  int is_play,
+			  struct fsi_stream *io,
 			  struct device *dev)
 {
 	struct fsi_master *master = fsi_get_master(fsi);
@@ -989,11 +988,11 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 	}
 
 	/* irq clear */
-	fsi_irq_disable(fsi, is_play);
+	fsi_irq_disable(fsi, io);
 	fsi_irq_clear_status(fsi);
 
 	/* fifo init */
-	fsi_fifo_init(fsi, is_play, dev);
+	fsi_fifo_init(fsi, io, dev);
 
 	return 0;
 }
@@ -1009,9 +1008,8 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
-	int is_play = fsi_is_play(substream);
 
-	return fsi_hw_startup(fsi, is_play, dai->dev);
+	return fsi_hw_startup(fsi, fsi_stream_get(fsi, substream), dai->dev);
 }
 
 static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
@@ -1027,20 +1025,19 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 			   struct snd_soc_dai *dai)
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
-	struct fsi_stream *io = fsi_stream_get(fsi, fsi_is_play(substream));
-	int is_play = fsi_is_play(substream);
+	struct fsi_stream *io = fsi_stream_get(fsi, substream);
 	int ret = 0;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		fsi_stream_init(fsi, is_play, substream);
+		fsi_stream_init(fsi, io, substream);
 		ret = fsi_stream_transfer(io);
 		if (0 == ret)
-			fsi_port_start(fsi, is_play);
+			fsi_port_start(fsi, io);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		fsi_port_stop(fsi, is_play);
-		fsi_stream_quit(fsi, is_play);
+		fsi_port_stop(fsi, io);
+		fsi_stream_quit(fsi, io);
 		break;
 	}
 
@@ -1206,7 +1203,7 @@ static int fsi_hw_free(struct snd_pcm_substream *substream)
 static snd_pcm_uframes_t fsi_pointer(struct snd_pcm_substream *substream)
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
-	struct fsi_stream *io = fsi_stream_get(fsi, fsi_is_play(substream));
+	struct fsi_stream *io = fsi_stream_get(fsi, substream);
 	int samples_pos = io->buff_sample_pos - 1;
 
 	if (samples_pos < 0)
@@ -1433,30 +1430,29 @@ static int fsi_remove(struct platform_device *pdev)
 }
 
 static void __fsi_suspend(struct fsi_priv *fsi,
-			  int is_play,
+			  struct fsi_stream *io,
 			  struct device *dev)
 {
-	if (!fsi_stream_is_working(fsi, is_play))
+	if (!fsi_stream_is_working(fsi, io))
 		return;
 
-	fsi_port_stop(fsi, is_play);
+	fsi_port_stop(fsi, io);
 	fsi_hw_shutdown(fsi, dev);
 }
 
 static void __fsi_resume(struct fsi_priv *fsi,
-			 int is_play,
+			 struct fsi_stream *io,
 			 struct device *dev)
 {
-	if (!fsi_stream_is_working(fsi, is_play))
+	if (!fsi_stream_is_working(fsi, io))
 		return;
 
-	fsi_hw_startup(fsi, is_play, dev);
+	fsi_hw_startup(fsi, io, dev);
 
 	if (fsi_is_clk_master(fsi) && fsi->rate)
 		fsi_set_master_clk(dev, fsi, fsi->rate, 1);
 
-	fsi_port_start(fsi, is_play);
-
+	fsi_port_start(fsi, io);
 }
 
 static int fsi_suspend(struct device *dev)
@@ -1465,11 +1461,11 @@ static int fsi_suspend(struct device *dev)
 	struct fsi_priv *fsia = &master->fsia;
 	struct fsi_priv *fsib = &master->fsib;
 
-	__fsi_suspend(fsia, 1, dev);
-	__fsi_suspend(fsia, 0, dev);
+	__fsi_suspend(fsia, &fsia->playback, dev);
+	__fsi_suspend(fsia, &fsia->capture, dev);
 
-	__fsi_suspend(fsib, 1, dev);
-	__fsi_suspend(fsib, 0, dev);
+	__fsi_suspend(fsib, &fsib->playback, dev);
+	__fsi_suspend(fsib, &fsib->capture, dev);
 
 	return 0;
 }
@@ -1480,11 +1476,11 @@ static int fsi_resume(struct device *dev)
 	struct fsi_priv *fsia = &master->fsia;
 	struct fsi_priv *fsib = &master->fsib;
 
-	__fsi_resume(fsia, 1, dev);
-	__fsi_resume(fsia, 0, dev);
+	__fsi_resume(fsia, &fsia->playback, dev);
+	__fsi_resume(fsia, &fsia->capture, dev);
 
-	__fsi_resume(fsib, 1, dev);
-	__fsi_resume(fsib, 0, dev);
+	__fsi_resume(fsib, &fsib->playback, dev);
+	__fsi_resume(fsib, &fsib->capture, dev);
 
 	return 0;
 }
