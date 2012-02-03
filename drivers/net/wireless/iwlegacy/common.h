@@ -1154,13 +1154,6 @@ struct il_force_reset {
 
 struct il_rxon_context {
 	struct ieee80211_vif *vif;
-
-	/*
-	 * We could use the vif to indicate active, but we
-	 * also need it to be active during disabling when
-	 * we already removed the vif for type setting.
-	 */
-	bool always_active, is_active;
 };
 
 struct il_power_mgr {

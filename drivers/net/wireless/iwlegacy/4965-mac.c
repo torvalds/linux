@@ -6134,9 +6134,6 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	il = hw->priv;
 	/* At this point both hw and il are allocated. */
 
-	il->ctx.always_active = true;
-	il->ctx.is_active = true;
-
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
 	D_INFO("*** LOAD DRIVER ***\n");

@@ -1419,9 +1419,6 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	if (!il_is_alive(il))
 		return -EBUSY;
 
-	if (!ctx->is_active)
-		return 0;
-
 	/* always get timestamp with Rx frame */
 	il->staging.flags |= RXON_FLG_TSF2HOST_MSK;
 

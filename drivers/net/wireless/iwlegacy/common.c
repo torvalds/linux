@@ -4537,7 +4537,6 @@ static int
 il_setup_interface(struct il_priv *il, struct il_rxon_context *ctx)
 {
 	struct ieee80211_vif *vif = ctx->vif;
-	int err;
 
 	lockdep_assert_held(&il->mutex);
 
@@ -4548,16 +4547,7 @@ il_setup_interface(struct il_priv *il, struct il_rxon_context *ctx)
 	 */
 	il->iw_mode = vif->type;
 
-	ctx->is_active = true;
-
-	err = il_set_mode(il, ctx);
-	if (err) {
-		if (!ctx->always_active)
-			ctx->is_active = false;
-		return err;
-	}
-
-	return 0;
+	return il_set_mode(il, ctx);
 }
 
 int
@@ -4612,11 +4602,9 @@ il_teardown_interface(struct il_priv *il, struct ieee80211_vif *vif,
 		il_force_scan_end(il);
 	}
 
-	if (!mode_change) {
+	if (!mode_change)
 		il_set_mode(il, ctx);
-		if (!ctx->always_active)
-			ctx->is_active = false;
-	}
+
 }
 
 void
@@ -5225,9 +5213,6 @@ static void
 il_update_qos(struct il_priv *il, struct il_rxon_context *ctx)
 {
 	if (test_bit(S_EXIT_PENDING, &il->status))
-		return;
-
-	if (!ctx->is_active)
 		return;
 
 	il->qos_data.def_qos_parm.qos_flags = 0;
