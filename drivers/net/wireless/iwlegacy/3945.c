@@ -1388,7 +1388,7 @@ il3945_send_tx_power(struct il_priv *il)
 	int rate_idx, i;
 	const struct il_channel_info *ch_info = NULL;
 	struct il3945_txpowertable_cmd txpower = {
-		.channel = il->ctx.active.channel,
+		.channel = il->active.channel,
 	};
 	u16 chan;
 
@@ -1397,7 +1397,7 @@ il3945_send_tx_power(struct il_priv *il)
 	     "TX Power requested while scanning!\n"))
 		return -EAGAIN;
 
-	chan = le16_to_cpu(il->ctx.active.channel);
+	chan = le16_to_cpu(il->active.channel);
 
 	txpower.band = (il->band == IEEE80211_BAND_5GHZ) ? 0 : 1;
 	ch_info = il_get_channel_info(il, il->band, chan);
@@ -1673,8 +1673,8 @@ il3945_send_rxon_assoc(struct il_priv *il, struct il_rxon_context *ctx)
 		.flags = CMD_WANT_SKB,
 		.data = &rxon_assoc,
 	};
-	const struct il_rxon_cmd *rxon1 = &ctx->staging;
-	const struct il_rxon_cmd *rxon2 = &ctx->active;
+	const struct il_rxon_cmd *rxon1 = &il->staging;
+	const struct il_rxon_cmd *rxon2 = &il->active;
 
 	if (rxon1->flags == rxon2->flags &&
 	    rxon1->filter_flags == rxon2->filter_flags &&
@@ -1684,10 +1684,10 @@ il3945_send_rxon_assoc(struct il_priv *il, struct il_rxon_context *ctx)
 		return 0;
 	}
 
-	rxon_assoc.flags = ctx->staging.flags;
-	rxon_assoc.filter_flags = ctx->staging.filter_flags;
-	rxon_assoc.ofdm_basic_rates = ctx->staging.ofdm_basic_rates;
-	rxon_assoc.cck_basic_rates = ctx->staging.cck_basic_rates;
+	rxon_assoc.flags = il->staging.flags;
+	rxon_assoc.filter_flags = il->staging.filter_flags;
+	rxon_assoc.ofdm_basic_rates = il->staging.ofdm_basic_rates;
+	rxon_assoc.cck_basic_rates = il->staging.cck_basic_rates;
 	rxon_assoc.reserved = 0;
 
 	rc = il_send_cmd_sync(il, &cmd);
@@ -1717,8 +1717,8 @@ int
 il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 {
 	/* cast away the const for active_rxon in this function */
-	struct il3945_rxon_cmd *active_rxon = (void *)&ctx->active;
-	struct il3945_rxon_cmd *staging_rxon = (void *)&ctx->staging;
+	struct il3945_rxon_cmd *active_rxon = (void *)&il->active;
+	struct il3945_rxon_cmd *staging_rxon = (void *)&il->staging;
 	int rc = 0;
 	bool new_assoc = !!(staging_rxon->filter_flags & RXON_FILTER_ASSOC_MSK);
 
@@ -1776,7 +1776,7 @@ il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 		active_rxon->reserved4 = 0;
 		active_rxon->reserved5 = 0;
 		rc = il_send_cmd_pdu(il, C_RXON, sizeof(struct il3945_rxon_cmd),
-				     &il->ctx.active);
+				     &il->active);
 
 		/* If the mask clearing failed then we set
 		 * active_rxon back to what it was previously */

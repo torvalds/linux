@@ -2361,7 +2361,7 @@ il_is_lq_table_valid(struct il_priv *il, struct il_rxon_context *ctx,
 	if (ctx->ht.enabled)
 		return true;
 
-	D_INFO("Channel %u is not an HT channel\n", ctx->active.channel);
+	D_INFO("Channel %u is not an HT channel\n", il->active.channel);
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++) {
 		if (le32_to_cpu(lq->rs_table[i].rate_n_flags) & RATE_MCS_HT_MSK) {
 			D_INFO("idx %d of LQ expects HT channel\n", i);
@@ -2648,7 +2648,7 @@ il_set_decrypted_flag(struct il_priv *il, struct ieee80211_hdr *hdr,
 	 * All contexts have the same setting here due to it being
 	 * a module parameter, so OK to check any context.
 	 */
-	if (il->ctx.active.filter_flags & RXON_FILTER_DIS_DECRYPT_MSK)
+	if (il->active.filter_flags & RXON_FILTER_DIS_DECRYPT_MSK)
 		return 0;
 
 	if (!(fc & IEEE80211_FCTL_PROTECTED))
@@ -3581,7 +3581,7 @@ il_is_ht40_tx_allowed(struct il_priv *il, struct il_rxon_context *ctx,
 #endif
 
 	return il_is_channel_extension(il, il->band,
-				       le16_to_cpu(ctx->staging.channel),
+				       le16_to_cpu(il->staging.channel),
 				       ctx->ht.extension_chan_offset);
 }
 EXPORT_SYMBOL(il_is_ht40_tx_allowed);
@@ -3633,10 +3633,10 @@ il_send_rxon_timing(struct il_priv *il, struct il_rxon_context *ctx)
 
 	lockdep_assert_held(&il->mutex);
 
-	memset(&ctx->timing, 0, sizeof(struct il_rxon_time_cmd));
+	memset(&il->timing, 0, sizeof(struct il_rxon_time_cmd));
 
-	ctx->timing.timestamp = cpu_to_le64(il->timestamp);
-	ctx->timing.listen_interval = cpu_to_le16(conf->listen_interval);
+	il->timing.timestamp = cpu_to_le64(il->timestamp);
+	il->timing.listen_interval = cpu_to_le16(conf->listen_interval);
 
 	beacon_int = vif ? vif->bss_conf.beacon_int : 0;
 
@@ -3644,28 +3644,28 @@ il_send_rxon_timing(struct il_priv *il, struct il_rxon_context *ctx)
 	 * TODO: For IBSS we need to get atim_win from mac80211,
 	 *       for now just always use 0
 	 */
-	ctx->timing.atim_win = 0;
+	il->timing.atim_win = 0;
 
 	beacon_int =
 	    il_adjust_beacon_interval(beacon_int,
 				      il->hw_params.max_beacon_itrvl *
 				      TIME_UNIT);
-	ctx->timing.beacon_interval = cpu_to_le16(beacon_int);
+	il->timing.beacon_interval = cpu_to_le16(beacon_int);
 
 	tsf = il->timestamp;	/* tsf is modifed by do_div: copy it */
 	interval_tm = beacon_int * TIME_UNIT;
 	rem = do_div(tsf, interval_tm);
-	ctx->timing.beacon_init_val = cpu_to_le32(interval_tm - rem);
+	il->timing.beacon_init_val = cpu_to_le32(interval_tm - rem);
 
-	ctx->timing.dtim_period = vif ? (vif->bss_conf.dtim_period ? : 1) : 1;
+	il->timing.dtim_period = vif ? (vif->bss_conf.dtim_period ? : 1) : 1;
 
 	D_ASSOC("beacon interval %d beacon timer %d beacon tim %d\n",
-		le16_to_cpu(ctx->timing.beacon_interval),
-		le32_to_cpu(ctx->timing.beacon_init_val),
-		le16_to_cpu(ctx->timing.atim_win));
+		le16_to_cpu(il->timing.beacon_interval),
+		le32_to_cpu(il->timing.beacon_init_val),
+		le16_to_cpu(il->timing.atim_win));
 
-	return il_send_cmd_pdu(il, ctx->rxon_timing_cmd, sizeof(ctx->timing),
-			       &ctx->timing);
+	return il_send_cmd_pdu(il, il->ctx.rxon_timing_cmd, sizeof(il->timing),
+			       &il->timing);
 }
 EXPORT_SYMBOL(il_send_rxon_timing);
 
@@ -3673,7 +3673,7 @@ void
 il_set_rxon_hwcrypto(struct il_priv *il, struct il_rxon_context *ctx,
 		     int hw_decrypt)
 {
-	struct il_rxon_cmd *rxon = &ctx->staging;
+	struct il_rxon_cmd *rxon = &il->staging;
 
 	if (hw_decrypt)
 		rxon->filter_flags &= ~RXON_FILTER_DIS_DECRYPT_MSK;
@@ -3687,7 +3687,7 @@ EXPORT_SYMBOL(il_set_rxon_hwcrypto);
 int
 il_check_rxon_cmd(struct il_priv *il, struct il_rxon_context *ctx)
 {
-	struct il_rxon_cmd *rxon = &ctx->staging;
+	struct il_rxon_cmd *rxon = &il->staging;
 	bool error = false;
 
 	if (rxon->flags & RXON_FLG_BAND_24G_MSK) {
@@ -3767,8 +3767,8 @@ EXPORT_SYMBOL(il_check_rxon_cmd);
 int
 il_full_rxon_required(struct il_priv *il, struct il_rxon_context *ctx)
 {
-	const struct il_rxon_cmd *staging = &ctx->staging;
-	const struct il_rxon_cmd *active = &ctx->active;
+	const struct il_rxon_cmd *staging = &il->staging;
+	const struct il_rxon_cmd *active = &il->active;
 
 #define CHK(cond)							\
 	if ((cond)) {							\
@@ -3785,7 +3785,7 @@ il_full_rxon_required(struct il_priv *il, struct il_rxon_context *ctx)
 	}
 
 	/* These items are only settable from the full RXON command */
-	CHK(!il_is_associated_ctx(ctx));
+	CHK(!il_is_associated(il));
 	CHK(compare_ether_addr(staging->bssid_addr, active->bssid_addr));
 	CHK(compare_ether_addr(staging->node_addr, active->node_addr));
 	CHK(compare_ether_addr
@@ -3825,7 +3825,7 @@ il_get_lowest_plcp(struct il_priv *il, struct il_rxon_context *ctx)
 	 * Assign the lowest rate -- should really get this from
 	 * the beacon skb from mac80211.
 	 */
-	if (ctx->staging.flags & RXON_FLG_BAND_24G_MSK)
+	if (il->staging.flags & RXON_FLG_BAND_24G_MSK)
 		return RATE_1M_PLCP;
 	else
 		return RATE_6M_PLCP;
@@ -3836,7 +3836,7 @@ static void
 _il_set_rxon_ht(struct il_priv *il, struct il_ht_config *ht_conf,
 		struct il_rxon_context *ctx)
 {
-	struct il_rxon_cmd *rxon = &ctx->staging;
+	struct il_rxon_cmd *rxon = &il->staging;
 
 	if (!ctx->ht.enabled) {
 		rxon->flags &=
@@ -3925,7 +3925,7 @@ il_get_single_channel_number(struct il_priv *il, enum ieee80211_band band)
 
 	for (i = min; i < max; i++) {
 		channel = il->channel_info[i].channel;
-		if (channel == le16_to_cpu(il->ctx.staging.channel))
+		if (channel == le16_to_cpu(il->staging.channel))
 			continue;
 
 		ch_info = il_get_channel_info(il, band, channel);
@@ -3951,14 +3951,14 @@ il_set_rxon_channel(struct il_priv *il, struct ieee80211_channel *ch,
 	enum ieee80211_band band = ch->band;
 	u16 channel = ch->hw_value;
 
-	if (le16_to_cpu(ctx->staging.channel) == channel && il->band == band)
+	if (le16_to_cpu(il->staging.channel) == channel && il->band == band)
 		return 0;
 
-	ctx->staging.channel = cpu_to_le16(channel);
+	il->staging.channel = cpu_to_le16(channel);
 	if (band == IEEE80211_BAND_5GHZ)
-		ctx->staging.flags &= ~RXON_FLG_BAND_24G_MSK;
+		il->staging.flags &= ~RXON_FLG_BAND_24G_MSK;
 	else
-		ctx->staging.flags |= RXON_FLG_BAND_24G_MSK;
+		il->staging.flags |= RXON_FLG_BAND_24G_MSK;
 
 	il->band = band;
 
@@ -3973,20 +3973,20 @@ il_set_flags_for_band(struct il_priv *il, struct il_rxon_context *ctx,
 		      enum ieee80211_band band, struct ieee80211_vif *vif)
 {
 	if (band == IEEE80211_BAND_5GHZ) {
-		ctx->staging.flags &=
+		il->staging.flags &=
 		    ~(RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK |
 		      RXON_FLG_CCK_MSK);
-		ctx->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
+		il->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
 	} else {
 		/* Copied from il_post_associate() */
 		if (vif && vif->bss_conf.use_short_slot)
-			ctx->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
+			il->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
 		else
-			ctx->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
+			il->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 
-		ctx->staging.flags |= RXON_FLG_BAND_24G_MSK;
-		ctx->staging.flags |= RXON_FLG_AUTO_DETECT_MSK;
-		ctx->staging.flags &= ~RXON_FLG_CCK_MSK;
+		il->staging.flags |= RXON_FLG_BAND_24G_MSK;
+		il->staging.flags |= RXON_FLG_AUTO_DETECT_MSK;
+		il->staging.flags &= ~RXON_FLG_CCK_MSK;
 	}
 }
 EXPORT_SYMBOL(il_set_flags_for_band);
@@ -3999,22 +3999,22 @@ il_connection_init_rx_config(struct il_priv *il, struct il_rxon_context *ctx)
 {
 	const struct il_channel_info *ch_info;
 
-	memset(&ctx->staging, 0, sizeof(ctx->staging));
+	memset(&il->staging, 0, sizeof(il->staging));
 
 	if (!ctx->vif) {
-		ctx->staging.dev_type = ctx->unused_devtype;
+		il->staging.dev_type = ctx->unused_devtype;
 	} else
 		switch (ctx->vif->type) {
 
 		case NL80211_IFTYPE_STATION:
-			ctx->staging.dev_type = ctx->station_devtype;
-			ctx->staging.filter_flags = RXON_FILTER_ACCEPT_GRP_MSK;
+			il->staging.dev_type = ctx->station_devtype;
+			il->staging.filter_flags = RXON_FILTER_ACCEPT_GRP_MSK;
 			break;
 
 		case NL80211_IFTYPE_ADHOC:
-			ctx->staging.dev_type = ctx->ibss_devtype;
-			ctx->staging.flags = RXON_FLG_SHORT_PREAMBLE_MSK;
-			ctx->staging.filter_flags =
+			il->staging.dev_type = ctx->ibss_devtype;
+			il->staging.flags = RXON_FLG_SHORT_PREAMBLE_MSK;
+			il->staging.filter_flags =
 			    RXON_FILTER_BCON_AWARE_MSK |
 			    RXON_FILTER_ACCEPT_GRP_MSK;
 			break;
@@ -4029,35 +4029,35 @@ il_connection_init_rx_config(struct il_priv *il, struct il_rxon_context *ctx)
 	/* TODO:  Figure out when short_preamble would be set and cache from
 	 * that */
 	if (!hw_to_local(il->hw)->short_preamble)
-		ctx->staging.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
+		il->staging.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
 	else
-		ctx->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
+		il->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 #endif
 
 	ch_info =
-	    il_get_channel_info(il, il->band, le16_to_cpu(ctx->active.channel));
+	    il_get_channel_info(il, il->band, le16_to_cpu(il->active.channel));
 
 	if (!ch_info)
 		ch_info = &il->channel_info[0];
 
-	ctx->staging.channel = cpu_to_le16(ch_info->channel);
+	il->staging.channel = cpu_to_le16(ch_info->channel);
 	il->band = ch_info->band;
 
 	il_set_flags_for_band(il, ctx, il->band, ctx->vif);
 
-	ctx->staging.ofdm_basic_rates =
+	il->staging.ofdm_basic_rates =
 	    (IL_OFDM_RATES_MASK >> IL_FIRST_OFDM_RATE) & 0xFF;
-	ctx->staging.cck_basic_rates =
+	il->staging.cck_basic_rates =
 	    (IL_CCK_RATES_MASK >> IL_FIRST_CCK_RATE) & 0xF;
 
 	/* clear both MIX and PURE40 mode flag */
-	ctx->staging.flags &=
+	il->staging.flags &=
 	    ~(RXON_FLG_CHANNEL_MODE_MIXED | RXON_FLG_CHANNEL_MODE_PURE_40);
 	if (ctx->vif)
-		memcpy(ctx->staging.node_addr, ctx->vif->addr, ETH_ALEN);
+		memcpy(il->staging.node_addr, ctx->vif->addr, ETH_ALEN);
 
-	ctx->staging.ofdm_ht_single_stream_basic_rates = 0xff;
-	ctx->staging.ofdm_ht_dual_stream_basic_rates = 0xff;
+	il->staging.ofdm_ht_single_stream_basic_rates = 0xff;
+	il->staging.ofdm_ht_dual_stream_basic_rates = 0xff;
 }
 EXPORT_SYMBOL(il_connection_init_rx_config);
 
@@ -4084,10 +4084,10 @@ il_set_rate(struct il_priv *il)
 
 	D_RATE("Set active_rate = %0x\n", il->active_rate);
 
-	il->ctx.staging.cck_basic_rates =
+	il->staging.cck_basic_rates =
 	    (IL_CCK_BASIC_RATES_MASK >> IL_FIRST_CCK_RATE) & 0xF;
 
-	il->ctx.staging.ofdm_basic_rates =
+	il->staging.ofdm_basic_rates =
 	    (IL_OFDM_BASIC_RATES_MASK >> IL_FIRST_OFDM_RATE) & 0xFF;
 }
 EXPORT_SYMBOL(il_set_rate);
@@ -4110,16 +4110,14 @@ il_hdl_csa(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_csa_notification *csa = &(pkt->u.csa_notif);
-
-	struct il_rxon_context *ctx = &il->ctx;
-	struct il_rxon_cmd *rxon = (void *)&ctx->active;
+	struct il_rxon_cmd *rxon = (void *)&il->active;
 
 	if (!test_bit(S_CHANNEL_SWITCH_PENDING, &il->status))
 		return;
 
 	if (!le32_to_cpu(csa->status) && csa->channel == il->switch_channel) {
 		rxon->channel = csa->channel;
-		ctx->staging.channel = csa->channel;
+		il->staging.channel = csa->channel;
 		D_11H("CSA notif: channel %d\n", le16_to_cpu(csa->channel));
 		il_chswitch_done(il, true);
 	} else {
@@ -4134,7 +4132,7 @@ EXPORT_SYMBOL(il_hdl_csa);
 void
 il_print_rx_config_cmd(struct il_priv *il, struct il_rxon_context *ctx)
 {
-	struct il_rxon_cmd *rxon = &ctx->staging;
+	struct il_rxon_cmd *rxon = &il->staging;
 
 	D_RADIO("RX CONFIG:\n");
 	il_print_hex_dump(il, IL_DL_RADIO, (u8 *) rxon, sizeof(*rxon));
@@ -4347,7 +4345,6 @@ il_set_tx_power(struct il_priv *il, s8 tx_power, bool force)
 	int ret;
 	s8 prev_tx_power;
 	bool defer;
-	struct il_rxon_context *ctx = &il->ctx;
 
 	lockdep_assert_held(&il->mutex);
 
@@ -4378,7 +4375,7 @@ il_set_tx_power(struct il_priv *il, s8 tx_power, bool force)
 
 	/* do not set tx power when scanning or channel changing */
 	defer = test_bit(S_SCANNING, &il->status) ||
-	    memcmp(&ctx->active, &ctx->staging, sizeof(ctx->staging));
+	    memcmp(&il->active, &il->staging, sizeof(il->staging));
 	if (defer && !force) {
 		D_INFO("Deferring tx power set\n");
 		return 0;
@@ -5379,8 +5376,8 @@ il_mac_config(struct ieee80211_hw *hw, u32 changed)
 		/* if we are switching from ht to 2.4 clear flags
 		 * from any ht related info since 2.4 does not
 		 * support ht */
-		if ((le16_to_cpu(ctx->staging.channel) != ch))
-			ctx->staging.flags = 0;
+		if ((le16_to_cpu(il->staging.channel) != ch))
+			il->staging.flags = 0;
 
 		il_set_rxon_channel(il, channel, ctx);
 		il_set_rxon_ht(il, ht_conf);
@@ -5420,7 +5417,7 @@ set_ch_out:
 	if (scan_active)
 		goto out;
 
-	if (memcmp(&ctx->active, &ctx->staging, sizeof(ctx->staging)))
+	if (memcmp(&il->active, &il->staging, sizeof(il->staging)))
 		il_commit_rxon(il, ctx);
 	else
 		D_INFO("Not re-sending same RXON configuration.\n");
@@ -5473,7 +5470,7 @@ il_mac_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	/* we are restarting association process
 	 * clear RXON_FILTER_ASSOC_MSK bit
 	 */
-	ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+	il->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	il_commit_rxon(il, ctx);
 
 	il_set_rate(il);
@@ -5555,8 +5552,8 @@ il_set_no_assoc(struct il_priv *il, struct ieee80211_vif *vif)
 	 * association and that no more packets should be
 	 * sent
 	 */
-	ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	ctx->staging.assoc_id = 0;
+	il->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+	il->staging.assoc_id = 0;
 	il_commit_rxon(il, ctx);
 }
 
@@ -5660,13 +5657,13 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 		/* mac80211 only sets assoc when in STATION mode */
 		if (vif->type == NL80211_IFTYPE_ADHOC || bss_conf->assoc) {
-			memcpy(ctx->staging.bssid_addr, bss_conf->bssid,
+			memcpy(il->staging.bssid_addr, bss_conf->bssid,
 			       ETH_ALEN);
 
 			/* currently needed in a few places */
 			memcpy(il->bssid, bss_conf->bssid, ETH_ALEN);
 		} else {
-			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+			il->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 		}
 
 	}
@@ -5682,21 +5679,21 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (changes & BSS_CHANGED_ERP_PREAMBLE) {
 		D_MAC80211("ERP_PREAMBLE %d\n", bss_conf->use_short_preamble);
 		if (bss_conf->use_short_preamble)
-			ctx->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
+			il->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 		else
-			ctx->staging.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
+			il->staging.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
 	}
 
 	if (changes & BSS_CHANGED_ERP_CTS_PROT) {
 		D_MAC80211("ERP_CTS %d\n", bss_conf->use_cts_prot);
 		if (bss_conf->use_cts_prot && il->band != IEEE80211_BAND_5GHZ)
-			ctx->staging.flags |= RXON_FLG_TGG_PROTECT_MSK;
+			il->staging.flags |= RXON_FLG_TGG_PROTECT_MSK;
 		else
-			ctx->staging.flags &= ~RXON_FLG_TGG_PROTECT_MSK;
+			il->staging.flags &= ~RXON_FLG_TGG_PROTECT_MSK;
 		if (bss_conf->use_cts_prot)
-			ctx->staging.flags |= RXON_FLG_SELF_CTS_EN;
+			il->staging.flags |= RXON_FLG_SELF_CTS_EN;
 		else
-			ctx->staging.flags &= ~RXON_FLG_SELF_CTS_EN;
+			il->staging.flags &= ~RXON_FLG_SELF_CTS_EN;
 	}
 
 	if (changes & BSS_CHANGED_BASIC_RATES) {
@@ -5706,12 +5703,12 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		 * like this here:
 		 *
 		 if (A-band)
-		 ctx->staging.ofdm_basic_rates =
+		 il->staging.ofdm_basic_rates =
 		 bss_conf->basic_rates;
 		 else
-		 ctx->staging.ofdm_basic_rates =
+		 il->staging.ofdm_basic_rates =
 		 bss_conf->basic_rates >> 4;
-		 ctx->staging.cck_basic_rates =
+		 il->staging.cck_basic_rates =
 		 bss_conf->basic_rates & 0xF;
 		 */
 	}
@@ -5734,19 +5731,19 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			il_set_no_assoc(il, vif);
 	}
 
-	if (changes && il_is_associated_ctx(ctx) && bss_conf->aid) {
+	if (changes && il_is_associated(il) && bss_conf->aid) {
 		D_MAC80211("Changes (%#x) while associated\n", changes);
 		ret = il_send_rxon_assoc(il, ctx);
 		if (!ret) {
 			/* Sync active_rxon with latest change. */
-			memcpy((void *)&ctx->active, &ctx->staging,
+			memcpy((void *)&il->active, &il->staging,
 			       sizeof(struct il_rxon_cmd));
 		}
 	}
 
 	if (changes & BSS_CHANGED_BEACON_ENABLED) {
 		if (vif->bss_conf.enable_beacon) {
-			memcpy(ctx->staging.bssid_addr, bss_conf->bssid,
+			memcpy(il->staging.bssid_addr, bss_conf->bssid,
 			       ETH_ALEN);
 			memcpy(il->bssid, bss_conf->bssid, ETH_ALEN);
 			il->cfg->ops->legacy->config_ap(il);

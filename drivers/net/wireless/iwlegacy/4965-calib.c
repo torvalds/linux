@@ -806,8 +806,6 @@ il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 	unsigned long flags;
 	struct stats_rx_non_phy *rx_info;
 
-	struct il_rxon_context *ctx = &il->ctx;
-
 	if (il->disable_chain_noise_cal)
 		return;
 
@@ -833,8 +831,8 @@ il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 		return;
 	}
 
-	rxon_band24 = !!(ctx->staging.flags & RXON_FLG_BAND_24G_MSK);
-	rxon_chnum = le16_to_cpu(ctx->staging.channel);
+	rxon_band24 = !!(il->staging.flags & RXON_FLG_BAND_24G_MSK);
+	rxon_chnum = le16_to_cpu(il->staging.channel);
 
 	stat_band24 =
 	    !!(((struct il_notif_stats *)stat_resp)->

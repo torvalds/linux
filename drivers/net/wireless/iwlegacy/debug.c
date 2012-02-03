@@ -1153,7 +1153,7 @@ il_dbgfs_rxon_flags_read(struct file *file, char __user *user_buf,
 	int len = 0;
 	char buf[20];
 
-	len = sprintf(buf, "0x%04X\n", le32_to_cpu(il->ctx.active.flags));
+	len = sprintf(buf, "0x%04X\n", le32_to_cpu(il->active.flags));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -1167,7 +1167,7 @@ il_dbgfs_rxon_filter_flags_read(struct file *file, char __user *user_buf,
 	char buf[20];
 
 	len =
-	    sprintf(buf, "0x%04X\n", le32_to_cpu(il->ctx.active.filter_flags));
+	    sprintf(buf, "0x%04X\n", le32_to_cpu(il->active.filter_flags));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 

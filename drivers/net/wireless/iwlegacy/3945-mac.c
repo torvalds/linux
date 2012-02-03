@@ -672,15 +672,13 @@ il3945_get_measurement(struct il_priv *il,
 	int rc;
 	int spectrum_resp_status;
 	int duration = le16_to_cpu(params->duration);
-	struct il_rxon_context *ctx = &il->ctx;
 
 	if (il_is_associated(il))
 		add_time =
 		    il_usecs_to_beacons(il,
 					le64_to_cpu(params->start_time) -
 					il->_3945.last_tsf,
-					le16_to_cpu(ctx->timing.
-						    beacon_interval));
+					le16_to_cpu(il->timing.beacon_interval));
 
 	memset(&spectrum, 0, sizeof(spectrum));
 
@@ -694,15 +692,14 @@ il3945_get_measurement(struct il_priv *il,
 	if (il_is_associated(il))
 		spectrum.start_time =
 		    il_add_beacon_time(il, il->_3945.last_beacon_time, add_time,
-				       le16_to_cpu(ctx->timing.
-						   beacon_interval));
+				       le16_to_cpu(il->timing.beacon_interval));
 	else
 		spectrum.start_time = 0;
 
 	spectrum.channels[0].duration = cpu_to_le32(duration * TIME_UNIT);
 	spectrum.channels[0].channel = params->channel;
 	spectrum.channels[0].type = type;
-	if (ctx->active.flags & RXON_FLG_BAND_24G_MSK)
+	if (il->active.flags & RXON_FLG_BAND_24G_MSK)
 		spectrum.flags |=
 		    RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK |
 		    RXON_FLG_TGG_PROTECT_MSK;
@@ -2150,7 +2147,6 @@ il3945_alive_start(struct il_priv *il)
 {
 	int thermal_spin = 0;
 	u32 rfkill;
-	struct il_rxon_context *ctx = &il->ctx;
 
 	D_INFO("Runtime Alive received.\n");
 
@@ -2206,13 +2202,13 @@ il3945_alive_start(struct il_priv *il)
 
 	if (il_is_associated(il)) {
 		struct il3945_rxon_cmd *active_rxon =
-		    (struct il3945_rxon_cmd *)(&ctx->active);
+		    (struct il3945_rxon_cmd *)(&il->active);
 
-		ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
+		il->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	} else {
 		/* Initialize our rx_config data */
-		il_connection_init_rx_config(il, ctx);
+		il_connection_init_rx_config(il, &il->ctx);
 	}
 
 	/* Configure Bluetooth device coexistence support */
@@ -2221,7 +2217,7 @@ il3945_alive_start(struct il_priv *il)
 	set_bit(S_READY, &il->status);
 
 	/* Configure the adapter for unassociated operation */
-	il3945_commit_rxon(il, ctx);
+	il3945_commit_rxon(il, &il->ctx);
 
 	il3945_reg_txpower_periodic(il);
 
@@ -2670,7 +2666,7 @@ il3945_post_scan(struct il_priv *il)
 	 * Since setting the RXON may have been deferred while
 	 * performing the scan, fire one off if needed
 	 */
-	if (memcmp(&ctx->staging, &ctx->active, sizeof(ctx->staging)))
+	if (memcmp(&il->staging, &il->active, sizeof(il->staging)))
 		il3945_commit_rxon(il, ctx);
 }
 
@@ -2728,7 +2724,7 @@ il3945_post_associate(struct il_priv *il)
 		return;
 
 	D_ASSOC("Associated as %d to: %pM\n", ctx->vif->bss_conf.aid,
-		ctx->active.bssid_addr);
+		il->active.bssid_addr);
 
 	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
@@ -2737,30 +2733,30 @@ il3945_post_associate(struct il_priv *il)
 
 	conf = &il->hw->conf;
 
-	ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+	il->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	il3945_commit_rxon(il, ctx);
 
 	rc = il_send_rxon_timing(il, ctx);
 	if (rc)
 		IL_WARN("C_RXON_TIMING failed - " "Attempting to continue.\n");
 
-	ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
+	il->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 
-	ctx->staging.assoc_id = cpu_to_le16(ctx->vif->bss_conf.aid);
+	il->staging.assoc_id = cpu_to_le16(ctx->vif->bss_conf.aid);
 
 	D_ASSOC("assoc id %d beacon interval %d\n", ctx->vif->bss_conf.aid,
 		ctx->vif->bss_conf.beacon_int);
 
 	if (ctx->vif->bss_conf.use_short_preamble)
-		ctx->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
+		il->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 	else
-		ctx->staging.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
+		il->staging.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
 
-	if (ctx->staging.flags & RXON_FLG_BAND_24G_MSK) {
+	if (il->staging.flags & RXON_FLG_BAND_24G_MSK) {
 		if (ctx->vif->bss_conf.use_short_slot)
-			ctx->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
+			il->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
 		else
-			ctx->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
+			il->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 	}
 
 	il3945_commit_rxon(il, ctx);
@@ -2902,7 +2898,7 @@ il3945_config_ap(struct il_priv *il)
 	if (!(il_is_associated(il))) {
 
 		/* RXON - unassoc (to set timing command) */
-		ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+		il->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 		il3945_commit_rxon(il, ctx);
 
 		/* RXON Timing */
@@ -2911,21 +2907,21 @@ il3945_config_ap(struct il_priv *il)
 			IL_WARN("C_RXON_TIMING failed - "
 				"Attempting to continue.\n");
 
-		ctx->staging.assoc_id = 0;
+		il->staging.assoc_id = 0;
 
 		if (vif->bss_conf.use_short_preamble)
-			ctx->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
+			il->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 		else
-			ctx->staging.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
+			il->staging.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
 
-		if (ctx->staging.flags & RXON_FLG_BAND_24G_MSK) {
+		if (il->staging.flags & RXON_FLG_BAND_24G_MSK) {
 			if (vif->bss_conf.use_short_slot)
-				ctx->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
+				il->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
 			else
-				ctx->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
+				il->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 		}
 		/* restore RXON assoc */
-		ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
+		il->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		il3945_commit_rxon(il, ctx);
 	}
 	il3945_send_beacon_cmd(il);
@@ -3032,7 +3028,6 @@ il3945_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 {
 	struct il_priv *il = hw->priv;
 	__le32 filter_or = 0, filter_nand = 0;
-	struct il_rxon_context *ctx = &il->ctx;
 
 #define CHK(test, flag)	do { \
 	if (*total_flags & (test))		\
@@ -3052,8 +3047,8 @@ il3945_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 
 	mutex_lock(&il->mutex);
 
-	ctx->staging.filter_flags &= ~filter_nand;
-	ctx->staging.filter_flags |= filter_or;
+	il->staging.filter_flags &= ~filter_nand;
+	il->staging.filter_flags |= filter_or;
 
 	/*
 	 * Not committing directly because hardware can perform a scan,
@@ -3170,9 +3165,8 @@ static ssize_t
 il3945_show_flags(struct device *d, struct device_attribute *attr, char *buf)
 {
 	struct il_priv *il = dev_get_drvdata(d);
-	struct il_rxon_context *ctx = &il->ctx;
 
-	return sprintf(buf, "0x%04X\n", ctx->active.flags);
+	return sprintf(buf, "0x%04X\n", il->active.flags);
 }
 
 static ssize_t
@@ -3181,17 +3175,16 @@ il3945_store_flags(struct device *d, struct device_attribute *attr,
 {
 	struct il_priv *il = dev_get_drvdata(d);
 	u32 flags = simple_strtoul(buf, NULL, 0);
-	struct il_rxon_context *ctx = &il->ctx;
 
 	mutex_lock(&il->mutex);
-	if (le32_to_cpu(ctx->staging.flags) != flags) {
+	if (le32_to_cpu(il->staging.flags) != flags) {
 		/* Cancel any currently running scans... */
 		if (il_scan_cancel_timeout(il, 100))
 			IL_WARN("Could not cancel scan.\n");
 		else {
 			D_INFO("Committing rxon.flags = 0x%04X\n", flags);
-			ctx->staging.flags = cpu_to_le32(flags);
-			il3945_commit_rxon(il, ctx);
+			il->staging.flags = cpu_to_le32(flags);
+			il3945_commit_rxon(il, &il->ctx);
 		}
 	}
 	mutex_unlock(&il->mutex);
@@ -3207,9 +3200,8 @@ il3945_show_filter_flags(struct device *d, struct device_attribute *attr,
 			 char *buf)
 {
 	struct il_priv *il = dev_get_drvdata(d);
-	struct il_rxon_context *ctx = &il->ctx;
 
-	return sprintf(buf, "0x%04X\n", le32_to_cpu(ctx->active.filter_flags));
+	return sprintf(buf, "0x%04X\n", le32_to_cpu(il->active.filter_flags));
 }
 
 static ssize_t
@@ -3217,19 +3209,18 @@ il3945_store_filter_flags(struct device *d, struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
 	struct il_priv *il = dev_get_drvdata(d);
-	struct il_rxon_context *ctx = &il->ctx;
 	u32 filter_flags = simple_strtoul(buf, NULL, 0);
 
 	mutex_lock(&il->mutex);
-	if (le32_to_cpu(ctx->staging.filter_flags) != filter_flags) {
+	if (le32_to_cpu(il->staging.filter_flags) != filter_flags) {
 		/* Cancel any currently running scans... */
 		if (il_scan_cancel_timeout(il, 100))
 			IL_WARN("Could not cancel scan.\n");
 		else {
 			D_INFO("Committing rxon.filter_flags = " "0x%04X\n",
 			       filter_flags);
-			ctx->staging.filter_flags = cpu_to_le32(filter_flags);
-			il3945_commit_rxon(il, ctx);
+			il->staging.filter_flags = cpu_to_le32(filter_flags);
+			il3945_commit_rxon(il, &il->ctx);
 		}
 	}
 	mutex_unlock(&il->mutex);
@@ -3278,9 +3269,8 @@ il3945_store_measurement(struct device *d, struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
 	struct il_priv *il = dev_get_drvdata(d);
-	struct il_rxon_context *ctx = &il->ctx;
 	struct ieee80211_measurement_params params = {
-		.channel = le16_to_cpu(ctx->active.channel),
+		.channel = le16_to_cpu(il->active.channel),
 		.start_time = cpu_to_le64(il->_3945.last_tsf),
 		.duration = cpu_to_le16(1),
 	};

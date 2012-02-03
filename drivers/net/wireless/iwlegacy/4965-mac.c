@@ -926,8 +926,7 @@ il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 	case IEEE80211_BAND_2GHZ:
 		scan->flags = RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK;
 		chan_mod =
-		    le32_to_cpu(il->ctx.active.
-				flags & RXON_FLG_CHANNEL_MODE_MSK) >>
+		    le32_to_cpu(il->active.flags & RXON_FLG_CHANNEL_MODE_MSK) >>
 		    RXON_FLG_CHANNEL_MODE_POS;
 		if (chan_mod == CHANNEL_MODE_PURE_40) {
 			rate = RATE_6M_PLCP;
@@ -1164,14 +1163,14 @@ il4965_set_rxon_chain(struct il_priv *il, struct il_rxon_context *ctx)
 	rx_chain |= active_rx_cnt << RXON_RX_CHAIN_MIMO_CNT_POS;
 	rx_chain |= idle_rx_cnt << RXON_RX_CHAIN_CNT_POS;
 
-	ctx->staging.rx_chain = cpu_to_le16(rx_chain);
+	il->staging.rx_chain = cpu_to_le16(rx_chain);
 
 	if (!is_single && active_rx_cnt >= IL_NUM_RX_CHAINS_SINGLE && is_cam)
-		ctx->staging.rx_chain |= RXON_RX_CHAIN_MIMO_FORCE_MSK;
+		il->staging.rx_chain |= RXON_RX_CHAIN_MIMO_FORCE_MSK;
 	else
-		ctx->staging.rx_chain &= ~RXON_RX_CHAIN_MIMO_FORCE_MSK;
+		il->staging.rx_chain &= ~RXON_RX_CHAIN_MIMO_FORCE_MSK;
 
-	D_ASSOC("rx_chain=0x%X active=%d idle=%d\n", ctx->staging.rx_chain,
+	D_ASSOC("rx_chain=0x%X active=%d idle=%d\n", il->staging.rx_chain,
 		active_rx_cnt, idle_rx_cnt);
 
 	WARN_ON(active_rx_cnt == 0 || idle_rx_cnt == 0 ||
@@ -3378,7 +3377,7 @@ il4965_update_chain_flags(struct il_priv *il)
 {
 	if (il->cfg->ops->hcmd->set_rxon_chain) {
 		il->cfg->ops->hcmd->set_rxon_chain(il, &il->ctx);
-		if (il->ctx.active.rx_chain != il->ctx.staging.rx_chain)
+		if (il->active.rx_chain != il->staging.rx_chain)
 			il_commit_rxon(il, &il->ctx);
 	}
 }
@@ -5019,11 +5018,11 @@ il4965_alive_start(struct il_priv *il)
 
 	il->active_rate = RATES_MASK;
 
-	if (il_is_associated_ctx(ctx)) {
+	if (il_is_associated(il)) {
 		struct il_rxon_cmd *active_rxon =
-		    (struct il_rxon_cmd *)&ctx->active;
+		    (struct il_rxon_cmd *)&il->active;
 		/* apply any changes in staging */
-		ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
+		il->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	} else {
 		/* Initialize our rx_config data */
@@ -5768,14 +5767,14 @@ il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	    test_bit(S_CHANNEL_SWITCH_PENDING, &il->status))
 		goto out;
 
-	if (!il_is_associated_ctx(ctx))
+	if (!il_is_associated(il))
 		goto out;
 
 	if (!il->cfg->ops->lib->set_channel_switch)
 		goto out;
 
 	ch = channel->hw_value;
-	if (le16_to_cpu(ctx->active.channel) == ch)
+	if (le16_to_cpu(il->active.channel) == ch)
 		goto out;
 
 	ch_info = il_get_channel_info(il, channel->band, ch);
@@ -5807,8 +5806,8 @@ il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	} else
 		ctx->ht.is_40mhz = false;
 
-	if ((le16_to_cpu(ctx->staging.channel) != ch))
-		ctx->staging.flags = 0;
+	if ((le16_to_cpu(il->staging.channel) != ch))
+		il->staging.flags = 0;
 
 	il_set_rxon_channel(il, channel, ctx);
 	il_set_rxon_ht(il, ht_conf);
@@ -5860,8 +5859,8 @@ il4965_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 
 	mutex_lock(&il->mutex);
 
-	il->ctx.staging.filter_flags &= ~filter_nand;
-	il->ctx.staging.filter_flags |= filter_or;
+	il->staging.filter_flags &= ~filter_nand;
+	il->staging.filter_flags |= filter_or;
 
 	/*
 	 * Not committing directly because hardware can perform a scan,

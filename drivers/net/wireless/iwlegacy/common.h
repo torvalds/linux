@@ -1171,17 +1171,6 @@ struct il_rxon_context {
 	u32 interface_modes, exclusive_interface_modes;
 	u8 unused_devtype, ap_devtype, ibss_devtype, station_devtype;
 
-	/*
-	 * We declare this const so it can only be
-	 * changed via explicit cast within the
-	 * routines that actually update the physical
-	 * hardware.
-	 */
-	const struct il_rxon_cmd active;
-	struct il_rxon_cmd staging;
-
-	struct il_rxon_time_cmd timing;
-
 	struct il_qos_info qos_data;
 
 	u8 bcast_sta_id, ap_sta_id;
@@ -1305,6 +1294,17 @@ struct il_priv {
 	char firmware_name[25];
 
 	struct il_rxon_context ctx;
+
+	/*
+	 * We declare this const so it can only be
+	 * changed via explicit cast within the
+	 * routines that actually update the physical
+	 * hardware.
+	 */
+	const struct il_rxon_cmd active;
+	struct il_rxon_cmd staging;
+
+	struct il_rxon_time_cmd timing;
 
 	__le16 switch_channel;
 
@@ -1530,19 +1530,13 @@ il_rxon_ctx_from_vif(struct ieee80211_vif *vif)
 static inline int
 il_is_associated(struct il_priv *il)
 {
-	return (il->ctx.active.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
+	return (il->active.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
 }
 
 static inline int
 il_is_any_associated(struct il_priv *il)
 {
 	return il_is_associated(il);
-}
-
-static inline int
-il_is_associated_ctx(struct il_rxon_context *ctx)
-{
-	return (ctx->active.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
 }
 
 static inline int
