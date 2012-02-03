@@ -167,6 +167,7 @@ struct fsi_stream {
 	int buff_sample_pos;	/* sample position of ALSA buffer */
 	int period_samples;	/* sample number / 1 period */
 	int period_pos;		/* current period position */
+	int sample_width;	/* sample width */
 
 	int uerr_num;
 	int oerr_num;
@@ -406,6 +407,7 @@ static void fsi_stream_push(struct fsi_priv *fsi,
 	io->buff_sample_pos	= 0;
 	io->period_samples	= fsi_frame2sample(fsi, runtime->period_size);
 	io->period_pos		= 0;
+	io->sample_width	= samples_to_bytes(runtime, 1);
 	io->oerr_num	= -1; /* ignore 1st err */
 	io->uerr_num	= -1; /* ignore 1st err */
 	spin_unlock_irqrestore(&master->lock, flags);
@@ -431,6 +433,7 @@ static void fsi_stream_pop(struct fsi_priv *fsi, int is_play)
 	io->buff_sample_pos	= 0;
 	io->period_samples	= 0;
 	io->period_pos		= 0;
+	io->sample_width	= 0;
 	io->oerr_num	= 0;
 	io->uerr_num	= 0;
 	spin_unlock_irqrestore(&master->lock, flags);
@@ -752,7 +755,6 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int stream)
 	int is_play = fsi_stream_is_play(stream);
 	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
 	int sample_residues;
-	int sample_width;
 	int samples;
 	int samples_max;
 	int over_period;
@@ -780,9 +782,6 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int stream)
 			io->buff_sample_pos = 0;
 	}
 
-	/* get 1 sample data width */
-	sample_width = samples_to_bytes(runtime, 1);
-
 	/* get number of residue samples */
 	sample_residues = io->buff_sample_capa - io->buff_sample_pos;
 
@@ -798,7 +797,7 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int stream)
 
 		samples = sample_residues;
 
-		switch (sample_width) {
+		switch (io->sample_width) {
 		case 2:
 			fn = fsi_dma_soft_push16;
 			break;
@@ -818,7 +817,7 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int stream)
 		samples_max = sample_residues;
 		samples     = fsi_get_current_fifo_samples(fsi, is_play);
 
-		switch (sample_width) {
+		switch (io->sample_width) {
 		case 2:
 			fn = fsi_dma_soft_pop16;
 			break;
