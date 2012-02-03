@@ -27,4 +27,11 @@ config EXYNOS_LCD_S6E8AX0
 	  If you have an S6E8AX0 MIPI AMOLED LCD Panel, say Y to enable its
 	  LCD control driver.
 
+config EXYNOS_DP
+	bool "EXYNOS DP driver support"
+	depends on ARCH_EXYNOS
+	default n
+	help
+	  This enables support for DP device.
+
 endif # EXYNOS_VIDEO
