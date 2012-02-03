@@ -1314,7 +1314,7 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 		down(&priv->cmd.slave_sem);
 		if (mlx4_master_process_vhcr(dev, slave, NULL)) {
 			mlx4_err(dev, "Failed processing vhcr for slave:%d,"
-				 " reseting slave.\n", slave);
+				 " resetting slave.\n", slave);
 			up(&priv->cmd.slave_sem);
 			goto reset_slave;
 		}
