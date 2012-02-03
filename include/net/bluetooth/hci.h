@@ -270,10 +270,6 @@ enum {
 #define HCI_LK_UNAUTH_COMBINATION	0x04
 #define HCI_LK_AUTH_COMBINATION		0x05
 #define HCI_LK_CHANGED_COMBINATION	0x06
-/* The spec doesn't define types for SMP keys */
-#define HCI_LK_SMP_LTK			0x81
-#define HCI_LK_SMP_IRK			0x82
-#define HCI_LK_SMP_CSRK			0x83
 /* The spec doesn't define types for SMP keys, the _MASTER suffix is implied */
 #define HCI_SMP_STK			0x80
 #define HCI_SMP_STK_SLAVE		0x81

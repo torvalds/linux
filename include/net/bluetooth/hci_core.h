@@ -100,28 +100,12 @@ struct smp_ltk {
 	u8 val[16];
 } __packed;
 
-struct key_master_id {
-	__le16 ediv;
-	u8 rand[8];
-} __packed;
-
-struct link_key_data {
-	bdaddr_t bdaddr;
-	u8 type;
-	u8 val[16];
-	u8 pin_len;
-	u8 dlen;
-	u8 data[0];
-} __packed;
-
 struct link_key {
 	struct list_head list;
 	bdaddr_t bdaddr;
 	u8 type;
 	u8 val[16];
 	u8 pin_len;
-	u8 dlen;
-	u8 data[0];
 };
 
 struct oob_data {
