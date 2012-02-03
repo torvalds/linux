@@ -1089,6 +1089,12 @@ static int remove_keys(struct sock *sk, u16 index, void *data, u16 len)
 	bacpy(&rp.bdaddr, &cp->bdaddr);
 	rp.status = MGMT_STATUS_FAILED;
 
+	err = hci_remove_ltk(hdev, &cp->bdaddr);
+	if (err < 0) {
+		err = cmd_status(sk, index, MGMT_OP_REMOVE_KEYS, -err);
+		goto unlock;
+	}
+
 	err = hci_remove_link_key(hdev, &cp->bdaddr);
 	if (err < 0) {
 		rp.status = MGMT_STATUS_NOT_PAIRED;
