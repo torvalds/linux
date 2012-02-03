@@ -361,6 +361,7 @@ bool hci_discovery_active(struct hci_dev *hdev)
 	struct discovery_state *discov = &hdev->discovery;
 
 	if (discov->state == DISCOVERY_INQUIRY ||
+					discov->state == DISCOVERY_LE_SCAN ||
 					discov->state == DISCOVERY_RESOLVING)
 		return true;
 
@@ -381,6 +382,7 @@ void hci_discovery_set_state(struct hci_dev *hdev, int state)
 	case DISCOVERY_STARTING:
 		break;
 	case DISCOVERY_INQUIRY:
+	case DISCOVERY_LE_SCAN:
 		mgmt_discovering(hdev, 1);
 		break;
 	case DISCOVERY_RESOLVING:
