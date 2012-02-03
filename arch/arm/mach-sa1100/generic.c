@@ -428,7 +428,7 @@ void __init sa1100_map_io(void)
  * the MBGNT signal false to ensure the SA1111 doesn't own the
  * SDRAM bus.
  */
-void __init sa1110_mb_disable(void)
+void sa1110_mb_disable(void)
 {
 	unsigned long flags;
 
@@ -447,7 +447,7 @@ void __init sa1110_mb_disable(void)
  * If the system is going to use the SA-1111 DMA engines, set up
  * the memory bus request/grant pins.
  */
-void __devinit sa1110_mb_enable(void)
+void sa1110_mb_enable(void)
 {
 	unsigned long flags;
 

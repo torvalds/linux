@@ -87,7 +87,7 @@
 #define IRQ_S0_BVD1_STSCHG	(53)
 #define IRQ_S1_BVD1_STSCHG	(54)
 
-extern void __init sa1110_mb_enable(void);
+extern void sa1110_mb_enable(void);
 
 /*
  * We keep the following data for the overall SA1111.  Note that the
