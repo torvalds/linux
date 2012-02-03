@@ -554,54 +554,6 @@ static int fsi_stream_remove(struct fsi_priv *fsi)
 }
 
 /*
- *		pio function
- */
-
-static u8 *fsi_pio_get_area(struct fsi_priv *fsi, struct fsi_stream *io)
-{
-	struct snd_pcm_runtime *runtime = io->substream->runtime;
-
-	return runtime->dma_area +
-		samples_to_bytes(runtime, io->buff_sample_pos);
-}
-
-static void fsi_pio_push16(struct fsi_priv *fsi, u8 *_buf, int num)
-{
-	u16 *start = (u16 *)_buf;
-	int i;
-
-	for (i = 0; i < num; i++)
-		fsi_reg_write(fsi, DODT, ((u32)*(start + i) << 8));
-}
-
-static void fsi_pio_pop16(struct fsi_priv *fsi, u8 *_buf, int num)
-{
-	u16 *start = (u16 *)_buf;
-	int i;
-
-	for (i = 0; i < num; i++)
-		*(start + i) = (u16)(fsi_reg_read(fsi, DIDT) >> 8);
-}
-
-static void fsi_pio_push32(struct fsi_priv *fsi, u8 *_buf, int num)
-{
-	u32 *start = (u32 *)_buf;
-	int i;
-
-	for (i = 0; i < num; i++)
-		fsi_reg_write(fsi, DODT, *(start + i));
-}
-
-static void fsi_pio_pop32(struct fsi_priv *fsi, u8 *_buf, int num)
-{
-	u32 *start = (u32 *)_buf;
-	int i;
-
-	for (i = 0; i < num; i++)
-		*(start + i) = fsi_reg_read(fsi, DIDT);
-}
-
-/*
  *		irq function
  */
 
@@ -757,10 +709,55 @@ static void __fsi_port_clk_ctrl(struct fsi_priv *fsi, int is_play, int enable)
 		fsi_master_mask_set(master, CLK_RST, clk, (enable) ? clk : 0);
 }
 
+
 /*
- *		ctrl function
+ *		pio data transfer handler
  */
-static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, struct fsi_stream *io,
+static void fsi_pio_push16(struct fsi_priv *fsi, u8 *_buf, int samples)
+{
+	u16 *buf = (u16 *)_buf;
+	int i;
+
+	for (i = 0; i < samples; i++)
+		fsi_reg_write(fsi, DODT, ((u32)*(buf + i) << 8));
+}
+
+static void fsi_pio_pop16(struct fsi_priv *fsi, u8 *_buf, int samples)
+{
+	u16 *buf = (u16 *)_buf;
+	int i;
+
+	for (i = 0; i < samples; i++)
+		*(buf + i) = (u16)(fsi_reg_read(fsi, DIDT) >> 8);
+}
+
+static void fsi_pio_push32(struct fsi_priv *fsi, u8 *_buf, int samples)
+{
+	u32 *buf = (u32 *)_buf;
+	int i;
+
+	for (i = 0; i < samples; i++)
+		fsi_reg_write(fsi, DODT, *(buf + i));
+}
+
+static void fsi_pio_pop32(struct fsi_priv *fsi, u8 *_buf, int samples)
+{
+	u32 *buf = (u32 *)_buf;
+	int i;
+
+	for (i = 0; i < samples; i++)
+		*(buf + i) = fsi_reg_read(fsi, DIDT);
+}
+
+static u8 *fsi_pio_get_area(struct fsi_priv *fsi, struct fsi_stream *io)
+{
+	struct snd_pcm_runtime *runtime = io->substream->runtime;
+
+	return runtime->dma_area +
+		samples_to_bytes(runtime, io->buff_sample_pos);
+}
+
+static int fsi_pio_transfer(struct fsi_priv *fsi, struct fsi_stream *io,
 		void (*run16)(struct fsi_priv *fsi, u8 *buf, int samples),
 		void (*run32)(struct fsi_priv *fsi, u8 *buf, int samples),
 		int samples)
@@ -825,7 +822,7 @@ static int fsi_pio_pop(struct fsi_priv *fsi, struct fsi_stream *io)
 
 	samples = min(sample_residues, sample_space);
 
-	return fsi_fifo_data_ctrl(fsi, io,
+	return fsi_pio_transfer(fsi, io,
 				  fsi_pio_pop16,
 				  fsi_pio_pop32,
 				  samples);
@@ -843,7 +840,7 @@ static int fsi_pio_push(struct fsi_priv *fsi, struct fsi_stream *io)
 
 	samples = min(sample_residues, sample_space);
 
-	return fsi_fifo_data_ctrl(fsi, io,
+	return fsi_pio_transfer(fsi, io,
 				  fsi_pio_push16,
 				  fsi_pio_push32,
 				  samples);
