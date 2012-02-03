@@ -735,6 +735,8 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 {
 	BT_DBG("%s %p", hdev->name, hdev);
 
+	cancel_work_sync(&hdev->le_scan);
+
 	hci_req_cancel(hdev, ENODEV);
 	hci_req_lock(hdev);
 
@@ -1668,6 +1670,37 @@ static void le_scan_disable_work(struct work_struct *work)
 	hci_send_cmd(hdev, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
 }
 
+static void le_scan_work(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev, le_scan);
+	struct le_scan_params *param = &hdev->le_scan_params;
+
+	BT_DBG("%s", hdev->name);
+
+	hci_do_le_scan(hdev, param->type, param->interval,
+					param->window, param->timeout);
+}
+
+int hci_le_scan(struct hci_dev *hdev, u8 type, u16 interval, u16 window,
+								int timeout)
+{
+	struct le_scan_params *param = &hdev->le_scan_params;
+
+	BT_DBG("%s", hdev->name);
+
+	if (work_busy(&hdev->le_scan))
+		return -EINPROGRESS;
+
+	param->type = type;
+	param->interval = interval;
+	param->window = window;
+	param->timeout = timeout;
+
+	queue_work(system_long_wq, &hdev->le_scan);
+
+	return 0;
+}
+
 /* Register HCI device */
 int hci_register_dev(struct hci_dev *hdev)
 {
@@ -1753,6 +1786,8 @@ int hci_register_dev(struct hci_dev *hdev)
 	memset(&hdev->stat, 0, sizeof(struct hci_dev_stats));
 
 	atomic_set(&hdev->promisc, 0);
+
+	INIT_WORK(&hdev->le_scan, le_scan_work);
 
 	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
 

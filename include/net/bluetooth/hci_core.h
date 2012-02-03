@@ -126,6 +126,7 @@ struct le_scan_params {
 	u8 type;
 	u16 interval;
 	u16 window;
+	int timeout;
 };
 
 #define NUM_REASSEMBLY 4
@@ -268,6 +269,9 @@ struct hci_dev {
 	unsigned long		dev_flags;
 
 	struct delayed_work	le_scan_disable;
+
+	struct work_struct	le_scan;
+	struct le_scan_params	le_scan_params;
 
 	int (*open)(struct hci_dev *hdev);
 	int (*close)(struct hci_dev *hdev);
@@ -1033,5 +1037,7 @@ void hci_le_ltk_neg_reply(struct hci_conn *conn);
 
 int hci_do_inquiry(struct hci_dev *hdev, u8 length);
 int hci_cancel_inquiry(struct hci_dev *hdev);
+int hci_le_scan(struct hci_dev *hdev, u8 type, u16 interval, u16 window,
+								int timeout);
 
 #endif /* __HCI_CORE_H */
