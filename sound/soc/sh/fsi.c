@@ -747,17 +747,14 @@ static void fsi_fifo_init(struct fsi_priv *fsi,
 	}
 }
 
-static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int stream)
+static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, struct fsi_stream *io,
+			      void (*run16)(struct fsi_priv *fsi, int size),
+			      void (*run32)(struct fsi_priv *fsi, int size),
+			      int samples)
 {
 	struct snd_pcm_runtime *runtime;
-	struct snd_pcm_substream *substream = NULL;
-	int is_play = fsi_stream_is_play(stream);
-	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
-	int sample_residues;
-	int samples;
-	int samples_max;
+	struct snd_pcm_substream *substream;
 	int over_period;
-	void (*fn)(struct fsi_priv *fsi, int size);
 
 	if (!fsi			||
 	    !io->substream		||
@@ -781,56 +778,16 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int stream)
 			io->buff_sample_pos = 0;
 	}
 
-	/* get number of residue samples */
-	sample_residues = io->buff_sample_capa - io->buff_sample_pos;
-
-	if (is_play) {
-		/*
-		 * for play-back
-		 *
-		 * samples_max	: number of FSI fifo free samples space
-		 * samples	: number of ALSA residue samples
-		 */
-		samples_max  = io->fifo_sample_capa;
-		samples_max -= fsi_get_current_fifo_samples(fsi, is_play);
-
-		samples = sample_residues;
-
-		switch (io->sample_width) {
-		case 2:
-			fn = fsi_dma_soft_push16;
-			break;
-		case 4:
-			fn = fsi_dma_soft_push32;
-			break;
-		default:
-			return -EINVAL;
-		}
-	} else {
-		/*
-		 * for capture
-		 *
-		 * samples_max	: number of ALSA free samples space
-		 * samples	: number of samples in FSI fifo
-		 */
-		samples_max = sample_residues;
-		samples     = fsi_get_current_fifo_samples(fsi, is_play);
-
-		switch (io->sample_width) {
-		case 2:
-			fn = fsi_dma_soft_pop16;
-			break;
-		case 4:
-			fn = fsi_dma_soft_pop32;
-			break;
-		default:
-			return -EINVAL;
-		}
+	switch (io->sample_width) {
+	case 2:
+		run16(fsi, samples);
+		break;
+	case 4:
+		run32(fsi, samples);
+		break;
+	default:
+		return -EINVAL;
 	}
-
-	samples = min(samples, samples_max);
-
-	fn(fsi, samples);
 
 	/* update buff_sample_pos */
 	io->buff_sample_pos += samples;
@@ -843,12 +800,41 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int stream)
 
 static int fsi_data_pop(struct fsi_priv *fsi)
 {
-	return fsi_fifo_data_ctrl(fsi, SNDRV_PCM_STREAM_CAPTURE);
+	int is_play = fsi_stream_is_play(SNDRV_PCM_STREAM_CAPTURE);
+	int sample_residues;	/* samples in FSI fifo */
+	int sample_space;	/* ALSA free samples space */
+	int samples;
+	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
+
+	sample_residues	= fsi_get_current_fifo_samples(fsi, is_play);
+	sample_space	= io->buff_sample_capa - io->buff_sample_pos;
+
+	samples = min(sample_residues, sample_space);
+
+	return fsi_fifo_data_ctrl(fsi, io,
+				  fsi_dma_soft_pop16,
+				  fsi_dma_soft_pop32,
+				  samples);
 }
 
 static int fsi_data_push(struct fsi_priv *fsi)
 {
-	return fsi_fifo_data_ctrl(fsi, SNDRV_PCM_STREAM_PLAYBACK);
+	int is_play = fsi_stream_is_play(SNDRV_PCM_STREAM_PLAYBACK);
+	int sample_residues;	/* ALSA residue samples */
+	int sample_space;	/* FSI fifo free samples space */
+	int samples;
+	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
+
+	sample_residues	= io->buff_sample_capa - io->buff_sample_pos;
+	sample_space	= io->fifo_sample_capa -
+		fsi_get_current_fifo_samples(fsi, is_play);
+
+	samples = min(sample_residues, sample_space);
+
+	return fsi_fifo_data_ctrl(fsi, io,
+				  fsi_dma_soft_push16,
+				  fsi_dma_soft_push32,
+				  samples);
 }
 
 static irqreturn_t fsi_interrupt(int irq, void *data)
