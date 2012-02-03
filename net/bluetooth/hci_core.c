@@ -1338,6 +1338,9 @@ int hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type, u8 type,
 	if (!new_key)
 		return 0;
 
+	if (type & HCI_SMP_LTK)
+		mgmt_new_ltk(hdev, key, 1);
+
 	return 0;
 }
 
