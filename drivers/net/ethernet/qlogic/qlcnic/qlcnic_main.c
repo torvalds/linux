@@ -3159,7 +3159,7 @@ qlcnic_check_health(struct qlcnic_adapter *adapter)
 			QLCRD32(adapter, QLCNIC_CRB_PEG_NET_3 + 0x3c),
 			QLCRD32(adapter, QLCNIC_CRB_PEG_NET_4 + 0x3c));
 	peg_status = QLCRD32(adapter, QLCNIC_PEG_HALT_STATUS1);
-	if (LSW(MSB(peg_status)) == 0x67)
+	if (QLCNIC_FWERROR_CODE(peg_status) == 0x67)
 		dev_err(&adapter->pdev->dev,
 			"Firmware aborted with error code 0x00006700. "
 				"Device is being reset.\n");
