@@ -2823,7 +2823,7 @@ il4965_static_wepkey_cmd(struct il_priv *il, struct il_rxon_context *ctx,
 	struct il_wep_cmd *wep_cmd = (struct il_wep_cmd *)buff;
 	size_t cmd_size = sizeof(struct il_wep_cmd);
 	struct il_host_cmd cmd = {
-		.id = ctx->wep_key_cmd,
+		.id = C_WEPKEY,
 		.data = wep_cmd,
 		.flags = CMD_SYNC,
 	};
@@ -6136,7 +6136,6 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	il->ctx.always_active = true;
 	il->ctx.is_active = true;
 	il->ctx.ap_sta_id = IL_AP_ID;
-	il->ctx.wep_key_cmd = C_WEPKEY;
 	il->ctx.ac_to_fifo = il4965_bss_ac_to_fifo;
 	il->ctx.ac_to_queue = il4965_bss_ac_to_queue;
 	il->ctx.exclusive_interface_modes = BIT(NL80211_IFTYPE_ADHOC);

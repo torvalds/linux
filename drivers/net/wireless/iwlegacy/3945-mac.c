@@ -3620,7 +3620,6 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	il->ctx.ctxid = 0;
 
 	il->ctx.ap_sta_id = IL_AP_ID;
-	il->ctx.wep_key_cmd = C_WEPKEY;
 	il->ctx.interface_modes =
 	    BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_ADHOC);
 	il->ctx.ibss_devtype = RXON_DEV_TYPE_IBSS;
