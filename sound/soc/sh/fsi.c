@@ -203,6 +203,8 @@ struct fsi_stream_handler {
 	int (*probe)(struct fsi_priv *fsi, struct fsi_stream *io);
 	int (*transfer)(struct fsi_priv *fsi, struct fsi_stream *io);
 	int (*remove)(struct fsi_priv *fsi, struct fsi_stream *io);
+	void (*start_stop)(struct fsi_priv *fsi, struct fsi_stream *io,
+			   int enable);
 };
 #define fsi_stream_handler_call(io, func, args...)	\
 	(!(io) ? -ENODEV :				\
@@ -513,6 +515,12 @@ static int fsi_stream_transfer(struct fsi_stream *io)
 	return fsi_stream_handler_call(io, transfer, fsi, io);
 }
 
+#define fsi_stream_start(fsi, io)\
+	fsi_stream_handler_call(io, start_stop, fsi, io, 1)
+
+#define fsi_stream_stop(fsi, io)\
+	fsi_stream_handler_call(io, start_stop, fsi, io, 0)
+
 static int fsi_stream_probe(struct fsi_priv *fsi)
 {
 	struct fsi_stream *io;
@@ -691,24 +699,6 @@ static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
 	return ret;
 }
 
-#define fsi_port_start(f, i)	__fsi_port_clk_ctrl(f, i, 1)
-#define fsi_port_stop(f, i)	__fsi_port_clk_ctrl(f, i, 0)
-static void __fsi_port_clk_ctrl(struct fsi_priv *fsi, struct fsi_stream *io,
-				int enable)
-{
-	struct fsi_master *master = fsi_get_master(fsi);
-	u32 clk  = fsi_is_port_a(fsi) ? CRA  : CRB;
-
-	if (enable)
-		fsi_irq_enable(fsi, io);
-	else
-		fsi_irq_disable(fsi, io);
-
-	if (fsi_is_clk_master(fsi))
-		fsi_master_mask_set(master, CLK_RST, clk, (enable) ? clk : 0);
-}
-
-
 /*
  *		pio data transfer handler
  */
@@ -845,12 +835,29 @@ static int fsi_pio_push(struct fsi_priv *fsi, struct fsi_stream *io)
 				  samples);
 }
 
+static void fsi_pio_start_stop(struct fsi_priv *fsi, struct fsi_stream *io,
+			       int enable)
+{
+	struct fsi_master *master = fsi_get_master(fsi);
+	u32 clk  = fsi_is_port_a(fsi) ? CRA  : CRB;
+
+	if (enable)
+		fsi_irq_enable(fsi, io);
+	else
+		fsi_irq_disable(fsi, io);
+
+	if (fsi_is_clk_master(fsi))
+		fsi_master_mask_set(master, CLK_RST, clk, (enable) ? clk : 0);
+}
+
 static struct fsi_stream_handler fsi_pio_push_handler = {
 	.transfer	= fsi_pio_push,
+	.start_stop	= fsi_pio_start_stop,
 };
 
 static struct fsi_stream_handler fsi_pio_pop_handler = {
 	.transfer	= fsi_pio_pop,
+	.start_stop	= fsi_pio_start_stop,
 };
 
 static irqreturn_t fsi_interrupt(int irq, void *data)
@@ -1033,10 +1040,10 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		fsi_stream_init(fsi, io, substream);
 		ret = fsi_stream_transfer(io);
 		if (0 == ret)
-			fsi_port_start(fsi, io);
+			fsi_stream_start(fsi, io);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		fsi_port_stop(fsi, io);
+		fsi_stream_stop(fsi, io);
 		fsi_stream_quit(fsi, io);
 		break;
 	}
@@ -1436,7 +1443,7 @@ static void __fsi_suspend(struct fsi_priv *fsi,
 	if (!fsi_stream_is_working(fsi, io))
 		return;
 
-	fsi_port_stop(fsi, io);
+	fsi_stream_stop(fsi, io);
 	fsi_hw_shutdown(fsi, dev);
 }
 
@@ -1452,7 +1459,7 @@ static void __fsi_resume(struct fsi_priv *fsi,
 	if (fsi_is_clk_master(fsi) && fsi->rate)
 		fsi_set_master_clk(dev, fsi, fsi->rate, 1);
 
-	fsi_port_start(fsi, io);
+	fsi_stream_start(fsi, io);
 }
 
 static int fsi_suspend(struct device *dev)
