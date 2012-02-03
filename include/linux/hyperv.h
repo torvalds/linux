@@ -113,30 +113,6 @@
  * (not supported), a NULL key string is returned.
  */
 
-/*
- *
- * The following definitions are shared with the user-mode component; do not
- * change any of this without making the corresponding changes in
- * the KVP user-mode component.
- */
-
-enum hv_ku_op {
-	KVP_REGISTER = 0, /* Register the user mode component */
-	KVP_KERNEL_GET, /* Kernel is requesting the value */
-	KVP_KERNEL_SET, /* Kernel is providing the value */
-	KVP_USER_GET,  /* User is requesting the value */
-	KVP_USER_SET  /* User is providing the value */
-};
-
-struct hv_ku_msg {
-	__u32 kvp_index; /* Key index */
-	__u8  kvp_key[HV_KVP_EXCHANGE_MAX_KEY_SIZE]; /* Key name */
-	__u8  kvp_value[HV_KVP_EXCHANGE_MAX_VALUE_SIZE]; /* Key  value */
-};
-
-
-
-
 
 /*
  * Registry value types.
@@ -149,6 +125,7 @@ enum hv_kvp_exchg_op {
 	KVP_OP_SET,
 	KVP_OP_DELETE,
 	KVP_OP_ENUMERATE,
+	KVP_OP_REGISTER,
 	KVP_OP_COUNT /* Number of operations, must be last. */
 };
 
@@ -182,7 +159,10 @@ struct hv_kvp_msg_enumerate {
 
 struct hv_kvp_msg {
 	struct hv_kvp_hdr	kvp_hdr;
-	struct hv_kvp_msg_enumerate	kvp_data;
+	union {
+		struct hv_kvp_msg_enumerate     kvp_enum_data;
+		char    kvp_version[HV_KVP_EXCHANGE_MAX_KEY_SIZE];
+	} body;
 } __attribute__((packed));
 
 #ifdef __KERNEL__

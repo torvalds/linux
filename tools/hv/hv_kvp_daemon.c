@@ -302,7 +302,7 @@ int main(void)
 	struct pollfd pfd;
 	struct nlmsghdr *incoming_msg;
 	struct cn_msg	*incoming_cn_msg;
-	struct hv_ku_msg *hv_msg;
+	struct hv_kvp_msg *hv_msg;
 	char	*p;
 	char	*key_value;
 	char	*key_name;
@@ -340,9 +340,11 @@ int main(void)
 	message = (struct cn_msg *)kvp_send_buffer;
 	message->id.idx = CN_KVP_IDX;
 	message->id.val = CN_KVP_VAL;
-	message->seq = KVP_REGISTER;
+
+	hv_msg = (struct hv_kvp_msg *)message->data;
+	hv_msg->kvp_hdr.operation = KVP_OP_REGISTER;
 	message->ack = 0;
-	message->len = 0;
+	message->len = sizeof(struct hv_kvp_msg);
 
 	len = netlink_send(fd, message);
 	if (len < 0) {
@@ -368,14 +370,15 @@ int main(void)
 
 		incoming_msg = (struct nlmsghdr *)kvp_recv_buffer;
 		incoming_cn_msg = (struct cn_msg *)NLMSG_DATA(incoming_msg);
+		hv_msg = (struct hv_kvp_msg *)incoming_cn_msg->data;
 
-		switch (incoming_cn_msg->seq) {
-		case KVP_REGISTER:
+		switch (hv_msg->kvp_hdr.operation) {
+		case KVP_OP_REGISTER:
 			/*
 			 * Driver is registering with us; stash away the version
 			 * information.
 			 */
-			p = (char *)incoming_cn_msg->data;
+			p = (char *)hv_msg->body.kvp_version;
 			lic_version = malloc(strlen(p) + 1);
 			if (lic_version) {
 				strcpy(lic_version, p);
@@ -386,17 +389,15 @@ int main(void)
 			}
 			continue;
 
-		case KVP_KERNEL_GET:
-			break;
 		default:
-			continue;
+			break;
 		}
 
-		hv_msg = (struct hv_ku_msg *)incoming_cn_msg->data;
-		key_name = (char *)hv_msg->kvp_key;
-		key_value = (char *)hv_msg->kvp_value;
+		hv_msg = (struct hv_kvp_msg *)incoming_cn_msg->data;
+		key_name = (char *)hv_msg->body.kvp_enum_data.data.key;
+		key_value = (char *)hv_msg->body.kvp_enum_data.data.value;
 
-		switch (hv_msg->kvp_index) {
+		switch (hv_msg->body.kvp_enum_data.index) {
 		case FullyQualifiedDomainName:
 			kvp_get_domain_name(key_value,
 					HV_KVP_EXCHANGE_MAX_VALUE_SIZE);
@@ -456,9 +457,8 @@ int main(void)
 
 		incoming_cn_msg->id.idx = CN_KVP_IDX;
 		incoming_cn_msg->id.val = CN_KVP_VAL;
-		incoming_cn_msg->seq = KVP_USER_SET;
 		incoming_cn_msg->ack = 0;
-		incoming_cn_msg->len = sizeof(struct hv_ku_msg);
+		incoming_cn_msg->len = sizeof(struct hv_kvp_msg);
 
 		len = netlink_send(fd, incoming_cn_msg);
 		if (len < 0) {

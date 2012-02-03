@@ -71,15 +71,20 @@ kvp_register(void)
 {
 
 	struct cn_msg *msg;
+	struct hv_kvp_msg *kvp_msg;
+	char *version;
 
-	msg = kzalloc(sizeof(*msg) + strlen(HV_DRV_VERSION) + 1 , GFP_ATOMIC);
+	msg = kzalloc(sizeof(*msg) + sizeof(struct hv_kvp_msg), GFP_ATOMIC);
 
 	if (msg) {
+		kvp_msg = (struct hv_kvp_msg *)msg->data;
+		version = kvp_msg->body.kvp_version;
 		msg->id.idx =  CN_KVP_IDX;
 		msg->id.val = CN_KVP_VAL;
-		msg->seq = KVP_REGISTER;
-		strcpy(msg->data, HV_DRV_VERSION);
-		msg->len = strlen(HV_DRV_VERSION) + 1;
+
+		kvp_msg->kvp_hdr.operation = KVP_OP_REGISTER;
+		strcpy(version, HV_DRV_VERSION);
+		msg->len = sizeof(struct hv_kvp_msg);
 		cn_netlink_send(msg, 0, GFP_ATOMIC);
 		kfree(msg);
 	}
@@ -101,23 +106,24 @@ kvp_work_func(struct work_struct *dummy)
 static void
 kvp_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 {
-	struct hv_ku_msg *message;
+	struct hv_kvp_msg *message;
+	struct hv_kvp_msg_enumerate *data;
 
-	message = (struct hv_ku_msg *)msg->data;
-	if (msg->seq == KVP_REGISTER) {
+	message = (struct hv_kvp_msg *)msg->data;
+	if (message->kvp_hdr.operation == KVP_OP_REGISTER) {
 		pr_info("KVP: user-mode registering done.\n");
 		kvp_register();
 	}
 
-	if (msg->seq == KVP_USER_SET) {
+	if (message->kvp_hdr.operation == KVP_OP_ENUMERATE) {
+		data = &message->body.kvp_enum_data;
 		/*
 		 * Complete the transaction by forwarding the key value
 		 * to the host. But first, cancel the timeout.
 		 */
 		if (cancel_delayed_work_sync(&kvp_work))
-			kvp_respond_to_host(message->kvp_key,
-						message->kvp_value,
-						!strlen(message->kvp_key));
+			kvp_respond_to_host(data->data.key, data->data.value,
+					!strlen(data->data.key));
 	}
 }
 
@@ -125,6 +131,7 @@ static void
 kvp_send_key(struct work_struct *dummy)
 {
 	struct cn_msg *msg;
+	struct hv_kvp_msg *message;
 	int index = kvp_transaction.index;
 
 	msg = kzalloc(sizeof(*msg) + sizeof(struct hv_kvp_msg) , GFP_ATOMIC);
@@ -132,9 +139,11 @@ kvp_send_key(struct work_struct *dummy)
 	if (msg) {
 		msg->id.idx =  CN_KVP_IDX;
 		msg->id.val = CN_KVP_VAL;
-		msg->seq = KVP_KERNEL_GET;
-		((struct hv_ku_msg *)msg->data)->kvp_index = index;
-		msg->len = sizeof(struct hv_ku_msg);
+
+		message = (struct hv_kvp_msg *)msg->data;
+		message->kvp_hdr.operation = KVP_OP_ENUMERATE;
+		message->body.kvp_enum_data.index = index;
+		msg->len = sizeof(struct hv_kvp_msg);
 		cn_netlink_send(msg, 0, GFP_ATOMIC);
 		kfree(msg);
 	}
@@ -191,7 +200,7 @@ kvp_respond_to_host(char *key, char *value, int error)
 	kvp_msg = (struct hv_kvp_msg *)
 			&recv_buffer[sizeof(struct vmbuspipe_hdr) +
 			sizeof(struct icmsg_hdr)];
-	kvp_data = &kvp_msg->kvp_data;
+	kvp_data = &kvp_msg->body.kvp_enum_data;
 	key_name = key;
 
 	/*
@@ -266,7 +275,7 @@ void hv_kvp_onchannelcallback(void *context)
 				sizeof(struct vmbuspipe_hdr) +
 				sizeof(struct icmsg_hdr)];
 
-			kvp_data = &kvp_msg->kvp_data;
+			kvp_data = &kvp_msg->body.kvp_enum_data;
 
 			/*
 			 * We only support the "get" operation on
