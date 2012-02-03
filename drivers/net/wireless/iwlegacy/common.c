@@ -4533,23 +4533,6 @@ il_set_mode(struct il_priv *il, struct il_rxon_context *ctx)
 	return il_commit_rxon(il, ctx);
 }
 
-static int
-il_setup_interface(struct il_priv *il, struct il_rxon_context *ctx)
-{
-	struct ieee80211_vif *vif = ctx->vif;
-
-	lockdep_assert_held(&il->mutex);
-
-	/*
-	 * This variable will be correct only when there's just
-	 * a single context, but all code using it is for hardware
-	 * that supports only one context.
-	 */
-	il->iw_mode = vif->type;
-
-	return il_set_mode(il, ctx);
-}
-
 int
 il_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
@@ -4574,8 +4557,9 @@ il_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	vif_priv->ctx = &il->ctx;
 	il->ctx.vif = vif;
+	il->iw_mode = vif->type;
 
-	err = il_setup_interface(il, &il->ctx);
+	err = il_set_mode(il, &il->ctx);
 	if (err) {
 		il->ctx.vif = NULL;
 		il->iw_mode = NL80211_IFTYPE_STATION;
@@ -4978,7 +4962,7 @@ il_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	il_teardown_interface(il, vif, true);
 	vif->type = newtype;
 	vif->p2p = false;
-	err = il_setup_interface(il, ctx);
+	err = il_set_mode(il, ctx);
 	WARN_ON(err);
 	/*
 	 * We've switched internally, but submitting to the
