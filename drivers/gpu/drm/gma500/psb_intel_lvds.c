@@ -713,7 +713,6 @@ void psb_intel_lvds_init(struct drm_device *dev,
 
 	psb_intel_encoder =
 			kzalloc(sizeof(struct psb_intel_encoder), GFP_KERNEL);
-
 	if (!psb_intel_encoder) {
 		dev_err(dev->dev, "psb_intel_encoder allocation error\n");
 		return;
@@ -721,10 +720,9 @@ void psb_intel_lvds_init(struct drm_device *dev,
 
 	psb_intel_connector =
 		kzalloc(sizeof(struct psb_intel_connector), GFP_KERNEL);
-
 	if (!psb_intel_connector) {
-		kfree(psb_intel_encoder);
 		dev_err(dev->dev, "psb_intel_connector allocation error\n");
+		goto failed_encoder;
 	}
 
 	lvds_priv = kzalloc(sizeof(struct psb_intel_lvds_priv), GFP_KERNEL);
@@ -862,7 +860,8 @@ failed_blc_i2c:
 	drm_encoder_cleanup(encoder);
 	drm_connector_cleanup(connector);
 failed_connector:
-	if (psb_intel_connector)
-		kfree(psb_intel_connector);
+	kfree(psb_intel_connector);
+failed_encoder:
+	kfree(psb_intel_encoder);
 }
 
