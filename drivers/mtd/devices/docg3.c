@@ -1817,7 +1817,7 @@ static void __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 	mtd->erasesize = DOC_LAYOUT_BLOCK_SIZE * DOC_LAYOUT_NBPLANES;
 	if (docg3->reliable == 2)
 		mtd->erasesize /= 2;
-	mtd->writesize = DOC_LAYOUT_PAGE_SIZE;
+	mtd->writebufsize = mtd->writesize = DOC_LAYOUT_PAGE_SIZE;
 	mtd->oobsize = DOC_LAYOUT_OOB_SIZE;
 	mtd->owner = THIS_MODULE;
 	mtd->_erase = doc_erase;
