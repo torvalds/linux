@@ -539,6 +539,11 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 		ret = -EFAULT;
 	}
 
+	/* Get DTIM period information from firmware */
+	mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			      HostCmd_ACT_GEN_GET, DTIM_PERIOD_I,
+			      &priv->dtim_period);
+
 	/*
 	 * Bit 0 in tx_htinfo indicates that current Tx rate is 11n rate. Valid
 	 * MCS index values for us are 0 to 7.
@@ -573,8 +578,7 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 						WLAN_CAPABILITY_SHORT_SLOT_TIME)
 			sinfo->bss_param.flags |=
 					BSS_PARAM_FLAGS_SHORT_SLOT_TIME;
-		sinfo->bss_param.dtim_period =
-			priv->curr_bss_params.bss_descriptor.dtim_period;
+		sinfo->bss_param.dtim_period = priv->dtim_period;
 		sinfo->bss_param.beacon_interval =
 			priv->curr_bss_params.bss_descriptor.beacon_period;
 	}
