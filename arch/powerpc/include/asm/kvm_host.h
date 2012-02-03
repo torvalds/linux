@@ -268,6 +268,9 @@ struct kvmppc_vcore {
 	struct list_head runnable_threads;
 	spinlock_t lock;
 	wait_queue_head_t wq;
+	u64 stolen_tb;
+	u64 preempt_tb;
+	struct kvm_vcpu *runner;
 };
 
 #define VCORE_ENTRY_COUNT(vc)	((vc)->entry_exit_count & 0xff)
@@ -516,6 +519,7 @@ struct kvm_vcpu_arch {
 	struct kvmppc_vpa dtl;
 	struct dtl_entry *dtl_ptr;
 	unsigned long dtl_index;
+	u64 stolen_logged;
 	struct kvmppc_vpa slb_shadow;
 #endif
 };

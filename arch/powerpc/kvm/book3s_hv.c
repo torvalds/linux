@@ -60,12 +60,20 @@ static int kvmppc_hv_setup_rma(struct kvm_vcpu *vcpu);
 
 void kvmppc_core_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
+	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+
 	local_paca->kvm_hstate.kvm_vcpu = vcpu;
-	local_paca->kvm_hstate.kvm_vcore = vcpu->arch.vcore;
+	local_paca->kvm_hstate.kvm_vcore = vc;
+	if (vc->runner == vcpu && vc->vcore_state != VCORE_INACTIVE)
+		vc->stolen_tb += mftb() - vc->preempt_tb;
 }
 
 void kvmppc_core_vcpu_put(struct kvm_vcpu *vcpu)
 {
+	struct kvmppc_vcore *vc = vcpu->arch.vcore;
+
+	if (vc->runner == vcpu && vc->vcore_state != VCORE_INACTIVE)
+		vc->preempt_tb = mftb();
 }
 
 void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 msr)
@@ -303,6 +311,35 @@ static void kvmppc_update_vpas(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.slb_shadow.update_pending)
 		kvmppc_update_vpa(kvm, &vcpu->arch.slb_shadow);
 	spin_unlock(&vcpu->arch.vpa_update_lock);
+}
+
+static void kvmppc_create_dtl_entry(struct kvm_vcpu *vcpu,
+				    struct kvmppc_vcore *vc)
+{
+	struct dtl_entry *dt;
+	struct lppaca *vpa;
+	unsigned long old_stolen;
+
+	dt = vcpu->arch.dtl_ptr;
+	vpa = vcpu->arch.vpa.pinned_addr;
+	old_stolen = vcpu->arch.stolen_logged;
+	vcpu->arch.stolen_logged = vc->stolen_tb;
+	if (!dt || !vpa)
+		return;
+	memset(dt, 0, sizeof(struct dtl_entry));
+	dt->dispatch_reason = 7;
+	dt->processor_id = vc->pcpu + vcpu->arch.ptid;
+	dt->timebase = mftb();
+	dt->enqueue_to_dispatch_time = vc->stolen_tb - old_stolen;
+	dt->srr0 = kvmppc_get_pc(vcpu);
+	dt->srr1 = vcpu->arch.shregs.msr;
+	++dt;
+	if (dt == vcpu->arch.dtl.pinned_end)
+		dt = vcpu->arch.dtl.pinned_addr;
+	vcpu->arch.dtl_ptr = dt;
+	/* order writing *dt vs. writing vpa->dtl_idx */
+	smp_wmb();
+	vpa->dtl_idx = ++vcpu->arch.dtl_index;
 }
 
 int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
@@ -568,6 +605,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 			INIT_LIST_HEAD(&vcore->runnable_threads);
 			spin_lock_init(&vcore->lock);
 			init_waitqueue_head(&vcore->wq);
+			vcore->preempt_tb = mftb();
 		}
 		kvm->arch.vcores[core] = vcore;
 	}
@@ -580,6 +618,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	++vcore->num_threads;
 	spin_unlock(&vcore->lock);
 	vcpu->arch.vcore = vcore;
+	vcpu->arch.stolen_logged = vcore->stolen_tb;
 
 	vcpu->arch.cpu_type = KVM_CPU_3S_64;
 	kvmppc_sanity_check(vcpu);
@@ -803,6 +842,7 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 	vc->nap_count = 0;
 	vc->entry_exit_count = 0;
 	vc->vcore_state = VCORE_RUNNING;
+	vc->stolen_tb += mftb() - vc->preempt_tb;
 	vc->in_guest = 0;
 	vc->pcpu = smp_processor_id();
 	vc->napping_threads = 0;
@@ -812,6 +852,7 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 		    vcpu->arch.slb_shadow.update_pending ||
 		    vcpu->arch.dtl.update_pending)
 			kvmppc_update_vpas(vcpu);
+		kvmppc_create_dtl_entry(vcpu, vc);
 	}
 	/* Grab any remaining hw threads so they can't go into the kernel */
 	for (i = ptid; i < threads_per_core; ++i)
@@ -869,6 +910,7 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 	spin_lock(&vc->lock);
  out:
 	vc->vcore_state = VCORE_INACTIVE;
+	vc->preempt_tb = mftb();
 	list_for_each_entry_safe(vcpu, vnext, &vc->runnable_threads,
 				 arch.run_list) {
 		if (vcpu->arch.ret != RESUME_GUEST) {
@@ -967,6 +1009,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 			spin_lock(&vc->lock);
 			continue;
 		}
+		vc->runner = vcpu;
 		n_ceded = 0;
 		list_for_each_entry(v, &vc->runnable_threads, arch.run_list)
 			n_ceded += v->arch.ceded;
@@ -986,6 +1029,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 				wake_up(&v->arch.cpu_run);
 			}
 		}
+		vc->runner = NULL;
 	}
 
 	if (signal_pending(current)) {
