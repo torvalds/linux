@@ -624,7 +624,6 @@ il4965_hw_set_hw_params(struct il_priv *il)
 	    sizeof(struct il4965_scd_bc_tbl);
 	il->hw_params.tfd_size = sizeof(struct il_tfd);
 	il->hw_params.max_stations = IL4965_STATION_COUNT;
-	il->ctx.bcast_sta_id = IL4965_BROADCAST_ID;
 	il->hw_params.max_data_size = IL49_RTC_DATA_SIZE;
 	il->hw_params.max_inst_size = IL49_RTC_INST_SIZE;
 	il->hw_params.max_bsm_size = BSM_SRAM_SIZE;
@@ -1968,7 +1967,7 @@ il4965_find_station(struct il_priv *il, const u8 * addr)
 		start = IL_STA_ID;
 
 	if (is_broadcast_ether_addr(addr))
-		return il->ctx.bcast_sta_id;
+		return il->hw_params.bcast_id;
 
 	spin_lock_irqsave(&il->sta_lock, flags);
 	for (i = start; i < il->hw_params.max_stations; i++)

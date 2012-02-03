@@ -919,7 +919,7 @@ il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 		D_SCAN("Start passive scan.\n");
 
 	scan->tx_cmd.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK;
-	scan->tx_cmd.sta_id = ctx->bcast_sta_id;
+	scan->tx_cmd.sta_id = il->hw_params.bcast_id;
 	scan->tx_cmd.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
 	switch (il->scan_band) {
@@ -1678,7 +1678,7 @@ il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	/* For management frames use broadcast id to do not break aggregation */
 	if (!ieee80211_is_data(fc))
-		sta_id = ctx->bcast_sta_id;
+		sta_id = il->hw_params.bcast_id;
 	else {
 		/* Find idx into station table for destination station */
 		sta_id = il_sta_id_or_broadcast(il, ctx, info->control.sta);
@@ -2938,7 +2938,7 @@ il4965_set_wep_dynamic_key_info(struct il_priv *il, struct il_rxon_context *ctx,
 	if (keyconf->keylen == WEP_KEY_LEN_128)
 		key_flags |= STA_KEY_FLG_KEY_SIZE_MSK;
 
-	if (sta_id == ctx->bcast_sta_id)
+	if (sta_id == il->hw_params.bcast_id)
 		key_flags |= STA_KEY_MULTICAST_MSK;
 
 	spin_lock_irqsave(&il->sta_lock, flags);
@@ -2988,7 +2988,7 @@ il4965_set_ccmp_dynamic_key_info(struct il_priv *il,
 	key_flags |= cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
 	key_flags &= ~STA_KEY_FLG_INVALID;
 
-	if (sta_id == ctx->bcast_sta_id)
+	if (sta_id == il->hw_params.bcast_id)
 		key_flags |= STA_KEY_MULTICAST_MSK;
 
 	keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
@@ -3035,7 +3035,7 @@ il4965_set_tkip_dynamic_key_info(struct il_priv *il,
 	key_flags |= cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
 	key_flags &= ~STA_KEY_FLG_INVALID;
 
-	if (sta_id == ctx->bcast_sta_id)
+	if (sta_id == il->hw_params.bcast_id)
 		key_flags |= STA_KEY_MULTICAST_MSK;
 
 	keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
@@ -3253,7 +3253,7 @@ il4965_update_bcast_station(struct il_priv *il, struct il_rxon_context *ctx)
 {
 	unsigned long flags;
 	struct il_link_quality_cmd *link_cmd;
-	u8 sta_id = ctx->bcast_sta_id;
+	u8 sta_id = il->hw_params.bcast_id;
 
 	link_cmd = il4965_sta_alloc_lq(il, sta_id);
 	if (!link_cmd) {
@@ -3510,7 +3510,7 @@ il4965_hw_get_beacon_cmd(struct il_priv *il, struct il_frame *frame)
 
 	/* Set up TX command fields */
 	tx_beacon_cmd->tx.len = cpu_to_le16((u16) frame_size);
-	tx_beacon_cmd->tx.sta_id = il->beacon_ctx->bcast_sta_id;
+	tx_beacon_cmd->tx.sta_id = il->hw_params.bcast_id;
 	tx_beacon_cmd->tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 	tx_beacon_cmd->tx.tx_flags =
 	    TX_CMD_FLG_SEQ_CTL_MSK | TX_CMD_FLG_TSF_MSK |
@@ -6082,6 +6082,7 @@ il4965_hw_detect(struct il_priv *il)
 static int
 il4965_set_hw_params(struct il_priv *il)
 {
+	il->hw_params.bcast_id = IL4965_BROADCAST_ID;
 	il->hw_params.max_rxq_size = RX_QUEUE_SIZE;
 	il->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
 	if (il->cfg->mod_params->amsdu_size_8K)

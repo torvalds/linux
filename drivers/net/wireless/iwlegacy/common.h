@@ -816,6 +816,7 @@ struct il_sensitivity_ranges {
 
 /**
  * struct il_hw_params
+ * @bcast_id: f/w broadcast station ID
  * @max_txq_num: Max # Tx queues supported
  * @dma_chnl_num: Number of Tx DMA/FIFO channels
  * @scd_bc_tbls_size: size of scheduler byte count tables
@@ -836,6 +837,7 @@ struct il_sensitivity_ranges {
  * @struct il_sensitivity_ranges: range of sensitivity values
  */
 struct il_hw_params {
+	u8 bcast_id;
 	u8 max_txq_num;
 	u8 dma_chnl_num;
 	u16 scd_bc_tbls_size;
@@ -1172,8 +1174,6 @@ struct il_rxon_context {
 	u8 unused_devtype, ap_devtype, ibss_devtype, station_devtype;
 
 	struct il_qos_info qos_data;
-
-	u8 bcast_sta_id;
 
 	struct il_wep_key wep_keys[WEP_KEYS_MAX];
 	u8 key_mapping_keys;
@@ -2372,7 +2372,7 @@ il_sta_id_or_broadcast(struct il_priv *il, struct il_rxon_context *context,
 	int sta_id;
 
 	if (!sta)
-		return context->bcast_sta_id;
+		return il->hw_params.bcast_id;
 
 	sta_id = il_sta_id(sta);
 

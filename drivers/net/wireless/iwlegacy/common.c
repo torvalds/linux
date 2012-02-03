@@ -1901,7 +1901,7 @@ il_prep_station(struct il_priv *il, struct il_rxon_context *ctx,
 	if (is_ap)
 		sta_id = IL_AP_ID;
 	else if (is_broadcast_ether_addr(addr))
-		sta_id = ctx->bcast_sta_id;
+		sta_id = il->hw_params.bcast_id;
 	else
 		for (i = IL_STA_ID; i < il->hw_params.max_stations; i++) {
 			if (!compare_ether_addr

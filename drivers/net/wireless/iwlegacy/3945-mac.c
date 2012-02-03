@@ -140,7 +140,7 @@ il3945_set_ccmp_dynamic_key_info(struct il_priv *il,
 	key_flags |= (STA_KEY_FLG_CCMP | STA_KEY_FLG_MAP_KEY_MSK);
 	key_flags |= cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
 
-	if (sta_id == il->ctx.bcast_sta_id)
+	if (sta_id == il->hw_params.bcast_id)
 		key_flags |= STA_KEY_MULTICAST_MSK;
 
 	keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
@@ -2598,7 +2598,7 @@ il3945_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 	/* We don't build a direct scan probe request; the uCode will do
 	 * that based on the direct_mask added to each channel entry */
 	scan->tx_cmd.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK;
-	scan->tx_cmd.sta_id = il->ctx.bcast_sta_id;
+	scan->tx_cmd.sta_id = il->hw_params.bcast_id;
 	scan->tx_cmd.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
 	/* flags + rate selection */

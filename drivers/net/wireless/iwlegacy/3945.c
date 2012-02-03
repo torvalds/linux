@@ -2396,6 +2396,8 @@ il3945_hw_set_hw_params(struct il_priv *il)
 		return -ENOMEM;
 	}
 
+	il->hw_params.bcast_id = IL3945_BROADCAST_ID;
+
 	/* Assign number of Usable TX queues */
 	il->hw_params.max_txq_num = il->cfg->base_params->num_of_queues;
 
@@ -2404,7 +2406,6 @@ il3945_hw_set_hw_params(struct il_priv *il)
 	il->hw_params.max_rxq_size = RX_QUEUE_SIZE;
 	il->hw_params.max_rxq_log = RX_QUEUE_SIZE_LOG;
 	il->hw_params.max_stations = IL3945_STATION_COUNT;
-	il->ctx.bcast_sta_id = IL3945_BROADCAST_ID;
 
 	il->sta_key_max_num = STA_KEY_MAX_NUM;
 
@@ -2425,7 +2426,7 @@ il3945_hw_get_beacon_cmd(struct il_priv *il, struct il3945_frame *frame,
 	tx_beacon_cmd = (struct il3945_tx_beacon_cmd *)&frame->u;
 	memset(tx_beacon_cmd, 0, sizeof(*tx_beacon_cmd));
 
-	tx_beacon_cmd->tx.sta_id = il->ctx.bcast_sta_id;
+	tx_beacon_cmd->tx.sta_id = il->hw_params.bcast_id;
 	tx_beacon_cmd->tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
 
 	frame_size =

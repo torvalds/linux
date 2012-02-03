@@ -342,7 +342,7 @@ il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_id)
 	int i;
 
 	D_INFO("enter\n");
-	if (sta_id == il->ctx.bcast_sta_id)
+	if (sta_id == il->hw_params.bcast_id)
 		goto out;
 
 	psta = (struct il3945_sta_priv *)sta->drv_priv;
