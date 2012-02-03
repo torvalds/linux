@@ -1155,8 +1155,6 @@ struct il_force_reset {
 struct il_rxon_context {
 	struct ieee80211_vif *vif;
 
-	const u8 *ac_to_queue;
-
 	/*
 	 * We could use the vif to indicate active, but we
 	 * also need it to be active during disabling when

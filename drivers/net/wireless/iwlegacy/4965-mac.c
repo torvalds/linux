@@ -1718,7 +1718,8 @@ il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	/* FIXME: remove me ? */
 	WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM);
 
-	txq_id = ctx->ac_to_queue[skb_get_queue_mapping(skb)];
+	/* Access category (AC) is also the queue number */
+	txq_id = skb_get_queue_mapping(skb);
 
 	/* irqs already disabled/saved above when locking il->lock */
 	spin_lock(&il->sta_lock);
@@ -6111,10 +6112,6 @@ il4965_set_hw_params(struct il_priv *il)
 	return il->cfg->ops->lib->set_hw_params(il);
 }
 
-static const u8 il4965_bss_ac_to_queue[] = {
-	0, 1, 2, 3,
-};
-
 static int
 il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -6139,7 +6136,6 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	il->ctx.always_active = true;
 	il->ctx.is_active = true;
-	il->ctx.ac_to_queue = il4965_bss_ac_to_queue;
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
