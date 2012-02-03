@@ -423,6 +423,7 @@ struct kvm_vcpu_arch {
 	u64 last_tsc_nsec;
 	u64 last_tsc_write;
 	u64 last_host_tsc;
+	u64 tsc_offset_adjustment;
 	bool tsc_catchup;
 	bool tsc_always_catchup;
 	s8 virtual_tsc_shift;
