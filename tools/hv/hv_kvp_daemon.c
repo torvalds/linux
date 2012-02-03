@@ -34,17 +34,12 @@
 #include <errno.h>
 #include <arpa/inet.h>
 #include <linux/connector.h>
+#include <linux/hyperv.h>
 #include <linux/netlink.h>
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <syslog.h>
 
-/*
- *
- * The following definitions are shared with the in-kernel component; do not
- * change any of this without making the corresponding changes in
- * the KVP kernel component.
- */
 
 /*
  * KVP protocol: The user mode component first registers with the
@@ -56,25 +51,8 @@
  * We use this infrastructure for also supporting queries from user mode
  * application for state that may be maintained in the KVP kernel component.
  *
- * XXXKYS: Have a shared header file between the user and kernel (TODO)
  */
 
-enum kvp_op {
-	KVP_REGISTER = 0, /* Register the user mode component*/
-	KVP_KERNEL_GET, /*Kernel is requesting the value for the specified key*/
-	KVP_KERNEL_SET, /*Kernel is providing the value for the specified key*/
-	KVP_USER_GET, /*User is requesting the value for the specified key*/
-	KVP_USER_SET /*User is providing the value for the specified key*/
-};
-
-#define HV_KVP_EXCHANGE_MAX_KEY_SIZE	512
-#define HV_KVP_EXCHANGE_MAX_VALUE_SIZE	2048
-
-struct hv_ku_msg {
-	__u32	kvp_index;
-	__u8  kvp_key[HV_KVP_EXCHANGE_MAX_KEY_SIZE]; /* Key name */
-	__u8  kvp_value[HV_KVP_EXCHANGE_MAX_VALUE_SIZE]; /* Key  value */
-};
 
 enum key_index {
 	FullyQualifiedDomainName = 0,
@@ -88,10 +66,6 @@ enum key_index {
 	OSVersion,
 	ProcessorArchitecture
 };
-
-/*
- * End of shared definitions.
- */
 
 static char kvp_send_buffer[4096];
 static char kvp_recv_buffer[4096];
