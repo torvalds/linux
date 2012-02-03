@@ -44,7 +44,7 @@
 #define LE_SCAN_INT			0x12
 #define LE_SCAN_TIMEOUT_LE_ONLY		10240	/* TGAP(gen_disc_scan_min) */
 
-#define INQUIRY_LEN_BREDR 0x08 /* TGAP(100) */
+#define INQUIRY_LEN_BREDR		0x08	/* TGAP(100) */
 
 #define SERVICE_CACHE_TIMEOUT (5 * 1000)
 
