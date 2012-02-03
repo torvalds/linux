@@ -210,6 +210,8 @@ struct fsi_master {
 	spinlock_t lock;
 };
 
+static int fsi_stream_is_play(struct fsi_priv *fsi, struct fsi_stream *io);
+
 /*
  *		basic read write function
  */
@@ -366,8 +368,10 @@ static int fsi_sample2frame(struct fsi_priv *fsi, int samples)
 	return samples / fsi->chan_num;
 }
 
-static int fsi_get_current_fifo_samples(struct fsi_priv *fsi, int is_play)
+static int fsi_get_current_fifo_samples(struct fsi_priv *fsi,
+					struct fsi_stream *io)
 {
+	int is_play = fsi_stream_is_play(fsi, io);
 	u32 status;
 	int frames;
 
@@ -747,7 +751,7 @@ static int fsi_data_pop(struct fsi_priv *fsi)
 	int samples;
 	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
 
-	sample_residues	= fsi_get_current_fifo_samples(fsi, is_play);
+	sample_residues	= fsi_get_current_fifo_samples(fsi, io);
 	sample_space	= io->buff_sample_capa - io->buff_sample_pos;
 
 	samples = min(sample_residues, sample_space);
@@ -768,7 +772,7 @@ static int fsi_data_push(struct fsi_priv *fsi)
 
 	sample_residues	= io->buff_sample_capa - io->buff_sample_pos;
 	sample_space	= io->fifo_sample_capa -
-		fsi_get_current_fifo_samples(fsi, is_play);
+		fsi_get_current_fifo_samples(fsi, io);
 
 	samples = min(sample_residues, sample_space);
 
