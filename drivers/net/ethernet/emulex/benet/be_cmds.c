@@ -1257,11 +1257,13 @@ int be_cmd_link_status_query(struct be_adapter *adapter, u8 *mac_speed,
 	}
 	req = embedded_payload(wrb);
 
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+		OPCODE_COMMON_NTWK_LINK_STATUS_QUERY, sizeof(*req), wrb, NULL);
+
 	if (adapter->generation == BE_GEN3 || lancer_chip(adapter))
 		req->hdr.version = 1;
 
-	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-		OPCODE_COMMON_NTWK_LINK_STATUS_QUERY, sizeof(*req), wrb, NULL);
+	req->hdr.domain = dom;
 
 	status = be_mcc_notify_wait(adapter);
 	if (!status) {
