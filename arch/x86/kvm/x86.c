@@ -1067,7 +1067,6 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 			offset = kvm_x86_ops->compute_tsc_offset(vcpu, data);
 			pr_debug("kvm: adjusted tsc offset by %llu\n", delta);
 		}
-		ns = kvm->arch.last_tsc_nsec;
 	}
 	kvm->arch.last_tsc_nsec = ns;
 	kvm->arch.last_tsc_write = data;
