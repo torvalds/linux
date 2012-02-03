@@ -33,6 +33,7 @@
 
 #include <plat/dma.h>
 #include <plat/mcbsp.h>
+#include "mcbsp.h"
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
 
@@ -45,6 +46,15 @@
 	.get = xhandler_get, .put = xhandler_put, \
 	.private_value = (unsigned long) &(struct soc_mixer_control) \
 	{.min = xmin, .max = xmax} }
+
+enum {
+	OMAP_MCBSP_WORD_8 = 0,
+	OMAP_MCBSP_WORD_12,
+	OMAP_MCBSP_WORD_16,
+	OMAP_MCBSP_WORD_20,
+	OMAP_MCBSP_WORD_24,
+	OMAP_MCBSP_WORD_32,
+};
 
 struct omap_mcbsp_data {
 	unsigned int			bus_id;

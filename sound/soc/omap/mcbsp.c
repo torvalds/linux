@@ -28,6 +28,8 @@
 #include <plat/mcbsp.h>
 #include <linux/pm_runtime.h>
 
+#include "mcbsp.h"
+
 struct omap_mcbsp **mcbsp_ptr;
 int omap_mcbsp_count;
 
