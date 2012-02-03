@@ -296,6 +296,11 @@ static int fsi_is_spdif(struct fsi_priv *fsi)
 	return fsi->spdif;
 }
 
+static int fsi_is_play(struct snd_pcm_substream *substream)
+{
+	return substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+}
+
 static struct snd_soc_dai *fsi_get_dai(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -399,10 +404,10 @@ static void fsi_count_fifo_err(struct fsi_priv *fsi)
 /*
  *		fsi_stream_xx() function
  */
-#define fsi_is_play(substream)	fsi_stream_is_play(substream->stream)
-static inline int fsi_stream_is_play(int stream)
+static inline int fsi_stream_is_play(struct fsi_priv *fsi,
+				     struct fsi_stream *io)
 {
-	return stream == SNDRV_PCM_STREAM_PLAYBACK;
+	return &fsi->playback == io;
 }
 
 static inline struct fsi_stream *fsi_stream_get(struct fsi_priv *fsi,
@@ -736,7 +741,7 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, struct fsi_stream *io,
 
 static int fsi_data_pop(struct fsi_priv *fsi)
 {
-	int is_play = fsi_stream_is_play(SNDRV_PCM_STREAM_CAPTURE);
+	int is_play = 0;
 	int sample_residues;	/* samples in FSI fifo */
 	int sample_space;	/* ALSA free samples space */
 	int samples;
@@ -755,7 +760,7 @@ static int fsi_data_pop(struct fsi_priv *fsi)
 
 static int fsi_data_push(struct fsi_priv *fsi)
 {
-	int is_play = fsi_stream_is_play(SNDRV_PCM_STREAM_PLAYBACK);
+	int is_play = 1;
 	int sample_residues;	/* ALSA residue samples */
 	int sample_space;	/* FSI fifo free samples space */
 	int samples;
