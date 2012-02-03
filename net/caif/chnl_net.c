@@ -74,7 +74,6 @@ static int chnl_recv_cb(struct cflayer *layr, struct cfpkt *pkt)
 	struct sk_buff *skb;
 	struct chnl_net *priv  = container_of(layr, struct chnl_net, chnl);
 	int pktlen;
-	int err = 0;
 	const u8 *ip_version;
 	u8 buf;
 
@@ -95,8 +94,7 @@ static int chnl_recv_cb(struct cflayer *layr, struct cfpkt *pkt)
 
 	/* check the version of IP */
 	ip_version = skb_header_pointer(skb, 0, 1, &buf);
-	if (!ip_version)
-		return -EINVAL;
+
 	switch (*ip_version >> 4) {
 	case 4:
 		skb->protocol = htons(ETH_P_IP);
@@ -105,6 +103,7 @@ static int chnl_recv_cb(struct cflayer *layr, struct cfpkt *pkt)
 		skb->protocol = htons(ETH_P_IPV6);
 		break;
 	default:
+		priv->netdev->stats.rx_errors++;
 		return -EINVAL;
 	}
 
@@ -123,7 +122,7 @@ static int chnl_recv_cb(struct cflayer *layr, struct cfpkt *pkt)
 	priv->netdev->stats.rx_packets++;
 	priv->netdev->stats.rx_bytes += pktlen;
 
-	return err;
+	return 0;
 }
 
 static int delete_device(struct chnl_net *dev)
@@ -221,11 +220,13 @@ static int chnl_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (skb->len > priv->netdev->mtu) {
 		pr_warn("Size of skb exceeded MTU\n");
+		dev->stats.tx_errors++;
 		return -ENOSPC;
 	}
 
 	if (!priv->flowenabled) {
 		pr_debug("dropping packets flow off\n");
+		dev->stats.tx_dropped++;
 		return NETDEV_TX_BUSY;
 	}
 
@@ -240,8 +241,7 @@ static int chnl_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Send the packet down the stack. */
 	result = priv->chnl.dn->transmit(priv->chnl.dn, pkt);
 	if (result) {
-		if (result == -EAGAIN)
-			result = NETDEV_TX_BUSY;
+		dev->stats.tx_dropped++;
 		return result;
 	}
 
