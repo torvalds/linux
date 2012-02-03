@@ -96,6 +96,10 @@ EXPORT_SYMBOL_GPL(kvm_has_tsc_control);
 u32  kvm_max_guest_tsc_khz;
 EXPORT_SYMBOL_GPL(kvm_max_guest_tsc_khz);
 
+/* tsc tolerance in parts per million - default to 1/2 of the NTP threshold */
+static u32 tsc_tolerance_ppm = 250;
+module_param(tsc_tolerance_ppm, uint, S_IRUGO | S_IWUSR);
+
 #define KVM_NR_SHARED_MSRS 16
 
 struct kvm_shared_msrs_global {
@@ -968,49 +972,50 @@ static inline u64 get_kernel_ns(void)
 static DEFINE_PER_CPU(unsigned long, cpu_tsc_khz);
 unsigned long max_tsc_khz;
 
-static inline int kvm_tsc_changes_freq(void)
-{
-	int cpu = get_cpu();
-	int ret = !boot_cpu_has(X86_FEATURE_CONSTANT_TSC) &&
-		  cpufreq_quick_get(cpu) != 0;
-	put_cpu();
-	return ret;
-}
-
-u64 vcpu_tsc_khz(struct kvm_vcpu *vcpu)
-{
-	if (vcpu->arch.virtual_tsc_khz)
-		return vcpu->arch.virtual_tsc_khz;
-	else
-		return __this_cpu_read(cpu_tsc_khz);
-}
-
 static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)
 {
-	u64 ret;
-
-	WARN_ON(preemptible());
-	if (kvm_tsc_changes_freq())
-		printk_once(KERN_WARNING
-		 "kvm: unreliable cycle conversion on adjustable rate TSC\n");
-	ret = nsec * vcpu_tsc_khz(vcpu);
-	do_div(ret, USEC_PER_SEC);
-	return ret;
+	return pvclock_scale_delta(nsec, vcpu->arch.virtual_tsc_mult,
+				   vcpu->arch.virtual_tsc_shift);
 }
 
-static void kvm_init_tsc_catchup(struct kvm_vcpu *vcpu, u32 this_tsc_khz)
+static u32 adjust_tsc_khz(u32 khz, s32 ppm)
 {
+	u64 v = (u64)khz * (1000000 + ppm);
+	do_div(v, 1000000);
+	return v;
+}
+
+static void kvm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 this_tsc_khz)
+{
+	u32 thresh_lo, thresh_hi;
+	int use_scaling = 0;
+
 	/* Compute a scale to convert nanoseconds in TSC cycles */
 	kvm_get_time_scale(this_tsc_khz, NSEC_PER_SEC / 1000,
-			   &vcpu->arch.tsc_catchup_shift,
-			   &vcpu->arch.tsc_catchup_mult);
+			   &vcpu->arch.virtual_tsc_shift,
+			   &vcpu->arch.virtual_tsc_mult);
+	vcpu->arch.virtual_tsc_khz = this_tsc_khz;
+
+	/*
+	 * Compute the variation in TSC rate which is acceptable
+	 * within the range of tolerance and decide if the
+	 * rate being applied is within that bounds of the hardware
+	 * rate.  If so, no scaling or compensation need be done.
+	 */
+	thresh_lo = adjust_tsc_khz(tsc_khz, -tsc_tolerance_ppm);
+	thresh_hi = adjust_tsc_khz(tsc_khz, tsc_tolerance_ppm);
+	if (this_tsc_khz < thresh_lo || this_tsc_khz > thresh_hi) {
+		pr_debug("kvm: requested TSC rate %u falls outside tolerance [%u,%u]\n", this_tsc_khz, thresh_lo, thresh_hi);
+		use_scaling = 1;
+	}
+	kvm_x86_ops->set_tsc_khz(vcpu, this_tsc_khz, use_scaling);
 }
 
 static u64 compute_guest_tsc(struct kvm_vcpu *vcpu, s64 kernel_ns)
 {
 	u64 tsc = pvclock_scale_delta(kernel_ns-vcpu->arch.last_tsc_nsec,
-				      vcpu->arch.tsc_catchup_mult,
-				      vcpu->arch.tsc_catchup_shift);
+				      vcpu->arch.virtual_tsc_mult,
+				      vcpu->arch.virtual_tsc_shift);
 	tsc += vcpu->arch.last_tsc_write;
 	return tsc;
 }
@@ -1077,7 +1082,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	local_irq_save(flags);
 	tsc_timestamp = kvm_x86_ops->read_l1_tsc(v);
 	kernel_ns = get_kernel_ns();
-	this_tsc_khz = vcpu_tsc_khz(v);
+	this_tsc_khz = __get_cpu_var(cpu_tsc_khz);
 	if (unlikely(this_tsc_khz == 0)) {
 		local_irq_restore(flags);
 		kvm_make_request(KVM_REQ_CLOCK_UPDATE, v);
@@ -2804,26 +2809,21 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		u32 user_tsc_khz;
 
 		r = -EINVAL;
-		if (!kvm_has_tsc_control)
-			break;
-
 		user_tsc_khz = (u32)arg;
 
 		if (user_tsc_khz >= kvm_max_guest_tsc_khz)
 			goto out;
 
-		kvm_x86_ops->set_tsc_khz(vcpu, user_tsc_khz);
+		if (user_tsc_khz == 0)
+			user_tsc_khz = tsc_khz;
+
+		kvm_set_tsc_khz(vcpu, user_tsc_khz);
 
 		r = 0;
 		goto out;
 	}
 	case KVM_GET_TSC_KHZ: {
-		r = -EIO;
-		if (check_tsc_unstable())
-			goto out;
-
-		r = vcpu_tsc_khz(vcpu);
-
+		r = vcpu->arch.virtual_tsc_khz;
 		goto out;
 	}
 	default:
@@ -5312,6 +5312,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		profile_hit(KVM_PROFILING, (void *)rip);
 	}
 
+	if (unlikely(vcpu->arch.tsc_always_catchup))
+		kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
 
 	kvm_lapic_sync_from_vapic(vcpu);
 
@@ -6004,7 +6006,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	}
 	vcpu->arch.pio_data = page_address(page);
 
-	kvm_init_tsc_catchup(vcpu, max_tsc_khz);
+	kvm_set_tsc_khz(vcpu, max_tsc_khz);
 
 	r = kvm_mmu_create(vcpu);
 	if (r < 0)

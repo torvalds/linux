@@ -731,7 +731,7 @@ static void start_apic_timer(struct kvm_lapic *apic)
 		u64 guest_tsc, tscdeadline = apic->lapic_timer.tscdeadline;
 		u64 ns = 0;
 		struct kvm_vcpu *vcpu = apic->vcpu;
-		unsigned long this_tsc_khz = vcpu_tsc_khz(vcpu);
+		unsigned long this_tsc_khz = vcpu->arch.virtual_tsc_khz;
 		unsigned long flags;
 
 		if (unlikely(!tscdeadline || !this_tsc_khz))

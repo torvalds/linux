@@ -964,20 +964,25 @@ static u64 svm_scale_tsc(struct kvm_vcpu *vcpu, u64 tsc)
 	return _tsc;
 }
 
-static void svm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz)
+static void svm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz, bool scale)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u64 ratio;
 	u64 khz;
 
-	/* TSC scaling supported? */
-	if (!boot_cpu_has(X86_FEATURE_TSCRATEMSR))
-		return;
-
-	/* TSC-Scaling disabled or guest TSC same frequency as host TSC? */
-	if (user_tsc_khz == 0) {
-		vcpu->arch.virtual_tsc_khz = 0;
+	/* Guest TSC same frequency as host TSC? */
+	if (!scale) {
 		svm->tsc_ratio = TSC_RATIO_DEFAULT;
+		return;
+	}
+
+	/* TSC scaling supported? */
+	if (!boot_cpu_has(X86_FEATURE_TSCRATEMSR)) {
+		if (user_tsc_khz > tsc_khz) {
+			vcpu->arch.tsc_catchup = 1;
+			vcpu->arch.tsc_always_catchup = 1;
+		} else
+			WARN(1, "user requested TSC rate below hardware speed\n");
 		return;
 	}
 
@@ -992,7 +997,6 @@ static void svm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 user_tsc_khz)
 				user_tsc_khz);
 		return;
 	}
-	vcpu->arch.virtual_tsc_khz = user_tsc_khz;
 	svm->tsc_ratio             = ratio;
 }
 
