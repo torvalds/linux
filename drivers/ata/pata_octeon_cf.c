@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <scsi/scsi_host.h>
 
+#include <asm/byteorder.h>
 #include <asm/octeon/octeon.h>
 
 /*
@@ -589,6 +590,9 @@ static void octeon_cf_dma_start(struct ata_queued_cmd *qc)
 
 	/* Set the direction of the DMA */
 	mio_boot_dma_cfg.u64 = 0;
+#ifdef __LITTLE_ENDIAN
+	mio_boot_dma_cfg.s.endian = 1;
+#endif
 	mio_boot_dma_cfg.s.en = 1;
 	mio_boot_dma_cfg.s.rw = ((qc->tf.flags & ATA_TFLAG_WRITE) != 0);
 
