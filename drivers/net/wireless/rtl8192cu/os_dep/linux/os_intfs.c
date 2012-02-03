@@ -47,6 +47,10 @@
 #include <pci_osintf.h>
 #endif
 
+#ifdef CONFIG_BR_EXT
+#include <rtw_br_ext.h>
+#endif //CONFIG_BR_EXT
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek Wireless Lan Driver");
 MODULE_AUTHOR("Realtek Semiconductor Corp.");
@@ -83,6 +87,7 @@ int rtw_ips_mode = IPS_LEVEL_2;
 int rtw_ips_mode = IPS_NORMAL;
 #endif
 module_param(rtw_ips_mode, int, 0644);
+MODULE_PARM_DESC(rtw_ips_mode,"The default IPS mode");
 
 int rtw_radio_enable = 1;
 int rtw_long_retry_lmt = 7;
@@ -110,9 +115,12 @@ int rtw_uapsd_acvo_en = 0;
 int rtw_ht_enable = 1;
 int rtw_cbw40_enable = 1;
 int rtw_ampdu_enable = 1;//for enable tx_ampdu
-int rtw_rx_stbc = 0;// default is disabled for IOT issue with bufflao's AP
+int rtw_rx_stbc = 1;// 0: disable, bit(0):enable 2.4g, bit(1):enable 5g, default is set to enable 2.4GHZ for IOT issue with bufflao's AP at 5GHZ
 int rtw_ampdu_amsdu = 0;// 0: disabled, 1:enabled, 2:auto
 #endif
+
+int rtw_lowrate_two_xmit = 1;//Use 2 path Tx to transmit MCS0~7 and legacy mode
+
 //int rf_config = RF_1T2R;  // 1T2R	
 int rtw_rf_config = RF_819X_MAX_TYPE;  //auto
 int rtw_low_power = 0;
@@ -152,6 +160,10 @@ int rtw_hw_wps_pbc = 1;
 int rtw_hw_wps_pbc = 0;
 #endif
 
+#ifdef CONFIG_TX_MCAST2UNI
+int rtw_mc2u_disable = 0;
+#endif	// CONFIG_TX_MCAST2UNI
+
 char* ifname = "wlan%d";
 
 char* rtw_initmac = 0;  // temp mac address if users want to use instead of the mac address in Efuse
@@ -176,6 +188,9 @@ module_param(rtw_ampdu_enable, int, 0644);
 module_param(rtw_rx_stbc, int, 0644);
 module_param(rtw_ampdu_amsdu, int, 0644);
 #endif
+
+module_param(rtw_lowrate_two_xmit, int, 0644);
+
 module_param(rtw_rf_config, int, 0644);
 module_param(rtw_power_mgnt, int, 0644);
 module_param(rtw_low_power, int, 0644);
@@ -191,12 +206,24 @@ module_param(rtw_hwpwrp_detect, int, 0644);
 #ifdef CONFIG_ADAPTOR_INFO_CACHING_FILE
 char *rtw_adaptor_info_caching_file_path= "/data/misc/wifi/rtw_cache";
 module_param(rtw_adaptor_info_caching_file_path, charp, 0644);
-#endif
+MODULE_PARM_DESC(rtw_adaptor_info_caching_file_path, "The path of adapter info cache file");
+#endif //CONFIG_ADAPTOR_INFO_CACHING_FILE
 
 #ifdef CONFIG_LAYER2_ROAMING
 uint rtw_max_roaming_times=2;
 module_param(rtw_max_roaming_times, uint, 0644);
-#endif
+MODULE_PARM_DESC(rtw_max_roaming_times,"The max roaming times to try");
+#endif //CONFIG_LAYER2_ROAMING
+
+#ifdef CONFIG_FILE_FWIMG
+char *rtw_fw_file_path= "";
+module_param(rtw_fw_file_path, charp, 0644);
+MODULE_PARM_DESC(rtw_fw_file_path, "The path of fw image");
+#endif //CONFIG_FILE_FWIMG
+
+#ifdef CONFIG_TX_MCAST2UNI
+module_param(rtw_mc2u_disable, int, 0644);
+#endif	// CONFIG_TX_MCAST2UNI
 
 static uint loadparam( _adapter *padapter,  _nic_hdl	pnetdev);
 static int netdev_open (struct net_device *pnetdev);
@@ -372,7 +399,7 @@ void rtw_proc_init_one(struct net_device *dev)
 	}
 #endif
 
-#ifdef MEMORY_LEAK_DEBUG
+#ifdef DBG_MEMORY_LEAK
 	entry = create_proc_read_entry("_malloc_cnt", S_IFREG | S_IRUGO,
 				   dir_dev, proc_get_malloc_cnt, dev);				   
 	if (!entry) {
@@ -427,7 +454,7 @@ void rtw_proc_remove_one(struct net_device *dev)
 		remove_proc_entry("all_sta_info", dir_dev);
 #endif		
 
-#ifdef MEMORY_LEAK_DEBUG
+#ifdef DBG_MEMORY_LEAK
 		remove_proc_entry("_malloc_cnt", dir_dev);
 #endif 
 
@@ -520,6 +547,7 @@ _func_enter_;
 	registry_par->ampdu_amsdu = (u8)rtw_ampdu_amsdu;
 #endif
 
+	registry_par->lowrate_two_xmit = (u8)rtw_lowrate_two_xmit;
 	registry_par->rf_config = (u8)rtw_rf_config;
 	registry_par->low_power = (u8)rtw_low_power;
 
@@ -668,7 +696,7 @@ struct net_device *rtw_init_netdev(_adapter *old_padapter)
 	if(old_padapter != NULL) 
 		pnetdev = rtw_alloc_etherdev_with_old_priv(sizeof(_adapter), (void *)old_padapter);
 	else 
-	pnetdev = rtw_alloc_etherdev(sizeof(_adapter));
+		pnetdev = rtw_alloc_etherdev(sizeof(_adapter));
 	
 	if (!pnetdev)
 		return NULL;
@@ -741,7 +769,10 @@ u32 rtw_start_drv_threads(_adapter *padapter)
 
 	padapter->cmdThread = kernel_thread(rtw_cmd_thread, padapter, CLONE_FS|CLONE_FILES);
 	if(padapter->cmdThread < 0)
-		_status = _FAIL;		
+		_status = _FAIL;
+	else
+		_rtw_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema); //wait for cmd_thread to run
+		
 
 #ifdef CONFIG_EVENT_THREAD_MODE
 	padapter->evtThread = kernel_thread(event_thread, padapter, CLONE_FS|CLONE_FILES);
@@ -889,7 +920,7 @@ u8 rtw_reset_drv_sw(_adapter *padapter)
 	#endif
 #endif
 
-#ifdef SILENT_RESET_FOR_SPECIFIC_PLATFOM
+#ifdef DBG_CONFIG_ERROR_DETECT
 	if(padapter->HalFunc.sreset_reset_value)
 		padapter->HalFunc.sreset_reset_value(padapter);
 #endif
@@ -960,7 +991,9 @@ _func_enter_;
 		goto exit;
 	}
 
-	_rtw_memset((unsigned char *)&padapter->securitypriv, 0, sizeof (struct security_priv));	
+	// We don't need to memset padapter->XXX to zero, because adapter is allocated by rtw_zvmalloc().
+	//_rtw_memset((unsigned char *)&padapter->securitypriv, 0, sizeof (struct security_priv));	
+	
 	//_init_timer(&(padapter->securitypriv.tkip_timer), padapter->pnetdev, rtw_use_tkipkey_handler, padapter);
 
 	if(_rtw_init_sta_priv(&padapter->stapriv) == _FAIL)
@@ -989,9 +1022,14 @@ _func_enter_;
 	rtw_dm_init(padapter);
 	rtw_sw_led_init(padapter);
 
-#ifdef SILENT_RESET_FOR_SPECIFIC_PLATFOM
+#ifdef DBG_CONFIG_ERROR_DETECT
 	rtw_sreset_init(padapter);
-#endif//SILENT_RESET_FOR_SPECIFIC_PLATFOM
+#endif
+
+
+#ifdef CONFIG_BR_EXT
+	_rtw_spinlock_init(&padapter->br_ext_lock);
+#endif	// CONFIG_BR_EXT
 
 exit:
 	
@@ -1042,11 +1080,14 @@ void rtw_cancel_all_timer(_adapter *padapter)
 
 u8 rtw_free_drv_sw(_adapter *padapter)
 {
-
-
 	struct net_device *pnetdev = (struct net_device*)padapter->pnetdev;
 
 	RT_TRACE(_module_os_intfs_c_,_drv_info_,("==>rtw_free_drv_sw"));	
+
+#ifdef CONFIG_BR_EXT
+	_rtw_spinlock_free(&padapter->br_ext_lock);
+#endif	// CONFIG_BR_EXT
+
 
 	free_mlme_ext_priv(&padapter->mlmeextpriv);
 	
@@ -1107,7 +1148,7 @@ static int netdev_open(struct net_device *pnetdev)
 		goto netdev_open_normal_process;
 	}
 		
-       if(padapter->bup == _FALSE)
+	if(padapter->bup == _FALSE)
     	{    
 		padapter->bDriverStopped = _FALSE;
 	 	padapter->bSurpriseRemoved = _FALSE;	 
@@ -1172,6 +1213,52 @@ static int netdev_open(struct net_device *pnetdev)
       		netif_start_queue(pnetdev);
 	else
 		netif_wake_queue(pnetdev);
+
+#ifdef CONFIG_BR_EXT
+
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 35))
+	rcu_read_lock();
+#endif	// (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 35))
+
+	//if(check_fwstate(pmlmepriv, WIFI_STATION_STATE|WIFI_ADHOC_STATE) == _TRUE)
+	{
+		//struct net_bridge	*br = pnetdev->br_port->br;//->dev->dev_addr;
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 35))
+		if (pnetdev->br_port) 
+#else   // (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 35))
+		if (rcu_dereference(padapter->pnetdev->rx_handler_data))
+#endif  // (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 35)) 
+		{
+			struct net_device *br_netdev;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
+			br_netdev = dev_get_by_name(CONFIG_BR_EXT_BRNAME);
+#else	// (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
+			struct net *devnet = NULL;
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26))
+			devnet = pnetdev->nd_net;
+#else	// (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26))
+			devnet = dev_net(pnetdev);
+#endif	// (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26))
+
+			br_netdev = dev_get_by_name(devnet, CONFIG_BR_EXT_BRNAME);
+#endif	// (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
+
+			if (br_netdev) {
+				memcpy(padapter->br_mac, br_netdev->dev_addr, ETH_ALEN);
+				dev_put(br_netdev);
+			} else
+				printk("%s()-%d: dev_get_by_name(%s) failed!", __FUNCTION__, __LINE__, CONFIG_BR_EXT_BRNAME);
+		}
+		
+		padapter->ethBrExtInfo.addPPPoETag = 1;
+	}
+
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 35))
+	rcu_read_unlock();
+#endif	// (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 35))
+
+#endif	// CONFIG_BR_EXT
 
 netdev_open_normal_process:
 
@@ -1241,7 +1328,7 @@ int rtw_ips_pwr_up(_adapter *padapter)
 	DBG_8192C("===>  rtw_ips_pwr_up..............\n");
 	rtw_reset_drv_sw(padapter);
 	result = ips_netdrv_open(padapter);
-	
+
 	rtw_led_control(padapter, LED_CTL_NO_LINK);
 	
  	DBG_8192C("<===  rtw_ips_pwr_up.............. in %dms\n", rtw_get_passing_time_ms(start_time));
@@ -1338,13 +1425,21 @@ static int netdev_close(struct net_device *pnetdev)
 		//s2-2.  indicate disconnect to os
 		rtw_indicate_disconnect(padapter);
 		//s2-3. 
-		rtw_free_assoc_resources(padapter);
+		rtw_free_assoc_resources(padapter, 1);
 		//s2-4.
 		rtw_free_network_queue(padapter,_TRUE);
 #endif
 		// Close LED
 	rtw_led_control(padapter, LED_CTL_POWER_OFF);
 	}
+
+#ifdef CONFIG_BR_EXT
+	//if (OPMODE & (WIFI_STATION_STATE | WIFI_ADHOC_STATE)) 
+	{
+		//void nat25_db_cleanup(_adapter *priv);
+		nat25_db_cleanup(padapter);
+	}
+#endif	// CONFIG_BR_EXT
 
 	RT_TRACE(_module_os_intfs_c_,_drv_info_,("-871x_drv - drv_close\n"));
 	DBG_8192C("-871x_drv - drv_close, bup=%d\n", padapter->bup);

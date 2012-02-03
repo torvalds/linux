@@ -323,7 +323,7 @@ static int timer_set_next_event(unsigned long evt, struct clock_event_device *un
 static struct clock_event_device timer0_clockevent = {
 	.name = "timer0",
 	.shift = 32,
-	.rating = 300,
+	.rating = 100,
 	.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.set_mode = timer_set_mode,
 	.set_next_event = timer_set_next_event,

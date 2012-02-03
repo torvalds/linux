@@ -79,7 +79,6 @@ __s32 TVE_close(__u32 sel)
 {
     TVE_CLR_BIT(sel,TVE_000, 0x1<<0);
     TVE_WUINT32(sel,TVE_024,0x18181818);
-
     return 0;
 }
 
@@ -108,7 +107,7 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel,TVE_00C, 0x00000120);
 		TVE_WUINT32(sel,TVE_020, 0x00fc00fc);
 		TVE_WUINT32(sel,TVE_10C, 0x00002828);
-		TVE_WUINT32(sel,TVE_128, 0x00000000);//
+		TVE_WUINT32(sel,TVE_128, 0x00000002);//
 		TVE_WUINT32(sel,TVE_118, 0x0000e0e0);
 		TVE_WUINT32(sel,TVE_12C, 0x00000101);//
 		break;
@@ -130,7 +129,7 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel,TVE_11C, 0x001000f0);
 		TVE_WUINT32(sel,TVE_010, 0x21e6efe3);//add for pal-m
 		TVE_WUINT32(sel,TVE_100, 0x00000000);//add for pal-m
-		TVE_WUINT32(sel,TVE_128, 0x00000000);//
+		TVE_WUINT32(sel,TVE_128, 0x00000002);//
 		TVE_WUINT32(sel,TVE_12C, 0x00000101);//
 		break;
 
@@ -147,7 +146,7 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel,TVE_020, 0x00fc00fc);
 		TVE_WUINT32(sel,TVE_10C, 0x00002828);
 		TVE_WUINT32(sel,TVE_010, 0x21F69446);//add for PAL-NC
-		TVE_WUINT32(sel,TVE_128, 0x00000000);//
+		TVE_WUINT32(sel,TVE_128, 0x00000002);//
 		TVE_WUINT32(sel,TVE_118, 0x0000e0e0);
 		TVE_WUINT32(sel,TVE_12C, 0x00000101);//
 		break;
@@ -167,7 +166,7 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 		TVE_WUINT32(sel,TVE_110, 0x00000000);
 		TVE_WUINT32(sel,TVE_118, 0x0000a0a0);
 		TVE_WUINT32(sel,TVE_11C, 0x001000f0);
-		TVE_WUINT32(sel,TVE_128, 0x00000000);//
+		TVE_WUINT32(sel,TVE_128, 0x00000002);//
 		TVE_WUINT32(sel,TVE_12C, 0x00000101);//
 		break;
 
@@ -322,6 +321,8 @@ __s32 TVE_set_tv_mode(__u32 sel, __u8 mode)
 	TVE_CLR_BIT(sel,TVE_008,0xfff<<4);
 	TVE_SET_BIT(sel,TVE_008,0x3<<16);
 	TVE_SET_BIT(sel,TVE_008,0xf<<18);
+	TVE_WUINT32(sel,TVE_024,0x18181818);
+
 	return 0;
 }
 
@@ -330,7 +331,7 @@ __s32 TVE_set_vga_mode(__u32 sel)
     __u32 readval;
 
     TVE_WUINT32(sel,TVE_004, 0x20000000);
-    TVE_WUINT32(sel,TVE_008, 0x40031ac7);
+    TVE_WUINT32(sel,TVE_008, 0x403f1ac7);
 
     readval = TVE_RUINT32(sel,TVE_024);
     TVE_WUINT32(sel,TVE_024, readval&0xff000000);
@@ -384,9 +385,6 @@ __s32 TVE_get_dac_status(__u32 index)
     {
         return -1;
     }
-
-    TVE_SET_BIT(sel,TVE_008,0x2<<16);
-    TVE_SET_BIT(sel,TVE_008,0xf<<18);
 
     status = TVE_RUINT32(sel,TVE_038)>>(dac*8);
     status &= 0x3;

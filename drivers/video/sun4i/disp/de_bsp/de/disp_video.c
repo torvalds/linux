@@ -146,7 +146,11 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
 
     	if(g_video[sel][id].video_cur.interlace == TRUE)
     	{
-    		g_video[sel][id].dit_enable = TRUE;
+    	    if((!(gdisp.screen[sel].de_flicker_status & DE_FLICKER_USED)) &&
+    	        (scaler->in_fb.format == DISP_FORMAT_YUV420 && scaler->in_fb.mode == DISP_MOD_MB_UV_COMBINED))
+    	    {
+    		    g_video[sel][id].dit_enable = TRUE;
+    		}
 
             g_video[sel][id].fetch_field = FALSE;
         	if(g_video[sel][id].display_cnt == 0)
@@ -231,7 +235,7 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     	in_scan.field = g_video[sel][id].fetch_field;
     	in_scan.bottom = g_video[sel][id].fetch_bot;
 
-    	out_scan.field = (gdisp.screen[sel].de_flicker_status == DE_FLICKER_USED)?0: gdisp.screen[sel].b_out_interlace;
+    	out_scan.field = (gdisp.screen[sel].de_flicker_status & DE_FLICKER_USED)?0: gdisp.screen[sel].b_out_interlace;
 
     	if(scaler->out_fb.cs_mode > DISP_VXYCC)
     	{
@@ -265,10 +269,6 @@ static __inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
     	    DE_SCAL_Config_Src(scaler_index,&scal_addr,&in_size,&in_type,FALSE,FALSE);
     	}
 
-        if(g_video[sel][id].dit_enable == TRUE && gdisp.screen[sel].de_flicker_status == DE_FLICKER_USED)
-        {
-            Disp_de_flicker_enable(sel, FALSE);
-        }
     	DE_SCAL_Set_Init_Phase(scaler_index, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type, g_video[sel][id].dit_enable);
     	DE_SCAL_Set_Scaling_Factor(scaler_index, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type);
     	DE_SCAL_Set_Scaling_Coef(scaler_index, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type,  scaler->smooth_mode);

@@ -16,7 +16,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
 ******************************************************************************/
 #define _RTW_CMD_C_
 
@@ -27,7 +26,9 @@
 #include <cmd_osdep.h>
 #include <mlme_osdep.h>
 #include <rtw_byteorder.h>
-
+#ifdef CONFIG_BR_EXT
+#include <rtw_br_ext.h>
+#endif //CONFIG_BR_EXT
 /*
 Caller and the rtw_cmd_thread can protect cmd_q by spin_lock.
 No irqsave is necessary.
@@ -205,7 +206,7 @@ _func_enter_;
 	if (obj == NULL)
 		goto exit;
 
-//_enter_critical_bh(&queue->lock, &irqL);
+	//_enter_critical_bh(&queue->lock, &irqL);
 	_enter_critical(&queue->lock, &irqL);	
 
 	rtw_list_insert_tail(&obj->list, &queue->queue);
@@ -302,14 +303,19 @@ int rtw_cmd_filter(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 	}
 #endif
 
-	if( (pcmdpriv->padapter->hw_init_completed==_FALSE && bAllow == _FALSE)
+	if(cmd_obj->cmdcode == GEN_CMD_CODE(_SetChannelPlan))
+		bAllow = _TRUE;
+
+	if( (pcmdpriv->padapter->hw_init_completed ==_FALSE && bAllow == _FALSE)
 		|| pcmdpriv->cmdthd_running== _FALSE //com_thread not running
 	)		
 	{
-		//DBG_871X("%s: hw_init_completed:%u, cmdthd_running:%u\n", __FUNCTION__,
+		//DBG_871X("%s:%s: drop cmdcode:%u, hw_init_completed:%u, cmdthd_running:%u\n", caller_func, __FUNCTION__,
+		//	cmd_obj->cmdcode,
 		//	pcmdpriv->padapter->hw_init_completed,
 		//	pcmdpriv->cmdthd_running
 		//);
+
 		return _FAIL;
 	}	
 	return _SUCCESS;
@@ -408,6 +414,8 @@ _func_enter_;
 	prspbuf = pcmdpriv->rsp_buf;
 
 	pcmdpriv->cmdthd_running=_TRUE;
+	_rtw_up_sema(&pcmdpriv->terminate_cmdthread_sema);
+	
 	RT_TRACE(_module_rtl871x_cmd_c_,_drv_info_,("start r871x rtw_cmd_thread !!!!\n"));
 
 	while(1)
@@ -486,6 +494,8 @@ _next:
 		pcmd = rtw_dequeue_cmd(pcmdpriv);
 		if(pcmd==NULL)
 			break;
+
+		//DBG_871X("%s: leaving... drop cmdcode:%u\n", __FUNCTION__, pcmd->cmdcode);
 
 		rtw_free_cmd_obj(pcmd);	
 	}while(1);
@@ -620,7 +630,7 @@ rtw_sitesurvey_cmd(~)
 	### NOTE:#### (!!!!)
 	MUST TAKE CARE THAT BEFORE CALLING THIS FUNC, YOU SHOULD HAVE LOCKED pmlmepriv->lock
 */
-u8 rtw_sitesurvey_cmd(_adapter  *padapter, NDIS_802_11_SSID *pssid)
+u8 rtw_sitesurvey_cmd(_adapter  *padapter, NDIS_802_11_SSID *pssid, int ssid_max_num)
 {
 	u8 res = _FAIL;
 	struct cmd_obj		*ph2c;
@@ -661,11 +671,18 @@ _func_enter_;
 
 	psurveyPara->bsslimit = cpu_to_le32(48);
 	psurveyPara->scan_mode = cpu_to_le32(pmlmepriv->scan_mode);
-	psurveyPara->ss_ssidlen= cpu_to_le32(0);// pssid->SsidLength;
-	_rtw_memset(psurveyPara->ss_ssid, 0, IW_ESSID_MAX_SIZE + 1);
-	if ((pssid != NULL) && (pssid->SsidLength)) {
-		_rtw_memcpy(psurveyPara->ss_ssid, pssid->Ssid, pssid->SsidLength);
-		psurveyPara->ss_ssidlen = cpu_to_le32(pssid->SsidLength);
+
+	_rtw_memset(psurveyPara->ssid, 0, sizeof(NDIS_802_11_SSID)*RTW_SSID_SCAN_AMOUNT);
+
+	if(pssid){
+		int i;
+		for(i=0; i<ssid_max_num && i< RTW_SSID_SCAN_AMOUNT; i++){
+			if(pssid[i].SsidLength){
+				_rtw_memcpy(&psurveyPara->ssid[i], &pssid[i], sizeof(NDIS_802_11_SSID));
+				//DBG_871X("%s scan for specific ssid: %s, %d\n", __FUNCTION__
+				//	, psurveyPara->ssid[i].Ssid, psurveyPara->ssid[i].SsidLength);
+			}
+		}
 	}
 
 	set_fwstate(pmlmepriv, _FW_UNDER_SURVEY);
@@ -1064,6 +1081,8 @@ u8 rtw_joinbss_cmd(_adapter  *padapter, struct wlan_network* pnetwork)
 	struct registry_priv	*pregistrypriv = &padapter->registrypriv;
 	struct ht_priv			*phtpriv = &pmlmepriv->htpriv;
 	NDIS_802_11_NETWORK_INFRASTRUCTURE ndis_network_mode = pnetwork->network.InfrastructureMode;
+	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 
 _func_enter_;
 
@@ -1191,7 +1210,10 @@ _func_enter_;
 	}
 
 #endif
-		
+
+	pmlmeinfo->assoc_AP_vendor = check_assoc_AP(pnetwork->network.IEs, pnetwork->network.IELength);
+
+	#if 0
 	psecuritypriv->supplicant_ie[0]=(u8)psecnetwork->IELength;
 
 	if(psecnetwork->IELength < (256-1))
@@ -1202,6 +1224,7 @@ _func_enter_;
 	{
 		_rtw_memcpy(&psecuritypriv->supplicant_ie[1], &psecnetwork->IEs[0], (256-1));
 	}
+	#endif
 	
 	pcmd->cmdsz = get_WLAN_BSSID_EX_sz(psecnetwork);//get cmdsz before endian conversion
 
@@ -1585,7 +1608,7 @@ _func_exit_;
 
 }
 
-u8 rtw_set_chplan_cmd(_adapter*padapter, u8 chplan)
+u8 rtw_set_chplan_cmd(_adapter*padapter, u8 chplan, u8 enqueue)
 {
 	struct	cmd_obj*	pcmdobj;
 	struct	SetChannelPlan_param *setChannelPlan_param;
@@ -1597,6 +1620,65 @@ u8 rtw_set_chplan_cmd(_adapter*padapter, u8 chplan)
 _func_enter_;
 
 	RT_TRACE(_module_rtl871x_cmd_c_, _drv_notice_, ("+rtw_set_chplan_cmd\n"));
+
+	//check input parameter
+	if(!rtw_is_channel_plan_valid(chplan)) {
+		res = _FAIL;
+		goto exit;
+	}
+
+	//prepare cmd parameter
+	setChannelPlan_param = (struct	SetChannelPlan_param *)rtw_zmalloc(sizeof(struct SetChannelPlan_param));
+	if(setChannelPlan_param == NULL) {
+		res= _FAIL;
+		goto exit;
+	}
+	setChannelPlan_param->channel_plan=chplan;
+
+	if(enqueue)
+	{
+		//need enqueue, prepare cmd_obj and enqueue
+		pcmdobj = (struct	cmd_obj*)rtw_zmalloc(sizeof(struct	cmd_obj));
+		if(pcmdobj == NULL){
+			rtw_mfree((u8 *)setChannelPlan_param, sizeof(struct SetChannelPlan_param));
+			res=_FAIL;
+			goto exit;
+		}
+
+		init_h2fwcmd_w_parm_no_rsp(pcmdobj, setChannelPlan_param, GEN_CMD_CODE(_SetChannelPlan));
+		res = rtw_enqueue_cmd(pcmdpriv, pcmdobj);
+	}
+	else
+	{
+		//no need to enqueue, do the cmd hdl directly and free cmd parameter
+		if( H2C_SUCCESS !=set_chplan_hdl(padapter, (unsigned char *)setChannelPlan_param) )
+			res = _FAIL;
+		
+		rtw_mfree((u8 *)setChannelPlan_param, sizeof(struct SetChannelPlan_param));
+	}
+
+	//do something based on res...
+	if(res == _SUCCESS)
+		padapter->mlmepriv.ChannelPlan = chplan;
+	
+exit:
+
+_func_exit_;	
+
+	return res;
+}
+
+u8 rtw_led_blink_cmd(_adapter*padapter, PLED_871x pLed)
+{
+	struct	cmd_obj*	pcmdobj;
+	struct	LedBlink_param *ledBlink_param;
+	struct	cmd_priv   *pcmdpriv = &padapter->cmdpriv;
+
+	u8	res=_SUCCESS;
+
+_func_enter_;
+
+	RT_TRACE(_module_rtl871x_cmd_c_, _drv_notice_, ("+rtw_led_blink_cmd\n"));
 	
 	pcmdobj = (struct	cmd_obj*)rtw_zmalloc(sizeof(struct	cmd_obj));
 	if(pcmdobj == NULL){
@@ -1604,16 +1686,54 @@ _func_enter_;
 		goto exit;
 	}
 
-	setChannelPlan_param = (struct	SetChannelPlan_param *)rtw_zmalloc(sizeof(struct	SetChannelPlan_param));
-	if(setChannelPlan_param == NULL) {
+	ledBlink_param = (struct	LedBlink_param *)rtw_zmalloc(sizeof(struct	LedBlink_param));
+	if(ledBlink_param == NULL) {
 		rtw_mfree((u8 *)pcmdobj, sizeof(struct cmd_obj));
 		res= _FAIL;
 		goto exit;
 	}
 
-	setChannelPlan_param->channel_plan=chplan;
+	ledBlink_param->pLed=pLed;
 	
-	init_h2fwcmd_w_parm_no_rsp(pcmdobj, setChannelPlan_param, GEN_CMD_CODE(_SetChannelPlan));
+	init_h2fwcmd_w_parm_no_rsp(pcmdobj, ledBlink_param, GEN_CMD_CODE(_LedBlink));
+	res = rtw_enqueue_cmd(pcmdpriv, pcmdobj);
+	
+exit:
+
+_func_exit_;	
+
+	return res;
+}
+
+u8 rtw_set_csa_cmd(_adapter*padapter, u8 new_ch_no)
+{
+	struct	cmd_obj*	pcmdobj;
+	struct	SetChannelSwitch_param*setChannelSwitch_param;
+	struct 	mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	struct	cmd_priv   *pcmdpriv = &padapter->cmdpriv;
+
+	u8	res=_SUCCESS;
+
+_func_enter_;
+
+	RT_TRACE(_module_rtl871x_cmd_c_, _drv_notice_, ("+rtw_set_csa_cmd\n"));
+	
+	pcmdobj = (struct	cmd_obj*)rtw_zmalloc(sizeof(struct	cmd_obj));
+	if(pcmdobj == NULL){
+		res=_FAIL;
+		goto exit;
+	}
+
+	setChannelSwitch_param = (struct	SetChannelSwitch_param *)rtw_zmalloc(sizeof(struct	SetChannelSwitch_param));
+	if(setChannelSwitch_param == NULL) {
+		rtw_mfree((u8 *)pcmdobj, sizeof(struct cmd_obj));
+		res= _FAIL;
+		goto exit;
+	}
+
+	setChannelSwitch_param->new_ch_no=new_ch_no;
+	
+	init_h2fwcmd_w_parm_no_rsp(pcmdobj, setChannelSwitch_param, GEN_CMD_CODE(_SetChannelSwitch));
 	res = rtw_enqueue_cmd(pcmdpriv, pcmdobj);
 	
 exit:
@@ -1629,7 +1749,7 @@ static void traffic_status_watchdog(_adapter *padapter)
 	u8	bEnterPS;
 #endif
 	u8	bBusyTraffic = _FALSE, bTxBusyTraffic = _FALSE, bRxBusyTraffic = _FALSE;
-	u8	bHigherBusyTraffic = _FALSE, bHigherBusyRxTraffic = _FALSE;
+	u8	bHigherBusyTraffic = _FALSE, bHigherBusyRxTraffic = _FALSE, bHigherBusyTxTraffic = _FALSE;
 	struct mlme_priv		*pmlmepriv = &(padapter->mlmepriv);
 
 	//
@@ -1644,9 +1764,10 @@ static void traffic_status_watchdog(_adapter *padapter)
 		{
 			bBusyTraffic = _TRUE;
 
-			if(pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > pmlmepriv->LinkDetectInfo.NumTxOkInPeriod)
+			if(pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > 100)
 				bRxBusyTraffic = _TRUE;
-			else if(pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > pmlmepriv->LinkDetectInfo.NumRxOkInPeriod)
+
+			if(pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > 100)
 				bTxBusyTraffic = _TRUE;
 		}
 
@@ -1659,8 +1780,10 @@ static void traffic_status_watchdog(_adapter *padapter)
 			// Extremely high Rx data.
 			if(pmlmepriv->LinkDetectInfo.NumRxOkInPeriod > 5000)
 				bHigherBusyRxTraffic = _TRUE;
-			else
-				bHigherBusyRxTraffic = _FALSE;
+
+			// Extremely high Tx data.
+			if(pmlmepriv->LinkDetectInfo.NumTxOkInPeriod > 5000)
+				bHigherBusyTxTraffic = _TRUE;
 		}
 		
 #ifdef CONFIG_LPS
@@ -1708,7 +1831,7 @@ void dynamic_chk_wk_hdl(_adapter *padapter, u8 *pbuf, int sz)
 {
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 	//struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
-	#ifdef SILENT_RESET_FOR_SPECIFIC_PLATFOM	
+	#ifdef DBG_CONFIG_ERROR_DETECT	
 	if(padapter->HalFunc.sreset_xmit_status_check)
 		padapter->HalFunc.sreset_xmit_status_check(padapter);		
 	#endif	
@@ -2135,6 +2258,10 @@ _func_enter_;
 
 		goto exit;
 	}
+#ifdef CONFIG_BR_EXT
+	else //clear bridge database
+		nat25_db_cleanup(padapter);
+#endif //CONFIG_BR_EXT
 
 	// free cmd
 	rtw_free_cmd_obj(pcmd);
@@ -2220,14 +2347,17 @@ _func_enter_;
 	}
 	else
 	{	
-		pwlan = _rtw_alloc_network(pmlmepriv);
+		_irqL	irqL;
 
+		pwlan = _rtw_alloc_network(pmlmepriv);
+		_enter_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);
 		if ( pwlan == NULL)
 		{
 			pwlan = rtw_get_oldest_wlan_network(&pmlmepriv->scanned_queue);
 			if( pwlan == NULL)
 			{
 				RT_TRACE(_module_rtl871x_cmd_c_,_drv_err_,("\n Error:  can't get pwlan in rtw_joinbss_event_callback \n"));
+				_exit_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);
 				goto createbss_cmd_fail;
 			}
 			pwlan->last_scanned = rtw_get_current_time();			
@@ -2268,7 +2398,7 @@ _func_enter_;
 			//rtw_indicate_disconnect(dev);
 		}		
 #endif
-
+		_exit_critical_bh(&(pmlmepriv->scanned_queue.lock), &irqL);
 		// we will set _FW_LINKED when there is one more sat to join us (rtw_stassoc_event_callback)
 			
 	}

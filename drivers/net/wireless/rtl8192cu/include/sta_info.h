@@ -15,8 +15,7 @@
  * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
- *
- 
+ * 
 ******************************************************************************/
 #ifndef __STA_INFO_H_
 #define __STA_INFO_H_
@@ -186,7 +185,7 @@ struct sta_info {
 	u8 no_ht_gf_set;
 	u8 no_ht_set;
 	u8 ht_20mhz_set;
-#endif
+#endif	// CONFIG_NATIVEAP_MLME
 
 	unsigned int tx_ra_bitmap;
 	u8 qos_info;
@@ -216,7 +215,12 @@ struct sta_info {
 	u16 dev_name_len;
 	u8 dev_name[32];	
 #endif //CONFIG_P2P
-#endif	
+
+#ifdef CONFIG_TX_MCAST2UNI
+	u8 under_exist_checking;
+#endif	// CONFIG_TX_MCAST2UNI
+	
+#endif	// CONFIG_AP_MODE	
 
 	//for DM
 	RSSI_STA	 rssi_stat;

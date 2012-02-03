@@ -55,7 +55,7 @@
 
 #define NUM_INPUTS 2
 #define CSI_OUT_RATE      (24*1000*1000)
-#define CSI_ISP_RATE			(100*1000*1000)
+#define CSI_ISP_RATE			(80*1000*1000)
 #define CSI_MAX_FRAME_MEM (32*1024*1024)
 //#define TWI_NO		 (1)
 
@@ -66,7 +66,6 @@
 
 static unsigned video_nr = 0;
 static unsigned first_flag = 0;
-
 
 
 static char ccm[I2C_NAME_SIZE] = "";
@@ -318,7 +317,7 @@ static int csi_clk_get(struct csi_dev *dev)
 		return -1;
     }
 
-	if(dev->ccm_info->mclk==24000000)
+	if(dev->ccm_info->mclk==24000000 || dev->ccm_info->mclk==12000000)
 	{
 		dev->csi_clk_src=clk_get(NULL,"hosc");
 		if (dev->csi_clk_src == NULL) {
@@ -415,7 +414,7 @@ static void csi_reset_disable(struct csi_dev *dev)
 static int csi_clk_enable(struct csi_dev *dev)
 {
 	clk_enable(dev->csi_ahb_clk);
-	clk_enable(dev->csi_module_clk);
+//	clk_enable(dev->csi_module_clk);
 	clk_enable(dev->csi_isp_clk);
 	clk_enable(dev->csi_dram_clk);
 
@@ -425,7 +424,7 @@ static int csi_clk_enable(struct csi_dev *dev)
 static int csi_clk_disable(struct csi_dev *dev)
 {
 	clk_disable(dev->csi_ahb_clk);
-	clk_disable(dev->csi_module_clk);
+//	clk_disable(dev->csi_module_clk);
 	clk_disable(dev->csi_isp_clk);
 	clk_disable(dev->csi_dram_clk);
 
@@ -446,18 +445,18 @@ static int csi_clk_release(struct csi_dev *dev)
 	return 0;
 }
 
-static int csi_is_generating(struct csi_dev *dev)
+static int inline csi_is_generating(struct csi_dev *dev)
 {
 	return test_bit(0, &dev->generating);
 }
 
-static void csi_start_generating(struct csi_dev *dev)
+static void inline csi_start_generating(struct csi_dev *dev)
 {
 	 set_bit(0, &dev->generating);
 	 return;
 }
 
-static void csi_stop_generating(struct csi_dev *dev)
+static void inline csi_stop_generating(struct csi_dev *dev)
 {
 	 first_flag = 0;
 	 clear_bit(0, &dev->generating);
@@ -486,7 +485,6 @@ static irqreturn_t csi_isr(int irq, void *priv)
 //	__csi_int_status_t * status;
 
 	csi_dbg(3,"csi_isr\n");
-
 	bsp_csi_int_disable(dev,CSI_INT_FRAME_DONE);//CSI_INT_FRAME_DONE
 
 	spin_lock(&dev->slock);
@@ -539,7 +537,6 @@ set_next_addr:
 
 unlock:
 	spin_unlock(&dev->slock);
-
 //	bsp_csi_int_get_status(dev, status);
 //	if((status->buf_0_overflow) || (status->buf_1_overflow) || (status->buf_2_overflow))
 //	{
@@ -1007,8 +1004,8 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	bsp_csi_int_clear_status(dev,CSI_INT_FRAME_DONE);//CSI_INT_FRAME_DONE
 	bsp_csi_int_enable(dev, CSI_INT_FRAME_DONE);//CSI_INT_FRAME_DONE
 	bsp_csi_capture_video_start(dev);
-	csi_start_generating(dev);
 
+	csi_start_generating(dev);
 	return 0;
 }
 
@@ -1081,11 +1078,10 @@ static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 	return 0;
 }
 
-static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
+static int internal_s_input(struct csi_dev *dev, unsigned int i)
 {
-	struct csi_dev *dev = video_drvdata(file);
-	int ret;
 	struct v4l2_control ctrl;
+	int ret;
 
 	if (i > dev->dev_qty-1) {
 		csi_err("set input error!\n");
@@ -1100,7 +1096,6 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 //	spin_lock(&dev->slock);
 
 	/*Power down current device*/
-
 	ret = v4l2_subdev_call(dev->sd,core, s_power, CSI_SUBDEV_STBY_ON);
 	if(ret < 0)
 		goto altend;
@@ -1123,11 +1118,17 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
   dev->csi_mode.href       = dev->ccm_info->href;
   dev->csi_mode.clock      = dev->ccm_info->clock;
 
-  bsp_csi_configure(dev,&dev->csi_mode);
+//  bsp_csi_configure(dev,&dev->csi_mode);
 	csi_clk_out_set(dev);
 
 	/* Initial target device */
-	ret = v4l2_subdev_call(dev->sd,core, init, CSI_SUBDEV_INIT_FULL);
+	ret = v4l2_subdev_call(dev->sd,core, s_power, CSI_SUBDEV_STBY_OFF);
+	if (ret!=0) {
+	  csi_err("sensor standby off error when selecting target device!\n");
+	  goto recover;
+	}
+
+	ret = v4l2_subdev_call(dev->sd,core, init, 0);
 	if (ret!=0) {
 		csi_err("sensor initial error when selecting target device!\n");
 		goto recover;
@@ -1169,13 +1170,27 @@ recover:
 		goto altend;
 	}
 
+
 	/*Re Initial current device*/
-	ret = v4l2_subdev_call(dev->sd,core, init, CSI_SUBDEV_INIT_FULL);
+	ret = v4l2_subdev_call(dev->sd,core, s_power, CSI_SUBDEV_STBY_OFF);
+	if (ret!=0) {
+	  csi_err("sensor standby off error when selecting back current device!\n");
+	  goto recover;
+	}
+
+	ret = v4l2_subdev_call(dev->sd,core, init, 0);
 	if (ret!=0) {
 		csi_err("sensor recovering error when selecting back current device!\n");
 	}
 	ret = 0;
 	goto altend;
+}
+
+static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
+{
+	struct csi_dev *dev = video_drvdata(file);
+
+	return internal_s_input(dev , i);
 }
 
 
@@ -1261,9 +1276,14 @@ static ssize_t csi_read(struct file *file, char __user *data, size_t count, loff
 {
 	struct csi_dev *dev = video_drvdata(file);
 
-	csi_start_generating(dev);
-	return videobuf_read_stream(&dev->vb_vidq, data, count, ppos, 0,
+//	csi_start_generating(dev);
+	if(csi_is_generating(dev)) {
+		return videobuf_read_stream(&dev->vb_vidq, data, count, ppos, 0,
 					file->f_flags & O_NONBLOCK);
+	} else {
+		csi_err("csi is not generating!\n");
+		return -EINVAL;
+	}
 }
 
 static unsigned int csi_poll(struct file *file, struct poll_table_struct *wait)
@@ -1271,8 +1291,13 @@ static unsigned int csi_poll(struct file *file, struct poll_table_struct *wait)
 	struct csi_dev *dev = video_drvdata(file);
 	struct videobuf_queue *q = &dev->vb_vidq;
 
-	csi_start_generating(dev);
-	return videobuf_poll_stream(file, q, wait);
+//	csi_start_generating(dev);
+	if(csi_is_generating(dev)) {
+		return videobuf_poll_stream(file, q, wait);
+	} else {
+		csi_err("csi is not generating!\n");
+		return -EINVAL;
+	}
 }
 
 static int csi_open(struct file *file)
@@ -1288,8 +1313,11 @@ static int csi_open(struct file *file)
 		return -EBUSY;
 	}
 
-	//open all the device power
-	for (input_num=0; input_num<dev->dev_qty; input_num++) {
+	csi_clk_enable(dev);
+	csi_reset_disable(dev);
+
+	//open all the device power and set it to standby on
+	for (input_num=dev->dev_qty-1; input_num>=0; input_num--) {
 		/* update target device info and select it*/
 		ret = update_ccm_info(dev, dev->ccm_cfg[input_num]);
 		if (ret < 0)
@@ -1297,32 +1325,34 @@ static int csi_open(struct file *file)
 			csi_err("Error when set ccm info when csi open!\n");
 		}
 
+		dev->csi_mode.vref       = dev->ccm_info->vref;
+	  dev->csi_mode.href       = dev->ccm_info->href;
+	  dev->csi_mode.clock      = dev->ccm_info->clock;
+		csi_clk_out_set(dev);
+
 		ret = v4l2_subdev_call(dev->sd,core, s_power, CSI_SUBDEV_PWR_ON);
 	  if (ret!=0) {
-	  	csi_err("sensor power on error at device number %d when csi open!\n",input_num);
+	  	csi_err("sensor CSI_SUBDEV_PWR_ON error at device number %d when csi open!\n",input_num);
+	  }
+
+		ret = v4l2_subdev_call(dev->sd,core, s_power, CSI_SUBDEV_STBY_ON);
+		if (ret!=0) {
+	  	csi_err("sensor CSI_SUBDEV_STBY_ON error at device number %d when csi open!\n",input_num);
 	  }
 	}
 
 	dev->input=0;//default input
 
-  ret = update_ccm_info(dev, dev->ccm_cfg[dev->input]);
-  if (ret < 0)
-	{
-		csi_err("Error when set ccm info when csi open!\n");
-	}
-
-
-  dev->csi_mode.vref       = dev->ccm_info->vref;
-  dev->csi_mode.href       = dev->ccm_info->href;
-  dev->csi_mode.clock      = dev->ccm_info->clock;
-
-	csi_clk_enable(dev);
-	csi_reset_disable(dev);
-
 	bsp_csi_open(dev);
 	bsp_csi_set_offset(dev,0,0);//h and v offset is initialed to zero
 
-	ret = v4l2_subdev_call(dev->sd,core, init, CSI_SUBDEV_INIT_FULL);
+	ret = v4l2_subdev_call(dev->sd,core, s_power, CSI_SUBDEV_STBY_OFF);
+	if (ret!=0) {
+	  csi_err("sensor standby off error when csi open!\n");
+	  return ret;
+	}
+
+	ret = v4l2_subdev_call(dev->sd,core, init, 0);
 	if (ret!=0) {
 		csi_err("sensor initial error when csi open!\n");
 		return ret;
@@ -1344,8 +1374,8 @@ static int csi_open(struct file *file)
 		csi_err("sensor sensor_s_ctrl V4L2_CID_HFLIP error when csi open!\n");
 	}
 
-	dev->opened=1;
-
+	dev->opened = 1;
+	dev->fmt = &formats[5]; //default format
 	return 0;
 }
 
@@ -1373,18 +1403,8 @@ static int csi_close(struct file *file)
 	csi_stop_generating(dev);
 
 	if(dev->stby_mode == 0) {
-		ret = v4l2_subdev_call(dev->sd,core, reset, CSI_SUBDEV_RST_ON);
-		if(ret < 0)
-			return ret;
 		return v4l2_subdev_call(dev->sd,core, s_power, CSI_SUBDEV_STBY_ON);
 	} else {
-		ret = v4l2_subdev_call(dev->sd,core, reset, CSI_SUBDEV_RST_ON);
-		if(ret < 0)
-			return ret;
-		ret = v4l2_subdev_call(dev->sd,core, s_power, CSI_SUBDEV_STBY_ON);
-		if(ret < 0)
-			return ret;
-
 		//close all the device power
 		for (input_num=0; input_num<dev->dev_qty; input_num++) {
       /* update target device info and select it */
@@ -1644,7 +1664,6 @@ static int csi_probe(struct platform_device *pdev)
 	int input_num;
 
 	csi_dbg(0,"csi_probe\n");
-
 	/*request mem for dev*/
 	dev = kzalloc(sizeof(struct csi_dev), GFP_KERNEL);
 	if (!dev) {
@@ -1890,7 +1909,7 @@ reg_sd:
 	/*initial video buffer queue*/
 	videobuf_queue_dma_contig_init(&dev->vb_vidq, &csi_video_qops,
 			NULL, &dev->slock, V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			V4L2_FIELD_NONE,
+			V4L2_FIELD_NONE,//default format, can be changed by s_fmt
 			sizeof(struct csi_buffer), dev,NULL);//linux-3.0
 
 	/* init video dma queues */
@@ -1906,7 +1925,7 @@ err_clk:
 unreg_dev:
 	v4l2_device_unregister(&dev->v4l2_dev);
 free_dev:
-	kfree(dev);
+//	kfree(dev);
 err_irq:
 	free_irq(dev->irq, dev);
 err_regs_unmap:
@@ -1919,6 +1938,10 @@ err_info:
 	csi_err("failed to install\n");
 
 	return ret;
+}
+
+void csi_dev_release(struct device *dev)
+{
 }
 
 static int csi_release(void)
@@ -1935,10 +1958,16 @@ static int csi_release(void)
 
 		v4l2_info(&dev->v4l2_dev, "unregistering %s\n", video_device_node_name(dev->vfd));
 		video_unregister_device(dev->vfd);
+		csi_clk_release(dev);
 		v4l2_device_unregister(&dev->v4l2_dev);
+		free_irq(dev->irq, dev);
+		iounmap(dev->regs);
+		release_resource(dev->regs_res);
+		kfree(dev->regs_res);
 		kfree(dev);
 	}
 
+	csi_print("csi_release ok!\n");
 	return 0;
 }
 
@@ -1949,13 +1978,15 @@ static int __devexit csi_remove(struct platform_device *pdev)
 
 	csi_dbg(0,"csi_remove\n");
 
-	free_irq(dev->irq, dev);
-
-	csi_clk_release(dev);
-	iounmap(dev->regs);
-	release_resource(dev->regs_res);
-	kfree(dev->regs_res);
-	kfree(dev);
+//	video_device_release(vfd);
+//	csi_clk_release(dev);
+//	free_irq(dev->irq, dev);
+//
+//	iounmap(dev->regs);
+//	release_resource(dev->regs_res);
+//	kfree(dev->regs_res);
+//	kfree(dev);
+	csi_print("csi_remove ok!\n");
 	return 0;
 }
 
@@ -1970,22 +2001,10 @@ static int csi_suspend(struct platform_device *pdev, pm_message_t state)
 		csi_clk_disable(dev);
 
 		if(dev->stby_mode == 0) {
-			csi_print("reset camera ,and set it to standby!\n");
-			ret = v4l2_subdev_call(dev->sd,core, reset, CSI_SUBDEV_RST_ON);
-			if(ret < 0)
-				return ret;
-
+			csi_print("set camera to standby!\n");
 			return v4l2_subdev_call(dev->sd,core, s_power, CSI_SUBDEV_STBY_ON);
 		} else {
-			csi_print("reset camera , set it to standby and power off!\n");
-			ret = v4l2_subdev_call(dev->sd,core, reset, CSI_SUBDEV_RST_ON);
-			if(ret < 0)
-				return ret;
-
-			ret = v4l2_subdev_call(dev->sd,core, s_power, CSI_SUBDEV_STBY_ON);
-			if(ret < 0)
-				return ret;
-
+			csi_print("set camera to power off!\n");
 			//close all the device power
 			for (input_num=0; input_num<dev->dev_qty; input_num++) {
         /* update target device info and select it */
@@ -2015,12 +2034,12 @@ static int csi_resume(struct platform_device *pdev)
 
 	if (dev->opened==1) {
 		csi_clk_out_set(dev);
-		csi_clk_enable(dev);
+//		csi_clk_enable(dev);
 		if(dev->stby_mode == 0) {
 			ret = v4l2_subdev_call(dev->sd,core, s_power,CSI_SUBDEV_STBY_OFF);
 			if(ret < 0)
 				return ret;
-			ret = v4l2_subdev_call(dev->sd,core, init, CSI_SUBDEV_INIT_SIMP);
+			ret = v4l2_subdev_call(dev->sd,core, init, 0);
 			if (ret!=0) {
 				csi_err("sensor initial error when resume from suspend!\n");
 				return ret;
@@ -2050,7 +2069,7 @@ static int csi_resume(struct platform_device *pdev)
 				csi_err("Error when set ccm info when csi_resume!\n");
 			}
 
-			ret = v4l2_subdev_call(dev->sd,core, init,CSI_SUBDEV_INIT_FULL);
+			ret = v4l2_subdev_call(dev->sd,core, init,0);
 			if (ret!=0) {
 				csi_err("sensor full initial error when resume from suspend!\n");
 				return ret;
@@ -2092,11 +2111,10 @@ static struct resource csi0_resource[] = {
 static struct platform_device csi_device[] = {
 	[0] = {
 	.name           	= "sun4i_csi",
-    	.id             	= 0,
+  .id             	= 0,
 	.num_resources		= ARRAY_SIZE(csi0_resource),
-    	.resource       	= csi0_resource,
-	.dev            	= {
-	    }
+  .resource       	= csi0_resource,
+	.dev.release      = csi_dev_release,
 	}
 };
 
@@ -2105,7 +2123,7 @@ static int __init csi_init(void)
 	u32 ret;
 	int csi_used;
 	csi_print("Welcome to CSI driver\n");
-	csi_dbg(0,"csi_init\n");
+	csi_print("csi_init\n");
 
 	ret = script_parser_fetch("csi0_para","csi_used", &csi_used , sizeof(int));
 	if (ret) {
@@ -2119,16 +2137,16 @@ static int __init csi_init(void)
 		return 0;
 	}
 
-	ret = platform_device_register(&csi_device[0]);
-	if (ret) {
-		csi_err("platform device register failed\n");
-		return -1;
-	}
-
 	ret = platform_driver_register(&csi_driver);
 
 	if (ret) {
 		csi_err("platform driver register failed\n");
+		return -1;
+	}
+
+	ret = platform_device_register(&csi_device[0]);
+	if (ret) {
+		csi_err("platform device register failed\n");
 		return -1;
 	}
 	return 0;
@@ -2136,9 +2154,22 @@ static int __init csi_init(void)
 
 static void __exit csi_exit(void)
 {
-	csi_dbg(0,"csi_exit\n");
-	csi_release();
-	platform_driver_unregister(&csi_driver);
+	int csi_used,ret;
+
+	csi_print("csi_exit\n");
+
+	ret = script_parser_fetch("csi0_para","csi_used", &csi_used , sizeof(int));
+	if (ret) {
+		csi_err("fetch csi_used from sys_config failed\n");
+		return;
+	}
+
+	if(csi_used)
+	{
+		csi_release();
+		platform_device_unregister(&csi_device[0]);
+		platform_driver_unregister(&csi_driver);
+	}
 }
 
 module_init(csi_init);

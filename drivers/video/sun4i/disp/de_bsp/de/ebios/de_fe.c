@@ -1,5 +1,5 @@
 //*****************************************************************************
-//  All Winner Micro, All Right Reserved. 2006-2011 Copyright (c)
+//  All Winner Micro, All Right Reserved. 2006-2012 Copyright (c)
 //
 //  File name   :        de_scal_bsp.c
 //
@@ -7,19 +7,22 @@
 //
 //  History       :
 //                 2011/05/03      zchmin       v1.0    Initial version
-//                 2011/05/13      vito            v1.1    added vpp function
+//                 2011/05/13      vito         v1.1    added vpp function
 //                 2011/05/25      zchmin       v1.2    redefine 3d inmode
 //                 2011/07/01      zchmin       v1.3    modify set scal coef error
 //                 2011/07/14      zchmin       v1.4    added input/output rg swap
 //                 2011/08/04      zchmin       v1.5    added divisor no-zero limited
 //                 2011/09/28      zchmin       v1.6    added 3D interleaved input format support
+//                 2011/10/10      zchmin	    v1.7    clear 3d line_interleaved flag when config 2D src
+//                                                      correct 3D interleaved format address error
+//                 2011/10/19      zchmin       v1.8    correct out_type->fmt == DE_SCAL_INYUV420
+//                 2012/01/04      zchmin       v1.9    correct negative shifter
 //******************************************************************************
 
 
 #include "de_fe.h"
 
-//static volatile __de_scal_dev_t *scal_dev[2];
-static __de_scal_dev_t * scal_dev[2];
+static volatile __de_scal_dev_t *scal_dev[2];
 static __u32 de_scal_ch0_offset;
 static __u32 de_scal_ch1_offset;
 static __u32 de_scal_ch2_offset;
@@ -422,7 +425,7 @@ __s32 DE_SCAL_Set_Scaling_Factor(__u8 sel, __scal_scan_mod_t *in_scan, __scal_sr
 {
     __s32 in_w0, in_h0, out_w0, out_h0;
     __s32 ch0_hstep, ch0_vstep ;
-	__u32 w_shift, h_shift;
+	__s8 w_shift, h_shift;
 
     in_w0 = in_size->scal_width;
     in_h0 = in_size->scal_height;
@@ -485,8 +488,8 @@ __s32 DE_SCAL_Set_Scaling_Factor(__u8 sel, __scal_scan_mod_t *in_scan, __scal_sr
 
 	scal_dev[sel]->ch0_horzfact.dwval = ch0_hstep;
     scal_dev[sel]->ch0_vertfact.dwval = ch0_vstep<<(out_scan->field);
-    scal_dev[sel]->ch1_horzfact.dwval = ch0_hstep>>w_shift;
-    scal_dev[sel]->ch1_vertfact.dwval = (ch0_vstep>>h_shift)<<(out_scan->field);
+    scal_dev[sel]->ch1_horzfact.dwval = (w_shift>0) ? (ch0_hstep>>w_shift) : ch0_hstep<<(0-w_shift);
+    scal_dev[sel]->ch1_vertfact.dwval = (h_shift>0) ? (ch0_vstep>>h_shift)<<(out_scan->field) : (ch0_vstep<<(0-h_shift))<<(out_scan->field);
 
 	return 0;
 }

@@ -84,7 +84,7 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
     return ;
 }
 
-void LCD_line_event_proc(__u32 sel, __u32 tcon_index)
+void LCD_line_event_proc(__u32 sel)
 {
 	if(gdisp.screen[sel].have_cfg_reg)
 	{

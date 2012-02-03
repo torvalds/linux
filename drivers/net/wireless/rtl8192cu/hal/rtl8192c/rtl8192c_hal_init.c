@@ -16,8 +16,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
-******************************************************************************/
+ *******************************************************************************/
 
 #define _RTL8192C_HAL_INIT_C_
 #include <drv_conf.h>
@@ -35,87 +34,6 @@
 #ifdef CONFIG_PCI_HCI
 #include <pci_hal.h>
 #endif
-
-#ifdef PLATFORM_LINUX
-#ifdef CONFIG_ADAPTOR_INFO_CACHING_FILE
-#include <rtw_eeprom.h>
-
- int isAdaptorInfoFileValid(void)
-{
-	return 1;
-}
-
-int storeAdaptorInfoFile(struct eeprom_priv * eeprom_priv, char *path)
-{
-	int ret =0;
-	mm_segment_t oldfs;
-	struct file *fp;
-	if(eeprom_priv) {
-		
-		if( 0 == (ret=openFile(&fp, path, O_CREAT|O_WRONLY, 0666)) ) {
-			DBG_8192C("%s openFile path:%s fp=%p\n",__FUNCTION__, path ,fp);
-
-			oldfs = get_fs(); set_fs(get_ds());
-			if( EEPROM_MAX_SIZE==(ret=writeFile(fp, eeprom_priv->efuse_eeprom_data, EEPROM_MAX_SIZE)) ) {
-				DBG_8192C("%s writeFile OK\n",__FUNCTION__);
-				ret = 0;		
-			} else {
-				DBG_8192C("%s writeFile Fail, ret:%d\n",__FUNCTION__, ret);
-			}
-			set_fs(oldfs);
-
-			closeFile(fp);
-		} else {
-			DBG_8192C("%s openFile path:%s Fail, ret:%d\n",__FUNCTION__, path, ret);
-		}
-		
-	} else {
-		DBG_8192C("%s NULL pointer\n",__FUNCTION__);
-		ret =  -EINVAL;
-	}
-	return ret;
-}
-
-int retriveAdaptorInfoFile(struct eeprom_priv * eeprom_priv, char *path)
-{
-	int ret =-1;
-	mm_segment_t oldfs;
-	struct file *fp;
-	
-	if(eeprom_priv) {
-		
-		if( 0 == (ret=openFile(&fp,path, O_RDONLY, 0)) ){
-			DBG_8192C("%s openFile path:%s fp=%p\n",__FUNCTION__, path ,fp);
-
-			oldfs = get_fs(); set_fs(get_ds());
-			if( EEPROM_MAX_SIZE==(ret=readFile(fp, eeprom_priv->efuse_eeprom_data, EEPROM_MAX_SIZE)) ) {
-				DBG_8192C("%s readFile OK\n",__FUNCTION__);
-				ret = 0;		
-			} else {
-				DBG_8192C("%s readFile Fai, ret:%dl\n",__FUNCTION__, ret);
-			}
-			set_fs(oldfs);
-
-			closeFile(fp);
-		} else {
-			DBG_8192C("%s openFile path:%s Fail, ret:%d\n",__FUNCTION__, path, ret);
-		}
-
-		#if 0
-		if(isAdaptorInfoFileValid()) {	
-			return 0;
-		} else {
-			return -ENODATA;
-		}
-		#endif
-	} else {
-		DBG_8192C("%s NULL pointer\n",__FUNCTION__);
-		ret = -EINVAL;
-	}
-	return ret;
-}
-#endif //CONFIG_ADAPTOR_INFO_CACHING_FILE
-#endif //PLATFORM_LINUX
 
 static BOOLEAN
 hal_EfusePgPacketWrite2ByteHeader(
@@ -191,13 +109,15 @@ _FWDownloadEnable(
 #define MAX_REG_BOLCK_SIZE	196
 #define MIN_REG_BOLCK_SIZE	8
 
-static VOID
+static int
 _BlockWrite(
 	IN		PADAPTER		Adapter,
 	IN		PVOID		buffer,
 	IN		u32			size
 	)
 {
+	int ret = _SUCCESS;
+
 #ifdef CONFIG_PCI_HCI
 	u32			blockSize	= sizeof(u32);	// Use 4-byte write to download FW
 	u8			*bufferPtr	= (u8 *)buffer;
@@ -239,13 +159,21 @@ _BlockWrite(
 	for(i = 0 ; i < blockCount ; i++){
 		offset = i * blockSize;
 		#ifdef SUPPORTED_BLOCK_IO
-		rtw_writeN(Adapter, (FW_8192C_START_ADDRESS + offset), blockSize, (bufferPtr + offset));
+		ret = rtw_writeN(Adapter, (FW_8192C_START_ADDRESS + offset), blockSize, (bufferPtr + offset));
 		#else
-		rtw_write32(Adapter, (FW_8192C_START_ADDRESS + offset), le32_to_cpu(*(pu4BytePtr + i)));
+		ret = rtw_write32(Adapter, (FW_8192C_START_ADDRESS + offset), le32_to_cpu(*(pu4BytePtr + i)));
 		#endif
+
+		if(ret == _FAIL)
+			goto exit;
 	}
 
 	if(remainSize){
+		#if defined(SUPPORTED_BLOCK_IO) && defined(DBG_BLOCK_WRITE_ISSUE) //Can this be enabled?
+		offset = blockCount * blockSize;
+		ret = rtw_writeN(Adapter, (FW_8192C_START_ADDRESS + offset), remainSize, (bufferPtr + offset));
+		goto exit;
+		#endif
 		offset2 = blockCount * blockSize;		
 		blockCount = remainSize / blockSize2;
 		remainSize2 = remainSize % blockSize2;
@@ -253,10 +181,13 @@ _BlockWrite(
 		for(i = 0 ; i < blockCount ; i++){
 			offset = offset2 + i * blockSize2;
 			#ifdef SUPPORTED_BLOCK_IO
-			rtw_writeN(Adapter, (FW_8192C_START_ADDRESS + offset), blockSize2, (bufferPtr + offset));
+			ret = rtw_writeN(Adapter, (FW_8192C_START_ADDRESS + offset), blockSize2, (bufferPtr + offset));
 			#else
-			rtw_write8(Adapter, (FW_8192C_START_ADDRESS + offset ), *(bufferPtr + offset));
+			ret = rtw_write8(Adapter, (FW_8192C_START_ADDRESS + offset ), *(bufferPtr + offset));
 			#endif
+
+			if(ret == _FAIL)
+				goto exit;
 		}		
 
 		if(remainSize2)
@@ -265,14 +196,20 @@ _BlockWrite(
 			bufferPtr += offset;
 			
 			for(i = 0 ; i < remainSize2 ; i++){
-				rtw_write8(Adapter, (FW_8192C_START_ADDRESS + offset + i), *(bufferPtr + i));
+				ret = rtw_write8(Adapter, (FW_8192C_START_ADDRESS + offset + i), *(bufferPtr + i));
+
+				if(ret == _FAIL)
+					goto exit;
 			}
 		}
 	}
 #endif
+
+exit:
+	return ret;
 }
 
-static VOID
+static int
 _PageWrite(
 	IN		PADAPTER	Adapter,
 	IN		u32			page,
@@ -285,7 +222,7 @@ _PageWrite(
 
 	value8 = (rtw_read8(Adapter, REG_MCUFWDL+2)& 0xF8 ) | u8Page ;
 	rtw_write8(Adapter, REG_MCUFWDL+2,value8);
-	_BlockWrite(Adapter,buffer,size);
+	return _BlockWrite(Adapter,buffer,size);
 }
 
 static VOID
@@ -308,7 +245,7 @@ _FillDummy(
 	*pFwLen = FwLen;
 }
 
-static VOID
+static int
 _WriteFW(
 	IN		PADAPTER		Adapter,
 	IN		PVOID			buffer,
@@ -318,6 +255,7 @@ _WriteFW(
 	// Since we need dynamic decide method of dwonload fw, so we call this function to get chip version.
 	// We can remove _ReadChipVersion from ReadAdapterInfo8192C later.
 
+	int ret = _SUCCESS;
 	BOOLEAN			isNormalChip;	
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);	
 	
@@ -340,19 +278,31 @@ _WriteFW(
 		
 		for(page = 0; page < pageNums;  page++){
 			offset = page *MAX_PAGE_SIZE;
-			_PageWrite(Adapter,page, (bufferPtr+offset),MAX_PAGE_SIZE);			
+			ret = _PageWrite(Adapter,page, (bufferPtr+offset),MAX_PAGE_SIZE);			
+			
+			if(ret == _FAIL)
+				goto exit;
 		}
 		if(remainSize){
 			offset = pageNums *MAX_PAGE_SIZE;
 			page = pageNums;
-			_PageWrite(Adapter,page, (bufferPtr+offset),remainSize);
+			ret = _PageWrite(Adapter,page, (bufferPtr+offset),remainSize);
+
+			if(ret == _FAIL)
+				goto exit;
 		}	
 		//RT_TRACE(COMP_INIT, DBG_LOUD, ("_WriteFW Done- for Normal chip.\n"));
 	}
 	else	{
-		_BlockWrite(Adapter,buffer,size);
+		ret = _BlockWrite(Adapter,buffer,size);
+
+		if(ret == _FAIL)
+			goto exit;
 		//RT_TRACE(COMP_INIT, DBG_LOUD, ("_WriteFW Done- for Test chip.\n"));
 	}
+
+exit:
+	return ret;
 }
 
 static int _FWFreeToGo(
@@ -369,8 +319,10 @@ static int _FWFreeToGo(
 	}while((counter ++ < POLLING_READY_TIMEOUT_COUNT) && (!(value32 & FWDL_ChkSum_rpt)));	
 
 	if(counter >= POLLING_READY_TIMEOUT_COUNT){	
-		DBG_8192C("chksum report faill ! REG_MCUFWDL:0x%08x .\n",value32);
+		DBG_8192C("chksum report faill ! REG_MCUFWDL:0x%08x\n",value32);
 		return _FAIL;
+	} else {
+		//DBG_8192C("chksum report success ! REG_MCUFWDL:0x%08x, counter:%u\n",value32, counter);
 	}
 	//RT_TRACE(COMP_INIT, DBG_LOUD, ("Checksum report OK ! REG_MCUFWDL:0x%08x .\n",value32));
 
@@ -455,6 +407,10 @@ rtl8192c_FirmwareSelfReset(
 	}
 }
 
+#ifdef CONFIG_FILE_FWIMG
+extern char *rtw_fw_file_path;
+u8	FwBuffer8192C[FW_8192C_SIZE];
+#endif //CONFIG_FILE_FWIMG
 //
 //	Description:
 //		Download 8192C firmware code.
@@ -465,6 +421,7 @@ int FirmwareDownload92C(
 )
 {	
 	int	rtStatus = _SUCCESS;	
+	u8 writeFW_retry = 0;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	s8 			R92CFwImageFileName_TSMC[] ={RTL8192C_FW_TSMC_IMG};
 	s8 			R92CFwImageFileName_UMC[] ={RTL8192C_FW_UMC_IMG};
@@ -528,17 +485,35 @@ int FirmwareDownload92C(
 
 	//RT_TRACE(COMP_INIT, DBG_LOUD, (" ===> FirmwareDownload91C() fw:%s\n", pFwImageFileName));
 
-#ifdef CONFIG_EMBEDDED_FWIMG
-	pFirmware->eFWSource = FW_SOURCE_HEADER_FILE;
-#else
-	pFirmware->eFWSource = FW_SOURCE_IMG_FILE; // We should decided by Reg.
-#endif
+	#ifdef CONFIG_FILE_FWIMG
+	if(rtw_is_file_readable(rtw_fw_file_path) == _TRUE)
+	{
+		DBG_871X("%s accquire FW from file:%s\n", __FUNCTION__, rtw_fw_file_path);
+		pFirmware->eFWSource = FW_SOURCE_IMG_FILE; // We should decided by Reg.
+	}
+	else
+	#endif //CONFIG_FILE_FWIMG
+	{
+		DBG_871X("%s accquire FW from embedded image\n", __FUNCTION__);
+		pFirmware->eFWSource = FW_SOURCE_HEADER_FILE;
+	}
+
 
 	switch(pFirmware->eFWSource)
 	{
 		case FW_SOURCE_IMG_FILE:
-			//TODO:
-			//_rtw_memcpy(pFirmware->szFwBuffer, FwImage, FwImageLen);
+			
+			#ifdef CONFIG_FILE_FWIMG
+			rtStatus = rtw_retrive_from_file(rtw_fw_file_path, FwBuffer8192C, FW_8192C_SIZE);
+			pFirmware->ulFwLength = rtStatus>=0?rtStatus:0;
+			pFirmware->szFwBuffer = FwBuffer8192C;
+			#endif //CONFIG_FILE_FWIMG
+
+			if(pFirmware->ulFwLength <= 0)
+			{
+				rtStatus = _FAIL;
+				goto Exit;
+			}
 			break;
 		case FW_SOURCE_HEADER_FILE:
 			if(FwImageLen > FW_8192C_SIZE){
@@ -552,6 +527,13 @@ int FirmwareDownload92C(
 			pFirmware->ulFwLength = FwImageLen;
 			break;
 	}
+
+	#ifdef DBG_FW_STORE_FILE_PATH //used to store firmware to file...
+	if(pFirmware->ulFwLength > 0)
+	{
+		rtw_store_to_file(DBG_FW_STORE_FILE_PATH, pFirmware->szFwBuffer, pFirmware->ulFwLength);
+	}
+	#endif
 
 	pFirmwareBuf = pFirmware->szFwBuffer;
 	FirmwareLen = pFirmware->ulFwLength;
@@ -585,8 +567,29 @@ int FirmwareDownload92C(
 
 		
 	_FWDownloadEnable(Adapter, _TRUE);
-	_WriteFW(Adapter, pFirmwareBuf, FirmwareLen);
+	while(1) {
+		u8 tmp8;
+		tmp8 = rtw_read8(Adapter, REG_MCUFWDL);
+		
+		//reset the FWDL chksum
+		rtw_write8(Adapter, REG_MCUFWDL, tmp8|FWDL_ChkSum_rpt);
+		
+		//tmp8 = rtw_read8(Adapter, REG_MCUFWDL);
+		//DBG_8192C("Before _WriteFW, REG_MCUFWDL:0x%02x, writeFW_retry:%u\n", tmp8, writeFW_retry);
+		
+		rtStatus = _WriteFW(Adapter, pFirmwareBuf, FirmwareLen);
+		
+		//tmp8 = rtw_read8(Adapter, REG_MCUFWDL);
+		//DBG_8192C("After _WriteFW, REG_MCUFWDL:0x%02x, rtStatus:%d\n", tmp8, rtStatus);
+
+		if(rtStatus == _SUCCESS || ++writeFW_retry>3)
+			break;
+	} 
 	_FWDownloadEnable(Adapter, _FALSE);
+	if(_SUCCESS != rtStatus){
+		DBG_8192C("DL Firmware failed!\n");
+		goto Exit;
+	}
 
 	rtStatus = _FWFreeToGo(Adapter);
 	if(_SUCCESS != rtStatus){
@@ -3528,7 +3531,7 @@ void rtl8192c_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->Efuse_PgPacketWrite = &rtl8192c_Efuse_PgPacketWrite;
 	pHalFunc->Efuse_WordEnableDataWrite = &rtl8192c_Efuse_WordEnableDataWrite;
 
-#ifdef SILENT_RESET_FOR_SPECIFIC_PLATFOM
+#ifdef DBG_CONFIG_ERROR_DETECT
 	pHalFunc->sreset_init_value = &rtl8192c_sreset_init_value;
 	pHalFunc->sreset_reset_value = &rtl8192c_sreset_reset_value;	
 	pHalFunc->silentreset = &rtl8192c_silentreset_for_specific_platform;
@@ -3537,5 +3540,8 @@ void rtl8192c_set_hal_ops(struct hal_ops *pHalFunc)
 	pHalFunc->sreset_get_wifi_status  = &rtl8192c_sreset_get_wifi_status;
 #endif
 
+#ifdef CONFIG_IOL
+	pHalFunc->IOL_exec_cmds_sync = &rtl8192c_IOL_exec_cmds_sync;
+#endif
 }
 

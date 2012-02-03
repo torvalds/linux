@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -16,7 +16,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
-
 ******************************************************************************/
 #ifndef	__RTL8192D_DM_H__
 #define __RTL8192D_DM_H__
@@ -67,14 +66,14 @@ typedef struct _Dynamic_Power_Saving_
 	u8		CurRFState;
 
 	//int		Rssi_val_min;
-
+	
 }PS_T,*pPS_T;
 
 typedef struct _Dynamic_Initial_Gain_Threshold_
 {
 	u8		Dig_Enable_Flag;
 	u8		Dig_Ext_Port_Stage;
-
+	
 	int		RssiLowThresh;
 	int		RssiHighThresh;
 
@@ -87,6 +86,7 @@ typedef struct _Dynamic_Initial_Gain_Threshold_
 
 	u8		PreIGValue;
 	u8		CurIGValue;
+	u8	       BackupIGValue;
 
 	char		BackoffVal;
 	char		BackoffVal_range_max;
@@ -148,7 +148,7 @@ typedef enum tag_DIG_EXT_PORT_ALGO_Definition
 
 typedef enum tag_DIG_Connect_Definition
 {
-	DIG_STA_DISCONNECT = 0,
+	DIG_STA_DISCONNECT = 0,	
 	DIG_STA_CONNECT = 1,
 	DIG_STA_BEFORE_CONNECT = 2,
 	DIG_MultiSTA_DISCONNECT = 3,
@@ -200,9 +200,16 @@ typedef enum tag_DIG_Connect_Definition
 #define		TX_POWER_NEAR_FIELD_THRESH_LVL2	74
 #define		TX_POWER_NEAR_FIELD_THRESH_LVL1	67
 
-#define		TxHighPwrLevel_Normal		0
+#define		TxHighPwrLevel_Normal		0	
 #define		TxHighPwrLevel_Level1		1
 #define		TxHighPwrLevel_Level2		2
+#define		TxHighPwrLevel_BT1			3
+#define		TxHighPwrLevel_BT2			4
+#define		TxHighPwrLevel_15			5
+#define		TxHighPwrLevel_35			6
+#define		TxHighPwrLevel_50			7
+#define		TxHighPwrLevel_70			8
+#define		TxHighPwrLevel_100			9
 
 #define		DM_Type_ByFW			0
 #define		DM_Type_ByDriver		1
@@ -211,14 +218,14 @@ typedef struct _RATE_ADAPTIVE
 {
 	u8				RateAdaptiveDisabled;
 	u8				RATRState;
-	u16				reserve;
-
+	u16				reserve;	
+	
 	u32				HighRSSIThreshForRA;
 	u32				High2LowRSSIThreshForRA;
 	u8				Low2HighRSSIThreshForRA40M;
-	u32				LowRSSIThreshForRA40M;
+	u32				LowRSSIThreshForRA40M;	
 	u8				Low2HighRSSIThreshForRA20M;
-	u32				LowRSSIThreshForRA20M;
+	u32				LowRSSIThreshForRA20M;	
 	u32				UpperRSSIThresholdRATR;
 	u32				MiddleRSSIThresholdRATR;
 	u32				LowRSSIThresholdRATR;
@@ -229,10 +236,51 @@ typedef struct _RATE_ADAPTIVE
 	u32				PingRSSIThreshForRA;//cosa add for Netcore long range ping issue
 	u32				LastRATR;
 	u8				PreRATRState;
-
+	
 } RATE_ADAPTIVE, *PRATE_ADAPTIVE;
 
-struct 	dm_priv
+typedef enum tag_SW_Antenna_Switch_Definition
+{
+	Antenna_B = 1,
+	Antenna_A = 2,
+	Antenna_MAX = 3,
+}DM_SWAS_E;
+
+// 20100514 Joseph: Add definition for antenna switching test after link.
+// This indicates two different the steps. 
+// In SWAW_STEP_PEAK, driver needs to switch antenna and listen to the signal on the air.
+// In SWAW_STEP_DETERMINE, driver just compares the signal captured in SWAW_STEP_PEAK
+// with original RSSI to determine if it is necessary to switch antenna.
+#define SWAW_STEP_PEAK		0
+#define SWAW_STEP_DETERMINE	1
+
+#define	TP_MODE		0
+#define	RSSI_MODE		1
+#define	TRAFFIC_LOW	0
+#define	TRAFFIC_HIGH	1
+
+//=============================
+//Neil Chen---2011--06--15--
+//==============================
+//3 PathDiv 
+typedef struct _SW_Antenna_Switch_
+{
+	u8		try_flag;
+	s32		PreRSSI;
+	u8		CurAntenna;
+	u8		PreAntenna;
+	u8		RSSI_Trying;
+	u8		TestMode;
+	u8		bTriggerAntennaSwitch;
+	u8		SelectAntennaMap;
+
+	// Before link Antenna Switch check
+	u8		SWAS_NoLink_State;
+	u32		SWAS_NoLink_BK_Reg860;
+}SWAT_T, *pSWAT_T;
+//========================================
+
+struct 	dm_priv	
 {
 	u8	DM_Type;
 	u8	DMFlag, DMFlag_tmp;
@@ -244,8 +292,8 @@ struct 	dm_priv
 
 	PS_T	DM_PSTable;
 
-	FALSE_ALARM_STATISTICS	FalseAlmCnt;
-
+	FALSE_ALARM_STATISTICS	FalseAlmCnt;	
+	
 	//for rate adaptive, in fact,  88c/92c fw will handle this
 	u8	bUseRAMask;
 	RATE_ADAPTIVE	RateAdaptive;
@@ -261,11 +309,11 @@ struct 	dm_priv
 	u8	bDynamicTxPowerEnable;
 	u8	LastDTPLvl;
 	u8	DynamicTxHighPowerLvl;//Add by Jacken Tx Power Control for Near/Far Range 2008/03/06
-
+		
 	//for tx power tracking
 	u8	bTXPowerTracking;
 	u8	TXPowercount;
-	u8	bTXPowerTrackingInit;
+	u8	bTXPowerTrackingInit;	
 	u8	TxPowerTrackControl;	//for mp mode, turn off txpwrtracking as default
 	u8	TM_Trigger;
 
@@ -287,6 +335,13 @@ struct 	dm_priv
 	u32	APKoutput[2][2];	//path A/B; output1_1a/output1_2a
 	u8	bAPKdone;
 	u8	bAPKThermalMeterIgnore;
+	BOOLEAN		bDPKdone[2];
+	BOOLEAN		bDPKstore;
+	BOOLEAN		bDPKworking;
+	u8	OFDM_min_index_internalPA_DPK[2];
+	u8	TxPowerLevelDPK[2];
+
+	u32	RegA24;
 
 	//for IQK
 	u32	Reg874;
@@ -306,6 +361,19 @@ struct 	dm_priv
 	//u8 Record_CCK_20Mindex;
 	//u8 Record_CCK_40Mindex;
 	char	OFDM_index[2];
+
+	SWAT_T DM_SWAT_Table;
+
+       //Neil Chen----2011--06--23-----
+       //3 Path Diversity 
+	BOOLEAN		bPathDiv_Enable;	//For 92D Non-interrupt Antenna Diversity by Neil ,add by wl.2011.07.19
+	BOOLEAN		RSSI_test;
+	s32			RSSI_sum_A;
+	s32			RSSI_cnt_A;
+	s32			RSSI_sum_B;
+	s32			RSSI_cnt_B;
+	struct sta_info	*RSSI_target;
+	_timer		PathDivSwitchTimer;
 
 	//for TxPwrTracking
 	int	RegE94;

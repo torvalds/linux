@@ -270,6 +270,9 @@ static void issue_p2p_provision_resp(struct wifidirect_info *pwdinfo, u8* raddr,
 	u8			oui_subtype = P2P_PROVISION_DISC_RESP;
 	u8			wpsie[ 100 ] = { 0x00 };
 	u8			wpsielen = 0;
+#ifdef CONFIG_WFD
+	u32					wfdielen = 0;
+#endif //CONFIG_WFD
 
 	struct xmit_frame			*pmgntframe;
 	struct pkt_attrib			*pattrib;
@@ -352,6 +355,12 @@ static void issue_p2p_provision_resp(struct wifidirect_info *pwdinfo, u8* raddr,
 	wpsielen += 2;
 
 	pframe = rtw_set_ie(pframe, _VENDOR_SPECIFIC_IE_, wpsielen, (unsigned char *) wpsie, &pattrib->pktlen );
+
+#ifdef CONFIG_WFD
+	wfdielen = build_provdisc_resp_wfd_ie(pwdinfo, pframe);
+	pframe += wfdielen;
+	pattrib->pktlen += wfdielen;
+#endif //CONFIG_WFD
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
@@ -501,6 +510,908 @@ u32 build_beacon_p2p_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 	return len;
 
 }
+
+#ifdef CONFIG_WFD
+u32 build_beacon_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
+{
+	u8 wfdie[ MAX_WFD_IE_LEN] = { 0x00 };
+	u32 len=0, wfdielen = 0;
+	_adapter *padapter = pwdinfo->padapter;
+	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
+	struct wifi_display_info*	pwfd_info = &padapter->wdinfo.wfd_info;
+
+	//	WFD OUI
+	wfdielen = 0;
+	wfdie[ wfdielen++ ] = 0x50;
+	wfdie[ wfdielen++ ] = 0x6F;
+	wfdie[ wfdielen++ ] = 0x9A;
+	wfdie[ wfdielen++ ] = 0x0A;	//	WFA WFD v1.0
+
+	//	Commented by Albert 20110812
+	//	According to the WFD Specification, the beacon frame should contain 4 WFD attributes
+	//	1. WFD Device Information
+	//	2. Associated BSSID
+	//	3. Coupled Sink Information
+
+
+	//	WFD Device Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_DEVICE_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value1:
+	//	WFD device information
+	//	WFD primary sink + available for WFD session + WiFi Direct mode
+	RTW_PUT_BE16(wfdie + wfdielen, 0x0011);
+	wfdielen += 2;
+
+	//	Value2:
+	//	Session Management Control Port
+	//	Default TCP port for RTSP messages is 554
+	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport );
+	wfdielen += 2;
+
+	//	Value3:
+	//	WFD Device Maximum Throughput
+	//	300Mbps is the maximum throughput
+	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	wfdielen += 2;
+
+	//	Associated BSSID ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_ASSOC_BSSID;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value:
+	//	Associated BSSID
+	if ( check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE )
+	{
+		_rtw_memcpy( wfdie + wfdielen, &pmlmepriv->assoc_bssid[ 0 ], ETH_ALEN );
+	}
+	else
+	{
+		_rtw_memset( wfdie + wfdielen, 0x00, ETH_ALEN );
+	}
+
+	wfdielen += ETH_ALEN;
+
+	//	Coupled Sink Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_COUPLED_SINK_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 1;
+
+	//	Value:
+	//	Coupled Sink Status bitmap
+	//	Not coupled/available for Coupling
+	wfdie[ wfdielen++ ] = 0;
+
+	pbuf = rtw_set_ie(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+
+	return len;
+
+}
+
+u32 build_probe_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
+{
+	u8 wfdie[ MAX_WFD_IE_LEN] = { 0x00 };
+	u32 len=0, wfdielen = 0;
+	_adapter *padapter = pwdinfo->padapter;
+	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
+	struct wifi_display_info*	pwfd_info = &padapter->wdinfo.wfd_info;
+
+	//	WFD OUI
+	wfdielen = 0;
+	wfdie[ wfdielen++ ] = 0x50;
+	wfdie[ wfdielen++ ] = 0x6F;
+	wfdie[ wfdielen++ ] = 0x9A;
+	wfdie[ wfdielen++ ] = 0x0A;	//	WFA WFD v1.0
+
+	//	Commented by Albert 20110812
+	//	According to the WFD Specification, the probe request frame should contain 4 WFD attributes
+	//	1. WFD Device Information
+	//	2. Associated BSSID
+	//	3. Coupled Sink Information
+
+
+	//	WFD Device Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_DEVICE_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value1:
+	//	WFD device information
+	//	WFD primary sink + available for WFD session + WiFi Direct mode
+	RTW_PUT_BE16(wfdie + wfdielen, 0x0011);
+	wfdielen += 2;
+
+	//	Value2:
+	//	Session Management Control Port
+	//	Default TCP port for RTSP messages is 554
+	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport );
+	wfdielen += 2;
+
+	//	Value3:
+	//	WFD Device Maximum Throughput
+	//	300Mbps is the maximum throughput
+	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	wfdielen += 2;
+
+	//	Associated BSSID ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_ASSOC_BSSID;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value:
+	//	Associated BSSID
+	if ( check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE )
+	{
+		_rtw_memcpy( wfdie + wfdielen, &pmlmepriv->assoc_bssid[ 0 ], ETH_ALEN );
+	}
+	else
+	{
+		_rtw_memset( wfdie + wfdielen, 0x00, ETH_ALEN );
+	}
+
+	wfdielen += ETH_ALEN;
+
+	//	Coupled Sink Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_COUPLED_SINK_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 1;
+
+	//	Value:
+	//	Coupled Sink Status bitmap
+	//	Not coupled/available for Coupling
+	wfdie[ wfdielen++ ] = 0;
+
+	pbuf = rtw_set_ie(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+
+	return len;
+
+}
+
+u32 build_probe_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
+{
+	u8 wfdie[ MAX_WFD_IE_LEN] = { 0x00 };
+	u32 len=0, wfdielen = 0;
+	_adapter *padapter = pwdinfo->padapter;
+	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
+	struct wifi_display_info*	pwfd_info = &padapter->wdinfo.wfd_info;
+
+	//	WFD OUI
+	wfdielen = 0;
+	wfdie[ wfdielen++ ] = 0x50;
+	wfdie[ wfdielen++ ] = 0x6F;
+	wfdie[ wfdielen++ ] = 0x9A;
+	wfdie[ wfdielen++ ] = 0x0A;	//	WFA WFD v1.0
+
+	//	Commented by Albert 20110812
+	//	According to the WFD Specification, the probe response frame should contain 4 WFD attributes
+	//	1. WFD Device Information
+	//	2. Associated BSSID
+	//	3. Coupled Sink Information
+	//	4. WFD Session Information
+
+
+	//	WFD Device Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_DEVICE_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value1:
+	//	WFD device information
+	//	WFD primary sink + available for WFD session + WiFi Direct mode
+	RTW_PUT_BE16(wfdie + wfdielen, 0x0011);
+	wfdielen += 2;
+
+	//	Value2:
+	//	Session Management Control Port
+	//	Default TCP port for RTSP messages is 554
+	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport );
+	wfdielen += 2;
+
+	//	Value3:
+	//	WFD Device Maximum Throughput
+	//	300Mbps is the maximum throughput
+	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	wfdielen += 2;
+
+	//	Associated BSSID ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_ASSOC_BSSID;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value:
+	//	Associated BSSID
+	if ( check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE )
+	{
+		_rtw_memcpy( wfdie + wfdielen, &pmlmepriv->assoc_bssid[ 0 ], ETH_ALEN );
+	}
+	else
+	{
+		_rtw_memset( wfdie + wfdielen, 0x00, ETH_ALEN );
+	}
+
+	wfdielen += ETH_ALEN;
+
+	//	Coupled Sink Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_COUPLED_SINK_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 1;
+
+	//	Value:
+	//	Coupled Sink Status bitmap
+	//	Not coupled/available for Coupling
+	wfdie[ wfdielen++ ] = 0;
+
+	if ( P2P_ROLE_GO == pwdinfo->role )
+	{
+		//	WFD Session Information ATTR
+		//	Type:
+		wfdie[ wfdielen++ ] = WFD_ATTR_SESSION_INFO;
+
+		//	Length:
+		//	Note: In the WFD specification, the size of length field is 1.
+		wfdie[ wfdielen++ ] = 0;
+
+		//	Todo: to add the list of WFD device info descriptor in WFD group.
+
+	}
+
+	pbuf = rtw_set_ie(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+
+	return len;
+
+}
+
+u32 build_assoc_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
+{
+	u8 wfdie[ MAX_WFD_IE_LEN] = { 0x00 };
+	u32 len=0, wfdielen = 0;
+	_adapter *padapter = pwdinfo->padapter;
+	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
+	struct wifi_display_info*	pwfd_info = &padapter->wdinfo.wfd_info;
+
+	//	WFD OUI
+	wfdielen = 0;
+	wfdie[ wfdielen++ ] = 0x50;
+	wfdie[ wfdielen++ ] = 0x6F;
+	wfdie[ wfdielen++ ] = 0x9A;
+	wfdie[ wfdielen++ ] = 0x0A;	//	WFA WFD v1.0
+
+	//	Commented by Albert 20110812
+	//	According to the WFD Specification, the probe request frame should contain 4 WFD attributes
+	//	1. WFD Device Information
+	//	2. Associated BSSID
+	//	3. Coupled Sink Information
+
+
+	//	WFD Device Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_DEVICE_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value1:
+	//	WFD device information
+	//	WFD primary sink + available for WFD session + WiFi Direct mode
+	RTW_PUT_BE16(wfdie + wfdielen, 0x0011);
+	wfdielen += 2;
+
+	//	Value2:
+	//	Session Management Control Port
+	//	Default TCP port for RTSP messages is 554
+	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport );
+	wfdielen += 2;
+
+	//	Value3:
+	//	WFD Device Maximum Throughput
+	//	300Mbps is the maximum throughput
+	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	wfdielen += 2;
+
+	//	Associated BSSID ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_ASSOC_BSSID;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value:
+	//	Associated BSSID
+	if ( check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE )
+	{
+		_rtw_memcpy( wfdie + wfdielen, &pmlmepriv->assoc_bssid[ 0 ], ETH_ALEN );
+	}
+	else
+	{
+		_rtw_memset( wfdie + wfdielen, 0x00, ETH_ALEN );
+	}
+
+	wfdielen += ETH_ALEN;
+
+	//	Coupled Sink Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_COUPLED_SINK_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 1;
+
+	//	Value:
+	//	Coupled Sink Status bitmap
+	//	Not coupled/available for Coupling
+	wfdie[ wfdielen++ ] = 0;
+
+	pbuf = rtw_set_ie(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+
+	return len;
+
+}
+
+u32 build_assoc_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
+{
+	u8 wfdie[ MAX_WFD_IE_LEN] = { 0x00 };
+	u32 len=0, wfdielen = 0;
+	_adapter *padapter = pwdinfo->padapter;
+	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
+	struct wifi_display_info*	pwfd_info = &padapter->wdinfo.wfd_info;
+
+	//	WFD OUI
+	wfdielen = 0;
+	wfdie[ wfdielen++ ] = 0x50;
+	wfdie[ wfdielen++ ] = 0x6F;
+	wfdie[ wfdielen++ ] = 0x9A;
+	wfdie[ wfdielen++ ] = 0x0A;	//	WFA WFD v1.0
+
+	//	Commented by Albert 20110812
+	//	According to the WFD Specification, the probe request frame should contain 4 WFD attributes
+	//	1. WFD Device Information
+	//	2. Associated BSSID
+	//	3. Coupled Sink Information
+
+
+	//	WFD Device Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_DEVICE_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value1:
+	//	WFD device information
+	//	WFD primary sink + available for WFD session + WiFi Direct mode
+	RTW_PUT_BE16(wfdie + wfdielen, 0x0011);
+	wfdielen += 2;
+
+	//	Value2:
+	//	Session Management Control Port
+	//	Default TCP port for RTSP messages is 554
+	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport );
+	wfdielen += 2;
+
+	//	Value3:
+	//	WFD Device Maximum Throughput
+	//	300Mbps is the maximum throughput
+	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	wfdielen += 2;
+
+	//	Associated BSSID ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_ASSOC_BSSID;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value:
+	//	Associated BSSID
+	if ( check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE )
+	{
+		_rtw_memcpy( wfdie + wfdielen, &pmlmepriv->assoc_bssid[ 0 ], ETH_ALEN );
+	}
+	else
+	{
+		_rtw_memset( wfdie + wfdielen, 0x00, ETH_ALEN );
+	}
+
+	wfdielen += ETH_ALEN;
+
+	//	Coupled Sink Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_COUPLED_SINK_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 1;
+
+	//	Value:
+	//	Coupled Sink Status bitmap
+	//	Not coupled/available for Coupling
+	wfdie[ wfdielen++ ] = 0;
+
+	pbuf = rtw_set_ie(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+
+	return len;
+
+}
+
+u32 build_nego_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
+{
+	u8 wfdie[ MAX_WFD_IE_LEN] = { 0x00 };
+	u32 len=0, wfdielen = 0;
+	_adapter *padapter = pwdinfo->padapter;
+	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
+	struct wifi_display_info*	pwfd_info = &padapter->wdinfo.wfd_info;
+
+	//	WFD OUI
+	wfdielen = 0;
+	wfdie[ wfdielen++ ] = 0x50;
+	wfdie[ wfdielen++ ] = 0x6F;
+	wfdie[ wfdielen++ ] = 0x9A;
+	wfdie[ wfdielen++ ] = 0x0A;	//	WFA WFD v1.0
+
+	//	Commented by Albert 20110825
+	//	According to the WFD Specification, the negotiation request frame should contain 3 WFD attributes
+	//	1. WFD Device Information
+	//	2. Associated BSSID ( Optional )
+	//	3. Local IP Adress ( Optional )
+
+
+	//	WFD Device Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_DEVICE_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value1:
+	//	WFD device information
+	//	WFD primary sink + available for WFD session + WiFi Direct mode
+	RTW_PUT_BE16(wfdie + wfdielen, 0x0011);
+	wfdielen += 2;
+
+	//	Value2:
+	//	Session Management Control Port
+	//	Default TCP port for RTSP messages is 554
+	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport );
+	wfdielen += 2;
+
+	//	Value3:
+	//	WFD Device Maximum Throughput
+	//	300Mbps is the maximum throughput
+	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	wfdielen += 2;
+
+	//	Associated BSSID ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_ASSOC_BSSID;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value:
+	//	Associated BSSID
+	if ( check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE )
+	{
+		_rtw_memcpy( wfdie + wfdielen, &pmlmepriv->assoc_bssid[ 0 ], ETH_ALEN );
+	}
+	else
+	{
+		_rtw_memset( wfdie + wfdielen, 0x00, ETH_ALEN );
+	}
+
+	wfdielen += ETH_ALEN;
+
+	//	Coupled Sink Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_COUPLED_SINK_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 1;
+
+	//	Value:
+	//	Coupled Sink Status bitmap
+	//	Not coupled/available for Coupling
+	wfdie[ wfdielen++ ] = 0;
+
+	pbuf = rtw_set_ie(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+
+	return len;
+
+}
+
+u32 build_nego_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
+{
+	u8 wfdie[ MAX_WFD_IE_LEN] = { 0x00 };
+	u32 len=0, wfdielen = 0;
+	_adapter *padapter = pwdinfo->padapter;
+	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
+	struct wifi_display_info*	pwfd_info = &padapter->wdinfo.wfd_info;
+
+	//	WFD OUI
+	wfdielen = 0;
+	wfdie[ wfdielen++ ] = 0x50;
+	wfdie[ wfdielen++ ] = 0x6F;
+	wfdie[ wfdielen++ ] = 0x9A;
+	wfdie[ wfdielen++ ] = 0x0A;	//	WFA WFD v1.0
+
+	//	Commented by Albert 20110825
+	//	According to the WFD Specification, the negotiation request frame should contain 3 WFD attributes
+	//	1. WFD Device Information
+	//	2. Associated BSSID ( Optional )
+	//	3. Local IP Adress ( Optional )
+
+
+	//	WFD Device Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_DEVICE_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value1:
+	//	WFD device information
+	//	WFD primary sink + available for WFD session + WiFi Direct mode
+	RTW_PUT_BE16(wfdie + wfdielen, 0x0011);
+	wfdielen += 2;
+
+	//	Value2:
+	//	Session Management Control Port
+	//	Default TCP port for RTSP messages is 554
+	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport );
+	wfdielen += 2;
+
+	//	Value3:
+	//	WFD Device Maximum Throughput
+	//	300Mbps is the maximum throughput
+	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	wfdielen += 2;
+
+	//	Associated BSSID ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_ASSOC_BSSID;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value:
+	//	Associated BSSID
+	if ( check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE )
+	{
+		_rtw_memcpy( wfdie + wfdielen, &pmlmepriv->assoc_bssid[ 0 ], ETH_ALEN );
+	}
+	else
+	{
+		_rtw_memset( wfdie + wfdielen, 0x00, ETH_ALEN );
+	}
+
+	wfdielen += ETH_ALEN;
+
+	//	Coupled Sink Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_COUPLED_SINK_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 1;
+
+	//	Value:
+	//	Coupled Sink Status bitmap
+	//	Not coupled/available for Coupling
+	wfdie[ wfdielen++ ] = 0;
+
+
+	pbuf = rtw_set_ie(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+
+	return len;
+
+}
+
+u32 build_nego_confirm_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
+{
+	u8 wfdie[ MAX_WFD_IE_LEN] = { 0x00 };
+	u32 len=0, wfdielen = 0;
+	_adapter *padapter = pwdinfo->padapter;
+	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
+	struct wifi_display_info*	pwfd_info = &padapter->wdinfo.wfd_info;
+
+	//	WFD OUI
+	wfdielen = 0;
+	wfdie[ wfdielen++ ] = 0x50;
+	wfdie[ wfdielen++ ] = 0x6F;
+	wfdie[ wfdielen++ ] = 0x9A;
+	wfdie[ wfdielen++ ] = 0x0A;	//	WFA WFD v1.0
+
+	//	Commented by Albert 20110825
+	//	According to the WFD Specification, the negotiation request frame should contain 3 WFD attributes
+	//	1. WFD Device Information
+	//	2. Associated BSSID ( Optional )
+	//	3. Local IP Adress ( Optional )
+
+
+	//	WFD Device Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_DEVICE_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value1:
+	//	WFD device information
+	//	WFD primary sink + available for WFD session + WiFi Direct mode
+	RTW_PUT_BE16(wfdie + wfdielen, 0x0011);
+	wfdielen += 2;
+
+	//	Value2:
+	//	Session Management Control Port
+	//	Default TCP port for RTSP messages is 554
+	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport );
+	wfdielen += 2;
+
+	//	Value3:
+	//	WFD Device Maximum Throughput
+	//	300Mbps is the maximum throughput
+	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	wfdielen += 2;
+
+	//	Associated BSSID ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_ASSOC_BSSID;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value:
+	//	Associated BSSID
+	if ( check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE )
+	{
+		_rtw_memcpy( wfdie + wfdielen, &pmlmepriv->assoc_bssid[ 0 ], ETH_ALEN );
+	}
+	else
+	{
+		_rtw_memset( wfdie + wfdielen, 0x00, ETH_ALEN );
+	}
+
+	wfdielen += ETH_ALEN;
+
+	//	Coupled Sink Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_COUPLED_SINK_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 1;
+
+	//	Value:
+	//	Coupled Sink Status bitmap
+	//	Not coupled/available for Coupling
+	wfdie[ wfdielen++ ] = 0;
+
+
+	pbuf = rtw_set_ie(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+
+	return len;
+
+}
+
+u32 build_provdisc_req_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
+{
+	u8 wfdie[ MAX_WFD_IE_LEN] = { 0x00 };
+	u32 len=0, wfdielen = 0;
+	_adapter *padapter = pwdinfo->padapter;
+	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
+	struct wifi_display_info*	pwfd_info = &padapter->wdinfo.wfd_info;
+
+	//	WFD OUI
+	wfdielen = 0;
+	wfdie[ wfdielen++ ] = 0x50;
+	wfdie[ wfdielen++ ] = 0x6F;
+	wfdie[ wfdielen++ ] = 0x9A;
+	wfdie[ wfdielen++ ] = 0x0A;	//	WFA WFD v1.0
+
+	//	Commented by Albert 20110825
+	//	According to the WFD Specification, the provision discovery request frame should contain 3 WFD attributes
+	//	1. WFD Device Information
+	//	2. Associated BSSID ( Optional )
+	//	3. Local IP Adress ( Optional )
+
+
+	//	WFD Device Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_DEVICE_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value1:
+	//	WFD device information
+	//	WFD primary sink + available for WFD session + WiFi Direct mode
+	RTW_PUT_BE16(wfdie + wfdielen, 0x0011);
+	wfdielen += 2;
+
+	//	Value2:
+	//	Session Management Control Port
+	//	Default TCP port for RTSP messages is 554
+	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport );
+	wfdielen += 2;
+
+	//	Value3:
+	//	WFD Device Maximum Throughput
+	//	300Mbps is the maximum throughput
+	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	wfdielen += 2;
+
+	//	Associated BSSID ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_ASSOC_BSSID;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value:
+	//	Associated BSSID
+	if ( check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE )
+	{
+		_rtw_memcpy( wfdie + wfdielen, &pmlmepriv->assoc_bssid[ 0 ], ETH_ALEN );
+	}
+	else
+	{
+		_rtw_memset( wfdie + wfdielen, 0x00, ETH_ALEN );
+	}
+
+	wfdielen += ETH_ALEN;
+
+	//	Coupled Sink Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_COUPLED_SINK_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 1;
+
+	//	Value:
+	//	Coupled Sink Status bitmap
+	//	Not coupled/available for Coupling
+	wfdie[ wfdielen++ ] = 0;
+
+
+	pbuf = rtw_set_ie(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+
+	return len;
+
+}
+
+u32 build_provdisc_resp_wfd_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
+{
+	u8 wfdie[ MAX_WFD_IE_LEN] = { 0x00 };
+	u32 len=0, wfdielen = 0;
+	_adapter *padapter = pwdinfo->padapter;
+	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
+	struct wifi_display_info*	pwfd_info = &padapter->wdinfo.wfd_info;
+
+	//	WFD OUI
+	wfdielen = 0;
+	wfdie[ wfdielen++ ] = 0x50;
+	wfdie[ wfdielen++ ] = 0x6F;
+	wfdie[ wfdielen++ ] = 0x9A;
+	wfdie[ wfdielen++ ] = 0x0A;	//	WFA WFD v1.0
+
+	//	Commented by Albert 20110825
+	//	According to the WFD Specification, the provision discovery response frame should contain 3 WFD attributes
+	//	1. WFD Device Information
+	//	2. Associated BSSID ( Optional )
+	//	3. Local IP Adress ( Optional )
+
+
+	//	WFD Device Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_DEVICE_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value1:
+	//	WFD device information
+	//	WFD primary sink + available for WFD session + WiFi Direct mode
+	RTW_PUT_BE16(wfdie + wfdielen, 0x0011);
+	wfdielen += 2;
+
+	//	Value2:
+	//	Session Management Control Port
+	//	Default TCP port for RTSP messages is 554
+	RTW_PUT_BE16(wfdie + wfdielen, pwfd_info->rtsp_ctrlport );
+	wfdielen += 2;
+
+	//	Value3:
+	//	WFD Device Maximum Throughput
+	//	300Mbps is the maximum throughput
+	RTW_PUT_BE16(wfdie + wfdielen, 300);
+	wfdielen += 2;
+
+	//	Associated BSSID ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_ASSOC_BSSID;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 6;
+
+	//	Value:
+	//	Associated BSSID
+	if ( check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE )
+	{
+		_rtw_memcpy( wfdie + wfdielen, &pmlmepriv->assoc_bssid[ 0 ], ETH_ALEN );
+	}
+	else
+	{
+		_rtw_memset( wfdie + wfdielen, 0x00, ETH_ALEN );
+	}
+
+	wfdielen += ETH_ALEN;
+
+	//	Coupled Sink Information ATTR
+	//	Type:
+	wfdie[ wfdielen++ ] = WFD_ATTR_COUPLED_SINK_INFO;
+
+	//	Length:
+	//	Note: In the WFD specification, the size of length field is 1.
+	wfdie[ wfdielen++ ] = 1;
+
+	//	Value:
+	//	Coupled Sink Status bitmap
+	//	Not coupled/available for Coupling
+	wfdie[ wfdielen++ ] = 0;
+
+	pbuf = rtw_set_ie(pbuf, _VENDOR_SPECIFIC_IE_, wfdielen, (unsigned char *) wfdie, &len);
+
+	return len;
+
+}
+
+
+#endif //CONFIG_WFD
 
 u32 build_probe_resp_p2p_ie(struct wifidirect_info *pwdinfo, u8 *pbuf)
 {
@@ -1149,8 +2060,13 @@ u8 process_p2p_provdisc_resp(struct wifidirect_info *pwdinfo,  u8 *pframe)
 u8 process_p2p_group_negotation_req( struct wifidirect_info *pwdinfo, u8 *pframe, uint len )
 {
 	u8	result = P2P_STATUS_SUCCESS;
-	u32	p2p_ielen, wps_ielen;
-	u8	p2p_ie[ 255 ];
+	u32	p2p_ielen = 0, wps_ielen = 0;
+	u8	p2p_ie[ 255 ] = { 0x00 };
+	uint	cnt = 0;
+#ifdef CONFIG_WFD
+	u8	wfd_ie[ 128 ] = { 0x00 };
+	u32	wfd_ielen = 0;
+#endif // CONFIG_WFD
 
 	if ( pwdinfo->ui_got_wps_info == P2P_NO_WPSINFO )
 	{
@@ -1171,26 +2087,27 @@ u8 process_p2p_group_negotation_req( struct wifidirect_info *pwdinfo, u8 *pframe
 		return( result );
 	}
 
-	if ( rtw_get_p2p_ie( pframe + _PUBLIC_ACTION_IE_OFFSET_, len - _PUBLIC_ACTION_IE_OFFSET_, p2p_ie, &p2p_ielen ) )
+	cnt = rtw_get_p2p_ie( pframe + _PUBLIC_ACTION_IE_OFFSET_, len - _PUBLIC_ACTION_IE_OFFSET_, p2p_ie, &p2p_ielen );
+
+	if ( cnt == 0 )
+	{
+		DBG_8192C( "[%s] P2P IE not Found!!\n", __FUNCTION__ );
+		result = P2P_STATUS_FAIL_INCOMPATIBLE_PARAM;
+		pwdinfo->p2p_state = P2P_STATE_GONEGO_FAIL;
+	}
+
+	while ( cnt )
 	{
 		u8	attr_content = 0x00;
 		u32	attr_contentlen = 0;
 
-		if ( result != P2P_STATUS_SUCCESS )
-		{
-			pwdinfo->p2p_state = P2P_STATE_GONEGO_FAIL;
-		}
-		else
-		{
-			pwdinfo->p2p_state = P2P_STATE_GONEGO_ING;
-		}
+		pwdinfo->p2p_state = P2P_STATE_GONEGO_ING;
 
-		rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_GO_INTENT , &attr_content, &attr_contentlen);
-		DBG_8192C( "[%s] GO Intent = %d, tie = %d\n", __FUNCTION__, attr_content >> 1, attr_content & 0x01 );
-		pwdinfo->peer_intent = attr_content;	//	include both intent and tie breaker values.
-
-		if ( result == P2P_STATUS_SUCCESS )
+		if ( rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_GO_INTENT , &attr_content, &attr_contentlen) )
 		{
+			DBG_8192C( "[%s] GO Intent = %d, tie = %d\n", __FUNCTION__, attr_content >> 1, attr_content & 0x01 );
+			pwdinfo->peer_intent = attr_content;	//	include both intent and tie breaker values.
+
 			if ( pwdinfo->intent == ( pwdinfo->peer_intent >> 1 ) )
 			{
 				//	Try to match the tie breaker value
@@ -1219,22 +2136,50 @@ u8 process_p2p_group_negotation_req( struct wifidirect_info *pwdinfo, u8 *pframe
 			{
 				pwdinfo->role = P2P_ROLE_CLIENT;
 			}
+
+			if ( P2P_ROLE_GO ==  pwdinfo->role )
+			{
+				//	Store the group id information.
+				_rtw_memcpy( pwdinfo->groupid_info.go_device_addr, pwdinfo->device_addr, ETH_ALEN );
+				_rtw_memcpy( pwdinfo->groupid_info.ssid, pwdinfo->nego_ssid, pwdinfo->nego_ssidlen );
+			}
 		}
+
 
 		attr_contentlen = 0;
-		rtw_get_p2p_attr_content( p2p_ie, p2p_ielen, P2P_ATTR_INTENTED_IF_ADDR, pwdinfo->p2p_peer_interface_addr, &attr_contentlen );
-
-		if ( attr_contentlen != ETH_ALEN )
+		if ( rtw_get_p2p_attr_content( p2p_ie, p2p_ielen, P2P_ATTR_INTENTED_IF_ADDR, pwdinfo->p2p_peer_interface_addr, &attr_contentlen ) )
 		{
-			_rtw_memset( pwdinfo->p2p_peer_interface_addr, 0x00, ETH_ALEN );
+			if ( attr_contentlen != ETH_ALEN )
+			{
+				_rtw_memset( pwdinfo->p2p_peer_interface_addr, 0x00, ETH_ALEN );
+			}
+		}
+
+		//	Get the next P2P IE
+		//	If the cnt is 0 -> no the next P2P IE
+
+		_rtw_memset( p2p_ie, 0x00, 255);
+		p2p_ielen = 0;
+		cnt = rtw_get_p2p_ie( pframe + _PUBLIC_ACTION_IE_OFFSET_ + cnt, len - _PUBLIC_ACTION_IE_OFFSET_ - cnt, p2p_ie, &p2p_ielen );
+	}
+
+#ifdef CONFIG_WFD
+	//	Added by Albert 20110823
+	//	Try to get the TCP port information when receiving the negotiation request.
+	if ( rtw_get_wfd_ie( pframe + _PUBLIC_ACTION_IE_OFFSET_, len - _PUBLIC_ACTION_IE_OFFSET_, wfd_ie, &wfd_ielen ) )
+	{
+		u8	attr_content[ 10 ] = { 0x00 };
+		u32	attr_contentlen = 0;
+
+		DBG_8192C( "[%s] WFD IE Found!!\n", __FUNCTION__ );
+		rtw_get_wfd_attr_content( wfd_ie, wfd_ielen, WFD_ATTR_DEVICE_INFO, attr_content, &attr_contentlen);
+		if ( attr_contentlen )
+		{
+			pwdinfo->wfd_info.peer_rtsp_ctrlport = RTW_GET_BE16( attr_content + 2 );
+			DBG_8192C( "[%s] Peer PORT NUM = %d\n", __FUNCTION__, pwdinfo->wfd_info.peer_rtsp_ctrlport );
 		}
 	}
-	else
-	{
-		DBG_8192C( "[%s] P2P IE not Found!!\n", __FUNCTION__ );
-		result = P2P_STATUS_FAIL_INCOMPATIBLE_PARAM;
-		pwdinfo->p2p_state = P2P_STATE_GONEGO_FAIL;
-	}
+#endif // CONFIG_WFD
 
 	return( result );
 }
@@ -1244,7 +2189,11 @@ u8 process_p2p_group_negotation_resp( struct wifidirect_info *pwdinfo, u8 *pfram
 	u8	result = P2P_STATUS_SUCCESS;
 	u32	p2p_ielen, wps_ielen;
 	u8	p2p_ie[ 255 ];
-
+	uint	cnt = 0;
+#ifdef CONFIG_WFD
+	u8	wfd_ie[ 128 ] = { 0x00 };
+	u32	wfd_ielen = 0;
+#endif // CONFIG_WFD
 
 	//	Be able to know which one is the P2P GO and which one is P2P client.
 
@@ -1259,32 +2208,57 @@ u8 process_p2p_group_negotation_resp( struct wifidirect_info *pwdinfo, u8 *pfram
 		pwdinfo->p2p_state = P2P_STATE_GONEGO_FAIL;
 	}
 
-	if ( rtw_get_p2p_ie( pframe + _PUBLIC_ACTION_IE_OFFSET_, len - _PUBLIC_ACTION_IE_OFFSET_, p2p_ie, &p2p_ielen ) )
+	cnt = rtw_get_p2p_ie( pframe + _PUBLIC_ACTION_IE_OFFSET_, len - _PUBLIC_ACTION_IE_OFFSET_, p2p_ie, &p2p_ielen );
+	if ( cnt == 0 )
+	{
+		pwdinfo->role = P2P_ROLE_DEVICE;
+		pwdinfo->p2p_state = P2P_STATE_GONEGO_FAIL;
+		result = P2P_STATUS_FAIL_INCOMPATIBLE_PARAM;
+	}
+	else
 	{
 		u8	attr_content = 0x00;
 		u32	attr_contentlen = 0;
+		u8	operatingch_info[5] = { 0x00 };
+		uint	ch_cnt = 0;
+		u8	ch_content[50] = { 0x00 };
+		u8	groupid[ 38 ];
 
-		rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_STATUS, &attr_content, &attr_contentlen);
-		if ( attr_contentlen == 1 )
+		while ( cnt )	//	Found the P2P IE.
 		{
-			uint	ch_cnt = 0;
-			u8	ch_content[50] = { 0x00 };
 
-			DBG_8192C( "[%s] Status = %d\n", __FUNCTION__, attr_content );
-			if ( attr_content == P2P_STATUS_SUCCESS )
+			rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_STATUS, &attr_content, &attr_contentlen);
+			if ( attr_contentlen == 1 )
 			{
+				DBG_8192C( "[%s] Status = %d\n", __FUNCTION__, attr_content );
+				if ( attr_content == P2P_STATUS_SUCCESS )
+				{
+					//	Do nothing.
+				}
+				else
+				{
+					pwdinfo->role = P2P_ROLE_DEVICE;
+					pwdinfo->p2p_state = P2P_STATE_GONEGO_FAIL;
+					result = attr_content;
+					break;
+				}
+			}
 
-				attr_contentlen = 0;
-				rtw_get_p2p_attr_content( p2p_ie, p2p_ielen, P2P_ATTR_INTENTED_IF_ADDR, pwdinfo->p2p_peer_interface_addr, &attr_contentlen );
-
+			//	Try to get the peer's interface address
+			attr_contentlen = 0;
+			if ( rtw_get_p2p_attr_content( p2p_ie, p2p_ielen, P2P_ATTR_INTENTED_IF_ADDR, pwdinfo->p2p_peer_interface_addr, &attr_contentlen ) )
+			{
 				if ( attr_contentlen != ETH_ALEN )
 				{
 					_rtw_memset( pwdinfo->p2p_peer_interface_addr, 0x00, ETH_ALEN );
 				}
+			}
 
-				attr_content = 0x00;
-				attr_contentlen = 0;
-				rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_GO_INTENT , &attr_content, &attr_contentlen);
+			//	Try to get the peer's intent and tie breaker value.
+			attr_content = 0x00;
+			attr_contentlen = 0;
+			if ( rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_GO_INTENT , &attr_content, &attr_contentlen) )
+			{
 				DBG_8192C( "[%s] GO Intent = %d, tie = %d\n", __FUNCTION__, attr_content >> 1, attr_content & 0x01 );
 				pwdinfo->peer_intent = attr_content;	//	include both intent and tie breaker values.
 
@@ -1321,23 +2295,25 @@ u8 process_p2p_group_negotation_resp( struct wifidirect_info *pwdinfo, u8 *pfram
 					pwdinfo->role = P2P_ROLE_CLIENT;
 				}
 
-				if ( pwdinfo->role == P2P_ROLE_CLIENT )
+				if ( P2P_ROLE_GO ==  pwdinfo->role )
 				{
-					u8	operatingch_info[5] = { 0x00 };
+					//	Store the group id information.
+					_rtw_memcpy( pwdinfo->groupid_info.go_device_addr, pwdinfo->device_addr, ETH_ALEN );
+					_rtw_memcpy( pwdinfo->groupid_info.ssid, pwdinfo->nego_ssid, pwdinfo->nego_ssidlen );
 
-					attr_contentlen = 0;
-					rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_OPERATING_CH, operatingch_info, &attr_contentlen);
-					DBG_8192C( "[%s] Peer's operating channel = %d\n", __FUNCTION__, operatingch_info[4] );
-					pwdinfo->peer_operating_ch = operatingch_info[4];
 				}
 			}
-			else
+
+			//	Try to get the operation channel information
+
+			attr_contentlen = 0;
+			if ( rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_OPERATING_CH, operatingch_info, &attr_contentlen))
 			{
-				pwdinfo->role = P2P_ROLE_DEVICE;
-				pwdinfo->p2p_state = P2P_STATE_GONEGO_FAIL;
-				result = attr_content;
+				DBG_8192C( "[%s] Peer's operating channel = %d\n", __FUNCTION__, operatingch_info[4] );
+				pwdinfo->peer_operating_ch = operatingch_info[4];
 			}
 
+			//	Try to get the channel list information
 			if ( rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_CH_LIST, ch_content, &ch_cnt) )
 			{
 				pwdinfo->channel_cnt = ch_content[ 4 ];	//	Number of Channels
@@ -1348,20 +2324,43 @@ u8 process_p2p_group_negotation_resp( struct wifidirect_info *pwdinfo, u8 *pfram
 			{
 				DBG_8192C( "[%s] channel list attribute not found!\n", __FUNCTION__);
 			}
+
+			//	Try to get the group id information if peer is GO
+			attr_contentlen = 0;
+			_rtw_memset( groupid, 0x00, 38 );
+			if ( rtw_get_p2p_attr_content( p2p_ie, p2p_ielen, P2P_ATTR_GROUP_ID, groupid, &attr_contentlen) )
+			{
+				_rtw_memcpy( pwdinfo->groupid_info.go_device_addr, &groupid[0], ETH_ALEN );
+				_rtw_memcpy( pwdinfo->groupid_info.ssid, &groupid[6], attr_contentlen - ETH_ALEN );
+			}
+
+			//	Get the next P2P IE
+			//	If the cnt is 0 -> no the next P2P IE
+
+			_rtw_memset( p2p_ie, 0x00, 255);
+			p2p_ielen = 0;
+			cnt = rtw_get_p2p_ie( pframe + _PUBLIC_ACTION_IE_OFFSET_ + cnt, len - _PUBLIC_ACTION_IE_OFFSET_ - cnt, p2p_ie, &p2p_ielen );
 		}
-		else
-		{
-			//	the length of P2P STATUS ATTRIBUTE is not 1, doesn't match with the P2P specification.
-			pwdinfo->role = P2P_ROLE_DEVICE;
-			pwdinfo->p2p_state = P2P_STATE_GONEGO_FAIL;
-		}
+
 	}
-	else
+
+#ifdef CONFIG_WFD
+	//	Added by Albert 20111122
+	//	Try to get the TCP port information when receiving the negotiation response.
+	if ( rtw_get_wfd_ie( pframe + _PUBLIC_ACTION_IE_OFFSET_, len - _PUBLIC_ACTION_IE_OFFSET_, wfd_ie, &wfd_ielen ) )
 	{
-		pwdinfo->role = P2P_ROLE_DEVICE;
-		pwdinfo->p2p_state = P2P_STATE_GONEGO_FAIL;
-		result = P2P_STATUS_FAIL_INCOMPATIBLE_PARAM;
+		u8	attr_content[ 10 ] = { 0x00 };
+		u32	attr_contentlen = 0;
+
+		DBG_8192C( "[%s] WFD IE Found!!\n", __FUNCTION__ );
+		rtw_get_wfd_attr_content( wfd_ie, wfd_ielen, WFD_ATTR_DEVICE_INFO, attr_content, &attr_contentlen);
+		if ( attr_contentlen )
+		{
+			pwdinfo->wfd_info.peer_rtsp_ctrlport = RTW_GET_BE16( attr_content + 2 );
+			DBG_8192C( "[%s] Peer PORT NUM = %d\n", __FUNCTION__, pwdinfo->wfd_info.peer_rtsp_ctrlport );
+		}
 	}
+#endif // CONFIG_WFD
 
 	return( result );
 
@@ -1369,16 +2368,17 @@ u8 process_p2p_group_negotation_resp( struct wifidirect_info *pwdinfo, u8 *pfram
 
 u8 process_p2p_group_negotation_confirm( struct wifidirect_info *pwdinfo, u8 *pframe, uint len )
 {
-	u32	p2p_ielen;
-	u8	p2p_ie[ 255 ];
+	u32	p2p_ielen = 0;
+	u8	p2p_ie[ 255 ] = { 0x00 };
 	u8	result = P2P_STATUS_SUCCESS;
+	uint	cnt = 0;
 
-	if ( rtw_get_p2p_ie( pframe + _PUBLIC_ACTION_IE_OFFSET_, len - _PUBLIC_ACTION_IE_OFFSET_, p2p_ie, &p2p_ielen ) )
+	cnt = rtw_get_p2p_ie( pframe + _PUBLIC_ACTION_IE_OFFSET_, len - _PUBLIC_ACTION_IE_OFFSET_, p2p_ie, &p2p_ielen );
+	while ( cnt )	//	Found the P2P IE.
 	{
 		u8	attr_content = 0x00, operatingch_info[5] = { 0x00 };
 		u8	groupid[ 38 ] = { 0x00 };
 		u32	attr_contentlen = 0;
-
 
 		pwdinfo->negotiation_dialog_token = 1;
 		rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_STATUS, &attr_content, &attr_contentlen);
@@ -1416,20 +2416,39 @@ u8 process_p2p_group_negotation_confirm( struct wifidirect_info *pwdinfo, u8 *pf
 						pwdinfo->role = P2P_ROLE_GO;
 					}
 				}
-				rtw_get_p2p_attr_content( p2p_ie, p2p_ielen, P2P_ATTR_GROUP_ID, groupid, &attr_contentlen);
-				DBG_8192C( "[%s] Ssid = %s, ssidlen = %d\n", __FUNCTION__, &groupid[ETH_ALEN], strlen(&groupid[ETH_ALEN]) );
-
-				attr_contentlen = 0;
-				rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_OPERATING_CH, operatingch_info, &attr_contentlen);
-				DBG_8192C( "[%s] Peer's operating channel = %d\n", __FUNCTION__, operatingch_info[4] );
-				pwdinfo->peer_operating_ch = operatingch_info[4];
 			}
 			else
 			{
 				pwdinfo->role = P2P_ROLE_DEVICE;
 				pwdinfo->p2p_state = P2P_STATE_GONEGO_FAIL;
+				break;
 			}
 		}
+
+		//	Try to get the group id information
+		attr_contentlen = 0;
+		_rtw_memset( groupid, 0x00, 38 );
+		if ( rtw_get_p2p_attr_content( p2p_ie, p2p_ielen, P2P_ATTR_GROUP_ID, groupid, &attr_contentlen) )
+		{
+			DBG_8192C( "[%s] Ssid = %s, ssidlen = %d\n", __FUNCTION__, &groupid[ETH_ALEN], strlen(&groupid[ETH_ALEN]) );
+			_rtw_memcpy( pwdinfo->groupid_info.go_device_addr, &groupid[0], ETH_ALEN );
+			_rtw_memcpy( pwdinfo->groupid_info.ssid, &groupid[6], attr_contentlen - ETH_ALEN );
+		}
+
+		attr_contentlen = 0;
+		if ( rtw_get_p2p_attr_content(p2p_ie, p2p_ielen, P2P_ATTR_OPERATING_CH, operatingch_info, &attr_contentlen) )
+		{
+			DBG_8192C( "[%s] Peer's operating channel = %d\n", __FUNCTION__, operatingch_info[4] );
+			pwdinfo->peer_operating_ch = operatingch_info[4];
+		}
+
+		//	Get the next P2P IE
+		//	If the cnt is 0 -> no the next P2P IE
+
+		_rtw_memset( p2p_ie, 0x00, 255);
+		p2p_ielen = 0;
+		cnt = rtw_get_p2p_ie( pframe + _PUBLIC_ACTION_IE_OFFSET_ + cnt, len - _PUBLIC_ACTION_IE_OFFSET_ - cnt, p2p_ie, &p2p_ielen );
+
 	}
 
 	return( result );
@@ -1575,7 +2594,7 @@ _func_enter_;
 	pwdinfo->p2p_state = P2P_STATE_FIND_PHASE_SEARCH;
 
 	_enter_critical_bh(&pmlmepriv->lock, &irqL);
-	_status = rtw_sitesurvey_cmd(padapter, &ssid);
+	_status = rtw_sitesurvey_cmd(padapter, &ssid, 1);
 	_exit_critical_bh(&pmlmepriv->lock, &irqL);
 
 

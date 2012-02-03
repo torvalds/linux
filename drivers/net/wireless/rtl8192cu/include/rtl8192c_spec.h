@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -16,7 +16,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
-
+ 
 ******************************************************************************/
 #ifndef __RTL8192C_SPEC_H__
 #define __RTL8192C_SPEC_H__
@@ -206,7 +206,7 @@
 //
 //-----------------------------------------------------
 #define	REG_PCIE_CTRL_REG			0x0300
-#define	REG_INT_MIG				0x0304	// Interrupt Migration
+#define	REG_INT_MIG				0x0304	// Interrupt Migration 
 #define	REG_BCNQ_DESA				0x0308	// TX Beacon Descriptor Address
 #define	REG_HQ_DESA				0x0310	// TX High Queue Descriptor Address
 #define	REG_MGQ_DESA				0x0318	// TX Manage Queue Descriptor Address
@@ -245,7 +245,7 @@
 #define REG_HWSEQ_CTRL					0x0423
 #define REG_TXPKTBUF_BCNQ_BDNY		0x0424
 #define REG_TXPKTBUF_MGQ_BDNY		0x0425
-#define REG_MULTI_BCNQ_EN				0x0426
+#define REG_LIFETIME_EN				0x0426
 #define REG_MULTI_BCNQ_OFFSET			0x0427
 #define REG_SPEC_SIFS					0x0428
 #define REG_RL							0x042A
@@ -319,7 +319,7 @@
 #define REG_ATIMWND				0x055A
 #define REG_BCN_MAX_ERR			0x055D
 #define REG_RXTSF_OFFSET_CCK		0x055E
-#define REG_RXTSF_OFFSET_OFDM		0x055F
+#define REG_RXTSF_OFFSET_OFDM		0x055F	
 #define REG_TSFTR					0x0560
 #define REG_INIT_TSFTR				0x0564
 #define REG_PSTIMER					0x0580
@@ -506,7 +506,7 @@
 #define	GPIO_MOD					(REG_GPIO_PIN_CTRL+3)
 
 //----------------------------------------------------------------------------
-//       8192C (MSR) Media Status Register	(Offset 0x4C, 8 bits)
+//       8192C (MSR) Media Status Register	(Offset 0x4C, 8 bits)  
 //----------------------------------------------------------------------------
 /*
 Network Type
@@ -534,16 +534,16 @@ Default: 00b.
 #define	RRSR_RSC_LOWSUBCHNL		0x200000
 #define	RRSR_SHORT					0x800000
 #define	RRSR_1M					BIT0
-#define	RRSR_2M					BIT1
-#define	RRSR_5_5M					BIT2
-#define	RRSR_11M					BIT3
-#define	RRSR_6M					BIT4
-#define	RRSR_9M					BIT5
-#define	RRSR_12M					BIT6
-#define	RRSR_18M					BIT7
-#define	RRSR_24M					BIT8
-#define	RRSR_36M					BIT9
-#define	RRSR_48M					BIT10
+#define	RRSR_2M					BIT1 
+#define	RRSR_5_5M					BIT2 
+#define	RRSR_11M					BIT3 
+#define	RRSR_6M					BIT4 
+#define	RRSR_9M					BIT5 
+#define	RRSR_12M					BIT6 
+#define	RRSR_18M					BIT7 
+#define	RRSR_24M					BIT8 
+#define	RRSR_36M					BIT9 
+#define	RRSR_48M					BIT10 
 #define	RRSR_54M					BIT11
 #define	RRSR_MCS0					BIT12
 #define	RRSR_MCS1					BIT13
@@ -553,7 +553,7 @@ Default: 00b.
 #define	RRSR_MCS5					BIT17
 #define	RRSR_MCS6					BIT18
 #define	RRSR_MCS7					BIT19
-#define	BRSR_AckShortPmb			BIT23
+#define	BRSR_AckShortPmb			BIT23	
 // CCK ACK: use Short Preamble or not
 
 
@@ -565,7 +565,7 @@ Default: 00b.
 #define	RATR_2M					0x00000002
 #define	RATR_55M					0x00000004
 #define	RATR_11M					0x00000008
-//OFDM
+//OFDM 		
 #define	RATR_6M					0x00000010
 #define	RATR_9M					0x00000020
 #define	RATR_12M					0x00000040
@@ -574,7 +574,7 @@ Default: 00b.
 #define	RATR_36M					0x00000200
 #define	RATR_48M					0x00000400
 #define	RATR_54M					0x00000800
-//MCS 1 Spatial Stream
+//MCS 1 Spatial Stream	
 #define	RATR_MCS0					0x00001000
 #define	RATR_MCS1					0x00002000
 #define	RATR_MCS2					0x00004000
@@ -600,7 +600,7 @@ Default: 00b.
 #define RATE_2M						BIT(1)
 #define RATE_5_5M					BIT(2)
 #define RATE_11M					BIT(3)
-//OFDM
+//OFDM 
 #define RATE_6M						BIT(4)
 #define RATE_9M						BIT(5)
 #define RATE_12M					BIT(6)
@@ -632,11 +632,11 @@ Default: 00b.
 
 
 // ALL CCK Rate
-#define	RATE_ALL_CCK				RATR_1M|RATR_2M|RATR_55M|RATR_11M
+#define	RATE_ALL_CCK				RATR_1M|RATR_2M|RATR_55M|RATR_11M 
 #define	RATE_ALL_OFDM_AG			RATR_6M|RATR_9M|RATR_12M|RATR_18M|RATR_24M|\
-									RATR_36M|RATR_48M|RATR_54M
+									RATR_36M|RATR_48M|RATR_54M	
 #define	RATE_ALL_OFDM_1SS			RATR_MCS0|RATR_MCS1|RATR_MCS2|RATR_MCS3 |\
-									RATR_MCS4|RATR_MCS5|RATR_MCS6	|RATR_MCS7
+									RATR_MCS4|RATR_MCS5|RATR_MCS6	|RATR_MCS7	
 #define	RATE_ALL_OFDM_2SS			RATR_MCS8|RATR_MCS9	|RATR_MCS10|RATR_MCS11|\
 									RATR_MCS12|RATR_MCS13|RATR_MCS14|RATR_MCS15
 
@@ -656,19 +656,19 @@ Default: 00b.
 #define	CAM_USEDK					BIT5
 
 #define	CAM_CONTENT_COUNT 		8
-
+       	       		
 #define	CAM_NONE					0x0
 #define	CAM_WEP40					0x01
 #define	CAM_TKIP					0x02
 #define	CAM_AES					0x04
 #define	CAM_WEP104				0x05
-
+        		
 #define	TOTAL_CAM_ENTRY			32
-#define	HALF_CAM_ENTRY			16
-
+#define	HALF_CAM_ENTRY			16	
+       		
 #define	CAM_CONFIG_USEDK			_TRUE
 #define	CAM_CONFIG_NO_USEDK		_FALSE
-
+       		
 #define	CAM_WRITE					BIT16
 #define	CAM_READ					0x00000000
 #define	CAM_POLLINIG				BIT31
@@ -703,7 +703,7 @@ Default: 00b.
 #define	IMR_TIMEOUT2					BIT17		// Timeout interrupt 2
 #define	IMR_TIMEOUT1					BIT16		// Timeout interrupt 1
 #define	IMR_TXFOVW					BIT15		// Transmit FIFO Overflow
-#define	IMR_PSTIMEOUT					BIT14		// Power save time out interrupt
+#define	IMR_PSTIMEOUT					BIT14		// Power save time out interrupt 
 #define	IMR_BcnInt						BIT13		// Beacon DMA Interrupt 0
 #define	IMR_RXFOVW					BIT12		// Receive FIFO Overflow
 #define	IMR_RDU						BIT11		// Receive Descriptor Unavailable
@@ -847,7 +847,7 @@ typedef	enum _INTERFACE_SELECT_8192CPCIe{
 
 #define EEPROM_NORMAL_BoardType			EEPROM_RF_OPT1	//[7:5]
 
-#endif
+#endif 
 
 #ifdef CONFIG_USB_HCI
 
@@ -926,7 +926,7 @@ typedef	enum _BOARD_TYPE_8192CUSB{
 
 #define EEPROM_TxPowerCCK						0x5A // CCK Tx Power
 
-// 2009/02/09 Cosa Add for SD3 requirement
+// 2009/02/09 Cosa Add for SD3 requirement 
 #define EEPROM_TX_PWR_HT20_DIFF				0x6e// HT20 Tx Power Index Difference
 #define DEFAULT_HT20_TXPWR_DIFF				2	// HT20<->40 default Tx Power Index Difference
 #define EEPROM_TX_PWR_OFDM_DIFF				0x71// OFDM Tx Power Index Difference
@@ -1028,7 +1028,7 @@ typedef	enum _BOARD_TYPE_8192CUSB{
 
 /*===================================================================
 =====================================================================
-Here the register defines are for 92C. When the define is as same with 92C,
+Here the register defines are for 92C. When the define is as same with 92C, 
 we will use the 92C's define for the consistency
 So the following defines for 92C is not entire!!!!!!
 =====================================================================
@@ -1065,23 +1065,23 @@ Current IOREG MAP
 #define	RCR_ACF					BIT12		//Accept control type frame
 #define	RCR_ADF					BIT11		//Accept data type frame
 #define	RCR_AICV					BIT9		//Accept ICV error packet
-#define	RCR_ACRC32					BIT8		//Accept CRC32 error packet
+#define	RCR_ACRC32					BIT8		//Accept CRC32 error packet 
 #define	RCR_CBSSID_BCN			BIT7		//Accept BSSID match packet (Rx beacon, probe rsp)
 #define	RCR_CBSSID_DATA			BIT6		//Accept BSSID match packet (Data)
 #define	RCR_CBSSID					RCR_CBSSID_DATA		//Accept BSSID match packet
 #define	RCR_APWRMGT				BIT5		//Accept power management packet
 #define	RCR_ADD3					BIT4		//Accept address 3 match packet
-#define	RCR_AB						BIT3		//Accept broadcast packet
-#define	RCR_AM						BIT2		//Accept multicast packet
+#define	RCR_AB						BIT3		//Accept broadcast packet 
+#define	RCR_AM						BIT2		//Accept multicast packet 
 #define	RCR_APM					BIT1		//Accept physical match packet
-#define	RCR_AAP					BIT0		//Accept all unicast packet
+#define	RCR_AAP					BIT0		//Accept all unicast packet 
 #define	RCR_MXDMA_OFFSET			8
 #define	RCR_FIFO_OFFSET			13
 
 
 
 //============================================================================
-//       8192c USB specific Regsiter Offset and Content definition,
+//       8192c USB specific Regsiter Offset and Content definition, 
 //       2009.08.18, added by vivi. for merge 92c and 92C into one driver
 //============================================================================
 //#define APS_FSMCO				0x0004  same with 92Ce
@@ -1112,7 +1112,7 @@ Current IOREG MAP
 #define	InvalidBBRFValue			0x12345678
 
 //============================================================================
-//       8192C Regsiter Bit and Content definition
+//       8192C Regsiter Bit and Content definition 
 //============================================================================
 //-----------------------------------------------------
 //
@@ -1325,7 +1325,7 @@ Current IOREG MAP
 #define EFUSE_ACCESS_ON			0x69	// For RTL8723 only.
 #define EFUSE_ACCESS_OFF			0x00	// For RTL8723 only.
 
-//2 PWR_DATA
+//2 PWR_DATA 
 
 //2 CAL_TIMER
 
@@ -1356,7 +1356,7 @@ Current IOREG MAP
 //2 GPIO_INTM
 
 //2 LEDCFG
-#define LED0PL 						BIT(4)
+#define LED0PL 						BIT(4)  
 #define LED0DIS						BIT(7)
 #define LED1DIS						BIT(15)
 #define LED1PL 						BIT(12)
@@ -1412,7 +1412,7 @@ Current IOREG MAP
 //2REG_GPIO_OUTSTS (For RTL8723 only)
 #define	EFS_HCI_SEL				(BIT(0)|BIT(1))
 #define	PAD_HCI_SEL				(BIT(2)|BIT(3))
-#define	HCI_SEL						(BIT(4)|BIT(5))
+#define	HCI_SEL						(BIT(4)|BIT(5)) 
 #define	PKG_SEL_HCI				BIT(6)
 #define	FEN_GPS					BIT(7)
 #define	FEN_BT						BIT(8)
@@ -1508,7 +1508,7 @@ Current IOREG MAP
 // For normal driver, 0x10C
 #define _TXDMA_HIQ_MAP(x) 	 		(((x)&0x3) << 14)
 #define _TXDMA_MGQ_MAP(x) 	 		(((x)&0x3) << 12)
-#define _TXDMA_BKQ_MAP(x) 	 		(((x)&0x3) << 10)
+#define _TXDMA_BKQ_MAP(x) 	 		(((x)&0x3) << 10)		
 #define _TXDMA_BEQ_MAP(x) 	 		(((x)&0x3) << 8 )
 #define _TXDMA_VIQ_MAP(x) 	 		(((x)&0x3) << 6 )
 #define _TXDMA_VOQ_MAP(x) 	 		(((x)&0x3) << 4 )

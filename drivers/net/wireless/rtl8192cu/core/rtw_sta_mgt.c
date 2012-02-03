@@ -15,8 +15,7 @@
  * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
- *
- 
+ * 
 ******************************************************************************/
 #define _RTW_STA_MGT_C_
 
@@ -78,8 +77,12 @@ _func_enter_;
 	psta->no_ht_set = 0;
 	psta->ht_20mhz_set = 0;
 #endif	
+
+#ifdef CONFIG_TX_MCAST2UNI
+	psta->under_exist_checking = 0;
+#endif	// CONFIG_TX_MCAST2UNI
 	
-#endif	
+#endif	// CONFIG_AP_MODE	
 	
 _func_exit_;	
 
@@ -136,7 +139,8 @@ _func_enter_;
 	
 	pstapriv->auth_to = 3; // 3*2 = 6 sec 
 	pstapriv->assoc_to = 3;
-	pstapriv->expire_to = 900;// 900*2 = 1800 sec = 30 min, expire after no any traffic.
+	//pstapriv->expire_to = 900;// 900*2 = 1800 sec = 30 min, expire after no any traffic.
+	pstapriv->expire_to = 30;// 30*2 = 60 sec = 1 min, expire after no any traffic.
 	
 	pstapriv->max_num_sta = NUM_STA;
 	
@@ -530,9 +534,13 @@ _func_enter_;
 		psta->aid = 0;
 	}	
 
-#endif	
+#endif	// CONFIG_NATIVEAP_MLME	
 
-#endif	
+#ifdef CONFIG_TX_MCAST2UNI
+	psta->under_exist_checking = 0;
+#endif	// CONFIG_TX_MCAST2UNI
+
+#endif	// CONFIG_AP_MODE	
 
 	_enter_critical_bh(&(pfree_sta_queue->lock), &irqL0);
 	rtw_list_insert_tail(&psta->list, get_list_head(pfree_sta_queue));

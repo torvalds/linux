@@ -1146,5 +1146,28 @@ enum P2P_PS
 	P2P_PS_ALLSTASLEEP=4, // for owner
 };
 
+//	=====================WFD Section=====================
+//	For Wi-Fi Display
+#define	WFD_ATTR_DEVICE_INFO			0x00
+#define	WFD_ATTR_ASSOC_BSSID			0x01
+#define	WFD_ATTR_COUPLED_SINK_INFO	0x06
+#define	WFD_ATTR_SESSION_INFO		0x09
+
+//	For WFD Device Information Attribute
+#define	WFD_DEVINFO_SOURCE					0
+#define	WFD_DEVINFO_PRIARY_SINK				1
+#define	WFD_DEVINFO_SECARY_SINK				2
+#define	WFD_DEVINFO_SOURCE_PRIARY_SINK		3
+
+#define	WFD_DEVINFO_NO_COUPLED_SINK		0
+#define	WFD_DEVINFO_COUPLED_SINK			4
+
+#ifdef  CONFIG_TX_MCAST2UNI
+#define IP_MCAST_MAC(mac)		((mac[0]==0x01)&&(mac[1]==0x00)&&(mac[2]==0x5e))
+#define ICMPV6_MCAST_MAC(mac)	((mac[0]==0x33)&&(mac[1]==0x33)&&(mac[2]!=0xff))
+#endif	// CONFIG_TX_MCAST2UNI
+
+
+
 #endif // _WIFI_H_
 

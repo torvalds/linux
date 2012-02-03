@@ -16,7 +16,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
 ******************************************************************************/
 #ifndef _RTW_XMIT_H_
 #define _RTW_XMIT_H_
@@ -57,7 +56,7 @@
 // xmit extension buff defination
 #define MAX_XMIT_EXTBUF_SZ	(2048)
 
-#define NR_XMIT_EXTBUFF	(4)
+#define NR_XMIT_EXTBUFF	(32)
 
 #define MAX_NUMBLKS		(1)
 
@@ -382,6 +381,12 @@ struct xmit_buf
 	USB_TRANSFER	usb_transfer_write_port;
 #endif
 
+#ifdef PLATFORM_LINUX
+	u8 isSync; //is this synchronous?
+	int status; // keeping urb status for synchronous call to access
+	struct completion done; // for wirte_port synchronously
+#endif
+
 	u8 bpending[8];
 	
 	sint last[8];
@@ -623,6 +628,9 @@ extern void fill_tdls_dis_rsp_frbody(_adapter * padapter, struct xmit_frame * px
 extern s32 xmit_tdls_coalesce(_adapter *padapter, struct xmit_frame *pxmitframe, u8 action);
 void rtw_dump_xframe(_adapter *padapter, struct xmit_frame *pxmitframe);
 #endif
+#ifdef CONFIG_IOL
+void rtw_dump_xframe_sync(_adapter *padapter, struct xmit_frame *pxmitframe);
+#endif
 s32 _rtw_init_hw_txqueue(struct hw_txqueue* phw_txqueue, u8 ac_tag);
 void _rtw_init_sta_xmit_priv(struct sta_xmit_priv *psta_xmitpriv);
 
@@ -641,7 +649,7 @@ void rtw_free_hwxmits(_adapter *padapter);
 
 s32 rtw_free_xmitframe_ex(struct xmit_priv *pxmitpriv, struct xmit_frame *pxmitframe);
 
-s32 rtw_xmit(_adapter *padapter, _pkt *pkt);
+s32 rtw_xmit(_adapter *padapter, _pkt **pkt);
 
 #ifdef CONFIG_TDLS
 sint xmit_tdls_enqueue_for_sleeping_sta(_adapter *padapter, struct xmit_frame *pxmitframe);

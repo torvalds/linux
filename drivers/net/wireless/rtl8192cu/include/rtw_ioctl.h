@@ -91,11 +91,11 @@ struct oid_par_priv
 	void				*adapter_context;
 	NDIS_OID		oid;
 	void*			information_buf;
-	unsigned long		information_buf_len;
-	unsigned long*	bytes_rw;
-	unsigned long*	bytes_needed;
+	u32		information_buf_len;
+	u32*	bytes_rw;
+	u32*	bytes_needed;
 	enum oid_type	type_of_oid;
-	unsigned int 		dbg;
+	u32 		dbg;
 };
 
 struct oid_obj_priv {

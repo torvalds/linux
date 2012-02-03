@@ -1906,7 +1906,7 @@ UNUSUAL_DEV(0x19D2,0x0120,0x0204  ,0x0204  ,
 		0),
 
 //A355--ZTE--	0x19D20120->0x19D20079	don't report disk device
-UNUSUAL_DEV(0x19D2,0x0079,0x0204  ,0x0204  ,
+UNUSUAL_DEV(0x19D2,0x0079,0x0100  ,0x0100  ,
 		"ZTE MOBILE-TD",
 		"Mass Storage",
 		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_ZTE_AC580_init,
@@ -1980,6 +1980,13 @@ UNUSUAL_DEV(0x04cc,0x226e,0x0100,0x0100,
 		"ASB MOBILE",
 		"Mass Storage",
 		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_ASB_init,
+		0),
+
+//shanghai ASB C820--ASB--don't report disk device
+UNUSUAL_DEV(0x05c6,0x0010,0x00,0x00,
+		"ASB MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_ASB_init,
 		0),
 
 //shanghai ASB C820--ASB--don't report disk device

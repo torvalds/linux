@@ -26,6 +26,7 @@
 
 #define _SUCCESS	1
 #define _FAIL		0
+//#define RTW_STATUS_TIMEDOUT -110
 
 #undef _TRUE
 #define _TRUE		1
@@ -46,7 +47,7 @@
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,5))
 	#include <linux/kref.h>
 #endif
-	#include <linux/smp.h> //#include <linux/smp_lock.h>
+	//#include <linux/smp_lock.h>
 	#include <linux/netdevice.h>
 	#include <linux/skbuff.h>
 	#include <linux/circ_buf.h>
@@ -452,6 +453,10 @@ __inline static void _set_workitem(_workitem *pwork)
 	#define BIT(x)	( 1 << (x))
 #endif
 
+extern int RTW_STATUS_CODE(int error_code);
+
+#define CONFIG_USE_VMALLOC
+
 #ifdef DBG_MEM_ALLOC
 void rtw_dump_mem_stat (void);
 extern u8* dbg_rtw_vmalloc(u32 sz, const char *func, int line);
@@ -460,9 +465,15 @@ extern void dbg_rtw_vmfree(u8 *pbuf, u32 sz, const char *func, int line);
 extern u8* dbg_rtw_malloc(u32 sz, const char *func, int line);
 extern u8* dbg_rtw_zmalloc(u32 sz, const char *func, int line);
 extern void dbg_rtw_mfree(u8 *pbuf, u32 sz, const char *func, int line);
+#ifdef CONFIG_USE_VMALLOC
 #define rtw_vmalloc(sz)			dbg_rtw_vmalloc((sz), __FUNCTION__, __LINE__)
 #define rtw_zvmalloc(sz)			dbg_rtw_zvmalloc((sz), __FUNCTION__, __LINE__)
 #define rtw_vmfree(pbuf, sz)		dbg_rtw_vmfree((pbuf), (sz), __FUNCTION__, __LINE__)
+#else //CONFIG_USE_VMALLOC
+#define rtw_vmalloc(sz)			dbg_rtw_malloc((sz), __FUNCTION__, __LINE__)
+#define rtw_zvmalloc(sz)			dbg_rtw_zmalloc((sz), __FUNCTION__, __LINE__)
+#define rtw_vmfree(pbuf, sz)		dbg_rtw_mfree((pbuf), (sz), __FUNCTION__, __LINE__)
+#endif //CONFIG_USE_VMALLOC
 #define rtw_malloc(sz)			dbg_rtw_malloc((sz), __FUNCTION__, __LINE__)
 #define rtw_zmalloc(sz)			dbg_rtw_zmalloc((sz), __FUNCTION__, __LINE__)
 #define rtw_mfree(pbuf, sz)		dbg_rtw_mfree((pbuf), (sz), __FUNCTION__, __LINE__)
@@ -473,9 +484,15 @@ extern void	_rtw_vmfree(u8 *pbuf, u32 sz);
 extern u8*	_rtw_zmalloc(u32 sz);
 extern u8*	_rtw_malloc(u32 sz);
 extern void	_rtw_mfree(u8 *pbuf, u32 sz);
+#ifdef CONFIG_USE_VMALLOC
 #define rtw_vmalloc(sz)			_rtw_vmalloc((sz))
 #define rtw_zvmalloc(sz)			_rtw_zvmalloc((sz))
 #define rtw_vmfree(pbuf, sz)		_rtw_vmfree((pbuf), (sz))
+#else //CONFIG_USE_VMALLOC
+#define rtw_vmalloc(sz)			_rtw_malloc((sz))
+#define rtw_zvmalloc(sz)			_rtw_zmalloc((sz))
+#define rtw_vmfree(pbuf, sz)		_rtw_mfree((pbuf), (sz))
+#endif //CONFIG_USE_VMALLOC
 #define rtw_malloc(sz)			_rtw_malloc((sz))
 #define rtw_zmalloc(sz)			_rtw_zmalloc((sz))
 #define rtw_mfree(pbuf, sz)		_rtw_mfree((pbuf), (sz))
@@ -495,6 +512,7 @@ extern void	_rtw_free_sema(_sema	*sema);
 extern void	_rtw_up_sema(_sema	*sema);
 extern u32	_rtw_down_sema(_sema *sema);
 extern void	_rtw_mutex_init(_mutex *pmutex);
+extern void	_rtw_mutex_free(_mutex *pmutex);
 extern void	_rtw_spinlock_init(_lock *plock);
 extern void	_rtw_spinlock_free(_lock *plock);
 extern void	_rtw_spinlock(_lock	*plock);
@@ -702,12 +720,10 @@ extern int ATOMIC_INC_RETURN(ATOMIC_T *v);
 extern int ATOMIC_DEC_RETURN(ATOMIC_T *v);
 
 //File operation APIs, just for linux now
-#ifdef PLATFORM_LINUX
-extern int openFile(struct file **fpp, char *path,int flag,int mode);
-extern int closeFile(struct file *fp);
-extern int readFile(struct file *fp,char *buf,int len);
-extern int writeFile(struct file *fp,char *buf,int len);
-#endif
+extern int rtw_is_file_readable(char *path);
+extern int rtw_retrive_from_file(char *path, u8* buf, u32 sz);
+extern int rtw_store_to_file(char *path, u8* buf, u32 sz);
+
 
 
 #if 1 //#ifdef MEM_ALLOC_REFINE_ADAPTOR

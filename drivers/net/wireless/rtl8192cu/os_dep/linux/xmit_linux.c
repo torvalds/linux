@@ -16,7 +16,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
 ******************************************************************************/
 #define _XMIT_OSDEP_C_
 
@@ -245,11 +244,69 @@ void rtw_os_xmit_schedule(_adapter *padapter)
 }
 
 
+
+#ifdef CONFIG_TX_MCAST2UNI
+int rtw_mlcst2unicst(_adapter *padapter, struct sk_buff *skb)
+{
+	struct	sta_priv *pstapriv = &padapter->stapriv;
+	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
+	_irqL	irqL;
+	_list	*phead, *plist;
+	struct sk_buff *newskb;
+	struct sta_info *psta = NULL;
+	s32	res;
+
+	_enter_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	phead = &pstapriv->asoc_list;
+	plist = get_next(phead);
+	
+	//free sta asoc_queue
+	while ((rtw_end_of_queue_search(phead, plist)) == _FALSE)	
+	{		
+		psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
+		
+		plist = get_next(plist);
+
+		/* avoid   come from STA1 and send back STA1 */ 
+		if (!memcmp(psta->hwaddr, &skb->data[6], 6))	
+			continue; 
+
+		newskb = skb_copy(skb, GFP_ATOMIC);
+		
+		if (newskb) {
+			memcpy(newskb->data, psta->hwaddr, 6);
+			res = rtw_xmit(padapter, &newskb);
+			if (res < 0) {
+				DBG_871X("%s()-%d: rtw_xmit() return error!\n", __FUNCTION__, __LINE__);
+				pxmitpriv->tx_drop++;
+				dev_kfree_skb_any(newskb);			
+			} else
+				pxmitpriv->tx_pkts++;
+		} else {
+			DBG_871X("%s-%d: skb_copy() failed!\n", __FUNCTION__, __LINE__);
+			pxmitpriv->tx_drop++;
+
+			_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+			//dev_kfree_skb_any(skb);
+			return _FALSE;	// Caller shall tx this multicast frame via normal way.
+		}
+	}
+
+	_exit_critical_bh(&pstapriv->asoc_list_lock, &irqL);
+	dev_kfree_skb_any(skb);
+	return _TRUE;
+}
+#endif	// CONFIG_TX_MCAST2UNI
+
+
 int rtw_xmit_entry(_pkt *pkt, _nic_hdl pnetdev)
 {
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(pnetdev);
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
-
+#ifdef CONFIG_TX_MCAST2UNI
+	struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
+	extern int rtw_mc2u_disable;
+#endif	// CONFIG_TX_MCAST2UNI	
 	s32 res = 0;
 	int ret = 0;
 
@@ -265,15 +322,34 @@ _func_enter_;
 		goto drop_packet;
 	}
 
-	res = rtw_xmit(padapter, pkt);
+#ifdef CONFIG_TX_MCAST2UNI
+	if ( !rtw_mc2u_disable
+		&& check_fwstate(pmlmepriv, WIFI_AP_STATE) == _TRUE
+		&& ( IP_MCAST_MAC(pkt->data)
+			|| ICMPV6_MCAST_MAC(pkt->data) )
+		)
+	{
+		if ( pxmitpriv->free_xmitframe_cnt > (NR_XMITFRAME/4) ) {
+			res = rtw_mlcst2unicst(padapter, pkt);
+			if (res == _TRUE) {
+				goto exit;
+			}
+		} else {
+			//DBG_871X("Stop M2U(%d, %d)! ", pxmitpriv->free_xmitframe_cnt, pxmitpriv->free_xmitbuf_cnt);
+			//DBG_871X("!m2u );
+		}
+	}	
+#endif	// CONFIG_TX_MCAST2UNI	
+
+	res = rtw_xmit(padapter, &pkt);
 	if (res < 0) {
 		#ifdef DBG_TX_DROP_FRAME
 		DBG_871X("DBG_TX_DROP_FRAME %s rtw_xmit fail\n", __FUNCTION__);
 		#endif
 		goto drop_packet;
 	}
-
 	pxmitpriv->tx_pkts++;
+
 	RT_TRACE(_module_xmit_osdep_c_, _drv_info_, ("rtw_xmit_entry: tx_pkts=%d\n", (u32)pxmitpriv->tx_pkts));
 	goto exit;
 

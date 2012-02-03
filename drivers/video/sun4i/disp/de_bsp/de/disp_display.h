@@ -100,7 +100,7 @@ typedef struct
     void                    (*LCD_CPUIF_ISR)(void);
 	__u32	                pll_use_status;	//lcdc0/lcdc1 using which video pll(0 or 1)
 
-	__disp_lcd_bright_t     lcd_bright;
+	__u32                   lcd_bright;
 	__disp_color_range_t    out_color_range;
 
 	__disp_lcd_cfg_t        lcd_cfg;

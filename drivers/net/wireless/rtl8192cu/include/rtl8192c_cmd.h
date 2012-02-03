@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -16,14 +16,14 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
-
+ 
 ******************************************************************************/
 #ifndef __RTL8192C_CMD_H_
 #define __RTL8192C_CMD_H_
 
 
 enum cmd_msg_element_id
-{
+{	
 	NONE_CMDMSG_EID,
 	AP_OFFLOAD_EID=0,
 	SET_PWRMODE_EID=1,
@@ -36,7 +36,8 @@ enum cmd_msg_element_id
 	P2P_PS_OFFLOAD_EID=8,
 	SELECTIVE_SUSPEND_ROF_CMD=9,
 	P2P_PS_CTW_CMD_EID=32,
-	MAX_CMDMSG_EID
+	H2C_92C_IO_OFFLOAD=44,
+	H2C_92C_CMD_MAX
 };
 
 struct cmd_msg_parm {
@@ -93,6 +94,12 @@ u8	rtl8192c_set_FwSelectSuspend_cmd(_adapter*padapter,u8 bfwpoll, u16 period);
 void	rtl8192c_set_p2p_ps_offload_cmd(_adapter* padapter, u8 p2p_ps_state);
 #endif //CONFIG_P2P
 
-#endif
+#ifdef CONFIG_IOL
+typedef struct _IO_OFFLOAD_LOC{
+	u8 	LocCmd;
+}IO_OFFLOAD_LOC, *PIO_OFFLOAD_LOC;
+int rtl8192c_IOL_exec_cmds_sync(ADAPTER *adapter, struct xmit_frame *xmit_frame, u32 max_wating_ms);
+#endif //CONFIG_IOL
 
+#endif
 

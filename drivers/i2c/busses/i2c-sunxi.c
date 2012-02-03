@@ -533,6 +533,12 @@ static int i2c_sunxi_core_process(struct sunxi_i2c *i2c)
 	}
 #endif
 
+    if(i2c->msg == NULL) {
+        printk("i2c->msg is NULL, err_code = 0xfe\n");
+        err_code = 0xfe;
+        goto msg_null;
+    }
+
 	switch(state) {
 	case 0xf8: /* On reset or stop the bus is idle, use only at poll method */
 		err_code = 0xf8;
@@ -657,6 +663,7 @@ err_out:
 		i2c_dbg("STOP failed!\n");
 	}
 
+msg_null:
 	ret = i2c_sunxi_xfer_complete(i2c, err_code);/* wake up */
 
 	i2c->debug_state = state;/* just for debug */
@@ -766,6 +773,9 @@ static int i2c_sunxi_do_xfer(struct sunxi_i2c *i2c, struct i2c_msg *msgs, int nu
 	i2c->msg_ptr = 0;
 	i2c->msg_idx = 0;
 	i2c->status  = I2C_XFER_START;
+    aw_twi_enable_irq(i2c->base_addr);  /* enable irq */
+	aw_twi_disable_ack(i2c->base_addr); /* disabe ACK */
+	aw_twi_set_EFR(i2c->base_addr, 0);  /* set the special function register,default:0. */
 	spin_unlock_irq(&i2c->lock);
 /*
 	for(i =0 ; i < num; i++){
@@ -776,9 +786,6 @@ static int i2c_sunxi_do_xfer(struct sunxi_i2c *i2c, struct i2c_msg *msgs, int nu
 		i2c_dbg("\n\n");
 }
 */
-	aw_twi_enable_irq(i2c->base_addr);  /* enable irq */
-	aw_twi_disable_ack(i2c->base_addr); /* disabe ACK */
-	aw_twi_set_EFR(i2c->base_addr, 0);  /* set the special function register,default:0. */
 
 	ret = aw_twi_start(i2c->base_addr);/* START signal,needn't clear int flag  */
 	if(ret == AWXX_I2C_FAIL) {
@@ -799,7 +806,7 @@ static int i2c_sunxi_do_xfer(struct sunxi_i2c *i2c, struct i2c_msg *msgs, int nu
 		ret = -ETIME;
 	}
 	else if (ret != num){
-		//pr_notice("incomplete xfer (0x%x)\n", ret);
+		printk("incomplete xfer (0x%x)\n", ret);
 		ret = -ECOMM;
 		//dev_dbg(i2c->adap.dev, "incomplete xfer (%d)\n", ret);
 	}

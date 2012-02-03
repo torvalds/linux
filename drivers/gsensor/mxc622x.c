@@ -135,7 +135,7 @@ script_parser_fetch_err:
  *                    = 0; success;
  *                    < 0; err
  */
-int gsensor_detect(struct i2c_client *client, struct i2c_board_info *info)
+static int gsensor_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	

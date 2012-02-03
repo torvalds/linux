@@ -25,10 +25,6 @@
 
 #include <rtw_efuse.h>
 
-#ifdef CONFIG_ADAPTOR_INFO_CACHING_FILE
-extern int storeAdaptorInfoFile(struct eeprom_priv * eeprom_priv, char *path);
-extern int retriveAdaptorInfoFile(struct eeprom_priv * eeprom_priv, char *path);
-#endif
 
 
 /*------------------------Define local variable------------------------------*/
@@ -930,13 +926,13 @@ void EFUSE_ShadowMapUpdate(
 	else
 	{
 		#ifdef CONFIG_ADAPTOR_INFO_CACHING_FILE			
-		if(0 != retriveAdaptorInfoFile(pEEPROM, pAdapter->registrypriv.adaptor_info_caching_file_path)) {
+		if(_SUCCESS != retriveAdaptorInfoFile(pAdapter->registrypriv.adaptor_info_caching_file_path, pEEPROM)) {
 		#endif
 		
 		Efuse_ReadAllMap(pAdapter, efuseType, pEEPROM->efuse_eeprom_data, bPseudoTest);
 		
 		#ifdef CONFIG_ADAPTOR_INFO_CACHING_FILE
-			storeAdaptorInfoFile(pEEPROM, pAdapter->registrypriv.adaptor_info_caching_file_path);
+			storeAdaptorInfoFile(pAdapter->registrypriv.adaptor_info_caching_file_path, pEEPROM);
 		}
 		#endif
 	}
@@ -1039,4 +1035,63 @@ Efuse_InitSomeVar(
 	_rtw_memset((PVOID)&fakeBTEfuseInitMap[0], 0xff, EFUSE_BT_MAX_MAP_LEN);
 	_rtw_memset((PVOID)&fakeBTEfuseModifiedMap[0], 0xff, EFUSE_BT_MAX_MAP_LEN);
 }
+
+#ifdef PLATFORM_LINUX
+#ifdef CONFIG_ADAPTOR_INFO_CACHING_FILE
+//#include <rtw_eeprom.h>
+
+ int isAdaptorInfoFileValid(void)
+{
+	return _TRUE;
+}
+
+int storeAdaptorInfoFile(char *path, struct eeprom_priv * eeprom_priv)
+{
+	int ret =_SUCCESS;
+
+	if(path && eeprom_priv) {
+		ret = rtw_store_to_file(path, eeprom_priv->efuse_eeprom_data, EEPROM_MAX_SIZE);
+		if(ret == EEPROM_MAX_SIZE)
+			ret = _SUCCESS;
+		else
+			ret = _FAIL;
+	} else {
+		DBG_8192C("%s NULL pointer\n",__FUNCTION__);
+		ret =  _FAIL;
+	}
+	return ret;
+}
+
+int retriveAdaptorInfoFile(char *path, struct eeprom_priv * eeprom_priv)
+{
+	int ret = _SUCCESS;
+	mm_segment_t oldfs;
+	struct file *fp;
+	
+	if(path && eeprom_priv) {
+
+		ret = rtw_retrive_from_file(path, eeprom_priv->efuse_eeprom_data, EEPROM_MAX_SIZE);
+		
+		if(ret == EEPROM_MAX_SIZE)
+			ret = _SUCCESS;
+		else
+			ret = _FAIL;
+
+		#if 0
+		if(isAdaptorInfoFileValid()) {	
+			return 0;
+		} else {
+			return _FAIL;
+		}
+		#endif
+		
+	} else {
+		DBG_8192C("%s NULL pointer\n",__FUNCTION__);
+		ret = _FAIL;
+	}
+	return ret;
+}
+#endif //CONFIG_ADAPTOR_INFO_CACHING_FILE
+#endif //PLATFORM_LINUX
+
 

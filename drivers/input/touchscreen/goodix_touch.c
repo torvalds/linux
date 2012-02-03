@@ -483,7 +483,7 @@ static void ctp_wakeup(void)
  *                    = 0; success;
  *                    < 0; err
  */
-int ctp_detect(struct i2c_client *client, struct i2c_board_info *info)
+static int ctp_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 

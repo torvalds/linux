@@ -1064,10 +1064,10 @@ int rtw_get_p2p_attr_content(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id ,u8 *
 		{
 			//	3 -> 1 byte for attribute ID field, 2 bytes for length field
 			if(attr_content)
-			_rtw_memcpy( attr_content, &p2p_ie[ cnt + 3 ], attrlen );
+				_rtw_memcpy( attr_content, &p2p_ie[ cnt + 3 ], attrlen );
 			
 			if(attr_contentlen)
-			*attr_contentlen = attrlen;
+				*attr_contentlen = attrlen;
 			
 			cnt += attrlen + 3;
 
@@ -1198,5 +1198,110 @@ int rtw_get_wps_ie_p2p(u8 *in_ie, uint in_len, u8 *wps_ie, uint *wps_ielen)
 	return match;
 
 }
+
+#ifdef CONFIG_WFD
+int rtw_get_wfd_ie(u8 *in_ie, uint in_len, u8 *wfd_ie, uint *wfd_ielen)
+{
+	int match;
+	uint cnt = 0;	
+	u8 eid, wfd_oui[4]={0x50,0x6F,0x9A,0x0A};
+
+
+	match=_FALSE;
+	while(cnt<in_len)
+	{
+		eid = in_ie[cnt];
+		
+		if( ( eid == _VENDOR_SPECIFIC_IE_ ) && ( _rtw_memcmp( &in_ie[cnt+2], wfd_oui, 4) == _TRUE ) )
+		{
+			if ( wfd_ie != NULL )
+			{
+				_rtw_memcpy( wfd_ie, &in_ie[ cnt ], in_ie[ cnt + 1 ] + 2 );
+				if ( wfd_ielen != NULL )
+				{
+					*wfd_ielen = in_ie[ cnt + 1 ] + 2;
+				}
+			}
+			else
+			{
+				if ( wfd_ielen != NULL )
+				{
+					*wfd_ielen = 0;
+				}
+			}
+			
+			cnt += in_ie[ cnt + 1 ] + 2;
+
+			match = _TRUE;
+			break;
+		}
+		else
+		{
+			cnt += in_ie[ cnt + 1 ] +2; //goto next	
+		}		
+		
+	}	
+
+	if ( match == _TRUE )
+	{
+		match = cnt;
+	}
+	
+	return match;
+
+}
+
+//	attr_content: The output buffer, contains the "body field" of WFD attribute.
+//	attr_contentlen: The data length of the "body field" of WFD attribute.
+int rtw_get_wfd_attr_content(u8 *wfd_ie, uint wfd_ielen, u8 target_attr_id ,u8 *attr_content, uint *attr_contentlen)
+{
+	int match;
+	uint cnt = 0;	
+	u8 attr_id, wfd_oui[4]={0x50,0x6F,0x9A,0x0A};
+
+
+	match=_FALSE;
+
+	if ( ( wfd_ie[ 0 ] != _VENDOR_SPECIFIC_IE_ ) ||
+		( _rtw_memcmp( wfd_ie + 2, wfd_oui , 4 ) != _TRUE ) )
+	{
+		return( match );
+	}
+
+	//	1 ( WFD IE ) + 1 ( Length ) + 3 ( OUI ) + 1 ( OUI Type )
+	cnt = 6;
+	while( cnt < wfd_ielen )
+	{
+		//u16	attrlen = le16_to_cpu(*(u16*)(p2p_ie + cnt + 1 ));
+		u16 attrlen = RTW_GET_LE16(wfd_ie + cnt + 1);
+		
+		attr_id = wfd_ie[cnt];
+		if( attr_id == target_attr_id )
+		{
+			//	2 -> 1 byte for attribute ID field, 1 bytes for length field
+			if(attr_content)
+			_rtw_memcpy( attr_content, &wfd_ie[ cnt + 2 ], attrlen );
+			
+			if(attr_contentlen)
+			*attr_contentlen = attrlen;
+			
+			cnt += attrlen + 2;
+
+			match = _TRUE;
+			break;
+		}
+		else
+		{
+			cnt += attrlen + 2; //goto next	
+		}		
+		
+	}	
+
+	return match;
+
+}
+
+
+#endif // CONFIG_WFD
 #endif // CONFIG_P2P
 

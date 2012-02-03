@@ -1,0 +1,24 @@
+Auto Detect 4330B1/B2 and download properly firmware
+================================================================================================================
+You can use below instruction to perform the auto detect instruction:
+insmod dhd.ko "fwb1_path=<firmware path for b1> fwb2_path=<firmware path for b2> nvram_path=<nvram path>"
+The original one still can work if auto detect is not needed:
+insmod dhd.ko "firmware_path=<firmware path> nvram_path=<nvram path>"
+
+OOB nvram setting
+================================================================================================================
+HW OOB:
+	No nvram parameter needed
+
+SW OOB edge trigger:
+	sd_gpout=0
+	sd_oobonly=1
+	
+SW OOB level trigger:
+	sd_gpout=0
+	sd_oobonly=1
+	sd_level_trigger=1
+
+How to overwrite nvram to OTP
+================================================================================================================
+1. add nvram_override=1 to nvram

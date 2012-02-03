@@ -1216,7 +1216,7 @@ _func_enter_;
 		pcipriv->amd_l1_patch);
 
 	//.2
-	if ((init_io_priv(padapter)) == _FAIL)
+	if ((rtw_init_io_priv(padapter)) == _FAIL)
 	{
 		RT_TRACE(_module_hci_intfs_c_,_drv_err_,(" \n Can't init io_reqs\n"));
 		status = _FAIL;
@@ -1409,7 +1409,7 @@ static void rtw_dev_unload(_adapter *padapter)
 		//s2-2.  indicate disconnect to os
 		rtw_indicate_disconnect(padapter);
 		//s2-3.
-		rtw_free_assoc_resources(padapter);
+		rtw_free_assoc_resources(padapter, 1);
 		//s2-4.
 		rtw_free_network_queue(padapter, _TRUE);*/
 

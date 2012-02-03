@@ -897,8 +897,8 @@ void exec_pending_chan(int chan_nr, unsigned long pend_bits)
 		break;
 
 	case SW_DMALOAD_NONE:
-		printk(KERN_ERR "dma%d: IRQ with no loaded buffer?\n",
-		       chan->number);
+         printk(KERN_ERR "dma%d: IRQ with no loaded buffer?chan->state:%d\n",
+         		chan->number , chan->state);
 		break;
 
 	default:
@@ -1147,6 +1147,10 @@ static int sw_dma_dostop(struct sw_dma_chan *chan)
 	tmp = dma_rdreg(chan, SW_DMA_DCONF);
 	tmp &= ~SW_DCONF_LOADING;
 	dma_wrreg(chan, SW_DMA_DCONF, tmp);
+
+ 	tmp = readl(dma_base + SW_DMA_DIRQPD);
+   	tmp &= (3 << (chan->number<<1));
+   	writel(tmp, dma_base + SW_DMA_DIRQPD);
 
 	/* should stop do this, or should we wait for flush? */
 	chan->state      = SW_DMA_IDLE;

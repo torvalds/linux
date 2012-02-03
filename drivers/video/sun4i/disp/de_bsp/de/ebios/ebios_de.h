@@ -5,7 +5,7 @@
 
 #define DE_WB_END_IE    			(1<<7)      /*write back end interrupt */
 #define DE_FE_INTEN_ALL             0x1ff     /*front-end all interrupt enable*/
-#define DE_IMG_IRDY_IE  (1<<6)
+#define DE_IMG_REG_LOAD_FINISH  (1<<1)
 
 #define SCAL_WB_ERR_SYNC (1<<15) //sync reach flag when capture in process
 #define SCAL_WB_ERR_LOSEDATA (1<<14) //lose data flag when capture in process
@@ -296,6 +296,7 @@ __s32 DE_BE_EnableINT(__u8 sel,__u32 irqsrc);
 __s32 DE_BE_DisableINT(__u8 sel, __u32 irqsrc);
 __u32 DE_BE_QueryINT(__u8 sel);
 __u32 DE_BE_ClearINT(__u8 sel,__u32 irqsrc);
+__s32 DE_BE_reg_auto_load_en(__u32 sel, __u32 en);
 
 __s32 DE_BE_Layer_Enable(__u32 sel, __u8 layidx, __bool enable);
 __s32 DE_BE_Layer_Set_Format(__u32 sel, __u8 layidx,__u8 format,__bool br_swap,__u8 order);

@@ -16,8 +16,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
-
-******************************************************************************/
+ ******************************************************************************/
 #ifndef __RTL8192D_HAL_H__
 #define __RTL8192D_HAL_H__
 
@@ -33,16 +32,14 @@
 #ifdef CONFIG_PCI_HCI
 	#include <pci_ops.h>
 	#include "Hal8192DEHWImg.h"
-	#include "Hal8192DETestHWImg.h"
 
 	#define RTL819X_DEFAULT_RF_TYPE			RF_2T2R
-	//#define RTL819X_DEFAULT_RF_TYPE			RF_1T2R
-	#define RTL819X_TOTAL_RF_PATH				2
 
-	//2TODO:  The following need to check!!
-	#define	RTL8192D_FW_IMG					"rtl8192DE\\rtl8192dfw.bin"
+//---------------------------------------------------------------------
+//		RTL8192DE From file
+//---------------------------------------------------------------------
+	#define RTL8192D_FW_IMG 					"rtl8192DE\\rtl8192dfw.bin"
 
-	//For 92DE
 	#define RTL8192D_PHY_REG					"rtl8192DE\\PHY_REG.txt"
 	#define RTL8192D_PHY_REG_PG				"rtl8192DE\\PHY_REG_PG.txt"
 	#define RTL8192D_PHY_REG_MP				"rtl8192DE\\PHY_REG_MP.txt"
@@ -52,52 +49,63 @@
 	#define RTL8192D_AGC_TAB_5G				"rtl8192DE\\AGC_TAB_5G.txt"
 	#define RTL8192D_PHY_RADIO_A				"rtl8192DE\\radio_a.txt"
 	#define RTL8192D_PHY_RADIO_B				"rtl8192DE\\radio_b.txt"
-	#define RTL8192D_PHY_MACREG				"rtl8192DE\\MAC_REG.txt"
 	#define RTL8192D_PHY_RADIO_A_intPA		"rtl8192DE\\radio_a_intPA.txt"
 	#define RTL8192D_PHY_RADIO_B_intPA		"rtl8192DE\\radio_b_intPA.txt"
+	#define RTL8192D_PHY_MACREG				"rtl8192DE\\MAC_REG.txt"
 
-	#define RTL8192D_TEST_FW_IMG_FILE			"rtl8192DE\\rtl8192dfw_test.bin"
-	#define RTL8192D_TEST_PHY_REG_PG_FILE	"rtl8192DE\\PHY_REG_PG_test.txt"
+//---------------------------------------------------------------------
+//		RTL8192DE From header
+//---------------------------------------------------------------------
 
-	#define RTL8192D_TEST_PHY_REG_FILE		"rtl8192DE\\PHY_REG_test.txt"
-	#define RTL8192D_TEST_PHY_RADIO_A_FILE	"rtl8192DE\\radio_a_test.txt"
-	#define RTL8192D_TEST_PHY_RADIO_B_FILE	"rtl8192DE\\radio_b_test.txt"
-	#define RTL8192D_TEST_AGC_TAB_2G			"rtl8192DE\\AGC_TAB_2G_test.txt"
-	#define RTL8192D_TEST_AGC_TAB_5G			"rtl8192DE\\AGC_TAB_5G_test.txt"
-	#define RTL8192D_TEST_MAC_REG_FILE		"rtl8192DE\\MAC_REG_test.txt"
+	// Fw Array
+	#define Rtl8192D_FwImageArray 				Rtl8192DEFwImgArray
 
-	// The file name "_2T" is for 92CE, "_1T"  is for 88CE. Modified by tynli. 2009.11.24.
-	#define Rtl819XFwImageArray					Rtl8192DEFwImgArray
-	#define Rtl819XMAC_Array					Rtl8192DEMAC_2TArray
-	#define Rtl819XAGCTAB_Array					Rtl8192DEAGCTAB_Array
-	#define Rtl819XAGCTAB_5GArray				Rtl8192DEAGCTAB_5GArray
-	#define Rtl819XAGCTAB_2GArray				Rtl8192DEAGCTAB_2GArray
-	#define Rtl819XPHY_REG_2TArray				Rtl8192DEPHY_REG_2TArray
-	#define Rtl819XPHY_REG_1TArray				Rtl8192DEPHY_REG_1TArray
-	#define Rtl819XRadioA_2TArray				Rtl8192DERadioA_2TArray
-	#define Rtl819XRadioA_1TArray				Rtl8192DERadioA_1TArray
-	#define Rtl819XRadioA_2T_intPAArray			Rtl8192DERadioA_2T_intPAArray
-	#define Rtl819XRadioB_2TArray				Rtl8192DERadioB_2TArray
-	#define Rtl819XRadioB_1TArray				Rtl8192DERadioB_1TArray
-	#define Rtl819XRadioB_2T_intPAArray 			Rtl8192DERadioB_2T_intPAArray
-	#define Rtl819XPHY_REG_Array_PG 			Rtl8192DEPHY_REG_Array_PG
-	#define Rtl819XPHY_REG_Array_MP 			Rtl8192DEPHY_REG_Array_MP
-	#define Rtl819XAGCTAB_2TArray				Rtl8192DEAGCTAB_2TArray
-	#define Rtl819XAGCTAB_1TArray				Rtl8192DEAGCTAB_1TArray
+	// MAC/BB/PHY Array
+	#define Rtl8192D_MAC_Array					Rtl8192DEMAC_2T_Array
+	#define Rtl8192D_AGCTAB_Array				Rtl8192DEAGCTAB_Array
+	#define Rtl8192D_AGCTAB_5GArray			Rtl8192DEAGCTAB_5GArray
+	#define Rtl8192D_AGCTAB_2GArray			Rtl8192DEAGCTAB_2GArray
+	#define Rtl8192D_AGCTAB_2TArray 			Rtl8192DEAGCTAB_2TArray
+	#define Rtl8192D_AGCTAB_1TArray 			Rtl8192DEAGCTAB_1TArray
+	#define Rtl8192D_PHY_REG_2TArray			Rtl8192DEPHY_REG_2TArray
+	#define Rtl8192D_PHY_REG_1TArray			Rtl8192DEPHY_REG_1TArray
+	#define Rtl8192D_PHY_REG_Array_PG			Rtl8192DEPHY_REG_Array_PG
+	#define Rtl8192D_PHY_REG_Array_MP			Rtl8192DEPHY_REG_Array_MP
+	#define Rtl8192D_RadioA_2TArray				Rtl8192DERadioA_2TArray
+	#define Rtl8192D_RadioA_1TArray				Rtl8192DERadioA_1TArray
+	#define Rtl8192D_RadioB_2TArray				Rtl8192DERadioB_2TArray
+	#define Rtl8192D_RadioB_1TArray				Rtl8192DERadioB_1TArray
+	#define Rtl8192D_RadioA_2T_intPAArray		Rtl8192DERadioA_2T_intPAArray
+	#define Rtl8192D_RadioB_2T_intPAArray 		Rtl8192DERadioB_2T_intPAArray
+
+	// Array length
+	#define Rtl8192D_FwImageArrayLength			Rtl8192DEImgArrayLength
+	#define Rtl8192D_MAC_ArrayLength				Rtl8192DEMAC_2T_ArrayLength
+	#define Rtl8192D_AGCTAB_5GArrayLength			Rtl8192DEAGCTAB_5GArrayLength
+	#define Rtl8192D_AGCTAB_2GArrayLength			Rtl8192DEAGCTAB_2GArrayLength
+	#define Rtl8192D_AGCTAB_2TArrayLength			Rtl8192DEAGCTAB_2TArrayLength
+	#define Rtl8192D_AGCTAB_1TArrayLength			Rtl8192DEAGCTAB_1TArrayLength
+	#define Rtl8192D_AGCTAB_ArrayLength 			Rtl8192DEAGCTAB_ArrayLength
+	#define Rtl8192D_PHY_REG_2TArrayLength			Rtl8192DEPHY_REG_2TArrayLength
+	#define Rtl8192D_PHY_REG_1TArrayLength			Rtl8192DEPHY_REG_1TArrayLength
+	#define Rtl8192D_PHY_REG_Array_PGLength		Rtl8192DEPHY_REG_Array_PGLength
+	#define Rtl8192D_PHY_REG_Array_MPLength		Rtl8192DEPHY_REG_Array_MPLength
+	#define Rtl8192D_RadioA_2TArrayLength			Rtl8192DERadioA_2TArrayLength
+	#define Rtl8192D_RadioB_2TArrayLength			Rtl8192DERadioB_2TArrayLength
+	#define Rtl8192D_RadioA_2T_intPAArrayLength		Rtl8192DERadioA_2T_intPAArrayLength
+	#define Rtl8192D_RadioB_2T_intPAArrayLength		Rtl8192DERadioB_2T_intPAArrayLength
 
 #elif defined(CONFIG_USB_HCI)
 
 	#include "Hal8192DUHWImg.h"
-	#include "Hal8192DUTestHWImg.h"
 
-	//2TODO: We should define 8192S firmware related macro settings here!!
 	#define RTL819X_DEFAULT_RF_TYPE		RF_1T2R
-	#define RTL819X_TOTAL_RF_PATH			2
 
-	//2TODO:  The following need to check!!
-	#define	RTL8192D_FW_IMG					"rtl8192DU\\rtl8192dfw.bin"
+//---------------------------------------------------------------------
+//		RTL8192DU From file
+//---------------------------------------------------------------------
+	#define RTL8192D_FW_IMG					"rtl8192DU\\rtl8192dfw.bin"
 
-	//For 92DU
 	#define RTL8192D_PHY_REG					"rtl8192DU\\PHY_REG.txt"
 	#define RTL8192D_PHY_REG_PG				"rtl8192DU\\PHY_REG_PG.txt"
 	#define RTL8192D_PHY_REG_MP				"rtl8192DU\\PHY_REG_MP.txt"
@@ -111,18 +119,50 @@
 	#define RTL8192D_PHY_RADIO_B_intPA		"rtl8192DU\\radio_b_intPA.txt"
 	#define RTL8192D_PHY_MACREG				"rtl8192DU\\MAC_REG.txt"
 
-	#define RTL8192D_TEST_FW_IMG_FILE			"rtl8192DU\\rtl8192dfw_test.bin"
-	#define RTL8192D_TEST_PHY_REG_PG_FILE	"rtl8192DU\\PHY_REG_PG_test.txt"
+//---------------------------------------------------------------------
+//		RTL8192DU From header
+//---------------------------------------------------------------------
 
-	#define RTL8192D_TEST_PHY_REG_FILE		"rtl8192DU\\PHY_REG_test.txt"
-	#define RTL8192D_TEST_PHY_RADIO_A_FILE	"rtl8192DU\\radio_a_test.txt"
-	#define RTL8192D_TEST_PHY_RADIO_B_FILE	"rtl8192DU\\radio_b_test.txt"
-	#define RTL8192D_TEST_AGC_TAB_2G			"rtl8192DU\\AGC_TAB_2G_test.txt"
-	#define RTL8192D_TEST_AGC_TAB_5G			"rtl8192DU\\AGC_TAB_5G_test.txt"
-	#define RTL8192D_TEST_MAC_REG_FILE		"rtl8192DU\\MAC_REG_test.txt"
+	// Fw Array
+	#define Rtl8192D_FwImageArray 					Rtl8192DUFwImgArray
+
+	// MAC/BB/PHY Array
+	#define Rtl8192D_MAC_Array						Rtl8192DUMAC_2T_Array
+	#define Rtl8192D_AGCTAB_Array					Rtl8192DUAGCTAB_Array
+	#define Rtl8192D_AGCTAB_5GArray				Rtl8192DUAGCTAB_5GArray
+	#define Rtl8192D_AGCTAB_2GArray				Rtl8192DUAGCTAB_2GArray
+	#define Rtl8192D_AGCTAB_2TArray 				Rtl8192DUAGCTAB_2TArray
+	#define Rtl8192D_AGCTAB_1TArray 				Rtl8192DUAGCTAB_1TArray
+	#define Rtl8192D_PHY_REG_2TArray				Rtl8192DUPHY_REG_2TArray
+	#define Rtl8192D_PHY_REG_1TArray				Rtl8192DUPHY_REG_1TArray
+	#define Rtl8192D_PHY_REG_Array_PG				Rtl8192DUPHY_REG_Array_PG
+	#define Rtl8192D_PHY_REG_Array_MP				Rtl8192DUPHY_REG_Array_MP
+	#define Rtl8192D_RadioA_2TArray					Rtl8192DURadioA_2TArray
+	#define Rtl8192D_RadioA_1TArray					Rtl8192DURadioA_1TArray
+	#define Rtl8192D_RadioB_2TArray					Rtl8192DURadioB_2TArray
+	#define Rtl8192D_RadioB_1TArray					Rtl8192DURadioB_1TArray
+	#define Rtl8192D_RadioA_2T_intPAArray			Rtl8192DURadioA_2T_intPAArray
+	#define Rtl8192D_RadioB_2T_intPAArray 			Rtl8192DURadioB_2T_intPAArray
+
+	// Array length
+	#define Rtl8192D_FwImageArrayLength			Rtl8192DUImgArrayLength
+	#define Rtl8192D_MAC_ArrayLength				Rtl8192DUMAC_2T_ArrayLength
+	#define Rtl8192D_AGCTAB_5GArrayLength			Rtl8192DUAGCTAB_5GArrayLength
+	#define Rtl8192D_AGCTAB_2GArrayLength			Rtl8192DUAGCTAB_2GArrayLength
+	#define Rtl8192D_AGCTAB_2TArrayLength			Rtl8192DUAGCTAB_2TArrayLength
+	#define Rtl8192D_AGCTAB_1TArrayLength			Rtl8192DUAGCTAB_1TArrayLength
+	#define Rtl8192D_AGCTAB_ArrayLength 			Rtl8192DUAGCTAB_ArrayLength
+	#define Rtl8192D_PHY_REG_2TArrayLength			Rtl8192DUPHY_REG_2TArrayLength
+	#define Rtl8192D_PHY_REG_1TArrayLength			Rtl8192DUPHY_REG_1TArrayLength
+	#define Rtl8192D_PHY_REG_Array_PGLength		Rtl8192DUPHY_REG_Array_PGLength
+	#define Rtl8192D_PHY_REG_Array_MPLength		Rtl8192DUPHY_REG_Array_MPLength
+	#define Rtl8192D_RadioA_2TArrayLength			Rtl8192DURadioA_2TArrayLength
+	#define Rtl8192D_RadioB_2TArrayLength			Rtl8192DURadioB_2TArrayLength
+	#define Rtl8192D_RadioA_2T_intPAArrayLength		Rtl8192DURadioA_2T_intPAArrayLength
+	#define Rtl8192D_RadioB_2T_intPAArrayLength		Rtl8192DURadioB_2T_intPAArrayLength
 
 	// The file name "_2T" is for 92CU, "_1T"  is for 88CU. Modified by tynli. 2009.11.24.
-	#define Rtl819XFwImageArray					Rtl8192DUFwImgArray
+/*	#define Rtl819XFwImageArray					Rtl8192DUFwImgArray
 	#define Rtl819XMAC_Array					Rtl8192DUMAC_2TArray
 	#define Rtl819XAGCTAB_Array					Rtl8192DUAGCTAB_Array
 	#define Rtl819XAGCTAB_5GArray				Rtl8192DUAGCTAB_5GArray
@@ -139,7 +179,7 @@
 	#define Rtl819XPHY_REG_Array_MP 			Rtl8192DUPHY_REG_Array_MP
 
 	#define Rtl819XAGCTAB_2TArray				Rtl8192DUAGCTAB_2TArray
-	#define Rtl819XAGCTAB_1TArray				Rtl8192DUAGCTAB_1TArray
+	#define Rtl819XAGCTAB_1TArray				Rtl8192DUAGCTAB_1TArray*/
 
 #endif
 
@@ -169,11 +209,7 @@ typedef enum _FIRMWARE_SOURCE{
 
 typedef struct _RT_FIRMWARE{
 	FIRMWARE_SOURCE	eFWSource;
-	#ifdef CONFIG_EMBEDDED_FWIMG
 	u8*			szFwBuffer;
-	#else
-	u8			szFwBuffer[FW_8192D_SIZE];
-	#endif
 	u32			ulFwLength;
 }RT_FIRMWARE, *PRT_FIRMWARE, RT_FIRMWARE_92D, *PRT_FIRMWARE_92D;
 
@@ -335,73 +371,101 @@ typedef enum _USB_RX_AGG_MODE{
 //-------------------------------------------------------------------------
 //	Chip specific
 //-------------------------------------------------------------------------
-#define CHIP_92C  					BIT(0)
-#define CHIP_92C_1T2R			BIT(1)
-#define CHIP_8723					BIT(2) // RTL8723 With BT feature
-#define CHIP_8723_DRV_REV		BIT(3) // RTL8723 Driver Revised
-#define NORMAL_CHIP  				BIT(4)
-#define CHIP_VENDOR_UMC			BIT(5)
-#define CHIP_VENDOR_UMC_B_CUT	BIT(6) // Chip version for ECO
 
-//for 92D
-#define CHIP_92D					BIT(8)
-#define CHIP_92D_SINGLEPHY             BIT(9)
-#define CHIP_92D_C_CUT			BIT(10)
-#define CHIP_92D_D_CUT			BIT(11)
-#define CHIP_92D_E_CUT			BIT(12)
+#define CHIP_BONDING_IDENTIFIER(_value)	(((_value)>>22)&0x3)
+#define CHIP_BONDING_92C_1T2R	0x1
+#define CHIP_BONDING_88C_USB_MCARD	0x2
+#define CHIP_BONDING_88C_USB_HP	0x1
 
-#define IS_NORMAL_CHIP(version)  	(((version) & NORMAL_CHIP) ? _TRUE : _FALSE)
-#define IS_92C_SERIAL(version)   		(((version) & CHIP_92C) ? _TRUE : _FALSE)
-#define IS_8723_SERIES(version)   	(((version) & CHIP_8723) ? _TRUE : _FALSE)
-#define IS_92C_1T2R(version)			(((version) & CHIP_92C) && ((version) & CHIP_92C_1T2R))
-#define IS_VENDOR_UMC(version)		(((version) & CHIP_VENDOR_UMC) ? _TRUE : _FALSE)
-#define IS_VENDOR_UMC_A_CUT(version)	(((version) & CHIP_VENDOR_UMC) ? (((version) & (BIT6|BIT7)) ? _FALSE : _TRUE) : _FALSE)
-#define IS_VENDOR_8723_A_CUT(version)	(((version) & CHIP_VENDOR_UMC) ? (((version) & (BIT6)) ? _FALSE : _TRUE) : _FALSE)
-
-#define IS_92D_SINGLEPHY(version)     ((version & CHIP_92D_SINGLEPHY) ? _TRUE : _FALSE)
-#define IS_92D_C_CUT(version)     ((version & CHIP_92D_C_CUT) ? _TRUE : _FALSE)
-#define IS_92D_D_CUT(version)     ((version & CHIP_92D_D_CUT) ? _TRUE : _FALSE)
-#define IS_92D_E_CUT(version)     ((version & CHIP_92D_E_CUT) ? _TRUE : _FALSE)
-
-// 20100707 Joseph: Add vendor information into chip version definition.
-// 20100902 Roger: Add UMC B-Cut and RTL8723 chip info definition.
+//
+// 2011.01.06. Define new structure of chip version for RTL8723 and so on. Added by tynli.
+//
 /*
-|    BIT 7   |     BIT6     |                BIT 5                | BIT 4              |       BIT 3     |  BIT 2   |  BIT 1   |   BIT 0    |
-+--------+---------+---------------------- +------------ +----------- +------ +-----------------+
-|Reserved | UMC BCut |Manufacturer(TSMC/UMC)  | TEST/NORMAL | 8723 Version | 8723?   | 1T2R?  | 88C/92C |
+     | BIT15:12           |  BIT11:8        | BIT 7              |  BIT6:4  |      BIT3          | BIT2:0  |
+     |-------------+-----------+-----------+-------+-----------+-------|
+     | IC version(CUT)  | ROM version  | Manufacturer  | RF type  |  Chip type       | IC Type |
+     |                           |                      | TSMC/UMC    |              | TEST/NORMAL|             |
 */
-/*
-92D chip ver:
-BIT8: IS 92D
-BIT9: single phy
-BIT10: C-cut
-BIT11: D-cut
-BIT12: E-cut
-*/
+// [15:12] IC version(CUT): A-cut=0, B-cut=1, C-cut=2, D-cut=3
+// [7] Manufacturer: TSMC=0, UMC=1
+// [6:4] RF type: 1T1R=0, 1T2R=1, 2T2R=2
+// [3] Chip type: TEST=0, NORMAL=1
+// [2:0] IC type: 81xxC=0, 8723=1, 92D=2
+
+#define CHIP_8723						BIT(0)
+#define CHIP_92D						BIT(1)
+#define NORMAL_CHIP  					BIT(3)
+#define RF_TYPE_1T1R					(~(BIT(4)|BIT(5)|BIT(6)))
+#define RF_TYPE_1T2R					BIT(4)
+#define RF_TYPE_2T2R					BIT(5)
+#define CHIP_VENDOR_UMC				BIT(7)
+#define B_CUT_VERSION					BIT(12)
+#define C_CUT_VERSION					BIT(13)
+#define D_CUT_VERSION					((BIT(12)|BIT(13)))
+#define E_CUT_VERSION					BIT(14)
+
+
+// MASK
+#define IC_TYPE_MASK					(BIT(0)|BIT(1)|BIT(2))
+#define CHIP_TYPE_MASK 				BIT(3)
+#define RF_TYPE_MASK					(BIT(4)|BIT(5)|BIT(6))
+#define MANUFACTUER_MASK			BIT(7)
+#define ROM_VERSION_MASK				(BIT(11)|BIT(10)|BIT(9)|BIT(8))
+#define CUT_VERSION_MASK				(BIT(15)|BIT(14)|BIT(13)|BIT(12))
+
+// Get element
+#define GET_CVID_IC_TYPE(version)			((version) & IC_TYPE_MASK)
+#define GET_CVID_CHIP_TYPE(version)			((version) & CHIP_TYPE_MASK)
+#define GET_CVID_RF_TYPE(version)			((version) & RF_TYPE_MASK)
+#define GET_CVID_MANUFACTUER(version)		((version) & MANUFACTUER_MASK)
+#define GET_CVID_ROM_VERSION(version)		((version) & ROM_VERSION_MASK)
+#define GET_CVID_CUT_VERSION(version)		((version) & CUT_VERSION_MASK)
+
+#define IS_81XXC(version)					((GET_CVID_IC_TYPE(version) == 0)? _TRUE : _FALSE)
+#define IS_8723_SERIES(version)				((GET_CVID_IC_TYPE(version) == CHIP_8723)? _TRUE : _FALSE)
+#define IS_92D(version)						((GET_CVID_IC_TYPE(version) == CHIP_92D)? _TRUE : _FALSE)
+#define IS_1T1R(version)						((GET_CVID_RF_TYPE(version))? _FALSE : _TRUE)
+#define IS_1T2R(version)						((GET_CVID_RF_TYPE(version) == RF_TYPE_1T2R)? _TRUE : _FALSE)
+#define IS_2T2R(version)						((GET_CVID_RF_TYPE(version) == RF_TYPE_2T2R)? _TRUE : _FALSE)
+#define IS_CHIP_VENDOR_UMC(version)			((GET_CVID_MANUFACTUER(version))? _TRUE: _FALSE)
+
+#define IS_92C_SERIAL(version)   				((IS_81XXC(version) && IS_2T2R(version)) ? _TRUE : _FALSE)
+#define IS_VENDOR_UMC_A_CUT(version)		((IS_CHIP_VENDOR_UMC(version)) ? ((GET_CVID_CUT_VERSION(version)) ? _FALSE : _TRUE) : _FALSE)
+#define IS_VENDOR_8723_A_CUT(version)		((IS_8723_SERIES(version)) ? ((GET_CVID_CUT_VERSION(version)) ? _FALSE : _TRUE) : _FALSE)
+// <tynli_Note> 88/92C UMC B-cut vendor is set to TSMC so we need to check CHIP_VENDOR_UMC bit is not 1.
+#define IS_81xxC_VENDOR_UMC_B_CUT(version)	((IS_CHIP_VENDOR_UMC(version)) ? ((GET_CVID_CUT_VERSION(version) == B_CUT_VERSION) ? _TRUE : _FALSE):_FALSE)
+#define IS_92D_SINGLEPHY(version)     			((IS_92D(version)) ? (IS_2T2R(version) ? _TRUE: _FALSE) : _FALSE)
+
+#define IS_92D_C_CUT(version)    			((IS_92D(version)) ? ((GET_CVID_CUT_VERSION(version) == C_CUT_VERSION) ? _TRUE : _FALSE) : _FALSE)
+#define IS_92D_D_CUT(version)    			((IS_92D(version)) ? ((GET_CVID_CUT_VERSION(version) == D_CUT_VERSION) ? _TRUE : _FALSE) : _FALSE)
+#define IS_92D_E_CUT(version)    			((IS_92D(version)) ? ((GET_CVID_CUT_VERSION(version) == E_CUT_VERSION) ? _TRUE : _FALSE) : _FALSE)
+#define IS_NORMAL_CHIP92D(version)		((GET_CVID_CHIP_TYPE(version))? _TRUE: _FALSE)
+
 typedef enum _VERSION_8192D{
-	VERSION_TEST_CHIP_88C = 0x00,
-	VERSION_TEST_CHIP_92C = 0x01,
-	VERSION_NORMAL_TSMC_CHIP_88C = 0x10,
-	VERSION_NORMAL_TSMC_CHIP_92C = 0x11,
-	VERSION_NORMAL_TSMC_CHIP_92C_1T2R = 0x13,
-	VERSION_NORMAL_UMC_CHIP_88C_A_CUT = 0x30,
-	VERSION_NORMAL_UMC_CHIP_92C_A_CUT = 0x31,
-	VERSION_NORMAL_UMC_CHIP_92C_1T2R_A_CUT = 0x33,
-	VERSION_NORMAL_UMC_CHIP_8723_1T1R_A_CUT = 0x34,
-	VERSION_NORMAL_UMC_CHIP_8723_1T1R_B_CUT = 0x3c,
-	VERSION_NORMAL_UMC_CHIP_88C_B_CUT = 0x70,
-	VERSION_NORMAL_UMC_CHIP_92C_B_CUT = 0x71,
-	VERSION_NORMAL_UMC_CHIP_92C_1T2R_B_CUT = 0x73,
-	VERSION_TEST_CHIP_92D_SINGLEPHY= 0x300,
-	VERSION_TEST_CHIP_92D_DUALPHY = 0x100,
-	VERSION_NORMAL_CHIP_92D_SINGLEPHY= 0x310,
-	VERSION_NORMAL_CHIP_92D_DUALPHY = 0x110,
-	VERSION_NORMAL_CHIP_92D_C_CUT_SINGLEPHY = 0x710,
-	VERSION_NORMAL_CHIP_92D_C_CUT_DUALPHY = 0x510,
-	VERSION_NORMAL_CHIP_92D_D_CUT_SINGLEPHY = 0xB10,
-	VERSION_NORMAL_CHIP_92D_D_CUT_DUALPHY = 0x910,
-	VERSION_NORMAL_CHIP_92D_E_CUT_SINGLEPHY = 0x1310,
-	VERSION_NORMAL_CHIP_92D_E_CUT_DUALPHY = 0x1110,
+	VERSION_TEST_CHIP_88C = 0x0000,
+	VERSION_TEST_CHIP_92C = 0x0020,
+	VERSION_TEST_UMC_CHIP_8723 = 0x0081,
+	VERSION_NORMAL_TSMC_CHIP_88C = 0x0008,
+	VERSION_NORMAL_TSMC_CHIP_92C = 0x0028,
+	VERSION_NORMAL_TSMC_CHIP_92C_1T2R = 0x0018,
+	VERSION_NORMAL_UMC_CHIP_88C_A_CUT = 0x0088,
+	VERSION_NORMAL_UMC_CHIP_92C_A_CUT = 0x00a8,
+	VERSION_NORMAL_UMC_CHIP_92C_1T2R_A_CUT = 0x0098,
+	VERSION_NORMAL_UMC_CHIP_8723_1T1R_A_CUT = 0x0089,
+	VERSION_NORMAL_UMC_CHIP_8723_1T1R_B_CUT = 0x1089,
+	VERSION_NORMAL_UMC_CHIP_88C_B_CUT = 0x1088,
+	VERSION_NORMAL_UMC_CHIP_92C_B_CUT = 0x10a8,
+	VERSION_NORMAL_UMC_CHIP_92C_1T2R_B_CUT = 0x1090,
+	VERSION_TEST_CHIP_92D_SINGLEPHY= 0x0022,
+	VERSION_TEST_CHIP_92D_DUALPHY = 0x0002,
+	VERSION_NORMAL_CHIP_92D_SINGLEPHY= 0x002a,
+	VERSION_NORMAL_CHIP_92D_DUALPHY = 0x000a,
+	VERSION_NORMAL_CHIP_92D_C_CUT_SINGLEPHY = 0x202a,
+	VERSION_NORMAL_CHIP_92D_C_CUT_DUALPHY = 0x200a,
+	VERSION_NORMAL_CHIP_92D_D_CUT_SINGLEPHY = 0x302a,
+	VERSION_NORMAL_CHIP_92D_D_CUT_DUALPHY = 0x300a,
+	VERSION_NORMAL_CHIP_92D_E_CUT_SINGLEPHY = 0x402a,
+	VERSION_NORMAL_CHIP_92D_E_CUT_DUALPHY = 0x400a,
 }VERSION_8192D,*PVERSION_8192D;
 
 
@@ -423,15 +487,17 @@ enum ChannelPlan{
 };
 
 typedef struct _TxPowerInfo{
-	u8 CCKIndex[RF90_PATH_MAX][CHANNEL_GROUP_MAX];
-	u8 HT40_1SIndex[RF90_PATH_MAX][CHANNEL_GROUP_MAX];
-	u8 HT40_2SIndexDiff[RF90_PATH_MAX][CHANNEL_GROUP_MAX];
-	u8 HT20IndexDiff[RF90_PATH_MAX][CHANNEL_GROUP_MAX];
-	u8 OFDMIndexDiff[RF90_PATH_MAX][CHANNEL_GROUP_MAX];
-	u8 HT40MaxOffset[RF90_PATH_MAX][CHANNEL_GROUP_MAX];
-	u8 HT20MaxOffset[RF90_PATH_MAX][CHANNEL_GROUP_MAX];
+	u8 CCKIndex[RF_PATH_MAX][CHANNEL_GROUP_MAX];
+	u8 HT40_1SIndex[RF_PATH_MAX][CHANNEL_GROUP_MAX];
+	u8 HT40_2SIndexDiff[RF_PATH_MAX][CHANNEL_GROUP_MAX];
+	s8 HT20IndexDiff[RF_PATH_MAX][CHANNEL_GROUP_MAX];
+	u8 OFDMIndexDiff[RF_PATH_MAX][CHANNEL_GROUP_MAX];
+	u8 HT40MaxOffset[RF_PATH_MAX][CHANNEL_GROUP_MAX];
+	u8 HT20MaxOffset[RF_PATH_MAX][CHANNEL_GROUP_MAX];
 	u8 TSSI_A[3];
 	u8 TSSI_B[3];
+	u8 TSSI_A_5G[3];		//5GL/5GM/5GH
+	u8 TSSI_B_5G[3];
 }TxPowerInfo, *PTxPowerInfo;
 
 #define EFUSE_REAL_CONTENT_LEN	1024
@@ -443,6 +509,12 @@ typedef struct _TxPowerInfo{
 // For worst case:
 // | 2byte|----8bytes----|1byte|--7bytes--| //92D
 #define EFUSE_OOB_PROTECT_BYTES 	18 // PG data exclude header, dummy 7 bytes frome CP test and reserved 1byte.
+
+typedef enum _PA_MODE {
+	PA_MODE_EXTERNAL = 0x00,
+	PA_MODE_INTERNAL_SP3T = 0x01,
+	PA_MODE_INTERNAL_SPDT = 0x02
+} PA_MODE;
 
 #ifdef CONFIG_PCI_HCI
 struct hal_data_8192de
@@ -456,6 +528,8 @@ struct hal_data_8192de
 	BOOLEAN		bIsVS;
 	BOOLEAN		bSupportRemoteWakeUp;
 	u8	AutoLoadStatusFor8192D;
+
+	BOOLEAN		bNOPG;
 
 	BOOLEAN       bMasterOfDMSP;
 	BOOLEAN       bSlaveOfDMSP;
@@ -503,15 +577,16 @@ struct hal_data_8192de
 
 	u8	EEPROMC9;
 	u8	EEPROMCC;
+	u8	PAMode;
 
-	u8	TxPwrLevelCck[RF90_PATH_MAX][CHANNEL_MAX_NUMBER_2G];
-	u8	TxPwrLevelHT40_1S[RF90_PATH_MAX][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr
-	u8	TxPwrLevelHT40_2S[RF90_PATH_MAX][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr
-	u8	TxPwrHt20Diff[RF90_PATH_MAX][CHANNEL_MAX_NUMBER];// HT 20<->40 Pwr diff
-	u8	TxPwrLegacyHtDiff[RF90_PATH_MAX][CHANNEL_MAX_NUMBER];// For HT<->legacy pwr diff
+	u8	TxPwrLevelCck[RF_PATH_MAX][CHANNEL_MAX_NUMBER_2G];
+	u8	TxPwrLevelHT40_1S[RF_PATH_MAX][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr
+	u8	TxPwrLevelHT40_2S[RF_PATH_MAX][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr
+	s8	TxPwrHt20Diff[RF_PATH_MAX][CHANNEL_MAX_NUMBER];// HT 20<->40 Pwr diff
+	u8	TxPwrLegacyHtDiff[RF_PATH_MAX][CHANNEL_MAX_NUMBER];// For HT<->legacy pwr diff
 	// For power group
-	u8	PwrGroupHT20[RF90_PATH_MAX][CHANNEL_MAX_NUMBER];
-	u8	PwrGroupHT40[RF90_PATH_MAX][CHANNEL_MAX_NUMBER];
+	u8	PwrGroupHT20[RF_PATH_MAX][CHANNEL_MAX_NUMBER];
+	u8	PwrGroupHT40[RF_PATH_MAX][CHANNEL_MAX_NUMBER];
 
 	u8	LegacyHTTxPowerDiff;// Legacy to HT rate power diff
 
@@ -575,6 +650,8 @@ struct hal_data_8192de
 
 	BOOLEAN		bEarlyModeEnable;
 
+	ATOMIC_T	IQKRdyForXmit;// Tx must wait for IQK done
+
 #if 1
 	IQK_MATRIX_REGS_SETTING IQKMatrixRegSetting[IQK_Matrix_Settings_NUM];
 #else
@@ -587,11 +664,12 @@ struct hal_data_8192de
 	u8	LastHMEBoxNum;
 
 	u8	fw_ractrl;
-	u8	RegTxPause;
 	// Beacon function related global variable.
 	u32	RegBcnCtrlVal;
+	u8	RegTxPause;
 	u8	RegFwHwTxQCtrl;
 	u8	RegReg542;
+	u8	RegCR_1;
 
 	struct dm_priv	dmpriv;
 
@@ -652,12 +730,13 @@ struct hal_data_8192du
 	BAND_TYPE	BandSet92D;
 	BOOLEAN		bIsVS;
 
-	BOOLEAN		bSupportRemoteWakeUp;
+	BOOLEAN		bNOPG;
 
-	BOOLEAN       bMasterOfDMSP;
-	BOOLEAN       bSlaveOfDMSP;
-#if (RTL8192D_DUAL_MAC_MODE_SWITCH == 1)
-	PADAPTER	BuddyAdapter;
+	BOOLEAN		bSupportRemoteWakeUp;
+	BOOLEAN		bMasterOfDMSP;
+	BOOLEAN		bSlaveOfDMSP;
+#ifdef CONFIG_DUALMAC_CONCURRENT
+	BOOLEAN		bInModeSwitchProcess;
 #endif
 
 	u16	CustomerID;
@@ -697,15 +776,16 @@ struct hal_data_8192du
 
 	u8	EEPROMC9;
 	u8	EEPROMCC;
+	u8	PAMode;
 
-	u8	TxPwrLevelCck[RF90_PATH_MAX][CHANNEL_MAX_NUMBER_2G];
-	u8	TxPwrLevelHT40_1S[RF90_PATH_MAX][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr
-	u8	TxPwrLevelHT40_2S[RF90_PATH_MAX][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr
-	u8	TxPwrHt20Diff[RF90_PATH_MAX][CHANNEL_MAX_NUMBER];// HT 20<->40 Pwr diff
-	u8	TxPwrLegacyHtDiff[RF90_PATH_MAX][CHANNEL_MAX_NUMBER];// For HT<->legacy pwr diff
+	u8	TxPwrLevelCck[RF_PATH_MAX][CHANNEL_MAX_NUMBER_2G];
+	u8	TxPwrLevelHT40_1S[RF_PATH_MAX][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr
+	u8	TxPwrLevelHT40_2S[RF_PATH_MAX][CHANNEL_MAX_NUMBER];	// For HT 40MHZ pwr
+	s8	TxPwrHt20Diff[RF_PATH_MAX][CHANNEL_MAX_NUMBER];// HT 20<->40 Pwr diff
+	u8	TxPwrLegacyHtDiff[RF_PATH_MAX][CHANNEL_MAX_NUMBER];// For HT<->legacy pwr diff
 	// For power group
-	u8	PwrGroupHT20[RF90_PATH_MAX][CHANNEL_MAX_NUMBER];
-	u8	PwrGroupHT40[RF90_PATH_MAX][CHANNEL_MAX_NUMBER];
+	u8	PwrGroupHT20[RF_PATH_MAX][CHANNEL_MAX_NUMBER];
+	u8	PwrGroupHT40[RF_PATH_MAX][CHANNEL_MAX_NUMBER];
 
 	u8	LegacyHTTxPowerDiff;// Legacy to HT rate power diff
 
@@ -769,6 +849,8 @@ struct hal_data_8192du
 
 	BOOLEAN		bEarlyModeEnable;
 
+	ATOMIC_T	IQKRdyForXmit;// Tx must wait for IQK done
+
 #if 1
 	IQK_MATRIX_REGS_SETTING IQKMatrixRegSetting[IQK_Matrix_Settings_NUM];
 #else
@@ -781,11 +863,12 @@ struct hal_data_8192du
 	u8	LastHMEBoxNum;
 
 	u8	fw_ractrl;
-	u8	RegTxPause;
 	// Beacon function related global variable.
 	u32	RegBcnCtrlVal;
+	u8	RegTxPause;
 	u8	RegFwHwTxQCtrl;
 	u8	RegReg542;
+	u8	RegCR_1;
 
 	struct dm_priv	dmpriv;
 
@@ -851,9 +934,42 @@ u8 GetEEPROMSize8192D(PADAPTER Adapter);
 void rtl8192d_HalSetBrateCfg(PADAPTER Adapter, u8 *mBratesOS, u16 *pBrateCfg);
 BOOLEAN PHY_CheckPowerOffFor8192D(PADAPTER Adapter);
 VOID PHY_SetPowerOnFor8192D(PADAPTER Adapter);
-void PHY_ConfigMacPhyMode92D(PADAPTER Adapter);
+//void PHY_ConfigMacPhyMode92D(PADAPTER Adapter);
 void rtl8192d_free_hal_data(_adapter * padapter);
 void rtl8192d_set_hal_ops(struct hal_ops *pHalFunc);
 
 #endif
+
+#ifdef CONFIG_MP_INCLUDED
+
+
+extern void Hal_SetAntenna(PADAPTER pAdapter);
+extern void Hal_SetBandwidth(PADAPTER pAdapter);
+
+extern void Hal_SetTxPower(PADAPTER pAdapter);
+extern void Hal_SetCarrierSuppressionTx(PADAPTER pAdapter, u8 bStart);
+extern void Hal_SetSingleToneTx ( PADAPTER pAdapter , u8 bStart );
+extern void Hal_SetSingleCarrierTx (PADAPTER pAdapter, u8 bStart);
+extern void Hal_SetContinuousTx (PADAPTER pAdapter, u8 bStart);
+extern void Hal_SetBandwidth(PADAPTER pAdapter);
+
+extern void Hal_SetDataRate(PADAPTER pAdapter);
+extern void Hal_SetChannel(PADAPTER pAdapter);
+extern void Hal_SetAntennaPathPower(PADAPTER pAdapter);
+extern s32 Hal_SetThermalMeter(PADAPTER pAdapter, u8 target_ther);
+extern s32 Hal_SetPowerTracking(PADAPTER padapter, u8 enable);
+extern void Hal_GetPowerTracking(PADAPTER padapter, u8 * enable);
+extern void Hal_GetThermalMeter(PADAPTER pAdapter, u8 *value);
+extern void Hal_mpt_SwitchRfSetting(PADAPTER pAdapter);
+extern void Hal_MPT_CCKTxPowerAdjust(PADAPTER Adapter, BOOLEAN bInCH14);
+extern void Hal_MPT_CCKTxPowerAdjustbyIndex(PADAPTER pAdapter, BOOLEAN beven);
+extern void Hal_SetCCKTxPower(PADAPTER pAdapter, u8 * TxPower);
+extern void Hal_SetOFDMTxPower(PADAPTER pAdapter, u8 * TxPower);
+extern void Hal_TriggerRFThermalMeter(PADAPTER pAdapter);
+extern u8 Hal_ReadRFThermalMeter(PADAPTER pAdapter);
+extern void Hal_SetCCKContinuousTx(PADAPTER pAdapter, u8 bStart);
+extern void Hal_SetOFDMContinuousTx(PADAPTER pAdapter, u8 bStart);
+
+
+#endif //end CONFIG_MP_INCLUDED
 

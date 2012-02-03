@@ -50,6 +50,7 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_MEDIA_STATUS,
 	HW_VAR_MEDIA_STATUS1,
 	HW_VAR_SET_OPMODE,
+	HW_VAR_MAC_ADDR,
 	HW_VAR_BSSID,
 	HW_VAR_INIT_RTS_RATE,
 	HW_VAR_BASIC_RATE,
@@ -97,7 +98,8 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_SWITCH_EPHY_WoWLAN,
 	HW_VAR_EFUSE_BYTES,
 	HW_VAR_FIFO_CLEARN_UP,
-	HW_VAR_WOWLAN,
+	HW_VAR_CHECK_TXBUF,
+	HW_VAR_APFM_ON_MAC, //Auto FSM to Turn On, include clock, isolation, power control for MAC only
 }HW_VARIABLES;
 
 typedef enum _HAL_DEF_VARIABLE{
@@ -189,13 +191,17 @@ struct hal_ops {
 	int 	(*Efuse_PgPacketWrite)(PADAPTER pAdapter, u8 offset, u8 word_en, u8 *data, BOOLEAN bPseudoTest);
 	u8	(*Efuse_WordEnableDataWrite)(PADAPTER pAdapter, u16 efuse_addr, u8 word_en, u8 *data, BOOLEAN bPseudoTest);
 	
-#ifdef SILENT_RESET_FOR_SPECIFIC_PLATFOM
+#ifdef DBG_CONFIG_ERROR_DETECT
 	void (*sreset_init_value)(_adapter *padapter);
 	void (*sreset_reset_value)(_adapter *padapter);		
 	void (*silentreset)(_adapter *padapter);
 	void (*sreset_xmit_status_check)(_adapter *padapter);
 	void (*sreset_linked_status_check) (_adapter *padapter);
 	u8 (*sreset_get_wifi_status)(_adapter *padapter);
+#endif
+
+#ifdef CONFIG_IOL
+	int (*IOL_exec_cmds_sync)(ADAPTER *adapter, struct xmit_frame *xmit_frame, u32 max_wating_ms);
 #endif
 };
 
@@ -254,11 +260,7 @@ typedef enum _HARDWARE_TYPE{
 typedef struct eeprom_priv EEPROM_EFUSE_PRIV, *PEEPROM_EFUSE_PRIV;
 #define GET_EEPROM_EFUSE_PRIV(priv)	(&priv->eeprompriv)
 
-struct wowlan_ioctl_param{
-	unsigned int subcode;
-	unsigned int len;
-	unsigned char data[0];
-};
+
 void	rtw_dm_init(_adapter *padapter);
 void	rtw_sw_led_init(_adapter *padapter);
 void	rtw_sw_led_deinit(_adapter *padapter);
@@ -270,7 +272,7 @@ void	rtw_hal_stop(_adapter *padapter);
 void	intf_chip_configure(_adapter *padapter);
 void	intf_read_chip_info(_adapter *padapter);
 void	intf_read_chip_version(_adapter *padapter);
-#ifdef SILENT_RESET_FOR_SPECIFIC_PLATFOM
+#ifdef DBG_CONFIG_ERROR_DETECT
 void	rtw_sreset_init(_adapter *padapter);
 #endif
 

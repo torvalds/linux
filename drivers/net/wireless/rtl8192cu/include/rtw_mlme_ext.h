@@ -117,11 +117,12 @@ typedef enum _RT_CHANNEL_DOMAIN
 	RT_CHANNEL_DOMAIN_TURKEY = 0x0F,
 	RT_CHANNEL_DOMAIN_JAPAN = 0x10,
 	RT_CHANNEL_DOMAIN_FCC_NO_DFS = 0x11,
-	RT_CHANNEL_DOMAIN_JAPAN_NO_DFS = 0x12,
+	RT_CHANNEL_DOMAIN_WORLD_WIDE37 = 0x12,
 	//===== Add new channel plan above this line===============//
 	RT_CHANNEL_DOMAIN_MAX,
 }RT_CHANNEL_DOMAIN, *PRT_CHANNEL_DOMAIN;
 
+#define rtw_is_channel_plan_valid(chplan) (chplan>=0 && chplan<RT_CHANNEL_DOMAIN_MAX)
 
 #define	MAX_SCAN_CHANNEL_NUM			54
 
@@ -172,8 +173,7 @@ struct	ss_res
 	int	bss_cnt;
 	int	channel_idx;
 	int	scan_mode;
-	int	ss_ssidlen;
-	unsigned char	ss_ssid[IW_ESSID_MAX_SIZE + 1];
+	NDIS_802_11_SSID ssid[RTW_SSID_SCAN_AMOUNT];
 };
 
 //#define AP_MODE				0x0C
@@ -292,6 +292,8 @@ typedef struct _RT_CHANNEL_INFO
 #endif
 }RT_CHANNEL_INFO, *PRT_CHANNEL_INFO;
 
+extern int rtw_is_channel_set_contains_channel(RT_CHANNEL_INFO *channel_set, const u32 channel_num);
+
 struct mlme_ext_priv
 {
 	_adapter	*padapter;
@@ -396,13 +398,17 @@ void ERP_IE_handler(_adapter *padapter, PNDIS_802_11_VARIABLE_IEs pIE);
 void VCS_update(_adapter *padapter, struct sta_info *psta);
 
 void update_beacon_info(_adapter *padapter, u8 *pframe, uint len, struct sta_info *psta);
-
+#ifdef CONFIG_DFS
+void process_csa_ie(_adapter *padapter, u8 *pframe, uint len);
+#endif //CONFIG_DFS
 void update_IOT_info(_adapter *padapter);
 void update_capinfo(PADAPTER Adapter, u16 updateCap);
 void update_wireless_mode(_adapter * padapter);
 void update_bmc_sta_support_rate(_adapter *padapter, u32 mac_id);
 int update_sta_support_rate(_adapter *padapter, u8* pvar_ie, uint var_ie_len, int cam_idx);
 
+//for sta/adhoc mode
+void update_sta_info(_adapter *padapter, struct sta_info *psta);
 unsigned int update_basic_rate(unsigned char *ptn, unsigned int ptn_sz);
 unsigned int update_supported_rate(unsigned char *ptn, unsigned int ptn_sz);
 unsigned int update_MSC_rate(struct HT_caps_element *pHT_caps);
@@ -465,7 +471,7 @@ void issue_auth(_adapter *padapter, struct sta_info *psta, unsigned short status
 //	Added by Albert 2010/07/26
 //	blnbc: 1 -> broadcast probe request
 //	blnbc: 0 -> unicast probe request. The address 1 will be the BSSID.
-void issue_probereq(_adapter *padapter, u8 blnbc);
+void issue_probereq(_adapter *padapter, NDIS_802_11_SSID *pssid, u8 blnbc);
 void issue_nulldata(_adapter *padapter, unsigned int power_mode);
 void issue_qos_nulldata(_adapter *padapter, unsigned char *da, u16 tid);
 void issue_deauth(_adapter *padapter, unsigned char *da, unsigned short reason);
@@ -543,6 +549,7 @@ int rtw_check_beacon_data(_adapter *padapter, u8 *pbuf,  int len);
 #ifdef CONFIG_NATIVEAP_MLME
 void bss_cap_update(_adapter *padapter, struct sta_info *psta);
 void sta_info_update(_adapter *padapter, struct sta_info *psta);
+void ap_sta_info_defer_update(_adapter *padapter, struct sta_info *psta);
 void ap_free_sta(_adapter *padapter, struct sta_info *psta);
 int rtw_sta_flush(_adapter *padapter);
 void start_ap_mode(_adapter *padapter);
@@ -581,6 +588,8 @@ u8 mlme_evt_hdl(_adapter *padapter, unsigned char *pbuf);
 u8 h2c_msg_hdl(_adapter *padapter, unsigned char *pbuf);
 u8 tx_beacon_hdl(_adapter *padapter, unsigned char *pbuf);
 u8 set_chplan_hdl(_adapter *padapter, unsigned char *pbuf);
+u8 led_blink_hdl(_adapter *padapter, unsigned char *pbuf);
+u8 set_csa_hdl(_adapter *padapter, unsigned char *pbuf);	//Kurt: Handling DFS channel switch announcement ie.
 
 #define GEN_DRV_CMD_HANDLER(size, cmd)	{size, &cmd ## _hdl},
 #define GEN_MLME_EXT_HANDLER(size, cmd)	{size, cmd},
@@ -651,6 +660,8 @@ struct cmd_hdl wlancmds[] =
 
 	GEN_MLME_EXT_HANDLER(0, h2c_msg_hdl) /*58*/
 	GEN_MLME_EXT_HANDLER(sizeof(struct SetChannelPlan_param), set_chplan_hdl) /*59*/
+	GEN_MLME_EXT_HANDLER(sizeof(struct LedBlink_param), led_blink_hdl) /*60*/
+	GEN_MLME_EXT_HANDLER(sizeof(struct SetChannelSwitch_param), set_csa_hdl) /*61*/
 };
 
 #endif

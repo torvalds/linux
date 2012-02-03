@@ -183,7 +183,7 @@ int clk_init(void)
         tmpSclk->set_clk(tmpSclk->clk);
         tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6M];
         #if(USE_PLL6M_REPLACE_PLL4)
-        tmpSclk->clk->rate  = 960000000;
+        tmpSclk->clk->rate  = 160000000;
         #else
         tmpSclk->clk->rate  = 100000000;
         #endif

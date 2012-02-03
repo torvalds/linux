@@ -1,0 +1,52 @@
+# bcm943362sdgn6l (6-layer goldengate rev 3) board
+# $Copyright (C) 2010 Broadcom Corporation$
+# $Id: bcm943362sdgn6l.txt 268188 2011-06-21 21:19:03Z ericen $
+#----------------------------------------
+# Notes
+# 1. none.
+#----------------------------------------
+#
+#
+sromrev=3
+boardtype=0x05a0
+boardrev=0x1202
+
+#[NVRAM ONLY]
+manfid=0x2d0
+prodid=0x492
+vendid=0x14e4
+devid=0x4343
+boardflags=0x200
+nocrc=1
+xtalfreq=26000
+boardnum=${serno}
+il0macaddr=00:90:4c:08:7${maclo12}
+ag0=0x0
+aa2g=3
+ccode=CN
+regrev=5
+pa0b0=4784
+pa0b1=64958
+pa0b2=65392
+pa0itssit=62
+pa1itssit=62
+rssismf2g=0xa
+rssismc2g=0x3
+rssisav2g=0x7
+maxp2ga0=0x46
+ofdm2gpo=0x22222222
+mcs2gpo0=0x3333
+mcs2gpo1=0x3333
+wl0id=0x431b
+cckdigfilttype=20
+cckPwrOffset=4
+ofdmanalogfiltbw2g=3
+rfreg033=0x19
+rfreg033_cck=0x1f
+noise_cal_enable_2g=0
+pacalidx2g=10
+swctrlmap_2g=0x0c050c05,0x0a030a03,0x0a030a03,0x0,0x1ff
+triso2g=1
+RAW1=4a 0b ff ff 20 04 d0 02 62 a9
+otpimagesize=76
+

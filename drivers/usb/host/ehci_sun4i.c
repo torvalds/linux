@@ -872,11 +872,6 @@ int sw_usb_enable_ehci(__u32 usbc_no)
 		return -1;
 	}
 
-	if(sw_ehci->host_init_state){
-		DMSG_PANIC("ERR: not support sw_usb_enable_ehci\n");
-		return -1;
-	}
-
 	if(sw_ehci->probe == 1){
 		DMSG_PANIC("ERR: sw_ehci is already enable, can not enable again\n");
 		return -1;

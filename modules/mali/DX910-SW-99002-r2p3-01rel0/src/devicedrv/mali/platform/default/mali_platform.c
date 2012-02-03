@@ -83,11 +83,27 @@ _mali_osk_errcode_t mali_platform_init(void)
 		MALI_PRINT(("try to reset release failed!\n"));
 	}
 	
-	//MALI_PRINT(("mali clock set completed, clock is  %d Mhz\n", rate));
-	
-	
-	/*enable mali axi/apb clock*/
-	if(mali_clk_flag == 0)
+    MALI_SUCCESS;
+}
+
+_mali_osk_errcode_t mali_platform_deinit(void)
+{
+    /*close mali axi/apb clock*/
+    if(mali_clk_flag == 1)
+    {
+    	//MALI_PRINT(("disable mali clock\n"));
+    	mali_clk_flag = 0;
+       clk_disable(h_mali_clk);
+       clk_disable(h_ahb_mali);
+    }
+    MALI_SUCCESS;
+}
+
+_mali_osk_errcode_t mali_platform_power_mode_change(mali_power_mode power_mode)
+{
+	if(power_mode == MALI_POWER_MODE_ON)
+    {
+    	if(mali_clk_flag == 0)
 	{
 		//printk(KERN_WARNING "enable mali clock\n");
 		//MALI_PRINT(("enable mali clock\n"));
@@ -101,14 +117,10 @@ _mali_osk_errcode_t mali_platform_init(void)
 		       MALI_PRINT(("try to enable mali clock failed!\n"));
 	        }
 	}
-	
-	
-    MALI_SUCCESS;
-}
-
-_mali_osk_errcode_t mali_platform_deinit(void)
-{
-	/*close mali axi/apb clock*/
+    }
+    else if(power_mode == MALI_POWER_MODE_LIGHT_SLEEP)
+    {
+    	/*close mali axi/apb clock*/
 	if(mali_clk_flag == 1)
 	{
 		//MALI_PRINT(("disable mali clock\n"));
@@ -116,12 +128,18 @@ _mali_osk_errcode_t mali_platform_deinit(void)
 	       clk_disable(h_mali_clk);
 	       clk_disable(h_ahb_mali);
 	}
-	
-    MALI_SUCCESS;
-}
-
-_mali_osk_errcode_t mali_platform_power_mode_change(mali_power_mode power_mode)
-{
+    }
+    else if(power_mode == MALI_POWER_MODE_DEEP_SLEEP)
+    {
+    	/*close mali axi/apb clock*/
+	if(mali_clk_flag == 1)
+	{
+		//MALI_PRINT(("disable mali clock\n"));
+		mali_clk_flag = 0;
+	       clk_disable(h_mali_clk);
+	       clk_disable(h_ahb_mali);
+	}
+    }
     MALI_SUCCESS;
 }
 

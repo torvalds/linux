@@ -133,7 +133,7 @@ int rtw_os_recvbuf_resource_free(_adapter *padapter, struct recv_buf *precvbuf)
 		usb_free_urb(precvbuf->purb);
 	}
 	
-#endif
+#endif //CONFIG_USB_HCI
 
 
 	if(precvbuf->pskb)
@@ -146,28 +146,49 @@ int rtw_os_recvbuf_resource_free(_adapter *padapter, struct recv_buf *precvbuf)
 
 void rtw_handle_tkip_mic_err(_adapter *padapter,u8 bgroup)
 {
-    union iwreq_data wrqu;
-    struct iw_michaelmicfailure    ev;
-    struct mlme_priv*              pmlmepriv  = &padapter->mlmepriv;
+	union iwreq_data wrqu;
+	struct iw_michaelmicfailure    ev;
+	struct mlme_priv		*pmlmepriv  = &padapter->mlmepriv;
+	struct security_priv	*psecuritypriv = &padapter->securitypriv;
+	u32 cur_time = 0;
+	
+	if( psecuritypriv->last_mic_err_time == 0 )
+	{
+		psecuritypriv->last_mic_err_time = rtw_get_current_time();
+	}
+	else
+	{
+		cur_time = rtw_get_current_time();
 
-    
-    _rtw_memset( &ev, 0x00, sizeof( ev ) );
-    if ( bgroup )
-    {
-        ev.flags |= IW_MICFAILURE_GROUP;
-    }
-    else
-    {
-        ev.flags |= IW_MICFAILURE_PAIRWISE;
-    }
-   
-    ev.src_addr.sa_family = ARPHRD_ETHER;
-    _rtw_memcpy( ev.src_addr.sa_data, &pmlmepriv->assoc_bssid[ 0 ], ETH_ALEN );
+		if( cur_time - psecuritypriv->last_mic_err_time < 60*HZ )
+		{
+			psecuritypriv->btkip_countermeasure = _TRUE;
+			psecuritypriv->last_mic_err_time = 0;
+			psecuritypriv->btkip_countermeasure_time = cur_time;
+		}
+		else
+		{
+			psecuritypriv->last_mic_err_time = rtw_get_current_time();
+		}
+	}
 
-    _rtw_memset( &wrqu, 0x00, sizeof( wrqu ) );
-    wrqu.data.length = sizeof( ev );
+	_rtw_memset( &ev, 0x00, sizeof( ev ) );
+	if ( bgroup )
+	{
+		ev.flags |= IW_MICFAILURE_GROUP;
+	}
+	else
+	{
+		ev.flags |= IW_MICFAILURE_PAIRWISE;
+	}
 
-    wireless_send_event( padapter->pnetdev, IWEVMICHAELMICFAILURE, &wrqu, (char*) &ev );
+	ev.src_addr.sa_family = ARPHRD_ETHER;
+	_rtw_memcpy( ev.src_addr.sa_data, &pmlmepriv->assoc_bssid[ 0 ], ETH_ALEN );
+
+	_rtw_memset( &wrqu, 0x00, sizeof( wrqu ) );
+	wrqu.data.length = sizeof( ev );
+
+	wireless_send_event( padapter->pnetdev, IWEVMICHAELMICFAILURE, &wrqu, (char*) &ev );
 }
 
 void rtw_hostapd_mlme_rx(_adapter *padapter, union recv_frame *precv_frame)
@@ -219,6 +240,10 @@ int rtw_recv_indicatepkt(_adapter *padapter, union recv_frame *precv_frame)
 	struct mlme_priv*pmlmepriv = &padapter->mlmepriv;
 #ifdef CONFIG_TCP_CSUM_OFFLOAD_RX
 	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
+#endif
+
+#ifdef CONFIG_BR_EXT
+	void *br_port = NULL;
 #endif
 
 _func_enter_;
@@ -301,6 +326,35 @@ _func_enter_;
 			//DBG_871X("to APSelf\n");
 		}
 	}
+	
+
+#ifdef CONFIG_BR_EXT
+
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 35))
+	br_port = padapter->pnetdev->br_port;
+#else   // (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 35))
+	rcu_read_lock();
+	br_port = rcu_dereference(padapter->pnetdev->rx_handler_data);
+	rcu_read_unlock();
+#endif  // (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 35))
+
+	if( br_port && (check_fwstate(pmlmepriv, WIFI_STATION_STATE|WIFI_ADHOC_STATE) == _TRUE) )	 	
+	{
+		int nat25_handle_frame(_adapter *priv, struct sk_buff *skb);
+		if (nat25_handle_frame(padapter, skb) == -1) {
+			//priv->ext_stats.rx_data_drops++;
+			//DEBUG_ERR("RX DROP: nat25_handle_frame fail!\n");
+			//return FAIL;
+#if 1			
+			// bypass this frame to upper layer!!
+#else
+			goto _recv_indicatepkt_drop;
+#endif
+		}	
+	}
+
+#endif	// CONFIG_BR_EXT
+
 
 #ifdef CONFIG_TCP_CSUM_OFFLOAD_RX
 	if ( (pattrib->tcpchk_valid == 1) && (pattrib->tcp_chkrpt == 1) ) {

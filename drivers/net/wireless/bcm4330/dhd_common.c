@@ -1771,6 +1771,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 			__FUNCTION__, res));
 	}
 #endif /* defined(KEEP_ALIVE) */
+	msleep(50);
 
 	/* Force STA UP */
 	ret = dhd_wl_ioctl_cmd(dhd, WLC_UP, (char *)&up, sizeof(up), TRUE, 0);

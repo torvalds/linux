@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -16,8 +16,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
-
-******************************************************************************/
+ ******************************************************************************/
 #ifndef _RTL8192D_RECV_H_
 #define _RTL8192D_RECV_H_
 
@@ -65,11 +64,11 @@
 #endif
 
 #elif defined(CONFIG_PCI_HCI)
-#ifndef CONFIG_MINIMAL_MEMORY_USAGE
-	#define MAX_RECVBUF_SZ (9100)
-#else
+//#ifndef CONFIG_MINIMAL_MEMORY_USAGE
+//	#define MAX_RECVBUF_SZ (9100)
+//#else
 	#define MAX_RECVBUF_SZ (4000) // about 4K
-#endif
+//#endif
 
 #define RX_MPDU_QUEUE				0
 #define RX_CMD_QUEUE				1
@@ -123,10 +122,10 @@ typedef struct _Phy_OFDM_Rx_Status_Report_8192cd
 	unsigned char idle_long:1;
 	unsigned char r_ant_train_en:1;
 	unsigned char ANTSELB:1;
-	unsigned char ANTSEL:1;
+	unsigned char ANTSEL:1;	
 #else	// _BIG_ENDIAN_
 	//unsigned char rsvd:4;
-	unsigned char ANTSEL:1;
+	unsigned char ANTSEL:1;	
 	unsigned char ANTSELB:1;
 	unsigned char r_ant_train_en:1;
 	unsigned char idle_long:1;
@@ -166,17 +165,15 @@ typedef struct _INTERRUPT_MSG_FORMAT_EX{
 void rtl8192du_init_recvbuf(_adapter *padapter, struct recv_buf *precvbuf);
 int	rtl8192du_init_recv_priv(_adapter * padapter);
 void	rtl8192du_free_recv_priv(_adapter * padapter);
-void rtl8192du_update_recvframe_attrib_from_recvstat(union recv_frame *precvframe, struct recv_stat *prxstat);
 #endif
 
 #ifdef CONFIG_PCI_HCI
 int	rtl8192de_init_recv_priv(_adapter * padapter);
 void rtl8192de_free_recv_priv(_adapter * padapter);
-void rtl8192de_update_recvframe_attrib_from_recvstat(union recv_frame *precvframe, struct recv_stat *prxstat);
 #endif
 
-void rtl8192d_query_rx_phy_status(union recv_frame *prframe, struct phy_stat *pphy_stat, BOOLEAN bPacketMatchBSSID);
-void rtl8192d_process_phy_info(_adapter *padapter, void *prframe);
+void rtl8192d_translate_rx_signal_stuff(union recv_frame *precvframe, struct phy_stat *pphy_info);
+void rtl8192d_query_rx_desc_status(union recv_frame *precvframe, struct recv_stat *pdesc);
 
 #endif
 

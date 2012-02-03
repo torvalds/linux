@@ -155,6 +155,15 @@ struct tx_invite_resp_info{
 	u8					token;	//	Used to record the dialog token of p2p invitation request frame.
 };
 
+#ifdef CONFIG_WFD
+
+struct wifi_display_info{
+	u16					rtsp_ctrlport;		//	TCP port number at which the this WFD device listens for RTSP messages
+	u16					peer_rtsp_ctrlport;	//	TCP port number at which the peer WFD device listens for RTSP messages
+											//	This filed should be filled when receiving the gropu negotiation request
+};
+#endif //CONFIG_WFD
+
 struct tx_provdisc_req_info{
 	u16					wps_config_method_request;	//	Used when sending the provisioning request frame
 	u16					peer_channel_num[2];		//	The channel number which the receiver stands.
@@ -176,6 +185,11 @@ struct tx_nego_req_info{
 	u8					benable;					//	This negoitation request frame is trigger to send or not
 };
 
+struct group_id_info{
+	u8					go_device_addr[ ETH_ALEN ];	//	The GO's device address of this P2P group
+	u8					ssid[ WLAN_SSID_MAXLEN ];	//	The SSID of this P2P group
+};
+
 struct wifidirect_info{
 	_adapter*				padapter;
 	_timer					find_phase_timer;
@@ -189,6 +203,10 @@ struct wifidirect_info{
 	struct profile_info			profileinfo[ P2P_MAX_PERSISTENT_GROUP_NUM ];	//	Store the profile information of persistent group
 	struct tx_invite_resp_info	inviteresp_info;
 	struct tx_nego_req_info	nego_req_info;
+	struct group_id_info		groupid_info;	//	Store the group id information when doing the group negotiation handshake.
+#ifdef CONFIG_WFD
+	struct wifi_display_info		wfd_info;
+#endif
 	enum P2P_ROLE			role;
 	enum P2P_STATE			pre_p2p_state;
 	enum P2P_STATE			p2p_state;
@@ -369,6 +387,8 @@ extern int hostapd_mode_init(_adapter *padapter);
 extern void hostapd_mode_unload(_adapter *padapter);
 #endif
 
+
+extern void rtw_joinbss_event_prehandle(_adapter *adapter, u8 *pbuf);
 extern void rtw_survey_event_callback(_adapter *adapter, u8 *pbuf);
 extern void rtw_surveydone_event_callback(_adapter *adapter, u8 *pbuf);
 extern void rtw_joinbss_event_callback(_adapter *adapter, u8 *pbuf);
@@ -505,7 +525,7 @@ extern void rtw_generate_random_ibss(u8 *pibss);
 extern struct wlan_network* rtw_find_network(_queue *scanned_queue, u8 *addr);
 extern struct wlan_network* rtw_get_oldest_wlan_network(_queue *scanned_queue);
 
-extern void rtw_free_assoc_resources(_adapter* adapter);
+extern void rtw_free_assoc_resources(_adapter* adapter, int lock_scanned_queue);
 extern void rtw_indicate_disconnect(_adapter* adapter);
 extern void rtw_indicate_connect(_adapter* adapter);
 

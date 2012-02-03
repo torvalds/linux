@@ -777,7 +777,7 @@ static __s32 disp_pll_assign(__u32 sel, __u32 pll_clk)
         DE_WRN("Can't assign PLL for screen%d, pll_clk:%d\n",sel, pll_clk);
     }
 
-    OSAL_PRINTF("====disp_pll_assign====: sel:%d,pll_clk:%d,pll_sel:%d\n", sel, pll_clk, ret);
+    DE_INF("====disp_pll_assign====: sel:%d,pll_clk:%d,pll_sel:%d\n", sel, pll_clk, ret);
 
     return ret;
 }

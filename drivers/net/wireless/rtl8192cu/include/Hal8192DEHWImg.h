@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -22,7 +22,7 @@
 
 #include <basic_types.h>
 
-/*Created on  2011/ 6/22,  2:27*/
+/*Created on  2011/ 8/ 8,  1:41*/
 
 #define ImgArrayLength 29642
 extern u8 Rtl8192DEFwImgArray[ImgArrayLength];
