@@ -1165,8 +1165,6 @@ struct il_rxon_context {
 	 */
 	bool always_active, is_active;
 
-	u32 interface_modes, exclusive_interface_modes;
-
 	struct il_qos_info qos_data;
 
 	struct {

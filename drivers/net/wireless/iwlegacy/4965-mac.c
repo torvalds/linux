@@ -5454,8 +5454,8 @@ il4965_mac_setup_register(struct il_priv *il, u32 max_probe_length)
 	hw->sta_data_size = sizeof(struct il_station_priv);
 	hw->vif_data_size = sizeof(struct il_vif_priv);
 
-	hw->wiphy->interface_modes |= il->ctx.interface_modes;
-	hw->wiphy->interface_modes |= il->ctx.exclusive_interface_modes;
+	hw->wiphy->interface_modes =
+	    BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_ADHOC);
 
 	hw->wiphy->flags |=
 	    WIPHY_FLAG_CUSTOM_REGULATORY | WIPHY_FLAG_DISABLE_BEACON_HINTS;
@@ -6141,8 +6141,6 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	il->ctx.is_active = true;
 	il->ctx.ac_to_fifo = il4965_bss_ac_to_fifo;
 	il->ctx.ac_to_queue = il4965_bss_ac_to_queue;
-	il->ctx.exclusive_interface_modes = BIT(NL80211_IFTYPE_ADHOC);
-	il->ctx.interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 

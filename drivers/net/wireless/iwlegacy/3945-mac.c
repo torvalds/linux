@@ -3557,7 +3557,8 @@ il3945_setup_mac(struct il_priv *il)
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_SPECTRUM_MGMT;
 
-	hw->wiphy->interface_modes = il->ctx.interface_modes;
+	hw->wiphy->interface_modes =
+	    BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_ADHOC);
 
 	hw->wiphy->flags |=
 	    WIPHY_FLAG_CUSTOM_REGULATORY | WIPHY_FLAG_DISABLE_BEACON_HINTS |
@@ -3616,9 +3617,6 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
 	il->cmd_queue = IL39_CMD_QUEUE_NUM;
-
-	il->ctx.interface_modes =
-	    BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_ADHOC);
 
 	/*
 	 * Disabling hardware scan means that mac80211 will perform scans

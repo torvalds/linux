@@ -4566,7 +4566,6 @@ il_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct il_priv *il = hw->priv;
 	struct il_vif_priv *vif_priv = (void *)vif->drv_priv;
 	int err;
-	u32 modes;
 
 	D_MAC80211("enter: type %d, addr %pM\n", vif->type, vif->addr);
 
@@ -4578,15 +4577,7 @@ il_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		goto out;
 	}
 
-	/* check if busy context is exclusive */
-	if (il->ctx.vif &&
-	    (il->ctx.exclusive_interface_modes & BIT(il->ctx.vif->type))) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	modes = il->ctx.interface_modes | il->ctx.exclusive_interface_modes;
-	if (!(modes & BIT(vif->type))) {
+	if (il->ctx.vif) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -4979,10 +4970,10 @@ il_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct il_priv *il = hw->priv;
 	struct il_rxon_context *ctx = il_rxon_ctx_from_vif(vif);
-	u32 modes;
 	int err;
 
-	newtype = ieee80211_iftype_p2p(newtype, newp2p);
+	if (newp2p)
+		return -EOPNOTSUPP;
 
 	mutex_lock(&il->mutex);
 
@@ -4995,22 +4986,10 @@ il_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		goto out;
 	}
 
-	modes = ctx->interface_modes | ctx->exclusive_interface_modes;
-	if (!(modes & BIT(newtype))) {
-		err = -EOPNOTSUPP;
-		goto out;
-	}
-
-	if ((il->ctx.exclusive_interface_modes & BIT(il->ctx.vif->type)) ||
-	    (il->ctx.exclusive_interface_modes & BIT(newtype))) {
-		err = -EINVAL;
-		goto out;
-	}
-
 	/* success */
 	il_teardown_interface(il, vif, true);
 	vif->type = newtype;
-	vif->p2p = newp2p;
+	vif->p2p = false;
 	err = il_setup_interface(il, ctx);
 	WARN_ON(err);
 	/*
