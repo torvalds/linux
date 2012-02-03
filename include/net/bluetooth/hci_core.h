@@ -88,6 +88,18 @@ struct bt_uuid {
 	u8 svc_hint;
 };
 
+struct smp_ltk {
+	struct list_head list;
+	bdaddr_t bdaddr;
+	u8 bdaddr_type;
+	u8 authenticated;
+	u8 type;
+	u8 enc_size;
+	__le16 ediv;
+	u8 rand[8];
+	u8 val[16];
+} __packed;
+
 struct key_master_id {
 	__le16 ediv;
 	u8 rand[8];
@@ -238,6 +250,8 @@ struct hci_dev {
 	struct list_head	uuids;
 
 	struct list_head	link_keys;
+
+	struct list_head	long_term_keys;
 
 	struct list_head	remote_oob_data;
 
@@ -647,8 +661,10 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 struct link_key *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, u8 rand[8]);
 struct link_key *hci_find_link_key_type(struct hci_dev *hdev,
 					bdaddr_t *bdaddr, u8 type);
+int hci_remove_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr);
 int hci_add_ltk(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
 			u8 key_size, __le16 ediv, u8 rand[8], u8 ltk[16]);
+int hci_smp_ltks_clear(struct hci_dev *hdev);
 int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr);
 
 int hci_remote_oob_data_clear(struct hci_dev *hdev);
