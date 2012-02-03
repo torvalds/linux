@@ -1003,9 +1003,12 @@ static void drv_exit(void)
 
     unregister_chrdev(major, DRV_NAME);
 #endif
-    
-    shutdown = 1;   
+
+    shutdown = 1;
+	   
+	//hyh added 
     return;
+	
     mdelay(100); 
     gckGALDEVICE_Stop(galDevice);
     mdelay(50); 

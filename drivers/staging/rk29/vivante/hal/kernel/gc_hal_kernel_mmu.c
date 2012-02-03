@@ -325,7 +325,6 @@ gckMMU_Construct(
 	return gcvSTATUS_OK;
 
 OnError:
-	
 	/* Roll back. */
 	if (mmu != gcvNULL)
 	{
@@ -509,7 +508,7 @@ gckMMU_AllocatePages(
 		/* Not enough pages avaiable. */
 		gcmkONERROR(gcvSTATUS_OUT_OF_RESOURCES);
 	}
-		
+
 	/* Grab the mutex. */
 	gcmkONERROR(gckOS_AcquireMutex(Mmu->os, Mmu->pageTableMutex, gcvINFINITE));
 	mutex = gcvTRUE;
@@ -641,7 +640,6 @@ gckMMU_AllocatePages(
 	return gcvSTATUS_OK;
 
 OnError:
-	
 	if (mutex)
 	{
 		/* Release the mutex. */
@@ -689,7 +687,6 @@ gckMMU_FreePages(
 
 	gcmkHEADER_ARG("Mmu=0x%x PageTable=0x%x PageCount=%lu",
 				   Mmu, PageTable, PageCount);
-
 
 	/* Verify the arguments. */
 	gcmkVERIFY_OBJECT(Mmu, gcvOBJ_MMU);

@@ -4557,8 +4557,13 @@ gckOS_WaitSignal(
     if (!signal->manualReset && timeout == 0) timeout = 1;
 
     rc = wait_for_completion_interruptible_timeout(&signal->event, timeout);
+
+#if 1   // dkm : avoid return OK when timeout in kernel3.0
+    status = (rc == 0) ? gcvSTATUS_TIMEOUT : gcvSTATUS_OK;
+#else
     status = ((rc == 0) && !signal->event.done) ? gcvSTATUS_TIMEOUT
                                                 : gcvSTATUS_OK;
+#endif
 
     /* Return status. */
     gcmkFOOTER();

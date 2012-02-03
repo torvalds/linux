@@ -368,7 +368,7 @@
 	   0 - no use,original code
 	   1 - use
 */
-#define gcdENABLE_MMU_PROTECTING 1
+#define gcdENABLE_MMU_PROTECTING 			1
 
 #endif /* __gc_hal_options_h_ */
 
