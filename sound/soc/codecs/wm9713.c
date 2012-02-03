@@ -1216,7 +1216,7 @@ static int wm9713_soc_probe(struct snd_soc_codec *codec)
 	reg = ac97_read(codec, AC97_CD) & 0x7fff;
 	ac97_write(codec, AC97_CD, reg);
 
-	snd_soc_add_controls(codec, wm9713_snd_ac97_controls,
+	snd_soc_add_codec_controls(codec, wm9713_snd_ac97_controls,
 				ARRAY_SIZE(wm9713_snd_ac97_controls));
 
 	return 0;

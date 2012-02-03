@@ -521,7 +521,7 @@ static int cs4270_probe(struct snd_soc_codec *codec)
 	}
 
 	/* Add the non-DAPM controls */
-	ret = snd_soc_add_controls(codec, cs4270_snd_controls,
+	ret = snd_soc_add_codec_controls(codec, cs4270_snd_controls,
 				ARRAY_SIZE(cs4270_snd_controls));
 	if (ret < 0) {
 		dev_err(codec->dev, "failed to add controls\n");

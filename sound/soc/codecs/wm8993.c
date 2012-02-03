@@ -1604,13 +1604,13 @@ static int wm8993_probe(struct snd_soc_codec *codec)
 	if (ret != 0)
 		return ret;
 
-	snd_soc_add_controls(codec, wm8993_snd_controls,
+	snd_soc_add_codec_controls(codec, wm8993_snd_controls,
 			     ARRAY_SIZE(wm8993_snd_controls));
 	if (wm8993->pdata.num_retune_configs != 0) {
 		dev_dbg(codec->dev, "Using ReTune Mobile\n");
 	} else {
 		dev_dbg(codec->dev, "No ReTune Mobile, using normal EQ\n");
-		snd_soc_add_controls(codec, wm8993_eq_controls,
+		snd_soc_add_codec_controls(codec, wm8993_eq_controls,
 				     ARRAY_SIZE(wm8993_eq_controls));
 	}
 

@@ -1257,7 +1257,7 @@ static int adau1373_probe(struct snd_soc_codec *codec)
 				pdata->drc_setting[i]);
 		}
 
-		snd_soc_add_controls(codec, adau1373_drc_controls,
+		snd_soc_add_codec_controls(codec, adau1373_drc_controls,
 			pdata->num_drc);
 
 		val = 0;
@@ -1282,7 +1282,7 @@ static int adau1373_probe(struct snd_soc_codec *codec)
 	}
 
 	if (!lineout_differential) {
-		snd_soc_add_controls(codec, adau1373_lineout2_controls,
+		snd_soc_add_codec_controls(codec, adau1373_lineout2_controls,
 			ARRAY_SIZE(adau1373_lineout2_controls));
 	}
 

@@ -641,7 +641,7 @@ static int wm8770_probe(struct snd_soc_codec *codec)
 	/* mute all DACs */
 	snd_soc_update_bits(codec, WM8770_DACMUTE, 0x10, 0x10);
 
-	snd_soc_add_controls(codec, wm8770_snd_controls,
+	snd_soc_add_codec_controls(codec, wm8770_snd_controls,
 			     ARRAY_SIZE(wm8770_snd_controls));
 	snd_soc_dapm_new_controls(&codec->dapm, wm8770_dapm_widgets,
 				  ARRAY_SIZE(wm8770_dapm_widgets));

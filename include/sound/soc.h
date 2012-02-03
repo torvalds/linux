@@ -368,9 +368,13 @@ void snd_soc_free_ac97_codec(struct snd_soc_codec *codec);
 struct snd_kcontrol *snd_soc_cnew(const struct snd_kcontrol_new *_template,
 				  void *data, char *long_name,
 				  const char *prefix);
-int snd_soc_add_controls(struct snd_soc_codec *codec,
+int snd_soc_add_codec_controls(struct snd_soc_codec *codec,
 	const struct snd_kcontrol_new *controls, int num_controls);
 int snd_soc_add_platform_controls(struct snd_soc_platform *platform,
+	const struct snd_kcontrol_new *controls, int num_controls);
+int snd_soc_add_card_controls(struct snd_soc_card *soc_card,
+	const struct snd_kcontrol_new *controls, int num_controls);
+int snd_soc_add_dai_controls(struct snd_soc_dai *dai,
 	const struct snd_kcontrol_new *controls, int num_controls);
 int snd_soc_info_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);

@@ -2405,13 +2405,13 @@ static int wm8962_add_widgets(struct snd_soc_codec *codec)
 	struct wm8962_pdata *pdata = dev_get_platdata(codec->dev);
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 
-	snd_soc_add_controls(codec, wm8962_snd_controls,
+	snd_soc_add_codec_controls(codec, wm8962_snd_controls,
 			     ARRAY_SIZE(wm8962_snd_controls));
 	if (pdata && pdata->spk_mono)
-		snd_soc_add_controls(codec, wm8962_spk_mono_controls,
+		snd_soc_add_codec_controls(codec, wm8962_spk_mono_controls,
 				     ARRAY_SIZE(wm8962_spk_mono_controls));
 	else
-		snd_soc_add_controls(codec, wm8962_spk_stereo_controls,
+		snd_soc_add_codec_controls(codec, wm8962_spk_stereo_controls,
 				     ARRAY_SIZE(wm8962_spk_stereo_controls));
 
 

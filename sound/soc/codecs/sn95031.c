@@ -869,7 +869,7 @@ static int sn95031_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, SN95031_SSR2, 0x10);
 	snd_soc_write(codec, SN95031_SSR3, 0x40);
 
-	snd_soc_add_controls(codec, sn95031_snd_controls,
+	snd_soc_add_codec_controls(codec, sn95031_snd_controls,
 			     ARRAY_SIZE(sn95031_snd_controls));
 
 	return 0;

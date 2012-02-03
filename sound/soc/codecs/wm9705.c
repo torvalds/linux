@@ -351,7 +351,7 @@ static int wm9705_soc_probe(struct snd_soc_codec *codec)
 	if (ret)
 		goto reset_err;
 
-	snd_soc_add_controls(codec, wm9705_snd_ac97_controls,
+	snd_soc_add_codec_controls(codec, wm9705_snd_ac97_controls,
 				ARRAY_SIZE(wm9705_snd_ac97_controls));
 
 	return 0;

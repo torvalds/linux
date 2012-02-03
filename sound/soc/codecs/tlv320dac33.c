@@ -1437,7 +1437,7 @@ static int dac33_soc_probe(struct snd_soc_codec *codec)
 
 	/* Only add the FIFO controls, if we have valid IRQ number */
 	if (dac33->irq >= 0)
-		snd_soc_add_controls(codec, dac33_mode_snd_controls,
+		snd_soc_add_codec_controls(codec, dac33_mode_snd_controls,
 				     ARRAY_SIZE(dac33_mode_snd_controls));
 
 err_power:

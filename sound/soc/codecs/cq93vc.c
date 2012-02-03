@@ -157,7 +157,7 @@ static int cq93vc_probe(struct snd_soc_codec *codec)
 	codec->control_data = davinci_vc;
 
 	/* Set controls */
-	snd_soc_add_controls(codec, cq93vc_snd_controls,
+	snd_soc_add_codec_controls(codec, cq93vc_snd_controls,
 			     ARRAY_SIZE(cq93vc_snd_controls));
 
 	/* Off, with power on */

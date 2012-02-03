@@ -637,7 +637,7 @@ static int wm9712_soc_probe(struct snd_soc_codec *codec)
 	ac97_write(codec, AC97_VIDEO, ac97_read(codec, AC97_VIDEO) | 0x3000);
 
 	wm9712_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	snd_soc_add_controls(codec, wm9712_snd_ac97_controls,
+	snd_soc_add_codec_controls(codec, wm9712_snd_ac97_controls,
 				ARRAY_SIZE(wm9712_snd_ac97_controls));
 
 	return 0;

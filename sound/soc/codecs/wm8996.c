@@ -2771,7 +2771,7 @@ static void wm8996_retune_mobile_pdata(struct snd_soc_codec *codec)
 	wm8996->retune_mobile_enum.max = wm8996->num_retune_mobile_texts;
 	wm8996->retune_mobile_enum.texts = wm8996->retune_mobile_texts;
 
-	ret = snd_soc_add_controls(codec, controls, ARRAY_SIZE(controls));
+	ret = snd_soc_add_codec_controls(codec, controls, ARRAY_SIZE(controls));
 	if (ret != 0)
 		dev_err(codec->dev,
 			"Failed to add ReTune Mobile controls: %d\n", ret);
@@ -2966,7 +2966,7 @@ static int wm8996_probe(struct snd_soc_codec *codec)
 	if (wm8996->pdata.num_retune_mobile_cfgs)
 		wm8996_retune_mobile_pdata(codec);
 	else
-		snd_soc_add_controls(codec, wm8996_eq_controls,
+		snd_soc_add_codec_controls(codec, wm8996_eq_controls,
 				     ARRAY_SIZE(wm8996_eq_controls));
 
 	/* If the TX LRCLK pins are not in LRCLK mode configure the

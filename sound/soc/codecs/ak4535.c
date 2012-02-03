@@ -382,7 +382,7 @@ static int ak4535_probe(struct snd_soc_codec *codec)
 	/* power on device */
 	ak4535_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	snd_soc_add_controls(codec, ak4535_snd_controls,
+	snd_soc_add_codec_controls(codec, ak4535_snd_controls,
 				ARRAY_SIZE(ak4535_snd_controls));
 	return 0;
 }

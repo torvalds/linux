@@ -2136,7 +2136,7 @@ static int wm8995_probe(struct snd_soc_codec *codec)
 
 	wm8995_update_class_w(codec);
 
-	snd_soc_add_controls(codec, wm8995_snd_controls,
+	snd_soc_add_codec_controls(codec, wm8995_snd_controls,
 			     ARRAY_SIZE(wm8995_snd_controls));
 	snd_soc_dapm_new_controls(&codec->dapm, wm8995_dapm_widgets,
 				  ARRAY_SIZE(wm8995_dapm_widgets));

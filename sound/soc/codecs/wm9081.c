@@ -1287,7 +1287,7 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 	if (!wm9081->pdata.num_retune_configs) {
 		dev_dbg(codec->dev,
 			"No ReTune Mobile data, using normal EQ\n");
-		snd_soc_add_controls(codec, wm9081_eq_controls,
+		snd_soc_add_codec_controls(codec, wm9081_eq_controls,
 				     ARRAY_SIZE(wm9081_eq_controls));
 	}
 

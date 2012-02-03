@@ -570,7 +570,7 @@ static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_disable_pin(dapm, "AGCOUT");
 
 	/* Add virtual switch */
-	ret = snd_soc_add_controls(codec, ams_delta_audio_controls,
+	ret = snd_soc_add_codec_controls(codec, ams_delta_audio_controls,
 					ARRAY_SIZE(ams_delta_audio_controls));
 	if (ret)
 		dev_warn(card->dev,

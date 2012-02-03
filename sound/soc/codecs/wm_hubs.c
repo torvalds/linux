@@ -895,7 +895,7 @@ int wm_hubs_add_analogue_controls(struct snd_soc_codec *codec)
 			    WM8993_MIXOUTR_ZC | WM8993_MIXOUT_VU,
 			    WM8993_MIXOUTR_ZC | WM8993_MIXOUT_VU);
 
-	snd_soc_add_controls(codec, analogue_snd_controls,
+	snd_soc_add_codec_controls(codec, analogue_snd_controls,
 			     ARRAY_SIZE(analogue_snd_controls));
 
 	snd_soc_dapm_new_controls(dapm, analogue_dapm_widgets,
