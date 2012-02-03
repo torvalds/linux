@@ -360,12 +360,15 @@ bool hci_discovery_active(struct hci_dev *hdev)
 {
 	struct discovery_state *discov = &hdev->discovery;
 
-	if (discov->state == DISCOVERY_INQUIRY ||
-					discov->state == DISCOVERY_LE_SCAN ||
-					discov->state == DISCOVERY_RESOLVING)
+	switch (discov->state) {
+	case DISCOVERY_INQUIRY:
+	case DISCOVERY_LE_SCAN:
+	case DISCOVERY_RESOLVING:
 		return true;
 
-	return false;
+	default:
+		return false;
+	}
 }
 
 void hci_discovery_set_state(struct hci_dev *hdev, int state)
