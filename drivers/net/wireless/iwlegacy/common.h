@@ -1592,8 +1592,6 @@ struct il_temp_ops {
 };
 
 struct il_lib_ops {
-	/* set hw dependent parameters */
-	int (*set_hw_params) (struct il_priv *il);
 	/* Handling TX */
 	void (*txq_update_byte_cnt_tbl) (struct il_priv *il,
 					 struct il_tx_queue *txq,
