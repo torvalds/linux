@@ -753,9 +753,9 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 
 		/* we need to connect regulators to this transceiver */
 		if (twl_has_regulator() && child) {
-			usb1v5.dev = child;
-			usb1v8.dev = child;
-			usb3v1.dev = child;
+			usb1v5.dev_name = dev_name(child);
+			usb1v8.dev_name = dev_name(child);
+			usb3v1.dev_name = dev_name(child);
 		}
 	}
 	if (twl_has_usb() && pdata->usb && twl_class_is_6030()) {
@@ -801,7 +801,7 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 			return PTR_ERR(child);
 		/* we need to connect regulators to this transceiver */
 		if (twl_has_regulator() && child)
-			usb3v3.dev = child;
+			usb3v3.dev_name = dev_name(child);
 	} else if (twl_has_regulator() && twl_class_is_6030()) {
 		if (features & TWL6025_SUBCLASS)
 			child = add_regulator(TWL6025_REG_LDOUSB,
