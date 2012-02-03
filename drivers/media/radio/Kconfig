@@ -177,6 +177,10 @@ menuconfig V4L_RADIO_ISA_DRIVERS
 
 if V4L_RADIO_ISA_DRIVERS
 
+config RADIO_ISA
+	depends on ISA
+	tristate
+
 config RADIO_CADET
 	tristate "ADS Cadet AM/FM Tuner"
 	depends on ISA && VIDEO_V4L2
