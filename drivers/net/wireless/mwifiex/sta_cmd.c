@@ -103,7 +103,7 @@ static int mwifiex_cmd_mac_control(struct mwifiex_private *priv,
 static int mwifiex_cmd_802_11_snmp_mib(struct mwifiex_private *priv,
 				       struct host_cmd_ds_command *cmd,
 				       u16 cmd_action, u32 cmd_oid,
-				       u32 *ul_temp)
+				       u16 *ul_temp)
 {
 	struct host_cmd_ds_802_11_snmp_mib *snmp_mib = &cmd->params.smib;
 
@@ -112,62 +112,18 @@ static int mwifiex_cmd_802_11_snmp_mib(struct mwifiex_private *priv,
 	cmd->size = cpu_to_le16(sizeof(struct host_cmd_ds_802_11_snmp_mib)
 		- 1 + S_DS_GEN);
 
+	snmp_mib->oid = cpu_to_le16((u16)cmd_oid);
 	if (cmd_action == HostCmd_ACT_GEN_GET) {
 		snmp_mib->query_type = cpu_to_le16(HostCmd_ACT_GEN_GET);
 		snmp_mib->buf_size = cpu_to_le16(MAX_SNMP_BUF_SIZE);
-		cmd->size = cpu_to_le16(le16_to_cpu(cmd->size)
-			+ MAX_SNMP_BUF_SIZE);
+		le16_add_cpu(&cmd->size, MAX_SNMP_BUF_SIZE);
+	} else if (cmd_action == HostCmd_ACT_GEN_SET) {
+		snmp_mib->query_type = cpu_to_le16(HostCmd_ACT_GEN_SET);
+		snmp_mib->buf_size = cpu_to_le16(sizeof(u16));
+		*((__le16 *) (snmp_mib->value)) = cpu_to_le16(*ul_temp);
+		le16_add_cpu(&cmd->size, sizeof(u16));
 	}
 
-	switch (cmd_oid) {
-	case FRAG_THRESH_I:
-		snmp_mib->oid = cpu_to_le16((u16) FRAG_THRESH_I);
-		if (cmd_action == HostCmd_ACT_GEN_SET) {
-			snmp_mib->query_type = cpu_to_le16(HostCmd_ACT_GEN_SET);
-			snmp_mib->buf_size = cpu_to_le16(sizeof(u16));
-			*((__le16 *) (snmp_mib->value)) =
-				cpu_to_le16((u16) *ul_temp);
-			cmd->size = cpu_to_le16(le16_to_cpu(cmd->size)
-				+ sizeof(u16));
-		}
-		break;
-	case RTS_THRESH_I:
-		snmp_mib->oid = cpu_to_le16((u16) RTS_THRESH_I);
-		if (cmd_action == HostCmd_ACT_GEN_SET) {
-			snmp_mib->query_type = cpu_to_le16(HostCmd_ACT_GEN_SET);
-			snmp_mib->buf_size = cpu_to_le16(sizeof(u16));
-			*(__le16 *) (snmp_mib->value) =
-				cpu_to_le16((u16) *ul_temp);
-			cmd->size = cpu_to_le16(le16_to_cpu(cmd->size)
-				+ sizeof(u16));
-		}
-		break;
-
-	case SHORT_RETRY_LIM_I:
-		snmp_mib->oid = cpu_to_le16((u16) SHORT_RETRY_LIM_I);
-		if (cmd_action == HostCmd_ACT_GEN_SET) {
-			snmp_mib->query_type = cpu_to_le16(HostCmd_ACT_GEN_SET);
-			snmp_mib->buf_size = cpu_to_le16(sizeof(u16));
-			*((__le16 *) (snmp_mib->value)) =
-				cpu_to_le16((u16) *ul_temp);
-			cmd->size = cpu_to_le16(le16_to_cpu(cmd->size)
-				+ sizeof(u16));
-		}
-		break;
-	case DOT11D_I:
-		snmp_mib->oid = cpu_to_le16((u16) DOT11D_I);
-		if (cmd_action == HostCmd_ACT_GEN_SET) {
-			snmp_mib->query_type = cpu_to_le16(HostCmd_ACT_GEN_SET);
-			snmp_mib->buf_size = cpu_to_le16(sizeof(u16));
-			*((__le16 *) (snmp_mib->value)) =
-				cpu_to_le16((u16) *ul_temp);
-			cmd->size = cpu_to_le16(le16_to_cpu(cmd->size)
-				+ sizeof(u16));
-		}
-		break;
-	default:
-		break;
-	}
 	dev_dbg(priv->adapter->dev,
 		"cmd: SNMP_CMD: Action=0x%x, OID=0x%x, OIDSize=0x%x,"
 		" Value=0x%x\n",
