@@ -2398,7 +2398,7 @@ il3945_hw_set_hw_params(struct il_priv *il)
 	il->hw_params.bcast_id = IL3945_BROADCAST_ID;
 
 	/* Assign number of Usable TX queues */
-	il->hw_params.max_txq_num = il->cfg->base_params->num_of_queues;
+	il->hw_params.max_txq_num = il->cfg->num_of_queues;
 
 	il->hw_params.tfd_size = sizeof(struct il3945_tfd);
 	il->hw_params.rx_page_order = get_order(IL_RX_BUF_SIZE_3K);
@@ -2693,16 +2693,6 @@ const struct il_ops il3945_ops = {
 	.legacy = &il3945_legacy_ops,
 };
 
-static struct il_base_params il3945_base_params = {
-	.eeprom_size = IL3945_EEPROM_IMG_SIZE,
-	.num_of_queues = IL39_NUM_QUEUES,
-	.pll_cfg_val = CSR39_ANA_PLL_CFG_VAL,
-	.set_l0s = false,
-	.use_bsm = true,
-	.led_compensation = 64,
-	.wd_timeout = IL_DEF_WD_TIMEOUT,
-};
-
 static struct il_cfg il3945_bg_cfg = {
 	.name = "3945BG",
 	.fw_name_pre = IL3945_FW_PRE,
@@ -2711,8 +2701,15 @@ static struct il_cfg il3945_bg_cfg = {
 	.sku = IL_SKU_G,
 	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
 	.mod_params = &il3945_mod_params,
-	.base_params = &il3945_base_params,
 	.led_mode = IL_LED_BLINK,
+
+	.eeprom_size = IL3945_EEPROM_IMG_SIZE,
+	.num_of_queues = IL39_NUM_QUEUES,
+	.pll_cfg_val = CSR39_ANA_PLL_CFG_VAL,
+	.set_l0s = false,
+	.use_bsm = true,
+	.led_compensation = 64,
+	.wd_timeout = IL_DEF_WD_TIMEOUT
 };
 
 static struct il_cfg il3945_abg_cfg = {
@@ -2723,8 +2720,15 @@ static struct il_cfg il3945_abg_cfg = {
 	.sku = IL_SKU_A | IL_SKU_G,
 	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
 	.mod_params = &il3945_mod_params,
-	.base_params = &il3945_base_params,
 	.led_mode = IL_LED_BLINK,
+
+	.eeprom_size = IL3945_EEPROM_IMG_SIZE,
+	.num_of_queues = IL39_NUM_QUEUES,
+	.pll_cfg_val = CSR39_ANA_PLL_CFG_VAL,
+	.set_l0s = false,
+	.use_bsm = true,
+	.led_compensation = 64,
+	.wd_timeout = IL_DEF_WD_TIMEOUT
 };
 
 DEFINE_PCI_DEVICE_TABLE(il3945_hw_card_ids) = {

@@ -361,7 +361,7 @@ il_dbgfs_nvm_read(struct file *file, char __user *user_buf, size_t count,
 	const u8 *ptr;
 	char *buf;
 	u16 eeprom_ver;
-	size_t eeprom_len = il->cfg->base_params->eeprom_size;
+	size_t eeprom_len = il->cfg->eeprom_size;
 	buf_size = 4 * eeprom_len + 256;
 
 	if (eeprom_len % 16) {
@@ -727,7 +727,7 @@ il_dbgfs_traffic_log_read(struct file *file, char __user *user_buf,
 	char *buf;
 	int bufsz =
 	    ((IL_TRAFFIC_ENTRIES * IL_TRAFFIC_ENTRY_SIZE * 64) * 2) +
-	    (il->cfg->base_params->num_of_queues * 32 * 8) + 400;
+	    (il->cfg->num_of_queues * 32 * 8) + 400;
 	const u8 *ptr;
 	ssize_t ret;
 
@@ -833,7 +833,7 @@ il_dbgfs_tx_queue_read(struct file *file, char __user *user_buf, size_t count,
 	int cnt;
 	int ret;
 	const size_t bufsz =
-	    sizeof(char) * 64 * il->cfg->base_params->num_of_queues;
+	    sizeof(char) * 64 * il->cfg->num_of_queues;
 
 	if (!il->txq) {
 		IL_ERR("txq not ready\n");
@@ -1293,7 +1293,7 @@ il_dbgfs_wd_timeout_write(struct file *file, const char __user *user_buf,
 	if (timeout < 0 || timeout > IL_MAX_WD_TIMEOUT)
 		timeout = IL_DEF_WD_TIMEOUT;
 
-	il->cfg->base_params->wd_timeout = timeout;
+	il->cfg->wd_timeout = timeout;
 	il_setup_watchdog(il);
 	return count;
 }
@@ -1367,17 +1367,17 @@ il_dbgfs_register(struct il_priv *il, const char *name)
 	DEBUGFS_ADD_FILE(ucode_tx_stats, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(ucode_general_stats, dir_debug, S_IRUSR);
 
-	if (il->cfg->base_params->sensitivity_calib_by_driver)
+	if (il->cfg->sensitivity_calib_by_driver)
 		DEBUGFS_ADD_FILE(sensitivity, dir_debug, S_IRUSR);
-	if (il->cfg->base_params->chain_noise_calib_by_driver)
+	if (il->cfg->chain_noise_calib_by_driver)
 		DEBUGFS_ADD_FILE(chain_noise, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(wd_timeout, dir_debug, S_IWUSR);
-	if (il->cfg->base_params->sensitivity_calib_by_driver)
+	if (il->cfg->sensitivity_calib_by_driver)
 		DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf,
 				 &il->disable_sens_cal);
-	if (il->cfg->base_params->chain_noise_calib_by_driver)
+	if (il->cfg->chain_noise_calib_by_driver)
 		DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
 				 &il->disable_chain_noise_cal);
 	DEBUGFS_ADD_BOOL(disable_tx_power, dir_rf, &il->disable_tx_power_cal);

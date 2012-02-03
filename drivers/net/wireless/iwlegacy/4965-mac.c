@@ -2150,11 +2150,11 @@ il4965_txq_agg_enable(struct il_priv *il, int txq_id, int tx_fifo, int sta_id,
 
 	if ((IL49_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IL49_FIRST_AMPDU_QUEUE +
-	     il->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
+	     il->cfg->num_of_ampdu_queues <= txq_id)) {
 		IL_WARN("queue number out of range: %d, must be %d to %d\n",
 			txq_id, IL49_FIRST_AMPDU_QUEUE,
 			IL49_FIRST_AMPDU_QUEUE +
-			il->cfg->base_params->num_of_ampdu_queues - 1);
+			il->cfg->num_of_ampdu_queues - 1);
 		return -EINVAL;
 	}
 
@@ -2278,11 +2278,11 @@ il4965_txq_agg_disable(struct il_priv *il, u16 txq_id, u16 ssn_idx, u8 tx_fifo)
 {
 	if ((IL49_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IL49_FIRST_AMPDU_QUEUE +
-	     il->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
+	     il->cfg->num_of_ampdu_queues <= txq_id)) {
 		IL_WARN("queue number out of range: %d, must be %d to %d\n",
 			txq_id, IL49_FIRST_AMPDU_QUEUE,
 			IL49_FIRST_AMPDU_QUEUE +
-			il->cfg->base_params->num_of_ampdu_queues - 1);
+			il->cfg->num_of_ampdu_queues - 1);
 		return -EINVAL;
 	}
 

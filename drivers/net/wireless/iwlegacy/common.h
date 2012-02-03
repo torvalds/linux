@@ -1695,21 +1695,6 @@ struct il_mod_params {
  *	chain noise calibration operation
  */
 struct il_base_params {
-	int eeprom_size;
-	int num_of_queues;	/* def: HW dependent */
-	int num_of_ampdu_queues;	/* def: HW dependent */
-	/* for il_apm_init() */
-	u32 pll_cfg_val;
-	bool set_l0s;
-	bool use_bsm;
-
-	u16 led_compensation;
-	int chain_noise_num_beacons;
-	unsigned int wd_timeout;
-	bool temperature_kelvin;
-	const bool ucode_tracing;
-	const bool sensitivity_calib_by_driver;
-	const bool chain_noise_calib_by_driver;
 };
 
 #define IL_LED_SOLID 11
@@ -1784,6 +1769,22 @@ struct il_cfg {
 	/* params likely to change within a device family */
 	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
 	enum il_led_mode led_mode;
+
+	int eeprom_size;
+	int num_of_queues;		/* def: HW dependent */
+	int num_of_ampdu_queues;	/* def: HW dependent */
+	/* for il_apm_init() */
+	u32 pll_cfg_val;
+	bool set_l0s;
+	bool use_bsm;
+
+	u16 led_compensation;
+	int chain_noise_num_beacons;
+	unsigned int wd_timeout;
+	bool temperature_kelvin;
+	const bool ucode_tracing;
+	const bool sensitivity_calib_by_driver;
+	const bool chain_noise_calib_by_driver;
 };
 
 /***************************

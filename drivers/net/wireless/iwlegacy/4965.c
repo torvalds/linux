@@ -614,13 +614,13 @@ il4965_hw_set_hw_params(struct il_priv *il)
 {
 	if (il->cfg->mod_params->num_of_queues >= IL_MIN_NUM_QUEUES &&
 	    il->cfg->mod_params->num_of_queues <= IL49_NUM_QUEUES)
-		il->cfg->base_params->num_of_queues =
+		il->cfg->num_of_queues =
 		    il->cfg->mod_params->num_of_queues;
 
-	il->hw_params.max_txq_num = il->cfg->base_params->num_of_queues;
+	il->hw_params.max_txq_num = il->cfg->num_of_queues;
 	il->hw_params.dma_chnl_num = FH49_TCSR_CHNL_NUM;
 	il->hw_params.scd_bc_tbls_size =
-	    il->cfg->base_params->num_of_queues *
+	    il->cfg->num_of_queues *
 	    sizeof(struct il4965_scd_bc_tbl);
 	il->hw_params.tfd_size = sizeof(struct il_tfd);
 	il->hw_params.max_stations = IL4965_STATION_COUNT;
@@ -2331,7 +2331,24 @@ const struct il_ops il4965_ops = {
 	.legacy = &il4965_legacy_ops,
 };
 
-static struct il_base_params il4965_base_params = {
+struct il_cfg il4965_cfg = {
+	.name = "Intel(R) Wireless WiFi Link 4965AGN",
+	.fw_name_pre = IL4965_FW_PRE,
+	.ucode_api_max = IL4965_UCODE_API_MAX,
+	.ucode_api_min = IL4965_UCODE_API_MIN,
+	.sku = IL_SKU_A | IL_SKU_G | IL_SKU_N,
+	.valid_tx_ant = ANT_AB,
+	.valid_rx_ant = ANT_ABC,
+	.eeprom_ver = EEPROM_4965_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_4965_TX_POWER_VERSION,
+	.mod_params = &il4965_mod_params,
+	.led_mode = IL_LED_BLINK,
+	/*
+	 * Force use of chains B and C for scan RX on 5 GHz band
+	 * because the device has off-channel reception on chain A.
+	 */
+	.scan_rx_antennas[IEEE80211_BAND_5GHZ] = ANT_BC,
+
 	.eeprom_size = IL4965_EEPROM_IMG_SIZE,
 	.num_of_queues = IL49_NUM_QUEUES,
 	.num_of_ampdu_queues = IL49_NUM_AMPDU_QUEUES,
@@ -2345,26 +2362,6 @@ static struct il_base_params il4965_base_params = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
-};
-
-struct il_cfg il4965_cfg = {
-	.name = "Intel(R) Wireless WiFi Link 4965AGN",
-	.fw_name_pre = IL4965_FW_PRE,
-	.ucode_api_max = IL4965_UCODE_API_MAX,
-	.ucode_api_min = IL4965_UCODE_API_MIN,
-	.sku = IL_SKU_A | IL_SKU_G | IL_SKU_N,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_ABC,
-	.eeprom_ver = EEPROM_4965_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_4965_TX_POWER_VERSION,
-	.mod_params = &il4965_mod_params,
-	.base_params = &il4965_base_params,
-	.led_mode = IL_LED_BLINK,
-	/*
-	 * Force use of chains B and C for scan RX on 5 GHz band
-	 * because the device has off-channel reception on chain A.
-	 */
-	.scan_rx_antennas[IEEE80211_BAND_5GHZ] = ANT_BC,
 };
 
 /* Module firmware */

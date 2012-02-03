@@ -627,13 +627,13 @@ il4965_find_disconn_antenna(struct il_priv *il, u32 * average_sig,
 
 	average_sig[0] =
 	    data->chain_signal_a /
-	    il->cfg->base_params->chain_noise_num_beacons;
+	    il->cfg->chain_noise_num_beacons;
 	average_sig[1] =
 	    data->chain_signal_b /
-	    il->cfg->base_params->chain_noise_num_beacons;
+	    il->cfg->chain_noise_num_beacons;
 	average_sig[2] =
 	    data->chain_signal_c /
-	    il->cfg->base_params->chain_noise_num_beacons;
+	    il->cfg->chain_noise_num_beacons;
 
 	if (average_sig[0] >= average_sig[1]) {
 		max_average_sig = average_sig[0];
@@ -886,7 +886,7 @@ il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 	/* If this is the "chain_noise_num_beacons", determine:
 	 * 1)  Disconnected antennas (using signal strengths)
 	 * 2)  Differential gain (using silence noise) to balance receivers */
-	if (data->beacon_count != il->cfg->base_params->chain_noise_num_beacons)
+	if (data->beacon_count != il->cfg->chain_noise_num_beacons)
 		return;
 
 	/* Analyze signal for disconnected antenna */
@@ -894,11 +894,11 @@ il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 
 	/* Analyze noise for rx balance */
 	average_noise[0] =
-	    data->chain_noise_a / il->cfg->base_params->chain_noise_num_beacons;
+	    data->chain_noise_a / il->cfg->chain_noise_num_beacons;
 	average_noise[1] =
-	    data->chain_noise_b / il->cfg->base_params->chain_noise_num_beacons;
+	    data->chain_noise_b / il->cfg->chain_noise_num_beacons;
 	average_noise[2] =
-	    data->chain_noise_c / il->cfg->base_params->chain_noise_num_beacons;
+	    data->chain_noise_c / il->cfg->chain_noise_num_beacons;
 
 	for (i = 0; i < NUM_RX_CHAINS; i++) {
 		if (!data->disconn_array[i] &&

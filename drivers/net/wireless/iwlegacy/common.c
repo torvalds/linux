@@ -512,13 +512,13 @@ il_led_cmd(struct il_priv *il, unsigned long on, unsigned long off)
 	}
 
 	D_LED("Led blink time compensation=%u\n",
-	      il->cfg->base_params->led_compensation);
+	      il->cfg->led_compensation);
 	led_cmd.on =
 	    il_blink_compensation(il, on,
-				  il->cfg->base_params->led_compensation);
+				  il->cfg->led_compensation);
 	led_cmd.off =
 	    il_blink_compensation(il, off,
-				  il->cfg->base_params->led_compensation);
+				  il->cfg->led_compensation);
 
 	ret = il->ops->led->cmd(il, &led_cmd);
 	if (!ret) {
@@ -691,7 +691,7 @@ il_eeprom_verify_signature(struct il_priv *il)
 const u8 *
 il_eeprom_query_addr(const struct il_priv *il, size_t offset)
 {
-	BUG_ON(offset >= il->cfg->base_params->eeprom_size);
+	BUG_ON(offset >= il->cfg->eeprom_size);
 	return &il->eeprom[offset];
 }
 EXPORT_SYMBOL(il_eeprom_query_addr);
@@ -722,7 +722,7 @@ il_eeprom_init(struct il_priv *il)
 	u16 addr;
 
 	/* allocate eeprom */
-	sz = il->cfg->base_params->eeprom_size;
+	sz = il->cfg->eeprom_size;
 	D_EEPROM("NVM size = %d\n", sz);
 	il->eeprom = kzalloc(sz, GFP_KERNEL);
 	if (!il->eeprom) {
@@ -4218,7 +4218,7 @@ il_apm_init(struct il_priv *il)
 	 * If not (unlikely), enable L0S, so there is at least some
 	 *    power savings, even without L1.
 	 */
-	if (il->cfg->base_params->set_l0s) {
+	if (il->cfg->set_l0s) {
 		lctl = il_pcie_link_ctl(il);
 		if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
 		    PCI_CFG_LINK_CTRL_VAL_L1_EN) {
@@ -4235,9 +4235,9 @@ il_apm_init(struct il_priv *il)
 	}
 
 	/* Configure analog phase-lock-loop before activating to D0A */
-	if (il->cfg->base_params->pll_cfg_val)
+	if (il->cfg->pll_cfg_val)
 		il_set_bit(il, CSR_ANA_PLL_CFG,
-			   il->cfg->base_params->pll_cfg_val);
+			   il->cfg->pll_cfg_val);
 
 	/*
 	 * Set "initialization complete" bit to move adapter from
@@ -4267,7 +4267,7 @@ il_apm_init(struct il_priv *il)
 	 * do not disable clocks.  This preserves any hardware bits already
 	 * set by default in "CLK_CTRL_REG" after reset.
 	 */
-	if (il->cfg->base_params->use_bsm)
+	if (il->cfg->use_bsm)
 		il_wr_prph(il, APMG_CLK_EN_REG,
 			   APMG_CLK_VAL_DMA_CLK_RQT | APMG_CLK_VAL_BSM_CLK_RQT);
 	else
@@ -4565,7 +4565,7 @@ il_alloc_txq_mem(struct il_priv *il)
 	if (!il->txq)
 		il->txq =
 		    kzalloc(sizeof(struct il_tx_queue) *
-			    il->cfg->base_params->num_of_queues, GFP_KERNEL);
+			    il->cfg->num_of_queues, GFP_KERNEL);
 	if (!il->txq) {
 		IL_ERR("Not enough memory for txq\n");
 		return -ENOMEM;
@@ -4942,11 +4942,11 @@ il_check_stuck_queue(struct il_priv *il, int cnt)
 
 	timeout =
 	    txq->time_stamp +
-	    msecs_to_jiffies(il->cfg->base_params->wd_timeout);
+	    msecs_to_jiffies(il->cfg->wd_timeout);
 
 	if (time_after(jiffies, timeout)) {
 		IL_ERR("Queue %d stuck for %u ms.\n", q->id,
-		       il->cfg->base_params->wd_timeout);
+		       il->cfg->wd_timeout);
 		ret = il_force_reset(il, false);
 		return (ret == -EAGAIN) ? 0 : 1;
 	}
@@ -4974,7 +4974,7 @@ il_bg_watchdog(unsigned long data)
 	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
 
-	timeout = il->cfg->base_params->wd_timeout;
+	timeout = il->cfg->wd_timeout;
 	if (timeout == 0)
 		return;
 
@@ -5001,7 +5001,7 @@ EXPORT_SYMBOL(il_bg_watchdog);
 void
 il_setup_watchdog(struct il_priv *il)
 {
-	unsigned int timeout = il->cfg->base_params->wd_timeout;
+	unsigned int timeout = il->cfg->wd_timeout;
 
 	if (timeout)
 		mod_timer(&il->watchdog,
