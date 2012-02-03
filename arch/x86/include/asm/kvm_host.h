@@ -420,10 +420,11 @@ struct kvm_vcpu_arch {
 
 	u64 last_guest_tsc;
 	u64 last_kernel_ns;
-	u64 last_tsc_nsec;
-	u64 last_tsc_write;
 	u64 last_host_tsc;
 	u64 tsc_offset_adjustment;
+	u64 this_tsc_nsec;
+	u64 this_tsc_write;
+	u8  this_tsc_generation;
 	bool tsc_catchup;
 	bool tsc_always_catchup;
 	s8 virtual_tsc_shift;
@@ -513,9 +514,12 @@ struct kvm_arch {
 	s64 kvmclock_offset;
 	raw_spinlock_t tsc_write_lock;
 	u64 last_tsc_nsec;
-	u64 last_tsc_offset;
 	u64 last_tsc_write;
 	u32 last_tsc_khz;
+	u64 cur_tsc_nsec;
+	u64 cur_tsc_write;
+	u64 cur_tsc_offset;
+	u8  cur_tsc_generation;
 
 	struct kvm_xen_hvm_config xen_hvm_config;
 

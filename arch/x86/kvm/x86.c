@@ -1013,10 +1013,10 @@ static void kvm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 this_tsc_khz)
 
 static u64 compute_guest_tsc(struct kvm_vcpu *vcpu, s64 kernel_ns)
 {
-	u64 tsc = pvclock_scale_delta(kernel_ns-vcpu->arch.last_tsc_nsec,
+	u64 tsc = pvclock_scale_delta(kernel_ns-vcpu->arch.this_tsc_nsec,
 				      vcpu->arch.virtual_tsc_mult,
 				      vcpu->arch.virtual_tsc_shift);
-	tsc += vcpu->arch.last_tsc_write;
+	tsc += vcpu->arch.this_tsc_write;
 	return tsc;
 }
 
@@ -1059,7 +1059,7 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 	if (nsdiff < NSEC_PER_SEC &&
 	    vcpu->arch.virtual_tsc_khz == kvm->arch.last_tsc_khz) {
 		if (!check_tsc_unstable()) {
-			offset = kvm->arch.last_tsc_offset;
+			offset = kvm->arch.cur_tsc_offset;
 			pr_debug("kvm: matched tsc offset for %llu\n", data);
 		} else {
 			u64 delta = nsec_to_cycles(vcpu, elapsed);
@@ -1067,20 +1067,45 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 			offset = kvm_x86_ops->compute_tsc_offset(vcpu, data);
 			pr_debug("kvm: adjusted tsc offset by %llu\n", delta);
 		}
+	} else {
+		/*
+		 * We split periods of matched TSC writes into generations.
+		 * For each generation, we track the original measured
+		 * nanosecond time, offset, and write, so if TSCs are in
+		 * sync, we can match exact offset, and if not, we can match
+		 * exact software computaion in compute_guest_tsc()
+		 *
+		 * These values are tracked in kvm->arch.cur_xxx variables.
+		 */
+		kvm->arch.cur_tsc_generation++;
+		kvm->arch.cur_tsc_nsec = ns;
+		kvm->arch.cur_tsc_write = data;
+		kvm->arch.cur_tsc_offset = offset;
+		pr_debug("kvm: new tsc generation %u, clock %llu\n",
+			 kvm->arch.cur_tsc_generation, data);
 	}
+
+	/*
+	 * We also track th most recent recorded KHZ, write and time to
+	 * allow the matching interval to be extended at each write.
+	 */
 	kvm->arch.last_tsc_nsec = ns;
 	kvm->arch.last_tsc_write = data;
-	kvm->arch.last_tsc_offset = offset;
 	kvm->arch.last_tsc_khz = vcpu->arch.virtual_tsc_khz;
-	kvm_x86_ops->write_tsc_offset(vcpu, offset);
-	raw_spin_unlock_irqrestore(&kvm->arch.tsc_write_lock, flags);
 
 	/* Reset of TSC must disable overshoot protection below */
 	vcpu->arch.hv_clock.tsc_timestamp = 0;
-	vcpu->arch.last_tsc_write = data;
-	vcpu->arch.last_tsc_nsec = ns;
 	vcpu->arch.last_guest_tsc = data;
+
+	/* Keep track of which generation this VCPU has synchronized to */
+	vcpu->arch.this_tsc_generation = kvm->arch.cur_tsc_generation;
+	vcpu->arch.this_tsc_nsec = kvm->arch.cur_tsc_nsec;
+	vcpu->arch.this_tsc_write = kvm->arch.cur_tsc_write;
+
+	kvm_x86_ops->write_tsc_offset(vcpu, offset);
+	raw_spin_unlock_irqrestore(&kvm->arch.tsc_write_lock, flags);
 }
+
 EXPORT_SYMBOL_GPL(kvm_write_tsc);
 
 static int kvm_guest_time_update(struct kvm_vcpu *v)
