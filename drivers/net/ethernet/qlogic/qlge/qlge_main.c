@@ -375,13 +375,6 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 			u32 lower =
 			    (addr[2] << 24) | (addr[3] << 16) | (addr[4] << 8) |
 			    (addr[5]);
-
-			netif_printk(qdev, ifup, KERN_DEBUG, qdev->ndev,
-				     "Adding %s address %pM at index %d in the CAM.\n",
-				     type == MAC_ADDR_TYPE_MULTI_MAC ?
-				     "MULTICAST" : "UNICAST",
-				     addr, index);
-
 			status =
 			    ql_wait_reg_rdy(qdev,
 				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
@@ -430,12 +423,6 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 			 * addressing. It's either MAC_ADDR_E on or off.
 			 * That's bit-27 we're talking about.
 			 */
-			netif_info(qdev, ifup, qdev->ndev,
-				   "%s VLAN ID %d %s the CAM.\n",
-				   enable_bit ? "Adding" : "Removing",
-				   index,
-				   enable_bit ? "to" : "from");
-
 			status =
 			    ql_wait_reg_rdy(qdev,
 				MAC_ADDR_IDX, MAC_ADDR_MW, 0);
@@ -534,28 +521,6 @@ static int ql_set_routing_reg(struct ql_adapter *qdev, u32 index, u32 mask,
 {
 	int status = -EINVAL; /* Return error if no mask match. */
 	u32 value = 0;
-
-	netif_printk(qdev, ifup, KERN_DEBUG, qdev->ndev,
-		     "%s %s mask %s the routing reg.\n",
-		     enable ? "Adding" : "Removing",
-		     index == RT_IDX_ALL_ERR_SLOT ? "MAC ERROR/ALL ERROR" :
-		     index == RT_IDX_IP_CSUM_ERR_SLOT ? "IP CSUM ERROR" :
-		     index == RT_IDX_TCP_UDP_CSUM_ERR_SLOT ? "TCP/UDP CSUM ERROR" :
-		     index == RT_IDX_BCAST_SLOT ? "BROADCAST" :
-		     index == RT_IDX_MCAST_MATCH_SLOT ? "MULTICAST MATCH" :
-		     index == RT_IDX_ALLMULTI_SLOT ? "ALL MULTICAST MATCH" :
-		     index == RT_IDX_UNUSED6_SLOT ? "UNUSED6" :
-		     index == RT_IDX_UNUSED7_SLOT ? "UNUSED7" :
-		     index == RT_IDX_RSS_MATCH_SLOT ? "RSS ALL/IPV4 MATCH" :
-		     index == RT_IDX_RSS_IPV6_SLOT ? "RSS IPV6" :
-		     index == RT_IDX_RSS_TCP4_SLOT ? "RSS TCP4" :
-		     index == RT_IDX_RSS_TCP6_SLOT ? "RSS TCP6" :
-		     index == RT_IDX_CAM_HIT_SLOT ? "CAM HIT" :
-		     index == RT_IDX_UNUSED013 ? "UNUSED13" :
-		     index == RT_IDX_UNUSED014 ? "UNUSED14" :
-		     index == RT_IDX_PROMISCUOUS_SLOT ? "PROMISCUOUS" :
-		     "(Bad index != RT_IDX)",
-		     enable ? "to" : "from");
 
 	switch (mask) {
 	case RT_IDX_CAM_HIT:
@@ -2313,13 +2278,9 @@ static void qlge_vlan_mode(struct net_device *ndev, netdev_features_t features)
 	struct ql_adapter *qdev = netdev_priv(ndev);
 
 	if (features & NETIF_F_HW_VLAN_RX) {
-		netif_printk(qdev, ifup, KERN_DEBUG, ndev,
-			     "Turning on VLAN in NIC_RCV_CFG.\n");
 		ql_write32(qdev, NIC_RCV_CFG, NIC_RCV_CFG_VLAN_MASK |
 				 NIC_RCV_CFG_VLAN_MATCH_AND_NON);
 	} else {
-		netif_printk(qdev, ifup, KERN_DEBUG, ndev,
-			     "Turning off VLAN in NIC_RCV_CFG.\n");
 		ql_write32(qdev, NIC_RCV_CFG, NIC_RCV_CFG_VLAN_MASK);
 	}
 }
@@ -3184,8 +3145,6 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 		netif_printk(qdev, ifup, KERN_DEBUG, qdev->ndev,
 			     "Invalid rx_ring->type = %d.\n", rx_ring->type);
 	}
-	netif_printk(qdev, ifup, KERN_DEBUG, qdev->ndev,
-		     "Initializing rx work queue.\n");
 	err = ql_write_cfg(qdev, cqicb, sizeof(struct cqicb),
 			   CFG_LCQ, rx_ring->cq_id);
 	if (err) {
@@ -3238,8 +3197,6 @@ static int ql_start_tx_ring(struct ql_adapter *qdev, struct tx_ring *tx_ring)
 		netif_err(qdev, ifup, qdev->ndev, "Failed to load tx_ring.\n");
 		return err;
 	}
-	netif_printk(qdev, ifup, KERN_DEBUG, qdev->ndev,
-		     "Successfully loaded WQICB.\n");
 	return err;
 }
 
@@ -3489,12 +3446,8 @@ static void ql_free_irq(struct ql_adapter *qdev)
 			if (test_bit(QL_MSIX_ENABLED, &qdev->flags)) {
 				free_irq(qdev->msi_x_entry[i].vector,
 					 &qdev->rx_ring[i]);
-				netif_printk(qdev, ifdown, KERN_DEBUG, qdev->ndev,
-					     "freeing msix interrupt %d.\n", i);
 			} else {
 				free_irq(qdev->pdev->irq, &qdev->rx_ring[0]);
-				netif_printk(qdev, ifdown, KERN_DEBUG, qdev->ndev,
-					     "freeing msi interrupt %d.\n", i);
 			}
 		}
 	}
@@ -3523,17 +3476,6 @@ static int ql_request_irq(struct ql_adapter *qdev)
 					  "Failed request for MSIX interrupt %d.\n",
 					  i);
 				goto err_irq;
-			} else {
-				netif_printk(qdev, ifup, KERN_DEBUG, qdev->ndev,
-					     "Hooked intr %d, queue type %s, with name %s.\n",
-					     i,
-					     qdev->rx_ring[i].type == DEFAULT_Q ?
-					     "DEFAULT_Q" :
-					     qdev->rx_ring[i].type == TX_Q ?
-					     "TX_Q" :
-					     qdev->rx_ring[i].type == RX_Q ?
-					     "RX_Q" : "",
-					     intr_context->name);
 			}
 		} else {
 			netif_printk(qdev, ifup, KERN_DEBUG, qdev->ndev,
@@ -3603,15 +3545,11 @@ static int ql_start_rss(struct ql_adapter *qdev)
 	memcpy((void *)&ricb->ipv6_hash_key[0], init_hash_seed, 40);
 	memcpy((void *)&ricb->ipv4_hash_key[0], init_hash_seed, 16);
 
-	netif_printk(qdev, ifup, KERN_DEBUG, qdev->ndev, "Initializing RSS.\n");
-
 	status = ql_write_cfg(qdev, ricb, sizeof(*ricb), CFG_LR, 0);
 	if (status) {
 		netif_err(qdev, ifup, qdev->ndev, "Failed to load RICB.\n");
 		return status;
 	}
-	netif_printk(qdev, ifup, KERN_DEBUG, qdev->ndev,
-		     "Successfully loaded RICB.\n");
 	return status;
 }
 
@@ -3818,11 +3756,8 @@ static int ql_adapter_initialize(struct ql_adapter *qdev)
 	}
 
 	/* Start NAPI for the RSS queues. */
-	for (i = 0; i < qdev->rss_ring_count; i++) {
-		netif_printk(qdev, ifup, KERN_DEBUG, qdev->ndev,
-			     "Enabling NAPI for rx_ring[%d].\n", i);
+	for (i = 0; i < qdev->rss_ring_count; i++)
 		napi_enable(&qdev->rx_ring[i].napi);
-	}
 
 	return status;
 }
@@ -4122,10 +4057,6 @@ static int ql_configure_rings(struct ql_adapter *qdev)
 			rx_ring->lbq_size =
 			    rx_ring->lbq_len * sizeof(__le64);
 			rx_ring->lbq_buf_size = (u16)lbq_buf_len;
-			netif_printk(qdev, ifup, KERN_DEBUG, qdev->ndev,
-				     "lbq_buf_size %d, order = %d\n",
-				     rx_ring->lbq_buf_size,
-				     qdev->lbq_buf_order);
 			rx_ring->sbq_len = NUM_SMALL_BUFFERS;
 			rx_ring->sbq_size =
 			    rx_ring->sbq_len * sizeof(__le64);
