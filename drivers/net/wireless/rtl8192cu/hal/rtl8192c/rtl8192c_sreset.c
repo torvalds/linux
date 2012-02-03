@@ -20,7 +20,7 @@
 ******************************************************************************/
 #include <rtl8192c_sreset.h>
 #include <rtl8192c_hal.h>
-#ifdef SILENT_RESET_FOR_SPECIFIC_PLATFOM
+#ifdef DBG_CONFIG_ERROR_DETECT
 extern void rtw_cancel_all_timer(_adapter *padapter);
 
 void rtl8192c_sreset_init_value(_adapter *padapter)
@@ -161,6 +161,10 @@ void rtl8192c_silentreset_for_specific_platform(_adapter *padapter)
 	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;	
 	_irqL irqL;
 
+#ifdef DBG_CONFIG_ERROR_RESET
+
+	DBG_871X("%s\n", __FUNCTION__);
+
 	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
 
 	if (!netif_queue_stopped(padapter->pnetdev))
@@ -192,6 +196,7 @@ void rtl8192c_silentreset_for_specific_platform(_adapter *padapter)
 				
 	if (netif_queue_stopped(padapter->pnetdev))
 		netif_wake_queue(padapter->pnetdev);
+#endif
 }
 
 void rtl8192c_sreset_xmit_status_check(_adapter *padapter)
@@ -202,8 +207,9 @@ void rtl8192c_sreset_xmit_status_check(_adapter *padapter)
 	unsigned long current_time;
 	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
 	unsigned int diff_time;
-	
-	if(rtw_read32(padapter, REG_TXDMA_STATUS) !=0x00){
+	u32 txdma_status;
+	if( (txdma_status=rtw_read32(padapter, REG_TXDMA_STATUS)) !=0x00){
+		DBG_871X("%s REG_TXDMA_STATUS:0x%08x\n", __FUNCTION__, txdma_status);
 		rtl8192c_silentreset_for_specific_platform(padapter);						
 	}
 	
@@ -223,7 +229,7 @@ void rtl8192c_sreset_xmit_status_check(_adapter *padapter)
 				diff_time = jiffies_to_msecs(current_time - psrtpriv->last_tx_complete_time);
 				if(diff_time > 4000){
 					//padapter->Wifi_Error_Status = WIFI_TX_HANG;
-					DBG_8192C("tx hang...start reset\n");
+					DBG_8192C("%s tx hang\n", __FUNCTION__);
 					rtl8192c_silentreset_for_specific_platform(padapter);	
 				}
 			}
@@ -242,11 +248,13 @@ void rtl8192c_sreset_linked_status_check(_adapter *padapter)
 		(((reg824&0xFFFFFF00)!= 0x00390000)&&(((reg824&0xFFFFFF00)!= 0x80390000)))||
 		( ((reg800&0xFFFFFF00)!= 0x03040000)&&((reg800&0xFFFFFF00)!= 0x83040000)))
 	{
+		DBG_8192C("%s regc50:0x%08x, regc58:0x%08x, reg824:0x%08x, reg800:0x%08x,\n", __FUNCTION__,
+			regc50, regc58, reg824, reg800);
 		rtl8192c_silentreset_for_specific_platform(padapter);	
 	}
 }
 
-#ifdef SILENT_RESET_FOR_SPECIFIC_PLATFOM
+#ifdef DBG_CONFIG_ERROR_DETECT
 u8 rtl8192c_sreset_get_wifi_status(_adapter *padapter)	
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);	

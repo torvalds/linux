@@ -93,7 +93,6 @@ static BOOLEAN CheckFwReadLastMSG(
 #define MESSAGE_BOX_SIZE		4
 #define EX_MESSAGE_BOX_SIZE	2
 
-
 static u8 _is_fw_read_cmd_down(_adapter* padapter, u8 isvern, u8 msgbox_num)
 {
 	u8	read_down = _FALSE;
@@ -128,7 +127,7 @@ static u8 _is_fw_read_cmd_down(_adapter* padapter, u8 isvern, u8 msgbox_num)
 *| h2c_msg 	|Ext_bit	|CMD_ID	|
 *
 ******************************************/
-void FillH2CCmd(_adapter* padapter, u8 ElementID, u32 CmdLen, u8* pCmdBuffer)
+int rtl8192c_FillH2CCmd(_adapter* padapter, u8 ElementID, u32 CmdLen, u8* pCmdBuffer)
 {
 #if 1
 	u8	bcmd_down = _FALSE;
@@ -140,14 +139,15 @@ void FillH2CCmd(_adapter* padapter, u8 ElementID, u32 CmdLen, u8* pCmdBuffer)
 	u8	isnchip =IS_NORMAL_CHIP(pHalData->VersionID);
 	u32	h2c_cmd = 0;
 	u16	h2c_cmd_ex = 0;
+	int ret = _FAIL;
 
 	_func_enter_;	
 
 	if(!pCmdBuffer){
-		return ;
+		goto exit;
 	}
 	if(CmdLen > RTL92C_MAX_CMD_LEN){
-		return ;
+		goto exit;
 	}
 	//pay attention to if  race condition happened in  H2C cmd setting.
 	do{
@@ -155,7 +155,7 @@ void FillH2CCmd(_adapter* padapter, u8 ElementID, u32 CmdLen, u8* pCmdBuffer)
 
 		if(!_is_fw_read_cmd_down(padapter, isnchip, h2c_box_num)){
 			DBG_8192C(" fw read cmd failed...\n");
-			break;
+			goto exit;
 		}
 
 		if(CmdLen<=3)
@@ -201,6 +201,7 @@ void FillH2CCmd(_adapter* padapter, u8 ElementID, u32 CmdLen, u8* pCmdBuffer)
 	else
 		DBG_8192C("H2C Cmd exe failed. \n"	);
 */
+	ret = _SUCCESS;
 	_func_exit_;
 
 #else
@@ -369,6 +370,12 @@ _func_exit_;
 
 #endif
 
+#ifdef CONFIG_CONCURRENT_MODE
+	_exit_critical_mutex(padapter->ph2c_fwcmd_mutex, NULL);	
+#endif
+exit:
+	return ret;
+
 }
 
 u8 rtl8192c_h2c_msg_hdl(_adapter *padapter, unsigned char *pbuf)
@@ -385,7 +392,7 @@ u8 rtl8192c_h2c_msg_hdl(_adapter *padapter, unsigned char *pbuf)
 	CmdLen = pcmdmsg->sz;
 	pCmdBuffer = pcmdmsg->buf;
 
-	FillH2CCmd(padapter, ElementID, CmdLen, pCmdBuffer);
+	rtl8192c_FillH2CCmd(padapter, ElementID, CmdLen, pCmdBuffer);
 
 	return H2C_SUCCESS;
 }
@@ -398,7 +405,7 @@ u8 rtl8192c_set_FwSelectSuspend_cmd(_adapter *padapter ,u8 bfwpoll, u16 period)
 	DBG_8192C("==>%s bfwpoll(%x)\n",__FUNCTION__,bfwpoll);
 	param.gpio_period = period;//Polling GPIO_11 period time
 	param.ROFOn = (_TRUE == bfwpoll)?1:0;
-	FillH2CCmd(padapter, SELECTIVE_SUSPEND_ROF_CMD, sizeof(param), (u8*)(&param));		
+	rtl8192c_FillH2CCmd(padapter, SELECTIVE_SUSPEND_ROF_CMD, sizeof(param), (u8*)(&param));		
 	return res;
 }
 #endif //CONFIG_AUTOSUSPEND && SUPPORT_HW_RFOFF_DETECTED
@@ -411,7 +418,7 @@ _func_enter_;
 
 	*((u32*) param ) = cpu_to_le32( *((u32*) param ) );
 
-	FillH2CCmd(padapter, RSSI_SETTING_EID, 3, param);
+	rtl8192c_FillH2CCmd(padapter, RSSI_SETTING_EID, 3, param);
 
 _func_exit_;
 
@@ -430,7 +437,7 @@ _func_enter_;
 	_rtw_memcpy(buf, &mask, 4);
 	buf[4]  = arg;
 
-	FillH2CCmd(padapter, MACID_CONFIG_EID, 5, buf);
+	rtl8192c_FillH2CCmd(padapter, MACID_CONFIG_EID, 5, buf);
 	
 _func_exit_;
 
@@ -484,7 +491,7 @@ _func_enter_;
 
 	H2CSetPwrMode.BcnPassTime = 1;//pPSC->RegMaxLPSAwakeIntvl;
 
-	FillH2CCmd(padapter, SET_PWRMODE_EID, sizeof(H2CSetPwrMode), (u8 *)&H2CSetPwrMode);
+	rtl8192c_FillH2CCmd(padapter, SET_PWRMODE_EID, sizeof(H2CSetPwrMode), (u8 *)&H2CSetPwrMode);
 	
 _func_exit_;
 }
@@ -927,7 +934,7 @@ static void SetFwRsvdPagePkt(PADAPTER Adapter, BOOLEAN bDLFinished)
 	if(bDLOK)
 	{
 		DBG_871X("Set RSVD page location to Fw.\n");
-		FillH2CCmd(Adapter, RSVD_PAGE_EID, sizeof(RsvdPageLoc), (u8 *)&RsvdPageLoc);
+		rtl8192c_FillH2CCmd(Adapter, RSVD_PAGE_EID, sizeof(RsvdPageLoc), (u8 *)&RsvdPageLoc);
 	}
 
 	rtw_mfree(ReservedPagePacket,1000);
@@ -1006,7 +1013,7 @@ _func_enter_;
 
 	JoinBssRptParm.OpMode = mstatus;
 
-	FillH2CCmd(padapter, JOINBSS_RPT_EID, sizeof(JoinBssRptParm), (u8 *)&JoinBssRptParm);
+	rtl8192c_FillH2CCmd(padapter, JOINBSS_RPT_EID, sizeof(JoinBssRptParm), (u8 *)&JoinBssRptParm);
 	
 _func_exit_;
 }
@@ -1018,7 +1025,7 @@ void rtl8192c_set_p2p_ctw_period_cmd(_adapter* padapter, u8 ctwindow)
 
 	p2p_ps_ctw.CTWPeriod = ctwindow;
 
-	FillH2CCmd(padapter, P2P_PS_CTW_CMD_EID, 1, (u8 *)(&p2p_ps_ctw));
+	rtl8192c_FillH2CCmd(padapter, P2P_PS_CTW_CMD_EID, 1, (u8 *)(&p2p_ps_ctw));
 	
 }
 
@@ -1124,11 +1131,96 @@ _func_enter_;
 			break;
 	}
 
-	FillH2CCmd(padapter, P2P_PS_OFFLOAD_EID, 1, (u8 *)p2p_ps_offload);
+	rtl8192c_FillH2CCmd(padapter, P2P_PS_OFFLOAD_EID, 1, (u8 *)p2p_ps_offload);
 
 _func_exit_;
 
 }
 #endif //CONFIG_P2P
 
+#ifdef CONFIG_IOL
+#include <rtw_iol.h>
+int rtl8192c_IOL_exec_cmds_sync(ADAPTER *adapter, struct xmit_frame *xmit_frame, u32 max_wating_ms)
+{
+	IO_OFFLOAD_LOC	IoOffloadLoc;
+	u32 start_time = rtw_get_current_time();
+	u32 passing_time_ms;
+	u8 polling_ret;
+	int ret = _FAIL;
+
+	if (rtw_IOL_append_END_cmd(xmit_frame) != _SUCCESS)
+		goto exit;
+	
+	//adapter->HalFunc.mgnt_xmit(adapter, xmit_frame);
+	rtw_dump_xframe_sync(adapter, xmit_frame);
+
+	IoOffloadLoc.LocCmd = 0;
+	if(_SUCCESS != rtl8192c_FillH2CCmd(adapter, H2C_92C_IO_OFFLOAD, sizeof(IO_OFFLOAD_LOC), (u8 *)&IoOffloadLoc))
+		goto exit;
+
+	//polling if the IO offloading is done
+	while( (passing_time_ms=rtw_get_passing_time_ms(start_time)) <= max_wating_ms) {
+		#if 0 //C2H
+		if(0xff == rtw_read8(adapter, REG_C2HEVT_CLEAR))
+			break;
+		#else// 0x1c3
+		if(0x00 != (polling_ret=rtw_read8(adapter, 0x1c3)))
+			break;
+		#endif
+		rtw_msleep_os(5);
+	}
+	#if 0 //debug
+	DBG_871X("IOL %s, polling_ret:0x%02x, 0x1c0=0x%08x, 0x1c4=0x%08x, 0x1cc=0x%08x, 0x1e8=0x%08x, 0x130=0x%08x, 0x134=0x%08x\n"
+			, polling_ret==0xff?"success":"error"
+			, polling_ret
+			, rtw_read32(adapter, 0x1c0)
+			, rtw_read32(adapter, 0x1c4)
+			, rtw_read32(adapter, 0x1cc)
+			, rtw_read32(adapter, 0x1e8)
+			, rtw_read32(adapter, 0x130)
+			, rtw_read32(adapter, 0x134)
+	);
+	rtw_write32(adapter, 0x1c0, 0x0);
+	#endif
+
+	if(polling_ret == 0xff)
+		ret =_SUCCESS;
+	else {
+		DBG_871X("IOL %s, polling_ret:0x%02x\n"
+			//", 0x1c0=0x%08x, 0x1c4=0x%08x, 0x1cc=0x%08x, 0x1e8=0x%08x, 0x130=0x%08x, 0x134=0x%08x\n"
+			, polling_ret==0xff?"success":"error"
+			, polling_ret
+			//, rtw_read32(adapter, 0x1c0)
+			//, rtw_read32(adapter, 0x1c4)
+			//, rtw_read32(adapter, 0x1cc)
+			//, rtw_read32(adapter, 0x1e8)
+			//, rtw_read32(adapter, 0x130)
+			//, rtw_read32(adapter, 0x134)
+		);
+		#if 0 //debug
+		rtw_write16(adapter, 0x1c4, 0x0000); 
+		rtw_msleep_os(10);
+		DBG_871X("after reset, 0x1c4=0x%08x\n", rtw_read32(adapter, 0x1c4));
+		#endif
+
+	}
+
+	{
+		#if 0 //C2H
+		u32 c2h_evt;
+		int i;
+		c2h_evt = rtw_read32(adapter, REG_C2HEVT_MSG_NORMAL);
+		DBG_871X("%s io-offloading complete, in %ums: 0x%08x\n", __FUNCTION__, passing_time_ms, c2h_evt);
+		rtw_write8(adapter, REG_C2HEVT_CLEAR, 0x0);
+		#else// 0x1c3
+		//DBG_871X("%s IOF complete in %ums\n", __FUNCTION__, passing_time_ms);
+		rtw_write8(adapter, 0x1c3, 0x0);
+		#endif
+	}
+
+exit:
+	return ret;
+
+}
+#endif //CONFIG_IOL
 

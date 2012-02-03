@@ -24,6 +24,7 @@
 #include <drv_conf.h>
 #include <wlan_bssdef.h>
 #include <rtw_rf.h>
+#include <rtw_led.h>
 
 #define C2H_MEM_SZ (16*1024)
 
@@ -264,11 +265,13 @@ Notes: To ask RTL8711 performing site-survey
 Command-Event Mode 
 
 */
+
+#define RTW_SSID_SCAN_AMOUNT 9 // for WEXT_CSCAN_AMOUNT 9
 struct sitesurvey_parm {
 	sint scan_mode;	//active: 1, passive: 0 
 	sint bsslimit;	// 1 ~ 48
-	sint	ss_ssidlen;
-	u8 	ss_ssid[IW_ESSID_MAX_SIZE + 1];
+	// for up to 9 probreq with specific ssid
+	NDIS_802_11_SSID ssid[RTW_SSID_SCAN_AMOUNT];
 };
 
 /*
@@ -859,6 +862,18 @@ struct SetChannelPlan_param
 	u8 channel_plan;
 };
 
+/*H2C Handler index: 60 */ 
+struct LedBlink_param
+{
+	PLED_871x	 pLed;
+};
+
+/*H2C Handler index: 61 */ 
+struct SetChannelSwitch_param
+{
+	u8 new_ch_no;
+};
+
 #define GEN_CMD_CODE(cmd)	cmd ## _CMD_
 
 
@@ -886,7 +901,7 @@ Result:
 
 extern u8 rtw_setassocsta_cmd(_adapter  *padapter, u8 *mac_addr);
 extern u8 rtw_setstandby_cmd(_adapter *padapter, uint action);
-extern u8 rtw_sitesurvey_cmd(_adapter  *padapter, NDIS_802_11_SSID *pssid);
+extern u8 rtw_sitesurvey_cmd(_adapter  *padapter, NDIS_802_11_SSID *pssid, int ssid_max_num);
 extern u8 rtw_createbss_cmd(_adapter  *padapter);
 extern u8 rtw_createbss_cmd_ex(_adapter  *padapter, unsigned char *pbss, unsigned int sz);
 extern u8 rtw_setphy_cmd(_adapter  *padapter, u8 modem, u8 ch);
@@ -925,7 +940,9 @@ extern u8 rtw_ps_cmd(_adapter*padapter);
 u8 rtw_chk_hi_queue_cmd(_adapter*padapter);
 #endif
 
-extern u8 rtw_set_chplan_cmd(_adapter*padapter, u8 chplan);
+extern u8 rtw_set_chplan_cmd(_adapter*padapter, u8 chplan, u8 enaueue);
+extern u8 rtw_led_blink_cmd(_adapter*padapter, PLED_871x pLed);
+extern u8 rtw_set_csa_cmd(_adapter*padapter, u8 new_ch_no);
 
 u8 rtw_drvextra_cmd_hdl(_adapter *padapter, unsigned char *pbuf);
 
@@ -1015,6 +1032,9 @@ enum rtw_h2c_cmd
 	GEN_CMD_CODE(_Set_H2C_MSG), /*58*/
 	
 	GEN_CMD_CODE(_SetChannelPlan), /*59*/
+	GEN_CMD_CODE(_LedBlink), /*60*/
+	
+	GEN_CMD_CODE(_SetChannelSwitch), /*61*/
 	
 	MAX_H2CCMD
 };
@@ -1093,6 +1113,8 @@ struct _cmd_callback 	rtw_cmd_callback[] =
 	{GEN_CMD_CODE(_Set_Drv_Extra), NULL},/*57*/
 	{GEN_CMD_CODE(_Set_H2C_MSG), NULL},/*58*/
 	{GEN_CMD_CODE(_SetChannelPlan), NULL},/*59*/
+	{GEN_CMD_CODE(_LedBlink), NULL},/*60*/
+	{GEN_CMD_CODE(_SetChannelSwitch), NULL},/*61*/
 };
 #endif
 

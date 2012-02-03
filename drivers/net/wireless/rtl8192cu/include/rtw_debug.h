@@ -146,9 +146,9 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 #endif
 
 #define RT_TRACE(_Comp, _Level, Fmt) do{}while(0)
-#define _func_enter_ {}
-#define _func_exit_ {}
-#define RT_PRINT_DATA(_Comp, _Level, _TitleString, _HexData, _HexDataLen) {}
+#define _func_enter_ do{}while(0)
+#define _func_exit_ do{}while(0)
+#define RT_PRINT_DATA(_Comp, _Level, _TitleString, _HexData, _HexDataLen) do{}while(0)
 
 #undef	_dbgdump
 
@@ -249,19 +249,19 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 #endif
 
 #ifdef PLATFORM_WINDOWS
-	#define DBG_871X {}
-	#define MSG_8192C {}
-	#define DBG_8192C {}
-	#define WRN_8192C {}
-	#define ERR_8192C {}
+	#define DBG_871X do {} while(0)
+	#define MSG_8192C do {} while(0)
+	#define DBG_8192C do {} while(0)
+	#define WRN_8192C do {} while(0)
+	#define ERR_8192C do {} while(0)
 #endif
 
 #ifdef PLATFORM_LINUX
-	#define DBG_871X(x, ...) {}
-	#define MSG_8192C(x, ...) {}
-	#define DBG_8192C(x,...)  {}
-	#define WRN_8192C(x,...)  {}
-	#define ERR_8192C(x,...)  {}
+	#define DBG_871X(x, ...) do {} while(0)
+	#define MSG_8192C(x, ...) do {} while(0)
+	#define DBG_8192C(x,...) do {} while(0)
+	#define WRN_8192C(x,...) do {} while(0)
+	#define ERR_8192C(x,...) do {} while(0)
 #endif
 
 #if	defined (_dbgdump)
@@ -349,7 +349,7 @@ extern void rtl871x_cedbg(const char *fmt, ...);
 
 #endif
 
-#ifdef MEMORY_LEAK_DEBUG
+#ifdef DBG_MEMORY_LEAK
 	int proc_get_malloc_cnt(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data);

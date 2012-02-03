@@ -91,3 +91,5 @@ modules/wifi/ar6302/AR6K_SDK_ISC.build_3.1_RC.329/host/os/linux/Module.symvers
 modules/wifi/nano-c047.12/kernel/ic/Module.symvers
 modules/wifi/nano-c047.12/kernel/ksdio/Module.symvers
 modules/wifi/usi-bcm4329/v4.218.248.15/open-src/src/dhd/linux/dhd-cdc-sdmmc-gpl-*
+modules/wifi/bcm40181/5.90.125.69.2/open-src/src/dhd/linux/dhd-cdc-sdmmc-gpl-*
+modules/wifi/bcm40181/open-src/src/dhd/linux/dhd-cdc-sdmmc-gpl-*

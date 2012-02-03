@@ -894,11 +894,10 @@ void HTOnAssocRsp(_adapter *padapter)
 {
 	unsigned char		max_AMPDU_len;
 	unsigned char		min_MPDU_spacing;
-	unsigned char		FactorLevel[18] = {2, 4, 4, 7, 7, 13, 13, 13, 2, 7, 7, 13, 13, 15, 15, 15, 15, 0};
-	struct registry_priv	 *pregpriv = &padapter->registrypriv;
+	//struct registry_priv	 *pregpriv = &padapter->registrypriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	WLAN_BSSID_EX 		*cur_network = &(pmlmeinfo->network);
+	//WLAN_BSSID_EX 		*cur_network = &(pmlmeinfo->network);
 	
 	DBG_871X("%s\n", __FUNCTION__);
 
@@ -909,7 +908,7 @@ void HTOnAssocRsp(_adapter *padapter)
 	else
 	{
 		pmlmeinfo->HT_enable = 0;
-		set_channel_bwmode(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
+		//set_channel_bwmode(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
 		return;
 	}
 	
@@ -926,6 +925,7 @@ void HTOnAssocRsp(_adapter *padapter)
 
 	padapter->HalFunc.SetHwRegHandler(padapter, HW_VAR_AMPDU_FACTOR, (u8 *)(&max_AMPDU_len));
 
+#if 0 //move to rtw_update_ht_cap()
 	if ((pregpriv->cbw40_enable) &&
 		(pmlmeinfo->HT_caps.HT_cap_element.HT_caps_info & BIT(1)) && 
 		(pmlmeinfo->HT_info.infos[0] & BIT(2)))
@@ -949,9 +949,11 @@ void HTOnAssocRsp(_adapter *padapter)
 		
 		//SelectChannel(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset);
 	}
+#endif
 
-	set_channel_bwmode(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
+	//set_channel_bwmode(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
 
+#if 0 //move to rtw_update_ht_cap()
 	//
 	// Config SM Power Save setting
 	//
@@ -971,6 +973,7 @@ void HTOnAssocRsp(_adapter *padapter)
 	// Config current HT Protection mode.
 	//
 	pmlmeinfo->HT_protection = pmlmeinfo->HT_info.infos[1] & 0x3;
+#endif
 	
 }
 
@@ -1077,6 +1080,36 @@ void update_beacon_info(_adapter *padapter, u8 *pframe, uint pkt_len, struct sta
 		i += (pIE->Length + 2);
 	}
 }
+
+#ifdef CONFIG_DFS
+void process_csa_ie(_adapter *padapter, u8 *pframe, uint pkt_len)
+{
+	unsigned int i;
+	unsigned int len;
+	PNDIS_802_11_VARIABLE_IEs	pIE;
+	u8 new_ch_no = 0; 
+		
+	len = pkt_len - (_BEACON_IE_OFFSET_ + WLAN_HDR_A3_LEN);
+
+	for (i = 0; i < len;)
+	{
+		pIE = (PNDIS_802_11_VARIABLE_IEs)(pframe + (_BEACON_IE_OFFSET_ + WLAN_HDR_A3_LEN) + i);
+		
+		switch (pIE->ElementID)
+		{
+			case _CH_SWTICH_ANNOUNCE_:
+				_rtw_memcpy(&new_ch_no, pIE->data+1, 1);
+				rtw_set_csa_cmd(padapter, new_ch_no);
+				break;
+
+			default:
+				break;
+		}
+		
+		i += (pIE->Length + 2);
+	}
+}
+#endif //CONFIG_DFS
 
 unsigned int is_ap_in_tkip(_adapter *padapter)
 {
@@ -1624,6 +1657,8 @@ void process_addba_req(_adapter *padapter, u8 *paddba_req, u8 *addr)
 		DBG_871X("DBG_RX_SEQ %s:%d IndicateSeq: %d, start_seq: %d\n", __FUNCTION__, __LINE__,
 			preorder_ctrl->indicate_seq, start_seq);
 		#endif
+		#else
+		preorder_ctrl->indicate_seq = 0xffff;
 		#endif
 		
 		preorder_ctrl->enable =(pmlmeinfo->bAcceptAddbaReq == _TRUE)? _TRUE :_FALSE;

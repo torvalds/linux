@@ -16,7 +16,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
 ******************************************************************************/
 #ifndef	__RTL8192D_DM_H__
 #define __RTL8192D_DM_H__
@@ -87,6 +86,7 @@ typedef struct _Dynamic_Initial_Gain_Threshold_
 
 	u8		PreIGValue;
 	u8		CurIGValue;
+	u8	       BackupIGValue;
 
 	char		BackoffVal;
 	char		BackoffVal_range_max;
@@ -203,6 +203,13 @@ typedef enum tag_DIG_Connect_Definition
 #define		TxHighPwrLevel_Normal		0	
 #define		TxHighPwrLevel_Level1		1
 #define		TxHighPwrLevel_Level2		2
+#define		TxHighPwrLevel_BT1			3
+#define		TxHighPwrLevel_BT2			4
+#define		TxHighPwrLevel_15			5
+#define		TxHighPwrLevel_35			6
+#define		TxHighPwrLevel_50			7
+#define		TxHighPwrLevel_70			8
+#define		TxHighPwrLevel_100			9
 
 #define		DM_Type_ByFW			0
 #define		DM_Type_ByDriver		1
@@ -231,6 +238,47 @@ typedef struct _RATE_ADAPTIVE
 	u8				PreRATRState;
 	
 } RATE_ADAPTIVE, *PRATE_ADAPTIVE;
+
+typedef enum tag_SW_Antenna_Switch_Definition
+{
+	Antenna_B = 1,
+	Antenna_A = 2,
+	Antenna_MAX = 3,
+}DM_SWAS_E;
+
+// 20100514 Joseph: Add definition for antenna switching test after link.
+// This indicates two different the steps. 
+// In SWAW_STEP_PEAK, driver needs to switch antenna and listen to the signal on the air.
+// In SWAW_STEP_DETERMINE, driver just compares the signal captured in SWAW_STEP_PEAK
+// with original RSSI to determine if it is necessary to switch antenna.
+#define SWAW_STEP_PEAK		0
+#define SWAW_STEP_DETERMINE	1
+
+#define	TP_MODE		0
+#define	RSSI_MODE		1
+#define	TRAFFIC_LOW	0
+#define	TRAFFIC_HIGH	1
+
+//=============================
+//Neil Chen---2011--06--15--
+//==============================
+//3 PathDiv 
+typedef struct _SW_Antenna_Switch_
+{
+	u8		try_flag;
+	s32		PreRSSI;
+	u8		CurAntenna;
+	u8		PreAntenna;
+	u8		RSSI_Trying;
+	u8		TestMode;
+	u8		bTriggerAntennaSwitch;
+	u8		SelectAntennaMap;
+
+	// Before link Antenna Switch check
+	u8		SWAS_NoLink_State;
+	u32		SWAS_NoLink_BK_Reg860;
+}SWAT_T, *pSWAT_T;
+//========================================
 
 struct 	dm_priv	
 {
@@ -287,6 +335,13 @@ struct 	dm_priv
 	u32	APKoutput[2][2];	//path A/B; output1_1a/output1_2a
 	u8	bAPKdone;
 	u8	bAPKThermalMeterIgnore;
+	BOOLEAN		bDPKdone[2];
+	BOOLEAN		bDPKstore;
+	BOOLEAN		bDPKworking;
+	u8	OFDM_min_index_internalPA_DPK[2];
+	u8	TxPowerLevelDPK[2];
+
+	u32	RegA24;
 
 	//for IQK
 	u32	Reg874;
@@ -306,6 +361,19 @@ struct 	dm_priv
 	//u8 Record_CCK_20Mindex;
 	//u8 Record_CCK_40Mindex;
 	char	OFDM_index[2];
+
+	SWAT_T DM_SWAT_Table;
+
+       //Neil Chen----2011--06--23-----
+       //3 Path Diversity 
+	BOOLEAN		bPathDiv_Enable;	//For 92D Non-interrupt Antenna Diversity by Neil ,add by wl.2011.07.19
+	BOOLEAN		RSSI_test;
+	s32			RSSI_sum_A;
+	s32			RSSI_cnt_A;
+	s32			RSSI_sum_B;
+	s32			RSSI_cnt_B;
+	struct sta_info	*RSSI_target;
+	_timer		PathDivSwitchTimer;
 
 	//for TxPwrTracking
 	int	RegE94;

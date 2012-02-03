@@ -237,7 +237,7 @@ static int __devinit sw_dmac_probe(struct platform_device *dev)
 	ret = sw_dma_init_map(&sw_dma_sel);
 
 	if (ret) {
-		early_printk("DMAC: failed to init map\n");
+		printk("DMAC: failed to init map\n");
 	} else {
 		pr_info("Initialize DMAC OK\n");
 	}
@@ -246,18 +246,18 @@ static int __devinit sw_dmac_probe(struct platform_device *dev)
 }
 static int __devexit sw_dmac_remove(struct platform_device *dev)
 {
-        early_printk("[%s] enter\n", __FUNCTION__);
+        printk("[%s] enter\n", __FUNCTION__);
         return 0;
 }
 static int sw_dmac_suspend(struct platform_device *dev, pm_message_t state)
 {
-        early_printk("[%s] enter\n", __FUNCTION__);
+        printk("[%s] enter\n", __FUNCTION__);
         return 0;
 }
 
 static int sw_dmac_resume(struct platform_device *dev)
 {
-        early_printk("[%s] enter\n", __FUNCTION__);
+        printk("[%s] enter\n", __FUNCTION__);
         return 0;
 }
 

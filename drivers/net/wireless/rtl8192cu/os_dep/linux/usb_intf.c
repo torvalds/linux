@@ -54,8 +54,6 @@ extern int rtw_cbw40_enable;
 extern int rtw_ampdu_enable;//for enable tx_ampdu
 #endif
 
-static struct usb_interface *pintf;
-
 #ifdef CONFIG_GLOBAL_UI_PID
 int ui_pid[3] = {0, 0, 0};
 #endif
@@ -262,13 +260,16 @@ static inline int RT_usb_endpoint_num(const struct usb_endpoint_descriptor *epd)
 	return epd->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
 }
 
-#ifdef CONFIG_USB_VENDOR_REQ_PREALLOC
 u8 rtw_init_intf_priv(_adapter * padapter)
 {
 	u8 rst = _SUCCESS; 
 	
+	#ifdef CONFIG_USB_VENDOR_REQ_MUTEX
 	_rtw_mutex_init(&padapter->dvobjpriv.usb_vendor_req_mutex);
+	#endif
 
+
+#ifdef CONFIG_USB_VENDOR_REQ_BUFFER_PREALLOC
 	padapter->dvobjpriv.usb_alloc_vendor_req_buf = rtw_zmalloc(MAX_USB_IO_CTL_SIZE);
 
 	if (padapter->dvobjpriv.usb_alloc_vendor_req_buf   == NULL){
@@ -280,6 +281,8 @@ u8 rtw_init_intf_priv(_adapter * padapter)
 	padapter->dvobjpriv.usb_vendor_req_buf  = 
 		(u8 *)N_BYTE_ALIGMENT((SIZE_PTR)(padapter->dvobjpriv.usb_alloc_vendor_req_buf ), ALIGNMENT_UNIT);
 exit:
+#endif //CONFIG_USB_VENDOR_REQ_BUFFER_PREALLOC
+
 	return rst;
 	
 }
@@ -288,15 +291,22 @@ u8 rtw_deinit_intf_priv(_adapter * padapter)
 {
 	u8 rst = _SUCCESS; 
 
+	#ifdef CONFIG_USB_VENDOR_REQ_BUFFER_PREALLOC
 	if(padapter->dvobjpriv.usb_vendor_req_buf)
 	{
 		rtw_mfree(padapter->dvobjpriv.usb_alloc_vendor_req_buf,MAX_USB_IO_CTL_SIZE);
 	}
+	#endif //CONFIG_USB_VENDOR_REQ_BUFFER_PREALLOC
+
+
+	#ifdef CONFIG_USB_VENDOR_REQ_MUTEX
+	_rtw_mutex_free(&padapter->dvobjpriv.usb_vendor_req_mutex);
+	#endif
 	
 	return rst;
 	
 }
-#endif
+
 static u32 usb_dvobj_init(_adapter *padapter)
 {
 	int	i;
@@ -309,8 +319,9 @@ static u32 usb_dvobj_init(_adapter *padapter)
 	struct usb_interface_descriptor	*piface_desc;
 	struct usb_host_endpoint		*phost_endp;
 	struct usb_endpoint_descriptor	*pendp_desc;
-	struct dvobj_priv	*pdvobjpriv = &padapter->dvobjpriv;
-	struct usb_device	*pusbd = pdvobjpriv->pusbdev;
+	struct dvobj_priv				*pdvobjpriv = &padapter->dvobjpriv;
+	struct usb_device				*pusbd = pdvobjpriv->pusbdev;
+	struct usb_interface			*pusb_interface = pdvobjpriv->pusbintf;
 
 _func_enter_;
 
@@ -357,9 +368,9 @@ _func_enter_;
 	DBG_8192C("bMaxPower=%x\n", pconf_desc->bMaxPower);
 #endif
 
-	//DBG_8192C("\n/****** num of altsetting = (%d) ******/\n", pintf->num_altsetting);
+	//DBG_8192C("\n/****** num of altsetting = (%d) ******/\n", pusb_interface->num_altsetting);
 
-	phost_iface = &pintf->altsetting[0];
+	phost_iface = &pusb_interface->altsetting[0];
 	piface_desc = &phost_iface->desc;
 
 #if 0
@@ -432,18 +443,18 @@ _func_enter_;
 	}
 
 	//.2
-	if ((init_io_priv(padapter)) == _FAIL)
+	if ((rtw_init_io_priv(padapter)) == _FAIL)
 	{
 		RT_TRACE(_module_hci_intfs_c_,_drv_err_,(" \n Can't init io_reqs\n"));
 		status = _FAIL;
 	}
-#ifdef CONFIG_USB_VENDOR_REQ_PREALLOC
+	
 	if((rtw_init_intf_priv(padapter) )== _FAIL)
 	{
 		RT_TRACE(_module_os_intfs_c_,_drv_err_,("\n Can't INIT rtw_init_intf_priv\n"));
 		status = _FAIL;
 	}
-#endif
+
 	//.3 misc
 	_rtw_init_sema(&(padapter->dvobjpriv.usb_suspend_sema), 0);	
 
@@ -452,7 +463,7 @@ _func_enter_;
 	//.4 usb endpoint mapping
 	intf_chip_configure(padapter);
 
-	ATOMIC_SET(&pdvobjpriv->continual_urb_error, 0);
+	rtw_reset_continual_urb_error(pdvobjpriv);
 	
 _func_exit_;
 
@@ -464,9 +475,9 @@ static void usb_dvobj_deinit(_adapter * padapter){
 	struct dvobj_priv *pdvobjpriv=&padapter->dvobjpriv;
 
 	_func_enter_;
-#ifdef CONFIG_USB_VENDOR_REQ_PREALLOC
+
 	rtw_deinit_intf_priv(padapter);
-#endif
+
 	_func_exit_;
 }
 
@@ -533,7 +544,7 @@ static void usb_intf_stop(_adapter *padapter)
 	}
 
 	//cancel out irp
-	write_port_cancel(padapter);
+	rtw_write_port_cancel(padapter);
 
 	//todo:cancel other irps
 
@@ -561,7 +572,7 @@ static void rtw_dev_unload(_adapter *padapter)
 
 		//s4.
 		if(!padapter->pwrctrlpriv.bInternalAutoSuspend )			
-		rtw_stop_drv_threads(padapter);
+			rtw_stop_drv_threads(padapter);
 
 
 		//s5.
@@ -681,6 +692,7 @@ int rtw_hw_suspend(_adapter *padapter )
 				rtw_led_control(padapter, LED_CTL_NO_LINK);
 
 				rtw_os_indicate_disconnect(padapter);
+				
 				#ifdef CONFIG_LPS
 				//donnot enqueue cmd
 				rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_DISCONNECT, 0);
@@ -689,7 +701,7 @@ int rtw_hw_suspend(_adapter *padapter )
 
 		}
 		//s2-3.
-		rtw_free_assoc_resources(padapter);
+		rtw_free_assoc_resources(padapter, 1);
 
 		//s2-4.
 		rtw_free_network_queue(padapter,_TRUE);
@@ -836,7 +848,7 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 		//s2-2.  indicate disconnect to os
 		rtw_indicate_disconnect(padapter);
 		//s2-3.
-		rtw_free_assoc_resources(padapter);
+		rtw_free_assoc_resources(padapter, 1);
 #ifdef CONFIG_AUTOSUSPEND
 		if(!pwrpriv->bInternalAutoSuspend )
 #endif
@@ -976,9 +988,9 @@ int rtw_resume_process(struct usb_interface *pusb_intf)
 		rtw_signal_process(padapter->pid[1], SIGUSR2);
 	}	
 
-#ifdef CONFIG_LAYER2_ROAMING_RESUME
+	#ifdef CONFIG_LAYER2_ROAMING_RESUME
 	rtw_roaming(padapter, NULL);
-#endif	
+	#endif	
 	
 	DBG_871X("###########  rtw_resume  done#################\n");
 	
@@ -1103,8 +1115,6 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 	// In this probe function, O.S. will provide the usb interface pointer to driver.
 	// We have to increase the reference count of the usb device structure by using the usb_get_dev function.
 	usb_get_dev(interface_to_usbdev(pusb_intf));
-
-	pintf = pusb_intf;	
 
 	//step 0.
 	process_spec_devid(pdid);

@@ -1188,7 +1188,7 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     		break;
 
     	case DISP_CMD_LCD_SET_BRIGHTNESS:
-    		ret = BSP_disp_lcd_set_bright(ubuffer[0], (__disp_lcd_bright_t)ubuffer[1]);
+    		ret = BSP_disp_lcd_set_bright(ubuffer[0], ubuffer[1]);
     		break;
 
     	case DISP_CMD_LCD_GET_BRIGHTNESS:

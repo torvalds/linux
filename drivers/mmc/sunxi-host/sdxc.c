@@ -229,7 +229,10 @@ static __inline void sdxc_sel_access_mode(struct sunxi_mmc_host* smc_host, u32 a
 static __inline u32 sdxc_enable_imask(struct sunxi_mmc_host* smc_host, u32 imask)
 {
 	u32 newmask = readl(SDXC_REG_IMASK) | imask;
-	writel(newmask, SDXC_REG_IMASK);
+	if (!(imask & SDXC_SDIOInt))
+		writew(newmask, SDXC_REG_IMASK);
+	else
+		writel(newmask, SDXC_REG_IMASK);
 	return newmask;
 }
 
@@ -245,7 +248,10 @@ static __inline u32 sdxc_enable_imask(struct sunxi_mmc_host* smc_host, u32 imask
 static __inline u32 sdxc_disable_imask(struct sunxi_mmc_host* smc_host, u32 imask)
 {
     u32 newmask = readl(SDXC_REG_IMASK) & (~imask);
-    writel(newmask, SDXC_REG_IMASK);
+	if (!(imask & SDXC_SDIOInt))
+		writew(newmask, SDXC_REG_IMASK);
+	else
+		writel(newmask, SDXC_REG_IMASK);
 	return newmask;
 }
 
@@ -1195,7 +1201,7 @@ _out_:
 		SMC_MSG("found data error, need to send stop command !!\n");
 		sdxc_send_manual_stop(smc_host, req);
 	}
-	
+
     return ret;
 }
 

@@ -16,7 +16,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
 ******************************************************************************/
 #ifndef	__RTW_RF_H_ 
 #define __RTW_RF_H_
@@ -135,6 +134,13 @@ typedef	enum _RT_RF_TYPE_DEFINITION
 	RF_819X_MAX_TYPE = 5,
 }RT_RF_TYPE_DEF_E;
 
+typedef enum _RF_RADIO_PATH{
+	RF_PATH_A = 0,			//Radio Path A
+	RF_PATH_B = 1,			//Radio Path B
+	RF_PATH_C = 2,			//Radio Path C
+	RF_PATH_D = 3,			//Radio Path D
+	//RF_PATH_MAX				//Max RF number 90 support 
+}RF_RADIO_PATH_E, *PRF_RADIO_PATH_E;
 
 u32 rtw_ch2freq(u32 ch);
 u32 rtw_freq2ch(u32 freq);

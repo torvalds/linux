@@ -51,6 +51,8 @@
 #define IQK_MAC_REG_NUM		4
 #define IQK_ADDA_REG_NUM		16
 #define IQK_BB_REG_NUM			10
+#define IQK_BB_REG_NUM_92C	9
+#define IQK_BB_REG_NUM_92D	10
 #define IQK_BB_REG_NUM_test	6
 #define index_mapping_NUM		13
 #define Rx_index_mapping_NUM	15
@@ -120,16 +122,7 @@ typedef enum _RF_CONTENT{
 	radiod_txt = 0x1003
 } RF_CONTENT;
 
-typedef enum _RF90_RADIO_PATH{
-	RF90_PATH_A = 0,			//Radio Path A
-	RF90_PATH_B = 1,			//Radio Path B
-	RF90_PATH_C = 2,			//Radio Path C
-	RF90_PATH_D = 3,			//Radio Path D
-	//RF90_PATH_MAX				//Max RF number 90 support 
-}RF90_RADIO_PATH_E, *PRF90_RADIO_PATH_E;
-
-#define	RF90_PATH_MAX			2
-
+#define	RF_PATH_MAX			2
 
 typedef enum _WIRELESS_MODE {
 	WIRELESS_MODE_UNKNOWN = 0x00,
@@ -142,15 +135,10 @@ typedef enum _WIRELESS_MODE {
 } WIRELESS_MODE;
 
 
-#if(TX_POWER_FOR_5G_BAND == 1)
 #define CHANNEL_MAX_NUMBER		14+24+21	// 14 is the max channel number
 #define CHANNEL_GROUP_MAX		3+9	// ch1~3, ch4~9, ch10~14 total three groups
 #define MAX_PG_GROUP 13
-#else
-#define CHANNEL_MAX_NUMBER		14	// 14 is the max channel number
-#define CHANNEL_GROUP_MAX		3	// ch1~3, ch4~9, ch10~14 total three groups
-#define MAX_PG_GROUP 7
-#endif
+
 #define	CHANNEL_GROUP_MAX_2G		3
 #define	CHANNEL_GROUP_IDX_5GL		3
 #define	CHANNEL_GROUP_IDX_5GM		6
@@ -158,25 +146,15 @@ typedef enum _WIRELESS_MODE {
 #define	CHANNEL_GROUP_MAX_5G		9
 #define	CHANNEL_MAX_NUMBER_2G		14
 
-#if (RTL8192D_DUAL_MAC_MODE_SWITCH == 1)
-typedef enum _BaseBand_Config_Type{
-	BaseBand_Config_PHY_REG = 0,			
-	BaseBand_Config_AGC_TAB = 1,			
-	BaseBand_Config_AGC_TAB_2G = 2,
-	BaseBand_Config_AGC_TAB_5G = 3,
-}BaseBand_Config_Type, *PBaseBand_Config_Type;
-#else
 typedef enum _BaseBand_Config_Type{
 	BaseBand_Config_PHY_REG = 0,			//Radio Path A
 	BaseBand_Config_AGC_TAB = 1,			//Radio Path B
 }BaseBand_Config_Type, *PBaseBand_Config_Type;
-#endif
-
 
 typedef enum _MACPHY_MODE_8192D{
+	SINGLEMAC_SINGLEPHY,
 	DUALMAC_DUALPHY,
 	DUALMAC_SINGLEPHY,
-	SINGLEMAC_SINGLEPHY
 }MACPHY_MODE_8192D,*PMACPHY_MODE_8192D;
 
 typedef enum _BAND_TYPE{
@@ -347,11 +325,11 @@ void	rtl8192d_PHY_SetBBReg(	IN	PADAPTER	Adapter,
 								IN	u32		BitMask,
 								IN	u32		Data	);
 u32	rtl8192d_PHY_QueryRFReg(	IN	PADAPTER			Adapter,
-								IN	RF90_RADIO_PATH_E	eRFPath,
+								IN	RF_RADIO_PATH_E	eRFPath,
 								IN	u32				RegAddr,
 								IN	u32				BitMask	);
 void	rtl8192d_PHY_SetRFReg(	IN	PADAPTER			Adapter,
-								IN	RF90_RADIO_PATH_E	eRFPath,
+								IN	RF_RADIO_PATH_E	eRFPath,
 								IN	u32				RegAddr,
 								IN	u32				BitMask,
 								IN	u32				Data	);
@@ -366,14 +344,14 @@ extern	int	PHY_RFConfig8192D(	IN	PADAPTER	Adapter	);
 /* RF config */
 int	rtl8192d_PHY_ConfigRFWithParaFile(	IN	PADAPTER	Adapter,
 												IN	u8* 	pFileName,
-												IN	RF90_RADIO_PATH_E	eRFPath);
+												IN	RF_RADIO_PATH_E	eRFPath);
 int	rtl8192d_PHY_ConfigRFWithHeaderFile(	IN	PADAPTER			Adapter,
 												IN	RF_CONTENT			Content,
-												IN	RF90_RADIO_PATH_E	eRFPath);
+												IN	RF_RADIO_PATH_E	eRFPath);
 /* BB/RF readback check for making sure init OK */
 int	rtl8192d_PHY_CheckBBAndRFOK(	IN	PADAPTER			Adapter,
 										IN	HW90_BLOCK_E		CheckBlock,
-										IN	RF90_RADIO_PATH_E	eRFPath	  );
+										IN	RF_RADIO_PATH_E	eRFPath	  );
 /* Read initi reg value for tx power setting. */
 void	rtl8192d_PHY_GetHWRegOriginalValue(	IN	PADAPTER		Adapter	);
 
@@ -487,6 +465,11 @@ SetAntennaConfig92C(
 	IN	PADAPTER	Adapter,
 	IN	u8		DefaultAnt	
 	);
+
+VOID 
+PHY_StopTRXBeforeChangeBand8192D(
+	  PADAPTER		Adapter
+);
 
 VOID
 PHY_UpdateBBRFConfiguration8192D(

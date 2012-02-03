@@ -347,7 +347,7 @@ static __s64 sys_clk_get_rate(__aw_ccu_sys_clk_e id)
         {
             #if(USE_PLL6M_REPLACE_PLL4)
             if(MAGIC_VER_C == sw_get_ic_ver()) {
-                return sys_clk_get_rate(AW_SYS_CLK_PLL6M);
+                return sys_clk_get_rate(AW_SYS_CLK_PLL6);
             }
             #endif
 

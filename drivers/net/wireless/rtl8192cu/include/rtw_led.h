@@ -208,5 +208,7 @@ struct led_priv{
 #define rtw_led_control(adapter, LedAction)
 #endif //CONFIG_SW_LED
 
+extern void BlinkHandler(PLED_871x	 pLed);
+
 #endif //__RTW_LED_H_
 

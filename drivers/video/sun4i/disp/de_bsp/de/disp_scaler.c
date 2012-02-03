@@ -248,16 +248,23 @@ __s32 Scaler_event_proc(__s32 irq, void *parg)
 __s32 Scaler_event_proc(void *parg)
 #endif
 {
-    __u8 fe_intflags;
+    __u8 fe_intflags, be_intflags;
     __u32 sel = (__u32)parg;
 
     fe_intflags = DE_SCAL_QueryINT(sel);
-
+    be_intflags = DE_BE_QueryINT(sel);
+    DE_SCAL_ClearINT(sel,fe_intflags);
+    DE_BE_ClearINT(sel,be_intflags);
+    
     DE_INF("scaler %d interrupt, scal_int_status:0x%x!\n", sel, fe_intflags);
+
+    if(be_intflags & DE_IMG_REG_LOAD_FINISH)
+    {
+        LCD_line_event_proc(sel); 
+    }
 
     if(fe_intflags & DE_WB_END_IE)
     {        
-        DE_SCAL_ClearINT(sel,DE_WB_END_IE);
         DE_SCAL_DisableINT(sel,DE_FE_INTEN_ALL);
 #ifdef __LINUX_OSAL__
         if(gdisp.scaler[sel].b_scaler_finished == 1 && (&gdisp.scaler[sel].scaler_queue != NULL))
@@ -565,7 +572,7 @@ __s32 Scaler_Set_Output_Size(__u32 sel, __disp_rectsz_t *size)
 	in_scan.field = FALSE;
 	in_scan.bottom = FALSE;
 
-	out_scan.field = (gdisp.screen[screen_index].de_flicker_status == DE_FLICKER_USED)?FALSE: gdisp.screen[screen_index].b_out_interlace;
+	out_scan.field = (gdisp.screen[screen_index].de_flicker_status & DE_FLICKER_USED)?FALSE: gdisp.screen[screen_index].b_out_interlace;
     
 	DE_SCAL_Set_Scaling_Factor(sel, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type);
 	if(scaler->enhance_en == TRUE)
@@ -628,7 +635,7 @@ __s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t *scl_rect)
 	in_scan.field = FALSE;
 	in_scan.bottom = FALSE;
 
-	out_scan.field = (gdisp.screen[screen_index].de_flicker_status == DE_FLICKER_USED)?FALSE: gdisp.screen[screen_index].b_out_interlace;
+	out_scan.field = (gdisp.screen[screen_index].de_flicker_status & DE_FLICKER_USED)?FALSE: gdisp.screen[screen_index].b_out_interlace;
 
 	if(scaler->in_fb.cs_mode > DISP_VXYCC)
 	{
@@ -870,7 +877,7 @@ __s32 BSP_disp_scaler_set_smooth(__u32 sel, __disp_video_smooth_t  mode)
 	in_scan.field = FALSE;
 	in_scan.bottom = FALSE;
 
-	out_scan.field = (gdisp.screen[screen_index].de_flicker_status == DE_FLICKER_USED)?FALSE: gdisp.screen[screen_index].b_out_interlace;
+	out_scan.field = (gdisp.screen[screen_index].de_flicker_status & DE_FLICKER_USED)?FALSE: gdisp.screen[screen_index].b_out_interlace;
 
 	DE_SCAL_Set_Scaling_Coef(sel, &in_scan, &in_size, &in_type, &out_scan, &out_size, &out_type, scaler->smooth_mode);
     scaler->b_reg_change = TRUE;

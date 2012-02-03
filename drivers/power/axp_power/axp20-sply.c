@@ -26,6 +26,7 @@
 #include <linux/seq_file.h>
 #include <linux/input.h>
 #include <linux/mfd/axp-mfd.h>
+#include <asm/div64.h>
 
 #include <mach/sys_config.h>
 
@@ -47,8 +48,9 @@ static int pmu_used2 = 0;
 static int gpio_adp_hdle = 0;
 static int pmu_suspendpwroff_vol = 0;
 static int pmu_earlysuspend_chgcur = 0;
-static int get_rdc_flag = 0;
 struct axp_adc_res adc;
+static int count_rdc = 0;
+static int count_dis = 0;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static struct early_suspend axp_early_suspend;
 int early_suspend_flag = 0;
@@ -177,6 +179,10 @@ static void axp_charger_update(struct axp_charger *charger)
   //DBG_PSY_MSG("TEMPERATURE:val1=0x%x,val2=0x%x\n",val[1],val[0]);
   tmp = (val[0] << 4 ) + (val[1] & 0x0F);
   charger->ic_temp = (int) tmp  - 1447;
+  if(!charger->ext_valid){
+  	charger->disvbat =  charger->vbat;
+  	charger->disibat =  charger->ibat;
+  }
 }
 
 #if defined  (CONFIG_AXP_CHARGEINIT)
@@ -643,79 +649,56 @@ static int axp_battery_first_init(struct axp_charger *charger)
 
 static int axp_get_rdc(struct axp_charger *charger)
 {
-  unsigned int i,temp;
-  int averPreVol = 0, averPreCur = 0,averNextVol = 0,averNextCur = 0;
+	int temp;
+	int rdc;
+	uint8_t v[2];
+	axp_reads(charger->master,0xba,2,v);
+	rdc = (((v[0] & 0x1F) << 8) | v[1]) * 10742 / 10000;
+	DBG_PSY_MSG("===========================calculate rdc \n");
 
-  //msleep(3000);
-  ssleep(30);
-  if(!charger->bat_det){
-        return pmu_battery_rdc;
-  }
-  if( charger->ext_valid){
-    for(i = 0; i< AXP20_RDC_COUNT; i++){
-      axp_charger_update(charger);
-      if( axp20_ibat_to_mA(charger->adc->idischar_res) == 0 && axp20_icharge_to_mA(charger->adc->ichar_res) > 100){
-      }
-      else{
-      	DBG_PSY_MSG("%s->%d\n",__FUNCTION__,__LINE__);
-      	return pmu_battery_rdc;
-      }
-      averPreVol += charger->vbat;
-      averPreCur += charger->ibat;
-      DBG_PSY_MSG("CHARGING:charger->vbat = %d,charger->ibat = %d\n",charger->vbat,charger->ibat);
-      msleep(200);
-    }
-    averPreVol = (averPreVol + AXP20_RDC_COUNT/2)/ AXP20_RDC_COUNT;
-    averPreCur = (averPreCur + AXP20_RDC_COUNT/2)/ AXP20_RDC_COUNT;
-    axp_charger_update_state(charger);
-    if(!charger->is_on){
-      return pmu_battery_rdc;
-    }
-    axp_set_bits(charger->master,0x32,0x38);
-    axp_clr_bits(charger->master,AXP20_CHARGE_CONTROL1,0x80);
-    //msleep(3000);
-    ssleep(60);
-    for(i = 0; i< AXP20_RDC_COUNT; i++){
-      axp_charger_update(charger);
-      if( axp20_icharge_to_mA(charger->adc->ichar_res) == 0 ){
-      }
-      else{
-        DBG_PSY_MSG("%s->%d\n",__FUNCTION__,__LINE__);
-      	axp_set_bits(charger->master,AXP20_CHARGE_CONTROL1,0x80);
-      	return pmu_battery_rdc;
-      }
-      averNextVol += charger->vbat;
-      averNextCur += charger->ibat;
-      DBG_PSY_MSG("DISCHARGING:charger->vbat = %d,charger->ibat = %d\n",charger->vbat,charger->ibat);
-      msleep(200);
-    }
-    averNextVol = (averNextVol + AXP20_RDC_COUNT/2) / AXP20_RDC_COUNT;
-    averNextCur = (averNextCur + AXP20_RDC_COUNT/2) / AXP20_RDC_COUNT;
-    axp_charger_update_state(charger);
-    axp_set_bits(charger->master,AXP20_CHARGE_CONTROL1,0x80);
-    axp_clr_bits(charger->master,0x32,0x38);
-	msleep(2000);
-    axp_charger_update_state(charger);
-
-    if((!charger->ext_valid) || !(charger->is_on)){
-      return pmu_battery_rdc;
-    }
-    if(ABS(averPreCur - averNextCur) > 200){
-    DBG_PSY_MSG("CALRDC:averPreVol = %d,averNextVol = %d,averPreCur = %d ,averNextCur = %d\n",averPreVol,averNextVol,averPreCur,averNextCur);
-      temp = 1000 * ABS(averPreVol - averNextVol) / ABS(averPreCur + averNextCur);
-    DBG_PSY_MSG("CALRDC:temp = %d\n",temp);
-      if((temp < 75) || (temp > 1000))
-        return pmu_battery_rdc;
-      else {
-      	axp_set_bits(charger->master,0x04,0x08);
-        return temp;
-      }
-    }
-    else
-      return pmu_battery_rdc;
-  }
-  else
-    return pmu_battery_rdc;
+	if(!charger->bat_det){
+		charger->disvbat = 0;
+		charger->disibat = 0;
+		return rdc;
+	}
+	if( charger->ext_valid){
+		axp_charger_update(charger);
+		if( axp20_ibat_to_mA(charger->adc->idischar_res) == 0 && axp20_icharge_to_mA(charger->adc->ichar_res) > 200){
+		} else {
+			DBG_PSY_MSG("%s->%d\n",__FUNCTION__,__LINE__);
+			charger->disvbat = 0;
+			charger->disibat = 0;
+			return rdc;
+		}
+		DBG_PSY_MSG("CHARGING:      charger->vbat = %d,   charger->ibat = %d\n",charger->vbat,charger->ibat);
+		DBG_PSY_MSG("DISCHARGING:charger->disvbat = %d,charger->disibat = %d\n",charger->disvbat,charger->disibat);
+		axp_charger_update_state(charger);
+		if(!charger->bat_current_direction){
+			charger->disvbat = 0;
+			charger->disibat = 0;
+			return rdc;
+		}
+		if(charger->disvbat == 0){
+			charger->disvbat = 0;
+			charger->disibat = 0;
+			return rdc;
+		}else{
+			temp = 1000 * ABS(charger->vbat - charger->disvbat) / ABS(charger->ibat + charger->disibat);
+			DBG_PSY_MSG("CALRDC:temp = %d\n",temp);
+			if((temp < 75) || (temp > pmu_battery_rdc * 2)){
+				charger->disvbat = 0;
+				charger->disibat = 0;
+				return rdc;
+			} else {
+				axp_set_bits(charger->master,0x04,0x08);
+				return temp;
+			}
+		}
+	}else{
+		charger->disvbat = 0;
+		charger->disibat = 0;
+		return rdc;
+	}
 }
 
 static ssize_t chgen_show(struct device *dev,
@@ -1120,19 +1103,25 @@ succeed:
   return ret;
 }
 
-long Get_Bat_Coulomb_Count(struct axp_charger *charger)
+int Get_Bat_Coulomb_Count(struct axp_charger *charger)
 {
 	uint8_t  temp[8];
-	int  rValue1,rValue2;
-	long Cur_CoulombCounter_tmp;
+	int64_t  rValue1,rValue2,rValue;
+	int Cur_CoulombCounter_tmp,m;
 
 	axp_reads(charger->master, AXP20_CCHAR3_RES,8,temp);
 	rValue1 = ((temp[0] << 24) + (temp[1] << 16) + (temp[2] << 8) + temp[3]);
 	rValue2 = ((temp[4] << 24) + (temp[5] << 16) + (temp[6] << 8) + temp[7]);
-	DBG_PSY_MSG("Get_Bat_Coulomb_Count -     CHARGINGOULB:[0]=0x%x,[1]=0x%x,[2]=0x%x,[3]=0x%x\n",temp[0],temp[1],temp[2],temp[3]);
-	DBG_PSY_MSG("Get_Bat_Coulomb_Count - DISCHARGINGCLOUB:[4]=0x%x,[5]=0x%x,[6]=0x%x,[7]=0x%x\n",temp[4],temp[5],temp[6],temp[7]);
-
-	Cur_CoulombCounter_tmp = (4369 * (rValue1 - rValue2) / ADC_Freq_Get(charger) / 240 / 2);
+	DBG_PSY_MSG("%s->%d -     CHARGINGOULB:[0]=0x%x,[1]=0x%x,[2]=0x%x,[3]=0x%x\n",__FUNCTION__,__LINE__,temp[0],temp[1],temp[2],temp[3]);
+	DBG_PSY_MSG("%s->%d - DISCHARGINGCLOUB:[4]=0x%x,[5]=0x%x,[6]=0x%x,[7]=0x%x\n",__FUNCTION__,__LINE__,temp[4],temp[5],temp[6],temp[7]);
+	rValue = (ABS(rValue1 - rValue2)) * 4369;
+	m = ADC_Freq_Get(charger) * 480;
+	do_div(rValue,m);
+	if(rValue1 >= rValue2)
+		Cur_CoulombCounter_tmp = (int)rValue;
+	else
+		Cur_CoulombCounter_tmp = (int)(0 - rValue);
+	DBG_PSY_MSG("Cur_CoulombCounter_tmp = %d\n",Cur_CoulombCounter_tmp);
 	return Cur_CoulombCounter_tmp;				//unit mAh
 }
 
@@ -1163,47 +1152,34 @@ static void axp_charging_monitor(struct work_struct *work)
     axp_charger_update_state(charger);
     axp_charger_update(charger);
 
-    if((v[0] == 0x11 || v[0] == 0x21) && charger->is_on && axp20_icharge_to_mA(charger->adc->ichar_res) > 200 && charger->vbat > 3600){
-        if(((v[1] >> 7) == 0) || (((v[1] >> 3) & 0x1) == 0)){
+    if((v[0] == 0x11 || v[0] == 0x21) && charger->is_on && axp20_icharge_to_mA(charger->adc->ichar_res) > 200 && charger->vbat > 3600 && charger->disvbat != 0){
+        if((((v[1] >> 7) == 0) || (((v[1] >> 3) & 0x1) == 0)) && count_rdc >= 3){
             axp_set_bits(charger->master,AXP20_CAP,0x80);
             axp_clr_bits(charger->master,0xBA,0x80);
-            /* enlarge charge current */
-			axp_read(charger->master, AXP20_CHARGE_CONTROL1, &val);
-			val &= 0xF0;
-			val |= 3;
-			axp_write(charger->master, AXP20_CHARGE_CONTROL1, val);
-
-            //set flag to mark need calculate rdc
-            get_rdc_flag = 1;
             rdc = (axp_get_rdc(charger) * 10000 + 5371) / 10742;
-            //clear rdc flag
-            get_rdc_flag = 0;
             tmp = (uint16_t) rdc;
             axp_write(charger->master,0xBB,tmp & 0x00FF);
             axp_update(charger->master, 0xBA, (tmp >> 8), 0x1F);
             axp_clr_bits(charger->master,AXP20_CAP,0x80);
             axp_set_bits(charger->master,0x04,0x80);
-
-            /* resume charge current */
-            charger->chgcur = pmu_init_chgcur;
-            DBG_PSY_MSG("charger->chgcur = %d\n",charger->chgcur);
-            if(pmu_init_chgcur == 0)
-            	axp_clr_bits(charger->master,AXP20_CHARGE_CONTROL1,0x80);
-
-            if(charger->chgcur< 300000)
-				charger->chgcur = 300000;
-			else if(charger->chgcur > 1800000)
-				charger->chgcur = 1800000;
-			tmp = (charger->chgcur - 200001) / 100000 ;
-			axp_read(charger->master, AXP20_CHARGE_CONTROL1, &val);
-			val &= 0xF0;
-			val |= tmp;
-			axp_write(charger->master, AXP20_CHARGE_CONTROL1, val);
-
-            DBG_PSY_MSG("rdc = %d\n",rdc);
+            DBG_PSY_MSG("==============================rdc = %d\n",rdc * 10742 / 10000);
+            count_rdc = 0;
+        }
+        else if((((v[1] >> 7) == 0) || (((v[1] >> 3) & 0x1) == 0)) && count_rdc < 3){
+        	DBG_PSY_MSG("==============================%d\n",__LINE__);
+            count_rdc ++;  
+        }
+        else{
+            DBG_PSY_MSG("==============================%d\n",__LINE__);
+            count_rdc = 0; 
         }
     }
-    if(flag_state_change){
+    else{
+        count_rdc = 0;
+     	DBG_PSY_MSG("==============================%d\n",__LINE__);   
+    }
+    
+	if(flag_state_change){
     	rt_rest_vol = charger->rest_vol;
     	rest_vol = charger->rest_vol;
     	flag_state_change = 0;
@@ -1224,7 +1200,7 @@ static void axp_charging_monitor(struct work_struct *work)
     	}
     	if(ABS(rt_rest_vol - Bat_Cap_Buffer[cap_index_p]) > 5){
     		DBG_PSY_MSG("-----------correct rdc-----------\n");
-    		axp_clr_bits(charger->master,0x04,0x88);
+    		axp_clr_bits(charger->master,0x04,0x08);
     	}
 
     	Bat_Cap_Buffer[Cap_Index] = rt_rest_vol;
@@ -1271,25 +1247,20 @@ static void axp_charging_monitor(struct work_struct *work)
     	}
 
 
-    		if(rest_vol > pre_rest_vol){
-    			if(counter >= 3){
-						charger->rest_vol ++;
-						counter = 0;
-					}
-					else
-						counter ++;
-				}
-				else if(rest_vol < pre_rest_vol){
-					if(counter >= 3){
-						charger->rest_vol --;
-						counter = 0;
-					}
-					else
-						counter ++;
-				}
-				else
+			if(rest_vol > pre_rest_vol){
+				if(counter >= 3){
+					charger->rest_vol ++;
 					counter = 0;
-
+				} else
+					counter ++;
+			} else if(rest_vol < pre_rest_vol){
+				if(counter >= 3){
+					charger->rest_vol --;
+					counter = 0;
+				} else
+					counter ++;
+			} else
+				counter = 0;
 		}
 
 		if(pmu_usbcur_limit){
@@ -1309,6 +1280,17 @@ static void axp_charging_monitor(struct work_struct *work)
 		else
 			axp_set_bits(charger->master, AXP20_CHARGE_VBUS, 0x03);
 
+		if((count_dis >= 8) && (charger->disvbat != 0)){
+			charger->disvbat = 0;
+			charger->disibat = 0;
+			count_dis = 0;
+		}
+		if(charger->bat_current_direction == 1){
+			count_dis++;
+		} else
+			count_dis = 0;
+			
+		
 #if  DBG_AXP_PSY
  		DBG_PSY_MSG("charger->ic_temp = %d\n",charger->ic_temp);
  		DBG_PSY_MSG("charger->vbat = %d\n",charger->vbat);
@@ -1318,6 +1300,8 @@ static void axp_charging_monitor(struct work_struct *work)
  		DBG_PSY_MSG("charger->vac = %d\n",charger->vac);
  		DBG_PSY_MSG("charger->iac = %d\n",charger->iac);
  		DBG_PSY_MSG("charger->ocv = %d\n",charger->ocv);
+ 		DBG_PSY_MSG("charger->disvbat = %d\n",charger->disvbat);
+ 		DBG_PSY_MSG("charger->disibat = %d\n",charger->disibat);
  		DBG_PSY_MSG("rt_rest_vol = %d\n",rt_rest_vol);
  		DBG_PSY_MSG("rest_vol = %d\n",rest_vol);
  		DBG_PSY_MSG("charger->rest_vol = %d\n",charger->rest_vol);
@@ -1454,8 +1438,8 @@ static int axp_battery_probe(struct platform_device *pdev)
   struct axp_supply_init_data *pdata = pdev->dev.platform_data;
   int ret,k,var;
   uint8_t val1,val2,tmp,val;
-  uint8_t ocv_cap[31];
-  int Cur_CoulombCounter;
+  uint8_t ocv_cap[31],v[2];
+  int Cur_CoulombCounter,rdc;
 
   powerkeydev = input_allocate_device();
   if (!powerkeydev) {
@@ -1513,6 +1497,8 @@ static int axp_battery_probe(struct platform_device *pdev)
   charger->chgpretime      = pdata->chgpretime;
   charger->chgcsttime = pdata->chgcsttime;
   charger->battery_info         = pdata->battery_info;
+  charger->disvbat			= 0;
+  charger->disibat			= 0;
 
   ret = axp_battery_first_init(charger);
   if (ret)
@@ -1555,7 +1541,7 @@ static int axp_battery_probe(struct platform_device *pdev)
 
   /* usb current and voltage limit */
   if(pmu_usbvol_limit){
-    axp_clr_bits(charger->master, AXP20_CHARGE_VBUS, 0x01);
+    axp_set_bits(charger->master, AXP20_CHARGE_VBUS, 0x40);
   	var = pmu_usbvol * 1000;
   	if(var >= 4000000 && var <=4700000){
     	tmp = (var - 4000000)/100000;
@@ -1566,7 +1552,7 @@ static int axp_battery_probe(struct platform_device *pdev)
   	}
   }
   else
-    axp_set_bits(charger->master, AXP20_CHARGE_VBUS, 0x03);
+    axp_clr_bits(charger->master, AXP20_CHARGE_VBUS, 0x40);
 
   if(pmu_usbcur_limit){
     axp_clr_bits(charger->master, AXP20_CHARGE_VBUS, 0x01);
@@ -1726,6 +1712,22 @@ static int axp_battery_probe(struct platform_device *pdev)
 	val |= pmu_intotp_en << 2;
 	axp_write(charger->master,POWER20_HOTOVER_CTL,val);
 	DBG_PSY_MSG("%d-->0x%x\n",__LINE__,val);
+	
+	/* disable */
+  axp_set_bits(charger->master,AXP20_CAP,0x80);
+  axp_clr_bits(charger->master,0xBA,0x80);
+  axp_reads(charger->master,0xbA,2,v);
+  rdc = (((v[0] & 0x1F) << 8) | v[1]) * 10742 / 10000;
+  axp_read(charger->master,AXP20_DATA_BUFFER0,&val1);
+  if((((val1 >> 7) & 0x1) == 0)||(rdc > pmu_battery_rdc * 2)){
+  	rdc = (pmu_battery_rdc * 10000 + 5371) / 10742;
+  	axp_write(charger->master,0xBB,rdc & 0x00FF);
+  	axp_update(charger->master, 0xBA, (rdc >> 8), 0x1F);
+  }
+  axp_clr_bits(charger->master,AXP20_CAP,0x80);
+
+  axp_set_bits(charger->master,0x8F,0x88);
+  axp_clr_bits(charger->master,0x81,0x04);
 
 	axp_charger_update_state(charger);
 
@@ -1750,13 +1752,6 @@ static int axp_battery_probe(struct platform_device *pdev)
     Bat_Cap_Buffer[k] = charger->rest_vol;
   }
   Total_Cap = charger->rest_vol * AXP20_VOL_MAX;
-
-  /* disable */
-  axp_set_bits(charger->master,AXP20_CAP,0x80);
-  axp_clr_bits(charger->master,0xBA,0x80);
-  axp_clr_bits(charger->master,AXP20_CAP,0x80);
-
-  axp_set_bits(charger->master,0x8F,0x88);
 
   charger->interval = msecs_to_jiffies(10 * 1000);
   INIT_DELAYED_WORK(&charger->work, axp_charging_monitor);
@@ -1842,11 +1837,6 @@ static int axp20_suspend(struct platform_device *dev, pm_message_t state)
 
     struct axp_charger *charger = platform_get_drvdata(dev);
 
-    if(get_rdc_flag) {
-        //calculating rdc now, it will take a long time
-        printk("[axp] calcluating rdc now, can't suspend!\n");
-        return -1;
-    }
 
 	cancel_delayed_work_sync(&charger->work);
 
@@ -1922,7 +1912,7 @@ static int axp20_resume(struct platform_device *dev)
 
 		axp_read(charger->master, AXP20_CAP,&val);
 
-		Cur_CoulombCounter = (Get_Bat_Coulomb_Count(charger));
+		Cur_CoulombCounter = ABS(Get_Bat_Coulomb_Count(charger));
 
     if((val1 >> 7)){
     	charger->rest_vol = (int) (val & 0x7F);
@@ -2000,6 +1990,8 @@ static int axp20_resume(struct platform_device *dev)
     }
 #endif
 
+	charger->disvbat = 0;
+	charger->disibat = 0;
     schedule_delayed_work(&charger->work, charger->interval);
 
     return 0;
@@ -2009,9 +2001,9 @@ static void axp20_shutdown(struct platform_device *dev)
 {
     uint8_t tmp;
     struct axp_charger *charger = platform_get_drvdata(dev);
-
-    /* not limit usb  voltage*/
-  	axp_clr_bits(charger->master, AXP20_CHARGE_VBUS,0x40);
+    
+    cancel_delayed_work_sync(&charger->work);
+  	axp_clr_bits(charger->master,AXP20_CAP,0x80);
 
 #if defined (CONFIG_AXP_CHGCHANGE)
   	if(pmu_shutdown_chgcur == 0)

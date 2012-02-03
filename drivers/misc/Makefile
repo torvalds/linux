@@ -51,4 +51,5 @@ obj-$(CONFIG_WL127X_RFKILL)	+= wl127x-rfkill.o
 obj-$(CONFIG_APANIC)		+= apanic.o
 obj-$(CONFIG_SENSORS_AK8975)	+= akm8975.o
 obj-$(CONFIG_SUN4I_VIBRATOR)	+= sun4i-vibrator.o
+obj-$(CONFIG_SUN4I_GPIO_UGLY)	+= sun4i-gpio.o
 obj-$(CONFIG_SUNXI_DBGREG)		+= sunxi-dbgreg.o

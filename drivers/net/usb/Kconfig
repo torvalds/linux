@@ -154,6 +154,18 @@ config USB_NET_AX8817X
 	  This driver creates an interface named "ethX", where X depends on
 	  what other networking devices you have in use.
 
+config USB_NET_QF9700
+	tristate "QF9700 Based USB 2.0 Ethernet Adapters"
+	depends on USB_USBNET
+	select CRC32
+	default y
+	help
+	  This option adds support for QF9700 based USB 2.0
+	  10/100 Ethernet adapters.
+
+	  This driver creates an interface named "ethX", where X depends on
+	  what other networking devices you have in use.
+
 config USB_NET_CDCETHER
 	tristate "CDC Ethernet support (smart devices such as cable modems)"
 	depends on USB_USBNET

@@ -612,7 +612,7 @@ static struct mmc_host_ops sunximmc_ops = {
     .enable_sdio_irq = sunximmc_enable_sdio_irq
 };
 
-#ifdef CONFIG_SUNXI_MMC_POWER_CONTROL
+#ifdef CONFIG_MMC_SUNXI_POWER_CONTROL
 extern int mmc_pm_io_shd_suspend_host(void);
 #else
 static inline int mmc_pm_io_shd_suspend_host(void) {return 1;}

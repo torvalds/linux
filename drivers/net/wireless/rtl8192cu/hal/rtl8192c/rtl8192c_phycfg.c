@@ -56,6 +56,10 @@
 #include <drv_types.h>
 #include <rtw_byteorder.h>
 
+#ifdef CONFIG_IOL
+#include <rtw_iol.h>
+#endif
+
 #include <rtl8192c_hal.h>
 
 
@@ -332,18 +336,12 @@ phy_RFSerialRead(
 	
 	PHY_SetBBReg(Adapter, rFPGA0_XA_HSSIParameter2, bMaskDWord, tmplong&(~bLSSIReadEdge));	
 	rtw_udelay_os(10);// PlatformStallExecution(10);
-	//rtw_mdelay_os(1);
 	
 	PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, bMaskDWord, tmplong2);	
 	rtw_udelay_os(100);//PlatformStallExecution(100);
-	//rtw_mdelay_os(1);
 	
 	PHY_SetBBReg(Adapter, rFPGA0_XA_HSSIParameter2, bMaskDWord, tmplong|bLSSIReadEdge);	
 	rtw_udelay_os(10);//PlatformStallExecution(10);
-	//rtw_mdelay_os(1);
-
-	PHY_SetBBReg(Adapter, rFPGA0_XA_HSSIParameter2, bMaskDWord, tmplong&(~bLSSIReadEdge));	
-	rtw_udelay_os(10);// PlatformStallExecution(10);
 
 	if(eRFPath == RF90_PATH_A)
 		RfPiEnable = (u8)PHY_QueryBBReg(Adapter, rFPGA0_XA_HSSIParameter1, BIT8);
@@ -666,9 +664,23 @@ phy_ConfigMACWithHeaderFile(
 	ArrayLength = MAC_2T_ArrayLength;
 	ptrArray = Rtl819XMAC_Array;
 
+#ifdef CONFIG_IOL_MAC
+	{
+		struct xmit_frame	*xmit_frame;
+		if((xmit_frame=rtw_IOL_accquire_xmit_frame(Adapter)) == NULL)
+			return _FAIL;
+
+		for(i = 0 ;i < ArrayLength;i=i+2){ // Add by tynli for 2 column
+			rtw_IOL_append_WB_cmd(xmit_frame, ptrArray[i], (u8)ptrArray[i+1]);
+		}
+
+		return rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000);
+	}
+#else
 	for(i = 0 ;i < ArrayLength;i=i+2){ // Add by tynli for 2 column
 		rtw_write8(Adapter, ptrArray[i], (u8)ptrArray[i+1]);
 	}
+#endif
 	
 	return _SUCCESS;
 	
@@ -959,6 +971,7 @@ phy_ConfigBBWithHeaderFile(
 	u32*	Rtl819XAGCTAB_Array_Table;
 	u16	PHY_REGArrayLen, AGCTAB_ArrayLen;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
+	int ret = _SUCCESS;
 
 	//
 	// 2009.11.24. Modified by tynli.
@@ -982,7 +995,8 @@ phy_ConfigBBWithHeaderFile(
 		else
 		{
 			DBG_8192C(" ===> phy_ConfigBBWithHeaderFile(): do not support test chip\n");
-			return _FAIL;
+			ret = _FAIL;
+			goto exit;
 		}
 	}
 	else
@@ -1011,12 +1025,47 @@ phy_ConfigBBWithHeaderFile(
 		else
 		{
 			DBG_8192C(" ===> phy_ConfigBBWithHeaderFile(): do not support test chip\n");
-			return _FAIL;
+			ret = _FAIL;
+			goto exit;
 		}
 	}
 
 	if(ConfigType == BaseBand_Config_PHY_REG)
 	{
+		#ifdef CONFIG_IOL_BB_PHY_REG
+		{
+			struct xmit_frame	*xmit_frame;
+			u32 tmp_value;
+
+			if((xmit_frame=rtw_IOL_accquire_xmit_frame(Adapter)) == NULL) {
+				ret = _FAIL;
+				goto exit;
+			}
+
+			for(i=0;i<PHY_REGArrayLen;i=i+2)
+			{
+				tmp_value=Rtl819XPHY_REGArray_Table[i+1];
+				
+				if (Rtl819XPHY_REGArray_Table[i] == 0xfe)
+					rtw_IOL_append_DELAY_MS_cmd(xmit_frame, 50);
+				else if (Rtl819XPHY_REGArray_Table[i] == 0xfd)
+					rtw_IOL_append_DELAY_MS_cmd(xmit_frame, 5);
+				else if (Rtl819XPHY_REGArray_Table[i] == 0xfc)
+					rtw_IOL_append_DELAY_MS_cmd(xmit_frame, 1);
+				else if (Rtl819XPHY_REGArray_Table[i] == 0xfb)
+					rtw_IOL_append_DELAY_US_cmd(xmit_frame, 50);
+				else if (Rtl819XPHY_REGArray_Table[i] == 0xfa)
+					rtw_IOL_append_DELAY_US_cmd(xmit_frame, 5);
+				else if (Rtl819XPHY_REGArray_Table[i] == 0xf9)
+					rtw_IOL_append_DELAY_US_cmd(xmit_frame, 1);
+
+				rtw_IOL_append_WD_cmd(xmit_frame, Rtl819XPHY_REGArray_Table[i], tmp_value);	
+				//RT_TRACE(COMP_INIT, DBG_TRACE, ("The Rtl819XPHY_REGArray_Table[0] is %lx Rtl819XPHY_REGArray[1] is %lx \n",Rtl819XPHY_REGArray_Table[i], Rtl819XPHY_REGArray_Table[i+1]));
+			}
+		
+			ret = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000);
+		}
+		#else
 		for(i=0;i<PHY_REGArrayLen;i=i+2)
 		{
 			if (Rtl819XPHY_REGArray_Table[i] == 0xfe){
@@ -1036,17 +1085,37 @@ phy_ConfigBBWithHeaderFile(
 				rtw_udelay_os(5);
 			else if (Rtl819XPHY_REGArray_Table[i] == 0xf9)
 				rtw_udelay_os(1);
-			PHY_SetBBReg(Adapter, Rtl819XPHY_REGArray_Table[i], bMaskDWord, Rtl819XPHY_REGArray_Table[i+1]);		
+
+			PHY_SetBBReg(Adapter, Rtl819XPHY_REGArray_Table[i], bMaskDWord, Rtl819XPHY_REGArray_Table[i+1]);
 
 			// Add 1us delay between BB/RF register setting.			rtw_udelay_os(1);
 
 			//RT_TRACE(COMP_INIT, DBG_TRACE, ("The Rtl819XPHY_REGArray_Table[0] is %lx Rtl819XPHY_REGArray[1] is %lx \n",Rtl819XPHY_REGArray_Table[i], Rtl819XPHY_REGArray_Table[i+1]));
 		}
+		#endif
 		// for External PA
 		phy_ConfigBBExternalPA(Adapter);
 	}
 	else if(ConfigType == BaseBand_Config_AGC_TAB)
 	{
+		#ifdef CONFIG_IOL_BB_AGC_TAB
+		{
+			struct xmit_frame	*xmit_frame;
+
+			if((xmit_frame=rtw_IOL_accquire_xmit_frame(Adapter)) == NULL) {
+				ret = _FAIL;
+				goto exit;
+			}
+
+			for(i=0;i<AGCTAB_ArrayLen;i=i+2)
+			{
+				rtw_IOL_append_WD_cmd(xmit_frame, Rtl819XAGCTAB_Array_Table[i], Rtl819XAGCTAB_Array_Table[i+1]);							
+				//RT_TRACE(COMP_INIT, DBG_TRACE, ("The Rtl819XAGCTAB_Array_Table[0] is %lx Rtl819XPHY_REGArray[1] is %lx \n",Rtl819XAGCTAB_Array_Table[i], Rtl819XAGCTAB_Array_Table[i+1]));
+			}
+		
+			ret = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000);
+		}
+		#else
 		for(i=0;i<AGCTAB_ArrayLen;i=i+2)
 		{
 			PHY_SetBBReg(Adapter, Rtl819XAGCTAB_Array_Table[i], bMaskDWord, Rtl819XAGCTAB_Array_Table[i+1]);		
@@ -1056,9 +1125,11 @@ phy_ConfigBBWithHeaderFile(
 			
 			//RT_TRACE(COMP_INIT, DBG_TRACE, ("The Rtl819XAGCTAB_Array_Table[0] is %lx Rtl819XPHY_REGArray[1] is %lx \n",Rtl819XAGCTAB_Array_Table[i], Rtl819XAGCTAB_Array_Table[i+1]));
 		}
+		#endif
 	}
-	
-	return _SUCCESS;
+
+exit:
+	return ret;
 	
 }
 
@@ -1259,6 +1330,7 @@ phy_ConfigBBWithPgHeaderFile(
 	{
 		for(i=0;i<PHY_REGArrayPGLen;i=i+3)
 		{
+			#if 0 //without IO, no delay is neeeded...
 			if (Rtl819XPHY_REGArray_Table_PG[i] == 0xfe){
 				#ifdef CONFIG_LONG_DELAY_ISSUE
 				rtw_msleep_os(50);
@@ -1276,10 +1348,12 @@ phy_ConfigBBWithPgHeaderFile(
 				rtw_udelay_os(5);
 			else if (Rtl819XPHY_REGArray_Table_PG[i] == 0xf9)
 				rtw_udelay_os(1);
+			//PHY_SetBBReg(Adapter, Rtl819XPHY_REGArray_Table_PG[i], Rtl819XPHY_REGArray_Table_PG[i+1], Rtl819XPHY_REGArray_Table_PG[i+2]);		
+			#endif
+			
 			storePwrIndexDiffRateOffset(Adapter, Rtl819XPHY_REGArray_Table_PG[i], 
 				Rtl819XPHY_REGArray_Table_PG[i+1], 
 				Rtl819XPHY_REGArray_Table_PG[i+2]);
-			//PHY_SetBBReg(Adapter, Rtl819XPHY_REGArray_Table_PG[i], Rtl819XPHY_REGArray_Table_PG[i+1], Rtl819XPHY_REGArray_Table_PG[i+2]);		
 			//RT_TRACE(COMP_SEND, DBG_TRACE, ("The Rtl819XPHY_REGArray_Table_PG[0] is %lx Rtl819XPHY_REGArray_Table_PG[1] is %lx \n",Rtl819XPHY_REGArray_Table_PG[i], Rtl819XPHY_REGArray_Table_PG[i+1]));
 		}
 	}
@@ -1979,7 +2053,7 @@ rtl8192c_PHY_ConfigRFWithHeaderFile(
 		else
 		{
 			rtStatus = _FAIL;
-			return rtStatus;
+			goto exit;
 		}
 	}
 	else
@@ -2008,12 +2082,48 @@ rtl8192c_PHY_ConfigRFWithHeaderFile(
 		else
 		{
 			rtStatus = _FAIL;
-			return rtStatus;
+			goto exit;
 		}
 	}
 
 	switch(eRFPath){
 		case RF90_PATH_A:
+			#ifdef CONFIG_IOL_RF_RF90_PATH_A
+			{
+				struct xmit_frame	*xmit_frame;
+				if((xmit_frame=rtw_IOL_accquire_xmit_frame(Adapter)) == NULL) {
+					rtStatus = _FAIL;
+					goto exit;
+				}
+				
+				for(i = 0;i<RadioA_ArrayLen; i=i+2)
+				{
+					if(Rtl819XRadioA_Array_Table[i] == 0xfe)
+						rtw_IOL_append_DELAY_MS_cmd(xmit_frame, 50);
+					else if (Rtl819XRadioA_Array_Table[i] == 0xfd)
+						rtw_IOL_append_DELAY_MS_cmd(xmit_frame, 5);
+					else if (Rtl819XRadioA_Array_Table[i] == 0xfc)
+						rtw_IOL_append_DELAY_MS_cmd(xmit_frame, 1);
+					else if (Rtl819XRadioA_Array_Table[i] == 0xfb)
+						rtw_IOL_append_DELAY_US_cmd(xmit_frame, 50);
+					else if (Rtl819XRadioA_Array_Table[i] == 0xfa)
+						rtw_IOL_append_DELAY_US_cmd(xmit_frame, 5);
+					else if (Rtl819XRadioA_Array_Table[i] == 0xf9)
+						rtw_IOL_append_DELAY_US_cmd(xmit_frame, 1);
+					else
+					{
+						BB_REGISTER_DEFINITION_T	*pPhyReg = &pHalData->PHYRegDef[eRFPath];
+						u32	NewOffset = 0;
+						u32	DataAndAddr = 0;
+						
+						NewOffset = Rtl819XRadioA_Array_Table[i] & 0x3f;
+						DataAndAddr = ((NewOffset<<20) | (Rtl819XRadioA_Array_Table[i+1]&0x000fffff)) & 0x0fffffff;	// T65 RF
+						rtw_IOL_append_WD_cmd(xmit_frame, pPhyReg->rf3wireOffset, DataAndAddr);
+					}
+				}	
+				rtStatus = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000);
+			}
+			#else
 			for(i = 0;i<RadioA_ArrayLen; i=i+2)
 			{
 				if(Rtl819XRadioA_Array_Table[i] == 0xfe) {
@@ -2039,11 +2149,48 @@ rtl8192c_PHY_ConfigRFWithHeaderFile(
 					// Add 1us delay between BB/RF register setting.
 					rtw_udelay_os(1);
 				}
-			}			
+			}	
+			#endif
 			//Add for High Power PA
 			PHY_ConfigRFExternalPA(Adapter, eRFPath);
 			break;
 		case RF90_PATH_B:
+			#ifdef CONFIG_IOL_RF_RF90_PATH_B
+			{
+				struct xmit_frame	*xmit_frame;
+				if((xmit_frame=rtw_IOL_accquire_xmit_frame(Adapter)) == NULL) {
+					rtStatus = _FAIL;
+					goto exit;
+				}
+			
+				for(i = 0;i<RadioB_ArrayLen; i=i+2)
+				{
+					if(Rtl819XRadioB_Array_Table[i] == 0xfe)
+						rtw_IOL_append_DELAY_MS_cmd(xmit_frame, 50);
+					else if (Rtl819XRadioB_Array_Table[i] == 0xfd)
+						rtw_IOL_append_DELAY_MS_cmd(xmit_frame, 5);
+					else if (Rtl819XRadioB_Array_Table[i] == 0xfc)
+						rtw_IOL_append_DELAY_MS_cmd(xmit_frame, 1);
+					else if (Rtl819XRadioB_Array_Table[i] == 0xfb)
+						rtw_IOL_append_DELAY_US_cmd(xmit_frame, 50);
+					else if (Rtl819XRadioB_Array_Table[i] == 0xfa)
+						rtw_IOL_append_DELAY_US_cmd(xmit_frame, 5);
+					else if (Rtl819XRadioB_Array_Table[i] == 0xf9)
+						rtw_IOL_append_DELAY_US_cmd(xmit_frame, 1);
+					else
+					{
+						BB_REGISTER_DEFINITION_T	*pPhyReg = &pHalData->PHYRegDef[eRFPath];
+						u32	NewOffset = 0;
+						u32	DataAndAddr = 0;
+						
+						NewOffset = Rtl819XRadioB_Array_Table[i] & 0x3f;
+						DataAndAddr = ((NewOffset<<20) | (Rtl819XRadioB_Array_Table[i+1]&0x000fffff)) & 0x0fffffff;	// T65 RF
+						rtw_IOL_append_WD_cmd(xmit_frame, pPhyReg->rf3wireOffset, DataAndAddr);
+					}
+				}	
+				rtStatus = rtw_IOL_exec_cmds_sync(Adapter, xmit_frame, 1000);
+			}
+			#else
 			for(i = 0;i<RadioB_ArrayLen; i=i+2)
 			{
 				if(Rtl819XRadioB_Array_Table[i] == 0xfe)
@@ -2078,15 +2225,17 @@ rtl8192c_PHY_ConfigRFWithHeaderFile(
 					// Add 1us delay between BB/RF register setting.
 					rtw_udelay_os(1);
 				}	
-			}			
+			}
+			#endif
 			break;
 		case RF90_PATH_C:
 			break;
 		case RF90_PATH_D:
 			break;
 	}
-	
-	return _SUCCESS;
+
+exit:	
+	return rtStatus;
 
 }
 

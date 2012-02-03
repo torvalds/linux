@@ -8,13 +8,15 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/videodev2.h>
+#include <linux/clk.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-mediabus.h>//linux-3.0
-
+#include <linux/io.h>
 //#include <mach/gpio_v2.h>
 #include <mach/sys_config.h>
 #include <linux/regulator/consumer.h>
+#include <mach/system.h>
 #include "../include/sun4i_csi_core.h"
 #include "../include/sun4i_dev_csi.h"
 
@@ -22,6 +24,15 @@ MODULE_AUTHOR("raymonxiu");
 MODULE_DESCRIPTION("A low-level driver for Hynix HI704 sensors");
 MODULE_LICENSE("GPL");
 
+//for internel driver debug
+#define DEV_DBG_EN   		0 
+#if(DEV_DBG_EN == 1)		
+#define csi_dev_dbg(x,arg...) printk(KERN_INFO"[CSI_DEBUG][HI704]"x,##arg)
+#else
+#define csi_dev_dbg(x,arg...) 
+#endif
+#define csi_dev_err(x,arg...) printk(KERN_INFO"[CSI_ERR][HI704]"x,##arg)
+#define csi_dev_print(x,arg...) printk(KERN_INFO"[CSI][HI704]"x,##arg)
 
 #define MCLK (24*1000*1000)
 #define VREF_POL	CSI_LOW
@@ -1071,7 +1082,7 @@ static int sensor_read(struct v4l2_subdev *sd, unsigned char *reg,
 	msg.buf = data;
 	ret = i2c_transfer(client->adapter, &msg, 1);
 	if (ret < 0) {
-		csi_err("Error %d on register write\n", ret);
+		csi_dev_err("Error %d on register write\n", ret);
 		return ret;
 	}
 	/*
@@ -1089,7 +1100,7 @@ static int sensor_read(struct v4l2_subdev *sd, unsigned char *reg,
 		ret = 0;
 	}
 	else {
-		csi_err("Error %d on register read\n", ret);
+		csi_dev_err("Error %d on register read\n", ret);
 	}
 	return ret;
 }
@@ -1108,9 +1119,6 @@ static int sensor_write(struct v4l2_subdev *sd, unsigned char *reg,
 	for(i = REG_ADDR_STEP; i < REG_STEP; i++)
 			data[i] = value[i-REG_ADDR_STEP];
 	
-//	for(i = 0; i < REG_STEP; i++)
-//		printk("data[%x]=%x\n",i,data[i]);
-			
 	msg.addr = client->addr;
 	msg.flags = 0;
 	msg.len = REG_STEP;
@@ -1122,7 +1130,7 @@ static int sensor_write(struct v4l2_subdev *sd, unsigned char *reg,
 		ret = 0;
 	}
 	else if (ret < 0) {
-		csi_err("sensor_write error!\n");
+		csi_dev_err("sensor_write error!\n");
 	}
 	return ret;
 }
@@ -1134,7 +1142,6 @@ static int sensor_write(struct v4l2_subdev *sd, unsigned char *reg,
 static int sensor_write_array(struct v4l2_subdev *sd, struct regval_list *vals , uint size)
 {
 	int i,ret;
-//	unsigned char rd;
 	
 	if (size == 0)
 		return -EINVAL;
@@ -1144,18 +1151,9 @@ static int sensor_write_array(struct v4l2_subdev *sd, struct regval_list *vals ,
 		ret = sensor_write(sd, vals->reg_num, vals->value);
 		if (ret < 0)
 			{
-				csi_err("sensor_write_err!\n");
+				csi_dev_err("sensor_write_err!\n");
 				return ret;
 			}
-//		ret = sensor_read(sd, vals->reg_num, &rd);
-//		
-//		if (ret < 0)
-//			{
-//				printk("sensor_read_err!\n");
-//				return ret;
-//			}
-//		if(rd != *vals->value)
-//			printk("read_val = %x\n",rd);
 		
 		vals++;
 	}
@@ -1187,20 +1185,51 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
   switch(on)
 	{
 		case CSI_SUBDEV_STBY_ON:
+			csi_dev_dbg("CSI_SUBDEV_STBY_ON\n");
+			//reset off io
+			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_RST_OFF,csi_reset_str);
+			msleep(10);
+			//active mclk before stadby in
+			clk_enable(dev->csi_module_clk);
+			msleep(100);
+			//standby on io
 			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_STBY_ON,csi_stby_str);
+			msleep(100);
+			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_STBY_OFF,csi_stby_str);
+			msleep(100);
+			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_STBY_ON,csi_stby_str);
+			msleep(100);
+			//inactive mclk after stadby in
+			clk_disable(dev->csi_module_clk);
+			
+			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_RST_ON,csi_reset_str);
 			msleep(10);
 			break;
 		case CSI_SUBDEV_STBY_OFF:
+			csi_dev_dbg("CSI_SUBDEV_STBY_OFF\n");
+			//active mclk before stadby out
+			clk_enable(dev->csi_module_clk);
+			msleep(10);
+			//reset off io
+			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_RST_OFF,csi_reset_str);
+			msleep(10);
+			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_RST_ON,csi_reset_str);
+			msleep(100);
+			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_RST_OFF,csi_reset_str);
 			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_STBY_OFF,csi_stby_str);
 			msleep(10);
 			break;
 		case CSI_SUBDEV_PWR_ON:
+			csi_dev_dbg("CSI_SUBDEV_PWR_ON\n");
+			//inactive mclk before power on
+			clk_disable(dev->csi_module_clk);
+			//power on reset
 			gpio_set_one_pin_io_status(dev->csi_pin_hd,1,csi_stby_str);//set the gpio to output
 			gpio_set_one_pin_io_status(dev->csi_pin_hd,1,csi_reset_str);//set the gpio to output
-			
 			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_STBY_ON,csi_stby_str);
-			msleep(10);
-			
+			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_RST_ON,csi_reset_str);
+			msleep(1);
+			//power supply
 			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_PWR_ON,csi_power_str);
 			msleep(10);
 			if(dev->dvdd) {
@@ -1215,13 +1244,22 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 				regulator_enable(dev->iovdd);
 				msleep(10);
 			}
-		
+			//active mclk before power on
+			clk_enable(dev->csi_module_clk);
+			//reset after power on
+			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_RST_OFF,csi_reset_str);
+			msleep(10);
+			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_RST_ON,csi_reset_str);
+			msleep(100);
+			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_RST_OFF,csi_reset_str);
+			msleep(100);
+			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_STBY_OFF,csi_stby_str);
+			msleep(10);
 			break;
 			
 		case CSI_SUBDEV_PWR_OFF:
-			gpio_set_one_pin_io_status(dev->csi_pin_hd,0,csi_reset_str);//set the gpio to input
-			gpio_set_one_pin_io_status(dev->csi_pin_hd,0,csi_stby_str);//set the gpio to input
-
+			csi_dev_dbg("CSI_SUBDEV_PWR_OFF\n");
+			//power supply off
 			if(dev->iovdd) {
 				regulator_disable(dev->iovdd);
 				msleep(10);
@@ -1236,6 +1274,13 @@ static int sensor_power(struct v4l2_subdev *sd, int on)
 			}
 			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_PWR_OFF,csi_power_str);
 			msleep(10);
+			
+			//inactive mclk after power off
+			clk_disable(dev->csi_module_clk);
+			
+			//set the io to hi-z
+			gpio_set_one_pin_io_status(dev->csi_pin_hd,0,csi_reset_str);//set the gpio to input
+			gpio_set_one_pin_io_status(dev->csi_pin_hd,0,csi_stby_str);//set the gpio to input
 			break;
 		default:
 			return -EINVAL;
@@ -1259,19 +1304,23 @@ static int sensor_reset(struct v4l2_subdev *sd, u32 val)
 	switch(val)
 	{
 		case CSI_SUBDEV_RST_OFF:
+			csi_dev_dbg("CSI_SUBDEV_RST_OFF\n");
 			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_RST_OFF,csi_reset_str);
 			msleep(10);
 			break;
 		case CSI_SUBDEV_RST_ON:
+			csi_dev_dbg("CSI_SUBDEV_RST_ON\n");
 			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_RST_ON,csi_reset_str);
 			msleep(10);
 			break;
 		case CSI_SUBDEV_RST_PUL:
+			csi_dev_dbg("CSI_SUBDEV_RST_PUL\n");
 			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_RST_OFF,csi_reset_str);
 			msleep(10);
 			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_RST_ON,csi_reset_str);
 			msleep(100);
 			gpio_write_one_pin_value(dev->csi_pin_hd,CSI_RST_OFF,csi_reset_str);
+			msleep(10);
 			break;
 		default:
 			return -EINVAL;
@@ -1289,14 +1338,14 @@ static int sensor_detect(struct v4l2_subdev *sd)
 	regs.value[0] = 0x00; //PAGE 0x00
 	ret = sensor_write(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_write err at sensor_detect!\n");
+		csi_dev_err("sensor_write err at sensor_detect!\n");
 		return ret;
 	}
 	
 	regs.reg_num[0] = 0x04;
 	ret = sensor_read(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_read err at sensor_detect!\n");
+		csi_dev_err("sensor_read err at sensor_detect!\n");
 		return ret;
 	}
 
@@ -1309,27 +1358,11 @@ static int sensor_detect(struct v4l2_subdev *sd)
 static int sensor_init(struct v4l2_subdev *sd, u32 val)
 {
 	int ret;
-
-	switch(val) {
-		case CSI_SUBDEV_INIT_FULL:
-			ret = sensor_power(sd,CSI_SUBDEV_STBY_ON);
-			if(ret < 0)
-				return ret;
-			ret = sensor_power(sd,CSI_SUBDEV_STBY_OFF);
-			if(ret < 0)
-				return ret;
-		case CSI_SUBDEV_INIT_SIMP:
-			ret = sensor_reset(sd,CSI_SUBDEV_RST_PUL);
-			if(ret < 0)
-				return ret;
-			break;
-		default:
-			return -EINVAL;
-	}
+	csi_dev_dbg("sensor_init\n");
 	/*Make sure it is a target sensor*/
 	ret = sensor_detect(sd);
 	if (ret) {
-		csi_err("chip found is not an target chip.\n");
+		csi_dev_err("chip found is not an target chip.\n");
 		return ret;
 	}
 	return sensor_write_array(sd, sensor_default_regs , ARRAY_SIZE(sensor_default_regs));
@@ -1345,7 +1378,7 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			struct sensor_info *info = to_state(sd);
 			__csi_subdev_info_t *ccm_info = arg;
 			
-//			printk("CSI_SUBDEV_CMD_GET_INFO\n");
+			csi_dev_dbg("CSI_SUBDEV_CMD_GET_INFO\n");
 			
 			ccm_info->mclk 	=	info->ccm_info->mclk ;
 			ccm_info->vref 	=	info->ccm_info->vref ;
@@ -1353,11 +1386,11 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			ccm_info->clock	=	info->ccm_info->clock;
 			ccm_info->iocfg	=	info->ccm_info->iocfg;
 			
-//			printk("ccm_info.mclk=%x\n ",info->ccm_info->mclk);
-//			printk("ccm_info.vref=%x\n ",info->ccm_info->vref);
-//			printk("ccm_info.href=%x\n ",info->ccm_info->href);
-//			printk("ccm_info.clock=%x\n ",info->ccm_info->clock);
-//			printk("ccm_info.iocfg=%x\n ",info->ccm_info->iocfg);
+			csi_dev_dbg("ccm_info.mclk=%x\n ",info->ccm_info->mclk);
+			csi_dev_dbg("ccm_info.vref=%x\n ",info->ccm_info->vref);
+			csi_dev_dbg("ccm_info.href=%x\n ",info->ccm_info->href);
+			csi_dev_dbg("ccm_info.clock=%x\n ",info->ccm_info->clock);
+			csi_dev_dbg("ccm_info.iocfg=%x\n ",info->ccm_info->iocfg);
 			break;
 		}
 		case CSI_SUBDEV_CMD_SET_INFO:
@@ -1365,7 +1398,7 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			struct sensor_info *info = to_state(sd);
 			__csi_subdev_info_t *ccm_info = arg;
 			
-//			printk("CSI_SUBDEV_CMD_SET_INFO\n");
+			csi_dev_dbg("CSI_SUBDEV_CMD_SET_INFO\n");
 			
 			info->ccm_info->mclk 	=	ccm_info->mclk 	;
 			info->ccm_info->vref 	=	ccm_info->vref 	;
@@ -1373,16 +1406,16 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			info->ccm_info->clock	=	ccm_info->clock	;
 			info->ccm_info->iocfg	=	ccm_info->iocfg	;
 			
-//			printk("ccm_info.mclk=%x\n ",info->ccm_info->mclk);
-//			printk("ccm_info.vref=%x\n ",info->ccm_info->vref);
-//			printk("ccm_info.href=%x\n ",info->ccm_info->href);
-//			printk("ccm_info.clock=%x\n ",info->ccm_info->clock);
-//			printk("ccm_info.iocfg=%x\n ",info->ccm_info->iocfg);
+			csi_dev_dbg("ccm_info.mclk=%x\n ",info->ccm_info->mclk);
+			csi_dev_dbg("ccm_info.vref=%x\n ",info->ccm_info->vref);
+			csi_dev_dbg("ccm_info.href=%x\n ",info->ccm_info->href);
+			csi_dev_dbg("ccm_info.clock=%x\n ",info->ccm_info->clock);
+			csi_dev_dbg("ccm_info.iocfg=%x\n ",info->ccm_info->iocfg);
 			
 			break;
 		}
 		default:
-			break;
+			return -EINVAL;
 	}		
 		return ret;
 }
@@ -1504,7 +1537,7 @@ static int sensor_try_fmt_internal(struct v4l2_subdev *sd,
 	int index;
 	struct sensor_win_size *wsize;
 //	struct v4l2_pix_format *pix = &fmt->fmt.pix;//linux-3.0
-
+	csi_dev_dbg("sensor_try_fmt_internal\n");
 	for (index = 0; index < N_FMTS; index++)
 		if (sensor_formats[index].mbus_code == fmt->code)//linux-3.0
 			break;
@@ -1564,7 +1597,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,
 	struct sensor_format_struct *sensor_fmt;
 	struct sensor_win_size *wsize;
 	struct sensor_info *info = to_state(sd);
-	
+	csi_dev_dbg("sensor_s_fmt\n");
 	ret = sensor_try_fmt_internal(sd, fmt, &sensor_fmt, &wsize);
 	if (ret)
 		return ret;
@@ -1700,14 +1733,14 @@ static int sensor_g_hflip(struct v4l2_subdev *sd, __s32 *value)
 	regs.value[0] = 0x00; //PAGEMODE 0x00
 	ret = sensor_write(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_write err at sensor_g_hflip!\n");
+		csi_dev_err("sensor_write err at sensor_g_hflip!\n");
 		return ret;
 	}
 	
 	regs.reg_num[0] = 0x11;
 	ret = sensor_read(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_read err at sensor_g_hflip!\n");
+		csi_dev_err("sensor_read err at sensor_g_hflip!\n");
 		return ret;
 	}
 	
@@ -1729,14 +1762,14 @@ static int sensor_s_hflip(struct v4l2_subdev *sd, int value)
 	regs.value[0] = 0x00; //PAGEMODE 0x00
 	ret = sensor_write(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_write err at sensor_s_hflip!\n");
+		csi_dev_err("sensor_write err at sensor_s_hflip!\n");
 		return ret;
 	}
 	
 	regs.reg_num[0] = 0x11;
 	ret = sensor_read(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_read err at sensor_s_hflip!\n");
+		csi_dev_err("sensor_read err at sensor_s_hflip!\n");
 		return ret;
 	}
 	
@@ -1748,11 +1781,11 @@ static int sensor_s_hflip(struct v4l2_subdev *sd, int value)
 		regs.value[0] |= 0x01;
 		break;
 	default:
-		break;
+			return -EINVAL;
 	}	
 	ret = sensor_write(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_write err at sensor_s_hflip!\n");
+		csi_dev_err("sensor_write err at sensor_s_hflip!\n");
 		return ret;
 	}
 	msleep(100);
@@ -1770,14 +1803,14 @@ static int sensor_g_vflip(struct v4l2_subdev *sd, __s32 *value)
 	regs.value[0] = 0x00; //PAGEMODE 0x00
 	ret = sensor_write(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_write err at sensor_g_vflip!\n");
+		csi_dev_err("sensor_write err at sensor_g_vflip!\n");
 		return ret;
 	}
 	
 	regs.reg_num[0] = 0x11;
 	ret = sensor_read(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_read err at sensor_g_vflip!\n");
+		csi_dev_err("sensor_read err at sensor_g_vflip!\n");
 		return ret;
 	}
 	
@@ -1799,14 +1832,14 @@ static int sensor_s_vflip(struct v4l2_subdev *sd, int value)
 	regs.value[0] = 0x00; //PAGEMODE 0x00
 	ret = sensor_write(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_write err at sensor_s_vflip!\n");
+		csi_dev_err("sensor_write err at sensor_s_vflip!\n");
 		return ret;
 	}
 	
 	regs.reg_num[0] = 0x11;
 	ret = sensor_read(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_read err at sensor_s_vflip!\n");
+		csi_dev_err("sensor_read err at sensor_s_vflip!\n");
 		return ret;
 	}
 	
@@ -1818,11 +1851,11 @@ static int sensor_s_vflip(struct v4l2_subdev *sd, int value)
 		regs.value[0] |= 0x02;
 		break;
 	default:
-		break;
+			return -EINVAL;
 	}	
 	ret = sensor_write(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_write err at sensor_g_vflip!\n");
+		csi_dev_err("sensor_write err at sensor_g_vflip!\n");
 		return ret;
 	}
 	msleep(100);
@@ -1850,14 +1883,14 @@ static int sensor_g_autoexp(struct v4l2_subdev *sd, __s32 *value)
 	regs.value[0] = 0x20;		//PAGEMODE 0x20
 	ret = sensor_write(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_write err at sensor_g_autoexp!\n");
+		csi_dev_err("sensor_write err at sensor_g_autoexp!\n");
 		return ret;
 	}
 	
 	regs.reg_num[0] = 0x10;
 	ret = sensor_read(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_read err at sensor_g_autoexp!\n");
+		csi_dev_err("sensor_read err at sensor_g_autoexp!\n");
 		return ret;
 	}
 	
@@ -1885,14 +1918,14 @@ static int sensor_s_autoexp(struct v4l2_subdev *sd,
 	regs.value[0] = 0x20;		//PAGEMODE 0x20
 	ret = sensor_write(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_write err at sensor_s_autoexp!\n");
+		csi_dev_err("sensor_write err at sensor_s_autoexp!\n");
 		return ret;
 	}
 	
 	regs.reg_num[0] = 0x10;
 	ret = sensor_read(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_read err at sensor_s_autoexp!\n");
+		csi_dev_err("sensor_read err at sensor_s_autoexp!\n");
 		return ret;
 	}
 	
@@ -1913,7 +1946,7 @@ static int sensor_s_autoexp(struct v4l2_subdev *sd,
 		
 	ret = sensor_write(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_write err at sensor_s_autoexp!\n");
+		csi_dev_err("sensor_write err at sensor_s_autoexp!\n");
 		return ret;
 	}
 	msleep(10);
@@ -1932,14 +1965,14 @@ static int sensor_g_autowb(struct v4l2_subdev *sd, int *value)
 	regs.value[0] = 0x22;
 	ret = sensor_write(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_write err at sensor_g_autowb!\n");
+		csi_dev_err("sensor_write err at sensor_g_autowb!\n");
 		return ret;
 	}
 	
 	regs.reg_num[0] = 0x10;
 	ret = sensor_read(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_read err at sensor_g_autowb!\n");
+		csi_dev_err("sensor_read err at sensor_g_autowb!\n");
 		return ret;
 	}
 	
@@ -1960,14 +1993,14 @@ static int sensor_s_autowb(struct v4l2_subdev *sd, int value)
 	
 	ret = sensor_write_array(sd, sensor_wb_auto_regs, ARRAY_SIZE(sensor_wb_auto_regs));
 	if (ret < 0) {
-		csi_err("sensor_write_array err at sensor_s_autowb!\n");
+		csi_dev_err("sensor_write_array err at sensor_s_autowb!\n");
 		return ret;
 	}
 	
 	regs.reg_num[0] = 0x10;
 	ret = sensor_read(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_read err at sensor_s_autowb!\n");
+		csi_dev_err("sensor_read err at sensor_s_autowb!\n");
 		return ret;
 	}
 	
@@ -1983,7 +2016,7 @@ static int sensor_s_autowb(struct v4l2_subdev *sd, int value)
 	}	
 	ret = sensor_write(sd, regs.reg_num, regs.value);
 	if (ret < 0) {
-		csi_err("sensor_write err at sensor_s_autowb!\n");
+		csi_dev_err("sensor_write err at sensor_s_autowb!\n");
 		return ret;
 	}
 	msleep(10);
@@ -2058,7 +2091,7 @@ static int sensor_s_brightness(struct v4l2_subdev *sd, int value)
 	}
 	
 	if (ret < 0) {
-		csi_err("sensor_write_array err at sensor_s_brightness!\n");
+		csi_dev_err("sensor_write_array err at sensor_s_brightness!\n");
 		return ret;
 	}
 	msleep(10);
@@ -2112,7 +2145,7 @@ static int sensor_s_contrast(struct v4l2_subdev *sd, int value)
 	}
 	
 	if (ret < 0) {
-		csi_err("sensor_write_array err at sensor_s_contrast!\n");
+		csi_dev_err("sensor_write_array err at sensor_s_contrast!\n");
 		return ret;
 	}
 	msleep(10);
@@ -2166,7 +2199,7 @@ static int sensor_s_saturation(struct v4l2_subdev *sd, int value)
 	}
 	
 	if (ret < 0) {
-		csi_err("sensor_write_array err at sensor_s_saturation!\n");
+		csi_dev_err("sensor_write_array err at sensor_s_saturation!\n");
 		return ret;
 	}
 	msleep(10);
@@ -2220,7 +2253,7 @@ static int sensor_s_exp(struct v4l2_subdev *sd, int value)
 	}
 	
 	if (ret < 0) {
-		csi_err("sensor_write_array err at sensor_s_exp!\n");
+		csi_dev_err("sensor_write_array err at sensor_s_exp!\n");
 		return ret;
 	}
 	msleep(10);
@@ -2251,7 +2284,7 @@ static int sensor_s_wb(struct v4l2_subdev *sd,
 	else {
 		ret = sensor_s_autowb(sd, 0);
 		if(ret < 0) {
-			csi_err("sensor_s_autowb error, return %x!\n",ret);
+			csi_dev_err("sensor_s_autowb error, return %x!\n",ret);
 			return ret;
 		}
 		
@@ -2277,7 +2310,7 @@ static int sensor_s_wb(struct v4l2_subdev *sd,
 	}
 	
 	if (ret < 0) {
-		csi_err("sensor_s_wb error, return %x!\n",ret);
+		csi_dev_err("sensor_s_wb error, return %x!\n",ret);
 		return ret;
 	}
 	msleep(10);
@@ -2337,7 +2370,7 @@ static int sensor_s_colorfx(struct v4l2_subdev *sd,
 	}
 	
 	if (ret < 0) {
-		csi_err("sensor_s_colorfx error, return %x!\n",ret);
+		csi_dev_err("sensor_s_colorfx error, return %x!\n",ret);
 		return ret;
 	}
 	msleep(10);

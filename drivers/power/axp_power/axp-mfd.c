@@ -241,6 +241,7 @@ static void axp_power_off(void)
 
     //led auto
     axp_clr_bits(&axp->dev,0x32,0x38);
+	axp_clr_bits(&axp->dev,0xb9,0x80);
 
     printk("[axp] send power-off command!\n");
     mdelay(20);

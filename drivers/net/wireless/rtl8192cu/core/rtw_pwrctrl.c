@@ -49,9 +49,8 @@ void ips_enter(_adapter * padapter)
 	{	
 		DBG_8192C("==>power_saving_ctrl_wk_hdl change rf to OFF...LED(0x%08x).... \n\n",rtw_read32(padapter,0x4c));
 		
-		if(pwrpriv->ips_mode == IPS_LEVEL_2) {			
-			pwrpriv->bkeepfwalive =  _TRUE ;
-		}
+		if(pwrpriv->ips_mode == IPS_LEVEL_2)
+			pwrpriv->bkeepfwalive = _TRUE;
 		
 		rtw_ips_pwr_down(padapter);
 		pwrpriv->rf_pwrstate = rf_off;
@@ -111,10 +110,10 @@ int ips_leave(_adapter * padapter)
 extern void autosuspend_enter(_adapter* padapter);	
 extern int autoresume_enter(_adapter* padapter);
 #endif
+
 #ifdef SUPPORT_HW_RFOFF_DETECTED
 int rtw_hw_suspend(_adapter *padapter );
 int rtw_hw_resume(_adapter *padapter);
-
 #endif
 
 #ifdef PLATFORM_LINUX
@@ -159,7 +158,7 @@ void rtw_ps_processor(_adapter*padapter)
 			}			
 		}
 		else
-	#endif
+	#endif //CONFIG_AUTOSUSPEND
 		{
 			rfpwrstate = RfOnOffDetect(padapter);
 			DBG_8192C("@@@@- #2  %s==> rfstate:%s \n",__FUNCTION__,(rfpwrstate==rf_on)?"rf_on":"rf_off");
@@ -183,8 +182,8 @@ void rtw_ps_processor(_adapter*padapter)
 		}
 		pwrpriv->pwr_state_check_cnts ++;	
 	}
-	
-#endif
+#endif //SUPPORT_HW_RFOFF_DETECTED
+
 	if( pwrpriv->power_mgnt == PS_MODE_ACTIVE )	return;
 
 	if((pwrpriv->rf_pwrstate == rf_on) && ((pwrpriv->pwr_state_check_cnts%4)==0))
@@ -194,9 +193,9 @@ void rtw_ps_processor(_adapter*padapter)
 			(check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE) == _TRUE) ||
 			(check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == _TRUE) ||
 			(padapter->bup == _FALSE)	
-#ifdef CONFIG_P2P
+			#ifdef CONFIG_P2P
 			|| (pwdinfo->p2p_state != P2P_STATE_NONE)
-#endif //CONFIG_P2P
+			#endif //CONFIG_P2P
 		)
 		{
 			return;
@@ -205,7 +204,7 @@ void rtw_ps_processor(_adapter*padapter)
 		DBG_8192C("==>%s .fw_state(%x)\n",__FUNCTION__,get_fwstate(pmlmepriv));
 		pwrpriv->change_rfpwrstate = rf_off;
 
-#ifdef CONFIG_AUTOSUSPEND
+		#ifdef CONFIG_AUTOSUSPEND
 		if(padapter->registrypriv.usbss_enable)
 		{		
 			if(padapter->pwrctrlpriv.bHWPwrPindetect) 
@@ -221,11 +220,11 @@ void rtw_ps_processor(_adapter*padapter)
 		{
 		}
 		else
-#endif	
+		#endif //CONFIG_AUTOSUSPEND
 		{
-#ifdef CONFIG_IPS	
+			#ifdef CONFIG_IPS	
 			ips_enter(padapter);			
-#endif
+			#endif
 		}
 	}
 
@@ -1056,6 +1055,8 @@ void rtw_unregister_early_suspend(struct pwrctrl_priv *pwrpriv)
 {
 	DBG_871X("%s\n", __FUNCTION__);
 
+	pwrpriv->do_late_resume = _FALSE;
+
 	if (pwrpriv->early_suspend.suspend) 
 		unregister_early_suspend(&pwrpriv->early_suspend);
 
@@ -1106,6 +1107,8 @@ void rtw_register_early_suspend(struct pwrctrl_priv *pwrpriv)
 void rtw_unregister_early_suspend(struct pwrctrl_priv *pwrpriv)
 {
 	DBG_871X("%s\n", __FUNCTION__);
+
+	pwrpriv->do_late_resume = _FALSE;
 
 	if (pwrpriv->early_suspend.suspend) 
 		android_unregister_early_suspend(&pwrpriv->early_suspend);

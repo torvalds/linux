@@ -25,7 +25,7 @@
 #include <osdep_service.h>
 #include <drv_types.h>
 
-#ifdef SILENT_RESET_FOR_SPECIFIC_PLATFOM
+#ifdef DBG_CONFIG_ERROR_DETECT
 #define	WIFI_STATUS_SUCCESS 		0
 #define	USB_VEN_REQ_CMD_FAIL 	BIT0
 #define	USB_READ_PORT_FAIL 		BIT1

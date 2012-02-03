@@ -16,7 +16,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
 ******************************************************************************/
 #define _RTW_RECV_C_
 #include <drv_conf.h>
@@ -42,7 +41,7 @@
 #include <circ_buf.h>
 
 #ifdef CONFIG_NEW_SIGNAL_STAT_PROCESS
-static RTW_DECLARE_TIMER_HDL(signal_stat);
+void rtw_signal_stat_timer_hdl(RTW_TIMER_HDL_ARGS);
 #endif //CONFIG_NEW_SIGNAL_STAT_PROCESS
 
 
@@ -75,7 +74,8 @@ sint _rtw_init_recv_priv(struct recv_priv *precvpriv, _adapter *padapter)
 
 _func_enter_;
 
-	 _rtw_memset((unsigned char *)precvpriv, 0, sizeof (struct  recv_priv));
+	// We don't need to memset padapter->XXX to zero, because adapter is allocated by rtw_zvmalloc().
+	//_rtw_memset((unsigned char *)precvpriv, 0, sizeof (struct  recv_priv));
 
 	_rtw_spinlock_init(&precvpriv->lock);
 
@@ -3246,6 +3246,38 @@ static int amsdu_to_msdu(_adapter *padapter, union recv_frame *prframe)
 		if (sub_skb) {
 			//memset(sub_skb->cb, 0, sizeof(sub_skb->cb));
 
+#ifdef CONFIG_BR_EXT
+			// Insert NAT2.5 RX here!
+			struct mlme_priv	*pmlmepriv = &padapter->mlmepriv;
+			void *br_port = NULL;
+
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 35))
+			br_port = padapter->pnetdev->br_port;
+#else   // (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 35))
+			rcu_read_lock();
+			br_port = rcu_dereference(padapter->pnetdev->rx_handler_data);
+			rcu_read_unlock();
+#endif  // (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 35))
+
+
+			if( br_port && (check_fwstate(pmlmepriv, WIFI_STATION_STATE|WIFI_ADHOC_STATE) == _TRUE) )	 	
+			{
+				int nat25_handle_frame(_adapter *priv, struct sk_buff *skb);
+				if (nat25_handle_frame(padapter, sub_skb) == -1) {
+					//priv->ext_stats.rx_data_drops++;
+					//DEBUG_ERR("RX DROP: nat25_handle_frame fail!\n");
+					//return FAIL;
+					
+#if 1
+					// bypass this frame to upper layer!!
+#else
+					dev_kfree_skb_any(sub_skb);
+					continue;
+#endif
+				}							
+			}
+#endif	// CONFIG_BR_EXT
+
 			sub_skb->protocol = eth_type_trans(sub_skb, padapter->pnetdev);
 			sub_skb->dev = padapter->pnetdev;
 
@@ -4370,8 +4402,7 @@ _func_exit_;
 }
 
 #ifdef CONFIG_NEW_SIGNAL_STAT_PROCESS
-RTW_DECLARE_TIMER_HDL(signal_stat){
-//void rtw_signal_stat_timer_hdl(RTW_TIMER_HDL_ARGS){
+void rtw_signal_stat_timer_hdl(RTW_TIMER_HDL_ARGS){
 	_adapter *adapter = (_adapter *)FunctionContext;
 	struct recv_priv *recvpriv = &adapter->recvpriv;
 	
@@ -4382,55 +4413,61 @@ RTW_DECLARE_TIMER_HDL(signal_stat){
 	u32 num_signal_qual = 0;
 	u8 _alpha = 3; // this value is based on converging_constant = 5000 and sampling_interval = 1000
 
-	if(recvpriv->signal_strength_data.update_req == 0) {// update_req is clear, means we got rx
-		avg_signal_strength = recvpriv->signal_strength_data.avg_val;
-		avg_signal_qual = recvpriv->signal_qual_data.avg_val;
+	if(adapter->recvpriv.is_signal_dbg) {
+		//update the user specific value, signal_strength_dbg, to signal_strength, rssi
+		adapter->recvpriv.signal_strength= adapter->recvpriv.signal_strength_dbg;
+		adapter->recvpriv.rssi=(s8)translate_percentage_to_dbm((u8)adapter->recvpriv.signal_strength_dbg);
+	} else {
+
+		if(recvpriv->signal_strength_data.update_req == 0) {// update_req is clear, means we got rx
+			avg_signal_strength = recvpriv->signal_strength_data.avg_val;
+			avg_signal_qual = recvpriv->signal_qual_data.avg_val;
+		}
+		
+		if(recvpriv->signal_qual_data.update_req == 0) {// update_req is clear, means we got rx
+			num_signal_strength = recvpriv->signal_strength_data.total_num;
+			num_signal_qual = recvpriv->signal_qual_data.total_num;
+		}
+		
+		// after avg_vals are accquired, we can re-stat the signal values
+		recvpriv->signal_strength_data.update_req = 1;
+		recvpriv->signal_qual_data.update_req = 1;
+
+		//update value of signal_strength, rssi, signal_qual
+		if(check_fwstate(&adapter->mlmepriv, _FW_UNDER_SURVEY) == _FALSE) {
+			tmp_s = (avg_signal_strength+(_alpha-1)*recvpriv->signal_strength);
+			if(tmp_s %_alpha)
+				tmp_s = tmp_s/_alpha + 1;
+			else
+				tmp_s = tmp_s/_alpha;
+			if(tmp_s>100)
+				tmp_s = 100;
+
+			tmp_q = (avg_signal_qual+(_alpha-1)*recvpriv->signal_qual);
+			if(tmp_q %_alpha)
+				tmp_q = tmp_q/_alpha + 1;
+			else
+				tmp_q = tmp_q/_alpha;
+			if(tmp_q>100)
+				tmp_q = 100;
+
+			recvpriv->signal_strength = tmp_s;
+			recvpriv->rssi = (s8)translate_percentage_to_dbm(tmp_s);
+			recvpriv->signal_qual = tmp_q;
+
+			#if defined(DBG_RX_SIGNAL_DISPLAY_PROCESSING) && 1
+			DBG_871X("%s signal_strength:%3u, rssi:%3d, signal_qual:%3u"
+				", num_signal_strength:%u, num_signal_qual:%u"
+				"\n"
+				, __FUNCTION__
+				, recvpriv->signal_strength
+				, recvpriv->rssi
+				, recvpriv->signal_qual
+				, num_signal_strength, num_signal_qual
+			);
+			#endif
+		}
 	}
-	
-	if(recvpriv->signal_qual_data.update_req == 0) {// update_req is clear, means we got rx
-		num_signal_strength = recvpriv->signal_strength_data.total_num;
-		num_signal_qual = recvpriv->signal_qual_data.total_num;
-	}
-	
-	// after avg_vals are accquired, we can re-stat the signal values
-	recvpriv->signal_strength_data.update_req = 1;
-	recvpriv->signal_qual_data.update_req = 1;
-
-	//update value of signal_strength, rssi, signal_qual
-	if(check_fwstate(&adapter->mlmepriv, _FW_UNDER_SURVEY) == _FALSE) {
-		tmp_s = (avg_signal_strength+(_alpha-1)*recvpriv->signal_strength);
-		if(tmp_s %_alpha)
-			tmp_s = tmp_s/_alpha + 1;
-		else
-			tmp_s = tmp_s/_alpha;
-		if(tmp_s>100)
-			tmp_s = 100;
-
-		tmp_q = (avg_signal_qual+(_alpha-1)*recvpriv->signal_qual);
-		if(tmp_q %_alpha)
-			tmp_q = tmp_q/_alpha + 1;
-		else
-			tmp_q = tmp_q/_alpha;
-		if(tmp_q>100)
-			tmp_q = 100;
-
-		recvpriv->signal_strength = tmp_s;
-		recvpriv->rssi = (s8)translate_percentage_to_dbm(tmp_s);
-		recvpriv->signal_qual = tmp_q;
-
-		#if 0
-		DBG_871X("%s signal_strength:%3u, rssi:%3d, signal_qual:%3u"
-			", num_signal_strength:%u, num_signal_qual:%u"
-			"\n"
-			, __FUNCTION__
-			, recvpriv->signal_strength
-			, recvpriv->rssi
-			, recvpriv->signal_qual
-			, num_signal_strength, num_signal_qual
-		);
-		#endif
-	}
-
 	rtw_set_signal_stat_timer(recvpriv);
 	
 }

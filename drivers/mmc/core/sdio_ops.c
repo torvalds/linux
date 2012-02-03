@@ -118,6 +118,7 @@ int mmc_io_rw_direct(struct mmc_card *card, int write, unsigned fn,
 	return mmc_io_rw_direct_host(card->host, write, fn, addr, in, out);
 }
 
+extern int sunximmc_check_r1_ready(struct mmc_host *mmc);
 int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 	unsigned addr, int incr_addr, u8 *buf, unsigned blocks, unsigned blksz)
 {
@@ -178,6 +179,16 @@ int mmc_io_rw_extended(struct mmc_card *card, int write, unsigned fn,
 			return -ERANGE;
 	}
 
+	if (write) {
+		int i = 0;
+		int r1_ready = 0;
+		do {
+			r1_ready = sunximmc_check_r1_ready(card->host);
+			i++;
+		} while (!r1_ready && i < 3000);
+		if (i > 50)
+			printk("[sdio]: busy %d !!\n", i);
+	}
 	return 0;
 }
 

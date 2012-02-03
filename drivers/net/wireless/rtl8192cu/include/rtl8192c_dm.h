@@ -30,6 +30,7 @@
 
 #define	RSSI_CCK	0
 #define	RSSI_OFDM	1
+#define	RSSI_DEFAULT	2
 
 #define	OFDM_TABLE_SIZE 	37
 #define	CCK_TABLE_SIZE		33
@@ -191,6 +192,7 @@ typedef struct _Dynamic_Initial_Gain_Threshold_
 
 	u8		PreIGValue;
 	u8		CurIGValue;
+	u8		BackupIGValue;
 
 	char		BackoffVal;
 	char		BackoffVal_range_max;
@@ -606,3 +608,4 @@ u8 SwAntDivBeforeLink8192C(IN PADAPTER Adapter);
 #endif
 
 #endif	//__HAL8190PCIDM_H__
+

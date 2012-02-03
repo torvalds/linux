@@ -15,8 +15,7 @@
  * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
- *
- 
+ * 
 ******************************************************************************/
 //============================================================
 // Description:
@@ -184,7 +183,7 @@ dm_FalseAlarmCounterStatistics(
 						FalseAlmCnt->Cnt_Crc8_fail +
 						FalseAlmCnt->Cnt_Mcs_fail +
 						FalseAlmCnt->Cnt_Cck_fail);	
-	
+	Adapter->recvpriv.FalseAlmCnt_all = FalseAlmCnt->Cnt_all;
 	//reset false alarm counter registers
 	PHY_SetBBReg(Adapter, rOFDM1_LSTF, 0x08000000, 1);
 	PHY_SetBBReg(Adapter, rOFDM1_LSTF, 0x08000000, 0);
@@ -261,7 +260,7 @@ dm_CtrlInitGainByFA(
 		value_IGI = DM_DIG_FA_LOWER;
 
 	if(FalseAlmCnt->Cnt_all > 10000)
-		value_IGI = 0x32;
+		value_IGI = DM_DIG_FA_UPPER;
 	
 	pDigTable->CurIGValue = value_IGI;
 	
@@ -551,7 +550,7 @@ dm_initial_gain_Multi_STA(
 
 
 	if((bMulti_STA == _FALSE) 
-		|| (pDigTable->CurSTAConnectState != DIG_STA_DISCONNECT))
+		|| (pDigTable->CurSTAConnectState == DIG_STA_DISCONNECT))	 
 	{
 		pdmpriv->binitialized = _FALSE;
 		pDigTable->Dig_Ext_Port_Stage = DIG_EXT_PORT_STAGE_MAX;
@@ -990,7 +989,7 @@ static VOID PWDB_Monitor(
 
 				plist = get_next(plist);
 
-				if(_rtw_memcmp(psta->hwaddr, bcast_addr, ETH_ALEN) || 
+				if(_rtw_memcmp(psta	->hwaddr, bcast_addr, ETH_ALEN) || 
 					_rtw_memcmp(psta->hwaddr, myid(&Adapter->eeprompriv), ETH_ALEN))
 					continue;
 
@@ -4334,7 +4333,7 @@ static void dm_RSSIMonitorInit(
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 	pdmpriv->OFDM_Pkt_Cnt = 0;
-	pdmpriv->RSSI_Select = RSSI_CCK;
+	pdmpriv->RSSI_Select = RSSI_DEFAULT;
 }
 
 static void dm_RSSIMonitorCheck(
@@ -4343,6 +4342,16 @@ static void dm_RSSIMonitorCheck(
 {
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	struct mlme_priv *pmlmepriv = &Adapter->mlmepriv;
+
+	if(check_fwstate(pmlmepriv, _FW_LINKED) == _FALSE)
+		return;
+		
+	if(check_fwstate(pmlmepriv, WIFI_AP_STATE |WIFI_ADHOC_STATE) == _TRUE )
+	{
+		if(Adapter->stapriv.asoc_sta_count < 2)
+			return;			
+	}		
 	
 	if(pdmpriv->OFDM_Pkt_Cnt == 0)
 		pdmpriv->RSSI_Select = RSSI_CCK;
@@ -4414,16 +4423,11 @@ void dm_InitHybridAntDiv(IN PADAPTER Adapter)
 
 void dm_SelectRXDefault(IN	PADAPTER	Adapter)
 {
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(Adapter);
 	
 	if(IS_92C_SERIAL(pHalData->VersionID) ||pHalData->AntDivCfg==0)
 		return;
-		// If dynamic ant_div is disabled.
-	if(!(pdmpriv->DMFlag & DYNAMIC_FUNC_ANT_DIV) )
-	{	
-		return;
-	}
+	
 	//DbgPrint(" Ant1_Cnt=%d, Ant2_Cnt=%d\n", pHalData->Ant1_Cnt, pHalData->Ant2_Cnt);
 	//DBG_8192C(" CCK_Ant1_Cnt = %d,  CCK_Ant2_Cnt = %d\n", pHalData->CCK_Ant1_Cnt, pHalData->CCK_Ant2_Cnt);
 	//DBG_8192C(" OFDM_Ant1_Cnt = %d,  OFDM_Ant2_Cnt = %d\n", pHalData->OFDM_Ant1_Cnt, pHalData->OFDM_Ant2_Cnt);
@@ -4595,9 +4599,9 @@ rtl8192c_HalDmWatchDog(
 		//
 		// Dynamic Initial Gain mechanism.
 		//
-#ifdef CONFIG_SPECIAL_SETTING_FOR_FUNAI_TV
+
 		dm_RSSIMonitorCheck(Adapter);
-#endif
+
 		dm_FalseAlarmCounterStatistics(Adapter);
 		dm_DIG(Adapter);
 

@@ -298,7 +298,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 					&mem->dma_handle, GFP_KERNEL);
 #else
 	
-	mem->dma_handle = (ve_start + ve_size - 16*1024*1024 + buf->i * mem->size + 4095) & (~(4095));	//4k aligned
+	mem->dma_handle = (ve_start + ve_size - 24*1024*1024 + buf->i * mem->size + 4095) & (~(4095));	//4k aligned
 	mem->vaddr = (void *)(mem->dma_handle + 0x80000000);	// not used
 	
 #endif					

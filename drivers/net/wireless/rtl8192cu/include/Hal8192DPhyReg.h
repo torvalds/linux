@@ -188,6 +188,54 @@
 #define		rCCK0_FACounterUpper      	0xa58  //0xa5c
 
 //
+// PageB(0xB00)
+//
+#define		rPdp_AntA      					0xb00  
+#define		rPdp_AntA_4    				0xb04
+#define		rPdp_AntA_8    				0xb08
+#define		rPdp_AntA_C    				0xb0c
+#define		rPdp_AntA_10    				0xb10
+#define		rPdp_AntA_14    				0xb14
+#define		rPdp_AntA_18    				0xb18
+#define		rPdp_AntA_1C    				0xb1c
+#define		rPdp_AntA_20    				0xb20
+#define		rPdp_AntA_24    				0xb24
+
+#define		rConfig_Pmpd_AntA 			0xb28
+#define		rConfig_ram64x16				0xb2c
+
+#define		rBndA						0xb30
+#define		rHssiPar						0xb34
+
+#define		rConfig_AntA 					0xb68
+#define		rConfig_AntB 					0xb6c
+
+#define		rPdp_AntB 					0xb70
+#define		rPdp_AntB_4 					0xb74
+#define		rPdp_AntB_8 					0xb78
+#define		rPdp_AntB_C 					0xb7c
+#define		rPdp_AntB_10 					0xb80
+#define		rPdp_AntB_14 					0xb84
+#define		rPdp_AntB_18 					0xb88
+#define		rPdp_AntB_1C 					0xb8c
+#define		rPdp_AntB_20 					0xb90
+#define		rPdp_AntB_24 					0xb94
+
+#define		rConfig_Pmpd_AntB			0xb98
+
+#define		rBndB						0xba0
+
+#define		rAPK							0xbd8
+#define		rPm_Rx0_AntA				0xbdc
+#define		rPm_Rx1_AntA				0xbe0
+#define		rPm_Rx2_AntA				0xbe4
+#define		rPm_Rx3_AntA				0xbe8
+#define		rPm_Rx0_AntB				0xbec
+#define		rPm_Rx1_AntB				0xbf0
+#define		rPm_Rx2_AntB				0xbf4
+#define		rPm_Rx3_AntB				0xbf8
+
+//
 // 6. PageC(0xC00)
 //
 #define		rOFDM0_LSTF				0xc00
@@ -238,17 +286,17 @@
 #define		rOFDM0_XDTxIQImbalance		0xc98
 #define		rOFDM0_XDTxAFE				0xc9c
 
-#define		rOFDM0_RxHPParameter			0xce0
-#define		rOFDM0_TxPseudoNoiseWgt		0xce4
-#define		rOFDM0_FrameSync				0xcf0
-#define		rOFDM0_DFSReport				0xcf4
+#define		rOFDM0_RxIQExtAnta			0xca0
 #define		rOFDM0_TxCoeff1				0xca4
 #define		rOFDM0_TxCoeff2				0xca8
 #define		rOFDM0_TxCoeff3				0xcac
 #define		rOFDM0_TxCoeff4				0xcb0
 #define		rOFDM0_TxCoeff5				0xcb4
 #define		rOFDM0_TxCoeff6				0xcb8
-
+#define		rOFDM0_RxHPParameter			0xce0
+#define		rOFDM0_TxPseudoNoiseWgt		0xce4
+#define		rOFDM0_FrameSync				0xcf0
+#define		rOFDM0_DFSReport				0xcf4
 
 //
 // 7. PageD(0xD00)
@@ -306,6 +354,55 @@
 #define		rTxAGC_B_Mcs15_Mcs12			0x868
 #define		rTxAGC_B_CCK11_A_CCK2_11		0x86c
 
+#define		rFPGA0_IQK						0xe28
+#define		rTx_IQK_Tone_A					0xe30
+#define		rRx_IQK_Tone_A					0xe34
+#define		rTx_IQK_PI_A					0xe38
+#define		rRx_IQK_PI_A					0xe3c
+
+#define		rTx_IQK 						0xe40
+#define		rRx_IQK							0xe44
+#define		rIQK_AGC_Pts					0xe48
+#define		rIQK_AGC_Rsp					0xe4c
+#define		rTx_IQK_Tone_B					0xe50
+#define		rRx_IQK_Tone_B					0xe54
+#define		rTx_IQK_PI_B					0xe58
+#define		rRx_IQK_PI_B					0xe5c
+#define		rIQK_AGC_Cont					0xe60
+
+#define		rBlue_Tooth						0xe6c
+#define		rRx_Wait_CCA					0xe70
+#define		rTx_CCK_RFON					0xe74
+#define		rTx_CCK_BBON					0xe78
+#define		rTx_OFDM_RFON					0xe7c
+#define		rTx_OFDM_BBON					0xe80
+#define		rTx_To_Rx						0xe84
+#define		rTx_To_Tx						0xe88
+#define		rRx_CCK							0xe8c
+
+#define		rTx_Power_Before_IQK_A		0xe94
+#define		rTx_Power_After_IQK_A			0xe9c
+
+#define		rRx_Power_Before_IQK_A		0xea0
+#define		rRx_Power_Before_IQK_A_2		0xea4
+#define		rRx_Power_After_IQK_A			0xea8
+#define		rRx_Power_After_IQK_A_2		0xeac
+
+#define		rTx_Power_Before_IQK_B		0xeb4
+#define		rTx_Power_After_IQK_B			0xebc
+
+#define		rRx_Power_Before_IQK_B		0xec0
+#define		rRx_Power_Before_IQK_B_2		0xec4
+#define		rRx_Power_After_IQK_B			0xec8
+#define		rRx_Power_After_IQK_B_2		0xecc
+
+#define		rRx_OFDM						0xed0
+#define		rRx_Wait_RIFS 					0xed4
+#define		rRx_TO_Rx 						0xed8
+#define		rStandby 						0xedc
+#define		rSleep 							0xee0
+#define		rPMPD_ANAEN					0xeec
+
 //
 // 7. RF Register 0x00-0x2E (RF 8256)
 //    RF-0222D 0x00-3F
@@ -341,12 +438,20 @@
 
 #define		RF_IQADJ_G1				0x01	// 
 #define		RF_IQADJ_G2				0x02	// 
+#define		RF_BS_PA_APSET_G1_G4		0x03
+#define		RF_BS_PA_APSET_G5_G8		0x04
 #define		RF_POW_TRSW				0x05	// 
 
 #define		RF_GAIN_RX					0x06	// 
 #define		RF_GAIN_TX					0x07	// 
 
 #define		RF_TXM_IDAC				0x08	// 
+#define		RF_IPA_G					0x09	// 
+#define		RF_TXBIAS_G				0x0A
+#define		RF_TXPA_AG					0x0B
+#define		RF_IPA_A					0x0C	// 
+#define		RF_TXBIAS_A				0x0D
+#define		RF_BS_PA_APSET_G9_G11	0x0E
 #define		RF_BS_IQGEN				0x0F	// 
 
 #define		RF_MODE1					0x10	// 
@@ -393,6 +498,13 @@
 #define		RF_TXPA_G1					0x31	// RF TX PA control
 #define		RF_TXPA_G2					0x32	// RF TX PA control
 #define		RF_TXPA_G3					0x33	// RF TX PA control
+#define		RF_LOBF_9					0x38
+#define		RF_RXRF_A3					0x3C	//
+#define		RF_TRSW					0x3F
+
+#define		RF_TXRF_A2					0x41
+#define		RF_TXPA_G4					0x46
+#define		RF_TXPA_A4					0x4B
 
 //
 //Bit Mask

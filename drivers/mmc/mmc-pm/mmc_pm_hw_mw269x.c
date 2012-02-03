@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/delay.h>
 #include <mach/sys_config.h>
 
 #include "mmc_pm.h"
@@ -83,6 +84,7 @@ power_change:
         hw_msg("Failed to power off %s module!\n", SDIO_MODULE_NAME);
         return -1;
     }
+    udelay(500);
     
 state_change:
     if (strcmp(name, "hw_mw269x_wl_enb")==0)

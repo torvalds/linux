@@ -22,7 +22,7 @@
 
 #include <basic_types.h>
 
-/*Created on  2011/ 6/22,  2:27*/
+/*Created on  2011/ 8/ 8,  1:41*/
 
 #define ImgArrayLength 29642
 extern u8 Rtl8192DEFwImgArray[ImgArrayLength];

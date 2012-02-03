@@ -24,12 +24,27 @@
 
 /*Created on  2011/ 6/15,  5:45*/
 
-#define TSMCImgArrayLength 14964 //v75 2011-06-15
+#ifdef CONFIG_BT_COEXISTENCE
+#define TSMCImgArrayLength 16248 //v79 TSMC COMMON 2011-10-06
+#else //#ifdef CONFIG_P2P
+#define TSMCImgArrayLength 16404 //v79 TSMC P2PPS 2011-10-06
+#endif
 extern u8 Rtl8192CEFwTSMCImgArray[TSMCImgArrayLength];
-#define UMCACutImgArrayLength 14964 //v75 2011-06-15
+
+#ifdef CONFIG_BT_COEXISTENCE
+#define UMCACutImgArrayLength 16248 //v79 UMC A Cut COMMON 2011-10-06
+#else //#ifdef CONFIG_P2P
+#define UMCACutImgArrayLength 16404 //v79 UMC A Cut P2PPS 2011-10-06
+#endif
 extern u8 Rtl8192CEFwUMCACutImgArray[UMCACutImgArrayLength];
-#define UMCBCutImgArrayLength 14946 //v75 2011-06-15
+
+#ifdef CONFIG_BT_COEXISTENCE
+#define UMCBCutImgArrayLength 16254 //v79 UMC B Cut COMMON 2011-10-06
+#else //#ifdef CONFIG_P2P
+#define UMCBCutImgArrayLength 16386 //v79 UMC B Cut P2PPS 2011-10-06
+#endif
 extern u8 Rtl8192CEFwUMCBCutImgArray[UMCBCutImgArrayLength];
+
 #define PHY_REG_2TArrayLength 374
 extern u32 Rtl8192CEPHY_REG_2TArray[PHY_REG_2TArrayLength];
 #define PHY_REG_1TArrayLength 374

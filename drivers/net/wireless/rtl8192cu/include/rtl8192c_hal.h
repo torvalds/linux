@@ -29,7 +29,7 @@
 #include "rtl8192c_recv.h"
 #include "rtl8192c_xmit.h"
 #include "rtl8192c_cmd.h"
-#ifdef SILENT_RESET_FOR_SPECIFIC_PLATFOM
+#ifdef DBG_CONFIG_ERROR_DETECT
 #include "rtl8192c_sreset.h"
 #endif
 
@@ -185,11 +185,12 @@
 #endif
 
 #define DRVINFO_SZ	4 // unit is 8bytes
-#define PageNum_128(_Len)		(u32)(((_Len)>>7) + ((_Len)&0x7F ? 1:0))
+#define PageNum_128(_Len)		(u32)(((_Len)>>7) + ((_Len)&0x7F ? 1:0))
 
 #define FW_8192C_SIZE					16384+32//16k
 #define FW_8192C_START_ADDRESS		0x1000
-#define FW_8192C_END_ADDRESS		0x3FFF
+//#define FW_8192C_END_ADDRESS		0x3FFF //Filen said this is for test chip
+#define FW_8192C_END_ADDRESS		0x1FFF
 
 #define MAX_PAGE_SIZE			4096	// @ page : 4k bytes
 
@@ -204,11 +205,7 @@ typedef enum _FIRMWARE_SOURCE{
 
 typedef struct _RT_FIRMWARE{
 	FIRMWARE_SOURCE	eFWSource;
-	#ifdef CONFIG_EMBEDDED_FWIMG
 	u8*			szFwBuffer;
-	#else
-	u8			szFwBuffer[FW_8192C_SIZE];
-	#endif
 	u32			ulFwLength;
 }RT_FIRMWARE, *PRT_FIRMWARE, RT_FIRMWARE_92C, *PRT_FIRMWARE_92C;
 
@@ -630,7 +627,7 @@ struct hal_data_8192ce
 
 	struct dm_priv	dmpriv;
 	u8	bDumpRxPkt;//for debug
-#ifdef SILENT_RESET_FOR_SPECIFIC_PLATFOM
+#ifdef DBG_CONFIG_ERROR_DETECT
 	struct sreset_priv srestpriv;
 #endif
 	u8	bInterruptMigration;
@@ -777,7 +774,7 @@ struct hal_data_8192cu
 	u8	RegReg542;
 
 	struct dm_priv	dmpriv;
-#ifdef SILENT_RESET_FOR_SPECIFIC_PLATFOM
+#ifdef DBG_CONFIG_ERROR_DETECT
 	struct sreset_priv srestpriv;
 #endif	
 
@@ -785,7 +782,7 @@ struct hal_data_8192cu
 	struct btcoexist_priv	bt_coexist;
 #endif
 	u8	CurAntenna;	
-	u8	AntDivCfg;	
+	u8	AntDivCfg;
 
 #ifdef CONFIG_SW_ANTENNA_DIVERSITY
 	//SW Antenna Switch
@@ -876,4 +873,3 @@ VOID rtl8192c_EfuseParseIDCode(PADAPTER pAdapter, u8 *hwinfo);
 void rtl8192c_set_hal_ops(struct hal_ops *pHalFunc);
 
 #endif
-

@@ -390,7 +390,7 @@ typedef struct __CCMU_USB_CLK_REG00CC
     __u32   UsbPhy2Rst:1;       //bit2,  USB PHY2 reset control, 0-reset valid, 1-reset invalid
     __u32   reserved0:1;        //bit3,  reserved
     __u32   OHCIClkSrc:1;       //bit4,  0-(PLL6)/25, 1-PLL6 sample 24Mhz to generate 48Mhz
-    __u32   reserved1:1;        //bit5,  reserved
+    __u32   ClkSwich:1;         //bit5,  usb clock switch
     __u32   OHCI0SpecClkGate:1; //bit6,  gating special clock for OHCI0, 0-CLOCK OFF, 1-CLOCK ON
     __u32   OHCI1SpecClkGate:1; //bit7,  gating special clock for OHCI1, 0-CLOCK OFF, 1-CLOCK ON
     __u32   PhySpecClkGate:1;   //bit8,  gating special clock for USB PHY0/1/2, 0-CLOCK OFF, 1-CLOCK ON

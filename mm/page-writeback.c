@@ -558,6 +558,13 @@ static void balance_dirty_pages(struct address_space *mapping,
 		 * up.
 		 */
 		trace_wbc_balance_dirty_start(&wbc, bdi);
+#if 1	
+		/* card atto  */
+		if(bdi_nr_reclaimable == 0 && background_thresh == 0 && dirty_thresh == 0){
+			printk("[%s %d] \n", __FUNCTION__, __LINE__);
+			break;
+		}
+#endif
 		if (bdi_nr_reclaimable > bdi_thresh) {
 			writeback_inodes_wb(&bdi->wb, &wbc);
 			pages_written += write_chunk - wbc.nr_to_write;
@@ -631,7 +638,7 @@ void balance_dirty_pages_ratelimited_nr(struct address_space *mapping,
 
 	ratelimit = ratelimit_pages;
 	if (mapping->backing_dev_info->dirty_exceeded)
-		ratelimit = 8;
+		ratelimit = 128;
 
 	/*
 	 * Check the rate limiting. Also, we do not want to throttle real-time

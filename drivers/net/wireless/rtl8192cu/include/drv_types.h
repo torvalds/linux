@@ -90,6 +90,10 @@ typedef struct _ADAPTER _adapter, ADAPTER,*PADAPTER;
 #include <rtw_mp.h>
 #endif
 
+#ifdef CONFIG_BR_EXT
+#include <rtw_br_ext.h>
+#endif	// CONFIG_BR_EXT
+
 #define SPEC_DEV_ID_NONE BIT(0)
 #define SPEC_DEV_ID_DISABLE_HT BIT(1)
 #define SPEC_DEV_ID_ENABLE_PS BIT(2)
@@ -154,6 +158,8 @@ struct registry_priv
 	u8 	rx_stbc;
 	u8	ampdu_amsdu;//A-MPDU Supports A-MSDU is permitted
 #endif
+	u8	lowrate_two_xmit;
+	
 	u8	rf_config ;
 	u8	low_power ;
 
@@ -170,7 +176,7 @@ struct registry_priv
 	u8	antdiv_cfg;
 
 	u8	usbss_enable;//0:disable,1:enable
-	u8	hwpdn_mode;//0:disable,1:enable,2:deside by EFUSE config
+	u8	hwpdn_mode;//0:disable,1:enable,2:decide by EFUSE config
 	u8	hwpwrp_detect;//0:disable,1:enable
 
 	u8	hw_wps_pbc;//0:disable,1:enable
@@ -254,11 +260,16 @@ struct dvobj_priv {
 	int	RegUsbSS;
 	
 	_sema	usb_suspend_sema;
-#ifdef CONFIG_USB_VENDOR_REQ_PREALLOC
+
+#ifdef CONFIG_USB_VENDOR_REQ_MUTEX
 	_mutex  usb_vendor_req_mutex;
+#endif
+	
+#ifdef CONFIG_USB_VENDOR_REQ_BUFFER_PREALLOC
 	u8 * usb_alloc_vendor_req_buf;
 	u8 * usb_vendor_req_buf;
 #endif	
+
 #ifdef PLATFORM_WINDOWS
 	//related device objects
 	PDEVICE_OBJECT	pphysdevobj;//pPhysDevObj;
@@ -339,7 +350,7 @@ typedef enum _DRIVER_STATE{
 
 struct _ADAPTER{	
 	int	DriverState;// for disable driver using module, use dongle to replace module.
-	int	pid[3];//process id from UI, 0:wpa_supplicant, 1:hostapd, 2:dhcpcd
+	int	pid[3];//process id from UI, 0:wps, 1:hostapd, 2:dhcpcd
 	int	bDongle;//build-in module or external dongle
 	u16 	chip_type;
 	u16	HardwareType;
@@ -379,6 +390,7 @@ struct _ADAPTER{
 #endif //CONFIG_P2P
 
 	PVOID			HalData;
+	u32 hal_data_sz;
 	struct hal_ops	HalFunc;
 
 #ifdef CONFIG_BT_COEXIST
@@ -395,6 +407,7 @@ struct _ADAPTER{
 	u8	hw_init_completed;
 	u8	init_adpt_in_progress;
 	u8	bfirst_init;
+	u8	bHaltInProgress;
 	
 	_thread_hdl_	cmdThread;
 	_thread_hdl_	evtThread;
@@ -445,6 +458,21 @@ struct _ADAPTER{
 #ifdef CONFIG_AUTOSUSPEND
 	u8	bDisableAutosuspend;
 #endif
+#ifdef CONFIG_BR_EXT
+	_lock					br_ext_lock;
+	//unsigned int			macclone_completed;
+	struct nat25_network_db_entry	*nethash[NAT25_HASH_SIZE];
+	int				pppoe_connection_in_progress;
+	unsigned char			pppoe_addr[MACADDRLEN];
+	unsigned char			scdb_mac[MACADDRLEN];
+	unsigned char			scdb_ip[4];
+	struct nat25_network_db_entry	*scdb_entry;
+	unsigned char			br_mac[MACADDRLEN];
+	unsigned char			br_ip[4];
+	
+	struct br_ext_info		ethBrExtInfo;
+#endif	// CONFIG_BR_EXT
+
 };	
   
 __inline static u8 *myid(struct eeprom_priv *peepriv)

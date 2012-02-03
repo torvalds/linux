@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
+ *                                        
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -196,12 +196,18 @@ struct mp_tx
 };
 
 //#if (MP_DRIVER == 1)
-#if defined(CONFIG_RTL8192C) || defined(CONFIG_RTL8192D)
+#if defined(CONFIG_RTL8192C) || defined(CONFIG_RTL8192D) || defined(CONFIG_RTL8723A) || defined(CONFIG_RTL8188E)
 #ifdef CONFIG_RTL8192C
 #include <Hal8192CPhyCfg.h>
 #endif
 #ifdef CONFIG_RTL8192D
 #include <Hal8192DPhyCfg.h>
+#endif
+#ifdef CONFIG_RTL8723A
+#include <Hal8723APhyCfg.h>
+#endif
+#ifdef CONFIG_RTL8188E
+#include <rtl8188e_hal.h>
 #endif
 #define MP_MAX_LINES		1000
 #define MP_MAX_LINES_BYTES	256
@@ -245,17 +251,17 @@ typedef struct _MPT_CONTEXT
 	ULONG			MptRfPath;
 
 	WIRELESS_MODE		MptWirelessModeToSw;	// Wireless mode to switch.
-	u1Byte			MptChannelToSw; 	// Channel to switch.
-	u1Byte			MptInitGainToSet; 	// Initial gain to set.
+	u8			MptChannelToSw; 	// Channel to switch.
+	u8			MptInitGainToSet; 	// Initial gain to set.
 	//ULONG			bMptAntennaA; 		// TRUE if we want to use antenna A.
 	ULONG			MptBandWidth;		// bandwidth to switch.
 	ULONG			MptRateIndex;		// rate index.
 	// Register value kept for Single Carrier Tx test.
-	u1Byte			btMpCckTxPower;
+	u8			btMpCckTxPower;
 	// Register value kept for Single Carrier Tx test.
-	u1Byte			btMpOfdmTxPower;
+	u8			btMpOfdmTxPower;
 	// For MP Tx Power index
-	u1Byte			TxPwrLevel[2];	// rf-A, rf-B
+	u8			TxPwrLevel[2];	// rf-A, rf-B
 
 	// Content of RCR Regsiter for Mass Production Test.
 	ULONG			MptRCR;
@@ -285,12 +291,12 @@ typedef struct _MPT_CONTEXT
 	//s1Byte			BufOfLines[2][MP_MAX_LINES][MP_MAX_LINES_BYTES];
 	//s4Byte			RfReadLine[2];
 
-	u1Byte		APK_bound[2];	//for APK	path A/path B
+	u8		APK_bound[2];	//for APK	path A/path B
 	BOOLEAN		bMptIndexEven;
 
-	u1Byte		backup0xc50;
-	u1Byte		backup0xc58;
-	u1Byte		backup0xc30;
+	u8		backup0xc50;
+	u8		backup0xc58;
+	u8		backup0xc30;
 }MPT_CONTEXT, *PMPT_CONTEXT;
 #endif
 //#endif
@@ -302,9 +308,44 @@ typedef struct _MPT_CONTEXT
 #ifdef CONFIG_RTL8192C
 #define EFUSE_MAP_SIZE		128
 #endif
+#ifdef CONFIG_RTL8723A
+#define EFUSE_MAP_SIZE		256
+#endif
+#ifdef CONFIG_RTL8188E
+#define EFUSE_MAP_SIZE		256
+#endif
 #define EFUSE_MAX_SIZE		512
 
 /* end of E-Fuse */
+
+//#define RTPRIV_IOCTL_MP 					( SIOCIWFIRSTPRIV + 0x17)
+enum {	  
+	WRITE_REG = 1,
+	READ_REG,
+	WRITE_RF,
+	READ_RF,
+	MP_START,
+	MP_STOP,
+	MP_RATE,
+	MP_CHANNEL,
+	MP_BANDWIDTH,
+	MP_TXPOWER,
+	MP_ANT_TX,
+	MP_ANT_RX,
+	MP_CTX,
+	MP_QUERY,
+	MP_ARX,
+	MP_PSD,
+	MP_PWRTRK,
+	MP_THER,
+	MP_IOCTL,
+	EFUSE_GET,
+	EFUSE_SET,
+	MP_RESET_STATS,
+	MP_DUMP,
+	MP_PHYPARA,
+	MP_NULL,
+};
 
 struct mp_priv
 {
@@ -340,7 +381,7 @@ struct mp_priv
 	u8 rateidx;
 	u32 preamble;
 //	u8 modem;
-
+	u32 CrystalCap;
 //	u32 curr_crystalcap;
 
 	u16 antenna_tx;
@@ -446,12 +487,12 @@ typedef enum _MP_MODE_ {
 } MP_MODE;
 
 #ifdef CONFIG_RTL8192C
-#define RF_PATH_A 	RF90_PATH_A
-#define RF_PATH_B 	RF90_PATH_B
-#define RF_PATH_C 	RF90_PATH_C
-#define RF_PATH_D 	RF90_PATH_D
+#define RF_PATH_A 	RF_PATH_A
+#define RF_PATH_B 	RF_PATH_B
+#define RF_PATH_C 	RF_PATH_C
+#define RF_PATH_D 	RF_PATH_D
 
-#define MAX_RF_PATH_NUMS	RF90_PATH_MAX
+#define MAX_RF_PATH_NUMS	RF_PATH_MAX
 #else
 #define RF_PATH_A 	0
 #define RF_PATH_B 	1
@@ -461,7 +502,7 @@ typedef enum _MP_MODE_ {
 #define MAX_RF_PATH_NUMS	2
 #endif
 
-static u8 mpdatarate[NumRates] = {11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0xff};
+extern u8 mpdatarate[NumRates];
 
 /* MP set force data rate base on the definition. */
 typedef enum _MPT_RATE_INDEX
@@ -509,7 +550,6 @@ typedef enum _HT_CHANNEL_WIDTH {
 	HT_CHANNEL_WIDTH_40 = 1,
 }HT_CHANNEL_WIDTH, *PHT_CHANNEL_WIDTH;
 #endif
-
 
 #define MAX_TX_PWR_INDEX_N_MODE 64	// 0x3F
 
@@ -591,6 +631,9 @@ extern void mp_stop_test(PADAPTER padapter);
 //extern u32	get_rf_reg(PADAPTER Adapter, u8 path, u8 offset, u32 bitmask);
 //extern u8	set_rf_reg(PADAPTER Adapter, u8 path, u8 offset, u32 bitmask, u32 value);
 
+extern u32 _read_rfreg(PADAPTER padapter, u8 rfpath, u32 addr, u32 bitmask);
+extern void _write_rfreg(PADAPTER padapter, u8 rfpath, u32 addr, u32 bitmask, u32 val);
+
 extern u32 read_macreg(_adapter *padapter, u32 addr, u32 sz);
 extern void write_macreg(_adapter *padapter, u32 addr, u32 val, u32 sz);
 extern u32 read_bbreg(_adapter *padapter, u32 addr, u32 bitmask);
@@ -629,6 +672,37 @@ extern s32	SetPowerTracking(PADAPTER padapter, u8 enable);
 extern void	GetPowerTracking(PADAPTER padapter, u8 *enable);
 
 extern u32	mp_query_psd(PADAPTER pAdapter, u8 *data);
+
+extern u32	rtw_atoi(u8 *s);
+
+
+extern void Hal_SetAntenna(PADAPTER pAdapter);
+extern void Hal_SetBandwidth(PADAPTER pAdapter);
+
+extern void Hal_SetTxPower(PADAPTER pAdapter);
+extern void Hal_SetCarrierSuppressionTx(PADAPTER pAdapter, u8 bStart);
+extern void Hal_SetSingleToneTx ( PADAPTER pAdapter , u8 bStart );
+extern void Hal_SetSingleCarrierTx (PADAPTER pAdapter, u8 bStart);
+extern void Hal_SetContinuousTx (PADAPTER pAdapter, u8 bStart);
+extern void Hal_SetBandwidth(PADAPTER pAdapter);
+
+extern void Hal_SetDataRate(PADAPTER pAdapter);
+extern void Hal_SetChannel(PADAPTER pAdapter);
+extern void Hal_SetAntennaPathPower(PADAPTER pAdapter);
+extern s32 Hal_SetThermalMeter(PADAPTER pAdapter, u8 target_ther);
+extern s32 Hal_SetPowerTracking(PADAPTER padapter, u8 enable);
+extern void Hal_GetPowerTracking(PADAPTER padapter, u8 * enable);
+extern void Hal_GetThermalMeter(PADAPTER pAdapter, u8 *value);
+extern void Hal_mpt_SwitchRfSetting(PADAPTER pAdapter);
+extern void Hal_MPT_CCKTxPowerAdjust(PADAPTER Adapter, BOOLEAN bInCH14);
+extern void Hal_MPT_CCKTxPowerAdjustbyIndex(PADAPTER pAdapter, BOOLEAN beven);
+extern void Hal_SetCCKTxPower(PADAPTER pAdapter, u8 * TxPower);
+extern void Hal_SetOFDMTxPower(PADAPTER pAdapter, u8 * TxPower);
+extern void Hal_TriggerRFThermalMeter(PADAPTER pAdapter);
+extern u8 Hal_ReadRFThermalMeter(PADAPTER pAdapter);
+extern void Hal_SetCCKContinuousTx(PADAPTER pAdapter, u8 bStart);
+extern void Hal_SetOFDMContinuousTx(PADAPTER pAdapter, u8 bStart);
+extern void Hal_ProSetCrystalCap (PADAPTER pAdapter , u32 CrystalCapVal);
 
 #endif //_RTW_MP_H_
 

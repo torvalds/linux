@@ -377,7 +377,7 @@ UNUSUAL_DEV(  0x04ce, 0x0002, 0x026c, 0x026c,
 /* Reported by Kriston Fincher <kriston@airmail.net>
  * Patch submitted by Sean Millichamp <sean@bruenor.org>
  * This is to support the Panasonic PalmCam PV-SD4090
- * This entry is needed because the device reports Sub=ff 
+ * This entry is needed because the device reports Sub=ff
  */
 UNUSUAL_DEV(  0x04da, 0x0901, 0x0100, 0x0200,
 		"Panasonic",
@@ -461,7 +461,7 @@ UNUSUAL_DEV(  0x04e6, 0x000B, 0x0100, 0x0100,
 		"Shuttle",
 		"eUSCSI Bridge",
 		USB_SC_SCSI, USB_PR_BULK, usb_stor_euscsi_init,
-		US_FL_SCM_MULT_TARG ), 
+		US_FL_SCM_MULT_TARG ),
 
 UNUSUAL_DEV(  0x04e6, 0x000C, 0x0100, 0x0100,
 		"Shuttle",
@@ -505,7 +505,7 @@ UNUSUAL_DEV(  0x050d, 0x0115, 0x0133, 0x0133,
 		USB_SC_SCSI, USB_PR_BULK, usb_stor_euscsi_init,
 		US_FL_SCM_MULT_TARG ),
 
-/* Iomega Clik! Drive 
+/* Iomega Clik! Drive
  * Reported by David Chatenay <dchatenay@hotmail.com>
  * The reason this is needed is not fully known.
  */
@@ -622,7 +622,7 @@ UNUSUAL_DEV(  0x054c, 0x0058, 0x0000, 0x9999,
 		"PEG N760c Memorystick",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY ),
-		
+
 UNUSUAL_DEV(  0x054c, 0x0069, 0x0000, 0x9999,
 		"Sony",
 		"Memorystick MSC-U03",
@@ -956,7 +956,7 @@ UNUSUAL_DEV(  0x07af, 0x0004, 0x0100, 0x0133,
 		"Microtech",
 		"USB-SCSI-DB25",
 		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_euscsi_init,
-		US_FL_SCM_MULT_TARG ), 
+		US_FL_SCM_MULT_TARG ),
 
 UNUSUAL_DEV(  0x07af, 0x0005, 0x0100, 0x0100,
 		"Microtech",
@@ -1864,7 +1864,7 @@ UNUSUAL_DEV(  0x12d1, 0x1506, 0x0000, 0x0000,
 		"HUAWEI MOBILE",
 		"Mass Storage",
 		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_huawei_e220_init,
-		0),			
+		0),
 UNUSUAL_DEV(  0x12d1, 0x1d09, 0x0100, 0x0100,
 		"HUAWEI MOBILE",
 		"Mass Storage",
@@ -1890,27 +1890,27 @@ UNUSUAL_DEV(0x19D2,0x0003,0x0100,0x0100,
 		USB_SC_DEVICE, USB_PR_DEVICE, usb_stor_ZTE_AC580_init,
 		0),
 
-		
-//A355--ZTE--	0x19D20120->0x19D20079	don't report disk device	
+
+//A355--ZTE--	0x19D20120->0x19D20079	don't report disk device
 UNUSUAL_DEV(0x19D2,0x0120,0x0204  ,0x0204  ,
 		"ZTE MOBILE-TD",
 		"Mass Storage",
 		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_ZTE_AC580_init,
-		0),	
-		
-//A355--ZTE--	0x19D20120->0x19D20079	don't report disk device	
-UNUSUAL_DEV(0x19D2,0x0079,0x0204  ,0x0204  ,
+		0),
+
+//A355--ZTE--	0x19D20120->0x19D20079	don't report disk device
+UNUSUAL_DEV(0x19D2,0x0079,0x0100  ,0x0100  ,
 		"ZTE MOBILE-TD",
 		"Mass Storage",
 		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_ZTE_AC580_init,
-		0),	
-		
-//TU930--GaoKeZhongtian--	0x04cc225a->0x04cc225a	don't report disk device	
+		0),
+
+//TU930--GaoKeZhongtian--	0x04cc225a->0x04cc225a	don't report disk device
 UNUSUAL_DEV(0x04cc,0x225a,0x100,0x100,
 		"GaoKeZhongtian MOBILE-TD",
 		"Mass Storage",
 		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_ZTE_AC580_init,
-		0),	
+		0),
 
 //AC560--ZTE--	0x19d20026->0x19d20094	don't report disk device
 UNUSUAL_DEV(0x19D2,0x0026,0x0000,0x0000,
@@ -1976,12 +1976,19 @@ UNUSUAL_DEV(0x04cc,0x226e,0x0100,0x0100,
 		0),
 
 //shanghai ASB C820--ASB--don't report disk device
+UNUSUAL_DEV(0x05c6,0x0010,0x00,0x00,
+		"ASB MOBILE",
+		"Mass Storage",
+		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_ASB_init,
+		0),
+
+//shanghai ASB C820--ASB--don't report disk device
 UNUSUAL_DEV(0x05c6,0x00a0,0x00,0x00,
 		"ASB MOBILE",
 		"Mass Storage",
 		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_ASB_init,
 		0),
-		
+
 //TechFaith--don't report disk device
 UNUSUAL_DEV(0x1d09,0x1010,0x0,0x0,
 		"TechFaith MOBILE",
@@ -1994,21 +2001,21 @@ UNUSUAL_DEV(0x1d09,0x1000,0x0,0x0,
 		"Mass Storage",
 		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_TechFaith_init,
 		0),
-				
+
 //wangxun--don't report disk device
 UNUSUAL_DEV(0x1e89,0x1e16,0x0,0x0,
 		"wangxun MOBILE",
 		"Mass Storage",
 		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_wangxun_init,
 		0),
-		
+
 //TechFaith--don't report disk device
 UNUSUAL_DEV(0x1e89,0x1a20,0x0,0x0,
 		"Shichuangxing MOBILE",
 		"Mass Storage",
 		USB_SC_DEVICE,USB_PR_DEVICE,usb_stor_TechFaith_init,
 		0),
-				
+
 //TechFaith--don't report disk device
 UNUSUAL_DEV(0x1e89,0xf000,0x0,0x0,
 		"Shichuangxing MOBILE",

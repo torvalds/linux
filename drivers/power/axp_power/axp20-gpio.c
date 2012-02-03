@@ -37,7 +37,7 @@ int axp_gpio_set_io(int gpio, int io_state)
 		{
 			case 0: return axp_clr_bits(&axp->dev,AXP20_GPIO0_CFG, 0x06);
 			case 1: return axp_clr_bits(&axp->dev,AXP20_GPIO1_CFG, 0x06);
-			case 2: return axp_clr_bits(&axp->dev,AXP20_GPIO2_CFG, 0x07);
+			case 2: return axp_clr_bits(&axp->dev,AXP20_GPIO2_CFG, 0x06);
 			case 3: return axp_clr_bits(&axp->dev,AXP20_GPIO3_CFG, 0x04);
 			default:return -ENXIO;
 		}
@@ -117,7 +117,7 @@ int axp_gpio_set_value(int gpio, int value)
 						return axp_set_bits(&axp->dev,AXP20_GPIO0_CFG,0x01);
 				case 1: axp_clr_bits(&axp->dev,AXP20_GPIO1_CFG,0x06);
 						return axp_set_bits(&axp->dev,AXP20_GPIO1_CFG,0x01);
-				case 2: return -EINVAL;
+				case 2: return axp_set_bits(&axp->dev,AXP20_GPIO2_CFG,0x01);
 				case 3: return axp_set_bits(&axp->dev,AXP20_GPIO3_CFG,0x02);
 				default:break;
 			}
@@ -127,7 +127,7 @@ int axp_gpio_set_value(int gpio, int value)
 			{
 				case 0: return axp_clr_bits(&axp->dev,AXP20_GPIO0_CFG,0x03);
 				case 1: return axp_clr_bits(&axp->dev,AXP20_GPIO1_CFG,0x03);
-				case 2: return axp_clr_bits(&axp->dev,AXP20_GPIO1_CFG,0x03);
+				case 2: return axp_clr_bits(&axp->dev,AXP20_GPIO2_CFG,0x03);
 				case 3: return axp_clr_bits(&axp->dev,AXP20_GPIO3_CFG,0x02);
 				default:break;
 			}
@@ -152,7 +152,7 @@ int axp_gpio_get_value(int gpio, int *value)
 		{
 			case 0:ret = axp_read(&axp->dev,AXP20_GPIO0_CFG,&val);*value = val & 0x01;break;
 			case 1:ret =axp_read(&axp->dev,AXP20_GPIO1_CFG,&val);*value = val & 0x01;break;
-			case 2:ret = 0; *value = 0;break;
+			case 2:ret = axp_read(&axp->dev,AXP20_GPIO2_CFG,&val);*value = val & 0x01;break;
 			case 3:ret = axp_read(&axp->dev,AXP20_GPIO3_CFG,&val);val &= 0x02;*value = val>>1;break;
 			default:return -ENXIO;
 		}
@@ -274,9 +274,9 @@ static ssize_t set_value(struct device *dev, struct device_attribute *attr,
 }
 
 
-static DEVICE_ATTR(gpio,0666, show_gpio, set_gpio);
-static DEVICE_ATTR(io, 0666, show_io, set_io);
-static DEVICE_ATTR(value, 0666, show_value, set_value);
+static DEVICE_ATTR(gpio,0664, show_gpio, set_gpio);
+static DEVICE_ATTR(io, 0664, show_io, set_io);
+static DEVICE_ATTR(value, 0664, show_value, set_value);
 
 struct device_attribute *attributes[] = {
 	&dev_attr_gpio,

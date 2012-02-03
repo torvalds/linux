@@ -620,7 +620,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz)
 		
 }
 
-void rtw_dump_xframe(_adapter *padapter, struct xmit_frame *pxmitframe)
+static void _rtw_dump_xframe(_adapter *padapter, struct xmit_frame *pxmitframe, u8 sync)
 {
 	int t, sz, w_sz, pull=0;
 	u8 *mem_addr;
@@ -635,8 +635,7 @@ void rtw_dump_xframe(_adapter *padapter, struct xmit_frame *pxmitframe)
 	    (pxmitframe->attrib.ether_type != 0x888e) &&
 	    (pxmitframe->attrib.dhcp_pkt != 1))
 	{
-		if(padapter->mlmepriv.LinkDetectInfo.bBusyTraffic == _TRUE)
-			rtw_issue_addbareq_cmd(padapter, pxmitframe);
+		rtw_issue_addbareq_cmd(padapter, pxmitframe);
 	}
 	
 	mem_addr = pxmitframe->buf_addr;
@@ -675,7 +674,10 @@ void rtw_dump_xframe(_adapter *padapter, struct xmit_frame *pxmitframe)
 
 		ff_hwaddr = rtw_get_ff_hwaddr(pxmitframe);
 		
-		rtw_write_port(padapter, ff_hwaddr, w_sz, (unsigned char*)pxmitbuf);
+		if(sync == _TRUE)
+			rtw_write_port_sync(padapter, ff_hwaddr, w_sz, (unsigned char*)pxmitbuf);
+		else
+			rtw_write_port(padapter, ff_hwaddr, w_sz, (unsigned char*)pxmitbuf);
 
 		rtw_count_tx_stats(padapter, pxmitframe, sz);
 
@@ -693,6 +695,15 @@ void rtw_dump_xframe(_adapter *padapter, struct xmit_frame *pxmitframe)
 	
 }
 
+inline void rtw_dump_xframe(_adapter *padapter, struct xmit_frame *pxmitframe)
+{
+	_rtw_dump_xframe(padapter, pxmitframe, _FALSE);
+}
+
+inline void rtw_dump_xframe_sync(_adapter *padapter, struct xmit_frame *pxmitframe)
+{
+	_rtw_dump_xframe(padapter, pxmitframe, _TRUE);
+}
 
 #ifdef CONFIG_USB_TX_AGGREGATION
 static u32 xmitframe_need_length(struct xmit_frame *pxmitframe)
@@ -951,8 +962,7 @@ s32 rtl8192cu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 	    (pfirstframe->attrib.ether_type != 0x888e) &&
 	    (pfirstframe->attrib.dhcp_pkt != 1))
 	{
-		if(padapter->mlmepriv.LinkDetectInfo.bBusyTraffic == _TRUE)
-			rtw_issue_addbareq_cmd(padapter, pfirstframe);
+		rtw_issue_addbareq_cmd(padapter, pfirstframe);
 	}
 
 #ifndef CONFIG_USE_USB_BUFFER_ALLOC_TX

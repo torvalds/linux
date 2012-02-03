@@ -307,6 +307,13 @@ typedef struct _WLAN_PHY_INFO
   	u8  	Reserved_0;
 }WLAN_PHY_INFO,*PWLAN_PHY_INFO;
 
+/* temporally add #pragma pack for structure alignment issue of
+*   WLAN_BSSID_EX and get_WLAN_BSSID_EX_sz()
+*/
+#ifdef PLATFORM_WINDOWS
+#pragma pack(push)
+#pragma pack(1)
+#endif
 typedef struct _WLAN_BSSID_EX
 {
   ULONG  Length;
@@ -322,22 +329,34 @@ typedef struct _WLAN_BSSID_EX
   WLAN_PHY_INFO	PhyInfo;
   ULONG  IELength;
   UCHAR  IEs[MAX_IE_SZ];	//(timestamp, beacon interval, and capability information)
-} WLAN_BSSID_EX, *PWLAN_BSSID_EX;
+} 
+#ifndef PLATFORM_WINDOWS
+__attribute__((packed))
+#endif
+WLAN_BSSID_EX, *PWLAN_BSSID_EX;
+#ifdef PLATFORM_WINDOWS
+#pragma pack(pop)
+#endif
 
 __inline  static uint get_WLAN_BSSID_EX_sz(WLAN_BSSID_EX *bss)
 {
 	uint t_len;
 	
-	t_len = sizeof (ULONG) + sizeof (NDIS_802_11_MAC_ADDRESS) + 2 + 
-			sizeof (NDIS_802_11_SSID) + sizeof (ULONG) + 
-			sizeof (NDIS_802_11_RSSI) + sizeof (NDIS_802_11_NETWORK_TYPE) + 
-			sizeof (NDIS_802_11_CONFIGURATION) +	
-			sizeof (NDIS_802_11_NETWORK_INFRASTRUCTURE) +   
-			sizeof (NDIS_802_11_RATES_EX)+ 
-			//all new member add here
-			sizeof(WLAN_PHY_INFO)+	 
-			//all new member add here
-			sizeof (ULONG) + bss->IELength;	
+	t_len = sizeof (ULONG) 
+		+ sizeof (NDIS_802_11_MAC_ADDRESS) 
+		+ 2 
+		+ sizeof (NDIS_802_11_SSID) 
+		+ sizeof (ULONG) 
+		+ sizeof (NDIS_802_11_RSSI) 
+		+ sizeof (NDIS_802_11_NETWORK_TYPE)
+		+ sizeof (NDIS_802_11_CONFIGURATION)
+		+ sizeof (NDIS_802_11_NETWORK_INFRASTRUCTURE)
+		+ sizeof (NDIS_802_11_RATES_EX)
+		//all new member add here
+		+ sizeof(WLAN_PHY_INFO)
+		//all new member add here
+		+ sizeof (ULONG)
+		+ bss->IELength;	
 	return t_len;
 	
 }

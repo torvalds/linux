@@ -16,8 +16,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  *
- 
-******************************************************************************/
+ ******************************************************************************/
 
 #ifndef __RTL8192D_SPEC_H__
 #define __RTL8192D_SPEC_H__
@@ -260,7 +259,7 @@
 #define REG_HWSEQ_CTRL					0x0423
 #define REG_TXPKTBUF_BCNQ_BDNY		0x0424
 #define REG_TXPKTBUF_MGQ_BDNY		0x0425
-#define REG_MULTI_BCNQ_EN				0x0426
+#define REG_LIFETIME_EN				0x0426
 #define REG_MULTI_BCNQ_OFFSET			0x0427
 #define REG_SPEC_SIFS					0x0428
 #define REG_RL							0x042A
@@ -281,7 +280,8 @@
 #define REG_POWER_STATUS				0x04A4
 #define REG_POWER_STAGE1				0x04B4
 #define REG_POWER_STAGE2				0x04B8
-#define REG_PKT_LIFE_TIME				0x04C0
+#define REG_PKT_VO_VI_LIFE_TIME			0x04C0
+#define REG_PKT_BE_BK_LIFE_TIME			0x04C2
 #define REG_STBC_SETTING				0x04C4
 #define REG_PROT_MODE_CTRL			0x04C8
 #define REG_MAX_AGGR_NUM				0x04CA
@@ -312,6 +312,7 @@
 #define REG_RDG_PIFS				0x0513
 #define REG_SIFS_CTX				0x0514
 #define REG_SIFS_TRX				0x0516
+#define REG_TSFTR_SYN_OFFSET		0x0518
 #define REG_AGGR_BREAK_TIME		0x051A
 #define REG_SLOT					0x051B
 #define REG_TX_PTCL_CTRL			0x0520
@@ -322,7 +323,7 @@
 #define REG_RD_NAV_NXT				0x0544
 #define REG_NAV_PROT_LEN			0x0546
 #define REG_BCN_CTRL				0x0550
-#define REG_USTIME_TSF				0x0551
+#define REG_BCN_CTRL_1				0x0551
 #define REG_MBID_NUM				0x0552
 #define REG_DUAL_TSF_RST			0x0553
 #define REG_BCN_INTERVAL			0x0554	// The same as REG_MBSSID_BCN_SPACE
@@ -330,11 +331,14 @@
 #define REG_DRVERLYINT				0x0558
 #define REG_BCNDMATIM				0x0559
 #define REG_ATIMWND				0x055A
+#define REG_USTIME_TSF				0x055C
 #define REG_BCN_MAX_ERR			0x055D
 #define REG_RXTSF_OFFSET_CCK		0x055E
 #define REG_RXTSF_OFFSET_OFDM		0x055F	
 #define REG_TSFTR					0x0560
+#define REG_TSFTR1					0x0568
 #define REG_INIT_TSFTR				0x0564
+#define REG_ATIMWND_1				0x0570
 #define REG_PSTIMER					0x0580
 #define REG_TIMER0					0x0584
 #define REG_TIMER1					0x0588
@@ -410,6 +414,8 @@
 #define REG_BT_COEX_TABLE			0x06C0
 #define REG_WMAC_RESP_TXINFO		0x06D8
 
+#define REG_MACID1					0x0700
+#define REG_BSSID1					0x0708
 
 //-----------------------------------------------------
 //
@@ -790,6 +796,17 @@ Default: 00b.
 #define 	EEPROM_Default_SubCustomerID			0xCD
 #define 	EEPROM_Default_Version					0
 
+#define	EEPROM_Default_externalPA_C9		0x00
+#define	EEPROM_Default_externalPA_CC		0xFF
+#define	EEPROM_Default_internalPA_SP3T_C9	0xAA
+#define	EEPROM_Default_internalPA_SP3T_CC	0xAF
+#define	EEPROM_Default_internalPA_SPDT_C9	0xAA
+#ifdef CONFIG_PCI_HCI
+#define	EEPROM_Default_internalPA_SPDT_CC	0xA0
+#else
+#define	EEPROM_Default_internalPA_SPDT_CC	0xFA
+#endif
+
 #define	EEPROM_CHANNEL_PLAN_FCC				0x0
 #define	EEPROM_CHANNEL_PLAN_IC				0x1
 #define	EEPROM_CHANNEL_PLAN_ETSI			0x2
@@ -876,6 +893,7 @@ Default: 00b.
 #define EEPROM_TSSI_B_5G						0xBF
 #define EEPROM_TSSI_AB_5G						0xC0
 #define EEPROM_THERMAL_METER					0xC3	//[4:0]
+#define EEPROM_PATHDIV							0xC4
 #define EEPROM_RF_OPT1							0xC4
 #define EEPROM_RF_OPT2							0xC5
 #define EEPROM_RF_OPT3							0xC6
@@ -1713,6 +1731,7 @@ Current IOREG MAP
 
 // Only use CCK 1M rate for ACK
 #define RATE_RRSR_CCK_ONLY_1M		0xFFFF1
+#define RATE_RRSR_WITHOUT_CCK		0xFFFF0
 
 //2 TCR
 #define TSFRST						BIT(0)

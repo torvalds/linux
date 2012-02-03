@@ -76,6 +76,7 @@ typedef enum _RTL8192D_H2C_CMD
 	H2C_MAC_MODE_SEL = 9,
 	H2C_PWRM=15,
 	H2C_P2P_PS_CTW_CMD = 24,
+	H2C_PathDiv = 26,                  //PathDiv--NeilChen--2011.07.15
 	H2C_CMD_MAX
 }RTL8192D_H2C_CMD;
 

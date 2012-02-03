@@ -31,6 +31,7 @@
 #include <rtl8192d_hal.h>
 #endif
 
+
 #ifdef CONFIG_MP_INCLUDED
 
 u32 read_macreg(_adapter *padapter, u32 addr, u32 sz)
@@ -86,12 +87,12 @@ void write_bbreg(_adapter *padapter, u32 addr, u32 bitmask, u32 val)
 	padapter->HalFunc.write_bbreg(padapter, addr, bitmask, val);
 }
 
-static u32 _read_rfreg(PADAPTER padapter, u8 rfpath, u32 addr, u32 bitmask)
+u32 _read_rfreg(PADAPTER padapter, u8 rfpath, u32 addr, u32 bitmask)
 {
 	return padapter->HalFunc.read_rfreg(padapter, (RF90_RADIO_PATH_E)rfpath, addr, bitmask);
 }
 
-static void _write_rfreg(PADAPTER padapter, u8 rfpath, u32 addr, u32 bitmask, u32 val)
+void _write_rfreg(PADAPTER padapter, u8 rfpath, u32 addr, u32 bitmask, u32 val)
 {
 	padapter->HalFunc.write_rfreg(padapter, (RF90_RADIO_PATH_E)rfpath, addr, bitmask, val);
 }
@@ -105,6 +106,7 @@ void write_rfreg(PADAPTER padapter, u8 rfpath, u32 addr, u32 val)
 {
 	_write_rfreg(padapter, (RF90_RADIO_PATH_E)rfpath, addr, bRFRegOffsetMask, val);
 }
+
 
 static void _init_mp_priv_(struct mp_priv *pmp_priv)
 {
@@ -489,35 +491,14 @@ static u8 mpt_ProStartTest(PADAPTER padapter)
  */
 s32 SetPowerTracking(PADAPTER padapter, u8 enable)
 {
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
 
-
-	if (!netif_running(padapter->pnetdev)) {
-		RT_TRACE(_module_mp_, _drv_warning_, ("SetPowerTracking! Fail: interface not opened!\n"));
-		return _FAIL;
-	}
-
-	if (check_fwstate(&padapter->mlmepriv, WIFI_MP_STATE) == _FALSE) {
-		RT_TRACE(_module_mp_, _drv_warning_, ("SetPowerTracking! Fail: not in MP mode!\n"));
-		return _FAIL;
-	}
-
-	if (enable)
-		pdmpriv->TxPowerTrackControl = _TRUE;
-	else
-		pdmpriv->TxPowerTrackControl = _FALSE;
-
-	return _SUCCESS;
+	Hal_SetPowerTracking( padapter, enable );
+	return 0;
 }
 
 void GetPowerTracking(PADAPTER padapter, u8 *enable)
 {
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(padapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
-
-
-	*enable = pdmpriv->TxPowerTrackControl;
+	Hal_GetPowerTracking( padapter, enable );
 }
 
 static void disable_dm(PADAPTER padapter)
@@ -616,7 +597,7 @@ s32 mp_start_test(PADAPTER padapter)
 	if (check_fwstate(pmlmepriv, _FW_LINKED) == _TRUE) {
 		rtw_disassoc_cmd(padapter);
 		rtw_indicate_disconnect(padapter);
-		rtw_free_assoc_resources(padapter);
+		rtw_free_assoc_resources(padapter, 1);
 	}
 	pmppriv->prev_fw_state = get_fwstate(pmlmepriv);
 	pmlmepriv->fw_state = WIFI_MP_STATE;
@@ -701,7 +682,7 @@ void mp_stop_test(PADAPTER padapter)
 	rtw_indicate_disconnect(padapter);
 
 	//3 2. clear psta used in mp test mode.
-//	rtw_free_assoc_resources(padapter);
+//	rtw_free_assoc_resources(padapter, 1);
 	psta = rtw_get_stainfo(&padapter->stapriv, tgt_network->network.MacAddress);
 	if (psta) rtw_free_stainfo(padapter, psta);
 
@@ -783,327 +764,21 @@ static VOID mpt_AdjustRFRegByRateByChan92CU(PADAPTER pAdapter, u8 RateIdx, u8 Ch
  *---------------------------------------------------------------------------*/
 static void mpt_SwitchRfSetting(PADAPTER pAdapter)
 {
-	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(pAdapter);
-	struct mp_priv *pmp = &pAdapter->mppriv;
-	u8 ChannelToSw = pmp->channel;
-	u8 ulRateIdx = pmp->rateidx;
-	u8 ulbandwidth = pmp->bandwidth;
-	PMPT_CONTEXT	pMptCtx = &(pAdapter->mppriv.MptCtx);
-#ifdef CONFIG_USB_HCI
-
-	if (IS_92C_SERIAL(pHalData->VersionID))
-	{
-		//92CE-VAU (92cu mCard)
-		if( BOARD_MINICARD == pHalData->BoardType)
-		{
-			if (ulRateIdx < MPT_RATE_6M)					// CCK rate
-			{
-				write_rfreg(pAdapter, 0, RF_SYN_G2, 0x0F400);
-			}			
-			else 											//OFDM~MCS rate
-			{
-				write_rfreg(pAdapter, 0, RF_SYN_G2, 0x4F000);			
-			}
-		}
-		else	//92CU dongle
-		{
-			if (ulRateIdx < MPT_RATE_6M)	// CCK rate
-			{
-				write_rfreg(pAdapter, 0, RF_SYN_G2, 0x0F400);
-			}
-			else if (ChannelToSw & BIT0)	// OFDM rate, odd number channel
-			{
-				write_rfreg(pAdapter, 0, RF_SYN_G2, 0x4F200);
-			}
-			else if (ChannelToSw == 4)	// OFDM rate, even number channel
-			{
-				write_rfreg(pAdapter, 0, RF_SYN_G2, 0x28200);
-				write_rfreg(pAdapter, 0, RF_SYN_G6, 0xe0004);
-				write_rfreg(pAdapter, 0, RF_SYN_G7, 0x709);
-				rtw_msleep_os(1);
-				write_rfreg(pAdapter, 0, RF_SYN_G7, 0x4B333);
-			}
-			else if(ChannelToSw == 10)	// OFDM rate, even number channel
-			{
-				write_rfreg(pAdapter, 0, RF_SYN_G2, 0x28000);
-				write_rfreg(pAdapter, 0, RF_SYN_G6, 0xe000A);
-				write_rfreg(pAdapter, 0, RF_SYN_G7, 0x709);
-				rtw_msleep_os(1);
-				write_rfreg(pAdapter, 0, RF_SYN_G7, 0x7B333);
-			}
-			else if(ChannelToSw == 12)	// OFDM rate, even number channel
-			{
-				write_rfreg(pAdapter, 0, RF_SYN_G2, 0x28200);
-				write_rfreg(pAdapter, 0, RF_SYN_G6, 0xe000C);
-				write_rfreg(pAdapter, 0, RF_SYN_G7, 0x50B);
-				rtw_msleep_os(1);
-				write_rfreg(pAdapter, 0, RF_SYN_G7, 0x4B333);
-			}
-			else
-			{
-				write_rfreg(pAdapter, 0, RF_SYN_G2, 0x4F200);
-			}
-		}
-	}
-	else	//88cu
-	{
-
-		//mcard interface
-		
-		if( BOARD_MINICARD == pHalData->BoardType)
-		{
-			if (ulRateIdx < MPT_RATE_6M)	// CCK rate
-			{
-				write_rfreg(pAdapter, 0, RF_SYN_G2, 0x0F400);
-			}
-			else 	//OFDM~MCS rate
-			{
-				write_rfreg(pAdapter, 0, RF_SYN_G2, 0x4F200);			
-			}
-
-			if(ChannelToSw == 6 || ChannelToSw == 8)
-			{				
-				write_bbreg(pAdapter, rOFDM0_XAAGCCore1, bMaskByte0, 0x22);
-				write_bbreg(pAdapter, rOFDM0_XBAGCCore1, bMaskByte0, 0x22);	
-				write_bbreg(pAdapter, rOFDM0_RxDetector1, bMaskByte0, 0x4F);												
-			}
-			else
-			{
-				write_bbreg(pAdapter, rOFDM0_XAAGCCore1, bMaskByte0, 0x20);
-				write_bbreg(pAdapter, rOFDM0_XBAGCCore1, bMaskByte0, 0x20);				
-				write_bbreg(pAdapter, rOFDM0_RxDetector1, bMaskByte0, pMptCtx->backup0xc30);																
-			}
-		}
-		else
-		{
-			if (ulRateIdx < MPT_RATE_6M)	// CCK rate
-			{
-				write_rfreg(pAdapter, 0, RF_SYN_G2, 0x0F400);
-			}
-			else if (ChannelToSw & BIT0)	// OFDM rate, odd number channel
-			{
-				write_rfreg(pAdapter, 0, RF_SYN_G2, 0x4F200);
-			}
-			else
-			{
-				write_rfreg(pAdapter, 0, RF_SYN_G2, 0x4F000);
-			}
-		}
-	}
-
-#else	//PCI_INTERFACE
-
-	if (ulRateIdx < MPT_RATE_6M)	// CCK rate
-	{
-		write_rfreg(pAdapter, 0, RF_SYN_G2, 0x0F400);
-	}
-	else	//OFDM~MCS rate
-	{
-		write_rfreg(pAdapter, 0, RF_SYN_G2, 0x4F000);
-	}
-	//88CE
-	if(!IS_92C_SERIAL(pHalData->VersionID))
-	{
-		if(ChannelToSw == 6 || ChannelToSw == 8)
-		{				
-			write_bbreg(pAdapter, rOFDM0_XAAGCCore1, bMaskByte0, 0x22);
-			write_bbreg(pAdapter, rOFDM0_XBAGCCore1, bMaskByte0, 0x22);				
-			write_bbreg(pAdapter, rOFDM0_RxDetector1, bMaskByte0, 0x4F);												
-		}
-		else
-		{
-			write_bbreg(pAdapter, rOFDM0_XAAGCCore1, bMaskByte0, pMptCtx->backup0xc50);
-			write_bbreg(pAdapter, rOFDM0_XBAGCCore1, bMaskByte0, pMptCtx->backup0xc58);				
-			write_bbreg(pAdapter, rOFDM0_RxDetector1, bMaskByte0, pMptCtx->backup0xc30);																
-		}
+	Hal_mpt_SwitchRfSetting(pAdapter);
 	 }
 
-#endif
-}
 /*---------------------------hal\rtl8192c\MPT_Phy.c---------------------------*/
-
 /*---------------------------hal\rtl8192c\MPT_HelperFunc.c---------------------------*/
 static void MPT_CCKTxPowerAdjust(PADAPTER Adapter, BOOLEAN bInCH14)
 {
-	u32		TempVal = 0, TempVal2 = 0, TempVal3 = 0;
-	u32		CurrCCKSwingVal = 0, CCKSwingIndex = 12;
-	u8		i;
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
-
-
-	// get current cck swing value and check 0xa22 & 0xa23 later to match the table.
-	CurrCCKSwingVal = read_bbreg(Adapter, rCCK0_TxFilter1, bMaskHWord);
-
-	if (!bInCH14)
-	{
-		// Readback the current bb cck swing value and compare with the table to
-		// get the current swing index
-		for (i = 0; i < CCK_TABLE_SIZE; i++)
-		{
-			if (((CurrCCKSwingVal&0xff) == (u32)CCKSwingTable_Ch1_Ch13[i][0]) &&
-				(((CurrCCKSwingVal&0xff00)>>8) == (u32)CCKSwingTable_Ch1_Ch13[i][1]))
-			{
-				CCKSwingIndex = i;
-//				RT_TRACE(COMP_INIT, DBG_LOUD,("Ch1~13, Current reg0x%x = 0x%lx, CCKSwingIndex=0x%x\n",
-//					(rCCK0_TxFilter1+2), CurrCCKSwingVal, CCKSwingIndex));
-				break;
-			}
-		}
-
-		//Write 0xa22 0xa23
-		TempVal = CCKSwingTable_Ch1_Ch13[CCKSwingIndex][0] +
-				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][1]<<8) ;
-
-
-		//Write 0xa24 ~ 0xa27
-		TempVal2 = 0;
-		TempVal2 = CCKSwingTable_Ch1_Ch13[CCKSwingIndex][2] +
-				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][3]<<8) +
-				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][4]<<16 )+
-				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][5]<<24);
-
-		//Write 0xa28  0xa29
-		TempVal3 = 0;
-		TempVal3 = CCKSwingTable_Ch1_Ch13[CCKSwingIndex][6] +
-				(CCKSwingTable_Ch1_Ch13[CCKSwingIndex][7]<<8) ;
-	}
-	else
-	{
-		for (i = 0; i < CCK_TABLE_SIZE; i++)
-		{
-			if (((CurrCCKSwingVal&0xff) == (u32)CCKSwingTable_Ch14[i][0]) &&
-				(((CurrCCKSwingVal&0xff00)>>8) == (u32)CCKSwingTable_Ch14[i][1]))
-			{
-				CCKSwingIndex = i;
-//				RT_TRACE(COMP_INIT, DBG_LOUD,("Ch14, Current reg0x%x = 0x%lx, CCKSwingIndex=0x%x\n",
-//					(rCCK0_TxFilter1+2), CurrCCKSwingVal, CCKSwingIndex));
-				break;
-			}
-		}
-
-		//Write 0xa22 0xa23
-		TempVal = CCKSwingTable_Ch14[CCKSwingIndex][0] +
-				(CCKSwingTable_Ch14[CCKSwingIndex][1]<<8) ;
-
-		//Write 0xa24 ~ 0xa27
-		TempVal2 = 0;
-		TempVal2 = CCKSwingTable_Ch14[CCKSwingIndex][2] +
-				(CCKSwingTable_Ch14[CCKSwingIndex][3]<<8) +
-				(CCKSwingTable_Ch14[CCKSwingIndex][4]<<16 )+
-				(CCKSwingTable_Ch14[CCKSwingIndex][5]<<24);
-
-		//Write 0xa28  0xa29
-		TempVal3 = 0;
-		TempVal3 = CCKSwingTable_Ch14[CCKSwingIndex][6] +
-				(CCKSwingTable_Ch14[CCKSwingIndex][7]<<8) ;
-	}
-
-	write_bbreg(Adapter, rCCK0_TxFilter1, bMaskHWord, TempVal);
-	write_bbreg(Adapter, rCCK0_TxFilter2, bMaskDWord, TempVal2);
-	write_bbreg(Adapter, rCCK0_DebugPort, bMaskLWord, TempVal3);
+	Hal_MPT_CCKTxPowerAdjust(Adapter,bInCH14);
 }
 
 static void MPT_CCKTxPowerAdjustbyIndex(PADAPTER pAdapter, BOOLEAN beven)
 {
-	s32		TempCCk;
-	u8		CCK_index, CCK_index_old;
-	u8		Action = 0;	//0: no action, 1: even->odd, 2:odd->even
-	u8		TimeOut = 100;
-	s32		i = 0;
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
-	PMPT_CONTEXT	pMptCtx = &pAdapter->mppriv.MptCtx;
-
-
-	if (!IS_92C_SERIAL(pHalData->VersionID) || !IS_NORMAL_CHIP(pHalData->VersionID))
-		return;
-#if 0
-	while(PlatformAtomicExchange(&Adapter->IntrCCKRefCount, TRUE) == TRUE)
-	{
-		PlatformSleepUs(100);
-		TimeOut--;
-		if(TimeOut <= 0)
-		{
-			RTPRINT(FINIT, INIT_TxPower,
-			 ("!!!MPT_CCKTxPowerAdjustbyIndex Wait for check CCK gain index too long!!!\n" ));
-			break;
-		}
-	}
-#endif
-	if (beven && !pMptCtx->bMptIndexEven)	//odd->even
-	{
-		Action = 2;
-		pMptCtx->bMptIndexEven = _TRUE;
-	}
-	else if (!beven && pMptCtx->bMptIndexEven)	//even->odd
-	{
-		Action = 1;
-		pMptCtx->bMptIndexEven = _FALSE;
+	Hal_MPT_CCKTxPowerAdjustbyIndex(pAdapter,beven);
 	}
 
-	if (Action != 0)
-	{
-		//Query CCK default setting From 0xa24
-		TempCCk = read_bbreg(pAdapter, rCCK0_TxFilter2, bMaskDWord) & bMaskCCK;
-		for (i = 0; i < CCK_TABLE_SIZE; i++)
-		{
-			if (pHalData->dmpriv.bCCKinCH14)
-			{
-				if (_rtw_memcmp((void*)&TempCCk, (void*)&CCKSwingTable_Ch14[i][2], 4) == _TRUE)
-				{
-					CCK_index_old = (u8) i;
-//					RTPRINT(FINIT, INIT_TxPower,("MPT_CCKTxPowerAdjustbyIndex: Initial reg0x%x = 0x%lx, CCK_index=0x%x, ch 14 %d\n",
-//						rCCK0_TxFilter2, TempCCk, CCK_index_old, pHalData->bCCKinCH14));
-					break;
-				}
-			}
-			else
-			{
-				if (_rtw_memcmp((void*)&TempCCk, (void*)&CCKSwingTable_Ch1_Ch13[i][2], 4) == _TRUE)
-				{
-					CCK_index_old = (u8) i;
-//					RTPRINT(FINIT, INIT_TxPower,("MPT_CCKTxPowerAdjustbyIndex: Initial reg0x%x = 0x%lx, CCK_index=0x%x, ch14 %d\n",
-//						rCCK0_TxFilter2, TempCCk, CCK_index_old, pHalData->bCCKinCH14));
-					break;
-				}
-			}
-		}
-
-		if (Action == 1)
-			CCK_index = CCK_index_old - 1;
-		else
-			CCK_index = CCK_index_old + 1;
-
-//		RTPRINT(FINIT, INIT_TxPower,("MPT_CCKTxPowerAdjustbyIndex: new CCK_index=0x%x\n",
-//			 CCK_index));
-
-		//Adjust CCK according to gain index
-		if (!pHalData->dmpriv.bCCKinCH14) {
-			rtw_write8(pAdapter, 0xa22, CCKSwingTable_Ch1_Ch13[CCK_index][0]);
-			rtw_write8(pAdapter, 0xa23, CCKSwingTable_Ch1_Ch13[CCK_index][1]);
-			rtw_write8(pAdapter, 0xa24, CCKSwingTable_Ch1_Ch13[CCK_index][2]);
-			rtw_write8(pAdapter, 0xa25, CCKSwingTable_Ch1_Ch13[CCK_index][3]);
-			rtw_write8(pAdapter, 0xa26, CCKSwingTable_Ch1_Ch13[CCK_index][4]);
-			rtw_write8(pAdapter, 0xa27, CCKSwingTable_Ch1_Ch13[CCK_index][5]);
-			rtw_write8(pAdapter, 0xa28, CCKSwingTable_Ch1_Ch13[CCK_index][6]);
-			rtw_write8(pAdapter, 0xa29, CCKSwingTable_Ch1_Ch13[CCK_index][7]);
-		} else {
-			rtw_write8(pAdapter, 0xa22, CCKSwingTable_Ch14[CCK_index][0]);
-			rtw_write8(pAdapter, 0xa23, CCKSwingTable_Ch14[CCK_index][1]);
-			rtw_write8(pAdapter, 0xa24, CCKSwingTable_Ch14[CCK_index][2]);
-			rtw_write8(pAdapter, 0xa25, CCKSwingTable_Ch14[CCK_index][3]);
-			rtw_write8(pAdapter, 0xa26, CCKSwingTable_Ch14[CCK_index][4]);
-			rtw_write8(pAdapter, 0xa27, CCKSwingTable_Ch14[CCK_index][5]);
-			rtw_write8(pAdapter, 0xa28, CCKSwingTable_Ch14[CCK_index][6]);
-			rtw_write8(pAdapter, 0xa29, CCKSwingTable_Ch14[CCK_index][7]);
-		}
-	}
-#if 0
-	RTPRINT(FINIT, INIT_TxPower,
-	("MPT_CCKTxPowerAdjustbyIndex 0xa20=%x\n", PlatformEFIORead4Byte(Adapter, 0xa20)));
-
-	PlatformAtomicExchange(&Adapter->IntrCCKRefCount, FALSE);
-#endif
-}
 /*---------------------------hal\rtl8192c\MPT_HelperFunc.c---------------------------*/
 
 /*
@@ -1114,46 +789,8 @@ static void MPT_CCKTxPowerAdjustbyIndex(PADAPTER pAdapter, BOOLEAN beven)
  */
 void SetChannel(PADAPTER pAdapter)
 {
-#if 0
-	struct mp_priv *pmp = &pAdapter->mppriv;
+	Hal_SetChannel(pAdapter);
 
-//	SelectChannel(pAdapter, pmp->channel);
-	set_channel_bwmode(pAdapter, pmp->channel, pmp->channel_offset, pmp->bandwidth);
-#else
-	u8 		eRFPath;
-
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
-	struct mp_priv	*pmp = &pAdapter->mppriv;
-	u8		channel = pmp->channel;
-	u8		bandwidth = pmp->bandwidth;
-	u8		rate = pmp->rateidx;
-
-
-	// set RF channel register
-	for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++)
-		_write_rfreg(pAdapter, eRFPath, rRfChannel, 0x3FF, channel);
-
-	mpt_SwitchRfSetting(pAdapter);
-
-	SelectChannel(pAdapter, channel);
-
-	if (pHalData->CurrentChannel == 14 && !pHalData->dmpriv.bCCKinCH14) {
-		pHalData->dmpriv.bCCKinCH14 = _TRUE;
-		MPT_CCKTxPowerAdjust(pAdapter, pHalData->dmpriv.bCCKinCH14);
-	}
-	else if (pHalData->CurrentChannel != 14 && pHalData->dmpriv.bCCKinCH14) {
-		pHalData->dmpriv.bCCKinCH14 = _FALSE;
-		MPT_CCKTxPowerAdjust(pAdapter, pHalData->dmpriv.bCCKinCH14);
-	}
-#if 0
-//#ifdef CONFIG_USB_HCI
-	// Georgia add 2009-11-17, suggested by Edlu , for 8188CU ,46 PIN
-	if (!IS_92C_SERIAL(pHalData->VersionID) && !IS_NORMAL_CHIP(pHalData->VersionID)) {
-		mpt_AdjustRFRegByRateByChan92CU(pAdapter, rate, pHalData->CurrentChannel, bandwidth);
-	}
-#endif
-
-#endif
 }
 
 /*
@@ -1162,167 +799,34 @@ void SetChannel(PADAPTER pAdapter)
  */
 void SetBandwidth(PADAPTER pAdapter)
 {
-	struct mp_priv *pmp = &pAdapter->mppriv;
+	Hal_SetBandwidth(pAdapter);
 
-
-	SetBWMode(pAdapter, pmp->bandwidth, pmp->prime_channel_offset);
-	mpt_SwitchRfSetting(pAdapter);
 }
 
 static void SetCCKTxPower(PADAPTER pAdapter, u8 *TxPower)
 {
-	u32 tmpval = 0;
-
-
-	// rf-A cck tx power
-	write_bbreg(pAdapter, rTxAGC_A_CCK1_Mcs32, bMaskByte1, TxPower[RF_PATH_A]);
-	tmpval = (TxPower[RF_PATH_A]<<16) | (TxPower[RF_PATH_A]<<8) | TxPower[RF_PATH_A];
-	write_bbreg(pAdapter, rTxAGC_B_CCK11_A_CCK2_11, 0xffffff00, tmpval);
-
-	// rf-B cck tx power
-	write_bbreg(pAdapter, rTxAGC_B_CCK11_A_CCK2_11, bMaskByte0, TxPower[RF_PATH_B]);
-	tmpval = (TxPower[RF_PATH_B]<<16) | (TxPower[RF_PATH_B]<<8) | TxPower[RF_PATH_B];
-	write_bbreg(pAdapter, rTxAGC_B_CCK1_55_Mcs32, 0xffffff00, tmpval);
-
-	RT_TRACE(_module_mp_, _drv_notice_,
-		 ("-SetCCKTxPower: A[0x%02x] B[0x%02x]\n",
-		  TxPower[RF_PATH_A], TxPower[RF_PATH_B]));
+	Hal_SetCCKTxPower(pAdapter,TxPower);
 }
 
 static void SetOFDMTxPower(PADAPTER pAdapter, u8 *TxPower)
 {
-	u32 TxAGC = 0;
-	u8 tmpval = 0;
-	PMPT_CONTEXT	pMptCtx = &pAdapter->mppriv.MptCtx;
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
-
-
-	// HT Tx-rf(A)
-	tmpval = TxPower[RF_PATH_A];
-	TxAGC = (tmpval<<24) | (tmpval<<16) | (tmpval<<8) | tmpval;
-
-	write_bbreg(pAdapter, rTxAGC_A_Rate18_06, bMaskDWord, TxAGC);
-	write_bbreg(pAdapter, rTxAGC_A_Rate54_24, bMaskDWord, TxAGC);
-	write_bbreg(pAdapter, rTxAGC_A_Mcs03_Mcs00, bMaskDWord, TxAGC);
-	write_bbreg(pAdapter, rTxAGC_A_Mcs07_Mcs04, bMaskDWord, TxAGC);
-	write_bbreg(pAdapter, rTxAGC_A_Mcs11_Mcs08, bMaskDWord, TxAGC);
-	write_bbreg(pAdapter, rTxAGC_A_Mcs15_Mcs12, bMaskDWord, TxAGC);
-
-	if (pHalData->dmpriv.bAPKdone && !IS_NORMAL_CHIP(pHalData->VersionID))
-	{
-		if (tmpval > pMptCtx->APK_bound[RF_PATH_A])
-			write_rfreg(pAdapter, RF_PATH_A, 0xe, pHalData->dmpriv.APKoutput[0][0]);
-		else
-			write_rfreg(pAdapter, RF_PATH_A, 0xe, pHalData->dmpriv.APKoutput[0][1]);
+	Hal_SetOFDMTxPower(pAdapter,TxPower);
 	}
 
-	// HT Tx-rf(B)
-	tmpval = TxPower[RF_PATH_B];
-	TxAGC = (tmpval<<24) | (tmpval<<16) | (tmpval<<8) | tmpval;
 
-	write_bbreg(pAdapter, rTxAGC_B_Rate18_06, bMaskDWord, TxAGC);
-	write_bbreg(pAdapter, rTxAGC_B_Rate54_24, bMaskDWord, TxAGC);
-	write_bbreg(pAdapter, rTxAGC_B_Mcs03_Mcs00, bMaskDWord, TxAGC);
-	write_bbreg(pAdapter, rTxAGC_B_Mcs07_Mcs04, bMaskDWord, TxAGC);
-	write_bbreg(pAdapter, rTxAGC_B_Mcs11_Mcs08, bMaskDWord, TxAGC);
-	write_bbreg(pAdapter, rTxAGC_B_Mcs15_Mcs12, bMaskDWord, TxAGC);
-
-	if (pHalData->dmpriv.bAPKdone && !IS_NORMAL_CHIP(pHalData->VersionID))
+void SetAntenna(PADAPTER pAdapter)
 	{
-		if (tmpval > pMptCtx->APK_bound[RF_PATH_B])
-			write_rfreg(pAdapter, RF_PATH_B, 0xe, pHalData->dmpriv.APKoutput[1][0]);
-		else
-			write_rfreg(pAdapter, RF_PATH_B, 0xe, pHalData->dmpriv.APKoutput[1][1]);
-	}
-
-	RT_TRACE(_module_mp_, _drv_notice_,
-		 ("-SetOFDMTxPower: A[0x%02x] B[0x%02x]\n",
-		  TxPower[RF_PATH_A], TxPower[RF_PATH_B]));
+	Hal_SetAntenna(pAdapter);
 }
 
 void	SetAntennaPathPower(PADAPTER pAdapter)
 {
-	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(pAdapter);
-	u8 TxPowerLevel[MAX_RF_PATH_NUMS];
-	u8 rfPath;
-	
-	TxPowerLevel[RF_PATH_A] = pAdapter->mppriv.txpoweridx;
-	TxPowerLevel[RF_PATH_B] = pAdapter->mppriv.txpoweridx_b;
-	
-	switch (pAdapter->mppriv.antenna_tx)
-	{
-		case ANTENNA_A:
-		default:
-			rfPath = RF_PATH_A;
-			break;
-		case ANTENNA_B:
-			rfPath = RF_PATH_B;
-			break;
-		case ANTENNA_C:
-			rfPath = RF_PATH_C;
-			break;
-	}
-		
-	switch (pHalData->rf_chip)
-	{
-		case RF_8225:
-		case RF_8256:
-		case RF_6052:
-			SetCCKTxPower(pAdapter, TxPowerLevel);
-			if (pAdapter->mppriv.rateidx < MPT_RATE_6M)	// CCK rate
-				MPT_CCKTxPowerAdjustbyIndex(pAdapter, TxPowerLevel[rfPath]%2 == 0);
-			SetOFDMTxPower(pAdapter, TxPowerLevel);
-			break;
-
-		default:
-			break;
-	}
+	Hal_SetAntennaPathPower(pAdapter);
 }
 	
 void SetTxPower(PADAPTER pAdapter)
 {
-	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(pAdapter);
-	u8 TxPower = pAdapter->mppriv.txpoweridx;
-	u8 TxPowerLevel[MAX_RF_PATH_NUMS];
-	u8 rf, rfPath;
-
-	for (rf = 0; rf < MAX_RF_PATH_NUMS; rf++) {
-		TxPowerLevel[rf] = TxPower;
-	}
-
-	switch (pAdapter->mppriv.antenna_tx)
-	{
-		case ANTENNA_A:
-		default:
-			rfPath = RF_PATH_A;
-			break;
-		case ANTENNA_B:
-			rfPath = RF_PATH_B;
-			break;
-		case ANTENNA_C:
-			rfPath = RF_PATH_C;
-			break;
-	}
-
-	switch (pHalData->rf_chip)
-	{
-		// 2008/09/12 MH Test only !! We enable the TX power tracking for MP!!!!!
-		// We should call normal driver API later!!
-		case RF_8225:
-		case RF_8256:
-		case RF_6052:
-			SetCCKTxPower(pAdapter, TxPowerLevel);
-			if (pAdapter->mppriv.rateidx < MPT_RATE_6M)	// CCK rate
-				MPT_CCKTxPowerAdjustbyIndex(pAdapter, TxPowerLevel[rfPath]%2 == 0);
-			SetOFDMTxPower(pAdapter, TxPowerLevel);
-			break;
-
-		default:
-			break;
-	}
-
-//	SetCCKTxPower(pAdapter, TxPower);
-//	SetOFDMTxPower(pAdapter, TxPower);
+	Hal_SetTxPower(pAdapter);
 }
 
 void SetTxAGCOffset(PADAPTER pAdapter, u32 ulTxAGCOffset)
@@ -1340,7 +844,7 @@ void SetTxAGCOffset(PADAPTER pAdapter, u32 ulTxAGCOffset)
 
 void SetDataRate(PADAPTER pAdapter)
 {
-	mpt_SwitchRfSetting(pAdapter);
+	Hal_SetDataRate(pAdapter);
 }
 
 #if  !defined (CONFIG_RTL8192C)  &&  !defined (CONFIG_RTL8192D)
@@ -1364,517 +868,54 @@ typedef struct _R_ANTENNA_SELECT_CCK {
 }R_ANTENNA_SELECT_CCK;
 #endif
 
-void SetAntenna(PADAPTER pAdapter)
-{
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
-
-	R_ANTENNA_SELECT_OFDM *p_ofdm_tx;	/* OFDM Tx register */
-	R_ANTENNA_SELECT_CCK *p_cck_txrx;
-
-	u8	r_rx_antenna_ofdm = 0, r_ant_select_cck_val = 0;
-	u8	chgTx = 0, chgRx = 0;
-	u32	r_ant_sel_cck_val = 0, r_ant_select_ofdm_val = 0, r_ofdm_tx_en_val = 0;
-
-
-	p_ofdm_tx = (R_ANTENNA_SELECT_OFDM *)&r_ant_select_ofdm_val;
-	p_cck_txrx = (R_ANTENNA_SELECT_CCK *)&r_ant_select_cck_val;
-
-	p_ofdm_tx->r_ant_ht1	= 0x1;
-	p_ofdm_tx->r_ant_ht2	= 0x2;	// Second TX RF path is A
-	p_ofdm_tx->r_ant_non_ht = 0x3;	// 0x1+0x2=0x3
-
-	switch (pAdapter->mppriv.antenna_tx)
-	{
-		case ANTENNA_A:
-			p_ofdm_tx->r_tx_antenna		= 0x1;
-			r_ofdm_tx_en_val		= 0x1;
-			p_ofdm_tx->r_ant_l 		= 0x1;
-			p_ofdm_tx->r_ant_ht_s1 		= 0x1;
-			p_ofdm_tx->r_ant_non_ht_s1 	= 0x1;
-			p_cck_txrx->r_ccktx_enable	= 0x8;
-			chgTx = 1;
-
-			// From SD3 Willis suggestion !!! Set RF A=TX and B as standby
-//			if (IS_HARDWARE_TYPE_8192S(pAdapter))
-			{
-			write_bbreg(pAdapter, rFPGA0_XA_HSSIParameter2, 0xe, 2);
-			write_bbreg(pAdapter, rFPGA0_XB_HSSIParameter2, 0xe, 1);
-			r_ofdm_tx_en_val		= 0x3;
-
-			// Power save
-			//cosa r_ant_select_ofdm_val = 0x11111111;
-
-			// We need to close RFB by SW control
-			if (pHalData->rf_type == RF_2T2R)
-			{
-				PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT10, 0);
-				PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT26, 1);
-				PHY_SetBBReg(pAdapter, rFPGA0_XB_RFInterfaceOE, BIT10, 0);
-				PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT1, 1);
-				PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT17, 0);
-			}
-			}
-			break;
-
-		case ANTENNA_B:
-			p_ofdm_tx->r_tx_antenna		= 0x2;
-			r_ofdm_tx_en_val		= 0x2;
-			p_ofdm_tx->r_ant_l 		= 0x2;
-			p_ofdm_tx->r_ant_ht_s1 		= 0x2;
-			p_ofdm_tx->r_ant_non_ht_s1 	= 0x2;
-			p_cck_txrx->r_ccktx_enable	= 0x4;
-			chgTx = 1;
-
-			// From SD3 Willis suggestion !!! Set RF A as standby
-			//if (IS_HARDWARE_TYPE_8192S(pAdapter))
-			{
-			PHY_SetBBReg(pAdapter, rFPGA0_XA_HSSIParameter2, 0xe, 1);
-			PHY_SetBBReg(pAdapter, rFPGA0_XB_HSSIParameter2, 0xe, 2);
-//			r_ofdm_tx_en_val		= 0x3;
-
-			// Power save
-			//cosa r_ant_select_ofdm_val = 0x22222222;
-
-			// 2008/10/31 MH From SD3 Willi's suggestion. We must read RF 1T table.
-			// 2009/01/08 MH From Sd3 Willis. We need to close RFA by SW control
-			if (pHalData->rf_type == RF_2T2R || pHalData->rf_type == RF_1T2R)
-			{
-				PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT10, 1);
-				PHY_SetBBReg(pAdapter, rFPGA0_XA_RFInterfaceOE, BIT10, 0);
-				PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT26, 0);
-//				PHY_SetBBReg(pAdapter, rFPGA0_XB_RFInterfaceOE, BIT10, 0);
-				PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT1, 0);
-				PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT17, 1);
-			}
-			}
-		break;
-
-		case ANTENNA_AB:	// For 8192S
-			p_ofdm_tx->r_tx_antenna		= 0x3;
-			r_ofdm_tx_en_val		= 0x3;
-			p_ofdm_tx->r_ant_l 		= 0x3;
-			p_ofdm_tx->r_ant_ht_s1 		= 0x3;
-			p_ofdm_tx->r_ant_non_ht_s1 	= 0x3;
-			p_cck_txrx->r_ccktx_enable	= 0xC;
-			chgTx = 1;
-
-			// From SD3 Willis suggestion !!! Set RF B as standby
-			//if (IS_HARDWARE_TYPE_8192S(pAdapter))
-			{
-			PHY_SetBBReg(pAdapter, rFPGA0_XA_HSSIParameter2, 0xe, 2);
-			PHY_SetBBReg(pAdapter, rFPGA0_XB_HSSIParameter2, 0xe, 2);
-
-			// Disable Power save
-			//cosa r_ant_select_ofdm_val = 0x3321333;
-#if 0
-			// 2008/10/31 MH From SD3 Willi's suggestion. We must read RFA 2T table.
-			if ((pHalData->VersionID == VERSION_8192S_ACUT)) // For RTL8192SU A-Cut only, by Roger, 2008.11.07.
-			{
-				mpt_RFConfigFromPreParaArrary(pAdapter, 1, RF90_PATH_A);
-			}
-#endif
-			// 2009/01/08 MH From Sd3 Willis. We need to enable RFA/B by SW control
-			if (pHalData->rf_type == RF_2T2R)
-			{
-				PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT10, 0);
-				PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFInterfaceSW, BIT26, 0);
-//				PHY_SetBBReg(pAdapter, rFPGA0_XB_RFInterfaceOE, BIT10, 0);
-				PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT1, 1);
-				PHY_SetBBReg(pAdapter, rFPGA0_XAB_RFParameter, BIT17, 1);
-			}
-			}
-			break;
-
-		default:
-			break;
-	}
-
-	//
-	// r_rx_antenna_ofdm, bit0=A, bit1=B, bit2=C, bit3=D
-	// r_cckrx_enable : CCK default, 0=A, 1=B, 2=C, 3=D
-	// r_cckrx_enable_2 : CCK option, 0=A, 1=B, 2=C, 3=D
-	//
-	switch (pAdapter->mppriv.antenna_rx)
-	{
-		case ANTENNA_A:
-			r_rx_antenna_ofdm 		= 0x1;	// A
-			p_cck_txrx->r_cckrx_enable 	= 0x0;	// default: A
-			p_cck_txrx->r_cckrx_enable_2	= 0x0;	// option: A
-			chgRx = 1;
-			break;
-
-		case ANTENNA_B:
-			r_rx_antenna_ofdm 		= 0x2;	// B
-			p_cck_txrx->r_cckrx_enable 	= 0x1;	// default: B
-			p_cck_txrx->r_cckrx_enable_2	= 0x1;	// option: B
-			chgRx = 1;
-			break;
-
-		case ANTENNA_AB:
-			r_rx_antenna_ofdm 		= 0x3;	// AB
-			p_cck_txrx->r_cckrx_enable 	= 0x0;	// default:A
-			p_cck_txrx->r_cckrx_enable_2	= 0x1;	// option:B
-			chgRx = 1;
-			break;
-
-		default:
-			break;
-	}
-
-	if (chgTx && chgRx)
-	{
-		switch(pHalData->rf_chip)
-		{
-			case RF_8225:
-			case RF_8256:
-			case RF_6052:
-				//r_ant_sel_cck_val = r_ant_select_cck_val;
-				PHY_SetBBReg(pAdapter, rFPGA1_TxInfo, 0x7fffffff, r_ant_select_ofdm_val);	//OFDM Tx
-				PHY_SetBBReg(pAdapter, rFPGA0_TxInfo, 0x0000000f, r_ofdm_tx_en_val);		//OFDM Tx
-				PHY_SetBBReg(pAdapter, rOFDM0_TRxPathEnable, 0x0000000f, r_rx_antenna_ofdm);	//OFDM Rx
-				PHY_SetBBReg(pAdapter, rOFDM1_TRxPathEnable, 0x0000000f, r_rx_antenna_ofdm);	//OFDM Rx
-				PHY_SetBBReg(pAdapter, rCCK0_AFESetting, bMaskByte3, r_ant_select_cck_val);//r_ant_sel_cck_val);		//CCK TxRx
-				break;
-
-			default:
-				break;
-		}
-	}
-
-	RT_TRACE(_module_mp_, _drv_notice_, ("-SwitchAntenna: finished\n"));
-}
-
 s32 SetThermalMeter(PADAPTER pAdapter, u8 target_ther)
 {
-	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(pAdapter);
-
-
-	if (!netif_running(pAdapter->pnetdev)) {
-		RT_TRACE(_module_mp_, _drv_warning_, ("SetThermalMeter! Fail: interface not opened!\n"));
-		return _FAIL;
-	}
-
-	if (check_fwstate(&pAdapter->mlmepriv, WIFI_MP_STATE) == _FALSE) {
-		RT_TRACE(_module_mp_, _drv_warning_, ("SetThermalMeter: Fail! not in MP mode!\n"));
-		return _FAIL;
-	}
-
-	target_ther &= 0xff;
-	if (target_ther < 0x07)
-		target_ther = 0x07;
-	else if (target_ther > 0x1d)
-		target_ther = 0x1d;
-
-	pHalData->EEPROMThermalMeter = target_ther;
-
-	return _SUCCESS;
+	return Hal_SetThermalMeter( pAdapter, target_ther);
 }
 
 static void TriggerRFThermalMeter(PADAPTER pAdapter)
 {
-	write_rfreg(pAdapter, RF_PATH_A, RF_T_METER, 0x60);	// 0x24: RF Reg[6:5]
-//	RT_TRACE(_module_mp_,_drv_alert_, ("TriggerRFThermalMeter() finished.\n" ));
+	Hal_TriggerRFThermalMeter(pAdapter);
 }
 
 static u8 ReadRFThermalMeter(PADAPTER pAdapter)
 {
-	u32 ThermalValue = 0;
-
-	ThermalValue = _read_rfreg(pAdapter, RF_PATH_A, RF_T_METER, 0x1F);	// 0x24: RF Reg[4:0]
-//	RT_TRACE(_module_mp_, _drv_alert_, ("ThermalValue = 0x%x\n", ThermalValue));
-	return (u8)ThermalValue;
+	return Hal_ReadRFThermalMeter(pAdapter);
 }
 
 void GetThermalMeter(PADAPTER pAdapter, u8 *value)
 {
-#if 0
-	fw_cmd(pAdapter, IOCMD_GET_THERMAL_METER);
-	rtw_msleep_os(1000);
-	fw_cmd_data(pAdapter, value, 1);
-	*value &= 0xFF;
-#else
-	TriggerRFThermalMeter(pAdapter);
-	rtw_msleep_os(1000);
-	*value = ReadRFThermalMeter(pAdapter);
-#endif
+	Hal_GetThermalMeter(pAdapter,value);
 }
 
 void SetSingleCarrierTx(PADAPTER pAdapter, u8 bStart)
 {
-	pAdapter->mppriv.MptCtx.bSingleCarrier = bStart;
-	if (bStart)// Start Single Carrier.
-	{
-		RT_TRACE(_module_mp_,_drv_alert_, ("SetSingleCarrierTx: test start\n"));
-		// 1. if OFDM block on?
-		if(!read_bbreg(pAdapter, rFPGA0_RFMOD, bOFDMEn))
-			write_bbreg(pAdapter, rFPGA0_RFMOD, bOFDMEn, bEnable);//set OFDM block on
-
-		// 2. set CCK test mode off, set to CCK normal mode
-		write_bbreg(pAdapter, rCCK0_System, bCCKBBMode, bDisable);
-
-		// 3. turn on scramble setting
-		write_bbreg(pAdapter, rCCK0_System, bCCKScramble, bEnable);
-
-		// 4. Turn On Single Carrier Tx and turn off the other test modes.
-		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMContinueTx, bDisable);
-		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleCarrier, bEnable);
-		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleTone, bDisable);
-
-		// 5. Disable TX power saving at STF & LLTF
-		write_bbreg(pAdapter, rOFDM1_LSTF, BIT22, 1);
-	}
-	else// Stop Single Carrier.
-	{
-		RT_TRACE(_module_mp_,_drv_alert_, ("SetSingleCarrierTx: test stop\n"));
-
-		// Turn off all test modes.
-		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMContinueTx, bDisable);
-		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleCarrier, bDisable);
-		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleTone, bDisable);
-
-		// Cancel disable TX power saving at STF&LLTF
-		write_bbreg(pAdapter, rOFDM1_LSTF, BIT22, 0);
-
-		//Delay 10 ms //delay_ms(10);
-		rtw_msleep_os(10);
-
-		//BB Reset
-		write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x0);
-		write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x1);
-	}
+	Hal_SetSingleCarrierTx(pAdapter,bStart);
 }
 
 void SetSingleToneTx(PADAPTER pAdapter, u8 bStart)
 {
-	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
-	BOOLEAN		is92C = IS_92C_SERIAL(pHalData->VersionID);
-	u8 rfPath;
-
-	switch (pAdapter->mppriv.antenna_tx)
-	{
-		case ANTENNA_A:
-		default:
-			rfPath = RF_PATH_A;
-			break;
-		case ANTENNA_B:
-			rfPath = RF_PATH_B;
-			break;
-		case ANTENNA_C:
-			rfPath = RF_PATH_C;
-			break;
-	}
-
-	pAdapter->mppriv.MptCtx.bSingleTone = bStart;
-	if (bStart)// Start Single Tone.
-	{
-		RT_TRACE(_module_mp_,_drv_alert_, ("SetSingleToneTx: test start\n"));
-		write_bbreg(pAdapter, rFPGA0_RFMOD, bCCKEn, 0x0);
-		write_bbreg(pAdapter, rFPGA0_RFMOD, bOFDMEn, 0x0);
-
-		if (is92C) {
-			_write_rfreg(pAdapter, RF_PATH_A, 0x21, BIT19, 0x01);
-			rtw_usleep_os(100);
-			if (rfPath == RF_PATH_A)
-				write_rfreg(pAdapter, RF_PATH_B, 0x00, 0x10000); // PAD all on.
-			else if (rfPath == RF_PATH_B)
-				write_rfreg(pAdapter, RF_PATH_A, 0x00, 0x10000); // PAD all on.
-		} else {
-			write_rfreg(pAdapter, rfPath, 0x21, 0xd4000);
-			rtw_usleep_os(100);
-		}
-		write_rfreg(pAdapter, rfPath, 0x00, 0x2001f); // PAD all on.
-		rtw_usleep_os(100);
-	}
-	else// Stop Single Tone.
-	{
-		RT_TRACE(_module_mp_,_drv_alert_, ("SetSingleToneTx: test stop\n"));
-		write_bbreg(pAdapter, rFPGA0_RFMOD, bCCKEn, 0x1);
-		write_bbreg(pAdapter, rFPGA0_RFMOD, bOFDMEn, 0x1);
-
-		if (is92C) {
-			_write_rfreg(pAdapter, RF_PATH_A, 0x21, BIT19, 0x00);
-			rtw_usleep_os(100);
-			write_rfreg(pAdapter, RF_PATH_A, 0x00, 0x32d75); // PAD all on.
-			write_rfreg(pAdapter, RF_PATH_B, 0x00, 0x32d75); // PAD all on.
-			rtw_usleep_os(100);
-		} else {
-			write_rfreg(pAdapter, rfPath, 0x21, 0x54000);
-			rtw_usleep_os(100);
-			write_rfreg(pAdapter, rfPath, 0x00, 0x30000); // PAD all on.
-			rtw_usleep_os(100);
-		}
-	}
+	Hal_SetSingleToneTx(pAdapter,bStart);
 }
 
 void SetCarrierSuppressionTx(PADAPTER pAdapter, u8 bStart)
 {
-	pAdapter->mppriv.MptCtx.bCarrierSuppression = bStart;
-	if (bStart) // Start Carrier Suppression.
-	{
-		RT_TRACE(_module_mp_,_drv_alert_, ("SetCarrierSuppressionTx: test start\n"));
-		//if(pMgntInfo->dot11CurrentWirelessMode == WIRELESS_MODE_B)
-		if (pAdapter->mppriv.rateidx <= MPT_RATE_11M) {
-			// 1. if CCK block on?
-			if(!read_bbreg(pAdapter, rFPGA0_RFMOD, bCCKEn))
-				write_bbreg(pAdapter, rFPGA0_RFMOD, bCCKEn, bEnable);//set CCK block on
-
-			//Turn Off All Test Mode
-			write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMContinueTx, bDisable);
-			write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleCarrier, bDisable);
-			write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleTone, bDisable);
-
-			write_bbreg(pAdapter, rCCK0_System, bCCKBBMode, 0x2);    //transmit mode
-			write_bbreg(pAdapter, rCCK0_System, bCCKScramble, 0x0);  //turn off scramble setting
-
-			//Set CCK Tx Test Rate
-			//PHY_SetBBReg(pAdapter, rCCK0_System, bCCKTxRate, pMgntInfo->ForcedDataRate);
-			write_bbreg(pAdapter, rCCK0_System, bCCKTxRate, 0x0);    //Set FTxRate to 1Mbps
-		}
-	}
-	else// Stop Carrier Suppression.
-	{
-		RT_TRACE(_module_mp_,_drv_alert_, ("SetCarrierSuppressionTx: test stop\n"));
-		//if(pMgntInfo->dot11CurrentWirelessMode == WIRELESS_MODE_B)
-		if (pAdapter->mppriv.rateidx <= MPT_RATE_11M ) {
-			write_bbreg(pAdapter, rCCK0_System, bCCKBBMode, 0x0);    //normal mode
-			write_bbreg(pAdapter, rCCK0_System, bCCKScramble, 0x1);  //turn on scramble setting
-
-			//BB Reset
-			write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x0);
-			write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x1);
-		}
-	}
-	//DbgPrint("\n MPT_ProSetCarrierSupp() is finished. \n");
+	Hal_SetCarrierSuppressionTx(pAdapter, bStart);
 }
 
 void SetCCKContinuousTx(PADAPTER pAdapter, u8 bStart)
 {
-	u32 cckrate;
-
-	if (bStart)
-	{
-		RT_TRACE(_module_mp_, _drv_alert_,
-			 ("SetCCKContinuousTx: test start\n"));
-
-		// 1. if CCK block on?
-		if(!read_bbreg(pAdapter, rFPGA0_RFMOD, bCCKEn))
-			write_bbreg(pAdapter, rFPGA0_RFMOD, bCCKEn, bEnable);//set CCK block on
-
-		//Turn Off All Test Mode
-		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMContinueTx, bDisable);
-		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleCarrier, bDisable);
-		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleTone, bDisable);
-		//Set CCK Tx Test Rate
-		#if 0
-		switch(pAdapter->mppriv.rateidx)
-		{
-			case 2:
-				cckrate = 0;
-				break;
-			case 4:
-				cckrate = 1;
-				break;
-			case 11:
-				cckrate = 2;
-				break;
-			case 22:
-				cckrate = 3;
-				break;
-			default:
-				cckrate = 0;
-				break;
+	Hal_SetCCKContinuousTx(pAdapter,bStart);
 		}
-		#else
-		cckrate  = pAdapter->mppriv.rateidx;
-		#endif
-		write_bbreg(pAdapter, rCCK0_System, bCCKTxRate, cckrate);
-		write_bbreg(pAdapter, rCCK0_System, bCCKBBMode, 0x2);	//transmit mode
-		write_bbreg(pAdapter, rCCK0_System, bCCKScramble, bEnable);	//turn on scramble setting
-
-		// Patch for CCK 11M waveform
-		if (cckrate == MPT_RATE_1M)
-			write_bbreg(pAdapter, 0xA71, BIT(6), bDisable);
-		else
-			write_bbreg(pAdapter, 0xA71, BIT(6), bEnable);
-	}
-	else {
-		RT_TRACE(_module_mp_, _drv_info_,
-			 ("SetCCKContinuousTx: test stop\n"));
-
-		write_bbreg(pAdapter, rCCK0_System, bCCKBBMode, 0x0);	//normal mode
-		write_bbreg(pAdapter, rCCK0_System, bCCKScramble, bEnable);	//turn on scramble setting
-
-		//BB Reset
-		write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x0);
-		write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x1);
-	}
-
-	pAdapter->mppriv.MptCtx.bCckContTx = bStart;
-	pAdapter->mppriv.MptCtx.bOfdmContTx = _FALSE;
-}/* mpt_StartCckContTx */
 
 void SetOFDMContinuousTx(PADAPTER pAdapter, u8 bStart)
 {
-	if (bStart) {
-		RT_TRACE(_module_mp_, _drv_info_, ("SetOFDMContinuousTx: test start\n"));
-		// 1. if OFDM block on?
-		if(!read_bbreg(pAdapter, rFPGA0_RFMOD, bOFDMEn))
-			write_bbreg(pAdapter, rFPGA0_RFMOD, bOFDMEn, bEnable);//set OFDM block on
-
-		// 2. set CCK test mode off, set to CCK normal mode
-		write_bbreg(pAdapter, rCCK0_System, bCCKBBMode, bDisable);
-
-		// 3. turn on scramble setting
-		write_bbreg(pAdapter, rCCK0_System, bCCKScramble, bEnable);
-
-		// 4. Turn On Continue Tx and turn off the other test modes.
-		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMContinueTx, bEnable);
-		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleCarrier, bDisable);
-		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleTone, bDisable);
-	} else {
-		RT_TRACE(_module_mp_,_drv_info_, ("SetOFDMContinuousTx: test stop\n"));
-		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMContinueTx, bDisable);
-		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleCarrier, bDisable);
-		write_bbreg(pAdapter, rOFDM1_LSTF, bOFDMSingleTone, bDisable);
-		//Delay 10 ms
-		rtw_msleep_os(10);
-		//BB Reset
-		write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x0);
-		write_bbreg(pAdapter, rPMAC_Reset, bBBResetB, 0x1);
-	}
-
-	pAdapter->mppriv.MptCtx.bCckContTx = _FALSE;
-	pAdapter->mppriv.MptCtx.bOfdmContTx = bStart;
+   Hal_SetOFDMContinuousTx( pAdapter, bStart);
 }/* mpt_StartOfdmContTx */
 
 void SetContinuousTx(PADAPTER pAdapter, u8 bStart)
 {
-#if 0
-	// ADC turn off [bit24-21] adc port0 ~ port1
-	if (bStart) {
-		write_bbreg(pAdapter, rRx_Wait_CCCA, read_bbreg(pAdapter, rRx_Wait_CCCA) & 0xFE1FFFFF);
-		rtw_usleep_os(100);
-	}
-#endif
-	RT_TRACE(_module_mp_, _drv_info_,
-		 ("SetContinuousTx: rate:%d\n", pAdapter->mppriv.rateidx));
-
-	pAdapter->mppriv.MptCtx.bStartContTx = bStart;
-	if (pAdapter->mppriv.rateidx <= MPT_RATE_11M)
-	{
-		SetCCKContinuousTx(pAdapter, bStart);
-	}
-	else if ((pAdapter->mppriv.rateidx >= MPT_RATE_6M) &&
-		 (pAdapter->mppriv.rateidx <= MPT_RATE_MCS15))
-	{
-		SetOFDMContinuousTx(pAdapter, bStart);
-	}
-#if 0
-	// ADC turn on [bit24-21] adc port0 ~ port1
-	if (!bStart) {
-		write_bbreg(pAdapter, rRx_Wait_CCCA, read_bbreg(pAdapter, rRx_Wait_CCCA) | 0x01E00000);
-	}
-#endif
+	Hal_SetContinuousTx(pAdapter,bStart);
 }
 
 //------------------------------------------------------------------------------
@@ -1981,7 +1022,7 @@ void SetPacketTx(PADAPTER padapter)
 	u32 pkt_size;
 	struct tx_desc *desc;
 	struct ieee80211_hdr *hdr;
-	u8 macid, payload;
+	u8 payload;
 	s32 bmcast;
 	struct pkt_attrib *pattrib;
 	struct mp_priv *pmp_priv;
@@ -2248,6 +1289,29 @@ u32 mp_query_psd(PADAPTER pAdapter, u8 *data)
 	#endif
 
 	return strlen(data)+1;
+}
+
+
+u32 rtw_atoi(u8* s)
+{
+
+	int num=0,flag=0;
+	int i;
+	for(i=0;i<=strlen(s);i++)
+	{
+	  if(s[i] >= '0' && s[i] <= '9')
+		 num = num * 10 + s[i] -'0';
+	  else if(s[0] == '-' && i==0) 
+		 flag =1;
+	  else 
+		  break;
+	 }
+
+	if(flag == 1)
+	   num = num * -1;
+
+	 return(num); 
+
 }
 
 #endif

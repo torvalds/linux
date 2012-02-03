@@ -473,8 +473,8 @@ static int sunxi_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
     }
     time_gap = time_set - time_now;
     time_gap_day = time_gap/(3600*24);//day
-    time_gap_hour = (time_gap - time_gap_day*24)/3600;//hour
-    time_gap_minute = (time_gap - time_gap_day*24*60 - time_gap_hour*60)/60;//minute
+    time_gap_hour = (time_gap - time_gap_day*24*60*60)/3600;//hour
+    time_gap_minute = (time_gap - time_gap_day*24*60*60 - time_gap_hour*60*60)/60;//minute
     time_gap_second = time_gap - time_gap_day*24*60*60 - time_gap_hour*60*60-time_gap_minute*60;//second
     if(time_gap_day > 255) {
     	dev_err(dev, "The time or date can`t set, The day range of 0 to 255\n");

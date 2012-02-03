@@ -29,6 +29,7 @@ void usi_bm01a_gpio_init(void);
 void apm_6xxx_gpio_init(void);
 void swbb23_gpio_init(void);
 void hwmw269_gpio_init(void);
+void bcm40181_wifi_gpio_init(void);
 
 extern struct mmc_pm_ops mmc_card_pm_ops;
 extern void sunximmc_rescan_card(unsigned id, unsigned insert);

@@ -304,7 +304,7 @@ const unsigned int AXP20_NOTIFIER_ON = 		//AXP20_IRQ_USBOV |
 
 #define AXP_CHG_ATTR(_name)					\
 {									\
-	.attr = { .name = #_name,.mode = 0666 },					\
+	.attr = { .name = #_name,.mode = 0644 },					\
 	.show =  _name##_show,				\
 	.store = _name##_store, \
 }
