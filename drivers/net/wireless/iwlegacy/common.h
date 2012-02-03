@@ -1169,9 +1169,6 @@ struct il_rxon_context {
 
 	struct il_qos_info qos_data;
 
-	struct il_wep_key wep_keys[WEP_KEYS_MAX];
-	u8 key_mapping_keys;
-
 	__le32 station_flags;
 
 	struct {
@@ -1416,6 +1413,9 @@ struct il_priv {
 			 */
 			u8 phy_calib_chain_noise_reset_cmd;
 			u8 phy_calib_chain_noise_gain_cmd;
+
+			u8 key_mapping_keys;
+			struct il_wep_key wep_keys[WEP_KEYS_MAX];
 
 			struct il_notif_stats stats;
 #ifdef CONFIG_IWLEGACY_DEBUGFS
@@ -2318,24 +2318,11 @@ static inline void
 il_clear_driver_stations(struct il_priv *il)
 {
 	unsigned long flags;
-	struct il_rxon_context *ctx = &il->ctx;
 
 	spin_lock_irqsave(&il->sta_lock, flags);
 	memset(il->stations, 0, sizeof(il->stations));
 	il->num_stations = 0;
-
 	il->ucode_key_table = 0;
-
-	/*
-	 * Remove all key information that is not stored as part
-	 * of station information since mac80211 may not have had
-	 * a chance to remove all the keys. When device is
-	 * reconfigured by mac80211 after an error all keys will
-	 * be reconfigured.
-	 */
-	memset(ctx->wep_keys, 0, sizeof(ctx->wep_keys));
-	ctx->key_mapping_keys = 0;
-
 	spin_unlock_irqrestore(&il->sta_lock, flags);
 }
 
