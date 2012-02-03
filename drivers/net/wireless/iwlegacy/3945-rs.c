@@ -927,8 +927,7 @@ il3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 
 	rcu_read_lock();
 
-	sta =
-	    ieee80211_find_sta(il->ctx.vif, il->stations[sta_id].sta.sta.addr);
+	sta = ieee80211_find_sta(il->vif, il->stations[sta_id].sta.sta.addr);
 	if (!sta) {
 		D_RATE("Unable to find station to initialize rate scaling.\n");
 		rcu_read_unlock();

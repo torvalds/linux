@@ -843,7 +843,6 @@ il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 		.flags = CMD_SIZE_HUGE,
 	};
 	struct il_scan_cmd *scan;
-	struct il_rxon_context *ctx = &il->ctx;
 	u32 rate_flags = 0;
 	u16 cmd_len;
 	u16 rx_chain = 0;
@@ -858,8 +857,6 @@ il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 	int ret;
 
 	lockdep_assert_held(&il->mutex);
-
-	ctx = il_rxon_ctx_from_vif(vif);
 
 	if (!il->scan_cmd) {
 		il->scan_cmd =
@@ -1033,8 +1030,7 @@ il4965_manage_ibss_station(struct il_priv *il, struct ieee80211_vif *vif,
 	struct il_vif_priv *vif_priv = (void *)vif->drv_priv;
 
 	if (add)
-		return il4965_add_bssid_station(il, vif_priv->ctx,
-						vif->bss_conf.bssid,
+		return il4965_add_bssid_station(il, vif->bss_conf.bssid,
 						&vif_priv->ibss_bssid_sta_id);
 	return il_remove_station(il, vif_priv->ibss_bssid_sta_id,
 				 vif->bss_conf.bssid);
@@ -1127,7 +1123,7 @@ il4965_count_chain_bitmap(u32 chain_bitmap)
  * This should not be used for scan command ... it puts data in wrong place.
  */
 void
-il4965_set_rxon_chain(struct il_priv *il, struct il_rxon_context *ctx)
+il4965_set_rxon_chain(struct il_priv *il)
 {
 	bool is_single = il4965_is_single_rx_stream(il);
 	bool is_cam = !test_bit(S_POWER_PMI, &il->status);
@@ -1456,7 +1452,7 @@ il4965_get_ac_from_tid(u16 tid)
 }
 
 static inline int
-il4965_get_fifo_from_tid(struct il_rxon_context *ctx, u16 tid)
+il4965_get_fifo_from_tid(u16 tid)
 {
 	const u8 ac_to_fifo[] = {
 		IL_TX_FIFO_VO,
@@ -1645,7 +1641,6 @@ il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	struct il_device_cmd *out_cmd;
 	struct il_cmd_meta *out_meta;
 	struct il_tx_cmd *tx_cmd;
-	struct il_rxon_context *ctx = &il->ctx;
 	int txq_id;
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
@@ -1660,9 +1655,6 @@ il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	u8 *qc = NULL;
 	unsigned long flags;
 	bool is_agg = false;
-
-	if (info->control.vif)
-		ctx = il_rxon_ctx_from_vif(info->control.vif);
 
 	spin_lock_irqsave(&il->lock, flags);
 	if (il_is_rfkill(il)) {
@@ -1688,7 +1680,7 @@ il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 		sta_id = il->hw_params.bcast_id;
 	else {
 		/* Find idx into station table for destination station */
-		sta_id = il_sta_id_or_broadcast(il, ctx, info->control.sta);
+		sta_id = il_sta_id_or_broadcast(il, info->control.sta);
 
 		if (sta_id == IL_INVALID_STATION) {
 			D_DROP("Dropping - INVALID STATION: %pM\n", hdr->addr1);
@@ -1764,7 +1756,6 @@ il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	/* Set up driver data for this TFD */
 	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct il_tx_info));
 	txq->txb[q->write_ptr].skb = skb;
-	txq->txb[q->write_ptr].ctx = ctx;
 
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
 	out_cmd = txq->cmd[q->write_ptr];
@@ -2228,7 +2219,8 @@ il4965_tx_agg_start(struct il_priv *il, struct ieee80211_vif *vif,
 	unsigned long flags;
 	struct il_tid_data *tid_data;
 
-	tx_fifo = il4965_get_fifo_from_tid(il_rxon_ctx_from_vif(vif), tid);
+	/* FIXME: warning if tx fifo not found ? */
+	tx_fifo = il4965_get_fifo_from_tid(tid);
 	if (unlikely(tx_fifo < 0))
 		return tx_fifo;
 
@@ -2321,7 +2313,8 @@ il4965_tx_agg_stop(struct il_priv *il, struct ieee80211_vif *vif,
 	int write_ptr, read_ptr;
 	unsigned long flags;
 
-	tx_fifo_id = il4965_get_fifo_from_tid(il_rxon_ctx_from_vif(vif), tid);
+	/* FIXME: warning if tx_fifo_id not found ? */
+	tx_fifo_id = il4965_get_fifo_from_tid(tid);
 	if (unlikely(tx_fifo_id < 0))
 		return tx_fifo_id;
 
@@ -2395,9 +2388,6 @@ il4965_txq_check_empty(struct il_priv *il, int sta_id, u8 tid, int txq_id)
 	struct il_queue *q = &il->txq[txq_id].q;
 	u8 *addr = il->stations[sta_id].sta.sta.addr;
 	struct il_tid_data *tid_data = &il->stations[sta_id].tid[tid];
-	struct il_rxon_context *ctx;
-
-	ctx = &il->ctx;
 
 	lockdep_assert_held(&il->sta_lock);
 
@@ -2408,11 +2398,11 @@ il4965_txq_check_empty(struct il_priv *il, int sta_id, u8 tid, int txq_id)
 		if (txq_id == tid_data->agg.txq_id &&
 		    q->read_ptr == q->write_ptr) {
 			u16 ssn = SEQ_TO_SN(tid_data->seq_number);
-			int tx_fifo = il4965_get_fifo_from_tid(ctx, tid);
+			int tx_fifo = il4965_get_fifo_from_tid(tid);
 			D_HT("HW queue empty: continue DELBA flow\n");
 			il4965_txq_agg_disable(il, txq_id, ssn, tx_fifo);
 			tid_data->agg.state = IL_AGG_OFF;
-			ieee80211_stop_tx_ba_cb_irqsafe(ctx->vif, addr, tid);
+			ieee80211_stop_tx_ba_cb_irqsafe(il->vif, addr, tid);
 		}
 		break;
 	case IL_EMPTYING_HW_QUEUE_ADDBA:
@@ -2420,7 +2410,7 @@ il4965_txq_check_empty(struct il_priv *il, int sta_id, u8 tid, int txq_id)
 		if (tid_data->tfds_in_queue == 0) {
 			D_HT("HW queue empty: continue ADDBA flow\n");
 			tid_data->agg.state = IL_AGG_ON;
-			ieee80211_start_tx_ba_cb_irqsafe(ctx->vif, addr, tid);
+			ieee80211_start_tx_ba_cb_irqsafe(il->vif, addr, tid);
 		}
 		break;
 	}
@@ -2429,14 +2419,13 @@ il4965_txq_check_empty(struct il_priv *il, int sta_id, u8 tid, int txq_id)
 }
 
 static void
-il4965_non_agg_tx_status(struct il_priv *il, struct il_rxon_context *ctx,
-			 const u8 *addr1)
+il4965_non_agg_tx_status(struct il_priv *il, const u8 *addr1)
 {
 	struct ieee80211_sta *sta;
 	struct il_station_priv *sta_priv;
 
 	rcu_read_lock();
-	sta = ieee80211_find_sta(ctx->vif, addr1);
+	sta = ieee80211_find_sta(il->vif, addr1);
 	if (sta) {
 		sta_priv = (void *)sta->drv_priv;
 		/* avoid atomic ops if this isn't a client */
@@ -2453,7 +2442,7 @@ il4965_tx_status(struct il_priv *il, struct il_tx_info *tx_info, bool is_agg)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx_info->skb->data;
 
 	if (!is_agg)
-		il4965_non_agg_tx_status(il, tx_info->ctx, hdr->addr1);
+		il4965_non_agg_tx_status(il, hdr->addr1);
 
 	ieee80211_tx_status_irqsafe(il->hw, tx_info->skb);
 }
@@ -2769,8 +2758,7 @@ il4965_sta_alloc_lq(struct il_priv *il, u8 sta_id)
  * Function sleeps.
  */
 int
-il4965_add_bssid_station(struct il_priv *il, struct il_rxon_context *ctx,
-			 const u8 *addr, u8 *sta_id_r)
+il4965_add_bssid_station(struct il_priv *il, const u8 *addr, u8 *sta_id_r)
 {
 	int ret;
 	u8 sta_id;
@@ -2780,7 +2768,7 @@ il4965_add_bssid_station(struct il_priv *il, struct il_rxon_context *ctx,
 	if (sta_id_r)
 		*sta_id_r = IL_INVALID_STATION;
 
-	ret = il_add_station_common(il, ctx, addr, 0, NULL, &sta_id);
+	ret = il_add_station_common(il, addr, 0, NULL, &sta_id);
 	if (ret) {
 		IL_ERR("Unable to add station %pM\n", addr);
 		return ret;
@@ -2801,7 +2789,7 @@ il4965_add_bssid_station(struct il_priv *il, struct il_rxon_context *ctx,
 		return -ENOMEM;
 	}
 
-	ret = il_send_lq_cmd(il, ctx, link_cmd, CMD_SYNC, true);
+	ret = il_send_lq_cmd(il, link_cmd, CMD_SYNC, true);
 	if (ret)
 		IL_ERR("Link quality command failed (%d)\n", ret);
 
@@ -2813,8 +2801,7 @@ il4965_add_bssid_station(struct il_priv *il, struct il_rxon_context *ctx,
 }
 
 static int
-il4965_static_wepkey_cmd(struct il_priv *il, struct il_rxon_context *ctx,
-			 bool send_if_empty)
+il4965_static_wepkey_cmd(struct il_priv *il, bool send_if_empty)
 {
 	int i;
 	u8 buff[sizeof(struct il_wep_cmd) +
@@ -2860,15 +2847,15 @@ il4965_static_wepkey_cmd(struct il_priv *il, struct il_rxon_context *ctx,
 }
 
 int
-il4965_restore_default_wep_keys(struct il_priv *il, struct il_rxon_context *ctx)
+il4965_restore_default_wep_keys(struct il_priv *il)
 {
 	lockdep_assert_held(&il->mutex);
 
-	return il4965_static_wepkey_cmd(il, ctx, false);
+	return il4965_static_wepkey_cmd(il, false);
 }
 
 int
-il4965_remove_default_wep_key(struct il_priv *il, struct il_rxon_context *ctx,
+il4965_remove_default_wep_key(struct il_priv *il,
 			      struct ieee80211_key_conf *keyconf)
 {
 	int ret;
@@ -2884,14 +2871,14 @@ il4965_remove_default_wep_key(struct il_priv *il, struct il_rxon_context *ctx,
 		/* but keys in device are clear anyway so return success */
 		return 0;
 	}
-	ret = il4965_static_wepkey_cmd(il, ctx, 1);
+	ret = il4965_static_wepkey_cmd(il, 1);
 	D_WEP("Remove default WEP key: idx=%d ret=%d\n", idx, ret);
 
 	return ret;
 }
 
 int
-il4965_set_default_wep_key(struct il_priv *il, struct il_rxon_context *ctx,
+il4965_set_default_wep_key(struct il_priv *il,
 			   struct ieee80211_key_conf *keyconf)
 {
 	int ret;
@@ -2912,14 +2899,14 @@ il4965_set_default_wep_key(struct il_priv *il, struct il_rxon_context *ctx,
 	il->_4965.wep_keys[idx].key_size = len;
 	memcpy(&il->_4965.wep_keys[idx].key, &keyconf->key, len);
 
-	ret = il4965_static_wepkey_cmd(il, ctx, false);
+	ret = il4965_static_wepkey_cmd(il, false);
 
 	D_WEP("Set default WEP key: len=%d idx=%d ret=%d\n", len, idx, ret);
 	return ret;
 }
 
 static int
-il4965_set_wep_dynamic_key_info(struct il_priv *il, struct il_rxon_context *ctx,
+il4965_set_wep_dynamic_key_info(struct il_priv *il,
 				struct ieee80211_key_conf *keyconf, u8 sta_id)
 {
 	unsigned long flags;
@@ -2974,7 +2961,6 @@ il4965_set_wep_dynamic_key_info(struct il_priv *il, struct il_rxon_context *ctx,
 
 static int
 il4965_set_ccmp_dynamic_key_info(struct il_priv *il,
-				 struct il_rxon_context *ctx,
 				 struct ieee80211_key_conf *keyconf, u8 sta_id)
 {
 	unsigned long flags;
@@ -3023,7 +3009,6 @@ il4965_set_ccmp_dynamic_key_info(struct il_priv *il,
 
 static int
 il4965_set_tkip_dynamic_key_info(struct il_priv *il,
-				 struct il_rxon_context *ctx,
 				 struct ieee80211_key_conf *keyconf, u8 sta_id)
 {
 	unsigned long flags;
@@ -3068,9 +3053,8 @@ il4965_set_tkip_dynamic_key_info(struct il_priv *il,
 }
 
 void
-il4965_update_tkip_key(struct il_priv *il, struct il_rxon_context *ctx,
-		       struct ieee80211_key_conf *keyconf,
-		       struct ieee80211_sta *sta, u32 iv32, u16 * phase1key)
+il4965_update_tkip_key(struct il_priv *il, struct ieee80211_key_conf *keyconf,
+		       struct ieee80211_sta *sta, u32 iv32, u16 *phase1key)
 {
 	u8 sta_id;
 	unsigned long flags;
@@ -3082,7 +3066,7 @@ il4965_update_tkip_key(struct il_priv *il, struct il_rxon_context *ctx,
 		return;
 	}
 
-	sta_id = il_sta_id_or_broadcast(il, ctx, sta);
+	sta_id = il_sta_id_or_broadcast(il, sta);
 	if (sta_id == IL_INVALID_STATION)
 		return;
 
@@ -3100,11 +3084,10 @@ il4965_update_tkip_key(struct il_priv *il, struct il_rxon_context *ctx,
 	il_send_add_sta(il, &il->stations[sta_id].sta, CMD_ASYNC);
 
 	spin_unlock_irqrestore(&il->sta_lock, flags);
-
 }
 
 int
-il4965_remove_dynamic_key(struct il_priv *il, struct il_rxon_context *ctx,
+il4965_remove_dynamic_key(struct il_priv *il,
 			  struct ieee80211_key_conf *keyconf, u8 sta_id)
 {
 	unsigned long flags;
@@ -3165,8 +3148,8 @@ il4965_remove_dynamic_key(struct il_priv *il, struct il_rxon_context *ctx,
 }
 
 int
-il4965_set_dynamic_key(struct il_priv *il, struct il_rxon_context *ctx,
-		       struct ieee80211_key_conf *keyconf, u8 sta_id)
+il4965_set_dynamic_key(struct il_priv *il, struct ieee80211_key_conf *keyconf,
+		       u8 sta_id)
 {
 	int ret;
 
@@ -3178,15 +3161,15 @@ il4965_set_dynamic_key(struct il_priv *il, struct il_rxon_context *ctx,
 	switch (keyconf->cipher) {
 	case WLAN_CIPHER_SUITE_CCMP:
 		ret =
-		    il4965_set_ccmp_dynamic_key_info(il, ctx, keyconf, sta_id);
+		    il4965_set_ccmp_dynamic_key_info(il, keyconf, sta_id);
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 		ret =
-		    il4965_set_tkip_dynamic_key_info(il, ctx, keyconf, sta_id);
+		    il4965_set_tkip_dynamic_key_info(il, keyconf, sta_id);
 		break;
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
-		ret = il4965_set_wep_dynamic_key_info(il, ctx, keyconf, sta_id);
+		ret = il4965_set_wep_dynamic_key_info(il, keyconf, sta_id);
 		break;
 	default:
 		IL_ERR("Unknown alg: %s cipher = %x\n", __func__,
@@ -3208,14 +3191,14 @@ il4965_set_dynamic_key(struct il_priv *il, struct il_rxon_context *ctx,
  * device at the next best time.
  */
 int
-il4965_alloc_bcast_station(struct il_priv *il, struct il_rxon_context *ctx)
+il4965_alloc_bcast_station(struct il_priv *il)
 {
 	struct il_link_quality_cmd *link_cmd;
 	unsigned long flags;
 	u8 sta_id;
 
 	spin_lock_irqsave(&il->sta_lock, flags);
-	sta_id = il_prep_station(il, ctx, il_bcast_addr, false, NULL);
+	sta_id = il_prep_station(il, il_bcast_addr, false, NULL);
 	if (sta_id == IL_INVALID_STATION) {
 		IL_ERR("Unable to prepare broadcast station\n");
 		spin_unlock_irqrestore(&il->sta_lock, flags);
@@ -3248,7 +3231,7 @@ il4965_alloc_bcast_station(struct il_priv *il, struct il_rxon_context *ctx)
  * code together.
  */
 static int
-il4965_update_bcast_station(struct il_priv *il, struct il_rxon_context *ctx)
+il4965_update_bcast_station(struct il_priv *il)
 {
 	unsigned long flags;
 	struct il_link_quality_cmd *link_cmd;
@@ -3274,7 +3257,7 @@ il4965_update_bcast_station(struct il_priv *il, struct il_rxon_context *ctx)
 int
 il4965_update_bcast_stations(struct il_priv *il)
 {
-	return il4965_update_bcast_station(il, &il->ctx);
+	return il4965_update_bcast_station(il);
 }
 
 /**
@@ -3375,9 +3358,9 @@ void
 il4965_update_chain_flags(struct il_priv *il)
 {
 	if (il->cfg->ops->hcmd->set_rxon_chain) {
-		il->cfg->ops->hcmd->set_rxon_chain(il, &il->ctx);
+		il->cfg->ops->hcmd->set_rxon_chain(il);
 		if (il->active.rx_chain != il->staging.rx_chain)
-			il_commit_rxon(il, &il->ctx);
+			il_commit_rxon(il);
 	}
 }
 
@@ -3489,8 +3472,8 @@ il4965_hw_get_beacon_cmd(struct il_priv *il, struct il_frame *frame)
 
 	lockdep_assert_held(&il->mutex);
 
-	if (!il->beacon_ctx) {
-		IL_ERR("trying to build beacon w/o beacon context!\n");
+	if (!il->beacon_enabled) {
+		IL_ERR("Trying to build beacon without beaconing enabled\n");
 		return 0;
 	}
 
@@ -3520,7 +3503,7 @@ il4965_hw_get_beacon_cmd(struct il_priv *il, struct il_frame *frame)
 			      frame_size);
 
 	/* Set up packet rate and flags */
-	rate = il_get_lowest_plcp(il, il->beacon_ctx);
+	rate = il_get_lowest_plcp(il);
 	il4965_toggle_tx_ant(il, &il->mgmt_tx_ant, il->hw_params.valid_tx_ant);
 	rate_flags = BIT(il->mgmt_tx_ant) << RATE_MCS_ANT_POS;
 	if ((rate >= IL_FIRST_CCK_RATE) && (rate <= IL_LAST_CCK_RATE))
@@ -4977,7 +4960,6 @@ static void
 il4965_alive_start(struct il_priv *il)
 {
 	int ret = 0;
-	struct il_rxon_context *ctx = &il->ctx;
 
 	D_INFO("Runtime Alive received.\n");
 
@@ -5025,10 +5007,10 @@ il4965_alive_start(struct il_priv *il)
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	} else {
 		/* Initialize our rx_config data */
-		il_connection_init_rx_config(il, &il->ctx);
+		il_connection_init_rx_config(il);
 
 		if (il->cfg->ops->hcmd->set_rxon_chain)
-			il->cfg->ops->hcmd->set_rxon_chain(il, ctx);
+			il->cfg->ops->hcmd->set_rxon_chain(il);
 	}
 
 	/* Configure bluetooth coexistence if enabled */
@@ -5039,7 +5021,7 @@ il4965_alive_start(struct il_priv *il)
 	set_bit(S_READY, &il->status);
 
 	/* Configure the adapter for unassociated operation */
-	il_commit_rxon(il, ctx);
+	il_commit_rxon(il);
 
 	/* At this point, the NIC is initialized and operational */
 	il4965_rf_kill_ct_config(il);
@@ -5074,7 +5056,7 @@ __il4965_down(struct il_priv *il)
 	 * to prevent rearm timer */
 	del_timer_sync(&il->watchdog);
 
-	il_clear_ucode_stations(il, NULL);
+	il_clear_ucode_stations(il);
 
 	/* FIXME: race conditions ? */
 	spin_lock_irq(&il->sta_lock);
@@ -5239,7 +5221,7 @@ __il4965_up(struct il_priv *il)
 		return -EIO;
 	}
 
-	ret = il4965_alloc_bcast_station(il, &il->ctx);
+	ret = il4965_alloc_bcast_station(il);
 	if (ret) {
 		il_dealloc_bcast_stations(il);
 		return ret;
@@ -5393,7 +5375,8 @@ il4965_bg_restart(struct work_struct *data)
 
 	if (test_and_clear_bit(S_FW_ERROR, &il->status)) {
 		mutex_lock(&il->mutex);
-		il->ctx.vif = NULL;
+		/* FIXME: do we dereference vif without mutex locked ? */
+		il->vif = NULL;
 		il->is_open = 0;
 
 		__il4965_down(il);
@@ -5590,12 +5573,10 @@ il4965_mac_update_tkip_key(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta, u32 iv32, u16 * phase1key)
 {
 	struct il_priv *il = hw->priv;
-	struct il_vif_priv *vif_priv = (void *)vif->drv_priv;
 
 	D_MAC80211("enter\n");
 
-	il4965_update_tkip_key(il, vif_priv->ctx, keyconf, sta, iv32,
-			       phase1key);
+	il4965_update_tkip_key(il, keyconf, sta, iv32, phase1key);
 
 	D_MAC80211("leave\n");
 }
@@ -5606,8 +5587,6 @@ il4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		   struct ieee80211_key_conf *key)
 {
 	struct il_priv *il = hw->priv;
-	struct il_vif_priv *vif_priv = (void *)vif->drv_priv;
-	struct il_rxon_context *ctx = vif_priv->ctx;
 	int ret;
 	u8 sta_id;
 	bool is_default_wep_key = false;
@@ -5619,7 +5598,7 @@ il4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		return -EOPNOTSUPP;
 	}
 
-	sta_id = il_sta_id_or_broadcast(il, vif_priv->ctx, sta);
+	sta_id = il_sta_id_or_broadcast(il, sta);
 	if (sta_id == IL_INVALID_STATION)
 		return -EINVAL;
 
@@ -5644,20 +5623,17 @@ il4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	switch (cmd) {
 	case SET_KEY:
 		if (is_default_wep_key)
-			ret =
-			    il4965_set_default_wep_key(il, vif_priv->ctx, key);
+			ret = il4965_set_default_wep_key(il, key);
 		else
-			ret =
-			    il4965_set_dynamic_key(il, vif_priv->ctx, key,
-						   sta_id);
+			ret = il4965_set_dynamic_key(il, key, sta_id);
 
 		D_MAC80211("enable hwcrypto key\n");
 		break;
 	case DISABLE_KEY:
 		if (is_default_wep_key)
-			ret = il4965_remove_default_wep_key(il, ctx, key);
+			ret = il4965_remove_default_wep_key(il, key);
 		else
-			ret = il4965_remove_dynamic_key(il, ctx, key, sta_id);
+			ret = il4965_remove_dynamic_key(il, key, sta_id);
 
 		D_MAC80211("disable hwcrypto key\n");
 		break;
@@ -5723,7 +5699,6 @@ il4965_mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct il_priv *il = hw->priv;
 	struct il_station_priv *sta_priv = (void *)sta->drv_priv;
-	struct il_vif_priv *vif_priv = (void *)vif->drv_priv;
 	bool is_ap = vif->type == NL80211_IFTYPE_STATION;
 	int ret;
 	u8 sta_id;
@@ -5736,8 +5711,7 @@ il4965_mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	atomic_set(&sta_priv->pending_frames, 0);
 
 	ret =
-	    il_add_station_common(il, vif_priv->ctx, sta->addr, is_ap, sta,
-				  &sta_id);
+	    il_add_station_common(il, sta->addr, is_ap, sta, &sta_id);
 	if (ret) {
 		IL_ERR("Unable to add station %pM (%d)\n", sta->addr, ret);
 		/* Should we return success if return code is EEXIST ? */
@@ -5764,8 +5738,6 @@ il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	struct ieee80211_conf *conf = &hw->conf;
 	struct ieee80211_channel *channel = ch_switch->channel;
 	struct il_ht_config *ht_conf = &il->current_ht_config;
-
-	struct il_rxon_context *ctx = &il->ctx;
 	u16 ch;
 
 	D_MAC80211("enter\n");
@@ -5822,9 +5794,9 @@ il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	if ((le16_to_cpu(il->staging.channel) != ch))
 		il->staging.flags = 0;
 
-	il_set_rxon_channel(il, channel, ctx);
+	il_set_rxon_channel(il, channel);
 	il_set_rxon_ht(il, ht_conf);
-	il_set_flags_for_band(il, ctx, channel->band, ctx->vif);
+	il_set_flags_for_band(il, channel->band, il->vif);
 
 	spin_unlock_irq(&il->lock);
 
@@ -5838,7 +5810,7 @@ il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	if (il->cfg->ops->lib->set_channel_switch(il, ch_switch)) {
 		clear_bit(S_CHANNEL_SWITCH_PENDING, &il->status);
 		il->switch_channel = 0;
-		ieee80211_chswitch_done(ctx->vif, false);
+		ieee80211_chswitch_done(il->vif, false);
 	}
 
 out:
@@ -6049,7 +6021,7 @@ il4965_init_drv(struct il_priv *il)
 
 	/* Choose which receivers/antennas to use */
 	if (il->cfg->ops->hcmd->set_rxon_chain)
-		il->cfg->ops->hcmd->set_rxon_chain(il, &il->ctx);
+		il->cfg->ops->hcmd->set_rxon_chain(il);
 
 	il_init_scan_params(il);
 

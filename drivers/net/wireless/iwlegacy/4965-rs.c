@@ -820,8 +820,6 @@ il4965_rs_tx_status(void *il_r, struct ieee80211_supported_band *sband,
 	u32 tx_rate;
 	struct il_scale_tbl_info tbl_type;
 	struct il_scale_tbl_info *curr_tbl, *other_tbl, *tmp_tbl;
-	struct il_station_priv *sta_priv = (void *)sta->drv_priv;
-	struct il_rxon_context *ctx = sta_priv->common.ctx;
 
 	D_RATE("get frame ack response, update rate scale win\n");
 
@@ -889,7 +887,7 @@ il4965_rs_tx_status(void *il_r, struct ieee80211_supported_band *sband,
 		lq_sta->missed_rate_counter++;
 		if (lq_sta->missed_rate_counter > IL_MISSED_RATE_MAX) {
 			lq_sta->missed_rate_counter = 0;
-			il_send_lq_cmd(il, ctx, &lq_sta->lq, CMD_ASYNC, false);
+			il_send_lq_cmd(il, &lq_sta->lq, CMD_ASYNC, false);
 		}
 		/* Regardless, ignore this status info for outdated rate */
 		return;
@@ -1181,8 +1179,6 @@ il4965_rs_switch_to_mimo2(struct il_priv *il, struct il_lq_sta *lq_sta,
 	u16 rate_mask;
 	s32 rate;
 	s8 is_green = lq_sta->is_green;
-	struct il_station_priv *sta_priv = (void *)sta->drv_priv;
-	struct il_rxon_context *ctx = sta_priv->common.ctx;
 
 	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
 		return -1;
@@ -1203,7 +1199,7 @@ il4965_rs_switch_to_mimo2(struct il_priv *il, struct il_lq_sta *lq_sta,
 	tbl->max_search = IL_MAX_SEARCH;
 	rate_mask = lq_sta->active_mimo2_rate;
 
-	if (il_is_ht40_tx_allowed(il, ctx, &sta->ht_cap))
+	if (il_is_ht40_tx_allowed(il, &sta->ht_cap))
 		tbl->is_ht40 = 1;
 	else
 		tbl->is_ht40 = 0;
@@ -1237,8 +1233,6 @@ il4965_rs_switch_to_siso(struct il_priv *il, struct il_lq_sta *lq_sta,
 	u16 rate_mask;
 	u8 is_green = lq_sta->is_green;
 	s32 rate;
-	struct il_station_priv *sta_priv = (void *)sta->drv_priv;
-	struct il_rxon_context *ctx = sta_priv->common.ctx;
 
 	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
 		return -1;
@@ -1251,7 +1245,7 @@ il4965_rs_switch_to_siso(struct il_priv *il, struct il_lq_sta *lq_sta,
 	tbl->max_search = IL_MAX_SEARCH;
 	rate_mask = lq_sta->active_siso_rate;
 
-	if (il_is_ht40_tx_allowed(il, ctx, &sta->ht_cap))
+	if (il_is_ht40_tx_allowed(il, &sta->ht_cap))
 		tbl->is_ht40 = 1;
 	else
 		tbl->is_ht40 = 0;
@@ -1730,8 +1724,7 @@ il4965_rs_stay_in_table(struct il_lq_sta *lq_sta, bool force_search)
  * setup rate table in uCode
  */
 static void
-il4965_rs_update_rate_tbl(struct il_priv *il, struct il_rxon_context *ctx,
-			  struct il_lq_sta *lq_sta,
+il4965_rs_update_rate_tbl(struct il_priv *il, struct il_lq_sta *lq_sta,
 			  struct il_scale_tbl_info *tbl, int idx, u8 is_green)
 {
 	u32 rate;
@@ -1739,7 +1732,7 @@ il4965_rs_update_rate_tbl(struct il_priv *il, struct il_rxon_context *ctx,
 	/* Update uCode's rate table. */
 	rate = il4965_rate_n_flags_from_tbl(il, tbl, idx, is_green);
 	il4965_rs_fill_link_cmd(il, lq_sta, rate);
-	il_send_lq_cmd(il, ctx, &lq_sta->lq, CMD_ASYNC, false);
+	il_send_lq_cmd(il, &lq_sta->lq, CMD_ASYNC, false);
 }
 
 /*
@@ -1775,8 +1768,6 @@ il4965_rs_rate_scale_perform(struct il_priv *il, struct sk_buff *skb,
 	s32 sr;
 	u8 tid = MAX_TID_COUNT;
 	struct il_tid_data *tid_data;
-	struct il_station_priv *sta_priv = (void *)sta->drv_priv;
-	struct il_rxon_context *ctx = sta_priv->common.ctx;
 
 	D_RATE("rate scale calculate new rate for skb\n");
 
@@ -1851,7 +1842,7 @@ il4965_rs_rate_scale_perform(struct il_priv *il, struct sk_buff *skb,
 			tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
 			/* get "active" rate info */
 			idx = il4965_hwrate_to_plcp_idx(tbl->current_rate);
-			il4965_rs_update_rate_tbl(il, ctx, lq_sta, tbl, idx,
+			il4965_rs_update_rate_tbl(il, lq_sta, tbl, idx,
 						      is_green);
 		}
 		return;
@@ -2054,8 +2045,7 @@ il4965_rs_rate_scale_perform(struct il_priv *il, struct sk_buff *skb,
 lq_update:
 	/* Replace uCode's rate table for the destination station. */
 	if (update_lq)
-		il4965_rs_update_rate_tbl(il, ctx, lq_sta, tbl, idx,
-					      is_green);
+		il4965_rs_update_rate_tbl(il, lq_sta, tbl, idx, is_green);
 
 	/* Should we stay with this modulation mode,
 	 * or search for a new one? */
@@ -2095,7 +2085,7 @@ lq_update:
 			D_RATE("Switch current  mcs: %X idx: %d\n",
 			       tbl->current_rate, idx);
 			il4965_rs_fill_link_cmd(il, lq_sta, tbl->current_rate);
-			il_send_lq_cmd(il, ctx, &lq_sta->lq, CMD_ASYNC, false);
+			il_send_lq_cmd(il, &lq_sta->lq, CMD_ASYNC, false);
 		} else
 			done_search = 1;
 	}
@@ -2167,13 +2157,11 @@ il4965_rs_initialize_lq(struct il_priv *il, struct ieee80211_conf *conf,
 	u8 active_tbl = 0;
 	u8 valid_tx_ant;
 	struct il_station_priv *sta_priv;
-	struct il_rxon_context *ctx;
 
 	if (!sta || !lq_sta)
 		return;
 
 	sta_priv = (void *)sta->drv_priv;
-	ctx = sta_priv->common.ctx;
 
 	i = lq_sta->last_txrate_idx;
 
@@ -2205,7 +2193,7 @@ il4965_rs_initialize_lq(struct il_priv *il, struct ieee80211_conf *conf,
 	il4965_rs_set_expected_tpt_table(lq_sta, tbl);
 	il4965_rs_fill_link_cmd(NULL, lq_sta, rate);
 	il->stations[lq_sta->lq.sta_id].lq = &lq_sta->lq;
-	il_send_lq_cmd(il, ctx, &lq_sta->lq, CMD_SYNC, true);
+	il_send_lq_cmd(il, &lq_sta->lq, CMD_SYNC, true);
 }
 
 static void
@@ -2576,9 +2564,6 @@ il4965_rs_sta_dbgfs_scale_table_write(struct file *file,
 	char buf[64];
 	size_t buf_size;
 	u32 parsed_rate;
-	struct il_station_priv *sta_priv =
-	    container_of(lq_sta, struct il_station_priv, lq_sta);
-	struct il_rxon_context *ctx = sta_priv->common.ctx;
 
 	il = lq_sta->drv;
 	memset(buf, 0, sizeof(buf));
@@ -2600,7 +2585,7 @@ il4965_rs_sta_dbgfs_scale_table_write(struct file *file,
 
 	if (lq_sta->dbg_fixed_rate) {
 		il4965_rs_fill_link_cmd(NULL, lq_sta, lq_sta->dbg_fixed_rate);
-		il_send_lq_cmd(lq_sta->drv, ctx, &lq_sta->lq, CMD_ASYNC, false);
+		il_send_lq_cmd(lq_sta->drv, &lq_sta->lq, CMD_ASYNC, false);
 	}
 
 	return count;

@@ -249,7 +249,7 @@ extern int il4965_get_temperature(const struct il_priv *il);
 extern void il3945_post_associate(struct il_priv *il);
 extern void il3945_config_ap(struct il_priv *il);
 
-extern int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx);
+extern int il3945_commit_rxon(struct il_priv *il);
 
 /**
  * il3945_hw_find_station - Find station id for a given BSSID

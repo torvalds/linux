@@ -1662,7 +1662,7 @@ il3945_hw_reg_set_txpower(struct il_priv *il, s8 power)
 }
 
 static int
-il3945_send_rxon_assoc(struct il_priv *il, struct il_rxon_context *ctx)
+il3945_send_rxon_assoc(struct il_priv *il)
 {
 	int rc = 0;
 	struct il_rx_pkt *pkt;
@@ -1714,7 +1714,7 @@ il3945_send_rxon_assoc(struct il_priv *il, struct il_rxon_context *ctx)
  * a HW tune is required based on the RXON structure changes.
  */
 int
-il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
+il3945_commit_rxon(struct il_priv *il)
 {
 	/* cast away the const for active_rxon in this function */
 	struct il3945_rxon_cmd *active_rxon = (void *)&il->active;
@@ -1735,7 +1735,7 @@ il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	staging_rxon->flags &= ~(RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_SEL_MSK);
 	staging_rxon->flags |= il3945_get_antenna_flags(il);
 
-	rc = il_check_rxon_cmd(il, ctx);
+	rc = il_check_rxon_cmd(il);
 	if (rc) {
 		IL_ERR("Invalid RXON configuration.  Not committing.\n");
 		return -EINVAL;
@@ -1744,8 +1744,8 @@ il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	/* If we don't need to send a full RXON, we can use
 	 * il3945_rxon_assoc_cmd which is used to reconfigure filter
 	 * and other flags for the current radio configuration. */
-	if (!il_full_rxon_required(il, &il->ctx)) {
-		rc = il_send_rxon_assoc(il, &il->ctx);
+	if (!il_full_rxon_required(il)) {
+		rc = il_send_rxon_assoc(il);
 		if (rc) {
 			IL_ERR("Error setting RXON_ASSOC "
 			       "configuration (%d).\n", rc);
@@ -1786,8 +1786,8 @@ il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 			       "configuration (%d).\n", rc);
 			return rc;
 		}
-		il_clear_ucode_stations(il, &il->ctx);
-		il_restore_stations(il, &il->ctx);
+		il_clear_ucode_stations(il);
+		il_restore_stations(il);
 	}
 
 	D_INFO("Sending RXON\n" "* with%s RXON_FILTER_ASSOC_MSK\n"
@@ -1801,7 +1801,7 @@ il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	staging_rxon->reserved4 = 0;
 	staging_rxon->reserved5 = 0;
 
-	il_set_rxon_hwcrypto(il, ctx, !il3945_mod_params.sw_crypto);
+	il_set_rxon_hwcrypto(il, !il3945_mod_params.sw_crypto);
 
 	/* Apply the new configuration */
 	rc = il_send_cmd_pdu(il, C_RXON, sizeof(struct il3945_rxon_cmd),
@@ -1814,8 +1814,8 @@ il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	memcpy(active_rxon, staging_rxon, sizeof(*active_rxon));
 
 	if (!new_assoc) {
-		il_clear_ucode_stations(il, &il->ctx);
-		il_restore_stations(il, &il->ctx);
+		il_clear_ucode_stations(il);
+		il_restore_stations(il);
 	}
 
 	/* If we issue a new RXON command which required a tune then we must
@@ -2258,7 +2258,6 @@ il3945_build_addsta_hcmd(const struct il_addsta_cmd *cmd, u8 * data)
 static int
 il3945_add_bssid_station(struct il_priv *il, const u8 * addr, u8 * sta_id_r)
 {
-	struct il_rxon_context *ctx = &il->ctx;
 	int ret;
 	u8 sta_id;
 	unsigned long flags;
@@ -2266,7 +2265,7 @@ il3945_add_bssid_station(struct il_priv *il, const u8 * addr, u8 * sta_id_r)
 	if (sta_id_r)
 		*sta_id_r = IL_INVALID_STATION;
 
-	ret = il_add_station_common(il, ctx, addr, 0, NULL, &sta_id);
+	ret = il_add_station_common(il, addr, 0, NULL, &sta_id);
 	if (ret) {
 		IL_ERR("Unable to add station %pM\n", addr);
 		return ret;

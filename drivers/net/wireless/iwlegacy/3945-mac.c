@@ -341,7 +341,7 @@ il3945_send_beacon_cmd(struct il_priv *il)
 		return -ENOMEM;
 	}
 
-	rate = il_get_lowest_plcp(il, &il->ctx);
+	rate = il_get_lowest_plcp(il);
 
 	frame_size = il3945_hw_get_beacon_cmd(il, frame, rate);
 
@@ -512,7 +512,7 @@ il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	hdr_len = ieee80211_hdrlen(fc);
 
 	/* Find idx into station table for destination station */
-	sta_id = il_sta_id_or_broadcast(il, &il->ctx, info->control.sta);
+	sta_id = il_sta_id_or_broadcast(il, info->control.sta);
 	if (sta_id == IL_INVALID_STATION) {
 		D_DROP("Dropping - INVALID STATION: %pM\n", hdr->addr1);
 		goto drop;
@@ -541,7 +541,6 @@ il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	/* Set up driver data for this TFD */
 	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct il_tx_info));
 	txq->txb[q->write_ptr].skb = skb;
-	txq->txb[q->write_ptr].ctx = &il->ctx;
 
 	/* Init first empty entry in queue's array of Tx/cmd buffers */
 	out_cmd = txq->cmd[idx];
@@ -2208,7 +2207,7 @@ il3945_alive_start(struct il_priv *il)
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	} else {
 		/* Initialize our rx_config data */
-		il_connection_init_rx_config(il, &il->ctx);
+		il_connection_init_rx_config(il);
 	}
 
 	/* Configure Bluetooth device coexistence support */
@@ -2217,7 +2216,7 @@ il3945_alive_start(struct il_priv *il)
 	set_bit(S_READY, &il->status);
 
 	/* Configure the adapter for unassociated operation */
-	il3945_commit_rxon(il, &il->ctx);
+	il3945_commit_rxon(il);
 
 	il3945_reg_txpower_periodic(il);
 
@@ -2249,7 +2248,7 @@ __il3945_down(struct il_priv *il)
 	del_timer_sync(&il->watchdog);
 
 	/* Station information will now be cleared in device */
-	il_clear_ucode_stations(il, NULL);
+	il_clear_ucode_stations(il);
 	il_dealloc_bcast_stations(il);
 	il_clear_driver_stations(il);
 
@@ -2335,12 +2334,11 @@ il3945_down(struct il_priv *il)
 static int
 il3945_alloc_bcast_station(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &il->ctx;
 	unsigned long flags;
 	u8 sta_id;
 
 	spin_lock_irqsave(&il->sta_lock, flags);
-	sta_id = il_prep_station(il, ctx, il_bcast_addr, false, NULL);
+	sta_id = il_prep_station(il, il_bcast_addr, false, NULL);
 	if (sta_id == IL_INVALID_STATION) {
 		IL_ERR("Unable to prepare broadcast station\n");
 		spin_unlock_irqrestore(&il->sta_lock, flags);
@@ -2660,14 +2658,12 @@ il3945_request_scan(struct il_priv *il, struct ieee80211_vif *vif)
 void
 il3945_post_scan(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &il->ctx;
-
 	/*
 	 * Since setting the RXON may have been deferred while
 	 * performing the scan, fire one off if needed
 	 */
 	if (memcmp(&il->staging, &il->active, sizeof(il->staging)))
-		il3945_commit_rxon(il, ctx);
+		il3945_commit_rxon(il);
 }
 
 static void
@@ -2680,7 +2676,8 @@ il3945_bg_restart(struct work_struct *data)
 
 	if (test_and_clear_bit(S_FW_ERROR, &il->status)) {
 		mutex_lock(&il->mutex);
-		il->ctx.vif = NULL;
+		/* FIXME: vif can be dereferenced */
+		il->vif = NULL;
 		il->is_open = 0;
 		mutex_unlock(&il->mutex);
 		il3945_down(il);
@@ -2718,12 +2715,11 @@ il3945_post_associate(struct il_priv *il)
 {
 	int rc = 0;
 	struct ieee80211_conf *conf = NULL;
-	struct il_rxon_context *ctx = &il->ctx;
 
-	if (!ctx->vif || !il->is_open)
+	if (!il->vif || !il->is_open)
 		return;
 
-	D_ASSOC("Associated as %d to: %pM\n", ctx->vif->bss_conf.aid,
+	D_ASSOC("Associated as %d to: %pM\n", il->vif->bss_conf.aid,
 		il->active.bssid_addr);
 
 	if (test_bit(S_EXIT_PENDING, &il->status))
@@ -2734,34 +2730,34 @@ il3945_post_associate(struct il_priv *il)
 	conf = &il->hw->conf;
 
 	il->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	il3945_commit_rxon(il, ctx);
+	il3945_commit_rxon(il);
 
-	rc = il_send_rxon_timing(il, ctx);
+	rc = il_send_rxon_timing(il);
 	if (rc)
 		IL_WARN("C_RXON_TIMING failed - " "Attempting to continue.\n");
 
 	il->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 
-	il->staging.assoc_id = cpu_to_le16(ctx->vif->bss_conf.aid);
+	il->staging.assoc_id = cpu_to_le16(il->vif->bss_conf.aid);
 
-	D_ASSOC("assoc id %d beacon interval %d\n", ctx->vif->bss_conf.aid,
-		ctx->vif->bss_conf.beacon_int);
+	D_ASSOC("assoc id %d beacon interval %d\n", il->vif->bss_conf.aid,
+		il->vif->bss_conf.beacon_int);
 
-	if (ctx->vif->bss_conf.use_short_preamble)
+	if (il->vif->bss_conf.use_short_preamble)
 		il->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 	else
 		il->staging.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
 
 	if (il->staging.flags & RXON_FLG_BAND_24G_MSK) {
-		if (ctx->vif->bss_conf.use_short_slot)
+		if (il->vif->bss_conf.use_short_slot)
 			il->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
 		else
 			il->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 	}
 
-	il3945_commit_rxon(il, ctx);
+	il3945_commit_rxon(il);
 
-	switch (ctx->vif->type) {
+	switch (il->vif->type) {
 	case NL80211_IFTYPE_STATION:
 		il3945_rate_scale_init(il->hw, IL_AP_ID);
 		break;
@@ -2770,7 +2766,7 @@ il3945_post_associate(struct il_priv *il)
 		break;
 	default:
 		IL_ERR("%s Should not be called in %d mode\n", __func__,
-		       ctx->vif->type);
+		      il->vif->type);
 		break;
 	}
 }
@@ -2887,8 +2883,7 @@ il3945_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 void
 il3945_config_ap(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &il->ctx;
-	struct ieee80211_vif *vif = ctx->vif;
+	struct ieee80211_vif *vif = il->vif;
 	int rc = 0;
 
 	if (test_bit(S_EXIT_PENDING, &il->status))
@@ -2899,10 +2894,10 @@ il3945_config_ap(struct il_priv *il)
 
 		/* RXON - unassoc (to set timing command) */
 		il->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-		il3945_commit_rxon(il, ctx);
+		il3945_commit_rxon(il);
 
 		/* RXON Timing */
-		rc = il_send_rxon_timing(il, ctx);
+		rc = il_send_rxon_timing(il);
 		if (rc)
 			IL_WARN("C_RXON_TIMING failed - "
 				"Attempting to continue.\n");
@@ -2922,7 +2917,7 @@ il3945_config_ap(struct il_priv *il)
 		}
 		/* restore RXON assoc */
 		il->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
-		il3945_commit_rxon(il, ctx);
+		il3945_commit_rxon(il);
 	}
 	il3945_send_beacon_cmd(il);
 }
@@ -2955,7 +2950,7 @@ il3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	static_key = !il_is_associated(il);
 
 	if (!static_key) {
-		sta_id = il_sta_id_or_broadcast(il, &il->ctx, sta);
+		sta_id = il_sta_id_or_broadcast(il, sta);
 		if (sta_id == IL_INVALID_STATION)
 			return -EINVAL;
 	}
@@ -3003,8 +2998,7 @@ il3945_mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	D_INFO("proceeding to add station %pM\n", sta->addr);
 	sta_priv->common.sta_id = IL_INVALID_STATION;
 
-	ret =
-	    il_add_station_common(il, &il->ctx, sta->addr, is_ap, sta, &sta_id);
+	ret = il_add_station_common(il, sta->addr, is_ap, sta, &sta_id);
 	if (ret) {
 		IL_ERR("Unable to add station %pM (%d)\n", sta->addr, ret);
 		/* Should we return success if return code is EEXIST ? */
@@ -3184,7 +3178,7 @@ il3945_store_flags(struct device *d, struct device_attribute *attr,
 		else {
 			D_INFO("Committing rxon.flags = 0x%04X\n", flags);
 			il->staging.flags = cpu_to_le32(flags);
-			il3945_commit_rxon(il, &il->ctx);
+			il3945_commit_rxon(il);
 		}
 	}
 	mutex_unlock(&il->mutex);
@@ -3220,7 +3214,7 @@ il3945_store_filter_flags(struct device *d, struct device_attribute *attr,
 			D_INFO("Committing rxon.filter_flags = " "0x%04X\n",
 			       filter_flags);
 			il->staging.filter_flags = cpu_to_le32(filter_flags);
-			il3945_commit_rxon(il, &il->ctx);
+			il3945_commit_rxon(il);
 		}
 	}
 	mutex_unlock(&il->mutex);
@@ -3750,8 +3744,7 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_release_irq;
 	}
 
-	il_set_rxon_channel(il, &il->bands[IEEE80211_BAND_2GHZ].channels[5],
-			    &il->ctx);
+	il_set_rxon_channel(il, &il->bands[IEEE80211_BAND_2GHZ].channels[5]);
 	il3945_setup_deferred_work(il);
 	il3945_setup_handlers(il);
 	il_power_initialize(il);

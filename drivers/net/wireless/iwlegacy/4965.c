@@ -1370,7 +1370,7 @@ out:
 }
 
 static int
-il4965_send_rxon_assoc(struct il_priv *il, struct il_rxon_context *ctx)
+il4965_send_rxon_assoc(struct il_priv *il)
 {
 	int ret = 0;
 	struct il4965_rxon_assoc_cmd rxon_assoc;
@@ -1409,7 +1409,7 @@ il4965_send_rxon_assoc(struct il_priv *il, struct il_rxon_context *ctx)
 }
 
 static int
-il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
+il4965_commit_rxon(struct il_priv *il)
 {
 	/* cast away the const for active_rxon in this function */
 	struct il_rxon_cmd *active_rxon = (void *)&il->active;
@@ -1422,7 +1422,7 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	/* always get timestamp with Rx frame */
 	il->staging.flags |= RXON_FLG_TSF2HOST_MSK;
 
-	ret = il_check_rxon_cmd(il, ctx);
+	ret = il_check_rxon_cmd(il);
 	if (ret) {
 		IL_ERR("Invalid RXON configuration.  Not committing.\n");
 		return -EINVAL;
@@ -1442,15 +1442,15 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	/* If we don't need to send a full RXON, we can use
 	 * il_rxon_assoc_cmd which is used to reconfigure filter
 	 * and other flags for the current radio configuration. */
-	if (!il_full_rxon_required(il, ctx)) {
-		ret = il_send_rxon_assoc(il, ctx);
+	if (!il_full_rxon_required(il)) {
+		ret = il_send_rxon_assoc(il);
 		if (ret) {
 			IL_ERR("Error setting RXON_ASSOC (%d)\n", ret);
 			return ret;
 		}
 
 		memcpy(active_rxon, &il->staging, sizeof(*active_rxon));
-		il_print_rx_config_cmd(il, ctx);
+		il_print_rx_config_cmd(il);
 		/*
 		 * We do not commit tx power settings while channel changing,
 		 * do it now if tx power changed.
@@ -1478,9 +1478,9 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 			IL_ERR("Error clearing ASSOC_MSK (%d)\n", ret);
 			return ret;
 		}
-		il_clear_ucode_stations(il, ctx);
-		il_restore_stations(il, ctx);
-		ret = il4965_restore_default_wep_keys(il, ctx);
+		il_clear_ucode_stations(il);
+		il_restore_stations(il);
+		ret = il4965_restore_default_wep_keys(il);
 		if (ret) {
 			IL_ERR("Failed to restore WEP keys (%d)\n", ret);
 			return ret;
@@ -1491,7 +1491,7 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	       "* channel = %d\n" "* bssid = %pM\n", (new_assoc ? "" : "out"),
 	       le16_to_cpu(il->staging.channel), il->staging.bssid_addr);
 
-	il_set_rxon_hwcrypto(il, ctx, !il->cfg->mod_params->sw_crypto);
+	il_set_rxon_hwcrypto(il, !il->cfg->mod_params->sw_crypto);
 
 	/* Apply the new configuration
 	 * RXON unassoc clears the station table in uCode so restoration of
@@ -1507,9 +1507,9 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 		}
 		D_INFO("Return from !new_assoc RXON.\n");
 		memcpy(active_rxon, &il->staging, sizeof(*active_rxon));
-		il_clear_ucode_stations(il, ctx);
-		il_restore_stations(il, ctx);
-		ret = il4965_restore_default_wep_keys(il, ctx);
+		il_clear_ucode_stations(il);
+		il_restore_stations(il);
+		ret = il4965_restore_default_wep_keys(il);
 		if (ret) {
 			IL_ERR("Failed to restore WEP keys (%d)\n", ret);
 			return ret;
@@ -1529,7 +1529,7 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 		}
 		memcpy(active_rxon, &il->staging, sizeof(*active_rxon));
 	}
-	il_print_rx_config_cmd(il, ctx);
+	il_print_rx_config_cmd(il);
 
 	il4965_init_sensitivity(il);
 
@@ -1548,7 +1548,6 @@ static int
 il4965_hw_channel_switch(struct il_priv *il,
 			 struct ieee80211_channel_switch *ch_switch)
 {
-	struct il_rxon_context *ctx = &il->ctx;
 	int rc;
 	u8 band = 0;
 	bool is_ht40 = false;
@@ -1560,8 +1559,11 @@ il4965_hw_channel_switch(struct il_priv *il,
 	u32 tsf_low;
 	u8 switch_count;
 	u16 beacon_interval = le16_to_cpu(il->timing.beacon_interval);
-	struct ieee80211_vif *vif = ctx->vif;
-	band = il->band == IEEE80211_BAND_2GHZ;
+	struct ieee80211_vif *vif = il->vif;
+	band = (il->band == IEEE80211_BAND_2GHZ);
+
+	if (WARN_ON_ONCE(vif == NULL))
+		return -EIO;
 
 	is_ht40 = iw4965_is_ht40_channel(il->staging.flags);
 
@@ -2128,21 +2130,18 @@ static struct il_hcmd_ops il4965_hcmd = {
 static void
 il4965_post_scan(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &il->ctx;
-
 	/*
 	 * Since setting the RXON may have been deferred while
 	 * performing the scan, fire one off if needed
 	 */
 	if (memcmp(&il->staging, &il->active, sizeof(il->staging)))
-		il_commit_rxon(il, ctx);
+		il_commit_rxon(il);
 }
 
 static void
 il4965_post_associate(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &il->ctx;
-	struct ieee80211_vif *vif = ctx->vif;
+	struct ieee80211_vif *vif = il->vif;
 	struct ieee80211_conf *conf = NULL;
 	int ret = 0;
 
@@ -2157,9 +2156,9 @@ il4965_post_associate(struct il_priv *il)
 	conf = &il->hw->conf;
 
 	il->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	il_commit_rxon(il, ctx);
+	il_commit_rxon(il);
 
-	ret = il_send_rxon_timing(il, ctx);
+	ret = il_send_rxon_timing(il);
 	if (ret)
 		IL_WARN("RXON timing - " "Attempting to continue.\n");
 
@@ -2168,7 +2167,7 @@ il4965_post_associate(struct il_priv *il)
 	il_set_rxon_ht(il, &il->current_ht_config);
 
 	if (il->cfg->ops->hcmd->set_rxon_chain)
-		il->cfg->ops->hcmd->set_rxon_chain(il, ctx);
+		il->cfg->ops->hcmd->set_rxon_chain(il);
 
 	il->staging.assoc_id = cpu_to_le16(vif->bss_conf.aid);
 
@@ -2187,7 +2186,7 @@ il4965_post_associate(struct il_priv *il)
 			il->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 	}
 
-	il_commit_rxon(il, ctx);
+	il_commit_rxon(il);
 
 	D_ASSOC("Associated as %d to: %pM\n", vif->bss_conf.aid,
 		il->active.bssid_addr);
@@ -2218,8 +2217,7 @@ il4965_post_associate(struct il_priv *il)
 static void
 il4965_config_ap(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &il->ctx;
-	struct ieee80211_vif *vif = ctx->vif;
+	struct ieee80211_vif *vif = il->vif;
 	int ret = 0;
 
 	lockdep_assert_held(&il->mutex);
@@ -2232,10 +2230,10 @@ il4965_config_ap(struct il_priv *il)
 
 		/* RXON - unassoc (to set timing command) */
 		il->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-		il_commit_rxon(il, ctx);
+		il_commit_rxon(il);
 
 		/* RXON Timing */
-		ret = il_send_rxon_timing(il, ctx);
+		ret = il_send_rxon_timing(il);
 		if (ret)
 			IL_WARN("RXON timing failed - "
 				"Attempting to continue.\n");
@@ -2244,7 +2242,7 @@ il4965_config_ap(struct il_priv *il)
 		il->chain_noise_data.active_chains = il->hw_params.valid_rx_ant;
 		il_set_rxon_ht(il, &il->current_ht_config);
 		if (il->cfg->ops->hcmd->set_rxon_chain)
-			il->cfg->ops->hcmd->set_rxon_chain(il, ctx);
+			il->cfg->ops->hcmd->set_rxon_chain(il);
 
 		il->staging.assoc_id = 0;
 
@@ -2263,7 +2261,7 @@ il4965_config_ap(struct il_priv *il)
 		il4965_send_beacon_cmd(il);
 		/* restore RXON assoc */
 		il->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
-		il_commit_rxon(il, ctx);
+		il_commit_rxon(il);
 	}
 	il4965_send_beacon_cmd(il);
 }
