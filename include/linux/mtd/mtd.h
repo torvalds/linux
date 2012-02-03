@@ -268,6 +268,8 @@ static inline int mtd_write_oob(struct mtd_info *mtd, loff_t to,
 	ops->retlen = ops->oobretlen = 0;
 	if (!mtd->_write_oob)
 		return -EOPNOTSUPP;
+	if (!(mtd->flags & MTD_WRITEABLE))
+		return -EROFS;
 	return mtd->_write_oob(mtd, to, ops);
 }
 

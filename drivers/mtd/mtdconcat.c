@@ -126,9 +126,6 @@ concat_write(struct mtd_info *mtd, loff_t to, size_t len,
 	int err = -EINVAL;
 	int i;
 
-	if (!(mtd->flags & MTD_WRITEABLE))
-		return -EROFS;
-
 	*retlen = 0;
 
 	for (i = 0; i < concat->num_subdev; i++) {
@@ -145,11 +142,7 @@ concat_write(struct mtd_info *mtd, loff_t to, size_t len,
 		else
 			size = len;
 
-		if (!(subdev->flags & MTD_WRITEABLE))
-			err = -EROFS;
-		else
-			err = mtd_write(subdev, to, size, &retsize, buf);
-
+		err = mtd_write(subdev, to, size, &retsize, buf);
 		if (err)
 			break;
 
@@ -175,9 +168,6 @@ concat_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	size_t total_len = 0;
 	int i;
 	int err = -EINVAL;
-
-	if (!(mtd->flags & MTD_WRITEABLE))
-		return -EROFS;
 
 	*retlen = 0;
 
@@ -220,12 +210,8 @@ concat_writev(struct mtd_info *mtd, const struct kvec *vecs,
 		old_iov_len = vecs_copy[entry_high].iov_len;
 		vecs_copy[entry_high].iov_len = size;
 
-		if (!(subdev->flags & MTD_WRITEABLE))
-			err = -EROFS;
-		else
-			err = mtd_writev(subdev, &vecs_copy[entry_low],
-					 entry_high - entry_low + 1, to,
-					 &retsize);
+		err = mtd_writev(subdev, &vecs_copy[entry_low],
+				 entry_high - entry_low + 1, to, &retsize);
 
 		vecs_copy[entry_high].iov_len = old_iov_len - size;
 		vecs_copy[entry_high].iov_base += size;
@@ -399,9 +385,6 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 	uint64_t length, offset = 0;
 	struct erase_info *erase;
 
-	if (!(mtd->flags & MTD_WRITEABLE))
-		return -EROFS;
-
 	/*
 	 * Check for proper erase block alignment of the to-be-erased area.
 	 * It is easier to do this based on the super device's erase
@@ -489,10 +472,6 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 		else
 			erase->len = length;
 
-		if (!(subdev->flags & MTD_WRITEABLE)) {
-			err = -EROFS;
-			break;
-		}
 		length -= erase->len;
 		if ((err = concat_dev_erase(subdev, erase))) {
 			/* sanity check: should never happen since

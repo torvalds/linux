@@ -33,7 +33,6 @@ struct phram_mtd_list {
 
 static LIST_HEAD(phram_list);
 
-
 static int phram_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
 	u_char *start = mtd->priv;

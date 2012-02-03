@@ -85,8 +85,7 @@ static void maprom_nop(struct mtd_info *mtd)
 
 static int maprom_write (struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf)
 {
-	printk(KERN_NOTICE "maprom_write called\n");
-	return -EIO;
+	return -EROFS;
 }
 
 static int maprom_erase (struct mtd_info *mtd, struct erase_info *info)

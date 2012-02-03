@@ -693,6 +693,8 @@ int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
 	if (instr->addr > mtd->size || instr->len > mtd->size - instr->addr)
 		return -EINVAL;
+	if (!(mtd->flags & MTD_WRITEABLE))
+		return -EROFS;
 	return mtd->_erase(mtd, instr);
 }
 EXPORT_SYMBOL_GPL(mtd_erase);
@@ -752,10 +754,10 @@ int mtd_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 	      const u_char *buf)
 {
 	*retlen = 0;
-	if (!mtd->_write)
-		return -EROFS;
 	if (to < 0 || to > mtd->size || len > mtd->size - to)
 		return -EINVAL;
+	if (!mtd->_write || !(mtd->flags & MTD_WRITEABLE))
+		return -EROFS;
 	return mtd->_write(mtd, to, len, retlen, buf);
 }
 EXPORT_SYMBOL_GPL(mtd_write);
@@ -775,6 +777,8 @@ int mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 		return -EOPNOTSUPP;
 	if (to < 0 || to > mtd->size || len > mtd->size - to)
 		return -EINVAL;
+	if (!(mtd->flags & MTD_WRITEABLE))
+		return -EROFS;
 	return mtd->_panic_write(mtd, to, len, retlen, buf);
 }
 EXPORT_SYMBOL_GPL(mtd_panic_write);
@@ -826,6 +830,8 @@ int mtd_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		return -EOPNOTSUPP;
 	if (ofs < 0 || ofs > mtd->size)
 		return -EINVAL;
+	if (!(mtd->flags & MTD_WRITEABLE))
+		return -EROFS;
 	return mtd->_block_markbad(mtd, ofs);
 }
 EXPORT_SYMBOL_GPL(mtd_block_markbad);
@@ -877,6 +883,8 @@ int mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	       unsigned long count, loff_t to, size_t *retlen)
 {
 	*retlen = 0;
+	if (!(mtd->flags & MTD_WRITEABLE))
+		return -EROFS;
 	if (!mtd->_writev)
 		return default_mtd_writev(mtd, vecs, count, to, retlen);
 	return mtd->_writev(mtd, vecs, count, to, retlen);
