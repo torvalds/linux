@@ -474,10 +474,10 @@ static void fsi_stream_pop(struct fsi_priv *fsi, int is_play)
 }
 
 /*
- *		dma function
+ *		pio function
  */
 
-static u8 *fsi_dma_get_area(struct fsi_priv *fsi, int stream)
+static u8 *fsi_pio_get_area(struct fsi_priv *fsi, int stream)
 {
 	int is_play = fsi_stream_is_play(stream);
 	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
@@ -487,47 +487,47 @@ static u8 *fsi_dma_get_area(struct fsi_priv *fsi, int stream)
 		samples_to_bytes(runtime, io->buff_sample_pos);
 }
 
-static void fsi_dma_soft_push16(struct fsi_priv *fsi, int num)
+static void fsi_pio_push16(struct fsi_priv *fsi, int num)
 {
 	u16 *start;
 	int i;
 
-	start  = (u16 *)fsi_dma_get_area(fsi, SNDRV_PCM_STREAM_PLAYBACK);
+	start  = (u16 *)fsi_pio_get_area(fsi, SNDRV_PCM_STREAM_PLAYBACK);
 
 	for (i = 0; i < num; i++)
 		fsi_reg_write(fsi, DODT, ((u32)*(start + i) << 8));
 }
 
-static void fsi_dma_soft_pop16(struct fsi_priv *fsi, int num)
+static void fsi_pio_pop16(struct fsi_priv *fsi, int num)
 {
 	u16 *start;
 	int i;
 
-	start  = (u16 *)fsi_dma_get_area(fsi, SNDRV_PCM_STREAM_CAPTURE);
+	start  = (u16 *)fsi_pio_get_area(fsi, SNDRV_PCM_STREAM_CAPTURE);
 
 
 	for (i = 0; i < num; i++)
 		*(start + i) = (u16)(fsi_reg_read(fsi, DIDT) >> 8);
 }
 
-static void fsi_dma_soft_push32(struct fsi_priv *fsi, int num)
+static void fsi_pio_push32(struct fsi_priv *fsi, int num)
 {
 	u32 *start;
 	int i;
 
-	start  = (u32 *)fsi_dma_get_area(fsi, SNDRV_PCM_STREAM_PLAYBACK);
+	start  = (u32 *)fsi_pio_get_area(fsi, SNDRV_PCM_STREAM_PLAYBACK);
 
 
 	for (i = 0; i < num; i++)
 		fsi_reg_write(fsi, DODT, *(start + i));
 }
 
-static void fsi_dma_soft_pop32(struct fsi_priv *fsi, int num)
+static void fsi_pio_pop32(struct fsi_priv *fsi, int num)
 {
 	u32 *start;
 	int i;
 
-	start  = (u32 *)fsi_dma_get_area(fsi, SNDRV_PCM_STREAM_CAPTURE);
+	start  = (u32 *)fsi_pio_get_area(fsi, SNDRV_PCM_STREAM_CAPTURE);
 
 	for (i = 0; i < num; i++)
 		*(start + i) = fsi_reg_read(fsi, DIDT);
@@ -812,8 +812,8 @@ static int fsi_data_pop(struct fsi_priv *fsi)
 	samples = min(sample_residues, sample_space);
 
 	return fsi_fifo_data_ctrl(fsi, io,
-				  fsi_dma_soft_pop16,
-				  fsi_dma_soft_pop32,
+				  fsi_pio_pop16,
+				  fsi_pio_pop32,
 				  samples);
 }
 
@@ -832,8 +832,8 @@ static int fsi_data_push(struct fsi_priv *fsi)
 	samples = min(sample_residues, sample_space);
 
 	return fsi_fifo_data_ctrl(fsi, io,
-				  fsi_dma_soft_push16,
-				  fsi_dma_soft_push32,
+				  fsi_pio_push16,
+				  fsi_pio_push32,
 				  samples);
 }
 
