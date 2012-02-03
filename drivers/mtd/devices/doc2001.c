@@ -346,7 +346,7 @@ void DoCMil_init(struct mtd_info *mtd)
 
 	/* FIXME: erase size is not always 8KiB */
 	mtd->erasesize = 0x2000;
-	mtd->writesize = 512;
+	mtd->writebufsize = mtd->writesize = 512;
 	mtd->oobsize = 16;
 	mtd->owner = THIS_MODULE;
 	mtd->_erase = doc_erase;
