@@ -67,7 +67,8 @@ static int ixgbe_find_enabled_vfs(struct ixgbe_adapter *adapter)
 	vf_devfn = pdev->devfn + 0x80;
 	pvfdev = pci_get_device(IXGBE_INTEL_VENDOR_ID, device_id, NULL);
 	while (pvfdev) {
-		if (pvfdev->devfn == vf_devfn)
+		if (pvfdev->devfn == vf_devfn &&
+		    (pvfdev->bus->number >= pdev->bus->number))
 			vfs_found++;
 		vf_devfn += 2;
 		pvfdev = pci_get_device(IXGBE_INTEL_VENDOR_ID,
