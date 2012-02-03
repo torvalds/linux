@@ -206,11 +206,12 @@ static int pmc551_point(struct mtd_info *mtd, loff_t from, size_t len,
 	return 0;
 }
 
-static void pmc551_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
+static int pmc551_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
 #ifdef CONFIG_MTD_PMC551_DEBUG
 	printk(KERN_DEBUG "pmc551_unpoint()\n");
 #endif
+	return 0;
 }
 
 static int pmc551_read(struct mtd_info *mtd, loff_t from, size_t len,

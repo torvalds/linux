@@ -177,7 +177,7 @@ struct mtd_info {
 	int (*_erase) (struct mtd_info *mtd, struct erase_info *instr);
 	int (*_point) (struct mtd_info *mtd, loff_t from, size_t len,
 		       size_t *retlen, void **virt, resource_size_t *phys);
-	void (*_unpoint) (struct mtd_info *mtd, loff_t from, size_t len);
+	int (*_unpoint) (struct mtd_info *mtd, loff_t from, size_t len);
 	unsigned long (*_get_unmapped_area) (struct mtd_info *mtd,
 					     unsigned long len,
 					     unsigned long offset,
@@ -265,8 +265,10 @@ static inline int mtd_point(struct mtd_info *mtd, loff_t from, size_t len,
 }
 
 /* We probably shouldn't allow XIP if the unpoint isn't a NULL */
-static inline void mtd_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
+static inline int mtd_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
+	if (!mtd->_point)
+		return -EOPNOTSUPP;
 	return mtd->_unpoint(mtd, from, len);
 }
 

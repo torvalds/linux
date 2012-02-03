@@ -60,8 +60,9 @@ static int ram_point(struct mtd_info *mtd, loff_t from, size_t len,
 	return 0;
 }
 
-static void ram_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
+static int ram_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
+	return 0;
 }
 
 /*

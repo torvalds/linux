@@ -92,11 +92,11 @@ static int part_point(struct mtd_info *mtd, loff_t from, size_t len,
 			 virt, phys);
 }
 
-static void part_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
+static int part_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
 	struct mtd_part *part = PART(mtd);
 
-	mtd_unpoint(part->master, from + part->offset, len);
+	return mtd_unpoint(part->master, from + part->offset, len);
 }
 
 static unsigned long part_get_unmapped_area(struct mtd_info *mtd,

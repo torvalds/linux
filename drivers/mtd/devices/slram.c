@@ -76,7 +76,7 @@ static slram_mtd_list_t *slram_mtdlist = NULL;
 static int slram_erase(struct mtd_info *, struct erase_info *);
 static int slram_point(struct mtd_info *, loff_t, size_t, size_t *, void **,
 		resource_size_t *);
-static void slram_unpoint(struct mtd_info *, loff_t, size_t);
+static int slram_unpoint(struct mtd_info *, loff_t, size_t);
 static int slram_read(struct mtd_info *, loff_t, size_t, size_t *, u_char *);
 static int slram_write(struct mtd_info *, loff_t, size_t, size_t *, const u_char *);
 
@@ -119,8 +119,9 @@ static int slram_point(struct mtd_info *mtd, loff_t from, size_t len,
 	return(0);
 }
 
-static void slram_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
+static int slram_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
+	return 0;
 }
 
 static int slram_read(struct mtd_info *mtd, loff_t from, size_t len,

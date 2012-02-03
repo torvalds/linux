@@ -40,7 +40,7 @@ static int lpddr_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 static int lpddr_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 static int lpddr_point(struct mtd_info *mtd, loff_t adr, size_t len,
 			size_t *retlen, void **mtdbuf, resource_size_t *phys);
-static void lpddr_unpoint(struct mtd_info *mtd, loff_t adr, size_t len);
+static int lpddr_unpoint(struct mtd_info *mtd, loff_t adr, size_t len);
 static int get_chip(struct map_info *map, struct flchip *chip, int mode);
 static int chip_ready(struct map_info *map, struct flchip *chip, int mode);
 static void put_chip(struct map_info *map, struct flchip *chip);
@@ -575,11 +575,11 @@ static int lpddr_point(struct mtd_info *mtd, loff_t adr, size_t len,
 	return 0;
 }
 
-static void lpddr_unpoint (struct mtd_info *mtd, loff_t adr, size_t len)
+static int lpddr_unpoint (struct mtd_info *mtd, loff_t adr, size_t len)
 {
 	struct map_info *map = mtd->priv;
 	struct lpddr_private *lpddr = map->fldrv_priv;
-	int chipnum = adr >> lpddr->chipshift;
+	int chipnum = adr >> lpddr->chipshift, err = 0;
 	unsigned long ofs;
 
 	/* ofs: offset within the first chip that the first read should start */
@@ -603,9 +603,11 @@ static void lpddr_unpoint (struct mtd_info *mtd, loff_t adr, size_t len)
 			chip->ref_point_counter--;
 			if (chip->ref_point_counter == 0)
 				chip->state = FL_READY;
-		} else
+		} else {
 			printk(KERN_WARNING "%s: Warning: unpoint called on non"
 					"pointed region\n", map->name);
+			err = -EINVAL;
+		}
 
 		put_chip(map, chip);
 		mutex_unlock(&chip->mutex);
@@ -614,6 +616,8 @@ static void lpddr_unpoint (struct mtd_info *mtd, loff_t adr, size_t len)
 		ofs = 0;
 		chipnum++;
 	}
+
+	return err;
 }
 
 static int lpddr_write_buffers(struct mtd_info *mtd, loff_t to, size_t len,

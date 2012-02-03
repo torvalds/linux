@@ -70,8 +70,9 @@ static int phram_point(struct mtd_info *mtd, loff_t from, size_t len,
 	return 0;
 }
 
-static void phram_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
+static int phram_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
+	return 0;
 }
 
 static int phram_read(struct mtd_info *mtd, loff_t from, size_t len,
