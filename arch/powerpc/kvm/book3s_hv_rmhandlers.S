@@ -26,6 +26,7 @@
 #include <asm/hvcall.h>
 #include <asm/asm-offsets.h>
 #include <asm/exception-64s.h>
+#include <asm/kvm_book3s_asm.h>
 
 /*****************************************************************************
  *                                                                           *
@@ -82,6 +83,7 @@ _GLOBAL(kvmppc_hv_entry_trampoline)
 
 #define XICS_XIRR		4
 #define XICS_QIRR		0xc
+#define XICS_IPI		2	/* interrupt source # for IPIs */
 
 /*
  * We come in here when wakened from nap mode on a secondary hw thread.
@@ -94,26 +96,54 @@ kvm_start_guest:
 	subi	r1,r1,STACK_FRAME_OVERHEAD
 	ld	r2,PACATOC(r13)
 
+	li	r0,KVM_HWTHREAD_IN_KVM
+	stb	r0,HSTATE_HWTHREAD_STATE(r13)
+
+	/* NV GPR values from power7_idle() will no longer be valid */
+	li	r0,1
+	stb	r0,PACA_NAPSTATELOST(r13)
+
+	/* get vcpu pointer, NULL if we have no vcpu to run */
+	ld	r4,HSTATE_KVM_VCPU(r13)
+	cmpdi	cr1,r4,0
+
+	/* Check the wake reason in SRR1 to see why we got here */
+	mfspr	r3,SPRN_SRR1
+	rlwinm	r3,r3,44-31,0x7		/* extract wake reason field */
+	cmpwi	r3,4			/* was it an external interrupt? */
+	bne	27f
+
+	/*
+	 * External interrupt - for now assume it is an IPI, since we
+	 * should never get any other interrupts sent to offline threads.
+	 * Only do this for secondary threads.
+	 */
+	beq	cr1,25f
+	lwz	r3,VCPU_PTID(r4)
+	cmpwi	r3,0
+	beq	27f
+25:	ld	r5,HSTATE_XICS_PHYS(r13)
+	li	r0,0xff
+	li	r6,XICS_QIRR
+	li	r7,XICS_XIRR
+	lwzcix	r8,r5,r7		/* get and ack the interrupt */
+	sync
+	clrldi.	r9,r8,40		/* get interrupt source ID. */
+	beq	27f			/* none there? */
+	cmpwi	r9,XICS_IPI
+	bne	26f
+	stbcix	r0,r5,r6		/* clear IPI */
+26:	stwcix	r8,r5,r7		/* EOI the interrupt */
+
+27:	/* XXX should handle hypervisor maintenance interrupts etc. here */
+
+	/* if we have no vcpu to run, go back to sleep */
+	beq	cr1,kvm_no_guest
+
 	/* were we napping due to cede? */
 	lbz	r0,HSTATE_NAPPING(r13)
 	cmpwi	r0,0
 	bne	kvm_end_cede
-
-	/* get vcpu pointer */
-	ld	r4, HSTATE_KVM_VCPU(r13)
-
-	/* We got here with an IPI; clear it */
-	ld	r5, HSTATE_XICS_PHYS(r13)
-	li	r0, 0xff
-	li	r6, XICS_QIRR
-	li	r7, XICS_XIRR
-	lwzcix	r8, r5, r7		/* ack the interrupt */
-	sync
-	stbcix	r0, r5, r6		/* clear it */
-	stwcix	r8, r5, r7		/* EOI it */
-
-	/* NV GPR values from power7_idle() will no longer be valid */
-	stb	r0, PACA_NAPSTATELOST(r13)
 
 .global kvmppc_hv_entry
 kvmppc_hv_entry:
@@ -1445,8 +1475,8 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_206)
 	 * Take a nap until a decrementer or external interrupt occurs,
 	 * with PECE1 (wake on decr) and PECE0 (wake on external) set in LPCR
 	 */
-	li	r0,0x80
-	stb	r0,PACAPROCSTART(r13)
+	li	r0,1
+	stb	r0,HSTATE_HWTHREAD_REQ(r13)
 	mfspr	r5,SPRN_LPCR
 	ori	r5,r5,LPCR_PECE0 | LPCR_PECE1
 	mtspr	SPRN_LPCR,r5
@@ -1463,26 +1493,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_206)
 kvm_end_cede:
 	/* Woken by external or decrementer interrupt */
 	ld	r1, HSTATE_HOST_R1(r13)
-	ld	r2, PACATOC(r13)
 
-	/* If we're a secondary thread and we got here by an IPI, ack it */
-	ld	r4,HSTATE_KVM_VCPU(r13)
-	lwz	r3,VCPU_PTID(r4)
-	cmpwi	r3,0
-	beq	27f
-	mfspr	r3,SPRN_SRR1
-	rlwinm	r3,r3,44-31,0x7		/* extract wake reason field */
-	cmpwi	r3,4			/* was it an external interrupt? */
-	bne	27f
-	ld	r5, HSTATE_XICS_PHYS(r13)
-	li	r0,0xff
-	li	r6,XICS_QIRR
-	li	r7,XICS_XIRR
-	lwzcix	r8,r5,r7		/* ack the interrupt */
-	sync
-	stbcix	r0,r5,r6		/* clear it */
-	stwcix	r8,r5,r7		/* EOI it */
-27:
 	/* load up FP state */
 	bl	kvmppc_load_fp
 
@@ -1580,12 +1591,17 @@ secondary_nap:
 	stwcx.	r3, 0, r4
 	bne	51b
 
+kvm_no_guest:
+	li	r0, KVM_HWTHREAD_IN_NAP
+	stb	r0, HSTATE_HWTHREAD_STATE(r13)
+	li	r0, 0
+	std	r0, HSTATE_KVM_VCPU(r13)
+
 	li	r3, LPCR_PECE0
 	mfspr	r4, SPRN_LPCR
 	rlwimi	r4, r3, 0, LPCR_PECE0 | LPCR_PECE1
 	mtspr	SPRN_LPCR, r4
 	isync
-	li	r0, 0
 	std	r0, HSTATE_SCRATCH0(r13)
 	ptesync
 	ld	r0, HSTATE_SCRATCH0(r13)

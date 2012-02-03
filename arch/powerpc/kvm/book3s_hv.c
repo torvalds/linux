@@ -569,6 +569,45 @@ static void kvmppc_remove_runnable(struct kvmppc_vcore *vc,
 	list_del(&vcpu->arch.run_list);
 }
 
+static int kvmppc_grab_hwthread(int cpu)
+{
+	struct paca_struct *tpaca;
+	long timeout = 1000;
+
+	tpaca = &paca[cpu];
+
+	/* Ensure the thread won't go into the kernel if it wakes */
+	tpaca->kvm_hstate.hwthread_req = 1;
+
+	/*
+	 * If the thread is already executing in the kernel (e.g. handling
+	 * a stray interrupt), wait for it to get back to nap mode.
+	 * The smp_mb() is to ensure that our setting of hwthread_req
+	 * is visible before we look at hwthread_state, so if this
+	 * races with the code at system_reset_pSeries and the thread
+	 * misses our setting of hwthread_req, we are sure to see its
+	 * setting of hwthread_state, and vice versa.
+	 */
+	smp_mb();
+	while (tpaca->kvm_hstate.hwthread_state == KVM_HWTHREAD_IN_KERNEL) {
+		if (--timeout <= 0) {
+			pr_err("KVM: couldn't grab cpu %d\n", cpu);
+			return -EBUSY;
+		}
+		udelay(1);
+	}
+	return 0;
+}
+
+static void kvmppc_release_hwthread(int cpu)
+{
+	struct paca_struct *tpaca;
+
+	tpaca = &paca[cpu];
+	tpaca->kvm_hstate.hwthread_req = 0;
+	tpaca->kvm_hstate.kvm_vcpu = NULL;
+}
+
 static void kvmppc_start_thread(struct kvm_vcpu *vcpu)
 {
 	int cpu;
@@ -588,8 +627,7 @@ static void kvmppc_start_thread(struct kvm_vcpu *vcpu)
 	smp_wmb();
 #if defined(CONFIG_PPC_ICP_NATIVE) && defined(CONFIG_SMP)
 	if (vcpu->arch.ptid) {
-		tpaca->cpu_start = 0x80;
-		wmb();
+		kvmppc_grab_hwthread(cpu);
 		xics_wake_cpu(cpu);
 		++vc->n_woken;
 	}
@@ -639,7 +677,7 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 	struct kvm_vcpu *vcpu, *vcpu0, *vnext;
 	long ret;
 	u64 now;
-	int ptid;
+	int ptid, i;
 
 	/* don't start if any threads have a signal pending */
 	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
@@ -686,12 +724,17 @@ static int kvmppc_run_core(struct kvmppc_vcore *vc)
 	vc->napping_threads = 0;
 	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
 		kvmppc_start_thread(vcpu);
+	/* Grab any remaining hw threads so they can't go into the kernel */
+	for (i = ptid; i < threads_per_core; ++i)
+		kvmppc_grab_hwthread(vc->pcpu + i);
 
 	preempt_disable();
 	spin_unlock(&vc->lock);
 
 	kvm_guest_enter();
 	__kvmppc_vcore_entry(NULL, vcpu0);
+	for (i = 0; i < threads_per_core; ++i)
+		kvmppc_release_hwthread(vc->pcpu + i);
 
 	spin_lock(&vc->lock);
 	/* disable sending of IPIs on virtual external irqs */
