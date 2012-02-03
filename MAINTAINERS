@@ -6390,11 +6390,6 @@ M:	Omar Ramirez Luna <omar.ramirez@ti.com>
 S:	Odd Fixes
 F:	drivers/staging/tidspbridge/
 
-STAGING - TRIDENT TVMASTER TMxxxx USB VIDEO CAPTURE DRIVERS
-L:	linux-media@vger.kernel.org
-S:	Odd Fixes
-F:	drivers/staging/tm6000/
-
 STAGING - USB ENE SM/MS CARD READER DRIVER
 M:	Al Cho <acho@novell.com>
 S:	Odd Fixes
