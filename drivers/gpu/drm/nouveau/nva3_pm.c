@@ -377,10 +377,23 @@ mclk_clock_set(struct nouveau_mem_exec_func *exec)
 {
 	struct drm_device *dev = exec->dev;
 	struct nva3_pm_state *info = exec->priv;
+	u32 ctrl;
 
+	ctrl = nv_rd32(dev, 0x004000);
+	if (!(ctrl & 0x00000008) && info->mclk.pll) {
+		nv_wr32(dev, 0x004000, (ctrl |=  0x00000008));
+		nv_mask(dev, 0x1110e0, 0x00088000, 0x00088000);
+		nv_wr32(dev, 0x004018, 0x00001000); /*XXX*/
+		nv_wr32(dev, 0x004000, (ctrl &= ~0x00000001));
+		nv_wr32(dev, 0x004004, info->mclk.pll);
+		nv_wr32(dev, 0x004000, (ctrl |=  0x00000001));
+		udelay(64);
+		nv_wr32(dev, 0x004018, 0x10005000); /*XXX*/
+		udelay(20);
+	} else
 	if (!info->mclk.pll) {
 		nv_mask(dev, 0x004168, 0x003f3040, info->mclk.clk);
-		nv_mask(dev, 0x004000, 0x00000008, 0x00000008);
+		nv_wr32(dev, 0x004000, (ctrl |= 0x00000008));
 		nv_mask(dev, 0x1110e0, 0x00088000, 0x00088000);
 		nv_wr32(dev, 0x004018, 0x1000d000); /*XXX*/
 	}
@@ -406,7 +419,7 @@ mclk_clock_set(struct nouveau_mem_exec_func *exec)
 
 	if (info->mclk.pll) {
 		nv_mask(dev, 0x1110e0, 0x00088000, 0x00011000);
-		nv_mask(dev, 0x004000, 0x00000008, 0x00000000);
+		nv_wr32(dev, 0x004000, (ctrl &= ~0x00000008));
 	}
 }
 
@@ -477,10 +490,12 @@ prog_mem(struct drm_device *dev, struct nva3_pm_state *info)
 			nv_wr32(dev, 0x004000, (ctrl |= 0x00000004));
 		}
 	} else {
-		if (!info->mclk.pll) {
-			nv_mask(dev, 0x004168, 0x003f3141,
-					       0x00000101 | info->mclk.clk);
-		}
+		u32 ssel = 0x00000101;
+		if (info->mclk.clk)
+			ssel |= info->mclk.clk;
+		else
+			ssel |= 0x00080000; /* 324MHz, shouldn't matter... */
+		nv_mask(dev, 0x004168, 0x003f3141, ctrl);
 	}
 
 	if (info->rammap && !(info->rammap[4] & 0x02))
