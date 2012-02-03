@@ -181,10 +181,7 @@ void migrate_irqs(void)
 	local_irq_save(flags);
 
 	for_each_irq_desc(i, desc) {
-		bool affinity_broken = false;
-
-		if (!desc)
-			continue;
+		bool affinity_broken;
 
 		raw_spin_lock(&desc->lock);
 		affinity_broken = migrate_one_irq(desc);
