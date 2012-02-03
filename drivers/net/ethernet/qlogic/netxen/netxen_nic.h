@@ -686,6 +686,18 @@ struct netxen_recv_context {
 	dma_addr_t phys_addr;
 };
 
+struct _cdrp_cmd {
+	u32 cmd;
+	u32 arg1;
+	u32 arg2;
+	u32 arg3;
+};
+
+struct netxen_cmd_args {
+	struct _cdrp_cmd req;
+	struct _cdrp_cmd rsp;
+};
+
 /* New HW context creation */
 
 #define NX_OS_CRB_RETRY_COUNT	4000
