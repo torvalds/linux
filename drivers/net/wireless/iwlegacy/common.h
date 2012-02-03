@@ -1165,8 +1165,6 @@ struct il_rxon_context {
 	 */
 	bool always_active, is_active;
 
-	struct il_qos_info qos_data;
-
 	struct {
 		bool non_gf_sta_present;
 		u8 protection;
@@ -1277,6 +1275,8 @@ struct il_priv {
 	char firmware_name[25];
 
 	struct il_rxon_context ctx;
+
+	struct il_qos_info qos_data;
 
 	/*
 	 * We declare this const so it can only be

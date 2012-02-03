@@ -644,7 +644,6 @@ il_dbgfs_qos_read(struct file *file, char __user *user_buf, size_t count,
 		  loff_t *ppos)
 {
 	struct il_priv *il = file->private_data;
-	struct il_rxon_context *ctx = &il->ctx;
 	int pos = 0, i;
 	char buf[256];
 	const size_t bufsz = sizeof(buf);
@@ -656,10 +655,10 @@ il_dbgfs_qos_read(struct file *file, char __user *user_buf, size_t count,
 		pos +=
 		    scnprintf(buf + pos, bufsz - pos,
 			      "AC[%d]\t%u\t%u\t%u\t%u\n", i,
-			      ctx->qos_data.def_qos_parm.ac[i].cw_min,
-			      ctx->qos_data.def_qos_parm.ac[i].cw_max,
-			      ctx->qos_data.def_qos_parm.ac[i].aifsn,
-			      ctx->qos_data.def_qos_parm.ac[i].edca_txop);
+			      il->qos_data.def_qos_parm.ac[i].cw_min,
+			      il->qos_data.def_qos_parm.ac[i].cw_max,
+			      il->qos_data.def_qos_parm.ac[i].aifsn,
+			      il->qos_data.def_qos_parm.ac[i].edca_txop);
 	}
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);

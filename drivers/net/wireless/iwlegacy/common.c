@@ -4496,15 +4496,15 @@ il_mac_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 
 	spin_lock_irqsave(&il->lock, flags);
 
-	il->ctx.qos_data.def_qos_parm.ac[q].cw_min =
+	il->qos_data.def_qos_parm.ac[q].cw_min =
 	    cpu_to_le16(params->cw_min);
-	il->ctx.qos_data.def_qos_parm.ac[q].cw_max =
+	il->qos_data.def_qos_parm.ac[q].cw_max =
 	    cpu_to_le16(params->cw_max);
-	il->ctx.qos_data.def_qos_parm.ac[q].aifsn = params->aifs;
-	il->ctx.qos_data.def_qos_parm.ac[q].edca_txop =
+	il->qos_data.def_qos_parm.ac[q].aifsn = params->aifs;
+	il->qos_data.def_qos_parm.ac[q].edca_txop =
 	    cpu_to_le16((params->txop * 32));
 
-	il->ctx.qos_data.def_qos_parm.ac[q].reserved1 = 0;
+	il->qos_data.def_qos_parm.ac[q].reserved1 = 0;
 
 	spin_unlock_irqrestore(&il->lock, flags);
 
@@ -5230,20 +5230,20 @@ il_update_qos(struct il_priv *il, struct il_rxon_context *ctx)
 	if (!ctx->is_active)
 		return;
 
-	ctx->qos_data.def_qos_parm.qos_flags = 0;
+	il->qos_data.def_qos_parm.qos_flags = 0;
 
-	if (ctx->qos_data.qos_active)
-		ctx->qos_data.def_qos_parm.qos_flags |=
+	if (il->qos_data.qos_active)
+		il->qos_data.def_qos_parm.qos_flags |=
 		    QOS_PARAM_FLG_UPDATE_EDCA_MSK;
 
 	if (ctx->ht.enabled)
-		ctx->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
+		il->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
 
 	D_QOS("send QoS cmd with Qos active=%d FLAGS=0x%X\n",
-	      ctx->qos_data.qos_active, ctx->qos_data.def_qos_parm.qos_flags);
+	      il->qos_data.qos_active, il->qos_data.def_qos_parm.qos_flags);
 
 	il_send_cmd_pdu_async(il, C_QOS_PARAM, sizeof(struct il_qosparam_cmd),
-			      &ctx->qos_data.def_qos_parm, NULL);
+			      &il->qos_data.def_qos_parm, NULL);
 }
 
 /**
@@ -5596,7 +5596,7 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		unsigned long flags;
 
 		spin_lock_irqsave(&il->lock, flags);
-		ctx->qos_data.qos_active = bss_conf->qos;
+		il->qos_data.qos_active = bss_conf->qos;
 		il_update_qos(il, ctx);
 		spin_unlock_irqrestore(&il->lock, flags);
 	}
