@@ -927,7 +927,6 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 }
 
 static void fsi_hw_shutdown(struct fsi_priv *fsi,
-			    int is_play,
 			    struct device *dev)
 {
 	if (fsi_is_clk_master(fsi))
@@ -947,9 +946,8 @@ static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
-	int is_play = fsi_is_play(substream);
 
-	fsi_hw_shutdown(fsi, is_play, dai->dev);
+	fsi_hw_shutdown(fsi, dai->dev);
 	fsi->rate = 0;
 }
 
@@ -1342,7 +1340,7 @@ static void __fsi_suspend(struct fsi_priv *fsi,
 		return;
 
 	fsi_port_stop(fsi, is_play);
-	fsi_hw_shutdown(fsi, is_play, dev);
+	fsi_hw_shutdown(fsi, dev);
 }
 
 static void __fsi_resume(struct fsi_priv *fsi,
