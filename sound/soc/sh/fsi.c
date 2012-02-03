@@ -338,22 +338,6 @@ static u32 fsi_get_info_flags(struct fsi_priv *fsi)
 		master->info->portb_flags;
 }
 
-static inline int fsi_stream_is_play(int stream)
-{
-	return stream == SNDRV_PCM_STREAM_PLAYBACK;
-}
-
-static inline int fsi_is_play(struct snd_pcm_substream *substream)
-{
-	return fsi_stream_is_play(substream->stream);
-}
-
-static inline struct fsi_stream *fsi_get_stream(struct fsi_priv *fsi,
-						int is_play)
-{
-	return is_play ? &fsi->playback : &fsi->capture;
-}
-
 static u32 fsi_get_port_shift(struct fsi_priv *fsi, int is_play)
 {
 	int is_porta = fsi_is_port_a(fsi);
@@ -375,68 +359,6 @@ static int fsi_frame2sample(struct fsi_priv *fsi, int frames)
 static int fsi_sample2frame(struct fsi_priv *fsi, int samples)
 {
 	return samples / fsi->chan_num;
-}
-
-static int fsi_stream_is_working(struct fsi_priv *fsi,
-				  int is_play)
-{
-	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
-	struct fsi_master *master = fsi_get_master(fsi);
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&master->lock, flags);
-	ret = !!io->substream;
-	spin_unlock_irqrestore(&master->lock, flags);
-
-	return ret;
-}
-
-static void fsi_stream_push(struct fsi_priv *fsi,
-			    int is_play,
-			    struct snd_pcm_substream *substream)
-{
-	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct fsi_master *master = fsi_get_master(fsi);
-	unsigned long flags;
-
-	spin_lock_irqsave(&master->lock, flags);
-	io->substream	= substream;
-	io->buff_sample_capa	= fsi_frame2sample(fsi, runtime->buffer_size);
-	io->buff_sample_pos	= 0;
-	io->period_samples	= fsi_frame2sample(fsi, runtime->period_size);
-	io->period_pos		= 0;
-	io->sample_width	= samples_to_bytes(runtime, 1);
-	io->oerr_num	= -1; /* ignore 1st err */
-	io->uerr_num	= -1; /* ignore 1st err */
-	spin_unlock_irqrestore(&master->lock, flags);
-}
-
-static void fsi_stream_pop(struct fsi_priv *fsi, int is_play)
-{
-	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
-	struct snd_soc_dai *dai = fsi_get_dai(io->substream);
-	struct fsi_master *master = fsi_get_master(fsi);
-	unsigned long flags;
-
-	spin_lock_irqsave(&master->lock, flags);
-
-	if (io->oerr_num > 0)
-		dev_err(dai->dev, "over_run = %d\n", io->oerr_num);
-
-	if (io->uerr_num > 0)
-		dev_err(dai->dev, "under_run = %d\n", io->uerr_num);
-
-	io->substream	= NULL;
-	io->buff_sample_capa	= 0;
-	io->buff_sample_pos	= 0;
-	io->period_samples	= 0;
-	io->period_pos		= 0;
-	io->sample_width	= 0;
-	io->oerr_num	= 0;
-	io->uerr_num	= 0;
-	spin_unlock_irqrestore(&master->lock, flags);
 }
 
 static int fsi_get_current_fifo_samples(struct fsi_priv *fsi, int is_play)
@@ -475,13 +397,90 @@ static void fsi_count_fifo_err(struct fsi_priv *fsi)
 }
 
 /*
+ *		fsi_stream_xx() function
+ */
+#define fsi_is_play(substream)	fsi_stream_is_play(substream->stream)
+static inline int fsi_stream_is_play(int stream)
+{
+	return stream == SNDRV_PCM_STREAM_PLAYBACK;
+}
+
+static inline struct fsi_stream *fsi_stream_get(struct fsi_priv *fsi,
+						int is_play)
+{
+	return is_play ? &fsi->playback : &fsi->capture;
+}
+
+static int fsi_stream_is_working(struct fsi_priv *fsi,
+				  int is_play)
+{
+	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
+	struct fsi_master *master = fsi_get_master(fsi);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&master->lock, flags);
+	ret = !!io->substream;
+	spin_unlock_irqrestore(&master->lock, flags);
+
+	return ret;
+}
+
+static void fsi_stream_push(struct fsi_priv *fsi,
+			    int is_play,
+			    struct snd_pcm_substream *substream)
+{
+	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct fsi_master *master = fsi_get_master(fsi);
+	unsigned long flags;
+
+	spin_lock_irqsave(&master->lock, flags);
+	io->substream	= substream;
+	io->buff_sample_capa	= fsi_frame2sample(fsi, runtime->buffer_size);
+	io->buff_sample_pos	= 0;
+	io->period_samples	= fsi_frame2sample(fsi, runtime->period_size);
+	io->period_pos		= 0;
+	io->sample_width	= samples_to_bytes(runtime, 1);
+	io->oerr_num	= -1; /* ignore 1st err */
+	io->uerr_num	= -1; /* ignore 1st err */
+	spin_unlock_irqrestore(&master->lock, flags);
+}
+
+static void fsi_stream_pop(struct fsi_priv *fsi, int is_play)
+{
+	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
+	struct snd_soc_dai *dai = fsi_get_dai(io->substream);
+	struct fsi_master *master = fsi_get_master(fsi);
+	unsigned long flags;
+
+	spin_lock_irqsave(&master->lock, flags);
+
+	if (io->oerr_num > 0)
+		dev_err(dai->dev, "over_run = %d\n", io->oerr_num);
+
+	if (io->uerr_num > 0)
+		dev_err(dai->dev, "under_run = %d\n", io->uerr_num);
+
+	io->substream	= NULL;
+	io->buff_sample_capa	= 0;
+	io->buff_sample_pos	= 0;
+	io->period_samples	= 0;
+	io->period_pos		= 0;
+	io->sample_width	= 0;
+	io->oerr_num	= 0;
+	io->uerr_num	= 0;
+	spin_unlock_irqrestore(&master->lock, flags);
+}
+
+/*
  *		dma function
  */
 
 static u8 *fsi_dma_get_area(struct fsi_priv *fsi, int stream)
 {
 	int is_play = fsi_stream_is_play(stream);
-	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
+	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
 	struct snd_pcm_runtime *runtime = io->substream->runtime;
 
 	return runtime->dma_area +
@@ -698,7 +697,7 @@ static void fsi_fifo_init(struct fsi_priv *fsi,
 			  struct device *dev)
 {
 	struct fsi_master *master = fsi_get_master(fsi);
-	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
+	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
 	u32 shift, i;
 	int frame_capa;
 
@@ -753,7 +752,7 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int stream)
 	struct snd_pcm_runtime *runtime;
 	struct snd_pcm_substream *substream = NULL;
 	int is_play = fsi_stream_is_play(stream);
-	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
+	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
 	int sample_residues;
 	int samples;
 	int samples_max;
@@ -1150,7 +1149,7 @@ static int fsi_hw_free(struct snd_pcm_substream *substream)
 static snd_pcm_uframes_t fsi_pointer(struct snd_pcm_substream *substream)
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
-	struct fsi_stream *io = fsi_get_stream(fsi, fsi_is_play(substream));
+	struct fsi_stream *io = fsi_stream_get(fsi, fsi_is_play(substream));
 	int samples_pos = io->buff_sample_pos - 1;
 
 	if (samples_pos < 0)
