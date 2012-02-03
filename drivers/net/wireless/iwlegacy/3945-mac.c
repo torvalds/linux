@@ -3621,9 +3621,6 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	il->ctx.interface_modes =
 	    BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_ADHOC);
-	il->ctx.ibss_devtype = RXON_DEV_TYPE_IBSS;
-	il->ctx.station_devtype = RXON_DEV_TYPE_ESS;
-	il->ctx.unused_devtype = RXON_DEV_TYPE_ESS;
 
 	/*
 	 * Disabling hardware scan means that mac80211 will perform scans

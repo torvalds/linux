@@ -1171,7 +1171,6 @@ struct il_rxon_context {
 	int ctxid;
 
 	u32 interface_modes, exclusive_interface_modes;
-	u8 unused_devtype, ap_devtype, ibss_devtype, station_devtype;
 
 	struct il_qos_info qos_data;
 

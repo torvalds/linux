@@ -6140,10 +6140,6 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	il->ctx.ac_to_queue = il4965_bss_ac_to_queue;
 	il->ctx.exclusive_interface_modes = BIT(NL80211_IFTYPE_ADHOC);
 	il->ctx.interface_modes = BIT(NL80211_IFTYPE_STATION);
-	il->ctx.ap_devtype = RXON_DEV_TYPE_AP;
-	il->ctx.ibss_devtype = RXON_DEV_TYPE_IBSS;
-	il->ctx.station_devtype = RXON_DEV_TYPE_ESS;
-	il->ctx.unused_devtype = RXON_DEV_TYPE_ESS;
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 

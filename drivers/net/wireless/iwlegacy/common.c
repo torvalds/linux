@@ -4002,17 +4002,17 @@ il_connection_init_rx_config(struct il_priv *il, struct il_rxon_context *ctx)
 	memset(&il->staging, 0, sizeof(il->staging));
 
 	if (!ctx->vif) {
-		il->staging.dev_type = ctx->unused_devtype;
+		il->staging.dev_type = RXON_DEV_TYPE_ESS;
 	} else
 		switch (ctx->vif->type) {
 
 		case NL80211_IFTYPE_STATION:
-			il->staging.dev_type = ctx->station_devtype;
+			il->staging.dev_type = RXON_DEV_TYPE_ESS;
 			il->staging.filter_flags = RXON_FILTER_ACCEPT_GRP_MSK;
 			break;
 
 		case NL80211_IFTYPE_ADHOC:
-			il->staging.dev_type = ctx->ibss_devtype;
+			il->staging.dev_type = RXON_DEV_TYPE_IBSS;
 			il->staging.flags = RXON_FLG_SHORT_PREAMBLE_MSK;
 			il->staging.filter_flags =
 			    RXON_FILTER_BCON_AWARE_MSK |
