@@ -1950,7 +1950,7 @@ il_prep_station(struct il_priv *il, struct il_rxon_context *ctx,
 	memcpy(station->sta.sta.addr, addr, ETH_ALEN);
 	station->sta.mode = 0;
 	station->sta.sta.sta_id = sta_id;
-	station->sta.station_flags = ctx->station_flags;
+	station->sta.station_flags = 0;
 
 	if (sta) {
 		struct il_station_priv_common *sta_priv;

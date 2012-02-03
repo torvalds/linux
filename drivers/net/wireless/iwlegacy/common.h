@@ -1169,8 +1169,6 @@ struct il_rxon_context {
 
 	struct il_qos_info qos_data;
 
-	__le32 station_flags;
-
 	struct {
 		bool non_gf_sta_present;
 		u8 protection;
