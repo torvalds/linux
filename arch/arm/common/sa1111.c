@@ -87,7 +87,8 @@
 #define IRQ_S0_BVD1_STSCHG	(53)
 #define IRQ_S1_BVD1_STSCHG	(54)
 
-extern void __init sa1110_mb_enable(void);
+extern void sa1110_mb_enable(void);
+extern void sa1110_mb_disable(void);
 
 /*
  * We keep the following data for the overall SA1111.  Note that the
@@ -926,6 +927,10 @@ static int sa1111_suspend(struct platform_device *dev, pm_message_t state)
 
 	spin_unlock_irqrestore(&sachip->lock, flags);
 
+#ifdef CONFIG_ARCH_SA1100
+	sa1110_mb_disable();
+#endif
+
 	return 0;
 }
 
@@ -965,6 +970,11 @@ static int sa1111_resume(struct platform_device *dev)
 	 * First of all, wake up the chip.
 	 */
 	sa1111_wake(sachip);
+
+#ifdef CONFIG_ARCH_SA1100
+	/* Enable the memory bus request/grant signals */
+	sa1110_mb_enable();
+#endif
 
 	/*
 	 * Only lock for write ops. Also, sa1111_wake must be called with
