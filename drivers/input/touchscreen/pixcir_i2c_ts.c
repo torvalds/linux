@@ -70,12 +70,13 @@ struct point_data{
 	unsigned char	id;    //finger ID
 	int	posx;
 	int	posy;
+	int     lastx;
+	int     lasty;
 	unsigned char active;
 	unsigned char pre_active;
 };
 
 static struct point_data point[MAX_SUPPORT_POINT];
-
 
 struct i2c_dev
 {
@@ -272,12 +273,17 @@ static void pixcir_ts_poscheck(struct pixcir_i2c_ts_data *data)
 			input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, false);
 		}
 
-		if (point[i].active) {
+		if (point[i].active && (
+			abs(point[i].posx - point[i].lastx) > 2 ||
+			abs(point[i].posy - point[i].lasty) > 2
+			)) {
 			input_mt_slot(tsdata->input, point[i].id);
 			input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER, true);
 			input_report_abs(tsdata->input, ABS_MT_TOUCH_MAJOR, 1);
 			input_report_abs(tsdata->input, ABS_MT_POSITION_X, point[i].posy);
 			input_report_abs(tsdata->input, ABS_MT_POSITION_Y, point[i].posx);
+			point[i].lastx = point[i].posx;
+			point[i].lasty = point[i].posy;
 		}
 
 		DBG("%d[id = %d] = %2d active= %d pre_active = %d x = %5d y = %5d \n",
