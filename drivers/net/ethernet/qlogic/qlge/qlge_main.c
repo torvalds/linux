@@ -1143,14 +1143,16 @@ static void ql_update_lbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	int i;
 
 	while (rx_ring->lbq_free_cnt > 32) {
-		for (i = 0; i < 16; i++) {
+		for (i = (rx_ring->lbq_clean_idx % 16); i < 16; i++) {
 			netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
 				     "lbq: try cleaning clean_idx = %d.\n",
 				     clean_idx);
 			lbq_desc = &rx_ring->lbq[clean_idx];
 			if (ql_get_next_chunk(qdev, rx_ring, lbq_desc)) {
+				rx_ring->lbq_clean_idx = clean_idx;
 				netif_err(qdev, ifup, qdev->ndev,
-					  "Could not get a page chunk.\n");
+						"Could not get a page chunk, i=%d, clean_idx =%d .\n",
+						i, clean_idx);
 				return;
 			}
 
@@ -1195,7 +1197,7 @@ static void ql_update_sbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	int i;
 
 	while (rx_ring->sbq_free_cnt > 16) {
-		for (i = 0; i < 16; i++) {
+		for (i = (rx_ring->sbq_clean_idx % 16); i < 16; i++) {
 			sbq_desc = &rx_ring->sbq[clean_idx];
 			netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
 				     "sbq: try cleaning clean_idx = %d.\n",
