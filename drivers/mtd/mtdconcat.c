@@ -673,9 +673,6 @@ static int concat_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	struct mtd_concat *concat = CONCAT(mtd);
 	int i, err = -EINVAL;
 
-	if (!mtd_can_have_bb(concat->subdev[0]))
-		return 0;
-
 	if (ofs > mtd->size)
 		return -EINVAL;
 
