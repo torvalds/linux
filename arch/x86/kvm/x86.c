@@ -1079,6 +1079,7 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 	vcpu->arch.hv_clock.tsc_timestamp = 0;
 	vcpu->arch.last_tsc_write = data;
 	vcpu->arch.last_tsc_nsec = ns;
+	vcpu->arch.last_guest_tsc = data;
 }
 EXPORT_SYMBOL_GPL(kvm_write_tsc);
 
@@ -1147,7 +1148,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	 * observed by the guest and ensure the new system time is greater.
 	 */
 	max_kernel_ns = 0;
-	if (vcpu->hv_clock.tsc_timestamp && vcpu->last_guest_tsc) {
+	if (vcpu->hv_clock.tsc_timestamp) {
 		max_kernel_ns = vcpu->last_guest_tsc -
 				vcpu->hv_clock.tsc_timestamp;
 		max_kernel_ns = pvclock_scale_delta(max_kernel_ns,
@@ -2257,13 +2258,14 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		u64 tsc;
 
 		tsc = kvm_x86_ops->read_l1_tsc(vcpu);
-		tsc_delta = !vcpu->arch.last_guest_tsc ? 0 :
-			     tsc - vcpu->arch.last_guest_tsc;
+		tsc_delta = tsc - vcpu->arch.last_guest_tsc;
 
 		if (tsc_delta < 0)
 			mark_tsc_unstable("KVM discovered backwards TSC");
 		if (check_tsc_unstable()) {
-			kvm_x86_ops->adjust_tsc_offset(vcpu, -tsc_delta);
+			u64 offset = kvm_x86_ops->compute_tsc_offset(vcpu,
+						vcpu->arch.last_guest_tsc);
+			kvm_x86_ops->write_tsc_offset(vcpu, offset);
 			vcpu->arch.tsc_catchup = 1;
 		}
 		kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
