@@ -2930,13 +2930,12 @@ static struct bin_attribute bin_attr_mem = {
 static void
 netxen_create_sysfs_entries(struct netxen_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev;
-	struct device *dev = &netdev->dev;
+	struct device *dev = &adapter->pdev->dev;
 
 	if (adapter->capabilities & NX_FW_CAPABILITY_BDG) {
 		/* bridged_mode control */
 		if (device_create_file(dev, &dev_attr_bridged_mode)) {
-			dev_warn(&netdev->dev,
+			dev_warn(dev,
 				"failed to create bridged_mode sysfs entry\n");
 		}
 	}
@@ -2945,8 +2944,7 @@ netxen_create_sysfs_entries(struct netxen_adapter *adapter)
 static void
 netxen_remove_sysfs_entries(struct netxen_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev;
-	struct device *dev = &netdev->dev;
+	struct device *dev = &adapter->pdev->dev;
 
 	if (adapter->capabilities & NX_FW_CAPABILITY_BDG)
 		device_remove_file(dev, &dev_attr_bridged_mode);
