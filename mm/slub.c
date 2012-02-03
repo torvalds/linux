@@ -1566,6 +1566,7 @@ static void *get_partial_node(struct kmem_cache *s,
 		} else {
 			page->freelist = t;
 			available = put_cpu_partial(s, page, 0);
+			stat(s, CPU_PARTIAL_NODE);
 		}
 		if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
 			break;
@@ -1979,6 +1980,7 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
 				local_irq_restore(flags);
 				pobjects = 0;
 				pages = 0;
+				stat(s, CPU_PARTIAL_DRAIN);
 			}
 		}
 
@@ -1990,7 +1992,6 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
 		page->next = oldpage;
 
 	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
-	stat(s, CPU_PARTIAL_FREE);
 	return pobjects;
 }
 
@@ -2474,9 +2475,10 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 		 * If we just froze the page then put it onto the
 		 * per cpu partial list.
 		 */
-		if (new.frozen && !was_frozen)
+		if (new.frozen && !was_frozen) {
 			put_cpu_partial(s, page, 1);
-
+			stat(s, CPU_PARTIAL_FREE);
+		}
 		/*
 		 * The list lock was not taken therefore no list
 		 * activity can be necessary.
@@ -5069,6 +5071,8 @@ STAT_ATTR(CMPXCHG_DOUBLE_CPU_FAIL, cmpxchg_double_cpu_fail);
 STAT_ATTR(CMPXCHG_DOUBLE_FAIL, cmpxchg_double_fail);
 STAT_ATTR(CPU_PARTIAL_ALLOC, cpu_partial_alloc);
 STAT_ATTR(CPU_PARTIAL_FREE, cpu_partial_free);
+STAT_ATTR(CPU_PARTIAL_NODE, cpu_partial_node);
+STAT_ATTR(CPU_PARTIAL_DRAIN, cpu_partial_drain);
 #endif
 
 static struct attribute *slab_attrs[] = {
@@ -5134,6 +5138,8 @@ static struct attribute *slab_attrs[] = {
 	&cmpxchg_double_cpu_fail_attr.attr,
 	&cpu_partial_alloc_attr.attr,
 	&cpu_partial_free_attr.attr,
+	&cpu_partial_node_attr.attr,
+	&cpu_partial_drain_attr.attr,
 #endif
 #ifdef CONFIG_FAILSLAB
 	&failslab_attr.attr,
