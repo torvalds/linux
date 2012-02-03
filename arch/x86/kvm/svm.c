@@ -1016,9 +1016,13 @@ static void svm_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 }
 
-static void svm_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment)
+static void svm_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment, bool host)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
+
+	WARN_ON(adjustment < 0);
+	if (host)
+		adjustment = svm_scale_tsc(vcpu, adjustment);
 
 	svm->vmcb->control.tsc_offset += adjustment;
 	if (is_guest_mode(vcpu))

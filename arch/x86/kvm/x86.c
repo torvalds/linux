@@ -1116,7 +1116,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	if (vcpu->tsc_catchup) {
 		u64 tsc = compute_guest_tsc(v, kernel_ns);
 		if (tsc > tsc_timestamp) {
-			kvm_x86_ops->adjust_tsc_offset(v, tsc - tsc_timestamp);
+			adjust_tsc_offset_guest(v, tsc - tsc_timestamp);
 			tsc_timestamp = tsc;
 		}
 	}

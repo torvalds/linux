@@ -1856,7 +1856,7 @@ static void vmx_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 	}
 }
 
-static void vmx_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment)
+static void vmx_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment, bool host)
 {
 	u64 offset = vmcs_read64(TSC_OFFSET);
 	vmcs_write64(TSC_OFFSET, offset + adjustment);
