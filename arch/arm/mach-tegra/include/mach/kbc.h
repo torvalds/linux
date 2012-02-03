@@ -31,8 +31,14 @@
 #define KBC_MAX_COL	8
 #define KBC_MAX_KEY	(KBC_MAX_ROW * KBC_MAX_COL)
 
+enum tegra_pin_type {
+	PIN_CFG_IGNORE,
+	PIN_CFG_COL,
+	PIN_CFG_ROW,
+};
+
 struct tegra_kbc_pin_cfg {
-	bool is_row;
+	enum tegra_pin_type type;
 	unsigned char num;
 };
 

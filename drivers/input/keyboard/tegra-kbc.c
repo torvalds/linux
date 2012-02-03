@@ -468,10 +468,18 @@ static void tegra_kbc_config_pins(struct tegra_kbc *kbc)
 		row_cfg &= ~r_mask;
 		col_cfg &= ~c_mask;
 
-		if (pdata->pin_cfg[i].is_row)
+		switch (pdata->pin_cfg[i].type) {
+		case PIN_CFG_ROW:
 			row_cfg |= ((pdata->pin_cfg[i].num << 1) | 1) << r_shft;
-		else
+			break;
+
+		case PIN_CFG_COL:
 			col_cfg |= ((pdata->pin_cfg[i].num << 1) | 1) << c_shft;
+			break;
+
+		case PIN_CFG_IGNORE:
+			break;
+		}
 
 		writel(row_cfg, kbc->mmio + r_offs);
 		writel(col_cfg, kbc->mmio + c_offs);
@@ -576,7 +584,8 @@ tegra_kbc_check_pin_cfg(const struct tegra_kbc_platform_data *pdata,
 	for (i = 0; i < KBC_MAX_GPIO; i++) {
 		const struct tegra_kbc_pin_cfg *pin_cfg = &pdata->pin_cfg[i];
 
-		if (pin_cfg->is_row) {
+		switch (pin_cfg->type) {
+		case PIN_CFG_ROW:
 			if (pin_cfg->num >= KBC_MAX_ROW) {
 				dev_err(dev,
 					"pin_cfg[%d]: invalid row number %d\n",
@@ -584,13 +593,25 @@ tegra_kbc_check_pin_cfg(const struct tegra_kbc_platform_data *pdata,
 				return false;
 			}
 			(*num_rows)++;
-		} else {
+			break;
+
+		case PIN_CFG_COL:
 			if (pin_cfg->num >= KBC_MAX_COL) {
 				dev_err(dev,
 					"pin_cfg[%d]: invalid column number %d\n",
 					i, pin_cfg->num);
 				return false;
 			}
+			break;
+
+		case PIN_CFG_IGNORE:
+			break;
+
+		default:
+			dev_err(dev,
+				"pin_cfg[%d]: invalid entry type %d\n",
+				pin_cfg->type, pin_cfg->num);
+			return false;
 		}
 	}
 
@@ -607,7 +628,6 @@ tegra_kbc_dt_parse_pdata(struct platform_device *pdev)
 	if (!np)
 		return NULL;
 
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
 
@@ -629,12 +649,12 @@ tegra_kbc_dt_parse_pdata(struct platform_device *pdev)
 	 */
 	for (i = 0; i < KBC_MAX_ROW; i++) {
 		pdata->pin_cfg[i].num = i;
-		pdata->pin_cfg[i].is_row = true;
+		pdata->pin_cfg[i].type = PIN_CFG_ROW;
 	}
 
 	for (i = 0; i < KBC_MAX_COL; i++) {
 		pdata->pin_cfg[KBC_MAX_ROW + i].num = i;
-		pdata->pin_cfg[KBC_MAX_ROW + i].is_row = false;
+		pdata->pin_cfg[KBC_MAX_ROW + i].type = PIN_CFG_COL;
 	}
 
 	return pdata;
