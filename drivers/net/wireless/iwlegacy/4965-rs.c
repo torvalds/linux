@@ -641,13 +641,10 @@ il4965_rs_toggle_antenna(u32 valid_ant, u32 *rate_n_flags,
  * there are no non-GF stations present in the BSS.
  */
 static bool
-il4965_rs_use_green(struct ieee80211_sta *sta)
+il4965_rs_use_green(struct il_priv *il, struct ieee80211_sta *sta)
 {
-	struct il_station_priv *sta_priv = (void *)sta->drv_priv;
-	struct il_rxon_context *ctx = sta_priv->common.ctx;
-
 	return (sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD) &&
-	    !(ctx->ht.non_gf_sta_present);
+	       !il->ht.non_gf_sta_present;
 }
 
 /**
@@ -1815,7 +1812,7 @@ il4965_rs_rate_scale_perform(struct il_priv *il, struct sk_buff *skb,
 	if (is_legacy(tbl->lq_type))
 		lq_sta->is_green = 0;
 	else
-		lq_sta->is_green = il4965_rs_use_green(sta);
+		lq_sta->is_green = il4965_rs_use_green(il, sta);
 	is_green = lq_sta->is_green;
 
 	/* current tx rate */
@@ -2166,7 +2163,7 @@ il4965_rs_initialize_lq(struct il_priv *il, struct ieee80211_conf *conf,
 	int rate_idx;
 	int i;
 	u32 rate;
-	u8 use_green = il4965_rs_use_green(sta);
+	u8 use_green = il4965_rs_use_green(il, sta);
 	u8 active_tbl = 0;
 	u8 valid_tx_ant;
 	struct il_station_priv *sta_priv;
@@ -2341,7 +2338,7 @@ il4965_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_id)
 	lq_sta->is_dup = 0;
 	lq_sta->max_rate_idx = -1;
 	lq_sta->missed_rate_counter = IL_MISSED_RATE_MAX;
-	lq_sta->is_green = il4965_rs_use_green(sta);
+	lq_sta->is_green = il4965_rs_use_green(il, sta);
 	lq_sta->active_legacy_rate = il->active_rate & ~(0x1000);
 	lq_sta->band = il->band;
 	/*

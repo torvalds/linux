@@ -5793,23 +5793,23 @@ il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	il->current_ht_config.smps = conf->smps_mode;
 
 	/* Configure HT40 channels */
-	ctx->ht.enabled = conf_is_ht(conf);
-	if (ctx->ht.enabled) {
+	il->ht.enabled = conf_is_ht(conf);
+	if (il->ht.enabled) {
 		if (conf_is_ht40_minus(conf)) {
-			ctx->ht.extension_chan_offset =
+			il->ht.extension_chan_offset =
 			    IEEE80211_HT_PARAM_CHA_SEC_BELOW;
-			ctx->ht.is_40mhz = true;
+			il->ht.is_40mhz = true;
 		} else if (conf_is_ht40_plus(conf)) {
-			ctx->ht.extension_chan_offset =
+			il->ht.extension_chan_offset =
 			    IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
-			ctx->ht.is_40mhz = true;
+			il->ht.is_40mhz = true;
 		} else {
-			ctx->ht.extension_chan_offset =
+			il->ht.extension_chan_offset =
 			    IEEE80211_HT_PARAM_CHA_SEC_NONE;
-			ctx->ht.is_40mhz = false;
+			il->ht.is_40mhz = false;
 		}
 	} else
-		ctx->ht.is_40mhz = false;
+		il->ht.is_40mhz = false;
 
 	if ((le16_to_cpu(il->staging.channel) != ch))
 		il->staging.flags = 0;

@@ -1164,13 +1164,6 @@ struct il_rxon_context {
 	 * we already removed the vif for type setting.
 	 */
 	bool always_active, is_active;
-
-	struct {
-		bool non_gf_sta_present;
-		u8 protection;
-		bool enabled, is_40mhz;
-		u8 extension_chan_offset;
-	} ht;
 };
 
 struct il_power_mgr {
@@ -1277,6 +1270,14 @@ struct il_priv {
 	struct il_rxon_context ctx;
 
 	struct il_qos_info qos_data;
+
+	struct {
+		bool enabled;
+		bool is_40mhz;
+		bool non_gf_sta_present;
+		u8 protection;
+		u8 extension_chan_offset;
+	} ht;
 
 	/*
 	 * We declare this const so it can only be
