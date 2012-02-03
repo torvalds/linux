@@ -450,7 +450,7 @@ static int fsi_stream_is_working(struct fsi_priv *fsi,
 	int ret;
 
 	spin_lock_irqsave(&master->lock, flags);
-	ret = !!io->substream;
+	ret = !!(io->substream && io->substream->runtime);
 	spin_unlock_irqrestore(&master->lock, flags);
 
 	return ret;
@@ -756,9 +756,7 @@ static int fsi_pio_transfer(struct fsi_priv *fsi, struct fsi_stream *io,
 	u8 *buf;
 	int over_period;
 
-	if (!fsi			||
-	    !io->substream		||
-	    !io->substream->runtime)
+	if (!fsi_stream_is_working(fsi, io))
 		return -EINVAL;
 
 	over_period	= 0;
