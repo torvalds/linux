@@ -1222,41 +1222,35 @@ static int hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 	return 0;
 }
 
-struct link_key *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, u8 rand[8])
+struct smp_ltk *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, u8 rand[8])
 {
-	struct link_key *k;
+	struct smp_ltk *k;
 
-	list_for_each_entry(k, &hdev->link_keys, list) {
-		struct key_master_id *id;
-
-		if (k->type != HCI_LK_SMP_LTK)
+	list_for_each_entry(k, &hdev->long_term_keys, list) {
+		if (k->ediv != ediv ||
+				memcmp(rand, k->rand, sizeof(k->rand)))
 			continue;
 
-		if (k->dlen != sizeof(*id))
-			continue;
-
-		id = (void *) &k->data;
-		if (id->ediv == ediv &&
-				(memcmp(rand, id->rand, sizeof(id->rand)) == 0))
-			return k;
+		return k;
 	}
 
 	return NULL;
 }
 EXPORT_SYMBOL(hci_find_ltk);
 
-struct link_key *hci_find_link_key_type(struct hci_dev *hdev,
-					bdaddr_t *bdaddr, u8 type)
+struct smp_ltk *hci_find_ltk_by_addr(struct hci_dev *hdev, bdaddr_t *bdaddr,
+								u8 addr_type)
 {
-	struct link_key *k;
+	struct smp_ltk *k;
 
-	list_for_each_entry(k, &hdev->link_keys, list)
-		if (k->type == type && bacmp(bdaddr, &k->bdaddr) == 0)
+	list_for_each_entry(k, &hdev->long_term_keys, list)
+		if (addr_type == k->bdaddr_type &&
+					bacmp(bdaddr, &k->bdaddr) == 0)
 			return k;
 
 	return NULL;
 }
-EXPORT_SYMBOL(hci_find_link_key_type);
+EXPORT_SYMBOL(hci_find_ltk_by_addr);
 
 int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 				bdaddr_t *bdaddr, u8 *val, u8 type, u8 pin_len)
@@ -1313,40 +1307,36 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 	return 0;
 }
 
-int hci_add_ltk(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
-			u8 key_size, __le16 ediv, u8 rand[8], u8 ltk[16])
+int hci_add_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 addr_type, u8 type,
+				int new_key, u8 authenticated, u8 tk[16],
+				u8 enc_size, u16 ediv, u8 rand[8])
 {
-	struct link_key *key, *old_key;
-	struct key_master_id *id;
-	u8 old_key_type;
+	struct smp_ltk *key, *old_key;
 
-	BT_DBG("%s addr %s", hdev->name, batostr(bdaddr));
+	if (!(type & HCI_SMP_STK) && !(type & HCI_SMP_LTK))
+		return 0;
 
-	old_key = hci_find_link_key_type(hdev, bdaddr, HCI_LK_SMP_LTK);
-	if (old_key) {
+	old_key = hci_find_ltk_by_addr(hdev, bdaddr, addr_type);
+	if (old_key)
 		key = old_key;
-		old_key_type = old_key->type;
-	} else {
-		key = kzalloc(sizeof(*key) + sizeof(*id), GFP_ATOMIC);
+	else {
+		key = kzalloc(sizeof(*key), GFP_ATOMIC);
 		if (!key)
 			return -ENOMEM;
-		list_add(&key->list, &hdev->link_keys);
-		old_key_type = 0xff;
+		list_add(&key->list, &hdev->long_term_keys);
 	}
 
-	key->dlen = sizeof(*id);
-
 	bacpy(&key->bdaddr, bdaddr);
-	memcpy(key->val, ltk, sizeof(key->val));
-	key->type = HCI_LK_SMP_LTK;
-	key->pin_len = key_size;
+	key->bdaddr_type = addr_type;
+	memcpy(key->val, tk, sizeof(key->val));
+	key->authenticated = authenticated;
+	key->ediv = ediv;
+	key->enc_size = enc_size;
+	key->type = type;
+	memcpy(key->rand, rand, sizeof(key->rand));
 
-	id = (void *) &key->data;
-	id->ediv = ediv;
-	memcpy(id->rand, rand, sizeof(id->rand));
-
-	if (new_key)
-		mgmt_new_link_key(hdev, key, old_key_type);
+	if (!new_key)
+		return 0;
 
 	return 0;
 }

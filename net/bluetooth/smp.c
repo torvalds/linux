@@ -475,8 +475,9 @@ static void random_work(struct work_struct *work)
 		memset(stk + smp->enc_key_size, 0,
 				SMP_MAX_ENC_KEY_SIZE - smp->enc_key_size);
 
-		hci_add_ltk(hcon->hdev, 0, conn->dst, smp->enc_key_size,
-							ediv, rand, stk);
+		hci_add_ltk(hcon->hdev, conn->dst, hcon->dst_type,
+						HCI_SMP_STK_SLAVE, 0, 0, stk,
+						smp->enc_key_size, ediv, rand);
 	}
 
 	return;
@@ -701,22 +702,18 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 
 static u8 smp_ltk_encrypt(struct l2cap_conn *conn)
 {
-	struct link_key *key;
-	struct key_master_id *master;
+	struct smp_ltk *key;
 	struct hci_conn *hcon = conn->hcon;
 
-	key = hci_find_link_key_type(hcon->hdev, conn->dst,
-						HCI_LK_SMP_LTK);
+	key = hci_find_ltk_by_addr(hcon->hdev, conn->dst, hcon->dst_type);
 	if (!key)
 		return 0;
 
 	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->flags))
 		return 1;
 
-	master = (void *) key->data;
-	hci_le_start_enc(hcon, master->ediv, master->rand,
-						key->val);
-	hcon->enc_key_size = key->pin_len;
+	hci_le_start_enc(hcon, key->ediv, key->rand, key->val);
+	hcon->enc_key_size = key->enc_size;
 
 	return 1;
 
@@ -819,13 +816,19 @@ static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	struct smp_cmd_master_ident *rp = (void *) skb->data;
 	struct smp_chan *smp = conn->smp_chan;
+	struct hci_dev *hdev = conn->hcon->hdev;
+	struct hci_conn *hcon = conn->hcon;
+	u8 authenticated;
 
 	skb_pull(skb, sizeof(*rp));
 
-	hci_add_ltk(conn->hcon->hdev, 1, conn->dst, smp->enc_key_size,
-						rp->ediv, rp->rand, smp->tk);
-
+	hci_dev_lock(hdev);
+	authenticated = (conn->hcon->sec_level == BT_SECURITY_HIGH);
+	hci_add_ltk(conn->hcon->hdev, conn->dst, hcon->dst_type,
+					HCI_SMP_LTK, 1, authenticated, smp->tk,
+					smp->enc_key_size, rp->ediv, rp->rand);
 	smp_distribute_keys(conn, 1);
+	hci_dev_unlock(hdev);
 
 	return 0;
 }
@@ -935,6 +938,8 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 	if (*keydist & SMP_DIST_ENC_KEY) {
 		struct smp_cmd_encrypt_info enc;
 		struct smp_cmd_master_ident ident;
+		struct hci_conn *hcon = conn->hcon;
+		u8 authenticated;
 		__le16 ediv;
 
 		get_random_bytes(enc.ltk, sizeof(enc.ltk));
@@ -943,8 +948,11 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 
 		smp_send_cmd(conn, SMP_CMD_ENCRYPT_INFO, sizeof(enc), &enc);
 
-		hci_add_ltk(conn->hcon->hdev, 1, conn->dst, smp->enc_key_size,
-						ediv, ident.rand, enc.ltk);
+		authenticated = hcon->sec_level == BT_SECURITY_HIGH;
+		hci_add_ltk(conn->hcon->hdev, conn->dst, hcon->dst_type,
+					HCI_SMP_LTK_SLAVE, 1, authenticated,
+					enc.ltk, smp->enc_key_size,
+					ediv, ident.rand);
 
 		ident.ediv = cpu_to_le16(ediv);
 
