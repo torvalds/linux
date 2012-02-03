@@ -155,7 +155,6 @@ qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	int check_sfp_module = 0;
-	u16 pcifn = adapter->ahw->pci_func;
 
 	/* read which mode */
 	if (adapter->ahw->port_type == QLCNIC_GBE) {
@@ -194,10 +193,8 @@ qlcnic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 			goto skip;
 		}
 
-		val = QLCRD32(adapter, P3P_LINK_SPEED_REG(pcifn));
-		ethtool_cmd_speed_set(ecmd, P3P_LINK_SPEED_MHZ *
-				      P3P_LINK_SPEED_VAL(pcifn, val));
-		ecmd->duplex = DUPLEX_FULL;
+		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
+		ecmd->duplex = DUPLEX_UNKNOWN;
 		ecmd->autoneg = AUTONEG_DISABLE;
 	} else
 		return -EIO;
