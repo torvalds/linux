@@ -2300,52 +2300,81 @@ err:
 
 /* Uses synchronous MCCQ */
 int be_cmd_get_mac_from_list(struct be_adapter *adapter, u32 domain,
-							u32 *pmac_id)
+			bool *pmac_id_active, u32 *pmac_id, u8 *mac)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_mac_list *req;
 	int status;
 	int mac_count;
+	struct be_dma_mem get_mac_list_cmd;
+	int i;
+
+	memset(&get_mac_list_cmd, 0, sizeof(struct be_dma_mem));
+	get_mac_list_cmd.size = sizeof(struct be_cmd_resp_get_mac_list);
+	get_mac_list_cmd.va = pci_alloc_consistent(adapter->pdev,
+			get_mac_list_cmd.size,
+			&get_mac_list_cmd.dma);
+
+	if (!get_mac_list_cmd.va) {
+		dev_err(&adapter->pdev->dev,
+				"Memory allocation failure during GET_MAC_LIST\n");
+		return -ENOMEM;
+	}
 
 	spin_lock_bh(&adapter->mcc_lock);
 
 	wrb = wrb_from_mccq(adapter);
 	if (!wrb) {
 		status = -EBUSY;
-		goto err;
+		goto out;
 	}
-	req = embedded_payload(wrb);
+
+	req = get_mac_list_cmd.va;
 
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 				OPCODE_COMMON_GET_MAC_LIST, sizeof(*req),
-				wrb, NULL);
+				wrb, &get_mac_list_cmd);
 
 	req->hdr.domain = domain;
+	req->mac_type = MAC_ADDRESS_TYPE_NETWORK;
+	req->perm_override = 1;
 
 	status = be_mcc_notify_wait(adapter);
 	if (!status) {
 		struct be_cmd_resp_get_mac_list *resp =
-						embedded_payload(wrb);
-		int i;
-		u8 *ctxt = &resp->context[0][0];
-		status = -EIO;
-		mac_count = resp->mac_count;
-		be_dws_le_to_cpu(&resp->context, sizeof(resp->context));
+						get_mac_list_cmd.va;
+		mac_count = resp->true_mac_count + resp->pseudo_mac_count;
+		/* Mac list returned could contain one or more active mac_ids
+		 * or one or more pseudo permanant mac addresses. If an active
+		 * mac_id is present, return first active mac_id found
+		 */
 		for (i = 0; i < mac_count; i++) {
-			if (!AMAP_GET_BITS(struct amap_get_mac_list_context,
-					   act, ctxt)) {
-				*pmac_id = AMAP_GET_BITS
-					(struct amap_get_mac_list_context,
-					 macid, ctxt);
-				status = 0;
-				break;
+			struct get_list_macaddr *mac_entry;
+			u16 mac_addr_size;
+			u32 mac_id;
+
+			mac_entry = &resp->macaddr_list[i];
+			mac_addr_size = le16_to_cpu(mac_entry->mac_addr_size);
+			/* mac_id is a 32 bit value and mac_addr size
+			 * is 6 bytes
+			 */
+			if (mac_addr_size == sizeof(u32)) {
+				*pmac_id_active = true;
+				mac_id = mac_entry->mac_addr_id.s_mac_id.mac_id;
+				*pmac_id = le32_to_cpu(mac_id);
+				goto out;
 			}
-			ctxt += sizeof(struct amap_get_mac_list_context) / 8;
 		}
+		/* If no active mac_id found, return first pseudo mac addr */
+		*pmac_id_active = false;
+		memcpy(mac, resp->macaddr_list[0].mac_addr_id.macaddr,
+								ETH_ALEN);
 	}
 
-err:
+out:
 	spin_unlock_bh(&adapter->mcc_lock);
+	pci_free_consistent(adapter->pdev, get_mac_list_cmd.size,
+			get_mac_list_cmd.va, get_mac_list_cmd.dma);
 	return status;
 }
 

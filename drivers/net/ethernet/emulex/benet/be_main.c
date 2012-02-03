@@ -2608,19 +2608,28 @@ static void be_setup_init(struct be_adapter *adapter)
 	adapter->eq_next_idx = 0;
 }
 
-static int be_configure_mac_from_list(struct be_adapter *adapter, u8 *mac)
+static int be_add_mac_from_list(struct be_adapter *adapter, u8 *mac)
 {
 	u32 pmac_id;
-	int status = be_cmd_get_mac_from_list(adapter, 0, &pmac_id);
+	int status;
+	bool pmac_id_active;
+
+	status = be_cmd_get_mac_from_list(adapter, 0, &pmac_id_active,
+							&pmac_id, mac);
 	if (status != 0)
 		goto do_none;
-	status = be_cmd_mac_addr_query(adapter, mac,
-			MAC_ADDRESS_TYPE_NETWORK,
-			false, adapter->if_handle, pmac_id);
-	if (status != 0)
-		goto do_none;
-	status = be_cmd_pmac_add(adapter, mac, adapter->if_handle,
-			&adapter->pmac_id, 0);
+
+	if (pmac_id_active) {
+		status = be_cmd_mac_addr_query(adapter, mac,
+				MAC_ADDRESS_TYPE_NETWORK,
+				false, adapter->if_handle, pmac_id);
+
+		if (!status)
+			adapter->pmac_id = pmac_id;
+	} else {
+		status = be_cmd_pmac_add(adapter, mac,
+				adapter->if_handle, &adapter->pmac_id, 0);
+	}
 do_none:
 	return status;
 }
@@ -2685,7 +2694,7 @@ static int be_setup(struct be_adapter *adapter)
 	  */
 	if (!be_physfn(adapter)) {
 		if (lancer_chip(adapter))
-			status = be_configure_mac_from_list(adapter, mac);
+			status = be_add_mac_from_list(adapter, mac);
 		else
 			status = be_cmd_mac_addr_query(adapter, mac,
 					MAC_ADDRESS_TYPE_NETWORK, false,

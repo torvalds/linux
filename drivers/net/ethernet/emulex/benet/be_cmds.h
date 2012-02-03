@@ -1346,22 +1346,36 @@ struct be_cmd_resp_set_func_cap {
 
 /******************** GET/SET_MACLIST  **************************/
 #define BE_MAX_MAC			64
-struct amap_get_mac_list_context {
-	u8 macid[31];
-	u8 act;
-} __packed;
-
 struct be_cmd_req_get_mac_list {
 	struct be_cmd_req_hdr hdr;
-	u32 rsvd;
+	u8 mac_type;
+	u8 perm_override;
+	u16 iface_id;
+	u32 mac_id;
+	u32 rsvd[3];
+} __packed;
+
+struct get_list_macaddr {
+	u16 mac_addr_size;
+	union {
+		u8 macaddr[6];
+		struct {
+			u8 rsvd[2];
+			u32 mac_id;
+		} __packed s_mac_id;
+	} __packed mac_addr_id;
 } __packed;
 
 struct be_cmd_resp_get_mac_list {
 	struct be_cmd_resp_hdr hdr;
-	u8 mac_count;
-	u8 rsvd1;
-	u16 rsvd2;
-	u8 context[sizeof(struct amap_get_mac_list_context) / 8][BE_MAX_MAC];
+	struct get_list_macaddr fd_macaddr; /* Factory default mac */
+	struct get_list_macaddr macid_macaddr; /* soft mac */
+	u8 true_mac_count;
+	u8 pseudo_mac_count;
+	u8 mac_list_size;
+	u8 rsvd;
+	/* perm override mac */
+	struct get_list_macaddr macaddr_list[BE_MAX_MAC];
 } __packed;
 
 struct be_cmd_req_set_mac_list {
@@ -1575,7 +1589,7 @@ extern int be_cmd_req_native_mode(struct be_adapter *adapter);
 extern int be_cmd_get_reg_len(struct be_adapter *adapter, u32 *log_size);
 extern void be_cmd_get_regs(struct be_adapter *adapter, u32 buf_len, void *buf);
 extern int be_cmd_get_mac_from_list(struct be_adapter *adapter, u32 domain,
-							u32 *pmac_id);
+				bool *pmac_id_active, u32 *pmac_id, u8 *mac);
 extern int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array,
 						u8 mac_count, u32 domain);
 
