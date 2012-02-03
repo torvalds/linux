@@ -129,4 +129,4 @@ obj-$(CONFIG_CMMB)		+= cmmb/
 obj-$(CONFIG_TEST_CODE)		+= testcode/
 obj-y				+= smc/
 obj-y				+= cir/
-obj-y				+= dbg/
+obj-$(CONFIG_ARCH_RK29)		+= dbg/
