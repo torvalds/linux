@@ -1899,7 +1899,7 @@ il_prep_station(struct il_priv *il, struct il_rxon_context *ctx,
 	u16 rate;
 
 	if (is_ap)
-		sta_id = ctx->ap_sta_id;
+		sta_id = IL_AP_ID;
 	else if (is_broadcast_ether_addr(addr))
 		sta_id = ctx->bcast_sta_id;
 	else

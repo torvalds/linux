@@ -2906,7 +2906,7 @@ il4965_set_default_wep_key(struct il_priv *il, struct il_rxon_context *ctx,
 
 	keyconf->flags &= ~IEEE80211_KEY_FLAG_GENERATE_IV;
 	keyconf->hw_key_idx = HW_KEY_DEFAULT;
-	il->stations[ctx->ap_sta_id].keyinfo.cipher = keyconf->cipher;
+	il->stations[IL_AP_ID].keyinfo.cipher = keyconf->cipher;
 
 	ctx->wep_keys[keyconf->keyidx].key_size = keyconf->keylen;
 	memcpy(&ctx->wep_keys[keyconf->keyidx].key, &keyconf->key,
@@ -6135,7 +6135,6 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	il->ctx.always_active = true;
 	il->ctx.is_active = true;
-	il->ctx.ap_sta_id = IL_AP_ID;
 	il->ctx.ac_to_fifo = il4965_bss_ac_to_fifo;
 	il->ctx.ac_to_queue = il4965_bss_ac_to_queue;
 	il->ctx.exclusive_interface_modes = BIT(NL80211_IFTYPE_ADHOC);

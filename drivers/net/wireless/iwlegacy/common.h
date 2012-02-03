@@ -1173,7 +1173,7 @@ struct il_rxon_context {
 
 	struct il_qos_info qos_data;
 
-	u8 bcast_sta_id, ap_sta_id;
+	u8 bcast_sta_id;
 
 	struct il_wep_key wep_keys[WEP_KEYS_MAX];
 	u8 key_mapping_keys;
