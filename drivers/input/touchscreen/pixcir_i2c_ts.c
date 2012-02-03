@@ -296,7 +296,7 @@ static void pixcir_ts_work_func(struct work_struct *work)
 	while (!tsdata->exiting) {
 	
 		pixcir_ts_poscheck(tsdata);
-		/*if (attb_read_val()){
+		if (attb_read_val()){
 			DBG("%s:  >>>>>touch release\n\n",__FUNCTION__);
 			for (i = 0; i < MAX_SUPPORT_POINT; i++)	{
 				point[i].pre_active = point[i].active;
@@ -309,7 +309,7 @@ static void pixcir_ts_work_func(struct work_struct *work)
 			input_sync(tsdata->input);
 			enable_irq(tsdata->client->irq);
 			break;
-		}*/
+		}
 
 		msleep(1);
 	}
