@@ -477,57 +477,45 @@ static void fsi_stream_quit(struct fsi_priv *fsi, int is_play)
  *		pio function
  */
 
-static u8 *fsi_pio_get_area(struct fsi_priv *fsi, int stream)
+static u8 *fsi_pio_get_area(struct fsi_priv *fsi, struct fsi_stream *io)
 {
-	int is_play = fsi_stream_is_play(stream);
-	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
 	struct snd_pcm_runtime *runtime = io->substream->runtime;
 
 	return runtime->dma_area +
 		samples_to_bytes(runtime, io->buff_sample_pos);
 }
 
-static void fsi_pio_push16(struct fsi_priv *fsi, int num)
+static void fsi_pio_push16(struct fsi_priv *fsi, u8 *_buf, int num)
 {
-	u16 *start;
+	u16 *start = (u16 *)_buf;
 	int i;
-
-	start  = (u16 *)fsi_pio_get_area(fsi, SNDRV_PCM_STREAM_PLAYBACK);
 
 	for (i = 0; i < num; i++)
 		fsi_reg_write(fsi, DODT, ((u32)*(start + i) << 8));
 }
 
-static void fsi_pio_pop16(struct fsi_priv *fsi, int num)
+static void fsi_pio_pop16(struct fsi_priv *fsi, u8 *_buf, int num)
 {
-	u16 *start;
+	u16 *start = (u16 *)_buf;
 	int i;
-
-	start  = (u16 *)fsi_pio_get_area(fsi, SNDRV_PCM_STREAM_CAPTURE);
-
 
 	for (i = 0; i < num; i++)
 		*(start + i) = (u16)(fsi_reg_read(fsi, DIDT) >> 8);
 }
 
-static void fsi_pio_push32(struct fsi_priv *fsi, int num)
+static void fsi_pio_push32(struct fsi_priv *fsi, u8 *_buf, int num)
 {
-	u32 *start;
+	u32 *start = (u32 *)_buf;
 	int i;
-
-	start  = (u32 *)fsi_pio_get_area(fsi, SNDRV_PCM_STREAM_PLAYBACK);
-
 
 	for (i = 0; i < num; i++)
 		fsi_reg_write(fsi, DODT, *(start + i));
 }
 
-static void fsi_pio_pop32(struct fsi_priv *fsi, int num)
+static void fsi_pio_pop32(struct fsi_priv *fsi, u8 *_buf, int num)
 {
-	u32 *start;
+	u32 *start = (u32 *)_buf;
 	int i;
-
-	start  = (u32 *)fsi_pio_get_area(fsi, SNDRV_PCM_STREAM_CAPTURE);
 
 	for (i = 0; i < num; i++)
 		*(start + i) = fsi_reg_read(fsi, DIDT);
@@ -693,12 +681,13 @@ static void __fsi_port_clk_ctrl(struct fsi_priv *fsi, int is_play, int enable)
  *		ctrl function
  */
 static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, struct fsi_stream *io,
-			      void (*run16)(struct fsi_priv *fsi, int size),
-			      void (*run32)(struct fsi_priv *fsi, int size),
-			      int samples)
+		void (*run16)(struct fsi_priv *fsi, u8 *buf, int samples),
+		void (*run32)(struct fsi_priv *fsi, u8 *buf, int samples),
+		int samples)
 {
 	struct snd_pcm_runtime *runtime;
 	struct snd_pcm_substream *substream;
+	u8 *buf;
 	int over_period;
 
 	if (!fsi			||
@@ -723,12 +712,14 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, struct fsi_stream *io,
 			io->buff_sample_pos = 0;
 	}
 
+	buf = fsi_pio_get_area(fsi, io);
+
 	switch (io->sample_width) {
 	case 2:
-		run16(fsi, samples);
+		run16(fsi, buf, samples);
 		break;
 	case 4:
-		run32(fsi, samples);
+		run32(fsi, buf, samples);
 		break;
 	default:
 		return -EINVAL;
