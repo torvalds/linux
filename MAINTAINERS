@@ -789,12 +789,6 @@ F:	arch/arm/mach-mx*/
 F:	arch/arm/mach-imx/
 F:	arch/arm/plat-mxc/
 
-ARM/FREESCALE IMX51
-M:	Amit Kucheria <amit.kucheria@canonical.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-mx5/
-
 ARM/FREESCALE IMX6
 M:	Shawn Guo <shawn.guo@linaro.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
