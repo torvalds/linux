@@ -35,7 +35,7 @@ obj-$(CONFIG_S3C2412_IOTIMING)	+= s3c2412-iotiming.o
 obj-$(CONFIG_S3C2410_CPUFREQ_UTILS) += s3c2410-cpufreq-utils.o
 
 # device specific setup and/or initialisation
-obj-$(CONFIG_ARCH_S3C2410)	+= setup-i2c.o
+obj-$(CONFIG_ARCH_S3C24XX)	+= setup-i2c.o
 obj-$(CONFIG_S3C2410_SETUP_TS)	+= setup-ts.o
 
 # machine common support

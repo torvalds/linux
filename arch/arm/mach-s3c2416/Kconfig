@@ -9,7 +9,7 @@
 
 config CPU_S3C2416
 	bool
-	depends on ARCH_S3C2410
+	depends on ARCH_S3C24XX
 	select CPU_ARM926T
 	select S3C2416_DMA if S3C2410_DMA
 	select CPU_LLSERIAL_S3C2440

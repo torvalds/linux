@@ -2061,7 +2061,7 @@ config FB_S3C_DEBUG_REGWRITE
 
 config FB_S3C2410
 	tristate "S3C2410 LCD framebuffer support"
-	depends on FB && ARCH_S3C2410
+	depends on FB && ARCH_S3C24XX
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

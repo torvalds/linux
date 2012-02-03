@@ -4,7 +4,7 @@
 
 config PLAT_S3C24XX
 	bool
-	depends on ARCH_S3C2410
+	depends on ARCH_S3C24XX
 	default y
 	select NO_IOPORT
 	select ARCH_REQUIRE_GPIOLIB
@@ -84,7 +84,7 @@ config PM_SIMTEC
 
 config S3C2410_DMA
 	bool "S3C2410 DMA support"
-	depends on ARCH_S3C2410
+	depends on ARCH_S3C24XX
 	select S3C_DMA
 	help
 	  S3C2410 DMA support. This is needed for drivers like sound which
@@ -93,7 +93,7 @@ config S3C2410_DMA
 
 config S3C2410_DMA_DEBUG
 	bool "S3C2410 DMA support debug"
-	depends on ARCH_S3C2410 && S3C2410_DMA
+	depends on ARCH_S3C24XX && S3C2410_DMA
 	help
 	  Enable debugging output for the DMA code. This option sends info
 	  to the kernel log, at priority KERN_DEBUG.
