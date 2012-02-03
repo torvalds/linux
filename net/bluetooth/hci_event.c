@@ -1033,6 +1033,13 @@ static void hci_cc_le_set_scan_param(struct hci_dev *hdev, struct sk_buff *skb)
 	BT_DBG("%s status 0x%x", hdev->name, status);
 
 	hci_req_complete(hdev, HCI_OP_LE_SET_SCAN_PARAM, status);
+
+	if (status) {
+		hci_dev_lock(hdev);
+		mgmt_start_discovery_failed(hdev, status);
+		hci_dev_unlock(hdev);
+		return;
+	}
 }
 
 static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
@@ -1051,8 +1058,12 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 	case LE_SCANNING_ENABLED:
 		hci_req_complete(hdev, HCI_OP_LE_SET_SCAN_ENABLE, status);
 
-		if (status)
+		if (status) {
+			hci_dev_lock(hdev);
+			mgmt_start_discovery_failed(hdev, status);
+			hci_dev_unlock(hdev);
 			return;
+		}
 
 		set_bit(HCI_LE_SCAN, &hdev->dev_flags);
 
