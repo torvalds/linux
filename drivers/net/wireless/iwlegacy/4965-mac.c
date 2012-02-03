@@ -1708,19 +1708,10 @@ il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 		il4965_sta_modify_sleep_tx_count(il, sta_id, 1);
 	}
 
-	/*
-	 * Send this frame after DTIM -- there's a special queue
-	 * reserved for this for contexts that support AP mode.
-	 */
-	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
-		txq_id = ctx->mcast_queue;
-		/*
-		 * The microcode will clear the more data
-		 * bit in the last frame it transmits.
-		 */
-		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
-	} else
-		txq_id = ctx->ac_to_queue[skb_get_queue_mapping(skb)];
+	/* FIXME: remove me ? */
+	WARN_ON_ONCE(info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM);
+
+	txq_id = ctx->ac_to_queue[skb_get_queue_mapping(skb)];
 
 	/* irqs already disabled/saved above when locking il->lock */
 	spin_lock(&il->sta_lock);

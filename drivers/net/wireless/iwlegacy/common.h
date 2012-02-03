@@ -1157,7 +1157,6 @@ struct il_rxon_context {
 
 	const u8 *ac_to_fifo;
 	const u8 *ac_to_queue;
-	u8 mcast_queue;
 
 	/*
 	 * We could use the vif to indicate active, but we
@@ -1165,8 +1164,6 @@ struct il_rxon_context {
 	 * we already removed the vif for type setting.
 	 */
 	bool always_active, is_active;
-
-	bool ht_need_multiple_chains;
 
 	u32 interface_modes, exclusive_interface_modes;
 
