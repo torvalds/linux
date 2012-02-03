@@ -1266,7 +1266,7 @@ static void intel_enable_transcoder(struct drm_i915_private *dev_priv,
 				    enum pipe pipe)
 {
 	int reg;
-	u32 val;
+	u32 val, pipeconf_val;
 
 	/* PCH only available on ILK+ */
 	BUG_ON(dev_priv->info->gen < 5);
@@ -1280,6 +1280,7 @@ static void intel_enable_transcoder(struct drm_i915_private *dev_priv,
 
 	reg = TRANSCONF(pipe);
 	val = I915_READ(reg);
+	pipeconf_val = I915_READ(PIPECONF(pipe));
 
 	if (HAS_PCH_IBX(dev_priv->dev)) {
 		/*
@@ -1287,8 +1288,15 @@ static void intel_enable_transcoder(struct drm_i915_private *dev_priv,
 		 * that in pipeconf reg.
 		 */
 		val &= ~PIPE_BPC_MASK;
-		val |= I915_READ(PIPECONF(pipe)) & PIPE_BPC_MASK;
+		val |= pipeconf_val & PIPE_BPC_MASK;
 	}
+
+	val &= ~TRANS_INTERLACE_MASK;
+	if ((pipeconf_val & PIPECONF_INTERLACE_MASK) == PIPECONF_INTERLACED_ILK)
+		val |= TRANS_INTERLACED;
+	else
+		val |= TRANS_PROGRESSIVE;
+
 	I915_WRITE(reg, val | TRANS_ENABLE);
 	if (wait_for(I915_READ(reg) & TRANS_STATE_ENABLE, 100))
 		DRM_ERROR("failed to enable transcoder %d\n", pipe);
