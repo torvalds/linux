@@ -1155,7 +1155,6 @@ struct il_force_reset {
 struct il_rxon_context {
 	struct ieee80211_vif *vif;
 
-	const u8 *ac_to_fifo;
 	const u8 *ac_to_queue;
 
 	/*

@@ -1458,8 +1458,15 @@ il4965_get_ac_from_tid(u16 tid)
 static inline int
 il4965_get_fifo_from_tid(struct il_rxon_context *ctx, u16 tid)
 {
+	const u8 ac_to_fifo[] = {
+		IL_TX_FIFO_VO,
+		IL_TX_FIFO_VI,
+		IL_TX_FIFO_BE,
+		IL_TX_FIFO_BK,
+	};
+
 	if (likely(tid < ARRAY_SIZE(tid_to_ac)))
-		return ctx->ac_to_fifo[tid_to_ac[tid]];
+		return ac_to_fifo[tid_to_ac[tid]];
 
 	/* no support for TIDs 8-15 yet */
 	return -EINVAL;
@@ -6104,13 +6111,6 @@ il4965_set_hw_params(struct il_priv *il)
 	return il->cfg->ops->lib->set_hw_params(il);
 }
 
-static const u8 il4965_bss_ac_to_fifo[] = {
-	IL_TX_FIFO_VO,
-	IL_TX_FIFO_VI,
-	IL_TX_FIFO_BE,
-	IL_TX_FIFO_BK,
-};
-
 static const u8 il4965_bss_ac_to_queue[] = {
 	0, 1, 2, 3,
 };
@@ -6139,7 +6139,6 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	il->ctx.always_active = true;
 	il->ctx.is_active = true;
-	il->ctx.ac_to_fifo = il4965_bss_ac_to_fifo;
 	il->ctx.ac_to_queue = il4965_bss_ac_to_queue;
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
