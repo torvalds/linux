@@ -201,7 +201,7 @@ il4965_hw_nic_init(struct il_priv *il)
 
 	/* nic_init */
 	spin_lock_irqsave(&il->lock, flags);
-	il->cfg->ops->lib->apm_ops.init(il);
+	il->ops->lib->apm_ops.init(il);
 
 	/* Set interrupt coalescing calibration timer to default (512 usecs) */
 	il_write8(il, CSR_INT_COALESCING, IL_HOST_INT_CALIB_TIMEOUT_DEF);
@@ -210,7 +210,7 @@ il4965_hw_nic_init(struct il_priv *il)
 
 	il4965_set_pwr_vmain(il);
 
-	il->cfg->ops->lib->apm_ops.config(il);
+	il->ops->lib->apm_ops.config(il);
 
 	/* Allocate the RX queue, or reset if it is already allocated */
 	if (!rxq->bd) {
@@ -1381,8 +1381,8 @@ il4965_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb)
 		il4965_rx_calc_noise(il);
 		queue_work(il->workqueue, &il->run_time_calib_work);
 	}
-	if (il->cfg->ops->lib->temp_ops.temperature && change)
-		il->cfg->ops->lib->temp_ops.temperature(il);
+	if (il->ops->lib->temp_ops.temperature && change)
+		il->ops->lib->temp_ops.temperature(il);
 }
 
 void
@@ -1817,8 +1817,7 @@ il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	dma_unmap_len_set(out_meta, len, firstlen);
 	/* Add buffer containing Tx command and MAC(!) header to TFD's
 	 * first entry */
-	il->cfg->ops->lib->txq_attach_buf_to_tfd(il, txq, txcmd_phys, firstlen,
-						 1, 0);
+	il->ops->lib->txq_attach_buf_to_tfd(il, txq, txcmd_phys, firstlen, 1, 0);
 
 	if (!ieee80211_has_morefrags(hdr->frame_control)) {
 		txq->need_update = 1;
@@ -1834,8 +1833,8 @@ il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 		phys_addr =
 		    pci_map_single(il->pci_dev, skb->data + hdr_len, secondlen,
 				   PCI_DMA_TODEVICE);
-		il->cfg->ops->lib->txq_attach_buf_to_tfd(il, txq, phys_addr,
-							 secondlen, 0, 0);
+		il->ops->lib->txq_attach_buf_to_tfd(il, txq, phys_addr,
+						    secondlen, 0, 0);
 	}
 
 	scratch_phys =
@@ -1855,9 +1854,8 @@ il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	/* Set up entry for this TFD in Tx byte-count array */
 	if (info->flags & IEEE80211_TX_CTL_AMPDU)
-		il->cfg->ops->lib->txq_update_byte_cnt_tbl(il, txq,
-							   le16_to_cpu(tx_cmd->
-								       len));
+		il->ops->lib->txq_update_byte_cnt_tbl(il, txq,
+						      le16_to_cpu(tx_cmd->len));
 
 	pci_dma_sync_single_for_device(il->pci_dev, txcmd_phys, firstlen,
 				       PCI_DMA_BIDIRECTIONAL);
@@ -2479,7 +2477,7 @@ il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx)
 				 txq_id >= IL4965_FIRST_AMPDU_QUEUE);
 		tx_info->skb = NULL;
 
-		il->cfg->ops->lib->txq_free_tfd(il, txq);
+		il->ops->lib->txq_free_tfd(il, txq);
 	}
 	return nfreed;
 }
@@ -3357,8 +3355,8 @@ il4965_sta_modify_sleep_tx_count(struct il_priv *il, int sta_id, int cnt)
 void
 il4965_update_chain_flags(struct il_priv *il)
 {
-	if (il->cfg->ops->hcmd->set_rxon_chain) {
-		il->cfg->ops->hcmd->set_rxon_chain(il);
+	if (il->ops->hcmd->set_rxon_chain) {
+		il->ops->hcmd->set_rxon_chain(il);
 		if (il->active.rx_chain != il->staging.rx_chain)
 			il_commit_rxon(il);
 	}
@@ -3878,7 +3876,7 @@ il4965_setup_handlers(struct il_priv *il)
 	/* block ack */
 	il->handlers[N_COMPRESSED_BA] = il4965_hdl_compressed_ba;
 	/* Set up hardware specific Rx handlers */
-	il->cfg->ops->lib->handler_setup(il);
+	il->ops->lib->handler_setup(il);
 }
 
 /**
@@ -4780,7 +4778,7 @@ il4965_dump_nic_error_log(struct il_priv *il)
 	else
 		base = le32_to_cpu(il->card_alive.error_event_table_ptr);
 
-	if (!il->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
+	if (!il->ops->lib->is_valid_rtc_data_addr(base)) {
 		IL_ERR("Not valid error log pointer 0x%08X for %s uCode\n",
 		       base, (il->ucode_type == UCODE_INIT) ? "Init" : "RT");
 		return;
@@ -5009,8 +5007,8 @@ il4965_alive_start(struct il_priv *il)
 		/* Initialize our rx_config data */
 		il_connection_init_rx_config(il);
 
-		if (il->cfg->ops->hcmd->set_rxon_chain)
-			il->cfg->ops->hcmd->set_rxon_chain(il);
+		if (il->ops->hcmd->set_rxon_chain)
+			il->ops->hcmd->set_rxon_chain(il);
 	}
 
 	/* Configure bluetooth coexistence if enabled */
@@ -5282,7 +5280,7 @@ __il4965_up(struct il_priv *il)
 		/* load bootstrap state machine,
 		 * load bootstrap program into processor's memory,
 		 * prepare to load the "initialize" uCode */
-		ret = il->cfg->ops->lib->load_ucode(il);
+		ret = il->ops->lib->load_ucode(il);
 
 		if (ret) {
 			IL_ERR("Unable to set up bootstrap uCode: %d\n", ret);
@@ -5323,7 +5321,7 @@ il4965_bg_init_alive_start(struct work_struct *data)
 	if (test_bit(S_EXIT_PENDING, &il->status))
 		goto out;
 
-	il->cfg->ops->lib->init_alive_start(il);
+	il->ops->lib->init_alive_start(il);
 out:
 	mutex_unlock(&il->mutex);
 }
@@ -5755,7 +5753,7 @@ il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	if (!il_is_associated(il))
 		goto out;
 
-	if (!il->cfg->ops->lib->set_channel_switch)
+	if (!il->ops->lib->set_channel_switch)
 		goto out;
 
 	ch = channel->hw_value;
@@ -5807,7 +5805,7 @@ il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	 */
 	set_bit(S_CHANNEL_SWITCH_PENDING, &il->status);
 	il->switch_channel = cpu_to_le16(ch);
-	if (il->cfg->ops->lib->set_channel_switch(il, ch_switch)) {
+	if (il->ops->lib->set_channel_switch(il, ch_switch)) {
 		clear_bit(S_CHANNEL_SWITCH_PENDING, &il->status);
 		il->switch_channel = 0;
 		ieee80211_chswitch_done(il->vif, false);
@@ -5890,7 +5888,7 @@ il4965_bg_txpower_work(struct work_struct *work)
 	/* Regardless of if we are associated, we must reconfigure the
 	 * TX power since frames can be sent on non-radar channels while
 	 * not associated */
-	il->cfg->ops->lib->send_tx_power(il);
+	il->ops->lib->send_tx_power(il);
 
 	/* Update last_temperature to keep is_calib_needed from running
 	 * when it isn't needed... */
@@ -5996,6 +5994,28 @@ il4965_tx_queue_set_status(struct il_priv *il, struct il_tx_queue *txq,
 	       scd_retry ? "BA" : "AC", txq_id, tx_fifo_id);
 }
 
+const struct ieee80211_ops il4965_mac_ops = {
+	.tx = il4965_mac_tx,
+	.start = il4965_mac_start,
+	.stop = il4965_mac_stop,
+	.add_interface = il_mac_add_interface,
+	.remove_interface = il_mac_remove_interface,
+	.change_interface = il_mac_change_interface,
+	.config = il_mac_config,
+	.configure_filter = il4965_configure_filter,
+	.set_key = il4965_mac_set_key,
+	.update_tkip_key = il4965_mac_update_tkip_key,
+	.conf_tx = il_mac_conf_tx,
+	.reset_tsf = il_mac_reset_tsf,
+	.bss_info_changed = il_mac_bss_info_changed,
+	.ampdu_action = il4965_mac_ampdu_action,
+	.hw_scan = il_mac_hw_scan,
+	.sta_add = il4965_mac_sta_add,
+	.sta_remove = il_mac_sta_remove,
+	.channel_switch = il4965_mac_channel_switch,
+	.tx_last_beacon = il_mac_tx_last_beacon,
+};
+
 static int
 il4965_init_drv(struct il_priv *il)
 {
@@ -6020,8 +6040,8 @@ il4965_init_drv(struct il_priv *il)
 	il->force_reset.reset_duration = IL_DELAY_NEXT_FORCE_FW_RELOAD;
 
 	/* Choose which receivers/antennas to use */
-	if (il->cfg->ops->hcmd->set_rxon_chain)
-		il->cfg->ops->hcmd->set_rxon_chain(il);
+	if (il->ops->hcmd->set_rxon_chain)
+		il->ops->hcmd->set_rxon_chain(il);
 
 	il_init_scan_params(il);
 
@@ -6081,7 +6101,7 @@ il4965_set_hw_params(struct il_priv *il)
 		il->cfg->sku &= ~IL_SKU_N;
 
 	/* Device-specific setup */
-	return il->cfg->ops->lib->set_hw_params(il);
+	return il->ops->lib->set_hw_params(il);
 }
 
 static int
@@ -6098,18 +6118,18 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * 1. Allocating HW data
 	 ************************/
 
-	hw = il_alloc_all(cfg);
+	hw = ieee80211_alloc_hw(sizeof(struct il_priv), &il4965_mac_ops);
 	if (!hw) {
 		err = -ENOMEM;
 		goto out;
 	}
 	il = hw->priv;
-	/* At this point both hw and il are allocated. */
-
+	il->hw = hw;
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
 	D_INFO("*** LOAD DRIVER ***\n");
 	il->cfg = cfg;
+	il->ops = &il4965_ops;
 	il->pci_dev = pdev;
 	il->inta_mask = CSR_INI_SET_MASK;
 

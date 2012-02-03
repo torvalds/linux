@@ -38,10 +38,9 @@ struct il_rxon_context;
 
 /* configuration for the _4965 devices */
 extern struct il_cfg il4965_cfg;
+extern const struct il_ops il4965_ops;
 
 extern struct il_mod_params il4965_mod_params;
-
-extern struct ieee80211_ops il4965_hw_ops;
 
 /* tx queue */
 void il4965_free_tfds_in_queue(struct il_priv *il, int sta_id, int tid,

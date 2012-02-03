@@ -303,7 +303,7 @@ il3945_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx)
 		tx_info = &txq->txb[txq->q.read_ptr];
 		ieee80211_tx_status_irqsafe(il->hw, tx_info->skb);
 		tx_info->skb = NULL;
-		il->cfg->ops->lib->txq_free_tfd(il, txq);
+		il->ops->lib->txq_free_tfd(il, txq);
 	}
 
 	if (il_queue_space(q) > q->low_mark && txq_id >= 0 &&
@@ -960,12 +960,12 @@ il3945_hw_nic_init(struct il_priv *il)
 	struct il_rx_queue *rxq = &il->rxq;
 
 	spin_lock_irqsave(&il->lock, flags);
-	il->cfg->ops->lib->apm_ops.init(il);
+	il->ops->lib->apm_ops.init(il);
 	spin_unlock_irqrestore(&il->lock, flags);
 
 	il3945_set_pwr_vmain(il);
 
-	il->cfg->ops->lib->apm_ops.config(il);
+	il->ops->lib->apm_ops.config(il);
 
 	/* Allocate the RX queue, or reset if it is already allocated */
 	if (!rxq->bd) {
@@ -1615,7 +1615,7 @@ il3945_hw_reg_comp_txpower_temp(struct il_priv *il)
 	}
 
 	/* send Txpower command for current channel to ucode */
-	return il->cfg->ops->lib->send_tx_power(il);
+	return il->ops->lib->send_tx_power(il);
 }
 
 int
@@ -2685,13 +2685,12 @@ static struct il_hcmd_utils_ops il3945_hcmd_utils = {
 	.post_scan = il3945_post_scan,
 };
 
-static const struct il_ops il3945_ops = {
+const struct il_ops il3945_ops = {
 	.lib = &il3945_lib,
 	.hcmd = &il3945_hcmd,
 	.utils = &il3945_hcmd_utils,
 	.led = &il3945_led_ops,
 	.legacy = &il3945_legacy_ops,
-	.ieee80211_ops = &il3945_hw_ops,
 };
 
 static struct il_base_params il3945_base_params = {
@@ -2711,7 +2710,6 @@ static struct il_cfg il3945_bg_cfg = {
 	.ucode_api_min = IL3945_UCODE_API_MIN,
 	.sku = IL_SKU_G,
 	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
-	.ops = &il3945_ops,
 	.mod_params = &il3945_mod_params,
 	.base_params = &il3945_base_params,
 	.led_mode = IL_LED_BLINK,
@@ -2724,7 +2722,6 @@ static struct il_cfg il3945_abg_cfg = {
 	.ucode_api_min = IL3945_UCODE_API_MIN,
 	.sku = IL_SKU_A | IL_SKU_G,
 	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
-	.ops = &il3945_ops,
 	.mod_params = &il3945_mod_params,
 	.base_params = &il3945_base_params,
 	.led_mode = IL_LED_BLINK,

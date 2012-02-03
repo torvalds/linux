@@ -901,8 +901,7 @@ il_dbgfs_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	struct il_priv *il = file->private_data;
-	return il->cfg->ops->lib->debugfs_ops.rx_stats_read(file, user_buf,
-							    count, ppos);
+	return il->ops->lib->debugfs_ops.rx_stats_read(file, user_buf, count, ppos);
 }
 
 static ssize_t
@@ -910,8 +909,7 @@ il_dbgfs_ucode_tx_stats_read(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	struct il_priv *il = file->private_data;
-	return il->cfg->ops->lib->debugfs_ops.tx_stats_read(file, user_buf,
-							    count, ppos);
+	return il->ops->lib->debugfs_ops.tx_stats_read(file, user_buf, count, ppos);
 }
 
 static ssize_t
@@ -919,8 +917,7 @@ il_dbgfs_ucode_general_stats_read(struct file *file, char __user *user_buf,
 				  size_t count, loff_t *ppos)
 {
 	struct il_priv *il = file->private_data;
-	return il->cfg->ops->lib->debugfs_ops.general_stats_read(file, user_buf,
-								 count, ppos);
+	return il->ops->lib->debugfs_ops.general_stats_read(file, user_buf, count, ppos);
 }
 
 static ssize_t
@@ -1178,8 +1175,8 @@ il_dbgfs_fh_reg_read(struct file *file, char __user *user_buf, size_t count,
 	int pos = 0;
 	ssize_t ret = -EFAULT;
 
-	if (il->cfg->ops->lib->dump_fh) {
-		ret = pos = il->cfg->ops->lib->dump_fh(il, &buf, true);
+	if (il->ops->lib->dump_fh) {
+		ret = pos = il->ops->lib->dump_fh(il, &buf, true);
 		if (buf) {
 			ret =
 			    simple_read_from_buffer(user_buf, count, ppos, buf,

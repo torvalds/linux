@@ -1167,6 +1167,7 @@ struct il_priv {
 	struct ieee80211_channel *ieee_channels;
 	struct ieee80211_rate *ieee_rates;
 	struct il_cfg *cfg;
+	const struct il_ops *ops;
 
 	/* temporary frame storage list */
 	struct list_head free_frames;
@@ -1668,7 +1669,6 @@ struct il_ops {
 	const struct il_led_ops *led;
 	const struct il_nic_ops *nic;
 	const struct il_legacy_ops *legacy;
-	const struct ieee80211_ops *ieee80211_ops;
 };
 
 struct il_mod_params {
@@ -1777,7 +1777,6 @@ struct il_cfg {
 	unsigned int sku;
 	u16 eeprom_ver;
 	u16 eeprom_calib_ver;
-	const struct il_ops *ops;
 	/* module based parameters which can be set from modprobe cmd */
 	const struct il_mod_params *mod_params;
 	/* params not likely to change within a device family */
@@ -1791,7 +1790,6 @@ struct il_cfg {
  *   L i b                 *
  ***************************/
 
-struct ieee80211_hw *il_alloc_all(struct il_cfg *cfg);
 int il_mac_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   u16 queue, const struct ieee80211_tx_queue_params *params);
 int il_mac_tx_last_beacon(struct ieee80211_hw *hw);
@@ -2093,13 +2091,13 @@ int il_send_rxon_timing(struct il_priv *il);
 static inline int
 il_send_rxon_assoc(struct il_priv *il)
 {
-	return il->cfg->ops->hcmd->rxon_assoc(il);
+	return il->ops->hcmd->rxon_assoc(il);
 }
 
 static inline int
 il_commit_rxon(struct il_priv *il)
 {
-	return il->cfg->ops->hcmd->commit_rxon(il);
+	return il->ops->hcmd->commit_rxon(il);
 }
 
 static inline const struct ieee80211_supported_band *

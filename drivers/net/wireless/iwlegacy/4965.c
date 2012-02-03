@@ -2166,8 +2166,8 @@ il4965_post_associate(struct il_priv *il)
 
 	il_set_rxon_ht(il, &il->current_ht_config);
 
-	if (il->cfg->ops->hcmd->set_rxon_chain)
-		il->cfg->ops->hcmd->set_rxon_chain(il);
+	if (il->ops->hcmd->set_rxon_chain)
+		il->ops->hcmd->set_rxon_chain(il);
 
 	il->staging.assoc_id = cpu_to_le16(vif->bss_conf.aid);
 
@@ -2241,8 +2241,8 @@ il4965_config_ap(struct il_priv *il)
 		/* AP has all antennas */
 		il->chain_noise_data.active_chains = il->hw_params.valid_rx_ant;
 		il_set_rxon_ht(il, &il->current_ht_config);
-		if (il->cfg->ops->hcmd->set_rxon_chain)
-			il->cfg->ops->hcmd->set_rxon_chain(il);
+		if (il->ops->hcmd->set_rxon_chain)
+			il->ops->hcmd->set_rxon_chain(il);
 
 		il->staging.assoc_id = 0;
 
@@ -2323,35 +2323,12 @@ static const struct il_legacy_ops il4965_legacy_ops = {
 	.update_bcast_stations = il4965_update_bcast_stations,
 };
 
-struct ieee80211_ops il4965_hw_ops = {
-	.tx = il4965_mac_tx,
-	.start = il4965_mac_start,
-	.stop = il4965_mac_stop,
-	.add_interface = il_mac_add_interface,
-	.remove_interface = il_mac_remove_interface,
-	.change_interface = il_mac_change_interface,
-	.config = il_mac_config,
-	.configure_filter = il4965_configure_filter,
-	.set_key = il4965_mac_set_key,
-	.update_tkip_key = il4965_mac_update_tkip_key,
-	.conf_tx = il_mac_conf_tx,
-	.reset_tsf = il_mac_reset_tsf,
-	.bss_info_changed = il_mac_bss_info_changed,
-	.ampdu_action = il4965_mac_ampdu_action,
-	.hw_scan = il_mac_hw_scan,
-	.sta_add = il4965_mac_sta_add,
-	.sta_remove = il_mac_sta_remove,
-	.channel_switch = il4965_mac_channel_switch,
-	.tx_last_beacon = il_mac_tx_last_beacon,
-};
-
-static const struct il_ops il4965_ops = {
+const struct il_ops il4965_ops = {
 	.lib = &il4965_lib,
 	.hcmd = &il4965_hcmd,
 	.utils = &il4965_hcmd_utils,
 	.led = &il4965_led_ops,
 	.legacy = &il4965_legacy_ops,
-	.ieee80211_ops = &il4965_hw_ops,
 };
 
 static struct il_base_params il4965_base_params = {
@@ -2380,7 +2357,6 @@ struct il_cfg il4965_cfg = {
 	.valid_rx_ant = ANT_ABC,
 	.eeprom_ver = EEPROM_4965_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_4965_TX_POWER_VERSION,
-	.ops = &il4965_ops,
 	.mod_params = &il4965_mod_params,
 	.base_params = &il4965_base_params,
 	.led_mode = IL_LED_BLINK,

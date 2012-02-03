@@ -520,7 +520,7 @@ il_led_cmd(struct il_priv *il, unsigned long on, unsigned long off)
 	    il_blink_compensation(il, off,
 				  il->cfg->base_params->led_compensation);
 
-	ret = il->cfg->ops->led->cmd(il, &led_cmd);
+	ret = il->ops->led->cmd(il, &led_cmd);
 	if (!ret) {
 		il->blink_on = on;
 		il->blink_off = off;
@@ -731,7 +731,7 @@ il_eeprom_init(struct il_priv *il)
 	}
 	e = (__le16 *) il->eeprom;
 
-	il->cfg->ops->lib->apm_ops.init(il);
+	il->ops->lib->apm_ops.init(il);
 
 	ret = il_eeprom_verify_signature(il);
 	if (ret < 0) {
@@ -741,7 +741,7 @@ il_eeprom_init(struct il_priv *il)
 	}
 
 	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
-	ret = il->cfg->ops->lib->eeprom_ops.acquire_semaphore(il);
+	ret = il->ops->lib->eeprom_ops.acquire_semaphore(il);
 	if (ret < 0) {
 		IL_ERR("Failed to acquire EEPROM semaphore.\n");
 		ret = -ENOENT;
@@ -773,7 +773,7 @@ il_eeprom_init(struct il_priv *il)
 
 	ret = 0;
 done:
-	il->cfg->ops->lib->eeprom_ops.release_semaphore(il);
+	il->ops->lib->eeprom_ops.release_semaphore(il);
 
 err:
 	if (ret)
@@ -800,7 +800,7 @@ il_init_band_reference(const struct il_priv *il, int eep_band,
 		       const u8 **eeprom_ch_idx)
 {
 	u32 offset =
-	    il->cfg->ops->lib->eeprom_ops.regulatory_bands[eep_band - 1];
+	    il->ops->lib->eeprom_ops.regulatory_bands[eep_band - 1];
 	switch (eep_band) {
 	case 1:		/* 2.4GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(il_eeprom_band_1);
@@ -1001,9 +1001,9 @@ il_init_channel_map(struct il_priv *il)
 	}
 
 	/* Check if we do have HT40 channels */
-	if (il->cfg->ops->lib->eeprom_ops.regulatory_bands[5] ==
+	if (il->ops->lib->eeprom_ops.regulatory_bands[5] ==
 	    EEPROM_REGULATORY_BAND_NO_HT40 &&
-	    il->cfg->ops->lib->eeprom_ops.regulatory_bands[6] ==
+	    il->ops->lib->eeprom_ops.regulatory_bands[6] ==
 	    EEPROM_REGULATORY_BAND_NO_HT40)
 		return 0;
 
@@ -1158,9 +1158,9 @@ il_power_set_mode(struct il_priv *il, struct il_powertable_cmd *cmd, bool force)
 		if (!(cmd->flags & IL_POWER_DRIVER_ALLOW_SLEEP_MSK))
 			clear_bit(S_POWER_PMI, &il->status);
 
-		if (il->cfg->ops->lib->update_chain_flags && update_chains)
-			il->cfg->ops->lib->update_chain_flags(il);
-		else if (il->cfg->ops->lib->update_chain_flags)
+		if (il->ops->lib->update_chain_flags && update_chains)
+			il->ops->lib->update_chain_flags(il);
+		else if (il->ops->lib->update_chain_flags)
 			D_POWER("Cannot update the power, chain noise "
 				"calibration running: %d\n",
 				il->chain_noise_data.state);
@@ -1485,7 +1485,7 @@ il_scan_initiate(struct il_priv *il, struct ieee80211_vif *vif)
 
 	lockdep_assert_held(&il->mutex);
 
-	if (WARN_ON(!il->cfg->ops->utils->request_scan))
+	if (WARN_ON(!il->ops->utils->request_scan))
 		return -EOPNOTSUPP;
 
 	cancel_delayed_work(&il->scan_check);
@@ -1510,7 +1510,7 @@ il_scan_initiate(struct il_priv *il, struct ieee80211_vif *vif)
 	set_bit(S_SCANNING, &il->status);
 	il->scan_start = jiffies;
 
-	ret = il->cfg->ops->utils->request_scan(il, vif);
+	ret = il->ops->utils->request_scan(il, vif);
 	if (ret) {
 		clear_bit(S_SCANNING, &il->status);
 		return ret;
@@ -1672,7 +1672,7 @@ out_settings:
 	il_power_set_mode(il, &il->power_data.sleep_cmd_next, false);
 	il_set_tx_power(il, il->tx_power_next, false);
 
-	il->cfg->ops->utils->post_scan(il);
+	il->ops->utils->post_scan(il);
 
 out:
 	mutex_unlock(&il->mutex);
@@ -1814,7 +1814,7 @@ il_send_add_sta(struct il_priv *il, struct il_addsta_cmd *sta, u8 flags)
 		might_sleep();
 	}
 
-	cmd.len = il->cfg->ops->utils->build_addsta_hcmd(sta, data);
+	cmd.len = il->ops->utils->build_addsta_hcmd(sta, data);
 	ret = il_send_cmd(il, &cmd);
 
 	if (ret || (flags & CMD_ASYNC))
@@ -2722,7 +2722,7 @@ il_tx_queue_unmap(struct il_priv *il, int txq_id)
 		return;
 
 	while (q->write_ptr != q->read_ptr) {
-		il->cfg->ops->lib->txq_free_tfd(il, txq);
+		il->ops->lib->txq_free_tfd(il, txq);
 		q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
 }
@@ -3024,7 +3024,7 @@ il_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq, int slots_num,
 	il_queue_init(il, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
 
 	/* Tell device where to find queue */
-	il->cfg->ops->lib->txq_init(il, txq);
+	il->ops->lib->txq_init(il, txq);
 
 	return 0;
 err:
@@ -3055,7 +3055,7 @@ il_tx_queue_reset(struct il_priv *il, struct il_tx_queue *txq, int slots_num,
 	il_queue_init(il, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
 
 	/* Tell device where to find queue */
-	il->cfg->ops->lib->txq_init(il, txq);
+	il->ops->lib->txq_init(il, txq);
 }
 EXPORT_SYMBOL(il_tx_queue_reset);
 
@@ -3083,7 +3083,7 @@ il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 	u32 idx;
 	u16 fix_size;
 
-	cmd->len = il->cfg->ops->utils->get_hcmd_size(cmd->id, cmd->len);
+	cmd->len = il->ops->utils->get_hcmd_size(cmd->id, cmd->len);
 	fix_size = (u16) (cmd->len + sizeof(out_cmd->hdr));
 
 	/* If any of the command structures end up being larger than
@@ -3162,9 +3162,9 @@ il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 #endif
 	txq->need_update = 1;
 
-	if (il->cfg->ops->lib->txq_update_byte_cnt_tbl)
+	if (il->ops->lib->txq_update_byte_cnt_tbl)
 		/* Set up entry in queue's byte count circular buffer */
-		il->cfg->ops->lib->txq_update_byte_cnt_tbl(il, txq, 0);
+		il->ops->lib->txq_update_byte_cnt_tbl(il, txq, 0);
 
 	phys_addr =
 	    pci_map_single(il->pci_dev, &out_cmd->hdr, fix_size,
@@ -3172,8 +3172,8 @@ il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 	dma_unmap_addr_set(out_meta, mapping, phys_addr);
 	dma_unmap_len_set(out_meta, len, fix_size);
 
-	il->cfg->ops->lib->txq_attach_buf_to_tfd(il, txq, phys_addr, fix_size,
-						 1, U32_PAD(cmd->len));
+	il->ops->lib->txq_attach_buf_to_tfd(il, txq, phys_addr, fix_size, 1,
+					    U32_PAD(cmd->len));
 
 	/* Increment and update queue's write idx */
 	q->write_ptr = il_queue_inc_wrap(q->write_ptr, q->n_bd);
@@ -3314,30 +3314,6 @@ EXPORT_SYMBOL(il_debug_level);
 
 const u8 il_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 EXPORT_SYMBOL(il_bcast_addr);
-
-/* This function both allocates and initializes hw and il. */
-struct ieee80211_hw *
-il_alloc_all(struct il_cfg *cfg)
-{
-	struct il_priv *il;
-	/* mac80211 allocates memory for this device instance, including
-	 *   space for this driver's ilate structure */
-	struct ieee80211_hw *hw;
-
-	hw = ieee80211_alloc_hw(sizeof(struct il_priv),
-				cfg->ops->ieee80211_ops);
-	if (hw == NULL) {
-		pr_err("%s: Can not allocate network device\n", cfg->name);
-		goto out;
-	}
-
-	il = hw->priv;
-	il->hw = hw;
-
-out:
-	return hw;
-}
-EXPORT_SYMBOL(il_alloc_all);
 
 #define MAX_BIT_RATE_40_MHZ 150	/* Mbps */
 #define MAX_BIT_RATE_20_MHZ 72	/* Mbps */
@@ -3871,8 +3847,8 @@ _il_set_rxon_ht(struct il_priv *il, struct il_ht_config *ht_conf)
 		rxon->flags |= RXON_FLG_CHANNEL_MODE_LEGACY;
 	}
 
-	if (il->cfg->ops->hcmd->set_rxon_chain)
-		il->cfg->ops->hcmd->set_rxon_chain(il);
+	if (il->ops->hcmd->set_rxon_chain)
+		il->ops->hcmd->set_rxon_chain(il);
 
 	D_ASSOC("rxon flags 0x%X operation mode :0x%X "
 		"extension channel offset 0x%x\n", le32_to_cpu(rxon->flags),
@@ -4130,9 +4106,9 @@ il_irq_handle_error(struct il_priv *il)
 
 	IL_ERR("Loaded firmware version: %s\n", il->hw->wiphy->fw_version);
 
-	il->cfg->ops->lib->dump_nic_error_log(il);
-	if (il->cfg->ops->lib->dump_fh)
-		il->cfg->ops->lib->dump_fh(il, NULL, false);
+	il->ops->lib->dump_nic_error_log(il);
+	if (il->ops->lib->dump_fh)
+		il->ops->lib->dump_fh(il, NULL, false);
 #ifdef CONFIG_IWLEGACY_DEBUG
 	if (il_get_debug_level(il) & IL_DL_FW_ERRORS)
 		il_print_rx_config_cmd(il);
@@ -4319,7 +4295,7 @@ il_set_tx_power(struct il_priv *il, s8 tx_power, bool force)
 	if (il->tx_power_user_lmt == tx_power && !force)
 		return 0;
 
-	if (!il->cfg->ops->lib->send_tx_power)
+	if (!il->ops->lib->send_tx_power)
 		return -EOPNOTSUPP;
 
 	/* 0 dBm mean 1 milliwatt */
@@ -4352,7 +4328,7 @@ il_set_tx_power(struct il_priv *il, s8 tx_power, bool force)
 	prev_tx_power = il->tx_power_user_lmt;
 	il->tx_power_user_lmt = tx_power;
 
-	ret = il->cfg->ops->lib->send_tx_power(il);
+	ret = il->ops->lib->send_tx_power(il);
 
 	/* if fail to set tx_power, restore the orig. tx power */
 	if (ret) {
@@ -4501,8 +4477,8 @@ il_set_mode(struct il_priv *il)
 {
 	il_connection_init_rx_config(il);
 
-	if (il->cfg->ops->hcmd->set_rxon_chain)
-		il->cfg->ops->hcmd->set_rxon_chain(il);
+	if (il->ops->hcmd->set_rxon_chain)
+		il->ops->hcmd->set_rxon_chain(il);
 
 	return il_commit_rxon(il);
 }
@@ -5200,7 +5176,7 @@ il_mac_config(struct ieee80211_hw *hw, u32 changed)
 	int scan_active = 0;
 	bool ht_changed = false;
 
-	if (WARN_ON(!il->cfg->ops->legacy))
+	if (WARN_ON(!il->ops->legacy))
 		return -EOPNOTSUPP;
 
 	mutex_lock(&il->mutex);
@@ -5225,8 +5201,8 @@ il_mac_config(struct ieee80211_hw *hw, u32 changed)
 		 * set up the SM PS mode to OFF if an HT channel is
 		 * configured.
 		 */
-		if (il->cfg->ops->hcmd->set_rxon_chain)
-			il->cfg->ops->hcmd->set_rxon_chain(il);
+		if (il->ops->hcmd->set_rxon_chain)
+			il->ops->hcmd->set_rxon_chain(il);
 	}
 
 	/* during scanning mac80211 will delay channel setting until
@@ -5295,8 +5271,8 @@ il_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 		spin_unlock_irqrestore(&il->lock, flags);
 
-		if (il->cfg->ops->legacy->update_bcast_stations)
-			ret = il->cfg->ops->legacy->update_bcast_stations(il);
+		if (il->ops->legacy->update_bcast_stations)
+			ret = il->ops->legacy->update_bcast_stations(il);
 
 set_ch_out:
 		/* The list of supported rates and rate mask can be different
@@ -5346,7 +5322,7 @@ il_mac_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct il_priv *il = hw->priv;
 	unsigned long flags;
 
-	if (WARN_ON(!il->cfg->ops->legacy))
+	if (WARN_ON(!il->ops->legacy))
 		return;
 
 	mutex_lock(&il->mutex);
@@ -5501,7 +5477,7 @@ il_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		return;
 	}
 
-	il->cfg->ops->legacy->post_associate(il);
+	il->ops->legacy->post_associate(il);
 }
 
 void
@@ -5511,7 +5487,7 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct il_priv *il = hw->priv;
 	int ret;
 
-	if (WARN_ON(!il->cfg->ops->legacy))
+	if (WARN_ON(!il->ops->legacy))
 		return;
 
 	D_MAC80211("changes = 0x%X\n", changes);
@@ -5616,8 +5592,8 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (changes & BSS_CHANGED_HT) {
 		il_ht_conf(il, vif);
 
-		if (il->cfg->ops->hcmd->set_rxon_chain)
-			il->cfg->ops->hcmd->set_rxon_chain(il);
+		if (il->ops->hcmd->set_rxon_chain)
+			il->ops->hcmd->set_rxon_chain(il);
 	}
 
 	if (changes & BSS_CHANGED_ASSOC) {
@@ -5626,7 +5602,7 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			il->timestamp = bss_conf->timestamp;
 
 			if (!il_is_rfkill(il))
-				il->cfg->ops->legacy->post_associate(il);
+				il->ops->legacy->post_associate(il);
 		} else
 			il_set_no_assoc(il, vif);
 	}
@@ -5646,16 +5622,15 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			memcpy(il->staging.bssid_addr, bss_conf->bssid,
 			       ETH_ALEN);
 			memcpy(il->bssid, bss_conf->bssid, ETH_ALEN);
-			il->cfg->ops->legacy->config_ap(il);
+			il->ops->legacy->config_ap(il);
 		} else
 			il_set_no_assoc(il, vif);
 	}
 
 	if (changes & BSS_CHANGED_IBSS) {
 		ret =
-		    il->cfg->ops->legacy->manage_ibss_station(il, vif,
-							      bss_conf->
-							      ibss_joined);
+		    il->ops->legacy->manage_ibss_station(il, vif,
+							 bss_conf->ibss_joined);
 		if (ret)
 			IL_ERR("failed to %s IBSS station %pM\n",
 			       bss_conf->ibss_joined ? "add" : "remove",

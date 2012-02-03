@@ -618,8 +618,7 @@ il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	/* Add buffer containing Tx command and MAC(!) header to TFD's
 	 * first entry */
-	il->cfg->ops->lib->txq_attach_buf_to_tfd(il, txq, txcmd_phys, len, 1,
-						 0);
+	il->ops->lib->txq_attach_buf_to_tfd(il, txq, txcmd_phys, len, 1, 0);
 
 	/* Set up TFD's 2nd entry to point directly to remainder of skb,
 	 * if any (802.11 null frames have no payload). */
@@ -628,8 +627,8 @@ il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 		phys_addr =
 		    pci_map_single(il->pci_dev, skb->data + hdr_len, len,
 				   PCI_DMA_TODEVICE);
-		il->cfg->ops->lib->txq_attach_buf_to_tfd(il, txq, phys_addr,
-							 len, 0, U32_PAD(len));
+		il->ops->lib->txq_attach_buf_to_tfd(il, txq, phys_addr, len, 0,
+						    U32_PAD(len));
 	}
 
 	/* Tell device the write idx *just past* this latest filled TFD */
@@ -2416,7 +2415,7 @@ __il3945_up(struct il_priv *il)
 		/* load bootstrap state machine,
 		 * load bootstrap program into processor's memory,
 		 * prepare to load the "initialize" uCode */
-		rc = il->cfg->ops->lib->load_ucode(il);
+		rc = il->ops->lib->load_ucode(il);
 
 		if (rc) {
 			IL_ERR("Unable to set up bootstrap uCode: %d\n", rc);
@@ -3458,7 +3457,7 @@ static struct attribute_group il3945_attribute_group = {
 	.attrs = il3945_sysfs_entries,
 };
 
-struct ieee80211_ops il3945_hw_ops = {
+struct ieee80211_ops il3945_mac_ops = {
 	.tx = il3945_mac_tx,
 	.start = il3945_mac_start,
 	.stop = il3945_mac_stop,
@@ -3599,15 +3598,13 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * 1. Allocating HW data
 	 * ********************/
 
-	/* mac80211 allocates memory for this device instance, including
-	 *   space for this driver's ilate structure */
-	hw = il_alloc_all(cfg);
-	if (hw == NULL) {
-		pr_err("Can not allocate network device\n");
+	hw = ieee80211_alloc_hw(sizeof(struct il_priv), &il3945_mac_ops);
+	if (!hw) {
 		err = -ENOMEM;
 		goto out;
 	}
 	il = hw->priv;
+	il->hw = hw;
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
 	il->cmd_queue = IL39_CMD_QUEUE_NUM;
@@ -3618,11 +3615,12 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	if (il3945_mod_params.disable_hw_scan) {
 		D_INFO("Disabling hw_scan\n");
-		il3945_hw_ops.hw_scan = NULL;
+		il3945_mac_ops.hw_scan = NULL;
 	}
 
 	D_INFO("*** LOAD DRIVER ***\n");
 	il->cfg = cfg;
+	il->ops = &il3945_ops;
 	il->pci_dev = pdev;
 	il->inta_mask = CSR_INI_SET_MASK;
 
