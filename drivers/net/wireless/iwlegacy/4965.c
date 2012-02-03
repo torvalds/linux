@@ -1472,7 +1472,7 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 
 		ret =
-		    il_send_cmd_pdu(il, ctx->rxon_cmd,
+		    il_send_cmd_pdu(il, C_RXON,
 				    sizeof(struct il_rxon_cmd), active_rxon);
 
 		/* If the mask clearing failed then we set
@@ -1503,7 +1503,7 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	 */
 	if (!new_assoc) {
 		ret =
-		    il_send_cmd_pdu(il, ctx->rxon_cmd,
+		    il_send_cmd_pdu(il, C_RXON,
 				    sizeof(struct il_rxon_cmd), &il->staging);
 		if (ret) {
 			IL_ERR("Error setting new RXON (%d)\n", ret);
@@ -1525,7 +1525,7 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 		 * RXON assoc doesn't clear the station table in uCode,
 		 */
 		ret =
-		    il_send_cmd_pdu(il, ctx->rxon_cmd,
+		    il_send_cmd_pdu(il, C_RXON,
 				    sizeof(struct il_rxon_cmd), &il->staging);
 		if (ret) {
 			IL_ERR("Error setting new RXON (%d)\n", ret);

@@ -1175,7 +1175,7 @@ struct il_rxon_context {
 
 	u8 bcast_sta_id, ap_sta_id;
 
-	u8 rxon_cmd, rxon_assoc_cmd, rxon_timing_cmd;
+	u8 rxon_assoc_cmd, rxon_timing_cmd;
 	u8 qos_cmd;
 	u8 wep_key_cmd;
 

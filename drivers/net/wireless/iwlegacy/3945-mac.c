@@ -3619,7 +3619,6 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	il->ctx.ctxid = 0;
 
-	il->ctx.rxon_cmd = C_RXON;
 	il->ctx.rxon_timing_cmd = C_RXON_TIMING;
 	il->ctx.rxon_assoc_cmd = C_RXON_ASSOC;
 	il->ctx.qos_cmd = C_QOS_PARAM;
