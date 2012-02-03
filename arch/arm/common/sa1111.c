@@ -905,6 +905,9 @@ static int sa1111_suspend(struct platform_device *dev, pm_message_t state)
 	save->skpwm0   = sa1111_readl(base + SA1111_SKPWM0);
 	save->skpwm1   = sa1111_readl(base + SA1111_SKPWM1);
 
+	sa1111_writel(0, sachip->base + SA1111_SKPWM0);
+	sa1111_writel(0, sachip->base + SA1111_SKPWM1);
+
 	base = sachip->base + SA1111_INTC;
 	save->intpol0  = sa1111_readl(base + SA1111_INTPOL0);
 	save->intpol1  = sa1111_readl(base + SA1111_INTPOL1);
@@ -920,8 +923,6 @@ static int sa1111_suspend(struct platform_device *dev, pm_message_t state)
 	 */
 	val = sa1111_readl(sachip->base + SA1111_SKCR);
 	sa1111_writel(val | SKCR_SLEEP, sachip->base + SA1111_SKCR);
-	sa1111_writel(0, sachip->base + SA1111_SKPWM0);
-	sa1111_writel(0, sachip->base + SA1111_SKPWM1);
 
 	clk_disable(sachip->clk);
 
