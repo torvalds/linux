@@ -83,6 +83,7 @@ netxen_issue_cmd(struct netxen_adapter *adapter, struct netxen_cmd_args *cmd)
 		printk(KERN_ERR "%s: failed card response code:0x%x\n",
 				netxen_nic_driver_name, rcode);
 	} else if (rsp == NX_CDRP_RSP_OK) {
+		cmd->rsp.cmd = NX_RCODE_SUCCESS;
 		if (cmd->rsp.arg2)
 			cmd->rsp.arg2 = NXRD32(adapter, NX_ARG2_CRB_OFFSET);
 		if (cmd->rsp.arg3)
@@ -96,6 +97,148 @@ netxen_issue_cmd(struct netxen_adapter *adapter, struct netxen_cmd_args *cmd)
 
 	return rcode;
 }
+
+static int
+netxen_get_minidump_template_size(struct netxen_adapter *adapter)
+{
+	struct netxen_cmd_args cmd;
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.req.cmd = NX_CDRP_CMD_TEMP_SIZE;
+	memset(&cmd.rsp, 1, sizeof(struct _cdrp_cmd));
+	netxen_issue_cmd(adapter, &cmd);
+	if (cmd.rsp.cmd != NX_RCODE_SUCCESS) {
+		dev_info(&adapter->pdev->dev,
+			"Can't get template size %d\n", cmd.rsp.cmd);
+		return -EIO;
+	}
+	adapter->mdump.md_template_size = cmd.rsp.arg2;
+	adapter->mdump.md_template_ver = cmd.rsp.arg3;
+	return 0;
+}
+
+static int
+netxen_get_minidump_template(struct netxen_adapter *adapter)
+{
+	dma_addr_t md_template_addr;
+	void *addr;
+	u32 size;
+	struct netxen_cmd_args cmd;
+	size = adapter->mdump.md_template_size;
+
+	if (size == 0) {
+		dev_err(&adapter->pdev->dev, "Can not capture Minidump "
+			"template. Invalid template size.\n");
+		return NX_RCODE_INVALID_ARGS;
+	}
+
+	addr = pci_alloc_consistent(adapter->pdev, size, &md_template_addr);
+
+	if (!addr) {
+		dev_err(&adapter->pdev->dev, "Unable to allocate dmable memory for template.\n");
+		return -ENOMEM;
+	}
+
+	memset(addr, 0, size);
+	memset(&cmd, 0, sizeof(cmd));
+	memset(&cmd.rsp, 1, sizeof(struct _cdrp_cmd));
+	cmd.req.cmd = NX_CDRP_CMD_GET_TEMP_HDR;
+	cmd.req.arg1 = LSD(md_template_addr);
+	cmd.req.arg2 = MSD(md_template_addr);
+	cmd.req.arg3 |= size;
+	netxen_issue_cmd(adapter, &cmd);
+
+	if ((cmd.rsp.cmd == NX_RCODE_SUCCESS) && (size == cmd.rsp.arg2)) {
+		memcpy(adapter->mdump.md_template, addr, size);
+	} else {
+		dev_err(&adapter->pdev->dev, "Failed to get minidump template, "
+			"err_code : %d, requested_size : %d, actual_size : %d\n ",
+			cmd.rsp.cmd, size, cmd.rsp.arg2);
+	}
+	pci_free_consistent(adapter->pdev, size, addr, md_template_addr);
+	return 0;
+}
+
+static u32
+netxen_check_template_checksum(struct netxen_adapter *adapter)
+{
+	u64 sum =  0 ;
+	u32 *buff = adapter->mdump.md_template;
+	int count =  adapter->mdump.md_template_size/sizeof(uint32_t) ;
+
+	while (count-- > 0)
+		sum += *buff++ ;
+	while (sum >> 32)
+		sum = (sum & 0xFFFFFFFF) +  (sum >> 32) ;
+
+	return ~sum;
+}
+
+int
+netxen_setup_minidump(struct netxen_adapter *adapter)
+{
+	int err = 0, i;
+	u32 *template, *tmp_buf;
+	struct netxen_minidump_template_hdr *hdr;
+	err = netxen_get_minidump_template_size(adapter);
+	if (err) {
+		adapter->mdump.fw_supports_md = 0;
+		if ((err == NX_RCODE_CMD_INVALID) ||
+			(err == NX_RCODE_CMD_NOT_IMPL)) {
+			dev_info(&adapter->pdev->dev,
+				"Flashed firmware version does not support minidump, "
+				"minimum version required is [ %u.%u.%u ].\n ",
+				NX_MD_SUPPORT_MAJOR, NX_MD_SUPPORT_MINOR,
+				NX_MD_SUPPORT_SUBVERSION);
+		}
+		return err;
+	}
+
+	if (!adapter->mdump.md_template_size) {
+		dev_err(&adapter->pdev->dev, "Error : Invalid template size "
+		",should be non-zero.\n");
+		return -EIO;
+	}
+	adapter->mdump.md_template =
+		kmalloc(adapter->mdump.md_template_size, GFP_KERNEL);
+
+	if (!adapter->mdump.md_template) {
+		dev_err(&adapter->pdev->dev, "Unable to allocate memory "
+			"for minidump template.\n");
+		return -ENOMEM;
+	}
+
+	err = netxen_get_minidump_template(adapter);
+	if (err) {
+		if (err == NX_RCODE_CMD_NOT_IMPL)
+			adapter->mdump.fw_supports_md = 0;
+		goto free_template;
+	}
+
+	if (netxen_check_template_checksum(adapter)) {
+		dev_err(&adapter->pdev->dev, "Minidump template checksum Error\n");
+		err = -EIO;
+		goto free_template;
+	}
+
+	adapter->mdump.md_capture_mask = NX_DUMP_MASK_DEF;
+	tmp_buf = (u32 *) adapter->mdump.md_template;
+	template = (u32 *) adapter->mdump.md_template;
+	for (i = 0; i < adapter->mdump.md_template_size/sizeof(u32); i++)
+		*template++ = __le32_to_cpu(*tmp_buf++);
+	hdr = (struct netxen_minidump_template_hdr *)
+				adapter->mdump.md_template;
+	adapter->mdump.md_capture_buff = NULL;
+	adapter->mdump.fw_supports_md = 1;
+	adapter->mdump.md_enabled = 1;
+
+	return err;
+
+free_template:
+	kfree(adapter->mdump.md_template);
+	adapter->mdump.md_template = NULL;
+	return err;
+}
+
 
 int
 nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, int mtu)
