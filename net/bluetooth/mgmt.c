@@ -2964,7 +2964,8 @@ int mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 
 	put_unaligned_le16(eir_len, &ev->eir_len);
 
-	return mgmt_event(MGMT_EV_DEVICE_FOUND, hdev, &ev, sizeof(ev), NULL);
+	return mgmt_event(MGMT_EV_DEVICE_FOUND, hdev, ev,
+						sizeof(*ev) + eir_len, NULL);
 }
 
 int mgmt_start_discovery_failed(struct hci_dev *hdev, u8 status)
