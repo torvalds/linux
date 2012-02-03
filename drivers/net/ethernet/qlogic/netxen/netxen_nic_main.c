@@ -2596,6 +2596,7 @@ static int
 netxen_check_health(struct netxen_adapter *adapter)
 {
 	u32 state, heartbit;
+	u32 peg_status;
 	struct net_device *netdev = adapter->netdev;
 
 	state = NXRD32(adapter, NX_CRB_DEV_STATE);
@@ -2642,8 +2643,24 @@ netxen_check_health(struct netxen_adapter *adapter)
 
 	clear_bit(__NX_FW_ATTACHED, &adapter->state);
 
-	dev_info(&netdev->dev, "firmware hang detected\n");
-
+	dev_err(&netdev->dev, "firmware hang detected\n");
+	peg_status = NXRD32(adapter, NETXEN_PEG_HALT_STATUS1);
+	dev_err(&adapter->pdev->dev, "Dumping hw/fw registers\n"
+			"PEG_HALT_STATUS1: 0x%x, PEG_HALT_STATUS2: 0x%x,\n"
+			"PEG_NET_0_PC: 0x%x, PEG_NET_1_PC: 0x%x,\n"
+			"PEG_NET_2_PC: 0x%x, PEG_NET_3_PC: 0x%x,\n"
+			"PEG_NET_4_PC: 0x%x\n",
+			peg_status,
+			NXRD32(adapter, NETXEN_PEG_HALT_STATUS2),
+			NXRD32(adapter, NETXEN_CRB_PEG_NET_0 + 0x3c),
+			NXRD32(adapter, NETXEN_CRB_PEG_NET_1 + 0x3c),
+			NXRD32(adapter, NETXEN_CRB_PEG_NET_2 + 0x3c),
+			NXRD32(adapter, NETXEN_CRB_PEG_NET_3 + 0x3c),
+			NXRD32(adapter, NETXEN_CRB_PEG_NET_4 + 0x3c));
+	if (NX_FWERROR_PEGSTAT1(peg_status) == 0x67)
+		dev_err(&adapter->pdev->dev,
+			"Firmware aborted with error code 0x00006700. "
+				"Device is being reset.\n");
 detach:
 	if ((auto_fw_reset == AUTO_FW_RESET_ENABLED) &&
 			!test_and_set_bit(__NX_RESETTING, &adapter->state))
