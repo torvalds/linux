@@ -426,7 +426,7 @@ static int fsi_stream_is_working(struct fsi_priv *fsi,
 	return ret;
 }
 
-static void fsi_stream_push(struct fsi_priv *fsi,
+static void fsi_stream_init(struct fsi_priv *fsi,
 			    int is_play,
 			    struct snd_pcm_substream *substream)
 {
@@ -447,7 +447,7 @@ static void fsi_stream_push(struct fsi_priv *fsi,
 	spin_unlock_irqrestore(&master->lock, flags);
 }
 
-static void fsi_stream_pop(struct fsi_priv *fsi, int is_play)
+static void fsi_stream_quit(struct fsi_priv *fsi, int is_play)
 {
 	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
 	struct snd_soc_dai *dai = fsi_get_dai(io->substream);
@@ -960,13 +960,13 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		fsi_stream_push(fsi, is_play, substream);
+		fsi_stream_init(fsi, is_play, substream);
 		ret = is_play ? fsi_data_push(fsi) : fsi_data_pop(fsi);
 		fsi_port_start(fsi, is_play);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		fsi_port_stop(fsi, is_play);
-		fsi_stream_pop(fsi, is_play);
+		fsi_stream_quit(fsi, is_play);
 		break;
 	}
 
