@@ -2999,8 +2999,18 @@ qlcnic_set_npar_non_operational(struct qlcnic_adapter *adapter)
 void
 qlcnic_dev_request_reset(struct qlcnic_adapter *adapter)
 {
-	u32 state;
+	u32 state, xg_val = 0, gb_val = 0;
 
+	qlcnic_xg_set_xg0_mask(xg_val);
+	qlcnic_xg_set_xg1_mask(xg_val);
+	QLCWR32(adapter, QLCNIC_NIU_XG_PAUSE_CTL, xg_val);
+	qlcnic_gb_set_gb0_mask(gb_val);
+	qlcnic_gb_set_gb1_mask(gb_val);
+	qlcnic_gb_set_gb2_mask(gb_val);
+	qlcnic_gb_set_gb3_mask(gb_val);
+	QLCWR32(adapter, QLCNIC_NIU_GB_PAUSE_CTL, gb_val);
+	dev_info(&adapter->pdev->dev, "Pause control frames disabled"
+				" on all ports\n");
 	adapter->need_fw_reset = 1;
 	if (qlcnic_api_lock(adapter))
 		return;
