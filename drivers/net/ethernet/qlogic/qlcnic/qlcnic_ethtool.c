@@ -1152,7 +1152,6 @@ qlcnic_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 
 	if (!fw_dump->clr) {
 		netdev_info(netdev, "Dump not available\n");
-		qlcnic_api_unlock(adapter);
 		return -EINVAL;
 	}
 	/* Copy template header first */
@@ -1171,7 +1170,7 @@ qlcnic_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 	vfree(fw_dump->data);
 	fw_dump->data = NULL;
 	fw_dump->clr = 0;
-
+	netdev_info(netdev, "extracted the FW dump Successfully\n");
 	return 0;
 }
 
@@ -1189,7 +1188,7 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 			return ret;
 		}
 		if (fw_dump->clr) {
-			dev_info(&adapter->pdev->dev,
+			netdev_info(netdev,
 			"Previous dump not cleared, not forcing dump\n");
 			return ret;
 		}
