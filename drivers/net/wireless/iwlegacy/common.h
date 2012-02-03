@@ -1175,7 +1175,6 @@ struct il_rxon_context {
 
 	u8 bcast_sta_id, ap_sta_id;
 
-	u8 qos_cmd;
 	u8 wep_key_cmd;
 
 	struct il_wep_key wep_keys[WEP_KEYS_MAX];

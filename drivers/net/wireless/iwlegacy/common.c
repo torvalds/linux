@@ -5269,7 +5269,7 @@ il_update_qos(struct il_priv *il, struct il_rxon_context *ctx)
 	D_QOS("send QoS cmd with Qos active=%d FLAGS=0x%X\n",
 	      ctx->qos_data.qos_active, ctx->qos_data.def_qos_parm.qos_flags);
 
-	il_send_cmd_pdu_async(il, ctx->qos_cmd, sizeof(struct il_qosparam_cmd),
+	il_send_cmd_pdu_async(il, C_QOS_PARAM, sizeof(struct il_qosparam_cmd),
 			      &ctx->qos_data.def_qos_parm, NULL);
 }
 
