@@ -735,7 +735,7 @@ struct il_qos_info {
 struct il_station_entry {
 	struct il_addsta_cmd sta;
 	struct il_tid_data tid[MAX_TID_COUNT];
-	u8 used, ctxid;
+	u8 used;
 	struct il_hw_key keyinfo;
 	struct il_link_quality_cmd *lq;
 };
@@ -1167,8 +1167,6 @@ struct il_rxon_context {
 	bool always_active, is_active;
 
 	bool ht_need_multiple_chains;
-
-	int ctxid;
 
 	u32 interface_modes, exclusive_interface_modes;
 

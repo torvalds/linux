@@ -649,7 +649,6 @@ il_dbgfs_qos_read(struct file *file, char __user *user_buf, size_t count,
 	char buf[256];
 	const size_t bufsz = sizeof(buf);
 
-	pos += scnprintf(buf + pos, bufsz - pos, "context %d:\n", ctx->ctxid);
 	for (i = 0; i < AC_NUM; i++) {
 		pos +=
 		    scnprintf(buf + pos, bufsz - pos,

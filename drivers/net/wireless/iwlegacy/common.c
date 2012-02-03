@@ -1951,7 +1951,6 @@ il_prep_station(struct il_priv *il, struct il_rxon_context *ctx,
 	station->sta.mode = 0;
 	station->sta.sta.sta_id = sta_id;
 	station->sta.station_flags = ctx->station_flags;
-	station->ctxid = ctx->ctxid;
 
 	if (sta) {
 		struct il_station_priv_common *sta_priv;
@@ -2191,9 +2190,6 @@ il_clear_ucode_stations(struct il_priv *il, struct il_rxon_context *ctx)
 
 	spin_lock_irqsave(&il->sta_lock, flags_spin);
 	for (i = 0; i < il->hw_params.max_stations; i++) {
-		if (ctx && ctx->ctxid != il->stations[i].ctxid)
-			continue;
-
 		if (il->stations[i].used & IL_STA_UCODE_ACTIVE) {
 			D_INFO("Clearing ucode active for station %d\n", i);
 			il->stations[i].used &= ~IL_STA_UCODE_ACTIVE;
@@ -2234,8 +2230,6 @@ il_restore_stations(struct il_priv *il, struct il_rxon_context *ctx)
 	D_ASSOC("Restoring all known stations ... start.\n");
 	spin_lock_irqsave(&il->sta_lock, flags_spin);
 	for (i = 0; i < il->hw_params.max_stations; i++) {
-		if (ctx->ctxid != il->stations[i].ctxid)
-			continue;
 		if ((il->stations[i].used & IL_STA_DRIVER_ACTIVE) &&
 		    !(il->stations[i].used & IL_STA_UCODE_ACTIVE)) {
 			D_ASSOC("Restoring sta %pM\n",

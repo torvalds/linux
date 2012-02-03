@@ -6132,8 +6132,6 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	il = hw->priv;
 	/* At this point both hw and il are allocated. */
 
-	il->ctx.ctxid = 0;
-
 	il->ctx.always_active = true;
 	il->ctx.is_active = true;
 	il->ctx.ac_to_fifo = il4965_bss_ac_to_fifo;
