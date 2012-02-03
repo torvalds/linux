@@ -2155,7 +2155,7 @@ extern void netdev_run_todo(void);
  */
 static inline void dev_put(struct net_device *dev)
 {
-	irqsafe_cpu_dec(*dev->pcpu_refcnt);
+	this_cpu_dec(*dev->pcpu_refcnt);
 }
 
 /**
@@ -2166,7 +2166,7 @@ static inline void dev_put(struct net_device *dev)
  */
 static inline void dev_hold(struct net_device *dev)
 {
-	irqsafe_cpu_inc(*dev->pcpu_refcnt);
+	this_cpu_inc(*dev->pcpu_refcnt);
 }
 
 /* Carrier loss detection, dial on demand. The functions netif_carrier_on
@@ -2448,6 +2448,11 @@ static inline void netif_tx_disable(struct net_device *dev)
 static inline void netif_addr_lock(struct net_device *dev)
 {
 	spin_lock(&dev->addr_list_lock);
+}
+
+static inline void netif_addr_lock_nested(struct net_device *dev)
+{
+	spin_lock_nested(&dev->addr_list_lock, SINGLE_DEPTH_NESTING);
 }
 
 static inline void netif_addr_lock_bh(struct net_device *dev)

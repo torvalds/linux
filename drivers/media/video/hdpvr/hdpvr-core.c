@@ -49,7 +49,7 @@ module_param(default_audio_input, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(default_audio_input, "default audio input: 0=RCA back / "
 		 "1=RCA front / 2=S/PDIF");
 
-static int boost_audio;
+static bool boost_audio;
 module_param(boost_audio, bool, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(boost_audio, "boost the audio signal");
 

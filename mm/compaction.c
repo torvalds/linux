@@ -350,7 +350,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 		}
 
 		if (!cc->sync)
-			mode |= ISOLATE_CLEAN;
+			mode |= ISOLATE_ASYNC_MIGRATE;
 
 		/* Try isolate the page */
 		if (__isolate_lru_page(page, mode, 0) != 0)
@@ -365,8 +365,10 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 		nr_isolated++;
 
 		/* Avoid isolating too much */
-		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX)
+		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX) {
+			++low_pfn;
 			break;
+		}
 	}
 
 	acct_isolated(zone, cc);
@@ -555,7 +557,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
 		nr_migrate = cc->nr_migratepages;
 		err = migrate_pages(&cc->migratepages, compaction_alloc,
 				(unsigned long)cc, false,
-				cc->sync);
+				cc->sync ? MIGRATE_SYNC_LIGHT : MIGRATE_ASYNC);
 		update_nr_listpages(cc);
 		nr_remaining = cc->nr_migratepages;
 
@@ -669,6 +671,7 @@ static int compact_node(int nid)
 			.nr_freepages = 0,
 			.nr_migratepages = 0,
 			.order = -1,
+			.sync = true,
 		};
 
 		zone = &pgdat->node_zones[zoneid];

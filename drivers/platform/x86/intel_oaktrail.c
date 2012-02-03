@@ -95,7 +95,7 @@
 #define OT_EC_BL_CONTROL_ON_DATA	0x1A
 
 
-static int force;
+static bool force;
 module_param(force, bool, 0);
 MODULE_PARM_DESC(force, "Force driver load, ignore DMI data");
 

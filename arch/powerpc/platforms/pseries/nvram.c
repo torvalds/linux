@@ -638,7 +638,6 @@ static void oops_to_nvram(struct kmsg_dumper *dumper,
 		/* These are almost always orderly shutdowns. */
 		return;
 	case KMSG_DUMP_OOPS:
-	case KMSG_DUMP_KEXEC:
 		break;
 	case KMSG_DUMP_PANIC:
 		panicking = true;

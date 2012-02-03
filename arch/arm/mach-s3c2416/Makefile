@@ -15,7 +15,6 @@ obj-$(CONFIG_S3C2416_PM)	+= pm.o
 #obj-$(CONFIG_S3C2416_DMA)	+= dma.o
 
 # Device setup
-obj-$(CONFIG_S3C2416_SETUP_SDHCI) += setup-sdhci.o
 obj-$(CONFIG_S3C2416_SETUP_SDHCI_GPIO) += setup-sdhci-gpio.o
 
 # Machine support

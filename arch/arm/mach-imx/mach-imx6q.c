@@ -19,6 +19,8 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/phy.h>
+#include <linux/micrel_phy.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach/arch.h>
@@ -56,8 +58,27 @@ soft:
 	soft_restart(0);
 }
 
+/* For imx6q sabrelite board: set KSZ9021RN RGMII pad skew */
+static int ksz9021rn_phy_fixup(struct phy_device *phydev)
+{
+	/* min rx data delay */
+	phy_write(phydev, 0x0b, 0x8105);
+	phy_write(phydev, 0x0c, 0x0000);
+
+	/* max rx/tx clock delay, min rx/tx control delay */
+	phy_write(phydev, 0x0b, 0x8104);
+	phy_write(phydev, 0x0c, 0xf0f0);
+	phy_write(phydev, 0x0b, 0x104);
+
+	return 0;
+}
+
 static void __init imx6q_init_machine(void)
 {
+	if (of_machine_is_compatible("fsl,imx6q-sabrelite"))
+		phy_register_fixup_for_uid(PHY_ID_KSZ9021, MICREL_PHY_ID_MASK,
+					   ksz9021rn_phy_fixup);
+
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 
 	imx6q_pm_init();
@@ -105,7 +126,8 @@ static struct sys_timer imx6q_timer = {
 };
 
 static const char *imx6q_dt_compat[] __initdata = {
-	"fsl,imx6q-sabreauto",
+	"fsl,imx6q-arm2",
+	"fsl,imx6q-sabrelite",
 	NULL,
 };
 

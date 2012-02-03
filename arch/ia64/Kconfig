@@ -32,6 +32,7 @@ config IA64
 	select GENERIC_IRQ_SHOW
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select GENERIC_IOMAP
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
@@ -102,10 +103,6 @@ config DMI
 	default y
 
 config EFI
-	bool
-	default y
-
-config GENERIC_IOMAP
 	bool
 	default y
 

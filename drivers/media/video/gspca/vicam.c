@@ -324,7 +324,8 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	dev->work_thread = NULL;
 	mutex_lock(&gspca_dev->usb_lock);
 
-	vicam_set_camera_power(gspca_dev, 0);
+	if (gspca_dev->present)
+		vicam_set_camera_power(gspca_dev, 0);
 }
 
 /* Table of supported USB devices */

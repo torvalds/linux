@@ -86,6 +86,17 @@ struct mxr_crop {
 	unsigned int field;
 };
 
+/** stages of geometry operations */
+enum mxr_geometry_stage {
+	MXR_GEOMETRY_SINK,
+	MXR_GEOMETRY_COMPOSE,
+	MXR_GEOMETRY_CROP,
+	MXR_GEOMETRY_SOURCE,
+};
+
+/* flag indicating that offset should be 0 */
+#define MXR_NO_OFFSET	0x80000000
+
 /** description of transformation from source to destination image */
 struct mxr_geometry {
 	/** cropping for source image */
@@ -133,7 +144,8 @@ struct mxr_layer_ops {
 	/** streaming stop/start */
 	void (*stream_set)(struct mxr_layer *, int);
 	/** adjusting geometry */
-	void (*fix_geometry)(struct mxr_layer *);
+	void (*fix_geometry)(struct mxr_layer *,
+		enum mxr_geometry_stage, unsigned long);
 };
 
 /** layer instance, a single window and content displayed on output */

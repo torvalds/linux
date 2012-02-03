@@ -25,7 +25,6 @@
 #include <linux/uio.h>
 #include <linux/namei.h>
 #include <linux/log2.h>
-#include <linux/kmemleak.h>
 #include <linux/cleancache.h>
 #include <asm/uaccess.h>
 #include "internal.h"
@@ -521,7 +520,7 @@ static struct super_block *blockdev_superblock __read_mostly;
 void __init bdev_cache_init(void)
 {
 	int err;
-	struct vfsmount *bd_mnt;
+	static struct vfsmount *bd_mnt;
 
 	bdev_cachep = kmem_cache_create("bdev_cache", sizeof(struct bdev_inode),
 			0, (SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
@@ -533,12 +532,7 @@ void __init bdev_cache_init(void)
 	bd_mnt = kern_mount(&bd_type);
 	if (IS_ERR(bd_mnt))
 		panic("Cannot create bdev pseudo-fs");
-	/*
-	 * This vfsmount structure is only used to obtain the
-	 * blockdev_superblock, so tell kmemleak not to report it.
-	 */
-	kmemleak_not_leak(bd_mnt);
-	blockdev_superblock = bd_mnt->mnt_sb;	/* For writeback */
+	blockdev_superblock = bd_mnt->mnt_sb;   /* For writeback */
 }
 
 /*
@@ -1145,6 +1139,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	mutex_lock_nested(&bdev->bd_mutex, for_part);
 	if (!bdev->bd_openers) {
 		bdev->bd_disk = disk;
+		bdev->bd_queue = disk->queue;
 		bdev->bd_contains = bdev;
 		if (!partno) {
 			struct backing_dev_info *bdi;
@@ -1165,6 +1160,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 					disk_put_part(bdev->bd_part);
 					bdev->bd_part = NULL;
 					bdev->bd_disk = NULL;
+					bdev->bd_queue = NULL;
 					mutex_unlock(&bdev->bd_mutex);
 					disk_unblock_events(disk);
 					put_disk(disk);
@@ -1238,6 +1234,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 	disk_put_part(bdev->bd_part);
 	bdev->bd_disk = NULL;
 	bdev->bd_part = NULL;
+	bdev->bd_queue = NULL;
 	bdev_inode_switch_bdi(bdev->bd_inode, &default_backing_dev_info);
 	if (bdev != bdev->bd_contains)
 		__blkdev_put(bdev->bd_contains, mode, 1);

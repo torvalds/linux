@@ -724,18 +724,7 @@ static struct platform_driver cpm_i2c_driver = {
 	},
 };
 
-static int __init cpm_i2c_init(void)
-{
-	return platform_driver_register(&cpm_i2c_driver);
-}
-
-static void __exit cpm_i2c_exit(void)
-{
-	platform_driver_unregister(&cpm_i2c_driver);
-}
-
-module_init(cpm_i2c_init);
-module_exit(cpm_i2c_exit);
+module_platform_driver(cpm_i2c_driver);
 
 MODULE_AUTHOR("Jochen Friedrich <jochen@scram.de>");
 MODULE_DESCRIPTION("I2C-Bus adapter routines for CPM boards");

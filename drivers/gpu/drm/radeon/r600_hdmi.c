@@ -196,6 +196,13 @@ static void r600_hdmi_videoinfoframe(
 	frame[0xD] = (right_bar >> 8);
 
 	r600_hdmi_infoframe_checksum(0x82, 0x02, 0x0D, frame);
+	/* Our header values (type, version, length) should be alright, Intel
+	 * is using the same. Checksum function also seems to be OK, it works
+	 * fine for audio infoframe. However calculated value is always lower
+	 * by 2 in comparison to fglrx. It breaks displaying anything in case
+	 * of TVs that strictly check the checksum. Hack it manually here to
+	 * workaround this issue. */
+	frame[0x0] += 2;
 
 	WREG32(offset+R600_HDMI_VIDEOINFOFRAME_0,
 		frame[0x0] | (frame[0x1] << 8) | (frame[0x2] << 16) | (frame[0x3] << 24));
@@ -313,7 +320,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	struct radeon_device *rdev = dev->dev_private;
 	uint32_t offset = to_radeon_encoder(encoder)->hdmi_offset;
 
-	if (ASIC_IS_DCE4(rdev))
+	if (ASIC_IS_DCE5(rdev))
 		return;
 
 	if (!offset)
@@ -455,13 +462,31 @@ static void r600_hdmi_assign_block(struct drm_encoder *encoder)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 
+	u16 eg_offsets[] = {
+		EVERGREEN_CRTC0_REGISTER_OFFSET,
+		EVERGREEN_CRTC1_REGISTER_OFFSET,
+		EVERGREEN_CRTC2_REGISTER_OFFSET,
+		EVERGREEN_CRTC3_REGISTER_OFFSET,
+		EVERGREEN_CRTC4_REGISTER_OFFSET,
+		EVERGREEN_CRTC5_REGISTER_OFFSET,
+	};
+
 	if (!dig) {
 		dev_err(rdev->dev, "Enabling HDMI on non-dig encoder\n");
 		return;
 	}
 
-	if (ASIC_IS_DCE4(rdev)) {
+	if (ASIC_IS_DCE5(rdev)) {
 		/* TODO */
+	} else if (ASIC_IS_DCE4(rdev)) {
+		if (dig->dig_encoder >= ARRAY_SIZE(eg_offsets)) {
+			dev_err(rdev->dev, "Enabling HDMI on unknown dig\n");
+			return;
+		}
+		radeon_encoder->hdmi_offset = EVERGREEN_HDMI_BASE +
+						eg_offsets[dig->dig_encoder];
+		radeon_encoder->hdmi_config_offset = radeon_encoder->hdmi_offset
+						+ EVERGREEN_HDMI_CONFIG_OFFSET;
 	} else if (ASIC_IS_DCE3(rdev)) {
 		radeon_encoder->hdmi_offset = dig->dig_encoder ?
 			R600_HDMI_BLOCK3 : R600_HDMI_BLOCK1;
@@ -484,7 +509,7 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	uint32_t offset;
 
-	if (ASIC_IS_DCE4(rdev))
+	if (ASIC_IS_DCE5(rdev))
 		return;
 
 	if (!radeon_encoder->hdmi_offset) {
@@ -497,16 +522,24 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	}
 
 	offset = radeon_encoder->hdmi_offset;
-	if (ASIC_IS_DCE32(rdev) && !ASIC_IS_DCE4(rdev)) {
+	if (ASIC_IS_DCE5(rdev)) {
+		/* TODO */
+	} else if (ASIC_IS_DCE4(rdev)) {
+		WREG32_P(radeon_encoder->hdmi_config_offset + 0xc, 0x1, ~0x1);
+	} else if (ASIC_IS_DCE32(rdev)) {
 		WREG32_P(radeon_encoder->hdmi_config_offset + 0x4, 0x1, ~0x1);
-	} else if (rdev->family >= CHIP_R600 && !ASIC_IS_DCE3(rdev)) {
+	} else if (ASIC_IS_DCE3(rdev)) {
+		/* TODO */
+	} else if (rdev->family >= CHIP_R600) {
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
-			WREG32_P(AVIVO_TMDSA_CNTL, 0x4, ~0x4);
+			WREG32_P(AVIVO_TMDSA_CNTL, AVIVO_TMDSA_CNTL_HDMI_EN,
+				 ~AVIVO_TMDSA_CNTL_HDMI_EN);
 			WREG32(offset + R600_HDMI_ENABLE, 0x101);
 			break;
 		case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
-			WREG32_P(AVIVO_LVTMA_CNTL, 0x4, ~0x4);
+			WREG32_P(AVIVO_LVTMA_CNTL, AVIVO_LVTMA_CNTL_HDMI_EN,
+				 ~AVIVO_LVTMA_CNTL_HDMI_EN);
 			WREG32(offset + R600_HDMI_ENABLE, 0x105);
 			break;
 		default:
@@ -518,8 +551,8 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	if (rdev->irq.installed
 	    && rdev->family != CHIP_RS600
 	    && rdev->family != CHIP_RS690
-	    && rdev->family != CHIP_RS740) {
-
+	    && rdev->family != CHIP_RS740
+	    && !ASIC_IS_DCE4(rdev)) {
 		/* if irq is available use it */
 		rdev->irq.hdmi[offset == R600_HDMI_BLOCK1 ? 0 : 1] = true;
 		radeon_irq_set(rdev);
@@ -544,7 +577,7 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	uint32_t offset;
 
-	if (ASIC_IS_DCE4(rdev))
+	if (ASIC_IS_DCE5(rdev))
 		return;
 
 	offset = radeon_encoder->hdmi_offset;
@@ -563,16 +596,22 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 	/* disable polling */
 	r600_audio_disable_polling(encoder);
 
-	if (ASIC_IS_DCE32(rdev) && !ASIC_IS_DCE4(rdev)) {
+	if (ASIC_IS_DCE5(rdev)) {
+		/* TODO */
+	} else if (ASIC_IS_DCE4(rdev)) {
+		WREG32_P(radeon_encoder->hdmi_config_offset + 0xc, 0, ~0x1);
+	} else if (ASIC_IS_DCE32(rdev)) {
 		WREG32_P(radeon_encoder->hdmi_config_offset + 0x4, 0, ~0x1);
 	} else if (rdev->family >= CHIP_R600 && !ASIC_IS_DCE3(rdev)) {
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
-			WREG32_P(AVIVO_TMDSA_CNTL, 0, ~0x4);
+			WREG32_P(AVIVO_TMDSA_CNTL, 0,
+				 ~AVIVO_TMDSA_CNTL_HDMI_EN);
 			WREG32(offset + R600_HDMI_ENABLE, 0);
 			break;
 		case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
-			WREG32_P(AVIVO_LVTMA_CNTL, 0, ~0x4);
+			WREG32_P(AVIVO_LVTMA_CNTL, 0,
+				 ~AVIVO_LVTMA_CNTL_HDMI_EN);
 			WREG32(offset + R600_HDMI_ENABLE, 0);
 			break;
 		default:

@@ -297,10 +297,11 @@ enum {
 
 struct pm860x_chip {
 	struct device		*dev;
-	struct mutex		io_lock;
 	struct mutex		irq_lock;
 	struct i2c_client	*client;
 	struct i2c_client	*companion;	/* companion chip client */
+	struct regmap           *regmap;
+	struct regmap           *regmap_companion;
 
 	int			buck3_double;	/* DVC ramp slope double */
 	unsigned short		companion_addr;

@@ -456,7 +456,7 @@ static int synclinkmp_device_count = 0;
  * .text section address and breakpoint on module load.
  * This is useful for use with gdb and add-symbol-file command.
  */
-static int break_on_load = 0;
+static bool break_on_load = 0;
 
 /*
  * Driver major number, defaults to zero to get auto

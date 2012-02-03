@@ -352,7 +352,8 @@ static int dt3k_send_cmd(struct comedi_device *dev, unsigned int cmd)
 	if ((status & DT3000_COMPLETION_MASK) == DT3000_NOERROR)
 		return 0;
 
-	printk("dt3k_send_cmd() timeout/error status=0x%04x\n", status);
+	dev_dbg(dev->hw_dev, "dt3k_send_cmd() timeout/error status=0x%04x\n",
+		status);
 
 	return -ETIME;
 }
@@ -383,7 +384,7 @@ static void dt3k_writesingle(struct comedi_device *dev, unsigned int subsys,
 	dt3k_send_cmd(dev, CMD_WRITESINGLE);
 }
 
-static int debug_n_ints = 0;
+static int debug_n_ints;
 
 /* FIXME! Assumes shared interrupt is for this card. */
 /* What's this debug_n_ints stuff? Obviously needs some work... */
@@ -429,12 +430,12 @@ static char *intr_flags[] = {
 static void debug_intr_flags(unsigned int flags)
 {
 	int i;
-	printk("dt3k: intr_flags:");
+	printk(KERN_DEBUG "dt3k: intr_flags:");
 	for (i = 0; i < 8; i++) {
 		if (flags & (1 << i))
-			printk(" %s", intr_flags[i]);
+			printk(KERN_CONT " %s", intr_flags[i]);
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 #endif
 
@@ -452,7 +453,7 @@ static void dt3k_ai_empty_fifo(struct comedi_device *dev,
 	if (count < 0)
 		count += AI_FIFO_DEPTH;
 
-	printk("reading %d samples\n", count);
+	dev_dbg(dev->hw_dev, "reading %d samples\n", count);
 
 	rear = devpriv->ai_rear;
 
@@ -640,7 +641,7 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int ret;
 	unsigned int mode;
 
-	printk("dt3k_ai_cmd:\n");
+	dev_dbg(dev->hw_dev, "dt3k_ai_cmd:\n");
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		chan = CR_CHAN(cmd->chanlist[i]);
 		range = CR_RANGE(cmd->chanlist[i]);
@@ -651,15 +652,15 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	aref = CR_AREF(cmd->chanlist[0]);
 
 	writew(cmd->scan_end_arg, devpriv->io_addr + DPR_Params(0));
-	printk("param[0]=0x%04x\n", cmd->scan_end_arg);
+	dev_dbg(dev->hw_dev, "param[0]=0x%04x\n", cmd->scan_end_arg);
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		divider = dt3k_ns_to_timer(50, &cmd->convert_arg,
 					   cmd->flags & TRIG_ROUND_MASK);
 		writew((divider >> 16), devpriv->io_addr + DPR_Params(1));
-		printk("param[1]=0x%04x\n", divider >> 16);
+		dev_dbg(dev->hw_dev, "param[1]=0x%04x\n", divider >> 16);
 		writew((divider & 0xffff), devpriv->io_addr + DPR_Params(2));
-		printk("param[2]=0x%04x\n", divider & 0xffff);
+		dev_dbg(dev->hw_dev, "param[2]=0x%04x\n", divider & 0xffff);
 	} else {
 		/* not supported */
 	}
@@ -668,21 +669,21 @@ static int dt3k_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		tscandiv = dt3k_ns_to_timer(100, &cmd->scan_begin_arg,
 					    cmd->flags & TRIG_ROUND_MASK);
 		writew((tscandiv >> 16), devpriv->io_addr + DPR_Params(3));
-		printk("param[3]=0x%04x\n", tscandiv >> 16);
+		dev_dbg(dev->hw_dev, "param[3]=0x%04x\n", tscandiv >> 16);
 		writew((tscandiv & 0xffff), devpriv->io_addr + DPR_Params(4));
-		printk("param[4]=0x%04x\n", tscandiv & 0xffff);
+		dev_dbg(dev->hw_dev, "param[4]=0x%04x\n", tscandiv & 0xffff);
 	} else {
 		/* not supported */
 	}
 
 	mode = DT3000_AD_RETRIG_INTERNAL | 0 | 0;
 	writew(mode, devpriv->io_addr + DPR_Params(5));
-	printk("param[5]=0x%04x\n", mode);
+	dev_dbg(dev->hw_dev, "param[5]=0x%04x\n", mode);
 	writew(aref == AREF_DIFF, devpriv->io_addr + DPR_Params(6));
-	printk("param[6]=0x%04x\n", aref == AREF_DIFF);
+	dev_dbg(dev->hw_dev, "param[6]=0x%04x\n", aref == AREF_DIFF);
 
 	writew(AI_FIFO_DEPTH / 2, devpriv->io_addr + DPR_Params(7));
-	printk("param[7]=0x%04x\n", AI_FIFO_DEPTH / 2);
+	dev_dbg(dev->hw_dev, "param[7]=0x%04x\n", AI_FIFO_DEPTH / 2);
 
 	writew(SUBS_AI, devpriv->io_addr + DPR_SubSys);
 	ret = dt3k_send_cmd(dev, CMD_CONFIG);
@@ -848,7 +849,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int bus, slot;
 	int ret = 0;
 
-	printk("dt3000:");
+	dev_dbg(dev->hw_dev, "dt3000:\n");
 	bus = it->options[0];
 	slot = it->options[1];
 
@@ -860,7 +861,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret < 0)
 		return ret;
 	if (ret == 0) {
-		printk(" no DT board found\n");
+		dev_warn(dev->hw_dev, "no DT board found\n");
 		return -ENODEV;
 	}
 
@@ -868,7 +869,8 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	if (request_irq(devpriv->pci_dev->irq, dt3k_interrupt, IRQF_SHARED,
 			"dt3000", dev)) {
-		printk(" unable to allocate IRQ %u\n", devpriv->pci_dev->irq);
+		dev_err(dev->hw_dev, "unable to allocate IRQ %u\n",
+			devpriv->pci_dev->irq);
 		return -EINVAL;
 	}
 	dev->irq = devpriv->pci_dev->irq;

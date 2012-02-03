@@ -150,7 +150,7 @@ static ssize_t show_status(struct qib_pportdata *ppd, char *buf)
  * For userland compatibility, these offsets must remain fixed.
  * They are strings for QIB_STATUS_*
  */
-static const char *qib_status_str[] = {
+static const char * const qib_status_str[] = {
 	"Initted",
 	"",
 	"",

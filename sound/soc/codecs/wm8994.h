@@ -39,16 +39,6 @@ int wm8994_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 		      wm8958_micdet_cb cb, void *cb_data);
 
-#define WM8994_CACHE_SIZE 1570
-
-struct wm8994_access_mask {
-	unsigned short readable;   /* Mask of readable bits */
-	unsigned short writable;   /* Mask of writable bits */
-};
-
-extern const struct wm8994_access_mask wm8994_access_masks[WM8994_CACHE_SIZE];
-extern const u16 wm8994_reg_defaults[WM8994_CACHE_SIZE];
-
 int wm8958_aif_ev(struct snd_soc_dapm_widget *w,
 		  struct snd_kcontrol *kcontrol, int event);
 
@@ -70,10 +60,11 @@ struct wm8994_fll_config {
 #define WM8994_NUM_DRC 3
 #define WM8994_NUM_EQ  3
 
+struct wm8994;
+
 struct wm8994_priv {
 	struct wm_hubs_data hubs;
-	enum snd_soc_control_type control_type;
-	void *control_data;
+	struct wm8994 *wm8994;
 	struct snd_soc_codec *codec;
 	int sysclk[2];
 	int sysclk_rate[2];
@@ -84,6 +75,7 @@ struct wm8994_priv {
 	bool fll_locked_irq;
 
 	int vmid_refcount;
+	int active_refcount;
 
 	int dac_rates[2];
 	int lrclk_shared[2];
@@ -125,7 +117,12 @@ struct wm8994_priv {
 	const char **enh_eq_texts;
 	struct soc_enum enh_eq_enum;
 
+	struct mutex accdet_lock;
 	struct wm8994_micdet micdet[2];
+	bool mic_detecting;
+	bool jack_mic;
+	int btn_mask;
+	bool jackdet;
 
 	wm8958_micdet_cb jack_cb;
 	void *jack_cb_data;

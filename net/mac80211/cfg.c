@@ -616,7 +616,7 @@ static int ieee80211_config_beacon(struct ieee80211_sub_if_data *sdata,
 
 	sdata->vif.bss_conf.dtim_period = new->dtim_period;
 
-	RCU_INIT_POINTER(sdata->u.ap.beacon, new);
+	rcu_assign_pointer(sdata->u.ap.beacon, new);
 
 	synchronize_rcu();
 
@@ -791,7 +791,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		if (set & BIT(NL80211_STA_FLAG_AUTHORIZED))
 			ret = sta_info_move_state_checked(sta,
 					IEEE80211_STA_AUTHORIZED);
-		else
+		else if (test_sta_flag(sta, WLAN_STA_AUTHORIZED))
 			ret = sta_info_move_state_checked(sta,
 					IEEE80211_STA_ASSOC);
 		if (ret)
@@ -1033,7 +1033,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 				return -EBUSY;
 			}
 
-			RCU_INIT_POINTER(vlansdata->u.vlan.sta, sta);
+			rcu_assign_pointer(vlansdata->u.vlan.sta, sta);
 		}
 
 		sta->sdata = vlansdata;

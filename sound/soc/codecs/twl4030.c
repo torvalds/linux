@@ -2149,7 +2149,7 @@ static int twl4030_voice_set_tristate(struct snd_soc_dai *dai, int tristate)
 #define TWL4030_RATES	 (SNDRV_PCM_RATE_8000_48000)
 #define TWL4030_FORMATS	 (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops twl4030_dai_hifi_ops = {
+static const struct snd_soc_dai_ops twl4030_dai_hifi_ops = {
 	.startup	= twl4030_startup,
 	.shutdown	= twl4030_shutdown,
 	.hw_params	= twl4030_hw_params,
@@ -2158,7 +2158,7 @@ static struct snd_soc_dai_ops twl4030_dai_hifi_ops = {
 	.set_tristate	= twl4030_set_tristate,
 };
 
-static struct snd_soc_dai_ops twl4030_dai_voice_ops = {
+static const struct snd_soc_dai_ops twl4030_dai_voice_ops = {
 	.startup	= twl4030_voice_startup,
 	.shutdown	= twl4030_voice_shutdown,
 	.hw_params	= twl4030_voice_hw_params,
@@ -2202,7 +2202,7 @@ static struct snd_soc_dai_driver twl4030_dai[] = {
 },
 };
 
-static int twl4030_soc_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int twl4030_soc_suspend(struct snd_soc_codec *codec)
 {
 	twl4030_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
@@ -2294,17 +2294,7 @@ static struct platform_driver twl4030_codec_driver = {
 	},
 };
 
-static int __init twl4030_modinit(void)
-{
-	return platform_driver_register(&twl4030_codec_driver);
-}
-module_init(twl4030_modinit);
-
-static void __exit twl4030_exit(void)
-{
-	platform_driver_unregister(&twl4030_codec_driver);
-}
-module_exit(twl4030_exit);
+module_platform_driver(twl4030_codec_driver);
 
 MODULE_DESCRIPTION("ASoC TWL4030 codec driver");
 MODULE_AUTHOR("Steve Sakoman");

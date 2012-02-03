@@ -19,6 +19,7 @@
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/debugfs.h>
+#include <linux/module.h>
 #include <linux/string.h>
 #include <mach/vreg.h>
 

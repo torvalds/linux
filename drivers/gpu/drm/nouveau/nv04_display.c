@@ -243,6 +243,11 @@ nv04_display_init(struct drm_device *dev)
 	return 0;
 }
 
+void
+nv04_display_fini(struct drm_device *dev)
+{
+}
+
 static void
 nv04_vblank_crtc0_isr(struct drm_device *dev)
 {

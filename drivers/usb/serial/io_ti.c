@@ -15,13 +15,6 @@
  * For questions or problems with this driver, contact Inside Out
  * Networks technical support, or Peter Berger <pberger@brimson.com>,
  * or Al Borchers <alborchers@steinerpoint.com>.
- *
- * Version history:
- *
- *	July 11, 2002 	Removed 4 port device structure since all TI UMP
- *			chips have only 2 ports
- *			David Iacovelli (davidi@ionetworks.com)
- *
  */
 
 #include <linux/kernel.h>
@@ -217,10 +210,10 @@ static unsigned char OperationalMajorVersion;
 static unsigned char OperationalMinorVersion;
 static unsigned short OperationalBuildNumber;
 
-static int debug;
+static bool debug;
 
 static int closing_wait = EDGE_CLOSING_WAIT;
-static int ignore_cpu_rev;
+static bool ignore_cpu_rev;
 static int default_uart_mode;		/* RS232 */
 
 static void edge_tty_recv(struct device *dev, struct tty_struct *tty,
@@ -1777,12 +1770,11 @@ static void edge_bulk_in_callback(struct urb *urb)
 exit:
 	/* continue read unless stopped */
 	spin_lock(&edge_port->ep_lock);
-	if (edge_port->ep_read_urb_state == EDGE_READ_URB_RUNNING) {
-		urb->dev = edge_port->port->serial->dev;
+	if (edge_port->ep_read_urb_state == EDGE_READ_URB_RUNNING)
 		retval = usb_submit_urb(urb, GFP_ATOMIC);
-	} else if (edge_port->ep_read_urb_state == EDGE_READ_URB_STOPPING) {
+	else if (edge_port->ep_read_urb_state == EDGE_READ_URB_STOPPING)
 		edge_port->ep_read_urb_state = EDGE_READ_URB_STOPPED;
-	}
+
 	spin_unlock(&edge_port->ep_lock);
 	if (retval)
 		dev_err(&urb->dev->dev,
@@ -1959,9 +1951,7 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 			status = -EINVAL;
 			goto release_es_lock;
 		}
-		urb->complete = edge_interrupt_callback;
 		urb->context = edge_serial;
-		urb->dev = dev;
 		status = usb_submit_urb(urb, GFP_KERNEL);
 		if (status) {
 			dev_err(&port->dev,
@@ -1987,9 +1977,7 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 		goto unlink_int_urb;
 	}
 	edge_port->ep_read_urb_state = EDGE_READ_URB_RUNNING;
-	urb->complete = edge_bulk_in_callback;
 	urb->context = edge_port;
-	urb->dev = dev;
 	status = usb_submit_urb(urb, GFP_KERNEL);
 	if (status) {
 		dev_err(&port->dev,
@@ -2118,12 +2106,7 @@ static void edge_send(struct tty_struct *tty)
 				port->write_urb->transfer_buffer);
 
 	/* set up our urb */
-	usb_fill_bulk_urb(port->write_urb, port->serial->dev,
-			   usb_sndbulkpipe(port->serial->dev,
-					    port->bulk_out_endpointAddress),
-			   port->write_urb->transfer_buffer, count,
-			   edge_bulk_out_callback,
-			   port);
+	port->write_urb->transfer_buffer_length = count;
 
 	/* send the data out the bulk port */
 	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
@@ -2267,9 +2250,6 @@ static int restart_read(struct edgeport_port *edge_port)
 
 	if (edge_port->ep_read_urb_state == EDGE_READ_URB_STOPPED) {
 		urb = edge_port->port->read_urb;
-		urb->complete = edge_bulk_in_callback;
-		urb->context = edge_port;
-		urb->dev = edge_port->port->serial->dev;
 		status = usb_submit_urb(urb, GFP_ATOMIC);
 	}
 	edge_port->ep_read_urb_state = EDGE_READ_URB_RUNNING;
@@ -2677,15 +2657,7 @@ cleanup:
 
 static void edge_disconnect(struct usb_serial *serial)
 {
-	int i;
-	struct edgeport_port *edge_port;
-
 	dbg("%s", __func__);
-
-	for (i = 0; i < serial->num_ports; ++i) {
-		edge_port = usb_get_serial_port_data(serial->port[i]);
-		edge_remove_sysfs_attrs(edge_port->port);
-	}
 }
 
 static void edge_release(struct usb_serial *serial)
@@ -2764,6 +2736,7 @@ static struct usb_serial_driver edgeport_1port_device = {
 	.disconnect		= edge_disconnect,
 	.release		= edge_release,
 	.port_probe		= edge_create_sysfs_attrs,
+	.port_remove		= edge_remove_sysfs_attrs,
 	.ioctl			= edge_ioctl,
 	.set_termios		= edge_set_termios,
 	.tiocmget		= edge_tiocmget,
@@ -2795,6 +2768,7 @@ static struct usb_serial_driver edgeport_2port_device = {
 	.disconnect		= edge_disconnect,
 	.release		= edge_release,
 	.port_probe		= edge_create_sysfs_attrs,
+	.port_remove		= edge_remove_sysfs_attrs,
 	.ioctl			= edge_ioctl,
 	.set_termios		= edge_set_termios,
 	.tiocmget		= edge_tiocmget,

@@ -542,7 +542,7 @@ static int modem_index;
 static unsigned int debug;
 static unsigned int altsetting[NB_MODEM] = {
 				[0 ... (NB_MODEM - 1)] = FASTEST_ISO_INTF};
-static int sync_wait[NB_MODEM];
+static bool sync_wait[NB_MODEM];
 static char *cmv_file[NB_MODEM];
 static int annex[NB_MODEM];
 

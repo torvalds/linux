@@ -2546,8 +2546,9 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	}
 
 	/* Define and configure additional controls from cx2341x module. */
-	hdw->mpeg_ctrl_info = kzalloc(
-		sizeof(*(hdw->mpeg_ctrl_info)) * MPEGDEF_COUNT, GFP_KERNEL);
+	hdw->mpeg_ctrl_info = kcalloc(MPEGDEF_COUNT,
+				      sizeof(*(hdw->mpeg_ctrl_info)),
+				      GFP_KERNEL);
 	if (!hdw->mpeg_ctrl_info) goto fail;
 	for (idx = 0; idx < MPEGDEF_COUNT; idx++) {
 		cptr = hdw->controls + idx + CTRLDEF_COUNT;

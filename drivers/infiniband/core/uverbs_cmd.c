@@ -241,9 +241,22 @@ static struct ib_qp *idr_read_qp(int qp_handle, struct ib_ucontext *context)
 	return idr_read_obj(&ib_uverbs_qp_idr, qp_handle, context, 0);
 }
 
+static struct ib_qp *idr_write_qp(int qp_handle, struct ib_ucontext *context)
+{
+	struct ib_uobject *uobj;
+
+	uobj = idr_write_uobj(&ib_uverbs_qp_idr, qp_handle, context);
+	return uobj ? uobj->object : NULL;
+}
+
 static void put_qp_read(struct ib_qp *qp)
 {
 	put_uobj_read(qp->uobject);
+}
+
+static void put_qp_write(struct ib_qp *qp)
+{
+	put_uobj_write(qp->uobject);
 }
 
 static struct ib_srq *idr_read_srq(int srq_handle, struct ib_ucontext *context)
@@ -1472,6 +1485,7 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 		qp->event_handler = attr.event_handler;
 		qp->qp_context	  = attr.qp_context;
 		qp->qp_type	  = attr.qp_type;
+		atomic_set(&qp->usecnt, 0);
 		atomic_inc(&pd->usecnt);
 		atomic_inc(&attr.send_cq->usecnt);
 		if (attr.recv_cq)
@@ -2375,7 +2389,7 @@ ssize_t ib_uverbs_attach_mcast(struct ib_uverbs_file *file,
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
-	qp = idr_read_qp(cmd.qp_handle, file->ucontext);
+	qp = idr_write_qp(cmd.qp_handle, file->ucontext);
 	if (!qp)
 		return -EINVAL;
 
@@ -2404,7 +2418,7 @@ ssize_t ib_uverbs_attach_mcast(struct ib_uverbs_file *file,
 		kfree(mcast);
 
 out_put:
-	put_qp_read(qp);
+	put_qp_write(qp);
 
 	return ret ? ret : in_len;
 }
@@ -2422,7 +2436,7 @@ ssize_t ib_uverbs_detach_mcast(struct ib_uverbs_file *file,
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
-	qp = idr_read_qp(cmd.qp_handle, file->ucontext);
+	qp = idr_write_qp(cmd.qp_handle, file->ucontext);
 	if (!qp)
 		return -EINVAL;
 
@@ -2441,14 +2455,14 @@ ssize_t ib_uverbs_detach_mcast(struct ib_uverbs_file *file,
 		}
 
 out_put:
-	put_qp_read(qp);
+	put_qp_write(qp);
 
 	return ret ? ret : in_len;
 }
 
-int __uverbs_create_xsrq(struct ib_uverbs_file *file,
-			 struct ib_uverbs_create_xsrq *cmd,
-			 struct ib_udata *udata)
+static int __uverbs_create_xsrq(struct ib_uverbs_file *file,
+				struct ib_uverbs_create_xsrq *cmd,
+				struct ib_udata *udata)
 {
 	struct ib_uverbs_create_srq_resp resp;
 	struct ib_usrq_object           *obj;

@@ -16,7 +16,7 @@
 #include <linux/usb/serial.h>
 #include <linux/uaccess.h>
 
-static int debug;
+static bool debug;
 
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1404, 0xcddc) },

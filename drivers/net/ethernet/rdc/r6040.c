@@ -1160,7 +1160,7 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	lp->dev = dev;
 
 	/* Init RDC private data */
-	lp->mcr0 = MCR0_XMTEN | MCR0;
+	lp->mcr0 = MCR0_XMTEN | MCR0_RCVEN;
 
 	/* The RDC-specific entries in the device structure. */
 	dev->netdev_ops = &r6040_netdev_ops;

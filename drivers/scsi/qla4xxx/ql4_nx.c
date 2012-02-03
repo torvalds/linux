@@ -1792,8 +1792,11 @@ int qla4_8xxx_device_state_handler(struct scsi_qla_host *ha)
 	int rval = QLA_SUCCESS;
 	unsigned long dev_init_timeout;
 
-	if (!test_bit(AF_INIT_DONE, &ha->flags))
+	if (!test_bit(AF_INIT_DONE, &ha->flags)) {
+		qla4_8xxx_idc_lock(ha);
 		qla4_8xxx_set_drv_active(ha);
+		qla4_8xxx_idc_unlock(ha);
+	}
 
 	dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
 	ql4_printk(KERN_INFO, ha, "1:Device state is 0x%x = %s\n", dev_state,
@@ -1802,8 +1805,8 @@ int qla4_8xxx_device_state_handler(struct scsi_qla_host *ha)
 	/* wait for 30 seconds for device to go ready */
 	dev_init_timeout = jiffies + (ha->nx_dev_init_timeout * HZ);
 
+	qla4_8xxx_idc_lock(ha);
 	while (1) {
-		qla4_8xxx_idc_lock(ha);
 
 		if (time_after_eq(jiffies, dev_init_timeout)) {
 			ql4_printk(KERN_WARNING, ha, "Device init failed!\n");
@@ -1819,15 +1822,14 @@ int qla4_8xxx_device_state_handler(struct scsi_qla_host *ha)
 		/* NOTE: Make sure idc unlocked upon exit of switch statement */
 		switch (dev_state) {
 		case QLA82XX_DEV_READY:
-			qla4_8xxx_idc_unlock(ha);
 			goto exit;
 		case QLA82XX_DEV_COLD:
 			rval = qla4_8xxx_device_bootstrap(ha);
-			qla4_8xxx_idc_unlock(ha);
 			goto exit;
 		case QLA82XX_DEV_INITIALIZING:
 			qla4_8xxx_idc_unlock(ha);
 			msleep(1000);
+			qla4_8xxx_idc_lock(ha);
 			break;
 		case QLA82XX_DEV_NEED_RESET:
 			if (!ql4xdontresethba) {
@@ -1836,38 +1838,48 @@ int qla4_8xxx_device_state_handler(struct scsi_qla_host *ha)
 				 * reset handler */
 				dev_init_timeout = jiffies +
 					(ha->nx_dev_init_timeout * HZ);
+			} else {
+				qla4_8xxx_idc_unlock(ha);
+				msleep(1000);
+				qla4_8xxx_idc_lock(ha);
 			}
-			qla4_8xxx_idc_unlock(ha);
 			break;
 		case QLA82XX_DEV_NEED_QUIESCENT:
-			qla4_8xxx_idc_unlock(ha);
 			/* idc locked/unlocked in handler */
 			qla4_8xxx_need_qsnt_handler(ha);
-			qla4_8xxx_idc_lock(ha);
-			/* fall thru needs idc_locked */
+			break;
 		case QLA82XX_DEV_QUIESCENT:
 			qla4_8xxx_idc_unlock(ha);
 			msleep(1000);
+			qla4_8xxx_idc_lock(ha);
 			break;
 		case QLA82XX_DEV_FAILED:
 			qla4_8xxx_idc_unlock(ha);
 			qla4xxx_dead_adapter_cleanup(ha);
 			rval = QLA_ERROR;
+			qla4_8xxx_idc_lock(ha);
 			goto exit;
 		default:
 			qla4_8xxx_idc_unlock(ha);
 			qla4xxx_dead_adapter_cleanup(ha);
 			rval = QLA_ERROR;
+			qla4_8xxx_idc_lock(ha);
 			goto exit;
 		}
 	}
 exit:
+	qla4_8xxx_idc_unlock(ha);
 	return rval;
 }
 
 int qla4_8xxx_load_risc(struct scsi_qla_host *ha)
 {
 	int retval;
+
+	/* clear the interrupt */
+	writel(0, &ha->qla4_8xxx_reg->host_int);
+	readl(&ha->qla4_8xxx_reg->host_int);
+
 	retval = qla4_8xxx_device_state_handler(ha);
 
 	if (retval == QLA_SUCCESS && !test_bit(AF_INIT_DONE, &ha->flags))

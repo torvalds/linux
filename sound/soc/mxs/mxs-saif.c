@@ -124,6 +124,8 @@ static int mxs_saif_set_clk(struct mxs_saif *saif,
 	 *
 	 * If MCLK is not used, we just set saif clk to 512*fs.
 	 */
+	clk_prepare_enable(master_saif->clk);
+
 	if (master_saif->mclk_in_use) {
 		if (mclk % 32 == 0) {
 			scr &= ~BM_SAIF_CTRL_BITCLK_BASE_RATE;
@@ -133,12 +135,15 @@ static int mxs_saif_set_clk(struct mxs_saif *saif,
 			ret = clk_set_rate(master_saif->clk, 384 * rate);
 		} else {
 			/* SAIF MCLK should be either 32x or 48x */
+			clk_disable_unprepare(master_saif->clk);
 			return -EINVAL;
 		}
 	} else {
 		ret = clk_set_rate(master_saif->clk, 512 * rate);
 		scr &= ~BM_SAIF_CTRL_BITCLK_BASE_RATE;
 	}
+
+	clk_disable_unprepare(master_saif->clk);
 
 	if (ret)
 		return ret;
@@ -210,7 +215,7 @@ int mxs_saif_put_mclk(unsigned int saif_id)
 		return -EBUSY;
 	}
 
-	clk_disable(saif->clk);
+	clk_disable_unprepare(saif->clk);
 
 	/* disable MCLK output */
 	__raw_writel(BM_SAIF_CTRL_CLKGATE,
@@ -264,7 +269,7 @@ int mxs_saif_get_mclk(unsigned int saif_id, unsigned int mclk,
 	if (ret)
 		return ret;
 
-	ret = clk_enable(saif->clk);
+	ret = clk_prepare_enable(saif->clk);
 	if (ret)
 		return ret;
 
@@ -550,7 +555,7 @@ static int mxs_saif_trigger(struct snd_pcm_substream *substream, int cmd,
 	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 	SNDRV_PCM_FMTBIT_S24_LE)
 
-static struct snd_soc_dai_ops mxs_saif_dai_ops = {
+static const struct snd_soc_dai_ops mxs_saif_dai_ops = {
 	.startup = mxs_saif_startup,
 	.trigger = mxs_saif_trigger,
 	.prepare = mxs_saif_prepare,
@@ -625,13 +630,6 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	if (pdev->id >= ARRAY_SIZE(mxs_saif))
 		return -EINVAL;
 
-	pdata = pdev->dev.platform_data;
-	if (pdata && pdata->init) {
-		ret = pdata->init();
-		if (ret)
-			return ret;
-	}
-
 	saif = kzalloc(sizeof(*saif), GFP_KERNEL);
 	if (!saif)
 		return -ENOMEM;
@@ -639,12 +637,17 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	mxs_saif[pdev->id] = saif;
 	saif->id = pdev->id;
 
-	saif->master_id = saif->id;
-	if (pdata && pdata->get_master_id) {
-		saif->master_id = pdata->get_master_id(saif->id);
+	pdata = pdev->dev.platform_data;
+	if (pdata && !pdata->master_mode) {
+		saif->master_id = pdata->master_id;
 		if (saif->master_id < 0 ||
-			saif->master_id >= ARRAY_SIZE(mxs_saif))
+			saif->master_id >= ARRAY_SIZE(mxs_saif) ||
+			saif->master_id == saif->id) {
+			dev_err(&pdev->dev, "get wrong master id\n");
 			return -EINVAL;
+		}
+	} else {
+		saif->master_id = saif->id;
 	}
 
 	saif->clk = clk_get(&pdev->dev, NULL);
@@ -781,18 +784,8 @@ static struct platform_driver mxs_saif_driver = {
 	},
 };
 
-static int __init mxs_saif_init(void)
-{
-	return platform_driver_register(&mxs_saif_driver);
-}
+module_platform_driver(mxs_saif_driver);
 
-static void __exit mxs_saif_exit(void)
-{
-	platform_driver_unregister(&mxs_saif_driver);
-}
-
-module_init(mxs_saif_init);
-module_exit(mxs_saif_exit);
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("MXS ASoC SAIF driver");
 MODULE_LICENSE("GPL");

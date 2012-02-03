@@ -751,6 +751,17 @@ static int simple_set_radio_freq(struct dvb_frontend *fe,
 	if (4 != rc)
 		tuner_warn("i2c i/o error: rc == %d (should be 4)\n", rc);
 
+	/* Write AUX byte */
+	switch (priv->type) {
+	case TUNER_PHILIPS_FM1216ME_MK3:
+		buffer[2] = 0x98;
+		buffer[3] = 0x20; /* set TOP AGC */
+		rc = tuner_i2c_xfer_send(&priv->i2c_props, buffer, 4);
+		if (4 != rc)
+			tuner_warn("i2c i/o error: rc == %d (should be 4)\n", rc);
+		break;
+	}
+
 	return 0;
 }
 
@@ -780,24 +791,26 @@ static int simple_set_params(struct dvb_frontend *fe,
 }
 
 static void simple_set_dvb(struct dvb_frontend *fe, u8 *buf,
-			   const struct dvb_frontend_parameters *params)
+			   const u32 delsys,
+			   const u32 frequency,
+			   const u32 bandwidth)
 {
 	struct tuner_simple_priv *priv = fe->tuner_priv;
 
 	switch (priv->type) {
 	case TUNER_PHILIPS_FMD1216ME_MK3:
 	case TUNER_PHILIPS_FMD1216MEX_MK3:
-		if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ &&
-		    params->frequency >= 158870000)
+		if (bandwidth == 8000000 &&
+		    frequency >= 158870000)
 			buf[3] |= 0x08;
 		break;
 	case TUNER_PHILIPS_TD1316:
 		/* determine band */
-		buf[3] |= (params->frequency < 161000000) ? 1 :
-			  (params->frequency < 444000000) ? 2 : 4;
+		buf[3] |= (frequency < 161000000) ? 1 :
+			  (frequency < 444000000) ? 2 : 4;
 
 		/* setup PLL filter */
-		if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ)
+		if (bandwidth == 8000000)
 			buf[3] |= 1 << 3;
 		break;
 	case TUNER_PHILIPS_TUV1236D:
@@ -808,12 +821,11 @@ static void simple_set_dvb(struct dvb_frontend *fe, u8 *buf,
 		if (dtv_input[priv->nr])
 			new_rf = dtv_input[priv->nr];
 		else
-			switch (params->u.vsb.modulation) {
-			case QAM_64:
-			case QAM_256:
+			switch (delsys) {
+			case SYS_DVBC_ANNEX_B:
 				new_rf = 1;
 				break;
-			case VSB_8:
+			case SYS_ATSC:
 			default:
 				new_rf = 0;
 				break;
@@ -827,7 +839,9 @@ static void simple_set_dvb(struct dvb_frontend *fe, u8 *buf,
 }
 
 static u32 simple_dvb_configure(struct dvb_frontend *fe, u8 *buf,
-				const struct dvb_frontend_parameters *params)
+				const u32 delsys,
+				const u32 freq,
+				const u32 bw)
 {
 	/* This function returns the tuned frequency on success, 0 on error */
 	struct tuner_simple_priv *priv = fe->tuner_priv;
@@ -836,7 +850,7 @@ static u32 simple_dvb_configure(struct dvb_frontend *fe, u8 *buf,
 	u8 config, cb;
 	u32 div;
 	int ret;
-	unsigned frequency = params->frequency / 62500;
+	u32 frequency = freq / 62500;
 
 	if (!tun->stepsize) {
 		/* tuner-core was loaded before the digital tuner was
@@ -860,7 +874,7 @@ static u32 simple_dvb_configure(struct dvb_frontend *fe, u8 *buf,
 	buf[2] = config;
 	buf[3] = cb;
 
-	simple_set_dvb(fe, buf, params);
+	simple_set_dvb(fe, buf, delsys, freq, bw);
 
 	tuner_dbg("%s: div=%d | buf=0x%02x,0x%02x,0x%02x,0x%02x\n",
 		  tun->name, div, buf[0], buf[1], buf[2], buf[3]);
@@ -870,32 +884,37 @@ static u32 simple_dvb_configure(struct dvb_frontend *fe, u8 *buf,
 }
 
 static int simple_dvb_calc_regs(struct dvb_frontend *fe,
-				struct dvb_frontend_parameters *params,
 				u8 *buf, int buf_len)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u32 delsys = c->delivery_system;
+	u32 bw = c->bandwidth_hz;
 	struct tuner_simple_priv *priv = fe->tuner_priv;
 	u32 frequency;
 
 	if (buf_len < 5)
 		return -EINVAL;
 
-	frequency = simple_dvb_configure(fe, buf+1, params);
+	frequency = simple_dvb_configure(fe, buf+1, delsys, c->frequency, bw);
 	if (frequency == 0)
 		return -EINVAL;
 
 	buf[0] = priv->i2c_props.addr;
 
 	priv->frequency = frequency;
-	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ?
-		params->u.ofdm.bandwidth : 0;
+	priv->bandwidth = c->bandwidth_hz;
 
 	return 5;
 }
 
-static int simple_dvb_set_params(struct dvb_frontend *fe,
-				 struct dvb_frontend_parameters *params)
+static int simple_dvb_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u32 delsys = c->delivery_system;
+	u32 bw = c->bandwidth_hz;
+	u32 freq = c->frequency;
 	struct tuner_simple_priv *priv = fe->tuner_priv;
+	u32 frequency;
 	u32 prev_freq, prev_bw;
 	int ret;
 	u8 buf[5];
@@ -906,9 +925,14 @@ static int simple_dvb_set_params(struct dvb_frontend *fe,
 	prev_freq = priv->frequency;
 	prev_bw   = priv->bandwidth;
 
-	ret = simple_dvb_calc_regs(fe, params, buf, 5);
-	if (ret != 5)
-		goto fail;
+	frequency = simple_dvb_configure(fe, buf+1, delsys, freq, bw);
+	if (frequency == 0)
+		return -EINVAL;
+
+	buf[0] = priv->i2c_props.addr;
+
+	priv->frequency = frequency;
+	priv->bandwidth = bw;
 
 	/* put analog demod in standby when tuning digital */
 	if (fe->ops.analog_ops.standby)

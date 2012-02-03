@@ -41,13 +41,13 @@ MODULE_SUPPORTED_DEVICE("{{Yamaha,YMF724},"
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
 static long fm_port[SNDRV_CARDS];
 static long mpu_port[SNDRV_CARDS];
 #ifdef SUPPORT_JOYSTICK
 static long joystick_port[SNDRV_CARDS];
 #endif
-static int rear_switch[SNDRV_CARDS];
+static bool rear_switch[SNDRV_CARDS];
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for the Yamaha DS-1 PCI soundcard.");
@@ -286,17 +286,22 @@ static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_ymfpci_pcm_4ch(chip, 2, NULL)) < 0) {
+	err = snd_ymfpci_mixer(chip, rear_switch[dev]);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_ymfpci_pcm2(chip, 3, NULL)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_ymfpci_mixer(chip, rear_switch[dev])) < 0) {
-		snd_card_free(card);
-		return err;
+	if (chip->ac97->ext_id & AC97_EI_SDAC) {
+		err = snd_ymfpci_pcm_4ch(chip, 2, NULL);
+		if (err < 0) {
+			snd_card_free(card);
+			return err;
+		}
+		err = snd_ymfpci_pcm2(chip, 3, NULL);
+		if (err < 0) {
+			snd_card_free(card);
+			return err;
+		}
 	}
 	if ((err = snd_ymfpci_timer(chip, 0)) < 0) {
 		snd_card_free(card);

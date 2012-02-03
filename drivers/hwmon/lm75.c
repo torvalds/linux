@@ -93,6 +93,10 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *da,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct lm75_data *data = lm75_update_device(dev);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
 	return sprintf(buf, "%d\n",
 		       LM75_TEMP_FROM_REG(data->temp[attr->index]));
 }
@@ -107,7 +111,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 	long temp;
 	int error;
 
-	error = strict_strtol(buf, 10, &temp);
+	error = kstrtol(buf, 10, &temp);
 	if (error)
 		return error;
 
@@ -402,6 +406,7 @@ static struct lm75_data *lm75_update_device(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm75_data *data = i2c_get_clientdata(client);
+	struct lm75_data *ret = data;
 
 	mutex_lock(&data->update_lock);
 
@@ -414,19 +419,23 @@ static struct lm75_data *lm75_update_device(struct device *dev)
 			int status;
 
 			status = lm75_read_value(client, LM75_REG_TEMP[i]);
-			if (status < 0)
-				dev_dbg(&client->dev, "reg %d, err %d\n",
-						LM75_REG_TEMP[i], status);
-			else
-				data->temp[i] = status;
+			if (unlikely(status < 0)) {
+				dev_dbg(dev,
+					"LM75: Failed to read value: reg %d, error %d\n",
+					LM75_REG_TEMP[i], status);
+				ret = ERR_PTR(status);
+				data->valid = 0;
+				goto abort;
+			}
+			data->temp[i] = status;
 		}
 		data->last_updated = jiffies;
 		data->valid = 1;
 	}
 
+abort:
 	mutex_unlock(&data->update_lock);
-
-	return data;
+	return ret;
 }
 
 /*-----------------------------------------------------------------------*/

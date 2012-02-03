@@ -342,7 +342,7 @@ static int imx_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 	return 0;
 }
 
-static struct snd_soc_dai_ops imx_ssi_pcm_dai_ops = {
+static const struct snd_soc_dai_ops imx_ssi_pcm_dai_ops = {
 	.hw_params	= imx_ssi_hw_params,
 	.set_fmt	= imx_ssi_set_dai_fmt,
 	.set_clkdiv	= imx_ssi_set_dai_clkdiv,
@@ -757,18 +757,7 @@ static struct platform_driver imx_ssi_driver = {
 	},
 };
 
-static int __init imx_ssi_init(void)
-{
-	return platform_driver_register(&imx_ssi_driver);
-}
-
-static void __exit imx_ssi_exit(void)
-{
-	platform_driver_unregister(&imx_ssi_driver);
-}
-
-module_init(imx_ssi_init);
-module_exit(imx_ssi_exit);
+module_platform_driver(imx_ssi_driver);
 
 /* Module information */
 MODULE_AUTHOR("Sascha Hauer, <s.hauer@pengutronix.de>");

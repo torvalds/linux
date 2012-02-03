@@ -1766,9 +1766,9 @@ gadgetfs_suspend (struct usb_gadget *gadget)
 
 static struct usb_gadget_driver gadgetfs_driver = {
 #ifdef	CONFIG_USB_GADGET_DUALSPEED
-	.speed		= USB_SPEED_HIGH,
+	.max_speed	= USB_SPEED_HIGH,
 #else
-	.speed		= USB_SPEED_FULL,
+	.max_speed	= USB_SPEED_FULL,
 #endif
 	.function	= (char *) driver_desc,
 	.unbind		= gadgetfs_unbind,
@@ -1792,7 +1792,7 @@ static int gadgetfs_probe (struct usb_gadget *gadget)
 }
 
 static struct usb_gadget_driver probe_driver = {
-	.speed		= USB_SPEED_HIGH,
+	.max_speed	= USB_SPEED_HIGH,
 	.unbind		= gadgetfs_nop,
 	.setup		= (void *)gadgetfs_nop,
 	.disconnect	= gadgetfs_nop,
@@ -2035,7 +2035,6 @@ static int
 gadgetfs_fill_super (struct super_block *sb, void *opts, int silent)
 {
 	struct inode	*inode;
-	struct dentry	*d;
 	struct dev_data	*dev;
 
 	if (the_device)
@@ -2058,24 +2057,27 @@ gadgetfs_fill_super (struct super_block *sb, void *opts, int silent)
 			NULL, &simple_dir_operations,
 			S_IFDIR | S_IRUGO | S_IXUGO);
 	if (!inode)
-		goto enomem0;
+		goto Enomem;
 	inode->i_op = &simple_dir_inode_operations;
-	if (!(d = d_alloc_root (inode)))
-		goto enomem1;
-	sb->s_root = d;
+	if (!(sb->s_root = d_alloc_root (inode))) {
+		iput(inode);
+		goto Enomem;
+	}
 
 	/* the ep0 file is named after the controller we expect;
 	 * user mode code can use it for sanity checks, like we do.
 	 */
 	dev = dev_new ();
 	if (!dev)
-		goto enomem2;
+		goto Enomem;
 
 	dev->sb = sb;
 	if (!gadgetfs_create_file (sb, CHIP,
 				dev, &dev_init_operations,
-				&dev->dentry))
-		goto enomem3;
+				&dev->dentry)) {
+		put_dev(dev);
+		goto Enomem;
+	}
 
 	/* other endpoint files are available after hardware setup,
 	 * from binding to a controller.
@@ -2083,13 +2085,7 @@ gadgetfs_fill_super (struct super_block *sb, void *opts, int silent)
 	the_device = dev;
 	return 0;
 
-enomem3:
-	put_dev (dev);
-enomem2:
-	dput (d);
-enomem1:
-	iput (inode);
-enomem0:
+Enomem:
 	return -ENOMEM;
 }
 

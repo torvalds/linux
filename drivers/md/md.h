@@ -72,34 +72,7 @@ struct md_rdev {
 	 * This reduces the burden of testing multiple flags in many cases
 	 */
 
-	unsigned long	flags;
-#define	Faulty		1		/* device is known to have a fault */
-#define	In_sync		2		/* device is in_sync with rest of array */
-#define	WriteMostly	4		/* Avoid reading if at all possible */
-#define	AutoDetected	7		/* added by auto-detect */
-#define Blocked		8		/* An error occurred but has not yet
-					 * been acknowledged by the metadata
-					 * handler, so don't allow writes
-					 * until it is cleared */
-#define WriteErrorSeen	9		/* A write error has been seen on this
-					 * device
-					 */
-#define FaultRecorded	10		/* Intermediate state for clearing
-					 * Blocked.  The Fault is/will-be
-					 * recorded in the metadata, but that
-					 * metadata hasn't been stored safely
-					 * on disk yet.
-					 */
-#define BlockedBadBlocks 11		/* A writer is blocked because they
-					 * found an unacknowledged bad-block.
-					 * This can safely be cleared at any
-					 * time, and the writer will re-check.
-					 * It may be set at any time, and at
-					 * worst the writer will timeout and
-					 * re-check.  So setting it as
-					 * accurately as possible is good, but
-					 * not absolutely critical.
-					 */
+	unsigned long	flags;	/* bit set of 'enum flag_bits' bits. */
 	wait_queue_head_t blocked_wait;
 
 	int desc_nr;			/* descriptor index in the superblock */
@@ -151,6 +124,44 @@ struct md_rdev {
 		sector_t sector;
 		sector_t size;		/* in sectors */
 	} badblocks;
+};
+enum flag_bits {
+	Faulty,			/* device is known to have a fault */
+	In_sync,		/* device is in_sync with rest of array */
+	WriteMostly,		/* Avoid reading if at all possible */
+	AutoDetected,		/* added by auto-detect */
+	Blocked,		/* An error occurred but has not yet
+				 * been acknowledged by the metadata
+				 * handler, so don't allow writes
+				 * until it is cleared */
+	WriteErrorSeen,		/* A write error has been seen on this
+				 * device
+				 */
+	FaultRecorded,		/* Intermediate state for clearing
+				 * Blocked.  The Fault is/will-be
+				 * recorded in the metadata, but that
+				 * metadata hasn't been stored safely
+				 * on disk yet.
+				 */
+	BlockedBadBlocks,	/* A writer is blocked because they
+				 * found an unacknowledged bad-block.
+				 * This can safely be cleared at any
+				 * time, and the writer will re-check.
+				 * It may be set at any time, and at
+				 * worst the writer will timeout and
+				 * re-check.  So setting it as
+				 * accurately as possible is good, but
+				 * not absolutely critical.
+				 */
+	WantReplacement,	/* This device is a candidate to be
+				 * hot-replaced, either because it has
+				 * reported some faults, or because
+				 * of explicit request.
+				 */
+	Replacement,		/* This device is a replacement for
+				 * a want_replacement device with same
+				 * raid_disk number.
+				 */
 };
 
 #define BB_LEN_MASK	(0x00000000000001FFULL)
@@ -428,7 +439,7 @@ struct md_personality
 	 */
 	void (*error_handler)(struct mddev *mddev, struct md_rdev *rdev);
 	int (*hot_add_disk) (struct mddev *mddev, struct md_rdev *rdev);
-	int (*hot_remove_disk) (struct mddev *mddev, int number);
+	int (*hot_remove_disk) (struct mddev *mddev, struct md_rdev *rdev);
 	int (*spare_active) (struct mddev *mddev);
 	sector_t (*sync_request)(struct mddev *mddev, sector_t sector_nr, int *skipped, int go_faster);
 	int (*resize) (struct mddev *mddev, sector_t sectors);
@@ -482,15 +493,20 @@ static inline char * mdname (struct mddev * mddev)
 static inline int sysfs_link_rdev(struct mddev *mddev, struct md_rdev *rdev)
 {
 	char nm[20];
-	sprintf(nm, "rd%d", rdev->raid_disk);
-	return sysfs_create_link(&mddev->kobj, &rdev->kobj, nm);
+	if (!test_bit(Replacement, &rdev->flags)) {
+		sprintf(nm, "rd%d", rdev->raid_disk);
+		return sysfs_create_link(&mddev->kobj, &rdev->kobj, nm);
+	} else
+		return 0;
 }
 
 static inline void sysfs_unlink_rdev(struct mddev *mddev, struct md_rdev *rdev)
 {
 	char nm[20];
-	sprintf(nm, "rd%d", rdev->raid_disk);
-	sysfs_remove_link(&mddev->kobj, nm);
+	if (!test_bit(Replacement, &rdev->flags)) {
+		sprintf(nm, "rd%d", rdev->raid_disk);
+		sysfs_remove_link(&mddev->kobj, nm);
+	}
 }
 
 /*

@@ -68,7 +68,7 @@ struct netfront_cb {
 
 #define NET_TX_RING_SIZE __CONST_RING_SIZE(xen_netif_tx, PAGE_SIZE)
 #define NET_RX_RING_SIZE __CONST_RING_SIZE(xen_netif_rx, PAGE_SIZE)
-#define TX_MAX_TARGET min_t(int, NET_RX_RING_SIZE, 256)
+#define TX_MAX_TARGET min_t(int, NET_TX_RING_SIZE, 256)
 
 struct netfront_stats {
 	u64			rx_packets;
@@ -1914,7 +1914,7 @@ static void xennet_sysfs_delif(struct net_device *netdev)
 
 #endif /* CONFIG_SYSFS */
 
-static struct xenbus_device_id netfront_ids[] = {
+static const struct xenbus_device_id netfront_ids[] = {
 	{ "vif" },
 	{ "" }
 };
@@ -1941,15 +1941,12 @@ static int __devexit xennet_remove(struct xenbus_device *dev)
 	return 0;
 }
 
-static struct xenbus_driver netfront_driver = {
-	.name = "vif",
-	.owner = THIS_MODULE,
-	.ids = netfront_ids,
+static DEFINE_XENBUS_DRIVER(netfront, ,
 	.probe = netfront_probe,
 	.remove = __devexit_p(xennet_remove),
 	.resume = netfront_resume,
 	.otherend_changed = netback_changed,
-};
+);
 
 static int __init netif_init(void)
 {

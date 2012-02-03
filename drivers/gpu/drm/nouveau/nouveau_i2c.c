@@ -29,262 +29,465 @@
 #include "nouveau_i2c.h"
 #include "nouveau_hw.h"
 
-static void
-nv04_i2c_setscl(void *data, int state)
-{
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-	uint8_t val;
-
-	val = (NVReadVgaCrtc(dev, 0, i2c->wr) & 0xd0) | (state ? 0x20 : 0);
-	NVWriteVgaCrtc(dev, 0, i2c->wr, val | 0x01);
-}
+#define T_TIMEOUT  2200000
+#define T_RISEFALL 1000
+#define T_HOLD     5000
 
 static void
-nv04_i2c_setsda(void *data, int state)
+i2c_drive_scl(void *data, int state)
 {
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-	uint8_t val;
-
-	val = (NVReadVgaCrtc(dev, 0, i2c->wr) & 0xe0) | (state ? 0x10 : 0);
-	NVWriteVgaCrtc(dev, 0, i2c->wr, val | 0x01);
-}
-
-static int
-nv04_i2c_getscl(void *data)
-{
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-
-	return !!(NVReadVgaCrtc(dev, 0, i2c->rd) & 4);
-}
-
-static int
-nv04_i2c_getsda(void *data)
-{
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-
-	return !!(NVReadVgaCrtc(dev, 0, i2c->rd) & 8);
+	struct nouveau_i2c_chan *port = data;
+	if (port->type == 0) {
+		u8 val = NVReadVgaCrtc(port->dev, 0, port->drive);
+		if (state) val |= 0x20;
+		else	   val &= 0xdf;
+		NVWriteVgaCrtc(port->dev, 0, port->drive, val | 0x01);
+	} else
+	if (port->type == 4) {
+		nv_mask(port->dev, port->drive, 0x2f, state ? 0x21 : 0x01);
+	} else
+	if (port->type == 5) {
+		if (state) port->state |= 0x01;
+		else	   port->state &= 0xfe;
+		nv_wr32(port->dev, port->drive, 4 | port->state);
+	}
 }
 
 static void
-nv4e_i2c_setscl(void *data, int state)
+i2c_drive_sda(void *data, int state)
 {
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-	uint8_t val;
+	struct nouveau_i2c_chan *port = data;
+	if (port->type == 0) {
+		u8 val = NVReadVgaCrtc(port->dev, 0, port->drive);
+		if (state) val |= 0x10;
+		else	   val &= 0xef;
+		NVWriteVgaCrtc(port->dev, 0, port->drive, val | 0x01);
+	} else
+	if (port->type == 4) {
+		nv_mask(port->dev, port->drive, 0x1f, state ? 0x11 : 0x01);
+	} else
+	if (port->type == 5) {
+		if (state) port->state |= 0x02;
+		else	   port->state &= 0xfd;
+		nv_wr32(port->dev, port->drive, 4 | port->state);
+	}
+}
 
-	val = (nv_rd32(dev, i2c->wr) & 0xd0) | (state ? 0x20 : 0);
-	nv_wr32(dev, i2c->wr, val | 0x01);
+static int
+i2c_sense_scl(void *data)
+{
+	struct nouveau_i2c_chan *port = data;
+	struct drm_nouveau_private *dev_priv = port->dev->dev_private;
+	if (port->type == 0) {
+		return !!(NVReadVgaCrtc(port->dev, 0, port->sense) & 0x04);
+	} else
+	if (port->type == 4) {
+		return !!(nv_rd32(port->dev, port->sense) & 0x00040000);
+	} else
+	if (port->type == 5) {
+		if (dev_priv->card_type < NV_D0)
+			return !!(nv_rd32(port->dev, port->sense) & 0x01);
+		else
+			return !!(nv_rd32(port->dev, port->sense) & 0x10);
+	}
+	return 0;
+}
+
+static int
+i2c_sense_sda(void *data)
+{
+	struct nouveau_i2c_chan *port = data;
+	struct drm_nouveau_private *dev_priv = port->dev->dev_private;
+	if (port->type == 0) {
+		return !!(NVReadVgaCrtc(port->dev, 0, port->sense) & 0x08);
+	} else
+	if (port->type == 4) {
+		return !!(nv_rd32(port->dev, port->sense) & 0x00080000);
+	} else
+	if (port->type == 5) {
+		if (dev_priv->card_type < NV_D0)
+			return !!(nv_rd32(port->dev, port->sense) & 0x02);
+		else
+			return !!(nv_rd32(port->dev, port->sense) & 0x20);
+	}
+	return 0;
 }
 
 static void
-nv4e_i2c_setsda(void *data, int state)
+i2c_delay(struct nouveau_i2c_chan *port, u32 nsec)
 {
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-	uint8_t val;
+	udelay((nsec + 500) / 1000);
+}
 
-	val = (nv_rd32(dev, i2c->wr) & 0xe0) | (state ? 0x10 : 0);
-	nv_wr32(dev, i2c->wr, val | 0x01);
+static bool
+i2c_raise_scl(struct nouveau_i2c_chan *port)
+{
+	u32 timeout = T_TIMEOUT / T_RISEFALL;
+
+	i2c_drive_scl(port, 1);
+	do {
+		i2c_delay(port, T_RISEFALL);
+	} while (!i2c_sense_scl(port) && --timeout);
+
+	return timeout != 0;
 }
 
 static int
-nv4e_i2c_getscl(void *data)
+i2c_start(struct nouveau_i2c_chan *port)
 {
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
+	int ret = 0;
 
-	return !!((nv_rd32(dev, i2c->rd) >> 16) & 4);
+	port->state  = i2c_sense_scl(port);
+	port->state |= i2c_sense_sda(port) << 1;
+	if (port->state != 3) {
+		i2c_drive_scl(port, 0);
+		i2c_drive_sda(port, 1);
+		if (!i2c_raise_scl(port))
+			ret = -EBUSY;
+	}
+
+	i2c_drive_sda(port, 0);
+	i2c_delay(port, T_HOLD);
+	i2c_drive_scl(port, 0);
+	i2c_delay(port, T_HOLD);
+	return ret;
+}
+
+static void
+i2c_stop(struct nouveau_i2c_chan *port)
+{
+	i2c_drive_scl(port, 0);
+	i2c_drive_sda(port, 0);
+	i2c_delay(port, T_RISEFALL);
+
+	i2c_drive_scl(port, 1);
+	i2c_delay(port, T_HOLD);
+	i2c_drive_sda(port, 1);
+	i2c_delay(port, T_HOLD);
 }
 
 static int
-nv4e_i2c_getsda(void *data)
+i2c_bitw(struct nouveau_i2c_chan *port, int sda)
 {
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
+	i2c_drive_sda(port, sda);
+	i2c_delay(port, T_RISEFALL);
 
-	return !!((nv_rd32(dev, i2c->rd) >> 16) & 8);
+	if (!i2c_raise_scl(port))
+		return -ETIMEDOUT;
+	i2c_delay(port, T_HOLD);
+
+	i2c_drive_scl(port, 0);
+	i2c_delay(port, T_HOLD);
+	return 0;
 }
+
+static int
+i2c_bitr(struct nouveau_i2c_chan *port)
+{
+	int sda;
+
+	i2c_drive_sda(port, 1);
+	i2c_delay(port, T_RISEFALL);
+
+	if (!i2c_raise_scl(port))
+		return -ETIMEDOUT;
+	i2c_delay(port, T_HOLD);
+
+	sda = i2c_sense_sda(port);
+
+	i2c_drive_scl(port, 0);
+	i2c_delay(port, T_HOLD);
+	return sda;
+}
+
+static int
+i2c_get_byte(struct nouveau_i2c_chan *port, u8 *byte, bool last)
+{
+	int i, bit;
+
+	*byte = 0;
+	for (i = 7; i >= 0; i--) {
+		bit = i2c_bitr(port);
+		if (bit < 0)
+			return bit;
+		*byte |= bit << i;
+	}
+
+	return i2c_bitw(port, last ? 1 : 0);
+}
+
+static int
+i2c_put_byte(struct nouveau_i2c_chan *port, u8 byte)
+{
+	int i, ret;
+	for (i = 7; i >= 0; i--) {
+		ret = i2c_bitw(port, !!(byte & (1 << i)));
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = i2c_bitr(port);
+	if (ret == 1) /* nack */
+		ret = -EIO;
+	return ret;
+}
+
+static int
+i2c_addr(struct nouveau_i2c_chan *port, struct i2c_msg *msg)
+{
+	u32 addr = msg->addr << 1;
+	if (msg->flags & I2C_M_RD)
+		addr |= 1;
+	return i2c_put_byte(port, addr);
+}
+
+static int
+i2c_bit_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
+{
+	struct nouveau_i2c_chan *port = (struct nouveau_i2c_chan *)adap;
+	struct i2c_msg *msg = msgs;
+	int ret = 0, mcnt = num;
+
+	while (!ret && mcnt--) {
+		u8 remaining = msg->len;
+		u8 *ptr = msg->buf;
+
+		ret = i2c_start(port);
+		if (ret == 0)
+			ret = i2c_addr(port, msg);
+
+		if (msg->flags & I2C_M_RD) {
+			while (!ret && remaining--)
+				ret = i2c_get_byte(port, ptr++, !remaining);
+		} else {
+			while (!ret && remaining--)
+				ret = i2c_put_byte(port, *ptr++);
+		}
+
+		msg++;
+	}
+
+	i2c_stop(port);
+	return (ret < 0) ? ret : num;
+}
+
+static u32
+i2c_bit_func(struct i2c_adapter *adap)
+{
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
+}
+
+const struct i2c_algorithm i2c_bit_algo = {
+	.master_xfer = i2c_bit_xfer,
+	.functionality = i2c_bit_func
+};
 
 static const uint32_t nv50_i2c_port[] = {
 	0x00e138, 0x00e150, 0x00e168, 0x00e180,
 	0x00e254, 0x00e274, 0x00e764, 0x00e780,
 	0x00e79c, 0x00e7b8
 };
-#define NV50_I2C_PORTS ARRAY_SIZE(nv50_i2c_port)
 
-static int
-nv50_i2c_getscl(void *data)
+static u8 *
+i2c_table(struct drm_device *dev, u8 *version)
 {
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
+	u8 *dcb = dcb_table(dev), *i2c = NULL;
+	if (dcb) {
+		if (dcb[0] >= 0x15)
+			i2c = ROMPTR(dev, dcb[2]);
+		if (dcb[0] >= 0x30)
+			i2c = ROMPTR(dev, dcb[4]);
+	}
 
-	return !!(nv_rd32(dev, i2c->rd) & 1);
-}
+	/* early revisions had no version number, use dcb version */
+	if (i2c) {
+		*version = dcb[0];
+		if (*version >= 0x30)
+			*version = i2c[0];
+	}
 
-
-static int
-nv50_i2c_getsda(void *data)
-{
-	struct nouveau_i2c_chan *i2c = data;
-	struct drm_device *dev = i2c->dev;
-
-	return !!(nv_rd32(dev, i2c->rd) & 2);
-}
-
-static void
-nv50_i2c_setscl(void *data, int state)
-{
-	struct nouveau_i2c_chan *i2c = data;
-
-	nv_wr32(i2c->dev, i2c->wr, 4 | (i2c->data ? 2 : 0) | (state ? 1 : 0));
-}
-
-static void
-nv50_i2c_setsda(void *data, int state)
-{
-	struct nouveau_i2c_chan *i2c = data;
-
-	nv_mask(i2c->dev, i2c->wr, 0x00000006, 4 | (state ? 2 : 0));
-	i2c->data = state;
-}
-
-static int
-nvd0_i2c_getscl(void *data)
-{
-	struct nouveau_i2c_chan *i2c = data;
-	return !!(nv_rd32(i2c->dev, i2c->rd) & 0x10);
-}
-
-static int
-nvd0_i2c_getsda(void *data)
-{
-	struct nouveau_i2c_chan *i2c = data;
-	return !!(nv_rd32(i2c->dev, i2c->rd) & 0x20);
+	return i2c;
 }
 
 int
-nouveau_i2c_init(struct drm_device *dev, struct dcb_i2c_entry *entry, int index)
+nouveau_i2c_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_i2c_chan *i2c;
-	int ret;
+	struct nvbios *bios = &dev_priv->vbios;
+	struct nouveau_i2c_chan *port;
+	u8 *i2c, *entry, legacy[2][4] = {};
+	u8 version, entries, recordlen;
+	int ret, i;
 
-	if (entry->chan)
-		return -EEXIST;
+	INIT_LIST_HEAD(&dev_priv->i2c_ports);
 
-	if (dev_priv->card_type >= NV_50 &&
-	    dev_priv->card_type <= NV_C0 && entry->read >= NV50_I2C_PORTS) {
-		NV_ERROR(dev, "unknown i2c port %d\n", entry->read);
-		return -EINVAL;
+	i2c = i2c_table(dev, &version);
+	if (!i2c) {
+		u8 *bmp = &bios->data[bios->offset];
+		if (bios->type != NVBIOS_BMP)
+			return -ENODEV;
+
+		legacy[0][0] = NV_CIO_CRE_DDC_WR__INDEX;
+		legacy[0][1] = NV_CIO_CRE_DDC_STATUS__INDEX;
+		legacy[1][0] = NV_CIO_CRE_DDC0_WR__INDEX;
+		legacy[1][1] = NV_CIO_CRE_DDC0_STATUS__INDEX;
+
+		/* BMP (from v4.0) has i2c info in the structure, it's in a
+		 * fixed location on earlier VBIOS
+		 */
+		if (bmp[5] < 4)
+			i2c = &bios->data[0x48];
+		else
+			i2c = &bmp[0x36];
+
+		if (i2c[4]) legacy[0][0] = i2c[4];
+		if (i2c[5]) legacy[0][1] = i2c[5];
+		if (i2c[6]) legacy[1][0] = i2c[6];
+		if (i2c[7]) legacy[1][1] = i2c[7];
 	}
 
-	i2c = kzalloc(sizeof(*i2c), GFP_KERNEL);
-	if (i2c == NULL)
-		return -ENOMEM;
-
-	switch (entry->port_type) {
-	case 0:
-		i2c->bit.setsda = nv04_i2c_setsda;
-		i2c->bit.setscl = nv04_i2c_setscl;
-		i2c->bit.getsda = nv04_i2c_getsda;
-		i2c->bit.getscl = nv04_i2c_getscl;
-		i2c->rd = entry->read;
-		i2c->wr = entry->write;
-		break;
-	case 4:
-		i2c->bit.setsda = nv4e_i2c_setsda;
-		i2c->bit.setscl = nv4e_i2c_setscl;
-		i2c->bit.getsda = nv4e_i2c_getsda;
-		i2c->bit.getscl = nv4e_i2c_getscl;
-		i2c->rd = 0x600800 + entry->read;
-		i2c->wr = 0x600800 + entry->write;
-		break;
-	case 5:
-		i2c->bit.setsda = nv50_i2c_setsda;
-		i2c->bit.setscl = nv50_i2c_setscl;
-		if (dev_priv->card_type < NV_D0) {
-			i2c->bit.getsda = nv50_i2c_getsda;
-			i2c->bit.getscl = nv50_i2c_getscl;
-			i2c->rd = nv50_i2c_port[entry->read];
-			i2c->wr = i2c->rd;
-		} else {
-			i2c->bit.getsda = nvd0_i2c_getsda;
-			i2c->bit.getscl = nvd0_i2c_getscl;
-			i2c->rd = 0x00d014 + (entry->read * 0x20);
-			i2c->wr = i2c->rd;
-		}
-		break;
-	case 6:
-		i2c->rd = entry->read;
-		i2c->wr = entry->write;
-		break;
-	default:
-		NV_ERROR(dev, "DCB I2C port type %d unknown\n",
-			 entry->port_type);
-		kfree(i2c);
-		return -EINVAL;
-	}
-
-	snprintf(i2c->adapter.name, sizeof(i2c->adapter.name),
-		 "nouveau-%s-%d", pci_name(dev->pdev), index);
-	i2c->adapter.owner = THIS_MODULE;
-	i2c->adapter.dev.parent = &dev->pdev->dev;
-	i2c->dev = dev;
-	i2c_set_adapdata(&i2c->adapter, i2c);
-
-	if (entry->port_type < 6) {
-		i2c->adapter.algo_data = &i2c->bit;
-		i2c->bit.udelay = 40;
-		i2c->bit.timeout = usecs_to_jiffies(5000);
-		i2c->bit.data = i2c;
-		ret = i2c_bit_add_bus(&i2c->adapter);
+	if (i2c && version >= 0x30) {
+		entry     = i2c[1] + i2c;
+		entries   = i2c[2];
+		recordlen = i2c[3];
+	} else
+	if (i2c) {
+		entry     = i2c;
+		entries   = 16;
+		recordlen = 4;
 	} else {
-		i2c->adapter.algo = &nouveau_dp_i2c_algo;
-		ret = i2c_add_adapter(&i2c->adapter);
+		entry     = legacy[0];
+		entries   = 2;
+		recordlen = 4;
 	}
 
-	if (ret) {
-		NV_ERROR(dev, "Failed to register i2c %d\n", index);
-		kfree(i2c);
-		return ret;
+	for (i = 0; i < entries; i++, entry += recordlen) {
+		port = kzalloc(sizeof(*port), GFP_KERNEL);
+		if (port == NULL) {
+			nouveau_i2c_fini(dev);
+			return -ENOMEM;
+		}
+
+		port->type = entry[3];
+		if (version < 0x30) {
+			port->type &= 0x07;
+			if (port->type == 0x07)
+				port->type = 0xff;
+		}
+
+		if (port->type == 0xff) {
+			kfree(port);
+			continue;
+		}
+
+		switch (port->type) {
+		case 0: /* NV04:NV50 */
+			port->drive = entry[0];
+			port->sense = entry[1];
+			port->adapter.algo = &i2c_bit_algo;
+			break;
+		case 4: /* NV4E */
+			port->drive = 0x600800 + entry[1];
+			port->sense = port->drive;
+			port->adapter.algo = &i2c_bit_algo;
+			break;
+		case 5: /* NV50- */
+			port->drive = entry[0] & 0x0f;
+			if (dev_priv->card_type < NV_D0) {
+				if (port->drive >= ARRAY_SIZE(nv50_i2c_port))
+					break;
+				port->drive = nv50_i2c_port[port->drive];
+				port->sense = port->drive;
+			} else {
+				port->drive = 0x00d014 + (port->drive * 0x20);
+				port->sense = port->drive;
+			}
+			port->adapter.algo = &i2c_bit_algo;
+			break;
+		case 6: /* NV50- DP AUX */
+			port->drive = entry[0];
+			port->sense = port->drive;
+			port->adapter.algo = &nouveau_dp_i2c_algo;
+			break;
+		default:
+			break;
+		}
+
+		if (!port->adapter.algo) {
+			NV_ERROR(dev, "I2C%d: type %d index %x/%x unknown\n",
+				 i, port->type, port->drive, port->sense);
+			kfree(port);
+			continue;
+		}
+
+		snprintf(port->adapter.name, sizeof(port->adapter.name),
+			 "nouveau-%s-%d", pci_name(dev->pdev), i);
+		port->adapter.owner = THIS_MODULE;
+		port->adapter.dev.parent = &dev->pdev->dev;
+		port->dev = dev;
+		port->index = i;
+		port->dcb = ROM32(entry[0]);
+		i2c_set_adapdata(&port->adapter, i2c);
+
+		ret = i2c_add_adapter(&port->adapter);
+		if (ret) {
+			NV_ERROR(dev, "I2C%d: failed register: %d\n", i, ret);
+			kfree(port);
+			continue;
+		}
+
+		list_add_tail(&port->head, &dev_priv->i2c_ports);
 	}
 
-	entry->chan = i2c;
 	return 0;
 }
 
 void
-nouveau_i2c_fini(struct drm_device *dev, struct dcb_i2c_entry *entry)
+nouveau_i2c_fini(struct drm_device *dev)
 {
-	if (!entry->chan)
-		return;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_i2c_chan *port, *tmp;
 
-	i2c_del_adapter(&entry->chan->adapter);
-	kfree(entry->chan);
-	entry->chan = NULL;
+	list_for_each_entry_safe(port, tmp, &dev_priv->i2c_ports, head) {
+		i2c_del_adapter(&port->adapter);
+		kfree(port);
+	}
 }
 
 struct nouveau_i2c_chan *
-nouveau_i2c_find(struct drm_device *dev, int index)
+nouveau_i2c_find(struct drm_device *dev, u8 index)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct dcb_i2c_entry *i2c = &dev_priv->vbios.dcb.i2c[index];
+	struct nouveau_i2c_chan *port;
 
-	if (index >= DCB_MAX_NUM_I2C_ENTRIES)
+	if (index == NV_I2C_DEFAULT(0) ||
+	    index == NV_I2C_DEFAULT(1)) {
+		u8 version, *i2c = i2c_table(dev, &version);
+		if (i2c && version >= 0x30) {
+			if (index == NV_I2C_DEFAULT(0))
+				index = (i2c[4] & 0x0f);
+			else
+				index = (i2c[4] & 0xf0) >> 4;
+		} else {
+			index = 2;
+		}
+	}
+
+	list_for_each_entry(port, &dev_priv->i2c_ports, head) {
+		if (port->index == index)
+			break;
+	}
+
+	if (&port->head == &dev_priv->i2c_ports)
 		return NULL;
 
-	if (dev_priv->card_type >= NV_50 && (i2c->entry & 0x00000100)) {
-		uint32_t reg = 0xe500, val;
-
-		if (i2c->port_type == 6) {
-			reg += i2c->read * 0x50;
+	if (dev_priv->card_type >= NV_50 && (port->dcb & 0x00000100)) {
+		u32 reg = 0x00e500, val;
+		if (port->type == 6) {
+			reg += port->drive * 0x50;
 			val  = 0x2002;
 		} else {
-			reg += ((i2c->entry & 0x1e00) >> 9) * 0x50;
+			reg += ((port->dcb & 0x1e00) >> 9) * 0x50;
 			val  = 0xe001;
 		}
 
@@ -294,9 +497,7 @@ nouveau_i2c_find(struct drm_device *dev, int index)
 		nv_mask(dev, reg + 0x00, 0x0000f003, val);
 	}
 
-	if (!i2c->chan && nouveau_i2c_init(dev, i2c, index))
-		return NULL;
-	return i2c->chan;
+	return port;
 }
 
 bool
@@ -331,9 +532,13 @@ nouveau_i2c_identify(struct drm_device *dev, const char *what,
 	struct nouveau_i2c_chan *i2c = nouveau_i2c_find(dev, index);
 	int i;
 
-	NV_DEBUG(dev, "Probing %ss on I2C bus: %d\n", what, index);
+	if (!i2c) {
+		NV_DEBUG(dev, "No bus when probing %s on %d\n", what, index);
+		return -ENODEV;
+	}
 
-	for (i = 0; i2c && info[i].addr; i++) {
+	NV_DEBUG(dev, "Probing %ss on I2C bus: %d\n", what, i2c->index);
+	for (i = 0; info[i].addr; i++) {
 		if (nouveau_probe_i2c_addr(i2c, info[i].addr) &&
 		    (!match || match(i2c, &info[i]))) {
 			NV_INFO(dev, "Detected %s: %s\n", what, info[i].type);
@@ -342,6 +547,5 @@ nouveau_i2c_identify(struct drm_device *dev, const char *what,
 	}
 
 	NV_DEBUG(dev, "No devices found.\n");
-
 	return -ENODEV;
 }

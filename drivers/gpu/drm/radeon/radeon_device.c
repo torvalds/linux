@@ -224,8 +224,11 @@ int radeon_wb_init(struct radeon_device *rdev)
 	if (radeon_no_wb == 1)
 		rdev->wb.enabled = false;
 	else {
-		/* often unreliable on AGP */
 		if (rdev->flags & RADEON_IS_AGP) {
+			/* often unreliable on AGP */
+			rdev->wb.enabled = false;
+		} else if (rdev->family < CHIP_R300) {
+			/* often unreliable on pre-r300 */
 			rdev->wb.enabled = false;
 		} else {
 			rdev->wb.enabled = true;
@@ -717,18 +720,25 @@ int radeon_device_init(struct radeon_device *rdev,
 	/* mutex initialization are all done here so we
 	 * can recall function without having locking issues */
 	radeon_mutex_init(&rdev->cs_mutex);
-	mutex_init(&rdev->ib_pool.mutex);
-	mutex_init(&rdev->cp.mutex);
+	radeon_mutex_init(&rdev->ib_pool.mutex);
+	for (i = 0; i < RADEON_NUM_RINGS; ++i)
+		mutex_init(&rdev->ring[i].mutex);
 	mutex_init(&rdev->dc_hw_i2c_mutex);
 	if (rdev->family >= CHIP_R600)
 		spin_lock_init(&rdev->ih.lock);
 	mutex_init(&rdev->gem.mutex);
 	mutex_init(&rdev->pm.mutex);
 	mutex_init(&rdev->vram_mutex);
-	rwlock_init(&rdev->fence_drv.lock);
+	rwlock_init(&rdev->fence_lock);
+	rwlock_init(&rdev->semaphore_drv.lock);
 	INIT_LIST_HEAD(&rdev->gem.objects);
 	init_waitqueue_head(&rdev->irq.vblank_queue);
 	init_waitqueue_head(&rdev->irq.idle_queue);
+	INIT_LIST_HEAD(&rdev->semaphore_drv.bo);
+	/* initialize vm here */
+	rdev->vm_manager.use_bitmap = 1;
+	rdev->vm_manager.max_pfn = 1 << 20;
+	INIT_LIST_HEAD(&rdev->vm_manager.lru_vm);
 
 	/* Set asic functions */
 	r = radeon_asic_init(rdev);
@@ -765,7 +775,13 @@ int radeon_device_init(struct radeon_device *rdev,
 	r = pci_set_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));
 	if (r) {
 		rdev->need_dma32 = true;
+		dma_bits = 32;
 		printk(KERN_WARNING "radeon: No suitable DMA available.\n");
+	}
+	r = pci_set_consistent_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));
+	if (r) {
+		pci_set_consistent_dma_mask(rdev->pdev, DMA_BIT_MASK(32));
+		printk(KERN_WARNING "radeon: No coherent DMA available.\n");
 	}
 
 	/* Registers mapping */
@@ -814,14 +830,19 @@ int radeon_device_init(struct radeon_device *rdev,
 		if (r)
 			return r;
 	}
-	if (radeon_testing) {
+	if ((radeon_testing & 1)) {
 		radeon_test_moves(rdev);
+	}
+	if ((radeon_testing & 2)) {
+		radeon_test_syncing(rdev);
 	}
 	if (radeon_benchmarking) {
 		radeon_benchmark(rdev, radeon_benchmarking);
 	}
 	return 0;
 }
+
+static void radeon_debugfs_remove_files(struct radeon_device *rdev);
 
 void radeon_device_fini(struct radeon_device *rdev)
 {
@@ -837,6 +858,7 @@ void radeon_device_fini(struct radeon_device *rdev)
 	rdev->rio_mem = NULL;
 	iounmap(rdev->rmmio);
 	rdev->rmmio = NULL;
+	radeon_debugfs_remove_files(rdev);
 }
 
 
@@ -848,7 +870,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	struct radeon_device *rdev;
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
-	int r;
+	int i, r;
 
 	if (dev == NULL || dev->dev_private == NULL) {
 		return -ENODEV;
@@ -860,6 +882,8 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
+
+	drm_kms_helper_poll_disable(dev);
 
 	/* turn off display hw */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -887,7 +911,8 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	/* evict vram memory */
 	radeon_bo_evict_vram(rdev);
 	/* wait for gpu to finish processing current batch */
-	radeon_fence_wait_last(rdev);
+	for (i = 0; i < RADEON_NUM_RINGS; i++)
+		radeon_fence_wait_last(rdev, i);
 
 	radeon_save_bios_scratch_regs(rdev);
 
@@ -936,9 +961,11 @@ int radeon_resume_kms(struct drm_device *dev)
 	radeon_fbdev_set_suspend(rdev, 0);
 	console_unlock();
 
-	/* init dig PHYs */
-	if (rdev->is_atom_bios)
+	/* init dig PHYs, disp eng pll */
+	if (rdev->is_atom_bios) {
 		radeon_atom_encoder_init(rdev);
+		radeon_atom_dcpll_init(rdev);
+	}
 	/* reset hpd state */
 	radeon_hpd_init(rdev);
 	/* blat the mode back in */
@@ -947,6 +974,8 @@ int radeon_resume_kms(struct drm_device *dev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
 	}
+
+	drm_kms_helper_poll_enable(dev);
 	return 0;
 }
 
@@ -986,36 +1015,29 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 /*
  * Debugfs
  */
-struct radeon_debugfs {
-	struct drm_info_list	*files;
-	unsigned		num_files;
-};
-static struct radeon_debugfs _radeon_debugfs[RADEON_DEBUGFS_MAX_COMPONENTS];
-static unsigned _radeon_debugfs_count = 0;
-
 int radeon_debugfs_add_files(struct radeon_device *rdev,
 			     struct drm_info_list *files,
 			     unsigned nfiles)
 {
 	unsigned i;
 
-	for (i = 0; i < _radeon_debugfs_count; i++) {
-		if (_radeon_debugfs[i].files == files) {
+	for (i = 0; i < rdev->debugfs_count; i++) {
+		if (rdev->debugfs[i].files == files) {
 			/* Already registered */
 			return 0;
 		}
 	}
 
-	i = _radeon_debugfs_count + 1;
+	i = rdev->debugfs_count + 1;
 	if (i > RADEON_DEBUGFS_MAX_COMPONENTS) {
 		DRM_ERROR("Reached maximum number of debugfs components.\n");
 		DRM_ERROR("Report so we increase "
 		          "RADEON_DEBUGFS_MAX_COMPONENTS.\n");
 		return -EINVAL;
 	}
-	_radeon_debugfs[_radeon_debugfs_count].files = files;
-	_radeon_debugfs[_radeon_debugfs_count].num_files = nfiles;
-	_radeon_debugfs_count = i;
+	rdev->debugfs[rdev->debugfs_count].files = files;
+	rdev->debugfs[rdev->debugfs_count].num_files = nfiles;
+	rdev->debugfs_count = i;
 #if defined(CONFIG_DEBUG_FS)
 	drm_debugfs_create_files(files, nfiles,
 				 rdev->ddev->control->debugfs_root,
@@ -1027,6 +1049,22 @@ int radeon_debugfs_add_files(struct radeon_device *rdev,
 	return 0;
 }
 
+static void radeon_debugfs_remove_files(struct radeon_device *rdev)
+{
+#if defined(CONFIG_DEBUG_FS)
+	unsigned i;
+
+	for (i = 0; i < rdev->debugfs_count; i++) {
+		drm_debugfs_remove_files(rdev->debugfs[i].files,
+					 rdev->debugfs[i].num_files,
+					 rdev->ddev->control);
+		drm_debugfs_remove_files(rdev->debugfs[i].files,
+					 rdev->debugfs[i].num_files,
+					 rdev->ddev->primary);
+	}
+#endif
+}
+
 #if defined(CONFIG_DEBUG_FS)
 int radeon_debugfs_init(struct drm_minor *minor)
 {
@@ -1035,11 +1073,5 @@ int radeon_debugfs_init(struct drm_minor *minor)
 
 void radeon_debugfs_cleanup(struct drm_minor *minor)
 {
-	unsigned i;
-
-	for (i = 0; i < _radeon_debugfs_count; i++) {
-		drm_debugfs_remove_files(_radeon_debugfs[i].files,
-					 _radeon_debugfs[i].num_files, minor);
-	}
 }
 #endif

@@ -505,11 +505,11 @@ static int ac97_aux_prepare(struct snd_pcm_substream *substream,
 		SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 |\
 		SNDRV_PCM_RATE_48000)
 
-static struct snd_soc_dai_ops wm9712_dai_ops_hifi = {
+static const struct snd_soc_dai_ops wm9712_dai_ops_hifi = {
 	.prepare	= ac97_prepare,
 };
 
-static struct snd_soc_dai_ops wm9712_dai_ops_aux = {
+static const struct snd_soc_dai_ops wm9712_dai_ops_aux = {
 	.prepare	= ac97_aux_prepare,
 };
 
@@ -583,8 +583,7 @@ err:
 	return -EIO;
 }
 
-static int wm9712_soc_suspend(struct snd_soc_codec *codec,
-	pm_message_t state)
+static int wm9712_soc_suspend(struct snd_soc_codec *codec)
 {
 	wm9712_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
@@ -694,17 +693,7 @@ static struct platform_driver wm9712_codec_driver = {
 	.remove = __devexit_p(wm9712_remove),
 };
 
-static int __init wm9712_init(void)
-{
-	return platform_driver_register(&wm9712_codec_driver);
-}
-module_init(wm9712_init);
-
-static void __exit wm9712_exit(void)
-{
-	platform_driver_unregister(&wm9712_codec_driver);
-}
-module_exit(wm9712_exit);
+module_platform_driver(wm9712_codec_driver);
 
 MODULE_DESCRIPTION("ASoC WM9711/WM9712 driver");
 MODULE_AUTHOR("Liam Girdwood");

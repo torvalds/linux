@@ -1,8 +1,3 @@
-/*
- * $Id: pmcc4_drv.c,v 3.1 2007/08/15 23:32:17 rickd PMCC4_3_1B $
- */
-
-
 /*-----------------------------------------------------------------------------
  * pmcc4_drv.c -
  *
@@ -22,74 +17,10 @@
  * For further information, contact via email: support@onestopsystems.com
  * One Stop Systems, Inc.  Escondido, California  U.S.A.
  *-----------------------------------------------------------------------------
- * RCS info:
- * RCS revision: $Revision: 3.1 $
- * Last changed on $Date: 2007/08/15 23:32:17 $
- * Changed by $Author: rickd $
- *-----------------------------------------------------------------------------
- * $Log: pmcc4_drv.c,v $
- * Revision 3.1  2007/08/15 23:32:17  rickd
- * Use 'if 0' instead of GNU comment delimeter to avoid line wrap induced compiler errors.
- *
- * Revision 3.0  2007/08/15 22:19:55  rickd
- * Correct sizeof() castings and pi->regram to support 64bit compatibility.
- *
- * Revision 2.10  2006/04/21 00:56:40  rickd
- * workqueue files now prefixed with <sbecom> prefix.
- *
- * Revision 2.9  2005/11/01 19:22:49  rickd
- * Add sanity checks against max_port for ioctl functions.
- *
- * Revision 2.8  2005/10/27 18:59:25  rickd
- * Code cleanup.  Default channel config to HDLC_FCS16.
- *
- * Revision 2.7  2005/10/18 18:16:30  rickd
- * Further NCOMM code repairs - (1) interrupt matrix usage inconsistent
- * for indexing into nciInterrupt[][], code missing double parameters.
- * (2) check input of ncomm interrupt registration cardID for correct
- * boundary values.
- *
- * Revision 2.6  2005/10/17 23:55:28  rickd
- * Initial port of NCOMM support patches from original work found
- * in pmc_c4t1e1 as updated by NCOMM.  Ref: CONFIG_SBE_PMCC4_NCOMM.
- * Corrected NCOMMs wanpmcC4T1E1_getBaseAddress() to correctly handle
- * multiple boards.
- *
- * Revision 2.5  2005/10/13 23:01:28  rickd
- * Correct panic for illegal address reference w/in get_brdinfo on
- * first_if/last_if name acquistion under Linux 2.6
- *
- * Revision 2.4  2005/10/13 21:20:19  rickd
- * Correction of c4_cleanup() wherein next should be acquired before
- * ci_t structure is free'd.
- *
- * Revision 2.3  2005/10/13 19:20:10  rickd
- * Correct driver removal cleanup code for multiple boards.
- *
- * Revision 2.2  2005/10/11 18:34:04  rickd
- * New routine added to determine number of ports (comets) on board.
- *
- * Revision 2.1  2005/10/05 00:48:13  rickd
- * Add some RX activation trace code.
- *
- * Revision 2.0  2005/09/28 00:10:06  rickd
- * Implement 2.6 workqueue for TX/RX restart.  Correction to
- * hardware register boundary checks allows expanded access of MUSYCC.
- * Implement new musycc reg&bits namings.
- *
- *-----------------------------------------------------------------------------
  */
-
-char        OSSIid_pmcc4_drvc[] =
-"@(#)pmcc4_drv.c - $Revision: 3.1 $   (c) Copyright 2002-2007 One Stop Systems, Inc.";
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#if defined (__FreeBSD__) || defined (__NetBSD__)
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/errno.h>
-#else
 #include <linux/types.h>
 #include "pmcc4_sysdep.h"
 #include <linux/errno.h>
@@ -98,7 +29,6 @@ char        OSSIid_pmcc4_drvc[] =
 #include <linux/timer.h>        /* include for timer */
 #include <linux/hdlc.h>
 #include <asm/io.h>
-#endif
 
 #include "sbecom_inline_linux.h"
 #include "libsbew.h"

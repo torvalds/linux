@@ -128,9 +128,9 @@ int mei_count_empty_write_slots(struct mei_device *dev)
  * returns 1 if success, 0 - otherwise.
  */
 int mei_write_message(struct mei_device *dev,
-			     struct mei_msg_hdr *header,
-			     unsigned char *write_buffer,
-			     unsigned long write_length)
+		      struct mei_msg_hdr *header,
+		      unsigned char *write_buffer,
+		      unsigned long write_length)
 {
 	u32 temp_msg = 0;
 	unsigned long bytes_written = 0;
@@ -216,7 +216,7 @@ int mei_count_full_read_slots(struct mei_device *dev)
  * @buffer_length: message size will be read
  */
 void mei_read_slots(struct mei_device *dev,
-		     unsigned char *buffer, unsigned long buffer_length)
+		    unsigned char *buffer, unsigned long buffer_length)
 {
 	u32 i = 0;
 	unsigned char temp_buf[sizeof(u32)];

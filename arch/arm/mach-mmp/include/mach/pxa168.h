@@ -43,6 +43,8 @@ struct pxa168_usb_pdata {
 /* pdata can be NULL */
 int __init pxa168_add_usb_host(struct pxa168_usb_pdata *pdata);
 
+extern struct platform_device pxa168_device_gpio;
+
 static inline int pxa168_add_uart(int id)
 {
 	struct pxa_device_desc *d = NULL;

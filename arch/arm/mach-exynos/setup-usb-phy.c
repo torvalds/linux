@@ -19,6 +19,13 @@
 #include <plat/cpu.h>
 #include <plat/usb-phy.h>
 
+static atomic_t host_usage;
+
+static int exynos4_usb_host_phy_is_on(void)
+{
+	return (readl(EXYNOS4_PHYPWR) & PHY1_STD_ANALOG_POWERDOWN) ? 0 : 1;
+}
+
 static int exynos4_usb_phy1_init(struct platform_device *pdev)
 {
 	struct clk *otg_clk;
@@ -26,6 +33,8 @@ static int exynos4_usb_phy1_init(struct platform_device *pdev)
 	u32 phyclk;
 	u32 rstcon;
 	int err;
+
+	atomic_inc(&host_usage);
 
 	otg_clk = clk_get(&pdev->dev, "otg");
 	if (IS_ERR(otg_clk)) {
@@ -38,6 +47,9 @@ static int exynos4_usb_phy1_init(struct platform_device *pdev)
 		clk_put(otg_clk);
 		return err;
 	}
+
+	if (exynos4_usb_host_phy_is_on())
+		return 0;
 
 	writel(readl(S5P_USBHOST_PHY_CONTROL) | S5P_USBHOST_PHY_ENABLE,
 			S5P_USBHOST_PHY_CONTROL);
@@ -94,6 +106,9 @@ static int exynos4_usb_phy1_exit(struct platform_device *pdev)
 {
 	struct clk *otg_clk;
 	int err;
+
+	if (atomic_dec_return(&host_usage) > 0)
+		return 0;
 
 	otg_clk = clk_get(&pdev->dev, "otg");
 	if (IS_ERR(otg_clk)) {

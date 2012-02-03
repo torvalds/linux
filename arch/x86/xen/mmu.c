@@ -1852,7 +1852,7 @@ pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
 	xen_write_cr3(__pa(initial_page_table));
 
 	memblock_reserve(__pa(xen_start_info->pt_base),
-			 xen_start_info->nr_pt_frames * PAGE_SIZE));
+			 xen_start_info->nr_pt_frames * PAGE_SIZE);
 
 	return initial_page_table;
 }

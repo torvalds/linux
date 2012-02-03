@@ -80,6 +80,8 @@ static void phytec_muxsel(struct bttv *btv, unsigned int input);
 static void gv800s_muxsel(struct bttv *btv, unsigned int input);
 static void gv800s_init(struct bttv *btv);
 
+static void td3116_muxsel(struct bttv *btv, unsigned int input);
+
 static int terratec_active_radio_upgrade(struct bttv *btv);
 static int tea5757_read(struct bttv *btv);
 static int tea5757_write(struct bttv *btv, int value);
@@ -284,7 +286,8 @@ static struct CARD {
 	{ 0x10b42636, BTTV_BOARD_HAUPPAUGE878,  "STB ???" },
 	{ 0x217d6606, BTTV_BOARD_WINFAST2000,   "Leadtek WinFast TV 2000" },
 	{ 0xfff6f6ff, BTTV_BOARD_WINFAST2000,   "Leadtek WinFast TV 2000" },
-	{ 0x03116000, BTTV_BOARD_SENSORAY311,   "Sensoray 311" },
+	{ 0x03116000, BTTV_BOARD_SENSORAY311_611, "Sensoray 311" },
+	{ 0x06116000, BTTV_BOARD_SENSORAY311_611, "Sensoray 611" },
 	{ 0x00790e11, BTTV_BOARD_WINDVR,        "Canopus WinDVR PCI" },
 	{ 0xa0fca1a0, BTTV_BOARD_ZOLTRIX,       "Face to Face Tvmax" },
 	{ 0x82b2aa6a, BTTV_BOARD_SIMUS_GVC1100, "SIMUS GVC1100" },
@@ -341,6 +344,7 @@ static struct CARD {
 	{ 0x15401835, BTTV_BOARD_PV183,         "Provideo PV183-6" },
 	{ 0x15401836, BTTV_BOARD_PV183,         "Provideo PV183-7" },
 	{ 0x15401837, BTTV_BOARD_PV183,         "Provideo PV183-8" },
+	{ 0x3116f200, BTTV_BOARD_TVT_TD3116,	"Tongwei Video Technology TD-3116" },
 
 	{ 0, -1, NULL }
 };
@@ -1526,10 +1530,10 @@ struct tvcard bttv_tvcards[] = {
 			GPIO20,22,23: R30,R29,R28
 		*/
 	},
-	[BTTV_BOARD_SENSORAY311] = {
+	[BTTV_BOARD_SENSORAY311_611] = {
 		/* Clay Kunz <ckunz@mail.arc.nasa.gov> */
-		/* you must jumper JP5 for the card to work */
-		.name           = "Sensoray 311",
+		/* you must jumper JP5 for the 311 card (PC/104+) to work */
+		.name           = "Sensoray 311/611",
 		.video_inputs   = 5,
 		/* .audio_inputs= 0, */
 		.svhs           = 4,
@@ -2879,6 +2883,16 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_ABSENT,
 		.tuner_addr	= ADDR_UNSET,
 	},
+	[BTTV_BOARD_TVT_TD3116] = {
+		.name           = "Tongwei Video Technology TD-3116",
+		.video_inputs   = 16,
+		.gpiomask       = 0xc00ff,
+		.muxsel         = MUXSEL(2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2),
+		.muxsel_hook    = td3116_muxsel,
+		.svhs           = NO_SVHS,
+		.pll		= PLL_28,
+		.tuner_type     = TUNER_ABSENT,
+	},
 };
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);
@@ -3226,6 +3240,42 @@ static void geovision_muxsel(struct bttv *btv, unsigned int input)
 	unsigned int inmux = input % 16;
 	gpio_inout(0xf, 0xf);
 	gpio_bits(0xf, inmux);
+}
+
+/*
+ * The TD3116 has 2 74HC4051 muxes wired to the MUX0 input of a bt878.
+ * The first 74HC4051 has the lower 8 inputs, the second one the higher 8.
+ * The muxes are controlled via a 74HC373 latch which is connected to
+ * GPIOs 0-7. GPIO 18 is connected to the LE signal of the latch.
+ * Q0 of the latch is connected to the Enable (~E) input of the first
+ * 74HC4051. Q1 - Q3 are connected to S0 - S2 of the same 74HC4051.
+ * Q4 - Q7 are connected to the second 74HC4051 in the same way.
+ */
+
+static void td3116_latch_value(struct bttv *btv, u32 value)
+{
+	gpio_bits((1<<18) | 0xff, value);
+	gpio_bits((1<<18) | 0xff, (1<<18) | value);
+	udelay(1);
+	gpio_bits((1<<18) | 0xff, value);
+}
+
+static void td3116_muxsel(struct bttv *btv, unsigned int input)
+{
+	u32 value;
+	u32 highbit;
+
+	highbit = (input & 0x8) >> 3 ;
+
+	/* Disable outputs and set value in the mux */
+	value = 0x11; /* Disable outputs */
+	value |= ((input & 0x7) << 1)  << (4 * highbit);
+	td3116_latch_value(btv, value);
+
+	/* Enable the correct output */
+	value &= ~0x11;
+	value |= ((highbit ^ 0x1) << 4) | highbit;
+	td3116_latch_value(btv, value);
 }
 
 /* ----------------------------------------------------------------------- */

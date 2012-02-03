@@ -78,12 +78,12 @@ static char *mode_option __devinitdata;
  * these flags allow the user to specify that requests for +ve sync
  * should be silently turned in -ve sync.
  */
-static int lowhsync;
-static int lowvsync;
-static int noaccel __devinitdata;
+static bool lowhsync;
+static bool lowvsync;
+static bool noaccel __devinitdata;
 /* mtrr option */
 #ifdef CONFIG_MTRR
-static int nomtrr __devinitdata;
+static bool nomtrr __devinitdata;
 #endif
 
 /*

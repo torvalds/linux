@@ -557,8 +557,7 @@ bfad_debugfs_exit(struct bfad_port_s *port)
 		}
 	}
 
-	/*
-	 * Remove the pci_dev debugfs directory for the port */
+	/* Remove the pci_dev debugfs directory for the port */
 	if (port->port_debugfs_root) {
 		debugfs_remove(port->port_debugfs_root);
 		port->port_debugfs_root = NULL;

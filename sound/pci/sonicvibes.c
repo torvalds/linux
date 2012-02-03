@@ -52,9 +52,9 @@ MODULE_SUPPORTED_DEVICE("{{S3,SonicVibes PCI}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
-static int reverb[SNDRV_CARDS];
-static int mge[SNDRV_CARDS];
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
+static bool reverb[SNDRV_CARDS];
+static bool mge[SNDRV_CARDS];
 static unsigned int dmaio = 0x7a00;	/* DDMA i/o address */
 
 module_param_array(index, int, NULL, 0444);

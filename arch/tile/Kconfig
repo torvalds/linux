@@ -321,6 +321,7 @@ config PCI
 	bool "PCI support"
 	default y
 	select PCI_DOMAINS
+	select GENERIC_PCI_IOMAP
 	---help---
 	  Enable PCI root complex support, so PCIe endpoint devices can
 	  be attached to the Tile chip.  Many, but not all, PCI devices

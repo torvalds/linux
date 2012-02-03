@@ -1159,7 +1159,7 @@ static void rx_timestamp_work(struct work_struct *work)
 			}
 		}
 		spin_unlock_irqrestore(&dp83640->rx_lock, flags);
-		netif_rx(skb);
+		netif_rx_ni(skb);
 	}
 
 	/* Clear out expired time stamps. */

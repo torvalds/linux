@@ -87,6 +87,7 @@ nvc0_graph_class(struct drm_device *dev)
 	case 0xc1:
 		return 0x9197;
 	case 0xc8:
+	case 0xd9:
 		return 0x9297;
 	default:
 		return 0;

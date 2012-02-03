@@ -119,6 +119,37 @@ bool __init early_is_amd_nb(u32 device)
 	return false;
 }
 
+struct resource *amd_get_mmconfig_range(struct resource *res)
+{
+	u32 address;
+	u64 base, msr;
+	unsigned segn_busn_bits;
+
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+		return NULL;
+
+	/* assume all cpus from fam10h have mmconfig */
+        if (boot_cpu_data.x86 < 0x10)
+		return NULL;
+
+	address = MSR_FAM10H_MMIO_CONF_BASE;
+	rdmsrl(address, msr);
+
+	/* mmconfig is not enabled */
+	if (!(msr & FAM10H_MMIO_CONF_ENABLE))
+		return NULL;
+
+	base = msr & (FAM10H_MMIO_CONF_BASE_MASK<<FAM10H_MMIO_CONF_BASE_SHIFT);
+
+	segn_busn_bits = (msr >> FAM10H_MMIO_CONF_BUSRANGE_SHIFT) &
+			 FAM10H_MMIO_CONF_BUSRANGE_MASK;
+
+	res->flags = IORESOURCE_MEM;
+	res->start = base;
+	res->end = base + (1ULL<<(segn_busn_bits + 20)) - 1;
+	return res;
+}
+
 int amd_get_subcaches(int cpu)
 {
 	struct pci_dev *link = node_to_amd_nb(amd_get_nb_id(cpu))->link;

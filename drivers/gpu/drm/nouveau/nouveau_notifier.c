@@ -115,7 +115,7 @@ nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *nobj = NULL;
 	struct drm_mm_node *mem;
-	uint32_t offset;
+	uint64_t offset;
 	int target, ret;
 
 	mem = drm_mm_search_free_in_range(&chan->notifier_heap, size, 0,

@@ -22,7 +22,7 @@ config UNIX
 config UNIX_DIAG
 	tristate "UNIX: socket monitoring interface"
 	depends on UNIX
-	default UNIX
+	default n
 	---help---
 	  Support for UNIX socket monitoring interface used by the ss tool.
 	  If unsure, say Y.

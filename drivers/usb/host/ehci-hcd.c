@@ -48,6 +48,10 @@
 #include <asm/system.h>
 #include <asm/unaligned.h>
 
+#if defined(CONFIG_PPC_PS3)
+#include <asm/firmware.h>
+#endif
+
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -108,7 +112,7 @@ module_param (park, uint, S_IRUGO);
 MODULE_PARM_DESC (park, "park setting; 1-3 back-to-back async packets");
 
 /* for flakey hardware, ignore overcurrent indicators */
-static int ignore_oc = 0;
+static bool ignore_oc = 0;
 module_param (ignore_oc, bool, S_IRUGO);
 MODULE_PARM_DESC (ignore_oc, "ignore bogus hardware overcurrent indications");
 
@@ -230,12 +234,58 @@ static int ehci_halt (struct ehci_hcd *ehci)
 			  STS_HALT, STS_HALT, 16 * 125);
 }
 
+#if defined(CONFIG_USB_SUSPEND) && defined(CONFIG_PPC_PS3)
+
+/*
+ * The EHCI controller of the Cell Super Companion Chip used in the
+ * PS3 will stop the root hub after all root hub ports are suspended.
+ * When in this condition handshake will return -ETIMEDOUT.  The
+ * STS_HLT bit will not be set, so inspection of the frame index is
+ * used here to test for the condition.  If the condition is found
+ * return success to allow the USB suspend to complete.
+ */
+
+static int handshake_for_broken_root_hub(struct ehci_hcd *ehci,
+					 void __iomem *ptr, u32 mask, u32 done,
+					 int usec)
+{
+	unsigned int old_index;
+	int error;
+
+	if (!firmware_has_feature(FW_FEATURE_PS3_LV1))
+		return -ETIMEDOUT;
+
+	old_index = ehci_read_frame_index(ehci);
+
+	error = handshake(ehci, ptr, mask, done, usec);
+
+	if (error == -ETIMEDOUT && ehci_read_frame_index(ehci) == old_index)
+		return 0;
+
+	return error;
+}
+
+#else
+
+static int handshake_for_broken_root_hub(struct ehci_hcd *ehci,
+					 void __iomem *ptr, u32 mask, u32 done,
+					 int usec)
+{
+	return -ETIMEDOUT;
+}
+
+#endif
+
 static int handshake_on_error_set_halt(struct ehci_hcd *ehci, void __iomem *ptr,
 				       u32 mask, u32 done, int usec)
 {
 	int error;
 
 	error = handshake(ehci, ptr, mask, done, usec);
+	if (error == -ETIMEDOUT)
+		error = handshake_for_broken_root_hub(ehci, ptr, mask, done,
+						      usec);
+
 	if (error) {
 		ehci_halt(ehci);
 		ehci->rh_state = EHCI_RH_HALTED;
@@ -620,6 +670,7 @@ static int ehci_init(struct usb_hcd *hcd)
 	hw = ehci->async->hw;
 	hw->hw_next = QH_NEXT(ehci, ehci->async->qh_dma);
 	hw->hw_info1 = cpu_to_hc32(ehci, QH_HEAD);
+	hw->hw_info1 |= cpu_to_hc32(ehci, (1 << 7));	/* I = 1 */
 	hw->hw_token = cpu_to_hc32(ehci, QTD_STS_HALT);
 	hw->hw_qtd_next = EHCI_LIST_END(ehci);
 	ehci->async->qh_state = QH_STATE_LINKED;
@@ -677,22 +728,13 @@ static int ehci_init(struct usb_hcd *hcd)
 static int ehci_run (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
-	int			retval;
 	u32			temp;
 	u32			hcc_params;
 
 	hcd->uses_new_polling = 1;
 
 	/* EHCI spec section 4.1 */
-	/*
-	 * TDI driver does the ehci_reset in their reset callback.
-	 * Don't reset here, because configuration settings will
-	 * vanish.
-	 */
-	if (!ehci_is_TDI(ehci) && (retval = ehci_reset(ehci)) != 0) {
-		ehci_mem_cleanup(ehci);
-		return retval;
-	}
+
 	ehci_writel(ehci, ehci->periodic_dma, &ehci->regs->frame_list);
 	ehci_writel(ehci, (u32)ehci->async->qh_dma, &ehci->regs->async_next);
 
@@ -1324,9 +1366,14 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ehci_pxa168_driver
 #endif
 
-#ifdef CONFIG_NLM_XLR
+#ifdef CONFIG_CPU_XLR
 #include "ehci-xls.c"
 #define PLATFORM_DRIVER		ehci_xls_driver
+#endif
+
+#ifdef CONFIG_USB_EHCI_MV
+#include "ehci-mv.c"
+#define        PLATFORM_DRIVER         ehci_mv_driver
 #endif
 
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \

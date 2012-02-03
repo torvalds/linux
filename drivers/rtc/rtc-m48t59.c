@@ -530,18 +530,7 @@ static struct platform_driver m48t59_rtc_driver = {
 	.remove		= __devexit_p(m48t59_rtc_remove),
 };
 
-static int __init m48t59_rtc_init(void)
-{
-	return platform_driver_register(&m48t59_rtc_driver);
-}
-
-static void __exit m48t59_rtc_exit(void)
-{
-	platform_driver_unregister(&m48t59_rtc_driver);
-}
-
-module_init(m48t59_rtc_init);
-module_exit(m48t59_rtc_exit);
+module_platform_driver(m48t59_rtc_driver);
 
 MODULE_AUTHOR("Mark Zhan <rongkai.zhan@windriver.com>");
 MODULE_DESCRIPTION("M48T59/M48T02/M48T08 RTC driver");

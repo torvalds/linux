@@ -123,7 +123,7 @@ int __init mach_nb0916_init(void)
 
 	if (request_irq(gpio_to_irq(GPI_LCD_CASE_OFF),
 		&nb0916_lcdcaseoff_handler,
-		IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+		IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 		"NB0916 lcd case off", NULL) < 0) {
 
 		printk(KERN_DEBUG "LCD-Case-OFF IRQ %d not available\n",
@@ -131,7 +131,7 @@ int __init mach_nb0916_init(void)
 	}
 
 	if (request_irq(gpio_to_irq(GPI_OTP_INT), &nb0916_overheat_handler,
-		IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+		IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 		"NB0916 overheating protection", NULL) < 0) {
 
 		printk(KERN_DEBUG "Overheating Protection IRQ %d not available\n",

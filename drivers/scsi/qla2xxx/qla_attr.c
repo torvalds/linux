@@ -107,7 +107,7 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		break;
 	}
-	return -EINVAL;
+	return count;
 }
 
 static struct bin_attribute sysfs_fw_dump_attr = {
@@ -387,7 +387,7 @@ qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 		break;
 	case 3:
 		if (ha->optrom_state != QLA_SWRITING)
-			return -ENOMEM;
+			return -EINVAL;
 
 		if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
 			ql_log(ql_log_warn, vha, 0x7068,
@@ -667,7 +667,7 @@ qla2x00_sysfs_write_edc(struct file *filp, struct kobject *kobj,
 	    dev, adr, len, opt);
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x7074,
-		    "Unable to write EDC (%x) %02x:%04x:%02x:%02hhx\n",
+		    "Unable to write EDC (%x) %02x:%04x:%02x:%02x:%02hhx\n",
 		    rval, dev, adr, opt, len, buf[8]);
 		return -EIO;
 	}
@@ -724,7 +724,7 @@ qla2x00_sysfs_write_edc_status(struct file *filp, struct kobject *kobj,
 			dev, adr, len, opt);
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_info, vha, 0x7075,
-		    "Unable to write EDC status (%x) %02x:%04x:%02x.\n",
+		    "Unable to write EDC status (%x) %02x:%04x:%02x:%02x.\n",
 		    rval, dev, adr, opt, len);
 		return -EIO;
 	}
@@ -1971,8 +1971,8 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 			    "Queue delete failed.\n");
 	}
 
-	scsi_host_put(vha->host);
 	ql_log(ql_log_info, vha, 0x7088, "VP[%d] deleted.\n", id);
+	scsi_host_put(vha->host);
 	return 0;
 }
 

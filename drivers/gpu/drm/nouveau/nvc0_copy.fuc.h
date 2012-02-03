@@ -145,7 +145,7 @@ uint32_t nvc0_pcopy_code[] = {
 	0xf10010fe,
 	0xf1040017,
 	0xf0fff327,
-	0x22d00023,
+	0x12d00023,
 	0x0c25f0c0,
 	0xf40012d0,
 	0x17f11031,

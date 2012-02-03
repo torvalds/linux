@@ -261,17 +261,7 @@ static struct platform_driver twl4030_audio_driver = {
 	},
 };
 
-static int __devinit twl4030_audio_init(void)
-{
-	return platform_driver_register(&twl4030_audio_driver);
-}
-module_init(twl4030_audio_init);
-
-static void __devexit twl4030_audio_exit(void)
-{
-	platform_driver_unregister(&twl4030_audio_driver);
-}
-module_exit(twl4030_audio_exit);
+module_platform_driver(twl4030_audio_driver);
 
 MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@ti.com>");
 MODULE_LICENSE("GPL");

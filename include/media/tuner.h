@@ -127,7 +127,6 @@
 #define TUNER_PHILIPS_FMD1216MEX_MK3	78
 #define TUNER_PHILIPS_FM1216MK5		79
 #define TUNER_PHILIPS_FQ1216LME_MK3	80	/* Active loopthrough, no FM */
-#define TUNER_XC4000			81	/* Xceive Silicon Tuner */
 
 #define TUNER_PARTSNIC_PTI_5NF05	81
 #define TUNER_PHILIPS_CU1216L           82
@@ -135,6 +134,8 @@
 #define TUNER_SONY_BTF_PXN01Z		84
 #define TUNER_PHILIPS_FQ1236_MK5	85	/* NTSC, TDA9885, no FM radio */
 #define TUNER_TENA_TNF_5337		86
+
+#define TUNER_XC4000			87	/* Xceive Silicon Tuner */
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)

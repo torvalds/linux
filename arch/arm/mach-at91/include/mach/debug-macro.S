@@ -14,9 +14,15 @@
 #include <mach/hardware.h>
 #include <mach/at91_dbgu.h>
 
+#if defined(CONFIG_AT91_DEBUG_LL_DBGU0)
+#define AT91_DBGU AT91_BASE_DBGU0
+#else
+#define AT91_DBGU AT91_BASE_DBGU1
+#endif
+
 	.macro	addruart, rp, rv, tmp
-	ldr	\rp, =(AT91_BASE_SYS + AT91_DBGU)	@ System peripherals (phys address)
-	ldr	\rv, =(AT91_VA_BASE_SYS	+ AT91_DBGU)	@ System peripherals (virt address)
+	ldr	\rp, =AT91_DBGU				@ System peripherals (phys address)
+	ldr	\rv, =AT91_IO_P2V(AT91_DBGU)		@ System peripherals (virt address)
 	.endm
 
 	.macro	senduart,rd,rx

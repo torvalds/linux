@@ -271,7 +271,7 @@ static struct sh_mobile_lcdc_info lcdc0_info = {
 		.flags = LCDC_FLAGS_DWPOL,
 		.lcd_size_cfg.width = 44,
 		.lcd_size_cfg.height = 79,
-		.bpp = 16,
+		.fourcc = V4L2_PIX_FMT_RGB565,
 		.lcd_cfg = lcdc0_modes,
 		.num_cfg = ARRAY_SIZE(lcdc0_modes),
 		.board_cfg = {
@@ -321,12 +321,46 @@ static struct resource mipidsi0_resources[] = {
 	},
 };
 
+#define DSI0PHYCR	0xe615006c
+static int sh_mipi_set_dot_clock(struct platform_device *pdev,
+				 void __iomem *base,
+				 int enable)
+{
+	struct clk *pck;
+	int ret;
+
+	pck = clk_get(&pdev->dev, "dsip_clk");
+	if (IS_ERR(pck)) {
+		ret = PTR_ERR(pck);
+		goto sh_mipi_set_dot_clock_pck_err;
+	}
+
+	if (enable) {
+		clk_set_rate(pck, clk_round_rate(pck,  24000000));
+		__raw_writel(0x2a809010, DSI0PHYCR);
+		clk_enable(pck);
+	} else {
+		clk_disable(pck);
+	}
+
+	ret = 0;
+
+	clk_put(pck);
+
+sh_mipi_set_dot_clock_pck_err:
+	return ret;
+}
+
 static struct sh_mipi_dsi_info mipidsi0_info = {
 	.data_format	= MIPI_RGB888,
 	.lcd_chan	= &lcdc0_info.ch[0],
+	.lane		= 2,
 	.vsynw_offset	= 20,
 	.clksrc		= 1,
-	.flags		= SH_MIPI_DSI_HSABM,
+	.flags		= SH_MIPI_DSI_HSABM		|
+			  SH_MIPI_DSI_SYNC_PULSES_MODE	|
+			  SH_MIPI_DSI_HSbyteCLK,
+	.set_dot_clock	= sh_mipi_set_dot_clock,
 };
 
 static struct platform_device mipidsi0_device = {
@@ -472,8 +506,6 @@ static void __init ag5evm_map_io(void)
 	shmobile_setup_console();
 }
 
-#define DSI0PHYCR	0xe615006c
-
 static void __init ag5evm_init(void)
 {
 	sh73a0_pinmux_init();
@@ -553,9 +585,6 @@ static void __init ag5evm_init(void)
 	gpio_request(GPIO_PORT235, NULL); /* RESET */
 	gpio_direction_output(GPIO_PORT235, 0);
 	lcd_backlight_reset();
-
-	/* MIPI-DSI clock setup */
-	__raw_writel(0x2a809010, DSI0PHYCR);
 
 	/* enable SDHI0 on CN15 [SD I/F] */
 	gpio_request(GPIO_FN_SDHICD0, NULL);

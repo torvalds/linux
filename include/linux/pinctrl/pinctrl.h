@@ -21,6 +21,7 @@
 
 struct pinctrl_dev;
 struct pinmux_ops;
+struct pinconf_ops;
 struct gpio_chip;
 
 /**
@@ -45,6 +46,7 @@ struct pinctrl_pin_desc {
  * @name: a name for the chip in this range
  * @id: an ID number for the chip in this range
  * @base: base offset of the GPIO range
+ * @pin_base: base pin number of the GPIO range
  * @npins: number of pins in the GPIO range, including the base number
  * @gc: an optional pointer to a gpio_chip
  */
@@ -53,6 +55,7 @@ struct pinctrl_gpio_range {
 	const char *name;
 	unsigned int id;
 	unsigned int base;
+	unsigned int pin_base;
 	unsigned int npins;
 	struct gpio_chip *gc;
 };
@@ -89,22 +92,20 @@ struct pinctrl_ops {
  *	this pin controller
  * @npins: number of descriptors in the array, usually just ARRAY_SIZE()
  *	of the pins field above
- * @maxpin: since pin spaces may be sparse, there can he "holes" in the
- *	pin range, this attribute gives the maximum pin number in the
- *	total range. This should not be lower than npins for example,
- *	but may be equal to npins if you have no holes in the pin range.
  * @pctlops: pin control operation vtable, to support global concepts like
  *	grouping of pins, this is optional.
- * @pmxops: pinmux operation vtable, if you support pinmuxing in your driver
+ * @pmxops: pinmux operations vtable, if you support pinmuxing in your driver
+ * @confops: pin config operations vtable, if you support pin configuration in
+ *	your driver
  * @owner: module providing the pin controller, used for refcounting
  */
 struct pinctrl_desc {
 	const char *name;
 	struct pinctrl_pin_desc const *pins;
 	unsigned int npins;
-	unsigned int maxpin;
 	struct pinctrl_ops *pctlops;
 	struct pinmux_ops *pmxops;
+	struct pinconf_ops *confops;
 	struct module *owner;
 };
 
@@ -123,7 +124,7 @@ extern void *pinctrl_dev_get_drvdata(struct pinctrl_dev *pctldev);
 
 struct pinctrl_dev;
 
-/* Sufficiently stupid default function when pinctrl is not in use */
+/* Sufficiently stupid default functions when pinctrl is not in use */
 static inline bool pin_is_valid(struct pinctrl_dev *pctldev, int pin)
 {
 	return pin >= 0;

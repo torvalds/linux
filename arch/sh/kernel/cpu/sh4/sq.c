@@ -337,7 +337,7 @@ static struct kobj_type ktype_percpu_entry = {
 	.default_attrs	= sq_sysfs_attrs,
 };
 
-static int __devinit sq_dev_add(struct device *dev)
+static int sq_dev_add(struct device *dev, struct subsys_interface *sif)
 {
 	unsigned int cpu = dev->id;
 	struct kobject *kobj;
@@ -355,7 +355,7 @@ static int __devinit sq_dev_add(struct device *dev)
 	return error;
 }
 
-static int __devexit sq_dev_remove(struct device *dev)
+static int sq_dev_remove(struct device *dev, struct subsys_interface *sif)
 {
 	unsigned int cpu = dev->id;
 	struct kobject *kobj = sq_kobject[cpu];
@@ -365,10 +365,10 @@ static int __devexit sq_dev_remove(struct device *dev)
 }
 
 static struct subsys_interface sq_interface = {
-	.name		= "sq"
+	.name		= "sq",
 	.subsys		= &cpu_subsys,
 	.add_dev	= sq_dev_add,
-	.remove_dev	= __devexit_p(sq_dev_remove),
+	.remove_dev	= sq_dev_remove,
 };
 
 static int __init sq_api_init(void)

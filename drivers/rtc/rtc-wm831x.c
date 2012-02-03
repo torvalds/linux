@@ -324,15 +324,6 @@ static irqreturn_t wm831x_alm_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t wm831x_per_irq(int irq, void *data)
-{
-	struct wm831x_rtc *wm831x_rtc = data;
-
-	rtc_update_irq(wm831x_rtc->rtc, 1, RTC_IRQF | RTC_UF);
-
-	return IRQ_HANDLED;
-}
-
 static const struct rtc_class_ops wm831x_rtc_ops = {
 	.read_time = wm831x_rtc_readtime,
 	.set_mmss = wm831x_rtc_set_mmss,
@@ -405,11 +396,10 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_rtc *wm831x_rtc;
-	int per_irq = platform_get_irq_byname(pdev, "PER");
 	int alm_irq = platform_get_irq_byname(pdev, "ALM");
 	int ret = 0;
 
-	wm831x_rtc = kzalloc(sizeof(*wm831x_rtc), GFP_KERNEL);
+	wm831x_rtc = devm_kzalloc(&pdev->dev, sizeof(*wm831x_rtc), GFP_KERNEL);
 	if (wm831x_rtc == NULL)
 		return -ENOMEM;
 
@@ -433,14 +423,6 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = request_threaded_irq(per_irq, NULL, wm831x_per_irq,
-				   IRQF_TRIGGER_RISING, "RTC period",
-				   wm831x_rtc);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "Failed to request periodic IRQ %d: %d\n",
-			per_irq, ret);
-	}
-
 	ret = request_threaded_irq(alm_irq, NULL, wm831x_alm_irq,
 				   IRQF_TRIGGER_RISING, "RTC alarm",
 				   wm831x_rtc);
@@ -452,20 +434,16 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	return 0;
 
 err:
-	kfree(wm831x_rtc);
 	return ret;
 }
 
 static int __devexit wm831x_rtc_remove(struct platform_device *pdev)
 {
 	struct wm831x_rtc *wm831x_rtc = platform_get_drvdata(pdev);
-	int per_irq = platform_get_irq_byname(pdev, "PER");
 	int alm_irq = platform_get_irq_byname(pdev, "ALM");
 
 	free_irq(alm_irq, wm831x_rtc);
-	free_irq(per_irq, wm831x_rtc);
 	rtc_device_unregister(wm831x_rtc->rtc);
-	kfree(wm831x_rtc);
 
 	return 0;
 }
@@ -490,17 +468,7 @@ static struct platform_driver wm831x_rtc_driver = {
 	},
 };
 
-static int __init wm831x_rtc_init(void)
-{
-	return platform_driver_register(&wm831x_rtc_driver);
-}
-module_init(wm831x_rtc_init);
-
-static void __exit wm831x_rtc_exit(void)
-{
-	platform_driver_unregister(&wm831x_rtc_driver);
-}
-module_exit(wm831x_rtc_exit);
+module_platform_driver(wm831x_rtc_driver);
 
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_DESCRIPTION("RTC driver for the WM831x series PMICs");

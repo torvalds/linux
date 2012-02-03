@@ -2102,14 +2102,11 @@ static struct irq_chip prcmu_irq_chip = {
 void __init db8500_prcmu_early_init(void)
 {
 	unsigned int i;
-
-	if (cpu_is_u8500v1()) {
-		tcdm_base = __io_address(U8500_PRCMU_TCDM_BASE_V1);
-	} else if (cpu_is_u8500v2()) {
+	if (cpu_is_u8500v2()) {
 		void *tcpm_base = ioremap_nocache(U8500_PRCMU_TCPM_BASE, SZ_4K);
 
 		if (tcpm_base != NULL) {
-			int version;
+			u32 version;
 			version = readl(tcpm_base + PRCMU_FW_VERSION_OFFSET);
 			prcmu_version.project_number = version & 0xFF;
 			prcmu_version.api_version = (version >> 8) & 0xFF;

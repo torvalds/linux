@@ -229,3 +229,4 @@ module_spi_driver(ad9951_driver);
 MODULE_AUTHOR("Cliff Cai");
 MODULE_DESCRIPTION("Analog Devices ad9951 driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:" DRV_NAME);

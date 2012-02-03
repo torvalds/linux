@@ -211,6 +211,11 @@ struct iscsi_cls_session {
 	unsigned int target_id;
 	bool ida_used;
 
+	/*
+	 * pid of userspace process that created session or -1 if
+	 * created by the kernel.
+	 */
+	pid_t creator;
 	int state;
 	int sid;				/* session id */
 	void *dd_data;				/* LLD private data */

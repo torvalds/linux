@@ -30,7 +30,7 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 
 	type = (enum wm831x_parent)id->driver_data;
 
-	wm831x = kzalloc(sizeof(struct wm831x), GFP_KERNEL);
+	wm831x = devm_kzalloc(&spi->dev, sizeof(struct wm831x), GFP_KERNEL);
 	if (wm831x == NULL)
 		return -ENOMEM;
 
@@ -45,7 +45,6 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 		ret = PTR_ERR(wm831x->regmap);
 		dev_err(wm831x->dev, "Failed to allocate register map: %d\n",
 			ret);
-		kfree(wm831x);
 		return ret;
 	}
 
@@ -95,7 +94,6 @@ MODULE_DEVICE_TABLE(spi, wm831x_spi_id);
 static struct spi_driver wm831x_spi_driver = {
 	.driver = {
 		.name	= "wm831x",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 		.pm	= &wm831x_spi_pm,
 	},
