@@ -2755,8 +2755,8 @@ il_tx_queue_free(struct il_priv *il, int txq_id)
 				  txq->tfds, txq->q.dma_addr);
 
 	/* De-alloc array of per-TFD driver data */
-	kfree(txq->txb);
-	txq->txb = NULL;
+	kfree(txq->skbs);
+	txq->skbs = NULL;
 
 	/* deallocate arrays */
 	kfree(txq->cmd);
@@ -2930,23 +2930,21 @@ il_tx_queue_alloc(struct il_priv *il, struct il_tx_queue *txq, u32 id)
 	/* Driver ilate data, only for Tx (not command) queues,
 	 * not shared with device. */
 	if (id != il->cmd_queue) {
-		txq->txb = kcalloc(TFD_QUEUE_SIZE_MAX, sizeof(txq->txb[0]),
-				   GFP_KERNEL);
-		if (!txq->txb) {
-			IL_ERR("kmalloc for auxiliary BD "
-			       "structures failed\n");
+		txq->skbs = kcalloc(TFD_QUEUE_SIZE_MAX, sizeof(struct skb *),
+				    GFP_KERNEL);
+		if (!txq->skbs) {
+			IL_ERR("Fail to alloc skbs\n");
 			goto error;
 		}
-	} else {
-		txq->txb = NULL;
-	}
+	} else
+		txq->skbs = NULL;
 
 	/* Circular buffer of transmit frame descriptors (TFDs),
 	 * shared with device */
 	txq->tfds =
 	    dma_alloc_coherent(dev, tfd_sz, &txq->q.dma_addr, GFP_KERNEL);
 	if (!txq->tfds) {
-		IL_ERR("pci_alloc_consistent(%zd) failed\n", tfd_sz);
+		IL_ERR("Fail to alloc TFDs\n");
 		goto error;
 	}
 	txq->q.id = id;
@@ -2954,8 +2952,8 @@ il_tx_queue_alloc(struct il_priv *il, struct il_tx_queue *txq, u32 id)
 	return 0;
 
 error:
-	kfree(txq->txb);
-	txq->txb = NULL;
+	kfree(txq->skbs);
+	txq->skbs = NULL;
 
 	return -ENOMEM;
 }

@@ -538,9 +538,7 @@ il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	idx = il_get_cmd_idx(q, q->write_ptr, 0);
 
-	/* Set up driver data for this TFD */
-	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct il_tx_info));
-	txq->txb[q->write_ptr].skb = skb;
+	txq->skbs[q->write_ptr] = skb;
 
 	/* Init first empty entry in queue's array of Tx/cmd buffers */
 	out_cmd = txq->cmd[idx];

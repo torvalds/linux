@@ -293,16 +293,16 @@ il3945_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx)
 {
 	struct il_tx_queue *txq = &il->txq[txq_id];
 	struct il_queue *q = &txq->q;
-	struct il_tx_info *tx_info;
+	struct sk_buff *skb;
 
 	BUG_ON(txq_id == IL39_CMD_QUEUE_NUM);
 
 	for (idx = il_queue_inc_wrap(idx, q->n_bd); q->read_ptr != idx;
 	     q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
-		tx_info = &txq->txb[txq->q.read_ptr];
-		ieee80211_tx_status_irqsafe(il->hw, tx_info->skb);
-		tx_info->skb = NULL;
+		skb = txq->skbs[txq->q.read_ptr];
+		ieee80211_tx_status_irqsafe(il->hw, skb);
+		txq->skbs[txq->q.read_ptr] = NULL;
 		il->ops->lib->txq_free_tfd(il, txq);
 	}
 
@@ -336,7 +336,7 @@ il3945_hdl_tx(struct il_priv *il, struct il_rx_buf *rxb)
 	}
 
 	txq->time_stamp = jiffies;
-	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb);
+	info = IEEE80211_SKB_CB(txq->skbs[txq->q.read_ptr]);
 	ieee80211_tx_info_clear_status(info);
 
 	/* Fill the MRR chain with some info about on-chip retransmissions */
@@ -660,15 +660,13 @@ il3945_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq)
 				 PCI_DMA_TODEVICE);
 
 	/* free SKB */
-	if (txq->txb) {
-		struct sk_buff *skb;
-
-		skb = txq->txb[txq->q.read_ptr].skb;
+	if (txq->skbs) {
+		struct sk_buff *skb = txq->skbs[txq->q.read_ptr];
 
 		/* can be called from irqs-disabled context */
 		if (skb) {
 			dev_kfree_skb_any(skb);
-			txq->txb[txq->q.read_ptr].skb = NULL;
+			txq->skbs[txq->q.read_ptr] = NULL;
 		}
 	}
 }

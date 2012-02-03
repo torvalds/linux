@@ -1753,9 +1753,7 @@ il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	spin_unlock(&il->sta_lock);
 
-	/* Set up driver data for this TFD */
-	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct il_tx_info));
-	txq->txb[q->write_ptr].skb = skb;
+	txq->skbs[q->write_ptr] = skb;
 
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
 	out_cmd = txq->cmd[q->write_ptr];
@@ -2435,14 +2433,14 @@ il4965_non_agg_tx_status(struct il_priv *il, const u8 *addr1)
 }
 
 static void
-il4965_tx_status(struct il_priv *il, struct il_tx_info *tx_info, bool is_agg)
+il4965_tx_status(struct il_priv *il, struct sk_buff *skb, bool is_agg)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx_info->skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
 	if (!is_agg)
 		il4965_non_agg_tx_status(il, hdr->addr1);
 
-	ieee80211_tx_status_irqsafe(il->hw, tx_info->skb);
+	ieee80211_tx_status_irqsafe(il->hw, skb);
 }
 
 int
@@ -2450,9 +2448,9 @@ il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx)
 {
 	struct il_tx_queue *txq = &il->txq[txq_id];
 	struct il_queue *q = &txq->q;
-	struct il_tx_info *tx_info;
 	int nfreed = 0;
 	struct ieee80211_hdr *hdr;
+	struct sk_buff *skb;
 
 	if (idx >= q->n_bd || il_queue_used(q, idx) == 0) {
 		IL_ERR("Read idx for DMA queue txq id (%d), idx %d, "
@@ -2464,19 +2462,18 @@ il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx)
 	for (idx = il_queue_inc_wrap(idx, q->n_bd); q->read_ptr != idx;
 	     q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
-		tx_info = &txq->txb[txq->q.read_ptr];
+		skb = txq->skbs[txq->q.read_ptr];
 
-		if (WARN_ON_ONCE(tx_info->skb == NULL))
+		if (WARN_ON_ONCE(skb == NULL))
 			continue;
 
-		hdr = (struct ieee80211_hdr *)tx_info->skb->data;
+		hdr = (struct ieee80211_hdr *) skb->data;
 		if (ieee80211_is_data_qos(hdr->frame_control))
 			nfreed++;
 
-		il4965_tx_status(il, tx_info,
-				 txq_id >= IL4965_FIRST_AMPDU_QUEUE);
-		tx_info->skb = NULL;
+		il4965_tx_status(il, skb, txq_id >= IL4965_FIRST_AMPDU_QUEUE);
 
+		txq->skbs[txq->q.read_ptr] = NULL;
 		il->ops->lib->txq_free_tfd(il, txq);
 	}
 	return nfreed;
@@ -2540,7 +2537,7 @@ il4965_tx_status_reply_compressed_ba(struct il_priv *il, struct il_ht_agg *agg,
 
 	D_TX_REPLY("Bitmap %llx\n", (unsigned long long)bitmap);
 
-	info = IEEE80211_SKB_CB(il->txq[scd_flow].txb[agg->start_idx].skb);
+	info = IEEE80211_SKB_CB(il->txq[scd_flow].skbs[agg->start_idx]);
 	memset(&info->status, 0, sizeof(info->status));
 	info->flags |= IEEE80211_TX_STAT_ACK;
 	info->flags |= IEEE80211_TX_STAT_AMPDU;
@@ -3624,15 +3621,13 @@ il4965_hw_txq_free_tfd(struct il_priv *il, struct il_tx_queue *txq)
 				 PCI_DMA_TODEVICE);
 
 	/* free SKB */
-	if (txq->txb) {
-		struct sk_buff *skb;
-
-		skb = txq->txb[txq->q.read_ptr].skb;
+	if (txq->skbs) {
+		struct sk_buff *skb = txq->skbs[txq->q.read_ptr];
 
 		/* can be called from irqs-disabled context */
 		if (skb) {
 			dev_kfree_skb_any(skb);
-			txq->txb[txq->q.read_ptr].skb = NULL;
+			txq->skbs[txq->q.read_ptr] = NULL;
 		}
 	}
 }

@@ -1873,7 +1873,7 @@ il4965_tx_status_reply_tx(struct il_priv *il, struct il_ht_agg *agg,
 		D_TX_REPLY("FrameCnt = %d, StartIdx=%d idx=%d\n",
 			   agg->frame_count, agg->start_idx, idx);
 
-		info = IEEE80211_SKB_CB(il->txq[txq_id].txb[idx].skb);
+		info = IEEE80211_SKB_CB(il->txq[txq_id].skbs[idx]);
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 		info->flags |= il4965_tx_status_to_mac80211(status);
@@ -1888,6 +1888,7 @@ il4965_tx_status_reply_tx(struct il_priv *il, struct il_ht_agg *agg,
 		/* Two or more frames were attempted; expect block-ack */
 		u64 bitmap = 0;
 		int start = agg->start_idx;
+		struct sk_buff *skb;
 
 		/* Construct bit-map of pending frames within Tx win */
 		for (i = 0; i < agg->frame_count; i++) {
@@ -1905,12 +1906,10 @@ il4965_tx_status_reply_tx(struct il_priv *il, struct il_ht_agg *agg,
 			D_TX_REPLY("FrameCnt = %d, txq_id=%d idx=%d\n",
 				   agg->frame_count, txq_id, idx);
 
-			hdr = il_tx_queue_get_hdr(il, txq_id, idx);
-			if (!hdr) {
-				IL_ERR("BUG_ON idx doesn't point to valid skb"
-				       " idx=%d, txq_id=%d\n", idx, txq_id);
+			skb = il->txq[txq_id].skbs[idx];
+			if (WARN_ON_ONCE(skb == NULL))
 				return -1;
-			}
+			hdr = (struct ieee80211_hdr *) skb->data;
 
 			sc = le16_to_cpu(hdr->seq_ctrl);
 			if (idx != (SEQ_TO_SN(sc) & 0xff)) {
@@ -2018,6 +2017,7 @@ il4965_hdl_tx(struct il_priv *il, struct il_rx_buf *rxb)
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int idx = SEQ_TO_IDX(sequence);
 	struct il_tx_queue *txq = &il->txq[txq_id];
+	struct sk_buff *skb;
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *info;
 	struct il4965_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
@@ -2036,10 +2036,12 @@ il4965_hdl_tx(struct il_priv *il, struct il_rx_buf *rxb)
 	}
 
 	txq->time_stamp = jiffies;
-	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb);
+
+	skb = txq->skbs[txq->q.read_ptr];
+	info = IEEE80211_SKB_CB(skb);
 	memset(&info->status, 0, sizeof(info->status));
 
-	hdr = il_tx_queue_get_hdr(il, txq_id, idx);
+	hdr = (struct ieee80211_hdr *) skb->data;
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & 0xf;

@@ -143,11 +143,6 @@ struct il_queue {
 				 * space less than this */
 };
 
-/* One for each TFD */
-struct il_tx_info {
-	struct sk_buff *skb;
-};
-
 /**
  * struct il_tx_queue - Tx Queue for DMA
  * @q: generic Rx/Tx queue descriptor
@@ -155,7 +150,7 @@ struct il_tx_info {
  * @cmd: array of command/TX buffer pointers
  * @meta: array of meta data for each command/tx buffer
  * @dma_addr_cmd: physical address of cmd/tx buffer array
- * @txb: array of per-TFD driver data
+ * @skbs: array of per-TFD socket buffer pointers
  * @time_stamp: time (in jiffies) of last read_ptr change
  * @need_update: indicates need to update read/write idx
  * @sched_retry: indicates queue is high-throughput aggregation (HT AGG) enabled
@@ -171,7 +166,7 @@ struct il_tx_queue {
 	void *tfds;
 	struct il_device_cmd **cmd;
 	struct il_cmd_meta *meta;
-	struct il_tx_info *txb;
+	struct sk_buff **skbs;
 	unsigned long time_stamp;
 	u8 need_update;
 	u8 sched_retry;
@@ -1480,15 +1475,6 @@ static inline void
 il_txq_ctx_deactivate(struct il_priv *il, int txq_id)
 {
 	clear_bit(txq_id, &il->txq_ctx_active_msk);
-}
-
-static inline struct ieee80211_hdr *
-il_tx_queue_get_hdr(struct il_priv *il, int txq_id, int idx)
-{
-	if (il->txq[txq_id].txb[idx].skb)
-		return (struct ieee80211_hdr *)il->txq[txq_id].txb[idx].skb->
-		    data;
-	return NULL;
 }
 
 static inline int
