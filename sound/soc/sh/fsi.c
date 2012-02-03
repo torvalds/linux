@@ -692,61 +692,6 @@ static void __fsi_port_clk_ctrl(struct fsi_priv *fsi, int is_play, int enable)
 /*
  *		ctrl function
  */
-static void fsi_fifo_init(struct fsi_priv *fsi,
-			  int is_play,
-			  struct device *dev)
-{
-	struct fsi_master *master = fsi_get_master(fsi);
-	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
-	u32 shift, i;
-	int frame_capa;
-
-	/* get on-chip RAM capacity */
-	shift = fsi_master_read(master, FIFO_SZ);
-	shift >>= fsi_get_port_shift(fsi, is_play);
-	shift &= FIFO_SZ_MASK;
-	frame_capa = 256 << shift;
-	dev_dbg(dev, "fifo = %d words\n", frame_capa);
-
-	/*
-	 * The maximum number of sample data varies depending
-	 * on the number of channels selected for the format.
-	 *
-	 * FIFOs are used in 4-channel units in 3-channel mode
-	 * and in 8-channel units in 5- to 7-channel mode
-	 * meaning that more FIFOs than the required size of DPRAM
-	 * are used.
-	 *
-	 * ex) if 256 words of DP-RAM is connected
-	 * 1 channel:  256 (256 x 1 = 256)
-	 * 2 channels: 128 (128 x 2 = 256)
-	 * 3 channels:  64 ( 64 x 3 = 192)
-	 * 4 channels:  64 ( 64 x 4 = 256)
-	 * 5 channels:  32 ( 32 x 5 = 160)
-	 * 6 channels:  32 ( 32 x 6 = 192)
-	 * 7 channels:  32 ( 32 x 7 = 224)
-	 * 8 channels:  32 ( 32 x 8 = 256)
-	 */
-	for (i = 1; i < fsi->chan_num; i <<= 1)
-		frame_capa >>= 1;
-	dev_dbg(dev, "%d channel %d store\n",
-		fsi->chan_num, frame_capa);
-
-	io->fifo_sample_capa = fsi_frame2sample(fsi, frame_capa);
-
-	/*
-	 * set interrupt generation factor
-	 * clear FIFO
-	 */
-	if (is_play) {
-		fsi_reg_write(fsi,	DOFF_CTL, IRQ_HALF);
-		fsi_reg_mask_set(fsi,	DOFF_CTL, FIFO_CLR, FIFO_CLR);
-	} else {
-		fsi_reg_write(fsi,	DIFF_CTL, IRQ_HALF);
-		fsi_reg_mask_set(fsi,	DIFF_CTL, FIFO_CLR, FIFO_CLR);
-	}
-}
-
 static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, struct fsi_stream *io,
 			      void (*run16)(struct fsi_priv *fsi, int size),
 			      void (*run32)(struct fsi_priv *fsi, int size),
@@ -867,6 +812,60 @@ static irqreturn_t fsi_interrupt(int irq, void *data)
 /*
  *		dai ops
  */
+static void fsi_fifo_init(struct fsi_priv *fsi,
+			  int is_play,
+			  struct device *dev)
+{
+	struct fsi_master *master = fsi_get_master(fsi);
+	struct fsi_stream *io = fsi_stream_get(fsi, is_play);
+	u32 shift, i;
+	int frame_capa;
+
+	/* get on-chip RAM capacity */
+	shift = fsi_master_read(master, FIFO_SZ);
+	shift >>= fsi_get_port_shift(fsi, is_play);
+	shift &= FIFO_SZ_MASK;
+	frame_capa = 256 << shift;
+	dev_dbg(dev, "fifo = %d words\n", frame_capa);
+
+	/*
+	 * The maximum number of sample data varies depending
+	 * on the number of channels selected for the format.
+	 *
+	 * FIFOs are used in 4-channel units in 3-channel mode
+	 * and in 8-channel units in 5- to 7-channel mode
+	 * meaning that more FIFOs than the required size of DPRAM
+	 * are used.
+	 *
+	 * ex) if 256 words of DP-RAM is connected
+	 * 1 channel:  256 (256 x 1 = 256)
+	 * 2 channels: 128 (128 x 2 = 256)
+	 * 3 channels:  64 ( 64 x 3 = 192)
+	 * 4 channels:  64 ( 64 x 4 = 256)
+	 * 5 channels:  32 ( 32 x 5 = 160)
+	 * 6 channels:  32 ( 32 x 6 = 192)
+	 * 7 channels:  32 ( 32 x 7 = 224)
+	 * 8 channels:  32 ( 32 x 8 = 256)
+	 */
+	for (i = 1; i < fsi->chan_num; i <<= 1)
+		frame_capa >>= 1;
+	dev_dbg(dev, "%d channel %d store\n",
+		fsi->chan_num, frame_capa);
+
+	io->fifo_sample_capa = fsi_frame2sample(fsi, frame_capa);
+
+	/*
+	 * set interrupt generation factor
+	 * clear FIFO
+	 */
+	if (is_play) {
+		fsi_reg_write(fsi,	DOFF_CTL, IRQ_HALF);
+		fsi_reg_mask_set(fsi,	DOFF_CTL, FIFO_CLR, FIFO_CLR);
+	} else {
+		fsi_reg_write(fsi,	DIFF_CTL, IRQ_HALF);
+		fsi_reg_mask_set(fsi,	DIFF_CTL, FIFO_CLR, FIFO_CLR);
+	}
+}
 
 static int fsi_hw_startup(struct fsi_priv *fsi,
 			  int is_play,
