@@ -271,8 +271,33 @@ static struct platform_device *ebsa110_devices[] = {
 	&am79c961_device,
 };
 
+/*
+ * EBSA110 idling methodology:
+ *
+ * We can not execute the "wait for interrupt" instruction since that
+ * will stop our MCLK signal (which provides the clock for the glue
+ * logic, and therefore the timer interrupt).
+ *
+ * Instead, we spin, polling the IRQ_STAT register for the occurrence
+ * of any interrupt with core clock down to the memory clock.
+ */
+static void ebsa110_idle(void)
+{
+	const char *irq_stat = (char *)0xff000000;
+
+	/* disable clock switching */
+	asm volatile ("mcr p15, 0, ip, c15, c2, 2" : : : "cc");
+
+	/* wait for an interrupt to occur */
+	while (!*irq_stat);
+
+	/* enable clock switching */
+	asm volatile ("mcr p15, 0, ip, c15, c1, 2" : : : "cc");
+}
+
 static int __init ebsa110_init(void)
 {
+	arm_pm_idle = ebsa110_idle;
 	return platform_add_devices(ebsa110_devices, ARRAY_SIZE(ebsa110_devices));
 }
 

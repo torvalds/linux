@@ -185,20 +185,11 @@ static void __init nhk8815_onenand_init(void)
 #endif
 }
 
-#define __MEM_4K_RESOURCE(x) \
-	.res = {.start = (x), .end = (x) + SZ_4K - 1, .flags = IORESOURCE_MEM}
+static AMBA_APB_DEVICE(uart0, "uart0", 0, NOMADIK_UART0_BASE,
+	{ IRQ_UART0 }, NULL);
 
-static struct amba_device uart0_device = {
-	.dev = { .init_name = "uart0" },
-	__MEM_4K_RESOURCE(NOMADIK_UART0_BASE),
-	.irq = {IRQ_UART0, NO_IRQ},
-};
-
-static struct amba_device uart1_device = {
-	.dev = { .init_name = "uart1" },
-	__MEM_4K_RESOURCE(NOMADIK_UART1_BASE),
-	.irq = {IRQ_UART1, NO_IRQ},
-};
+static AMBA_APB_DEVICE(uart1, "uart1", 0, NOMADIK_UART1_BASE,
+	{ IRQ_UART1 }, NULL);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&uart0_device,

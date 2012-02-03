@@ -129,14 +129,6 @@ static struct map_desc s5pc100_iodesc[] __initdata = {
 	}
 };
 
-static void s5pc100_idle(void)
-{
-	if (!need_resched())
-		cpu_do_idle();
-
-	local_irq_enable();
-}
-
 /*
  * s5pc100_map_io
  *
@@ -210,10 +202,6 @@ core_initcall(s5pc100_core_init);
 int __init s5pc100_init(void)
 {
 	printk(KERN_INFO "S5PC100: Initializing architecture\n");
-
-	/* set idle function */
-	pm_idle = s5pc100_idle;
-
 	return device_register(&s5pc100_dev);
 }
 

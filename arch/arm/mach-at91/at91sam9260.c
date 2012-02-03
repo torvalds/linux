@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 
+#include <asm/proc-fns.h>
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -328,8 +329,15 @@ static void __init at91sam9260_ioremap_registers(void)
 	at91sam9_ioremap_smc(0, AT91SAM9260_BASE_SMC);
 }
 
+static void at91sam9260_idle(void)
+{
+	at91_sys_write(AT91_PMC_SCDR, AT91_PMC_PCK);
+	cpu_do_idle();
+}
+
 static void __init at91sam9260_initialize(void)
 {
+	arm_pm_idle = at91sam9260_idle;
 	arm_pm_restart = at91sam9_alt_restart;
 	at91_extern_irq = (1 << AT91SAM9260_ID_IRQ0) | (1 << AT91SAM9260_ID_IRQ1)
 			| (1 << AT91SAM9260_ID_IRQ2);
