@@ -201,6 +201,8 @@ struct fsi_priv {
 };
 
 struct fsi_stream_handler {
+	int (*init)(struct fsi_priv *fsi, struct fsi_stream *io);
+	int (*quit)(struct fsi_priv *fsi, struct fsi_stream *io);
 	int (*probe)(struct fsi_priv *fsi, struct fsi_stream *io);
 	int (*transfer)(struct fsi_priv *fsi, struct fsi_stream *io);
 	int (*remove)(struct fsi_priv *fsi, struct fsi_stream *io);
@@ -474,6 +476,7 @@ static void fsi_stream_init(struct fsi_priv *fsi,
 	io->sample_width	= samples_to_bytes(runtime, 1);
 	io->oerr_num	= -1; /* ignore 1st err */
 	io->uerr_num	= -1; /* ignore 1st err */
+	fsi_stream_handler_call(io, init, fsi, io);
 	spin_unlock_irqrestore(&master->lock, flags);
 }
 
@@ -491,6 +494,7 @@ static void fsi_stream_quit(struct fsi_priv *fsi, struct fsi_stream *io)
 	if (io->uerr_num > 0)
 		dev_err(dai->dev, "under_run = %d\n", io->uerr_num);
 
+	fsi_stream_handler_call(io, quit, fsi, io);
 	io->substream	= NULL;
 	io->buff_sample_capa	= 0;
 	io->buff_sample_pos	= 0;
