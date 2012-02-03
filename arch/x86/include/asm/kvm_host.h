@@ -513,6 +513,7 @@ struct kvm_arch {
 	u64 last_tsc_nsec;
 	u64 last_tsc_offset;
 	u64 last_tsc_write;
+	u32 last_tsc_khz;
 
 	struct kvm_xen_hvm_config xen_hvm_config;
 
