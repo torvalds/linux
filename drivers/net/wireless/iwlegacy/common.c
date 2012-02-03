@@ -3664,7 +3664,7 @@ il_send_rxon_timing(struct il_priv *il, struct il_rxon_context *ctx)
 		le32_to_cpu(il->timing.beacon_init_val),
 		le16_to_cpu(il->timing.atim_win));
 
-	return il_send_cmd_pdu(il, il->ctx.rxon_timing_cmd, sizeof(il->timing),
+	return il_send_cmd_pdu(il, C_RXON_TIMING, sizeof(il->timing),
 			       &il->timing);
 }
 EXPORT_SYMBOL(il_send_rxon_timing);
