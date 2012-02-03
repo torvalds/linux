@@ -34,27 +34,18 @@ static struct mtd_info *mtd_info;
 
 static int ram_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
-	if (instr->addr + instr->len > mtd->size)
-		return -EINVAL;
-
 	memset((char *)mtd->priv + instr->addr, 0xff, instr->len);
-
 	instr->state = MTD_ERASE_DONE;
 	mtd_erase_callback(instr);
-
 	return 0;
 }
 
 static int ram_point(struct mtd_info *mtd, loff_t from, size_t len,
 		size_t *retlen, void **virt, resource_size_t *phys)
 {
-	if (from + len > mtd->size)
-		return -EINVAL;
-
 	/* can we return a physical address with this driver? */
 	if (phys)
 		return -EINVAL;
-
 	*virt = mtd->priv + from;
 	*retlen = len;
 	return 0;
@@ -81,11 +72,7 @@ static unsigned long ram_get_unmapped_area(struct mtd_info *mtd,
 static int ram_read(struct mtd_info *mtd, loff_t from, size_t len,
 		size_t *retlen, u_char *buf)
 {
-	if (from + len > mtd->size)
-		return -EINVAL;
-
 	memcpy(buf, mtd->priv + from, len);
-
 	*retlen = len;
 	return 0;
 }
@@ -93,11 +80,7 @@ static int ram_read(struct mtd_info *mtd, loff_t from, size_t len,
 static int ram_write(struct mtd_info *mtd, loff_t to, size_t len,
 		size_t *retlen, const u_char *buf)
 {
-	if (to + len > mtd->size)
-		return -EINVAL;
-
 	memcpy((char *)mtd->priv + to, buf, len);
-
 	*retlen = len;
 	return 0;
 }

@@ -116,16 +116,6 @@ static int pmc551_erase(struct mtd_info *mtd, struct erase_info *instr)
 #endif
 
 	end = instr->addr + instr->len - 1;
-
-	/* Is it past the end? */
-	if (end > mtd->size) {
-#ifdef CONFIG_MTD_PMC551_DEBUG
-		printk(KERN_DEBUG "pmc551_erase() out of bounds (%ld > %ld)\n",
-			(long)end, (long)mtd->size);
-#endif
-		return -EINVAL;
-	}
-
 	eoff_hi = end & ~(priv->asize - 1);
 	soff_hi = instr->addr & ~(priv->asize - 1);
 	eoff_lo = end & (priv->asize - 1);
@@ -179,14 +169,6 @@ static int pmc551_point(struct mtd_info *mtd, loff_t from, size_t len,
 	printk(KERN_DEBUG "pmc551_point(%ld, %ld)\n", (long)from, (long)len);
 #endif
 
-	if (from + len > mtd->size) {
-#ifdef CONFIG_MTD_PMC551_DEBUG
-		printk(KERN_DEBUG "pmc551_point() out of bounds (%ld > %ld)\n",
-			(long)from + len, (long)mtd->size);
-#endif
-		return -EINVAL;
-	}
-
 	/* can we return a physical address with this driver? */
 	if (phys)
 		return -EINVAL;
@@ -230,16 +212,6 @@ static int pmc551_read(struct mtd_info *mtd, loff_t from, size_t len,
 #endif
 
 	end = from + len - 1;
-
-	/* Is it past the end? */
-	if (end > mtd->size) {
-#ifdef CONFIG_MTD_PMC551_DEBUG
-		printk(KERN_DEBUG "pmc551_read() out of bounds (%ld > %ld)\n",
-			(long)end, (long)mtd->size);
-#endif
-		return -EINVAL;
-	}
-
 	soff_hi = from & ~(priv->asize - 1);
 	eoff_hi = end & ~(priv->asize - 1);
 	soff_lo = from & (priv->asize - 1);
@@ -297,16 +269,6 @@ static int pmc551_write(struct mtd_info *mtd, loff_t to, size_t len,
 #endif
 
 	end = to + len - 1;
-	/* Is it past the end?  or did the u32 wrap? */
-	if (end > mtd->size) {
-#ifdef CONFIG_MTD_PMC551_DEBUG
-		printk(KERN_DEBUG "pmc551_write() out of bounds (end: %ld, "
-			"size: %ld, to: %ld)\n", (long)end, (long)mtd->size,
-			(long)to);
-#endif
-		return -EINVAL;
-	}
-
 	soff_hi = to & ~(priv->asize - 1);
 	eoff_hi = end & ~(priv->asize - 1);
 	soff_lo = to & (priv->asize - 1);

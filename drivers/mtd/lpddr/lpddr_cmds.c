@@ -530,7 +530,7 @@ static int lpddr_point(struct mtd_info *mtd, loff_t adr, size_t len,
 	struct flchip *chip = &lpddr->chips[chipnum];
 	int ret = 0;
 
-	if (!map->virt || (adr + len > mtd->size))
+	if (!map->virt)
 		return -EINVAL;
 
 	/* ofs: offset within the first chip that the first read should start */
@@ -691,9 +691,6 @@ static int lpddr_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	ofs = instr->addr;
 	len = instr->len;
-
-	if (ofs > mtd->size || (len + ofs) > mtd->size)
-		return -EINVAL;
 
 	while (len > 0) {
 		ret = do_erase_oneblock(mtd, ofs);

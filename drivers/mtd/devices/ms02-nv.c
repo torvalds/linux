@@ -59,12 +59,8 @@ static int ms02nv_read(struct mtd_info *mtd, loff_t from,
 {
 	struct ms02nv_private *mp = mtd->priv;
 
-	if (from + len > mtd->size)
-		return -EINVAL;
-
 	memcpy(buf, mp->uaddr + from, len);
 	*retlen = len;
-
 	return 0;
 }
 
@@ -73,12 +69,8 @@ static int ms02nv_write(struct mtd_info *mtd, loff_t to,
 {
 	struct ms02nv_private *mp = mtd->priv;
 
-	if (to + len > mtd->size)
-		return -EINVAL;
-
 	memcpy(mp->uaddr + to, buf, len);
 	*retlen = len;
-
 	return 0;
 }
 

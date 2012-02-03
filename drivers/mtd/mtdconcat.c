@@ -185,10 +185,6 @@ concat_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	for (i = 0; i < count; i++)
 		total_len += vecs[i].iov_len;
 
-	/* Do not allow write past end of device */
-	if ((to + total_len) > mtd->size)
-		return -EINVAL;
-
 	/* Check alignment */
 	if (mtd->writesize > 1) {
 		uint64_t __to = to;
@@ -406,12 +402,6 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
 
-	if (instr->addr > concat->mtd.size)
-		return -EINVAL;
-
-	if (instr->len + instr->addr > concat->mtd.size)
-		return -EINVAL;
-
 	/*
 	 * Check for proper erase block alignment of the to-be-erased area.
 	 * It is easier to do this based on the super device's erase
@@ -538,9 +528,6 @@ static int concat_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	struct mtd_concat *concat = CONCAT(mtd);
 	int i, err = -EINVAL;
 
-	if ((len + ofs) > mtd->size)
-		return -EINVAL;
-
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
 		uint64_t size;
@@ -574,9 +561,6 @@ static int concat_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
 	int i, err = 0;
-
-	if ((len + ofs) > mtd->size)
-		return -EINVAL;
 
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
@@ -650,9 +634,6 @@ static int concat_block_isbad(struct mtd_info *mtd, loff_t ofs)
 	if (!mtd_can_have_bb(concat->subdev[0]))
 		return res;
 
-	if (ofs > mtd->size)
-		return -EINVAL;
-
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
 
@@ -672,9 +653,6 @@ static int concat_block_markbad(struct mtd_info *mtd, loff_t ofs)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
 	int i, err = -EINVAL;
-
-	if (ofs > mtd->size)
-		return -EINVAL;
 
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
@@ -712,10 +690,6 @@ static unsigned long concat_get_unmapped_area(struct mtd_info *mtd,
 			offset -= subdev->size;
 			continue;
 		}
-
-		/* we've found the subdev over which the mapping will reside */
-		if (offset + len > subdev->size)
-			return (unsigned long) -EINVAL;
 
 		return mtd_get_unmapped_area(subdev, len, offset, flags);
 	}

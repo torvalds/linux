@@ -175,9 +175,6 @@ static int sst25l_erase(struct mtd_info *mtd, struct erase_info *instr)
 	int err;
 
 	/* Sanity checks */
-	if (instr->addr + instr->len > flash->mtd.size)
-		return -EINVAL;
-
 	if ((uint32_t)instr->len % mtd->erasesize)
 		return -EINVAL;
 
@@ -227,9 +224,6 @@ static int sst25l_read(struct mtd_info *mtd, loff_t from, size_t len,
 	if (len == 0)
 		return 0;
 
-	if (from + len > flash->mtd.size)
-		return -EINVAL;
-
 	if (retlen)
 		*retlen = 0;
 
@@ -277,9 +271,6 @@ static int sst25l_write(struct mtd_info *mtd, loff_t to, size_t len,
 	/* Sanity checks */
 	if (!len)
 		return 0;
-
-	if (to + len > flash->mtd.size)
-		return -EINVAL;
 
 	if ((uint32_t)to % mtd->writesize)
 		return -EINVAL;

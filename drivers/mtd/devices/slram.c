@@ -84,21 +84,13 @@ static int slram_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
 	slram_priv_t *priv = mtd->priv;
 
-	if (instr->addr + instr->len > mtd->size) {
-		return(-EINVAL);
-	}
-
 	memset(priv->start + instr->addr, 0xff, instr->len);
-
 	/* This'll catch a few races. Free the thing before returning :)
 	 * I don't feel at all ashamed. This kind of thing is possible anyway
 	 * with flash, but unlikely.
 	 */
-
 	instr->state = MTD_ERASE_DONE;
-
 	mtd_erase_callback(instr);
-
 	return(0);
 }
 
@@ -110,10 +102,6 @@ static int slram_point(struct mtd_info *mtd, loff_t from, size_t len,
 	/* can we return a physical address with this driver? */
 	if (phys)
 		return -EINVAL;
-
-	if (from + len > mtd->size)
-		return -EINVAL;
-
 	*virt = priv->start + from;
 	*retlen = len;
 	return(0);
@@ -129,14 +117,7 @@ static int slram_read(struct mtd_info *mtd, loff_t from, size_t len,
 {
 	slram_priv_t *priv = mtd->priv;
 
-	if (from > mtd->size)
-		return -EINVAL;
-
-	if (from + len > mtd->size)
-		len = mtd->size - from;
-
 	memcpy(buf, priv->start + from, len);
-
 	*retlen = len;
 	return(0);
 }
@@ -146,11 +127,7 @@ static int slram_write(struct mtd_info *mtd, loff_t to, size_t len,
 {
 	slram_priv_t *priv = mtd->priv;
 
-	if (to + len > mtd->size)
-		return -EINVAL;
-
 	memcpy(priv->start + to, buf, len);
-
 	*retlen = len;
 	return(0);
 }

@@ -38,29 +38,20 @@ static int phram_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
 	u_char *start = mtd->priv;
 
-	if (instr->addr + instr->len > mtd->size)
-		return -EINVAL;
-
 	memset(start + instr->addr, 0xff, instr->len);
 
 	/* This'll catch a few races. Free the thing before returning :)
 	 * I don't feel at all ashamed. This kind of thing is possible anyway
 	 * with flash, but unlikely.
 	 */
-
 	instr->state = MTD_ERASE_DONE;
-
 	mtd_erase_callback(instr);
-
 	return 0;
 }
 
 static int phram_point(struct mtd_info *mtd, loff_t from, size_t len,
 		size_t *retlen, void **virt, resource_size_t *phys)
 {
-	if (from + len > mtd->size)
-		return -EINVAL;
-
 	/* can we return a physical address with this driver? */
 	if (phys)
 		return -EINVAL;
@@ -80,14 +71,7 @@ static int phram_read(struct mtd_info *mtd, loff_t from, size_t len,
 {
 	u_char *start = mtd->priv;
 
-	if (from >= mtd->size)
-		return -EINVAL;
-
-	if (len > mtd->size - from)
-		len = mtd->size - from;
-
 	memcpy(buf, start + from, len);
-
 	*retlen = len;
 	return 0;
 }
@@ -97,14 +81,7 @@ static int phram_write(struct mtd_info *mtd, loff_t to, size_t len,
 {
 	u_char *start = mtd->priv;
 
-	if (to >= mtd->size)
-		return -EINVAL;
-
-	if (len > mtd->size - to)
-		len = mtd->size - to;
-
 	memcpy(start + to, buf, len);
-
 	*retlen = len;
 	return 0;
 }

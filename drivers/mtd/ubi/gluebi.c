@@ -174,11 +174,7 @@ static int gluebi_read(struct mtd_info *mtd, loff_t from, size_t len,
 	int err = 0, lnum, offs, total_read;
 	struct gluebi_device *gluebi;
 
-	if (len < 0 || from < 0 || from + len > mtd->size)
-		return -EINVAL;
-
 	gluebi = container_of(mtd, struct gluebi_device, mtd);
-
 	lnum = div_u64_rem(from, mtd->erasesize, &offs);
 	total_read = len;
 	while (total_read) {
@@ -217,9 +213,6 @@ static int gluebi_write(struct mtd_info *mtd, loff_t to, size_t len,
 {
 	int err = 0, lnum, offs, total_written;
 	struct gluebi_device *gluebi;
-
-	if (len < 0 || to < 0 || len + to > mtd->size)
-		return -EINVAL;
 
 	gluebi = container_of(mtd, struct gluebi_device, mtd);
 
@@ -265,10 +258,6 @@ static int gluebi_erase(struct mtd_info *mtd, struct erase_info *instr)
 	int err, i, lnum, count;
 	struct gluebi_device *gluebi;
 
-	if (instr->addr < 0 || instr->addr > mtd->size - mtd->erasesize)
-		return -EINVAL;
-	if (instr->len < 0 || instr->addr + instr->len > mtd->size)
-		return -EINVAL;
 	if (mtd_mod_by_ws(instr->addr, mtd) || mtd_mod_by_ws(instr->len, mtd))
 		return -EINVAL;
 

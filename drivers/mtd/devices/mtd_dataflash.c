@@ -164,9 +164,6 @@ static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
 	      dev_name(&spi->dev), (long long)instr->addr,
 	      (long long)instr->len);
 
-	/* Sanity checks */
-	if (instr->addr + instr->len > mtd->size)
-		return -EINVAL;
 	div_u64_rem(instr->len, priv->page_size, &rem);
 	if (rem)
 		return -EINVAL;
@@ -257,8 +254,6 @@ static int dataflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 	/* Sanity checks */
 	if (!len)
 		return 0;
-	if (from + len > mtd->size)
-		return -EINVAL;
 
 	/* Calculate flash page/byte address */
 	addr = (((unsigned)from / priv->page_size) << priv->page_offset)
@@ -333,8 +328,6 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 	/* Sanity checks */
 	if (!len)
 		return 0;
-	if ((to + len) > mtd->size)
-		return -EINVAL;
 
 	spi_message_init(&msg);
 

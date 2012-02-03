@@ -602,10 +602,6 @@ static int doc_read(struct mtd_info *mtd, loff_t from, size_t len,
 	int i, len256 = 0, ret=0;
 	size_t left = len;
 
-	/* Don't allow read past end of device */
-	if (from >= this->totlen)
-		return -EINVAL;
-
 	mutex_lock(&this->lock);
 
 	*retlen = 0;
@@ -747,10 +743,6 @@ static int doc_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct Nand *mychip;
 	size_t left = len;
 	int status;
-
-	/* Don't allow write past end of device */
-	if (to >= this->totlen)
-		return -EINVAL;
 
 	mutex_lock(&this->lock);
 

@@ -1324,7 +1324,7 @@ static int cfi_intelext_point(struct mtd_info *mtd, loff_t from, size_t len,
 	int chipnum;
 	int ret = 0;
 
-	if (!map->virt || (from + len > mtd->size))
+	if (!map->virt)
 		return -EINVAL;
 
 	/* Now lock the chip(s) to POINT state */

@@ -288,9 +288,6 @@ static int m25p80_erase(struct mtd_info *mtd, struct erase_info *instr)
 			__func__, (long long)instr->addr,
 			(long long)instr->len);
 
-	/* sanity checks */
-	if (instr->addr + instr->len > flash->mtd.size)
-		return -EINVAL;
 	div_u64_rem(instr->len, mtd->erasesize, &rem);
 	if (rem)
 		return -EINVAL;
@@ -352,9 +349,6 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	/* sanity checks */
 	if (!len)
 		return 0;
-
-	if (from + len > flash->mtd.size)
-		return -EINVAL;
 
 	spi_message_init(&m);
 	memset(t, 0, (sizeof t));
@@ -422,9 +416,6 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 	/* sanity checks */
 	if (!len)
 		return(0);
-
-	if (to + len > flash->mtd.size)
-		return -EINVAL;
 
 	spi_message_init(&m);
 	memset(t, 0, (sizeof t));
@@ -514,9 +505,6 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 	/* sanity checks */
 	if (!len)
 		return 0;
-
-	if (to + len > flash->mtd.size)
-		return -EINVAL;
 
 	spi_message_init(&m);
 	memset(t, 0, (sizeof t));

@@ -65,11 +65,6 @@ static int part_read(struct mtd_info *mtd, loff_t from, size_t len,
 	int res;
 
 	stats = part->master->ecc_stats;
-
-	if (from >= mtd->size)
-		len = 0;
-	else if (from + len > mtd->size)
-		len = mtd->size - from;
 	res = mtd_read(part->master, from + part->offset, len, retlen, buf);
 	if (unlikely(res)) {
 		if (mtd_is_bitflip(res))
@@ -84,10 +79,7 @@ static int part_point(struct mtd_info *mtd, loff_t from, size_t len,
 		size_t *retlen, void **virt, resource_size_t *phys)
 {
 	struct mtd_part *part = PART(mtd);
-	if (from >= mtd->size)
-		len = 0;
-	else if (from + len > mtd->size)
-		len = mtd->size - from;
+
 	return mtd_point(part->master, from + part->offset, len, retlen,
 			 virt, phys);
 }
@@ -182,10 +174,6 @@ static int part_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct mtd_part *part = PART(mtd);
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
-	if (to >= mtd->size)
-		len = 0;
-	else if (to + len > mtd->size)
-		len = mtd->size - to;
 	return mtd_write(part->master, to + part->offset, len, retlen, buf);
 }
 
@@ -195,10 +183,6 @@ static int part_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct mtd_part *part = PART(mtd);
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
-	if (to >= mtd->size)
-		len = 0;
-	else if (to + len > mtd->size)
-		len = mtd->size - to;
 	return mtd_panic_write(part->master, to + part->offset, len, retlen,
 			       buf);
 }
@@ -248,8 +232,6 @@ static int part_erase(struct mtd_info *mtd, struct erase_info *instr)
 	int ret;
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
-	if (instr->addr >= mtd->size)
-		return -EINVAL;
 	instr->addr += part->offset;
 	ret = mtd_erase(part->master, instr);
 	if (ret) {
@@ -277,24 +259,18 @@ EXPORT_SYMBOL_GPL(mtd_erase_callback);
 static int part_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	struct mtd_part *part = PART(mtd);
-	if ((len + ofs) > mtd->size)
-		return -EINVAL;
 	return mtd_lock(part->master, ofs + part->offset, len);
 }
 
 static int part_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	struct mtd_part *part = PART(mtd);
-	if ((len + ofs) > mtd->size)
-		return -EINVAL;
 	return mtd_unlock(part->master, ofs + part->offset, len);
 }
 
 static int part_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	struct mtd_part *part = PART(mtd);
-	if ((len + ofs) > mtd->size)
-		return -EINVAL;
 	return mtd_is_locked(part->master, ofs + part->offset, len);
 }
 
@@ -319,8 +295,6 @@ static void part_resume(struct mtd_info *mtd)
 static int part_block_isbad(struct mtd_info *mtd, loff_t ofs)
 {
 	struct mtd_part *part = PART(mtd);
-	if (ofs >= mtd->size)
-		return -EINVAL;
 	ofs += part->offset;
 	return mtd_block_isbad(part->master, ofs);
 }
@@ -332,8 +306,6 @@ static int part_block_markbad(struct mtd_info *mtd, loff_t ofs)
 
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
-	if (ofs >= mtd->size)
-		return -EINVAL;
 	ofs += part->offset;
 	res = mtd_block_markbad(part->master, ofs);
 	if (!res)

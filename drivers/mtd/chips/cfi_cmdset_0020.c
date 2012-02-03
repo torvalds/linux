@@ -904,12 +904,6 @@ static int cfi_staa_erase_varsize(struct mtd_info *mtd,
 	int i, first;
 	struct mtd_erase_region_info *regions = mtd->eraseregions;
 
-	if (instr->addr > mtd->size)
-		return -EINVAL;
-
-	if ((instr->len + instr->addr) > mtd->size)
-		return -EINVAL;
-
 	/* Check that both start and end of the requested erase are
 	 * aligned with the erasesize at the appropriate addresses.
 	 */
@@ -1153,9 +1147,6 @@ static int cfi_staa_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 		return -EINVAL;
 
 	if (len & (mtd->erasesize -1))
-		return -EINVAL;
-
-	if ((len + ofs) > mtd->size)
 		return -EINVAL;
 
 	chipnum = ofs >> cfi->chipshift;

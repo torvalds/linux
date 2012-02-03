@@ -510,10 +510,6 @@ static int spear_mtd_erase(struct mtd_info *mtd, struct erase_info *e_info)
 	if (!flash || !dev)
 		return -ENODEV;
 
-	/* do not allow erase past end of device */
-	if (e_info->addr + e_info->len > flash->mtd.size)
-		return -EINVAL;
-
 	bank = flash->bank;
 	if (bank > dev->num_flashes - 1) {
 		dev_err(&dev->pdev->dev, "Invalid Bank Num");
@@ -572,10 +568,6 @@ static int spear_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	if (!flash || !dev)
 		return -ENODEV;
-
-	/* do not allow reads past end of device */
-	if (from + len > flash->mtd.size)
-		return -EINVAL;
 
 	if (flash->bank > dev->num_flashes - 1) {
 		dev_err(&dev->pdev->dev, "Invalid Bank Num");
@@ -677,10 +669,6 @@ static int spear_mtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	if (!len)
 		return 0;
-
-	/* do not allow write past end of page */
-	if (to + len > flash->mtd.size)
-		return -EINVAL;
 
 	if (flash->bank > dev->num_flashes - 1) {
 		dev_err(&dev->pdev->dev, "Invalid Bank Num");
