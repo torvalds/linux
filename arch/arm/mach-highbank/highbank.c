@@ -33,7 +33,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <mach/irqs.h>
 
 #include "core.h"
 #include "sysregs.h"

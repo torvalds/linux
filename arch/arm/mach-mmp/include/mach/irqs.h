@@ -223,7 +223,6 @@
 #define MMP_GPIO_TO_IRQ(gpio)		(IRQ_GPIO_START + (gpio))
 
 #define IRQ_BOARD_START			(IRQ_GPIO_START + MMP_NR_BUILTIN_GPIO)
-
-#define NR_IRQS				(IRQ_BOARD_START)
+#define MMP_NR_IRQS			IRQ_BOARD_START
 
 #endif /* __ASM_MACH_IRQS_H */

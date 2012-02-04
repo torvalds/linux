@@ -29,6 +29,7 @@
 #include <linux/sh_intc.h>
 #include <linux/sh_timer.h>
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 #include <mach/r8a7779.h>
 #include <mach/common.h>
 #include <asm/mach-types.h>

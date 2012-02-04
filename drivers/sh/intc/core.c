@@ -42,7 +42,7 @@ unsigned int nr_intc_controllers;
  * - this needs to be at least 2 for 5-bit priorities on 7780
  */
 static unsigned int default_prio_level = 2;	/* 2 - 16 */
-static unsigned int intc_prio_level[NR_IRQS];	/* for now */
+static unsigned int intc_prio_level[INTC_NR_IRQS];	/* for now */
 
 unsigned int intc_get_dfl_prio_level(void)
 {

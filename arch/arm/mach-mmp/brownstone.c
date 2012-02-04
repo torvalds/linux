@@ -28,7 +28,7 @@
 
 #include "common.h"
 
-#define BROWNSTONE_NR_IRQS	(IRQ_BOARD_START + 40)
+#define BROWNSTONE_NR_IRQS	(MMP_NR_IRQS + 40)
 
 #define GPIO_5V_ENABLE		(89)
 
@@ -158,7 +158,7 @@ static struct platform_device brownstone_v_5vp_device = {
 };
 
 static struct max8925_platform_data brownstone_max8925_info = {
-	.irq_base		= IRQ_BOARD_START,
+	.irq_base		= MMP_NR_IRQS,
 };
 
 static struct i2c_board_info brownstone_twsi1_info[] = {
