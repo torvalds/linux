@@ -333,6 +333,7 @@ static int omap2430_musb_init(struct musb *musb)
 
 	setup_timer(&musb_idle_timer, musb_do_idle, (unsigned long) musb);
 
+	pm_runtime_put_noidle(musb->controller);
 	return 0;
 
 err1:
@@ -478,7 +479,6 @@ static int __devexit omap2430_remove(struct platform_device *pdev)
 
 	platform_device_del(glue->musb);
 	platform_device_put(glue->musb);
-	pm_runtime_put(&pdev->dev);
 	kfree(glue);
 
 	return 0;
