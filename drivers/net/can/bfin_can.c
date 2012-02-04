@@ -82,8 +82,7 @@ static int bfin_can_set_bittiming(struct net_device *dev)
 	bfin_write(&reg->clock, clk);
 	bfin_write(&reg->timing, timing);
 
-	dev_info(dev->dev.parent, "setting CLOCK=0x%04x TIMING=0x%04x\n",
-			clk, timing);
+	netdev_info(dev, "setting CLOCK=0x%04x TIMING=0x%04x\n", clk, timing);
 
 	return 0;
 }
@@ -108,8 +107,7 @@ static void bfin_can_set_reset_mode(struct net_device *dev)
 	while (!(bfin_read(&reg->control) & CCA)) {
 		udelay(10);
 		if (--timeout == 0) {
-			dev_err(dev->dev.parent,
-					"fail to enter configuration mode\n");
+			netdev_err(dev, "fail to enter configuration mode\n");
 			BUG();
 		}
 	}
@@ -165,8 +163,7 @@ static void bfin_can_set_normal_mode(struct net_device *dev)
 	while (bfin_read(&reg->status) & CCA) {
 		udelay(10);
 		if (--timeout == 0) {
-			dev_err(dev->dev.parent,
-					"fail to leave configuration mode\n");
+			netdev_err(dev, "fail to leave configuration mode\n");
 			BUG();
 		}
 	}
@@ -220,6 +217,20 @@ static int bfin_can_set_mode(struct net_device *dev, enum can_mode mode)
 	default:
 		return -EOPNOTSUPP;
 	}
+
+	return 0;
+}
+
+static int bfin_can_get_berr_counter(const struct net_device *dev,
+				     struct can_berr_counter *bec)
+{
+	struct bfin_can_priv *priv = netdev_priv(dev);
+	struct bfin_can_regs __iomem *reg = priv->membase;
+
+	u16 cec = bfin_read(&reg->cec);
+
+	bec->txerr = cec >> 8;
+	bec->rxerr = cec;
 
 	return 0;
 }
@@ -331,7 +342,7 @@ static int bfin_can_err(struct net_device *dev, u16 isrc, u16 status)
 
 	if (isrc & RMLIS) {
 		/* data overrun interrupt */
-		dev_dbg(dev->dev.parent, "data overrun interrupt\n");
+		netdev_dbg(dev, "data overrun interrupt\n");
 		cf->can_id |= CAN_ERR_CRTL;
 		cf->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
 		stats->rx_over_errors++;
@@ -339,7 +350,7 @@ static int bfin_can_err(struct net_device *dev, u16 isrc, u16 status)
 	}
 
 	if (isrc & BOIS) {
-		dev_dbg(dev->dev.parent, "bus-off mode interrupt\n");
+		netdev_dbg(dev, "bus-off mode interrupt\n");
 		state = CAN_STATE_BUS_OFF;
 		cf->can_id |= CAN_ERR_BUSOFF;
 		can_bus_off(dev);
@@ -347,13 +358,12 @@ static int bfin_can_err(struct net_device *dev, u16 isrc, u16 status)
 
 	if (isrc & EPIS) {
 		/* error passive interrupt */
-		dev_dbg(dev->dev.parent, "error passive interrupt\n");
+		netdev_dbg(dev, "error passive interrupt\n");
 		state = CAN_STATE_ERROR_PASSIVE;
 	}
 
 	if ((isrc & EWTIS) || (isrc & EWRIS)) {
-		dev_dbg(dev->dev.parent,
-				"Error Warning Transmit/Receive Interrupt\n");
+		netdev_dbg(dev, "Error Warning Transmit/Receive Interrupt\n");
 		state = CAN_STATE_ERROR_WARNING;
 	}
 
@@ -509,6 +519,7 @@ struct net_device *alloc_bfin_candev(void)
 	priv->can.bittiming_const = &bfin_can_bittiming_const;
 	priv->can.do_set_bittiming = bfin_can_set_bittiming;
 	priv->can.do_set_mode = bfin_can_set_mode;
+	priv->can.do_get_berr_counter = bfin_can_get_berr_counter;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
 
 	return dev;
@@ -636,8 +647,7 @@ static int bfin_can_suspend(struct platform_device *pdev, pm_message_t mesg)
 		while (!(bfin_read(&reg->intr) & SMACK)) {
 			udelay(10);
 			if (--timeout == 0) {
-				dev_err(dev->dev.parent,
-						"fail to enter sleep mode\n");
+				netdev_err(dev, "fail to enter sleep mode\n");
 				BUG();
 			}
 		}
