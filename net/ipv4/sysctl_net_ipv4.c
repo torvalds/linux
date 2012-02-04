@@ -778,7 +778,6 @@ EXPORT_SYMBOL_GPL(net_ipv4_ctl_path);
 static __net_init int ipv4_sysctl_init_net(struct net *net)
 {
 	struct ctl_table *table;
-	unsigned long limit;
 
 	table = ipv4_net_table;
 	if (!net_eq(net, &init_net)) {
@@ -814,11 +813,7 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 
 	net->ipv4.sysctl_rt_cache_rebuild_count = 4;
 
-	limit = nr_free_buffer_pages() / 8;
-	limit = max(limit, 128UL);
-	net->ipv4.sysctl_tcp_mem[0] = limit / 4 * 3;
-	net->ipv4.sysctl_tcp_mem[1] = limit;
-	net->ipv4.sysctl_tcp_mem[2] = net->ipv4.sysctl_tcp_mem[0] * 2;
+	tcp_init_mem(net);
 
 	net->ipv4.ipv4_hdr = register_net_sysctl_table(net,
 			net_ipv4_ctl_path, table);

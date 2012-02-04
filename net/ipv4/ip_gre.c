@@ -422,6 +422,10 @@ static struct ip_tunnel *ipgre_tunnel_locate(struct net *net,
 	if (register_netdevice(dev) < 0)
 		goto failed_free;
 
+	/* Can use a lockless transmit, unless we generate output sequences */
+	if (!(nt->parms.o_flags & GRE_SEQ))
+		dev->features |= NETIF_F_LLTX;
+
 	dev_hold(dev);
 	ipgre_tunnel_link(ign, nt);
 	return nt;

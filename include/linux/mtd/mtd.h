@@ -441,7 +441,7 @@ static inline void mtd_resume(struct mtd_info *mtd)
 static inline int mtd_block_isbad(struct mtd_info *mtd, loff_t ofs)
 {
 	if (!mtd->block_isbad)
-		return -EOPNOTSUPP;
+		return 0;
 	return mtd->block_isbad(mtd, ofs);
 }
 
@@ -489,7 +489,7 @@ static inline int mtd_has_oob(const struct mtd_info *mtd)
 
 static inline int mtd_can_have_bb(const struct mtd_info *mtd)
 {
-	return !!mtd->block_isbad;
+	return 0;
 }
 
 	/* Kernel-side ioctl definitions */

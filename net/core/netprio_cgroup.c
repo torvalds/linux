@@ -58,11 +58,12 @@ static int get_prioidx(u32 *prio)
 
 	spin_lock_irqsave(&prioidx_map_lock, flags);
 	prioidx = find_first_zero_bit(prioidx_map, sizeof(unsigned long) * PRIOIDX_SZ);
+	if (prioidx == sizeof(unsigned long) * PRIOIDX_SZ) {
+		spin_unlock_irqrestore(&prioidx_map_lock, flags);
+		return -ENOSPC;
+	}
 	set_bit(prioidx, prioidx_map);
 	spin_unlock_irqrestore(&prioidx_map_lock, flags);
-	if (prioidx == sizeof(unsigned long) * PRIOIDX_SZ)
-		return -ENOSPC;
-
 	atomic_set(&max_prioidx, prioidx);
 	*prio = prioidx;
 	return 0;
