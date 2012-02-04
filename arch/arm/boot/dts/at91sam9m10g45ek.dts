@@ -37,4 +37,26 @@
 			};
 		};
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		d8 {
+			label = "d8";
+			gpios = <&pioD 30 0>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		d6 {
+			label = "d6";
+			gpios = <&pioD 0 1>;
+			linux,default-trigger = "nand-disk";
+		};
+
+		d7 {
+			label = "d7";
+			gpios = <&pioD 31 1>;
+			linux,default-trigger = "mmc0";
+		};
+	};
 };
