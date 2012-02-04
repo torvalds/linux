@@ -65,7 +65,6 @@ TRACE_EVENT(machine_suspend,
 	TP_printk("state=%lu", (unsigned long)__entry->state)
 );
 
-/* This code will be removed after deprecation time exceeded (3.1) */
 #ifdef CONFIG_EVENT_POWER_TRACING_DEPRECATED
 
 /*
