@@ -114,6 +114,20 @@ static unsigned int esdhc_of_get_min_clock(struct sdhci_host *host)
 	return pltfm_host->clock / 256 / 16;
 }
 
+#ifdef CONFIG_PM
+static u32 esdhc_proctl;
+static void esdhc_of_suspend(struct sdhci_host *host)
+{
+	esdhc_proctl = sdhci_be32bs_readl(host, SDHCI_HOST_CONTROL);
+}
+
+static void esdhc_of_resume(struct sdhci_host *host)
+{
+	esdhc_of_enable_dma(host);
+	sdhci_be32bs_writel(host, esdhc_proctl, SDHCI_HOST_CONTROL);
+}
+#endif
+
 static struct sdhci_ops sdhci_esdhc_ops = {
 	.read_l = sdhci_be32bs_readl,
 	.read_w = esdhc_readw,
@@ -125,6 +139,10 @@ static struct sdhci_ops sdhci_esdhc_ops = {
 	.enable_dma = esdhc_of_enable_dma,
 	.get_max_clock = esdhc_of_get_max_clock,
 	.get_min_clock = esdhc_of_get_min_clock,
+#ifdef CONFIG_PM
+	.platform_suspend = esdhc_of_suspend,
+	.platform_resume = esdhc_of_resume,
+#endif
 };
 
 static struct sdhci_pltfm_data sdhci_esdhc_pdata = {
