@@ -71,9 +71,6 @@ static struct usb_endpoint_descriptor qe_ep0_desc = {
 	.wMaxPacketSize =	USB_MAX_CTRL_PAYLOAD,
 };
 
-/* it is initialized in probe()  */
-static struct qe_udc *udc_controller;
-
 /********************************************************************
  *      Internal Used Function Start
 ********************************************************************/
@@ -188,8 +185,8 @@ static int qe_ep0_stall(struct qe_udc *udc)
 {
 	qe_eptx_stall_change(&udc->eps[0], 1);
 	qe_eprx_stall_change(&udc->eps[0], 1);
-	udc_controller->ep0_state = WAIT_FOR_SETUP;
-	udc_controller->ep0_dir = 0;
+	udc->ep0_state = WAIT_FOR_SETUP;
+	udc->ep0_dir = 0;
 	return 0;
 }
 
@@ -450,13 +447,13 @@ static int qe_ep_rxbd_update(struct qe_ep *ep)
 
 	ep->rxbuf_d = virt_to_phys((void *)ep->rxbuffer);
 	if (ep->rxbuf_d == DMA_ADDR_INVALID) {
-		ep->rxbuf_d = dma_map_single(udc_controller->gadget.dev.parent,
+		ep->rxbuf_d = dma_map_single(ep->udc->gadget.dev.parent,
 					ep->rxbuffer,
 					size,
 					DMA_FROM_DEVICE);
 		ep->rxbufmap = 1;
 	} else {
-		dma_sync_single_for_device(udc_controller->gadget.dev.parent,
+		dma_sync_single_for_device(ep->udc->gadget.dev.parent,
 					ep->rxbuf_d, size,
 					DMA_FROM_DEVICE);
 		ep->rxbufmap = 0;
@@ -698,14 +695,14 @@ en_done:
 	return -ENODEV;
 }
 
-static inline void qe_usb_enable(void)
+static inline void qe_usb_enable(struct qe_udc *udc)
 {
-	setbits8(&udc_controller->usb_regs->usb_usmod, USB_MODE_EN);
+	setbits8(&udc->usb_regs->usb_usmod, USB_MODE_EN);
 }
 
-static inline void qe_usb_disable(void)
+static inline void qe_usb_disable(struct qe_udc *udc)
 {
-	clrbits8(&udc_controller->usb_regs->usb_usmod, USB_MODE_EN);
+	clrbits8(&udc->usb_regs->usb_usmod, USB_MODE_EN);
 }
 
 /*----------------------------------------------------------------------------*
@@ -1655,13 +1652,13 @@ static int qe_ep_disable(struct usb_ep *_ep)
 	if (ep->dir != USB_DIR_IN) {
 		kfree(ep->rxframe);
 		if (ep->rxbufmap) {
-			dma_unmap_single(udc_controller->gadget.dev.parent,
+			dma_unmap_single(udc->gadget.dev.parent,
 					ep->rxbuf_d, size,
 					DMA_FROM_DEVICE);
 			ep->rxbuf_d = DMA_ADDR_INVALID;
 		} else {
 			dma_sync_single_for_cpu(
-					udc_controller->gadget.dev.parent,
+					udc->gadget.dev.parent,
 					ep->rxbuf_d, size,
 					DMA_FROM_DEVICE);
 		}
@@ -1879,9 +1876,10 @@ static struct usb_ep_ops qe_ep_ops = {
 /* Get the current frame number */
 static int qe_get_frame(struct usb_gadget *gadget)
 {
+	struct qe_udc *udc = container_of(gadget, struct qe_udc, gadget);
 	u16 tmp;
 
-	tmp = in_be16(&udc_controller->usb_param->frame_n);
+	tmp = in_be16(&udc->usb_param->frame_n);
 	if (tmp & 0x8000)
 		tmp = tmp & 0x07ff;
 	else
@@ -1927,9 +1925,10 @@ static int qe_pullup(struct usb_gadget *gadget, int is_on)
 	return -ENOTSUPP;
 }
 
-static int fsl_qe_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
-static int fsl_qe_stop(struct usb_gadget_driver *driver);
+static int fsl_qe_start(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver);
+static int fsl_qe_stop(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver);
 
 /* defined in usb_gadget.h */
 static struct usb_gadget_ops qe_gadget_ops = {
@@ -1939,8 +1938,8 @@ static struct usb_gadget_ops qe_gadget_ops = {
 	.vbus_session = qe_vbus_session,
 	.vbus_draw = qe_vbus_draw,
 	.pullup = qe_pullup,
-	.start = fsl_qe_start,
-	.stop = fsl_qe_stop,
+	.udc_start = fsl_qe_start,
+	.udc_stop = fsl_qe_stop,
 };
 
 /*-------------------------------------------------------------------------
@@ -2189,7 +2188,7 @@ static int reset_irq(struct qe_udc *udc)
 	if (udc->usb_state == USB_STATE_DEFAULT)
 		return 0;
 
-	qe_usb_disable();
+	qe_usb_disable(udc);
 	out_8(&udc->usb_regs->usb_usadr, 0);
 
 	for (i = 0; i < USB_MAX_ENDPOINTS; i++) {
@@ -2201,7 +2200,7 @@ static int reset_irq(struct qe_udc *udc)
 	udc->usb_state = USB_STATE_DEFAULT;
 	udc->ep0_state = WAIT_FOR_SETUP;
 	udc->ep0_dir = USB_DIR_OUT;
-	qe_usb_enable();
+	qe_usb_enable(udc);
 	return 0;
 }
 
@@ -2326,92 +2325,65 @@ static irqreturn_t qe_udc_irq(int irq, void *_udc)
 /*-------------------------------------------------------------------------
 	Gadget driver probe and unregister.
  --------------------------------------------------------------------------*/
-static int fsl_qe_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+static int fsl_qe_start(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
-	int retval;
-	unsigned long flags = 0;
+	struct qe_udc *udc;
+	unsigned long flags;
 
-	/* standard operations */
-	if (!udc_controller)
-		return -ENODEV;
-
-	if (!driver || driver->max_speed < USB_SPEED_FULL
-			|| !bind || !driver->disconnect || !driver->setup)
-		return -EINVAL;
-
-	if (udc_controller->driver)
-		return -EBUSY;
-
+	udc = container_of(gadget, struct qe_udc, gadget);
 	/* lock is needed but whether should use this lock or another */
-	spin_lock_irqsave(&udc_controller->lock, flags);
+	spin_lock_irqsave(&udc->lock, flags);
 
 	driver->driver.bus = NULL;
 	/* hook up the driver */
-	udc_controller->driver = driver;
-	udc_controller->gadget.dev.driver = &driver->driver;
-	udc_controller->gadget.speed = driver->max_speed;
-	spin_unlock_irqrestore(&udc_controller->lock, flags);
-
-	retval = bind(&udc_controller->gadget);
-	if (retval) {
-		dev_err(udc_controller->dev, "bind to %s --> %d",
-				driver->driver.name, retval);
-		udc_controller->gadget.dev.driver = NULL;
-		udc_controller->driver = NULL;
-		return retval;
-	}
+	udc->driver = driver;
+	udc->gadget.dev.driver = &driver->driver;
+	udc->gadget.speed = driver->max_speed;
 
 	/* Enable IRQ reg and Set usbcmd reg EN bit */
-	qe_usb_enable();
+	qe_usb_enable(udc);
 
-	out_be16(&udc_controller->usb_regs->usb_usber, 0xffff);
-	out_be16(&udc_controller->usb_regs->usb_usbmr, USB_E_DEFAULT_DEVICE);
-	udc_controller->usb_state = USB_STATE_ATTACHED;
-	udc_controller->ep0_state = WAIT_FOR_SETUP;
-	udc_controller->ep0_dir = USB_DIR_OUT;
-	dev_info(udc_controller->dev, "%s bind to driver %s \n",
-		udc_controller->gadget.name, driver->driver.name);
+	out_be16(&udc->usb_regs->usb_usber, 0xffff);
+	out_be16(&udc->usb_regs->usb_usbmr, USB_E_DEFAULT_DEVICE);
+	udc->usb_state = USB_STATE_ATTACHED;
+	udc->ep0_state = WAIT_FOR_SETUP;
+	udc->ep0_dir = USB_DIR_OUT;
+	spin_unlock_irqrestore(&udc->lock, flags);
+
+	dev_info(udc->dev, "%s bind to driver %s\n", udc->gadget.name,
+			driver->driver.name);
 	return 0;
 }
 
-static int fsl_qe_stop(struct usb_gadget_driver *driver)
+static int fsl_qe_stop(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
+	struct qe_udc *udc;
 	struct qe_ep *loop_ep;
 	unsigned long flags;
 
-	if (!udc_controller)
-		return -ENODEV;
-
-	if (!driver || driver != udc_controller->driver)
-		return -EINVAL;
-
+	udc = container_of(gadget, struct qe_udc, gadget);
 	/* stop usb controller, disable intr */
-	qe_usb_disable();
+	qe_usb_disable(udc);
 
 	/* in fact, no needed */
-	udc_controller->usb_state = USB_STATE_ATTACHED;
-	udc_controller->ep0_state = WAIT_FOR_SETUP;
-	udc_controller->ep0_dir = 0;
+	udc->usb_state = USB_STATE_ATTACHED;
+	udc->ep0_state = WAIT_FOR_SETUP;
+	udc->ep0_dir = 0;
 
 	/* stand operation */
-	spin_lock_irqsave(&udc_controller->lock, flags);
-	udc_controller->gadget.speed = USB_SPEED_UNKNOWN;
-	nuke(&udc_controller->eps[0], -ESHUTDOWN);
-	list_for_each_entry(loop_ep, &udc_controller->gadget.ep_list,
-				ep.ep_list)
+	spin_lock_irqsave(&udc->lock, flags);
+	udc->gadget.speed = USB_SPEED_UNKNOWN;
+	nuke(&udc->eps[0], -ESHUTDOWN);
+	list_for_each_entry(loop_ep, &udc->gadget.ep_list, ep.ep_list)
 		nuke(loop_ep, -ESHUTDOWN);
-	spin_unlock_irqrestore(&udc_controller->lock, flags);
+	spin_unlock_irqrestore(&udc->lock, flags);
 
-	/* report disconnect; the controller is already quiesced */
-	driver->disconnect(&udc_controller->gadget);
+	udc->gadget.dev.driver = NULL;
+	udc->driver = NULL;
 
-	/* unbind gadget and unhook driver. */
-	driver->unbind(&udc_controller->gadget);
-	udc_controller->gadget.dev.driver = NULL;
-	udc_controller->driver = NULL;
-
-	dev_info(udc_controller->dev, "unregistered gadget driver '%s'\r\n",
+	dev_info(udc->dev, "unregistered gadget driver '%s'\r\n",
 			driver->driver.name);
 	return 0;
 }
@@ -2530,21 +2502,22 @@ static int __devinit qe_ep_config(struct qe_udc *udc, unsigned char pipe_num)
  *----------------------------------------------------------------------*/
 static void qe_udc_release(struct device *dev)
 {
-	int i = 0;
+	struct qe_udc *udc = container_of(dev, struct qe_udc, gadget.dev);
+	int i;
 
-	complete(udc_controller->done);
-	cpm_muram_free(cpm_muram_offset(udc_controller->ep_param[0]));
+	complete(udc->done);
+	cpm_muram_free(cpm_muram_offset(udc->ep_param[0]));
 	for (i = 0; i < USB_MAX_ENDPOINTS; i++)
-		udc_controller->ep_param[i] = NULL;
+		udc->ep_param[i] = NULL;
 
-	kfree(udc_controller);
-	udc_controller = NULL;
+	kfree(udc);
 }
 
 /* Driver probe functions */
 static const struct of_device_id qe_udc_match[];
 static int __devinit qe_udc_probe(struct platform_device *ofdev)
 {
+	struct qe_udc *udc;
 	const struct of_device_id *match;
 	struct device_node *np = ofdev->dev.of_node;
 	struct qe_ep *ep;
@@ -2561,44 +2534,44 @@ static int __devinit qe_udc_probe(struct platform_device *ofdev)
 		return -ENODEV;
 
 	/* Initialize the udc structure including QH member and other member */
-	udc_controller = qe_udc_config(ofdev);
-	if (!udc_controller) {
+	udc = qe_udc_config(ofdev);
+	if (!udc) {
 		dev_err(&ofdev->dev, "failed to initialize\n");
 		return -ENOMEM;
 	}
 
-	udc_controller->soc_type = (unsigned long)match->data;
-	udc_controller->usb_regs = of_iomap(np, 0);
-	if (!udc_controller->usb_regs) {
+	udc->soc_type = (unsigned long)match->data;
+	udc->usb_regs = of_iomap(np, 0);
+	if (!udc->usb_regs) {
 		ret = -ENOMEM;
 		goto err1;
 	}
 
 	/* initialize usb hw reg except for regs for EP,
 	 * leave usbintr reg untouched*/
-	qe_udc_reg_init(udc_controller);
+	qe_udc_reg_init(udc);
 
 	/* here comes the stand operations for probe
 	 * set the qe_udc->gadget.xxx */
-	udc_controller->gadget.ops = &qe_gadget_ops;
+	udc->gadget.ops = &qe_gadget_ops;
 
 	/* gadget.ep0 is a pointer */
-	udc_controller->gadget.ep0 = &udc_controller->eps[0].ep;
+	udc->gadget.ep0 = &udc->eps[0].ep;
 
-	INIT_LIST_HEAD(&udc_controller->gadget.ep_list);
+	INIT_LIST_HEAD(&udc->gadget.ep_list);
 
 	/* modify in register gadget process */
-	udc_controller->gadget.speed = USB_SPEED_UNKNOWN;
+	udc->gadget.speed = USB_SPEED_UNKNOWN;
 
 	/* name: Identifies the controller hardware type. */
-	udc_controller->gadget.name = driver_name;
+	udc->gadget.name = driver_name;
 
-	device_initialize(&udc_controller->gadget.dev);
+	device_initialize(&udc->gadget.dev);
 
-	dev_set_name(&udc_controller->gadget.dev, "gadget");
+	dev_set_name(&udc->gadget.dev, "gadget");
 
-	udc_controller->gadget.dev.release = qe_udc_release;
-	udc_controller->gadget.dev.parent = &ofdev->dev;
+	udc->gadget.dev.release = qe_udc_release;
+	udc->gadget.dev.parent = &ofdev->dev;
 
 	/* initialize qe_ep struct */
 	for (i = 0; i < USB_MAX_ENDPOINTS ; i++) {
@@ -2607,104 +2580,104 @@ static int __devinit qe_udc_probe(struct platform_device *ofdev)
 
 		/* setup the qe_ep struct and link ep.ep.list
 		 * into gadget.ep_list */
-		qe_ep_config(udc_controller, (unsigned char)i);
+		qe_ep_config(udc, (unsigned char)i);
 	}
 
 	/* ep0 initialization in here */
-	ret = qe_ep_init(udc_controller, 0, &qe_ep0_desc);
+	ret = qe_ep_init(udc, 0, &qe_ep0_desc);
 	if (ret)
 		goto err2;
 
 	/* create a buf for ZLP send, need to remain zeroed */
-	udc_controller->nullbuf = kzalloc(256, GFP_KERNEL);
-	if (udc_controller->nullbuf == NULL) {
-		dev_err(udc_controller->dev, "cannot alloc nullbuf\n");
+	udc->nullbuf = kzalloc(256, GFP_KERNEL);
+	if (udc->nullbuf == NULL) {
+		dev_err(udc->dev, "cannot alloc nullbuf\n");
 		ret = -ENOMEM;
 		goto err3;
 	}
 
 	/* buffer for data of get_status request */
-	udc_controller->statusbuf = kzalloc(2, GFP_KERNEL);
-	if (udc_controller->statusbuf == NULL) {
+	udc->statusbuf = kzalloc(2, GFP_KERNEL);
+	if (udc->statusbuf == NULL) {
 		ret = -ENOMEM;
 		goto err4;
 	}
 
-	udc_controller->nullp = virt_to_phys((void *)udc_controller->nullbuf);
-	if (udc_controller->nullp == DMA_ADDR_INVALID) {
-		udc_controller->nullp = dma_map_single(
-					udc_controller->gadget.dev.parent,
-					udc_controller->nullbuf,
+	udc->nullp = virt_to_phys((void *)udc->nullbuf);
+	if (udc->nullp == DMA_ADDR_INVALID) {
+		udc->nullp = dma_map_single(
+					udc->gadget.dev.parent,
+					udc->nullbuf,
 					256,
 					DMA_TO_DEVICE);
-		udc_controller->nullmap = 1;
+		udc->nullmap = 1;
 	} else {
-		dma_sync_single_for_device(udc_controller->gadget.dev.parent,
-					udc_controller->nullp, 256,
+		dma_sync_single_for_device(udc->gadget.dev.parent,
+					udc->nullp, 256,
 					DMA_TO_DEVICE);
 	}
 
-	tasklet_init(&udc_controller->rx_tasklet, ep_rx_tasklet,
-			(unsigned long)udc_controller);
+	tasklet_init(&udc->rx_tasklet, ep_rx_tasklet,
+			(unsigned long)udc);
 	/* request irq and disable DR  */
-	udc_controller->usb_irq = irq_of_parse_and_map(np, 0);
-	if (!udc_controller->usb_irq) {
+	udc->usb_irq = irq_of_parse_and_map(np, 0);
+	if (!udc->usb_irq) {
 		ret = -EINVAL;
 		goto err_noirq;
 	}
 
-	ret = request_irq(udc_controller->usb_irq, qe_udc_irq, 0,
-				driver_name, udc_controller);
+	ret = request_irq(udc->usb_irq, qe_udc_irq, 0,
+				driver_name, udc);
 	if (ret) {
-		dev_err(udc_controller->dev, "cannot request irq %d err %d \n",
-			udc_controller->usb_irq, ret);
+		dev_err(udc->dev, "cannot request irq %d err %d\n",
+				udc->usb_irq, ret);
 		goto err5;
 	}
 
-	ret = device_add(&udc_controller->gadget.dev);
+	ret = device_add(&udc->gadget.dev);
 	if (ret)
 		goto err6;
 
-	ret = usb_add_gadget_udc(&ofdev->dev, &udc_controller->gadget);
+	ret = usb_add_gadget_udc(&ofdev->dev, &udc->gadget);
 	if (ret)
 		goto err7;
 
-	dev_info(udc_controller->dev,
+	dev_set_drvdata(&ofdev->dev, udc);
+	dev_info(udc->dev,
 			"%s USB controller initialized as device\n",
-			(udc_controller->soc_type == PORT_QE) ? "QE" : "CPM");
+			(udc->soc_type == PORT_QE) ? "QE" : "CPM");
 	return 0;
 
 err7:
-	device_unregister(&udc_controller->gadget.dev);
+	device_unregister(&udc->gadget.dev);
 err6:
-	free_irq(udc_controller->usb_irq, udc_controller);
+	free_irq(udc->usb_irq, udc);
 err5:
-	irq_dispose_mapping(udc_controller->usb_irq);
+	irq_dispose_mapping(udc->usb_irq);
 err_noirq:
-	if (udc_controller->nullmap) {
-		dma_unmap_single(udc_controller->gadget.dev.parent,
-			udc_controller->nullp, 256,
+	if (udc->nullmap) {
+		dma_unmap_single(udc->gadget.dev.parent,
+			udc->nullp, 256,
 				DMA_TO_DEVICE);
-			udc_controller->nullp = DMA_ADDR_INVALID;
+			udc->nullp = DMA_ADDR_INVALID;
 	} else {
-		dma_sync_single_for_cpu(udc_controller->gadget.dev.parent,
-			udc_controller->nullp, 256,
+		dma_sync_single_for_cpu(udc->gadget.dev.parent,
+			udc->nullp, 256,
 				DMA_TO_DEVICE);
 	}
-	kfree(udc_controller->statusbuf);
+	kfree(udc->statusbuf);
 err4:
-	kfree(udc_controller->nullbuf);
+	kfree(udc->nullbuf);
 err3:
-	ep = &udc_controller->eps[0];
+	ep = &udc->eps[0];
 	cpm_muram_free(cpm_muram_offset(ep->rxbase));
 	kfree(ep->rxframe);
 	kfree(ep->rxbuffer);
 	kfree(ep->txframe);
 err2:
-	iounmap(udc_controller->usb_regs);
+	iounmap(udc->usb_regs);
 err1:
-	kfree(udc_controller);
-	udc_controller = NULL;
+	kfree(udc);
 	return ret;
 }
 
@@ -2722,44 +2695,41 @@ static int qe_udc_resume(struct platform_device *dev)
 
 static int __devexit qe_udc_remove(struct platform_device *ofdev)
 {
+	struct qe_udc *udc = dev_get_drvdata(&ofdev->dev);
 	struct qe_ep *ep;
 	unsigned int size;
-
 	DECLARE_COMPLETION(done);
 
-	if (!udc_controller)
-		return -ENODEV;
+	usb_del_gadget_udc(&udc->gadget);
 
-	usb_del_gadget_udc(&udc_controller->gadget);
+	udc->done = &done;
+	tasklet_disable(&udc->rx_tasklet);
 
-	udc_controller->done = &done;
-	tasklet_disable(&udc_controller->rx_tasklet);
-
-	if (udc_controller->nullmap) {
-		dma_unmap_single(udc_controller->gadget.dev.parent,
-			udc_controller->nullp, 256,
+	if (udc->nullmap) {
+		dma_unmap_single(udc->gadget.dev.parent,
+			udc->nullp, 256,
 				DMA_TO_DEVICE);
-			udc_controller->nullp = DMA_ADDR_INVALID;
+			udc->nullp = DMA_ADDR_INVALID;
 	} else {
-		dma_sync_single_for_cpu(udc_controller->gadget.dev.parent,
-			udc_controller->nullp, 256,
+		dma_sync_single_for_cpu(udc->gadget.dev.parent,
+			udc->nullp, 256,
 				DMA_TO_DEVICE);
 	}
-	kfree(udc_controller->statusbuf);
-	kfree(udc_controller->nullbuf);
+	kfree(udc->statusbuf);
+	kfree(udc->nullbuf);
 
-	ep = &udc_controller->eps[0];
+	ep = &udc->eps[0];
 	cpm_muram_free(cpm_muram_offset(ep->rxbase));
 	size = (ep->ep.maxpacket + USB_CRC_SIZE + 2) * (USB_BDRING_LEN + 1);
 
 	kfree(ep->rxframe);
 	if (ep->rxbufmap) {
-		dma_unmap_single(udc_controller->gadget.dev.parent,
+		dma_unmap_single(udc->gadget.dev.parent,
 				ep->rxbuf_d, size,
 				DMA_FROM_DEVICE);
 		ep->rxbuf_d = DMA_ADDR_INVALID;
 	} else {
-		dma_sync_single_for_cpu(udc_controller->gadget.dev.parent,
+		dma_sync_single_for_cpu(udc->gadget.dev.parent,
 				ep->rxbuf_d, size,
 				DMA_FROM_DEVICE);
 	}
@@ -2767,14 +2737,14 @@ static int __devexit qe_udc_remove(struct platform_device *ofdev)
 	kfree(ep->rxbuffer);
 	kfree(ep->txframe);
 
-	free_irq(udc_controller->usb_irq, udc_controller);
-	irq_dispose_mapping(udc_controller->usb_irq);
+	free_irq(udc->usb_irq, udc);
+	irq_dispose_mapping(udc->usb_irq);
 
-	tasklet_kill(&udc_controller->rx_tasklet);
+	tasklet_kill(&udc->rx_tasklet);
 
-	iounmap(udc_controller->usb_regs);
+	iounmap(udc->usb_regs);
 
-	device_unregister(&udc_controller->gadget.dev);
+	device_unregister(&udc->gadget.dev);
 	/* wait for release() of gadget.dev to free udc */
 	wait_for_completion(&done);
 
