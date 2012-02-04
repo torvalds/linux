@@ -65,7 +65,7 @@
 
 #define NULL_IFINDEX 0 /* dummy ifindex used to avoid iface checks */
 
-#define NUM_WORDS (TQ_LOCAL_WINDOW_SIZE / WORD_BIT_SIZE)
+#define NUM_WORDS BITS_TO_LONGS(TQ_LOCAL_WINDOW_SIZE)
 
 #define LOG_BUF_LEN 8192	  /* has to be a power of 2 */
 

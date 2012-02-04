@@ -90,7 +90,7 @@ struct orig_node {
 	bool tt_poss_change;
 	uint32_t last_real_seqno;
 	uint8_t last_ttl;
-	unsigned long bcast_bits[NUM_WORDS];
+	DECLARE_BITMAP(bcast_bits, TQ_LOCAL_WINDOW_SIZE);
 	uint32_t last_bcast_seqno;
 	struct hlist_head neigh_list;
 	struct list_head frag_list;
@@ -132,7 +132,7 @@ struct neigh_node {
 	uint8_t last_ttl;
 	struct list_head bonding_list;
 	unsigned long last_valid;
-	unsigned long real_bits[NUM_WORDS];
+	DECLARE_BITMAP(real_bits, TQ_LOCAL_WINDOW_SIZE);
 	atomic_t refcount;
 	struct rcu_head rcu;
 	struct orig_node *orig_node;

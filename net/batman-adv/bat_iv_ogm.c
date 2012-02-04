@@ -850,9 +850,9 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	hlist_for_each_entry_rcu(tmp_neigh_node, node,
 				 &orig_node->neigh_list, list) {
 
-		is_duplicate |= get_bit_status(tmp_neigh_node->real_bits,
-					       orig_node->last_real_seqno,
-					       batman_ogm_packet->seqno);
+		is_duplicate |= bat_test_bit(tmp_neigh_node->real_bits,
+					     orig_node->last_real_seqno,
+					     batman_ogm_packet->seqno);
 
 		if (compare_eth(tmp_neigh_node->addr, ethhdr->h_source) &&
 		    (tmp_neigh_node->if_incoming == if_incoming))
@@ -866,7 +866,8 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 					      seq_diff, set_mark);
 
 		tmp_neigh_node->real_packet_count =
-			bit_packet_count(tmp_neigh_node->real_bits);
+			bitmap_weight(tmp_neigh_node->real_bits,
+				      TQ_LOCAL_WINDOW_SIZE);
 	}
 	rcu_read_unlock();
 
@@ -998,11 +999,11 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 
 			spin_lock_bh(&orig_neigh_node->ogm_cnt_lock);
 			word = &(orig_neigh_node->bcast_own[offset]);
-			bit_mark(word,
-				 if_incoming_seqno -
+			bat_set_bit(word,
+				    if_incoming_seqno -
 						batman_ogm_packet->seqno - 2);
 			orig_neigh_node->bcast_own_sum[if_incoming->if_num] =
-				bit_packet_count(word);
+				bitmap_weight(word, TQ_LOCAL_WINDOW_SIZE);
 			spin_unlock_bh(&orig_neigh_node->ogm_cnt_lock);
 		}
 

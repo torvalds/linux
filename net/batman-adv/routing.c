@@ -52,7 +52,7 @@ void slide_own_bcast_window(struct hard_iface *hard_iface)
 
 			bit_get_packet(bat_priv, word, 1, 0);
 			orig_node->bcast_own_sum[hard_iface->if_num] =
-				bit_packet_count(word);
+				bitmap_weight(word, TQ_LOCAL_WINDOW_SIZE);
 			spin_unlock_bh(&orig_node->ogm_cnt_lock);
 		}
 		rcu_read_unlock();
@@ -1047,8 +1047,8 @@ int recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	spin_lock_bh(&orig_node->bcast_seqno_lock);
 
 	/* check whether the packet is a duplicate */
-	if (get_bit_status(orig_node->bcast_bits, orig_node->last_bcast_seqno,
-			   ntohl(bcast_packet->seqno)))
+	if (bat_test_bit(orig_node->bcast_bits, orig_node->last_bcast_seqno,
+			 ntohl(bcast_packet->seqno)))
 		goto spin_unlock;
 
 	seq_diff = ntohl(bcast_packet->seqno) - orig_node->last_bcast_seqno;
