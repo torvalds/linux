@@ -1888,43 +1888,6 @@ static int qe_get_frame(struct usb_gadget *gadget)
 	return (int)tmp;
 }
 
-/* Tries to wake up the host connected to this gadget
- *
- * Return : 0-success
- * Negative-this feature not enabled by host or not supported by device hw
- */
-static int qe_wakeup(struct usb_gadget *gadget)
-{
-	return -ENOTSUPP;
-}
-
-/* Notify controller that VBUS is powered, Called by whatever
-   detects VBUS sessions */
-static int qe_vbus_session(struct usb_gadget *gadget, int is_active)
-{
-	return -ENOTSUPP;
-}
-
-/* constrain controller's VBUS power usage
- * This call is used by gadget drivers during SET_CONFIGURATION calls,
- * reporting how much power the device may consume.  For example, this
- * could affect how quickly batteries are recharged.
- *
- * Returns zero on success, else negative errno.
- */
-static int qe_vbus_draw(struct usb_gadget *gadget, unsigned mA)
-{
-	return -ENOTSUPP;
-}
-
-/* Change Data+ pullup status
- * this func is used by usb_gadget_connect/disconnect
- */
-static int qe_pullup(struct usb_gadget *gadget, int is_on)
-{
-	return -ENOTSUPP;
-}
-
 static int fsl_qe_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver);
 static int fsl_qe_stop(struct usb_gadget *gadget,
@@ -1933,11 +1896,6 @@ static int fsl_qe_stop(struct usb_gadget *gadget,
 /* defined in usb_gadget.h */
 static struct usb_gadget_ops qe_gadget_ops = {
 	.get_frame = qe_get_frame,
-	.wakeup = qe_wakeup,
-/*	.set_selfpowered = qe_set_selfpowered,*/ /* always selfpowered */
-	.vbus_session = qe_vbus_session,
-	.vbus_draw = qe_vbus_draw,
-	.pullup = qe_pullup,
 	.udc_start = fsl_qe_start,
 	.udc_stop = fsl_qe_stop,
 };
