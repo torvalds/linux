@@ -290,8 +290,11 @@ static void mmc_wait_for_req_done(struct mmc_host *host,
 static void mmc_pre_req(struct mmc_host *host, struct mmc_request *mrq,
 		 bool is_first_req)
 {
-	if (host->ops->pre_req)
+	if (host->ops->pre_req) {
+		mmc_host_clk_hold(host);
 		host->ops->pre_req(host, mrq, is_first_req);
+		mmc_host_clk_release(host);
+	}
 }
 
 /**
@@ -306,8 +309,11 @@ static void mmc_pre_req(struct mmc_host *host, struct mmc_request *mrq,
 static void mmc_post_req(struct mmc_host *host, struct mmc_request *mrq,
 			 int err)
 {
-	if (host->ops->post_req)
+	if (host->ops->post_req) {
+		mmc_host_clk_hold(host);
 		host->ops->post_req(host, mrq, err);
+		mmc_host_clk_release(host);
+	}
 }
 
 /**
@@ -620,7 +626,9 @@ int mmc_host_enable(struct mmc_host *host)
 		int err;
 
 		host->en_dis_recurs = 1;
+		mmc_host_clk_hold(host);
 		err = host->ops->enable(host);
+		mmc_host_clk_release(host);
 		host->en_dis_recurs = 0;
 
 		if (err) {
@@ -640,7 +648,9 @@ static int mmc_host_do_disable(struct mmc_host *host, int lazy)
 		int err;
 
 		host->en_dis_recurs = 1;
+		mmc_host_clk_hold(host);
 		err = host->ops->disable(host, lazy);
+		mmc_host_clk_release(host);
 		host->en_dis_recurs = 0;
 
 		if (err < 0) {
@@ -1203,8 +1213,11 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage, bool cmd11
 
 	host->ios.signal_voltage = signal_voltage;
 
-	if (host->ops->start_signal_voltage_switch)
+	if (host->ops->start_signal_voltage_switch) {
+		mmc_host_clk_hold(host);
 		err = host->ops->start_signal_voltage_switch(host, &host->ios);
+		mmc_host_clk_release(host);
+	}
 
 	return err;
 }

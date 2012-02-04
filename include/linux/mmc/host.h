@@ -444,4 +444,23 @@ static inline int mmc_boot_partition_access(struct mmc_host *host)
 	return !(host->caps2 & MMC_CAP2_BOOTPART_NOACC);
 }
 
+#ifdef CONFIG_MMC_CLKGATE
+void mmc_host_clk_hold(struct mmc_host *host);
+void mmc_host_clk_release(struct mmc_host *host);
+unsigned int mmc_host_clk_rate(struct mmc_host *host);
+
+#else
+static inline void mmc_host_clk_hold(struct mmc_host *host)
+{
+}
+
+static inline void mmc_host_clk_release(struct mmc_host *host)
+{
+}
+
+static inline unsigned int mmc_host_clk_rate(struct mmc_host *host)
+{
+	return host->ios.clock;
+}
+#endif
 #endif /* LINUX_MMC_HOST_H */
