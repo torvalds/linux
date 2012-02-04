@@ -111,8 +111,10 @@ static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 }
 
 static struct ceph_vxattr_cb ceph_file_vxattrs[] = {
+	{ true, "ceph.file.layout", ceph_vxattrcb_layout},
+	/* The following extended attribute name is deprecated */
 	{ true, "ceph.layout", ceph_vxattrcb_layout},
-	{ NULL, NULL }
+	{ true, NULL, NULL }
 };
 
 static struct ceph_vxattr_cb *ceph_inode_vxattrs(struct inode *inode)

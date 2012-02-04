@@ -720,7 +720,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	/* mutex initialization are all done here so we
 	 * can recall function without having locking issues */
 	radeon_mutex_init(&rdev->cs_mutex);
-	mutex_init(&rdev->ib_pool.mutex);
+	radeon_mutex_init(&rdev->ib_pool.mutex);
 	for (i = 0; i < RADEON_NUM_RINGS; ++i)
 		mutex_init(&rdev->ring[i].mutex);
 	mutex_init(&rdev->dc_hw_i2c_mutex);
@@ -883,6 +883,8 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
+	drm_kms_helper_poll_disable(dev);
+
 	/* turn off display hw */
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
@@ -959,9 +961,11 @@ int radeon_resume_kms(struct drm_device *dev)
 	radeon_fbdev_set_suspend(rdev, 0);
 	console_unlock();
 
-	/* init dig PHYs */
-	if (rdev->is_atom_bios)
+	/* init dig PHYs, disp eng pll */
+	if (rdev->is_atom_bios) {
 		radeon_atom_encoder_init(rdev);
+		radeon_atom_dcpll_init(rdev);
+	}
 	/* reset hpd state */
 	radeon_hpd_init(rdev);
 	/* blat the mode back in */
@@ -970,6 +974,8 @@ int radeon_resume_kms(struct drm_device *dev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
 	}
+
+	drm_kms_helper_poll_enable(dev);
 	return 0;
 }
 

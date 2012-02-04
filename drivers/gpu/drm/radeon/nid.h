@@ -222,6 +222,7 @@
 #define	SCRATCH_UMSK					0x8540
 #define	SCRATCH_ADDR					0x8544
 #define	CP_SEM_WAIT_TIMER				0x85BC
+#define	CP_SEM_INCOMPLETE_TIMER_CNTL			0x85C8
 #define	CP_COHER_CNTL2					0x85E8
 #define CP_ME_CNTL					0x86D8
 #define		CP_ME_HALT					(1 << 28)

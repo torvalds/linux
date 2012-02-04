@@ -286,17 +286,22 @@ static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_ymfpci_pcm_4ch(chip, 2, NULL)) < 0) {
+	err = snd_ymfpci_mixer(chip, rear_switch[dev]);
+	if (err < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	if ((err = snd_ymfpci_pcm2(chip, 3, NULL)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_ymfpci_mixer(chip, rear_switch[dev])) < 0) {
-		snd_card_free(card);
-		return err;
+	if (chip->ac97->ext_id & AC97_EI_SDAC) {
+		err = snd_ymfpci_pcm_4ch(chip, 2, NULL);
+		if (err < 0) {
+			snd_card_free(card);
+			return err;
+		}
+		err = snd_ymfpci_pcm2(chip, 3, NULL);
+		if (err < 0) {
+			snd_card_free(card);
+			return err;
+		}
 	}
 	if ((err = snd_ymfpci_timer(chip, 0)) < 0) {
 		snd_card_free(card);
