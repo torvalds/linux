@@ -2,5 +2,6 @@ obj-y += clock.o
 obj-y += common.o
 obj-y += io.o
 obj-y += reset.o
+obj-y += timer.o
 obj-$(CONFIG_LOCAL_TIMERS) += localtimer.o
 obj-$(CONFIG_MACH_RK30_SDK) += board-rk30-sdk.o

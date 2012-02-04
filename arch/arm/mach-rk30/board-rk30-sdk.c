@@ -40,4 +40,5 @@ MACHINE_START(RK30, "RK30board")
 	.fixup		= rk30_fixup,
 	.map_io		= rk30_map_io,
 	.init_irq	= rk30_init_irq,
+	.timer		= &rk30_timer,
 MACHINE_END
