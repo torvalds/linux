@@ -55,7 +55,7 @@
 
 #define AUTO_OFF_TIMEOUT 2000
 
-int enable_hs;
+bool enable_hs;
 
 static void hci_rx_work(struct work_struct *work);
 static void hci_cmd_work(struct work_struct *work);

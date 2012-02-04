@@ -1,7 +1,7 @@
 /*
  * P2020 RDB Device Tree Source
  *
- * Copyright 2009-2011 Freescale Semiconductor Inc.
+ * Copyright 2009-2012 Freescale Semiconductor Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -197,6 +197,7 @@
 
 		usb@22000 {
 			phy_type = "ulpi";
+			dr_mode = "host";
 		};
 
 		mdio@24520 {

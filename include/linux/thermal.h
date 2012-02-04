@@ -152,9 +152,9 @@ struct thermal_cooling_device *thermal_cooling_device_register(char *, void *,
 void thermal_cooling_device_unregister(struct thermal_cooling_device *);
 
 #ifdef CONFIG_NET
-extern int generate_netlink_event(u32 orig, enum events event);
+extern int thermal_generate_netlink_event(u32 orig, enum events event);
 #else
-static inline int generate_netlink_event(u32 orig, enum events event)
+static inline int thermal_generate_netlink_event(u32 orig, enum events event)
 {
 	return 0;
 }
