@@ -1035,52 +1035,101 @@ static int fimc_cap_prepare_buf(struct file *file, void *priv,
 	return vb2_prepare_buf(&fimc->vid_cap.vbq, b);
 }
 
-static int fimc_cap_cropcap(struct file *file, void *fh,
-			    struct v4l2_cropcap *cr)
-{
-	struct fimc_dev *fimc = video_drvdata(file);
-	struct fimc_frame *f = &fimc->vid_cap.ctx->s_frame;
-
-	if (cr->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		return -EINVAL;
-
-	cr->bounds.left		= 0;
-	cr->bounds.top		= 0;
-	cr->bounds.width	= f->o_width;
-	cr->bounds.height	= f->o_height;
-	cr->defrect		= cr->bounds;
-
-	return 0;
-}
-
-static int fimc_cap_g_crop(struct file *file, void *fh, struct v4l2_crop *cr)
-{
-	struct fimc_dev *fimc = video_drvdata(file);
-	struct fimc_frame *f = &fimc->vid_cap.ctx->s_frame;
-
-	cr->c.left	= f->offs_h;
-	cr->c.top	= f->offs_v;
-	cr->c.width	= f->width;
-	cr->c.height	= f->height;
-
-	return 0;
-}
-
-static int fimc_cap_s_crop(struct file *file, void *fh, struct v4l2_crop *cr)
+static int fimc_cap_g_selection(struct file *file, void *fh,
+				struct v4l2_selection *s)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
-	struct fimc_frame *ff;
+	struct fimc_frame *f = &ctx->s_frame;
+
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		return -EINVAL;
+
+	switch (s->target) {
+	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
+		f = &ctx->d_frame;
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		s->r.left = 0;
+		s->r.top = 0;
+		s->r.width = f->o_width;
+		s->r.height = f->o_height;
+		return 0;
+
+	case V4L2_SEL_TGT_COMPOSE_ACTIVE:
+		f = &ctx->d_frame;
+	case V4L2_SEL_TGT_CROP_ACTIVE:
+		s->r.left = f->offs_h;
+		s->r.top = f->offs_v;
+		s->r.width = f->width;
+		s->r.height = f->height;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+/* Return 1 if rectangle a is enclosed in rectangle b, or 0 otherwise. */
+int enclosed_rectangle(struct v4l2_rect *a, struct v4l2_rect *b)
+{
+	if (a->left < b->left || a->top < b->top)
+		return 0;
+	if (a->left + a->width > b->left + b->width)
+		return 0;
+	if (a->top + a->height > b->top + b->height)
+		return 0;
+
+	return 1;
+}
+
+static int fimc_cap_s_selection(struct file *file, void *fh,
+				struct v4l2_selection *s)
+{
+	struct fimc_dev *fimc = video_drvdata(file);
+	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
+	struct v4l2_rect rect = s->r;
+	struct fimc_frame *f;
 	unsigned long flags;
+	unsigned int pad;
 
-	fimc_capture_try_crop(ctx, &cr->c, FIMC_SD_PAD_SINK);
-	ff = &ctx->s_frame;
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		return -EINVAL;
 
+	switch (s->target) {
+	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
+	case V4L2_SEL_TGT_COMPOSE_ACTIVE:
+		f = &ctx->d_frame;
+		pad = FIMC_SD_PAD_SOURCE;
+		break;
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP_ACTIVE:
+		f = &ctx->s_frame;
+		pad = FIMC_SD_PAD_SINK;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	fimc_capture_try_crop(ctx, &rect, pad);
+
+	if (s->flags & V4L2_SEL_FLAG_LE &&
+	    !enclosed_rectangle(&rect, &s->r))
+		return -ERANGE;
+
+	if (s->flags & V4L2_SEL_FLAG_GE &&
+	    !enclosed_rectangle(&s->r, &rect))
+		return -ERANGE;
+
+	s->r = rect;
 	spin_lock_irqsave(&fimc->slock, flags);
-	set_frame_crop(ff, cr->c.left, cr->c.top, cr->c.width, cr->c.height);
-	set_bit(ST_CAPT_APPLY_CFG, &fimc->state);
+	set_frame_crop(f, s->r.left, s->r.top, s->r.width,
+		       s->r.height);
 	spin_unlock_irqrestore(&fimc->slock, flags);
 
+	set_bit(ST_CAPT_APPLY_CFG, &fimc->state);
 	return 0;
 }
 
@@ -1104,9 +1153,8 @@ static const struct v4l2_ioctl_ops fimc_capture_ioctl_ops = {
 	.vidioc_streamon		= fimc_cap_streamon,
 	.vidioc_streamoff		= fimc_cap_streamoff,
 
-	.vidioc_g_crop			= fimc_cap_g_crop,
-	.vidioc_s_crop			= fimc_cap_s_crop,
-	.vidioc_cropcap			= fimc_cap_cropcap,
+	.vidioc_g_selection		= fimc_cap_g_selection,
+	.vidioc_s_selection		= fimc_cap_s_selection,
 
 	.vidioc_enum_input		= fimc_cap_enum_input,
 	.vidioc_s_input			= fimc_cap_s_input,
