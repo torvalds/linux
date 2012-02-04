@@ -147,8 +147,6 @@ void __init time_init(void)
 {
 	system_timer = machine_desc->timer;
 	system_timer->init();
-#ifdef CONFIG_HAVE_SCHED_CLOCK
 	sched_clock_postinit();
-#endif
 }
 
