@@ -355,6 +355,7 @@ config HID_MULTITOUCH
 	  - Lumio CrystalTouch panels
 	  - MosArt dual-touch panels
 	  - PenMount dual touch panels
+	  - Perixx Peripad 701 touchpad
 	  - PixArt optical touch screen
 	  - Pixcir dual touch panels
 	  - Quanta panels
