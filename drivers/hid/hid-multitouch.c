@@ -1,9 +1,9 @@
 /*
  *  HID driver for multitouch panels
  *
- *  Copyright (c) 2010-2011 Stephane Chatty <chatty@enac.fr>
- *  Copyright (c) 2010-2011 Benjamin Tissoires <benjamin.tissoires@gmail.com>
- *  Copyright (c) 2010-2011 Ecole Nationale de l'Aviation Civile, France
+ *  Copyright (c) 2010-2012 Stephane Chatty <chatty@enac.fr>
+ *  Copyright (c) 2010-2012 Benjamin Tissoires <benjamin.tissoires@gmail.com>
+ *  Copyright (c) 2010-2012 Ecole Nationale de l'Aviation Civile, France
  *
  *  This code is partly based on hid-egalax.c:
  *
@@ -67,6 +67,7 @@ struct mt_class {
 	__s32 sn_height;	/* Signal/noise ratio for height events */
 	__s32 sn_pressure;	/* Signal/noise ratio for pressure events */
 	__u8 maxcontacts;
+	bool is_indirect;	/* true for touchpads */
 };
 
 struct mt_device {
@@ -265,16 +266,30 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 {
 	struct mt_device *td = hid_get_drvdata(hdev);
 	struct mt_class *cls = &td->mtclass;
+	int code;
 
 	/* Only map fields from TouchScreen or TouchPad collections.
          * We need to ignore fields that belong to other collections
          * such as Mouse that might have the same GenericDesktop usages. */
 	if (field->application == HID_DG_TOUCHSCREEN)
 		set_bit(INPUT_PROP_DIRECT, hi->input->propbit);
-	else if (field->application == HID_DG_TOUCHPAD)
-		set_bit(INPUT_PROP_POINTER, hi->input->propbit);
-	else
+	else if (field->application != HID_DG_TOUCHPAD)
 		return 0;
+
+	/* In case of an indirect device (touchpad), we need to add
+	 * specific BTN_TOOL_* to be handled by the synaptics xorg
+	 * driver.
+	 * We also consider that touchscreens providing buttons are touchpads.
+	 */
+	if (field->application == HID_DG_TOUCHPAD ||
+	    (usage->hid & HID_USAGE_PAGE) == HID_UP_BUTTON ||
+	    cls->is_indirect) {
+		set_bit(INPUT_PROP_POINTER, hi->input->propbit);
+		set_bit(BTN_TOOL_FINGER, hi->input->keybit);
+		set_bit(BTN_TOOL_DOUBLETAP, hi->input->keybit);
+		set_bit(BTN_TOOL_TRIPLETAP, hi->input->keybit);
+		set_bit(BTN_TOOL_QUADTAP, hi->input->keybit);
+	}
 
 	/* eGalax devices provide a Digitizer.Stylus input which overrides
 	 * the correct Digitizers.Finger X/Y ranges.
@@ -389,8 +404,18 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 				td->last_field_index = field->index;
 			return -1;
 		}
+		case HID_DG_TOUCH:
+			/* Legacy devices use TIPSWITCH and not TOUCH.
+			 * Let's just ignore this field. */
+			return -1;
 		/* let hid-input decide for the others */
 		return 0;
+
+	case HID_UP_BUTTON:
+		code = BTN_MOUSE + ((usage->hid - 1) & HID_USAGE);
+		hid_map_usage(hi, usage, bit, max, EV_KEY, code);
+		input_set_capability(hi->input, EV_KEY, code);
+		return 1;
 
 	case 0xff000000:
 		/* we do not want to map these: no input-oriented meaning */
@@ -537,6 +562,9 @@ static int mt_event(struct hid_device *hid, struct hid_field *field,
 			 */
 			if (value)
 				td->num_expected = value;
+			break;
+		case HID_DG_TOUCH:
+			/* do nothing */
 			break;
 
 		default:
