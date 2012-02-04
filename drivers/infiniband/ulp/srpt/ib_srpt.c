@@ -687,6 +687,7 @@ err:
 	while (--i >= 0)
 		srpt_free_ioctx(sdev, ring[i], dma_size, dir);
 	kfree(ring);
+	ring = NULL;
 out:
 	return ring;
 }
