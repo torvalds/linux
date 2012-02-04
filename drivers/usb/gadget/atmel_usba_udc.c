@@ -1008,16 +1008,16 @@ usba_udc_set_selfpowered(struct usb_gadget *gadget, int is_selfpowered)
 	return 0;
 }
 
-static int atmel_usba_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
-static int atmel_usba_stop(struct usb_gadget_driver *driver);
-
+static int atmel_usba_start(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver);
+static int atmel_usba_stop(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver);
 static const struct usb_gadget_ops usba_udc_ops = {
 	.get_frame		= usba_udc_get_frame,
 	.wakeup			= usba_udc_wakeup,
 	.set_selfpowered	= usba_udc_set_selfpowered,
-	.start			= atmel_usba_start,
-	.stop			= atmel_usba_stop,
+	.udc_start		= atmel_usba_start,
+	.udc_stop		= atmel_usba_stop,
 };
 
 static struct usb_endpoint_descriptor usba_ep0_desc = {
@@ -1795,21 +1795,13 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int atmel_usba_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+static int atmel_usba_start(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
-	struct usba_udc *udc = &the_udc;
+	struct usba_udc *udc = container_of(gadget, struct usba_udc, gadget);
 	unsigned long flags;
-	int ret;
-
-	if (!udc->pdev)
-		return -ENODEV;
 
 	spin_lock_irqsave(&udc->lock, flags);
-	if (udc->driver) {
-		spin_unlock_irqrestore(&udc->lock, flags);
-		return -EBUSY;
-	}
 
 	udc->devstatus = 1 << USB_DEVICE_SELF_POWERED;
 	udc->driver = driver;
@@ -1818,13 +1810,6 @@ static int atmel_usba_start(struct usb_gadget_driver *driver,
 
 	clk_enable(udc->pclk);
 	clk_enable(udc->hclk);
-
-	ret = bind(&udc->gadget);
-	if (ret) {
-		DBG(DBG_ERR, "Could not bind to driver %s: error %d\n",
-			driver->driver.name, ret);
-		goto err_driver_bind;
-	}
 
 	DBG(DBG_GADGET, "registered driver `%s'\n", driver->driver.name);
 
@@ -1842,22 +1827,13 @@ static int atmel_usba_start(struct usb_gadget_driver *driver,
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	return 0;
-
-err_driver_bind:
-	udc->driver = NULL;
-	udc->gadget.dev.driver = NULL;
-	return ret;
 }
 
-static int atmel_usba_stop(struct usb_gadget_driver *driver)
+static int atmel_usba_stop(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
-	struct usba_udc *udc = &the_udc;
+	struct usba_udc *udc = container_of(gadget, struct usba_udc, gadget);
 	unsigned long flags;
-
-	if (!udc->pdev)
-		return -ENODEV;
-	if (driver != udc->driver || !driver->unbind)
-		return -EINVAL;
 
 	if (gpio_is_valid(udc->vbus_pin))
 		disable_irq(gpio_to_irq(udc->vbus_pin));
@@ -1871,10 +1847,6 @@ static int atmel_usba_stop(struct usb_gadget_driver *driver)
 	toggle_bias(0);
 	usba_writel(udc, CTRL, USBA_DISABLE_MASK);
 
-	if (udc->driver->disconnect)
-		udc->driver->disconnect(&udc->gadget);
-
-	driver->unbind(&udc->gadget);
 	udc->gadget.dev.driver = NULL;
 	udc->driver = NULL;
 
