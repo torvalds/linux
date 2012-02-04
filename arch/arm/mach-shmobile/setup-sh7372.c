@@ -662,6 +662,7 @@ static struct sh_dmae_pdata usb_dma0_platform_data = {
 	.dmaor_is_32bit	= 1,
 	.needs_tend_set	= 1,
 	.no_dmars	= 1,
+	.slave_only	= 1,
 };
 
 static struct resource sh7372_usb_dmae0_resources[] = {
@@ -723,6 +724,7 @@ static struct sh_dmae_pdata usb_dma1_platform_data = {
 	.dmaor_is_32bit	= 1,
 	.needs_tend_set	= 1,
 	.no_dmars	= 1,
+	.slave_only	= 1,
 };
 
 static struct resource sh7372_usb_dmae1_resources[] = {
