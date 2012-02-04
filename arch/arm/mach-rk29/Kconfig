@@ -228,8 +228,11 @@ config RK29_SPI_INSRAM
 	default ns
 config RK29_I2C_INSRAM
 	tristate "Support i2c control interface"
-	depends on REGULATOR_ACT8891
+	depends on REGULATOR_WM831X
 	default ns
+config RK29_CHARGE_EARLYSUSPEND
+	bool "Support charge in low power"
+	default n
 config RK29_PWM_INSRAM
 	tristate "Support pwm control interface"
 	depends on RK29_PWM_REGULATOR

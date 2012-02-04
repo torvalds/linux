@@ -138,6 +138,7 @@
 #define RK29_DEBUG_PHYS             0x20024000
 #define RK29_DEBUG_SIZE             SZ_16K
 #define RK29_I2C0_PHYS              0x2002C000
+#define RK29_I2C0_BASE             (RK29_ADDR_BASE1+0x2C000)
 #define RK29_I2C0_SIZE              SZ_16K
 #define RK29_UART0_PHYS             0x20030000
 #define RK29_UART0_SIZE             SZ_4K

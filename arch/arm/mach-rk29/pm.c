@@ -428,7 +428,12 @@ static int rk29_pm_enter(suspend_state_t state)
 
 	sram_printch('0');
 	flush_tlb_all();
+	#if defined(CONFIG_RK29_SPI_INSRAM)
 	interface_ctr_reg_pread();
+	#endif
+	#if defined(CONFIG_RK29_I2C_INSRAM)
+	i2c_interface_ctr_reg_pread();
+	#endif
 
 	/* disable clock */
 	clkgate[0] = cru_readl(CRU_CLKGATE0_CON);
@@ -501,9 +506,9 @@ static int rk29_pm_enter(suspend_state_t state)
 	cru_writel(clksel0 & ~0x7FC000, CRU_CLKSEL0_CON);
 
 	sram_printch('4');
-	
+	pm_gpio_suspend();
 	rk29_suspend();
-	
+	pm_gpio_resume();
 	sram_printch('4');
 	
 	/* resume general pll */

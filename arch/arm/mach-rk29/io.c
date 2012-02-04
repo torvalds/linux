@@ -52,6 +52,7 @@ static struct map_desc rk29_io_desc[] __initdata = {
 	RK29_DEVICE(NANDC),
 	RK29_DEVICE(SPI0),
 	RK29_DEVICE(SPI1),
+	RK29_DEVICE(I2C0),
 	RK29_DEVICE(I2C1),
 	RK29_DEVICE(I2C2),
 	RK29_DEVICE(I2C3),
