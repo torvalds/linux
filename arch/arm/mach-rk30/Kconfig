@@ -1,0 +1,12 @@
+if ARCH_RK30
+
+choice
+	prompt "RK30xx Board Type"
+	default MACH_RK30_SDK
+
+config MACH_RK30_SDK
+	bool "RK30 SDK board"
+
+endchoice
+
+endif
