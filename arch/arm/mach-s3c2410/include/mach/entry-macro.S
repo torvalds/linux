@@ -25,9 +25,6 @@
 	.macro  get_irqnr_preamble, base, tmp
 	.endm
 
-	.macro  arch_ret_to_user, tmp1, tmp2
-	.endm
-
 	.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
 
 		mov	\base, #S3C24XX_VA_IRQ
@@ -71,8 +68,3 @@
 		@@ exit here, Z flag unset if IRQ
 
 	.endm
-
-		/* currently don't need an disable_fiq macro */
-
-		.macro	disable_fiq
-		.endm

@@ -21,9 +21,6 @@
 #include <mach/hardware.h>
 #include <mach/csp/mm_io.h>
 
-		.macro	disable_fiq
-		.endm
-
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
 		ldr	\base, =(MM_IO_BASE_INTC0)
 		ldr	\irqstat, [\base, #0]		@ get status
@@ -76,7 +73,4 @@
 		.endm
 
 		.macro  get_irqnr_preamble, base, tmp
-		.endm
-
-		.macro  arch_ret_to_user, tmp1, tmp2
 		.endm
