@@ -598,16 +598,16 @@ static __maybe_unused struct usb_ss_cap_descriptor fsg_ss_cap_desc = {
 		| USB_5GBPS_OPERATION),
 	.bFunctionalitySupport = USB_LOW_SPEED_OPERATION,
 	.bU1devExitLat =	USB_DEFAULT_U1_DEV_EXIT_LAT,
-	.bU2DevExitLat =	USB_DEFAULT_U2_DEV_EXIT_LAT,
+	.bU2DevExitLat =	cpu_to_le16(USB_DEFAULT_U2_DEV_EXIT_LAT),
 };
 
 static __maybe_unused struct usb_bos_descriptor fsg_bos_desc = {
 	.bLength =		USB_DT_BOS_SIZE,
 	.bDescriptorType =	USB_DT_BOS,
 
-	.wTotalLength =		USB_DT_BOS_SIZE
+	.wTotalLength =		cpu_to_le16(USB_DT_BOS_SIZE
 				+ USB_DT_USB_EXT_CAP_SIZE
-				+ USB_DT_USB_SS_CAP_SIZE,
+				+ USB_DT_USB_SS_CAP_SIZE),
 
 	.bNumDeviceCaps =	2,
 };

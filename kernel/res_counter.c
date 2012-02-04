@@ -66,6 +66,31 @@ done:
 	return ret;
 }
 
+int res_counter_charge_nofail(struct res_counter *counter, unsigned long val,
+			      struct res_counter **limit_fail_at)
+{
+	int ret, r;
+	unsigned long flags;
+	struct res_counter *c;
+
+	r = ret = 0;
+	*limit_fail_at = NULL;
+	local_irq_save(flags);
+	for (c = counter; c != NULL; c = c->parent) {
+		spin_lock(&c->lock);
+		r = res_counter_charge_locked(c, val);
+		if (r)
+			c->usage += val;
+		spin_unlock(&c->lock);
+		if (r < 0 && ret == 0) {
+			*limit_fail_at = c;
+			ret = r;
+		}
+	}
+	local_irq_restore(flags);
+
+	return ret;
+}
 void res_counter_uncharge_locked(struct res_counter *counter, unsigned long val)
 {
 	if (WARN_ON(counter->usage < val))
