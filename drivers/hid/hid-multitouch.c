@@ -77,6 +77,8 @@ struct mt_device {
 	unsigned last_slot_field;	/* the last field of a slot */
 	int last_mt_collection;	/* last known mt-related collection */
 	__s8 inputmode;		/* InputMode HID feature, -1 if non-existent */
+	__s8 maxcontact_report_id;	/* Maximum Contact Number HID feature,
+				   -1 if non-existent */
 	__u8 num_received;	/* how many contacts we received */
 	__u8 num_expected;	/* expected last contact index */
 	__u8 maxcontacts;
@@ -242,6 +244,7 @@ static void mt_feature_mapping(struct hid_device *hdev,
 		td->inputmode = field->report->id;
 		break;
 	case HID_DG_CONTACTMAX:
+		td->maxcontact_report_id = field->report->id;
 		td->maxcontacts = field->value[0];
 		if (td->mtclass.maxcontacts)
 			/* check if the maxcontacts is given by the class */
@@ -606,6 +609,32 @@ static void mt_set_input_mode(struct hid_device *hdev)
 	}
 }
 
+static void mt_set_maxcontacts(struct hid_device *hdev)
+{
+	struct mt_device *td = hid_get_drvdata(hdev);
+	struct hid_report *r;
+	struct hid_report_enum *re;
+	int fieldmax, max;
+
+	if (td->maxcontact_report_id < 0)
+		return;
+
+	if (!td->mtclass.maxcontacts)
+		return;
+
+	re = &hdev->report_enum[HID_FEATURE_REPORT];
+	r = re->report_id_hash[td->maxcontact_report_id];
+	if (r) {
+		max = td->mtclass.maxcontacts;
+		fieldmax = r->field[0]->logical_maximum;
+		max = min(fieldmax, max);
+		if (r->field[0]->value[0] != max) {
+			r->field[0]->value[0] = max;
+			usbhid_submit_report(hdev, r, USB_DIR_OUT);
+		}
+	}
+}
+
 static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	int ret, i;
@@ -631,6 +660,7 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 	td->mtclass = *mtclass;
 	td->inputmode = -1;
+	td->maxcontact_report_id = -1;
 	td->last_mt_collection = -1;
 	hid_set_drvdata(hdev, td);
 
@@ -653,6 +683,7 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = sysfs_create_group(&hdev->dev.kobj, &mt_attribute_group);
 
+	mt_set_maxcontacts(hdev);
 	mt_set_input_mode(hdev);
 
 	return 0;
@@ -665,6 +696,7 @@ fail:
 #ifdef CONFIG_PM
 static int mt_reset_resume(struct hid_device *hdev)
 {
+	mt_set_maxcontacts(hdev);
 	mt_set_input_mode(hdev);
 	return 0;
 }
