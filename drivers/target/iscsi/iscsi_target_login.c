@@ -842,6 +842,14 @@ int iscsi_target_setup_login_socket(
 		goto fail;
 	}
 
+	ret = kernel_setsockopt(sock, IPPROTO_IP, IP_FREEBIND,
+			(char *)&opt, sizeof(opt));
+	if (ret < 0) {
+		pr_err("kernel_setsockopt() for IP_FREEBIND"
+			" failed\n");
+		goto fail;
+	}
+
 	ret = kernel_bind(sock, (struct sockaddr *)&np->np_sockaddr, len);
 	if (ret < 0) {
 		pr_err("kernel_bind() failed: %d\n", ret);
