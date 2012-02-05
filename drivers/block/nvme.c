@@ -39,7 +39,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/version.h>
 
 #define NVME_Q_DEPTH 1024
 #define SQ_SIZE(depth)		(depth * sizeof(struct nvme_command))
