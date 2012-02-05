@@ -430,7 +430,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	svga_id = vmw_read(dev_priv, SVGA_REG_ID);
 	if (svga_id != SVGA_ID_2) {
 		ret = -ENOSYS;
-		DRM_ERROR("Unsuported SVGA ID 0x%x\n", svga_id);
+		DRM_ERROR("Unsupported SVGA ID 0x%x\n", svga_id);
 		mutex_unlock(&dev_priv->hw_mutex);
 		goto out_err0;
 	}
