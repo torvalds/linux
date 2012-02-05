@@ -1104,7 +1104,7 @@ static int mace_rx(struct net_device *dev, unsigned char RxCnt)
       pr_debug("    receiving packet size 0x%X rx_status"
 	    " 0x%X.\n", pkt_len, rx_status);
 
-      skb = dev_alloc_skb(pkt_len+2);
+      skb = netdev_alloc_skb(dev, pkt_len + 2);
 
       if (skb != NULL) {
 	skb_reserve(skb, 2);

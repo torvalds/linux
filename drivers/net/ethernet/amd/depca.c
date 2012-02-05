@@ -1042,7 +1042,7 @@ static int depca_rx(struct net_device *dev)
 				short len, pkt_len = readw(&lp->rx_ring[entry].msg_length) - 4;
 				struct sk_buff *skb;
 
-				skb = dev_alloc_skb(pkt_len + 2);
+				skb = netdev_alloc_skb(dev, pkt_len + 2);
 				if (skb != NULL) {
 					unsigned char *buf;
 					skb_reserve(skb, 2);	/* 16 byte align the IP header */

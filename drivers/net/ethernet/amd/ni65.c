@@ -1089,7 +1089,7 @@ static void ni65_recv_intr(struct net_device *dev,int csr0)
 			if (skb)
 				skb_reserve(skb,16);
 #else
-			struct sk_buff *skb = dev_alloc_skb(len+2);
+			struct sk_buff *skb = netdev_alloc_skb(dev, len + 2);
 #endif
 			if(skb)
 			{

@@ -725,7 +725,7 @@ static int au1000_rx(struct net_device *dev)
 			/* good frame */
 			frmlen = (status & RX_FRAME_LEN_MASK);
 			frmlen -= 4; /* Remove FCS */
-			skb = dev_alloc_skb(frmlen + 2);
+			skb = netdev_alloc_skb(dev, frmlen + 2);
 			if (skb == NULL) {
 				netdev_err(dev, "Memory squeeze, dropping packet.\n");
 				dev->stats.rx_dropped++;

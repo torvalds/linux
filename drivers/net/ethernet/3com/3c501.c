@@ -702,7 +702,7 @@ static void el_receive(struct net_device *dev)
 	 */
 
 	outb(AX_SYS, AX_CMD);
-	skb = dev_alloc_skb(pkt_len+2);
+	skb = netdev_alloc_skb(dev, pkt_len + 2);
 
 	/*
 	 *	Start of frame

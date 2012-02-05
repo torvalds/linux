@@ -1607,7 +1607,7 @@ typhoon_alloc_rx_skb(struct typhoon *tp, u32 idx)
 				le32_to_cpu(indexes->rxBuffCleared))
 		return -ENOMEM;
 
-	skb = dev_alloc_skb(PKT_BUF_SZ);
+	skb = netdev_alloc_skb(tp->dev, PKT_BUF_SZ);
 	if(!skb)
 		return -ENOMEM;
 
@@ -1618,7 +1618,6 @@ typhoon_alloc_rx_skb(struct typhoon *tp, u32 idx)
 	skb_reserve(skb, 2);
 #endif
 
-	skb->dev = tp->dev;
 	dma_addr = pci_map_single(tp->pdev, skb->data,
 				  PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 
@@ -1673,7 +1672,7 @@ typhoon_rx(struct typhoon *tp, struct basic_ring *rxRing, volatile __le32 * read
 		pkt_len = le16_to_cpu(rx->frameLen);
 
 		if(pkt_len < rx_copybreak &&
-		   (new_skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
+		   (new_skb = netdev_alloc_skb(tp->dev, pkt_len + 2)) != NULL) {
 			skb_reserve(new_skb, 2);
 			pci_dma_sync_single_for_cpu(tp->pdev, dma_addr,
 						    PKT_BUF_SZ,

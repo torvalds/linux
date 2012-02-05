@@ -785,7 +785,6 @@ static int greth_rx(struct net_device *dev, int limit)
 
 			} else {
 				skb_reserve(skb, NET_IP_ALIGN);
-				skb->dev = dev;
 
 				dma_sync_single_for_cpu(greth->dev,
 							dma_addr,

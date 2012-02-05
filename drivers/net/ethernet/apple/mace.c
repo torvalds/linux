@@ -444,7 +444,7 @@ static int mace_open(struct net_device *dev)
     memset((char *)mp->rx_cmds, 0, N_RX_RING * sizeof(struct dbdma_cmd));
     cp = mp->rx_cmds;
     for (i = 0; i < N_RX_RING - 1; ++i) {
-	skb = dev_alloc_skb(RX_BUFLEN + 2);
+	skb = netdev_alloc_skb(dev, RX_BUFLEN + 2);
 	if (!skb) {
 	    data = dummy_buf;
 	} else {
@@ -956,7 +956,7 @@ static irqreturn_t mace_rxdma_intr(int irq, void *dev_id)
 	cp = mp->rx_cmds + i;
 	skb = mp->rx_bufs[i];
 	if (!skb) {
-	    skb = dev_alloc_skb(RX_BUFLEN + 2);
+	    skb = netdev_alloc_skb(RX_BUFLEN + 2);
 	    if (skb) {
 		skb_reserve(skb, 2);
 		mp->rx_bufs[i] = skb;

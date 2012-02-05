@@ -336,7 +336,8 @@ static int amd8111e_init_ring(struct net_device *dev)
 	/* Allocating receive  skbs */
 	for (i = 0; i < NUM_RX_BUFFERS; i++) {
 
-		if (!(lp->rx_skbuff[i] = dev_alloc_skb(lp->rx_buff_len))) {
+		lp->rx_skbuff[i] = netdev_alloc_skb(dev, lp->rx_buff_len);
+		if (!lp->rx_skbuff[i]) {
 				/* Release previos allocated skbs */
 				for(--i; i >= 0 ;i--)
 					dev_kfree_skb(lp->rx_skbuff[i]);
@@ -768,7 +769,8 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 			}
 			if(--rx_pkt_limit < 0)
 				goto rx_not_empty;
-			if(!(new_skb = dev_alloc_skb(lp->rx_buff_len))){
+			new_skb = netdev_alloc_skb(dev, lp->rx_buff_len);
+			if (!new_skb) {
 				/* if allocation fail,
 				   ignore that pkt and go to next one */
 				lp->rx_ring[rx_index].rx_flags &= RESET_RX_FLAGS;
