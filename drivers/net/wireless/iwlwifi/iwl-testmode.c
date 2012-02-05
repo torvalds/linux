@@ -799,9 +799,10 @@ static int iwl_testmode_indirect_read(struct iwl_priv *priv, u32 addr, u32 size)
 		addr < IWL_TM_ABS_PRPH_START + PRPH_END) {
 			spin_lock_irqsave(&trans->reg_lock, flags);
 			iwl_grab_nic_access(trans);
-			iwl_write32(trans, HBUS_TARG_PRPH_RADDR, addr);
+			iwl_write32(trans, HBUS_TARG_PRPH_RADDR,
+				addr | (3 << 24));
 			for (i = 0; i < size; i += 4)
-				priv->testmode_mem.buff_addr[i] =
+				*(u32 *)(priv->testmode_mem.buff_addr + i) =
 					iwl_read32(trans, HBUS_TARG_PRPH_RDAT);
 			iwl_release_nic_access(trans);
 			spin_unlock_irqrestore(&trans->reg_lock, flags);
@@ -833,7 +834,8 @@ static int iwl_testmode_indirect_write(struct iwl_priv *priv, u32 addr,
 				spin_lock_irqsave(&trans->reg_lock, flags);
 				iwl_grab_nic_access(trans);
 				iwl_write32(trans, HBUS_TARG_PRPH_WADDR,
-					    (addr & 0x0000FFFF) | (size << 24));
+					    (addr & 0x0000FFFF) |
+					    ((size - 1) << 24));
 				iwl_write32(trans, HBUS_TARG_PRPH_WDAT, val);
 				iwl_release_nic_access(trans);
 				/* needed after consecutive writes w/o read */
@@ -844,7 +846,7 @@ static int iwl_testmode_indirect_write(struct iwl_priv *priv, u32 addr,
 					return -EINVAL;
 				for (i = 0; i < size; i += 4)
 					iwl_write_prph(trans, addr+i,
-						*(u32 *)buf+i);
+						*(u32 *)(buf+i));
 			}
 	} else if (iwlagn_hw_valid_rtc_data_addr(addr) ||
 		(IWLAGN_RTC_INST_LOWER_BOUND <= addr &&
