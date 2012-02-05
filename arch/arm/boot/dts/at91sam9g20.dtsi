@@ -189,4 +189,17 @@
 			status = "disabled";
 		};
 	};
+
+	i2c@0 {
+		compatible = "i2c-gpio";
+		gpios = <&pioA 23 0 /* sda */
+			 &pioA 24 0 /* scl */
+			>;
+		i2c-gpio,sda-open-drain;
+		i2c-gpio,scl-open-drain;
+		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
 };
