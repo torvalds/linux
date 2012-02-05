@@ -6565,6 +6565,9 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	txbd->tx_bd_vlan_tag_flags |= TX_BD_FLAGS_END;
 
+	/* Sync BD data before updating TX mailbox */
+	wmb();
+
 	netdev_tx_sent_queue(txq, skb->len);
 
 	prod = NEXT_TX_BD(prod);
