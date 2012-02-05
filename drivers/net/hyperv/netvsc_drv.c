@@ -267,13 +267,10 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 int netvsc_recv_callback(struct hv_device *device_obj,
 				struct hv_netvsc_packet *packet)
 {
-	struct net_device *net = dev_get_drvdata(&device_obj->device);
+	struct net_device *net;
 	struct sk_buff *skb;
-	struct netvsc_device *net_device;
 
-	net_device = hv_get_drvdata(device_obj);
-	net = net_device->ndev;
-
+	net = ((struct netvsc_device *)hv_get_drvdata(device_obj))->ndev;
 	if (!net) {
 		netdev_err(net, "got receive callback but net device"
 			" not initialized yet\n");
