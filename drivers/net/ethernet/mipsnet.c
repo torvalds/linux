@@ -152,7 +152,7 @@ static inline ssize_t mipsnet_get_fromdev(struct net_device *dev, size_t len)
 	if (!len)
 		return len;
 
-	skb = dev_alloc_skb(len + NET_IP_ALIGN);
+	skb = netdev_alloc_skb(dev, len + NET_IP_ALIGN);
 	if (!skb) {
 		dev->stats.rx_dropped++;
 		return -ENOMEM;

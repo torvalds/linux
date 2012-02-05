@@ -2524,7 +2524,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
 			size = ring->mtu + ALIGN_SIZE + BUF0_LEN + 4;
 
 		/* allocate skb */
-		skb = dev_alloc_skb(size);
+		skb = netdev_alloc_skb(nic->dev, size);
 		if (!skb) {
 			DBG_PRINT(INFO_DBG, "%s: Could not allocate skb\n",
 				  ring->dev->name);
@@ -6820,7 +6820,7 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 			 */
 			rxdp1->Buffer0_ptr = *temp0;
 		} else {
-			*skb = dev_alloc_skb(size);
+			*skb = netdev_alloc_skb(dev, size);
 			if (!(*skb)) {
 				DBG_PRINT(INFO_DBG,
 					  "%s: Out of memory to allocate %s\n",
@@ -6849,7 +6849,7 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 			rxdp3->Buffer0_ptr = *temp0;
 			rxdp3->Buffer1_ptr = *temp1;
 		} else {
-			*skb = dev_alloc_skb(size);
+			*skb = netdev_alloc_skb(dev, size);
 			if (!(*skb)) {
 				DBG_PRINT(INFO_DBG,
 					  "%s: Out of memory to allocate %s\n",

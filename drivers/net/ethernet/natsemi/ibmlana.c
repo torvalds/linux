@@ -589,7 +589,7 @@ static void irqrx_handler(struct net_device *dev)
 
 			/* fetch buffer */
 
-			skb = dev_alloc_skb(rda.length + 2);
+			skb = netdev_alloc_skb(dev, rda.length + 2);
 			if (skb == NULL)
 				dev->stats.rx_dropped++;
 			else {

@@ -796,7 +796,7 @@ static void ks_rcv(struct ks_net *ks, struct net_device *netdev)
 
 	frame_hdr = ks->frame_head_info;
 	while (ks->frame_cnt--) {
-		skb = dev_alloc_skb(frame_hdr->len + 16);
+		skb = netdev_alloc_skb(netdev, frame_hdr->len + 16);
 		if (likely(skb && (frame_hdr->sts & RXFSHR_RXFV) &&
 			(frame_hdr->len < RX_BUF_SIZE) && frame_hdr->len)) {
 			skb_reserve(skb, 2);

@@ -4863,7 +4863,7 @@ static netdev_tx_t netdev_tx(struct sk_buff *skb, struct net_device *dev)
 				memset(&skb->data[skb->len], 0, 50 - skb->len);
 				skb->len = 50;
 			} else {
-				skb = dev_alloc_skb(50);
+				skb = netdev_alloc_skb(dev, 50);
 				if (!skb)
 					return NETDEV_TX_BUSY;
 				memcpy(skb->data, org_skb->data, org_skb->len);
@@ -4885,7 +4885,7 @@ static netdev_tx_t netdev_tx(struct sk_buff *skb, struct net_device *dev)
 				(ETH_P_IPV6 == htons(skb->protocol)))) {
 			struct sk_buff *org_skb = skb;
 
-			skb = dev_alloc_skb(org_skb->len);
+			skb = netdev_alloc_skb(dev, org_skb->len);
 			if (!skb) {
 				rc = NETDEV_TX_BUSY;
 				goto unlock;
@@ -5019,7 +5019,7 @@ static inline int rx_proc(struct net_device *dev, struct ksz_hw* hw,
 
 	do {
 		/* skb->data != skb->head */
-		skb = dev_alloc_skb(packet_len + 2);
+		skb = netdev_alloc_skb(dev, packet_len + 2);
 		if (!skb) {
 			dev->stats.rx_dropped++;
 			return -ENOMEM;

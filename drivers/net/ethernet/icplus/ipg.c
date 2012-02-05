@@ -744,9 +744,6 @@ static int ipg_get_rxbuff(struct net_device *dev, int entry)
 		return -ENOMEM;
 	}
 
-	/* Associate the receive buffer with the IPG NIC. */
-	skb->dev = dev;
-
 	/* Save the address of the sk_buff structure. */
 	sp->rx_buff[entry] = skb;
 

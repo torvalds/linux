@@ -656,7 +656,7 @@ i596_rx_one(struct net_device *dev, struct i596_private *lp,
 	if (rfd->stat & RFD_STAT_OK) {
 		/* a good frame */
 		int pkt_len = (rfd->count & 0x3fff);
-		struct sk_buff *skb = dev_alloc_skb(pkt_len);
+		struct sk_buff *skb = netdev_alloc_skb(dev, pkt_len);
 
 		(*frames)++;
 

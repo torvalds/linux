@@ -1274,7 +1274,7 @@ static int hp100_build_rx_pdl(hp100_ring_t * ringptr,
 	/* Note: This depends on the alloc_skb functions allocating more
 	 * space than requested, i.e. aligning to 16bytes */
 
-	ringptr->skb = dev_alloc_skb(roundup(MAX_ETHER_SIZE + 2, 4));
+	ringptr->skb = netdev_alloc_skb(dev, roundup(MAX_ETHER_SIZE + 2, 4));
 
 	if (NULL != ringptr->skb) {
 		/*
@@ -1284,7 +1284,6 @@ static int hp100_build_rx_pdl(hp100_ring_t * ringptr,
 		 */
 		skb_reserve(ringptr->skb, 2);
 
-		ringptr->skb->dev = dev;
 		ringptr->skb->data = (u_char *) skb_put(ringptr->skb, MAX_ETHER_SIZE);
 
 		/* ringptr->pdl points to the beginning of the PDL, i.e. the PDH */
@@ -1817,7 +1816,7 @@ static void hp100_rx(struct net_device *dev)
 #endif
 
 		/* Now we allocate the skb and transfer the data into it. */
-		skb = dev_alloc_skb(pkt_len+2);
+		skb = netdev_alloc_skb(dev, pkt_len + 2);
 		if (skb == NULL) {	/* Not enough memory->drop packet */
 #ifdef HP100_DEBUG
 			printk("hp100: %s: rx: couldn't allocate a sk_buff of size %d\n",

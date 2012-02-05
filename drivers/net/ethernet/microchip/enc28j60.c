@@ -954,14 +954,13 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 		if (len > MAX_FRAMELEN)
 			ndev->stats.rx_over_errors++;
 	} else {
-		skb = dev_alloc_skb(len + NET_IP_ALIGN);
+		skb = netdev_alloc_skb(ndev, len + NET_IP_ALIGN);
 		if (!skb) {
 			if (netif_msg_rx_err(priv))
 				dev_err(&ndev->dev,
 					"out of memory for Rx'd frame\n");
 			ndev->stats.rx_dropped++;
 		} else {
-			skb->dev = ndev;
 			skb_reserve(skb, NET_IP_ALIGN);
 			/* copy the packet from the receive buffer */
 			enc28j60_mem_read(priv,

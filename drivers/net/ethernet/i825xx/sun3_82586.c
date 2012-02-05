@@ -778,7 +778,7 @@ static void sun3_82586_rcv_int(struct net_device *dev)
 				{
 					totlen &= RBD_MASK; /* length of this frame */
 					rbd->status = 0;
-					skb = (struct sk_buff *) dev_alloc_skb(totlen+2);
+					skb = netdev_alloc_skb(dev, totlen + 2);
 					if(skb != NULL)
 					{
 						skb_reserve(skb,2);
