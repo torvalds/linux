@@ -778,8 +778,6 @@ int rndis_filter_send(struct hv_device *dev,
 	/* Add the rndis header */
 	filter_pkt = (struct rndis_filter_packet *)pkt->extension;
 
-	memset(filter_pkt, 0, sizeof(struct rndis_filter_packet));
-
 	rndis_msg = &filter_pkt->msg;
 	rndis_msg_size = RNDIS_MESSAGE_SIZE(struct rndis_packet);
 
