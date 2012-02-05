@@ -219,10 +219,10 @@ static int iwl_rx_init(struct iwl_trans *trans)
 
 	iwl_trans_rx_hw_init(trans, rxq);
 
-	spin_lock_irqsave(&trans->shrd->lock, flags);
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 	rxq->need_update = 1;
 	iwl_rx_queue_update_write_ptr(trans, rxq);
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
 	return 0;
 }
@@ -585,7 +585,7 @@ static int iwl_tx_init(struct iwl_trans *trans)
 		alloc = true;
 	}
 
-	spin_lock_irqsave(&trans->shrd->lock, flags);
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
 	/* Turn off all Tx DMA fifos */
 	iwl_write_prph(trans, SCD_TXFACT, 0);
@@ -594,7 +594,7 @@ static int iwl_tx_init(struct iwl_trans *trans)
 	iwl_write_direct32(trans, FH_KW_MEM_ADDR_REG,
 			   trans_pcie->kw.dma >> 4);
 
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
 	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
 	for (txq_id = 0; txq_id < hw_params(trans).max_txq_num; txq_id++) {
@@ -803,17 +803,18 @@ static void iwl_apm_stop(struct iwl_trans *trans)
 
 static int iwl_nic_init(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	unsigned long flags;
 
 	/* nic_init */
-	spin_lock_irqsave(&trans->shrd->lock, flags);
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 	iwl_apm_init(trans);
 
 	/* Set interrupt coalescing calibration timer to default (512 usecs) */
 	iwl_write8(trans, CSR_INT_COALESCING,
 		IWL_HOST_INT_CALIB_TIMEOUT_DEF);
 
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
 	iwl_set_pwr_vmain(trans);
 
@@ -1078,10 +1079,15 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans, struct fw_img *fw)
 
 /*
  * Activate/Deactivate Tx DMA/FIFO channels according tx fifos mask
- * must be called under priv->shrd->lock and mac access
+ * must be called under the irq lock and with MAC access
  */
 static void iwl_trans_txq_set_sched(struct iwl_trans *trans, u32 mask)
 {
+	struct iwl_trans_pcie __maybe_unused *trans_pcie =
+		IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	lockdep_assert_held(&trans_pcie->irq_lock);
+
 	iwl_write_prph(trans, SCD_TXFACT, mask);
 }
 
@@ -1095,7 +1101,7 @@ static void iwl_tx_start(struct iwl_trans *trans)
 	int i, chan;
 	u32 reg_val;
 
-	spin_lock_irqsave(&trans->shrd->lock, flags);
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
 	trans_pcie->scd_base_addr =
 		iwl_read_prph(trans, SCD_SRAM_BASE_ADDR);
@@ -1191,7 +1197,7 @@ static void iwl_tx_start(struct iwl_trans *trans)
 					      fifo, 0);
 	}
 
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
 	/* Enable L1-Active */
 	iwl_clear_bits_prph(trans, APMG_PCIDEV_STT_REG,
@@ -1214,7 +1220,7 @@ static int iwl_trans_tx_stop(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	/* Turn off all Tx DMA fifos */
-	spin_lock_irqsave(&trans->shrd->lock, flags);
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
 	iwl_trans_txq_set_sched(trans, 0);
 
@@ -1230,7 +1236,7 @@ static int iwl_trans_tx_stop(struct iwl_trans *trans)
 			    iwl_read_direct32(trans,
 					      FH_TSSR_TX_STATUS_REG));
 	}
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
 	if (!trans_pcie->txq) {
 		IWL_WARN(trans, "Stopping tx queues that aren't allocated...");
@@ -1250,9 +1256,9 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	/* tell the device to stop sending interrupts */
-	spin_lock_irqsave(&trans->shrd->lock, flags);
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 	iwl_disable_interrupts(trans);
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
 	/* device going down, Stop using ICT table */
 	iwl_disable_ict(trans);
@@ -1285,9 +1291,9 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	/* Upon stop, the APM issues an interrupt if HW RF kill is set.
 	 * Clean again the interrupt here
 	 */
-	spin_lock_irqsave(&trans->shrd->lock, flags);
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 	iwl_disable_interrupts(trans);
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
 	/* wait to make sure we flush pending tasklet*/
 	synchronize_irq(trans->irq);
@@ -2261,6 +2267,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
 	trans->shrd = shrd;
 	trans_pcie->trans = trans;
 	spin_lock_init(&trans->hcmd_lock);
+	spin_lock_init(&trans_pcie->irq_lock);
 
 	/* W/A - seems to solve weird behavior. We need to remove this if we
 	 * don't want to stay in L1 all the time. This wastes a lot of power */

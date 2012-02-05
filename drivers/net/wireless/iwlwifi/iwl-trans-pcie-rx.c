@@ -331,13 +331,14 @@ static void iwlagn_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 
 void iwlagn_rx_replenish(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	unsigned long flags;
 
 	iwlagn_rx_allocate(trans, GFP_KERNEL);
 
-	spin_lock_irqsave(&trans->shrd->lock, flags);
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 	iwlagn_rx_queue_restock(trans);
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 }
 
 static void iwlagn_rx_replenish_now(struct iwl_trans *trans)
@@ -943,7 +944,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 	struct isr_statistics *isr_stats = &trans_pcie->isr_stats;
 
 
-	spin_lock_irqsave(&trans->shrd->lock, flags);
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
 	/* Ack/clear/reset pending uCode interrupts.
 	 * Note:  Some bits in CSR_INT are "OR" of bits in CSR_FH_INT_STATUS,
@@ -973,7 +974,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 	/* saved interrupt in inta variable now we can reset trans_pcie->inta */
 	trans_pcie->inta = 0;
 
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
 	/* Now service all interrupt bits discovered above. */
 	if (inta & CSR_INT_BIT_HW_ERR) {
@@ -1226,7 +1227,7 @@ void iwl_reset_ict(struct iwl_trans *trans)
 	if (!trans_pcie->ict_tbl)
 		return;
 
-	spin_lock_irqsave(&trans->shrd->lock, flags);
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 	iwl_disable_interrupts(trans);
 
 	memset(trans_pcie->ict_tbl, 0, ICT_SIZE);
@@ -1243,7 +1244,7 @@ void iwl_reset_ict(struct iwl_trans *trans)
 	trans_pcie->ict_index = 0;
 	iwl_write32(trans, CSR_INT, trans_pcie->inta_mask);
 	iwl_enable_interrupts(trans);
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 }
 
 /* Device is going down disable ict interrupt usage */
@@ -1254,9 +1255,9 @@ void iwl_disable_ict(struct iwl_trans *trans)
 
 	unsigned long flags;
 
-	spin_lock_irqsave(&trans->shrd->lock, flags);
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 	trans_pcie->use_ict = false;
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 }
 
 static irqreturn_t iwl_isr(int irq, void *data)
@@ -1275,7 +1276,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	spin_lock_irqsave(&trans->shrd->lock, flags);
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
 	/* Disable (but don't clear!) interrupts here to avoid
 	 *    back-to-back ISRs and sporadic interrupts from our NIC.
@@ -1319,7 +1320,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 		iwl_enable_interrupts(trans);
 
  unplugged:
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 	return IRQ_HANDLED;
 
  none:
@@ -1329,7 +1330,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 		!trans_pcie->inta)
 		iwl_enable_interrupts(trans);
 
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 	return IRQ_NONE;
 }
 
@@ -1363,7 +1364,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 
 	trace_iwlwifi_dev_irq(priv(trans));
 
-	spin_lock_irqsave(&trans->shrd->lock, flags);
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
 	/* Disable (but don't clear!) interrupts here to avoid
 	 * back-to-back ISRs and sporadic interrupts from our NIC.
@@ -1434,7 +1435,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 		iwl_enable_interrupts(trans);
 	}
 
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 	return IRQ_HANDLED;
 
  none:
@@ -1445,6 +1446,6 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	    !trans_pcie->inta)
 		iwl_enable_interrupts(trans);
 
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 	return IRQ_NONE;
 }
