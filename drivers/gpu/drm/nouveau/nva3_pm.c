@@ -248,6 +248,8 @@ struct nva3_pm_state {
 	u8  rammap_len;
 	u8 *ramcfg;
 	u8  ramcfg_len;
+	u32 r004018;
+	u32 r100760;
 };
 
 void *
@@ -383,19 +385,19 @@ mclk_clock_set(struct nouveau_mem_exec_func *exec)
 	if (!(ctrl & 0x00000008) && info->mclk.pll) {
 		nv_wr32(dev, 0x004000, (ctrl |=  0x00000008));
 		nv_mask(dev, 0x1110e0, 0x00088000, 0x00088000);
-		nv_wr32(dev, 0x004018, 0x00001000); /*XXX*/
+		nv_wr32(dev, 0x004018, 0x00001000);
 		nv_wr32(dev, 0x004000, (ctrl &= ~0x00000001));
 		nv_wr32(dev, 0x004004, info->mclk.pll);
 		nv_wr32(dev, 0x004000, (ctrl |=  0x00000001));
 		udelay(64);
-		nv_wr32(dev, 0x004018, 0x10005000); /*XXX*/
+		nv_wr32(dev, 0x004018, 0x00005000 | info->r004018);
 		udelay(20);
 	} else
 	if (!info->mclk.pll) {
 		nv_mask(dev, 0x004168, 0x003f3040, info->mclk.clk);
 		nv_wr32(dev, 0x004000, (ctrl |= 0x00000008));
 		nv_mask(dev, 0x1110e0, 0x00088000, 0x00088000);
-		nv_wr32(dev, 0x004018, 0x1000d000); /*XXX*/
+		nv_wr32(dev, 0x004018, 0x0000d000 | info->r004018);
 	}
 
 	if (info->rammap) {
@@ -414,6 +416,9 @@ mclk_clock_set(struct nouveau_mem_exec_func *exec)
 		} else {
 			nv_mask(dev, 0x10053c, 0x00001000, 0x00001000);
 			nv_mask(dev, 0x10f804, 0x80000000, 0x00000000);
+			nv_mask(dev, 0x100760, 0x22222222, info->r100760);
+			nv_mask(dev, 0x1007a0, 0x22222222, info->r100760);
+			nv_mask(dev, 0x1007e0, 0x22222222, info->r100760);
 		}
 	}
 
@@ -480,6 +485,12 @@ prog_mem(struct drm_device *dev, struct nva3_pm_state *info)
 	};
 	u32 ctrl;
 
+	/* XXX: where the fuck does 750MHz come from? */
+	if (info->perflvl->memory <= 750000) {
+		info->r004018 = 0x10000000;
+		info->r100760 = 0x22222222;
+	}
+
 	ctrl = nv_rd32(dev, 0x004000);
 	if (ctrl & 0x00000008) {
 		if (info->mclk.pll) {
@@ -489,7 +500,7 @@ prog_mem(struct drm_device *dev, struct nva3_pm_state *info)
 			nv_wr32(dev, 0x004000, (ctrl &= 0xffffffef));
 			nv_wait(dev, 0x004000, 0x00020000, 0x00020000);
 			nv_wr32(dev, 0x004000, (ctrl |= 0x00000010));
-			nv_wr32(dev, 0x004018, 0x00005000); /*XXX*/
+			nv_wr32(dev, 0x004018, 0x00005000 | info->r004018);
 			nv_wr32(dev, 0x004000, (ctrl |= 0x00000004));
 		}
 	} else {
