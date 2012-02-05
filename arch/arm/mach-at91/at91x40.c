@@ -44,7 +44,7 @@ static void at91x40_idle(void)
 	 * Disable the processor clock.  The processor will be automatically
 	 * re-enabled by an interrupt or by a reset.
 	 */
-	at91_sys_write(AT91_PS_CR, AT91_PS_CR_CPU);
+	__raw_writel(AT91_PS_CR_CPU, AT91_PS_CR);
 	cpu_do_idle();
 }
 
