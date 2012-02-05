@@ -97,4 +97,13 @@
 			gpio-key,wakeup;
 		};
 	};
+
+	i2c@0 {
+		status = "okay";
+
+		rv3029c2@56 {
+			compatible = "rv3029c2";
+			reg = <0x56>;
+		};
+	};
 };
