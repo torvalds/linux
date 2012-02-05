@@ -162,7 +162,6 @@ void caif_flow_cb(struct sk_buff *skb)
 static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 {
 	int err, high = 0, qlen = 0;
-	struct caif_dev_common *caifdev;
 	struct caif_device_entry *caifd =
 	    container_of(layer, struct caif_device_entry, layer);
 	struct sk_buff *skb;
@@ -174,7 +173,6 @@ static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 	skb->dev = caifd->netdev;
 	skb_reset_network_header(skb);
 	skb->protocol = htons(ETH_P_CAIF);
-	caifdev = netdev_priv(caifd->netdev);
 
 	/* Check if we need to handle xoff */
 	if (likely(caifd->netdev->tx_queue_len == 0))
