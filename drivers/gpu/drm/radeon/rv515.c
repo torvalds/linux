@@ -150,7 +150,7 @@ void rv515_gpu_init(struct radeon_device *rdev)
 
 	if (r100_gui_wait_for_idle(rdev)) {
 		printk(KERN_WARNING "Failed to wait GUI idle while "
-		       "reseting GPU. Bad things might happen.\n");
+		       "resetting GPU. Bad things might happen.\n");
 	}
 	rv515_vga_render_disable(rdev);
 	r420_pipes_init(rdev);
@@ -162,7 +162,7 @@ void rv515_gpu_init(struct radeon_device *rdev)
 	WREG32_PLL(0x000D, tmp);
 	if (r100_gui_wait_for_idle(rdev)) {
 		printk(KERN_WARNING "Failed to wait GUI idle while "
-		       "reseting GPU. Bad things might happen.\n");
+		       "resetting GPU. Bad things might happen.\n");
 	}
 	if (rv515_mc_wait_for_idle(rdev)) {
 		printk(KERN_WARNING "Failed to wait MC idle while "
