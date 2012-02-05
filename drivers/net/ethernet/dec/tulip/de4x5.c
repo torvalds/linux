@@ -3598,7 +3598,7 @@ de4x5_alloc_rx_buff(struct net_device *dev, int index, int len)
     struct sk_buff *ret;
     u_long i=0, tmp;
 
-    p = dev_alloc_skb(IEEE802_3_SZ + DE4X5_ALIGN + 2);
+    p = netdev_alloc_skb(dev, IEEE802_3_SZ + DE4X5_ALIGN + 2);
     if (!p) return NULL;
 
     tmp = virt_to_bus(p->data);
@@ -3618,7 +3618,7 @@ de4x5_alloc_rx_buff(struct net_device *dev, int index, int len)
 #else
     if (lp->state != OPEN) return (struct sk_buff *)1; /* Fake out the open */
 
-    p = dev_alloc_skb(len + 2);
+    p = netdev_alloc_skb(dev, len + 2);
     if (!p) return NULL;
 
     skb_reserve(p, 2);	                               /* Align */

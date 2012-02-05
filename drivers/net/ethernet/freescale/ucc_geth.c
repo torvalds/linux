@@ -214,8 +214,9 @@ static struct sk_buff *get_new_skb(struct ucc_geth_private *ugeth,
 
 	skb = __skb_dequeue(&ugeth->rx_recycle);
 	if (!skb)
-		skb = dev_alloc_skb(ugeth->ug_info->uf_info.max_rx_buf_length +
-				    UCC_GETH_RX_DATA_BUF_ALIGNMENT);
+		skb = netdev_alloc_skb(ugeth->ndev,
+				      ugeth->ug_info->uf_info.max_rx_buf_length +
+				      UCC_GETH_RX_DATA_BUF_ALIGNMENT);
 	if (skb == NULL)
 		return NULL;
 
@@ -226,8 +227,6 @@ static struct sk_buff *get_new_skb(struct ucc_geth_private *ugeth,
 		    UCC_GETH_RX_DATA_BUF_ALIGNMENT -
 		    (((unsigned)skb->data) & (UCC_GETH_RX_DATA_BUF_ALIGNMENT -
 					      1)));
-
-	skb->dev = ugeth->ndev;
 
 	out_be32(&((struct qe_bd __iomem *)bd)->buf,
 		      dma_map_single(ugeth->dev,

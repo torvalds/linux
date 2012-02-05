@@ -711,7 +711,7 @@ fec_enet_rx(struct net_device *ndev)
 		 * include that when passing upstream as it messes up
 		 * bridging applications.
 		 */
-		skb = dev_alloc_skb(pkt_len - 4 + NET_IP_ALIGN);
+		skb = netdev_alloc_skb(dev, pkt_len - 4 + NET_IP_ALIGN);
 
 		if (unlikely(!skb)) {
 			printk("%s: Memory squeeze, dropping packet.\n",
@@ -1210,7 +1210,7 @@ static int fec_enet_alloc_buffers(struct net_device *ndev)
 
 	bdp = fep->rx_bd_base;
 	for (i = 0; i < RX_RING_SIZE; i++) {
-		skb = dev_alloc_skb(FEC_ENET_RX_FRSIZE);
+		skb = netdev_alloc_skb(dev, FEC_ENET_RX_FRSIZE);
 		if (!skb) {
 			fec_enet_free_buffers(ndev);
 			return -ENOMEM;

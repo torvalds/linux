@@ -1084,7 +1084,7 @@ investigate_read_descriptor(struct net_device *dev, struct xircom_private *card,
 			pkt_len = 1518;
 		}
 
-		skb = dev_alloc_skb(pkt_len + 2);
+		skb = netdev_alloc_skb(dev, pkt_len + 2);
 		if (skb == NULL) {
 			dev->stats.rx_dropped++;
 			goto out;

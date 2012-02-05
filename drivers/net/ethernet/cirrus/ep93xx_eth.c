@@ -282,7 +282,7 @@ static int ep93xx_rx(struct net_device *dev, int processed, int budget)
 		if (rstat0 & RSTAT0_CRCI)
 			length -= 4;
 
-		skb = dev_alloc_skb(length + 2);
+		skb = netdev_alloc_skb(dev, length + 2);
 		if (likely(skb != NULL)) {
 			struct ep93xx_rdesc *rxd = &ep->descs->rdesc[entry];
 			skb_reserve(skb, 2);

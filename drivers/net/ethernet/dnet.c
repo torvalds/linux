@@ -421,7 +421,7 @@ static int dnet_poll(struct napi_struct *napi, int budget)
 			printk(KERN_ERR "%s packet receive error %x\n",
 			       __func__, cmd_word);
 
-		skb = dev_alloc_skb(pkt_len + 5);
+		skb = netdev_alloc_skb(dev, pkt_len + 5);
 		if (skb != NULL) {
 			/* Align IP on 16 byte boundaries */
 			skb_reserve(skb, 2);
