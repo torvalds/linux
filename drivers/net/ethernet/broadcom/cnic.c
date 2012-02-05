@@ -1,6 +1,6 @@
 /* cnic.c: Broadcom CNIC core network driver.
  *
- * Copyright (c) 2006-2011 Broadcom Corporation
+ * Copyright (c) 2006-2012 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -2521,12 +2521,35 @@ static void cnic_bnx2x_kwqe_err(struct cnic_dev *dev, struct kwqe *kwqe)
 	u32 cid;
 	u32 opcode = KWQE_OPCODE(kwqe->kwqe_op_flag);
 	u32 layer_code = kwqe->kwqe_op_flag & KWQE_LAYER_MASK;
+	u32 kcqe_op;
 	int ulp_type;
 
 	cid = kwqe->kwqe_info0;
 	memset(&kcqe, 0, sizeof(kcqe));
 
-	if (layer_code == KWQE_FLAGS_LAYER_MASK_L5_ISCSI) {
+	if (layer_code == KWQE_FLAGS_LAYER_MASK_L5_FCOE) {
+		u32 l5_cid = 0;
+
+		ulp_type = CNIC_ULP_FCOE;
+		if (opcode == FCOE_KWQE_OPCODE_DISABLE_CONN) {
+			struct fcoe_kwqe_conn_enable_disable *req;
+
+			req = (struct fcoe_kwqe_conn_enable_disable *) kwqe;
+			kcqe_op = FCOE_KCQE_OPCODE_DISABLE_CONN;
+			cid = req->context_id;
+			l5_cid = req->conn_id;
+		} else if (opcode == FCOE_KWQE_OPCODE_DESTROY) {
+			kcqe_op = FCOE_KCQE_OPCODE_DESTROY_FUNC;
+		} else {
+			return;
+		}
+		kcqe.kcqe_op_flag = kcqe_op << KCQE_FLAGS_OPCODE_SHIFT;
+		kcqe.kcqe_op_flag |= KCQE_FLAGS_LAYER_MASK_L5_FCOE;
+		kcqe.kcqe_info1 = FCOE_KCQE_COMPLETION_STATUS_NIC_ERROR;
+		kcqe.kcqe_info2 = cid;
+		kcqe.kcqe_info0 = l5_cid;
+
+	} else if (layer_code == KWQE_FLAGS_LAYER_MASK_L5_ISCSI) {
 		ulp_type = CNIC_ULP_ISCSI;
 		if (opcode == ISCSI_KWQE_OPCODE_UPDATE_CONN)
 			cid = kwqe->kwqe_info1;
@@ -2539,7 +2562,6 @@ static void cnic_bnx2x_kwqe_err(struct cnic_dev *dev, struct kwqe *kwqe)
 
 	} else if (layer_code == KWQE_FLAGS_LAYER_MASK_L4) {
 		struct l4_kcq *l4kcqe = (struct l4_kcq *) &kcqe;
-		u32 kcqe_op;
 
 		ulp_type = CNIC_ULP_L4;
 		if (opcode == L4_KWQE_OPCODE_VALUE_CONNECT1)
@@ -2686,9 +2708,17 @@ static int cnic_submit_bnx2x_fcoe_kwqes(struct cnic_dev *dev,
 				   opcode);
 			break;
 		}
-		if (ret < 0)
+		if (ret < 0) {
 			netdev_err(dev->netdev, "KWQE(0x%x) failed\n",
 				   opcode);
+
+			/* Possibly bnx2x parity error, send completion
+			 * to ulp drivers with error code to speed up
+			 * cleanup and reset recovery.
+			 */
+			if (ret == -EIO || ret == -EAGAIN)
+				cnic_bnx2x_kwqe_err(dev, kwqe);
+		}
 		i += work;
 	}
 	return 0;

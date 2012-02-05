@@ -1,7 +1,7 @@
 
 /* cnic.c: Broadcom CNIC core network driver.
  *
- * Copyright (c) 2006-2009 Broadcom Corporation
+ * Copyright (c) 2006-2012 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -69,6 +69,7 @@
 
 #define FCOE_KCQE_COMPLETION_STATUS_ERROR	(0x1)
 #define FCOE_KCQE_COMPLETION_STATUS_CTX_ALLOC_FAILURE	(0x3)
+#define FCOE_KCQE_COMPLETION_STATUS_NIC_ERROR	(0x5)
 
 /* KCQ (kernel completion queue) response op codes */
 #define L4_KCQE_OPCODE_VALUE_CLOSE_COMP             (53)
