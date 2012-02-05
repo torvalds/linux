@@ -28,6 +28,8 @@
 #include <mach/at91_pmc.h>
 #include <mach/cpu.h>
 
+#include <asm/proc-fns.h>
+
 #include "clock.h"
 #include "generic.h"
 
@@ -818,3 +820,9 @@ static int __init at91_clock_reset(void)
 	return 0;
 }
 late_initcall(at91_clock_reset);
+
+void at91sam9_idle(void)
+{
+	at91_sys_write(AT91_PMC_SCDR, AT91_PMC_PCK);
+	cpu_do_idle();
+}

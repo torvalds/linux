@@ -287,15 +287,9 @@ static void __init at91sam9261_ioremap_registers(void)
 	at91sam9_ioremap_smc(0, AT91SAM9261_BASE_SMC);
 }
 
-static void at91sam9261_idle(void)
-{
-	at91_sys_write(AT91_PMC_SCDR, AT91_PMC_PCK);
-	cpu_do_idle();
-}
-
 static void __init at91sam9261_initialize(void)
 {
-	arm_pm_idle = at91sam9261_idle;
+	arm_pm_idle = at91sam9_idle;
 	arm_pm_restart = at91sam9_alt_restart;
 	at91_extern_irq = (1 << AT91SAM9261_ID_IRQ0) | (1 << AT91SAM9261_ID_IRQ1)
 			| (1 << AT91SAM9261_ID_IRQ2);
