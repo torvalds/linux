@@ -30,6 +30,8 @@
 
 #include <linux/crc16.h>
 
+static void send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
+			  struct orig_node *orig_node);
 static void _tt_global_del(struct bat_priv *bat_priv,
 			   struct tt_global_entry *tt_global_entry,
 			   const char *message);
@@ -645,9 +647,10 @@ out:
 		tt_global_entry_free_ref(tt_global_entry);
 }
 
-void tt_global_del(struct bat_priv *bat_priv,
-		   struct orig_node *orig_node, const unsigned char *addr,
-		   const char *message, bool roaming)
+static void tt_global_del(struct bat_priv *bat_priv,
+			  struct orig_node *orig_node,
+			  const unsigned char *addr,
+			  const char *message, bool roaming)
 {
 	struct tt_global_entry *tt_global_entry = NULL;
 	struct tt_local_entry *tt_local_entry = NULL;
@@ -848,7 +851,8 @@ out:
 }
 
 /* Calculates the checksum of the local table of a given orig_node */
-uint16_t tt_global_crc(struct bat_priv *bat_priv, struct orig_node *orig_node)
+static uint16_t tt_global_crc(struct bat_priv *bat_priv,
+			      struct orig_node *orig_node)
 {
 	uint16_t total = 0, total_one;
 	struct hashtable_t *hash = bat_priv->tt_global_hash;
@@ -936,8 +940,10 @@ static void tt_req_list_free(struct bat_priv *bat_priv)
 	spin_unlock_bh(&bat_priv->tt_req_list_lock);
 }
 
-void tt_save_orig_buffer(struct bat_priv *bat_priv, struct orig_node *orig_node,
-			 const unsigned char *tt_buff, uint8_t tt_num_changes)
+static void tt_save_orig_buffer(struct bat_priv *bat_priv,
+				struct orig_node *orig_node,
+				const unsigned char *tt_buff,
+				uint8_t tt_num_changes)
 {
 	uint16_t tt_buff_len = tt_len(tt_num_changes);
 
@@ -1627,8 +1633,8 @@ unlock:
 	return ret;
 }
 
-void send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
-		   struct orig_node *orig_node)
+static void send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
+			  struct orig_node *orig_node)
 {
 	struct neigh_node *neigh_node = NULL;
 	struct sk_buff *skb = NULL;
