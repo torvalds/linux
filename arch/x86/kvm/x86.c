@@ -3065,6 +3065,8 @@ static void write_protect_slot(struct kvm *kvm,
 			       unsigned long *dirty_bitmap,
 			       unsigned long nr_dirty_pages)
 {
+	spin_lock(&kvm->mmu_lock);
+
 	/* Not many dirty pages compared to # of shadow pages. */
 	if (nr_dirty_pages < kvm->arch.n_used_mmu_pages) {
 		unsigned long gfn_offset;
@@ -3072,16 +3074,13 @@ static void write_protect_slot(struct kvm *kvm,
 		for_each_set_bit(gfn_offset, dirty_bitmap, memslot->npages) {
 			unsigned long gfn = memslot->base_gfn + gfn_offset;
 
-			spin_lock(&kvm->mmu_lock);
 			kvm_mmu_rmap_write_protect(kvm, gfn, memslot);
-			spin_unlock(&kvm->mmu_lock);
 		}
 		kvm_flush_remote_tlbs(kvm);
-	} else {
-		spin_lock(&kvm->mmu_lock);
+	} else
 		kvm_mmu_slot_remove_write_access(kvm, memslot->id);
-		spin_unlock(&kvm->mmu_lock);
-	}
+
+	spin_unlock(&kvm->mmu_lock);
 }
 
 /*
