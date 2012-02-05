@@ -724,11 +724,10 @@ static int dn_output(struct sk_buff *skb)
 	struct dn_route *rt = (struct dn_route *)dst;
 	struct net_device *dev = dst->dev;
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
-	struct neighbour *neigh;
 
 	int err = -EINVAL;
 
-	if ((neigh = dst_get_neighbour_noref(dst)) == NULL)
+	if (dst_get_neighbour_noref(dst) == NULL)
 		goto error;
 
 	skb->dev = dev;
