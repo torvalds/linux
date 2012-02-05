@@ -89,46 +89,42 @@ sha512_transform(u64 *state, const u8 *input)
 	int i;
 	u64 W[16];
 
-	/* load the input */
-        for (i = 0; i < 16; i++)
-                LOAD_OP(i, W, input);
-
 	/* load the state into our registers */
 	a=state[0];   b=state[1];   c=state[2];   d=state[3];
 	e=state[4];   f=state[5];   g=state[6];   h=state[7];
 
-#define SHA512_0_15(i, a, b, c, d, e, f, g, h)			\
-	t1 = h + e1(e) + Ch(e, f, g) + sha512_K[i] + W[i];	\
-	t2 = e0(a) + Maj(a, b, c);				\
-	d += t1;						\
-	h = t1 + t2
+	/* now iterate */
+	for (i=0; i<80; i+=8) {
+		if (!(i & 8)) {
+			int j;
 
-#define SHA512_16_79(i, a, b, c, d, e, f, g, h)			\
-	BLEND_OP(i, W);						\
-	t1 = h + e1(e) + Ch(e, f, g) + sha512_K[i] + W[(i)&15];	\
-	t2 = e0(a) + Maj(a, b, c);				\
-	d += t1;						\
-	h = t1 + t2
+			if (i < 16) {
+				/* load the input */
+				for (j = 0; j < 16; j++)
+					LOAD_OP(i + j, W, input);
+			} else {
+				for (j = 0; j < 16; j++) {
+					BLEND_OP(i + j, W);
+				}
+			}
+		}
 
-	for (i = 0; i < 16; i += 8) {
-		SHA512_0_15(i, a, b, c, d, e, f, g, h);
-		SHA512_0_15(i + 1, h, a, b, c, d, e, f, g);
-		SHA512_0_15(i + 2, g, h, a, b, c, d, e, f);
-		SHA512_0_15(i + 3, f, g, h, a, b, c, d, e);
-		SHA512_0_15(i + 4, e, f, g, h, a, b, c, d);
-		SHA512_0_15(i + 5, d, e, f, g, h, a, b, c);
-		SHA512_0_15(i + 6, c, d, e, f, g, h, a, b);
-		SHA512_0_15(i + 7, b, c, d, e, f, g, h, a);
-	}
-	for (i = 16; i < 80; i += 8) {
-		SHA512_16_79(i, a, b, c, d, e, f, g, h);
-		SHA512_16_79(i + 1, h, a, b, c, d, e, f, g);
-		SHA512_16_79(i + 2, g, h, a, b, c, d, e, f);
-		SHA512_16_79(i + 3, f, g, h, a, b, c, d, e);
-		SHA512_16_79(i + 4, e, f, g, h, a, b, c, d);
-		SHA512_16_79(i + 5, d, e, f, g, h, a, b, c);
-		SHA512_16_79(i + 6, c, d, e, f, g, h, a, b);
-		SHA512_16_79(i + 7, b, c, d, e, f, g, h, a);
+		t1 = h + e1(e) + Ch(e,f,g) + sha512_K[i  ] + W[(i & 15)];
+		t2 = e0(a) + Maj(a,b,c);    d+=t1;    h=t1+t2;
+		t1 = g + e1(d) + Ch(d,e,f) + sha512_K[i+1] + W[(i & 15) + 1];
+		t2 = e0(h) + Maj(h,a,b);    c+=t1;    g=t1+t2;
+		t1 = f + e1(c) + Ch(c,d,e) + sha512_K[i+2] + W[(i & 15) + 2];
+		t2 = e0(g) + Maj(g,h,a);    b+=t1;    f=t1+t2;
+		t1 = e + e1(b) + Ch(b,c,d) + sha512_K[i+3] + W[(i & 15) + 3];
+		t2 = e0(f) + Maj(f,g,h);    a+=t1;    e=t1+t2;
+		t1 = d + e1(a) + Ch(a,b,c) + sha512_K[i+4] + W[(i & 15) + 4];
+		t2 = e0(e) + Maj(e,f,g);    h+=t1;    d=t1+t2;
+		t1 = c + e1(h) + Ch(h,a,b) + sha512_K[i+5] + W[(i & 15) + 5];
+		t2 = e0(d) + Maj(d,e,f);    g+=t1;    c=t1+t2;
+		t1 = b + e1(g) + Ch(g,h,a) + sha512_K[i+6] + W[(i & 15) + 6];
+		t2 = e0(c) + Maj(c,d,e);    f+=t1;    b=t1+t2;
+		t1 = a + e1(f) + Ch(f,g,h) + sha512_K[i+7] + W[(i & 15) + 7];
+		t2 = e0(b) + Maj(b,c,d);    e+=t1;    a=t1+t2;
 	}
 
 	state[0] += a; state[1] += b; state[2] += c; state[3] += d;
