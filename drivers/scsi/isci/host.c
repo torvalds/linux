@@ -58,7 +58,6 @@
 #include "host.h"
 #include "isci.h"
 #include "port.h"
-#include "host.h"
 #include "probe_roms.h"
 #include "remote_device.h"
 #include "request.h"
