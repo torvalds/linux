@@ -31,13 +31,19 @@
 #include <linux/rcupdate.h>
 
 struct srcu_struct_array {
-	int c[2];
+	unsigned long c[2];
 };
 
+/* Bit definitions for field ->c above and ->snap below. */
+#define SRCU_USAGE_BITS		2
+#define SRCU_REF_MASK		(ULONG_MAX >> SRCU_USAGE_BITS)
+#define SRCU_USAGE_COUNT	(SRCU_REF_MASK + 1)
+
 struct srcu_struct {
-	int completed;
+	unsigned completed;
 	struct srcu_struct_array __percpu *per_cpu_ref;
 	struct mutex mutex;
+	unsigned long snap[NR_CPUS];
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lockdep_map dep_map;
 #endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
