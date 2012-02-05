@@ -127,6 +127,27 @@ struct tc_multiq_qopt {
 	__u16	max_bands;		/* Maximum number of queues */
 };
 
+/* PLUG section */
+
+#define TCQ_PLUG_BUFFER                0
+#define TCQ_PLUG_RELEASE_ONE           1
+#define TCQ_PLUG_RELEASE_INDEFINITE    2
+#define TCQ_PLUG_LIMIT                 3
+
+struct tc_plug_qopt {
+	/* TCQ_PLUG_BUFFER: Inset a plug into the queue and
+	 *  buffer any incoming packets
+	 * TCQ_PLUG_RELEASE_ONE: Dequeue packets from queue head
+	 *   to beginning of the next plug.
+	 * TCQ_PLUG_RELEASE_INDEFINITE: Dequeue all packets from queue.
+	 *   Stop buffering packets until the next TCQ_PLUG_BUFFER
+	 *   command is received (just act as a pass-thru queue).
+	 * TCQ_PLUG_LIMIT: Increase/decrease queue size
+	 */
+	int             action;
+	__u32           limit;
+};
+
 /* TBF section */
 
 struct tc_tbf_qopt {
