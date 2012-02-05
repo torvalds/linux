@@ -758,66 +758,66 @@ int rndis_filter_open(struct hv_device *dev)
 
 int rndis_filter_close(struct hv_device *dev)
 {
-	struct netvsc_device *netDevice = hv_get_drvdata(dev);
+	struct netvsc_device *nvdev = hv_get_drvdata(dev);
 
-	if (!netDevice)
+	if (!nvdev)
 		return -EINVAL;
 
-	return rndis_filter_close_device(netDevice->extension);
+	return rndis_filter_close_device(nvdev->extension);
 }
 
 int rndis_filter_send(struct hv_device *dev,
 			     struct hv_netvsc_packet *pkt)
 {
 	int ret;
-	struct rndis_filter_packet *filterPacket;
-	struct rndis_message *rndisMessage;
-	struct rndis_packet *rndisPacket;
-	u32 rndisMessageSize;
+	struct rndis_filter_packet *filter_pkt;
+	struct rndis_message *rndis_msg;
+	struct rndis_packet *rndis_pkt;
+	u32 rndis_msg_size;
 
 	/* Add the rndis header */
-	filterPacket = (struct rndis_filter_packet *)pkt->extension;
+	filter_pkt = (struct rndis_filter_packet *)pkt->extension;
 
-	memset(filterPacket, 0, sizeof(struct rndis_filter_packet));
+	memset(filter_pkt, 0, sizeof(struct rndis_filter_packet));
 
-	rndisMessage = &filterPacket->msg;
-	rndisMessageSize = RNDIS_MESSAGE_SIZE(struct rndis_packet);
+	rndis_msg = &filter_pkt->msg;
+	rndis_msg_size = RNDIS_MESSAGE_SIZE(struct rndis_packet);
 
-	rndisMessage->ndis_msg_type = REMOTE_NDIS_PACKET_MSG;
-	rndisMessage->msg_len = pkt->total_data_buflen +
-				      rndisMessageSize;
+	rndis_msg->ndis_msg_type = REMOTE_NDIS_PACKET_MSG;
+	rndis_msg->msg_len = pkt->total_data_buflen +
+				      rndis_msg_size;
 
-	rndisPacket = &rndisMessage->msg.pkt;
-	rndisPacket->data_offset = sizeof(struct rndis_packet);
-	rndisPacket->data_len = pkt->total_data_buflen;
+	rndis_pkt = &rndis_msg->msg.pkt;
+	rndis_pkt->data_offset = sizeof(struct rndis_packet);
+	rndis_pkt->data_len = pkt->total_data_buflen;
 
 	pkt->is_data_pkt = true;
-	pkt->page_buf[0].pfn = virt_to_phys(rndisMessage) >> PAGE_SHIFT;
+	pkt->page_buf[0].pfn = virt_to_phys(rndis_msg) >> PAGE_SHIFT;
 	pkt->page_buf[0].offset =
-			(unsigned long)rndisMessage & (PAGE_SIZE-1);
-	pkt->page_buf[0].len = rndisMessageSize;
+			(unsigned long)rndis_msg & (PAGE_SIZE-1);
+	pkt->page_buf[0].len = rndis_msg_size;
 
 	/* Add one page_buf if the rndis msg goes beyond page boundary */
-	if (pkt->page_buf[0].offset + rndisMessageSize > PAGE_SIZE) {
+	if (pkt->page_buf[0].offset + rndis_msg_size > PAGE_SIZE) {
 		int i;
 		for (i = pkt->page_buf_cnt; i > 1; i--)
 			pkt->page_buf[i] = pkt->page_buf[i-1];
 		pkt->page_buf_cnt++;
 		pkt->page_buf[0].len = PAGE_SIZE - pkt->page_buf[0].offset;
 		pkt->page_buf[1].pfn = virt_to_phys((void *)((ulong)
-			rndisMessage + pkt->page_buf[0].len)) >> PAGE_SHIFT;
+			rndis_msg + pkt->page_buf[0].len)) >> PAGE_SHIFT;
 		pkt->page_buf[1].offset = 0;
-		pkt->page_buf[1].len = rndisMessageSize - pkt->page_buf[0].len;
+		pkt->page_buf[1].len = rndis_msg_size - pkt->page_buf[0].len;
 	}
 
 	/* Save the packet send completion and context */
-	filterPacket->completion = pkt->completion.send.send_completion;
-	filterPacket->completion_ctx =
+	filter_pkt->completion = pkt->completion.send.send_completion;
+	filter_pkt->completion_ctx =
 				pkt->completion.send.send_completion_ctx;
 
 	/* Use ours */
 	pkt->completion.send.send_completion = rndis_filter_send_completion;
-	pkt->completion.send.send_completion_ctx = filterPacket;
+	pkt->completion.send.send_completion_ctx = filter_pkt;
 
 	ret = netvsc_send(dev, pkt);
 	if (ret != 0) {
@@ -826,9 +826,9 @@ int rndis_filter_send(struct hv_device *dev,
 		 * above
 		 */
 		pkt->completion.send.send_completion =
-				filterPacket->completion;
+				filter_pkt->completion;
 		pkt->completion.send.send_completion_ctx =
-				filterPacket->completion_ctx;
+				filter_pkt->completion_ctx;
 	}
 
 	return ret;
@@ -836,10 +836,10 @@ int rndis_filter_send(struct hv_device *dev,
 
 static void rndis_filter_send_completion(void *ctx)
 {
-	struct rndis_filter_packet *filterPacket = ctx;
+	struct rndis_filter_packet *filter_pkt = ctx;
 
 	/* Pass it back to the original handler */
-	filterPacket->completion(filterPacket->completion_ctx);
+	filter_pkt->completion(filter_pkt->completion_ctx);
 }
 
 
