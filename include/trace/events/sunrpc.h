@@ -8,6 +8,59 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/tracepoint.h>
 
+DECLARE_EVENT_CLASS(rpc_task_status,
+
+	TP_PROTO(struct rpc_task *task),
+
+	TP_ARGS(task),
+
+	TP_STRUCT__entry(
+		__field(const struct rpc_task *, task)
+		__field(const struct rpc_clnt *, clnt)
+		__field(int, status)
+	),
+
+	TP_fast_assign(
+		__entry->task = task;
+		__entry->clnt = task->tk_client;
+		__entry->status = task->tk_status;
+	),
+
+	TP_printk("task:%p@%p, status %d",__entry->task, __entry->clnt, __entry->status)
+);
+
+DEFINE_EVENT(rpc_task_status, rpc_call_status,
+	TP_PROTO(struct rpc_task *task),
+
+	TP_ARGS(task)
+);
+
+DEFINE_EVENT(rpc_task_status, rpc_bind_status,
+	TP_PROTO(struct rpc_task *task),
+
+	TP_ARGS(task)
+);
+
+TRACE_EVENT(rpc_connect_status,
+	TP_PROTO(struct rpc_task *task, int status),
+
+	TP_ARGS(task, status),
+
+	TP_STRUCT__entry(
+		__field(const struct rpc_task *, task)
+		__field(const struct rpc_clnt *, clnt)
+		__field(int, status)
+	),
+
+	TP_fast_assign(
+		__entry->task = task;
+		__entry->clnt = task->tk_client;
+		__entry->status = status;
+	),
+
+	TP_printk("task:%p@%p, status %d",__entry->task, __entry->clnt, __entry->status)
+);
+
 DECLARE_EVENT_CLASS(rpc_task_running,
 
 	TP_PROTO(const struct rpc_clnt *clnt, const struct rpc_task *task, const void *action),
