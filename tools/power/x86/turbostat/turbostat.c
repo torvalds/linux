@@ -2,7 +2,7 @@
  * turbostat -- show CPU frequency and C-state residency
  * on modern Intel turbo-capable processors.
  *
- * Copyright (c) 2010, Intel Corporation.
+ * Copyright (c) 2012 Intel Corporation.
  * Len Brown <len.brown@intel.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -49,6 +49,7 @@
 char *proc_stat = "/proc/stat";
 unsigned int interval_sec = 5;	/* set with -i interval_sec */
 unsigned int verbose;		/* set with -v */
+unsigned int summary_only;	/* set with -s */
 unsigned int skip_c0;
 unsigned int skip_c1;
 unsigned int do_nhm_cstates;
@@ -129,14 +130,18 @@ void print_header(void)
 {
 	if (show_pkg)
 		fprintf(stderr, "pk");
+	if (show_pkg)
+		fprintf(stderr, " ");
 	if (show_core)
-		fprintf(stderr, " cr");
+		fprintf(stderr, "cor");
 	if (show_cpu)
 		fprintf(stderr, " CPU");
+	if (show_pkg || show_core || show_cpu)
+		fprintf(stderr, " ");
 	if (do_nhm_cstates)
-		fprintf(stderr, "    %%c0 ");
+		fprintf(stderr, "   %%c0");
 	if (has_aperf)
-		fprintf(stderr, " GHz");
+		fprintf(stderr, "  GHz");
 	fprintf(stderr, "  TSC");
 	if (do_nhm_cstates)
 		fprintf(stderr, "    %%c1");
@@ -147,13 +152,13 @@ void print_header(void)
 	if (do_snb_cstates)
 		fprintf(stderr, "    %%c7");
 	if (do_snb_cstates)
-		fprintf(stderr, "  %%pc2");
+		fprintf(stderr, "   %%pc2");
 	if (do_nhm_cstates)
-		fprintf(stderr, "  %%pc3");
+		fprintf(stderr, "   %%pc3");
 	if (do_nhm_cstates)
-		fprintf(stderr, "  %%pc6");
+		fprintf(stderr, "   %%pc6");
 	if (do_snb_cstates)
-		fprintf(stderr, "  %%pc7");
+		fprintf(stderr, "   %%pc7");
 	if (extra_msr_offset)
 		fprintf(stderr, "        MSR 0x%x ", extra_msr_offset);
 
@@ -187,6 +192,15 @@ void dump_list(struct counters *cnt)
 		dump_cnt(cnt);
 }
 
+/*
+ * column formatting convention & formats
+ * package: "pk" 2 columns %2d
+ * core: "cor" 3 columns %3d
+ * CPU: "CPU" 3 columns %3d
+ * GHz: "GHz" 3 columns %3.2
+ * TSC: "TSC" 3 columns %3.2
+ * percentage " %pc3" %6.2
+ */
 void print_cnt(struct counters *p)
 {
 	double interval_float;
@@ -196,39 +210,45 @@ void print_cnt(struct counters *p)
 	/* topology columns, print blanks on 1st (average) line */
 	if (p == cnt_average) {
 		if (show_pkg)
+			fprintf(stderr, "  ");
+		if (show_pkg && show_core)
 			fprintf(stderr, " ");
 		if (show_core)
-			fprintf(stderr, "    ");
+			fprintf(stderr, "   ");
 		if (show_cpu)
-			fprintf(stderr, "    ");
+			fprintf(stderr, " " "   ");
 	} else {
 		if (show_pkg)
-			fprintf(stderr, "%d", p->pkg);
+			fprintf(stderr, "%2d", p->pkg);
+		if (show_pkg && show_core)
+			fprintf(stderr, " ");
 		if (show_core)
-			fprintf(stderr, "%4d", p->core);
+			fprintf(stderr, "%3d", p->core);
 		if (show_cpu)
-			fprintf(stderr, "%4d", p->cpu);
+			fprintf(stderr, " %3d", p->cpu);
 	}
 
 	/* %c0 */
 	if (do_nhm_cstates) {
+		if (show_pkg || show_core || show_cpu)
+			fprintf(stderr, " ");
 		if (!skip_c0)
-			fprintf(stderr, "%7.2f", 100.0 * p->mperf/p->tsc);
+			fprintf(stderr, "%6.2f", 100.0 * p->mperf/p->tsc);
 		else
-			fprintf(stderr, "   ****");
+			fprintf(stderr, "  ****");
 	}
 
 	/* GHz */
 	if (has_aperf) {
 		if (!aperf_mperf_unstable) {
-			fprintf(stderr, "%5.2f",
+			fprintf(stderr, " %3.2f",
 				1.0 * p->tsc / units * p->aperf /
 				p->mperf / interval_float);
 		} else {
 			if (p->aperf > p->tsc || p->mperf > p->tsc) {
-				fprintf(stderr, " ****");
+				fprintf(stderr, " ***");
 			} else {
-				fprintf(stderr, "%4.1f*",
+				fprintf(stderr, "%3.1f*",
 					1.0 * p->tsc /
 					units * p->aperf /
 					p->mperf / interval_float);
@@ -241,7 +261,7 @@ void print_cnt(struct counters *p)
 
 	if (do_nhm_cstates) {
 		if (!skip_c1)
-			fprintf(stderr, "%7.2f", 100.0 * p->c1/p->tsc);
+			fprintf(stderr, " %6.2f", 100.0 * p->c1/p->tsc);
 		else
 			fprintf(stderr, "  ****");
 	}
@@ -252,13 +272,13 @@ void print_cnt(struct counters *p)
 	if (do_snb_cstates)
 		fprintf(stderr, " %6.2f", 100.0 * p->c7/p->tsc);
 	if (do_snb_cstates)
-		fprintf(stderr, " %5.2f", 100.0 * p->pc2/p->tsc);
+		fprintf(stderr, " %6.2f", 100.0 * p->pc2/p->tsc);
 	if (do_nhm_cstates)
-		fprintf(stderr, " %5.2f", 100.0 * p->pc3/p->tsc);
+		fprintf(stderr, " %6.2f", 100.0 * p->pc3/p->tsc);
 	if (do_nhm_cstates)
-		fprintf(stderr, " %5.2f", 100.0 * p->pc6/p->tsc);
+		fprintf(stderr, " %6.2f", 100.0 * p->pc6/p->tsc);
 	if (do_snb_cstates)
-		fprintf(stderr, " %5.2f", 100.0 * p->pc7/p->tsc);
+		fprintf(stderr, " %6.2f", 100.0 * p->pc7/p->tsc);
 	if (extra_msr_offset)
 		fprintf(stderr, "  0x%016llx", p->extra_msr);
 	putc('\n', stderr);
@@ -267,11 +287,19 @@ void print_cnt(struct counters *p)
 void print_counters(struct counters *counters)
 {
 	struct counters *cnt;
+	static int printed;
 
-	print_header();
+
+	if (!printed || !summary_only)
+		print_header();
 
 	if (num_cpus > 1)
 		print_cnt(cnt_average);
+
+	printed = 1;
+
+	if (summary_only)
+		return;
 
 	for (cnt = counters; cnt != NULL; cnt = cnt->next)
 		print_cnt(cnt);
@@ -557,7 +585,8 @@ void insert_counters(struct counters **list,
 		return;
 	}
 
-	show_cpu = 1;	/* there is more than one CPU */
+	if (!summary_only)
+		show_cpu = 1;	/* there is more than one CPU */
 
 	/*
 	 * insert on front of list.
@@ -575,13 +604,15 @@ void insert_counters(struct counters **list,
 
 	while (prev->next && (prev->next->pkg < new->pkg)) {
 		prev = prev->next;
-		show_pkg = 1;	/* there is more than 1 package */
+		if (!summary_only)
+			show_pkg = 1;	/* there is more than 1 package */
 	}
 
 	while (prev->next && (prev->next->pkg == new->pkg)
 		&& (prev->next->core < new->core)) {
 		prev = prev->next;
-		show_core = 1;	/* there is more than 1 core */
+		if (!summary_only)
+			show_core = 1;	/* there is more than 1 core */
 	}
 
 	while (prev->next && (prev->next->pkg == new->pkg)
@@ -1005,8 +1036,11 @@ void cmdline(int argc, char **argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt(argc, argv, "+vi:M:")) != -1) {
+	while ((opt = getopt(argc, argv, "+svi:M:")) != -1) {
 		switch (opt) {
+		case 's':
+			summary_only++;
+			break;
 		case 'v':
 			verbose++;
 			break;
