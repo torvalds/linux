@@ -160,12 +160,15 @@ static int __inject_sigp_stop(struct kvm_s390_local_interrupt *li, int action)
 	inti->type = KVM_S390_SIGP_STOP;
 
 	spin_lock_bh(&li->lock);
+	if ((atomic_read(li->cpuflags) & CPUSTAT_STOPPED))
+		goto out;
 	list_add_tail(&inti->list, &li->list);
 	atomic_set(&li->active, 1);
 	atomic_set_mask(CPUSTAT_STOP_INT, li->cpuflags);
 	li->action_bits |= action;
 	if (waitqueue_active(&li->wq))
 		wake_up_interruptible(&li->wq);
+out:
 	spin_unlock_bh(&li->lock);
 
 	return 0; /* order accepted */
