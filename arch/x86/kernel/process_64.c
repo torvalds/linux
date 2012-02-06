@@ -508,6 +508,7 @@ void set_personality_64bit(void)
 
 	/* Make sure to be in 64bit mode */
 	clear_thread_flag(TIF_IA32);
+	clear_thread_flag(TIF_ADDR32);
 
 	/* Ensure the corresponding mm is not marked. */
 	if (current->mm)
@@ -526,6 +527,7 @@ void set_personality_ia32(void)
 
 	/* Make sure to be in 32bit mode */
 	set_thread_flag(TIF_IA32);
+	set_thread_flag(TIF_ADDR32);
 	current->personality |= force_personality32;
 
 	/* Mark the associated mm as containing 32-bit tasks. */
