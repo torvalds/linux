@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -2131,9 +2131,10 @@ static ssize_t iwl_dbgfs_ucode_tracing_write(struct file *file,
 
 	if (trace) {
 		priv->event_log.ucode_trace = true;
-		/* schedule the ucode timer to occur in UCODE_TRACE_PERIOD */
-		mod_timer(&priv->ucode_trace,
-			jiffies + msecs_to_jiffies(UCODE_TRACE_PERIOD));
+		if (iwl_is_alive(priv->shrd)) {
+			/* start collecting data now */
+			mod_timer(&priv->ucode_trace, jiffies);
+		}
 	} else {
 		priv->event_log.ucode_trace = false;
 		del_timer_sync(&priv->ucode_trace);

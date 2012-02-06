@@ -427,10 +427,9 @@ static int nl80211_parse_key_new(struct nlattr *key, struct key_parse *k)
 
 	if (tb[NL80211_KEY_DEFAULT_TYPES]) {
 		struct nlattr *kdt[NUM_NL80211_KEY_DEFAULT_TYPES];
-		int err = nla_parse_nested(kdt,
-					   NUM_NL80211_KEY_DEFAULT_TYPES - 1,
-					   tb[NL80211_KEY_DEFAULT_TYPES],
-					   nl80211_key_default_policy);
+		err = nla_parse_nested(kdt, NUM_NL80211_KEY_DEFAULT_TYPES - 1,
+				       tb[NL80211_KEY_DEFAULT_TYPES],
+				       nl80211_key_default_policy);
 		if (err)
 			return err;
 
@@ -3259,6 +3258,8 @@ static int nl80211_get_mesh_config(struct sk_buff *skb,
 			cur_params.dot11MeshHWMPRannInterval);
 	NLA_PUT_U8(msg, NL80211_MESHCONF_GATE_ANNOUNCEMENTS,
 			cur_params.dot11MeshGateAnnouncementProtocol);
+	NLA_PUT_U8(msg, NL80211_MESHCONF_FORWARDING,
+			cur_params.dot11MeshForwarding);
 	nla_nest_end(msg, pinfoattr);
 	genlmsg_end(msg, hdr);
 	return genlmsg_reply(msg, info);
@@ -3290,6 +3291,7 @@ static const struct nla_policy nl80211_meshconf_params_policy[NL80211_MESHCONF_A
 	[NL80211_MESHCONF_HWMP_ROOTMODE] = { .type = NLA_U8 },
 	[NL80211_MESHCONF_HWMP_RANN_INTERVAL] = { .type = NLA_U16 },
 	[NL80211_MESHCONF_GATE_ANNOUNCEMENTS] = { .type = NLA_U8 },
+	[NL80211_MESHCONF_FORWARDING] = { .type = NLA_U8 },
 };
 
 static const struct nla_policy
@@ -3379,6 +3381,8 @@ do {\
 			dot11MeshGateAnnouncementProtocol, mask,
 			NL80211_MESHCONF_GATE_ANNOUNCEMENTS,
 			nla_get_u8);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshForwarding,
+			mask, NL80211_MESHCONF_FORWARDING, nla_get_u8);
 	if (mask_out)
 		*mask_out = mask;
 
@@ -4781,7 +4785,6 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 			nla_len(info->attrs[NL80211_ATTR_BSS_BASIC_RATES]);
 		struct ieee80211_supported_band *sband =
 			wiphy->bands[ibss.channel->band];
-		int err;
 
 		err = ieee80211_get_ratemask(sband, rates, n_rates,
 					     &ibss.basic_rates);
@@ -5390,9 +5393,39 @@ static u32 rateset_to_mask(struct ieee80211_supported_band *sband,
 	return mask;
 }
 
+static bool ht_rateset_to_mask(struct ieee80211_supported_band *sband,
+			       u8 *rates, u8 rates_len,
+			       u8 mcs[IEEE80211_HT_MCS_MASK_LEN])
+{
+	u8 i;
+
+	memset(mcs, 0, IEEE80211_HT_MCS_MASK_LEN);
+
+	for (i = 0; i < rates_len; i++) {
+		int ridx, rbit;
+
+		ridx = rates[i] / 8;
+		rbit = BIT(rates[i] % 8);
+
+		/* check validity */
+		if ((ridx < 0) || (ridx > IEEE80211_HT_MCS_MASK_LEN))
+			return false;
+
+		/* check availability */
+		if (sband->ht_cap.mcs.rx_mask[ridx] & rbit)
+			mcs[ridx] |= rbit;
+		else
+			return false;
+	}
+
+	return true;
+}
+
 static const struct nla_policy nl80211_txattr_policy[NL80211_TXRATE_MAX + 1] = {
 	[NL80211_TXRATE_LEGACY] = { .type = NLA_BINARY,
 				    .len = NL80211_MAX_SUPP_RATES },
+	[NL80211_TXRATE_MCS] = { .type = NLA_BINARY,
+				 .len = NL80211_MAX_SUPP_HT_RATES },
 };
 
 static int nl80211_set_tx_bitrate_mask(struct sk_buff *skb,
@@ -5418,12 +5451,20 @@ static int nl80211_set_tx_bitrate_mask(struct sk_buff *skb,
 		sband = rdev->wiphy.bands[i];
 		mask.control[i].legacy =
 			sband ? (1 << sband->n_bitrates) - 1 : 0;
+		if (sband)
+			memcpy(mask.control[i].mcs,
+			       sband->ht_cap.mcs.rx_mask,
+			       sizeof(mask.control[i].mcs));
+		else
+			memset(mask.control[i].mcs, 0,
+			       sizeof(mask.control[i].mcs));
 	}
 
 	/*
 	 * The nested attribute uses enum nl80211_band as the index. This maps
 	 * directly to the enum ieee80211_band values used in cfg80211.
 	 */
+	BUILD_BUG_ON(NL80211_MAX_SUPP_HT_RATES > IEEE80211_HT_MCS_MASK_LEN * 8);
 	nla_for_each_nested(tx_rates, info->attrs[NL80211_ATTR_TX_RATES], rem)
 	{
 		enum ieee80211_band band = nla_type(tx_rates);
@@ -5439,7 +5480,28 @@ static int nl80211_set_tx_bitrate_mask(struct sk_buff *skb,
 				sband,
 				nla_data(tb[NL80211_TXRATE_LEGACY]),
 				nla_len(tb[NL80211_TXRATE_LEGACY]));
-			if (mask.control[band].legacy == 0)
+		}
+		if (tb[NL80211_TXRATE_MCS]) {
+			if (!ht_rateset_to_mask(
+					sband,
+					nla_data(tb[NL80211_TXRATE_MCS]),
+					nla_len(tb[NL80211_TXRATE_MCS]),
+					mask.control[band].mcs))
+				return -EINVAL;
+		}
+
+		if (mask.control[band].legacy == 0) {
+			/* don't allow empty legacy rates if HT
+			 * is not even supported. */
+			if (!rdev->wiphy.bands[band]->ht_cap.ht_supported)
+				return -EINVAL;
+
+			for (i = 0; i < IEEE80211_HT_MCS_MASK_LEN; i++)
+				if (mask.control[band].mcs[i])
+					break;
+
+			/* legacy and mcs rates may not be both empty */
+			if (i == IEEE80211_HT_MCS_MASK_LEN)
 				return -EINVAL;
 		}
 	}

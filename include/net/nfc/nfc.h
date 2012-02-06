@@ -24,6 +24,7 @@
 #ifndef __NET_NFC_H
 #define __NET_NFC_H
 
+#include <linux/nfc.h>
 #include <linux/device.h>
 #include <linux/skbuff.h>
 
@@ -65,7 +66,6 @@ struct nfc_ops {
 
 #define NFC_TARGET_IDX_ANY -1
 #define NFC_MAX_GT_LEN 48
-#define NFC_MAX_NFCID1_LEN 10
 
 struct nfc_target {
 	u32 idx;
@@ -73,7 +73,11 @@ struct nfc_target {
 	u16 sens_res;
 	u8 sel_res;
 	u8 nfcid1_len;
-	u8 nfcid1[NFC_MAX_NFCID1_LEN];
+	u8 nfcid1[NFC_NFCID1_MAXSIZE];
+	u8 sensb_res_len;
+	u8 sensb_res[NFC_SENSB_RES_MAXSIZE];
+	u8 sensf_res_len;
+	u8 sensf_res[NFC_SENSF_RES_MAXSIZE];
 };
 
 struct nfc_genl_data {
@@ -83,7 +87,6 @@ struct nfc_genl_data {
 
 struct nfc_dev {
 	unsigned idx;
-	unsigned target_idx;
 	struct nfc_target *targets;
 	int n_targets;
 	int targets_generation;

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -315,7 +315,7 @@ static void iwl_bg_statistics_periodic(unsigned long data)
 
 static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 					u32 start_idx, u32 num_events,
-					u32 mode)
+					u32 capacity, u32 mode)
 {
 	u32 i;
 	u32 ptr;        /* SRAM byte address of log data */
@@ -339,6 +339,15 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 	rmb();
 
 	/*
+	 * Refuse to read more than would have fit into the log from
+	 * the current start_idx. This used to happen due to the race
+	 * described below, but now WARN because the code below should
+	 * prevent it from happening here.
+	 */
+	if (WARN_ON(num_events > capacity - start_idx))
+		num_events = capacity - start_idx;
+
+	/*
 	 * "time" is actually "data" for mode 0 (no timestamp).
 	 * place event id # at far right for easier visual parsing.
 	 */
@@ -346,12 +355,11 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 		ev = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
 		time = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
 		if (mode == 0) {
-			trace_iwlwifi_dev_ucode_cont_event(priv,
-							0, time, ev);
+			trace_iwlwifi_dev_ucode_cont_event(priv, 0, time, ev);
 		} else {
 			data = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
-			trace_iwlwifi_dev_ucode_cont_event(priv,
-						time, data, ev);
+			trace_iwlwifi_dev_ucode_cont_event(priv, time,
+							   data, ev);
 		}
 	}
 	/* Allow device to power down */
@@ -362,53 +370,83 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 static void iwl_continuous_event_trace(struct iwl_priv *priv)
 {
 	u32 capacity;   /* event log capacity in # entries */
+	struct {
+		u32 capacity;
+		u32 mode;
+		u32 wrap_counter;
+		u32 write_counter;
+	} __packed read;
 	u32 base;       /* SRAM byte address of event log header */
 	u32 mode;       /* 0 - no timestamp, 1 - timestamp recorded */
 	u32 num_wraps;  /* # times uCode wrapped to top of log */
 	u32 next_entry; /* index of next entry to be written by uCode */
 
-	base = priv->shrd->device_pointers.error_event_table;
+	base = priv->shrd->device_pointers.log_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
-		capacity = iwl_read_targ_mem(bus(priv), base);
-		num_wraps = iwl_read_targ_mem(bus(priv),
-						base + (2 * sizeof(u32)));
-		mode = iwl_read_targ_mem(bus(priv), base + (1 * sizeof(u32)));
-		next_entry = iwl_read_targ_mem(bus(priv),
-						base + (3 * sizeof(u32)));
+		iwl_read_targ_mem_words(bus(priv), base, &read, sizeof(read));
+
+		capacity = read.capacity;
+		mode = read.mode;
+		num_wraps = read.wrap_counter;
+		next_entry = read.write_counter;
 	} else
 		return;
 
+	/*
+	 * Unfortunately, the uCode doesn't use temporary variables.
+	 * Therefore, it can happen that we read next_entry == capacity,
+	 * which really means next_entry == 0.
+	 */
+	if (unlikely(next_entry == capacity))
+		next_entry = 0;
+	/*
+	 * Additionally, the uCode increases the write pointer before
+	 * the wraps counter, so if the write pointer is smaller than
+	 * the old write pointer (wrap occurred) but we read that no
+	 * wrap occurred, we actually read between the next_entry and
+	 * num_wraps update (this does happen in practice!!) -- take
+	 * that into account by increasing num_wraps.
+	 */
+	if (unlikely(next_entry < priv->event_log.next_entry &&
+		     num_wraps == priv->event_log.num_wraps))
+		num_wraps++;
+
 	if (num_wraps == priv->event_log.num_wraps) {
-		iwl_print_cont_event_trace(priv,
-				       base, priv->event_log.next_entry,
-				       next_entry - priv->event_log.next_entry,
-				       mode);
+		iwl_print_cont_event_trace(
+			priv, base, priv->event_log.next_entry,
+			next_entry - priv->event_log.next_entry,
+			capacity, mode);
+
 		priv->event_log.non_wraps_count++;
 	} else {
-		if ((num_wraps - priv->event_log.num_wraps) > 1)
+		if (num_wraps - priv->event_log.num_wraps > 1)
 			priv->event_log.wraps_more_count++;
 		else
 			priv->event_log.wraps_once_count++;
+
 		trace_iwlwifi_dev_ucode_wrap_event(priv,
 				num_wraps - priv->event_log.num_wraps,
 				next_entry, priv->event_log.next_entry);
+
 		if (next_entry < priv->event_log.next_entry) {
-			iwl_print_cont_event_trace(priv, base,
-			       priv->event_log.next_entry,
-			       capacity - priv->event_log.next_entry,
-			       mode);
+			iwl_print_cont_event_trace(
+				priv, base, priv->event_log.next_entry,
+				capacity - priv->event_log.next_entry,
+				capacity, mode);
 
-			iwl_print_cont_event_trace(priv, base, 0,
-				next_entry, mode);
+			iwl_print_cont_event_trace(
+				priv, base, 0, next_entry, capacity, mode);
 		} else {
-			iwl_print_cont_event_trace(priv, base,
-			       next_entry, capacity - next_entry,
-			       mode);
+			iwl_print_cont_event_trace(
+				priv, base, next_entry,
+				capacity - next_entry,
+				capacity, mode);
 
-			iwl_print_cont_event_trace(priv, base, 0,
-				next_entry, mode);
+			iwl_print_cont_event_trace(
+				priv, base, 0, next_entry, capacity, mode);
 		}
 	}
+
 	priv->event_log.num_wraps = num_wraps;
 	priv->event_log.next_entry = next_entry;
 }
@@ -1218,6 +1256,11 @@ int iwl_alive_start(struct iwl_priv *priv)
 
 	if (iwl_is_rfkill(priv->shrd))
 		return -ERFKILL;
+
+	if (priv->event_log.ucode_trace) {
+		/* start collecting data now */
+		mod_timer(&priv->ucode_trace, jiffies);
+	}
 
 	/* download priority table before any calibration request */
 	if (cfg(priv)->bt_params &&
@@ -2054,7 +2097,7 @@ MODULE_PARM_DESC(bt_coex_active, "enable wifi/bt co-exist (default: enable)");
 
 module_param_named(led_mode, iwlagn_mod_params.led_mode, int, S_IRUGO);
 MODULE_PARM_DESC(led_mode, "0=system default, "
-		"1=On(RF On)/Off(RF Off), 2=blinking (default: 0)");
+		"1=On(RF On)/Off(RF Off), 2=blinking, 3=Off (default: 0)");
 
 module_param_named(power_save, iwlagn_mod_params.power_save,
 		bool, S_IRUGO);

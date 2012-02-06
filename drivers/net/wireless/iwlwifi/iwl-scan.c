@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -414,10 +414,25 @@ static u16 iwl_limit_dwell(struct iwl_priv *priv, u16 dwell_time)
 	for_each_context(priv, ctx) {
 		u16 value;
 
-		if (!iwl_is_associated_ctx(ctx))
+		switch (ctx->staging.dev_type) {
+		case RXON_DEV_TYPE_P2P:
+			/* no timing constraints */
 			continue;
-		if (ctx->staging.dev_type == RXON_DEV_TYPE_P2P)
-			continue;
+		case RXON_DEV_TYPE_ESS:
+		default:
+			/* timing constraints if associated */
+			if (!iwl_is_associated_ctx(ctx))
+				continue;
+			break;
+		case RXON_DEV_TYPE_CP:
+		case RXON_DEV_TYPE_2STA:
+			/*
+			 * These seem to always have timers for TBTT
+			 * active in uCode even when not associated yet.
+			 */
+			break;
+		}
+
 		value = ctx->beacon_int;
 		if (!value)
 			value = IWL_PASSIVE_DWELL_BASE;

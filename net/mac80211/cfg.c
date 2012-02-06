@@ -776,12 +776,10 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 
 		if (set & BIT(NL80211_STA_FLAG_AUTHENTICATED) &&
 		    !test_sta_flag(sta, WLAN_STA_AUTH)) {
-			ret = sta_info_move_state_checked(sta,
-					IEEE80211_STA_AUTH);
+			ret = sta_info_move_state(sta, IEEE80211_STA_AUTH);
 			if (ret)
 				return ret;
-			ret = sta_info_move_state_checked(sta,
-					IEEE80211_STA_ASSOC);
+			ret = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
 			if (ret)
 				return ret;
 		}
@@ -789,11 +787,9 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 
 	if (mask & BIT(NL80211_STA_FLAG_AUTHORIZED)) {
 		if (set & BIT(NL80211_STA_FLAG_AUTHORIZED))
-			ret = sta_info_move_state_checked(sta,
-					IEEE80211_STA_AUTHORIZED);
+			ret = sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
 		else if (test_sta_flag(sta, WLAN_STA_AUTHORIZED))
-			ret = sta_info_move_state_checked(sta,
-					IEEE80211_STA_ASSOC);
+			ret = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
 		if (ret)
 			return ret;
 	}
@@ -805,12 +801,10 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 
 		if (!(set & BIT(NL80211_STA_FLAG_AUTHENTICATED)) &&
 		    test_sta_flag(sta, WLAN_STA_AUTH)) {
-			ret = sta_info_move_state_checked(sta,
-					IEEE80211_STA_AUTH);
+			ret = sta_info_move_state(sta, IEEE80211_STA_AUTH);
 			if (ret)
 				return ret;
-			ret = sta_info_move_state_checked(sta,
-					IEEE80211_STA_NONE);
+			ret = sta_info_move_state(sta, IEEE80211_STA_NONE);
 			if (ret)
 				return ret;
 		}
@@ -944,8 +938,8 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	if (!sta)
 		return -ENOMEM;
 
-	sta_info_move_state(sta, IEEE80211_STA_AUTH);
-	sta_info_move_state(sta, IEEE80211_STA_ASSOC);
+	sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
+	sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
 
 	err = sta_apply_parameters(local, sta, params);
 	if (err) {
@@ -1001,6 +995,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *vlansdata;
+	int err;
 
 	mutex_lock(&local->sta_mtx);
 
@@ -1040,7 +1035,11 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 		ieee80211_send_layer2_update(sta);
 	}
 
-	sta_apply_parameters(local, sta, params);
+	err = sta_apply_parameters(local, sta, params);
+	if (err) {
+		mutex_unlock(&local->sta_mtx);
+		return err;
+	}
 
 	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER) && params->supported_rates)
 		rate_control_rate_init(sta);
@@ -1341,6 +1340,8 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 		conf->dot11MeshHWMPRannInterval =
 			nconf->dot11MeshHWMPRannInterval;
 	}
+	if (_chg_mesh_attr(NL80211_MESHCONF_FORWARDING, mask))
+		conf->dot11MeshForwarding = nconf->dot11MeshForwarding;
 	return 0;
 }
 
@@ -1868,7 +1869,6 @@ static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
 					 s32 rssi_thold, u32 rssi_hyst)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_vif *vif = &sdata->vif;
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 
@@ -1879,14 +1879,9 @@ static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
 	bss_conf->cqm_rssi_thold = rssi_thold;
 	bss_conf->cqm_rssi_hyst = rssi_hyst;
 
-	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI)) {
-		if (sdata->vif.type != NL80211_IFTYPE_STATION)
-			return -EOPNOTSUPP;
-		return 0;
-	}
-
 	/* tell the driver upon association, unless already associated */
-	if (sdata->u.mgd.associated)
+	if (sdata->u.mgd.associated &&
+	    sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI)
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_CQM);
 
 	return 0;
@@ -1907,8 +1902,11 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 			return ret;
 	}
 
-	for (i = 0; i < IEEE80211_NUM_BANDS; i++)
+	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
 		sdata->rc_rateidx_mask[i] = mask->control[i].legacy;
+		memcpy(sdata->rc_rateidx_mcs_mask[i], mask->control[i].mcs,
+		       sizeof(mask->control[i].mcs));
+	}
 
 	return 0;
 }

@@ -862,8 +862,8 @@ u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
 
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 			 u16 transaction, u16 auth_alg,
-			 u8 *extra, size_t extra_len, const u8 *bssid,
-			 const u8 *key, u8 key_len, u8 key_idx)
+			 u8 *extra, size_t extra_len, const u8 *da,
+			 const u8 *bssid, const u8 *key, u8 key_len, u8 key_idx)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
@@ -881,7 +881,7 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	memset(mgmt, 0, 24 + 6);
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_AUTH);
-	memcpy(mgmt->da, bssid, ETH_ALEN);
+	memcpy(mgmt->da, da, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	memcpy(mgmt->bssid, bssid, ETH_ALEN);
 	mgmt->u.auth.auth_alg = cpu_to_le16(auth_alg);
@@ -1270,6 +1270,21 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	}
 
 	ieee80211_recalc_ps(local, -1);
+
+	/*
+	 * The sta might be in psm against the ap (e.g. because
+	 * this was the state before a hw restart), so we
+	 * explicitly send a null packet in order to make sure
+	 * it'll sync against the ap (and get out of psm).
+	 */
+	if (!(local->hw.conf.flags & IEEE80211_CONF_PS)) {
+		list_for_each_entry(sdata, &local->interfaces, list) {
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				continue;
+
+			ieee80211_send_nullfunc(local, sdata, 0);
+		}
+	}
 
 	/*
 	 * Clear the WLAN_STA_BLOCK_BA flag so new aggregation

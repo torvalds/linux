@@ -480,7 +480,8 @@ ieee80211_authenticate(struct ieee80211_work *wk)
 	       sdata->name, wk->filter_ta, wk->probe_auth.tries);
 
 	ieee80211_send_auth(sdata, 1, wk->probe_auth.algorithm, wk->ie,
-			    wk->ie_len, wk->filter_ta, NULL, 0, 0);
+			    wk->ie_len, wk->filter_ta, wk->filter_ta, NULL, 0,
+			    0);
 	wk->probe_auth.transaction = 2;
 
 	wk->timeout = jiffies + IEEE80211_AUTH_TIMEOUT;
@@ -598,7 +599,7 @@ static void ieee80211_auth_challenge(struct ieee80211_work *wk,
 		return;
 	ieee80211_send_auth(sdata, 3, wk->probe_auth.algorithm,
 			    elems.challenge - 2, elems.challenge_len + 2,
-			    wk->filter_ta, wk->probe_auth.key,
+			    wk->filter_ta, wk->filter_ta, wk->probe_auth.key,
 			    wk->probe_auth.key_len, wk->probe_auth.key_idx);
 	wk->probe_auth.transaction = 4;
 }
