@@ -26,6 +26,11 @@ obj-$(CONFIG_S3C2412_PM_SLEEP)	+= sleep-s3c2412.o
 obj-$(CONFIG_CPU_S3C2416)	+= s3c2416.o irq-s3c2416.o clock-s3c2416.o
 obj-$(CONFIG_S3C2416_PM)	+= pm-s3c2416.o
 
+obj-$(CONFIG_CPU_S3C2440)	+= s3c2440.o irq-s3c2440.o clock-s3c2440.o
+obj-$(CONFIG_CPU_S3C2442)	+= s3c2442.o
+obj-$(CONFIG_CPU_S3C244X)	+= s3c244x.o irq-s3c244x.o clock-s3c244x.o
+obj-$(CONFIG_S3C2440_DMA)	+= dma-s3c2440.o
+
 #
 # machine support
 # following is ordered alphabetically by option text.
@@ -50,6 +55,17 @@ obj-$(CONFIG_MACH_VSTMS)		+= mach-vstms.o
 
 obj-$(CONFIG_MACH_SMDK2416)		+= mach-smdk2416.o
 
+obj-$(CONFIG_MACH_ANUBIS)		+= mach-anubis.o
+obj-$(CONFIG_MACH_AT2440EVB)		+= mach-at2440evb.o
+obj-$(CONFIG_MACH_MINI2440)		+= mach-mini2440.o
+obj-$(CONFIG_MACH_NEXCODER_2440)	+= mach-nexcoder.o
+obj-$(CONFIG_MACH_OSIRIS)		+= mach-osiris.o
+obj-$(CONFIG_MACH_RX3715)		+= mach-rx3715.o
+obj-$(CONFIG_ARCH_S3C2440)		+= mach-smdk2440.o
+
+obj-$(CONFIG_MACH_NEO1973_GTA02)	+= mach-gta02.o
+obj-$(CONFIG_MACH_RX1950)		+= mach-rx1950.o
+
 # common bits of machine support
 
 obj-$(CONFIG_SIMTEC_NOR)		+= nor-simtec.o
@@ -57,6 +73,7 @@ obj-$(CONFIG_SIMTEC_NOR)		+= nor-simtec.o
 # machine additions
 
 obj-$(CONFIG_MACH_BAST_IDE)		+= bast-ide.o
+obj-$(CONFIG_MACH_OSIRIS_DVS)		+= mach-osiris-dvs.o
 
 # device setup
 
