@@ -923,7 +923,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 		addr,
 		limit,
 		sad_way + 7,
-		INTERLEAVE_MODE(reg) ? "" : "XOR[18:16]");
+		interleave_mode ? "" : "XOR[18:16]");
 	if (interleave_mode)
 		idx = ((addr >> 6) ^ (addr >> 16)) & 7;
 	else
