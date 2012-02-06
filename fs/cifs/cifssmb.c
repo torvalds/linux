@@ -461,7 +461,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifs_ses *ses)
 		server->maxReq = min_t(unsigned int,
 				       le16_to_cpu(rsp->MaxMpxCount),
 				       cifs_max_pending);
-		server->oplocks = server->maxReq > 1 ? enable_oplocks : false;
+		cifs_set_credits(server, server->maxReq);
 		server->maxBuf = le16_to_cpu(rsp->MaxBufSize);
 		server->max_vcs = le16_to_cpu(rsp->MaxNumberVcs);
 		/* even though we do not use raw we might as well set this
@@ -569,7 +569,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifs_ses *ses)
 	   little endian */
 	server->maxReq = min_t(unsigned int, le16_to_cpu(pSMBr->MaxMpxCount),
 			       cifs_max_pending);
-	server->oplocks = server->maxReq > 1 ? enable_oplocks : false;
+	cifs_set_credits(server, server->maxReq);
 	/* probably no need to store and check maxvcs */
 	server->maxBuf = le32_to_cpu(pSMBr->MaxBufferSize);
 	server->max_rw = le32_to_cpu(pSMBr->MaxRawSize);
@@ -721,8 +721,7 @@ cifs_echo_callback(struct mid_q_entry *mid)
 	struct TCP_Server_Info *server = mid->callback_data;
 
 	DeleteMidQEntry(mid);
-	dec_in_flight(server);
-	wake_up(&server->request_q);
+	cifs_add_credits(server, 1);
 }
 
 int
@@ -1674,8 +1673,7 @@ cifs_readv_callback(struct mid_q_entry *mid)
 
 	queue_work(system_nrt_wq, &rdata->work);
 	DeleteMidQEntry(mid);
-	dec_in_flight(server);
-	wake_up(&server->request_q);
+	cifs_add_credits(server, 1);
 }
 
 /* cifs_async_readv - send an async write, and set up mid to handle result */
@@ -2115,8 +2113,7 @@ cifs_writev_callback(struct mid_q_entry *mid)
 
 	queue_work(system_nrt_wq, &wdata->work);
 	DeleteMidQEntry(mid);
-	dec_in_flight(tcon->ses->server);
-	wake_up(&tcon->ses->server->request_q);
+	cifs_add_credits(tcon->ses->server, 1);
 }
 
 /* cifs_async_writev - send an async write, and set up mid to handle result */

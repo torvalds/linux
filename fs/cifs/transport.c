@@ -262,16 +262,16 @@ wait_for_free_request(struct TCP_Server_Info *server, const int long_op)
 	if (long_op == CIFS_ASYNC_OP) {
 		/* oplock breaks must not be held up */
 		server->in_flight++;
+		server->credits--;
 		spin_unlock(&server->req_lock);
 		return 0;
 	}
 
 	while (1) {
-		if (server->in_flight >= server->maxReq) {
+		if (server->credits <= 0) {
 			spin_unlock(&server->req_lock);
 			cifs_num_waiters_inc(server);
-			wait_event(server->request_q,
-				   in_flight(server) < server->maxReq);
+			wait_event(server->request_q, has_credits(server));
 			cifs_num_waiters_dec(server);
 			spin_lock(&server->req_lock);
 		} else {
@@ -280,12 +280,16 @@ wait_for_free_request(struct TCP_Server_Info *server, const int long_op)
 				return -ENOENT;
 			}
 
-			/* can not count locking commands against total
-			   as they are allowed to block on server */
+			/*
+			 * Can not count locking commands against total
+			 * as they are allowed to block on server.
+			 */
 
 			/* update # of requests on the wire to server */
-			if (long_op != CIFS_BLOCKING_OP)
+			if (long_op != CIFS_BLOCKING_OP) {
+				server->credits--;
 				server->in_flight++;
+			}
 			spin_unlock(&server->req_lock);
 			break;
 		}
@@ -360,7 +364,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
 	mid = AllocMidQEntry(hdr, server);
 	if (mid == NULL) {
 		mutex_unlock(&server->srv_mutex);
-		dec_in_flight(server);
+		cifs_add_credits(server, 1);
 		wake_up(&server->request_q);
 		return -ENOMEM;
 	}
@@ -393,7 +397,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
 	return rc;
 out_err:
 	delete_mid(mid);
-	dec_in_flight(server);
+	cifs_add_credits(server, 1);
 	wake_up(&server->request_q);
 	return rc;
 }
@@ -565,8 +569,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 		mutex_unlock(&ses->server->srv_mutex);
 		cifs_small_buf_release(in_buf);
 		/* Update # of requests on wire to server */
-		dec_in_flight(ses->server);
-		wake_up(&ses->server->request_q);
+		cifs_add_credits(ses->server, 1);
 		return rc;
 	}
 	rc = cifs_sign_smb2(iov, n_vec, ses->server, &midQ->sequence_number);
@@ -602,8 +605,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 			midQ->callback = DeleteMidQEntry;
 			spin_unlock(&GlobalMid_Lock);
 			cifs_small_buf_release(in_buf);
-			dec_in_flight(ses->server);
-			wake_up(&ses->server->request_q);
+			cifs_add_credits(ses->server, 1);
 			return rc;
 		}
 		spin_unlock(&GlobalMid_Lock);
@@ -613,8 +615,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 
 	rc = cifs_sync_mid_result(midQ, ses->server);
 	if (rc != 0) {
-		dec_in_flight(ses->server);
-		wake_up(&ses->server->request_q);
+		cifs_add_credits(ses->server, 1);
 		return rc;
 	}
 
@@ -638,8 +639,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 		midQ->resp_buf = NULL;
 out:
 	delete_mid(midQ);
-	dec_in_flight(ses->server);
-	wake_up(&ses->server->request_q);
+	cifs_add_credits(ses->server, 1);
 
 	return rc;
 }
@@ -689,8 +689,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	if (rc) {
 		mutex_unlock(&ses->server->srv_mutex);
 		/* Update # of requests on wire to server */
-		dec_in_flight(ses->server);
-		wake_up(&ses->server->request_q);
+		cifs_add_credits(ses->server, 1);
 		return rc;
 	}
 
@@ -722,8 +721,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 			/* no longer considered to be "in-flight" */
 			midQ->callback = DeleteMidQEntry;
 			spin_unlock(&GlobalMid_Lock);
-			dec_in_flight(ses->server);
-			wake_up(&ses->server->request_q);
+			cifs_add_credits(ses->server, 1);
 			return rc;
 		}
 		spin_unlock(&GlobalMid_Lock);
@@ -731,8 +729,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 
 	rc = cifs_sync_mid_result(midQ, ses->server);
 	if (rc != 0) {
-		dec_in_flight(ses->server);
-		wake_up(&ses->server->request_q);
+		cifs_add_credits(ses->server, 1);
 		return rc;
 	}
 
@@ -748,8 +745,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	rc = cifs_check_receive(midQ, ses->server, 0);
 out:
 	delete_mid(midQ);
-	dec_in_flight(ses->server);
-	wake_up(&ses->server->request_q);
+	cifs_add_credits(ses->server, 1);
 
 	return rc;
 }

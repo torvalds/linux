@@ -250,8 +250,9 @@ struct TCP_Server_Info {
 	bool noblocksnd;		/* use blocking sendmsg */
 	bool noautotune;		/* do not autotune send buf sizes */
 	bool tcp_nodelay;
+	int credits;  /* send no more requests at once */
 	unsigned int in_flight;  /* number of requests on the wire to server */
-	spinlock_t req_lock; /* protect the value above */
+	spinlock_t req_lock;  /* protect the two values above */
 	struct mutex srv_mutex;
 	struct task_struct *tsk;
 	char server_GUID[16];
@@ -314,12 +315,14 @@ in_flight(struct TCP_Server_Info *server)
 	return num;
 }
 
-static inline void
-dec_in_flight(struct TCP_Server_Info *server)
+static inline bool
+has_credits(struct TCP_Server_Info *server)
 {
+	int num;
 	spin_lock(&server->req_lock);
-	server->in_flight--;
+	num = server->credits;
 	spin_unlock(&server->req_lock);
+	return num > 0;
 }
 
 /*

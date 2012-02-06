@@ -642,14 +642,10 @@ static void clean_demultiplex_info(struct TCP_Server_Info *server)
 	spin_unlock(&GlobalMid_Lock);
 	wake_up_all(&server->response_q);
 
-	/* Check if we have blocked requests that need to free. */
+	/* check if we have blocked requests that need to free */
 	spin_lock(&server->req_lock);
-	if (server->in_flight >= server->maxReq)
-		server->in_flight = server->maxReq - 1;
-	/*
-	 * We do not want to set the max_pending too low or we could end up
-	 * with the counter going negative.
-	 */
+	if (server->credits <= 0)
+		server->credits = 1;
 	spin_unlock(&server->req_lock);
 	/*
 	 * Although there should not be any requests blocked on this queue it
@@ -1906,7 +1902,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	tcp_ses->noautotune = volume_info->noautotune;
 	tcp_ses->tcp_nodelay = volume_info->sockopt_tcp_nodelay;
 	tcp_ses->in_flight = 0;
-	tcp_ses->maxReq = 1; /* enough to send negotiate request */
+	tcp_ses->credits = 1;
 	init_waitqueue_head(&tcp_ses->response_q);
 	init_waitqueue_head(&tcp_ses->request_q);
 	INIT_LIST_HEAD(&tcp_ses->pending_mid_q);
@@ -3757,9 +3753,11 @@ int cifs_negotiate_protocol(unsigned int xid, struct cifs_ses *ses)
 	if (server->maxBuf != 0)
 		return 0;
 
+	cifs_set_credits(server, 1);
 	rc = CIFSSMBNegotiate(xid, ses);
 	if (rc == -EAGAIN) {
 		/* retry only once on 1st time connection */
+		cifs_set_credits(server, 1);
 		rc = CIFSSMBNegotiate(xid, ses);
 		if (rc == -EAGAIN)
 			rc = -EHOSTDOWN;
