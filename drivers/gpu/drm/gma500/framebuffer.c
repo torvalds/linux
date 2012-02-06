@@ -507,11 +507,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	info->fix.mmio_start = pci_resource_start(dev->pdev, 0);
 	info->fix.mmio_len = pci_resource_len(dev->pdev, 0);
 
-	info->pixmap.size = 64 * 1024;
-	info->pixmap.buf_align = 8;
-	info->pixmap.access_align = 32;
-	info->pixmap.flags = FB_PIXMAP_SYSTEM;
-	info->pixmap.scan_align = 1;
+	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
 	dev_info(dev->dev, "allocated %dx%d fb\n",
 					psbfb->base.width, psbfb->base.height);

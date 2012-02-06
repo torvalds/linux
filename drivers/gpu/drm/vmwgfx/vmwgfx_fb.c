@@ -515,19 +515,7 @@ int vmw_fb_init(struct vmw_private *vmw_priv)
 	info->var.xres = initial_width;
 	info->var.yres = initial_height;
 
-#if 0
-	info->pixmap.size = 64*1024;
-	info->pixmap.buf_align = 8;
-	info->pixmap.access_align = 32;
-	info->pixmap.flags = FB_PIXMAP_SYSTEM;
-	info->pixmap.scan_align = 1;
-#else
-	info->pixmap.size = 0;
-	info->pixmap.buf_align = 8;
-	info->pixmap.access_align = 32;
-	info->pixmap.flags = FB_PIXMAP_SYSTEM;
-	info->pixmap.scan_align = 1;
-#endif
+	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
 	info->apertures = alloc_apertures(1);
 	if (!info->apertures) {
