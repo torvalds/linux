@@ -1645,6 +1645,7 @@ static void rt2800_config_channel_rf3xxx(struct rt2x00_dev *rt2x00dev,
 					 struct rf_channel *rf,
 					 struct channel_info *info)
 {
+	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
 	u8 rfcsr, calib_tx, calib_rx;
 
 	rt2800_rfcsr_write(rt2x00dev, 2, rf->rf1);
@@ -1714,8 +1715,13 @@ static void rt2800_config_channel_rf3xxx(struct rt2x00_dev *rt2x00dev,
 		calib_tx = conf_is_ht40(conf) ? 0x68 : 0x4f;
 		calib_rx = conf_is_ht40(conf) ? 0x6f : 0x4f;
 	} else {
-		calib_tx = rt2x00dev->calibration[conf_is_ht40(conf)];
-		calib_rx = rt2x00dev->calibration[conf_is_ht40(conf)];
+		if (conf_is_ht40(conf)) {
+			calib_tx = drv_data->calibration_bw40;
+			calib_rx = drv_data->calibration_bw40;
+		} else {
+			calib_tx = drv_data->calibration_bw20;
+			calib_rx = drv_data->calibration_bw20;
+		}
 	}
 
 	rt2800_rfcsr_read(rt2x00dev, 24, &rfcsr);
@@ -1743,6 +1749,7 @@ static void rt2800_config_channel_rf3052(struct rt2x00_dev *rt2x00dev,
 					 struct rf_channel *rf,
 					 struct channel_info *info)
 {
+	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
 	u8 rfcsr;
 	u32 reg;
 
@@ -1836,10 +1843,13 @@ static void rt2800_config_channel_rf3052(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field8(&rfcsr, RFCSR23_FREQ_OFFSET, rt2x00dev->freq_offset);
 	rt2800_rfcsr_write(rt2x00dev, 23, rfcsr);
 
-	rt2800_rfcsr_write(rt2x00dev, 24,
-			      rt2x00dev->calibration[conf_is_ht40(conf)]);
-	rt2800_rfcsr_write(rt2x00dev, 31,
-			      rt2x00dev->calibration[conf_is_ht40(conf)]);
+	if (conf_is_ht40(conf)) {
+		rt2800_rfcsr_write(rt2x00dev, 24, drv_data->calibration_bw40);
+		rt2800_rfcsr_write(rt2x00dev, 31, drv_data->calibration_bw40);
+	} else {
+		rt2800_rfcsr_write(rt2x00dev, 24, drv_data->calibration_bw20);
+		rt2800_rfcsr_write(rt2x00dev, 31, drv_data->calibration_bw20);
+	}
 
 	if (rf->channel <= 14) {
 		rt2800_rfcsr_write(rt2x00dev, 7, 0xd8);
@@ -3310,6 +3320,7 @@ static u8 rt2800_init_rx_filter(struct rt2x00_dev *rt2x00dev,
 
 static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 {
+	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
 	u8 rfcsr;
 	u8 bbp;
 	u32 reg;
@@ -3598,17 +3609,17 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	 * Set RX Filter calibration for 20MHz and 40MHz
 	 */
 	if (rt2x00_rt(rt2x00dev, RT3070)) {
-		rt2x00dev->calibration[0] =
+		drv_data->calibration_bw20 =
 			rt2800_init_rx_filter(rt2x00dev, false, 0x07, 0x16);
-		rt2x00dev->calibration[1] =
+		drv_data->calibration_bw40 =
 			rt2800_init_rx_filter(rt2x00dev, true, 0x27, 0x19);
 	} else if (rt2x00_rt(rt2x00dev, RT3071) ||
 		   rt2x00_rt(rt2x00dev, RT3090) ||
 		   rt2x00_rt(rt2x00dev, RT3390) ||
 		   rt2x00_rt(rt2x00dev, RT3572)) {
-		rt2x00dev->calibration[0] =
+		drv_data->calibration_bw20 =
 			rt2800_init_rx_filter(rt2x00dev, false, 0x07, 0x13);
-		rt2x00dev->calibration[1] =
+		drv_data->calibration_bw40 =
 			rt2800_init_rx_filter(rt2x00dev, true, 0x27, 0x15);
 	}
 

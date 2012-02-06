@@ -897,13 +897,6 @@ struct rt2x00_dev {
 	u8 freq_offset;
 
 	/*
-	 * Calibration information (for rt2800usb & rt2800pci).
-	 * [0] -> BW20
-	 * [1] -> BW40
-	 */
-	u8 calibration[2];
-
-	/*
 	 * Association id.
 	 */
 	u16 aid;

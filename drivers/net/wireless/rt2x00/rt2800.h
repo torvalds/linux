@@ -2438,4 +2438,12 @@ struct mac_iveiv_entry {
  */
 #define EIRP_MAX_TX_POWER_LIMIT	0x50
 
+/*
+ * RT2800 driver data structure
+ */
+struct rt2800_drv_data {
+	u8 calibration_bw20;
+	u8 calibration_bw40;
+};
+
 #endif /* RT2800_H */
