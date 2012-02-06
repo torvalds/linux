@@ -1849,6 +1849,11 @@ struct mac_iveiv_entry {
 #define RFCSR15_TX_LO2_EN		FIELD8(0x08)
 
 /*
+ * RFCSR 16:
+ */
+#define RFCSR16_TXMIXER_GAIN		FIELD8(0x07)
+
+/*
  * RFCSR 17:
  */
 #define RFCSR17_TXMIXER_GAIN		FIELD8(0x07)
@@ -2109,6 +2114,12 @@ struct mac_iveiv_entry {
 #define EEPROM_RSSI_A2			0x0026
 #define EEPROM_RSSI_A2_OFFSET2		FIELD16(0x00ff)
 #define EEPROM_RSSI_A2_LNA_A2		FIELD16(0xff00)
+
+/*
+ * EEPROM TXMIXER GAIN A offset (note overlaps with EEPROM RSSI A2).
+ */
+#define EEPROM_TXMIXER_GAIN_A		0x0026
+#define EEPROM_TXMIXER_GAIN_A_VAL	FIELD16(0x0007)
 
 /*
  * EEPROM EIRP Maximum TX power values(unit: dbm)
@@ -2448,6 +2459,8 @@ struct rt2800_drv_data {
 	u8 calibration_bw40;
 	u8 bbp25;
 	u8 bbp26;
+	u8 txmixer_gain_24g;
+	u8 txmixer_gain_5g;
 };
 
 #endif /* RT2800_H */
