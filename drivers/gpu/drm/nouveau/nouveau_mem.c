@@ -843,6 +843,7 @@ nouveau_mem_timing_calc(struct drm_device *dev, u32 freq,
 		ret = nv50_mem_timing_calc(dev, freq, e, len, boot, t);
 		break;
 	case NV_C0:
+	case NV_D0:
 		ret = nvc0_mem_timing_calc(dev, freq, e, len, boot, t);
 		break;
 	default:
