@@ -653,6 +653,9 @@ struct ath6kl {
 #ifdef CONFIG_ATH6KL_DEBUG
 	struct {
 		struct sk_buff_head fwlog_queue;
+		struct completion fwlog_completion;
+		bool fwlog_open;
+
 		u32 fwlog_mask;
 
 		unsigned int dbgfs_diag_reg;

@@ -290,6 +290,7 @@ void ath6kl_debug_fwlog_event(struct ath6kl *ar, const void *buf, size_t len)
 	spin_lock(&ar->debug.fwlog_queue.lock);
 
 	__skb_queue_tail(&ar->debug.fwlog_queue, skb);
+	complete(&ar->debug.fwlog_completion);
 
 	/* drop oldest entries */
 	while (skb_queue_len(&ar->debug.fwlog_queue) >
@@ -301,6 +302,28 @@ void ath6kl_debug_fwlog_event(struct ath6kl *ar, const void *buf, size_t len)
 	spin_unlock(&ar->debug.fwlog_queue.lock);
 
 	return;
+}
+
+static int ath6kl_fwlog_open(struct inode *inode, struct file *file)
+{
+	struct ath6kl *ar = inode->i_private;
+
+	if (ar->debug.fwlog_open)
+		return -EBUSY;
+
+	ar->debug.fwlog_open = true;
+
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+static int ath6kl_fwlog_release(struct inode *inode, struct file *file)
+{
+	struct ath6kl *ar = inode->i_private;
+
+	ar->debug.fwlog_open = false;
+
+	return 0;
 }
 
 static ssize_t ath6kl_fwlog_read(struct file *file, char __user *user_buf,
@@ -347,8 +370,83 @@ static ssize_t ath6kl_fwlog_read(struct file *file, char __user *user_buf,
 }
 
 static const struct file_operations fops_fwlog = {
-	.open = ath6kl_debugfs_open,
+	.open = ath6kl_fwlog_open,
+	.release = ath6kl_fwlog_release,
 	.read = ath6kl_fwlog_read,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t ath6kl_fwlog_block_read(struct file *file,
+				       char __user *user_buf,
+				       size_t count,
+				       loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	struct sk_buff *skb;
+	ssize_t ret_cnt;
+	size_t len = 0, not_copied;
+	char *buf;
+	int ret;
+
+	buf = vmalloc(count);
+	if (!buf)
+		return -ENOMEM;
+
+	spin_lock(&ar->debug.fwlog_queue.lock);
+
+	if (skb_queue_len(&ar->debug.fwlog_queue) == 0) {
+		/* we must init under queue lock */
+		init_completion(&ar->debug.fwlog_completion);
+
+		spin_unlock(&ar->debug.fwlog_queue.lock);
+
+		ret = wait_for_completion_interruptible(
+			&ar->debug.fwlog_completion);
+		if (ret == -ERESTARTSYS)
+			return ret;
+
+		spin_lock(&ar->debug.fwlog_queue.lock);
+	}
+
+	while ((skb = __skb_dequeue(&ar->debug.fwlog_queue))) {
+		if (skb->len > count - len) {
+			/* not enough space, put skb back and leave */
+			__skb_queue_head(&ar->debug.fwlog_queue, skb);
+			break;
+		}
+
+
+		memcpy(buf + len, skb->data, skb->len);
+		len += skb->len;
+
+		kfree_skb(skb);
+	}
+
+	spin_unlock(&ar->debug.fwlog_queue.lock);
+
+	/* FIXME: what to do if len == 0? */
+
+	not_copied = copy_to_user(user_buf, buf, len);
+	if (not_copied != 0) {
+		ret_cnt = -EFAULT;
+		goto out;
+	}
+
+	*ppos = *ppos + len;
+
+	ret_cnt = len;
+
+out:
+	vfree(buf);
+
+	return ret_cnt;
+}
+
+static const struct file_operations fops_fwlog_block = {
+	.open = ath6kl_fwlog_open,
+	.release = ath6kl_fwlog_release,
+	.read = ath6kl_fwlog_block_read,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -1623,6 +1721,7 @@ static const struct file_operations fops_power_params = {
 int ath6kl_debug_init(struct ath6kl *ar)
 {
 	skb_queue_head_init(&ar->debug.fwlog_queue);
+	init_completion(&ar->debug.fwlog_completion);
 
 	/*
 	 * Actually we are lying here but don't know how to read the mask
@@ -1646,6 +1745,9 @@ int ath6kl_debug_init(struct ath6kl *ar)
 
 	debugfs_create_file("fwlog", S_IRUSR, ar->debugfs_phy, ar,
 			    &fops_fwlog);
+
+	debugfs_create_file("fwlog_block", S_IRUSR, ar->debugfs_phy, ar,
+			    &fops_fwlog_block);
 
 	debugfs_create_file("fwlog_mask", S_IRUSR | S_IWUSR, ar->debugfs_phy,
 			    ar, &fops_fwlog_mask);
