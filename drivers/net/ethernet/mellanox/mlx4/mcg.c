@@ -1004,7 +1004,7 @@ EXPORT_SYMBOL_GPL(mlx4_multicast_promisc_remove);
 
 int mlx4_unicast_promisc_add(struct mlx4_dev *dev, u32 qpn, u8 port)
 {
-	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER))
+	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER))
 		return 0;
 
 	if (mlx4_is_mfunc(dev))
@@ -1016,7 +1016,7 @@ EXPORT_SYMBOL_GPL(mlx4_unicast_promisc_add);
 
 int mlx4_unicast_promisc_remove(struct mlx4_dev *dev, u32 qpn, u8 port)
 {
-	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER))
+	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER))
 		return 0;
 
 	if (mlx4_is_mfunc(dev))
