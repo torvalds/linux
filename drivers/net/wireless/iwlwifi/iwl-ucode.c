@@ -712,14 +712,14 @@ int __must_check iwl_request_firmware(struct iwl_priv *priv, bool first)
 		return -ENOENT;
 	}
 
-	sprintf(priv->firmware_name, "%s%s%s", name_pre, tag, ".ucode");
+	sprintf(nic->firmware_name, "%s%s%s", name_pre, tag, ".ucode");
 
 	IWL_DEBUG_INFO(priv, "attempting to load firmware %s'%s'\n",
 		       (nic->fw_index == UCODE_EXPERIMENTAL_INDEX)
 				? "EXPERIMENTAL " : "",
-		       priv->firmware_name);
+		       nic->firmware_name);
 
-	return request_firmware_nowait(THIS_MODULE, 1, priv->firmware_name,
+	return request_firmware_nowait(THIS_MODULE, 1, nic->firmware_name,
 				       trans(priv)->dev,
 				       GFP_KERNEL, priv, iwl_ucode_callback);
 }
@@ -1036,12 +1036,12 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		if (nic->fw_index <= api_ok)
 			IWL_ERR(priv,
 				"request for firmware file '%s' failed.\n",
-				priv->firmware_name);
+				nic->firmware_name);
 		goto try_again;
 	}
 
 	IWL_DEBUG_INFO(priv, "Loaded firmware file '%s' (%zd bytes).\n",
-		       priv->firmware_name, ucode_raw->size);
+		       nic->firmware_name, ucode_raw->size);
 
 	/* Make sure that we got at least the API version number */
 	if (ucode_raw->size < 4) {

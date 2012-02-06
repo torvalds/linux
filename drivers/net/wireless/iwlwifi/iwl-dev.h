@@ -787,9 +787,6 @@ struct iwl_priv {
 	/* EEPROM MAC addresses */
 	struct mac_address addresses[2];
 
-	/* uCode images, save to reload in case of failure */
-	char firmware_name[25];
-
 	struct iwl_rxon_context contexts[NUM_IWL_RXON_CTX];
 
 	__le16 switch_channel;
