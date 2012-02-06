@@ -2444,6 +2444,8 @@ struct mac_iveiv_entry {
 struct rt2800_drv_data {
 	u8 calibration_bw20;
 	u8 calibration_bw40;
+	u8 bbp25;
+	u8 bbp26;
 };
 
 #endif /* RT2800_H */

@@ -1754,8 +1754,8 @@ static void rt2800_config_channel_rf3052(struct rt2x00_dev *rt2x00dev,
 	u32 reg;
 
 	if (rf->channel <= 14) {
-		rt2800_bbp_write(rt2x00dev, 25, 0x15);
-		rt2800_bbp_write(rt2x00dev, 26, 0x85);
+		rt2800_bbp_write(rt2x00dev, 25, drv_data->bbp25);
+		rt2800_bbp_write(rt2x00dev, 26, drv_data->bbp26);
 	} else {
 		rt2800_bbp_write(rt2x00dev, 25, 0x09);
 		rt2800_bbp_write(rt2x00dev, 26, 0xff);
@@ -3622,6 +3622,12 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 		drv_data->calibration_bw40 =
 			rt2800_init_rx_filter(rt2x00dev, true, 0x27, 0x15);
 	}
+
+	/*
+	 * Save BBP 25 & 26 values for later use in channel switching
+	 */
+	rt2800_bbp_read(rt2x00dev, 25, &drv_data->bbp25);
+	rt2800_bbp_read(rt2x00dev, 26, &drv_data->bbp26);
 
 	if (!rt2x00_rt(rt2x00dev, RT5390)) {
 		/*
