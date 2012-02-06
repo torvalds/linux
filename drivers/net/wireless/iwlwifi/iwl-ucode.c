@@ -690,23 +690,24 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context);
 
 int __must_check iwl_request_firmware(struct iwl_priv *priv, bool first)
 {
+	struct iwl_nic *nic = nic(priv);
 	const char *name_pre = cfg(priv)->fw_name_pre;
 	char tag[8];
 
 	if (first) {
 #ifdef CONFIG_IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
-		priv->fw_index = UCODE_EXPERIMENTAL_INDEX;
+		nic->fw_index = UCODE_EXPERIMENTAL_INDEX;
 		strcpy(tag, UCODE_EXPERIMENTAL_TAG);
-	} else if (priv->fw_index == UCODE_EXPERIMENTAL_INDEX) {
+	} else if (nic->fw_index == UCODE_EXPERIMENTAL_INDEX) {
 #endif
-		priv->fw_index = cfg(priv)->ucode_api_max;
-		sprintf(tag, "%d", priv->fw_index);
+		nic->fw_index = cfg(priv)->ucode_api_max;
+		sprintf(tag, "%d", nic->fw_index);
 	} else {
-		priv->fw_index--;
-		sprintf(tag, "%d", priv->fw_index);
+		nic->fw_index--;
+		sprintf(tag, "%d", nic->fw_index);
 	}
 
-	if (priv->fw_index < cfg(priv)->ucode_api_min) {
+	if (nic->fw_index < cfg(priv)->ucode_api_min) {
 		IWL_ERR(priv, "no suitable firmware found!\n");
 		return -ENOENT;
 	}
@@ -714,7 +715,7 @@ int __must_check iwl_request_firmware(struct iwl_priv *priv, bool first)
 	sprintf(priv->firmware_name, "%s%s%s", name_pre, tag, ".ucode");
 
 	IWL_DEBUG_INFO(priv, "attempting to load firmware %s'%s'\n",
-		       (priv->fw_index == UCODE_EXPERIMENTAL_INDEX)
+		       (nic->fw_index == UCODE_EXPERIMENTAL_INDEX)
 				? "EXPERIMENTAL " : "",
 		       priv->firmware_name);
 
@@ -1032,7 +1033,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	memset(&pieces, 0, sizeof(pieces));
 
 	if (!ucode_raw) {
-		if (priv->fw_index <= api_ok)
+		if (nic->fw_index <= api_ok)
 			IWL_ERR(priv,
 				"request for firmware file '%s' failed.\n",
 				priv->firmware_name);
@@ -1069,7 +1070,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	 * on the API version read from firmware header from here on forward
 	 */
 	/* no api version check required for experimental uCode */
-	if (priv->fw_index != UCODE_EXPERIMENTAL_INDEX) {
+	if (nic->fw_index != UCODE_EXPERIMENTAL_INDEX) {
 		if (api_ver < api_min || api_ver > api_max) {
 			IWL_ERR(priv,
 				"Driver unable to support your firmware API. "
@@ -1094,7 +1095,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 
 	if (build)
 		sprintf(buildstr, " build %u%s", build,
-		       (priv->fw_index == UCODE_EXPERIMENTAL_INDEX)
+		       (nic->fw_index == UCODE_EXPERIMENTAL_INDEX)
 				? " (EXP)" : "");
 	else
 		buildstr[0] = '\0';

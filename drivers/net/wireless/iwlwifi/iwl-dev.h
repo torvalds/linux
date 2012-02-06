@@ -788,7 +788,6 @@ struct iwl_priv {
 	struct mac_address addresses[2];
 
 	/* uCode images, save to reload in case of failure */
-	int fw_index;			/* firmware we're trying to load */
 	char firmware_name[25];
 
 	struct iwl_rxon_context contexts[NUM_IWL_RXON_CTX];
