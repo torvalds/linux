@@ -69,6 +69,7 @@
 #include "iwl-shared.h"
 #include "iwl-commands.h"
 #include "iwl-ucode.h"
+#include "iwl-debug.h"
 
 /**
  * DOC: Transport layer - what is it ?
@@ -297,6 +298,17 @@ struct iwl_calib_result {
 };
 
 /**
+ * enum iwl_trans_state - state of the transport layer
+ *
+ * @IWL_TRANS_NO_FW: no fw has sent an alive response
+ * @IWL_TRANS_FW_ALIVE: a fw has sent an alive response
+ */
+enum iwl_trans_state {
+	IWL_TRANS_NO_FW = 0,
+	IWL_TRANS_FW_ALIVE	= 1,
+};
+
+/**
  * struct iwl_trans - transport common data
  *
  * @ops - pointer to iwl_trans_ops
@@ -319,6 +331,7 @@ struct iwl_calib_result {
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
 	struct iwl_shared *shrd;
+	enum iwl_trans_state state;
 	spinlock_t hcmd_lock;
 	spinlock_t reg_lock;
 
@@ -352,6 +365,8 @@ static inline void iwl_trans_stop_hw(struct iwl_trans *trans)
 	might_sleep();
 
 	trans->ops->stop_hw(trans);
+
+	trans->state = IWL_TRANS_NO_FW;
 }
 
 static inline void iwl_trans_fw_alive(struct iwl_trans *trans)
@@ -359,6 +374,8 @@ static inline void iwl_trans_fw_alive(struct iwl_trans *trans)
 	might_sleep();
 
 	trans->ops->fw_alive(trans);
+
+	trans->state = IWL_TRANS_FW_ALIVE;
 }
 
 static inline int iwl_trans_start_fw(struct iwl_trans *trans, struct fw_img *fw)
@@ -373,12 +390,17 @@ static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 	might_sleep();
 
 	trans->ops->stop_device(trans);
+
+	trans->state = IWL_TRANS_NO_FW;
 }
 
 static inline void iwl_trans_wake_any_queue(struct iwl_trans *trans,
 					    enum iwl_rxon_context_id ctx,
 					    const char *msg)
 {
+	if (trans->state != IWL_TRANS_FW_ALIVE)
+		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+
 	trans->ops->wake_any_queue(trans, ctx, msg);
 }
 
@@ -386,6 +408,9 @@ static inline void iwl_trans_wake_any_queue(struct iwl_trans *trans,
 static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 				struct iwl_host_cmd *cmd)
 {
+	if (trans->state != IWL_TRANS_FW_ALIVE)
+		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+
 	return trans->ops->send_cmd(trans, cmd);
 }
 
@@ -396,6 +421,9 @@ static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
 		u8 sta_id, u8 tid)
 {
+	if (trans->state != IWL_TRANS_FW_ALIVE)
+		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+
 	return trans->ops->tx(trans, skb, dev_cmd, ctx, sta_id, tid);
 }
 
@@ -403,6 +431,9 @@ static inline int iwl_trans_reclaim(struct iwl_trans *trans, int sta_id,
 				 int tid, int txq_id, int ssn, u32 status,
 				 struct sk_buff_head *skbs)
 {
+	if (trans->state != IWL_TRANS_FW_ALIVE)
+		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+
 	return trans->ops->reclaim(trans, sta_id, tid, txq_id, ssn,
 				   status, skbs);
 }
@@ -412,6 +443,9 @@ static inline int iwl_trans_tx_agg_disable(struct iwl_trans *trans,
 {
 	might_sleep();
 
+	if (trans->state != IWL_TRANS_FW_ALIVE)
+		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+
 	return trans->ops->tx_agg_disable(trans, sta_id, tid);
 }
 
@@ -419,6 +453,9 @@ static inline int iwl_trans_tx_agg_alloc(struct iwl_trans *trans,
 					 int sta_id, int tid)
 {
 	might_sleep();
+
+	if (trans->state != IWL_TRANS_FW_ALIVE)
+		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
 
 	return trans->ops->tx_agg_alloc(trans, sta_id, tid);
 }
@@ -431,6 +468,9 @@ static inline void iwl_trans_tx_agg_setup(struct iwl_trans *trans,
 {
 	might_sleep();
 
+	if (trans->state != IWL_TRANS_FW_ALIVE)
+		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+
 	trans->ops->tx_agg_setup(trans, ctx, sta_id, tid, frame_limit, ssn);
 }
 
@@ -442,16 +482,25 @@ static inline void iwl_trans_free(struct iwl_trans *trans)
 static inline void iwl_trans_stop_queue(struct iwl_trans *trans, int q,
 					const char *msg)
 {
+	if (trans->state != IWL_TRANS_FW_ALIVE)
+		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+
 	trans->ops->stop_queue(trans, q, msg);
 }
 
 static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans)
 {
+	if (trans->state != IWL_TRANS_FW_ALIVE)
+		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+
 	return trans->ops->wait_tx_queue_empty(trans);
 }
 
 static inline int iwl_trans_check_stuck_queue(struct iwl_trans *trans, int q)
 {
+	if (trans->state != IWL_TRANS_FW_ALIVE)
+		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
+
 	return trans->ops->check_stuck_queue(trans, q);
 }
 static inline int iwl_trans_dbgfs_register(struct iwl_trans *trans,
