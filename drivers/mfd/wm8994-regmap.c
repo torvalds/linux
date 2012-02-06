@@ -968,6 +968,7 @@ static bool wm8994_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case WM8994_DC_SERVO_READBACK:
+	case WM8994_MICBIAS:
 	case WM8994_WRITE_SEQUENCER_CTRL_1:
 	case WM8994_WRITE_SEQUENCER_CTRL_2:
 	case WM8994_AIF1_ADC2_LEFT_VOLUME:
