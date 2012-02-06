@@ -754,6 +754,7 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize = EXOFS_BLKSIZE;
 	sb->s_blocksize_bits = EXOFS_BLKSHIFT;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
+	sb->s_max_links = EXOFS_LINK_MAX;
 	atomic_set(&sbi->s_curr_pending, 0);
 	sb->s_bdev = NULL;
 	sb->s_dev = 0;

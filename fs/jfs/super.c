@@ -441,6 +441,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 
 	sb->s_fs_info = sbi;
+	sb->s_max_links = JFS_LINK_MAX;
 	sbi->sb = sb;
 	sbi->uid = sbi->gid = sbi->umask = -1;
 

@@ -190,24 +190,24 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 		sbi->s_version = MINIX_V1;
 		sbi->s_dirsize = 16;
 		sbi->s_namelen = 14;
-		sbi->s_link_max = MINIX_LINK_MAX;
+		s->s_max_links = MINIX_LINK_MAX;
 	} else if (s->s_magic == MINIX_SUPER_MAGIC2) {
 		sbi->s_version = MINIX_V1;
 		sbi->s_dirsize = 32;
 		sbi->s_namelen = 30;
-		sbi->s_link_max = MINIX_LINK_MAX;
+		s->s_max_links = MINIX_LINK_MAX;
 	} else if (s->s_magic == MINIX2_SUPER_MAGIC) {
 		sbi->s_version = MINIX_V2;
 		sbi->s_nzones = ms->s_zones;
 		sbi->s_dirsize = 16;
 		sbi->s_namelen = 14;
-		sbi->s_link_max = MINIX2_LINK_MAX;
+		s->s_max_links = MINIX2_LINK_MAX;
 	} else if (s->s_magic == MINIX2_SUPER_MAGIC2) {
 		sbi->s_version = MINIX_V2;
 		sbi->s_nzones = ms->s_zones;
 		sbi->s_dirsize = 32;
 		sbi->s_namelen = 30;
-		sbi->s_link_max = MINIX2_LINK_MAX;
+		s->s_max_links = MINIX2_LINK_MAX;
 	} else if ( *(__u16 *)(bh->b_data + 24) == MINIX3_SUPER_MAGIC) {
 		m3s = (struct minix3_super_block *) bh->b_data;
 		s->s_magic = m3s->s_magic;
@@ -221,9 +221,9 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 		sbi->s_dirsize = 64;
 		sbi->s_namelen = 60;
 		sbi->s_version = MINIX_V3;
-		sbi->s_link_max = MINIX2_LINK_MAX;
 		sbi->s_mount_state = MINIX_VALID_FS;
 		sb_set_blocksize(s, m3s->s_blocksize);
+		s->s_max_links = MINIX2_LINK_MAX;
 	} else
 		goto out_no_fs;
 
