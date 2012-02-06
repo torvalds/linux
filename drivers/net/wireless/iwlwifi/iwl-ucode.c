@@ -738,12 +738,13 @@ static int iwlagn_load_legacy_firmware(struct iwl_priv *priv,
 				       const struct firmware *ucode_raw,
 				       struct iwlagn_firmware_pieces *pieces)
 {
+	struct iwl_nic *nic = nic(priv);
 	struct iwl_ucode_header *ucode = (void *)ucode_raw->data;
 	u32 api_ver, hdr_size;
 	const u8 *src;
 
-	priv->ucode_ver = le32_to_cpu(ucode->ver);
-	api_ver = IWL_UCODE_API(priv->ucode_ver);
+	nic->fw.ucode_ver = le32_to_cpu(ucode->ver);
+	api_ver = IWL_UCODE_API(nic->fw.ucode_ver);
 
 	switch (api_ver) {
 	default:
@@ -804,6 +805,7 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 				struct iwlagn_firmware_pieces *pieces,
 				struct iwlagn_ucode_capabilities *capa)
 {
+	struct iwl_nic *nic = nic(priv);
 	struct iwl_tlv_ucode_header *ucode = (void *)ucode_raw->data;
 	struct iwl_ucode_tlv *tlv;
 	size_t len = ucode_raw->size;
@@ -843,7 +845,7 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 			 "uCode alternative %d not available, choosing %d\n",
 			 tmp, wanted_alternative);
 
-	priv->ucode_ver = le32_to_cpu(ucode->ver);
+	nic->fw.ucode_ver = le32_to_cpu(ucode->ver);
 	pieces->build = le32_to_cpu(ucode->build);
 	data = ucode->data;
 
@@ -1008,6 +1010,7 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 {
 	struct iwl_priv *priv = context;
+	struct iwl_nic *nic = nic(priv);
 	struct iwl_ucode_header *ucode;
 	int err;
 	struct iwlagn_firmware_pieces pieces;
@@ -1057,7 +1060,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	if (err)
 		goto try_again;
 
-	api_ver = IWL_UCODE_API(priv->ucode_ver);
+	api_ver = IWL_UCODE_API(nic->fw.ucode_ver);
 	build = pieces.build;
 
 	/*
@@ -1097,19 +1100,19 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		buildstr[0] = '\0';
 
 	IWL_INFO(priv, "loaded firmware version %u.%u.%u.%u%s\n",
-		 IWL_UCODE_MAJOR(priv->ucode_ver),
-		 IWL_UCODE_MINOR(priv->ucode_ver),
-		 IWL_UCODE_API(priv->ucode_ver),
-		 IWL_UCODE_SERIAL(priv->ucode_ver),
+		 IWL_UCODE_MAJOR(nic->fw.ucode_ver),
+		 IWL_UCODE_MINOR(nic->fw.ucode_ver),
+		 IWL_UCODE_API(nic->fw.ucode_ver),
+		 IWL_UCODE_SERIAL(nic->fw.ucode_ver),
 		 buildstr);
 
 	snprintf(priv->hw->wiphy->fw_version,
 		 sizeof(priv->hw->wiphy->fw_version),
 		 "%u.%u.%u.%u%s",
-		 IWL_UCODE_MAJOR(priv->ucode_ver),
-		 IWL_UCODE_MINOR(priv->ucode_ver),
-		 IWL_UCODE_API(priv->ucode_ver),
-		 IWL_UCODE_SERIAL(priv->ucode_ver),
+		 IWL_UCODE_MAJOR(nic->fw.ucode_ver),
+		 IWL_UCODE_MINOR(nic->fw.ucode_ver),
+		 IWL_UCODE_API(nic->fw.ucode_ver),
+		 IWL_UCODE_SERIAL(nic->fw.ucode_ver),
 		 buildstr);
 
 	/*
@@ -1119,7 +1122,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	 */
 
 	IWL_DEBUG_INFO(priv, "f/w package hdr ucode version raw = 0x%x\n",
-		       priv->ucode_ver);
+		       nic->fw.ucode_ver);
 	IWL_DEBUG_INFO(priv, "f/w package hdr runtime inst size = %Zd\n",
 		       pieces.inst_size);
 	IWL_DEBUG_INFO(priv, "f/w package hdr runtime data size = %Zd\n",

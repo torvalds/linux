@@ -77,7 +77,7 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 	tx_power_cmd.flags = IWLAGN_TX_POWER_NO_CLOSED;
 	tx_power_cmd.srv_chan_lmt = IWLAGN_TX_POWER_AUTO;
 
-	if (IWL_UCODE_API(priv->ucode_ver) == 1)
+	if (IWL_UCODE_API(nic(priv)->fw.ucode_ver) == 1)
 		tx_ant_cfg_cmd = REPLY_TX_POWER_DBM_CMD_V1;
 	else
 		tx_ant_cfg_cmd = REPLY_TX_POWER_DBM_CMD;

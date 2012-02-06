@@ -618,7 +618,7 @@ static int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
 	  .valid = cpu_to_le32(valid_tx_ant),
 	};
 
-	if (IWL_UCODE_API(priv->ucode_ver) > 1) {
+	if (IWL_UCODE_API(nic(priv)->fw.ucode_ver) > 1) {
 		IWL_DEBUG_HC(priv, "select valid tx ant: %u\n", valid_tx_ant);
 		return iwl_trans_send_cmd_pdu(trans(priv),
 					TX_ANT_CONFIGURATION_CMD,

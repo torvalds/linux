@@ -553,14 +553,16 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 		break;
 
 	case IWL_TM_CMD_APP2DEV_GET_FW_VERSION:
-		IWL_INFO(priv, "uCode version raw: 0x%x\n", priv->ucode_ver);
+		IWL_INFO(priv, "uCode version raw: 0x%x\n",
+			 nic(priv)->fw.ucode_ver);
 
 		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy, 20);
 		if (!skb) {
 			IWL_ERR(priv, "Memory allocation fail\n");
 			return -ENOMEM;
 		}
-		NLA_PUT_U32(skb, IWL_TM_ATTR_FW_VERSION, priv->ucode_ver);
+		NLA_PUT_U32(skb, IWL_TM_ATTR_FW_VERSION,
+			    nic(priv)->fw.ucode_ver);
 		status = cfg80211_testmode_reply(skb);
 		if (status < 0)
 			IWL_ERR(priv, "Error sending msg : %d\n", status);

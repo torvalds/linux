@@ -789,9 +789,6 @@ struct iwl_priv {
 
 	/* uCode images, save to reload in case of failure */
 	int fw_index;			/* firmware we're trying to load */
-	u32 ucode_ver;			/* version of ucode, copy of
-					   iwl_ucode.ver */
-
 	char firmware_name[25];
 
 	struct iwl_rxon_context contexts[NUM_IWL_RXON_CTX];
