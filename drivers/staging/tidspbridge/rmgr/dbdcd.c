@@ -206,7 +206,6 @@ int dcd_enumerate_object(s32 index, enum dsp_dcdobjtype obj_type,
 		 *  "_\0" + length of sz_obj_type string + terminating NULL.
 		 */
 		dw_key_len = strlen(DCD_REGKEY) + 1 + sizeof(sz_obj_type) + 1;
-		DBC_ASSERT(dw_key_len < DCD_MAXPATHLENGTH);
 
 		/* Create proper REG key; concatenate DCD_REGKEY with
 		 * obj_type. */
@@ -375,7 +374,6 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 	/* Pre-determine final key length. It's length of DCD_REGKEY +
 	 *  "_\0" + length of sz_obj_type string + terminating NULL */
 	dw_key_len = strlen(DCD_REGKEY) + 1 + sizeof(sz_obj_type) + 1;
-	DBC_ASSERT(dw_key_len < DCD_MAXPATHLENGTH);
 
 	/* Create proper REG key; concatenate DCD_REGKEY with obj_type. */
 	strncpy(sz_reg_key, DCD_REGKEY, strlen(DCD_REGKEY) + 1);
@@ -434,7 +432,6 @@ int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 	}
 
 	/* Ensure sz_uuid + 1 is not greater than sizeof sz_sect_name. */
-	DBC_ASSERT((strlen(sz_uuid) + 1) < sizeof(sz_sect_name));
 
 	/* Create section name based on node UUID. A period is
 	 * pre-pended to the UUID string to form the section name.
@@ -635,7 +632,6 @@ int dcd_get_library_name(struct dcd_manager *hdcd_mgr,
 	 *  "_\0" + length of sz_obj_type string + terminating NULL.
 	 */
 	dw_key_len = strlen(DCD_REGKEY) + 1 + sizeof(sz_obj_type) + 1;
-	DBC_ASSERT(dw_key_len < DCD_MAXPATHLENGTH);
 
 	/* Create proper REG key; concatenate DCD_REGKEY with obj_type. */
 	strncpy(sz_reg_key, DCD_REGKEY, strlen(DCD_REGKEY) + 1);
@@ -663,7 +659,6 @@ int dcd_get_library_name(struct dcd_manager *hdcd_mgr,
 		break;
 	default:
 		status = -EINVAL;
-		DBC_ASSERT(false);
 	}
 	if (!status) {
 		if ((strlen(sz_reg_key) + strlen(sz_obj_type)) <
@@ -794,7 +789,6 @@ int dcd_register_object(struct dsp_uuid *uuid_obj,
 	 *  "_\0" + length of sz_obj_type string + terminating NULL.
 	 */
 	dw_key_len = strlen(DCD_REGKEY) + 1 + sizeof(sz_obj_type) + 1;
-	DBC_ASSERT(dw_key_len < DCD_MAXPATHLENGTH);
 
 	/* Create proper REG key; concatenate DCD_REGKEY with obj_type. */
 	strncpy(sz_reg_key, DCD_REGKEY, strlen(DCD_REGKEY) + 1);

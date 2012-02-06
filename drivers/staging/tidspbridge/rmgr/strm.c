@@ -119,7 +119,6 @@ int strm_allocate_buffer(struct strm_res_object *strmres, u32 usize,
 		goto func_end;
 
 	for (i = 0; i < num_bufs; i++) {
-		DBC_ASSERT(stream_obj->xlator != NULL);
 		(void)cmm_xlator_alloc_buf(stream_obj->xlator, &ap_buffer[i],
 					   usize);
 		if (ap_buffer[i] == NULL) {
@@ -162,7 +161,6 @@ int strm_close(struct strm_res_object *strmres,
 		status =
 		    (*intf_fxns->chnl_get_info) (stream_obj->chnl_obj,
 						     &chnl_info_obj);
-		DBC_ASSERT(!status);
 
 		if (chnl_info_obj.cio_cs > 0 || chnl_info_obj.cio_reqs > 0)
 			status = -EPIPE;
@@ -205,7 +203,6 @@ int strm_create(struct strm_mgr **strm_man,
 		if (!status) {
 			(void)dev_get_intf_fxns(dev_obj,
 						&(strm_mgr_obj->intf_fxns));
-			DBC_ASSERT(strm_mgr_obj->intf_fxns != NULL);
 		}
 	}
 
@@ -254,7 +251,6 @@ int strm_free_buffer(struct strm_res_object *strmres, u8 ** ap_buffer,
 
 	if (!status) {
 		for (i = 0; i < num_bufs; i++) {
-			DBC_ASSERT(stream_obj->xlator != NULL);
 			status =
 			    cmm_xlator_free_buf(stream_obj->xlator,
 						ap_buffer[i]);
@@ -302,7 +298,6 @@ int strm_get_info(struct strm_object *stream_obj,
 
 	if (stream_obj->xlator) {
 		/* We have a translator */
-		DBC_ASSERT(stream_obj->segment_id > 0);
 		cmm_xlator_info(stream_obj->xlator, (u8 **) &virt_base, 0,
 				stream_obj->segment_id, false);
 	}
@@ -496,14 +491,12 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 		goto func_cont;
 
 	/* No System DMA */
-	DBC_ASSERT(strm_obj->strm_mode != STRMMODE_LDMA);
 	/* Get the shared mem mgr for this streams dev object */
 	status = dev_get_cmm_mgr(strm_mgr_obj->dev_obj, &hcmm_mgr);
 	if (!status) {
 		/*Allocate a SM addr translator for this strm. */
 		status = cmm_xlator_create(&strm_obj->xlator, hcmm_mgr, NULL);
 		if (!status) {
-			DBC_ASSERT(strm_obj->segment_id > 0);
 			/*  Set translators Virt Addr attributes */
 			status = cmm_xlator_info(strm_obj->xlator,
 						 (u8 **) &pattr->virt_base,
@@ -535,10 +528,6 @@ func_cont:
 				 * strm_mgr_obj->chnl_mgr better be valid or we
 				 * assert here), and then return -EPERM.
 				 */
-				DBC_ASSERT(status == -ENOSR ||
-					   status == -ECHRNG ||
-					   status == -EALREADY ||
-					   status == -EIO);
 				status = -EPERM;
 			}
 		}

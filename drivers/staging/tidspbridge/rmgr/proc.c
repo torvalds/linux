@@ -1152,8 +1152,6 @@ int proc_load(void *hprocessor, const s32 argc_index,
 			if (status) {
 				status = -EPERM;
 			} else {
-				DBC_ASSERT(p_proc_object->last_coff ==
-					   NULL);
 				/* Allocate memory for pszLastCoff */
 				p_proc_object->last_coff =
 						kzalloc((strlen(user_args[0]) +
@@ -1176,7 +1174,6 @@ int proc_load(void *hprocessor, const s32 argc_index,
 		if (!hmsg_mgr) {
 			status = msg_create(&hmsg_mgr, p_proc_object->dev_obj,
 					    (msg_onexit) node_on_exit);
-			DBC_ASSERT(!status);
 			dev_set_msg_mgr(p_proc_object->dev_obj, hmsg_mgr);
 		}
 	}
@@ -1272,7 +1269,6 @@ int proc_load(void *hprocessor, const s32 argc_index,
 							strlen(pargv0) + 1);
 			else
 				status = -ENOMEM;
-			DBC_ASSERT(brd_state == BRD_LOADED);
 		}
 	}
 
@@ -1559,7 +1555,6 @@ func_cont:
 		if (!((*p_proc_object->intf_fxns->brd_status)
 				(p_proc_object->bridge_context, &brd_state))) {
 			pr_info("%s: dsp in running state\n", __func__);
-			DBC_ASSERT(brd_state != BRD_HIBERNATION);
 		}
 	} else {
 		pr_err("%s: Failed to start the dsp\n", __func__);
@@ -1585,7 +1580,6 @@ int proc_stop(void *hprocessor)
 	u32 node_tab_size = 1;
 	u32 num_nodes = 0;
 	u32 nodes_allocated = 0;
-	int brd_state;
 
 	if (!p_proc_object) {
 		status = -EFAULT;
@@ -1618,11 +1612,6 @@ int proc_stop(void *hprocessor)
 				msg_delete(hmsg_mgr);
 				dev_set_msg_mgr(p_proc_object->dev_obj, NULL);
 			}
-			if (!((*p_proc_object->
-			      intf_fxns->brd_status) (p_proc_object->
-							  bridge_context,
-							  &brd_state)))
-				DBC_ASSERT(brd_state == BRD_STOPPED);
 		}
 	} else {
 		pr_err("%s: Failed to stop the processor\n", __func__);
@@ -1760,7 +1749,6 @@ static int proc_monitor(struct proc_object *proc_obj)
 {
 	int status = -EPERM;
 	struct msg_mgr *hmsg_mgr;
-	int brd_state;
 
 	/* This is needed only when Device is loaded when it is
 	 * already 'ACTIVE' */
@@ -1777,9 +1765,6 @@ static int proc_monitor(struct proc_object *proc_obj)
 	if (!((*proc_obj->intf_fxns->brd_monitor)
 			  (proc_obj->bridge_context))) {
 		status = 0;
-		if (!((*proc_obj->intf_fxns->brd_status)
-				  (proc_obj->bridge_context, &brd_state)))
-			DBC_ASSERT(brd_state == BRD_IDLE);
 	}
 
 	return status;

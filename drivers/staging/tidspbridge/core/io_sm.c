@@ -973,29 +973,16 @@ void io_request_chnl(struct io_mgr *io_manager, struct chnl_object *pchnl,
 	chnl_mgr_obj = io_manager->chnl_mgr;
 	sm = io_manager->shared_mem;
 	if (io_mode == IO_INPUT) {
-		/*
-		 * Assertion fires if CHNL_AddIOReq() called on a stream
-		 * which was cancelled, or attached to a dead board.
-		 */
-		DBC_ASSERT((pchnl->state == CHNL_STATEREADY) ||
-			   (pchnl->state == CHNL_STATEEOS));
 		/* Indicate to the DSP we have a buffer available for input */
 		set_chnl_busy(sm, pchnl->chnl_id);
 		*mbx_val = MBX_PCPY_CLASS;
 	} else if (io_mode == IO_OUTPUT) {
-		/*
-		 * This assertion fails if CHNL_AddIOReq() was called on a
-		 * stream which was cancelled, or attached to a dead board.
-		 */
-		DBC_ASSERT((pchnl->state & ~CHNL_STATEEOS) ==
-			   CHNL_STATEREADY);
 		/*
 		 * Record the fact that we have a buffer available for
 		 * output.
 		 */
 		chnl_mgr_obj->output_mask |= (1 << pchnl->chnl_id);
 	} else {
-		DBC_ASSERT(io_mode);	/* Shouldn't get here. */
 	}
 func_end:
 	return;
@@ -1087,7 +1074,6 @@ static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 	dw_arg = sm->arg;
 	if (chnl_id >= CHNL_MAXCHANNELS) {
 		/* Shouldn't be here: would indicate corrupted shm. */
-		DBC_ASSERT(chnl_id);
 		goto func_end;
 	}
 	pchnl = chnl_mgr_obj->channels[chnl_id];

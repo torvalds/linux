@@ -292,7 +292,6 @@ bool rmm_free(struct rmm_target_obj *target, u32 segid, u32 dsp_addr, u32 size,
 		list_for_each_entry_safe(sect, tmp, &target->ovly_list,
 				list_elem) {
 			if (dsp_addr == sect->addr) {
-				DBC_ASSERT(size == sect->size);
 				/* Remove from list */
 				list_del(&sect->list_elem);
 				kfree(sect);
@@ -324,8 +323,6 @@ bool rmm_stat(struct rmm_target_obj *target, enum dsp_memtype segid,
 	u32 max_free_size = 0;
 	u32 total_free_size = 0;
 	u32 free_blocks = 0;
-
-	DBC_ASSERT(target != NULL);
 
 	if ((u32) segid < target->num_segs) {
 		head = target->free_list[segid];

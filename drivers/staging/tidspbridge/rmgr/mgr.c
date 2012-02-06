@@ -141,7 +141,6 @@ int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
 	}
 	pmgr_obj = drv_datap->mgr_object;
 
-	DBC_ASSERT(pmgr_obj);
 	/* Forever loop till we hit failed or no more items in the
 	 * Enumeration. We will exit the loop other than 0; */
 	while (!status) {
@@ -225,7 +224,6 @@ int mgr_enum_processor_info(u32 processor_id,
 		dev_dbg(bridge, "%s: Failed to get MGR Object\n", __func__);
 		goto func_end;
 	}
-	DBC_ASSERT(pmgr_obj);
 	/* Forever loop till we hit no more items in the
 	 * Enumeration. We will exit the loop other than 0; */
 	while (status1 == 0) {

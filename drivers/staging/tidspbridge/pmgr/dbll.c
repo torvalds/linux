@@ -936,9 +936,6 @@ static struct dynload_symbol *dbll_find_symbol(struct dynamic_loader_sym *this,
 	if (!status && gbl_search)
 		dev_dbg(bridge, "%s: Symbol not found: %s\n", __func__, name);
 
-	DBC_ASSERT((status && (dbll_sym != NULL))
-		   || (!status && (dbll_sym == NULL)));
-
 	ret_sym = (struct dynload_symbol *)dbll_sym;
 	return ret_sym;
 }

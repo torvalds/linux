@@ -172,7 +172,6 @@ void drv_proc_node_update_status(void *node_resource, s32 status)
 {
 	struct node_res_object *node_res_obj =
 	    (struct node_res_object *)node_resource;
-	DBC_ASSERT(node_resource != NULL);
 	node_res_obj->node_allocated = status;
 }
 
@@ -181,7 +180,6 @@ void drv_proc_node_update_heap_status(void *node_resource, s32 status)
 {
 	struct node_res_object *node_res_obj =
 	    (struct node_res_object *)node_resource;
-	DBC_ASSERT(node_resource != NULL);
 	node_res_obj->heap_allocated = status;
 }
 
@@ -378,13 +376,8 @@ int drv_get_dev_object(u32 index, struct drv_object *hdrv_obj,
 			      struct dev_object **device_obj)
 {
 	int status = 0;
-#ifdef CONFIG_TIDSPBRIDGE_DEBUG
-	/* used only for Assertions and debug messages */
-	struct drv_object *pdrv_obj = (struct drv_object *)hdrv_obj;
-#endif
 	struct dev_object *dev_obj;
 	u32 i;
-	DBC_ASSERT(!(list_empty(&pdrv_obj->dev_list)));
 
 	dev_obj = (struct dev_object *)drv_get_first_dev_object();
 	for (i = 0; i < index; i++) {

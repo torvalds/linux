@@ -268,7 +268,6 @@ int disp_node_create(struct disp_object *disp_obj,
 	node_type = node_get_type(hnode);
 	node_msg_args = pargs->asa.node_msg_args;
 	max = disp_obj->bufsize_rms;	/*Max # of RMS words that can be sent */
-	DBC_ASSERT(max == RMS_COMMANDBUFSIZE);
 	chars_in_rms_word = sizeof(rms_word) / disp_obj->char_size;
 	/* Number of RMS words needed to hold arg data */
 	dw_length =
@@ -429,7 +428,6 @@ int disp_node_create(struct disp_object *disp_obj,
 	}
 	if (!status) {
 		ul_bytes = total * sizeof(rms_word);
-		DBC_ASSERT(ul_bytes < (RMS_COMMANDBUFSIZE * sizeof(rms_word)));
 		status = send_message(disp_obj, node_get_timeout(hnode),
 				      ul_bytes, node_env);
 	}
@@ -665,7 +663,6 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
 			status = -EPERM;
 		} else {
 			if (CHNL_IS_IO_COMPLETE(chnl_ioc_obj)) {
-				DBC_ASSERT(chnl_ioc_obj.buf == pbuf);
 				if (*((int *)chnl_ioc_obj.buf) < 0) {
 					/* Translate DSP's to kernel error */
 					status = -EREMOTEIO;

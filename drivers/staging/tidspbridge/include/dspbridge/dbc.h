@@ -25,15 +25,4 @@
 #ifndef DBC_
 #define DBC_
 
-/* Assertion Macros: */
-#ifdef CONFIG_TIDSPBRIDGE_DEBUG
-
-#define DBC_ASSERT(exp) \
-    if (!(exp)) \
-	pr_err("%s, line %d: Assertion (" #exp ") failed.\n", \
-	__FILE__, __LINE__)
-#else
-#define DBC_ASSERT(exp) {}
-#endif /* DEBUG */
-
 #endif /* DBC_ */

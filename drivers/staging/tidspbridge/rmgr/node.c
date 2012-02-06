@@ -703,7 +703,6 @@ DBAPI node_alloc_msg_buf(struct node_object *hnode, u32 usize,
 
 	status = proc_get_processor_id(pnode->processor, &proc_id);
 	if (proc_id != DSP_UNIT) {
-		DBC_ASSERT(NULL);
 		goto func_end;
 	}
 	/*  If segment ID includes MEM_SETVIRTUALSEGID then pbuffer is a
@@ -889,7 +888,6 @@ int node_connect(struct node_object *node1, u32 stream1,
 	if (node1_type != NODE_GPP) {
 		hnode_mgr = node1->node_mgr;
 	} else {
-		DBC_ASSERT(node2 != (struct node_object *)DSP_HGPPNODE);
 		hnode_mgr = node2->node_mgr;
 	}
 
@@ -967,9 +965,6 @@ int node_connect(struct node_object *node1, u32 stream1,
 			status = -ENOMEM;
 			goto out_unlock;
 		}
-
-		DBC_ASSERT((node1_type == NODE_GPP) ||
-				(node2_type == NODE_GPP));
 
 		chnl_mode = (node1_type == NODE_GPP) ?
 			CHNL_MODETODSP : CHNL_MODEFROMDSP;
@@ -1617,7 +1612,6 @@ int node_free_msg_buf(struct node_object *hnode, u8 * pbuffer,
 			status = cmm_xlator_free_buf(pnode->xlator, pbuffer);
 		}
 	} else {
-		DBC_ASSERT(NULL);	/* BUG */
 	}
 func_end:
 	return status;
@@ -1692,7 +1686,6 @@ int node_get_channel_id(struct node_object *hnode, u32 dir, u32 index,
 			}
 		}
 	} else {
-		DBC_ASSERT(dir == DSP_FROMNODE);
 		if (index < MAX_OUTPUTS(hnode)) {
 			if (hnode->outputs[index].type == HOSTCONNECT) {
 				*chan_id = hnode->outputs[index].dev_id;
@@ -2222,7 +2215,6 @@ int node_run(struct node_object *hnode)
 						   NODE_GET_PRIORITY(hnode));
 	} else {
 		/* We should never get here */
-		DBC_ASSERT(false);
 	}
 func_cont1:
 	/* Update node state. */
@@ -2600,7 +2592,6 @@ static void fill_stream_connect(struct node_object *node1,
 			strm1->connect_type = CONNECTTYPE_GPPOUTPUT;
 	} else {
 		/* GPP == > NODE */
-		DBC_ASSERT(node2 != (struct node_object *)DSP_HGPPNODE);
 		strm_index = node2->num_inputs + node2->num_outputs - 1;
 		strm2 = &(node2->stream_connect[strm_index]);
 		strm2->cb_struct = sizeof(struct dsp_streamconnect);
@@ -2696,7 +2687,6 @@ static int get_fxn_address(struct node_object *hnode, u32 * fxn_addr,
 		break;
 	default:
 		/* Should never get here */
-		DBC_ASSERT(false);
 		break;
 	}
 
@@ -2775,7 +2765,6 @@ static int get_node_props(struct dcd_manager *hdcd_mgr,
 		} else {
 			/* Copy device name */
 			len = strlen(pndb_props->ac_name);
-			DBC_ASSERT(len < MAXDEVNAMELEN);
 			hnode->str_dev_name = kzalloc(len + 1, GFP_KERNEL);
 			if (hnode->str_dev_name == NULL) {
 				status = -ENOMEM;

@@ -108,7 +108,6 @@ u32 dev_brd_write_fxn(void *arb, u32 dsp_add, void *host_buf,
 
 	if (dev_obj) {
 		/* Require of BrdWrite() */
-		DBC_ASSERT(dev_obj->bridge_context != NULL);
 		status = (*dev_obj->bridge_interface.brd_write) (
 					dev_obj->bridge_context, host_buf,
 					dsp_add, ul_num_bytes, mem_space);
@@ -164,7 +163,6 @@ int dev_create_device(struct dev_object **device_obj,
 	/* Create the device object, and pass a handle to the Bridge driver for
 	 * storage. */
 	if (!status) {
-		DBC_ASSERT(drv_fxns);
 		dev_obj = kzalloc(sizeof(struct dev_object), GFP_KERNEL);
 		if (dev_obj) {
 			/* Fill out the rest of the Dev Object structure: */
@@ -186,9 +184,6 @@ int dev_create_device(struct dev_object **device_obj,
 			status = (dev_obj->bridge_interface.dev_create)
 			    (&dev_obj->bridge_context, dev_obj,
 			     host_res);
-			/* Assert bridge_dev_create()'s ensure clause: */
-			DBC_ASSERT(status
-				   || (dev_obj->bridge_context != NULL));
 		} else {
 			status = -ENOMEM;
 		}
@@ -282,7 +277,6 @@ int dev_create2(struct dev_object *hdev_obj)
 	struct dev_object *dev_obj = hdev_obj;
 
 	/* There can be only one Node Manager per DEV object */
-	DBC_ASSERT(!dev_obj->node_mgr);
 	status = node_create_mgr(&dev_obj->node_mgr, hdev_obj);
 	if (status)
 		dev_obj->node_mgr = NULL;

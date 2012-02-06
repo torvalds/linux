@@ -253,8 +253,6 @@ int cmm_create(struct cmm_object **ph_cmm_mgr,
 	if (mgr_attrts == NULL)
 		mgr_attrts = &cmm_dfltmgrattrs;	/* set defaults */
 
-	/* 4 bytes minimum */
-	DBC_ASSERT(mgr_attrts->min_block_size >= 4);
 	/* save away smallest block allocation for this cmm mgr */
 	cmm_obj->min_block_size = mgr_attrts->min_block_size;
 	cmm_obj->page_size = PAGE_SIZE;
@@ -849,7 +847,8 @@ int cmm_xlator_free_buf(struct cmm_xlatorobject *xlator, void *buf_va)
 			if (status) {
 				/* Uh oh, this shouldn't happen. Descriptor
 				 * gone! */
-				DBC_ASSERT(false);	/* CMM is leaking mem */
+				pr_err("%s, line %d: Assertion failed\n",
+				       __FILE__, __LINE__);
 			}
 		}
 	}
@@ -898,7 +897,6 @@ void *cmm_xlator_translate(struct cmm_xlatorobject *xlator, void *paddr,
 
 	cmm_mgr_obj = (struct cmm_object *)xlator_obj->cmm_mgr;
 	/* get this translator's default SM allocator */
-	DBC_ASSERT(xlator_obj->seg_id > 0);
 	allocator = cmm_mgr_obj->pa_gppsm_seg_tab[xlator_obj->seg_id - 1];
 	if (!allocator)
 		goto loop_cont;
