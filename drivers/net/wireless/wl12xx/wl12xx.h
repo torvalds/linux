@@ -445,8 +445,6 @@ struct wl1271 {
 	struct wl12xx_fw_status *fw_status;
 	struct wl1271_tx_hw_res_if *tx_res_if;
 
-	struct ieee80211_vif *vif;
-
 	/* Current chipset configuration */
 	struct conf_drv_settings conf;
 
