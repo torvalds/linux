@@ -14,19 +14,13 @@
  *      dynamic configuration of codec internal audio paths and active
  *      DACs/ADCs.
  *    o Platform power domain - can support external components i.e. amps and
- *      mic/meadphone insertion events.
+ *      mic/headphone insertion events.
  *    o Automatic Mic Bias support
  *    o Jack insertion power event initiation - e.g. hp insertion will enable
  *      sinks, dacs, etc
- *    o Delayed powerdown of audio susbsystem to reduce pops between a quick
+ *    o Delayed power down of audio subsystem to reduce pops between a quick
  *      device reopen.
  *
- *  Todo:
- *    o DAPM power change sequencing - allow for configurable per
- *      codec sequences.
- *    o Support for analogue bias optimisation.
- *    o Support for reduced codec oversampling rates.
- *    o Support for reduced codec bias currents.
  */
 
 #include <linux/module.h>
