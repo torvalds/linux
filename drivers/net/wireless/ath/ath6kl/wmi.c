@@ -180,7 +180,7 @@ static int ath6kl_wmi_meta_add(struct wmi *wmi, struct sk_buff *skb,
 }
 
 int ath6kl_wmi_data_hdr_add(struct wmi *wmi, struct sk_buff *skb,
-			    u8 msg_type, bool more_data,
+			    u8 msg_type, u32 flags,
 			    enum wmi_data_hdr_data_type data_type,
 			    u8 meta_ver, void *tx_meta_info, u8 if_idx)
 {
@@ -204,17 +204,19 @@ int ath6kl_wmi_data_hdr_add(struct wmi *wmi, struct sk_buff *skb,
 	data_hdr->info = msg_type << WMI_DATA_HDR_MSG_TYPE_SHIFT;
 	data_hdr->info |= data_type << WMI_DATA_HDR_DATA_TYPE_SHIFT;
 
-	if (more_data)
-		data_hdr->info |=
-		    WMI_DATA_HDR_MORE_MASK << WMI_DATA_HDR_MORE_SHIFT;
+	if (flags & WMI_DATA_HDR_FLAGS_MORE)
+		data_hdr->info |= WMI_DATA_HDR_MORE;
 
-	data_hdr->info2 = cpu_to_le16(meta_ver << WMI_DATA_HDR_META_SHIFT);
-	data_hdr->info3 = cpu_to_le16(if_idx & WMI_DATA_HDR_IF_IDX_MASK);
+	if (flags & WMI_DATA_HDR_FLAGS_EOSP)
+		data_hdr->info3 |= cpu_to_le16(WMI_DATA_HDR_EOSP);
+
+	data_hdr->info2 |= cpu_to_le16(meta_ver << WMI_DATA_HDR_META_SHIFT);
+	data_hdr->info3 |= cpu_to_le16(if_idx & WMI_DATA_HDR_IF_IDX_MASK);
 
 	return 0;
 }
 
-static u8 ath6kl_wmi_determine_user_priority(u8 *pkt, u32 layer2_pri)
+u8 ath6kl_wmi_determine_user_priority(u8 *pkt, u32 layer2_pri)
 {
 	struct iphdr *ip_hdr = (struct iphdr *) pkt;
 	u8 ip_pri;
@@ -234,6 +236,11 @@ static u8 ath6kl_wmi_determine_user_priority(u8 *pkt, u32 layer2_pri)
 		return (u8) layer2_pri & 0x7;
 	else
 		return ip_pri;
+}
+
+u8 ath6kl_wmi_get_traffic_class(u8 user_priority)
+{
+	return  up_to_ac[user_priority & 0x7];
 }
 
 int ath6kl_wmi_implicit_create_pstream(struct wmi *wmi, u8 if_idx,
@@ -418,9 +425,6 @@ static int ath6kl_wmi_tx_complete_event_rx(u8 *datap, int len)
 
 	ath6kl_dbg(ATH6KL_DBG_WMI, "comp: %d %d %d\n",
 		   evt->num_msg, evt->msg_len, evt->msg_type);
-
-	if (!AR_DBG_LVL_CHECK(ATH6KL_DBG_WMI))
-		return 0;
 
 	for (index = 0; index < evt->num_msg; index++) {
 		size = sizeof(struct wmi_tx_complete_event) +
@@ -786,12 +790,14 @@ static int ath6kl_wmi_connect_event_rx(struct wmi *wmi, u8 *datap, int len,
 				   ev->u.ap_sta.keymgmt,
 				   le16_to_cpu(ev->u.ap_sta.cipher),
 				   ev->u.ap_sta.apsd_info);
+
 			ath6kl_connect_ap_mode_sta(
 				vif, ev->u.ap_sta.aid, ev->u.ap_sta.mac_addr,
 				ev->u.ap_sta.keymgmt,
 				le16_to_cpu(ev->u.ap_sta.cipher),
 				ev->u.ap_sta.auth, ev->assoc_req_len,
-				ev->assoc_info + ev->beacon_ie_len);
+				ev->assoc_info + ev->beacon_ie_len,
+				ev->u.ap_sta.apsd_info);
 		}
 		return 0;
 	}
@@ -1145,9 +1151,9 @@ static int ath6kl_wmi_bitrate_reply_rx(struct wmi *wmi, u8 *datap, int len)
 	return 0;
 }
 
-static int ath6kl_wmi_tcmd_test_report_rx(struct wmi *wmi, u8 *datap, int len)
+static int ath6kl_wmi_test_rx(struct wmi *wmi, u8 *datap, int len)
 {
-	ath6kl_tm_rx_report_event(wmi->parent_dev, datap, len);
+	ath6kl_tm_rx_event(wmi->parent_dev, datap, len);
 
 	return 0;
 }
@@ -2479,15 +2485,16 @@ int ath6kl_wmi_delete_pstream_cmd(struct wmi *wmi, u8 if_idx, u8 traffic_class,
 	return ret;
 }
 
-int ath6kl_wmi_set_ip_cmd(struct wmi *wmi, struct wmi_set_ip_cmd *ip_cmd)
+int ath6kl_wmi_set_ip_cmd(struct wmi *wmi, u8 if_idx,
+			  __be32 ips0, __be32 ips1)
 {
 	struct sk_buff *skb;
 	struct wmi_set_ip_cmd *cmd;
 	int ret;
 
 	/* Multicast address are not valid */
-	if ((*((u8 *) &ip_cmd->ips[0]) >= 0xE0) ||
-	    (*((u8 *) &ip_cmd->ips[1]) >= 0xE0))
+	if (ipv4_is_multicast(ips0) ||
+	    ipv4_is_multicast(ips1))
 		return -EINVAL;
 
 	skb = ath6kl_wmi_get_new_buf(sizeof(struct wmi_set_ip_cmd));
@@ -2495,9 +2502,10 @@ int ath6kl_wmi_set_ip_cmd(struct wmi *wmi, struct wmi_set_ip_cmd *ip_cmd)
 		return -ENOMEM;
 
 	cmd = (struct wmi_set_ip_cmd *) skb->data;
-	memcpy(cmd, ip_cmd, sizeof(struct wmi_set_ip_cmd));
+	cmd->ips[0] = ips0;
+	cmd->ips[1] = ips1;
 
-	ret = ath6kl_wmi_cmd_send(wmi, 0, skb, WMI_SET_IP_CMDID,
+	ret = ath6kl_wmi_cmd_send(wmi, if_idx, skb, WMI_SET_IP_CMDID,
 				  NO_SYNC_WMIFLAG);
 	return ret;
 }
@@ -2582,6 +2590,18 @@ int ath6kl_wmi_set_host_sleep_mode_cmd(struct wmi *wmi, u8 if_idx,
 	return ret;
 }
 
+/* This command has zero length payload */
+static int ath6kl_wmi_host_sleep_mode_cmd_prcd_evt_rx(struct wmi *wmi,
+						      struct ath6kl_vif *vif)
+{
+	struct ath6kl *ar = wmi->parent_dev;
+
+	set_bit(HOST_SLEEP_MODE_CMD_PROCESSED, &vif->flags);
+	wake_up(&ar->event_wq);
+
+	return 0;
+}
+
 int ath6kl_wmi_set_wow_mode_cmd(struct wmi *wmi, u8 if_idx,
 				enum ath6kl_wow_mode wow_mode,
 				u32 filter, u16 host_req_delay)
@@ -2612,7 +2632,8 @@ int ath6kl_wmi_set_wow_mode_cmd(struct wmi *wmi, u8 if_idx,
 
 int ath6kl_wmi_add_wow_pattern_cmd(struct wmi *wmi, u8 if_idx,
 				   u8 list_id, u8 filter_size,
-				   u8 filter_offset, u8 *filter, u8 *mask)
+				   u8 filter_offset, const u8 *filter,
+				   const u8 *mask)
 {
 	struct sk_buff *skb;
 	struct wmi_add_wow_pattern_cmd *cmd;
@@ -2853,6 +2874,51 @@ int ath6kl_wmi_test_cmd(struct wmi *wmi, void *buf, size_t len)
 	return ret;
 }
 
+int ath6kl_wmi_mcast_filter_cmd(struct wmi *wmi, u8 if_idx, bool mc_all_on)
+{
+	struct sk_buff *skb;
+	struct wmi_mcast_filter_cmd *cmd;
+	int ret;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_mcast_filter_cmd *) skb->data;
+	cmd->mcast_all_enable = mc_all_on;
+
+	ret = ath6kl_wmi_cmd_send(wmi, if_idx, skb, WMI_MCAST_FILTER_CMDID,
+				  NO_SYNC_WMIFLAG);
+	return ret;
+}
+
+int ath6kl_wmi_add_del_mcast_filter_cmd(struct wmi *wmi, u8 if_idx,
+					u8 *filter, bool add_filter)
+{
+	struct sk_buff *skb;
+	struct wmi_mcast_filter_add_del_cmd *cmd;
+	int ret;
+
+	if ((filter[0] != 0x33 || filter[1] != 0x33) &&
+	    (filter[0] != 0x01 || filter[1] != 0x00 ||
+	    filter[2] != 0x5e || filter[3] > 0x7f)) {
+		ath6kl_warn("invalid multicast filter address\n");
+		return -EINVAL;
+	}
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_mcast_filter_add_del_cmd *) skb->data;
+	memcpy(cmd->mcast_mac, filter, ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE);
+	ret = ath6kl_wmi_cmd_send(wmi, if_idx, skb,
+				  add_filter ? WMI_SET_MCAST_FILTER_CMDID :
+				  WMI_DEL_MCAST_FILTER_CMDID,
+				  NO_SYNC_WMIFLAG);
+
+	return ret;
+}
 
 s32 ath6kl_wmi_get_rate(s8 rate_index)
 {
@@ -2943,6 +3009,43 @@ int ath6kl_wmi_ap_set_mlme(struct wmi *wmip, u8 if_idx, u8 cmd, const u8 *mac,
 	cm->cmd = cmd;
 
 	return ath6kl_wmi_cmd_send(wmip, if_idx, skb, WMI_AP_SET_MLME_CMDID,
+				   NO_SYNC_WMIFLAG);
+}
+
+/* This command will be used to enable/disable AP uAPSD feature */
+int ath6kl_wmi_ap_set_apsd(struct wmi *wmi, u8 if_idx, u8 enable)
+{
+	struct wmi_ap_set_apsd_cmd *cmd;
+	struct sk_buff *skb;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_ap_set_apsd_cmd *)skb->data;
+	cmd->enable = enable;
+
+	return ath6kl_wmi_cmd_send(wmi, if_idx, skb, WMI_AP_SET_APSD_CMDID,
+				   NO_SYNC_WMIFLAG);
+}
+
+int ath6kl_wmi_set_apsd_bfrd_traf(struct wmi *wmi, u8 if_idx,
+					     u16 aid, u16 bitmap, u32 flags)
+{
+	struct wmi_ap_apsd_buffered_traffic_cmd *cmd;
+	struct sk_buff *skb;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_ap_apsd_buffered_traffic_cmd *)skb->data;
+	cmd->aid = cpu_to_le16(aid);
+	cmd->bitmap = cpu_to_le16(bitmap);
+	cmd->flags = cpu_to_le32(flags);
+
+	return ath6kl_wmi_cmd_send(wmi, if_idx, skb,
+				   WMI_AP_APSD_BUFFERED_TRAFFIC_CMDID,
 				   NO_SYNC_WMIFLAG);
 }
 
@@ -3400,7 +3503,7 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 		break;
 	case WMI_TEST_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_TEST_EVENTID\n");
-		ret = ath6kl_wmi_tcmd_test_report_rx(wmi, datap, len);
+		ret = ath6kl_wmi_test_rx(wmi, datap, len);
 		break;
 	case WMI_GET_FIXRATES_CMDID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_GET_FIXRATES_CMDID\n");
@@ -3464,6 +3567,11 @@ int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb)
 	case WMI_TX_COMPLETE_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_TX_COMPLETE_EVENTID\n");
 		ret = ath6kl_wmi_tx_complete_event_rx(datap, len);
+		break;
+	case WMI_SET_HOST_SLEEP_MODE_CMD_PROCESSED_EVENTID:
+		ath6kl_dbg(ATH6KL_DBG_WMI,
+			   "WMI_SET_HOST_SLEEP_MODE_CMD_PROCESSED_EVENTID");
+		ret = ath6kl_wmi_host_sleep_mode_cmd_prcd_evt_rx(wmi, vif);
 		break;
 	case WMI_REMAIN_ON_CHNL_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_REMAIN_ON_CHNL_EVENTID\n");
