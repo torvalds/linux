@@ -2150,6 +2150,19 @@ static bool wl12xx_need_fw_change(struct wl1271 *wl,
 	return false;
 }
 
+/*
+ * Enter "forced psm". Make sure the sta is in psm against the ap,
+ * to make the fw switch a bit more disconnection-persistent.
+ */
+static void wl12xx_force_active_psm(struct wl1271 *wl)
+{
+	struct wl12xx_vif *wlvif;
+
+	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+		wl1271_ps_set_mode(wl, wlvif, STATION_POWER_SAVE_MODE);
+	}
+}
+
 static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif)
 {
@@ -2204,6 +2217,7 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 	}
 
 	if (wl12xx_need_fw_change(wl, vif_count, true)) {
+		wl12xx_force_active_psm(wl);
 		mutex_unlock(&wl->mutex);
 		wl1271_recovery_work(&wl->recovery_work);
 		return 0;
@@ -2395,6 +2409,7 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	}
 	WARN_ON(iter != wlvif);
 	if (wl12xx_need_fw_change(wl, vif_count, false)) {
+		wl12xx_force_active_psm(wl);
 		wl12xx_queue_recovery_work(wl);
 		cancel_recovery = false;
 	}
