@@ -892,7 +892,7 @@ struct rt2x00_dev {
 	u8 rssi_offset;
 
 	/*
-	 * Frequency offset (for rt61pci & rt73usb).
+	 * Frequency offset.
 	 */
 	u8 freq_offset;
 
