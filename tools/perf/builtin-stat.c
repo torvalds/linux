@@ -576,6 +576,8 @@ static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 	if (perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK))
 		fprintf(output, " # %8.3f CPUs utilized          ",
 			avg / avg_stats(&walltime_nsecs_stats));
+	else
+		fprintf(output, "                                   ");
 }
 
 /* used for get_ratio_color() */
