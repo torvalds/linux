@@ -216,21 +216,10 @@ static struct platform_driver m48t35_platform_driver = {
 	.remove		= __devexit_p(m48t35_remove),
 };
 
-static int __init m48t35_init(void)
-{
-	return platform_driver_register(&m48t35_platform_driver);
-}
-
-static void __exit m48t35_exit(void)
-{
-	platform_driver_unregister(&m48t35_platform_driver);
-}
+module_platform_driver(m48t35_platform_driver);
 
 MODULE_AUTHOR("Thomas Bogendoerfer <tsbogend@alpha.franken.de>");
 MODULE_DESCRIPTION("M48T35 RTC driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_ALIAS("platform:rtc-m48t35");
-
-module_init(m48t35_init);
-module_exit(m48t35_exit);

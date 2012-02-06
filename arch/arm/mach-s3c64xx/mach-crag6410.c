@@ -260,6 +260,7 @@ static struct platform_device crag6410_dm9k_device = {
 
 static struct resource crag6410_mmgpio_resource[] = {
 	[0] = {
+		.name	= "dat",
 		.start	= S3C64XX_PA_XM0CSN4 + 1,
 		.end	= S3C64XX_PA_XM0CSN4 + 1,
 		.flags	= IORESOURCE_MEM,
@@ -272,7 +273,7 @@ static struct platform_device crag6410_mmgpio = {
 	.resource	= crag6410_mmgpio_resource,
 	.num_resources	= ARRAY_SIZE(crag6410_mmgpio_resource),
 	.dev.platform_data = &(struct bgpio_pdata) {
-		.base	= -1,
+		.base	= MMGPIO_GPIO_BASE,
 	},
 };
 
@@ -286,8 +287,8 @@ static struct platform_device lowland_device = {
 	.id		= -1,
 };
 
-static struct platform_device speyside_wm8962_device = {
-	.name		= "speyside-wm8962",
+static struct platform_device tobermory_device = {
+	.name		= "tobermory",
 	.id		= -1,
 };
 
@@ -328,7 +329,6 @@ static struct platform_device wallvdd_device = {
 
 static struct platform_device *crag6410_devices[] __initdata = {
 	&s3c_device_hsmmc0,
-	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
@@ -347,7 +347,7 @@ static struct platform_device *crag6410_devices[] __initdata = {
 	&crag6410_lcd_powerdev,
 	&crag6410_backlight_device,
 	&speyside_device,
-	&speyside_wm8962_device,
+	&tobermory_device,
 	&littlemill_device,
 	&lowland_device,
 	&wallvdd_device,
@@ -355,7 +355,7 @@ static struct platform_device *crag6410_devices[] __initdata = {
 
 static struct pca953x_platform_data crag6410_pca_data = {
 	.gpio_base	= PCA935X_GPIO_BASE,
-	.irq_base	= 0,
+	.irq_base	= -1,
 };
 
 /* VDDARM is controlled by DVS1 connected to GPK(0) */
@@ -683,12 +683,6 @@ static struct s3c_sdhci_platdata crag6410_hsmmc2_pdata = {
 	.cd_type		= S3C_SDHCI_CD_PERMANENT,
 };
 
-static struct s3c_sdhci_platdata crag6410_hsmmc1_pdata = {
-	.max_width		= 4,
-	.cd_type		= S3C_SDHCI_CD_GPIO,
-	.ext_cd_gpio		= S3C64XX_GPF(11),
-};
-
 static void crag6410_cfg_sdhci0(struct platform_device *dev, int width)
 {
 	/* Set all the necessary GPG pins to special-function 2 */
@@ -723,7 +717,6 @@ static void __init crag6410_machine_init(void)
 	gpio_direction_output(S3C64XX_GPF(10), 1);
 
 	s3c_sdhci0_set_platdata(&crag6410_hsmmc0_pdata);
-	s3c_sdhci1_set_platdata(&crag6410_hsmmc1_pdata);
 	s3c_sdhci2_set_platdata(&crag6410_hsmmc2_pdata);
 
 	s3c_i2c0_set_platdata(&i2c0_pdata);

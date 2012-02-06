@@ -436,6 +436,14 @@ static struct platform_device corgiled_device = {
 };
 
 /*
+ * Corgi Audio
+ */
+static struct platform_device corgi_audio_device = {
+	.name	= "corgi-audio",
+	.id	= -1,
+};
+
+/*
  * MMC/SD Device
  *
  * The card detect interrupt isn't debounced so we delay it by 250ms
@@ -641,6 +649,7 @@ static struct platform_device *devices[] __initdata = {
 	&corgifb_device,
 	&corgikbd_device,
 	&corgiled_device,
+	&corgi_audio_device,
 	&sharpsl_nand_device,
 	&sharpsl_rom_device,
 };

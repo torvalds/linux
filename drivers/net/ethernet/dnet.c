@@ -325,7 +325,8 @@ static int dnet_mii_init(struct dnet *bp)
 	bp->mii_bus->write = &dnet_mdio_write;
 	bp->mii_bus->reset = &dnet_mdio_reset;
 
-	snprintf(bp->mii_bus->id, MII_BUS_ID_SIZE, "%x", 0);
+	snprintf(bp->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
+		bp->pdev->name, bp->pdev->id);
 
 	bp->mii_bus->priv = bp;
 

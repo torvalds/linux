@@ -304,7 +304,7 @@ EXPORT_SYMBOL(pcim_iounmap);
  *
  * Request and iomap regions specified by @mask.
  */
-int pcim_iomap_regions(struct pci_dev *pdev, u16 mask, const char *name)
+int pcim_iomap_regions(struct pci_dev *pdev, int mask, const char *name)
 {
 	void __iomem * const *iomap;
 	int i, rc;
@@ -357,7 +357,7 @@ EXPORT_SYMBOL(pcim_iomap_regions);
  *
  * Request all PCI BARs and iomap regions specified by @mask.
  */
-int pcim_iomap_regions_request_all(struct pci_dev *pdev, u16 mask,
+int pcim_iomap_regions_request_all(struct pci_dev *pdev, int mask,
 				   const char *name)
 {
 	int request_mask = ((1 << 6) - 1) & ~mask;
@@ -381,7 +381,7 @@ EXPORT_SYMBOL(pcim_iomap_regions_request_all);
  *
  * Unmap and release regions specified by @mask.
  */
-void pcim_iounmap_regions(struct pci_dev *pdev, u16 mask)
+void pcim_iounmap_regions(struct pci_dev *pdev, int mask)
 {
 	void __iomem * const *iomap;
 	int i;

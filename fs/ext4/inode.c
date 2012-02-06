@@ -71,6 +71,9 @@ static int ext4_set_bh_endio(struct buffer_head *bh, struct inode *inode);
 static void ext4_end_io_buffer_write(struct buffer_head *bh, int uptodate);
 static int __ext4_journalled_writepage(struct page *page, unsigned int len);
 static int ext4_bh_delay_or_unwritten(handle_t *handle, struct buffer_head *bh);
+static int ext4_discard_partial_page_buffers_no_lock(handle_t *handle,
+		struct inode *inode, struct page *page, loff_t from,
+		loff_t length, int flags);
 
 /*
  * Test whether an inode is a fast symlink.
@@ -2759,7 +2762,7 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 	if (!io_end || !size)
 		goto out;
 
-	ext_debug("ext4_end_io_dio(): io_end 0x%p"
+	ext_debug("ext4_end_io_dio(): io_end 0x%p "
 		  "for inode %lu, iocb 0x%p, offset %llu, size %llu\n",
  		  iocb->private, io_end->inode->i_ino, iocb, offset,
 		  size);
@@ -3160,7 +3163,7 @@ int ext4_discard_partial_page_buffers(handle_t *handle,
  *
  * Returns zero on sucess or negative on failure.
  */
-int ext4_discard_partial_page_buffers_no_lock(handle_t *handle,
+static int ext4_discard_partial_page_buffers_no_lock(handle_t *handle,
 		struct inode *inode, struct page *page, loff_t from,
 		loff_t length, int flags)
 {
@@ -3297,126 +3300,6 @@ next:
 		pos += range_to_discard;
 	}
 
-	return err;
-}
-
-/*
- * ext4_block_truncate_page() zeroes out a mapping from file offset `from'
- * up to the end of the block which corresponds to `from'.
- * This required during truncate. We need to physically zero the tail end
- * of that block so it doesn't yield old data if the file is later grown.
- */
-int ext4_block_truncate_page(handle_t *handle,
-		struct address_space *mapping, loff_t from)
-{
-	unsigned offset = from & (PAGE_CACHE_SIZE-1);
-	unsigned length;
-	unsigned blocksize;
-	struct inode *inode = mapping->host;
-
-	blocksize = inode->i_sb->s_blocksize;
-	length = blocksize - (offset & (blocksize - 1));
-
-	return ext4_block_zero_page_range(handle, mapping, from, length);
-}
-
-/*
- * ext4_block_zero_page_range() zeros out a mapping of length 'length'
- * starting from file offset 'from'.  The range to be zero'd must
- * be contained with in one block.  If the specified range exceeds
- * the end of the block it will be shortened to end of the block
- * that cooresponds to 'from'
- */
-int ext4_block_zero_page_range(handle_t *handle,
-		struct address_space *mapping, loff_t from, loff_t length)
-{
-	ext4_fsblk_t index = from >> PAGE_CACHE_SHIFT;
-	unsigned offset = from & (PAGE_CACHE_SIZE-1);
-	unsigned blocksize, max, pos;
-	ext4_lblk_t iblock;
-	struct inode *inode = mapping->host;
-	struct buffer_head *bh;
-	struct page *page;
-	int err = 0;
-
-	page = find_or_create_page(mapping, from >> PAGE_CACHE_SHIFT,
-				   mapping_gfp_mask(mapping) & ~__GFP_FS);
-	if (!page)
-		return -ENOMEM;
-
-	blocksize = inode->i_sb->s_blocksize;
-	max = blocksize - (offset & (blocksize - 1));
-
-	/*
-	 * correct length if it does not fall between
-	 * 'from' and the end of the block
-	 */
-	if (length > max || length < 0)
-		length = max;
-
-	iblock = index << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
-
-	if (!page_has_buffers(page))
-		create_empty_buffers(page, blocksize, 0);
-
-	/* Find the buffer that contains "offset" */
-	bh = page_buffers(page);
-	pos = blocksize;
-	while (offset >= pos) {
-		bh = bh->b_this_page;
-		iblock++;
-		pos += blocksize;
-	}
-
-	err = 0;
-	if (buffer_freed(bh)) {
-		BUFFER_TRACE(bh, "freed: skip");
-		goto unlock;
-	}
-
-	if (!buffer_mapped(bh)) {
-		BUFFER_TRACE(bh, "unmapped");
-		ext4_get_block(inode, iblock, bh, 0);
-		/* unmapped? It's a hole - nothing to do */
-		if (!buffer_mapped(bh)) {
-			BUFFER_TRACE(bh, "still unmapped");
-			goto unlock;
-		}
-	}
-
-	/* Ok, it's mapped. Make sure it's up-to-date */
-	if (PageUptodate(page))
-		set_buffer_uptodate(bh);
-
-	if (!buffer_uptodate(bh)) {
-		err = -EIO;
-		ll_rw_block(READ, 1, &bh);
-		wait_on_buffer(bh);
-		/* Uhhuh. Read error. Complain and punt. */
-		if (!buffer_uptodate(bh))
-			goto unlock;
-	}
-
-	if (ext4_should_journal_data(inode)) {
-		BUFFER_TRACE(bh, "get write access");
-		err = ext4_journal_get_write_access(handle, bh);
-		if (err)
-			goto unlock;
-	}
-
-	zero_user(page, offset, length);
-
-	BUFFER_TRACE(bh, "zeroed end of block");
-
-	err = 0;
-	if (ext4_should_journal_data(inode)) {
-		err = ext4_handle_dirty_metadata(handle, inode, bh);
-	} else
-		mark_buffer_dirty(bh);
-
-unlock:
-	unlock_page(page);
-	page_cache_release(page);
 	return err;
 }
 
@@ -4646,9 +4529,19 @@ int ext4_change_inode_journal_flag(struct inode *inode, int val)
 		return 0;
 	if (is_journal_aborted(journal))
 		return -EROFS;
+	/* We have to allocate physical blocks for delalloc blocks
+	 * before flushing journal. otherwise delalloc blocks can not
+	 * be allocated any more. even more truncate on delalloc blocks
+	 * could trigger BUG by flushing delalloc blocks in journal.
+	 * There is no delalloc block in non-journal data mode.
+	 */
+	if (val && test_opt(inode->i_sb, DELALLOC)) {
+		err = ext4_alloc_da_blocks(inode);
+		if (err < 0)
+			return err;
+	}
 
 	jbd2_journal_lock_updates(journal);
-	jbd2_journal_flush(journal);
 
 	/*
 	 * OK, there are no updates running now, and all cached data is
@@ -4660,8 +4553,10 @@ int ext4_change_inode_journal_flag(struct inode *inode, int val)
 
 	if (val)
 		ext4_set_inode_flag(inode, EXT4_INODE_JOURNAL_DATA);
-	else
+	else {
+		jbd2_journal_flush(journal);
 		ext4_clear_inode_flag(inode, EXT4_INODE_JOURNAL_DATA);
+	}
 	ext4_set_aops(inode);
 
 	jbd2_journal_unlock_updates(journal);

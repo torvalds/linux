@@ -270,17 +270,7 @@ static struct platform_driver pm860x_backlight_driver = {
 	.remove		= pm860x_backlight_remove,
 };
 
-static int __init pm860x_backlight_init(void)
-{
-	return platform_driver_register(&pm860x_backlight_driver);
-}
-module_init(pm860x_backlight_init);
-
-static void __exit pm860x_backlight_exit(void)
-{
-	platform_driver_unregister(&pm860x_backlight_driver);
-}
-module_exit(pm860x_backlight_exit);
+module_platform_driver(pm860x_backlight_driver);
 
 MODULE_DESCRIPTION("Backlight Driver for Marvell Semiconductor 88PM8606");
 MODULE_AUTHOR("Haojian Zhuang <haojian.zhuang@marvell.com>");

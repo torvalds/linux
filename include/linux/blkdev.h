@@ -111,10 +111,14 @@ struct request {
 	 * Three pointers are available for the IO schedulers, if they need
 	 * more they have to dynamically allocate it.  Flush requests are
 	 * never put on the IO scheduler. So let the flush fields share
-	 * space with the three elevator_private pointers.
+	 * space with the elevator data.
 	 */
 	union {
-		void *elevator_private[3];
+		struct {
+			struct io_cq		*icq;
+			void			*priv[2];
+		} elv;
+
 		struct {
 			unsigned int		seq;
 			struct list_head	list;
@@ -311,6 +315,12 @@ struct request_queue {
 	unsigned long		queue_flags;
 
 	/*
+	 * ida allocated id for this queue.  Used to index queues from
+	 * ioctx.
+	 */
+	int			id;
+
+	/*
 	 * queue needs bounce pages for pages above this limit
 	 */
 	gfp_t			bounce_gfp;
@@ -351,6 +361,8 @@ struct request_queue {
 	struct timer_list	timeout;
 	struct list_head	timeout_list;
 
+	struct list_head	icq_list;
+
 	struct queue_limits	limits;
 
 	/*
@@ -386,6 +398,9 @@ struct request_queue {
 #ifdef CONFIG_BLK_DEV_THROTTLING
 	/* Throttle data */
 	struct throtl_data *td;
+#endif
+#ifdef CONFIG_LOCKDEP
+	int			ioc_release_depth;
 #endif
 };
 
@@ -481,6 +496,7 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 
 #define blk_queue_tagged(q)	test_bit(QUEUE_FLAG_QUEUED, &(q)->queue_flags)
 #define blk_queue_stopped(q)	test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
+#define blk_queue_dead(q)	test_bit(QUEUE_FLAG_DEAD, &(q)->queue_flags)
 #define blk_queue_nomerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
 #define blk_queue_noxmerges(q)	\
 	test_bit(QUEUE_FLAG_NOXMERGES, &(q)->queue_flags)
@@ -660,7 +676,6 @@ extern void __blk_put_request(struct request_queue *, struct request *);
 extern struct request *blk_get_request(struct request_queue *, int, gfp_t);
 extern struct request *blk_make_request(struct request_queue *, struct bio *,
 					gfp_t);
-extern void blk_insert_request(struct request_queue *, struct request *, int, void *);
 extern void blk_requeue_request(struct request_queue *, struct request *);
 extern void blk_add_request_payload(struct request *rq, struct page *page,
 		unsigned int len);
@@ -675,6 +690,9 @@ extern int blk_insert_cloned_request(struct request_queue *q,
 				     struct request *rq);
 extern void blk_delay_queue(struct request_queue *, unsigned long);
 extern void blk_recount_segments(struct request_queue *, struct bio *);
+extern int scsi_verify_blk_ioctl(struct block_device *, unsigned int);
+extern int scsi_cmd_blk_ioctl(struct block_device *, fmode_t,
+			      unsigned int, void __user *);
 extern int scsi_cmd_ioctl(struct request_queue *, struct gendisk *, fmode_t,
 			  unsigned int, void __user *);
 extern int sg_scsi_ioctl(struct request_queue *, struct gendisk *, fmode_t,
@@ -826,6 +844,7 @@ extern void blk_queue_io_min(struct request_queue *q, unsigned int min);
 extern void blk_limits_io_opt(struct queue_limits *limits, unsigned int opt);
 extern void blk_queue_io_opt(struct request_queue *q, unsigned int opt);
 extern void blk_set_default_limits(struct queue_limits *lim);
+extern void blk_set_stacking_limits(struct queue_limits *lim);
 extern int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 			    sector_t offset);
 extern int bdev_stack_limits(struct queue_limits *t, struct block_device *bdev,
@@ -856,7 +875,7 @@ extern int blk_rq_map_sg(struct request_queue *, struct request *, struct scatte
 extern void blk_dump_rq_flags(struct request *, char *);
 extern long nr_blockdev_pages(void);
 
-int blk_get_queue(struct request_queue *);
+bool __must_check blk_get_queue(struct request_queue *);
 struct request_queue *blk_alloc_queue(gfp_t);
 struct request_queue *blk_alloc_queue_node(gfp_t, int);
 extern void blk_put_queue(struct request_queue *);
@@ -1279,19 +1298,70 @@ queue_max_integrity_segments(struct request_queue *q)
 
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 
-#define blk_integrity_rq(rq)			(0)
-#define blk_rq_count_integrity_sg(a, b)		(0)
-#define blk_rq_map_integrity_sg(a, b, c)	(0)
-#define bdev_get_integrity(a)			(0)
-#define blk_get_integrity(a)			(0)
-#define blk_integrity_compare(a, b)		(0)
-#define blk_integrity_register(a, b)		(0)
-#define blk_integrity_unregister(a)		do { } while (0)
-#define blk_queue_max_integrity_segments(a, b)	do { } while (0)
-#define queue_max_integrity_segments(a)		(0)
-#define blk_integrity_merge_rq(a, b, c)		(0)
-#define blk_integrity_merge_bio(a, b, c)	(0)
-#define blk_integrity_is_initialized(a)		(0)
+struct bio;
+struct block_device;
+struct gendisk;
+struct blk_integrity;
+
+static inline int blk_integrity_rq(struct request *rq)
+{
+	return 0;
+}
+static inline int blk_rq_count_integrity_sg(struct request_queue *q,
+					    struct bio *b)
+{
+	return 0;
+}
+static inline int blk_rq_map_integrity_sg(struct request_queue *q,
+					  struct bio *b,
+					  struct scatterlist *s)
+{
+	return 0;
+}
+static inline struct blk_integrity *bdev_get_integrity(struct block_device *b)
+{
+	return 0;
+}
+static inline struct blk_integrity *blk_get_integrity(struct gendisk *disk)
+{
+	return NULL;
+}
+static inline int blk_integrity_compare(struct gendisk *a, struct gendisk *b)
+{
+	return 0;
+}
+static inline int blk_integrity_register(struct gendisk *d,
+					 struct blk_integrity *b)
+{
+	return 0;
+}
+static inline void blk_integrity_unregister(struct gendisk *d)
+{
+}
+static inline void blk_queue_max_integrity_segments(struct request_queue *q,
+						    unsigned int segs)
+{
+}
+static inline unsigned short queue_max_integrity_segments(struct request_queue *q)
+{
+	return 0;
+}
+static inline int blk_integrity_merge_rq(struct request_queue *rq,
+					 struct request *r1,
+					 struct request *r2)
+{
+	return 0;
+}
+static inline int blk_integrity_merge_bio(struct request_queue *rq,
+					  struct request *r,
+					  struct bio *b)
+{
+	return 0;
+}
+static inline bool blk_integrity_is_initialized(struct gendisk *g)
+{
+	return 0;
+}
 
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
 

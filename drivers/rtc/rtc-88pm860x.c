@@ -410,17 +410,7 @@ static struct platform_driver pm860x_rtc_driver = {
 	.remove		= __devexit_p(pm860x_rtc_remove),
 };
 
-static int __init pm860x_rtc_init(void)
-{
-	return platform_driver_register(&pm860x_rtc_driver);
-}
-module_init(pm860x_rtc_init);
-
-static void __exit pm860x_rtc_exit(void)
-{
-	platform_driver_unregister(&pm860x_rtc_driver);
-}
-module_exit(pm860x_rtc_exit);
+module_platform_driver(pm860x_rtc_driver);
 
 MODULE_DESCRIPTION("Marvell 88PM860x RTC driver");
 MODULE_AUTHOR("Haojian Zhuang <haojian.zhuang@marvell.com>");

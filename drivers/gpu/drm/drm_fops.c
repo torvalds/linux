@@ -182,7 +182,7 @@ int drm_stub_open(struct inode *inode, struct file *filp)
 		goto out;
 
 	old_fops = filp->f_op;
-	filp->f_op = fops_get(&dev->driver->fops);
+	filp->f_op = fops_get(dev->driver->fops);
 	if (filp->f_op == NULL) {
 		filp->f_op = old_fops;
 		goto out;
@@ -486,6 +486,11 @@ int drm_release(struct inode *inode, struct file *filp)
 		  task_pid_nr(current),
 		  (long)old_encode_dev(file_priv->minor->device),
 		  dev->open_count);
+
+	/* Release any auth tokens that might point to this file_priv,
+	   (do that under the drm_global_mutex) */
+	if (file_priv->magic)
+		(void) drm_remove_magic(file_priv->master, file_priv->magic);
 
 	/* if the master has gone away we can't do anything with the lock */
 	if (file_priv->minor->master)

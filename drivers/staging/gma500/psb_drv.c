@@ -1151,6 +1151,17 @@ static struct vm_operations_struct psb_gem_vm_ops = {
 	.close = drm_gem_vm_close,
 };
 
+static const struct file_operations gma500_driver_fops = {
+	.owner = THIS_MODULE,
+	.open = drm_open,
+	.release = drm_release,
+	.unlocked_ioctl = psb_unlocked_ioctl,
+	.mmap = drm_gem_mmap,
+	.poll = drm_poll,
+	.fasync = drm_fasync,
+	.read = drm_read,
+};
+
 static struct drm_driver driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | \
 			   DRIVER_IRQ_VBL | DRIVER_MODESET | DRIVER_GEM ,
@@ -1179,17 +1190,7 @@ static struct drm_driver driver = {
 	.dumb_create = psb_gem_dumb_create,
 	.dumb_map_offset = psb_gem_dumb_map_gtt,
 	.dumb_destroy = psb_gem_dumb_destroy,
-
-	.fops = {
-		 .owner = THIS_MODULE,
-		 .open = drm_open,
-		 .release = drm_release,
-		 .unlocked_ioctl = psb_unlocked_ioctl,
-		 .mmap = drm_gem_mmap,
-		 .poll = drm_poll,
-		 .fasync = drm_fasync,
-		 .read = drm_read,
-	 },
+	.fops = &gma500_driver_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = PSB_DRM_DRIVER_DATE,

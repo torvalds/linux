@@ -11,6 +11,8 @@
 #ifndef __S3C64XX_PLAT_SPI_H
 #define __S3C64XX_PLAT_SPI_H
 
+struct platform_device;
+
 /**
  * struct s3c64xx_spi_csinfo - ChipSelect description
  * @fb_delay: Slave specific feedback delay.

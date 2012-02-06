@@ -347,11 +347,13 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 			return rc;
 	}
 
+	pci_write_config_dword(dev, iov->pos + PCI_SRIOV_SYS_PGSIZE, iov->pgsz);
+
 	iov->ctrl |= PCI_SRIOV_CTRL_VFE | PCI_SRIOV_CTRL_MSE;
-	pci_block_user_cfg_access(dev);
+	pci_cfg_access_lock(dev);
 	pci_write_config_word(dev, iov->pos + PCI_SRIOV_CTRL, iov->ctrl);
 	msleep(100);
-	pci_unblock_user_cfg_access(dev);
+	pci_cfg_access_unlock(dev);
 
 	iov->initial = initial;
 	if (nr_virtfn < initial)
@@ -379,10 +381,10 @@ failed:
 		virtfn_remove(dev, j, 0);
 
 	iov->ctrl &= ~(PCI_SRIOV_CTRL_VFE | PCI_SRIOV_CTRL_MSE);
-	pci_block_user_cfg_access(dev);
+	pci_cfg_access_lock(dev);
 	pci_write_config_word(dev, iov->pos + PCI_SRIOV_CTRL, iov->ctrl);
 	ssleep(1);
-	pci_unblock_user_cfg_access(dev);
+	pci_cfg_access_unlock(dev);
 
 	if (iov->link != dev->devfn)
 		sysfs_remove_link(&dev->dev.kobj, "dep_link");
@@ -405,10 +407,10 @@ static void sriov_disable(struct pci_dev *dev)
 		virtfn_remove(dev, i, 0);
 
 	iov->ctrl &= ~(PCI_SRIOV_CTRL_VFE | PCI_SRIOV_CTRL_MSE);
-	pci_block_user_cfg_access(dev);
+	pci_cfg_access_lock(dev);
 	pci_write_config_word(dev, iov->pos + PCI_SRIOV_CTRL, iov->ctrl);
 	ssleep(1);
-	pci_unblock_user_cfg_access(dev);
+	pci_cfg_access_unlock(dev);
 
 	if (iov->link != dev->devfn)
 		sysfs_remove_link(&dev->dev.kobj, "dep_link");
@@ -452,7 +454,6 @@ static int sriov_init(struct pci_dev *dev, int pos)
 
 found:
 	pci_write_config_word(dev, pos + PCI_SRIOV_CTRL, ctrl);
-	pci_write_config_word(dev, pos + PCI_SRIOV_NUM_VF, total);
 	pci_read_config_word(dev, pos + PCI_SRIOV_VF_OFFSET, &offset);
 	pci_read_config_word(dev, pos + PCI_SRIOV_VF_STRIDE, &stride);
 	if (!offset || (total > 1 && !stride))
@@ -465,7 +466,6 @@ found:
 		return -EIO;
 
 	pgsz &= ~(pgsz - 1);
-	pci_write_config_dword(dev, pos + PCI_SRIOV_SYS_PGSIZE, pgsz);
 
 	nres = 0;
 	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {

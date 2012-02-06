@@ -37,13 +37,13 @@
 
 #define VERSION "0.6"
 
-static int ignore_dga;
-static int ignore_csr;
-static int ignore_sniffer;
-static int disable_scofix;
-static int force_scofix;
+static bool ignore_dga;
+static bool ignore_csr;
+static bool ignore_sniffer;
+static bool disable_scofix;
+static bool force_scofix;
 
-static int reset = 1;
+static bool reset = 1;
 
 static struct usb_driver btusb_driver;
 

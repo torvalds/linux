@@ -14,6 +14,7 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/cache.h>
+#include <linux/clockchips.h>
 #include <linux/profile.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
@@ -47,9 +48,10 @@ unsigned long blackfin_iflush_l1_entry[NR_CPUS];
 
 struct blackfin_initial_pda __cpuinitdata initial_pda_coreb;
 
-#define BFIN_IPI_RESCHEDULE   0
-#define BFIN_IPI_CALL_FUNC    1
-#define BFIN_IPI_CPU_STOP     2
+#define BFIN_IPI_TIMER	      0
+#define BFIN_IPI_RESCHEDULE   1
+#define BFIN_IPI_CALL_FUNC    2
+#define BFIN_IPI_CPU_STOP     3
 
 struct blackfin_flush_data {
 	unsigned long start;
@@ -160,6 +162,14 @@ static irqreturn_t ipi_handler_int0(int irq, void *dev_instance)
 	return IRQ_HANDLED;
 }
 
+DECLARE_PER_CPU(struct clock_event_device, coretmr_events);
+void ipi_timer(void)
+{
+	int cpu = smp_processor_id();
+	struct clock_event_device *evt = &per_cpu(coretmr_events, cpu);
+	evt->event_handler(evt);
+}
+
 static irqreturn_t ipi_handler_int1(int irq, void *dev_instance)
 {
 	struct ipi_message *msg;
@@ -176,18 +186,17 @@ static irqreturn_t ipi_handler_int1(int irq, void *dev_instance)
 	while (msg_queue->count) {
 		msg = &msg_queue->ipi_message[msg_queue->head];
 		switch (msg->type) {
+		case BFIN_IPI_TIMER:
+			ipi_timer();
+			break;
 		case BFIN_IPI_RESCHEDULE:
 			scheduler_ipi();
 			break;
 		case BFIN_IPI_CALL_FUNC:
-			spin_unlock_irqrestore(&msg_queue->lock, flags);
 			ipi_call_function(cpu, msg);
-			spin_lock_irqsave(&msg_queue->lock, flags);
 			break;
 		case BFIN_IPI_CPU_STOP:
-			spin_unlock_irqrestore(&msg_queue->lock, flags);
 			ipi_cpu_stop(cpu);
-			spin_lock_irqsave(&msg_queue->lock, flags);
 			break;
 		default:
 			printk(KERN_CRIT "CPU%u: Unknown IPI message 0x%lx\n",
@@ -297,8 +306,6 @@ void smp_send_reschedule(int cpu)
 {
 	cpumask_t callmap;
 	/* simply trigger an ipi */
-	if (cpu_is_offline(cpu))
-		return;
 
 	cpumask_clear(&callmap);
 	cpumask_set_cpu(cpu, &callmap);
@@ -306,6 +313,16 @@ void smp_send_reschedule(int cpu)
 	smp_send_message(callmap, BFIN_IPI_RESCHEDULE, NULL, NULL, 0);
 
 	return;
+}
+
+void smp_send_msg(const struct cpumask *mask, unsigned long type)
+{
+	smp_send_message(*mask, type, NULL, NULL, 0);
+}
+
+void smp_timer_broadcast(const struct cpumask *mask)
+{
+	smp_send_msg(mask, BFIN_IPI_TIMER);
 }
 
 void smp_send_stop(void)
@@ -326,17 +343,24 @@ void smp_send_stop(void)
 int __cpuinit __cpu_up(unsigned int cpu)
 {
 	int ret;
-	static struct task_struct *idle;
+	struct blackfin_cpudata *ci = &per_cpu(cpu_data, cpu);
+	struct task_struct *idle = ci->idle;
 
-	if (idle)
+	if (idle) {
 		free_task(idle);
-
-	idle = fork_idle(cpu);
-	if (IS_ERR(idle)) {
-		printk(KERN_ERR "CPU%u: fork() failed\n", cpu);
-		return PTR_ERR(idle);
+		idle = NULL;
 	}
 
+	if (!idle) {
+		idle = fork_idle(cpu);
+		if (IS_ERR(idle)) {
+			printk(KERN_ERR "CPU%u: fork() failed\n", cpu);
+			return PTR_ERR(idle);
+		}
+		ci->idle = idle;
+	} else {
+		init_idle(idle, cpu);
+	}
 	secondary_stack = task_stack_page(idle) + THREAD_SIZE;
 
 	ret = platform_boot_secondary(cpu, idle);
@@ -411,6 +435,7 @@ void __cpuinit secondary_start_kernel(void)
 
 	bfin_setup_caches(cpu);
 
+	notify_cpu_starting(cpu);
 	/*
 	 * Calibrate loops per jiffy value.
 	 * IRQs need to be enabled here - D-cache can be invalidated
@@ -453,8 +478,10 @@ void smp_icache_flush_range_others(unsigned long start, unsigned long end)
 	smp_flush_data.start = start;
 	smp_flush_data.end = end;
 
-	if (smp_call_function(&ipi_flush_icache, &smp_flush_data, 0))
+	preempt_disable();
+	if (smp_call_function(&ipi_flush_icache, &smp_flush_data, 1))
 		printk(KERN_WARNING "SMP: failed to run I-cache flush request on other CPUs\n");
+	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(smp_icache_flush_range_others);
 

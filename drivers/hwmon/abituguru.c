@@ -145,7 +145,7 @@ static const u8 abituguru_pwm_max[5] = { 0, 255, 255, 75, 75 };
 
 
 /* Insmod parameters */
-static int force;
+static bool force;
 module_param(force, bool, 0);
 MODULE_PARM_DESC(force, "Set to one to force detection.");
 static int bank1_types[ABIT_UGURU_MAX_BANK1_SENSORS] = { -1, -1, -1, -1, -1,

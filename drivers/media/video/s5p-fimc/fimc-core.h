@@ -85,7 +85,9 @@ enum fimc_datapath {
 };
 
 enum fimc_color_fmt {
-	S5P_FIMC_RGB565 = 0x10,
+	S5P_FIMC_RGB444 = 0x10,
+	S5P_FIMC_RGB555,
+	S5P_FIMC_RGB565,
 	S5P_FIMC_RGB666,
 	S5P_FIMC_RGB888,
 	S5P_FIMC_RGB30_LOCAL,
@@ -160,8 +162,11 @@ struct fimc_fmt {
 	u16	colplanes;
 	u8	depth[VIDEO_MAX_PLANES];
 	u16	flags;
-#define FMT_FLAGS_CAM	(1 << 0)
-#define FMT_FLAGS_M2M	(1 << 1)
+#define FMT_FLAGS_CAM		(1 << 0)
+#define FMT_FLAGS_M2M_IN	(1 << 1)
+#define FMT_FLAGS_M2M_OUT	(1 << 2)
+#define FMT_FLAGS_M2M		(1 << 1 | 1 << 2)
+#define FMT_HAS_ALPHA		(1 << 3)
 };
 
 /**
@@ -283,6 +288,7 @@ struct fimc_frame {
 	struct fimc_addr	paddr;
 	struct fimc_dma_offset	dma_offset;
 	struct fimc_fmt		*fmt;
+	u8			alpha;
 };
 
 /**
@@ -387,6 +393,7 @@ struct samsung_fimc_variant {
 	unsigned int	has_cistatus2:1;
 	unsigned int	has_mainscaler_ext:1;
 	unsigned int	has_cam_if:1;
+	unsigned int	has_alpha:1;
 	struct fimc_pix_limit *pix_limit;
 	u16		min_inp_pixsize;
 	u16		min_out_pixsize;
@@ -482,7 +489,8 @@ struct fimc_dev {
  * @ctrl_handler:	v4l2 controls handler
  * @ctrl_rotate		image rotation control
  * @ctrl_hflip		horizontal flip control
- * @ctrl_vflip		vartical flip control
+ * @ctrl_vflip		vertical flip control
+ * @ctrl_alpha		RGB alpha control
  * @ctrls_rdy:		true if the control handler is initialized
  */
 struct fimc_ctx {
@@ -509,6 +517,7 @@ struct fimc_ctx {
 	struct v4l2_ctrl	*ctrl_rotate;
 	struct v4l2_ctrl	*ctrl_hflip;
 	struct v4l2_ctrl	*ctrl_vflip;
+	struct v4l2_ctrl	*ctrl_alpha;
 	bool			ctrls_rdy;
 };
 
@@ -576,6 +585,17 @@ static inline bool fimc_ctx_state_is_set(u32 mask, struct fimc_ctx *ctx)
 static inline int tiled_fmt(struct fimc_fmt *fmt)
 {
 	return fmt->fourcc == V4L2_PIX_FMT_NV12MT;
+}
+
+/* Return the alpha component bit mask */
+static inline int fimc_get_alpha_mask(struct fimc_fmt *fmt)
+{
+	switch (fmt->color) {
+	case S5P_FIMC_RGB444:	return 0x0f;
+	case S5P_FIMC_RGB555:	return 0x01;
+	case S5P_FIMC_RGB888:	return 0xff;
+	default:		return 0;
+	};
 }
 
 static inline void fimc_hw_clear_irq(struct fimc_dev *dev)
@@ -674,6 +694,7 @@ void fimc_hw_set_prescaler(struct fimc_ctx *ctx);
 void fimc_hw_set_mainscaler(struct fimc_ctx *ctx);
 void fimc_hw_en_capture(struct fimc_ctx *ctx);
 void fimc_hw_set_effect(struct fimc_ctx *ctx, bool active);
+void fimc_hw_set_rgb_alpha(struct fimc_ctx *ctx);
 void fimc_hw_set_in_dma(struct fimc_ctx *ctx);
 void fimc_hw_set_input_path(struct fimc_ctx *ctx);
 void fimc_hw_set_output_path(struct fimc_ctx *ctx);
@@ -695,6 +716,7 @@ int fimc_vidioc_enum_fmt_mplane(struct file *file, void *priv,
 int fimc_ctrls_create(struct fimc_ctx *ctx);
 void fimc_ctrls_delete(struct fimc_ctx *ctx);
 void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active);
+void fimc_alpha_ctrl_update(struct fimc_ctx *ctx);
 int fimc_fill_format(struct fimc_frame *frame, struct v4l2_format *f);
 void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
 			       struct v4l2_pix_format_mplane *pix);

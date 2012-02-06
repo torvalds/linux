@@ -165,7 +165,7 @@ static struct mfc_control controls[] = {
 		.maximum = 32,
 		.step = 1,
 		.default_value = 1,
-		.flags = V4L2_CTRL_FLAG_VOLATILE,
+		.is_volatile = 1,
 	},
 };
 

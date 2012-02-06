@@ -251,7 +251,7 @@ static int digi_read_oob_callback(struct urb *urb);
 
 /* Statics */
 
-static int debug;
+static bool debug;
 
 static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(DIGI_VENDOR_ID, DIGI_2_ID) },

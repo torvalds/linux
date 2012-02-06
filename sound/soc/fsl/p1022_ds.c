@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
+#include <linux/of_i2c.h>
 #include <sound/soc.h>
 #include <asm/fsl_guts.h>
 
@@ -252,8 +253,9 @@ static int get_parent_cell_index(struct device_node *np)
 static int codec_node_dev_name(struct device_node *np, char *buf, size_t len)
 {
 	const u32 *iprop;
-	int bus, addr;
+	int addr;
 	char temp[DAI_NAME_SIZE];
+	struct i2c_client *i2c;
 
 	of_modalias_node(np, temp, DAI_NAME_SIZE);
 
@@ -263,11 +265,12 @@ static int codec_node_dev_name(struct device_node *np, char *buf, size_t len)
 
 	addr = be32_to_cpup(iprop);
 
-	bus = get_parent_cell_index(np);
-	if (bus < 0)
-		return bus;
+	/* We need the adapter number */
+	i2c = of_find_i2c_device_by_node(np);
+	if (!i2c)
+		return -ENODEV;
 
-	snprintf(buf, len, "%s.%u-%04x", temp, bus, addr);
+	snprintf(buf, len, "%s.%u-%04x", temp, i2c->adapter->nr, addr);
 
 	return 0;
 }
@@ -540,12 +543,6 @@ static struct platform_driver p1022_ds_driver = {
 	.probe = p1022_ds_probe,
 	.remove = __devexit_p(p1022_ds_remove),
 	.driver = {
-		/* The name must match the 'model' property in the device tree,
-		 * in lowercase letters, but only the part after that last
-		 * comma.  This is because some model properties have a "fsl,"
-		 * prefix.
-		 */
-		.name = "snd-soc-p1022",
 		.owner = THIS_MODULE,
 	},
 };
@@ -559,13 +556,39 @@ static int __init p1022_ds_init(void)
 {
 	struct device_node *guts_np;
 	struct resource res;
+	const char *sprop;
 
-	pr_info("Freescale P1022 DS ALSA SoC machine driver\n");
+	/*
+	 * Check if we're actually running on a P1022DS.  Older device trees
+	 * have a model of "fsl,P1022" and newer ones use "fsl,P1022DS", so we
+	 * need to support both.  The SSI driver uses that property to link to
+	 * the machine driver, so have to match it.
+	 */
+	sprop = of_get_property(of_find_node_by_path("/"), "model", NULL);
+	if (!sprop) {
+		pr_err("snd-soc-p1022ds: missing /model node");
+		return -ENODEV;
+	}
+
+	pr_debug("snd-soc-p1022ds: board model name is %s\n", sprop);
+
+	/*
+	 * The name of this board, taken from the device tree.  Normally, this is a*
+	 * fixed string, but some P1022DS device trees have a /model property of
+	 * "fsl,P1022", and others have "fsl,P1022DS".
+	 */
+	if (strcasecmp(sprop, "fsl,p1022ds") == 0)
+		p1022_ds_driver.driver.name = "snd-soc-p1022ds";
+	else if (strcasecmp(sprop, "fsl,p1022") == 0)
+		p1022_ds_driver.driver.name = "snd-soc-p1022";
+	else
+		return -ENODEV;
 
 	/* Get the physical address of the global utilities registers */
 	guts_np = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
 	if (of_address_to_resource(guts_np, 0, &res)) {
-		pr_err("p1022-ds: missing/invalid global utilities node\n");
+		pr_err("snd-soc-p1022ds: missing/invalid global utils node\n");
+		of_node_put(guts_np);
 		return -EINVAL;
 	}
 	guts_phys = res.start;

@@ -236,7 +236,7 @@ static inline unsigned long __rewind_psw(psw_t psw, unsigned long ilc)
 /*
  * Function to drop a processor into disabled wait state
  */
-static inline void ATTRIB_NORET disabled_wait(unsigned long code)
+static inline void __noreturn disabled_wait(unsigned long code)
 {
         unsigned long ctl_buf;
         psw_t dw_psw;

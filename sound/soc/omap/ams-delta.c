@@ -431,22 +431,20 @@ static int ams_delta_set_bias_level(struct snd_soc_card *card,
 				    struct snd_soc_dapm_context *dapm,
 				    enum snd_soc_bias_level level)
 {
-	struct snd_soc_codec *codec = card->rtd->codec;
-
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
+		if (card->dapm.bias_level == SND_SOC_BIAS_OFF)
 			ams_delta_latch2_write(AMS_DELTA_LATCH2_MODEM_NRESET,
 						AMS_DELTA_LATCH2_MODEM_NRESET);
 		break;
 	case SND_SOC_BIAS_OFF:
-		if (codec->dapm.bias_level != SND_SOC_BIAS_OFF)
+		if (card->dapm.bias_level != SND_SOC_BIAS_OFF)
 			ams_delta_latch2_write(AMS_DELTA_LATCH2_MODEM_NRESET,
 						0);
 	}
-	codec->dapm.bias_level = level;
+	card->dapm.bias_level = level;
 
 	return 0;
 }
@@ -474,7 +472,7 @@ static int ams_delta_digital_mute(struct snd_soc_dai *dai, int mute)
 }
 
 /* Our codec DAI probably doesn't have its own .ops structure */
-static struct snd_soc_dai_ops ams_delta_dai_ops = {
+static const struct snd_soc_dai_ops ams_delta_dai_ops = {
 	.digital_mute = ams_delta_digital_mute,
 };
 
@@ -597,6 +595,7 @@ static struct snd_soc_dai_link ams_delta_dai_link = {
 /* Audio card driver */
 static struct snd_soc_card ams_delta_audio_card = {
 	.name = "AMS_DELTA",
+	.owner = THIS_MODULE,
 	.dai_link = &ams_delta_dai_link,
 	.num_links = 1,
 	.set_bias_level = ams_delta_set_bias_level,

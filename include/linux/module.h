@@ -205,6 +205,20 @@ enum module_state
 	MODULE_STATE_GOING,
 };
 
+/**
+ * struct module_ref - per cpu module reference counts
+ * @incs: number of module get on this cpu
+ * @decs: number of module put on this cpu
+ *
+ * We force an alignment on 8 or 16 bytes, so that alloc_percpu()
+ * put @incs/@decs in same cache line, with no extra memory cost,
+ * since alloc_percpu() is fine grained.
+ */
+struct module_ref {
+	unsigned long incs;
+	unsigned long decs;
+} __attribute((aligned(2 * sizeof(unsigned long))));
+
 struct module
 {
 	enum module_state state;
@@ -347,10 +361,7 @@ struct module
 	/* Destruction function. */
 	void (*exit)(void);
 
-	struct module_ref {
-		unsigned int incs;
-		unsigned int decs;
-	} __percpu *refptr;
+	struct module_ref __percpu *refptr;
 #endif
 
 #ifdef CONFIG_CONSTRUCTORS
@@ -434,7 +445,7 @@ extern void __module_put_and_exit(struct module *mod, long code)
 #define module_put_and_exit(code) __module_put_and_exit(THIS_MODULE, code);
 
 #ifdef CONFIG_MODULE_UNLOAD
-unsigned int module_refcount(struct module *mod);
+unsigned long module_refcount(struct module *mod);
 void __symbol_put(const char *symbol);
 #define symbol_put(x) __symbol_put(MODULE_SYMBOL_PREFIX #x)
 void symbol_put_addr(void *addr);

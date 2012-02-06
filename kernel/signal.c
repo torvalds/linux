@@ -28,6 +28,7 @@
 #include <linux/freezer.h>
 #include <linux/pid_namespace.h>
 #include <linux/nsproxy.h>
+#include <linux/user_namespace.h>
 #define CREATE_TRACE_POINTS
 #include <trace/events/signal.h>
 
@@ -1019,6 +1020,34 @@ static inline int legacy_queue(struct sigpending *signals, int sig)
 	return (sig < SIGRTMIN) && sigismember(&signals->signal, sig);
 }
 
+/*
+ * map the uid in struct cred into user namespace *ns
+ */
+static inline uid_t map_cred_ns(const struct cred *cred,
+				struct user_namespace *ns)
+{
+	return user_ns_map_uid(ns, cred, cred->uid);
+}
+
+#ifdef CONFIG_USER_NS
+static inline void userns_fixup_signal_uid(struct siginfo *info, struct task_struct *t)
+{
+	if (current_user_ns() == task_cred_xxx(t, user_ns))
+		return;
+
+	if (SI_FROMKERNEL(info))
+		return;
+
+	info->si_uid = user_ns_map_uid(task_cred_xxx(t, user_ns),
+					current_cred(), info->si_uid);
+}
+#else
+static inline void userns_fixup_signal_uid(struct siginfo *info, struct task_struct *t)
+{
+	return;
+}
+#endif
+
 static int __send_signal(int sig, struct siginfo *info, struct task_struct *t,
 			int group, int from_ancestor_ns)
 {
@@ -1088,6 +1117,9 @@ static int __send_signal(int sig, struct siginfo *info, struct task_struct *t,
 				q->info.si_pid = 0;
 			break;
 		}
+
+		userns_fixup_signal_uid(&q->info, t);
+
 	} else if (!is_si_special(info)) {
 		if (sig >= SIGRTMIN && info->si_code != SI_USER) {
 			/*
@@ -1626,7 +1658,8 @@ bool do_notify_parent(struct task_struct *tsk, int sig)
 	 */
 	rcu_read_lock();
 	info.si_pid = task_pid_nr_ns(tsk, tsk->parent->nsproxy->pid_ns);
-	info.si_uid = __task_cred(tsk)->uid;
+	info.si_uid = map_cred_ns(__task_cred(tsk),
+			task_cred_xxx(tsk->parent, user_ns));
 	rcu_read_unlock();
 
 	info.si_utime = cputime_to_clock_t(tsk->utime + tsk->signal->utime);
@@ -1709,7 +1742,8 @@ static void do_notify_parent_cldstop(struct task_struct *tsk,
 	 */
 	rcu_read_lock();
 	info.si_pid = task_pid_nr_ns(tsk, parent->nsproxy->pid_ns);
-	info.si_uid = __task_cred(tsk)->uid;
+	info.si_uid = map_cred_ns(__task_cred(tsk),
+			task_cred_xxx(parent, user_ns));
 	rcu_read_unlock();
 
 	info.si_utime = cputime_to_clock_t(tsk->utime);
@@ -2125,8 +2159,11 @@ static int ptrace_signal(int signr, siginfo_t *info,
 		info->si_signo = signr;
 		info->si_errno = 0;
 		info->si_code = SI_USER;
+		rcu_read_lock();
 		info->si_pid = task_pid_vnr(current->parent);
-		info->si_uid = task_uid(current->parent);
+		info->si_uid = map_cred_ns(__task_cred(current->parent),
+				current_user_ns());
+		rcu_read_unlock();
 	}
 
 	/* If the (new) signal is now blocked, requeue it.  */
@@ -2316,6 +2353,27 @@ relock:
 	}
 	spin_unlock_irq(&sighand->siglock);
 	return signr;
+}
+
+/**
+ * block_sigmask - add @ka's signal mask to current->blocked
+ * @ka: action for @signr
+ * @signr: signal that has been successfully delivered
+ *
+ * This function should be called when a signal has succesfully been
+ * delivered. It adds the mask of signals for @ka to current->blocked
+ * so that they are blocked during the execution of the signal
+ * handler. In addition, @signr will be blocked unless %SA_NODEFER is
+ * set in @ka->sa.sa_flags.
+ */
+void block_sigmask(struct k_sigaction *ka, int signr)
+{
+	sigset_t blocked;
+
+	sigorsets(&blocked, &current->blocked, &ka->sa.sa_mask);
+	if (!(ka->sa.sa_flags & SA_NODEFER))
+		sigaddset(&blocked, signr);
+	set_current_blocked(&blocked);
 }
 
 /*

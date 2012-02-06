@@ -699,9 +699,12 @@ static int vfp_set(struct task_struct *target,
 {
 	int ret;
 	struct thread_info *thread = task_thread_info(target);
-	struct vfp_hard_struct new_vfp = thread->vfpstate.hard;
+	struct vfp_hard_struct new_vfp;
 	const size_t user_fpregs_offset = offsetof(struct user_vfp, fpregs);
 	const size_t user_fpscr_offset = offsetof(struct user_vfp, fpscr);
+
+	vfp_sync_hwstate(thread);
+	new_vfp = thread->vfpstate.hard;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				  &new_vfp.fpregs,
@@ -723,9 +726,8 @@ static int vfp_set(struct task_struct *target,
 	if (ret)
 		return ret;
 
-	vfp_sync_hwstate(thread);
-	thread->vfpstate.hard = new_vfp;
 	vfp_flush_hwstate(thread);
+	thread->vfpstate.hard = new_vfp;
 
 	return 0;
 }
@@ -906,17 +908,23 @@ asmlinkage int syscall_trace(int why, struct pt_regs *regs, int scno)
 {
 	unsigned long ip;
 
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return scno;
-	if (!(current->ptrace & PT_PTRACED))
-		return scno;
-
 	/*
 	 * Save IP.  IP is used to denote syscall entry/exit:
 	 *  IP = 0 -> entry, = 1 -> exit
 	 */
 	ip = regs->ARM_ip;
 	regs->ARM_ip = why;
+
+	if (!ip)
+		audit_syscall_exit(regs);
+	else
+		audit_syscall_entry(AUDIT_ARCH_ARMEB, scno, regs->ARM_r0,
+				    regs->ARM_r1, regs->ARM_r2, regs->ARM_r3);
+
+	if (!test_thread_flag(TIF_SYSCALL_TRACE))
+		return scno;
+	if (!(current->ptrace & PT_PTRACED))
+		return scno;
 
 	current_thread_info()->syscall = scno;
 

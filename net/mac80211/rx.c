@@ -1979,6 +1979,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 		mesh_path_error_tx(ifmsh->mshcfg.element_ttl, fwd_hdr->addr3,
 				    0, reason, fwd_hdr->addr2, sdata);
 		IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, dropped_frames_no_route);
+		kfree_skb(fwd_skb);
 		return RX_DROP_MONITOR;
 	}
 

@@ -19,4 +19,7 @@
 #define CSIS_PAD_SOURCE		1
 #define CSIS_PADS_NUM		2
 
+#define S5PCSIS_DEF_PIX_WIDTH	640
+#define S5PCSIS_DEF_PIX_HEIGHT	480
+
 #endif

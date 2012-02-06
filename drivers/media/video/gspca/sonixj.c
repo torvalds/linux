@@ -1235,7 +1235,7 @@ static const u8 po2030n_sensor_param1[][8] = {
 	{DELAY, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, /* delay 8ms */
 	{0xa1, 0x6e, 0x1b, 0xf4, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x6e, 0x15, 0x04, 0x00, 0x00, 0x00, 0x10},
-	{0xd1, 0x6e, 0x16, 0x50, 0x40, 0x49, 0x40, 0x10},
+	{0xd1, 0x6e, 0x16, 0x40, 0x40, 0x40, 0x40, 0x10}, /* RGBG gains */
 /*param2*/
 	{0xa1, 0x6e, 0x1d, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x6e, 0x04, 0x03, 0x00, 0x00, 0x00, 0x10},
@@ -1779,10 +1779,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->ag_cnt = -1;
 	sd->quality = QUALITY_DEF;
 
-	/* if USB 1.1, let some bandwidth for the audio device */
-	if (gspca_dev->audio && gspca_dev->dev->speed < USB_SPEED_HIGH)
-		gspca_dev->nbalt--;
-
 	INIT_WORK(&sd->work, qual_upd);
 
 	return 0;
@@ -2063,6 +2059,16 @@ static void setredblue(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	if (sd->sensor == SENSOR_PO2030N) {
+		u8 rg1b[] =		/* red  green1 blue (no g2) */
+			{0xc1, 0x6e, 0x16, 0x00, 0x40, 0x00, 0x00, 0x10};
+
+		/* 0x40 = normal value = gain x 1 */
+		rg1b[3] = sd->ctrls[RED].val * 2;
+		rg1b[5] = sd->ctrls[BLUE].val * 2;
+		i2c_w8(gspca_dev, rg1b);
+		return;
+	}
 	reg_w1(gspca_dev, 0x05, sd->ctrls[RED].val);
 /*	reg_w1(gspca_dev, 0x07, 32); */
 	reg_w1(gspca_dev, 0x06, sd->ctrls[BLUE].val);
@@ -2397,7 +2403,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x17, reg17);
 	reg01 &= ~S_PWR_DN;		/* sensor power on */
 	reg_w1(gspca_dev, 0x01, reg01);
-	reg01 &= ~SYS_SEL_48M;
+	reg01 &= ~SCL_SEL_OD;		/* remove open-drain mode */
 	reg_w1(gspca_dev, 0x01, reg01);
 
 	switch (sd->sensor) {

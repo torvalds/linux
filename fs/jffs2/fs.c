@@ -466,7 +466,6 @@ struct inode *jffs2_new_inode (struct inode *dir_i, umode_t mode, struct jffs2_r
 
 	if (insert_inode_locked(inode) < 0) {
 		make_bad_inode(inode);
-		unlock_new_inode(inode);
 		iput(inode);
 		return ERR_PTR(-EINVAL);
 	}

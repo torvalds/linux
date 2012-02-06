@@ -114,7 +114,7 @@ static u32 sci_port_get_phys(struct isci_port *iport)
  * value is returned if the specified port is not valid.  When this value is
  * returned, no data is copied to the properties output parameter.
  */
-static enum sci_status sci_port_get_properties(struct isci_port *iport,
+enum sci_status sci_port_get_properties(struct isci_port *iport,
 						struct sci_port_properties *prop)
 {
 	if (!iport || iport->logical_port_index == SCIC_SDS_DUMMY_PORT)
@@ -647,19 +647,26 @@ void sci_port_setup_transports(struct isci_port *iport, u32 device_id)
 	}
 }
 
-static void sci_port_activate_phy(struct isci_port *iport, struct isci_phy *iphy,
-				  bool do_notify_user)
+static void sci_port_resume_phy(struct isci_port *iport, struct isci_phy *iphy)
+{
+	sci_phy_resume(iphy);
+	iport->enabled_phy_mask |= 1 << iphy->phy_index;
+}
+
+static void sci_port_activate_phy(struct isci_port *iport,
+				  struct isci_phy *iphy,
+				  u8 flags)
 {
 	struct isci_host *ihost = iport->owning_controller;
 
-	if (iphy->protocol != SCIC_SDS_PHY_PROTOCOL_SATA)
+	if (iphy->protocol != SCIC_SDS_PHY_PROTOCOL_SATA && (flags & PF_RESUME))
 		sci_phy_resume(iphy);
 
 	iport->active_phy_mask |= 1 << iphy->phy_index;
 
 	sci_controller_clear_invalid_phy(ihost, iphy);
 
-	if (do_notify_user == true)
+	if (flags & PF_NOTIFY)
 		isci_port_link_up(ihost, iport, iphy);
 }
 
@@ -669,14 +676,19 @@ void sci_port_deactivate_phy(struct isci_port *iport, struct isci_phy *iphy,
 	struct isci_host *ihost = iport->owning_controller;
 
 	iport->active_phy_mask &= ~(1 << iphy->phy_index);
+	iport->enabled_phy_mask &= ~(1 << iphy->phy_index);
 	if (!iport->active_phy_mask)
 		iport->last_active_phy = iphy->phy_index;
 
 	iphy->max_negotiated_speed = SAS_LINK_RATE_UNKNOWN;
 
-	/* Re-assign the phy back to the LP as if it were a narrow port */
-	writel(iphy->phy_index,
-		&iport->port_pe_configuration_register[iphy->phy_index]);
+	/* Re-assign the phy back to the LP as if it were a narrow port for APC
+	 * mode. For MPC mode, the phy will remain in the port.
+	 */
+	if (iport->owning_controller->oem_parameters.controller.mode_type ==
+		SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE)
+		writel(iphy->phy_index,
+			&iport->port_pe_configuration_register[iphy->phy_index]);
 
 	if (do_notify_user == true)
 		isci_port_link_down(ihost, iphy, iport);
@@ -701,18 +713,16 @@ static void sci_port_invalid_link_up(struct isci_port *iport, struct isci_phy *i
  * sci_port_general_link_up_handler - phy can be assigned to port?
  * @sci_port: sci_port object for which has a phy that has gone link up.
  * @sci_phy: This is the struct isci_phy object that has gone link up.
- * @do_notify_user: This parameter specifies whether to inform the user (via
- *    sci_port_link_up()) as to the fact that a new phy as become ready.
+ * @flags: PF_RESUME, PF_NOTIFY to sci_port_activate_phy
  *
- * Determine if this phy can be assigned to this
- * port . If the phy is not a valid PHY for
- * this port then the function will notify the user. A PHY can only be
- * part of a port if it's attached SAS ADDRESS is the same as all other PHYs in
- * the same port. none
+ * Determine if this phy can be assigned to this port . If the phy is
+ * not a valid PHY for this port then the function will notify the user.
+ * A PHY can only be part of a port if it's attached SAS ADDRESS is the
+ * same as all other PHYs in the same port.
  */
 static void sci_port_general_link_up_handler(struct isci_port *iport,
-						  struct isci_phy *iphy,
-						  bool do_notify_user)
+					     struct isci_phy *iphy,
+					     u8 flags)
 {
 	struct sci_sas_address port_sas_address;
 	struct sci_sas_address phy_sas_address;
@@ -730,7 +740,7 @@ static void sci_port_general_link_up_handler(struct isci_port *iport,
 	    iport->active_phy_mask == 0) {
 		struct sci_base_state_machine *sm = &iport->sm;
 
-		sci_port_activate_phy(iport, iphy, do_notify_user);
+		sci_port_activate_phy(iport, iphy, flags);
 		if (sm->current_state_id == SCI_PORT_RESETTING)
 			port_state_machine_change(iport, SCI_PORT_READY);
 	} else
@@ -781,11 +791,16 @@ bool sci_port_link_detected(
 	struct isci_phy *iphy)
 {
 	if ((iport->logical_port_index != SCIC_SDS_DUMMY_PORT) &&
-	    (iphy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA) &&
-	    sci_port_is_wide(iport)) {
-		sci_port_invalid_link_up(iport, iphy);
-
-		return false;
+	    (iphy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA)) {
+		if (sci_port_is_wide(iport)) {
+			sci_port_invalid_link_up(iport, iphy);
+			return false;
+		} else {
+			struct isci_host *ihost = iport->owning_controller;
+			struct isci_port *dst_port = &(ihost->ports[iphy->phy_index]);
+			writel(iphy->phy_index,
+			       &dst_port->port_pe_configuration_register[iphy->phy_index]);
+		}
 	}
 
 	return true;
@@ -975,6 +990,13 @@ static void sci_port_ready_substate_waiting_enter(struct sci_base_state_machine 
 	}
 }
 
+static void scic_sds_port_ready_substate_waiting_exit(
+					struct sci_base_state_machine *sm)
+{
+	struct isci_port *iport = container_of(sm, typeof(*iport), sm);
+	sci_port_resume_port_task_scheduler(iport);
+}
+
 static void sci_port_ready_substate_operational_enter(struct sci_base_state_machine *sm)
 {
 	u32 index;
@@ -988,12 +1010,12 @@ static void sci_port_ready_substate_operational_enter(struct sci_base_state_mach
 			writel(iport->physical_port_index,
 				&iport->port_pe_configuration_register[
 					iport->phy_table[index]->phy_index]);
+			if (((iport->active_phy_mask^iport->enabled_phy_mask) & (1 << index)) != 0)
+				sci_port_resume_phy(iport, iport->phy_table[index]);
 		}
 	}
 
 	sci_port_update_viit_entry(iport);
-
-	sci_port_resume_port_task_scheduler(iport);
 
 	/*
 	 * Post the dummy task for the port so the hardware can schedule
@@ -1061,20 +1083,9 @@ static void sci_port_ready_substate_configuring_enter(struct sci_base_state_mach
 	if (iport->active_phy_mask == 0) {
 		isci_port_not_ready(ihost, iport);
 
-		port_state_machine_change(iport,
-					  SCI_PORT_SUB_WAITING);
-	} else if (iport->started_request_count == 0)
-		port_state_machine_change(iport,
-					  SCI_PORT_SUB_OPERATIONAL);
-}
-
-static void sci_port_ready_substate_configuring_exit(struct sci_base_state_machine *sm)
-{
-	struct isci_port *iport = container_of(sm, typeof(*iport), sm);
-
-	sci_port_suspend_port_task_scheduler(iport);
-	if (iport->ready_exit)
-		sci_port_invalidate_dummy_remote_node(iport);
+		port_state_machine_change(iport, SCI_PORT_SUB_WAITING);
+	} else
+		port_state_machine_change(iport, SCI_PORT_SUB_OPERATIONAL);
 }
 
 enum sci_status sci_port_start(struct isci_port *iport)
@@ -1252,7 +1263,7 @@ enum sci_status sci_port_add_phy(struct isci_port *iport,
 		if (status != SCI_SUCCESS)
 			return status;
 
-		sci_port_general_link_up_handler(iport, iphy, true);
+		sci_port_general_link_up_handler(iport, iphy, PF_NOTIFY|PF_RESUME);
 		iport->not_ready_reason = SCIC_PORT_NOT_READY_RECONFIGURING;
 		port_state_machine_change(iport, SCI_PORT_SUB_CONFIGURING);
 
@@ -1262,7 +1273,7 @@ enum sci_status sci_port_add_phy(struct isci_port *iport,
 
 		if (status != SCI_SUCCESS)
 			return status;
-		sci_port_general_link_up_handler(iport, iphy, true);
+		sci_port_general_link_up_handler(iport, iphy, PF_NOTIFY);
 
 		/* Re-enter the configuring state since this may be the last phy in
 		 * the port.
@@ -1338,13 +1349,13 @@ enum sci_status sci_port_link_up(struct isci_port *iport,
 		/* Since this is the first phy going link up for the port we
 		 * can just enable it and continue
 		 */
-		sci_port_activate_phy(iport, iphy, true);
+		sci_port_activate_phy(iport, iphy, PF_NOTIFY|PF_RESUME);
 
 		port_state_machine_change(iport,
 					  SCI_PORT_SUB_OPERATIONAL);
 		return SCI_SUCCESS;
 	case SCI_PORT_SUB_OPERATIONAL:
-		sci_port_general_link_up_handler(iport, iphy, true);
+		sci_port_general_link_up_handler(iport, iphy, PF_NOTIFY|PF_RESUME);
 		return SCI_SUCCESS;
 	case SCI_PORT_RESETTING:
 		/* TODO We should  make  sure  that  the phy  that  has gone
@@ -1361,7 +1372,7 @@ enum sci_status sci_port_link_up(struct isci_port *iport,
 		/* In the resetting state we don't notify the user regarding
 		 * link up and link down notifications.
 		 */
-		sci_port_general_link_up_handler(iport, iphy, false);
+		sci_port_general_link_up_handler(iport, iphy, PF_RESUME);
 		return SCI_SUCCESS;
 	default:
 		dev_warn(sciport_to_dev(iport),
@@ -1584,14 +1595,14 @@ static const struct sci_base_state sci_port_state_table[] = {
 	},
 	[SCI_PORT_SUB_WAITING] = {
 		.enter_state = sci_port_ready_substate_waiting_enter,
+		.exit_state  = scic_sds_port_ready_substate_waiting_exit,
 	},
 	[SCI_PORT_SUB_OPERATIONAL] = {
 		.enter_state = sci_port_ready_substate_operational_enter,
 		.exit_state  = sci_port_ready_substate_operational_exit
 	},
 	[SCI_PORT_SUB_CONFIGURING] = {
-		.enter_state = sci_port_ready_substate_configuring_enter,
-		.exit_state  = sci_port_ready_substate_configuring_exit
+		.enter_state = sci_port_ready_substate_configuring_enter
 	},
 	[SCI_PORT_RESETTING] = {
 		.exit_state  = sci_port_resetting_state_exit
@@ -1609,6 +1620,7 @@ void sci_port_construct(struct isci_port *iport, u8 index,
 	iport->logical_port_index  = SCIC_SDS_DUMMY_PORT;
 	iport->physical_port_index = index;
 	iport->active_phy_mask     = 0;
+	iport->enabled_phy_mask    = 0;
 	iport->last_active_phy     = 0;
 	iport->ready_exit	   = false;
 

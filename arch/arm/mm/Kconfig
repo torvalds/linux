@@ -882,6 +882,7 @@ config CACHE_XSC3L2
 
 config ARM_L1_CACHE_SHIFT_6
 	bool
+	default y if CPU_V7
 	help
 	  Setting ARM L1 cache line size to 64 Bytes.
 

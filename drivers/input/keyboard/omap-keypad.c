@@ -473,20 +473,7 @@ static struct platform_driver omap_kp_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init omap_kp_init(void)
-{
-	printk(KERN_INFO "OMAP Keypad Driver\n");
-	return platform_driver_register(&omap_kp_driver);
-}
-
-static void __exit omap_kp_exit(void)
-{
-	platform_driver_unregister(&omap_kp_driver);
-}
-
-module_init(omap_kp_init);
-module_exit(omap_kp_exit);
+module_platform_driver(omap_kp_driver);
 
 MODULE_AUTHOR("Timo Teräs");
 MODULE_DESCRIPTION("OMAP Keypad Driver");

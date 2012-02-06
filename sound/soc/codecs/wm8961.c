@@ -17,7 +17,6 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -423,11 +422,11 @@ static int wm8961_spk_event(struct snd_soc_dapm_widget *w,
 	}
 
 	if (event & SND_SOC_DAPM_PRE_PMD) {
-		/* Enable the amplifier */
+		/* Disable the amplifier */
 		spk_reg &= ~(WM8961_SPKL_ENA | WM8961_SPKR_ENA);
 		snd_soc_write(codec, WM8961_CLASS_D_CONTROL_1, spk_reg);
 
-		/* Enable the PGA */
+		/* Disable the PGA */
 		pwr_reg &= ~(WM8961_SPKL_PGA | WM8961_SPKR_PGA);
 		snd_soc_write(codec, WM8961_PWR_MGMT_2, pwr_reg);
 	}
@@ -531,7 +530,7 @@ SND_SOC_DAPM_PGA("Right Input", WM8961_PWR_MGMT_1, 4, 0, NULL, 0),
 SND_SOC_DAPM_ADC("ADCL", "HiFi Capture", WM8961_PWR_MGMT_1, 3, 0),
 SND_SOC_DAPM_ADC("ADCR", "HiFi Capture", WM8961_PWR_MGMT_1, 2, 0),
 
-SND_SOC_DAPM_MICBIAS("MICBIAS", WM8961_PWR_MGMT_1, 1, 0),
+SND_SOC_DAPM_SUPPLY("MICBIAS", WM8961_PWR_MGMT_1, 1, 0, NULL, 0),
 
 SND_SOC_DAPM_MUX("DACL Sidetone", SND_SOC_NOPM, 0, 0, &dacl_mux),
 SND_SOC_DAPM_MUX("DACR Sidetone", SND_SOC_NOPM, 0, 0, &dacr_mux),
@@ -929,7 +928,7 @@ static int wm8961_set_bias_level(struct snd_soc_codec *codec,
 	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 	SNDRV_PCM_FMTBIT_S24_LE)
 
-static struct snd_soc_dai_ops wm8961_dai_ops = {
+static const struct snd_soc_dai_ops wm8961_dai_ops = {
 	.hw_params = wm8961_hw_params,
 	.set_sysclk = wm8961_set_sysclk,
 	.set_fmt = wm8961_set_fmt,
@@ -1039,7 +1038,7 @@ static int wm8961_remove(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int wm8961_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int wm8961_suspend(struct snd_soc_codec *codec)
 {
 	wm8961_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
@@ -1048,18 +1047,7 @@ static int wm8961_suspend(struct snd_soc_codec *codec, pm_message_t state)
 
 static int wm8961_resume(struct snd_soc_codec *codec)
 {
-	u16 *reg_cache = codec->reg_cache;
-	int i;
-
-	for (i = 0; i < codec->driver->reg_cache_size; i++) {
-		if (reg_cache[i] == wm8961_reg_defaults[i])
-			continue;
-
-		if (i == WM8961_SOFTWARE_RESET)
-			continue;
-
-		snd_soc_write(codec, i, reg_cache[i]);
-	}
+	snd_soc_cache_sync(codec);
 
 	wm8961_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -1082,14 +1070,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8961 = {
 	.volatile_register = wm8961_volatile_register,
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static __devinit int wm8961_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct wm8961_priv *wm8961;
 	int ret;
 
-	wm8961 = kzalloc(sizeof(struct wm8961_priv), GFP_KERNEL);
+	wm8961 = devm_kzalloc(&i2c->dev, sizeof(struct wm8961_priv),
+			      GFP_KERNEL);
 	if (wm8961 == NULL)
 		return -ENOMEM;
 
@@ -1097,15 +1085,14 @@ static __devinit int wm8961_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8961, &wm8961_dai, 1);
-	if (ret < 0)
-		kfree(wm8961);
+
 	return ret;
 }
 
 static __devexit int wm8961_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
+
 	return 0;
 }
 
@@ -1117,34 +1104,29 @@ MODULE_DEVICE_TABLE(i2c, wm8961_i2c_id);
 
 static struct i2c_driver wm8961_i2c_driver = {
 	.driver = {
-		.name = "wm8961-codec",
+		.name = "wm8961",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8961_i2c_probe,
 	.remove =   __devexit_p(wm8961_i2c_remove),
 	.id_table = wm8961_i2c_id,
 };
-#endif
 
 static int __init wm8961_modinit(void)
 {
 	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	ret = i2c_add_driver(&wm8961_i2c_driver);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register wm8961 I2C driver: %d\n",
 		       ret);
 	}
-#endif
 	return ret;
 }
 module_init(wm8961_modinit);
 
 static void __exit wm8961_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&wm8961_i2c_driver);
-#endif
 }
 module_exit(wm8961_exit);
 

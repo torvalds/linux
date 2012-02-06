@@ -1095,7 +1095,7 @@ static int ext4_show_options(struct seq_file *seq, struct dentry *root)
 	}
 	if (sbi->s_max_batch_time != EXT4_DEF_MAX_BATCH_TIME) {
 		seq_printf(seq, ",max_batch_time=%u",
-			   (unsigned) sbi->s_min_batch_time);
+			   (unsigned) sbi->s_max_batch_time);
 	}
 
 	/*
@@ -2005,17 +2005,16 @@ static int ext4_fill_flex_info(struct super_block *sb)
 	struct ext4_group_desc *gdp = NULL;
 	ext4_group_t flex_group_count;
 	ext4_group_t flex_group;
-	int groups_per_flex = 0;
+	unsigned int groups_per_flex = 0;
 	size_t size;
 	int i;
 
 	sbi->s_log_groups_per_flex = sbi->s_es->s_log_groups_per_flex;
-	groups_per_flex = 1 << sbi->s_log_groups_per_flex;
-
-	if (groups_per_flex < 2) {
+	if (sbi->s_log_groups_per_flex < 1 || sbi->s_log_groups_per_flex > 31) {
 		sbi->s_log_groups_per_flex = 0;
 		return 1;
 	}
+	groups_per_flex = 1 << sbi->s_log_groups_per_flex;
 
 	/* We allocate both existing and potentially added groups */
 	flex_group_count = ((sbi->s_groups_count + groups_per_flex - 1) +
@@ -3506,7 +3505,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	 * of the filesystem.
 	 */
 	if (le32_to_cpu(es->s_first_data_block) >= ext4_blocks_count(es)) {
-                ext4_msg(sb, KERN_WARNING, "bad geometry: first data"
+		ext4_msg(sb, KERN_WARNING, "bad geometry: first data "
 			 "block %u is beyond end of filesystem (%llu)",
 			 le32_to_cpu(es->s_first_data_block),
 			 ext4_blocks_count(es));

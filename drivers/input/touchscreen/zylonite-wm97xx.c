@@ -224,19 +224,7 @@ static struct platform_driver zylonite_wm97xx_driver = {
 		.name	= "wm97xx-touch",
 	},
 };
-
-static int __init zylonite_wm97xx_init(void)
-{
-	return platform_driver_register(&zylonite_wm97xx_driver);
-}
-
-static void __exit zylonite_wm97xx_exit(void)
-{
-	platform_driver_unregister(&zylonite_wm97xx_driver);
-}
-
-module_init(zylonite_wm97xx_init);
-module_exit(zylonite_wm97xx_exit);
+module_platform_driver(zylonite_wm97xx_driver);
 
 /* Module information */
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

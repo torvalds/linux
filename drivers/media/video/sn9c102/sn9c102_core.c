@@ -75,8 +75,8 @@ MODULE_PARM_DESC(video_nr,
 		 "\none and for every other camera."
 		 "\n");
 
-static short force_munmap[] = {[0 ... SN9C102_MAX_DEVICES-1] =
-			       SN9C102_FORCE_MUNMAP};
+static bool force_munmap[] = {[0 ... SN9C102_MAX_DEVICES-1] =
+			      SN9C102_FORCE_MUNMAP};
 module_param_array(force_munmap, bool, NULL, 0444);
 MODULE_PARM_DESC(force_munmap,
 		 " <0|1[,...]>"

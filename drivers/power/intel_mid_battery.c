@@ -779,18 +779,7 @@ static struct platform_driver platform_pmic_battery_driver = {
 	.remove = __devexit_p(platform_pmic_battery_remove),
 };
 
-static int __init platform_pmic_battery_module_init(void)
-{
-	return platform_driver_register(&platform_pmic_battery_driver);
-}
-
-static void __exit platform_pmic_battery_module_exit(void)
-{
-	platform_driver_unregister(&platform_pmic_battery_driver);
-}
-
-module_init(platform_pmic_battery_module_init);
-module_exit(platform_pmic_battery_module_exit);
+module_platform_driver(platform_pmic_battery_driver);
 
 MODULE_AUTHOR("Nithish Mahalingam <nithish.mahalingam@intel.com>");
 MODULE_DESCRIPTION("Intel Moorestown PMIC Battery Driver");

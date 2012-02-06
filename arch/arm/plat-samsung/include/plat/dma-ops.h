@@ -14,10 +14,11 @@
 #define __SAMSUNG_DMA_OPS_H_ __FILE__
 
 #include <linux/dmaengine.h>
+#include <mach/dma.h>
 
 struct samsung_dma_prep_info {
 	enum dma_transaction_type cap;
-	enum dma_data_direction direction;
+	enum dma_transfer_direction direction;
 	dma_addr_t buf;
 	unsigned long period;
 	unsigned long len;
@@ -27,7 +28,7 @@ struct samsung_dma_prep_info {
 
 struct samsung_dma_info {
 	enum dma_transaction_type cap;
-	enum dma_data_direction direction;
+	enum dma_transfer_direction direction;
 	enum dma_slave_buswidth width;
 	dma_addr_t fifo;
 	struct s3c2410_dma_client *client;

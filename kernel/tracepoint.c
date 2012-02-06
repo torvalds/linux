@@ -634,10 +634,11 @@ static int tracepoint_module_coming(struct module *mod)
 	int ret = 0;
 
 	/*
-	 * We skip modules that tain the kernel, especially those with different
-	 * module header (for forced load), to make sure we don't cause a crash.
+	 * We skip modules that taint the kernel, especially those with different
+	 * module headers (for forced load), to make sure we don't cause a crash.
+	 * Staging and out-of-tree GPL modules are fine.
 	 */
-	if (mod->taints)
+	if (mod->taints & ~((1 << TAINT_OOT_MODULE) | (1 << TAINT_CRAP)))
 		return 0;
 	mutex_lock(&tracepoints_mutex);
 	tp_mod = kmalloc(sizeof(struct tp_module), GFP_KERNEL);

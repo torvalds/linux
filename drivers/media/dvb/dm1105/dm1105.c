@@ -1115,11 +1115,14 @@ static int __devinit dm1105_probe(struct pci_dev *pdev,
 	if (ret < 0)
 		goto err_remove_mem_frontend;
 
-	ret = frontend_init(dev);
+	ret = dvb_net_init(dvb_adapter, &dev->dvbnet, dmx);
 	if (ret < 0)
 		goto err_disconnect_frontend;
 
-	dvb_net_init(dvb_adapter, &dev->dvbnet, dmx);
+	ret = frontend_init(dev);
+	if (ret < 0)
+		goto err_dvb_net;
+
 	dm1105_ir_init(dev);
 
 	INIT_WORK(&dev->work, dm1105_dmx_buffer);

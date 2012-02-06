@@ -20,6 +20,7 @@
 #include <asm/io.h>
 #include <asm/jazz.h>
 #include <asm/pgtable.h>
+#include <asm/tlbmisc.h>
 
 static DEFINE_RAW_SPINLOCK(r4030_lock);
 
@@ -133,7 +134,7 @@ static irqreturn_t r4030_timer_interrupt(int irq, void *dev_id)
 
 static struct irqaction r4030_timer_irqaction = {
 	.handler	= r4030_timer_interrupt,
-	.flags		= IRQF_DISABLED | IRQF_TIMER,
+	.flags		= IRQF_TIMER,
 	.name		= "R4030 timer",
 };
 

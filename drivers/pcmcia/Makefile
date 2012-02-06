@@ -29,7 +29,6 @@ obj-$(CONFIG_PCMCIA_SA1100)			+= sa11xx_base.o sa1100_cs.o
 obj-$(CONFIG_PCMCIA_SA1111)			+= sa11xx_base.o sa1111_cs.o
 obj-$(CONFIG_M32R_PCC)				+= m32r_pcc.o
 obj-$(CONFIG_M32R_CFC)				+= m32r_cfc.o
-obj-$(CONFIG_PCMCIA_AU1X00)			+= au1x00_ss.o
 obj-$(CONFIG_PCMCIA_BCM63XX)			+= bcm63xx_pcmcia.o
 obj-$(CONFIG_PCMCIA_VRC4171)			+= vrc4171_card.o
 obj-$(CONFIG_PCMCIA_VRC4173)			+= vrc4173_cardu.o
@@ -38,9 +37,6 @@ obj-$(CONFIG_BFIN_CFPCMCIA)			+= bfin_cf_pcmcia.o
 obj-$(CONFIG_AT91_CF)				+= at91_cf.o
 obj-$(CONFIG_ELECTRA_CF)			+= electra_cf.o
 obj-$(CONFIG_PCMCIA_ALCHEMY_DEVBOARD)		+= db1xxx_ss.o
-
-au1x00_ss-y					+= au1000_generic.o
-au1x00_ss-$(CONFIG_MIPS_PB1000)			+= au1000_pb1x00.o
 
 sa1111_cs-y					+= sa1111_generic.o
 sa1111_cs-$(CONFIG_ASSABET_NEPONSET)		+= sa1100_neponset.o

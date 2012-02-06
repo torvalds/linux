@@ -228,7 +228,7 @@ static int jffs2_verify_write(struct jffs2_sb_info *c, unsigned char *buf,
 	size_t retlen;
 	char *eccstr;
 
-	ret = c->mtd->read(c->mtd, ofs, c->wbuf_pagesize, &retlen, c->wbuf_verify);
+	ret = mtd_read(c->mtd, ofs, c->wbuf_pagesize, &retlen, c->wbuf_verify);
 	if (ret && ret != -EUCLEAN && ret != -EBADMSG) {
 		printk(KERN_WARNING "jffs2_verify_write(): Read back of page at %08x failed: %d\n", c->wbuf_ofs, ret);
 		return ret;
@@ -337,7 +337,8 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		}
 
 		/* Do the read... */
-		ret = c->mtd->read(c->mtd, start, c->wbuf_ofs - start, &retlen, buf);
+		ret = mtd_read(c->mtd, start, c->wbuf_ofs - start, &retlen,
+			       buf);
 
 		/* ECC recovered ? */
 		if ((ret == -EUCLEAN || ret == -EBADMSG) &&
@@ -413,13 +414,12 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		if (breakme++ == 20) {
 			printk(KERN_NOTICE "Faking write error at 0x%08x\n", ofs);
 			breakme = 0;
-			c->mtd->write(c->mtd, ofs, towrite, &retlen,
-				      brokenbuf);
+			mtd_write(c->mtd, ofs, towrite, &retlen, brokenbuf);
 			ret = -EIO;
 		} else
 #endif
-			ret = c->mtd->write(c->mtd, ofs, towrite, &retlen,
-					    rewrite_buf);
+			ret = mtd_write(c->mtd, ofs, towrite, &retlen,
+					rewrite_buf);
 
 		if (ret || retlen != towrite || jffs2_verify_write(c, rewrite_buf, ofs)) {
 			/* Argh. We tried. Really we did. */
@@ -619,13 +619,14 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	if (breakme++ == 20) {
 		printk(KERN_NOTICE "Faking write error at 0x%08x\n", c->wbuf_ofs);
 		breakme = 0;
-		c->mtd->write(c->mtd, c->wbuf_ofs, c->wbuf_pagesize, &retlen,
-			      brokenbuf);
+		mtd_write(c->mtd, c->wbuf_ofs, c->wbuf_pagesize, &retlen,
+			  brokenbuf);
 		ret = -EIO;
 	} else
 #endif
 
-		ret = c->mtd->write(c->mtd, c->wbuf_ofs, c->wbuf_pagesize, &retlen, c->wbuf);
+		ret = mtd_write(c->mtd, c->wbuf_ofs, c->wbuf_pagesize,
+				&retlen, c->wbuf);
 
 	if (ret) {
 		printk(KERN_WARNING "jffs2_flush_wbuf(): Write failed with %d\n", ret);
@@ -861,8 +862,8 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs,
 		v += wbuf_retlen;
 
 		if (vlen >= c->wbuf_pagesize) {
-			ret = c->mtd->write(c->mtd, outvec_to, PAGE_DIV(vlen),
-					    &wbuf_retlen, v);
+			ret = mtd_write(c->mtd, outvec_to, PAGE_DIV(vlen),
+					&wbuf_retlen, v);
 			if (ret < 0 || wbuf_retlen != PAGE_DIV(vlen))
 				goto outfile;
 
@@ -948,11 +949,11 @@ int jffs2_flash_read(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *re
 	int	ret;
 
 	if (!jffs2_is_writebuffered(c))
-		return c->mtd->read(c->mtd, ofs, len, retlen, buf);
+		return mtd_read(c->mtd, ofs, len, retlen, buf);
 
 	/* Read flash */
 	down_read(&c->wbuf_sem);
-	ret = c->mtd->read(c->mtd, ofs, len, retlen, buf);
+	ret = mtd_read(c->mtd, ofs, len, retlen, buf);
 
 	if ( (ret == -EBADMSG || ret == -EUCLEAN) && (*retlen == len) ) {
 		if (ret == -EBADMSG)
@@ -1031,7 +1032,7 @@ int jffs2_check_oob_empty(struct jffs2_sb_info *c,
 	ops.len = ops.ooboffs = ops.retlen = ops.oobretlen = 0;
 	ops.datbuf = NULL;
 
-	ret = c->mtd->read_oob(c->mtd, jeb->offset, &ops);
+	ret = mtd_read_oob(c->mtd, jeb->offset, &ops);
 	if (ret || ops.oobretlen != ops.ooblen) {
 		printk(KERN_ERR "cannot read OOB for EB at %08x, requested %zd"
 				" bytes, read %zd bytes, error %d\n",
@@ -1074,7 +1075,7 @@ int jffs2_check_nand_cleanmarker(struct jffs2_sb_info *c,
 	ops.len = ops.ooboffs = ops.retlen = ops.oobretlen = 0;
 	ops.datbuf = NULL;
 
-	ret = c->mtd->read_oob(c->mtd, jeb->offset, &ops);
+	ret = mtd_read_oob(c->mtd, jeb->offset, &ops);
 	if (ret || ops.oobretlen != ops.ooblen) {
 		printk(KERN_ERR "cannot read OOB for EB at %08x, requested %zd"
 				" bytes, read %zd bytes, error %d\n",
@@ -1100,7 +1101,7 @@ int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c,
 	ops.len = ops.ooboffs = ops.retlen = ops.oobretlen = 0;
 	ops.datbuf = NULL;
 
-	ret = c->mtd->write_oob(c->mtd, jeb->offset, &ops);
+	ret = mtd_write_oob(c->mtd, jeb->offset, &ops);
 	if (ret || ops.oobretlen != ops.ooblen) {
 		printk(KERN_ERR "cannot write OOB for EB at %08x, requested %zd"
 				" bytes, read %zd bytes, error %d\n",
@@ -1129,11 +1130,8 @@ int jffs2_write_nand_badblock(struct jffs2_sb_info *c, struct jffs2_eraseblock *
 	if( ++jeb->bad_count < MAX_ERASE_FAILURES)
 		return 0;
 
-	if (!c->mtd->block_markbad)
-		return 1; // What else can we do?
-
 	printk(KERN_WARNING "JFFS2: marking eraseblock at %08x\n as bad", bad_offset);
-	ret = c->mtd->block_markbad(c->mtd, bad_offset);
+	ret = mtd_block_markbad(c->mtd, bad_offset);
 
 	if (ret) {
 		D1(printk(KERN_WARNING "jffs2_write_nand_badblock(): Write failed for block at %08x: error %d\n", jeb->offset, ret));

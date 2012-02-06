@@ -154,6 +154,7 @@ struct mxs_mmc_host {
 	struct dma_chan         	*dmach;
 	struct mxs_dma_data		dma_data;
 	unsigned int			dma_dir;
+	enum dma_transfer_direction	slave_dirn;
 	u32				ssp_pio_words[SSP_PIO_NUM];
 
 	unsigned int			version;
@@ -324,7 +325,7 @@ static struct dma_async_tx_descriptor *mxs_mmc_prep_dma(
 	}
 
 	desc = host->dmach->device->device_prep_slave_sg(host->dmach,
-				sgl, sg_len, host->dma_dir, append);
+				sgl, sg_len, host->slave_dirn, append);
 	if (desc) {
 		desc->callback = mxs_mmc_dma_irq_callback;
 		desc->callback_param = host;
@@ -356,6 +357,7 @@ static void mxs_mmc_bc(struct mxs_mmc_host *host)
 	host->ssp_pio_words[1] = cmd0;
 	host->ssp_pio_words[2] = cmd1;
 	host->dma_dir = DMA_NONE;
+	host->slave_dirn = DMA_TRANS_NONE;
 	desc = mxs_mmc_prep_dma(host, 0);
 	if (!desc)
 		goto out;
@@ -395,6 +397,7 @@ static void mxs_mmc_ac(struct mxs_mmc_host *host)
 	host->ssp_pio_words[1] = cmd0;
 	host->ssp_pio_words[2] = cmd1;
 	host->dma_dir = DMA_NONE;
+	host->slave_dirn = DMA_TRANS_NONE;
 	desc = mxs_mmc_prep_dma(host, 0);
 	if (!desc)
 		goto out;
@@ -433,6 +436,7 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 	int i;
 
 	unsigned short dma_data_dir, timeout;
+	enum dma_transfer_direction slave_dirn;
 	unsigned int data_size = 0, log2_blksz;
 	unsigned int blocks = data->blocks;
 
@@ -448,9 +452,11 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 
 	if (data->flags & MMC_DATA_WRITE) {
 		dma_data_dir = DMA_TO_DEVICE;
+		slave_dirn = DMA_MEM_TO_DEV;
 		read = 0;
 	} else {
 		dma_data_dir = DMA_FROM_DEVICE;
+		slave_dirn = DMA_DEV_TO_MEM;
 		read = BM_SSP_CTRL0_READ;
 	}
 
@@ -510,6 +516,7 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 	host->ssp_pio_words[1] = cmd0;
 	host->ssp_pio_words[2] = cmd1;
 	host->dma_dir = DMA_NONE;
+	host->slave_dirn = DMA_TRANS_NONE;
 	desc = mxs_mmc_prep_dma(host, 0);
 	if (!desc)
 		goto out;
@@ -518,6 +525,7 @@ static void mxs_mmc_adtc(struct mxs_mmc_host *host)
 	WARN_ON(host->data != NULL);
 	host->data = data;
 	host->dma_dir = dma_data_dir;
+	host->slave_dirn = slave_dirn;
 	desc = mxs_mmc_prep_dma(host, 1);
 	if (!desc)
 		goto out;
@@ -855,18 +863,7 @@ static struct platform_driver mxs_mmc_driver = {
 	},
 };
 
-static int __init mxs_mmc_init(void)
-{
-	return platform_driver_register(&mxs_mmc_driver);
-}
-
-static void __exit mxs_mmc_exit(void)
-{
-	platform_driver_unregister(&mxs_mmc_driver);
-}
-
-module_init(mxs_mmc_init);
-module_exit(mxs_mmc_exit);
+module_platform_driver(mxs_mmc_driver);
 
 MODULE_DESCRIPTION("FREESCALE MXS MMC peripheral");
 MODULE_AUTHOR("Freescale Semiconductor");

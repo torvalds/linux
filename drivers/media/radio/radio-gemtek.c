@@ -47,11 +47,11 @@ MODULE_VERSION("0.0.4");
 #endif
 
 static int io		= CONFIG_RADIO_GEMTEK_PORT;
-static int probe	= CONFIG_RADIO_GEMTEK_PROBE;
-static int hardmute;
-static int shutdown	= 1;
-static int keepmuted	= 1;
-static int initmute	= 1;
+static bool probe	= CONFIG_RADIO_GEMTEK_PROBE;
+static bool hardmute;
+static bool shutdown	= 1;
+static bool keepmuted	= 1;
+static bool initmute	= 1;
 static int radio_nr	= -1;
 
 module_param(io, int, 0444);

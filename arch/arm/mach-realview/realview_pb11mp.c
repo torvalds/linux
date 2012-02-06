@@ -64,15 +64,10 @@ static struct map_desc realview_pb11mp_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(REALVIEW_PB11MP_GIC_DIST_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
-	}, {
-		.virtual	= IO_ADDRESS(REALVIEW_TC11MP_GIC_CPU_BASE),
-		.pfn		= __phys_to_pfn(REALVIEW_TC11MP_GIC_CPU_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= IO_ADDRESS(REALVIEW_TC11MP_GIC_DIST_BASE),
-		.pfn		= __phys_to_pfn(REALVIEW_TC11MP_GIC_DIST_BASE),
-		.length		= SZ_4K,
+	}, {	/* Maps the SCU, GIC CPU interface, TWD, GIC DIST */
+		.virtual	= IO_ADDRESS(REALVIEW_TC11MP_PRIV_MEM_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_TC11MP_PRIV_MEM_BASE),
+		.length		= REALVIEW_TC11MP_PRIV_MEM_SIZE,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= IO_ADDRESS(REALVIEW_SCTL_BASE),
@@ -112,17 +107,14 @@ static void __init realview_pb11mp_map_io(void)
 
 static struct pl061_platform_data gpio0_plat_data = {
 	.gpio_base	= 0,
-	.irq_base	= -1,
 };
 
 static struct pl061_platform_data gpio1_plat_data = {
 	.gpio_base	= 8,
-	.irq_base	= -1,
 };
 
 static struct pl061_platform_data gpio2_plat_data = {
 	.gpio_base	= 16,
-	.irq_base	= -1,
 };
 
 static struct pl022_ssp_controller ssp0_plat_data = {

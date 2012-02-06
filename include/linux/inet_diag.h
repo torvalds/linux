@@ -22,7 +22,7 @@ struct inet_diag_sockid {
 
 /* Request structure */
 
-struct inet_diag_req_compat {
+struct inet_diag_req {
 	__u8	idiag_family;		/* Family of addresses. */
 	__u8	idiag_src_len;
 	__u8	idiag_dst_len;
@@ -34,7 +34,7 @@ struct inet_diag_req_compat {
 	__u32	idiag_dbs;		/* Tables to dump (NI) */
 };
 
-struct inet_diag_req {
+struct inet_diag_req_v2 {
 	__u8	sdiag_family;
 	__u8	sdiag_protocol;
 	__u8	idiag_ext;
@@ -143,12 +143,12 @@ struct netlink_callback;
 struct inet_diag_handler {
 	void			(*dump)(struct sk_buff *skb,
 					struct netlink_callback *cb,
-					struct inet_diag_req *r,
+					struct inet_diag_req_v2 *r,
 					struct nlattr *bc);
 
 	int			(*dump_one)(struct sk_buff *in_skb,
 					const struct nlmsghdr *nlh,
-					struct inet_diag_req *req);
+					struct inet_diag_req_v2 *req);
 
 	void			(*idiag_get_info)(struct sock *sk,
 						  struct inet_diag_msg *r,
@@ -158,15 +158,15 @@ struct inet_diag_handler {
 
 struct inet_connection_sock;
 int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
-			      struct sk_buff *skb, struct inet_diag_req *req,
+			      struct sk_buff *skb, struct inet_diag_req_v2 *req,
 			      u32 pid, u32 seq, u16 nlmsg_flags,
 			      const struct nlmsghdr *unlh);
 void inet_diag_dump_icsk(struct inet_hashinfo *h, struct sk_buff *skb,
-		struct netlink_callback *cb, struct inet_diag_req *r,
+		struct netlink_callback *cb, struct inet_diag_req_v2 *r,
 		struct nlattr *bc);
 int inet_diag_dump_one_icsk(struct inet_hashinfo *hashinfo,
 		struct sk_buff *in_skb, const struct nlmsghdr *nlh,
-		struct inet_diag_req *req);
+		struct inet_diag_req_v2 *req);
 
 int inet_diag_bc_sk(const struct nlattr *_bc, struct sock *sk);
 

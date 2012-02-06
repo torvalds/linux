@@ -93,6 +93,7 @@ static struct snd_soc_dai_link bfin_eval_adav80x_dais[] = {
 
 static struct snd_soc_card bfin_eval_adav80x = {
 	.name = "bfin-eval-adav80x",
+	.owner = THIS_MODULE,
 	.dai_link = bfin_eval_adav80x_dais,
 	.num_links = ARRAY_SIZE(bfin_eval_adav80x_dais),
 
@@ -157,17 +158,7 @@ static struct platform_driver bfin_eval_adav80x_driver = {
 	.id_table = bfin_eval_adav80x_ids,
 };
 
-static int __init bfin_eval_adav80x_init(void)
-{
-	return platform_driver_register(&bfin_eval_adav80x_driver);
-}
-module_init(bfin_eval_adav80x_init);
-
-static void __exit bfin_eval_adav80x_exit(void)
-{
-	platform_driver_unregister(&bfin_eval_adav80x_driver);
-}
-module_exit(bfin_eval_adav80x_exit);
+module_platform_driver(bfin_eval_adav80x_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("ALSA SoC bfin adav80x driver");

@@ -3130,8 +3130,10 @@ task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
 }
 
 #define LBF_ALL_PINNED	0x01
-#define LBF_NEED_BREAK	0x02
-#define LBF_ABORT	0x04
+#define LBF_NEED_BREAK	0x02	/* clears into HAD_BREAK */
+#define LBF_HAD_BREAK	0x04
+#define LBF_HAD_BREAKS	0x0C	/* count HAD_BREAKs overflows into ABORT */
+#define LBF_ABORT	0x10
 
 /*
  * can_migrate_task - may task p from runqueue rq be migrated to this_cpu?
@@ -4508,7 +4510,9 @@ redo:
 			goto out_balanced;
 
 		if (lb_flags & LBF_NEED_BREAK) {
-			lb_flags &= ~LBF_NEED_BREAK;
+			lb_flags += LBF_HAD_BREAK - LBF_NEED_BREAK;
+			if (lb_flags & LBF_ABORT)
+				goto out_balanced;
 			goto redo;
 		}
 
@@ -4862,6 +4866,15 @@ static void nohz_balancer_kick(int cpu)
 	return;
 }
 
+static inline void clear_nohz_tick_stopped(int cpu)
+{
+	if (unlikely(test_bit(NOHZ_TICK_STOPPED, nohz_flags(cpu)))) {
+		cpumask_clear_cpu(cpu, nohz.idle_cpus_mask);
+		atomic_dec(&nohz.nr_cpus);
+		clear_bit(NOHZ_TICK_STOPPED, nohz_flags(cpu));
+	}
+}
+
 static inline void set_cpu_sd_state_busy(void)
 {
 	struct sched_domain *sd;
@@ -4900,6 +4913,12 @@ void select_nohz_load_balancer(int stop_tick)
 {
 	int cpu = smp_processor_id();
 
+	/*
+	 * If this cpu is going down, then nothing needs to be done.
+	 */
+	if (!cpu_active(cpu))
+		return;
+
 	if (stop_tick) {
 		if (test_bit(NOHZ_TICK_STOPPED, nohz_flags(cpu)))
 			return;
@@ -4909,6 +4928,18 @@ void select_nohz_load_balancer(int stop_tick)
 		set_bit(NOHZ_TICK_STOPPED, nohz_flags(cpu));
 	}
 	return;
+}
+
+static int __cpuinit sched_ilb_notifier(struct notifier_block *nfb,
+					unsigned long action, void *hcpu)
+{
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_DYING:
+		clear_nohz_tick_stopped(smp_processor_id());
+		return NOTIFY_OK;
+	default:
+		return NOTIFY_DONE;
+	}
 }
 #endif
 
@@ -5066,11 +5097,7 @@ static inline int nohz_kick_needed(struct rq *rq, int cpu)
 	* busy tick after returning from idle, we will update the busy stats.
 	*/
 	set_cpu_sd_state_busy();
-	if (unlikely(test_bit(NOHZ_TICK_STOPPED, nohz_flags(cpu)))) {
-		clear_bit(NOHZ_TICK_STOPPED, nohz_flags(cpu));
-		cpumask_clear_cpu(cpu, nohz.idle_cpus_mask);
-		atomic_dec(&nohz.nr_cpus);
-	}
+	clear_nohz_tick_stopped(cpu);
 
 	/*
 	 * None are in tickless mode and hence no need for NOHZ idle load
@@ -5586,6 +5613,7 @@ __init void init_sched_fair_class(void)
 
 #ifdef CONFIG_NO_HZ
 	zalloc_cpumask_var(&nohz.idle_cpus_mask, GFP_NOWAIT);
+	cpu_notifier(sched_ilb_notifier, 0);
 #endif
 #endif /* SMP */
 

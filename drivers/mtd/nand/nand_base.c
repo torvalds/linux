@@ -2588,7 +2588,7 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 	instr->state = MTD_ERASING;
 
 	while (len) {
-		/* Heck if we have a bad block, we do not erase bad blocks! */
+		/* Check if we have a bad block, we do not erase bad blocks! */
 		if (nand_block_checkbad(mtd, ((loff_t) page) <<
 					chip->page_shift, 0, allowbbt)) {
 			pr_warn("%s: attempt to erase a bad block at page 0x%08x\n",
@@ -3132,8 +3132,8 @@ ident_done:
 	 * Bad block marker is stored in the last page of each block
 	 * on Samsung and Hynix MLC devices; stored in first two pages
 	 * of each block on Micron devices with 2KiB pages and on
-	 * SLC Samsung, Hynix, Toshiba and AMD/Spansion. All others scan
-	 * only the first page.
+	 * SLC Samsung, Hynix, Toshiba, AMD/Spansion, and Macronix.
+	 * All others scan only the first page.
 	 */
 	if ((chip->cellinfo & NAND_CI_CELLTYPE_MSK) &&
 			(*maf_id == NAND_MFR_SAMSUNG ||
@@ -3143,7 +3143,8 @@ ident_done:
 				(*maf_id == NAND_MFR_SAMSUNG ||
 				 *maf_id == NAND_MFR_HYNIX ||
 				 *maf_id == NAND_MFR_TOSHIBA ||
-				 *maf_id == NAND_MFR_AMD)) ||
+				 *maf_id == NAND_MFR_AMD ||
+				 *maf_id == NAND_MFR_MACRONIX)) ||
 			(mtd->writesize == 2048 &&
 			 *maf_id == NAND_MFR_MICRON))
 		chip->bbt_options |= NAND_BBT_SCAN2NDPAGE;

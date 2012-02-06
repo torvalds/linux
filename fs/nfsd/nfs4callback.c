@@ -718,7 +718,7 @@ int set_callback_cred(void)
 {
 	if (callback_cred)
 		return 0;
-	callback_cred = rpc_lookup_machine_cred();
+	callback_cred = rpc_lookup_machine_cred("nfs");
 	if (!callback_cred)
 		return -ENOMEM;
 	return 0;

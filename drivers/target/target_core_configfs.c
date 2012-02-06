@@ -39,18 +39,16 @@
 #include <linux/spinlock.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_device.h>
-#include <target/target_core_transport.h>
-#include <target/target_core_fabric_ops.h>
+#include <target/target_core_backend.h>
+#include <target/target_core_fabric.h>
 #include <target/target_core_fabric_configfs.h>
 #include <target/target_core_configfs.h>
 #include <target/configfs_macros.h>
 
+#include "target_core_internal.h"
 #include "target_core_alua.h"
-#include "target_core_hba.h"
 #include "target_core_pr.h"
 #include "target_core_rd.h"
-#include "target_core_stat.h"
 
 extern struct t10_alua_lu_gp *default_lu_gp;
 
@@ -1452,7 +1450,7 @@ static ssize_t target_core_dev_pr_store_attr_res_aptpl_metadata(
 		return -ENOMEM;
 
 	orig = opts;
-	while ((ptr = strsep(&opts, ",")) != NULL) {
+	while ((ptr = strsep(&opts, ",\n")) != NULL) {
 		if (!*ptr)
 			continue;
 
@@ -1631,7 +1629,7 @@ static struct config_item_type target_core_dev_pr_cit = {
 
 static ssize_t target_core_show_dev_info(void *p, char *page)
 {
-	struct se_subsystem_dev *se_dev = (struct se_subsystem_dev *)p;
+	struct se_subsystem_dev *se_dev = p;
 	struct se_hba *hba = se_dev->se_dev_hba;
 	struct se_subsystem_api *t = hba->transport;
 	int bl = 0;
@@ -1659,7 +1657,7 @@ static ssize_t target_core_store_dev_control(
 	const char *page,
 	size_t count)
 {
-	struct se_subsystem_dev *se_dev = (struct se_subsystem_dev *)p;
+	struct se_subsystem_dev *se_dev = p;
 	struct se_hba *hba = se_dev->se_dev_hba;
 	struct se_subsystem_api *t = hba->transport;
 
@@ -1682,7 +1680,7 @@ static struct target_core_configfs_attribute target_core_attr_dev_control = {
 
 static ssize_t target_core_show_dev_alias(void *p, char *page)
 {
-	struct se_subsystem_dev *se_dev = (struct se_subsystem_dev *)p;
+	struct se_subsystem_dev *se_dev = p;
 
 	if (!(se_dev->su_dev_flags & SDF_USING_ALIAS))
 		return 0;
@@ -1695,7 +1693,7 @@ static ssize_t target_core_store_dev_alias(
 	const char *page,
 	size_t count)
 {
-	struct se_subsystem_dev *se_dev = (struct se_subsystem_dev *)p;
+	struct se_subsystem_dev *se_dev = p;
 	struct se_hba *hba = se_dev->se_dev_hba;
 	ssize_t read_bytes;
 
@@ -1709,6 +1707,9 @@ static ssize_t target_core_store_dev_alias(
 	se_dev->su_dev_flags |= SDF_USING_ALIAS;
 	read_bytes = snprintf(&se_dev->se_dev_alias[0], SE_DEV_ALIAS_LEN,
 			"%s", page);
+
+	if (se_dev->se_dev_alias[read_bytes - 1] == '\n')
+		se_dev->se_dev_alias[read_bytes - 1] = '\0';
 
 	pr_debug("Target_Core_ConfigFS: %s/%s set alias: %s\n",
 		config_item_name(&hba->hba_group.cg_item),
@@ -1728,7 +1729,7 @@ static struct target_core_configfs_attribute target_core_attr_dev_alias = {
 
 static ssize_t target_core_show_dev_udev_path(void *p, char *page)
 {
-	struct se_subsystem_dev *se_dev = (struct se_subsystem_dev *)p;
+	struct se_subsystem_dev *se_dev = p;
 
 	if (!(se_dev->su_dev_flags & SDF_USING_UDEV_PATH))
 		return 0;
@@ -1741,7 +1742,7 @@ static ssize_t target_core_store_dev_udev_path(
 	const char *page,
 	size_t count)
 {
-	struct se_subsystem_dev *se_dev = (struct se_subsystem_dev *)p;
+	struct se_subsystem_dev *se_dev = p;
 	struct se_hba *hba = se_dev->se_dev_hba;
 	ssize_t read_bytes;
 
@@ -1755,6 +1756,9 @@ static ssize_t target_core_store_dev_udev_path(
 	se_dev->su_dev_flags |= SDF_USING_UDEV_PATH;
 	read_bytes = snprintf(&se_dev->se_dev_udev_path[0], SE_UDEV_PATH_LEN,
 			"%s", page);
+
+	if (se_dev->se_dev_udev_path[read_bytes - 1] == '\n')
+		se_dev->se_dev_udev_path[read_bytes - 1] = '\0';
 
 	pr_debug("Target_Core_ConfigFS: %s/%s set udev_path: %s\n",
 		config_item_name(&hba->hba_group.cg_item),
@@ -1777,7 +1781,7 @@ static ssize_t target_core_store_dev_enable(
 	const char *page,
 	size_t count)
 {
-	struct se_subsystem_dev *se_dev = (struct se_subsystem_dev *)p;
+	struct se_subsystem_dev *se_dev = p;
 	struct se_device *dev;
 	struct se_hba *hba = se_dev->se_dev_hba;
 	struct se_subsystem_api *t = hba->transport;
@@ -1822,7 +1826,7 @@ static struct target_core_configfs_attribute target_core_attr_dev_enable = {
 static ssize_t target_core_show_alua_lu_gp(void *p, char *page)
 {
 	struct se_device *dev;
-	struct se_subsystem_dev *su_dev = (struct se_subsystem_dev *)p;
+	struct se_subsystem_dev *su_dev = p;
 	struct config_item *lu_ci;
 	struct t10_alua_lu_gp *lu_gp;
 	struct t10_alua_lu_gp_member *lu_gp_mem;
@@ -1860,7 +1864,7 @@ static ssize_t target_core_store_alua_lu_gp(
 	size_t count)
 {
 	struct se_device *dev;
-	struct se_subsystem_dev *su_dev = (struct se_subsystem_dev *)p;
+	struct se_subsystem_dev *su_dev = p;
 	struct se_hba *hba = su_dev->se_dev_hba;
 	struct t10_alua_lu_gp *lu_gp = NULL, *lu_gp_new = NULL;
 	struct t10_alua_lu_gp_member *lu_gp_mem;

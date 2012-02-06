@@ -43,7 +43,7 @@
 
 #define CYBERJACK_LOCAL_BUF_SIZE 32
 
-static int debug;
+static bool debug;
 
 /*
  * Version Information

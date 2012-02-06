@@ -53,8 +53,8 @@
 
 static int v9fs_dentry_delete(const struct dentry *dentry)
 {
-	P9_DPRINTK(P9_DEBUG_VFS, " dentry: %s (%p)\n", dentry->d_name.name,
-									dentry);
+	p9_debug(P9_DEBUG_VFS, " dentry: %s (%p)\n",
+		 dentry->d_name.name, dentry);
 
 	return 1;
 }
@@ -66,8 +66,8 @@ static int v9fs_dentry_delete(const struct dentry *dentry)
  */
 static int v9fs_cached_dentry_delete(const struct dentry *dentry)
 {
-	P9_DPRINTK(P9_DEBUG_VFS, " dentry: %s (%p)\n",
-		   dentry->d_name.name, dentry);
+	p9_debug(P9_DEBUG_VFS, " dentry: %s (%p)\n",
+		 dentry->d_name.name, dentry);
 
 	/* Don't cache negative dentries */
 	if (!dentry->d_inode)
@@ -86,8 +86,8 @@ static void v9fs_dentry_release(struct dentry *dentry)
 	struct v9fs_dentry *dent;
 	struct p9_fid *temp, *current_fid;
 
-	P9_DPRINTK(P9_DEBUG_VFS, " dentry: %s (%p)\n", dentry->d_name.name,
-									dentry);
+	p9_debug(P9_DEBUG_VFS, " dentry: %s (%p)\n",
+		 dentry->d_name.name, dentry);
 	dent = dentry->d_fsdata;
 	if (dent) {
 		list_for_each_entry_safe(current_fid, temp, &dent->fidlist,

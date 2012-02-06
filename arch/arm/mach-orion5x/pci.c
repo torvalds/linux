@@ -177,7 +177,7 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	res[0].end = res[0].start + ORION5X_PCIE_IO_SIZE - 1;
 	if (request_resource(&ioport_resource, &res[0]))
 		panic("Request PCIe IO resource failed\n");
-	sys->resource[0] = &res[0];
+	pci_add_resource(&sys->resources, &res[0]);
 
 	/*
 	 * IORESOURCE_MEM
@@ -188,9 +188,8 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	res[1].end = res[1].start + ORION5X_PCIE_MEM_SIZE - 1;
 	if (request_resource(&iomem_resource, &res[1]))
 		panic("Request PCIe Memory resource failed\n");
-	sys->resource[1] = &res[1];
+	pci_add_resource(&sys->resources, &res[1]);
 
-	sys->resource[2] = NULL;
 	sys->io_offset = 0;
 
 	return 1;
@@ -506,7 +505,7 @@ static int __init pci_setup(struct pci_sys_data *sys)
 	res[0].end = res[0].start + ORION5X_PCI_IO_SIZE - 1;
 	if (request_resource(&ioport_resource, &res[0]))
 		panic("Request PCI IO resource failed\n");
-	sys->resource[0] = &res[0];
+	pci_add_resource(&sys->resources, &res[0]);
 
 	/*
 	 * IORESOURCE_MEM
@@ -517,9 +516,8 @@ static int __init pci_setup(struct pci_sys_data *sys)
 	res[1].end = res[1].start + ORION5X_PCI_MEM_SIZE - 1;
 	if (request_resource(&iomem_resource, &res[1]))
 		panic("Request PCI Memory resource failed\n");
-	sys->resource[1] = &res[1];
+	pci_add_resource(&sys->resources, &res[1]);
 
-	sys->resource[2] = NULL;
 	sys->io_offset = 0;
 
 	return 1;
@@ -580,9 +578,11 @@ struct pci_bus __init *orion5x_pci_sys_scan_bus(int nr, struct pci_sys_data *sys
 	struct pci_bus *bus;
 
 	if (nr == 0) {
-		bus = pci_scan_bus(sys->busnr, &pcie_ops, sys);
+		bus = pci_scan_root_bus(NULL, sys->busnr, &pcie_ops, sys,
+					&sys->resources);
 	} else if (nr == 1 && !orion5x_pci_disabled) {
-		bus = pci_scan_bus(sys->busnr, &pci_ops, sys);
+		bus = pci_scan_root_bus(NULL, sys->busnr, &pci_ops, sys,
+					&sys->resources);
 	} else {
 		bus = NULL;
 		BUG();

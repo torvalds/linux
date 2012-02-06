@@ -127,6 +127,10 @@ static struct platform_device omap2cam_device = {
 };
 #endif
 
+#if defined(CONFIG_IOMMU_API)
+
+#include <plat/iommu.h>
+
 static struct resource omap3isp_resources[] = {
 	{
 		.start		= OMAP3430_ISP_BASE,
@@ -211,11 +215,26 @@ static struct platform_device omap3isp_device = {
 	.resource	= omap3isp_resources,
 };
 
+static struct omap_iommu_arch_data omap3_isp_iommu = {
+	.name = "isp",
+};
+
 int omap3_init_camera(struct isp_platform_data *pdata)
 {
 	omap3isp_device.dev.platform_data = pdata;
+	omap3isp_device.dev.archdata.iommu = &omap3_isp_iommu;
+
 	return platform_device_register(&omap3isp_device);
 }
+
+#else /* !CONFIG_IOMMU_API */
+
+int omap3_init_camera(struct isp_platform_data *pdata)
+{
+	return 0;
+}
+
+#endif
 
 static inline void omap_init_camera(void)
 {
@@ -386,6 +405,7 @@ static int omap_mcspi_init(struct omap_hwmod *oh, void *unused)
 			break;
 	default:
 			pr_err("Invalid McSPI Revision value\n");
+			kfree(pdata);
 			return -EINVAL;
 	}
 

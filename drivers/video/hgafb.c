@@ -133,7 +133,7 @@ static struct fb_fix_screeninfo hga_fix __devinitdata = {
 /* Don't assume that tty1 will be the initial current console. */
 static int release_io_port = 0;
 static int release_io_ports = 0;
-static int nologo = 0;
+static bool nologo = 0;
 
 /* -------------------------------------------------------------------------
  *

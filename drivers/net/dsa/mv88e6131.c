@@ -9,6 +9,7 @@
  */
 
 #include <linux/list.h>
+#include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
 #include <net/dsa.h>

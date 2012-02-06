@@ -31,18 +31,6 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 }
 #endif /* CONFIG_PCI_DOMAINS */
 
-#ifdef CONFIG_PCI_HOST_ITE8152
-/* ITE bridge requires setting latency timer to avoid early bus access
-   termination by PIC bus mater devices
-*/
-extern void pcibios_set_master(struct pci_dev *dev);
-#else
-static inline void pcibios_set_master(struct pci_dev *dev)
-{
-	/* No special bus mastering setup handling */
-}
-#endif
-
 static inline void pcibios_penalize_isa_irq(int irq, int active)
 {
 	/* We don't do dynamic PCI IRQ allocation */

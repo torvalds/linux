@@ -322,9 +322,6 @@ EXPORT_SYMBOL(clear_nlink);
 void set_nlink(struct inode *inode, unsigned int nlink)
 {
 	if (!nlink) {
-		printk_ratelimited(KERN_INFO
-			"set_nlink() clearing i_nlink on %s inode %li\n",
-			inode->i_sb->s_type->name, inode->i_ino);
 		clear_nlink(inode);
 	} else {
 		/* Yes, some filesystems do change nlink from zero to one */
@@ -776,6 +773,8 @@ void prune_icache_sb(struct super_block *sb, int nr_to_scan)
 	else
 		__count_vm_events(PGINODESTEAL, reap);
 	spin_unlock(&sb->s_inode_lru_lock);
+	if (current->reclaim_state)
+		current->reclaim_state->reclaimed_slab += reap;
 
 	dispose_list(&freeable);
 }

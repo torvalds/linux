@@ -593,10 +593,16 @@ static struct pxa2xx_udc_mach_info imote2_udc_info __initdata = {
 	.udc_command		= sg2_udc_command,
 };
 
+static struct platform_device imote2_audio_device = {
+	.name = "imote2-audio",
+	.id   = -1,
+};
+
 static struct platform_device *imote2_devices[] = {
 	&stargate2_flash_device,
 	&imote2_leds,
 	&sht15,
+	&imote2_audio_device,
 };
 
 static void __init imote2_init(void)

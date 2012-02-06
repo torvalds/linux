@@ -260,19 +260,7 @@ static struct platform_driver jornada680kbd_driver = {
 	.probe	= jornada680kbd_probe,
 	.remove	= __devexit_p(jornada680kbd_remove),
 };
-
-static int __init jornada680kbd_init(void)
-{
-	return platform_driver_register(&jornada680kbd_driver);
-}
-
-static void __exit jornada680kbd_exit(void)
-{
-	platform_driver_unregister(&jornada680kbd_driver);
-}
-
-module_init(jornada680kbd_init);
-module_exit(jornada680kbd_exit);
+module_platform_driver(jornada680kbd_driver);
 
 MODULE_AUTHOR("Kristoffer Ericson <kristoffer.ericson@gmail.com>");
 MODULE_DESCRIPTION("HP Jornada 620/660/680/690 Keyboard Driver");

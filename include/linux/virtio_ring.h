@@ -168,6 +168,7 @@ struct virtqueue;
 struct virtqueue *vring_new_virtqueue(unsigned int num,
 				      unsigned int vring_align,
 				      struct virtio_device *vdev,
+				      bool weak_barriers,
 				      void *pages,
 				      void (*notify)(struct virtqueue *vq),
 				      void (*callback)(struct virtqueue *vq),

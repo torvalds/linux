@@ -279,17 +279,7 @@ static struct platform_driver gpio_flash_driver = {
 	},
 };
 
-static int __init gpio_flash_init(void)
-{
-	return platform_driver_register(&gpio_flash_driver);
-}
-module_init(gpio_flash_init);
-
-static void __exit gpio_flash_exit(void)
-{
-	platform_driver_unregister(&gpio_flash_driver);
-}
-module_exit(gpio_flash_exit);
+module_platform_driver(gpio_flash_driver);
 
 MODULE_AUTHOR("Mike Frysinger <vapier@gentoo.org>");
 MODULE_DESCRIPTION("MTD map driver for flashes addressed physically and with gpios");

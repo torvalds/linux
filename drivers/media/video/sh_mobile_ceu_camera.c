@@ -786,8 +786,7 @@ static struct v4l2_subdev *find_bus_subdev(struct sh_mobile_ceu_dev *pcdev,
 		V4L2_MBUS_DATA_ACTIVE_HIGH)
 
 /* Capture is not running, no interrupts, no locking needed */
-static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
-				       __u32 pixfmt)
+static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
@@ -924,11 +923,6 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 
 	ceu_write(pcdev, CDOCR, value);
 	ceu_write(pcdev, CFWCR, 0); /* keep "datafetch firewall" disabled */
-
-	dev_dbg(icd->parent, "S_FMT successful for %c%c%c%c %ux%u\n",
-		pixfmt & 0xff, (pixfmt >> 8) & 0xff,
-		(pixfmt >> 16) & 0xff, (pixfmt >> 24) & 0xff,
-		icd->user_width, icd->user_height);
 
 	capture_restore(pcdev, capsr);
 
@@ -1966,8 +1960,7 @@ static int sh_mobile_ceu_set_livecrop(struct soc_camera_device *icd,
 		if (!ret) {
 			icd->user_width		= out_width & ~3;
 			icd->user_height	= out_height & ~3;
-			ret = sh_mobile_ceu_set_bus_param(icd,
-					icd->current_fmt->host_fmt->fourcc);
+			ret = sh_mobile_ceu_set_bus_param(icd);
 		}
 	}
 

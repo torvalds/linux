@@ -163,6 +163,9 @@ enum nouveau_flags {
 #define NVOBJ_ENGINE_COPY0	3
 #define NVOBJ_ENGINE_COPY1	4
 #define NVOBJ_ENGINE_MPEG	5
+#define NVOBJ_ENGINE_PPP	NVOBJ_ENGINE_MPEG
+#define NVOBJ_ENGINE_BSP	6
+#define NVOBJ_ENGINE_VP		7
 #define NVOBJ_ENGINE_DISPLAY	15
 #define NVOBJ_ENGINE_NR		16
 
@@ -229,6 +232,7 @@ struct nouveau_channel {
 	/* mapping of the regs controlling the fifo */
 	void __iomem *user;
 	uint32_t user_get;
+	uint32_t user_get_hi;
 	uint32_t user_put;
 
 	/* Fencing */
@@ -246,7 +250,7 @@ struct nouveau_channel {
 	struct nouveau_gpuobj *pushbuf;
 	struct nouveau_bo     *pushbuf_bo;
 	struct nouveau_vma     pushbuf_vma;
-	uint32_t               pushbuf_base;
+	uint64_t               pushbuf_base;
 
 	/* Notifier memory */
 	struct nouveau_bo *notifier_bo;
@@ -393,24 +397,25 @@ struct nouveau_display_engine {
 	int (*early_init)(struct drm_device *);
 	void (*late_takedown)(struct drm_device *);
 	int (*create)(struct drm_device *);
-	int (*init)(struct drm_device *);
 	void (*destroy)(struct drm_device *);
+	int (*init)(struct drm_device *);
+	void (*fini)(struct drm_device *);
+
+	struct drm_property *dithering_mode;
+	struct drm_property *dithering_depth;
+	struct drm_property *underscan_property;
+	struct drm_property *underscan_hborder_property;
+	struct drm_property *underscan_vborder_property;
 };
 
 struct nouveau_gpio_engine {
-	void *priv;
-
-	int  (*init)(struct drm_device *);
-	void (*takedown)(struct drm_device *);
-
-	int  (*get)(struct drm_device *, enum dcb_gpio_tag);
-	int  (*set)(struct drm_device *, enum dcb_gpio_tag, int state);
-
-	int  (*irq_register)(struct drm_device *, enum dcb_gpio_tag,
-			     void (*)(void *, int), void *);
-	void (*irq_unregister)(struct drm_device *, enum dcb_gpio_tag,
-			       void (*)(void *, int), void *);
-	bool (*irq_enable)(struct drm_device *, enum dcb_gpio_tag, bool on);
+	spinlock_t lock;
+	struct list_head isr;
+	int (*init)(struct drm_device *);
+	void (*fini)(struct drm_device *);
+	int (*drive)(struct drm_device *, int line, int dir, int out);
+	int (*sense)(struct drm_device *, int line);
+	void (*irq_enable)(struct drm_device *, int line, bool);
 };
 
 struct nouveau_pm_voltage_level {
@@ -484,7 +489,7 @@ struct nouveau_pm_level {
 	u32 copy;
 	u32 daemon;
 	u32 vdec;
-	u32 unk05;	/* nv50:nva3, roughly.. */
+	u32 dom6;
 	u32 unka0;	/* nva3:nvc0 */
 	u32 hub01;	/* nvc0- */
 	u32 hub06;	/* nvc0- */
@@ -518,6 +523,12 @@ struct nouveau_pm_memtimings {
 	int nr_timing;
 };
 
+struct nouveau_pm_fan {
+	u32 min_duty;
+	u32 max_duty;
+	u32 pwm_freq;
+};
+
 struct nouveau_pm_engine {
 	struct nouveau_pm_voltage voltage;
 	struct nouveau_pm_level perflvl[NOUVEAU_PM_MAX_LEVEL];
@@ -525,6 +536,8 @@ struct nouveau_pm_engine {
 	struct nouveau_pm_memtimings memtimings;
 	struct nouveau_pm_temp_sensor_constants sensor_constants;
 	struct nouveau_pm_threshold_temp threshold_temp;
+	struct nouveau_pm_fan fan;
+	u32 pwm_divisor;
 
 	struct nouveau_pm_level boot;
 	struct nouveau_pm_level *cur;
@@ -532,19 +545,14 @@ struct nouveau_pm_engine {
 	struct device *hwmon;
 	struct notifier_block acpi_nb;
 
-	int (*clock_get)(struct drm_device *, u32 id);
-	void *(*clock_pre)(struct drm_device *, struct nouveau_pm_level *,
-			   u32 id, int khz);
-	void (*clock_set)(struct drm_device *, void *);
-
 	int  (*clocks_get)(struct drm_device *, struct nouveau_pm_level *);
 	void *(*clocks_pre)(struct drm_device *, struct nouveau_pm_level *);
-	void (*clocks_set)(struct drm_device *, void *);
+	int (*clocks_set)(struct drm_device *, void *);
 
 	int (*voltage_get)(struct drm_device *);
 	int (*voltage_set)(struct drm_device *, int voltage);
-	int (*fanspeed_get)(struct drm_device *);
-	int (*fanspeed_set)(struct drm_device *, int fanspeed);
+	int (*pwm_get)(struct drm_device *, int line, u32*, u32*);
+	int (*pwm_set)(struct drm_device *, int line, u32, u32);
 	int (*temp_get)(struct drm_device *);
 };
 
@@ -780,6 +788,8 @@ struct drm_nouveau_private {
 	struct nouveau_vm *chan_vm;
 
 	struct nvbios vbios;
+	u8 *mxms;
+	struct list_head i2c_ports;
 
 	struct nv04_mode_state mode_reg;
 	struct nv04_mode_state saved_reg;
@@ -850,6 +860,7 @@ extern char *nouveau_perflvl;
 extern int nouveau_perflvl_wr;
 extern int nouveau_msi;
 extern int nouveau_ctxfw;
+extern int nouveau_mxmdcb;
 
 extern int nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state);
 extern int nouveau_pci_resume(struct pci_dev *pdev);
@@ -1000,7 +1011,10 @@ extern int nouveau_sgdma_init(struct drm_device *);
 extern void nouveau_sgdma_takedown(struct drm_device *);
 extern uint32_t nouveau_sgdma_get_physical(struct drm_device *,
 					   uint32_t offset);
-extern struct ttm_backend *nouveau_sgdma_init_ttm(struct drm_device *);
+extern struct ttm_tt *nouveau_sgdma_create_ttm(struct ttm_bo_device *bdev,
+					       unsigned long size,
+					       uint32_t page_flags,
+					       struct page *dummy_read_page);
 
 /* nouveau_debugfs.c */
 #if defined(CONFIG_DRM_NOUVEAU_DEBUG)
@@ -1041,12 +1055,14 @@ extern int  nouveau_dma_wait(struct nouveau_channel *, int slots, int size);
 #if defined(CONFIG_ACPI)
 void nouveau_register_dsm_handler(void);
 void nouveau_unregister_dsm_handler(void);
+void nouveau_switcheroo_optimus_dsm(void);
 int nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len);
 bool nouveau_acpi_rom_supported(struct pci_dev *pdev);
 int nouveau_acpi_edid(struct drm_device *, struct drm_connector *);
 #else
 static inline void nouveau_register_dsm_handler(void) {}
 static inline void nouveau_unregister_dsm_handler(void) {}
+static inline void nouveau_switcheroo_optimus_dsm(void) {}
 static inline bool nouveau_acpi_rom_supported(struct pci_dev *pdev) { return false; }
 static inline int nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len) { return -EINVAL; }
 static inline int nouveau_acpi_edid(struct drm_device *dev, struct drm_connector *connector) { return -EINVAL; }
@@ -1072,8 +1088,6 @@ extern int nouveau_run_vbios_init(struct drm_device *);
 extern void nouveau_bios_run_init_table(struct drm_device *, uint16_t table,
 					struct dcb_entry *, int crtc);
 extern void nouveau_bios_init_exec(struct drm_device *, uint16_t table);
-extern struct dcb_gpio_entry *nouveau_bios_gpio_entry(struct drm_device *,
-						      enum dcb_gpio_tag);
 extern struct dcb_connector_table_entry *
 nouveau_bios_connector_entry(struct drm_device *, int index);
 extern u32 get_pll_register(struct drm_device *, enum pll_types);
@@ -1091,10 +1105,17 @@ extern int call_lvds_script(struct drm_device *, struct dcb_entry *, int head,
 			    enum LVDS_script, int pxclk);
 bool bios_encoder_match(struct dcb_entry *, u32 hash);
 
+/* nouveau_mxm.c */
+int  nouveau_mxm_init(struct drm_device *dev);
+void nouveau_mxm_fini(struct drm_device *dev);
+
 /* nouveau_ttm.c */
 int nouveau_ttm_global_init(struct drm_nouveau_private *);
 void nouveau_ttm_global_release(struct drm_nouveau_private *);
 int nouveau_ttm_mmap(struct file *, struct vm_area_struct *);
+
+/* nouveau_hdmi.c */
+void nouveau_hdmi_mode_set(struct drm_encoder *, struct drm_display_mode *);
 
 /* nouveau_dp.c */
 int nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
@@ -1222,6 +1243,9 @@ extern int  nvc0_graph_isr_chid(struct drm_device *dev, u64 inst);
 /* nv84_crypt.c */
 extern int  nv84_crypt_create(struct drm_device *);
 
+/* nv98_crypt.c */
+extern int  nv98_crypt_create(struct drm_device *dev);
+
 /* nva3_copy.c */
 extern int  nva3_copy_create(struct drm_device *dev);
 
@@ -1233,6 +1257,17 @@ extern int  nv31_mpeg_create(struct drm_device *dev);
 
 /* nv50_mpeg.c */
 extern int  nv50_mpeg_create(struct drm_device *dev);
+
+/* nv84_bsp.c */
+/* nv98_bsp.c */
+extern int  nv84_bsp_create(struct drm_device *dev);
+
+/* nv84_vp.c */
+/* nv98_vp.c */
+extern int  nv84_vp_create(struct drm_device *dev);
+
+/* nv98_ppp.c */
+extern int  nv98_ppp_create(struct drm_device *dev);
 
 /* nv04_instmem.c */
 extern int  nv04_instmem_init(struct drm_device *);
@@ -1311,13 +1346,19 @@ extern int nv17_tv_create(struct drm_connector *, struct dcb_entry *);
 extern int nv04_display_early_init(struct drm_device *);
 extern void nv04_display_late_takedown(struct drm_device *);
 extern int nv04_display_create(struct drm_device *);
-extern int nv04_display_init(struct drm_device *);
 extern void nv04_display_destroy(struct drm_device *);
+extern int nv04_display_init(struct drm_device *);
+extern void nv04_display_fini(struct drm_device *);
 
 /* nvd0_display.c */
 extern int nvd0_display_create(struct drm_device *);
-extern int nvd0_display_init(struct drm_device *);
 extern void nvd0_display_destroy(struct drm_device *);
+extern int nvd0_display_init(struct drm_device *);
+extern void nvd0_display_fini(struct drm_device *);
+struct nouveau_bo *nvd0_display_crtc_sema(struct drm_device *, int crtc);
+void nvd0_display_flip_stop(struct drm_crtc *);
+int nvd0_display_flip_next(struct drm_crtc *, struct drm_framebuffer *,
+			   struct nouveau_channel *, u32 swap_interval);
 
 /* nv04_crtc.c */
 extern int nv04_crtc_create(struct drm_device *, int index);
@@ -1412,6 +1453,10 @@ extern int nouveau_gem_ioctl_info(struct drm_device *, void *,
 				  struct drm_file *);
 
 /* nouveau_display.c */
+int nouveau_display_create(struct drm_device *dev);
+void nouveau_display_destroy(struct drm_device *dev);
+int nouveau_display_init(struct drm_device *dev);
+void nouveau_display_fini(struct drm_device *dev);
 int nouveau_vblank_enable(struct drm_device *dev, int crtc);
 void nouveau_vblank_disable(struct drm_device *dev, int crtc);
 int nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
@@ -1426,23 +1471,22 @@ int nouveau_display_dumb_destroy(struct drm_file *, struct drm_device *,
 				 uint32_t handle);
 
 /* nv10_gpio.c */
-int nv10_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
-int nv10_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
+int nv10_gpio_init(struct drm_device *dev);
+void nv10_gpio_fini(struct drm_device *dev);
+int nv10_gpio_drive(struct drm_device *dev, int line, int dir, int out);
+int nv10_gpio_sense(struct drm_device *dev, int line);
+void nv10_gpio_irq_enable(struct drm_device *, int line, bool on);
 
 /* nv50_gpio.c */
 int nv50_gpio_init(struct drm_device *dev);
 void nv50_gpio_fini(struct drm_device *dev);
-int nv50_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
-int nv50_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
-int nvd0_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
-int nvd0_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
-int  nv50_gpio_irq_register(struct drm_device *, enum dcb_gpio_tag,
-			    void (*)(void *, int), void *);
-void nv50_gpio_irq_unregister(struct drm_device *, enum dcb_gpio_tag,
-			      void (*)(void *, int), void *);
-bool nv50_gpio_irq_enable(struct drm_device *, enum dcb_gpio_tag, bool on);
+int nv50_gpio_drive(struct drm_device *dev, int line, int dir, int out);
+int nv50_gpio_sense(struct drm_device *dev, int line);
+void nv50_gpio_irq_enable(struct drm_device *, int line, bool on);
+int nvd0_gpio_drive(struct drm_device *dev, int line, int dir, int out);
+int nvd0_gpio_sense(struct drm_device *dev, int line);
 
-/* nv50_calc. */
+/* nv50_calc.c */
 int nv50_calc_pll(struct drm_device *, struct pll_lims *, int clk,
 		  int *N1, int *M1, int *N2, int *M2, int *P);
 int nva3_calc_pll(struct drm_device *, struct pll_lims *,
@@ -1565,6 +1609,13 @@ extern void nv_wo32(struct nouveau_gpuobj *, u32 offset, u32 val);
 #define NV_TRACEWARN(d, fmt, arg...) NV_PRINTK(KERN_NOTICE, d, fmt, ##arg)
 #define NV_TRACE(d, fmt, arg...) NV_PRINTK(KERN_INFO, d, fmt, ##arg)
 #define NV_WARN(d, fmt, arg...) NV_PRINTK(KERN_WARNING, d, fmt, ##arg)
+#define NV_WARNONCE(d, fmt, arg...) do {                                       \
+	static int _warned = 0;                                                \
+	if (!_warned) {                                                        \
+		NV_WARN(d, fmt, ##arg);                                        \
+		_warned = 1;                                                   \
+	}                                                                      \
+} while(0)
 
 /* nouveau_reg_debug bitmask */
 enum {

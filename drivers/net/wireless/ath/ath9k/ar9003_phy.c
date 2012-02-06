@@ -46,7 +46,7 @@ static const int m2ThreshExt_off = 127;
  * @chan:
  *
  * This is the function to change channel on single-chip devices, that is
- * all devices after ar9280.
+ * for AR9300 family of chipsets.
  *
  * This function takes the channel value in MHz and sets
  * hardware channel value. Assumes writes have been enabled to analog bus.

@@ -28,6 +28,7 @@
  */
 
 #include "drmP.h"
+#include "ttm/ttm_page_alloc.h"
 
 #include "nouveau_drm.h"
 #include "nouveau_drv.h"
@@ -92,6 +93,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_bo *nvbo;
+	size_t acc_size;
 	int ret;
 
 	nvbo = kzalloc(sizeof(struct nouveau_bo), GFP_KERNEL);
@@ -114,9 +116,12 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	nvbo->bo.mem.num_pages = size >> PAGE_SHIFT;
 	nouveau_bo_placement_set(nvbo, flags, 0);
 
+	acc_size = ttm_bo_dma_acc_size(&dev_priv->ttm.bdev, size,
+				       sizeof(struct nouveau_bo));
+
 	ret = ttm_bo_init(&dev_priv->ttm.bdev, &nvbo->bo, size,
 			  ttm_bo_type_device, &nvbo->placement,
-			  align >> PAGE_SHIFT, 0, false, NULL, size,
+			  align >> PAGE_SHIFT, 0, false, NULL, acc_size,
 			  nouveau_bo_del_ttm);
 	if (ret) {
 		/* ttm will call nouveau_bo_del_ttm if it fails.. */
@@ -343,8 +348,10 @@ nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val)
 		*mem = val;
 }
 
-static struct ttm_backend *
-nouveau_bo_create_ttm_backend_entry(struct ttm_bo_device *bdev)
+static struct ttm_tt *
+nouveau_ttm_tt_create(struct ttm_bo_device *bdev,
+		      unsigned long size, uint32_t page_flags,
+		      struct page *dummy_read_page)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(bdev);
 	struct drm_device *dev = dev_priv->dev;
@@ -352,11 +359,13 @@ nouveau_bo_create_ttm_backend_entry(struct ttm_bo_device *bdev)
 	switch (dev_priv->gart_info.type) {
 #if __OS_HAS_AGP
 	case NOUVEAU_GART_AGP:
-		return ttm_agp_backend_init(bdev, dev->agp->bridge);
+		return ttm_agp_tt_create(bdev, dev->agp->bridge,
+					 size, page_flags, dummy_read_page);
 #endif
 	case NOUVEAU_GART_PDMA:
 	case NOUVEAU_GART_HW:
-		return nouveau_sgdma_init_ttm(dev);
+		return nouveau_sgdma_create_ttm(bdev, size, page_flags,
+						dummy_read_page);
 	default:
 		NV_ERROR(dev, "Unknown GART type %d\n",
 			 dev_priv->gart_info.type);
@@ -673,8 +682,7 @@ nouveau_vma_getmap(struct nouveau_channel *chan, struct nouveau_bo *nvbo,
 	if (mem->mem_type == TTM_PL_VRAM)
 		nouveau_vm_map(vma, node);
 	else
-		nouveau_vm_map_sg(vma, 0, mem->num_pages << PAGE_SHIFT,
-				  node, node->pages);
+		nouveau_vm_map_sg(vma, 0, mem->num_pages << PAGE_SHIFT, node);
 
 	return 0;
 }
@@ -801,19 +809,22 @@ out:
 static void
 nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem)
 {
-	struct nouveau_mem *node = new_mem->mm_node;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nouveau_vma *vma;
 
+	/* ttm can now (stupidly) pass the driver bos it didn't create... */
+	if (bo->destroy != nouveau_bo_del_ttm)
+		return;
+
 	list_for_each_entry(vma, &nvbo->vma_list, head) {
-		if (new_mem->mem_type == TTM_PL_VRAM) {
+		if (new_mem && new_mem->mem_type == TTM_PL_VRAM) {
 			nouveau_vm_map(vma, new_mem->mm_node);
 		} else
-		if (new_mem->mem_type == TTM_PL_TT &&
+		if (new_mem && new_mem->mem_type == TTM_PL_TT &&
 		    nvbo->page_shift == vma->vm->spg_shift) {
 			nouveau_vm_map_sg(vma, 0, new_mem->
 					  num_pages << PAGE_SHIFT,
-					  node, node->pages);
+					  new_mem->mm_node);
 		} else {
 			nouveau_vm_unmap(vma);
 		}
@@ -1044,8 +1055,94 @@ nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence)
 	nouveau_fence_unref(&old_fence);
 }
 
+static int
+nouveau_ttm_tt_populate(struct ttm_tt *ttm)
+{
+	struct ttm_dma_tt *ttm_dma = (void *)ttm;
+	struct drm_nouveau_private *dev_priv;
+	struct drm_device *dev;
+	unsigned i;
+	int r;
+
+	if (ttm->state != tt_unpopulated)
+		return 0;
+
+	dev_priv = nouveau_bdev(ttm->bdev);
+	dev = dev_priv->dev;
+
+#if __OS_HAS_AGP
+	if (dev_priv->gart_info.type == NOUVEAU_GART_AGP) {
+		return ttm_agp_tt_populate(ttm);
+	}
+#endif
+
+#ifdef CONFIG_SWIOTLB
+	if (swiotlb_nr_tbl()) {
+		return ttm_dma_populate((void *)ttm, dev->dev);
+	}
+#endif
+
+	r = ttm_pool_populate(ttm);
+	if (r) {
+		return r;
+	}
+
+	for (i = 0; i < ttm->num_pages; i++) {
+		ttm_dma->dma_address[i] = pci_map_page(dev->pdev, ttm->pages[i],
+						   0, PAGE_SIZE,
+						   PCI_DMA_BIDIRECTIONAL);
+		if (pci_dma_mapping_error(dev->pdev, ttm_dma->dma_address[i])) {
+			while (--i) {
+				pci_unmap_page(dev->pdev, ttm_dma->dma_address[i],
+					       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+				ttm_dma->dma_address[i] = 0;
+			}
+			ttm_pool_unpopulate(ttm);
+			return -EFAULT;
+		}
+	}
+	return 0;
+}
+
+static void
+nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
+{
+	struct ttm_dma_tt *ttm_dma = (void *)ttm;
+	struct drm_nouveau_private *dev_priv;
+	struct drm_device *dev;
+	unsigned i;
+
+	dev_priv = nouveau_bdev(ttm->bdev);
+	dev = dev_priv->dev;
+
+#if __OS_HAS_AGP
+	if (dev_priv->gart_info.type == NOUVEAU_GART_AGP) {
+		ttm_agp_tt_unpopulate(ttm);
+		return;
+	}
+#endif
+
+#ifdef CONFIG_SWIOTLB
+	if (swiotlb_nr_tbl()) {
+		ttm_dma_unpopulate((void *)ttm, dev->dev);
+		return;
+	}
+#endif
+
+	for (i = 0; i < ttm->num_pages; i++) {
+		if (ttm_dma->dma_address[i]) {
+			pci_unmap_page(dev->pdev, ttm_dma->dma_address[i],
+				       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+		}
+	}
+
+	ttm_pool_unpopulate(ttm);
+}
+
 struct ttm_bo_driver nouveau_bo_driver = {
-	.create_ttm_backend_entry = nouveau_bo_create_ttm_backend_entry,
+	.ttm_tt_create = &nouveau_ttm_tt_create,
+	.ttm_tt_populate = &nouveau_ttm_tt_populate,
+	.ttm_tt_unpopulate = &nouveau_ttm_tt_unpopulate,
 	.invalidate_caches = nouveau_bo_invalidate_caches,
 	.init_mem_type = nouveau_bo_init_mem_type,
 	.evict_flags = nouveau_bo_evict_flags,
@@ -1091,7 +1188,7 @@ nouveau_bo_vma_add(struct nouveau_bo *nvbo, struct nouveau_vm *vm,
 		nouveau_vm_map(vma, nvbo->bo.mem.mm_node);
 	else
 	if (nvbo->bo.mem.mem_type == TTM_PL_TT)
-		nouveau_vm_map_sg(vma, 0, size, node, node->pages);
+		nouveau_vm_map_sg(vma, 0, size, node);
 
 	list_add_tail(&vma->head, &nvbo->vma_list);
 	vma->refcount = 1;

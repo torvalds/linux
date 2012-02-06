@@ -830,6 +830,8 @@ static int handle_exit(void)
 		fprintf(stderr, _("\n\n"
 				  "Your configuration changes were NOT saved."
 				  "\n\n"));
+		if (res != KEY_ESC)
+			res = 0;
 	}
 
 	return res;

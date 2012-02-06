@@ -307,7 +307,7 @@ static int stmmac_init_phy(struct net_device *dev)
 	priv->speed = 0;
 	priv->oldduplex = -1;
 
-	snprintf(bus_id, MII_BUS_ID_SIZE, "%x", priv->plat->bus_id);
+	snprintf(bus_id, MII_BUS_ID_SIZE, "stmmac-%x", priv->plat->bus_id);
 	snprintf(phy_id, MII_BUS_ID_SIZE + 3, PHY_ID_FMT, bus_id,
 		 priv->plat->phy_addr);
 	pr_debug("stmmac_init_phy:  trying to attach to %s\n", phy_id);
@@ -772,7 +772,7 @@ static void stmmac_mmc_setup(struct stmmac_priv *priv)
 		dwmac_mmc_ctrl(priv->ioaddr, mode);
 		memset(&priv->mmc, 0, sizeof(struct stmmac_counters));
 	} else
-		pr_info(" No MAC Management Counters available");
+		pr_info(" No MAC Management Counters available\n");
 }
 
 static u32 stmmac_get_synopsys_id(struct stmmac_priv *priv)

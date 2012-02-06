@@ -981,6 +981,9 @@ static void musb_shutdown(struct platform_device *pdev)
 	unsigned long	flags;
 
 	pm_runtime_get_sync(musb->controller);
+
+	musb_gadget_cleanup(musb);
+
 	spin_lock_irqsave(&musb->lock, flags);
 	musb_platform_disable(musb);
 	musb_generic_disable(musb);
@@ -1586,7 +1589,7 @@ irqreturn_t musb_interrupt(struct musb *musb)
 EXPORT_SYMBOL_GPL(musb_interrupt);
 
 #ifndef CONFIG_MUSB_PIO_ONLY
-static int __initdata use_dma = 1;
+static bool __initdata use_dma = 1;
 
 /* "modprobe ... use_dma=0" etc */
 module_param(use_dma, bool, 0);
@@ -1826,8 +1829,6 @@ static void musb_free(struct musb *musb)
 #ifdef CONFIG_SYSFS
 	sysfs_remove_group(&musb->controller->kobj, &musb_attr_group);
 #endif
-
-	musb_gadget_cleanup(musb);
 
 	if (musb->nIrq >= 0) {
 		if (musb->irq_wake)

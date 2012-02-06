@@ -18,7 +18,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  *  FILE: megaraid_sas_base.c
- *  Version : v00.00.06.12-rc1
+ *  Version : v00.00.06.14-rc1
  *
  *  Authors: LSI Corporation
  *           Sreenivas Bagalkote
@@ -57,14 +57,6 @@
 #include <scsi/scsi_tcq.h>
 #include "megaraid_sas_fusion.h"
 #include "megaraid_sas.h"
-
-/*
- * poll_mode_io:1- schedule complete completion from q cmd
- */
-static unsigned int poll_mode_io;
-module_param_named(poll_mode_io, poll_mode_io, int, 0);
-MODULE_PARM_DESC(poll_mode_io,
-	"Complete cmds from IO path, (default=0)");
 
 /*
  * Number of sectors per IO command
@@ -1439,11 +1431,6 @@ megasas_build_and_issue_cmd(struct megasas_instance *instance,
 
 	instance->instancet->fire_cmd(instance, cmd->frame_phys_addr,
 				cmd->frame_count-1, instance->reg_set);
-	/*
-	 * Check if we have pend cmds to be completed
-	 */
-	if (poll_mode_io && atomic_read(&instance->fw_outstanding))
-		tasklet_schedule(&instance->isr_tasklet);
 
 	return 0;
 out_return_cmd:
@@ -3370,47 +3357,6 @@ fail_fw_init:
 	return -EINVAL;
 }
 
-/**
- * megasas_start_timer - Initializes a timer object
- * @instance:		Adapter soft state
- * @timer:		timer object to be initialized
- * @fn:			timer function
- * @interval:		time interval between timer function call
- */
-static inline void
-megasas_start_timer(struct megasas_instance *instance,
-			struct timer_list *timer,
-			void *fn, unsigned long interval)
-{
-	init_timer(timer);
-	timer->expires = jiffies + interval;
-	timer->data = (unsigned long)instance;
-	timer->function = fn;
-	add_timer(timer);
-}
-
-/**
- * megasas_io_completion_timer - Timer fn
- * @instance_addr:	Address of adapter soft state
- *
- * Schedules tasklet for cmd completion
- * if poll_mode_io is set
- */
-static void
-megasas_io_completion_timer(unsigned long instance_addr)
-{
-	struct megasas_instance *instance =
-			(struct megasas_instance *)instance_addr;
-
-	if (atomic_read(&instance->fw_outstanding))
-		tasklet_schedule(&instance->isr_tasklet);
-
-	/* Restart timer */
-	if (poll_mode_io)
-		mod_timer(&instance->io_completion_timer,
-			jiffies + MEGASAS_COMPLETION_TIMER_INTERVAL);
-}
-
 static u32
 megasas_init_adapter_mfi(struct megasas_instance *instance)
 {
@@ -3638,11 +3584,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	tasklet_init(&instance->isr_tasklet, instance->instancet->tasklet,
 		(unsigned long)instance);
 
-	/* Initialize the cmd completion timer */
-	if (poll_mode_io)
-		megasas_start_timer(instance, &instance->io_completion_timer,
-				megasas_io_completion_timer,
-				MEGASAS_COMPLETION_TIMER_INTERVAL);
 	return 0;
 
 fail_init_adapter:
@@ -4369,9 +4310,6 @@ megasas_suspend(struct pci_dev *pdev, pm_message_t state)
 	host = instance->host;
 	instance->unload = 1;
 
-	if (poll_mode_io)
-		del_timer_sync(&instance->io_completion_timer);
-
 	megasas_flush_cache(instance);
 	megasas_shutdown_controller(instance, MR_DCMD_HIBERNATE_SHUTDOWN);
 
@@ -4511,12 +4449,6 @@ megasas_resume(struct pci_dev *pdev)
 	}
 
 	instance->instancet->enable_intr(instance->reg_set);
-
-	/* Initialize the cmd completion timer */
-	if (poll_mode_io)
-		megasas_start_timer(instance, &instance->io_completion_timer,
-				megasas_io_completion_timer,
-				MEGASAS_COMPLETION_TIMER_INTERVAL);
 	instance->unload = 0;
 
 	/*
@@ -4569,9 +4501,6 @@ static void __devexit megasas_detach_one(struct pci_dev *pdev)
 	instance->unload = 1;
 	host = instance->host;
 	fusion = instance->ctrl_context;
-
-	if (poll_mode_io)
-		del_timer_sync(&instance->io_completion_timer);
 
 	scsi_remove_host(instance->host);
 	megasas_flush_cache(instance);
@@ -4773,6 +4702,8 @@ megasas_mgmt_fw_ioctl(struct megasas_instance *instance,
 	memcpy(cmd->frame, ioc->frame.raw, 2 * MEGAMFI_FRAME_SIZE);
 	cmd->frame->hdr.context = cmd->index;
 	cmd->frame->hdr.pad_0 = 0;
+	cmd->frame->hdr.flags &= ~(MFI_FRAME_IEEE | MFI_FRAME_SGL64 |
+				   MFI_FRAME_SENSE64);
 
 	/*
 	 * The management interface between applications and the fw uses
@@ -5219,60 +5150,6 @@ megasas_sysfs_set_dbg_lvl(struct device_driver *dd, const char *buf, size_t coun
 static DRIVER_ATTR(dbg_lvl, S_IRUGO|S_IWUSR, megasas_sysfs_show_dbg_lvl,
 		megasas_sysfs_set_dbg_lvl);
 
-static ssize_t
-megasas_sysfs_show_poll_mode_io(struct device_driver *dd, char *buf)
-{
-	return sprintf(buf, "%u\n", poll_mode_io);
-}
-
-static ssize_t
-megasas_sysfs_set_poll_mode_io(struct device_driver *dd,
-				const char *buf, size_t count)
-{
-	int retval = count;
-	int tmp = poll_mode_io;
-	int i;
-	struct megasas_instance *instance;
-
-	if (sscanf(buf, "%u", &poll_mode_io) < 1) {
-		printk(KERN_ERR "megasas: could not set poll_mode_io\n");
-		retval = -EINVAL;
-	}
-
-	/*
-	 * Check if poll_mode_io is already set or is same as previous value
-	 */
-	if ((tmp && poll_mode_io) || (tmp == poll_mode_io))
-		goto out;
-
-	if (poll_mode_io) {
-		/*
-		 * Start timers for all adapters
-		 */
-		for (i = 0; i < megasas_mgmt_info.max_index; i++) {
-			instance = megasas_mgmt_info.instance[i];
-			if (instance) {
-				megasas_start_timer(instance,
-					&instance->io_completion_timer,
-					megasas_io_completion_timer,
-					MEGASAS_COMPLETION_TIMER_INTERVAL);
-			}
-		}
-	} else {
-		/*
-		 * Delete timers for all adapters
-		 */
-		for (i = 0; i < megasas_mgmt_info.max_index; i++) {
-			instance = megasas_mgmt_info.instance[i];
-			if (instance)
-				del_timer_sync(&instance->io_completion_timer);
-		}
-	}
-
-out:
-	return retval;
-}
-
 static void
 megasas_aen_polling(struct work_struct *work)
 {
@@ -5502,11 +5379,6 @@ megasas_aen_polling(struct work_struct *work)
 	kfree(ev);
 }
 
-
-static DRIVER_ATTR(poll_mode_io, S_IRUGO|S_IWUSR,
-		megasas_sysfs_show_poll_mode_io,
-		megasas_sysfs_set_poll_mode_io);
-
 /**
  * megasas_init - Driver load entry point
  */
@@ -5566,11 +5438,6 @@ static int __init megasas_init(void)
 	if (rval)
 		goto err_dcf_dbg_lvl;
 	rval = driver_create_file(&megasas_pci_driver.driver,
-				  &driver_attr_poll_mode_io);
-	if (rval)
-		goto err_dcf_poll_mode_io;
-
-	rval = driver_create_file(&megasas_pci_driver.driver,
 				&driver_attr_support_device_change);
 	if (rval)
 		goto err_dcf_support_device_change;
@@ -5578,10 +5445,6 @@ static int __init megasas_init(void)
 	return rval;
 
 err_dcf_support_device_change:
-	driver_remove_file(&megasas_pci_driver.driver,
-		  &driver_attr_poll_mode_io);
-
-err_dcf_poll_mode_io:
 	driver_remove_file(&megasas_pci_driver.driver,
 			   &driver_attr_dbg_lvl);
 err_dcf_dbg_lvl:
@@ -5606,8 +5469,6 @@ err_pcidrv:
  */
 static void __exit megasas_exit(void)
 {
-	driver_remove_file(&megasas_pci_driver.driver,
-			   &driver_attr_poll_mode_io);
 	driver_remove_file(&megasas_pci_driver.driver,
 			   &driver_attr_dbg_lvl);
 	driver_remove_file(&megasas_pci_driver.driver,

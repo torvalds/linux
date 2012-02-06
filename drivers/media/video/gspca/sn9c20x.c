@@ -2048,6 +2048,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 
 	cam = &gspca_dev->cam;
+	cam->needs_full_bandwidth = 1;
 
 	sd->sensor = (id->driver_info >> 8) & 0xff;
 	sd->i2c_addr = id->driver_info & 0xff;
@@ -2231,6 +2232,42 @@ static void configure_sensor_output(struct gspca_dev *gspca_dev, int mode)
 		}
 		break;
 	}
+}
+
+static int sd_isoc_init(struct gspca_dev *gspca_dev)
+{
+	struct usb_interface *intf;
+	u32 flags = gspca_dev->cam.cam_mode[(int)gspca_dev->curr_mode].priv;
+
+	/*
+	 * When using the SN9C20X_I420 fmt the sn9c20x needs more bandwidth
+	 * than our regular bandwidth calculations reserve, so we force the
+	 * use of a specific altsetting when using the SN9C20X_I420 fmt.
+	 */
+	if (!(flags & (MODE_RAW | MODE_JPEG))) {
+		intf = usb_ifnum_to_if(gspca_dev->dev, gspca_dev->iface);
+
+		if (intf->num_altsetting != 9) {
+			pr_warn("sn9c20x camera with unknown number of alt "
+			        "settings (%d), please report!\n",
+			        intf->num_altsetting);
+			gspca_dev->alt = intf->num_altsetting;
+			return 0;
+		}
+
+		switch (gspca_dev->width) {
+		case 160: /* 160x120 */
+			gspca_dev->alt = 2;
+			break;
+		case 320: /* 320x240 */
+			gspca_dev->alt = 6;
+			break;
+		default:  /* >= 640x480 */
+			gspca_dev->alt = 9;
+		}
+	}
+
+	return 0;
 }
 
 #define HW_WIN(mode, hstart, vstart) \
@@ -2473,6 +2510,7 @@ static const struct sd_desc sd_desc = {
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
+	.isoc_init = sd_isoc_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,

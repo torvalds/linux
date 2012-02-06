@@ -82,12 +82,12 @@ struct wmi_block {
 #define ACPI_WMI_STRING      0x4	/* GUID takes & returns a string */
 #define ACPI_WMI_EVENT       0x8	/* GUID is an event */
 
-static int debug_event;
+static bool debug_event;
 module_param(debug_event, bool, 0444);
 MODULE_PARM_DESC(debug_event,
 		 "Log WMI Events [0/1]");
 
-static int debug_dump_wdg;
+static bool debug_dump_wdg;
 module_param(debug_dump_wdg, bool, 0444);
 MODULE_PARM_DESC(debug_dump_wdg,
 		 "Dump available WMI interfaces [0/1]");

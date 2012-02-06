@@ -900,11 +900,11 @@ static int configure_dma(struct pl022 *pl022)
 {
 	struct dma_slave_config rx_conf = {
 		.src_addr = SSP_DR(pl022->phybase),
-		.direction = DMA_FROM_DEVICE,
+		.direction = DMA_DEV_TO_MEM,
 	};
 	struct dma_slave_config tx_conf = {
 		.dst_addr = SSP_DR(pl022->phybase),
-		.direction = DMA_TO_DEVICE,
+		.direction = DMA_MEM_TO_DEV,
 	};
 	unsigned int pages;
 	int ret;
@@ -1041,7 +1041,7 @@ static int configure_dma(struct pl022 *pl022)
 	rxdesc = rxchan->device->device_prep_slave_sg(rxchan,
 				      pl022->sgt_rx.sgl,
 				      rx_sglen,
-				      DMA_FROM_DEVICE,
+				      DMA_DEV_TO_MEM,
 				      DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!rxdesc)
 		goto err_rxdesc;
@@ -1049,7 +1049,7 @@ static int configure_dma(struct pl022 *pl022)
 	txdesc = txchan->device->device_prep_slave_sg(txchan,
 				      pl022->sgt_tx.sgl,
 				      tx_sglen,
-				      DMA_TO_DEVICE,
+				      DMA_MEM_TO_DEV,
 				      DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!txdesc)
 		goto err_txdesc;

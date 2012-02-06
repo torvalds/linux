@@ -36,12 +36,15 @@
 #include "exynos_drm_fbdev.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_gem.h"
+#include "exynos_drm_plane.h"
 
-#define DRIVER_NAME	"exynos-drm"
+#define DRIVER_NAME	"exynos"
 #define DRIVER_DESC	"Samsung SoC DRM"
 #define DRIVER_DATE	"20110530"
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
+
+#define VBLANK_OFF_DELAY	50000
 
 static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 {
@@ -77,6 +80,12 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 			goto err_crtc;
 	}
 
+	for (nr = 0; nr < MAX_PLANE; nr++) {
+		ret = exynos_plane_init(dev, nr);
+		if (ret)
+			goto err_crtc;
+	}
+
 	ret = drm_vblank_init(dev, MAX_CRTC);
 	if (ret)
 		goto err_crtc;
@@ -99,6 +108,8 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 		DRM_ERROR("failed to initialize drm fbdev\n");
 		goto err_drm_device;
 	}
+
+	drm_vblank_offdelay = VBLANK_OFF_DELAY;
 
 	return 0;
 
@@ -163,6 +174,18 @@ static struct drm_ioctl_desc exynos_ioctls[] = {
 			DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_MMAP,
 			exynos_drm_gem_mmap_ioctl, DRM_UNLOCKED | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(EXYNOS_PLANE_SET_ZPOS, exynos_plane_set_zpos_ioctl,
+			DRM_UNLOCKED | DRM_AUTH),
+};
+
+static const struct file_operations exynos_drm_driver_fops = {
+	.owner		= THIS_MODULE,
+	.open		= drm_open,
+	.mmap		= exynos_drm_gem_mmap,
+	.poll		= drm_poll,
+	.read		= drm_read,
+	.unlocked_ioctl	= drm_ioctl,
+	.release	= drm_release,
 };
 
 static struct drm_driver exynos_drm_driver = {
@@ -182,15 +205,7 @@ static struct drm_driver exynos_drm_driver = {
 	.dumb_map_offset	= exynos_drm_gem_dumb_map_offset,
 	.dumb_destroy		= exynos_drm_gem_dumb_destroy,
 	.ioctls			= exynos_ioctls,
-	.fops = {
-		.owner		= THIS_MODULE,
-		.open		= drm_open,
-		.mmap		= exynos_drm_gem_mmap,
-		.poll		= drm_poll,
-		.read		= drm_read,
-		.unlocked_ioctl	= drm_ioctl,
-		.release	= drm_release,
-	},
+	.fops			= &exynos_drm_driver_fops,
 	.name	= DRIVER_NAME,
 	.desc	= DRIVER_DESC,
 	.date	= DRIVER_DATE,

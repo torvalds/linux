@@ -978,6 +978,7 @@ static int ax88772_link_reset(struct usbnet *dev)
 
 static int ax88772_reset(struct usbnet *dev)
 {
+	struct asix_data *data = (struct asix_data *)&dev->data;
 	int ret, embd_phy;
 	u16 rx_ctl;
 
@@ -1054,6 +1055,13 @@ static int ax88772_reset(struct usbnet *dev)
 		dbg("Write IPG,IPG1,IPG2 failed: %d", ret);
 		goto out;
 	}
+
+	/* Rewrite MAC address */
+	memcpy(data->mac_addr, dev->net->dev_addr, ETH_ALEN);
+	ret = asix_write_cmd(dev, AX_CMD_WRITE_NODE_ID, 0, 0, ETH_ALEN,
+							data->mac_addr);
+	if (ret < 0)
+		goto out;
 
 	/* Set RX_CTL to default values with 2k buffer, and enable cactus */
 	ret = asix_write_rx_ctl(dev, AX_DEFAULT_RX_CTL);
@@ -1317,6 +1325,13 @@ static int ax88178_reset(struct usbnet *dev)
 	mii_nway_restart(&dev->mii);
 
 	ret = asix_write_medium_mode(dev, AX88178_MEDIUM_DEFAULT);
+	if (ret < 0)
+		return ret;
+
+	/* Rewrite MAC address */
+	memcpy(data->mac_addr, dev->net->dev_addr, ETH_ALEN);
+	ret = asix_write_cmd(dev, AX_CMD_WRITE_NODE_ID, 0, 0, ETH_ALEN,
+							data->mac_addr);
 	if (ret < 0)
 		return ret;
 

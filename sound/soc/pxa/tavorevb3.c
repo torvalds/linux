@@ -51,7 +51,7 @@ static const struct snd_soc_dapm_widget evb3_dapm_widgets[] = {
 };
 
 /* tavorevb3 machine audio map */
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route evb3_audio_map[] = {
 	{"Headset Stereophone", NULL, "HS1"},
 	{"Headset Stereophone", NULL, "HS2"},
 
@@ -92,16 +92,6 @@ static int evb3_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
-
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
-
 	ret = snd_soc_dai_set_tdm_slot(cpu_dai, 3, 3, 2, width);
 	return ret;
 }
@@ -119,25 +109,28 @@ static struct snd_soc_dai_link evb3_dai[] = {
 		.platform_name	= "pxa-pcm-audio",
 		.codec_name	= "88pm860x-codec",
 		.init		= evb3_pm860x_init,
+		.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+				  SND_SOC_DAIFMT_CBM_CFM,
 		.ops		= &evb3_i2s_ops,
 	},
 };
 
 static struct snd_soc_card snd_soc_card_evb3 = {
 	.name = "Tavor EVB3",
+	.owner = THIS_MODULE,
 	.dai_link = evb3_dai,
 	.num_links = ARRAY_SIZE(evb3_dai),
+
+	.dapm_widgets = evb3_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(evb3_dapm_widgets),
+	.dapm_routes = evb3_audio_map,
+	.num_dapm_routes = ARRAY_SIZE(evb3_audio_map),
 };
 
 static int evb3_pm860x_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int ret;
-
-	snd_soc_dapm_new_controls(dapm, evb3_dapm_widgets,
-				  ARRAY_SIZE(evb3_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
 	/* connected pins */
 	snd_soc_dapm_enable_pin(dapm, "Ext Speaker");

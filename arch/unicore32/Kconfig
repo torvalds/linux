@@ -12,6 +12,7 @@ config UNICORE32
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select ARCH_WANT_FRAME_POINTERS
+	select GENERIC_IOMAP
 	help
 	  UniCore-32 is 32-bit Instruction Set Architecture,
 	  including a series of low-power-consumption RISC chip
@@ -28,9 +29,6 @@ config GENERIC_CLOCKEVENTS
 	bool
 
 config GENERIC_CSUM
-	def_bool y
-
-config GENERIC_IOMAP
 	def_bool y
 
 config NO_IOPORT

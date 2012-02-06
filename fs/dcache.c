@@ -243,6 +243,7 @@ static void dentry_lru_add(struct dentry *dentry)
 static void __dentry_lru_del(struct dentry *dentry)
 {
 	list_del_init(&dentry->d_lru);
+	dentry->d_flags &= ~DCACHE_SHRINK_LIST;
 	dentry->d_sb->s_nr_dentry_unused--;
 	dentry_stat.nr_unused--;
 }
@@ -806,6 +807,7 @@ relock:
 			spin_unlock(&dentry->d_lock);
 		} else {
 			list_move_tail(&dentry->d_lru, &tmp);
+			dentry->d_flags |= DCACHE_SHRINK_LIST;
 			spin_unlock(&dentry->d_lock);
 			if (!--count)
 				break;
@@ -1097,14 +1099,19 @@ resume:
 
 		/*
 		 * move only zero ref count dentries to the dispose list.
+		 *
+		 * Those which are presently on the shrink list, being processed
+		 * by shrink_dentry_list(), shouldn't be moved.  Otherwise the
+		 * loop in shrink_dcache_parent() might not make any progress
+		 * and loop forever.
 		 */
-		if (!dentry->d_count) {
-			dentry_lru_move_list(dentry, dispose);
-			found++;
-		} else {
+		if (dentry->d_count) {
 			dentry_lru_del(dentry);
+		} else if (!(dentry->d_flags & DCACHE_SHRINK_LIST)) {
+			dentry_lru_move_list(dentry, dispose);
+			dentry->d_flags |= DCACHE_SHRINK_LIST;
+			found++;
 		}
-
 		/*
 		 * We can return to the caller if we have found some (this
 		 * ensures forward progress). We'll be coming back to find
@@ -1468,7 +1475,14 @@ static struct dentry * __d_find_any_alias(struct inode *inode)
 	return alias;
 }
 
-static struct dentry * d_find_any_alias(struct inode *inode)
+/**
+ * d_find_any_alias - find any alias for a given inode
+ * @inode: inode to find an alias for
+ *
+ * If any aliases exist for the given inode, take and return a
+ * reference for one of them.  If no aliases exist, return %NULL.
+ */
+struct dentry *d_find_any_alias(struct inode *inode)
 {
 	struct dentry *de;
 
@@ -1477,7 +1491,7 @@ static struct dentry * d_find_any_alias(struct inode *inode)
 	spin_unlock(&inode->i_lock);
 	return de;
 }
-
+EXPORT_SYMBOL(d_find_any_alias);
 
 /**
  * d_obtain_alias - find or allocate a dentry for a given inode

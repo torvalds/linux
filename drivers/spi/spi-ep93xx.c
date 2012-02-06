@@ -551,6 +551,7 @@ ep93xx_spi_dma_prepare(struct ep93xx_spi *espi, enum dma_data_direction dir)
 	struct dma_async_tx_descriptor *txd;
 	enum dma_slave_buswidth buswidth;
 	struct dma_slave_config conf;
+	enum dma_transfer_direction slave_dirn;
 	struct scatterlist *sg;
 	struct sg_table *sgt;
 	struct dma_chan *chan;
@@ -573,6 +574,7 @@ ep93xx_spi_dma_prepare(struct ep93xx_spi *espi, enum dma_data_direction dir)
 
 		conf.src_addr = espi->sspdr_phys;
 		conf.src_addr_width = buswidth;
+		slave_dirn = DMA_DEV_TO_MEM;
 	} else {
 		chan = espi->dma_tx;
 		buf = t->tx_buf;
@@ -580,6 +582,7 @@ ep93xx_spi_dma_prepare(struct ep93xx_spi *espi, enum dma_data_direction dir)
 
 		conf.dst_addr = espi->sspdr_phys;
 		conf.dst_addr_width = buswidth;
+		slave_dirn = DMA_MEM_TO_DEV;
 	}
 
 	ret = dmaengine_slave_config(chan, &conf);
@@ -631,7 +634,7 @@ ep93xx_spi_dma_prepare(struct ep93xx_spi *espi, enum dma_data_direction dir)
 		return ERR_PTR(-ENOMEM);
 
 	txd = chan->device->device_prep_slave_sg(chan, sgt->sgl, nents,
-						 dir, DMA_CTRL_ACK);
+						 slave_dirn, DMA_CTRL_ACK);
 	if (!txd) {
 		dma_unmap_sg(chan->device->dev, sgt->sgl, sgt->nents, dir);
 		return ERR_PTR(-ENOMEM);
@@ -979,7 +982,7 @@ static int ep93xx_spi_setup_dma(struct ep93xx_spi *espi)
 	dma_cap_set(DMA_SLAVE, mask);
 
 	espi->dma_rx_data.port = EP93XX_DMA_SSP;
-	espi->dma_rx_data.direction = DMA_FROM_DEVICE;
+	espi->dma_rx_data.direction = DMA_DEV_TO_MEM;
 	espi->dma_rx_data.name = "ep93xx-spi-rx";
 
 	espi->dma_rx = dma_request_channel(mask, ep93xx_spi_dma_filter,
@@ -990,7 +993,7 @@ static int ep93xx_spi_setup_dma(struct ep93xx_spi *espi)
 	}
 
 	espi->dma_tx_data.port = EP93XX_DMA_SSP;
-	espi->dma_tx_data.direction = DMA_TO_DEVICE;
+	espi->dma_tx_data.direction = DMA_MEM_TO_DEV;
 	espi->dma_tx_data.name = "ep93xx-spi-tx";
 
 	espi->dma_tx = dma_request_channel(mask, ep93xx_spi_dma_filter,

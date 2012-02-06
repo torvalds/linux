@@ -41,15 +41,17 @@ EXPORT_SYMBOL_GPL(rpc_lookup_cred);
 /*
  * Public call interface for looking up machine creds.
  */
-struct rpc_cred *rpc_lookup_machine_cred(void)
+struct rpc_cred *rpc_lookup_machine_cred(const char *service_name)
 {
 	struct auth_cred acred = {
 		.uid = RPC_MACHINE_CRED_USERID,
 		.gid = RPC_MACHINE_CRED_GROUPID,
+		.principal = service_name,
 		.machine_cred = 1,
 	};
 
-	dprintk("RPC:       looking up machine cred\n");
+	dprintk("RPC:       looking up machine cred for service %s\n",
+			service_name);
 	return generic_auth.au_ops->lookup_cred(&generic_auth, &acred, 0);
 }
 EXPORT_SYMBOL_GPL(rpc_lookup_machine_cred);
@@ -90,6 +92,7 @@ generic_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
 	if (gcred->acred.group_info != NULL)
 		get_group_info(gcred->acred.group_info);
 	gcred->acred.machine_cred = acred->machine_cred;
+	gcred->acred.principal = acred->principal;
 
 	dprintk("RPC:       allocated %s cred %p for uid %d gid %d\n",
 			gcred->acred.machine_cred ? "machine" : "generic",
@@ -121,6 +124,17 @@ generic_destroy_cred(struct rpc_cred *cred)
 	call_rcu(&cred->cr_rcu, generic_free_cred_callback);
 }
 
+static int
+machine_cred_match(struct auth_cred *acred, struct generic_cred *gcred, int flags)
+{
+	if (!gcred->acred.machine_cred ||
+	    gcred->acred.principal != acred->principal ||
+	    gcred->acred.uid != acred->uid ||
+	    gcred->acred.gid != acred->gid)
+		return 0;
+	return 1;
+}
+
 /*
  * Match credentials against current process creds.
  */
@@ -130,9 +144,12 @@ generic_match(struct auth_cred *acred, struct rpc_cred *cred, int flags)
 	struct generic_cred *gcred = container_of(cred, struct generic_cred, gc_base);
 	int i;
 
+	if (acred->machine_cred)
+		return machine_cred_match(acred, gcred, flags);
+
 	if (gcred->acred.uid != acred->uid ||
 	    gcred->acred.gid != acred->gid ||
-	    gcred->acred.machine_cred != acred->machine_cred)
+	    gcred->acred.machine_cred != 0)
 		goto out_nomatch;
 
 	/* Optimisation in the case where pointers are identical... */
