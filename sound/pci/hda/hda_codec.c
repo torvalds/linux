@@ -2320,7 +2320,6 @@ static int map_slaves(struct hda_codec *codec, const char * const *slaves,
 					 name, suffix);
 				name = tmpname;
 			}
-			printk("XXX comparing %s vs %s\n", sctl->id.name, name);
 			if (!strcmp(sctl->id.name, name)) {
 				err = func(data, sctl);
 				if (err)
