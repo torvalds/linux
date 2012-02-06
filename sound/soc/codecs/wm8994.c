@@ -3387,7 +3387,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 				     WM8994_IRQ_MIC1_DET;
 
 	pm_runtime_enable(codec->dev);
-	pm_runtime_resume(codec->dev);
+	pm_runtime_idle(codec->dev);
 
 	/* By default use idle_bias_off, will override for WM8994 */
 	codec->dapm.idle_bias_off = 1;
