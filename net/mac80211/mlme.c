@@ -127,7 +127,7 @@ static void run_again(struct ieee80211_if_managed *ifmgd,
 
 void ieee80211_sta_reset_beacon_monitor(struct ieee80211_sub_if_data *sdata)
 {
-	if (sdata->local->hw.flags & IEEE80211_HW_BEACON_FILTER)
+	if (sdata->vif.driver_flags & IEEE80211_VIF_BEACON_FILTER)
 		return;
 
 	mod_timer(&sdata->u.mgd.bcn_mon_timer,
@@ -547,7 +547,7 @@ static void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
 	if (pwr_constr_elem_len != 1)
 		return;
 
-	if ((*pwr_constr_elem <= conf->channel->max_power) &&
+	if ((*pwr_constr_elem <= conf->channel->max_reg_power) &&
 	    (*pwr_constr_elem != sdata->local->power_constr_level)) {
 		sdata->local->power_constr_level = *pwr_constr_elem;
 		ieee80211_hw_config(sdata->local, 0);
@@ -1043,7 +1043,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	bss_info_changed |= BSS_CHANGED_BSSID;
 
 	/* Tell the driver to monitor connection quality (if supported) */
-	if ((local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI) &&
+	if (sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI &&
 	    bss_conf->cqm_rssi_thold)
 		bss_info_changed |= BSS_CHANGED_CQM;
 
@@ -1587,10 +1587,19 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 		return false;
 	}
 
-	sta_info_move_state(sta, IEEE80211_STA_AUTH);
-	sta_info_move_state(sta, IEEE80211_STA_ASSOC);
-	if (!(ifmgd->flags & IEEE80211_STA_CONTROL_PORT))
-		sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
+	err = sta_info_move_state(sta, IEEE80211_STA_AUTH);
+	if (!err)
+		err = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
+	if (!err && !(ifmgd->flags & IEEE80211_STA_CONTROL_PORT))
+		err = sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
+	if (err) {
+		printk(KERN_DEBUG
+		       "%s: failed to move station %pM to desired state\n",
+		       sdata->name, sta->sta.addr);
+		WARN_ON(__sta_info_destroy(sta));
+		mutex_unlock(&sdata->local->sta_mtx);
+		return false;
+	}
 
 	rates = 0;
 	basic_rates = 0;
@@ -1882,7 +1891,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	if (bss_conf->cqm_rssi_thold &&
 	    ifmgd->count_beacon_signal >= IEEE80211_SIGNAL_AVE_MIN_COUNT &&
-	    !(local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI)) {
+	    !(sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI)) {
 		int sig = ifmgd->ave_beacon_signal / 16;
 		int last_event = ifmgd->last_cqm_event_signal;
 		int thold = bss_conf->cqm_rssi_thold;

@@ -16,6 +16,12 @@ struct pcmcia_device;
 struct ssb_bus;
 struct ssb_driver;
 
+struct ssb_sprom_core_pwr_info {
+	u8 itssi_2g, itssi_5g;
+	u8 maxpwr_2g, maxpwr_5gl, maxpwr_5g, maxpwr_5gh;
+	u16 pa_2g[3], pa_5gl[3], pa_5g[3], pa_5gh[3];
+};
+
 struct ssb_sprom {
 	u8 revision;
 	u8 il0mac[6];		/* MAC address for 802.11b/g */
@@ -81,6 +87,8 @@ struct ssb_sprom {
 	u16 boardflags2_lo;	/* Board flags (bits 32-47) */
 	u16 boardflags2_hi;	/* Board flags (bits 48-63) */
 	/* TODO store board flags in a single u64 */
+
+	struct ssb_sprom_core_pwr_info core_pwr_info[4];
 
 	/* Antenna gain values for up to 4 antennas
 	 * on each band. Values in dBm/4 (Q5.2). Negative gain means the

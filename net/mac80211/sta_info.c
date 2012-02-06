@@ -208,10 +208,8 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
  */
 void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 {
-	if (sta->rate_ctrl) {
+	if (sta->rate_ctrl)
 		rate_control_free_sta(sta);
-		rate_control_put(sta->rate_ctrl);
-	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	wiphy_debug(local->hw.wiphy, "Destroyed STA %pM\n", sta->sta.addr);
@@ -264,13 +262,11 @@ static int sta_prepare_rate_control(struct ieee80211_local *local,
 	if (local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL)
 		return 0;
 
-	sta->rate_ctrl = rate_control_get(local->rate_ctrl);
+	sta->rate_ctrl = local->rate_ctrl;
 	sta->rate_ctrl_priv = rate_control_alloc_sta(sta->rate_ctrl,
 						     &sta->sta, gfp);
-	if (!sta->rate_ctrl_priv) {
-		rate_control_put(sta->rate_ctrl);
+	if (!sta->rate_ctrl_priv)
 		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -407,6 +403,8 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 		sta_info_hash_add(local, sta);
 
 		list_add(&sta->list, &local->sta_list);
+
+		set_sta_flag(sta, WLAN_STA_INSERTED);
 	} else {
 		sta->dummy = false;
 	}
@@ -711,7 +709,7 @@ static bool sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	return have_buffered;
 }
 
-static int __must_check __sta_info_destroy(struct sta_info *sta)
+int __must_check __sta_info_destroy(struct sta_info *sta)
 {
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
@@ -725,6 +723,8 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	local = sta->local;
 	sdata = sta->sdata;
+
+	lockdep_assert_held(&local->sta_mtx);
 
 	/*
 	 * Before removing the station from the driver and
@@ -750,25 +750,19 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	sta->dead = true;
 
-	if (test_sta_flag(sta, WLAN_STA_PS_STA) ||
-	    test_sta_flag(sta, WLAN_STA_PS_DRIVER)) {
-		BUG_ON(!sdata->bss);
-
-		clear_sta_flag(sta, WLAN_STA_PS_STA);
-		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
-
-		atomic_dec(&sdata->bss->num_sta_ps);
-		sta_info_recalc_tim(sta);
-	}
-
 	local->num_sta--;
 	local->sta_generation++;
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		RCU_INIT_POINTER(sdata->u.vlan.sta, NULL);
 
-	while (sta->sta_state > IEEE80211_STA_NONE)
-		sta_info_move_state(sta, sta->sta_state - 1);
+	while (sta->sta_state > IEEE80211_STA_NONE) {
+		int err = sta_info_move_state(sta, sta->sta_state - 1);
+		if (err) {
+			WARN_ON_ONCE(1);
+			break;
+		}
+	}
 
 	if (sta->uploaded) {
 		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
@@ -786,6 +780,15 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	 * associated with this station that we clean up below.
 	 */
 	synchronize_rcu();
+
+	if (test_sta_flag(sta, WLAN_STA_PS_STA)) {
+		BUG_ON(!sdata->bss);
+
+		clear_sta_flag(sta, WLAN_STA_PS_STA);
+
+		atomic_dec(&sdata->bss->num_sta_ps);
+		sta_info_recalc_tim(sta);
+	}
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		local->total_ps_buffered -= skb_queue_len(&sta->ps_tx_buf[ac]);
@@ -815,34 +818,19 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 	}
 #endif
 
-	/* There could be some memory leaks because of ampdu tx pending queue
-	 * not being freed before destroying the station info.
-	 *
-	 * Make sure that such queues are purged before freeing the station
-	 * info.
-	 * TODO: We have to somehow postpone the full destruction
-	 * until the aggregation stop completes. Refer
-	 * http://thread.gmane.org/gmane.linux.kernel.wireless.general/81936
+	/*
+	 * Destroy aggregation state here. It would be nice to wait for the
+	 * driver to finish aggregation stop and then clean up, but for now
+	 * drivers have to handle aggregation stop being requested, followed
+	 * directly by station destruction.
 	 */
-
-	mutex_lock(&sta->ampdu_mlme.mtx);
-
 	for (i = 0; i < STA_TID_NUM; i++) {
-		tid_tx = rcu_dereference_protected_tid_tx(sta, i);
+		tid_tx = rcu_dereference_raw(sta->ampdu_mlme.tid_tx[i]);
 		if (!tid_tx)
 			continue;
-		if (skb_queue_len(&tid_tx->pending)) {
-#ifdef CONFIG_MAC80211_HT_DEBUG
-			wiphy_debug(local->hw.wiphy, "TX A-MPDU  purging %d "
-				"packets for tid=%d\n",
-				skb_queue_len(&tid_tx->pending), i);
-#endif /* CONFIG_MAC80211_HT_DEBUG */
-			__skb_queue_purge(&tid_tx->pending);
-		}
-		kfree_rcu(tid_tx, rcu_head);
+		__skb_queue_purge(&tid_tx->pending);
+		kfree(tid_tx);
 	}
-
-	mutex_unlock(&sta->ampdu_mlme.mtx);
 
 	sta_info_free(local, sta);
 
@@ -1009,9 +997,11 @@ EXPORT_SYMBOL(ieee80211_find_sta);
 static void clear_sta_ps_flags(void *_sta)
 {
 	struct sta_info *sta = _sta;
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
 
 	clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
-	clear_sta_flag(sta, WLAN_STA_PS_STA);
+	if (test_and_clear_sta_flag(sta, WLAN_STA_PS_STA))
+		atomic_dec(&sdata->bss->num_sta_ps);
 }
 
 /* powersave support code */
@@ -1410,8 +1400,8 @@ void ieee80211_sta_set_buffered(struct ieee80211_sta *pubsta,
 }
 EXPORT_SYMBOL(ieee80211_sta_set_buffered);
 
-int sta_info_move_state_checked(struct sta_info *sta,
-				enum ieee80211_sta_state new_state)
+int sta_info_move_state(struct sta_info *sta,
+			enum ieee80211_sta_state new_state)
 {
 	might_sleep();
 

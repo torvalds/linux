@@ -70,6 +70,12 @@ static int nfc_genl_send_target(struct sk_buff *msg, struct nfc_target *target,
 	if (target->nfcid1_len > 0)
 		NLA_PUT(msg, NFC_ATTR_TARGET_NFCID1, target->nfcid1_len,
 				target->nfcid1);
+	if (target->sensb_res_len > 0)
+		NLA_PUT(msg, NFC_ATTR_TARGET_SENSB_RES, target->sensb_res_len,
+				target->sensb_res);
+	if (target->sensf_res_len > 0)
+		NLA_PUT(msg, NFC_ATTR_TARGET_SENSF_RES, target->sensf_res_len,
+				target->sensf_res);
 
 	return genlmsg_end(msg, hdr);
 

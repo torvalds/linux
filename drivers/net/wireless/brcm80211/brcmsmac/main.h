@@ -648,10 +648,12 @@ extern void brcms_c_print_txstatus(struct tx_status *txs);
 extern int brcms_b_xmtfifo_sz_get(struct brcms_hardware *wlc_hw, uint fifo,
 		   uint *blocks);
 
-#if defined(BCMDBG)
+#if defined(DEBUG)
 extern void brcms_c_print_txdesc(struct d11txh *txh);
 #else
-#define brcms_c_print_txdesc(a)
+static inline void brcms_c_print_txdesc(struct d11txh *txh)
+{
+}
 #endif
 
 extern int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config);
