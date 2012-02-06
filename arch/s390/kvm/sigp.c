@@ -385,7 +385,8 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		break;
 	case SIGP_STOP_STORE_STATUS:
 		vcpu->stat.instruction_sigp_stop++;
-		rc = __sigp_stop(vcpu, cpu_addr, ACTION_STORE_ON_STOP);
+		rc = __sigp_stop(vcpu, cpu_addr, ACTION_STORE_ON_STOP |
+						 ACTION_STOP_ON_STOP);
 		break;
 	case SIGP_SET_ARCH:
 		vcpu->stat.instruction_sigp_arch++;
