@@ -96,11 +96,6 @@ int disp_create(struct disp_object **dispatch_obj,
 	int status = 0;
 	u8 dev_type;
 
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(dispatch_obj != NULL);
-	DBC_REQUIRE(disp_attrs != NULL);
-	DBC_REQUIRE(hdev_obj != NULL);
-
 	*dispatch_obj = NULL;
 
 	/* Allocate Node Dispatcher object */
@@ -168,8 +163,6 @@ func_cont:
 	else
 		delete_disp(disp_obj);
 
-	DBC_ENSURE((status && *dispatch_obj == NULL) ||
-				(!status && *dispatch_obj));
 	return status;
 }
 
@@ -179,9 +172,6 @@ func_cont:
  */
 void disp_delete(struct disp_object *disp_obj)
 {
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(disp_obj);
-
 	delete_disp(disp_obj);
 }
 
@@ -191,11 +181,7 @@ void disp_delete(struct disp_object *disp_obj)
  */
 void disp_exit(void)
 {
-	DBC_REQUIRE(refs > 0);
-
 	refs--;
-
-	DBC_ENSURE(refs >= 0);
 }
 
 /*
@@ -206,12 +192,9 @@ bool disp_init(void)
 {
 	bool ret = true;
 
-	DBC_REQUIRE(refs >= 0);
-
 	if (ret)
 		refs++;
 
-	DBC_ENSURE((ret && (refs > 0)) || (!ret && (refs >= 0)));
 	return ret;
 }
 
@@ -226,10 +209,6 @@ int disp_node_change_priority(struct disp_object *disp_obj,
 	u32 dw_arg;
 	struct rms_command *rms_cmd;
 	int status = 0;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(disp_obj);
-	DBC_REQUIRE(hnode != NULL);
 
 	/* Send message to RMS to change priority */
 	rms_cmd = (struct rms_command *)(disp_obj->buf);
@@ -276,12 +255,6 @@ int disp_node_create(struct disp_object *disp_obj,
 	struct dsp_nodeinfo node_info;
 	u8 dev_type;
 
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(disp_obj);
-	DBC_REQUIRE(hnode != NULL);
-	DBC_REQUIRE(node_get_type(hnode) != NODE_DEVICE);
-	DBC_REQUIRE(node_env != NULL);
-
 	status = dev_get_dev_type(disp_obj->dev_obj, &dev_type);
 
 	if (status)
@@ -292,7 +265,6 @@ int disp_node_create(struct disp_object *disp_obj,
 			__func__, dev_type);
 		goto func_end;
 	}
-	DBC_REQUIRE(pargs != NULL);
 	node_type = node_get_type(hnode);
 	node_msg_args = pargs->asa.node_msg_args;
 	max = disp_obj->bufsize_rms;	/*Max # of RMS words that can be sent */
@@ -480,10 +452,6 @@ int disp_node_delete(struct disp_object *disp_obj,
 	int status = 0;
 	u8 dev_type;
 
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(disp_obj);
-	DBC_REQUIRE(hnode != NULL);
-
 	status = dev_get_dev_type(disp_obj->dev_obj, &dev_type);
 
 	if (!status) {
@@ -521,9 +489,6 @@ int disp_node_run(struct disp_object *disp_obj,
 	struct rms_command *rms_cmd;
 	int status = 0;
 	u8 dev_type;
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(disp_obj);
-	DBC_REQUIRE(hnode != NULL);
 
 	status = dev_get_dev_type(disp_obj->dev_obj, &dev_type);
 
@@ -620,7 +585,6 @@ static int fill_stream_def(rms_word *pdw_buf, u32 *ptotal, u32 offset,
 		 *  1 from total.
 		 */
 		total += sizeof(struct rms_strm_def) / sizeof(rms_word) - 1;
-		DBC_REQUIRE(strm_def.sz_device);
 		dw_length = strlen(strm_def.sz_device) + 1;
 
 		/* Number of RMS_WORDS needed to hold device name */
@@ -658,8 +622,6 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
 	u8 *pbuf;
 	struct chnl_ioc chnl_ioc_obj;
 	int status = 0;
-
-	DBC_REQUIRE(pdw_arg != NULL);
 
 	*pdw_arg = (u32) NULL;
 	intf_fxns = disp_obj->intf_fxns;

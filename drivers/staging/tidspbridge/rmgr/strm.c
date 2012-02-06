@@ -104,9 +104,6 @@ int strm_allocate_buffer(struct strm_res_object *strmres, u32 usize,
 	u32 i;
 	struct strm_object *stream_obj = strmres->stream;
 
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(ap_buffer != NULL);
-
 	if (stream_obj) {
 		/*
 		 * Allocate from segment specified at time of stream open.
@@ -156,8 +153,6 @@ int strm_close(struct strm_res_object *strmres,
 	int status = 0;
 	struct strm_object *stream_obj = strmres->stream;
 
-	DBC_REQUIRE(refs > 0);
-
 	if (!stream_obj) {
 		status = -EFAULT;
 	} else {
@@ -180,9 +175,6 @@ int strm_close(struct strm_res_object *strmres,
 
 	idr_remove(pr_ctxt->stream_id, strmres->id);
 func_end:
-	DBC_ENSURE(status == 0 || status == -EFAULT ||
-		   status == -EPIPE || status == -EPERM);
-
 	dev_dbg(bridge, "%s: stream_obj: %p, status 0x%x\n", __func__,
 		stream_obj, status);
 	return status;
@@ -198,10 +190,6 @@ int strm_create(struct strm_mgr **strm_man,
 {
 	struct strm_mgr *strm_mgr_obj;
 	int status = 0;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(strm_man != NULL);
-	DBC_REQUIRE(dev_obj != NULL);
 
 	*strm_man = NULL;
 	/* Allocate STRM manager object */
@@ -226,8 +214,6 @@ int strm_create(struct strm_mgr **strm_man,
 	else
 		kfree(strm_mgr_obj);
 
-	DBC_ENSURE((!status && *strm_man) || (status && *strm_man == NULL));
-
 	return status;
 }
 
@@ -238,9 +224,6 @@ int strm_create(struct strm_mgr **strm_man,
  */
 void strm_delete(struct strm_mgr *strm_mgr_obj)
 {
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(strm_mgr_obj);
-
 	kfree(strm_mgr_obj);
 }
 
@@ -251,11 +234,7 @@ void strm_delete(struct strm_mgr *strm_mgr_obj)
  */
 void strm_exit(void)
 {
-	DBC_REQUIRE(refs > 0);
-
 	refs--;
-
-	DBC_ENSURE(refs >= 0);
 }
 
 /*
@@ -269,9 +248,6 @@ int strm_free_buffer(struct strm_res_object *strmres, u8 ** ap_buffer,
 	int status = 0;
 	u32 i = 0;
 	struct strm_object *stream_obj = strmres->stream;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(ap_buffer != NULL);
 
 	if (!stream_obj)
 		status = -EFAULT;
@@ -305,10 +281,6 @@ int strm_get_info(struct strm_object *stream_obj,
 	struct chnl_info chnl_info_obj;
 	int status = 0;
 	void *virt_base = NULL;	/* NULL if no SM used */
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(stream_info != NULL);
-	DBC_REQUIRE(stream_info_size >= sizeof(struct stream_info));
 
 	if (!stream_obj) {
 		status = -EFAULT;
@@ -370,8 +342,6 @@ int strm_idle(struct strm_object *stream_obj, bool flush_data)
 	struct bridge_drv_interface *intf_fxns;
 	int status = 0;
 
-	DBC_REQUIRE(refs > 0);
-
 	if (!stream_obj) {
 		status = -EFAULT;
 	} else {
@@ -396,12 +366,8 @@ bool strm_init(void)
 {
 	bool ret = true;
 
-	DBC_REQUIRE(refs >= 0);
-
 	if (ret)
 		refs++;
-
-	DBC_ENSURE((ret && (refs > 0)) || (!ret && (refs >= 0)));
 
 	return ret;
 }
@@ -417,9 +383,6 @@ int strm_issue(struct strm_object *stream_obj, u8 *pbuf, u32 ul_bytes,
 	struct bridge_drv_interface *intf_fxns;
 	int status = 0;
 	void *tmp_buf = NULL;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(pbuf != NULL);
 
 	if (!stream_obj) {
 		status = -EFAULT;
@@ -471,9 +434,6 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 
 	void *stream_res;
 
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(strmres != NULL);
-	DBC_REQUIRE(pattr != NULL);
 	*strmres = NULL;
 	if (dir != DSP_TONODE && dir != DSP_FROMNODE) {
 		status = -EPERM;
@@ -594,12 +554,6 @@ func_cont:
 		(void)delete_strm(strm_obj);
 	}
 
-	/* ensure we return a documented error code */
-	DBC_ENSURE((!status && strm_obj) ||
-		   (*strmres == NULL && (status == -EFAULT ||
-					status == -EPERM
-					|| status == -EINVAL)));
-
 	dev_dbg(bridge, "%s: hnode: %p dir: 0x%x index: 0x%x pattr: %p "
 		"strmres: %p status: 0x%x\n", __func__,
 		hnode, dir, index, pattr, strmres, status);
@@ -618,11 +572,6 @@ int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
 	struct chnl_ioc chnl_ioc_obj;
 	int status = 0;
 	void *tmp_buf = NULL;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(buf_ptr != NULL);
-	DBC_REQUIRE(nbytes != NULL);
-	DBC_REQUIRE(pdw_arg != NULL);
 
 	if (!stream_obj) {
 		status = -EFAULT;
@@ -679,11 +628,6 @@ int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
 		*buf_ptr = chnl_ioc_obj.buf;
 	}
 func_end:
-	/* ensure we return a documented return code */
-	DBC_ENSURE(!status || status == -EFAULT ||
-		   status == -ETIME || status == -ESRCH ||
-		   status == -EPERM);
-
 	dev_dbg(bridge, "%s: stream_obj: %p buf_ptr: %p nbytes: %p "
 		"pdw_arg: %p status 0x%x\n", __func__, stream_obj,
 		buf_ptr, nbytes, pdw_arg, status);
@@ -701,9 +645,6 @@ int strm_register_notify(struct strm_object *stream_obj, u32 event_mask,
 {
 	struct bridge_drv_interface *intf_fxns;
 	int status = 0;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(hnotification != NULL);
 
 	if (!stream_obj) {
 		status = -EFAULT;
@@ -725,10 +666,7 @@ int strm_register_notify(struct strm_object *stream_obj, u32 event_mask,
 							    notify_type,
 							    hnotification);
 	}
-	/* ensure we return a documented return code */
-	DBC_ENSURE(!status || status == -EFAULT ||
-		   status == -ETIME || status == -ESRCH ||
-		   status == -ENOSYS || status == -EPERM);
+
 	return status;
 }
 
@@ -746,11 +684,6 @@ int strm_select(struct strm_object **strm_tab, u32 strms,
 	struct sync_object **sync_events = NULL;
 	u32 i;
 	int status = 0;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(strm_tab != NULL);
-	DBC_REQUIRE(pmask != NULL);
-	DBC_REQUIRE(strms > 0);
 
 	*pmask = 0;
 	for (i = 0; i < strms; i++) {
@@ -810,9 +743,6 @@ int strm_select(struct strm_object **strm_tab, u32 strms,
 	}
 func_end:
 	kfree(sync_events);
-
-	DBC_ENSURE((!status && (*pmask != 0 || utimeout == 0)) ||
-		   (status && *pmask == 0));
 
 	return status;
 }

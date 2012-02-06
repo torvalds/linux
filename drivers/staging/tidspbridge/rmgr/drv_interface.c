@@ -212,7 +212,6 @@ static long bridge_ioctl(struct file *filp, unsigned int code,
 	u32 retval = 0;
 	union trapped_args buf_in;
 
-	DBC_REQUIRE(filp != NULL);
 #ifdef CONFIG_TIDSPBRIDGE_RECOVERY
 	if (recover) {
 		status = -EIO;

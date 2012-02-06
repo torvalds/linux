@@ -123,8 +123,6 @@ int dmm_create(struct dmm_object **dmm_manager,
 {
 	struct dmm_object *dmm_obj = NULL;
 	int status = 0;
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(dmm_manager != NULL);
 
 	*dmm_manager = NULL;
 	/* create, zero, and tag a cmm mgr object */
@@ -149,7 +147,6 @@ int dmm_destroy(struct dmm_object *dmm_mgr)
 	struct dmm_object *dmm_obj = (struct dmm_object *)dmm_mgr;
 	int status = 0;
 
-	DBC_REQUIRE(refs > 0);
 	if (dmm_mgr) {
 		status = dmm_delete_tables(dmm_obj);
 		if (!status)
@@ -169,7 +166,6 @@ int dmm_delete_tables(struct dmm_object *dmm_mgr)
 {
 	int status = 0;
 
-	DBC_REQUIRE(refs > 0);
 	/* Delete all DMM tables */
 	if (dmm_mgr)
 		vfree(virtual_mapping_table);
@@ -186,7 +182,6 @@ int dmm_delete_tables(struct dmm_object *dmm_mgr)
  */
 void dmm_exit(void)
 {
-	DBC_REQUIRE(refs > 0);
 
 	refs--;
 }
@@ -202,8 +197,6 @@ int dmm_get_handle(void *hprocessor, struct dmm_object **dmm_manager)
 	int status = 0;
 	struct dev_object *hdev_obj;
 
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(dmm_manager != NULL);
 	if (hprocessor != NULL)
 		status = proc_get_dev_object(hprocessor, &hdev_obj);
 	else
@@ -224,12 +217,8 @@ bool dmm_init(void)
 {
 	bool ret = true;
 
-	DBC_REQUIRE(refs >= 0);
-
 	if (ret)
 		refs++;
-
-	DBC_ENSURE((ret && (refs > 0)) || (!ret && (refs >= 0)));
 
 	virtual_mapping_table = NULL;
 	table_size = 0;

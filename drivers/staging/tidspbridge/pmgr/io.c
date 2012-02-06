@@ -50,10 +50,6 @@ int io_create(struct io_mgr **io_man, struct dev_object *hdev_obj,
 	struct io_mgr_ *pio_mgr = NULL;
 	int status = 0;
 
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(io_man != NULL);
-	DBC_REQUIRE(mgr_attrts != NULL);
-
 	*io_man = NULL;
 
 	/* A memory base of 0 implies no memory base: */
@@ -94,8 +90,6 @@ int io_destroy(struct io_mgr *hio_mgr)
 	struct io_mgr_ *pio_mgr = (struct io_mgr_ *)hio_mgr;
 	int status;
 
-	DBC_REQUIRE(refs > 0);
-
 	intf_fxns = pio_mgr->intf_fxns;
 
 	/* Let Bridge channel module destroy the io_mgr: */
@@ -111,11 +105,7 @@ int io_destroy(struct io_mgr *hio_mgr)
  */
 void io_exit(void)
 {
-	DBC_REQUIRE(refs > 0);
-
 	refs--;
-
-	DBC_ENSURE(refs >= 0);
 }
 
 /*
@@ -127,12 +117,8 @@ bool io_init(void)
 {
 	bool ret = true;
 
-	DBC_REQUIRE(refs >= 0);
-
 	if (ret)
 		refs++;
-
-	DBC_ENSURE((ret && (refs > 0)) || (!ret && (refs >= 0)));
 
 	return ret;
 }

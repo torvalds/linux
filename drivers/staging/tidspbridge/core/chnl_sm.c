@@ -358,13 +358,6 @@ int bridge_chnl_create(struct chnl_mgr **channel_mgr,
 	struct chnl_mgr *chnl_mgr_obj = NULL;
 	u8 max_channels;
 
-	/* Check DBC requirements: */
-	DBC_REQUIRE(channel_mgr != NULL);
-	DBC_REQUIRE(mgr_attrts != NULL);
-	DBC_REQUIRE(mgr_attrts->max_channels > 0);
-	DBC_REQUIRE(mgr_attrts->max_channels <= CHNL_MAXCHANNELS);
-	DBC_REQUIRE(mgr_attrts->word_size != 0);
-
 	/* Allocate channel manager object */
 	chnl_mgr_obj = kzalloc(sizeof(struct chnl_mgr), GFP_KERNEL);
 	if (chnl_mgr_obj) {
@@ -491,7 +484,6 @@ int bridge_chnl_flush_io(struct chnl_object *chnl_obj, u32 timeout)
 			pchnl->state &= ~CHNL_STATECANCEL;
 		}
 	}
-	DBC_ENSURE(status || list_empty(&pchnl->io_requests));
 	return status;
 }
 
@@ -705,8 +697,6 @@ int bridge_chnl_idle(struct chnl_object *chnl_obj, u32 timeout,
 	struct chnl_mgr *chnl_mgr_obj;
 	int status = 0;
 
-	DBC_REQUIRE(chnl_obj);
-
 	chnl_mode = chnl_obj->chnl_mode;
 	chnl_mgr_obj = chnl_obj->chnl_mgr_obj;
 
@@ -736,10 +726,7 @@ int bridge_chnl_open(struct chnl_object **chnl,
 	struct chnl_mgr *chnl_mgr_obj = hchnl_mgr;
 	struct chnl_object *pchnl = NULL;
 	struct sync_object *sync_event = NULL;
-	/* Ensure DBC requirements: */
-	DBC_REQUIRE(chnl != NULL);
-	DBC_REQUIRE(pattrs != NULL);
-	DBC_REQUIRE(hchnl_mgr != NULL);
+
 	*chnl = NULL;
 
 	/* Validate Args: */
@@ -906,8 +893,6 @@ static void free_chirp_list(struct list_head *chirp_list)
 {
 	struct chnl_irp *chirp, *tmp;
 
-	DBC_REQUIRE(chirp_list != NULL);
-
 	list_for_each_entry_safe(chirp, tmp, chirp_list, link) {
 		list_del(&chirp->link);
 		kfree(chirp);
@@ -923,8 +908,6 @@ static int search_free_channel(struct chnl_mgr *chnl_mgr_obj,
 {
 	int status = -ENOSR;
 	u32 i;
-
-	DBC_REQUIRE(chnl_mgr_obj);
 
 	for (i = 0; i < chnl_mgr_obj->max_channels; i++) {
 		if (chnl_mgr_obj->channels[i] == NULL) {
