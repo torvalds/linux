@@ -111,7 +111,7 @@ struct io_mgr {
 	struct mgr_processorextinfo ext_proc_info;
 	struct cmm_object *cmm_mgr;	/* Shared Mem Mngr */
 	struct work_struct io_workq;	/* workqueue */
-#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
+#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE)
 	u32 trace_buffer_begin;	/* Trace message start address */
 	u32 trace_buffer_end;	/* Trace message end address */
 	u32 trace_buffer_current;	/* Trace message current address */
@@ -243,7 +243,7 @@ int bridge_io_destroy(struct io_mgr *hio_mgr)
 		/* Free IO DPC object */
 		tasklet_kill(&hio_mgr->dpc_tasklet);
 
-#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
+#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE)
 		kfree(hio_mgr->msg);
 #endif
 		dsp_wdt_exit();
@@ -383,7 +383,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		status = -EFAULT;
 	}
 	if (!status) {
-#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
+#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE)
 		status =
 		    cod_get_sym_value(cod_man, DSP_TRACESEC_END, &shm0_end);
 #else
@@ -728,7 +728,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		hmsg_mgr->max_msgs);
 	memset((void *)hio_mgr->shared_mem, 0, sizeof(struct shm));
 
-#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
+#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE)
 	/* Get the start address of trace buffer */
 	status = cod_get_sym_value(cod_man, SYS_PUTCBEG,
 				   &hio_mgr->trace_buffer_begin);
@@ -907,7 +907,7 @@ void io_dpc(unsigned long ref_data)
 		}
 
 #endif
-#ifdef CONFIG_TIDSPBRIDGE_DEBUG
+#ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
 		if (pio_mgr->intr_val & MBX_DBG_SYSPRINTF) {
 			/* Notify DSP Trace message */
 			print_dsp_debug_trace(pio_mgr);
@@ -1666,7 +1666,7 @@ int bridge_io_get_proc_load(struct io_mgr *hio_mgr,
 }
 
 
-#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
+#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE)
 void print_dsp_debug_trace(struct io_mgr *hio_mgr)
 {
 	u32 ul_new_message_length = 0, ul_gpp_cur_pointer;
