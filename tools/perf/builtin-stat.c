@@ -844,12 +844,18 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 
 		fprintf(output, " # %8.3f GHz                    ", ratio);
 	} else if (runtime_nsecs_stats[cpu].n != 0) {
+		char unit = 'M';
+
 		total = avg_stats(&runtime_nsecs_stats[cpu]);
 
 		if (total)
 			ratio = 1000.0 * avg / total;
+		if (ratio < 0.001) {
+			ratio *= 1000;
+			unit = 'K';
+		}
 
-		fprintf(output, " # %8.3f M/sec                  ", ratio);
+		fprintf(output, " # %8.3f %c/sec                  ", ratio, unit);
 	} else {
 		fprintf(output, "                                   ");
 	}
