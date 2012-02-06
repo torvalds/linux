@@ -1806,11 +1806,12 @@ static void rt2800_config_channel_rf3052(struct rt2x00_dev *rt2x00dev,
 	rt2800_rfcsr_write(rt2x00dev, 13, rfcsr);
 
 	rt2800_rfcsr_read(rt2x00dev, 1, &rfcsr);
-	rt2x00_set_field8(&rfcsr, RFCSR1_RF_BLOCK_EN, 1);
 	rt2x00_set_field8(&rfcsr, RFCSR1_RX0_PD, 0);
 	rt2x00_set_field8(&rfcsr, RFCSR1_TX0_PD, 0);
 	rt2x00_set_field8(&rfcsr, RFCSR1_RX1_PD, 0);
 	rt2x00_set_field8(&rfcsr, RFCSR1_TX1_PD, 0);
+	rt2x00_set_field8(&rfcsr, RFCSR1_RX2_PD, 0);
+	rt2x00_set_field8(&rfcsr, RFCSR1_TX2_PD, 0);
 	if (test_bit(CAPABILITY_BT_COEXIST, &rt2x00dev->cap_flags)) {
 		if (rf->channel <= 14) {
 			rt2x00_set_field8(&rfcsr, RFCSR1_RX0_PD, 1);
