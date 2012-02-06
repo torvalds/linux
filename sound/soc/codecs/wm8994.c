@@ -3539,6 +3539,9 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 			wm8994->fll_locked_irq = false;
 	}
 
+	/* Make sure we can read from the GPIOs if they're inputs */
+	pm_runtime_get_sync(codec->dev);
+
 	/* Remember if AIFnLRCLK is configured as a GPIO.  This should be
 	 * configured on init - if a system wants to do this dynamically
 	 * at runtime we can deal with that then.
@@ -3566,6 +3569,8 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	} else {
 		wm8994->lrclk_shared[1] = 0;
 	}
+
+	pm_runtime_put(codec->dev);
 
 	/* Latch volume updates (right only; we always do left then right). */
 	snd_soc_update_bits(codec, WM8994_AIF1_DAC1_LEFT_VOLUME,
