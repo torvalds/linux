@@ -301,7 +301,7 @@
 
 /* Structures */
 
-struct dwc3_trb_hw;
+struct dwc3_trb;
 
 /**
  * struct dwc3_event_buffer - Software event buffer representation
@@ -356,7 +356,7 @@ struct dwc3_ep {
 	struct list_head	request_list;
 	struct list_head	req_queued;
 
-	struct dwc3_trb_hw	*trb_pool;
+	struct dwc3_trb		*trb_pool;
 	dma_addr_t		trb_pool_dma;
 	u32			free_slot;
 	u32			busy_slot;
@@ -431,101 +431,48 @@ enum dwc3_device_state {
 	DWC3_CONFIGURED_STATE,
 };
 
-/**
- * struct dwc3_trb - transfer request block
- * @bpl: lower 32bit of the buffer
- * @bph: higher 32bit of the buffer
- * @length: buffer size (up to 16mb - 1)
- * @pcm1: packet count m1
- * @trbsts: trb status
- *	0 = ok
- *	1 = missed isoc
- *	2 = setup pending
- * @hwo: hardware owner of descriptor
- * @lst: last trb
- * @chn: chain buffers
- * @csp: continue on short packets (only supported on isoc eps)
- * @trbctl: trb control
- *	1 = normal
- *	2 = control-setup
- *	3 = control-status-2
- *	4 = control-status-3
- *	5 = control-data (first trb of data stage)
- *	6 = isochronous-first (first trb of service interval)
- *	7 = isochronous
- *	8 = link trb
- *	others = reserved
- * @isp_imi: interrupt on short packet / interrupt on missed isoc
- * @ioc: interrupt on complete
- * @sid_sofn: Stream ID / SOF Number
- */
-struct dwc3_trb {
-	u64             bplh;
+/* TRB Length, PCM and Status */
+#define DWC3_TRB_SIZE_MASK	(0x00ffffff)
+#define DWC3_TRB_SIZE_LENGTH(n)	((n) & DWC3_TRB_SIZE_MASK)
+#define DWC3_TRB_SIZE_PCM1(n)	(((n) & 0x03) << 24)
+#define DWC3_TRB_SIZE_TRBSTS(n)	(((n) & (0x0f << 28) >> 28))
 
-	union {
-		struct {
-			u32             length:24;
-			u32             pcm1:2;
-			u32             reserved27_26:2;
-			u32             trbsts:4;
-#define DWC3_TRB_STS_OKAY                       0
-#define DWC3_TRB_STS_MISSED_ISOC                1
-#define DWC3_TRB_STS_SETUP_PENDING              2
-		};
-		u32 len_pcm;
-	};
+#define DWC3_TRBSTS_OK			0
+#define DWC3_TRBSTS_MISSED_ISOC		1
+#define DWC3_TRBSTS_SETUP_PENDING	2
 
-	union {
-		struct {
-			u32             hwo:1;
-			u32             lst:1;
-			u32             chn:1;
-			u32             csp:1;
-			u32             trbctl:6;
-			u32             isp_imi:1;
-			u32             ioc:1;
-			u32             reserved13_12:2;
-			u32             sid_sofn:16;
-			u32             reserved31_30:2;
-		};
-		u32 control;
-	};
-} __packed;
+/* TRB Control */
+#define DWC3_TRB_CTRL_HWO		(1 << 0)
+#define DWC3_TRB_CTRL_LST		(1 << 1)
+#define DWC3_TRB_CTRL_CHN		(1 << 2)
+#define DWC3_TRB_CTRL_CSP		(1 << 3)
+#define DWC3_TRB_CTRL_TRBCTL(n)		(((n) & 0x3f) << 4)
+#define DWC3_TRB_CTRL_ISP_IMI		(1 << 10)
+#define DWC3_TRB_CTRL_IOC		(1 << 11)
+#define DWC3_TRB_CTRL_SID_SOFN(n)	(((n) & 0xffff) << 14)
+
+#define DWC3_TRBCTL_NORMAL		DWC3_TRB_CTRL_TRBCTL(1)
+#define DWC3_TRBCTL_CONTROL_SETUP	DWC3_TRB_CTRL_TRBCTL(2)
+#define DWC3_TRBCTL_CONTROL_STATUS2	DWC3_TRB_CTRL_TRBCTL(3)
+#define DWC3_TRBCTL_CONTROL_STATUS3	DWC3_TRB_CTRL_TRBCTL(4)
+#define DWC3_TRBCTL_CONTROL_DATA	DWC3_TRB_CTRL_TRBCTL(5)
+#define DWC3_TRBCTL_ISOCHRONOUS_FIRST	DWC3_TRB_CTRL_TRBCTL(6)
+#define DWC3_TRBCTL_ISOCHRONOUS		DWC3_TRB_CTRL_TRBCTL(7)
+#define DWC3_TRBCTL_LINK_TRB		DWC3_TRB_CTRL_TRBCTL(8)
 
 /**
- * struct dwc3_trb_hw - transfer request block (hw format)
+ * struct dwc3_trb - transfer request block (hw format)
  * @bpl: DW0-3
  * @bph: DW4-7
  * @size: DW8-B
  * @trl: DWC-F
  */
-struct dwc3_trb_hw {
-	__le32		bpl;
-	__le32		bph;
-	__le32		size;
-	__le32		ctrl;
+struct dwc3_trb {
+	u32		bpl;
+	u32		bph;
+	u32		size;
+	u32		ctrl;
 } __packed;
-
-static inline void dwc3_trb_to_hw(struct dwc3_trb *nat, struct dwc3_trb_hw *hw)
-{
-	hw->bpl = cpu_to_le32(lower_32_bits(nat->bplh));
-	hw->bph = cpu_to_le32(upper_32_bits(nat->bplh));
-	hw->size = cpu_to_le32p(&nat->len_pcm);
-	/* HWO is written last */
-	hw->ctrl = cpu_to_le32p(&nat->control);
-}
-
-static inline void dwc3_trb_to_nat(struct dwc3_trb_hw *hw, struct dwc3_trb *nat)
-{
-	u64 bplh;
-
-	bplh = le32_to_cpup(&hw->bpl);
-	bplh |= (u64) le32_to_cpup(&hw->bph) << 32;
-	nat->bplh = bplh;
-
-	nat->len_pcm = le32_to_cpup(&hw->size);
-	nat->control = le32_to_cpup(&hw->ctrl);
-}
 
 /**
  * dwc3_hwparams - copy of HWPARAMS registers
@@ -573,7 +520,7 @@ struct dwc3_request {
 	struct dwc3_ep		*dep;
 
 	u8			epnum;
-	struct dwc3_trb_hw	*trb;
+	struct dwc3_trb		*trb;
 	dma_addr_t		trb_dma;
 
 	unsigned		direction:1;
@@ -624,7 +571,7 @@ struct dwc3_request {
  */
 struct dwc3 {
 	struct usb_ctrlrequest	*ctrl_req;
-	struct dwc3_trb_hw	*ep0_trb;
+	struct dwc3_trb		*ep0_trb;
 	void			*ep0_bounce;
 	u8			*setup_buf;
 	dma_addr_t		ctrl_req_addr;
@@ -690,19 +637,6 @@ struct dwc3 {
 };
 
 /* -------------------------------------------------------------------------- */
-
-#define DWC3_TRBSTS_OK			0
-#define DWC3_TRBSTS_MISSED_ISOC		1
-#define DWC3_TRBSTS_SETUP_PENDING	2
-
-#define DWC3_TRBCTL_NORMAL		1
-#define DWC3_TRBCTL_CONTROL_SETUP	2
-#define DWC3_TRBCTL_CONTROL_STATUS2	3
-#define DWC3_TRBCTL_CONTROL_STATUS3	4
-#define DWC3_TRBCTL_CONTROL_DATA	5
-#define DWC3_TRBCTL_ISOCHRONOUS_FIRST	6
-#define DWC3_TRBCTL_ISOCHRONOUS		7
-#define DWC3_TRBCTL_LINK_TRB		8
 
 /* -------------------------------------------------------------------------- */
 

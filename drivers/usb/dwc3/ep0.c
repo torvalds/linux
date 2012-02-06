@@ -76,8 +76,7 @@ static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
 		u32 len, u32 type)
 {
 	struct dwc3_gadget_ep_cmd_params params;
-	struct dwc3_trb_hw		*trb_hw;
-	struct dwc3_trb			trb;
+	struct dwc3_trb			*trb;
 	struct dwc3_ep			*dep;
 
 	int				ret;
@@ -88,19 +87,17 @@ static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
 		return 0;
 	}
 
-	trb_hw = dwc->ep0_trb;
-	memset(&trb, 0, sizeof(trb));
+	trb = dwc->ep0_trb;
 
-	trb.trbctl = type;
-	trb.bplh = buf_dma;
-	trb.length = len;
+	trb->bpl = lower_32_bits(buf_dma);
+	trb->bph = upper_32_bits(buf_dma);
+	trb->size = len;
+	trb->ctrl = type;
 
-	trb.hwo	= 1;
-	trb.lst	= 1;
-	trb.ioc	= 1;
-	trb.isp_imi = 1;
-
-	dwc3_trb_to_hw(&trb, trb_hw);
+	trb->ctrl |= (DWC3_TRB_CTRL_HWO
+			| DWC3_TRB_CTRL_LST
+			| DWC3_TRB_CTRL_IOC
+			| DWC3_TRB_CTRL_ISP_IMI);
 
 	memset(&params, 0, sizeof(params));
 	params.param0 = upper_32_bits(dwc->ep0_trb_addr);
@@ -544,9 +541,10 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 {
 	struct dwc3_request	*r = NULL;
 	struct usb_request	*ur;
-	struct dwc3_trb		trb;
+	struct dwc3_trb		*trb;
 	struct dwc3_ep		*ep0;
 	u32			transferred;
+	u32			length;
 	u8			epnum;
 
 	epnum = event->endpoint_number;
@@ -557,16 +555,16 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 	r = next_request(&ep0->request_list);
 	ur = &r->request;
 
-	dwc3_trb_to_nat(dwc->ep0_trb, &trb);
+	trb = dwc->ep0_trb;
+	length = trb->size & DWC3_TRB_SIZE_MASK;
 
 	if (dwc->ep0_bounced) {
-
 		transferred = min_t(u32, ur->length,
-				ep0->endpoint.maxpacket - trb.length);
+				ep0->endpoint.maxpacket - length);
 		memcpy(ur->buf, dwc->ep0_bounce, transferred);
 		dwc->ep0_bounced = false;
 	} else {
-		transferred = ur->length - trb.length;
+		transferred = ur->length - length;
 		ur->actual += transferred;
 	}
 

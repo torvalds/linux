@@ -378,7 +378,7 @@ int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 }
 
 static dma_addr_t dwc3_trb_dma_offset(struct dwc3_ep *dep,
-		struct dwc3_trb_hw *trb)
+		struct dwc3_trb *trb)
 {
 	u32		offset = (char *) trb - (char *) dep->trb_pool;
 
@@ -527,9 +527,8 @@ static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep,
 		return ret;
 
 	if (!(dep->flags & DWC3_EP_ENABLED)) {
-		struct dwc3_trb_hw	*trb_st_hw;
-		struct dwc3_trb_hw	*trb_link_hw;
-		struct dwc3_trb		trb_link;
+		struct dwc3_trb	*trb_st_hw;
+		struct dwc3_trb	*trb_link;
 
 		ret = dwc3_gadget_set_xfer_resource(dwc, dep);
 		if (ret)
@@ -552,12 +551,12 @@ static int __dwc3_gadget_ep_enable(struct dwc3_ep *dep,
 		/* Link TRB for ISOC. The HWO but is never reset */
 		trb_st_hw = &dep->trb_pool[0];
 
-		trb_link.bplh = dwc3_trb_dma_offset(dep, trb_st_hw);
-		trb_link.trbctl = DWC3_TRBCTL_LINK_TRB;
-		trb_link.hwo = true;
+		trb_link = &dep->trb_pool[DWC3_TRB_NUM - 1];
 
-		trb_link_hw = &dep->trb_pool[DWC3_TRB_NUM - 1];
-		dwc3_trb_to_hw(&trb_link, trb_link_hw);
+		trb_link->bpl = lower_32_bits(dwc3_trb_dma_offset(dep, trb_st_hw));
+		trb_link->bph = upper_32_bits(dwc3_trb_dma_offset(dep, trb_st_hw));
+		trb_link->ctrl |= DWC3_TRBCTL_LINK_TRB;
+		trb_link->ctrl |= DWC3_TRB_CTRL_HWO;
 	}
 
 	return 0;
@@ -744,8 +743,7 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 		unsigned length, unsigned last, unsigned chain)
 {
 	struct dwc3		*dwc = dep->dwc;
-	struct dwc3_trb_hw	*trb_hw;
-	struct dwc3_trb		trb;
+	struct dwc3_trb		*trb;
 
 	unsigned int		cur_slot;
 
@@ -754,7 +752,7 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 			length, last ? " last" : "",
 			chain ? " chain" : "");
 
-	trb_hw = &dep->trb_pool[dep->free_slot & DWC3_TRB_MASK];
+	trb = &dep->trb_pool[dep->free_slot & DWC3_TRB_MASK];
 	cur_slot = dep->free_slot;
 	dep->free_slot++;
 
@@ -763,40 +761,32 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 			usb_endpoint_xfer_isoc(dep->desc))
 		return;
 
-	memset(&trb, 0, sizeof(trb));
 	if (!req->trb) {
 		dwc3_gadget_move_request_queued(req);
-		req->trb = trb_hw;
-		req->trb_dma = dwc3_trb_dma_offset(dep, trb_hw);
+		req->trb = trb;
+		req->trb_dma = dwc3_trb_dma_offset(dep, trb);
 	}
 
-	if (usb_endpoint_xfer_isoc(dep->desc)) {
-		trb.isp_imi = true;
-		trb.csp = true;
-	} else {
-		trb.chn = chain;
-		trb.lst = last;
-	}
-
-	if (usb_endpoint_xfer_bulk(dep->desc) && dep->stream_capable)
-		trb.sid_sofn = req->request.stream_id;
+	trb->size = DWC3_TRB_SIZE_LENGTH(length);
+	trb->bpl = lower_32_bits(dma);
+	trb->bph = upper_32_bits(dma);
 
 	switch (usb_endpoint_type(dep->desc)) {
 	case USB_ENDPOINT_XFER_CONTROL:
-		trb.trbctl = DWC3_TRBCTL_CONTROL_SETUP;
+		trb->ctrl = DWC3_TRBCTL_CONTROL_SETUP;
 		break;
 
 	case USB_ENDPOINT_XFER_ISOC:
-		trb.trbctl = DWC3_TRBCTL_ISOCHRONOUS_FIRST;
+		trb->ctrl = DWC3_TRBCTL_ISOCHRONOUS_FIRST;
 
 		/* IOC every DWC3_TRB_NUM / 4 so we can refill */
 		if (!(cur_slot % (DWC3_TRB_NUM / 4)))
-			trb.ioc = last;
+			trb->ctrl |= DWC3_TRB_CTRL_IOC;
 		break;
 
 	case USB_ENDPOINT_XFER_BULK:
 	case USB_ENDPOINT_XFER_INT:
-		trb.trbctl = DWC3_TRBCTL_NORMAL;
+		trb->ctrl = DWC3_TRBCTL_NORMAL;
 		break;
 	default:
 		/*
@@ -806,11 +796,21 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 		BUG();
 	}
 
-	trb.length	= length;
-	trb.bplh	= dma;
-	trb.hwo		= true;
+	if (usb_endpoint_xfer_isoc(dep->desc)) {
+		trb->ctrl |= DWC3_TRB_CTRL_ISP_IMI;
+		trb->ctrl |= DWC3_TRB_CTRL_CSP;
+	} else {
+		if (chain)
+			trb->ctrl |= DWC3_TRB_CTRL_CHN;
 
-	dwc3_trb_to_hw(&trb, trb_hw);
+		if (last)
+			trb->ctrl |= DWC3_TRB_CTRL_LST;
+	}
+
+	if (usb_endpoint_xfer_bulk(dep->desc) && dep->stream_capable)
+		trb->ctrl |= DWC3_TRB_CTRL_SID_SOFN(req->request.stream_id);
+
+	trb->ctrl |= DWC3_TRB_CTRL_HWO;
 }
 
 /*
@@ -1542,7 +1542,7 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event, int status)
 {
 	struct dwc3_request	*req;
-	struct dwc3_trb         trb;
+	struct dwc3_trb		*trb;
 	unsigned int		count;
 	unsigned int		s_pkt = 0;
 
@@ -1553,9 +1553,9 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 			return 1;
 		}
 
-		dwc3_trb_to_nat(req->trb, &trb);
+		trb = req->trb;
 
-		if (trb.hwo && status != -ESHUTDOWN)
+		if ((trb->ctrl & DWC3_TRB_CTRL_HWO) && status != -ESHUTDOWN)
 			/*
 			 * We continue despite the error. There is not much we
 			 * can do. If we don't clean in up we loop for ever. If
@@ -1566,7 +1566,7 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 			 */
 			dev_err(dwc->dev, "%s's TRB (%p) still owned by HW\n",
 					dep->name, req->trb);
-		count = trb.length;
+		count = trb->size & DWC3_TRB_SIZE_MASK;
 
 		if (dep->direction) {
 			if (count) {
@@ -1590,13 +1590,16 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 		dwc3_gadget_giveback(dep, req, status);
 		if (s_pkt)
 			break;
-		if ((event->status & DEPEVT_STATUS_LST) && trb.lst)
+		if ((event->status & DEPEVT_STATUS_LST) &&
+				(trb->ctrl & DWC3_TRB_CTRL_LST))
 			break;
-		if ((event->status & DEPEVT_STATUS_IOC) && trb.ioc)
+		if ((event->status & DEPEVT_STATUS_IOC) &&
+				(trb->ctrl & DWC3_TRB_CTRL_IOC))
 			break;
 	} while (1);
 
-	if ((event->status & DEPEVT_STATUS_IOC) && trb.ioc)
+	if ((event->status & DEPEVT_STATUS_IOC) &&
+			(trb->ctrl & DWC3_TRB_CTRL_IOC))
 		return 0;
 	return 1;
 }
