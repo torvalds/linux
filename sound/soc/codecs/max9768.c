@@ -135,7 +135,7 @@ static int max9768_probe(struct snd_soc_codec *codec)
 	}
 
 	if (gpio_is_valid(max9768->mute_gpio)) {
-		ret = snd_soc_add_controls(codec, max9768_mute,
+		ret = snd_soc_add_codec_controls(codec, max9768_mute,
 				ARRAY_SIZE(max9768_mute));
 		if (ret)
 			return ret;
