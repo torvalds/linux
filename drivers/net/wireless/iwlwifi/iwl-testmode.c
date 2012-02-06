@@ -79,6 +79,7 @@
 #include "iwl-testmode.h"
 #include "iwl-trans.h"
 #include "iwl-bus.h"
+#include "iwl-fh.h"
 
 /* The TLVs used in the gnl message policy between the kernel module and
  * user space application. iwl_testmode_gnl_msg_policy is to be carried
@@ -208,7 +209,7 @@ static void iwl_trace_cleanup(struct iwl_priv *priv)
 	if (priv->testmode_trace.trace_enabled) {
 		if (priv->testmode_trace.cpu_addr &&
 		    priv->testmode_trace.dma_addr)
-			dma_free_coherent(bus(priv)->dev,
+			dma_free_coherent(trans(priv)->dev,
 					priv->testmode_trace.total_size,
 					priv->testmode_trace.cpu_addr,
 					priv->testmode_trace.dma_addr);
@@ -288,7 +289,7 @@ static int iwl_testmode_ucode(struct ieee80211_hw *hw, struct nlattr **tb)
 static int iwl_testmode_reg(struct ieee80211_hw *hw, struct nlattr **tb)
 {
 	struct iwl_priv *priv = hw->priv;
-	u32 ofs, val32;
+	u32 ofs, val32, cmd;
 	u8 val8;
 	struct sk_buff *skb;
 	int status = 0;
@@ -300,9 +301,22 @@ static int iwl_testmode_reg(struct ieee80211_hw *hw, struct nlattr **tb)
 	ofs = nla_get_u32(tb[IWL_TM_ATTR_REG_OFFSET]);
 	IWL_INFO(priv, "testmode register access command offset 0x%x\n", ofs);
 
-	switch (nla_get_u32(tb[IWL_TM_ATTR_COMMAND])) {
+	/* Allow access only to FH/CSR/HBUS in direct mode.
+	Since we don't have the upper bounds for the CSR and HBUS segments,
+	we will use only the upper bound of FH for sanity check. */
+	cmd = nla_get_u32(tb[IWL_TM_ATTR_COMMAND]);
+	if ((cmd == IWL_TM_CMD_APP2DEV_DIRECT_REG_READ32 ||
+		cmd == IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE32 ||
+		cmd == IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE8) &&
+		(ofs >= FH_MEM_UPPER_BOUND)) {
+		IWL_DEBUG_INFO(priv, "offset out of segment (0x0 - 0x%x)\n",
+			FH_MEM_UPPER_BOUND);
+		return -EINVAL;
+	}
+
+	switch (cmd) {
 	case IWL_TM_CMD_APP2DEV_DIRECT_REG_READ32:
-		val32 = iwl_read_direct32(bus(priv), ofs);
+		val32 = iwl_read_direct32(trans(priv), ofs);
 		IWL_INFO(priv, "32bit value to read 0x%x\n", val32);
 
 		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy, 20);
@@ -324,7 +338,7 @@ static int iwl_testmode_reg(struct ieee80211_hw *hw, struct nlattr **tb)
 		} else {
 			val32 = nla_get_u32(tb[IWL_TM_ATTR_REG_VALUE32]);
 			IWL_INFO(priv, "32bit value to write 0x%x\n", val32);
-			iwl_write_direct32(bus(priv), ofs, val32);
+			iwl_write_direct32(trans(priv), ofs, val32);
 		}
 		break;
 	case IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE8:
@@ -334,11 +348,11 @@ static int iwl_testmode_reg(struct ieee80211_hw *hw, struct nlattr **tb)
 		} else {
 			val8 = nla_get_u8(tb[IWL_TM_ATTR_REG_VALUE8]);
 			IWL_INFO(priv, "8bit value to write 0x%x\n", val8);
-			iwl_write8(bus(priv), ofs, val8);
+			iwl_write8(trans(priv), ofs, val8);
 		}
 		break;
 	case IWL_TM_CMD_APP2DEV_INDIRECT_REG_READ32:
-		val32 = iwl_read_prph(bus(priv), ofs);
+		val32 = iwl_read_prph(trans(priv), ofs);
 		IWL_INFO(priv, "32bit value to read 0x%x\n", val32);
 
 		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy, 20);
@@ -360,7 +374,7 @@ static int iwl_testmode_reg(struct ieee80211_hw *hw, struct nlattr **tb)
 		} else {
 			val32 = nla_get_u32(tb[IWL_TM_ATTR_REG_VALUE32]);
 			IWL_INFO(priv, "32bit value to write 0x%x\n", val32);
-			iwl_write_prph(bus(priv), ofs, val32);
+			iwl_write_prph(trans(priv), ofs, val32);
 		}
 		break;
 	default:
@@ -536,7 +550,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 		break;
 
 	case IWL_TM_CMD_APP2DEV_GET_DEVICE_ID:
-		devid = bus_get_hw_id(bus(priv));
+		devid = trans(priv)->hw_id;
 		IWL_INFO(priv, "hw version: 0x%x\n", devid);
 
 		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy, 20);
@@ -615,7 +629,7 @@ static int iwl_testmode_trace(struct ieee80211_hw *hw, struct nlattr **tb)
 	struct iwl_priv *priv = hw->priv;
 	struct sk_buff *skb;
 	int status = 0;
-	struct device *dev = bus(priv)->dev;
+	struct device *dev = trans(priv)->dev;
 
 	switch (nla_get_u32(tb[IWL_TM_ATTR_COMMAND])) {
 	case IWL_TM_CMD_APP2DEV_BEGIN_TRACE:
@@ -814,7 +828,7 @@ static int iwl_testmode_sram(struct ieee80211_hw *hw, struct nlattr **tb)
 		IWL_ERR(priv, "Error allocating memory\n");
 		return -ENOMEM;
 	}
-	_iwl_read_targ_mem_words(bus(priv), ofs,
+	_iwl_read_targ_mem_words(trans(priv), ofs,
 					priv->testmode_sram.buff_addr,
 					priv->testmode_sram.buff_size / 4);
 	priv->testmode_sram.num_chunks =

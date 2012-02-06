@@ -35,7 +35,6 @@
 #include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
-#include <linux/firmware.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 
@@ -43,6 +42,7 @@
 
 #include <asm/div64.h>
 
+#include "iwl-ucode.h"
 #include "iwl-eeprom.h"
 #include "iwl-wifi.h"
 #include "iwl-dev.h"
@@ -196,7 +196,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 			    WIPHY_FLAG_IBSS_RSN;
 
 	if (trans(priv)->ucode_wowlan.code.len &&
-	    device_can_wakeup(bus(priv)->dev)) {
+	    device_can_wakeup(trans(priv)->dev)) {
 		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
 					  WIPHY_WOWLAN_DISCONNECT |
 					  WIPHY_WOWLAN_EAP_IDENTITY_REQ |
@@ -234,7 +234,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 		priv->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&priv->bands[IEEE80211_BAND_5GHZ];
 
-	hw->wiphy->hw_version = bus_get_hw_id(bus(priv));
+	hw->wiphy->hw_version = trans(priv)->hw_id;
 
 	iwl_leds_init(priv);
 
@@ -346,9 +346,10 @@ static void iwlagn_mac_stop(struct ieee80211_hw *hw)
 	flush_workqueue(priv->shrd->workqueue);
 
 	/* User space software may expect getting rfkill changes
-	 * even if interface is down */
-	iwl_write32(bus(priv), CSR_INT, 0xFFFFFFFF);
-	iwl_enable_rfkill_int(priv);
+	 * even if interface is down, trans->down will leave the RF
+	 * kill interrupt enabled
+	 */
+	iwl_trans_stop_hw(trans(priv));
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
@@ -405,10 +406,10 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto error;
 
-	device_set_wakeup_enable(bus(priv)->dev, true);
+	device_set_wakeup_enable(trans(priv)->dev, true);
 
 	/* Now let the ucode operate on its own */
-	iwl_write32(bus(priv), CSR_UCODE_DRV_GP1_SET,
+	iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_SET,
 			  CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
 	goto out;
@@ -436,19 +437,19 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 	mutex_lock(&priv->shrd->mutex);
 
-	iwl_write32(bus(priv), CSR_UCODE_DRV_GP1_CLR,
+	iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_CLR,
 			  CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
 	base = priv->shrd->device_pointers.error_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
-		spin_lock_irqsave(&bus(priv)->reg_lock, flags);
-		ret = iwl_grab_nic_access_silent(bus(priv));
+		spin_lock_irqsave(&trans(priv)->reg_lock, flags);
+		ret = iwl_grab_nic_access_silent(trans(priv));
 		if (ret == 0) {
-			iwl_write32(bus(priv), HBUS_TARG_MEM_RADDR, base);
-			status = iwl_read32(bus(priv), HBUS_TARG_MEM_RDAT);
-			iwl_release_nic_access(bus(priv));
+			iwl_write32(trans(priv), HBUS_TARG_MEM_RADDR, base);
+			status = iwl_read32(trans(priv), HBUS_TARG_MEM_RDAT);
+			iwl_release_nic_access(trans(priv));
 		}
-		spin_unlock_irqrestore(&bus(priv)->reg_lock, flags);
+		spin_unlock_irqrestore(&trans(priv)->reg_lock, flags);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		if (ret == 0) {
@@ -460,7 +461,8 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 			if (priv->wowlan_sram)
 				_iwl_read_targ_mem_words(
-					bus(priv), 0x800000, priv->wowlan_sram,
+					trans(priv), 0x800000,
+					priv->wowlan_sram,
 					trans->ucode_wowlan.data.len / 4);
 		}
 #endif
@@ -471,7 +473,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 	priv->shrd->wowlan = false;
 
-	device_set_wakeup_enable(bus(priv)->dev, false);
+	device_set_wakeup_enable(trans(priv)->dev, false);
 
 	iwlagn_prepare_restart(priv);
 
