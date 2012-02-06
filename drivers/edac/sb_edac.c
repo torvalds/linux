@@ -763,7 +763,7 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 			(u32)TAD_TGT2(reg),
 			(u32)TAD_TGT3(reg),
 			reg);
-		prv = tmp_mb;
+		prv = limit;
 	}
 
 	/*
