@@ -82,7 +82,7 @@ config PM_SIMTEC
 	  Common power management code for systems that are
 	  compatible with the Simtec style of power management
 
-config S3C2410_DMA
+config S3C24XX_DMA
 	bool "S3C2410 DMA support"
 	depends on ARCH_S3C24XX
 	select S3C_DMA
