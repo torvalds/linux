@@ -20,8 +20,9 @@
 #include "devices-common.h"
 
 struct amba_device *
-dbx500_add_amba_device(const char *name, resource_size_t base,
-		       int irq, void *pdata, unsigned int periphid)
+dbx500_add_amba_device(struct device *parent, const char *name,
+		       resource_size_t base, int irq, void *pdata,
+		       unsigned int periphid)
 {
 	struct amba_device *dev;
 	int ret;
@@ -109,7 +110,7 @@ dbx500_add_platform_device_4k1irq(const char *name, int id,
 }
 
 static struct platform_device *
-dbx500_add_gpio(int id, resource_size_t addr, int irq,
+dbx500_add_gpio(struct device *parent, int id, resource_size_t addr, int irq,
 		struct nmk_gpio_platform_data *pdata)
 {
 	struct resource resources[] = {
@@ -130,8 +131,8 @@ dbx500_add_gpio(int id, resource_size_t addr, int irq,
 				pdata, sizeof(*pdata));
 }
 
-void dbx500_add_gpios(resource_size_t *base, int num, int irq,
-		      struct nmk_gpio_platform_data *pdata)
+void dbx500_add_gpios(struct device *parent, resource_size_t *base, int num,
+		      int irq, struct nmk_gpio_platform_data *pdata)
 {
 	int first = 0;
 	int i;
@@ -141,6 +142,6 @@ void dbx500_add_gpios(resource_size_t *base, int num, int irq,
 		pdata->first_irq = NOMADIK_GPIO_TO_IRQ(first);
 		pdata->num_gpio = 32;
 
-		dbx500_add_gpio(i, base[i], irq, pdata);
+		dbx500_add_gpio(parent, i, base[i], irq, pdata);
 	}
 }

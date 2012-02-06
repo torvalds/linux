@@ -132,13 +132,13 @@ static resource_size_t __initdata db8500_gpio_base[] = {
 	U8500_GPIOBANK8_BASE,
 };
 
-static void __init db8500_add_gpios(void)
+static void __init db8500_add_gpios(struct device *parent)
 {
 	struct nmk_gpio_platform_data pdata = {
 		.supports_sleepmode = true,
 	};
 
-	dbx500_add_gpios(ARRAY_AND_SIZE(db8500_gpio_base),
+	dbx500_add_gpios(parent, ARRAY_AND_SIZE(db8500_gpio_base),
 			 IRQ_DB8500_GPIO0, &pdata);
 }
 
@@ -167,14 +167,15 @@ static int usb_db8500_tx_dma_cfg[] = {
 /*
  * This function is called from the board init
  */
-void __init u8500_init_devices(void)
+struct device* __init u8500_init_devices(void)
 {
-	db8500_add_rtc();
-	db8500_add_gpios();
-	db8500_add_usb(usb_db8500_rx_dma_cfg, usb_db8500_tx_dma_cfg);
+	db8500_add_rtc(NULL);
+	db8500_add_gpios(NULL);
+	db8500_add_usb(NULL, usb_db8500_rx_dma_cfg, usb_db8500_tx_dma_cfg);
 
 	platform_device_register_simple("cpufreq-u8500", -1, NULL, 0);
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 
-	return ;
+	/* FIXME: Return value to be a real parent. */
+	return NULL;
 }

@@ -147,13 +147,13 @@ static resource_size_t __initdata db5500_gpio_base[] = {
 	U5500_GPIOBANK7_BASE,
 };
 
-static void __init db5500_add_gpios(void)
+static void __init db5500_add_gpios(struct device *parent)
 {
 	struct nmk_gpio_platform_data pdata = {
 		/* No custom data yet */
 	};
 
-	dbx500_add_gpios(ARRAY_AND_SIZE(db5500_gpio_base),
+	dbx500_add_gpios(parent, ARRAY_AND_SIZE(db5500_gpio_base),
 			 IRQ_DB5500_GPIO0, &pdata);
 }
 
@@ -212,14 +212,18 @@ static int usb_db5500_tx_dma_cfg[] = {
 	DB5500_DMA_DEV38_USB_OTG_OEP_8
 };
 
-void __init u5500_init_devices(void)
+struct device* __init u5500_init_devices(void)
 {
-	db5500_add_gpios();
+	/* FIXME: First parameter to be a real parent. */
+	db5500_add_gpios(NULL);
 	db5500_pmu_init();
-	db5500_dma_init();
-	db5500_add_rtc();
-	db5500_add_usb(usb_db5500_rx_dma_cfg, usb_db5500_tx_dma_cfg);
+	db5500_dma_init(NULL);
+	db5500_add_rtc(NULL);
+	db5500_add_usb(NULL, usb_db5500_rx_dma_cfg, usb_db5500_tx_dma_cfg);
 
 	platform_add_devices(db5500_platform_devs,
 			     ARRAY_SIZE(db5500_platform_devs));
+
+	/* FIXME: Return value to be a real parent. */
+	return NULL;
 }
