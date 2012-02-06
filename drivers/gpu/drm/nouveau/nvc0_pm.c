@@ -500,6 +500,24 @@ mclk_mrs(struct nouveau_mem_exec_func *exec, int mr, u32 data)
 static void
 mclk_clock_set(struct nouveau_mem_exec_func *exec)
 {
+	struct nvc0_pm_state *info = exec->priv;
+	struct drm_device *dev = exec->dev;
+	u32 ctrl = nv_rd32(dev, 0x132000);
+
+	nv_wr32(dev, 0x137360, 0x00000001);
+	nv_wr32(dev, 0x137370, 0x00000000);
+	nv_wr32(dev, 0x137380, 0x00000000);
+	if (ctrl & 0x00000001)
+		nv_wr32(dev, 0x132000, (ctrl &= ~0x00000001));
+
+	nv_wr32(dev, 0x132004, info->mem.coef);
+	nv_wr32(dev, 0x132000, (ctrl |= 0x00000001));
+	nv_wait(dev, 0x137390, 0x00000002, 0x00000002);
+	nv_wr32(dev, 0x132018, 0x00005000);
+
+	nv_wr32(dev, 0x137370, 0x00000001);
+	nv_wr32(dev, 0x137380, 0x00000001);
+	nv_wr32(dev, 0x137360, 0x00000000);
 }
 
 static void
@@ -533,11 +551,15 @@ prog_mem(struct drm_device *dev, struct nvc0_pm_state *info)
 
 	if (dev_priv->chipset < 0xd0)
 		nv_wr32(dev, 0x611200, 0x00003300);
+	else
+		nv_wr32(dev, 0x62c000, 0x03030000);
 
 	nouveau_mem_exec(&exec, info->perflvl);
 
 	if (dev_priv->chipset < 0xd0)
 		nv_wr32(dev, 0x611200, 0x00003300);
+	else
+		nv_wr32(dev, 0x62c000, 0x03030300);
 }
 int
 nvc0_pm_clocks_set(struct drm_device *dev, void *data)
@@ -545,7 +567,7 @@ nvc0_pm_clocks_set(struct drm_device *dev, void *data)
 	struct nvc0_pm_state *info = data;
 	int i;
 
-	if (0)
+	if (info->mem.coef)
 		prog_mem(dev, info);
 
 	for (i = 0; i < 16; i++) {
