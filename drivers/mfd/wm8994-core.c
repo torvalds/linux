@@ -563,7 +563,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 	}
 
 	pm_runtime_enable(wm8994->dev);
-	pm_runtime_resume(wm8994->dev);
+	pm_runtime_idle(wm8994->dev);
 
 	return 0;
 
