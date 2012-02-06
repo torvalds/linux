@@ -274,7 +274,7 @@ static int wl12xx_tm_cmd_get_mac(struct wl1271 *wl, struct nlattr *tb[])
 
 	mutex_lock(&wl->mutex);
 
-	if (wl->state != WL1271_STATE_PLT) {
+	if (!wl->plt) {
 		ret = -EINVAL;
 		goto out;
 	}

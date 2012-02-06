@@ -37,6 +37,8 @@
 
 #define WL127X_FW_NAME "ti-connectivity/wl127x-fw-4-sr.bin"
 #define WL128X_FW_NAME "ti-connectivity/wl128x-fw-4-sr.bin"
+#define WL127X_PLT_FW_NAME "ti-connectivity/wl127x-fw-4-plt.bin"
+#define WL128X_PLT_FW_NAME "ti-connectivity/wl128x-fw-4-plt.bin"
 
 /*
  * wl127x and wl128x are using the same NVS file name. However, the
@@ -90,7 +92,12 @@
 enum wl1271_state {
 	WL1271_STATE_OFF,
 	WL1271_STATE_ON,
-	WL1271_STATE_PLT,
+};
+
+enum wl12xx_fw_type {
+	WL12XX_FW_TYPE_NONE,
+	WL12XX_FW_TYPE_NORMAL,
+	WL12XX_FW_TYPE_PLT,
 };
 
 enum wl1271_partition_type {
@@ -294,6 +301,8 @@ struct wl1271 {
 	spinlock_t wl_lock;
 
 	enum wl1271_state state;
+	enum wl12xx_fw_type fw_type;
+	bool plt;
 	struct mutex mutex;
 
 	unsigned long flags;
