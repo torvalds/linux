@@ -204,7 +204,9 @@ void put_io_context(struct io_context *ioc, struct request_queue *locked_q)
 				spin_unlock(last_q->queue_lock);
 			last_q = NULL;
 
-			if (!spin_trylock(this_q->queue_lock))
+			/* spin_trylock() always successes in UP case */
+			if (this_q != locked_q &&
+			    !spin_trylock(this_q->queue_lock))
 				break;
 			last_q = this_q;
 			continue;
