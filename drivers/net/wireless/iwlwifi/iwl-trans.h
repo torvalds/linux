@@ -70,17 +70,72 @@
 #include "iwl-commands.h"
 #include "iwl-ucode.h"
 
- /*This file includes the declaration that are exported from the transport
- * layer */
+/**
+ * DOC: Transport layer - what is it ?
+ *
+ * The tranport layer is the layer that deals with the HW directly. It provides
+ * an abstraction of the underlying HW to the upper layer. The transport layer
+ * doesn't provide any policy, algorithm or anything of this kind, but only
+ * mechanisms to make the HW do something.It is not completely stateless but
+ * close to it.
+ * We will have an implementation for each different supported bus.
+ */
+
+/**
+ * DOC: Life cycle of the transport layer
+ *
+ * The transport layer has a very precise life cycle.
+ *
+ *	1) A helper function is called during the module initialization and
+ *	   registers the bus driver's ops with the transport's alloc function.
+ *	2) Bus's probe calls to the transport layer's allocation functions.
+ *	   Of course this function is bus specific.
+ *	3) This allocation functions will spawn the upper layer which will
+ *	   register mac80211.
+ *
+ *	4) At some point (i.e. mac80211's start call), the op_mode will call
+ *	   the following sequence:
+ *	   start_hw
+ *	   start_fw
+ *
+ *	5) Then when finished (or reset):
+ *	   stop_fw (a.k.a. stop device for the moment)
+ *	   stop_hw
+ *
+ *	6) Eventually, the free function will be called.
+ */
+
+/**
+ * DOC: API needed by the transport layer from the op_mode
+ *
+ * TODO
+ */
 
 struct iwl_priv;
 struct iwl_shared;
 
+/**
+ * DOC: Host command section
+ *
+ * A host command is a commaned issued by the upper layer to the fw. There are
+ * several versions of fw that have several APIs. The transport layer is
+ * completely agnostic to these differences.
+ * The transport does provide helper functionnality (i.e. SYNC / ASYNC mode),
+ */
 #define SEQ_TO_SN(seq) (((seq) & IEEE80211_SCTL_SEQ) >> 4)
 #define SN_TO_SEQ(ssn) (((ssn) << 4) & IEEE80211_SCTL_SEQ)
 #define MAX_SN ((IEEE80211_SCTL_SEQ) >> 4)
 
-enum {
+/**
+ * enum CMD_MODE - how to send the host commands ?
+ *
+ * @CMD_SYNC: The caller will be stalled until the fw responds to the command
+ * @CMD_ASYNC: Return right away and don't want for the response
+ * @CMD_WANT_SKB: valid only with CMD_SYNC. The caller needs the buffer of the
+ *	response.
+ * @CMD_ON_DEMAND: This command is sent by the test mode pipe.
+ */
+enum CMD_MODE {
 	CMD_SYNC = 0,
 	CMD_ASYNC = BIT(0),
 	CMD_WANT_SKB = BIT(1),
@@ -105,20 +160,29 @@ struct iwl_device_cmd {
 
 #define IWL_MAX_CMD_TFDS	2
 
+/**
+ * struct iwl_hcmd_dataflag - flag for each one of the chunks of the command
+ *
+ * IWL_HCMD_DFL_NOCOPY: By default, the command is copied to the host command's
+ *	ring. The transport layer doesn't map the command's buffer to DMA, but
+ *	rather copies it to an previously allocated DMA buffer. This flag tells
+ *	the transport layer not to copy the command, but to map the existing
+ *	buffer. This can save memcpy and is worth with very big comamnds.
+ */
 enum iwl_hcmd_dataflag {
 	IWL_HCMD_DFL_NOCOPY	= BIT(0),
 };
 
 /**
  * struct iwl_host_cmd - Host command to the uCode
+ *
  * @data: array of chunks that composes the data of the host command
  * @reply_page: pointer to the page that holds the response to the host command
  * @handler_status: return value of the handler of the command
  *	(put in setup_rx_handlers) - valid for SYNC mode only
- * @callback:
- * @flags: can be CMD_* note CMD_WANT_SKB is incompatible withe CMD_ASYNC
+ * @flags: can be CMD_*
  * @len: array of the lenths of the chunks in data
- * @dataflags:
+ * @dataflags: IWL_HCMD_DFL_*
  * @id: id of the host command
  */
 struct iwl_host_cmd {
@@ -134,26 +198,43 @@ struct iwl_host_cmd {
 
 /**
  * struct iwl_trans_ops - transport specific operations
+ *
+ * All the handlers MUST be implemented
+ *
  * @start_hw: starts the HW- from that point on, the HW can send interrupts
+ *	May sleep
  * @stop_hw: stops the HW- from that point on, the HW will be in low power but
  *	will still issue interrupt if the HW RF kill is triggered.
+ *	May sleep
  * @start_fw: allocates and inits all the resources for the transport
- *	layer. Also kick a fw image. This handler may sleep.
+ *	layer. Also kick a fw image.
+ *	May sleep
  * @fw_alive: called when the fw sends alive notification
+ *	May sleep
  * @wake_any_queue: wake all the queues of a specfic context IWL_RXON_CTX_*
  * @stop_device:stops the whole device (embedded CPU put to reset)
+ *	May sleep
  * @send_cmd:send a host command
+ *	May sleep only if CMD_SYNC is set
  * @tx: send an skb
+ *	Must be atomic
  * @reclaim: free packet until ssn. Returns a list of freed packets.
+ *	Must be atomic
  * @tx_agg_alloc: allocate resources for a TX BA session
+ *	May sleep
  * @tx_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
- *                 ready and a successful ADDBA response has been received.
+ *	ready and a successful ADDBA response has been received.
+ *	May sleep
  * @tx_agg_disable: de-configure a Tx queue to send AMPDUs
+ *	May sleep
  * @free: release all the ressource for the transport layer itself such as
- *        irq, tasklet etc...
+ *	irq, tasklet etc... From this point on, the device may not issue
+ *	any interrupt (incl. RFKILL).
+ *	May sleep
  * @stop_queue: stop a specific queue
  * @check_stuck_queue: check if a specific queue is stuck
  * @wait_tx_queue_empty: wait until all tx queues are empty
+ *	May sleep
  * @dbgfs_register: add the dbgfs files under this directory. Files will be
  *	automatically deleted.
  * @suspend: stop the device unless WoWLAN is configured
@@ -217,6 +298,7 @@ struct iwl_calib_result {
 
 /**
  * struct iwl_trans - transport common data
+ *
  * @ops - pointer to iwl_trans_ops
  * @shrd - pointer to iwl_shared which holds shared data from the upper layer
  * @hcmd_lock: protects HCMD
@@ -224,7 +306,7 @@ struct iwl_calib_result {
  * @dev - pointer to struct device * that represents the device
  * @irq - the irq number for the device
  * @hw_id: a u32 with the ID of the device / subdevice.
-  *	Set during transport alloaction.
+ *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
  * @ucode_write_complete: indicates that the ucode has been copied.
  * @ucode_rt: run time ucode image
@@ -246,13 +328,11 @@ struct iwl_trans {
 	u32 hw_id;
 	char hw_id_str[52];
 
-	u8 ucode_write_complete;	/* the image write is complete */
+	u8 ucode_write_complete;
 
-	/* eeprom related variables */
 	int    nvm_device_type;
 	bool pm_support;
 
-	/* init calibration results */
 	struct list_head calib_results;
 
 	/* pointer to trans specific struct */
@@ -262,16 +342,22 @@ struct iwl_trans {
 
 static inline int iwl_trans_start_hw(struct iwl_trans *trans)
 {
+	might_sleep();
+
 	return trans->ops->start_hw(trans);
 }
 
 static inline void iwl_trans_stop_hw(struct iwl_trans *trans)
 {
+	might_sleep();
+
 	trans->ops->stop_hw(trans);
 }
 
 static inline void iwl_trans_fw_alive(struct iwl_trans *trans)
 {
+	might_sleep();
+
 	trans->ops->fw_alive(trans);
 }
 
@@ -284,6 +370,8 @@ static inline int iwl_trans_start_fw(struct iwl_trans *trans, struct fw_img *fw)
 
 static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 {
+	might_sleep();
+
 	trans->ops->stop_device(trans);
 }
 
@@ -322,12 +410,16 @@ static inline int iwl_trans_reclaim(struct iwl_trans *trans, int sta_id,
 static inline int iwl_trans_tx_agg_disable(struct iwl_trans *trans,
 					    int sta_id, int tid)
 {
+	might_sleep();
+
 	return trans->ops->tx_agg_disable(trans, sta_id, tid);
 }
 
 static inline int iwl_trans_tx_agg_alloc(struct iwl_trans *trans,
 					 int sta_id, int tid)
 {
+	might_sleep();
+
 	return trans->ops->tx_agg_alloc(trans, sta_id, tid);
 }
 
@@ -337,6 +429,8 @@ static inline void iwl_trans_tx_agg_setup(struct iwl_trans *trans,
 					   int sta_id, int tid,
 					   int frame_limit, u16 ssn)
 {
+	might_sleep();
+
 	trans->ops->tx_agg_setup(trans, ctx, sta_id, tid, frame_limit, ssn);
 }
 
