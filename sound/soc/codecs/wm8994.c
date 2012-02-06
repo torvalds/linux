@@ -2946,8 +2946,6 @@ static void wm8994_handle_pdata(struct wm8994_priv *wm8994)
  * @codec:   WM8994 codec
  * @jack:    jack to report detection events on
  * @micbias: microphone bias to detect on
- * @det:     value to report for presence detection
- * @shrt:    value to report for short detection
  *
  * Enable microphone detection via IRQ on the WM8994.  If GPIOs are
  * being used to bring out signals to the processor then only platform
@@ -2958,42 +2956,62 @@ static void wm8994_handle_pdata(struct wm8994_priv *wm8994)
  * and micbias2_lvl platform data members.
  */
 int wm8994_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
-		      int micbias, int det, int shrt)
+		      int micbias)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994_micdet *micdet;
 	struct wm8994 *control = wm8994->wm8994;
-	int reg;
+	int reg, ret;
 
-	if (control->type != WM8994)
+	if (control->type != WM8994) {
+		dev_warn(codec->dev, "Not a WM8994\n");
 		return -EINVAL;
+	}
 
 	switch (micbias) {
 	case 1:
 		micdet = &wm8994->micdet[0];
+		if (jack)
+			ret = snd_soc_dapm_force_enable_pin(&codec->dapm,
+							    "MICBIAS1");
+		else
+			ret = snd_soc_dapm_disable_pin(&codec->dapm,
+						       "MICBIAS1");
 		break;
 	case 2:
 		micdet = &wm8994->micdet[1];
+		if (jack)
+			ret = snd_soc_dapm_force_enable_pin(&codec->dapm,
+							    "MICBIAS1");
+		else
+			ret = snd_soc_dapm_disable_pin(&codec->dapm,
+						       "MICBIAS1");
 		break;
 	default:
+		dev_warn(codec->dev, "Invalid MICBIAS %d\n", micbias);
 		return -EINVAL;
-	}	
+	}
 
-	dev_dbg(codec->dev, "Configuring microphone detection on %d: %x %x\n",
-		micbias, det, shrt);
+	if (ret != 0)
+		dev_warn(codec->dev, "Failed to configure MICBIAS%d: %d\n",
+			 micbias, ret);
+
+	dev_dbg(codec->dev, "Configuring microphone detection on %d %p\n",
+		micbias, jack);
 
 	/* Store the configuration */
 	micdet->jack = jack;
-	micdet->det = det;
-	micdet->shrt = shrt;
+	micdet->detecting = true;
 
 	/* If either of the jacks is set up then enable detection */
 	if (wm8994->micdet[0].jack || wm8994->micdet[1].jack)
 		reg = WM8994_MICD_ENA;
-	else 
+	else
 		reg = 0;
 
 	snd_soc_update_bits(codec, WM8994_MICBIAS, WM8994_MICD_ENA, reg);
+
+	snd_soc_dapm_sync(&codec->dapm);
 
 	return 0;
 }
@@ -3020,20 +3038,42 @@ static irqreturn_t wm8994_mic_irq(int irq, void *data)
 	dev_dbg(codec->dev, "Microphone status: %x\n", reg);
 
 	report = 0;
-	if (reg & WM8994_MIC1_DET_STS)
-		report |= priv->micdet[0].det;
-	if (reg & WM8994_MIC1_SHRT_STS)
-		report |= priv->micdet[0].shrt;
+	if (reg & WM8994_MIC1_DET_STS) {
+		if (priv->micdet[0].detecting)
+			report = SND_JACK_HEADSET;
+	}
+	if (reg & WM8994_MIC1_SHRT_STS) {
+		if (priv->micdet[0].detecting)
+			report = SND_JACK_HEADPHONE;
+		else
+			report |= SND_JACK_BTN_0;
+	}
+	if (report)
+		priv->micdet[0].detecting = false;
+	else
+		priv->micdet[0].detecting = true;
+
 	snd_soc_jack_report(priv->micdet[0].jack, report,
-			    priv->micdet[0].det | priv->micdet[0].shrt);
+			    SND_JACK_HEADSET | SND_JACK_BTN_0);
 
 	report = 0;
-	if (reg & WM8994_MIC2_DET_STS)
-		report |= priv->micdet[1].det;
-	if (reg & WM8994_MIC2_SHRT_STS)
-		report |= priv->micdet[1].shrt;
+	if (reg & WM8994_MIC2_DET_STS) {
+		if (priv->micdet[1].detecting)
+			report = SND_JACK_HEADSET;
+	}
+	if (reg & WM8994_MIC2_SHRT_STS) {
+		if (priv->micdet[1].detecting)
+			report = SND_JACK_HEADPHONE;
+		else
+			report |= SND_JACK_BTN_0;
+	}
+	if (report)
+		priv->micdet[1].detecting = false;
+	else
+		priv->micdet[1].detecting = true;
+
 	snd_soc_jack_report(priv->micdet[1].jack, report,
-			    priv->micdet[1].det | priv->micdet[1].shrt);
+			    SND_JACK_HEADSET | SND_JACK_BTN_0);
 
 	return IRQ_HANDLED;
 }

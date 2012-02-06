@@ -35,7 +35,7 @@
 typedef void (*wm8958_micdet_cb)(u16 status, void *data);
 
 int wm8994_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
-		      int micbias, int det, int shrt);
+		      int micbias);
 int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 		      wm8958_micdet_cb cb, void *cb_data);
 
@@ -46,8 +46,7 @@ void wm8958_dsp2_init(struct snd_soc_codec *codec);
 
 struct wm8994_micdet {
 	struct snd_soc_jack *jack;
-	int det;
-	int shrt;
+	bool detecting;
 };
 
 /* codec private data */
