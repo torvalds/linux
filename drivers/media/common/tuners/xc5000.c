@@ -49,9 +49,6 @@ static LIST_HEAD(hybrid_tuner_instance_list);
 #define dprintk(level, fmt, arg...) if (debug >= level) \
 	printk(KERN_INFO "%s: " fmt, "xc5000", ## arg)
 
-#define XC5000_DEFAULT_FIRMWARE "dvb-fe-xc5000-1.6.114.fw"
-#define XC5000_DEFAULT_FIRMWARE_SIZE 12401
-
 struct xc5000_priv {
 	struct tuner_i2c_props i2c_props;
 	struct list_head hybrid_tuner_instance_list;
@@ -62,6 +59,8 @@ struct xc5000_priv {
 	u8  video_standard;
 	u8  rf_mode;
 	u8  radio_input;
+
+	struct xc5000_fw_cfg *fw;
 };
 
 /* Misc Defines */
@@ -202,6 +201,11 @@ static struct XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
 	{"FM Radio-INPUT2",   0x9802, 0x9002},
 	{"FM Radio-INPUT1",   0x0208, 0x9002},
 	{"FM Radio-INPUT1_MONO", 0x0278, 0x9002}
+};
+
+struct xc5000_fw_cfg xc5000a_1_6_114 = {
+	.name = "dvb-fe-xc5000-1.6.114.fw",
+	.size = 12401,
 };
 
 static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe);
@@ -555,9 +559,9 @@ static int xc5000_fwupload(struct dvb_frontend *fe)
 
 	/* request the firmware, this will block and timeout */
 	printk(KERN_INFO "xc5000: waiting for firmware upload (%s)...\n",
-		XC5000_DEFAULT_FIRMWARE);
+		priv->fw->name);
 
-	ret = request_firmware(&fw, XC5000_DEFAULT_FIRMWARE,
+	ret = request_firmware(&fw, priv->fw->name,
 		priv->i2c_props.adap->dev.parent);
 	if (ret) {
 		printk(KERN_ERR "xc5000: Upload failed. (file not found?)\n");
@@ -569,7 +573,7 @@ static int xc5000_fwupload(struct dvb_frontend *fe)
 		ret = XC_RESULT_SUCCESS;
 	}
 
-	if (fw->size != XC5000_DEFAULT_FIRMWARE_SIZE) {
+	if (fw->size != priv->fw->size) {
 		printk(KERN_ERR "xc5000: firmware incorrect size\n");
 		ret = XC_RESULT_RESET_FAILURE;
 	} else {
@@ -1138,6 +1142,12 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 
 	if (priv->radio_input == 0)
 		priv->radio_input = cfg->radio_input;
+
+	/* don't override firmware filename if it's already been set
+	   unless explicitly specified */
+	if ((priv->fw == NULL) || (cfg->fw))
+		/* use default firmware if none specified */
+		priv->fw = (cfg->fw) ? cfg->fw : XC5000_DEFAULT_FIRMWARE;
 
 	/* Check if firmware has been loaded. It is possible that another
 	   instance of the driver has loaded the firmware.
