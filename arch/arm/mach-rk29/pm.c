@@ -428,7 +428,7 @@ static int rk29_pm_enter(suspend_state_t state)
 
 	sram_printch('0');
 	flush_tlb_all();
-	#if defined(CONFIG_RK29_SPI_INSRAM)
+	#if defined(CONFIG_RK29_SPI_INSRAM) || defined(CONFIG_RK29_PWM_INSRAM)
 	interface_ctr_reg_pread();
 	#endif
 	#if defined(CONFIG_RK29_I2C_INSRAM)

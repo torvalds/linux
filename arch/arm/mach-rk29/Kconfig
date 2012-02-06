@@ -225,11 +225,11 @@ config RK29_NEON_POWERDOMAIN_SET
 config RK29_SPI_INSRAM
 	tristate "Support spi control interface"
 	depends on REGULATOR_WM831X
-	default ns
+	default n
 config RK29_I2C_INSRAM
 	tristate "Support i2c control interface"
 	depends on REGULATOR_WM831X
-	default ns
+	default n
 config RK29_CHARGE_EARLYSUSPEND
 	bool "Support charge in low power"
 	default n
