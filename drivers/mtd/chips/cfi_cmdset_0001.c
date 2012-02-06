@@ -1566,9 +1566,6 @@ static int cfi_intelext_write_words (struct mtd_info *mtd, loff_t to , size_t le
 	int chipnum;
 	unsigned long ofs;
 
-	if (!len)
-		return 0;
-
 	chipnum = to >> cfi->chipshift;
 	ofs = to  - (chipnum << cfi->chipshift);
 

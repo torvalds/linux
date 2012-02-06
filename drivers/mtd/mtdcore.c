@@ -695,6 +695,11 @@ int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 		return -EINVAL;
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
+	if (!instr->len) {
+		instr->state = MTD_ERASE_DONE;
+		mtd_erase_callback(instr);
+		return 0;
+	}
 	return mtd->_erase(mtd, instr);
 }
 EXPORT_SYMBOL_GPL(mtd_erase);
@@ -713,6 +718,8 @@ int mtd_point(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 		return -EOPNOTSUPP;
 	if (from < 0 || from > mtd->size || len > mtd->size - from)
 		return -EINVAL;
+	if (!len)
+		return 0;
 	return mtd->_point(mtd, from, len, retlen, virt, phys);
 }
 EXPORT_SYMBOL_GPL(mtd_point);
@@ -724,6 +731,8 @@ int mtd_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 		return -EOPNOTSUPP;
 	if (from < 0 || from > mtd->size || len > mtd->size - from)
 		return -EINVAL;
+	if (!len)
+		return 0;
 	return mtd->_unpoint(mtd, from, len);
 }
 EXPORT_SYMBOL_GPL(mtd_unpoint);
@@ -750,6 +759,8 @@ int mtd_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 	*retlen = 0;
 	if (from < 0 || from > mtd->size || len > mtd->size - from)
 		return -EINVAL;
+	if (!len)
+		return 0;
 	return mtd->_read(mtd, from, len, retlen, buf);
 }
 EXPORT_SYMBOL_GPL(mtd_read);
@@ -762,6 +773,8 @@ int mtd_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 		return -EINVAL;
 	if (!mtd->_write || !(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
+	if (!len)
+		return 0;
 	return mtd->_write(mtd, to, len, retlen, buf);
 }
 EXPORT_SYMBOL_GPL(mtd_write);
@@ -783,6 +796,8 @@ int mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 		return -EINVAL;
 	if (!(mtd->flags & MTD_WRITEABLE))
 		return -EROFS;
+	if (!len)
+		return 0;
 	return mtd->_panic_write(mtd, to, len, retlen, buf);
 }
 EXPORT_SYMBOL_GPL(mtd_panic_write);
@@ -794,6 +809,8 @@ int mtd_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 		return -EOPNOTSUPP;
 	if (ofs < 0 || ofs > mtd->size || len > mtd->size - ofs)
 		return -EINVAL;
+	if (!len)
+		return 0;
 	return mtd->_lock(mtd, ofs, len);
 }
 EXPORT_SYMBOL_GPL(mtd_lock);
@@ -804,6 +821,8 @@ int mtd_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 		return -EOPNOTSUPP;
 	if (ofs < 0 || ofs > mtd->size || len > mtd->size - ofs)
 		return -EINVAL;
+	if (!len)
+		return 0;
 	return mtd->_unlock(mtd, ofs, len);
 }
 EXPORT_SYMBOL_GPL(mtd_unlock);
@@ -814,6 +833,8 @@ int mtd_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 		return -EOPNOTSUPP;
 	if (ofs < 0 || ofs > mtd->size || len > mtd->size - ofs)
 		return -EINVAL;
+	if (!len)
+		return 0;
 	return mtd->_is_locked(mtd, ofs, len);
 }
 EXPORT_SYMBOL_GPL(mtd_is_locked);

@@ -178,9 +178,6 @@ static int block2mtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct block2mtd_dev *dev = mtd->priv;
 	int err;
 
-	if (!len)
-		return 0;
-
 	mutex_lock(&dev->write_mutex);
 	err = _block2mtd_write(dev, buf, to, len, retlen);
 	mutex_unlock(&dev->write_mutex);

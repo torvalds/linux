@@ -615,9 +615,6 @@ static int cfi_staa_write_buffers (struct mtd_info *mtd, loff_t to,
 	int chipnum;
 	unsigned long ofs;
 
-	if (!len)
-		return 0;
-
 	chipnum = to >> cfi->chipshift;
 	ofs = to  - (chipnum << cfi->chipshift);
 

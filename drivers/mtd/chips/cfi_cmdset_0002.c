@@ -1246,9 +1246,6 @@ static int cfi_amdstd_write_words(struct mtd_info *mtd, loff_t to, size_t len,
 	unsigned long ofs, chipstart;
 	DECLARE_WAITQUEUE(wait, current);
 
-	if (!len)
-		return 0;
-
 	chipnum = to >> cfi->chipshift;
 	ofs = to  - (chipnum << cfi->chipshift);
 	chipstart = cfi->chips[chipnum].start;
@@ -1487,9 +1484,6 @@ static int cfi_amdstd_write_buffers(struct mtd_info *mtd, loff_t to, size_t len,
 	int chipnum;
 	unsigned long ofs;
 
-	if (!len)
-		return 0;
-
 	chipnum = to >> cfi->chipshift;
 	ofs = to  - (chipnum << cfi->chipshift);
 
@@ -1696,9 +1690,6 @@ static int cfi_amdstd_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 	unsigned long ofs, chipstart;
 	int ret = 0;
 	int chipnum;
-
-	if (!len)
-		return 0;
 
 	chipnum = to >> cfi->chipshift;
 	ofs = to - (chipnum << cfi->chipshift);

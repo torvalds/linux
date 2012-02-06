@@ -249,10 +249,6 @@ static int dataflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 	pr_debug("%s: read 0x%x..0x%x\n", dev_name(&priv->spi->dev),
 			(unsigned)from, (unsigned)(from + len));
 
-	/* Sanity checks */
-	if (!len)
-		return 0;
-
 	/* Calculate flash page/byte address */
 	addr = (((unsigned)from / priv->page_size) << priv->page_offset)
 		+ ((unsigned)from % priv->page_size);
@@ -320,10 +316,6 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	pr_debug("%s: write 0x%x..0x%x\n",
 		dev_name(&spi->dev), (unsigned)to, (unsigned)(to + len));
-
-	/* Sanity checks */
-	if (!len)
-		return 0;
 
 	spi_message_init(&msg);
 
@@ -479,8 +471,6 @@ static ssize_t otp_read(struct spi_device *spi, unsigned base,
 
 	if ((off + len) > 64)
 		len = 64 - off;
-	if (len == 0)
-		return len;
 
 	spi_message_init(&m);
 

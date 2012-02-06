@@ -639,7 +639,6 @@ static int lpddr_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	int chipnum;
 	unsigned long ofs, vec_seek, i;
 	int wbufsize = 1 << lpddr->qinfo->BufSizeShift;
-
 	size_t len = 0;
 
 	for (i = 0; i < count; i++)

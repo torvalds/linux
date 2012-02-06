@@ -563,9 +563,6 @@ static int spear_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 	u32 ctrlreg1, val;
 	int ret;
 
-	if (!len)
-		return 0;
-
 	if (!flash || !dev)
 		return -ENODEV;
 
@@ -661,9 +658,6 @@ static int spear_mtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	if (!flash || !dev)
 		return -ENODEV;
-
-	if (!len)
-		return 0;
 
 	if (flash->bank > dev->num_flashes - 1) {
 		dev_err(&dev->pdev->dev, "Invalid Bank Num");

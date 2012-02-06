@@ -346,10 +346,6 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	pr_debug("%s: %s from 0x%08x, len %zd\n", dev_name(&flash->spi->dev),
 			__func__, (u32)from, len);
 
-	/* sanity checks */
-	if (!len)
-		return 0;
-
 	spi_message_init(&m);
 	memset(t, 0, (sizeof t));
 
@@ -407,10 +403,6 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	pr_debug("%s: %s to 0x%08x, len %zd\n", dev_name(&flash->spi->dev),
 			__func__, (u32)to, len);
-
-	/* sanity checks */
-	if (!len)
-		return(0);
 
 	spi_message_init(&m);
 	memset(t, 0, (sizeof t));
@@ -494,10 +486,6 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	pr_debug("%s: %s to 0x%08x, len %zd\n", dev_name(&flash->spi->dev),
 			__func__, (u32)to, len);
-
-	/* sanity checks */
-	if (!len)
-		return 0;
 
 	spi_message_init(&m);
 	memset(t, 0, (sizeof t));

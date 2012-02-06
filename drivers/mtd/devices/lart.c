@@ -437,9 +437,6 @@ static int flash_read (struct mtd_info *mtd,loff_t from,size_t len,size_t *retle
    printk (KERN_DEBUG "%s(from = 0x%.8x, len = %d)\n", __func__, (__u32)from, len);
 #endif
 
-   /* sanity checks */
-   if (!len) return (0);
-
    /* we always read len bytes */
    *retlen = len;
 

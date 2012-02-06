@@ -220,10 +220,6 @@ static int sst25l_read(struct mtd_info *mtd, loff_t from, size_t len,
 	unsigned char command[4];
 	int ret;
 
-	/* Sanity checking */
-	if (len == 0)
-		return 0;
-
 	spi_message_init(&message);
 	memset(&transfer, 0, sizeof(transfer));
 
@@ -264,10 +260,6 @@ static int sst25l_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct sst25l_flash *flash = to_sst25l_flash(mtd);
 	int i, j, ret, bytes, copied = 0;
 	unsigned char command[5];
-
-	/* Sanity checks */
-	if (!len)
-		return 0;
 
 	if ((uint32_t)to % mtd->writesize)
 		return -EINVAL;
