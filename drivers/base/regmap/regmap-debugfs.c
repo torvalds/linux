@@ -192,6 +192,15 @@ void regmap_debugfs_init(struct regmap *map)
 		debugfs_create_file("access", 0400, map->debugfs,
 				    map, &regmap_access_fops);
 	}
+
+	if (map->cache_type) {
+		debugfs_create_bool("cache_only", 0400, map->debugfs,
+				    &map->cache_only);
+		debugfs_create_bool("cache_dirty", 0400, map->debugfs,
+				    &map->cache_dirty);
+		debugfs_create_bool("cache_bypass", 0400, map->debugfs,
+				    &map->cache_bypass);
+	}
 }
 
 void regmap_debugfs_exit(struct regmap *map)
