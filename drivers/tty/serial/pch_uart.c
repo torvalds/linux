@@ -364,15 +364,6 @@ static const struct file_operations port_regs_ops = {
 };
 #endif	/* CONFIG_DEBUG_FS */
 
-static void pch_uart_hal_request(struct pci_dev *pdev, int fifosize,
-				 int base_baud)
-{
-	struct eg20t_port *priv = pci_get_drvdata(pdev);
-
-	priv->trigger_level = 1;
-	priv->fcr = 0;
-}
-
 static void pch_uart_hal_enable_interrupt(struct eg20t_port *priv,
 					  unsigned int flag)
 {
@@ -1674,7 +1665,8 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	spin_lock_init(&priv->port.lock);
 
 	pci_set_drvdata(pdev, priv);
-	pch_uart_hal_request(pdev, fifosize, base_baud);
+	priv->trigger_level = 1;
+	priv->fcr = 0;
 
 #ifdef CONFIG_SERIAL_PCH_UART_CONSOLE
 	pch_uart_ports[board->line_no] = priv;
@@ -1717,9 +1709,7 @@ static void pch_uart_exit_port(struct eg20t_port *priv)
 
 static void pch_uart_pci_remove(struct pci_dev *pdev)
 {
-	struct eg20t_port *priv;
-
-	priv = (struct eg20t_port *)pci_get_drvdata(pdev);
+	struct eg20t_port *priv = pci_get_drvdata(pdev);
 
 	pci_disable_msi(pdev);
 
