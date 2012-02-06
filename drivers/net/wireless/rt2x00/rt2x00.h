@@ -647,6 +647,7 @@ struct rt2x00lib_ops {
  */
 struct rt2x00_ops {
 	const char *name;
+	const unsigned int drv_data_size;
 	const unsigned int max_sta_intf;
 	const unsigned int max_ap_intf;
 	const unsigned int eeprom_size;
@@ -740,6 +741,11 @@ struct rt2x00_dev {
 	 * Callback functions.
 	 */
 	const struct rt2x00_ops *ops;
+
+	/*
+	 * Driver data.
+	 */
+	void *drv_data;
 
 	/*
 	 * IEEE80211 control structure.
