@@ -18,9 +18,13 @@ db8500_add_ske_keypad(struct device *parent,
 		      struct ske_keypad_platform_data *pdata,
 		      size_t size)
 {
-	return dbx500_add_platform_device_4k1irq("nmk-ske-keypad", -1,
-						 U8500_SKE_BASE,
-						 IRQ_DB8500_KB, pdata);
+	struct resource resources[] = {
+		DEFINE_RES_MEM(U8500_SKE_BASE, SZ_4K),
+		DEFINE_RES_IRQ(IRQ_DB8500_KB),
+	};
+
+	return platform_device_register_resndata(parent, "nmk-ske-keypad", -1,
+						 resources, 2, pdata, size);
 }
 
 static inline struct amba_device *

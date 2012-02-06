@@ -59,59 +59,6 @@ dbx500_add_amba_device(struct device *parent, const char *name,
 }
 
 static struct platform_device *
-dbx500_add_platform_device(const char *name, int id, void *pdata,
-			   struct resource *res, int resnum)
-{
-	struct platform_device *dev;
-	int ret;
-
-	dev = platform_device_alloc(name, id);
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
-
-	dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	dev->dev.dma_mask = &dev->dev.coherent_dma_mask;
-
-	ret = platform_device_add_resources(dev, res, resnum);
-	if (ret)
-		goto out_free;
-
-	dev->dev.platform_data = pdata;
-
-	ret = platform_device_add(dev);
-	if (ret)
-		goto out_free;
-
-	return dev;
-
-out_free:
-	platform_device_put(dev);
-	return ERR_PTR(ret);
-}
-
-struct platform_device *
-dbx500_add_platform_device_4k1irq(const char *name, int id,
-				  resource_size_t base,
-				  int irq, void *pdata)
-{
-	struct resource resources[] = {
-		[0] = {
-			.start	= base,
-			.end	= base + SZ_4K - 1,
-			.flags	= IORESOURCE_MEM,
-		},
-		[1] = {
-			.start	= irq,
-			.end	= irq,
-			.flags	= IORESOURCE_IRQ,
-		}
-	};
-
-	return dbx500_add_platform_device(name, id, pdata, resources,
-					  ARRAY_SIZE(resources));
-}
-
-static struct platform_device *
 dbx500_add_gpio(struct device *parent, int id, resource_size_t addr, int irq,
 		struct nmk_gpio_platform_data *pdata)
 {

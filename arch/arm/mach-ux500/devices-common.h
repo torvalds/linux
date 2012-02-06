@@ -8,14 +8,15 @@
 #ifndef __DEVICES_COMMON_H
 #define __DEVICES_COMMON_H
 
-extern struct amba_device *
-dbx500_add_amba_device(struct device *parent, const char *name, resource_size_t base,
-		       int irq, void *pdata, unsigned int periphid);
+#include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
+#include <linux/sys_soc.h>
+#include <plat/i2c.h>
 
-extern struct platform_device *
-dbx500_add_platform_device_4k1irq(const char *name, int id,
-				  resource_size_t base,
-				  int irq, void *pdata);
+extern struct amba_device *
+dbx500_add_amba_device(struct device *parent, const char *name,
+		       resource_size_t base, int irq, void *pdata,
+		       unsigned int periphid);
 
 struct spi_master_cntlr;
 
@@ -60,20 +61,25 @@ struct nmk_i2c_controller;
 
 static inline struct platform_device *
 dbx500_add_i2c(struct device *parent, int id, resource_size_t base, int irq,
-	       struct nmk_i2c_controller *pdata)
+	       struct nmk_i2c_controller *data)
 {
-	return dbx500_add_platform_device_4k1irq("nmk-i2c", id, base, irq,
-						 pdata);
-}
+	struct resource res[] = {
+		DEFINE_RES_MEM(base, SZ_4K),
+		DEFINE_RES_IRQ(irq),
+	};
 
-struct msp_i2s_platform_data;
+	struct platform_device_info pdevinfo = {
+		.parent = parent,
+		.name = "nmk-i2c",
+		.id = id,
+		.res = res,
+		.num_res = ARRAY_SIZE(res),
+		.data = data,
+		.size_data = sizeof(*data),
+		.dma_mask = DMA_BIT_MASK(32),
+	};
 
-static inline struct platform_device *
-dbx500_add_msp_i2s(int id, resource_size_t base, int irq,
-		   struct msp_i2s_platform_data *pdata)
-{
-	return dbx500_add_platform_device_4k1irq("MSP_I2S", id, base, irq,
-						 pdata);
+	return platform_device_register_full(&pdevinfo);
 }
 
 static inline struct amba_device *
