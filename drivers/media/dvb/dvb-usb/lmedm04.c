@@ -104,8 +104,7 @@ MODULE_PARM_DESC(firmware, "set default firmware 0=Sharp7395 1=LG");
 
 static int pid_filter;
 module_param_named(pid, pid_filter, int, 0644);
-MODULE_PARM_DESC(pid, "set default 0=on 1=off");
-
+MODULE_PARM_DESC(pid, "set default 0=default 1=off 2=on");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -653,7 +652,7 @@ static int lme2510_identify_state(struct usb_device *udev,
 		struct dvb_usb_device_description **desc,
 		int *cold)
 {
-	if (pid_filter > 0)
+	if (pid_filter != 2)
 		props->adapter[0].fe[0].caps &=
 			~DVB_USB_ADAP_NEED_PID_FILTERING;
 	*cold = 0;
@@ -1295,5 +1294,5 @@ module_usb_driver(lme2510_driver);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("LME2510(C) DVB-S USB2.0");
-MODULE_VERSION("1.91");
+MODULE_VERSION("1.96");
 MODULE_LICENSE("GPL");
