@@ -168,8 +168,12 @@ static int mlx4_en_prepare_rx_desc(struct mlx4_en_priv *priv,
 	return 0;
 
 err:
-	while (i--)
+	while (i--) {
+		dma_addr_t dma = be64_to_cpu(rx_desc->data[i].addr);
+		pci_unmap_single(priv->mdev->pdev, dma, skb_frags[i].size,
+				 PCI_DMA_FROMDEVICE);
 		put_page(skb_frags[i].page);
+	}
 	return -ENOMEM;
 }
 
