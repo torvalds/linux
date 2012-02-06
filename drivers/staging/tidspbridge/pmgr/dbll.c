@@ -21,8 +21,6 @@
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
 #include <dspbridge/gh.h>
 
 /*  ----------------------------------- OS Adaptation Layer */

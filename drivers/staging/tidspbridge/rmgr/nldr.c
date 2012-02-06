@@ -22,8 +22,6 @@
 
 #include <dspbridge/dbdefs.h>
 
-#include <dspbridge/dbc.h>
-
 /* Platform manager */
 #include <dspbridge/cod.h>
 #include <dspbridge/dev.h>

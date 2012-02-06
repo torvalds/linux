@@ -33,9 +33,6 @@
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
-/* Trace & Debug */
-#include <dspbridge/dbc.h>
-
 /* Services Layer */
 #include <dspbridge/ntfy.h>
 #include <dspbridge/sync.h>

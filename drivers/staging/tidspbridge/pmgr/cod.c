@@ -30,9 +30,6 @@
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
-
 /*  ----------------------------------- Platform Manager */
 /* Include appropriate loader header file */
 #include <dspbridge/dbll.h>

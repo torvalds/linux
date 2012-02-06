@@ -29,8 +29,6 @@
 
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
 
 /*  ----------------------------------- Platform Manager */
 #include <dspbridge/cod.h>
