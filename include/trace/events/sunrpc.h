@@ -75,21 +75,21 @@ DECLARE_EVENT_CLASS(rpc_task_queued,
 	TP_STRUCT__entry(
 		__field(const struct rpc_clnt *, clnt)
 		__field(const struct rpc_task *, task)
-		__field(const struct rpc_wait_queue *, queue)
 		__field(unsigned long, timeout)
 		__field(unsigned long, runstate)
 		__field(int, status)
 		__field(unsigned short, flags)
+		__string(q_name, rpc_qname(q))
 		),
 
 	TP_fast_assign(
 		__entry->clnt = clnt;
 		__entry->task = task;
-		__entry->queue = q;
 		__entry->timeout = task->tk_timeout;
 		__entry->runstate = task->tk_runstate;
 		__entry->status = task->tk_status;
 		__entry->flags = task->tk_flags;
+		__assign_str(q_name, rpc_qname(q));
 		),
 
 	TP_printk("task:%p@%p flags=%4.4x state=%4.4lx status=%d timeout=%lu queue=%s",
@@ -99,7 +99,7 @@ DECLARE_EVENT_CLASS(rpc_task_queued,
 		__entry->runstate,
 		__entry->status,
 		__entry->timeout,
-		rpc_qname(__entry->queue)
+		__get_str(q_name)
 		)
 );
 
