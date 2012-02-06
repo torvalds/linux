@@ -702,8 +702,8 @@ static struct akm8975_platform_data akm8975_info =
 	.m_layout = 
 	{
 		{
-			{-1, 0, 0 },
-			{0, -1, 0 },
+			{1, 0, 0 },
+			{0, 1, 0 },
 			{0,	0, 1 },
 		},
 
