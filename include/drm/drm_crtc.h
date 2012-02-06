@@ -807,6 +807,10 @@ struct drm_mode_config {
 #define obj_to_blob(x) container_of(x, struct drm_property_blob, base)
 #define obj_to_plane(x) container_of(x, struct drm_plane, base)
 
+struct drm_prop_enum_list {
+	int type;
+	char *name;
+};
 
 extern void drm_crtc_init(struct drm_device *dev,
 			  struct drm_crtc *crtc,
@@ -904,6 +908,10 @@ extern int drm_connector_attach_property(struct drm_connector *connector,
 				      struct drm_property *property, uint64_t init_val);
 extern struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 						const char *name, int num_values);
+extern struct drm_property *drm_property_create_enum(struct drm_device *dev, int flags,
+					 const char *name,
+					 const struct drm_prop_enum_list *props,
+					 int num_values);
 extern void drm_property_destroy(struct drm_device *dev, struct drm_property *property);
 extern int drm_property_add_enum(struct drm_property *property, int index,
 				 uint64_t value, const char *name);

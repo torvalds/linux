@@ -155,20 +155,20 @@ static const struct drm_mode_config_funcs nouveau_mode_config_funcs = {
 };
 
 
-struct drm_prop_enum_list {
+struct nouveau_drm_prop_enum_list {
 	u8 gen_mask;
 	int type;
 	char *name;
 };
 
-static struct drm_prop_enum_list underscan[] = {
+static struct nouveau_drm_prop_enum_list underscan[] = {
 	{ 6, UNDERSCAN_AUTO, "auto" },
 	{ 6, UNDERSCAN_OFF, "off" },
 	{ 6, UNDERSCAN_ON, "on" },
 	{}
 };
 
-static struct drm_prop_enum_list dither_mode[] = {
+static struct nouveau_drm_prop_enum_list dither_mode[] = {
 	{ 7, DITHERING_MODE_AUTO, "auto" },
 	{ 7, DITHERING_MODE_OFF, "off" },
 	{ 1, DITHERING_MODE_ON, "on" },
@@ -178,7 +178,7 @@ static struct drm_prop_enum_list dither_mode[] = {
 	{}
 };
 
-static struct drm_prop_enum_list dither_depth[] = {
+static struct nouveau_drm_prop_enum_list dither_depth[] = {
 	{ 6, DITHERING_DEPTH_AUTO, "auto" },
 	{ 6, DITHERING_DEPTH_6BPC, "6 bpc" },
 	{ 6, DITHERING_DEPTH_8BPC, "8 bpc" },
@@ -186,7 +186,7 @@ static struct drm_prop_enum_list dither_depth[] = {
 };
 
 #define PROP_ENUM(p,gen,n,list) do {                                           \
-	struct drm_prop_enum_list *l = (list);                                 \
+	struct nouveau_drm_prop_enum_list *l = (list);                         \
 	int c = 0;                                                             \
 	while (l->gen_mask) {                                                  \
 		if (l->gen_mask & (1 << (gen)))                                \

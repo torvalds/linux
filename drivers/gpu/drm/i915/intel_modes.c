@@ -83,10 +83,10 @@ int intel_ddc_get_modes(struct drm_connector *connector,
 	return ret;
 }
 
-static const char *force_audio_names[] = {
-	"off",
-	"auto",
-	"on",
+static const struct drm_prop_enum_list force_audio_names[] = {
+	{ -1, "off" },
+	{  0, "auto" },
+	{  1, "on" },
 };
 
 void
@@ -95,27 +95,24 @@ intel_attach_force_audio_property(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_property *prop;
-	int i;
 
 	prop = dev_priv->force_audio_property;
 	if (prop == NULL) {
-		prop = drm_property_create(dev, DRM_MODE_PROP_ENUM,
+		prop = drm_property_create_enum(dev, 0,
 					   "audio",
+					   force_audio_names,
 					   ARRAY_SIZE(force_audio_names));
 		if (prop == NULL)
 			return;
-
-		for (i = 0; i < ARRAY_SIZE(force_audio_names); i++)
-			drm_property_add_enum(prop, i, i-1, force_audio_names[i]);
 
 		dev_priv->force_audio_property = prop;
 	}
 	drm_connector_attach_property(connector, prop, 0);
 }
 
-static const char *broadcast_rgb_names[] = {
-	"Full",
-	"Limited 16:235",
+static const struct drm_prop_enum_list broadcast_rgb_names[] = {
+	{ 0, "Full" },
+	{ 1, "Limited 16:235" },
 };
 
 void
@@ -124,18 +121,15 @@ intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_property *prop;
-	int i;
 
 	prop = dev_priv->broadcast_rgb_property;
 	if (prop == NULL) {
-		prop = drm_property_create(dev, DRM_MODE_PROP_ENUM,
+		prop = drm_property_create_enum(dev, DRM_MODE_PROP_ENUM,
 					   "Broadcast RGB",
+					   broadcast_rgb_names,
 					   ARRAY_SIZE(broadcast_rgb_names));
 		if (prop == NULL)
 			return;
-
-		for (i = 0; i < ARRAY_SIZE(broadcast_rgb_names); i++)
-			drm_property_add_enum(prop, i, i, broadcast_rgb_names[i]);
 
 		dev_priv->broadcast_rgb_property = prop;
 	}
