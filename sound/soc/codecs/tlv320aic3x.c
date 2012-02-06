@@ -121,30 +121,6 @@ static const u8 aic3x_reg[AIC3X_CACHEREGNUM] = {
 	0x00, 0x00, 0x02,	/* 100 */
 };
 
-/*
- * read from the aic3x register space. Only use for this function is if
- * wanting to read volatile bits from those registers that has both read-only
- * and read/write bits. All other cases should use snd_soc_read.
- */
-static int aic3x_read(struct snd_soc_codec *codec, unsigned int reg,
-		      u8 *value)
-{
-	u8 *cache = codec->reg_cache;
-
-	if (codec->cache_only)
-		return -EINVAL;
-	if (reg >= AIC3X_CACHEREGNUM)
-		return -1;
-
-	codec->cache_bypass = 1;
-	*value = snd_soc_read(codec, reg);
-	codec->cache_bypass = 0;
-
-	cache[reg] = *value;
-
-	return 0;
-}
-
 #define SOC_DAPM_SINGLE_AIC3X(xname, reg, shift, mask, invert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.info = snd_soc_info_volsw, \
