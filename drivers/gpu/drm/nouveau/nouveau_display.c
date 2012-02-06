@@ -281,16 +281,10 @@ nouveau_display_create(struct drm_device *dev)
 	PROP_ENUM(disp->underscan_property, gen, "underscan", underscan);
 
 	disp->underscan_hborder_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "underscan hborder", 2);
-	disp->underscan_hborder_property->values[0] = 0;
-	disp->underscan_hborder_property->values[1] = 128;
+		drm_property_create_range(dev, 0, "underscan hborder", 0, 128);
 
 	disp->underscan_vborder_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "underscan vborder", 2);
-	disp->underscan_vborder_property->values[0] = 0;
-	disp->underscan_vborder_property->values[1] = 128;
+		drm_property_create_range(dev, 0, "underscan vborder", 0, 128);
 
 	dev->mode_config.funcs = (void *)&nouveau_mode_config_funcs;
 	dev->mode_config.fb_base = pci_resource_start(dev->pdev, 1);

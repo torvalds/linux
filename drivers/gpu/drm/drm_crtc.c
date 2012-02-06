@@ -742,28 +742,16 @@ int drm_mode_create_tv_properties(struct drm_device *dev, int num_modes,
 	 * Other, TV specific properties: margins & TV modes.
 	 */
 	dev->mode_config.tv_left_margin_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "left margin", 2);
-	dev->mode_config.tv_left_margin_property->values[0] = 0;
-	dev->mode_config.tv_left_margin_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "left margin", 0, 100);
 
 	dev->mode_config.tv_right_margin_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "right margin", 2);
-	dev->mode_config.tv_right_margin_property->values[0] = 0;
-	dev->mode_config.tv_right_margin_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "right margin", 0, 100);
 
 	dev->mode_config.tv_top_margin_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "top margin", 2);
-	dev->mode_config.tv_top_margin_property->values[0] = 0;
-	dev->mode_config.tv_top_margin_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "top margin", 0, 100);
 
 	dev->mode_config.tv_bottom_margin_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "bottom margin", 2);
-	dev->mode_config.tv_bottom_margin_property->values[0] = 0;
-	dev->mode_config.tv_bottom_margin_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "bottom margin", 0, 100);
 
 	dev->mode_config.tv_mode_property =
 		drm_property_create(dev, DRM_MODE_PROP_ENUM,
@@ -773,40 +761,22 @@ int drm_mode_create_tv_properties(struct drm_device *dev, int num_modes,
 				      i, modes[i]);
 
 	dev->mode_config.tv_brightness_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "brightness", 2);
-	dev->mode_config.tv_brightness_property->values[0] = 0;
-	dev->mode_config.tv_brightness_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "brightness", 0, 100);
 
 	dev->mode_config.tv_contrast_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "contrast", 2);
-	dev->mode_config.tv_contrast_property->values[0] = 0;
-	dev->mode_config.tv_contrast_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "contrast", 0, 100);
 
 	dev->mode_config.tv_flicker_reduction_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "flicker reduction", 2);
-	dev->mode_config.tv_flicker_reduction_property->values[0] = 0;
-	dev->mode_config.tv_flicker_reduction_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "flicker reduction", 0, 100);
 
 	dev->mode_config.tv_overscan_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "overscan", 2);
-	dev->mode_config.tv_overscan_property->values[0] = 0;
-	dev->mode_config.tv_overscan_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "overscan", 0, 100);
 
 	dev->mode_config.tv_saturation_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "saturation", 2);
-	dev->mode_config.tv_saturation_property->values[0] = 0;
-	dev->mode_config.tv_saturation_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "saturation", 0, 100);
 
 	dev->mode_config.tv_hue_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "hue", 2);
-	dev->mode_config.tv_hue_property->values[0] = 0;
-	dev->mode_config.tv_hue_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "hue", 0, 100);
 
 	return 0;
 }
@@ -2620,6 +2590,25 @@ struct drm_property *drm_property_create_enum(struct drm_device *dev, int flags,
 	return property;
 }
 EXPORT_SYMBOL(drm_property_create_enum);
+
+struct drm_property *drm_property_create_range(struct drm_device *dev, int flags,
+					 const char *name,
+					 uint64_t min, uint64_t max)
+{
+	struct drm_property *property;
+
+	flags |= DRM_MODE_PROP_RANGE;
+
+	property = drm_property_create(dev, flags, name, 2);
+	if (!property)
+		return NULL;
+
+	property->values[0] = min;
+	property->values[1] = max;
+
+	return property;
+}
+EXPORT_SYMBOL(drm_property_create_range);
 
 int drm_property_add_enum(struct drm_property *property, int index,
 			  uint64_t value, const char *name)

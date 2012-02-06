@@ -1152,14 +1152,9 @@ static int radeon_modeset_create_props(struct radeon_device *rdev)
 
 	if (rdev->is_atom_bios) {
 		rdev->mode_info.coherent_mode_property =
-			drm_property_create(rdev->ddev,
-					    DRM_MODE_PROP_RANGE,
-					    "coherent", 2);
+			drm_property_create_range(rdev->ddev, 0 , "coherent", 0, 1);
 		if (!rdev->mode_info.coherent_mode_property)
 			return -ENOMEM;
-
-		rdev->mode_info.coherent_mode_property->values[0] = 0;
-		rdev->mode_info.coherent_mode_property->values[1] = 1;
 	}
 
 	if (!ASIC_IS_AVIVO(rdev)) {
@@ -1171,13 +1166,9 @@ static int radeon_modeset_create_props(struct radeon_device *rdev)
 	}
 
 	rdev->mode_info.load_detect_property =
-		drm_property_create(rdev->ddev,
-				    DRM_MODE_PROP_RANGE,
-				    "load detection", 2);
+		drm_property_create_range(rdev->ddev, 0, "load detection", 0, 1);
 	if (!rdev->mode_info.load_detect_property)
 		return -ENOMEM;
-	rdev->mode_info.load_detect_property->values[0] = 0;
-	rdev->mode_info.load_detect_property->values[1] = 1;
 
 	drm_mode_create_scaling_mode_property(rdev->ddev);
 
@@ -1194,22 +1185,16 @@ static int radeon_modeset_create_props(struct radeon_device *rdev)
 				    radeon_underscan_enum_list, sz);
 
 	rdev->mode_info.underscan_hborder_property =
-		drm_property_create(rdev->ddev,
-					DRM_MODE_PROP_RANGE,
-					"underscan hborder", 2);
+		drm_property_create_range(rdev->ddev, 0,
+					"underscan hborder", 0, 128);
 	if (!rdev->mode_info.underscan_hborder_property)
 		return -ENOMEM;
-	rdev->mode_info.underscan_hborder_property->values[0] = 0;
-	rdev->mode_info.underscan_hborder_property->values[1] = 128;
 
 	rdev->mode_info.underscan_vborder_property =
-		drm_property_create(rdev->ddev,
-					DRM_MODE_PROP_RANGE,
-					"underscan vborder", 2);
+		drm_property_create_range(rdev->ddev, 0,
+					"underscan vborder", 0, 128);
 	if (!rdev->mode_info.underscan_vborder_property)
 		return -ENOMEM;
-	rdev->mode_info.underscan_vborder_property->values[0] = 0;
-	rdev->mode_info.underscan_vborder_property->values[1] = 128;
 
 	return 0;
 }

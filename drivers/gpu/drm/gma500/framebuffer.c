@@ -725,10 +725,7 @@ static int psb_create_backlight_property(struct drm_device *dev)
 	if (dev_priv->backlight_property)
 		return 0;
 
-	backlight = drm_property_create(dev, DRM_MODE_PROP_RANGE,
-							"backlight", 2);
-	backlight->values[0] = 0;
-	backlight->values[1] = 100;
+	backlight = drm_property_create_range(dev, 0, "backlight", 0, 100);
 
 	dev_priv->backlight_property = backlight;
 
