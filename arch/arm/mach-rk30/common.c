@@ -8,6 +8,7 @@
 
 #include <mach/board.h>
 #include <mach/gpio.h>
+#include <mach/iomux.h>
 
 void __init rk30_init_irq(void)
 {
@@ -17,6 +18,7 @@ void __init rk30_init_irq(void)
 void __init rk30_map_io(void)
 {
         rk30_map_common_io();
+		rk30_iomux_init();
 }
 
 void __init rk30_fixup(struct machine_desc *desc, struct tag *tags,
