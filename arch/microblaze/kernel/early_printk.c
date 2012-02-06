@@ -171,7 +171,7 @@ void __init remap_early_printk(void)
 {
 	if (!early_console_initialized || !early_console)
 		return;
-	printk(KERN_INFO "early_printk_console remaping from 0x%x to ",
+	printk(KERN_INFO "early_printk_console remapping from 0x%x to ",
 								base_addr);
 	base_addr = (u32) ioremap(base_addr, PAGE_SIZE);
 	printk(KERN_CONT "0x%x\n", base_addr);
