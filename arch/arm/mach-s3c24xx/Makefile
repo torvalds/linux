@@ -31,6 +31,9 @@ obj-$(CONFIG_CPU_S3C2442)	+= s3c2442.o
 obj-$(CONFIG_CPU_S3C244X)	+= s3c244x.o irq-s3c244x.o clock-s3c244x.o
 obj-$(CONFIG_S3C2440_DMA)	+= dma-s3c2440.o
 
+obj-$(CONFIG_CPU_S3C2443)	+= s3c2443.o irq-s3c2443.o clock-s3c2443.o
+obj-$(CONFIG_S3C2443_DMA)	+= dma-s3c2443.o
+
 #
 # machine support
 # following is ordered alphabetically by option text.
@@ -65,6 +68,8 @@ obj-$(CONFIG_ARCH_S3C2440)		+= mach-smdk2440.o
 
 obj-$(CONFIG_MACH_NEO1973_GTA02)	+= mach-gta02.o
 obj-$(CONFIG_MACH_RX1950)		+= mach-rx1950.o
+
+obj-$(CONFIG_MACH_SMDK2443)		+= mach-smdk2443.o
 
 # common bits of machine support
 

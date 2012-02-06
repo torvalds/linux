@@ -1072,7 +1072,6 @@ if ARCH_S3C24XX
 source "arch/arm/mach-s3c2412/Kconfig"
 source "arch/arm/mach-s3c2416/Kconfig"
 source "arch/arm/mach-s3c2440/Kconfig"
-source "arch/arm/mach-s3c2443/Kconfig"
 endif
 
 if ARCH_S3C64XX

@@ -70,6 +70,17 @@ config CPU_S3C244X
 	def_bool y
 	depends on CPU_S3C2440 || CPU_S3C2442
 
+config CPU_S3C2443
+	bool "SAMSUNG S3C2443"
+	depends on ARCH_S3C24XX
+	select CPU_ARM920T
+	select CPU_LLSERIAL_S3C2440
+	select SAMSUNG_CLKSRC
+	select S3C2443_CLOCK
+	select S3C2443_DMA if S3C24XX_DMA
+	help
+	  Support for the S3C2443 SoC from the S3C24XX line
+
 if CPU_S3C2410
 
 config S3C2410_DMA
@@ -459,6 +470,24 @@ config SMDK2440_CPU2442
 	bool "SMDM2440 with S3C2442 CPU module"
 
 endif	# CPU_S3C2440
+
+if CPU_S3C2443
+
+config S3C2443_DMA
+	bool
+	help
+	  Internal config node for S3C2443 DMA support
+
+comment "S3C2443 Boards"
+
+config MACH_SMDK2443
+	bool "SMDK2443"
+	select MACH_SMDK
+	select S3C_DEV_HSMMC1
+	help
+	  Say Y here if you are using an SMDK2443
+
+endif	# CPU_S3C2443
 
 endmenu	# SAMSUNG S3C24XX SoCs Support
 
