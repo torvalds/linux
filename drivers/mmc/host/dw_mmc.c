@@ -296,14 +296,24 @@ static void dw_mci_stop_dma(struct dw_mci *host)
 }
 
 #ifdef CONFIG_MMC_DW_IDMAC
+static int dw_mci_get_dma_dir(struct mmc_data *data)
+{
+	if (data->flags & MMC_DATA_WRITE)
+		return DMA_TO_DEVICE;
+	else
+		return DMA_FROM_DEVICE;
+}
+
 static void dw_mci_dma_cleanup(struct dw_mci *host)
 {
 	struct mmc_data *data = host->data;
 
 	if (data)
-		dma_unmap_sg(&host->dev, data->sg, data->sg_len,
-			     ((data->flags & MMC_DATA_WRITE)
-			      ? DMA_TO_DEVICE : DMA_FROM_DEVICE));
+		if (!data->host_cookie)
+			dma_unmap_sg(&host->dev,
+				     data->sg,
+				     data->sg_len,
+				     dw_mci_get_dma_dir(data));
 }
 
 static void dw_mci_idmac_stop_dma(struct dw_mci *host)
@@ -419,26 +429,15 @@ static int dw_mci_idmac_init(struct dw_mci *host)
 	return 0;
 }
 
-static struct dw_mci_dma_ops dw_mci_idmac_ops = {
-	.init = dw_mci_idmac_init,
-	.start = dw_mci_idmac_start_dma,
-	.stop = dw_mci_idmac_stop_dma,
-	.complete = dw_mci_idmac_complete_dma,
-	.cleanup = dw_mci_dma_cleanup,
-};
-#endif /* CONFIG_MMC_DW_IDMAC */
-
-static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
+static int dw_mci_pre_dma_transfer(struct dw_mci *host,
+				   struct mmc_data *data,
+				   bool next)
 {
 	struct scatterlist *sg;
-	unsigned int i, direction, sg_len;
-	u32 temp;
+	unsigned int i, sg_len;
 
-	host->using_dma = 0;
-
-	/* If we don't have a channel, we can't do DMA */
-	if (!host->use_dma)
-		return -ENODEV;
+	if (!next && data->host_cookie)
+		return data->host_cookie;
 
 	/*
 	 * We don't do DMA on "complex" transfers, i.e. with
@@ -447,6 +446,7 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 	 */
 	if (data->blocks * data->blksz < DW_MCI_DMA_THRESHOLD)
 		return -EINVAL;
+
 	if (data->blksz & 3)
 		return -EINVAL;
 
@@ -455,15 +455,88 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 			return -EINVAL;
 	}
 
+	sg_len = dma_map_sg(&host->dev,
+			    data->sg,
+			    data->sg_len,
+			    dw_mci_get_dma_dir(data));
+	if (sg_len == 0)
+		return -EINVAL;
+
+	if (next)
+		data->host_cookie = sg_len;
+
+	return sg_len;
+}
+
+static struct dw_mci_dma_ops dw_mci_idmac_ops = {
+	.init = dw_mci_idmac_init,
+	.start = dw_mci_idmac_start_dma,
+	.stop = dw_mci_idmac_stop_dma,
+	.complete = dw_mci_idmac_complete_dma,
+	.cleanup = dw_mci_dma_cleanup,
+};
+#else
+static int dw_mci_pre_dma_transfer(struct dw_mci *host,
+				   struct mmc_data *data,
+				   bool next)
+{
+	return -ENOSYS;
+}
+#endif /* CONFIG_MMC_DW_IDMAC */
+
+static void dw_mci_pre_req(struct mmc_host *mmc,
+			   struct mmc_request *mrq,
+			   bool is_first_req)
+{
+	struct dw_mci_slot *slot = mmc_priv(mmc);
+	struct mmc_data *data = mrq->data;
+
+	if (!slot->host->use_dma || !data)
+		return;
+
+	if (data->host_cookie) {
+		data->host_cookie = 0;
+		return;
+	}
+
+	if (dw_mci_pre_dma_transfer(slot->host, mrq->data, 1) < 0)
+		data->host_cookie = 0;
+}
+
+static void dw_mci_post_req(struct mmc_host *mmc,
+			    struct mmc_request *mrq,
+			    int err)
+{
+	struct dw_mci_slot *slot = mmc_priv(mmc);
+	struct mmc_data *data = mrq->data;
+
+	if (!slot->host->use_dma || !data)
+		return;
+
+	if (data->host_cookie)
+		dma_unmap_sg(&slot->host->dev,
+			     data->sg,
+			     data->sg_len,
+			     dw_mci_get_dma_dir(data));
+	data->host_cookie = 0;
+}
+
+static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
+{
+	int sg_len;
+	u32 temp;
+
+	host->using_dma = 0;
+
+	/* If we don't have a channel, we can't do DMA */
+	if (!host->use_dma)
+		return -ENODEV;
+
+	sg_len = dw_mci_pre_dma_transfer(host, data, 0);
+	if (sg_len < 0)
+		return sg_len;
+
 	host->using_dma = 1;
-
-	if (data->flags & MMC_DATA_READ)
-		direction = DMA_FROM_DEVICE;
-	else
-		direction = DMA_TO_DEVICE;
-
-	sg_len = dma_map_sg(&host->dev, data->sg, data->sg_len,
-			    direction);
 
 	dev_vdbg(&host->dev,
 		 "sd sg_cpu: %#lx sg_dma: %#lx sg_len: %d\n",
@@ -800,6 +873,8 @@ static void dw_mci_enable_sdio_irq(struct mmc_host *mmc, int enb)
 
 static const struct mmc_host_ops dw_mci_ops = {
 	.request		= dw_mci_request,
+	.pre_req		= dw_mci_pre_req,
+	.post_req		= dw_mci_post_req,
 	.set_ios		= dw_mci_set_ios,
 	.get_ro			= dw_mci_get_ro,
 	.get_cd			= dw_mci_get_cd,
