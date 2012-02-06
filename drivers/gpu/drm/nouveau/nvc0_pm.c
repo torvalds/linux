@@ -166,6 +166,7 @@ struct nvc0_pm_clock {
 struct nvc0_pm_state {
 	struct nouveau_pm_level *perflvl;
 	struct nvc0_pm_clock eng[16];
+	struct nvc0_pm_clock mem;
 };
 
 static u32
@@ -304,6 +305,48 @@ calc_clk(struct drm_device *dev, int clk, struct nvc0_pm_clock *info, u32 freq)
 	return 0;
 }
 
+static int
+calc_mem(struct drm_device *dev, struct nvc0_pm_clock *info, u32 freq)
+{
+	struct pll_lims pll;
+	int N, M, P, ret;
+	u32 ctrl;
+
+	/* mclk pll input freq comes from another pll, make sure it's on */
+	ctrl = nv_rd32(dev, 0x132020);
+	if (!(ctrl & 0x00000001)) {
+		/* if not, program it to 567MHz.  nfi where this value comes
+		 * from - it looks like it's in the pll limits table for
+		 * 132000 but the binary driver ignores all my attempts to
+		 * change this value.
+		 */
+		nv_wr32(dev, 0x137320, 0x00000103);
+		nv_wr32(dev, 0x137330, 0x81200606);
+		nv_wait(dev, 0x132020, 0x00010000, 0x00010000);
+		nv_wr32(dev, 0x132024, 0x0001150f);
+		nv_mask(dev, 0x132020, 0x00000001, 0x00000001);
+		nv_wait(dev, 0x137390, 0x00020000, 0x00020000);
+		nv_mask(dev, 0x132020, 0x00000004, 0x00000004);
+	}
+
+	/* for the moment, until the clock tree is better understood, use
+	 * pll mode for all clock frequencies
+	 */
+	ret = get_pll_limits(dev, 0x132000, &pll);
+	if (ret == 0) {
+		pll.refclk = read_pll(dev, 0x132020);
+		if (pll.refclk) {
+			ret = nva3_calc_pll(dev, &pll, freq, &N, NULL, &M, &P);
+			if (ret > 0) {
+				info->coef = (P << 16) | (N << 8) | M;
+				return 0;
+			}
+		}
+	}
+
+	return -EINVAL;
+}
+
 void *
 nvc0_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 {
@@ -334,6 +377,14 @@ nvc0_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	    (ret = calc_clk(dev, 0x0e, &info->eng[0x0e], perflvl->vdec))) {
 		kfree(info);
 		return ERR_PTR(ret);
+	}
+
+	if (perflvl->memory) {
+		ret = calc_mem(dev, &info->mem, perflvl->memory);
+		if (ret) {
+			kfree(info);
+			return ERR_PTR(ret);
+		}
 	}
 
 	info->perflvl = perflvl;
