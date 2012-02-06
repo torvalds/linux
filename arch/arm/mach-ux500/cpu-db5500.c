@@ -212,18 +212,32 @@ static int usb_db5500_tx_dma_cfg[] = {
 	DB5500_DMA_DEV38_USB_OTG_OEP_8
 };
 
-struct device* __init u5500_init_devices(void)
+static const char *db5500_read_soc_id(void)
 {
-	/* FIXME: First parameter to be a real parent. */
-	db5500_add_gpios(NULL);
+	return kasprintf(GFP_KERNEL, "u5500 currently unsupported\n");
+}
+
+static struct device * __init db5500_soc_device_init(void)
+{
+	const char *soc_id = db5500_read_soc_id();
+
+	return ux500_soc_device_init(soc_id);
+}
+
+struct device * __init u5500_init_devices(void)
+{
+	struct device *parent;
+
+	parent = db5500_soc_device_init();
+
+	db5500_add_gpios(parent);
 	db5500_pmu_init();
-	db5500_dma_init(NULL);
-	db5500_add_rtc(NULL);
-	db5500_add_usb(NULL, usb_db5500_rx_dma_cfg, usb_db5500_tx_dma_cfg);
+	db5500_dma_init(parent);
+	db5500_add_rtc(parent);
+	db5500_add_usb(parent, usb_db5500_rx_dma_cfg, usb_db5500_tx_dma_cfg);
 
 	platform_add_devices(db5500_platform_devs,
 			     ARRAY_SIZE(db5500_platform_devs));
 
-	/* FIXME: Return value to be a real parent. */
-	return NULL;
+	return parent;
 }

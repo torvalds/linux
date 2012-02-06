@@ -24,6 +24,7 @@
 #include <mach/setup.h>
 #include <mach/devices.h>
 #include <mach/usb.h>
+#include <mach/db8500-regs.h>
 
 #include "devices-db8500.h"
 #include "ste-dma40-db8500.h"
@@ -164,18 +165,38 @@ static int usb_db8500_tx_dma_cfg[] = {
 	DB8500_DMA_DEV39_USB_OTG_OEP_8
 };
 
+static const char *db8500_read_soc_id(void)
+{
+	void __iomem *uid = __io_address(U8500_BB_UID_BASE);
+
+	return kasprintf(GFP_KERNEL, "%08x%08x%08x%08x%08x",
+			 readl((u32 *)uid+1),
+			 readl((u32 *)uid+1), readl((u32 *)uid+2),
+			 readl((u32 *)uid+3), readl((u32 *)uid+4));
+}
+
+static struct device * __init db8500_soc_device_init(void)
+{
+	const char *soc_id = db8500_read_soc_id();
+
+	return ux500_soc_device_init(soc_id);
+}
+
 /*
  * This function is called from the board init
  */
-struct device* __init u8500_init_devices(void)
+struct device * __init u8500_init_devices(void)
 {
-	db8500_add_rtc(NULL);
-	db8500_add_gpios(NULL);
-	db8500_add_usb(NULL, usb_db8500_rx_dma_cfg, usb_db8500_tx_dma_cfg);
+	struct device *parent;
+
+	parent = db8500_soc_device_init();
+
+	db8500_add_rtc(parent);
+	db8500_add_gpios(parent);
+	db8500_add_usb(parent, usb_db8500_rx_dma_cfg, usb_db8500_tx_dma_cfg);
 
 	platform_device_register_simple("cpufreq-u8500", -1, NULL, 0);
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 
-	/* FIXME: Return value to be a real parent. */
-	return NULL;
+	return parent;
 }
