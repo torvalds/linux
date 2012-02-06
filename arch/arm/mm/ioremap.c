@@ -225,7 +225,8 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
 		if ((area->flags & VM_ARM_MTYPE_MASK) != VM_ARM_MTYPE(mtype))
 			continue;
 		if (__phys_to_pfn(area->phys_addr) > pfn ||
-		    __pfn_to_phys(pfn) + size-1 > area->phys_addr + area->size-1)
+		    __pfn_to_phys(pfn) + offset + size-1 >
+		    area->phys_addr + area->size-1)
 			continue;
 		/* we can drop the lock here as we know *area is static */
 		read_unlock(&vmlist_lock);
