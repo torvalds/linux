@@ -47,6 +47,8 @@ dbx500_add_amba_device(struct device *parent, const char *name,
 
 	dev->dev.platform_data = pdata;
 
+	dev->dev.parent = parent;
+
 	ret = amba_device_register(dev, &iomem_resource);
 	if (ret) {
 		kfree(dev);
@@ -126,9 +128,14 @@ dbx500_add_gpio(struct device *parent, int id, resource_size_t addr, int irq,
 		}
 	};
 
-	return platform_device_register_resndata(NULL, "gpio", id,
-				resources, ARRAY_SIZE(resources),
-				pdata, sizeof(*pdata));
+	return platform_device_register_resndata(
+		parent,
+		"gpio",
+		id,
+		resources,
+		ARRAY_SIZE(resources),
+		pdata,
+		sizeof(*pdata));
 }
 
 void dbx500_add_gpios(struct device *parent, resource_size_t *base, int num,

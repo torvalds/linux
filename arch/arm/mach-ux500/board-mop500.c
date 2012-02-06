@@ -610,12 +610,16 @@ static void __init mop500_init_machine(void)
 {
 	struct device *parent = NULL;
 	int i2c0_devs;
+	int i;
 
 	mop500_gpio_keys[0].gpio = GPIO_PROX_SENSOR;
 
 	parent = u8500_init_devices();
 
 	mop500_pins_init();
+
+	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
+		mop500_platform_devs[i]->dev.parent = parent;
 
 	platform_add_devices(mop500_platform_devs,
 			ARRAY_SIZE(mop500_platform_devs));
@@ -639,10 +643,14 @@ static void __init snowball_init_machine(void)
 {
 	struct device *parent = NULL;
 	int i2c0_devs;
+	int i;
 
 	parent = u8500_init_devices();
 
 	snowball_pins_init();
+
+	for (i = 0; i < ARRAY_SIZE(snowball_platform_devs); i++)
+		snowball_platform_devs[i]->dev.parent = parent;
 
 	platform_add_devices(snowball_platform_devs,
 			ARRAY_SIZE(snowball_platform_devs));
@@ -665,6 +673,7 @@ static void __init hrefv60_init_machine(void)
 {
 	struct device *parent = NULL;
 	int i2c0_devs;
+	int i;
 
 	/*
 	 * The HREFv60 board removed a GPIO expander and routed
@@ -676,6 +685,9 @@ static void __init hrefv60_init_machine(void)
 	parent = u8500_init_devices();
 
 	hrefv60_pins_init();
+
+	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
+		mop500_platform_devs[i]->dev.parent = parent;
 
 	platform_add_devices(mop500_platform_devs,
 			ARRAY_SIZE(mop500_platform_devs));

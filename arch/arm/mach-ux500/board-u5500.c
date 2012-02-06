@@ -136,6 +136,7 @@ static void __init u5500_uart_init(struct device *parent)
 static void __init u5500_init_machine(void)
 {
 	struct device *parent = NULL;
+	int i;
 
 	parent = u5500_init_devices();
 	nmk_config_pins(u5500_pins, ARRAY_SIZE(u5500_pins));
@@ -143,6 +144,9 @@ static void __init u5500_init_machine(void)
 	u5500_i2c_init(parent);
 	u5500_sdi_init(parent);
 	u5500_uart_init(parent);
+
+	for (i = 0; i < ARRAY_SIZE(u5500_platform_devices); i++)
+		u5500_platform_devices[i]->dev.parent = parent;
 
 	platform_add_devices(u5500_platform_devices,
 		ARRAY_SIZE(u5500_platform_devices));

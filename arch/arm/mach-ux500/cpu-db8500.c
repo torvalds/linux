@@ -188,6 +188,7 @@ static struct device * __init db8500_soc_device_init(void)
 struct device * __init u8500_init_devices(void)
 {
 	struct device *parent;
+	int i;
 
 	parent = db8500_soc_device_init();
 
@@ -195,7 +196,12 @@ struct device * __init u8500_init_devices(void)
 	db8500_add_gpios(parent);
 	db8500_add_usb(parent, usb_db8500_rx_dma_cfg, usb_db8500_tx_dma_cfg);
 
-	platform_device_register_simple("cpufreq-u8500", -1, NULL, 0);
+	platform_device_register_data(parent,
+		"cpufreq-u8500", -1, NULL, 0);
+
+	for (i = 0; i < ARRAY_SIZE(platform_devs); i++)
+		platform_devs[i]->dev.parent = parent;
+
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 
 	return parent;

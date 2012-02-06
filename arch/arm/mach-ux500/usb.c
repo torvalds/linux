@@ -7,6 +7,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb/musb.h>
 #include <linux/dma-mapping.h>
+
 #include <plat/ste_dma40.h>
 #include <mach/hardware.h>
 #include <mach/usb.h>
@@ -150,6 +151,8 @@ void ux500_add_usb(struct device *parent, resource_size_t base, int irq,
 
 	ux500_usb_dma_update_rx_ch_config(dma_rx_cfg);
 	ux500_usb_dma_update_tx_ch_config(dma_tx_cfg);
+
+	ux500_musb_device.dev.parent = parent;
 
 	platform_device_register(&ux500_musb_device);
 }

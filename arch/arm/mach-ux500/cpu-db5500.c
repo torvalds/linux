@@ -227,6 +227,7 @@ static struct device * __init db5500_soc_device_init(void)
 struct device * __init u5500_init_devices(void)
 {
 	struct device *parent;
+	int i;
 
 	parent = db5500_soc_device_init();
 
@@ -235,6 +236,9 @@ struct device * __init u5500_init_devices(void)
 	db5500_dma_init(parent);
 	db5500_add_rtc(parent);
 	db5500_add_usb(parent, usb_db5500_rx_dma_cfg, usb_db5500_tx_dma_cfg);
+
+	for (i = 0; i < ARRAY_SIZE(db5500_platform_devs); i++)
+		db5500_platform_devs[i]->dev.parent = parent;
 
 	platform_add_devices(db5500_platform_devs,
 			     ARRAY_SIZE(db5500_platform_devs));
