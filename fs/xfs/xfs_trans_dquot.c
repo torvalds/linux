@@ -649,12 +649,12 @@ xfs_trans_dqresv(
 			 * nblks.
 			 */
 			if (hardlimit > 0ULL &&
-			    hardlimit <= nblks + *resbcountp) {
+			    hardlimit < nblks + *resbcountp) {
 				xfs_quota_warn(mp, dqp, QUOTA_NL_BHARDWARN);
 				goto error_return;
 			}
 			if (softlimit > 0ULL &&
-			    softlimit <= nblks + *resbcountp) {
+			    softlimit < nblks + *resbcountp) {
 				if ((timer != 0 && get_seconds() > timer) ||
 				    (warns != 0 && warns >= warnlimit)) {
 					xfs_quota_warn(mp, dqp,
