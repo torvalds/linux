@@ -653,13 +653,12 @@ static void sh_eth_ring_format(struct net_device *ndev)
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		/* skb */
 		mdp->rx_skbuff[i] = NULL;
-		skb = dev_alloc_skb(mdp->rx_buf_sz);
+		skb = netdev_alloc_skb(ndev, mdp->rx_buf_sz);
 		mdp->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;
 		dma_map_single(&ndev->dev, skb->data, mdp->rx_buf_sz,
 				DMA_FROM_DEVICE);
-		skb->dev = ndev; /* Mark as being used by this device. */
 		sh_eth_set_receive_align(skb);
 
 		/* RX descriptor */
@@ -953,13 +952,12 @@ static int sh_eth_rx(struct net_device *ndev)
 		rxdesc->buffer_length = ALIGN(mdp->rx_buf_sz, 16);
 
 		if (mdp->rx_skbuff[entry] == NULL) {
-			skb = dev_alloc_skb(mdp->rx_buf_sz);
+			skb = netdev_alloc_skb(ndev, mdp->rx_buf_sz);
 			mdp->rx_skbuff[entry] = skb;
 			if (skb == NULL)
 				break;	/* Better luck next round. */
 			dma_map_single(&ndev->dev, skb->data, mdp->rx_buf_sz,
 					DMA_FROM_DEVICE);
-			skb->dev = ndev;
 			sh_eth_set_receive_align(skb);
 
 			skb_checksum_none_assert(skb);

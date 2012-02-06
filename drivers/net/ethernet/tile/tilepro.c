@@ -419,7 +419,7 @@ static bool tile_net_provide_needed_buffer(struct tile_net_cpu *info,
 #endif
 
 	/* Avoid "false sharing" with last cache line. */
-	/* ISSUE: This is already done by "dev_alloc_skb()". */
+	/* ISSUE: This is already done by "netdev_alloc_skb()". */
 	unsigned int len =
 		 (((small ? LIPP_SMALL_PACKET_SIZE : large_size) +
 		   CHIP_L2_LINE_SIZE() - 1) & -CHIP_L2_LINE_SIZE());
@@ -433,7 +433,7 @@ static bool tile_net_provide_needed_buffer(struct tile_net_cpu *info,
 	struct sk_buff **skb_ptr;
 
 	/* Request 96 extra bytes for alignment purposes. */
-	skb = dev_alloc_skb(len + padding);
+	skb = netdev_alloc_skb(info->napi->dev, len + padding);
 	if (skb == NULL)
 		return false;
 

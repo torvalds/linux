@@ -850,8 +850,6 @@ static int smsc9420_alloc_rx_buffer(struct smsc9420_pdata *pd, int index)
 		return -ENOMEM;
 	}
 
-	skb->dev = pd->dev;
-
 	mapping = pci_map_single(pd->pdev, skb_tail_pointer(skb),
 				 PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 	if (pci_dma_mapping_error(pd->pdev, mapping)) {

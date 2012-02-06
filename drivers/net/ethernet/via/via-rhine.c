@@ -1155,7 +1155,6 @@ static void alloc_rbufs(struct net_device *dev)
 		rp->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;
-		skb->dev = dev;                 /* Mark as being used by this device. */
 
 		rp->rx_skbuff_dma[i] =
 			pci_map_single(rp->pdev, skb->data, rp->rx_buf_sz,
@@ -1940,7 +1939,6 @@ static int rhine_rx(struct net_device *dev, int limit)
 			rp->rx_skbuff[entry] = skb;
 			if (skb == NULL)
 				break;	/* Better luck next round. */
-			skb->dev = dev;	/* Mark as being used by this device. */
 			rp->rx_skbuff_dma[entry] =
 				pci_map_single(rp->pdev, skb->data,
 					       rp->rx_buf_sz,

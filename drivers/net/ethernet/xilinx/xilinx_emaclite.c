@@ -613,7 +613,7 @@ static void xemaclite_rx_handler(struct net_device *dev)
 	u32 len;
 
 	len = ETH_FRAME_LEN + ETH_FCS_LEN;
-	skb = dev_alloc_skb(len + ALIGNMENT);
+	skb = netdev_alloc_skb(dev, len + ALIGNMENT);
 	if (!skb) {
 		/* Couldn't get memory. */
 		dev->stats.rx_dropped++;

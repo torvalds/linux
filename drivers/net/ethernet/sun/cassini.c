@@ -1974,7 +1974,7 @@ static int cas_rx_process_pkt(struct cas *cp, struct cas_rx_comp *rxc,
 	else
 		alloclen = max(hlen, RX_COPY_MIN);
 
-	skb = dev_alloc_skb(alloclen + swivel + cp->crc_size);
+	skb = netdev_alloc_skb(cp->dev, alloclen + swivel + cp->crc_size);
 	if (skb == NULL)
 		return -1;
 

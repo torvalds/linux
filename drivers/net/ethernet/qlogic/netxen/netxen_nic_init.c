@@ -1487,7 +1487,7 @@ netxen_alloc_rx_skb(struct netxen_adapter *adapter,
 	dma_addr_t dma;
 	struct pci_dev *pdev = adapter->pdev;
 
-	buffer->skb = dev_alloc_skb(rds_ring->skb_size);
+	buffer->skb = netdev_alloc_skb(adapter->netdev, rds_ring->skb_size);
 	if (!buffer->skb)
 		return 1;
 

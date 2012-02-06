@@ -453,7 +453,7 @@ static struct sk_buff *alloc_rxbuf_skb(struct net_device *dev,
 				       dma_addr_t *dma_handle)
 {
 	struct sk_buff *skb;
-	skb = dev_alloc_skb(RX_BUF_SIZE);
+	skb = netdev_alloc_skb(dev, RX_BUF_SIZE);
 	if (!skb)
 		return NULL;
 	*dma_handle = pci_map_single(hwdev, skb->data, RX_BUF_SIZE,

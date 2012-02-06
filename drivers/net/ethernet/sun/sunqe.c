@@ -435,7 +435,7 @@ static void qe_rx(struct sunqe *qep)
 			dev->stats.rx_length_errors++;
 			dev->stats.rx_dropped++;
 		} else {
-			skb = dev_alloc_skb(len + 2);
+			skb = netdev_alloc_skb(dev, len + 2);
 			if (skb == NULL) {
 				drops++;
 				dev->stats.rx_dropped++;
