@@ -1,5 +1,7 @@
 #ifndef __PLAT_BOARD_H
 #define __PLAT_BOARD_H
+#include <linux/types.h>
+#include <linux/init.h>
 
 #define BOOT_MODE_NORMAL		0
 #define BOOT_MODE_FACTORY2		1
@@ -21,4 +23,9 @@ static int inline board_usb_detect_init(unsigned gpio) { return 0; }
 /* for wakeup Android */
 void rk28_send_wakeup_key(void);
 
+/* for reserved memory 
+ * function: board_mem_reserve_add 
+ * return value: start address of reserved memory */
+phys_addr_t __init board_mem_reserve_add(char *name, size_t size);
+void __init board_mem_reserved(void);
 #endif

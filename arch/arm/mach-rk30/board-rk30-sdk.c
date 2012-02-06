@@ -35,10 +35,15 @@
 #include <mach/board.h>
 #include <mach/hardware.h>
 
+static void __init rk30_reserve(void)
+{
+    board_mem_reserved();
+}
 MACHINE_START(RK30, "RK30board")
 	.boot_params	= PLAT_PHYS_OFFSET + 0x800,
 	.fixup		= rk30_fixup,
 	.map_io		= rk30_map_io,
 	.init_irq	= rk30_init_irq,
 	.timer		= &rk30_timer,
+    .reserve    = &rk30_reserve,
 MACHINE_END
