@@ -389,5 +389,20 @@ do {									\
 		printk(KERN_DEBUG "%s: " format "\n", __FILE__, ##arg);	\
 } while (0)
 
+/*
+ * Macro for reporting errors in write path to avoid inifinite loop
+ * when port is used as a console.
+ */
+#define dev_err_console(usport, fmt, ...)				\
+do {									\
+	static bool __print_once;					\
+	struct usb_serial_port *__port = (usport);			\
+									\
+	if (!__port->port.console || !__print_once) {			\
+		__print_once = true;					\
+		dev_err(&__port->dev, fmt, ##__VA_ARGS__);		\
+	}								\
+} while (0)
+
 #endif /* __LINUX_USB_SERIAL_H */
 
