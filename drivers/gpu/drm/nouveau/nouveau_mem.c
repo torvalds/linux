@@ -978,6 +978,8 @@ nouveau_mem_exec(struct nouveau_mem_exec_func *exec,
 		break;
 	case NV_MEM_TYPE_DDR3:
 		tDLLK = 12000;
+		tCKSRE = 2000;
+		tXS = 1000;
 		mr1_dlloff = 0x00000001;
 		break;
 	case NV_MEM_TYPE_GDDR3:
@@ -1023,6 +1025,7 @@ nouveau_mem_exec(struct nouveau_mem_exec_func *exec,
 	exec->precharge(exec);
 	exec->refresh_self(exec, false);
 	exec->refresh_auto(exec, true);
+	exec->wait(exec, tXS);
 	exec->wait(exec, tXS);
 
 	/* update MRs */

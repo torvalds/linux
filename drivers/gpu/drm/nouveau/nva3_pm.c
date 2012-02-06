@@ -344,6 +344,7 @@ mclk_refresh_self(struct nouveau_mem_exec_func *exec, bool enable)
 static void
 mclk_wait(struct nouveau_mem_exec_func *exec, u32 nsec)
 {
+	volatile u32 post = nv_rd32(exec->dev, 0); (void)post;
 	udelay((nsec + 500) / 1000);
 }
 
