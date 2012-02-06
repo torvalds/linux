@@ -35,8 +35,12 @@
 #include "conf.h"
 #include "ini.h"
 
-#define WL127X_FW_NAME "ti-connectivity/wl127x-fw-4-sr.bin"
-#define WL128X_FW_NAME "ti-connectivity/wl128x-fw-4-sr.bin"
+#define WL127X_FW_NAME_MULTI "ti-connectivity/wl127x-fw-4-mr.bin"
+#define WL127X_FW_NAME_SINGLE "ti-connectivity/wl127x-fw-4-sr.bin"
+
+#define WL128X_FW_NAME_MULTI "ti-connectivity/wl128x-fw-4-mr.bin"
+#define WL128X_FW_NAME_SINGLE "ti-connectivity/wl128x-fw-4-sr.bin"
+
 #define WL127X_PLT_FW_NAME "ti-connectivity/wl127x-fw-4-plt.bin"
 #define WL128X_PLT_FW_NAME "ti-connectivity/wl128x-fw-4-plt.bin"
 
@@ -97,6 +101,7 @@ enum wl1271_state {
 enum wl12xx_fw_type {
 	WL12XX_FW_TYPE_NONE,
 	WL12XX_FW_TYPE_NORMAL,
+	WL12XX_FW_TYPE_MULTI,
 	WL12XX_FW_TYPE_PLT,
 };
 
@@ -254,6 +259,7 @@ enum wl12xx_flags {
 	WL1271_FLAG_PENDING_WORK,
 	WL1271_FLAG_SOFT_GEMINI,
 	WL1271_FLAG_RECOVERY_IN_PROGRESS,
+	WL1271_FLAG_VIF_CHANGE_IN_PROGRESS,
 };
 
 enum wl12xx_vif_flags {
@@ -303,6 +309,7 @@ struct wl1271 {
 	enum wl1271_state state;
 	enum wl12xx_fw_type fw_type;
 	bool plt;
+	u8 last_vif_count;
 	struct mutex mutex;
 
 	unsigned long flags;

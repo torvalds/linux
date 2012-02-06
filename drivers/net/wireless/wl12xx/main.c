@@ -993,6 +993,35 @@ out:
 	return IRQ_HANDLED;
 }
 
+struct vif_counter_data {
+	u8 counter;
+
+	struct ieee80211_vif *cur_vif;
+	bool cur_vif_running;
+};
+
+static void wl12xx_vif_count_iter(void *data, u8 *mac,
+				  struct ieee80211_vif *vif)
+{
+	struct vif_counter_data *counter = data;
+
+	counter->counter++;
+	if (counter->cur_vif == vif)
+		counter->cur_vif_running = true;
+}
+
+/* caller must not hold wl->mutex, as it might deadlock */
+static void wl12xx_get_vif_count(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *cur_vif,
+			       struct vif_counter_data *data)
+{
+	memset(data, 0, sizeof(*data));
+	data->cur_vif = cur_vif;
+
+	ieee80211_iterate_active_interfaces(hw,
+					    wl12xx_vif_count_iter, data);
+}
+
 static int wl12xx_fetch_firmware(struct wl1271 *wl, bool plt)
 {
 	const struct firmware *fw;
@@ -1007,11 +1036,23 @@ static int wl12xx_fetch_firmware(struct wl1271 *wl, bool plt)
 		else
 			fw_name	= WL127X_PLT_FW_NAME;
 	} else {
-		fw_type = WL12XX_FW_TYPE_NORMAL;
-		if (wl->chip.id == CHIP_ID_1283_PG20)
-			fw_name = WL128X_FW_NAME;
-		else
-			fw_name	= WL127X_FW_NAME;
+		/*
+		 * we can't call wl12xx_get_vif_count() here because
+		 * wl->mutex is taken, so use the cached last_vif_count value
+		 */
+		if (wl->last_vif_count > 1) {
+			fw_type = WL12XX_FW_TYPE_MULTI;
+			if (wl->chip.id == CHIP_ID_1283_PG20)
+				fw_name = WL128X_FW_NAME_MULTI;
+			else
+				fw_name = WL127X_FW_NAME_MULTI;
+		} else {
+			fw_type = WL12XX_FW_TYPE_NORMAL;
+			if (wl->chip.id == CHIP_ID_1283_PG20)
+				fw_name = WL128X_FW_NAME_SINGLE;
+			else
+				fw_name = WL127X_FW_NAME_SINGLE;
+		}
 	}
 
 	if (wl->fw_type == fw_type)
@@ -2074,11 +2115,47 @@ static bool wl12xx_dev_role_started(struct wl12xx_vif *wlvif)
 	return wlvif->dev_hlid != WL12XX_INVALID_LINK_ID;
 }
 
+/*
+ * Check whether a fw switch (i.e. moving from one loaded
+ * fw to another) is needed. This function is also responsible
+ * for updating wl->last_vif_count, so it must be called before
+ * loading a non-plt fw (so the correct fw (single-role/multi-role)
+ * will be used).
+ */
+static bool wl12xx_need_fw_change(struct wl1271 *wl,
+				  struct vif_counter_data vif_counter_data,
+				  bool add)
+{
+	enum wl12xx_fw_type current_fw = wl->fw_type;
+	u8 vif_count = vif_counter_data.counter;
+
+	if (test_bit(WL1271_FLAG_VIF_CHANGE_IN_PROGRESS, &wl->flags))
+		return false;
+
+	/* increase the vif count if this is a new vif */
+	if (add && !vif_counter_data.cur_vif_running)
+		vif_count++;
+
+	wl->last_vif_count = vif_count;
+
+	/* no need for fw change if the device is OFF */
+	if (wl->state == WL1271_STATE_OFF)
+		return false;
+
+	if (vif_count > 1 && current_fw == WL12XX_FW_TYPE_NORMAL)
+		return true;
+	if (vif_count <= 1 && current_fw == WL12XX_FW_TYPE_MULTI)
+		return true;
+
+	return false;
+}
+
 static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif)
 {
 	struct wl1271 *wl = hw->priv;
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
+	struct vif_counter_data vif_count;
 	int ret = 0;
 	u8 role_type;
 	bool booted = false;
@@ -2088,6 +2165,8 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 add interface type %d mac %pM",
 		     ieee80211_vif_type_p2p(vif), vif->addr);
+
+	wl12xx_get_vif_count(hw, vif, &vif_count);
 
 	mutex_lock(&wl->mutex);
 	ret = wl1271_ps_elp_wakeup(wl);
@@ -2122,6 +2201,12 @@ static int wl1271_op_add_interface(struct ieee80211_hw *hw,
 	if (role_type == WL12XX_INVALID_ROLE_TYPE) {
 		ret = -EINVAL;
 		goto out;
+	}
+
+	if (wl12xx_need_fw_change(wl, vif_count, true)) {
+		mutex_unlock(&wl->mutex);
+		wl1271_recovery_work(&wl->recovery_work);
+		return 0;
 	}
 
 	/*
@@ -2287,7 +2372,10 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	struct wl1271 *wl = hw->priv;
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	struct wl12xx_vif *iter;
+	struct vif_counter_data vif_count;
+	bool cancel_recovery = true;
 
+	wl12xx_get_vif_count(hw, vif, &vif_count);
 	mutex_lock(&wl->mutex);
 
 	if (wl->state == WL1271_STATE_OFF ||
@@ -2306,20 +2394,32 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 		break;
 	}
 	WARN_ON(iter != wlvif);
+	if (wl12xx_need_fw_change(wl, vif_count, false)) {
+		wl12xx_queue_recovery_work(wl);
+		cancel_recovery = false;
+	}
 out:
 	mutex_unlock(&wl->mutex);
-	cancel_work_sync(&wl->recovery_work);
+	if (cancel_recovery)
+		cancel_work_sync(&wl->recovery_work);
 }
 
 static int wl12xx_op_change_interface(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
 				      enum nl80211_iftype new_type, bool p2p)
 {
+	struct wl1271 *wl = hw->priv;
+	int ret;
+
+	set_bit(WL1271_FLAG_VIF_CHANGE_IN_PROGRESS, &wl->flags);
 	wl1271_op_remove_interface(hw, vif);
 
 	vif->type = ieee80211_iftype_p2p(new_type, p2p);
 	vif->p2p = p2p;
-	return wl1271_op_add_interface(hw, vif);
+	ret = wl1271_op_add_interface(hw, vif);
+
+	clear_bit(WL1271_FLAG_VIF_CHANGE_IN_PROGRESS, &wl->flags);
+	return ret;
 }
 
 static int wl1271_join(struct wl1271 *wl, struct wl12xx_vif *wlvif,
