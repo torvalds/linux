@@ -72,13 +72,12 @@ static void robust_list_del(struct list_head *delete_node)
 static int chnl_recv_cb(struct cflayer *layr, struct cfpkt *pkt)
 {
 	struct sk_buff *skb;
-	struct chnl_net *priv  = container_of(layr, struct chnl_net, chnl);
+	struct chnl_net *priv;
 	int pktlen;
 	const u8 *ip_version;
 	u8 buf;
 
 	priv = container_of(layr, struct chnl_net, chnl);
-
 	if (!priv)
 		return -EINVAL;
 
