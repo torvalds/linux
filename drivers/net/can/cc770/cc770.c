@@ -695,7 +695,7 @@ static void cc770_tx_interrupt(struct net_device *dev, unsigned int o)
 	netif_wake_queue(dev);
 }
 
-irqreturn_t cc770_interrupt(int irq, void *dev_id)
+static irqreturn_t cc770_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
 	struct cc770_priv *priv = netdev_priv(dev);
