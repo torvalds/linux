@@ -36,6 +36,7 @@ enum efx_filter_table_id {
 	EFX_FILTER_TABLE_RX_IP = 0,
 	EFX_FILTER_TABLE_RX_MAC,
 	EFX_FILTER_TABLE_RX_DEF,
+	EFX_FILTER_TABLE_TX_MAC,
 	EFX_FILTER_TABLE_COUNT,
 };
 
@@ -97,8 +98,9 @@ efx_filter_spec_table_id(const struct efx_filter_spec *spec)
 	BUILD_BUG_ON(EFX_FILTER_TABLE_RX_IP != (EFX_FILTER_UDP_WILD >> 2));
 	BUILD_BUG_ON(EFX_FILTER_TABLE_RX_MAC != (EFX_FILTER_MAC_FULL >> 2));
 	BUILD_BUG_ON(EFX_FILTER_TABLE_RX_MAC != (EFX_FILTER_MAC_WILD >> 2));
+	BUILD_BUG_ON(EFX_FILTER_TABLE_TX_MAC != EFX_FILTER_TABLE_RX_MAC + 2);
 	EFX_BUG_ON_PARANOID(spec->type == EFX_FILTER_UNSPEC);
-	return spec->type >> 2;
+	return (spec->type >> 2) + ((spec->flags & EFX_FILTER_FLAG_TX) ? 2 : 0);
 }
 
 static struct efx_filter_table *
@@ -177,6 +179,29 @@ static void efx_filter_push_rx_config(struct efx_nic *efx)
 	}
 
 	efx_writeo(efx, &filter_ctl, FR_BZ_RX_FILTER_CTL);
+}
+
+static void efx_filter_push_tx_limits(struct efx_nic *efx)
+{
+	struct efx_filter_state *state = efx->filter_state;
+	struct efx_filter_table *table;
+	efx_oword_t tx_cfg;
+
+	efx_reado(efx, &tx_cfg, FR_AZ_TX_CFG);
+
+	table = &state->table[EFX_FILTER_TABLE_TX_MAC];
+	if (table->size) {
+		EFX_SET_OWORD_FIELD(
+			tx_cfg, FRF_CZ_TX_ETH_FILTER_FULL_SEARCH_RANGE,
+			table->search_depth[EFX_FILTER_MAC_FULL] +
+			FILTER_CTL_SRCH_FUDGE_FULL);
+		EFX_SET_OWORD_FIELD(
+			tx_cfg, FRF_CZ_TX_ETH_FILTER_WILD_SEARCH_RANGE,
+			table->search_depth[EFX_FILTER_MAC_WILD] +
+			FILTER_CTL_SRCH_FUDGE_WILD);
+	}
+
+	efx_writeo(efx, &tx_cfg, FR_AZ_TX_CFG);
 }
 
 static inline void __efx_filter_set_ipv4(struct efx_filter_spec *spec,
@@ -333,7 +358,8 @@ int efx_filter_get_ipv4_full(const struct efx_filter_spec *spec,
 int efx_filter_set_eth_local(struct efx_filter_spec *spec,
 			     u16 vid, const u8 *addr)
 {
-	EFX_BUG_ON_PARANOID(!(spec->flags & EFX_FILTER_FLAG_RX));
+	EFX_BUG_ON_PARANOID(!(spec->flags &
+			      (EFX_FILTER_FLAG_RX | EFX_FILTER_FLAG_TX)));
 
 	/* This cannot currently be combined with other filtering */
 	if (spec->type != EFX_FILTER_UNSPEC)
@@ -471,6 +497,18 @@ static u32 efx_filter_build(efx_oword_t *filter, struct efx_filter_spec *spec)
 		break;
 	}
 
+	case EFX_FILTER_TABLE_TX_MAC: {
+		bool is_wild = spec->type == EFX_FILTER_MAC_WILD;
+		EFX_POPULATE_OWORD_5(*filter,
+				     FRF_CZ_TMFT_TXQ_ID, spec->dmaq_id,
+				     FRF_CZ_TMFT_WILDCARD_MATCH, is_wild,
+				     FRF_CZ_TMFT_SRC_MAC_HI, spec->data[2],
+				     FRF_CZ_TMFT_SRC_MAC_LO, spec->data[1],
+				     FRF_CZ_TMFT_VLAN_ID, spec->data[0]);
+		data3 = is_wild | spec->dmaq_id << 1;
+		break;
+	}
+
 	default:
 		BUG();
 	}
@@ -483,6 +521,10 @@ static bool efx_filter_equal(const struct efx_filter_spec *left,
 {
 	if (left->type != right->type ||
 	    memcmp(left->data, right->data, sizeof(left->data)))
+		return false;
+
+	if (left->flags & EFX_FILTER_FLAG_TX &&
+	    left->dmaq_id != right->dmaq_id)
 		return false;
 
 	return true;
@@ -581,8 +623,11 @@ static inline u8 efx_filter_id_flags(u32 id)
 
 	if (match_pri < EFX_FILTER_MATCH_PRI_NORMAL_BASE)
 		return EFX_FILTER_FLAG_RX | EFX_FILTER_FLAG_RX_OVERRIDE_IP;
-	else
+	else if (match_pri <=
+		 EFX_FILTER_MATCH_PRI_NORMAL_BASE + EFX_FILTER_TABLE_RX_DEF)
 		return EFX_FILTER_FLAG_RX;
+	else
+		return EFX_FILTER_FLAG_TX;
 }
 
 u32 efx_filter_get_rx_id_limit(struct efx_nic *efx)
@@ -660,7 +705,10 @@ s32 efx_filter_insert_filter(struct efx_nic *efx, struct efx_filter_spec *spec,
 	} else {
 		if (table->search_depth[spec->type] < depth) {
 			table->search_depth[spec->type] = depth;
-			efx_filter_push_rx_config(efx);
+			if (spec->flags & EFX_FILTER_FLAG_TX)
+				efx_filter_push_tx_limits(efx);
+			else
+				efx_filter_push_rx_config(efx);
 		}
 
 		efx_writeo(efx, &filter,
@@ -918,6 +966,7 @@ void efx_restore_filters(struct efx_nic *efx)
 	}
 
 	efx_filter_push_rx_config(efx);
+	efx_filter_push_tx_limits(efx);
 
 	spin_unlock_bh(&state->lock);
 }
@@ -960,6 +1009,12 @@ int efx_probe_filters(struct efx_nic *efx)
 		table = &state->table[EFX_FILTER_TABLE_RX_DEF];
 		table->id = EFX_FILTER_TABLE_RX_DEF;
 		table->size = EFX_FILTER_SIZE_RX_DEF;
+
+		table = &state->table[EFX_FILTER_TABLE_TX_MAC];
+		table->id = EFX_FILTER_TABLE_TX_MAC;
+		table->offset = FR_CZ_TX_MAC_FILTER_TBL0;
+		table->size = FR_CZ_TX_MAC_FILTER_TBL0_ROWS;
+		table->step = FR_CZ_TX_MAC_FILTER_TBL0_STEP;
 	}
 
 	for (table_id = 0; table_id < EFX_FILTER_TABLE_COUNT; table_id++) {

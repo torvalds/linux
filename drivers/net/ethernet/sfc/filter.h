@@ -43,7 +43,8 @@ enum efx_filter_type {
  * enum efx_filter_priority - priority of a hardware filter specification
  * @EFX_FILTER_PRI_HINT: Performance hint
  * @EFX_FILTER_PRI_MANUAL: Manually configured filter
- * @EFX_FILTER_PRI_REQUIRED: Required for correct behaviour
+ * @EFX_FILTER_PRI_REQUIRED: Required for correct behaviour (user-level
+ *	networking and SR-IOV)
  */
 enum efx_filter_priority {
 	EFX_FILTER_PRI_HINT = 0,
@@ -64,12 +65,14 @@ enum efx_filter_priority {
  *	any IP filter that matches the same packet.  By default, IP
  *	filters take precedence.
  * @EFX_FILTER_FLAG_RX: Filter is for RX
+ * @EFX_FILTER_FLAG_TX: Filter is for TX
  */
 enum efx_filter_flags {
 	EFX_FILTER_FLAG_RX_RSS = 0x01,
 	EFX_FILTER_FLAG_RX_SCATTER = 0x02,
 	EFX_FILTER_FLAG_RX_OVERRIDE_IP = 0x04,
 	EFX_FILTER_FLAG_RX = 0x08,
+	EFX_FILTER_FLAG_TX = 0x10,
 };
 
 /**
@@ -105,6 +108,15 @@ static inline void efx_filter_init_rx(struct efx_filter_spec *spec,
 	spec->priority = priority;
 	spec->flags = EFX_FILTER_FLAG_RX | flags;
 	spec->dmaq_id = rxq_id;
+}
+
+static inline void efx_filter_init_tx(struct efx_filter_spec *spec,
+				      unsigned txq_id)
+{
+	spec->type = EFX_FILTER_UNSPEC;
+	spec->priority = EFX_FILTER_PRI_REQUIRED;
+	spec->flags = EFX_FILTER_FLAG_TX;
+	spec->dmaq_id = txq_id;
 }
 
 extern int efx_filter_set_ipv4_local(struct efx_filter_spec *spec, u8 proto,
