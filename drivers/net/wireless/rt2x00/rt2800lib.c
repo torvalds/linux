@@ -1865,7 +1865,12 @@ static void rt2800_config_channel_rf3052(struct rt2x00_dev *rt2x00dev,
 		rt2800_rfcsr_write(rt2x00dev, 27, 0x00);
 		rt2800_rfcsr_write(rt2x00dev, 29, 0x9b);
 	} else {
-		rt2800_rfcsr_write(rt2x00dev, 7, 0x14);
+		rt2800_rfcsr_read(rt2x00dev, 7, &rfcsr);
+		rt2x00_set_field8(&rfcsr, RFCSR7_BIT2, 1);
+		rt2x00_set_field8(&rfcsr, RFCSR7_BIT3, 0);
+		rt2x00_set_field8(&rfcsr, RFCSR7_BIT4, 1);
+		rt2x00_set_field8(&rfcsr, RFCSR7_BITS67, 0);
+		rt2800_rfcsr_write(rt2x00dev, 7, rfcsr);
 		rt2800_rfcsr_write(rt2x00dev, 9, 0xc0);
 		rt2800_rfcsr_write(rt2x00dev, 10, 0xf1);
 		rt2800_rfcsr_write(rt2x00dev, 11, 0x00);

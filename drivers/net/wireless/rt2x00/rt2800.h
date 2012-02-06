@@ -1819,10 +1819,12 @@ struct mac_iveiv_entry {
  * RFCSR 7:
  */
 #define RFCSR7_RF_TUNING		FIELD8(0x01)
-#define RFCSR7_R02				FIELD8(0x07)
-#define RFCSR7_R3				FIELD8(0x08)
-#define RFCSR7_R45				FIELD8(0x30)
-#define RFCSR7_R67				FIELD8(0xc0)
+#define RFCSR7_BIT1			FIELD8(0x02)
+#define RFCSR7_BIT2			FIELD8(0x04)
+#define RFCSR7_BIT3			FIELD8(0x08)
+#define RFCSR7_BIT4			FIELD8(0x10)
+#define RFCSR7_BIT5			FIELD8(0x20)
+#define RFCSR7_BITS67			FIELD8(0xc0)
 
 /*
  * RFCSR 11:
