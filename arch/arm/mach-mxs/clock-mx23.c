@@ -456,6 +456,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("mxs-pwm.3", NULL, pwm_clk)
 	_REGISTER_CLOCK("mxs-pwm.4", NULL, pwm_clk)
 	_REGISTER_CLOCK("imx23-fb", NULL, lcdif_clk)
+	_REGISTER_CLOCK("imx23-gpmi-nand", NULL, gpmi_clk)
 };
 
 static int clk_misc_init(void)
