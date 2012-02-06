@@ -35,6 +35,18 @@ config CPU_S3C2412
 	help
 	  Support for the S3C2412 and S3C2413 SoCs from the S3C24XX line
 
+config CPU_S3C2416
+	bool "SAMSUNG S3C2416/S3C2450"
+	depends on ARCH_S3C24XX
+	select CPU_ARM926T
+	select CPU_LLSERIAL_S3C2440
+	select SAMSUNG_CLKSRC
+	select S3C2443_CLOCK
+	select S3C2416_DMA if S3C24XX_DMA
+	select S3C2416_PM if PM
+	help
+	  Support for the S3C2416 SoC from the S3C24XX line
+
 if CPU_S3C2410
 
 config S3C2410_DMA
@@ -247,6 +259,41 @@ config MACH_VSTMS
 	  Say Y here if you are using an VSTMS board
 
 endif	# CPU_S3C2412
+
+if CPU_S3C2416
+
+config S3C2416_PM
+	bool
+	select S3C2412_PM_SLEEP
+	help
+	  Internal config node to apply S3C2416 power management
+
+config S3C2416_SETUP_SDHCI
+	bool
+	select S3C2416_SETUP_SDHCI_GPIO
+	help
+	  Internal helper functions for S3C2416 based SDHCI systems
+
+config S3C2416_SETUP_SDHCI_GPIO
+	bool
+	help
+	  Common setup code for SDHCI gpio.
+
+comment "S3C2416 Boards"
+
+config MACH_SMDK2416
+	bool "SMDK2416"
+	select MACH_SMDK
+	select S3C_DEV_FB
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
+	select S3C2416_SETUP_SDHCI
+	help
+	  Say Y here if you are using an SMDK2416
+
+endif	# CPU_S3C2416
 
 endmenu	# SAMSUNG S3C24XX SoCs Support
 

@@ -23,6 +23,9 @@ obj-$(CONFIG_S3C2412_DMA)	+= dma-s3c2412.o
 obj-$(CONFIG_S3C2412_PM)	+= pm-s3c2412.o
 obj-$(CONFIG_S3C2412_PM_SLEEP)	+= sleep-s3c2412.o
 
+obj-$(CONFIG_CPU_S3C2416)	+= s3c2416.o irq-s3c2416.o clock-s3c2416.o
+obj-$(CONFIG_S3C2416_PM)	+= pm-s3c2416.o
+
 #
 # machine support
 # following is ordered alphabetically by option text.
@@ -45,6 +48,8 @@ obj-$(CONFIG_MACH_JIVE)			+= mach-jive.o
 obj-$(CONFIG_MACH_SMDK2413)		+= mach-smdk2413.o
 obj-$(CONFIG_MACH_VSTMS)		+= mach-vstms.o
 
+obj-$(CONFIG_MACH_SMDK2416)		+= mach-smdk2416.o
+
 # common bits of machine support
 
 obj-$(CONFIG_SIMTEC_NOR)		+= nor-simtec.o
@@ -52,3 +57,7 @@ obj-$(CONFIG_SIMTEC_NOR)		+= nor-simtec.o
 # machine additions
 
 obj-$(CONFIG_MACH_BAST_IDE)		+= bast-ide.o
+
+# device setup
+
+obj-$(CONFIG_S3C2416_SETUP_SDHCI_GPIO)	+= setup-sdhci-gpio.o
