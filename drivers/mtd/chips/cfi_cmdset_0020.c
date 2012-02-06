@@ -394,8 +394,6 @@ static int cfi_staa_read (struct mtd_info *mtd, loff_t from, size_t len, size_t 
 	chipnum = (from >> cfi->chipshift);
 	ofs = from - (chipnum <<  cfi->chipshift);
 
-	*retlen = 0;
-
 	while (len) {
 		unsigned long thislen;
 
@@ -617,7 +615,6 @@ static int cfi_staa_write_buffers (struct mtd_info *mtd, loff_t to,
 	int chipnum;
 	unsigned long ofs;
 
-	*retlen = 0;
 	if (!len)
 		return 0;
 

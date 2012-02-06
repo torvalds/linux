@@ -70,13 +70,11 @@ static struct mtd_info *map_absent_probe(struct map_info *map)
 
 static int map_absent_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf)
 {
-	*retlen = 0;
 	return -ENODEV;
 }
 
 static int map_absent_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf)
 {
-	*retlen = 0;
 	return -ENODEV;
 }
 

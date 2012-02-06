@@ -1017,12 +1017,8 @@ static int cfi_amdstd_read (struct mtd_info *mtd, loff_t from, size_t len, size_
 	int ret = 0;
 
 	/* ofs: offset within the first chip that the first read should start */
-
 	chipnum = (from >> cfi->chipshift);
 	ofs = from - (chipnum <<  cfi->chipshift);
-
-
-	*retlen = 0;
 
 	while (len) {
 		unsigned long thislen;
@@ -1101,15 +1097,10 @@ static int cfi_amdstd_secsi_read (struct mtd_info *mtd, loff_t from, size_t len,
 	int chipnum;
 	int ret = 0;
 
-
 	/* ofs: offset within the first chip that the first read should start */
-
 	/* 8 secsi bytes per chip */
 	chipnum=from>>3;
 	ofs=from & 7;
-
-
-	*retlen = 0;
 
 	while (len) {
 		unsigned long thislen;
@@ -1255,7 +1246,6 @@ static int cfi_amdstd_write_words(struct mtd_info *mtd, loff_t to, size_t len,
 	unsigned long ofs, chipstart;
 	DECLARE_WAITQUEUE(wait, current);
 
-	*retlen = 0;
 	if (!len)
 		return 0;
 
@@ -1497,7 +1487,6 @@ static int cfi_amdstd_write_buffers(struct mtd_info *mtd, loff_t to, size_t len,
 	int chipnum;
 	unsigned long ofs;
 
-	*retlen = 0;
 	if (!len)
 		return 0;
 
@@ -1708,7 +1697,6 @@ static int cfi_amdstd_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 	int ret = 0;
 	int chipnum;
 
-	*retlen = 0;
 	if (!len)
 		return 0;
 

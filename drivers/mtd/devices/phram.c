@@ -85,8 +85,6 @@ static int phram_write(struct mtd_info *mtd, loff_t to, size_t len,
 	return 0;
 }
 
-
-
 static void unregister_devices(void)
 {
 	struct phram_mtd_list *this, *safe;

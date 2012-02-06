@@ -591,7 +591,6 @@ static int doc_write (struct mtd_info *mtd, loff_t to, size_t len,
 		printk("Error programming flash\n");
 		/* Error in programming
 		   FIXME: implement Bad Block Replacement (in nftl.c ??) */
-		*retlen = 0;
 		ret = -EIO;
 	}
 	dummy = ReadDOC(docptr, LastDataRead);

@@ -603,8 +603,6 @@ static int doc_read(struct mtd_info *mtd, loff_t from, size_t len,
 	size_t left = len;
 
 	mutex_lock(&this->lock);
-
-	*retlen = 0;
 	while (left) {
 		len = left;
 
@@ -745,8 +743,6 @@ static int doc_write(struct mtd_info *mtd, loff_t to, size_t len,
 	int status;
 
 	mutex_lock(&this->lock);
-
-	*retlen = 0;
 	while (left) {
 		len = left;
 

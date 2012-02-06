@@ -574,11 +574,6 @@ static int spear_mtd_read(struct mtd_info *mtd, loff_t from, size_t len,
 		return -EINVAL;
 	}
 
-	if (!retlen)
-		return -EINVAL;
-	else
-		*retlen = 0;
-
 	/* select address as per bank number */
 	src = flash->base_addr + from;
 
@@ -674,11 +669,6 @@ static int spear_mtd_write(struct mtd_info *mtd, loff_t to, size_t len,
 		dev_err(&dev->pdev->dev, "Invalid Bank Num");
 		return -EINVAL;
 	}
-
-	if (!retlen)
-		return -EINVAL;
-	else
-		*retlen = 0;
 
 	/* select address as per bank number */
 	dest = flash->base_addr + to;

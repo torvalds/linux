@@ -224,9 +224,6 @@ static int sst25l_read(struct mtd_info *mtd, loff_t from, size_t len,
 	if (len == 0)
 		return 0;
 
-	if (retlen)
-		*retlen = 0;
-
 	spi_message_init(&message);
 	memset(&transfer, 0, sizeof(transfer));
 

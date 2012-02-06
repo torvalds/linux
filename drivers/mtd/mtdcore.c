@@ -744,6 +744,7 @@ EXPORT_SYMBOL_GPL(mtd_get_unmapped_area);
 int mtd_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 	     u_char *buf)
 {
+	*retlen = 0;
 	if (from < 0 || from > mtd->size || len > mtd->size - from)
 		return -EINVAL;
 	return mtd->_read(mtd, from, len, retlen, buf);

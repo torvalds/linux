@@ -1334,7 +1334,6 @@ static int cfi_intelext_point(struct mtd_info *mtd, loff_t from, size_t len,
 	ofs = from - (chipnum << cfi->chipshift);
 
 	*virt = map->virt + cfi->chips[chipnum].start + ofs;
-	*retlen = 0;
 	if (phys)
 		*phys = map->phys + cfi->chips[chipnum].start + ofs;
 
@@ -1460,8 +1459,6 @@ static int cfi_intelext_read (struct mtd_info *mtd, loff_t from, size_t len, siz
 	chipnum = (from >> cfi->chipshift);
 	ofs = from - (chipnum <<  cfi->chipshift);
 
-	*retlen = 0;
-
 	while (len) {
 		unsigned long thislen;
 
@@ -1569,7 +1566,6 @@ static int cfi_intelext_write_words (struct mtd_info *mtd, loff_t to , size_t le
 	int chipnum;
 	unsigned long ofs;
 
-	*retlen = 0;
 	if (!len)
 		return 0;
 
@@ -1817,7 +1813,6 @@ static int cfi_intelext_writev (struct mtd_info *mtd, const struct kvec *vecs,
 	for (i = 0; i < count; i++)
 		len += vecs[i].iov_len;
 
-	*retlen = 0;
 	if (!len)
 		return 0;
 

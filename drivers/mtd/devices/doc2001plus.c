@@ -792,7 +792,6 @@ static int doc_write(struct mtd_info *mtd, loff_t to, size_t len,
 		printk("MTD: Error 0x%x programming at 0x%x\n", dummy, (int)to);
 		/* Error in programming
 		   FIXME: implement Bad Block Replacement (in nftl.c ??) */
-		*retlen = 0;
 		ret = -EIO;
 	}
 	dummy = ReadDOC(docptr, Mplus_LastDataRead);

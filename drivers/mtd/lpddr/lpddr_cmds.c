@@ -535,9 +535,7 @@ static int lpddr_point(struct mtd_info *mtd, loff_t adr, size_t len,
 
 	/* ofs: offset within the first chip that the first read should start */
 	ofs = adr - (chipnum << lpddr->chipshift);
-
 	*mtdbuf = (void *)map->virt + chip->start + ofs;
-	*retlen = 0;
 
 	while (len) {
 		unsigned long thislen;
@@ -647,7 +645,6 @@ static int lpddr_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	for (i = 0; i < count; i++)
 		len += vecs[i].iov_len;
 
-	*retlen = 0;
 	if (!len)
 		return 0;
 

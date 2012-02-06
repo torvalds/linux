@@ -249,8 +249,6 @@ static int dataflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 	pr_debug("%s: read 0x%x..0x%x\n", dev_name(&priv->spi->dev),
 			(unsigned)from, (unsigned)(from + len));
 
-	*retlen = 0;
-
 	/* Sanity checks */
 	if (!len)
 		return 0;
@@ -322,8 +320,6 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	pr_debug("%s: write 0x%x..0x%x\n",
 		dev_name(&spi->dev), (unsigned)to, (unsigned)(to + len));
-
-	*retlen = 0;
 
 	/* Sanity checks */
 	if (!len)

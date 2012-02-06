@@ -72,8 +72,6 @@ concat_read(struct mtd_info *mtd, loff_t from, size_t len,
 	int ret = 0, err;
 	int i;
 
-	*retlen = 0;
-
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
 		size_t size, retsize;
@@ -126,8 +124,6 @@ concat_write(struct mtd_info *mtd, loff_t to, size_t len,
 	int err = -EINVAL;
 	int i;
 
-	*retlen = 0;
-
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
 		size_t size, retsize;
@@ -168,8 +164,6 @@ concat_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	size_t total_len = 0;
 	int i;
 	int err = -EINVAL;
-
-	*retlen = 0;
 
 	/* Calculate total length of data */
 	for (i = 0; i < count; i++)

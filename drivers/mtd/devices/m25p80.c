@@ -365,9 +365,6 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	t[1].len = len;
 	spi_message_add_tail(&t[1], &m);
 
-	/* Byte count starts at zero. */
-	*retlen = 0;
-
 	mutex_lock(&flash->lock);
 
 	/* Wait till previous write/erase is done. */
@@ -410,8 +407,6 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	pr_debug("%s: %s to 0x%08x, len %zd\n", dev_name(&flash->spi->dev),
 			__func__, (u32)to, len);
-
-	*retlen = 0;
 
 	/* sanity checks */
 	if (!len)
@@ -499,8 +494,6 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	pr_debug("%s: %s to 0x%08x, len %zd\n", dev_name(&flash->spi->dev),
 			__func__, (u32)to, len);
-
-	*retlen = 0;
 
 	/* sanity checks */
 	if (!len)

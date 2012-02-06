@@ -1753,9 +1753,6 @@ static int onenand_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 	pr_debug("%s: to = 0x%08x, len = %i\n", __func__, (unsigned int)to,
 			(int)len);
 
-	/* Initialize retlen, in case of early exit */
-	*retlen = 0;
-
 	/* Reject writes, which are not page aligned */
         if (unlikely(NOTALIGNED(to) || NOTALIGNED(len))) {
 		printk(KERN_ERR "%s: Attempt to write not page aligned data\n",

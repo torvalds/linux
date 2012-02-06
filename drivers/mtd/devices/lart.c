@@ -518,8 +518,6 @@ static int flash_write (struct mtd_info *mtd,loff_t to,size_t len,size_t *retlen
    printk (KERN_DEBUG "%s(to = 0x%.8x, len = %d)\n", __func__, (__u32)to, len);
 #endif
 
-   *retlen = 0;
-
    /* sanity checks */
    if (!len) return (0);
 
