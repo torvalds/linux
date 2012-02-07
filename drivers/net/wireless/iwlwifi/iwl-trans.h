@@ -321,9 +321,6 @@ enum iwl_trans_state {
  *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
  * @ucode_write_complete: indicates that the ucode has been copied.
- * @ucode_rt: run time ucode image
- * @ucode_init: init ucode image
- * @ucode_wowlan: wake on wireless ucode image (optional)
  * @nvm_device_type: indicates OTP or eeprom
  * @pm_support: set to true in start_hw if link pm is supported
  * @calib_results: list head for init calibration results

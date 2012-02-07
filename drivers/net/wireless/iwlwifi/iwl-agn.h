@@ -65,11 +65,7 @@
 
 #include "iwl-dev.h"
 
-struct iwlagn_ucode_capabilities {
-	u32 max_probe_length;
-	u32 standard_phy_calibration_size;
-	u32 flags;
-};
+struct iwl_ucode_capabilities;
 
 extern struct ieee80211_ops iwlagn_hw_ops;
 
@@ -88,7 +84,7 @@ void iwlagn_prepare_restart(struct iwl_priv *priv);
 /* MAC80211 */
 struct ieee80211_hw *iwl_alloc_all(void);
 int iwlagn_mac_setup_register(struct iwl_priv *priv,
-			      struct iwlagn_ucode_capabilities *capa);
+			      struct iwl_ucode_capabilities *capa);
 void iwlagn_mac_unregister(struct iwl_priv *priv);
 
 /* RXON */

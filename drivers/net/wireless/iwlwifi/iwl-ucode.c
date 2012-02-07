@@ -805,7 +805,7 @@ static int iwl_parse_v1_v2_firmware(struct iwl_nic *nic,
 static int iwl_parse_tlv_firmware(struct iwl_nic *nic,
 				const struct firmware *ucode_raw,
 				struct iwlagn_firmware_pieces *pieces,
-				struct iwlagn_ucode_capabilities *capa)
+				struct iwl_ucode_capabilities *capa)
 {
 	struct iwl_tlv_ucode_header *ucode = (void *)ucode_raw->data;
 	struct iwl_ucode_tlv *tlv;
@@ -1012,6 +1012,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 {
 	struct iwl_nic *nic = context;
 	struct iwl_cfg *cfg = cfg(nic);
+	struct iwl_fw *fw = &nic->fw;
 	struct iwl_priv *priv = priv(nic); /* temporary */
 	struct iwl_ucode_header *ucode;
 	int err;
@@ -1022,11 +1023,10 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	u32 api_ver;
 	char buildstr[25];
 	u32 build;
-	struct iwlagn_ucode_capabilities ucode_capa = {
-		.max_probe_length = 200,
-		.standard_phy_calibration_size =
-			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE,
-	};
+
+	fw->ucode_capa.max_probe_length = 200;
+	fw->ucode_capa.standard_phy_calibration_size =
+			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 
 	if (!api_ok)
 		api_ok = api_max;
@@ -1057,7 +1057,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		err = iwl_parse_v1_v2_firmware(nic, ucode_raw, &pieces);
 	else
 		err = iwl_parse_tlv_firmware(nic, ucode_raw, &pieces,
-					   &ucode_capa);
+					   &fw->ucode_capa);
 
 	if (err)
 		goto try_again;
@@ -1219,23 +1219,23 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 			cfg->base_params->max_event_log_size;
 	nic->inst_errlog_ptr = pieces.inst_errlog_ptr;
 #ifndef CONFIG_IWLWIFI_P2P
-	ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
+	fw->ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
 #endif
 
 	priv->new_scan_threshold_behaviour =
-		!!(ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWSCAN);
+		!!(fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWSCAN);
 
 	if (!(cfg->sku & EEPROM_SKU_CAP_IPAN_ENABLE))
-		ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
+		fw->ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
 
 	/*
 	 * if not PAN, then don't support P2P -- might be a uCode
 	 * packaging bug or due to the eeprom check above
 	 */
-	if (!(ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN))
-		ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
+	if (!(fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN))
+		fw->ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
 
-	if (ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN) {
+	if (fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN) {
 		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
 		nic->shrd->cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
 	} else {
@@ -1246,25 +1246,25 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	 * figure out the offset of chain noise reset and gain commands
 	 * base on the size of standard phy calibration commands table size
 	 */
-	if (ucode_capa.standard_phy_calibration_size >
+	if (fw->ucode_capa.standard_phy_calibration_size >
 	    IWL_MAX_PHY_CALIBRATE_TBL_SIZE)
-		ucode_capa.standard_phy_calibration_size =
+		fw->ucode_capa.standard_phy_calibration_size =
 			IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 
 	priv->phy_calib_chain_noise_reset_cmd =
-		ucode_capa.standard_phy_calibration_size;
+		fw->ucode_capa.standard_phy_calibration_size;
 	priv->phy_calib_chain_noise_gain_cmd =
-		ucode_capa.standard_phy_calibration_size + 1;
+		fw->ucode_capa.standard_phy_calibration_size + 1;
 
 	/* initialize all valid contexts */
-	iwl_init_context(priv, ucode_capa.flags);
+	iwl_init_context(priv, fw->ucode_capa.flags);
 
 	/**************************************************
 	 * This is still part of probe() in a sense...
 	 *
 	 * 9. Setup and register with mac80211 and debugfs
 	 **************************************************/
-	err = iwlagn_mac_setup_register(priv, &ucode_capa);
+	err = iwlagn_mac_setup_register(priv, &fw->ucode_capa);
 	if (err)
 		goto out_unbind;
 

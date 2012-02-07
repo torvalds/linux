@@ -136,7 +136,7 @@ iwlagn_iface_combinations_p2p[] = {
  * other mac80211 functions grouped here.
  */
 int iwlagn_mac_setup_register(struct iwl_priv *priv,
-				  struct iwlagn_ucode_capabilities *capa)
+				  struct iwl_ucode_capabilities *capa)
 {
 	int ret;
 	struct ieee80211_hw *hw = priv->hw;
