@@ -173,8 +173,6 @@ struct iwl_mod_params {
  * @ht40_channel: is 40MHz width possible: BIT(IEEE80211_BAND_XXX)
  * @sku: sku read from EEPROM
  * @rx_page_order: Rx buffer page order
- * @max_inst_size: for ucode use
- * @max_data_size: for ucode use
  * @ct_kill_threshold: temperature threshold - in hw dependent unit
  * @ct_kill_exit_threshold: when to reeable the device - in hw dependent unit
  *	relevant for 1000, 6000 and up
@@ -192,8 +190,6 @@ struct iwl_hw_params {
 	bool shadow_reg_enable;
 	u16 sku;
 	u32 rx_page_order;
-	u32 max_inst_size;
-	u32 max_data_size;
 	u32 ct_kill_threshold;
 	u32 ct_kill_exit_threshold;
 	unsigned int wd_timeout;
@@ -283,6 +279,8 @@ enum iwl_led_mode {
  * @ucode_api_ok: oldest version of the uCode API that is OK to load
  *	without a warning, for use in transitions
  * @ucode_api_min: Lowest version of uCode API supported by driver.
+ * @max_inst_size: The maximal length of the fw inst section
+ * @max_data_size: The maximal length of the fw data section
  * @valid_tx_ant: valid transmit antenna
  * @valid_rx_ant: valid receive antenna
  * @sku: sku information from EEPROM
@@ -320,6 +318,8 @@ struct iwl_cfg {
 	const unsigned int ucode_api_max;
 	const unsigned int ucode_api_ok;
 	const unsigned int ucode_api_min;
+	const u32 max_data_size;
+	const u32 max_inst_size;
 	u8   valid_tx_ant;
 	u8   valid_rx_ant;
 	u16  sku;

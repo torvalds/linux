@@ -1135,25 +1135,25 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		       pieces.init_data_size);
 
 	/* Verify that uCode images will fit in card's SRAM */
-	if (pieces.inst_size > hw_params(nic).max_inst_size) {
+	if (pieces.inst_size > cfg->max_inst_size) {
 		IWL_ERR(nic, "uCode instr len %Zd too large to fit in\n",
 			pieces.inst_size);
 		goto try_again;
 	}
 
-	if (pieces.data_size > hw_params(nic).max_data_size) {
+	if (pieces.data_size > cfg->max_data_size) {
 		IWL_ERR(nic, "uCode data len %Zd too large to fit in\n",
 			pieces.data_size);
 		goto try_again;
 	}
 
-	if (pieces.init_size > hw_params(nic).max_inst_size) {
+	if (pieces.init_size > cfg->max_inst_size) {
 		IWL_ERR(nic, "uCode init instr len %Zd too large to fit in\n",
 			pieces.init_size);
 		goto try_again;
 	}
 
-	if (pieces.init_data_size > hw_params(nic).max_data_size) {
+	if (pieces.init_data_size > cfg->max_data_size) {
 		IWL_ERR(nic, "uCode init data len %Zd too large to fit in\n",
 			pieces.init_data_size);
 		goto try_again;
