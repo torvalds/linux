@@ -642,7 +642,7 @@ static inline void blk_free_request(struct request_queue *q, struct request *rq)
 	if (rq->cmd_flags & REQ_ELVPRIV) {
 		elv_put_request(q, rq);
 		if (rq->elv.icq)
-			put_io_context(rq->elv.icq->ioc, q);
+			put_io_context(rq->elv.icq->ioc);
 	}
 
 	mempool_free(rq, q->rq.rq_pool);

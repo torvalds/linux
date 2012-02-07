@@ -1794,7 +1794,7 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		cfqd->active_queue = NULL;
 
 	if (cfqd->active_cic) {
-		put_io_context(cfqd->active_cic->icq.ioc, cfqd->queue);
+		put_io_context(cfqd->active_cic->icq.ioc);
 		cfqd->active_cic = NULL;
 	}
 }
