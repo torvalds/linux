@@ -63,6 +63,8 @@
 #include <trace/events/task.h>
 #include "internal.h"
 
+#include <trace/events/sched.h>
+
 int core_uses_pid;
 char core_pattern[CORENAME_MAX_SIZE] = "core";
 unsigned int core_pipe_limit;
@@ -1401,9 +1403,10 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 			 */
 			bprm->recursion_depth = depth;
 			if (retval >= 0) {
-				if (depth == 0)
-					ptrace_event(PTRACE_EVENT_EXEC,
-							old_pid);
+				if (depth == 0) {
+					trace_sched_process_exec(current, old_pid, bprm);
+					ptrace_event(PTRACE_EVENT_EXEC, old_pid);
+				}
 				put_binfmt(fmt);
 				allow_write_access(bprm->file);
 				if (bprm->file)
