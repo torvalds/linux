@@ -286,7 +286,7 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,                 "MaxLinear 301"},
 	{ TUNER_ABSENT,                 "Mirics MSi001"},
 	{ TUNER_ABSENT,                 "MaxLinear MxL241SF"},
-	{ TUNER_ABSENT,                 "Xceive XC5000C"},
+	{ TUNER_XC5000C,                "Xceive XC5000C"},
 	{ TUNER_ABSENT,                 "Montage M68TS2020"},
 };
 
