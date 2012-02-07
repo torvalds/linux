@@ -1455,7 +1455,9 @@ static int l2cap_ertm_send(struct l2cap_chan *chan)
 
 		if (bt_cb(skb)->retries == 1) {
 			chan->unacked_frames++;
-			nsent++;
+
+			if (!nsent++)
+				__clear_ack_timer(chan);
 		}
 
 		chan->frames_sent++;
