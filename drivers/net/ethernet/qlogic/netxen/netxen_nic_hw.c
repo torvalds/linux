@@ -2354,7 +2354,7 @@ netxen_md_rdqueue(struct netxen_adapter *adapter,
 */
 
 static int netxen_md_entry_err_chk(struct netxen_adapter *adapter,
-				struct netxen_minidump_entry *entry, u32 esize)
+				struct netxen_minidump_entry *entry, int esize)
 {
 	if (esize < 0) {
 		entry->hdr.driver_flags |= NX_DUMP_SKIP;
