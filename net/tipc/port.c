@@ -400,15 +400,16 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 
 	/* send self-abort message when rejecting on a connected port */
 	if (msg_connected(msg)) {
-		struct sk_buff *abuf = NULL;
 		struct tipc_port *p_ptr = tipc_port_lock(msg_destport(msg));
 
 		if (p_ptr) {
+			struct sk_buff *abuf = NULL;
+
 			if (p_ptr->connected)
 				abuf = port_build_self_abort_msg(p_ptr, err);
 			tipc_port_unlock(p_ptr);
+			tipc_net_route_msg(abuf);
 		}
-		tipc_net_route_msg(abuf);
 	}
 
 	/* send returned message & dispose of rejected message */

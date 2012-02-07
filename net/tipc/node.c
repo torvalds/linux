@@ -49,9 +49,8 @@ LIST_HEAD(tipc_node_list);
 static u32 tipc_num_nodes;
 
 static atomic_t tipc_num_links = ATOMIC_INIT(0);
-u32 tipc_own_tag;
 
-/**
+/*
  * tipc_node_find - locate specified node object, if it exists
  */
 
@@ -306,10 +305,9 @@ static void node_established_contact(struct tipc_node *n_ptr)
 	/* Syncronize broadcast acks */
 	n_ptr->bclink.acked = tipc_bclink_get_last_sent();
 
-	if (n_ptr->bclink.supported) {
+	if (n_ptr->bclink.supportable) {
 		tipc_bclink_add_node(n_ptr->addr);
-		if (n_ptr->addr < tipc_own_addr)
-			tipc_own_tag++;
+		n_ptr->bclink.supported = 1;
 	}
 }
 
@@ -338,12 +336,12 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 	/* Flush broadcast link info associated with lost node */
 
 	if (n_ptr->bclink.supported) {
-		n_ptr->bclink.gap_after = n_ptr->bclink.gap_to = 0;
 		while (n_ptr->bclink.deferred_head) {
 			struct sk_buff *buf = n_ptr->bclink.deferred_head;
 			n_ptr->bclink.deferred_head = buf->next;
 			buf_discard(buf);
 		}
+		n_ptr->bclink.deferred_size = 0;
 
 		if (n_ptr->bclink.defragm) {
 			buf_discard(n_ptr->bclink.defragm);
@@ -352,8 +350,6 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 
 		tipc_bclink_remove_node(n_ptr->addr);
 		tipc_bclink_acknowledge(n_ptr, INVALID_LINK_SEQ);
-		if (n_ptr->addr < tipc_own_addr)
-			tipc_own_tag--;
 
 		n_ptr->bclink.supported = 0;
 	}
@@ -449,7 +445,7 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 
 	read_lock_bh(&tipc_net_lock);
 
-	/* Get space for all unicast links + multicast link */
+	/* Get space for all unicast links + broadcast link */
 
 	payload_size = TLV_SPACE(sizeof(link_info)) *
 		(atomic_read(&tipc_num_links) + 1);
