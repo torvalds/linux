@@ -66,8 +66,9 @@
 
 #define EFX_CHANNEL_MAGIC_TEST(_channel)				\
 	_EFX_CHANNEL_MAGIC(_EFX_CHANNEL_MAGIC_TEST, (_channel)->channel)
-#define EFX_CHANNEL_MAGIC_FILL(_channel)				\
-	_EFX_CHANNEL_MAGIC(_EFX_CHANNEL_MAGIC_FILL, (_channel)->channel)
+#define EFX_CHANNEL_MAGIC_FILL(_rx_queue)				\
+	_EFX_CHANNEL_MAGIC(_EFX_CHANNEL_MAGIC_FILL,			\
+			   efx_rx_queue_index(_rx_queue))
 
 /**************************************************************************
  *
@@ -912,17 +913,20 @@ static void
 efx_handle_generated_event(struct efx_channel *channel, efx_qword_t *event)
 {
 	struct efx_nic *efx = channel->efx;
+	struct efx_rx_queue *rx_queue =
+		efx_channel_has_rx_queue(channel) ?
+		efx_channel_get_rx_queue(channel) : NULL;
 	unsigned magic;
 
 	magic = EFX_QWORD_FIELD(*event, FSF_AZ_DRV_GEN_EV_MAGIC);
 
 	if (magic == EFX_CHANNEL_MAGIC_TEST(channel))
 		; /* ignore */
-	else if (magic == EFX_CHANNEL_MAGIC_FILL(channel))
+	else if (rx_queue && magic == EFX_CHANNEL_MAGIC_FILL(rx_queue))
 		/* The queue must be empty, so we won't receive any rx
 		 * events, so efx_process_channel() won't refill the
 		 * queue. Refill it here */
-		efx_fast_push_rx_descriptors(efx_channel_get_rx_queue(channel));
+		efx_fast_push_rx_descriptors(rx_queue);
 	else
 		netif_dbg(efx, hw, efx->net_dev, "channel %d received "
 			  "generated event "EFX_QWORD_FMT"\n",
@@ -1150,9 +1154,10 @@ void efx_nic_generate_test_event(struct efx_channel *channel)
 	efx_magic_event(channel, EFX_CHANNEL_MAGIC_TEST(channel));
 }
 
-void efx_nic_generate_fill_event(struct efx_channel *channel)
+void efx_nic_generate_fill_event(struct efx_rx_queue *rx_queue)
 {
-	efx_magic_event(channel, EFX_CHANNEL_MAGIC_FILL(channel));
+	efx_magic_event(efx_rx_queue_channel(rx_queue),
+			EFX_CHANNEL_MAGIC_FILL(rx_queue));
 }
 
 /**************************************************************************

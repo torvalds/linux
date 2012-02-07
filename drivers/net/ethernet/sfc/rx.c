@@ -405,10 +405,9 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
 void efx_rx_slow_fill(unsigned long context)
 {
 	struct efx_rx_queue *rx_queue = (struct efx_rx_queue *)context;
-	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
 
 	/* Post an event to cause NAPI to run and refill the queue */
-	efx_nic_generate_fill_event(channel);
+	efx_nic_generate_fill_event(rx_queue);
 	++rx_queue->slow_fill_count;
 }
 

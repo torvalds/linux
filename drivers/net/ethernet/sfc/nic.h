@@ -195,6 +195,7 @@ extern void efx_nic_init_rx(struct efx_rx_queue *rx_queue);
 extern void efx_nic_fini_rx(struct efx_rx_queue *rx_queue);
 extern void efx_nic_remove_rx(struct efx_rx_queue *rx_queue);
 extern void efx_nic_notify_rx_desc(struct efx_rx_queue *rx_queue);
+extern void efx_nic_generate_fill_event(struct efx_rx_queue *rx_queue);
 
 /* Event data path */
 extern int efx_nic_probe_eventq(struct efx_channel *channel);
@@ -216,7 +217,6 @@ extern void falcon_update_stats_xmac(struct efx_nic *efx);
 extern int efx_nic_init_interrupt(struct efx_nic *efx);
 extern void efx_nic_enable_interrupts(struct efx_nic *efx);
 extern void efx_nic_generate_test_event(struct efx_channel *channel);
-extern void efx_nic_generate_fill_event(struct efx_channel *channel);
 extern void efx_nic_generate_interrupt(struct efx_nic *efx);
 extern void efx_nic_disable_interrupts(struct efx_nic *efx);
 extern void efx_nic_fini_interrupt(struct efx_nic *efx);
