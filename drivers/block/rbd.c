@@ -2564,19 +2564,21 @@ static int rbd_sysfs_init(void)
 {
 	int ret;
 
-	ret = bus_register(&rbd_bus_type);
+	ret = device_register(&rbd_root_dev);
 	if (ret < 0)
 		return ret;
 
-	ret = device_register(&rbd_root_dev);
+	ret = bus_register(&rbd_bus_type);
+	if (ret < 0)
+		device_unregister(&rbd_root_dev);
 
 	return ret;
 }
 
 static void rbd_sysfs_cleanup(void)
 {
-	device_unregister(&rbd_root_dev);
 	bus_unregister(&rbd_bus_type);
+	device_unregister(&rbd_root_dev);
 }
 
 int __init rbd_init(void)
