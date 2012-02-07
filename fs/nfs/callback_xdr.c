@@ -759,14 +759,14 @@ static void nfs4_callback_free_slot(struct nfs4_session *session)
 	 * Let the state manager know callback processing done.
 	 * A single slot, so highest used slotid is either 0 or -1
 	 */
-	tbl->highest_used_slotid = -1;
+	tbl->highest_used_slotid = NFS4_NO_SLOT;
 	nfs4_check_drain_bc_complete(session);
 	spin_unlock(&tbl->slot_tbl_lock);
 }
 
 static void nfs4_cb_free_slot(struct cb_process_state *cps)
 {
-	if (cps->slotid != -1)
+	if (cps->slotid != NFS4_NO_SLOT)
 		nfs4_callback_free_slot(cps->clp->cl_session);
 }
 
@@ -860,7 +860,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp, void *argp, void *r
 	struct cb_process_state cps = {
 		.drc_status = 0,
 		.clp = NULL,
-		.slotid = -1,
+		.slotid = NFS4_NO_SLOT,
 		.net = rqstp->rq_xprt->xpt_net,
 	};
 	unsigned int nops = 0;

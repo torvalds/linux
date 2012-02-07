@@ -191,6 +191,7 @@ struct nfs_server {
 
 /* maximum number of slots to use */
 #define NFS4_MAX_SLOT_TABLE (128U)
+#define NFS4_NO_SLOT ((u32)-1)
 
 #if defined(CONFIG_NFS_V4)
 
@@ -201,10 +202,10 @@ struct nfs4_slot_table {
 	unsigned long   used_slots[SLOT_TABLE_SZ]; /* used/unused bitmap */
 	spinlock_t	slot_tbl_lock;
 	struct rpc_wait_queue	slot_tbl_waitq;	/* allocators may wait here */
-	int		max_slots;		/* # slots in table */
-	int		highest_used_slotid;	/* sent to server on each SEQ.
+	u32		max_slots;		/* # slots in table */
+	u32		highest_used_slotid;	/* sent to server on each SEQ.
 						 * op for dynamic resizing */
-	int		target_max_slots;	/* Set by CB_RECALL_SLOT as
+	u32		target_max_slots;	/* Set by CB_RECALL_SLOT as
 						 * the new max_slots */
 	struct completion complete;
 };

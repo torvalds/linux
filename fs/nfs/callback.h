@@ -38,7 +38,7 @@ enum nfs4_callback_opnum {
 struct cb_process_state {
 	__be32			drc_status;
 	struct nfs_client	*clp;
-	int			slotid;
+	u32			slotid;
 	struct net		*net;
 };
 

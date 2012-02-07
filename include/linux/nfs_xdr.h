@@ -181,7 +181,7 @@ struct nfs4_slot {
 
 struct nfs4_sequence_args {
 	struct nfs4_session	*sa_session;
-	u8			sa_slotid;
+	u32			sa_slotid;
 	u8			sa_cache_this;
 };
 
