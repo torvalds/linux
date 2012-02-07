@@ -47,7 +47,7 @@
 			TPO_R03_EN_PRE_CHARGE | TPO_R03_SOFTWARE_CTL)
 
 static const u16 tpo_td043_def_gamma[12] = {
-	106, 200, 289, 375, 460, 543, 625, 705, 785, 864, 942, 1020
+	105, 315, 381, 431, 490, 537, 579, 686, 780, 837, 880, 1023
 };
 
 struct tpo_td043_device {
