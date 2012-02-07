@@ -604,7 +604,7 @@ static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	switch (batman_ogm_packet->header.packet_type) {
 		/* batman originator packet */
-	case BAT_OGM:
+	case BAT_IV_OGM:
 		ret = recv_bat_ogm_packet(skb, hard_iface);
 		break;
 

@@ -47,7 +47,7 @@ static int bat_iv_ogm_iface_enable(struct hard_iface *hard_iface)
 		goto out;
 
 	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
-	batman_ogm_packet->header.packet_type = BAT_OGM;
+	batman_ogm_packet->header.packet_type = BAT_IV_OGM;
 	batman_ogm_packet->header.version = COMPAT_VERSION;
 	batman_ogm_packet->header.ttl = 2;
 	batman_ogm_packet->flags = NO_FLAGS;
@@ -934,7 +934,7 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 	 * packet in an aggregation.  Here we expect that the padding
 	 * is always zero (or not 0x01)
 	 */
-	if (batman_ogm_packet->header.packet_type != BAT_OGM)
+	if (batman_ogm_packet->header.packet_type != BAT_IV_OGM)
 		return;
 
 	/* could be changed by schedule_own_packet() */
