@@ -129,15 +129,16 @@ static void __init rk30_init_uart(void)
 // i2c
 #ifdef CONFIG_I2C0_RK30
 static struct rk30_i2c_platform_data default_i2c0_data = {
-    .bus_num = 0,
-    .is_div_from_arm = 1,
-    #ifdef CONFIG_I2C0_CONTROLLER_RK29
-    .adap_type = I2C_RK29_ADAP,
-    #endif
-    #ifdef CONFIG_I2C0_CONTROLLER_RK30
-    .adap_type = I2C_RK30_ADAP,
-    #endif
+	.bus_num = 0,
+	.is_div_from_arm = 1,
+#ifdef CONFIG_I2C0_CONTROLLER_RK29
+	.adap_type = I2C_RK29_ADAP,
+#endif
+#ifdef CONFIG_I2C0_CONTROLLER_RK30
+	.adap_type = I2C_RK30_ADAP,
+#endif
 };
+
 static struct resource resources_i2c0[] = {
 	{
 		.start	= IRQ_I2C0,
@@ -156,22 +157,24 @@ static struct platform_device device_i2c0 = {
 	.id	= 0,
 	.num_resources	= ARRAY_SIZE(resources_i2c0),
 	.resource	= resources_i2c0,
-    .dev 			= {
+	.dev 		= {
 		.platform_data = &default_i2c0_data,
 	},
 };
 #endif
+
 #ifdef CONFIG_I2C1_RK30
 static struct rk30_i2c_platform_data default_i2c1_data = {
-    .bus_num = 1,
-    .is_div_from_arm = 1,
-    #ifdef CONFIG_I2C1_CONTROLLER_RK29
-    .adap_type = I2C_RK29_ADAP,
-    #endif
-    #ifdef CONFIG_I2C1_CONTROLLER_RK30
-    .adap_type = I2C_RK30_ADAP,
-    #endif
+	.bus_num = 1,
+	.is_div_from_arm = 1,
+#ifdef CONFIG_I2C1_CONTROLLER_RK29
+	.adap_type = I2C_RK29_ADAP,
+#endif
+#ifdef CONFIG_I2C1_CONTROLLER_RK30
+	.adap_type = I2C_RK30_ADAP,
+#endif
 };
+
 static struct resource resources_i2c1[] = {
 	{
 		.start	= IRQ_I2C1,
@@ -190,22 +193,24 @@ static struct platform_device device_i2c1 = {
 	.id	= 1,
 	.num_resources	= ARRAY_SIZE(resources_i2c1),
 	.resource	= resources_i2c1,
-    .dev 			= {
+	.dev 		= {
 		.platform_data = &default_i2c1_data,
 	},
 };
 #endif
+
 #ifdef CONFIG_I2C2_RK30
 static struct rk30_i2c_platform_data default_i2c2_data = {
-    .bus_num = 2,
-    .is_div_from_arm = 0,
-    #ifdef CONFIG_I2C2_CONTROLLER_RK29
-    .adap_type = I2C_RK29_ADAP,
-    #endif
-    #ifdef CONFIG_I2C2_CONTROLLER_RK30
-    .adap_type = I2C_RK30_ADAP,
-    #endif
+	.bus_num = 2,
+	.is_div_from_arm = 0,
+#ifdef CONFIG_I2C2_CONTROLLER_RK29
+	.adap_type = I2C_RK29_ADAP,
+#endif
+#ifdef CONFIG_I2C2_CONTROLLER_RK30
+	.adap_type = I2C_RK30_ADAP,
+#endif
 };
+
 static struct resource resources_i2c2[] = {
 	{
 		.start	= IRQ_I2C2,
@@ -224,7 +229,7 @@ static struct platform_device device_i2c2 = {
 	.id	= 2,
 	.num_resources	= ARRAY_SIZE(resources_i2c2),
 	.resource	= resources_i2c2,
-    .dev 			= {
+	.dev 		= {
 		.platform_data = &default_i2c2_data,
 	},
 };
@@ -232,15 +237,16 @@ static struct platform_device device_i2c2 = {
 
 #ifdef CONFIG_I2C3_RK30
 static struct rk30_i2c_platform_data default_i2c3_data = {
-    .bus_num = 3,
-    .is_div_from_arm = 0,
-    #ifdef CONFIG_I2C3_CONTROLLER_RK29
-    .adap_type = I2C_RK29_ADAP,
-    #endif
-    #ifdef CONFIG_I2C3_CONTROLLER_RK30
-    .adap_type = I2C_RK30_ADAP,
-    #endif
+	.bus_num = 3,
+	.is_div_from_arm = 0,
+#ifdef CONFIG_I2C3_CONTROLLER_RK29
+	.adap_type = I2C_RK29_ADAP,
+#endif
+#ifdef CONFIG_I2C3_CONTROLLER_RK30
+	.adap_type = I2C_RK30_ADAP,
+#endif
 };
+
 static struct resource resources_i2c3[] = {
 	{
 		.start	= IRQ_I2C3,
@@ -259,22 +265,24 @@ static struct platform_device device_i2c3 = {
 	.id	= 3,
 	.num_resources	= ARRAY_SIZE(resources_i2c3),
 	.resource	= resources_i2c3,
-    .dev 			= {
+	.dev 		= {
 		.platform_data = &default_i2c3_data,
 	},
 };
 #endif
+
 #ifdef CONFIG_I2C4_RK30
 static struct rk30_i2c_platform_data default_i2c4_data = {
-    .bus_num = 4,
-    .is_div_from_arm = 0,
-    #ifdef CONFIG_I2C4_CONTROLLER_RK29
-    .adap_type = I2C_RK29_ADAP,
-    #endif
-    #ifdef CONFIG_I2C4_CONTROLLER_RK30
-    .adap_type = I2C_RK30_ADAP,
-    #endif
+	.bus_num = 4,
+	.is_div_from_arm = 0,
+#ifdef CONFIG_I2C4_CONTROLLER_RK29
+	.adap_type = I2C_RK29_ADAP,
+#endif
+#ifdef CONFIG_I2C4_CONTROLLER_RK30
+	.adap_type = I2C_RK30_ADAP,
+#endif
 };
+
 static struct resource resources_i2c4[] = {
 	{
 		.start	= IRQ_I2C4,
@@ -293,7 +301,7 @@ static struct platform_device device_i2c4 = {
 	.id	= 4,
 	.num_resources	= ARRAY_SIZE(resources_i2c4),
 	.resource	= resources_i2c4,
-    .dev 			= {
+	.dev 		= {
 		.platform_data = &default_i2c4_data,
 	},
 };
@@ -318,7 +326,6 @@ static void __init rk30_init_i2c(void)
 #endif
 }
 //end of i2c
-
 
 #ifdef CONFIG_MTD_NAND_RK29XX
 static struct resource resources_nand[] = {
