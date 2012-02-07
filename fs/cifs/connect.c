@@ -773,10 +773,11 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		cifs_dump_mem("Bad SMB: ", buf,
 			min_t(unsigned int, server->total_read, 48));
 
-	if (mid)
-		handle_mid(mid, server, smb_buffer, length);
+	if (!mid)
+		return length;
 
-	return length;
+	handle_mid(mid, server, smb_buffer, length);
+	return 0;
 }
 
 static int
