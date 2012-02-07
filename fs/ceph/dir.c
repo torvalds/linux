@@ -975,10 +975,10 @@ static int dentry_lease_is_valid(struct dentry *dentry)
 	di = ceph_dentry(dentry);
 	if (di->lease_session) {
 		s = di->lease_session;
-		spin_lock(&s->s_cap_lock);
+		spin_lock(&s->s_gen_ttl_lock);
 		gen = s->s_cap_gen;
 		ttl = s->s_cap_ttl;
-		spin_unlock(&s->s_cap_lock);
+		spin_unlock(&s->s_gen_ttl_lock);
 
 		if (di->lease_gen == gen &&
 		    time_before(jiffies, dentry->d_time) &&
