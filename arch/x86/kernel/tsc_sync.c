@@ -42,7 +42,7 @@ static __cpuinitdata int nr_warps;
 /*
  * TSC-warp measurement loop running on both CPUs:
  */
-static __cpuinit void check_tsc_warp(void)
+static __cpuinit void check_tsc_warp(unsigned int timeout)
 {
 	cycles_t start, now, prev, end;
 	int i;
@@ -51,9 +51,9 @@ static __cpuinit void check_tsc_warp(void)
 	start = get_cycles();
 	rdtsc_barrier();
 	/*
-	 * The measurement runs for 20 msecs:
+	 * The measurement runs for 'timeout' msecs:
 	 */
-	end = start + tsc_khz * 20ULL;
+	end = start + (cycles_t) tsc_khz * timeout;
 	now = start;
 
 	for (i = 0; ; i++) {
@@ -99,6 +99,25 @@ static __cpuinit void check_tsc_warp(void)
 }
 
 /*
+ * If the target CPU coming online doesn't have any of its core-siblings
+ * online, a timeout of 20msec will be used for the TSC-warp measurement
+ * loop. Otherwise a smaller timeout of 2msec will be used, as we have some
+ * information about this socket already (and this information grows as we
+ * have more and more logical-siblings in that socket).
+ *
+ * Ideally we should be able to skip the TSC sync check on the other
+ * core-siblings, if the first logical CPU in a socket passed the sync test.
+ * But as the TSC is per-logical CPU and can potentially be modified wrongly
+ * by the bios, TSC sync test for smaller duration should be able
+ * to catch such errors. Also this will catch the condition where all the
+ * cores in the socket doesn't get reset at the same time.
+ */
+static inline unsigned int loop_timeout(int cpu)
+{
+	return (cpumask_weight(cpu_core_mask(cpu)) > 1) ? 2 : 20;
+}
+
+/*
  * Source CPU calls into this - it waits for the freshly booted
  * target CPU to arrive and then starts the measurement:
  */
@@ -135,7 +154,7 @@ void __cpuinit check_tsc_sync_source(int cpu)
 	 */
 	atomic_inc(&start_count);
 
-	check_tsc_warp();
+	check_tsc_warp(loop_timeout(cpu));
 
 	while (atomic_read(&stop_count) != cpus-1)
 		cpu_relax();
@@ -183,7 +202,7 @@ void __cpuinit check_tsc_sync_target(void)
 	while (atomic_read(&start_count) != cpus)
 		cpu_relax();
 
-	check_tsc_warp();
+	check_tsc_warp(loop_timeout(smp_processor_id()));
 
 	/*
 	 * Ok, we are done:
