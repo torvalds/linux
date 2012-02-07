@@ -20,3 +20,9 @@ void clk_disable(struct clk *clk)
 		return;
 }
 EXPORT_SYMBOL(clk_disable);
+
+unsigned long clk_get_rate(struct clk *clk)
+{
+	return 24000000;
+}
+EXPORT_SYMBOL(clk_get_rate);
