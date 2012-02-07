@@ -35,11 +35,8 @@ struct xc5000_fw_cfg {
 extern struct xc5000_fw_cfg xc5000a_1_6_114;
 extern struct xc5000_fw_cfg xc5000c_41_024_5_31875;
 
-#define XC5000_FW_A_1_6_114            &xc5000a_1_6_114
-#define XC5000_FW_C_41_024_5_31875     &xc5000c_41_024_5_31875
-
-#define XC5000_DEFAULT_FIRMWARE XC5000_FW_A_1_6_114
-#define XC5000C_DEFAULT_FIRMWARE XC5000_FW_C_41_024_5_31875
+#define XC5000_DEFAULT_FIRMWARE  &xc5000a_1_6_114
+#define XC5000C_DEFAULT_FIRMWARE &xc5000c_41_024_5_31875
 
 struct xc5000_config {
 	u8   i2c_address;
