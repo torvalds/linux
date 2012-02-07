@@ -218,8 +218,4 @@ struct iwl_fw {
 	bool enhance_sensitivity_table;
 };
 
-struct iwl_priv;
-
-int __must_check iwl_request_firmware(struct iwl_priv *priv, bool first);
-
 #endif  /* __iwl_ucode_h__ */

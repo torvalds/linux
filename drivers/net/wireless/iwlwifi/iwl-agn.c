@@ -1262,7 +1262,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 
 	init_completion(&nic(priv)->request_firmware_complete);
 
-	err = iwl_request_firmware(priv, true);
+	err = iwl_request_firmware(nic(priv), true);
 	if (err)
 		goto out_destroy_workqueue;
 

@@ -95,6 +95,7 @@ struct iwl_nic {
 };
 
 
+int __must_check iwl_request_firmware(struct iwl_nic *nic, bool first);
 void iwl_dealloc_ucode(struct iwl_nic *nic);
 
 int iwl_send_bt_env(struct iwl_trans *trans, u8 action, u8 type);
