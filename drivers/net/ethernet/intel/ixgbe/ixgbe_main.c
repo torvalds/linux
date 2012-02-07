@@ -840,6 +840,9 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		return true;
 	}
 
+	netdev_tx_completed_queue(txring_txq(tx_ring),
+				  total_packets, total_bytes);
+
 #define TX_WAKE_THRESHOLD (DESC_NEEDED * 2)
 	if (unlikely(total_packets && netif_carrier_ok(tx_ring->netdev) &&
 		     (ixgbe_desc_unused(tx_ring) >= TX_WAKE_THRESHOLD))) {
@@ -2616,6 +2619,8 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 
 	/* enable queue */
 	IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(reg_idx), txdctl);
+
+	netdev_tx_reset_queue(txring_txq(ring));
 
 	/* TXDCTL.EN will return 0 on 82598 if link is down, so skip it */
 	if (hw->mac.type == ixgbe_mac_82598EB &&
@@ -6807,6 +6812,8 @@ static void ixgbe_tx_map(struct ixgbe_ring *tx_ring,
 	tx_buffer_info->bytecount = paylen + (gso_segs * hdr_len);
 	tx_buffer_info->gso_segs = gso_segs;
 	tx_buffer_info->skb = skb;
+
+	netdev_tx_sent_queue(txring_txq(tx_ring), tx_buffer_info->bytecount);
 
 	/* set the timestamp */
 	first->time_stamp = jiffies;

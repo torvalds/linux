@@ -643,4 +643,9 @@ extern int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 				  struct netdev_fcoe_hbainfo *info);
 #endif /* IXGBE_FCOE */
 
+static inline struct netdev_queue *txring_txq(const struct ixgbe_ring *ring)
+{
+	return netdev_get_tx_queue(ring->netdev, ring->queue_index);
+}
+
 #endif /* _IXGBE_H_ */
