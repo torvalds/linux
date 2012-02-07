@@ -851,7 +851,7 @@ static struct omap_board_mux board_mux[] __initdata = {
 #define board_mux	NULL
  #endif
 
-static void omap4_sdp4430_wifi_mux_init(void)
+static void __init omap4_sdp4430_wifi_mux_init(void)
 {
 	omap_mux_init_gpio(GPIO_WIFI_IRQ, OMAP_PIN_INPUT |
 				OMAP_PIN_OFF_WAKEUPENABLE);
