@@ -1939,6 +1939,7 @@ static inline void netdev_completed_queue(struct net_device *dev,
 static inline void netdev_tx_reset_queue(struct netdev_queue *q)
 {
 #ifdef CONFIG_BQL
+	clear_bit(__QUEUE_STATE_STACK_XOFF, &q->state);
 	dql_reset(&q->dql);
 #endif
 }
