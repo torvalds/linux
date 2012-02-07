@@ -1899,12 +1899,22 @@ static inline void netdev_tx_sent_queue(struct netdev_queue *dev_queue,
 {
 #ifdef CONFIG_BQL
 	dql_queued(&dev_queue->dql, bytes);
-	if (unlikely(dql_avail(&dev_queue->dql) < 0)) {
-		set_bit(__QUEUE_STATE_STACK_XOFF, &dev_queue->state);
-		if (unlikely(dql_avail(&dev_queue->dql) >= 0))
-			clear_bit(__QUEUE_STATE_STACK_XOFF,
-			    &dev_queue->state);
-	}
+
+	if (likely(dql_avail(&dev_queue->dql) >= 0))
+		return;
+
+	set_bit(__QUEUE_STATE_STACK_XOFF, &dev_queue->state);
+
+	/*
+	 * The XOFF flag must be set before checking the dql_avail below,
+	 * because in netdev_tx_completed_queue we update the dql_completed
+	 * before checking the XOFF flag.
+	 */
+	smp_mb();
+
+	/* check again in case another CPU has just made room avail */
+	if (unlikely(dql_avail(&dev_queue->dql) >= 0))
+		clear_bit(__QUEUE_STATE_STACK_XOFF, &dev_queue->state);
 #endif
 }
 
@@ -1917,16 +1927,23 @@ static inline void netdev_tx_completed_queue(struct netdev_queue *dev_queue,
 					     unsigned pkts, unsigned bytes)
 {
 #ifdef CONFIG_BQL
-	if (likely(bytes)) {
-		dql_completed(&dev_queue->dql, bytes);
-		if (unlikely(test_bit(__QUEUE_STATE_STACK_XOFF,
-		    &dev_queue->state) &&
-		    dql_avail(&dev_queue->dql) >= 0)) {
-			if (test_and_clear_bit(__QUEUE_STATE_STACK_XOFF,
-			     &dev_queue->state))
-				netif_schedule_queue(dev_queue);
-		}
-	}
+	if (unlikely(!bytes))
+		return;
+
+	dql_completed(&dev_queue->dql, bytes);
+
+	/*
+	 * Without the memory barrier there is a small possiblity that
+	 * netdev_tx_sent_queue will miss the update and cause the queue to
+	 * be stopped forever
+	 */
+	smp_mb();
+
+	if (dql_avail(&dev_queue->dql) < 0)
+		return;
+
+	if (test_and_clear_bit(__QUEUE_STATE_STACK_XOFF, &dev_queue->state))
+		netif_schedule_queue(dev_queue);
 #endif
 }
 
