@@ -191,7 +191,7 @@ static int tps62360_dcdc_list_voltage(struct regulator_dev *dev,
 {
 	struct tps62360_chip *tps = rdev_get_drvdata(dev);
 
-	if ((selector < 0) || (selector >= tps->desc.n_voltages))
+	if (selector >= tps->desc.n_voltages)
 		return -EINVAL;
 	return (tps->voltage_base + selector * 10) * 1000;
 }
