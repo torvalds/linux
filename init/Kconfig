@@ -952,7 +952,6 @@ config UIDGID_CONVERTED
 	depends on QNX6FS_FS = n
 	depends on REISERFS_FS = n
 	depends on SQUASHFS = n
-	depends on SYSFS = n
 	depends on SYSV_FS = n
 	depends on TMPFS = n
 	depends on UBIFS_FS = n
