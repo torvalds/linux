@@ -23,10 +23,8 @@
 #define		AT91_PMC_PCK		(1 <<  0)		/* Processor Clock */
 #define		AT91RM9200_PMC_UDP	(1 <<  1)		/* USB Devcice Port Clock [AT91RM9200 only] */
 #define		AT91RM9200_PMC_MCKUDP	(1 <<  2)		/* USB Device Port Master Clock Automatic Disable on Suspend [AT91RM9200 only] */
-#define		AT91CAP9_PMC_DDR	(1 <<  2)		/* DDR Clock [CAP9 revC & some SAM9 only] */
 #define		AT91RM9200_PMC_UHP	(1 <<  4)		/* USB Host Port Clock [AT91RM9200 only] */
 #define		AT91SAM926x_PMC_UHP	(1 <<  6)		/* USB Host Port Clock [AT91SAM926x only] */
-#define		AT91CAP9_PMC_UHP	(1 <<  6)		/* USB Host Port Clock [AT91CAP9 only] */
 #define		AT91SAM926x_PMC_UDP	(1 <<  7)		/* USB Devcice Port Clock [AT91SAM926x only] */
 #define		AT91_PMC_PCK0		(1 <<  8)		/* Programmable Clock 0 */
 #define		AT91_PMC_PCK1		(1 <<  9)		/* Programmable Clock 1 */
@@ -40,16 +38,20 @@
 #define	AT91_PMC_PCDR		(AT91_PMC + 0x14)	/* Peripheral Clock Disable Register */
 #define	AT91_PMC_PCSR		(AT91_PMC + 0x18)	/* Peripheral Clock Status Register */
 
-#define	AT91_CKGR_UCKR		(AT91_PMC + 0x1C)	/* UTMI Clock Register [some SAM9, CAP9] */
+#define	AT91_CKGR_UCKR		(AT91_PMC + 0x1C)	/* UTMI Clock Register [some SAM9] */
 #define		AT91_PMC_UPLLEN		(1   << 16)		/* UTMI PLL Enable */
 #define		AT91_PMC_UPLLCOUNT	(0xf << 20)		/* UTMI PLL Start-up Time */
 #define		AT91_PMC_BIASEN		(1   << 24)		/* UTMI BIAS Enable */
 #define		AT91_PMC_BIASCOUNT	(0xf << 28)		/* UTMI BIAS Start-up Time */
 
 #define	AT91_CKGR_MOR		(AT91_PMC + 0x20)	/* Main Oscillator Register [not on SAM9RL] */
-#define		AT91_PMC_MOSCEN		(1    << 0)		/* Main Oscillator Enable */
-#define		AT91_PMC_OSCBYPASS	(1    << 1)		/* Oscillator Bypass [SAM9x, CAP9] */
-#define		AT91_PMC_OSCOUNT	(0xff << 8)		/* Main Oscillator Start-up Time */
+#define		AT91_PMC_MOSCEN		(1    <<  0)		/* Main Oscillator Enable */
+#define		AT91_PMC_OSCBYPASS	(1    <<  1)		/* Oscillator Bypass */
+#define		AT91_PMC_MOSCRCEN	(1    <<  3)		/* Main On-Chip RC Oscillator Enable [some SAM9] */
+#define		AT91_PMC_OSCOUNT	(0xff <<  8)		/* Main Oscillator Start-up Time */
+#define		AT91_PMC_KEY		(0x37 << 16)		/* MOR Writing Key */
+#define		AT91_PMC_MOSCSEL	(1    << 24)		/* Main Oscillator Selection [some SAM9] */
+#define		AT91_PMC_CFDEN		(1    << 25)		/* Clock Failure Detector Enable [some SAM9] */
 
 #define	AT91_CKGR_MCFR		(AT91_PMC + 0x24)	/* Main Clock Frequency Register */
 #define		AT91_PMC_MAINF		(0xffff <<  0)		/* Main Clock Frequency */
@@ -74,20 +76,30 @@
 #define			AT91_PMC_CSS_PLLA		(2 << 0)
 #define			AT91_PMC_CSS_PLLB		(3 << 0)
 #define			AT91_PMC_CSS_UPLL		(3 << 0)	/* [some SAM9 only] */
-#define		AT91_PMC_PRES		(7 <<  2)		/* Master Clock Prescaler */
-#define			AT91_PMC_PRES_1			(0 << 2)
-#define			AT91_PMC_PRES_2			(1 << 2)
-#define			AT91_PMC_PRES_4			(2 << 2)
-#define			AT91_PMC_PRES_8			(3 << 2)
-#define			AT91_PMC_PRES_16		(4 << 2)
-#define			AT91_PMC_PRES_32		(5 << 2)
-#define			AT91_PMC_PRES_64		(6 << 2)
+#define		PMC_PRES_OFFSET		2
+#define		AT91_PMC_PRES		(7 <<  PMC_PRES_OFFSET)		/* Master Clock Prescaler */
+#define			AT91_PMC_PRES_1			(0 << PMC_PRES_OFFSET)
+#define			AT91_PMC_PRES_2			(1 << PMC_PRES_OFFSET)
+#define			AT91_PMC_PRES_4			(2 << PMC_PRES_OFFSET)
+#define			AT91_PMC_PRES_8			(3 << PMC_PRES_OFFSET)
+#define			AT91_PMC_PRES_16		(4 << PMC_PRES_OFFSET)
+#define			AT91_PMC_PRES_32		(5 << PMC_PRES_OFFSET)
+#define			AT91_PMC_PRES_64		(6 << PMC_PRES_OFFSET)
+#define		PMC_ALT_PRES_OFFSET	4
+#define		AT91_PMC_ALT_PRES	(7 <<  PMC_ALT_PRES_OFFSET)		/* Master Clock Prescaler [alternate location] */
+#define			AT91_PMC_ALT_PRES_1		(0 << PMC_ALT_PRES_OFFSET)
+#define			AT91_PMC_ALT_PRES_2		(1 << PMC_ALT_PRES_OFFSET)
+#define			AT91_PMC_ALT_PRES_4		(2 << PMC_ALT_PRES_OFFSET)
+#define			AT91_PMC_ALT_PRES_8		(3 << PMC_ALT_PRES_OFFSET)
+#define			AT91_PMC_ALT_PRES_16		(4 << PMC_ALT_PRES_OFFSET)
+#define			AT91_PMC_ALT_PRES_32		(5 << PMC_ALT_PRES_OFFSET)
+#define			AT91_PMC_ALT_PRES_64		(6 << PMC_ALT_PRES_OFFSET)
 #define		AT91_PMC_MDIV		(3 <<  8)		/* Master Clock Division */
 #define			AT91RM9200_PMC_MDIV_1		(0 << 8)	/* [AT91RM9200 only] */
 #define			AT91RM9200_PMC_MDIV_2		(1 << 8)
 #define			AT91RM9200_PMC_MDIV_3		(2 << 8)
 #define			AT91RM9200_PMC_MDIV_4		(3 << 8)
-#define			AT91SAM9_PMC_MDIV_1		(0 << 8)	/* [SAM9,CAP9 only] */
+#define			AT91SAM9_PMC_MDIV_1		(0 << 8)	/* [SAM9 only] */
 #define			AT91SAM9_PMC_MDIV_2		(1 << 8)
 #define			AT91SAM9_PMC_MDIV_4		(2 << 8)
 #define			AT91SAM9_PMC_MDIV_6		(3 << 8)	/* [some SAM9 only] */
@@ -105,7 +117,14 @@
 #define			AT91_PMC_USBS_UPLL		(1 << 0)
 #define		AT91_PMC_OHCIUSBDIV	(0xF <<  8)		/* Divider for USB OHCI Clock */
 
+#define	AT91_PMC_SMD		(AT91_PMC + 0x3c)	/* Soft Modem Clock Register [some SAM9 only] */
+#define		AT91_PMC_SMDS		(0x1  <<  0)		/* SMD input clock selection */
+#define		AT91_PMC_SMD_DIV	(0x1f <<  8)		/* SMD input clock divider */
+#define		AT91_PMC_SMDDIV(n)	(((n) <<  8) & AT91_PMC_SMD_DIV)
+
 #define	AT91_PMC_PCKR(n)	(AT91_PMC + 0x40 + ((n) * 4))	/* Programmable Clock 0-N Registers */
+#define		AT91_PMC_ALT_PCKR_CSS	(0x7 <<  0)		/* Programmable Clock Source Selection [alternate length] */
+#define			AT91_PMC_CSS_MASTER		(4 << 0)	/* [some SAM9 only] */
 #define		AT91_PMC_CSSMCK		(0x1 <<  8)		/* CSS or Master Clock Selection */
 #define			AT91_PMC_CSSMCK_CSS		(0 << 8)
 #define			AT91_PMC_CSSMCK_MCK		(1 << 8)
@@ -117,17 +136,30 @@
 #define		AT91_PMC_LOCKA		(1 <<  1)		/* PLLA Lock */
 #define		AT91_PMC_LOCKB		(1 <<  2)		/* PLLB Lock */
 #define		AT91_PMC_MCKRDY		(1 <<  3)		/* Master Clock */
-#define		AT91_PMC_LOCKU		(1 <<  6)		/* UPLL Lock [some SAM9, AT91CAP9 only] */
-#define		AT91_PMC_OSCSEL		(1 <<  7)		/* Slow Clock Oscillator [AT91CAP9 revC only] */
+#define		AT91_PMC_LOCKU		(1 <<  6)		/* UPLL Lock [some SAM9] */
 #define		AT91_PMC_PCK0RDY	(1 <<  8)		/* Programmable Clock 0 */
 #define		AT91_PMC_PCK1RDY	(1 <<  9)		/* Programmable Clock 1 */
 #define		AT91_PMC_PCK2RDY	(1 << 10)		/* Programmable Clock 2 */
 #define		AT91_PMC_PCK3RDY	(1 << 11)		/* Programmable Clock 3 */
+#define		AT91_PMC_MOSCSELS	(1 << 16)		/* Main Oscillator Selection [some SAM9] */
+#define		AT91_PMC_MOSCRCS	(1 << 17)		/* Main On-Chip RC [some SAM9] */
+#define		AT91_PMC_CFDEV		(1 << 18)		/* Clock Failure Detector Event [some SAM9] */
 #define	AT91_PMC_IMR		(AT91_PMC + 0x6c)	/* Interrupt Mask Register */
 
-#define AT91_PMC_PROT		(AT91_PMC + 0xe4)	/* Protect Register [AT91CAP9 revC only] */
-#define		AT91_PMC_PROTKEY	0x504d4301	/* Activation Code */
+#define AT91_PMC_PROT		(AT91_PMC + 0xe4)	/* Write Protect Mode Register [some SAM9] */
+#define		AT91_PMC_WPEN		(0x1  <<  0)		/* Write Protect Enable */
+#define		AT91_PMC_WPKEY		(0xffffff << 8)		/* Write Protect Key */
+#define		AT91_PMC_PROTKEY	(0x504d43 << 8)		/* Activation Code */
 
-#define AT91_PMC_VER		(AT91_PMC + 0xfc)	/* PMC Module Version [AT91CAP9 only] */
+#define AT91_PMC_WPSR		(AT91_PMC + 0xe8)	/* Write Protect Status Register [some SAM9] */
+#define		AT91_PMC_WPVS		(0x1  <<  0)		/* Write Protect Violation Status */
+#define		AT91_PMC_WPVSRC		(0xffff  <<  8)		/* Write Protect Violation Source */
+
+#define AT91_PMC_PCR		(AT91_PMC + 0x10c)	/* Peripheral Control Register [some SAM9] */
+#define		AT91_PMC_PCR_PID	(0x3f  <<  0)		/* Peripheral ID */
+#define		AT91_PMC_PCR_CMD	(0x1  <<  12)		/* Command */
+#define		AT91_PMC_PCR_DIV	(0x3  <<  16)		/* Divisor Value */
+#define		AT91_PMC_PCRDIV(n)	(((n) <<  16) & AT91_PMC_PCR_DIV)
+#define		AT91_PMC_PCR_EN		(0x1  <<  28)		/* Enable */
 
 #endif
