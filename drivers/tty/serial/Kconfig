@@ -1513,52 +1513,52 @@ config SERIAL_BCM63XX_CONSOLE
 	  you can make it the console by answering Y to this option.
 
 config SERIAL_RK29
-	bool "RockChip rk29 serial port support"
-	depends on ARM && ARCH_RK29
+	bool "RockChip RK29/RK30 serial port support"
+	depends on ARCH_RK29 || ARCH_RK30
 	select SERIAL_CORE
 
 config UART0_RK29
-	bool "RockChip rk29 serial port 0 support"
+	bool "Serial port 0 support"
 	depends on SERIAL_RK29
 
 config UART0_CTS_RTS_RK29
-	bool "RockChip rk29 serial port 0 CTS/RTS support"
+	bool "Serial port 0 CTS/RTS support"
 	depends on UART0_RK29
 
 config UART0_DMA_RK29
-	bool "RockChip rk29 serial port 0 DMA support (EXPERIMENTAL)"
+	bool "Serial port 0 DMA support (EXPERIMENTAL)"
 	depends on UART0_RK29
 
 config UART1_RK29
-	bool "RockChip rk29 serial port 1 support"
+	bool "Serial port 1 support"
 	depends on SERIAL_RK29
 
 config UART2_RK29
-	bool "RockChip rk29 serial port 2 support"
+	bool "Serial port 2 support"
 	depends on SERIAL_RK29
 
 config UART2_CTS_RTS_RK29
-	bool "RockChip rk29 serial port 2 CTS/RTS support"
+	bool "Serial port 2 CTS/RTS support"
 	depends on UART2_RK29
 
 config UART2_DMA_RK29
-	bool "RockChip rk29 serial port 2 DMA support (EXPERIMENTAL)"
+	bool "Serial port 2 DMA support (EXPERIMENTAL)"
 	depends on UART2_RK29
 
 config UART3_RK29
-	bool "RockChip rk29 serial port 3 support"
+	bool "Serial port 3 support"
 	depends on SERIAL_RK29
 
 config UART3_CTS_RTS_RK29
-	bool "RockChip rk29 serial port 3 CTS/RTS support"
+	bool "Serial port 3 CTS/RTS support"
 	depends on UART3_RK29
 
 config UART3_DMA_RK29
-	bool "RockChip rk29 serial port 3 DMA support (EXPERIMENTAL)"
+	bool "Serial port 3 DMA support (EXPERIMENTAL)"
 	depends on UART3_RK29
 
 config SERIAL_RK29_CONSOLE
-	bool "Rockchip rk29 serial console support"
+	bool "Serial console support"
 	depends on SERIAL_RK29=y
 	select SERIAL_CORE_CONSOLE
 

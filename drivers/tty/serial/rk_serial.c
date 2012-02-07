@@ -45,7 +45,6 @@
 #include <linux/clk.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
-#include <mach/rk29-dma-pl330.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/io.h>
@@ -90,6 +89,11 @@
 
 #define UART1_USE_DMA CLOSE_DMA
 
+#define USE_DMA (UART0_USE_DMA | UART1_USE_DMA | UART2_USE_DMA | UART3_USE_DMA)
+#if USE_DMA
+#include <mach/dma-pl330.h>
+#endif
+
 #define DMA_TX_TRRIGE_LEVEL 30
 
 #define USE_TIMER 1           // use timer for dma transport
@@ -130,6 +134,7 @@ static void dbg(const char *fmt, ...)
 #endif
 
 
+#if USE_DMA
 /* added by hhb@rock-chips.com for uart dma transfer */
 
 struct rk29_uart_dma_t {
@@ -158,6 +163,7 @@ struct rk29_uart_dma_t {
 	int			rx_timeout;
 
 };
+#endif
 
 struct uart_rk_port {
 	struct uart_port	port;
@@ -188,19 +194,25 @@ struct uart_rk_port {
 	struct work_struct uart_work;
 	struct work_struct uart_work_rx;
 	struct workqueue_struct *uart_wq;
+#if USE_DMA
 	struct rk29_uart_dma_t *prk29_uart_dma_t;
+#endif
 };
 
+#if USE_DMA
 static void serial_rk_release_dma_tx(struct uart_port *port);
 static int serial_rk_start_tx_dma(struct uart_port *port);
 static void serial_rk_rx_timeout(unsigned long uart);
 static void serial_rk_release_dma_rx(struct uart_port *port);
 static int serial_rk_start_rx_dma(struct uart_port *port);
+#else
+static inline int serial_rk_start_tx_dma(struct uart_port *port) { return 0; }
+#endif
 static int serial_rk_startup(struct uart_port *port);
 static inline unsigned int serial_in(struct uart_rk_port *up, int offset)
 {
 	offset = offset << 2;
-	return readb(up->port.membase + offset);
+	return __raw_readb(up->port.membase + offset);
 }
 
 /* Save the LCR value so it can be re-written when a Busy Detect IRQ occurs. */
@@ -221,7 +233,8 @@ static inline void dwapb_check_clear_ier(struct uart_rk_port *up, int offset)
 static inline void serial_out(struct uart_rk_port *up, int offset, unsigned char value)
 {
 	dwapb_save_out_value(up, offset, value);
-	writeb(value, up->port.membase + (offset << 2));
+	__raw_writeb(value, up->port.membase + (offset << 2));
+	dsb();
 	dwapb_check_clear_ier(up, offset);
 }
 
@@ -344,11 +357,13 @@ static void serial_rk_stop_tx(struct uart_port *port)
 {
 	struct uart_rk_port *up =
 		container_of(port, struct uart_rk_port, port);
+#if USE_DMA
 	struct rk29_uart_dma_t *prk29_uart_dma_t = up->prk29_uart_dma_t;
 
 	if(OPEN_DMA == prk29_uart_dma_t->use_dma){
 		serial_rk_release_dma_tx(port);
 	}
+#endif
 	__stop_tx(up);
 }
 
@@ -370,11 +385,13 @@ static void serial_rk_stop_rx(struct uart_port *port)
 {
 	struct uart_rk_port *up =
 		container_of(port, struct uart_rk_port, port);
+#if USE_DMA
 	struct rk29_uart_dma_t *prk29_uart_dma_t = up->prk29_uart_dma_t;
 
 	if(OPEN_DMA == prk29_uart_dma_t->use_dma){
 		serial_rk_release_dma_rx(port);
 	}
+#endif
 	up->ier &= ~UART_IER_RLSI;
 	up->port.read_status_mask &= ~UART_LSR_DR;
 	serial_out(up, UART_IER, up->ier);
@@ -395,6 +412,7 @@ static void serial_rk_enable_ms(struct uart_port *port)
 }
 
 
+#if USE_DMA
 /*
  * Start transmitting by dma.
  */
@@ -758,6 +776,7 @@ static void serial_rk_start_dma_rx(struct work_struct *work)
 					container_of(work, struct uart_rk_port, uart_work_rx);
 	serial_rk_start_rx_dma(&up->port);
 }
+#endif /* USE_DMA */
 
 
 
@@ -916,6 +935,7 @@ static void serial_rk_handle_port(struct uart_rk_port *up)
 	status = serial_in(up, UART_LSR);
 
 	DEBUG_INTR("status = %x...", status);
+#if USE_DMA
 	/* DMA mode enable */
 	if(up->prk29_uart_dma_t->use_dma == 1) {
 
@@ -934,7 +954,9 @@ static void serial_rk_handle_port(struct uart_rk_port *up)
 			}
 		}
 
-	}else {   //dma mode disable
+	} else
+#endif
+	{	//dma mode disable
 
 		/*
 		 * when uart receive a serial of data which doesn't have stop bit and so on, that causes frame error,and
@@ -1223,6 +1245,7 @@ static int serial_rk_startup(struct uart_port *port)
 	up->msr_saved_flags = 0;
 #endif
 
+#if USE_DMA
 	if (1 == up->prk29_uart_dma_t->use_dma) {
 
 		if(up->port.state->xmit.buf != up->prk29_uart_dma_t->tx_buffer){
@@ -1239,7 +1262,9 @@ static int serial_rk_startup(struct uart_port *port)
 #endif
 		up->port_activity = jiffies;
 
-	}else{
+	} else
+#endif /* USE_DMA */
+	{
 		up->ier = 0;
 		serial_out(up, UART_IER, up->ier);
 	}
@@ -1367,11 +1392,13 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_TRIGGER_1;
 	}
 	else{
+#if USE_DMA
 		//added by hhb@rock-chips.com
 		if(up->prk29_uart_dma_t->use_timer == 1){
 			fcr = UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_00 | UART_FCR_T_TRIG_01;
-		}
-		else{
+		} else
+#endif
+		{
 			fcr = UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10 | UART_FCR_T_TRIG_01;
 		}
 	}
@@ -1728,13 +1755,17 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 
 	sprintf(up->name, "rk29_serial.%d", pdev->id);
 	up->pdev = pdev;
+#ifdef CONFIG_ARCH_RK29
 	up->clk = clk_get(&pdev->dev, "uart");
 	if (unlikely(IS_ERR(up->clk))) {
 		ret = PTR_ERR(up->clk);
 		goto do_free;
 	}
+#endif
 	up->tx_loadsz = 30;
+#if USE_DMA
 	up->prk29_uart_dma_t = &rk29_uart_ports_dma_t[pdev->id];
+#endif
 	up->port.dev = &pdev->dev;
 	up->port.type = PORT_RK;
 	up->port.irq = irq;
@@ -1754,6 +1785,7 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 	up->port.irqflags = IRQF_DISABLED;
 	up->port.uartclk = clk_get_rate(up->clk);
 
+#if USE_DMA
 	/* set dma config */
 	if(1 == up->prk29_uart_dma_t->use_dma) {
 		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
@@ -1801,6 +1833,7 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 		up->ier |= THRE_MODE;                   // enable THRE interrupt mode
 		serial_out(up, UART_IER, up->ier);
 	}
+#endif
 
 	serial_rk_add_console_port(up);
 	ret = uart_add_one_port(&serial_rk_reg, &up->port);
@@ -1877,7 +1910,7 @@ static struct platform_driver serial_rk_driver = {
 	.suspend	= serial_rk_suspend,
 	.resume		= serial_rk_resume,
 	.driver		= {
-#if defined(CONFIG_SERIAL_RK29)
+#if defined(CONFIG_ARCH_RK29)
 		.name	= "rk29_serial",
 #elif defined(CONFIG_SERIAL_RK2818)
 		.name	= "rk2818_serial",
