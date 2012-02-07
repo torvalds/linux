@@ -362,7 +362,7 @@ struct idmap_hashent {
 	unsigned long		ih_expires;
 	__u32			ih_id;
 	size_t			ih_namelen;
-	char			ih_name[IDMAP_NAMESZ];
+	const char		*ih_name;
 };
 
 struct idmap_hashtable {
@@ -482,12 +482,17 @@ void
 nfs_idmap_delete(struct nfs_client *clp)
 {
 	struct idmap *idmap = clp->cl_idmap;
+	int i;
 
 	if (!idmap)
 		return;
 	nfs_idmap_unregister(clp, idmap->idmap_pipe);
 	rpc_destroy_pipe_data(idmap->idmap_pipe);
 	clp->cl_idmap = NULL;
+	for (i = 0; i < ARRAY_SIZE(idmap->idmap_user_hash.h_entries); i++)
+		kfree(idmap->idmap_user_hash.h_entries[i].ih_name);
+	for (i = 0; i < ARRAY_SIZE(idmap->idmap_group_hash.h_entries); i++)
+		kfree(idmap->idmap_group_hash.h_entries[i].ih_name);
 	kfree(idmap);
 }
 
@@ -634,9 +639,14 @@ static void
 idmap_update_entry(struct idmap_hashent *he, const char *name,
 		size_t namelen, __u32 id)
 {
+	char *str = kmalloc(namelen + 1, GFP_KERNEL);
+	if (str == NULL)
+		return;
+	kfree(he->ih_name);
 	he->ih_id = id;
-	memcpy(he->ih_name, name, namelen);
-	he->ih_name[namelen] = '\0';
+	memcpy(str, name, namelen);
+	str[namelen] = '\0';
+	he->ih_name = str;
 	he->ih_namelen = namelen;
 	he->ih_expires = jiffies + nfs_idmap_cache_timeout;
 }
