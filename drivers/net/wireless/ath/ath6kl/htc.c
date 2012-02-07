@@ -23,6 +23,9 @@
 
 #define CALC_TXRX_PADDED_LEN(dev, len)  (__ALIGN_MASK((len), (dev)->block_mask))
 
+/* threshold to re-enable Tx bundling for an AC*/
+#define TX_RESUME_BUNDLE_THRESHOLD	1500
+
 /* Functions for Tx credit handling */
 static void ath6kl_credit_deposit(struct ath6kl_htc_credit_info *cred_info,
 				  struct htc_endpoint_credit_dist *ep_dist,
@@ -745,6 +748,12 @@ static void ath6kl_htc_tx_bundle(struct htc_endpoint *endpoint,
 	struct hif_scatter_req *scat_req = NULL;
 	int n_scat, n_sent_bundle = 0, tot_pkts_bundle = 0;
 	int status;
+	u32 txb_mask;
+	u8 ac = WMM_NUM_AC;
+
+	if ((HTC_CTRL_RSVD_SVC != endpoint->svc_id) ||
+		(WMI_CONTROL_SVC != endpoint->svc_id))
+		ac = target->dev->ar->ep2ac_map[endpoint->eid];
 
 	while (true) {
 		status = 0;
@@ -762,6 +771,31 @@ static void ath6kl_htc_tx_bundle(struct htc_endpoint *endpoint,
 			ath6kl_dbg(ATH6KL_DBG_HTC,
 				"htc tx no more scatter resources\n");
 			break;
+		}
+
+		if ((ac < WMM_NUM_AC) && (ac != WMM_AC_BK)) {
+			if (WMM_AC_BE == ac)
+				/*
+				 * BE, BK have priorities and bit
+				 * positions reversed
+				 */
+				txb_mask = (1 << WMM_AC_BK);
+			else
+				/*
+				 * any AC with priority lower than
+				 * itself
+				 */
+				txb_mask = ((1 << ac) - 1);
+		/*
+		 * when the scatter request resources drop below a
+		 * certain threshold, disable Tx bundling for all
+		 * AC's with priority lower than the current requesting
+		 * AC. Otherwise re-enable Tx bundling for them
+		 */
+		if (scat_req->scat_q_depth < ATH6KL_SCATTER_REQS)
+			target->tx_bndl_mask &= ~txb_mask;
+		else
+			target->tx_bndl_mask |= txb_mask;
 		}
 
 		ath6kl_dbg(ATH6KL_DBG_HTC, "htc tx pkts to scatter: %d\n",
@@ -807,6 +841,7 @@ static void ath6kl_htc_tx_from_queue(struct htc_target *target,
 	struct htc_packet *packet;
 	int bundle_sent;
 	int n_pkts_bundle;
+	u8 ac = WMM_NUM_AC;
 
 	spin_lock_bh(&target->tx_lock);
 
@@ -823,6 +858,10 @@ static void ath6kl_htc_tx_from_queue(struct htc_target *target,
 	 * as we have enough credits.
 	 */
 	INIT_LIST_HEAD(&txq);
+
+	if ((HTC_CTRL_RSVD_SVC != endpoint->svc_id) ||
+		(WMI_CONTROL_SVC != endpoint->svc_id))
+		ac = target->dev->ar->ep2ac_map[endpoint->eid];
 
 	while (true) {
 
@@ -841,15 +880,18 @@ static void ath6kl_htc_tx_from_queue(struct htc_target *target,
 
 		while (true) {
 			/* try to send a bundle on each pass */
-			if ((target->tx_bndl_enable) &&
+			if ((target->tx_bndl_mask) &&
 			    (get_queue_depth(&txq) >=
 			    HTC_MIN_HTC_MSGS_TO_BUNDLE)) {
 				int temp1 = 0, temp2 = 0;
 
-				ath6kl_htc_tx_bundle(endpoint, &txq,
-						     &temp1, &temp2);
-				bundle_sent += temp1;
-				n_pkts_bundle += temp2;
+				/* check if bundling is enabled for an AC */
+				if (target->tx_bndl_mask & (1 << ac)) {
+					ath6kl_htc_tx_bundle(endpoint, &txq,
+							     &temp1, &temp2);
+					bundle_sent += temp1;
+					n_pkts_bundle += temp2;
+				}
 			}
 
 			if (list_empty(&txq))
@@ -868,6 +910,26 @@ static void ath6kl_htc_tx_from_queue(struct htc_target *target,
 
 		endpoint->ep_st.tx_bundles += bundle_sent;
 		endpoint->ep_st.tx_pkt_bundled += n_pkts_bundle;
+
+		/*
+		 * if an AC has bundling disabled and no tx bundling
+		 * has occured continously for a certain number of TX,
+		 * enable tx bundling for this AC
+		 */
+		if (!bundle_sent) {
+			if (!(target->tx_bndl_mask & (1 << ac)) &&
+				(ac < WMM_NUM_AC)) {
+				if (++target->ac_tx_count[ac] >=
+					TX_RESUME_BUNDLE_THRESHOLD) {
+					target->ac_tx_count[ac] = 0;
+					target->tx_bndl_mask |= (1 << ac);
+				}
+			}
+		} else {
+			/* tx bundling will reset the counter */
+			if (ac < WMM_NUM_AC)
+				target->ac_tx_count[ac] = 0;
+		}
 	}
 
 	endpoint->tx_proc_cnt = 0;
@@ -2518,7 +2580,8 @@ static void htc_setup_msg_bndl(struct htc_target *target)
 		   target->max_rx_bndl_sz, target->max_tx_bndl_sz);
 
 	if (target->max_tx_bndl_sz)
-		target->tx_bndl_enable = true;
+		/* tx_bndl_mask is enabled per AC, each has 1 bit */
+		target->tx_bndl_mask = (1 << WMM_NUM_AC) - 1;
 
 	if (target->max_rx_bndl_sz)
 		target->rx_bndl_enable = true;
@@ -2533,7 +2596,7 @@ static void htc_setup_msg_bndl(struct htc_target *target)
 		 * padding will spill into the next credit buffer
 		 * which is fatal.
 		 */
-		target->tx_bndl_enable = false;
+		target->tx_bndl_mask = 0;
 	}
 }
 

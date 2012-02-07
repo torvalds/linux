@@ -198,6 +198,8 @@ struct hif_scatter_req {
 	u8 *virt_dma_buf;
 
 	struct hif_scatter_item scat_list[1];
+
+	u32 scat_q_depth;
 };
 
 struct ath6kl_irq_proc_registers {

@@ -88,6 +88,8 @@
 #define WMI_DATA_VO_SVC   MAKE_SERVICE_ID(WMI_SERVICE_GROUP, 4)
 #define WMI_MAX_SERVICES  5
 
+#define WMM_NUM_AC  4
+
 /* reserved and used to flush ALL packets */
 #define HTC_TX_PACKET_TAG_ALL          0
 #define HTC_SERVICE_TX_PACKET_TAG      1
@@ -532,7 +534,7 @@ struct htc_target {
 	/* max messages per bundle for HTC */
 	int msg_per_bndl_max;
 
-	bool tx_bndl_enable;
+	u32 tx_bndl_mask;
 	int rx_bndl_enable;
 	int max_rx_bndl_sz;
 	int max_tx_bndl_sz;
@@ -544,6 +546,9 @@ struct htc_target {
 	int max_xfer_szper_scatreq;
 
 	int chk_irq_status_cnt;
+
+	/* counts the number of Tx without bundling continously per AC */
+	u32 ac_tx_count[WMM_NUM_AC];
 };
 
 void *ath6kl_htc_create(struct ath6kl *ar);
