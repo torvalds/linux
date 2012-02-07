@@ -1379,8 +1379,10 @@ int sta_info_move_state(struct sta_info *sta,
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	printk(KERN_DEBUG "%s: moving STA %pM to state %d\n",
 		sta->sdata->name, sta->sta.addr, new_state);
+#endif
 
 	/*
 	 * notify the driver before the actual changes so it can
