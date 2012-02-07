@@ -1453,8 +1453,10 @@ static int l2cap_ertm_send(struct l2cap_chan *chan)
 
 		chan->next_tx_seq = __next_seq(chan, chan->next_tx_seq);
 
-		if (bt_cb(skb)->retries == 1)
+		if (bt_cb(skb)->retries == 1) {
 			chan->unacked_frames++;
+			nsent++;
+		}
 
 		chan->frames_sent++;
 
@@ -1462,8 +1464,6 @@ static int l2cap_ertm_send(struct l2cap_chan *chan)
 			chan->tx_send_head = NULL;
 		else
 			chan->tx_send_head = skb_queue_next(&chan->tx_q, skb);
-
-		nsent++;
 	}
 
 	return nsent;
