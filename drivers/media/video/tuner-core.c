@@ -380,6 +380,21 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		tune_now = 0;
 		break;
 	}
+	case TUNER_XC5000C:
+	{
+		struct xc5000_config xc5000c_cfg = {
+			.i2c_address = t->i2c->addr,
+			/* if_khz will be set at dvb_attach() */
+			.if_khz	  = 0,
+			.fw = XC5000C_DEFAULT_FIRMWARE,
+		};
+
+		if (!dvb_attach(xc5000_attach,
+				&t->fe, t->i2c->adapter, &xc5000c_cfg))
+			goto attach_failed;
+		tune_now = 0;
+		break;
+	}
 	case TUNER_NXP_TDA18271:
 	{
 		struct tda18271_config cfg = {
