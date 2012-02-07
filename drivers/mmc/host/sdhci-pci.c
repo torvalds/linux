@@ -47,6 +47,7 @@ struct sdhci_pci_slot;
 
 struct sdhci_pci_fixes {
 	unsigned int		quirks;
+	unsigned int		quirks2;
 	bool			allow_runtime_pm;
 
 	int			(*probe) (struct sdhci_pci_chip *);
@@ -73,6 +74,7 @@ struct sdhci_pci_chip {
 	struct pci_dev		*pdev;
 
 	unsigned int		quirks;
+	unsigned int		quirks2;
 	bool			allow_runtime_pm;
 	const struct sdhci_pci_fixes *fixes;
 
@@ -272,6 +274,7 @@ static const struct sdhci_pci_fixes sdhci_intel_mfd_sd = {
 
 static const struct sdhci_pci_fixes sdhci_intel_mfd_sdio = {
 	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks2	= SDHCI_QUIRK2_HOST_OFF_CARD_ON,
 	.allow_runtime_pm = true,
 	.probe_slot	= mfd_sdio_probe_slot,
 };
@@ -1207,6 +1210,7 @@ static struct sdhci_pci_slot * __devinit sdhci_pci_probe_slot(
 	host->hw_name = "PCI";
 	host->ops = &sdhci_pci_ops;
 	host->quirks = chip->quirks;
+	host->quirks2 = chip->quirks2;
 
 	host->irq = pdev->irq;
 
@@ -1366,6 +1370,7 @@ static int __devinit sdhci_pci_probe(struct pci_dev *pdev,
 	chip->fixes = (const struct sdhci_pci_fixes *)ent->driver_data;
 	if (chip->fixes) {
 		chip->quirks = chip->fixes->quirks;
+		chip->quirks2 = chip->fixes->quirks2;
 		chip->allow_runtime_pm = chip->fixes->allow_runtime_pm;
 	}
 	chip->num_slots = slots;
