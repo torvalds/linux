@@ -1124,6 +1124,8 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 	case TARGET_TYPE_AR6003:
 		board_data_size = AR6003_BOARD_DATA_SZ;
 		board_ext_data_size = AR6003_BOARD_EXT_DATA_SZ;
+		if (ar->fw_board_len > (board_data_size + board_ext_data_size))
+			board_ext_data_size = AR6003_BOARD_EXT_DATA_SZ_V2;
 		break;
 	case TARGET_TYPE_AR6004:
 		board_data_size = AR6004_BOARD_DATA_SZ;
