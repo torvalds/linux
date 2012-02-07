@@ -63,6 +63,10 @@
 #ifndef __iwl_ucode_h__
 #define __iwl_ucode_h__
 
+#include "iwl-trans.h"
+
+#include <linux/netdevice.h>
+
 /* v1/v2 uCode file layout */
 struct iwl_ucode_header {
 	__le32 ver;	/* major/minor/API/serial */
@@ -169,6 +173,39 @@ struct iwl_tlv_ucode_header {
 	 * that is a multiple of 4 for alignment.
 	 */
 	u8 data[0];
+};
+
+struct iwl_ucode_capabilities {
+	u32 max_probe_length;
+	u32 standard_phy_calibration_size;
+	u32 flags;
+};
+
+/**
+ * struct iwl_fw - variables associated with the firmware
+ *
+ * @ucode_ver: ucode version from the ucode file
+ * @fw_version: firmware version string
+ * @ucode_rt: run time ucode image
+ * @ucode_init: init ucode image
+ * @ucode_wowlan: wake on wireless ucode image (optional)
+ * @ucode_capa: capabilities parsed from the ucode file.
+ * @enhance_sensitivity_table: device can do enhanced sensitivity.
+ */
+struct iwl_fw {
+
+	/* ucode image and variables */
+	u32 ucode_ver;                  /* version of ucode, copy of
+					   iwl_ucode.ver */
+	char fw_version[ETHTOOL_BUSINFO_LEN];
+
+	/* ucode images */
+	struct fw_img ucode_rt;
+	struct fw_img ucode_init;
+	struct fw_img ucode_wowlan;
+
+	struct iwl_ucode_capabilities ucode_capa;
+	bool enhance_sensitivity_table;
 };
 
 struct iwl_priv;

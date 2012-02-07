@@ -358,6 +358,7 @@ struct iwl_cfg {
  * @cfg: see struct iwl_cfg
  * @priv: pointer to the upper layer data
  * @trans: pointer to the transport layer data
+ * @nic: pointer to the nic data
  * @hw_params: see struct iwl_hw_params
  * @lock: protect general shared data
  * @sta_lock: protects the station table.
@@ -388,6 +389,7 @@ struct iwl_shared {
 	struct iwl_cfg *cfg;
 	struct iwl_priv *priv;
 	struct iwl_trans *trans;
+	struct iwl_nic *nic;
 	struct iwl_hw_params hw_params;
 
 	spinlock_t lock;
@@ -418,6 +420,7 @@ struct iwl_shared {
 #define priv(_m)	((_m)->shrd->priv)
 #define cfg(_m)		((_m)->shrd->cfg)
 #define bus(_m)		((_m)->shrd->bus)
+#define nic(_m)		((_m)->shrd->nic)
 #define trans(_m)	((_m)->shrd->trans)
 #define hw_params(_m)	((_m)->shrd->hw_params)
 
