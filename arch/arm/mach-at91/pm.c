@@ -198,7 +198,6 @@ extern u32 at91_slow_clock_sz;
 
 static int at91_pm_enter(suspend_state_t state)
 {
-	u32 saved_lpr;
 	at91_gpio_suspend();
 	at91_irq_suspend();
 
@@ -254,16 +253,7 @@ static int at91_pm_enter(suspend_state_t state)
 			 * For ARM 926 based chips, this requirement is weaker
 			 * as at91sam9 can access a RAM in self-refresh mode.
 			 */
-			asm volatile (	"mov r0, #0\n\t"
-					"b 1f\n\t"
-					".align 5\n\t"
-					"1: mcr p15, 0, r0, c7, c10, 4\n\t"
-					: /* no output */
-					: /* no input */
-					: "r0");
-			saved_lpr = sdram_selfrefresh_enable();
-			wait_for_interrupt_enable();
-			sdram_selfrefresh_disable(saved_lpr);
+			at91_standby();
 			break;
 
 		case PM_SUSPEND_ON:
