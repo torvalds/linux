@@ -247,7 +247,7 @@ static void __init omap4_vc_init_channel(struct voltagedomain *voltdm)
  * omap_vc_i2c_init - initialize I2C interface to PMIC
  * @voltdm: voltage domain containing VC data
  *
- * Use PMIC supplied seetings for I2C high-speed mode and
+ * Use PMIC supplied settings for I2C high-speed mode and
  * master code (if set) and program the VC I2C configuration
  * register.
  *
@@ -292,9 +292,7 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 	u32 val;
 
 	if (!voltdm->pmic || !voltdm->pmic->uv_to_vsel) {
-		pr_err("%s: PMIC info requried to configure vc for"
-			"vdd_%s not populated.Hence cannot initialize vc\n",
-			__func__, voltdm->name);
+		pr_err("%s: No PMIC info for vdd_%s\n", __func__, voltdm->name);
 		return;
 	}
 
