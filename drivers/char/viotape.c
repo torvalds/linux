@@ -976,7 +976,7 @@ int __init viotap_init(void)
 
 	tape_class = class_create(THIS_MODULE, "tape");
 	if (IS_ERR(tape_class)) {
-		printk(VIOTAPE_KERN_WARN "Unable to allocat class\n");
+		printk(VIOTAPE_KERN_WARN "Unable to allocate class\n");
 		ret = PTR_ERR(tape_class);
 		goto unreg_chrdev;
 	}
