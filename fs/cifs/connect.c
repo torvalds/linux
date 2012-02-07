@@ -2125,7 +2125,7 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 	down_read(&key->sem);
 	upayload = key->payload.data;
 	if (IS_ERR_OR_NULL(upayload)) {
-		rc = PTR_ERR(key);
+		rc = upayload ? PTR_ERR(upayload) : -EINVAL;
 		goto out_key_put;
 	}
 
