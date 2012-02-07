@@ -95,6 +95,8 @@ struct iwl_nic {
 };
 
 
+void iwl_dealloc_ucode(struct iwl_nic *nic);
+
 int iwl_send_bt_env(struct iwl_trans *trans, u8 action, u8 type);
 void iwl_send_prio_tbl(struct iwl_trans *trans);
 int iwl_init_alive_start(struct iwl_trans *trans);

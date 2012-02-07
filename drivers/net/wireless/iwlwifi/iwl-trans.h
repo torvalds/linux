@@ -396,8 +396,6 @@ static inline u32 iwl_trans_read32(struct iwl_trans *trans, u32 ofs)
 /*****************************************************
 * Utils functions
 ******************************************************/
-void iwl_dealloc_ucode(struct iwl_trans *trans);
-
 int iwl_send_calib_results(struct iwl_trans *trans);
 int iwl_calib_set(struct iwl_trans *trans,
 		  const struct iwl_calib_hdr *cmd, int len);
