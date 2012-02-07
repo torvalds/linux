@@ -878,12 +878,17 @@ static struct wl12xx_platform_data omap4_sdp4430_wlan_data __initdata = {
 	.board_tcxo_clock = WL12XX_TCXOCLOCK_26,
 };
 
-static void omap4_sdp4430_wifi_init(void)
+static void __init omap4_sdp4430_wifi_init(void)
 {
+	int ret;
+
 	omap4_sdp4430_wifi_mux_init();
-	if (wl12xx_set_platform_data(&omap4_sdp4430_wlan_data))
-		pr_err("Error setting wl12xx data\n");
-	platform_device_register(&omap_vwlan_device);
+	ret = wl12xx_set_platform_data(&omap4_sdp4430_wlan_data);
+	if (ret)
+		pr_err("Error setting wl12xx data: %d\n", ret);
+	ret = platform_device_register(&omap_vwlan_device);
+	if (ret)
+		pr_err("Error registering wl12xx device: %d\n", ret);
 }
 
 static void __init omap_4430sdp_init(void)
