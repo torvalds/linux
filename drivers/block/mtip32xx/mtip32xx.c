@@ -2068,8 +2068,6 @@ static int mtip_hw_ioctl(struct driver_data *dd, unsigned int cmd,
  *	     when the read completes.
  * @data     Callback data passed to the callback function
  *	     when the read completes.
- * @barrier  If non-zero, this command must be completed before
- *	     issuing any other commands.
  * @dir      Direction (read or write)
  *
  * return value
@@ -2077,7 +2075,7 @@ static int mtip_hw_ioctl(struct driver_data *dd, unsigned int cmd,
  */
 static void mtip_hw_submit_io(struct driver_data *dd, sector_t start,
 			      int nsect, int nents, int tag, void *callback,
-			      void *data, int barrier, int dir)
+			      void *data, int dir)
 {
 	struct host_to_dev_fis	*fis;
 	struct mtip_port *port = dd->port;
@@ -2108,8 +2106,6 @@ static void mtip_hw_submit_io(struct driver_data *dd, sector_t start,
 	*((unsigned int *) &fis->lba_low) = (start & 0xFFFFFF);
 	*((unsigned int *) &fis->lba_low_ex) = ((start >> 24) & 0xFFFFFF);
 	fis->device	 = 1 << 6;
-	if (barrier)
-		fis->device |= FUA_BIT;
 	fis->features    = nsect & 0xFF;
 	fis->features_ex = (nsect >> 8) & 0xFF;
 	fis->sect_count  = ((tag << 3) | (tag >> 5));
@@ -3087,7 +3083,6 @@ static void mtip_make_request(struct request_queue *queue, struct bio *bio)
 				tag,
 				bio_endio,
 				bio,
-				bio->bi_rw & REQ_FUA,
 				bio_data_dir(bio));
 	} else
 		bio_io_error(bio);
@@ -3187,6 +3182,10 @@ skip_create_disk:
 	blk_queue_max_segments(dd->queue, MTIP_MAX_SG);
 	blk_queue_physical_block_size(dd->queue, 4096);
 	blk_queue_io_min(dd->queue, 4096);
+	/*
+	 * write back cache is not supported in the device. FUA depends on
+	 * write back cache support, hence setting flush support to zero.
+	 */
 	blk_queue_flush(dd->queue, 0);
 
 	/* Set the capacity of the device in 512 byte sectors. */
