@@ -246,6 +246,7 @@ config MTD_NAND_BCM_UMI_HWCS
 config MTD_NAND_DISKONCHIP
 	tristate "DiskOnChip 2000, Millennium and Millennium Plus (NAND reimplementation) (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
+	depends on HAS_IOMEM
 	select REED_SOLOMON
 	select REED_SOLOMON_DEC16
 	help
@@ -431,6 +432,7 @@ config MTD_NAND_GPMI_NAND
 
 config MTD_NAND_PLATFORM
 	tristate "Support for generic platform NAND driver"
+	depends on HAS_IOMEM
 	help
 	  This implements a generic NAND driver for on-SOC platform
 	  devices. You will need to provide platform-specific functions
