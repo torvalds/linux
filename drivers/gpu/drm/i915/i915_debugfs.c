@@ -83,6 +83,7 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	B(supports_tv);
 	B(has_bsd_ring);
 	B(has_blt_ring);
+	B(has_llc);
 #undef B
 
 	return 0;

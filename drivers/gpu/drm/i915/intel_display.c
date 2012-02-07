@@ -75,7 +75,7 @@ struct intel_limit {
 	intel_range_t   dot, vco, n, m, m1, m2, p, p1;
 	intel_p2_t	    p2;
 	bool (* find_pll)(const intel_limit_t *, struct drm_crtc *,
-			int, int, intel_clock_t *);
+			int, int, intel_clock_t *, intel_clock_t *);
 };
 
 /* FDI */
@@ -83,17 +83,21 @@ struct intel_limit {
 
 static bool
 intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-		    int target, int refclk, intel_clock_t *best_clock);
+		    int target, int refclk, intel_clock_t *match_clock,
+		    intel_clock_t *best_clock);
 static bool
 intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			int target, int refclk, intel_clock_t *best_clock);
+			int target, int refclk, intel_clock_t *match_clock,
+			intel_clock_t *best_clock);
 
 static bool
 intel_find_pll_g4x_dp(const intel_limit_t *, struct drm_crtc *crtc,
-		      int target, int refclk, intel_clock_t *best_clock);
+		      int target, int refclk, intel_clock_t *match_clock,
+		      intel_clock_t *best_clock);
 static bool
 intel_find_pll_ironlake_dp(const intel_limit_t *, struct drm_crtc *crtc,
-			   int target, int refclk, intel_clock_t *best_clock);
+			   int target, int refclk, intel_clock_t *match_clock,
+			   intel_clock_t *best_clock);
 
 static inline u32 /* units of 100MHz */
 intel_fdi_link_freq(struct drm_device *dev)
@@ -515,7 +519,8 @@ static bool intel_PLL_is_valid(struct drm_device *dev,
 
 static bool
 intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-		    int target, int refclk, intel_clock_t *best_clock)
+		    int target, int refclk, intel_clock_t *match_clock,
+		    intel_clock_t *best_clock)
 
 {
 	struct drm_device *dev = crtc->dev;
@@ -562,6 +567,9 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 					if (!intel_PLL_is_valid(dev, limit,
 								&clock))
 						continue;
+					if (match_clock &&
+					    clock.p != match_clock->p)
+						continue;
 
 					this_err = abs(clock.dot - target);
 					if (this_err < err) {
@@ -578,7 +586,8 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 
 static bool
 intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			int target, int refclk, intel_clock_t *best_clock)
+			int target, int refclk, intel_clock_t *match_clock,
+			intel_clock_t *best_clock)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -625,6 +634,9 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 					if (!intel_PLL_is_valid(dev, limit,
 								&clock))
 						continue;
+					if (match_clock &&
+					    clock.p != match_clock->p)
+						continue;
 
 					this_err = abs(clock.dot - target);
 					if (this_err < err_most) {
@@ -642,7 +654,8 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 
 static bool
 intel_find_pll_ironlake_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
-			   int target, int refclk, intel_clock_t *best_clock)
+			   int target, int refclk, intel_clock_t *match_clock,
+			   intel_clock_t *best_clock)
 {
 	struct drm_device *dev = crtc->dev;
 	intel_clock_t clock;
@@ -668,7 +681,8 @@ intel_find_pll_ironlake_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
 /* DisplayPort has only two frequencies, 162MHz and 270MHz */
 static bool
 intel_find_pll_g4x_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
-		      int target, int refclk, intel_clock_t *best_clock)
+		      int target, int refclk, intel_clock_t *match_clock,
+		      intel_clock_t *best_clock)
 {
 	intel_clock_t clock;
 	if (target < 200000) {
@@ -930,18 +944,23 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 	     pipe_name(pipe), state_string(state), state_string(cur_state));
 }
 
-static void assert_plane_enabled(struct drm_i915_private *dev_priv,
-				 enum plane plane)
+static void assert_plane(struct drm_i915_private *dev_priv,
+			 enum plane plane, bool state)
 {
 	int reg;
 	u32 val;
+	bool cur_state;
 
 	reg = DSPCNTR(plane);
 	val = I915_READ(reg);
-	WARN(!(val & DISPLAY_PLANE_ENABLE),
-	     "plane %c assertion failure, should be active but is disabled\n",
-	     plane_name(plane));
+	cur_state = !!(val & DISPLAY_PLANE_ENABLE);
+	WARN(cur_state != state,
+	     "plane %c assertion failure (expected %s, current %s)\n",
+	     plane_name(plane), state_string(state), state_string(cur_state));
 }
+
+#define assert_plane_enabled(d, p) assert_plane(d, p, true)
+#define assert_plane_disabled(d, p) assert_plane(d, p, false)
 
 static void assert_planes_disabled(struct drm_i915_private *dev_priv,
 				   enum pipe pipe)
@@ -951,8 +970,14 @@ static void assert_planes_disabled(struct drm_i915_private *dev_priv,
 	int cur_pipe;
 
 	/* Planes are fixed to pipes on ILK+ */
-	if (HAS_PCH_SPLIT(dev_priv->dev))
+	if (HAS_PCH_SPLIT(dev_priv->dev)) {
+		reg = DSPCNTR(pipe);
+		val = I915_READ(reg);
+		WARN((val & DISPLAY_PLANE_ENABLE),
+		     "plane %c assertion failure, should be disabled but not\n",
+		     plane_name(pipe));
 		return;
+	}
 
 	/* Need to check both planes against the pipe */
 	for (i = 0; i < 2; i++) {
@@ -1071,7 +1096,7 @@ static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
 {
 	u32 val = I915_READ(reg);
 	WARN(hdmi_pipe_enabled(dev_priv, val, pipe),
-	     "PCH DP (0x%08x) enabled on transcoder %c, should be disabled\n",
+	     "PCH HDMI (0x%08x) enabled on transcoder %c, should be disabled\n",
 	     reg, pipe_name(pipe));
 }
 
@@ -3321,6 +3346,8 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 
 	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
+	assert_plane_disabled(dev->dev_private, to_intel_crtc(crtc)->plane);
+	assert_pipe_disabled(dev->dev_private, to_intel_crtc(crtc)->pipe);
 
 	if (crtc->fb) {
 		mutex_lock(&dev->struct_mutex);
@@ -4968,6 +4995,82 @@ static bool intel_choose_pipe_bpp_dither(struct drm_crtc *crtc,
 	return display_bpc != bpc;
 }
 
+static int i9xx_get_refclk(struct drm_crtc *crtc, int num_connectors)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int refclk;
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
+	    intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
+		refclk = dev_priv->lvds_ssc_freq * 1000;
+		DRM_DEBUG_KMS("using SSC reference clock of %d MHz\n",
+			      refclk / 1000);
+	} else if (!IS_GEN2(dev)) {
+		refclk = 96000;
+	} else {
+		refclk = 48000;
+	}
+
+	return refclk;
+}
+
+static void i9xx_adjust_sdvo_tv_clock(struct drm_display_mode *adjusted_mode,
+				      intel_clock_t *clock)
+{
+	/* SDVO TV has fixed PLL values depend on its clock range,
+	   this mirrors vbios setting. */
+	if (adjusted_mode->clock >= 100000
+	    && adjusted_mode->clock < 140500) {
+		clock->p1 = 2;
+		clock->p2 = 10;
+		clock->n = 3;
+		clock->m1 = 16;
+		clock->m2 = 8;
+	} else if (adjusted_mode->clock >= 140500
+		   && adjusted_mode->clock <= 200000) {
+		clock->p1 = 1;
+		clock->p2 = 10;
+		clock->n = 6;
+		clock->m1 = 12;
+		clock->m2 = 8;
+	}
+}
+
+static void i9xx_update_pll_dividers(struct drm_crtc *crtc,
+				     intel_clock_t *clock,
+				     intel_clock_t *reduced_clock)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	u32 fp, fp2 = 0;
+
+	if (IS_PINEVIEW(dev)) {
+		fp = (1 << clock->n) << 16 | clock->m1 << 8 | clock->m2;
+		if (reduced_clock)
+			fp2 = (1 << reduced_clock->n) << 16 |
+				reduced_clock->m1 << 8 | reduced_clock->m2;
+	} else {
+		fp = clock->n << 16 | clock->m1 << 8 | clock->m2;
+		if (reduced_clock)
+			fp2 = reduced_clock->n << 16 | reduced_clock->m1 << 8 |
+				reduced_clock->m2;
+	}
+
+	I915_WRITE(FP0(pipe), fp);
+
+	intel_crtc->lowfreq_avail = false;
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
+	    reduced_clock && i915_powersave) {
+		I915_WRITE(FP1(pipe), fp2);
+		intel_crtc->lowfreq_avail = true;
+	} else {
+		I915_WRITE(FP1(pipe), fp);
+	}
+}
+
 static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			      struct drm_display_mode *mode,
 			      struct drm_display_mode *adjusted_mode,
@@ -4981,7 +5084,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	int plane = intel_crtc->plane;
 	int refclk, num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
-	u32 dpll, fp = 0, fp2 = 0, dspcntr, pipeconf;
+	u32 dpll, dspcntr, pipeconf;
 	bool ok, has_reduced_clock = false, is_sdvo = false, is_dvo = false;
 	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
@@ -5022,15 +5125,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		num_connectors++;
 	}
 
-	if (is_lvds && intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
-		refclk = dev_priv->lvds_ssc_freq * 1000;
-		DRM_DEBUG_KMS("using SSC reference clock of %d MHz\n",
-			      refclk / 1000);
-	} else if (!IS_GEN2(dev)) {
-		refclk = 96000;
-	} else {
-		refclk = 48000;
-	}
+	refclk = i9xx_get_refclk(crtc, num_connectors);
 
 	/*
 	 * Returns a set of divisors for the desired target clock with the given
@@ -5038,7 +5133,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	 * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
 	 */
 	limit = intel_limit(crtc, refclk);
-	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk, &clock);
+	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk, NULL,
+			     &clock);
 	if (!ok) {
 		DRM_ERROR("Couldn't find PLL settings for mode!\n");
 		return -EINVAL;
@@ -5048,53 +5144,24 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	intel_crtc_update_cursor(crtc, true);
 
 	if (is_lvds && dev_priv->lvds_downclock_avail) {
+		/*
+		 * Ensure we match the reduced clock's P to the target clock.
+		 * If the clocks don't match, we can't switch the display clock
+		 * by using the FP0/FP1. In such case we will disable the LVDS
+		 * downclock feature.
+		*/
 		has_reduced_clock = limit->find_pll(limit, crtc,
 						    dev_priv->lvds_downclock,
 						    refclk,
+						    &clock,
 						    &reduced_clock);
-		if (has_reduced_clock && (clock.p != reduced_clock.p)) {
-			/*
-			 * If the different P is found, it means that we can't
-			 * switch the display clock by using the FP0/FP1.
-			 * In such case we will disable the LVDS downclock
-			 * feature.
-			 */
-			DRM_DEBUG_KMS("Different P is found for "
-				      "LVDS clock/downclock\n");
-			has_reduced_clock = 0;
-		}
-	}
-	/* SDVO TV has fixed PLL values depend on its clock range,
-	   this mirrors vbios setting. */
-	if (is_sdvo && is_tv) {
-		if (adjusted_mode->clock >= 100000
-		    && adjusted_mode->clock < 140500) {
-			clock.p1 = 2;
-			clock.p2 = 10;
-			clock.n = 3;
-			clock.m1 = 16;
-			clock.m2 = 8;
-		} else if (adjusted_mode->clock >= 140500
-			   && adjusted_mode->clock <= 200000) {
-			clock.p1 = 1;
-			clock.p2 = 10;
-			clock.n = 6;
-			clock.m1 = 12;
-			clock.m2 = 8;
-		}
 	}
 
-	if (IS_PINEVIEW(dev)) {
-		fp = (1 << clock.n) << 16 | clock.m1 << 8 | clock.m2;
-		if (has_reduced_clock)
-			fp2 = (1 << reduced_clock.n) << 16 |
-				reduced_clock.m1 << 8 | reduced_clock.m2;
-	} else {
-		fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
-		if (has_reduced_clock)
-			fp2 = reduced_clock.n << 16 | reduced_clock.m1 << 8 |
-				reduced_clock.m2;
-	}
+	if (is_sdvo && is_tv)
+		i9xx_adjust_sdvo_tv_clock(adjusted_mode, &clock);
+
+	i9xx_update_pll_dividers(crtc, &clock, has_reduced_clock ?
+				 &reduced_clock : NULL);
 
 	dpll = DPLL_VGA_MODE_DIS;
 
@@ -5168,8 +5235,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	/* Set up the display plane register */
 	dspcntr = DISPPLANE_GAMMA_ENABLE;
 
-	/* Ironlake's plane is forced to pipe, bit 24 is to
-	   enable color space conversion */
 	if (pipe == 0)
 		dspcntr &= ~DISPPLANE_SEL_PIPE_MASK;
 	else
@@ -5204,7 +5269,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
 	drm_mode_debug_printmodeline(mode);
 
-	I915_WRITE(FP0(pipe), fp);
 	I915_WRITE(DPLL(pipe), dpll & ~DPLL_VCO_ENABLE);
 
 	POSTING_READ(DPLL(pipe));
@@ -5291,17 +5355,11 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		I915_WRITE(DPLL(pipe), dpll);
 	}
 
-	intel_crtc->lowfreq_avail = false;
-	if (is_lvds && has_reduced_clock && i915_powersave) {
-		I915_WRITE(FP1(pipe), fp2);
-		intel_crtc->lowfreq_avail = true;
-		if (HAS_PIPE_CXSR(dev)) {
+	if (HAS_PIPE_CXSR(dev)) {
+		if (intel_crtc->lowfreq_avail) {
 			DRM_DEBUG_KMS("enabling CxSR downclocking\n");
 			pipeconf |= PIPECONF_CXSR_DOWNCLOCK;
-		}
-	} else {
-		I915_WRITE(FP1(pipe), fp);
-		if (HAS_PIPE_CXSR(dev)) {
+		} else {
 			DRM_DEBUG_KMS("disabling CxSR downclocking\n");
 			pipeconf &= ~PIPECONF_CXSR_DOWNCLOCK;
 		}
@@ -5583,7 +5641,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	 * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
 	 */
 	limit = intel_limit(crtc, refclk);
-	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk, &clock);
+	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk, NULL,
+			     &clock);
 	if (!ok) {
 		DRM_ERROR("Couldn't find PLL settings for mode!\n");
 		return -EINVAL;
@@ -5593,21 +5652,17 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	intel_crtc_update_cursor(crtc, true);
 
 	if (is_lvds && dev_priv->lvds_downclock_avail) {
+		/*
+		 * Ensure we match the reduced clock's P to the target clock.
+		 * If the clocks don't match, we can't switch the display clock
+		 * by using the FP0/FP1. In such case we will disable the LVDS
+		 * downclock feature.
+		*/
 		has_reduced_clock = limit->find_pll(limit, crtc,
 						    dev_priv->lvds_downclock,
 						    refclk,
+						    &clock,
 						    &reduced_clock);
-		if (has_reduced_clock && (clock.p != reduced_clock.p)) {
-			/*
-			 * If the different P is found, it means that we can't
-			 * switch the display clock by using the FP0/FP1.
-			 * In such case we will disable the LVDS downclock
-			 * feature.
-			 */
-			DRM_DEBUG_KMS("Different P is found for "
-				      "LVDS clock/downclock\n");
-			has_reduced_clock = 0;
-		}
 	}
 	/* SDVO TV has fixed PLL values depend on its clock range,
 	   this mirrors vbios setting. */

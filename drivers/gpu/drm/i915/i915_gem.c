@@ -3619,8 +3619,8 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
 
-	if (IS_GEN6(dev) || IS_GEN7(dev)) {
-		/* On Gen6, we can have the GPU use the LLC (the CPU
+	if (HAS_LLC(dev)) {
+		/* On some devices, we can have the GPU use the LLC (the CPU
 		 * cache) for about a 10% performance improvement
 		 * compared to uncached.  Graphics requests other than
 		 * display scanout are coherent with the CPU in

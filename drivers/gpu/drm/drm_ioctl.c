@@ -37,6 +37,7 @@
 #include "drm_core.h"
 
 #include "linux/pci.h"
+#include "linux/export.h"
 
 /**
  * Get the bus id.
@@ -346,3 +347,4 @@ int drm_noop(struct drm_device *dev, void *data,
 	DRM_DEBUG("\n");
 	return 0;
 }
+EXPORT_SYMBOL(drm_noop);
