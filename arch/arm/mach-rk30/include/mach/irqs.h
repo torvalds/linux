@@ -82,8 +82,8 @@
 #define IRQ_VIO0_OBSRV_MAINFAULT        RK30XX_IRQ(74)
 #define IRQ_DMAC_OBSRV_MAINFAULT        RK30XX_IRQ(75)
 
-#define NR_GIC_IRQS                     (IRQ_DMAC_OBSRV_MAINFAULT + 1)
-#define NR_GPIO_IRQS                    (5 * 32 + 16)
+#define NR_GIC_IRQS                     (5 * 32)
+#define NR_GPIO_IRQS                    (6 * 32)
 #define NR_BOARD_IRQS                   64
 #define NR_IRQS                         (NR_GIC_IRQS + NR_GPIO_IRQS + NR_BOARD_IRQS)
 
