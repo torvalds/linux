@@ -126,9 +126,29 @@ static void __init rk30_init_uart(void)
 #endif
 }
 
+#ifdef CONFIG_MTD_NAND_RK29XX
+static struct resource resources_nand[] = {
+	{
+		.start	= RK30_NANDC_PHYS,
+		.end	= RK30_NANDC_PHYS + RK30_NANDC_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device device_nand = {
+	.name		= "rk30xxnand",
+	.id		= -1,
+	.resource	= resources_nand,
+	.num_resources	= ARRAY_SIZE(resources_nand),
+};
+#endif
+
 static int __init rk30_init_devices(void)
 {
 	rk30_init_uart();
+#ifdef CONFIG_MTD_NAND_RK29XX
+	platform_device_register(&device_nand);
+#endif
         return 0;
 }
 arch_initcall(rk30_init_devices);
