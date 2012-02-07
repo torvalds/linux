@@ -10,6 +10,8 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 
+extern void __init rk29_setup_early_printk(void);
+
 void __init rk30_init_irq(void)
 {
 	gic_init(0, IRQ_LOCALTIMER, RK30_GICD_BASE, RK30_GICC_BASE);
@@ -19,7 +21,8 @@ void __init rk30_init_irq(void)
 void __init rk30_map_io(void)
 {
         rk30_map_common_io();
-		rk30_iomux_init();
+	rk29_setup_early_printk();
+	rk30_iomux_init();
 }
 
 void __init rk30_fixup(struct machine_desc *desc, struct tag *tags,
