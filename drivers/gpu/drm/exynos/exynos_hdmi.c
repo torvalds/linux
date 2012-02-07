@@ -1116,8 +1116,8 @@ err_ddc:
 err_iomap:
 	iounmap(hdata->regs);
 err_req_region:
-	release_resource(hdata->regs_res);
-	kfree(hdata->regs_res);
+	release_mem_region(hdata->regs_res->start,
+			resource_size(hdata->regs_res));
 err_resource:
 	hdmi_resources_cleanup(hdata);
 err_data:
@@ -1145,8 +1145,8 @@ static int __devexit hdmi_remove(struct platform_device *pdev)
 
 	iounmap(hdata->regs);
 
-	release_resource(hdata->regs_res);
-	kfree(hdata->regs_res);
+	release_mem_region(hdata->regs_res->start,
+			resource_size(hdata->regs_res));
 
 	/* hdmiphy i2c driver */
 	i2c_del_driver(&hdmiphy_driver);

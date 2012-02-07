@@ -58,7 +58,9 @@ extern void at91_irq_suspend(void);
 extern void at91_irq_resume(void);
 
 /* reset */
+extern void at91_ioremap_rstc(u32 base_addr);
 extern void at91sam9_alt_restart(char, const char *);
+extern void at91sam9g45_restart(char, const char *);
 
 /* shutdown */
 extern void at91_ioremap_shdwc(u32 base_addr);

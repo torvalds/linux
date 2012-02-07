@@ -160,7 +160,7 @@ static int adp8870_set_bits(struct i2c_client *client, int reg, uint8_t bit_mask
 
 	ret = adp8870_read(client, reg, &reg_val);
 
-	if (!ret && ((reg_val & bit_mask) == 0)) {
+	if (!ret && ((reg_val & bit_mask) != bit_mask)) {
 		reg_val |= bit_mask;
 		ret = adp8870_write(client, reg, reg_val);
 	}

@@ -23,7 +23,7 @@
 #include <mach/common.h>
 #include <mach/clock.h>
 
-#include "crm_regs.h"
+#include "crm-regs-imx5.h"
 
 /* External clock values passed-in by the board code */
 static unsigned long external_high_reference, external_low_reference;

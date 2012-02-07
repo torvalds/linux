@@ -185,7 +185,6 @@ struct alc_spec {
 	unsigned int vol_in_capsrc:1; /* use capsrc volume (ADC has no vol) */
 	unsigned int parse_flags; /* passed to snd_hda_parse_pin_defcfg() */
 	unsigned int shared_mic_hp:1; /* HP/Mic-in sharing */
-	unsigned int use_jack_tbl:1; /* 1 for model=auto */
 
 	/* auto-mute control */
 	int automute_mode;
@@ -621,17 +620,10 @@ static void alc_mic_automute(struct hda_codec *codec)
 		alc_mux_select(codec, 0, spec->int_mic_idx, false);
 }
 
-/* unsolicited event for HP jack sensing */
-static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
+/* handle the specified unsol action (ALC_XXX_EVENT) */
+static void alc_exec_unsol_event(struct hda_codec *codec, int action)
 {
-	struct alc_spec *spec = codec->spec;
-	if (codec->vendor_id == 0x10ec0880)
-		res >>= 28;
-	else
-		res >>= 26;
-	if (spec->use_jack_tbl)
-		res = snd_hda_jack_get_action(codec, res);
-	switch (res) {
+	switch (action) {
 	case ALC_HP_EVENT:
 		alc_hp_automute(codec);
 		break;
@@ -643,6 +635,17 @@ static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
 		break;
 	}
 	snd_hda_jack_report_sync(codec);
+}
+
+/* unsolicited event for HP jack sensing */
+static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
+{
+	if (codec->vendor_id == 0x10ec0880)
+		res >>= 28;
+	else
+		res >>= 26;
+	res = snd_hda_jack_get_action(codec, res);
+	alc_exec_unsol_event(codec, res);
 }
 
 /* call init functions of standard auto-mute helpers */
@@ -1883,7 +1886,7 @@ static const struct snd_kcontrol_new alc_beep_mixer[] = {
 };
 #endif
 
-static int alc_build_controls(struct hda_codec *codec)
+static int __alc_build_controls(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	struct snd_kcontrol *kctl = NULL;
@@ -2029,11 +2032,16 @@ static int alc_build_controls(struct hda_codec *codec)
 
 	alc_free_kctls(codec); /* no longer needed */
 
-	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
+	return 0;
+}
+
+static int alc_build_controls(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	int err = __alc_build_controls(codec);
 	if (err < 0)
 		return err;
-
-	return 0;
+	return snd_hda_jack_add_kctls(codec, &spec->autocfg);
 }
 
 
@@ -3233,7 +3241,7 @@ static int alc_auto_create_multi_out_ctls(struct hda_codec *codec,
 	int i, err, noutputs;
 
 	noutputs = cfg->line_outs;
-	if (spec->multi_ios > 0)
+	if (spec->multi_ios > 0 && cfg->line_outs < 3)
 		noutputs += spec->multi_ios;
 
 	for (i = 0; i < noutputs; i++) {
@@ -3904,7 +3912,6 @@ static void set_capture_mixer(struct hda_codec *codec)
 static void alc_auto_init_std(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	spec->use_jack_tbl = 1;
 	alc_auto_init_multi_out(codec);
 	alc_auto_init_extra_out(codec);
 	alc_auto_init_analog_input(codec);
@@ -4168,6 +4175,8 @@ static int patch_alc880(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC_MODEL_AUTO)
 		spec->init_hook = alc_auto_init_std;
+	else
+		codec->patch_ops.build_controls = __alc_build_controls;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc880_loopbacks;
@@ -4297,6 +4306,8 @@ static int patch_alc260(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC_MODEL_AUTO)
 		spec->init_hook = alc_auto_init_std;
+	else
+		codec->patch_ops.build_controls = __alc_build_controls;
 	spec->shutup = alc_eapd_shutup;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
@@ -4691,6 +4702,8 @@ static int patch_alc882(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC_MODEL_AUTO)
 		spec->init_hook = alc_auto_init_std;
+	else
+		codec->patch_ops.build_controls = __alc_build_controls;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
@@ -5573,6 +5586,7 @@ static const struct hda_amp_list alc861_loopbacks[] = {
 /* Pin config fixes */
 enum {
 	PINFIX_FSC_AMILO_PI1505,
+	PINFIX_ASUS_A6RP,
 };
 
 static const struct alc_fixup alc861_fixups[] = {
@@ -5584,9 +5598,19 @@ static const struct alc_fixup alc861_fixups[] = {
 			{ }
 		}
 	},
+	[PINFIX_ASUS_A6RP] = {
+		.type = ALC_FIXUP_VERBS,
+		.v.verbs = (const struct hda_verb[]) {
+			/* node 0x0f VREF seems controlling the master output */
+			{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50 },
+			{ }
+		},
+	},
 };
 
 static const struct snd_pci_quirk alc861_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x1043, 0x1393, "ASUS A6Rp", PINFIX_ASUS_A6RP),
+	SND_PCI_QUIRK(0x1584, 0x2b01, "Haier W18", PINFIX_ASUS_A6RP),
 	SND_PCI_QUIRK(0x1734, 0x10c7, "FSC Amilo Pi1505", PINFIX_FSC_AMILO_PI1505),
 	{}
 };

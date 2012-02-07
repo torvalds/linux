@@ -762,14 +762,20 @@ static void alc880_uniwill_unsol_event(struct hda_codec *codec,
 	/* Looks like the unsol event is incompatible with the standard
 	 * definition.  4bit tag is placed at 28 bit!
 	 */
-	switch (res >> 28) {
+	res >>= 28;
+	switch (res) {
 	case ALC_MIC_EVENT:
 		alc88x_simple_mic_automute(codec);
 		break;
 	default:
-		alc_sku_unsol_event(codec, res);
+		alc_exec_unsol_event(codec, res);
 		break;
 	}
+}
+
+static void alc880_unsol_event(struct hda_codec *codec, unsigned int res)
+{
+	alc_exec_unsol_event(codec, res >> 28);
 }
 
 static void alc880_uniwill_p53_setup(struct hda_codec *codec)
@@ -800,10 +806,11 @@ static void alc880_uniwill_p53_unsol_event(struct hda_codec *codec,
 	/* Looks like the unsol event is incompatible with the standard
 	 * definition.  4bit tag is placed at 28 bit!
 	 */
-	if ((res >> 28) == ALC_DCVOL_EVENT)
+	res >>= 28;
+	if (res == ALC_DCVOL_EVENT)
 		alc880_uniwill_p53_dcvol_automute(codec);
 	else
-		alc_sku_unsol_event(codec, res);
+		alc_exec_unsol_event(codec, res);
 }
 
 /*
@@ -1677,7 +1684,7 @@ static const struct alc_config_preset alc880_presets[] = {
 		.channel_mode = alc880_lg_ch_modes,
 		.need_dac_fix = 1,
 		.input_mux = &alc880_lg_capture_source,
-		.unsol_event = alc_sku_unsol_event,
+		.unsol_event = alc880_unsol_event,
 		.setup = alc880_lg_setup,
 		.init_hook = alc_hp_automute,
 #ifdef CONFIG_SND_HDA_POWER_SAVE
