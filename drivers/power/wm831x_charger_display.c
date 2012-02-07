@@ -73,6 +73,7 @@ extern int dwc_vbus_status( void );
 extern int dwc_otg_pcd_check_vbus_detech( unsigned long pdata );
 
 #if defined(CONFIG_LOGO_CHARGER_CLUT224)
+extern struct linux_logo logo_charger00_clut224;
 extern struct linux_logo logo_charger01_clut224;
 extern struct linux_logo logo_charger02_clut224;
 extern struct linux_logo logo_charger03_clut224;
@@ -81,14 +82,16 @@ extern struct linux_logo logo_charger05_clut224;
 extern struct linux_logo logo_charger06_clut224;
 extern struct linux_logo logo_charger07_clut224;
 extern struct linux_logo logo_charger08_clut224;
+extern struct linux_logo logo_charger09_clut224;
+extern struct linux_logo logo_charger10_clut224;
 #endif
 
 extern struct fb_info *g_fb0_inf;
 
-static struct linux_logo* g_chargerlogo[8]= {
+static struct linux_logo* g_chargerlogo[11]= {
 #if defined(CONFIG_LOGO_CHARGER_CLUT224)
-	&logo_charger01_clut224,&logo_charger02_clut224,&logo_charger03_clut224,&logo_charger04_clut224,
-		&logo_charger05_clut224,&logo_charger06_clut224,&logo_charger07_clut224,&logo_charger08_clut224
+	&logo_charger00_clut224,&logo_charger01_clut224,&logo_charger02_clut224,&logo_charger03_clut224,&logo_charger04_clut224,
+		&logo_charger05_clut224,&logo_charger06_clut224,&logo_charger07_clut224,&logo_charger08_clut224,&logo_charger09_clut224,&logo_charger10_clut224
 #endif
 };
 
@@ -104,7 +107,15 @@ struct wm831x_chg {
 	int flag_suspend;
 	
 };
-
+static int charger_logo_init(struct linux_logo *logo)
+{
+	logo->width = ((logo->data[0]<<8)+ logo->data[1]);
+	logo->height = ((logo->data[2]<<8)+ logo->data[3]);
+	logo->clutsize = logo->clut[0];
+	logo->data += 4;
+	logo->clut +=1;
+	return 0;
+}
 static int charger_logo_display(struct linux_logo *logo)
 {
 	fb_show_charge_logo(logo);
@@ -261,14 +272,23 @@ static int get_charger_logo_start_num(struct wm831x_chg *wm831x_chg)
 	else if(bat_vol <= 3990) {
 		rlogonum = 5;
 	}
-	else if(bat_vol <= 4130) {
+	else if(bat_vol <= 4030) {
 		rlogonum = 6;
 	}
-	else if(bat_vol <= 4200) {
+	else if(bat_vol <= 4070) {
 		rlogonum = 7;
 	}
+	else if(bat_vol <= 4120) {
+		rlogonum = 8;
+	}
+	else if(bat_vol <= 4170) {
+		rlogonum = 9;
+	}
+	else if(bat_vol <= 4200) {
+		rlogonum = 10;
+	}
 	else{
-		rlogonum = 7;
+		rlogonum = 10;
 	}
 		
 	return rlogonum;
@@ -305,14 +325,17 @@ static int wm831x_check_on_pin(struct wm831x_chg *wm831x_chg)
 static int rk29_charger_display(struct wm831x_chg *wm831x_chg)
 {
 	int status;
-	struct linux_logo* chargerlogo[8];
+	struct linux_logo* chargerlogo[11];
 	int ret,i;
 	int count = 0;
 	
 	wm831x_chg->flag_chg = wm831x_read_chg_status(wm831x_chg);
 	if(!wm831x_chg->flag_chg)
 		return -1;
-
+	for(i=0;i<11;i++)
+	{
+		charger_logo_init(g_chargerlogo[i]);
+	}
 	while(1)
 	{
 		wm831x_chg->flag_chg = wm831x_read_chg_status(wm831x_chg);
@@ -321,12 +344,12 @@ static int rk29_charger_display(struct wm831x_chg *wm831x_chg)
 
 		status = wm831x_read_bat_charging_status(wm831x_chg);
 
-		for(i=0; i<8; i++)
+		for(i=0; i<11; i++)
 		chargerlogo[i] = g_chargerlogo[i];
 	
 		if(status == BAT_CHARGING)
 		{	
-			for(i=get_charger_logo_start_num(wm831x_chg); i<8; i++ )
+			for(i=get_charger_logo_start_num(wm831x_chg); i<11; i++ )
 			{
 				wm831x_chg->flag_chg = wm831x_read_chg_status(wm831x_chg);
 				if(!wm831x_chg->flag_chg)
@@ -351,10 +374,10 @@ static int rk29_charger_display(struct wm831x_chg *wm831x_chg)
 		{
 
 		#ifdef CONFIG_RK29_CHARGE_EARLYSUSPEND
-			charger_logo_display(chargerlogo[7]);
+			charger_logo_display(chargerlogo[10]);
 		#else
 			if(wm831x_chg->flag_bl != 0)
-			charger_logo_display(chargerlogo[7]);
+			charger_logo_display(chargerlogo[10]);
 		#endif
 			msleep(200);
 			wm831x_check_on_pin(wm831x_chg);

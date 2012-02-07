@@ -83,7 +83,7 @@ config LOGO_M32R_CLUT224
 	default y
 
 config LOGO_CHARGER_CLUT224
-        bool "standard 224-color linux logo for rk2918 phone"
+        bool "standard 224-color linux logo for g3 phone charge"
         default n
 
 config LOGO_G3_CLUT224
