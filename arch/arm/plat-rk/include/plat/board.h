@@ -11,6 +11,19 @@
 #define BOOT_MODE_OFFMODE_CHARGING	5
 #define BOOT_MODE_REBOOT		6
 #define BOOT_MODE_PANIC			7
+
+struct rk30_i2c_platform_data {
+    char *name;
+    int  bus_num; 
+#define I2C_RK29_ADAP   0
+#define I2C_RK30_ADAP   1
+    int adap_type:1;
+    int is_div_from_arm:1;
+    u32  flags;
+    int (*io_init)(void);
+    int (*io_deinit)(void);
+};
+
 int board_boot_mode(void);
 
 /* for USB detection */

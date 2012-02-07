@@ -39,9 +39,51 @@
 static struct platform_device *devices[] __initdata = {
 };
 
+// i2c
+#ifdef CONFIG_I2C0_RK30
+static struct i2c_board_info __initdata i2c0_info[] = {
+};
+#endif
+#ifdef CONFIG_I2C1_RK30
+static struct i2c_board_info __initdata i2c1_info[] = {
+};
+#endif
+#ifdef CONFIG_I2C2_RK30
+static struct i2c_board_info __initdata i2c2_info[] = {
+};
+#endif
+#ifdef CONFIG_I2C3_RK30
+static struct i2c_board_info __initdata i2c3_info[] = {
+};
+#endif
+#ifdef CONFIG_I2C4_RK30
+static struct i2c_board_info __initdata i2c4_info[] = {
+};
+#endif
+static void __init rk30_i2c_register_board_info(void)
+{
+#ifdef CONFIG_I2C0_RK30
+    i2c_register_board_info(0, i2c0_info, ARRAY_SIZE(i2c0_info));
+#endif
+#ifdef CONFIG_I2C1_RK30
+    i2c_register_board_info(1, i2c1_info, ARRAY_SIZE(i2c1_info));
+#endif
+#ifdef CONFIG_I2C2_RK30
+    i2c_register_board_info(2, i2c2_info, ARRAY_SIZE(i2c2_info));
+#endif
+#ifdef CONFIG_I2C3_RK30
+    i2c_register_board_info(3, i2c3_info, ARRAY_SIZE(i2c3_info));
+#endif
+#ifdef CONFIG_I2C4_RK30
+    i2c_register_board_info(4, i2c4_info, ARRAY_SIZE(i2c4_info));
+#endif
+}
+//end of i2c
+
 static void __init machine_rk30_board_init(void)
 {
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+    rk30_i2c_register_board_info();
+    platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
 static void __init rk30_reserve(void)
