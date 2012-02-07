@@ -967,7 +967,7 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 		case IWL_UCODE_TLV_ENHANCE_SENS_TBL:
 			if (tlv_len)
 				goto invalid_tlv_len;
-			priv->enhance_sensitivity_table = true;
+			nic->fw.enhance_sensitivity_table = true;
 			break;
 		case IWL_UCODE_TLV_WOWLAN_INST:
 			pieces->wowlan_inst = tlv_data;
