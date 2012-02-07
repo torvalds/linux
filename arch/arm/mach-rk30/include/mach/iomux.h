@@ -312,8 +312,8 @@
 #define GPIO3A_SDMMC0_WRITE_PRT			1 
 #define GPIO3A_GPIO3A6				0 
 #define GPIO3A_SDMMC0_RSTN_OUT			1 
-#define GPIO4A_GPIO4A5				0 
-#define GPIO4A_I2C4_SCL				1 
+#define GPIO3A_GPIO3A5				0 
+#define GPIO3A_I2C4_SCL				1 
 #define GPIO3A_GPIO3A4				0 
 #define GPIO3A_I2C4_SDA			 	1 
 #define GPIO3A_GPIO3A3				0 
@@ -714,7 +714,7 @@
 //GPIO3A
 #define GPIO3A7_SDMMC0WRITEPRT_NAME			"gpio3a7_sdmmc0writeprt_name" 
 #define GPIO3A6_SDMMC0RSTNOUT_NAME			"gpio3a6_sdmmc0rstnout_name" 
-#define GPIO4A5_I2C4SCL_NAME				"gpio4a5_i2c4scl_name" 
+#define GPIO3A5_I2C4SCL_NAME				"gpio3a5_i2c4scl_name" 
 #define GPIO3A4_I2C4SDA_NAME				"gpio3a4_i2c4sda_name" 
 #define GPIO3A3_I2C3SCL_NAME				"gpio3a3_i2c3scl_name" 
 #define GPIO3A2_I2C3SDA_NAME				"gpio3a2_i2c3sda_name" 
