@@ -72,20 +72,26 @@ static inline u32 timer_read(u32 n, u32 offset)
 
 static int rk30_timer_set_next_event(unsigned long cycles, struct clock_event_device *evt)
 {
-	RK_TIMER_DISABLE(TIMER_CLKEVT);
-	RK_TIMER_SETCOUNT(TIMER_CLKEVT, cycles);
-	RK_TIMER_ENABLE(TIMER_CLKEVT);
+	do {
+		RK_TIMER_DISABLE(TIMER_CLKEVT);
+		RK_TIMER_SETCOUNT(TIMER_CLKEVT, cycles);
+		RK_TIMER_ENABLE(TIMER_CLKEVT);
+	} while (RK_TIMER_READVALUE(TIMER_CLKEVT) > cycles);
 	return 0;
 }
 
 static void rk30_timer_set_mode(enum clock_event_mode mode, struct clock_event_device *evt)
 {
+	u32 count;
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		RK_TIMER_DISABLE(TIMER_CLKEVT);
-		RK_TIMER_SETCOUNT(TIMER_CLKEVT, 24000000 / HZ - 1);
-		RK_TIMER_ENABLE(TIMER_CLKEVT);
+		count = 24000000 / HZ - 1;
+		do {
+			RK_TIMER_DISABLE(TIMER_CLKEVT);
+			RK_TIMER_SETCOUNT(TIMER_CLKEVT, count);
+			RK_TIMER_ENABLE(TIMER_CLKEVT);
+		} while (RK_TIMER_READVALUE(TIMER_CLKEVT) > count);
 		break;
 	case CLOCK_EVT_MODE_RESUME:
 	case CLOCK_EVT_MODE_ONESHOT:
