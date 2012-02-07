@@ -3,6 +3,11 @@ ifeq ("$(origin O)", "command line")
 	OUTPUT := $(O)/
 endif
 
+DESTDIR =
+bindir  = /usr/bin
+
+INSTALL = /usr/bin/install
+
 
 default: all
 
@@ -23,4 +28,11 @@ all: $(OUTPUT)centrino-decode $(OUTPUT)dump_psb $(OUTPUT)intel_gsic $(OUTPUT)pow
 clean:
 	rm -rf $(OUTPUT){centrino-decode,dump_psb,intel_gsic,powernow-k8-decode}
 
-.PHONY: all default clean
+install:
+	$(INSTALL) -d $(DESTDIR)${bindir}
+	$(INSTALL) $(OUTPUT)centrino-decode $(DESTDIR)${bindir}
+	$(INSTALL) $(OUTPUT)powernow-k8-decode $(DESTDIR)${bindir}
+	$(INSTALL) $(OUTPUT)dump_psb $(DESTDIR)${bindir}
+	$(INSTALL) $(OUTPUT)intel_gsic $(DESTDIR)${bindir}
+
+.PHONY: all default clean install
