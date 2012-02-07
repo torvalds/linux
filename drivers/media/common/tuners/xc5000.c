@@ -203,15 +203,32 @@ static struct XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
 	{"FM Radio-INPUT1_MONO", 0x0278, 0x9002}
 };
 
-struct xc5000_fw_cfg xc5000a_1_6_114 = {
+
+struct xc5000_fw_cfg {
+	char *name;
+	u16 size;
+};
+
+static struct xc5000_fw_cfg xc5000a_1_6_114 = {
 	.name = "dvb-fe-xc5000-1.6.114.fw",
 	.size = 12401,
 };
 
-struct xc5000_fw_cfg xc5000c_41_024_5_31875 = {
+static struct xc5000_fw_cfg xc5000c_41_024_5_31875 = {
 	.name = "dvb-fe-xc5000c-41.024.5-31875.fw",
 	.size = 16503,
 };
+
+static inline struct xc5000_fw_cfg *xc5000_assign_firmware(int fw)
+{
+	switch (fw) {
+	default:
+	case XC5000_FW_A_1_6_114:
+		return &xc5000a_1_6_114;
+	case XC5000_FW_C_41_024_5_31875:
+		return &xc5000c_41_024_5_31875;
+	}
+}
 
 static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe);
 static int xc5000_is_firmware_loaded(struct dvb_frontend *fe);
@@ -1152,7 +1169,8 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 	   unless explicitly specified */
 	if ((priv->fw == NULL) || (cfg->fw))
 		/* use default firmware if none specified */
-		priv->fw = (cfg->fw) ? cfg->fw : XC5000_DEFAULT_FIRMWARE;
+		priv->fw = xc5000_assign_firmware((cfg->fw) ?
+			cfg->fw : XC5000_DEFAULT_FIRMWARE);
 
 	/* Check if firmware has been loaded. It is possible that another
 	   instance of the driver has loaded the firmware.
