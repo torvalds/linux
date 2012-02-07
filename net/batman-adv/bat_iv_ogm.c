@@ -52,6 +52,12 @@ static void bat_iv_ogm_iface_enable(struct hard_iface *hard_iface)
 	batman_ogm_packet->ttvn = 0;
 }
 
+static void bat_iv_ogm_iface_disable(struct hard_iface *hard_iface)
+{
+	kfree(hard_iface->packet_buff);
+	hard_iface->packet_buff = NULL;
+}
+
 static void bat_iv_ogm_init_primary(struct hard_iface *hard_iface)
 {
 	struct batman_ogm_packet *batman_ogm_packet;
@@ -1175,6 +1181,7 @@ static void bat_iv_ogm_receive(struct hard_iface *if_incoming,
 static struct bat_algo_ops batman_iv __read_mostly = {
 	.name = "BATMAN IV",
 	.bat_iface_enable = bat_iv_ogm_iface_enable,
+	.bat_iface_disable = bat_iv_ogm_iface_disable,
 	.bat_ogm_init_primary = bat_iv_ogm_init_primary,
 	.bat_ogm_update_mac = bat_iv_ogm_update_mac,
 	.bat_ogm_schedule = bat_iv_ogm_schedule,

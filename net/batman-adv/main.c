@@ -209,6 +209,7 @@ int bat_algo_register(struct bat_algo_ops *bat_algo_ops)
 
 	/* all algorithms must implement all ops (for now) */
 	if (!bat_algo_ops->bat_iface_enable ||
+	    !bat_algo_ops->bat_iface_disable ||
 	    !bat_algo_ops->bat_ogm_init_primary ||
 	    !bat_algo_ops->bat_ogm_update_mac ||
 	    !bat_algo_ops->bat_ogm_schedule ||

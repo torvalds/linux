@@ -397,8 +397,7 @@ void hardif_disable_interface(struct hard_iface *hard_iface)
 			hardif_free_ref(new_if);
 	}
 
-	kfree(hard_iface->packet_buff);
-	hard_iface->packet_buff = NULL;
+	bat_priv->bat_algo_ops->bat_iface_disable(hard_iface);
 	hard_iface->if_status = IF_NOT_IN_USE;
 
 	/* delete all references to this hard_iface */
