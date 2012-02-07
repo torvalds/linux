@@ -70,7 +70,7 @@
 #include "iwl-trans.h"
 #include "iwl-csr.h"
 #include "iwl-cfg.h"
-#include "iwl-wifi.h"
+#include "iwl-drv.h"
 
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \
 	.vendor = PCI_VENDOR_ID_INTEL,  .device = (dev), \
@@ -283,34 +283,24 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	bus->shrd->bus = bus;
 
-	/* temporarily create this here */
-	bus->shrd->nic = kzalloc(sizeof(*bus->shrd->nic), GFP_KERNEL);
-	if (!bus->shrd->nic) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "Couldn't allocate iwl_nic");
-		err = -ENOMEM;
-		goto out_free_bus;
-	}
-	/* and initialize it as well, temporarily */
-	bus->shrd->nic->shrd = bus->shrd;
 	pci_set_drvdata(pdev, bus);
 
 #ifdef CONFIG_IWLWIFI_IDI
 	trans(bus) = iwl_trans_idi_alloc(bus->shrd, pdev, ent);
 	if (trans(bus) == NULL) {
 		err = -ENOMEM;
-		goto out_free_nic;
+		goto out_free_bus;
 	}
 
-	err = iwl_probe(bus, &trans_ops_idi, cfg);
+	err = iwl_drv_start(bus->shrd, trans(bus), cfg);
 #else
 	trans(bus) = iwl_trans_pcie_alloc(bus->shrd, pdev, ent);
 	if (trans(bus) == NULL) {
 		err = -ENOMEM;
-		goto out_free_nic;
+		goto out_free_bus;
 	}
 
-	err = iwl_probe(bus, &trans_ops_pcie, cfg);
+	err = iwl_drv_start(bus->shrd, trans(bus), cfg);
 #endif
 	if (err)
 		goto out_free_trans;
@@ -320,8 +310,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 out_free_trans:
 	iwl_trans_free(trans(bus));
 	pci_set_drvdata(pdev, NULL);
-out_free_nic:
-	kfree(bus->shrd->nic);
 out_free_bus:
 	kfree(bus->shrd);
 	kfree(bus);

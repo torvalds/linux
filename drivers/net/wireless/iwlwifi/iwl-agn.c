@@ -1331,16 +1331,6 @@ out:
 	return err;
 }
 
-int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
-		struct iwl_cfg *cfg)
-{
-	bus->shrd->cfg = cfg;
-
-	init_completion(&nic(bus)->request_firmware_complete);
-
-	return iwl_request_firmware(nic(bus), true);
-}
-
 void __devexit iwl_remove(struct iwl_priv * priv)
 {
 	wait_for_completion(&nic(priv)->request_firmware_complete);

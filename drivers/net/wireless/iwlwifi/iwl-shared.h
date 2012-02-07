@@ -535,8 +535,6 @@ enum iwl_rxon_context_id {
 int iwl_op_mode_dvm_start(struct iwl_bus *bus,
 			  const struct iwl_trans_ops *trans_ops,
 			  struct iwl_cfg *cfg);
-int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
-		struct iwl_cfg *cfg);
 void __devexit iwl_remove(struct iwl_priv * priv);
 struct iwl_device_cmd;
 int __must_check iwl_rx_dispatch(struct iwl_priv *priv,
