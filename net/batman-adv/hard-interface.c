@@ -146,7 +146,7 @@ static void primary_if_select(struct bat_priv *bat_priv,
 	if (!new_hard_iface)
 		goto out;
 
-	bat_priv->bat_algo_ops->bat_ogm_init_primary(new_hard_iface);
+	bat_priv->bat_algo_ops->bat_primary_iface_set(new_hard_iface);
 	primary_if_update_addr(bat_priv, curr_hard_iface);
 
 out:

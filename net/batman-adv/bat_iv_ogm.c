@@ -67,7 +67,7 @@ static void bat_iv_ogm_iface_disable(struct hard_iface *hard_iface)
 	hard_iface->packet_buff = NULL;
 }
 
-static void bat_iv_ogm_init_primary(struct hard_iface *hard_iface)
+static void bat_iv_ogm_primary_iface_set(struct hard_iface *hard_iface)
 {
 	struct batman_ogm_packet *batman_ogm_packet;
 
@@ -1191,7 +1191,7 @@ static struct bat_algo_ops batman_iv __read_mostly = {
 	.name = "BATMAN IV",
 	.bat_iface_enable = bat_iv_ogm_iface_enable,
 	.bat_iface_disable = bat_iv_ogm_iface_disable,
-	.bat_ogm_init_primary = bat_iv_ogm_init_primary,
+	.bat_primary_iface_set = bat_iv_ogm_primary_iface_set,
 	.bat_ogm_update_mac = bat_iv_ogm_update_mac,
 	.bat_ogm_schedule = bat_iv_ogm_schedule,
 	.bat_ogm_emit = bat_iv_ogm_emit,
