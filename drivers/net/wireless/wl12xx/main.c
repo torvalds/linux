@@ -5444,7 +5444,7 @@ module_param_named(debug_level, wl12xx_debug_level, uint, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(debug_level, "wl12xx debugging level");
 
 module_param_named(fwlog, fwlog_param, charp, 0);
-MODULE_PARM_DESC(keymap,
+MODULE_PARM_DESC(fwlog,
 		 "FW logger options: continuous, ondemand, dbgpins or disable");
 
 module_param(bug_on_recovery, bool, S_IRUSR | S_IWUSR);
