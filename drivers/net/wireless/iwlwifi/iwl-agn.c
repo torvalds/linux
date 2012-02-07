@@ -1142,9 +1142,11 @@ static void iwl_debug_config(struct iwl_priv *priv)
 #endif
 }
 
-int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
-		struct iwl_cfg *cfg)
+int iwl_op_mode_dvm_start(struct iwl_bus *bus,
+			  const struct iwl_trans_ops *trans_ops,
+			  struct iwl_cfg *cfg)
 {
+	struct iwl_fw *fw = &nic(bus)->fw;
 	int err = 0;
 	struct iwl_priv *priv;
 	struct ieee80211_hw *hw;
@@ -1172,7 +1174,6 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	iwl_debug_config(priv);
 
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
-	cfg(priv) = cfg;
 
 	/* is antenna coupling more than 35dB ? */
 	priv->bt_ant_couple_ok =
@@ -1260,11 +1261,43 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	iwl_power_initialize(priv);
 	iwl_tt_initialize(priv);
 
-	init_completion(&nic(priv)->request_firmware_complete);
+	snprintf(priv->hw->wiphy->fw_version,
+		 sizeof(priv->hw->wiphy->fw_version),
+		 "%s", fw->fw_version);
 
-	err = iwl_request_firmware(nic(priv), true);
+	priv->new_scan_threshold_behaviour =
+		!!(fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWSCAN);
+
+	if (fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN) {
+		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
+		priv->shrd->cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
+	} else {
+		priv->sta_key_max_num = STA_KEY_MAX_NUM;
+		priv->shrd->cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
+	}
+
+	priv->phy_calib_chain_noise_reset_cmd =
+		fw->ucode_capa.standard_phy_calibration_size;
+	priv->phy_calib_chain_noise_gain_cmd =
+		fw->ucode_capa.standard_phy_calibration_size + 1;
+
+	/* initialize all valid contexts */
+	iwl_init_context(priv, fw->ucode_capa.flags);
+
+	/**************************************************
+	 * This is still part of probe() in a sense...
+	 *
+	 * 9. Setup and register with mac80211 and debugfs
+	 **************************************************/
+	err = iwlagn_mac_setup_register(priv, &fw->ucode_capa);
 	if (err)
 		goto out_destroy_workqueue;
+
+	err = iwl_dbgfs_register(priv, DRV_NAME);
+	if (err)
+		IWL_ERR(priv,
+			"failed to create debugfs files. Ignoring error: %d\n",
+			err);
 
 	return 0;
 
@@ -1279,6 +1312,16 @@ out_free_traffic_mem:
 	ieee80211_free_hw(priv->hw);
 out:
 	return err;
+}
+
+int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
+		struct iwl_cfg *cfg)
+{
+	bus->shrd->cfg = cfg;
+
+	init_completion(&nic(bus)->request_firmware_complete);
+
+	return iwl_request_firmware(nic(bus), true);
 }
 
 void __devexit iwl_remove(struct iwl_priv * priv)

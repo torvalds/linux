@@ -66,6 +66,8 @@
 #include "iwl-shared.h"
 #include "iwl-ucode.h"
 
+#define UCODE_EXPERIMENTAL_INDEX	100
+
 /**
  * struct iwl_nic - nic common data
  * @fw: the iwl_fw structure

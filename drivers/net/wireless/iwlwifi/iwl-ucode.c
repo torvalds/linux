@@ -687,7 +687,6 @@ int iwl_run_init_ucode(struct iwl_trans *trans)
 
 static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context);
 
-#define UCODE_EXPERIMENTAL_INDEX	100
 #define UCODE_EXPERIMENTAL_TAG		"exp"
 
 int __must_check iwl_request_firmware(struct iwl_nic *nic, bool first)
@@ -1047,7 +1046,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	struct iwl_nic *nic = context;
 	struct iwl_cfg *cfg = cfg(nic);
 	struct iwl_fw *fw = &nic->fw;
-	struct iwl_priv *priv = priv(nic); /* temporary */
 	struct iwl_ucode_header *ucode;
 	int err;
 	struct iwlagn_firmware_pieces pieces;
@@ -1126,10 +1124,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	}
 
 	IWL_INFO(nic, "loaded firmware version %s", nic->fw.fw_version);
-
-	snprintf(priv->hw->wiphy->fw_version,
-		 sizeof(priv->hw->wiphy->fw_version),
-		 "%s", nic->fw.fw_version);
 
 	/*
 	 * For any of the failures below (before allocating pci memory)
@@ -1235,9 +1229,14 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 #ifndef CONFIG_IWLWIFI_P2P
 	fw->ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
 #endif
-
-	priv->new_scan_threshold_behaviour =
-		!!(fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWSCAN);
+	/*
+	 * figure out the offset of chain noise reset and gain commands
+	 * base on the size of standard phy calibration commands table size
+	 */
+	if (fw->ucode_capa.standard_phy_calibration_size >
+	    IWL_MAX_PHY_CALIBRATE_TBL_SIZE)
+		fw->ucode_capa.standard_phy_calibration_size =
+			IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 
 	if (!(cfg->sku & EEPROM_SKU_CAP_IPAN_ENABLE))
 		fw->ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
@@ -1249,63 +1248,28 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	if (!(fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN))
 		fw->ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
 
-	if (fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN) {
-		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
-		nic->shrd->cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
-	} else {
-		priv->sta_key_max_num = STA_KEY_MAX_NUM;
-		nic->shrd->cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
-	}
-	/*
-	 * figure out the offset of chain noise reset and gain commands
-	 * base on the size of standard phy calibration commands table size
-	 */
-	if (fw->ucode_capa.standard_phy_calibration_size >
-	    IWL_MAX_PHY_CALIBRATE_TBL_SIZE)
-		fw->ucode_capa.standard_phy_calibration_size =
-			IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE;
-
-	priv->phy_calib_chain_noise_reset_cmd =
-		fw->ucode_capa.standard_phy_calibration_size;
-	priv->phy_calib_chain_noise_gain_cmd =
-		fw->ucode_capa.standard_phy_calibration_size + 1;
-
-	/* initialize all valid contexts */
-	iwl_init_context(priv, fw->ucode_capa.flags);
-
-	/**************************************************
-	 * This is still part of probe() in a sense...
-	 *
-	 * 9. Setup and register with mac80211 and debugfs
-	 **************************************************/
-	err = iwlagn_mac_setup_register(priv, &fw->ucode_capa);
-	if (err)
-		goto out_unbind;
-
-	err = iwl_dbgfs_register(priv, DRV_NAME);
-	if (err)
-		IWL_ERR(nic,
-			"failed to create debugfs files. Ignoring error: %d\n",
-			err);
-
 	/* We have our copies now, allow OS release its copies */
 	release_firmware(ucode_raw);
 	complete(&nic->request_firmware_complete);
+
+	if (iwl_op_mode_dvm_start(bus(nic), trans(nic)->ops, cfg))
+		goto out_unbind;
+
 	return;
 
  try_again:
 	/* try next, if any */
+	release_firmware(ucode_raw);
 	if (iwl_request_firmware(nic, false))
 		goto out_unbind;
-	release_firmware(ucode_raw);
 	return;
 
  err_pci_alloc:
 	IWL_ERR(nic, "failed to allocate pci memory\n");
 	iwl_dealloc_ucode(nic);
+	release_firmware(ucode_raw);
  out_unbind:
 	complete(&nic->request_firmware_complete);
 	device_release_driver(trans(nic)->dev);
-	release_firmware(ucode_raw);
 }
 
