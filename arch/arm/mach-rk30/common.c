@@ -13,6 +13,7 @@
 void __init rk30_init_irq(void)
 {
 	gic_init(0, IRQ_LOCALTIMER, RK30_GICD_BASE, RK30_GICC_BASE);
+	rk30_gpio_init();
 }
 
 void __init rk30_map_io(void)
