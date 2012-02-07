@@ -63,8 +63,6 @@
 #ifndef __iwl_ucode_h__
 #define __iwl_ucode_h__
 
-#include "iwl-trans.h"
-
 #include <linux/netdevice.h>
 
 /* v1/v2 uCode file layout */
@@ -179,6 +177,18 @@ struct iwl_ucode_capabilities {
 	u32 max_probe_length;
 	u32 standard_phy_calibration_size;
 	u32 flags;
+};
+
+/* one for each uCode image (inst/data, boot/init/runtime) */
+struct fw_desc {
+	dma_addr_t p_addr;	/* hardware address */
+	void *v_addr;		/* software address */
+	u32 len;		/* size in bytes */
+};
+
+struct fw_img {
+	struct fw_desc code;	/* firmware code image */
+	struct fw_desc data;	/* firmware data image */
 };
 
 /**

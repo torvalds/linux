@@ -99,9 +99,10 @@ static void iwl_free_fw_img(struct iwl_trans *trans, struct fw_img *img)
 
 void iwl_dealloc_ucode(struct iwl_trans *trans)
 {
-	iwl_free_fw_img(trans, &trans->ucode_rt);
-	iwl_free_fw_img(trans, &trans->ucode_init);
-	iwl_free_fw_img(trans, &trans->ucode_wowlan);
+	struct iwl_nic *nic = nic(trans);
+	iwl_free_fw_img(trans, &nic->fw.ucode_rt);
+	iwl_free_fw_img(trans, &nic->fw.ucode_init);
+	iwl_free_fw_img(trans, &nic->fw.ucode_wowlan);
 }
 
 static int iwl_alloc_fw_desc(struct iwl_trans *trans, struct fw_desc *desc,
@@ -122,16 +123,16 @@ static int iwl_alloc_fw_desc(struct iwl_trans *trans, struct fw_desc *desc,
 	return 0;
 }
 
-static inline struct fw_img *iwl_get_ucode_image(struct iwl_trans *trans,
+static inline struct fw_img *iwl_get_ucode_image(struct iwl_nic *nic,
 					enum iwl_ucode_type ucode_type)
 {
 	switch (ucode_type) {
 	case IWL_UCODE_INIT:
-		return &trans->ucode_init;
+		return &nic->fw.ucode_init;
 	case IWL_UCODE_WOWLAN:
-		return &trans->ucode_wowlan;
+		return &nic->fw.ucode_wowlan;
 	case IWL_UCODE_REGULAR:
-		return &trans->ucode_rt;
+		return &nic->fw.ucode_rt;
 	case IWL_UCODE_NONE:
 		break;
 	}
@@ -456,7 +457,7 @@ static void iwl_print_mismatch_inst(struct iwl_trans *trans,
 static int iwl_verify_ucode(struct iwl_trans *trans,
 			    enum iwl_ucode_type ucode_type)
 {
-	struct fw_img *img = iwl_get_ucode_image(trans, ucode_type);
+	struct fw_img *img = iwl_get_ucode_image(nic(trans), ucode_type);
 
 	if (!img) {
 		IWL_ERR(trans, "Invalid ucode requested (%d)\n", ucode_type);
@@ -583,7 +584,7 @@ int iwl_load_ucode_wait_alive(struct iwl_trans *trans,
 
 	old_type = trans->shrd->ucode_type;
 	trans->shrd->ucode_type = ucode_type;
-	fw = iwl_get_ucode_image(trans, ucode_type);
+	fw = iwl_get_ucode_image(nic(trans), ucode_type);
 
 	if (!fw)
 		return -EINVAL;
@@ -647,7 +648,7 @@ int iwl_run_init_ucode(struct iwl_trans *trans)
 	lockdep_assert_held(&trans->shrd->mutex);
 
 	/* No init ucode required? Curious, but maybe ok */
-	if (!trans->ucode_init.code.len)
+	if (!nic(trans)->fw.ucode_init.code.len)
 		return 0;
 
 	if (trans->shrd->ucode_type != IWL_UCODE_NONE)
@@ -1163,21 +1164,21 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	/* Runtime instructions and 2 copies of data:
 	 * 1) unmodified from disk
 	 * 2) backup cache for save/restore during power-downs */
-	if (iwl_alloc_fw_desc(trans(priv), &trans(priv)->ucode_rt.code,
+	if (iwl_alloc_fw_desc(trans(priv), &nic(priv)->fw.ucode_rt.code,
 			      pieces.inst, pieces.inst_size))
 		goto err_pci_alloc;
-	if (iwl_alloc_fw_desc(trans(priv), &trans(priv)->ucode_rt.data,
+	if (iwl_alloc_fw_desc(trans(priv), &nic(priv)->fw.ucode_rt.data,
 			      pieces.data, pieces.data_size))
 		goto err_pci_alloc;
 
 	/* Initialization instructions and data */
 	if (pieces.init_size && pieces.init_data_size) {
 		if (iwl_alloc_fw_desc(trans(priv),
-				      &trans(priv)->ucode_init.code,
+				      &nic(priv)->fw.ucode_init.code,
 				      pieces.init, pieces.init_size))
 			goto err_pci_alloc;
 		if (iwl_alloc_fw_desc(trans(priv),
-				      &trans(priv)->ucode_init.data,
+				      &nic(priv)->fw.ucode_init.data,
 				      pieces.init_data, pieces.init_data_size))
 			goto err_pci_alloc;
 	}
@@ -1185,12 +1186,12 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	/* WoWLAN instructions and data */
 	if (pieces.wowlan_inst_size && pieces.wowlan_data_size) {
 		if (iwl_alloc_fw_desc(trans(priv),
-				      &trans(priv)->ucode_wowlan.code,
+				      &nic(priv)->fw.ucode_wowlan.code,
 				      pieces.wowlan_inst,
 				      pieces.wowlan_inst_size))
 			goto err_pci_alloc;
 		if (iwl_alloc_fw_desc(trans(priv),
-				      &trans(priv)->ucode_wowlan.data,
+				      &nic(priv)->fw.ucode_wowlan.data,
 				      pieces.wowlan_data,
 				      pieces.wowlan_data_size))
 			goto err_pci_alloc;

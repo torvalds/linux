@@ -591,16 +591,16 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 		}
 		switch (priv->shrd->ucode_type) {
 		case IWL_UCODE_REGULAR:
-			inst_size = trans(priv)->ucode_rt.code.len;
-			data_size = trans(priv)->ucode_rt.data.len;
+			inst_size = nic(priv)->fw.ucode_rt.code.len;
+			data_size = nic(priv)->fw.ucode_rt.data.len;
 			break;
 		case IWL_UCODE_INIT:
-			inst_size = trans(priv)->ucode_init.code.len;
-			data_size = trans(priv)->ucode_init.data.len;
+			inst_size = nic(priv)->fw.ucode_init.code.len;
+			data_size = nic(priv)->fw.ucode_init.data.len;
 			break;
 		case IWL_UCODE_WOWLAN:
-			inst_size = trans(priv)->ucode_wowlan.code.len;
-			data_size = trans(priv)->ucode_wowlan.data.len;
+			inst_size = nic(priv)->fw.ucode_wowlan.code.len;
+			data_size = nic(priv)->fw.ucode_wowlan.data.len;
 			break;
 		case IWL_UCODE_NONE:
 			IWL_ERR(priv, "No uCode has not been loaded\n");

@@ -68,6 +68,7 @@
 
 #include "iwl-shared.h"
 #include "iwl-commands.h"
+#include "iwl-ucode.h"
 
  /*This file includes the declaration that are exported from the transport
  * layer */
@@ -129,18 +130,6 @@ struct iwl_host_cmd {
 	u16 len[IWL_MAX_CMD_TFDS];
 	u8 dataflags[IWL_MAX_CMD_TFDS];
 	u8 id;
-};
-
-/* one for each uCode image (inst/data, boot/init/runtime) */
-struct fw_desc {
-	dma_addr_t p_addr;	/* hardware address */
-	void *v_addr;		/* software address */
-	u32 len;		/* size in bytes */
-};
-
-struct fw_img {
-	struct fw_desc code;	/* firmware code image */
-	struct fw_desc data;	/* firmware data image */
 };
 
 /**
@@ -258,9 +247,6 @@ struct iwl_trans {
 	char hw_id_str[52];
 
 	u8 ucode_write_complete;	/* the image write is complete */
-	struct fw_img ucode_rt;
-	struct fw_img ucode_init;
-	struct fw_img ucode_wowlan;
 
 	/* eeprom related variables */
 	int    nvm_device_type;
