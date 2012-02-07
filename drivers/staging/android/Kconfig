@@ -27,6 +27,7 @@ config ANDROID_LOGGER
 
 config ANDROID_RAM_CONSOLE
 	bool "Android RAM buffer console"
+	depends on !S390 && !UML
 	default n
 
 config ANDROID_RAM_CONSOLE_ENABLE_VERBOSE
