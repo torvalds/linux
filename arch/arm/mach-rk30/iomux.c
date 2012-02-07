@@ -252,7 +252,7 @@ void rk30_mux_set(struct mux_config *cfg)
 	return;
 }
 
-int rk30_iomux_init(void)
+int __init rk30_iomux_init(void)
 {
 	int i;
 	printk("%s\n",__func__);
@@ -348,7 +348,7 @@ int rk30_iomux_init(void)
 
 	return 0;
 }
-EXPORT_SYMBOL(rk30_iomux_init);
+
 /*
  *config iomux : input iomux name and iomux flags
  */ 
@@ -371,4 +371,3 @@ void rk30_mux_api_set(char *name, unsigned int mode)
 }
 EXPORT_SYMBOL(rk30_mux_api_set);
 
-                                                       

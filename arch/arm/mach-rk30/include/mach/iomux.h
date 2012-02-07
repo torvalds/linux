@@ -825,7 +825,7 @@ struct mux_config {
 	unsigned int flags;
 };
 
-extern int rk30_iomux_init(void);
+extern int __init rk30_iomux_init(void);
 extern void rk30_mux_api_set(char *name, unsigned int mode);
 
 #endif
