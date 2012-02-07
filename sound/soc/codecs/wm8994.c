@@ -787,6 +787,11 @@ static void vmid_reference(struct snd_soc_codec *codec)
 				    WM8994_VMID_BUF_ENA |
 				    (0x3 << WM8994_VMID_RAMP_SHIFT));
 
+		/* Remove discharge for line out */
+		snd_soc_update_bits(codec, WM8994_ANTIPOP_1,
+				    WM8994_LINEOUT1_DISCH |
+				    WM8994_LINEOUT2_DISCH, 0);
+
 		/* Main bias enable, VMID=2x40k */
 		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
 				    WM8994_BIAS_ENA |
