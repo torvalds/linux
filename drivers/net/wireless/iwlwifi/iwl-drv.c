@@ -92,3 +92,10 @@ int iwl_drv_start(struct iwl_shared *shrd,
 	return ret;
 }
 
+void iwl_drv_stop(struct iwl_shared *shrd)
+{
+	iwl_remove(shrd->priv);
+
+	kfree(shrd->nic);
+}
+

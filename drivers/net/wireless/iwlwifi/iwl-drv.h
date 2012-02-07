@@ -107,4 +107,17 @@
 int iwl_drv_start(struct iwl_shared *shrd,
 		  struct iwl_trans *trans, struct iwl_cfg *cfg);
 
+/**
+ * iwl_drv_stop - stop the drv
+ *
+ * @shrd: the shrd area
+ *
+ * TODO: review the parameters given to this function
+ *
+ * Stop the driver. This should be called by bus specific system flows
+ * implementations. For example, the bus specific remove function should first
+ * call this function and then do the bus related operations only.
+ */
+void iwl_drv_stop(struct iwl_shared *shrd);
+
 #endif /* __iwl_drv_h__ */

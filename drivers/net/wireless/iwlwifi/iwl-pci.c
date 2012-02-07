@@ -321,12 +321,11 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 	struct iwl_bus *bus = pci_get_drvdata(pdev);
 	struct iwl_shared *shrd = bus->shrd;
 
-	iwl_remove(shrd->priv);
+	iwl_drv_stop(shrd);
 	iwl_trans_free(shrd->trans);
 
 	pci_set_drvdata(pdev, NULL);
 
-	kfree(bus->shrd->nic);
 	kfree(bus->shrd);
 	kfree(bus);
 }
