@@ -486,19 +486,20 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 				 gfp_t gfp_flags)
 {
 	int i;
-	u32 snap_count = le32_to_cpu(ondisk->snap_count);
-	int ret = -ENOMEM;
+	u32 snap_count;
 
 	if (memcmp(ondisk, RBD_HEADER_TEXT, sizeof(RBD_HEADER_TEXT)))
 		return -ENXIO;
 
-	init_rwsem(&header->snap_rwsem);
-	header->snap_names_len = le64_to_cpu(ondisk->snap_names_len);
+	snap_count = le32_to_cpu(ondisk->snap_count);
 	header->snapc = kmalloc(sizeof(struct ceph_snap_context) +
 				snap_count * sizeof (*ondisk),
 				gfp_flags);
 	if (!header->snapc)
 		return -ENOMEM;
+
+	init_rwsem(&header->snap_rwsem);
+	header->snap_names_len = le64_to_cpu(ondisk->snap_names_len);
 	if (snap_count) {
 		header->snap_names = kmalloc(header->snap_names_len,
 					     GFP_KERNEL);
@@ -544,7 +545,7 @@ err_names:
 	kfree(header->snap_names);
 err_snapc:
 	kfree(header->snapc);
-	return ret;
+	return -ENOMEM;
 }
 
 static int snap_index(struct rbd_image_header *header, int snap_num)
@@ -568,19 +569,20 @@ static int snap_by_name(struct rbd_image_header *header, const char *snap_name,
 	int i;
 	char *p = header->snap_names;
 
-	for (i = 0; i < header->total_snaps; i++, p += strlen(p) + 1) {
-		if (strcmp(snap_name, p) == 0)
-			break;
+	for (i = 0; i < header->total_snaps; i++) {
+		if (!strcmp(snap_name, p)) {
+
+			/* Found it.  Pass back its id and/or size */
+
+			if (seq)
+				*seq = header->snapc->snaps[i];
+			if (size)
+				*size = header->snap_sizes[i];
+			return i;
+		}
+		p += strlen(p) + 1;	/* Skip ahead to the next name */
 	}
-	if (i == header->total_snaps)
-		return -ENOENT;
-	if (seq)
-		*seq = header->snapc->snaps[i];
-
-	if (size)
-		*size = header->snap_sizes[i];
-
-	return i;
+	return -ENOENT;
 }
 
 static int rbd_header_set_snap(struct rbd_device *dev, u64 *size)
@@ -1444,9 +1446,7 @@ static void rbd_rq_fn(struct request_queue *q)
 	struct request *rq;
 	struct bio_pair *bp = NULL;
 
-	rq = blk_fetch_request(q);
-
-	while (1) {
+	while ((rq = blk_fetch_request(q))) {
 		struct bio *bio;
 		struct bio *rq_bio, *next_bio = NULL;
 		bool do_write;
@@ -1464,7 +1464,7 @@ static void rbd_rq_fn(struct request_queue *q)
 		/* filter out block requests we don't understand */
 		if ((rq->cmd_type != REQ_TYPE_FS)) {
 			__blk_end_request_all(rq, 0);
-			goto next;
+			continue;
 		}
 
 		/* deduce our operation (read, write) */
@@ -1475,7 +1475,7 @@ static void rbd_rq_fn(struct request_queue *q)
 		rq_bio = rq->bio;
 		if (do_write && rbd_dev->read_only) {
 			__blk_end_request_all(rq, -EROFS);
-			goto next;
+			continue;
 		}
 
 		spin_unlock_irq(q->queue_lock);
@@ -1489,7 +1489,7 @@ static void rbd_rq_fn(struct request_queue *q)
 		if (!coll) {
 			spin_lock_irq(q->queue_lock);
 			__blk_end_request_all(rq, -ENOMEM);
-			goto next;
+			continue;
 		}
 
 		do {
@@ -1535,8 +1535,6 @@ next_seg:
 		if (bp)
 			bio_pair_release(bp);
 		spin_lock_irq(q->queue_lock);
-next:
-		rq = blk_fetch_request(q);
 	}
 }
 
@@ -1588,15 +1586,16 @@ static int rbd_read_header(struct rbd_device *rbd_dev,
 	ssize_t rc;
 	struct rbd_image_header_ondisk *dh;
 	int snap_count = 0;
-	u64 snap_names_len = 0;
 	u64 ver;
+	size_t len;
 
+	/*
+	 * First reads the fixed-size header to determine the number
+	 * of snapshots, then re-reads it, along with all snapshot
+	 * records as well as their stored names.
+	 */
+	len = sizeof (*dh);
 	while (1) {
-		int len = sizeof(*dh) +
-			  snap_count * sizeof(struct rbd_image_snap_ondisk) +
-			  snap_names_len;
-
-		rc = -ENOMEM;
 		dh = kmalloc(len, GFP_KERNEL);
 		if (!dh)
 			return -ENOMEM;
@@ -1611,21 +1610,22 @@ static int rbd_read_header(struct rbd_device *rbd_dev,
 
 		rc = rbd_header_from_disk(header, dh, snap_count, GFP_KERNEL);
 		if (rc < 0) {
-			if (rc == -ENXIO) {
+			if (rc == -ENXIO)
 				pr_warning("unrecognized header format"
 					   " for image %s", rbd_dev->obj);
-			}
 			goto out_dh;
 		}
 
-		if (snap_count != header->total_snaps) {
-			snap_count = header->total_snaps;
-			snap_names_len = header->snap_names_len;
-			rbd_header_free(header);
-			kfree(dh);
-			continue;
-		}
-		break;
+		if (snap_count == header->total_snaps)
+			break;
+
+		snap_count = header->total_snaps;
+		len = sizeof (*dh) +
+			snap_count * sizeof(struct rbd_image_snap_ondisk) +
+			header->snap_names_len;
+
+		rbd_header_free(header);
+		kfree(dh);
 	}
 	header->obj_version = ver;
 
