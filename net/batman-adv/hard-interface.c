@@ -304,22 +304,17 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 	if (!softif_is_valid(soft_iface)) {
 		pr_err("Can't create batman mesh interface %s: already exists as regular interface\n",
 		       soft_iface->name);
-		dev_put(soft_iface);
 		ret = -EINVAL;
-		goto err;
+		goto err_dev;
 	}
 
 	hard_iface->soft_iface = soft_iface;
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
-	bat_priv->bat_algo_ops->bat_iface_enable(hard_iface);
-
-	if (!hard_iface->packet_buff) {
-		bat_err(hard_iface->soft_iface,
-			"Can't add interface packet (%s): out of memory\n",
-			hard_iface->net_dev->name);
+	ret = bat_priv->bat_algo_ops->bat_iface_enable(hard_iface);
+	if (ret < 0) {
 		ret = -ENOMEM;
-		goto err;
+		goto err_dev;
 	}
 
 	hard_iface->if_num = bat_priv->num_ifaces;
@@ -363,6 +358,8 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 out:
 	return 0;
 
+err_dev:
+	dev_put(soft_iface);
 err:
 	hardif_free_ref(hard_iface);
 	return ret;

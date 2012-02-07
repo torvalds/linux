@@ -30,10 +30,11 @@
 #include "send.h"
 #include "bat_algo.h"
 
-static void bat_iv_ogm_iface_enable(struct hard_iface *hard_iface)
+static int bat_iv_ogm_iface_enable(struct hard_iface *hard_iface)
 {
 	struct batman_ogm_packet *batman_ogm_packet;
 	uint32_t random_seqno;
+	int res = -1;
 
 	/* randomize initial seqno to avoid collision */
 	get_random_bytes(&random_seqno, sizeof(random_seqno));
@@ -41,6 +42,9 @@ static void bat_iv_ogm_iface_enable(struct hard_iface *hard_iface)
 
 	hard_iface->packet_len = BATMAN_OGM_LEN;
 	hard_iface->packet_buff = kmalloc(hard_iface->packet_len, GFP_ATOMIC);
+
+	if (!hard_iface->packet_buff)
+		goto out;
 
 	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
 	batman_ogm_packet->header.packet_type = BAT_OGM;
@@ -50,6 +54,11 @@ static void bat_iv_ogm_iface_enable(struct hard_iface *hard_iface)
 	batman_ogm_packet->tq = TQ_MAX_VALUE;
 	batman_ogm_packet->tt_num_changes = 0;
 	batman_ogm_packet->ttvn = 0;
+
+	res = 0;
+
+out:
+	return res;
 }
 
 static void bat_iv_ogm_iface_disable(struct hard_iface *hard_iface)

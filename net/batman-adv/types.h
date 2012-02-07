@@ -378,7 +378,7 @@ struct bat_algo_ops {
 	struct hlist_node list;
 	char *name;
 	/* init routing info when hard-interface is enabled */
-	void (*bat_iface_enable)(struct hard_iface *hard_iface);
+	int (*bat_iface_enable)(struct hard_iface *hard_iface);
 	/* de-init routing info when hard-interface is disabled */
 	void (*bat_iface_disable)(struct hard_iface *hard_iface);
 	/* init primary OGM when primary interface is selected */
