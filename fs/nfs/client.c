@@ -1055,11 +1055,14 @@ static void nfs_server_insert_lists(struct nfs_server *server)
 static void nfs_server_remove_lists(struct nfs_server *server)
 {
 	struct nfs_client *clp = server->nfs_client;
-	struct nfs_net *nn = net_generic(clp->net, nfs_net_id);
+	struct nfs_net *nn;
 
+	if (clp == NULL)
+		return;
+	nn = net_generic(clp->net, nfs_net_id);
 	spin_lock(&nn->nfs_client_lock);
 	list_del_rcu(&server->client_link);
-	if (clp && list_empty(&clp->cl_superblocks))
+	if (list_empty(&clp->cl_superblocks))
 		set_bit(NFS_CS_STOP_RENEW, &clp->cl_res_state);
 	list_del(&server->master_link);
 	spin_unlock(&nn->nfs_client_lock);
@@ -1777,6 +1780,7 @@ void nfs_clients_init(struct net *net)
 #ifdef CONFIG_NFS_V4
 	idr_init(&nn->cb_ident_idr);
 #endif
+	spin_lock_init(&nn->nfs_client_lock);
 }
 
 #ifdef CONFIG_PROC_FS
