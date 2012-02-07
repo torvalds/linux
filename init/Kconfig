@@ -929,7 +929,6 @@ config UIDGID_CONVERTED
 	depends on ECRYPT_FS = n
 	depends on EFS_FS = n
 	depends on EXOFS_FS = n
-	depends on EXT3_FS = n
 	depends on EXT4_FS = n
 	depends on FAT_FS = n
 	depends on FUSE_FS = n
