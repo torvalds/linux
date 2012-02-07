@@ -34,6 +34,37 @@
 
 #include <mach/board.h>
 #include <mach/hardware.h>
+//#include "devices.h"
+#include <mach/io.h>
+
+#if defined(CONFIG_MTD_NAND_RK29XX)  
+
+static struct resource rk30xxnand_resources[] = {
+	{
+		.start	= RK30_NANDC_PHYS,
+		.end	= RK30_NANDC_PHYS+RK30_NANDC_SIZE -1,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+struct platform_device rk30xx_device_nand = {
+	.name	= "rk30xxnand", 
+	.id		=  -1, 
+	.resource	= rk30xxnand_resources,
+	.num_resources= ARRAY_SIZE(rk30xxnand_resources),
+};
+#endif
+
+static struct platform_device *devices[] __initdata = {
+#ifdef CONFIG_MTD_NAND_RK29XX
+	&rk30xx_device_nand,
+#endif
+};
+static void __init machine_rk30_board_init(void)
+{
+    platform_add_devices(devices, ARRAY_SIZE(devices));
+}
+
 
 static void __init rk30_reserve(void)
 {
@@ -46,4 +77,5 @@ MACHINE_START(RK30, "RK30board")
 	.init_irq	= rk30_init_irq,
 	.timer		= &rk30_timer,
     .reserve    = &rk30_reserve,
+	.init_machine	= machine_rk30_board_init,
 MACHINE_END
