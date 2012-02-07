@@ -518,9 +518,6 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 	if (pdata->cd_type == S3C_SDHCI_CD_PERMANENT)
 		host->mmc->caps = MMC_CAP_NONREMOVABLE;
 
-	if (pdata->host_caps)
-		host->mmc->caps |= pdata->host_caps;
-
 	if (pdata->pm_caps)
 		host->mmc->pm_caps |= pdata->pm_caps;
 
@@ -543,6 +540,9 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 	/* It supports additional host capabilities if needed */
 	if (pdata->host_caps)
 		host->mmc->caps |= pdata->host_caps;
+
+	if (pdata->host_caps2)
+		host->mmc->caps2 |= pdata->host_caps2;
 
 	ret = sdhci_add_host(host);
 	if (ret) {
