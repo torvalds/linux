@@ -7333,7 +7333,8 @@ void md_do_sync(struct mddev *mddev)
 					printk(KERN_INFO
 					       "md: checkpointing %s of %s.\n",
 					       desc, mdname(mddev));
-					mddev->recovery_cp = mddev->curr_resync;
+					mddev->recovery_cp =
+						mddev->curr_resync_completed;
 				}
 			} else
 				mddev->recovery_cp = MaxSector;
@@ -7351,9 +7352,9 @@ void md_do_sync(struct mddev *mddev)
 			rcu_read_unlock();
 		}
 	}
+ skip:
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
 
- skip:
 	if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
 		/* We completed so min/max setting can be forgotten if used. */
 		if (test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery))
