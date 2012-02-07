@@ -80,7 +80,7 @@ enum {
 	Opt_cto, Opt_nocto,
 	Opt_ac, Opt_noac,
 	Opt_lock, Opt_nolock,
-	Opt_v2, Opt_v3, Opt_v4,
+	Opt_v2, Opt_v3, Opt_v4, Opt_v4_0, Opt_v4_1,
 	Opt_udp, Opt_tcp, Opt_rdma,
 	Opt_acl, Opt_noacl,
 	Opt_rdirplus, Opt_nordirplus,
@@ -136,6 +136,8 @@ static const match_table_t nfs_mount_option_tokens = {
 	{ Opt_v2, "v2" },
 	{ Opt_v3, "v3" },
 	{ Opt_v4, "v4" },
+	{ Opt_v4_0, "v4.0" },
+	{ Opt_v4_1, "v4.1" },
 	{ Opt_udp, "udp" },
 	{ Opt_tcp, "tcp" },
 	{ Opt_rdma, "rdma" },
@@ -1171,6 +1173,16 @@ static int nfs_parse_mount_options(char *raw,
 		case Opt_v4:
 			mnt->flags &= ~NFS_MOUNT_VER3;
 			mnt->version = 4;
+			break;
+		case Opt_v4_0:
+			mnt->flags &= ~NFS_MOUNT_VER3;
+			mnt->version = 4;
+			mnt->minorversion = 0;
+			break;
+		case Opt_v4_1:
+			mnt->flags &= ~NFS_MOUNT_VER3;
+			mnt->version = 4;
+			mnt->minorversion = 1;
 			break;
 		case Opt_udp:
 			mnt->flags &= ~NFS_MOUNT_TCP;
