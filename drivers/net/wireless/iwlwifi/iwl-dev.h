@@ -863,9 +863,6 @@ struct iwl_priv {
 	struct iwl_rx_phy_res last_phy_res;
 	bool last_phy_res_valid;
 
-	u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
-	u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
-
 	/*
 	 * chain noise reset and gain commands are the
 	 * two extra calibration commands follows the standard

@@ -1205,20 +1205,20 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	 * for each event, which is of mode 1 (including timestamp) for all
 	 * new microcodes that include this information.
 	 */
-	priv->init_evtlog_ptr = pieces.init_evtlog_ptr;
+	nic->init_evtlog_ptr = pieces.init_evtlog_ptr;
 	if (pieces.init_evtlog_size)
-		priv->init_evtlog_size = (pieces.init_evtlog_size - 16)/12;
+		nic->init_evtlog_size = (pieces.init_evtlog_size - 16)/12;
 	else
-		priv->init_evtlog_size =
+		nic->init_evtlog_size =
 			cfg(priv)->base_params->max_event_log_size;
-	priv->init_errlog_ptr = pieces.init_errlog_ptr;
-	priv->inst_evtlog_ptr = pieces.inst_evtlog_ptr;
+	nic->init_errlog_ptr = pieces.init_errlog_ptr;
+	nic->inst_evtlog_ptr = pieces.inst_evtlog_ptr;
 	if (pieces.inst_evtlog_size)
-		priv->inst_evtlog_size = (pieces.inst_evtlog_size - 16)/12;
+		nic->inst_evtlog_size = (pieces.inst_evtlog_size - 16)/12;
 	else
-		priv->inst_evtlog_size =
+		nic->inst_evtlog_size =
 			cfg(priv)->base_params->max_event_log_size;
-	priv->inst_errlog_ptr = pieces.inst_errlog_ptr;
+	nic->inst_errlog_ptr = pieces.inst_errlog_ptr;
 #ifndef CONFIG_IWLWIFI_P2P
 	ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
 #endif

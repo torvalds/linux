@@ -34,6 +34,7 @@
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-trans-pcie-int.h"
+#include "iwl-wifi.h"
 
 #ifdef CONFIG_IWLWIFI_IDI
 #include "iwl-amfh.h"
@@ -589,17 +590,17 @@ static void iwl_dump_nic_error_log(struct iwl_trans *trans)
 {
 	u32 base;
 	struct iwl_error_event_table table;
-	struct iwl_priv *priv = priv(trans);
+	struct iwl_nic *nic = nic(trans);
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	base = trans->shrd->device_pointers.error_event_table;
 	if (trans->shrd->ucode_type == IWL_UCODE_INIT) {
 		if (!base)
-			base = priv->init_errlog_ptr;
+			base = nic->init_errlog_ptr;
 	} else {
 		if (!base)
-			base = priv->inst_errlog_ptr;
+			base = nic->inst_errlog_ptr;
 	}
 
 	if (!iwlagn_hw_valid_rtc_data_addr(base)) {
@@ -611,7 +612,7 @@ static void iwl_dump_nic_error_log(struct iwl_trans *trans)
 		return;
 	}
 
-	iwl_read_targ_mem_words(trans(priv), base, &table, sizeof(table));
+	iwl_read_targ_mem_words(trans, base, &table, sizeof(table));
 
 	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
 		IWL_ERR(trans, "Start IWL Error Log Dump:\n");
@@ -621,7 +622,7 @@ static void iwl_dump_nic_error_log(struct iwl_trans *trans)
 
 	trans_pcie->isr_stats.err_code = table.error_id;
 
-	trace_iwlwifi_dev_ucode_error(priv, table.error_id, table.tsf_low,
+	trace_iwlwifi_dev_ucode_error(priv(nic), table.error_id, table.tsf_low,
 				      table.data1, table.data2, table.line,
 				      table.blink1, table.blink2, table.ilink1,
 				      table.ilink2, table.bcon_time, table.gp1,
@@ -718,7 +719,7 @@ static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
 	u32 ptr;        /* SRAM byte address of log data */
 	u32 ev, time, data; /* event log data */
 	unsigned long reg_flags;
-	struct iwl_priv *priv = priv(trans);
+	struct iwl_nic *nic = nic(trans);
 
 	if (num_events == 0)
 		return pos;
@@ -726,10 +727,10 @@ static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
 	base = trans->shrd->device_pointers.log_event_table;
 	if (trans->shrd->ucode_type == IWL_UCODE_INIT) {
 		if (!base)
-			base = priv->init_evtlog_ptr;
+			base = nic->init_evtlog_ptr;
 	} else {
 		if (!base)
-			base = priv->inst_evtlog_ptr;
+			base = nic->inst_evtlog_ptr;
 	}
 
 	if (mode == 0)
@@ -759,7 +760,7 @@ static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
 						"EVT_LOG:0x%08x:%04u\n",
 						time, ev);
 			} else {
-				trace_iwlwifi_dev_ucode_event(priv, 0,
+				trace_iwlwifi_dev_ucode_event(priv(trans), 0,
 					time, ev);
 				IWL_ERR(trans, "EVT_LOG:0x%08x:%04u\n",
 					time, ev);
@@ -773,7 +774,7 @@ static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
 			} else {
 				IWL_ERR(trans, "EVT_LOGT:%010u:0x%08x:%04u\n",
 					time, data, ev);
-				trace_iwlwifi_dev_ucode_event(priv, time,
+				trace_iwlwifi_dev_ucode_event(priv(trans), time,
 					data, ev);
 			}
 		}
@@ -835,17 +836,17 @@ int iwl_dump_nic_event_log(struct iwl_trans *trans, bool full_log,
 	u32 logsize;
 	int pos = 0;
 	size_t bufsz = 0;
-	struct iwl_priv *priv = priv(trans);
+	struct iwl_nic *nic = nic(trans);
 
 	base = trans->shrd->device_pointers.log_event_table;
 	if (trans->shrd->ucode_type == IWL_UCODE_INIT) {
-		logsize = priv->init_evtlog_size;
+		logsize = nic->init_evtlog_size;
 		if (!base)
-			base = priv->init_evtlog_ptr;
+			base = nic->init_evtlog_ptr;
 	} else {
-		logsize = priv->inst_evtlog_size;
+		logsize = nic->inst_evtlog_size;
 		if (!base)
-			base = priv->inst_evtlog_ptr;
+			base = nic->inst_evtlog_ptr;
 	}
 
 	if (!iwlagn_hw_valid_rtc_data_addr(base)) {
