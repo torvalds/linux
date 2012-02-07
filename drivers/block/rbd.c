@@ -41,6 +41,15 @@
 
 #include "rbd_types.h"
 
+/*
+ * The basic unit of block I/O is a sector.  It is interpreted in a
+ * number of contexts in Linux (blk, bio, genhd), but the default is
+ * universally 512 bytes.  These symbols are just slightly more
+ * meaningful than the bare numbers they represent.
+ */
+#define	SECTOR_SHIFT	9
+#define	SECTOR_SIZE	(1ULL << SECTOR_SHIFT)
+
 #define RBD_DRV_NAME "rbd"
 #define RBD_DRV_NAME_LONG "rbd (rados block device)"
 
@@ -220,11 +229,6 @@ static struct device rbd_root_dev = {
 	.release =      rbd_root_dev_release,
 };
 
-
-static struct rbd_device *dev_to_rbd(struct device *dev)
-{
-	return container_of(dev, struct rbd_device, dev);
-}
 
 static struct device *rbd_get_dev(struct rbd_device *rbd_dev)
 {
@@ -743,7 +747,7 @@ static struct bio *bio_chain_clone(struct bio **old, struct bio **next,
 
 			/* split the bio. We'll release it either in the next
 			   call, or it will have to be released outside */
-			bp = bio_split(old_chain, (len - total) / 512ULL);
+			bp = bio_split(old_chain, (len - total) / SECTOR_SIZE);
 			if (!bp)
 				goto err_out;
 
@@ -1471,7 +1475,7 @@ static void rbd_rq_fn(struct request_queue *q)
 		do_write = (rq_data_dir(rq) == WRITE);
 
 		size = blk_rq_bytes(rq);
-		ofs = blk_rq_pos(rq) * 512ULL;
+		ofs = blk_rq_pos(rq) * SECTOR_SIZE;
 		rq_bio = rq->bio;
 		if (do_write && rbd_dev->read_only) {
 			__blk_end_request_all(rq, -EROFS);
@@ -1482,7 +1486,7 @@ static void rbd_rq_fn(struct request_queue *q)
 
 		dout("%s 0x%x bytes at 0x%llx\n",
 		     do_write ? "write" : "read",
-		     size, blk_rq_pos(rq) * 512ULL);
+		     size, blk_rq_pos(rq) * SECTOR_SIZE);
 
 		num_segs = rbd_get_num_segments(&rbd_dev->header, ofs, size);
 		coll = rbd_alloc_coll(num_segs);
@@ -1547,13 +1551,17 @@ static int rbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bmd,
 			  struct bio_vec *bvec)
 {
 	struct rbd_device *rbd_dev = q->queuedata;
-	unsigned int chunk_sectors = 1 << (rbd_dev->header.obj_order - 9);
-	sector_t sector = bmd->bi_sector + get_start_sect(bmd->bi_bdev);
-	unsigned int bio_sectors = bmd->bi_size >> 9;
+	unsigned int chunk_sectors;
+	sector_t sector;
+	unsigned int bio_sectors;
 	int max;
 
+	chunk_sectors = 1 << (rbd_dev->header.obj_order - SECTOR_SHIFT);
+	sector = bmd->bi_sector + get_start_sect(bmd->bi_bdev);
+	bio_sectors = bmd->bi_size >> SECTOR_SHIFT;
+
 	max =  (chunk_sectors - ((sector & (chunk_sectors - 1))
-				 + bio_sectors)) << 9;
+				 + bio_sectors)) << SECTOR_SHIFT;
 	if (max < 0)
 		max = 0; /* bio_add cannot handle a negative return */
 	if (max <= bvec->bv_len && bio_sectors == 0)
@@ -1708,7 +1716,7 @@ static int __rbd_update_snaps(struct rbd_device *rbd_dev)
 		return ret;
 
 	/* resized? */
-	set_capacity(rbd_dev->disk, h.image_size / 512ULL);
+	set_capacity(rbd_dev->disk, h.image_size / SECTOR_SIZE);
 
 	down_write(&rbd_dev->header.snap_rwsem);
 
@@ -1745,6 +1753,7 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	struct gendisk *disk;
 	struct request_queue *q;
 	int rc;
+	u64 segment_size;
 	u64 total_size = 0;
 
 	/* contact OSD, request size info about the object being mapped */
@@ -1780,11 +1789,15 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	if (!q)
 		goto out_disk;
 
+	/* We use the default size, but let's be explicit about it. */
+	blk_queue_physical_block_size(q, SECTOR_SIZE);
+
 	/* set io sizes to object size */
-	blk_queue_max_hw_sectors(q, rbd_obj_bytes(&rbd_dev->header) / 512ULL);
-	blk_queue_max_segment_size(q, rbd_obj_bytes(&rbd_dev->header));
-	blk_queue_io_min(q, rbd_obj_bytes(&rbd_dev->header));
-	blk_queue_io_opt(q, rbd_obj_bytes(&rbd_dev->header));
+	segment_size = rbd_obj_bytes(&rbd_dev->header);
+	blk_queue_max_hw_sectors(q, segment_size / SECTOR_SIZE);
+	blk_queue_max_segment_size(q, segment_size);
+	blk_queue_io_min(q, segment_size);
+	blk_queue_io_opt(q, segment_size);
 
 	blk_queue_merge_bvec(q, rbd_merge_bvec);
 	disk->queue = q;
@@ -1795,7 +1808,7 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	rbd_dev->q = q;
 
 	/* finally, announce the disk to the world */
-	set_capacity(disk, total_size / 512ULL);
+	set_capacity(disk, total_size / SECTOR_SIZE);
 	add_disk(disk);
 
 	pr_info("%s: added with size 0x%llx\n",
@@ -1812,10 +1825,15 @@ out:
   sysfs
 */
 
+static struct rbd_device *dev_to_rbd_dev(struct device *dev)
+{
+	return container_of(dev, struct rbd_device, dev);
+}
+
 static ssize_t rbd_size_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	struct rbd_device *rbd_dev = dev_to_rbd(dev);
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
 	return sprintf(buf, "%llu\n", (unsigned long long)rbd_dev->header.image_size);
 }
@@ -1823,7 +1841,7 @@ static ssize_t rbd_size_show(struct device *dev,
 static ssize_t rbd_major_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	struct rbd_device *rbd_dev = dev_to_rbd(dev);
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
 	return sprintf(buf, "%d\n", rbd_dev->major);
 }
@@ -1831,7 +1849,7 @@ static ssize_t rbd_major_show(struct device *dev,
 static ssize_t rbd_client_id_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	struct rbd_device *rbd_dev = dev_to_rbd(dev);
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
 	return sprintf(buf, "client%lld\n",
 			ceph_client_id(rbd_dev->rbd_client->client));
@@ -1840,7 +1858,7 @@ static ssize_t rbd_client_id_show(struct device *dev,
 static ssize_t rbd_pool_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	struct rbd_device *rbd_dev = dev_to_rbd(dev);
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
 	return sprintf(buf, "%s\n", rbd_dev->pool_name);
 }
@@ -1848,7 +1866,7 @@ static ssize_t rbd_pool_show(struct device *dev,
 static ssize_t rbd_name_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	struct rbd_device *rbd_dev = dev_to_rbd(dev);
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
 	return sprintf(buf, "%s\n", rbd_dev->obj);
 }
@@ -1857,7 +1875,7 @@ static ssize_t rbd_snap_show(struct device *dev,
 			     struct device_attribute *attr,
 			     char *buf)
 {
-	struct rbd_device *rbd_dev = dev_to_rbd(dev);
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
 	return sprintf(buf, "%s\n", rbd_dev->snap_name);
 }
@@ -1867,7 +1885,7 @@ static ssize_t rbd_image_refresh(struct device *dev,
 				 const char *buf,
 				 size_t size)
 {
-	struct rbd_device *rbd_dev = dev_to_rbd(dev);
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 	int rc;
 	int ret = size;
 
@@ -1932,7 +1950,7 @@ static ssize_t rbd_snap_size_show(struct device *dev,
 {
 	struct rbd_snap *snap = container_of(dev, struct rbd_snap, dev);
 
-	return sprintf(buf, "%lld\n", (long long)snap->size);
+	return sprintf(buf, "%zd\n", snap->size);
 }
 
 static ssize_t rbd_snap_id_show(struct device *dev,
@@ -1941,7 +1959,7 @@ static ssize_t rbd_snap_id_show(struct device *dev,
 {
 	struct rbd_snap *snap = container_of(dev, struct rbd_snap, dev);
 
-	return sprintf(buf, "%lld\n", (long long)snap->id);
+	return sprintf(buf, "%llu\n", (unsigned long long) snap->id);
 }
 
 static DEVICE_ATTR(snap_size, S_IRUGO, rbd_snap_size_show, NULL);
@@ -2232,7 +2250,8 @@ static void rbd_id_put(struct rbd_device *rbd_dev)
 /*
  * Skips over white space at *buf, and updates *buf to point to the
  * first found non-space character (if any). Returns the length of
- * the token (string of non-white space characters) found.
+ * the token (string of non-white space characters) found.  Note
+ * that *buf must be terminated with '\0'.
  */
 static inline size_t next_token(const char **buf)
 {
@@ -2250,13 +2269,14 @@ static inline size_t next_token(const char **buf)
 /*
  * Finds the next token in *buf, and if the provided token buffer is
  * big enough, copies the found token into it.  The result, if
- * copied, is guaranteed to be terminated with '\0'.
+ * copied, is guaranteed to be terminated with '\0'.  Note that *buf
+ * must be terminated with '\0' on entry.
  *
  * Returns the length of the token found (not including the '\0').
  * Return value will be 0 if no token is found, and it will be >=
  * token_size if the token would not fit.
  *
- * The *buf pointer will be updated point beyond the end of the
+ * The *buf pointer will be updated to point beyond the end of the
  * found token.  Note that this occurs even if the token buffer is
  * too small to hold it.
  */
@@ -2456,8 +2476,7 @@ static struct rbd_device *__rbd_get_dev(unsigned long id)
 
 static void rbd_dev_release(struct device *dev)
 {
-	struct rbd_device *rbd_dev =
-			container_of(dev, struct rbd_device, dev);
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
 	if (rbd_dev->watch_request) {
 		struct ceph_client *client = rbd_dev->rbd_client->client;
@@ -2520,7 +2539,7 @@ static ssize_t rbd_snap_add(struct device *dev,
 			    const char *buf,
 			    size_t count)
 {
-	struct rbd_device *rbd_dev = dev_to_rbd(dev);
+	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 	int ret;
 	char *name = kmalloc(count + 1, GFP_KERNEL);
 	if (!name)
