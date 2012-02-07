@@ -933,7 +933,6 @@ config UIDGID_CONVERTED
 
 	# Filesystems
 	depends on 9P_FS = n
-	depends on ADFS_FS = n
 	depends on AFFS_FS = n
 	depends on AFS_FS = n
 	depends on AUTOFS4_FS = n
