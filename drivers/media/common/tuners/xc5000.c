@@ -208,6 +208,11 @@ struct xc5000_fw_cfg xc5000a_1_6_114 = {
 	.size = 12401,
 };
 
+struct xc5000_fw_cfg xc5000c_41_024_5_31875 = {
+	.name = "dvb-fe-xc5000c-41.024.5-31875.fw",
+	.size = 16503,
+};
+
 static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe);
 static int xc5000_is_firmware_loaded(struct dvb_frontend *fe);
 static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val);
