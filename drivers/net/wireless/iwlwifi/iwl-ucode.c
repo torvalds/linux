@@ -1273,7 +1273,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 
 	/* We have our copies now, allow OS release its copies */
 	release_firmware(ucode_raw);
-	complete(&priv->firmware_loading_complete);
+	complete(&nic->request_firmware_complete);
 	return;
 
  try_again:
@@ -1287,7 +1287,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	IWL_ERR(priv, "failed to allocate pci memory\n");
 	iwl_dealloc_ucode(trans(priv));
  out_unbind:
-	complete(&priv->firmware_loading_complete);
+	complete(&nic->request_firmware_complete);
 	device_release_driver(trans(priv)->dev);
 	release_firmware(ucode_raw);
 }

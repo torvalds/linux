@@ -1273,7 +1273,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	iwl_power_initialize(priv);
 	iwl_tt_initialize(priv);
 
-	init_completion(&priv->firmware_loading_complete);
+	init_completion(&nic(priv)->request_firmware_complete);
 
 	err = iwl_request_firmware(priv, true);
 	if (err)
@@ -1296,7 +1296,7 @@ out:
 
 void __devexit iwl_remove(struct iwl_priv * priv)
 {
-	wait_for_completion(&priv->firmware_loading_complete);
+	wait_for_completion(&nic(priv)->request_firmware_complete);
 
 	IWL_DEBUG_INFO(priv, "*** UNLOAD DRIVER ***\n");
 
