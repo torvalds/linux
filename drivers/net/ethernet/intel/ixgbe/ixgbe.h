@@ -438,7 +438,8 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_SFP_NEEDS_RESET             (u32)(1 << 5)
 #define IXGBE_FLAG2_RESET_REQUESTED             (u32)(1 << 6)
 #define IXGBE_FLAG2_FDIR_REQUIRES_REINIT        (u32)(1 << 7)
-
+#define IXGBE_FLAG2_RSS_FIELD_IPV4_UDP		(u32)(1 << 8)
+#define IXGBE_FLAG2_RSS_FIELD_IPV6_UDP		(u32)(1 << 9)
 
 	/* Tx fast path data */
 	int num_tx_queues;

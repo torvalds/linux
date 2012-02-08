@@ -2856,6 +2856,11 @@ static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
 	      | IXGBE_MRQC_RSS_FIELD_IPV6
 	      | IXGBE_MRQC_RSS_FIELD_IPV6_TCP;
 
+	if (adapter->flags2 & IXGBE_FLAG2_RSS_FIELD_IPV4_UDP)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4_UDP;
+	if (adapter->flags2 & IXGBE_FLAG2_RSS_FIELD_IPV6_UDP)
+		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
+
 	IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
 }
 
