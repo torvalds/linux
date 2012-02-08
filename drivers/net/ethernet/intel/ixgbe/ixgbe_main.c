@@ -6585,10 +6585,9 @@ void ixgbe_tx_ctxtdesc(struct ixgbe_ring *tx_ring, u32 vlan_macip_lens,
 
 static int ixgbe_tso(struct ixgbe_ring *tx_ring,
 		     struct ixgbe_tx_buffer *first,
-		     u32 tx_flags, __be16 protocol, u8 *hdr_len)
+		     u8 *hdr_len)
 {
 	struct sk_buff *skb = first->skb;
-	int err;
 	u32 vlan_macip_lens, type_tucmd;
 	u32 mss_l4len_idx, l4len;
 
@@ -6596,7 +6595,7 @@ static int ixgbe_tso(struct ixgbe_ring *tx_ring,
 		return 0;
 
 	if (skb_header_cloned(skb)) {
-		err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
+		int err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
 		if (err)
 			return err;
 	}
@@ -6604,7 +6603,7 @@ static int ixgbe_tso(struct ixgbe_ring *tx_ring,
 	/* ADV DTYP TUCMD MKRLOC/ISCSIHEDLEN */
 	type_tucmd = IXGBE_ADVTXD_TUCMD_L4T_TCP;
 
-	if (protocol == __constant_htons(ETH_P_IP)) {
+	if (first->protocol == __constant_htons(ETH_P_IP)) {
 		struct iphdr *iph = ip_hdr(skb);
 		iph->tot_len = 0;
 		iph->check = 0;
@@ -6613,12 +6612,17 @@ static int ixgbe_tso(struct ixgbe_ring *tx_ring,
 							 IPPROTO_TCP,
 							 0);
 		type_tucmd |= IXGBE_ADVTXD_TUCMD_IPV4;
+		first->tx_flags |= IXGBE_TX_FLAGS_TSO |
+				   IXGBE_TX_FLAGS_CSUM |
+				   IXGBE_TX_FLAGS_IPV4;
 	} else if (skb_is_gso_v6(skb)) {
 		ipv6_hdr(skb)->payload_len = 0;
 		tcp_hdr(skb)->check =
 		    ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 				     &ipv6_hdr(skb)->daddr,
 				     0, IPPROTO_TCP, 0);
+		first->tx_flags |= IXGBE_TX_FLAGS_TSO |
+				   IXGBE_TX_FLAGS_CSUM;
 	}
 
 	/* compute header lengths */
@@ -6637,17 +6641,16 @@ static int ixgbe_tso(struct ixgbe_ring *tx_ring,
 	/* vlan_macip_lens: HEADLEN, MACLEN, VLAN tag */
 	vlan_macip_lens = skb_network_header_len(skb);
 	vlan_macip_lens |= skb_network_offset(skb) << IXGBE_ADVTXD_MACLEN_SHIFT;
-	vlan_macip_lens |= tx_flags & IXGBE_TX_FLAGS_VLAN_MASK;
+	vlan_macip_lens |= first->tx_flags & IXGBE_TX_FLAGS_VLAN_MASK;
 
 	ixgbe_tx_ctxtdesc(tx_ring, vlan_macip_lens, 0, type_tucmd,
-	                  mss_l4len_idx);
+			  mss_l4len_idx);
 
 	return 1;
 }
 
-static bool ixgbe_tx_csum(struct ixgbe_ring *tx_ring,
-			  struct ixgbe_tx_buffer *first,
-			  u32 tx_flags, __be16 protocol)
+static void ixgbe_tx_csum(struct ixgbe_ring *tx_ring,
+			  struct ixgbe_tx_buffer *first)
 {
 	struct sk_buff *skb = first->skb;
 	u32 vlan_macip_lens = 0;
@@ -6655,12 +6658,12 @@ static bool ixgbe_tx_csum(struct ixgbe_ring *tx_ring,
 	u32 type_tucmd = 0;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
-	    if (!(tx_flags & IXGBE_TX_FLAGS_HW_VLAN) &&
-		!(tx_flags & IXGBE_TX_FLAGS_TXSW))
-			return false;
+		if (!(first->tx_flags & IXGBE_TX_FLAGS_HW_VLAN) &&
+		    !(first->tx_flags & IXGBE_TX_FLAGS_TXSW))
+			return;
 	} else {
 		u8 l4_hdr = 0;
-		switch (protocol) {
+		switch (first->protocol) {
 		case __constant_htons(ETH_P_IP):
 			vlan_macip_lens |= skb_network_header_len(skb);
 			type_tucmd |= IXGBE_ADVTXD_TUCMD_IPV4;
@@ -6674,7 +6677,7 @@ static bool ixgbe_tx_csum(struct ixgbe_ring *tx_ring,
 			if (unlikely(net_ratelimit())) {
 				dev_warn(tx_ring->dev,
 				 "partial checksum but proto=%x!\n",
-				 skb->protocol);
+				 first->protocol);
 			}
 			break;
 		}
@@ -6698,19 +6701,21 @@ static bool ixgbe_tx_csum(struct ixgbe_ring *tx_ring,
 			if (unlikely(net_ratelimit())) {
 				dev_warn(tx_ring->dev,
 				 "partial checksum but l4 proto=%x!\n",
-				 skb->protocol);
+				 l4_hdr);
 			}
 			break;
 		}
+
+		/* update TX checksum flag */
+		first->tx_flags |= IXGBE_TX_FLAGS_CSUM;
 	}
 
+	/* vlan_macip_lens: MACLEN, VLAN tag */
 	vlan_macip_lens |= skb_network_offset(skb) << IXGBE_ADVTXD_MACLEN_SHIFT;
-	vlan_macip_lens |= tx_flags & IXGBE_TX_FLAGS_VLAN_MASK;
+	vlan_macip_lens |= first->tx_flags & IXGBE_TX_FLAGS_VLAN_MASK;
 
 	ixgbe_tx_ctxtdesc(tx_ring, vlan_macip_lens, 0,
 			  type_tucmd, mss_l4len_idx);
-
-	return (skb->ip_summed == CHECKSUM_PARTIAL);
 }
 
 static __le32 ixgbe_tx_cmd_type(u32 tx_flags)
@@ -6775,7 +6780,6 @@ static void ixgbe_tx_olinfo_status(union ixgbe_adv_tx_desc *tx_desc,
 
 static void ixgbe_tx_map(struct ixgbe_ring *tx_ring,
 			 struct ixgbe_tx_buffer *first,
-			 u32 tx_flags,
 			 const u8 hdr_len)
 {
 	dma_addr_t dma;
@@ -6786,6 +6790,7 @@ static void ixgbe_tx_map(struct ixgbe_ring *tx_ring,
 	unsigned int data_len = skb->data_len;
 	unsigned int size = skb_headlen(skb);
 	unsigned int paylen = skb->len - hdr_len;
+	u32 tx_flags = first->tx_flags;
 	__le32 cmd_type;
 	u16 i = tx_ring->next_to_use;
 
@@ -6812,7 +6817,6 @@ static void ixgbe_tx_map(struct ixgbe_ring *tx_ring,
 	/* record length, and DMA address */
 	dma_unmap_len_set(first, len, size);
 	dma_unmap_addr_set(first, dma, dma);
-	first->tx_flags = tx_flags;
 
 	tx_desc->read.buffer_addr = cpu_to_le64(dma);
 
@@ -6921,8 +6925,7 @@ dma_error:
 }
 
 static void ixgbe_atr(struct ixgbe_ring *ring,
-		      struct ixgbe_tx_buffer *first,
-		      u32 tx_flags, __be16 protocol)
+		      struct ixgbe_tx_buffer *first)
 {
 	struct ixgbe_q_vector *q_vector = ring->q_vector;
 	union ixgbe_atr_hash_dword input = { .dword = 0 };
@@ -6949,9 +6952,9 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 	hdr.network = skb_network_header(first->skb);
 
 	/* Currently only IPv4/IPv6 with TCP is supported */
-	if ((protocol != __constant_htons(ETH_P_IPV6) ||
+	if ((first->protocol != __constant_htons(ETH_P_IPV6) ||
 	     hdr.ipv6->nexthdr != IPPROTO_TCP) &&
-	    (protocol != __constant_htons(ETH_P_IP) ||
+	    (first->protocol != __constant_htons(ETH_P_IP) ||
 	     hdr.ipv4->protocol != IPPROTO_TCP))
 		return;
 
@@ -6968,7 +6971,7 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 	/* reset sample count */
 	ring->atr_count = 0;
 
-	vlan_id = htons(tx_flags >> IXGBE_TX_FLAGS_VLAN_SHIFT);
+	vlan_id = htons(first->tx_flags >> IXGBE_TX_FLAGS_VLAN_SHIFT);
 
 	/*
 	 * src and dst are inverted, think how the receiver sees them
@@ -6983,13 +6986,13 @@ static void ixgbe_atr(struct ixgbe_ring *ring,
 	 * since src port and flex bytes occupy the same word XOR them together
 	 * and write the value to source port portion of compressed dword
 	 */
-	if (tx_flags & (IXGBE_TX_FLAGS_SW_VLAN | IXGBE_TX_FLAGS_HW_VLAN))
+	if (first->tx_flags & (IXGBE_TX_FLAGS_SW_VLAN | IXGBE_TX_FLAGS_HW_VLAN))
 		common.port.src ^= th->dest ^ __constant_htons(ETH_P_8021Q);
 	else
-		common.port.src ^= th->dest ^ protocol;
+		common.port.src ^= th->dest ^ first->protocol;
 	common.port.dst ^= th->source;
 
-	if (protocol == __constant_htons(ETH_P_IP)) {
+	if (first->protocol == __constant_htons(ETH_P_IP)) {
 		input.formatted.flow_type = IXGBE_ATR_FLOW_TYPE_TCPV4;
 		common.ip ^= hdr.ipv4->saddr ^ hdr.ipv4->daddr;
 	} else {
@@ -7145,43 +7148,36 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 		}
 	}
 
+	/* record initial flags and protocol */
+	first->tx_flags = tx_flags;
+	first->protocol = protocol;
+
 #ifdef IXGBE_FCOE
 	/* setup tx offload for FCoE */
 	if ((protocol == __constant_htons(ETH_P_FCOE)) &&
 	    (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)) {
-		tso = ixgbe_fso(tx_ring, first, tx_flags, &hdr_len);
+		tso = ixgbe_fso(tx_ring, first, &hdr_len);
 		if (tso < 0)
 			goto out_drop;
-		else if (tso)
-			tx_flags |= IXGBE_TX_FLAGS_FSO |
-				    IXGBE_TX_FLAGS_FCOE;
-		else
-			tx_flags |= IXGBE_TX_FLAGS_FCOE;
 
 		goto xmit_fcoe;
 	}
 
 #endif /* IXGBE_FCOE */
-	/* setup IPv4/IPv6 offloads */
-	if (protocol == __constant_htons(ETH_P_IP))
-		tx_flags |= IXGBE_TX_FLAGS_IPV4;
-
-	tso = ixgbe_tso(tx_ring, first, tx_flags, protocol, &hdr_len);
+	tso = ixgbe_tso(tx_ring, first, &hdr_len);
 	if (tso < 0)
 		goto out_drop;
-	else if (tso)
-		tx_flags |= IXGBE_TX_FLAGS_TSO | IXGBE_TX_FLAGS_CSUM;
-	else if (ixgbe_tx_csum(tx_ring, first, tx_flags, protocol))
-		tx_flags |= IXGBE_TX_FLAGS_CSUM;
+	else if (!tso)
+		ixgbe_tx_csum(tx_ring, first);
 
 	/* add the ATR filter if ATR is on */
 	if (test_bit(__IXGBE_TX_FDIR_INIT_DONE, &tx_ring->state))
-		ixgbe_atr(tx_ring, first, tx_flags, protocol);
+		ixgbe_atr(tx_ring, first);
 
 #ifdef IXGBE_FCOE
 xmit_fcoe:
 #endif /* IXGBE_FCOE */
-	ixgbe_tx_map(tx_ring, first, tx_flags, hdr_len);
+	ixgbe_tx_map(tx_ring, first, hdr_len);
 
 	ixgbe_maybe_stop_tx(tx_ring, DESC_NEEDED);
 

@@ -152,6 +152,7 @@ struct ixgbe_tx_buffer {
 	struct sk_buff *skb;
 	unsigned int bytecount;
 	unsigned short gso_segs;
+	__be16 protocol;
 	DEFINE_DMA_UNMAP_ADDR(dma);
 	DEFINE_DMA_UNMAP_LEN(len);
 	u32 tx_flags;
@@ -632,7 +633,7 @@ extern void ixgbe_do_reset(struct net_device *netdev);
 extern void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fso(struct ixgbe_ring *tx_ring,
 		     struct ixgbe_tx_buffer *first,
-                     u32 tx_flags, u8 *hdr_len);
+		     u8 *hdr_len);
 extern void ixgbe_cleanup_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 			  union ixgbe_adv_rx_desc *rx_desc,
