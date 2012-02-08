@@ -23,8 +23,8 @@
 #define FAT_ERRORS_RO		3      /* remount r/o on error */
 
 struct fat_mount_options {
-	uid_t fs_uid;
-	gid_t fs_gid;
+	kuid_t fs_uid;
+	kgid_t fs_gid;
 	unsigned short fs_fmask;
 	unsigned short fs_dmask;
 	unsigned short codepage;  /* Codepage for shortname conversions */
