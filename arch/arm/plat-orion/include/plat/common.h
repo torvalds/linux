@@ -95,7 +95,8 @@ void __init orion_xor1_init(unsigned long mapbase_low,
 
 void __init orion_ehci_init(struct mbus_dram_target_info *mbus_dram_info,
 			    unsigned long mapbase,
-			    unsigned long irq);
+			    unsigned long irq,
+			    enum orion_ehci_phy_ver phy_version);
 
 void __init orion_ehci_1_init(struct mbus_dram_target_info *mbus_dram_info,
 			      unsigned long mapbase,
