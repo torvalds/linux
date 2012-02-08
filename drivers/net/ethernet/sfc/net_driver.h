@@ -85,13 +85,6 @@ struct efx_special_buffer {
 	int entries;
 };
 
-enum efx_flush_state {
-	FLUSH_NONE,
-	FLUSH_PENDING,
-	FLUSH_FAILED,
-	FLUSH_DONE,
-};
-
 /**
  * struct efx_tx_buffer - An Efx TX buffer
  * @skb: The associated socket buffer.
@@ -138,7 +131,6 @@ struct efx_tx_buffer {
  * @txd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
  * @initialised: Has hardware queue been initialised?
- * @flushed: Used when handling queue flushing
  * @read_count: Current read pointer.
  *	This is the number of buffers that have been removed from both rings.
  * @old_write_count: The value of @write_count when last checked.
@@ -181,7 +173,6 @@ struct efx_tx_queue {
 	struct efx_special_buffer txd;
 	unsigned int ptr_mask;
 	bool initialised;
-	enum efx_flush_state flushed;
 
 	/* Members used mainly on the completion path */
 	unsigned int read_count ____cacheline_aligned_in_smp;
@@ -249,6 +240,9 @@ struct efx_rx_page_state {
  * @buffer: The software buffer ring
  * @rxd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
+ * @enabled: Receive queue enabled indicator.
+ * @flush_pending: Set when a RX flush is pending. Has the same lifetime as
+ *	@rxq_flush_pending.
  * @added_count: Number of buffers added to the receive queue.
  * @notified_count: Number of buffers given to NIC (<= @added_count).
  * @removed_count: Number of buffers removed from the receive queue.
@@ -263,13 +257,14 @@ struct efx_rx_page_state {
  * @alloc_page_count: RX allocation strategy counter.
  * @alloc_skb_count: RX allocation strategy counter.
  * @slow_fill: Timer used to defer efx_nic_generate_fill_event().
- * @flushed: Use when handling queue flushing
  */
 struct efx_rx_queue {
 	struct efx_nic *efx;
 	struct efx_rx_buffer *buffer;
 	struct efx_special_buffer rxd;
 	unsigned int ptr_mask;
+	bool enabled;
+	bool flush_pending;
 
 	int added_count;
 	int notified_count;
@@ -283,8 +278,6 @@ struct efx_rx_queue {
 	unsigned int alloc_skb_count;
 	struct timer_list slow_fill;
 	unsigned int slow_fill_count;
-
-	enum efx_flush_state flushed;
 };
 
 /**
@@ -681,6 +674,13 @@ struct efx_filter_state;
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
+ * @drain_pending: Count of RX and TX queues that haven't been flushed and drained.
+ * @rxq_flush_pending: Count of number of receive queues that need to be flushed.
+ *	Decremented when the efx_flush_rx_queue() is called.
+ * @rxq_flush_outstanding: Count of number of RX flushes started but not yet
+ *	completed (either success or failure). Not used when MCDI is used to
+ *	flush receive queues.
+ * @flush_wq: wait queue used by efx_nic_flush_queues() to wait for flush completions.
  * @monitor_work: Hardware monitor workitem
  * @biu_lock: BIU (bus interface unit) lock
  * @last_irq_cpu: Last CPU to handle a possible test interrupt.  This
@@ -777,6 +777,11 @@ struct efx_nic {
 	void *loopback_selftest;
 
 	struct efx_filter_state *filter_state;
+
+	atomic_t drain_pending;
+	atomic_t rxq_flush_pending;
+	atomic_t rxq_flush_outstanding;
+	wait_queue_head_t flush_wq;
 
 	/* The following fields may be written more often */
 
@@ -955,13 +960,6 @@ static inline bool efx_tx_queue_used(struct efx_tx_queue *tx_queue)
 	for (_tx_queue = (_channel)->tx_queue;				\
 	     _tx_queue < (_channel)->tx_queue + EFX_TXQ_TYPES;		\
 	     _tx_queue++)
-
-static inline struct efx_rx_queue *
-efx_get_rx_queue(struct efx_nic *efx, unsigned index)
-{
-	EFX_BUG_ON_PARANOID(index >= efx->n_rx_channels);
-	return &efx->channel[index]->rx_queue;
-}
 
 static inline bool efx_channel_has_rx_queue(struct efx_channel *channel)
 {

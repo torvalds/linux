@@ -186,6 +186,8 @@ MODULE_PARM_DESC(debug, "Bitmapped debugging message enable value");
  *
  *************************************************************************/
 
+static void efx_start_interrupts(struct efx_nic *efx);
+static void efx_stop_interrupts(struct efx_nic *efx);
 static void efx_remove_channels(struct efx_nic *efx);
 static void efx_remove_port(struct efx_nic *efx);
 static void efx_init_napi(struct efx_nic *efx);
@@ -217,10 +219,9 @@ static void efx_stop_all(struct efx_nic *efx);
  */
 static int efx_process_channel(struct efx_channel *channel, int budget)
 {
-	struct efx_nic *efx = channel->efx;
 	int spent;
 
-	if (unlikely(efx->reset_pending || !channel->enabled))
+	if (unlikely(!channel->enabled))
 		return 0;
 
 	spent = efx_nic_process_eventq(channel, budget);
@@ -233,9 +234,10 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 			__efx_rx_packet(channel, channel->rx_pkt);
 			channel->rx_pkt = NULL;
 		}
-
-		efx_rx_strategy(channel);
-		efx_fast_push_rx_descriptors(rx_queue);
+		if (rx_queue->enabled) {
+			efx_rx_strategy(channel);
+			efx_fast_push_rx_descriptors(rx_queue);
+		}
 	}
 
 	return spent;
@@ -385,6 +387,34 @@ static void efx_init_eventq(struct efx_channel *channel)
 	channel->eventq_read_ptr = 0;
 
 	efx_nic_init_eventq(channel);
+}
+
+/* Enable event queue processing and NAPI */
+static void efx_start_eventq(struct efx_channel *channel)
+{
+	netif_dbg(channel->efx, ifup, channel->efx->net_dev,
+		  "chan %d start event queue\n", channel->channel);
+
+	/* The interrupt handler for this channel may set work_pending
+	 * as soon as we enable it.  Make sure it's cleared before
+	 * then.  Similarly, make sure it sees the enabled flag set.
+	 */
+	channel->work_pending = false;
+	channel->enabled = true;
+	smp_wmb();
+
+	napi_enable(&channel->napi_str);
+	efx_nic_eventq_read_ack(channel);
+}
+
+/* Disable event queue processing and NAPI */
+static void efx_stop_eventq(struct efx_channel *channel)
+{
+	if (!channel->enabled)
+		return;
+
+	napi_disable(&channel->napi_str);
+	channel->enabled = false;
 }
 
 static void efx_fini_eventq(struct efx_channel *channel)
@@ -556,7 +586,7 @@ fail:
  * to propagate configuration changes (mtu, checksum offload), or
  * to clear hardware error conditions
  */
-static void efx_init_channels(struct efx_nic *efx)
+static void efx_start_datapath(struct efx_nic *efx)
 {
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
@@ -575,68 +605,26 @@ static void efx_init_channels(struct efx_nic *efx)
 
 	/* Initialise the channels */
 	efx_for_each_channel(channel, efx) {
-		netif_dbg(channel->efx, drv, channel->efx->net_dev,
-			  "init chan %d\n", channel->channel);
-
-		efx_init_eventq(channel);
-
 		efx_for_each_channel_tx_queue(tx_queue, channel)
 			efx_init_tx_queue(tx_queue);
 
 		/* The rx buffer allocation strategy is MTU dependent */
 		efx_rx_strategy(channel);
 
-		efx_for_each_channel_rx_queue(rx_queue, channel)
+		efx_for_each_channel_rx_queue(rx_queue, channel) {
 			efx_init_rx_queue(rx_queue);
+			efx_nic_generate_fill_event(rx_queue);
+		}
 
 		WARN_ON(channel->rx_pkt != NULL);
 		efx_rx_strategy(channel);
 	}
+
+	if (netif_device_present(efx->net_dev))
+		netif_tx_wake_all_queues(efx->net_dev);
 }
 
-/* This enables event queue processing and packet transmission.
- *
- * Note that this function is not allowed to fail, since that would
- * introduce too much complexity into the suspend/resume path.
- */
-static void efx_start_channel(struct efx_channel *channel)
-{
-	struct efx_rx_queue *rx_queue;
-
-	netif_dbg(channel->efx, ifup, channel->efx->net_dev,
-		  "starting chan %d\n", channel->channel);
-
-	/* The interrupt handler for this channel may set work_pending
-	 * as soon as we enable it.  Make sure it's cleared before
-	 * then.  Similarly, make sure it sees the enabled flag set. */
-	channel->work_pending = false;
-	channel->enabled = true;
-	smp_wmb();
-
-	/* Fill the queues before enabling NAPI */
-	efx_for_each_channel_rx_queue(rx_queue, channel)
-		efx_fast_push_rx_descriptors(rx_queue);
-
-	napi_enable(&channel->napi_str);
-}
-
-/* This disables event queue processing and packet transmission.
- * This function does not guarantee that all queue processing
- * (e.g. RX refill) is complete.
- */
-static void efx_stop_channel(struct efx_channel *channel)
-{
-	if (!channel->enabled)
-		return;
-
-	netif_dbg(channel->efx, ifdown, channel->efx->net_dev,
-		  "stop chan %d\n", channel->channel);
-
-	channel->enabled = false;
-	napi_disable(&channel->napi_str);
-}
-
-static void efx_fini_channels(struct efx_nic *efx)
+static void efx_stop_datapath(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
@@ -663,14 +651,21 @@ static void efx_fini_channels(struct efx_nic *efx)
 	}
 
 	efx_for_each_channel(channel, efx) {
-		netif_dbg(channel->efx, drv, channel->efx->net_dev,
-			  "shut down chan %d\n", channel->channel);
+		/* RX packet processing is pipelined, so wait for the
+		 * NAPI handler to complete.  At least event queue 0
+		 * might be kept active by non-data events, so don't
+		 * use napi_synchronize() but actually disable NAPI
+		 * temporarily.
+		 */
+		if (efx_channel_has_rx_queue(channel)) {
+			efx_stop_eventq(channel);
+			efx_start_eventq(channel);
+		}
 
 		efx_for_each_channel_rx_queue(rx_queue, channel)
 			efx_fini_rx_queue(rx_queue);
 		efx_for_each_possible_channel_tx_queue(tx_queue, channel)
 			efx_fini_tx_queue(tx_queue);
-		efx_fini_eventq(channel);
 	}
 }
 
@@ -706,7 +701,7 @@ efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries)
 	int rc;
 
 	efx_stop_all(efx);
-	efx_fini_channels(efx);
+	efx_stop_interrupts(efx);
 
 	/* Clone channels */
 	memset(other_channel, 0, sizeof(other_channel));
@@ -746,7 +741,7 @@ out:
 	for (i = 0; i < efx->n_channels; i++)
 		kfree(other_channel[i]);
 
-	efx_init_channels(efx);
+	efx_start_interrupts(efx);
 	efx_start_all(efx);
 	return rc;
 
@@ -1246,6 +1241,44 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 	return 0;
 }
 
+/* Enable interrupts, then probe and start the event queues */
+static void efx_start_interrupts(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+
+	if (efx->legacy_irq)
+		efx->legacy_irq_enabled = true;
+	efx_nic_enable_interrupts(efx);
+
+	efx_for_each_channel(channel, efx) {
+		efx_init_eventq(channel);
+		efx_start_eventq(channel);
+	}
+
+	efx_mcdi_mode_event(efx);
+}
+
+static void efx_stop_interrupts(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+
+	efx_mcdi_mode_poll(efx);
+
+	efx_nic_disable_interrupts(efx);
+	if (efx->legacy_irq) {
+		synchronize_irq(efx->legacy_irq);
+		efx->legacy_irq_enabled = false;
+	}
+
+	efx_for_each_channel(channel, efx) {
+		if (channel->irq)
+			synchronize_irq(channel->irq);
+
+		efx_stop_eventq(channel);
+		efx_fini_eventq(channel);
+	}
+}
+
 static void efx_remove_interrupts(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
@@ -1371,15 +1404,13 @@ static int efx_probe_all(struct efx_nic *efx)
 	return rc;
 }
 
-/* Called after previous invocation(s) of efx_stop_all, restarts the
- * port, kernel transmit queue, NAPI processing and hardware interrupts,
- * and ensures that the port is scheduled to be reconfigured.
- * This function is safe to call multiple times when the NIC is in any
- * state. */
+/* Called after previous invocation(s) of efx_stop_all, restarts the port,
+ * kernel transmit queues and NAPI processing, and ensures that the port is
+ * scheduled to be reconfigured. This function is safe to call multiple
+ * times when the NIC is in any state.
+ */
 static void efx_start_all(struct efx_nic *efx)
 {
-	struct efx_channel *channel;
-
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	/* Check that it is appropriate to restart the interface. All
@@ -1391,28 +1422,8 @@ static void efx_start_all(struct efx_nic *efx)
 	if (!netif_running(efx->net_dev))
 		return;
 
-	/* Mark the port as enabled so port reconfigurations can start, then
-	 * restart the transmit interface early so the watchdog timer stops */
 	efx_start_port(efx);
-
-	if (netif_device_present(efx->net_dev))
-		netif_tx_wake_all_queues(efx->net_dev);
-
-	efx_for_each_channel(channel, efx)
-		efx_start_channel(channel);
-
-	if (efx->legacy_irq)
-		efx->legacy_irq_enabled = true;
-	efx_nic_enable_interrupts(efx);
-
-	/* Switch to event based MCDI completions after enabling interrupts.
-	 * If a reset has been scheduled, then we need to stay in polled mode.
-	 * Rather than serialising efx_mcdi_mode_event() [which sleeps] and
-	 * reset_pending [modified from an atomic context], we instead guarantee
-	 * that efx_mcdi_mode_poll() isn't reverted erroneously */
-	efx_mcdi_mode_event(efx);
-	if (efx->reset_pending)
-		efx_mcdi_mode_poll(efx);
+	efx_start_datapath(efx);
 
 	/* Start the hardware monitor if there is one. Otherwise (we're link
 	 * event driven), we have to poll the PHY because after an event queue
@@ -1448,8 +1459,6 @@ static void efx_flush_all(struct efx_nic *efx)
  * taking locks. */
 static void efx_stop_all(struct efx_nic *efx)
 {
-	struct efx_channel *channel;
-
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	/* port_enabled can be read safely under the rtnl lock */
@@ -1457,28 +1466,6 @@ static void efx_stop_all(struct efx_nic *efx)
 		return;
 
 	efx->type->stop_stats(efx);
-
-	/* Switch to MCDI polling on Siena before disabling interrupts */
-	efx_mcdi_mode_poll(efx);
-
-	/* Disable interrupts and wait for ISR to complete */
-	efx_nic_disable_interrupts(efx);
-	if (efx->legacy_irq) {
-		synchronize_irq(efx->legacy_irq);
-		efx->legacy_irq_enabled = false;
-	}
-	efx_for_each_channel(channel, efx) {
-		if (channel->irq)
-			synchronize_irq(channel->irq);
-	}
-
-	/* Stop all NAPI processing and synchronous rx refills */
-	efx_for_each_channel(channel, efx)
-		efx_stop_channel(channel);
-
-	/* Stop all asynchronous port reconfigurations. Since all
-	 * event processing has already been stopped, there is no
-	 * window to loose phy events */
 	efx_stop_port(efx);
 
 	/* Flush efx_mac_work(), refill_workqueue, monitor_work */
@@ -1486,9 +1473,9 @@ static void efx_stop_all(struct efx_nic *efx)
 
 	/* Stop the kernel transmit interface late, so the watchdog
 	 * timer isn't ticking over the flush */
-	netif_tx_stop_all_queues(efx->net_dev);
-	netif_tx_lock_bh(efx->net_dev);
-	netif_tx_unlock_bh(efx->net_dev);
+	netif_tx_disable(efx->net_dev);
+
+	efx_stop_datapath(efx);
 }
 
 static void efx_remove_all(struct efx_nic *efx)
@@ -1731,8 +1718,6 @@ static int efx_net_stop(struct net_device *net_dev)
 	if (efx->state != STATE_DISABLED) {
 		/* Stop the device and flush all the channels */
 		efx_stop_all(efx);
-		efx_fini_channels(efx);
-		efx_init_channels(efx);
 	}
 
 	return 0;
@@ -1803,16 +1788,12 @@ static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 
 	netif_dbg(efx, drv, efx->net_dev, "changing MTU to %d\n", new_mtu);
 
-	efx_fini_channels(efx);
-
 	mutex_lock(&efx->mac_lock);
 	/* Reconfigure the MAC before enabling the dma queues so that
 	 * the RX buffers don't overflow */
 	net_dev->mtu = new_mtu;
 	efx->type->reconfigure_mac(efx);
 	mutex_unlock(&efx->mac_lock);
-
-	efx_init_channels(efx);
 
 	efx_start_all(efx);
 	return 0;
@@ -2030,7 +2011,7 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 	efx_stop_all(efx);
 	mutex_lock(&efx->mac_lock);
 
-	efx_fini_channels(efx);
+	efx_stop_interrupts(efx);
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE)
 		efx->phy_op->fini(efx);
 	efx->type->fini(efx);
@@ -2067,7 +2048,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 
 	efx->type->reconfigure_mac(efx);
 
-	efx_init_channels(efx);
+	efx_start_interrupts(efx);
 	efx_restore_filters(efx);
 
 	mutex_unlock(&efx->mac_lock);
@@ -2273,6 +2254,7 @@ static int efx_init_struct(struct efx_nic *efx, const struct efx_nic_type *type,
 	efx->phy_op = &efx_dummy_phy_operations;
 	efx->mdio.dev = net_dev;
 	INIT_WORK(&efx->mac_work, efx_mac_work);
+	init_waitqueue_head(&efx->flush_wq);
 
 	for (i = 0; i < EFX_MAX_CHANNELS; i++) {
 		efx->channel[i] = efx_alloc_channel(efx, i, NULL);
@@ -2330,8 +2312,8 @@ static void efx_pci_remove_main(struct efx_nic *efx)
 	free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
 	efx->net_dev->rx_cpu_rmap = NULL;
 #endif
+	efx_stop_interrupts(efx);
 	efx_nic_fini_interrupt(efx);
-	efx_fini_channels(efx);
 	efx_fini_port(efx);
 	efx->type->fini(efx);
 	efx_fini_napi(efx);
@@ -2357,6 +2339,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	/* Allow any queued efx_resets() to complete */
 	rtnl_unlock();
 
+	efx_stop_interrupts(efx);
 	efx_unregister_netdev(efx);
 
 	efx_mtd_remove(efx);
@@ -2405,16 +2388,14 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 		goto fail4;
 	}
 
-	efx_init_channels(efx);
-
 	rc = efx_nic_init_interrupt(efx);
 	if (rc)
 		goto fail5;
+	efx_start_interrupts(efx);
 
 	return 0;
 
  fail5:
-	efx_fini_channels(efx);
 	efx_fini_port(efx);
  fail4:
 	efx->type->fini(efx);
@@ -2534,7 +2515,7 @@ static int efx_pm_freeze(struct device *dev)
 	netif_device_detach(efx->net_dev);
 
 	efx_stop_all(efx);
-	efx_fini_channels(efx);
+	efx_stop_interrupts(efx);
 
 	return 0;
 }
@@ -2545,7 +2526,7 @@ static int efx_pm_thaw(struct device *dev)
 
 	efx->state = STATE_INIT;
 
-	efx_init_channels(efx);
+	efx_start_interrupts(efx);
 
 	mutex_lock(&efx->mac_lock);
 	efx->phy_op->reconfigure(efx);

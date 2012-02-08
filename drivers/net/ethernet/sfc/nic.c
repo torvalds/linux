@@ -49,17 +49,14 @@
 #define EFX_INT_ERROR_EXPIRE 3600
 #define EFX_MAX_INT_ERRORS 5
 
-/* We poll for events every FLUSH_INTERVAL ms, and check FLUSH_POLL_COUNT times
- */
-#define EFX_FLUSH_INTERVAL 10
-#define EFX_FLUSH_POLL_COUNT 100
-
 /* Depth of RX flush request fifo */
 #define EFX_RX_FLUSH_COUNT 4
 
 /* Driver generated events */
 #define _EFX_CHANNEL_MAGIC_TEST		0x000101
 #define _EFX_CHANNEL_MAGIC_FILL		0x000102
+#define _EFX_CHANNEL_MAGIC_RX_DRAIN	0x000103
+#define _EFX_CHANNEL_MAGIC_TX_DRAIN	0x000104
 
 #define _EFX_CHANNEL_MAGIC(_code, _data)	((_code) << 8 | (_data))
 #define _EFX_CHANNEL_MAGIC_CODE(_magic)		((_magic) >> 8)
@@ -69,6 +66,12 @@
 #define EFX_CHANNEL_MAGIC_FILL(_rx_queue)				\
 	_EFX_CHANNEL_MAGIC(_EFX_CHANNEL_MAGIC_FILL,			\
 			   efx_rx_queue_index(_rx_queue))
+#define EFX_CHANNEL_MAGIC_RX_DRAIN(_rx_queue)				\
+	_EFX_CHANNEL_MAGIC(_EFX_CHANNEL_MAGIC_RX_DRAIN,			\
+			   efx_rx_queue_index(_rx_queue))
+#define EFX_CHANNEL_MAGIC_TX_DRAIN(_tx_queue)				\
+	_EFX_CHANNEL_MAGIC(_EFX_CHANNEL_MAGIC_TX_DRAIN,			\
+			   (_tx_queue)->queue)
 
 /**************************************************************************
  *
@@ -432,8 +435,6 @@ void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
 	struct efx_nic *efx = tx_queue->efx;
 	efx_oword_t reg;
 
-	tx_queue->flushed = FLUSH_NONE;
-
 	/* Pin TX descriptor ring */
 	efx_init_special_buffer(efx, &tx_queue->txd);
 
@@ -490,9 +491,6 @@ static void efx_flush_tx_queue(struct efx_tx_queue *tx_queue)
 	struct efx_nic *efx = tx_queue->efx;
 	efx_oword_t tx_flush_descq;
 
-	tx_queue->flushed = FLUSH_PENDING;
-
-	/* Post a flush command */
 	EFX_POPULATE_OWORD_2(tx_flush_descq,
 			     FRF_AZ_TX_FLUSH_DESCQ_CMD, 1,
 			     FRF_AZ_TX_FLUSH_DESCQ, tx_queue->queue);
@@ -503,9 +501,6 @@ void efx_nic_fini_tx(struct efx_tx_queue *tx_queue)
 {
 	struct efx_nic *efx = tx_queue->efx;
 	efx_oword_t tx_desc_ptr;
-
-	/* The queue should have been flushed */
-	WARN_ON(tx_queue->flushed != FLUSH_DONE);
 
 	/* Remove TX descriptor ring from card */
 	EFX_ZERO_OWORD(tx_desc_ptr);
@@ -597,8 +592,6 @@ void efx_nic_init_rx(struct efx_rx_queue *rx_queue)
 		  efx_rx_queue_index(rx_queue), rx_queue->rxd.index,
 		  rx_queue->rxd.index + rx_queue->rxd.entries - 1);
 
-	rx_queue->flushed = FLUSH_NONE;
-
 	/* Pin RX descriptor ring */
 	efx_init_special_buffer(efx, &rx_queue->rxd);
 
@@ -627,9 +620,6 @@ static void efx_flush_rx_queue(struct efx_rx_queue *rx_queue)
 	struct efx_nic *efx = rx_queue->efx;
 	efx_oword_t rx_flush_descq;
 
-	rx_queue->flushed = FLUSH_PENDING;
-
-	/* Post a flush command */
 	EFX_POPULATE_OWORD_2(rx_flush_descq,
 			     FRF_AZ_RX_FLUSH_DESCQ_CMD, 1,
 			     FRF_AZ_RX_FLUSH_DESCQ,
@@ -641,9 +631,6 @@ void efx_nic_fini_rx(struct efx_rx_queue *rx_queue)
 {
 	efx_oword_t rx_desc_ptr;
 	struct efx_nic *efx = rx_queue->efx;
-
-	/* The queue should already have been flushed */
-	WARN_ON(rx_queue->flushed != FLUSH_DONE);
 
 	/* Remove RX descriptor ring from card */
 	EFX_ZERO_OWORD(rx_desc_ptr);
@@ -658,6 +645,89 @@ void efx_nic_fini_rx(struct efx_rx_queue *rx_queue)
 void efx_nic_remove_rx(struct efx_rx_queue *rx_queue)
 {
 	efx_free_special_buffer(rx_queue->efx, &rx_queue->rxd);
+}
+
+/**************************************************************************
+ *
+ * Flush handling
+ *
+ **************************************************************************/
+
+/* efx_nic_flush_queues() must be woken up when all flushes are completed,
+ * or more RX flushes can be kicked off.
+ */
+static bool efx_flush_wake(struct efx_nic *efx)
+{
+	/* Ensure that all updates are visible to efx_nic_flush_queues() */
+	smp_mb();
+
+	return (atomic_read(&efx->drain_pending) == 0 ||
+		(atomic_read(&efx->rxq_flush_outstanding) < EFX_RX_FLUSH_COUNT
+		 && atomic_read(&efx->rxq_flush_pending) > 0));
+}
+
+/* Flush all the transmit queues, and continue flushing receive queues until
+ * they're all flushed. Wait for the DRAIN events to be recieved so that there
+ * are no more RX and TX events left on any channel. */
+int efx_nic_flush_queues(struct efx_nic *efx)
+{
+	unsigned timeout = msecs_to_jiffies(5000); /* 5s for all flushes and drains */
+	struct efx_channel *channel;
+	struct efx_rx_queue *rx_queue;
+	struct efx_tx_queue *tx_queue;
+	int rc = 0;
+
+	efx->type->prepare_flush(efx);
+
+	efx_for_each_channel(channel, efx) {
+		efx_for_each_channel_tx_queue(tx_queue, channel) {
+			atomic_inc(&efx->drain_pending);
+			efx_flush_tx_queue(tx_queue);
+		}
+		efx_for_each_channel_rx_queue(rx_queue, channel) {
+			atomic_inc(&efx->drain_pending);
+			rx_queue->flush_pending = true;
+			atomic_inc(&efx->rxq_flush_pending);
+		}
+	}
+
+	while (timeout && atomic_read(&efx->drain_pending) > 0) {
+		/* The hardware supports four concurrent rx flushes, each of
+		 * which may need to be retried if there is an outstanding
+		 * descriptor fetch
+		 */
+		efx_for_each_channel(channel, efx) {
+			efx_for_each_channel_rx_queue(rx_queue, channel) {
+				if (atomic_read(&efx->rxq_flush_outstanding) >=
+				    EFX_RX_FLUSH_COUNT)
+					break;
+
+				if (rx_queue->flush_pending) {
+					rx_queue->flush_pending = false;
+					atomic_dec(&efx->rxq_flush_pending);
+					atomic_inc(&efx->rxq_flush_outstanding);
+					efx_flush_rx_queue(rx_queue);
+				}
+			}
+		}
+
+		timeout = wait_event_timeout(efx->flush_wq, efx_flush_wake(efx),
+					     timeout);
+	}
+
+	if (atomic_read(&efx->drain_pending)) {
+		netif_err(efx, hw, efx->net_dev, "failed to flush %d queues "
+			  "(rx %d+%d)\n", atomic_read(&efx->drain_pending),
+			  atomic_read(&efx->rxq_flush_outstanding),
+			  atomic_read(&efx->rxq_flush_pending));
+		rc = -ETIMEDOUT;
+
+		atomic_set(&efx->drain_pending, 0);
+		atomic_set(&efx->rxq_flush_pending, 0);
+		atomic_set(&efx->rxq_flush_outstanding, 0);
+	}
+
+	return rc;
 }
 
 /**************************************************************************
@@ -721,6 +791,9 @@ efx_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 	struct efx_tx_queue *tx_queue;
 	struct efx_nic *efx = channel->efx;
 	int tx_packets = 0;
+
+	if (unlikely(ACCESS_ONCE(efx->reset_pending)))
+		return 0;
 
 	if (likely(EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_COMP))) {
 		/* Transmit completion */
@@ -863,6 +936,10 @@ efx_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 	bool rx_ev_pkt_ok;
 	u16 flags;
 	struct efx_rx_queue *rx_queue;
+	struct efx_nic *efx = channel->efx;
+
+	if (unlikely(ACCESS_ONCE(efx->reset_pending)))
+		return;
 
 	/* Basic packet information */
 	rx_ev_byte_cnt = EFX_QWORD_FIELD(*event, FSF_AZ_RX_EV_BYTE_CNT);
@@ -909,6 +986,72 @@ efx_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 	efx_rx_packet(rx_queue, rx_ev_desc_ptr, rx_ev_byte_cnt, flags);
 }
 
+/* If this flush done event corresponds to a &struct efx_tx_queue, then
+ * send an %EFX_CHANNEL_MAGIC_TX_DRAIN event to drain the event queue
+ * of all transmit completions.
+ */
+static void
+efx_handle_tx_flush_done(struct efx_nic *efx, efx_qword_t *event)
+{
+	struct efx_tx_queue *tx_queue;
+	int qid;
+
+	qid = EFX_QWORD_FIELD(*event, FSF_AZ_DRIVER_EV_SUBDATA);
+	if (qid < EFX_TXQ_TYPES * efx->n_tx_channels) {
+		tx_queue = efx_get_tx_queue(efx, qid / EFX_TXQ_TYPES,
+					    qid % EFX_TXQ_TYPES);
+
+		efx_magic_event(tx_queue->channel,
+				EFX_CHANNEL_MAGIC_TX_DRAIN(tx_queue));
+	}
+}
+
+/* If this flush done event corresponds to a &struct efx_rx_queue: If the flush
+ * was succesful then send an %EFX_CHANNEL_MAGIC_RX_DRAIN, otherwise add
+ * the RX queue back to the mask of RX queues in need of flushing.
+ */
+static void
+efx_handle_rx_flush_done(struct efx_nic *efx, efx_qword_t *event)
+{
+	struct efx_channel *channel;
+	struct efx_rx_queue *rx_queue;
+	int qid;
+	bool failed;
+
+	qid = EFX_QWORD_FIELD(*event, FSF_AZ_DRIVER_EV_RX_DESCQ_ID);
+	failed = EFX_QWORD_FIELD(*event, FSF_AZ_DRIVER_EV_RX_FLUSH_FAIL);
+	if (qid >= efx->n_channels)
+		return;
+	channel = efx_get_channel(efx, qid);
+	if (!efx_channel_has_rx_queue(channel))
+		return;
+	rx_queue = efx_channel_get_rx_queue(channel);
+
+	if (failed) {
+		netif_info(efx, hw, efx->net_dev,
+			   "RXQ %d flush retry\n", qid);
+		rx_queue->flush_pending = true;
+		atomic_inc(&efx->rxq_flush_pending);
+	} else {
+		efx_magic_event(efx_rx_queue_channel(rx_queue),
+				EFX_CHANNEL_MAGIC_RX_DRAIN(rx_queue));
+	}
+	atomic_dec(&efx->rxq_flush_outstanding);
+	if (efx_flush_wake(efx))
+		wake_up(&efx->flush_wq);
+}
+
+static void
+efx_handle_drain_event(struct efx_channel *channel)
+{
+	struct efx_nic *efx = channel->efx;
+
+	WARN_ON(atomic_read(&efx->drain_pending) == 0);
+	atomic_dec(&efx->drain_pending);
+	if (efx_flush_wake(efx))
+		wake_up(&efx->flush_wq);
+}
+
 static void
 efx_handle_generated_event(struct efx_channel *channel, efx_qword_t *event)
 {
@@ -916,21 +1059,28 @@ efx_handle_generated_event(struct efx_channel *channel, efx_qword_t *event)
 	struct efx_rx_queue *rx_queue =
 		efx_channel_has_rx_queue(channel) ?
 		efx_channel_get_rx_queue(channel) : NULL;
-	unsigned magic;
+	unsigned magic, code;
 
 	magic = EFX_QWORD_FIELD(*event, FSF_AZ_DRV_GEN_EV_MAGIC);
+	code = _EFX_CHANNEL_MAGIC_CODE(magic);
 
-	if (magic == EFX_CHANNEL_MAGIC_TEST(channel))
-		; /* ignore */
-	else if (rx_queue && magic == EFX_CHANNEL_MAGIC_FILL(rx_queue))
+	if (magic == EFX_CHANNEL_MAGIC_TEST(channel)) {
+		/* ignore */
+	} else if (rx_queue && magic == EFX_CHANNEL_MAGIC_FILL(rx_queue)) {
 		/* The queue must be empty, so we won't receive any rx
 		 * events, so efx_process_channel() won't refill the
 		 * queue. Refill it here */
 		efx_fast_push_rx_descriptors(rx_queue);
-	else
+	} else if (rx_queue && magic == EFX_CHANNEL_MAGIC_RX_DRAIN(rx_queue)) {
+		rx_queue->enabled = false;
+		efx_handle_drain_event(channel);
+	} else if (code == _EFX_CHANNEL_MAGIC_TX_DRAIN) {
+		efx_handle_drain_event(channel);
+	} else {
 		netif_dbg(efx, hw, efx->net_dev, "channel %d received "
 			  "generated event "EFX_QWORD_FMT"\n",
 			  channel->channel, EFX_QWORD_VAL(*event));
+	}
 }
 
 static void
@@ -947,10 +1097,12 @@ efx_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 	case FSE_AZ_TX_DESCQ_FLS_DONE_EV:
 		netif_vdbg(efx, hw, efx->net_dev, "channel %d TXQ %d flushed\n",
 			   channel->channel, ev_sub_data);
+		efx_handle_tx_flush_done(efx, event);
 		break;
 	case FSE_AZ_RX_DESCQ_FLS_DONE_EV:
 		netif_vdbg(efx, hw, efx->net_dev, "channel %d RXQ %d flushed\n",
 			   channel->channel, ev_sub_data);
+		efx_handle_rx_flush_done(efx, event);
 		break;
 	case FSE_AZ_EVQ_INIT_DONE_EV:
 		netif_dbg(efx, hw, efx->net_dev,
@@ -1162,143 +1314,6 @@ void efx_nic_generate_fill_event(struct efx_rx_queue *rx_queue)
 
 /**************************************************************************
  *
- * Flush handling
- *
- **************************************************************************/
-
-
-static void efx_poll_flush_events(struct efx_nic *efx)
-{
-	struct efx_channel *channel = efx_get_channel(efx, 0);
-	struct efx_tx_queue *tx_queue;
-	struct efx_rx_queue *rx_queue;
-	unsigned int read_ptr = channel->eventq_read_ptr;
-	unsigned int end_ptr = read_ptr + channel->eventq_mask - 1;
-
-	do {
-		efx_qword_t *event = efx_event(channel, read_ptr);
-		int ev_code, ev_sub_code, ev_queue;
-		bool ev_failed;
-
-		if (!efx_event_present(event))
-			break;
-
-		ev_code = EFX_QWORD_FIELD(*event, FSF_AZ_EV_CODE);
-		ev_sub_code = EFX_QWORD_FIELD(*event,
-					      FSF_AZ_DRIVER_EV_SUBCODE);
-		if (ev_code == FSE_AZ_EV_CODE_DRIVER_EV &&
-		    ev_sub_code == FSE_AZ_TX_DESCQ_FLS_DONE_EV) {
-			ev_queue = EFX_QWORD_FIELD(*event,
-						   FSF_AZ_DRIVER_EV_SUBDATA);
-			if (ev_queue < EFX_TXQ_TYPES * efx->n_tx_channels) {
-				tx_queue = efx_get_tx_queue(
-					efx, ev_queue / EFX_TXQ_TYPES,
-					ev_queue % EFX_TXQ_TYPES);
-				tx_queue->flushed = FLUSH_DONE;
-			}
-		} else if (ev_code == FSE_AZ_EV_CODE_DRIVER_EV &&
-			   ev_sub_code == FSE_AZ_RX_DESCQ_FLS_DONE_EV) {
-			ev_queue = EFX_QWORD_FIELD(
-				*event, FSF_AZ_DRIVER_EV_RX_DESCQ_ID);
-			ev_failed = EFX_QWORD_FIELD(
-				*event, FSF_AZ_DRIVER_EV_RX_FLUSH_FAIL);
-			if (ev_queue < efx->n_rx_channels) {
-				rx_queue = efx_get_rx_queue(efx, ev_queue);
-				rx_queue->flushed =
-					ev_failed ? FLUSH_FAILED : FLUSH_DONE;
-			}
-		}
-
-		/* We're about to destroy the queue anyway, so
-		 * it's ok to throw away every non-flush event */
-		EFX_SET_QWORD(*event);
-
-		++read_ptr;
-	} while (read_ptr != end_ptr);
-
-	channel->eventq_read_ptr = read_ptr;
-}
-
-/* Handle tx and rx flushes at the same time, since they run in
- * parallel in the hardware and there's no reason for us to
- * serialise them */
-int efx_nic_flush_queues(struct efx_nic *efx)
-{
-	struct efx_channel *channel;
-	struct efx_rx_queue *rx_queue;
-	struct efx_tx_queue *tx_queue;
-	int i, tx_pending, rx_pending;
-
-	/* If necessary prepare the hardware for flushing */
-	efx->type->prepare_flush(efx);
-
-	/* Flush all tx queues in parallel */
-	efx_for_each_channel(channel, efx) {
-		efx_for_each_possible_channel_tx_queue(tx_queue, channel) {
-			if (tx_queue->initialised)
-				efx_flush_tx_queue(tx_queue);
-		}
-	}
-
-	/* The hardware supports four concurrent rx flushes, each of which may
-	 * need to be retried if there is an outstanding descriptor fetch */
-	for (i = 0; i < EFX_FLUSH_POLL_COUNT; ++i) {
-		rx_pending = tx_pending = 0;
-		efx_for_each_channel(channel, efx) {
-			efx_for_each_channel_rx_queue(rx_queue, channel) {
-				if (rx_queue->flushed == FLUSH_PENDING)
-					++rx_pending;
-			}
-		}
-		efx_for_each_channel(channel, efx) {
-			efx_for_each_channel_rx_queue(rx_queue, channel) {
-				if (rx_pending == EFX_RX_FLUSH_COUNT)
-					break;
-				if (rx_queue->flushed == FLUSH_FAILED ||
-				    rx_queue->flushed == FLUSH_NONE) {
-					efx_flush_rx_queue(rx_queue);
-					++rx_pending;
-				}
-			}
-			efx_for_each_possible_channel_tx_queue(tx_queue, channel) {
-				if (tx_queue->initialised &&
-				    tx_queue->flushed != FLUSH_DONE)
-					++tx_pending;
-			}
-		}
-
-		if (rx_pending == 0 && tx_pending == 0)
-			return 0;
-
-		msleep(EFX_FLUSH_INTERVAL);
-		efx_poll_flush_events(efx);
-	}
-
-	/* Mark the queues as all flushed. We're going to return failure
-	 * leading to a reset, or fake up success anyway */
-	efx_for_each_channel(channel, efx) {
-		efx_for_each_possible_channel_tx_queue(tx_queue, channel) {
-			if (tx_queue->initialised &&
-			    tx_queue->flushed != FLUSH_DONE)
-				netif_err(efx, hw, efx->net_dev,
-					  "tx queue %d flush command timed out\n",
-					  tx_queue->queue);
-			tx_queue->flushed = FLUSH_DONE;
-		}
-		efx_for_each_channel_rx_queue(rx_queue, channel) {
-			if (rx_queue->flushed != FLUSH_DONE)
-				netif_err(efx, hw, efx->net_dev,
-					  "rx queue %d flush command timed out\n",
-					  efx_rx_queue_index(rx_queue));
-			rx_queue->flushed = FLUSH_DONE;
-		}
-	}
-
-	return -ETIMEDOUT;
-}
-
-/**************************************************************************
- *
  * Hardware interrupts
  * The hardware interrupt handler does very little work; all the event
  * queue processing is carried out by per-channel tasklets.
@@ -1320,18 +1335,10 @@ static inline void efx_nic_interrupts(struct efx_nic *efx,
 
 void efx_nic_enable_interrupts(struct efx_nic *efx)
 {
-	struct efx_channel *channel;
-
 	EFX_ZERO_OWORD(*((efx_oword_t *) efx->irq_status.addr));
 	wmb(); /* Ensure interrupt vector is clear before interrupts enabled */
 
-	/* Enable interrupts */
 	efx_nic_interrupts(efx, true, false);
-
-	/* Force processing of all the channels to get the EVQ RPTRs up to
-	   date */
-	efx_for_each_channel(channel, efx)
-		efx_schedule_channel(channel);
 }
 
 void efx_nic_disable_interrupts(struct efx_nic *efx)
