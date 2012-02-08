@@ -860,63 +860,68 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 }
 
 #ifdef CONFIG_IXGBE_DCA
-static void ixgbe_update_rx_dca(struct ixgbe_adapter *adapter,
-				struct ixgbe_ring *rx_ring,
-				int cpu)
-{
-	struct ixgbe_hw *hw = &adapter->hw;
-	u32 rxctrl;
-	u8 reg_idx = rx_ring->reg_idx;
-
-	rxctrl = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(reg_idx));
-	switch (hw->mac.type) {
-	case ixgbe_mac_82598EB:
-		rxctrl &= ~IXGBE_DCA_RXCTRL_CPUID_MASK;
-		rxctrl |= dca3_get_tag(rx_ring->dev, cpu);
-		break;
-	case ixgbe_mac_82599EB:
-	case ixgbe_mac_X540:
-		rxctrl &= ~IXGBE_DCA_RXCTRL_CPUID_MASK_82599;
-		rxctrl |= (dca3_get_tag(rx_ring->dev, cpu) <<
-			   IXGBE_DCA_RXCTRL_CPUID_SHIFT_82599);
-		break;
-	default:
-		break;
-	}
-	rxctrl |= IXGBE_DCA_RXCTRL_DESC_DCA_EN;
-	rxctrl |= IXGBE_DCA_RXCTRL_HEAD_DCA_EN;
-	rxctrl &= ~(IXGBE_DCA_RXCTRL_DESC_RRO_EN);
-	IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(reg_idx), rxctrl);
-}
-
 static void ixgbe_update_tx_dca(struct ixgbe_adapter *adapter,
 				struct ixgbe_ring *tx_ring,
 				int cpu)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 txctrl;
-	u8 reg_idx = tx_ring->reg_idx;
+	u32 txctrl = dca3_get_tag(tx_ring->dev, cpu);
+	u16 reg_offset;
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
-		txctrl = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL(reg_idx));
-		txctrl &= ~IXGBE_DCA_TXCTRL_CPUID_MASK;
-		txctrl |= dca3_get_tag(tx_ring->dev, cpu);
-		txctrl |= IXGBE_DCA_TXCTRL_DESC_DCA_EN;
-		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL(reg_idx), txctrl);
+		reg_offset = IXGBE_DCA_TXCTRL(tx_ring->reg_idx);
 		break;
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
-		txctrl = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL_82599(reg_idx));
-		txctrl &= ~IXGBE_DCA_TXCTRL_CPUID_MASK_82599;
-		txctrl |= (dca3_get_tag(tx_ring->dev, cpu) <<
-			   IXGBE_DCA_TXCTRL_CPUID_SHIFT_82599);
-		txctrl |= IXGBE_DCA_TXCTRL_DESC_DCA_EN;
-		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL_82599(reg_idx), txctrl);
+		reg_offset = IXGBE_DCA_TXCTRL_82599(tx_ring->reg_idx);
+		txctrl <<= IXGBE_DCA_TXCTRL_CPUID_SHIFT_82599;
+		break;
+	default:
+		/* for unknown hardware do not write register */
+		return;
+	}
+
+	/*
+	 * We can enable relaxed ordering for reads, but not writes when
+	 * DCA is enabled.  This is due to a known issue in some chipsets
+	 * which will cause the DCA tag to be cleared.
+	 */
+	txctrl |= IXGBE_DCA_TXCTRL_DESC_RRO_EN |
+		  IXGBE_DCA_TXCTRL_DATA_RRO_EN |
+		  IXGBE_DCA_TXCTRL_DESC_DCA_EN;
+
+	IXGBE_WRITE_REG(hw, reg_offset, txctrl);
+}
+
+static void ixgbe_update_rx_dca(struct ixgbe_adapter *adapter,
+				struct ixgbe_ring *rx_ring,
+				int cpu)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 rxctrl = dca3_get_tag(rx_ring->dev, cpu);
+	u8 reg_idx = rx_ring->reg_idx;
+
+
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+		rxctrl <<= IXGBE_DCA_RXCTRL_CPUID_SHIFT_82599;
 		break;
 	default:
 		break;
 	}
+
+	/*
+	 * We can enable relaxed ordering for reads, but not writes when
+	 * DCA is enabled.  This is due to a known issue in some chipsets
+	 * which will cause the DCA tag to be cleared.
+	 */
+	rxctrl |= IXGBE_DCA_RXCTRL_DESC_RRO_EN |
+		  IXGBE_DCA_RXCTRL_DATA_DCA_EN |
+		  IXGBE_DCA_RXCTRL_DESC_DCA_EN;
+
+	IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(reg_idx), rxctrl);
 }
 
 static void ixgbe_update_dca(struct ixgbe_q_vector *q_vector)
@@ -991,8 +996,8 @@ static int __ixgbe_notify_dca(struct device *dev, void *data)
 
 	return 0;
 }
-#endif /* CONFIG_IXGBE_DCA */
 
+#endif /* CONFIG_IXGBE_DCA */
 static inline void ixgbe_rx_hash(struct ixgbe_ring *ring,
 				 union ixgbe_adv_rx_desc *rx_desc,
 				 struct sk_buff *skb)
