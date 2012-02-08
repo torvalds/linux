@@ -1065,7 +1065,7 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 
 	data = er32(FEXTNVM);
 	if (!(data & sw_cfg_mask))
-		goto out;
+		goto release;
 
 	/*
 	 * Make sure HW does not configure LCD from PHY
@@ -1074,14 +1074,14 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 	data = er32(EXTCNF_CTRL);
 	if (!(hw->mac.type == e1000_pch2lan)) {
 		if (data & E1000_EXTCNF_CTRL_LCD_WRITE_ENABLE)
-			goto out;
+			goto release;
 	}
 
 	cnf_size = er32(EXTCNF_SIZE);
 	cnf_size &= E1000_EXTCNF_SIZE_EXT_PCIE_LENGTH_MASK;
 	cnf_size >>= E1000_EXTCNF_SIZE_EXT_PCIE_LENGTH_SHIFT;
 	if (!cnf_size)
-		goto out;
+		goto release;
 
 	cnf_base_addr = data & E1000_EXTCNF_CTRL_EXT_CNF_POINTER_MASK;
 	cnf_base_addr >>= E1000_EXTCNF_CTRL_EXT_CNF_POINTER_SHIFT;
@@ -1097,13 +1097,13 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 		 */
 		ret_val = e1000_write_smbus_addr(hw);
 		if (ret_val)
-			goto out;
+			goto release;
 
 		data = er32(LEDCTL);
 		ret_val = e1000_write_phy_reg_hv_locked(hw, HV_LED_CONFIG,
 							(u16)data);
 		if (ret_val)
-			goto out;
+			goto release;
 	}
 
 	/* Configure LCD from extended configuration region. */
@@ -1115,12 +1115,12 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 		ret_val = e1000_read_nvm(hw, (word_addr + i * 2), 1,
 					 &reg_data);
 		if (ret_val)
-			goto out;
+			goto release;
 
 		ret_val = e1000_read_nvm(hw, (word_addr + i * 2 + 1),
 					 1, &reg_addr);
 		if (ret_val)
-			goto out;
+			goto release;
 
 		/* Save off the PHY page for future writes. */
 		if (reg_addr == IGP01E1000_PHY_PAGE_SELECT) {
@@ -1134,10 +1134,10 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 		ret_val = phy->ops.write_reg_locked(hw, (u32)reg_addr,
 						    reg_data);
 		if (ret_val)
-			goto out;
+			goto release;
 	}
 
-out:
+release:
 	hw->phy.ops.release(hw);
 	return ret_val;
 }
@@ -1302,18 +1302,18 @@ static s32 e1000_oem_bits_config_ich8lan(struct e1000_hw *hw, bool d0_state)
 	if (!(hw->mac.type == e1000_pch2lan)) {
 		mac_reg = er32(EXTCNF_CTRL);
 		if (mac_reg & E1000_EXTCNF_CTRL_OEM_WRITE_ENABLE)
-			goto out;
+			goto release;
 	}
 
 	mac_reg = er32(FEXTNVM);
 	if (!(mac_reg & E1000_FEXTNVM_SW_CONFIG_ICH8M))
-		goto out;
+		goto release;
 
 	mac_reg = er32(PHY_CTRL);
 
 	ret_val = hw->phy.ops.read_reg_locked(hw, HV_OEM_BITS, &oem_reg);
 	if (ret_val)
-		goto out;
+		goto release;
 
 	oem_reg &= ~(HV_OEM_BITS_GBE_DIS | HV_OEM_BITS_LPLU);
 
@@ -1339,7 +1339,7 @@ static s32 e1000_oem_bits_config_ich8lan(struct e1000_hw *hw, bool d0_state)
 
 	ret_val = hw->phy.ops.write_reg_locked(hw, HV_OEM_BITS, oem_reg);
 
-out:
+release:
 	hw->phy.ops.release(hw);
 
 	return ret_val;

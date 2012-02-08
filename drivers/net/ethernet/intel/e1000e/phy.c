@@ -2438,7 +2438,7 @@ s32 e1000e_write_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 data)
 	if (page == BM_WUC_PAGE) {
 		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset, &data,
 							 false, false);
-		goto out;
+		goto release;
 	}
 
 	hw->phy.addr = e1000_get_phy_addr_for_bm_page(page, offset);
@@ -2463,13 +2463,13 @@ s32 e1000e_write_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 data)
 		ret_val = e1000e_write_phy_reg_mdic(hw, page_select,
 		                                    (page << page_shift));
 		if (ret_val)
-			goto out;
+			goto release;
 	}
 
 	ret_val = e1000e_write_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
 	                                    data);
 
-out:
+release:
 	hw->phy.ops.release(hw);
 	return ret_val;
 }
@@ -2497,7 +2497,7 @@ s32 e1000e_read_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data)
 	if (page == BM_WUC_PAGE) {
 		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset, data,
 							 true, false);
-		goto out;
+		goto release;
 	}
 
 	hw->phy.addr = e1000_get_phy_addr_for_bm_page(page, offset);
@@ -2522,12 +2522,12 @@ s32 e1000e_read_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data)
 		ret_val = e1000e_write_phy_reg_mdic(hw, page_select,
 		                                    (page << page_shift));
 		if (ret_val)
-			goto out;
+			goto release;
 	}
 
 	ret_val = e1000e_read_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
 	                                   data);
-out:
+release:
 	hw->phy.ops.release(hw);
 	return ret_val;
 }
@@ -2555,7 +2555,7 @@ s32 e1000e_read_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 *data)
 	if (page == BM_WUC_PAGE) {
 		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset, data,
 							 true, false);
-		goto out;
+		goto release;
 	}
 
 	hw->phy.addr = 1;
@@ -2567,12 +2567,12 @@ s32 e1000e_read_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 *data)
 						    page);
 
 		if (ret_val)
-			goto out;
+			goto release;
 	}
 
 	ret_val = e1000e_read_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
 					   data);
-out:
+release:
 	hw->phy.ops.release(hw);
 	return ret_val;
 }
@@ -2599,7 +2599,7 @@ s32 e1000e_write_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 data)
 	if (page == BM_WUC_PAGE) {
 		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset, &data,
 							 false, false);
-		goto out;
+		goto release;
 	}
 
 	hw->phy.addr = 1;
@@ -2610,13 +2610,13 @@ s32 e1000e_write_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 data)
 						    page);
 
 		if (ret_val)
-			goto out;
+			goto release;
 	}
 
 	ret_val = e1000e_write_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
 					    data);
 
-out:
+release:
 	hw->phy.ops.release(hw);
 	return ret_val;
 }
