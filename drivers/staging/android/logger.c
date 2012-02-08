@@ -93,20 +93,24 @@ static inline struct logger_log *file_get_log(struct file *file)
  * get_entry_len - Grabs the length of the payload of the next entry starting
  * from 'off'.
  *
+ * An entry length is 2 bytes (16 bits) in host endian order.
+ * In the log, the length does not include the size of the log entry structure.
+ * This function returns the size including the log entry structure.
+ *
  * Caller needs to hold log->mutex.
  */
 static __u32 get_entry_len(struct logger_log *log, size_t off)
 {
 	__u16 val;
 
-	switch (log->size - off) {
-	case 1:
-		memcpy(&val, log->buffer + off, 1);
-		memcpy(((char *) &val) + 1, log->buffer, 1);
-		break;
-	default:
-		memcpy(&val, log->buffer + off, 2);
-	}
+	/* copy 2 bytes from buffer, in memcpy order, */
+	/* handling possible wrap at end of buffer */
+
+	((__u8 *)&val)[0] = log->buffer[off];
+	if (likely(off+1 < log->size))
+		((__u8 *)&val)[1] = log->buffer[off+1];
+	else
+		((__u8 *)&val)[1] = log->buffer[0];
 
 	return sizeof(struct logger_entry) + val;
 }
