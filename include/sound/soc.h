@@ -643,6 +643,8 @@ struct snd_soc_codec_driver {
 	/* codec stream completion event */
 	int (*stream_event)(struct snd_soc_dapm_context *dapm, int event);
 
+	bool ignore_pmdown_time;  /* Doesn't benefit from pmdown delay */
+
 	/* probe ordering - for components with runtime dependencies */
 	int probe_order;
 	int remove_order;
