@@ -309,6 +309,34 @@ static int __sigp_sense_running(struct kvm_vcpu *vcpu, u16 cpu_addr,
 	return rc;
 }
 
+static int __sigp_restart(struct kvm_vcpu *vcpu, u16 cpu_addr)
+{
+	int rc = 0;
+	struct kvm_s390_float_interrupt *fi = &vcpu->kvm->arch.float_int;
+	struct kvm_s390_local_interrupt *li;
+
+	if (cpu_addr >= KVM_MAX_VCPUS)
+		return 3; /* not operational */
+
+	spin_lock(&fi->lock);
+	li = fi->local_int[cpu_addr];
+	if (li == NULL) {
+		rc = 3; /* not operational */
+		goto out;
+	}
+
+	spin_lock_bh(&li->lock);
+	if (li->action_bits & ACTION_STOP_ON_STOP)
+		rc = 2; /* busy */
+	else
+		VCPU_EVENT(vcpu, 4, "sigp restart %x to handle userspace",
+			cpu_addr);
+	spin_unlock_bh(&li->lock);
+out:
+	spin_unlock(&fi->lock);
+	return rc;
+}
+
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 {
 	int r1 = (vcpu->arch.sie_block->ipa & 0x00f0) >> 4;
@@ -372,6 +400,9 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		break;
 	case SIGP_RESTART:
 		vcpu->stat.instruction_sigp_restart++;
+		rc = __sigp_restart(vcpu, cpu_addr);
+		if (rc == 2) /* busy */
+			break;
 		/* user space must know about restart */
 	default:
 		return -EOPNOTSUPP;
