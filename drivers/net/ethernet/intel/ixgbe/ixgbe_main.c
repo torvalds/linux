@@ -5544,20 +5544,24 @@ static void ixgbe_free_all_rx_resources(struct ixgbe_adapter *adapter)
 static int ixgbe_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	struct ixgbe_hw *hw = &adapter->hw;
 	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
 
 	/* MTU < 68 is an error and causes problems on some kernels */
-	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED &&
-	    hw->mac.type != ixgbe_mac_X540) {
-		if ((new_mtu < 68) || (max_frame > MAXIMUM_ETHERNET_VLAN_SIZE))
+	if ((new_mtu < 68) || (max_frame > IXGBE_MAX_JUMBO_FRAME_SIZE))
+		return -EINVAL;
+
+	/*
+	 * For 82599EB we cannot allow PF to change MTU greater than 1500
+	 * in SR-IOV mode as it may cause buffer overruns in guest VFs that
+	 * don't allocate and chain buffers correctly.
+	 */
+	if ((adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) &&
+	    (adapter->hw.mac.type == ixgbe_mac_82599EB) &&
+	    (max_frame > MAXIMUM_ETHERNET_VLAN_SIZE))
 			return -EINVAL;
-	} else {
-		if ((new_mtu < 68) || (max_frame > IXGBE_MAX_JUMBO_FRAME_SIZE))
-			return -EINVAL;
-	}
 
 	e_info(probe, "changing MTU from %d to %d\n", netdev->mtu, new_mtu);
+
 	/* must set new MTU before calling down or up */
 	netdev->mtu = new_mtu;
 
