@@ -6689,7 +6689,7 @@ static __le32 ixgbe_tx_cmd_type(u32 tx_flags)
 
 	/* set segmentation enable bits for TSO/FSO */
 #ifdef IXGBE_FCOE
-	if ((tx_flags & IXGBE_TX_FLAGS_TSO) || (tx_flags & IXGBE_TX_FLAGS_FSO))
+	if (tx_flags & (IXGBE_TX_FLAGS_TSO | IXGBE_TX_FLAGS_FSO))
 #else
 	if (tx_flags & IXGBE_TX_FLAGS_TSO)
 #endif
@@ -6700,33 +6700,33 @@ static __le32 ixgbe_tx_cmd_type(u32 tx_flags)
 
 static __le32 ixgbe_tx_olinfo_status(u32 tx_flags, unsigned int paylen)
 {
-	__le32 olinfo_status =
-		cpu_to_le32(paylen << IXGBE_ADVTXD_PAYLEN_SHIFT);
-
-	if (tx_flags & IXGBE_TX_FLAGS_TSO) {
-		olinfo_status |= cpu_to_le32(IXGBE_ADVTXD_POPTS_TXSM |
-					    (1 << IXGBE_ADVTXD_IDX_SHIFT));
-		/* enble IPv4 checksum for TSO */
-		if (tx_flags & IXGBE_TX_FLAGS_IPV4)
-			olinfo_status |= cpu_to_le32(IXGBE_ADVTXD_POPTS_IXSM);
-	}
+	__le32 olinfo_status = cpu_to_le32(paylen << IXGBE_ADVTXD_PAYLEN_SHIFT);
 
 	/* enable L4 checksum for TSO and TX checksum offload */
 	if (tx_flags & IXGBE_TX_FLAGS_CSUM)
 		olinfo_status |= cpu_to_le32(IXGBE_ADVTXD_POPTS_TXSM);
 
-#ifdef IXGBE_FCOE
-	/* use index 1 context for FCOE/FSO */
-	if (tx_flags & IXGBE_TX_FLAGS_FCOE)
-		olinfo_status |= cpu_to_le32(IXGBE_ADVTXD_CC |
-					    (1 << IXGBE_ADVTXD_IDX_SHIFT));
+	/* enble IPv4 checksum for TSO */
+	if (tx_flags & IXGBE_TX_FLAGS_IPV4)
+		olinfo_status |= cpu_to_le32(IXGBE_ADVTXD_POPTS_IXSM);
 
+	/* use index 1 context for TSO/FSO/FCOE */
+#ifdef IXGBE_FCOE
+	if (tx_flags & (IXGBE_TX_FLAGS_TSO | IXGBE_TX_FLAGS_FCOE))
+#else
+	if (tx_flags & IXGBE_TX_FLAGS_TSO)
 #endif
+		olinfo_status |= cpu_to_le32(1 << IXGBE_ADVTXD_IDX_SHIFT);
+
 	/*
 	 * Check Context must be set if Tx switch is enabled, which it
 	 * always is for case where virtual functions are running
 	 */
+#ifdef IXGBE_FCOE
+	if (tx_flags & (IXGBE_TX_FLAGS_TXSW | IXGBE_TX_FLAGS_FCOE))
+#else
 	if (tx_flags & IXGBE_TX_FLAGS_TXSW)
+#endif
 		olinfo_status |= cpu_to_le32(IXGBE_ADVTXD_CC);
 
 	return olinfo_status;
@@ -7140,7 +7140,7 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 	if (tso < 0)
 		goto out_drop;
 	else if (tso)
-		tx_flags |= IXGBE_TX_FLAGS_TSO;
+		tx_flags |= IXGBE_TX_FLAGS_TSO | IXGBE_TX_FLAGS_CSUM;
 	else if (ixgbe_tx_csum(tx_ring, skb, tx_flags, protocol))
 		tx_flags |= IXGBE_TX_FLAGS_CSUM;
 
