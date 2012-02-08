@@ -30,6 +30,7 @@
 #include <linux/gfp.h>
 #include <linux/ptrace.h>
 #include <linux/atomic.h>
+#include <linux/pid_namespace.h>
 
 #include <asm/unaligned.h>
 
@@ -127,11 +128,11 @@ void proc_id_connector(struct task_struct *task, int which_id)
 	rcu_read_lock();
 	cred = __task_cred(task);
 	if (which_id == PROC_EVENT_UID) {
-		ev->event_data.id.r.ruid = cred->uid;
-		ev->event_data.id.e.euid = cred->euid;
+		ev->event_data.id.r.ruid = from_kuid_munged(&init_user_ns, cred->uid);
+		ev->event_data.id.e.euid = from_kuid_munged(&init_user_ns, cred->euid);
 	} else if (which_id == PROC_EVENT_GID) {
-		ev->event_data.id.r.rgid = cred->gid;
-		ev->event_data.id.e.egid = cred->egid;
+		ev->event_data.id.r.rgid = from_kgid_munged(&init_user_ns, cred->gid);
+		ev->event_data.id.e.egid = from_kgid_munged(&init_user_ns, cred->egid);
 	} else {
 		rcu_read_unlock();
 		return;
@@ -301,6 +302,15 @@ static void cn_proc_mcast_ctl(struct cn_msg *msg,
 	int err = 0;
 
 	if (msg->len != sizeof(*mc_op))
+		return;
+
+	/* 
+	 * Events are reported with respect to the initial pid
+	 * and user namespaces so ignore requestors from
+	 * other namespaces.
+	 */
+	if ((current_user_ns() != &init_user_ns) ||
+	    (task_active_pid_ns(current) != &init_pid_ns))
 		return;
 
 	mc_op = (enum proc_cn_mcast_op *)msg->data;

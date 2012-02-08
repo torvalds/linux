@@ -938,7 +938,6 @@ config UIDGID_CONVERTED
 	depends on QUOTACTL = n
 	depends on BSD_PROCESS_ACCT = n
 	depends on DRM = n
-	depends on PROC_EVENTS = n
 
 	# Networking
 	depends on NET_9P = n
