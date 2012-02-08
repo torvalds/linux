@@ -380,6 +380,8 @@ static int cnic_iscsi_nl_msg_recv(struct cnic_dev *dev, u32 msg_type,
 		if (cnic_in_use(csk) &&
 		    test_bit(SK_F_CONNECT_START, &csk->flags)) {
 
+			csk->vlan_id = path_resp->vlan_id;
+
 			memcpy(csk->ha, path_resp->mac_addr, 6);
 			if (test_bit(SK_F_IPV6, &csk->flags))
 				memcpy(&csk->src_ip[0], &path_resp->src.v6_addr,
