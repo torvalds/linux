@@ -23,15 +23,15 @@ struct ncp_mount_data_kernel {
 	unsigned long    flags;		/* NCP_MOUNT_* flags */
 	unsigned int	 int_flags;	/* internal flags */
 #define NCP_IMOUNT_LOGGEDIN_POSSIBLE	0x0001
-	uid_t		 mounted_uid;	/* Who may umount() this filesystem? */
+	kuid_t		 mounted_uid;	/* Who may umount() this filesystem? */
 	struct pid      *wdog_pid;	/* Who cares for our watchdog packets? */
 	unsigned int     ncp_fd;	/* The socket to the ncp port */
 	unsigned int     time_out;	/* How long should I wait after
 					   sending a NCP request? */
 	unsigned int     retry_count;	/* And how often should I retry? */
 	unsigned char	 mounted_vol[NCP_VOLNAME_LEN + 1];
-	uid_t		 uid;
-	gid_t		 gid;
+	kuid_t		 uid;
+	kgid_t		 gid;
 	umode_t		 file_mode;
 	umode_t		 dir_mode;
 	int		 info_fd;

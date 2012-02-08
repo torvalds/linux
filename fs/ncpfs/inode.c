@@ -331,12 +331,15 @@ static int  ncp_show_options(struct seq_file *seq, struct dentry *root)
 	struct ncp_server *server = NCP_SBP(root->d_sb);
 	unsigned int tmp;
 
-	if (server->m.uid != 0)
-		seq_printf(seq, ",uid=%u", server->m.uid);
-	if (server->m.gid != 0)
-		seq_printf(seq, ",gid=%u", server->m.gid);
-	if (server->m.mounted_uid != 0)
-		seq_printf(seq, ",owner=%u", server->m.mounted_uid);
+	if (!uid_eq(server->m.uid, GLOBAL_ROOT_UID))
+		seq_printf(seq, ",uid=%u",
+			   from_kuid_munged(&init_user_ns, server->m.uid));
+	if (!gid_eq(server->m.gid, GLOBAL_ROOT_GID))
+		seq_printf(seq, ",gid=%u",
+			   from_kgid_munged(&init_user_ns, server->m.gid));
+	if (!uid_eq(server->m.mounted_uid, GLOBAL_ROOT_UID))
+		seq_printf(seq, ",owner=%u",
+			   from_kuid_munged(&init_user_ns, server->m.mounted_uid));
 	tmp = server->m.file_mode & S_IALLUGO;
 	if (tmp != NCP_DEFAULT_FILE_MODE)
 		seq_printf(seq, ",mode=0%o", tmp);
@@ -381,13 +384,13 @@ static int ncp_parse_options(struct ncp_mount_data_kernel *data, char *options) 
 
 	data->flags = 0;
 	data->int_flags = 0;
-	data->mounted_uid = 0;
+	data->mounted_uid = GLOBAL_ROOT_UID;
 	data->wdog_pid = NULL;
 	data->ncp_fd = ~0;
 	data->time_out = NCP_DEFAULT_TIME_OUT;
 	data->retry_count = NCP_DEFAULT_RETRY_COUNT;
-	data->uid = 0;
-	data->gid = 0;
+	data->uid = GLOBAL_ROOT_UID;
+	data->gid = GLOBAL_ROOT_GID;
 	data->file_mode = NCP_DEFAULT_FILE_MODE;
 	data->dir_mode = NCP_DEFAULT_DIR_MODE;
 	data->info_fd = -1;
@@ -399,13 +402,19 @@ static int ncp_parse_options(struct ncp_mount_data_kernel *data, char *options) 
 			goto err;
 		switch (optval) {
 			case 'u':
-				data->uid = optint;
+				data->uid = make_kuid(current_user_ns(), optint);
+				if (!uid_valid(data->uid))
+					goto err;
 				break;
 			case 'g':
-				data->gid = optint;
+				data->gid = make_kgid(current_user_ns(), optint);
+				if (!gid_valid(data->gid))
+					goto err;
 				break;
 			case 'o':
-				data->mounted_uid = optint;
+				data->mounted_uid = make_kuid(current_user_ns(), optint);
+				if (!uid_valid(data->mounted_uid))
+					goto err;
 				break;
 			case 'm':
 				data->file_mode = optint;
@@ -480,13 +489,13 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 
 				data.flags = md->flags;
 				data.int_flags = NCP_IMOUNT_LOGGEDIN_POSSIBLE;
-				data.mounted_uid = md->mounted_uid;
+				data.mounted_uid = make_kuid(current_user_ns(), md->mounted_uid);
 				data.wdog_pid = find_get_pid(md->wdog_pid);
 				data.ncp_fd = md->ncp_fd;
 				data.time_out = md->time_out;
 				data.retry_count = md->retry_count;
-				data.uid = md->uid;
-				data.gid = md->gid;
+				data.uid = make_kuid(current_user_ns(), md->uid);
+				data.gid = make_kgid(current_user_ns(), md->gid);
 				data.file_mode = md->file_mode;
 				data.dir_mode = md->dir_mode;
 				data.info_fd = -1;
@@ -499,13 +508,13 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 				struct ncp_mount_data_v4* md = (struct ncp_mount_data_v4*)raw_data;
 
 				data.flags = md->flags;
-				data.mounted_uid = md->mounted_uid;
+				data.mounted_uid = make_kuid(current_user_ns(), md->mounted_uid);
 				data.wdog_pid = find_get_pid(md->wdog_pid);
 				data.ncp_fd = md->ncp_fd;
 				data.time_out = md->time_out;
 				data.retry_count = md->retry_count;
-				data.uid = md->uid;
-				data.gid = md->gid;
+				data.uid = make_kuid(current_user_ns(), md->uid);
+				data.gid = make_kgid(current_user_ns(), md->gid);
 				data.file_mode = md->file_mode;
 				data.dir_mode = md->dir_mode;
 				data.info_fd = -1;
@@ -520,6 +529,10 @@ static int ncp_fill_super(struct super_block *sb, void *raw_data, int silent)
 				goto out;
 			break;
 	}
+	error = -EINVAL;
+	if (!uid_valid(data.mounted_uid) || !uid_valid(data.uid) ||
+	    !gid_valid(data.gid))
+		goto out;
 	error = -EBADF;
 	ncp_filp = fget(data.ncp_fd);
 	if (!ncp_filp)
@@ -886,12 +899,10 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 		goto out;
 
 	result = -EPERM;
-	if (((attr->ia_valid & ATTR_UID) &&
-	     (attr->ia_uid != server->m.uid)))
+	if ((attr->ia_valid & ATTR_UID) && !uid_eq(attr->ia_uid, server->m.uid))
 		goto out;
 
-	if (((attr->ia_valid & ATTR_GID) &&
-	     (attr->ia_gid != server->m.gid)))
+	if ((attr->ia_valid & ATTR_GID) && !gid_eq(attr->ia_gid, server->m.gid))
 		goto out;
 
 	if (((attr->ia_valid & ATTR_MODE) &&
