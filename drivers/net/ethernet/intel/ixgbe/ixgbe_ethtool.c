@@ -1701,63 +1701,65 @@ static void ixgbe_loopback_cleanup(struct ixgbe_adapter *adapter)
 }
 
 static void ixgbe_create_lbtest_frame(struct sk_buff *skb,
-                                      unsigned int frame_size)
+				      unsigned int frame_size)
 {
 	memset(skb->data, 0xFF, frame_size);
-	frame_size &= ~1;
-	memset(&skb->data[frame_size / 2], 0xAA, frame_size / 2 - 1);
-	memset(&skb->data[frame_size / 2 + 10], 0xBE, 1);
-	memset(&skb->data[frame_size / 2 + 12], 0xAF, 1);
+	frame_size >>= 1;
+	memset(&skb->data[frame_size], 0xAA, frame_size / 2 - 1);
+	memset(&skb->data[frame_size + 10], 0xBE, 1);
+	memset(&skb->data[frame_size + 12], 0xAF, 1);
 }
 
-static int ixgbe_check_lbtest_frame(struct sk_buff *skb,
-                                    unsigned int frame_size)
+static bool ixgbe_check_lbtest_frame(struct ixgbe_rx_buffer *rx_buffer,
+				     unsigned int frame_size)
 {
-	frame_size &= ~1;
-	if (*(skb->data + 3) == 0xFF) {
-		if ((*(skb->data + frame_size / 2 + 10) == 0xBE) &&
-		    (*(skb->data + frame_size / 2 + 12) == 0xAF)) {
-			return 0;
-		}
-	}
-	return 13;
+	unsigned char *data;
+	bool match = true;
+
+	frame_size >>= 1;
+
+	data = rx_buffer->skb->data;
+
+	if (data[3] != 0xFF ||
+	    data[frame_size + 10] != 0xBE ||
+	    data[frame_size + 12] != 0xAF)
+		match = false;
+
+	return match;
 }
 
 static u16 ixgbe_clean_test_rings(struct ixgbe_ring *rx_ring,
-                                  struct ixgbe_ring *tx_ring,
-                                  unsigned int size)
+				  struct ixgbe_ring *tx_ring,
+				  unsigned int size)
 {
 	union ixgbe_adv_rx_desc *rx_desc;
-	struct ixgbe_rx_buffer *rx_buffer_info;
-	struct ixgbe_tx_buffer *tx_buffer_info;
-	const int bufsz = rx_ring->rx_buf_len;
-	u32 staterr;
+	struct ixgbe_rx_buffer *rx_buffer;
+	struct ixgbe_tx_buffer *tx_buffer;
 	u16 rx_ntc, tx_ntc, count = 0;
 
 	/* initialize next to clean and descriptor values */
 	rx_ntc = rx_ring->next_to_clean;
 	tx_ntc = tx_ring->next_to_clean;
 	rx_desc = IXGBE_RX_DESC(rx_ring, rx_ntc);
-	staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 
-	while (staterr & IXGBE_RXD_STAT_DD) {
+	while (ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_DD)) {
 		/* check Rx buffer */
-		rx_buffer_info = &rx_ring->rx_buffer_info[rx_ntc];
+		rx_buffer = &rx_ring->rx_buffer_info[rx_ntc];
 
 		/* unmap Rx buffer, will be remapped by alloc_rx_buffers */
 		dma_unmap_single(rx_ring->dev,
-		                 rx_buffer_info->dma,
-				 bufsz,
+				 rx_buffer->dma,
+				 rx_ring->rx_buf_len,
 				 DMA_FROM_DEVICE);
-		rx_buffer_info->dma = 0;
+		rx_buffer->dma = 0;
 
 		/* verify contents of skb */
-		if (!ixgbe_check_lbtest_frame(rx_buffer_info->skb, size))
+		if (ixgbe_check_lbtest_frame(rx_buffer, size))
 			count++;
 
 		/* unmap buffer on Tx side */
-		tx_buffer_info = &tx_ring->tx_buffer_info[tx_ntc];
-		ixgbe_unmap_and_free_tx_resource(tx_ring, tx_buffer_info);
+		tx_buffer = &tx_ring->tx_buffer_info[tx_ntc];
+		ixgbe_unmap_and_free_tx_resource(tx_ring, tx_buffer);
 
 		/* increment Rx/Tx next to clean counters */
 		rx_ntc++;
@@ -1769,7 +1771,6 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_ring *rx_ring,
 
 		/* fetch next descriptor */
 		rx_desc = IXGBE_RX_DESC(rx_ring, rx_ntc);
-		staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	}
 
 	/* re-map buffers to ring, store next to clean values */
