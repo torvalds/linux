@@ -2411,7 +2411,7 @@ config FB_PUV3_UNIGFX
 
 source "drivers/video/omap/Kconfig"
 source "drivers/video/omap2/Kconfig"
-
+source "drivers/video/exynos/Kconfig"
 source "drivers/video/backlight/Kconfig"
 
 if VT

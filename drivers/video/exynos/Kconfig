@@ -1,0 +1,22 @@
+#
+# Exynos Video configuration
+#
+
+menuconfig EXYNOS_VIDEO
+	bool "Exynos Video driver support"
+	help
+	  This enables support for EXYNOS Video device.
+
+if EXYNOS_VIDEO
+
+#
+# MIPI DSI driver
+#
+
+config EXYNOS_MIPI_DSI
+	bool "EXYNOS MIPI DSI driver support."
+	depends on (ARCH_S5PV210 || ARCH_EXYNOS)
+	help
+	  This enables support for MIPI-DSI device.
+
+endif # EXYNOS_VIDEO
