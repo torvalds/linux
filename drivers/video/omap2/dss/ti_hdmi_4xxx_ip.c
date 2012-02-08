@@ -594,12 +594,12 @@ static void hdmi_core_video_config(struct hdmi_ip_data *ip_data,
 			HDMI_CORE_SYS_TMDS_CTRL, cfg->tclk_sel_clkmult, 6, 5);
 }
 
-static void hdmi_core_aux_infoframe_avi_config(struct hdmi_ip_data *ip_data,
-		struct hdmi_core_infoframe_avi info_avi)
+static void hdmi_core_aux_infoframe_avi_config(struct hdmi_ip_data *ip_data)
 {
 	u32 val;
 	char sum = 0, checksum = 0;
 	void __iomem *av_base = hdmi_av_base(ip_data);
+	struct hdmi_core_infoframe_avi info_avi = ip_data->avi_cfg;
 
 	sum += 0x82 + 0x002 + 0x00D;
 	hdmi_write_reg(av_base, HDMI_CORE_AV_AVI_TYPE, 0x082);
@@ -778,7 +778,7 @@ void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data)
 	struct omap_video_timings video_timing;
 	struct hdmi_video_format video_format;
 	/* HDMI core */
-	struct hdmi_core_infoframe_avi avi_cfg;
+	struct hdmi_core_infoframe_avi avi_cfg = ip_data->avi_cfg;
 	struct hdmi_core_video_config v_core_cfg;
 	struct hdmi_core_packet_enable_repeat repeat_cfg;
 	struct hdmi_config *cfg = &ip_data->cfg;
@@ -840,7 +840,7 @@ void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data)
 	avi_cfg.db10_11_pixel_eofleft = 0;
 	avi_cfg.db12_13_pixel_sofright = 0;
 
-	hdmi_core_aux_infoframe_avi_config(ip_data, avi_cfg);
+	hdmi_core_aux_infoframe_avi_config(ip_data);
 
 	/* enable/repeat the infoframe */
 	repeat_cfg.avi_infoframe = HDMI_PACKETENABLE;
