@@ -954,7 +954,6 @@ config UIDGID_CONVERTED
 	depends on HFS_FS = n
 	depends on HFSPLUS_FS = n
 	depends on HPFS_FS = n
-	depends on HUGETLBFS = n
 	depends on ISO9660_FS = n
 	depends on JFFS2_FS = n
 	depends on JFS_FS = n
