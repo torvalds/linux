@@ -963,7 +963,6 @@ config UIDGID_CONVERTED
 	depends on ATALK = n
 
 	# Filesystems
-	depends on USB_DEVICEFS = n
 	depends on USB_GADGETFS = n
 	depends on USB_FUNCTIONFS = n
 	depends on DEVTMPFS = n
