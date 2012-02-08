@@ -150,7 +150,7 @@ struct audit_aux_data_pids {
 	struct audit_aux_data	d;
 	pid_t			target_pid[AUDIT_AUX_PIDS];
 	kuid_t			target_auid[AUDIT_AUX_PIDS];
-	uid_t			target_uid[AUDIT_AUX_PIDS];
+	kuid_t			target_uid[AUDIT_AUX_PIDS];
 	unsigned int		target_sessionid[AUDIT_AUX_PIDS];
 	u32			target_sid[AUDIT_AUX_PIDS];
 	char 			target_comm[AUDIT_AUX_PIDS][TASK_COMM_LEN];
@@ -208,14 +208,14 @@ struct audit_context {
 	size_t sockaddr_len;
 				/* Save things to print about task_struct */
 	pid_t		    pid, ppid;
-	uid_t		    uid, euid, suid, fsuid;
-	gid_t		    gid, egid, sgid, fsgid;
+	kuid_t		    uid, euid, suid, fsuid;
+	kgid_t		    gid, egid, sgid, fsgid;
 	unsigned long	    personality;
 	int		    arch;
 
 	pid_t		    target_pid;
 	kuid_t		    target_auid;
-	uid_t		    target_uid;
+	kuid_t		    target_uid;
 	unsigned int	    target_sessionid;
 	u32		    target_sid;
 	char		    target_comm[TASK_COMM_LEN];
@@ -231,8 +231,8 @@ struct audit_context {
 			long args[6];
 		} socketcall;
 		struct {
-			uid_t			uid;
-			gid_t			gid;
+			kuid_t			uid;
+			kgid_t			gid;
 			umode_t			mode;
 			u32			osid;
 			int			has_perm;
@@ -1176,7 +1176,7 @@ static void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk
 }
 
 static int audit_log_pid_context(struct audit_context *context, pid_t pid,
-				 kuid_t auid, uid_t uid, unsigned int sessionid,
+				 kuid_t auid, kuid_t uid, unsigned int sessionid,
 				 u32 sid, char *comm)
 {
 	struct audit_buffer *ab;
@@ -1190,7 +1190,7 @@ static int audit_log_pid_context(struct audit_context *context, pid_t pid,
 
 	audit_log_format(ab, "opid=%d oauid=%d ouid=%d oses=%d", pid,
 			 from_kuid(&init_user_ns, auid),
-			 uid, sessionid);
+			 from_kuid(&init_user_ns, uid), sessionid);
 	if (security_secid_to_secctx(sid, &ctx, &len)) {
 		audit_log_format(ab, " obj=(none)");
 		rc = 1;
@@ -1440,7 +1440,9 @@ static void show_special(struct audit_context *context, int *call_panic)
 		u32 osid = context->ipc.osid;
 
 		audit_log_format(ab, "ouid=%u ogid=%u mode=%#ho",
-			 context->ipc.uid, context->ipc.gid, context->ipc.mode);
+				 from_kuid(&init_user_ns, context->ipc.uid),
+				 from_kgid(&init_user_ns, context->ipc.gid),
+				 context->ipc.mode);
 		if (osid) {
 			char *ctx = NULL;
 			u32 len;
@@ -1553,8 +1555,8 @@ static void audit_log_name(struct audit_context *context, struct audit_names *n,
 				 MAJOR(n->dev),
 				 MINOR(n->dev),
 				 n->mode,
-				 n->uid,
-				 n->gid,
+				 from_kuid(&init_user_ns, n->uid),
+				 from_kgid(&init_user_ns, n->gid),
 				 MAJOR(n->rdev),
 				 MINOR(n->rdev));
 	}
@@ -1632,10 +1634,15 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		  context->ppid,
 		  context->pid,
 		  from_kuid(&init_user_ns, tsk->loginuid),
-		  context->uid,
-		  context->gid,
-		  context->euid, context->suid, context->fsuid,
-		  context->egid, context->sgid, context->fsgid, tty,
+		  from_kuid(&init_user_ns, context->uid),
+		  from_kgid(&init_user_ns, context->gid),
+		  from_kuid(&init_user_ns, context->euid),
+		  from_kuid(&init_user_ns, context->suid),
+		  from_kuid(&init_user_ns, context->fsuid),
+		  from_kgid(&init_user_ns, context->egid),
+		  from_kgid(&init_user_ns, context->sgid),
+		  from_kgid(&init_user_ns, context->fsgid),
+		  tty,
 		  tsk->sessionid);
 
 
@@ -2315,7 +2322,8 @@ int audit_set_loginuid(kuid_t loginuid)
 			audit_log_format(ab, "login pid=%d uid=%u "
 				"old auid=%u new auid=%u"
 				" old ses=%u new ses=%u",
-				task->pid, task_uid(task),
+				task->pid,
+				from_kuid(&init_user_ns, task_uid(task)),
 				from_kuid(&init_user_ns, task->loginuid),
 				from_kuid(&init_user_ns, loginuid),
 				task->sessionid, sessionid);
@@ -2540,7 +2548,7 @@ int __audit_signal_info(int sig, struct task_struct *t)
 	struct audit_aux_data_pids *axp;
 	struct task_struct *tsk = current;
 	struct audit_context *ctx = tsk->audit_context;
-	uid_t uid = current_uid(), t_uid = task_uid(t);
+	kuid_t uid = current_uid(), t_uid = task_uid(t);
 
 	if (audit_pid && t->tgid == audit_pid) {
 		if (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1 || sig == SIGUSR2) {
@@ -2666,8 +2674,8 @@ void __audit_mmap_fd(int fd, int flags)
 
 static void audit_log_abend(struct audit_buffer *ab, char *reason, long signr)
 {
-	uid_t auid, uid;
-	gid_t gid;
+	kuid_t auid, uid;
+	kgid_t gid;
 	unsigned int sessionid;
 
 	auid = audit_get_loginuid(current);
@@ -2675,7 +2683,10 @@ static void audit_log_abend(struct audit_buffer *ab, char *reason, long signr)
 	current_uid_gid(&uid, &gid);
 
 	audit_log_format(ab, "auid=%u uid=%u gid=%u ses=%u",
-			 auid, uid, gid, sessionid);
+			 from_kuid(&init_user_ns, auid),
+			 from_kuid(&init_user_ns, uid),
+			 from_kgid(&init_user_ns, gid),
+			 sessionid);
 	audit_log_task_context(ab);
 	audit_log_format(ab, " pid=%d comm=", current->pid);
 	audit_log_untrustedstring(ab, current->comm);

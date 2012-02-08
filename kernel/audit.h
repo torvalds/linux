@@ -146,7 +146,7 @@ extern void audit_kill_trees(struct list_head *);
 extern char *audit_unpack_string(void **, size_t *, size_t);
 
 extern pid_t audit_sig_pid;
-extern uid_t audit_sig_uid;
+extern kuid_t audit_sig_uid;
 extern u32 audit_sig_sid;
 
 #ifdef CONFIG_AUDITSYSCALL
