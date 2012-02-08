@@ -382,10 +382,8 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 		u8 write_opcode = NVM_WRITE_OPCODE_SPI;
 
 		ret_val = e1000_ready_nvm_eeprom(hw);
-		if (ret_val) {
-			nvm->ops.release(hw);
-			return ret_val;
-		}
+		if (ret_val)
+			goto release;
 
 		e1000_standby_nvm(hw);
 
@@ -422,8 +420,10 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	}
 
 	usleep_range(10000, 20000);
+release:
 	nvm->ops.release(hw);
-	return 0;
+
+	return ret_val;
 }
 
 /**
