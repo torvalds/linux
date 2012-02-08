@@ -367,7 +367,7 @@ struct idmap_hashent {
 
 struct idmap_hashtable {
 	__u8			h_type;
-	struct idmap_hashent	h_entries[IDMAP_HASH_SZ];
+	struct idmap_hashent	*h_entries;
 };
 
 struct idmap {
@@ -478,21 +478,40 @@ nfs_idmap_new(struct nfs_client *clp)
 	return 0;
 }
 
+static void
+idmap_alloc_hashtable(struct idmap_hashtable *h)
+{
+	if (h->h_entries != NULL)
+		return;
+	h->h_entries = kcalloc(IDMAP_HASH_SZ,
+			sizeof(*h->h_entries),
+			GFP_KERNEL);
+}
+
+static void
+idmap_free_hashtable(struct idmap_hashtable *h)
+{
+	int i;
+
+	if (h->h_entries == NULL)
+		return;
+	for (i = 0; i < IDMAP_HASH_SZ; i++)
+		kfree(h->h_entries[i].ih_name);
+	kfree(h->h_entries);
+}
+
 void
 nfs_idmap_delete(struct nfs_client *clp)
 {
 	struct idmap *idmap = clp->cl_idmap;
-	int i;
 
 	if (!idmap)
 		return;
 	nfs_idmap_unregister(clp, idmap->idmap_pipe);
 	rpc_destroy_pipe_data(idmap->idmap_pipe);
 	clp->cl_idmap = NULL;
-	for (i = 0; i < ARRAY_SIZE(idmap->idmap_user_hash.h_entries); i++)
-		kfree(idmap->idmap_user_hash.h_entries[i].ih_name);
-	for (i = 0; i < ARRAY_SIZE(idmap->idmap_group_hash.h_entries); i++)
-		kfree(idmap->idmap_group_hash.h_entries[i].ih_name);
+	idmap_free_hashtable(&idmap->idmap_user_hash);
+	idmap_free_hashtable(&idmap->idmap_group_hash);
 	kfree(idmap);
 }
 
@@ -586,6 +605,8 @@ void nfs_idmap_quit(void)
 static inline struct idmap_hashent *
 idmap_name_hash(struct idmap_hashtable* h, const char *name, size_t len)
 {
+	if (h->h_entries == NULL)
+		return NULL;
 	return &h->h_entries[fnvhash32(name, len) % IDMAP_HASH_SZ];
 }
 
@@ -594,6 +615,8 @@ idmap_lookup_name(struct idmap_hashtable *h, const char *name, size_t len)
 {
 	struct idmap_hashent *he = idmap_name_hash(h, name, len);
 
+	if (he == NULL)
+		return NULL;
 	if (he->ih_namelen != len || memcmp(he->ih_name, name, len) != 0)
 		return NULL;
 	if (time_after(jiffies, he->ih_expires))
@@ -604,6 +627,8 @@ idmap_lookup_name(struct idmap_hashtable *h, const char *name, size_t len)
 static inline struct idmap_hashent *
 idmap_id_hash(struct idmap_hashtable* h, __u32 id)
 {
+	if (h->h_entries == NULL)
+		return NULL;
 	return &h->h_entries[fnvhash32(&id, sizeof(id)) % IDMAP_HASH_SZ];
 }
 
@@ -611,6 +636,9 @@ static struct idmap_hashent *
 idmap_lookup_id(struct idmap_hashtable *h, __u32 id)
 {
 	struct idmap_hashent *he = idmap_id_hash(h, id);
+
+	if (he == NULL)
+		return NULL;
 	if (he->ih_id != id || he->ih_namelen == 0)
 		return NULL;
 	if (time_after(jiffies, he->ih_expires))
@@ -626,12 +654,14 @@ idmap_lookup_id(struct idmap_hashtable *h, __u32 id)
 static inline struct idmap_hashent *
 idmap_alloc_name(struct idmap_hashtable *h, char *name, size_t len)
 {
+	idmap_alloc_hashtable(h);
 	return idmap_name_hash(h, name, len);
 }
 
 static inline struct idmap_hashent *
 idmap_alloc_id(struct idmap_hashtable *h, __u32 id)
 {
+	idmap_alloc_hashtable(h);
 	return idmap_id_hash(h, id);
 }
 
