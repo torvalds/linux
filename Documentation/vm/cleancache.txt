@@ -92,7 +92,7 @@ failed_gets	- number of gets that failed
 puts		- number of puts attempted (all "succeed")
 flushes		- number of flushes attempted
 
-A backend implementatation may provide additional metrics.
+A backend implementation may provide additional metrics.
 
 FAQ
 
