@@ -7012,11 +7012,6 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-#ifdef CONFIG_PCI_IOV
-	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
-		tx_flags |= IXGBE_TX_FLAGS_TXSW;
-
-#endif
 	/* if we have a HW VLAN tag being added default to the HW one */
 	if (vlan_tx_tag_present(skb)) {
 		tx_flags |= vlan_tx_tag_get(skb) << IXGBE_TX_FLAGS_VLAN_SHIFT;
@@ -7029,10 +7024,20 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 			goto out_drop;
 
 		protocol = vhdr->h_vlan_encapsulated_proto;
-		tx_flags |= ntohs(vhdr->h_vlan_TCI) << IXGBE_TX_FLAGS_VLAN_SHIFT;
+		tx_flags |= ntohs(vhdr->h_vlan_TCI) <<
+				  IXGBE_TX_FLAGS_VLAN_SHIFT;
 		tx_flags |= IXGBE_TX_FLAGS_SW_VLAN;
 	}
 
+#ifdef CONFIG_PCI_IOV
+	/*
+	 * Use the l2switch_enable flag - would be false if the DMA
+	 * Tx switch had been disabled.
+	 */
+	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
+		tx_flags |= IXGBE_TX_FLAGS_TXSW;
+
+#endif
 	/* DCB maps skb priorities 0-7 onto 3 bit PCP of VLAN tag. */
 	if ((adapter->flags & IXGBE_FLAG_DCB_ENABLED) &&
 	    ((tx_flags & (IXGBE_TX_FLAGS_HW_VLAN | IXGBE_TX_FLAGS_SW_VLAN)) ||
