@@ -2,7 +2,8 @@
 #define __MACH_GPIO_H
 
 #include <mach/irqs.h>
- 
+#include <linux/init.h>
+
 typedef enum eGPIOPinLevel
 {
 	GPIO_LOW=0,
@@ -94,6 +95,7 @@ typedef enum GPIOIntType {
 //定义GPIO的PIN口最大数目。CONFIG_SPI_FPGA_GPIO_NUM表示FPGA的PIN脚数。
 #define ARCH_NR_GPIOS  (PIN_BASE + RK30_TOTOL_GPIO_NUM + TCA6424_TOTOL_GPIO_NUM + WM831X_TOTOL_GPIO_NUM + CONFIG_SPI_FPGA_GPIO_NUM+CONFIG_GPIO_WM8994_NUM)
 
+#define INVALID_GPIO        	-1
 
 #define	RK30_PIN0_PA0		(0*NUM_GROUP + PIN_BASE + 0)
 #define	RK30_PIN0_PA1		(0*NUM_GROUP + PIN_BASE + 1)
@@ -260,6 +262,24 @@ typedef enum GPIOIntType {
 #define	RK30_PIN4_PD6		(4*NUM_GROUP + PIN_BASE + 30)
 #define	RK30_PIN4_PD7		(4*NUM_GROUP + PIN_BASE + 31)
 
+#define	RK30_PIN6_PA0		(6*NUM_GROUP + PIN_BASE + 0)
+#define	RK30_PIN6_PA1		(6*NUM_GROUP + PIN_BASE + 1)
+#define	RK30_PIN6_PA2		(6*NUM_GROUP + PIN_BASE + 2)
+#define	RK30_PIN6_PA3		(6*NUM_GROUP + PIN_BASE + 3)
+#define	RK30_PIN6_PA4		(6*NUM_GROUP + PIN_BASE + 4)
+#define	RK30_PIN6_PA5		(6*NUM_GROUP + PIN_BASE + 5)
+#define	RK30_PIN6_PA6		(6*NUM_GROUP + PIN_BASE + 6)
+#define	RK30_PIN6_PA7		(6*NUM_GROUP + PIN_BASE + 7)
+
+#define	RK30_PIN6_PB0		(6*NUM_GROUP + PIN_BASE + 8)
+#define	RK30_PIN6_PB1		(6*NUM_GROUP + PIN_BASE + 9)
+#define	RK30_PIN6_PB2		(6*NUM_GROUP + PIN_BASE + 10)
+#define	RK30_PIN6_PB3		(6*NUM_GROUP + PIN_BASE + 11)
+#define	RK30_PIN6_PB4		(6*NUM_GROUP + PIN_BASE + 12)
+#define	RK30_PIN6_PB5		(6*NUM_GROUP + PIN_BASE + 13)
+#define	RK30_PIN6_PB6		(6*NUM_GROUP + PIN_BASE + 14)
+#define	RK30_PIN6_PB7		(6*NUM_GROUP + PIN_BASE + 15)
+
 #define	RK30_PIN6_PD7		(6*NUM_GROUP + PIN_BASE + 31)
 
 #if defined(CONFIG_SPI_FPGA_GPIO)
@@ -417,7 +437,8 @@ typedef enum GPIOIntType {
 #define	WM831X_P11 (WM831X_GPIO_EXPANDER_BASE  + 1*NUM_GROUP + 2)
 #define	WM831X_P12 (WM831X_GPIO_EXPANDER_BASE  + 1*NUM_GROUP + 3)
 #endif                                           
-                                           
+
+#ifndef __ASSEMBLY__                                         
 extern void __init rk30_gpio_init(void);
 /*-------------------------------------------------------------------------*/
 
@@ -442,5 +463,6 @@ static inline int irq_to_gpio(unsigned irq)
 {
 	return irq - NR_GIC_IRQS + PIN_BASE;
 }
+#endif	/* __ASSEMBLY__ */
 
 #endif
