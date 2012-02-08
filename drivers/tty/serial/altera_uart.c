@@ -377,6 +377,26 @@ static int altera_uart_verify_port(struct uart_port *port,
 	return 0;
 }
 
+#ifdef CONFIG_CONSOLE_POLL
+static int altera_uart_poll_get_char(struct uart_port *port)
+{
+	while (!(altera_uart_readl(port, ALTERA_UART_STATUS_REG) &
+		 ALTERA_UART_STATUS_RRDY_MSK))
+		cpu_relax();
+
+	return altera_uart_readl(port, ALTERA_UART_RXDATA_REG);
+}
+
+static void altera_uart_poll_put_char(struct uart_port *port, unsigned char c)
+{
+	while (!(altera_uart_readl(port, ALTERA_UART_STATUS_REG) &
+		 ALTERA_UART_STATUS_TRDY_MSK))
+		cpu_relax();
+
+	altera_uart_writel(port, c, ALTERA_UART_TXDATA_REG);
+}
+#endif
+
 /*
  *	Define the basic serial functions we support.
  */
@@ -397,6 +417,10 @@ static struct uart_ops altera_uart_ops = {
 	.release_port	= altera_uart_release_port,
 	.config_port	= altera_uart_config_port,
 	.verify_port	= altera_uart_verify_port,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_get_char	= altera_uart_poll_get_char,
+	.poll_put_char	= altera_uart_poll_put_char,
+#endif
 };
 
 static struct altera_uart altera_uart_ports[CONFIG_SERIAL_ALTERA_UART_MAXPORTS];
