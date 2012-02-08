@@ -1282,10 +1282,10 @@ static bool attempt_plug_merge(struct request_queue *q, struct bio *bio,
 
 		(*request_count)++;
 
-		if (rq->q != q)
+		if (rq->q != q || !elv_rq_merge_ok(rq, bio))
 			continue;
 
-		el_ret = elv_try_merge(rq, bio);
+		el_ret = blk_try_merge(rq, bio);
 		if (el_ret == ELEVATOR_BACK_MERGE) {
 			ret = bio_attempt_back_merge(q, rq, bio);
 			if (ret)
