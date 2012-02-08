@@ -763,6 +763,9 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		if (!eop_desc)
 			break;
 
+		/* prevent any other reads prior to eop_desc */
+		rmb();
+
 		/* if DD is not set pending work has not been completed */
 		if (!(eop_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)))
 			break;
@@ -773,12 +776,8 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		/* clear next_to_watch to prevent false hangs */
 		tx_buffer->next_to_watch = NULL;
 
-		/* prevent any other reads prior to eop_desc being verified */
-		rmb();
-
 		do {
 			ixgbe_unmap_tx_resource(tx_ring, tx_buffer);
-			tx_desc->wb.status = 0;
 			if (likely(tx_desc == eop_desc)) {
 				eop_desc = NULL;
 				dev_kfree_skb_any(tx_buffer->skb);
