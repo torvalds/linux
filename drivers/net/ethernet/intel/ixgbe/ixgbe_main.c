@@ -2595,12 +2595,15 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 	 * to or less than the number of on chip descriptors, which is
 	 * currently 40.
 	 */
-	if (!adapter->tx_itr_setting || !adapter->rx_itr_setting)
+	if (!ring->q_vector || (ring->q_vector->itr < 8))
 		txdctl |= (1 << 16);	/* WTHRESH = 1 */
 	else
 		txdctl |= (8 << 16);	/* WTHRESH = 8 */
 
-	/* PTHRESH=32 is needed to avoid a Tx hang with DFP enabled. */
+	/*
+	 * Setting PTHRESH to 32 both improves performance
+	 * and avoids a TX hang with DFP enabled
+	 */
 	txdctl |= (1 << 8) |	/* HTHRESH = 1 */
 		   32;		/* PTHRESH = 32 */
 
