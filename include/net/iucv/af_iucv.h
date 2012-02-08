@@ -113,6 +113,7 @@ struct iucv_sock {
 	spinlock_t		accept_q_lock;
 	struct sock		*parent;
 	struct iucv_path	*path;
+	struct net_device	*hs_dev;
 	struct sk_buff_head	send_skb_q;
 	struct sk_buff_head	backlog_skb_q;
 	struct sock_msg_q	message_q;
