@@ -4053,7 +4053,7 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	case RT5390:
 		break;
 	default:
-		ERROR(rt2x00dev, "Invalid RT chipset detected.\n");
+		ERROR(rt2x00dev, "Invalid RT chipset 0x%04x detected.\n", rt2x00dev->chip.rt);
 		return -ENODEV;
 	}
 
@@ -4072,7 +4072,7 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	case RF5390:
 		break;
 	default:
-		ERROR(rt2x00dev, "Invalid RF chipset 0x%x detected.\n",
+		ERROR(rt2x00dev, "Invalid RF chipset 0x%04x detected.\n",
 		      rt2x00dev->chip.rf);
 		return -ENODEV;
 	}
