@@ -296,6 +296,10 @@ struct ixgbe_ring_container {
 	u8 itr;				/* current ITR setting for ring */
 };
 
+/* iterator for handling rings in ring container */
+#define ixgbe_for_each_ring(pos, head) \
+	for (pos = (head).ring; pos != NULL; pos = pos->next)
+
 #define MAX_RX_PACKET_BUFFERS ((adapter->flags & IXGBE_FLAG_DCB_ENABLED) \
                               ? 8 : 1)
 #define MAX_TX_PACKET_BUFFERS MAX_RX_PACKET_BUFFERS

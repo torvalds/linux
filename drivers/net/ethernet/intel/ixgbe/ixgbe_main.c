@@ -928,10 +928,10 @@ static void ixgbe_update_dca(struct ixgbe_q_vector *q_vector)
 	if (q_vector->cpu == cpu)
 		goto out_no_update;
 
-	for (ring = q_vector->tx.ring; ring != NULL; ring = ring->next)
+	ixgbe_for_each_ring(ring, q_vector->tx)
 		ixgbe_update_tx_dca(adapter, ring, cpu);
 
-	for (ring = q_vector->rx.ring; ring != NULL; ring = ring->next)
+	ixgbe_for_each_ring(ring, q_vector->rx)
 		ixgbe_update_rx_dca(adapter, ring, cpu);
 
 	q_vector->cpu = cpu;
@@ -1706,10 +1706,10 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 		struct ixgbe_ring *ring;
 		q_vector = adapter->q_vector[v_idx];
 
-		for (ring = q_vector->rx.ring; ring != NULL; ring = ring->next)
+		ixgbe_for_each_ring(ring, q_vector->rx)
 			ixgbe_set_ivar(adapter, 0, ring->reg_idx, v_idx);
 
-		for (ring = q_vector->tx.ring; ring != NULL; ring = ring->next)
+		ixgbe_for_each_ring(ring, q_vector->tx)
 			ixgbe_set_ivar(adapter, 1, ring->reg_idx, v_idx);
 
 		if (q_vector->tx.ring && !q_vector->rx.ring) {
@@ -4195,7 +4195,7 @@ static int ixgbe_poll(struct napi_struct *napi, int budget)
 		ixgbe_update_dca(q_vector);
 #endif
 
-	for (ring = q_vector->tx.ring; ring != NULL; ring = ring->next)
+	ixgbe_for_each_ring(ring, q_vector->tx)
 		clean_complete &= !!ixgbe_clean_tx_irq(q_vector, ring);
 
 	/* attempt to distribute budget to each queue fairly, but don't allow
@@ -4205,7 +4205,7 @@ static int ixgbe_poll(struct napi_struct *napi, int budget)
 	else
 		per_ring_budget = budget;
 
-	for (ring = q_vector->rx.ring; ring != NULL; ring = ring->next)
+	ixgbe_for_each_ring(ring, q_vector->rx)
 		clean_complete &= ixgbe_clean_rx_irq(q_vector, ring,
 						     per_ring_budget);
 
@@ -4940,10 +4940,10 @@ static void ixgbe_free_q_vector(struct ixgbe_adapter *adapter, int v_idx)
 	struct ixgbe_q_vector *q_vector = adapter->q_vector[v_idx];
 	struct ixgbe_ring *ring;
 
-	for (ring = q_vector->tx.ring; ring != NULL; ring = ring->next)
+	ixgbe_for_each_ring(ring, q_vector->tx)
 		adapter->tx_ring[ring->queue_index] = NULL;
 
-	for (ring = q_vector->rx.ring; ring != NULL; ring = ring->next)
+	ixgbe_for_each_ring(ring, q_vector->rx)
 		adapter->rx_ring[ring->queue_index] = NULL;
 
 	adapter->q_vector[v_idx] = NULL;
