@@ -2634,6 +2634,9 @@ static int wm8962_hw_params(struct snd_pcm_substream *substream,
 	int adctl3 = 0;
 
 	wm8962->bclk = snd_soc_params_to_bclk(params);
+	if (params_channels(params) == 1)
+		wm8962->bclk *= 2;
+
 	wm8962->lrclk = params_rate(params);
 
 	for (i = 0; i < ARRAY_SIZE(sr_vals); i++) {
@@ -3008,14 +3011,14 @@ static struct snd_soc_dai_driver wm8962_dai = {
 	.name = "wm8962",
 	.playback = {
 		.stream_name = "Playback",
-		.channels_min = 2,
+		.channels_min = 1,
 		.channels_max = 2,
 		.rates = WM8962_RATES,
 		.formats = WM8962_FORMATS,
 	},
 	.capture = {
 		.stream_name = "Capture",
-		.channels_min = 2,
+		.channels_min = 1,
 		.channels_max = 2,
 		.rates = WM8962_RATES,
 		.formats = WM8962_FORMATS,
