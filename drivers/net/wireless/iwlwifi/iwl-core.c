@@ -643,7 +643,7 @@ u8 iwl_get_single_channel_number(struct iwl_priv *priv,
  * NOTE:  Does not commit to the hardware; it sets appropriate bit fields
  * in the staging RXON flag structure based on the ch->band
  */
-int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
+void iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 			 struct iwl_rxon_context *ctx)
 {
 	enum ieee80211_band band = ch->band;
@@ -651,7 +651,7 @@ int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 
 	if ((le16_to_cpu(ctx->staging.channel) == channel) &&
 	    (priv->band == band))
-		return 0;
+		return;
 
 	ctx->staging.channel = cpu_to_le16(channel);
 	if (band == IEEE80211_BAND_5GHZ)
@@ -663,7 +663,6 @@ int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 
 	IWL_DEBUG_INFO(priv, "Staging channel set to %d [%d]\n", channel, band);
 
-	return 0;
 }
 
 void iwl_set_flags_for_band(struct iwl_priv *priv,
