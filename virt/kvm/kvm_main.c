@@ -616,7 +616,6 @@ static int kvm_vm_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-#ifndef CONFIG_S390
 /*
  * Allocation size is twice as large as the actual dirty bitmap size.
  * This makes it possible to do double buffering: see x86's
@@ -624,6 +623,7 @@ static int kvm_vm_release(struct inode *inode, struct file *filp)
  */
 static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 {
+#ifndef CONFIG_S390
 	unsigned long dirty_bytes = 2 * kvm_dirty_bitmap_bytes(memslot);
 
 	if (dirty_bytes > PAGE_SIZE)
@@ -636,9 +636,9 @@ static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 
 	memslot->dirty_bitmap_head = memslot->dirty_bitmap;
 	memslot->nr_dirty_pages = 0;
+#endif /* !CONFIG_S390 */
 	return 0;
 }
-#endif /* !CONFIG_S390 */
 
 static int cmp_memslot(const void *slot1, const void *slot2)
 {
@@ -694,9 +694,6 @@ static int create_lpage_info(struct kvm_memory_slot *slot, unsigned long npages)
 		unsigned long ugfn;
 		int lpages;
 		int level = i + 2;
-
-		if (slot->lpage_info[i])
-			continue;
 
 		lpages = gfn_to_index(slot->base_gfn + npages - 1,
 				      slot->base_gfn, level) + 1;
@@ -815,23 +812,18 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	r = -ENOMEM;
 
 	/* Allocate if a slot is being created */
+	if (npages && !old.npages) {
+		new.user_alloc = user_alloc;
+		new.userspace_addr = mem->userspace_addr;
 #ifndef CONFIG_S390
-	if (npages && !new.rmap) {
 		new.rmap = vzalloc(npages * sizeof(*new.rmap));
-
 		if (!new.rmap)
 			goto out_free;
 
-		new.user_alloc = user_alloc;
-		new.userspace_addr = mem->userspace_addr;
+		if (create_lpage_info(&new, npages))
+			goto out_free;
+#endif /* not defined CONFIG_S390 */
 	}
-	if (!npages)
-		goto skip_lpage;
-
-	if (create_lpage_info(&new, npages))
-		goto out_free;
-
-skip_lpage:
 
 	/* Allocate page dirty bitmap if needed */
 	if ((new.flags & KVM_MEM_LOG_DIRTY_PAGES) && !new.dirty_bitmap) {
@@ -839,11 +831,6 @@ skip_lpage:
 			goto out_free;
 		/* destroy any largepage mappings for dirty tracking */
 	}
-#else  /* not defined CONFIG_S390 */
-	new.user_alloc = user_alloc;
-	if (user_alloc)
-		new.userspace_addr = mem->userspace_addr;
-#endif /* not defined CONFIG_S390 */
 
 	if (!npages) {
 		struct kvm_memory_slot *slot;
