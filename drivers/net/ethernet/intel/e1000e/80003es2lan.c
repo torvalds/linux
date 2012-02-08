@@ -1147,9 +1147,7 @@ static s32 e1000_setup_copper_link_80003es2lan(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	ret_val = e1000e_setup_copper_link(hw);
-
-	return 0;
+	return e1000e_setup_copper_link(hw);
 }
 
 /**
