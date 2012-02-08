@@ -1492,7 +1492,7 @@ static int rtl_pci_init(struct ieee80211_hw *hw, struct pci_dev *pdev)
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "tx ring initialization failed\n");
-		return err;
+		return 0;
 	}
 
 	return 1;
