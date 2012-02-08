@@ -99,9 +99,6 @@ static int slram_point(struct mtd_info *mtd, loff_t from, size_t len,
 {
 	slram_priv_t *priv = mtd->priv;
 
-	/* can we return a physical address with this driver? */
-	if (phys)
-		return -EINVAL;
 	*virt = priv->start + from;
 	*retlen = len;
 	return(0);

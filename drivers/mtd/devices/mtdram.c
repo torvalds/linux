@@ -43,9 +43,6 @@ static int ram_erase(struct mtd_info *mtd, struct erase_info *instr)
 static int ram_point(struct mtd_info *mtd, loff_t from, size_t len,
 		size_t *retlen, void **virt, resource_size_t *phys)
 {
-	/* can we return a physical address with this driver? */
-	if (phys)
-		return -EINVAL;
 	*virt = mtd->priv + from;
 	*retlen = len;
 	return 0;

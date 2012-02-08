@@ -706,6 +706,9 @@ int mtd_point(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 	      void **virt, resource_size_t *phys)
 {
 	*retlen = 0;
+	*virt = NULL;
+	if (phys)
+		*phys = 0;
 	if (!mtd->_point)
 		return -EOPNOTSUPP;
 	if (from < 0 || from > mtd->size || len > mtd->size - from)

@@ -205,10 +205,6 @@ static int pmc551_point(struct mtd_info *mtd, loff_t from, size_t len,
 	printk(KERN_DEBUG "pmc551_point(%ld, %ld)\n", (long)from, (long)len);
 #endif
 
-	/* can we return a physical address with this driver? */
-	if (phys)
-		return -EINVAL;
-
 	soff_hi = from & ~(priv->asize - 1);
 	soff_lo = from & (priv->asize - 1);
 
