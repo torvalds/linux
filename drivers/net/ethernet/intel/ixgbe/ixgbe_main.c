@@ -6480,33 +6480,6 @@ static void ixgbe_service_timer(unsigned long data)
 	unsigned long next_event_offset;
 	bool ready = true;
 
-#ifdef CONFIG_PCI_IOV
-	ready = false;
-
-	/*
-	 * don't bother with SR-IOV VF DMA hang check if there are
-	 * no VFs or the link is down
-	 */
-	if (!adapter->num_vfs ||
-	    (adapter->flags & IXGBE_FLAG_NEED_LINK_UPDATE)) {
-		ready = true;
-		goto normal_timer_service;
-	}
-
-	/* If we have VFs allocated then we must check for DMA hangs */
-	ixgbe_check_for_bad_vf(adapter);
-	next_event_offset = HZ / 50;
-	adapter->timer_event_accumulator++;
-
-	if (adapter->timer_event_accumulator >= 100) {
-		ready = true;
-		adapter->timer_event_accumulator = 0;
-	}
-
-	goto schedule_event;
-
-normal_timer_service:
-#endif
 	/* poll faster when waiting for link */
 	if (adapter->flags & IXGBE_FLAG_NEED_LINK_UPDATE)
 		next_event_offset = HZ / 10;
@@ -6514,7 +6487,25 @@ normal_timer_service:
 		next_event_offset = HZ * 2;
 
 #ifdef CONFIG_PCI_IOV
-schedule_event:
+	/*
+	 * don't bother with SR-IOV VF DMA hang check if there are
+	 * no VFs or the link is down
+	 */
+	if (!adapter->num_vfs ||
+	    (adapter->flags & IXGBE_FLAG_NEED_LINK_UPDATE))
+		goto normal_timer_service;
+
+	/* If we have VFs allocated then we must check for DMA hangs */
+	ixgbe_check_for_bad_vf(adapter);
+	next_event_offset = HZ / 50;
+	adapter->timer_event_accumulator++;
+
+	if (adapter->timer_event_accumulator >= 100)
+		adapter->timer_event_accumulator = 0;
+	else
+		ready = false;
+
+normal_timer_service:
 #endif
 	/* Reset the timer */
 	mod_timer(&adapter->service_timer, next_event_offset + jiffies);
