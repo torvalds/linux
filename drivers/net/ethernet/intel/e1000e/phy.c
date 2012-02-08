@@ -1916,7 +1916,7 @@ s32 e1000e_get_cable_length_igp_2(struct e1000_hw *hw)
 
 	phy->cable_length = (phy->min_cable_length + phy->max_cable_length) / 2;
 
-	return ret_val;
+	return 0;
 }
 
 /**

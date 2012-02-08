@@ -444,7 +444,7 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 		return ret_val;
 
 	if (!link)
-		return ret_val;	/* No link detected */
+		return 0;	/* No link detected */
 
 	mac->get_link_status = false;
 

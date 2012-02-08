@@ -1948,7 +1948,7 @@ static s32 e1000_set_d0_lplu_state_ich8lan(struct e1000_hw *hw, bool active)
 	u16 data;
 
 	if (phy->type == e1000_phy_ife)
-		return ret_val;
+		return 0;
 
 	phy_ctrl = er32(PHY_CTRL);
 

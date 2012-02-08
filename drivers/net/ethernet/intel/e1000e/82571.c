@@ -796,7 +796,7 @@ static s32 e1000_update_nvm_checksum_82571(struct e1000_hw *hw)
 	 * otherwise, commit the checksum to the flash NVM.
 	 */
 	if (hw->nvm.type != e1000_nvm_flash_hw)
-		return ret_val;
+		return 0;
 
 	/* Check for pending operations. */
 	for (i = 0; i < E1000_FLASH_UPDATES; i++) {
