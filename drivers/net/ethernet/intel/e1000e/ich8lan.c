@@ -2114,7 +2114,7 @@ static s32 e1000_valid_nvm_bank_detect_ich8lan(struct e1000_hw *hw, u32 *bank)
 	u32 bank1_offset = nvm->flash_bank_size * sizeof(u16);
 	u32 act_offset = E1000_ICH_NVM_SIG_WORD * 2 + 1;
 	u8 sig_byte = 0;
-	s32 ret_val = 0;
+	s32 ret_val;
 
 	switch (hw->mac.type) {
 	case e1000_ich8lan:
@@ -2268,7 +2268,7 @@ static s32 e1000_flash_cycle_init_ich8lan(struct e1000_hw *hw)
 		ew16flash(ICH_FLASH_HSFSTS, hsfsts.regval);
 		ret_val = 0;
 	} else {
-		s32 i = 0;
+		s32 i;
 
 		/*
 		 * Otherwise poll for sometime so the current
