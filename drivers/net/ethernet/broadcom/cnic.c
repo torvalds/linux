@@ -3927,6 +3927,8 @@ static void cnic_cm_process_kcqe(struct cnic_dev *dev, struct kcqe *kcqe)
 	case L4_KCQE_OPCODE_VALUE_CONNECT_COMPLETE:
 		if (l4kcqe->status == 0)
 			set_bit(SK_F_OFFLD_COMPLETE, &csk->flags);
+		else if (l4kcqe->status == L4_KCQE_COMPLETION_STATUS_NIC_ERROR)
+			set_bit(SK_F_HW_ERR, &csk->flags);
 
 		smp_mb__before_clear_bit();
 		clear_bit(SK_F_OFFLD_SCHED, &csk->flags);
