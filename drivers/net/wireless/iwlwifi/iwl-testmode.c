@@ -309,7 +309,7 @@ static int iwl_testmode_ucode(struct ieee80211_hw *hw, struct nlattr **tb)
 	}
 
 	/* The reply is in a page, that we cannot send to user space. */
-	memcpy(reply_buf, &(pkt->u), reply_len);
+	memcpy(reply_buf, &(pkt->hdr), reply_len);
 	iwl_free_pages(priv->shrd, cmd.reply_page);
 
 	NLA_PUT_U32(skb, IWL_TM_ATTR_COMMAND, IWL_TM_CMD_DEV2APP_UCODE_RX_PKT);
