@@ -685,6 +685,56 @@ void update_memslots(struct kvm_memslots *slots, struct kvm_memory_slot *new)
 	slots->generation++;
 }
 
+#ifndef CONFIG_S390
+static int create_lpage_info(struct kvm_memory_slot *slot, unsigned long npages)
+{
+	int i;
+
+	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
+		unsigned long ugfn;
+		int lpages;
+		int level = i + 2;
+
+		if (slot->lpage_info[i])
+			continue;
+
+		lpages = gfn_to_index(slot->base_gfn + npages - 1,
+				      slot->base_gfn, level) + 1;
+
+		slot->lpage_info[i] = vzalloc(lpages * sizeof(*slot->lpage_info[i]));
+		if (!slot->lpage_info[i])
+			goto out_free;
+
+		if (slot->base_gfn & (KVM_PAGES_PER_HPAGE(level) - 1))
+			slot->lpage_info[i][0].write_count = 1;
+		if ((slot->base_gfn + npages) & (KVM_PAGES_PER_HPAGE(level) - 1))
+			slot->lpage_info[i][lpages - 1].write_count = 1;
+		ugfn = slot->userspace_addr >> PAGE_SHIFT;
+		/*
+		 * If the gfn and userspace address are not aligned wrt each
+		 * other, or if explicitly asked to, disable large page
+		 * support for this slot
+		 */
+		if ((slot->base_gfn ^ ugfn) & (KVM_PAGES_PER_HPAGE(level) - 1) ||
+		    !largepages_enabled) {
+			unsigned long j;
+
+			for (j = 0; j < lpages; ++j)
+				slot->lpage_info[i][j].write_count = 1;
+		}
+	}
+
+	return 0;
+
+out_free:
+	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
+		vfree(slot->lpage_info[i]);
+		slot->lpage_info[i] = NULL;
+	}
+	return -ENOMEM;
+}
+#endif /* not defined CONFIG_S390 */
+
 /*
  * Allocate some memory and give it an address in the guest physical address
  * space.
@@ -778,37 +828,8 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	if (!npages)
 		goto skip_lpage;
 
-	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
-		unsigned long ugfn;
-		unsigned long j;
-		int lpages;
-		int level = i + 2;
-
-		if (new.lpage_info[i])
-			continue;
-
-		lpages = gfn_to_index(base_gfn + npages - 1, base_gfn, level) + 1;
-
-		new.lpage_info[i] = vzalloc(lpages * sizeof(*new.lpage_info[i]));
-
-		if (!new.lpage_info[i])
-			goto out_free;
-
-		if (base_gfn & (KVM_PAGES_PER_HPAGE(level) - 1))
-			new.lpage_info[i][0].write_count = 1;
-		if ((base_gfn+npages) & (KVM_PAGES_PER_HPAGE(level) - 1))
-			new.lpage_info[i][lpages - 1].write_count = 1;
-		ugfn = new.userspace_addr >> PAGE_SHIFT;
-		/*
-		 * If the gfn and userspace address are not aligned wrt each
-		 * other, or if explicitly asked to, disable large page
-		 * support for this slot
-		 */
-		if ((base_gfn ^ ugfn) & (KVM_PAGES_PER_HPAGE(level) - 1) ||
-		    !largepages_enabled)
-			for (j = 0; j < lpages; ++j)
-				new.lpage_info[i][j].write_count = 1;
-	}
+	if (create_lpage_info(&new, npages))
+		goto out_free;
 
 skip_lpage:
 
