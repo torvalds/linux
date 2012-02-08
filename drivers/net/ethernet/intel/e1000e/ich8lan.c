@@ -2030,7 +2030,7 @@ static s32 e1000_set_d3_lplu_state_ich8lan(struct e1000_hw *hw, bool active)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	u32 phy_ctrl;
-	s32 ret_val;
+	s32 ret_val = 0;
 	u16 data;
 
 	phy_ctrl = er32(PHY_CTRL);
@@ -2096,7 +2096,7 @@ static s32 e1000_set_d3_lplu_state_ich8lan(struct e1000_hw *hw, bool active)
 		ret_val = e1e_wphy(hw, IGP01E1000_PHY_PORT_CONFIG, data);
 	}
 
-	return 0;
+	return ret_val;
 }
 
 /**
