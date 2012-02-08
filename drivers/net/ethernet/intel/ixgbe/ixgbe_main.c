@@ -1834,7 +1834,7 @@ void ixgbe_write_eitr(struct ixgbe_q_vector *q_vector)
 	struct ixgbe_adapter *adapter = q_vector->adapter;
 	struct ixgbe_hw *hw = &adapter->hw;
 	int v_idx = q_vector->v_idx;
-	u32 itr_reg = q_vector->itr;
+	u32 itr_reg = q_vector->itr & IXGBE_MAX_EITR;
 
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_82598EB:
@@ -1886,7 +1886,7 @@ static void ixgbe_set_itr(struct ixgbe_q_vector *q_vector)
 			  ((9 * new_itr) + q_vector->itr);
 
 		/* save the algorithm value here */
-		q_vector->itr = new_itr & IXGBE_MAX_EITR;
+		q_vector->itr = new_itr;
 
 		ixgbe_write_eitr(q_vector);
 	}
