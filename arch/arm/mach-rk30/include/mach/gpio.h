@@ -35,7 +35,7 @@ typedef enum GPIOIntType {
 //定义GPIO相关寄存器偏移地址
 #define 	GPIO_SWPORT_DR		0x00
 #define 	GPIO_SWPORT_DDR		0x04
-#define 	GPIO_INTEN 			0x30
+#define 	GPIO_INTEN 		0x30
 #define 	GPIO_INTMASK 		0x34
 #define 	GPIO_INTTYPE_LEVEL 	0x38
 #define 	GPIO_INT_POLARITY 	0x3c
@@ -270,7 +270,6 @@ typedef enum GPIOIntType {
 #define	RK30_PIN6_PA5		(6*NUM_GROUP + PIN_BASE + 5)
 #define	RK30_PIN6_PA6		(6*NUM_GROUP + PIN_BASE + 6)
 #define	RK30_PIN6_PA7		(6*NUM_GROUP + PIN_BASE + 7)
-
 #define	RK30_PIN6_PB0		(6*NUM_GROUP + PIN_BASE + 8)
 #define	RK30_PIN6_PB1		(6*NUM_GROUP + PIN_BASE + 9)
 #define	RK30_PIN6_PB2		(6*NUM_GROUP + PIN_BASE + 10)
@@ -279,8 +278,6 @@ typedef enum GPIOIntType {
 #define	RK30_PIN6_PB5		(6*NUM_GROUP + PIN_BASE + 13)
 #define	RK30_PIN6_PB6		(6*NUM_GROUP + PIN_BASE + 14)
 #define	RK30_PIN6_PB7		(6*NUM_GROUP + PIN_BASE + 15)
-
-#define	RK30_PIN6_PD7		(6*NUM_GROUP + PIN_BASE + 31)
 
 #if defined(CONFIG_SPI_FPGA_GPIO)
 #define	FPGA_PIO0_00 (SPI_FPGA_EXPANDER_BASE + 0*NUM_GROUP + 0)

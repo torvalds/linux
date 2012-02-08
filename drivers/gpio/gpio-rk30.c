@@ -32,7 +32,7 @@
 #include <asm/gpio.h>
 #include <asm/mach/irq.h>
 
-#define MAX_PIN	RK30_PIN6_PD7
+#define MAX_PIN	RK30_PIN6_PB7
 
 #define to_rk30_gpio_bank(c) container_of(c, struct rk30_gpio_bank, chip)
 
@@ -303,7 +303,10 @@ static int rk30_gpiolib_pull_updown(struct gpio_chip *chip, unsigned offset, uns
 	unsigned long flags;
 
 	spin_lock_irqsave(&bank->lock, flags);
-	rk30_gpio_bit_op((void *__iomem) RK30_GRF_BASE, 0x78 + bank->id * 4, offset_to_bit(offset), !enable);
+	if(offset>=16)	
+	rk30_gpio_bit_op((void *__iomem) RK30_GRF_BASE, GRF_GPIO0H_PULL + bank->id * 8, offset_to_bit(offset-16), !enable);
+	else
+	rk30_gpio_bit_op((void *__iomem) RK30_GRF_BASE, GRF_GPIO0L_PULL + bank->id * 8, offset_to_bit(offset), !enable);
 	spin_unlock_irqrestore(&bank->lock, flags);
 
 	return 0;
