@@ -511,10 +511,6 @@ struct ixgbe_adapter {
 #endif /* IXGBE_FCOE */
 	u32 wol;
 
-	/* Interrupt Throttle Rate */
-	u16 eitr_low;
-	u16 eitr_high;
-
 	u16 bd_number;
 
 	u16 eeprom_verh;

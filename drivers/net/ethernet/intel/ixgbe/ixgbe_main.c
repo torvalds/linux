@@ -1782,20 +1782,19 @@ enum latency_range {
 static void ixgbe_update_itr(struct ixgbe_q_vector *q_vector,
 			     struct ixgbe_ring_container *ring_container)
 {
-	u64 bytes_perint;
-	struct ixgbe_adapter *adapter = q_vector->adapter;
 	int bytes = ring_container->total_bytes;
 	int packets = ring_container->total_packets;
 	u32 timepassed_us;
+	u64 bytes_perint;
 	u8 itr_setting = ring_container->itr;
 
 	if (packets == 0)
 		return;
 
 	/* simple throttlerate management
-	 *    0-20MB/s lowest (100000 ints/s)
-	 *   20-100MB/s low   (20000 ints/s)
-	 *  100-1249MB/s bulk (8000 ints/s)
+	 *   0-10MB/s   lowest (100000 ints/s)
+	 *  10-20MB/s   low    (20000 ints/s)
+	 *  20-1249MB/s bulk   (8000 ints/s)
 	 */
 	/* what was last interrupt timeslice? */
 	timepassed_us = q_vector->itr >> 2;
@@ -1803,17 +1802,17 @@ static void ixgbe_update_itr(struct ixgbe_q_vector *q_vector,
 
 	switch (itr_setting) {
 	case lowest_latency:
-		if (bytes_perint > adapter->eitr_low)
+		if (bytes_perint > 10)
 			itr_setting = low_latency;
 		break;
 	case low_latency:
-		if (bytes_perint > adapter->eitr_high)
+		if (bytes_perint > 20)
 			itr_setting = bulk_latency;
-		else if (bytes_perint <= adapter->eitr_low)
+		else if (bytes_perint <= 10)
 			itr_setting = lowest_latency;
 		break;
 	case bulk_latency:
-		if (bytes_perint <= adapter->eitr_high)
+		if (bytes_perint <= 20)
 			itr_setting = low_latency;
 		break;
 	}
@@ -5238,10 +5237,6 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	/* enable itr by default in dynamic mode */
 	adapter->rx_itr_setting = 1;
 	adapter->tx_itr_setting = 1;
-
-	/* set defaults for eitr in MegaBytes */
-	adapter->eitr_low = 10;
-	adapter->eitr_high = 20;
 
 	/* set default ring sizes */
 	adapter->tx_ring_count = IXGBE_DEFAULT_TXD;
