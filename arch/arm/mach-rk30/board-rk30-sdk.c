@@ -99,9 +99,9 @@ static void __init rk30_reserve(void)
 MACHINE_START(RK30, "RK30board")
 	.boot_params	= PLAT_PHYS_OFFSET + 0x800,
 	.fixup		= rk30_fixup,
+	.reserve	= &rk30_reserve,
 	.map_io		= rk30_map_io,
 	.init_irq	= rk30_init_irq,
 	.timer		= &rk30_timer,
-	.reserve	= &rk30_reserve,
 	.init_machine	= machine_rk30_board_init,
 MACHINE_END
