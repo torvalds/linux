@@ -1332,6 +1332,21 @@ static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 		wrmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
 }
 
+static void svm_update_cpl(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	int cpl;
+
+	if (!is_protmode(vcpu))
+		cpl = 0;
+	else if (svm->vmcb->save.rflags & X86_EFLAGS_VM)
+		cpl = 3;
+	else
+		cpl = svm->vmcb->save.cs.selector & 0x3;
+
+	svm->vmcb->save.cpl = cpl;
+}
+
 static unsigned long svm_get_rflags(struct kvm_vcpu *vcpu)
 {
 	return to_svm(vcpu)->vmcb->save.rflags;
@@ -1607,9 +1622,7 @@ static void svm_set_segment(struct kvm_vcpu *vcpu,
 		s->attrib |= (var->g & 1) << SVM_SELECTOR_G_SHIFT;
 	}
 	if (seg == VCPU_SREG_CS)
-		svm->vmcb->save.cpl
-			= (svm->vmcb->save.cs.attrib
-			   >> SVM_SELECTOR_DPL_SHIFT) & 3;
+		svm_update_cpl(vcpu);
 
 	mark_dirty(svm->vmcb, VMCB_SEG);
 }
