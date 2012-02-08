@@ -173,7 +173,6 @@ struct ixgbe_queue_stats {
 struct ixgbe_tx_queue_stats {
 	u64 restart_queue;
 	u64 tx_busy;
-	u64 completed;
 	u64 tx_done_old;
 };
 
