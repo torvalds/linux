@@ -343,13 +343,25 @@ static struct platform_device device_nand = {
 	.num_resources	= ARRAY_SIZE(resources_nand),
 };
 #endif
-
+#ifdef CONFIG_KEYS_RK29
+extern struct rk29_keys_platform_data rk29_keys_pdata;
+static struct platform_device device_keys = {
+	.name		= "rk29-keypad",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &rk29_keys_pdata,
+	},
+};
+#endif
 static int __init rk30_init_devices(void)
 {
 	rk30_init_uart();
 	rk30_init_i2c();
 #ifdef CONFIG_MTD_NAND_RK29XX
 	platform_device_register(&device_nand);
+#endif
+#ifdef CONFIG_KEYS_RK29
+	platform_device_register(&device_keys);
 #endif
         return 0;
 }
