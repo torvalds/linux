@@ -286,8 +286,6 @@
 
 /* used to tell the module to turn on full debugging messages */
 static bool debug;
-/* used to keep tray locked at all times */
-static int keeplocked;
 /* default compatibility mode */
 static bool autoclose=1;
 static bool autoeject;
@@ -1204,7 +1202,7 @@ void cdrom_release(struct cdrom_device_info *cdi, fmode_t mode)
 		cdinfo(CD_CLOSE, "Use count for \"/dev/%s\" now zero\n", cdi->name);
 		cdrom_dvd_rw_close_write(cdi);
 
-		if ((cdo->capability & CDC_LOCK) && !keeplocked) {
+		if ((cdo->capability & CDC_LOCK) && !cdi->keeplocked) {
 			cdinfo(CD_CLOSE, "Unlocking door!\n");
 			cdo->lock_door(cdi, 0);
 		}
@@ -1371,7 +1369,7 @@ static int cdrom_select_disc(struct cdrom_device_info *cdi, int slot)
 	curslot = info->hdr.curslot;
 	kfree(info);
 
-	if (cdi->use_count > 1 || keeplocked) {
+	if (cdi->use_count > 1 || cdi->keeplocked) {
 		if (slot == CDSL_CURRENT) {
 	    		return curslot;
 		} else {
@@ -2289,7 +2287,7 @@ static int cdrom_ioctl_eject(struct cdrom_device_info *cdi)
 
 	if (!CDROM_CAN(CDC_OPEN_TRAY))
 		return -ENOSYS;
-	if (cdi->use_count != 1 || keeplocked)
+	if (cdi->use_count != 1 || cdi->keeplocked)
 		return -EBUSY;
 	if (CDROM_CAN(CDC_LOCK)) {
 		int ret = cdi->ops->lock_door(cdi, 0);
@@ -2316,7 +2314,7 @@ static int cdrom_ioctl_eject_sw(struct cdrom_device_info *cdi,
 
 	if (!CDROM_CAN(CDC_OPEN_TRAY))
 		return -ENOSYS;
-	if (keeplocked)
+	if (cdi->keeplocked)
 		return -EBUSY;
 
 	cdi->options &= ~(CDO_AUTO_CLOSE | CDO_AUTO_EJECT);
@@ -2447,7 +2445,7 @@ static int cdrom_ioctl_lock_door(struct cdrom_device_info *cdi,
 	if (!CDROM_CAN(CDC_LOCK))
 		return -EDRIVE_CANT_DO_THIS;
 
-	keeplocked = arg ? 1 : 0;
+	cdi->keeplocked = arg ? 1 : 0;
 
 	/*
 	 * Don't unlock the door on multiple opens by default, but allow
