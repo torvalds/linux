@@ -41,7 +41,7 @@ static inline void rate_control_tx_status(struct ieee80211_local *local,
 	struct ieee80211_sta *ista = &sta->sta;
 	void *priv_sta = sta->rate_ctrl_priv;
 
-	if (!ref)
+	if (!ref || !test_sta_flag(sta, WLAN_STA_RATE_CONTROL))
 		return;
 
 	ref->ops->tx_status(ref->priv, sband, ista, priv_sta, skb);
