@@ -399,6 +399,11 @@ static void ili2102_ts_work_func(struct work_struct *work)
 					x = g_x[i];
 					y = g_y[i];
 				}
+				#ifdef CONFIG_MACH_RK29_TD8801_V2
+				if( y >=80 ) y-=80;
+				if( x >= 50 ) x-=50;
+				#endif
+
 				g_x[i] = x;
 				g_y[i] = y;	
 				
