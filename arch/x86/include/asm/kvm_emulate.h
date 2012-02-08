@@ -388,7 +388,7 @@ bool x86_page_table_writing_insn(struct x86_emulate_ctxt *ctxt);
 #define EMULATION_INTERCEPTED 2
 int x86_emulate_insn(struct x86_emulate_ctxt *ctxt);
 int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
-			 u16 tss_selector, int reason,
+			 u16 tss_selector, int idt_index, int reason,
 			 bool has_error_code, u32 error_code);
 int emulate_int_real(struct x86_emulate_ctxt *ctxt, int irq);
 #endif /* _ASM_X86_KVM_X86_EMULATE_H */

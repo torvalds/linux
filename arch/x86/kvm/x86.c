@@ -5655,15 +5655,15 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
-		    bool has_error_code, u32 error_code)
+int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int idt_index,
+		    int reason, bool has_error_code, u32 error_code)
 {
 	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
 	int ret;
 
 	init_emulate_ctxt(vcpu);
 
-	ret = emulator_task_switch(ctxt, tss_selector, reason,
+	ret = emulator_task_switch(ctxt, tss_selector, idt_index, reason,
 				   has_error_code, error_code);
 
 	if (ret)

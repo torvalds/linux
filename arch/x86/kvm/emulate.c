@@ -1152,6 +1152,22 @@ static int pio_in_emulated(struct x86_emulate_ctxt *ctxt,
 	return 1;
 }
 
+static int read_interrupt_descriptor(struct x86_emulate_ctxt *ctxt,
+				     u16 index, struct desc_struct *desc)
+{
+	struct desc_ptr dt;
+	ulong addr;
+
+	ctxt->ops->get_idt(ctxt, &dt);
+
+	if (dt.size < index * 8 + 7)
+		return emulate_gp(ctxt, index << 3 | 0x2);
+
+	addr = dt.address + index * 8;
+	return ctxt->ops->read_std(ctxt, addr, desc, sizeof *desc,
+				   &ctxt->exception);
+}
+
 static void get_descriptor_table_ptr(struct x86_emulate_ctxt *ctxt,
 				     u16 selector, struct desc_ptr *dt)
 {
@@ -2421,7 +2437,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 }
 
 static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
-				   u16 tss_selector, int reason,
+				   u16 tss_selector, int idt_index, int reason,
 				   bool has_error_code, u32 error_code)
 {
 	struct x86_emulate_ops *ops = ctxt->ops;
@@ -2443,11 +2459,34 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 
 	/* FIXME: check that next_tss_desc is tss */
 
-	if (reason != TASK_SWITCH_IRET) {
-		if ((tss_selector & 3) > next_tss_desc.dpl ||
-		    ops->cpl(ctxt) > next_tss_desc.dpl)
-			return emulate_gp(ctxt, 0);
+	/*
+	 * Check privileges. The three cases are task switch caused by...
+	 *
+	 * 1. jmp/call/int to task gate: Check against DPL of the task gate
+	 * 2. Exception/IRQ/iret: No check is performed
+	 * 3. jmp/call to TSS: Check agains DPL of the TSS
+	 */
+	if (reason == TASK_SWITCH_GATE) {
+		if (idt_index != -1) {
+			/* Software interrupts */
+			struct desc_struct task_gate_desc;
+			int dpl;
+
+			ret = read_interrupt_descriptor(ctxt, idt_index,
+							&task_gate_desc);
+			if (ret != X86EMUL_CONTINUE)
+				return ret;
+
+			dpl = task_gate_desc.dpl;
+			if ((tss_selector & 3) > dpl || ops->cpl(ctxt) > dpl)
+				return emulate_gp(ctxt, (idt_index << 3) | 0x2);
+		}
+	} else if (reason != TASK_SWITCH_IRET) {
+		int dpl = next_tss_desc.dpl;
+		if ((tss_selector & 3) > dpl || ops->cpl(ctxt) > dpl)
+			return emulate_gp(ctxt, tss_selector);
 	}
+
 
 	desc_limit = desc_limit_scaled(&next_tss_desc);
 	if (!next_tss_desc.p ||
@@ -2501,7 +2540,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 }
 
 int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
-			 u16 tss_selector, int reason,
+			 u16 tss_selector, int idt_index, int reason,
 			 bool has_error_code, u32 error_code)
 {
 	int rc;
@@ -2509,7 +2548,7 @@ int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 	ctxt->_eip = ctxt->eip;
 	ctxt->dst.type = OP_NONE;
 
-	rc = emulator_do_task_switch(ctxt, tss_selector, reason,
+	rc = emulator_do_task_switch(ctxt, tss_selector, idt_index, reason,
 				     has_error_code, error_code);
 
 	if (rc == X86EMUL_CONTINUE)
