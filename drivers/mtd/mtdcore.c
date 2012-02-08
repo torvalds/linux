@@ -802,6 +802,79 @@ int mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 }
 EXPORT_SYMBOL_GPL(mtd_panic_write);
 
+/*
+ * Method to access the protection register area, present in some flash
+ * devices. The user data is one time programmable but the factory data is read
+ * only.
+ */
+int mtd_get_fact_prot_info(struct mtd_info *mtd, struct otp_info *buf,
+			   size_t len)
+{
+	if (!mtd->_get_fact_prot_info)
+		return -EOPNOTSUPP;
+	if (!len)
+		return 0;
+	return mtd->_get_fact_prot_info(mtd, buf, len);
+}
+EXPORT_SYMBOL_GPL(mtd_get_fact_prot_info);
+
+int mtd_read_fact_prot_reg(struct mtd_info *mtd, loff_t from, size_t len,
+			   size_t *retlen, u_char *buf)
+{
+	*retlen = 0;
+	if (!mtd->_read_fact_prot_reg)
+		return -EOPNOTSUPP;
+	if (!len)
+		return 0;
+	return mtd->_read_fact_prot_reg(mtd, from, len, retlen, buf);
+}
+EXPORT_SYMBOL_GPL(mtd_read_fact_prot_reg);
+
+int mtd_get_user_prot_info(struct mtd_info *mtd, struct otp_info *buf,
+			   size_t len)
+{
+	if (!mtd->_get_user_prot_info)
+		return -EOPNOTSUPP;
+	if (!len)
+		return 0;
+	return mtd->_get_user_prot_info(mtd, buf, len);
+}
+EXPORT_SYMBOL_GPL(mtd_get_user_prot_info);
+
+int mtd_read_user_prot_reg(struct mtd_info *mtd, loff_t from, size_t len,
+			   size_t *retlen, u_char *buf)
+{
+	*retlen = 0;
+	if (!mtd->_read_user_prot_reg)
+		return -EOPNOTSUPP;
+	if (!len)
+		return 0;
+	return mtd->_read_user_prot_reg(mtd, from, len, retlen, buf);
+}
+EXPORT_SYMBOL_GPL(mtd_read_user_prot_reg);
+
+int mtd_write_user_prot_reg(struct mtd_info *mtd, loff_t to, size_t len,
+			    size_t *retlen, u_char *buf)
+{
+	*retlen = 0;
+	if (!mtd->_write_user_prot_reg)
+		return -EOPNOTSUPP;
+	if (!len)
+		return 0;
+	return mtd->_write_user_prot_reg(mtd, to, len, retlen, buf);
+}
+EXPORT_SYMBOL_GPL(mtd_write_user_prot_reg);
+
+int mtd_lock_user_prot_reg(struct mtd_info *mtd, loff_t from, size_t len)
+{
+	if (!mtd->_lock_user_prot_reg)
+		return -EOPNOTSUPP;
+	if (!len)
+		return 0;
+	return mtd->_lock_user_prot_reg(mtd, from, len);
+}
+EXPORT_SYMBOL_GPL(mtd_lock_user_prot_reg);
+
 /* Chip-supported device locking */
 int mtd_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {

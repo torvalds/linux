@@ -273,65 +273,17 @@ static inline int mtd_write_oob(struct mtd_info *mtd, loff_t to,
 	return mtd->_write_oob(mtd, to, ops);
 }
 
-/*
- * Method to access the protection register area, present in some flash
- * devices. The user data is one time programmable but the factory data is read
- * only.
- */
-static inline int mtd_get_fact_prot_info(struct mtd_info *mtd,
-					 struct otp_info *buf, size_t len)
-{
-	if (!mtd->_get_fact_prot_info)
-		return -EOPNOTSUPP;
-	return mtd->_get_fact_prot_info(mtd, buf, len);
-}
-
-static inline int mtd_read_fact_prot_reg(struct mtd_info *mtd, loff_t from,
-					 size_t len, size_t *retlen,
-					 u_char *buf)
-{
-	*retlen = 0;
-	if (!mtd->_read_fact_prot_reg)
-		return -EOPNOTSUPP;
-	return mtd->_read_fact_prot_reg(mtd, from, len, retlen, buf);
-}
-
-static inline int mtd_get_user_prot_info(struct mtd_info *mtd,
-					 struct otp_info *buf,
-					 size_t len)
-{
-	if (!mtd->_get_user_prot_info)
-		return -EOPNOTSUPP;
-	return mtd->_get_user_prot_info(mtd, buf, len);
-}
-
-static inline int mtd_read_user_prot_reg(struct mtd_info *mtd, loff_t from,
-					 size_t len, size_t *retlen,
-					 u_char *buf)
-{
-	*retlen = 0;
-	if (!mtd->_read_user_prot_reg)
-		return -EOPNOTSUPP;
-	return mtd->_read_user_prot_reg(mtd, from, len, retlen, buf);
-}
-
-static inline int mtd_write_user_prot_reg(struct mtd_info *mtd, loff_t to,
-					  size_t len, size_t *retlen,
-					  u_char *buf)
-{
-	*retlen = 0;
-	if (!mtd->_write_user_prot_reg)
-		return -EOPNOTSUPP;
-	return mtd->_write_user_prot_reg(mtd, to, len, retlen, buf);
-}
-
-static inline int mtd_lock_user_prot_reg(struct mtd_info *mtd, loff_t from,
-					 size_t len)
-{
-	if (!mtd->_lock_user_prot_reg)
-		return -EOPNOTSUPP;
-	return mtd->_lock_user_prot_reg(mtd, from, len);
-}
+int mtd_get_fact_prot_info(struct mtd_info *mtd, struct otp_info *buf,
+			   size_t len);
+int mtd_read_fact_prot_reg(struct mtd_info *mtd, loff_t from, size_t len,
+			   size_t *retlen, u_char *buf);
+int mtd_get_user_prot_info(struct mtd_info *mtd, struct otp_info *buf,
+			   size_t len);
+int mtd_read_user_prot_reg(struct mtd_info *mtd, loff_t from, size_t len,
+			   size_t *retlen, u_char *buf);
+int mtd_write_user_prot_reg(struct mtd_info *mtd, loff_t to, size_t len,
+			    size_t *retlen, u_char *buf);
+int mtd_lock_user_prot_reg(struct mtd_info *mtd, loff_t from, size_t len);
 
 int mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	       unsigned long count, loff_t to, size_t *retlen);
