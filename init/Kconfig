@@ -950,7 +950,6 @@ config UIDGID_CONVERTED
 	depends on CEPH_FS = n
 	depends on CIFS = n
 	depends on CODA_FS = n
-	depends on CONFIGFS_FS = n
 	depends on CRAMFS = n
 	depends on ECRYPT_FS = n
 	depends on EFS_FS = n
