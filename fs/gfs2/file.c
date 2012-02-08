@@ -313,6 +313,8 @@ static long gfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return gfs2_get_flags(filp, (u32 __user *)arg);
 	case FS_IOC_SETFLAGS:
 		return gfs2_set_flags(filp, (u32 __user *)arg);
+	case FITRIM:
+		return gfs2_fitrim(filp, (void __user *)arg);
 	}
 	return -ENOTTY;
 }
