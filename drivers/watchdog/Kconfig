@@ -330,6 +330,7 @@ config TS72XX_WATCHDOG
 config MAX63XX_WATCHDOG
 	tristate "Max63xx watchdog"
 	depends on ARM && HAS_IOMEM
+	select WATCHDOG_CORE
 	help
 	  Support for memory mapped max63{69,70,71,72,73,74} watchdog timer.
 
