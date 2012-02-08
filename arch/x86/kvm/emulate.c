@@ -2344,6 +2344,8 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 		return emulate_gp(ctxt, 0);
 	ctxt->_eip = tss->eip;
 	ctxt->eflags = tss->eflags | 2;
+
+	/* General purpose registers */
 	ctxt->regs[VCPU_REGS_RAX] = tss->eax;
 	ctxt->regs[VCPU_REGS_RCX] = tss->ecx;
 	ctxt->regs[VCPU_REGS_RDX] = tss->edx;
@@ -2364,6 +2366,24 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 	set_segment_selector(ctxt, tss->ds, VCPU_SREG_DS);
 	set_segment_selector(ctxt, tss->fs, VCPU_SREG_FS);
 	set_segment_selector(ctxt, tss->gs, VCPU_SREG_GS);
+
+	/*
+	 * If we're switching between Protected Mode and VM86, we need to make
+	 * sure to update the mode before loading the segment descriptors so
+	 * that the selectors are interpreted correctly.
+	 *
+	 * Need to get rflags to the vcpu struct immediately because it
+	 * influences the CPL which is checked at least when loading the segment
+	 * descriptors and when pushing an error code to the new kernel stack.
+	 *
+	 * TODO Introduce a separate ctxt->ops->set_cpl callback
+	 */
+	if (ctxt->eflags & X86_EFLAGS_VM)
+		ctxt->mode = X86EMUL_MODE_VM86;
+	else
+		ctxt->mode = X86EMUL_MODE_PROT32;
+
+	ctxt->ops->set_rflags(ctxt, ctxt->eflags);
 
 	/*
 	 * Now load segment descriptors. If fault happenes at this stage

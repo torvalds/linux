@@ -1354,7 +1354,11 @@ static unsigned long svm_get_rflags(struct kvm_vcpu *vcpu)
 
 static void svm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
+	unsigned long old_rflags = to_svm(vcpu)->vmcb->save.rflags;
+
 	to_svm(vcpu)->vmcb->save.rflags = rflags;
+	if ((old_rflags ^ rflags) & X86_EFLAGS_VM)
+		svm_update_cpl(vcpu);
 }
 
 static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)

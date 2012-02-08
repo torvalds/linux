@@ -4129,6 +4129,11 @@ static int emulator_set_cr(struct x86_emulate_ctxt *ctxt, int cr, ulong val)
 	return res;
 }
 
+static void emulator_set_rflags(struct x86_emulate_ctxt *ctxt, ulong val)
+{
+	kvm_set_rflags(emul_to_vcpu(ctxt), val);
+}
+
 static int emulator_get_cpl(struct x86_emulate_ctxt *ctxt)
 {
 	return kvm_x86_ops->get_cpl(emul_to_vcpu(ctxt));
@@ -4310,6 +4315,7 @@ static struct x86_emulate_ops emulate_ops = {
 	.set_idt	     = emulator_set_idt,
 	.get_cr              = emulator_get_cr,
 	.set_cr              = emulator_set_cr,
+	.set_rflags          = emulator_set_rflags,
 	.cpl                 = emulator_get_cpl,
 	.get_dr              = emulator_get_dr,
 	.set_dr              = emulator_set_dr,
