@@ -678,6 +678,7 @@ void qeth_release_buffer(struct qeth_channel *channel,
 	iob->callback = qeth_send_control_data_cb;
 	iob->rc = 0;
 	spin_unlock_irqrestore(&channel->iob_lock, flags);
+	wake_up(&channel->wait_q);
 }
 EXPORT_SYMBOL_GPL(qeth_release_buffer);
 
