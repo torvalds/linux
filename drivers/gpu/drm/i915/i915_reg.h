@@ -2854,6 +2854,10 @@
 #define GEN7_L3_CHICKEN_MODE_REGISTER		0xB030
 #define  GEN7_WA_L3_CHICKEN_MODE				0x20000000
 
+/* WaCatErrorRejectionIssue */
+#define GEN7_SQ_CHICKEN_MBCUNIT_CONFIG		0x9030
+#define  GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB	(1<<11)
+
 /* PCH */
 
 /* south display engine interrupt */

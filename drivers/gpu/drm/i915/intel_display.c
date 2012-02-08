@@ -7470,6 +7470,11 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN7_L3_CHICKEN_MODE_REGISTER,
 			GEN7_WA_L3_CHICKEN_MODE);
 
+	/* This is required by WaCatErrorRejectionIssue */
+	I915_WRITE(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,
+			I915_READ(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG) |
+			GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB);
+
 	for_each_pipe(pipe)
 		I915_WRITE(DSPCNTR(pipe),
 			   I915_READ(DSPCNTR(pipe)) |
