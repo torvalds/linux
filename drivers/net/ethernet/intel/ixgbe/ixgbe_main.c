@@ -7891,7 +7891,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	if (hw->eeprom.ops.validate_checksum(hw, NULL) < 0) {
 		e_dev_err("The EEPROM Checksum Is Not Valid\n");
 		err = -EIO;
-		goto err_eeprom;
+		goto err_sw_init;
 	}
 
 	memcpy(netdev->dev_addr, hw->mac.perm_addr, netdev->addr_len);
@@ -7900,7 +7900,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	if (ixgbe_validate_mac_addr(netdev->perm_addr)) {
 		e_dev_err("invalid MAC address\n");
 		err = -EIO;
-		goto err_eeprom;
+		goto err_sw_init;
 	}
 
 	setup_timer(&adapter->service_timer, &ixgbe_service_timer,
@@ -8047,7 +8047,6 @@ err_register:
 	ixgbe_release_hw_control(adapter);
 	ixgbe_clear_interrupt_scheme(adapter);
 err_sw_init:
-err_eeprom:
 	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
 		ixgbe_disable_sriov(adapter);
 	adapter->flags2 &= ~IXGBE_FLAG2_SEARCH_FOR_SFP;
