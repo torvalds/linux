@@ -900,6 +900,22 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
+	/*
+	 * If the ucode decides to do beacon filtering before
+	 * association, it will lose beacons that are needed
+	 * before sending frames out on passive channels. This
+	 * causes association failures on those channels. Enable
+	 * receiving beacons in such cases.
+	 */
+
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		if (!bss_conf->assoc)
+			ctx->staging.filter_flags |= RXON_FILTER_BCON_AWARE_MSK;
+		else
+			ctx->staging.filter_flags &=
+						    ~RXON_FILTER_BCON_AWARE_MSK;
+	}
+
 	if (force || memcmp(&ctx->staging, &ctx->active, sizeof(ctx->staging)))
 		iwlagn_commit_rxon(priv, ctx);
 
