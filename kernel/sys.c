@@ -175,7 +175,6 @@ SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
 	const struct cred *cred = current_cred();
 	int error = -EINVAL;
 	struct pid *pgrp;
-	kuid_t cred_uid;
 	kuid_t uid;
 
 	if (which > PRIO_USER || which < PRIO_PROCESS)
@@ -209,22 +208,19 @@ SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
 			} while_each_pid_thread(pgrp, PIDTYPE_PGID, p);
 			break;
 		case PRIO_USER:
-			cred_uid = make_kuid(cred->user_ns, cred->uid);
 			uid = make_kuid(cred->user_ns, who);
 			user = cred->user;
 			if (!who)
-				uid = cred_uid;
-			else if (!uid_eq(uid, cred_uid) &&
+				uid = cred->uid;
+			else if (!uid_eq(uid, cred->uid) &&
 				 !(user = find_user(uid)))
 				goto out_unlock;	/* No processes for this user */
 
 			do_each_thread(g, p) {
-				const struct cred *tcred = __task_cred(p);
-				kuid_t tcred_uid = make_kuid(tcred->user_ns, tcred->uid);
-				if (uid_eq(tcred_uid, uid))
+				if (uid_eq(task_uid(p), uid))
 					error = set_one_prio(p, niceval, error);
 			} while_each_thread(g, p);
-			if (!uid_eq(uid, cred_uid))
+			if (!uid_eq(uid, cred->uid))
 				free_uid(user);		/* For find_user() */
 			break;
 	}
@@ -248,7 +244,6 @@ SYSCALL_DEFINE2(getpriority, int, which, int, who)
 	const struct cred *cred = current_cred();
 	long niceval, retval = -ESRCH;
 	struct pid *pgrp;
-	kuid_t cred_uid;
 	kuid_t uid;
 
 	if (which > PRIO_USER || which < PRIO_PROCESS)
@@ -280,25 +275,22 @@ SYSCALL_DEFINE2(getpriority, int, which, int, who)
 			} while_each_pid_thread(pgrp, PIDTYPE_PGID, p);
 			break;
 		case PRIO_USER:
-			cred_uid = make_kuid(cred->user_ns, cred->uid);
 			uid = make_kuid(cred->user_ns, who);
 			user = cred->user;
 			if (!who)
-				uid = cred_uid;
-			else if (!uid_eq(uid, cred_uid) &&
+				uid = cred->uid;
+			else if (!uid_eq(uid, cred->uid) &&
 				 !(user = find_user(uid)))
 				goto out_unlock;	/* No processes for this user */
 
 			do_each_thread(g, p) {
-				const struct cred *tcred = __task_cred(p);
-				kuid_t tcred_uid = make_kuid(tcred->user_ns, tcred->uid);
-				if (uid_eq(tcred_uid, uid)) {
+				if (uid_eq(task_uid(p), uid)) {
 					niceval = 20 - task_nice(p);
 					if (niceval > retval)
 						retval = niceval;
 				}
 			} while_each_thread(g, p);
-			if (!uid_eq(uid, cred_uid))
+			if (!uid_eq(uid, cred->uid))
 				free_uid(user);		/* for find_user() */
 			break;
 	}
@@ -641,7 +633,7 @@ static int set_user(struct cred *new)
 {
 	struct user_struct *new_user;
 
-	new_user = alloc_uid(make_kuid(new->user_ns, new->uid));
+	new_user = alloc_uid(new->uid);
 	if (!new_user)
 		return -EAGAIN;
 
