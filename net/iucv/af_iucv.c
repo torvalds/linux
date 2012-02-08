@@ -1633,7 +1633,8 @@ static int iucv_sock_getsockopt(struct socket *sock, int level, int optname,
 {
 	struct sock *sk = sock->sk;
 	struct iucv_sock *iucv = iucv_sk(sk);
-	int val, len;
+	unsigned int val;
+	int len;
 
 	if (level != SOL_IUCV)
 		return -ENOPROTOOPT;
@@ -1655,6 +1656,13 @@ static int iucv_sock_getsockopt(struct socket *sock, int level, int optname,
 		val = (iucv->path != NULL) ? iucv->path->msglim	/* connected */
 					   : iucv->msglimit;	/* default */
 		release_sock(sk);
+		break;
+	case SO_MSGSIZE:
+		if (sk->sk_state == IUCV_OPEN)
+			return -EBADFD;
+		val = (iucv->hs_dev) ? iucv->hs_dev->mtu -
+				sizeof(struct af_iucv_trans_hdr) - ETH_HLEN :
+				0x7fffffff;
 		break;
 	default:
 		return -ENOPROTOOPT;
