@@ -917,7 +917,8 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		if (!saddr)
 			saddr = inet->mc_addr;
 		connected = 0;
-	}
+	} else if (!ipc.oif)
+		ipc.oif = inet->uc_index;
 
 	if (connected)
 		rt = (struct rtable *)sk_dst_check(sk, 0);
