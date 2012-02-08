@@ -52,8 +52,7 @@ struct key_user {
 	atomic_t		usage;		/* for accessing qnkeys & qnbytes */
 	atomic_t		nkeys;		/* number of keys */
 	atomic_t		nikeys;		/* number of instantiated keys */
-	uid_t			uid;
-	struct user_namespace	*user_ns;
+	kuid_t			uid;
 	int			qnkeys;		/* number of keys allocated to this user */
 	int			qnbytes;	/* number of bytes allocated to this user */
 };
@@ -62,8 +61,7 @@ extern struct rb_root	key_user_tree;
 extern spinlock_t	key_user_lock;
 extern struct key_user	root_key_user;
 
-extern struct key_user *key_user_lookup(uid_t uid,
-					struct user_namespace *user_ns);
+extern struct key_user *key_user_lookup(kuid_t uid);
 extern void key_user_put(struct key_user *user);
 
 /*

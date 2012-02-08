@@ -88,14 +88,14 @@ __initcall(key_proc_init);
  */
 #ifdef CONFIG_KEYS_DEBUG_PROC_KEYS
 
-static struct rb_node *key_serial_next(struct rb_node *n)
+static struct rb_node *key_serial_next(struct seq_file *p, struct rb_node *n)
 {
-	struct user_namespace *user_ns = current_user_ns();
+	struct user_namespace *user_ns = seq_user_ns(p);
 
 	n = rb_next(n);
 	while (n) {
 		struct key *key = rb_entry(n, struct key, serial_node);
-		if (key->user->user_ns == user_ns)
+		if (kuid_has_mapping(user_ns, key->user->uid))
 			break;
 		n = rb_next(n);
 	}
@@ -107,9 +107,9 @@ static int proc_keys_open(struct inode *inode, struct file *file)
 	return seq_open(file, &proc_keys_ops);
 }
 
-static struct key *find_ge_key(key_serial_t id)
+static struct key *find_ge_key(struct seq_file *p, key_serial_t id)
 {
-	struct user_namespace *user_ns = current_user_ns();
+	struct user_namespace *user_ns = seq_user_ns(p);
 	struct rb_node *n = key_serial_tree.rb_node;
 	struct key *minkey = NULL;
 
@@ -132,7 +132,7 @@ static struct key *find_ge_key(key_serial_t id)
 		return NULL;
 
 	for (;;) {
-		if (minkey->user->user_ns == user_ns)
+		if (kuid_has_mapping(user_ns, minkey->user->uid))
 			return minkey;
 		n = rb_next(&minkey->serial_node);
 		if (!n)
@@ -151,7 +151,7 @@ static void *proc_keys_start(struct seq_file *p, loff_t *_pos)
 
 	if (*_pos > INT_MAX)
 		return NULL;
-	key = find_ge_key(pos);
+	key = find_ge_key(p, pos);
 	if (!key)
 		return NULL;
 	*_pos = key->serial;
@@ -168,7 +168,7 @@ static void *proc_keys_next(struct seq_file *p, void *v, loff_t *_pos)
 {
 	struct rb_node *n;
 
-	n = key_serial_next(v);
+	n = key_serial_next(p, v);
 	if (n)
 		*_pos = key_node_serial(n);
 	return n;
@@ -254,8 +254,8 @@ static int proc_keys_show(struct seq_file *m, void *v)
 		   atomic_read(&key->usage),
 		   xbuf,
 		   key->perm,
-		   key->uid,
-		   key->gid,
+		   from_kuid_munged(seq_user_ns(m), key->uid),
+		   from_kgid_munged(seq_user_ns(m), key->gid),
 		   key->type->name);
 
 #undef showflag
@@ -270,26 +270,26 @@ static int proc_keys_show(struct seq_file *m, void *v)
 
 #endif /* CONFIG_KEYS_DEBUG_PROC_KEYS */
 
-static struct rb_node *__key_user_next(struct rb_node *n)
+static struct rb_node *__key_user_next(struct user_namespace *user_ns, struct rb_node *n)
 {
 	while (n) {
 		struct key_user *user = rb_entry(n, struct key_user, node);
-		if (user->user_ns == current_user_ns())
+		if (kuid_has_mapping(user_ns, user->uid))
 			break;
 		n = rb_next(n);
 	}
 	return n;
 }
 
-static struct rb_node *key_user_next(struct rb_node *n)
+static struct rb_node *key_user_next(struct user_namespace *user_ns, struct rb_node *n)
 {
-	return __key_user_next(rb_next(n));
+	return __key_user_next(user_ns, rb_next(n));
 }
 
-static struct rb_node *key_user_first(struct rb_root *r)
+static struct rb_node *key_user_first(struct user_namespace *user_ns, struct rb_root *r)
 {
 	struct rb_node *n = rb_first(r);
-	return __key_user_next(n);
+	return __key_user_next(user_ns, n);
 }
 
 /*
@@ -309,10 +309,10 @@ static void *proc_key_users_start(struct seq_file *p, loff_t *_pos)
 
 	spin_lock(&key_user_lock);
 
-	_p = key_user_first(&key_user_tree);
+	_p = key_user_first(seq_user_ns(p), &key_user_tree);
 	while (pos > 0 && _p) {
 		pos--;
-		_p = key_user_next(_p);
+		_p = key_user_next(seq_user_ns(p), _p);
 	}
 
 	return _p;
@@ -321,7 +321,7 @@ static void *proc_key_users_start(struct seq_file *p, loff_t *_pos)
 static void *proc_key_users_next(struct seq_file *p, void *v, loff_t *_pos)
 {
 	(*_pos)++;
-	return key_user_next((struct rb_node *)v);
+	return key_user_next(seq_user_ns(p), (struct rb_node *)v);
 }
 
 static void proc_key_users_stop(struct seq_file *p, void *v)
@@ -334,13 +334,13 @@ static int proc_key_users_show(struct seq_file *m, void *v)
 {
 	struct rb_node *_p = v;
 	struct key_user *user = rb_entry(_p, struct key_user, node);
-	unsigned maxkeys = (user->uid == 0) ?
+	unsigned maxkeys = uid_eq(user->uid, GLOBAL_ROOT_UID) ?
 		key_quota_root_maxkeys : key_quota_maxkeys;
-	unsigned maxbytes = (user->uid == 0) ?
+	unsigned maxbytes = uid_eq(user->uid, GLOBAL_ROOT_UID) ?
 		key_quota_root_maxbytes : key_quota_maxbytes;
 
 	seq_printf(m, "%5u: %5d %d/%d %d/%d %d/%d\n",
-		   user->uid,
+		   from_kuid_munged(seq_user_ns(m), user->uid),
 		   atomic_read(&user->usage),
 		   atomic_read(&user->nkeys),
 		   atomic_read(&user->nikeys),

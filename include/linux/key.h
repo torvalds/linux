@@ -24,6 +24,7 @@
 #include <linux/atomic.h>
 
 #ifdef __KERNEL__
+#include <linux/uidgid.h>
 
 /* key handle serial number */
 typedef int32_t key_serial_t;
@@ -137,8 +138,8 @@ struct key {
 		time_t		revoked_at;	/* time at which key was revoked */
 	};
 	time_t			last_used_at;	/* last time used for LRU keyring discard */
-	uid_t			uid;
-	gid_t			gid;
+	kuid_t			uid;
+	kgid_t			gid;
 	key_perm_t		perm;		/* access permissions */
 	unsigned short		quotalen;	/* length added to quota */
 	unsigned short		datalen;	/* payload data length
@@ -193,7 +194,7 @@ struct key {
 
 extern struct key *key_alloc(struct key_type *type,
 			     const char *desc,
-			     uid_t uid, gid_t gid,
+			     kuid_t uid, kgid_t gid,
 			     const struct cred *cred,
 			     key_perm_t perm,
 			     unsigned long flags);
@@ -262,7 +263,7 @@ extern int key_link(struct key *keyring,
 extern int key_unlink(struct key *keyring,
 		      struct key *key);
 
-extern struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
+extern struct key *keyring_alloc(const char *description, kuid_t uid, kgid_t gid,
 				 const struct cred *cred,
 				 unsigned long flags,
 				 struct key *dest);
