@@ -964,7 +964,6 @@ config UIDGID_CONVERTED
 
 	# Security modules
 	depends on SECURITY_TOMOYO = n
-	depends on SECURITY_APPARMOR = n
 
 config UIDGID_STRICT_TYPE_CHECKS
 	bool "Require conversions between uid/gids and their internal representation"
