@@ -107,9 +107,9 @@ static void ath6kl_hif_dump_fw_crash(struct ath6kl *ar)
 
 	BUILD_BUG_ON(REG_DUMP_COUNT_AR6003 % 4);
 
-	for (i = 0; i < REG_DUMP_COUNT_AR6003 / 4; i++) {
+	for (i = 0; i < REG_DUMP_COUNT_AR6003; i += 4) {
 		ath6kl_info("%d: 0x%8.8x 0x%8.8x 0x%8.8x 0x%8.8x\n",
-			    4 * i,
+			    i,
 			    le32_to_cpu(regdump_val[i]),
 			    le32_to_cpu(regdump_val[i + 1]),
 			    le32_to_cpu(regdump_val[i + 2]),
