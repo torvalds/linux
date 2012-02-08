@@ -64,6 +64,7 @@ config NFS_V4
 	bool "NFS client support for NFS version 4"
 	depends on NFS_FS
 	select SUNRPC_GSS
+	select KEYS
 	help
 	  This option enables support for version 4 of the NFS protocol
 	  (RFC 3530) in the kernel's NFS client.
@@ -130,5 +131,4 @@ config NFS_USE_KERNEL_DNS
 	bool
 	depends on NFS_V4 && !NFS_USE_LEGACY_DNS
 	select DNS_RESOLVER
-	select KEYS
 	default y
