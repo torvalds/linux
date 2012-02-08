@@ -1699,18 +1699,11 @@ static int cfq_allow_merge(struct request_queue *q, struct request *rq,
 
 	/*
 	 * Lookup the cfqq that this bio will be queued with and allow
-	 * merge only if rq is queued there.  This function can be called
-	 * from plug merge without queue_lock.  In such cases, ioc of @rq
-	 * and %current are guaranteed to be equal.  Avoid lookup which
-	 * requires queue_lock by using @rq's cic.
+	 * merge only if rq is queued there.
 	 */
-	if (current->io_context == RQ_CIC(rq)->icq.ioc) {
-		cic = RQ_CIC(rq);
-	} else {
-		cic = cfq_cic_lookup(cfqd, current->io_context);
-		if (!cic)
-			return false;
-	}
+	cic = cfq_cic_lookup(cfqd, current->io_context);
+	if (!cic)
+		return false;
 
 	cfqq = cic_to_cfqq(cic, cfq_bio_sync(bio));
 	return cfqq == RQ_CFQQ(rq);

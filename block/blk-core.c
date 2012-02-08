@@ -1212,7 +1212,6 @@ static bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
 	req->ioprio = ioprio_best(req->ioprio, bio_prio(bio));
 
 	drive_stat_acct(req, 0);
-	elv_bio_merged(q, req, bio);
 	return true;
 }
 
@@ -1243,7 +1242,6 @@ static bool bio_attempt_front_merge(struct request_queue *q,
 	req->ioprio = ioprio_best(req->ioprio, bio_prio(bio));
 
 	drive_stat_acct(req, 0);
-	elv_bio_merged(q, req, bio);
 	return true;
 }
 
@@ -1257,13 +1255,12 @@ static bool bio_attempt_front_merge(struct request_queue *q,
  * on %current's plugged list.  Returns %true if merge was successful,
  * otherwise %false.
  *
- * This function is called without @q->queue_lock; however, elevator is
- * accessed iff there already are requests on the plugged list which in
- * turn guarantees validity of the elevator.
- *
- * Note that, on successful merge, elevator operation
- * elevator_bio_merged_fn() will be called without queue lock.  Elevator
- * must be ready for this.
+ * Plugging coalesces IOs from the same issuer for the same purpose without
+ * going through @q->queue_lock.  As such it's more of an issuing mechanism
+ * than scheduling, and the request, while may have elvpriv data, is not
+ * added on the elevator at this point.  In addition, we don't have
+ * reliable access to the elevator outside queue lock.  Only check basic
+ * merging parameters without querying the elevator.
  */
 static bool attempt_plug_merge(struct request_queue *q, struct bio *bio,
 			       unsigned int *request_count)
@@ -1282,7 +1279,7 @@ static bool attempt_plug_merge(struct request_queue *q, struct bio *bio,
 
 		(*request_count)++;
 
-		if (rq->q != q || !elv_rq_merge_ok(rq, bio))
+		if (rq->q != q || !blk_rq_merge_ok(rq, bio))
 			continue;
 
 		el_ret = blk_try_merge(rq, bio);
@@ -1347,12 +1344,14 @@ void blk_queue_bio(struct request_queue *q, struct bio *bio)
 	el_ret = elv_merge(q, &req, bio);
 	if (el_ret == ELEVATOR_BACK_MERGE) {
 		if (bio_attempt_back_merge(q, req, bio)) {
+			elv_bio_merged(q, req, bio);
 			if (!attempt_back_merge(q, req))
 				elv_merged_request(q, req, el_ret);
 			goto out_unlock;
 		}
 	} else if (el_ret == ELEVATOR_FRONT_MERGE) {
 		if (bio_attempt_front_merge(q, req, bio)) {
+			elv_bio_merged(q, req, bio);
 			if (!attempt_front_merge(q, req))
 				elv_merged_request(q, req, el_ret);
 			goto out_unlock;
