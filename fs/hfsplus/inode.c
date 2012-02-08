@@ -233,12 +233,12 @@ static void hfsplus_get_perms(struct inode *inode,
 
 	mode = be16_to_cpu(perms->mode);
 
-	inode->i_uid = be32_to_cpu(perms->owner);
-	if (!inode->i_uid && !mode)
+	i_uid_write(inode, be32_to_cpu(perms->owner));
+	if (!i_uid_read(inode) && !mode)
 		inode->i_uid = sbi->uid;
 
-	inode->i_gid = be32_to_cpu(perms->group);
-	if (!inode->i_gid && !mode)
+	i_gid_write(inode, be32_to_cpu(perms->group));
+	if (!i_gid_read(inode) && !mode)
 		inode->i_gid = sbi->gid;
 
 	if (dir) {
