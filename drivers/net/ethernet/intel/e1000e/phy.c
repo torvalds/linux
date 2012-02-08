@@ -1264,8 +1264,6 @@ s32 e1000e_phy_force_speed_duplex_igp(struct e1000_hw *hw)
 						     PHY_FORCE_LIMIT,
 						     100000,
 						     &link);
-		if (ret_val)
-			return ret_val;
 	}
 
 	return ret_val;
