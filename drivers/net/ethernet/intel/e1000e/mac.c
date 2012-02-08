@@ -922,7 +922,7 @@ s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw)
 		e_dbg("No signal detected\n");
 	}
 
-	return 0;
+	return ret_val;
 }
 
 /**
