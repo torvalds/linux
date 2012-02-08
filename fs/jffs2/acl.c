@@ -94,15 +94,23 @@ static struct posix_acl *jffs2_acl_from_medium(void *value, size_t size)
 			case ACL_MASK:
 			case ACL_OTHER:
 				value += sizeof(struct jffs2_acl_entry_short);
-				acl->a_entries[i].e_id = ACL_UNDEFINED_ID;
 				break;
 
 			case ACL_USER:
+				value += sizeof(struct jffs2_acl_entry);
+				if (value > end)
+					goto fail;
+				acl->a_entries[i].e_uid =
+					make_kuid(&init_user_ns,
+						  je32_to_cpu(entry->e_id));
+				break;
 			case ACL_GROUP:
 				value += sizeof(struct jffs2_acl_entry);
 				if (value > end)
 					goto fail;
-				acl->a_entries[i].e_id = je32_to_cpu(entry->e_id);
+				acl->a_entries[i].e_gid =
+					make_kgid(&init_user_ns,
+						  je32_to_cpu(entry->e_id));
 				break;
 
 			default:
@@ -131,13 +139,19 @@ static void *jffs2_acl_to_medium(const struct posix_acl *acl, size_t *size)
 	header->a_version = cpu_to_je32(JFFS2_ACL_VERSION);
 	e = header + 1;
 	for (i=0; i < acl->a_count; i++) {
+		const struct posix_acl_entry *acl_e = &acl->a_entries[i];
 		entry = e;
-		entry->e_tag = cpu_to_je16(acl->a_entries[i].e_tag);
-		entry->e_perm = cpu_to_je16(acl->a_entries[i].e_perm);
-		switch(acl->a_entries[i].e_tag) {
+		entry->e_tag = cpu_to_je16(acl_e->e_tag);
+		entry->e_perm = cpu_to_je16(acl_e->e_perm);
+		switch(acl_e->e_tag) {
 			case ACL_USER:
+				entry->e_id = cpu_to_je32(
+					from_kuid(&init_user_ns, acl_e->e_uid));
+				e += sizeof(struct jffs2_acl_entry);
+				break;
 			case ACL_GROUP:
-				entry->e_id = cpu_to_je32(acl->a_entries[i].e_id);
+				entry->e_id = cpu_to_je32(
+					from_kgid(&init_user_ns, acl_e->e_gid));
 				e += sizeof(struct jffs2_acl_entry);
 				break;
 
