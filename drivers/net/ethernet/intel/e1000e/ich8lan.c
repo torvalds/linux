@@ -3479,6 +3479,7 @@ static s32 e1000_setup_copper_link_ich8lan(struct e1000_hw *hw)
 	default:
 		break;
 	}
+
 	return e1000e_setup_copper_link(hw);
 }
 
