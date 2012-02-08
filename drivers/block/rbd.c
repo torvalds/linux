@@ -2421,7 +2421,12 @@ static ssize_t rbd_add(struct bus_type *bus,
 	if (rc)
 		goto err_out_blkdev;
 
-	/* set up and announce blkdev mapping */
+	/*
+	 * At this point cleanup in the event of an error is the job
+	 * of the sysfs code (initiated by rbd_bus_del_dev()).
+	 *
+	 * Set up and announce blkdev mapping.
+	 */
 	rc = rbd_init_disk(rbd_dev);
 	if (rc)
 		goto err_out_bus;
@@ -2433,8 +2438,6 @@ static ssize_t rbd_add(struct bus_type *bus,
 	return count;
 
 err_out_bus:
-	rbd_id_put(rbd_dev);
-
 	/* this will also clean up rest of rbd_dev stuff */
 
 	rbd_bus_del_dev(rbd_dev);
@@ -2492,6 +2495,9 @@ static void rbd_dev_release(struct device *dev)
 	/* clean up and free blkdev */
 	rbd_free_disk(rbd_dev);
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
+
+	/* done with the id, and with the rbd_dev */
+	rbd_id_put(rbd_dev);
 	kfree(rbd_dev);
 
 	/* release module ref */
@@ -2523,8 +2529,6 @@ static ssize_t rbd_remove(struct bus_type *bus,
 		ret = -ENOENT;
 		goto done;
 	}
-
-	rbd_id_put(rbd_dev);
 
 	__rbd_remove_all_snaps(rbd_dev);
 	rbd_bus_del_dev(rbd_dev);
