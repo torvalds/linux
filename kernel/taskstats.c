@@ -27,6 +27,7 @@
 #include <linux/cgroup.h>
 #include <linux/fs.h>
 #include <linux/file.h>
+#include <linux/pid_namespace.h>
 #include <net/genetlink.h>
 #include <linux/atomic.h>
 
@@ -174,7 +175,9 @@ static void send_cpu_listeners(struct sk_buff *skb,
 	up_write(&listeners->sem);
 }
 
-static void fill_stats(struct task_struct *tsk, struct taskstats *stats)
+static void fill_stats(struct user_namespace *user_ns,
+		       struct pid_namespace *pid_ns,
+		       struct task_struct *tsk, struct taskstats *stats)
 {
 	memset(stats, 0, sizeof(*stats));
 	/*
@@ -190,7 +193,7 @@ static void fill_stats(struct task_struct *tsk, struct taskstats *stats)
 	stats->version = TASKSTATS_VERSION;
 	stats->nvcsw = tsk->nvcsw;
 	stats->nivcsw = tsk->nivcsw;
-	bacct_add_tsk(stats, tsk);
+	bacct_add_tsk(user_ns, pid_ns, stats, tsk);
 
 	/* fill in extended acct fields */
 	xacct_add_tsk(stats, tsk);
@@ -207,7 +210,7 @@ static int fill_stats_for_pid(pid_t pid, struct taskstats *stats)
 	rcu_read_unlock();
 	if (!tsk)
 		return -ESRCH;
-	fill_stats(tsk, stats);
+	fill_stats(current_user_ns(), task_active_pid_ns(current), tsk, stats);
 	put_task_struct(tsk);
 	return 0;
 }
@@ -289,6 +292,12 @@ static int add_del_listener(pid_t pid, const struct cpumask *mask, int isadd)
 	unsigned int cpu;
 
 	if (!cpumask_subset(mask, cpu_possible_mask))
+		return -EINVAL;
+
+	if (current_user_ns() != &init_user_ns)
+		return -EINVAL;
+
+	if (task_active_pid_ns(current) != &init_pid_ns)
 		return -EINVAL;
 
 	if (isadd == REGISTER) {
@@ -631,11 +640,12 @@ void taskstats_exit(struct task_struct *tsk, int group_dead)
 	if (rc < 0)
 		return;
 
-	stats = mk_reply(rep_skb, TASKSTATS_TYPE_PID, tsk->pid);
+	stats = mk_reply(rep_skb, TASKSTATS_TYPE_PID,
+			 task_pid_nr_ns(tsk, &init_pid_ns));
 	if (!stats)
 		goto err;
 
-	fill_stats(tsk, stats);
+	fill_stats(&init_user_ns, &init_pid_ns, tsk, stats);
 
 	/*
 	 * Doesn't matter if tsk is the leader or the last group member leaving
@@ -643,7 +653,8 @@ void taskstats_exit(struct task_struct *tsk, int group_dead)
 	if (!is_thread_group || !group_dead)
 		goto send;
 
-	stats = mk_reply(rep_skb, TASKSTATS_TYPE_TGID, tsk->tgid);
+	stats = mk_reply(rep_skb, TASKSTATS_TYPE_TGID,
+			 task_tgid_nr_ns(tsk, &init_pid_ns));
 	if (!stats)
 		goto err;
 
