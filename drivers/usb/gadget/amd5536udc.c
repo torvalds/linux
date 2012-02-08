@@ -445,6 +445,7 @@ static void ep_init(struct udc_regs __iomem *regs, struct udc_ep *ep)
 
 	VDBG(ep->dev, "ep-%d reset\n", ep->num);
 	ep->desc = NULL;
+	ep->ep.desc = NULL;
 	ep->ep.ops = &udc_ep_ops;
 	INIT_LIST_HEAD(&ep->queue);
 

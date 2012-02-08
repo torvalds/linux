@@ -1742,6 +1742,7 @@ static int pch_udc_pcd_ep_disable(struct usb_ep *usbep)
 	pch_udc_ep_disable(ep);
 	pch_udc_disable_ep_interrupts(ep->dev, PCH_UDC_EPINT(ep->in, ep->num));
 	ep->desc = NULL;
+	ep->ep.desc = NULL;
 	INIT_LIST_HEAD(&ep->queue);
 	spin_unlock_irqrestore(&ep->dev->lock, iflags);
 	return 0;

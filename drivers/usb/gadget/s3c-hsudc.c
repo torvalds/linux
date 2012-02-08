@@ -817,6 +817,7 @@ static int s3c_hsudc_ep_disable(struct usb_ep *_ep)
 	s3c_hsudc_nuke_ep(hsep, -ESHUTDOWN);
 
 	hsep->desc = 0;
+	hsep->ep.desc = NULL;
 	hsep->stopped = 1;
 
 	spin_unlock_irqrestore(&hsudc->lock, flags);
@@ -1006,6 +1007,7 @@ static void s3c_hsudc_initep(struct s3c_hsudc *hsudc,
 	hsep->ep.ops = &s3c_hsudc_ep_ops;
 	hsep->fifo = hsudc->regs + S3C_BR(epnum);
 	hsep->desc = 0;
+	hsep->ep.desc = NULL;
 	hsep->stopped = 0;
 	hsep->wedge = 0;
 

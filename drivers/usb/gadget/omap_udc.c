@@ -251,6 +251,7 @@ static int omap_ep_disable(struct usb_ep *_ep)
 
 	spin_lock_irqsave(&ep->udc->lock, flags);
 	ep->desc = NULL;
+	ep->ep.desc = NULL;
 	nuke (ep, -ESHUTDOWN);
 	ep->ep.maxpacket = ep->maxpacket;
 	ep->has_dma = 0;

@@ -440,6 +440,7 @@ static int __dwc3_gadget_ep_disable(struct dwc3_ep *dep)
 
 	dep->stream_capable = false;
 	dep->desc = NULL;
+	dep->endpoint.desc = NULL;
 	dep->comp_desc = NULL;
 	dep->type = 0;
 	dep->flags = 0;
