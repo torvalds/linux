@@ -60,7 +60,11 @@ struct logger_reader {
 };
 
 /* logger_offset - returns index 'n' into the log via (optimized) modulus */
-#define logger_offset(n)	((n) & (log->size - 1))
+size_t logger_offset(struct logger_log *log, size_t n)
+{
+	return n & (log->size-1);
+}
+
 
 /*
  * file_get_log - Given a file structure, return the associated log
@@ -137,7 +141,7 @@ static ssize_t do_read_log_to_user(struct logger_log *log,
 		if (copy_to_user(buf + len, log->buffer, count - len))
 			return -EFAULT;
 
-	reader->r_off = logger_offset(reader->r_off + count);
+	reader->r_off = logger_offset(log, reader->r_off + count);
 
 	return count;
 }
@@ -225,7 +229,7 @@ static size_t get_next_entry(struct logger_log *log, size_t off, size_t len)
 
 	do {
 		size_t nr = get_entry_len(log, off);
-		off = logger_offset(off + nr);
+		off = logger_offset(log, off + nr);
 		count += nr;
 	} while (count < len);
 
@@ -260,7 +264,7 @@ static inline int clock_interval(size_t a, size_t b, size_t c)
 static void fix_up_readers(struct logger_log *log, size_t len)
 {
 	size_t old = log->w_off;
-	size_t new = logger_offset(old + len);
+	size_t new = logger_offset(log, old + len);
 	struct logger_reader *reader;
 
 	if (clock_interval(old, new, log->head))
@@ -286,7 +290,7 @@ static void do_write_log(struct logger_log *log, const void *buf, size_t count)
 	if (count != len)
 		memcpy(log->buffer, buf + len, count - len);
 
-	log->w_off = logger_offset(log->w_off + count);
+	log->w_off = logger_offset(log, log->w_off + count);
 
 }
 
@@ -311,7 +315,7 @@ static ssize_t do_write_log_from_user(struct logger_log *log,
 		if (copy_from_user(log->buffer, buf + len, count - len))
 			return -EFAULT;
 
-	log->w_off = logger_offset(log->w_off + count);
+	log->w_off = logger_offset(log, log->w_off + count);
 
 	return count;
 }
