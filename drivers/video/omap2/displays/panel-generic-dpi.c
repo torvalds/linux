@@ -363,6 +363,29 @@ static struct panel_config generic_dpi_panels[] = {
 
 		.name			= "ortustech_com43h4m10xtc",
 	},
+
+	/* Innolux AT080TN52 */
+	{
+		{
+			.x_res = 800,
+			.y_res = 600,
+
+			.pixel_clock	= 41142,
+
+			.hsw		= 20,
+			.hfp		= 210,
+			.hbp		= 46,
+
+			.vsw		= 10,
+			.vfp		= 12,
+			.vbp		= 23,
+		},
+		.acb			= 0x0,
+		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
+					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IEO,
+
+		.name			= "innolux_at080tn52",
+	},
 };
 
 struct panel_drv_data {
