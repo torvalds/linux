@@ -135,8 +135,8 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	inode->i_fop = &empty_fops;
 	inode->__i_nlink = 1;
 	inode->i_opflags = 0;
-	inode->i_uid = 0;
-	inode->i_gid = 0;
+	i_uid_write(inode, 0);
+	i_gid_write(inode, 0);
 	atomic_set(&inode->i_writecount, 0);
 	inode->i_size = 0;
 	inode->i_blocks = 0;
@@ -1732,7 +1732,7 @@ EXPORT_SYMBOL(inode_init_owner);
  */
 bool inode_owner_or_capable(const struct inode *inode)
 {
-	if (current_fsuid() == inode->i_uid)
+	if (uid_eq(current_fsuid(), inode->i_uid))
 		return true;
 	if (inode_capable(inode, CAP_FOWNER))
 		return true;
