@@ -209,17 +209,17 @@ struct xc5000_fw_cfg {
 	u16 size;
 };
 
-static struct xc5000_fw_cfg xc5000a_1_6_114 = {
+static const struct xc5000_fw_cfg xc5000a_1_6_114 = {
 	.name = "dvb-fe-xc5000-1.6.114.fw",
 	.size = 12401,
 };
 
-static struct xc5000_fw_cfg xc5000c_41_024_5_31875 = {
+static const struct xc5000_fw_cfg xc5000c_41_024_5_31875 = {
 	.name = "dvb-fe-xc5000c-41.024.5-31875.fw",
 	.size = 16503,
 };
 
-static inline struct xc5000_fw_cfg *xc5000_assign_firmware(int chip_id)
+static inline const struct xc5000_fw_cfg *xc5000_assign_firmware(int chip_id)
 {
 	switch (chip_id) {
 	default:
@@ -578,7 +578,8 @@ static int xc5000_fwupload(struct dvb_frontend *fe)
 	struct xc5000_priv *priv = fe->tuner_priv;
 	const struct firmware *fw;
 	int ret;
-	struct xc5000_fw_cfg *desired_fw = xc5000_assign_firmware(priv->chip_id);
+	const struct xc5000_fw_cfg *desired_fw =
+		xc5000_assign_firmware(priv->chip_id);
 
 	/* request the firmware, this will block and timeout */
 	printk(KERN_INFO "xc5000: waiting for firmware upload (%s)...\n",
