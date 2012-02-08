@@ -500,6 +500,36 @@ static int earpiece_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int lineout_event(struct snd_soc_dapm_widget *w,
+			 struct snd_kcontrol *control, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
+	bool *flag;
+
+	switch (w->shift) {
+	case WM8993_LINEOUT1N_ENA_SHIFT:
+		flag = &hubs->lineout1n_ena;
+		break;
+	case WM8993_LINEOUT1P_ENA_SHIFT:
+		flag = &hubs->lineout1p_ena;
+		break;
+	case WM8993_LINEOUT2N_ENA_SHIFT:
+		flag = &hubs->lineout2n_ena;
+		break;
+	case WM8993_LINEOUT2P_ENA_SHIFT:
+		flag = &hubs->lineout2p_ena;
+		break;
+	default:
+		WARN(1, "Unknown line output");
+		return -EINVAL;
+	}
+
+	*flag = SND_SOC_DAPM_EVENT_ON(event);
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new in1l_pga[] = {
 SOC_DAPM_SINGLE("IN1LP Switch", WM8993_INPUT_MIXER2, 5, 1, 0),
 SOC_DAPM_SINGLE("IN1LN Switch", WM8993_INPUT_MIXER2, 4, 1, 0),
@@ -675,14 +705,18 @@ SND_SOC_DAPM_MIXER("LINEOUT2N Mixer", SND_SOC_NOPM, 0, 0,
 SND_SOC_DAPM_MIXER("LINEOUT2P Mixer", SND_SOC_NOPM, 0, 0,
 		   line2p_mix, ARRAY_SIZE(line2p_mix)),
 
-SND_SOC_DAPM_OUT_DRV("LINEOUT1N Driver", WM8993_POWER_MANAGEMENT_3, 13, 0,
-		     NULL, 0),
-SND_SOC_DAPM_OUT_DRV("LINEOUT1P Driver", WM8993_POWER_MANAGEMENT_3, 12, 0,
-		     NULL, 0),
-SND_SOC_DAPM_OUT_DRV("LINEOUT2N Driver", WM8993_POWER_MANAGEMENT_3, 11, 0,
-		     NULL, 0),
-SND_SOC_DAPM_OUT_DRV("LINEOUT2P Driver", WM8993_POWER_MANAGEMENT_3, 10, 0,
-		     NULL, 0),
+SND_SOC_DAPM_OUT_DRV_E("LINEOUT1N Driver", WM8993_POWER_MANAGEMENT_3, 13, 0,
+		       NULL, 0, lineout_event,
+		     SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_OUT_DRV_E("LINEOUT1P Driver", WM8993_POWER_MANAGEMENT_3, 12, 0,
+		       NULL, 0, lineout_event,
+		       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_OUT_DRV_E("LINEOUT2N Driver", WM8993_POWER_MANAGEMENT_3, 11, 0,
+		       NULL, 0, lineout_event,
+		       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_OUT_DRV_E("LINEOUT2P Driver", WM8993_POWER_MANAGEMENT_3, 10, 0,
+		       NULL, 0, lineout_event,
+		       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_OUTPUT("SPKOUTLP"),
 SND_SOC_DAPM_OUTPUT("SPKOUTLN"),
@@ -949,6 +983,11 @@ int wm_hubs_handle_analogue_pdata(struct snd_soc_codec *codec,
 				  int jd_scthr, int jd_thr, int micbias1_lvl,
 				  int micbias2_lvl)
 {
+	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
+
+	hubs->lineout1_se = !lineout1_diff;
+	hubs->lineout2_se = !lineout2_diff;
+
 	if (!lineout1_diff)
 		snd_soc_update_bits(codec, WM8993_LINE_MIXER1,
 				    WM8993_LINEOUT1_MODE,
@@ -977,6 +1016,64 @@ int wm_hubs_handle_analogue_pdata(struct snd_soc_codec *codec,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm_hubs_handle_analogue_pdata);
+
+void wm_hubs_vmid_ena(struct snd_soc_codec *codec)
+{
+	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
+	int val = 0;
+
+	if (hubs->lineout1_se)
+		val |= WM8993_LINEOUT1N_ENA | WM8993_LINEOUT1P_ENA;
+
+	if (hubs->lineout2_se)
+		val |= WM8993_LINEOUT2N_ENA | WM8993_LINEOUT2P_ENA;
+
+	/* Enable the line outputs while we power up */
+	snd_soc_update_bits(codec, WM8993_POWER_MANAGEMENT_3, val, val);
+}
+EXPORT_SYMBOL_GPL(wm_hubs_vmid_ena);
+
+void wm_hubs_set_bias_level(struct snd_soc_codec *codec,
+			    enum snd_soc_bias_level level)
+{
+	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
+	int val;
+
+	switch (level) {
+	case SND_SOC_BIAS_ON:
+		/* Turn off any unneded single ended outputs */
+		val = 0;
+
+		if (hubs->lineout1_se && hubs->lineout1n_ena)
+			val |= WM8993_LINEOUT1N_ENA;
+
+		if (hubs->lineout1_se && hubs->lineout1p_ena)
+			val |= WM8993_LINEOUT1P_ENA;
+
+		if (hubs->lineout2_se && hubs->lineout2n_ena)
+			val |= WM8993_LINEOUT2N_ENA;
+
+		if (hubs->lineout2_se && hubs->lineout2p_ena)
+			val |= WM8993_LINEOUT2P_ENA;
+
+		snd_soc_update_bits(codec, WM8993_POWER_MANAGEMENT_3,
+				    WM8993_LINEOUT1N_ENA |
+				    WM8993_LINEOUT1P_ENA |
+				    WM8993_LINEOUT2N_ENA |
+				    WM8993_LINEOUT2P_ENA,
+				    val);
+
+		if (!hubs->lineout1n_ena && !hubs->lineout1p_ena &&
+		    !hubs->lineout2n_ena && !hubs->lineout2p_ena)
+			snd_soc_update_bits(codec, WM8993_ANTIPOP1,
+					    WM8993_LINEOUT_VMID_BUF_ENA, 0);
+		break;
+
+	default:
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(wm_hubs_set_bias_level);
 
 MODULE_DESCRIPTION("Shared support for Wolfson hubs products");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
