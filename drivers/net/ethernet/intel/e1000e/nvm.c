@@ -446,20 +446,19 @@ s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 
 	if (pba_num == NULL) {
 		e_dbg("PBA string buffer was null\n");
-		ret_val = E1000_ERR_INVALID_ARGUMENT;
-		goto out;
+		return -E1000_ERR_INVALID_ARGUMENT;
 	}
 
 	ret_val = e1000_read_nvm(hw, NVM_PBA_OFFSET_0, 1, &nvm_data);
 	if (ret_val) {
 		e_dbg("NVM Read Error\n");
-		goto out;
+		return ret_val;
 	}
 
 	ret_val = e1000_read_nvm(hw, NVM_PBA_OFFSET_1, 1, &pba_ptr);
 	if (ret_val) {
 		e_dbg("NVM Read Error\n");
-		goto out;
+		return ret_val;
 	}
 
 	/*
@@ -499,25 +498,23 @@ s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 				pba_num[offset] += 'A' - 0xA;
 		}
 
-		goto out;
+		return 0;
 	}
 
 	ret_val = e1000_read_nvm(hw, pba_ptr, 1, &length);
 	if (ret_val) {
 		e_dbg("NVM Read Error\n");
-		goto out;
+		return ret_val;
 	}
 
 	if (length == 0xFFFF || length == 0) {
 		e_dbg("NVM PBA number section invalid length\n");
-		ret_val = E1000_ERR_NVM_PBA_SECTION;
-		goto out;
+		return -E1000_ERR_NVM_PBA_SECTION;
 	}
 	/* check if pba_num buffer is big enough */
 	if (pba_num_size < (((u32)length * 2) - 1)) {
 		e_dbg("PBA string buffer too small\n");
-		ret_val = E1000_ERR_NO_SPACE;
-		goto out;
+		return -E1000_ERR_NO_SPACE;
 	}
 
 	/* trim pba length from start of string */
@@ -528,15 +525,14 @@ s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 		ret_val = e1000_read_nvm(hw, pba_ptr + offset, 1, &nvm_data);
 		if (ret_val) {
 			e_dbg("NVM Read Error\n");
-			goto out;
+			return ret_val;
 		}
 		pba_num[offset * 2] = (u8)(nvm_data >> 8);
 		pba_num[(offset * 2) + 1] = (u8)(nvm_data & 0xFF);
 	}
 	pba_num[offset * 2] = '\0';
 
-out:
-	return ret_val;
+	return 0;
 }
 
 /**
