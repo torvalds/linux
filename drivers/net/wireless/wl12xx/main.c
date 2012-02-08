@@ -680,8 +680,6 @@ static int wl1271_plt_init(struct wl1271 *wl)
 		if (ret < 0)
 			return ret;
 	}
-	if (ret < 0)
-		return ret;
 
 	/* Chip-specific initializations */
 	ret = wl1271_chip_specific_init(wl);
