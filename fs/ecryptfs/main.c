@@ -544,11 +544,12 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 		goto out_free;
 	}
 
-	if (check_ruid && path.dentry->d_inode->i_uid != current_uid()) {
+	if (check_ruid && !uid_eq(path.dentry->d_inode->i_uid, current_uid())) {
 		rc = -EPERM;
 		printk(KERN_ERR "Mount of device (uid: %d) not owned by "
 		       "requested user (uid: %d)\n",
-		       path.dentry->d_inode->i_uid, current_uid());
+			i_uid_read(path.dentry->d_inode),
+			from_kuid(&init_user_ns, current_uid()));
 		goto out_free;
 	}
 
