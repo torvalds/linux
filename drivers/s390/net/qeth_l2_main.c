@@ -75,6 +75,9 @@ static int qeth_l2_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			mii_data->val_out = qeth_mdio_read(dev,
 				mii_data->phy_id, mii_data->reg_num);
 		break;
+	case SIOC_QETH_QUERY_OAT:
+		rc = qeth_query_oat_command(card, rq->ifr_ifru.ifru_data);
+		break;
 	default:
 		rc = -EOPNOTSUPP;
 	}
