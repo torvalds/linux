@@ -2308,6 +2308,55 @@ static irqreturn_t ixgbe_msix_clean_rings(int irq, void *data)
 }
 
 /**
+ * ixgbe_poll - NAPI Rx polling callback
+ * @napi: structure for representing this polling device
+ * @budget: how many packets driver is allowed to clean
+ *
+ * This function is used for legacy and MSI, NAPI mode
+ **/
+static int ixgbe_poll(struct napi_struct *napi, int budget)
+{
+	struct ixgbe_q_vector *q_vector =
+				container_of(napi, struct ixgbe_q_vector, napi);
+	struct ixgbe_adapter *adapter = q_vector->adapter;
+	struct ixgbe_ring *ring;
+	int per_ring_budget;
+	bool clean_complete = true;
+
+#ifdef CONFIG_IXGBE_DCA
+	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
+		ixgbe_update_dca(q_vector);
+#endif
+
+	ixgbe_for_each_ring(ring, q_vector->tx)
+		clean_complete &= !!ixgbe_clean_tx_irq(q_vector, ring);
+
+	/* attempt to distribute budget to each queue fairly, but don't allow
+	 * the budget to go below 1 because we'll exit polling */
+	if (q_vector->rx.count > 1)
+		per_ring_budget = max(budget/q_vector->rx.count, 1);
+	else
+		per_ring_budget = budget;
+
+	ixgbe_for_each_ring(ring, q_vector->rx)
+		clean_complete &= ixgbe_clean_rx_irq(q_vector, ring,
+						     per_ring_budget);
+
+	/* If all work not completed, return budget and keep polling */
+	if (!clean_complete)
+		return budget;
+
+	/* all work done, exit the polling mode */
+	napi_complete(napi);
+	if (adapter->rx_itr_setting & 1)
+		ixgbe_set_itr(q_vector);
+	if (!test_bit(__IXGBE_DOWN, &adapter->state))
+		ixgbe_irq_enable_queues(adapter, ((u64)1 << q_vector->v_idx));
+
+	return 0;
+}
+
+/**
  * ixgbe_request_msix_irqs - Initialize MSI-X interrupts
  * @adapter: board private structure
  *
@@ -4251,55 +4300,6 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	/* since we reset the hardware DCA settings were cleared */
 	ixgbe_setup_dca(adapter);
 #endif
-}
-
-/**
- * ixgbe_poll - NAPI Rx polling callback
- * @napi: structure for representing this polling device
- * @budget: how many packets driver is allowed to clean
- *
- * This function is used for legacy and MSI, NAPI mode
- **/
-static int ixgbe_poll(struct napi_struct *napi, int budget)
-{
-	struct ixgbe_q_vector *q_vector =
-				container_of(napi, struct ixgbe_q_vector, napi);
-	struct ixgbe_adapter *adapter = q_vector->adapter;
-	struct ixgbe_ring *ring;
-	int per_ring_budget;
-	bool clean_complete = true;
-
-#ifdef CONFIG_IXGBE_DCA
-	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
-		ixgbe_update_dca(q_vector);
-#endif
-
-	ixgbe_for_each_ring(ring, q_vector->tx)
-		clean_complete &= !!ixgbe_clean_tx_irq(q_vector, ring);
-
-	/* attempt to distribute budget to each queue fairly, but don't allow
-	 * the budget to go below 1 because we'll exit polling */
-	if (q_vector->rx.count > 1)
-		per_ring_budget = max(budget/q_vector->rx.count, 1);
-	else
-		per_ring_budget = budget;
-
-	ixgbe_for_each_ring(ring, q_vector->rx)
-		clean_complete &= ixgbe_clean_rx_irq(q_vector, ring,
-						     per_ring_budget);
-
-	/* If all work not completed, return budget and keep polling */
-	if (!clean_complete)
-		return budget;
-
-	/* all work done, exit the polling mode */
-	napi_complete(napi);
-	if (adapter->rx_itr_setting & 1)
-		ixgbe_set_itr(q_vector);
-	if (!test_bit(__IXGBE_DOWN, &adapter->state))
-		ixgbe_irq_enable_queues(adapter, ((u64)1 << q_vector->v_idx));
-
-	return 0;
 }
 
 /**
