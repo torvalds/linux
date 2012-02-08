@@ -1916,6 +1916,7 @@ static struct snd_soc_codec_driver soc_codec_wm2200 = {
 	.probe = wm2200_probe,
 
 	.idle_bias_off = true,
+	.ignore_pmdown_time = true,
 	.set_sysclk = wm2200_set_sysclk,
 	.set_pll = wm2200_set_fll,
 
