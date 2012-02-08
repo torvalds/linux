@@ -1882,6 +1882,7 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
 	p->sector = cpu_to_be64(peer_req->i.sector);
 	p->block_id = peer_req->block_id;
 	p->seq_num = 0;  /* unused */
+	p->dp_flags = 0;
 	if (dgs)
 		drbd_csum_ee(mdev, mdev->tconn->integrity_tfm, peer_req, p + 1);
 	err = __send_command(mdev->tconn, mdev->vnr, sock, cmd, sizeof(*p) + dgs, NULL, peer_req->i.size);
