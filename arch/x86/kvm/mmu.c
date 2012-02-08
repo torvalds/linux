@@ -688,8 +688,7 @@ static struct kvm_lpage_info *lpage_info_slot(gfn_t gfn,
 {
 	unsigned long idx;
 
-	idx = (gfn >> KVM_HPAGE_GFN_SHIFT(level)) -
-	      (slot->base_gfn >> KVM_HPAGE_GFN_SHIFT(level));
+	idx = gfn_to_index(gfn, slot->base_gfn, level);
 	return &slot->lpage_info[level - 2][idx];
 }
 

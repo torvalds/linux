@@ -784,15 +784,10 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		int lpages;
 		int level = i + 2;
 
-		/* Avoid unused variable warning if no large pages */
-		(void)level;
-
 		if (new.lpage_info[i])
 			continue;
 
-		lpages = 1 + ((base_gfn + npages - 1)
-			     >> KVM_HPAGE_GFN_SHIFT(level));
-		lpages -= base_gfn >> KVM_HPAGE_GFN_SHIFT(level);
+		lpages = gfn_to_index(base_gfn + npages - 1, base_gfn, level) + 1;
 
 		new.lpage_info[i] = vzalloc(lpages * sizeof(*new.lpage_info[i]));
 
