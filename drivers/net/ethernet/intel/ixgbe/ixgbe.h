@@ -208,15 +208,18 @@ enum ixgbe_ring_state_t {
 	clear_bit(__IXGBE_RX_RSC_ENABLED, &(ring)->state)
 struct ixgbe_ring {
 	struct ixgbe_ring *next;	/* pointer to next ring in q_vector */
+	struct ixgbe_q_vector *q_vector; /* backpointer to host q_vector */
+	struct net_device *netdev;	/* netdev ring belongs to */
+	struct device *dev;		/* device for DMA mapping */
 	void *desc;			/* descriptor ring memory */
-	struct device *dev;             /* device for DMA mapping */
-	struct net_device *netdev;      /* netdev ring belongs to */
 	union {
 		struct ixgbe_tx_buffer *tx_buffer_info;
 		struct ixgbe_rx_buffer *rx_buffer_info;
 	};
 	unsigned long state;
 	u8 __iomem *tail;
+	dma_addr_t dma;			/* phys. address of descriptor ring */
+	unsigned int size;		/* length in bytes */
 
 	u16 count;			/* amount of descriptors */
 
@@ -226,16 +229,16 @@ struct ixgbe_ring {
 					 * associated with this ring, which is
 					 * different for DCB and RSS modes
 					 */
+	u16 next_to_use;
+	u16 next_to_clean;
+
 	union {
+		u16 next_to_alloc;
 		struct {
 			u8 atr_sample_rate;
 			u8 atr_count;
 		};
-		u16 next_to_alloc;
 	};
-
-	u16 next_to_use;
-	u16 next_to_clean;
 
 	u8 dcb_tc;
 	struct ixgbe_queue_stats stats;
@@ -244,9 +247,6 @@ struct ixgbe_ring {
 		struct ixgbe_tx_queue_stats tx_stats;
 		struct ixgbe_rx_queue_stats rx_stats;
 	};
-	unsigned int size;		/* length in bytes */
-	dma_addr_t dma;			/* phys. address of descriptor ring */
-	struct ixgbe_q_vector *q_vector; /* back-pointer to host q_vector */
 } ____cacheline_internodealigned_in_smp;
 
 enum ixgbe_ring_f_enum {
