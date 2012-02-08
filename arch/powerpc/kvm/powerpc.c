@@ -281,6 +281,16 @@ long kvm_arch_dev_ioctl(struct file *filp,
 	return -EINVAL;
 }
 
+void kvm_arch_free_memslot(struct kvm_memory_slot *free,
+			   struct kvm_memory_slot *dont)
+{
+}
+
+int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
+{
+	return 0;
+}
+
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
                                    struct kvm_memory_slot *memslot,
                                    struct kvm_memory_slot old,

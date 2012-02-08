@@ -6239,6 +6239,65 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 		put_page(kvm->arch.ept_identity_pagetable);
 }
 
+void kvm_arch_free_memslot(struct kvm_memory_slot *free,
+			   struct kvm_memory_slot *dont)
+{
+	int i;
+
+	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
+		if (!dont || free->arch.lpage_info[i] != dont->arch.lpage_info[i]) {
+			vfree(free->arch.lpage_info[i]);
+			free->arch.lpage_info[i] = NULL;
+		}
+	}
+}
+
+int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
+{
+	int i;
+
+	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
+		unsigned long ugfn;
+		int lpages;
+		int level = i + 2;
+
+		lpages = gfn_to_index(slot->base_gfn + npages - 1,
+				      slot->base_gfn, level) + 1;
+
+		slot->arch.lpage_info[i] =
+			vzalloc(lpages * sizeof(*slot->arch.lpage_info[i]));
+		if (!slot->arch.lpage_info[i])
+			goto out_free;
+
+		if (slot->base_gfn & (KVM_PAGES_PER_HPAGE(level) - 1))
+			slot->arch.lpage_info[i][0].write_count = 1;
+		if ((slot->base_gfn + npages) & (KVM_PAGES_PER_HPAGE(level) - 1))
+			slot->arch.lpage_info[i][lpages - 1].write_count = 1;
+		ugfn = slot->userspace_addr >> PAGE_SHIFT;
+		/*
+		 * If the gfn and userspace address are not aligned wrt each
+		 * other, or if explicitly asked to, disable large page
+		 * support for this slot
+		 */
+		if ((slot->base_gfn ^ ugfn) & (KVM_PAGES_PER_HPAGE(level) - 1) ||
+		    !kvm_largepages_enabled()) {
+			unsigned long j;
+
+			for (j = 0; j < lpages; ++j)
+				slot->arch.lpage_info[i][j].write_count = 1;
+		}
+	}
+
+	return 0;
+
+out_free:
+	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
+		vfree(slot->arch.lpage_info[i]);
+		slot->arch.lpage_info[i] = NULL;
+	}
+	return -ENOMEM;
+}
+
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				struct kvm_memory_slot *memslot,
 				struct kvm_memory_slot old,

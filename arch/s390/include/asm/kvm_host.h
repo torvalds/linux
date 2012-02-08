@@ -245,6 +245,9 @@ struct kvm_vm_stat {
 	u32 remote_tlb_flush;
 };
 
+struct kvm_arch_memory_slot {
+};
+
 struct kvm_arch{
 	struct sca_block *sca;
 	debug_info_t *dbf;

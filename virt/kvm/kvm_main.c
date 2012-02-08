@@ -535,21 +535,13 @@ static void kvm_destroy_dirty_bitmap(struct kvm_memory_slot *memslot)
 static void kvm_free_physmem_slot(struct kvm_memory_slot *free,
 				  struct kvm_memory_slot *dont)
 {
-	int i;
-
 	if (!dont || free->rmap != dont->rmap)
 		vfree(free->rmap);
 
 	if (!dont || free->dirty_bitmap != dont->dirty_bitmap)
 		kvm_destroy_dirty_bitmap(free);
 
-
-	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
-		if (!dont || free->lpage_info[i] != dont->lpage_info[i]) {
-			vfree(free->lpage_info[i]);
-			free->lpage_info[i] = NULL;
-		}
-	}
+	kvm_arch_free_memslot(free, dont);
 
 	free->npages = 0;
 	free->rmap = NULL;
@@ -685,53 +677,6 @@ void update_memslots(struct kvm_memslots *slots, struct kvm_memory_slot *new)
 	slots->generation++;
 }
 
-#ifndef CONFIG_S390
-static int create_lpage_info(struct kvm_memory_slot *slot, unsigned long npages)
-{
-	int i;
-
-	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
-		unsigned long ugfn;
-		int lpages;
-		int level = i + 2;
-
-		lpages = gfn_to_index(slot->base_gfn + npages - 1,
-				      slot->base_gfn, level) + 1;
-
-		slot->lpage_info[i] = vzalloc(lpages * sizeof(*slot->lpage_info[i]));
-		if (!slot->lpage_info[i])
-			goto out_free;
-
-		if (slot->base_gfn & (KVM_PAGES_PER_HPAGE(level) - 1))
-			slot->lpage_info[i][0].write_count = 1;
-		if ((slot->base_gfn + npages) & (KVM_PAGES_PER_HPAGE(level) - 1))
-			slot->lpage_info[i][lpages - 1].write_count = 1;
-		ugfn = slot->userspace_addr >> PAGE_SHIFT;
-		/*
-		 * If the gfn and userspace address are not aligned wrt each
-		 * other, or if explicitly asked to, disable large page
-		 * support for this slot
-		 */
-		if ((slot->base_gfn ^ ugfn) & (KVM_PAGES_PER_HPAGE(level) - 1) ||
-		    !largepages_enabled) {
-			unsigned long j;
-
-			for (j = 0; j < lpages; ++j)
-				slot->lpage_info[i][j].write_count = 1;
-		}
-	}
-
-	return 0;
-
-out_free:
-	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
-		vfree(slot->lpage_info[i]);
-		slot->lpage_info[i] = NULL;
-	}
-	return -ENOMEM;
-}
-#endif /* not defined CONFIG_S390 */
-
 /*
  * Allocate some memory and give it an address in the guest physical address
  * space.
@@ -819,10 +764,9 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		new.rmap = vzalloc(npages * sizeof(*new.rmap));
 		if (!new.rmap)
 			goto out_free;
-
-		if (create_lpage_info(&new, npages))
-			goto out_free;
 #endif /* not defined CONFIG_S390 */
+		if (kvm_arch_create_memslot(&new, npages))
+			goto out_free;
 	}
 
 	/* Allocate page dirty bitmap if needed */
@@ -880,8 +824,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	if (!npages) {
 		new.rmap = NULL;
 		new.dirty_bitmap = NULL;
-		for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i)
-			new.lpage_info[i] = NULL;
+		memset(&new.arch, 0, sizeof(new.arch));
 	}
 
 	update_memslots(slots, &new);
@@ -966,6 +909,11 @@ int kvm_get_dirty_log(struct kvm *kvm,
 	r = 0;
 out:
 	return r;
+}
+
+bool kvm_largepages_enabled(void)
+{
+	return largepages_enabled;
 }
 
 void kvm_disable_largepages(void)

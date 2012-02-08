@@ -171,11 +171,6 @@ static inline int kvm_vcpu_exiting_guest_mode(struct kvm_vcpu *vcpu)
  */
 #define KVM_MEM_MAX_NR_PAGES ((1UL << 31) - 1)
 
-struct kvm_lpage_info {
-	unsigned long rmap_pde;
-	int write_count;
-};
-
 struct kvm_memory_slot {
 	gfn_t base_gfn;
 	unsigned long npages;
@@ -184,7 +179,7 @@ struct kvm_memory_slot {
 	unsigned long *dirty_bitmap;
 	unsigned long *dirty_bitmap_head;
 	unsigned long nr_dirty_pages;
-	struct kvm_lpage_info *lpage_info[KVM_NR_PAGE_SIZES - 1];
+	struct kvm_arch_memory_slot arch;
 	unsigned long userspace_addr;
 	int user_alloc;
 	int id;
@@ -376,6 +371,9 @@ int kvm_set_memory_region(struct kvm *kvm,
 int __kvm_set_memory_region(struct kvm *kvm,
 			    struct kvm_userspace_memory_region *mem,
 			    int user_alloc);
+void kvm_arch_free_memslot(struct kvm_memory_slot *free,
+			   struct kvm_memory_slot *dont);
+int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages);
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				struct kvm_memory_slot *memslot,
 				struct kvm_memory_slot old,
@@ -385,6 +383,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem,
 				struct kvm_memory_slot old,
 				int user_alloc);
+bool kvm_largepages_enabled(void);
 void kvm_disable_largepages(void);
 void kvm_arch_flush_shadow(struct kvm *kvm);
 

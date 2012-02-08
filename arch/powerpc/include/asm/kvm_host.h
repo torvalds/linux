@@ -213,6 +213,9 @@ struct revmap_entry {
 #define KVMPPC_PAGE_WRITETHRU	HPTE_R_W	/* 0x40 */
 #define KVMPPC_GOT_PAGE		0x80
 
+struct kvm_arch_memory_slot {
+};
+
 struct kvm_arch {
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	unsigned long hpt_virt;

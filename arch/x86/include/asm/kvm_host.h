@@ -483,6 +483,15 @@ struct kvm_vcpu_arch {
 	} osvw;
 };
 
+struct kvm_lpage_info {
+	unsigned long rmap_pde;
+	int write_count;
+};
+
+struct kvm_arch_memory_slot {
+	struct kvm_lpage_info *lpage_info[KVM_NR_PAGE_SIZES - 1];
+};
+
 struct kvm_arch {
 	unsigned int n_used_mmu_pages;
 	unsigned int n_requested_mmu_pages;
