@@ -22,7 +22,7 @@
 #include "integrity.h"
 
 static struct rb_root integrity_iint_tree = RB_ROOT;
-static DEFINE_SPINLOCK(integrity_iint_lock);
+static DEFINE_RWLOCK(integrity_iint_lock);
 static struct kmem_cache *iint_cache __read_mostly;
 
 int iint_initialized;
@@ -34,8 +34,6 @@ static struct integrity_iint_cache *__integrity_iint_find(struct inode *inode)
 {
 	struct integrity_iint_cache *iint;
 	struct rb_node *n = integrity_iint_tree.rb_node;
-
-	assert_spin_locked(&integrity_iint_lock);
 
 	while (n) {
 		iint = rb_entry(n, struct integrity_iint_cache, rb_node);
@@ -63,9 +61,9 @@ struct integrity_iint_cache *integrity_iint_find(struct inode *inode)
 	if (!IS_IMA(inode))
 		return NULL;
 
-	spin_lock(&integrity_iint_lock);
+	read_lock(&integrity_iint_lock);
 	iint = __integrity_iint_find(inode);
-	spin_unlock(&integrity_iint_lock);
+	read_unlock(&integrity_iint_lock);
 
 	return iint;
 }
@@ -100,7 +98,7 @@ struct integrity_iint_cache *integrity_inode_get(struct inode *inode)
 	if (!iint)
 		return NULL;
 
-	spin_lock(&integrity_iint_lock);
+	write_lock(&integrity_iint_lock);
 
 	p = &integrity_iint_tree.rb_node;
 	while (*p) {
@@ -119,7 +117,7 @@ struct integrity_iint_cache *integrity_inode_get(struct inode *inode)
 	rb_link_node(node, parent, p);
 	rb_insert_color(node, &integrity_iint_tree);
 
-	spin_unlock(&integrity_iint_lock);
+	write_unlock(&integrity_iint_lock);
 	return iint;
 }
 
@@ -136,10 +134,10 @@ void integrity_inode_free(struct inode *inode)
 	if (!IS_IMA(inode))
 		return;
 
-	spin_lock(&integrity_iint_lock);
+	write_lock(&integrity_iint_lock);
 	iint = __integrity_iint_find(inode);
 	rb_erase(&iint->rb_node, &integrity_iint_tree);
-	spin_unlock(&integrity_iint_lock);
+	write_unlock(&integrity_iint_lock);
 
 	iint_free(iint);
 }
