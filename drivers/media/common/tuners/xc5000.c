@@ -60,7 +60,7 @@ struct xc5000_priv {
 	u8  rf_mode;
 	u8  radio_input;
 
-	struct xc5000_fw_cfg *fw;
+	int chip_id;
 };
 
 /* Misc Defines */
@@ -219,13 +219,13 @@ static struct xc5000_fw_cfg xc5000c_41_024_5_31875 = {
 	.size = 16503,
 };
 
-static inline struct xc5000_fw_cfg *xc5000_assign_firmware(int fw)
+static inline struct xc5000_fw_cfg *xc5000_assign_firmware(int chip_id)
 {
-	switch (fw) {
+	switch (chip_id) {
 	default:
-	case XC5000_FW_A_1_6_114:
+	case XC5000A:
 		return &xc5000a_1_6_114;
-	case XC5000_FW_C_41_024_5_31875:
+	case XC5000C:
 		return &xc5000c_41_024_5_31875;
 	}
 }
@@ -578,12 +578,13 @@ static int xc5000_fwupload(struct dvb_frontend *fe)
 	struct xc5000_priv *priv = fe->tuner_priv;
 	const struct firmware *fw;
 	int ret;
+	struct xc5000_fw_cfg *desired_fw = xc5000_assign_firmware(priv->chip_id);
 
 	/* request the firmware, this will block and timeout */
 	printk(KERN_INFO "xc5000: waiting for firmware upload (%s)...\n",
-		priv->fw->name);
+		desired_fw->name);
 
-	ret = request_firmware(&fw, priv->fw->name,
+	ret = request_firmware(&fw, desired_fw->name,
 		priv->i2c_props.adap->dev.parent);
 	if (ret) {
 		printk(KERN_ERR "xc5000: Upload failed. (file not found?)\n");
@@ -595,7 +596,7 @@ static int xc5000_fwupload(struct dvb_frontend *fe)
 		ret = XC_RESULT_SUCCESS;
 	}
 
-	if (fw->size != priv->fw->size) {
+	if (fw->size != desired_fw->size) {
 		printk(KERN_ERR "xc5000: firmware incorrect size\n");
 		ret = XC_RESULT_RESET_FAILURE;
 	} else {
@@ -1165,12 +1166,12 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 	if (priv->radio_input == 0)
 		priv->radio_input = cfg->radio_input;
 
-	/* don't override firmware filename if it's already been set
+	/* don't override chip id if it's already been set
 	   unless explicitly specified */
-	if ((priv->fw == NULL) || (cfg->fw))
-		/* use default firmware if none specified */
-		priv->fw = xc5000_assign_firmware((cfg->fw) ?
-			cfg->fw : XC5000_DEFAULT_FIRMWARE);
+	if ((priv->chip_id == 0) || (cfg->chip_id))
+		/* use default chip id if none specified, set to 0 so
+		   it can be overridden if this is a hybrid driver */
+		priv->chip_id = (cfg->chip_id) ? cfg->chip_id : 0;
 
 	/* Check if firmware has been loaded. It is possible that another
 	   instance of the driver has loaded the firmware.

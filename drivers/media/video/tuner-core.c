@@ -386,7 +386,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 			.i2c_address = t->i2c->addr,
 			/* if_khz will be set at dvb_attach() */
 			.if_khz	  = 0,
-			.fw = XC5000C_DEFAULT_FIRMWARE,
+			.chip_id  = XC5000C,
 		};
 
 		if (!dvb_attach(xc5000_attach,

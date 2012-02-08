@@ -27,18 +27,15 @@
 struct dvb_frontend;
 struct i2c_adapter;
 
-#define XC5000_FW_A_1_6_114            1
-#define XC5000_FW_C_41_024_5_31875     2
-
-#define XC5000_DEFAULT_FIRMWARE  XC5000_FW_A_1_6_114
-#define XC5000C_DEFAULT_FIRMWARE XC5000_FW_C_41_024_5_31875
+#define XC5000A 1
+#define XC5000C 2
 
 struct xc5000_config {
 	u8   i2c_address;
 	u32  if_khz;
 	u8   radio_input;
 
-	int fw;
+	int chip_id;
 };
 
 /* xc5000 callback command */
