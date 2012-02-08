@@ -15,3 +15,5 @@ util/util.c
 util/xyarray.c
 util/cgroup.c
 util/debugfs.c
+util/strlist.c
+../../lib/rbtree.c

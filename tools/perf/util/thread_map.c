@@ -6,6 +6,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "strlist.h"
+#include <string.h>
 #include "thread_map.h"
 
 /* Skip "." and ".." directories */
@@ -150,6 +152,132 @@ struct thread_map *thread_map__new(pid_t pid, pid_t tid, uid_t uid)
 		return thread_map__new_by_uid(uid);
 
 	return thread_map__new_by_tid(tid);
+}
+
+static struct thread_map *thread_map__new_by_pid_str(const char *pid_str)
+{
+	struct thread_map *threads = NULL, *nt;
+	char name[256];
+	int items, total_tasks = 0;
+	struct dirent **namelist = NULL;
+	int i, j = 0;
+	pid_t pid, prev_pid = INT_MAX;
+	char *end_ptr;
+	struct str_node *pos;
+	struct strlist *slist = strlist__new(false, pid_str);
+
+	if (!slist)
+		return NULL;
+
+	strlist__for_each(pos, slist) {
+		pid = strtol(pos->s, &end_ptr, 10);
+
+		if (pid == INT_MIN || pid == INT_MAX ||
+		    (*end_ptr != '\0' && *end_ptr != ','))
+			goto out_free_threads;
+
+		if (pid == prev_pid)
+			continue;
+
+		sprintf(name, "/proc/%d/task", pid);
+		items = scandir(name, &namelist, filter, NULL);
+		if (items <= 0)
+			goto out_free_threads;
+
+		total_tasks += items;
+		nt = realloc(threads, (sizeof(*threads) +
+				       sizeof(pid_t) * total_tasks));
+		if (nt == NULL)
+			goto out_free_threads;
+
+		threads = nt;
+
+		if (threads) {
+			for (i = 0; i < items; i++)
+				threads->map[j++] = atoi(namelist[i]->d_name);
+			threads->nr = total_tasks;
+		}
+
+		for (i = 0; i < items; i++)
+			free(namelist[i]);
+		free(namelist);
+
+		if (!threads)
+			break;
+	}
+
+out:
+	strlist__delete(slist);
+	return threads;
+
+out_free_threads:
+	free(threads);
+	threads = NULL;
+	goto out;
+}
+
+static struct thread_map *thread_map__new_by_tid_str(const char *tid_str)
+{
+	struct thread_map *threads = NULL, *nt;
+	int ntasks = 0;
+	pid_t tid, prev_tid = INT_MAX;
+	char *end_ptr;
+	struct str_node *pos;
+	struct strlist *slist;
+
+	/* perf-stat expects threads to be generated even if tid not given */
+	if (!tid_str) {
+		threads = malloc(sizeof(*threads) + sizeof(pid_t));
+		if (threads != NULL) {
+			threads->map[1] = -1;
+			threads->nr	= 1;
+		}
+		return threads;
+	}
+
+	slist = strlist__new(false, tid_str);
+	if (!slist)
+		return NULL;
+
+	strlist__for_each(pos, slist) {
+		tid = strtol(pos->s, &end_ptr, 10);
+
+		if (tid == INT_MIN || tid == INT_MAX ||
+		    (*end_ptr != '\0' && *end_ptr != ','))
+			goto out_free_threads;
+
+		if (tid == prev_tid)
+			continue;
+
+		ntasks++;
+		nt = realloc(threads, sizeof(*threads) + sizeof(pid_t) * ntasks);
+
+		if (nt == NULL)
+			goto out_free_threads;
+
+		threads = nt;
+		threads->map[ntasks - 1] = tid;
+		threads->nr		 = ntasks;
+	}
+out:
+	return threads;
+
+out_free_threads:
+	free(threads);
+	threads = NULL;
+	goto out;
+}
+
+struct thread_map *thread_map__new_str(const char *pid, const char *tid,
+				       uid_t uid)
+{
+	if (pid)
+		return thread_map__new_by_pid_str(pid);
+
+	if (!tid && uid != UINT_MAX)
+		return thread_map__new_by_uid(uid);
+
+	return thread_map__new_by_tid_str(tid);
 }
 
 void thread_map__delete(struct thread_map *threads)

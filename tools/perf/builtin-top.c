@@ -965,7 +965,7 @@ static int __cmd_top(struct perf_top *top)
 	if (ret)
 		goto out_delete;
 
-	if (top->target_tid != -1 || top->uid != UINT_MAX)
+	if (top->target_tid || top->uid != UINT_MAX)
 		perf_event__synthesize_thread_map(&top->tool, top->evlist->threads,
 						  perf_event__process,
 						  &top->session->host_machine);
@@ -1103,8 +1103,6 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	struct perf_top top = {
 		.count_filter	     = 5,
 		.delay_secs	     = 2,
-		.target_pid	     = -1,
-		.target_tid	     = -1,
 		.uid		     = UINT_MAX,
 		.freq		     = 1000, /* 1 KHz */
 		.sample_id_all_avail = true,
@@ -1118,9 +1116,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		     parse_events_option),
 	OPT_INTEGER('c', "count", &top.default_interval,
 		    "event period to sample"),
-	OPT_INTEGER('p', "pid", &top.target_pid,
+	OPT_STRING('p', "pid", &top.target_pid, "pid",
 		    "profile events on existing process id"),
-	OPT_INTEGER('t', "tid", &top.target_tid,
+	OPT_STRING('t', "tid", &top.target_tid, "tid",
 		    "profile events on existing thread id"),
 	OPT_BOOLEAN('a', "all-cpus", &top.system_wide,
 			    "system-wide collection from all CPUs"),
@@ -1210,13 +1208,13 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		goto out_delete_evlist;
 
 	/* CPU and PID are mutually exclusive */
-	if (top.target_tid > 0 && top.cpu_list) {
+	if (top.target_tid && top.cpu_list) {
 		printf("WARNING: PID switch overriding CPU\n");
 		sleep(1);
 		top.cpu_list = NULL;
 	}
 
-	if (top.target_pid != -1)
+	if (top.target_pid)
 		top.target_tid = top.target_pid;
 
 	if (perf_evlist__create_maps(top.evlist, top.target_pid,

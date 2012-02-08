@@ -130,7 +130,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts)
 	attr->mmap = track;
 	attr->comm = track;
 
-	if (opts->target_pid == -1 && opts->target_tid == -1 && !opts->system_wide) {
+	if (!opts->target_pid && !opts->target_tid && !opts->system_wide) {
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}

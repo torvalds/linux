@@ -23,7 +23,7 @@ struct perf_top {
 	u64		   guest_us_samples, guest_kernel_samples;
 	int		   print_entries, count_filter, delay_secs;
 	int		   freq;
-	pid_t		   target_pid, target_tid;
+	const char	   *target_pid, *target_tid;
 	uid_t		   uid;
 	bool		   hide_kernel_symbols, hide_user_symbols, zero;
 	bool		   system_wide;

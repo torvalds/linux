@@ -645,8 +645,6 @@ static const char * const record_usage[] = {
  */
 static struct perf_record record = {
 	.opts = {
-		.target_pid	     = -1,
-		.target_tid	     = -1,
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
@@ -670,9 +668,9 @@ const struct option record_options[] = {
 		     parse_events_option),
 	OPT_CALLBACK(0, "filter", &record.evlist, "filter",
 		     "event filter", parse_filter),
-	OPT_INTEGER('p', "pid", &record.opts.target_pid,
+	OPT_STRING('p', "pid", &record.opts.target_pid, "pid",
 		    "record events on existing process id"),
-	OPT_INTEGER('t', "tid", &record.opts.target_tid,
+	OPT_STRING('t', "tid", &record.opts.target_tid, "tid",
 		    "record events on existing thread id"),
 	OPT_INTEGER('r', "realtime", &record.realtime_prio,
 		    "collect data with this RT SCHED_FIFO priority"),
@@ -739,7 +737,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 
 	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc && rec->opts.target_pid == -1 && rec->opts.target_tid == -1 &&
+	if (!argc && !rec->opts.target_pid && !rec->opts.target_tid &&
 		!rec->opts.system_wide && !rec->opts.cpu_list && !rec->uid_str)
 		usage_with_options(record_usage, record_options);
 
@@ -785,7 +783,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	if (rec->uid_str != NULL && rec->opts.uid == UINT_MAX - 1)
 		goto out_free_fd;
 
-	if (rec->opts.target_pid != -1)
+	if (rec->opts.target_pid)
 		rec->opts.target_tid = rec->opts.target_pid;
 
 	if (perf_evlist__create_maps(evsel_list, rec->opts.target_pid,
