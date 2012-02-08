@@ -3276,7 +3276,7 @@ static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 	 */
 	e1000_clear_hw_cntrs_ich8lan(hw);
 
-	return 0;
+	return ret_val;
 }
 /**
  *  e1000_initialize_hw_bits_ich8lan - Initialize required hardware bits
