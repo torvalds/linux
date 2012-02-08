@@ -694,7 +694,7 @@ static u8 ath_rc_get_highest_rix(struct ath_softc *sc,
 		return rate;
 
 	/* This should not happen */
-	WARN_ON(1);
+	WARN_ON_ONCE(1);
 
 	rate = ath_rc_priv->valid_rate_index[0];
 
