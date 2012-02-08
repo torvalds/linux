@@ -723,7 +723,7 @@ static void f75375_init(struct i2c_client *client, struct f75375_data *data,
 			if (data->kind == f75387) {
 				bool manu, duty;
 
-				if (!(conf & (1 << F75387_FAN_CTRL_LINEAR(nr))))
+				if (!(mode & (1 << F75387_FAN_CTRL_LINEAR(nr))))
 					data->pwm_mode[nr] = 1;
 
 				manu = ((mode >> F75387_FAN_MANU_MODE(nr)) & 1);
