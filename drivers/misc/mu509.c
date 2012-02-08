@@ -154,17 +154,24 @@ static struct miscdevice mu509_misc = {
 	.name = MODEM_NAME,
 	.fops = &mu509_fops
 };
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static ssize_t modem_status_read(struct class *cls, struct class_attribute *attr, char *_buf)
+#else
 static ssize_t modem_status_read(struct class *cls, char *_buf)
+#endif
 {
 
 	return sprintf(_buf, "%d\n", modem_status);
 	
 }
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static ssize_t modem_status_write(struct class *cls, struct class_attribute *attr, const char *_buf, size_t _count)
+#else
 static ssize_t modem_status_write(struct class *cls, const char *_buf, size_t _count)
+#endif
 {
 
-    printk("Read data from Android: %s\n", _buf);
+    printk("[%s]Read data from Android: %s\n",__FUNCTION__, _buf);
    struct rk29_mu509_data *pdata = gpdata;
    int new_state = simple_strtoul(_buf, NULL, 16);
    if(new_state == modem_status) return _count;
