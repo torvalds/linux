@@ -1064,8 +1064,7 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 		break;
 	default:
 		e_dbg("Flow control param set incorrectly\n");
-		ret_val = -E1000_ERR_CONFIG;
-		return ret_val;
+		return -E1000_ERR_CONFIG;
 	}
 
 	ret_val = e1e_wphy(hw, PHY_AUTONEG_ADV, mii_autoneg_adv_reg);

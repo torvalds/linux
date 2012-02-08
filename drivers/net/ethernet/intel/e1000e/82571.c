@@ -1497,9 +1497,7 @@ static s32 e1000_setup_copper_link_82571(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	ret_val = e1000e_setup_copper_link(hw);
-
-	return ret_val;
+	return e1000e_setup_copper_link(hw);
 }
 
 /**
