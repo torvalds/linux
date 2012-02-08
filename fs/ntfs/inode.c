@@ -2124,7 +2124,8 @@ int ntfs_read_inode_mount(struct inode *vi)
 			 * ntfs_read_inode() will have set up the default ones.
 			 */
 			/* Set uid and gid to root. */
-			vi->i_uid = vi->i_gid = 0;
+			vi->i_uid = GLOBAL_ROOT_UID;
+			vi->i_gid = GLOBAL_ROOT_GID;
 			/* Regular file. No access for anyone. */
 			vi->i_mode = S_IFREG;
 			/* No VFS initiated operations allowed for $MFT. */
@@ -2312,8 +2313,8 @@ int ntfs_show_options(struct seq_file *sf, struct dentry *root)
 	ntfs_volume *vol = NTFS_SB(root->d_sb);
 	int i;
 
-	seq_printf(sf, ",uid=%i", vol->uid);
-	seq_printf(sf, ",gid=%i", vol->gid);
+	seq_printf(sf, ",uid=%i", from_kuid_munged(&init_user_ns, vol->uid));
+	seq_printf(sf, ",gid=%i", from_kgid_munged(&init_user_ns, vol->gid));
 	if (vol->fmask == vol->dmask)
 		seq_printf(sf, ",umask=0%o", vol->fmask);
 	else {
