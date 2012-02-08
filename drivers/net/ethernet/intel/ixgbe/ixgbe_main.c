@@ -2401,16 +2401,13 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 
 	ixgbe_check_fan_failure(adapter, eicr);
 
-	if (napi_schedule_prep(&(q_vector->napi))) {
-		/* would disable interrupts here but EIAM disabled it */
-		__napi_schedule(&(q_vector->napi));
-	}
+	/* would disable interrupts here but EIAM disabled it */
+	napi_schedule(&q_vector->napi);
 
 	/*
 	 * re-enable link(maybe) and non-queue interrupts, no flush.
 	 * ixgbe_poll will re-enable the queue interrupts
 	 */
-
 	if (!test_bit(__IXGBE_DOWN, &adapter->state))
 		ixgbe_irq_enable(adapter, false, false);
 
