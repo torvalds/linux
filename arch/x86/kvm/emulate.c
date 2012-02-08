@@ -1244,6 +1244,8 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 		seg_desc.type = 3;
 		seg_desc.p = 1;
 		seg_desc.s = 1;
+		if (ctxt->mode == X86EMUL_MODE_VM86)
+			seg_desc.dpl = 3;
 		goto load;
 	}
 
