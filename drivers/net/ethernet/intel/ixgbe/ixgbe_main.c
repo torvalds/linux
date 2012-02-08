@@ -763,12 +763,16 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		/* clear next_to_watch to prevent false hangs */
 		tx_buffer->next_to_watch = NULL;
 
+		/* free the skb */
+		dev_kfree_skb_any(tx_buffer->skb);
+
+		/* clear tx_buffer data */
+		tx_buffer->skb = NULL;
+
 		do {
 			ixgbe_unmap_tx_resource(tx_ring, tx_buffer);
 			if (likely(tx_desc == eop_desc)) {
 				eop_desc = NULL;
-				dev_kfree_skb_any(tx_buffer->skb);
-				tx_buffer->skb = NULL;
 
 				total_bytes += tx_buffer->bytecount;
 				total_packets += tx_buffer->gso_segs;
@@ -6551,9 +6555,11 @@ void ixgbe_tx_ctxtdesc(struct ixgbe_ring *tx_ring, u32 vlan_macip_lens,
 	context_desc->mss_l4len_idx	= cpu_to_le32(mss_l4len_idx);
 }
 
-static int ixgbe_tso(struct ixgbe_ring *tx_ring, struct sk_buff *skb,
+static int ixgbe_tso(struct ixgbe_ring *tx_ring,
+		     struct ixgbe_tx_buffer *first,
 		     u32 tx_flags, __be16 protocol, u8 *hdr_len)
 {
+	struct sk_buff *skb = first->skb;
 	int err;
 	u32 vlan_macip_lens, type_tucmd;
 	u32 mss_l4len_idx, l4len;
@@ -6607,9 +6613,10 @@ static int ixgbe_tso(struct ixgbe_ring *tx_ring, struct sk_buff *skb,
 }
 
 static bool ixgbe_tx_csum(struct ixgbe_ring *tx_ring,
-			  struct sk_buff *skb, u32 tx_flags,
-			  __be16 protocol)
+			  struct ixgbe_tx_buffer *first,
+			  u32 tx_flags, __be16 protocol)
 {
+	struct sk_buff *skb = first->skb;
 	u32 vlan_macip_lens = 0;
 	u32 mss_l4len_idx = 0;
 	u32 type_tucmd = 0;
@@ -6733,11 +6740,11 @@ static __le32 ixgbe_tx_olinfo_status(u32 tx_flags, unsigned int paylen)
 		       IXGBE_TXD_CMD_RS)
 
 static void ixgbe_tx_map(struct ixgbe_ring *tx_ring,
-			 struct sk_buff *skb,
 			 struct ixgbe_tx_buffer *first,
 			 u32 tx_flags,
 			 const u8 hdr_len)
 {
+	struct sk_buff *skb = first->skb;
 	struct device *dev = tx_ring->dev;
 	struct ixgbe_tx_buffer *tx_buffer_info;
 	union ixgbe_adv_tx_desc *tx_desc;
@@ -6850,7 +6857,6 @@ static void ixgbe_tx_map(struct ixgbe_ring *tx_ring,
 	/* multiply data chunks by size of headers */
 	tx_buffer_info->bytecount = paylen + (gso_segs * hdr_len);
 	tx_buffer_info->gso_segs = gso_segs;
-	tx_buffer_info->skb = skb;
 
 	netdev_tx_sent_queue(txring_txq(tx_ring), tx_buffer_info->bytecount);
 
@@ -6878,7 +6884,7 @@ dma_error:
 	/* clear dma mappings for failed tx_buffer_info map */
 	for (;;) {
 		tx_buffer_info = &tx_ring->tx_buffer_info[i];
-		ixgbe_unmap_tx_resource(tx_ring, tx_buffer_info);
+		ixgbe_unmap_and_free_tx_resource(tx_ring, tx_buffer_info);
 		if (tx_buffer_info == first)
 			break;
 		if (i == 0)
@@ -6886,12 +6892,11 @@ dma_error:
 		i--;
 	}
 
-	dev_kfree_skb_any(skb);
-
 	tx_ring->next_to_use = i;
 }
 
-static void ixgbe_atr(struct ixgbe_ring *ring, struct sk_buff *skb,
+static void ixgbe_atr(struct ixgbe_ring *ring,
+		      struct ixgbe_tx_buffer *first,
 		      u32 tx_flags, __be16 protocol)
 {
 	struct ixgbe_q_vector *q_vector = ring->q_vector;
@@ -6916,7 +6921,7 @@ static void ixgbe_atr(struct ixgbe_ring *ring, struct sk_buff *skb,
 	ring->atr_count++;
 
 	/* snag network header to get L4 type and address */
-	hdr.network = skb_network_header(skb);
+	hdr.network = skb_network_header(first->skb);
 
 	/* Currently only IPv4/IPv6 with TCP is supported */
 	if ((protocol != __constant_htons(ETH_P_IPV6) ||
@@ -6925,7 +6930,7 @@ static void ixgbe_atr(struct ixgbe_ring *ring, struct sk_buff *skb,
 	     hdr.ipv4->protocol != IPPROTO_TCP))
 		return;
 
-	th = tcp_hdr(skb);
+	th = tcp_hdr(first->skb);
 
 	/* skip this packet since it is invalid or the socket is closing */
 	if (!th || th->fin)
@@ -7063,6 +7068,10 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
+	/* record the location of the first descriptor for this packet */
+	first = &tx_ring->tx_buffer_info[tx_ring->next_to_use];
+	first->skb = skb;
+
 	/* if we have a HW VLAN tag being added default to the HW one */
 	if (vlan_tx_tag_present(skb)) {
 		tx_flags |= vlan_tx_tag_get(skb) << IXGBE_TX_FLAGS_VLAN_SHIFT;
@@ -7109,14 +7118,11 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 		}
 	}
 
-	/* record the location of the first descriptor for this packet */
-	first = &tx_ring->tx_buffer_info[tx_ring->next_to_use];
-
 #ifdef IXGBE_FCOE
 	/* setup tx offload for FCoE */
 	if ((protocol == __constant_htons(ETH_P_FCOE)) &&
 	    (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)) {
-		tso = ixgbe_fso(tx_ring, skb, tx_flags, &hdr_len);
+		tso = ixgbe_fso(tx_ring, first, tx_flags, &hdr_len);
 		if (tso < 0)
 			goto out_drop;
 		else if (tso)
@@ -7133,29 +7139,31 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 	if (protocol == __constant_htons(ETH_P_IP))
 		tx_flags |= IXGBE_TX_FLAGS_IPV4;
 
-	tso = ixgbe_tso(tx_ring, skb, tx_flags, protocol, &hdr_len);
+	tso = ixgbe_tso(tx_ring, first, tx_flags, protocol, &hdr_len);
 	if (tso < 0)
 		goto out_drop;
 	else if (tso)
 		tx_flags |= IXGBE_TX_FLAGS_TSO | IXGBE_TX_FLAGS_CSUM;
-	else if (ixgbe_tx_csum(tx_ring, skb, tx_flags, protocol))
+	else if (ixgbe_tx_csum(tx_ring, first, tx_flags, protocol))
 		tx_flags |= IXGBE_TX_FLAGS_CSUM;
 
 	/* add the ATR filter if ATR is on */
 	if (test_bit(__IXGBE_TX_FDIR_INIT_DONE, &tx_ring->state))
-		ixgbe_atr(tx_ring, skb, tx_flags, protocol);
+		ixgbe_atr(tx_ring, first, tx_flags, protocol);
 
 #ifdef IXGBE_FCOE
 xmit_fcoe:
 #endif /* IXGBE_FCOE */
-	ixgbe_tx_map(tx_ring, skb, first, tx_flags, hdr_len);
+	ixgbe_tx_map(tx_ring, first, tx_flags, hdr_len);
 
 	ixgbe_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
 	return NETDEV_TX_OK;
 
 out_drop:
-	dev_kfree_skb_any(skb);
+	dev_kfree_skb_any(first->skb);
+	first->skb = NULL;
+
 	return NETDEV_TX_OK;
 }
 

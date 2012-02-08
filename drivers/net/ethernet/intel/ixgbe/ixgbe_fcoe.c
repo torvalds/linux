@@ -447,7 +447,7 @@ ddp_out:
 /**
  * ixgbe_fso - ixgbe FCoE Sequence Offload (FSO)
  * @tx_ring: tx desc ring
- * @skb: associated skb
+ * @first: first tx_buffer structure containing skb, tx_flags, and protocol
  * @tx_flags: tx flags
  * @hdr_len: hdr_len to be returned
  *
@@ -455,9 +455,11 @@ ddp_out:
  *
  * Returns : 0 indicates no FSO, > 0 for FSO, < 0 for error
  */
-int ixgbe_fso(struct ixgbe_ring *tx_ring, struct sk_buff *skb,
+int ixgbe_fso(struct ixgbe_ring *tx_ring,
+	      struct ixgbe_tx_buffer *first,
               u32 tx_flags, u8 *hdr_len)
 {
+	struct sk_buff *skb = first->skb;
 	struct fc_frame_header *fh;
 	u32 vlan_macip_lens;
 	u32 fcoe_sof_eof = 0;

@@ -150,12 +150,12 @@ struct vf_macvlans {
 struct ixgbe_tx_buffer {
 	union ixgbe_adv_tx_desc *next_to_watch;
 	unsigned long time_stamp;
-	dma_addr_t dma;
-	u32 length;
-	u32 tx_flags;
 	struct sk_buff *skb;
-	u32 bytecount;
-	u16 gso_segs;
+	unsigned int bytecount;
+	unsigned short gso_segs;
+	dma_addr_t dma;
+	unsigned int length;
+	u32 tx_flags;
 };
 
 struct ixgbe_rx_buffer {
@@ -631,7 +631,8 @@ extern void ixgbe_tx_ctxtdesc(struct ixgbe_ring *, u32, u32, u32, u32);
 extern void ixgbe_do_reset(struct net_device *netdev);
 #ifdef IXGBE_FCOE
 extern void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter);
-extern int ixgbe_fso(struct ixgbe_ring *tx_ring, struct sk_buff *skb,
+extern int ixgbe_fso(struct ixgbe_ring *tx_ring,
+		     struct ixgbe_tx_buffer *first,
                      u32 tx_flags, u8 *hdr_len);
 extern void ixgbe_cleanup_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
