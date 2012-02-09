@@ -300,6 +300,10 @@ nouveau_perf_init(struct drm_device *dev)
 		return;
 	}
 
+	perf = nouveau_perf_table(dev, &ver);
+	if (ver >= 0x20 && ver < 0x40)
+		pm->fan.pwm_divisor = ROM16(perf[6]);
+
 	while ((perf = nouveau_perf_entry(dev, ++i, &ver, &hdr, &cnt, &len))) {
 		struct nouveau_pm_level *perflvl = &pm->perflvl[pm->nr_perflvl];
 
