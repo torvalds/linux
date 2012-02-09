@@ -73,8 +73,8 @@ extern int groups_search(const struct group_info *, kgid_t);
 #define GROUP_AT(gi, i) \
 	((gi)->blocks[(i) / NGROUPS_PER_BLOCK][(i) % NGROUPS_PER_BLOCK])
 
-extern int in_group_p(gid_t);
-extern int in_egroup_p(gid_t);
+extern int in_group_p(kgid_t);
+extern int in_egroup_p(kgid_t);
 
 /*
  * The common credentials for a thread group
