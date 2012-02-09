@@ -4098,8 +4098,9 @@ qla82xx_md_collect(scsi_qla_host_t *vha)
 	data_ptr = (uint32_t *)ha->md_dump;
 
 	if (ha->fw_dumped) {
-		ql_log(ql_log_info, vha, 0xb037,
-		    "Firmware dump available to retrive\n");
+		ql_log(ql_log_warn, vha, 0xb037,
+		    "Firmware has been previously dumped (%p) "
+		    "-- ignoring request.\n", ha->fw_dump);
 		goto md_failed;
 	}
 
