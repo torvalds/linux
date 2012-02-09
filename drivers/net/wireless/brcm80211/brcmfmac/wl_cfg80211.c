@@ -3297,7 +3297,9 @@ static struct brcmf_cfg80211_event_q *brcmf_deq_event(
 }
 
 /*
-** push event to tail of the queue
+*	push event to tail of the queue
+*
+*	remark: this function may not sleep as it is called in atomic context.
 */
 
 static s32
@@ -3307,7 +3309,7 @@ brcmf_enq_event(struct brcmf_cfg80211_priv *cfg_priv, u32 event,
 	struct brcmf_cfg80211_event_q *e;
 	s32 err = 0;
 
-	e = kzalloc(sizeof(struct brcmf_cfg80211_event_q), GFP_KERNEL);
+	e = kzalloc(sizeof(struct brcmf_cfg80211_event_q), GFP_ATOMIC);
 	if (!e)
 		return -ENOMEM;
 
