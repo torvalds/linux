@@ -28,6 +28,7 @@
 
 #include <mach/iomap.h>
 #include <mach/system.h>
+#include <mach/powergate.h>
 
 #include "board.h"
 #include "clock.h"
@@ -119,6 +120,7 @@ void __init tegra20_init_early(void)
 	tegra_clk_init_from_table(tegra20_clk_init_table);
 	tegra_init_cache(0x331, 0x441);
 	tegra_pmc_init();
+	tegra_powergate_init();
 }
 #endif
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
@@ -128,5 +130,6 @@ void __init tegra30_init_early(void)
 	tegra30_init_clocks();
 	tegra_init_cache(0x441, 0x551);
 	tegra_pmc_init();
+	tegra_powergate_init();
 }
 #endif

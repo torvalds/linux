@@ -41,6 +41,14 @@
 #define PWRGATE_STATUS		0x38
 
 static int tegra_num_powerdomains;
+static int tegra_num_cpu_domains;
+static u8 *tegra_cpu_domains;
+static u8 tegra30_cpu_domains[] = {
+	TEGRA_POWERGATE_CPU0,
+	TEGRA_POWERGATE_CPU1,
+	TEGRA_POWERGATE_CPU2,
+	TEGRA_POWERGATE_CPU3,
+};
 
 static DEFINE_SPINLOCK(tegra_powergate_lock);
 
@@ -161,6 +169,14 @@ err_power:
 	return ret;
 }
 
+int tegra_cpu_powergate_id(int cpuid)
+{
+	if (cpuid > 0 && cpuid < tegra_num_cpu_domains)
+		return tegra_cpu_domains[cpuid];
+
+	return -EINVAL;
+}
+
 int __init tegra_powergate_init(void)
 {
 	switch (tegra_chip_id) {
@@ -169,6 +185,8 @@ int __init tegra_powergate_init(void)
 		break;
 	case TEGRA30:
 		tegra_num_powerdomains = 14;
+		tegra_num_cpu_domains = 4;
+		tegra_cpu_domains = tegra30_cpu_domains;
 		break;
 	default:
 		/* Unknown Tegra variant. Disable powergating */
@@ -178,7 +196,6 @@ int __init tegra_powergate_init(void)
 
 	return 0;
 }
-arch_initcall(tegra_powergate_init);
 
 #ifdef CONFIG_DEBUG_FS
 
