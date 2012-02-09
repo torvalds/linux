@@ -3703,6 +3703,12 @@
 #define  ECOBUS					0xa180
 #define    FORCEWAKE_MT_ENABLE			(1<<5)
 
+#define  GTFIFODBG				0x120000
+#define    GT_FIFO_CPU_ERROR_MASK		7
+#define    GT_FIFO_OVFERR			(1<<2)
+#define    GT_FIFO_IAWRERR			(1<<1)
+#define    GT_FIFO_IARDERR			(1<<0)
+
 #define  GT_FIFO_FREE_ENTRIES			0x120008
 #define    GT_FIFO_NUM_RESERVED_ENTRIES		20
 
