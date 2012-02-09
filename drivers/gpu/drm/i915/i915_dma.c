@@ -1196,7 +1196,7 @@ static int i915_load_gem_init(struct drm_device *dev)
 	/* Basic memrange allocator for stolen space */
 	drm_mm_init(&dev_priv->mm.stolen, 0, prealloc_size);
 
-	if (HAS_ALIASING_PPGTT(dev)) {
+	if (i915_enable_ppgtt && HAS_ALIASING_PPGTT(dev)) {
 		/* PPGTT pdes are stolen from global gtt ptes, so shrink the
 		 * aperture accordingly when using aliasing ppgtt. */
 		gtt_size -= I915_PPGTT_PD_ENTRIES*PAGE_SIZE;

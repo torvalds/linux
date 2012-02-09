@@ -3712,6 +3712,43 @@ void i915_gem_init_swizzling(struct drm_device *dev)
 	else
 		I915_WRITE(ARB_MODE, ARB_MODE_ENABLE(ARB_MODE_SWIZZLE_IVB));
 }
+
+void i915_gem_init_ppgtt(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	uint32_t pd_offset;
+	struct intel_ring_buffer *ring;
+	int i;
+
+	if (!dev_priv->mm.aliasing_ppgtt)
+		return;
+
+	pd_offset = dev_priv->mm.aliasing_ppgtt->pd_offset;
+	pd_offset /= 64; /* in cachelines, */
+	pd_offset <<= 16;
+
+	if (INTEL_INFO(dev)->gen == 6) {
+		uint32_t ecochk = I915_READ(GAM_ECOCHK);
+		I915_WRITE(GAM_ECOCHK, ecochk | ECOCHK_SNB_BIT |
+				       ECOCHK_PPGTT_CACHE64B);
+		I915_WRITE(GFX_MODE, GFX_MODE_ENABLE(GFX_PPGTT_ENABLE));
+	} else if (INTEL_INFO(dev)->gen >= 7) {
+		I915_WRITE(GAM_ECOCHK, ECOCHK_PPGTT_CACHE64B);
+		/* GFX_MODE is per-ring on gen7+ */
+	}
+
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		ring = &dev_priv->ring[i];
+
+		if (INTEL_INFO(dev)->gen >= 7)
+			I915_WRITE(RING_MODE_GEN7(ring),
+				   GFX_MODE_ENABLE(GFX_PPGTT_ENABLE));
+
+		I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
+		I915_WRITE(RING_PP_DIR_BASE(ring), pd_offset);
+	}
+}
+
 int
 i915_gem_init_hw(struct drm_device *dev)
 {
@@ -3737,6 +3774,8 @@ i915_gem_init_hw(struct drm_device *dev)
 	}
 
 	dev_priv->next_seqno = 1;
+
+	i915_gem_init_ppgtt(dev);
 
 	return 0;
 
