@@ -46,17 +46,17 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	struct qla_hw_data *ha = vha->hw;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
-	ql_dbg(ql_dbg_mbx, base_vha, 0x1000, "Entered %s.\n", __func__);
+	ql_dbg(ql_dbg_mbx, vha, 0x1000, "Entered %s.\n", __func__);
 
 	if (ha->pdev->error_state > pci_channel_io_frozen) {
-		ql_log(ql_log_warn, base_vha, 0x1001,
+		ql_log(ql_log_warn, vha, 0x1001,
 		    "error_state is greater than pci_channel_io_frozen, "
 		    "exiting.\n");
 		return QLA_FUNCTION_TIMEOUT;
 	}
 
 	if (vha->device_flags & DFLG_DEV_FAILED) {
-		ql_log(ql_log_warn, base_vha, 0x1002,
+		ql_log(ql_log_warn, vha, 0x1002,
 		    "Device in failed state, exiting.\n");
 		return QLA_FUNCTION_TIMEOUT;
 	}
@@ -69,7 +69,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 
 
 	if (ha->flags.pci_channel_io_perm_failure) {
-		ql_log(ql_log_warn, base_vha, 0x1003,
+		ql_log(ql_log_warn, vha, 0x1003,
 		    "Perm failure on EEH timeout MBX, exiting.\n");
 		return QLA_FUNCTION_TIMEOUT;
 	}
@@ -77,7 +77,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	if (ha->flags.isp82xx_fw_hung) {
 		/* Setting Link-Down error */
 		mcp->mb[0] = MBS_LINK_DOWN_ERROR;
-		ql_log(ql_log_warn, base_vha, 0x1004,
+		ql_log(ql_log_warn, vha, 0x1004,
 		    "FW hung = %d.\n", ha->flags.isp82xx_fw_hung);
 		return QLA_FUNCTION_TIMEOUT;
 	}
@@ -89,7 +89,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	 */
 	if (!wait_for_completion_timeout(&ha->mbx_cmd_comp, mcp->tov * HZ)) {
 		/* Timeout occurred. Return error. */
-		ql_log(ql_log_warn, base_vha, 0x1005,
+		ql_log(ql_log_warn, vha, 0x1005,
 		    "Cmd access timeout, cmd=0x%x, Exiting.\n",
 		    mcp->mb[0]);
 		return QLA_FUNCTION_TIMEOUT;
@@ -99,7 +99,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	/* Save mailbox command for debug */
 	ha->mcp = mcp;
 
-	ql_dbg(ql_dbg_mbx, base_vha, 0x1006,
+	ql_dbg(ql_dbg_mbx, vha, 0x1006,
 	    "Prepare to issue mbox cmd=0x%x.\n", mcp->mb[0]);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -128,28 +128,28 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		iptr++;
 	}
 
-	ql_dbg(ql_dbg_mbx + ql_dbg_buffer, base_vha, 0x1111,
+	ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1111,
 	    "Loaded MBX registers (displayed in bytes) =.\n");
-	ql_dump_buffer(ql_dbg_mbx + ql_dbg_buffer, base_vha, 0x1112,
+	ql_dump_buffer(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1112,
 	    (uint8_t *)mcp->mb, 16);
-	ql_dbg(ql_dbg_mbx + ql_dbg_buffer, base_vha, 0x1113,
+	ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1113,
 	    ".\n");
-	ql_dump_buffer(ql_dbg_mbx + ql_dbg_buffer, base_vha, 0x1114,
+	ql_dump_buffer(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1114,
 	    ((uint8_t *)mcp->mb + 0x10), 16);
-	ql_dbg(ql_dbg_mbx + ql_dbg_buffer, base_vha, 0x1115,
+	ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1115,
 	    ".\n");
-	ql_dump_buffer(ql_dbg_mbx + ql_dbg_buffer, base_vha, 0x1116,
+	ql_dump_buffer(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1116,
 	    ((uint8_t *)mcp->mb + 0x20), 8);
-	ql_dbg(ql_dbg_mbx + ql_dbg_buffer, base_vha, 0x1117,
+	ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1117,
 	    "I/O Address = %p.\n", optr);
-	ql_dump_regs(ql_dbg_mbx + ql_dbg_buffer, base_vha, 0x100e);
+	ql_dump_regs(ql_dbg_mbx + ql_dbg_buffer, vha, 0x100e);
 
 	/* Issue set host interrupt command to send cmd out. */
 	ha->flags.mbox_int = 0;
 	clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 
 	/* Unlock mbx registers and wait for interrupt */
-	ql_dbg(ql_dbg_mbx, base_vha, 0x100f,
+	ql_dbg(ql_dbg_mbx, vha, 0x100f,
 	    "Going to unlock irq & waiting for interrupts. "
 	    "jiffies=%lx.\n", jiffies);
 
@@ -164,7 +164,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 				spin_unlock_irqrestore(&ha->hardware_lock,
 					flags);
 				ha->flags.mbox_busy = 0;
-				ql_dbg(ql_dbg_mbx, base_vha, 0x1010,
+				ql_dbg(ql_dbg_mbx, vha, 0x1010,
 				    "Pending mailbox timeout, exiting.\n");
 				rval = QLA_FUNCTION_TIMEOUT;
 				goto premature_exit;
@@ -181,7 +181,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		clear_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
 
 	} else {
-		ql_dbg(ql_dbg_mbx, base_vha, 0x1011,
+		ql_dbg(ql_dbg_mbx, vha, 0x1011,
 		    "Cmd=%x Polling Mode.\n", command);
 
 		if (IS_QLA82XX(ha)) {
@@ -190,7 +190,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 				spin_unlock_irqrestore(&ha->hardware_lock,
 					flags);
 				ha->flags.mbox_busy = 0;
-				ql_dbg(ql_dbg_mbx, base_vha, 0x1012,
+				ql_dbg(ql_dbg_mbx, vha, 0x1012,
 				    "Pending mailbox timeout, exiting.\n");
 				rval = QLA_FUNCTION_TIMEOUT;
 				goto premature_exit;
@@ -215,7 +215,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			    command == MBC_LOAD_RISC_RAM_EXTENDED))
 				msleep(10);
 		} /* while */
-		ql_dbg(ql_dbg_mbx, base_vha, 0x1013,
+		ql_dbg(ql_dbg_mbx, vha, 0x1013,
 		    "Waited %d sec.\n",
 		    (uint)((jiffies - (wait_time - (mcp->tov * HZ)))/HZ));
 	}
@@ -224,7 +224,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	if (ha->flags.mbox_int) {
 		uint16_t *iptr2;
 
-		ql_dbg(ql_dbg_mbx, base_vha, 0x1014,
+		ql_dbg(ql_dbg_mbx, vha, 0x1014,
 		    "Cmd=%x completed.\n", command);
 
 		/* Got interrupt. Clear the flag. */
@@ -237,7 +237,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			mcp->mb[0] = MBS_LINK_DOWN_ERROR;
 			ha->mcp = NULL;
 			rval = QLA_FUNCTION_FAILED;
-			ql_log(ql_log_warn, base_vha, 0x1015,
+			ql_log(ql_log_warn, vha, 0x1015,
 			    "FW hung = %d.\n", ha->flags.isp82xx_fw_hung);
 			goto premature_exit;
 		}
@@ -269,13 +269,13 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			mb0 = RD_MAILBOX_REG(ha, &reg->isp, 0);
 			ictrl = RD_REG_WORD(&reg->isp.ictrl);
 		}
-		ql_dbg(ql_dbg_mbx + ql_dbg_buffer, base_vha, 0x1119,
+		ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1119,
 		    "MBX Command timeout for cmd %x.\n", command);
-		ql_dbg(ql_dbg_mbx + ql_dbg_buffer, base_vha, 0x111a,
+		ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x111a,
 		    "iocontrol=%x jiffies=%lx.\n", ictrl, jiffies);
-		ql_dbg(ql_dbg_mbx + ql_dbg_buffer, base_vha, 0x111b,
+		ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x111b,
 		    "mb[0] = 0x%x.\n", mb0);
-		ql_dump_regs(ql_dbg_mbx + ql_dbg_buffer, base_vha, 0x1019);
+		ql_dump_regs(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1019);
 
 		rval = QLA_FUNCTION_TIMEOUT;
 	}
@@ -286,7 +286,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	ha->mcp = NULL;
 
 	if ((abort_active || !io_lock_on) && !IS_NOPOLLING_TYPE(ha)) {
-		ql_dbg(ql_dbg_mbx, base_vha, 0x101a,
+		ql_dbg(ql_dbg_mbx, vha, 0x101a,
 		    "Checking for additional resp interrupt.\n");
 
 		/* polling mode for non isp_abort commands. */
@@ -298,7 +298,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		if (!io_lock_on || (mcp->flags & IOCTL_CMD) ||
 		    ha->flags.eeh_busy) {
 			/* not in dpc. schedule it for dpc to take over. */
-			ql_dbg(ql_dbg_mbx, base_vha, 0x101b,
+			ql_dbg(ql_dbg_mbx, vha, 0x101b,
 			    "Timeout, schedule isp_abort_needed.\n");
 
 			if (!test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) &&
@@ -323,7 +323,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			}
 		} else if (!abort_active) {
 			/* call abort directly since we are in the DPC thread */
-			ql_dbg(ql_dbg_mbx, base_vha, 0x101d,
+			ql_dbg(ql_dbg_mbx, vha, 0x101d,
 			    "Timeout, calling abort_isp.\n");
 
 			if (!test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) &&
@@ -352,7 +352,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 					    &vha->dpc_flags);
 				}
 				clear_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags);
-				ql_dbg(ql_dbg_mbx, base_vha, 0x101f,
+				ql_dbg(ql_dbg_mbx, vha, 0x101f,
 				    "Finished abort_isp.\n");
 				goto mbx_done;
 			}
