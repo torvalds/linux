@@ -2581,7 +2581,8 @@ qla2x00_stop_firmware(scsi_qla_host_t *vha)
 	ql_dbg(ql_dbg_mbx, vha, 0x10a1, "Entered %s.\n", __func__);
 
 	mcp->mb[0] = MBC_STOP_FIRMWARE;
-	mcp->out_mb = MBX_0;
+	mcp->mb[1] = 0;
+	mcp->out_mb = MBX_1|MBX_0;
 	mcp->in_mb = MBX_0;
 	mcp->tov = 5;
 	mcp->flags = 0;
