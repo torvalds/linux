@@ -1875,7 +1875,7 @@ static int add_remote_oob_data(struct sock *sk, u16 index, void *data,
 
 	hci_dev_lock(hdev);
 
-	err = hci_add_remote_oob_data(hdev, &cp->bdaddr, cp->hash,
+	err = hci_add_remote_oob_data(hdev, &cp->addr.bdaddr, cp->hash,
 								cp->randomizer);
 	if (err < 0)
 		err = cmd_status(sk, index, MGMT_OP_ADD_REMOTE_OOB_DATA,
@@ -1910,7 +1910,7 @@ static int remove_remote_oob_data(struct sock *sk, u16 index,
 
 	hci_dev_lock(hdev);
 
-	err = hci_remove_remote_oob_data(hdev, &cp->bdaddr);
+	err = hci_remove_remote_oob_data(hdev, &cp->addr.bdaddr);
 	if (err < 0)
 		err = cmd_status(sk, index, MGMT_OP_REMOVE_REMOTE_OOB_DATA,
 						MGMT_STATUS_INVALID_PARAMS);
