@@ -50,6 +50,7 @@
 #include "iwl-bus.h"
 #include "iwl-trans.h"
 #include "iwl-shared.h"
+#include "iwl-op-mode.h"
 
 struct iwl_tx_queue;
 
@@ -709,6 +710,13 @@ struct iwl_wipan_noa_data {
 	u32 length;
 	u8 data[];
 };
+
+#define IWL_OP_MODE_GET_DVM(_iwl_op_mode) \
+	((struct iwl_priv *) ((_iwl_op_mode)->op_mode_specific))
+
+#define IWL_MAC80211_GET_DVM(_hw) \
+	((struct iwl_priv *) ((struct iwl_op_mode *) \
+	(_hw)->priv)->op_mode_specific)
 
 struct iwl_priv {
 

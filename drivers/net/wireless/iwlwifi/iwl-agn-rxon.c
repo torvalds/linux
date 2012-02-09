@@ -549,7 +549,7 @@ void iwlagn_config_ht40(struct ieee80211_conf *conf,
 
 int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 {
-	struct iwl_priv *priv = hw->priv;
+	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_rxon_context *ctx;
 	struct ieee80211_conf *conf = &hw->conf;
 	struct ieee80211_channel *channel = conf->channel;
@@ -805,7 +805,7 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			     struct ieee80211_bss_conf *bss_conf,
 			     u32 changes)
 {
-	struct iwl_priv *priv = hw->priv;
+	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
 	int ret;
 	bool force = false;

@@ -532,10 +532,6 @@ enum iwl_rxon_context_id {
 	NUM_IWL_RXON_CTX
 };
 
-int iwl_op_mode_dvm_start(struct iwl_bus *bus,
-			  const struct iwl_trans_ops *trans_ops,
-			  struct iwl_cfg *cfg);
-void iwl_op_mode_dvm_stop(struct iwl_priv *priv);
 struct iwl_device_cmd;
 int __must_check iwl_rx_dispatch(struct iwl_priv *priv,
 				 struct iwl_rx_mem_buffer *rxb,

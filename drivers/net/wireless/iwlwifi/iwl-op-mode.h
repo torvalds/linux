@@ -60,44 +60,49 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#include <linux/completion.h>
+#ifndef __iwl_op_mode_h__
+#define __iwl_op_mode_h__
 
-#include "iwl-drv.h"
-#include "iwl-trans.h"
-#include "iwl-wifi.h"
-#include "iwl-op-mode.h"
+struct iwl_op_mode;
+struct iwl_trans;
 
-int iwl_drv_start(struct iwl_shared *shrd,
-		  struct iwl_trans *trans, struct iwl_cfg *cfg)
+/**
+ * struct iwl_op_mode_ops - op_mode specific operations
+ *
+ * All the handlers MUST be implemented
+ *
+ * @start: start the op_mode
+ *	May sleep
+ * @stop: stop the op_mode
+ *	May sleep
+ */
+struct iwl_op_mode_ops {
+	struct iwl_op_mode *(*start)(struct iwl_trans *trans);
+	void (*stop)(struct iwl_op_mode *op_mode);
+};
+
+/**
+ * struct iwl_op_mode - operational mode
+ *
+ * This holds an implementation of the mac80211 / fw API.
+ *
+ * @ops - pointer to its own ops
+ */
+struct iwl_op_mode {
+	const struct iwl_op_mode_ops *ops;
+	const struct iwl_trans *trans;
+
+	char op_mode_specific[0] __aligned(sizeof(void *));
+};
+
+static inline void iwl_op_mode_stop(struct iwl_op_mode *op_mode)
 {
-	int ret;
-
-	shrd->cfg = cfg;
-
-	shrd->nic = kzalloc(sizeof(*shrd->nic), GFP_KERNEL);
-	if (!shrd->nic) {
-		dev_printk(KERN_ERR, trans->dev, "Couldn't allocate iwl_nic");
-		return -ENOMEM;
-	}
-	shrd->nic->shrd = shrd;
-
-	init_completion(&shrd->nic->request_firmware_complete);
-
-	ret = iwl_request_firmware(shrd->nic, true);
-
-	if (ret) {
-		dev_printk(KERN_ERR, trans->dev, "Couldn't request the fw");
-		kfree(shrd->nic);
-	}
-
-	return ret;
+	op_mode->ops->stop(op_mode);
 }
 
-void iwl_drv_stop(struct iwl_shared *shrd)
-{
-	/* op_mode can be NULL if its start failed */
-	if (shrd->nic->op_mode)
-		iwl_op_mode_stop(shrd->nic->op_mode);
+/*****************************************************
+* Op mode layers implementations
+******************************************************/
+extern const struct iwl_op_mode_ops iwl_dvm_ops;
 
-	kfree(shrd->nic);
-}
+#endif /* __iwl_op_mode_h__ */

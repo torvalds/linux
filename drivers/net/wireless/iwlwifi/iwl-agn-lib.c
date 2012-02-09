@@ -959,7 +959,7 @@ static void iwlagn_wowlan_program_keys(struct ieee80211_hw *hw,
 			       struct ieee80211_key_conf *key,
 			       void *_data)
 {
-	struct iwl_priv *priv = hw->priv;
+	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct wowlan_key_data *data = _data;
 	struct iwl_rxon_context *ctx = data->ctx;
 	struct aes_sc *aes_sc, *aes_tx_sc = NULL;

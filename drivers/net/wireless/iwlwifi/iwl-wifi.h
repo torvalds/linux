@@ -72,6 +72,7 @@
  * struct iwl_nic - nic common data
  * @fw: the iwl_fw structure
  * @shrd: pointer to common shared structure
+ * @op_mode: the running op_mode
  * @fw_index: firmware revision to try loading
  * @firmware_name: composite filename of ucode file to load
  * @init_evtlog_ptr: event log offset for init ucode.
@@ -86,6 +87,7 @@ struct iwl_nic {
 	struct iwl_fw fw;
 
 	struct iwl_shared *shrd;
+	struct iwl_op_mode *op_mode;
 
 	int fw_index;                   /* firmware we're trying to load */
 	char firmware_name[25];         /* name of firmware file to load */

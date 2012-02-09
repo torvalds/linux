@@ -44,6 +44,7 @@
 #include "iwl-agn-calib.h"
 #include "iwl-trans.h"
 #include "iwl-fh.h"
+#include "iwl-op-mode.h"
 
 static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
 	{COEX_CU_UNASSOC_IDLE_RP, COEX_CU_UNASSOC_IDLE_WP,
@@ -1240,7 +1241,9 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	release_firmware(ucode_raw);
 	complete(&nic->request_firmware_complete);
 
-	if (iwl_op_mode_dvm_start(bus(nic), trans(nic)->ops, cfg))
+	nic->op_mode = iwl_dvm_ops.start(nic->shrd->trans);
+
+	if (!nic->op_mode)
 		goto out_unbind;
 
 	return;

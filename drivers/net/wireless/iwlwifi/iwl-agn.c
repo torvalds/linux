@@ -52,6 +52,7 @@
 #include "iwl-shared.h"
 #include "iwl-bus.h"
 #include "iwl-trans.h"
+#include "iwl-op-mode.h"
 
 /******************************************************************************
  *
@@ -1142,14 +1143,13 @@ static void iwl_debug_config(struct iwl_priv *priv)
 #endif
 }
 
-int iwl_op_mode_dvm_start(struct iwl_bus *bus,
-			  const struct iwl_trans_ops *trans_ops,
-			  struct iwl_cfg *cfg)
+static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans)
 {
-	struct iwl_fw *fw = &nic(bus)->fw;
+	struct iwl_fw *fw = &nic(trans)->fw;
 	int err = 0;
 	struct iwl_priv *priv;
 	struct ieee80211_hw *hw;
+	struct iwl_op_mode *op_mode;
 	u16 num_mac;
 	u32 ucode_flags;
 
@@ -1158,18 +1158,21 @@ int iwl_op_mode_dvm_start(struct iwl_bus *bus,
 	 ************************/
 	hw = iwl_alloc_all();
 	if (!hw) {
-		pr_err("%s: Cannot allocate network device\n", cfg->name);
+		pr_err("%s: Cannot allocate network device\n",
+				cfg(trans)->name);
 		err = -ENOMEM;
 		goto out;
 	}
 
-	priv = hw->priv;
-	priv->shrd = bus->shrd;
+	op_mode = hw->priv;
+	op_mode->ops = &iwl_dvm_ops;
+	priv = IWL_OP_MODE_GET_DVM(op_mode);
+	priv->shrd = trans->shrd;
 	priv->shrd->priv = priv;
 
 	/* At this point both hw and priv are allocated. */
 
-	SET_IEEE80211_DEV(hw, trans(priv)->dev);
+	SET_IEEE80211_DEV(priv->hw, trans(priv)->dev);
 
 	/* show what debugging capabilities we have */
 	iwl_debug_config(priv);
@@ -1316,7 +1319,7 @@ int iwl_op_mode_dvm_start(struct iwl_bus *bus,
 			"failed to create debugfs files. Ignoring error: %d\n",
 			err);
 
-	return 0;
+	return op_mode;
 
 out_destroy_workqueue:
 	destroy_workqueue(priv->workqueue);
@@ -1328,11 +1331,14 @@ out_free_traffic_mem:
 	iwl_free_traffic_mem(priv);
 	ieee80211_free_hw(priv->hw);
 out:
-	return err;
+	op_mode = NULL;
+	return op_mode;
 }
 
-void iwl_op_mode_dvm_stop(struct iwl_priv *priv)
+static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 {
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
 	wait_for_completion(&nic(priv)->request_firmware_complete);
 
 	IWL_DEBUG_INFO(priv, "*** UNLOAD DRIVER ***\n");
@@ -1374,6 +1380,10 @@ void iwl_op_mode_dvm_stop(struct iwl_priv *priv)
 	ieee80211_free_hw(priv->hw);
 }
 
+const struct iwl_op_mode_ops iwl_dvm_ops = {
+	.start = iwl_op_mode_dvm_start,
+	.stop = iwl_op_mode_dvm_stop,
+};
 
 /*****************************************************************************
  *
