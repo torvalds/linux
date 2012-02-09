@@ -167,6 +167,9 @@ int __init tegra_powergate_init(void)
 	case TEGRA20:
 		tegra_num_powerdomains = 7;
 		break;
+	case TEGRA30:
+		tegra_num_powerdomains = 14;
+		break;
 	default:
 		/* Unknown Tegra variant. Disable powergating */
 		tegra_num_powerdomains = 0;
