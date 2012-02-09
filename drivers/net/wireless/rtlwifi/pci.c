@@ -1492,10 +1492,10 @@ static int rtl_pci_init(struct ieee80211_hw *hw, struct pci_dev *pdev)
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "tx ring initialization failed\n");
-		return 0;
+		return err;
 	}
 
-	return 1;
+	return 0;
 }
 
 static int rtl_pci_start(struct ieee80211_hw *hw)
@@ -1866,7 +1866,7 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 	}
 
 	/* Init PCI sw */
-	err = !rtl_pci_init(hw, pdev);
+	err = rtl_pci_init(hw, pdev);
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Failed to init PCI\n");
 		goto fail3;
