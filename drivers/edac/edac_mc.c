@@ -210,10 +210,10 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 	struct dimm_info *dimm;
 	u32 *ce_per_layer[EDAC_MAX_LAYERS], *ue_per_layer[EDAC_MAX_LAYERS];
 	unsigned pos[EDAC_MAX_LAYERS];
-	void *pvt, *ptr = NULL;
 	unsigned size, tot_dimms = 1, count = 1;
 	unsigned tot_csrows = 1, tot_channels = 1, tot_errcount = 0;
-	int i, j, err, row, chn;
+	void *pvt, *p, *ptr = NULL;
+	int i, j, err, row, chn, n, len;
 	bool per_rank = false;
 
 	BUG_ON(n_layers > EDAC_MAX_LAYERS || n_layers == 0);
@@ -325,9 +325,25 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 			i, per_rank ? "rank" : "dimm", (dimm - mci->dimms),
 			pos[0], pos[1], pos[2], row, chn);
 
-		/* Copy DIMM location */
-		for (j = 0; j < n_layers; j++)
+		/*
+		 * Copy DIMM location and initialize it.
+		 */
+		len = sizeof(dimm->label);
+		p = dimm->label;
+		n = snprintf(p, len, "mc#%u", mc_num);
+		p += n;
+		len -= n;
+		for (j = 0; j < n_layers; j++) {
+			n = snprintf(p, len, "%s#%u",
+				     edac_layer_name[layers[j].type],
+				     pos[j]);
+			p += n;
+			len -= n;
 			dimm->location[j] = pos[j];
+
+			if (len <= 0)
+				break;
+		}
 
 		/* Link it to the csrows old API data */
 		chan->dimm = dimm;
@@ -834,7 +850,7 @@ static void edac_inc_ce_error(struct mem_ctl_info *mci,
 {
 	int i, index = 0;
 
-	mci->ce_count++;
+	mci->ce_mc++;
 
 	if (!enable_per_layer_report) {
 		mci->ce_noinfo_count++;
@@ -858,7 +874,7 @@ static void edac_inc_ue_error(struct mem_ctl_info *mci,
 {
 	int i, index = 0;
 
-	mci->ue_count++;
+	mci->ue_mc++;
 
 	if (!enable_per_layer_report) {
 		mci->ce_noinfo_count++;

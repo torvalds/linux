@@ -581,7 +581,7 @@ struct mem_ctl_info {
 	 * already handles that.
 	 */
 	u32 ce_noinfo_count, ue_noinfo_count;
-	u32 ue_count, ce_count;
+	u32 ue_mc, ce_mc;
 	u32 *ce_per_layer[EDAC_MAX_LAYERS], *ue_per_layer[EDAC_MAX_LAYERS];
 
 	struct completion complete;
