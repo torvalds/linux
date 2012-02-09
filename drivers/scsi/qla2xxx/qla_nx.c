@@ -3608,7 +3608,7 @@ qla82xx_chip_reset_cleanup(scsi_qla_host_t *vha)
 			for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
 				sp = req->outstanding_cmds[cnt];
 				if (sp) {
-					if (!sp->ctx ||
+					if (!sp->u.scmd.ctx ||
 					    (sp->flags & SRB_FCP_CMND_DMA_VALID)) {
 						spin_unlock_irqrestore(
 						    &ha->hardware_lock, flags);

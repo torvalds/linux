@@ -874,6 +874,7 @@ qla2x00_abort_command(srb_t *sp)
 	scsi_qla_host_t *vha = fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = vha->req;
+	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
 
 	ql_dbg(ql_dbg_mbx, vha, 0x103b, "Entered %s.\n", __func__);
 
@@ -896,7 +897,7 @@ qla2x00_abort_command(srb_t *sp)
 		mcp->mb[1] = fcport->loop_id << 8;
 	mcp->mb[2] = (uint16_t)handle;
 	mcp->mb[3] = (uint16_t)(handle >> 16);
-	mcp->mb[6] = (uint16_t)sp->cmd->device->lun;
+	mcp->mb[6] = (uint16_t)cmd->device->lun;
 	mcp->out_mb = MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
 	mcp->in_mb = MBX_0;
 	mcp->tov = MBX_TOV_SECONDS;

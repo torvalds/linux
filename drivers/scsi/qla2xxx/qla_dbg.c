@@ -14,10 +14,11 @@
  * | Module Init and Probe        |       0x011f       | 0x4b,0xfa      |
  * | Mailbox commands             |       0x1139       | 0x112c-0x112e  |
  * | Device Discovery             |       0x2084       |                |
- * | Queue Command and IO tracing |       0x302f       | 0x3008         |
+ * | Queue Command and IO tracing |       0x302f       | 0x3006,0x3008  |
  * |                              |                    | 0x302d-0x302e  |
  * | DPC Thread                   |       0x401c       |		|
- * | Async Events                 |       0x5057       | 0x5052		|
+ * | Async Events                 |       0x5057       | 0x502b-0x502f  |
+ * |                              |                    | 0x5047,0x5052  |
  * | Timer Routines               |       0x6011       | 0x600e-0x600f  |
  * | User Space Interactions      |       0x709e       | 0x7018,0x702e  |
  * |                              |                    | 0x7039,0x7045  |

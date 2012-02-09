@@ -11,29 +11,36 @@
 #include <linux/delay.h>
 
 /* BSG support for ELS/CT pass through */
-inline srb_t *
-qla2x00_get_ctx_bsg_sp(scsi_qla_host_t *vha, fc_port_t *fcport, size_t size)
+void
+qla2x00_bsg_job_done(void *data, void *ptr, int res)
 {
-	srb_t *sp;
+	srb_t *sp = (srb_t *)ptr;
+	struct scsi_qla_host *vha = (scsi_qla_host_t *)data;
+	struct fc_bsg_job *bsg_job = sp->u.bsg_job;
+
+	bsg_job->reply->result = res;
+	bsg_job->job_done(bsg_job);
+	sp->free(vha, sp);
+}
+
+void
+qla2x00_bsg_sp_free(void *data, void *ptr)
+{
+	srb_t *sp = (srb_t *)ptr;
+	struct scsi_qla_host *vha = (scsi_qla_host_t *)data;
+	struct fc_bsg_job *bsg_job = sp->u.bsg_job;
 	struct qla_hw_data *ha = vha->hw;
-	struct srb_ctx *ctx;
 
-	sp = mempool_alloc(ha->srb_mempool, GFP_KERNEL);
-	if (!sp)
-		goto done;
-	ctx = kzalloc(size, GFP_KERNEL);
-	if (!ctx) {
-		mempool_free(sp, ha->srb_mempool);
-		sp = NULL;
-		goto done;
-	}
+	dma_unmap_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
+	    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
 
-	memset(sp, 0, sizeof(*sp));
-	sp->fcport = fcport;
-	sp->ctx = ctx;
-	ctx->iocbs = 1;
-done:
-	return sp;
+	dma_unmap_sg(&ha->pdev->dev, bsg_job->reply_payload.sg_list,
+	    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
+
+	if (sp->type == SRB_CT_CMD ||
+	    sp->type == SRB_ELS_CMD_HST)
+		kfree(sp->fcport);
+	mempool_free(sp, vha->hw->srb_mempool);
 }
 
 int
@@ -217,6 +224,7 @@ exit_fcp_prio_cfg:
 	bsg_job->job_done(bsg_job);
 	return ret;
 }
+
 static int
 qla2x00_process_els(struct fc_bsg_job *bsg_job)
 {
@@ -230,7 +238,6 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 	int req_sg_cnt, rsp_sg_cnt;
 	int rval =  (DRIVER_ERROR << 16);
 	uint16_t nextlid = 0;
-	struct srb_ctx *els;
 
 	if (bsg_job->request->msgcode == FC_BSG_RPT_ELS) {
 		rport = bsg_job->rport;
@@ -337,20 +344,21 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 	}
 
 	/* Alloc SRB structure */
-	sp = qla2x00_get_ctx_bsg_sp(vha, fcport, sizeof(struct srb_ctx));
+	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp) {
 		rval = -ENOMEM;
 		goto done_unmap_sg;
 	}
 
-	els = sp->ctx;
-	els->type =
+	sp->type =
 		(bsg_job->request->msgcode == FC_BSG_RPT_ELS ?
 		SRB_ELS_CMD_RPT : SRB_ELS_CMD_HST);
-	els->name =
+	sp->name =
 		(bsg_job->request->msgcode == FC_BSG_RPT_ELS ?
 		"bsg_els_rpt" : "bsg_els_hst");
-	els->u.bsg_job = bsg_job;
+	sp->u.bsg_job = bsg_job;
+	sp->free = qla2x00_bsg_sp_free;
+	sp->done = qla2x00_bsg_job_done;
 
 	ql_dbg(ql_dbg_user, vha, 0x700a,
 	    "bsg rqst type: %s els type: %x - loop-id=%x "
@@ -362,7 +370,6 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x700e,
 		    "qla2x00_start_sp failed = %d\n", rval);
-		kfree(sp->ctx);
 		mempool_free(sp, ha->srb_mempool);
 		rval = -EIO;
 		goto done_unmap_sg;
@@ -409,7 +416,6 @@ qla2x00_process_ct(struct fc_bsg_job *bsg_job)
 	uint16_t loop_id;
 	struct fc_port *fcport;
 	char  *type = "FC_BSG_HST_CT";
-	struct srb_ctx *ct;
 
 	req_sg_cnt =
 		dma_map_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
@@ -486,19 +492,20 @@ qla2x00_process_ct(struct fc_bsg_job *bsg_job)
 	fcport->loop_id = loop_id;
 
 	/* Alloc SRB structure */
-	sp = qla2x00_get_ctx_bsg_sp(vha, fcport, sizeof(struct srb_ctx));
+	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp) {
 		ql_log(ql_log_warn, vha, 0x7015,
-		    "qla2x00_get_ctx_bsg_sp failed.\n");
+		    "qla2x00_get_sp failed.\n");
 		rval = -ENOMEM;
 		goto done_free_fcport;
 	}
 
-	ct = sp->ctx;
-	ct->type = SRB_CT_CMD;
-	ct->name = "bsg_ct";
-	ct->iocbs = qla24xx_calc_ct_iocbs(req_sg_cnt + rsp_sg_cnt);
-	ct->u.bsg_job = bsg_job;
+	sp->type = SRB_CT_CMD;
+	sp->name = "bsg_ct";
+	sp->iocbs = qla24xx_calc_ct_iocbs(req_sg_cnt + rsp_sg_cnt);
+	sp->u.bsg_job = bsg_job;
+	sp->free = qla2x00_bsg_sp_free;
+	sp->done = qla2x00_bsg_job_done;
 
 	ql_dbg(ql_dbg_user, vha, 0x7016,
 	    "bsg rqst type: %s else type: %x - "
@@ -511,7 +518,6 @@ qla2x00_process_ct(struct fc_bsg_job *bsg_job)
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x7017,
 		    "qla2x00_start_sp failed=%d.\n", rval);
-		kfree(sp->ctx);
 		mempool_free(sp, ha->srb_mempool);
 		rval = -EIO;
 		goto done_free_fcport;
@@ -1669,7 +1675,6 @@ qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
 	int cnt, que;
 	unsigned long flags;
 	struct req_que *req;
-	struct srb_ctx *sp_bsg;
 
 	/* find the bsg job from the active list of commands */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -1681,11 +1686,9 @@ qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
 		for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
 			sp = req->outstanding_cmds[cnt];
 			if (sp) {
-				sp_bsg = sp->ctx;
-
-				if (((sp_bsg->type == SRB_CT_CMD) ||
-					(sp_bsg->type == SRB_ELS_CMD_HST))
-					&& (sp_bsg->u.bsg_job == bsg_job)) {
+				if (((sp->type == SRB_CT_CMD) ||
+					(sp->type == SRB_ELS_CMD_HST))
+					&& (sp->u.bsg_job == bsg_job)) {
 					spin_unlock_irqrestore(&ha->hardware_lock, flags);
 					if (ha->isp_ops->abort_command(sp)) {
 						ql_log(ql_log_warn, vha, 0x7089,
@@ -1715,7 +1718,6 @@ done:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	if (bsg_job->request->msgcode == FC_BSG_HST_CT)
 		kfree(sp->fcport);
-	kfree(sp->ctx);
 	mempool_free(sp, ha->srb_mempool);
 	return 0;
 }

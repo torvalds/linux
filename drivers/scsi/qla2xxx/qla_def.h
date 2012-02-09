@@ -202,20 +202,12 @@ struct sd_dif_tuple {
 /*
  * SCSI Request Block
  */
-typedef struct srb {
-	atomic_t ref_count;
-	struct fc_port *fcport;
-	uint32_t handle;
-
+struct srb_cmd {
 	struct scsi_cmnd *cmd;		/* Linux SCSI command pkt */
-
-	uint16_t flags;
-
 	uint32_t request_sense_length;
 	uint8_t *request_sense_ptr;
-
 	void *ctx;
-} srb_t;
+};
 
 /*
  * SRB flag definitions
@@ -254,10 +246,7 @@ struct srb_iocb {
 	} u;
 
 	struct timer_list timer;
-
-	void (*done)(srb_t *);
-	void (*free)(srb_t *);
-	void (*timeout)(srb_t *);
+	void (*timeout)(void *);
 };
 
 /* Values for srb_ctx type */
@@ -268,16 +257,37 @@ struct srb_iocb {
 #define SRB_CT_CMD	5
 #define SRB_ADISC_CMD	6
 #define SRB_TM_CMD	7
+#define SRB_SCSI_CMD	8
 
-struct srb_ctx {
+typedef struct srb {
+	atomic_t ref_count;
+	struct fc_port *fcport;
+	uint32_t handle;
+	uint16_t flags;
 	uint16_t type;
 	char *name;
 	int iocbs;
 	union {
-		struct srb_iocb *iocb_cmd;
+		struct srb_iocb iocb_cmd;
 		struct fc_bsg_job *bsg_job;
+		struct srb_cmd scmd;
 	} u;
-};
+	void (*done)(void *, void *, int);
+	void (*free)(void *, void *);
+} srb_t;
+
+#define GET_CMD_SP(sp) (sp->u.scmd.cmd)
+#define SET_CMD_SP(sp, cmd) (sp->u.scmd.cmd = cmd)
+#define GET_CMD_CTX_SP(sp) (sp->u.scmd.ctx)
+
+#define GET_CMD_SENSE_LEN(sp) \
+	(sp->u.scmd.request_sense_length)
+#define SET_CMD_SENSE_LEN(sp, len) \
+	(sp->u.scmd.request_sense_length = len)
+#define GET_CMD_SENSE_PTR(sp) \
+	(sp->u.scmd.request_sense_ptr)
+#define SET_CMD_SENSE_PTR(sp, ptr) \
+	(sp->u.scmd.request_sense_ptr = ptr)
 
 struct msg_echo_lb {
 	dma_addr_t send_dma;
