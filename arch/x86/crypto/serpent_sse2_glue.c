@@ -1025,7 +1025,6 @@ static int __init serpent_sse2_init(void)
 		goto ablk_xts_err;
 	return err;
 
-	crypto_unregister_alg(&ablk_xts_alg);
 ablk_xts_err:
 	crypto_unregister_alg(&blk_xts_alg);
 blk_xts_err:
