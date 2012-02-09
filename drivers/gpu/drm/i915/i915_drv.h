@@ -850,6 +850,8 @@ struct drm_i915_gem_object {
 
 	unsigned int cache_level:2;
 
+	unsigned int has_aliasing_ppgtt_mapping:1;
+
 	struct page **pages;
 
 	/**
@@ -1249,6 +1251,11 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 /* i915_gem_gtt.c */
 int __must_check i915_gem_init_aliasing_ppgtt(struct drm_device *dev);
 void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev);
+void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
+			    struct drm_i915_gem_object *obj,
+			    enum i915_cache_level cache_level);
+void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
+			      struct drm_i915_gem_object *obj);
 
 void i915_gem_restore_gtt_mappings(struct drm_device *dev);
 int __must_check i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj);

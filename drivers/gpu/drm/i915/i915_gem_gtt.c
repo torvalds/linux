@@ -34,22 +34,31 @@ static void i915_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
 				   unsigned first_entry,
 				   unsigned num_entries)
 {
-	int i, j;
 	uint32_t *pt_vaddr;
 	uint32_t scratch_pte;
+	unsigned act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
+	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
+	unsigned last_pte, i;
 
 	scratch_pte = GEN6_PTE_ADDR_ENCODE(ppgtt->scratch_page_dma_addr);
 	scratch_pte |= GEN6_PTE_VALID | GEN6_PTE_CACHE_LLC;
 
-	for (i = 0; i < ppgtt->num_pd_entries; i++) {
-		pt_vaddr = kmap_atomic(ppgtt->pt_pages[i]);
+	while (num_entries) {
+		last_pte = first_pte + num_entries;
+		if (last_pte > I915_PPGTT_PT_ENTRIES)
+			last_pte = I915_PPGTT_PT_ENTRIES;
 
-		for (j = 0; j < I915_PPGTT_PT_ENTRIES; j++)
-			pt_vaddr[j] = scratch_pte;
+		pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pd]);
+
+		for (i = first_pte; i < last_pte; i++)
+			pt_vaddr[i] = scratch_pte;
 
 		kunmap_atomic(pt_vaddr);
-	}
 
+		num_entries -= last_pte - first_pte;
+		first_pte = 0;
+		act_pd++;
+	}
 }
 
 int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
@@ -166,6 +175,131 @@ void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 		__free_page(ppgtt->pt_pages[i]);
 	kfree(ppgtt->pt_pages);
 	kfree(ppgtt);
+}
+
+static void i915_ppgtt_insert_sg_entries(struct i915_hw_ppgtt *ppgtt,
+					 struct scatterlist *sg_list,
+					 unsigned sg_len,
+					 unsigned first_entry,
+					 uint32_t pte_flags)
+{
+	uint32_t *pt_vaddr, pte;
+	unsigned act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
+	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
+	unsigned i, j, m, segment_len;
+	dma_addr_t page_addr;
+	struct scatterlist *sg;
+
+	/* init sg walking */
+	sg = sg_list;
+	i = 0;
+	segment_len = sg_dma_len(sg) >> PAGE_SHIFT;
+	m = 0;
+
+	while (i < sg_len) {
+		pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pd]);
+
+		for (j = first_pte; j < I915_PPGTT_PT_ENTRIES; j++) {
+			page_addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
+			pte = GEN6_PTE_ADDR_ENCODE(page_addr);
+			pt_vaddr[j] = pte | pte_flags;
+
+			/* grab the next page */
+			m++;
+			if (m == segment_len) {
+				sg = sg_next(sg);
+				i++;
+				if (i == sg_len)
+					break;
+
+				segment_len = sg_dma_len(sg) >> PAGE_SHIFT;
+				m = 0;
+			}
+		}
+
+		kunmap_atomic(pt_vaddr);
+
+		first_pte = 0;
+		act_pd++;
+	}
+}
+
+static void i915_ppgtt_insert_pages(struct i915_hw_ppgtt *ppgtt,
+				    unsigned first_entry, unsigned num_entries,
+				    struct page **pages, uint32_t pte_flags)
+{
+	uint32_t *pt_vaddr, pte;
+	unsigned act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
+	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
+	unsigned last_pte, i;
+	dma_addr_t page_addr;
+
+	while (num_entries) {
+		last_pte = first_pte + num_entries;
+		last_pte = min_t(unsigned, last_pte, I915_PPGTT_PT_ENTRIES);
+
+		pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pd]);
+
+		for (i = first_pte; i < last_pte; i++) {
+			page_addr = page_to_phys(*pages);
+			pte = GEN6_PTE_ADDR_ENCODE(page_addr);
+			pt_vaddr[i] = pte | pte_flags;
+
+			pages++;
+		}
+
+		kunmap_atomic(pt_vaddr);
+
+		num_entries -= last_pte - first_pte;
+		first_pte = 0;
+		act_pd++;
+	}
+}
+
+void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
+			    struct drm_i915_gem_object *obj,
+			    enum i915_cache_level cache_level)
+{
+	struct drm_device *dev = obj->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t pte_flags = GEN6_PTE_VALID;
+
+	switch (cache_level) {
+	case I915_CACHE_LLC_MLC:
+		pte_flags |= GEN6_PTE_CACHE_LLC_MLC;
+		break;
+	case I915_CACHE_LLC:
+		pte_flags |= GEN6_PTE_CACHE_LLC;
+		break;
+	case I915_CACHE_NONE:
+		pte_flags |= GEN6_PTE_UNCACHED;
+		break;
+	default:
+		BUG();
+	}
+
+	if (dev_priv->mm.gtt->needs_dmar) {
+		BUG_ON(!obj->sg_list);
+
+		i915_ppgtt_insert_sg_entries(ppgtt,
+					     obj->sg_list,
+					     obj->num_sg,
+					     obj->gtt_space->start >> PAGE_SHIFT,
+					     pte_flags);
+	} else
+		i915_ppgtt_insert_pages(ppgtt,
+					obj->gtt_space->start >> PAGE_SHIFT,
+					obj->base.size >> PAGE_SHIFT,
+					obj->pages,
+					pte_flags);
+}
+
+void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
+			      struct drm_i915_gem_object *obj)
+{
+	i915_ppgtt_clear_range(ppgtt,
+			       obj->gtt_space->start >> PAGE_SHIFT,
+			       obj->base.size >> PAGE_SHIFT);
 }
 
 /* XXX kill agp_type! */

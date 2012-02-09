@@ -515,6 +515,7 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			    struct drm_file *file,
 			    struct list_head *objects)
 {
+	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	int ret, retry;
 	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
@@ -623,6 +624,14 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			}
 
 			i915_gem_object_unpin(obj);
+
+			/* ... and ensure ppgtt mapping exist if needed. */
+			if (dev_priv->mm.aliasing_ppgtt && !obj->has_aliasing_ppgtt_mapping) {
+				i915_ppgtt_bind_object(dev_priv->mm.aliasing_ppgtt,
+						       obj, obj->cache_level);
+
+				obj->has_aliasing_ppgtt_mapping = 1;
+			}
 		}
 
 		if (ret != -ENOSPC || retry > 1)

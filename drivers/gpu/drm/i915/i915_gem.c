@@ -2020,6 +2020,7 @@ static void i915_gem_object_finish_gtt(struct drm_i915_gem_object *obj)
 int
 i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 {
+	drm_i915_private_t *dev_priv = obj->base.dev->dev_private;
 	int ret = 0;
 
 	if (obj->gtt_space == NULL)
@@ -2064,6 +2065,11 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	trace_i915_gem_object_unbind(obj);
 
 	i915_gem_gtt_unbind_object(obj);
+	if (obj->has_aliasing_ppgtt_mapping) {
+		i915_ppgtt_unbind_object(dev_priv->mm.aliasing_ppgtt, obj);
+		obj->has_aliasing_ppgtt_mapping = 0;
+	}
+
 	i915_gem_object_put_pages_gtt(obj);
 
 	list_del_init(&obj->gtt_list);
@@ -2882,6 +2888,8 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				    enum i915_cache_level cache_level)
 {
+	struct drm_device *dev = obj->base.dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
 
 	if (obj->cache_level == cache_level)
@@ -2910,6 +2918,9 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		}
 
 		i915_gem_gtt_rebind_object(obj, cache_level);
+		if (obj->has_aliasing_ppgtt_mapping)
+			i915_ppgtt_bind_object(dev_priv->mm.aliasing_ppgtt,
+					       obj, cache_level);
 	}
 
 	if (cache_level == I915_CACHE_NONE) {
