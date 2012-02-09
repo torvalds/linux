@@ -501,6 +501,7 @@ struct htc_endpoint {
 	u8 seqno;
 	u32 conn_flags;
 	struct htc_endpoint_stats ep_st;
+	u16 tx_drop_packet_threshold;
 };
 
 struct htc_control_buffer {

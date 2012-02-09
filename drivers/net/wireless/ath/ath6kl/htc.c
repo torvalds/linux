@@ -2483,6 +2483,15 @@ int ath6kl_htc_conn_service(struct htc_target *target,
 	endpoint->cred_dist.endpoint = assigned_ep;
 	endpoint->cred_dist.cred_sz = target->tgt_cred_sz;
 
+	switch (endpoint->svc_id) {
+	case WMI_DATA_BK_SVC:
+		endpoint->tx_drop_packet_threshold = MAX_DEF_COOKIE_NUM / 3;
+		break;
+	default:
+		endpoint->tx_drop_packet_threshold = MAX_HI_COOKIE_NUM;
+		break;
+	}
+
 	if (conn_req->max_rxmsg_sz) {
 		/*
 		 * Override cred_per_msg calculation, this optimizes
