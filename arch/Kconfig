@@ -216,4 +216,21 @@ config HAVE_CMPXCHG_DOUBLE
 config ARCH_WANT_OLD_COMPAT_IPC
 	bool
 
+config HAVE_ARCH_SECCOMP_FILTER
+	bool
+	help
+	  This symbol should be selected by an architecure if it provides
+	  asm/syscall.h, specifically syscall_get_arguments() and
+	  syscall_get_arch().
+
+config SECCOMP_FILTER
+	def_bool y
+	depends on HAVE_ARCH_SECCOMP_FILTER && SECCOMP && NET
+	help
+	  Enable tasks to build secure computing environments defined
+	  in terms of Berkeley Packet Filter programs which implement
+	  task-defined system call filtering polices.
+
+	  See Documentation/prctl/seccomp_filter.txt for details.
+
 source "kernel/gcov/Kconfig"
