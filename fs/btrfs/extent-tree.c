@@ -7886,9 +7886,16 @@ int btrfs_trim_fs(struct btrfs_root *root, struct fstrim_range *range)
 	u64 start;
 	u64 end;
 	u64 trimmed = 0;
+	u64 total_bytes = btrfs_super_total_bytes(fs_info->super_copy);
 	int ret = 0;
 
-	cache = btrfs_lookup_block_group(fs_info, range->start);
+	/*
+	 * try to trim all FS space, our block group may start from non-zero.
+	 */
+	if (range->len == total_bytes)
+		cache = btrfs_lookup_first_block_group(fs_info, range->start);
+	else
+		cache = btrfs_lookup_block_group(fs_info, range->start);
 
 	while (cache) {
 		if (cache->key.objectid >= (range->start + range->len)) {
