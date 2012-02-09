@@ -1183,3 +1183,27 @@ exit:
 	return ret;
 }
 #endif				/* DEBUG */
+
+static int __init brcmfmac_init(void)
+{
+	int ret = 0;
+
+#ifdef CONFIG_BRCMFMAC_SDIO
+	ret = brcmf_sdio_init();
+	if (ret)
+		goto fail;
+#endif
+
+fail:
+	return ret;
+}
+
+static void __exit brcmfmac_exit(void)
+{
+#ifdef CONFIG_BRCMFMAC_SDIO
+	brcmf_sdio_exit();
+#endif
+}
+
+module_init(brcmfmac_init);
+module_exit(brcmfmac_exit);

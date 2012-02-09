@@ -597,14 +597,14 @@ static struct sdio_driver brcmf_sdmmc_driver = {
 #endif	/* CONFIG_PM_SLEEP */
 };
 
-static void __exit brcmf_sdio_exit(void)
+void brcmf_sdio_exit(void)
 {
 	brcmf_dbg(TRACE, "Enter\n");
 
 	sdio_unregister_driver(&brcmf_sdmmc_driver);
 }
 
-static int __init brcmf_sdio_init(void)
+int brcmf_sdio_init(void)
 {
 	int ret;
 
@@ -617,6 +617,3 @@ static int __init brcmf_sdio_init(void)
 
 	return ret;
 }
-
-module_init(brcmf_sdio_init);
-module_exit(brcmf_sdio_exit);

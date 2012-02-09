@@ -105,4 +105,10 @@ extern int brcmf_bus_start(struct device *dev);
 
 extern int brcmf_add_if(struct device *dev, int ifidx,
 			char *name, u8 *mac_addr);
+
+#ifdef CONFIG_BRCMFMAC_SDIO
+extern void brcmf_sdio_exit(void);
+extern int brcmf_sdio_init(void);
+#endif
+
 #endif				/* _BRCMF_BUS_H_ */
