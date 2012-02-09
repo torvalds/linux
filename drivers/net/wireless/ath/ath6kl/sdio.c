@@ -50,8 +50,8 @@ struct ath6kl_sdio {
 	/* scatter request list head */
 	struct list_head scat_req;
 
-	/* Avoids disabling irq while the interrupts being handled */
-	struct mutex mtx_irq;
+	atomic_t irq_handling;
+	wait_queue_head_t irq_wq;
 
 	spinlock_t scat_lock;
 	bool scatter_enabled;
@@ -463,7 +463,7 @@ static void ath6kl_sdio_irq_handler(struct sdio_func *func)
 	ath6kl_dbg(ATH6KL_DBG_SDIO, "irq\n");
 
 	ar_sdio = sdio_get_drvdata(func);
-	mutex_lock(&ar_sdio->mtx_irq);
+	atomic_set(&ar_sdio->irq_handling, 1);
 	/*
 	 * Release the host during interrups so we can pick it back up when
 	 * we process commands.
@@ -472,7 +472,10 @@ static void ath6kl_sdio_irq_handler(struct sdio_func *func)
 
 	status = ath6kl_hif_intr_bh_handler(ar_sdio->ar);
 	sdio_claim_host(ar_sdio->func);
-	mutex_unlock(&ar_sdio->mtx_irq);
+
+	atomic_set(&ar_sdio->irq_handling, 0);
+	wake_up(&ar_sdio->irq_wq);
+
 	WARN_ON(status && status != -ECANCELED);
 }
 
@@ -573,6 +576,13 @@ static void ath6kl_sdio_irq_enable(struct ath6kl *ar)
 	sdio_release_host(ar_sdio->func);
 }
 
+static bool ath6kl_sdio_is_on_irq(struct ath6kl *ar)
+{
+	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
+
+	return !atomic_read(&ar_sdio->irq_handling);
+}
+
 static void ath6kl_sdio_irq_disable(struct ath6kl *ar)
 {
 	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
@@ -580,13 +590,20 @@ static void ath6kl_sdio_irq_disable(struct ath6kl *ar)
 
 	sdio_claim_host(ar_sdio->func);
 
-	mutex_lock(&ar_sdio->mtx_irq);
+	if (atomic_read(&ar_sdio->irq_handling)) {
+		sdio_release_host(ar_sdio->func);
+
+		ret = wait_event_interruptible(ar_sdio->irq_wq,
+					       ath6kl_sdio_is_on_irq(ar));
+		if (ret)
+			return;
+
+		sdio_claim_host(ar_sdio->func);
+	}
 
 	ret = sdio_release_irq(ar_sdio->func);
 	if (ret)
 		ath6kl_err("Failed to release sdio irq: %d\n", ret);
-
-	mutex_unlock(&ar_sdio->mtx_irq);
 
 	sdio_release_host(ar_sdio->func);
 }
@@ -1288,13 +1305,14 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 	spin_lock_init(&ar_sdio->scat_lock);
 	spin_lock_init(&ar_sdio->wr_async_lock);
 	mutex_init(&ar_sdio->dma_buffer_mutex);
-	mutex_init(&ar_sdio->mtx_irq);
 
 	INIT_LIST_HEAD(&ar_sdio->scat_req);
 	INIT_LIST_HEAD(&ar_sdio->bus_req_freeq);
 	INIT_LIST_HEAD(&ar_sdio->wr_asyncq);
 
 	INIT_WORK(&ar_sdio->wr_async_work, ath6kl_sdio_write_async_work);
+
+	init_waitqueue_head(&ar_sdio->irq_wq);
 
 	for (count = 0; count < BUS_REQUEST_MAX_NUM; count++)
 		ath6kl_sdio_free_bus_req(ar_sdio, &ar_sdio->bus_req[count]);
