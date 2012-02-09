@@ -129,6 +129,7 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 			mmc_data->write16_hook = sh_mobile_sdhi_write16_hook;
 		mmc_data->ocr_mask = p->tmio_ocr_mask;
 		mmc_data->capabilities |= p->tmio_caps;
+		mmc_data->cd_gpio = p->cd_gpio;
 
 		if (p->dma_slave_tx > 0 && p->dma_slave_rx > 0) {
 			priv->param_tx.slave_id = p->dma_slave_tx;
@@ -211,7 +212,7 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%s base at 0x%08lx clock rate %u MHz\n",
 		 mmc_hostname(host->mmc), (unsigned long)
-		 (platform_get_resource(pdev,IORESOURCE_MEM, 0)->start),
+		 (platform_get_resource(pdev, IORESOURCE_MEM, 0)->start),
 		 mmc_data->hclk / 1000000);
 
 	return ret;

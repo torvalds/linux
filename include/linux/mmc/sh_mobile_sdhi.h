@@ -16,6 +16,7 @@ struct sh_mobile_sdhi_info {
 	unsigned long tmio_flags;
 	unsigned long tmio_caps;
 	u32 tmio_ocr_mask;	/* available MMC voltages */
+	unsigned int cd_gpio;
 	struct tmio_mmc_data *pdata;
 	void (*set_pwr)(struct platform_device *pdev, int state);
 	int (*get_cd)(struct platform_device *pdev);
