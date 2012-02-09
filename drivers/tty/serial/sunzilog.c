@@ -43,8 +43,8 @@
 #endif
 
 #include <linux/serial_core.h>
+#include <linux/sunserialcore.h>
 
-#include "suncore.h"
 #include "sunzilog.h"
 
 /* On 32-bit sparcs we need to delay after register accesses

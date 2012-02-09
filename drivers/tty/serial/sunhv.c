@@ -29,8 +29,7 @@
 #endif
 
 #include <linux/serial_core.h>
-
-#include "suncore.h"
+#include <linux/sunserialcore.h>
 
 #define CON_BREAK	((long)-1)
 #define CON_HUP		((long)-2)

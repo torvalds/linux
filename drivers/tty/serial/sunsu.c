@@ -47,8 +47,7 @@
 #endif
 
 #include <linux/serial_core.h>
-
-#include "suncore.h"
+#include <linux/sunserialcore.h>
 
 /* We are on a NS PC87303 clocked with 24.0 MHz, which results
  * in a UART clock of 1.8462 MHz.

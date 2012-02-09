@@ -38,15 +38,14 @@
 #include <linux/nmi.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#ifdef CONFIG_SPARC
+#include <linux/sunserialcore.h>
+#endif
 
 #include <asm/io.h>
 #include <asm/irq.h>
 
 #include "8250.h"
-
-#ifdef CONFIG_SPARC
-#include "../suncore.h"
-#endif
 
 /*
  * Configuration:
