@@ -84,7 +84,7 @@ config X86
 	select GENERIC_IOMAP
 
 config INSTRUCTION_DECODER
-	def_bool (KPROBES || PERF_EVENTS)
+	def_bool (KPROBES || PERF_EVENTS || UPROBES)
 
 config OUTPUT_FORMAT
 	string
@@ -239,6 +239,9 @@ config KTIME_SCALAR
 config ARCH_CPU_PROBE_RELEASE
 	def_bool y
 	depends on HOTPLUG_CPU
+
+config ARCH_SUPPORTS_UPROBES
+	def_bool y
 
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
