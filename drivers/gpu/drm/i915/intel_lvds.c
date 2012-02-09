@@ -844,6 +844,18 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 	return false;
 }
 
+static bool intel_lvds_supported(struct drm_device *dev)
+{
+	/* With the introduction of the PCH we gained a dedicated
+	 * LVDS presence pin, use it. */
+	if (HAS_PCH_SPLIT(dev))
+		return true;
+
+	/* Otherwise LVDS was only attached to mobile products,
+	 * except for the inglorious 830gm */
+	return IS_MOBILE(dev) && !IS_I830(dev);
+}
+
 /**
  * intel_lvds_init - setup LVDS connectors on this device
  * @dev: drm device
@@ -864,6 +876,9 @@ bool intel_lvds_init(struct drm_device *dev)
 	u32 lvds;
 	int pipe;
 	u8 pin;
+
+	if (!intel_lvds_supported(dev))
+		return false;
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds))
