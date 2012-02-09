@@ -785,14 +785,6 @@ static int isp_pipeline_enable(struct isp_pipeline *pipe,
 		}
 	}
 
-	/* Frame number propagation. In continuous streaming mode the number
-	 * is incremented in the frame start ISR. In mem-to-mem mode
-	 * singleshot is used and frame start IRQs are not available.
-	 * Thus we have to increment the number here.
-	 */
-	if (pipe->do_propagation && mode == ISP_PIPELINE_STREAM_SINGLESHOT)
-		atomic_inc(&pipe->frame_number);
-
 	return 0;
 }
 

@@ -161,7 +161,6 @@ static void ccp2_pwr_cfg(struct isp_ccp2_device *ccp2)
 static void ccp2_if_enable(struct isp_ccp2_device *ccp2, u8 enable)
 {
 	struct isp_device *isp = to_isp_device(ccp2);
-	struct isp_pipeline *pipe = to_isp_pipeline(&ccp2->subdev.entity);
 	int i;
 
 	if (enable && ccp2->vdds_csib)
@@ -177,19 +176,6 @@ static void ccp2_if_enable(struct isp_ccp2_device *ccp2, u8 enable)
 	isp_reg_clr_set(isp, OMAP3_ISP_IOMEM_CCP2, ISPCCP2_CTRL,
 			ISPCCP2_CTRL_MODE | ISPCCP2_CTRL_IF_EN,
 			enable ? (ISPCCP2_CTRL_MODE | ISPCCP2_CTRL_IF_EN) : 0);
-
-	/* For frame count propagation */
-	if (pipe->do_propagation) {
-		/* We may want the Frame Start IRQ from LC0 */
-		if (enable)
-			isp_reg_set(isp, OMAP3_ISP_IOMEM_CCP2,
-				    ISPCCP2_LC01_IRQENABLE,
-				    ISPCCP2_LC01_IRQSTATUS_LC0_FS_IRQ);
-		else
-			isp_reg_clr(isp, OMAP3_ISP_IOMEM_CCP2,
-				    ISPCCP2_LC01_IRQENABLE,
-				    ISPCCP2_LC01_IRQSTATUS_LC0_FS_IRQ);
-	}
 
 	if (!enable && ccp2->vdds_csib)
 		regulator_disable(ccp2->vdds_csib);
@@ -350,7 +336,6 @@ static void ccp2_lcx_config(struct isp_ccp2_device *ccp2,
 	      ISPCCP2_LC01_IRQSTATUS_LC0_CRC_IRQ |
 	      ISPCCP2_LC01_IRQSTATUS_LC0_FSP_IRQ |
 	      ISPCCP2_LC01_IRQSTATUS_LC0_FW_IRQ |
-	      ISPCCP2_LC01_IRQSTATUS_LC0_FS_IRQ |
 	      ISPCCP2_LC01_IRQSTATUS_LC0_FSC_IRQ |
 	      ISPCCP2_LC01_IRQSTATUS_LC0_SSC_IRQ;
 
@@ -612,14 +597,6 @@ void omap3isp_ccp2_isr(struct isp_ccp2_device *ccp2)
 
 	if (omap3isp_module_sync_is_stopping(&ccp2->wait, &ccp2->stopping))
 		return;
-
-	/* Frame number propagation */
-	if (lcx_irqstatus & ISPCCP2_LC01_IRQSTATUS_LC0_FS_IRQ) {
-		struct isp_pipeline *pipe =
-			to_isp_pipeline(&ccp2->subdev.entity);
-		if (pipe->do_propagation)
-			atomic_inc(&pipe->frame_number);
-	}
 
 	/* Handle queued buffers on frame end interrupts */
 	if (lcm_irqstatus & ISPCCP2_LCM_IRQSTATUS_EOF_IRQ)

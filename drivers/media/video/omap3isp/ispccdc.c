@@ -1410,6 +1410,9 @@ static void ccdc_hs_vs_isr(struct isp_ccdc_device *ccdc)
 	struct video_device *vdev = ccdc->subdev.devnode;
 	struct v4l2_event event;
 
+	/* Frame number propagation */
+	atomic_inc(&pipe->frame_number);
+
 	memset(&event, 0, sizeof(event));
 	event.type = V4L2_EVENT_FRAME_SYNC;
 	event.u.frame_sync.frame_sequence = atomic_read(&pipe->frame_number);

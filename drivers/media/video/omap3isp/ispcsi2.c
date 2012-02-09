@@ -378,21 +378,17 @@ static void csi2_timing_config(struct isp_device *isp,
 static void csi2_irq_ctx_set(struct isp_device *isp,
 			     struct isp_csi2_device *csi2, int enable)
 {
-	u32 reg = ISPCSI2_CTX_IRQSTATUS_FE_IRQ;
 	int i;
 
-	if (csi2->use_fs_irq)
-		reg |= ISPCSI2_CTX_IRQSTATUS_FS_IRQ;
-
 	for (i = 0; i < 8; i++) {
-		isp_reg_writel(isp, reg, csi2->regs1,
+		isp_reg_writel(isp, ISPCSI2_CTX_IRQSTATUS_FE_IRQ, csi2->regs1,
 			       ISPCSI2_CTX_IRQSTATUS(i));
 		if (enable)
 			isp_reg_set(isp, csi2->regs1, ISPCSI2_CTX_IRQENABLE(i),
-				    reg);
+				    ISPCSI2_CTX_IRQSTATUS_FE_IRQ);
 		else
 			isp_reg_clr(isp, csi2->regs1, ISPCSI2_CTX_IRQENABLE(i),
-				    reg);
+				    ISPCSI2_CTX_IRQSTATUS_FE_IRQ);
 	}
 }
 
@@ -689,14 +685,6 @@ static void csi2_isr_ctx(struct isp_csi2_device *csi2,
 
 	status = isp_reg_readl(isp, csi2->regs1, ISPCSI2_CTX_IRQSTATUS(n));
 	isp_reg_writel(isp, status, csi2->regs1, ISPCSI2_CTX_IRQSTATUS(n));
-
-	/* Propagate frame number */
-	if (status & ISPCSI2_CTX_IRQSTATUS_FS_IRQ) {
-		struct isp_pipeline *pipe =
-				     to_isp_pipeline(&csi2->subdev.entity);
-		if (pipe->do_propagation)
-			atomic_inc(&pipe->frame_number);
-	}
 
 	if (!(status & ISPCSI2_CTX_IRQSTATUS_FE_IRQ))
 		return;
@@ -1047,14 +1035,12 @@ static int csi2_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct isp_csi2_device *csi2 = v4l2_get_subdevdata(sd);
 	struct isp_device *isp = csi2->isp;
-	struct isp_pipeline *pipe = to_isp_pipeline(&csi2->subdev.entity);
 	struct isp_video *video_out = &csi2->video_out;
 
 	switch (enable) {
 	case ISP_PIPELINE_STREAM_CONTINUOUS:
 		if (omap3isp_csiphy_acquire(csi2->phy) < 0)
 			return -ENODEV;
-		csi2->use_fs_irq = pipe->do_propagation;
 		if (csi2->output & CSI2_OUTPUT_MEMORY)
 			omap3isp_sbl_enable(isp, OMAP3_ISP_SBL_CSI2A_WRITE);
 		csi2_configure(csi2);
