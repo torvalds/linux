@@ -257,12 +257,15 @@ static u8 check_enc_key_size(struct l2cap_conn *conn, __u8 max_key_size)
 
 static void smp_failure(struct l2cap_conn *conn, u8 reason, u8 send)
 {
+	struct hci_conn *hcon = conn->hcon;
+
 	if (send)
 		smp_send_cmd(conn, SMP_CMD_PAIRING_FAIL, sizeof(reason),
 								&reason);
 
 	clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->hcon->flags);
-	mgmt_auth_failed(conn->hcon->hdev, conn->dst, reason);
+	mgmt_auth_failed(conn->hcon->hdev, conn->dst, hcon->type,
+						hcon->dst_type, reason);
 
 	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags)) {
 		cancel_delayed_work_sync(&conn->security_timer);

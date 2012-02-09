@@ -2841,11 +2841,13 @@ int mgmt_user_passkey_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 					status, MGMT_OP_USER_PASSKEY_NEG_REPLY);
 }
 
-int mgmt_auth_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 status)
+int mgmt_auth_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
+						u8 addr_type, u8 status)
 {
 	struct mgmt_ev_auth_failed ev;
 
-	bacpy(&ev.bdaddr, bdaddr);
+	bacpy(&ev.addr.bdaddr, bdaddr);
+	ev.addr.type = link_to_mgmt(link_type, addr_type);
 	ev.status = mgmt_status(status);
 
 	return mgmt_event(MGMT_EV_AUTH_FAILED, hdev, &ev, sizeof(ev), NULL);

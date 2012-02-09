@@ -1901,7 +1901,8 @@ static inline void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *s
 			conn->sec_level = conn->pending_sec_level;
 		}
 	} else {
-		mgmt_auth_failed(hdev, &conn->dst, ev->status);
+		mgmt_auth_failed(hdev, &conn->dst, conn->type, conn->dst_type,
+								ev->status);
 	}
 
 	clear_bit(HCI_CONN_AUTH_PEND, &conn->flags);
@@ -3166,7 +3167,8 @@ static inline void hci_simple_pair_complete_evt(struct hci_dev *hdev, struct sk_
 	 * event gets always produced as initiator and is also mapped to
 	 * the mgmt_auth_failed event */
 	if (!test_bit(HCI_CONN_AUTH_PEND, &conn->flags) && ev->status != 0)
-		mgmt_auth_failed(hdev, &conn->dst, ev->status);
+		mgmt_auth_failed(hdev, &conn->dst, conn->type, conn->dst_type,
+								ev->status);
 
 	hci_conn_put(conn);
 

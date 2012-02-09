@@ -388,7 +388,7 @@ struct mgmt_ev_user_passkey_request {
 
 #define MGMT_EV_AUTH_FAILED		0x0011
 struct mgmt_ev_auth_failed {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 	__u8 status;
 } __packed;
 
