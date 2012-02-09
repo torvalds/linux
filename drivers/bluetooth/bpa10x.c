@@ -66,7 +66,7 @@ struct hci_vendor_hdr {
 
 static int bpa10x_recv(struct hci_dev *hdev, int queue, void *buf, int count)
 {
-	struct bpa10x_data *data = hdev->driver_data;
+	struct bpa10x_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("%s queue %d buffer %p count %d", hdev->name,
 							queue, buf, count);
@@ -189,7 +189,7 @@ done:
 static void bpa10x_rx_complete(struct urb *urb)
 {
 	struct hci_dev *hdev = urb->context;
-	struct bpa10x_data *data = hdev->driver_data;
+	struct bpa10x_data *data = hci_get_drvdata(hdev);
 	int err;
 
 	BT_DBG("%s urb %p status %d count %d", hdev->name,
@@ -219,7 +219,7 @@ static void bpa10x_rx_complete(struct urb *urb)
 
 static inline int bpa10x_submit_intr_urb(struct hci_dev *hdev)
 {
-	struct bpa10x_data *data = hdev->driver_data;
+	struct bpa10x_data *data = hci_get_drvdata(hdev);
 	struct urb *urb;
 	unsigned char *buf;
 	unsigned int pipe;
@@ -260,7 +260,7 @@ static inline int bpa10x_submit_intr_urb(struct hci_dev *hdev)
 
 static inline int bpa10x_submit_bulk_urb(struct hci_dev *hdev)
 {
-	struct bpa10x_data *data = hdev->driver_data;
+	struct bpa10x_data *data = hci_get_drvdata(hdev);
 	struct urb *urb;
 	unsigned char *buf;
 	unsigned int pipe;
@@ -301,7 +301,7 @@ static inline int bpa10x_submit_bulk_urb(struct hci_dev *hdev)
 
 static int bpa10x_open(struct hci_dev *hdev)
 {
-	struct bpa10x_data *data = hdev->driver_data;
+	struct bpa10x_data *data = hci_get_drvdata(hdev);
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -329,7 +329,7 @@ error:
 
 static int bpa10x_close(struct hci_dev *hdev)
 {
-	struct bpa10x_data *data = hdev->driver_data;
+	struct bpa10x_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("%s", hdev->name);
 
@@ -343,7 +343,7 @@ static int bpa10x_close(struct hci_dev *hdev)
 
 static int bpa10x_flush(struct hci_dev *hdev)
 {
-	struct bpa10x_data *data = hdev->driver_data;
+	struct bpa10x_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("%s", hdev->name);
 
@@ -355,7 +355,7 @@ static int bpa10x_flush(struct hci_dev *hdev)
 static int bpa10x_send_frame(struct sk_buff *skb)
 {
 	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
-	struct bpa10x_data *data = hdev->driver_data;
+	struct bpa10x_data *data = hci_get_drvdata(hdev);
 	struct usb_ctrlrequest *dr;
 	struct urb *urb;
 	unsigned int pipe;
@@ -459,7 +459,7 @@ static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *
 	}
 
 	hdev->bus = HCI_USB;
-	hdev->driver_data = data;
+	hci_set_drvdata(hdev, data);
 
 	data->hdev = hdev;
 

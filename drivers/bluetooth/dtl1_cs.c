@@ -364,7 +364,7 @@ static int dtl1_hci_open(struct hci_dev *hdev)
 
 static int dtl1_hci_flush(struct hci_dev *hdev)
 {
-	dtl1_info_t *info = (dtl1_info_t *)(hdev->driver_data);
+	dtl1_info_t *info = hci_get_drvdata(hdev);
 
 	/* Drop TX queue */
 	skb_queue_purge(&(info->txq));
@@ -396,7 +396,7 @@ static int dtl1_hci_send_frame(struct sk_buff *skb)
 		return -ENODEV;
 	}
 
-	info = (dtl1_info_t *)(hdev->driver_data);
+	info = hci_get_drvdata(hdev);
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
@@ -475,7 +475,7 @@ static int dtl1_open(dtl1_info_t *info)
 	info->hdev = hdev;
 
 	hdev->bus = HCI_PCCARD;
-	hdev->driver_data = info;
+	hci_set_drvdata(hdev, info);
 	SET_HCIDEV_DEV(hdev, &info->p_dev->dev);
 
 	hdev->open     = dtl1_hci_open;

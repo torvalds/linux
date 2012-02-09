@@ -243,7 +243,7 @@ static int inc_tx(struct btusb_data *data)
 static void btusb_intr_complete(struct urb *urb)
 {
 	struct hci_dev *hdev = urb->context;
-	struct btusb_data *data = hdev->driver_data;
+	struct btusb_data *data = hci_get_drvdata(hdev);
 	int err;
 
 	BT_DBG("%s urb %p status %d count %d", hdev->name,
@@ -282,7 +282,7 @@ static void btusb_intr_complete(struct urb *urb)
 
 static int btusb_submit_intr_urb(struct hci_dev *hdev, gfp_t mem_flags)
 {
-	struct btusb_data *data = hdev->driver_data;
+	struct btusb_data *data = hci_get_drvdata(hdev);
 	struct urb *urb;
 	unsigned char *buf;
 	unsigned int pipe;
@@ -331,7 +331,7 @@ static int btusb_submit_intr_urb(struct hci_dev *hdev, gfp_t mem_flags)
 static void btusb_bulk_complete(struct urb *urb)
 {
 	struct hci_dev *hdev = urb->context;
-	struct btusb_data *data = hdev->driver_data;
+	struct btusb_data *data = hci_get_drvdata(hdev);
 	int err;
 
 	BT_DBG("%s urb %p status %d count %d", hdev->name,
@@ -370,7 +370,7 @@ static void btusb_bulk_complete(struct urb *urb)
 
 static int btusb_submit_bulk_urb(struct hci_dev *hdev, gfp_t mem_flags)
 {
-	struct btusb_data *data = hdev->driver_data;
+	struct btusb_data *data = hci_get_drvdata(hdev);
 	struct urb *urb;
 	unsigned char *buf;
 	unsigned int pipe;
@@ -417,7 +417,7 @@ static int btusb_submit_bulk_urb(struct hci_dev *hdev, gfp_t mem_flags)
 static void btusb_isoc_complete(struct urb *urb)
 {
 	struct hci_dev *hdev = urb->context;
-	struct btusb_data *data = hdev->driver_data;
+	struct btusb_data *data = hci_get_drvdata(hdev);
 	int i, err;
 
 	BT_DBG("%s urb %p status %d count %d", hdev->name,
@@ -484,7 +484,7 @@ static inline void __fill_isoc_descriptor(struct urb *urb, int len, int mtu)
 
 static int btusb_submit_isoc_urb(struct hci_dev *hdev, gfp_t mem_flags)
 {
-	struct btusb_data *data = hdev->driver_data;
+	struct btusb_data *data = hci_get_drvdata(hdev);
 	struct urb *urb;
 	unsigned char *buf;
 	unsigned int pipe;
@@ -537,7 +537,7 @@ static void btusb_tx_complete(struct urb *urb)
 {
 	struct sk_buff *skb = urb->context;
 	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
-	struct btusb_data *data = hdev->driver_data;
+	struct btusb_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("%s urb %p status %d count %d", hdev->name,
 					urb, urb->status, urb->actual_length);
@@ -584,7 +584,7 @@ done:
 
 static int btusb_open(struct hci_dev *hdev)
 {
-	struct btusb_data *data = hdev->driver_data;
+	struct btusb_data *data = hci_get_drvdata(hdev);
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -634,7 +634,7 @@ static void btusb_stop_traffic(struct btusb_data *data)
 
 static int btusb_close(struct hci_dev *hdev)
 {
-	struct btusb_data *data = hdev->driver_data;
+	struct btusb_data *data = hci_get_drvdata(hdev);
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -664,7 +664,7 @@ failed:
 
 static int btusb_flush(struct hci_dev *hdev)
 {
-	struct btusb_data *data = hdev->driver_data;
+	struct btusb_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("%s", hdev->name);
 
@@ -676,7 +676,7 @@ static int btusb_flush(struct hci_dev *hdev)
 static int btusb_send_frame(struct sk_buff *skb)
 {
 	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
-	struct btusb_data *data = hdev->driver_data;
+	struct btusb_data *data = hci_get_drvdata(hdev);
 	struct usb_ctrlrequest *dr;
 	struct urb *urb;
 	unsigned int pipe;
@@ -786,7 +786,7 @@ done:
 
 static void btusb_notify(struct hci_dev *hdev, unsigned int evt)
 {
-	struct btusb_data *data = hdev->driver_data;
+	struct btusb_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("%s evt %d", hdev->name, evt);
 
@@ -798,7 +798,7 @@ static void btusb_notify(struct hci_dev *hdev, unsigned int evt)
 
 static inline int __set_isoc_interface(struct hci_dev *hdev, int altsetting)
 {
-	struct btusb_data *data = hdev->driver_data;
+	struct btusb_data *data = hci_get_drvdata(hdev);
 	struct usb_interface *intf = data->isoc;
 	struct usb_endpoint_descriptor *ep_desc;
 	int i, err;
@@ -986,7 +986,7 @@ static int btusb_probe(struct usb_interface *intf,
 	}
 
 	hdev->bus = HCI_USB;
-	hdev->driver_data = data;
+	hci_set_drvdata(hdev, data);
 
 	data->hdev = hdev;
 

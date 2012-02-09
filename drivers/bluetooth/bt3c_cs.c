@@ -389,7 +389,7 @@ static irqreturn_t bt3c_interrupt(int irq, void *dev_inst)
 
 static int bt3c_hci_flush(struct hci_dev *hdev)
 {
-	bt3c_info_t *info = (bt3c_info_t *)(hdev->driver_data);
+	bt3c_info_t *info = hci_get_drvdata(hdev);
 
 	/* Drop TX queue */
 	skb_queue_purge(&(info->txq));
@@ -428,7 +428,7 @@ static int bt3c_hci_send_frame(struct sk_buff *skb)
 		return -ENODEV;
 	}
 
-	info = (bt3c_info_t *) (hdev->driver_data);
+	info = hci_get_drvdata(hdev);
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
@@ -575,7 +575,7 @@ static int bt3c_open(bt3c_info_t *info)
 	info->hdev = hdev;
 
 	hdev->bus = HCI_PCCARD;
-	hdev->driver_data = info;
+	hci_set_drvdata(hdev, info);
 	SET_HCIDEV_DEV(hdev, &info->p_dev->dev);
 
 	hdev->open     = bt3c_hci_open;

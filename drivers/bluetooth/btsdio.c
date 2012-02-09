@@ -189,7 +189,7 @@ static void btsdio_interrupt(struct sdio_func *func)
 
 static int btsdio_open(struct hci_dev *hdev)
 {
-	struct btsdio_data *data = hdev->driver_data;
+	struct btsdio_data *data = hci_get_drvdata(hdev);
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -225,7 +225,7 @@ release:
 
 static int btsdio_close(struct hci_dev *hdev)
 {
-	struct btsdio_data *data = hdev->driver_data;
+	struct btsdio_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("%s", hdev->name);
 
@@ -246,7 +246,7 @@ static int btsdio_close(struct hci_dev *hdev)
 
 static int btsdio_flush(struct hci_dev *hdev)
 {
-	struct btsdio_data *data = hdev->driver_data;
+	struct btsdio_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("%s", hdev->name);
 
@@ -258,7 +258,7 @@ static int btsdio_flush(struct hci_dev *hdev)
 static int btsdio_send_frame(struct sk_buff *skb)
 {
 	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
-	struct btsdio_data *data = hdev->driver_data;
+	struct btsdio_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("%s", hdev->name);
 
@@ -321,7 +321,7 @@ static int btsdio_probe(struct sdio_func *func,
 	}
 
 	hdev->bus = HCI_SDIO;
-	hdev->driver_data = data;
+	hci_set_drvdata(hdev, data);
 
 	if (id->class == SDIO_CLASS_BT_AMP)
 		hdev->dev_type = HCI_AMP;
