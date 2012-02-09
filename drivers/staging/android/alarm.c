@@ -21,8 +21,18 @@
 #include <linux/rtc.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <linux/wakelock.h>
 #include "android_alarm.h"
+
+/* XXX - Hack out wakelocks, while they are out of tree */
+struct wake_lock {
+	int i;
+};
+#define wake_lock(x)
+#define wake_lock_timeout(x, y)
+#define wake_unlock(x)
+#define WAKE_LOCK_SUSPEND 0
+#define wake_lock_init(x, y, z) ((x)->i = 1)
+#define wake_lock_destroy(x)
 
 #define ANDROID_ALARM_PRINT_ERROR (1U << 0)
 #define ANDROID_ALARM_PRINT_INIT_STATUS (1U << 1)

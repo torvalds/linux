@@ -22,12 +22,23 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
-#include <linux/wakelock.h>
 #include "android_alarm.h"
+
+/* XXX - Hack out wakelocks, while they are out of tree */
+struct wake_lock {
+	int i;
+};
+#define wake_lock(x)
+#define wake_lock_timeout(x, y)
+#define wake_unlock(x)
+#define WAKE_LOCK_SUSPEND 0
+#define wake_lock_init(x, y, z) ((x)->i = 1)
+#define wake_lock_destroy(x)
 
 #define ANDROID_ALARM_PRINT_INFO (1U << 0)
 #define ANDROID_ALARM_PRINT_IO (1U << 1)
 #define ANDROID_ALARM_PRINT_INT (1U << 2)
+
 
 static int debug_mask = ANDROID_ALARM_PRINT_INFO;
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
