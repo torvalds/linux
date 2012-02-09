@@ -969,6 +969,9 @@ qla81xx_reset_mpi(scsi_qla_host_t *vha)
 {
 	uint16_t mb[4] = {0x1010, 0, 1, 0};
 
+	if (!IS_QLA81XX(vha->hw))
+		return QLA_SUCCESS;
+
 	return qla81xx_write_mpi_register(vha, mb);
 }
 
@@ -1262,7 +1265,9 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 		mem_size = (ha->fw_memory_size - 0x11000 + 1) *
 		    sizeof(uint16_t);
 	} else if (IS_FWI2_CAPABLE(ha)) {
-		if (IS_QLA81XX(ha))
+		if (IS_QLA83XX(ha))
+			fixed_size = offsetof(struct qla83xx_fw_dump, ext_mem);
+		else if (IS_QLA81XX(ha))
 			fixed_size = offsetof(struct qla81xx_fw_dump, ext_mem);
 		else if (IS_QLA25XX(ha))
 			fixed_size = offsetof(struct qla25xx_fw_dump, ext_mem);
@@ -1271,7 +1276,8 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 		mem_size = (ha->fw_memory_size - 0x100000 + 1) *
 		    sizeof(uint32_t);
 		if (ha->mqenable) {
-			mq_size = sizeof(struct qla2xxx_mq_chain);
+			if (!IS_QLA83XX(ha))
+				mq_size = sizeof(struct qla2xxx_mq_chain);
 			/*
 			 * Allocate maximum buffer size for all queues.
 			 * Resizing must be done at end-of-dump processing.
@@ -1282,7 +1288,7 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 			    (rsp->length * sizeof(response_t));
 		}
 		/* Allocate memory for Fibre Channel Event Buffer. */
-		if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha))
+		if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha) && !IS_QLA83XX(ha))
 			goto try_eft;
 
 		tc = dma_alloc_coherent(&ha->pdev->dev, FCE_SIZE, &tc_dma,
@@ -1493,17 +1499,8 @@ enable_82xx_npiv:
 				fw_major_version = ha->fw_major_version;
 				if (IS_QLA82XX(ha))
 					qla82xx_check_md_needed(vha);
-				else {
-					rval = qla2x00_get_fw_version(vha,
-					    &ha->fw_major_version,
-					    &ha->fw_minor_version,
-					    &ha->fw_subminor_version,
-					    &ha->fw_attributes,
-					    &ha->fw_memory_size,
-					    ha->mpi_version,
-					    &ha->mpi_capabilities,
-					    ha->phy_version);
-				}
+				else
+					rval = qla2x00_get_fw_version(vha);
 				if (rval != QLA_SUCCESS)
 					goto failed;
 				ha->flags.npiv_supported = 0;
@@ -1544,6 +1541,9 @@ enable_82xx_npiv:
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	}
 
+	if (IS_QLA83XX(ha))
+		goto skip_fac_check;
+
 	if (rval == QLA_SUCCESS && IS_FAC_REQUIRED(ha)) {
 		uint32_t size;
 
@@ -1556,6 +1556,11 @@ enable_82xx_npiv:
 			    "Unsupported FAC firmware (%d.%02d.%02d).\n",
 			    ha->fw_major_version, ha->fw_minor_version,
 			    ha->fw_subminor_version);
+skip_fac_check:
+			if (IS_QLA83XX(ha)) {
+				ha->flags.fac_supported = 0;
+				rval = QLA_SUCCESS;
+			}
 		}
 	}
 failed:
@@ -1734,7 +1739,7 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 	struct req_que *req = ha->req_q_map[0];
 	struct rsp_que *rsp = ha->rsp_q_map[0];
 
-/* Setup ring parameters in initialization control block. */
+	/* Setup ring parameters in initialization control block. */
 	icb = (struct init_cb_24xx *)ha->init_cb;
 	icb->request_q_outpointer = __constant_cpu_to_le16(0);
 	icb->response_q_inpointer = __constant_cpu_to_le16(0);
@@ -1745,7 +1750,7 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 	icb->response_q_address[0] = cpu_to_le32(LSD(rsp->dma));
 	icb->response_q_address[1] = cpu_to_le32(MSD(rsp->dma));
 
-	if (ha->mqenable) {
+	if (ha->mqenable || IS_QLA83XX(ha)) {
 		icb->qos = __constant_cpu_to_le16(QLA_DEFAULT_QUE_QOS);
 		icb->rid = __constant_cpu_to_le16(rid);
 		if (ha->flags.msix_enabled) {
@@ -1765,7 +1770,8 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 				__constant_cpu_to_le32(BIT_18);
 
 		/* Use Disable MSIX Handshake mode for capable adapters */
-		if (IS_MSIX_NACK_CAPABLE(ha)) {
+		if ((ha->fw_attributes & BIT_6) && (IS_MSIX_NACK_CAPABLE(ha)) &&
+		    (ha->flags.msix_enabled)) {
 			icb->firmware_options_2 &=
 				__constant_cpu_to_le32(~BIT_22);
 			ha->flags.disable_msix_handshake = 1;
@@ -2037,7 +2043,7 @@ qla2x00_configure_hba(scsi_qla_host_t *vha)
 	    &loop_id, &al_pa, &area, &domain, &topo, &sw_cap);
 	if (rval != QLA_SUCCESS) {
 		if (LOOP_TRANSITION(vha) || atomic_read(&ha->loop_down_timer) ||
-		    IS_QLA8XXX_TYPE(ha) ||
+		    IS_CNA_CAPABLE(ha) ||
 		    (rval == QLA_COMMAND_ERROR && loop_id == 0x7)) {
 			ql_dbg(ql_dbg_disc, vha, 0x2008,
 			    "Loop is in a transition state.\n");
@@ -2129,7 +2135,7 @@ qla2x00_set_model_info(scsi_qla_host_t *vha, uint8_t *model, size_t len,
 	uint16_t index;
 	struct qla_hw_data *ha = vha->hw;
 	int use_tbl = !IS_QLA24XX_TYPE(ha) && !IS_QLA25XX(ha) &&
-	    !IS_QLA8XXX_TYPE(ha);
+	    !IS_CNA_CAPABLE(ha) && !IS_QLA2031(ha);
 
 	if (memcmp(model, BINZERO, len) != 0) {
 		strncpy(ha->model_number, model, len);
@@ -4109,15 +4115,8 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 			ha->isp_abort_cnt = 0;
 			clear_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
 
-			if (IS_QLA81XX(ha))
-				qla2x00_get_fw_version(vha,
-				    &ha->fw_major_version,
-				    &ha->fw_minor_version,
-				    &ha->fw_subminor_version,
-				    &ha->fw_attributes, &ha->fw_memory_size,
-				    ha->mpi_version, &ha->mpi_capabilities,
-				    ha->phy_version);
-
+			if (IS_QLA81XX(ha) || IS_QLA8031(ha))
+				qla2x00_get_fw_version(vha);
 			if (ha->fce) {
 				ha->flags.fce_enabled = 1;
 				memset(ha->fce, 0,
@@ -4983,7 +4982,6 @@ try_blob_fw:
 
 	ql_log(ql_log_info, vha, 0x009a, "Update operational firmware.\n");
 	ha->flags.running_gold_fw = 1;
-
 	return rval;
 }
 
@@ -5223,10 +5221,10 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		nv->reset_delay = 5;
 		nv->max_luns_per_target = __constant_cpu_to_le16(128);
 		nv->port_down_retry_count = __constant_cpu_to_le16(30);
-		nv->link_down_timeout = __constant_cpu_to_le16(30);
+		nv->link_down_timeout = __constant_cpu_to_le16(180);
 		nv->enode_mac[0] = 0x00;
-		nv->enode_mac[1] = 0x02;
-		nv->enode_mac[2] = 0x03;
+		nv->enode_mac[1] = 0xC0;
+		nv->enode_mac[2] = 0xDD;
 		nv->enode_mac[3] = 0x04;
 		nv->enode_mac[4] = 0x05;
 		nv->enode_mac[5] = 0x06 + ha->port_no;
@@ -5361,6 +5359,10 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		ha->login_retry_count = ha->port_down_retry_count;
 	if (ql2xloginretrycount)
 		ha->login_retry_count = ql2xloginretrycount;
+
+	/* if not running MSI-X we need handshaking on interrupts */
+	if (!vha->hw->flags.msix_enabled && IS_QLA83XX(ha))
+		icb->firmware_options_2 |= __constant_cpu_to_le32(BIT_22);
 
 	/* Enable ZIO. */
 	if (!vha->flags.init_done) {

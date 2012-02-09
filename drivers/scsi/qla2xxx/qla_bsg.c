@@ -540,7 +540,7 @@ qla81xx_set_internal_loopback(scsi_qla_host_t *vha, uint16_t *config,
 	int rval = 0;
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA81XX(ha))
+	if (!IS_QLA81XX(ha) && !IS_QLA83XX(ha))
 		goto done_set_internal;
 
 	new_config[0] = config[0] | (ENABLE_INTERNAL_LOOPBACK << 1);
@@ -582,7 +582,7 @@ qla81xx_reset_internal_loopback(scsi_qla_host_t *vha, uint16_t *config,
 	uint16_t new_config[4];
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA81XX(ha))
+	if (!IS_QLA81XX(ha) && !IS_QLA83XX(ha))
 		goto done_reset_internal;
 
 	memset(new_config, 0 , sizeof(new_config));
@@ -707,7 +707,7 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 
 	if ((ha->current_topology == ISP_CFG_F ||
 	    (atomic_read(&vha->loop_state) == LOOP_DOWN) ||
-	    (IS_QLA81XX(ha) &&
+	    ((IS_QLA81XX(ha) || IS_QLA83XX(ha)) &&
 	    le32_to_cpu(*(uint32_t *)req_data) == ELS_OPCODE_BYTE
 	    && req_data_len == MAX_ELS_FRAME_PAYLOAD)) &&
 		elreq.options == EXTERNAL_LOOPBACK) {
@@ -717,7 +717,7 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 		command_sent = INT_DEF_LB_ECHO_CMD;
 		rval = qla2x00_echo_test(vha, &elreq, response);
 	} else {
-		if (IS_QLA81XX(ha)) {
+		if (IS_QLA81XX(ha) || IS_QLA8031(ha)) {
 			memset(config, 0, sizeof(config));
 			memset(new_config, 0, sizeof(new_config));
 			if (qla81xx_get_port_config(vha, config)) {
@@ -1331,7 +1331,7 @@ qla2x00_optrom_setup(struct fc_bsg_job *bsg_job, scsi_qla_host_t *vha,
 		    start == (ha->flt_region_fw * 4))
 			valid = 1;
 		else if (IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha) ||
-		    IS_QLA8XXX_TYPE(ha))
+		    IS_CNA_CAPABLE(ha) || IS_QLA2031(ha))
 			valid = 1;
 		if (!valid) {
 			ql_log(ql_log_warn, vha, 0x7058,

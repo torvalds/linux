@@ -473,7 +473,6 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
 {
 	struct qla_hw_data *ha = vha->hw;
 	device_reg_t __iomem *reg = ISP_QUE_REG(ha, req->id);
-	struct device_reg_2xxx __iomem *ioreg = &ha->iobase->isp;
 
 	if (IS_QLA82XX(ha)) {
 		qla82xx_start_iocbs(vha);
@@ -487,9 +486,9 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
 			req->ring_ptr++;
 
 		/* Set chip new ring index. */
-		if (ha->mqenable) {
-			WRT_REG_DWORD(&reg->isp25mq.req_q_in, req->ring_index);
-			RD_REG_DWORD(&ioreg->hccr);
+		if (ha->mqenable || IS_QLA83XX(ha)) {
+			WRT_REG_DWORD(req->req_q_in, req->ring_index);
+			RD_REG_DWORD_RELAXED(&reg->isp24.req_q_in);
 		} else if (IS_FWI2_CAPABLE(ha)) {
 			WRT_REG_DWORD(&reg->isp24.req_q_in, req->ring_index);
 			RD_REG_DWORD_RELAXED(&reg->isp24.req_q_in);
@@ -1856,7 +1855,7 @@ qla2x00_alloc_iocbs(scsi_qla_host_t *vha, srb_t *sp)
 skip_cmd_array:
 	/* Check for room on request queue. */
 	if (req->cnt < req_cnt) {
-		if (ha->mqenable)
+		if (ha->mqenable || IS_QLA83XX(ha))
 			cnt = RD_REG_DWORD(&reg->isp25mq.req_q_out);
 		else if (IS_QLA82XX(ha))
 			cnt = RD_REG_DWORD(&reg->isp82.req_q_out);

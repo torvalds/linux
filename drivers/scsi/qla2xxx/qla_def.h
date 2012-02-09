@@ -653,6 +653,7 @@ typedef struct {
 #define MBC_DIAGNOSTIC_LOOP_BACK	0x45	/* Diagnostic loop back. */
 #define MBC_ONLINE_SELF_TEST		0x46	/* Online self-test. */
 #define MBC_ENHANCED_GET_PORT_DATABASE	0x47	/* Get port database + login */
+#define MBC_CONFIGURE_VF		0x4b	/* Configure VFs */
 #define MBC_RESET_LINK_STATUS		0x52	/* Reset Link Error Status */
 #define MBC_IOCB_COMMAND_A64		0x54	/* Execute IOCB command (64) */
 #define MBC_SEND_RNID_ELS		0x57	/* Send RNID ELS request */
@@ -2261,6 +2262,7 @@ struct isp_operations {
 #define QLA_MIDX_DEFAULT	0
 #define QLA_MIDX_RSP_Q		1
 #define QLA_PCI_MSIX_CONTROL	0xa2
+#define QLA_83XX_PCI_MSIX_CONTROL	0x92
 
 struct scsi_qla_host;
 
@@ -2341,7 +2343,7 @@ struct qla_statistics {
 #define QLA_MQ_SIZE 32
 #define QLA_MAX_QUEUES 256
 #define ISP_QUE_REG(ha, id) \
-	((ha->mqenable) ? \
+	((ha->mqenable || IS_QLA83XX(ha)) ? \
 	((void *)(ha->mqiobase) +\
 	(QLA_QUE_PAGE * id)) :\
 	((void *)(ha->iobase)))
@@ -2461,6 +2463,7 @@ struct qla_hw_data {
 #define MIN_IOBASE_LEN          0x100
 /* Multi queue data structs */
 	device_reg_t __iomem *mqiobase;
+	device_reg_t __iomem *msixbase;
 	uint16_t        msix_count;
 	uint8_t         mqenable;
 	struct req_que **req_q_map;
@@ -2494,6 +2497,7 @@ struct qla_hw_data {
 #define PORT_SPEED_2GB  0x01
 #define PORT_SPEED_4GB  0x03
 #define PORT_SPEED_8GB  0x04
+#define PORT_SPEED_16GB 0x05
 #define PORT_SPEED_10GB	0x13
 	uint16_t	link_data_rate;         /* F/W operating speed */
 
@@ -2515,6 +2519,8 @@ struct qla_hw_data {
 #define PCI_DEVICE_ID_QLOGIC_ISP2532    0x2532
 #define PCI_DEVICE_ID_QLOGIC_ISP8432    0x8432
 #define PCI_DEVICE_ID_QLOGIC_ISP8001	0x8001
+#define PCI_DEVICE_ID_QLOGIC_ISP8031	0x8031
+#define PCI_DEVICE_ID_QLOGIC_ISP2031	0x2031
 	uint32_t	device_type;
 #define DT_ISP2100                      BIT_0
 #define DT_ISP2200                      BIT_1
@@ -2531,7 +2537,9 @@ struct qla_hw_data {
 #define DT_ISP8432                      BIT_12
 #define DT_ISP8001			BIT_13
 #define DT_ISP8021			BIT_14
-#define DT_ISP_LAST			(DT_ISP8021 << 1)
+#define DT_ISP2031			BIT_15
+#define DT_ISP8031			BIT_16
+#define DT_ISP_LAST			(DT_ISP8031 << 1)
 
 #define DT_T10_PI                       BIT_25
 #define DT_IIDMA                        BIT_26
@@ -2555,26 +2563,30 @@ struct qla_hw_data {
 #define IS_QLA2532(ha)  (DT_MASK(ha) & DT_ISP2532)
 #define IS_QLA8432(ha)  (DT_MASK(ha) & DT_ISP8432)
 #define IS_QLA8001(ha)	(DT_MASK(ha) & DT_ISP8001)
+#define IS_QLA81XX(ha)	(IS_QLA8001(ha))
 #define IS_QLA82XX(ha)	(DT_MASK(ha) & DT_ISP8021)
+#define IS_QLA2031(ha)	(DT_MASK(ha) & DT_ISP2031)
+#define IS_QLA8031(ha)	(DT_MASK(ha) & DT_ISP8031)
 
 #define IS_QLA23XX(ha)  (IS_QLA2300(ha) || IS_QLA2312(ha) || IS_QLA2322(ha) || \
 			IS_QLA6312(ha) || IS_QLA6322(ha))
 #define IS_QLA24XX(ha)  (IS_QLA2422(ha) || IS_QLA2432(ha))
 #define IS_QLA54XX(ha)  (IS_QLA5422(ha) || IS_QLA5432(ha))
 #define IS_QLA25XX(ha)  (IS_QLA2532(ha))
+#define IS_QLA83XX(ha)	(IS_QLA2031(ha) || IS_QLA8031(ha))
 #define IS_QLA84XX(ha)  (IS_QLA8432(ha))
 #define IS_QLA24XX_TYPE(ha)     (IS_QLA24XX(ha) || IS_QLA54XX(ha) || \
 				IS_QLA84XX(ha))
-#define IS_QLA81XX(ha)		(IS_QLA8001(ha))
-#define IS_QLA8XXX_TYPE(ha)	(IS_QLA81XX(ha) || IS_QLA82XX(ha))
+#define IS_CNA_CAPABLE(ha)	(IS_QLA81XX(ha) || IS_QLA82XX(ha) || \
+				IS_QLA8031(ha))
 #define IS_QLA2XXX_MIDTYPE(ha)	(IS_QLA24XX(ha) || IS_QLA84XX(ha) || \
 				IS_QLA25XX(ha) || IS_QLA81XX(ha) || \
-				IS_QLA82XX(ha))
-#define IS_MSIX_NACK_CAPABLE(ha) (IS_QLA81XX(ha))
-#define IS_NOPOLLING_TYPE(ha)	((IS_QLA25XX(ha) || IS_QLA81XX(ha)) && \
-				(ha)->flags.msix_enabled)
-#define IS_FAC_REQUIRED(ha)	(IS_QLA81XX(ha))
-#define IS_NOCACHE_VPD_TYPE(ha)	(IS_QLA81XX(ha))
+				IS_QLA82XX(ha) || IS_QLA83XX(ha))
+#define IS_MSIX_NACK_CAPABLE(ha) (IS_QLA81XX(ha) || IS_QLA83XX(ha))
+#define IS_NOPOLLING_TYPE(ha)	((IS_QLA25XX(ha) || IS_QLA81XX(ha) || \
+			IS_QLA83XX(ha)) && (ha)->flags.msix_enabled)
+#define IS_FAC_REQUIRED(ha)	(IS_QLA81XX(ha) || IS_QLA83XX(ha))
+#define IS_NOCACHE_VPD_TYPE(ha)	(IS_QLA81XX(ha) || IS_QLA83XX(ha))
 #define IS_ALOGIO_CAPABLE(ha)	(IS_QLA23XX(ha) || IS_FWI2_CAPABLE(ha))
 
 #define IS_T10_PI_CAPABLE(ha)   ((ha)->device_type & DT_T10_PI)
@@ -2583,6 +2595,8 @@ struct qla_hw_data {
 #define IS_ZIO_SUPPORTED(ha)    ((ha)->device_type & DT_ZIO_SUPPORTED)
 #define IS_OEM_001(ha)          ((ha)->device_type & DT_OEM_001)
 #define HAS_EXTENDED_IDS(ha)    ((ha)->device_type & DT_EXTENDED_IDS)
+#define IS_CT6_SUPPORTED(ha)	((ha)->device_type & DT_CT6_SUPPORTED)
+#define IS_MQUE_CAPABLE(ha)	((ha)->mqenable || IS_QLA83XX(ha))
 
 	/* HBA serial number */
 	uint8_t		serial0;
@@ -2674,6 +2688,8 @@ struct qla_hw_data {
 	uint16_t	fw_minor_version;
 	uint16_t	fw_subminor_version;
 	uint16_t	fw_attributes;
+	uint16_t	fw_attributes_h;
+	uint16_t	fw_attributes_ext[2];
 	uint32_t	fw_memory_size;
 	uint32_t	fw_transfer_size;
 	uint32_t	fw_srisc_address;
@@ -3021,6 +3037,7 @@ typedef struct scsi_qla_host {
 #define OPTROM_SIZE_25XX	0x200000
 #define OPTROM_SIZE_81XX	0x400000
 #define OPTROM_SIZE_82XX	0x800000
+#define OPTROM_SIZE_83XX	0x1000000
 
 #define OPTROM_BURST_SIZE	0x1000
 #define OPTROM_BURST_DWORDS	(OPTROM_BURST_SIZE / 4)
