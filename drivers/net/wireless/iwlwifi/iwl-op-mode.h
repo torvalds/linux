@@ -80,6 +80,10 @@ struct iwl_rx_mem_buffer;
  *	May sleep
  * @rx: Rx notification to the op_mode. rxb is the Rx buffer itself. Cmd is the
  *	HCMD the this Rx responds to.
+ * @queue_full: notifies that a HW queue is full. Ac is the ac of the queue
+ *	Must be atomic
+ * @queue_not_full: notifies that a HW queue is not full any more.
+ *	Ac is the ac of the queue. Must be atomic
  * @free_skb: allows the transport layer to free skbs that haven't been
  *	reclaimed by the op_mode. This can happen when the driver is freed and
  *	there are Tx packets pending in the transport layer.
@@ -90,6 +94,8 @@ struct iwl_op_mode_ops {
 	void (*stop)(struct iwl_op_mode *op_mode);
 	int (*rx)(struct iwl_op_mode *op_mode, struct iwl_rx_mem_buffer *rxb,
 		  struct iwl_device_cmd *cmd);
+	void (*queue_full)(struct iwl_op_mode *op_mode, u8 ac);
+	void (*queue_not_full)(struct iwl_op_mode *op_mode, u8 ac);
 	void (*free_skb)(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 };
 
@@ -117,6 +123,17 @@ static inline int iwl_op_mode_rx(struct iwl_op_mode *op_mode,
 				  struct iwl_device_cmd *cmd)
 {
 	return op_mode->ops->rx(op_mode, rxb, cmd);
+}
+
+static inline void iwl_op_mode_queue_full(struct iwl_op_mode *op_mode, u8 ac)
+{
+	op_mode->ops->queue_full(op_mode, ac);
+}
+
+static inline void iwl_op_mode_queue_not_full(struct iwl_op_mode *op_mode,
+					      u8 ac)
+{
+	op_mode->ops->queue_not_full(op_mode, ac);
 }
 
 static inline void iwl_op_mode_free_skb(struct iwl_op_mode *op_mode,

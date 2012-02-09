@@ -539,8 +539,6 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand);
 const char *get_cmd_string(u8 cmd);
 bool iwl_check_for_ct_kill(struct iwl_priv *priv);
 
-void iwl_stop_sw_queue(struct iwl_priv *priv, u8 ac);
-void iwl_wake_sw_queue(struct iwl_priv *priv, u8 ac);
 
 /* notification wait support */
 void iwl_abort_notification_waits(struct iwl_shared *shrd);

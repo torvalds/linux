@@ -84,6 +84,9 @@ void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 int __must_check iwl_rx_dispatch(struct iwl_op_mode *op_mode,
 				 struct iwl_rx_mem_buffer *rxb,
 				 struct iwl_device_cmd *cmd);
+void iwl_stop_sw_queue(struct iwl_op_mode *op_mode, u8 ac);
+void iwl_wake_sw_queue(struct iwl_op_mode *op_mode, u8 ac);
+
 
 /* MAC80211 */
 struct ieee80211_hw *iwl_alloc_all(void);

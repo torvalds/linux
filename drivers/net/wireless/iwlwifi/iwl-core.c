@@ -1475,12 +1475,16 @@ void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
 	dev_kfree_skb_any(skb);
 }
 
-void iwl_stop_sw_queue(struct iwl_priv *priv, u8 ac)
+void iwl_stop_sw_queue(struct iwl_op_mode *op_mode, u8 ac)
 {
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
 	ieee80211_stop_queue(priv->hw, ac);
 }
 
-void iwl_wake_sw_queue(struct iwl_priv *priv, u8 ac)
+void iwl_wake_sw_queue(struct iwl_op_mode *op_mode, u8 ac)
 {
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
 	ieee80211_wake_queue(priv->hw, ac);
 }

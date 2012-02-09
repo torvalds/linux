@@ -1386,6 +1386,8 @@ const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.start = iwl_op_mode_dvm_start,
 	.stop = iwl_op_mode_dvm_stop,
 	.rx = iwl_rx_dispatch,
+	.queue_full = iwl_stop_sw_queue,
+	.queue_not_full = iwl_wake_sw_queue,
 	.free_skb = iwl_free_skb,
 };
 
