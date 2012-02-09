@@ -4142,7 +4142,7 @@ qla82xx_md_collect(scsi_qla_host_t *vha)
 
 	total_data_size = ha->md_dump_size;
 
-	ql_dbg(ql_log_info, vha, 0xb03d,
+	ql_dbg(ql_dbg_p3p, vha, 0xb03d,
 	    "Total minidump data_size 0x%x to be captured\n", total_data_size);
 
 	/* Check whether template obtained is valid */
@@ -4265,7 +4265,7 @@ skip_nxt_entry:
 	}
 
 	if (data_collected != total_data_size) {
-		ql_dbg(ql_log_warn, vha, 0xb043,
+		ql_dbg(ql_dbg_p3p, vha, 0xb043,
 		    "MiniDump data mismatch: Data collected: [0x%x],"
 		    "total_data_size:[0x%x]\n",
 		    data_collected, total_data_size);
