@@ -658,6 +658,18 @@ int vmw_overlay_num_overlays(struct vmw_private *dev_priv);
 int vmw_overlay_num_free_overlays(struct vmw_private *dev_priv);
 
 /**
+ * Fence function - vmwgfx_fence.c
+ */
+
+int vmw_event_fence_action_queue(struct drm_file *file_priv,
+				 struct vmw_fence_obj *fence,
+				 struct drm_pending_event *event,
+				 uint32_t *tv_sec,
+				 uint32_t *tv_usec,
+				 bool interruptible);
+
+
+/**
  * GMR Id manager
  */
 
