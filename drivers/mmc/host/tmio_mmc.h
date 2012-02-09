@@ -47,7 +47,6 @@ struct tmio_mmc_host {
 	struct mmc_request      *mrq;
 	struct mmc_data         *data;
 	struct mmc_host         *mmc;
-	unsigned int		sdio_irq_enabled;
 
 	/* Controller power state */
 	bool			power;
