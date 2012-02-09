@@ -294,13 +294,14 @@ int brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
 			       struct sk_buff *pkt)
 {
 	int status;
-	uint pkt_len = pkt->len;
+	uint pkt_len;
 	bool fifo = (fix_inc == SDIOH_DATA_FIX);
 
 	brcmf_dbg(TRACE, "Enter\n");
 
 	if (pkt == NULL)
 		return -EINVAL;
+	pkt_len = pkt->len;
 
 	brcmf_pm_resume_wait(sdiodev, &sdiodev->request_buffer_wait);
 	if (brcmf_pm_resume_error(sdiodev))

@@ -1376,7 +1376,7 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 	memset(&join_params, 0, sizeof(join_params));
 	join_params_size = sizeof(join_params.ssid_le);
 
-	ssid.SSID_len = min_t(u32, sizeof(ssid.SSID), sme->ssid_len);
+	ssid.SSID_len = min_t(u32, sizeof(ssid.SSID), (u32)sme->ssid_len);
 	memcpy(&join_params.ssid_le.SSID, sme->ssid, ssid.SSID_len);
 	memcpy(&ssid.SSID, sme->ssid, ssid.SSID_len);
 	join_params.ssid_le.SSID_len = cpu_to_le32(ssid.SSID_len);
