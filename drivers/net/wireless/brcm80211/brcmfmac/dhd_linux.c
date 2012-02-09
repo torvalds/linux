@@ -1109,13 +1109,13 @@ void brcmf_detach(struct device *dev)
 		if (drvr->iflist[i])
 			brcmf_del_if(drvr, i);
 
-	cancel_work_sync(&drvr->setmacaddr_work);
-	cancel_work_sync(&drvr->multicast_work);
-
 	brcmf_bus_detach(drvr);
 
-	if (drvr->prot)
+	if (drvr->prot) {
+		cancel_work_sync(&drvr->setmacaddr_work);
+		cancel_work_sync(&drvr->multicast_work);
 		brcmf_proto_detach(drvr);
+	}
 
 	bus_if->drvr = NULL;
 	kfree(drvr);
