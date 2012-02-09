@@ -258,11 +258,15 @@ static int ipoib_mcast_join_finish(struct ipoib_mcast *mcast,
 	netif_tx_lock_bh(dev);
 	while (!skb_queue_empty(&mcast->pkt_queue)) {
 		struct sk_buff *skb = skb_dequeue(&mcast->pkt_queue);
+		struct dst_entry *dst = skb_dst(skb);
+		struct neighbour *n = NULL;
+
 		netif_tx_unlock_bh(dev);
 
 		skb->dev = dev;
-
-		if (!skb_dst(skb) || !skb_dst(skb)->neighbour) {
+		if (dst)
+			n = dst_get_neighbour_raw(dst);
+		if (!dst || !n) {
 			/* put pseudoheader back on for next time */
 			skb_push(skb, sizeof (struct ipoib_pseudoheader));
 		}
@@ -715,11 +719,15 @@ void ipoib_mcast_send(struct net_device *dev, void *mgid, struct sk_buff *skb)
 
 out:
 	if (mcast && mcast->ah) {
-		if (skb_dst(skb)		&&
-		    skb_dst(skb)->neighbour &&
-		    !*to_ipoib_neigh(skb_dst(skb)->neighbour)) {
-			struct ipoib_neigh *neigh = ipoib_neigh_alloc(skb_dst(skb)->neighbour,
-									skb->dev);
+		struct dst_entry *dst = skb_dst(skb);
+		struct neighbour *n = NULL;
+
+		rcu_read_lock();
+		if (dst)
+			n = dst_get_neighbour(dst);
+		if (n && !*to_ipoib_neigh(n)) {
+			struct ipoib_neigh *neigh = ipoib_neigh_alloc(n,
+								      skb->dev);
 
 			if (neigh) {
 				kref_get(&mcast->ah->ref);
@@ -727,7 +735,7 @@ out:
 				list_add_tail(&neigh->list, &mcast->neigh_list);
 			}
 		}
-
+		rcu_read_unlock();
 		spin_unlock_irqrestore(&priv->lock, flags);
 		ipoib_send(dev, skb, mcast->ah, IB_MULTICAST_QPN);
 		return;
