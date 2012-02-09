@@ -24,7 +24,9 @@
 #include <asm/mach-types.h>
 #include <asm/smp_scu.h>
 
+#include <mach/clk.h>
 #include <mach/iomap.h>
+#include <mach/powergate.h>
 
 #include "fuse.h"
 #include "flowctrl.h"
@@ -42,6 +44,8 @@ static void __iomem *scu_base = IO_ADDRESS(TEGRA_ARM_PERIF_BASE);
 	(IO_ADDRESS(TEGRA_CLK_RESET_BASE) + 0x340)
 #define CLK_RST_CONTROLLER_RST_CPU_CMPLX_CLR \
 	(IO_ADDRESS(TEGRA_CLK_RESET_BASE) + 0x344)
+#define CLK_RST_CONTROLLER_CLK_CPU_CMPLX_CLR \
+	(IO_ADDRESS(TEGRA_CLK_RESET_BASE) + 0x34c)
 
 #define CPU_CLOCK(cpu)	(0x1<<(8+cpu))
 #define CPU_RESET(cpu)	(0x1111ul<<(cpu))
@@ -73,11 +77,52 @@ static int tegra20_power_up_cpu(unsigned int cpu)
 	return 0;
 }
 
+static int tegra30_power_up_cpu(unsigned int cpu)
+{
+	u32 reg;
+	int ret, pwrgateid;
+	unsigned long timeout;
+
+	pwrgateid = tegra_cpu_powergate_id(cpu);
+	if (pwrgateid < 0)
+		return pwrgateid;
+
+	/* If this is the first boot, toggle powergates directly. */
+	if (!tegra_powergate_is_powered(pwrgateid)) {
+		ret = tegra_powergate_power_on(pwrgateid);
+		if (ret)
+			return ret;
+
+		/* Wait for the power to come up. */
+		timeout = jiffies + 10*HZ;
+		while (tegra_powergate_is_powered(pwrgateid)) {
+			if (time_after(jiffies, timeout))
+				return -ETIMEDOUT;
+			udelay(10);
+		}
+	}
+
+	/* CPU partition is powered. Enable the CPU clock. */
+	writel(CPU_CLOCK(cpu), CLK_RST_CONTROLLER_CLK_CPU_CMPLX_CLR);
+	reg = readl(CLK_RST_CONTROLLER_CLK_CPU_CMPLX_CLR);
+	udelay(10);
+
+	/* Remove I/O clamps. */
+	ret = tegra_powergate_remove_clamping(pwrgateid);
+	udelay(10);
+
+	/* Clear flow controller CSR. */
+	flowctrl_write_cpu_csr(cpu, 0);
+
+	return 0;
+}
+
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int status;
 
-	/* Force the CPU into reset. The CPU must remain in reset when the
+	/*
+	 * Force the CPU into reset. The CPU must remain in reset when the
 	 * flow controller state is cleared (which will cause the flow
 	 * controller to stop driving reset if the CPU has been power-gated
 	 * via the flow controller). This will have no effect on first boot
@@ -97,6 +142,9 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	switch (tegra_chip_id) {
 	case TEGRA20:
 		status = tegra20_power_up_cpu(cpu);
+		break;
+	case TEGRA30:
+		status = tegra30_power_up_cpu(cpu);
 		break;
 	default:
 		status = -EINVAL;
