@@ -76,6 +76,20 @@ ktime_t alarm_get_elapsed_realtime(void);
 /* set rtc while preserving elapsed realtime */
 int android_alarm_set_rtc(const struct timespec ts);
 
+#ifdef CONFIG_ANDROID_ALARM_OLDDRV_COMPAT
+/*
+ * Some older drivers depend on the old API,
+ * so provide compatability macros for now.
+ */
+#define alarm android_alarm
+#define alarm_init(x, y, z) android_alarm_init(x, y, z)
+#define alarm_start_range(x, y, z) android_alarm_start_range(x, y, z)
+#define alarm_try_to_cancel(x) android_alarm_try_to_cancel(x)
+#define alarm_cancel(x) android_alarm_cancel(x)
+#define alarm_set_rtc(x) android_alarm_set_rtc(x)
+#endif
+
+
 #endif
 
 enum android_alarm_return_flags {

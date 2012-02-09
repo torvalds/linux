@@ -122,6 +122,15 @@ config ANDROID_INTF_ALARM_DEV
 	help
 	  Exports the alarm interface to user-space.
 
+config ANDROID_ALARM_OLDDRV_COMPAT
+	bool "Android Alarm compatability with old drivers"
+	depends on ANDROID_INTF_ALARM
+	default n
+	help
+	  Provides preprocessor alias to aid compatability with
+	  older out-of-tree drivers that use the Android Alarm
+	  in-kernel API. This will be removed eventually.
+
 endif # if ANDROID
 
 endmenu
