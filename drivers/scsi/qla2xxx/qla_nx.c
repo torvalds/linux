@@ -908,27 +908,37 @@ qla82xx_wait_rom_done(struct qla_hw_data *ha)
 	return 0;
 }
 
+int
+qla82xx_md_rw_32(struct qla_hw_data *ha, uint32_t off, u32 data, uint8_t flag)
+{
+	uint32_t  off_value, rval = 0;
+
+	WRT_REG_DWORD((void *)(CRB_WINDOW_2M + ha->nx_pcibase),
+	    (off & 0xFFFF0000));
+
+	/* Read back value to make sure write has gone through */
+	RD_REG_DWORD((void *)(CRB_WINDOW_2M + ha->nx_pcibase));
+	off_value  = (off & 0x0000FFFF);
+
+	if (flag)
+		WRT_REG_DWORD((void *)
+		    (off_value + CRB_INDIRECT_2M + ha->nx_pcibase),
+		    data);
+	else
+		rval = RD_REG_DWORD((void *)
+		    (off_value + CRB_INDIRECT_2M + ha->nx_pcibase));
+
+	return rval;
+}
+
 static int
 qla82xx_do_rom_fast_read(struct qla_hw_data *ha, int addr, int *valp)
 {
-	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
+	/* Dword reads to flash. */
+	qla82xx_md_rw_32(ha, MD_DIRECT_ROM_WINDOW, (addr & 0xFFFF0000), 1);
+	*valp = qla82xx_md_rw_32(ha, MD_DIRECT_ROM_READ_BASE +
+	    (addr & 0x0000FFFF), 0, 0);
 
-	qla82xx_wr_32(ha, QLA82XX_ROMUSB_ROM_ADDRESS, addr);
-	qla82xx_wr_32(ha, QLA82XX_ROMUSB_ROM_DUMMY_BYTE_CNT, 0);
-	qla82xx_wr_32(ha, QLA82XX_ROMUSB_ROM_ABYTE_CNT, 3);
-	qla82xx_wr_32(ha, QLA82XX_ROMUSB_ROM_INSTR_OPCODE, 0xb);
-	qla82xx_wait_rom_busy(ha);
-	if (qla82xx_wait_rom_done(ha)) {
-		ql_log(ql_log_fatal, vha, 0x00ba,
-		    "Error waiting for rom done.\n");
-		return -1;
-	}
-	/* Reset abyte_cnt and dummy_byte_cnt */
-	qla82xx_wr_32(ha, QLA82XX_ROMUSB_ROM_DUMMY_BYTE_CNT, 0);
-	udelay(10);
-	cond_resched();
-	qla82xx_wr_32(ha, QLA82XX_ROMUSB_ROM_ABYTE_CNT, 0);
-	*valp = qla82xx_rd_32(ha, QLA82XX_ROMUSB_ROM_RDATA);
 	return 0;
 }
 
@@ -3639,29 +3649,6 @@ qla82xx_chip_reset_cleanup(scsi_qla_host_t *vha)
 }
 
 /* Minidump related functions */
-int
-qla82xx_md_rw_32(struct qla_hw_data *ha, uint32_t off, u32 data, uint8_t flag)
-{
-	uint32_t  off_value, rval = 0;
-
-	WRT_REG_DWORD((void *)(CRB_WINDOW_2M + ha->nx_pcibase),
-	    (off & 0xFFFF0000));
-
-	/* Read back value to make sure write has gone through */
-	RD_REG_DWORD((void *)(CRB_WINDOW_2M + ha->nx_pcibase));
-	off_value  = (off & 0x0000FFFF);
-
-	if (flag)
-		WRT_REG_DWORD((void *)
-		    (off_value + CRB_INDIRECT_2M + ha->nx_pcibase),
-		    data);
-	else
-		rval = RD_REG_DWORD((void *)
-		    (off_value + CRB_INDIRECT_2M + ha->nx_pcibase));
-
-	return rval;
-}
-
 static int
 qla82xx_minidump_process_control(scsi_qla_host_t *vha,
 	qla82xx_md_entry_hdr_t *entry_hdr, uint32_t **d_ptr)
