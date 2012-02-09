@@ -353,6 +353,36 @@ int x86_setup_perfctr(struct perf_event *event)
 	return 0;
 }
 
+/*
+ * check that branch_sample_type is compatible with
+ * settings needed for precise_ip > 1 which implies
+ * using the LBR to capture ALL taken branches at the
+ * priv levels of the measurement
+ */
+static inline int precise_br_compat(struct perf_event *event)
+{
+	u64 m = event->attr.branch_sample_type;
+	u64 b = 0;
+
+	/* must capture all branches */
+	if (!(m & PERF_SAMPLE_BRANCH_ANY))
+		return 0;
+
+	m &= PERF_SAMPLE_BRANCH_KERNEL | PERF_SAMPLE_BRANCH_USER;
+
+	if (!event->attr.exclude_user)
+		b |= PERF_SAMPLE_BRANCH_USER;
+
+	if (!event->attr.exclude_kernel)
+		b |= PERF_SAMPLE_BRANCH_KERNEL;
+
+	/*
+	 * ignore PERF_SAMPLE_BRANCH_HV, not supported on x86
+	 */
+
+	return m == b;
+}
+
 int x86_pmu_hw_config(struct perf_event *event)
 {
 	if (event->attr.precise_ip) {
@@ -369,6 +399,36 @@ int x86_pmu_hw_config(struct perf_event *event)
 
 		if (event->attr.precise_ip > precise)
 			return -EOPNOTSUPP;
+		/*
+		 * check that PEBS LBR correction does not conflict with
+		 * whatever the user is asking with attr->branch_sample_type
+		 */
+		if (event->attr.precise_ip > 1) {
+			u64 *br_type = &event->attr.branch_sample_type;
+
+			if (has_branch_stack(event)) {
+				if (!precise_br_compat(event))
+					return -EOPNOTSUPP;
+
+				/* branch_sample_type is compatible */
+
+			} else {
+				/*
+				 * user did not specify  branch_sample_type
+				 *
+				 * For PEBS fixups, we capture all
+				 * the branches at the priv level of the
+				 * event.
+				 */
+				*br_type = PERF_SAMPLE_BRANCH_ANY;
+
+				if (!event->attr.exclude_user)
+					*br_type |= PERF_SAMPLE_BRANCH_USER;
+
+				if (!event->attr.exclude_kernel)
+					*br_type |= PERF_SAMPLE_BRANCH_KERNEL;
+			}
+		}
 	}
 
 	/*
