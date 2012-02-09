@@ -536,7 +536,6 @@ static void ft_send_work(struct work_struct *work)
 	struct fc_frame_header *fh = fc_frame_header_get(cmd->req_frame);
 	struct fcp_cmnd *fcp;
 	int data_dir = 0;
-	u32 data_len;
 	int task_attr;
 
 	fcp = fc_frame_payload_get(cmd->req_frame, sizeof(*fcp));
@@ -546,47 +545,6 @@ static void ft_send_work(struct work_struct *work)
 	if (fcp->fc_flags & FCP_CFL_LEN_MASK)
 		goto err;		/* not handling longer CDBs yet */
 
-	if (fcp->fc_tm_flags) {
-		task_attr = FCP_PTA_SIMPLE;
-		data_dir = DMA_NONE;
-		data_len = 0;
-	} else {
-		switch (fcp->fc_flags & (FCP_CFL_RDDATA | FCP_CFL_WRDATA)) {
-		case 0:
-			data_dir = DMA_NONE;
-			break;
-		case FCP_CFL_RDDATA:
-			data_dir = DMA_FROM_DEVICE;
-			break;
-		case FCP_CFL_WRDATA:
-			data_dir = DMA_TO_DEVICE;
-			break;
-		case FCP_CFL_WRDATA | FCP_CFL_RDDATA:
-			goto err;	/* TBD not supported by tcm_fc yet */
-		}
-		/*
-		 * Locate the SAM Task Attr from fc_pri_ta
-		 */
-		switch (fcp->fc_pri_ta & FCP_PTA_MASK) {
-		case FCP_PTA_HEADQ:
-			task_attr = MSG_HEAD_TAG;
-			break;
-		case FCP_PTA_ORDERED:
-			task_attr = MSG_ORDERED_TAG;
-			break;
-		case FCP_PTA_ACA:
-			task_attr = MSG_ACA_TAG;
-			break;
-		case FCP_PTA_SIMPLE: /* Fallthrough */
-		default:
-			task_attr = MSG_SIMPLE_TAG;
-		}
-
-
-		task_attr = fcp->fc_pri_ta & FCP_PTA_MASK;
-		data_len = ntohl(fcp->fc_dl);
-		cmd->cdb = fcp->fc_cdb;
-	}
 	/*
 	 * Check for FCP task management flags
 	 */
@@ -594,6 +552,40 @@ static void ft_send_work(struct work_struct *work)
 		ft_send_tm(cmd);
 		return;
 	}
+
+	switch (fcp->fc_flags & (FCP_CFL_RDDATA | FCP_CFL_WRDATA)) {
+	case 0:
+		data_dir = DMA_NONE;
+		break;
+	case FCP_CFL_RDDATA:
+		data_dir = DMA_FROM_DEVICE;
+		break;
+	case FCP_CFL_WRDATA:
+		data_dir = DMA_TO_DEVICE;
+		break;
+	case FCP_CFL_WRDATA | FCP_CFL_RDDATA:
+		goto err;	/* TBD not supported by tcm_fc yet */
+	}
+	/*
+	 * Locate the SAM Task Attr from fc_pri_ta
+	 */
+	switch (fcp->fc_pri_ta & FCP_PTA_MASK) {
+	case FCP_PTA_HEADQ:
+		task_attr = MSG_HEAD_TAG;
+		break;
+	case FCP_PTA_ORDERED:
+		task_attr = MSG_ORDERED_TAG;
+		break;
+	case FCP_PTA_ACA:
+		task_attr = MSG_ACA_TAG;
+		break;
+	case FCP_PTA_SIMPLE: /* Fallthrough */
+	default:
+		task_attr = MSG_SIMPLE_TAG;
+	}
+
+	cmd->cdb = fcp->fc_cdb;
+
 	fc_seq_exch(cmd->seq)->lp->tt.seq_set_resp(cmd->seq, ft_recv_seq, cmd);
 	/*
 	 * Use a single se_cmd->cmd_kref as we expect to release se_cmd
@@ -601,7 +593,7 @@ static void ft_send_work(struct work_struct *work)
 	 */
 	target_submit_cmd(&cmd->se_cmd, cmd->sess->se_sess, cmd->cdb,
 			&cmd->ft_sense_buffer[0], scsilun_to_int(&fcp->fc_lun),
-			data_len, task_attr, data_dir, 0);
+			ntohl(fcp->fc_dl), task_attr, data_dir, 0);
 	pr_debug("r_ctl %x alloc target_submit_cmd\n", fh->fh_r_ctl);
 	return;
 
