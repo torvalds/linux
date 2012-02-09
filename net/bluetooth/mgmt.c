@@ -1073,57 +1073,63 @@ static int load_link_keys(struct sock *sk, u16 index, void *data, u16 len)
 	return 0;
 }
 
-static int remove_keys(struct sock *sk, u16 index, void *data, u16 len)
+static int unpair_device(struct sock *sk, u16 index, void *data, u16 len)
 {
 	struct hci_dev *hdev;
-	struct mgmt_cp_remove_keys *cp = data;
-	struct mgmt_rp_remove_keys rp;
+	struct mgmt_cp_unpair_device *cp = data;
+	struct mgmt_rp_unpair_device rp;
 	struct hci_cp_disconnect dc;
 	struct pending_cmd *cmd;
 	struct hci_conn *conn;
 	int err;
 
 	if (len != sizeof(*cp))
-		return cmd_status(sk, index, MGMT_OP_REMOVE_KEYS,
+		return cmd_status(sk, index, MGMT_OP_UNPAIR_DEVICE,
 						MGMT_STATUS_INVALID_PARAMS);
 
 	hdev = hci_dev_get(index);
 	if (!hdev)
-		return cmd_status(sk, index, MGMT_OP_REMOVE_KEYS,
+		return cmd_status(sk, index, MGMT_OP_UNPAIR_DEVICE,
 						MGMT_STATUS_INVALID_PARAMS);
 
 	hci_dev_lock(hdev);
 
 	memset(&rp, 0, sizeof(rp));
-	bacpy(&rp.bdaddr, &cp->bdaddr);
+	bacpy(&rp.addr.bdaddr, &cp->addr.bdaddr);
+	rp.addr.type = cp->addr.type;
 	rp.status = MGMT_STATUS_FAILED;
 
-	err = hci_remove_ltk(hdev, &cp->bdaddr);
-	if (err < 0) {
-		err = cmd_status(sk, index, MGMT_OP_REMOVE_KEYS, -err);
-		goto unlock;
-	}
+	if (cp->addr.type == MGMT_ADDR_BREDR)
+		err = hci_remove_link_key(hdev, &cp->addr.bdaddr);
+	else
+		err = hci_remove_ltk(hdev, &cp->addr.bdaddr);
 
-	err = hci_remove_link_key(hdev, &cp->bdaddr);
 	if (err < 0) {
 		rp.status = MGMT_STATUS_NOT_PAIRED;
 		goto unlock;
 	}
 
 	if (!test_bit(HCI_UP, &hdev->flags) || !cp->disconnect) {
-		err = cmd_complete(sk, index, MGMT_OP_REMOVE_KEYS, &rp,
+		err = cmd_complete(sk, index, MGMT_OP_UNPAIR_DEVICE, &rp,
 								sizeof(rp));
 		goto unlock;
 	}
 
-	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
+	if (cp->addr.type == MGMT_ADDR_BREDR)
+		conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK,
+							&cp->addr.bdaddr);
+	else
+		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK,
+							&cp->addr.bdaddr);
+
 	if (!conn) {
-		err = cmd_complete(sk, index, MGMT_OP_REMOVE_KEYS, &rp,
+		err = cmd_complete(sk, index, MGMT_OP_UNPAIR_DEVICE, &rp,
 								sizeof(rp));
 		goto unlock;
 	}
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_REMOVE_KEYS, hdev, cp, sizeof(*cp));
+	cmd = mgmt_pending_add(sk, MGMT_OP_UNPAIR_DEVICE, hdev, cp,
+								sizeof(*cp));
 	if (!cmd) {
 		err = -ENOMEM;
 		goto unlock;
@@ -1137,7 +1143,7 @@ static int remove_keys(struct sock *sk, u16 index, void *data, u16 len)
 
 unlock:
 	if (err < 0)
-		err = cmd_complete(sk, index, MGMT_OP_REMOVE_KEYS, &rp,
+		err = cmd_complete(sk, index, MGMT_OP_UNPAIR_DEVICE, &rp,
 								sizeof(rp));
 	hci_dev_unlock(hdev);
 	hci_dev_put(hdev);
@@ -2340,9 +2346,6 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 	case MGMT_OP_LOAD_LINK_KEYS:
 		err = load_link_keys(sk, index, cp, len);
 		break;
-	case MGMT_OP_REMOVE_KEYS:
-		err = remove_keys(sk, index, cp, len);
-		break;
 	case MGMT_OP_DISCONNECT:
 		err = disconnect(sk, index, cp, len);
 		break;
@@ -2363,6 +2366,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_CANCEL_PAIR_DEVICE:
 		err = cancel_pair_device(sk, index, buf + sizeof(*hdr), len);
+		break;
+	case MGMT_OP_UNPAIR_DEVICE:
+		err = unpair_device(sk, index, cp, len);
 		break;
 	case MGMT_OP_USER_CONFIRM_REPLY:
 		err = user_confirm_reply(sk, index, cp, len);
@@ -2624,18 +2630,19 @@ static void disconnect_rsp(struct pending_cmd *cmd, void *data)
 	mgmt_pending_remove(cmd);
 }
 
-static void remove_keys_rsp(struct pending_cmd *cmd, void *data)
+static void unpair_device_rsp(struct pending_cmd *cmd, void *data)
 {
 	u8 *status = data;
-	struct mgmt_cp_remove_keys *cp = cmd->param;
-	struct mgmt_rp_remove_keys rp;
+	struct mgmt_cp_unpair_device *cp = cmd->param;
+	struct mgmt_rp_unpair_device rp;
 
 	memset(&rp, 0, sizeof(rp));
-	bacpy(&rp.bdaddr, &cp->bdaddr);
+	bacpy(&rp.addr.bdaddr, &cp->addr.bdaddr);
+	rp.addr.type = cp->addr.type;
 	if (status != NULL)
 		rp.status = *status;
 
-	cmd_complete(cmd->sk, cmd->index, MGMT_OP_REMOVE_KEYS, &rp,
+	cmd_complete(cmd->sk, cmd->index, MGMT_OP_UNPAIR_DEVICE, &rp,
 								sizeof(rp));
 
 	mgmt_pending_remove(cmd);
@@ -2659,7 +2666,8 @@ int mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	if (sk)
 		sock_put(sk);
 
-	mgmt_pending_foreach(MGMT_OP_REMOVE_KEYS, hdev, remove_keys_rsp, NULL);
+	mgmt_pending_foreach(MGMT_OP_UNPAIR_DEVICE, hdev, unpair_device_rsp,
+									NULL);
 
 	return err;
 }

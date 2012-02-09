@@ -175,17 +175,7 @@ struct mgmt_cp_load_long_term_keys {
 	struct mgmt_ltk_info keys[0];
 } __packed;
 
-#define MGMT_OP_REMOVE_KEYS		0x0014
-struct mgmt_cp_remove_keys {
-	bdaddr_t bdaddr;
-	__u8 disconnect;
-} __packed;
-struct mgmt_rp_remove_keys {
-	bdaddr_t bdaddr;
-	__u8 status;
-};
-
-#define MGMT_OP_DISCONNECT		0x0015
+#define MGMT_OP_DISCONNECT		0x0014
 struct mgmt_cp_disconnect {
 	bdaddr_t bdaddr;
 } __packed;
@@ -194,13 +184,13 @@ struct mgmt_rp_disconnect {
 	__u8 status;
 } __packed;
 
-#define MGMT_OP_GET_CONNECTIONS		0x0016
+#define MGMT_OP_GET_CONNECTIONS		0x0015
 struct mgmt_rp_get_connections {
 	__le16 conn_count;
 	struct mgmt_addr_info addr[0];
 } __packed;
 
-#define MGMT_OP_PIN_CODE_REPLY		0x0017
+#define MGMT_OP_PIN_CODE_REPLY		0x0016
 struct mgmt_cp_pin_code_reply {
 	bdaddr_t bdaddr;
 	__u8 pin_len;
@@ -211,17 +201,17 @@ struct mgmt_rp_pin_code_reply {
 	uint8_t status;
 } __packed;
 
-#define MGMT_OP_PIN_CODE_NEG_REPLY	0x0018
+#define MGMT_OP_PIN_CODE_NEG_REPLY	0x0017
 struct mgmt_cp_pin_code_neg_reply {
 	bdaddr_t bdaddr;
 } __packed;
 
-#define MGMT_OP_SET_IO_CAPABILITY	0x0019
+#define MGMT_OP_SET_IO_CAPABILITY	0x0018
 struct mgmt_cp_set_io_capability {
 	__u8 io_capability;
 } __packed;
 
-#define MGMT_OP_PAIR_DEVICE		0x001A
+#define MGMT_OP_PAIR_DEVICE		0x0019
 struct mgmt_cp_pair_device {
 	struct mgmt_addr_info addr;
 	__u8 io_cap;
@@ -231,7 +221,17 @@ struct mgmt_rp_pair_device {
 	__u8 status;
 } __packed;
 
-#define MGMT_OP_CANCEL_PAIR_DEVICE	0x001B
+#define MGMT_OP_CANCEL_PAIR_DEVICE	0x001A
+
+#define MGMT_OP_UNPAIR_DEVICE		0x001B
+struct mgmt_cp_unpair_device {
+	struct mgmt_addr_info addr;
+	__u8 disconnect;
+} __packed;
+struct mgmt_rp_unpair_device {
+	struct mgmt_addr_info addr;
+	__u8 status;
+};
 
 #define MGMT_OP_USER_CONFIRM_REPLY	0x001C
 struct mgmt_cp_user_confirm_reply {
