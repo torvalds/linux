@@ -3546,10 +3546,12 @@ EXPORT_SYMBOL(transport_kmap_data_sg);
 
 void transport_kunmap_data_sg(struct se_cmd *cmd)
 {
-	if (!cmd->t_data_nents)
+	if (!cmd->t_data_nents) {
 		return;
-	else if (cmd->t_data_nents == 1)
+	} else if (cmd->t_data_nents == 1) {
 		kunmap(sg_page(cmd->t_data_sg));
+		return;
+	}
 
 	vunmap(cmd->t_data_vmap);
 	cmd->t_data_vmap = NULL;
