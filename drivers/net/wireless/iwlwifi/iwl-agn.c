@@ -1331,7 +1331,7 @@ out:
 	return err;
 }
 
-void __devexit iwl_remove(struct iwl_priv * priv)
+void iwl_op_mode_dvm_stop(struct iwl_priv *priv)
 {
 	wait_for_completion(&nic(priv)->request_firmware_complete);
 
