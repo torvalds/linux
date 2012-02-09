@@ -371,15 +371,15 @@ static void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 	XGI_Pr->P3c9 = BaseAddr + 0x19;
 	XGI_Pr->P3da = BaseAddr + 0x2A;
 	/* Digital video interface registers (LCD) */
-	XGI_Pr->Part1Port = BaseAddr + XGI_CRT2_PORT_04;
+	XGI_Pr->Part1Port = BaseAddr + SIS_CRT2_PORT_04;
 	/* 301 TV Encoder registers */
-	XGI_Pr->Part2Port = BaseAddr + XGI_CRT2_PORT_10;
+	XGI_Pr->Part2Port = BaseAddr + SIS_CRT2_PORT_10;
 	/* 301 Macrovision registers */
-	XGI_Pr->Part3Port = BaseAddr + XGI_CRT2_PORT_12;
+	XGI_Pr->Part3Port = BaseAddr + SIS_CRT2_PORT_12;
 	/* 301 VGA2 (and LCD) registers */
-	XGI_Pr->Part4Port = BaseAddr + XGI_CRT2_PORT_14;
+	XGI_Pr->Part4Port = BaseAddr + SIS_CRT2_PORT_14;
 	/* 301 palette address port registers */
-	XGI_Pr->Part5Port = BaseAddr + XGI_CRT2_PORT_14 + 2;
+	XGI_Pr->Part5Port = BaseAddr + SIS_CRT2_PORT_14 + 2;
 
 }
 

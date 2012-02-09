@@ -1299,9 +1299,9 @@ static void XGINew_SetModeScratch(struct xgi_hw_device_info *HwDeviceExtension,
 	tempcl |= SetSimuScanMode;
 	if ((!(temp & ActiveCRT1)) && ((temp & ActiveLCD) || (temp & ActiveTV)
 			|| (temp & ActiveCRT2)))
-		tempcl ^= (SetSimuScanMode | SwitchToCRT2);
+		tempcl ^= (SetSimuScanMode | SwitchCRT2);
 	if ((temp & ActiveLCD) && (temp & ActiveTV))
-		tempcl ^= (SetSimuScanMode | SwitchToCRT2);
+		tempcl ^= (SetSimuScanMode | SwitchCRT2);
 	xgifb_reg_set(pVBInfo->P3d4, 0x30, tempcl);
 
 	CR31Data = xgifb_reg_get(pVBInfo->P3d4, 0x31);
@@ -1516,11 +1516,11 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 	pVBInfo->P3c9 = pVBInfo->BaseAddr + 0x19;
 	pVBInfo->P3da = pVBInfo->BaseAddr + 0x2A;
 	pVBInfo->Part0Port = pVBInfo->BaseAddr + XGI_CRT2_PORT_00;
-	pVBInfo->Part1Port = pVBInfo->BaseAddr + XGI_CRT2_PORT_04;
-	pVBInfo->Part2Port = pVBInfo->BaseAddr + XGI_CRT2_PORT_10;
-	pVBInfo->Part3Port = pVBInfo->BaseAddr + XGI_CRT2_PORT_12;
-	pVBInfo->Part4Port = pVBInfo->BaseAddr + XGI_CRT2_PORT_14;
-	pVBInfo->Part5Port = pVBInfo->BaseAddr + XGI_CRT2_PORT_14 + 2;
+	pVBInfo->Part1Port = pVBInfo->BaseAddr + SIS_CRT2_PORT_04;
+	pVBInfo->Part2Port = pVBInfo->BaseAddr + SIS_CRT2_PORT_10;
+	pVBInfo->Part3Port = pVBInfo->BaseAddr + SIS_CRT2_PORT_12;
+	pVBInfo->Part4Port = pVBInfo->BaseAddr + SIS_CRT2_PORT_14;
+	pVBInfo->Part5Port = pVBInfo->BaseAddr + SIS_CRT2_PORT_14 + 2;
 	printk("5");
 
 	if (HwDeviceExtension->jChipType < XG20) /* kuku 2004/06/25 */

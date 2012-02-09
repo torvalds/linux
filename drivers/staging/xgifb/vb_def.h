@@ -5,10 +5,6 @@
 #include "../../video/sis/initdef.h"
 
 #define VB_XGI301C      0x0020 /* for 301C */
-/*end 301b*/
-
-#define VB_YPbPr525p    0x01
-#define VB_YPbPr750p    0x02
 #define VB_YPbPr1080i   0x03
 
 #define LVDSCRT1Len     15
@@ -28,16 +24,10 @@
 #define PanelRef60Hz            0x00
 #define PanelRef75Hz            0x20
 
-#define CRT2DisplayFlag         0x2000
-
 #define YPbPr525iVCLK           0x03B
 #define YPbPr525iVCLK_2         0x03A
 
 #define XGI_CRT2_PORT_00        (0x00 - 0x030)
-#define XGI_CRT2_PORT_04        (0x04 - 0x030)
-#define XGI_CRT2_PORT_10        (0x10 - 0x30)
-#define XGI_CRT2_PORT_12        (0x12 - 0x30)
-#define XGI_CRT2_PORT_14        (0x14 - 0x30)
 
 #define _PanelType00             0x00
 #define _PanelType01             0x08
@@ -77,15 +67,9 @@
 #define VCLKLen           4
 #define VGA_XGI340        0x0001       /* 340 series */
 
-#define VB_XGI301         0x0001       /* VB Type Info */
-#define VB_XGI301B        0x0002       /* 301 series */
-#define VB_XGI302B        0x0004
 #define VB_NoLCD          0x8000
-#define VB_XGI301LV       0x0008
-#define VB_XGI302LV       0x0010
 #define VB_LVDS_NS        0x0001       /* 3rd party chip */
 
-#define ModeInfoFlag      0x0007
 #define ModeText          0x0000
 #define ModeEGA           0x0002    /* 16 colors mode */
 #define ModeVGA           0x0003    /* 256 colors mode */
@@ -103,19 +87,14 @@
 #define DoubleScanMode    0x8000
 
 /* -------------- Ext_InfoFlag */
-#define Support16Bpp        0x0005
-#define Support32Bpp        0x0007
-
 #define SupportAllCRT2      0x0078
 #define SupportTV           0x0008
-#define SupportHiVisionTV   0x0010
 #define SupportLCD          0x0020
 #define SupportRAMDAC2      0x0040
 #define NoSupportTV         0x0070
 #define NoSupportHiVisionTV 0x0060
 #define NoSupportLCD        0x0058
 #define SupportTV1024       0x0800 /* 301btest */
-#define SupportYPbPr        0x1000 /* 301lv */
 #define InterlaceMode       0x0080
 #define SyncPP              0x0000
 #define SyncPN              0x4000
@@ -124,7 +103,6 @@
 
 /* -------------- SetMode Stack/Scratch */
 #define SetSimuScanMode     0x0001    /* VBInfo/CR30 & CR31 */
-#define SwitchToCRT2        0x0002
 #define SetCRT2ToTV         0x089C
 #define SetCRT2ToAVIDEO     0x0004
 #define SetCRT2ToSVIDEO     0x0008
@@ -135,7 +113,6 @@
 #define SetInSlaveMode      0x0200
 #define SetNotSimuMode      0x0400
 #define LoadDACFlag         0x1000
-#define DisableCRT2Display  0x2000
 #define DriverMode          0x4000
 #define SetCRT2ToDualEdge   0x8000
 
@@ -275,7 +252,6 @@
 #define VCLK50               0x08
 #define VCLK52_406           0x09
 #define VCLK56_25            0x0A
-#define VCLK65               0x0B
 #define VCLK68_179           0x0D
 #define VCLK72_852           0x0E
 #define VCLK75               0x0F
@@ -284,7 +260,6 @@
 #define VCLK83_95            0x13
 #define VCLK86_6             0x15
 #define VCLK94_5             0x16
-#define VCLK108_2            0x19
 #define VCLK113_309          0x1B
 #define VCLK116_406          0x1C
 #define VCLK135_5            0x1E

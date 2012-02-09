@@ -2501,17 +2501,17 @@ static unsigned short LCDLenList[] = {
 /* Dual link only */
 static struct XGI330_LCDCapStruct  XGI_LCDDLCapList[] = {
 /* LCDCap1024x768 */
-	{Panel_1024x768, DefaultLCDCap, 0, 0x012, 0x88, 0x06, VCLK65,
+	{Panel_1024x768, DefaultLCDCap, 0, 0x012, 0x88, 0x06, VCLK65_315,
 	0x6C, 0xC3, 0x35, 0x62, 0x02, 0x14, 0x0A, 0x02, 0x00,
 	0x30, 0x10, 0x5A, 0x10, 0x10, 0x0A, 0xC0, 0x28, 0x10},
 /* LCDCap1280x1024 */
 	{Panel_1280x1024, LCDDualLink+DefaultLCDCap, StLCDBToA,
-	0x012, 0x70, 0x03, VCLK108_2,
+	0x012, 0x70, 0x03, VCLK108_2_315,
 	0x70, 0x44, 0xF8, 0x2F, 0x02, 0x14, 0x0A, 0x02, 0x00,
 	0x30, 0x10, 0x5A, 0x10, 0x10, 0x0A, 0xC0, 0x30, 0x10},
 /* LCDCap1400x1050 */
 	{Panel_1400x1050, LCDDualLink+DefaultLCDCap, StLCDBToA,
-	0x012, 0x70, 0x03, VCLK108_2,
+	0x012, 0x70, 0x03, VCLK108_2_315,
 	 0x70, 0x44, 0xF8, 0x2F, 0x02, 0x14, 0x0A, 0x02, 0x00,
 	 0x30, 0x10, 0x5A, 0x10, 0x10, 0x0A, 0xC0, 0x30, 0x10},
 /* LCDCap1600x1200 */
@@ -2529,24 +2529,24 @@ static struct XGI330_LCDCapStruct  XGI_LCDDLCapList[] = {
 	 0x54, 0x42, 0x4A, 0x61, 0x02, 0x14, 0x0A, 0x02, 0x00,
 	 0x30, 0x10, 0x5A, 0x10, 0x10, 0x0A, 0xC0, 0x30, 0x10},
 /* LCDCapDefault */
-	{0xFF, DefaultLCDCap, 0, 0x012, 0x88, 0x06, VCLK65,
+	{0xFF, DefaultLCDCap, 0, 0x012, 0x88, 0x06, VCLK65_315,
 	0x6C, 0xC3, 0x35, 0x62, 0x02, 0x14, 0x0A, 0x02, 0x00,
 	0x30, 0x10, 0x5A, 0x10, 0x10, 0x0A, 0xC0, 0x28, 0x10}
 };
 
 static struct XGI330_LCDCapStruct  XGI_LCDCapList[] = {
 /* LCDCap1024x768 */
-	{Panel_1024x768, DefaultLCDCap, 0, 0x012, 0x88, 0x06, VCLK65,
+	{Panel_1024x768, DefaultLCDCap, 0, 0x012, 0x88, 0x06, VCLK65_315,
 	0x6C, 0xC3, 0x35, 0x62, 0x02, 0x14, 0x0A, 0x02, 0x00,
 	0x30, 0x10, 0x5A, 0x10, 0x10, 0x0A, 0xC0, 0x28, 0x10},
 /* LCDCap1280x1024 */
 	{Panel_1280x1024, DefaultLCDCap, StLCDBToA,
-	0x012, 0x70, 0x03, VCLK108_2,
+	0x012, 0x70, 0x03, VCLK108_2_315,
 	0x70, 0x44, 0xF8, 0x2F, 0x02, 0x14, 0x0A, 0x02, 0x00,
 	0x30, 0x10, 0x5A, 0x10, 0x10, 0x0A, 0xC0, 0x30, 0x10},
 /* LCDCap1400x1050 */
 	{Panel_1400x1050, DefaultLCDCap, StLCDBToA,
-	0x012, 0x70, 0x03, VCLK108_2,
+	0x012, 0x70, 0x03, VCLK108_2_315,
 	 0x70, 0x44, 0xF8, 0x2F, 0x02, 0x14, 0x0A, 0x02, 0x00,
 	 0x30, 0x10, 0x5A, 0x10, 0x10, 0x0A, 0xC0, 0x30, 0x10},
 /* LCDCap1600x1200 */
@@ -2564,162 +2564,162 @@ static struct XGI330_LCDCapStruct  XGI_LCDCapList[] = {
 	 0x54, 0x42, 0x4A, 0x61, 0x02, 0x14, 0x0A, 0x02, 0x00,
 	 0x30, 0x10, 0x5A, 0x10, 0x10, 0x0A, 0xC0, 0x30, 0x10},
 /* LCDCapDefault */
-	{0xFF, DefaultLCDCap, 0, 0x012, 0x88, 0x06, VCLK65,
+	{0xFF, DefaultLCDCap, 0, 0x012, 0x88, 0x06, VCLK65_315,
 	0x6C, 0xC3, 0x35, 0x62, 0x02, 0x14, 0x0A, 0x02, 0x00,
 	0x30, 0x10, 0x5A, 0x10, 0x10, 0x0A, 0xC0, 0x28, 0x10}
 };
 
 static struct XGI_Ext2Struct XGI330_RefIndex[] = {
-	{Support32Bpp + SupportAllCRT2 + SyncPN, RES320x200, VCLK25_175,
+	{Mode32Bpp + SupportAllCRT2 + SyncPN, RES320x200, VCLK25_175,
 	0x00, 0x10, 0x59, 320, 200},/* 00 */
-	{Support32Bpp + SupportAllCRT2 + SyncPN, RES320x200, VCLK25_175,
+	{Mode32Bpp + SupportAllCRT2 + SyncPN, RES320x200, VCLK25_175,
 	0x00, 0x10, 0x00, 320, 400},/* 01 */
-	{Support32Bpp + SupportAllCRT2 + SyncNN, RES320x240, VCLK25_175,
+	{Mode32Bpp + SupportAllCRT2 + SyncNN, RES320x240, VCLK25_175,
 	0x04, 0x20, 0x50, 320, 240},/* 02 */
-	{Support32Bpp + SupportAllCRT2 + SyncPP, RES400x300, VCLK40,
+	{Mode32Bpp + SupportAllCRT2 + SyncPP, RES400x300, VCLK40,
 	0x05, 0x32, 0x51, 400, 300},/* 03 */
-	{Support32Bpp + NoSupportTV + SyncNN + SupportTV1024, RES512x384,
-	VCLK65, 0x06, 0x43, 0x52, 512, 384},/* 04 */
-	{Support32Bpp + SupportAllCRT2 + SyncPN, RES640x400, VCLK25_175,
+	{Mode32Bpp + NoSupportTV + SyncNN + SupportTV1024, RES512x384,
+	VCLK65_315, 0x06, 0x43, 0x52, 512, 384},/* 04 */
+	{Mode32Bpp + SupportAllCRT2 + SyncPN, RES640x400, VCLK25_175,
 	0x00, 0x14, 0x2f, 640, 400},/* 05 */
-	{Support32Bpp + SupportAllCRT2 + SyncNN, RES640x480x60, VCLK25_175,
+	{Mode32Bpp + SupportAllCRT2 + SyncNN, RES640x480x60, VCLK25_175,
 	0x04, 0x24, 0x2e, 640, 480},/* 06 640x480x60Hz (LCD 640x480x60z) */
-	{Support32Bpp + NoSupportHiVisionTV + SyncNN, RES640x480x72, VCLK31_5,
+	{Mode32Bpp + NoSupportHiVisionTV + SyncNN, RES640x480x72, VCLK31_5,
 	0x04, 0x24, 0x2e, 640, 480},/* 07 640x480x72Hz (LCD 640x480x70Hz) */
-	{Support32Bpp + NoSupportHiVisionTV + SyncNN, RES640x480x75, VCLK31_5,
+	{Mode32Bpp + NoSupportHiVisionTV + SyncNN, RES640x480x75, VCLK31_5,
 	0x47, 0x24, 0x2e, 640, 480},/* 08 640x480x75Hz (LCD 640x480x75Hz) */
-	{Support32Bpp + SupportRAMDAC2 + SyncNN, RES640x480x85, VCLK36,
+	{Mode32Bpp + SupportRAMDAC2 + SyncNN, RES640x480x85, VCLK36,
 	0x8A, 0x24, 0x2e, 640, 480},/* 09 640x480x85Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncPN, RES640x480x100, VCLK43_163,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPN, RES640x480x100, VCLK43_163,
 	0x00, 0x24, 0x2e, 640, 480},/* 0a 640x480x100Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncPN, RES640x480x120, VCLK52_406,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPN, RES640x480x120, VCLK52_406,
 	0x00, 0x24, 0x2e, 640, 480},/* 0b 640x480x120Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncPN, RES640x480x160, VCLK72_852,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPN, RES640x480x160, VCLK72_852,
 	0x00, 0x24, 0x2e, 640, 480},/* 0c 640x480x160Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncNN, RES640x480x200, VCLK86_6,
+	{Mode32Bpp + SupportRAMDAC2 + SyncNN, RES640x480x200, VCLK86_6,
 	0x00, 0x24, 0x2e, 640, 480},/* 0d 640x480x200Hz */
-	{Support32Bpp + NoSupportLCD + SyncPP, RES800x600x56, VCLK36,
+	{Mode32Bpp + NoSupportLCD + SyncPP, RES800x600x56, VCLK36,
 	0x05, 0x36, 0x6a, 800, 600},/* 0e 800x600x56Hz */
-	{Support32Bpp + NoSupportTV + SyncPP, RES800x600x60, VCLK40,
+	{Mode32Bpp + NoSupportTV + SyncPP, RES800x600x60, VCLK40,
 	0x05, 0x36, 0x6a, 800, 600},/* 0f 800x600x60Hz (LCD 800x600x60Hz) */
-	{Support32Bpp + NoSupportHiVisionTV + SyncPP, RES800x600x72, VCLK50,
+	{Mode32Bpp + NoSupportHiVisionTV + SyncPP, RES800x600x72, VCLK50,
 	0x48, 0x36, 0x6a, 800, 600},/* 10 800x600x72Hz (LCD 800x600x70Hz) */
-	{Support32Bpp + NoSupportHiVisionTV + SyncPP, RES800x600x75, VCLK49_5,
+	{Mode32Bpp + NoSupportHiVisionTV + SyncPP, RES800x600x75, VCLK49_5,
 	0x8B, 0x36, 0x6a, 800, 600},/* 11 800x600x75Hz (LCD 800x600x75Hz) */
-	{Support32Bpp + SupportRAMDAC2 + SyncPP, RES800x600x85, VCLK56_25,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPP, RES800x600x85, VCLK56_25,
 	0x00, 0x36, 0x6a, 800, 600},/* 12 800x600x85Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncPN, RES800x600x100, VCLK68_179,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPN, RES800x600x100, VCLK68_179,
 	0x00, 0x36, 0x6a, 800, 600},/* 13 800x600x100Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncPN, RES800x600x120, VCLK83_95,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPN, RES800x600x120, VCLK83_95,
 	0x00, 0x36, 0x6a, 800, 600},/* 14 800x600x120Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncPN, RES800x600x160, VCLK116_406,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPN, RES800x600x160, VCLK116_406,
 	0x00, 0x36, 0x6a, 800, 600},/* 15 800x600x160Hz */
-	{Support32Bpp + InterlaceMode + SyncPP, RES1024x768x43, VCLK44_9,
+	{Mode32Bpp + InterlaceMode + SyncPP, RES1024x768x43, VCLK44_9,
 	0x00, 0x47, 0x37, 1024, 768},/* 16 1024x768x43Hz */
 	/* 17 1024x768x60Hz (LCD 1024x768x60Hz) */
-	{Support32Bpp + NoSupportTV + SyncNN + SupportTV1024, RES1024x768x60,
-	VCLK65, 0x06, 0x47, 0x37, 1024, 768},
-	{Support32Bpp + NoSupportHiVisionTV + SyncNN, RES1024x768x70, VCLK75,
+	{Mode32Bpp + NoSupportTV + SyncNN + SupportTV1024, RES1024x768x60,
+	VCLK65_315, 0x06, 0x47, 0x37, 1024, 768},
+	{Mode32Bpp + NoSupportHiVisionTV + SyncNN, RES1024x768x70, VCLK75,
 	0x49, 0x47, 0x37, 1024, 768},/* 18 1024x768x70Hz (LCD 1024x768x70Hz) */
-	{Support32Bpp + NoSupportHiVisionTV + SyncPP, RES1024x768x75, VCLK78_75,
+	{Mode32Bpp + NoSupportHiVisionTV + SyncPP, RES1024x768x75, VCLK78_75,
 	0x00, 0x47, 0x37, 1024, 768},/* 19 1024x768x75Hz (LCD 1024x768x75Hz) */
-	{Support32Bpp + SupportRAMDAC2 + SyncPP, RES1024x768x85, VCLK94_5,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPP, RES1024x768x85, VCLK94_5,
 	0x8C, 0x47, 0x37, 1024, 768},/* 1a 1024x768x85Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncPN, RES1024x768x100, VCLK113_309,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPN, RES1024x768x100, VCLK113_309,
 	0x00, 0x47, 0x37, 1024, 768},/* 1b 1024x768x100Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncPN, RES1024x768x120, VCLK139_054,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPN, RES1024x768x120, VCLK139_054,
 	0x00, 0x47, 0x37, 1024, 768},/* 1c 1024x768x120Hz */
-	{Support32Bpp + SupportLCD + SyncPP, RES1280x960x60, VCLK108_2,
+	{Mode32Bpp + SupportLCD + SyncPP, RES1280x960x60, VCLK108_2_315,
 	0x08, 0x58, 0x7b, 1280, 960},/* 1d 1280x960x60Hz */
-	{Support32Bpp + InterlaceMode + SyncPP, RES1280x1024x43, VCLK78_75,
+	{Mode32Bpp + InterlaceMode + SyncPP, RES1280x1024x43, VCLK78_75,
 	0x00, 0x58, 0x3a, 1280, 1024},/* 1e 1280x1024x43Hz */
-	{Support32Bpp + NoSupportTV + SyncPP, RES1280x1024x60, VCLK108_2,
+	{Mode32Bpp + NoSupportTV + SyncPP, RES1280x1024x60, VCLK108_2_315,
 	0x07, 0x58, 0x3a, 1280, 1024},/*1f 1280x1024x60Hz (LCD 1280x1024x60Hz)*/
-	{Support32Bpp + NoSupportTV + SyncPP, RES1280x1024x75, VCLK135_5,
+	{Mode32Bpp + NoSupportTV + SyncPP, RES1280x1024x75, VCLK135_5,
 	0x00, 0x58, 0x3a, 1280, 1024},/*20 1280x1024x75Hz (LCD 1280x1024x75Hz)*/
-	{Support32Bpp + SyncPP, RES1280x1024x85, VCLK157_5,
+	{Mode32Bpp + SyncPP, RES1280x1024x85, VCLK157_5,
 	0x00, 0x58, 0x3a, 1280, 1024},/* 21 1280x1024x85Hz */
 	/* 22 1600x1200x60Hz */
-	{Support32Bpp + SupportLCD + SyncPP + SupportCRT2in301C,
+	{Mode32Bpp + SupportLCD + SyncPP + SupportCRT2in301C,
 	RES1600x1200x60, VCLK162, 0x09, 0x7A, 0x3c, 1600, 1200},
-	{Support32Bpp + SyncPP + SupportCRT2in301C, RES1600x1200x65, VCLK175,
+	{Mode32Bpp + SyncPP + SupportCRT2in301C, RES1600x1200x65, VCLK175,
 	0x00, 0x69, 0x3c, 1600, 1200},/* 23 1600x1200x65Hz */
-	{Support32Bpp + SyncPP + SupportCRT2in301C, RES1600x1200x70, VCLK189,
+	{Mode32Bpp + SyncPP + SupportCRT2in301C, RES1600x1200x70, VCLK189,
 	0x00, 0x69, 0x3c, 1600, 1200},/* 24 1600x1200x70Hz */
-	{Support32Bpp + SyncPP + SupportCRT2in301C, RES1600x1200x75, VCLK202_5,
+	{Mode32Bpp + SyncPP + SupportCRT2in301C, RES1600x1200x75, VCLK202_5,
 	0x00, 0x69, 0x3c, 1600, 1200},/* 25 1600x1200x75Hz */
-	{Support32Bpp + SyncPP, RES1600x1200x85, VCLK229_5,
+	{Mode32Bpp + SyncPP, RES1600x1200x85, VCLK229_5,
 	0x00, 0x69, 0x3c, 1600, 1200},/* 26 1600x1200x85Hz */
-	{Support32Bpp + SyncPP, RES1600x1200x100, VCLK269_655,
+	{Mode32Bpp + SyncPP, RES1600x1200x100, VCLK269_655,
 	0x00, 0x69, 0x3c, 1600, 1200},/* 27 1600x1200x100Hz */
-	{Support32Bpp + SyncPP, RES1600x1200x120, VCLK323_586,
+	{Mode32Bpp + SyncPP, RES1600x1200x120, VCLK323_586,
 	0x00, 0x69, 0x3c, 1600, 1200},/* 28 1600x1200x120Hz */
-	{Support32Bpp + SupportLCD + SyncNP, RES1920x1440x60, VCLK234,
+	{Mode32Bpp + SupportLCD + SyncNP, RES1920x1440x60, VCLK234,
 	0x00, 0x00, 0x68, 1920, 1440},/* 29 1920x1440x60Hz */
-	{Support32Bpp + SyncPN, RES1920x1440x65, VCLK254_817,
+	{Mode32Bpp + SyncPN, RES1920x1440x65, VCLK254_817,
 	0x00, 0x00, 0x68, 1920, 1440},/* 2a 1920x1440x65Hz */
-	{Support32Bpp + SyncPN, RES1920x1440x70, VCLK277_015,
+	{Mode32Bpp + SyncPN, RES1920x1440x70, VCLK277_015,
 	0x00, 0x00, 0x68, 1920, 1440},/* 2b 1920x1440x70Hz */
-	{Support32Bpp + SyncPN, RES1920x1440x75, VCLK291_132,
+	{Mode32Bpp + SyncPN, RES1920x1440x75, VCLK291_132,
 	0x00, 0x00, 0x68, 1920, 1440},/* 2c 1920x1440x75Hz */
-	{Support32Bpp + SyncPN, RES1920x1440x85, VCLK330_615,
+	{Mode32Bpp + SyncPN, RES1920x1440x85, VCLK330_615,
 	0x00, 0x00, 0x68, 1920, 1440},/* 2d 1920x1440x85Hz */
-	{Support16Bpp + SyncPN, RES1920x1440x100, VCLK388_631,
+	{Mode16Bpp + SyncPN, RES1920x1440x100, VCLK388_631,
 	0x00, 0x00, 0x68, 1920, 1440},/* 2e 1920x1440x100Hz */
-	{Support32Bpp + SupportLCD + SyncPN, RES2048x1536x60, VCLK266_952,
+	{Mode32Bpp + SupportLCD + SyncPN, RES2048x1536x60, VCLK266_952,
 	0x00, 0x00, 0x6c, 2048, 1536},/* 2f 2048x1536x60Hz */
-	{Support32Bpp + SyncPN, RES2048x1536x65, VCLK291_766,
+	{Mode32Bpp + SyncPN, RES2048x1536x65, VCLK291_766,
 	0x00, 0x00, 0x6c, 2048, 1536},/* 30 2048x1536x65Hz */
-	{Support32Bpp + SyncPN, RES2048x1536x70, VCLK315_195,
+	{Mode32Bpp + SyncPN, RES2048x1536x70, VCLK315_195,
 	0x00, 0x00, 0x6c, 2048, 1536},/* 31 2048x1536x70Hz */
-	{Support32Bpp + SyncPN, RES2048x1536x75, VCLK340_477,
+	{Mode32Bpp + SyncPN, RES2048x1536x75, VCLK340_477,
 	0x00, 0x00, 0x6c, 2048, 1536},/* 32 2048x1536x75Hz */
-	{Support16Bpp + SyncPN, RES2048x1536x85, VCLK375_847,
+	{Mode16Bpp + SyncPN, RES2048x1536x85, VCLK375_847,
 	0x00, 0x00, 0x6c, 2048, 1536},/* 33 2048x1536x85Hz */
-	{Support32Bpp + SupportHiVisionTV + SupportRAMDAC2 +
-	 SyncPP + SupportYPbPr, RES800x480x60, VCLK39_77,
+	{Mode32Bpp + SupportHiVision + SupportRAMDAC2 +
+	 SyncPP + SupportYPbPr750p, RES800x480x60, VCLK39_77,
 	 0x08, 0x00, 0x70, 800, 480},/* 34 800x480x60Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncPP, RES800x480x75, VCLK49_5,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPP, RES800x480x75, VCLK49_5,
 	0x08, 0x00, 0x70, 800, 480},/* 35 800x480x75Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncPP, RES800x480x85, VCLK56_25,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPP, RES800x480x85, VCLK56_25,
 	0x08, 0x00, 0x70, 800, 480},/* 36 800x480x85Hz */
-	{Support32Bpp + SupportHiVisionTV + SupportRAMDAC2 +
-	 SyncPP + SupportYPbPr, RES1024x576x60, VCLK65,
+	{Mode32Bpp + SupportHiVision + SupportRAMDAC2 +
+	 SyncPP + SupportYPbPr750p, RES1024x576x60, VCLK65_315,
 	 0x09, 0x00, 0x71, 1024, 576},/* 37 1024x576x60Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncPP, RES1024x576x75, VCLK78_75,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPP, RES1024x576x75, VCLK78_75,
 	0x09, 0x00, 0x71, 1024, 576},/* 38 1024x576x75Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncPP, RES1024x576x85, VCLK94_5,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPP, RES1024x576x85, VCLK94_5,
 	0x09, 0x00, 0x71, 1024, 576},/* 39 1024x576x85Hz */
-	{Support32Bpp + SupportHiVisionTV + SupportRAMDAC2 +
-	SyncPP + SupportYPbPr, RES1280x720x60, VCLK108_2,
+	{Mode32Bpp + SupportHiVision + SupportRAMDAC2 +
+	SyncPP + SupportYPbPr750p, RES1280x720x60, VCLK108_2_315,
 	0x0A, 0x00, 0x75, 1280, 720},/* 3a 1280x720x60Hz*/
-	{Support32Bpp + SupportRAMDAC2 + SyncPP, RES1280x720x75, VCLK135_5,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPP, RES1280x720x75, VCLK135_5,
 	0x0A, 0x00, 0x75, 1280, 720},/* 3b 1280x720x75Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncPP, RES1280x720x85, VCLK157_5,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPP, RES1280x720x85, VCLK157_5,
 	0x0A, 0x00, 0x75, 1280, 720},/* 3c 1280x720x85Hz */
-	{Support32Bpp + SupportTV + SyncNN, RES720x480x60, VCLK28_322,
+	{Mode32Bpp + SupportTV + SyncNN, RES720x480x60, VCLK28_322,
 	0x06, 0x00, 0x31,  720, 480},/* 3d 720x480x60Hz */
-	{Support32Bpp + SupportTV + SyncPP, RES720x576x56, VCLK36,
+	{Mode32Bpp + SupportTV + SyncPP, RES720x576x56, VCLK36,
 	0x06, 0x00, 0x32, 720, 576},/* 3e 720x576x56Hz */
-	{Support32Bpp + InterlaceMode + NoSupportLCD + SyncPP, RES856x480x79I,
+	{Mode32Bpp + InterlaceMode + NoSupportLCD + SyncPP, RES856x480x79I,
 	VCLK35_2, 0x00, 0x00, 0x00,  856, 480},/* 3f 856x480x79I */
-	{Support32Bpp + NoSupportLCD + SyncNN, RES856x480x60, VCLK35_2,
+	{Mode32Bpp + NoSupportLCD + SyncNN, RES856x480x60, VCLK35_2,
 	0x00, 0x00, 0x00,  856, 480},/* 40 856x480x60Hz */
-	{Support32Bpp + NoSupportHiVisionTV + SyncPP, RES1280x768x60,
+	{Mode32Bpp + NoSupportHiVisionTV + SyncPP, RES1280x768x60,
 	VCLK79_411, 0x08, 0x48, 0x23, 1280, 768},/* 41 1280x768x60Hz */
-	{Support32Bpp + NoSupportHiVisionTV + SyncPP, RES1400x1050x60,
+	{Mode32Bpp + NoSupportHiVisionTV + SyncPP, RES1400x1050x60,
 	VCLK122_61, 0x08, 0x69, 0x26, 1400, 1050},/* 42 1400x1050x60Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncPP, RES1152x864x60, VCLK80_350,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPP, RES1152x864x60, VCLK80_350,
 	0x37, 0x00, 0x20, 1152, 864},/* 43 1152x864x60Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncPP, RES1152x864x75, VCLK107_385,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPP, RES1152x864x75, VCLK107_385,
 	0x37, 0x00, 0x20, 1152, 864},/* 44 1152x864x75Hz */
-	{Support32Bpp + SupportLCD + SupportRAMDAC2 + SyncPP, RES1280x960x75,
+	{Mode32Bpp + SupportLCD + SupportRAMDAC2 + SyncPP, RES1280x960x75,
 	VCLK125_999, 0x3A, 0x88, 0x7b, 1280, 960},/* 45 1280x960x75Hz */
-	{Support32Bpp + SupportLCD + SupportRAMDAC2 + SyncPP, RES1280x960x85,
+	{Mode32Bpp + SupportLCD + SupportRAMDAC2 + SyncPP, RES1280x960x85,
 	VCLK148_5, 0x0A, 0x88, 0x7b, 1280, 960},/* 46 1280x960x85Hz */
-	{Support32Bpp + SupportLCD + SupportRAMDAC2 + SyncPP, RES1280x960x120,
+	{Mode32Bpp + SupportLCD + SupportRAMDAC2 + SyncPP, RES1280x960x120,
 	VCLK217_325, 0x3A, 0x88, 0x7b, 1280, 960},/* 47 1280x960x120Hz */
-	{Support32Bpp + SupportRAMDAC2 + SyncPN, RES1024x768x160, VCLK139_054,
+	{Mode32Bpp + SupportRAMDAC2 + SyncPN, RES1024x768x160, VCLK139_054,
 	0x30, 0x47, 0x37, 1024, 768},/* 48 1024x768x160Hz */
 };
 
