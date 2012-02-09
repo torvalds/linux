@@ -117,8 +117,6 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 		goto eclkget;
 	}
 
-	clk_enable(priv->clk);
-
 	mmc_data->hclk = clk_get_rate(priv->clk);
 	mmc_data->set_pwr = sh_mobile_sdhi_set_pwr;
 	mmc_data->get_cd = sh_mobile_sdhi_get_cd;
@@ -233,7 +231,6 @@ eirq_sdio:
 eirq_card_detect:
 	tmio_mmc_host_remove(host);
 eprobe:
-	clk_disable(priv->clk);
 	clk_put(priv->clk);
 eclkget:
 	kfree(priv);
@@ -259,7 +256,6 @@ static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 		free_irq(irq, host);
 	}
 
-	clk_disable(priv->clk);
 	clk_put(priv->clk);
 	kfree(priv);
 
