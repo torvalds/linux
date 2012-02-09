@@ -191,8 +191,14 @@ static inline void task_state(struct seq_file *m, struct pid_namespace *ns,
 		task_tgid_nr_ns(p, ns),
 		pid_nr_ns(pid, ns),
 		ppid, tpid,
-		cred->uid, cred->euid, cred->suid, cred->fsuid,
-		cred->gid, cred->egid, cred->sgid, cred->fsgid);
+		from_kuid_munged(user_ns, cred->uid),
+		from_kuid_munged(user_ns, cred->euid),
+		from_kuid_munged(user_ns, cred->suid),
+		from_kuid_munged(user_ns, cred->fsuid),
+		from_kgid_munged(user_ns, cred->gid),
+		from_kgid_munged(user_ns, cred->egid),
+		from_kgid_munged(user_ns, cred->sgid),
+		from_kgid_munged(user_ns, cred->fsgid));
 
 	task_lock(p);
 	if (p->files)
