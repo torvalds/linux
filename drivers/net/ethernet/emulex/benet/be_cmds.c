@@ -235,10 +235,10 @@ void be_async_mcc_disable(struct be_adapter *adapter)
 	adapter->mcc_obj.rearm_cq = false;
 }
 
-int be_process_mcc(struct be_adapter *adapter, int *status)
+int be_process_mcc(struct be_adapter *adapter)
 {
 	struct be_mcc_compl *compl;
-	int num = 0;
+	int num = 0, status = 0;
 	struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
 
 	spin_lock_bh(&adapter->mcc_cq_lock);
@@ -252,32 +252,32 @@ int be_process_mcc(struct be_adapter *adapter, int *status)
 				be_async_grp5_evt_process(adapter,
 				compl->flags, compl);
 		} else if (compl->flags & CQE_FLAGS_COMPLETED_MASK) {
-				*status = be_mcc_compl_process(adapter, compl);
+				status = be_mcc_compl_process(adapter, compl);
 				atomic_dec(&mcc_obj->q.used);
 		}
 		be_mcc_compl_use(compl);
 		num++;
 	}
 
+	if (num)
+		be_cq_notify(adapter, mcc_obj->cq.id, mcc_obj->rearm_cq, num);
+
 	spin_unlock_bh(&adapter->mcc_cq_lock);
-	return num;
+	return status;
 }
 
 /* Wait till no more pending mcc requests are present */
 static int be_mcc_wait_compl(struct be_adapter *adapter)
 {
 #define mcc_timeout		120000 /* 12s timeout */
-	int i, num, status = 0;
+	int i, status = 0;
 	struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
 
 	for (i = 0; i < mcc_timeout; i++) {
 		if (be_error(adapter))
 			return -EIO;
 
-		num = be_process_mcc(adapter, &status);
-		if (num)
-			be_cq_notify(adapter, mcc_obj->cq.id,
-				mcc_obj->rearm_cq, num);
+		status = be_process_mcc(adapter);
 
 		if (atomic_read(&mcc_obj->q.used) == 0)
 			break;
@@ -726,9 +726,8 @@ err:
 }
 
 /* Uses Mbox */
-int be_cmd_cq_create(struct be_adapter *adapter,
-		struct be_queue_info *cq, struct be_queue_info *eq,
-		bool sol_evts, bool no_delay, int coalesce_wm)
+int be_cmd_cq_create(struct be_adapter *adapter, struct be_queue_info *cq,
+		struct be_queue_info *eq, bool no_delay, int coalesce_wm)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_cq_create *req;
@@ -759,7 +758,6 @@ int be_cmd_cq_create(struct be_adapter *adapter,
 								ctxt, 1);
 		AMAP_SET_BITS(struct amap_cq_context_lancer, eqid,
 								ctxt, eq->id);
-		AMAP_SET_BITS(struct amap_cq_context_lancer, armed, ctxt, 1);
 	} else {
 		AMAP_SET_BITS(struct amap_cq_context_be, coalescwm, ctxt,
 								coalesce_wm);
@@ -768,11 +766,8 @@ int be_cmd_cq_create(struct be_adapter *adapter,
 		AMAP_SET_BITS(struct amap_cq_context_be, count, ctxt,
 						__ilog2_u32(cq->len/256));
 		AMAP_SET_BITS(struct amap_cq_context_be, valid, ctxt, 1);
-		AMAP_SET_BITS(struct amap_cq_context_be, solevent,
-								ctxt, sol_evts);
 		AMAP_SET_BITS(struct amap_cq_context_be, eventable, ctxt, 1);
 		AMAP_SET_BITS(struct amap_cq_context_be, eqid, ctxt, eq->id);
-		AMAP_SET_BITS(struct amap_cq_context_be, armed, ctxt, 1);
 	}
 
 	be_dws_cpu_to_le(ctxt, sizeof(req->context));
@@ -973,7 +968,7 @@ err:
 /* Uses MCC */
 int be_cmd_rxq_create(struct be_adapter *adapter,
 		struct be_queue_info *rxq, u16 cq_id, u16 frag_size,
-		u16 max_frame_size, u32 if_id, u32 rss, u8 *rss_id)
+		u32 if_id, u32 rss, u8 *rss_id)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_eth_rx_create *req;
@@ -997,7 +992,7 @@ int be_cmd_rxq_create(struct be_adapter *adapter,
 	req->num_pages = 2;
 	be_cmd_page_addrs_prepare(req->pages, ARRAY_SIZE(req->pages), q_mem);
 	req->interface_id = cpu_to_le32(if_id);
-	req->max_frame_size = cpu_to_le16(max_frame_size);
+	req->max_frame_size = cpu_to_le16(BE_MAX_JUMBO_FRAME_SIZE);
 	req->rss_queue = cpu_to_le32(rss);
 
 	status = be_mcc_notify_wait(adapter);

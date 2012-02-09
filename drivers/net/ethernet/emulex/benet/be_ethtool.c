@@ -37,7 +37,6 @@ enum {DRVSTAT_TX, DRVSTAT_RX, DRVSTAT};
 					FIELDINFO(struct be_drv_stats, field)
 
 static const struct be_ethtool_stat et_stats[] = {
-	{DRVSTAT_INFO(tx_events)},
 	{DRVSTAT_INFO(rx_crc_errors)},
 	{DRVSTAT_INFO(rx_alignment_symbol_errors)},
 	{DRVSTAT_INFO(rx_pause_frames)},
@@ -126,8 +125,6 @@ static const struct be_ethtool_stat et_stats[] = {
 static const struct be_ethtool_stat et_rx_stats[] = {
 	{DRVSTAT_RX_INFO(rx_bytes)},/* If moving this member see above note */
 	{DRVSTAT_RX_INFO(rx_pkts)}, /* If moving this member see above note */
-	{DRVSTAT_RX_INFO(rx_polls)},
-	{DRVSTAT_RX_INFO(rx_events)},
 	{DRVSTAT_RX_INFO(rx_compl)},
 	{DRVSTAT_RX_INFO(rx_mcast_pkts)},
 	/* Number of page allocation failures while posting receive buffers
@@ -154,7 +151,6 @@ static const struct be_ethtool_stat et_tx_stats[] = {
 	{DRVSTAT_TX_INFO(tx_reqs)},
 	/* Number of TX work request blocks DMAed to HW */
 	{DRVSTAT_TX_INFO(tx_wrbs)},
-	{DRVSTAT_TX_INFO(tx_compl)},
 	/* Number of times the TX queue was stopped due to lack
 	 * of spaces in the TXQ.
 	 */
@@ -290,86 +286,42 @@ be_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *buf)
 	}
 }
 
-static int
-be_get_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
+static int be_get_coalesce(struct net_device *netdev,
+			   struct ethtool_coalesce *et)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_eq_obj *rx_eq = &adapter->rx_obj[0].rx_eq;
-	struct be_eq_obj *tx_eq = &adapter->tx_eq;
+	struct be_eq_obj *eqo = &adapter->eq_obj[0];
 
-	coalesce->rx_coalesce_usecs = rx_eq->cur_eqd;
-	coalesce->rx_coalesce_usecs_high = rx_eq->max_eqd;
-	coalesce->rx_coalesce_usecs_low = rx_eq->min_eqd;
 
-	coalesce->tx_coalesce_usecs = tx_eq->cur_eqd;
-	coalesce->tx_coalesce_usecs_high = tx_eq->max_eqd;
-	coalesce->tx_coalesce_usecs_low = tx_eq->min_eqd;
+	et->rx_coalesce_usecs = eqo->cur_eqd;
+	et->rx_coalesce_usecs_high = eqo->max_eqd;
+	et->rx_coalesce_usecs_low = eqo->min_eqd;
 
-	coalesce->use_adaptive_rx_coalesce = rx_eq->enable_aic;
-	coalesce->use_adaptive_tx_coalesce = tx_eq->enable_aic;
+	et->tx_coalesce_usecs = eqo->cur_eqd;
+	et->tx_coalesce_usecs_high = eqo->max_eqd;
+	et->tx_coalesce_usecs_low = eqo->min_eqd;
+
+	et->use_adaptive_rx_coalesce = eqo->enable_aic;
+	et->use_adaptive_tx_coalesce = eqo->enable_aic;
 
 	return 0;
 }
 
-/*
- * This routine is used to set interrup coalescing delay
+/* TX attributes are ignored. Only RX attributes are considered
+ * eqd cmd is issued in the worker thread.
  */
-static int
-be_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *coalesce)
+static int be_set_coalesce(struct net_device *netdev,
+			   struct ethtool_coalesce *et)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_rx_obj *rxo;
-	struct be_eq_obj *rx_eq;
-	struct be_eq_obj *tx_eq = &adapter->tx_eq;
-	u32 rx_max, rx_min, rx_cur;
-	int status = 0, i;
-	u32 tx_cur;
+	struct be_eq_obj *eqo;
+	int i;
 
-	if (coalesce->use_adaptive_tx_coalesce == 1)
-		return -EINVAL;
-
-	for_all_rx_queues(adapter, rxo, i) {
-		rx_eq = &rxo->rx_eq;
-
-		if (!rx_eq->enable_aic && coalesce->use_adaptive_rx_coalesce)
-			rx_eq->cur_eqd = 0;
-		rx_eq->enable_aic = coalesce->use_adaptive_rx_coalesce;
-
-		rx_max = coalesce->rx_coalesce_usecs_high;
-		rx_min = coalesce->rx_coalesce_usecs_low;
-		rx_cur = coalesce->rx_coalesce_usecs;
-
-		if (rx_eq->enable_aic) {
-			if (rx_max > BE_MAX_EQD)
-				rx_max = BE_MAX_EQD;
-			if (rx_min > rx_max)
-				rx_min = rx_max;
-			rx_eq->max_eqd = rx_max;
-			rx_eq->min_eqd = rx_min;
-			if (rx_eq->cur_eqd > rx_max)
-				rx_eq->cur_eqd = rx_max;
-			if (rx_eq->cur_eqd < rx_min)
-				rx_eq->cur_eqd = rx_min;
-		} else {
-			if (rx_cur > BE_MAX_EQD)
-				rx_cur = BE_MAX_EQD;
-			if (rx_eq->cur_eqd != rx_cur) {
-				status = be_cmd_modify_eqd(adapter, rx_eq->q.id,
-						rx_cur);
-				if (!status)
-					rx_eq->cur_eqd = rx_cur;
-			}
-		}
-	}
-
-	tx_cur = coalesce->tx_coalesce_usecs;
-
-	if (tx_cur > BE_MAX_EQD)
-		tx_cur = BE_MAX_EQD;
-	if (tx_eq->cur_eqd != tx_cur) {
-		status = be_cmd_modify_eqd(adapter, tx_eq->q.id, tx_cur);
-		if (!status)
-			tx_eq->cur_eqd = tx_cur;
+	for_all_evt_queues(adapter, eqo, i) {
+		eqo->enable_aic = et->use_adaptive_rx_coalesce;
+		eqo->max_eqd = min(et->rx_coalesce_usecs_high, BE_MAX_EQD);
+		eqo->min_eqd = min(et->rx_coalesce_usecs_low, eqo->max_eqd);
+		eqo->eqd = et->rx_coalesce_usecs;
 	}
 
 	return 0;

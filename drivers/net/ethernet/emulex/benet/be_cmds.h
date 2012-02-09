@@ -1506,8 +1506,7 @@ extern int be_cmd_eq_create(struct be_adapter *adapter,
 			struct be_queue_info *eq, int eq_delay);
 extern int be_cmd_cq_create(struct be_adapter *adapter,
 			struct be_queue_info *cq, struct be_queue_info *eq,
-			bool sol_evts, bool no_delay,
-			int num_cqe_dma_coalesce);
+			bool no_delay, int num_cqe_dma_coalesce);
 extern int be_cmd_mccq_create(struct be_adapter *adapter,
 			struct be_queue_info *mccq,
 			struct be_queue_info *cq);
@@ -1516,8 +1515,7 @@ extern int be_cmd_txq_create(struct be_adapter *adapter,
 			struct be_queue_info *cq);
 extern int be_cmd_rxq_create(struct be_adapter *adapter,
 			struct be_queue_info *rxq, u16 cq_id,
-			u16 frag_size, u16 max_frame_size, u32 if_id,
-			u32 rss, u8 *rss_id);
+			u16 frag_size, u32 if_id, u32 rss, u8 *rss_id);
 extern int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 			int type);
 extern int be_cmd_rxq_destroy(struct be_adapter *adapter,
@@ -1546,7 +1544,7 @@ extern int be_cmd_query_fw_cfg(struct be_adapter *adapter,
 extern int be_cmd_reset_function(struct be_adapter *adapter);
 extern int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
 			u16 table_size);
-extern int be_process_mcc(struct be_adapter *adapter, int *status);
+extern int be_process_mcc(struct be_adapter *adapter);
 extern int be_cmd_set_beacon_state(struct be_adapter *adapter,
 			u8 port_num, u8 beacon, u8 status, u8 state);
 extern int be_cmd_get_beacon_state(struct be_adapter *adapter,
