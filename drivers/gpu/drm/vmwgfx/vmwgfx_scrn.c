@@ -449,8 +449,8 @@ static int vmw_sou_init(struct vmw_private *dev_priv, unsigned unit)
 	sou->active_implicit = false;
 
 	sou->base.pref_active = (unit == 0);
-	sou->base.pref_width = 800;
-	sou->base.pref_height = 600;
+	sou->base.pref_width = dev_priv->initial_width;
+	sou->base.pref_height = dev_priv->initial_height;
 	sou->base.pref_mode = NULL;
 	sou->base.is_implicit = true;
 

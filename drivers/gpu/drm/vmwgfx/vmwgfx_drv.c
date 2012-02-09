@@ -38,6 +38,10 @@
 #define VMWGFX_CHIP_SVGAII 0
 #define VMW_FB_RESERVATION 0
 
+#define VMW_MIN_INITIAL_WIDTH 800
+#define VMW_MIN_INITIAL_HEIGHT 600
+
+
 /**
  * Fully encoded drm commands. Might move to vmw_drm.h
  */
@@ -387,6 +391,31 @@ void vmw_3d_resource_dec(struct vmw_private *dev_priv,
 	BUG_ON(n3d < 0);
 }
 
+/**
+ * Sets the initial_[width|height] fields on the given vmw_private.
+ *
+ * It does so by reading SVGA_REG_[WIDTH|HEIGHT] regs and then
+ * capping the value to fb_max_[width|height] fields and the
+ * VMW_MIN_INITIAL_[WIDTH|HEIGHT].
+ */
+static void vmw_get_initial_size(struct vmw_private *dev_priv)
+{
+	uint32_t width;
+	uint32_t height;
+
+	width = vmw_read(dev_priv, SVGA_REG_WIDTH);
+	height = vmw_read(dev_priv, SVGA_REG_HEIGHT);
+
+	width = max_t(uint32_t, width, VMW_MIN_INITIAL_WIDTH);
+	width = min_t(uint32_t, width, dev_priv->fb_max_width);
+
+	height = max_t(uint32_t, height, VMW_MIN_INITIAL_HEIGHT);
+	height = min_t(uint32_t, height, dev_priv->fb_max_height);
+
+	dev_priv->initial_width = width;
+	dev_priv->initial_height = height;
+}
+
 static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 {
 	struct vmw_private *dev_priv;
@@ -441,6 +470,9 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->mmio_size = vmw_read(dev_priv, SVGA_REG_MEM_SIZE);
 	dev_priv->fb_max_width = vmw_read(dev_priv, SVGA_REG_MAX_WIDTH);
 	dev_priv->fb_max_height = vmw_read(dev_priv, SVGA_REG_MAX_HEIGHT);
+
+	vmw_get_initial_size(dev_priv);
+
 	if (dev_priv->capabilities & SVGA_CAP_GMR) {
 		dev_priv->max_gmr_descriptors =
 			vmw_read(dev_priv,
