@@ -534,7 +534,8 @@ extern int vmw_execbuf_process(struct drm_file *file_priv,
 			       uint32_t command_size,
 			       uint64_t throttle_us,
 			       struct drm_vmw_fence_rep __user
-			       *user_fence_rep);
+			       *user_fence_rep,
+			       struct vmw_fence_obj **out_fence);
 
 extern void
 vmw_execbuf_release_pinned_bo(struct vmw_private *dev_priv,
