@@ -19,18 +19,11 @@
 #define PanelRGB18Bit           0x0100
 #define PanelRGB24Bit           0x0000
 
-#define Panel320x480            0x07 /*fstn*/
+#define Panel_320x480            0x07 /*fstn*/
 /* [ycchen] 02/12/03 Modify for Multi-Sync. LCD Support */
 #define PanelResInfo            0x1F /* CR36 Panel Type/LCDResInfo */
-#define Panel800x600            0x01
-#define Panel1024x768           0x02
-#define Panel1024x768x75        0x22
-#define Panel1280x1024          0x03
-#define Panel1280x1024x75       0x23
-#define Panel640x480            0x04
-#define Panel1280x960           0x07
-#define Panel1400x1050          0x09
-#define Panel1600x1200          0x0B
+#define Panel_1024x768x75        0x22
+#define Panel_1280x1024x75       0x23
 
 #define PanelRef60Hz            0x00
 #define PanelRef75Hz            0x20

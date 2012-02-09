@@ -359,8 +359,8 @@ static unsigned char XGI_AjustCRT2Rate(unsigned short ModeNo,
 		if (pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) {
 			tempax |= SupportLCD;
 
-			if (pVBInfo->LCDResInfo != Panel1280x1024) {
-				if (pVBInfo->LCDResInfo != Panel1280x960) {
+			if (pVBInfo->LCDResInfo != Panel_1280x1024) {
+				if (pVBInfo->LCDResInfo != Panel_1280x960) {
 					if (pVBInfo->LCDInfo &
 					    LCDNonExpanding) {
 						if (resinfo >= 9) {
@@ -436,7 +436,7 @@ static unsigned char XGI_AjustCRT2Rate(unsigned short ModeNo,
 			if (resinfo > 0x08)
 				return 0; /* 1024x768 */
 
-			if (pVBInfo->LCDResInfo < Panel1024x768) {
+			if (pVBInfo->LCDResInfo < Panel_1024x768) {
 				if (resinfo > 0x07)
 					return 0; /* 800x600 */
 
@@ -1267,7 +1267,7 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 	if (pVBInfo->IF_DEF_LVDS == 0) {
 		CRT2Index = CRT2Index >> 6; /*  for LCD */
 		if (pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) { /*301b*/
-			if (pVBInfo->LCDResInfo != Panel1024x768)
+			if (pVBInfo->LCDResInfo != Panel_1024x768)
 				VCLKIndex = LCDXlat2VCLK[CRT2Index];
 			else
 				VCLKIndex = LCDXlat1VCLK[CRT2Index];
@@ -1329,11 +1329,11 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 			VCLKIndex = CRT2Index;
 
 		VCLKIndex = VCLKIndex >> 6;
-		if ((pVBInfo->LCDResInfo == Panel800x600) ||
-		    (pVBInfo->LCDResInfo == Panel320x480))
+		if ((pVBInfo->LCDResInfo == Panel_800x600) ||
+		    (pVBInfo->LCDResInfo == Panel_320x480))
 			VCLKIndex = LVDSXlat1VCLK[VCLKIndex];
-		else if ((pVBInfo->LCDResInfo == Panel1024x768) ||
-			 (pVBInfo->LCDResInfo == Panel1024x768x75))
+		else if ((pVBInfo->LCDResInfo == Panel_1024x768) ||
+			 (pVBInfo->LCDResInfo == Panel_1024x768x75))
 			VCLKIndex = LVDSXlat2VCLK[VCLKIndex];
 		else
 			VCLKIndex = LVDSXlat3VCLK[VCLKIndex];
@@ -2377,15 +2377,15 @@ static void XGI_GetLVDSData(unsigned short ModeNo, unsigned short ModeIdIndex,
 	if (pVBInfo->VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) {
 		if (!(pVBInfo->LCDInfo & (SetLCDtoNonExpanding
 				| EnableScalingLCD))) {
-			if ((pVBInfo->LCDResInfo == Panel1024x768) ||
-			    (pVBInfo->LCDResInfo == Panel1024x768x75)) {
+			if ((pVBInfo->LCDResInfo == Panel_1024x768) ||
+			    (pVBInfo->LCDResInfo == Panel_1024x768x75)) {
 				pVBInfo->HDE = 1024;
 				pVBInfo->VDE = 768;
-			} else if ((pVBInfo->LCDResInfo == Panel1280x1024) ||
-				   (pVBInfo->LCDResInfo == Panel1280x1024x75)) {
+			} else if ((pVBInfo->LCDResInfo == Panel_1280x1024) ||
+				   (pVBInfo->LCDResInfo == Panel_1280x1024x75)) {
 				pVBInfo->HDE = 1280;
 				pVBInfo->VDE = 1024;
-			} else if (pVBInfo->LCDResInfo == Panel1400x1050) {
+			} else if (pVBInfo->LCDResInfo == Panel_1400x1050) {
 				pVBInfo->HDE = 1400;
 				pVBInfo->VDE = 1050;
 			} else {
@@ -2496,7 +2496,7 @@ static unsigned short XGI_GetLCDCapPtr1(struct vb_device_info *pVBInfo)
 	}
 
 	if (tempbl == 0xFF) {
-		pVBInfo->LCDResInfo = Panel1024x768;
+		pVBInfo->LCDResInfo = Panel_1024x768;
 		pVBInfo->LCDTypeInfo = 0;
 		i = 0;
 	}
@@ -2556,15 +2556,15 @@ static void XGI_SetLVDSRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	push2 = tempax;
 
 	/* GetLCDResInfo */
-	if ((pVBInfo->LCDResInfo == Panel1024x768) ||
-	    (pVBInfo->LCDResInfo == Panel1024x768x75)) {
+	if ((pVBInfo->LCDResInfo == Panel_1024x768) ||
+	    (pVBInfo->LCDResInfo == Panel_1024x768x75)) {
 		tempax = 1024;
 		tempbx = 768;
-	} else if ((pVBInfo->LCDResInfo == Panel1280x1024) ||
-		   (pVBInfo->LCDResInfo == Panel1280x1024x75)) {
+	} else if ((pVBInfo->LCDResInfo == Panel_1280x1024) ||
+		   (pVBInfo->LCDResInfo == Panel_1280x1024x75)) {
 		tempax = 1280;
 		tempbx = 1024;
-	} else if (pVBInfo->LCDResInfo == Panel1400x1050) {
+	} else if (pVBInfo->LCDResInfo == Panel_1400x1050) {
 		tempax = 1400;
 		tempbx = 1050;
 	} else {
@@ -2768,7 +2768,7 @@ static void XGI_SetLVDSRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	temp1 = temp1 / push3;
 	tempbx = (unsigned short) (temp1 & 0xffff);
 
-	if (pVBInfo->LCDResInfo == Panel1024x768)
+	if (pVBInfo->LCDResInfo == Panel_1024x768)
 		tempbx -= 1;
 
 	tempax = ((tempbx >> 8) & 0xff) << 3;
@@ -3386,10 +3386,10 @@ static unsigned char XGI_GetLCDInfo(unsigned short ModeNo,
 	tempbx = temp & 0x0F;
 
 	if (tempbx == 0)
-		tempbx = Panel1024x768; /* default */
+		tempbx = Panel_1024x768; /* default */
 
 	/* LCD75 [2003/8/22] Vicent */
-	if ((tempbx == Panel1024x768) || (tempbx == Panel1280x1024)) {
+	if ((tempbx == Panel_1024x768) || (tempbx == Panel_1280x1024)) {
 		if (pVBInfo->VBInfo & DriverMode) {
 			tempax = xgifb_reg_get(pVBInfo->P3d4, 0x33);
 			if (pVBInfo->VBInfo & SetCRT2ToLCDA)
@@ -3434,10 +3434,10 @@ static unsigned char XGI_GetLCDInfo(unsigned short ModeNo,
 	}
 
 	if (pVBInfo->IF_DEF_LVDS == 0) {
-		if ((pVBInfo->LCDResInfo == Panel1400x1050) && (pVBInfo->VBInfo
+		if ((pVBInfo->LCDResInfo == Panel_1400x1050) && (pVBInfo->VBInfo
 				& SetCRT2ToLCD) && (ModeNo > 0x13) && (resinfo
 				== 9) && (!(tempbx & EnableScalingLCD)))
-			/* set to center in 1280x1024 LCDB for Panel1400x1050 */
+			/* set to center in 1280x1024 LCDB for Panel_1400x1050 */
 			tempbx |= SetLCDtoNonExpanding;
 	}
 
@@ -3448,7 +3448,7 @@ static unsigned char XGI_GetLCDInfo(unsigned short ModeNo,
 			} else {
 				if (ModeNo > 0x13) {
 					if (pVBInfo->LCDResInfo
-							== Panel1024x768) {
+							== Panel_1024x768) {
 						if (resinfo == 4) {/* 512x384 */
 							tempbx |= EnableLVDSDDA;
 						}
@@ -3801,14 +3801,14 @@ static void XGI_GetCRT2ResInfo(unsigned short ModeNo,
 
 	if (pVBInfo->VBInfo & SetCRT2ToLCD) {
 		if (pVBInfo->IF_DEF_LVDS == 0) {
-			if (pVBInfo->LCDResInfo == Panel1600x1200) {
+			if (pVBInfo->LCDResInfo == Panel_1600x1200) {
 				if (!(pVBInfo->LCDInfo & LCDVESATiming)) {
 					if (yres == 1024)
 						yres = 1056;
 				}
 			}
 
-			if (pVBInfo->LCDResInfo == Panel1280x1024) {
+			if (pVBInfo->LCDResInfo == Panel_1280x1024) {
 				if (yres == 400)
 					yres = 405;
 				else if (yres == 350)
@@ -3820,7 +3820,7 @@ static void XGI_GetCRT2ResInfo(unsigned short ModeNo,
 				}
 			}
 
-			if (pVBInfo->LCDResInfo == Panel1024x768) {
+			if (pVBInfo->LCDResInfo == Panel_1024x768) {
 				if (!(pVBInfo->LCDInfo & LCDVESATiming)) {
 					if (!(pVBInfo->LCDInfo
 							& LCDNonExpanding)) {
@@ -3954,7 +3954,7 @@ static void XGI_GetCRT2Data(unsigned short ModeNo, unsigned short ModeIdIndex,
 		pVBInfo->HT = LCDPtr->LCDHT;
 		pVBInfo->VT = LCDPtr->LCDVT;
 
-		if (pVBInfo->LCDResInfo == Panel1024x768) {
+		if (pVBInfo->LCDResInfo == Panel_1024x768) {
 			tempax = 1024;
 			tempbx = 768;
 
@@ -3971,10 +3971,10 @@ static void XGI_GetCRT2Data(unsigned short ModeNo, unsigned short ModeIdIndex,
 					tempbx = 768;
 			} else
 				tempbx = 768;
-		} else if (pVBInfo->LCDResInfo == Panel1024x768x75) {
+		} else if (pVBInfo->LCDResInfo == Panel_1024x768x75) {
 			tempax = 1024;
 			tempbx = 768;
-		} else if (pVBInfo->LCDResInfo == Panel1280x1024) {
+		} else if (pVBInfo->LCDResInfo == Panel_1280x1024) {
 			tempax = 1280;
 			if (pVBInfo->VGAVDE == 360)
 				tempbx = 768;
@@ -3984,10 +3984,10 @@ static void XGI_GetCRT2Data(unsigned short ModeNo, unsigned short ModeIdIndex,
 				tempbx = 864;
 			else
 				tempbx = 1024;
-		} else if (pVBInfo->LCDResInfo == Panel1280x1024x75) {
+		} else if (pVBInfo->LCDResInfo == Panel_1280x1024x75) {
 			tempax = 1280;
 			tempbx = 1024;
-		} else if (pVBInfo->LCDResInfo == Panel1280x960) {
+		} else if (pVBInfo->LCDResInfo == Panel_1280x960) {
 			tempax = 1280;
 			if (pVBInfo->VGAVDE == 350)
 				tempbx = 700;
@@ -3997,7 +3997,7 @@ static void XGI_GetCRT2Data(unsigned short ModeNo, unsigned short ModeIdIndex,
 				tempbx = 960;
 			else
 				tempbx = 960;
-		} else if (pVBInfo->LCDResInfo == Panel1400x1050) {
+		} else if (pVBInfo->LCDResInfo == Panel_1400x1050) {
 			tempax = 1400;
 			tempbx = 1050;
 
@@ -4005,7 +4005,7 @@ static void XGI_GetCRT2Data(unsigned short ModeNo, unsigned short ModeIdIndex,
 				tempax = 1280;
 				tempbx = 1024;
 			}
-		} else if (pVBInfo->LCDResInfo == Panel1600x1200) {
+		} else if (pVBInfo->LCDResInfo == Panel_1600x1200) {
 			tempax = 1600;
 			tempbx = 1200; /* alan 10/14/2003 */
 			if (!(pVBInfo->LCDInfo & LCDVESATiming)) {
@@ -4513,19 +4513,19 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 			}
 		} else if (!(modeflag & HalfDCLK)) {
 			temp -= 4;
-			if (pVBInfo->LCDResInfo != Panel1280x960 &&
+			if (pVBInfo->LCDResInfo != Panel_1280x960 &&
 			    pVBInfo->VGAHDE >= 800) {
 				temp -= 7;
 				if (pVBInfo->ModeType == ModeEGA &&
 				    pVBInfo->VGAVDE == 1024) {
 					temp += 15;
 					if (pVBInfo->LCDResInfo !=
-						Panel1280x1024)
+						Panel_1280x1024)
 						temp += 7;
 				}
 
 				if (pVBInfo->VGAHDE >= 1280 &&
-				    pVBInfo->LCDResInfo != Panel1280x960 &&
+				    pVBInfo->LCDResInfo != Panel_1280x960 &&
 				    (pVBInfo->LCDInfo & LCDNonExpanding))
 					temp += 28;
 			}
@@ -4619,7 +4619,7 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	push2 = tempbx;
 
 	if (pVBInfo->VBInfo & SetCRT2ToLCD) {
-		if (pVBInfo->LCDResInfo == Panel1024x768) {
+		if (pVBInfo->LCDResInfo == Panel_1024x768) {
 			if (!(pVBInfo->LCDInfo & LCDVESATiming)) {
 				if (tempbx == 350)
 					tempbx += 5;
@@ -5267,7 +5267,7 @@ static void XGI_SetLCDRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	xgifb_reg_and_or(pVBInfo->Part2Port, 0x2B, 0x0F, temp);
 	temp = 0x01;
 
-	if (pVBInfo->LCDResInfo == Panel1280x1024) {
+	if (pVBInfo->LCDResInfo == Panel_1280x1024) {
 		if (pVBInfo->ModeType == ModeEGA) {
 			if (pVBInfo->VGAHDE >= 1024) {
 				temp = 0x02;
@@ -5305,14 +5305,14 @@ static void XGI_SetLCDRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	tempah = pVBInfo->LCDResInfo;
 	tempah &= PanelResInfo;
 
-	if ((tempah == Panel1024x768) || (tempah == Panel1024x768x75)) {
+	if ((tempah == Panel_1024x768) || (tempah == Panel_1024x768x75)) {
 		tempbx = 1024;
 		tempcx = 768;
-	} else if ((tempah == Panel1280x1024) ||
-		   (tempah == Panel1280x1024x75)) {
+	} else if ((tempah == Panel_1280x1024) ||
+		   (tempah == Panel_1280x1024x75)) {
 		tempbx = 1280;
 		tempcx = 1024;
-	} else if (tempah == Panel1400x1050) {
+	} else if (tempah == Panel_1400x1050) {
 		tempbx = 1400;
 		tempcx = 1050;
 	} else {
@@ -6807,11 +6807,11 @@ static void XGI_SetCRT2ModeRegs(unsigned short ModeNo,
 				tempah |= 0x40;
 		}
 
-		if ((pVBInfo->LCDResInfo == Panel1280x1024)
-				|| (pVBInfo->LCDResInfo == Panel1280x1024x75))
+		if ((pVBInfo->LCDResInfo == Panel_1280x1024)
+				|| (pVBInfo->LCDResInfo == Panel_1280x1024x75))
 			tempah |= 0x80;
 
-		if (pVBInfo->LCDResInfo == Panel1280x960)
+		if (pVBInfo->LCDResInfo == Panel_1280x960)
 			tempah |= 0x80;
 
 		xgifb_reg_set(pVBInfo->Part4Port, 0x0C, tempah);
