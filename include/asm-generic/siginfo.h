@@ -101,7 +101,7 @@ typedef struct siginfo {
 
 		/* SIGSYS */
 		struct {
-			void __user *_call_addr; /* calling insn */
+			void __user *_call_addr; /* calling user insn */
 			int _syscall;	/* triggering system call number */
 			unsigned int _arch;	/* AUDIT_ARCH_* of syscall */
 		} _sigsys;
