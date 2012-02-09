@@ -204,9 +204,8 @@ struct fw_img {
  */
 struct iwl_fw {
 
-	/* ucode image and variables */
-	u32 ucode_ver;                  /* version of ucode, copy of
-					   iwl_ucode.ver */
+	u32 ucode_ver;
+
 	char fw_version[ETHTOOL_BUSINFO_LEN];
 
 	/* ucode images */

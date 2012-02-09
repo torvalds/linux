@@ -731,8 +731,6 @@ struct iwlagn_firmware_pieces {
 	size_t inst_size, data_size, init_size, init_data_size,
 	       wowlan_inst_size, wowlan_data_size;
 
-	u32 build;
-
 	u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
 	u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
 };
@@ -742,7 +740,8 @@ static int iwl_parse_v1_v2_firmware(struct iwl_nic *nic,
 				       struct iwlagn_firmware_pieces *pieces)
 {
 	struct iwl_ucode_header *ucode = (void *)ucode_raw->data;
-	u32 api_ver, hdr_size;
+	u32 api_ver, hdr_size, build;
+	char buildstr[25];
 	const u8 *src;
 
 	nic->fw.ucode_ver = le32_to_cpu(ucode->ver);
@@ -755,7 +754,7 @@ static int iwl_parse_v1_v2_firmware(struct iwl_nic *nic,
 			IWL_ERR(nic, "File size too small!\n");
 			return -EINVAL;
 		}
-		pieces->build = le32_to_cpu(ucode->u.v2.build);
+		build = le32_to_cpu(ucode->u.v2.build);
 		pieces->inst_size = le32_to_cpu(ucode->u.v2.inst_size);
 		pieces->data_size = le32_to_cpu(ucode->u.v2.data_size);
 		pieces->init_size = le32_to_cpu(ucode->u.v2.init_size);
@@ -770,7 +769,7 @@ static int iwl_parse_v1_v2_firmware(struct iwl_nic *nic,
 			IWL_ERR(nic, "File size too small!\n");
 			return -EINVAL;
 		}
-		pieces->build = 0;
+		build = 0;
 		pieces->inst_size = le32_to_cpu(ucode->u.v1.inst_size);
 		pieces->data_size = le32_to_cpu(ucode->u.v1.data_size);
 		pieces->init_size = le32_to_cpu(ucode->u.v1.init_size);
@@ -778,6 +777,22 @@ static int iwl_parse_v1_v2_firmware(struct iwl_nic *nic,
 		src = ucode->u.v1.data;
 		break;
 	}
+
+	if (build)
+		sprintf(buildstr, " build %u%s", build,
+		       (nic->fw_index == UCODE_EXPERIMENTAL_INDEX)
+				? " (EXP)" : "");
+	else
+		buildstr[0] = '\0';
+
+	snprintf(nic->fw.fw_version,
+		 sizeof(nic->fw.fw_version),
+		 "%u.%u.%u.%u%s",
+		 IWL_UCODE_MAJOR(nic->fw.ucode_ver),
+		 IWL_UCODE_MINOR(nic->fw.ucode_ver),
+		 IWL_UCODE_API(nic->fw.ucode_ver),
+		 IWL_UCODE_SERIAL(nic->fw.ucode_ver),
+		 buildstr);
 
 	/* Verify size of file vs. image size info in file's header */
 	if (ucode_raw->size != hdr_size + pieces->inst_size +
@@ -817,6 +832,8 @@ static int iwl_parse_tlv_firmware(struct iwl_nic *nic,
 	u32 tlv_len;
 	enum iwl_ucode_tlv_type tlv_type;
 	const u8 *tlv_data;
+	char buildstr[25];
+	u32 build;
 
 	if (len < sizeof(*ucode)) {
 		IWL_ERR(nic, "uCode has invalid length: %zd\n", len);
@@ -847,7 +864,24 @@ static int iwl_parse_tlv_firmware(struct iwl_nic *nic,
 			 tmp, wanted_alternative);
 
 	nic->fw.ucode_ver = le32_to_cpu(ucode->ver);
-	pieces->build = le32_to_cpu(ucode->build);
+	build = le32_to_cpu(ucode->build);
+
+	if (build)
+		sprintf(buildstr, " build %u%s", build,
+		       (nic->fw_index == UCODE_EXPERIMENTAL_INDEX)
+				? " (EXP)" : "");
+	else
+		buildstr[0] = '\0';
+
+	snprintf(nic->fw.fw_version,
+		 sizeof(nic->fw.fw_version),
+		 "%u.%u.%u.%u%s",
+		 IWL_UCODE_MAJOR(nic->fw.ucode_ver),
+		 IWL_UCODE_MINOR(nic->fw.ucode_ver),
+		 IWL_UCODE_API(nic->fw.ucode_ver),
+		 IWL_UCODE_SERIAL(nic->fw.ucode_ver),
+		 buildstr);
+
 	data = ucode->data;
 
 	len -= sizeof(*ucode);
@@ -1021,8 +1055,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	unsigned int api_ok = cfg->ucode_api_ok;
 	const unsigned int api_min = cfg->ucode_api_min;
 	u32 api_ver;
-	char buildstr[25];
-	u32 build;
 
 	fw->ucode_capa.max_probe_length = 200;
 	fw->ucode_capa.standard_phy_calibration_size =
@@ -1063,7 +1095,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		goto try_again;
 
 	api_ver = IWL_UCODE_API(nic->fw.ucode_ver);
-	build = pieces.build;
 
 	/*
 	 * api_ver should match the api version forming part of the
@@ -1094,28 +1125,11 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		}
 	}
 
-	if (build)
-		sprintf(buildstr, " build %u%s", build,
-		       (nic->fw_index == UCODE_EXPERIMENTAL_INDEX)
-				? " (EXP)" : "");
-	else
-		buildstr[0] = '\0';
-
-	IWL_INFO(nic, "loaded firmware version %u.%u.%u.%u%s\n",
-		 IWL_UCODE_MAJOR(nic->fw.ucode_ver),
-		 IWL_UCODE_MINOR(nic->fw.ucode_ver),
-		 IWL_UCODE_API(nic->fw.ucode_ver),
-		 IWL_UCODE_SERIAL(nic->fw.ucode_ver),
-		 buildstr);
+	IWL_INFO(nic, "loaded firmware version %s", nic->fw.fw_version);
 
 	snprintf(priv->hw->wiphy->fw_version,
 		 sizeof(priv->hw->wiphy->fw_version),
-		 "%u.%u.%u.%u%s",
-		 IWL_UCODE_MAJOR(nic->fw.ucode_ver),
-		 IWL_UCODE_MINOR(nic->fw.ucode_ver),
-		 IWL_UCODE_API(nic->fw.ucode_ver),
-		 IWL_UCODE_SERIAL(nic->fw.ucode_ver),
-		 buildstr);
+		 "%s", nic->fw.fw_version);
 
 	/*
 	 * For any of the failures below (before allocating pci memory)
