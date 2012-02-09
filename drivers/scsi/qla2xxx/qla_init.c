@@ -3421,6 +3421,9 @@ qla2x00_find_new_loop_id(scsi_qla_host_t *vha, fc_port_t *dev)
 
 		/* If not in use then it is free to use. */
 		if (!found) {
+			ql_dbg(ql_dbg_disc, dev->vha, 0x2086,
+			    "Assigning new loopid=%x, portid=%x.\n",
+			    dev->loop_id, dev->d_id.b24);
 			break;
 		}
 
