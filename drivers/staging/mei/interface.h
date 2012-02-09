@@ -33,7 +33,8 @@
 
 
 void mei_read_slots(struct mei_device *dev,
-		     unsigned char *buffer, unsigned long buffer_length);
+		     unsigned char *buffer,
+		     unsigned long buffer_length);
 
 int mei_write_message(struct mei_device *dev,
 			     struct mei_msg_hdr *header,
