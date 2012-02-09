@@ -79,8 +79,8 @@ static const struct attribute_group *bt_link_groups[] = {
 
 static void bt_link_release(struct device *dev)
 {
-	void *data = to_hci_conn(dev);
-	kfree(data);
+	struct hci_conn *conn = to_hci_conn(dev);
+	kfree(conn);
 }
 
 static struct device_type bt_link = {
@@ -368,8 +368,8 @@ static const struct attribute_group *bt_host_groups[] = {
 
 static void bt_host_release(struct device *dev)
 {
-	void *data = to_hci_dev(dev);
-	kfree(data);
+	struct hci_dev *hdev = to_hci_dev(dev);
+	kfree(hdev);
 	module_put(THIS_MODULE);
 }
 
