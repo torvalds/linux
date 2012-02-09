@@ -8,6 +8,7 @@ obj-y                                   += timer.o
 obj-y                                   += pinmux.o
 obj-y					+= fuse.o
 obj-y					+= pmc.o
+obj-y					+= flowctrl.o
 obj-$(CONFIG_CPU_IDLE)			+= cpuidle.o
 obj-$(CONFIG_CPU_IDLE)			+= sleep.o
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)		+= powergate.o
