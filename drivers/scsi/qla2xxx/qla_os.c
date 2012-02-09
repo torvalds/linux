@@ -877,6 +877,7 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	if (ha->isp_ops->abort_command(sp)) {
+		ret = FAILED;
 		ql_dbg(ql_dbg_taskm, vha, 0x8003,
 		    "Abort command mbx failed cmd=%p.\n", cmd);
 	} else {
