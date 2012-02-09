@@ -1365,7 +1365,7 @@ qla2x00_thermal_temp_show(struct device *dev,
 	else if (!vha->hw->flags.eeh_busy)
 		rval = qla2x00_get_thermal_temp(vha, &temp, &frac);
 	if (rval != QLA_SUCCESS)
-		temp = frac = 0;
+		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%d.%02d\n", temp, frac);
 }
