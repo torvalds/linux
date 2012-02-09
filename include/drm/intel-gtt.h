@@ -15,6 +15,8 @@ const struct intel_gtt {
 	unsigned int needs_dmar : 1;
 	/* Whether we idle the gpu before mapping/unmapping */
 	unsigned int do_idle_maps : 1;
+	/* Share the scratch page dma with ppgtts. */
+	dma_addr_t scratch_page_dma;
 } *intel_gtt_get(void);
 
 void intel_gtt_chipset_flush(void);
