@@ -366,7 +366,7 @@ struct ipv6_pinfo {
 				dontfrag:1;
 	__u8			min_hopcount;
 	__u8			tclass;
-	__u8			padding;
+	__u8			rcv_tclass;
 
 	__u32			dst_cookie;
 
