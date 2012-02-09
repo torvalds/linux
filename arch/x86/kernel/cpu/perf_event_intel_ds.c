@@ -3,6 +3,7 @@
 #include <linux/slab.h>
 
 #include <asm/perf_event.h>
+#include <asm/insn.h>
 
 #include "perf_event.h"
 
@@ -467,17 +468,6 @@ void intel_pmu_pebs_disable_all(void)
 
 	if (cpuc->pebs_enabled)
 		wrmsrl(MSR_IA32_PEBS_ENABLE, 0);
-}
-
-#include <asm/insn.h>
-
-static inline bool kernel_ip(unsigned long ip)
-{
-#ifdef CONFIG_X86_32
-	return ip > PAGE_OFFSET;
-#else
-	return (long)ip < 0;
-#endif
 }
 
 static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
