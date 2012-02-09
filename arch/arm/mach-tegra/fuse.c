@@ -33,6 +33,7 @@
 int tegra_sku_id;
 int tegra_cpu_process_id;
 int tegra_core_process_id;
+static int tegra_chip_id;
 enum tegra_revision tegra_revision;
 
 /* The BCT to use at boot is specified by board straps that can be read
@@ -65,12 +66,9 @@ static inline bool get_spare_fuse(int bit)
 	return tegra_fuse_readl(FUSE_SPARE_BIT + bit * 4);
 }
 
-static enum tegra_revision tegra_get_revision(void)
+static enum tegra_revision tegra_get_revision(u32 id)
 {
-	void __iomem *chip_id = IO_ADDRESS(TEGRA_APB_MISC_BASE) + 0x804;
-	u32 id = readl(chip_id);
 	u32 minor_rev = (id >> 16) & 0xf;
-	u32 chipid = (id >> 8) & 0xff;
 
 	switch (minor_rev) {
 	case 1:
@@ -78,7 +76,8 @@ static enum tegra_revision tegra_get_revision(void)
 	case 2:
 		return TEGRA_REVISION_A02;
 	case 3:
-		if (chipid == 0x20 && (get_spare_fuse(18) || get_spare_fuse(19)))
+		if (tegra_chip_id == TEGRA20 &&
+			(get_spare_fuse(18) || get_spare_fuse(19)))
 			return TEGRA_REVISION_A03p;
 		else
 			return TEGRA_REVISION_A03;
@@ -91,6 +90,8 @@ static enum tegra_revision tegra_get_revision(void)
 
 void tegra_init_fuse(void)
 {
+	u32 id;
+
 	u32 reg = readl(IO_TO_VIRT(TEGRA_CLK_RESET_BASE + 0x48));
 	reg |= 1 << 28;
 	writel(reg, IO_TO_VIRT(TEGRA_CLK_RESET_BASE + 0x48));
@@ -107,10 +108,13 @@ void tegra_init_fuse(void)
 	reg = tegra_apb_readl(TEGRA_APB_MISC_BASE + STRAP_OPT);
 	tegra_bct_strapping = (reg & RAM_ID_MASK) >> RAM_CODE_SHIFT;
 
-	tegra_revision = tegra_get_revision();
+	id = readl_relaxed(IO_ADDRESS(TEGRA_APB_MISC_BASE) + 0x804);
+	tegra_chip_id = (id >> 8) & 0xff;
+
+	tegra_revision = tegra_get_revision(id);
 
 	pr_info("Tegra Revision: %s SKU: %d CPU Process: %d Core Process: %d\n",
-		tegra_revision_name[tegra_get_revision()],
+		tegra_revision_name[tegra_revision],
 		tegra_sku_id, tegra_cpu_process_id,
 		tegra_core_process_id);
 }

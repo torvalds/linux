@@ -35,6 +35,9 @@ enum tegra_revision {
 #define SKU_ID_AP25E	27
 #define SKU_ID_T25E	28
 
+#define TEGRA20		0x20
+#define TEGRA30		0x30
+
 extern int tegra_sku_id;
 extern int tegra_cpu_process_id;
 extern int tegra_core_process_id;
