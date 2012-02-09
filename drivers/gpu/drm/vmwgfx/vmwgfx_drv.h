@@ -62,6 +62,7 @@
 struct vmw_fpriv {
 	struct drm_master *locked_master;
 	struct ttm_object_file *tfile;
+	struct list_head fence_events;
 };
 
 struct vmw_dma_buffer {

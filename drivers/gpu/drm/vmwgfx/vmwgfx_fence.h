@@ -109,5 +109,8 @@ extern int vmw_fence_obj_unref_ioctl(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);
 extern int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file_priv);
+extern void vmw_event_fence_fpriv_gone(struct vmw_fence_manager *fman,
+				       struct list_head *event_list);
+
 
 #endif /* _VMWGFX_FENCE_H_ */

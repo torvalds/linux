@@ -70,6 +70,7 @@ struct vmw_user_fence {
  */
 struct vmw_event_fence_action {
 	struct vmw_fence_action action;
+	struct list_head fpriv_head;
 
 	struct drm_pending_event *event;
 	struct vmw_fence_obj *fence;
@@ -783,6 +784,43 @@ int vmw_fence_obj_unref_ioctl(struct drm_device *dev, void *data,
 					 TTM_REF_USAGE);
 }
 
+/**
+ * vmw_event_fence_fpriv_gone - Remove references to struct drm_file objects
+ *
+ * @fman: Pointer to a struct vmw_fence_manager
+ * @event_list: Pointer to linked list of struct vmw_event_fence_action objects
+ * with pointers to a struct drm_file object about to be closed.
+ *
+ * This function removes all pending fence events with references to a
+ * specific struct drm_file object about to be closed. The caller is required
+ * to pass a list of all struct vmw_event_fence_action objects with such
+ * events attached. This function is typically called before the
+ * struct drm_file object's event management is taken down.
+ */
+void vmw_event_fence_fpriv_gone(struct vmw_fence_manager *fman,
+				struct list_head *event_list)
+{
+	struct vmw_event_fence_action *eaction;
+	struct drm_pending_event *event;
+	unsigned long irq_flags;
+
+	while (1) {
+		spin_lock_irqsave(&fman->lock, irq_flags);
+		if (list_empty(event_list))
+			goto out_unlock;
+		eaction = list_first_entry(event_list,
+					   struct vmw_event_fence_action,
+					   fpriv_head);
+		list_del_init(&eaction->fpriv_head);
+		event = eaction->event;
+		eaction->event = NULL;
+		spin_unlock_irqrestore(&fman->lock, irq_flags);
+		event->destroy(event);
+	}
+out_unlock:
+	spin_unlock_irqrestore(&fman->lock, irq_flags);
+}
+
 
 /**
  * vmw_event_fence_action_seq_passed
@@ -800,9 +838,14 @@ static void vmw_event_fence_action_seq_passed(struct vmw_fence_action *action)
 	struct vmw_event_fence_action *eaction =
 		container_of(action, struct vmw_event_fence_action, action);
 	struct drm_device *dev = eaction->dev;
-	struct drm_file *file_priv = eaction->event->file_priv;
+	struct drm_pending_event *event = eaction->event;
+	struct drm_file *file_priv;
 	unsigned long irq_flags;
 
+	if (unlikely(event == NULL))
+		return;
+
+	file_priv = event->file_priv;
 	spin_lock_irqsave(&dev->event_lock, irq_flags);
 
 	if (likely(eaction->tv_sec != NULL)) {
@@ -813,7 +856,9 @@ static void vmw_event_fence_action_seq_passed(struct vmw_fence_action *action)
 		*eaction->tv_usec = tv.tv_usec;
 	}
 
+	list_del_init(&eaction->fpriv_head);
 	list_add_tail(&eaction->event->link, &file_priv->event_list);
+	eaction->event = NULL;
 	wake_up_all(&file_priv->event_wait);
 	spin_unlock_irqrestore(&dev->event_lock, irq_flags);
 }
@@ -831,6 +876,12 @@ static void vmw_event_fence_action_cleanup(struct vmw_fence_action *action)
 {
 	struct vmw_event_fence_action *eaction =
 		container_of(action, struct vmw_event_fence_action, action);
+	struct vmw_fence_manager *fman = eaction->fence->fman;
+	unsigned long irq_flags;
+
+	spin_lock_irqsave(&fman->lock, irq_flags);
+	list_del(&eaction->fpriv_head);
+	spin_unlock_irqrestore(&fman->lock, irq_flags);
 
 	vmw_fence_obj_unreference(&eaction->fence);
 	kfree(eaction);
@@ -910,7 +961,8 @@ int vmw_event_fence_action_queue(struct drm_file *file_priv,
 {
 	struct vmw_event_fence_action *eaction;
 	struct vmw_fence_manager *fman = fence->fman;
-
+	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
+	unsigned long irq_flags;
 
 	eaction = kzalloc(sizeof(*eaction), GFP_KERNEL);
 	if (unlikely(eaction == NULL))
@@ -926,6 +978,10 @@ int vmw_event_fence_action_queue(struct drm_file *file_priv,
 	eaction->dev = fman->dev_priv->dev;
 	eaction->tv_sec = tv_sec;
 	eaction->tv_usec = tv_usec;
+
+	spin_lock_irqsave(&fman->lock, irq_flags);
+	list_add_tail(&eaction->fpriv_head, &vmw_fp->fence_events);
+	spin_unlock_irqrestore(&fman->lock, irq_flags);
 
 	vmw_fence_obj_add_action(fence, &eaction->action);
 
