@@ -426,6 +426,10 @@ static int __x86_pmu_event_init(struct perf_event *event)
 	/* mark unused */
 	event->hw.extra_reg.idx = EXTRA_REG_NONE;
 
+	/* mark not used */
+	event->hw.extra_reg.idx = EXTRA_REG_NONE;
+	event->hw.branch_reg.idx = EXTRA_REG_NONE;
+
 	return x86_pmu.hw_config(event);
 }
 

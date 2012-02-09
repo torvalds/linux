@@ -1123,17 +1123,17 @@ static bool intel_try_alt_er(struct perf_event *event, int orig_idx)
  */
 static struct event_constraint *
 __intel_shared_reg_get_constraints(struct cpu_hw_events *cpuc,
-				   struct perf_event *event)
+				   struct perf_event *event,
+				   struct hw_perf_event_extra *reg)
 {
 	struct event_constraint *c = &emptyconstraint;
-	struct hw_perf_event_extra *reg = &event->hw.extra_reg;
 	struct er_account *era;
 	unsigned long flags;
 	int orig_idx = reg->idx;
 
 	/* already allocated shared msr */
 	if (reg->alloc)
-		return &unconstrained;
+		return NULL; /* call x86_get_event_constraint() */
 
 again:
 	era = &cpuc->shared_regs->regs[reg->idx];
@@ -1156,14 +1156,10 @@ again:
 		reg->alloc = 1;
 
 		/*
-		 * All events using extra_reg are unconstrained.
-		 * Avoids calling x86_get_event_constraints()
-		 *
-		 * Must revisit if extra_reg controlling events
-		 * ever have constraints. Worst case we go through
-		 * the regular event constraint table.
+		 * need to call x86_get_event_constraint()
+		 * to check if associated event has constraints
 		 */
-		c = &unconstrained;
+		c = NULL;
 	} else if (intel_try_alt_er(event, orig_idx)) {
 		raw_spin_unlock_irqrestore(&era->lock, flags);
 		goto again;
@@ -1200,11 +1196,23 @@ static struct event_constraint *
 intel_shared_regs_constraints(struct cpu_hw_events *cpuc,
 			      struct perf_event *event)
 {
-	struct event_constraint *c = NULL;
+	struct event_constraint *c = NULL, *d;
+	struct hw_perf_event_extra *xreg, *breg;
 
-	if (event->hw.extra_reg.idx != EXTRA_REG_NONE)
-		c = __intel_shared_reg_get_constraints(cpuc, event);
-
+	xreg = &event->hw.extra_reg;
+	if (xreg->idx != EXTRA_REG_NONE) {
+		c = __intel_shared_reg_get_constraints(cpuc, event, xreg);
+		if (c == &emptyconstraint)
+			return c;
+	}
+	breg = &event->hw.branch_reg;
+	if (breg->idx != EXTRA_REG_NONE) {
+		d = __intel_shared_reg_get_constraints(cpuc, event, breg);
+		if (d == &emptyconstraint) {
+			__intel_shared_reg_put_constraints(cpuc, xreg);
+			c = d;
+		}
+	}
 	return c;
 }
 
@@ -1250,6 +1258,10 @@ intel_put_shared_regs_event_constraints(struct cpu_hw_events *cpuc,
 	struct hw_perf_event_extra *reg;
 
 	reg = &event->hw.extra_reg;
+	if (reg->idx != EXTRA_REG_NONE)
+		__intel_shared_reg_put_constraints(cpuc, reg);
+
+	reg = &event->hw.branch_reg;
 	if (reg->idx != EXTRA_REG_NONE)
 		__intel_shared_reg_put_constraints(cpuc, reg);
 }
@@ -1431,7 +1443,7 @@ static int intel_pmu_cpu_prepare(int cpu)
 {
 	struct cpu_hw_events *cpuc = &per_cpu(cpu_hw_events, cpu);
 
-	if (!x86_pmu.extra_regs)
+	if (!(x86_pmu.extra_regs || x86_pmu.lbr_sel_map))
 		return NOTIFY_OK;
 
 	cpuc->shared_regs = allocate_shared_regs(cpu);
@@ -1453,22 +1465,28 @@ static void intel_pmu_cpu_starting(int cpu)
 	 */
 	intel_pmu_lbr_reset();
 
-	if (!cpuc->shared_regs || (x86_pmu.er_flags & ERF_NO_HT_SHARING))
+	cpuc->lbr_sel = NULL;
+
+	if (!cpuc->shared_regs)
 		return;
 
-	for_each_cpu(i, topology_thread_cpumask(cpu)) {
-		struct intel_shared_regs *pc;
+	if (!(x86_pmu.er_flags & ERF_NO_HT_SHARING)) {
+		for_each_cpu(i, topology_thread_cpumask(cpu)) {
+			struct intel_shared_regs *pc;
 
-		pc = per_cpu(cpu_hw_events, i).shared_regs;
-		if (pc && pc->core_id == core_id) {
-			cpuc->kfree_on_online = cpuc->shared_regs;
-			cpuc->shared_regs = pc;
-			break;
+			pc = per_cpu(cpu_hw_events, i).shared_regs;
+			if (pc && pc->core_id == core_id) {
+				cpuc->kfree_on_online = cpuc->shared_regs;
+				cpuc->shared_regs = pc;
+				break;
+			}
 		}
+		cpuc->shared_regs->core_id = core_id;
+		cpuc->shared_regs->refcnt++;
 	}
 
-	cpuc->shared_regs->core_id = core_id;
-	cpuc->shared_regs->refcnt++;
+	if (x86_pmu.lbr_sel_map)
+		cpuc->lbr_sel = &cpuc->shared_regs->regs[EXTRA_REG_LBR];
 }
 
 static void intel_pmu_cpu_dying(int cpu)
