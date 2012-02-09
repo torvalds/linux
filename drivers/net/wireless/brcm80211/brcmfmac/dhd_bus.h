@@ -39,8 +39,11 @@ struct dngl_stats {
 /* interface structure between common and bus layer */
 struct brcmf_bus {
 	u8 type;		/* bus type */
-	void *bus_priv;		/* pointer to bus private structure */
-	void *drvr;		/* pointer to driver pub structure brcmf_pub */
+	union {
+		/* pointer to sdio private structure */
+		struct brcmf_sdio_dev *sdio;
+	} bus_priv;
+	struct brcmf_pub *drvr;	/* pointer to driver pub structure brcmf_pub */
 	enum brcmf_bus_state state;
 	uint maxctl;		/* Max size rxctl request from proto to bus */
 	bool drvr_up;		/* Status flag of driver up/down */

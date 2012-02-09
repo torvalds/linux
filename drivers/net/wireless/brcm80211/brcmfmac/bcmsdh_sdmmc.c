@@ -489,7 +489,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 		sdiodev->func[0] = func->card->sdio_func[0];
 		sdiodev->func[1] = func;
 		sdiodev->bus_if = bus_if;
-		bus_if->bus_priv = sdiodev;
+		bus_if->bus_priv.sdio = sdiodev;
 		bus_if->type = SDIO_BUS;
 		bus_if->align = BRCMF_SDALIGN;
 		dev_set_drvdata(&func->card->dev, sdiodev);
@@ -530,7 +530,7 @@ static void brcmf_ops_sdio_remove(struct sdio_func *func)
 
 	if (func->num == 2) {
 		bus_if = dev_get_drvdata(&func->dev);
-		sdiodev = bus_if->bus_priv;
+		sdiodev = bus_if->bus_priv.sdio;
 		brcmf_dbg(TRACE, "F2 found, calling brcmf_sdio_remove...\n");
 		brcmf_sdio_remove(sdiodev);
 		dev_set_drvdata(&func->card->dev, NULL);
