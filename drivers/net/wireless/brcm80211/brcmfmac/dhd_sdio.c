@@ -3467,13 +3467,12 @@ static int brcmf_sdbrcm_bus_init(struct device *dev)
 
 		/* Set bus state according to enable result */
 		bus_if->state = BRCMF_BUS_DATA;
-	}
-
-	else {
+	} else {
 		/* Disable F2 again */
 		enable = SDIO_FUNC_ENABLE_1;
 		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_0,
 				       SDIO_CCCR_IOEx, enable, NULL);
+		ret = -ENODEV;
 	}
 
 	/* Restore previous clock setting */
@@ -3481,7 +3480,7 @@ static int brcmf_sdbrcm_bus_init(struct device *dev)
 			       SBSDIO_FUNC1_CHIPCLKCSR, saveclk, &err);
 
 	/* If we didn't come up, turn off backplane clock */
-	if (bus_if->state != BRCMF_BUS_DATA)
+	if (!ret)
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
 
 exit:
