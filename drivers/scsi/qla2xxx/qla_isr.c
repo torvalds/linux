@@ -1883,28 +1883,34 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 	struct qla_hw_data *ha = vha->hw;
 	const char func[] = "ERROR-IOCB";
 	uint16_t que = MSW(pkt->handle);
-	struct req_que *req = ha->req_q_map[que];
+	struct req_que *req = NULL;
 	int res = DID_ERROR << 16;
 
 	ql_dbg(ql_dbg_async, vha, 0x502a,
 	    "type of error status in response: 0x%x\n", pkt->entry_status);
 
+	if (que >= ha->max_req_queues || !ha->req_q_map[que])
+		goto fatal;
+
+	req = ha->req_q_map[que];
+
 	if (pkt->entry_status & RF_BUSY)
 		res = DID_BUS_BUSY << 16;
 
 	sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
-	if (sp)
+	if (sp) {
 		sp->done(ha, sp, res);
-	else {
-		ql_log(ql_log_warn, vha, 0x5030,
-		    "Error entry - invalid handle.\n");
-
-		if (IS_QLA82XX(ha))
-			set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
-		else
-			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-		qla2xxx_wake_dpc(vha);
+		return;
 	}
+fatal:
+	ql_log(ql_log_warn, vha, 0x5030,
+	    "Error entry - invalid handle/queue.\n");
+
+	if (IS_QLA82XX(ha))
+		set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+	else
+		set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+	qla2xxx_wake_dpc(vha);
 }
 
 /**
