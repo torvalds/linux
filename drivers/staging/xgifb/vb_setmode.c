@@ -1273,19 +1273,19 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 				VCLKIndex = LCDXlat1VCLK[CRT2Index];
 		} else if (pVBInfo->VBInfo & SetCRT2ToHiVision) {
 			if (pVBInfo->SetFlag & RPLLDIV2XO) {
-				VCLKIndex = HiTVVCLKDIV2;
+				VCLKIndex = TVCLKBASE_315 + HiTVVCLKDIV2;
 				VCLKIndex += 25;
 			} else {
-				VCLKIndex = HiTVVCLK;
+				VCLKIndex = TVCLKBASE_315 + HiTVVCLK;
 				VCLKIndex += 25;
 			}
 
 			if (pVBInfo->SetFlag & TVSimuMode) {
 				if (modeflag & Charx8Dot) {
-					VCLKIndex = HiTVSimuVCLK;
+					VCLKIndex = TVCLKBASE_315 + HiTVSimuVCLK;
 					VCLKIndex += 25;
 				} else {
-					VCLKIndex = HiTVTextVCLK;
+					VCLKIndex = TVCLKBASE_315 + HiTVTextVCLK;
 					VCLKIndex += 25;
 				}
 			}
@@ -1304,10 +1304,10 @@ static unsigned short XGI_GetVCLK2Ptr(unsigned short ModeNo,
 			}
 		} else if (pVBInfo->VBInfo & SetCRT2ToTV) {
 			if (pVBInfo->SetFlag & RPLLDIV2XO) {
-				VCLKIndex = TVVCLKDIV2;
+				VCLKIndex = TVCLKBASE_315 + TVVCLKDIV2;
 				VCLKIndex += 25;
 			} else {
-				VCLKIndex = TVVCLK;
+				VCLKIndex = TVCLKBASE_315 + TVVCLK;
 				VCLKIndex += 25;
 			}
 		} else { /* for CRT2 */
@@ -2845,13 +2845,13 @@ static unsigned char XGI_GetVCLKPtr(unsigned short RefreshRateTableIndex,
 		     VB_SIS302LV |
 		     VB_XGI301C)) {
 			if (pVBInfo->VBInfo & SetCRT2ToHiVision) {
-				tempal = HiTVVCLKDIV2;
+				tempal = TVCLKBASE_315 + HiTVVCLKDIV2;
 				if (!(pVBInfo->TVInfo & RPLLDIV2XO))
-					tempal = HiTVVCLK;
+					tempal = TVCLKBASE_315 + HiTVVCLK;
 				if (pVBInfo->TVInfo & TVSimuMode) {
-					tempal = HiTVSimuVCLK;
+					tempal = TVCLKBASE_315 + HiTVSimuVCLK;
 					if (!(modeflag & Charx8Dot))
-						tempal = HiTVTextVCLK;
+						tempal = TVCLKBASE_315 + HiTVTextVCLK;
 
 				}
 				return tempal;
@@ -2870,9 +2870,9 @@ static unsigned char XGI_GetVCLKPtr(unsigned short RefreshRateTableIndex,
 			tempal = NTSC1024VCLK;
 
 			if (!(pVBInfo->TVInfo & NTSC1024x768)) {
-				tempal = TVVCLKDIV2;
+				tempal = TVCLKBASE_315 + TVVCLKDIV2;
 				if (!(pVBInfo->TVInfo & RPLLDIV2XO))
-					tempal = TVVCLK;
+					tempal = TVCLKBASE_315 + TVVCLK;
 			}
 
 			if (pVBInfo->VBInfo & SetCRT2ToTV)

@@ -288,12 +288,6 @@
 #define VCLK217_325          0x55
 #define XGI_YPbPr750pVCLK    0x57
 
-#define TVVCLKDIV2           0x3A
-#define TVVCLK               0x3B
-#define HiTVVCLKDIV2         0x3C
-#define HiTVVCLK             0x3D
-#define HiTVSimuVCLK         0x3E
-#define HiTVTextVCLK         0x3F
 #define VCLK39_77            0x40
 #define YPbPr525pVCLK           0x3A
 #define NTSC1024VCLK         0x41
