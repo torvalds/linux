@@ -81,45 +81,45 @@ int i2c_suspended(struct i2c_adapter *adap)
 }
 EXPORT_SYMBOL(i2c_suspended);
 
-static inline void rk29_i2c_disable_ack(void __iomem *regs)
+static inline void rk29_i2c_disable_ack(struct rk30_i2c *i2c)
 {
-    unsigned long conr = readl(regs + I2C_CONR);
+    unsigned long conr = readl(i2c->regs + I2C_CONR);
 
 	conr |= I2C_CONR_NAK;
-	writel(conr, regs + I2C_CONR);
+	writel(conr,i2c->regs + I2C_CONR);
 }
 
-static inline void rk29_i2c_enable_ack(void __iomem *regs)
+static inline void rk29_i2c_enable_ack(struct rk30_i2c *i2c)
 {
-    unsigned long conr = readl(regs + I2C_CONR);
+    unsigned long conr = readl(i2c->regs + I2C_CONR);
 
 	conr &= I2C_CONR_ACK;
-	writel(conr, regs + I2C_CONR);
+	writel(conr,i2c->regs + I2C_CONR);
 }
-static inline void rk29_i2c_disable_mport(void __iomem *regs)
+static inline void rk29_i2c_disable_mport(struct rk30_i2c *i2c)
 {
-    unsigned long conr = readl(regs + I2C_CONR);
+    unsigned long conr = readl(i2c->regs + I2C_CONR);
 
 	conr &= I2C_CONR_MPORT_DISABLE;
-	writel(conr, regs + I2C_CONR);
+	writel(conr,i2c->regs + I2C_CONR);
 }
 
-static inline void rk29_i2c_enable_mport(void __iomem *regs)
+static inline void rk29_i2c_enable_mport(struct rk30_i2c *i2c)
 {
-    unsigned long conr = readl(regs + I2C_CONR);
+    unsigned long conr = readl(i2c->regs + I2C_CONR);
 
 	conr |= I2C_CONR_MPORT_ENABLE;
-	writel(conr, regs + I2C_CONR);
+	writel(conr,i2c->regs + I2C_CONR);
 }
 
-static inline void rk29_i2c_disable_irq(void __iomem *regs)
+static inline void rk29_i2c_disable_irq(struct rk30_i2c *i2c)
 {
-    writel(IRQ_ALL_DISABLE, regs + I2C_IER);
+    writel(IRQ_ALL_DISABLE, i2c->regs + I2C_IER);
 }
 
-static inline void rk29_i2c_enable_irq(void __iomem *regs)
+static inline void rk29_i2c_enable_irq(struct rk30_i2c *i2c)
 {
-    writel(IRQ_MST_ENABLE, regs + I2C_IER);
+    writel(IRQ_MST_ENABLE, i2c->regs + I2C_IER);
 }
 
 /* scl = pclk/(5 *(rem+1) * 2^(exp+1)) */
@@ -153,7 +153,7 @@ static void  rk29_i2c_set_clk(struct rk30_i2c *i2c, unsigned long scl_rate)
 	unsigned int rem = 0, exp = 0;
 	unsigned long real_rate = 0, tmp;
 
-	unsigned long i2c_rate = 24000000;//clk_get_rate(i2c->clk);
+	unsigned long i2c_rate = clk_get_rate(i2c->clk);
 
     if((scl_rate == i2c->scl_rate) && (i2c_rate == i2c->i2c_rate))
         return;
@@ -227,7 +227,7 @@ static void rk29_i2c_message_start(struct rk30_i2c *i2c,
 	if (msg->flags & I2C_M_REV_DIR_ADDR)
 		addr ^= 1;
 
-	rk29_i2c_enable_ack(i2c->regs);
+	rk29_i2c_enable_ack(i2c);
 	i2c_dbg(i2c->dev, "START: set addr 0x%02x to DS\n", addr);
 
     conr = readl(i2c->regs + I2C_CONR);
@@ -260,7 +260,7 @@ static inline void rk29_i2c_stop(struct rk30_i2c *i2c, int ret)
 	i2c->state = STATE_STOP;
 
 	rk29_i2c_master_complete(i2c, ret);
-	rk29_i2c_disable_irq(i2c->regs);
+	rk29_i2c_disable_irq(i2c);
 }
 
 /* returns TRUE if the current message is the last in the set */
@@ -296,7 +296,7 @@ static int rk29_i2c_irq_nextbyte(struct rk30_i2c *i2c, unsigned long isr)
 
 	case STATE_STOP:
 		dev_err(i2c->dev, "%s: called in STATE_STOP\n", __func__);
-		rk29_i2c_disable_irq(i2c->regs);
+		rk29_i2c_disable_irq(i2c);
 		goto out;
 
 	case STATE_START:
@@ -564,7 +564,7 @@ static int rk29_i2c_xfer(struct i2c_adapter *adap,
 		wake_lock(&i2c->idlelock[i2c->adap.nr]);
 
 	rk29_i2c_set_clk(i2c, scl_rate);
-    rk29_i2c_enable_mport(i2c->regs);
+    rk29_i2c_enable_mport(i2c);
     udelay(i2c->tx_setup);
 
 	for (retry = 0; retry < adap->retries; retry++) {
@@ -580,7 +580,7 @@ static int rk29_i2c_xfer(struct i2c_adapter *adap,
 		msleep(1);
 	}
 	
-    rk29_i2c_disable_mport(i2c->regs);
+    rk29_i2c_disable_mport(i2c);
     if(i2c->is_div_from_arm[i2c->adap.nr])
 		wake_unlock(&i2c->idlelock[i2c->adap.nr]);
 	return -EREMOTEIO;
@@ -605,7 +605,7 @@ int i2c_add_rk29_adapter(struct i2c_adapter *adap)
     struct rk30_i2c *i2c = (struct rk30_i2c *)adap->algo_data;
 
     adap->algo = &rk29_i2c_algorithm;
-	adap->retries = 3;
+	adap->retries = 2;
 
     i2c->i2c_init_hw = &rk29_i2c_init_hw;
     i2c->i2c_set_clk = &rk29_i2c_set_clk;

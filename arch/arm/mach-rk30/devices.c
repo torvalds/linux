@@ -153,7 +153,7 @@ static struct resource resources_i2c0[] = {
 };
 
 static struct platform_device device_i2c0 = {
-	.name	= "i2c-rk30",
+	.name	= "rk30_i2c",
 	.id	= 0,
 	.num_resources	= ARRAY_SIZE(resources_i2c0),
 	.resource	= resources_i2c0,
@@ -189,7 +189,7 @@ static struct resource resources_i2c1[] = {
 };
 
 static struct platform_device device_i2c1 = {
-	.name	= "i2c-rk30",
+	.name	= "rk30_i2c",
 	.id	= 1,
 	.num_resources	= ARRAY_SIZE(resources_i2c1),
 	.resource	= resources_i2c1,
@@ -225,7 +225,7 @@ static struct resource resources_i2c2[] = {
 };
 
 static struct platform_device device_i2c2 = {
-	.name	= "i2c-rk30",
+	.name	= "rk30_i2c",
 	.id	= 2,
 	.num_resources	= ARRAY_SIZE(resources_i2c2),
 	.resource	= resources_i2c2,
@@ -261,7 +261,7 @@ static struct resource resources_i2c3[] = {
 };
 
 static struct platform_device device_i2c3 = {
-	.name	= "i2c-rk30",
+	.name	= "rk30_i2c",
 	.id	= 3,
 	.num_resources	= ARRAY_SIZE(resources_i2c3),
 	.resource	= resources_i2c3,
@@ -297,7 +297,7 @@ static struct resource resources_i2c4[] = {
 };
 
 static struct platform_device device_i2c4 = {
-	.name	= "i2c-rk30",
+	.name	= "rk30_i2c",
 	.id	= 4,
 	.num_resources	= ARRAY_SIZE(resources_i2c4),
 	.resource	= resources_i2c4,
