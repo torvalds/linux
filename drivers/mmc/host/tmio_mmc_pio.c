@@ -762,7 +762,6 @@ fail:
 static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct tmio_mmc_data *pdata = host->pdata;
 	unsigned long flags;
 
 	mutex_lock(&host->ios_lock);
@@ -792,15 +791,15 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	/*
-	 * pdata->power toggles between false and true in both cases - either
+	 * host->power toggles between false and true in both cases - either
 	 * or not the controller can be runtime-suspended during inactivity.
 	 * But if the controller has to be kept on, the runtime-pm usage_count
 	 * is kept positive, so no suspending actually takes place.
 	 */
 	if (ios->power_mode == MMC_POWER_ON && ios->clock) {
-		if (!pdata->power) {
+		if (!host->power) {
 			pm_runtime_get_sync(&host->pdev->dev);
-			pdata->power = true;
+			host->power = true;
 		}
 		tmio_mmc_set_clock(host, ios->clock);
 		/* power up SD bus */
@@ -811,8 +810,8 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	} else if (ios->power_mode != MMC_POWER_UP) {
 		if (host->set_pwr && ios->power_mode == MMC_POWER_OFF)
 			host->set_pwr(host->pdev, 0);
-		if (pdata->power) {
-			pdata->power = false;
+		if (host->power) {
+			host->power = false;
 			pm_runtime_put(&host->pdev->dev);
 		}
 		tmio_mmc_clk_stop(host);
@@ -923,7 +922,7 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 				  mmc->caps & MMC_CAP_NEEDS_POLL ||
 				  mmc->caps & MMC_CAP_NONREMOVABLE);
 
-	pdata->power = false;
+	_host->power = false;
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_resume(&pdev->dev);
 	if (ret < 0)
