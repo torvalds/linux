@@ -290,6 +290,26 @@ struct rpmsg_endpoint *rpmsg_create_ept(struct rpmsg_channel *rpdev,
 EXPORT_SYMBOL(rpmsg_create_ept);
 
 /**
+ * __rpmsg_destroy_ept() - destroy an existing rpmsg endpoint
+ * @vrp: virtproc which owns this ept
+ * @ept: endpoing to destroy
+ *
+ * An internal function which destroy an ept without assuming it is
+ * bound to an rpmsg channel. This is needed for handling the internal
+ * name service endpoint, which isn't bound to an rpmsg channel.
+ * See also __rpmsg_create_ept().
+ */
+static void
+__rpmsg_destroy_ept(struct virtproc_info *vrp, struct rpmsg_endpoint *ept)
+{
+	mutex_lock(&vrp->endpoints_lock);
+	idr_remove(&vrp->endpoints, ept->addr);
+	mutex_unlock(&vrp->endpoints_lock);
+
+	kfree(ept);
+}
+
+/**
  * rpmsg_destroy_ept() - destroy an existing rpmsg endpoint
  * @ept: endpoing to destroy
  *
@@ -298,13 +318,7 @@ EXPORT_SYMBOL(rpmsg_create_ept);
  */
 void rpmsg_destroy_ept(struct rpmsg_endpoint *ept)
 {
-	struct virtproc_info *vrp = ept->rpdev->vrp;
-
-	mutex_lock(&vrp->endpoints_lock);
-	idr_remove(&vrp->endpoints, ept->addr);
-	mutex_unlock(&vrp->endpoints_lock);
-
-	kfree(ept);
+	__rpmsg_destroy_ept(ept->rpdev->vrp, ept);
 }
 EXPORT_SYMBOL(rpmsg_destroy_ept);
 
@@ -963,6 +977,9 @@ static void __devexit rpmsg_remove(struct virtio_device *vdev)
 	ret = device_for_each_child(&vdev->dev, NULL, rpmsg_remove_device);
 	if (ret)
 		dev_warn(&vdev->dev, "can't remove rpmsg device: %d\n", ret);
+
+	if (vrp->ns_ept)
+		__rpmsg_destroy_ept(vrp, vrp->ns_ept);
 
 	idr_remove_all(&vrp->endpoints);
 	idr_destroy(&vrp->endpoints);
