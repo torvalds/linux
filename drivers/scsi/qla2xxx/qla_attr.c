@@ -668,7 +668,7 @@ qla2x00_sysfs_write_edc(struct file *filp, struct kobject *kobj,
 	    dev, adr, len, opt);
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x7074,
-		    "Unable to write EDC (%x) %02x:%04x:%02x:%02x:%02hhx\n",
+		    "Unable to write EDC (%x) %02x:%02x:%04x:%02x:%02hhx\n",
 		    rval, dev, adr, opt, len, buf[8]);
 		return -EIO;
 	}
@@ -725,7 +725,7 @@ qla2x00_sysfs_write_edc_status(struct file *filp, struct kobject *kobj,
 			dev, adr, len, opt);
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_info, vha, 0x7075,
-		    "Unable to write EDC status (%x) %02x:%04x:%02x:%02x.\n",
+		    "Unable to write EDC status (%x) %02x:%02x:%04x:%02x.\n",
 		    rval, dev, adr, opt, len);
 		return -EIO;
 	}
