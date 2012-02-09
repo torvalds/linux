@@ -90,7 +90,8 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	if (!wait_for_completion_timeout(&ha->mbx_cmd_comp, mcp->tov * HZ)) {
 		/* Timeout occurred. Return error. */
 		ql_log(ql_log_warn, base_vha, 0x1005,
-		    "Cmd access timeout, Exiting.\n");
+		    "Cmd access timeout, cmd=0x%x, Exiting.\n",
+		    mcp->mb[0]);
 		return QLA_FUNCTION_TIMEOUT;
 	}
 
@@ -313,9 +314,10 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 					    CRB_NIU_XG_PAUSE_CTL_P1);
 				}
 				ql_log(ql_log_info, base_vha, 0x101c,
-				    "Mailbox cmd timeout occured. "
-				    "Scheduling ISP abort eeh_busy=0x%x.\n",
-					ha->flags.eeh_busy);
+				    "Mailbox cmd timeout occured, cmd=0x%x, "
+				    "mb[0]=0x%x, eeh_busy=0x%x. Scheduling ISP "
+				    "abort.\n", command, mcp->mb[0],
+				    ha->flags.eeh_busy);
 				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 				qla2xxx_wake_dpc(vha);
 			}
@@ -337,9 +339,9 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 					    CRB_NIU_XG_PAUSE_CTL_P1);
 				}
 				ql_log(ql_log_info, base_vha, 0x101e,
-				    "Mailbox cmd timeout occured. "
-				    "Scheduling ISP abort.\n");
-
+				    "Mailbox cmd timeout occured, cmd=0x%x, "
+				    "mb[0]=0x%x. Scheduling ISP abort ",
+				    command, mcp->mb[0]);
 				set_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags);
 				clear_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 				/* Allow next mbx cmd to come in. */
