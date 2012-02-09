@@ -142,9 +142,11 @@ static void intel_pmu_lbr_read_32(struct cpu_hw_events *cpuc)
 
 		rdmsrl(x86_pmu.lbr_from + lbr_idx, msr_lastbranch.lbr);
 
-		cpuc->lbr_entries[i].from  = msr_lastbranch.from;
-		cpuc->lbr_entries[i].to    = msr_lastbranch.to;
-		cpuc->lbr_entries[i].flags = 0;
+		cpuc->lbr_entries[i].from	= msr_lastbranch.from;
+		cpuc->lbr_entries[i].to		= msr_lastbranch.to;
+		cpuc->lbr_entries[i].mispred	= 0;
+		cpuc->lbr_entries[i].predicted	= 0;
+		cpuc->lbr_entries[i].reserved	= 0;
 	}
 	cpuc->lbr_stack.nr = i;
 }
@@ -165,19 +167,22 @@ static void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 
 	for (i = 0; i < x86_pmu.lbr_nr; i++) {
 		unsigned long lbr_idx = (tos - i) & mask;
-		u64 from, to, flags = 0;
+		u64 from, to, mis = 0, pred = 0;
 
 		rdmsrl(x86_pmu.lbr_from + lbr_idx, from);
 		rdmsrl(x86_pmu.lbr_to   + lbr_idx, to);
 
 		if (lbr_format == LBR_FORMAT_EIP_FLAGS) {
-			flags = !!(from & LBR_FROM_FLAG_MISPRED);
+			mis = !!(from & LBR_FROM_FLAG_MISPRED);
+			pred = !mis;
 			from = (u64)((((s64)from) << 1) >> 1);
 		}
 
-		cpuc->lbr_entries[i].from  = from;
-		cpuc->lbr_entries[i].to    = to;
-		cpuc->lbr_entries[i].flags = flags;
+		cpuc->lbr_entries[i].from	= from;
+		cpuc->lbr_entries[i].to		= to;
+		cpuc->lbr_entries[i].mispred	= mis;
+		cpuc->lbr_entries[i].predicted	= pred;
+		cpuc->lbr_entries[i].reserved	= 0;
 	}
 	cpuc->lbr_stack.nr = i;
 }
