@@ -3280,6 +3280,7 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 	vfree(ha->optrom_buffer);
 	kfree(ha->nvram);
 	kfree(ha->npiv_info);
+	kfree(ha->swl);
 
 	ha->srb_mempool = NULL;
 	ha->ctx_mempool = NULL;

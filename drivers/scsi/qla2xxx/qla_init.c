@@ -3133,20 +3133,21 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 	rval = QLA_SUCCESS;
 
 	/* Try GID_PT to get device list, else GAN. */
-	swl = kcalloc(MAX_FIBRE_DEVICES, sizeof(sw_info_t), GFP_KERNEL);
+	if (!ha->swl)
+		ha->swl = kcalloc(MAX_FIBRE_DEVICES, sizeof(sw_info_t),
+		    GFP_KERNEL);
+	swl = ha->swl;
 	if (!swl) {
 		/*EMPTY*/
 		ql_dbg(ql_dbg_disc, vha, 0x2054,
 		    "GID_PT allocations failed, fallback on GA_NXT.\n");
 	} else {
+		memset(swl, 0, MAX_FIBRE_DEVICES * sizeof(sw_info_t));
 		if (qla2x00_gid_pt(vha, swl) != QLA_SUCCESS) {
-			kfree(swl);
 			swl = NULL;
 		} else if (qla2x00_gpn_id(vha, swl) != QLA_SUCCESS) {
-			kfree(swl);
 			swl = NULL;
 		} else if (qla2x00_gnn_id(vha, swl) != QLA_SUCCESS) {
-			kfree(swl);
 			swl = NULL;
 		} else if (ql2xiidmaenable &&
 		    qla2x00_gfpn_id(vha, swl) == QLA_SUCCESS) {
@@ -3164,7 +3165,6 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 	if (new_fcport == NULL) {
 		ql_log(ql_log_warn, vha, 0x205e,
 		    "Failed to allocate memory for fcport.\n");
-		kfree(swl);
 		return (QLA_MEMORY_ALLOC_FAILED);
 	}
 	new_fcport->flags |= (FCF_FABRIC_DEVICE | FCF_LOGIN_NEEDED);
@@ -3341,14 +3341,12 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 		if (new_fcport == NULL) {
 			ql_log(ql_log_warn, vha, 0x2066,
 			    "Memory allocation failed for fcport.\n");
-			kfree(swl);
 			return (QLA_MEMORY_ALLOC_FAILED);
 		}
 		new_fcport->flags |= (FCF_FABRIC_DEVICE | FCF_LOGIN_NEEDED);
 		new_fcport->d_id.b24 = nxt_d_id.b24;
 	}
 
-	kfree(swl);
 	kfree(new_fcport);
 
 	return (rval);
