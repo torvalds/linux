@@ -395,7 +395,9 @@ void vmw_3d_resource_dec(struct vmw_private *dev_priv,
  * Sets the initial_[width|height] fields on the given vmw_private.
  *
  * It does so by reading SVGA_REG_[WIDTH|HEIGHT] regs and then
- * capping the value to fb_max_[width|height] fields and the
+ * clamping the value to fb_max_[width|height] fields and the
+ * VMW_MIN_INITIAL_[WIDTH|HEIGHT].
+ * If the values appear to be invalid, set them to
  * VMW_MIN_INITIAL_[WIDTH|HEIGHT].
  */
 static void vmw_get_initial_size(struct vmw_private *dev_priv)
@@ -407,10 +409,18 @@ static void vmw_get_initial_size(struct vmw_private *dev_priv)
 	height = vmw_read(dev_priv, SVGA_REG_HEIGHT);
 
 	width = max_t(uint32_t, width, VMW_MIN_INITIAL_WIDTH);
-	width = min_t(uint32_t, width, dev_priv->fb_max_width);
-
 	height = max_t(uint32_t, height, VMW_MIN_INITIAL_HEIGHT);
-	height = min_t(uint32_t, height, dev_priv->fb_max_height);
+
+	if (width > dev_priv->fb_max_width ||
+	    height > dev_priv->fb_max_height) {
+
+		/*
+		 * This is a host error and shouldn't occur.
+		 */
+
+		width = VMW_MIN_INITIAL_WIDTH;
+		height = VMW_MIN_INITIAL_HEIGHT;
+	}
 
 	dev_priv->initial_width = width;
 	dev_priv->initial_height = height;
