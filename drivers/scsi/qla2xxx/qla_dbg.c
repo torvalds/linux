@@ -375,6 +375,77 @@ qla25xx_copy_fce(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 }
 
 static inline void *
+qla25xx_copy_mqueues(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
+{
+	struct qla2xxx_mqueue_chain *q;
+	struct qla2xxx_mqueue_header *qh;
+	struct req_que *req;
+	struct rsp_que *rsp;
+	int que;
+
+	if (!ha->mqenable)
+		return ptr;
+
+	/* Request queues */
+	for (que = 1; que < ha->max_req_queues; que++) {
+		req = ha->req_q_map[que];
+		if (!req)
+			break;
+
+		/* Add chain. */
+		q = ptr;
+		*last_chain = &q->type;
+		q->type = __constant_htonl(DUMP_CHAIN_QUEUE);
+		q->chain_size = htonl(
+		    sizeof(struct qla2xxx_mqueue_chain) +
+		    sizeof(struct qla2xxx_mqueue_header) +
+		    (req->length * sizeof(request_t)));
+		ptr += sizeof(struct qla2xxx_mqueue_chain);
+
+		/* Add header. */
+		qh = ptr;
+		qh->queue = __constant_htonl(TYPE_REQUEST_QUEUE);
+		qh->number = htonl(que);
+		qh->size = htonl(req->length * sizeof(request_t));
+		ptr += sizeof(struct qla2xxx_mqueue_header);
+
+		/* Add data. */
+		memcpy(ptr, req->ring, req->length * sizeof(request_t));
+		ptr += req->length * sizeof(request_t);
+	}
+
+	/* Response queues */
+	for (que = 1; que < ha->max_rsp_queues; que++) {
+		rsp = ha->rsp_q_map[que];
+		if (!rsp)
+			break;
+
+		/* Add chain. */
+		q = ptr;
+		*last_chain = &q->type;
+		q->type = __constant_htonl(DUMP_CHAIN_QUEUE);
+		q->chain_size = htonl(
+		    sizeof(struct qla2xxx_mqueue_chain) +
+		    sizeof(struct qla2xxx_mqueue_header) +
+		    (rsp->length * sizeof(response_t)));
+		ptr += sizeof(struct qla2xxx_mqueue_chain);
+
+		/* Add header. */
+		qh = ptr;
+		qh->queue = __constant_htonl(TYPE_RESPONSE_QUEUE);
+		qh->number = htonl(que);
+		qh->size = htonl(rsp->length * sizeof(response_t));
+		ptr += sizeof(struct qla2xxx_mqueue_header);
+
+		/* Add data. */
+		memcpy(ptr, rsp->ring, rsp->length * sizeof(response_t));
+		ptr += rsp->length * sizeof(response_t);
+	}
+
+	return ptr;
+}
+
+static inline void *
 qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 {
 	uint32_t cnt, que_idx;
@@ -1322,11 +1393,15 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	nxt = qla24xx_copy_eft(ha, nxt);
 
 	/* Chain entries -- started with MQ. */
-	qla25xx_copy_fce(ha, nxt_chain, &last_chain);
+	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
+	nxt_chain = qla25xx_copy_mqueues(ha, nxt_chain, &last_chain);
 	if (last_chain) {
 		ha->fw_dump->version |= __constant_htonl(DUMP_CHAIN_VARIANT);
 		*last_chain |= __constant_htonl(DUMP_CHAIN_LAST);
 	}
+
+	/* Adjust valid length. */
+	ha->fw_dump_len = (nxt_chain - (void *)ha->fw_dump);
 
 qla25xx_fw_dump_failed_0:
 	qla2xxx_dump_post_process(base_vha, rval);
@@ -1636,11 +1711,15 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	nxt = qla24xx_copy_eft(ha, nxt);
 
 	/* Chain entries -- started with MQ. */
-	qla25xx_copy_fce(ha, nxt_chain, &last_chain);
+	nxt_chain = qla25xx_copy_fce(ha, nxt_chain, &last_chain);
+	nxt_chain = qla25xx_copy_mqueues(ha, nxt_chain, &last_chain);
 	if (last_chain) {
 		ha->fw_dump->version |= __constant_htonl(DUMP_CHAIN_VARIANT);
 		*last_chain |= __constant_htonl(DUMP_CHAIN_LAST);
 	}
+
+	/* Adjust valid length. */
+	ha->fw_dump_len = (nxt_chain - (void *)ha->fw_dump);
 
 qla81xx_fw_dump_failed_0:
 	qla2xxx_dump_post_process(base_vha, rval);

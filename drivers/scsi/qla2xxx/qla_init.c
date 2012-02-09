@@ -1270,8 +1270,17 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 			fixed_size = offsetof(struct qla24xx_fw_dump, ext_mem);
 		mem_size = (ha->fw_memory_size - 0x100000 + 1) *
 		    sizeof(uint32_t);
-		if (ha->mqenable)
+		if (ha->mqenable) {
 			mq_size = sizeof(struct qla2xxx_mq_chain);
+			/*
+			 * Allocate maximum buffer size for all queues.
+			 * Resizing must be done at end-of-dump processing.
+			 */
+			mq_size += ha->max_req_queues *
+			    (req->length * sizeof(request_t));
+			mq_size += ha->max_rsp_queues *
+			    (rsp->length * sizeof(response_t));
+		}
 		/* Allocate memory for Fibre Channel Event Buffer. */
 		if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha))
 			goto try_eft;

@@ -192,9 +192,23 @@ struct qla2xxx_mq_chain {
 	uint32_t qregs[4 * QLA_MQ_SIZE];
 };
 
+struct qla2xxx_mqueue_header {
+	uint32_t queue;
+#define TYPE_REQUEST_QUEUE	0x1
+#define TYPE_RESPONSE_QUEUE	0x2
+	uint32_t number;
+	uint32_t size;
+};
+
+struct qla2xxx_mqueue_chain {
+	uint32_t type;
+	uint32_t chain_size;
+};
+
 #define DUMP_CHAIN_VARIANT	0x80000000
 #define DUMP_CHAIN_FCE		0x7FFFFAF0
 #define DUMP_CHAIN_MQ		0x7FFFFAF1
+#define DUMP_CHAIN_QUEUE	0x7FFFFAF2
 #define DUMP_CHAIN_LAST		0x80000000
 
 struct qla2xxx_fw_dump {
