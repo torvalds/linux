@@ -81,6 +81,9 @@ void iwl_down(struct iwl_priv *priv);
 void iwl_cancel_deferred_work(struct iwl_priv *priv);
 void iwlagn_prepare_restart(struct iwl_priv *priv);
 void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb);
+int __must_check iwl_rx_dispatch(struct iwl_op_mode *op_mode,
+				 struct iwl_rx_mem_buffer *rxb,
+				 struct iwl_device_cmd *cmd);
 
 /* MAC80211 */
 struct ieee80211_hw *iwl_alloc_all(void);

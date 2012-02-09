@@ -1385,6 +1385,7 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.start = iwl_op_mode_dvm_start,
 	.stop = iwl_op_mode_dvm_stop,
+	.rx = iwl_rx_dispatch,
 	.free_skb = iwl_free_skb,
 };
 

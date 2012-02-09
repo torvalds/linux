@@ -66,6 +66,8 @@
 struct iwl_op_mode;
 struct iwl_trans;
 struct sk_buff;
+struct iwl_device_cmd;
+struct iwl_rx_mem_buffer;
 
 /**
  * struct iwl_op_mode_ops - op_mode specific operations
@@ -76,6 +78,8 @@ struct sk_buff;
  *	May sleep
  * @stop: stop the op_mode
  *	May sleep
+ * @rx: Rx notification to the op_mode. rxb is the Rx buffer itself. Cmd is the
+ *	HCMD the this Rx responds to.
  * @free_skb: allows the transport layer to free skbs that haven't been
  *	reclaimed by the op_mode. This can happen when the driver is freed and
  *	there are Tx packets pending in the transport layer.
@@ -84,6 +88,8 @@ struct sk_buff;
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans);
 	void (*stop)(struct iwl_op_mode *op_mode);
+	int (*rx)(struct iwl_op_mode *op_mode, struct iwl_rx_mem_buffer *rxb,
+		  struct iwl_device_cmd *cmd);
 	void (*free_skb)(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 };
 
@@ -104,6 +110,13 @@ struct iwl_op_mode {
 static inline void iwl_op_mode_stop(struct iwl_op_mode *op_mode)
 {
 	op_mode->ops->stop(op_mode);
+}
+
+static inline int iwl_op_mode_rx(struct iwl_op_mode *op_mode,
+				  struct iwl_rx_mem_buffer *rxb,
+				  struct iwl_device_cmd *cmd)
+{
+	return op_mode->ops->rx(op_mode, rxb, cmd);
 }
 
 static inline void iwl_op_mode_free_skb(struct iwl_op_mode *op_mode,

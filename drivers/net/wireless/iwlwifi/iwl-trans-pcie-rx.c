@@ -35,6 +35,7 @@
 #include "iwl-io.h"
 #include "iwl-trans-pcie-int.h"
 #include "iwl-wifi.h"
+#include "iwl-op-mode.h"
 
 #ifdef CONFIG_IWLWIFI_IDI
 #include "iwl-amfh.h"
@@ -460,7 +461,7 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 		     "reclaim is false, SEQ_RX_FRAME unset: %s\n",
 		     get_cmd_string(pkt->hdr.cmd));
 
-		err = iwl_rx_dispatch(priv(trans), rxb, cmd);
+		err = iwl_op_mode_rx(trans->op_mode, rxb, cmd);
 
 		/*
 		 * XXX: After here, we should always check rxb->page

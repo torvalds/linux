@@ -532,11 +532,6 @@ enum iwl_rxon_context_id {
 	NUM_IWL_RXON_CTX
 };
 
-struct iwl_device_cmd;
-int __must_check iwl_rx_dispatch(struct iwl_priv *priv,
-				 struct iwl_rx_mem_buffer *rxb,
-				 struct iwl_device_cmd *cmd);
-
 int iwlagn_hw_valid_rtc_data_addr(u32 addr);
 void iwl_set_hw_rfkill_state(struct iwl_priv *priv, bool state);
 void iwl_nic_config(struct iwl_priv *priv);
