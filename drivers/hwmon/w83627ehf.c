@@ -1920,9 +1920,26 @@ w83627ehf_check_fan_inputs(const struct w83627ehf_sio_data *sio_data,
 		fan4min = 0;
 		fan5pin = 0;
 	} else if (sio_data->kind == nct6776) {
-		fan3pin = !(superio_inb(sio_data->sioreg, 0x24) & 0x40);
-		fan4pin = !!(superio_inb(sio_data->sioreg, 0x1C) & 0x01);
-		fan5pin = !!(superio_inb(sio_data->sioreg, 0x1C) & 0x02);
+		bool gpok = superio_inb(sio_data->sioreg, 0x27) & 0x80;
+
+		superio_select(sio_data->sioreg, W83627EHF_LD_HWM);
+		regval = superio_inb(sio_data->sioreg, SIO_REG_ENABLE);
+
+		if (regval & 0x80)
+			fan3pin = gpok;
+		else
+			fan3pin = !(superio_inb(sio_data->sioreg, 0x24) & 0x40);
+
+		if (regval & 0x40)
+			fan4pin = gpok;
+		else
+			fan4pin = !!(superio_inb(sio_data->sioreg, 0x1C) & 0x01);
+
+		if (regval & 0x20)
+			fan5pin = gpok;
+		else
+			fan5pin = !!(superio_inb(sio_data->sioreg, 0x1C) & 0x02);
+
 		fan4min = fan4pin;
 	} else if (sio_data->kind == w83667hg || sio_data->kind == w83667hg_b) {
 		fan3pin = 1;

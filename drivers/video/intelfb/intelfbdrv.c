@@ -529,7 +529,6 @@ static int __devinit intelfb_pci_register(struct pci_dev *pdev,
 	if (fb_alloc_cmap(&info->cmap, 256, 1) < 0) {
 		ERR_MSG("Could not allocate cmap for intelfb_info.\n");
 		goto err_out_cmap;
-		return -ENODEV;
 	}
 
 	dinfo = info->par;

@@ -21,7 +21,7 @@
 #include <mach/da8xx.h>
 #include <mach/mux.h>
 
-#define HAWKBOARD_PHY_ID		"0:07"
+#define HAWKBOARD_PHY_ID		"davinci_mdio-0:07"
 #define DA850_HAWK_MMCSD_CD_PIN		GPIO_TO_PIN(3, 12)
 #define DA850_HAWK_MMCSD_WP_PIN		GPIO_TO_PIN(3, 13)
 
