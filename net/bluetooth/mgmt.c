@@ -1629,7 +1629,8 @@ unlock:
 }
 
 static int user_pairing_resp(struct sock *sk, u16 index, bdaddr_t *bdaddr,
-					u16 mgmt_op, u16 hci_op, __le32 passkey)
+					u8 type, u16 mgmt_op, u16 hci_op,
+					__le32 passkey)
 {
 	struct pending_cmd *cmd;
 	struct hci_dev *hdev;
@@ -1648,24 +1649,18 @@ static int user_pairing_resp(struct sock *sk, u16 index, bdaddr_t *bdaddr,
 		goto done;
 	}
 
-	/*
-	 * Check for an existing ACL link, if present pair via
-	 * HCI commands.
-	 *
-	 * If no ACL link is present, check for an LE link and if
-	 * present, pair via the SMP engine.
-	 *
-	 * If neither ACL nor LE links are present, fail with error.
-	 */
-	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, bdaddr);
-	if (!conn) {
+	if (type == MGMT_ADDR_BREDR)
+		conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, bdaddr);
+	else
 		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, bdaddr);
-		if (!conn) {
-			err = cmd_status(sk, index, mgmt_op,
-						MGMT_STATUS_NOT_CONNECTED);
-			goto done;
-		}
 
+	if (!conn) {
+		err = cmd_status(sk, index, mgmt_op,
+						MGMT_STATUS_NOT_CONNECTED);
+		goto done;
+	}
+
+	if (type == MGMT_ADDR_LE_PUBLIC || type == MGMT_ADDR_LE_RANDOM) {
 		/* Continue with pairing via SMP */
 		err = smp_user_confirm_reply(conn, mgmt_op, passkey);
 
@@ -1715,9 +1710,9 @@ static int user_confirm_reply(struct sock *sk, u16 index, void *data, u16 len)
 		return cmd_status(sk, index, MGMT_OP_USER_CONFIRM_REPLY,
 						MGMT_STATUS_INVALID_PARAMS);
 
-	return user_pairing_resp(sk, index, &cp->bdaddr,
-			MGMT_OP_USER_CONFIRM_REPLY,
-			HCI_OP_USER_CONFIRM_REPLY, 0);
+	return user_pairing_resp(sk, index, &cp->addr.bdaddr, cp->addr.type,
+						MGMT_OP_USER_CONFIRM_REPLY,
+						HCI_OP_USER_CONFIRM_REPLY, 0);
 }
 
 static int user_confirm_neg_reply(struct sock *sk, u16 index, void *data,
@@ -1731,9 +1726,9 @@ static int user_confirm_neg_reply(struct sock *sk, u16 index, void *data,
 		return cmd_status(sk, index, MGMT_OP_USER_CONFIRM_NEG_REPLY,
 						MGMT_STATUS_INVALID_PARAMS);
 
-	return user_pairing_resp(sk, index, &cp->bdaddr,
-			MGMT_OP_USER_CONFIRM_NEG_REPLY,
-			HCI_OP_USER_CONFIRM_NEG_REPLY, 0);
+	return user_pairing_resp(sk, index, &cp->addr.bdaddr, cp->addr.type,
+					MGMT_OP_USER_CONFIRM_NEG_REPLY,
+					HCI_OP_USER_CONFIRM_NEG_REPLY, 0);
 }
 
 static int user_passkey_reply(struct sock *sk, u16 index, void *data, u16 len)
@@ -1746,9 +1741,10 @@ static int user_passkey_reply(struct sock *sk, u16 index, void *data, u16 len)
 		return cmd_status(sk, index, MGMT_OP_USER_PASSKEY_REPLY,
 									EINVAL);
 
-	return user_pairing_resp(sk, index, &cp->bdaddr,
-			MGMT_OP_USER_PASSKEY_REPLY,
-			HCI_OP_USER_PASSKEY_REPLY, cp->passkey);
+	return user_pairing_resp(sk, index, &cp->addr.bdaddr, cp->addr.type,
+						MGMT_OP_USER_PASSKEY_REPLY,
+						HCI_OP_USER_PASSKEY_REPLY,
+						cp->passkey);
 }
 
 static int user_passkey_neg_reply(struct sock *sk, u16 index, void *data,
@@ -1762,9 +1758,9 @@ static int user_passkey_neg_reply(struct sock *sk, u16 index, void *data,
 		return cmd_status(sk, index, MGMT_OP_USER_PASSKEY_NEG_REPLY,
 									EINVAL);
 
-	return user_pairing_resp(sk, index, &cp->bdaddr,
-			MGMT_OP_USER_PASSKEY_NEG_REPLY,
-			HCI_OP_USER_PASSKEY_NEG_REPLY, 0);
+	return user_pairing_resp(sk, index, &cp->addr.bdaddr, cp->addr.type,
+					MGMT_OP_USER_PASSKEY_NEG_REPLY,
+					HCI_OP_USER_PASSKEY_NEG_REPLY, 0);
 }
 
 static int set_local_name(struct sock *sk, u16 index, void *data,
@@ -2765,13 +2761,15 @@ int mgmt_pin_code_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 }
 
 int mgmt_user_confirm_request(struct hci_dev *hdev, bdaddr_t *bdaddr,
-						__le32 value, u8 confirm_hint)
+				u8 link_type, u8 addr_type, __le32 value,
+				u8 confirm_hint)
 {
 	struct mgmt_ev_user_confirm_request ev;
 
 	BT_DBG("%s", hdev->name);
 
-	bacpy(&ev.bdaddr, bdaddr);
+	bacpy(&ev.addr.bdaddr, bdaddr);
+	ev.addr.type = link_to_mgmt(link_type, addr_type);
 	ev.confirm_hint = confirm_hint;
 	put_unaligned_le32(value, &ev.value);
 
@@ -2779,20 +2777,23 @@ int mgmt_user_confirm_request(struct hci_dev *hdev, bdaddr_t *bdaddr,
 									NULL);
 }
 
-int mgmt_user_passkey_request(struct hci_dev *hdev, bdaddr_t *bdaddr)
+int mgmt_user_passkey_request(struct hci_dev *hdev, bdaddr_t *bdaddr,
+						u8 link_type, u8 addr_type)
 {
 	struct mgmt_ev_user_passkey_request ev;
 
 	BT_DBG("%s", hdev->name);
 
-	bacpy(&ev.bdaddr, bdaddr);
+	bacpy(&ev.addr.bdaddr, bdaddr);
+	ev.addr.type = link_to_mgmt(link_type, addr_type);
 
 	return mgmt_event(MGMT_EV_USER_PASSKEY_REQUEST, hdev, &ev, sizeof(ev),
 									NULL);
 }
 
 static int user_pairing_resp_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
-							u8 status, u8 opcode)
+					u8 link_type, u8 addr_type, u8 status,
+					u8 opcode)
 {
 	struct pending_cmd *cmd;
 	struct mgmt_rp_user_confirm_reply rp;
@@ -2802,7 +2803,8 @@ static int user_pairing_resp_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	if (!cmd)
 		return -ENOENT;
 
-	bacpy(&rp.bdaddr, bdaddr);
+	bacpy(&rp.addr.bdaddr, bdaddr);
+	rp.addr.type = link_to_mgmt(link_type, addr_type);
 	rp.status = mgmt_status(status);
 	err = cmd_complete(cmd->sk, hdev->id, opcode, &rp, sizeof(rp));
 
@@ -2812,31 +2814,31 @@ static int user_pairing_resp_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 }
 
 int mgmt_user_confirm_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
-								u8 status)
+					u8 link_type, u8 addr_type, u8 status)
 {
-	return user_pairing_resp_complete(hdev, bdaddr, status,
-						MGMT_OP_USER_CONFIRM_REPLY);
+	return user_pairing_resp_complete(hdev, bdaddr, link_type, addr_type,
+					status, MGMT_OP_USER_CONFIRM_REPLY);
 }
 
-int mgmt_user_confirm_neg_reply_complete(struct hci_dev *hdev,
-						bdaddr_t *bdaddr, u8 status)
+int mgmt_user_confirm_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
+					u8 link_type, u8 addr_type, u8 status)
 {
-	return user_pairing_resp_complete(hdev, bdaddr, status,
-					MGMT_OP_USER_CONFIRM_NEG_REPLY);
+	return user_pairing_resp_complete(hdev, bdaddr, link_type, addr_type,
+					status, MGMT_OP_USER_CONFIRM_NEG_REPLY);
 }
 
 int mgmt_user_passkey_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
-								u8 status)
+					u8 link_type, u8 addr_type, u8 status)
 {
-	return user_pairing_resp_complete(hdev, bdaddr, status,
-						MGMT_OP_USER_PASSKEY_REPLY);
+	return user_pairing_resp_complete(hdev, bdaddr, link_type, addr_type,
+					status, MGMT_OP_USER_PASSKEY_REPLY);
 }
 
-int mgmt_user_passkey_neg_reply_complete(struct hci_dev *hdev,
-						bdaddr_t *bdaddr, u8 status)
+int mgmt_user_passkey_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
+					u8 link_type, u8 addr_type, u8 status)
 {
-	return user_pairing_resp_complete(hdev, bdaddr, status,
-					MGMT_OP_USER_PASSKEY_NEG_REPLY);
+	return user_pairing_resp_complete(hdev, bdaddr, link_type, addr_type,
+					status, MGMT_OP_USER_PASSKEY_NEG_REPLY);
 }
 
 int mgmt_auth_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 status)

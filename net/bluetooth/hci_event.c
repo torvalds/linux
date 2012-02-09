@@ -960,8 +960,8 @@ static void hci_cc_user_confirm_reply(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_lock(hdev);
 
 	if (test_bit(HCI_MGMT, &hdev->dev_flags))
-		mgmt_user_confirm_reply_complete(hdev, &rp->bdaddr,
-								rp->status);
+		mgmt_user_confirm_reply_complete(hdev, &rp->bdaddr, ACL_LINK,
+								0, rp->status);
 
 	hci_dev_unlock(hdev);
 }
@@ -977,6 +977,7 @@ static void hci_cc_user_confirm_neg_reply(struct hci_dev *hdev,
 
 	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		mgmt_user_confirm_neg_reply_complete(hdev, &rp->bdaddr,
+								ACL_LINK, 0,
 								rp->status);
 
 	hci_dev_unlock(hdev);
@@ -991,8 +992,8 @@ static void hci_cc_user_passkey_reply(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_dev_lock(hdev);
 
 	if (test_bit(HCI_MGMT, &hdev->dev_flags))
-		mgmt_user_passkey_reply_complete(hdev, &rp->bdaddr,
-								rp->status);
+		mgmt_user_passkey_reply_complete(hdev, &rp->bdaddr, ACL_LINK,
+								0, rp->status);
 
 	hci_dev_unlock(hdev);
 }
@@ -1008,6 +1009,7 @@ static void hci_cc_user_passkey_neg_reply(struct hci_dev *hdev,
 
 	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		mgmt_user_passkey_neg_reply_complete(hdev, &rp->bdaddr,
+								ACL_LINK, 0,
 								rp->status);
 
 	hci_dev_unlock(hdev);
@@ -3123,7 +3125,7 @@ static inline void hci_user_confirm_request_evt(struct hci_dev *hdev,
 	}
 
 confirm:
-	mgmt_user_confirm_request(hdev, &ev->bdaddr, ev->passkey,
+	mgmt_user_confirm_request(hdev, &ev->bdaddr, ACL_LINK, 0, ev->passkey,
 								confirm_hint);
 
 unlock:
@@ -3140,7 +3142,7 @@ static inline void hci_user_passkey_request_evt(struct hci_dev *hdev,
 	hci_dev_lock(hdev);
 
 	if (test_bit(HCI_MGMT, &hdev->dev_flags))
-		mgmt_user_passkey_request(hdev, &ev->bdaddr);
+		mgmt_user_passkey_request(hdev, &ev->bdaddr, ACL_LINK, 0);
 
 	hci_dev_unlock(hdev);
 }

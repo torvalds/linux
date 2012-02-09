@@ -235,31 +235,31 @@ struct mgmt_rp_unpair_device {
 
 #define MGMT_OP_USER_CONFIRM_REPLY	0x001C
 struct mgmt_cp_user_confirm_reply {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 } __packed;
 struct mgmt_rp_user_confirm_reply {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 	__u8 status;
 } __packed;
 
 #define MGMT_OP_USER_CONFIRM_NEG_REPLY	0x001D
 struct mgmt_cp_user_confirm_neg_reply {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 } __packed;
 
 #define MGMT_OP_USER_PASSKEY_REPLY	0x001E
 struct mgmt_cp_user_passkey_reply {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 	__le32 passkey;
 } __packed;
 struct mgmt_rp_user_passkey_reply {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 	__u8 status;
 } __packed;
 
 #define MGMT_OP_USER_PASSKEY_NEG_REPLY	0x001F
 struct mgmt_cp_user_passkey_neg_reply {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 } __packed;
 
 #define MGMT_OP_READ_LOCAL_OOB_DATA	0x0020
@@ -376,14 +376,14 @@ struct mgmt_ev_pin_code_request {
 
 #define MGMT_EV_USER_CONFIRM_REQUEST	0x000F
 struct mgmt_ev_user_confirm_request {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 	__u8 confirm_hint;
 	__le32 value;
 } __packed;
 
 #define MGMT_EV_USER_PASSKEY_REQUEST	0x0010
 struct mgmt_ev_user_passkey_request {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 } __packed;
 
 #define MGMT_EV_AUTH_FAILED		0x0011
