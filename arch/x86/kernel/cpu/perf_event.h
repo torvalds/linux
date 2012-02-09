@@ -539,6 +539,8 @@ void intel_pmu_lbr_init_nhm(void);
 
 void intel_pmu_lbr_init_atom(void);
 
+void intel_pmu_lbr_init_snb(void);
+
 int p4_pmu_init(void);
 
 int p6_pmu_init(void);
