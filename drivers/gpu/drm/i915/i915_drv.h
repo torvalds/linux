@@ -258,6 +258,16 @@ struct intel_device_info {
 	u8 has_llc:1;
 };
 
+#define I915_PPGTT_PD_ENTRIES 512
+#define I915_PPGTT_PT_ENTRIES 1024
+struct i915_hw_ppgtt {
+	unsigned num_pd_entries;
+	struct page **pt_pages;
+	uint32_t pd_offset;
+	dma_addr_t *pt_dma_addr;
+	dma_addr_t scratch_page_dma_addr;
+};
+
 enum no_fbc_reason {
 	FBC_NO_OUTPUT, /* no outputs enabled to compress */
 	FBC_STOLEN_TOO_SMALL, /* not enough space to hold compressed buffers */
@@ -577,6 +587,9 @@ typedef struct drm_i915_private {
 
 		struct io_mapping *gtt_mapping;
 		int gtt_mtrr;
+
+		/** PPGTT used for aliasing the PPGTT with the GTT */
+		struct i915_hw_ppgtt *aliasing_ppgtt;
 
 		struct shrinker inactive_shrinker;
 
@@ -973,6 +986,8 @@ struct drm_i915_file_private {
 #define HAS_LLC(dev)            (INTEL_INFO(dev)->has_llc)
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
+#define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >=6)
+
 #define HAS_OVERLAY(dev)		(INTEL_INFO(dev)->has_overlay)
 #define OVERLAY_NEEDS_PHYSICAL(dev)	(INTEL_INFO(dev)->overlay_needs_physical)
 
@@ -1232,6 +1247,9 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				    enum i915_cache_level cache_level);
 
 /* i915_gem_gtt.c */
+int __must_check i915_gem_init_aliasing_ppgtt(struct drm_device *dev);
+void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev);
+
 void i915_gem_restore_gtt_mappings(struct drm_device *dev);
 int __must_check i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj);
 void i915_gem_gtt_rebind_object(struct drm_i915_gem_object *obj,

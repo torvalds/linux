@@ -29,6 +29,145 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
+/* PPGTT support for Sandybdrige/Gen6 and later */
+static void i915_ppgtt_clear_range(struct i915_hw_ppgtt *ppgtt,
+				   unsigned first_entry,
+				   unsigned num_entries)
+{
+	int i, j;
+	uint32_t *pt_vaddr;
+	uint32_t scratch_pte;
+
+	scratch_pte = GEN6_PTE_ADDR_ENCODE(ppgtt->scratch_page_dma_addr);
+	scratch_pte |= GEN6_PTE_VALID | GEN6_PTE_CACHE_LLC;
+
+	for (i = 0; i < ppgtt->num_pd_entries; i++) {
+		pt_vaddr = kmap_atomic(ppgtt->pt_pages[i]);
+
+		for (j = 0; j < I915_PPGTT_PT_ENTRIES; j++)
+			pt_vaddr[j] = scratch_pte;
+
+		kunmap_atomic(pt_vaddr);
+	}
+
+}
+
+int i915_gem_init_aliasing_ppgtt(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_hw_ppgtt *ppgtt;
+	uint32_t pd_entry;
+	unsigned first_pd_entry_in_global_pt;
+	uint32_t __iomem *pd_addr;
+	int i;
+	int ret = -ENOMEM;
+
+	/* ppgtt PDEs reside in the global gtt pagetable, which has 512*1024
+	 * entries. For aliasing ppgtt support we just steal them at the end for
+	 * now. */
+	first_pd_entry_in_global_pt = 512*1024 - I915_PPGTT_PD_ENTRIES;
+
+	ppgtt = kzalloc(sizeof(*ppgtt), GFP_KERNEL);
+	if (!ppgtt)
+		return ret;
+
+	ppgtt->num_pd_entries = I915_PPGTT_PD_ENTRIES;
+	ppgtt->pt_pages = kzalloc(sizeof(struct page *)*ppgtt->num_pd_entries,
+				  GFP_KERNEL);
+	if (!ppgtt->pt_pages)
+		goto err_ppgtt;
+
+	for (i = 0; i < ppgtt->num_pd_entries; i++) {
+		ppgtt->pt_pages[i] = alloc_page(GFP_KERNEL);
+		if (!ppgtt->pt_pages[i])
+			goto err_pt_alloc;
+	}
+
+	if (dev_priv->mm.gtt->needs_dmar) {
+		ppgtt->pt_dma_addr = kzalloc(sizeof(dma_addr_t)
+						*ppgtt->num_pd_entries,
+					     GFP_KERNEL);
+		if (!ppgtt->pt_dma_addr)
+			goto err_pt_alloc;
+	}
+
+	pd_addr = dev_priv->mm.gtt->gtt + first_pd_entry_in_global_pt;
+	for (i = 0; i < ppgtt->num_pd_entries; i++) {
+		dma_addr_t pt_addr;
+		if (dev_priv->mm.gtt->needs_dmar) {
+			pt_addr = pci_map_page(dev->pdev, ppgtt->pt_pages[i],
+					       0, 4096,
+					       PCI_DMA_BIDIRECTIONAL);
+
+			if (pci_dma_mapping_error(dev->pdev,
+						  pt_addr)) {
+				ret = -EIO;
+				goto err_pd_pin;
+
+			}
+			ppgtt->pt_dma_addr[i] = pt_addr;
+		} else
+			pt_addr = page_to_phys(ppgtt->pt_pages[i]);
+
+		pd_entry = GEN6_PDE_ADDR_ENCODE(pt_addr);
+		pd_entry |= GEN6_PDE_VALID;
+
+		writel(pd_entry, pd_addr + i);
+	}
+	readl(pd_addr);
+
+	ppgtt->scratch_page_dma_addr = dev_priv->mm.gtt->scratch_page_dma;
+
+	i915_ppgtt_clear_range(ppgtt, 0,
+			       ppgtt->num_pd_entries*I915_PPGTT_PT_ENTRIES);
+
+	ppgtt->pd_offset = (first_pd_entry_in_global_pt)*sizeof(uint32_t);
+
+	dev_priv->mm.aliasing_ppgtt = ppgtt;
+
+	return 0;
+
+err_pd_pin:
+	if (ppgtt->pt_dma_addr) {
+		for (i--; i >= 0; i--)
+			pci_unmap_page(dev->pdev, ppgtt->pt_dma_addr[i],
+				       4096, PCI_DMA_BIDIRECTIONAL);
+	}
+err_pt_alloc:
+	kfree(ppgtt->pt_dma_addr);
+	for (i = 0; i < ppgtt->num_pd_entries; i++) {
+		if (ppgtt->pt_pages[i])
+			__free_page(ppgtt->pt_pages[i]);
+	}
+	kfree(ppgtt->pt_pages);
+err_ppgtt:
+	kfree(ppgtt);
+
+	return ret;
+}
+
+void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
+	int i;
+
+	if (!ppgtt)
+		return;
+
+	if (ppgtt->pt_dma_addr) {
+		for (i = 0; i < ppgtt->num_pd_entries; i++)
+			pci_unmap_page(dev->pdev, ppgtt->pt_dma_addr[i],
+				       4096, PCI_DMA_BIDIRECTIONAL);
+	}
+
+	kfree(ppgtt->pt_dma_addr);
+	for (i = 0; i < ppgtt->num_pd_entries; i++)
+		__free_page(ppgtt->pt_pages[i]);
+	kfree(ppgtt->pt_pages);
+	kfree(ppgtt);
+}
+
 /* XXX kill agp_type! */
 static unsigned int cache_level_to_agp_type(struct drm_device *dev,
 					    enum i915_cache_level cache_level)

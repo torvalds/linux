@@ -92,6 +92,22 @@
 #define  GEN6_GRDOM_MEDIA		(1 << 2)
 #define  GEN6_GRDOM_BLT			(1 << 3)
 
+/* PPGTT stuff */
+#define GEN6_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0xff0))
+
+#define GEN6_PDE_VALID			(1 << 0)
+#define GEN6_PDE_LARGE_PAGE		(2 << 0) /* use 32kb pages */
+/* gen6+ has bit 11-4 for physical addr bit 39-32 */
+#define GEN6_PDE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
+
+#define GEN6_PTE_VALID			(1 << 0)
+#define GEN6_PTE_UNCACHED		(1 << 1)
+#define GEN6_PTE_CACHE_LLC		(2 << 1)
+#define GEN6_PTE_CACHE_LLC_MLC		(3 << 1)
+#define GEN6_PTE_CACHE_BITS		(3 << 1)
+#define GEN6_PTE_GFDT			(1 << 3)
+#define GEN6_PTE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
+
 /* VGA stuff */
 
 #define VGA_ST01_MDA 0x3ba
