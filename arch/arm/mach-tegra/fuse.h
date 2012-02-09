@@ -41,6 +41,7 @@ enum tegra_revision {
 extern int tegra_sku_id;
 extern int tegra_cpu_process_id;
 extern int tegra_core_process_id;
+extern int tegra_chip_id;
 extern enum tegra_revision tegra_revision;
 
 extern int tegra_bct_strapping;

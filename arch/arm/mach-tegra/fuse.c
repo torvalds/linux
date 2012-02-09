@@ -33,7 +33,7 @@
 int tegra_sku_id;
 int tegra_cpu_process_id;
 int tegra_core_process_id;
-static int tegra_chip_id;
+int tegra_chip_id;
 enum tegra_revision tegra_revision;
 
 /* The BCT to use at boot is specified by board straps that can be read
