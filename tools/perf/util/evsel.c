@@ -126,6 +126,10 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts)
 		attr->watermark = 0;
 		attr->wakeup_events = 1;
 	}
+	if (opts->branch_stack) {
+		attr->sample_type	|= PERF_SAMPLE_BRANCH_STACK;
+		attr->branch_sample_type = opts->branch_stack;
+	}
 
 	attr->mmap = track;
 	attr->comm = track;

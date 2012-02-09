@@ -222,6 +222,7 @@ struct perf_record_opts {
 	unsigned int freq;
 	unsigned int mmap_pages;
 	unsigned int user_freq;
+	int	     branch_stack;
 	u64	     default_interval;
 	u64	     user_interval;
 	const char   *cpu_list;

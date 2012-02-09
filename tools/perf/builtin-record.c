@@ -638,6 +638,77 @@ out_delete_session:
 	return err;
 }
 
+#define BRANCH_OPT(n, m) \
+	{ .name = n, .mode = (m) }
+
+#define BRANCH_END { .name = NULL }
+
+struct branch_mode {
+	const char *name;
+	int mode;
+};
+
+static const struct branch_mode branch_modes[] = {
+	BRANCH_OPT("u", PERF_SAMPLE_BRANCH_USER),
+	BRANCH_OPT("k", PERF_SAMPLE_BRANCH_KERNEL),
+	BRANCH_OPT("hv", PERF_SAMPLE_BRANCH_HV),
+	BRANCH_OPT("any", PERF_SAMPLE_BRANCH_ANY),
+	BRANCH_OPT("any_call", PERF_SAMPLE_BRANCH_ANY_CALL),
+	BRANCH_OPT("any_ret", PERF_SAMPLE_BRANCH_ANY_RETURN),
+	BRANCH_OPT("ind_call", PERF_SAMPLE_BRANCH_IND_CALL),
+	BRANCH_END
+};
+
+static int
+parse_branch_stack(const struct option *opt, const char *str, int unset __used)
+{
+#define ONLY_PLM \
+	(PERF_SAMPLE_BRANCH_USER	|\
+	 PERF_SAMPLE_BRANCH_KERNEL	|\
+	 PERF_SAMPLE_BRANCH_HV)
+
+	uint64_t *mode = (uint64_t *)opt->value;
+	const struct branch_mode *br;
+	char *s, *os, *p;
+	int ret = -1;
+
+	*mode = 0;
+
+	/* because str is read-only */
+	s = os = strdup(str);
+	if (!s)
+		return -1;
+
+	for (;;) {
+		p = strchr(s, ',');
+		if (p)
+			*p = '\0';
+
+		for (br = branch_modes; br->name; br++) {
+			if (!strcasecmp(s, br->name))
+				break;
+		}
+		if (!br->name)
+			goto error;
+
+		*mode |= br->mode;
+
+		if (!p)
+			break;
+
+		s = p + 1;
+	}
+	ret = 0;
+
+	if ((*mode & ~ONLY_PLM) == 0) {
+		error("need at least one branch type with -b\n");
+		ret = -1;
+	}
+error:
+	free(os);
+	return ret;
+}
+
 static const char * const record_usage[] = {
 	"perf record [<options>] [<command>]",
 	"perf record [<options>] -- <command> [<options>]",
@@ -727,6 +798,9 @@ const struct option record_options[] = {
 		     "monitor event in cgroup name only",
 		     parse_cgroups),
 	OPT_STRING('u', "uid", &record.uid_str, "user", "user to profile"),
+	OPT_CALLBACK('b', "branch-stack", &record.opts.branch_stack,
+		     "branch mode mask", "branch stack sampling modes",
+		     parse_branch_stack),
 	OPT_END()
 };
 
