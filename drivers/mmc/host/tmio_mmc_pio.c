@@ -916,6 +916,10 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	else
 		mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
+	_host->native_hotplug = !(pdata->flags & TMIO_MMC_HAS_COLD_CD ||
+				  mmc->caps & MMC_CAP_NEEDS_POLL ||
+				  mmc->caps & MMC_CAP_NONREMOVABLE);
+
 	pdata->power = false;
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_resume(&pdev->dev);
@@ -934,9 +938,7 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	 *  additionally ensure that in case 2) the tmio mmc hardware stays
 	 *  powered on during runtime for the card detection to work.
 	 */
-	if (!(pdata->flags & TMIO_MMC_HAS_COLD_CD
-		|| mmc->caps & MMC_CAP_NEEDS_POLL
-		|| mmc->caps & MMC_CAP_NONREMOVABLE))
+	if (_host->native_hotplug)
 		pm_runtime_get_noresume(&pdev->dev);
 
 	tmio_mmc_clk_stop(_host);
@@ -996,9 +998,7 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 	 * the controller, the runtime PM is suspended and pdata->power == false,
 	 * so, our .runtime_resume() will not try to detect a card in the slot.
 	 */
-	if (host->pdata->flags & TMIO_MMC_HAS_COLD_CD
-		|| host->mmc->caps & MMC_CAP_NEEDS_POLL
-		|| host->mmc->caps & MMC_CAP_NONREMOVABLE)
+	if (!host->native_hotplug)
 		pm_runtime_get_sync(&pdev->dev);
 
 	dev_pm_qos_hide_latency_limit(&pdev->dev);

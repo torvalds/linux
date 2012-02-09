@@ -86,6 +86,7 @@ struct tmio_mmc_host {
 	spinlock_t		lock;		/* protect host private data */
 	unsigned long		last_req_ts;
 	struct mutex		ios_lock;	/* protect set_ios() context */
+	bool			native_hotplug;
 };
 
 int tmio_mmc_host_probe(struct tmio_mmc_host **host,
