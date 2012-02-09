@@ -253,7 +253,8 @@ gmbus_xfer(struct i2c_adapter *adapter,
 
 		if (msgs[i].flags & I2C_M_RD) {
 			I915_WRITE(GMBUS1 + reg_offset,
-				   GMBUS_CYCLE_WAIT | (i + 1 == num ? GMBUS_CYCLE_STOP : 0) |
+				   GMBUS_CYCLE_WAIT |
+				   (i + 1 == num ? GMBUS_CYCLE_STOP : 0) |
 				   (len << GMBUS_BYTE_COUNT_SHIFT) |
 				   (msgs[i].addr << GMBUS_SLAVE_ADDR_SHIFT) |
 				   GMBUS_SLAVE_READ | GMBUS_SW_RDY);
@@ -282,7 +283,8 @@ gmbus_xfer(struct i2c_adapter *adapter,
 
 			I915_WRITE(GMBUS3 + reg_offset, val);
 			I915_WRITE(GMBUS1 + reg_offset,
-				   (i + 1 == num ? GMBUS_CYCLE_STOP : GMBUS_CYCLE_WAIT) |
+				   GMBUS_CYCLE_WAIT |
+				   (i + 1 == num ? GMBUS_CYCLE_STOP : 0) |
 				   (msgs[i].len << GMBUS_BYTE_COUNT_SHIFT) |
 				   (msgs[i].addr << GMBUS_SLAVE_ADDR_SHIFT) |
 				   GMBUS_SLAVE_WRITE | GMBUS_SW_RDY);
@@ -321,9 +323,12 @@ clear_err:
 	I915_WRITE(GMBUS1 + reg_offset, 0);
 
 done:
-	/* Mark the GMBUS interface as disabled. We will re-enable it at the
-	 * start of the next xfer, till then let it sleep.
+	/* Mark the GMBUS interface as disabled after waiting for idle.
+	 * We will re-enable it at the start of the next xfer,
+	 * till then let it sleep.
 	 */
+	if (wait_for((I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0, 10))
+		DRM_INFO("GMBUS timed out waiting for idle\n");
 	I915_WRITE(GMBUS0 + reg_offset, 0);
 	ret = i;
 	goto out;
