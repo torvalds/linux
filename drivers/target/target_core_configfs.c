@@ -1704,12 +1704,14 @@ static ssize_t target_core_store_dev_alias(
 		return -EINVAL;
 	}
 
-	se_dev->su_dev_flags |= SDF_USING_ALIAS;
 	read_bytes = snprintf(&se_dev->se_dev_alias[0], SE_DEV_ALIAS_LEN,
 			"%s", page);
-
+	if (!read_bytes)
+		return -EINVAL;
 	if (se_dev->se_dev_alias[read_bytes - 1] == '\n')
 		se_dev->se_dev_alias[read_bytes - 1] = '\0';
+
+	se_dev->su_dev_flags |= SDF_USING_ALIAS;
 
 	pr_debug("Target_Core_ConfigFS: %s/%s set alias: %s\n",
 		config_item_name(&hba->hba_group.cg_item),
@@ -1753,12 +1755,14 @@ static ssize_t target_core_store_dev_udev_path(
 		return -EINVAL;
 	}
 
-	se_dev->su_dev_flags |= SDF_USING_UDEV_PATH;
 	read_bytes = snprintf(&se_dev->se_dev_udev_path[0], SE_UDEV_PATH_LEN,
 			"%s", page);
-
+	if (!read_bytes)
+		return -EINVAL;
 	if (se_dev->se_dev_udev_path[read_bytes - 1] == '\n')
 		se_dev->se_dev_udev_path[read_bytes - 1] = '\0';
+
+	se_dev->su_dev_flags |= SDF_USING_UDEV_PATH;
 
 	pr_debug("Target_Core_ConfigFS: %s/%s set udev_path: %s\n",
 		config_item_name(&hba->hba_group.cg_item),
