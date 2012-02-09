@@ -5255,9 +5255,9 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	memcpy(icb->enode_mac, nv->enode_mac, sizeof(icb->enode_mac));
 	/* Some boards (with valid NVRAMs) still have NULL enode_mac!! */
 	if (!memcmp(icb->enode_mac, "\0\0\0\0\0\0", sizeof(icb->enode_mac))) {
-		icb->enode_mac[0] = 0x01;
-		icb->enode_mac[1] = 0x02;
-		icb->enode_mac[2] = 0x03;
+		icb->enode_mac[0] = 0x00;
+		icb->enode_mac[1] = 0xC0;
+		icb->enode_mac[2] = 0xDD;
 		icb->enode_mac[3] = 0x04;
 		icb->enode_mac[4] = 0x05;
 		icb->enode_mac[5] = 0x06 + ha->port_no;
