@@ -412,3 +412,8 @@ struct mgmt_ev_device_blocked {
 struct mgmt_ev_device_unblocked {
 	struct mgmt_addr_info addr;
 } __packed;
+
+#define MGMT_EV_DEVICE_UNPAIRED		0x0016
+struct mgmt_ev_device_unpaired {
+	struct mgmt_addr_info addr;
+} __packed;
