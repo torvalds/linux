@@ -40,8 +40,8 @@ struct dngl_stats {
 struct brcmf_bus {
 	u8 type;		/* bus type */
 	union {
-		/* pointer to sdio private structure */
 		struct brcmf_sdio_dev *sdio;
+		struct brcmf_usbdev *usb;
 	} bus_priv;
 	struct brcmf_pub *drvr;	/* pointer to driver pub structure brcmf_pub */
 	enum brcmf_bus_state state;
@@ -109,6 +109,10 @@ extern int brcmf_add_if(struct device *dev, int ifidx,
 #ifdef CONFIG_BRCMFMAC_SDIO
 extern void brcmf_sdio_exit(void);
 extern int brcmf_sdio_init(void);
+#endif
+#ifdef CONFIG_BRCMFMAC_USB
+extern void brcmf_usb_exit(void);
+extern int brcmf_usb_init(void);
 #endif
 
 #endif				/* _BRCMF_BUS_H_ */

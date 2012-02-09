@@ -19,6 +19,8 @@ ccflags-y += \
 	-Idrivers/net/wireless/brcm80211/brcmfmac	\
 	-Idrivers/net/wireless/brcm80211/include
 
+ccflags-y += -D__CHECK_ENDIAN__
+
 obj-$(CONFIG_BRCMFMAC) += brcmfmac.o
 brcmfmac-objs += \
 		wl_cfg80211.o \
@@ -30,5 +32,5 @@ brcmfmac-$(CONFIG_BRCMFMAC_SDIO) += \
 		bcmsdh.o \
 		bcmsdh_sdmmc.o \
 		sdio_chip.o
-
-ccflags-y += -D__CHECK_ENDIAN__
+brcmfmac-$(CONFIG_BRCMFMAC_USB) += \
+		usb.o

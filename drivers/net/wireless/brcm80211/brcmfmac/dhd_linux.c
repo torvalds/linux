@@ -1190,6 +1190,11 @@ static int __init brcmfmac_init(void)
 	if (ret)
 		goto fail;
 #endif
+#ifdef CONFIG_BRCMFMAC_USB
+	ret = brcmf_usb_init();
+	if (ret)
+		goto fail;
+#endif
 
 fail:
 	return ret;
@@ -1199,6 +1204,9 @@ static void __exit brcmfmac_exit(void)
 {
 #ifdef CONFIG_BRCMFMAC_SDIO
 	brcmf_sdio_exit();
+#endif
+#ifdef CONFIG_BRCMFMAC_USB
+	brcmf_usb_exit();
 #endif
 }
 
