@@ -177,10 +177,10 @@ struct mgmt_cp_load_long_term_keys {
 
 #define MGMT_OP_DISCONNECT		0x0014
 struct mgmt_cp_disconnect {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 } __packed;
 struct mgmt_rp_disconnect {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 	__u8 status;
 } __packed;
 

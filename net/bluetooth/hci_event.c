@@ -1550,6 +1550,28 @@ static void hci_cs_exit_sniff_mode(struct hci_dev *hdev, __u8 status)
 	hci_dev_unlock(hdev);
 }
 
+static void hci_cs_disconnect(struct hci_dev *hdev, u8 status)
+{
+	struct hci_cp_disconnect *cp;
+	struct hci_conn *conn;
+
+	if (!status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_DISCONNECT);
+	if (!cp)
+		return;
+
+	hci_dev_lock(hdev);
+
+	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(cp->handle));
+	if (conn)
+		mgmt_disconnect_failed(hdev, &conn->dst, conn->type,
+						conn->dst_type, status);
+
+	hci_dev_unlock(hdev);
+}
+
 static void hci_cs_le_create_conn(struct hci_dev *hdev, __u8 status)
 {
 	struct hci_cp_le_create_conn *cp;
@@ -1839,7 +1861,8 @@ static inline void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff
 	if (test_and_clear_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags) &&
 			(conn->type == ACL_LINK || conn->type == LE_LINK)) {
 		if (ev->status != 0)
-			mgmt_disconnect_failed(hdev, &conn->dst, ev->status);
+			mgmt_disconnect_failed(hdev, &conn->dst, conn->type,
+						conn->dst_type, ev->status);
 		else
 			mgmt_device_disconnected(hdev, &conn->dst, conn->type,
 							conn->dst_type);
@@ -2350,8 +2373,7 @@ static inline void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		break;
 
 	case HCI_OP_DISCONNECT:
-		if (ev->status != 0)
-			mgmt_disconnect_failed(hdev, NULL, ev->status);
+		hci_cs_disconnect(hdev, ev->status);
 		break;
 
 	case HCI_OP_LE_CREATE_CONN:
