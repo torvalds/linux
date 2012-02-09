@@ -3233,9 +3233,6 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 	if (ha->sfp_data)
 		dma_pool_free(ha->s_dma_pool, ha->sfp_data, ha->sfp_data_dma);
 
-	if (ha->edc_data)
-		dma_pool_free(ha->s_dma_pool, ha->edc_data, ha->edc_data_dma);
-
 	if (ha->ms_iocb)
 		dma_pool_free(ha->s_dma_pool, ha->ms_iocb, ha->ms_iocb_dma);
 

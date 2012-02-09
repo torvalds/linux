@@ -2646,10 +2646,6 @@ struct qla_hw_data {
 	void		*sfp_data;
 	dma_addr_t	sfp_data_dma;
 
-	uint8_t		*edc_data;
-	dma_addr_t	edc_data_dma;
-	uint16_t	edc_data_len;
-
 #define XGMAC_DATA_SIZE	4096
 	void		*xgmac_data;
 	dma_addr_t	xgmac_data_dma;
