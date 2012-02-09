@@ -1605,21 +1605,21 @@ static struct platform_device pinmux_device = {
 };
 
 /* Pinmux settings */
-static struct pinmux_map __initdata u300_pinmux_map[] = {
+static struct pinctrl_map __initdata u300_pinmux_map[] = {
 	/* anonymous maps for chip power and EMIFs */
-	PINMUX_MAP_SYS_HOG("POWER", "pinmux-u300", "power"),
-	PINMUX_MAP_SYS_HOG("EMIF0", "pinmux-u300", "emif0"),
-	PINMUX_MAP_SYS_HOG("EMIF1", "pinmux-u300", "emif1"),
+	PIN_MAP_SYS_HOG("POWER", "pinmux-u300", "power"),
+	PIN_MAP_SYS_HOG("EMIF0", "pinmux-u300", "emif0"),
+	PIN_MAP_SYS_HOG("EMIF1", "pinmux-u300", "emif1"),
 	/* per-device maps for MMC/SD, SPI and UART */
-	PINMUX_MAP("MMCSD", "pinmux-u300", "mmc0", "mmci"),
-	PINMUX_MAP("SPI", "pinmux-u300", "spi0", "pl022"),
-	PINMUX_MAP("UART0", "pinmux-u300", "uart0", "uart0"),
+	PIN_MAP("MMCSD", "pinmux-u300", "mmc0", "mmci"),
+	PIN_MAP("SPI", "pinmux-u300", "spi0", "pl022"),
+	PIN_MAP("UART0", "pinmux-u300", "uart0", "uart0"),
 };
 
 struct u300_mux_hog {
 	const char *name;
 	struct device *dev;
-	struct pinmux *pmx;
+	struct pinctrl *p;
 };
 
 static struct u300_mux_hog u300_mux_hogs[] = {
@@ -1637,31 +1637,31 @@ static struct u300_mux_hog u300_mux_hogs[] = {
 	},
 };
 
-static int __init u300_pinmux_fetch(void)
+static int __init u300_pinctrl_fetch(void)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(u300_mux_hogs); i++) {
-		struct pinmux *pmx;
+		struct pinctrl *p;
 		int ret;
 
-		pmx = pinmux_get(u300_mux_hogs[i].dev, NULL);
-		if (IS_ERR(pmx)) {
+		p = pinctrl_get(u300_mux_hogs[i].dev, NULL);
+		if (IS_ERR(p)) {
 			pr_err("u300: could not get pinmux hog %s\n",
 			       u300_mux_hogs[i].name);
 			continue;
 		}
-		ret = pinmux_enable(pmx);
+		ret = pinctrl_enable(p);
 		if (ret) {
 			pr_err("u300: could enable pinmux hog %s\n",
 			       u300_mux_hogs[i].name);
 			continue;
 		}
-		u300_mux_hogs[i].pmx = pmx;
+		u300_mux_hogs[i].p = p;
 	}
 	return 0;
 }
-subsys_initcall(u300_pinmux_fetch);
+subsys_initcall(u300_pinctrl_fetch);
 
 /*
  * Notice that AMBA devices are initialized before platform devices.
@@ -1861,8 +1861,8 @@ void __init u300_init_devices(void)
 	u300_assign_physmem();
 
 	/* Initialize pinmuxing */
-	pinmux_register_mappings(u300_pinmux_map,
-				 ARRAY_SIZE(u300_pinmux_map));
+	pinctrl_register_mappings(u300_pinmux_map,
+				  ARRAY_SIZE(u300_pinmux_map));
 
 	/* Register subdevices on the I2C buses */
 	u300_i2c_register_board_devices();

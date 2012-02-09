@@ -624,7 +624,7 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	mutex_lock(&pinctrldev_list_mutex);
 	list_add(&pctldev->node, &pinctrldev_list);
 	mutex_unlock(&pinctrldev_list_mutex);
-	pinmux_hog_maps(pctldev);
+	pinctrl_hog_maps(pctldev);
 	return pctldev;
 
 out_err:
@@ -645,7 +645,7 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 		return;
 
 	pinctrl_remove_device_debugfs(pctldev);
-	pinmux_unhog_maps(pctldev);
+	pinctrl_unhog_maps(pctldev);
 	/* TODO: check that no pinmuxes are still active? */
 	mutex_lock(&pinctrldev_list_mutex);
 	list_del(&pctldev->node);

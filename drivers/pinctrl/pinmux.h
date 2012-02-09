@@ -16,8 +16,8 @@ int pinmux_check_ops(struct pinctrl_dev *pctldev);
 void pinmux_init_device_debugfs(struct dentry *devroot,
 				struct pinctrl_dev *pctldev);
 void pinmux_init_debugfs(struct dentry *subsys_root);
-int pinmux_hog_maps(struct pinctrl_dev *pctldev);
-void pinmux_unhog_maps(struct pinctrl_dev *pctldev);
+int pinctrl_hog_maps(struct pinctrl_dev *pctldev);
+void pinctrl_unhog_maps(struct pinctrl_dev *pctldev);
 
 #else
 
@@ -35,12 +35,12 @@ static inline void pinmux_init_debugfs(struct dentry *subsys_root)
 {
 }
 
-static inline int pinmux_hog_maps(struct pinctrl_dev *pctldev)
+static inline int pinctrl_hog_maps(struct pinctrl_dev *pctldev)
 {
 	return 0;
 }
 
-static inline void pinmux_unhog_maps(struct pinctrl_dev *pctldev)
+static inline void pinctrl_unhog_maps(struct pinctrl_dev *pctldev)
 {
 }
 

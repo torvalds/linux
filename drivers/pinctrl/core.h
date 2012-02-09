@@ -28,8 +28,8 @@ struct pinctrl_gpio_range;
  * @owner: module providing the pin controller, used for refcounting
  * @driver_data: driver data for drivers registering to the pin controller
  *	subsystem
- * @pinmux_hogs_lock: lock for the pinmux hog list
- * @pinmux_hogs: list of pinmux maps hogged by this device
+ * @pinctrl_hogs_lock: lock for the pin control hog list
+ * @pinctrl_hogs: list of pin control maps hogged by this device
  */
 struct pinctrl_dev {
 	struct list_head node;
@@ -45,8 +45,8 @@ struct pinctrl_dev {
 	struct dentry *device_root;
 #endif
 #ifdef CONFIG_PINMUX
-	struct mutex pinmux_hogs_lock;
-	struct list_head pinmux_hogs;
+	struct mutex pinctrl_hogs_lock;
+	struct list_head pinctrl_hogs;
 #endif
 };
 

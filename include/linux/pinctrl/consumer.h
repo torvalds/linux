@@ -17,56 +17,56 @@
 #include "pinctrl.h"
 
 /* This struct is private to the core and should be regarded as a cookie */
-struct pinmux;
+struct pinctrl;
 
 #ifdef CONFIG_PINMUX
 
 /* External interface to pinmux */
-extern int pinmux_request_gpio(unsigned gpio);
-extern void pinmux_free_gpio(unsigned gpio);
-extern int pinmux_gpio_direction_input(unsigned gpio);
-extern int pinmux_gpio_direction_output(unsigned gpio);
-extern struct pinmux * __must_check pinmux_get(struct device *dev, const char *name);
-extern void pinmux_put(struct pinmux *pmx);
-extern int pinmux_enable(struct pinmux *pmx);
-extern void pinmux_disable(struct pinmux *pmx);
+extern int pinctrl_request_gpio(unsigned gpio);
+extern void pinctrl_free_gpio(unsigned gpio);
+extern int pinctrl_gpio_direction_input(unsigned gpio);
+extern int pinctrl_gpio_direction_output(unsigned gpio);
+extern struct pinctrl * __must_check pinctrl_get(struct device *dev, const char *name);
+extern void pinctrl_put(struct pinctrl *p);
+extern int pinctrl_enable(struct pinctrl *p);
+extern void pinctrl_disable(struct pinctrl *p);
 
 #else /* !CONFIG_PINMUX */
 
-static inline int pinmux_request_gpio(unsigned gpio)
+static inline int pinctrl_request_gpio(unsigned gpio)
 {
 	return 0;
 }
 
-static inline void pinmux_free_gpio(unsigned gpio)
+static inline void pinctrl_free_gpio(unsigned gpio)
 {
 }
 
-static inline int pinmux_gpio_direction_input(unsigned gpio)
-{
-	return 0;
-}
-
-static inline int pinmux_gpio_direction_output(unsigned gpio)
+static inline int pinctrl_gpio_direction_input(unsigned gpio)
 {
 	return 0;
 }
 
-static inline struct pinmux * __must_check pinmux_get(struct device *dev, const char *name)
+static inline int pinctrl_gpio_direction_output(unsigned gpio)
+{
+	return 0;
+}
+
+static inline struct pinctrl * __must_check pinctrl_get(struct device *dev, const char *name)
 {
 	return NULL;
 }
 
-static inline void pinmux_put(struct pinmux *pmx)
+static inline void pinctrl_put(struct pinctrl *p)
 {
 }
 
-static inline int pinmux_enable(struct pinmux *pmx)
+static inline int pinctrl_enable(struct pinctrl *p)
 {
 	return 0;
 }
 
-static inline void pinmux_disable(struct pinmux *pmx)
+static inline void pinctrl_disable(struct pinctrl *p)
 {
 }
 

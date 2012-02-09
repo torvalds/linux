@@ -9,11 +9,11 @@
  *
  * License terms: GNU General Public License (GPL) version 2
  */
-#ifndef __LINUX_PINMUX_MACHINE_H
-#define __LINUX_PINMUX_MACHINE_H
+#ifndef __LINUX_PINCTRL_MACHINE_H
+#define __LINUX_PINCTRL_MACHINE_H
 
 /**
- * struct pinmux_map - boards/machines shall provide this map for devices
+ * struct pinctrl_map - boards/machines shall provide this map for devices
  * @name: the name of this specific map entry for the particular machine.
  *	This is the second parameter passed to pinmux_get() when you want
  *	to have several mappings to the same device
@@ -34,7 +34,7 @@
  *	a pinmux device supporting it is registered. These maps will not be
  *	disabled and put until the system shuts down.
  */
-struct pinmux_map {
+struct pinctrl_map {
 	const char *name;
 	const char *ctrl_dev_name;
 	const char *function;
@@ -47,41 +47,41 @@ struct pinmux_map {
  * Convenience macro to set a simple map from a certain pin controller and a
  * certain function to a named device
  */
-#define PINMUX_MAP(a, b, c, d) \
+#define PIN_MAP(a, b, c, d) \
 	{ .name = a, .ctrl_dev_name = b, .function = c, .dev_name = d }
 
 /*
  * Convenience macro to map a system function onto a certain pinctrl device.
  * System functions are not assigned to a particular device.
  */
-#define PINMUX_MAP_SYS(a, b, c) \
+#define PIN_MAP_SYS(a, b, c) \
 	{ .name = a, .ctrl_dev_name = b, .function = c }
 
 /*
  * Convenience macro to map a system function onto a certain pinctrl device,
- * to be hogged by the pinmux core until the system shuts down.
+ * to be hogged by the pin control core until the system shuts down.
  */
-#define PINMUX_MAP_SYS_HOG(a, b, c) \
+#define PIN_MAP_SYS_HOG(a, b, c) \
 	{ .name = a, .ctrl_dev_name = b, .function = c, \
 	  .hog_on_boot = true }
 
 /*
  * Convenience macro to map a system function onto a certain pinctrl device
- * using a specified group, to be hogged by the pinmux core until the system
- * shuts down.
+ * using a specified group, to be hogged by the pin control core until the
+ * system shuts down.
  */
-#define PINMUX_MAP_SYS_HOG_GROUP(a, b, c, d)		\
+#define PIN_MAP_SYS_HOG_GROUP(a, b, c, d)		\
 	{ .name = a, .ctrl_dev_name = b, .function = c, .group = d, \
 	  .hog_on_boot = true }
 
 #ifdef CONFIG_PINMUX
 
-extern int pinmux_register_mappings(struct pinmux_map const *map,
+extern int pinctrl_register_mappings(struct pinctrl_map const *map,
 				unsigned num_maps);
 
 #else
 
-static inline int pinmux_register_mappings(struct pinmux_map const *map,
+static inline int pinctrl_register_mappings(struct pinctrl_map const *map,
 					   unsigned num_maps)
 {
 	return 0;

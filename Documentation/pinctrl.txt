@@ -728,19 +728,19 @@ same time.
 All the above functions are mandatory to implement for a pinmux driver.
 
 
-Pinmux interaction with the GPIO subsystem
-==========================================
+Pin control interaction with the GPIO subsystem
+===============================================
 
-The public pinmux API contains two functions named pinmux_request_gpio()
-and pinmux_free_gpio(). These two functions shall *ONLY* be called from
+The public pinmux API contains two functions named pinctrl_request_gpio()
+and pinctrl_free_gpio(). These two functions shall *ONLY* be called from
 gpiolib-based drivers as part of their gpio_request() and
-gpio_free() semantics. Likewise the pinmux_gpio_direction_[input|output]
+gpio_free() semantics. Likewise the pinctrl_gpio_direction_[input|output]
 shall only be called from within respective gpio_direction_[input|output]
 gpiolib implementation.
 
 NOTE that platforms and individual drivers shall *NOT* request GPIO pins to be
-muxed in. Instead, implement a proper gpiolib driver and have that driver
-request proper muxing for its pins.
+controlled e.g. muxed in. Instead, implement a proper gpiolib driver and have
+that driver request proper muxing and other control for its pins.
 
 The function list could become long, especially if you can convert every
 individual pin into a GPIO pin independent of any other pins, and then try
@@ -749,7 +749,7 @@ the approach to define every pin as a function.
 In this case, the function array would become 64 entries for each GPIO
 setting and then the device functions.
 
-For this reason there are two functions a pinmux driver can implement
+For this reason there are two functions a pin control driver can implement
 to enable only GPIO on an individual pin: .gpio_request_enable() and
 .gpio_disable_free().
 
@@ -764,7 +764,7 @@ gpiolib driver and the affected GPIO range, pin offset and desired direction
 will be passed along to this function.
 
 Alternatively to using these special functions, it is fully allowed to use
-named functions for each GPIO pin, the pinmux_request_gpio() will attempt to
+named functions for each GPIO pin, the pinctrl_request_gpio() will attempt to
 obtain the function "gpioN" where "N" is the global GPIO pin number if no
 special GPIO-handler is registered.
 
@@ -783,7 +783,7 @@ spi on the second function mapping:
 
 #include <linux/pinctrl/machine.h>
 
-static const struct pinmux_map __initdata pmx_mapping[] = {
+static const struct pinctrl_map __initdata mapping[] = {
 	{
 		.ctrl_dev_name = "pinctrl-foo",
 		.function = "spi0",
@@ -811,14 +811,14 @@ to map.
 
 You register this pinmux mapping to the pinmux subsystem by simply:
 
-       ret = pinmux_register_mappings(pmx_mapping, ARRAY_SIZE(pmx_mapping));
+       ret = pinctrl_register_mappings(mapping, ARRAY_SIZE(mapping));
 
 Since the above construct is pretty common there is a helper macro to make
 it even more compact which assumes you want to use pinctrl-foo and position
 0 for mapping, for example:
 
-static struct pinmux_map __initdata pmx_mapping[] = {
-       PINMUX_MAP("I2CMAP", "pinctrl-foo", "i2c0", "foo-i2c.0"),
+static struct pinctrl_map __initdata mapping[] = {
+       PIN_MAP("I2CMAP", "pinctrl-foo", "i2c0", "foo-i2c.0"),
 };
 
 
@@ -901,7 +901,7 @@ case), we define a mapping like this:
 The result of grabbing this mapping from the device with something like
 this (see next paragraph):
 
-	pmx = pinmux_get(&device, "8bit");
+	p = pinctrl_get(&device, "8bit");
 
 Will be that you activate all the three bottom records in the mapping at
 once. Since they share the same name, pin controller device, funcion and
@@ -913,44 +913,44 @@ pinmux core.
 Pinmux requests from drivers
 ============================
 
-Generally it is discouraged to let individual drivers get and enable pinmuxes.
-So if possible, handle the pinmuxes in platform code or some other place where
-you have access to all the affected struct device * pointers. In some cases
-where a driver needs to switch between different mux mappings at runtime
-this is not possible.
+Generally it is discouraged to let individual drivers get and enable pin
+control. So if possible, handle the pin control in platform code or some other
+place where you have access to all the affected struct device * pointers. In
+some cases where a driver needs to e.g. switch between different mux mappings
+at runtime this is not possible.
 
-A driver may request a certain mux to be activated, usually just the default
-mux like this:
+A driver may request a certain control state to be activated, usually just the
+default state like this:
 
 #include <linux/pinctrl/consumer.h>
 
 struct foo_state {
-       struct pinmux *pmx;
+       struct pinctrl *p;
        ...
 };
 
 foo_probe()
 {
 	/* Allocate a state holder named "state" etc */
-	struct pinmux pmx;
+	struct pinctrl p;
 
-	pmx = pinmux_get(&device, NULL);
-	if IS_ERR(pmx)
-		return PTR_ERR(pmx);
-	pinmux_enable(pmx);
+	p = pinctrl_get(&device, NULL);
+	if IS_ERR(p)
+		return PTR_ERR(p);
+	pinctrl_enable(p);
 
-	state->pmx = pmx;
+	state->p = p;
 }
 
 foo_remove()
 {
-	pinmux_disable(state->pmx);
-	pinmux_put(state->pmx);
+	pinctrl_disable(state->p);
+	pinctrl_put(state->p);
 }
 
-If you want to grab a specific mux mapping and not just the first one found for
-this device you can specify a specific mapping name, for example in the above
-example the second i2c0 setting: pinmux_get(&device, "spi0-pos-B");
+If you want to grab a specific control mapping and not just the first one
+found for this device you can specify a specific mapping name, for example in
+the above example the second i2c0 setting: pinctrl_get(&device, "spi0-pos-B");
 
 This get/enable/disable/put sequence can just as well be handled by bus drivers
 if you don't want each and every driver to handle it and you know the
@@ -958,35 +958,35 @@ arrangement on your bus.
 
 The semantics of the get/enable respective disable/put is as follows:
 
-- pinmux_get() is called in process context to reserve the pins affected with
+- pinctrl_get() is called in process context to reserve the pins affected with
   a certain mapping and set up the pinmux core and the driver. It will allocate
   a struct from the kernel memory to hold the pinmux state.
 
-- pinmux_enable()/pinmux_disable() is quick and can be called from fastpath
+- pinctrl_enable()/pinctrl_disable() is quick and can be called from fastpath
   (irq context) when you quickly want to set up/tear down the hardware muxing
   when running a device driver. Usually it will just poke some values into a
   register.
 
-- pinmux_disable() is called in process context to tear down the pin requests
-  and release the state holder struct for the mux setting.
+- pinctrl_disable() is called in process context to tear down the pin requests
+  and release the state holder struct for the mux setting etc.
 
-Usually the pinmux core handled the get/put pair and call out to the device
-drivers bookkeeping operations, like checking available functions and the
-associated pins, whereas the enable/disable pass on to the pin controller
+Usually the pin control core handled the get/put pair and call out to the
+device drivers bookkeeping operations, like checking available functions and
+the associated pins, whereas the enable/disable pass on to the pin controller
 driver which takes care of activating and/or deactivating the mux setting by
 quickly poking some registers.
 
-The pins are allocated for your device when you issue the pinmux_get() call,
+The pins are allocated for your device when you issue the pinctrl_get() call,
 after this you should be able to see this in the debugfs listing of all pins.
 
 
-System pinmux hogging
-=====================
+System pin control hogging
+==========================
 
-A system pinmux map entry, i.e. a pinmux setting that does not have a device
-associated with it, can be hogged by the core when the pin controller is
-registered. This means that the core will attempt to call pinmux_get() and
-pinmux_enable() on it immediately after the pin control device has been
+A system pin control map entry, i.e. a pin control setting that does not have
+a device associated with it, can be hogged by the core when the pin controller
+is registered. This means that the core will attempt to call pinctrl_get() and
+pinctrl_enable() on it immediately after the pin control device has been
 registered.
 
 This is enabled by simply setting the .hog_on_boot field in the map to true,
@@ -1003,7 +1003,7 @@ Since it may be common to request the core to hog a few always-applicable
 mux settings on the primary pin controller, there is a convenience macro for
 this:
 
-PINMUX_MAP_PRIMARY_SYS_HOG("POWERMAP", "power_func")
+PIN_MAP_PRIMARY_SYS_HOG("POWERMAP", "power_func")
 
 This gives the exact same result as the above construction.
 
@@ -1025,23 +1025,23 @@ it, disables and releases it, and muxes it in on the pins defined by group B:
 
 foo_switch()
 {
-	struct pinmux *pmx;
+	struct pinctrl *p;
 
 	/* Enable on position A */
-	pmx = pinmux_get(&device, "spi0-pos-A");
-	if IS_ERR(pmx)
-		return PTR_ERR(pmx);
-	pinmux_enable(pmx);
+	p = pinctrl_get(&device, "spi0-pos-A");
+	if IS_ERR(p)
+		return PTR_ERR(p);
+	pinctrl_enable(p);
 
 	/* This releases the pins again */
-	pinmux_disable(pmx);
-	pinmux_put(pmx);
+	pinctrl_disable(p);
+	pinctrl_put(p);
 
 	/* Enable on position B */
-	pmx = pinmux_get(&device, "spi0-pos-B");
-	if IS_ERR(pmx)
-		return PTR_ERR(pmx);
-	pinmux_enable(pmx);
+	p = pinctrl_get(&device, "spi0-pos-B");
+	if IS_ERR(p)
+		return PTR_ERR(p);
+	pinctrl_enable(p);
 	...
 }
 
