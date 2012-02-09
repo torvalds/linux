@@ -15,6 +15,7 @@ void __init rk30_init_irq(void);
 void __init rk30_map_io(void);
 struct machine_desc;
 void __init rk30_fixup(struct machine_desc *desc, struct tag *tags, char **cmdline, struct meminfo *mi);
+void __init rk30_clock_init(void);
 
 extern struct sys_timer rk30_timer;
 
