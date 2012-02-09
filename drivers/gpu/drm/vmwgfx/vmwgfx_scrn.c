@@ -394,6 +394,7 @@ static struct drm_crtc_funcs vmw_screen_object_crtc_funcs = {
 	.gamma_set = vmw_du_crtc_gamma_set,
 	.destroy = vmw_sou_crtc_destroy,
 	.set_config = vmw_sou_crtc_set_config,
+	.page_flip = vmw_du_page_flip,
 };
 
 /*
@@ -534,4 +535,37 @@ int vmw_kms_close_screen_object_display(struct vmw_private *dev_priv)
 	kfree(dev_priv->sou_priv);
 
 	return 0;
+}
+
+/**
+ * Returns if this unit can be page flipped.
+ * Must be called with the mode_config mutex held.
+ */
+bool vmw_kms_screen_object_flippable(struct vmw_private *dev_priv,
+				     struct drm_crtc *crtc)
+{
+	struct vmw_screen_object_unit *sou = vmw_crtc_to_sou(crtc);
+
+	if (!sou->base.is_implicit)
+		return true;
+
+	if (dev_priv->sou_priv->num_implicit != 1)
+		return false;
+
+	return true;
+}
+
+/**
+ * Update the implicit fb to the current fb of this crtc.
+ * Must be called with the mode_config mutex held.
+ */
+void vmw_kms_screen_object_update_implicit_fb(struct vmw_private *dev_priv,
+					      struct drm_crtc *crtc)
+{
+	struct vmw_screen_object_unit *sou = vmw_crtc_to_sou(crtc);
+
+	BUG_ON(!sou->base.is_implicit);
+
+	dev_priv->sou_priv->implicit_fb =
+		vmw_framebuffer_to_vfb(sou->base.crtc.fb);
 }
