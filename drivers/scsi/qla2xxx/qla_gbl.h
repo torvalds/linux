@@ -367,6 +367,9 @@ qla81xx_get_port_config(scsi_qla_host_t *, uint16_t *);
 extern int
 qla81xx_set_port_config(scsi_qla_host_t *, uint16_t *);
 
+extern int
+qla2x00_port_logout(scsi_qla_host_t *, struct fc_port *);
+
 /*
  * Global Function Prototypes in qla_isr.c source file.
  */

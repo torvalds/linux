@@ -4502,5 +4502,42 @@ qla83xx_write_remote_reg(scsi_qla_host_t *vha, uint32_t reg, uint32_t data)
 		ql_dbg(ql_dbg_mbx, vha, 0x1132,
 		    "Done %s.\n", __func__);
 	}
+
 	return rval;
 }
+
+int
+qla2x00_port_logout(scsi_qla_host_t *vha, struct fc_port *fcport)
+{
+	int rval;
+	struct qla_hw_data *ha = vha->hw;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	if (IS_QLA2100(ha) || IS_QLA2200(ha)) {
+		ql_dbg(ql_dbg_mbx, vha, 0x113b,
+		    "Implicit LOGO Unsupported.\n");
+		return QLA_FUNCTION_FAILED;
+	}
+
+
+	ql_dbg(ql_dbg_mbx, vha, 0x113c, "Done %s.\n",  __func__);
+
+	/* Perform Implicit LOGO. */
+	mcp->mb[0] = MBC_PORT_LOGOUT;
+	mcp->mb[1] = fcport->loop_id;
+	mcp->mb[10] = BIT_15;
+	mcp->out_mb = MBX_10|MBX_1|MBX_0;
+	mcp->in_mb = MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS)
+		ql_dbg(ql_dbg_mbx, vha, 0x113d,
+		    "Failed=%x mb[0]=%x.\n", rval, mcp->mb[0]);
+	else
+		ql_dbg(ql_dbg_mbx, vha, 0x113e, "Done %s.\n", __func__);
+
+	return rval;
+}
+
