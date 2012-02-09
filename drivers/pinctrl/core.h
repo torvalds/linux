@@ -30,6 +30,7 @@ struct pinctrl_gpio_range;
  *	subsystem
  * @pinctrl_hogs_lock: lock for the pin control hog list
  * @pinctrl_hogs: list of pin control maps hogged by this device
+ * @device_root: debugfs root for this device
  */
 struct pinctrl_dev {
 	struct list_head node;
@@ -41,12 +42,37 @@ struct pinctrl_dev {
 	struct device *dev;
 	struct module *owner;
 	void *driver_data;
+	struct mutex pinctrl_hogs_lock;
+	struct list_head pinctrl_hogs;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *device_root;
 #endif
+};
+
+/**
+ * struct pinctrl - per-device pin control state holder
+ * @node: global list node
+ * @dev: the device using this pin control handle
+ * @usecount: the number of active users of this pin controller setting, used
+ *	to keep track of nested use cases
+ * @pctldev: pin control device handling this pin control handle
+ * @mutex: a lock for the pin control state holder
+ * @func_selector: the function selector for the pinmux device handling
+ *	this pinmux
+ * @groups: the group selectors for the pinmux device and
+ *	selector combination handling this pinmux, this is a list that
+ *	will be traversed on all pinmux operations such as
+ *	get/put/enable/disable
+ */
+struct pinctrl {
+	struct list_head node;
+	struct device *dev;
+	unsigned usecount;
+	struct pinctrl_dev *pctldev;
+	struct mutex mutex;
 #ifdef CONFIG_PINMUX
-	struct mutex pinctrl_hogs_lock;
-	struct list_head pinctrl_hogs;
+	unsigned func_selector;
+	struct list_head groups;
 #endif
 };
 

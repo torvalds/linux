@@ -1,7 +1,7 @@
 /*
  * Core driver for the pin control subsystem
  *
- * Copyright (C) 2011 ST-Ericsson SA
+ * Copyright (C) 2011-2012 ST-Ericsson SA
  * Written on behalf of Linaro for ST-Ericsson
  * Based on bits of regulator core, gpio core and clk core
  *
@@ -30,9 +30,29 @@
 #include "pinmux.h"
 #include "pinconf.h"
 
+/**
+ * struct pinctrl_hog - a list item to stash control hogs
+ * @node: pin control hog list node
+ * @map: map entry responsible for this hogging
+ * @pmx: the pin control hogged by this item
+ */
+struct pinctrl_hog {
+	struct list_head node;
+	struct pinctrl_map const *map;
+	struct pinctrl *p;
+};
+
 /* Global list of pin control devices */
 static DEFINE_MUTEX(pinctrldev_list_mutex);
 static LIST_HEAD(pinctrldev_list);
+
+/* List of pin controller handles */
+static DEFINE_MUTEX(pinctrl_list_mutex);
+static LIST_HEAD(pinctrl_list);
+
+/* Global pinctrl maps */
+static struct pinctrl_map *pinctrl_maps;
+static unsigned pinctrl_maps_num;
 
 const char *pinctrl_dev_get_name(struct pinctrl_dev *pctldev)
 {
@@ -337,6 +357,476 @@ int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
 	return -EINVAL;
 }
 
+/**
+ * pinctrl_request_gpio() - request a single pin to be used in as GPIO
+ * @gpio: the GPIO pin number from the GPIO subsystem number space
+ *
+ * This function should *ONLY* be used from gpiolib-based GPIO drivers,
+ * as part of their gpio_request() semantics, platforms and individual drivers
+ * shall *NOT* request GPIO pins to be muxed in.
+ */
+int pinctrl_request_gpio(unsigned gpio)
+{
+	struct pinctrl_dev *pctldev;
+	struct pinctrl_gpio_range *range;
+	int ret;
+	int pin;
+
+	ret = pinctrl_get_device_gpio_range(gpio, &pctldev, &range);
+	if (ret)
+		return -EINVAL;
+
+	/* Convert to the pin controllers number space */
+	pin = gpio - range->base + range->pin_base;
+
+	return pinmux_request_gpio(pctldev, range, pin, gpio);
+}
+EXPORT_SYMBOL_GPL(pinctrl_request_gpio);
+
+/**
+ * pinctrl_free_gpio() - free control on a single pin, currently used as GPIO
+ * @gpio: the GPIO pin number from the GPIO subsystem number space
+ *
+ * This function should *ONLY* be used from gpiolib-based GPIO drivers,
+ * as part of their gpio_free() semantics, platforms and individual drivers
+ * shall *NOT* request GPIO pins to be muxed out.
+ */
+void pinctrl_free_gpio(unsigned gpio)
+{
+	struct pinctrl_dev *pctldev;
+	struct pinctrl_gpio_range *range;
+	int ret;
+	int pin;
+
+	ret = pinctrl_get_device_gpio_range(gpio, &pctldev, &range);
+	if (ret)
+		return;
+
+	/* Convert to the pin controllers number space */
+	pin = gpio - range->base + range->pin_base;
+
+	return pinmux_free_gpio(pctldev, pin, range);
+}
+EXPORT_SYMBOL_GPL(pinctrl_free_gpio);
+
+static int pinctrl_gpio_direction(unsigned gpio, bool input)
+{
+	struct pinctrl_dev *pctldev;
+	struct pinctrl_gpio_range *range;
+	int ret;
+	int pin;
+
+	ret = pinctrl_get_device_gpio_range(gpio, &pctldev, &range);
+	if (ret)
+		return ret;
+
+	/* Convert to the pin controllers number space */
+	pin = gpio - range->base + range->pin_base;
+
+	return pinmux_gpio_direction(pctldev, range, pin, input);
+}
+
+/**
+ * pinctrl_gpio_direction_input() - request a GPIO pin to go into input mode
+ * @gpio: the GPIO pin number from the GPIO subsystem number space
+ *
+ * This function should *ONLY* be used from gpiolib-based GPIO drivers,
+ * as part of their gpio_direction_input() semantics, platforms and individual
+ * drivers shall *NOT* touch pin control GPIO calls.
+ */
+int pinctrl_gpio_direction_input(unsigned gpio)
+{
+	return pinctrl_gpio_direction(gpio, true);
+}
+EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_input);
+
+/**
+ * pinctrl_gpio_direction_output() - request a GPIO pin to go into output mode
+ * @gpio: the GPIO pin number from the GPIO subsystem number space
+ *
+ * This function should *ONLY* be used from gpiolib-based GPIO drivers,
+ * as part of their gpio_direction_output() semantics, platforms and individual
+ * drivers shall *NOT* touch pin control GPIO calls.
+ */
+int pinctrl_gpio_direction_output(unsigned gpio)
+{
+	return pinctrl_gpio_direction(gpio, false);
+}
+EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_output);
+
+/**
+ * pinctrl_get() - retrieves the pin controller handle for a certain device
+ * @dev: the device to get the pin controller handle for
+ * @name: an optional specific control mapping name or NULL, the name is only
+ *	needed if you want to have more than one mapping per device, or if you
+ *	need an anonymous pin control (not tied to any specific device)
+ */
+struct pinctrl *pinctrl_get(struct device *dev, const char *name)
+{
+	struct pinctrl_map const *map = NULL;
+	struct pinctrl_dev *pctldev = NULL;
+	const char *devname = NULL;
+	struct pinctrl *p;
+	bool found_map;
+	unsigned num_maps = 0;
+	int ret = -ENODEV;
+	int i;
+
+	/* We must have dev or ID or both */
+	if (!dev && !name)
+		return ERR_PTR(-EINVAL);
+
+	if (dev)
+		devname = dev_name(dev);
+
+	pr_debug("get pin control handle %s for device %s\n", name,
+		 devname ? devname : "(none)");
+
+	/*
+	 * create the state cookie holder struct pinctrl for each
+	 * mapping, this is what consumers will get when requesting
+	 * a pin control handle with pinctrl_get()
+	 */
+	p = kzalloc(sizeof(struct pinctrl), GFP_KERNEL);
+	if (p == NULL)
+		return ERR_PTR(-ENOMEM);
+	mutex_init(&p->mutex);
+	pinmux_init_pinctrl_handle(p);
+
+	/* Iterate over the pin control maps to locate the right ones */
+	for (i = 0; i < pinctrl_maps_num; i++) {
+		map = &pinctrl_maps[i];
+		found_map = false;
+
+		/*
+		 * First, try to find the pctldev given in the map
+		 */
+		pctldev = get_pinctrl_dev_from_devname(map->ctrl_dev_name);
+		if (!pctldev) {
+			pr_warning("could not find a pinctrl device for pinmux function %s, fishy, they shall all have one\n",
+				   map->function);
+			pr_warning("given pinctrl device name: %s",
+				   map->ctrl_dev_name);
+
+			/* Continue to check the other mappings anyway... */
+			continue;
+		}
+
+		pr_debug("in map, found pctldev %s to handle function %s",
+			 dev_name(pctldev->dev), map->function);
+
+
+		/*
+		 * If we're looking for a specific named map, this must match,
+		 * else we loop and look for the next.
+		 */
+		if (name != NULL) {
+			if (map->name == NULL)
+				continue;
+			if (strcmp(map->name, name))
+				continue;
+		}
+
+		/*
+		 * This is for the case where no device name is given, we
+		 * already know that the function name matches from above
+		 * code.
+		 */
+		if (!map->dev_name && (name != NULL))
+			found_map = true;
+
+		/* If the mapping has a device set up it must match */
+		if (map->dev_name &&
+		    (!devname || !strcmp(map->dev_name, devname)))
+			/* MATCH! */
+			found_map = true;
+
+		/* If this map is applicable, then apply it */
+		if (found_map) {
+			ret = pinmux_apply_muxmap(pctldev, p, dev,
+						   devname, map);
+			if (ret) {
+				kfree(p);
+				return ERR_PTR(ret);
+			}
+			num_maps++;
+		}
+	}
+
+	/* We should have atleast one map, right */
+	if (!num_maps) {
+		pr_err("could not find any mux maps for device %s, ID %s\n",
+		       devname ? devname : "(anonymous)",
+		       name ? name : "(undefined)");
+		kfree(p);
+		return ERR_PTR(-EINVAL);
+	}
+
+	pr_debug("found %u mux maps for device %s, UD %s\n",
+		 num_maps,
+		 devname ? devname : "(anonymous)",
+		 name ? name : "(undefined)");
+
+	/* Add the pinmux to the global list */
+	mutex_lock(&pinctrl_list_mutex);
+	list_add(&p->node, &pinctrl_list);
+	mutex_unlock(&pinctrl_list_mutex);
+
+	return p;
+}
+EXPORT_SYMBOL_GPL(pinctrl_get);
+
+/**
+ * pinctrl_put() - release a previously claimed pin control handle
+ * @p: a pin control handle previously claimed by pinctrl_get()
+ */
+void pinctrl_put(struct pinctrl *p)
+{
+	if (p == NULL)
+		return;
+
+	mutex_lock(&p->mutex);
+	if (p->usecount)
+		pr_warn("releasing pin control handle with active users!\n");
+	/* Free the groups and all acquired pins */
+	pinmux_put(p);
+	mutex_unlock(&p->mutex);
+
+	/* Remove from list */
+	mutex_lock(&pinctrl_list_mutex);
+	list_del(&p->node);
+	mutex_unlock(&pinctrl_list_mutex);
+
+	kfree(p);
+}
+EXPORT_SYMBOL_GPL(pinctrl_put);
+
+/**
+ * pinctrl_enable() - enable a certain pin controller setting
+ * @p: the pin control handle to enable, previously claimed by pinctrl_get()
+ */
+int pinctrl_enable(struct pinctrl *p)
+{
+	int ret = 0;
+
+	if (p == NULL)
+		return -EINVAL;
+	mutex_lock(&p->mutex);
+	if (p->usecount++ == 0) {
+		ret = pinmux_enable(p);
+		if (ret)
+			p->usecount--;
+	}
+	mutex_unlock(&p->mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pinctrl_enable);
+
+/**
+ * pinctrl_disable() - disable a certain pin control setting
+ * @p: the pin control handle to disable, previously claimed by pinctrl_get()
+ */
+void pinctrl_disable(struct pinctrl *p)
+{
+	if (p == NULL)
+		return;
+
+	mutex_lock(&p->mutex);
+	if (--p->usecount == 0) {
+		pinmux_disable(p);
+	}
+	mutex_unlock(&p->mutex);
+}
+EXPORT_SYMBOL_GPL(pinctrl_disable);
+
+/**
+ * pinctrl_register_mappings() - register a set of pin controller mappings
+ * @maps: the pincontrol mappings table to register, this should be marked with
+ *	__initdata so it can be discarded after boot, this function will
+ *	perform a shallow copy for the mapping entries.
+ * @num_maps: the number of maps in the mapping table
+ *
+ * Only call this once during initialization of your machine, the function is
+ * tagged as __init and won't be callable after init has completed. The map
+ * passed into this function will be owned by the pinmux core and cannot be
+ * freed.
+ */
+int __init pinctrl_register_mappings(struct pinctrl_map const *maps,
+				     unsigned num_maps)
+{
+	void *tmp_maps;
+	int i;
+
+	pr_debug("add %d pinmux maps\n", num_maps);
+
+	/* First sanity check the new mapping */
+	for (i = 0; i < num_maps; i++) {
+		if (!maps[i].name) {
+			pr_err("failed to register map %d: no map name given\n",
+					i);
+			return -EINVAL;
+		}
+
+		if (!maps[i].ctrl_dev_name) {
+			pr_err("failed to register map %s (%d): no pin control device given\n",
+			       maps[i].name, i);
+			return -EINVAL;
+		}
+
+		if (!maps[i].function) {
+			pr_err("failed to register map %s (%d): no function ID given\n",
+					maps[i].name, i);
+			return -EINVAL;
+		}
+
+		if (!maps[i].dev_name)
+			pr_debug("add system map %s function %s with no device\n",
+				 maps[i].name,
+				 maps[i].function);
+		else
+			pr_debug("register map %s, function %s\n",
+				 maps[i].name,
+				 maps[i].function);
+	}
+
+	/*
+	 * Make a copy of the map array - string pointers will end up in the
+	 * kernel const section anyway so these do not need to be deep copied.
+	 */
+	if (!pinctrl_maps_num) {
+		/* On first call, just copy them */
+		tmp_maps = kmemdup(maps,
+				   sizeof(struct pinctrl_map) * num_maps,
+				   GFP_KERNEL);
+		if (!tmp_maps)
+			return -ENOMEM;
+	} else {
+		/* Subsequent calls, reallocate array to new size */
+		size_t oldsize = sizeof(struct pinctrl_map) * pinctrl_maps_num;
+		size_t newsize = sizeof(struct pinctrl_map) * num_maps;
+
+		tmp_maps = krealloc(pinctrl_maps,
+				    oldsize + newsize, GFP_KERNEL);
+		if (!tmp_maps)
+			return -ENOMEM;
+		memcpy((tmp_maps + oldsize), maps, newsize);
+	}
+
+	pinctrl_maps = tmp_maps;
+	pinctrl_maps_num += num_maps;
+	return 0;
+}
+
+/* Hog a single map entry and add to the hoglist */
+static int pinctrl_hog_map(struct pinctrl_dev *pctldev,
+			   struct pinctrl_map const *map)
+{
+	struct pinctrl_hog *hog;
+	struct pinctrl *p;
+	int ret;
+
+	if (map->dev_name) {
+		/*
+		 * TODO: the day we have device tree support, we can
+		 * traverse the device tree and hog to specific device nodes
+		 * without any problems, so then we can hog pinmuxes for
+		 * all devices that just want a static pin mux at this point.
+		 */
+		dev_err(pctldev->dev, "map %s wants to hog a non-system pinmux, this is not going to work\n",
+				map->name);
+		return -EINVAL;
+	}
+
+	hog = kzalloc(sizeof(struct pinctrl_hog), GFP_KERNEL);
+	if (!hog)
+		return -ENOMEM;
+
+	p = pinctrl_get(NULL, map->name);
+	if (IS_ERR(p)) {
+		kfree(hog);
+		dev_err(pctldev->dev,
+			"could not get the %s pin control mapping for hogging\n",
+			map->name);
+		return PTR_ERR(p);
+	}
+
+	ret = pinctrl_enable(p);
+	if (ret) {
+		pinctrl_put(p);
+		kfree(hog);
+		dev_err(pctldev->dev,
+			"could not enable the %s pin control mapping for hogging\n",
+			map->name);
+		return ret;
+	}
+
+	hog->map = map;
+	hog->p = p;
+
+	dev_info(pctldev->dev, "hogged map %s, function %s\n", map->name,
+		 map->function);
+	mutex_lock(&pctldev->pinctrl_hogs_lock);
+	list_add(&hog->node, &pctldev->pinctrl_hogs);
+	mutex_unlock(&pctldev->pinctrl_hogs_lock);
+
+	return 0;
+}
+
+/**
+ * pinctrl_hog_maps() - hog specific map entries on controller device
+ * @pctldev: the pin control device to hog entries on
+ *
+ * When the pin controllers are registered, there may be some specific pinmux
+ * map entries that need to be hogged, i.e. get+enabled until the system shuts
+ * down.
+ */
+int pinctrl_hog_maps(struct pinctrl_dev *pctldev)
+{
+	struct device *dev = pctldev->dev;
+	const char *devname = dev_name(dev);
+	int ret;
+	int i;
+
+	INIT_LIST_HEAD(&pctldev->pinctrl_hogs);
+	mutex_init(&pctldev->pinctrl_hogs_lock);
+
+	for (i = 0; i < pinctrl_maps_num; i++) {
+		struct pinctrl_map const *map = &pinctrl_maps[i];
+
+		if (!map->hog_on_boot)
+			continue;
+
+		if (map->ctrl_dev_name &&
+		    !strcmp(map->ctrl_dev_name, devname)) {
+			/* OK time to hog! */
+			ret = pinctrl_hog_map(pctldev, map);
+			if (ret)
+				return ret;
+		}
+	}
+	return 0;
+}
+
+/**
+ * pinctrl_unhog_maps() - unhog specific map entries on controller device
+ * @pctldev: the pin control device to unhog entries on
+ */
+void pinctrl_unhog_maps(struct pinctrl_dev *pctldev)
+{
+	struct list_head *node, *tmp;
+
+	mutex_lock(&pctldev->pinctrl_hogs_lock);
+	list_for_each_safe(node, tmp, &pctldev->pinctrl_hogs) {
+		struct pinctrl_hog *hog =
+			list_entry(node, struct pinctrl_hog, node);
+		pinctrl_disable(hog->p);
+		pinctrl_put(hog->p);
+		list_del(node);
+		kfree(hog);
+	}
+	mutex_unlock(&pctldev->pinctrl_hogs_lock);
+}
+
 #ifdef CONFIG_DEBUG_FS
 
 static int pinctrl_pins_show(struct seq_file *s, void *what)
@@ -427,6 +917,43 @@ static int pinctrl_gpioranges_show(struct seq_file *s, void *what)
 	return 0;
 }
 
+static int pinctrl_maps_show(struct seq_file *s, void *what)
+{
+	int i;
+
+	seq_puts(s, "Pinctrl maps:\n");
+
+	for (i = 0; i < pinctrl_maps_num; i++) {
+		struct pinctrl_map const *map = &pinctrl_maps[i];
+
+		seq_printf(s, "%s:\n", map->name);
+		if (map->dev_name)
+			seq_printf(s, "  device: %s\n",
+				   map->dev_name);
+		else
+			seq_printf(s, "  SYSTEM MUX\n");
+		seq_printf(s, "  controlling device %s\n",
+			   map->ctrl_dev_name);
+		seq_printf(s, "  function: %s\n", map->function);
+		seq_printf(s, "  group: %s\n", map->group ? map->group :
+			   "(default)");
+	}
+	return 0;
+}
+
+static int pinmux_hogs_show(struct seq_file *s, void *what)
+{
+	struct pinctrl_dev *pctldev = s->private;
+	struct pinctrl_hog *hog;
+
+	seq_puts(s, "Pin control map hogs held by device\n");
+
+	list_for_each_entry(hog, &pctldev->pinctrl_hogs, node)
+		seq_printf(s, "%s\n", hog->map->name);
+
+	return 0;
+}
+
 static int pinctrl_devices_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev;
@@ -450,6 +977,32 @@ static int pinctrl_devices_show(struct seq_file *s, void *what)
 	return 0;
 }
 
+static int pinctrl_show(struct seq_file *s, void *what)
+{
+	struct pinctrl *p;
+
+	seq_puts(s, "Requested pin control handlers their pinmux maps:\n");
+	list_for_each_entry(p, &pinctrl_list, node) {
+		struct pinctrl_dev *pctldev = p->pctldev;
+
+		if (!pctldev) {
+			seq_puts(s, "NO PIN CONTROLLER DEVICE\n");
+			continue;
+		}
+
+		seq_printf(s, "device: %s",
+			   pinctrl_dev_get_name(p->pctldev));
+
+		pinmux_dbg_show(s, p);
+
+		seq_printf(s, " users: %u map-> %s\n",
+			   p->usecount,
+			   p->dev ? dev_name(p->dev) : "(system)");
+	}
+
+	return 0;
+}
+
 static int pinctrl_pins_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, pinctrl_pins_show, inode->i_private);
@@ -465,9 +1018,24 @@ static int pinctrl_gpioranges_open(struct inode *inode, struct file *file)
 	return single_open(file, pinctrl_gpioranges_show, inode->i_private);
 }
 
+static int pinctrl_maps_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pinctrl_maps_show, inode->i_private);
+}
+
+static int pinmux_hogs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pinmux_hogs_show, inode->i_private);
+}
+
 static int pinctrl_devices_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, pinctrl_devices_show, NULL);
+}
+
+static int pinctrl_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pinctrl_show, NULL);
 }
 
 static const struct file_operations pinctrl_pins_ops = {
@@ -491,8 +1059,29 @@ static const struct file_operations pinctrl_gpioranges_ops = {
 	.release	= single_release,
 };
 
+static const struct file_operations pinctrl_maps_ops = {
+	.open		= pinctrl_maps_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static const struct file_operations pinmux_hogs_ops = {
+	.open		= pinmux_hogs_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static const struct file_operations pinctrl_devices_ops = {
 	.open		= pinctrl_devices_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static const struct file_operations pinctrl_ops = {
+	.open		= pinctrl_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
@@ -519,6 +1108,10 @@ static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
 			    device_root, pctldev, &pinctrl_groups_ops);
 	debugfs_create_file("gpio-ranges", S_IFREG | S_IRUGO,
 			    device_root, pctldev, &pinctrl_gpioranges_ops);
+	debugfs_create_file("pinctrl-maps", S_IFREG | S_IRUGO,
+			    device_root, pctldev, &pinctrl_maps_ops);
+	debugfs_create_file("pinmux-hogs", S_IFREG | S_IRUGO,
+			    device_root, pctldev, &pinmux_hogs_ops);
 	pinmux_init_device_debugfs(device_root, pctldev);
 	pinconf_init_device_debugfs(device_root, pctldev);
 }
@@ -539,7 +1132,8 @@ static void pinctrl_init_debugfs(void)
 
 	debugfs_create_file("pinctrl-devices", S_IFREG | S_IRUGO,
 			    debugfs_root, NULL, &pinctrl_devices_ops);
-	pinmux_init_debugfs(debugfs_root);
+	debugfs_create_file("pinctrl-handles", S_IFREG | S_IRUGO,
+			    debugfs_root, NULL, &pinctrl_ops);
 }
 
 #else /* CONFIG_DEBUG_FS */

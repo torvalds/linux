@@ -19,9 +19,9 @@
 /* This struct is private to the core and should be regarded as a cookie */
 struct pinctrl;
 
-#ifdef CONFIG_PINMUX
+#ifdef CONFIG_PINCTRL
 
-/* External interface to pinmux */
+/* External interface to pin control */
 extern int pinctrl_request_gpio(unsigned gpio);
 extern void pinctrl_free_gpio(unsigned gpio);
 extern int pinctrl_gpio_direction_input(unsigned gpio);
@@ -31,7 +31,7 @@ extern void pinctrl_put(struct pinctrl *p);
 extern int pinctrl_enable(struct pinctrl *p);
 extern void pinctrl_disable(struct pinctrl *p);
 
-#else /* !CONFIG_PINMUX */
+#else /* !CONFIG_PINCTRL */
 
 static inline int pinctrl_request_gpio(unsigned gpio)
 {
@@ -70,7 +70,7 @@ static inline void pinctrl_disable(struct pinctrl *p)
 {
 }
 
-#endif /* CONFIG_PINMUX */
+#endif /* CONFIG_PINCTRL */
 
 #ifdef CONFIG_PINCONF
 
