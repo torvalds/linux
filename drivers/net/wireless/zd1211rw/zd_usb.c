@@ -1104,7 +1104,7 @@ static void zd_tx_watchdog_handler(struct work_struct *work)
 		goto out;
 
 	/* TX halted, try reset */
-	dev_warn(zd_usb_dev(usb), "TX-stall detected, reseting device...");
+	dev_warn(zd_usb_dev(usb), "TX-stall detected, resetting device...");
 
 	usb_queue_reset_device(usb->intf);
 
