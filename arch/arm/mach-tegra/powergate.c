@@ -31,12 +31,16 @@
 #include <mach/iomap.h>
 #include <mach/powergate.h>
 
+#include "fuse.h"
+
 #define PWRGATE_TOGGLE		0x30
 #define  PWRGATE_TOGGLE_START	(1 << 8)
 
 #define REMOVE_CLAMPING		0x34
 
 #define PWRGATE_STATUS		0x38
+
+static int tegra_num_powerdomains;
 
 static DEFINE_SPINLOCK(tegra_powergate_lock);
 
@@ -75,7 +79,7 @@ static int tegra_powergate_set(int id, bool new_state)
 
 int tegra_powergate_power_on(int id)
 {
-	if (id < 0 || id >= TEGRA_NUM_POWERGATE)
+	if (id < 0 || id >= tegra_num_powerdomains)
 		return -EINVAL;
 
 	return tegra_powergate_set(id, true);
@@ -83,17 +87,18 @@ int tegra_powergate_power_on(int id)
 
 int tegra_powergate_power_off(int id)
 {
-	if (id < 0 || id >= TEGRA_NUM_POWERGATE)
+	if (id < 0 || id >= tegra_num_powerdomains)
 		return -EINVAL;
 
 	return tegra_powergate_set(id, false);
 }
 
-static bool tegra_powergate_is_powered(int id)
+static int tegra_powergate_is_powered(int id)
 {
 	u32 status;
 
-	WARN_ON(id < 0 || id >= TEGRA_NUM_POWERGATE);
+	if (id < 0 || id >= tegra_num_powerdomains)
+		return -EINVAL;
 
 	status = pmc_read(PWRGATE_STATUS) & (1 << id);
 	return !!status;
@@ -103,7 +108,7 @@ int tegra_powergate_remove_clamping(int id)
 {
 	u32 mask;
 
-	if (id < 0 || id >= TEGRA_NUM_POWERGATE)
+	if (id < 0 || id >= tegra_num_powerdomains)
 		return -EINVAL;
 
 	/*
@@ -156,6 +161,22 @@ err_power:
 	return ret;
 }
 
+int __init tegra_powergate_init(void)
+{
+	switch (tegra_chip_id) {
+	case TEGRA20:
+		tegra_num_powerdomains = 7;
+		break;
+	default:
+		/* Unknown Tegra variant. Disable powergating */
+		tegra_num_powerdomains = 0;
+		break;
+	}
+
+	return 0;
+}
+arch_initcall(tegra_powergate_init);
+
 #ifdef CONFIG_DEBUG_FS
 
 static const char * const powergate_name[] = {
@@ -175,7 +196,7 @@ static int powergate_show(struct seq_file *s, void *data)
 	seq_printf(s, " powergate powered\n");
 	seq_printf(s, "------------------\n");
 
-	for (i = 0; i < TEGRA_NUM_POWERGATE; i++)
+	for (i = 0; i < tegra_num_powerdomains; i++)
 		seq_printf(s, " %9s %7s\n", powergate_name[i],
 			tegra_powergate_is_powered(i) ? "yes" : "no");
 	return 0;

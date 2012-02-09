@@ -27,7 +27,6 @@
 #define TEGRA_POWERGATE_VDEC	4
 #define TEGRA_POWERGATE_L2	5
 #define TEGRA_POWERGATE_MPE	6
-#define TEGRA_NUM_POWERGATE	7
 
 int tegra_powergate_power_on(int id);
 int tegra_powergate_power_off(int id);
