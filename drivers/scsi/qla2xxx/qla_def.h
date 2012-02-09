@@ -127,7 +127,6 @@
 #define WWN_SIZE		8	/* Size of WWPN, WWN & WWNN */
 #define MAX_FIBRE_DEVICES	512
 #define MAX_FIBRE_LUNS  	0xFFFF
-#define	MAX_RSCN_COUNT		32
 #define	MAX_HOST_COUNT		16
 
 /*
@@ -1720,6 +1719,7 @@ typedef struct fc_port {
 
 	uint16_t vp_idx;
 	uint8_t fc4_type;
+	uint8_t scan_state;
 } fc_port_t;
 
 /*
@@ -2877,7 +2877,6 @@ typedef struct scsi_qla_host {
 	volatile struct {
 		uint32_t	init_done		:1;
 		uint32_t	online			:1;
-		uint32_t	rscn_queue_overflow	:1;
 		uint32_t	reset_active		:1;
 
 		uint32_t	management_server_logged_in :1;
@@ -2930,11 +2929,6 @@ typedef struct scsi_qla_host {
 	uint16_t	mgmt_svr_loop_id;
 
 
-
-	/* RSCN queue. */
-	uint32_t rscn_queue[MAX_RSCN_COUNT];
-	uint8_t rscn_in_ptr;
-	uint8_t rscn_out_ptr;
 
 	/* Timeout timers. */
 	uint8_t         loop_down_abort_time;    /* port down timer */
@@ -3031,7 +3025,6 @@ typedef struct scsi_qla_host {
 #define QLA_ABORTED			0x105
 #define QLA_SUSPENDED			0x106
 #define QLA_BUSY			0x107
-#define QLA_RSCNS_HANDLED		0x108
 #define QLA_ALREADY_REGISTERED		0x109
 
 #define NVRAM_DELAY()		udelay(10)

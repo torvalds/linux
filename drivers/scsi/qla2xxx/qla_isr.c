@@ -328,7 +328,6 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 	struct device_reg_24xx __iomem *reg24 = &ha->iobase->isp24;
 	struct device_reg_82xx __iomem *reg82 = &ha->iobase->isp82;
 	uint32_t	rscn_entry, host_pid;
-	uint8_t		rscn_queue_index;
 	unsigned long	flags;
 
 	/* Setup to process RIO completion. */
@@ -685,8 +684,6 @@ skip_rio:
 
 		qla2x00_mark_all_devices_lost(vha, 1);
 
-		vha->flags.rscn_queue_overflow = 1;
-
 		set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 		break;
@@ -715,15 +712,6 @@ skip_rio:
 
 		/* Ignore reserved bits from RSCN-payload. */
 		rscn_entry = ((mb[1] & 0x3ff) << 16) | mb[2];
-		rscn_queue_index = vha->rscn_in_ptr + 1;
-		if (rscn_queue_index == MAX_RSCN_COUNT)
-			rscn_queue_index = 0;
-		if (rscn_queue_index != vha->rscn_out_ptr) {
-			vha->rscn_queue[vha->rscn_in_ptr] = rscn_entry;
-			vha->rscn_in_ptr = rscn_queue_index;
-		} else {
-			vha->flags.rscn_queue_overflow = 1;
-		}
 
 		atomic_set(&vha->loop_down_timer, 0);
 		vha->flags.management_server_logged_in = 0;

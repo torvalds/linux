@@ -29,7 +29,6 @@ static int qla2x00_configure_loop(scsi_qla_host_t *);
 static int qla2x00_configure_local_loop(scsi_qla_host_t *);
 static int qla2x00_configure_fabric(scsi_qla_host_t *);
 static int qla2x00_find_all_fabric_devs(scsi_qla_host_t *, struct list_head *);
-static int qla2x00_device_resync(scsi_qla_host_t *);
 static int qla2x00_fabric_dev_login(scsi_qla_host_t *, fc_port_t *,
     uint16_t *);
 
@@ -1755,7 +1754,6 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req;
 	struct rsp_que *rsp;
-	struct scsi_qla_host *vp;
 	struct mid_init_cb_24xx *mid_init_cb =
 	    (struct mid_init_cb_24xx *) ha->init_cb;
 
@@ -1786,11 +1784,6 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 	}
 
 	spin_lock(&ha->vport_slock);
-	/* Clear RSCN queue. */
-	list_for_each_entry(vp, &ha->vp_list, list) {
-		vp->rscn_in_ptr = 0;
-		vp->rscn_out_ptr = 0;
-	}
 
 	spin_unlock(&ha->vport_slock);
 
@@ -2551,13 +2544,11 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 	if (ha->current_topology == ISP_CFG_FL &&
 	    (test_bit(LOCAL_LOOP_UPDATE, &flags))) {
 
-		vha->flags.rscn_queue_overflow = 1;
 		set_bit(RSCN_UPDATE, &flags);
 
 	} else if (ha->current_topology == ISP_CFG_F &&
 	    (test_bit(LOCAL_LOOP_UPDATE, &flags))) {
 
-		vha->flags.rscn_queue_overflow = 1;
 		set_bit(RSCN_UPDATE, &flags);
 		clear_bit(LOCAL_LOOP_UPDATE, &flags);
 
@@ -2567,7 +2558,6 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 	} else if (!vha->flags.online ||
 	    (test_bit(ABORT_ISP_ACTIVE, &flags))) {
 
-		vha->flags.rscn_queue_overflow = 1;
 		set_bit(RSCN_UPDATE, &flags);
 		set_bit(LOCAL_LOOP_UPDATE, &flags);
 	}
@@ -2617,8 +2607,6 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 		if (test_bit(RSCN_UPDATE, &save_flags)) {
 			set_bit(RSCN_UPDATE, &vha->dpc_flags);
-			if (!IS_ALOGIO_CAPABLE(ha))
-				vha->flags.rscn_queue_overflow = 1;
 		}
 	}
 
@@ -2926,7 +2914,7 @@ qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 static int
 qla2x00_configure_fabric(scsi_qla_host_t *vha)
 {
-	int	rval, rval2;
+	int	rval;
 	fc_port_t	*fcport, *fcptemp;
 	uint16_t	next_loopid;
 	uint16_t	mb[MAILBOX_REGISTER_COUNT];
@@ -2950,12 +2938,6 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 	}
 	vha->device_flags |= SWITCH_FOUND;
 
-	/* Mark devices that need re-synchronization. */
-	rval2 = qla2x00_device_resync(vha);
-	if (rval2 == QLA_RSCNS_HANDLED) {
-		/* No point doing the scan, just continue. */
-		return (QLA_SUCCESS);
-	}
 	do {
 		/* FDMI support. */
 		if (ql2xfdmienable &&
@@ -2999,6 +2981,13 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 			}
 		}
 
+#define QLA_FCPORT_SCAN		1
+#define QLA_FCPORT_FOUND	2
+
+		list_for_each_entry(fcport, &vha->vp_fcports, list) {
+			fcport->scan_state = QLA_FCPORT_SCAN;
+		}
+
 		rval = qla2x00_find_all_fabric_devs(vha, &new_fcports);
 		if (rval != QLA_SUCCESS)
 			break;
@@ -3014,7 +3003,8 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 			if ((fcport->flags & FCF_FABRIC_DEVICE) == 0)
 				continue;
 
-			if (atomic_read(&fcport->state) == FCS_DEVICE_LOST) {
+			if (fcport->scan_state == QLA_FCPORT_SCAN &&
+			    atomic_read(&fcport->state) == FCS_ONLINE) {
 				qla2x00_mark_device_lost(vha, fcport,
 				    ql2xplogiabsentdevice, 0);
 				if (fcport->loop_id != FC_NO_LOOP_ID &&
@@ -3287,6 +3277,8 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 			    WWN_SIZE))
 				continue;
 
+			fcport->scan_state = QLA_FCPORT_FOUND;
+
 			found++;
 
 			/* Update port state. */
@@ -3439,110 +3431,6 @@ qla2x00_find_new_loop_id(scsi_qla_host_t *vha, fc_port_t *dev)
 		}
 	}
 
-	return (rval);
-}
-
-/*
- * qla2x00_device_resync
- *	Marks devices in the database that needs resynchronization.
- *
- * Input:
- *	ha = adapter block pointer.
- *
- * Context:
- *	Kernel context.
- */
-static int
-qla2x00_device_resync(scsi_qla_host_t *vha)
-{
-	int	rval;
-	uint32_t mask;
-	fc_port_t *fcport;
-	uint32_t rscn_entry;
-	uint8_t rscn_out_iter;
-	uint8_t format;
-	port_id_t d_id = {};
-
-	rval = QLA_RSCNS_HANDLED;
-
-	while (vha->rscn_out_ptr != vha->rscn_in_ptr ||
-	    vha->flags.rscn_queue_overflow) {
-
-		rscn_entry = vha->rscn_queue[vha->rscn_out_ptr];
-		format = MSB(MSW(rscn_entry));
-		d_id.b.domain = LSB(MSW(rscn_entry));
-		d_id.b.area = MSB(LSW(rscn_entry));
-		d_id.b.al_pa = LSB(LSW(rscn_entry));
-
-		ql_dbg(ql_dbg_disc, vha, 0x2020,
-		    "RSCN queue entry[%d] = [%02x/%02x%02x%02x].\n",
-		    vha->rscn_out_ptr, format, d_id.b.domain, d_id.b.area,
-		    d_id.b.al_pa);
-
-		vha->rscn_out_ptr++;
-		if (vha->rscn_out_ptr == MAX_RSCN_COUNT)
-			vha->rscn_out_ptr = 0;
-
-		/* Skip duplicate entries. */
-		for (rscn_out_iter = vha->rscn_out_ptr;
-		    !vha->flags.rscn_queue_overflow &&
-		    rscn_out_iter != vha->rscn_in_ptr;
-		    rscn_out_iter = (rscn_out_iter ==
-			(MAX_RSCN_COUNT - 1)) ? 0: rscn_out_iter + 1) {
-
-			if (rscn_entry != vha->rscn_queue[rscn_out_iter])
-				break;
-
-			ql_dbg(ql_dbg_disc, vha, 0x2021,
-			    "Skipping duplicate RSCN queue entry found at "
-			    "[%d].\n", rscn_out_iter);
-
-			vha->rscn_out_ptr = rscn_out_iter;
-		}
-
-		/* Queue overflow, set switch default case. */
-		if (vha->flags.rscn_queue_overflow) {
-			ql_dbg(ql_dbg_disc, vha, 0x2022,
-			    "device_resync: rscn overflow.\n");
-
-			format = 3;
-			vha->flags.rscn_queue_overflow = 0;
-		}
-
-		switch (format) {
-		case 0:
-			mask = 0xffffff;
-			break;
-		case 1:
-			mask = 0xffff00;
-			break;
-		case 2:
-			mask = 0xff0000;
-			break;
-		default:
-			mask = 0x0;
-			d_id.b24 = 0;
-			vha->rscn_out_ptr = vha->rscn_in_ptr;
-			break;
-		}
-
-		rval = QLA_SUCCESS;
-
-		list_for_each_entry(fcport, &vha->vp_fcports, list) {
-			if ((fcport->flags & FCF_FABRIC_DEVICE) == 0 ||
-			    (fcport->d_id.b24 & mask) != d_id.b24 ||
-			    fcport->port_type == FCT_BROADCAST)
-				continue;
-
-			if (atomic_read(&fcport->state) == FCS_ONLINE) {
-				if (format != 3 ||
-				    fcport->port_type != FCT_INITIATOR) {
-					qla2x00_mark_device_lost(vha, fcport,
-					    0, 0);
-				}
-			}
-		}
-	}
 	return (rval);
 }
 
