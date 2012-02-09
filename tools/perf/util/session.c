@@ -24,7 +24,7 @@ static int perf_session__open(struct perf_session *self, bool force)
 		self->fd = STDIN_FILENO;
 
 		if (perf_session__read_header(self, self->fd) < 0)
-			pr_err("incompatible file format");
+			pr_err("incompatible file format (rerun with -v to learn more)");
 
 		return 0;
 	}
@@ -56,7 +56,7 @@ static int perf_session__open(struct perf_session *self, bool force)
 	}
 
 	if (perf_session__read_header(self, self->fd) < 0) {
-		pr_err("incompatible file format");
+		pr_err("incompatible file format (rerun with -v to learn more)");
 		goto out_close;
 	}
 
