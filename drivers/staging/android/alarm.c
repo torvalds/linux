@@ -119,12 +119,15 @@ static void alarm_enqueue_locked(struct android_alarm *alarm)
 	struct rb_node *parent = NULL;
 	struct android_alarm *entry;
 	int leftmost = 1;
+	bool was_first = false;
 
 	pr_alarm(FLOW, "added alarm, type %d, func %pF at %lld\n",
 		alarm->type, alarm->function, ktime_to_ns(alarm->expires));
 
-	if (base->first == &alarm->node)
+	if (base->first == &alarm->node) {
 		base->first = rb_next(&alarm->node);
+		was_first = true;
+	}
 	if (!RB_EMPTY_NODE(&alarm->node)) {
 		rb_erase(&alarm->node, &base->alarms);
 		RB_CLEAR_NODE(&alarm->node);
@@ -144,10 +147,10 @@ static void alarm_enqueue_locked(struct android_alarm *alarm)
 			leftmost = 0;
 		}
 	}
-	if (leftmost) {
+	if (leftmost)
 		base->first = &alarm->node;
-		update_timer_locked(base, false);
-	}
+	if (leftmost || was_first)
+		update_timer_locked(base, was_first);
 
 	rb_link_node(&alarm->node, parent, link);
 	rb_insert_color(&alarm->node, &base->alarms);
