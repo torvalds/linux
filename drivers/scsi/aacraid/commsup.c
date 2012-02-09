@@ -416,6 +416,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	unsigned long flags = 0;
 	unsigned long qflags;
 	unsigned long mflags = 0;
+	unsigned long sflags = 0;
 
 
 	if (!(hw_fib->header.XferState & cpu_to_le32(HostOwned)))
@@ -510,6 +511,31 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 		dev->management_fib_count++;
 		spin_unlock_irqrestore(&dev->manage_lock, mflags);
 		spin_lock_irqsave(&fibptr->event_lock, flags);
+	}
+
+	if (dev->sync_mode) {
+		if (wait)
+			spin_unlock_irqrestore(&fibptr->event_lock, flags);
+		spin_lock_irqsave(&dev->sync_lock, sflags);
+		if (dev->sync_fib) {
+			list_add_tail(&fibptr->fiblink, &dev->sync_fib_list);
+			spin_unlock_irqrestore(&dev->sync_lock, sflags);
+		} else {
+			dev->sync_fib = fibptr;
+			spin_unlock_irqrestore(&dev->sync_lock, sflags);
+			aac_adapter_sync_cmd(dev, SEND_SYNCHRONOUS_FIB,
+				(u32)fibptr->hw_fib_pa, 0, 0, 0, 0, 0,
+				NULL, NULL, NULL, NULL, NULL);
+		}
+		if (wait) {
+			fibptr->flags |= FIB_CONTEXT_FLAG_WAIT;
+			if (down_interruptible(&fibptr->event_wait)) {
+				fibptr->flags &= ~FIB_CONTEXT_FLAG_WAIT;
+				return -EFAULT;
+			}
+			return 0;
+		}
+		return -EINPROGRESS;
 	}
 
 	if (aac_adapter_deliver(fibptr) != 0) {
