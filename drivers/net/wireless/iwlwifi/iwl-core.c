@@ -41,6 +41,7 @@
 #include "iwl-shared.h"
 #include "iwl-agn.h"
 #include "iwl-trans.h"
+#include "iwl-wifi.h"
 
 const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
@@ -1464,8 +1465,9 @@ void iwl_nic_config(struct iwl_priv *priv)
 	cfg(priv)->lib->nic_config(priv);
 }
 
-void iwl_free_skb(struct iwl_priv *priv, struct sk_buff *skb)
+void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
 {
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 	struct ieee80211_tx_info *info;
 
 	info = IEEE80211_SKB_CB(skb);

@@ -540,7 +540,6 @@ int __must_check iwl_rx_dispatch(struct iwl_priv *priv,
 int iwlagn_hw_valid_rtc_data_addr(u32 addr);
 void iwl_set_hw_rfkill_state(struct iwl_priv *priv, bool state);
 void iwl_nic_config(struct iwl_priv *priv);
-void iwl_free_skb(struct iwl_priv *priv, struct sk_buff *skb);
 void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand);
 const char *get_cmd_string(u8 cmd);
 bool iwl_check_for_ct_kill(struct iwl_priv *priv);

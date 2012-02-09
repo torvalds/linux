@@ -80,6 +80,7 @@ static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
 void iwl_down(struct iwl_priv *priv);
 void iwl_cancel_deferred_work(struct iwl_priv *priv);
 void iwlagn_prepare_restart(struct iwl_priv *priv);
+void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 
 /* MAC80211 */
 struct ieee80211_hw *iwl_alloc_all(void);

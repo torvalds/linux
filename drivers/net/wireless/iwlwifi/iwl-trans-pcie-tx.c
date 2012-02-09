@@ -35,6 +35,7 @@
 #include "iwl-prph.h"
 #include "iwl-io.h"
 #include "iwl-agn-hw.h"
+#include "iwl-op-mode.h"
 #include "iwl-trans-pcie-int.h"
 
 #define IWL_TX_CRC_SIZE 4
@@ -229,7 +230,7 @@ void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 		 * freed and that the queue is not empty - free the skb
 		 */
 		if (skb) {
-			iwl_free_skb(priv(trans), skb);
+			iwl_op_mode_free_skb(trans->op_mode, skb);
 			txq->skbs[index] = NULL;
 		}
 	}

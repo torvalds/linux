@@ -1170,6 +1170,8 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans)
 	priv->shrd = trans->shrd;
 	priv->shrd->priv = priv;
 
+	iwl_trans_configure(trans(priv), op_mode);
+
 	/* At this point both hw and priv are allocated. */
 
 	SET_IEEE80211_DEV(priv->hw, trans(priv)->dev);
@@ -1383,6 +1385,7 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.start = iwl_op_mode_dvm_start,
 	.stop = iwl_op_mode_dvm_stop,
+	.free_skb = iwl_free_skb,
 };
 
 /*****************************************************************************

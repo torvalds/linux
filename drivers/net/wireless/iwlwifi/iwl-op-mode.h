@@ -65,6 +65,7 @@
 
 struct iwl_op_mode;
 struct iwl_trans;
+struct sk_buff;
 
 /**
  * struct iwl_op_mode_ops - op_mode specific operations
@@ -75,10 +76,15 @@ struct iwl_trans;
  *	May sleep
  * @stop: stop the op_mode
  *	May sleep
+ * @free_skb: allows the transport layer to free skbs that haven't been
+ *	reclaimed by the op_mode. This can happen when the driver is freed and
+ *	there are Tx packets pending in the transport layer.
+ *	Must be atomic
  */
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans);
 	void (*stop)(struct iwl_op_mode *op_mode);
+	void (*free_skb)(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 };
 
 /**
@@ -98,6 +104,12 @@ struct iwl_op_mode {
 static inline void iwl_op_mode_stop(struct iwl_op_mode *op_mode)
 {
 	op_mode->ops->stop(op_mode);
+}
+
+static inline void iwl_op_mode_free_skb(struct iwl_op_mode *op_mode,
+					struct sk_buff *skb)
+{
+	op_mode->ops->free_skb(op_mode, skb);
 }
 
 /*****************************************************

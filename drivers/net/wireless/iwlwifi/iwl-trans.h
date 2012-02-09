@@ -114,6 +114,7 @@
 
 struct iwl_priv;
 struct iwl_shared;
+struct iwl_op_mode;
 
 /**
  * DOC: Host command section
@@ -312,6 +313,7 @@ enum iwl_trans_state {
  * struct iwl_trans - transport common data
  *
  * @ops - pointer to iwl_trans_ops
+ * @op_mode - pointer to the op_mode
  * @shrd - pointer to iwl_shared which holds shared data from the upper layer
  * @hcmd_lock: protects HCMD
  * @reg_lock - protect hw register access
@@ -327,6 +329,7 @@ enum iwl_trans_state {
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
+	struct iwl_op_mode *op_mode;
 	struct iwl_shared *shrd;
 	enum iwl_trans_state state;
 	spinlock_t hcmd_lock;
@@ -349,6 +352,16 @@ struct iwl_trans {
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
 	char trans_specific[0] __aligned(sizeof(void *));
 };
+
+static inline void iwl_trans_configure(struct iwl_trans *trans,
+				       struct iwl_op_mode *op_mode)
+{
+	/*
+	 * only set the op_mode for the moment. Later on, this function will do
+	 * more
+	 */
+	trans->op_mode = op_mode;
+}
 
 static inline int iwl_trans_start_hw(struct iwl_trans *trans)
 {
