@@ -1144,8 +1144,9 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 	uint64_t id;
 	void *buf = NULL;
 	char *str;
-	u32 nre, sz, nr, i, j, msz;
-	int ret;
+	u32 nre, sz, nr, i, j;
+	ssize_t ret;
+	size_t msz;
 
 	/* number of events */
 	ret = read(fd, &nre, sizeof(nre));
@@ -1162,25 +1163,23 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 	if (ph->needs_swap)
 		sz = bswap_32(sz);
 
-	/*
-	 * ensure it is at least to our ABI rev
-	 */
-	if (sz < (u32)sizeof(attr))
-		goto error;
-
 	memset(&attr, 0, sizeof(attr));
 
-	/* read entire region to sync up to next field */
+	/* buffer to hold on file attr struct */
 	buf = malloc(sz);
 	if (!buf)
 		goto error;
 
 	msz = sizeof(attr);
-	if (sz < msz)
+	if (sz < (ssize_t)msz)
 		msz = sz;
 
 	for (i = 0 ; i < nre; i++) {
 
+		/*
+		 * must read entire on-file attr struct to
+		 * sync up with layout.
+		 */
 		ret = read(fd, buf, sz);
 		if (ret != (ssize_t)sz)
 			goto error;
