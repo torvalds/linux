@@ -701,7 +701,7 @@ static void iwl_irq_handle_error(struct iwl_trans *trans)
 		iwl_print_rx_config_cmd(priv(trans), IWL_RXON_CTX_BSS);
 #endif
 
-	iwlagn_fw_error(priv, false);
+	iwl_op_mode_nic_error(trans->op_mode);
 }
 
 #define EVENT_START_OFFSET  (4 * sizeof(u32))

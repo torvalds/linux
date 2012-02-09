@@ -534,7 +534,6 @@ enum iwl_rxon_context_id {
 
 int iwlagn_hw_valid_rtc_data_addr(u32 addr);
 void iwl_nic_config(struct iwl_priv *priv);
-void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand);
 const char *get_cmd_string(u8 cmd);
 bool iwl_check_for_ct_kill(struct iwl_priv *priv);
 

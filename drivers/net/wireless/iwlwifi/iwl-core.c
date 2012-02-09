@@ -830,7 +830,7 @@ void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 }
 #endif
 
-void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
+static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 {
 	unsigned int reload_msec;
 	unsigned long reload_jiffies;
@@ -1453,6 +1453,13 @@ __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 		res += (1 << IWLAGN_EXT_BEACON_TIME_POS);
 
 	return cpu_to_le32(res);
+}
+
+void iwl_nic_error(struct iwl_op_mode *op_mode)
+{
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
+	iwlagn_fw_error(priv, false);
 }
 
 void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)

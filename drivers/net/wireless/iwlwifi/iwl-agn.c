@@ -1390,6 +1390,7 @@ const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.queue_not_full = iwl_wake_sw_queue,
 	.hw_rf_kill = iwl_set_hw_rfkill_state,
 	.free_skb = iwl_free_skb,
+	.nic_error = iwl_nic_error,
 };
 
 /*****************************************************************************

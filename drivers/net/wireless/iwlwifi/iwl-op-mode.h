@@ -90,6 +90,7 @@ struct iwl_rx_mem_buffer;
  *	reclaimed by the op_mode. This can happen when the driver is freed and
  *	there are Tx packets pending in the transport layer.
  *	Must be atomic
+ * @nic_error: error notification. Must be atomic
  */
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans);
@@ -100,6 +101,7 @@ struct iwl_op_mode_ops {
 	void (*queue_not_full)(struct iwl_op_mode *op_mode, u8 ac);
 	void (*hw_rf_kill)(struct iwl_op_mode *op_mode, bool state);
 	void (*free_skb)(struct iwl_op_mode *op_mode, struct sk_buff *skb);
+	void (*nic_error)(struct iwl_op_mode *op_mode);
 };
 
 /**
@@ -149,6 +151,11 @@ static inline void iwl_op_mode_free_skb(struct iwl_op_mode *op_mode,
 					struct sk_buff *skb)
 {
 	op_mode->ops->free_skb(op_mode, skb);
+}
+
+static inline void iwl_op_mode_nic_error(struct iwl_op_mode *op_mode)
+{
+	op_mode->ops->nic_error(op_mode);
 }
 
 /*****************************************************
