@@ -109,7 +109,7 @@
 #define SetCRT2ToSCART      0x0010
 #define SetCRT2ToLCD        0x0020
 #define SetCRT2ToRAMDAC     0x0040
-#define SetCRT2ToLCDA       0x0100
+#define XGI_SetCRT2ToLCDA   0x0100
 #define SetInSlaveMode      0x0200
 #define SetNotSimuMode      0x0400
 #define LoadDACFlag         0x1000
@@ -131,8 +131,8 @@
 #define NTSC1024x768         0x2000
 #define SetTVLockMode        0x4000
 
-#define LCDVESATiming        0x0001 /* LCD Info/CR37 */
-#define EnableLVDSDDA        0x0002
+#define XGI_LCDVESATiming    0x0001 /* LCD Info/CR37 */
+#define XGI_EnableLVDSDDA    0x0002
 #define EnableScalingLCD     0x0008
 #define SetPWDEnable         0x0004
 #define SetLCDtoNonExpanding 0x0010
@@ -145,7 +145,7 @@
 #define EnableLCD24bpp       0x0004 /* default */
 #define DisableLCD24bpp      0x0000
 #define LCDPolarity          0x00c0 /* default: SyncNN */
-#define LCDDualLink          0x0100
+#define XGI_LCDDualLink      0x0100
 #define EnableSpectrum       0x0200
 #define PWDEnable            0x0400
 #define EnableVBCLKDRVLOW    0x4000
@@ -191,7 +191,7 @@
 #define DisplayDeviceFromCMOS 0x10
 
 /* ---------------------- HK Evnet Definition */
-#define ModeSwitchStatus      0xf0
+#define XGI_ModeSwitchStatus  0xf0
 #define ActiveCRT1            0x10
 #define ActiveLCD             0x0020
 #define ActiveTV              0x40
@@ -286,7 +286,7 @@
 #define VCLK125_999          0x51
 #define VCLK148_5            0x52
 #define VCLK217_325          0x55
-#define YPbPr750pVCLK        0x57
+#define XGI_YPbPr750pVCLK    0x57
 
 #define TVVCLKDIV2           0x3A
 #define TVVCLK               0x3B
