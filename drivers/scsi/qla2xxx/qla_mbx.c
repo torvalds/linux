@@ -277,6 +277,12 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		    "mb[0] = 0x%x.\n", mb0);
 		ql_dump_regs(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1019);
 
+		/*
+		 * Attempt to capture a firmware dump for further analysis
+		 * of the current firmware state
+		 */
+		ha->isp_ops->fw_dump(vha, 0);
+
 		rval = QLA_FUNCTION_TIMEOUT;
 	}
 
