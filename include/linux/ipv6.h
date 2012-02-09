@@ -233,6 +233,11 @@ static inline struct ipv6hdr *ipipv6_hdr(const struct sk_buff *skb)
 	return (struct ipv6hdr *)skb_transport_header(skb);
 }
 
+static inline __u8 ipv6_tclass(const struct ipv6hdr *iph)
+{
+	return (ntohl(*(__be32 *)iph) >> 20) & 0xff;
+}
+
 /* 
    This structure contains results of exthdrs parsing
    as offsets from skb->nh.
