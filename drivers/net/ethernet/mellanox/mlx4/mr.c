@@ -816,6 +816,9 @@ int mlx4_fmr_alloc(struct mlx4_dev *dev, u32 pd, u32 access, int max_pages,
 	u64 mtt_offset;
 	int err = -ENOMEM;
 
+	if (max_maps > dev->caps.max_fmr_maps)
+		return -EINVAL;
+
 	if (page_shift < (ffs(dev->caps.page_size_cap) - 1) || page_shift >= 32)
 		return -EINVAL;
 
