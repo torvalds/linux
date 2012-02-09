@@ -1289,6 +1289,7 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 		goto gpd_error_out;
 
 	if (IS_FWI2_CAPABLE(ha)) {
+		uint64_t zero = 0;
 		pd24 = (struct port_database_24xx *) pd;
 
 		/* Check for logged in state. */
@@ -1299,6 +1300,14 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 			    "loop_id %x.\n", pd24->current_login_state,
 			    pd24->last_login_state, fcport->loop_id);
 			rval = QLA_FUNCTION_FAILED;
+			goto gpd_error_out;
+		}
+
+		if (fcport->loop_id == FC_NO_LOOP_ID ||
+		    (memcmp(fcport->port_name, (uint8_t *)&zero, 8) &&
+		     memcmp(fcport->port_name, pd24->port_name, 8))) {
+			/* We lost the device mid way. */
+			rval = QLA_NOT_LOGGED_IN;
 			goto gpd_error_out;
 		}
 
@@ -1318,6 +1327,8 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 		else
 			fcport->port_type = FCT_TARGET;
 	} else {
+		uint64_t zero = 0;
+
 		/* Check for logged in state. */
 		if (pd->master_state != PD_STATE_PORT_LOGGED_IN &&
 		    pd->slave_state != PD_STATE_PORT_LOGGED_IN) {
@@ -1327,6 +1338,14 @@ qla2x00_get_port_database(scsi_qla_host_t *vha, fc_port_t *fcport, uint8_t opt)
 			    pd->slave_state, fcport->d_id.b.domain,
 			    fcport->d_id.b.area, fcport->d_id.b.al_pa);
 			rval = QLA_FUNCTION_FAILED;
+			goto gpd_error_out;
+		}
+
+		if (fcport->loop_id == FC_NO_LOOP_ID ||
+		    (memcmp(fcport->port_name, (uint8_t *)&zero, 8) &&
+		     memcmp(fcport->port_name, pd->port_name, 8))) {
+			/* We lost the device mid way. */
+			rval = QLA_NOT_LOGGED_IN;
 			goto gpd_error_out;
 		}
 

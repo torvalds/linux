@@ -350,6 +350,13 @@ qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 		 * requests.
 		 */
 		rval = qla2x00_get_port_database(vha, fcport, 0);
+		if (rval == QLA_NOT_LOGGED_IN) {
+			fcport->flags &= ~FCF_ASYNC_SENT;
+			fcport->flags |= FCF_LOGIN_NEEDED;
+			set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+			break;
+		}
+
 		if (rval != QLA_SUCCESS) {
 			qla2x00_post_async_logout_work(vha, fcport, NULL);
 			qla2x00_post_async_login_work(vha, fcport, NULL);
@@ -3318,6 +3325,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 			fcport->flags |= FCF_LOGIN_NEEDED;
 			if (fcport->loop_id != FC_NO_LOOP_ID &&
 			    (fcport->flags & FCF_FCP2_DEVICE) == 0 &&
+			    (fcport->flags & FCF_ASYNC_SENT) == 0 &&
 			    fcport->port_type != FCT_INITIATOR &&
 			    fcport->port_type != FCT_BROADCAST) {
 				ha->isp_ops->fabric_logout(vha, fcport->loop_id,
