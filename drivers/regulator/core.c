@@ -13,8 +13,6 @@
  *
  */
 
-#define pr_fmt(fmt) "%s: " fmt, __func__
-
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/debugfs.h>
