@@ -1036,7 +1036,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 			else
 				clear_bit(STATUS_RF_KILL_HW,
 					  &trans->shrd->status);
-			iwl_set_hw_rfkill_state(priv(trans), hw_rf_kill);
+			iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rf_kill);
 		}
 
 		handled |= CSR_INT_BIT_RF_KILL;
