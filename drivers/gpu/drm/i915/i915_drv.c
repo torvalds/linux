@@ -421,8 +421,10 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 	spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);
 }
 
-void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
+int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 {
+	int ret = 0;
+
 	if (dev_priv->gt_fifo_count < GT_FIFO_NUM_RESERVED_ENTRIES) {
 		int loop = 500;
 		u32 fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
@@ -430,10 +432,13 @@ void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 			udelay(10);
 			fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
 		}
-		WARN_ON(loop < 0 && fifo <= GT_FIFO_NUM_RESERVED_ENTRIES);
+		if (WARN_ON(loop < 0 && fifo <= GT_FIFO_NUM_RESERVED_ENTRIES))
+			++ret;
 		dev_priv->gt_fifo_count = fifo;
 	}
 	dev_priv->gt_fifo_count--;
+
+	return ret;
 }
 
 static int i915_drm_freeze(struct drm_device *dev)
@@ -1001,11 +1006,15 @@ __i915_read(64, q)
 
 #define __i915_write(x, y) \
 void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
+	u32 __fifo_ret = 0; \
 	trace_i915_reg_rw(true, reg, val, sizeof(val)); \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
-		__gen6_gt_wait_for_fifo(dev_priv); \
+		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
 	write##y(val, dev_priv->regs + reg); \
+	if (unlikely(__fifo_ret)) { \
+		gen6_gt_check_fifodbg(dev_priv); \
+	} \
 }
 __i915_write(8, b)
 __i915_write(16, w)

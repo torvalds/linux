@@ -1401,7 +1401,7 @@ extern void intel_display_print_error_state(struct seq_file *m,
  */
 void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
 void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);
-void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv);
+int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv);
 
 /* We give fast paths for the really cool registers */
 #define NEEDS_FORCE_WAKE(dev_priv, reg) \
