@@ -1643,7 +1643,8 @@ qla24xx_login_fabric(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 	lg->port_id[1] = area;
 	lg->port_id[2] = domain;
 	lg->vp_index = vha->vp_idx;
-	rval = qla2x00_issue_iocb(vha, lg, lg_dma, 0);
+	rval = qla2x00_issue_iocb_timeout(vha, lg, lg_dma, 0,
+	    (ha->r_a_tov / 10 * 2) + 2);
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0x1063,
 		    "Failed to issue login IOCB (%x).\n", rval);
@@ -1906,8 +1907,8 @@ qla24xx_fabric_logout(scsi_qla_host_t *vha, uint16_t loop_id, uint8_t domain,
 	lg->port_id[1] = area;
 	lg->port_id[2] = domain;
 	lg->vp_index = vha->vp_idx;
-
-	rval = qla2x00_issue_iocb(vha, lg, lg_dma, 0);
+	rval = qla2x00_issue_iocb_timeout(vha, lg, lg_dma, 0,
+	    (ha->r_a_tov / 10 * 2) + 2);
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0x106f,
 		    "Failed to issue logout IOCB (%x).\n", rval);
