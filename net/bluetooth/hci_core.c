@@ -1489,7 +1489,7 @@ int hci_blacklist_clear(struct hci_dev *hdev)
 	return 0;
 }
 
-int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr)
+int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 {
 	struct bdaddr_list *entry;
 
@@ -1507,10 +1507,10 @@ int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr)
 
 	list_add(&entry->list, &hdev->blacklist);
 
-	return mgmt_device_blocked(hdev, bdaddr);
+	return mgmt_device_blocked(hdev, bdaddr, type);
 }
 
-int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr)
+int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 {
 	struct bdaddr_list *entry;
 
@@ -1524,7 +1524,7 @@ int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	list_del(&entry->list);
 	kfree(entry);
 
-	return mgmt_device_unblocked(hdev, bdaddr);
+	return mgmt_device_unblocked(hdev, bdaddr, type);
 }
 
 static void hci_clear_adv_cache(struct work_struct *work)

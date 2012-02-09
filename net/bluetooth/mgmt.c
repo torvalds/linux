@@ -2114,7 +2114,7 @@ static int block_device(struct sock *sk, u16 index, void *data, u16 len)
 
 	hci_dev_lock(hdev);
 
-	err = hci_blacklist_add(hdev, &cp->bdaddr);
+	err = hci_blacklist_add(hdev, &cp->addr.bdaddr, cp->addr.type);
 	if (err < 0)
 		err = cmd_status(sk, index, MGMT_OP_BLOCK_DEVICE,
 							MGMT_STATUS_FAILED);
@@ -2147,7 +2147,7 @@ static int unblock_device(struct sock *sk, u16 index, void *data, u16 len)
 
 	hci_dev_lock(hdev);
 
-	err = hci_blacklist_del(hdev, &cp->bdaddr);
+	err = hci_blacklist_del(hdev, &cp->addr.bdaddr, cp->addr.type);
 
 	if (err < 0)
 		err = cmd_status(sk, index, MGMT_OP_UNBLOCK_DEVICE,
@@ -3026,27 +3026,29 @@ int mgmt_discovering(struct hci_dev *hdev, u8 discovering)
 						sizeof(discovering), NULL);
 }
 
-int mgmt_device_blocked(struct hci_dev *hdev, bdaddr_t *bdaddr)
+int mgmt_device_blocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 {
 	struct pending_cmd *cmd;
 	struct mgmt_ev_device_blocked ev;
 
 	cmd = mgmt_pending_find(MGMT_OP_BLOCK_DEVICE, hdev);
 
-	bacpy(&ev.bdaddr, bdaddr);
+	bacpy(&ev.addr.bdaddr, bdaddr);
+	ev.addr.type = type;
 
 	return mgmt_event(MGMT_EV_DEVICE_BLOCKED, hdev, &ev, sizeof(ev),
 							cmd ? cmd->sk : NULL);
 }
 
-int mgmt_device_unblocked(struct hci_dev *hdev, bdaddr_t *bdaddr)
+int mgmt_device_unblocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 {
 	struct pending_cmd *cmd;
 	struct mgmt_ev_device_unblocked ev;
 
 	cmd = mgmt_pending_find(MGMT_OP_UNBLOCK_DEVICE, hdev);
 
-	bacpy(&ev.bdaddr, bdaddr);
+	bacpy(&ev.addr.bdaddr, bdaddr);
+	ev.addr.type = type;
 
 	return mgmt_event(MGMT_EV_DEVICE_UNBLOCKED, hdev, &ev, sizeof(ev),
 							cmd ? cmd->sk : NULL);

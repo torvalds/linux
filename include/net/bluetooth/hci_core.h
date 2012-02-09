@@ -646,8 +646,8 @@ int hci_inquiry(void __user *arg);
 
 struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr);
 int hci_blacklist_clear(struct hci_dev *hdev);
-int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr);
-int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr);
+int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
+int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
 
 int hci_uuids_clear(struct hci_dev *hdev);
 
@@ -992,8 +992,8 @@ int mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 int mgmt_start_discovery_failed(struct hci_dev *hdev, u8 status);
 int mgmt_stop_discovery_failed(struct hci_dev *hdev, u8 status);
 int mgmt_discovering(struct hci_dev *hdev, u8 discovering);
-int mgmt_device_blocked(struct hci_dev *hdev, bdaddr_t *bdaddr);
-int mgmt_device_unblocked(struct hci_dev *hdev, bdaddr_t *bdaddr);
+int mgmt_device_blocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
+int mgmt_device_unblocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type);
 
 int mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, u8 persistent);
 

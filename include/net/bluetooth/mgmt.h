@@ -299,12 +299,12 @@ struct mgmt_rp_confirm_name {
 
 #define MGMT_OP_BLOCK_DEVICE		0x0026
 struct mgmt_cp_block_device {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 } __packed;
 
 #define MGMT_OP_UNBLOCK_DEVICE		0x0027
 struct mgmt_cp_unblock_device {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 } __packed;
 
 #define MGMT_EV_CMD_COMPLETE		0x0001
@@ -405,10 +405,10 @@ struct mgmt_ev_device_found {
 
 #define MGMT_EV_DEVICE_BLOCKED		0x0014
 struct mgmt_ev_device_blocked {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 } __packed;
 
 #define MGMT_EV_DEVICE_UNBLOCKED	0x0015
 struct mgmt_ev_device_unblocked {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 } __packed;
