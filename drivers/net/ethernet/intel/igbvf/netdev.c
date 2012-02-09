@@ -2712,17 +2712,18 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 		dev_info(&pdev->dev,
 			 "PF still in reset state, assigning new address."
 			 " Is the PF interface up?\n");
-		dev_hw_addr_random(adapter->netdev, hw->mac.addr);
+		eth_hw_addr_random(netdev);
+		memcpy(adapter->hw.mac.addr, netdev->dev_addr,
+			netdev->addr_len);
 	} else {
 		err = hw->mac.ops.read_mac_addr(hw);
 		if (err) {
 			dev_err(&pdev->dev, "Error reading MAC address\n");
 			goto err_hw_init;
 		}
+		memcpy(netdev->dev_addr, adapter->hw.mac.addr,
+			netdev->addr_len);
 	}
-
-	memcpy(netdev->dev_addr, adapter->hw.mac.addr, netdev->addr_len);
-	memcpy(netdev->perm_addr, adapter->hw.mac.addr, netdev->addr_len);
 
 	if (!is_valid_ether_addr(netdev->perm_addr)) {
 		dev_err(&pdev->dev, "Invalid MAC Address: %pM\n",
@@ -2730,6 +2731,8 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 		err = -EIO;
 		goto err_hw_init;
 	}
+
+	memcpy(netdev->perm_addr, adapter->hw.mac.addr, netdev->addr_len);
 
 	setup_timer(&adapter->watchdog_timer, &igbvf_watchdog,
 	            (unsigned long) adapter);

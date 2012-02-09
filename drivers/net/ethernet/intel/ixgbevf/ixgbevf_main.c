@@ -2199,13 +2199,17 @@ static int __devinit ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 	if (err) {
 		dev_info(&pdev->dev,
 		         "PF still in reset state, assigning new address\n");
-		dev_hw_addr_random(adapter->netdev, hw->mac.addr);
+		eth_hw_addr_random(adapter->netdev);
+		memcpy(adapter->hw.mac.addr, adapter->netdev->dev_addr,
+			adapter->netdev->addr_len);
 	} else {
 		err = hw->mac.ops.init_hw(hw);
 		if (err) {
 			pr_err("init_shared_code failed: %d\n", err);
 			goto out;
 		}
+		memcpy(adapter->netdev->dev_addr, adapter->hw.mac.addr,
+			adapter->netdev->addr_len);
 	}
 
 	/* Enable dynamic interrupt throttling rates */
@@ -2224,6 +2228,7 @@ static int __devinit ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 	adapter->flags |= IXGBE_FLAG_RX_CSUM_ENABLED;
 
 	set_bit(__IXGBEVF_DOWN, &adapter->state);
+	return 0;
 
 out:
 	return err;
@@ -3394,6 +3399,17 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 
 	/* setup the private structure */
 	err = ixgbevf_sw_init(adapter);
+	if (err)
+		goto err_sw_init;
+
+	/* The HW MAC address was set and/or determined in sw_init */
+	memcpy(netdev->perm_addr, adapter->hw.mac.addr, netdev->addr_len);
+
+	if (!is_valid_ether_addr(netdev->dev_addr)) {
+		pr_err("invalid MAC address\n");
+		err = -EIO;
+		goto err_sw_init;
+	}
 
 	netdev->hw_features = NETIF_F_SG |
 			   NETIF_F_IP_CSUM |
@@ -3417,16 +3433,6 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 		netdev->features |= NETIF_F_HIGHDMA;
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
-
-	/* The HW MAC address was set and/or determined in sw_init */
-	memcpy(netdev->dev_addr, adapter->hw.mac.addr, netdev->addr_len);
-	memcpy(netdev->perm_addr, adapter->hw.mac.addr, netdev->addr_len);
-
-	if (!is_valid_ether_addr(netdev->dev_addr)) {
-		pr_err("invalid MAC address\n");
-		err = -EIO;
-		goto err_sw_init;
-	}
 
 	init_timer(&adapter->watchdog_timer);
 	adapter->watchdog_timer.function = ixgbevf_watchdog;
