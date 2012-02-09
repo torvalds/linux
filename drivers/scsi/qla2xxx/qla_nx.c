@@ -2050,8 +2050,8 @@ qla82xx_intr_handler(int irq, void *dev_id)
 
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
-		printk(KERN_INFO
-			"%s(): NULL response queue pointer.\n", __func__);
+		ql_log(ql_log_info, NULL, 0xb054,
+		    "%s: NULL response queue pointer.\n", __func__);
 		return IRQ_NONE;
 	}
 	ha = rsp->hw;
