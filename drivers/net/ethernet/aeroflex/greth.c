@@ -1421,7 +1421,7 @@ static int __devinit greth_of_probe(struct platform_device *ofdev)
 	SET_NETDEV_DEV(dev, greth->dev);
 
 	if (netif_msg_probe(greth))
-		dev_dbg(greth->dev, "reseting controller.\n");
+		dev_dbg(greth->dev, "resetting controller.\n");
 
 	/* Reset the controller. */
 	GRETH_REGSAVE(regs->control, GRETH_RESET);
