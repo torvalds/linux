@@ -19989,12 +19989,11 @@ static void wlc_phy_radio_init_2057(struct brcms_phy *pi)
 		switch (pi->pubpi.radiorev) {
 		case 5:
 
-			if (pi->pubpi.radiover == 0x0)
+			if (NREV_IS(pi->pubpi.phy_rev, 8))
 				regs_2057_ptr = regs_2057_rev5;
-			else if (pi->pubpi.radiover == 0x1)
+			else if (NREV_IS(pi->pubpi.phy_rev, 9))
 				regs_2057_ptr = regs_2057_rev5v1;
-			else
-				break;
+			break;
 
 		case 7:
 
