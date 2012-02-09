@@ -2221,7 +2221,7 @@ static int twl4030_soc_probe(struct snd_soc_codec *codec)
 
 	twl4030 = kzalloc(sizeof(struct twl4030_priv), GFP_KERNEL);
 	if (twl4030 == NULL) {
-		printk("Can not allocate memroy\n");
+		printk("Can not allocate memory\n");
 		return -ENOMEM;
 	}
 	snd_soc_codec_set_drvdata(codec, twl4030);
