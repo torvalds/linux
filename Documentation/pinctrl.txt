@@ -208,6 +208,8 @@ unconnected.
 
 For example, a platform may do this:
 
+#include <linux/pinctrl/consumer.h>
+
 ret = pin_config_set("foo-dev", "FOO_GPIO_PIN", PLATFORM_X_PULL_UP);
 
 To pull up a pin to VDD. The pin configuration driver implements callbacks for
@@ -920,7 +922,7 @@ this is not possible.
 A driver may request a certain mux to be activated, usually just the default
 mux like this:
 
-#include <linux/pinctrl/pinmux.h>
+#include <linux/pinctrl/consumer.h>
 
 struct foo_state {
        struct pinmux *pmx;
@@ -1018,6 +1020,8 @@ function, but with different named in the mapping as described under
 
 This snippet first muxes the function in the pins defined by group A, enables
 it, disables and releases it, and muxes it in on the pins defined by group B:
+
+#include <linux/pinctrl/consumer.h>
 
 foo_switch()
 {
