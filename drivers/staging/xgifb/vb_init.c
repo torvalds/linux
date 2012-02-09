@@ -1268,7 +1268,7 @@ static void XGINew_SetModeScratch(struct xgi_hw_device_info *HwDeviceExtension,
 
 				if (pVBInfo->IF_DEF_HiVision == 1) {
 					if ((temp >> 8) & ActiveHiTV)
-						tempcl |= SetCRT2ToHiVisionTV;
+						tempcl |= SetCRT2ToHiVision;
 				}
 
 				if (pVBInfo->IF_DEF_YPbPr == 1) {
@@ -1287,7 +1287,7 @@ static void XGINew_SetModeScratch(struct xgi_hw_device_info *HwDeviceExtension,
 
 		if (pVBInfo->IF_DEF_HiVision == 1) {
 			if ((temp >> 8) & ActiveHiTV)
-				tempcl |= SetCRT2ToHiVisionTV;
+				tempcl |= SetCRT2ToHiVision;
 		}
 
 		if (pVBInfo->IF_DEF_YPbPr == 1) {

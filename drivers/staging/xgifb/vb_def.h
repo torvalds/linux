@@ -131,11 +131,9 @@
 #define SetCRT2ToSCART      0x0010
 #define SetCRT2ToLCD        0x0020
 #define SetCRT2ToRAMDAC     0x0040
-#define SetCRT2ToHiVisionTV 0x0080
 #define SetCRT2ToLCDA       0x0100
 #define SetInSlaveMode      0x0200
 #define SetNotSimuMode      0x0400
-#define SetCRT2ToYPbPr      0x0800
 #define LoadDACFlag         0x1000
 #define DisableCRT2Display  0x2000
 #define DriverMode          0x4000
@@ -150,14 +148,6 @@
 #define EnableChA           0x8000
 
 #define SetNTSCTV           0x0000 /* TV Info */
-#define SetPALTV            0x0001
-#define SetNTSCJ            0x0002
-#define SetPALMTV           0x0004
-#define SetPALNTV           0x0008
-#define SetYPbPrMode525i     0x0020
-#define SetYPbPrMode525p     0x0040
-#define SetYPbPrMode750p     0x0080
-#define SetYPbPrMode1080i    0x0100
 #define SetTVLowResolution   0x0400
 #define TVSimuMode           0x0800
 #define RPLLDIV2XO           0x1000
