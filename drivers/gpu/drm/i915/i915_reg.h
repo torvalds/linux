@@ -86,6 +86,13 @@
 #define   GEN6_MBC_SNPCR_LOW	(2<<21)
 #define   GEN6_MBC_SNPCR_MIN	(3<<21) /* only 1/16th of the cache is shared */
 
+#define GEN6_MBCTL		0x0907c
+#define   GEN6_MBCTL_ENABLE_BOOT_FETCH	(1 << 4)
+#define   GEN6_MBCTL_CTX_FETCH_NEEDED	(1 << 3)
+#define   GEN6_MBCTL_BME_UPDATE_ENABLE	(1 << 2)
+#define   GEN6_MBCTL_MAE_UPDATE_ENABLE	(1 << 1)
+#define   GEN6_MBCTL_BOOT_FETCH_MECH	(1 << 0)
+
 #define GEN6_GDRST	0x941c
 #define  GEN6_GRDOM_FULL		(1 << 0)
 #define  GEN6_GRDOM_RENDER		(1 << 1)
@@ -107,6 +114,16 @@
 #define GEN6_PTE_CACHE_BITS		(3 << 1)
 #define GEN6_PTE_GFDT			(1 << 3)
 #define GEN6_PTE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
+
+#define RING_PP_DIR_BASE(ring)		((ring)->mmio_base+0x228)
+#define RING_PP_DIR_BASE_READ(ring)	((ring)->mmio_base+0x518)
+#define RING_PP_DIR_DCLV(ring)		((ring)->mmio_base+0x220)
+#define   PP_DIR_DCLV_2G		0xffffffff
+
+#define GAM_ECOCHK			0x4090
+#define   ECOCHK_SNB_BIT		(1<<10)
+#define   ECOCHK_PPGTT_CACHE64B		(0x3<<3)
+#define   ECOCHK_PPGTT_CACHE4B		(0x0<<3)
 
 /* VGA stuff */
 
@@ -422,6 +439,7 @@
 
 #define GFX_MODE	0x02520
 #define GFX_MODE_GEN7	0x0229c
+#define RING_MODE_GEN7(ring)	((ring)->mmio_base+0x29c)
 #define   GFX_RUN_LIST_ENABLE		(1<<15)
 #define   GFX_TLB_INVALIDATE_ALWAYS	(1<<13)
 #define   GFX_SURFACE_FAULT_ENABLE	(1<<12)
