@@ -422,7 +422,8 @@ static int do_surface_dirty_sou(struct vmw_private *dev_priv,
 				struct vmw_framebuffer *framebuffer,
 				unsigned flags, unsigned color,
 				struct drm_clip_rect *clips,
-				unsigned num_clips, int inc)
+				unsigned num_clips, int inc,
+				struct vmw_fence_obj **out_fence)
 {
 	struct vmw_display_unit *units[VMWGFX_NUM_DISPLAY_UNITS];
 	struct drm_clip_rect *clips_ptr;
@@ -542,12 +543,15 @@ static int do_surface_dirty_sou(struct vmw_private *dev_priv,
 		if (num == 0)
 			continue;
 
+		/* only return the last fence */
+		if (out_fence && *out_fence)
+			vmw_fence_obj_unreference(out_fence);
 
 		/* recalculate package length */
 		fifo_size = sizeof(*cmd) + sizeof(SVGASignedRect) * num;
 		cmd->header.size = cpu_to_le32(fifo_size - sizeof(cmd->header));
 		ret = vmw_execbuf_process(file_priv, dev_priv, NULL, cmd,
-					  fifo_size, 0, NULL, NULL);
+					  fifo_size, 0, NULL, out_fence);
 
 		if (unlikely(ret != 0))
 			break;
@@ -598,7 +602,7 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 
 	ret = do_surface_dirty_sou(dev_priv, file_priv, &vfbs->base,
 				   flags, color,
-				   clips, num_clips, inc);
+				   clips, num_clips, inc, NULL);
 
 	ttm_read_unlock(&vmaster->lock);
 	return 0;
@@ -821,7 +825,8 @@ static int do_dmabuf_dirty_sou(struct drm_file *file_priv,
 			       struct vmw_framebuffer *framebuffer,
 			       unsigned flags, unsigned color,
 			       struct drm_clip_rect *clips,
-			       unsigned num_clips, int increment)
+			       unsigned num_clips, int increment,
+			       struct vmw_fence_obj **out_fence)
 {
 	struct vmw_display_unit *units[VMWGFX_NUM_DISPLAY_UNITS];
 	struct drm_clip_rect *clips_ptr;
@@ -894,9 +899,13 @@ static int do_dmabuf_dirty_sou(struct drm_file *file_priv,
 		if (hit_num == 0)
 			continue;
 
+		/* only return the last fence */
+		if (out_fence && *out_fence)
+			vmw_fence_obj_unreference(out_fence);
+
 		fifo_size = sizeof(*blits) * hit_num;
 		ret = vmw_execbuf_process(file_priv, dev_priv, NULL, blits,
-					  fifo_size, 0, NULL, NULL);
+					  fifo_size, 0, NULL, out_fence);
 
 		if (unlikely(ret != 0))
 			break;
@@ -942,7 +951,7 @@ int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 	} else {
 		ret = do_dmabuf_dirty_sou(file_priv, dev_priv, &vfbd->base,
 					  flags, color,
-					  clips, num_clips, increment);
+					  clips, num_clips, increment, NULL);
 	}
 
 	ttm_read_unlock(&vmaster->lock);
