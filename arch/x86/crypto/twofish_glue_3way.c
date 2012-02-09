@@ -706,7 +706,6 @@ int __init init(void)
 
 	return 0;
 
-	crypto_unregister_alg(&blk_xts_alg);
 blk_xts_err:
 	crypto_unregister_alg(&blk_lrw_alg);
 blk_lrw_err:
