@@ -3248,7 +3248,7 @@ static void brcms_b_coreinit(struct brcms_c_info *wlc)
 	}
 
 	/* For old ucode, txfifo sizes needs to be modified(increased) */
-	if (fifosz_fixup == true)
+	if (fifosz_fixup)
 		brcms_b_corerev_fifofixup(wlc_hw);
 
 	/* check txfifo allocations match between ucode and driver */
@@ -5427,7 +5427,7 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 		return -EINVAL;
 
 	/* update configuration value */
-	if (config == true)
+	if (config)
 		brcms_c_protection_upd(wlc, BRCMS_PROT_G_USER, gmode);
 
 	/* Clear rateset override */

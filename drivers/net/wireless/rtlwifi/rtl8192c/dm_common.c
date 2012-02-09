@@ -329,8 +329,8 @@ static void rtl92c_dm_initial_gain_multi_sta(struct ieee80211_hw *hw)
 	if (mac->opmode == NL80211_IFTYPE_ADHOC)
 		multi_sta = true;
 
-	if ((multi_sta == false) || (dm_digtable.cursta_connectctate !=
-				     DIG_STA_DISCONNECT)) {
+	if (!multi_sta ||
+	    dm_digtable.cursta_connectctate != DIG_STA_DISCONNECT) {
 		initialized = false;
 		dm_digtable.dig_ext_port_stage = DIG_EXT_PORT_STAGE_MAX;
 		return;

@@ -558,8 +558,7 @@ bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
 					RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
 						 "IPS Set eRf nic enable\n");
 					rtstatus = rtl_ps_enable_nic(hw);
-				} while ((rtstatus != true) &&
-					 (InitializeCount < 10));
+				} while (!rtstatus && (InitializeCount < 10));
 
 				RT_CLEAR_PS_LEVEL(ppsc,
 						  RT_RF_OFF_LEVL_HALT_NIC);
@@ -990,7 +989,7 @@ static bool _rtl92s_phy_bb_config_parafile(struct ieee80211_hw *hw)
 		rtstatus = false;
 	}
 
-	if (rtstatus != true) {
+	if (!rtstatus) {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_EMERG,
 			 "Write BB Reg Fail!!\n");
 		goto phy_BB8190_Config_ParaFile_Fail;
@@ -1004,7 +1003,7 @@ static bool _rtl92s_phy_bb_config_parafile(struct ieee80211_hw *hw)
 		rtstatus = _rtl92s_phy_config_bb_with_pg(hw,
 						 BASEBAND_CONFIG_PHY_REG);
 	}
-	if (rtstatus != true) {
+	if (!rtstatus) {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_EMERG,
 			 "_rtl92s_phy_bb_config_parafile(): BB_PG Reg Fail!!\n");
 		goto phy_BB8190_Config_ParaFile_Fail;
@@ -1013,7 +1012,7 @@ static bool _rtl92s_phy_bb_config_parafile(struct ieee80211_hw *hw)
 	/* 3. BB AGC table Initialization */
 	rtstatus = _rtl92s_phy_config_bb(hw, BASEBAND_CONFIG_AGC_TAB);
 
-	if (rtstatus != true) {
+	if (!rtstatus) {
 		pr_err("%s(): AGC Table Fail\n", __func__);
 		goto phy_BB8190_Config_ParaFile_Fail;
 	}
@@ -1270,7 +1269,7 @@ void rtl92s_phy_set_txpower(struct ieee80211_hw *hw, u8	channel)
 	/* [0]:RF-A, [1]:RF-B */
 	u8 cckpowerlevel[2], ofdmpowerLevel[2];
 
-	if (rtlefuse->txpwr_fromeprom == false)
+	if (!rtlefuse->txpwr_fromeprom)
 		return;
 
 	/* Mainly we use RF-A Tx Power to write the Tx Power registers,
@@ -1621,7 +1620,7 @@ bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
 			break;
 		case FW_CMD_HIGH_PWR_ENABLE:
 			if (!(rtlpriv->dm.dm_flag & HAL_DM_HIPWR_DISABLE) &&
-				(rtlpriv->dm.dynamic_txpower_enable != true)) {
+			    !rtlpriv->dm.dynamic_txpower_enable) {
 				fw_cmdmap |= (FW_HIGH_PWR_ENABLE_CTL |
 					      FW_SS_CTL);
 				FW_CMD_IO_SET(rtlpriv, fw_cmdmap);

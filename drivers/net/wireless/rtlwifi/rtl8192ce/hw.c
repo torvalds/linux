@@ -693,7 +693,7 @@ static bool _rtl92ce_init_mac(struct ieee80211_hw *hw)
 
 	rtl_write_word(rtlpriv, REG_CR, 0x2ff);
 
-	if (_rtl92ce_llt_table_init(hw) == false)
+	if (!_rtl92ce_llt_table_init(hw))
 		return false;
 
 	rtl_write_dword(rtlpriv, REG_HISR, 0xffffffff);
@@ -906,7 +906,7 @@ int rtl92ce_hw_init(struct ieee80211_hw *hw)
 	rtlpci->being_init_adapter = true;
 	rtlpriv->intf_ops->disable_aspm(hw);
 	rtstatus = _rtl92ce_init_mac(hw);
-	if (rtstatus != true) {
+	if (!rtstatus) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Init MAC failed\n");
 		err = 1;
 		return err;
@@ -1117,7 +1117,7 @@ void rtl92ce_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR,
 					      (u8 *) (&reg_rcr));
 		_rtl92ce_set_bcn_ctrl_reg(hw, 0, BIT(4));
-	} else if (check_bssid == false) {
+	} else if (!check_bssid) {
 		reg_rcr &= (~(RCR_CBSSID_DATA | RCR_CBSSID_BCN));
 		_rtl92ce_set_bcn_ctrl_reg(hw, BIT(4), 0);
 		rtlpriv->cfg->ops->set_hw_reg(hw,
@@ -1985,8 +1985,7 @@ bool rtl92ce_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 		e_rfpowerstate_toset = ERFON;
 		ppsc->hwradiooff = false;
 		actuallyset = true;
-	} else if ((ppsc->hwradiooff == false)
-		   && (e_rfpowerstate_toset == ERFOFF)) {
+	} else if (!ppsc->hwradiooff && (e_rfpowerstate_toset == ERFOFF)) {
 		RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
 			 "GPIOChangeRF  - HW Radio OFF, RF OFF\n");
 

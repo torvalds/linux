@@ -767,7 +767,7 @@ static int brcmf_sdbrcm_htclk(struct brcmf_sdio *bus, bool on, bool pendok)
 		brcmf_dbg(INFO, "CLKCTL: turned ON\n");
 
 #if defined(DEBUG)
-		if (bus->alp_only != true) {
+		if (!bus->alp_only) {
 			if (SBSDIO_ALPONLY(clkctl))
 				brcmf_dbg(ERROR, "HT Clock should be on\n");
 		}
@@ -2059,8 +2059,7 @@ static void
 brcmf_sdbrcm_wait_for_event(struct brcmf_sdio *bus, bool *lockvar)
 {
 	up(&bus->sdsem);
-	wait_event_interruptible_timeout(bus->ctrl_wait,
-					 (*lockvar == false), HZ * 2);
+	wait_event_interruptible_timeout(bus->ctrl_wait, !*lockvar, HZ * 2);
 	down(&bus->sdsem);
 	return;
 }
@@ -2647,8 +2646,7 @@ static int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *pkt)
 
 	/* Priority based enq */
 	spin_lock_bh(&bus->txqlock);
-	if (brcmf_c_prec_enq(bus->sdiodev->dev, &bus->txq, pkt, prec) ==
-	    false) {
+	if (!brcmf_c_prec_enq(bus->sdiodev->dev, &bus->txq, pkt, prec)) {
 		skb_pull(pkt, SDPCM_HDRLEN);
 		brcmf_txcomplete(bus->sdiodev->dev, pkt, false);
 		brcmu_pkt_buf_free_skb(pkt);
@@ -2935,7 +2933,7 @@ brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 
 		brcmf_sdbrcm_wait_for_event(bus, &bus->ctrl_frame_stat);
 
-		if (bus->ctrl_frame_stat == false) {
+		if (!bus->ctrl_frame_stat) {
 			brcmf_dbg(INFO, "ctrl_frame_stat == false\n");
 			ret = 0;
 		} else {
@@ -2997,7 +2995,7 @@ brcmf_sdbrcm_bus_rxctl(struct device *dev, unsigned char *msg, uint msglen)
 			  rxlen, msglen);
 	} else if (timeleft == 0) {
 		brcmf_dbg(ERROR, "resumed on timeout\n");
-	} else if (pending == true) {
+	} else if (pending) {
 		brcmf_dbg(CTL, "cancelled\n");
 		return -ERESTARTSYS;
 	} else {
@@ -3983,7 +3981,7 @@ void
 brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick)
 {
 	/* Totally stop the timer */
-	if (!wdtick && bus->wd_timer_valid == true) {
+	if (!wdtick && bus->wd_timer_valid) {
 		del_timer_sync(&bus->timer);
 		bus->wd_timer_valid = false;
 		bus->save_ms = wdtick;
@@ -3996,7 +3994,7 @@ brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick)
 
 	if (wdtick) {
 		if (bus->save_ms != BRCMF_WD_POLL_MS) {
-			if (bus->wd_timer_valid == true)
+			if (bus->wd_timer_valid)
 				/* Stop timer and restart at new value */
 				del_timer_sync(&bus->timer);
 

@@ -617,7 +617,7 @@ static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
 				*link_up = false;
 		}
 
-		if (*link_up == false)
+		if (!*link_up)
 			goto out;
 	}
 
@@ -645,7 +645,7 @@ static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
 	else
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
 
-	if ((hw->device_id == IXGBE_DEV_ID_82598AT2) && (*link_up == true) &&
+	if ((hw->device_id == IXGBE_DEV_ID_82598AT2) && *link_up &&
 	    (ixgbe_validate_link_ready(hw) != 0))
 		*link_up = false;
 

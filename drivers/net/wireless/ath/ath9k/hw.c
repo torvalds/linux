@@ -1600,7 +1600,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		allow_fbs = true;
 
 	if (bChannelChange &&
-	    (ah->chip_fullsleep != true) &&
+	    (!ah->chip_fullsleep) &&
 	    (ah->curchan != NULL) &&
 	    (chan->channel != ah->curchan->channel) &&
 	    (allow_fbs ||
@@ -2038,8 +2038,7 @@ static bool ath9k_hw_set_power_awake(struct ath_hw *ah, int setChip)
 	if (setChip) {
 		if ((REG_READ(ah, AR_RTC_STATUS) &
 		     AR_RTC_STATUS_M) == AR_RTC_STATUS_SHUTDOWN) {
-			if (ath9k_hw_set_reset_reg(ah,
-					   ATH9K_RESET_POWER_ON) != true) {
+			if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_POWER_ON)) {
 				return false;
 			}
 			if (!AR_SREV_9300_20_OR_LATER(ah))

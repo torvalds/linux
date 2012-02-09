@@ -258,7 +258,7 @@ static void ixgbe_restore_vf_macvlans(struct ixgbe_adapter *adapter)
 
 	list_for_each(pos, &adapter->vf_mvs.l) {
 		entry = list_entry(pos, struct vf_macvlans, l);
-		if (entry->free == false)
+		if (!entry->free)
 			hw->mac.ops.set_rar(hw, entry->rar_entry,
 					    entry->vf_macvlan,
 					    entry->vf, IXGBE_RAH_AV);

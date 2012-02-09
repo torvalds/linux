@@ -203,7 +203,7 @@ bfa_nw_cee_get_attr(struct bfa_cee *cee, struct bfa_cee_attr *attr,
 	if (!bfa_nw_ioc_is_operational(cee->ioc))
 		return BFA_STATUS_IOC_FAILURE;
 
-	if (cee->get_attr_pending == true)
+	if (cee->get_attr_pending)
 		return  BFA_STATUS_DEVBUSY;
 
 	cee->get_attr_pending = true;
@@ -272,7 +272,7 @@ bfa_cee_notify(void *arg, enum bfa_ioc_event event)
 	switch (event) {
 	case BFA_IOC_E_DISABLED:
 	case BFA_IOC_E_FAILED:
-		if (cee->get_attr_pending == true) {
+		if (cee->get_attr_pending) {
 			cee->get_attr_status = BFA_STATUS_FAILED;
 			cee->get_attr_pending  = false;
 			if (cee->cbfn.get_attr_cbfn) {
@@ -281,7 +281,7 @@ bfa_cee_notify(void *arg, enum bfa_ioc_event event)
 					BFA_STATUS_FAILED);
 			}
 		}
-		if (cee->get_stats_pending == true) {
+		if (cee->get_stats_pending) {
 			cee->get_stats_status = BFA_STATUS_FAILED;
 			cee->get_stats_pending  = false;
 			if (cee->cbfn.get_stats_cbfn) {
@@ -290,7 +290,7 @@ bfa_cee_notify(void *arg, enum bfa_ioc_event event)
 					BFA_STATUS_FAILED);
 			}
 		}
-		if (cee->reset_stats_pending == true) {
+		if (cee->reset_stats_pending) {
 			cee->reset_stats_status = BFA_STATUS_FAILED;
 			cee->reset_stats_pending  = false;
 			if (cee->cbfn.reset_stats_cbfn) {

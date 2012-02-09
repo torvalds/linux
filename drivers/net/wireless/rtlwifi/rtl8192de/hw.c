@@ -707,7 +707,7 @@ static bool _rtl92de_init_mac(struct ieee80211_hw *hw)
 
 	/* System init */
 	/* 18.  LLT_table_init(Adapter);  */
-	if (_rtl92de_llt_table_init(hw) == false)
+	if (!_rtl92de_llt_table_init(hw))
 		return false;
 
 	/* Clear interrupt and enable interrupt */
@@ -920,7 +920,7 @@ int rtl92de_hw_init(struct ieee80211_hw *hw)
 	rtl92d_phy_reset_iqk_result(hw);
 	/* rtlpriv->intf_ops->disable_aspm(hw); */
 	rtstatus = _rtl92de_init_mac(hw);
-	if (rtstatus != true) {
+	if (!rtstatus) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Init MAC failed\n");
 		err = 1;
 		spin_unlock_irqrestore(&globalmutex_for_power_and_efuse, flags);
@@ -1147,7 +1147,7 @@ void rtl92de_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
 		reg_rcr |= (RCR_CBSSID_DATA | RCR_CBSSID_BCN);
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
 		_rtl92de_set_bcn_ctrl_reg(hw, 0, BIT(4));
-	} else if (check_bssid == false) {
+	} else if (!check_bssid) {
 		reg_rcr &= (~(RCR_CBSSID_DATA | RCR_CBSSID_BCN));
 		_rtl92de_set_bcn_ctrl_reg(hw, BIT(4), 0);
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
@@ -2151,8 +2151,7 @@ bool rtl92de_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 		e_rfpowerstate_toset = ERFON;
 		ppsc->hwradiooff = false;
 		actuallyset = true;
-	} else if ((ppsc->hwradiooff == false)
-		&& (e_rfpowerstate_toset == ERFOFF)) {
+	} else if (!ppsc->hwradiooff && (e_rfpowerstate_toset == ERFOFF)) {
 		RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
 			 "GPIOChangeRF  - HW Radio OFF, RF OFF\n");
 		e_rfpowerstate_toset = ERFOFF;

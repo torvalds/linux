@@ -962,7 +962,7 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 	rtlhal->fwcmd_ioparam = rtl_read_dword(rtlpriv, LBUS_ADDR_MASK);
 
 	/* 3. Initialize MAC/PHY Config by MACPHY_reg.txt */
-	if (rtl92s_phy_mac_config(hw) != true) {
+	if (!rtl92s_phy_mac_config(hw)) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "MAC Config failed\n");
 		return rtstatus;
 	}
@@ -972,7 +972,7 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 	rtl_write_dword(rtlpriv, CMDR, 0x37FC);
 
 	/* 4. Initialize BB After MAC Config PHY_reg.txt, AGC_Tab.txt */
-	if (rtl92s_phy_bb_config(hw) != true) {
+	if (!rtl92s_phy_bb_config(hw)) {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_EMERG, "BB Config failed\n");
 		return rtstatus;
 	}
@@ -1008,7 +1008,7 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 	else
 		rtl_write_byte(rtlpriv, RF_CTRL, 0x07);
 
-	if (rtl92s_phy_rf_config(hw) != true) {
+	if (!rtl92s_phy_rf_config(hw)) {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "RF Config failed\n");
 		return rtstatus;
 	}
@@ -1105,7 +1105,7 @@ void rtl92se_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
 	if (check_bssid) {
 		reg_rcr |= (RCR_CBSSID);
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
-	} else if (check_bssid == false) {
+	} else if (!check_bssid) {
 		reg_rcr &= (~RCR_CBSSID);
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
 	}
@@ -2306,7 +2306,7 @@ bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 		rfpwr_toset = ERFON;
 		ppsc->hwradiooff = false;
 		actuallyset = true;
-	} else if ((ppsc->hwradiooff == false) && (rfpwr_toset == ERFOFF)) {
+	} else if ((!ppsc->hwradiooff) && (rfpwr_toset == ERFOFF)) {
 		RT_TRACE(rtlpriv, COMP_RF,
 			 DBG_DMESG, "RFKILL-HW Radio OFF, RF OFF\n");
 

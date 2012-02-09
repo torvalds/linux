@@ -760,7 +760,7 @@ static s32 ixgbe_blink_led_start_X540(struct ixgbe_hw *hw, u32 index)
 	 * This will be reversed when we stop the blinking.
 	 */
 	hw->mac.ops.check_link(hw, &speed, &link_up, false);
-	if (link_up == false) {
+	if (!link_up) {
 		macc_reg = IXGBE_READ_REG(hw, IXGBE_MACC);
 		macc_reg |= IXGBE_MACC_FLU | IXGBE_MACC_FSV_10G | IXGBE_MACC_FS;
 		IXGBE_WRITE_REG(hw, IXGBE_MACC, macc_reg);

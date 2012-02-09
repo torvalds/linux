@@ -1224,7 +1224,7 @@ static irqreturn_t pch_gbe_intr(int irq, void *data)
 
 	/* When request status is Receive interruption */
 	if ((int_st & (PCH_GBE_INT_RX_DMA_CMPLT | PCH_GBE_INT_TX_CMPLT)) ||
-	    (adapter->rx_stop_flag == true)) {
+	    (adapter->rx_stop_flag)) {
 		if (likely(napi_schedule_prep(&adapter->napi))) {
 			/* Enable only Rx Descriptor empty */
 			atomic_inc(&adapter->irq_sem);

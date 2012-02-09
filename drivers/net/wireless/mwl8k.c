@@ -1330,7 +1330,7 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
 								wh->addr1);
 
 			if (mwl8k_vif != NULL &&
-			    mwl8k_vif->is_hw_crypto_enabled == true) {
+			    mwl8k_vif->is_hw_crypto_enabled) {
 				/*
 				 * When MMIC ERROR is encountered
 				 * by the firmware, payload is
@@ -1993,8 +1993,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 	 */
 
 	if (txq->len >= MWL8K_TX_DESCS - 2) {
-		if (mgmtframe == false ||
-			txq->len == MWL8K_TX_DESCS) {
+		if (!mgmtframe || txq->len == MWL8K_TX_DESCS) {
 			if (start_ba_session) {
 				spin_lock(&priv->stream_lock);
 				mwl8k_remove_stream(hw, stream);
