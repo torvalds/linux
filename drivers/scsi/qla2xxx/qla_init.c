@@ -2567,8 +2567,7 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 			ql_dbg(ql_dbg_disc, vha, 0x2015,
 			    "Loop resync needed, failing.\n");
 			rval = QLA_FUNCTION_FAILED;
-		}
-		else
+		} else
 			rval = qla2x00_configure_local_loop(vha);
 	}
 
@@ -2642,7 +2641,7 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 
 	found_devs = 0;
 	new_fcport = NULL;
-	entries = MAX_FIBRE_DEVICES;
+	entries = MAX_FIBRE_DEVICES_LOOP;
 
 	ql_dbg(ql_dbg_disc, vha, 0x2016,
 	    "Getting FCAL position map.\n");
@@ -2650,7 +2649,7 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 		qla2x00_get_fcal_position_map(vha, NULL);
 
 	/* Get list of logged in devices. */
-	memset(ha->gid_list, 0, GID_LIST_SIZE);
+	memset(ha->gid_list, 0, qla2x00_gid_list_size(ha));
 	rval = qla2x00_get_id_list(vha, ha->gid_list, ha->gid_list_dma,
 	    &entries);
 	if (rval != QLA_SUCCESS)
@@ -3134,7 +3133,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 
 	/* Try GID_PT to get device list, else GAN. */
 	if (!ha->swl)
-		ha->swl = kcalloc(MAX_FIBRE_DEVICES, sizeof(sw_info_t),
+		ha->swl = kcalloc(ha->max_fibre_devices, sizeof(sw_info_t),
 		    GFP_KERNEL);
 	swl = ha->swl;
 	if (!swl) {
@@ -3142,7 +3141,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 		ql_dbg(ql_dbg_disc, vha, 0x2054,
 		    "GID_PT allocations failed, fallback on GA_NXT.\n");
 	} else {
-		memset(swl, 0, MAX_FIBRE_DEVICES * sizeof(sw_info_t));
+		memset(swl, 0, ha->max_fibre_devices * sizeof(sw_info_t));
 		if (qla2x00_gid_pt(vha, swl) != QLA_SUCCESS) {
 			swl = NULL;
 		} else if (qla2x00_gpn_id(vha, swl) != QLA_SUCCESS) {

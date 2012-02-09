@@ -125,7 +125,10 @@
  * Fibre Channel device definitions.
  */
 #define WWN_SIZE		8	/* Size of WWPN, WWN & WWNN */
-#define MAX_FIBRE_DEVICES	512
+#define MAX_FIBRE_DEVICES_2100	512
+#define MAX_FIBRE_DEVICES_2400	2048
+#define MAX_FIBRE_DEVICES_LOOP	128
+#define MAX_FIBRE_DEVICES_MAX	MAX_FIBRE_DEVICES_2400
 #define MAX_FIBRE_LUNS  	0xFFFF
 #define	MAX_HOST_COUNT		16
 
@@ -133,8 +136,6 @@
  * Host adapter default definitions.
  */
 #define MAX_BUSES		1  /* We only have one bus today */
-#define MAX_TARGETS_2100	MAX_FIBRE_DEVICES
-#define MAX_TARGETS_2200	MAX_FIBRE_DEVICES
 #define MIN_LUNS		8
 #define MAX_LUNS		MAX_FIBRE_LUNS
 #define MAX_CMDS_PER_LUN	255
@@ -1773,7 +1774,6 @@ static const char * const port_state_str[] = {
 
 #define	GID_PT_CMD	0x1A1
 #define	GID_PT_REQ_SIZE	(16 + 4)
-#define	GID_PT_RSP_SIZE	(16 + (MAX_FIBRE_DEVICES * 4))
 
 #define	GPN_ID_CMD	0x112
 #define	GPN_ID_REQ_SIZE	(16 + 4)
@@ -2063,7 +2063,9 @@ struct ct_sns_rsp {
 		} ga_nxt;
 
 		struct {
-			struct ct_sns_gid_pt_data entries[MAX_FIBRE_DEVICES];
+			/* Assume the largest number of targets for the union */
+			struct ct_sns_gid_pt_data
+			    entries[MAX_FIBRE_DEVICES_MAX];
 		} gid_pt;
 
 		struct {
@@ -2124,7 +2126,11 @@ struct ct_sns_pkt {
 
 #define	GID_PT_SNS_SCMD_LEN	6
 #define	GID_PT_SNS_CMD_SIZE	28
-#define	GID_PT_SNS_DATA_SIZE	(MAX_FIBRE_DEVICES * 4 + 16)
+/*
+ * Assume MAX_FIBRE_DEVICES_2100 as these defines are only used with older
+ * adapters.
+ */
+#define	GID_PT_SNS_DATA_SIZE	(MAX_FIBRE_DEVICES_2100 * 4 + 16)
 
 #define	GPN_ID_SNS_SCMD_LEN	6
 #define	GPN_ID_SNS_CMD_SIZE	28
@@ -2172,7 +2178,6 @@ struct gid_list_info {
 	uint16_t loop_id;	/* ISP23XX         -- 6 bytes. */
 	uint16_t reserved_1;	/* ISP24XX         -- 8 bytes. */
 };
-#define GID_LIST_SIZE (sizeof(struct gid_list_info) * MAX_FIBRE_DEVICES)
 
 /* NPIV */
 typedef struct vport_info {
@@ -2499,6 +2504,7 @@ struct qla_hw_data {
 	atomic_t	loop_down_timer;         /* loop down timer */
 	uint8_t		link_down_timeout;       /* link down timeout */
 	uint16_t	max_loop_id;
+	uint16_t	max_fibre_devices;	/* Maximum number of targets */
 
 	uint16_t	fb_rev;
 	uint16_t	min_external_loopid;    /* First external loop Id */

@@ -2135,7 +2135,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	char pci_info[30];
 	char fw_str[30];
 	struct scsi_host_template *sht;
-	int bars, max_id, mem_only = 0;
+	int bars, mem_only = 0;
 	uint16_t req_length = 0, rsp_length = 0;
 	struct req_que *req = NULL;
 	struct rsp_que *rsp = NULL;
@@ -2200,9 +2200,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->optrom_size = OPTROM_SIZE_2300;
 
 	/* Assign ISP specific operations. */
-	max_id = MAX_TARGETS_2200;
 	if (IS_QLA2100(ha)) {
-		max_id = MAX_TARGETS_2100;
+		ha->max_fibre_devices = MAX_FIBRE_DEVICES_2100;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT_2100;
 		req_length = REQUEST_ENTRY_CNT_2100;
 		rsp_length = RESPONSE_ENTRY_CNT_2100;
@@ -2214,6 +2213,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->nvram_data_off = ~0;
 		ha->isp_ops = &qla2100_isp_ops;
 	} else if (IS_QLA2200(ha)) {
+		ha->max_fibre_devices = MAX_FIBRE_DEVICES_2100;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT_2200;
 		req_length = REQUEST_ENTRY_CNT_2200;
 		rsp_length = RESPONSE_ENTRY_CNT_2100;
@@ -2225,6 +2225,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->nvram_data_off = ~0;
 		ha->isp_ops = &qla2100_isp_ops;
 	} else if (IS_QLA23XX(ha)) {
+		ha->max_fibre_devices = MAX_FIBRE_DEVICES_2100;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
 		req_length = REQUEST_ENTRY_CNT_2200;
 		rsp_length = RESPONSE_ENTRY_CNT_2300;
@@ -2238,6 +2239,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->nvram_data_off = ~0;
 		ha->isp_ops = &qla2300_isp_ops;
 	} else if (IS_QLA24XX_TYPE(ha)) {
+		ha->max_fibre_devices = MAX_FIBRE_DEVICES_2400;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
 		req_length = REQUEST_ENTRY_CNT_24XX;
 		rsp_length = RESPONSE_ENTRY_CNT_2300;
@@ -2252,6 +2254,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->nvram_conf_off = FARX_ACCESS_NVRAM_CONF;
 		ha->nvram_data_off = FARX_ACCESS_NVRAM_DATA;
 	} else if (IS_QLA25XX(ha)) {
+		ha->max_fibre_devices = MAX_FIBRE_DEVICES_2400;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
 		req_length = REQUEST_ENTRY_CNT_24XX;
 		rsp_length = RESPONSE_ENTRY_CNT_2300;
@@ -2266,6 +2269,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->nvram_conf_off = FARX_ACCESS_NVRAM_CONF;
 		ha->nvram_data_off = FARX_ACCESS_NVRAM_DATA;
 	} else if (IS_QLA81XX(ha)) {
+		ha->max_fibre_devices = MAX_FIBRE_DEVICES_2400;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
 		req_length = REQUEST_ENTRY_CNT_24XX;
 		rsp_length = RESPONSE_ENTRY_CNT_2300;
@@ -2280,6 +2284,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->nvram_conf_off = ~0;
 		ha->nvram_data_off = ~0;
 	} else if (IS_QLA82XX(ha)) {
+		ha->max_fibre_devices = MAX_FIBRE_DEVICES_2400;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
 		req_length = REQUEST_ENTRY_CNT_82XX;
 		rsp_length = RESPONSE_ENTRY_CNT_82XX;
@@ -2294,6 +2299,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->nvram_conf_off = FARX_ACCESS_NVRAM_CONF;
 		ha->nvram_data_off = FARX_ACCESS_NVRAM_DATA;
 	} else if (IS_QLA83XX(ha)) {
+		ha->max_fibre_devices = MAX_FIBRE_DEVICES_2400;
 		ha->mbx_count = MAILBOX_REGISTER_COUNT;
 		req_length = REQUEST_ENTRY_CNT_24XX;
 		rsp_length = RESPONSE_ENTRY_CNT_2300;
@@ -2312,10 +2318,11 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ql_dbg_pci(ql_dbg_init, pdev, 0x001e,
 	    "mbx_count=%d, req_length=%d, "
 	    "rsp_length=%d, max_loop_id=%d, init_cb_size=%d, "
-	    "gid_list_info_size=%d, optrom_size=%d, nvram_npiv_size=%d, .\n",
+	    "gid_list_info_size=%d, optrom_size=%d, nvram_npiv_size=%d, "
+	    "max_fibre_devices=%d.\n",
 	    ha->mbx_count, req_length, rsp_length, ha->max_loop_id,
 	    ha->init_cb_size, ha->gid_list_info_size, ha->optrom_size,
-	    ha->nvram_npiv_size);
+	    ha->nvram_npiv_size, ha->max_fibre_devices);
 	ql_dbg_pci(ql_dbg_init, pdev, 0x001f,
 	    "isp_ops=%p, flash_conf_off=%d, "
 	    "flash_data_off=%d, nvram_conf_off=%d, nvram_data_off=%d.\n",
@@ -2389,7 +2396,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    "mgmt_svr_loop_id=%d, sg_tablesize=%d.\n",
 	    host->can_queue, base_vha->req,
 	    base_vha->mgmt_svr_loop_id, host->sg_tablesize);
-	host->max_id = max_id;
+	host->max_id = ha->max_fibre_devices;
 	host->this_id = 255;
 	host->cmd_per_lun = 3;
 	host->unique_id = host->host_no;
@@ -2939,8 +2946,8 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 	if (!ha->init_cb)
 		goto fail;
 
-	ha->gid_list = dma_alloc_coherent(&ha->pdev->dev, GID_LIST_SIZE,
-		&ha->gid_list_dma, GFP_KERNEL);
+	ha->gid_list = dma_alloc_coherent(&ha->pdev->dev,
+		qla2x00_gid_list_size(ha), &ha->gid_list_dma, GFP_KERNEL);
 	if (!ha->gid_list)
 		goto fail_free_init_cb;
 
@@ -3155,7 +3162,8 @@ fail_free_srb_mempool:
 	mempool_destroy(ha->srb_mempool);
 	ha->srb_mempool = NULL;
 fail_free_gid_list:
-	dma_free_coherent(&ha->pdev->dev, GID_LIST_SIZE, ha->gid_list,
+	dma_free_coherent(&ha->pdev->dev, qla2x00_gid_list_size(ha),
+	ha->gid_list,
 	ha->gid_list_dma);
 	ha->gid_list = NULL;
 	ha->gid_list_dma = 0;
@@ -3247,8 +3255,8 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 		dma_pool_destroy(ha->s_dma_pool);
 
 	if (ha->gid_list)
-		dma_free_coherent(&ha->pdev->dev, GID_LIST_SIZE, ha->gid_list,
-		ha->gid_list_dma);
+		dma_free_coherent(&ha->pdev->dev, qla2x00_gid_list_size(ha),
+		ha->gid_list, ha->gid_list_dma);
 
 	if (IS_QLA82XX(ha)) {
 		if (!list_empty(&ha->gbl_dsd_list)) {

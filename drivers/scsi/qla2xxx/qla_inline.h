@@ -181,3 +181,9 @@ qla2x00_init_timer(srb_t *sp, unsigned long tmo)
 	add_timer(&sp->u.iocb_cmd.timer);
 	sp->free = qla2x00_sp_free;
 }
+
+static inline int
+qla2x00_gid_list_size(struct qla_hw_data *ha)
+{
+	return sizeof(struct gid_list_info) * ha->max_fibre_devices;
+}

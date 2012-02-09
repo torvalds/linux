@@ -89,7 +89,7 @@ qla24xx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 	WRT_REG_WORD(&reg->mailbox0, MBC_DUMP_RISC_RAM_EXTENDED);
 	clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 
-	dwords = GID_LIST_SIZE / 4;
+	dwords = qla2x00_gid_list_size(ha) / 4;
 	for (cnt = 0; cnt < ram_dwords && rval == QLA_SUCCESS;
 	    cnt += dwords, addr += dwords) {
 		if (cnt + dwords > ram_dwords)
@@ -264,7 +264,7 @@ qla2xxx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint16_t *ram,
 	WRT_MAILBOX_REG(ha, reg, 0, MBC_DUMP_RISC_RAM_EXTENDED);
 	clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 
-	words = GID_LIST_SIZE / 2;
+	words = qla2x00_gid_list_size(ha) / 2;
 	for (cnt = 0; cnt < ram_words && rval == QLA_SUCCESS;
 	    cnt += words, addr += words) {
 		if (cnt + words > ram_words)
