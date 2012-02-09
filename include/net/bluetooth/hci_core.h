@@ -623,6 +623,7 @@ static inline struct hci_dev *hci_dev_hold(struct hci_dev *d)
 #define hci_dev_unlock(d)	mutex_unlock(&d->lock)
 
 #define to_hci_dev(d) container_of(d, struct hci_dev, dev)
+#define to_hci_conn(c) container_of(c, struct hci_conn, dev)
 
 static inline void *hci_get_drvdata(struct hci_dev *hdev)
 {

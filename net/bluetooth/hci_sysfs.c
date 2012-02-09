@@ -33,19 +33,19 @@ static inline char *link_typetostr(int type)
 
 static ssize_t show_link_type(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct hci_conn *conn = dev_get_drvdata(dev);
+	struct hci_conn *conn = to_hci_conn(dev);
 	return sprintf(buf, "%s\n", link_typetostr(conn->type));
 }
 
 static ssize_t show_link_address(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct hci_conn *conn = dev_get_drvdata(dev);
+	struct hci_conn *conn = to_hci_conn(dev);
 	return sprintf(buf, "%s\n", batostr(&conn->dst));
 }
 
 static ssize_t show_link_features(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct hci_conn *conn = dev_get_drvdata(dev);
+	struct hci_conn *conn = to_hci_conn(dev);
 
 	return sprintf(buf, "0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
 				conn->features[0], conn->features[1],
@@ -79,7 +79,7 @@ static const struct attribute_group *bt_link_groups[] = {
 
 static void bt_link_release(struct device *dev)
 {
-	void *data = dev_get_drvdata(dev);
+	void *data = to_hci_conn(dev);
 	kfree(data);
 }
 
@@ -119,8 +119,6 @@ void hci_conn_add_sysfs(struct hci_conn *conn)
 	BT_DBG("conn %p", conn);
 
 	dev_set_name(&conn->dev, "%s:%d", hdev->name, conn->handle);
-
-	dev_set_drvdata(&conn->dev, conn);
 
 	if (device_add(&conn->dev) < 0) {
 		BT_ERR("Failed to register connection device");
