@@ -10,6 +10,7 @@
 
 struct Scsi_Host;
 struct scsi_device;
+struct scsi_driver;
 
 /*
  * MAX_COMMAND_SIZE is:
@@ -130,6 +131,11 @@ struct scsi_cmnd {
 
 	unsigned char tag;	/* SCSI-II queued command tag */
 };
+
+static inline struct scsi_driver *scsi_cmd_to_driver(struct scsi_cmnd *cmd)
+{
+	return *(struct scsi_driver **)cmd->request->rq_disk->private_data;
+}
 
 extern struct scsi_cmnd *scsi_get_command(struct scsi_device *, gfp_t);
 extern struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *, gfp_t);

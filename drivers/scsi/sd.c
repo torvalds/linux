@@ -107,6 +107,7 @@ static int sd_suspend(struct device *, pm_message_t state);
 static int sd_resume(struct device *);
 static void sd_rescan(struct device *);
 static int sd_done(struct scsi_cmnd *);
+static int sd_eh_action(struct scsi_cmnd *, unsigned char *, int, int);
 static void sd_read_capacity(struct scsi_disk *sdkp, unsigned char *buffer);
 static void scsi_disk_release(struct device *cdev);
 static void sd_print_sense_hdr(struct scsi_disk *, struct scsi_sense_hdr *);
@@ -346,6 +347,31 @@ sd_store_provisioning_mode(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t
+sd_show_max_medium_access_timeouts(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(dev);
+
+	return snprintf(buf, 20, "%u\n", sdkp->max_medium_access_timeouts);
+}
+
+static ssize_t
+sd_store_max_medium_access_timeouts(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct scsi_disk *sdkp = to_scsi_disk(dev);
+	int err;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	err = kstrtouint(buf, 10, &sdkp->max_medium_access_timeouts);
+
+	return err ? err : count;
+}
+
 static struct device_attribute sd_disk_attrs[] = {
 	__ATTR(cache_type, S_IRUGO|S_IWUSR, sd_show_cache_type,
 	       sd_store_cache_type),
@@ -360,6 +386,9 @@ static struct device_attribute sd_disk_attrs[] = {
 	__ATTR(thin_provisioning, S_IRUGO, sd_show_thin_provisioning, NULL),
 	__ATTR(provisioning_mode, S_IRUGO|S_IWUSR, sd_show_provisioning_mode,
 	       sd_store_provisioning_mode),
+	__ATTR(max_medium_access_timeouts, S_IRUGO|S_IWUSR,
+	       sd_show_max_medium_access_timeouts,
+	       sd_store_max_medium_access_timeouts),
 	__ATTR_NULL,
 };
 
@@ -382,6 +411,7 @@ static struct scsi_driver sd_template = {
 	},
 	.rescan			= sd_rescan,
 	.done			= sd_done,
+	.eh_action		= sd_eh_action,
 };
 
 /*
@@ -1313,6 +1343,55 @@ static const struct block_device_operations sd_fops = {
 	.unlock_native_capacity	= sd_unlock_native_capacity,
 };
 
+/**
+ *	sd_eh_action - error handling callback
+ *	@scmd:		sd-issued command that has failed
+ *	@eh_cmnd:	The command that was sent during error handling
+ *	@eh_cmnd_len:	Length of eh_cmnd in bytes
+ *	@eh_disp:	The recovery disposition suggested by the midlayer
+ *
+ *	This function is called by the SCSI midlayer upon completion of
+ *	an error handling command (TEST UNIT READY, START STOP UNIT,
+ *	etc.) The command sent to the device by the error handler is
+ *	stored in eh_cmnd. The result of sending the eh command is
+ *	passed in eh_disp.
+ **/
+static int sd_eh_action(struct scsi_cmnd *scmd, unsigned char *eh_cmnd,
+			int eh_cmnd_len, int eh_disp)
+{
+	struct scsi_disk *sdkp = scsi_disk(scmd->request->rq_disk);
+
+	if (!scsi_device_online(scmd->device) ||
+	    !scsi_medium_access_command(scmd))
+		return eh_disp;
+
+	/*
+	 * The device has timed out executing a medium access command.
+	 * However, the TEST UNIT READY command sent during error
+	 * handling completed successfully. Either the device is in the
+	 * process of recovering or has it suffered an internal failure
+	 * that prevents access to the storage medium.
+	 */
+	if (host_byte(scmd->result) == DID_TIME_OUT && eh_disp == SUCCESS &&
+	    eh_cmnd_len && eh_cmnd[0] == TEST_UNIT_READY)
+		sdkp->medium_access_timed_out++;
+
+	/*
+	 * If the device keeps failing read/write commands but TEST UNIT
+	 * READY always completes successfully we assume that medium
+	 * access is no longer possible and take the device offline.
+	 */
+	if (sdkp->medium_access_timed_out >= sdkp->max_medium_access_timeouts) {
+		scmd_printk(KERN_ERR, scmd,
+			    "Medium access timeout failure. Offlining disk!\n");
+		scsi_device_set_state(scmd->device, SDEV_OFFLINE);
+
+		return FAILED;
+	}
+
+	return eh_disp;
+}
+
 static unsigned int sd_completed_bytes(struct scsi_cmnd *scmd)
 {
 	u64 start_lba = blk_rq_pos(scmd->request);
@@ -1401,6 +1480,8 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 	if (driver_byte(result) != DRIVER_SENSE &&
 	    (!sense_valid || sense_deferred))
 		goto out;
+
+	sdkp->medium_access_timed_out = 0;
 
 	switch (sshdr.sense_key) {
 	case HARDWARE_ERROR:
@@ -2523,6 +2604,7 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 	sdkp->RCD = 0;
 	sdkp->ATO = 0;
 	sdkp->first_scan = 1;
+	sdkp->max_medium_access_timeouts = SD_MAX_MEDIUM_TIMEOUTS;
 
 	sd_revalidate_disk(gd);
 
