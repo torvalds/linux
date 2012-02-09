@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "map.h"
+#include "../perf.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <stdio.h>
@@ -118,6 +119,18 @@ struct map_symbol {
 	struct symbol *sym;
 	bool	      unfolded;
 	bool	      has_children;
+};
+
+struct addr_map_symbol {
+	struct map    *map;
+	struct symbol *sym;
+	u64	      addr;
+};
+
+struct branch_info {
+	struct addr_map_symbol from;
+	struct addr_map_symbol to;
+	struct branch_flags flags;
 };
 
 struct addr_location {

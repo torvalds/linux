@@ -50,21 +50,25 @@ static void hists__reset_col_len(struct hists *hists)
 		hists__set_col_len(hists, col, 0);
 }
 
+static void hists__set_unres_dso_col_len(struct hists *hists, int dso)
+{
+	const unsigned int unresolved_col_width = BITS_PER_LONG / 4;
+
+	if (hists__col_len(hists, dso) < unresolved_col_width &&
+	    !symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
+	    !symbol_conf.dso_list)
+		hists__set_col_len(hists, dso, unresolved_col_width);
+}
+
 static void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 {
+	const unsigned int unresolved_col_width = BITS_PER_LONG / 4;
 	u16 len;
 
 	if (h->ms.sym)
-		hists__new_col_len(hists, HISTC_SYMBOL, h->ms.sym->namelen);
-	else {
-		const unsigned int unresolved_col_width = BITS_PER_LONG / 4;
-
-		if (hists__col_len(hists, HISTC_DSO) < unresolved_col_width &&
-		    !symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
-		    !symbol_conf.dso_list)
-			hists__set_col_len(hists, HISTC_DSO,
-					   unresolved_col_width);
-	}
+		hists__new_col_len(hists, HISTC_SYMBOL, h->ms.sym->namelen + 4);
+	else
+		hists__set_unres_dso_col_len(hists, HISTC_DSO);
 
 	len = thread__comm_len(h->thread);
 	if (hists__new_col_len(hists, HISTC_COMM, len))
@@ -73,6 +77,37 @@ static void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	if (h->ms.map) {
 		len = dso__name_len(h->ms.map->dso);
 		hists__new_col_len(hists, HISTC_DSO, len);
+	}
+
+	if (h->branch_info) {
+		int symlen;
+		/*
+		 * +4 accounts for '[x] ' priv level info
+		 * +2 account of 0x prefix on raw addresses
+		 */
+		if (h->branch_info->from.sym) {
+			symlen = (int)h->branch_info->from.sym->namelen + 4;
+			hists__new_col_len(hists, HISTC_SYMBOL_FROM, symlen);
+
+			symlen = dso__name_len(h->branch_info->from.map->dso);
+			hists__new_col_len(hists, HISTC_DSO_FROM, symlen);
+		} else {
+			symlen = unresolved_col_width + 4 + 2;
+			hists__new_col_len(hists, HISTC_SYMBOL_FROM, symlen);
+			hists__set_unres_dso_col_len(hists, HISTC_DSO_FROM);
+		}
+
+		if (h->branch_info->to.sym) {
+			symlen = (int)h->branch_info->to.sym->namelen + 4;
+			hists__new_col_len(hists, HISTC_SYMBOL_TO, symlen);
+
+			symlen = dso__name_len(h->branch_info->to.map->dso);
+			hists__new_col_len(hists, HISTC_DSO_TO, symlen);
+		} else {
+			symlen = unresolved_col_width + 4 + 2;
+			hists__new_col_len(hists, HISTC_SYMBOL_TO, symlen);
+			hists__set_unres_dso_col_len(hists, HISTC_DSO_TO);
+		}
 	}
 }
 
@@ -195,26 +230,14 @@ static u8 symbol__parent_filter(const struct symbol *parent)
 	return 0;
 }
 
-struct hist_entry *__hists__add_entry(struct hists *hists,
+static struct hist_entry *add_hist_entry(struct hists *hists,
+				      struct hist_entry *entry,
 				      struct addr_location *al,
-				      struct symbol *sym_parent, u64 period)
+				      u64 period)
 {
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
 	struct hist_entry *he;
-	struct hist_entry entry = {
-		.thread	= al->thread,
-		.ms = {
-			.map	= al->map,
-			.sym	= al->sym,
-		},
-		.cpu	= al->cpu,
-		.ip	= al->addr,
-		.level	= al->level,
-		.period	= period,
-		.parent = sym_parent,
-		.filtered = symbol__parent_filter(sym_parent),
-	};
 	int cmp;
 
 	pthread_mutex_lock(&hists->lock);
@@ -225,7 +248,7 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 		parent = *p;
 		he = rb_entry(parent, struct hist_entry, rb_node_in);
 
-		cmp = hist_entry__cmp(&entry, he);
+		cmp = hist_entry__cmp(entry, he);
 
 		if (!cmp) {
 			he->period += period;
@@ -239,7 +262,7 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 			p = &(*p)->rb_right;
 	}
 
-	he = hist_entry__new(&entry);
+	he = hist_entry__new(entry);
 	if (!he)
 		goto out_unlock;
 
@@ -250,6 +273,51 @@ out:
 out_unlock:
 	pthread_mutex_unlock(&hists->lock);
 	return he;
+}
+
+struct hist_entry *__hists__add_branch_entry(struct hists *self,
+					     struct addr_location *al,
+					     struct symbol *sym_parent,
+					     struct branch_info *bi,
+					     u64 period)
+{
+	struct hist_entry entry = {
+		.thread	= al->thread,
+		.ms = {
+			.map	= bi->to.map,
+			.sym	= bi->to.sym,
+		},
+		.cpu	= al->cpu,
+		.ip	= bi->to.addr,
+		.level	= al->level,
+		.period	= period,
+		.parent = sym_parent,
+		.filtered = symbol__parent_filter(sym_parent),
+		.branch_info = bi,
+	};
+
+	return add_hist_entry(self, &entry, al, period);
+}
+
+struct hist_entry *__hists__add_entry(struct hists *self,
+				      struct addr_location *al,
+				      struct symbol *sym_parent, u64 period)
+{
+	struct hist_entry entry = {
+		.thread	= al->thread,
+		.ms = {
+			.map	= al->map,
+			.sym	= al->sym,
+		},
+		.cpu	= al->cpu,
+		.ip	= al->addr,
+		.level	= al->level,
+		.period	= period,
+		.parent = sym_parent,
+		.filtered = symbol__parent_filter(sym_parent),
+	};
+
+	return add_hist_entry(self, &entry, al, period);
 }
 
 int64_t

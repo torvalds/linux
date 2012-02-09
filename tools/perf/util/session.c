@@ -229,6 +229,63 @@ static bool symbol__match_parent_regex(struct symbol *sym)
 	return 0;
 }
 
+static const u8 cpumodes[] = {
+	PERF_RECORD_MISC_USER,
+	PERF_RECORD_MISC_KERNEL,
+	PERF_RECORD_MISC_GUEST_USER,
+	PERF_RECORD_MISC_GUEST_KERNEL
+};
+#define NCPUMODES (sizeof(cpumodes)/sizeof(u8))
+
+static void ip__resolve_ams(struct machine *self, struct thread *thread,
+			    struct addr_map_symbol *ams,
+			    u64 ip)
+{
+	struct addr_location al;
+	size_t i;
+	u8 m;
+
+	memset(&al, 0, sizeof(al));
+
+	for (i = 0; i < NCPUMODES; i++) {
+		m = cpumodes[i];
+		/*
+		 * We cannot use the header.misc hint to determine whether a
+		 * branch stack address is user, kernel, guest, hypervisor.
+		 * Branches may straddle the kernel/user/hypervisor boundaries.
+		 * Thus, we have to try consecutively until we find a match
+		 * or else, the symbol is unknown
+		 */
+		thread__find_addr_location(thread, self, m, MAP__FUNCTION,
+				ip, &al, NULL);
+		if (al.sym)
+			goto found;
+	}
+found:
+	ams->addr = ip;
+	ams->sym = al.sym;
+	ams->map = al.map;
+}
+
+struct branch_info *machine__resolve_bstack(struct machine *self,
+					    struct thread *thr,
+					    struct branch_stack *bs)
+{
+	struct branch_info *bi;
+	unsigned int i;
+
+	bi = calloc(bs->nr, sizeof(struct branch_info));
+	if (!bi)
+		return NULL;
+
+	for (i = 0; i < bs->nr; i++) {
+		ip__resolve_ams(self, thr, &bi[i].to, bs->entries[i].to);
+		ip__resolve_ams(self, thr, &bi[i].from, bs->entries[i].from);
+		bi[i].flags = bs->entries[i].flags;
+	}
+	return bi;
+}
+
 int machine__resolve_callchain(struct machine *self, struct perf_evsel *evsel,
 			       struct thread *thread,
 			       struct ip_callchain *chain,
@@ -697,6 +754,18 @@ static void callchain__printf(struct perf_sample *sample)
 		       i, sample->callchain->ips[i]);
 }
 
+static void branch_stack__printf(struct perf_sample *sample)
+{
+	uint64_t i;
+
+	printf("... branch stack: nr:%" PRIu64 "\n", sample->branch_stack->nr);
+
+	for (i = 0; i < sample->branch_stack->nr; i++)
+		printf("..... %2"PRIu64": %016" PRIx64 " -> %016" PRIx64 "\n",
+			i, sample->branch_stack->entries[i].from,
+			sample->branch_stack->entries[i].to);
+}
+
 static void perf_session__print_tstamp(struct perf_session *session,
 				       union perf_event *event,
 				       struct perf_sample *sample)
@@ -744,6 +813,9 @@ static void dump_sample(struct perf_session *session, union perf_event *event,
 
 	if (session->sample_type & PERF_SAMPLE_CALLCHAIN)
 		callchain__printf(sample);
+
+	if (session->sample_type & PERF_SAMPLE_BRANCH_STACK)
+		branch_stack__printf(sample);
 }
 
 static struct machine *
