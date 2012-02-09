@@ -1417,8 +1417,33 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 			if (!(conn->sta_flags & STA_PS_SLEEP)) {
 				struct sk_buff *skbuff = NULL;
 				bool is_apsdq_empty;
+				struct ath6kl_mgmt_buff *mgmt;
+				u8 idx;
 
 				spin_lock_bh(&conn->psq_lock);
+				while (conn->mgmt_psq_len > 0) {
+					mgmt = list_first_entry(
+							&conn->mgmt_psq,
+							struct ath6kl_mgmt_buff,
+							list);
+					list_del(&mgmt->list);
+					conn->mgmt_psq_len--;
+					spin_unlock_bh(&conn->psq_lock);
+					idx = vif->fw_vif_idx;
+
+					ath6kl_wmi_send_mgmt_cmd(ar->wmi,
+								 idx,
+								 mgmt->id,
+								 mgmt->freq,
+								 mgmt->wait,
+								 mgmt->buf,
+								 mgmt->len,
+								 mgmt->no_cck);
+
+					kfree(mgmt);
+					spin_lock_bh(&conn->psq_lock);
+				}
+				conn->mgmt_psq_len = 0;
 				while ((skbuff = skb_dequeue(&conn->psq))) {
 					spin_unlock_bh(&conn->psq_lock);
 					ath6kl_data_tx(skbuff, vif->ndev);

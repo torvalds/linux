@@ -81,11 +81,21 @@ static void ath6kl_add_new_sta(struct ath6kl_vif *vif, u8 *mac, u16 aid,
 static void ath6kl_sta_cleanup(struct ath6kl *ar, u8 i)
 {
 	struct ath6kl_sta *sta = &ar->sta_list[i];
+	struct ath6kl_mgmt_buff *entry, *tmp;
 
 	/* empty the queued pkts in the PS queue if any */
 	spin_lock_bh(&sta->psq_lock);
 	skb_queue_purge(&sta->psq);
 	skb_queue_purge(&sta->apsdq);
+
+	if (sta->mgmt_psq_len != 0) {
+		list_for_each_entry_safe(entry, tmp, &sta->mgmt_psq, list) {
+			kfree(entry);
+		}
+		INIT_LIST_HEAD(&sta->mgmt_psq);
+		sta->mgmt_psq_len = 0;
+	}
+
 	spin_unlock_bh(&sta->psq_lock);
 
 	memset(&ar->ap_stats.sta[sta->aid - 1], 0,
@@ -811,6 +821,7 @@ void ath6kl_pspoll_event(struct ath6kl_vif *vif, u8 aid)
 	struct sk_buff *skb;
 	bool psq_empty = false;
 	struct ath6kl *ar = vif->ar;
+	struct ath6kl_mgmt_buff *mgmt_buf;
 
 	conn = ath6kl_find_sta_by_aid(ar, aid);
 
@@ -821,7 +832,7 @@ void ath6kl_pspoll_event(struct ath6kl_vif *vif, u8 aid)
 	 * becomes empty update the PVB for this station.
 	 */
 	spin_lock_bh(&conn->psq_lock);
-	psq_empty  = skb_queue_empty(&conn->psq);
+	psq_empty  = skb_queue_empty(&conn->psq) && (conn->mgmt_psq_len == 0);
 	spin_unlock_bh(&conn->psq_lock);
 
 	if (psq_empty)
@@ -829,15 +840,31 @@ void ath6kl_pspoll_event(struct ath6kl_vif *vif, u8 aid)
 		return;
 
 	spin_lock_bh(&conn->psq_lock);
-	skb = skb_dequeue(&conn->psq);
-	spin_unlock_bh(&conn->psq_lock);
+	if (conn->mgmt_psq_len > 0) {
+		mgmt_buf = list_first_entry(&conn->mgmt_psq,
+					struct ath6kl_mgmt_buff, list);
+		list_del(&mgmt_buf->list);
+		conn->mgmt_psq_len--;
+		spin_unlock_bh(&conn->psq_lock);
 
-	conn->sta_flags |= STA_PS_POLLED;
-	ath6kl_data_tx(skb, vif->ndev);
-	conn->sta_flags &= ~STA_PS_POLLED;
+		conn->sta_flags |= STA_PS_POLLED;
+		ath6kl_wmi_send_mgmt_cmd(ar->wmi, vif->fw_vif_idx,
+					 mgmt_buf->id, mgmt_buf->freq,
+					 mgmt_buf->wait, mgmt_buf->buf,
+					 mgmt_buf->len, mgmt_buf->no_cck);
+		conn->sta_flags &= ~STA_PS_POLLED;
+		kfree(mgmt_buf);
+	} else {
+		skb = skb_dequeue(&conn->psq);
+		spin_unlock_bh(&conn->psq_lock);
+
+		conn->sta_flags |= STA_PS_POLLED;
+		ath6kl_data_tx(skb, vif->ndev);
+		conn->sta_flags &= ~STA_PS_POLLED;
+	}
 
 	spin_lock_bh(&conn->psq_lock);
-	psq_empty  = skb_queue_empty(&conn->psq);
+	psq_empty  = skb_queue_empty(&conn->psq) && (conn->mgmt_psq_len == 0);
 	spin_unlock_bh(&conn->psq_lock);
 
 	if (psq_empty)

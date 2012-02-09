@@ -3182,8 +3182,9 @@ int ath6kl_wmi_remain_on_chnl_cmd(struct wmi *wmi, u8 if_idx, u32 freq, u32 dur)
  * ath6kl_wmi_send_mgmt_cmd instead. The new function supports P2P
  * mgmt operations using station interface.
  */
-int ath6kl_wmi_send_action_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
-			       u32 wait, const u8 *data, u16 data_len)
+static int ath6kl_wmi_send_action_cmd(struct wmi *wmi, u8 if_idx, u32 id,
+				      u32 freq, u32 wait, const u8 *data,
+				      u16 data_len)
 {
 	struct sk_buff *skb;
 	struct wmi_send_action_cmd *p;
@@ -3219,9 +3220,9 @@ int ath6kl_wmi_send_action_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
 				   NO_SYNC_WMIFLAG);
 }
 
-int ath6kl_wmi_send_mgmt_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
-			       u32 wait, const u8 *data, u16 data_len,
-			       u32 no_cck)
+static int __ath6kl_wmi_send_mgmt_cmd(struct wmi *wmi, u8 if_idx, u32 id,
+				      u32 freq, u32 wait, const u8 *data,
+				      u16 data_len, u32 no_cck)
 {
 	struct sk_buff *skb;
 	struct wmi_send_mgmt_cmd *p;
@@ -3256,6 +3257,32 @@ int ath6kl_wmi_send_mgmt_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
 	memcpy(p->data, data, data_len);
 	return ath6kl_wmi_cmd_send(wmi, if_idx, skb, WMI_SEND_MGMT_CMDID,
 				   NO_SYNC_WMIFLAG);
+}
+
+int ath6kl_wmi_send_mgmt_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
+				u32 wait, const u8 *data, u16 data_len,
+				u32 no_cck)
+{
+	int status;
+	struct ath6kl *ar = wmi->parent_dev;
+
+	if (test_bit(ATH6KL_FW_CAPABILITY_STA_P2PDEV_DUPLEX,
+		     ar->fw_capabilities)) {
+		/*
+		 * If capable of doing P2P mgmt operations using
+		 * station interface, send additional information like
+		 * supported rates to advertise and xmit rates for
+		 * probe requests
+		 */
+		status = __ath6kl_wmi_send_mgmt_cmd(ar->wmi, if_idx, id, freq,
+						    wait, data, data_len,
+						    no_cck);
+	} else {
+		status = ath6kl_wmi_send_action_cmd(ar->wmi, if_idx, id, freq,
+						    wait, data, data_len);
+	}
+
+	return status;
 }
 
 int ath6kl_wmi_send_probe_response_cmd(struct wmi *wmi, u8 if_idx, u32 freq,

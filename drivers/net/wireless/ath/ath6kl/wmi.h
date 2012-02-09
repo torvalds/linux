@@ -2506,9 +2506,6 @@ int ath6kl_wmi_disable_11b_rates_cmd(struct wmi *wmi, bool disable);
 int ath6kl_wmi_remain_on_chnl_cmd(struct wmi *wmi, u8 if_idx, u32 freq,
 				  u32 dur);
 
-int ath6kl_wmi_send_action_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
-			       u32 wait, const u8 *data, u16 data_len);
-
 int ath6kl_wmi_send_mgmt_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
 			       u32 wait, const u8 *data, u16 data_len,
 			       u32 no_cck);

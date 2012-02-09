@@ -286,6 +286,16 @@ struct ath6kl_cookie {
 	struct ath6kl_cookie *arc_list_next;
 };
 
+struct ath6kl_mgmt_buff {
+	struct list_head list;
+	u32 freq;
+	u32 wait;
+	u32 id;
+	bool no_cck;
+	size_t len;
+	u8 buf[0];
+};
+
 struct ath6kl_sta {
 	u16 sta_flags;
 	u8 mac[ETH_ALEN];
@@ -296,6 +306,8 @@ struct ath6kl_sta {
 	u8 wpa_ie[ATH6KL_MAX_IE];
 	struct sk_buff_head psq;
 	spinlock_t psq_lock;
+	struct list_head mgmt_psq;
+	size_t mgmt_psq_len;
 	u8 apsd_info;
 	struct sk_buff_head apsdq;
 	struct aggr_info_conn *aggr_conn;
