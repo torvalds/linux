@@ -342,6 +342,8 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 
 				set_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags);
 				clear_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+				/* Allow next mbx cmd to come in. */
+				complete(&ha->mbx_cmd_comp);
 				if (ha->isp_ops->abort_isp(vha)) {
 					/* Failed. retry later. */
 					set_bit(ISP_ABORT_NEEDED,
@@ -350,6 +352,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 				clear_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags);
 				ql_dbg(ql_dbg_mbx, base_vha, 0x101f,
 				    "Finished abort_isp.\n");
+				goto mbx_done;
 			}
 		}
 	}
@@ -358,6 +361,7 @@ premature_exit:
 	/* Allow next mbx cmd to come in. */
 	complete(&ha->mbx_cmd_comp);
 
+mbx_done:
 	if (rval) {
 		ql_dbg(ql_dbg_mbx, base_vha, 0x1020,
 		    "**** Failed mbx[0]=%x, mb[1]=%x, mb[2]=%x, cmd=%x ****.\n",
