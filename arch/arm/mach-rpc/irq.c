@@ -5,6 +5,7 @@
 #include <asm/mach/irq.h>
 #include <asm/hardware/iomd.h>
 #include <asm/irq.h>
+#include <asm/fiq.h>
 
 static void iomd_ack_irq_a(struct irq_data *d)
 {
@@ -112,6 +113,8 @@ static struct irq_chip iomd_fiq_chip = {
 	.irq_unmask	= iomd_unmask_irq_fiq,
 };
 
+extern unsigned char rpc_default_fiq_start, rpc_default_fiq_end;
+
 void __init rpc_init_irq(void)
 {
 	unsigned int irq, flags;
@@ -120,6 +123,9 @@ void __init rpc_init_irq(void)
 	iomd_writeb(0, IOMD_IRQMASKB);
 	iomd_writeb(0, IOMD_FIQMASK);
 	iomd_writeb(0, IOMD_DMAMASK);
+
+	set_fiq_handler(&rpc_default_fiq_start,
+		&rpc_default_fiq_end - &rpc_default_fiq_start);
 
 	for (irq = 0; irq < NR_IRQS; irq++) {
 		flags = IRQF_VALID;
