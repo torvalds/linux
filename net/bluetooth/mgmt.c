@@ -1097,7 +1097,6 @@ static int unpair_device(struct sock *sk, u16 index, void *data, u16 len)
 	memset(&rp, 0, sizeof(rp));
 	bacpy(&rp.addr.bdaddr, &cp->addr.bdaddr);
 	rp.addr.type = cp->addr.type;
-	rp.status = MGMT_STATUS_FAILED;
 
 	if (cp->addr.type == MGMT_ADDR_BREDR)
 		err = hci_remove_link_key(hdev, &cp->addr.bdaddr);
