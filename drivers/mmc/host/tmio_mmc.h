@@ -53,10 +53,6 @@ struct tmio_mmc_host {
 	void (*set_pwr)(struct platform_device *host, int state);
 	void (*set_clk_div)(struct platform_device *host, int state);
 
-	int			pm_error;
-	/* recognise system-wide suspend in runtime PM methods */
-	bool			pm_global;
-
 	/* pio related stuff */
 	struct scatterlist      *sg_ptr;
 	struct scatterlist      *sg_orig;
