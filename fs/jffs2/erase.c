@@ -72,7 +72,6 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 	instr->len = c->sector_size;
 	instr->callback = jffs2_erase_callback;
 	instr->priv = (unsigned long)(&instr[1]);
-	instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
 
 	((struct erase_priv_struct *)instr->priv)->jeb = jeb;
 	((struct erase_priv_struct *)instr->priv)->c = c;
