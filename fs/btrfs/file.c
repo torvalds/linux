@@ -1755,7 +1755,7 @@ static int find_desired_extent(struct inode *inode, loff_t *offset, int origin)
 						     start - root->sectorsize,
 						     root->sectorsize, 0);
 		if (IS_ERR(em)) {
-			ret = -ENXIO;
+			ret = PTR_ERR(em);
 			goto out;
 		}
 		last_end = em->start + em->len;
@@ -1767,7 +1767,7 @@ static int find_desired_extent(struct inode *inode, loff_t *offset, int origin)
 	while (1) {
 		em = btrfs_get_extent_fiemap(inode, NULL, 0, start, len, 0);
 		if (IS_ERR(em)) {
-			ret = -ENXIO;
+			ret = PTR_ERR(em);
 			break;
 		}
 
