@@ -195,7 +195,7 @@ struct rpc_wait_queue {
 	unsigned char		nr;			/* # tasks remaining for cookie */
 	unsigned short		qlen;			/* total # tasks waiting in queue */
 	struct rpc_timer	timer_list;
-#ifdef RPC_DEBUG
+#if defined(RPC_DEBUG) || defined(RPC_TRACEPOINTS)
 	const char *		name;
 #endif
 };
@@ -270,10 +270,21 @@ static inline int rpc_task_has_priority(struct rpc_task *task, unsigned char pri
 	return (task->tk_priority + RPC_PRIORITY_LOW == prio);
 }
 
-#ifdef RPC_DEBUG
+#if defined(RPC_DEBUG) || defined (RPC_TRACEPOINTS)
 static inline const char * rpc_qname(const struct rpc_wait_queue *q)
 {
 	return ((q && q->name) ? q->name : "unknown");
+}
+
+static inline void rpc_assign_waitqueue_name(struct rpc_wait_queue *q,
+		const char *name)
+{
+	q->name = name;
+}
+#else
+static inline void rpc_assign_waitqueue_name(struct rpc_wait_queue *q,
+		const char *name)
+{
 }
 #endif
 

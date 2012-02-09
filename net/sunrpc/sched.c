@@ -208,9 +208,7 @@ static void __rpc_init_priority_wait_queue(struct rpc_wait_queue *queue, const c
 	queue->qlen = 0;
 	setup_timer(&queue->timer_list.timer, __rpc_queue_timer_fn, (unsigned long)queue);
 	INIT_LIST_HEAD(&queue->timer_list.list);
-#ifdef RPC_DEBUG
-	queue->name = qname;
-#endif
+	rpc_assign_waitqueue_name(queue, qname);
 }
 
 void rpc_init_priority_wait_queue(struct rpc_wait_queue *queue, const char *qname)

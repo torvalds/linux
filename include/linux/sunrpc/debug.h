@@ -34,6 +34,9 @@
 #ifdef CONFIG_SYSCTL
 #define  RPC_DEBUG
 #endif
+#ifdef CONFIG_TRACEPOINTS
+#define RPC_TRACEPOINTS
+#endif
 /* #define  RPC_PROFILE */
 
 /*
