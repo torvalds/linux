@@ -32,6 +32,7 @@
 #include <linux/console.h>
 #include <linux/slab.h>
 #include <video/da8xx-fb.h>
+#include <asm/div64.h>
 
 #define DRIVER_NAME "da8xx_lcdc"
 
@@ -175,7 +176,6 @@ static struct fb_var_screeninfo da8xx_fb_var __devinitdata = {
 	.activate = 0,
 	.height = -1,
 	.width = -1,
-	.pixclock = 46666,	/* 46us - AUO display */
 	.accel_flags = 0,
 	.left_margin = LEFT_MARGIN,
 	.right_margin = RIGHT_MARGIN,
@@ -1051,6 +1051,22 @@ static struct fb_ops da8xx_fb_ops = {
 	.fb_blank = cfb_blank,
 };
 
+/* Calculate and return pixel clock period in pico seconds */
+static unsigned int da8xxfb_pixel_clk_period(struct da8xx_fb_par *par)
+{
+	unsigned int lcd_clk, div;
+	unsigned int configured_pix_clk;
+	unsigned long long pix_clk_period_picosec = 1000000000000ULL;
+
+	lcd_clk = clk_get_rate(par->lcdc_clk);
+	div = lcd_clk / par->pxl_clk;
+	configured_pix_clk = (lcd_clk / div);
+
+	do_div(pix_clk_period_picosec, configured_pix_clk);
+
+	return pix_clk_period_picosec;
+}
+
 static int __devinit fb_probe(struct platform_device *device)
 {
 	struct da8xx_lcdc_platform_data *fb_pdata =
@@ -1215,6 +1231,7 @@ static int __devinit fb_probe(struct platform_device *device)
 
 	da8xx_fb_var.hsync_len = lcdc_info->hsw;
 	da8xx_fb_var.vsync_len = lcdc_info->vsw;
+	da8xx_fb_var.pixclock = da8xxfb_pixel_clk_period(par);
 
 	/* Initialize fbinfo */
 	da8xx_fb_info->flags = FBINFO_FLAG_DEFAULT;
