@@ -1107,20 +1107,26 @@ qla2x00_sns_rnn_id(scsi_qla_host_t *vha)
 static int
 qla2x00_mgmt_svr_login(scsi_qla_host_t *vha)
 {
-	int ret;
+	int ret, rval;
 	uint16_t mb[MAILBOX_REGISTER_COUNT];
 	struct qla_hw_data *ha = vha->hw;
 	ret = QLA_SUCCESS;
 	if (vha->flags.management_server_logged_in)
 		return ret;
 
-	ha->isp_ops->fabric_login(vha, vha->mgmt_svr_loop_id, 0xff, 0xff, 0xfa,
-	    mb, BIT_1|BIT_0);
-	if (mb[0] != MBS_COMMAND_COMPLETE) {
-		ql_dbg(ql_dbg_disc, vha, 0x2024,
-		    "Failed management_server login: loopid=%x mb[0]=%x "
-		    "mb[1]=%x mb[2]=%x mb[6]=%x mb[7]=%x.\n",
-		    vha->mgmt_svr_loop_id, mb[0], mb[1], mb[2], mb[6], mb[7]);
+	rval = ha->isp_ops->fabric_login(vha, vha->mgmt_svr_loop_id, 0xff, 0xff,
+	    0xfa, mb, BIT_1|BIT_0);
+	if (rval != QLA_SUCCESS || mb[0] != MBS_COMMAND_COMPLETE) {
+		if (rval == QLA_MEMORY_ALLOC_FAILED)
+			ql_dbg(ql_dbg_disc, vha, 0x2085,
+			    "Failed management_server login: loopid=%x "
+			    "rval=%d\n", vha->mgmt_svr_loop_id, rval);
+		else
+			ql_dbg(ql_dbg_disc, vha, 0x2024,
+			    "Failed management_server login: loopid=%x "
+			    "mb[0]=%x mb[1]=%x mb[2]=%x mb[6]=%x mb[7]=%x.\n",
+			    vha->mgmt_svr_loop_id, mb[0], mb[1], mb[2], mb[6],
+			    mb[7]);
 		ret = QLA_FUNCTION_FAILED;
 	} else
 		vha->flags.management_server_logged_in = 1;

@@ -2949,8 +2949,12 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 			loop_id = NPH_SNS;
 		else
 			loop_id = SIMPLE_NAME_SERVER;
-		ha->isp_ops->fabric_login(vha, loop_id, 0xff, 0xff,
-		    0xfc, mb, BIT_1 | BIT_0);
+		rval = ha->isp_ops->fabric_login(vha, loop_id, 0xff, 0xff,
+		    0xfc, mb, BIT_1|BIT_0);
+		if (rval != QLA_SUCCESS) {
+			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+			return rval;
+		}
 		if (mb[0] != MBS_COMMAND_COMPLETE) {
 			ql_dbg(ql_dbg_disc, vha, 0x2042,
 			    "Failed SNS login: loop_id=%x mb[0]=%x mb[1]=%x mb[2]=%x "
@@ -3487,6 +3491,9 @@ qla2x00_fabric_dev_login(scsi_qla_host_t *vha, fc_port_t *fcport,
 		} else {
 			qla2x00_update_fcport(vha, fcport);
 		}
+	} else {
+		/* Retry Login. */
+		qla2x00_mark_device_lost(vha, fcport, 1, 0);
 	}
 
 	return (rval);
@@ -3527,9 +3534,12 @@ qla2x00_fabric_login(scsi_qla_host_t *vha, fc_port_t *fcport,
 		    fcport->d_id.b.area, fcport->d_id.b.al_pa);
 
 		/* Login fcport on switch. */
-		ha->isp_ops->fabric_login(vha, fcport->loop_id,
+		rval = ha->isp_ops->fabric_login(vha, fcport->loop_id,
 		    fcport->d_id.b.domain, fcport->d_id.b.area,
 		    fcport->d_id.b.al_pa, mb, BIT_0);
+		if (rval != QLA_SUCCESS) {
+			return rval;
+		}
 		if (mb[0] == MBS_PORT_ID_USED) {
 			/*
 			 * Device has another loop ID.  The firmware team
@@ -4844,6 +4854,7 @@ int
 qla24xx_configure_vhba(scsi_qla_host_t *vha)
 {
 	int rval = QLA_SUCCESS;
+	int rval2;
 	uint16_t mb[MAILBOX_REGISTER_COUNT];
 	struct qla_hw_data *ha = vha->hw;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
@@ -4868,12 +4879,18 @@ qla24xx_configure_vhba(scsi_qla_host_t *vha)
 	vha->flags.management_server_logged_in = 0;
 
 	/* Login to SNS first */
-	ha->isp_ops->fabric_login(vha, NPH_SNS, 0xff, 0xff, 0xfc, mb, BIT_1);
-	if (mb[0] != MBS_COMMAND_COMPLETE) {
-		ql_dbg(ql_dbg_init, vha, 0x0103,
-		    "Failed SNS login: loop_id=%x mb[0]=%x mb[1]=%x mb[2]=%x "
-		    "mb[6]=%x mb[7]=%x.\n",
-		    NPH_SNS, mb[0], mb[1], mb[2], mb[6], mb[7]);
+	rval2 = ha->isp_ops->fabric_login(vha, NPH_SNS, 0xff, 0xff, 0xfc, mb,
+	    BIT_1);
+	if (rval2 != QLA_SUCCESS || mb[0] != MBS_COMMAND_COMPLETE) {
+		if (rval2 == QLA_MEMORY_ALLOC_FAILED)
+			ql_dbg(ql_dbg_init, vha, 0x0120,
+			    "Failed SNS login: loop_id=%x, rval2=%d\n",
+			    NPH_SNS, rval2);
+		else
+			ql_dbg(ql_dbg_init, vha, 0x0103,
+			    "Failed SNS login: loop_id=%x mb[0]=%x mb[1]=%x "
+			    "mb[2]=%x mb[6]=%x mb[7]=%x.\n",
+			    NPH_SNS, mb[0], mb[1], mb[2], mb[6], mb[7]);
 		return (QLA_FUNCTION_FAILED);
 	}
 
