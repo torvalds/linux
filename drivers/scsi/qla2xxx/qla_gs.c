@@ -371,9 +371,11 @@ qla2x00_gpn_id(scsi_qla_host_t *vha, sw_info_t *list)
 			/*EMPTY*/
 			ql_dbg(ql_dbg_disc, vha, 0x2056,
 			    "GPN_ID issue IOCB failed (%d).\n", rval);
+			break;
 		} else if (qla2x00_chk_ms_status(vha, ms_pkt, ct_rsp,
 		    "GPN_ID") != QLA_SUCCESS) {
 			rval = QLA_FUNCTION_FAILED;
+			break;
 		} else {
 			/* Save portname */
 			memcpy(list[i].port_name,
@@ -431,9 +433,11 @@ qla2x00_gnn_id(scsi_qla_host_t *vha, sw_info_t *list)
 			/*EMPTY*/
 			ql_dbg(ql_dbg_disc, vha, 0x2057,
 			    "GNN_ID issue IOCB failed (%d).\n", rval);
+			break;
 		} else if (qla2x00_chk_ms_status(vha, ms_pkt, ct_rsp,
 		    "GNN_ID") != QLA_SUCCESS) {
 			rval = QLA_FUNCTION_FAILED;
+			break;
 		} else {
 			/* Save nodename */
 			memcpy(list[i].node_name,
@@ -1777,9 +1781,11 @@ qla2x00_gfpn_id(scsi_qla_host_t *vha, sw_info_t *list)
 			/*EMPTY*/
 			ql_dbg(ql_dbg_disc, vha, 0x2023,
 			    "GFPN_ID issue IOCB failed (%d).\n", rval);
+			break;
 		} else if (qla2x00_chk_ms_status(vha, ms_pkt, ct_rsp,
 		    "GFPN_ID") != QLA_SUCCESS) {
 			rval = QLA_FUNCTION_FAILED;
+			break;
 		} else {
 			/* Save fabric portname */
 			memcpy(list[i].fabric_port_name,
