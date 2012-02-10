@@ -525,11 +525,11 @@ static ssize_t dwc3_testmode_write(struct file *file,
 		testmode = TEST_J;
 	else if (!strncmp(buf, "test_k", 6))
 		testmode = TEST_K;
-	else if (!strncmp(buf, "test_se0_nak", 13))
+	else if (!strncmp(buf, "test_se0_nak", 12))
 		testmode = TEST_SE0_NAK;
-	else if (!strncmp(buf, "test_packet", 12))
+	else if (!strncmp(buf, "test_packet", 11))
 		testmode = TEST_PACKET;
-	else if (!strncmp(buf, "test_force_enable", 18))
+	else if (!strncmp(buf, "test_force_enable", 17))
 		testmode = TEST_FORCE_EN;
 	else
 		testmode = 0;
