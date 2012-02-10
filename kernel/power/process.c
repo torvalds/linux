@@ -98,13 +98,15 @@ static int try_to_freeze_tasks(bool user_only)
 		       elapsed_csecs / 100, elapsed_csecs % 100,
 		       todo - wq_busy, wq_busy);
 
-		read_lock(&tasklist_lock);
-		do_each_thread(g, p) {
-			if (!wakeup && !freezer_should_skip(p) &&
-			    p != current && freezing(p) && !frozen(p))
-				sched_show_task(p);
-		} while_each_thread(g, p);
-		read_unlock(&tasklist_lock);
+		if (!wakeup) {
+			read_lock(&tasklist_lock);
+			do_each_thread(g, p) {
+				if (p != current && !freezer_should_skip(p)
+				    && freezing(p) && !frozen(p))
+					sched_show_task(p);
+			} while_each_thread(g, p);
+			read_unlock(&tasklist_lock);
+		}
 	} else {
 		printk("(elapsed %d.%02d seconds) ", elapsed_csecs / 100,
 			elapsed_csecs % 100);
