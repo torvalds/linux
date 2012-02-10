@@ -43,6 +43,7 @@ struct rk29_mu509_data *gpdata = NULL;
 struct class *modem_class = NULL; 
 static int do_wakeup_irq = 0;
 static int modem_status;
+static int online = 0;
 
 static void ap_wakeup_bp(struct platform_device *pdev, int wake)
 {
@@ -77,6 +78,9 @@ int modem_poweron_off(int on_off)
   if(on_off)
   {
 		MODEMDBG("------------modem_poweron\n");
+		gpio_set_value(pdata->bp_reset, GPIO_HIGH);
+		msleep(100);
+		gpio_set_value(pdata->bp_reset, GPIO_LOW);
 		gpio_set_value(pdata->bp_power, GPIO_LOW);
 		msleep(1000);
 		gpio_set_value(pdata->bp_power, GPIO_HIGH);
@@ -89,9 +93,9 @@ int modem_poweron_off(int on_off)
   {
 		MODEMDBG("------------modem_poweroff\n");
 		gpio_set_value(pdata->bp_power, GPIO_LOW);
-		mdelay(2500);
+		msleep(2500);
 		gpio_set_value(pdata->bp_power, GPIO_HIGH);
-		mdelay(2500);
+		msleep(2500);
 		gpio_set_value(pdata->bp_power, GPIO_LOW);
   }
   return 0;
@@ -111,7 +115,7 @@ static int mu509_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int mu509_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long mu509_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct rk29_mu509_data *pdata = gpdata;
 	//MODEMDBG("-------------%s\n",__FUNCTION__);
@@ -119,9 +123,9 @@ static int mu509_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	{
 		case MU509_RESET:					
 			gpio_set_value(pdata->bp_reset, GPIO_HIGH);
-			mdelay(100);
+			msleep(100);
 			gpio_set_value(pdata->bp_reset, GPIO_LOW);
-			mdelay(100);
+			msleep(100);
 			gpio_set_value(pdata->bp_power, GPIO_LOW);
 			msleep(1000);
 			gpio_set_value(pdata->bp_power, GPIO_HIGH);
@@ -170,21 +174,14 @@ static ssize_t modem_status_write(struct class *cls, struct class_attribute *att
 static ssize_t modem_status_write(struct class *cls, const char *_buf, size_t _count)
 #endif
 {
-
-    printk("[%s]Read data from Android: %s\n",__FUNCTION__, _buf);
-   struct rk29_mu509_data *pdata = gpdata;
-   int new_state = simple_strtoul(_buf, NULL, 16);
+    int new_state = simple_strtoul(_buf, NULL, 16);
    if(new_state == modem_status) return _count;
    if (new_state == 1){
      printk("%s, c(%d), open modem \n", __FUNCTION__, new_state);
-	 //gpio_set_value(pdata->bp_power, GPIO_HIGH);
-	    gpio_set_value(pdata->bp_reset, GPIO_HIGH);
-	    mdelay(100);
-	    gpio_set_value(pdata->bp_reset, GPIO_LOW);
-	    modem_poweron_off(1);
+	 modem_poweron_off(1);
    }else if(new_state == 0){
      printk("%s, c(%d), close modem \n", __FUNCTION__, new_state);
-     gpio_set_value(pdata->bp_power, GPIO_LOW);
+	 modem_poweron_off(0);
    }else{
      printk("%s, invalid parameter \n", __FUNCTION__);
    }
@@ -192,6 +189,27 @@ static ssize_t modem_status_write(struct class *cls, const char *_buf, size_t _c
     return _count; 
 }
 static CLASS_ATTR(modem_status, 0777, modem_status_read, modem_status_write);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static ssize_t online_read(struct class *cls, struct class_attribute *attr, char *_buf)
+#else
+static ssize_t online_read(struct class *cls, char *_buf)
+#endif
+{
+	return sprintf(_buf, "%d\n", online);
+	
+}
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
+static ssize_t online_write(struct class *cls, struct class_attribute *attr, const char *_buf, size_t _count)
+#else
+static ssize_t online_write(struct class *cls, const char *_buf, size_t _count)
+#endif
+{
+   int new_value = simple_strtoul(_buf, NULL, 16);
+   if(new_value == online) return _count;
+	online = new_value;
+    return _count; 
+}
+static CLASS_ATTR(online, 0777, online_read, online_write);
 static int mu509_probe(struct platform_device *pdev)
 {
 	struct rk29_mu509_data *pdata = gpdata = pdev->dev.platform_data;
@@ -202,9 +220,6 @@ static int mu509_probe(struct platform_device *pdev)
 	pdata->dev = &pdev->dev;
 	if(pdata->io_init)
 		pdata->io_init();
-	gpio_set_value(pdata->bp_reset, GPIO_HIGH);
-	mdelay(100);
-	gpio_set_value(pdata->bp_reset, GPIO_LOW);
 	modem_poweron_off(1);
 	modem_status = 1;
 	
@@ -258,10 +273,11 @@ err2:
 	return 0;
 }
 
-int mu509_suspend(struct platform_device *pdev)
+int mu509_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	do_wakeup_irq = 1;
 	//MODEMDBG("-------------%s\n",__FUNCTION__);
+	if(!online)
 	ap_wakeup_bp(pdev, 1);
 	rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_GPIO1C1);
 	//gpio_direction_output(RK29_PIN1_PC1, 1);
@@ -276,7 +292,7 @@ int mu509_resume(struct platform_device *pdev)
 	return 0;
 }
 
-void mu509_shutdown(struct platform_device *pdev, pm_message_t state)
+void mu509_shutdown(struct platform_device *pdev)
 {
 	struct rk29_mu509_data *pdata = pdev->dev.platform_data;
 	struct modem_dev *mu509_data = platform_get_drvdata(pdev);
@@ -313,6 +329,7 @@ static int __init mu509_init(void)
 	
 	modem_class = class_create(THIS_MODULE, "rk291x_modem");
 	ret =  class_create_file(modem_class, &class_attr_modem_status);
+	ret =  class_create_file(modem_class, &class_attr_online);
 	if (ret)
 	{
 		printk("Fail to class rk291x_modem.\n");
@@ -325,6 +342,7 @@ static void __exit mu509_exit(void)
 	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	platform_driver_unregister(&mu509_driver);
 	class_remove_file(modem_class, &class_attr_modem_status);
+	class_remove_file(modem_class, &class_attr_online);
 }
 
 module_init(mu509_init);
