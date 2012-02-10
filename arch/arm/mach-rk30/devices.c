@@ -21,6 +21,143 @@
 #include <asm/pmu.h>
 #include <mach/irqs.h>
 #include <mach/board.h>
+#include <mach/dma-pl330.h>
+
+static u64 dma_dmamask = DMA_BIT_MASK(32);
+
+static struct resource resource_dmac1[] = {
+	[0] = {
+		.start  = RK30_DMACS1_PHYS,
+		.end    = RK30_DMACS1_PHYS + RK30_DMACS1_SIZE -1,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_DMAC1_0,
+		.end	= IRQ_DMAC1_1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct rk29_pl330_platdata dmac1_pdata = {
+	.peri = {
+		[0] = DMACH_UART0_TX,
+		[1] = DMACH_UART0_RX,
+		[2] = DMACH_UART1_TX,
+		[3] = DMACH_UART1_RX,
+		[4] = DMACH_I2S0_8CH_TX,
+		[5] = DMACH_I2S0_8CH_RX,
+		[6] = DMACH_I2S1_2CH_TX,
+		[7] = DMACH_I2S1_2CH_RX,
+		[8] = DMACH_SPDIF_TX,
+		[9] = DMACH_I2S2_2CH_TX,
+		[10] = DMACH_I2S2_2CH_RX,
+		[11] = DMACH_MAX,
+		[12] = DMACH_MAX,
+		[13] = DMACH_MAX,
+		[14] = DMACH_MAX,
+		[15] = DMACH_MAX,
+		[16] = DMACH_MAX,
+		[17] = DMACH_MAX,
+		[18] = DMACH_MAX,
+		[19] = DMACH_MAX,
+		[20] = DMACH_MAX,
+		[21] = DMACH_MAX,
+		[22] = DMACH_MAX,
+		[23] = DMACH_MAX,
+		[24] = DMACH_MAX,
+		[25] = DMACH_MAX,
+		[26] = DMACH_MAX,
+		[27] = DMACH_MAX,
+		[28] = DMACH_MAX,
+		[29] = DMACH_MAX,
+		[30] = DMACH_MAX,
+		[31] = DMACH_MAX,
+	},
+};
+
+static struct platform_device device_dmac1 = {
+	.name		= "rk29-pl330",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(resource_dmac1),
+	.resource	= resource_dmac1,
+	.dev		= {
+		.dma_mask = &dma_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data = &dmac1_pdata,
+	},
+};
+
+static struct resource resource_dmac2[] = {
+	[0] = {
+		.start  = RK30_DMAC2_PHYS,
+		.end    = RK30_DMAC2_PHYS + RK30_DMAC2_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_DMAC2_0,
+		.end	= IRQ_DMAC2_1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct rk29_pl330_platdata dmac2_pdata = {
+	.peri = {
+		[0] = DMACH_HSADC,
+		[1] = DMACH_SDMMC,
+		[2] = DMACH_MAX,
+		[3] = DMACH_SDIO,
+		[4] = DMACH_EMMC,
+		[5] = DMACH_PID_FILTER,
+		[6] = DMACH_UART2_TX,
+		[7] = DMACH_UART2_RX,
+		[8] = DMACH_UART3_TX,
+		[9] = DMACH_UART3_RX,
+		[10] = DMACH_SPI0_TX,
+		[11] = DMACH_SPI0_RX,
+		[12] = DMACH_SPI1_TX,
+		[13] = DMACH_SPI1_RX,
+		[14] = DMACH_DMAC2_MEMTOMEM,
+		[15] = DMACH_MAX,
+		[16] = DMACH_MAX,
+		[17] = DMACH_MAX,
+		[18] = DMACH_MAX,
+		[19] = DMACH_MAX,
+		[20] = DMACH_MAX,
+		[21] = DMACH_MAX,
+		[22] = DMACH_MAX,
+		[23] = DMACH_MAX,
+		[24] = DMACH_MAX,
+		[25] = DMACH_MAX,
+		[26] = DMACH_MAX,
+		[27] = DMACH_MAX,
+		[28] = DMACH_MAX,
+		[29] = DMACH_MAX,
+		[30] = DMACH_MAX,
+		[31] = DMACH_MAX,
+	},
+};
+
+static struct platform_device device_dmac2 = {
+	.name		= "rk29-pl330",
+	.id		= 2,
+	.num_resources	= ARRAY_SIZE(resource_dmac2),
+	.resource	= resource_dmac2,
+	.dev		= {
+		.dma_mask = &dma_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data = &dmac2_pdata,
+	},
+};
+
+static struct platform_device *rk30_dmacs[] __initdata = {
+	&device_dmac1,
+	&device_dmac2,
+};
+
+static void __init rk30_init_dma(void)
+{
+	platform_add_devices(rk30_dmacs, ARRAY_SIZE(rk30_dmacs));
+}
 
 #ifdef CONFIG_UART0_RK29
 static struct resource resources_uart0[] = {
@@ -355,6 +492,7 @@ static struct platform_device device_keys = {
 #endif
 static int __init rk30_init_devices(void)
 {
+	rk30_init_dma();
 	rk30_init_uart();
 	rk30_init_i2c();
 #ifdef CONFIG_MTD_NAND_RK29XX

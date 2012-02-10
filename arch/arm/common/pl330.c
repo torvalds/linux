@@ -378,10 +378,17 @@ static inline u32 get_id(struct pl330_info *pi, u32 off)
 	void __iomem *regs = pi->base;
 	u32 id = 0;
 
+#ifdef CONFIG_ARCH_RK30
+	id |= ((readl(regs + off + 0x0) & 0xff) << 0);
+	id |= ((readl(regs + off + 0x4) & 0xff)<< 8);
+	id |= ((readl(regs + off + 0x8) & 0xff) << 16);
+	id |= ((readl(regs + off + 0xc) & 0xff)<< 24);
+#else
 	id |= (readb(regs + off + 0x0) << 0);
 	id |= (readb(regs + off + 0x4) << 8);
 	id |= (readb(regs + off + 0x8) << 16);
 	id |= (readb(regs + off + 0xc) << 24);
+#endif
 
 	return id;
 }
