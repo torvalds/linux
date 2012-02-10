@@ -144,70 +144,47 @@ struct sci_port_properties {
 };
 
 /**
- * enum sci_port_states - This enumeration depicts all the states for the
- *    common port state machine.
- *
- *
+ * enum sci_port_states - port state machine states
+ * @SCI_PORT_STOPPED: port has successfully been stopped.  In this state
+ *		      no new IO operations are permitted.  This state is
+ *		      entered from the STOPPING state.
+ * @SCI_PORT_STOPPING: port is in the process of stopping.  In this
+ *		       state no new IO operations are permitted, but
+ *		       existing IO operations are allowed to complete.
+ *		       This state is entered from the READY state.
+ * @SCI_PORT_READY: port is now ready.  Thus, the user is able to
+ *		    perform IO operations on this port. This state is
+ *		    entered from the STARTING state.
+ * @SCI_PORT_SUB_WAITING: port is started and ready but has no active
+ *			  phys.
+ * @SCI_PORT_SUB_OPERATIONAL: port is started and ready and there is at
+ *			      least one phy operational.
+ * @SCI_PORT_SUB_CONFIGURING: port is started and there was an
+ *			      add/remove phy event.  This state is only
+ *			      used in Automatic Port Configuration Mode
+ *			      (APC)
+ * @SCI_PORT_RESETTING: port is in the process of performing a hard
+ *			reset.  Thus, the user is unable to perform IO
+ *			operations on this port.  This state is entered
+ *			from the READY state.
+ * @SCI_PORT_FAILED: port has failed a reset request.  This state is
+ *		     entered when a port reset request times out. This
+ *		     state is entered from the RESETTING state.
  */
-enum sci_port_states {
-	/**
-	 * This state indicates that the port has successfully been stopped.
-	 * In this state no new IO operations are permitted.
-	 * This state is entered from the STOPPING state.
-	 */
-	SCI_PORT_STOPPED,
-
-	/**
-	 * This state indicates that the port is in the process of stopping.
-	 * In this state no new IO operations are permitted, but existing IO
-	 * operations are allowed to complete.
-	 * This state is entered from the READY state.
-	 */
-	SCI_PORT_STOPPING,
-
-	/**
-	 * This state indicates the port is now ready.  Thus, the user is
-	 * able to perform IO operations on this port.
-	 * This state is entered from the STARTING state.
-	 */
-	SCI_PORT_READY,
-
-	/**
-	 * The substate where the port is started and ready but has no
-	 * active phys.
-	 */
-	SCI_PORT_SUB_WAITING,
-
-	/**
-	 * The substate where the port is started and ready and there is
-	 * at least one phy operational.
-	 */
-	SCI_PORT_SUB_OPERATIONAL,
-
-	/**
-	 * The substate where the port is started and there was an
-	 * add/remove phy event.  This state is only used in Automatic
-	 * Port Configuration Mode (APC)
-	 */
-	SCI_PORT_SUB_CONFIGURING,
-
-	/**
-	 * This state indicates the port is in the process of performing a hard
-	 * reset.  Thus, the user is unable to perform IO operations on this
-	 * port.
-	 * This state is entered from the READY state.
-	 */
-	SCI_PORT_RESETTING,
-
-	/**
-	 * This state indicates the port has failed a reset request.  This state
-	 * is entered when a port reset request times out.
-	 * This state is entered from the RESETTING state.
-	 */
-	SCI_PORT_FAILED,
-
-
-};
+#define PORT_STATES {\
+	C(PORT_STOPPED),\
+	C(PORT_STOPPING),\
+	C(PORT_READY),\
+	C(PORT_SUB_WAITING),\
+	C(PORT_SUB_OPERATIONAL),\
+	C(PORT_SUB_CONFIGURING),\
+	C(PORT_RESETTING),\
+	C(PORT_FAILED),\
+	}
+#undef C
+#define C(a) SCI_##a
+enum sci_port_states PORT_STATES;
+#undef C
 
 static inline void sci_port_decrement_request_count(struct isci_port *iport)
 {

@@ -60,6 +60,16 @@
 #define SCIC_SDS_PORT_HARD_RESET_TIMEOUT  (1000)
 #define SCU_DUMMY_INDEX    (0xFFFF)
 
+#undef C
+#define C(a) (#a)
+const char *port_state_name(enum sci_port_states state)
+{
+	static const char * const strings[] = PORT_STATES;
+
+	return strings[state];
+}
+#undef C
+
 static struct device *sciport_to_dev(struct isci_port *iport)
 {
 	int i = iport->physical_port_index;
@@ -1054,8 +1064,8 @@ enum sci_status sci_port_start(struct isci_port *iport)
 
 	state = iport->sm.current_state_id;
 	if (state != SCI_PORT_STOPPED) {
-		dev_warn(sciport_to_dev(iport),
-			 "%s: in wrong state: %d\n", __func__, state);
+		dev_warn(sciport_to_dev(iport), "%s: in wrong state: %s\n",
+			 __func__, port_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -1129,8 +1139,8 @@ enum sci_status sci_port_stop(struct isci_port *iport)
 					  SCI_PORT_STOPPING);
 		return SCI_SUCCESS;
 	default:
-		dev_warn(sciport_to_dev(iport),
-			 "%s: in wrong state: %d\n", __func__, state);
+		dev_warn(sciport_to_dev(iport), "%s: in wrong state: %s\n",
+			 __func__, port_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
@@ -1144,8 +1154,8 @@ static enum sci_status sci_port_hard_reset(struct isci_port *iport, u32 timeout)
 
 	state = iport->sm.current_state_id;
 	if (state != SCI_PORT_SUB_OPERATIONAL) {
-		dev_warn(sciport_to_dev(iport),
-			 "%s: in wrong state: %d\n", __func__, state);
+		dev_warn(sciport_to_dev(iport), "%s: in wrong state: %s\n",
+			 __func__, port_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -1239,8 +1249,8 @@ enum sci_status sci_port_add_phy(struct isci_port *iport,
 					  SCI_PORT_SUB_CONFIGURING);
 		return SCI_SUCCESS;
 	default:
-		dev_warn(sciport_to_dev(iport),
-			 "%s: in wrong state: %d\n", __func__, state);
+		dev_warn(sciport_to_dev(iport), "%s: in wrong state: %s\n",
+			 __func__, port_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
@@ -1289,8 +1299,8 @@ enum sci_status sci_port_remove_phy(struct isci_port *iport,
 					  SCI_PORT_SUB_CONFIGURING);
 		return SCI_SUCCESS;
 	default:
-		dev_warn(sciport_to_dev(iport),
-			 "%s: in wrong state: %d\n", __func__, state);
+		dev_warn(sciport_to_dev(iport), "%s: in wrong state: %s\n",
+			 __func__, port_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
@@ -1332,8 +1342,8 @@ enum sci_status sci_port_link_up(struct isci_port *iport,
 		sci_port_general_link_up_handler(iport, iphy, PF_RESUME);
 		return SCI_SUCCESS;
 	default:
-		dev_warn(sciport_to_dev(iport),
-			 "%s: in wrong state: %d\n", __func__, state);
+		dev_warn(sciport_to_dev(iport), "%s: in wrong state: %s\n",
+			 __func__, port_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
@@ -1362,8 +1372,8 @@ enum sci_status sci_port_link_down(struct isci_port *iport,
 		sci_port_deactivate_phy(iport, iphy, false);
 		return SCI_SUCCESS;
 	default:
-		dev_warn(sciport_to_dev(iport),
-			 "%s: in wrong state: %d\n", __func__, state);
+		dev_warn(sciport_to_dev(iport), "%s: in wrong state: %s\n",
+			 __func__, port_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
@@ -1382,8 +1392,8 @@ enum sci_status sci_port_start_io(struct isci_port *iport,
 		iport->started_request_count++;
 		return SCI_SUCCESS;
 	default:
-		dev_warn(sciport_to_dev(iport),
-			 "%s: in wrong state: %d\n", __func__, state);
+		dev_warn(sciport_to_dev(iport), "%s: in wrong state: %s\n",
+			 __func__, port_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
@@ -1397,8 +1407,8 @@ enum sci_status sci_port_complete_io(struct isci_port *iport,
 	state = iport->sm.current_state_id;
 	switch (state) {
 	case SCI_PORT_STOPPED:
-		dev_warn(sciport_to_dev(iport),
-			 "%s: in wrong state: %d\n", __func__, state);
+		dev_warn(sciport_to_dev(iport), "%s: in wrong state: %s\n",
+			 __func__, port_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	case SCI_PORT_STOPPING:
 		sci_port_decrement_request_count(iport);

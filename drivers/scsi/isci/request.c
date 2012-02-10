@@ -61,6 +61,16 @@
 #include "scu_event_codes.h"
 #include "sas.h"
 
+#undef C
+#define C(a) (#a)
+const char *req_state_name(enum sci_base_request_states state)
+{
+	static const char * const strings[] = REQUEST_STATES;
+
+	return strings[state];
+}
+#undef C
+
 static struct scu_sgl_element_pair *to_sgl_element_pair(struct isci_request *ireq,
 							int idx)
 {
@@ -910,7 +920,8 @@ enum sci_status sci_request_complete(struct isci_request *ireq)
 
 	state = ireq->sm.current_state_id;
 	if (WARN_ONCE(state != SCI_REQ_COMPLETED,
-		      "isci: request completion from wrong state (%d)\n", state))
+		      "isci: request completion from wrong state (%s)\n",
+		      req_state_name(state)))
 		return SCI_FAILURE_INVALID_STATE;
 
 	if (ireq->saved_rx_frame_index != SCU_INVALID_FRAME_INDEX)
@@ -931,8 +942,8 @@ enum sci_status sci_io_request_event_handler(struct isci_request *ireq,
 	state = ireq->sm.current_state_id;
 
 	if (state != SCI_REQ_STP_PIO_DATA_IN) {
-		dev_warn(&ihost->pdev->dev, "%s: (%x) in wrong state %d\n",
-			 __func__, event_code, state);
+		dev_warn(&ihost->pdev->dev, "%s: (%x) in wrong state %s\n",
+			 __func__, event_code, req_state_name(state));
 
 		return SCI_FAILURE_INVALID_STATE;
 	}
@@ -2306,12 +2317,8 @@ sci_io_request_tc_completion(struct isci_request *ireq,
 		return atapi_data_tc_completion_handler(ireq, completion_code);
 
 	default:
-		dev_warn(&ihost->pdev->dev,
-			 "%s: SCIC IO Request given task completion "
-			 "notification %x while in wrong state %d\n",
-			 __func__,
-			 completion_code,
-			 state);
+		dev_warn(&ihost->pdev->dev, "%s: %x in wrong state %s\n",
+			 __func__, completion_code, req_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }

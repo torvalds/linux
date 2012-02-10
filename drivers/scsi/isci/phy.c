@@ -59,6 +59,16 @@
 #include "scu_event_codes.h"
 #include "probe_roms.h"
 
+#undef C
+#define C(a) (#a)
+static const char *phy_state_name(enum sci_phy_states state)
+{
+	static const char * const strings[] = PHY_STATES;
+
+	return strings[state];
+}
+#undef C
+
 /* Maximum arbitration wait time in micro-seconds */
 #define SCIC_SDS_PHY_MAX_ARBITRATION_WAIT_TIME  (700)
 
@@ -454,8 +464,8 @@ enum sci_status sci_phy_start(struct isci_phy *iphy)
 	enum sci_phy_states state = iphy->sm.current_state_id;
 
 	if (state != SCI_PHY_STOPPED) {
-		dev_dbg(sciphy_to_dev(iphy),
-			 "%s: in wrong state: %d\n", __func__, state);
+		dev_dbg(sciphy_to_dev(iphy), "%s: in wrong state: %s\n",
+			__func__, phy_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -480,8 +490,8 @@ enum sci_status sci_phy_stop(struct isci_phy *iphy)
 	case SCI_PHY_READY:
 		break;
 	default:
-		dev_dbg(sciphy_to_dev(iphy),
-			"%s: in wrong state: %d\n", __func__, state);
+		dev_dbg(sciphy_to_dev(iphy), "%s: in wrong state: %s\n",
+			__func__, phy_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -494,8 +504,8 @@ enum sci_status sci_phy_reset(struct isci_phy *iphy)
 	enum sci_phy_states state = iphy->sm.current_state_id;
 
 	if (state != SCI_PHY_READY) {
-		dev_dbg(sciphy_to_dev(iphy),
-			"%s: in wrong state: %d\n", __func__, state);
+		dev_dbg(sciphy_to_dev(iphy), "%s: in wrong state: %s\n",
+			__func__, phy_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -544,8 +554,8 @@ enum sci_status sci_phy_consume_power_handler(struct isci_phy *iphy)
 		return SCI_SUCCESS;
 	}
 	default:
-		dev_dbg(sciphy_to_dev(iphy),
-			"%s: in wrong state: %d\n", __func__, state);
+		dev_dbg(sciphy_to_dev(iphy), "%s: in wrong state: %s\n",
+			__func__, phy_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
@@ -870,8 +880,8 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 		}
 		return SCI_SUCCESS;
 	default:
-		dev_dbg(sciphy_to_dev(iphy),
-			"%s: in wrong state: %d\n", __func__, state);
+		dev_dbg(sciphy_to_dev(iphy), "%s: in wrong state: %s\n",
+			__func__, phy_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
@@ -964,8 +974,8 @@ enum sci_status sci_phy_frame_handler(struct isci_phy *iphy, u32 frame_index)
 		return result;
 	}
 	default:
-		dev_dbg(sciphy_to_dev(iphy),
-			"%s: in wrong state: %d\n", __func__, state);
+		dev_dbg(sciphy_to_dev(iphy), "%s: in wrong state: %s\n",
+			__func__, phy_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
