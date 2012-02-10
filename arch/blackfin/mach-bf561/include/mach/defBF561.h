@@ -879,6 +879,13 @@
 #define DLENGTH              0x00003800	/* PPI Data Length  */
 #define DLEN_8		     0x0	/* PPI Data Length mask for DLEN=8 */
 #define DLEN(x)	(((x-9) & 0x07) << 11)	/* PPI Data Length (only works for x=10-->x=16) */
+#define DLEN_10              0x00000800 /* Data Length = 10 Bits */
+#define DLEN_11              0x00001000 /* Data Length = 11 Bits */
+#define DLEN_12              0x00001800 /* Data Length = 12 Bits */
+#define DLEN_13              0x00002000 /* Data Length = 13 Bits */
+#define DLEN_14              0x00002800 /* Data Length = 14 Bits */
+#define DLEN_15              0x00003000 /* Data Length = 15 Bits */
+#define DLEN_16              0x00003800 /* Data Length = 16 Bits */
 #define POL                  0x0000C000	/* PPI Signal Polarities       */
 #define	POLC		0x4000		/* PPI Clock Polarity */
 #define	POLS		0x8000		/* PPI Frame Sync Polarity */
