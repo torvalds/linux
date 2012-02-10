@@ -130,7 +130,7 @@ tei_id_request(struct FsmInst *fi, int event, void *arg)
 
 	if (st->l2.tei != -1) {
 		st->ma.tei_m.printdebug(&st->ma.tei_m,
-			"assign request for already asigned tei %d",
+			"assign request for already assigned tei %d",
 			st->l2.tei);
 		return;
 	}

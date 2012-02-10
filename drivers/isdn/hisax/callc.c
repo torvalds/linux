@@ -1693,7 +1693,7 @@ HiSax_command(isdn_ctrl * ic)
 				default:
 					if (csta->auxcmd)
 						return(csta->auxcmd(csta, ic));
-					printk(KERN_DEBUG "HiSax: invalid ioclt %d\n",
+					printk(KERN_DEBUG "HiSax: invalid ioctl %d\n",
 						(int) ic->arg);
 					return (-EINVAL);
 			}
