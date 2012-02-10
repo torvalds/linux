@@ -362,7 +362,7 @@ config MACH_SMDK4412
 	  Machine support for Samsung SMDK4412
 endif
 
-comment "Flattened Device Tree based board for Exynos4 based SoC"
+comment "Flattened Device Tree based board for EXYNOS SoCs"
 
 config MACH_EXYNOS4_DT
 	bool "Samsung Exynos4 Machine using device tree"
@@ -375,6 +375,15 @@ config MACH_EXYNOS4_DT
 	  Select this if a fdt blob is available for the Exynos4 SoC based board.
 	  Note: This is under development and not all peripherals can be supported
 	  with this machine file.
+
+config MACH_EXYNOS5_DT
+	bool "SAMSUNG EXYNOS5 Machine using device tree"
+	select SOC_EXYNOS5250
+	select USE_OF
+	select ARM_AMBA
+	help
+	  Machine support for Samsung Exynos4 machine with device tree enabled.
+	  Select this if a fdt blob is available for the EXYNOS4 SoC based board.
 
 if ARCH_EXYNOS4
 
