@@ -21,7 +21,7 @@
 #include <asm/pmu.h>
 #include <mach/irqs.h>
 #include <mach/board.h>
-#include <mach/dma-pl330.h>
+#include <plat/dma-pl330.h>
 
 static u64 dma_dmamask = DMA_BIT_MASK(32);
 

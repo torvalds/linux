@@ -91,7 +91,11 @@
 
 #define USE_DMA (UART0_USE_DMA | UART1_USE_DMA | UART2_USE_DMA | UART3_USE_DMA)
 #if USE_DMA
+#ifdef CONFIG_ARCH_RK29
 #include <mach/dma-pl330.h>
+#else
+#include <plat/dma-pl330.h>
+#endif
 #endif
 
 #define DMA_TX_TRRIGE_LEVEL 30
