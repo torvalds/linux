@@ -1,9 +1,0 @@
-For this staging driver, RAMster duplicates code from fs/ocfs2/cluster
-and from drivers/staging/zcache, then incorporates changes to the local
-copy of the code.  Before RAMster can be promoted from staging, this code
-duplication must be resolved.  Specifically, we will first need to work with
-the ocfs2 maintainers to split out the ocfs2 core cluster code so that
-it can be easily included by another subsystem, even if ocfs2 is not
-configured, and also to merge the handful of functional changes required.
-Second, the zcache and RAMster drivers should be either merged or reorganized
-to separate out common code.
