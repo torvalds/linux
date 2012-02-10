@@ -443,14 +443,16 @@ enum sci_status sci_remote_node_context_event_handler(struct sci_remote_node_con
 		break;
 	default:
 		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-			 "%s: invalid state %d\n", __func__, state);
+			 "%s: invalid state: %s\n", __func__,
+			 rnc_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 	return SCI_SUCCESS;
 
  out:
 	dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-		 "%s: code: %#x state: %d\n", __func__, event_code, state);
+		 "%s: code: %#x state: %s\n", __func__, event_code,
+		 rnc_state_name(state));
 	return SCI_FAILURE;
 
 }
@@ -477,7 +479,8 @@ enum sci_status sci_remote_node_context_destruct(struct sci_remote_node_context 
 		return SCI_SUCCESS;
 	case SCI_RNC_INITIAL:
 		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-			 "%s: invalid state %d\n", __func__, state);
+			 "%s: invalid state: %s\n", __func__,
+			 rnc_state_name(state));
 		/* We have decided that the destruct request on the remote node context
 		 * can not fail since it is either in the initial/destroyed state or is
 		 * can be destroyed.
@@ -485,7 +488,8 @@ enum sci_status sci_remote_node_context_destruct(struct sci_remote_node_context 
 		return SCI_SUCCESS;
 	default:
 		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-			 "%s: invalid state %d\n", __func__, state);
+			 "%s: invalid state %s\n", __func__,
+			 rnc_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
@@ -500,7 +504,8 @@ enum sci_status sci_remote_node_context_suspend(struct sci_remote_node_context *
 	state = sci_rnc->sm.current_state_id;
 	if (state != SCI_RNC_READY) {
 		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-			 "%s: invalid state %d\n", __func__, state);
+			 "%s: invalid state %s\n", __func__,
+			 rnc_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -571,7 +576,8 @@ enum sci_status sci_remote_node_context_resume(struct sci_remote_node_context *s
 		return SCI_SUCCESS;
 	default:
 		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-			 "%s: invalid state %d\n", __func__, state);
+			 "%s: invalid state %s\n", __func__,
+			 rnc_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
@@ -590,15 +596,15 @@ enum sci_status sci_remote_node_context_start_io(struct sci_remote_node_context 
 	case SCI_RNC_TX_RX_SUSPENDED:
 	case SCI_RNC_AWAIT_SUSPENSION:
 		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-			 "%s: invalid state %d\n", __func__, state);
+			 "%s: invalid state %s\n", __func__,
+			 rnc_state_name(state));
 		return SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED;
 	default:
-		break;
+		dev_dbg(scirdev_to_dev(rnc_to_dev(sci_rnc)),
+			"%s: invalid state %s\n", __func__,
+			rnc_state_name(state));
+		return SCI_FAILURE_INVALID_STATE;
 	}
-	dev_dbg(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-		"%s: requested to start IO while still resuming, %d\n",
-		__func__, state);
-	return SCI_FAILURE_INVALID_STATE;
 }
 
 enum sci_status sci_remote_node_context_start_task(struct sci_remote_node_context *sci_rnc,
@@ -618,7 +624,8 @@ enum sci_status sci_remote_node_context_start_task(struct sci_remote_node_contex
 		return SCI_SUCCESS;
 	default:
 		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
-			 "%s: invalid state %d\n", __func__, state);
+			"%s: invalid state %s\n", __func__,
+			rnc_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
