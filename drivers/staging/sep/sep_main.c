@@ -40,6 +40,7 @@
 /* #define SEP_PERF_DEBUG */
 
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
@@ -197,9 +198,9 @@ static int sep_allocate_dmatables_region(struct sep_device *sep,
 					 struct sep_dma_context *dma_ctx,
 					 const u32 table_count)
 {
-	const size_t new_len =  table_count *
-				sizeof(struct sep_lli_entry) *
-				SEP_DRIVER_ENTRIES_PER_TABLE_IN_SEP;
+	const size_t new_len =
+		SYNCHRONIC_DMA_TABLES_AREA_SIZE_BYTES - 1;
+
 	void *tmp_region = NULL;
 
 	dev_dbg(&sep->pdev->dev, "[PID%d] dma_ctx = 0x%p\n",
@@ -230,6 +231,7 @@ static int sep_allocate_dmatables_region(struct sep_device *sep,
 	if (*dmatables_region) {
 		memcpy(tmp_region, *dmatables_region, dma_ctx->dmatables_len);
 		kfree(*dmatables_region);
+		*dmatables_region = NULL;
 	}
 
 	*dmatables_region = tmp_region;
@@ -342,11 +344,12 @@ static void _sep_dump_message(struct sep_device *sep)
 
 	u32 *p = sep->shared_addr;
 
-	for (count = 0; count < 40 * 4; count += 4)
+	for (count = 0; count < 10 * 4; count += 4)
 		dev_dbg(&sep->pdev->dev,
 			"[PID%d] Word %d of the message is %x\n",
 				current->pid, count/4, *p++);
 }
+
 #endif
 
 /**
@@ -384,6 +387,8 @@ static void sep_unmap_and_free_shared_area(struct sep_device *sep)
 				sep->shared_addr, sep->shared_bus);
 }
 
+#ifdef DEBUG
+
 /**
  * sep_shared_bus_to_virt - convert bus/virt addresses
  * @sep: pointer to struct sep_device
@@ -397,6 +402,8 @@ static void *sep_shared_bus_to_virt(struct sep_device *sep,
 {
 	return sep->shared_addr + (bus_address - sep->shared_bus);
 }
+
+#endif
 
 /**
  * sep_open - device open method
