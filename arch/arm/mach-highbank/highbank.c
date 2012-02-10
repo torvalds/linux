@@ -109,7 +109,7 @@ static void __init highbank_timer_init(void)
 
 	highbank_clocks_init();
 
-	sp804_clocksource_init(timer_base + 0x20, "timer1");
+	sp804_clocksource_and_sched_clock_init(timer_base + 0x20, "timer1");
 	sp804_clockevents_init(timer_base, irq, "timer0");
 }
 
