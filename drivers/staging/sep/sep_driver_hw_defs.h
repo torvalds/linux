@@ -33,9 +33,6 @@
 #ifndef SEP_DRIVER_HW_DEFS__H
 #define SEP_DRIVER_HW_DEFS__H
 
-/* PCI ID's */
-#define MFLD_PCI_DEVICE_ID 0x0826
-
 /*----------------------- */
 /* HW Registers Defines.  */
 /*                        */
