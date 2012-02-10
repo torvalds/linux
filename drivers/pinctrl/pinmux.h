@@ -12,7 +12,7 @@
  */
 #ifdef CONFIG_PINMUX
 
-int pinmux_check_ops(const struct pinmux_ops *ops);
+int pinmux_check_ops(struct pinctrl_dev *pctldev);
 void pinmux_init_device_debugfs(struct dentry *devroot,
 				struct pinctrl_dev *pctldev);
 void pinmux_init_debugfs(struct dentry *subsys_root);
@@ -21,7 +21,7 @@ void pinmux_unhog_maps(struct pinctrl_dev *pctldev);
 
 #else
 
-static inline int pinmux_check_ops(const struct pinmux_ops *ops)
+static inline int pinmux_check_ops(struct pinctrl_dev *pctldev)
 {
 	return 0;
 }

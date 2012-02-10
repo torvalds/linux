@@ -92,9 +92,9 @@ struct team_option *__team_find_option(struct team *team, const char *opt_name)
 	return NULL;
 }
 
-int team_options_register(struct team *team,
-			  const struct team_option *option,
-			  size_t option_count)
+int __team_options_register(struct team *team,
+			    const struct team_option *option,
+			    size_t option_count)
 {
 	int i;
 	struct team_option **dst_opts;
@@ -116,8 +116,11 @@ int team_options_register(struct team *team,
 		}
 	}
 
-	for (i = 0; i < option_count; i++)
+	for (i = 0; i < option_count; i++) {
+		dst_opts[i]->changed = true;
+		dst_opts[i]->removed = false;
 		list_add_tail(&dst_opts[i]->list, &team->option_list);
+	}
 
 	kfree(dst_opts);
 	return 0;
@@ -130,10 +133,22 @@ rollback:
 	return err;
 }
 
-EXPORT_SYMBOL(team_options_register);
+static void __team_options_mark_removed(struct team *team,
+					const struct team_option *option,
+					size_t option_count)
+{
+	int i;
 
-static void __team_options_change_check(struct team *team,
-					struct team_option *changed_option);
+	for (i = 0; i < option_count; i++, option++) {
+		struct team_option *del_opt;
+
+		del_opt = __team_find_option(team, option->name);
+		if (del_opt) {
+			del_opt->changed = true;
+			del_opt->removed = true;
+		}
+	}
+}
 
 static void __team_options_unregister(struct team *team,
 				      const struct team_option *option,
@@ -152,12 +167,29 @@ static void __team_options_unregister(struct team *team,
 	}
 }
 
+static void __team_options_change_check(struct team *team);
+
+int team_options_register(struct team *team,
+			  const struct team_option *option,
+			  size_t option_count)
+{
+	int err;
+
+	err = __team_options_register(team, option, option_count);
+	if (err)
+		return err;
+	__team_options_change_check(team);
+	return 0;
+}
+EXPORT_SYMBOL(team_options_register);
+
 void team_options_unregister(struct team *team,
 			     const struct team_option *option,
 			     size_t option_count)
 {
+	__team_options_mark_removed(team, option, option_count);
+	__team_options_change_check(team);
 	__team_options_unregister(team, option, option_count);
-	__team_options_change_check(team, NULL);
 }
 EXPORT_SYMBOL(team_options_unregister);
 
@@ -176,7 +208,8 @@ static int team_option_set(struct team *team, struct team_option *option,
 	if (err)
 		return err;
 
-	__team_options_change_check(team, option);
+	option->changed = true;
+	__team_options_change_check(team);
 	return err;
 }
 
@@ -653,6 +686,7 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 		return -ENOENT;
 	}
 
+	port->removed = true;
 	__team_port_change_check(port, false);
 	team_port_list_del_port(team, port);
 	team_adjust_ops(team);
@@ -1200,10 +1234,9 @@ err_fill:
 	return err;
 }
 
-static int team_nl_fill_options_get_changed(struct sk_buff *skb,
-					    u32 pid, u32 seq, int flags,
-					    struct team *team,
-					    struct team_option *changed_option)
+static int team_nl_fill_options_get(struct sk_buff *skb,
+				    u32 pid, u32 seq, int flags,
+				    struct team *team, bool fillall)
 {
 	struct nlattr *option_list;
 	void *hdr;
@@ -1223,12 +1256,19 @@ static int team_nl_fill_options_get_changed(struct sk_buff *skb,
 		struct nlattr *option_item;
 		long arg;
 
+		/* Include only changed options if fill all mode is not on */
+		if (!fillall && !option->changed)
+			continue;
 		option_item = nla_nest_start(skb, TEAM_ATTR_ITEM_OPTION);
 		if (!option_item)
 			goto nla_put_failure;
 		NLA_PUT_STRING(skb, TEAM_ATTR_OPTION_NAME, option->name);
-		if (option == changed_option)
+		if (option->changed) {
 			NLA_PUT_FLAG(skb, TEAM_ATTR_OPTION_CHANGED);
+			option->changed = false;
+		}
+		if (option->removed)
+			NLA_PUT_FLAG(skb, TEAM_ATTR_OPTION_REMOVED);
 		switch (option->type) {
 		case TEAM_OPTION_TYPE_U32:
 			NLA_PUT_U8(skb, TEAM_ATTR_OPTION_TYPE, NLA_U32);
@@ -1255,13 +1295,13 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int team_nl_fill_options_get(struct sk_buff *skb,
-				    struct genl_info *info, int flags,
-				    struct team *team)
+static int team_nl_fill_options_get_all(struct sk_buff *skb,
+					struct genl_info *info, int flags,
+					struct team *team)
 {
-	return team_nl_fill_options_get_changed(skb, info->snd_pid,
-						info->snd_seq, NLM_F_ACK,
-						team, NULL);
+	return team_nl_fill_options_get(skb, info->snd_pid,
+					info->snd_seq, NLM_F_ACK,
+					team, true);
 }
 
 static int team_nl_cmd_options_get(struct sk_buff *skb, struct genl_info *info)
@@ -1273,7 +1313,7 @@ static int team_nl_cmd_options_get(struct sk_buff *skb, struct genl_info *info)
 	if (!team)
 		return -EINVAL;
 
-	err = team_nl_send_generic(info, team, team_nl_fill_options_get);
+	err = team_nl_send_generic(info, team, team_nl_fill_options_get_all);
 
 	team_nl_team_put(team);
 
@@ -1365,10 +1405,10 @@ team_put:
 	return err;
 }
 
-static int team_nl_fill_port_list_get_changed(struct sk_buff *skb,
-					      u32 pid, u32 seq, int flags,
-					      struct team *team,
-					      struct team_port *changed_port)
+static int team_nl_fill_port_list_get(struct sk_buff *skb,
+				      u32 pid, u32 seq, int flags,
+				      struct team *team,
+				      bool fillall)
 {
 	struct nlattr *port_list;
 	void *hdr;
@@ -1387,12 +1427,19 @@ static int team_nl_fill_port_list_get_changed(struct sk_buff *skb,
 	list_for_each_entry(port, &team->port_list, list) {
 		struct nlattr *port_item;
 
+		/* Include only changed ports if fill all mode is not on */
+		if (!fillall && !port->changed)
+			continue;
 		port_item = nla_nest_start(skb, TEAM_ATTR_ITEM_PORT);
 		if (!port_item)
 			goto nla_put_failure;
 		NLA_PUT_U32(skb, TEAM_ATTR_PORT_IFINDEX, port->dev->ifindex);
-		if (port == changed_port)
+		if (port->changed) {
 			NLA_PUT_FLAG(skb, TEAM_ATTR_PORT_CHANGED);
+			port->changed = false;
+		}
+		if (port->removed)
+			NLA_PUT_FLAG(skb, TEAM_ATTR_PORT_REMOVED);
 		if (port->linkup)
 			NLA_PUT_FLAG(skb, TEAM_ATTR_PORT_LINKUP);
 		NLA_PUT_U32(skb, TEAM_ATTR_PORT_SPEED, port->speed);
@@ -1408,13 +1455,13 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int team_nl_fill_port_list_get(struct sk_buff *skb,
-				      struct genl_info *info, int flags,
-				      struct team *team)
+static int team_nl_fill_port_list_get_all(struct sk_buff *skb,
+					  struct genl_info *info, int flags,
+					  struct team *team)
 {
-	return team_nl_fill_port_list_get_changed(skb, info->snd_pid,
-						  info->snd_seq, NLM_F_ACK,
-						  team, NULL);
+	return team_nl_fill_port_list_get(skb, info->snd_pid,
+					  info->snd_seq, NLM_F_ACK,
+					  team, true);
 }
 
 static int team_nl_cmd_port_list_get(struct sk_buff *skb,
@@ -1427,7 +1474,7 @@ static int team_nl_cmd_port_list_get(struct sk_buff *skb,
 	if (!team)
 		return -EINVAL;
 
-	err = team_nl_send_generic(info, team, team_nl_fill_port_list_get);
+	err = team_nl_send_generic(info, team, team_nl_fill_port_list_get_all);
 
 	team_nl_team_put(team);
 
@@ -1464,8 +1511,7 @@ static struct genl_multicast_group team_change_event_mcgrp = {
 	.name = TEAM_GENL_CHANGE_EVENT_MC_GRP_NAME,
 };
 
-static int team_nl_send_event_options_get(struct team *team,
-					  struct team_option *changed_option)
+static int team_nl_send_event_options_get(struct team *team)
 {
 	struct sk_buff *skb;
 	int err;
@@ -1475,8 +1521,7 @@ static int team_nl_send_event_options_get(struct team *team,
 	if (!skb)
 		return -ENOMEM;
 
-	err = team_nl_fill_options_get_changed(skb, 0, 0, 0, team,
-					       changed_option);
+	err = team_nl_fill_options_get(skb, 0, 0, 0, team, false);
 	if (err < 0)
 		goto err_fill;
 
@@ -1489,18 +1534,17 @@ err_fill:
 	return err;
 }
 
-static int team_nl_send_event_port_list_get(struct team_port *port)
+static int team_nl_send_event_port_list_get(struct team *team)
 {
 	struct sk_buff *skb;
 	int err;
-	struct net *net = dev_net(port->team->dev);
+	struct net *net = dev_net(team->dev);
 
 	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
 
-	err = team_nl_fill_port_list_get_changed(skb, 0, 0, 0,
-						 port->team, port);
+	err = team_nl_fill_port_list_get(skb, 0, 0, 0, team, false);
 	if (err < 0)
 		goto err_fill;
 
@@ -1544,12 +1588,11 @@ static void team_nl_fini(void)
  * Change checkers
  ******************/
 
-static void __team_options_change_check(struct team *team,
-					struct team_option *changed_option)
+static void __team_options_change_check(struct team *team)
 {
 	int err;
 
-	err = team_nl_send_event_options_get(team, changed_option);
+	err = team_nl_send_event_options_get(team);
 	if (err)
 		netdev_warn(team->dev, "Failed to send options change via netlink\n");
 }
@@ -1559,9 +1602,10 @@ static void __team_port_change_check(struct team_port *port, bool linkup)
 {
 	int err;
 
-	if (port->linkup == linkup)
+	if (!port->removed && port->linkup == linkup)
 		return;
 
+	port->changed = true;
 	port->linkup = linkup;
 	if (linkup) {
 		struct ethtool_cmd ecmd;
@@ -1577,7 +1621,7 @@ static void __team_port_change_check(struct team_port *port, bool linkup)
 	port->duplex = 0;
 
 send_event:
-	err = team_nl_send_event_port_list_get(port);
+	err = team_nl_send_event_port_list_get(port->team);
 	if (err)
 		netdev_warn(port->team->dev, "Failed to send port change of device %s via netlink\n",
 			    port->dev->name);

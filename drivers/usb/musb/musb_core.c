@@ -981,6 +981,9 @@ static void musb_shutdown(struct platform_device *pdev)
 	unsigned long	flags;
 
 	pm_runtime_get_sync(musb->controller);
+
+	musb_gadget_cleanup(musb);
+
 	spin_lock_irqsave(&musb->lock, flags);
 	musb_platform_disable(musb);
 	musb_generic_disable(musb);
@@ -1826,8 +1829,6 @@ static void musb_free(struct musb *musb)
 #ifdef CONFIG_SYSFS
 	sysfs_remove_group(&musb->controller->kobj, &musb_attr_group);
 #endif
-
-	musb_gadget_cleanup(musb);
 
 	if (musb->nIrq >= 0) {
 		if (musb->irq_wake)
