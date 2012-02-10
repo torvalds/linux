@@ -61,7 +61,9 @@ enum hash_stage {
 	HASH_INIT,
 	HASH_UPDATE,
 	HASH_FINISH,
-	HASH_DIGEST
+	HASH_DIGEST,
+	HASH_FINUP_DATA,
+	HASH_FINUP_FINISH
 };
 
 /*
@@ -205,6 +207,7 @@ struct sep_lli_entry {
  */
 struct sep_fastcall_hdr {
 	u32 magic;
+	u32 secure_dma;
 	u32 msg_len;
 	u32 num_dcbs;
 };
@@ -231,6 +234,8 @@ struct sep_dma_context {
 	u32 dmatables_len;
 	/* size of input data */
 	u32 input_data_len;
+	/* secure dma use (for imr memory restriced area in output */
+	bool secure_dma;
 	struct sep_dma_resource dma_res_arr[SEP_MAX_NUM_SYNC_DMA_OPS];
 	/* Scatter gather for kernel crypto */
 	struct scatterlist *src_sg;
@@ -317,6 +322,7 @@ ssize_t sep_activate_dcb_dmatables_context(struct sep_device *sep,
  * @tail_block_size: u32; for size of tail block
  * @isapplet: bool; to indicate external app
  * @is_kva: bool; kernel buffer; only used for kernel crypto module
+ * @secure_dma; indicates whether this is secure_dma using IMR
  *
  * This function prepares the linked DMA tables and puts the
  * address for the linked list of tables inta a DCB (data control
@@ -332,6 +338,7 @@ int sep_prepare_input_output_dma_table_in_dcb(struct sep_device *sep,
 	u32  tail_block_size,
 	bool isapplet,
 	bool	is_kva,
+	bool    secure_dma,
 	struct sep_dcblock *dcb_region,
 	void **dmatables_region,
 	struct sep_dma_context **dma_ctx,
@@ -385,5 +392,11 @@ int sep_wait_transaction(struct sep_device *sep);
 	_IO(SEP_IOC_MAGIC_NUMBER, 36)
 
 struct sep_device;
+
+#define SEP_IOCPREPAREDCB_SECURE_DMA	\
+	_IOW(SEP_IOC_MAGIC_NUMBER, 38, struct build_dcb_struct)
+
+#define SEP_IOCFREEDCB_SECURE_DMA	\
+	_IO(SEP_IOC_MAGIC_NUMBER, 39)
 
 #endif
