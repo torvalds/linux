@@ -901,6 +901,8 @@ static void pci_bus_size_cardbus(struct pci_bus *bus,
 	resource_size_t b_res_3_size = pci_cardbus_mem_size * 2;
 	u16 ctrl;
 
+	if (b_res[0].parent)
+		goto handle_b_res_1;
 	/*
 	 * Reserve some resources for CardBus.  We reserve
 	 * a fixed amount of bus space for CardBus bridges.
@@ -914,6 +916,9 @@ static void pci_bus_size_cardbus(struct pci_bus *bus,
 				pci_cardbus_io_size);
 	}
 
+handle_b_res_1:
+	if (b_res[1].parent)
+		goto handle_b_res_2;
 	b_res[1].start = pci_cardbus_io_size;
 	b_res[1].end = b_res[1].start + pci_cardbus_io_size - 1;
 	b_res[1].flags |= IORESOURCE_IO | IORESOURCE_STARTALIGN;
@@ -923,6 +928,7 @@ static void pci_bus_size_cardbus(struct pci_bus *bus,
 				 pci_cardbus_io_size);
 	}
 
+handle_b_res_2:
 	/* MEM1 must not be pref mmio */
 	pci_read_config_word(bridge, PCI_CB_BRIDGE_CONTROL, &ctrl);
 	if (ctrl & PCI_CB_BRIDGE_CTL_PREFETCH_MEM1) {
@@ -942,6 +948,8 @@ static void pci_bus_size_cardbus(struct pci_bus *bus,
 		pci_read_config_word(bridge, PCI_CB_BRIDGE_CONTROL, &ctrl);
 	}
 
+	if (b_res[2].parent)
+		goto handle_b_res_3;
 	/*
 	 * If we have prefetchable memory support, allocate
 	 * two regions.  Otherwise, allocate one region of
@@ -962,6 +970,9 @@ static void pci_bus_size_cardbus(struct pci_bus *bus,
 		b_res_3_size = pci_cardbus_mem_size;
 	}
 
+handle_b_res_3:
+	if (b_res[3].parent)
+		goto handle_done;
 	b_res[3].start = pci_cardbus_mem_size;
 	b_res[3].end = b_res[3].start + b_res_3_size - 1;
 	b_res[3].flags |= IORESOURCE_MEM | IORESOURCE_STARTALIGN;
@@ -970,6 +981,9 @@ static void pci_bus_size_cardbus(struct pci_bus *bus,
 		add_to_list(realloc_head, bridge, b_res+3, b_res_3_size,
 				 pci_cardbus_mem_size);
 	}
+
+handle_done:
+	;
 }
 
 void __ref __pci_bus_size_bridges(struct pci_bus *bus,
