@@ -1023,6 +1023,7 @@ static int __devinit rtl8139_init_one (struct pci_dev *pdev,
 	dev->vlan_features = dev->features;
 
 	dev->hw_features |= NETIF_F_RXALL;
+	dev->hw_features |= NETIF_F_RXFCS;
 
 	dev->irq = pdev->irq;
 
@@ -1970,7 +1971,10 @@ static int rtl8139_rx(struct net_device *dev, struct rtl8139_private *tp,
 		/* read size+status of next frame from DMA ring buffer */
 		rx_status = le32_to_cpu (*(__le32 *) (rx_ring + ring_offset));
 		rx_size = rx_status >> 16;
-		pkt_size = rx_size - 4;
+		if (likely(!(dev->features & NETIF_F_RXFCS)))
+			pkt_size = rx_size - 4;
+		else
+			pkt_size = rx_size;
 
 		netif_dbg(tp, rx_status, dev, "%s() status %04x, size %04x, cur %04x\n",
 			  __func__, rx_status, rx_size, cur_rx);
