@@ -302,7 +302,7 @@ static void send_data(struct work_struct *work)
 	if (count != 0) {
 		allow = kmalloc(1, GFP_KERNEL);
 		if (!allow) {
-			dev_err(&port->dev, "%s(): kmalloc failed\n",
+			dev_err_console(port, "%s(): kmalloc failed\n",
 					__func__);
 			return;
 		}
@@ -334,7 +334,7 @@ static void send_data(struct work_struct *work)
 	port->write_urb->transfer_buffer_length = count;
 	result = usb_submit_urb(port->write_urb, GFP_NOIO);
 	if (result != 0) {
-		dev_err(&port->dev, "%s(): usb_submit_urb() failed"
+		dev_err_console(port, "%s(): usb_submit_urb() failed"
 			       " with error %d\n", __func__, result);
 		priv->flags.write_urb_in_use = 0;
 	}
@@ -938,7 +938,7 @@ static void oti6858_write_bulk_callback(struct urb *urb)
 		port->write_urb->transfer_buffer_length = 1;
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 		if (result) {
-			dev_err(&port->dev, "%s(): usb_submit_urb() failed,"
+			dev_err_console(port, "%s(): usb_submit_urb() failed,"
 					" error %d\n", __func__, result);
 		} else {
 			return;

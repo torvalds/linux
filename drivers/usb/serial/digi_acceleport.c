@@ -995,7 +995,7 @@ static int digi_write(struct tty_struct *tty, struct usb_serial_port *port,
 	/* return length of new data written, or error */
 	spin_unlock_irqrestore(&priv->dp_port_lock, flags);
 	if (ret < 0)
-		dev_err(&port->dev,
+		dev_err_console(port,
 			"%s: usb_submit_urb failed, ret=%d, port=%d\n",
 			__func__, ret, priv->dp_port_num);
 	dbg("digi_write: returning %d", ret);
@@ -1065,7 +1065,7 @@ static void digi_write_bulk_callback(struct urb *urb)
 
 	spin_unlock(&priv->dp_port_lock);
 	if (ret && ret != -EPERM)
-		dev_err(&port->dev,
+		dev_err_console(port,
 			"%s: usb_submit_urb failed, ret=%d, port=%d\n",
 			__func__, ret, priv->dp_port_num);
 }

@@ -740,7 +740,7 @@ static int whiteheat_write(struct tty_struct *tty,
 		urb->transfer_buffer_length = bytes;
 		result = usb_submit_urb(urb, GFP_ATOMIC);
 		if (result) {
-			dev_err(&port->dev,
+			dev_err_console(port,
 				"%s - failed submitting write urb, error %d\n",
 				__func__, result);
 			sent = result;
