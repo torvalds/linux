@@ -677,6 +677,12 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		return;
 	}
 
+	if (!machine) {
+		pr_err("%u unprocessable samples recorded.",
+		       top->session->hists.stats.nr_unprocessable_samples++);
+		return;
+	}
+
 	if (event->header.misc & PERF_RECORD_MISC_EXACT_IP)
 		top->exact_samples++;
 
