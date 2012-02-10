@@ -1040,6 +1040,12 @@ void wm_hubs_set_bias_level(struct snd_soc_codec *codec,
 	int val;
 
 	switch (level) {
+	case SND_SOC_BIAS_STANDBY:
+		/* Clamp the inputs to VMID while we ramp to charge caps */
+		snd_soc_update_bits(codec, WM8993_INPUTS_CLAMP_REG,
+				    WM8993_INPUTS_CLAMP, WM8993_INPUTS_CLAMP);
+		break;
+
 	case SND_SOC_BIAS_ON:
 		/* Turn off any unneded single ended outputs */
 		val = 0;
@@ -1067,6 +1073,10 @@ void wm_hubs_set_bias_level(struct snd_soc_codec *codec,
 		    !hubs->lineout2n_ena && !hubs->lineout2p_ena)
 			snd_soc_update_bits(codec, WM8993_ANTIPOP1,
 					    WM8993_LINEOUT_VMID_BUF_ENA, 0);
+
+		/* Remove the input clamps */
+		snd_soc_update_bits(codec, WM8993_INPUTS_CLAMP_REG,
+				    WM8993_INPUTS_CLAMP, 0);
 		break;
 
 	default:
