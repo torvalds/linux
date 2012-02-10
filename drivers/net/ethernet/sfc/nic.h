@@ -283,8 +283,8 @@ extern void efx_nic_get_regs(struct efx_nic *efx, void *buf);
 #define MAC_DATA_LBN 0
 #define MAC_DATA_WIDTH 32
 
-extern void efx_nic_generate_event(struct efx_channel *channel,
-				   efx_qword_t *event);
+extern void efx_generate_event(struct efx_nic *efx, unsigned int evq,
+			       efx_qword_t *event);
 
 extern void falcon_poll_xmac(struct efx_nic *efx);
 

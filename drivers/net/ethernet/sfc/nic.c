@@ -754,7 +754,8 @@ void efx_nic_eventq_read_ack(struct efx_channel *channel)
 }
 
 /* Use HW to insert a SW defined event */
-static void efx_generate_event(struct efx_channel *channel, efx_qword_t *event)
+void efx_generate_event(struct efx_nic *efx, unsigned int evq,
+			efx_qword_t *event)
 {
 	efx_oword_t drv_ev_reg;
 
@@ -764,8 +765,8 @@ static void efx_generate_event(struct efx_channel *channel, efx_qword_t *event)
 	drv_ev_reg.u32[1] = event->u32[1];
 	drv_ev_reg.u32[2] = 0;
 	drv_ev_reg.u32[3] = 0;
-	EFX_SET_OWORD_FIELD(drv_ev_reg, FRF_AZ_DRV_EV_QID, channel->channel);
-	efx_writeo(channel->efx, &drv_ev_reg, FR_AZ_DRV_EV);
+	EFX_SET_OWORD_FIELD(drv_ev_reg, FRF_AZ_DRV_EV_QID, evq);
+	efx_writeo(efx, &drv_ev_reg, FR_AZ_DRV_EV);
 }
 
 static void efx_magic_event(struct efx_channel *channel, u32 magic)
@@ -775,7 +776,7 @@ static void efx_magic_event(struct efx_channel *channel, u32 magic)
 	EFX_POPULATE_QWORD_2(event, FSF_AZ_EV_CODE,
 			     FSE_AZ_EV_CODE_DRV_GEN_EV,
 			     FSF_AZ_DRV_GEN_EV_MAGIC, magic);
-	efx_generate_event(channel, &event);
+	efx_generate_event(channel->efx, channel->channel, &event);
 }
 
 /* Handle a transmit completion event
