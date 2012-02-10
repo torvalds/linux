@@ -53,6 +53,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <scsi/scsi_cmnd.h>
 #include "isci.h"
 #include "task.h"
 #include "request.h"
@@ -264,6 +265,141 @@ static void scu_ssp_reqeust_construct_task_context(
 	task_context->response_iu_lower = lower_32_bits(dma_addr);
 }
 
+static u8 scu_bg_blk_size(struct scsi_device *sdp)
+{
+	switch (sdp->sector_size) {
+	case 512:
+		return 0;
+	case 1024:
+		return 1;
+	case 4096:
+		return 3;
+	default:
+		return 0xff;
+	}
+}
+
+static u32 scu_dif_bytes(u32 len, u32 sector_size)
+{
+	return (len >> ilog2(sector_size)) * 8;
+}
+
+static void scu_ssp_ireq_dif_insert(struct isci_request *ireq, u8 type, u8 op)
+{
+	struct scu_task_context *tc = ireq->tc;
+	struct scsi_cmnd *scmd = ireq->ttype_ptr.io_task_ptr->uldd_task;
+	u8 blk_sz = scu_bg_blk_size(scmd->device);
+
+	tc->block_guard_enable = 1;
+	tc->blk_prot_en = 1;
+	tc->blk_sz = blk_sz;
+	/* DIF write insert */
+	tc->blk_prot_func = 0x2;
+
+	tc->transfer_length_bytes += scu_dif_bytes(tc->transfer_length_bytes,
+						   scmd->device->sector_size);
+
+	/* always init to 0, used by hw */
+	tc->interm_crc_val = 0;
+
+	tc->init_crc_seed = 0;
+	tc->app_tag_verify = 0;
+	tc->app_tag_gen = 0;
+	tc->ref_tag_seed_verify = 0;
+
+	/* always init to same as bg_blk_sz */
+	tc->UD_bytes_immed_val = scmd->device->sector_size;
+
+	tc->reserved_DC_0 = 0;
+
+	/* always init to 8 */
+	tc->DIF_bytes_immed_val = 8;
+
+	tc->reserved_DC_1 = 0;
+	tc->bgc_blk_sz = scmd->device->sector_size;
+	tc->reserved_E0_0 = 0;
+	tc->app_tag_gen_mask = 0;
+
+	/** setup block guard control **/
+	tc->bgctl = 0;
+
+	/* DIF write insert */
+	tc->bgctl_f.op = 0x2;
+
+	tc->app_tag_verify_mask = 0;
+
+	/* must init to 0 for hw */
+	tc->blk_guard_err = 0;
+
+	tc->reserved_E8_0 = 0;
+
+	if ((type & SCSI_PROT_DIF_TYPE1) || (type & SCSI_PROT_DIF_TYPE2))
+		tc->ref_tag_seed_gen = scsi_get_lba(scmd) & 0xffffffff;
+	else if (type & SCSI_PROT_DIF_TYPE3)
+		tc->ref_tag_seed_gen = 0;
+}
+
+static void scu_ssp_ireq_dif_strip(struct isci_request *ireq, u8 type, u8 op)
+{
+	struct scu_task_context *tc = ireq->tc;
+	struct scsi_cmnd *scmd = ireq->ttype_ptr.io_task_ptr->uldd_task;
+	u8 blk_sz = scu_bg_blk_size(scmd->device);
+
+	tc->block_guard_enable = 1;
+	tc->blk_prot_en = 1;
+	tc->blk_sz = blk_sz;
+	/* DIF read strip */
+	tc->blk_prot_func = 0x1;
+
+	tc->transfer_length_bytes += scu_dif_bytes(tc->transfer_length_bytes,
+						   scmd->device->sector_size);
+
+	/* always init to 0, used by hw */
+	tc->interm_crc_val = 0;
+
+	tc->init_crc_seed = 0;
+	tc->app_tag_verify = 0;
+	tc->app_tag_gen = 0;
+
+	if ((type & SCSI_PROT_DIF_TYPE1) || (type & SCSI_PROT_DIF_TYPE2))
+		tc->ref_tag_seed_verify = scsi_get_lba(scmd) & 0xffffffff;
+	else if (type & SCSI_PROT_DIF_TYPE3)
+		tc->ref_tag_seed_verify = 0;
+
+	/* always init to same as bg_blk_sz */
+	tc->UD_bytes_immed_val = scmd->device->sector_size;
+
+	tc->reserved_DC_0 = 0;
+
+	/* always init to 8 */
+	tc->DIF_bytes_immed_val = 8;
+
+	tc->reserved_DC_1 = 0;
+	tc->bgc_blk_sz = scmd->device->sector_size;
+	tc->reserved_E0_0 = 0;
+	tc->app_tag_gen_mask = 0;
+
+	/** setup block guard control **/
+	tc->bgctl = 0;
+
+	/* DIF read strip */
+	tc->bgctl_f.crc_verify = 1;
+	tc->bgctl_f.op = 0x1;
+	if ((type & SCSI_PROT_DIF_TYPE1) || (type & SCSI_PROT_DIF_TYPE2)) {
+		tc->bgctl_f.ref_tag_chk = 1;
+		tc->bgctl_f.app_f_detect = 1;
+	} else if (type & SCSI_PROT_DIF_TYPE3)
+		tc->bgctl_f.app_ref_f_detect = 1;
+
+	tc->app_tag_verify_mask = 0;
+
+	/* must init to 0 for hw */
+	tc->blk_guard_err = 0;
+
+	tc->reserved_E8_0 = 0;
+	tc->ref_tag_seed_gen = 0;
+}
+
 /**
  * This method is will fill in the SCU Task Context for a SSP IO request.
  * @sci_req:
@@ -274,6 +410,10 @@ static void scu_ssp_io_request_construct_task_context(struct isci_request *ireq,
 						      u32 len)
 {
 	struct scu_task_context *task_context = ireq->tc;
+	struct sas_task *sas_task = ireq->ttype_ptr.io_task_ptr;
+	struct scsi_cmnd *scmd = sas_task->uldd_task;
+	u8 prot_type = scsi_get_prot_type(scmd);
+	u8 prot_op = scsi_get_prot_op(scmd);
 
 	scu_ssp_reqeust_construct_task_context(ireq, task_context);
 
@@ -296,6 +436,13 @@ static void scu_ssp_io_request_construct_task_context(struct isci_request *ireq,
 
 	if (task_context->transfer_length_bytes > 0)
 		sci_request_build_sgl(ireq);
+
+	if (prot_type != SCSI_PROT_DIF_TYPE0) {
+		if (prot_op == SCSI_PROT_READ_STRIP)
+			scu_ssp_ireq_dif_strip(ireq, prot_type, prot_op);
+		else if (prot_op == SCSI_PROT_WRITE_INSERT)
+			scu_ssp_ireq_dif_insert(ireq, prot_type, prot_op);
+	}
 }
 
 /**
