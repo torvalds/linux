@@ -14,7 +14,6 @@
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <mach/memory.h>
-#include <mach/rk29_iomap.h>
 
 
 /* SRAM section definitions from the linker */
@@ -23,7 +22,7 @@ extern char __sram_data_start, __ssram_data, __esram_data;
 
 static struct map_desc sram_code_iomap[] __initdata = {
 	{
-		.virtual	= SRAM_CODE_OFFSET,
+		.virtual	= SRAM_CODE_OFFSET & PAGE_MASK,
 		.pfn		= __phys_to_pfn(0x0),
 		.length		=  1024*1024,
 		.type		=  MT_MEMORY

@@ -1,15 +1,7 @@
-/*
- * Copyright (C) 2008-2009 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
- * TCM memory handling for ARM systems
- *
- * Author: Linus Walleij <linus.walleij@stericsson.com>
- * Author: Rickard Andersson <rickard.andersson@stericsson.com>
- */
+#ifndef __PLAT_SRAM_H
+#define __PLAT_SRAM_H
 
-#ifndef __ARCH_ARM_MACH_RK29_SRAM_H
-#define __ARCH_ARM_MACH_RK29_SRAM_H
-#ifdef CONFIG_ARCH_RK29
+#ifdef CONFIG_PLAT_RK
 
 /* Tag variables with this */
 #define __sramdata __section(.sram.data)
@@ -35,6 +27,6 @@ static inline unsigned long ddr_save_sp(unsigned long new_sp)
 #define DDR_SAVE_SP(save_sp)		do { save_sp = ddr_save_sp((SRAM_DATA_END&(~7))); } while (0)
 #define DDR_RESTORE_SP(save_sp)		do { ddr_save_sp(save_sp); } while (0)
 
-#endif
+#endif /* CONFIG_PLAT_RK */
 #endif
 

@@ -6,6 +6,7 @@
 #include <asm/hardware/gic.h>
 #include <asm/mach/arch.h>
 
+#include <plat/sram.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
@@ -22,6 +23,7 @@ void __init rk30_map_io(void)
 {
         rk30_map_common_io();
 	rk29_setup_early_printk();
+	rk29_sram_init();
 	rk30_clock_init();
 	rk30_iomux_init();
 }

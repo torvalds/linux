@@ -259,7 +259,7 @@ SECTIONS
 		__tcm_end = .;
 	}
 #endif
-#ifdef CONFIG_ARCH_RK29
+#ifdef CONFIG_PLAT_RK
         /*
 	 * We align everything to a page boundary so we can
 	 * free it after init has commenced and SRAM contents have
