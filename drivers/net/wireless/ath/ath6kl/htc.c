@@ -2372,7 +2372,21 @@ void ath6kl_htc_flush_rx_buf(struct htc_target *target)
 				   "htc rx flush pkt 0x%p  len %d  ep %d\n",
 				   packet, packet->buf_len,
 				   packet->endpoint);
-			dev_kfree_skb(packet->pkt_cntxt);
+			/*
+			 * packets in rx_bufq of endpoint 0 have originally
+			 * been queued from target->free_ctrl_rxbuf where
+			 * packet and packet->buf_start are allocated
+			 * separately using kmalloc(). For other endpoint
+			 * rx_bufq, it is allocated as skb where packet is
+			 * skb->head. Take care of this difference while freeing
+			 * the memory.
+			 */
+			if (packet->endpoint == ENDPOINT_0) {
+				kfree(packet->buf_start);
+				kfree(packet);
+			} else {
+				dev_kfree_skb(packet->pkt_cntxt);
+			}
 			spin_lock_bh(&target->rx_lock);
 		}
 		spin_unlock_bh(&target->rx_lock);
