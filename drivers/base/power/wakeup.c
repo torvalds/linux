@@ -64,7 +64,6 @@ struct wakeup_source *wakeup_source_create(const char *name)
 	if (!ws)
 		return NULL;
 
-	spin_lock_init(&ws->lock);
 	if (name)
 		ws->name = kstrdup(name, GFP_KERNEL);
 
@@ -105,6 +104,7 @@ void wakeup_source_add(struct wakeup_source *ws)
 	if (WARN_ON(!ws))
 		return;
 
+	spin_lock_init(&ws->lock);
 	setup_timer(&ws->timer, pm_wakeup_timer_fn, (unsigned long)ws);
 	ws->active = false;
 
