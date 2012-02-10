@@ -264,7 +264,7 @@ static int __devinit pnx4008_wdt_probe(struct platform_device *pdev)
 	wdt_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (wdt_mem == NULL) {
 		printk(KERN_INFO MODULE_NAME
-			"failed to get memory region resouce\n");
+			"failed to get memory region resource\n");
 		return -ENOENT;
 	}
 
