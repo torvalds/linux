@@ -955,7 +955,6 @@ config UIDGID_CONVERTED
 	depends on UBIFS_FS = n
 	depends on UDF_FS = n
 	depends on UFS_FS = n
-	depends on VXFS_FS = n
 	depends on XFS_FS = n
 
 	depends on !UML || HOSTFS = n
