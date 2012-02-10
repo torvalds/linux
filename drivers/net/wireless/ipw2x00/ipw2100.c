@@ -309,13 +309,6 @@ static const long ipw2100_frequencies[] = {
 
 #define FREQ_COUNT	ARRAY_SIZE(ipw2100_frequencies)
 
-static const long ipw2100_rates_11b[] = {
-	1000000,
-	2000000,
-	5500000,
-	11000000
-};
-
 static struct ieee80211_rate ipw2100_bg_rates[] = {
 	{ .bitrate = 10 },
 	{ .bitrate = 20, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
@@ -323,7 +316,7 @@ static struct ieee80211_rate ipw2100_bg_rates[] = {
 	{ .bitrate = 110, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
 };
 
-#define RATE_COUNT ARRAY_SIZE(ipw2100_rates_11b)
+#define RATE_COUNT ARRAY_SIZE(ipw2100_bg_rates)
 
 /* Pre-decl until we get the code solid and then we can clean it up */
 static void ipw2100_tx_send_commands(struct ipw2100_priv *priv);
@@ -6896,7 +6889,7 @@ static int ipw2100_wx_get_range(struct net_device *dev,
 	range->num_bitrates = RATE_COUNT;
 
 	for (i = 0; i < RATE_COUNT && i < IW_MAX_BITRATES; i++) {
-		range->bitrate[i] = ipw2100_rates_11b[i];
+		range->bitrate[i] = ipw2100_bg_rates[i].bitrate * 100 * 1000;
 	}
 
 	range->min_rts = MIN_RTS_THRESHOLD;
