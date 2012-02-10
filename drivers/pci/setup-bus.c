@@ -898,21 +898,30 @@ static void pci_bus_size_cardbus(struct pci_bus *bus,
 {
 	struct pci_dev *bridge = bus->self;
 	struct resource *b_res = &bridge->resource[PCI_BRIDGE_RESOURCES];
+	resource_size_t b_res_3_size = pci_cardbus_mem_size * 2;
 	u16 ctrl;
 
 	/*
 	 * Reserve some resources for CardBus.  We reserve
 	 * a fixed amount of bus space for CardBus bridges.
 	 */
-	b_res[0].start = 0;
-	b_res[0].flags |= IORESOURCE_IO | IORESOURCE_SIZEALIGN;
-	if (realloc_head)
-		add_to_list(realloc_head, bridge, b_res, pci_cardbus_io_size, 0 /* dont care */);
+	b_res[0].start = pci_cardbus_io_size;
+	b_res[0].end = b_res[0].start + pci_cardbus_io_size - 1;
+	b_res[0].flags |= IORESOURCE_IO | IORESOURCE_STARTALIGN;
+	if (realloc_head) {
+		b_res[0].end -= pci_cardbus_io_size;
+		add_to_list(realloc_head, bridge, b_res, pci_cardbus_io_size,
+				pci_cardbus_io_size);
+	}
 
-	b_res[1].start = 0;
-	b_res[1].flags |= IORESOURCE_IO | IORESOURCE_SIZEALIGN;
-	if (realloc_head)
-		add_to_list(realloc_head, bridge, b_res+1, pci_cardbus_io_size, 0 /* dont care */);
+	b_res[1].start = pci_cardbus_io_size;
+	b_res[1].end = b_res[1].start + pci_cardbus_io_size - 1;
+	b_res[1].flags |= IORESOURCE_IO | IORESOURCE_STARTALIGN;
+	if (realloc_head) {
+		b_res[1].end -= pci_cardbus_io_size;
+		add_to_list(realloc_head, bridge, b_res+1, pci_cardbus_io_size,
+				 pci_cardbus_io_size);
+	}
 
 	/* MEM1 must not be pref mmio */
 	pci_read_config_word(bridge, PCI_CB_BRIDGE_CONTROL, &ctrl);
@@ -939,28 +948,28 @@ static void pci_bus_size_cardbus(struct pci_bus *bus,
 	 * twice the size.
 	 */
 	if (ctrl & PCI_CB_BRIDGE_CTL_PREFETCH_MEM0) {
-		b_res[2].start = 0;
-		b_res[2].flags |= IORESOURCE_MEM | IORESOURCE_PREFETCH | IORESOURCE_SIZEALIGN;
-		if (realloc_head)
-			add_to_list(realloc_head, bridge, b_res+2, pci_cardbus_mem_size, 0 /* dont care */);
+		b_res[2].start = pci_cardbus_mem_size;
+		b_res[2].end = b_res[2].start + pci_cardbus_mem_size - 1;
+		b_res[2].flags |= IORESOURCE_MEM | IORESOURCE_PREFETCH |
+				  IORESOURCE_STARTALIGN;
+		if (realloc_head) {
+			b_res[2].end -= pci_cardbus_mem_size;
+			add_to_list(realloc_head, bridge, b_res+2,
+				 pci_cardbus_mem_size, pci_cardbus_mem_size);
+		}
 
-		b_res[3].start = 0;
-		b_res[3].flags |= IORESOURCE_MEM | IORESOURCE_SIZEALIGN;
-		if (realloc_head)
-			add_to_list(realloc_head, bridge, b_res+3, pci_cardbus_mem_size, 0 /* dont care */);
-	} else {
-		b_res[3].start = 0;
-		b_res[3].flags |= IORESOURCE_MEM | IORESOURCE_SIZEALIGN;
-		if (realloc_head)
-			add_to_list(realloc_head, bridge, b_res+3, pci_cardbus_mem_size * 2, 0 /* dont care */);
+		/* reduce that to half */
+		b_res_3_size = pci_cardbus_mem_size;
 	}
 
-	/* set the size of the resource to zero, so that the resource does not
-	 * get assigned during required-resource allocation cycle but gets assigned
-	 * during the optional-resource allocation cycle.
- 	 */
-	b_res[0].start = b_res[1].start = b_res[2].start = b_res[3].start = 1;
-	b_res[0].end = b_res[1].end = b_res[2].end = b_res[3].end = 0;
+	b_res[3].start = pci_cardbus_mem_size;
+	b_res[3].end = b_res[3].start + b_res_3_size - 1;
+	b_res[3].flags |= IORESOURCE_MEM | IORESOURCE_STARTALIGN;
+	if (realloc_head) {
+		b_res[3].end -= b_res_3_size;
+		add_to_list(realloc_head, bridge, b_res+3, b_res_3_size,
+				 pci_cardbus_mem_size);
+	}
 }
 
 void __ref __pci_bus_size_bridges(struct pci_bus *bus,
