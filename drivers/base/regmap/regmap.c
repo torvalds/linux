@@ -321,6 +321,26 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 			if (!map->writeable_reg(map->dev, reg + i))
 				return -EINVAL;
 
+	if (!map->cache_bypass && map->format.parse_val) {
+		unsigned int ival;
+		int val_bytes = map->format.val_bytes;
+		for (i = 0; i < val_len / val_bytes; i++) {
+			memcpy(map->work_buf, val + (i * val_bytes), val_bytes);
+			ival = map->format.parse_val(map->work_buf);
+			ret = regcache_write(map, reg + i, ival);
+			if (ret) {
+				dev_err(map->dev,
+				   "Error in caching of register: %u ret: %d\n",
+					reg + i, ret);
+				return ret;
+			}
+		}
+		if (map->cache_only) {
+			map->cache_dirty = true;
+			return 0;
+		}
+	}
+
 	map->format.format_reg(map->work_buf, reg);
 
 	u8[0] |= map->write_flag_mask;
@@ -366,7 +386,7 @@ int _regmap_write(struct regmap *map, unsigned int reg,
 	int ret;
 	BUG_ON(!map->format.format_write && !map->format.format_val);
 
-	if (!map->cache_bypass) {
+	if (!map->cache_bypass && map->format.format_write) {
 		ret = regcache_write(map, reg, val);
 		if (ret != 0)
 			return ret;
@@ -441,11 +461,7 @@ EXPORT_SYMBOL_GPL(regmap_write);
 int regmap_raw_write(struct regmap *map, unsigned int reg,
 		     const void *val, size_t val_len)
 {
-	size_t val_count = val_len / map->format.val_bytes;
 	int ret;
-
-	WARN_ON(!regmap_volatile_range(map, reg, val_count) &&
-		map->cache_type != REGCACHE_NONE);
 
 	mutex_lock(&map->lock);
 
