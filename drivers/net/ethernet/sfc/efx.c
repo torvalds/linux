@@ -279,7 +279,7 @@ static int efx_poll(struct napi_struct *napi, int budget)
 	spent = efx_process_channel(channel, budget);
 
 	if (spent < budget) {
-		if (channel->channel < efx->n_rx_channels &&
+		if (efx_channel_has_rx_queue(channel) &&
 		    efx->irq_rx_adaptive &&
 		    unlikely(++channel->irq_count == 1000)) {
 			if (unlikely(channel->irq_mod_score <
