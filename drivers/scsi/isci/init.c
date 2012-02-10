@@ -60,6 +60,7 @@
 #include <linux/efi.h>
 #include <asm/string.h>
 #include <scsi/scsi_host.h>
+#include "host.h"
 #include "isci.h"
 #include "task.h"
 #include "probe_roms.h"
@@ -552,9 +553,9 @@ static void __devexit isci_pci_remove(struct pci_dev *pdev)
 	int i;
 
 	for_each_isci_host(i, ihost, pdev) {
+		wait_for_start(ihost);
 		isci_unregister(ihost);
 		isci_host_deinit(ihost);
-		sci_controller_disable_interrupts(ihost);
 	}
 }
 
