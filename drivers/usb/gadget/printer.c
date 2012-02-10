@@ -154,12 +154,6 @@ module_param(qlen, uint, S_IRUGO|S_IWUSR);
 
 #define QLEN	qlen
 
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-#define DEVSPEED	USB_SPEED_HIGH
-#else   /* full speed (low speed doesn't do bulk) */
-#define DEVSPEED        USB_SPEED_FULL
-#endif
-
 /*-------------------------------------------------------------------------*/
 
 #define xprintk(d, level, fmt, args...) \
@@ -278,8 +272,6 @@ static const struct usb_descriptor_header *fs_printer_function [11] = {
 	NULL
 };
 
-#ifdef	CONFIG_USB_GADGET_DUALSPEED
-
 /*
  * usb 2.0 devices need to expose both high speed and full speed
  * descriptors, unless they only run at full speed.
@@ -317,13 +309,6 @@ static const struct usb_descriptor_header *hs_printer_function [11] = {
 
 /* maxpacket and other transfer characteristics vary by speed. */
 #define ep_desc(g, hs, fs) (((g)->speed == USB_SPEED_HIGH)?(hs):(fs))
-
-#else
-
-/* if there's no high speed support, maxpacket doesn't change. */
-#define ep_desc(g, hs, fs) (((void)(g)), (fs))
-
-#endif	/* !CONFIG_USB_GADGET_DUALSPEED */
 
 /*-------------------------------------------------------------------------*/
 
@@ -980,7 +965,6 @@ config_buf(enum usb_device_speed speed, u8 *buf, u8 type, unsigned index,
 {
 	int					len;
 	const struct usb_descriptor_header	**function;
-#ifdef CONFIG_USB_GADGET_DUALSPEED
 	int					hs = (speed == USB_SPEED_HIGH);
 
 	if (type == USB_DT_OTHER_SPEED_CONFIG)
@@ -991,9 +975,6 @@ config_buf(enum usb_device_speed speed, u8 *buf, u8 type, unsigned index,
 	} else {
 		function = fs_printer_function;
 	}
-#else
-	function = fs_printer_function;
-#endif
 
 	if (index >= device_desc.bNumConfigurations)
 		return -EINVAL;
@@ -1138,7 +1119,6 @@ printer_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 				value = min(wLength, (u16) sizeof device_desc);
 				memcpy(req->buf, &device_desc, value);
 				break;
-#ifdef CONFIG_USB_GADGET_DUALSPEED
 			case USB_DT_DEVICE_QUALIFIER:
 				if (!gadget_is_dualspeed(gadget))
 					break;
@@ -1157,7 +1137,6 @@ printer_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 				if (!gadget_is_dualspeed(gadget))
 					break;
 				/* FALLTHROUGH */
-#endif /* CONFIG_USB_GADGET_DUALSPEED */
 			case USB_DT_CONFIG:
 				value = config_buf(gadget->speed, req->buf,
 						wValue >> 8,
@@ -1442,11 +1421,9 @@ autoconf_fail:
 		goto autoconf_fail;
 	out_ep->driver_data = out_ep;	/* claim */
 
-#ifdef	CONFIG_USB_GADGET_DUALSPEED
 	/* assumes that all endpoints are dual-speed */
 	hs_ep_in_desc.bEndpointAddress = fs_ep_in_desc.bEndpointAddress;
 	hs_ep_out_desc.bEndpointAddress = fs_ep_out_desc.bEndpointAddress;
-#endif	/* DUALSPEED */
 
 	usb_gadget_set_selfpowered(gadget);
 
@@ -1534,7 +1511,7 @@ fail:
 /*-------------------------------------------------------------------------*/
 
 static struct usb_gadget_driver printer_driver = {
-	.max_speed	= DEVSPEED,
+	.max_speed	= USB_SPEED_HIGH,
 
 	.function	= (char *) driver_desc,
 	.unbind		= printer_unbind,
