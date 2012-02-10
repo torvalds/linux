@@ -507,7 +507,7 @@ static int __init mpc512x_psc_fifoc_init(void)
 
 	psc_fifoc_irq = irq_of_parse_and_map(np, 0);
 	of_node_put(np);
-	if (psc_fifoc_irq == NO_IRQ) {
+	if (psc_fifoc_irq == 0) {
 		pr_err("%s: Can't get FIFOC irq\n", __func__);
 		iounmap(psc_fifoc);
 		return -ENODEV;
@@ -1354,7 +1354,7 @@ static int __devinit mpc52xx_uart_of_probe(struct platform_device *op)
 	}
 
 	psc_ops->get_irq(port, op->dev.of_node);
-	if (port->irq == NO_IRQ) {
+	if (port->irq == 0) {
 		dev_dbg(&op->dev, "Could not get irq\n");
 		return -EINVAL;
 	}

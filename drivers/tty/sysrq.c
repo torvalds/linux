@@ -322,11 +322,16 @@ static void send_sig_all(int sig)
 {
 	struct task_struct *p;
 
+	read_lock(&tasklist_lock);
 	for_each_process(p) {
-		if (p->mm && !is_global_init(p))
-			/* Not swapper, init nor kernel thread */
-			force_sig(sig, p);
+		if (p->flags & PF_KTHREAD)
+			continue;
+		if (is_global_init(p))
+			continue;
+
+		force_sig(sig, p);
 	}
+	read_unlock(&tasklist_lock);
 }
 
 static void sysrq_handle_term(int key)

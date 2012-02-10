@@ -21,7 +21,6 @@
 #include <linux/major.h>
 #include <linux/mm.h>
 #include <linux/init.h>
-#include <linux/sysctl.h>
 #include <linux/device.h>
 #include <linux/uaccess.h>
 #include <linux/bitops.h>
@@ -55,11 +54,8 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 	wake_up_interruptible(&tty->link->write_wait);
 	if (tty->driver->subtype == PTY_TYPE_MASTER) {
 		set_bit(TTY_OTHER_CLOSED, &tty->flags);
-#ifdef CONFIG_UNIX98_PTYS
-		if (tty->driver == ptm_driver)
-			devpts_pty_kill(tty->link);
-#endif
 		tty_unlock();
+		devpts_pty_kill(tty->link);
 		tty_vhangup(tty->link);
 		tty_lock();
 	}
@@ -439,54 +435,8 @@ static inline void legacy_pty_init(void) { }
 
 /* Unix98 devices */
 #ifdef CONFIG_UNIX98_PTYS
-/*
- * sysctl support for setting limits on the number of Unix98 ptys allocated.
- * Otherwise one can eat up all kernel memory by opening /dev/ptmx repeatedly.
- */
-int pty_limit = NR_UNIX98_PTY_DEFAULT;
-static int pty_limit_min;
-static int pty_limit_max = NR_UNIX98_PTY_MAX;
-static int pty_count;
 
 static struct cdev ptmx_cdev;
-
-static struct ctl_table pty_table[] = {
-	{
-		.procname	= "max",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.data		= &pty_limit,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &pty_limit_min,
-		.extra2		= &pty_limit_max,
-	}, {
-		.procname	= "nr",
-		.maxlen		= sizeof(int),
-		.mode		= 0444,
-		.data		= &pty_count,
-		.proc_handler	= proc_dointvec,
-	}, 
-	{}
-};
-
-static struct ctl_table pty_kern_table[] = {
-	{
-		.procname	= "pty",
-		.mode		= 0555,
-		.child		= pty_table,
-	},
-	{}
-};
-
-static struct ctl_table pty_root_table[] = {
-	{
-		.procname	= "kernel",
-		.mode		= 0555,
-		.child		= pty_kern_table,
-	},
-	{}
-};
-
 
 static int pty_unix98_ioctl(struct tty_struct *tty,
 			    unsigned int cmd, unsigned long arg)
@@ -515,10 +465,8 @@ static int pty_unix98_ioctl(struct tty_struct *tty,
 static struct tty_struct *ptm_unix98_lookup(struct tty_driver *driver,
 		struct inode *ptm_inode, int idx)
 {
-	struct tty_struct *tty = devpts_get_tty(ptm_inode, idx);
-	if (tty)
-		tty = tty->link;
-	return tty;
+	/* Master must be open via /dev/ptmx */
+	return ERR_PTR(-EIO);
 }
 
 /**
@@ -589,7 +537,6 @@ static int pty_unix98_install(struct tty_driver *driver, struct tty_struct *tty)
 	 */
 	tty_driver_kref_get(driver);
 	tty->count++;
-	pty_count++;
 	return 0;
 err_free_mem:
 	deinitialize_tty_struct(o_tty);
@@ -603,7 +550,6 @@ err_free_tty:
 
 static void ptm_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
 {
-	pty_count--;
 }
 
 static void pts_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
@@ -667,9 +613,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 		return retval;
 
 	/* find a device that is not in use. */
-	tty_lock();
 	index = devpts_new_index(inode);
-	tty_unlock();
 	if (index < 0) {
 		retval = index;
 		goto err_file;
@@ -677,7 +621,7 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 
 	mutex_lock(&tty_mutex);
 	tty_lock();
-	tty = tty_init_dev(ptm_driver, index, 1);
+	tty = tty_init_dev(ptm_driver, index);
 	mutex_unlock(&tty_mutex);
 
 	if (IS_ERR(tty)) {
@@ -704,8 +648,8 @@ err_release:
 	tty_release(inode, filp);
 	return retval;
 out:
-	devpts_kill_index(inode, index);
 	tty_unlock();
+	devpts_kill_index(inode, index);
 err_file:
 	tty_free_file(filp);
 	return retval;
@@ -761,8 +705,6 @@ static void __init unix98_pty_init(void)
 		panic("Couldn't register Unix98 ptm driver");
 	if (tty_register_driver(pts_driver))
 		panic("Couldn't register Unix98 pts driver");
-
-	register_sysctl_table(pty_root_table);
 
 	/* Now create the /dev/ptmx special device */
 	tty_default_fops(&ptmx_fops);

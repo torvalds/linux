@@ -1203,7 +1203,7 @@ static void hvcs_close(struct tty_struct *tty, struct file *filp)
 {
 	struct hvcs_struct *hvcsd;
 	unsigned long flags;
-	int irq = NO_IRQ;
+	int irq;
 
 	/*
 	 * Is someone trying to close the file associated with this device after
@@ -1264,7 +1264,7 @@ static void hvcs_hangup(struct tty_struct * tty)
 	struct hvcs_struct *hvcsd = tty->driver_data;
 	unsigned long flags;
 	int temp_open_count;
-	int irq = NO_IRQ;
+	int irq;
 
 	spin_lock_irqsave(&hvcsd->lock, flags);
 	/* Preserve this so that we know how many kref refs to put */

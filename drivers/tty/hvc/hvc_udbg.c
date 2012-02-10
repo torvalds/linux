@@ -69,7 +69,7 @@ static int __init hvc_udbg_init(void)
 
 	BUG_ON(hvc_udbg_dev);
 
-	hp = hvc_alloc(0, NO_IRQ, &hvc_udbg_ops, 16);
+	hp = hvc_alloc(0, 0, &hvc_udbg_ops, 16);
 	if (IS_ERR(hp))
 		return PTR_ERR(hp);
 

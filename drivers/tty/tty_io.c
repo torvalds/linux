@@ -1271,6 +1271,19 @@ int tty_init_termios(struct tty_struct *tty)
 }
 EXPORT_SYMBOL_GPL(tty_init_termios);
 
+int tty_standard_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	int ret = tty_init_termios(tty);
+	if (ret)
+		return ret;
+
+	tty_driver_kref_get(driver);
+	tty->count++;
+	driver->ttys[tty->index] = tty;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tty_standard_install);
+
 /**
  *	tty_driver_install_tty() - install a tty entry in the driver
  *	@driver: the driver for the tty
@@ -1286,21 +1299,8 @@ EXPORT_SYMBOL_GPL(tty_init_termios);
 static int tty_driver_install_tty(struct tty_driver *driver,
 						struct tty_struct *tty)
 {
-	int idx = tty->index;
-	int ret;
-
-	if (driver->ops->install) {
-		ret = driver->ops->install(driver, tty);
-		return ret;
-	}
-
-	if (tty_init_termios(tty) == 0) {
-		tty_driver_kref_get(driver);
-		tty->count++;
-		driver->ttys[idx] = tty;
-		return 0;
-	}
-	return -ENOMEM;
+	return driver->ops->install ? driver->ops->install(driver, tty) :
+		tty_standard_install(driver, tty);
 }
 
 /**
@@ -1365,7 +1365,6 @@ static int tty_reopen(struct tty_struct *tty)
  *	@driver: tty driver we are opening a device on
  *	@idx: device index
  *	@ret_tty: returned tty structure
- *	@first_ok: ok to open a new device (used by ptmx)
  *
  *	Prepare a tty device. This may not be a "new" clean device but
  *	could also be an active device. The pty drivers require special
@@ -1385,17 +1384,10 @@ static int tty_reopen(struct tty_struct *tty)
  * relaxed for the (most common) case of reopening a tty.
  */
 
-struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx,
-								int first_ok)
+struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx)
 {
 	struct tty_struct *tty;
 	int retval;
-
-	/* Check if pty master is being opened multiple times */
-	if (driver->subtype == PTY_TYPE_MASTER &&
-		(driver->flags & TTY_DRIVER_DEVPTS_MEM) && !first_ok) {
-		return ERR_PTR(-EIO);
-	}
 
 	/*
 	 * First time open is complex, especially for PTY devices.
@@ -1797,11 +1789,11 @@ int tty_release(struct inode *inode, struct file *filp)
 	 * the slots and preserving the termios structure.
 	 */
 	release_tty(tty, idx);
+	tty_unlock();
 
 	/* Make this pty number available for reallocation */
 	if (devpts)
 		devpts_kill_index(inode, idx);
-	tty_unlock();
 	return 0;
 }
 
@@ -1950,7 +1942,7 @@ retry_open:
 		if (retval)
 			tty = ERR_PTR(retval);
 	} else
-		tty = tty_init_dev(driver, index, 0);
+		tty = tty_init_dev(driver, index);
 
 	mutex_unlock(&tty_mutex);
 	if (driver)

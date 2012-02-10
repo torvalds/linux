@@ -210,6 +210,8 @@
 /* Atheros AR933X SoC */
 #define PORT_AR933X	99
 
+/* Energy Micro efm32 SoC */
+#define PORT_EFMUART   100
 
 #ifdef __KERNEL__
 
