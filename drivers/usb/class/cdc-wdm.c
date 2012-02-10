@@ -70,6 +70,7 @@ MODULE_DEVICE_TABLE (usb, wdm_ids);
 #define WDM_POLL_RUNNING	6
 #define WDM_RESPONDING		7
 #define WDM_SUSPENDING		8
+#define WDM_RESETTING		9
 
 #define WDM_MAX			16
 
@@ -340,6 +341,10 @@ static ssize_t wdm_write
 	else
 		if (test_bit(WDM_IN_USE, &desc->flags))
 			r = -EAGAIN;
+
+	if (test_bit(WDM_RESETTING, &desc->flags))
+		r = -EIO;
+
 	if (r < 0) {
 		kfree(buf);
 		goto out;
@@ -417,6 +422,10 @@ retry:
 		/* may have happened while we slept */
 		if (test_bit(WDM_DISCONNECTING, &desc->flags)) {
 			rv = -ENODEV;
+			goto err;
+		}
+		if (test_bit(WDM_RESETTING, &desc->flags)) {
+			rv = -EIO;
 			goto err;
 		}
 		usb_mark_last_busy(interface_to_usbdev(desc->intf));
@@ -859,10 +868,6 @@ static int wdm_pre_reset(struct usb_interface *intf)
 {
 	struct wdm_device *desc = usb_get_intfdata(intf);
 
-	mutex_lock(&desc->rlock);
-	mutex_lock(&desc->wlock);
-	kill_urbs(desc);
-
 	/*
 	 * we notify everybody using poll of
 	 * an exceptional situation
@@ -870,9 +875,16 @@ static int wdm_pre_reset(struct usb_interface *intf)
 	 * message from the device is lost
 	 */
 	spin_lock_irq(&desc->iuspin);
+	set_bit(WDM_RESETTING, &desc->flags);	/* inform read/write */
+	set_bit(WDM_READ, &desc->flags);	/* unblock read */
+	clear_bit(WDM_IN_USE, &desc->flags);	/* unblock write */
 	desc->rerr = -EINTR;
 	spin_unlock_irq(&desc->iuspin);
 	wake_up_all(&desc->wait);
+	mutex_lock(&desc->rlock);
+	mutex_lock(&desc->wlock);
+	kill_urbs(desc);
+	cancel_work_sync(&desc->rxwork);
 	return 0;
 }
 
@@ -881,6 +893,7 @@ static int wdm_post_reset(struct usb_interface *intf)
 	struct wdm_device *desc = usb_get_intfdata(intf);
 	int rv;
 
+	clear_bit(WDM_RESETTING, &desc->flags);
 	rv = recover_from_urb_loss(desc);
 	mutex_unlock(&desc->wlock);
 	mutex_unlock(&desc->rlock);
