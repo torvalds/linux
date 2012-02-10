@@ -98,7 +98,7 @@ static ssize_t quickstart_pressed_button_show(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n",
+	return scnprintf(buf, PAGE_SIZE, "%s\n",
 					(pressed ? pressed->name : "none"));
 }
 
