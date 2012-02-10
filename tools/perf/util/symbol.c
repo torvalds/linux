@@ -1,4 +1,3 @@
-#include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
 #include <libgen.h>
@@ -12,6 +11,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include "build-id.h"
+#include "util.h"
 #include "debug.h"
 #include "symbol.h"
 #include "strlist.h"
