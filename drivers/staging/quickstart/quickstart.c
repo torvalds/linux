@@ -209,8 +209,9 @@ static int quickstart_acpi_ghid(struct quickstart_acpi *quickstart)
 		quickstart->button->id = *(uint64_t *)buffer.pointer;
 		break;
 	default:
-		pr_err("%s GHID method returned buffer of unexpected length %u\n",
-				quickstart->button->name, buffer.length);
+		pr_err("%s GHID method returned buffer of unexpected length %lu\n",
+				quickstart->button->name,
+				(unsigned long)buffer.length);
 		ret = -EINVAL;
 		break;
 	}
