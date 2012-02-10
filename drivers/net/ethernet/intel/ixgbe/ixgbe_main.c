@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2011 Intel Corporation.
+  Copyright(c) 1999 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -64,7 +64,7 @@ char ixgbe_default_device_descr[] =
 	__stringify(BUILD) "-k"
 const char ixgbe_driver_version[] = DRV_VERSION;
 static const char ixgbe_copyright[] =
-				"Copyright (c) 1999-2011 Intel Corporation.";
+				"Copyright (c) 1999-2012 Intel Corporation.";
 
 static const struct ixgbe_info *ixgbe_info_tbl[] = {
 	[board_82598] = &ixgbe_82598_info,
@@ -2633,22 +2633,22 @@ static void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
 	/*
 	 * we must limit the number of descriptors so that the
 	 * total size of max desc * buf_len is not greater
-	 * than 65535
+	 * than 65536
 	 */
 	if (ring_is_ps_enabled(ring)) {
-#if (MAX_SKB_FRAGS > 16)
+#if (PAGE_SIZE < 8192)
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
-#elif (MAX_SKB_FRAGS > 8)
+#elif (PAGE_SIZE < 16384)
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_8;
-#elif (MAX_SKB_FRAGS > 4)
+#elif (PAGE_SIZE < 32768)
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_4;
 #else
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_1;
 #endif
 	} else {
-		if (rx_buf_len < IXGBE_RXBUFFER_4K)
+		if (rx_buf_len <= IXGBE_RXBUFFER_4K)
 			rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
-		else if (rx_buf_len < IXGBE_RXBUFFER_8K)
+		else if (rx_buf_len <= IXGBE_RXBUFFER_8K)
 			rscctrl |= IXGBE_RSCCTL_MAXDESC_8;
 		else
 			rscctrl |= IXGBE_RSCCTL_MAXDESC_4;
@@ -2830,7 +2830,7 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_VT_CTL, vmdctl | vt_reg_bits);
 
 	vf_shift = adapter->num_vfs % 32;
-	reg_offset = (adapter->num_vfs > 32) ? 1 : 0;
+	reg_offset = (adapter->num_vfs >= 32) ? 1 : 0;
 
 	/* Enable only the PF's pool for Tx/Rx */
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset), (1 << vf_shift));
@@ -4330,6 +4330,10 @@ static int ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 	adapter->num_tx_queues = 1;
 
 done:
+	if ((adapter->netdev->reg_state == NETREG_UNREGISTERED) ||
+	    (adapter->netdev->reg_state == NETREG_UNREGISTERING))
+		return 0;
+
 	/* Notify the stack of the (possibly) reduced queue counts. */
 	netif_set_real_num_tx_queues(adapter->netdev, adapter->num_tx_queues);
 	return netif_set_real_num_rx_queues(adapter->netdev,

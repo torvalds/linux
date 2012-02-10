@@ -866,6 +866,14 @@ static int fill_ctrlset(struct zd_mac *mac,
 
 	ZD_ASSERT(frag_len <= 0xffff);
 
+	/*
+	 * Firmware computes the duration itself (for all frames except PSPoll)
+	 * and needs the field set to 0 at input, otherwise firmware messes up
+	 * duration_id and sets bits 14 and 15 on.
+	 */
+	if (!ieee80211_is_pspoll(hdr->frame_control))
+		hdr->duration_id = 0;
+
 	txrate = ieee80211_get_tx_rate(mac->hw, info);
 
 	cs->modulation = txrate->hw_value;
