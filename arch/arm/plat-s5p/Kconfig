@@ -40,6 +40,10 @@ config S5P_HRT
 	help
 	  Use the High Resolution timer support
 
+config S5P_DEV_UART
+	def_bool y
+	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
+
 config S5P_PM
 	bool
 	help

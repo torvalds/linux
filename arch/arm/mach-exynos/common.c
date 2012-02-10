@@ -477,7 +477,10 @@ static void __init exynos_init_uarts(struct s3c2410_uartcfg *cfg, int no)
 	for (ucnt = 0; ucnt < no; ucnt++, tcfg++)
 		tcfg->has_fracval = 1;
 
-	s3c24xx_init_uartdevs("exynos4210-uart", s5p_uart_resources, cfg, no);
+	if (soc_is_exynos5250())
+		s3c24xx_init_uartdevs("exynos4210-uart", exynos5_uart_resources, cfg, no);
+	else
+		s3c24xx_init_uartdevs("exynos4210-uart", exynos4_uart_resources, cfg, no);
 }
 
 static DEFINE_SPINLOCK(eint_lock);
