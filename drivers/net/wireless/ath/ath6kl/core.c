@@ -136,10 +136,6 @@ int ath6kl_core_init(struct ath6kl *ar)
 	ar->ac_stream_pri_map[WMM_AC_VI] = 2;
 	ar->ac_stream_pri_map[WMM_AC_VO] = 3; /* highest */
 
-	/* give our connected endpoints some buffers */
-	ath6kl_rx_refill(ar->htc_target, ar->ctrl_ep);
-	ath6kl_rx_refill(ar->htc_target, ar->ac2ep_map[WMM_AC_BE]);
-
 	/* allocate some buffers that handle larger AMSDU frames */
 	ath6kl_refill_amsdu_rxbufs(ar, ATH6KL_MAX_AMSDU_RX_BUFFERS);
 
@@ -181,6 +177,10 @@ int ath6kl_core_init(struct ath6kl *ar)
 		ath6kl_err("Failed to start hardware: %d\n", ret);
 		goto err_rxbuf_cleanup;
 	}
+
+	/* give our connected endpoints some buffers */
+	ath6kl_rx_refill(ar->htc_target, ar->ctrl_ep);
+	ath6kl_rx_refill(ar->htc_target, ar->ac2ep_map[WMM_AC_BE]);
 
 	/*
 	 * Set mac address which is received in ready event
