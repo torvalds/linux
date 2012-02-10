@@ -27,6 +27,7 @@
  *   poll=<n>, default 128
  *     n : burst size of PH_DATA_IND at transparent rx data
  *
+ * Revision: 0.3.3 (socket), 2008-11-05
  */
 
 #include <linux/module.h>
@@ -35,8 +36,6 @@
 #include <linux/mISDNhw.h>
 #include <linux/slab.h>
 #include "hfcsusb.h"
-
-static const char *hfcsusb_rev = "Revision: 0.3.3 (socket), 2008-11-05";
 
 static unsigned int debug;
 static int poll = DEFAULT_TRANSP_BURST_SZ;
