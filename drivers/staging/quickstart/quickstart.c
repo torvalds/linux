@@ -23,7 +23,7 @@
  *
  */
 
-#define QUICKSTART_VERSION "1.03"
+#define QUICKSTART_VERSION "1.04"
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
