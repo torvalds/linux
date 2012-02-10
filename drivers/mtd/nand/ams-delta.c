@@ -145,7 +145,7 @@ static int ams_delta_nand_ready(struct mtd_info *mtd)
 	return gpio_get_value(AMS_DELTA_GPIO_PIN_NAND_RB);
 }
 
-static struct gpio _mandatory_gpio[] __initconst_or_module = {
+static const struct gpio _mandatory_gpio[] = {
 	{
 		.gpio	= AMS_DELTA_GPIO_PIN_NAND_NCE,
 		.flags	= GPIOF_OUT_INIT_HIGH,

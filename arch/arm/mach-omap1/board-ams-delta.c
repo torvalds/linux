@@ -150,7 +150,7 @@ static struct map_desc ams_delta_io_desc[] __initdata = {
 	}
 };
 
-static struct omap_lcd_config ams_delta_lcd_config = {
+static struct omap_lcd_config ams_delta_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
@@ -167,7 +167,7 @@ static struct omap_board_config_kernel ams_delta_config[] __initdata = {
 #define LATCH1_GPIO_BASE	232
 #define LATCH1_NGPIO		8
 
-static struct resource latch1_resources[] __initconst = {
+static struct resource latch1_resources[] = {
 	[0] = {
 		.name	= "dat",
 		.start	= LATCH1_PHYS,
@@ -176,7 +176,7 @@ static struct resource latch1_resources[] __initconst = {
 	},
 };
 
-static struct bgpio_pdata latch1_pdata __initconst = {
+static struct bgpio_pdata latch1_pdata = {
 	.base	= LATCH1_GPIO_BASE,
 	.ngpio	= LATCH1_NGPIO,
 };
@@ -191,7 +191,7 @@ static struct platform_device latch1_gpio_device = {
 	},
 };
 
-static struct resource latch2_resources[] __initconst = {
+static struct resource latch2_resources[] = {
 	[0] = {
 		.name	= "dat",
 		.start	= LATCH2_PHYS,
@@ -200,7 +200,7 @@ static struct resource latch2_resources[] __initconst = {
 	},
 };
 
-static struct bgpio_pdata latch2_pdata __initconst = {
+static struct bgpio_pdata latch2_pdata = {
 	.base	= AMS_DELTA_LATCH2_GPIO_BASE,
 	.ngpio	= AMS_DELTA_LATCH2_NGPIO,
 };
@@ -215,7 +215,7 @@ static struct platform_device latch2_gpio_device = {
 	},
 };
 
-static struct gpio latch_gpios[] __initconst = {
+static const struct gpio latch_gpios[] __initconst = {
 	{
 		.gpio	= LATCH1_GPIO_BASE + 6,
 		.flags	= GPIOF_OUT_INIT_LOW,
@@ -322,7 +322,7 @@ static struct platform_device ams_delta_lcd_device = {
 	.id	= -1,
 };
 
-static struct gpio_led gpio_leds[] __initconst = {
+static const struct gpio_led gpio_leds[] __initconst = {
 	{
 		.name		 = "camera",
 		.gpio		 = LATCH1_GPIO_BASE + 0,
@@ -358,7 +358,7 @@ static struct gpio_led gpio_leds[] __initconst = {
 	},
 };
 
-static struct gpio_led_platform_data leds_pdata __initconst = {
+static const struct gpio_led_platform_data leds_pdata __initconst = {
 	.leds		= gpio_leds,
 	.num_leds	= ARRAY_SIZE(gpio_leds),
 };
@@ -415,7 +415,7 @@ static struct platform_device *ams_delta_devices[] __initdata = {
 	&ams_delta_camera_device,
 };
 
-static struct platform_device *late_devices[] __initconst = {
+static struct platform_device *late_devices[] __initdata = {
 	&ams_delta_nand_device,
 	&ams_delta_lcd_device,
 };
