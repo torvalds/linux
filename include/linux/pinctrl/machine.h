@@ -26,13 +26,9 @@
  *	selects a certain specific pin group to activate for the function, if
  *	left as NULL, the first applicable group will be used
  * @dev_name: the name of the device using this specific mapping, the name
- *	must be the same as in your struct device*
- * @hog_on_boot: if this is set to true, the pin control subsystem will itself
- *	hog the mappings as the pinmux device drivers are attached, so this is
- *	typically used with system maps (mux mappings without an assigned
- *	device) that you want to get hogged and enabled by default as soon as
- *	a pinmux device supporting it is registered. These maps will not be
- *	disabled and put until the system shuts down.
+ *	must be the same as in your struct device*. If this name is set to the
+ *	same name as the pin controllers own dev_name(), the map entry will be
+ *	hogged by the driver itself upon registration
  */
 struct pinctrl_map {
 	const char *name;
@@ -40,7 +36,6 @@ struct pinctrl_map {
 	const char *function;
 	const char *group;
 	const char *dev_name;
-	bool hog_on_boot;
 };
 
 /*
@@ -62,8 +57,7 @@ struct pinctrl_map {
  * to be hogged by the pin control core until the system shuts down.
  */
 #define PIN_MAP_SYS_HOG(a, b, c) \
-	{ .name = a, .ctrl_dev_name = b, .function = c, \
-	  .hog_on_boot = true }
+	{ .name = a, .ctrl_dev_name = b, .dev_name = b, .function = c, }
 
 /*
  * Convenience macro to map a system function onto a certain pinctrl device
@@ -71,8 +65,8 @@ struct pinctrl_map {
  * system shuts down.
  */
 #define PIN_MAP_SYS_HOG_GROUP(a, b, c, d)		\
-	{ .name = a, .ctrl_dev_name = b, .function = c, .group = d, \
-	  .hog_on_boot = true }
+	{ .name = a, .ctrl_dev_name = b, .dev_name = b, .function = c, \
+	  .group = d, }
 
 #ifdef CONFIG_PINMUX
 

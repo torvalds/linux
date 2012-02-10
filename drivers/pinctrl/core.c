@@ -793,11 +793,9 @@ int pinctrl_hog_maps(struct pinctrl_dev *pctldev)
 	for (i = 0; i < pinctrl_maps_num; i++) {
 		struct pinctrl_map const *map = &pinctrl_maps[i];
 
-		if (!map->hog_on_boot)
-			continue;
-
 		if (map->ctrl_dev_name &&
-		    !strcmp(map->ctrl_dev_name, devname)) {
+		    !strcmp(map->ctrl_dev_name, devname) &&
+		    !strcmp(map->dev_name, devname)) {
 			/* OK time to hog! */
 			ret = pinctrl_hog_map(pctldev, map);
 			if (ret)

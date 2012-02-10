@@ -989,21 +989,21 @@ is registered. This means that the core will attempt to call pinctrl_get() and
 pinctrl_enable() on it immediately after the pin control device has been
 registered.
 
-This is enabled by simply setting the .hog_on_boot field in the map to true,
-like this:
+This is enabled by simply setting the .dev_name field in the map to the name
+of the pin controller itself, like this:
 
 {
 	.name = "POWERMAP"
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "power_func",
-	.hog_on_boot = true,
+	.dev_name = "pinctrl-foo",
 },
 
 Since it may be common to request the core to hog a few always-applicable
 mux settings on the primary pin controller, there is a convenience macro for
 this:
 
-PIN_MAP_PRIMARY_SYS_HOG("POWERMAP", "power_func")
+PIN_MAP_PRIMARY_SYS_HOG("POWERMAP", "pinctrl-foo", "power_func")
 
 This gives the exact same result as the above construction.
 
