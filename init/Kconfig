@@ -949,7 +949,6 @@ config UIDGID_CONVERTED
 	depends on NCP_FS = n
 	depends on NFSD = n
 	depends on NFS_FS = n
-	depends on NILFS2_FS = n
 	depends on NTFS_FS = n
 	depends on OCFS2_FS = n
 	depends on OMFS_FS = n
