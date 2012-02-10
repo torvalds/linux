@@ -709,7 +709,7 @@ int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 		}
 	}
 
-	map->patch = kcalloc(sizeof(struct reg_default), num_regs, GFP_KERNEL);
+	map->patch = kcalloc(num_regs, sizeof(struct reg_default), GFP_KERNEL);
 	if (map->patch != NULL) {
 		memcpy(map->patch, regs,
 		       num_regs * sizeof(struct reg_default));
