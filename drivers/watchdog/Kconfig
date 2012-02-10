@@ -1098,7 +1098,7 @@ config BOOKE_WDT_DEFAULT_TIMEOUT
 	  For Freescale Book-E processors, this is a number between 0 and 63.
 	  For other Book-E processors, this is a number between 0 and 3.
 
-	  The value can be overidden by the wdt_period command-line parameter.
+	  The value can be overridden by the wdt_period command-line parameter.
 
 # PPC64 Architecture
 
