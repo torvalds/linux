@@ -191,7 +191,7 @@ static int n810_set_input(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	n810_dmic_func = ucontrol->value.integer.value[0];
-	n810_ext_control(codec);
+	n810_ext_control(&card->dapm);
 
 	return 1;
 }
