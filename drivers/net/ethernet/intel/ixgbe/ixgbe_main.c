@@ -4316,7 +4316,7 @@ static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 	if (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
 		return false;
 
-	f->indices = min((int)num_online_cpus(), f->indices);
+	f->indices = min_t(int, num_online_cpus(), f->indices);
 
 	adapter->num_rx_queues = 1;
 	adapter->num_tx_queues = 1;
@@ -4352,8 +4352,8 @@ static inline bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 		return false;
 
 	/* Map queue offset and counts onto allocated tx queues */
-	per_tc_q = min(dev->num_tx_queues / tcs, (unsigned int)DCB_QUEUE_CAP);
-	q = min((int)num_online_cpus(), per_tc_q);
+	per_tc_q = min_t(unsigned int, dev->num_tx_queues / tcs, DCB_QUEUE_CAP);
+	q = min_t(int, num_online_cpus(), per_tc_q);
 
 	for (i = 0; i < tcs; i++) {
 		netdev_set_tc_queue(dev, i, q, offset);
@@ -5146,7 +5146,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	hw->subsystem_device_id = pdev->subsystem_device;
 
 	/* Set capability flags */
-	rss = min(IXGBE_MAX_RSS_INDICES, (int)num_online_cpus());
+	rss = min_t(int, IXGBE_MAX_RSS_INDICES, num_online_cpus());
 	adapter->ring_feature[RING_F_RSS].indices = rss;
 	adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
 	switch (hw->mac.type) {

@@ -935,12 +935,12 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
 
-	new_rx_count = max(ring->rx_pending, (u32)IXGBE_MIN_RXD);
-	new_rx_count = min(new_rx_count, (u32)IXGBE_MAX_RXD);
+	new_rx_count = max_t(u32, ring->rx_pending, IXGBE_MIN_RXD);
+	new_rx_count = min_t(u32, new_rx_count, IXGBE_MAX_RXD);
 	new_rx_count = ALIGN(new_rx_count, IXGBE_REQ_RX_DESCRIPTOR_MULTIPLE);
 
-	new_tx_count = max(ring->tx_pending, (u32)IXGBE_MIN_TXD);
-	new_tx_count = min(new_tx_count, (u32)IXGBE_MAX_TXD);
+	new_tx_count = max_t(u32, ring->tx_pending, IXGBE_MIN_TXD);
+	new_tx_count = min_t(u32, new_tx_count, IXGBE_MAX_TXD);
 	new_tx_count = ALIGN(new_tx_count, IXGBE_REQ_TX_DESCRIPTOR_MULTIPLE);
 
 	if ((new_tx_count == adapter->tx_ring[0]->count) &&
