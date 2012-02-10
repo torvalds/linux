@@ -177,7 +177,8 @@ struct wm8994_pdata {
 
 	/* WM8958 microphone bias configuration */
 	int micbias[2];
-	
+
+	unsigned int lineout_status:1;
 };
 
 #endif

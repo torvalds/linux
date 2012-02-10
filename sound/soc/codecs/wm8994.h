@@ -140,6 +140,11 @@ struct wm8994_priv {
 	const struct firmware *mbc;
 	const struct firmware *mbc_vss;
 	const struct firmware *enh_eq;
+
+	unsigned int lineout_status:1;
 };
+
+int lineout_event(struct snd_soc_dapm_widget *w,
+			  struct snd_kcontrol *control, int event);
 
 #endif

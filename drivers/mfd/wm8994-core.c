@@ -276,9 +276,15 @@ static const char *wm8958_main_supplies[] = {
 static int wm8994_suspend(struct device *dev)
 {
 	struct wm8994 *wm8994 = dev_get_drvdata(dev);
+	struct wm8994_pdata *pdata = wm8994->dev->platform_data;	
 	int ret;
 	
-//	printk("on wm8994-core.c wm8994_suspend\n");
+	printk("on wm8994-core.c wm8994_suspend\n");
+	if(pdata->lineout_status)
+	{
+		printk("lineout is work cannot suspend\n");
+		return 0;
+	}
 	/* Don't actually go through with the suspend if the CODEC is
 	 * still active (eg, for audio passthrough from CP. */
 	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_1);
@@ -324,9 +330,15 @@ static int wm8994_suspend(struct device *dev)
 static int wm8994_resume(struct device *dev)
 {
 	struct wm8994 *wm8994 = dev_get_drvdata(dev);
+	struct wm8994_pdata *pdata = wm8994->dev->platform_data;		
 	int ret;
 	
-//	printk("on wm8994-core.c wm8994_resume\n");
+	printk("on wm8994-core.c wm8994_resume\n");
+	if(pdata->lineout_status)
+	{
+		printk("lineout is work cannot suspend\n");
+		return 0;
+	}	
 	/* We may have lied to the PM core about suspending */
 	if (!wm8994->suspended)
 		return 0;

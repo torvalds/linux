@@ -909,6 +909,35 @@ static int wm8994_PA_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+int lineout_event(struct snd_soc_dapm_widget *w,
+			  struct snd_kcontrol *control, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	struct wm8994_pdata *pdata = wm8994->pdata;
+	
+//	printk("Enter %s::%s---%d\n",__FILE__,__FUNCTION__,__LINE__);
+	
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		printk("wm8994 is incall status\n");
+		pdata->lineout_status = 1;
+		
+		break;
+
+	case SND_SOC_DAPM_PRE_PMD:
+		printk("wm8994 exit incall status\n");
+		pdata->lineout_status = 0;
+		break;
+
+	default:
+		BUG();
+		break;
+	}
+
+	return 0;
+}
+
 static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 		      struct snd_kcontrol *kcontrol, int event)
 {
@@ -1666,8 +1695,20 @@ static const struct snd_soc_dapm_route wm8994_PA_intercon[] = {
 static const struct snd_soc_dapm_widget wm8994_PA_dapm_widgets[] = {
 SND_SOC_DAPM_SPK("PA Driver", wm8994_PA_event),
 };
+/*
+static const struct snd_soc_dapm_route wm8994_lineout_status_intercon[] = {
+	{ "LINEOUT1N STATUS", NULL,"LINEOUT1N Driver"},
+	{ "LINEOUT1P STATUS", NULL,"LINEOUT1P Driver"},	
 
+	{ "LINEOUT1N", NULL, "LINEOUT1N STATUS" },
+	{ "LINEOUT1P", NULL, "LINEOUT1P STATUS" },
+};
 
+static const struct snd_soc_dapm_widget wm8994_lineout_status_dapm_widgets[] = {
+SND_SOC_DAPM_LINE("LINEOUT1N Driver", lineout_event),
+SND_SOC_DAPM_LINE("LINEOUT1P Driver", lineout_event),	
+};
+*/
 /* The size in bits of the FLL divide multiplied by 10
  * to allow rounding later */
 #define FIXED_FLL_SIZE ((1 << 16) * 10)
@@ -2589,9 +2630,15 @@ static int wm8994_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = codec->control_data;
+	struct wm8994_pdata *pdata = wm8994->pdata;
 	int i, ret;
 	
-//	printk("on wm8994.c wm8994_suspend\n");
+	DBG("on wm8994.c wm8994_suspend\n");
+	if(pdata->lineout_status)
+	{
+		DBG("lineout is work cannot suspend\n");
+		return 0;
+	}
 	switch (control->type) {
 	case WM8994:
 		snd_soc_update_bits(codec, WM8994_MICBIAS, WM8994_MICD_ENA, 0);
@@ -2620,10 +2667,16 @@ static int wm8994_resume(struct snd_soc_codec *codec)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = codec->control_data;
+	struct wm8994_pdata *pdata = wm8994->pdata;
 	int i, ret;
 	unsigned int val, mask;
 	
-//	printk("on wm8994.c wm8994_resume\n");
+	printk("on wm8994.c wm8994_resume\n");
+	if(pdata->lineout_status)
+	{
+		DBG("lineout is work cannot resume\n");
+		return 0;
+	}
 	if (wm8994->revision < 4) {
 		/* force a HW read */
 		val = wm8994_reg_read(codec->control_data,
@@ -3340,7 +3393,14 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	}
 	else
 		dev_info(codec->dev, "have not pa control\n");	
-	
+
+	//lineout off
+	pdata->lineout_status = 0;
+//	snd_soc_dapm_new_controls(dapm, wm8994_lineout_status_dapm_widgets,
+//				 ARRAY_SIZE(wm8994_lineout_status_dapm_widgets));	
+//	snd_soc_dapm_add_routes(dapm, wm8994_lineout_status_intercon, 
+//				ARRAY_SIZE(wm8994_lineout_status_intercon));
+		
 	return 0;
 
 err_irq:
