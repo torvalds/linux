@@ -4561,11 +4561,9 @@ static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
 {
 	int err, vector_threshold;
 
-	/* We'll want at least 3 (vector_threshold):
-	 * 1) TxQ[0] Cleanup
-	 * 2) RxQ[0] Cleanup
-	 * 3) Other (Link Status Change, etc.)
-	 * 4) TCP Timer (optional)
+	/* We'll want at least 2 (vector_threshold):
+	 * 1) TxQ[0] + RxQ[0] handler
+	 * 2) Other (Link Status Change, etc.)
 	 */
 	vector_threshold = MIN_MSIX_COUNT;
 
@@ -4919,9 +4917,11 @@ static int ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	 * doesn't do us much good if we have a lot more vectors
 	 * than CPU's.  So let's be conservative and only ask for
 	 * (roughly) the same number of vectors as there are CPU's.
+	 * The default is to use pairs of vectors.
 	 */
-	v_budget = min(adapter->num_rx_queues + adapter->num_tx_queues,
-		       (int)num_online_cpus()) + NON_Q_VECTORS;
+	v_budget = max(adapter->num_rx_queues, adapter->num_tx_queues);
+	v_budget = min_t(int, v_budget, num_online_cpus());
+	v_budget += NON_Q_VECTORS;
 
 	/*
 	 * At the same time, hardware can only support a maximum of
