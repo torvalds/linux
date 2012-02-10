@@ -2359,7 +2359,7 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 	u32 eicr;
 
 	/*
-	 * Workaround for silicon errata on 82598.  Mask the interrupts
+	 * Workaround for silicon errata #26 on 82598.  Mask the interrupt
 	 * before the read of EICR.
 	 */
 	IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_IRQ_CLEAR_MASK);
@@ -4381,7 +4381,11 @@ static inline bool ixgbe_set_fdir_queues(struct ixgbe_adapter *adapter)
 	f_fdir->indices = min((int)num_online_cpus(), f_fdir->indices);
 	f_fdir->mask = 0;
 
-	/* Flow Director must have RSS enabled */
+	/*
+	 * Use RSS in addition to Flow Director to ensure the best
+	 * distribution of flows across cores, even when an FDIR flow
+	 * isn't matched.
+	 */
 	if ((adapter->flags & IXGBE_FLAG_RSS_ENABLED) &&
 	    (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE)) {
 		adapter->num_tx_queues = f_fdir->indices;
@@ -4558,7 +4562,8 @@ static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
 	 */
 	vector_threshold = MIN_MSIX_COUNT;
 
-	/* The more we get, the more we will assign to Tx/Rx Cleanup
+	/*
+	 * The more we get, the more we will assign to Tx/Rx Cleanup
 	 * for the separate queues...where Rx Cleanup >= Tx Cleanup.
 	 * Right now, we simply care about how many we'll get; we'll
 	 * set them up later while requesting irq's.
@@ -6996,7 +7001,7 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 
 	/*
 	 * need: 1 descriptor per page * PAGE_SIZE/IXGBE_MAX_DATA_PER_TXD,
-	 *       + 1 desc for skb_head_len/IXGBE_MAX_DATA_PER_TXD,
+	 *       + 1 desc for skb_headlen/IXGBE_MAX_DATA_PER_TXD,
 	 *       + 2 desc gap to keep tail from touching head,
 	 *       + 1 desc for context descriptor,
 	 * otherwise try next time
