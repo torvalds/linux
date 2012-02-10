@@ -117,7 +117,7 @@
 
 #define SEP_TRANSACTION_WAIT_TIME 5
 
-#define SEP_QUEUE_LENGTH	10
+#define SEP_QUEUE_LENGTH	2
 /* Macros */
 #ifndef __LITTLE_ENDIAN
 #define CHG_ENDIAN(val) \
@@ -270,9 +270,26 @@ struct sep_hash_private_context {
 	u8 internal_context[sizeof(struct sep_hash_internal_context)];
 };
 
+union key_t {
+	struct sep_des_key des;
+	u32 aes[SEP_AES_MAX_KEY_SIZE_WORDS];
+};
+
 /* Context structures for crypto API */
-struct sep_block_ctx {
-	struct sep_device *sep;
+/**
+ * Structure for this current task context
+ * This same structure is used for both hash
+ * and crypt in order to reduce duplicate code
+ * for stuff that is done for both hash operations
+ * and crypto operations. We cannot trust that the
+ * system context is not pulled out from under
+ * us during operation to operation, so all
+ * critical stuff such as data pointers must
+ * be in in a context that is exclusive for this
+ * particular task at hand.
+ */
+struct this_task_ctx {
+	struct sep_device *sep_used;
 	u32 done;
 	unsigned char iv[100];
 	enum des_enc_mode des_encmode;
@@ -284,36 +301,7 @@ struct sep_block_ctx {
 	size_t data_length;
 	size_t ivlen;
 	struct ablkcipher_walk walk;
-	struct sep_des_private_context des_private_ctx;
-	struct sep_aes_private_context aes_private_ctx;
-	};
-
-struct sep_hash_ctx {
-	u32 done;
-	unsigned char *buf;
-	size_t buflen;
-	unsigned char *dgst;
-	int digest_size_words;
-	int digest_size_bytes;
-	int block_size_words;
-	int block_size_bytes;
-	struct scatterlist *sg;
-	enum hash_op_mode hash_opmode;
-	struct sep_hash_private_context hash_private_ctx;
-	};
-
-struct sep_system_ctx {
-	struct sep_device *sep_used;
-	union key_t {
-		struct sep_des_key des;
-		u32 aes[SEP_AES_MAX_KEY_SIZE_WORDS];
-	} key;
 	int i_own_sep; /* Do I have custody of the sep? */
-	size_t keylen;
-	enum des_numkey des_nbr_keys;
-	enum aes_keysize aes_key_size;
-	u32 key_sent; /* Indicate if key is sent to sep */
-	u32 last_block; /* Indicate that this is the final block */
 	struct sep_call_status call_status;
 	struct build_dcb_struct_kernel dcb_input_data;
 	struct sep_dma_context *dma_ctx;
@@ -331,9 +319,32 @@ struct sep_system_ctx {
 	struct ahash_request *current_hash_req;
 	struct ablkcipher_request *current_cypher_req;
 	enum type_of_request current_request;
+	int digest_size_words;
+	int digest_size_bytes;
+	int block_size_words;
+	int block_size_bytes;
+	enum hash_op_mode hash_opmode;
 	enum hash_stage current_hash_stage;
-	int done_with_transaction;
+	/**
+	 * Not that this is a pointer. The are_we_done_yet variable is
+	 * allocated by the task function. This way, even if the kernel
+	 * crypto infrastructure has grabbed the task structure out from
+	 * under us, the task function can still see this variable.
+	 */
+	int *are_we_done_yet;
 	unsigned long end_time;
+	};
+
+struct sep_system_ctx {
+	union key_t key;
+	size_t keylen;
+	int key_sent;
+	enum des_numkey des_nbr_keys;
+	enum aes_keysize aes_key_size;
+	unsigned long end_time;
+	struct sep_des_private_context des_private_ctx;
+	struct sep_aes_private_context aes_private_ctx;
+	struct sep_hash_private_context hash_private_ctx;
 	};
 
 /* work queue structures */

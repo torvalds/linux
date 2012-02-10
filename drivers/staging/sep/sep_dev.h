@@ -93,8 +93,7 @@ struct sep_device {
 	enum hash_stage	current_hash_stage;
 	struct ahash_request	*current_hash_req;
 	struct ablkcipher_request *current_cypher_req;
-	struct sep_system_ctx *sctx;
-	spinlock_t		busy_lock;
+	struct this_task_ctx *ta_ctx;
 	struct workqueue_struct	*workqueue;
 };
 
