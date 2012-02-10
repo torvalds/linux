@@ -21,4 +21,6 @@
 #define __io(a)		__typesafe_io(a)
 #define __mem_pci(a)    (a)
 
+#include <mach/rk29_iomap.h>
+
 #endif
