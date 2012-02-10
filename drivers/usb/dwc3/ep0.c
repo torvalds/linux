@@ -316,7 +316,6 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 	u32			wValue;
 	u32			wIndex;
 	int			ret;
-	u32			mode;
 
 	wValue = le16_to_cpu(ctrl->wValue);
 	wIndex = le16_to_cpu(ctrl->wIndex);
@@ -355,13 +354,8 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 			if (!set)
 				return -EINVAL;
 
-			mode = wIndex >> 8;
-			ret = dwc3_gadget_set_test_mode(dwc, mode);
-			if (ret < 0) {
-				dev_dbg(dwc->dev, "Invalid Test #%d\n",
-						mode);
-				return ret;
-			}
+			dwc->test_mode_nr = wIndex >> 8;
+			dwc->test_mode = true;
 		}
 		break;
 
@@ -602,6 +596,17 @@ static void dwc3_ep0_complete_req(struct dwc3 *dwc,
 		r = next_request(&dep->request_list);
 
 		dwc3_gadget_giveback(dep, r, 0);
+	}
+
+	if (dwc->test_mode) {
+		int ret;
+
+		ret = dwc3_gadget_set_test_mode(dwc, dwc->test_mode_nr);
+		if (ret < 0) {
+			dev_dbg(dwc->dev, "Invalid Test #%d\n",
+					dwc->test_mode_nr);
+			dwc3_ep0_stall_and_restart(dwc);
+		}
 	}
 
 	dwc->ep0state = EP0_SETUP_PHASE;
