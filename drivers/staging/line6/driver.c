@@ -1346,7 +1346,7 @@ static void __exit line6_exit(void)
 		if (line6pcm == NULL)
 			continue;
 
-		line6_pcm_stop(line6pcm, ~0);
+		line6_pcm_release(line6pcm, ~0);
 	}
 
 	usb_deregister(&line6_driver);

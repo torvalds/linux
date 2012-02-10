@@ -1,7 +1,7 @@
 /*
  *
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2003-2011, Intel Corporation.
+ * Copyright (c) 2003-2012, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -123,8 +123,7 @@ static int mei_irq_thread_read_amthi_message(struct mei_io_list *complete_list,
 	BUG_ON(mei_hdr->me_addr != dev->iamthif_cl.me_client_id);
 	BUG_ON(dev->iamthif_state != MEI_IAMTHIF_READING);
 
-	buffer = (unsigned char *) (dev->iamthif_msg_buf +
-			dev->iamthif_msg_buf_index);
+	buffer = dev->iamthif_msg_buf + dev->iamthif_msg_buf_index;
 	BUG_ON(dev->iamthif_mtu < dev->iamthif_msg_buf_index + mei_hdr->length);
 
 	mei_read_slots(dev, buffer, mei_hdr->length);
@@ -206,9 +205,7 @@ static int mei_irq_thread_read_client_message(struct mei_io_list *complete_list,
 		cl = (struct mei_cl *)cb_pos->file_private;
 		if (cl && _mei_irq_thread_state_ok(cl, mei_hdr)) {
 			cl->reading_state = MEI_READING;
-			buffer = (unsigned char *)
-				(cb_pos->response_buffer.data +
-				cb_pos->information);
+			buffer = cb_pos->response_buffer.data + cb_pos->information;
 
 			if (cb_pos->response_buffer.size <
 					mei_hdr->length + cb_pos->information) {
@@ -247,8 +244,7 @@ static int mei_irq_thread_read_client_message(struct mei_io_list *complete_list,
 quit:
 	dev_dbg(&dev->pdev->dev, "message read\n");
 	if (!buffer) {
-		mei_read_slots(dev, (unsigned char *) dev->rd_msg_buf,
-						mei_hdr->length);
+		mei_read_slots(dev, dev->rd_msg_buf, mei_hdr->length);
 		dev_dbg(&dev->pdev->dev, "discarding message, header =%08x.\n",
 				*(u32 *) dev->rd_msg_buf);
 	}
@@ -632,13 +628,11 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 	struct hbm_host_stop_request *host_stop_req;
 	int res;
 
-	unsigned char *buffer;
 
 	/* read the message to our buffer */
-	buffer = (unsigned char *) dev->rd_msg_buf;
 	BUG_ON(mei_hdr->length >= sizeof(dev->rd_msg_buf));
-	mei_read_slots(dev, buffer, mei_hdr->length);
-	mei_msg = (struct mei_bus_message *) buffer;
+	mei_read_slots(dev, dev->rd_msg_buf, mei_hdr->length);
+	mei_msg = (struct mei_bus_message *)dev->rd_msg_buf;
 
 	switch (*(u8 *) mei_msg) {
 	case HOST_START_RES_CMD:
@@ -1423,7 +1417,7 @@ void mei_timer(struct work_struct *work)
 
 	if (dev->iamthif_stall_timer) {
 		if (--dev->iamthif_stall_timer == 0) {
-			dev_dbg(&dev->pdev->dev, "reseting because of hang to amthi.\n");
+			dev_dbg(&dev->pdev->dev, "resetting because of hang to amthi.\n");
 			mei_reset(dev, 1);
 			dev->iamthif_msg_buf_size = 0;
 			dev->iamthif_msg_buf_index = 0;

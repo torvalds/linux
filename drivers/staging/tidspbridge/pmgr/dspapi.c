@@ -24,9 +24,6 @@
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
-
 /*  ----------------------------------- OS Adaptation Layer */
 #include <dspbridge/ntfy.h>
 
@@ -266,7 +263,6 @@ err:
  */
 void api_exit(void)
 {
-	DBC_REQUIRE(api_c_refs > 0);
 	api_c_refs--;
 
 	if (api_c_refs == 0) {
@@ -284,7 +280,6 @@ void api_exit(void)
 		rmm_exit();
 		drv_exit();
 	}
-	DBC_ENSURE(api_c_refs >= 0);
 }
 
 /*
@@ -381,8 +376,6 @@ int api_init_complete2(void)
 	struct dev_object *hdev_obj;
 	struct drv_data *drv_datap;
 	u8 dev_type;
-
-	DBC_REQUIRE(api_c_refs > 0);
 
 	/*  Walk the list of DevObjects, get each devnode, and attempting to
 	 *  autostart the board. Note that this requires COF loading, which

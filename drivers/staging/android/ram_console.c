@@ -351,7 +351,7 @@ static int ram_console_driver_probe(struct platform_device *pdev)
 		       "%lx\n", res, pdev->num_resources, res ? res->flags : 0);
 		return -ENXIO;
 	}
-	buffer_size = res->end - res->start + 1;
+	buffer_size = resource_size(res);
 	start = res->start;
 	printk(KERN_INFO "ram_console: got buffer at %zx, size %zx\n",
 	       start, buffer_size);
@@ -411,15 +411,14 @@ static int __init ram_console_late_init(void)
 	if (ram_console_old_log == NULL)
 		return 0;
 #ifdef CONFIG_ANDROID_RAM_CONSOLE_EARLY_INIT
-	ram_console_old_log = kmalloc(ram_console_old_log_size, GFP_KERNEL);
+	ram_console_old_log = kmemdup(ram_console_old_log_init_buffer,
+					ram_console_old_log_size, GFP_KERNEL);
 	if (ram_console_old_log == NULL) {
 		printk(KERN_ERR
 		       "ram_console: failed to allocate buffer for old log\n");
 		ram_console_old_log_size = 0;
 		return 0;
 	}
-	memcpy(ram_console_old_log,
-	       ram_console_old_log_init_buffer, ram_console_old_log_size);
 #endif
 	entry = create_proc_entry("last_kmsg", S_IFREG | S_IRUGO, NULL);
 	if (!entry) {

@@ -868,8 +868,7 @@ static enum BC_STATUS crystalhd_stop_tx_dma_engine(struct crystalhd_hw *hw)
 
 	BCMLOG(BCMLOG_DBG, "Stopping TX DMA Engine..\n");
 
-	/* FIXME: jarod: invert dma_ctrl and check bit? or are there missing parens? */
-	if (!dma_cntrl & DMA_START_BIT) {
+	if (!(dma_cntrl & DMA_START_BIT)) {
 		BCMLOG(BCMLOG_DBG, "Already Stopped\n");
 		return BC_STS_SUCCESS;
 	}

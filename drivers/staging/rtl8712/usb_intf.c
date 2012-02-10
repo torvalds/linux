@@ -281,7 +281,6 @@ static uint r8712_usb_dvobj_init(struct _adapter *padapter)
 	}
 	if ((r8712_alloc_io_queue(padapter)) == _FAIL)
 		status = _FAIL;
-	sema_init(&(padapter->dvobjpriv.usb_suspend_sema), 0);
 	return status;
 }
 

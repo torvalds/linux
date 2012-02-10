@@ -31,12 +31,6 @@ config TIDSPBRIDGE_MEMPOOL_SIZE
 	  Allocate specified size of memory at booting time to avoid allocation
 	  failure under heavy memory fragmentation after some use time.
 
-config TIDSPBRIDGE_DEBUG
-	bool "Debug Support"
-	depends on TIDSPBRIDGE
-	help
-	  Say Y to enable Bridge debugging capabilities
-
 config TIDSPBRIDGE_RECOVERY
 	bool "Recovery Support"
 	depends on TIDSPBRIDGE

@@ -24,9 +24,6 @@
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
 
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
-
 /*  ----------------------------------- OS Adaptation Layer */
 #include <dspbridge/sync.h>
 
@@ -57,10 +54,6 @@ int chnl_create(struct chnl_mgr **channel_mgr,
 	int status;
 	struct chnl_mgr *hchnl_mgr;
 	struct chnl_mgr_ *chnl_mgr_obj = NULL;
-
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(channel_mgr != NULL);
-	DBC_REQUIRE(mgr_attrts != NULL);
 
 	*channel_mgr = NULL;
 
@@ -99,8 +92,6 @@ int chnl_create(struct chnl_mgr **channel_mgr,
 		}
 	}
 
-	DBC_ENSURE(status || chnl_mgr_obj);
-
 	return status;
 }
 
@@ -114,8 +105,6 @@ int chnl_destroy(struct chnl_mgr *hchnl_mgr)
 	struct chnl_mgr_ *chnl_mgr_obj = (struct chnl_mgr_ *)hchnl_mgr;
 	struct bridge_drv_interface *intf_fxns;
 	int status;
-
-	DBC_REQUIRE(refs > 0);
 
 	if (chnl_mgr_obj) {
 		intf_fxns = chnl_mgr_obj->intf_fxns;
@@ -135,11 +124,7 @@ int chnl_destroy(struct chnl_mgr *hchnl_mgr)
  */
 void chnl_exit(void)
 {
-	DBC_REQUIRE(refs > 0);
-
 	refs--;
-
-	DBC_ENSURE(refs >= 0);
 }
 
 /*
@@ -151,12 +136,8 @@ bool chnl_init(void)
 {
 	bool ret = true;
 
-	DBC_REQUIRE(refs >= 0);
-
 	if (ret)
 		refs++;
-
-	DBC_ENSURE((ret && (refs > 0)) || (!ret && (refs >= 0)));
 
 	return ret;
 }

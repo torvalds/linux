@@ -144,8 +144,6 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 		return ret;
 	}
 
-	/* Effectively select the ring buffer implementation */
-	indio_dev->buffer->access = &ring_sw_access_funcs;
 	indio_dev->setup_ops = &ade7758_ring_setup_ops;
 
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,

@@ -1,7 +1,7 @@
 /*
  *
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2003-2011, Intel Corporation.
+ * Copyright (c) 2003-2012, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -215,26 +215,17 @@ int mei_count_full_read_slots(struct mei_device *dev)
  * @buffer: message buffer will be written
  * @buffer_length: message size will be read
  */
-void mei_read_slots(struct mei_device *dev,
-		    unsigned char *buffer, unsigned long buffer_length)
+void mei_read_slots(struct mei_device *dev, unsigned char *buffer,
+		    unsigned long buffer_length)
 {
-	u32 i = 0;
-	unsigned char temp_buf[sizeof(u32)];
+	u32 *reg_buf = (u32 *)buffer;
 
-	while (buffer_length >= sizeof(u32)) {
-		((u32 *) buffer)[i] = mei_mecbrw_read(dev);
-
-		dev_dbg(&dev->pdev->dev,
-				"buffer[%d]= %d\n",
-				i, ((u32 *) buffer)[i]);
-
-		i++;
-		buffer_length -= sizeof(u32);
-	}
+	for (; buffer_length >= sizeof(u32); buffer_length -= sizeof(u32))
+		*reg_buf++ = mei_mecbrw_read(dev);
 
 	if (buffer_length > 0) {
-		*((u32 *) &temp_buf) = mei_mecbrw_read(dev);
-		memcpy(&buffer[i * 4], temp_buf, buffer_length);
+		u32 reg = mei_mecbrw_read(dev);
+		memcpy(reg_buf, &reg, buffer_length);
 	}
 
 	dev->host_hw_state |= H_IG;

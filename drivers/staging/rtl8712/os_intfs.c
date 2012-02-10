@@ -330,7 +330,6 @@ u8 r8712_init_drv_sw(struct _adapter *padapter)
 	padapter->stapriv.padapter = padapter;
 	r8712_init_bcmc_stainfo(padapter);
 	r8712_init_pwrctrl_priv(padapter);
-	sema_init(&(padapter->pwrctrlpriv.pnp_pwr_mgnt_sema), 0);
 	mp871xinit(padapter);
 	if (init_default_value(padapter) != _SUCCESS)
 		return _FAIL;

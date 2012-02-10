@@ -133,7 +133,6 @@ struct	pwrctrl_priv {
 	u8	rpwm_retry;
 	uint	bSetPSModeWorkItemInProgress;
 
-	struct semaphore pnp_pwr_mgnt_sema;
 	spinlock_t pnp_pwr_mgnt_lock;
 	s32	pnp_current_pwr_state;
 	u8	pnp_bstop_trx;

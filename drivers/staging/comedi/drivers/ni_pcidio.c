@@ -30,7 +30,7 @@ Status: works
 Devices: [National Instruments] PCI-DIO-32HS (ni_pcidio), PXI-6533,
   PCI-DIO-96, PCI-DIO-96B, PXI-6508, PCI-6503, PCI-6503B, PCI-6503X,
   PXI-6503, PCI-6533, PCI-6534
-Updated: Sun, 21 Apr 2002 21:03:38 -0700
+Updated: Mon, 09 Jan 2012 14:27:23 +0000
 
 The DIO-96 appears as four 8255 subdevices.  See the 8255
 driver notes for details.
@@ -41,6 +41,11 @@ is 0=A0, 1=A1, 2=A2, ... 8=B0, 16=C0, 24=D0.  The driver only
 supports simple digital I/O; no handshaking is supported.
 
 DMA mostly works for the PCI-DIO32HS, but only in timed input mode.
+
+The PCI-DIO-32HS/PCI-6533 has a configurable external trigger. Setting
+scan_begin_arg to 0 or CR_EDGE triggers on the leading edge. Setting
+scan_begin_arg to CR_INVERT or (CR_EDGE | CR_INVERT) triggers on the
+trailing edge.
 
 This driver could be easily modified to support AT-MIO32HS and
 AT-MIO96.
@@ -436,6 +441,7 @@ static int ni_pcidio_request_di_mite_channel(struct comedi_device *dev)
 		comedi_error(dev, "failed to reserve mite dma channel.");
 		return -EBUSY;
 	}
+	devpriv->di_mite_chan->dir = COMEDI_INPUT;
 	writeb(primary_DMAChannel_bits(devpriv->di_mite_chan->channel) |
 	       secondary_DMAChannel_bits(devpriv->di_mite_chan->channel),
 	       devpriv->mite->daq_io_addr + DMA_Line_Control_Group1);
@@ -482,6 +488,21 @@ void ni_pcidio_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	comedi_event(dev, s);
 }
 
+static int ni_pcidio_poll(struct comedi_device *dev, struct comedi_subdevice *s)
+{
+	unsigned long irq_flags;
+	int count;
+
+	spin_lock_irqsave(&dev->spinlock, irq_flags);
+	spin_lock(&devpriv->mite_channel_lock);
+	if (devpriv->di_mite_chan)
+		mite_sync_input_dma(devpriv->di_mite_chan, s->async);
+	spin_unlock(&devpriv->mite_channel_lock);
+	count = s->async->buf_write_count - s->async->buf_read_count;
+	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+	return count;
+}
+
 static irqreturn_t nidio_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
@@ -497,13 +518,15 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	int status;
 	int work = 0;
 	unsigned int m_status = 0;
-	unsigned long irq_flags;
 
 	/* interrupcions parasites */
 	if (dev->attached == 0) {
 		/* assume it's from another card */
 		return IRQ_NONE;
 	}
+
+	/* Lock to avoid race with comedi_poll */
+	spin_lock(&dev->spinlock);
 
 	status = readb(devpriv->mite->daq_io_addr +
 		       Interrupt_And_Window_Status);
@@ -518,7 +541,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	/* printk("buf[4096]=%08x\n",
 	       *(unsigned int *)(async->prealloc_buf+4096)); */
 
-	spin_lock_irqsave(&devpriv->mite_channel_lock, irq_flags);
+	spin_lock(&devpriv->mite_channel_lock);
 	if (devpriv->di_mite_chan)
 		m_status = mite_get_status(devpriv->di_mite_chan);
 #ifdef MITE_DEBUG
@@ -543,7 +566,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 			disable_irq(dev->irq);
 		}
 	}
-	spin_unlock_irqrestore(&devpriv->mite_channel_lock, irq_flags);
+	spin_unlock(&devpriv->mite_channel_lock);
 
 	while (status & DataLeft) {
 		work++;
@@ -645,6 +668,8 @@ out:
 		       Master_DMA_And_Interrupt_Control);
 	}
 #endif
+
+	spin_unlock(&dev->spinlock);
 	return IRQ_HANDLED;
 }
 
@@ -825,8 +850,8 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 	} else {
 		/* TRIG_EXT */
 		/* should be level/edge, hi/lo specification here */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
+		if ((cmd->scan_begin_arg & ~(CR_EDGE | CR_INVERT)) != 0) {
+			cmd->scan_begin_arg &= (CR_EDGE | CR_INVERT);
 			err++;
 		}
 	}
@@ -941,7 +966,13 @@ static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		writeb(0, devpriv->mite->daq_io_addr + Sequence);
 		writeb(0x00, devpriv->mite->daq_io_addr + ReqReg);
 		writeb(4, devpriv->mite->daq_io_addr + BlockMode);
-		writeb(0, devpriv->mite->daq_io_addr + LinePolarities);
+		if (!(cmd->scan_begin_arg & CR_INVERT)) {
+			/* Leading Edge pulse mode */
+			writeb(0, devpriv->mite->daq_io_addr + LinePolarities);
+		} else {
+			/* Trailing Edge pulse mode */
+			writeb(2, devpriv->mite->daq_io_addr + LinePolarities);
+		}
 		writeb(0x00, devpriv->mite->daq_io_addr + AckSer);
 		writel(1, devpriv->mite->daq_io_addr + StartDelay);
 		writeb(1, devpriv->mite->daq_io_addr + ReqDelay);
@@ -1005,17 +1036,24 @@ static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 static int setup_mite_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	int retval;
+	unsigned long flags;
 
 	retval = ni_pcidio_request_di_mite_channel(dev);
 	if (retval)
 		return retval;
 
-	devpriv->di_mite_chan->dir = COMEDI_INPUT;
+	/* write alloc the entire buffer */
+	comedi_buf_write_alloc(s->async, s->async->prealloc_bufsz);
 
-	mite_prep_dma(devpriv->di_mite_chan, 32, 32);
+	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	if (devpriv->di_mite_chan) {
+		mite_prep_dma(devpriv->di_mite_chan, 32, 32);
+		mite_dma_arm(devpriv->di_mite_chan);
+	} else
+		retval = -EIO;
+	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 
-	mite_dma_arm(devpriv->di_mite_chan);
-	return 0;
+	return retval;
 }
 
 static int ni_pcidio_inttrig(struct comedi_device *dev,
@@ -1244,6 +1282,7 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->len_chanlist = 32;	/* XXX */
 		s->buf_change = &ni_pcidio_change;
 		s->async_dma_dir = DMA_BIDIRECTIONAL;
+		s->poll = &ni_pcidio_poll;
 
 		writel(0, devpriv->mite->daq_io_addr + Port_IO(0));
 		writel(0, devpriv->mite->daq_io_addr + Port_Pin_Directions(0));

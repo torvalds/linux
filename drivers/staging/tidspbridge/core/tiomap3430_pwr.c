@@ -303,7 +303,6 @@ int dsp_peripheral_clk_ctrl(struct bridge_dev_context *dev_context,
 	}
 	/* TODO -- Assert may be a too hard restriction here.. May be we should
 	 * just return with failure when the CLK ID does not match */
-	/* DBC_ASSERT(clk_id_index < MBX_PM_MAX_RESOURCES); */
 	if (clk_id_index == MBX_PM_MAX_RESOURCES) {
 		/* return with a more meaningfull error code */
 		return -EPERM;
