@@ -32,7 +32,6 @@
 
 #define __BUG(__file, __line, __value)				\
 do {								\
-	BUILD_BUG_ON(sizeof(struct bug_entry) != 12);		\
 	asm volatile("1:\t" BUG_INSTR_TYPE #__value "\n"	\
 		".pushsection .rodata.str, \"aMS\", %progbits, 1\n" \
 		"2:\t.asciz " #__file "\n" 			\

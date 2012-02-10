@@ -3988,7 +3988,7 @@ static int mv_create_dma_pools(struct mv_host_priv *hpriv, struct device *dev)
 }
 
 static void mv_conf_mbus_windows(struct mv_host_priv *hpriv,
-				 struct mbus_dram_target_info *dram)
+				 const struct mbus_dram_target_info *dram)
 {
 	int i;
 
@@ -3998,7 +3998,7 @@ static void mv_conf_mbus_windows(struct mv_host_priv *hpriv,
 	}
 
 	for (i = 0; i < dram->num_cs; i++) {
-		struct mbus_dram_window *cs = dram->cs + i;
+		const struct mbus_dram_window *cs = dram->cs + i;
 
 		writel(((cs->size - 1) & 0xffff0000) |
 			(cs->mbus_attr << 8) |
@@ -4019,6 +4019,7 @@ static void mv_conf_mbus_windows(struct mv_host_priv *hpriv,
 static int mv_platform_probe(struct platform_device *pdev)
 {
 	const struct mv_sata_platform_data *mv_platform_data;
+	const struct mbus_dram_target_info *dram;
 	const struct ata_port_info *ppi[] =
 	    { &mv_port_info[chip_soc], NULL };
 	struct ata_host *host;
@@ -4072,8 +4073,9 @@ static int mv_platform_probe(struct platform_device *pdev)
 	/*
 	 * (Re-)program MBUS remapping windows if we are asked to.
 	 */
-	if (mv_platform_data->dram != NULL)
-		mv_conf_mbus_windows(hpriv, mv_platform_data->dram);
+	dram = mv_mbus_dram_info();
+	if (dram)
+		mv_conf_mbus_windows(hpriv, dram);
 
 	rc = mv_create_dma_pools(hpriv, &pdev->dev);
 	if (rc)
@@ -4141,17 +4143,18 @@ static int mv_platform_suspend(struct platform_device *pdev, pm_message_t state)
 static int mv_platform_resume(struct platform_device *pdev)
 {
 	struct ata_host *host = platform_get_drvdata(pdev);
+	const struct mbus_dram_target_info *dram;
 	int ret;
 
 	if (host) {
 		struct mv_host_priv *hpriv = host->private_data;
-		const struct mv_sata_platform_data *mv_platform_data = \
-			pdev->dev.platform_data;
+
 		/*
 		 * (Re-)program MBUS remapping windows if we are asked to.
 		 */
-		if (mv_platform_data->dram != NULL)
-			mv_conf_mbus_windows(hpriv, mv_platform_data->dram);
+		dram = mv_mbus_dram_info();
+		if (dram)
+			mv_conf_mbus_windows(hpriv, dram);
 
 		/* initialize adapter */
 		ret = mv_init_host(host);

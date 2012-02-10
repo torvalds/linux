@@ -187,10 +187,10 @@ vxfs_stiget(struct super_block *sbp, ino_t ino)
  *  vxfs_transmod returns a Linux mode_t for a given
  *  VxFS inode structure.
  */
-static __inline__ mode_t
+static __inline__ umode_t
 vxfs_transmod(struct vxfs_inode_info *vip)
 {
-	mode_t			ret = vip->vii_mode & ~VXFS_TYPE_MASK;
+	umode_t			ret = vip->vii_mode & ~VXFS_TYPE_MASK;
 
 	if (VXFS_ISFIFO(vip))
 		ret |= S_IFIFO;
@@ -340,7 +340,6 @@ vxfs_iget(struct super_block *sbp, ino_t ino)
 static void vxfs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(vxfs_inode_cachep, inode->i_private);
 }
 

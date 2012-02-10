@@ -41,4 +41,5 @@ MACHINE_START(W90P950EVB, "W90P950EVB")
 	.init_irq	= nuc900_init_irq,
 	.init_machine	= nuc950evb_init,
 	.timer		= &nuc900_timer,
+	.restart	= nuc9xx_restart,
 MACHINE_END

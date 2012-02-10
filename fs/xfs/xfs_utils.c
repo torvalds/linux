@@ -53,7 +53,7 @@ xfs_dir_ialloc(
 					   output: may be a new transaction. */
 	xfs_inode_t	*dp,		/* directory within whose allocate
 					   the inode. */
-	mode_t		mode,
+	umode_t		mode,
 	xfs_nlink_t	nlink,
 	xfs_dev_t	rdev,
 	prid_t		prid,		/* project id */

@@ -163,50 +163,93 @@ static void nec_8048_panel_remove(struct omap_dss_device *dssdev)
 	kfree(necd);
 }
 
-static int nec_8048_panel_enable(struct omap_dss_device *dssdev)
+static int nec_8048_panel_power_on(struct omap_dss_device *dssdev)
 {
-	int r = 0;
+	int r;
 	struct nec_8048_data *necd = dev_get_drvdata(&dssdev->dev);
 	struct backlight_device *bl = necd->bl;
+
+	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
+		return 0;
+
+	r = omapdss_dpi_display_enable(dssdev);
+	if (r)
+		goto err0;
 
 	if (dssdev->platform_enable) {
 		r = dssdev->platform_enable(dssdev);
 		if (r)
-			return r;
+			goto err1;
 	}
 
 	r = nec_8048_bl_update_status(bl);
 	if (r < 0)
 		dev_err(&dssdev->dev, "failed to set lcd brightness\n");
 
-	r = omapdss_dpi_display_enable(dssdev);
-
+	return 0;
+err1:
+	omapdss_dpi_display_disable(dssdev);
+err0:
 	return r;
 }
 
-static void nec_8048_panel_disable(struct omap_dss_device *dssdev)
+static void nec_8048_panel_power_off(struct omap_dss_device *dssdev)
 {
 	struct nec_8048_data *necd = dev_get_drvdata(&dssdev->dev);
 	struct backlight_device *bl = necd->bl;
 
-	omapdss_dpi_display_disable(dssdev);
+	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
+		return;
 
 	bl->props.brightness = 0;
 	nec_8048_bl_update_status(bl);
 
 	if (dssdev->platform_disable)
 		dssdev->platform_disable(dssdev);
+
+	omapdss_dpi_display_disable(dssdev);
+}
+
+static int nec_8048_panel_enable(struct omap_dss_device *dssdev)
+{
+	int r;
+
+	r = nec_8048_panel_power_on(dssdev);
+	if (r)
+		return r;
+
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+
+	return 0;
+}
+
+static void nec_8048_panel_disable(struct omap_dss_device *dssdev)
+{
+	nec_8048_panel_power_off(dssdev);
+
+	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
 static int nec_8048_panel_suspend(struct omap_dss_device *dssdev)
 {
-	nec_8048_panel_disable(dssdev);
+	nec_8048_panel_power_off(dssdev);
+
+	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
+
 	return 0;
 }
 
 static int nec_8048_panel_resume(struct omap_dss_device *dssdev)
 {
-	return nec_8048_panel_enable(dssdev);
+	int r;
+
+	r = nec_8048_panel_power_on(dssdev);
+	if (r)
+		return r;
+
+	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+
+	return 0;
 }
 
 static int nec_8048_recommended_bpp(struct omap_dss_device *dssdev)
@@ -303,7 +346,6 @@ static struct spi_driver nec_8048_spi_driver = {
 	.resume		= nec_8048_spi_resume,
 	.driver		= {
 		.name	= "nec_8048_spi",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
 };

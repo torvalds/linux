@@ -468,7 +468,7 @@ C_ENTRY(sys_fork_wrapper):
 	addi	r5, r0, SIGCHLD			/* Arg 0: flags */
 	lwi	r6, r1, PT_R1	/* Arg 1: child SP (use parent's) */
 	addik	r7, r1, 0			/* Arg 2: parent context */
-	add	r8. r0, r0			/* Arg 3: (unused) */
+	add	r8, r0, r0			/* Arg 3: (unused) */
 	add	r9, r0, r0;			/* Arg 4: (unused) */
 	brid	do_fork		/* Do real work (tail-call) */
 	add	r10, r0, r0;			/* Arg 5: (unused) */

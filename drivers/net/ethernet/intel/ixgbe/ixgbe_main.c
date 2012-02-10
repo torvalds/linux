@@ -55,6 +55,8 @@
 char ixgbe_driver_name[] = "ixgbe";
 static const char ixgbe_driver_string[] =
 			      "Intel(R) 10 Gigabit PCI Express Network Driver";
+char ixgbe_default_device_descr[] =
+			      "Intel(R) 10 Gigabit Network Connection";
 #define MAJ 3
 #define MIN 6
 #define BUILD 7
@@ -106,6 +108,7 @@ static DEFINE_PCI_DEVICE_TABLE(ixgbe_pci_tbl) = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_SF2), board_82599 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_LS), board_82599 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599EN_SFP), board_82599 },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_SFP_SF_QP), board_82599 },
 	/* required last entry */
 	{0, }
 };
@@ -146,7 +149,7 @@ static void ixgbe_service_event_complete(struct ixgbe_adapter *adapter)
 {
 	BUG_ON(!test_bit(__IXGBE_SERVICE_SCHED, &adapter->state));
 
-	/* flush memory to make sure state is correct before next watchog */
+	/* flush memory to make sure state is correct before next watchdog */
 	smp_mb__before_clear_bit();
 	clear_bit(__IXGBE_SERVICE_SCHED, &adapter->state);
 }
@@ -1140,7 +1143,7 @@ void ixgbe_alloc_rx_buffers(struct ixgbe_ring *rx_ring, u16 cleaned_count)
 
 		if (ring_is_ps_enabled(rx_ring)) {
 			if (!bi->page) {
-				bi->page = netdev_alloc_page(rx_ring->netdev);
+				bi->page = alloc_page(GFP_ATOMIC | __GFP_COLD);
 				if (!bi->page) {
 					rx_ring->rx_stats.alloc_rx_page_failed++;
 					goto no_buffers;
@@ -2156,7 +2159,7 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 	IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_IRQ_CLEAR_MASK);
 
 	/* for NAPI, using EIAM to auto-mask tx/rx interrupt bits on read
-	 * therefore no explict interrupt disable is necessary */
+	 * therefore no explicit interrupt disable is necessary */
 	eicr = IXGBE_READ_REG(hw, IXGBE_EICR);
 	if (!eicr) {
 		/*
@@ -3044,7 +3047,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	hw->mac.ops.enable_rx_dma(hw, rxctrl);
 }
 
-static void ixgbe_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
+static int ixgbe_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -3053,9 +3056,11 @@ static void ixgbe_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	/* add VID to filter table */
 	hw->mac.ops.set_vfta(&adapter->hw, vid, pool_ndx, true);
 	set_bit(vid, adapter->active_vlans);
+
+	return 0;
 }
 
-static void ixgbe_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
+static int ixgbe_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -3064,6 +3069,8 @@ static void ixgbe_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	/* remove VID from filter table */
 	hw->mac.ops.set_vfta(&adapter->hw, vid, pool_ndx, false);
 	clear_bit(vid, adapter->active_vlans);
+
+	return 0;
 }
 
 /**
@@ -3602,7 +3609,7 @@ static inline bool ixgbe_is_sfp(struct ixgbe_hw *hw)
 static void ixgbe_sfp_link_config(struct ixgbe_adapter *adapter)
 {
 	/*
-	 * We are assuming the worst case scenerio here, and that
+	 * We are assuming the worst case scenario here, and that
 	 * is that an SFP was inserted/removed after the reset
 	 * but before SFP detection was enabled.  As such the best
 	 * solution is to just start searching as soon as we start
@@ -3824,7 +3831,7 @@ void ixgbe_reset(struct ixgbe_adapter *adapter)
 	case IXGBE_ERR_EEPROM_VERSION:
 		/* We are running on a pre-production device, log a warning */
 		e_dev_warn("This device is a pre-production adapter/LOM. "
-			   "Please be aware there may be issuesassociated with "
+			   "Please be aware there may be issues associated with "
 			   "your hardware.  If you are experiencing problems "
 			   "please contact your Intel or hardware "
 			   "representative who provided you with this "
@@ -4019,7 +4026,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 
 		/* Mark all the VFs as inactive */
 		for (i = 0 ; i < adapter->num_vfs; i++)
-			adapter->vfinfo[i].clear_to_send = 0;
+			adapter->vfinfo[i].clear_to_send = false;
 
 		/* ping all the active vfs to let them know we are going down */
 		ixgbe_ping_all_vfs(adapter);
@@ -5788,9 +5795,9 @@ static void ixgbe_fdir_reinit_subtask(struct ixgbe_adapter *adapter)
  * @adapter - pointer to the device adapter structure
  *
  * This function serves two purposes.  First it strobes the interrupt lines
- * in order to make certain interrupts are occuring.  Secondly it sets the
+ * in order to make certain interrupts are occurring.  Secondly it sets the
  * bits needed to check for TX hangs.  As a result we should immediately
- * determine if a hang has occured.
+ * determine if a hang has occurred.
  */
 static void ixgbe_check_hang_subtask(struct ixgbe_adapter *adapter)
 {
@@ -7128,7 +7135,7 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 		return -EINVAL;
 
 	/* Hardware has to reinitialize queues and interrupts to
-	 * match packet buffer alignment. Unfortunantly, the
+	 * match packet buffer alignment. Unfortunately, the
 	 * hardware is not flexible enough to do this dynamically.
 	 */
 	if (netif_running(dev))
@@ -7174,7 +7181,8 @@ void ixgbe_do_reset(struct net_device *netdev)
 		ixgbe_reset(adapter);
 }
 
-static u32 ixgbe_fix_features(struct net_device *netdev, u32 data)
+static netdev_features_t ixgbe_fix_features(struct net_device *netdev,
+	netdev_features_t data)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
@@ -7204,7 +7212,8 @@ static u32 ixgbe_fix_features(struct net_device *netdev, u32 data)
 	return data;
 }
 
-static int ixgbe_set_features(struct net_device *netdev, u32 data)
+static int ixgbe_set_features(struct net_device *netdev,
+	netdev_features_t data)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	bool need_reset = false;
@@ -7286,6 +7295,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_fcoe_enable = ixgbe_fcoe_enable,
 	.ndo_fcoe_disable = ixgbe_fcoe_disable,
 	.ndo_fcoe_get_wwn = ixgbe_fcoe_get_wwn,
+	.ndo_fcoe_get_hbainfo = ixgbe_fcoe_get_hbainfo,
 #endif /* IXGBE_FCOE */
 	.ndo_set_features = ixgbe_set_features,
 	.ndo_fix_features = ixgbe_fix_features,
@@ -7598,9 +7608,16 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	adapter->wol = 0;
 	switch (pdev->device) {
 	case IXGBE_DEV_ID_82599_SFP:
-		/* Only this subdevice supports WOL */
-		if (pdev->subsystem_device == IXGBE_SUBDEV_ID_82599_SFP)
+		/* Only these subdevice supports WOL */
+		switch (pdev->subsystem_device) {
+		case IXGBE_SUBDEV_ID_82599_560FLR:
+			/* only support first port */
+			if (hw->bus.func != 0)
+				break;
+		case IXGBE_SUBDEV_ID_82599_SFP:
 			adapter->wol = IXGBE_WUFC_MAG;
+			break;
+		}
 		break;
 	case IXGBE_DEV_ID_82599_COMBO_BACKPLANE:
 		/* All except this subdevice support WOL */
@@ -7708,7 +7725,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	/* add san mac addr to netdev */
 	ixgbe_add_sanmac_netdev(netdev);
 
-	e_dev_info("Intel(R) 10 Gigabit Network Connection\n");
+	e_dev_info("%s\n", ixgbe_default_device_descr);
 	cards_found++;
 	return 0;
 

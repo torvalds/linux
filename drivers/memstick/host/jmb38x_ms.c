@@ -21,7 +21,7 @@
 
 #define DRIVER_NAME "jmb38x_ms"
 
-static int no_dma;
+static bool no_dma;
 module_param(no_dma, bool, 0644);
 
 enum {

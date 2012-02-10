@@ -52,8 +52,6 @@ static int caam_probe(struct platform_device *pdev)
 	struct caam_ctrl __iomem *ctrl;
 	struct caam_full __iomem *topregs;
 	struct caam_drv_private *ctrlpriv;
-	struct caam_deco **deco;
-	u32 deconum;
 #ifdef CONFIG_DEBUG_FS
 	struct caam_perfmon *perfmon;
 #endif
@@ -91,17 +89,6 @@ static int caam_probe(struct platform_device *pdev)
 
 	if (sizeof(dma_addr_t) == sizeof(u64))
 		dma_set_mask(dev, DMA_BIT_MASK(36));
-
-	/* Find out how many DECOs are present */
-	deconum = (rd_reg64(&topregs->ctrl.perfmon.cha_num) &
-		   CHA_NUM_DECONUM_MASK) >> CHA_NUM_DECONUM_SHIFT;
-
-	ctrlpriv->deco = kmalloc(deconum * sizeof(struct caam_deco *),
-				 GFP_KERNEL);
-
-	deco = (struct caam_deco __force **)&topregs->deco;
-	for (d = 0; d < deconum; d++)
-		ctrlpriv->deco[d] = deco[d];
 
 	/*
 	 * Detect and enable JobRs
@@ -253,18 +240,7 @@ static struct platform_driver caam_driver = {
 	.remove      = __devexit_p(caam_remove),
 };
 
-static int __init caam_base_init(void)
-{
-	return platform_driver_register(&caam_driver);
-}
-
-static void __exit caam_base_exit(void)
-{
-	return platform_driver_unregister(&caam_driver);
-}
-
-module_init(caam_base_init);
-module_exit(caam_base_exit);
+module_platform_driver(caam_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("FSL CAAM request backend");

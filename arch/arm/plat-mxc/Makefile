@@ -5,7 +5,6 @@
 # Common support
 obj-y := clock.o time.o devices.o cpu.o system.o irq-common.o
 
-obj-$(CONFIG_ARM_GIC) += gic.o
 obj-$(CONFIG_MXC_TZIC) += tzic.o
 obj-$(CONFIG_MXC_AVIC) += avic.o
 

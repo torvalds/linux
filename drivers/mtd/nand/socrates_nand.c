@@ -273,18 +273,7 @@ static struct platform_driver socrates_nand_driver = {
 	.remove		= __devexit_p(socrates_nand_remove),
 };
 
-static int __init socrates_nand_init(void)
-{
-	return platform_driver_register(&socrates_nand_driver);
-}
-
-static void __exit socrates_nand_exit(void)
-{
-	platform_driver_unregister(&socrates_nand_driver);
-}
-
-module_init(socrates_nand_init);
-module_exit(socrates_nand_exit);
+module_platform_driver(socrates_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ilya Yanok");

@@ -191,12 +191,12 @@ static void igbvf_get_drvinfo(struct net_device *netdev,
                               struct ethtool_drvinfo *drvinfo)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
-	char firmware_version[32] = "N/A";
 
-	strncpy(drvinfo->driver,  igbvf_driver_name, 32);
-	strncpy(drvinfo->version, igbvf_driver_version, 32);
-	strncpy(drvinfo->fw_version, firmware_version, 32);
-	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
+	strlcpy(drvinfo->driver,  igbvf_driver_name, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, igbvf_driver_version,
+		sizeof(drvinfo->version));
+	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+		sizeof(drvinfo->bus_info));
 	drvinfo->regdump_len = igbvf_get_regs_len(netdev);
 	drvinfo->eedump_len = igbvf_get_eeprom_len(netdev);
 }
@@ -468,6 +468,5 @@ static const struct ethtool_ops igbvf_ethtool_ops = {
 
 void igbvf_set_ethtool_ops(struct net_device *netdev)
 {
-	/* have to "undeclare" const on this struct to remove warnings */
-	SET_ETHTOOL_OPS(netdev, (struct ethtool_ops *)&igbvf_ethtool_ops);
+	SET_ETHTOOL_OPS(netdev, &igbvf_ethtool_ops);
 }

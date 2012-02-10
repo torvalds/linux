@@ -69,9 +69,6 @@
    The RTL chips use a 64 element hash table based on the Ethernet CRC. */
 static const int multicast_filter_limit = 32;
 
-/* MAC address length */
-#define MAC_ADDR_LEN	6
-
 #define MAX_READ_REQUEST_SHIFT	12
 #define TX_DMA_BURST	6	/* Maximum PCI burst, '6' is 1024 */
 #define SafeMtu		0x1c20	/* ... actually life sucks beyond ~7k */
@@ -477,7 +474,6 @@ enum rtl_register_content {
 	/* Config1 register p.24 */
 	LEDS1		= (1 << 7),
 	LEDS0		= (1 << 6),
-	MSIEnable	= (1 << 5),	/* Enable Message Signaled Interrupt */
 	Speed_down	= (1 << 4),
 	MEMMAP		= (1 << 3),
 	IOMAP		= (1 << 2),
@@ -485,6 +481,7 @@ enum rtl_register_content {
 	PMEnable	= (1 << 0),	/* Power Management Enable */
 
 	/* Config2 register p. 25 */
+	MSIEnable	= (1 << 5),	/* 8169 only. Reserved in the 8168. */
 	PCI_Clock_66MHz = 0x01,
 	PCI_Clock_33MHz = 0x00,
 
@@ -1406,12 +1403,13 @@ static void rtl8169_get_drvinfo(struct net_device *dev,
 	struct rtl8169_private *tp = netdev_priv(dev);
 	struct rtl_fw *rtl_fw = tp->rtl_fw;
 
-	strcpy(info->driver, MODULENAME);
-	strcpy(info->version, RTL8169_VERSION);
-	strcpy(info->bus_info, pci_name(tp->pci_dev));
+	strlcpy(info->driver, MODULENAME, sizeof(info->driver));
+	strlcpy(info->version, RTL8169_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(tp->pci_dev), sizeof(info->bus_info));
 	BUILD_BUG_ON(sizeof(info->fw_version) < sizeof(rtl_fw->version));
-	strcpy(info->fw_version, IS_ERR_OR_NULL(rtl_fw) ? "N/A" :
-	       rtl_fw->version);
+	if (!IS_ERR_OR_NULL(rtl_fw))
+		strlcpy(info->fw_version, rtl_fw->version,
+			sizeof(info->fw_version));
 }
 
 static int rtl8169_get_regs_len(struct net_device *dev)
@@ -1555,7 +1553,8 @@ static int rtl8169_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	return ret;
 }
 
-static u32 rtl8169_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t rtl8169_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 
@@ -1569,7 +1568,8 @@ static u32 rtl8169_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static int rtl8169_set_features(struct net_device *dev, u32 features)
+static int rtl8169_set_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
@@ -3426,22 +3426,24 @@ static const struct rtl_cfg_info {
 };
 
 /* Cfg9346_Unlock assumed. */
-static unsigned rtl_try_msi(struct pci_dev *pdev, void __iomem *ioaddr,
+static unsigned rtl_try_msi(struct rtl8169_private *tp,
 			    const struct rtl_cfg_info *cfg)
 {
+	void __iomem *ioaddr = tp->mmio_addr;
 	unsigned msi = 0;
 	u8 cfg2;
 
 	cfg2 = RTL_R8(Config2) & ~MSIEnable;
 	if (cfg->features & RTL_FEATURE_MSI) {
-		if (pci_enable_msi(pdev)) {
-			dev_info(&pdev->dev, "no MSI. Back to INTx.\n");
+		if (pci_enable_msi(tp->pci_dev)) {
+			netif_info(tp, hw, tp->dev, "no MSI. Back to INTx.\n");
 		} else {
 			cfg2 |= MSIEnable;
 			msi = RTL_FEATURE_MSI;
 		}
 	}
-	RTL_W8(Config2, cfg2);
+	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
+		RTL_W8(Config2, cfg2);
 	return msi;
 }
 
@@ -4077,7 +4079,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		tp->features |= RTL_FEATURE_WOL;
 	if ((RTL_R8(Config5) & (UWF | BWF | MWF)) != 0)
 		tp->features |= RTL_FEATURE_WOL;
-	tp->features |= rtl_try_msi(pdev, ioaddr, cfg);
+	tp->features |= rtl_try_msi(tp, cfg);
 	RTL_W8(Cfg9346, Cfg9346_Lock);
 
 	if (rtl_tbi_enabled(tp)) {
@@ -4099,7 +4101,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	spin_lock_init(&tp->lock);
 
 	/* Get MAC address */
-	for (i = 0; i < MAC_ADDR_LEN; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		dev->dev_addr[i] = RTL_R8(MAC0 + i);
 	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 

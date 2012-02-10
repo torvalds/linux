@@ -358,16 +358,4 @@ static struct usb_driver prism2_usb_driver = {
 	/* fops, minor? */
 };
 
-static int __init prism2usb_init(void)
-{
-	/* This call will result in calls to prism2sta_probe_usb. */
-	return usb_register(&prism2_usb_driver);
-};
-
-static void __exit prism2usb_cleanup(void)
-{
-	usb_deregister(&prism2_usb_driver);
-};
-
-module_init(prism2usb_init);
-module_exit(prism2usb_cleanup);
+module_usb_driver(prism2_usb_driver);

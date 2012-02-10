@@ -267,17 +267,6 @@ static struct platform_driver dm355evm_keys_driver = {
 		.name	= "dm355evm_keys",
 	},
 };
-
-static int __init dm355evm_keys_init(void)
-{
-	return platform_driver_register(&dm355evm_keys_driver);
-}
-module_init(dm355evm_keys_init);
-
-static void __exit dm355evm_keys_exit(void)
-{
-	platform_driver_unregister(&dm355evm_keys_driver);
-}
-module_exit(dm355evm_keys_exit);
+module_platform_driver(dm355evm_keys_driver);
 
 MODULE_LICENSE("GPL");

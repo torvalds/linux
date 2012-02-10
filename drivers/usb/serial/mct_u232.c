@@ -19,50 +19,6 @@
  *   DTR/RTS signal handling may be incomplete or incorrect. I have mainly
  *   implemented what I have seen with SniffUSB or found in belkin_sa.c.
  *   For further TODOs check also belkin_sa.c.
- *
- * TEST STATUS:
- *   Basic tests have been performed with minicom/zmodem transfers and
- *   modem dialing under Linux 2.4.0-test10 (for me it works fine).
- *
- * 04-Nov-2003 Bill Marr <marr at flex dot com>
- *   - Mimic Windows driver by sending 2 USB 'device request' messages
- *     following normal 'baud rate change' message.  This allows data to be
- *     transmitted to RS-232 devices which don't assert the 'CTS' signal.
- *
- * 10-Nov-2001 Wolfgang Grandegger
- *   - Fixed an endianess problem with the baudrate selection for PowerPC.
- *
- * 06-Dec-2001 Martin Hamilton <martinh@gnu.org>
- *   - Added support for the Belkin F5U109 DB9 adaptor
- *
- * 30-May-2001 Greg Kroah-Hartman
- *   - switched from using spinlock to a semaphore, which fixes lots of
- *     problems.
- *
- * 04-May-2001 Stelian Pop
- *   - Set the maximum bulk output size for Sitecom U232-P25 model to 16 bytes
- *     instead of the device reported 32 (using 32 bytes causes many data
- *     loss, Windows driver uses 16 too).
- *
- * 02-May-2001 Stelian Pop
- *   - Fixed the baud calculation for Sitecom U232-P25 model
- *
- * 08-Apr-2001 gb
- *   - Identify version on module load.
- *
- * 06-Jan-2001 Cornel Ciocirlan
- *   - Added support for Sitecom U232-P25 model (Product Id 0x0230)
- *   - Added support for D-Link DU-H3SP USB BAY (Product Id 0x0200)
- *
- * 29-Nov-2000 Greg Kroah-Hartman
- *   - Added device id table to fit with 2.4.0-test11 structure.
- *   - took out DEAL_WITH_TWO_INT_IN_ENDPOINTS #define as it's not needed
- *     (lots of things will change if/when the usb-serial core changes to
- *     handle these issues.
- *
- * 27-Nov-2000 Wolfgang Grandegge
- *   A version for kernel 2.4.0-test10 released to the Linux community
- *   (via linux-usb-devel).
  */
 
 #include <linux/kernel.h>
@@ -89,7 +45,7 @@
 #define DRIVER_AUTHOR "Wolfgang Grandegger <wolfgang@ces.ch>"
 #define DRIVER_DESC "Magic Control Technology USB-RS232 converter driver"
 
-static int debug;
+static bool debug;
 
 /*
  * Function prototypes
@@ -526,7 +482,6 @@ static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port)
 	mct_u232_msr_to_state(&priv->control_state, priv->last_msr);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	port->read_urb->dev = port->serial->dev;
 	retval = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (retval) {
 		dev_err(&port->dev,
@@ -535,7 +490,6 @@ static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port)
 		goto error;
 	}
 
-	port->interrupt_in_urb->dev = port->serial->dev;
 	retval = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (retval) {
 		usb_kill_urb(port->read_urb);

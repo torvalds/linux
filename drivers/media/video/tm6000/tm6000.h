@@ -188,6 +188,9 @@ struct tm6000_core {
 	/* Device Capabilities*/
 	struct tm6000_capabilities	caps;
 
+	/* Used to load alsa/dvb */
+        struct work_struct		request_module_wk;
+
 	/* Tuner configuration */
 	int				tuner_type;		/* type of the tuner */
 	int				tuner_addr;		/* tuner address */

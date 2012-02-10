@@ -99,7 +99,7 @@ static int __init bcm63xx_pci_init(void)
 	unsigned int mem_size;
 	u32 val;
 
-	if (!BCMCPU_IS_6348() && !BCMCPU_IS_6358())
+	if (!BCMCPU_IS_6348() && !BCMCPU_IS_6358() && !BCMCPU_IS_6368())
 		return -ENODEV;
 
 	if (!bcm63xx_pci_enabled)
@@ -159,7 +159,7 @@ static int __init bcm63xx_pci_init(void)
 	/* setup PCI to local bus access, used by PCI device to target
 	 * local RAM while bus mastering */
 	bcm63xx_int_cfg_writel(0, PCI_BASE_ADDRESS_3);
-	if (BCMCPU_IS_6358())
+	if (BCMCPU_IS_6358() || BCMCPU_IS_6368())
 		val = MPI_SP0_REMAP_ENABLE_MASK;
 	else
 		val = 0;

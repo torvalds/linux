@@ -13,7 +13,7 @@ config DRM_EXYNOS
 
 config DRM_EXYNOS_FIMD
 	tristate "Exynos DRM FIMD"
-	depends on DRM_EXYNOS
+	depends on DRM_EXYNOS && !FB_S3C
 	default n
 	help
 	  Choose this option if you want to use Exynos FIMD for DRM.
@@ -21,7 +21,7 @@ config DRM_EXYNOS_FIMD
 
 config DRM_EXYNOS_HDMI
 	tristate "Exynos DRM HDMI"
-	depends on DRM_EXYNOS
+	depends on DRM_EXYNOS && !VIDEO_SAMSUNG_S5P_TV
 	help
 	  Choose this option if you want to use Exynos HDMI for DRM.
 	  If M is selected, the module will be called exynos_drm_hdmi

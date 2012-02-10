@@ -26,6 +26,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/if_arp.h>
+#include <linux/if_vlan.h>
 #include <linux/if_link.h>
 #include <linux/if_macvlan.h>
 #include <net/rtnetlink.h>
@@ -172,6 +173,7 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 		skb = ip_check_defrag(skb, IP_DEFRAG_MACVLAN);
 		if (!skb)
 			return RX_HANDLER_CONSUMED;
+		eth = eth_hdr(skb);
 		src = macvlan_hash_lookup(port, eth->h_source);
 		if (!src)
 			/* frame comes from an external address */
@@ -520,26 +522,23 @@ static struct rtnl_link_stats64 *macvlan_dev_get_stats64(struct net_device *dev,
 	return stats;
 }
 
-static void macvlan_vlan_rx_add_vid(struct net_device *dev,
+static int macvlan_vlan_rx_add_vid(struct net_device *dev,
 				    unsigned short vid)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *lowerdev = vlan->lowerdev;
-	const struct net_device_ops *ops = lowerdev->netdev_ops;
 
-	if (ops->ndo_vlan_rx_add_vid)
-		ops->ndo_vlan_rx_add_vid(lowerdev, vid);
+	return vlan_vid_add(lowerdev, vid);
 }
 
-static void macvlan_vlan_rx_kill_vid(struct net_device *dev,
+static int macvlan_vlan_rx_kill_vid(struct net_device *dev,
 				     unsigned short vid)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *lowerdev = vlan->lowerdev;
-	const struct net_device_ops *ops = lowerdev->netdev_ops;
 
-	if (ops->ndo_vlan_rx_kill_vid)
-		ops->ndo_vlan_rx_kill_vid(lowerdev, vid);
+	vlan_vid_del(lowerdev, vid);
+	return 0;
 }
 
 static void macvlan_ethtool_get_drvinfo(struct net_device *dev,

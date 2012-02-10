@@ -9,7 +9,10 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <stdlib.h>
+#ifndef __UCLIBC__
 #include <libio.h>
+#endif
 #include <dwarf-regs.h>
 
 

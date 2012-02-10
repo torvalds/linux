@@ -79,14 +79,16 @@ static int adis16350_spi_read_all(struct device *dev, u8 *rx)
 	struct spi_message msg;
 	int i, j = 0, ret;
 	struct spi_transfer *xfers;
+	int scan_count = bitmap_weight(indio_dev->active_scan_mask,
+				       indio_dev->masklength);
 
-	xfers = kzalloc(sizeof(*xfers)*indio_dev->buffer->scan_count + 1,
+	xfers = kzalloc(sizeof(*xfers)*(scan_count + 1),
 			GFP_KERNEL);
 	if (xfers == NULL)
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(read_all_tx_array); i++)
-		if (test_bit(i, indio_dev->buffer->scan_mask)) {
+		if (test_bit(i, indio_dev->active_scan_mask)) {
 			xfers[j].tx_buf = &read_all_tx_array[i];
 			xfers[j].bits_per_word = 16;
 			xfers[j].len = 2;
@@ -97,7 +99,7 @@ static int adis16350_spi_read_all(struct device *dev, u8 *rx)
 	xfers[j].len = 2;
 
 	spi_message_init(&msg);
-	for (j = 0; j < indio_dev->buffer->scan_count + 1; j++)
+	for (j = 0; j < scan_count + 1; j++)
 		spi_message_add_tail(&xfers[j], &msg);
 
 	ret = spi_sync(st->us, &msg);
@@ -119,26 +121,27 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 	s16 *data;
 	size_t datasize = ring->access->get_bytes_per_datum(ring);
 	/* Asumption that long is enough for maximum channels */
-	unsigned long mask = *ring->scan_mask;
-
+	unsigned long mask = *indio_dev->active_scan_mask;
+	int scan_count = bitmap_weight(indio_dev->active_scan_mask,
+				       indio_dev->masklength);
 	data = kmalloc(datasize , GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(&st->us->dev, "memory alloc failed in ring bh");
 		return -ENOMEM;
 	}
 
-	if (ring->scan_count) {
+	if (scan_count) {
 		if (st->variant->flags & ADIS16400_NO_BURST) {
 			ret = adis16350_spi_read_all(&indio_dev->dev, st->rx);
 			if (ret < 0)
 				goto err;
-			for (; i < ring->scan_count; i++)
+			for (; i < scan_count; i++)
 				data[i]	= *(s16 *)(st->rx + i*2);
 		} else {
 			ret = adis16400_spi_read_burst(&indio_dev->dev, st->rx);
 			if (ret < 0)
 				goto err;
-			for (; i < indio_dev->buffer->scan_count; i++) {
+			for (; i < scan_count; i++) {
 				j = __ffs(mask);
 				mask &= ~(1 << j);
 				data[i] = be16_to_cpup(
@@ -186,10 +189,8 @@ int adis16400_configure_ring(struct iio_dev *indio_dev)
 	indio_dev->buffer = ring;
 	/* Effectively select the ring buffer implementation */
 	ring->access = &ring_sw_access_funcs;
-	ring->bpe = 2;
 	ring->scan_timestamp = true;
-	ring->setup_ops = &adis16400_ring_setup_ops;
-	ring->owner = THIS_MODULE;
+	indio_dev->setup_ops = &adis16400_ring_setup_ops;
 
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
 						 &adis16400_trigger_handler,

@@ -25,35 +25,35 @@
 
 /**
  * as10x_cmd_turn_on - send turn on command to AS10x
- * @phandle:   pointer to AS10x handle
+ * @adap:   pointer to AS10x bus adapter
  *
  * Return 0 when no error, < 0 in case of error.
  */
-int as10x_cmd_turn_on(as10x_handle_t *phandle)
+int as10x_cmd_turn_on(struct as10x_bus_adapter_t *adap)
 {
 	int error;
 	struct as10x_cmd_t *pcmd, *prsp;
 
 	ENTER();
 
-	pcmd = phandle->cmd;
-	prsp = phandle->rsp;
+	pcmd = adap->cmd;
+	prsp = adap->rsp;
 
 	/* prepare command */
-	as10x_cmd_build(pcmd, (++phandle->cmd_xid),
+	as10x_cmd_build(pcmd, (++adap->cmd_xid),
 			sizeof(pcmd->body.turn_on.req));
 
 	/* fill command */
 	pcmd->body.turn_on.req.proc_id = cpu_to_le16(CONTROL_PROC_TURNON);
 
 	/* send command */
-	if (phandle->ops->xfer_cmd) {
-		error = phandle->ops->xfer_cmd(phandle, (uint8_t *) pcmd,
-					       sizeof(pcmd->body.turn_on.req) +
-					       HEADER_SIZE,
-					       (uint8_t *) prsp,
-					       sizeof(prsp->body.turn_on.rsp) +
-					       HEADER_SIZE);
+	if (adap->ops->xfer_cmd) {
+		error = adap->ops->xfer_cmd(adap, (uint8_t *) pcmd,
+					    sizeof(pcmd->body.turn_on.req) +
+					    HEADER_SIZE,
+					    (uint8_t *) prsp,
+					    sizeof(prsp->body.turn_on.rsp) +
+					    HEADER_SIZE);
 	} else {
 		error = AS10X_CMD_ERROR;
 	}
@@ -71,31 +71,31 @@ out:
 
 /**
  * as10x_cmd_turn_off - send turn off command to AS10x
- * @phandle:   pointer to AS10x handle
+ * @adap:   pointer to AS10x bus adapter
  *
  * Return 0 on success or negative value in case of error.
  */
-int as10x_cmd_turn_off(as10x_handle_t *phandle)
+int as10x_cmd_turn_off(struct as10x_bus_adapter_t *adap)
 {
 	int error;
 	struct as10x_cmd_t *pcmd, *prsp;
 
 	ENTER();
 
-	pcmd = phandle->cmd;
-	prsp = phandle->rsp;
+	pcmd = adap->cmd;
+	prsp = adap->rsp;
 
 	/* prepare command */
-	as10x_cmd_build(pcmd, (++phandle->cmd_xid),
+	as10x_cmd_build(pcmd, (++adap->cmd_xid),
 			sizeof(pcmd->body.turn_off.req));
 
 	/* fill command */
 	pcmd->body.turn_off.req.proc_id = cpu_to_le16(CONTROL_PROC_TURNOFF);
 
 	/* send command */
-	if (phandle->ops->xfer_cmd) {
-		error = phandle->ops->xfer_cmd(
-			phandle, (uint8_t *) pcmd,
+	if (adap->ops->xfer_cmd) {
+		error = adap->ops->xfer_cmd(
+			adap, (uint8_t *) pcmd,
 			sizeof(pcmd->body.turn_off.req) + HEADER_SIZE,
 			(uint8_t *) prsp,
 			sizeof(prsp->body.turn_off.rsp) + HEADER_SIZE);
@@ -116,23 +116,24 @@ out:
 
 /**
  * as10x_cmd_set_tune - send set tune command to AS10x
- * @phandle: pointer to AS10x handle
+ * @adap:    pointer to AS10x bus adapter
  * @ptune:   tune parameters
  *
  * Return 0 on success or negative value in case of error.
  */
-int as10x_cmd_set_tune(as10x_handle_t *phandle, struct as10x_tune_args *ptune)
+int as10x_cmd_set_tune(struct as10x_bus_adapter_t *adap,
+		       struct as10x_tune_args *ptune)
 {
 	int error;
 	struct as10x_cmd_t *preq, *prsp;
 
 	ENTER();
 
-	preq = phandle->cmd;
-	prsp = phandle->rsp;
+	preq = adap->cmd;
+	prsp = adap->rsp;
 
 	/* prepare command */
-	as10x_cmd_build(preq, (++phandle->cmd_xid),
+	as10x_cmd_build(preq, (++adap->cmd_xid),
 			sizeof(preq->body.set_tune.req));
 
 	/* fill command */
@@ -140,7 +141,7 @@ int as10x_cmd_set_tune(as10x_handle_t *phandle, struct as10x_tune_args *ptune)
 	preq->body.set_tune.req.args.freq = cpu_to_le32(ptune->freq);
 	preq->body.set_tune.req.args.bandwidth = ptune->bandwidth;
 	preq->body.set_tune.req.args.hier_select = ptune->hier_select;
-	preq->body.set_tune.req.args.constellation = ptune->constellation;
+	preq->body.set_tune.req.args.modulation = ptune->modulation;
 	preq->body.set_tune.req.args.hierarchy = ptune->hierarchy;
 	preq->body.set_tune.req.args.interleaving_mode  =
 		ptune->interleaving_mode;
@@ -150,14 +151,14 @@ int as10x_cmd_set_tune(as10x_handle_t *phandle, struct as10x_tune_args *ptune)
 		ptune->transmission_mode;
 
 	/* send command */
-	if (phandle->ops->xfer_cmd) {
-		error = phandle->ops->xfer_cmd(phandle,
-					       (uint8_t *) preq,
-					       sizeof(preq->body.set_tune.req)
-					       + HEADER_SIZE,
-					       (uint8_t *) prsp,
-					       sizeof(prsp->body.set_tune.rsp)
-					       + HEADER_SIZE);
+	if (adap->ops->xfer_cmd) {
+		error = adap->ops->xfer_cmd(adap,
+					    (uint8_t *) preq,
+					    sizeof(preq->body.set_tune.req)
+					    + HEADER_SIZE,
+					    (uint8_t *) prsp,
+					    sizeof(prsp->body.set_tune.rsp)
+					    + HEADER_SIZE);
 	} else {
 		error = AS10X_CMD_ERROR;
 	}
@@ -175,12 +176,12 @@ out:
 
 /**
  * as10x_cmd_get_tune_status - send get tune status command to AS10x
- * @phandle: pointer to AS10x handle
+ * @adap: pointer to AS10x bus adapter
  * @pstatus: pointer to updated status structure of the current tune
  *
  * Return 0 on success or negative value in case of error.
  */
-int as10x_cmd_get_tune_status(as10x_handle_t *phandle,
+int as10x_cmd_get_tune_status(struct as10x_bus_adapter_t *adap,
 			      struct as10x_tune_status *pstatus)
 {
 	int error;
@@ -188,11 +189,11 @@ int as10x_cmd_get_tune_status(as10x_handle_t *phandle,
 
 	ENTER();
 
-	preq = phandle->cmd;
-	prsp = phandle->rsp;
+	preq = adap->cmd;
+	prsp = adap->rsp;
 
 	/* prepare command */
-	as10x_cmd_build(preq, (++phandle->cmd_xid),
+	as10x_cmd_build(preq, (++adap->cmd_xid),
 			sizeof(preq->body.get_tune_status.req));
 
 	/* fill command */
@@ -200,9 +201,9 @@ int as10x_cmd_get_tune_status(as10x_handle_t *phandle,
 		cpu_to_le16(CONTROL_PROC_GETTUNESTAT);
 
 	/* send command */
-	if (phandle->ops->xfer_cmd) {
-		error = phandle->ops->xfer_cmd(
-			phandle,
+	if (adap->ops->xfer_cmd) {
+		error = adap->ops->xfer_cmd(
+			adap,
 			(uint8_t *) preq,
 			sizeof(preq->body.get_tune_status.req) + HEADER_SIZE,
 			(uint8_t *) prsp,
@@ -232,24 +233,24 @@ out:
 }
 
 /**
- * send get TPS command to AS10x
- * @phandle:   pointer to AS10x handle
+ * as10x_cmd_get_tps - send get TPS command to AS10x
+ * @adap:      pointer to AS10x handle
  * @ptps:      pointer to TPS parameters structure
  *
  * Return 0 on success or negative value in case of error.
  */
-int as10x_cmd_get_tps(as10x_handle_t *phandle, struct as10x_tps *ptps)
+int as10x_cmd_get_tps(struct as10x_bus_adapter_t *adap, struct as10x_tps *ptps)
 {
 	int error;
 	struct as10x_cmd_t *pcmd, *prsp;
 
 	ENTER();
 
-	pcmd = phandle->cmd;
-	prsp = phandle->rsp;
+	pcmd = adap->cmd;
+	prsp = adap->rsp;
 
 	/* prepare command */
-	as10x_cmd_build(pcmd, (++phandle->cmd_xid),
+	as10x_cmd_build(pcmd, (++adap->cmd_xid),
 			sizeof(pcmd->body.get_tps.req));
 
 	/* fill command */
@@ -257,14 +258,14 @@ int as10x_cmd_get_tps(as10x_handle_t *phandle, struct as10x_tps *ptps)
 		cpu_to_le16(CONTROL_PROC_GETTPS);
 
 	/* send command */
-	if (phandle->ops->xfer_cmd) {
-		error = phandle->ops->xfer_cmd(phandle,
-					       (uint8_t *) pcmd,
-					       sizeof(pcmd->body.get_tps.req) +
-					       HEADER_SIZE,
-					       (uint8_t *) prsp,
-					       sizeof(prsp->body.get_tps.rsp) +
-					       HEADER_SIZE);
+	if (adap->ops->xfer_cmd) {
+		error = adap->ops->xfer_cmd(adap,
+					    (uint8_t *) pcmd,
+					    sizeof(pcmd->body.get_tps.req) +
+					    HEADER_SIZE,
+					    (uint8_t *) prsp,
+					    sizeof(prsp->body.get_tps.rsp) +
+					    HEADER_SIZE);
 	} else {
 		error = AS10X_CMD_ERROR;
 	}
@@ -278,7 +279,7 @@ int as10x_cmd_get_tps(as10x_handle_t *phandle, struct as10x_tps *ptps)
 		goto out;
 
 	/* Response OK -> get response data */
-	ptps->constellation = prsp->body.get_tps.rsp.tps.constellation;
+	ptps->modulation = prsp->body.get_tps.rsp.tps.modulation;
 	ptps->hierarchy = prsp->body.get_tps.rsp.tps.hierarchy;
 	ptps->interleaving_mode = prsp->body.get_tps.rsp.tps.interleaving_mode;
 	ptps->code_rate_HP = prsp->body.get_tps.rsp.tps.code_rate_HP;
@@ -296,12 +297,12 @@ out:
 
 /**
  * as10x_cmd_get_demod_stats - send get demod stats command to AS10x
- * @phandle:       pointer to AS10x handle
+ * @adap:          pointer to AS10x bus adapter
  * @pdemod_stats:  pointer to demod stats parameters structure
  *
  * Return 0 on success or negative value in case of error.
  */
-int as10x_cmd_get_demod_stats(as10x_handle_t  *phandle,
+int as10x_cmd_get_demod_stats(struct as10x_bus_adapter_t *adap,
 			      struct as10x_demod_stats *pdemod_stats)
 {
 	int error;
@@ -309,11 +310,11 @@ int as10x_cmd_get_demod_stats(as10x_handle_t  *phandle,
 
 	ENTER();
 
-	pcmd = phandle->cmd;
-	prsp = phandle->rsp;
+	pcmd = adap->cmd;
+	prsp = adap->rsp;
 
 	/* prepare command */
-	as10x_cmd_build(pcmd, (++phandle->cmd_xid),
+	as10x_cmd_build(pcmd, (++adap->cmd_xid),
 			sizeof(pcmd->body.get_demod_stats.req));
 
 	/* fill command */
@@ -321,8 +322,8 @@ int as10x_cmd_get_demod_stats(as10x_handle_t  *phandle,
 		cpu_to_le16(CONTROL_PROC_GET_DEMOD_STATS);
 
 	/* send command */
-	if (phandle->ops->xfer_cmd) {
-		error = phandle->ops->xfer_cmd(phandle,
+	if (adap->ops->xfer_cmd) {
+		error = adap->ops->xfer_cmd(adap,
 				(uint8_t *) pcmd,
 				sizeof(pcmd->body.get_demod_stats.req)
 				+ HEADER_SIZE,
@@ -360,13 +361,13 @@ out:
 
 /**
  * as10x_cmd_get_impulse_resp - send get impulse response command to AS10x
- * @phandle:  pointer to AS10x handle
+ * @adap:     pointer to AS10x bus adapter
  * @is_ready: pointer to value indicating when impulse
  *	      response data is ready
  *
  * Return 0 on success or negative value in case of error.
  */
-int as10x_cmd_get_impulse_resp(as10x_handle_t     *phandle,
+int as10x_cmd_get_impulse_resp(struct as10x_bus_adapter_t *adap,
 			       uint8_t *is_ready)
 {
 	int error;
@@ -374,11 +375,11 @@ int as10x_cmd_get_impulse_resp(as10x_handle_t     *phandle,
 
 	ENTER();
 
-	pcmd = phandle->cmd;
-	prsp = phandle->rsp;
+	pcmd = adap->cmd;
+	prsp = adap->rsp;
 
 	/* prepare command */
-	as10x_cmd_build(pcmd, (++phandle->cmd_xid),
+	as10x_cmd_build(pcmd, (++adap->cmd_xid),
 			sizeof(pcmd->body.get_impulse_rsp.req));
 
 	/* fill command */
@@ -386,8 +387,8 @@ int as10x_cmd_get_impulse_resp(as10x_handle_t     *phandle,
 		cpu_to_le16(CONTROL_PROC_GET_IMPULSE_RESP);
 
 	/* send command */
-	if (phandle->ops->xfer_cmd) {
-		error = phandle->ops->xfer_cmd(phandle,
+	if (adap->ops->xfer_cmd) {
+		error = adap->ops->xfer_cmd(adap,
 					(uint8_t *) pcmd,
 					sizeof(pcmd->body.get_impulse_rsp.req)
 					+ HEADER_SIZE,

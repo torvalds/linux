@@ -137,7 +137,7 @@ static void xics_request_ipi(void)
 	 * IPIs are marked IRQF_PERCPU. The handler was set in map.
 	 */
 	BUG_ON(request_irq(ipi, icp_ops->ipi_action,
-			   IRQF_PERCPU, "IPI", NULL));
+			   IRQF_PERCPU | IRQF_NO_THREAD, "IPI", NULL));
 }
 
 int __init xics_smp_probe(void)

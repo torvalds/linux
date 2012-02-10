@@ -34,32 +34,30 @@
 #define NCI_MAX_NUM_CONN					10
 
 /* NCI Status Codes */
-#define	NCI_STATUS_OK						0x00
-#define	NCI_STATUS_REJECTED					0x01
-#define	NCI_STATUS_MESSAGE_CORRUPTED				0x02
-#define	NCI_STATUS_BUFFER_FULL					0x03
-#define	NCI_STATUS_FAILED					0x04
-#define	NCI_STATUS_NOT_INITIALIZED				0x05
-#define	NCI_STATUS_SYNTAX_ERROR					0x06
-#define	NCI_STATUS_SEMANTIC_ERROR				0x07
-#define	NCI_STATUS_UNKNOWN_GID					0x08
-#define	NCI_STATUS_UNKNOWN_OID					0x09
-#define	NCI_STATUS_INVALID_PARAM				0x0a
-#define	NCI_STATUS_MESSAGE_SIZE_EXCEEDED			0x0b
+#define NCI_STATUS_OK						0x00
+#define NCI_STATUS_REJECTED					0x01
+#define NCI_STATUS_RF_FRAME_CORRUPTED				0x02
+#define NCI_STATUS_FAILED					0x03
+#define NCI_STATUS_NOT_INITIALIZED				0x04
+#define NCI_STATUS_SYNTAX_ERROR					0x05
+#define NCI_STATUS_SEMANTIC_ERROR				0x06
+#define NCI_STATUS_UNKNOWN_GID					0x07
+#define NCI_STATUS_UNKNOWN_OID					0x08
+#define NCI_STATUS_INVALID_PARAM				0x09
+#define NCI_STATUS_MESSAGE_SIZE_EXCEEDED			0x0a
 /* Discovery Specific Status Codes */
-#define	NCI_STATUS_DISCOVERY_ALREADY_STARTED			0xa0
-#define	NCI_STATUS_DISCOVERY_TARGET_ACTIVATION_FAILED		0xa1
+#define NCI_STATUS_DISCOVERY_ALREADY_STARTED			0xa0
+#define NCI_STATUS_DISCOVERY_TARGET_ACTIVATION_FAILED		0xa1
+#define NCI_STATUS_DISCOVERY_TEAR_DOWN				0xa2
 /* RF Interface Specific Status Codes */
-#define	NCI_STATUS_RF_TRANSMISSION_ERROR			0xb0
-#define	NCI_STATUS_RF_PROTOCOL_ERROR				0xb1
-#define	NCI_STATUS_RF_TIMEOUT_ERROR				0xb2
-#define	NCI_STATUS_RF_LINK_LOSS_ERROR				0xb3
+#define NCI_STATUS_RF_TRANSMISSION_ERROR			0xb0
+#define NCI_STATUS_RF_PROTOCOL_ERROR				0xb1
+#define NCI_STATUS_RF_TIMEOUT_ERROR				0xb2
 /* NFCEE Interface Specific Status Codes */
-#define	NCI_STATUS_MAX_ACTIVE_NFCEE_INTERFACES_REACHED		0xc0
-#define	NCI_STATUS_NFCEE_INTERFACE_ACTIVATION_FAILED		0xc1
-#define	NCI_STATUS_NFCEE_TRANSMISSION_ERROR			0xc2
-#define	NCI_STATUS_NFCEE_PROTOCOL_ERROR				0xc3
-#define NCI_STATUS_NFCEE_TIMEOUT_ERROR				0xc4
+#define NCI_STATUS_NFCEE_INTERFACE_ACTIVATION_FAILED		0xc0
+#define NCI_STATUS_NFCEE_TRANSMISSION_ERROR			0xc1
+#define NCI_STATUS_NFCEE_PROTOCOL_ERROR				0xc2
+#define NCI_STATUS_NFCEE_TIMEOUT_ERROR				0xc3
 
 /* NCI RF Technology and Mode */
 #define NCI_NFC_A_PASSIVE_POLL_MODE				0x00
@@ -67,11 +65,28 @@
 #define NCI_NFC_F_PASSIVE_POLL_MODE				0x02
 #define NCI_NFC_A_ACTIVE_POLL_MODE				0x03
 #define NCI_NFC_F_ACTIVE_POLL_MODE				0x05
+#define NCI_NFC_15693_PASSIVE_POLL_MODE				0x06
 #define NCI_NFC_A_PASSIVE_LISTEN_MODE				0x80
 #define NCI_NFC_B_PASSIVE_LISTEN_MODE				0x81
 #define NCI_NFC_F_PASSIVE_LISTEN_MODE				0x82
 #define NCI_NFC_A_ACTIVE_LISTEN_MODE				0x83
 #define NCI_NFC_F_ACTIVE_LISTEN_MODE				0x85
+#define NCI_NFC_15693_PASSIVE_LISTEN_MODE			0x86
+
+/* NCI RF Technologies */
+#define NCI_NFC_RF_TECHNOLOGY_A					0x00
+#define NCI_NFC_RF_TECHNOLOGY_B					0x01
+#define NCI_NFC_RF_TECHNOLOGY_F					0x02
+#define NCI_NFC_RF_TECHNOLOGY_15693				0x03
+
+/* NCI Bit Rates */
+#define NCI_NFC_BIT_RATE_106					0x00
+#define NCI_NFC_BIT_RATE_212					0x01
+#define NCI_NFC_BIT_RATE_424					0x02
+#define NCI_NFC_BIT_RATE_848					0x03
+#define NCI_NFC_BIT_RATE_1695					0x04
+#define NCI_NFC_BIT_RATE_3390					0x05
+#define NCI_NFC_BIT_RATE_6780					0x06
 
 /* NCI RF Protocols */
 #define NCI_RF_PROTOCOL_UNKNOWN					0x00
@@ -82,37 +97,30 @@
 #define NCI_RF_PROTOCOL_NFC_DEP					0x05
 
 /* NCI RF Interfaces */
-#define NCI_RF_INTERFACE_RFU					0x00
-#define	NCI_RF_INTERFACE_FRAME					0x01
-#define	NCI_RF_INTERFACE_ISO_DEP				0x02
-#define	NCI_RF_INTERFACE_NFC_DEP				0x03
+#define NCI_RF_INTERFACE_NFCEE_DIRECT				0x00
+#define NCI_RF_INTERFACE_FRAME					0x01
+#define NCI_RF_INTERFACE_ISO_DEP				0x02
+#define NCI_RF_INTERFACE_NFC_DEP				0x03
+
+/* NCI Reset types */
+#define NCI_RESET_TYPE_KEEP_CONFIG				0x00
+#define NCI_RESET_TYPE_RESET_CONFIG				0x01
+
+/* NCI Static RF connection ID */
+#define NCI_STATIC_RF_CONN_ID					0x00
+
+/* NCI Data Flow Control */
+#define NCI_DATA_FLOW_CONTROL_NOT_USED				0xff
 
 /* NCI RF_DISCOVER_MAP_CMD modes */
 #define NCI_DISC_MAP_MODE_POLL					0x01
 #define NCI_DISC_MAP_MODE_LISTEN				0x02
-#define NCI_DISC_MAP_MODE_BOTH					0x03
-
-/* NCI Discovery Types */
-#define NCI_DISCOVERY_TYPE_POLL_A_PASSIVE			0x00
-#define	NCI_DISCOVERY_TYPE_POLL_B_PASSIVE			0x01
-#define	NCI_DISCOVERY_TYPE_POLL_F_PASSIVE			0x02
-#define	NCI_DISCOVERY_TYPE_POLL_A_ACTIVE			0x03
-#define	NCI_DISCOVERY_TYPE_POLL_F_ACTIVE			0x05
-#define	NCI_DISCOVERY_TYPE_WAKEUP_A_PASSIVE			0x06
-#define	NCI_DISCOVERY_TYPE_WAKEUP_B_PASSIVE			0x07
-#define	NCI_DISCOVERY_TYPE_WAKEUP_A_ACTIVE			0x09
-#define	NCI_DISCOVERY_TYPE_LISTEN_A_PASSIVE			0x80
-#define	NCI_DISCOVERY_TYPE_LISTEN_B_PASSIVE			0x81
-#define	NCI_DISCOVERY_TYPE_LISTEN_F_PASSIVE			0x82
-#define	NCI_DISCOVERY_TYPE_LISTEN_A_ACTIVE			0x83
-#define	NCI_DISCOVERY_TYPE_LISTEN_F_ACTIVE			0x85
 
 /* NCI Deactivation Type */
-#define	NCI_DEACTIVATE_TYPE_IDLE_MODE				0x00
-#define	NCI_DEACTIVATE_TYPE_SLEEP_MODE				0x01
-#define	NCI_DEACTIVATE_TYPE_SLEEP_AF_MODE			0x02
-#define	NCI_DEACTIVATE_TYPE_RF_LINK_LOSS			0x03
-#define	NCI_DEACTIVATE_TYPE_DISCOVERY_ERROR			0x04
+#define NCI_DEACTIVATE_TYPE_IDLE_MODE				0x00
+#define NCI_DEACTIVATE_TYPE_SLEEP_MODE				0x01
+#define NCI_DEACTIVATE_TYPE_SLEEP_AF_MODE			0x02
+#define NCI_DEACTIVATE_TYPE_DISCOVERY				0x03
 
 /* Message Type (MT) */
 #define NCI_MT_DATA_PKT						0x00
@@ -144,10 +152,10 @@
 #define nci_conn_id(hdr)		(__u8)(((hdr)[0])&0x0f)
 
 /* GID values */
-#define	NCI_GID_CORE						0x0
-#define	NCI_GID_RF_MGMT						0x1
-#define	NCI_GID_NFCEE_MGMT					0x2
-#define	NCI_GID_PROPRIETARY					0xf
+#define NCI_GID_CORE						0x0
+#define NCI_GID_RF_MGMT						0x1
+#define NCI_GID_NFCEE_MGMT					0x2
+#define NCI_GID_PROPRIETARY					0xf
 
 /* ---- NCI Packet structures ---- */
 #define NCI_CTRL_HDR_SIZE					3
@@ -169,24 +177,17 @@ struct nci_data_hdr {
 /* -----  NCI Commands ---- */
 /* ------------------------ */
 #define NCI_OP_CORE_RESET_CMD		nci_opcode_pack(NCI_GID_CORE, 0x00)
-
-#define NCI_OP_CORE_INIT_CMD		nci_opcode_pack(NCI_GID_CORE, 0x01)
-
-#define NCI_OP_CORE_SET_CONFIG_CMD	nci_opcode_pack(NCI_GID_CORE, 0x02)
-
-#define NCI_OP_CORE_CONN_CREATE_CMD	nci_opcode_pack(NCI_GID_CORE, 0x04)
-struct nci_core_conn_create_cmd {
-	__u8	target_handle;
-	__u8	num_target_specific_params;
+struct nci_core_reset_cmd {
+	__u8	reset_type;
 } __packed;
 
-#define NCI_OP_CORE_CONN_CLOSE_CMD	nci_opcode_pack(NCI_GID_CORE, 0x06)
+#define NCI_OP_CORE_INIT_CMD		nci_opcode_pack(NCI_GID_CORE, 0x01)
 
 #define NCI_OP_RF_DISCOVER_MAP_CMD	nci_opcode_pack(NCI_GID_RF_MGMT, 0x00)
 struct disc_map_config {
 	__u8	rf_protocol;
 	__u8	mode;
-	__u8	rf_interface_type;
+	__u8	rf_interface;
 } __packed;
 
 struct nci_rf_disc_map_cmd {
@@ -197,7 +198,7 @@ struct nci_rf_disc_map_cmd {
 
 #define NCI_OP_RF_DISCOVER_CMD		nci_opcode_pack(NCI_GID_RF_MGMT, 0x03)
 struct disc_config {
-	__u8	type;
+	__u8	rf_tech_and_mode;
 	__u8	frequency;
 } __packed;
 
@@ -218,6 +219,7 @@ struct nci_rf_deactivate_cmd {
 struct nci_core_reset_rsp {
 	__u8	status;
 	__u8	nci_ver;
+	__u8	config_status;
 } __packed;
 
 #define NCI_OP_CORE_INIT_RSP		nci_opcode_pack(NCI_GID_CORE, 0x01)
@@ -232,23 +234,11 @@ struct nci_core_init_rsp_1 {
 struct nci_core_init_rsp_2 {
 	__u8	max_logical_connections;
 	__le16	max_routing_table_size;
-	__u8	max_control_packet_payload_length;
-	__le16	rf_sending_buffer_size;
-	__le16	rf_receiving_buffer_size;
-	__le16	manufacturer_id;
+	__u8	max_ctrl_pkt_payload_len;
+	__le16	max_size_for_large_params;
+	__u8	manufact_id;
+	__le32	manufact_specific_info;
 } __packed;
-
-#define NCI_OP_CORE_SET_CONFIG_RSP	nci_opcode_pack(NCI_GID_CORE, 0x02)
-
-#define NCI_OP_CORE_CONN_CREATE_RSP	nci_opcode_pack(NCI_GID_CORE, 0x04)
-struct nci_core_conn_create_rsp {
-	__u8	status;
-	__u8	max_pkt_payload_size;
-	__u8	initial_num_credits;
-	__u8	conn_id;
-} __packed;
-
-#define NCI_OP_CORE_CONN_CLOSE_RSP	nci_opcode_pack(NCI_GID_CORE, 0x06)
 
 #define NCI_OP_RF_DISCOVER_MAP_RSP	nci_opcode_pack(NCI_GID_RF_MGMT, 0x00)
 
@@ -259,7 +249,7 @@ struct nci_core_conn_create_rsp {
 /* --------------------------- */
 /* ---- NCI Notifications ---- */
 /* --------------------------- */
-#define NCI_OP_CORE_CONN_CREDITS_NTF	nci_opcode_pack(NCI_GID_CORE, 0x07)
+#define NCI_OP_CORE_CONN_CREDITS_NTF	nci_opcode_pack(NCI_GID_CORE, 0x06)
 struct conn_credit_entry {
 	__u8	conn_id;
 	__u8	credits;
@@ -270,12 +260,13 @@ struct nci_core_conn_credit_ntf {
 	struct conn_credit_entry	conn_entries[NCI_MAX_NUM_CONN];
 } __packed;
 
-#define NCI_OP_RF_FIELD_INFO_NTF	nci_opcode_pack(NCI_GID_CORE, 0x08)
-struct nci_rf_field_info_ntf {
-	__u8	rf_field_status;
+#define NCI_OP_CORE_INTF_ERROR_NTF	nci_opcode_pack(NCI_GID_CORE, 0x08)
+struct nci_core_intf_error_ntf {
+	__u8	status;
+	__u8	conn_id;
 } __packed;
 
-#define NCI_OP_RF_ACTIVATE_NTF		nci_opcode_pack(NCI_GID_RF_MGMT, 0x05)
+#define NCI_OP_RF_INTF_ACTIVATED_NTF	nci_opcode_pack(NCI_GID_RF_MGMT, 0x05)
 struct rf_tech_specific_params_nfca_poll {
 	__u16	sens_res;
 	__u8	nfcid1_len;	/* 0, 4, 7, or 10 Bytes */
@@ -289,17 +280,22 @@ struct activation_params_nfca_poll_iso_dep {
 	__u8	rats_res[20];
 };
 
-struct nci_rf_activate_ntf {
-	__u8	target_handle;
+struct nci_rf_intf_activated_ntf {
+	__u8	rf_discovery_id;
+	__u8	rf_interface;
 	__u8	rf_protocol;
-	__u8	rf_tech_and_mode;
+	__u8	activation_rf_tech_and_mode;
+	__u8	max_data_pkt_payload_size;
+	__u8	initial_num_credits;
 	__u8	rf_tech_specific_params_len;
 
 	union {
 		struct rf_tech_specific_params_nfca_poll nfca_poll;
 	} rf_tech_specific_params;
 
-	__u8	rf_interface_type;
+	__u8	data_exch_rf_tech_and_mode;
+	__u8	data_exch_tx_bit_rate;
+	__u8	data_exch_rx_bit_rate;
 	__u8	activation_params_len;
 
 	union {
@@ -309,5 +305,9 @@ struct nci_rf_activate_ntf {
 } __packed;
 
 #define NCI_OP_RF_DEACTIVATE_NTF	nci_opcode_pack(NCI_GID_RF_MGMT, 0x06)
+struct nci_rf_deactivate_ntf {
+	__u8	type;
+	__u8	reason;
+} __packed;
 
 #endif /* __NCI_H */

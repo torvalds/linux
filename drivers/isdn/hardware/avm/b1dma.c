@@ -40,7 +40,7 @@ MODULE_DESCRIPTION("CAPI4Linux: DMA support for active AVM cards");
 MODULE_AUTHOR("Carsten Paeth");
 MODULE_LICENSE("GPL");
 
-static int suppress_pollack = 0;
+static bool suppress_pollack = 0;
 module_param(suppress_pollack, bool, 0);
 
 /* ------------------------------------------------------------- */

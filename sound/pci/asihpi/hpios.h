@@ -1,7 +1,7 @@
 /******************************************************************************
 
     AudioScience HPI driver
-    Copyright (C) 1997-2010  AudioScience Inc. <support@audioscience.com>
+    Copyright (C) 1997-2011  AudioScience Inc. <support@audioscience.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of version 2 of the GNU General Public License as
@@ -149,20 +149,18 @@ static inline void cond_unlock(struct hpios_spinlock *l)
 #define hpios_alistlock_lock(obj) spin_lock(&((obj)->list_lock.lock))
 #define hpios_alistlock_unlock(obj) spin_unlock(&((obj)->list_lock.lock))
 
+struct snd_card;
+
+/** pci drvdata points to an instance of this struct */
 struct hpi_adapter {
+	struct hpi_adapter_obj *adapter;
+	struct snd_card *snd_card;
+
 	/* mutex prevents contention for one card
 	   between multiple user programs (via ioctl) */
 	struct mutex mutex;
-	u16 index;
-	u16 type;
-
-	/* ALSA card structure */
-	void *snd_card_asihpi;
-
 	char *p_buffer;
 	size_t buffer_size;
-	struct pci_dev *pci;
-	void __iomem *ap_remapped_mem_base[HPI_MAX_ADAPTER_MEM_SPACES];
 };
 
 #endif

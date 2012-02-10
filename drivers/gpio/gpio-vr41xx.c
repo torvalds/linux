@@ -571,15 +571,4 @@ static struct platform_driver giu_device_driver = {
 	},
 };
 
-static int __init vr41xx_giu_init(void)
-{
-	return platform_driver_register(&giu_device_driver);
-}
-
-static void __exit vr41xx_giu_exit(void)
-{
-	platform_driver_unregister(&giu_device_driver);
-}
-
-module_init(vr41xx_giu_init);
-module_exit(vr41xx_giu_exit);
+module_platform_driver(giu_device_driver);

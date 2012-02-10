@@ -99,6 +99,12 @@ config BLK_DEV_THROTTLING
 
 	See Documentation/cgroups/blkio-controller.txt for more information.
 
+menu "Partition Types"
+
+source "block/partitions/Kconfig"
+
+endmenu
+
 endif # BLOCK
 
 config BLOCK_COMPAT

@@ -649,7 +649,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 		len = roundup(len, 4);
 		ampdu_len += (len + (ndelim + 1) * AMPDU_DELIMITER_LEN);
 
-		dma_len += (u16) brcmu_pkttotlen(p);
+		dma_len += (u16) p->len;
 
 		BCMMSG(wlc->wiphy, "wl%d: ampdu_len %d"
 			" seg_cnt %d null delim %d\n",
@@ -741,9 +741,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 		if (p) {
 			if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) &&
 			    ((u8) (p->priority) == tid)) {
-
-				plen = brcmu_pkttotlen(p) +
-				       AMPDU_MAX_MPDU_OVERHEAD;
+				plen = p->len + AMPDU_MAX_MPDU_OVERHEAD;
 				plen = max(scb_ampdu->min_len, plen);
 
 				if ((plen + ampdu_len) > max_ampdu_bytes) {
@@ -1120,14 +1118,17 @@ brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 		u8 status_delay = 0;
 
 		/* wait till the next 8 bytes of txstatus is available */
-		while (((s1 = R_REG(&wlc->regs->frmtxstatus)) & TXS_V) == 0) {
+		s1 = bcma_read32(wlc->hw->d11core, D11REGOFFS(frmtxstatus));
+		while ((s1 & TXS_V) == 0) {
 			udelay(1);
 			status_delay++;
 			if (status_delay > 10)
 				return; /* error condition */
+			s1 = bcma_read32(wlc->hw->d11core,
+					 D11REGOFFS(frmtxstatus));
 		}
 
-		s2 = R_REG(&wlc->regs->frmtxstatus2);
+		s2 = bcma_read32(wlc->hw->d11core, D11REGOFFS(frmtxstatus2));
 	}
 
 	if (scb) {

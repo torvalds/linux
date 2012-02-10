@@ -873,7 +873,7 @@ static int spacc_aes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	 * request for any other size (192 bits) then we need to do a software
 	 * fallback.
 	 */
-	if ((len != AES_KEYSIZE_128 || len != AES_KEYSIZE_256) &&
+	if (len != AES_KEYSIZE_128 && len != AES_KEYSIZE_256 &&
 	    ctx->sw_cipher) {
 		/*
 		 * Set the fallback transform to use the same request flags as
@@ -886,7 +886,7 @@ static int spacc_aes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 		err = crypto_ablkcipher_setkey(ctx->sw_cipher, key, len);
 		if (err)
 			goto sw_setkey_failed;
-	} else if ((len != AES_KEYSIZE_128 || len != AES_KEYSIZE_256) &&
+	} else if (len != AES_KEYSIZE_128 && len != AES_KEYSIZE_256 &&
 		   !ctx->sw_cipher)
 		err = -EINVAL;
 
@@ -1854,17 +1854,7 @@ static struct platform_driver spacc_driver = {
 	.id_table	= spacc_id_table,
 };
 
-static int __init spacc_init(void)
-{
-	return platform_driver_register(&spacc_driver);
-}
-module_init(spacc_init);
-
-static void __exit spacc_exit(void)
-{
-	platform_driver_unregister(&spacc_driver);
-}
-module_exit(spacc_exit);
+module_platform_driver(spacc_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jamie Iles");

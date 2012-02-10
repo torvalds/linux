@@ -18,6 +18,7 @@
 #include "ctree.h"
 #include "btrfs_inode.h"
 #include "volumes.h"
+#include "check-integrity.h"
 
 static struct kmem_cache *extent_state_cache;
 static struct kmem_cache *extent_buffer_cache;
@@ -1895,7 +1896,7 @@ int repair_io_failure(struct btrfs_mapping_tree *map_tree, u64 start,
 	}
 	bio->bi_bdev = dev->bdev;
 	bio_add_page(bio, page, length, start-page_offset(page));
-	submit_bio(WRITE_SYNC, bio);
+	btrfsic_submit_bio(WRITE_SYNC, bio);
 	wait_for_completion(&compl);
 
 	if (!test_bit(BIO_UPTODATE, &bio->bi_flags)) {
@@ -2393,7 +2394,7 @@ static int submit_one_bio(int rw, struct bio *bio, int mirror_num,
 		ret = tree->ops->submit_bio_hook(page->mapping->host, rw, bio,
 					   mirror_num, bio_flags, start);
 	else
-		submit_bio(rw, bio);
+		btrfsic_submit_bio(rw, bio);
 
 	if (bio_flagged(bio, BIO_EOPNOTSUPP))
 		ret = -EOPNOTSUPP;
@@ -3579,6 +3580,7 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 	atomic_set(&eb->blocking_writers, 0);
 	atomic_set(&eb->spinning_readers, 0);
 	atomic_set(&eb->spinning_writers, 0);
+	eb->lock_nested = 0;
 	init_waitqueue_head(&eb->write_lock_wq);
 	init_waitqueue_head(&eb->read_lock_wq);
 
@@ -3907,6 +3909,8 @@ int extent_range_uptodate(struct extent_io_tree *tree,
 	while (start <= end) {
 		index = start >> PAGE_CACHE_SHIFT;
 		page = find_get_page(tree->mapping, index);
+		if (!page)
+			return 1;
 		uptodate = PageUptodate(page);
 		page_cache_release(page);
 		if (!uptodate) {

@@ -18,7 +18,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include <plat/common.h>
+#include "common.h"
 
 #include "cm.h"
 #include "cm1_44xx.h"

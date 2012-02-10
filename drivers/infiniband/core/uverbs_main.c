@@ -846,7 +846,7 @@ static void ib_uverbs_remove_one(struct ib_device *device)
 	kfree(uverbs_dev);
 }
 
-static char *uverbs_devnode(struct device *dev, mode_t *mode)
+static char *uverbs_devnode(struct device *dev, umode_t *mode)
 {
 	if (mode)
 		*mode = 0666;

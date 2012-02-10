@@ -26,8 +26,8 @@
  *
  *****************************************************************************/
 
-#ifndef __iwl_legacy_spectrum_h__
-#define __iwl_legacy_spectrum_h__
+#ifndef __il_spectrum_h__
+#define __il_spectrum_h__
 enum {				/* ieee80211_basic_report.map */
 	IEEE80211_BASIC_MAP_BSS = (1 << 0),
 	IEEE80211_BASIC_MAP_OFDM = (1 << 1),

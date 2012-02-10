@@ -85,6 +85,7 @@
 
 /* KCQ (kernel completion queue) completion status */
 #define L4_KCQE_COMPLETION_STATUS_SUCCESS           (0)
+#define L4_KCQE_COMPLETION_STATUS_NIC_ERROR         (4)
 #define L4_KCQE_COMPLETION_STATUS_TIMEOUT           (0x93)
 
 #define L4_KCQE_COMPLETION_STATUS_CTX_ALLOC_FAIL    (0x83)

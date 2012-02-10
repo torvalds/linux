@@ -127,6 +127,7 @@ static struct snd_soc_dai_link jive_dai = {
 /* jive audio machine driver */
 static struct snd_soc_card snd_soc_machine_jive = {
 	.name		= "Jive",
+	.owner		= THIS_MODULE,
 	.dai_link	= &jive_dai,
 	.num_links	= 1,
 

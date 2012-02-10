@@ -524,17 +524,7 @@ static struct platform_driver bgpio_driver = {
 	.remove = __devexit_p(bgpio_pdev_remove),
 };
 
-static int __init bgpio_platform_init(void)
-{
-	return platform_driver_register(&bgpio_driver);
-}
-module_init(bgpio_platform_init);
-
-static void __exit bgpio_platform_exit(void)
-{
-	platform_driver_unregister(&bgpio_driver);
-}
-module_exit(bgpio_platform_exit);
+module_platform_driver(bgpio_driver);
 
 #endif /* CONFIG_GPIO_GENERIC_PLATFORM */
 

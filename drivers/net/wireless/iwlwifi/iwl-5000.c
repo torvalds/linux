@@ -134,10 +134,10 @@ static struct iwl_sensitivity_ranges iwl5150_sensitivity = {
 
 #define IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF	(-5)
 
-static s32 iwl_temp_calib_to_offset(struct iwl_priv *priv)
+static s32 iwl_temp_calib_to_offset(struct iwl_shared *shrd)
 {
 	u16 temperature, voltage;
-	__le16 *temp_calib = (__le16 *)iwl_eeprom_query_addr(priv,
+	__le16 *temp_calib = (__le16 *)iwl_eeprom_query_addr(shrd,
 				EEPROM_KELVIN_TEMPERATURE);
 
 	temperature = le16_to_cpu(temp_calib[0]);
@@ -151,7 +151,7 @@ static void iwl5150_set_ct_threshold(struct iwl_priv *priv)
 {
 	const s32 volt2temp_coef = IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF;
 	s32 threshold = (s32)CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD_LEGACY) -
-			iwl_temp_calib_to_offset(priv);
+			iwl_temp_calib_to_offset(priv->shrd);
 
 	hw_params(priv).ct_kill_threshold = threshold * volt2temp_coef;
 }
@@ -166,10 +166,10 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
-		priv->cfg->base_params->num_of_queues =
+		cfg(priv)->base_params->num_of_queues =
 			iwlagn_mod_params.num_of_queues;
 
-	hw_params(priv).max_txq_num = priv->cfg->base_params->num_of_queues;
+	hw_params(priv).max_txq_num = cfg(priv)->base_params->num_of_queues;
 	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
 
 	hw_params(priv).max_data_size = IWLAGN_RTC_DATA_SIZE;
@@ -178,22 +178,15 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
 
-	hw_params(priv).tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
-	hw_params(priv).rx_chains_num = num_of_ant(priv->cfg->valid_rx_ant);
-	hw_params(priv).valid_tx_ant = priv->cfg->valid_tx_ant;
-	hw_params(priv).valid_rx_ant = priv->cfg->valid_rx_ant;
+	hw_params(priv).tx_chains_num = num_of_ant(cfg(priv)->valid_tx_ant);
+	hw_params(priv).rx_chains_num = num_of_ant(cfg(priv)->valid_rx_ant);
+	hw_params(priv).valid_tx_ant = cfg(priv)->valid_tx_ant;
+	hw_params(priv).valid_rx_ant = cfg(priv)->valid_rx_ant;
 
 	iwl5000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
-	/* Set initial calibration set */
 	hw_params(priv).sens = &iwl5000_sensitivity;
-	hw_params(priv).calib_init_cfg =
-		BIT(IWL_CALIB_XTAL)		|
-		BIT(IWL_CALIB_LO)		|
-		BIT(IWL_CALIB_TX_IQ)		|
-		BIT(IWL_CALIB_TX_IQ_PERD)	|
-		BIT(IWL_CALIB_BASE_BAND);
 
 	return 0;
 }
@@ -202,10 +195,10 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
-		priv->cfg->base_params->num_of_queues =
+		cfg(priv)->base_params->num_of_queues =
 			iwlagn_mod_params.num_of_queues;
 
-	hw_params(priv).max_txq_num = priv->cfg->base_params->num_of_queues;
+	hw_params(priv).max_txq_num = cfg(priv)->base_params->num_of_queues;
 	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
 
 	hw_params(priv).max_data_size = IWLAGN_RTC_DATA_SIZE;
@@ -214,22 +207,15 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
 
-	hw_params(priv).tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
-	hw_params(priv).rx_chains_num = num_of_ant(priv->cfg->valid_rx_ant);
-	hw_params(priv).valid_tx_ant = priv->cfg->valid_tx_ant;
-	hw_params(priv).valid_rx_ant = priv->cfg->valid_rx_ant;
+	hw_params(priv).tx_chains_num = num_of_ant(cfg(priv)->valid_tx_ant);
+	hw_params(priv).rx_chains_num = num_of_ant(cfg(priv)->valid_rx_ant);
+	hw_params(priv).valid_tx_ant = cfg(priv)->valid_tx_ant;
+	hw_params(priv).valid_rx_ant = cfg(priv)->valid_rx_ant;
 
 	iwl5150_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
-	/* Set initial calibration set */
 	hw_params(priv).sens = &iwl5150_sensitivity;
-	hw_params(priv).calib_init_cfg =
-		BIT(IWL_CALIB_LO)		|
-		BIT(IWL_CALIB_TX_IQ)		|
-		BIT(IWL_CALIB_BASE_BAND);
-	if (priv->cfg->need_dc_calib)
-		hw_params(priv).calib_init_cfg |= BIT(IWL_CALIB_DC);
 
 	return 0;
 }
@@ -237,7 +223,7 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 static void iwl5150_temperature(struct iwl_priv *priv)
 {
 	u32 vt = 0;
-	s32 offset =  iwl_temp_calib_to_offset(priv);
+	s32 offset =  iwl_temp_calib_to_offset(priv->shrd);
 
 	vt = le32_to_cpu(priv->statistics.common.temperature);
 	vt = vt / IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF + offset;
@@ -434,7 +420,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,	\
 	.lib = &iwl5150_lib,					\
 	.base_params = &iwl5000_base_params,			\
-	.need_dc_calib = true,					\
+	.no_xtal_calib = true,					\
 	.led_mode = IWL_LED_BLINK,				\
 	.internal_wimax_coex = true
 

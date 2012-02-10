@@ -542,4 +542,5 @@ MACHINE_START(MX31ADS, "Freescale MX31ADS")
 	.handle_irq = imx31_handle_irq,
 	.timer = &mx31ads_timer,
 	.init_machine = mx31ads_init,
+	.restart	= mxc_restart,
 MACHINE_END

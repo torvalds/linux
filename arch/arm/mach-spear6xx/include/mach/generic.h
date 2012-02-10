@@ -41,6 +41,8 @@ void __init spear6xx_init(void);
 void __init spear600_init(void);
 void __init spear6xx_clk_init(void);
 
+void spear_restart(char, const char *);
+
 /* Add spear600 machine device structure declarations here */
 
 #endif /* __MACH_GENERIC_H */

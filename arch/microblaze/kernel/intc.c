@@ -42,8 +42,9 @@ unsigned int nr_irq;
 
 static void intc_enable_or_unmask(struct irq_data *d)
 {
-	unsigned long mask = 1 << d->irq;
-	pr_debug("enable_or_unmask: %d\n", d->irq);
+	unsigned long mask = 1 << d->hwirq;
+
+	pr_debug("enable_or_unmask: %ld\n", d->hwirq);
 	out_be32(INTC_BASE + SIE, mask);
 
 	/* ack level irqs because they can't be acked during
@@ -56,20 +57,21 @@ static void intc_enable_or_unmask(struct irq_data *d)
 
 static void intc_disable_or_mask(struct irq_data *d)
 {
-	pr_debug("disable: %d\n", d->irq);
-	out_be32(INTC_BASE + CIE, 1 << d->irq);
+	pr_debug("disable: %ld\n", d->hwirq);
+	out_be32(INTC_BASE + CIE, 1 << d->hwirq);
 }
 
 static void intc_ack(struct irq_data *d)
 {
-	pr_debug("ack: %d\n", d->irq);
-	out_be32(INTC_BASE + IAR, 1 << d->irq);
+	pr_debug("ack: %ld\n", d->hwirq);
+	out_be32(INTC_BASE + IAR, 1 << d->hwirq);
 }
 
 static void intc_mask_ack(struct irq_data *d)
 {
-	unsigned long mask = 1 << d->irq;
-	pr_debug("disable_and_ack: %d\n", d->irq);
+	unsigned long mask = 1 << d->hwirq;
+
+	pr_debug("disable_and_ack: %ld\n", d->hwirq);
 	out_be32(INTC_BASE + CIE, mask);
 	out_be32(INTC_BASE + IAR, mask);
 }
@@ -91,7 +93,7 @@ unsigned int get_irq(struct pt_regs *regs)
 	 * order to handle multiple interrupt controllers. It currently
 	 * is hardcoded to check for interrupts only on the first INTC.
 	 */
-	irq = in_be32(INTC_BASE + IVR);
+	irq = in_be32(INTC_BASE + IVR) + NO_IRQ_OFFSET;
 	pr_debug("get_irq: %d\n", irq);
 
 	return irq;
@@ -99,7 +101,7 @@ unsigned int get_irq(struct pt_regs *regs)
 
 void __init init_IRQ(void)
 {
-	u32 i, j, intr_type;
+	u32 i, intr_mask;
 	struct device_node *intc = NULL;
 #ifdef CONFIG_SELFMOD_INTC
 	unsigned int intc_baseaddr = 0;
@@ -113,35 +115,24 @@ void __init init_IRQ(void)
 				0
 			};
 #endif
-	const char * const intc_list[] = {
-				"xlnx,xps-intc-1.00.a",
-				NULL
-			};
-
-	for (j = 0; intc_list[j] != NULL; j++) {
-		intc = of_find_compatible_node(NULL, NULL, intc_list[j]);
-		if (intc)
-			break;
-	}
+	intc = of_find_compatible_node(NULL, NULL, "xlnx,xps-intc-1.00.a");
 	BUG_ON(!intc);
 
-	intc_baseaddr = be32_to_cpup(of_get_property(intc,
-								"reg", NULL));
+	intc_baseaddr = be32_to_cpup(of_get_property(intc, "reg", NULL));
 	intc_baseaddr = (unsigned long) ioremap(intc_baseaddr, PAGE_SIZE);
 	nr_irq = be32_to_cpup(of_get_property(intc,
 						"xlnx,num-intr-inputs", NULL));
 
-	intr_type =
-		be32_to_cpup(of_get_property(intc,
-						"xlnx,kind-of-intr", NULL));
-	if (intr_type > (u32)((1ULL << nr_irq) - 1))
+	intr_mask =
+		be32_to_cpup(of_get_property(intc, "xlnx,kind-of-intr", NULL));
+	if (intr_mask > (u32)((1ULL << nr_irq) - 1))
 		printk(KERN_INFO " ERROR: Mismatch in kind-of-intr param\n");
 
 #ifdef CONFIG_SELFMOD_INTC
 	selfmod_function((int *) arr_func, intc_baseaddr);
 #endif
-	printk(KERN_INFO "%s #0 at 0x%08x, num_irq=%d, edge=0x%x\n",
-		intc_list[j], intc_baseaddr, nr_irq, intr_type);
+	printk(KERN_INFO "XPS intc #0 at 0x%08x, num_irq=%d, edge=0x%x\n",
+		intc_baseaddr, nr_irq, intr_mask);
 
 	/*
 	 * Disable all external interrupts until they are
@@ -155,8 +146,8 @@ void __init init_IRQ(void)
 	/* Turn on the Master Enable. */
 	out_be32(intc_baseaddr + MER, MER_HIE | MER_ME);
 
-	for (i = 0; i < nr_irq; ++i) {
-		if (intr_type & (0x00000001 << i)) {
+	for (i = IRQ_OFFSET; i < (nr_irq + IRQ_OFFSET); ++i) {
+		if (intr_mask & (0x00000001 << (i - IRQ_OFFSET))) {
 			irq_set_chip_and_handler_name(i, &intc_dev,
 				handle_edge_irq, "edge");
 			irq_clear_status_flags(i, IRQ_LEVEL);
@@ -165,5 +156,6 @@ void __init init_IRQ(void)
 				handle_level_irq, "level");
 			irq_set_status_flags(i, IRQ_LEVEL);
 		}
+		irq_get_irq_data(i)->hwirq = i - IRQ_OFFSET;
 	}
 }

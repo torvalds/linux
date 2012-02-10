@@ -1369,13 +1369,13 @@ static void sh_eth_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 	}
 }
 
-static struct ethtool_ops sh_eth_ethtool_ops = {
+static const struct ethtool_ops sh_eth_ethtool_ops = {
 	.get_settings	= sh_eth_get_settings,
 	.set_settings	= sh_eth_set_settings,
-	.nway_reset		= sh_eth_nway_reset,
+	.nway_reset	= sh_eth_nway_reset,
 	.get_msglevel	= sh_eth_get_msglevel,
 	.set_msglevel	= sh_eth_set_msglevel,
-	.get_link		= ethtool_op_get_link,
+	.get_link	= ethtool_op_get_link,
 	.get_strings	= sh_eth_get_strings,
 	.get_ethtool_stats  = sh_eth_get_ethtool_stats,
 	.get_sset_count     = sh_eth_get_sset_count,
@@ -1702,7 +1702,8 @@ static int sh_mdio_init(struct net_device *ndev, int id,
 	/* Hook up MII support for ethtool */
 	mdp->mii_bus->name = "sh_mii";
 	mdp->mii_bus->parent = &ndev->dev;
-	snprintf(mdp->mii_bus->id, MII_BUS_ID_SIZE, "%x", id);
+	snprintf(mdp->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
+		mdp->pdev->name, id);
 
 	/* PHY IRQ */
 	mdp->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
@@ -1957,18 +1958,7 @@ static struct platform_driver sh_eth_driver = {
 	},
 };
 
-static int __init sh_eth_init(void)
-{
-	return platform_driver_register(&sh_eth_driver);
-}
-
-static void __exit sh_eth_cleanup(void)
-{
-	platform_driver_unregister(&sh_eth_driver);
-}
-
-module_init(sh_eth_init);
-module_exit(sh_eth_cleanup);
+module_platform_driver(sh_eth_driver);
 
 MODULE_AUTHOR("Nobuhiro Iwamatsu, Yoshihiro Shimoda");
 MODULE_DESCRIPTION("Renesas SuperH Ethernet driver");

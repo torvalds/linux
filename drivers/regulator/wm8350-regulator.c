@@ -1428,7 +1428,7 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 	/* register regulator */
 	rdev = regulator_register(&wm8350_reg[pdev->id], &pdev->dev,
 				  pdev->dev.platform_data,
-				  dev_get_drvdata(&pdev->dev));
+				  dev_get_drvdata(&pdev->dev), NULL);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register %s\n",
 			wm8350_reg[pdev->id].name);

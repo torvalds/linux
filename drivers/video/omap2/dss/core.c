@@ -50,7 +50,7 @@ module_param_named(def_disp, def_disp_name, charp, 0);
 MODULE_PARM_DESC(def_disp, "default display name");
 
 #ifdef DEBUG
-unsigned int dss_debug;
+bool dss_debug;
 module_param_named(debug, dss_debug, bool, 0644);
 #endif
 
@@ -177,6 +177,8 @@ static int omap_dss_probe(struct platform_device *pdev)
 	core.pdev = pdev;
 
 	dss_features_init();
+
+	dss_apply_init();
 
 	dss_init_overlay_managers(pdev);
 	dss_init_overlays(pdev);

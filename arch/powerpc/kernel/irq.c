@@ -115,6 +115,15 @@ static inline notrace void set_soft_enabled(unsigned long enable)
 	: : "r" (enable), "i" (offsetof(struct paca_struct, soft_enabled)));
 }
 
+static inline notrace void decrementer_check_overflow(void)
+{
+	u64 now = get_tb_or_rtc();
+	u64 *next_tb = &__get_cpu_var(decrementers_next_tb);
+
+	if (now >= *next_tb)
+		set_dec(1);
+}
+
 notrace void arch_local_irq_restore(unsigned long en)
 {
 	/*
@@ -164,24 +173,21 @@ notrace void arch_local_irq_restore(unsigned long en)
 	 */
 	local_paca->hard_enabled = en;
 
-#ifndef CONFIG_BOOKE
-	/* On server, re-trigger the decrementer if it went negative since
-	 * some processors only trigger on edge transitions of the sign bit.
-	 *
-	 * BookE has a level sensitive decrementer (latches in TSR) so we
-	 * don't need that
+	/*
+	 * Trigger the decrementer if we have a pending event. Some processors
+	 * only trigger on edge transitions of the sign bit. We might also
+	 * have disabled interrupts long enough that the decrementer wrapped
+	 * to positive.
 	 */
-	if ((int)mfspr(SPRN_DEC) < 0)
-		mtspr(SPRN_DEC, 1);
-#endif /* CONFIG_BOOKE */
+	decrementer_check_overflow();
 
 	/*
 	 * Force the delivery of pending soft-disabled interrupts on PS3.
 	 * Any HV call will have this side effect.
 	 */
 	if (firmware_has_feature(FW_FEATURE_PS3_LV1)) {
-		u64 tmp;
-		lv1_get_version_info(&tmp);
+		u64 tmp, tmp2;
+		lv1_get_version_info(&tmp, &tmp2);
 	}
 
 	__hard_irq_enable();

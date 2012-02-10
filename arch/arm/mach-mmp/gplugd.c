@@ -184,6 +184,7 @@ static void __init gplugd_init(void)
 	pxa168_add_uart(3);
 	pxa168_add_ssp(1);
 	pxa168_add_twsi(0, NULL, ARRAY_AND_SIZE(gplugd_i2c_board_info));
+	platform_device_register(&pxa168_device_gpio);
 
 	pxa168_add_eth(&gplugd_eth_platform_data);
 }
@@ -194,4 +195,5 @@ MACHINE_START(GPLUGD, "PXA168-based GuruPlug Display (gplugD) Platform")
 	.init_irq       = pxa168_init_irq,
 	.timer          = &pxa168_timer,
 	.init_machine   = gplugd_init,
+	.restart	= pxa168_restart,
 MACHINE_END

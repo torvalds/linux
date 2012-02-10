@@ -539,26 +539,6 @@ static const struct file_operations yurex_fops = {
 	.llseek =	default_llseek,
 };
 
-
-static int __init usb_yurex_init(void)
-{
-	int result;
-
-	/* register this driver with the USB subsystem */
-	result = usb_register(&yurex_driver);
-	if (result)
-		err("usb_register failed. Error number %d", result);
-
-	return result;
-}
-
-static void __exit usb_yurex_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&yurex_driver);
-}
-
-module_init(usb_yurex_init);
-module_exit(usb_yurex_exit);
+module_usb_driver(yurex_driver);
 
 MODULE_LICENSE("GPL");

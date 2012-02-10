@@ -28,13 +28,12 @@
 #include <linux/export.h>
 
 #include <mach/hardware.h>
-#include <mach/system.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
 #include <plat/board-voiceblue.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/tc.h>
@@ -221,7 +220,7 @@ void voiceblue_wdt_ping(void)
 	gpio_set_value(0, wdt_gpio_state);
 }
 
-static void voiceblue_reset(char mode, const char *cmd)
+static void voiceblue_restart(char mode, const char *cmd)
 {
 	/*
 	 * Workaround for 5912/1611b bug mentioned in sprz209d.pdf p. 28
@@ -285,8 +284,6 @@ static void __init voiceblue_init(void)
 	 * (it is connected through invertor) */
 	omap_writeb(0x00, OMAP_LPG1_LCR);
 	omap_writeb(0x00, OMAP_LPG1_PMR);	/* Disable clock */
-
-	arch_reset = voiceblue_reset;
 }
 
 MACHINE_START(VOICEBLUE, "VoiceBlue OMAP5910")
@@ -298,4 +295,5 @@ MACHINE_START(VOICEBLUE, "VoiceBlue OMAP5910")
 	.init_irq	= omap1_init_irq,
 	.init_machine	= voiceblue_init,
 	.timer		= &omap1_timer,
+	.restart	= voiceblue_restart,
 MACHINE_END

@@ -13,6 +13,7 @@
  *  published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
+#include <linux/gpio-pxa.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -20,7 +21,6 @@
 
 #include <mach/pxa2xx-regs.h>
 #include <mach/mfp-pxa2xx.h>
-#include <mach/gpio-pxa.h>
 
 #include "generic.h"
 
@@ -28,6 +28,10 @@
 #define __GAFR(u, x)	__REG2((u) ? 0x40E00058 : 0x40E00054, (x) << 3)
 #define GAFR_L(x)	__GAFR(0, x)
 #define GAFR_U(x)	__GAFR(1, x)
+
+#define BANK_OFF(n)	(((n) < 3) ? (n) << 2 : 0x100 + (((n) - 3) << 2))
+#define GPLR(x)		__REG2(0x40E00000, BANK_OFF((x) >> 5))
+#define GPDR(x)		__REG2(0x40E00000, BANK_OFF((x) >> 5) + 0x0c)
 
 #define PWER_WE35	(1 << 24)
 

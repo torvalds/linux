@@ -38,11 +38,11 @@
 #include "stk-webcam.h"
 
 
-static int hflip = 1;
+static bool hflip = 1;
 module_param(hflip, bool, 0444);
 MODULE_PARM_DESC(hflip, "Horizontal image flip (mirror). Defaults to 1");
 
-static int vflip = 1;
+static bool vflip = 1;
 module_param(vflip, bool, 0444);
 MODULE_PARM_DESC(vflip, "Vertical image flip. Defaults to 1");
 
@@ -377,8 +377,8 @@ static int stk_prepare_iso(struct stk_camera *dev)
 	if (dev->isobufs)
 		STK_ERROR("isobufs already allocated. Bad\n");
 	else
-		dev->isobufs = kzalloc(MAX_ISO_BUFS * sizeof(*dev->isobufs),
-					GFP_KERNEL);
+		dev->isobufs = kcalloc(MAX_ISO_BUFS, sizeof(*dev->isobufs),
+				       GFP_KERNEL);
 	if (dev->isobufs == NULL) {
 		STK_ERROR("Unable to allocate iso buffers\n");
 		return -ENOMEM;
@@ -1377,25 +1377,4 @@ static struct usb_driver stk_camera_driver = {
 #endif
 };
 
-
-static int __init stk_camera_init(void)
-{
-	int result;
-
-	result = usb_register(&stk_camera_driver);
-	if (result)
-		STK_ERROR("usb_register failed ! Error number %d\n", result);
-
-
-	return result;
-}
-
-static void __exit stk_camera_exit(void)
-{
-	usb_deregister(&stk_camera_driver);
-}
-
-module_init(stk_camera_init);
-module_exit(stk_camera_exit);
-
-
+module_usb_driver(stk_camera_driver);

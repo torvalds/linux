@@ -48,7 +48,7 @@ MODULE_LICENSE("GPL");
 { USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
   .driver_info = (flags)|(USB_US_TYPE_STOR<<24) }
 
-struct usb_device_id sddr55_usb_ids[] = {
+static struct usb_device_id sddr55_usb_ids[] = {
 #	include "unusual_sddr55.h"
 	{ }		/* Terminating entry */
 };
@@ -1008,15 +1008,4 @@ static struct usb_driver sddr55_driver = {
 	.soft_unbind =	1,
 };
 
-static int __init sddr55_init(void)
-{
-	return usb_register(&sddr55_driver);
-}
-
-static void __exit sddr55_exit(void)
-{
-	usb_deregister(&sddr55_driver);
-}
-
-module_init(sddr55_init);
-module_exit(sddr55_exit);
+module_usb_driver(sddr55_driver);

@@ -1351,11 +1351,11 @@ struct lpfc_mbx_set_link_diag_loopback {
 		struct {
 			uint32_t word0;
 #define lpfc_mbx_set_diag_lpbk_type_SHIFT	0
-#define lpfc_mbx_set_diag_lpbk_type_MASK	0x00000001
+#define lpfc_mbx_set_diag_lpbk_type_MASK	0x00000003
 #define lpfc_mbx_set_diag_lpbk_type_WORD	word0
 #define LPFC_DIAG_LOOPBACK_TYPE_DISABLE		0x0
 #define LPFC_DIAG_LOOPBACK_TYPE_INTERNAL	0x1
-#define LPFC_DIAG_LOOPBACK_TYPE_EXTERNAL	0x2
+#define LPFC_DIAG_LOOPBACK_TYPE_SERDES		0x2
 #define lpfc_mbx_set_diag_lpbk_link_num_SHIFT	16
 #define lpfc_mbx_set_diag_lpbk_link_num_MASK	0x0000003F
 #define lpfc_mbx_set_diag_lpbk_link_num_WORD	word0
@@ -1830,6 +1830,8 @@ struct lpfc_mbx_init_vfi {
 #define lpfc_init_vfi_hop_count_MASK	0x000000FF
 #define lpfc_init_vfi_hop_count_WORD	word4
 };
+#define MBX_VFI_IN_USE			0x9F02
+
 
 struct lpfc_mbx_reg_vfi {
 	uint32_t word1;
@@ -2104,6 +2106,8 @@ struct lpfc_mbx_read_config {
 #define lpfc_mbx_rd_conf_lnk_type_SHIFT		6
 #define lpfc_mbx_rd_conf_lnk_type_MASK		0x00000003
 #define lpfc_mbx_rd_conf_lnk_type_WORD		word2
+#define LPFC_LNK_TYPE_GE	0
+#define LPFC_LNK_TYPE_FC	1
 #define lpfc_mbx_rd_conf_lnk_ldv_SHIFT		8
 #define lpfc_mbx_rd_conf_lnk_ldv_MASK		0x00000001
 #define lpfc_mbx_rd_conf_lnk_ldv_WORD		word2
@@ -3320,6 +3324,9 @@ struct wqe_rctl_dfctl {
 #define wqe_la_SHIFT 3
 #define wqe_la_MASK  0x000000001
 #define wqe_la_WORD  word5
+#define wqe_xo_SHIFT	6
+#define wqe_xo_MASK	0x000000001
+#define wqe_xo_WORD	word5
 #define wqe_ls_SHIFT 7
 #define wqe_ls_MASK  0x000000001
 #define wqe_ls_WORD  word5

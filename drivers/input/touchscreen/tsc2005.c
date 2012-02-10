@@ -450,13 +450,13 @@ static struct attribute *tsc2005_attrs[] = {
 	NULL
 };
 
-static mode_t tsc2005_attr_is_visible(struct kobject *kobj,
+static umode_t tsc2005_attr_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct spi_device *spi = to_spi_device(dev);
 	struct tsc2005 *ts = spi_get_drvdata(spi);
-	mode_t mode = attr->mode;
+	umode_t mode = attr->mode;
 
 	if (attr == &dev_attr_selftest.attr) {
 		if (!ts->set_reset)

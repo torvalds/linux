@@ -29,6 +29,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mmc/host.h>
 #include <linux/ioport.h>
+#include <linux/platform_data/s3c-hsudc.h>
 
 #include <asm/irq.h>
 #include <asm/pmu.h>
@@ -61,6 +62,7 @@
 #include <plat/regs-iic.h>
 #include <plat/regs-serial.h>
 #include <plat/regs-spi.h>
+#include <plat/s3c64xx-spi.h>
 
 static u64 samsung_device_dma_mask = DMA_BIT_MASK(32);
 
@@ -1461,3 +1463,129 @@ struct platform_device s3c_device_wdt = {
 	.resource	= s3c_wdt_resource,
 };
 #endif /* CONFIG_S3C_DEV_WDT */
+
+#ifdef CONFIG_S3C64XX_DEV_SPI0
+static struct resource s3c64xx_spi0_resource[] = {
+	[0] = DEFINE_RES_MEM(S3C_PA_SPI0, SZ_256),
+	[1] = DEFINE_RES_DMA(DMACH_SPI0_TX),
+	[2] = DEFINE_RES_DMA(DMACH_SPI0_RX),
+	[3] = DEFINE_RES_IRQ(IRQ_SPI0),
+};
+
+struct platform_device s3c64xx_device_spi0 = {
+	.name		= "s3c64xx-spi",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(s3c64xx_spi0_resource),
+	.resource	= s3c64xx_spi0_resource,
+	.dev = {
+		.dma_mask		= &samsung_device_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+void __init s3c64xx_spi0_set_platdata(struct s3c64xx_spi_info *pd,
+				      int src_clk_nr, int num_cs)
+{
+	if (!pd) {
+		pr_err("%s:Need to pass platform data\n", __func__);
+		return;
+	}
+
+	/* Reject invalid configuration */
+	if (!num_cs || src_clk_nr < 0) {
+		pr_err("%s: Invalid SPI configuration\n", __func__);
+		return;
+	}
+
+	pd->num_cs = num_cs;
+	pd->src_clk_nr = src_clk_nr;
+	if (!pd->cfg_gpio)
+		pd->cfg_gpio = s3c64xx_spi0_cfg_gpio;
+
+	s3c_set_platdata(pd, sizeof(*pd), &s3c64xx_device_spi0);
+}
+#endif /* CONFIG_S3C64XX_DEV_SPI0 */
+
+#ifdef CONFIG_S3C64XX_DEV_SPI1
+static struct resource s3c64xx_spi1_resource[] = {
+	[0] = DEFINE_RES_MEM(S3C_PA_SPI1, SZ_256),
+	[1] = DEFINE_RES_DMA(DMACH_SPI1_TX),
+	[2] = DEFINE_RES_DMA(DMACH_SPI1_RX),
+	[3] = DEFINE_RES_IRQ(IRQ_SPI1),
+};
+
+struct platform_device s3c64xx_device_spi1 = {
+	.name		= "s3c64xx-spi",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(s3c64xx_spi1_resource),
+	.resource	= s3c64xx_spi1_resource,
+	.dev = {
+		.dma_mask		= &samsung_device_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+void __init s3c64xx_spi1_set_platdata(struct s3c64xx_spi_info *pd,
+				      int src_clk_nr, int num_cs)
+{
+	if (!pd) {
+		pr_err("%s:Need to pass platform data\n", __func__);
+		return;
+	}
+
+	/* Reject invalid configuration */
+	if (!num_cs || src_clk_nr < 0) {
+		pr_err("%s: Invalid SPI configuration\n", __func__);
+		return;
+	}
+
+	pd->num_cs = num_cs;
+	pd->src_clk_nr = src_clk_nr;
+	if (!pd->cfg_gpio)
+		pd->cfg_gpio = s3c64xx_spi1_cfg_gpio;
+
+	s3c_set_platdata(pd, sizeof(*pd), &s3c64xx_device_spi1);
+}
+#endif /* CONFIG_S3C64XX_DEV_SPI1 */
+
+#ifdef CONFIG_S3C64XX_DEV_SPI2
+static struct resource s3c64xx_spi2_resource[] = {
+	[0] = DEFINE_RES_MEM(S3C_PA_SPI2, SZ_256),
+	[1] = DEFINE_RES_DMA(DMACH_SPI2_TX),
+	[2] = DEFINE_RES_DMA(DMACH_SPI2_RX),
+	[3] = DEFINE_RES_IRQ(IRQ_SPI2),
+};
+
+struct platform_device s3c64xx_device_spi2 = {
+	.name		= "s3c64xx-spi",
+	.id		= 2,
+	.num_resources	= ARRAY_SIZE(s3c64xx_spi2_resource),
+	.resource	= s3c64xx_spi2_resource,
+	.dev = {
+		.dma_mask		= &samsung_device_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+void __init s3c64xx_spi2_set_platdata(struct s3c64xx_spi_info *pd,
+				      int src_clk_nr, int num_cs)
+{
+	if (!pd) {
+		pr_err("%s:Need to pass platform data\n", __func__);
+		return;
+	}
+
+	/* Reject invalid configuration */
+	if (!num_cs || src_clk_nr < 0) {
+		pr_err("%s: Invalid SPI configuration\n", __func__);
+		return;
+	}
+
+	pd->num_cs = num_cs;
+	pd->src_clk_nr = src_clk_nr;
+	if (!pd->cfg_gpio)
+		pd->cfg_gpio = s3c64xx_spi2_cfg_gpio;
+
+	s3c_set_platdata(pd, sizeof(*pd), &s3c64xx_device_spi2);
+}
+#endif /* CONFIG_S3C64XX_DEV_SPI2 */

@@ -1181,7 +1181,6 @@ static int max3107_probe_generic(struct spi_device *spi)
 static struct spi_driver max3107_driver = {
 	.driver = {
 		.name		= "max3107",
-		.bus		= &spi_bus_type,
 		.owner		= THIS_MODULE,
 	},
 	.probe		= max3107_probe_generic,

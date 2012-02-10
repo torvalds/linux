@@ -36,235 +36,44 @@ u32 ethtool_op_get_link(struct net_device *dev)
 }
 EXPORT_SYMBOL(ethtool_op_get_link);
 
-u32 ethtool_op_get_tx_csum(struct net_device *dev)
-{
-	return (dev->features & NETIF_F_ALL_CSUM) != 0;
-}
-EXPORT_SYMBOL(ethtool_op_get_tx_csum);
-
-int ethtool_op_set_tx_csum(struct net_device *dev, u32 data)
-{
-	if (data)
-		dev->features |= NETIF_F_IP_CSUM;
-	else
-		dev->features &= ~NETIF_F_IP_CSUM;
-
-	return 0;
-}
-EXPORT_SYMBOL(ethtool_op_set_tx_csum);
-
-int ethtool_op_set_tx_hw_csum(struct net_device *dev, u32 data)
-{
-	if (data)
-		dev->features |= NETIF_F_HW_CSUM;
-	else
-		dev->features &= ~NETIF_F_HW_CSUM;
-
-	return 0;
-}
-EXPORT_SYMBOL(ethtool_op_set_tx_hw_csum);
-
-int ethtool_op_set_tx_ipv6_csum(struct net_device *dev, u32 data)
-{
-	if (data)
-		dev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-	else
-		dev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-
-	return 0;
-}
-EXPORT_SYMBOL(ethtool_op_set_tx_ipv6_csum);
-
-u32 ethtool_op_get_sg(struct net_device *dev)
-{
-	return (dev->features & NETIF_F_SG) != 0;
-}
-EXPORT_SYMBOL(ethtool_op_get_sg);
-
-int ethtool_op_set_sg(struct net_device *dev, u32 data)
-{
-	if (data)
-		dev->features |= NETIF_F_SG;
-	else
-		dev->features &= ~NETIF_F_SG;
-
-	return 0;
-}
-EXPORT_SYMBOL(ethtool_op_set_sg);
-
-u32 ethtool_op_get_tso(struct net_device *dev)
-{
-	return (dev->features & NETIF_F_TSO) != 0;
-}
-EXPORT_SYMBOL(ethtool_op_get_tso);
-
-int ethtool_op_set_tso(struct net_device *dev, u32 data)
-{
-	if (data)
-		dev->features |= NETIF_F_TSO;
-	else
-		dev->features &= ~NETIF_F_TSO;
-
-	return 0;
-}
-EXPORT_SYMBOL(ethtool_op_set_tso);
-
-u32 ethtool_op_get_ufo(struct net_device *dev)
-{
-	return (dev->features & NETIF_F_UFO) != 0;
-}
-EXPORT_SYMBOL(ethtool_op_get_ufo);
-
-int ethtool_op_set_ufo(struct net_device *dev, u32 data)
-{
-	if (data)
-		dev->features |= NETIF_F_UFO;
-	else
-		dev->features &= ~NETIF_F_UFO;
-	return 0;
-}
-EXPORT_SYMBOL(ethtool_op_set_ufo);
-
-/* the following list of flags are the same as their associated
- * NETIF_F_xxx values in include/linux/netdevice.h
- */
-static const u32 flags_dup_features =
-	(ETH_FLAG_LRO | ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN | ETH_FLAG_NTUPLE |
-	 ETH_FLAG_RXHASH);
-
-u32 ethtool_op_get_flags(struct net_device *dev)
-{
-	/* in the future, this function will probably contain additional
-	 * handling for flags which are not so easily handled
-	 * by a simple masking operation
-	 */
-
-	return dev->features & flags_dup_features;
-}
-EXPORT_SYMBOL(ethtool_op_get_flags);
-
-/* Check if device can enable (or disable) particular feature coded in "data"
- * argument. Flags "supported" describe features that can be toggled by device.
- * If feature can not be toggled, it state (enabled or disabled) must match
- * hardcoded device features state, otherwise flags are marked as invalid.
- */
-bool ethtool_invalid_flags(struct net_device *dev, u32 data, u32 supported)
-{
-	u32 features = dev->features & flags_dup_features;
-	/* "data" can contain only flags_dup_features bits,
-	 * see __ethtool_set_flags */
-
-	return (features & ~supported) != (data & ~supported);
-}
-EXPORT_SYMBOL(ethtool_invalid_flags);
-
-int ethtool_op_set_flags(struct net_device *dev, u32 data, u32 supported)
-{
-	if (ethtool_invalid_flags(dev, data, supported))
-		return -EINVAL;
-
-	dev->features = ((dev->features & ~flags_dup_features) |
-			 (data & flags_dup_features));
-	return 0;
-}
-EXPORT_SYMBOL(ethtool_op_set_flags);
-
 /* Handlers for each ethtool command */
 
-#define ETHTOOL_DEV_FEATURE_WORDS	1
+#define ETHTOOL_DEV_FEATURE_WORDS	((NETDEV_FEATURE_COUNT + 31) / 32)
 
-static void ethtool_get_features_compat(struct net_device *dev,
-	struct ethtool_get_features_block *features)
-{
-	if (!dev->ethtool_ops)
-		return;
+static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN] = {
+	[NETIF_F_SG_BIT] =               "tx-scatter-gather",
+	[NETIF_F_IP_CSUM_BIT] =          "tx-checksum-ipv4",
+	[NETIF_F_HW_CSUM_BIT] =          "tx-checksum-ip-generic",
+	[NETIF_F_IPV6_CSUM_BIT] =        "tx-checksum-ipv6",
+	[NETIF_F_HIGHDMA_BIT] =          "highdma",
+	[NETIF_F_FRAGLIST_BIT] =         "tx-scatter-gather-fraglist",
+	[NETIF_F_HW_VLAN_TX_BIT] =       "tx-vlan-hw-insert",
 
-	/* getting RX checksum */
-	if (dev->ethtool_ops->get_rx_csum)
-		if (dev->ethtool_ops->get_rx_csum(dev))
-			features[0].active |= NETIF_F_RXCSUM;
+	[NETIF_F_HW_VLAN_RX_BIT] =       "rx-vlan-hw-parse",
+	[NETIF_F_HW_VLAN_FILTER_BIT] =   "rx-vlan-filter",
+	[NETIF_F_VLAN_CHALLENGED_BIT] =  "vlan-challenged",
+	[NETIF_F_GSO_BIT] =              "tx-generic-segmentation",
+	[NETIF_F_LLTX_BIT] =             "tx-lockless",
+	[NETIF_F_NETNS_LOCAL_BIT] =      "netns-local",
+	[NETIF_F_GRO_BIT] =              "rx-gro",
+	[NETIF_F_LRO_BIT] =              "rx-lro",
 
-	/* mark legacy-changeable features */
-	if (dev->ethtool_ops->set_sg)
-		features[0].available |= NETIF_F_SG;
-	if (dev->ethtool_ops->set_tx_csum)
-		features[0].available |= NETIF_F_ALL_CSUM;
-	if (dev->ethtool_ops->set_tso)
-		features[0].available |= NETIF_F_ALL_TSO;
-	if (dev->ethtool_ops->set_rx_csum)
-		features[0].available |= NETIF_F_RXCSUM;
-	if (dev->ethtool_ops->set_flags)
-		features[0].available |= flags_dup_features;
-}
+	[NETIF_F_TSO_BIT] =              "tx-tcp-segmentation",
+	[NETIF_F_UFO_BIT] =              "tx-udp-fragmentation",
+	[NETIF_F_GSO_ROBUST_BIT] =       "tx-gso-robust",
+	[NETIF_F_TSO_ECN_BIT] =          "tx-tcp-ecn-segmentation",
+	[NETIF_F_TSO6_BIT] =             "tx-tcp6-segmentation",
+	[NETIF_F_FSO_BIT] =              "tx-fcoe-segmentation",
 
-static int ethtool_set_feature_compat(struct net_device *dev,
-	int (*legacy_set)(struct net_device *, u32),
-	struct ethtool_set_features_block *features, u32 mask)
-{
-	u32 do_set;
-
-	if (!legacy_set)
-		return 0;
-
-	if (!(features[0].valid & mask))
-		return 0;
-
-	features[0].valid &= ~mask;
-
-	do_set = !!(features[0].requested & mask);
-
-	if (legacy_set(dev, do_set) < 0)
-		netdev_info(dev,
-			"Legacy feature change (%s) failed for 0x%08x\n",
-			do_set ? "set" : "clear", mask);
-
-	return 1;
-}
-
-static int ethtool_set_flags_compat(struct net_device *dev,
-	int (*legacy_set)(struct net_device *, u32),
-	struct ethtool_set_features_block *features, u32 mask)
-{
-	u32 value;
-
-	if (!legacy_set)
-		return 0;
-
-	if (!(features[0].valid & mask))
-		return 0;
-
-	value = dev->features & ~features[0].valid;
-	value |= features[0].requested;
-
-	features[0].valid &= ~mask;
-
-	if (legacy_set(dev, value & mask) < 0)
-		netdev_info(dev, "Legacy flags change failed\n");
-
-	return 1;
-}
-
-static int ethtool_set_features_compat(struct net_device *dev,
-	struct ethtool_set_features_block *features)
-{
-	int compat;
-
-	if (!dev->ethtool_ops)
-		return 0;
-
-	compat  = ethtool_set_feature_compat(dev, dev->ethtool_ops->set_sg,
-		features, NETIF_F_SG);
-	compat |= ethtool_set_feature_compat(dev, dev->ethtool_ops->set_tx_csum,
-		features, NETIF_F_ALL_CSUM);
-	compat |= ethtool_set_feature_compat(dev, dev->ethtool_ops->set_tso,
-		features, NETIF_F_ALL_TSO);
-	compat |= ethtool_set_feature_compat(dev, dev->ethtool_ops->set_rx_csum,
-		features, NETIF_F_RXCSUM);
-	compat |= ethtool_set_flags_compat(dev, dev->ethtool_ops->set_flags,
-		features, flags_dup_features);
-
-	return compat;
-}
+	[NETIF_F_FCOE_CRC_BIT] =         "tx-checksum-fcoe-crc",
+	[NETIF_F_SCTP_CSUM_BIT] =        "tx-checksum-sctp",
+	[NETIF_F_FCOE_MTU_BIT] =         "fcoe-mtu",
+	[NETIF_F_NTUPLE_BIT] =           "rx-ntuple-filter",
+	[NETIF_F_RXHASH_BIT] =           "rx-hashing",
+	[NETIF_F_RXCSUM_BIT] =           "rx-checksum",
+	[NETIF_F_NOCACHE_COPY_BIT] =     "tx-nocache-copy",
+	[NETIF_F_LOOPBACK_BIT] =         "loopback",
+};
 
 static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
 {
@@ -272,18 +81,21 @@ static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
 		.cmd = ETHTOOL_GFEATURES,
 		.size = ETHTOOL_DEV_FEATURE_WORDS,
 	};
-	struct ethtool_get_features_block features[ETHTOOL_DEV_FEATURE_WORDS] = {
-		{
-			.available = dev->hw_features,
-			.requested = dev->wanted_features,
-			.active = dev->features,
-			.never_changed = NETIF_F_NEVER_CHANGE,
-		},
-	};
+	struct ethtool_get_features_block features[ETHTOOL_DEV_FEATURE_WORDS];
 	u32 __user *sizeaddr;
 	u32 copy_size;
+	int i;
 
-	ethtool_get_features_compat(dev, features);
+	/* in case feature bits run out again */
+	BUILD_BUG_ON(ETHTOOL_DEV_FEATURE_WORDS * sizeof(u32) > sizeof(netdev_features_t));
+
+	for (i = 0; i < ETHTOOL_DEV_FEATURE_WORDS; ++i) {
+		features[i].available = (u32)(dev->hw_features >> (32 * i));
+		features[i].requested = (u32)(dev->wanted_features >> (32 * i));
+		features[i].active = (u32)(dev->features >> (32 * i));
+		features[i].never_changed =
+			(u32)(NETIF_F_NEVER_CHANGE >> (32 * i));
+	}
 
 	sizeaddr = useraddr + offsetof(struct ethtool_gfeatures, size);
 	if (get_user(copy_size, sizeaddr))
@@ -305,7 +117,8 @@ static int ethtool_set_features(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_sfeatures cmd;
 	struct ethtool_set_features_block features[ETHTOOL_DEV_FEATURE_WORDS];
-	int ret = 0;
+	netdev_features_t wanted = 0, valid = 0;
+	int i, ret = 0;
 
 	if (copy_from_user(&cmd, useraddr, sizeof(cmd)))
 		return -EFAULT;
@@ -317,64 +130,28 @@ static int ethtool_set_features(struct net_device *dev, void __user *useraddr)
 	if (copy_from_user(features, useraddr, sizeof(features)))
 		return -EFAULT;
 
-	if (features[0].valid & ~NETIF_F_ETHTOOL_BITS)
+	for (i = 0; i < ETHTOOL_DEV_FEATURE_WORDS; ++i) {
+		valid |= (netdev_features_t)features[i].valid << (32 * i);
+		wanted |= (netdev_features_t)features[i].requested << (32 * i);
+	}
+
+	if (valid & ~NETIF_F_ETHTOOL_BITS)
 		return -EINVAL;
 
-	if (ethtool_set_features_compat(dev, features))
-		ret |= ETHTOOL_F_COMPAT;
-
-	if (features[0].valid & ~dev->hw_features) {
-		features[0].valid &= dev->hw_features;
+	if (valid & ~dev->hw_features) {
+		valid &= dev->hw_features;
 		ret |= ETHTOOL_F_UNSUPPORTED;
 	}
 
-	dev->wanted_features &= ~features[0].valid;
-	dev->wanted_features |= features[0].valid & features[0].requested;
+	dev->wanted_features &= ~valid;
+	dev->wanted_features |= wanted & valid;
 	__netdev_update_features(dev);
 
-	if ((dev->wanted_features ^ dev->features) & features[0].valid)
+	if ((dev->wanted_features ^ dev->features) & valid)
 		ret |= ETHTOOL_F_WISH;
 
 	return ret;
 }
-
-static const char netdev_features_strings[ETHTOOL_DEV_FEATURE_WORDS * 32][ETH_GSTRING_LEN] = {
-	/* NETIF_F_SG */              "tx-scatter-gather",
-	/* NETIF_F_IP_CSUM */         "tx-checksum-ipv4",
-	/* NETIF_F_NO_CSUM */         "tx-checksum-unneeded",
-	/* NETIF_F_HW_CSUM */         "tx-checksum-ip-generic",
-	/* NETIF_F_IPV6_CSUM */       "tx-checksum-ipv6",
-	/* NETIF_F_HIGHDMA */         "highdma",
-	/* NETIF_F_FRAGLIST */        "tx-scatter-gather-fraglist",
-	/* NETIF_F_HW_VLAN_TX */      "tx-vlan-hw-insert",
-
-	/* NETIF_F_HW_VLAN_RX */      "rx-vlan-hw-parse",
-	/* NETIF_F_HW_VLAN_FILTER */  "rx-vlan-filter",
-	/* NETIF_F_VLAN_CHALLENGED */ "vlan-challenged",
-	/* NETIF_F_GSO */             "tx-generic-segmentation",
-	/* NETIF_F_LLTX */            "tx-lockless",
-	/* NETIF_F_NETNS_LOCAL */     "netns-local",
-	/* NETIF_F_GRO */             "rx-gro",
-	/* NETIF_F_LRO */             "rx-lro",
-
-	/* NETIF_F_TSO */             "tx-tcp-segmentation",
-	/* NETIF_F_UFO */             "tx-udp-fragmentation",
-	/* NETIF_F_GSO_ROBUST */      "tx-gso-robust",
-	/* NETIF_F_TSO_ECN */         "tx-tcp-ecn-segmentation",
-	/* NETIF_F_TSO6 */            "tx-tcp6-segmentation",
-	/* NETIF_F_FSO */             "tx-fcoe-segmentation",
-	"",
-	"",
-
-	/* NETIF_F_FCOE_CRC */        "tx-checksum-fcoe-crc",
-	/* NETIF_F_SCTP_CSUM */       "tx-checksum-sctp",
-	/* NETIF_F_FCOE_MTU */        "fcoe-mtu",
-	/* NETIF_F_NTUPLE */          "rx-ntuple-filter",
-	/* NETIF_F_RXHASH */          "rx-hashing",
-	/* NETIF_F_RXCSUM */          "rx-checksum",
-	/* NETIF_F_NOCACHE_COPY */    "tx-nocache-copy",
-	/* NETIF_F_LOOPBACK */        "loopback",
-};
 
 static int __ethtool_get_sset_count(struct net_device *dev, int sset)
 {
@@ -402,7 +179,7 @@ static void __ethtool_get_strings(struct net_device *dev,
 		ops->get_strings(dev, stringset, data);
 }
 
-static u32 ethtool_get_feature_mask(u32 eth_cmd)
+static netdev_features_t ethtool_get_feature_mask(u32 eth_cmd)
 {
 	/* feature masks of legacy discrete ethtool ops */
 
@@ -433,136 +210,82 @@ static u32 ethtool_get_feature_mask(u32 eth_cmd)
 	}
 }
 
-static void *__ethtool_get_one_feature_actor(struct net_device *dev, u32 ethcmd)
-{
-	const struct ethtool_ops *ops = dev->ethtool_ops;
-
-	if (!ops)
-		return NULL;
-
-	switch (ethcmd) {
-	case ETHTOOL_GTXCSUM:
-		return ops->get_tx_csum;
-	case ETHTOOL_GRXCSUM:
-		return ops->get_rx_csum;
-	case ETHTOOL_SSG:
-		return ops->get_sg;
-	case ETHTOOL_STSO:
-		return ops->get_tso;
-	case ETHTOOL_SUFO:
-		return ops->get_ufo;
-	default:
-		return NULL;
-	}
-}
-
-static u32 __ethtool_get_rx_csum_oldbug(struct net_device *dev)
-{
-	return !!(dev->features & NETIF_F_ALL_CSUM);
-}
-
 static int ethtool_get_one_feature(struct net_device *dev,
 	char __user *useraddr, u32 ethcmd)
 {
-	u32 mask = ethtool_get_feature_mask(ethcmd);
+	netdev_features_t mask = ethtool_get_feature_mask(ethcmd);
 	struct ethtool_value edata = {
 		.cmd = ethcmd,
 		.data = !!(dev->features & mask),
 	};
-
-	/* compatibility with discrete get_ ops */
-	if (!(dev->hw_features & mask)) {
-		u32 (*actor)(struct net_device *);
-
-		actor = __ethtool_get_one_feature_actor(dev, ethcmd);
-
-		/* bug compatibility with old get_rx_csum */
-		if (ethcmd == ETHTOOL_GRXCSUM && !actor)
-			actor = __ethtool_get_rx_csum_oldbug;
-
-		if (actor)
-			edata.data = actor(dev);
-	}
 
 	if (copy_to_user(useraddr, &edata, sizeof(edata)))
 		return -EFAULT;
 	return 0;
 }
 
-static int __ethtool_set_tx_csum(struct net_device *dev, u32 data);
-static int __ethtool_set_rx_csum(struct net_device *dev, u32 data);
-static int __ethtool_set_sg(struct net_device *dev, u32 data);
-static int __ethtool_set_tso(struct net_device *dev, u32 data);
-static int __ethtool_set_ufo(struct net_device *dev, u32 data);
-
 static int ethtool_set_one_feature(struct net_device *dev,
 	void __user *useraddr, u32 ethcmd)
 {
 	struct ethtool_value edata;
-	u32 mask;
+	netdev_features_t mask;
 
 	if (copy_from_user(&edata, useraddr, sizeof(edata)))
 		return -EFAULT;
 
 	mask = ethtool_get_feature_mask(ethcmd);
 	mask &= dev->hw_features;
-	if (mask) {
-		if (edata.data)
-			dev->wanted_features |= mask;
-		else
-			dev->wanted_features &= ~mask;
-
-		__netdev_update_features(dev);
-		return 0;
-	}
-
-	/* Driver is not converted to ndo_fix_features or does not
-	 * support changing this offload. In the latter case it won't
-	 * have corresponding ethtool_ops field set.
-	 *
-	 * Following part is to be removed after all drivers advertise
-	 * their changeable features in netdev->hw_features and stop
-	 * using discrete offload setting ops.
-	 */
-
-	switch (ethcmd) {
-	case ETHTOOL_STXCSUM:
-		return __ethtool_set_tx_csum(dev, edata.data);
-	case ETHTOOL_SRXCSUM:
-		return __ethtool_set_rx_csum(dev, edata.data);
-	case ETHTOOL_SSG:
-		return __ethtool_set_sg(dev, edata.data);
-	case ETHTOOL_STSO:
-		return __ethtool_set_tso(dev, edata.data);
-	case ETHTOOL_SUFO:
-		return __ethtool_set_ufo(dev, edata.data);
-	default:
+	if (!mask)
 		return -EOPNOTSUPP;
-	}
+
+	if (edata.data)
+		dev->wanted_features |= mask;
+	else
+		dev->wanted_features &= ~mask;
+
+	__netdev_update_features(dev);
+
+	return 0;
 }
 
-int __ethtool_set_flags(struct net_device *dev, u32 data)
-{
-	u32 changed;
+#define ETH_ALL_FLAGS    (ETH_FLAG_LRO | ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN | \
+			  ETH_FLAG_NTUPLE | ETH_FLAG_RXHASH)
+#define ETH_ALL_FEATURES (NETIF_F_LRO | NETIF_F_HW_VLAN_RX | \
+			  NETIF_F_HW_VLAN_TX | NETIF_F_NTUPLE | NETIF_F_RXHASH)
 
-	if (data & ~flags_dup_features)
+static u32 __ethtool_get_flags(struct net_device *dev)
+{
+	u32 flags = 0;
+
+	if (dev->features & NETIF_F_LRO)	flags |= ETH_FLAG_LRO;
+	if (dev->features & NETIF_F_HW_VLAN_RX)	flags |= ETH_FLAG_RXVLAN;
+	if (dev->features & NETIF_F_HW_VLAN_TX)	flags |= ETH_FLAG_TXVLAN;
+	if (dev->features & NETIF_F_NTUPLE)	flags |= ETH_FLAG_NTUPLE;
+	if (dev->features & NETIF_F_RXHASH)	flags |= ETH_FLAG_RXHASH;
+
+	return flags;
+}
+
+static int __ethtool_set_flags(struct net_device *dev, u32 data)
+{
+	netdev_features_t features = 0, changed;
+
+	if (data & ~ETH_ALL_FLAGS)
 		return -EINVAL;
 
-	/* legacy set_flags() op */
-	if (dev->ethtool_ops->set_flags) {
-		if (unlikely(dev->hw_features & flags_dup_features))
-			netdev_warn(dev,
-				"driver BUG: mixed hw_features and set_flags()\n");
-		return dev->ethtool_ops->set_flags(dev, data);
-	}
+	if (data & ETH_FLAG_LRO)	features |= NETIF_F_LRO;
+	if (data & ETH_FLAG_RXVLAN)	features |= NETIF_F_HW_VLAN_RX;
+	if (data & ETH_FLAG_TXVLAN)	features |= NETIF_F_HW_VLAN_TX;
+	if (data & ETH_FLAG_NTUPLE)	features |= NETIF_F_NTUPLE;
+	if (data & ETH_FLAG_RXHASH)	features |= NETIF_F_RXHASH;
 
 	/* allow changing only bits set in hw_features */
-	changed = (data ^ dev->features) & flags_dup_features;
+	changed = (features ^ dev->features) & ETH_ALL_FEATURES;
 	if (changed & ~dev->hw_features)
 		return (changed & dev->hw_features) ? -EINVAL : -EOPNOTSUPP;
 
 	dev->wanted_features =
-		(dev->wanted_features & ~changed) | (data & dev->hw_features);
+		(dev->wanted_features & ~changed) | (features & changed);
 
 	__netdev_update_features(dev);
 
@@ -716,6 +439,7 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 {
 	struct ethtool_rxnfc info;
 	size_t info_size = sizeof(info);
+	int rc;
 
 	if (!dev->ethtool_ops->set_rxnfc)
 		return -EOPNOTSUPP;
@@ -731,7 +455,15 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 	if (copy_from_user(&info, useraddr, info_size))
 		return -EFAULT;
 
-	return dev->ethtool_ops->set_rxnfc(dev, &info);
+	rc = dev->ethtool_ops->set_rxnfc(dev, &info);
+	if (rc)
+		return rc;
+
+	if (cmd == ETHTOOL_SRXCLSRLINS &&
+	    copy_to_user(useraddr, &info, info_size))
+		return -EFAULT;
+
+	return 0;
 }
 
 static noinline_for_stack int ethtool_get_rxnfc(struct net_device *dev,
@@ -792,34 +524,44 @@ err_out:
 static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 						     void __user *useraddr)
 {
-	struct ethtool_rxfh_indir *indir;
-	u32 table_size;
-	size_t full_size;
+	u32 user_size, dev_size;
+	u32 *indir;
 	int ret;
 
-	if (!dev->ethtool_ops->get_rxfh_indir)
+	if (!dev->ethtool_ops->get_rxfh_indir_size ||
+	    !dev->ethtool_ops->get_rxfh_indir)
+		return -EOPNOTSUPP;
+	dev_size = dev->ethtool_ops->get_rxfh_indir_size(dev);
+	if (dev_size == 0)
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&table_size,
+	if (copy_from_user(&user_size,
 			   useraddr + offsetof(struct ethtool_rxfh_indir, size),
-			   sizeof(table_size)))
+			   sizeof(user_size)))
 		return -EFAULT;
 
-	if (table_size >
-	    (KMALLOC_MAX_SIZE - sizeof(*indir)) / sizeof(*indir->ring_index))
-		return -ENOMEM;
-	full_size = sizeof(*indir) + sizeof(*indir->ring_index) * table_size;
-	indir = kzalloc(full_size, GFP_USER);
+	if (copy_to_user(useraddr + offsetof(struct ethtool_rxfh_indir, size),
+			 &dev_size, sizeof(dev_size)))
+		return -EFAULT;
+
+	/* If the user buffer size is 0, this is just a query for the
+	 * device table size.  Otherwise, if it's smaller than the
+	 * device table size it's an error.
+	 */
+	if (user_size < dev_size)
+		return user_size == 0 ? 0 : -EINVAL;
+
+	indir = kcalloc(dev_size, sizeof(indir[0]), GFP_USER);
 	if (!indir)
 		return -ENOMEM;
 
-	indir->cmd = ETHTOOL_GRXFHINDIR;
-	indir->size = table_size;
 	ret = dev->ethtool_ops->get_rxfh_indir(dev, indir);
 	if (ret)
 		goto out;
 
-	if (copy_to_user(useraddr, indir, full_size))
+	if (copy_to_user(useraddr +
+			 offsetof(struct ethtool_rxfh_indir, ring_index[0]),
+			 indir, dev_size * sizeof(indir[0])))
 		ret = -EFAULT;
 
 out:
@@ -830,30 +572,56 @@ out:
 static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 						     void __user *useraddr)
 {
-	struct ethtool_rxfh_indir *indir;
-	u32 table_size;
-	size_t full_size;
+	struct ethtool_rxnfc rx_rings;
+	u32 user_size, dev_size, i;
+	u32 *indir;
 	int ret;
 
-	if (!dev->ethtool_ops->set_rxfh_indir)
+	if (!dev->ethtool_ops->get_rxfh_indir_size ||
+	    !dev->ethtool_ops->set_rxfh_indir ||
+	    !dev->ethtool_ops->get_rxnfc)
+		return -EOPNOTSUPP;
+	dev_size = dev->ethtool_ops->get_rxfh_indir_size(dev);
+	if (dev_size == 0)
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&table_size,
+	if (copy_from_user(&user_size,
 			   useraddr + offsetof(struct ethtool_rxfh_indir, size),
-			   sizeof(table_size)))
+			   sizeof(user_size)))
 		return -EFAULT;
 
-	if (table_size >
-	    (KMALLOC_MAX_SIZE - sizeof(*indir)) / sizeof(*indir->ring_index))
-		return -ENOMEM;
-	full_size = sizeof(*indir) + sizeof(*indir->ring_index) * table_size;
-	indir = kmalloc(full_size, GFP_USER);
+	if (user_size != 0 && user_size != dev_size)
+		return -EINVAL;
+
+	indir = kcalloc(dev_size, sizeof(indir[0]), GFP_USER);
 	if (!indir)
 		return -ENOMEM;
 
-	if (copy_from_user(indir, useraddr, full_size)) {
-		ret = -EFAULT;
+	rx_rings.cmd = ETHTOOL_GRXRINGS;
+	ret = dev->ethtool_ops->get_rxnfc(dev, &rx_rings, NULL);
+	if (ret)
 		goto out;
+
+	if (user_size == 0) {
+		for (i = 0; i < dev_size; i++)
+			indir[i] = ethtool_rxfh_indir_default(i, rx_rings.data);
+	} else {
+		if (copy_from_user(indir,
+				  useraddr +
+				  offsetof(struct ethtool_rxfh_indir,
+					   ring_index[0]),
+				  dev_size * sizeof(indir[0]))) {
+			ret = -EFAULT;
+			goto out;
+		}
+
+		/* Validate ring indices */
+		for (i = 0; i < dev_size; i++) {
+			if (indir[i] >= rx_rings.data) {
+				ret = -EINVAL;
+				goto out;
+			}
+		}
 	}
 
 	ret = dev->ethtool_ops->set_rxfh_indir(dev, indir);
@@ -861,58 +629,6 @@ static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 out:
 	kfree(indir);
 	return ret;
-}
-
-/*
- * ethtool does not (or did not) set masks for flow parameters that are
- * not specified, so if both value and mask are 0 then this must be
- * treated as equivalent to a mask with all bits set.  Implement that
- * here rather than in drivers.
- */
-static void rx_ntuple_fix_masks(struct ethtool_rx_ntuple_flow_spec *fs)
-{
-	struct ethtool_tcpip4_spec *entry = &fs->h_u.tcp_ip4_spec;
-	struct ethtool_tcpip4_spec *mask = &fs->m_u.tcp_ip4_spec;
-
-	if (fs->flow_type != TCP_V4_FLOW &&
-	    fs->flow_type != UDP_V4_FLOW &&
-	    fs->flow_type != SCTP_V4_FLOW)
-		return;
-
-	if (!(entry->ip4src | mask->ip4src))
-		mask->ip4src = htonl(0xffffffff);
-	if (!(entry->ip4dst | mask->ip4dst))
-		mask->ip4dst = htonl(0xffffffff);
-	if (!(entry->psrc | mask->psrc))
-		mask->psrc = htons(0xffff);
-	if (!(entry->pdst | mask->pdst))
-		mask->pdst = htons(0xffff);
-	if (!(entry->tos | mask->tos))
-		mask->tos = 0xff;
-	if (!(fs->vlan_tag | fs->vlan_tag_mask))
-		fs->vlan_tag_mask = 0xffff;
-	if (!(fs->data | fs->data_mask))
-		fs->data_mask = 0xffffffffffffffffULL;
-}
-
-static noinline_for_stack int ethtool_set_rx_ntuple(struct net_device *dev,
-						    void __user *useraddr)
-{
-	struct ethtool_rx_ntuple cmd;
-	const struct ethtool_ops *ops = dev->ethtool_ops;
-
-	if (!ops->set_rx_ntuple)
-		return -EOPNOTSUPP;
-
-	if (!(dev->features & NETIF_F_NTUPLE))
-		return -EINVAL;
-
-	if (copy_from_user(&cmd, useraddr, sizeof(cmd)))
-		return -EFAULT;
-
-	rx_ntuple_fix_masks(&cmd.fs);
-
-	return ops->set_rx_ntuple(dev, &cmd);
 }
 
 static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
@@ -1229,81 +945,6 @@ static int ethtool_set_pauseparam(struct net_device *dev, void __user *useraddr)
 		return -EFAULT;
 
 	return dev->ethtool_ops->set_pauseparam(dev, &pauseparam);
-}
-
-static int __ethtool_set_sg(struct net_device *dev, u32 data)
-{
-	int err;
-
-	if (!dev->ethtool_ops->set_sg)
-		return -EOPNOTSUPP;
-
-	if (data && !(dev->features & NETIF_F_ALL_CSUM))
-		return -EINVAL;
-
-	if (!data && dev->ethtool_ops->set_tso) {
-		err = dev->ethtool_ops->set_tso(dev, 0);
-		if (err)
-			return err;
-	}
-
-	if (!data && dev->ethtool_ops->set_ufo) {
-		err = dev->ethtool_ops->set_ufo(dev, 0);
-		if (err)
-			return err;
-	}
-	return dev->ethtool_ops->set_sg(dev, data);
-}
-
-static int __ethtool_set_tx_csum(struct net_device *dev, u32 data)
-{
-	int err;
-
-	if (!dev->ethtool_ops->set_tx_csum)
-		return -EOPNOTSUPP;
-
-	if (!data && dev->ethtool_ops->set_sg) {
-		err = __ethtool_set_sg(dev, 0);
-		if (err)
-			return err;
-	}
-
-	return dev->ethtool_ops->set_tx_csum(dev, data);
-}
-
-static int __ethtool_set_rx_csum(struct net_device *dev, u32 data)
-{
-	if (!dev->ethtool_ops->set_rx_csum)
-		return -EOPNOTSUPP;
-
-	if (!data)
-		dev->features &= ~NETIF_F_GRO;
-
-	return dev->ethtool_ops->set_rx_csum(dev, data);
-}
-
-static int __ethtool_set_tso(struct net_device *dev, u32 data)
-{
-	if (!dev->ethtool_ops->set_tso)
-		return -EOPNOTSUPP;
-
-	if (data && !(dev->features & NETIF_F_SG))
-		return -EINVAL;
-
-	return dev->ethtool_ops->set_tso(dev, data);
-}
-
-static int __ethtool_set_ufo(struct net_device *dev, u32 data)
-{
-	if (!dev->ethtool_ops->set_ufo)
-		return -EOPNOTSUPP;
-	if (data && !(dev->features & NETIF_F_SG))
-		return -EINVAL;
-	if (data && !((dev->features & NETIF_F_GEN_CSUM) ||
-		(dev->features & (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))
-			== (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM)))
-		return -EINVAL;
-	return dev->ethtool_ops->set_ufo(dev, data);
 }
 
 static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
@@ -1670,6 +1311,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GRXCSUM:
 	case ETHTOOL_GTXCSUM:
 	case ETHTOOL_GSG:
+	case ETHTOOL_GSSET_INFO:
 	case ETHTOOL_GSTRINGS:
 	case ETHTOOL_GTSO:
 	case ETHTOOL_GPERMADDR:
@@ -1771,9 +1413,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_GFLAGS:
 		rc = ethtool_get_value(dev, useraddr, ethcmd,
-				       (dev->ethtool_ops->get_flags ?
-					dev->ethtool_ops->get_flags :
-					ethtool_op_get_flags));
+					__ethtool_get_flags);
 		break;
 	case ETHTOOL_SFLAGS:
 		rc = ethtool_set_value(dev, useraddr, __ethtool_set_flags);
@@ -1803,9 +1443,6 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_RESET:
 		rc = ethtool_reset(dev, useraddr);
-		break;
-	case ETHTOOL_SRXNTUPLE:
-		rc = ethtool_set_rx_ntuple(dev, useraddr);
 		break;
 	case ETHTOOL_GSSET_INFO:
 		rc = ethtool_get_sset_info(dev, useraddr);

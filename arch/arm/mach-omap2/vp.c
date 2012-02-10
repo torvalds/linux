@@ -1,7 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include <plat/common.h>
+#include "common.h"
 
 #include "voltage.h"
 #include "vp.h"

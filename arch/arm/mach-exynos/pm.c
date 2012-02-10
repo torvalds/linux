@@ -23,6 +23,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
+#include <asm/smp_scu.h>
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
@@ -205,33 +206,12 @@ static void exynos4_pm_prepare(void)
 
 }
 
-static int exynos4_pm_add(struct sys_device *sysdev)
+static int exynos4_pm_add(struct device *dev)
 {
 	pm_cpu_prep = exynos4_pm_prepare;
 	pm_cpu_sleep = exynos4_cpu_suspend;
 
 	return 0;
-}
-
-/* This function copy from linux/arch/arm/kernel/smp_scu.c */
-
-void exynos4_scu_enable(void __iomem *scu_base)
-{
-	u32 scu_ctrl;
-
-	scu_ctrl = __raw_readl(scu_base);
-	/* already enabled? */
-	if (scu_ctrl & 1)
-		return;
-
-	scu_ctrl |= 1;
-	__raw_writel(scu_ctrl, scu_base);
-
-	/*
-	 * Ensure that the data accessed by CPU0 before the SCU was
-	 * initialised is visible to the other CPUs.
-	 */
-	flush_cache_all();
 }
 
 static unsigned long pll_base_rate;
@@ -301,8 +281,10 @@ static void exynos4_restore_pll(void)
 	} while (epll_wait || vpll_wait);
 }
 
-static struct sysdev_driver exynos4_pm_driver = {
-	.add		= exynos4_pm_add,
+static struct subsys_interface exynos4_pm_interface = {
+	.name		= "exynos4_pm",
+	.subsys		= &exynos4_subsys,
+	.add_dev	= exynos4_pm_add,
 };
 
 static __init int exynos4_pm_drvinit(void)
@@ -325,7 +307,7 @@ static __init int exynos4_pm_drvinit(void)
 		clk_put(pll_base);
 	}
 
-	return sysdev_driver_register(&exynos4_sysclass, &exynos4_pm_driver);
+	return subsys_interface_register(&exynos4_pm_interface);
 }
 arch_initcall(exynos4_pm_drvinit);
 
@@ -402,7 +384,7 @@ static void exynos4_pm_resume(void)
 
 	exynos4_restore_pll();
 
-	exynos4_scu_enable(S5P_VA_SCU);
+	scu_enable(S5P_VA_SCU);
 
 #ifdef CONFIG_CACHE_L2X0
 	s3c_pm_do_restore_core(exynos4_l2cc_save, ARRAY_SIZE(exynos4_l2cc_save));

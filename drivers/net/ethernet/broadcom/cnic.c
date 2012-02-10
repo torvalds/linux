@@ -250,6 +250,21 @@ static u32 cnic_reg_rd_ind(struct cnic_dev *dev, u32 off)
 	return io->data;
 }
 
+static void cnic_ulp_ctl(struct cnic_dev *dev, int ulp_type, bool reg)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	struct cnic_eth_dev *ethdev = cp->ethdev;
+	struct drv_ctl_info info;
+
+	if (reg)
+		info.cmd = DRV_CTL_ULP_REGISTER_CMD;
+	else
+		info.cmd = DRV_CTL_ULP_UNREGISTER_CMD;
+
+	info.data.ulp_type = ulp_type;
+	ethdev->drv_ctl(dev->netdev, &info);
+}
+
 static int cnic_in_use(struct cnic_sock *csk)
 {
 	return test_bit(SK_F_INUSE, &csk->flags);
@@ -506,7 +521,7 @@ int cnic_unregister_driver(int ulp_type)
 	}
 	read_unlock(&cnic_dev_lock);
 
-	rcu_assign_pointer(cnic_ulp_tbl[ulp_type], NULL);
+	RCU_INIT_POINTER(cnic_ulp_tbl[ulp_type], NULL);
 
 	mutex_unlock(&cnic_lock);
 	synchronize_rcu();
@@ -563,6 +578,8 @@ static int cnic_register_device(struct cnic_dev *dev, int ulp_type,
 
 	mutex_unlock(&cnic_lock);
 
+	cnic_ulp_ctl(dev, ulp_type, true);
+
 	return 0;
 
 }
@@ -579,7 +596,7 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 	}
 	mutex_lock(&cnic_lock);
 	if (rcu_dereference(cp->ulp_ops[ulp_type])) {
-		rcu_assign_pointer(cp->ulp_ops[ulp_type], NULL);
+		RCU_INIT_POINTER(cp->ulp_ops[ulp_type], NULL);
 		cnic_put(dev);
 	} else {
 		pr_err("%s: device not registered to this ulp type %d\n",
@@ -601,6 +618,8 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 	}
 	if (test_bit(ULP_F_CALL_PENDING, &cp->ulp_flags[ulp_type]))
 		netdev_warn(dev->netdev, "Failed waiting for ULP up call to complete\n");
+
+	cnic_ulp_ctl(dev, ulp_type, false);
 
 	return 0;
 }
@@ -1342,7 +1361,7 @@ static int cnic_submit_kwqe_16(struct cnic_dev *dev, u32 cmd, u32 cid,
 	if (ret == 1)
 		return 0;
 
-	return -EBUSY;
+	return ret;
 }
 
 static void cnic_reply_bnx2x_kcqes(struct cnic_dev *dev, int ulp_type,
@@ -1830,7 +1849,7 @@ static int cnic_bnx2x_iscsi_ofld1(struct cnic_dev *dev, struct kwqe *wqes[],
 done:
 	cqes[0] = (struct kcqe *) &kcqe;
 	cnic_reply_bnx2x_kcqes(dev, CNIC_ULP_ISCSI, cqes, 1);
-	return ret;
+	return 0;
 }
 
 
@@ -1928,7 +1947,7 @@ destroy_reply:
 	cqes[0] = (struct kcqe *) &kcqe;
 	cnic_reply_bnx2x_kcqes(dev, CNIC_ULP_ISCSI, cqes, 1);
 
-	return ret;
+	return 0;
 }
 
 static void cnic_init_storm_conn_bufs(struct cnic_dev *dev,
@@ -2494,6 +2513,57 @@ static int cnic_bnx2x_fcoe_fw_destroy(struct cnic_dev *dev, struct kwqe *kwqe)
 	return ret;
 }
 
+static void cnic_bnx2x_kwqe_err(struct cnic_dev *dev, struct kwqe *kwqe)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	struct kcqe kcqe;
+	struct kcqe *cqes[1];
+	u32 cid;
+	u32 opcode = KWQE_OPCODE(kwqe->kwqe_op_flag);
+	u32 layer_code = kwqe->kwqe_op_flag & KWQE_LAYER_MASK;
+	int ulp_type;
+
+	cid = kwqe->kwqe_info0;
+	memset(&kcqe, 0, sizeof(kcqe));
+
+	if (layer_code == KWQE_FLAGS_LAYER_MASK_L5_ISCSI) {
+		ulp_type = CNIC_ULP_ISCSI;
+		if (opcode == ISCSI_KWQE_OPCODE_UPDATE_CONN)
+			cid = kwqe->kwqe_info1;
+
+		kcqe.kcqe_op_flag = (opcode + 0x10) << KCQE_FLAGS_OPCODE_SHIFT;
+		kcqe.kcqe_op_flag |= KCQE_FLAGS_LAYER_MASK_L5_ISCSI;
+		kcqe.kcqe_info1 = ISCSI_KCQE_COMPLETION_STATUS_NIC_ERROR;
+		kcqe.kcqe_info2 = cid;
+		cnic_get_l5_cid(cp, BNX2X_SW_CID(cid), &kcqe.kcqe_info0);
+
+	} else if (layer_code == KWQE_FLAGS_LAYER_MASK_L4) {
+		struct l4_kcq *l4kcqe = (struct l4_kcq *) &kcqe;
+		u32 kcqe_op;
+
+		ulp_type = CNIC_ULP_L4;
+		if (opcode == L4_KWQE_OPCODE_VALUE_CONNECT1)
+			kcqe_op = L4_KCQE_OPCODE_VALUE_CONNECT_COMPLETE;
+		else if (opcode == L4_KWQE_OPCODE_VALUE_RESET)
+			kcqe_op = L4_KCQE_OPCODE_VALUE_RESET_COMP;
+		else if (opcode == L4_KWQE_OPCODE_VALUE_CLOSE)
+			kcqe_op = L4_KCQE_OPCODE_VALUE_CLOSE_COMP;
+		else
+			return;
+
+		kcqe.kcqe_op_flag = (kcqe_op << KCQE_FLAGS_OPCODE_SHIFT) |
+				    KCQE_FLAGS_LAYER_MASK_L4;
+		l4kcqe->status = L4_KCQE_COMPLETION_STATUS_NIC_ERROR;
+		l4kcqe->cid = cid;
+		cnic_get_l5_cid(cp, BNX2X_SW_CID(cid), &l4kcqe->conn_id);
+	} else {
+		return;
+	}
+
+	cqes[0] = (struct kcqe *) &kcqe;
+	cnic_reply_bnx2x_kcqes(dev, ulp_type, cqes, 1);
+}
+
 static int cnic_submit_bnx2x_iscsi_kwqes(struct cnic_dev *dev,
 					 struct kwqe *wqes[], u32 num_wqes)
 {
@@ -2551,9 +2621,17 @@ static int cnic_submit_bnx2x_iscsi_kwqes(struct cnic_dev *dev,
 				   opcode);
 			break;
 		}
-		if (ret < 0)
+		if (ret < 0) {
 			netdev_err(dev->netdev, "KWQE(0x%x) failed\n",
 				   opcode);
+
+			/* Possibly bnx2x parity error, send completion
+			 * to ulp drivers with error code to speed up
+			 * cleanup and reset recovery.
+			 */
+			if (ret == -EIO || ret == -EAGAIN)
+				cnic_bnx2x_kwqe_err(dev, kwqe);
+		}
 		i += work;
 	}
 	return 0;
@@ -3052,9 +3130,26 @@ static void cnic_ulp_start(struct cnic_dev *dev)
 	}
 }
 
+static int cnic_copy_ulp_stats(struct cnic_dev *dev, int ulp_type)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	struct cnic_ulp_ops *ulp_ops;
+	int rc;
+
+	mutex_lock(&cnic_lock);
+	ulp_ops = cnic_ulp_tbl_prot(ulp_type);
+	if (ulp_ops && ulp_ops->cnic_get_stats)
+		rc = ulp_ops->cnic_get_stats(cp->ulp_handle[ulp_type]);
+	else
+		rc = -ENODEV;
+	mutex_unlock(&cnic_lock);
+	return rc;
+}
+
 static int cnic_ctl(void *data, struct cnic_ctl_info *info)
 {
 	struct cnic_dev *dev = data;
+	int ulp_type = CNIC_ULP_ISCSI;
 
 	switch (info->cmd) {
 	case CNIC_CTL_STOP_CMD:
@@ -3100,6 +3195,15 @@ static int cnic_ctl(void *data, struct cnic_ctl_info *info)
 		}
 		break;
 	}
+	case CNIC_CTL_FCOE_STATS_GET_CMD:
+		ulp_type = CNIC_ULP_FCOE;
+		/* fall through */
+	case CNIC_CTL_ISCSI_STATS_GET_CMD:
+		cnic_hold(dev);
+		cnic_copy_ulp_stats(dev, ulp_type);
+		cnic_put(dev);
+		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -3475,7 +3579,7 @@ static int cnic_get_v6_route(struct sockaddr_in6 *dst_addr,
 	struct flowi6 fl6;
 
 	memset(&fl6, 0, sizeof(fl6));
-	ipv6_addr_copy(&fl6.daddr, &dst_addr->sin6_addr);
+	fl6.daddr = dst_addr->sin6_addr;
 	if (ipv6_addr_type(&fl6.daddr) & IPV6_ADDR_LINKLOCAL)
 		fl6.flowi6_oif = dst_addr->sin6_scope_id;
 
@@ -3804,6 +3908,9 @@ static void cnic_cm_process_kcqe(struct cnic_dev *dev, struct kcqe *kcqe)
 	case L4_KCQE_OPCODE_VALUE_RESET_COMP:
 	case L5CM_RAMROD_CMD_ID_SEARCHER_DELETE:
 	case L5CM_RAMROD_CMD_ID_TERMINATE_OFFLOAD:
+		if (l4kcqe->status == L4_KCQE_COMPLETION_STATUS_NIC_ERROR)
+			set_bit(SK_F_HW_ERR, &csk->flags);
+
 		cp->close_conn(csk, opcode);
 		break;
 
@@ -3931,7 +4038,9 @@ static void cnic_close_bnx2x_conn(struct cnic_sock *csk, u32 opcode)
 	case L4_KCQE_OPCODE_VALUE_CLOSE_COMP:
 	case L4_KCQE_OPCODE_VALUE_RESET_COMP:
 		if (cnic_ready_to_close(csk, opcode)) {
-			if (test_bit(SK_F_PG_OFFLD_COMPLETE, &csk->flags))
+			if (test_bit(SK_F_HW_ERR, &csk->flags))
+				close_complete = 1;
+			else if (test_bit(SK_F_PG_OFFLD_COMPLETE, &csk->flags))
 				cmd = L5CM_RAMROD_CMD_ID_SEARCHER_DELETE;
 			else
 				close_complete = 1;
@@ -4824,6 +4933,7 @@ static int cnic_start_bnx2x_hw(struct cnic_dev *dev)
 	int func = CNIC_FUNC(cp), ret;
 	u32 pfid;
 
+	dev->stats_addr = ethdev->addr_drv_info_to_mcp;
 	cp->port_mode = CHIP_PORT_MODE_NONE;
 
 	if (BNX2X_CHIP_IS_E2_PLUS(cp->chip_id)) {
@@ -5134,7 +5244,7 @@ static void cnic_stop_hw(struct cnic_dev *dev)
 		}
 		cnic_shutdown_rings(dev);
 		clear_bit(CNIC_F_CNIC_UP, &dev->flags);
-		rcu_assign_pointer(cp->ulp_ops[CNIC_ULP_L4], NULL);
+		RCU_INIT_POINTER(cp->ulp_ops[CNIC_ULP_L4], NULL);
 		synchronize_rcu();
 		cnic_cm_shutdown(dev);
 		cp->stop_hw(dev);
@@ -5287,6 +5397,8 @@ static struct cnic_dev *init_bnx2x_cnic(struct net_device *dev)
 	cp->ethdev = ethdev;
 	cdev->pcidev = pdev;
 	cp->chip_id = ethdev->chip_id;
+
+	cdev->stats_addr = ethdev->addr_drv_info_to_mcp;
 
 	if (!(ethdev->drv_state & CNIC_DRV_STATE_NO_ISCSI))
 		cdev->max_iscsi_conn = ethdev->max_iscsi_conn;

@@ -238,6 +238,7 @@ static void neigh_flush_dev(struct neigh_table *tbl, struct net_device *dev)
 				   it to safe state.
 				 */
 				skb_queue_purge(&n->arp_queue);
+				n->arp_queue_len_bytes = 0;
 				n->output = neigh_blackhole;
 				if (n->nud_state & NUD_VALID)
 					n->nud_state = NUD_NOARP;
@@ -272,7 +273,7 @@ int neigh_ifdown(struct neigh_table *tbl, struct net_device *dev)
 }
 EXPORT_SYMBOL(neigh_ifdown);
 
-static struct neighbour *neigh_alloc(struct neigh_table *tbl)
+static struct neighbour *neigh_alloc(struct neigh_table *tbl, struct net_device *dev)
 {
 	struct neighbour *n = NULL;
 	unsigned long now = jiffies;
@@ -287,7 +288,15 @@ static struct neighbour *neigh_alloc(struct neigh_table *tbl)
 			goto out_entries;
 	}
 
-	n = kmem_cache_zalloc(tbl->kmem_cachep, GFP_ATOMIC);
+	if (tbl->entry_size)
+		n = kzalloc(tbl->entry_size, GFP_ATOMIC);
+	else {
+		int sz = sizeof(*n) + tbl->key_len;
+
+		sz = ALIGN(sz, NEIGH_PRIV_ALIGN);
+		sz += dev->neigh_priv_len;
+		n = kzalloc(sz, GFP_ATOMIC);
+	}
 	if (!n)
 		goto out_entries;
 
@@ -313,11 +322,18 @@ out_entries:
 	goto out;
 }
 
+static void neigh_get_hash_rnd(u32 *x)
+{
+	get_random_bytes(x, sizeof(*x));
+	*x |= 1;
+}
+
 static struct neigh_hash_table *neigh_hash_alloc(unsigned int shift)
 {
 	size_t size = (1 << shift) * sizeof(struct neighbour *);
 	struct neigh_hash_table *ret;
 	struct neighbour __rcu **buckets;
+	int i;
 
 	ret = kmalloc(sizeof(*ret), GFP_ATOMIC);
 	if (!ret)
@@ -334,8 +350,8 @@ static struct neigh_hash_table *neigh_hash_alloc(unsigned int shift)
 	}
 	ret->hash_buckets = buckets;
 	ret->hash_shift = shift;
-	get_random_bytes(&ret->hash_rnd, sizeof(ret->hash_rnd));
-	ret->hash_rnd |= 1;
+	for (i = 0; i < NEIGH_NUM_HASH_RND; i++)
+		neigh_get_hash_rnd(&ret->hash_rnd[i]);
 	return ret;
 }
 
@@ -462,7 +478,7 @@ struct neighbour *neigh_create(struct neigh_table *tbl, const void *pkey,
 	u32 hash_val;
 	int key_len = tbl->key_len;
 	int error;
-	struct neighbour *n1, *rc, *n = neigh_alloc(tbl);
+	struct neighbour *n1, *rc, *n = neigh_alloc(tbl, dev);
 	struct neigh_hash_table *nht;
 
 	if (!n) {
@@ -478,6 +494,14 @@ struct neighbour *neigh_create(struct neigh_table *tbl, const void *pkey,
 	if (tbl->constructor &&	(error = tbl->constructor(n)) < 0) {
 		rc = ERR_PTR(error);
 		goto out_neigh_release;
+	}
+
+	if (dev->netdev_ops->ndo_neigh_construct) {
+		error = dev->netdev_ops->ndo_neigh_construct(n);
+		if (error < 0) {
+			rc = ERR_PTR(error);
+			goto out_neigh_release;
+		}
 	}
 
 	/* Device specific setup. */
@@ -677,18 +701,14 @@ static inline void neigh_parms_put(struct neigh_parms *parms)
 		neigh_parms_destroy(parms);
 }
 
-static void neigh_destroy_rcu(struct rcu_head *head)
-{
-	struct neighbour *neigh = container_of(head, struct neighbour, rcu);
-
-	kmem_cache_free(neigh->tbl->kmem_cachep, neigh);
-}
 /*
  *	neighbour must already be out of the table;
  *
  */
 void neigh_destroy(struct neighbour *neigh)
 {
+	struct net_device *dev = neigh->dev;
+
 	NEIGH_CACHE_STAT_INC(neigh->tbl, destroys);
 
 	if (!neigh->dead) {
@@ -702,14 +722,18 @@ void neigh_destroy(struct neighbour *neigh)
 		printk(KERN_WARNING "Impossible event.\n");
 
 	skb_queue_purge(&neigh->arp_queue);
+	neigh->arp_queue_len_bytes = 0;
 
-	dev_put(neigh->dev);
+	if (dev->netdev_ops->ndo_neigh_destroy)
+		dev->netdev_ops->ndo_neigh_destroy(neigh);
+
+	dev_put(dev);
 	neigh_parms_put(neigh->parms);
 
 	NEIGH_PRINTK2("neigh %p is destroyed.\n", neigh);
 
 	atomic_dec(&neigh->tbl->entries);
-	call_rcu(&neigh->rcu, neigh_destroy_rcu);
+	kfree_rcu(neigh, rcu);
 }
 EXPORT_SYMBOL(neigh_destroy);
 
@@ -842,6 +866,7 @@ static void neigh_invalidate(struct neighbour *neigh)
 		write_lock(&neigh->lock);
 	}
 	skb_queue_purge(&neigh->arp_queue);
+	neigh->arp_queue_len_bytes = 0;
 }
 
 static void neigh_probe(struct neighbour *neigh)
@@ -980,15 +1005,20 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 
 	if (neigh->nud_state == NUD_INCOMPLETE) {
 		if (skb) {
-			if (skb_queue_len(&neigh->arp_queue) >=
-			    neigh->parms->queue_len) {
+			while (neigh->arp_queue_len_bytes + skb->truesize >
+			       neigh->parms->queue_len_bytes) {
 				struct sk_buff *buff;
+
 				buff = __skb_dequeue(&neigh->arp_queue);
+				if (!buff)
+					break;
+				neigh->arp_queue_len_bytes -= buff->truesize;
 				kfree_skb(buff);
 				NEIGH_CACHE_STAT_INC(neigh->tbl, unres_discards);
 			}
 			skb_dst_force(skb);
 			__skb_queue_tail(&neigh->arp_queue, skb);
+			neigh->arp_queue_len_bytes += skb->truesize;
 		}
 		rc = 1;
 	}
@@ -1167,7 +1197,7 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 
 			rcu_read_lock();
 			/* On shaper/eql skb->dst->neighbour != neigh :( */
-			if (dst && (n2 = dst_get_neighbour(dst)) != NULL)
+			if (dst && (n2 = dst_get_neighbour_noref(dst)) != NULL)
 				n1 = n2;
 			n1->output(n1, skb);
 			rcu_read_unlock();
@@ -1175,6 +1205,7 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 			write_lock_bh(&neigh->lock);
 		}
 		skb_queue_purge(&neigh->arp_queue);
+		neigh->arp_queue_len_bytes = 0;
 	}
 out:
 	if (update_isrouter) {
@@ -1477,11 +1508,6 @@ void neigh_table_init_no_netlink(struct neigh_table *tbl)
 	tbl->parms.reachable_time =
 			  neigh_rand_reach_time(tbl->parms.base_reachable_time);
 
-	if (!tbl->kmem_cachep)
-		tbl->kmem_cachep =
-			kmem_cache_create(tbl->id, tbl->entry_size, 0,
-					  SLAB_HWCACHE_ALIGN|SLAB_PANIC,
-					  NULL);
 	tbl->stats = alloc_percpu(struct neigh_statistics);
 	if (!tbl->stats)
 		panic("cannot create neighbour cache statistics");
@@ -1565,9 +1591,6 @@ int neigh_table_clear(struct neigh_table *tbl)
 
 	free_percpu(tbl->stats);
 	tbl->stats = NULL;
-
-	kmem_cache_destroy(tbl->kmem_cachep);
-	tbl->kmem_cachep = NULL;
 
 	return 0;
 }
@@ -1747,7 +1770,11 @@ static int neightbl_fill_parms(struct sk_buff *skb, struct neigh_parms *parms)
 		NLA_PUT_U32(skb, NDTPA_IFINDEX, parms->dev->ifindex);
 
 	NLA_PUT_U32(skb, NDTPA_REFCNT, atomic_read(&parms->refcnt));
-	NLA_PUT_U32(skb, NDTPA_QUEUE_LEN, parms->queue_len);
+	NLA_PUT_U32(skb, NDTPA_QUEUE_LENBYTES, parms->queue_len_bytes);
+	/* approximative value for deprecated QUEUE_LEN (in packets) */
+	NLA_PUT_U32(skb, NDTPA_QUEUE_LEN,
+		    DIV_ROUND_UP(parms->queue_len_bytes,
+				 SKB_TRUESIZE(ETH_FRAME_LEN)));
 	NLA_PUT_U32(skb, NDTPA_PROXY_QLEN, parms->proxy_qlen);
 	NLA_PUT_U32(skb, NDTPA_APP_PROBES, parms->app_probes);
 	NLA_PUT_U32(skb, NDTPA_UCAST_PROBES, parms->ucast_probes);
@@ -1808,7 +1835,7 @@ static int neightbl_fill_info(struct sk_buff *skb, struct neigh_table *tbl,
 
 		rcu_read_lock_bh();
 		nht = rcu_dereference_bh(tbl->nht);
-		ndc.ndtc_hash_rnd = nht->hash_rnd;
+		ndc.ndtc_hash_rnd = nht->hash_rnd[0];
 		ndc.ndtc_hash_mask = ((1 << nht->hash_shift) - 1);
 		rcu_read_unlock_bh();
 
@@ -1974,7 +2001,11 @@ static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 
 			switch (i) {
 			case NDTPA_QUEUE_LEN:
-				p->queue_len = nla_get_u32(tbp[i]);
+				p->queue_len_bytes = nla_get_u32(tbp[i]) *
+						     SKB_TRUESIZE(ETH_FRAME_LEN);
+				break;
+			case NDTPA_QUEUE_LENBYTES:
+				p->queue_len_bytes = nla_get_u32(tbp[i]);
 				break;
 			case NDTPA_PROXY_QLEN:
 				p->proxy_qlen = nla_get_u32(tbp[i]);
@@ -2638,117 +2669,158 @@ EXPORT_SYMBOL(neigh_app_ns);
 
 #ifdef CONFIG_SYSCTL
 
-#define NEIGH_VARS_MAX 19
+static int proc_unres_qlen(ctl_table *ctl, int write, void __user *buffer,
+			   size_t *lenp, loff_t *ppos)
+{
+	int size, ret;
+	ctl_table tmp = *ctl;
+
+	tmp.data = &size;
+	size = DIV_ROUND_UP(*(int *)ctl->data, SKB_TRUESIZE(ETH_FRAME_LEN));
+	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
+	if (write && !ret)
+		*(int *)ctl->data = size * SKB_TRUESIZE(ETH_FRAME_LEN);
+	return ret;
+}
+
+enum {
+	NEIGH_VAR_MCAST_PROBE,
+	NEIGH_VAR_UCAST_PROBE,
+	NEIGH_VAR_APP_PROBE,
+	NEIGH_VAR_RETRANS_TIME,
+	NEIGH_VAR_BASE_REACHABLE_TIME,
+	NEIGH_VAR_DELAY_PROBE_TIME,
+	NEIGH_VAR_GC_STALETIME,
+	NEIGH_VAR_QUEUE_LEN,
+	NEIGH_VAR_QUEUE_LEN_BYTES,
+	NEIGH_VAR_PROXY_QLEN,
+	NEIGH_VAR_ANYCAST_DELAY,
+	NEIGH_VAR_PROXY_DELAY,
+	NEIGH_VAR_LOCKTIME,
+	NEIGH_VAR_RETRANS_TIME_MS,
+	NEIGH_VAR_BASE_REACHABLE_TIME_MS,
+	NEIGH_VAR_GC_INTERVAL,
+	NEIGH_VAR_GC_THRESH1,
+	NEIGH_VAR_GC_THRESH2,
+	NEIGH_VAR_GC_THRESH3,
+	NEIGH_VAR_MAX
+};
 
 static struct neigh_sysctl_table {
 	struct ctl_table_header *sysctl_header;
-	struct ctl_table neigh_vars[NEIGH_VARS_MAX];
+	struct ctl_table neigh_vars[NEIGH_VAR_MAX + 1];
 	char *dev_name;
 } neigh_sysctl_template __read_mostly = {
 	.neigh_vars = {
-		{
+		[NEIGH_VAR_MCAST_PROBE] = {
 			.procname	= "mcast_solicit",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec,
 		},
-		{
+		[NEIGH_VAR_UCAST_PROBE] = {
 			.procname	= "ucast_solicit",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec,
 		},
-		{
+		[NEIGH_VAR_APP_PROBE] = {
 			.procname	= "app_solicit",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec,
 		},
-		{
+		[NEIGH_VAR_RETRANS_TIME] = {
 			.procname	= "retrans_time",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_userhz_jiffies,
 		},
-		{
+		[NEIGH_VAR_BASE_REACHABLE_TIME] = {
 			.procname	= "base_reachable_time",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_jiffies,
 		},
-		{
+		[NEIGH_VAR_DELAY_PROBE_TIME] = {
 			.procname	= "delay_first_probe_time",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_jiffies,
 		},
-		{
+		[NEIGH_VAR_GC_STALETIME] = {
 			.procname	= "gc_stale_time",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_jiffies,
 		},
-		{
+		[NEIGH_VAR_QUEUE_LEN] = {
 			.procname	= "unres_qlen",
+			.maxlen		= sizeof(int),
+			.mode		= 0644,
+			.proc_handler	= proc_unres_qlen,
+		},
+		[NEIGH_VAR_QUEUE_LEN_BYTES] = {
+			.procname	= "unres_qlen_bytes",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec,
 		},
-		{
+		[NEIGH_VAR_PROXY_QLEN] = {
 			.procname	= "proxy_qlen",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec,
 		},
-		{
+		[NEIGH_VAR_ANYCAST_DELAY] = {
 			.procname	= "anycast_delay",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_userhz_jiffies,
 		},
-		{
+		[NEIGH_VAR_PROXY_DELAY] = {
 			.procname	= "proxy_delay",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_userhz_jiffies,
 		},
-		{
+		[NEIGH_VAR_LOCKTIME] = {
 			.procname	= "locktime",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_userhz_jiffies,
 		},
-		{
+		[NEIGH_VAR_RETRANS_TIME_MS] = {
 			.procname	= "retrans_time_ms",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_ms_jiffies,
 		},
-		{
+		[NEIGH_VAR_BASE_REACHABLE_TIME_MS] = {
 			.procname	= "base_reachable_time_ms",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_ms_jiffies,
 		},
-		{
+		[NEIGH_VAR_GC_INTERVAL] = {
 			.procname	= "gc_interval",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec_jiffies,
 		},
-		{
+		[NEIGH_VAR_GC_THRESH1] = {
 			.procname	= "gc_thresh1",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec,
 		},
-		{
+		[NEIGH_VAR_GC_THRESH2] = {
 			.procname	= "gc_thresh2",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
 			.proc_handler	= proc_dointvec,
 		},
-		{
+		[NEIGH_VAR_GC_THRESH3] = {
 			.procname	= "gc_thresh3",
 			.maxlen		= sizeof(int),
 			.mode		= 0644,
@@ -2781,47 +2853,49 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 	if (!t)
 		goto err;
 
-	t->neigh_vars[0].data  = &p->mcast_probes;
-	t->neigh_vars[1].data  = &p->ucast_probes;
-	t->neigh_vars[2].data  = &p->app_probes;
-	t->neigh_vars[3].data  = &p->retrans_time;
-	t->neigh_vars[4].data  = &p->base_reachable_time;
-	t->neigh_vars[5].data  = &p->delay_probe_time;
-	t->neigh_vars[6].data  = &p->gc_staletime;
-	t->neigh_vars[7].data  = &p->queue_len;
-	t->neigh_vars[8].data  = &p->proxy_qlen;
-	t->neigh_vars[9].data  = &p->anycast_delay;
-	t->neigh_vars[10].data = &p->proxy_delay;
-	t->neigh_vars[11].data = &p->locktime;
-	t->neigh_vars[12].data  = &p->retrans_time;
-	t->neigh_vars[13].data  = &p->base_reachable_time;
+	t->neigh_vars[NEIGH_VAR_MCAST_PROBE].data  = &p->mcast_probes;
+	t->neigh_vars[NEIGH_VAR_UCAST_PROBE].data  = &p->ucast_probes;
+	t->neigh_vars[NEIGH_VAR_APP_PROBE].data  = &p->app_probes;
+	t->neigh_vars[NEIGH_VAR_RETRANS_TIME].data  = &p->retrans_time;
+	t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME].data  = &p->base_reachable_time;
+	t->neigh_vars[NEIGH_VAR_DELAY_PROBE_TIME].data  = &p->delay_probe_time;
+	t->neigh_vars[NEIGH_VAR_GC_STALETIME].data  = &p->gc_staletime;
+	t->neigh_vars[NEIGH_VAR_QUEUE_LEN].data  = &p->queue_len_bytes;
+	t->neigh_vars[NEIGH_VAR_QUEUE_LEN_BYTES].data  = &p->queue_len_bytes;
+	t->neigh_vars[NEIGH_VAR_PROXY_QLEN].data  = &p->proxy_qlen;
+	t->neigh_vars[NEIGH_VAR_ANYCAST_DELAY].data  = &p->anycast_delay;
+	t->neigh_vars[NEIGH_VAR_PROXY_DELAY].data = &p->proxy_delay;
+	t->neigh_vars[NEIGH_VAR_LOCKTIME].data = &p->locktime;
+	t->neigh_vars[NEIGH_VAR_RETRANS_TIME_MS].data  = &p->retrans_time;
+	t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME_MS].data  = &p->base_reachable_time;
 
 	if (dev) {
 		dev_name_source = dev->name;
 		/* Terminate the table early */
-		memset(&t->neigh_vars[14], 0, sizeof(t->neigh_vars[14]));
+		memset(&t->neigh_vars[NEIGH_VAR_GC_INTERVAL], 0,
+		       sizeof(t->neigh_vars[NEIGH_VAR_GC_INTERVAL]));
 	} else {
 		dev_name_source = neigh_path[NEIGH_CTL_PATH_DEV].procname;
-		t->neigh_vars[14].data = (int *)(p + 1);
-		t->neigh_vars[15].data = (int *)(p + 1) + 1;
-		t->neigh_vars[16].data = (int *)(p + 1) + 2;
-		t->neigh_vars[17].data = (int *)(p + 1) + 3;
+		t->neigh_vars[NEIGH_VAR_GC_INTERVAL].data = (int *)(p + 1);
+		t->neigh_vars[NEIGH_VAR_GC_THRESH1].data = (int *)(p + 1) + 1;
+		t->neigh_vars[NEIGH_VAR_GC_THRESH2].data = (int *)(p + 1) + 2;
+		t->neigh_vars[NEIGH_VAR_GC_THRESH3].data = (int *)(p + 1) + 3;
 	}
 
 
 	if (handler) {
 		/* RetransTime */
-		t->neigh_vars[3].proc_handler = handler;
-		t->neigh_vars[3].extra1 = dev;
+		t->neigh_vars[NEIGH_VAR_RETRANS_TIME].proc_handler = handler;
+		t->neigh_vars[NEIGH_VAR_RETRANS_TIME].extra1 = dev;
 		/* ReachableTime */
-		t->neigh_vars[4].proc_handler = handler;
-		t->neigh_vars[4].extra1 = dev;
+		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME].proc_handler = handler;
+		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME].extra1 = dev;
 		/* RetransTime (in milliseconds)*/
-		t->neigh_vars[12].proc_handler = handler;
-		t->neigh_vars[12].extra1 = dev;
+		t->neigh_vars[NEIGH_VAR_RETRANS_TIME_MS].proc_handler = handler;
+		t->neigh_vars[NEIGH_VAR_RETRANS_TIME_MS].extra1 = dev;
 		/* ReachableTime (in milliseconds) */
-		t->neigh_vars[13].proc_handler = handler;
-		t->neigh_vars[13].extra1 = dev;
+		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME_MS].proc_handler = handler;
+		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME_MS].extra1 = dev;
 	}
 
 	t->dev_name = kstrdup(dev_name_source, GFP_KERNEL);

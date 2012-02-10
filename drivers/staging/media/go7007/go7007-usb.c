@@ -1054,7 +1054,13 @@ static int go7007_usb_probe(struct usb_interface *intf,
 	else
 		go->hpi_ops = &go7007_usb_onboard_hpi_ops;
 	go->hpi_context = usb;
-	usb_fill_int_urb(usb->intr_urb, usb->usbdev,
+	if (go->board_id == GO7007_BOARDID_SENSORAY_2250)
+		usb_fill_bulk_urb(usb->intr_urb, usb->usbdev,
+			usb_rcvbulkpipe(usb->usbdev, 4),
+			usb->intr_urb->transfer_buffer, 2*sizeof(u16),
+			go7007_usb_readinterrupt_complete, go);
+	else
+		usb_fill_int_urb(usb->intr_urb, usb->usbdev,
 			usb_rcvintpipe(usb->usbdev, 4),
 			usb->intr_urb->transfer_buffer, 2*sizeof(u16),
 			go7007_usb_readinterrupt_complete, go, 8);
@@ -1272,17 +1278,5 @@ static struct usb_driver go7007_usb_driver = {
 	.id_table	= go7007_usb_id_table,
 };
 
-static int __init go7007_usb_init(void)
-{
-	return usb_register(&go7007_usb_driver);
-}
-
-static void __exit go7007_usb_cleanup(void)
-{
-	usb_deregister(&go7007_usb_driver);
-}
-
-module_init(go7007_usb_init);
-module_exit(go7007_usb_cleanup);
-
+module_usb_driver(go7007_usb_driver);
 MODULE_LICENSE("GPL v2");

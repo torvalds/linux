@@ -101,8 +101,8 @@ static void ixgb_tx_timeout_task(struct work_struct *work);
 
 static void ixgb_vlan_strip_enable(struct ixgb_adapter *adapter);
 static void ixgb_vlan_strip_disable(struct ixgb_adapter *adapter);
-static void ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid);
-static void ixgb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid);
+static int ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid);
+static int ixgb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid);
 static void ixgb_restore_vlan(struct ixgb_adapter *adapter);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -228,7 +228,7 @@ ixgb_up(struct ixgb_adapter *adapter)
 	if (IXGB_READ_REG(&adapter->hw, STATUS) & IXGB_STATUS_PCIX_MODE) {
 		err = pci_enable_msi(adapter->pdev);
 		if (!err) {
-			adapter->have_msi = 1;
+			adapter->have_msi = true;
 			irq_flags = 0;
 		}
 		/* proceed to try to request regular interrupt */
@@ -325,8 +325,8 @@ ixgb_reset(struct ixgb_adapter *adapter)
 	}
 }
 
-static u32
-ixgb_fix_features(struct net_device *netdev, u32 features)
+static netdev_features_t
+ixgb_fix_features(struct net_device *netdev, netdev_features_t features)
 {
 	/*
 	 * Tx VLAN insertion does not work per HW design when Rx stripping is
@@ -339,10 +339,10 @@ ixgb_fix_features(struct net_device *netdev, u32 features)
 }
 
 static int
-ixgb_set_features(struct net_device *netdev, u32 features)
+ixgb_set_features(struct net_device *netdev, netdev_features_t features)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
-	u32 changed = features ^ netdev->features;
+	netdev_features_t changed = features ^ netdev->features;
 
 	if (!(changed & (NETIF_F_RXCSUM|NETIF_F_HW_VLAN_RX)))
 		return 0;
@@ -2217,7 +2217,7 @@ ixgb_vlan_strip_disable(struct ixgb_adapter *adapter)
 	IXGB_WRITE_REG(&adapter->hw, CTRL0, ctrl);
 }
 
-static void
+static int
 ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
@@ -2230,9 +2230,11 @@ ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	vfta |= (1 << (vid & 0x1F));
 	ixgb_write_vfta(&adapter->hw, index, vfta);
 	set_bit(vid, adapter->active_vlans);
+
+	return 0;
 }
 
-static void
+static int
 ixgb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
@@ -2245,6 +2247,8 @@ ixgb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	vfta &= ~(1 << (vid & 0x1F));
 	ixgb_write_vfta(&adapter->hw, index, vfta);
 	clear_bit(vid, adapter->active_vlans);
+
+	return 0;
 }
 
 static void

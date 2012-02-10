@@ -1198,9 +1198,9 @@ static ssize_t
 store_tabletXtilt(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	long x;
+	int x;
 
-	if (strict_strtol(buf, 10, &x)) {
+	if (kstrtoint(buf, 10, &x)) {
 		size_t len = buf[count - 1] == '\n' ? count - 1 : count;
 
 		if (strncmp(buf, "disable", len))
@@ -1240,9 +1240,9 @@ static ssize_t
 store_tabletYtilt(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	long y;
+	int y;
 
-	if (strict_strtol(buf, 10, &y)) {
+	if (kstrtoint(buf, 10, &y)) {
 		size_t len = buf[count - 1] == '\n' ? count - 1 : count;
 
 		if (strncmp(buf, "disable", len))
@@ -1277,12 +1277,13 @@ static ssize_t
 store_tabletJitterDelay(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	long j;
+	int err, j;
 
-	if (strict_strtol(buf, 10, &j))
-		return -EINVAL;
+	err = kstrtoint(buf, 10, &j);
+	if (err)
+		return err;
 
-	aiptek->newSetting.jitterDelay = (int)j;
+	aiptek->newSetting.jitterDelay = j;
 	return count;
 }
 
@@ -1306,12 +1307,13 @@ static ssize_t
 store_tabletProgrammableDelay(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	long d;
+	int err, d;
 
-	if (strict_strtol(buf, 10, &d))
-		return -EINVAL;
+	err = kstrtoint(buf, 10, &d);
+	if (err)
+		return err;
 
-	aiptek->newSetting.programmableDelay = (int)d;
+	aiptek->newSetting.programmableDelay = d;
 	return count;
 }
 
@@ -1557,11 +1559,13 @@ static ssize_t
 store_tabletWheel(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	long w;
+	int err, w;
 
-	if (strict_strtol(buf, 10, &w)) return -EINVAL;
+	err = kstrtoint(buf, 10, &w);
+	if (err)
+		return err;
 
-	aiptek->newSetting.wheel = (int)w;
+	aiptek->newSetting.wheel = w;
 	return count;
 }
 
@@ -1919,21 +1923,7 @@ static struct usb_driver aiptek_driver = {
 	.id_table = aiptek_ids,
 };
 
-static int __init aiptek_init(void)
-{
-	int result = usb_register(&aiptek_driver);
-	if (result == 0) {
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-		       DRIVER_DESC "\n");
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_AUTHOR "\n");
-	}
-	return result;
-}
-
-static void __exit aiptek_exit(void)
-{
-	usb_deregister(&aiptek_driver);
-}
+module_usb_driver(aiptek_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -1943,6 +1933,3 @@ module_param(programmableDelay, int, 0);
 MODULE_PARM_DESC(programmableDelay, "delay used during tablet programming");
 module_param(jitterDelay, int, 0);
 MODULE_PARM_DESC(jitterDelay, "stylus/mouse settlement delay");
-
-module_init(aiptek_init);
-module_exit(aiptek_exit);

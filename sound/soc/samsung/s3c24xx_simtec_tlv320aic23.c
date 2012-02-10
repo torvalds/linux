@@ -78,6 +78,7 @@ static struct snd_soc_dai_link simtec_dai_aic23 = {
 /* simtec audio machine driver */
 static struct snd_soc_card snd_soc_machine_simtec_aic23 = {
 	.name		= "Simtec",
+	.owner		= THIS_MODULE,
 	.dai_link	= &simtec_dai_aic23,
 	.num_links	= 1,
 
@@ -92,7 +93,7 @@ static int __devinit simtec_audio_tlv320aic23_probe(struct platform_device *pd)
 	return simtec_audio_core_probe(pd, &snd_soc_machine_simtec_aic23);
 }
 
-static struct platform_driver simtec_audio_tlv320aic23_platdrv = {
+static struct platform_driver simtec_audio_tlv320aic23_driver = {
 	.driver	= {
 		.owner	= THIS_MODULE,
 		.name	= "s3c24xx-simtec-tlv320aic23",
@@ -102,21 +103,9 @@ static struct platform_driver simtec_audio_tlv320aic23_platdrv = {
 	.remove	= __devexit_p(simtec_audio_remove),
 };
 
+module_platform_driver(simtec_audio_tlv320aic23_driver);
+
 MODULE_ALIAS("platform:s3c24xx-simtec-tlv320aic23");
-
-static int __init simtec_tlv320aic23_modinit(void)
-{
-	return platform_driver_register(&simtec_audio_tlv320aic23_platdrv);
-}
-
-static void __exit simtec_tlv320aic23_modexit(void)
-{
-	platform_driver_unregister(&simtec_audio_tlv320aic23_platdrv);
-}
-
-module_init(simtec_tlv320aic23_modinit);
-module_exit(simtec_tlv320aic23_modexit);
-
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("ALSA SoC Simtec Audio support");
 MODULE_LICENSE("GPL");

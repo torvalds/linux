@@ -86,9 +86,6 @@ struct fib6_table;
 struct rt6_info {
 	struct dst_entry		dst;
 
-#define rt6i_dev			dst.dev
-#define rt6i_expires			dst.expires
-
 	/*
 	 * Tail elements of dst_entry (__refcnt etc.)
 	 * and these elements (rarely used in hot path) are in
@@ -201,6 +198,10 @@ extern struct fib6_node		*fib6_lookup(struct fib6_node *root,
 struct fib6_node		*fib6_locate(struct fib6_node *root,
 					     const struct in6_addr *daddr, int dst_len,
 					     const struct in6_addr *saddr, int src_len);
+
+extern void			fib6_clean_all_ro(struct net *net,
+					       int (*func)(struct rt6_info *, void *arg),
+					       int prune, void *arg);
 
 extern void			fib6_clean_all(struct net *net,
 					       int (*func)(struct rt6_info *, void *arg),

@@ -33,22 +33,6 @@
 #include <asm/setup.h>
 #include <asm/pgtable.h>
 
-/*
- * Initial task/thread structure. Make this a per-architecture thing,
- * because different architectures tend to have different
- * alignment requirements and potentially different initial
- * setup.
- */
-static struct signal_struct init_signals = INIT_SIGNALS(init_signals);
-static struct sighand_struct init_sighand = INIT_SIGHAND(init_sighand);
-union thread_union init_thread_union __init_task_data
-	__attribute__((aligned(THREAD_SIZE))) =
-		{ INIT_THREAD_INFO(init_task) };
-
-/* initial task structure */
-struct task_struct init_task = INIT_TASK(init_task);
-
-EXPORT_SYMBOL(init_task);
 
 asmlinkage void ret_from_fork(void);
 
@@ -188,9 +172,7 @@ void flush_thread(void)
 
 	current->thread.fs = __USER_DS;
 	if (!FPU_IS_EMU)
-		asm volatile (".chip 68k/68881\n\t"
-			      "frestore %0@\n\t"
-			      ".chip 68k" : : "a" (&zero));
+		asm volatile("frestore %0": :"m" (zero));
 }
 
 /*
@@ -264,11 +246,28 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		/* Copy the current fpu state */
 		asm volatile ("fsave %0" : : "m" (p->thread.fpstate[0]) : "memory");
 
-		if (!CPU_IS_060 ? p->thread.fpstate[0] : p->thread.fpstate[2])
-		  asm volatile ("fmovemx %/fp0-%/fp7,%0\n\t"
-				"fmoveml %/fpiar/%/fpcr/%/fpsr,%1"
-				: : "m" (p->thread.fp[0]), "m" (p->thread.fpcntl[0])
-				: "memory");
+		if (!CPU_IS_060 ? p->thread.fpstate[0] : p->thread.fpstate[2]) {
+			if (CPU_IS_COLDFIRE) {
+				asm volatile ("fmovemd %/fp0-%/fp7,%0\n\t"
+					      "fmovel %/fpiar,%1\n\t"
+					      "fmovel %/fpcr,%2\n\t"
+					      "fmovel %/fpsr,%3"
+					      :
+					      : "m" (p->thread.fp[0]),
+						"m" (p->thread.fpcntl[0]),
+						"m" (p->thread.fpcntl[1]),
+						"m" (p->thread.fpcntl[2])
+					      : "memory");
+			} else {
+				asm volatile ("fmovemx %/fp0-%/fp7,%0\n\t"
+					      "fmoveml %/fpiar/%/fpcr/%/fpsr,%1"
+					      :
+					      : "m" (p->thread.fp[0]),
+						"m" (p->thread.fpcntl[0])
+					      : "memory");
+			}
+		}
+
 		/* Restore the state in case the fpu was busy */
 		asm volatile ("frestore %0" : : "m" (p->thread.fpstate[0]));
 	}
@@ -301,12 +300,28 @@ int dump_fpu (struct pt_regs *regs, struct user_m68kfp_struct *fpu)
 	if (!CPU_IS_060 ? !fpustate[0] : !fpustate[2])
 		return 0;
 
-	asm volatile ("fmovem %/fpiar/%/fpcr/%/fpsr,%0"
-		:: "m" (fpu->fpcntl[0])
-		: "memory");
-	asm volatile ("fmovemx %/fp0-%/fp7,%0"
-		:: "m" (fpu->fpregs[0])
-		: "memory");
+	if (CPU_IS_COLDFIRE) {
+		asm volatile ("fmovel %/fpiar,%0\n\t"
+			      "fmovel %/fpcr,%1\n\t"
+			      "fmovel %/fpsr,%2\n\t"
+			      "fmovemd %/fp0-%/fp7,%3"
+			      :
+			      : "m" (fpu->fpcntl[0]),
+				"m" (fpu->fpcntl[1]),
+				"m" (fpu->fpcntl[2]),
+				"m" (fpu->fpregs[0])
+			      : "memory");
+	} else {
+		asm volatile ("fmovem %/fpiar/%/fpcr/%/fpsr,%0"
+			      :
+			      : "m" (fpu->fpcntl[0])
+			      : "memory");
+		asm volatile ("fmovemx %/fp0-%/fp7,%0"
+			      :
+			      : "m" (fpu->fpregs[0])
+			      : "memory");
+	}
+
 	return 1;
 }
 EXPORT_SYMBOL(dump_fpu);

@@ -187,8 +187,6 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	struct mwifiex_opt_sleep_confirm *sleep_cfm_buf = NULL;
 
 	skb_put(adapter->sleep_cfm, sizeof(struct mwifiex_opt_sleep_confirm));
-	sleep_cfm_buf = (struct mwifiex_opt_sleep_confirm *)
-						(adapter->sleep_cfm->data);
 
 	adapter->cmd_sent = false;
 
@@ -248,12 +246,14 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	memset(adapter->event_body, 0, sizeof(adapter->event_body));
 	adapter->hw_dot_11n_dev_cap = 0;
 	adapter->hw_dev_mcs_support = 0;
-	adapter->chan_offset = 0;
+	adapter->sec_chan_offset = 0;
 	adapter->adhoc_11n_enabled = false;
 
 	mwifiex_wmm_init(adapter);
 
 	if (adapter->sleep_cfm) {
+		sleep_cfm_buf = (struct mwifiex_opt_sleep_confirm *)
+						adapter->sleep_cfm->data;
 		memset(sleep_cfm_buf, 0, adapter->sleep_cfm->len);
 		sleep_cfm_buf->command =
 				cpu_to_le16(HostCmd_CMD_802_11_PS_MODE_ENH);
@@ -280,6 +280,45 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->adhoc_awake_period = 0;
 	memset(&adapter->arp_filter, 0, sizeof(adapter->arp_filter));
 	adapter->arp_filter_size = 0;
+}
+
+/*
+ * This function sets trans_start per tx_queue
+ */
+void mwifiex_set_trans_start(struct net_device *dev)
+{
+	int i;
+
+	for (i = 0; i < dev->num_tx_queues; i++)
+		netdev_get_tx_queue(dev, i)->trans_start = jiffies;
+
+	dev->trans_start = jiffies;
+}
+
+/*
+ * This function wakes up all queues in net_device
+ */
+void mwifiex_wake_up_net_dev_queue(struct net_device *netdev,
+					struct mwifiex_adapter *adapter)
+{
+	unsigned long dev_queue_flags;
+
+	spin_lock_irqsave(&adapter->queue_lock, dev_queue_flags);
+	netif_tx_wake_all_queues(netdev);
+	spin_unlock_irqrestore(&adapter->queue_lock, dev_queue_flags);
+}
+
+/*
+ * This function stops all queues in net_device
+ */
+void mwifiex_stop_net_dev_queue(struct net_device *netdev,
+					struct mwifiex_adapter *adapter)
+{
+	unsigned long dev_queue_flags;
+
+	spin_lock_irqsave(&adapter->queue_lock, dev_queue_flags);
+	netif_tx_stop_all_queues(netdev);
+	spin_unlock_irqrestore(&adapter->queue_lock, dev_queue_flags);
 }
 
 /*
@@ -359,6 +398,7 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 	spin_lock_init(&adapter->int_lock);
 	spin_lock_init(&adapter->main_proc_lock);
 	spin_lock_init(&adapter->mwifiex_cmd_lock);
+	spin_lock_init(&adapter->queue_lock);
 	for (i = 0; i < adapter->priv_num; i++) {
 		if (adapter->priv[i]) {
 			priv = adapter->priv[i];

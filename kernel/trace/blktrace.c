@@ -402,7 +402,7 @@ static int blk_remove_buf_file_callback(struct dentry *dentry)
 
 static struct dentry *blk_create_buf_file_callback(const char *filename,
 						   struct dentry *parent,
-						   int mode,
+						   umode_t mode,
 						   struct rchan_buf *buf,
 						   int *is_global)
 {

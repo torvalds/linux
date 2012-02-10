@@ -212,7 +212,7 @@ static ssize_t set_in(struct device *dev, struct device_attribute *devattr,
 	long val;
 	u8 reg;
 
-	err = strict_strtol(buf, 10, &val);
+	err = kstrtol(buf, 10, &val);
 	if (err < 0)
 		return err;
 
@@ -249,7 +249,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
 	long val;
 	u8 reg;
 
-	err = strict_strtol(buf, 10, &val);
+	err = kstrtol(buf, 10, &val);
 	if (err < 0)
 		return err;
 
@@ -291,7 +291,7 @@ static ssize_t set_fan(struct device *dev, struct device_attribute *devattr,
 	int err;
 	unsigned long val;
 
-	err = strict_strtoul(buf, 10, &val);
+	err = kstrtoul(buf, 10, &val);
 	if (err < 0)
 		return err;
 

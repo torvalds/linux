@@ -68,17 +68,23 @@ static int max_timeout;
 static inline void ath79_wdt_keepalive(void)
 {
 	ath79_reset_wr(AR71XX_RESET_REG_WDOG, wdt_freq * timeout);
+	/* flush write */
+	ath79_reset_rr(AR71XX_RESET_REG_WDOG);
 }
 
 static inline void ath79_wdt_enable(void)
 {
 	ath79_wdt_keepalive();
 	ath79_reset_wr(AR71XX_RESET_REG_WDOG_CTRL, WDOG_CTRL_ACTION_FCR);
+	/* flush write */
+	ath79_reset_rr(AR71XX_RESET_REG_WDOG_CTRL);
 }
 
 static inline void ath79_wdt_disable(void)
 {
 	ath79_reset_wr(AR71XX_RESET_REG_WDOG_CTRL, WDOG_CTRL_ACTION_NONE);
+	/* flush write */
+	ath79_reset_rr(AR71XX_RESET_REG_WDOG_CTRL);
 }
 
 static int ath79_wdt_set_timeout(int val)

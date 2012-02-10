@@ -116,6 +116,8 @@ source "drivers/net/can/sja1000/Kconfig"
 
 source "drivers/net/can/c_can/Kconfig"
 
+source "drivers/net/can/cc770/Kconfig"
+
 source "drivers/net/can/usb/Kconfig"
 
 source "drivers/net/can/softing/Kconfig"

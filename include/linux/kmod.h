@@ -117,5 +117,7 @@ extern void usermodehelper_init(void);
 extern int usermodehelper_disable(void);
 extern void usermodehelper_enable(void);
 extern bool usermodehelper_is_disabled(void);
+extern void read_lock_usermodehelper(void);
+extern void read_unlock_usermodehelper(void);
 
 #endif /* __LINUX_KMOD_H__ */

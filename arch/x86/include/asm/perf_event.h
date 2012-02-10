@@ -57,6 +57,7 @@
 		(1 << (ARCH_PERFMON_UNHALTED_CORE_CYCLES_INDEX))
 
 #define ARCH_PERFMON_BRANCH_MISSES_RETIRED		6
+#define ARCH_PERFMON_EVENTS_COUNT			7
 
 /*
  * Intel "Architectural Performance Monitoring" CPUID
@@ -72,6 +73,19 @@ union cpuid10_eax {
 	unsigned int full;
 };
 
+union cpuid10_ebx {
+	struct {
+		unsigned int no_unhalted_core_cycles:1;
+		unsigned int no_instructions_retired:1;
+		unsigned int no_unhalted_reference_cycles:1;
+		unsigned int no_llc_reference:1;
+		unsigned int no_llc_misses:1;
+		unsigned int no_branch_instruction_retired:1;
+		unsigned int no_branch_misses_retired:1;
+	} split;
+	unsigned int full;
+};
+
 union cpuid10_edx {
 	struct {
 		unsigned int num_counters_fixed:5;
@@ -81,6 +95,15 @@ union cpuid10_edx {
 	unsigned int full;
 };
 
+struct x86_pmu_capability {
+	int		version;
+	int		num_counters_gp;
+	int		num_counters_fixed;
+	int		bit_width_gp;
+	int		bit_width_fixed;
+	unsigned int	events_mask;
+	int		events_mask_len;
+};
 
 /*
  * Fixed-purpose performance events:
@@ -89,23 +112,24 @@ union cpuid10_edx {
 /*
  * All 3 fixed-mode PMCs are configured via this single MSR:
  */
-#define MSR_ARCH_PERFMON_FIXED_CTR_CTRL			0x38d
+#define MSR_ARCH_PERFMON_FIXED_CTR_CTRL	0x38d
 
 /*
  * The counts are available in three separate MSRs:
  */
 
 /* Instr_Retired.Any: */
-#define MSR_ARCH_PERFMON_FIXED_CTR0			0x309
-#define X86_PMC_IDX_FIXED_INSTRUCTIONS			(X86_PMC_IDX_FIXED + 0)
+#define MSR_ARCH_PERFMON_FIXED_CTR0	0x309
+#define X86_PMC_IDX_FIXED_INSTRUCTIONS	(X86_PMC_IDX_FIXED + 0)
 
 /* CPU_CLK_Unhalted.Core: */
-#define MSR_ARCH_PERFMON_FIXED_CTR1			0x30a
-#define X86_PMC_IDX_FIXED_CPU_CYCLES			(X86_PMC_IDX_FIXED + 1)
+#define MSR_ARCH_PERFMON_FIXED_CTR1	0x30a
+#define X86_PMC_IDX_FIXED_CPU_CYCLES	(X86_PMC_IDX_FIXED + 1)
 
 /* CPU_CLK_Unhalted.Ref: */
-#define MSR_ARCH_PERFMON_FIXED_CTR2			0x30b
-#define X86_PMC_IDX_FIXED_BUS_CYCLES			(X86_PMC_IDX_FIXED + 2)
+#define MSR_ARCH_PERFMON_FIXED_CTR2	0x30b
+#define X86_PMC_IDX_FIXED_REF_CYCLES	(X86_PMC_IDX_FIXED + 2)
+#define X86_PMC_MSK_FIXED_REF_CYCLES	(1ULL << X86_PMC_IDX_FIXED_REF_CYCLES)
 
 /*
  * We model BTS tracing as another fixed-mode PMC.
@@ -202,11 +226,17 @@ struct perf_guest_switch_msr {
 };
 
 extern struct perf_guest_switch_msr *perf_guest_get_msrs(int *nr);
+extern void perf_get_x86_pmu_capability(struct x86_pmu_capability *cap);
 #else
 static inline perf_guest_switch_msr *perf_guest_get_msrs(int *nr)
 {
 	*nr = 0;
 	return NULL;
+}
+
+static inline void perf_get_x86_pmu_capability(struct x86_pmu_capability *cap)
+{
+	memset(cap, 0, sizeof(*cap));
 }
 
 static inline void perf_events_lapic_init(void)	{ }

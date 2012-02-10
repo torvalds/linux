@@ -25,6 +25,8 @@
 
 *******************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
@@ -1174,32 +1176,31 @@ static void igbvf_set_rlpml(struct igbvf_adapter *adapter)
 	e1000_rlpml_set_vf(hw, max_frame_size);
 }
 
-static void igbvf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
+static int igbvf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
-	if (hw->mac.ops.set_vfta(hw, vid, true))
+	if (hw->mac.ops.set_vfta(hw, vid, true)) {
 		dev_err(&adapter->pdev->dev, "Failed to add vlan id %d\n", vid);
-	else
-		set_bit(vid, adapter->active_vlans);
+		return -EINVAL;
+	}
+	set_bit(vid, adapter->active_vlans);
+	return 0;
 }
 
-static void igbvf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
+static int igbvf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
-	igbvf_irq_disable(adapter);
-
-	if (!test_bit(__IGBVF_DOWN, &adapter->state))
-		igbvf_irq_enable(adapter);
-
-	if (hw->mac.ops.set_vfta(hw, vid, false))
+	if (hw->mac.ops.set_vfta(hw, vid, false)) {
 		dev_err(&adapter->pdev->dev,
 		        "Failed to remove vlan id %d\n", vid);
-	else
-		clear_bit(vid, adapter->active_vlans);
+		return -EINVAL;
+	}
+	clear_bit(vid, adapter->active_vlans);
+	return 0;
 }
 
 static void igbvf_restore_vlan(struct igbvf_adapter *adapter)
@@ -1746,10 +1747,9 @@ void igbvf_update_stats(struct igbvf_adapter *adapter)
 
 static void igbvf_print_link_info(struct igbvf_adapter *adapter)
 {
-	dev_info(&adapter->pdev->dev, "Link is Up %d Mbps %s\n",
-	         adapter->link_speed,
-	         ((adapter->link_duplex == FULL_DUPLEX) ?
-	          "Full Duplex" : "Half Duplex"));
+	dev_info(&adapter->pdev->dev, "Link is Up %d Mbps %s Duplex\n",
+		 adapter->link_speed,
+		 adapter->link_duplex == FULL_DUPLEX ? "Full" : "Half");
 }
 
 static bool igbvf_has_link(struct igbvf_adapter *adapter)
@@ -2532,7 +2532,8 @@ static void igbvf_print_device_info(struct igbvf_adapter *adapter)
 	dev_info(&pdev->dev, "Address: %pM\n", netdev->dev_addr);
 }
 
-static int igbvf_set_features(struct net_device *netdev, u32 features)
+static int igbvf_set_features(struct net_device *netdev,
+	netdev_features_t features)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 
@@ -2842,9 +2843,8 @@ static struct pci_driver igbvf_driver = {
 static int __init igbvf_init_module(void)
 {
 	int ret;
-	printk(KERN_INFO "%s - version %s\n",
-	       igbvf_driver_string, igbvf_driver_version);
-	printk(KERN_INFO "%s\n", igbvf_copyright);
+	pr_info("%s - version %s\n", igbvf_driver_string, igbvf_driver_version);
+	pr_info("%s\n", igbvf_copyright);
 
 	ret = pci_register_driver(&igbvf_driver);
 

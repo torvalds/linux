@@ -64,7 +64,7 @@
 #define GPIO82_MMC_IRQ		(82)
 #define GPIO85_MMC_WP		(85)
 
-#define	CM_X300_MMC_IRQ		IRQ_GPIO(GPIO82_MMC_IRQ)
+#define	CM_X300_MMC_IRQ		PXA_GPIO_TO_IRQ(GPIO82_MMC_IRQ)
 
 #define GPIO95_RTC_CS		(95)
 #define GPIO96_RTC_WR		(96)
@@ -229,8 +229,8 @@ static struct resource dm9000_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[2] = {
-		.start	= IRQ_GPIO(mfp_to_gpio(MFP_PIN_GPIO99)),
-		.end	= IRQ_GPIO(mfp_to_gpio(MFP_PIN_GPIO99)),
+		.start	= PXA_GPIO_TO_IRQ(mfp_to_gpio(MFP_PIN_GPIO99)),
+		.end	= PXA_GPIO_TO_IRQ(mfp_to_gpio(MFP_PIN_GPIO99)),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	}
 };
@@ -858,4 +858,5 @@ MACHINE_START(CM_X300, "CM-X300 module")
 	.timer		= &pxa_timer,
 	.init_machine	= cm_x300_init,
 	.fixup		= cm_x300_fixup,
+	.restart	= pxa_restart,
 MACHINE_END

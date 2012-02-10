@@ -1455,6 +1455,7 @@ int evergreen_cp_resume(struct radeon_device *rdev)
 #endif
 	WREG32(CP_RB_CNTL, tmp);
 	WREG32(CP_SEM_WAIT_TIMER, 0x0);
+	WREG32(CP_SEM_INCOMPLETE_TIMER_CNTL, 0x0);
 
 	/* Set the write pointer delay */
 	WREG32(CP_RB_WPTR_DELAY, 0);
@@ -3190,6 +3191,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 	if (r) {
 		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 		rdev->accel_working = false;
+		return r;
 	}
 
 	r = r600_audio_init(rdev);
@@ -3343,6 +3345,18 @@ int evergreen_init(struct radeon_device *rdev)
 		evergreen_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
 	}
+
+	/* Don't start up if the MC ucode is missing on BTC parts.
+	 * The default clocks and voltages before the MC ucode
+	 * is loaded are not suffient for advanced operations.
+	 */
+	if (ASIC_IS_DCE5(rdev)) {
+		if (!rdev->mc_fw && !(rdev->flags & RADEON_IS_IGP)) {
+			DRM_ERROR("radeon: MC ucode required for NI+.\n");
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 

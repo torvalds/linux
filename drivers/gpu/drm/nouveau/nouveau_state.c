@@ -525,6 +525,7 @@ static void nouveau_switcheroo_set_state(struct pci_dev *pdev,
 		printk(KERN_ERR "VGA switcheroo: switched nouveau off\n");
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		drm_kms_helper_poll_disable(dev);
+		nouveau_switcheroo_optimus_dsm();
 		nouveau_pci_suspend(pdev, pmm);
 		dev->switch_power_state = DRM_SWITCH_POWER_OFF;
 	}

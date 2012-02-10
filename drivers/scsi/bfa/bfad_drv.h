@@ -43,6 +43,7 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_bsg_fc.h>
+#include <scsi/scsi_devinfo.h>
 
 #include "bfa_modules.h"
 #include "bfa_fcs.h"
@@ -227,6 +228,7 @@ struct bfad_s {
 	struct list_head	active_aen_q;
 	struct bfa_aen_entry_s	aen_list[BFA_AEN_MAX_ENTRY];
 	spinlock_t		bfad_aen_spinlock;
+	struct list_head	vport_list;
 };
 
 /* BFAD state machine events */

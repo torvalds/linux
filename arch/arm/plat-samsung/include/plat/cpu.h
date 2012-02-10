@@ -152,13 +152,9 @@ extern void s3c_init_cpu(unsigned long idcode,
 /* core initialisation functions */
 
 extern void s3c24xx_init_irq(void);
-extern void s3c64xx_init_irq(u32 vic0, u32 vic1);
 extern void s5p_init_irq(u32 *vic, u32 num_vic);
 
 extern void s3c24xx_init_io(struct map_desc *mach_desc, int size);
-extern void s3c64xx_init_io(struct map_desc *mach_desc, int size);
-extern void s5p_init_io(struct map_desc *mach_desc,
-			int size, void __iomem *cpuid_addr);
 
 extern void s3c24xx_init_cpu(void);
 extern void s3c64xx_init_cpu(void);
@@ -183,22 +179,20 @@ extern struct syscore_ops s3c2410_pm_syscore_ops;
 extern struct syscore_ops s3c2412_pm_syscore_ops;
 extern struct syscore_ops s3c2416_pm_syscore_ops;
 extern struct syscore_ops s3c244x_pm_syscore_ops;
-extern struct syscore_ops s3c64xx_irq_syscore_ops;
 
-/* system device classes */
+/* system device subsystems */
 
-extern struct sysdev_class s3c2410_sysclass;
-extern struct sysdev_class s3c2410a_sysclass;
-extern struct sysdev_class s3c2412_sysclass;
-extern struct sysdev_class s3c2416_sysclass;
-extern struct sysdev_class s3c2440_sysclass;
-extern struct sysdev_class s3c2442_sysclass;
-extern struct sysdev_class s3c2443_sysclass;
-extern struct sysdev_class s3c6410_sysclass;
-extern struct sysdev_class s3c64xx_sysclass;
-extern struct sysdev_class s5p64x0_sysclass;
-extern struct sysdev_class s5pv210_sysclass;
-extern struct sysdev_class exynos4_sysclass;
+extern struct bus_type s3c2410_subsys;
+extern struct bus_type s3c2410a_subsys;
+extern struct bus_type s3c2412_subsys;
+extern struct bus_type s3c2416_subsys;
+extern struct bus_type s3c2440_subsys;
+extern struct bus_type s3c2442_subsys;
+extern struct bus_type s3c2443_subsys;
+extern struct bus_type s3c6410_subsys;
+extern struct bus_type s5p64x0_subsys;
+extern struct bus_type s5pv210_subsys;
+extern struct bus_type exynos4_subsys;
 
 extern void (*s5pc1xx_idle)(void);
 

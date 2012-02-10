@@ -33,12 +33,6 @@ extern kmem_zone_t	*qm_dqzone;
 extern kmem_zone_t	*qm_dqtrxzone;
 
 /*
- * Used in xfs_qm_sync called by xfs_sync to count the max times that it can
- * iterate over the mountpt's dquot list in one call.
- */
-#define XFS_QM_SYNC_MAX_RESTARTS	7
-
-/*
  * Ditto, for xfs_qm_dqreclaim_one.
  */
 #define XFS_QM_RECLAIM_MAX_RESTARTS	4

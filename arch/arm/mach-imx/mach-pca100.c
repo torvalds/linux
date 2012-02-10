@@ -442,4 +442,5 @@ MACHINE_START(PCA100, "phyCARD-i.MX27")
 	.handle_irq = imx27_handle_irq,
 	.init_machine = pca100_init,
 	.timer = &pca100_timer,
+	.restart	= mxc_restart,
 MACHINE_END

@@ -966,18 +966,7 @@ static struct platform_driver pxa_ir_driver = {
 	.resume		= pxa_irda_resume,
 };
 
-static int __init pxa_irda_init(void)
-{
-	return platform_driver_register(&pxa_ir_driver);
-}
-
-static void __exit pxa_irda_exit(void)
-{
-	platform_driver_unregister(&pxa_ir_driver);
-}
-
-module_init(pxa_irda_init);
-module_exit(pxa_irda_exit);
+module_platform_driver(pxa_ir_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:pxa2xx-ir");

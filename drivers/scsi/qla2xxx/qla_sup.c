@@ -904,8 +904,9 @@ no_flash_data:
 	}
 done:
 	ql_dbg(ql_dbg_init, vha, 0x004d,
-	    "FDT[%x]: (0x%x/0x%x) erase=0x%x "
-	    "pr=%x upro=%x wrtd=0x%x blk=0x%x.\n", loc, mid, fid,
+	    "FDT[%s]: (0x%x/0x%x) erase=0x%x "
+	    "pr=%x wrtd=0x%x blk=0x%x.\n",
+	    loc, mid, fid,
 	    ha->fdt_erase_cmd, ha->fdt_protect_sec_cmd,
 	    ha->fdt_wrt_disable, ha->fdt_block_size);
 

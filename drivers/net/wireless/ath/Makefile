@@ -11,3 +11,4 @@ ath-objs :=	main.o \
 		key.o
 
 ath-$(CONFIG_ATH_DEBUG) += debug.o
+ccflags-y += -D__CHECK_ENDIAN__

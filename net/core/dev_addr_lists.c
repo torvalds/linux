@@ -427,7 +427,7 @@ EXPORT_SYMBOL(dev_uc_del);
  *
  *	Add newly added addresses to the destination device and release
  *	addresses that have no users left. The source device must be
- *	locked by netif_tx_lock_bh.
+ *	locked by netif_addr_lock_bh.
  *
  *	This function is intended to be called from the dev->set_rx_mode
  *	function of layered software devices.
@@ -439,11 +439,11 @@ int dev_uc_sync(struct net_device *to, struct net_device *from)
 	if (to->addr_len != from->addr_len)
 		return -EINVAL;
 
-	netif_addr_lock_bh(to);
+	netif_addr_lock_nested(to);
 	err = __hw_addr_sync(&to->uc, &from->uc, to->addr_len);
 	if (!err)
 		__dev_set_rx_mode(to);
-	netif_addr_unlock_bh(to);
+	netif_addr_unlock(to);
 	return err;
 }
 EXPORT_SYMBOL(dev_uc_sync);
@@ -463,7 +463,7 @@ void dev_uc_unsync(struct net_device *to, struct net_device *from)
 		return;
 
 	netif_addr_lock_bh(from);
-	netif_addr_lock(to);
+	netif_addr_lock_nested(to);
 	__hw_addr_unsync(&to->uc, &from->uc, to->addr_len);
 	__dev_set_rx_mode(to);
 	netif_addr_unlock(to);
@@ -590,7 +590,7 @@ EXPORT_SYMBOL(dev_mc_del_global);
  *
  *	Add newly added addresses to the destination device and release
  *	addresses that have no users left. The source device must be
- *	locked by netif_tx_lock_bh.
+ *	locked by netif_addr_lock_bh.
  *
  *	This function is intended to be called from the ndo_set_rx_mode
  *	function of layered software devices.
@@ -602,11 +602,11 @@ int dev_mc_sync(struct net_device *to, struct net_device *from)
 	if (to->addr_len != from->addr_len)
 		return -EINVAL;
 
-	netif_addr_lock_bh(to);
+	netif_addr_lock_nested(to);
 	err = __hw_addr_sync(&to->mc, &from->mc, to->addr_len);
 	if (!err)
 		__dev_set_rx_mode(to);
-	netif_addr_unlock_bh(to);
+	netif_addr_unlock(to);
 	return err;
 }
 EXPORT_SYMBOL(dev_mc_sync);
@@ -626,7 +626,7 @@ void dev_mc_unsync(struct net_device *to, struct net_device *from)
 		return;
 
 	netif_addr_lock_bh(from);
-	netif_addr_lock(to);
+	netif_addr_lock_nested(to);
 	__hw_addr_unsync(&to->mc, &from->mc, to->addr_len);
 	__dev_set_rx_mode(to);
 	netif_addr_unlock(to);

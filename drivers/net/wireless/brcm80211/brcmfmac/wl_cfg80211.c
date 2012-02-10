@@ -1429,7 +1429,7 @@ brcmf_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *ndev,
 
 static s32
 brcmf_cfg80211_set_tx_power(struct wiphy *wiphy,
-			 enum nl80211_tx_power_setting type, s32 dbm)
+			    enum nl80211_tx_power_setting type, s32 mbm)
 {
 
 	struct brcmf_cfg80211_priv *cfg_priv = wiphy_to_cfg(wiphy);
@@ -1437,6 +1437,7 @@ brcmf_cfg80211_set_tx_power(struct wiphy *wiphy,
 	u16 txpwrmw;
 	s32 err = 0;
 	s32 disable = 0;
+	s32 dbm = MBM_TO_DBM(mbm);
 
 	WL_TRACE("Enter\n");
 	if (!check_sys_up(wiphy))
@@ -1446,12 +1447,6 @@ brcmf_cfg80211_set_tx_power(struct wiphy *wiphy,
 	case NL80211_TX_POWER_AUTOMATIC:
 		break;
 	case NL80211_TX_POWER_LIMITED:
-		if (dbm < 0) {
-			WL_ERR("TX_POWER_LIMITED - dbm is negative\n");
-			err = -EINVAL;
-			goto done;
-		}
-		break;
 	case NL80211_TX_POWER_FIXED:
 		if (dbm < 0) {
 			WL_ERR("TX_POWER_FIXED - dbm is negative\n");
@@ -1997,7 +1992,7 @@ done:
 }
 
 static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_priv *cfg_priv,
-				   struct brcmf_bss_info *bi)
+				   struct brcmf_bss_info_le *bi)
 {
 	struct wiphy *wiphy = cfg_to_wiphy(cfg_priv);
 	struct ieee80211_channel *notify_channel;
@@ -2049,18 +2044,27 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_priv *cfg_priv,
 		notify_timestamp, notify_capability, notify_interval, notify_ie,
 		notify_ielen, notify_signal, GFP_KERNEL);
 
-	if (!bss) {
-		WL_ERR("cfg80211_inform_bss_frame error\n");
-		return -EINVAL;
-	}
+	if (!bss)
+		return -ENOMEM;
+
+	cfg80211_put_bss(bss);
 
 	return err;
+}
+
+static struct brcmf_bss_info_le *
+next_bss_le(struct brcmf_scan_results *list, struct brcmf_bss_info_le *bss)
+{
+	if (bss == NULL)
+		return list->bss_info_le;
+	return (struct brcmf_bss_info_le *)((unsigned long)bss +
+					    le32_to_cpu(bss->length));
 }
 
 static s32 brcmf_inform_bss(struct brcmf_cfg80211_priv *cfg_priv)
 {
 	struct brcmf_scan_results *bss_list;
-	struct brcmf_bss_info *bi = NULL;	/* must be initialized */
+	struct brcmf_bss_info_le *bi = NULL;	/* must be initialized */
 	s32 err = 0;
 	int i;
 
@@ -2072,7 +2076,7 @@ static s32 brcmf_inform_bss(struct brcmf_cfg80211_priv *cfg_priv)
 	}
 	WL_SCAN("scanned AP count (%d)\n", bss_list->count);
 	for (i = 0; i < bss_list->count && i < WL_AP_MAX; i++) {
-		bi = next_bss(bss_list, bi);
+		bi = next_bss_le(bss_list, bi);
 		err = brcmf_inform_single_bss(cfg_priv, bi);
 		if (err)
 			break;
@@ -2085,8 +2089,9 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_priv *cfg_priv,
 {
 	struct wiphy *wiphy = cfg_to_wiphy(cfg_priv);
 	struct ieee80211_channel *notify_channel;
-	struct brcmf_bss_info *bi = NULL;
+	struct brcmf_bss_info_le *bi = NULL;
 	struct ieee80211_supported_band *band;
+	struct cfg80211_bss *bss;
 	u8 *buf = NULL;
 	s32 err = 0;
 	u16 channel;
@@ -2114,7 +2119,7 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_priv *cfg_priv,
 		goto CleanUp;
 	}
 
-	bi = (struct brcmf_bss_info *)(buf + 4);
+	bi = (struct brcmf_bss_info_le *)(buf + 4);
 
 	channel = bi->ctl_ch ? bi->ctl_ch :
 				CHSPEC_CHANNEL(le16_to_cpu(bi->chanspec));
@@ -2140,9 +2145,16 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_priv *cfg_priv,
 	WL_CONN("signal: %d\n", notify_signal);
 	WL_CONN("notify_timestamp: %#018llx\n", notify_timestamp);
 
-	cfg80211_inform_bss(wiphy, notify_channel, bssid,
+	bss = cfg80211_inform_bss(wiphy, notify_channel, bssid,
 		notify_timestamp, notify_capability, notify_interval,
 		notify_ie, notify_ielen, notify_signal, GFP_KERNEL);
+
+	if (!bss) {
+		err = -ENOMEM;
+		goto CleanUp;
+	}
+
+	cfg80211_put_bss(bss);
 
 CleanUp:
 
@@ -2188,7 +2200,7 @@ static struct brcmf_tlv *brcmf_parse_tlvs(void *buf, int buflen, uint key)
 
 static s32 brcmf_update_bss_info(struct brcmf_cfg80211_priv *cfg_priv)
 {
-	struct brcmf_bss_info *bi;
+	struct brcmf_bss_info_le *bi;
 	struct brcmf_ssid *ssid;
 	struct brcmf_tlv *tim;
 	u16 beacon_interval;
@@ -2211,7 +2223,7 @@ static s32 brcmf_update_bss_info(struct brcmf_cfg80211_priv *cfg_priv)
 		goto update_bss_info_out;
 	}
 
-	bi = (struct brcmf_bss_info *)(cfg_priv->extra_buf + 4);
+	bi = (struct brcmf_bss_info_le *)(cfg_priv->extra_buf + 4);
 	err = brcmf_inform_single_bss(cfg_priv, bi);
 	if (err)
 		goto update_bss_info_out;
@@ -2463,7 +2475,7 @@ static s32 brcmf_init_iscan(struct brcmf_cfg80211_priv *cfg_priv)
 	return err;
 }
 
-static void brcmf_delay(u32 ms)
+static __always_inline void brcmf_delay(u32 ms)
 {
 	if (ms < 1000 / HZ) {
 		cond_resched();

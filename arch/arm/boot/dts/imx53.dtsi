@@ -14,11 +14,11 @@
 
 / {
 	aliases {
-		serial0 = &uart0;
-		serial1 = &uart1;
-		serial2 = &uart2;
-		serial3 = &uart3;
-		serial4 = &uart4;
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
+		serial4 = &uart5;
 	};
 
 	tzic: tz-interrupt-controller@0fffc000 {
@@ -88,7 +88,7 @@
 					status = "disabled";
 				};
 
-				uart2: uart@5000c000 { /* UART3 */
+				uart3: uart@5000c000 {
 					compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 					reg = <0x5000c000 0x4000>;
 					interrupts = <33>;
@@ -119,7 +119,7 @@
 				};
 			};
 
-			gpio0: gpio@53f84000 { /* GPIO1 */
+			gpio1: gpio@53f84000 {
 				compatible = "fsl,imx53-gpio", "fsl,imx31-gpio";
 				reg = <0x53f84000 0x4000>;
 				interrupts = <50 51>;
@@ -129,7 +129,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio1: gpio@53f88000 { /* GPIO2 */
+			gpio2: gpio@53f88000 {
 				compatible = "fsl,imx53-gpio", "fsl,imx31-gpio";
 				reg = <0x53f88000 0x4000>;
 				interrupts = <52 53>;
@@ -139,7 +139,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio2: gpio@53f8c000 { /* GPIO3 */
+			gpio3: gpio@53f8c000 {
 				compatible = "fsl,imx53-gpio", "fsl,imx31-gpio";
 				reg = <0x53f8c000 0x4000>;
 				interrupts = <54 55>;
@@ -149,7 +149,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio3: gpio@53f90000 { /* GPIO4 */
+			gpio4: gpio@53f90000 {
 				compatible = "fsl,imx53-gpio", "fsl,imx31-gpio";
 				reg = <0x53f90000 0x4000>;
 				interrupts = <56 57>;
@@ -173,21 +173,21 @@
 				status = "disabled";
 			};
 
-			uart0: uart@53fbc000 { /* UART1 */
+			uart1: uart@53fbc000 {
 				compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 				reg = <0x53fbc000 0x4000>;
 				interrupts = <31>;
 				status = "disabled";
 			};
 
-			uart1: uart@53fc0000 { /* UART2 */
+			uart2: uart@53fc0000 {
 				compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 				reg = <0x53fc0000 0x4000>;
 				interrupts = <32>;
 				status = "disabled";
 			};
 
-			gpio4: gpio@53fdc000 { /* GPIO5 */
+			gpio5: gpio@53fdc000 {
 				compatible = "fsl,imx53-gpio", "fsl,imx31-gpio";
 				reg = <0x53fdc000 0x4000>;
 				interrupts = <103 104>;
@@ -197,7 +197,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio5: gpio@53fe0000 { /* GPIO6 */
+			gpio6: gpio@53fe0000 {
 				compatible = "fsl,imx53-gpio", "fsl,imx31-gpio";
 				reg = <0x53fe0000 0x4000>;
 				interrupts = <105 106>;
@@ -207,7 +207,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio6: gpio@53fe4000 { /* GPIO7 */
+			gpio7: gpio@53fe4000 {
 				compatible = "fsl,imx53-gpio", "fsl,imx31-gpio";
 				reg = <0x53fe4000 0x4000>;
 				interrupts = <107 108>;
@@ -226,7 +226,7 @@
 				status = "disabled";
 			};
 
-			uart3: uart@53ff0000 { /* UART4 */
+			uart4: uart@53ff0000 {
 				compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 				reg = <0x53ff0000 0x4000>;
 				interrupts = <13>;
@@ -241,7 +241,7 @@
 			reg = <0x60000000 0x10000000>;
 			ranges;
 
-			uart4: uart@63f90000 { /* UART5 */
+			uart5: uart@63f90000 {
 				compatible = "fsl,imx53-uart", "fsl,imx21-uart";
 				reg = <0x63f90000 0x4000>;
 				interrupts = <86>;

@@ -5,9 +5,9 @@
 	interrupt-parent = <&intc>;
 
 	intc: interrupt-controller@50041000 {
-		compatible = "nvidia,tegra20-gic";
+		compatible = "arm,cortex-a9-gic";
 		interrupt-controller;
-		#interrupt-cells = <1>;
+		#interrupt-cells = <3>;
 		reg = < 0x50041000 0x1000 >,
 		      < 0x50040100 0x0100 >;
 	};
@@ -17,7 +17,7 @@
 		#size-cells = <0>;
 		compatible = "nvidia,tegra20-i2c";
 		reg = <0x7000C000 0x100>;
-		interrupts = < 70 >;
+		interrupts = < 0 38 0x04 >;
 	};
 
 	i2c@7000c400 {
@@ -25,7 +25,7 @@
 		#size-cells = <0>;
 		compatible = "nvidia,tegra20-i2c";
 		reg = <0x7000C400 0x100>;
-		interrupts = < 116 >;
+		interrupts = < 0 84 0x04 >;
 	};
 
 	i2c@7000c500 {
@@ -33,38 +33,32 @@
 		#size-cells = <0>;
 		compatible = "nvidia,tegra20-i2c";
 		reg = <0x7000C500 0x100>;
-		interrupts = < 124 >;
+		interrupts = < 0 92 0x04 >;
 	};
 
 	i2c@7000d000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "nvidia,tegra20-i2c";
+		compatible = "nvidia,tegra20-i2c-dvc";
 		reg = <0x7000D000 0x200>;
-		interrupts = < 85 >;
+		interrupts = < 0 53 0x04 >;
 	};
 
 	i2s@70002800 {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "nvidia,tegra20-i2s";
 		reg = <0x70002800 0x200>;
-		interrupts = < 45 >;
+		interrupts = < 0 13 0x04 >;
 		dma-channel = < 2 >;
 	};
 
 	i2s@70002a00 {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "nvidia,tegra20-i2s";
 		reg = <0x70002a00 0x200>;
-		interrupts = < 35 >;
+		interrupts = < 0 3 0x04 >;
 		dma-channel = < 1 >;
 	};
 
 	das@70000c00 {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "nvidia,tegra20-das";
 		reg = <0x70000c00 0x80>;
 	};
@@ -72,7 +66,13 @@
 	gpio: gpio@6000d000 {
 		compatible = "nvidia,tegra20-gpio";
 		reg = < 0x6000d000 0x1000 >;
-		interrupts = < 64 65 66 67 87 119 121 >;
+		interrupts = < 0 32 0x04
+			       0 33 0x04
+			       0 34 0x04
+			       0 35 0x04
+			       0 55 0x04
+			       0 87 0x04
+			       0 89 0x04 >;
 		#gpio-cells = <2>;
 		gpio-controller;
 	};
@@ -89,59 +89,80 @@
 		compatible = "nvidia,tegra20-uart";
 		reg = <0x70006000 0x40>;
 		reg-shift = <2>;
-		interrupts = < 68 >;
+		interrupts = < 0 36 0x04 >;
 	};
 
 	serial@70006040 {
 		compatible = "nvidia,tegra20-uart";
 		reg = <0x70006040 0x40>;
 		reg-shift = <2>;
-		interrupts = < 69 >;
+		interrupts = < 0 37 0x04 >;
 	};
 
 	serial@70006200 {
 		compatible = "nvidia,tegra20-uart";
 		reg = <0x70006200 0x100>;
 		reg-shift = <2>;
-		interrupts = < 78 >;
+		interrupts = < 0 46 0x04 >;
 	};
 
 	serial@70006300 {
 		compatible = "nvidia,tegra20-uart";
 		reg = <0x70006300 0x100>;
 		reg-shift = <2>;
-		interrupts = < 122 >;
+		interrupts = < 0 90 0x04 >;
 	};
 
 	serial@70006400 {
 		compatible = "nvidia,tegra20-uart";
 		reg = <0x70006400 0x100>;
 		reg-shift = <2>;
-		interrupts = < 123 >;
+		interrupts = < 0 91 0x04 >;
 	};
 
 	sdhci@c8000000 {
 		compatible = "nvidia,tegra20-sdhci";
 		reg = <0xc8000000 0x200>;
-		interrupts = < 46 >;
+		interrupts = < 0 14 0x04 >;
 	};
 
 	sdhci@c8000200 {
 		compatible = "nvidia,tegra20-sdhci";
 		reg = <0xc8000200 0x200>;
-		interrupts = < 47 >;
+		interrupts = < 0 15 0x04 >;
 	};
 
 	sdhci@c8000400 {
 		compatible = "nvidia,tegra20-sdhci";
 		reg = <0xc8000400 0x200>;
-		interrupts = < 51 >;
+		interrupts = < 0 19 0x04 >;
 	};
 
 	sdhci@c8000600 {
 		compatible = "nvidia,tegra20-sdhci";
 		reg = <0xc8000600 0x200>;
-		interrupts = < 63 >;
+		interrupts = < 0 31 0x04 >;
+	};
+
+	usb@c5000000 {
+		compatible = "nvidia,tegra20-ehci", "usb-ehci";
+		reg = <0xc5000000 0x4000>;
+		interrupts = < 0 20 0x04 >;
+		phy_type = "utmi";
+	};
+
+	usb@c5004000 {
+		compatible = "nvidia,tegra20-ehci", "usb-ehci";
+		reg = <0xc5004000 0x4000>;
+		interrupts = < 0 21 0x04 >;
+		phy_type = "ulpi";
+	};
+
+	usb@c5008000 {
+		compatible = "nvidia,tegra20-ehci", "usb-ehci";
+		reg = <0xc5008000 0x4000>;
+		interrupts = < 0 97 0x04 >;
+		phy_type = "utmi";
 	};
 };
 

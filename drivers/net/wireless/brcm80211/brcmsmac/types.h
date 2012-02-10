@@ -250,65 +250,17 @@ do {						\
 		wiphy_err(dev, "%s: " fmt, __func__, ##args);	\
 } while (0)
 
-/*
- * Register access macros.
- *
- * These macro's take a pointer to the address to read as one of their
- * arguments. The macro itself deduces the size of the IO transaction (u8, u16
- * or u32). Advantage of this approach in combination with using a struct to
- * define the registers in a register block, is that access size and access
- * location are defined in only one spot. This reduces the risk of the
- * programmer trying to use an unsupported transaction size on a register.
- *
- */
-
-#define R_REG(r) \
-	({ \
-		__typeof(*(r)) __osl_v; \
-		switch (sizeof(*(r))) { \
-		case sizeof(u8): \
-			__osl_v = readb((u8 __iomem *)(r)); \
-			break; \
-		case sizeof(u16): \
-			__osl_v = readw((u16 __iomem *)(r)); \
-			break; \
-		case sizeof(u32): \
-			__osl_v = readl((u32 __iomem *)(r)); \
-			break; \
-		} \
-		__osl_v; \
-	})
-
-#define W_REG(r, v) do { \
-		switch (sizeof(*(r))) { \
-		case sizeof(u8):	\
-			writeb((u8)((v) & 0xFF), (u8 __iomem *)(r)); \
-			break; \
-		case sizeof(u16):	\
-			writew((u16)((v) & 0xFFFF), (u16 __iomem *)(r)); \
-			break; \
-		case sizeof(u32):	\
-			writel((u32)(v), (u32 __iomem *)(r)); \
-			break; \
-		} \
-	} while (0)
-
 #ifdef CONFIG_BCM47XX
 /*
  * bcm4716 (which includes 4717 & 4718), plus 4706 on PCIe can reorder
  * transactions. As a fix, a read after write is performed on certain places
  * in the code. Older chips and the newer 5357 family don't require this fix.
  */
-#define W_REG_FLUSH(r, v)	({ W_REG((r), (v)); (void)R_REG(r); })
+#define bcma_wflush16(c, o, v) \
+	({ bcma_write16(c, o, v); (void)bcma_read16(c, o); })
 #else
-#define W_REG_FLUSH(r, v)	W_REG((r), (v))
+#define bcma_wflush16(c, o, v)	bcma_write16(c, o, v)
 #endif				/* CONFIG_BCM47XX */
-
-#define AND_REG(r, v)	W_REG((r), R_REG(r) & (v))
-#define OR_REG(r, v)	W_REG((r), R_REG(r) | (v))
-
-#define SET_REG(r, mask, val) \
-		W_REG((r), ((R_REG(r) & ~(mask)) | (val)))
 
 /* multi-bool data type: set of bools, mbool is true if any is set */
 

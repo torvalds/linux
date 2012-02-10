@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
+#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
@@ -93,6 +94,15 @@ struct mem_chunk __initdata memory_chunk[MEMORY_CHUNKS];
 
 int __initdata memory_end_set;
 unsigned long __initdata memory_end;
+
+unsigned long VMALLOC_START;
+EXPORT_SYMBOL(VMALLOC_START);
+
+unsigned long VMALLOC_END;
+EXPORT_SYMBOL(VMALLOC_END);
+
+struct page *vmemmap;
+EXPORT_SYMBOL(vmemmap);
 
 /* An array with a pointer to the lowcore of every CPU. */
 struct _lowcore *lowcore_ptr[NR_CPUS];
@@ -277,6 +287,15 @@ static int __init early_parse_mem(char *p)
 }
 early_param("mem", early_parse_mem);
 
+static int __init parse_vmalloc(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+	VMALLOC_END = (memparse(arg, &arg) + PAGE_SIZE - 1) & PAGE_MASK;
+	return 0;
+}
+early_param("vmalloc", parse_vmalloc);
+
 unsigned int user_mode = HOME_SPACE_MODE;
 EXPORT_SYMBOL_GPL(user_mode);
 
@@ -382,7 +401,6 @@ setup_lowcore(void)
 		__ctl_set_bit(14, 29);
 	}
 #else
-	lc->cmf_hpp = -1ULL;
 	lc->vdso_per_cpu_data = (unsigned long) &lc->paste[0];
 #endif
 	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
@@ -478,8 +496,7 @@ EXPORT_SYMBOL_GPL(real_memory_size);
 
 static void __init setup_memory_end(void)
 {
-	unsigned long memory_size;
-	unsigned long max_mem;
+	unsigned long vmax, vmalloc_size, tmp;
 	int i;
 
 
@@ -489,11 +506,8 @@ static void __init setup_memory_end(void)
 		memory_end_set = 1;
 	}
 #endif
-	memory_size = 0;
+	real_memory_size = 0;
 	memory_end &= PAGE_MASK;
-
-	max_mem = memory_end ? min(VMEM_MAX_PHYS, memory_end) : VMEM_MAX_PHYS;
-	memory_end = min(max_mem, memory_end);
 
 	/*
 	 * Make sure all chunks are MAX_ORDER aligned so we don't need the
@@ -514,23 +528,48 @@ static void __init setup_memory_end(void)
 			chunk->addr = start;
 			chunk->size = end - start;
 		}
+		real_memory_size = max(real_memory_size,
+				       chunk->addr + chunk->size);
 	}
 
+	/* Choose kernel address space layout: 2, 3, or 4 levels. */
+#ifdef CONFIG_64BIT
+	vmalloc_size = VMALLOC_END ?: 128UL << 30;
+	tmp = (memory_end ?: real_memory_size) / PAGE_SIZE;
+	tmp = tmp * (sizeof(struct page) + PAGE_SIZE) + vmalloc_size;
+	if (tmp <= (1UL << 42))
+		vmax = 1UL << 42;	/* 3-level kernel page table */
+	else
+		vmax = 1UL << 53;	/* 4-level kernel page table */
+#else
+	vmalloc_size = VMALLOC_END ?: 96UL << 20;
+	vmax = 1UL << 31;		/* 2-level kernel page table */
+#endif
+	/* vmalloc area is at the end of the kernel address space. */
+	VMALLOC_END = vmax;
+	VMALLOC_START = vmax - vmalloc_size;
+
+	/* Split remaining virtual space between 1:1 mapping & vmemmap array */
+	tmp = VMALLOC_START / (PAGE_SIZE + sizeof(struct page));
+	tmp = VMALLOC_START - tmp * sizeof(struct page);
+	tmp &= ~((vmax >> 11) - 1);	/* align to page table level */
+	tmp = min(tmp, 1UL << MAX_PHYSMEM_BITS);
+	vmemmap = (struct page *) tmp;
+
+	/* Take care that memory_end is set and <= vmemmap */
+	memory_end = min(memory_end ?: real_memory_size, tmp);
+
+	/* Fixup memory chunk array to fit into 0..memory_end */
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		struct mem_chunk *chunk = &memory_chunk[i];
 
-		real_memory_size = max(real_memory_size,
-				       chunk->addr + chunk->size);
-		if (chunk->addr >= max_mem) {
+		if (chunk->addr >= memory_end) {
 			memset(chunk, 0, sizeof(*chunk));
 			continue;
 		}
-		if (chunk->addr + chunk->size > max_mem)
-			chunk->size = max_mem - chunk->addr;
-		memory_size = max(memory_size, chunk->addr + chunk->size);
+		if (chunk->addr + chunk->size > memory_end)
+			chunk->size = memory_end - chunk->addr;
 	}
-	if (!memory_end)
-		memory_end = memory_size;
 }
 
 void *restart_stack __attribute__((__section__(".data")));
@@ -654,7 +693,6 @@ static int __init verify_crash_base(unsigned long crash_base,
 static void __init reserve_kdump_bootmem(unsigned long addr, unsigned long size,
 					 int type)
 {
-
 	create_mem_hole(memory_chunk, addr, size, type);
 }
 
@@ -820,7 +858,8 @@ setup_memory(void)
 		end_chunk = min(end_chunk, end_pfn);
 		if (start_chunk >= end_chunk)
 			continue;
-		add_active_range(0, start_chunk, end_chunk);
+		memblock_add_node(PFN_PHYS(start_chunk),
+				  PFN_PHYS(end_chunk - start_chunk), 0);
 		pfn = max(start_chunk, start_pfn);
 		for (; pfn < end_chunk; pfn++)
 			page_set_storage_key(PFN_PHYS(pfn),

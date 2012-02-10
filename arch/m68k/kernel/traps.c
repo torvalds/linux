@@ -552,13 +552,13 @@ static inline void bus_error030 (struct frame *fp)
 
 #ifdef DEBUG
 		asm volatile ("ptestr %3,%2@,#7,%0\n\t"
-			      "pmove %%psr,%1@"
-			      : "=a&" (desc)
-			      : "a" (&temp), "a" (addr), "d" (ssw));
+			      "pmove %%psr,%1"
+			      : "=a&" (desc), "=m" (temp)
+			      : "a" (addr), "d" (ssw));
 #else
 		asm volatile ("ptestr %2,%1@,#7\n\t"
-			      "pmove %%psr,%0@"
-			      : : "a" (&temp), "a" (addr), "d" (ssw));
+			      "pmove %%psr,%0"
+			      : "=m" (temp) : "a" (addr), "d" (ssw));
 #endif
 		mmusr = temp;
 
@@ -605,20 +605,18 @@ static inline void bus_error030 (struct frame *fp)
 			       !(ssw & RW) ? "write" : "read", addr,
 			       fp->ptregs.pc, ssw);
 			asm volatile ("ptestr #1,%1@,#0\n\t"
-				      "pmove %%psr,%0@"
-				      : /* no outputs */
-				      : "a" (&temp), "a" (addr));
+				      "pmove %%psr,%0"
+				      : "=m" (temp)
+				      : "a" (addr));
 			mmusr = temp;
 
 			printk ("level 0 mmusr is %#x\n", mmusr);
 #if 0
-			asm volatile ("pmove %%tt0,%0@"
-				      : /* no outputs */
-				      : "a" (&tlong));
+			asm volatile ("pmove %%tt0,%0"
+				      : "=m" (tlong));
 			printk("tt0 is %#lx, ", tlong);
-			asm volatile ("pmove %%tt1,%0@"
-				      : /* no outputs */
-				      : "a" (&tlong));
+			asm volatile ("pmove %%tt1,%0"
+				      : "=m" (tlong));
 			printk("tt1 is %#lx\n", tlong);
 #endif
 #ifdef DEBUG
@@ -668,13 +666,13 @@ static inline void bus_error030 (struct frame *fp)
 
 #ifdef DEBUG
 	asm volatile ("ptestr #1,%2@,#7,%0\n\t"
-		      "pmove %%psr,%1@"
-		      : "=a&" (desc)
-		      : "a" (&temp), "a" (addr));
+		      "pmove %%psr,%1"
+		      : "=a&" (desc), "=m" (temp)
+		      : "a" (addr));
 #else
 	asm volatile ("ptestr #1,%1@,#7\n\t"
-		      "pmove %%psr,%0@"
-		      : : "a" (&temp), "a" (addr));
+		      "pmove %%psr,%0"
+		      : "=m" (temp) : "a" (addr));
 #endif
 	mmusr = temp;
 
@@ -706,6 +704,88 @@ create_atc_entry:
 #endif /* CPU_M68020_OR_M68030 */
 #endif /* !CONFIG_SUN3 */
 
+#if defined(CONFIG_COLDFIRE) && defined(CONFIG_MMU)
+#include <asm/mcfmmu.h>
+
+/*
+ *	The following table converts the FS encoding of a ColdFire
+ *	exception stack frame into the error_code value needed by
+ *	do_fault.
+*/
+static const unsigned char fs_err_code[] = {
+	0,  /* 0000 */
+	0,  /* 0001 */
+	0,  /* 0010 */
+	0,  /* 0011 */
+	1,  /* 0100 */
+	0,  /* 0101 */
+	0,  /* 0110 */
+	0,  /* 0111 */
+	2,  /* 1000 */
+	3,  /* 1001 */
+	2,  /* 1010 */
+	0,  /* 1011 */
+	1,  /* 1100 */
+	1,  /* 1101 */
+	0,  /* 1110 */
+	0   /* 1111 */
+};
+
+static inline void access_errorcf(unsigned int fs, struct frame *fp)
+{
+	unsigned long mmusr, addr;
+	unsigned int err_code;
+	int need_page_fault;
+
+	mmusr = mmu_read(MMUSR);
+	addr = mmu_read(MMUAR);
+
+	/*
+	 * error_code:
+	 *	bit 0 == 0 means no page found, 1 means protection fault
+	 *	bit 1 == 0 means read, 1 means write
+	 */
+	switch (fs) {
+	case  5:  /* 0101 TLB opword X miss */
+		need_page_fault = cf_tlb_miss(&fp->ptregs, 0, 0, 0);
+		addr = fp->ptregs.pc;
+		break;
+	case  6:  /* 0110 TLB extension word X miss */
+		need_page_fault = cf_tlb_miss(&fp->ptregs, 0, 0, 1);
+		addr = fp->ptregs.pc + sizeof(long);
+		break;
+	case 10:  /* 1010 TLB W miss */
+		need_page_fault = cf_tlb_miss(&fp->ptregs, 1, 1, 0);
+		break;
+	case 14: /* 1110 TLB R miss */
+		need_page_fault = cf_tlb_miss(&fp->ptregs, 0, 1, 0);
+		break;
+	default:
+		/* 0000 Normal  */
+		/* 0001 Reserved */
+		/* 0010 Interrupt during debug service routine */
+		/* 0011 Reserved */
+		/* 0100 X Protection */
+		/* 0111 IFP in emulator mode */
+		/* 1000 W Protection*/
+		/* 1001 Write error*/
+		/* 1011 Reserved*/
+		/* 1100 R Protection*/
+		/* 1101 R Protection*/
+		/* 1111 OEP in emulator mode*/
+		need_page_fault = 1;
+		break;
+	}
+
+	if (need_page_fault) {
+		err_code = fs_err_code[fs];
+		if ((fs == 13) && (mmusr & MMUSR_WF)) /* rd-mod-wr access */
+			err_code |= 2; /* bit1 - write, bit0 - protection */
+		do_page_fault(&fp->ptregs, addr, err_code);
+	}
+}
+#endif /* CONFIG_COLDFIRE CONFIG_MMU */
+
 asmlinkage void buserr_c(struct frame *fp)
 {
 	/* Only set esp0 if coming from user mode */
@@ -715,6 +795,28 @@ asmlinkage void buserr_c(struct frame *fp)
 #ifdef DEBUG
 	printk ("*** Bus Error *** Format is %x\n", fp->ptregs.format);
 #endif
+
+#if defined(CONFIG_COLDFIRE) && defined(CONFIG_MMU)
+	if (CPU_IS_COLDFIRE) {
+		unsigned int fs;
+		fs = (fp->ptregs.vector & 0x3) |
+			((fp->ptregs.vector & 0xc00) >> 8);
+		switch (fs) {
+		case 0x5:
+		case 0x6:
+		case 0x7:
+		case 0x9:
+		case 0xa:
+		case 0xd:
+		case 0xe:
+		case 0xf:
+			access_errorcf(fs, fp);
+			return;
+		default:
+			break;
+		}
+	}
+#endif /* CONFIG_COLDFIRE && CONFIG_MMU */
 
 	switch (fp->ptregs.format) {
 #if defined (CONFIG_M68060)

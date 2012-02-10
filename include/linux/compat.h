@@ -422,9 +422,9 @@ asmlinkage long compat_sys_getdents64(unsigned int fd,
 asmlinkage long compat_sys_vmsplice(int fd, const struct compat_iovec __user *,
 				    unsigned int nr_segs, unsigned int flags);
 asmlinkage long compat_sys_open(const char __user *filename, int flags,
-				int mode);
+				umode_t mode);
 asmlinkage long compat_sys_openat(unsigned int dfd, const char __user *filename,
-				  int flags, int mode);
+				  int flags, umode_t mode);
 asmlinkage long compat_sys_open_by_handle_at(int mountdirfd,
 					     struct file_handle __user *handle,
 					     int flags);

@@ -29,15 +29,14 @@
 		aips@50000000 { /* AIPS1 */
 			spba@50000000 {
 				esdhc@50004000 { /* ESDHC1 */
-					cd-gpios = <&gpio2 13 0>; /* GPIO3_13 */
-					wp-gpios = <&gpio2 14 0>; /* GPIO3_14 */
+					cd-gpios = <&gpio3 13 0>;
+					wp-gpios = <&gpio3 14 0>;
 					status = "okay";
 				};
 
 				ecspi@50010000 { /* ECSPI1 */
 					fsl,spi-num-chipselects = <2>;
-					cs-gpios = <&gpio1 30 0>, /* GPIO2_30 */
-						   <&gpio2 19 0>; /* GPIO3_19 */
+					cs-gpios = <&gpio2 30 0>, <&gpio3 19 0>;
 					status = "okay";
 
 					flash: at45db321d@1 {
@@ -61,8 +60,8 @@
 				};
 
 				esdhc@50020000 { /* ESDHC3 */
-					cd-gpios = <&gpio2 11 0>; /* GPIO3_11 */
-					wp-gpios = <&gpio2 12 0>; /* GPIO3_12 */
+					cd-gpios = <&gpio3 11 0>;
+					wp-gpios = <&gpio3 12 0>;
 					status = "okay";
 				};
 			};
@@ -76,7 +75,7 @@
 				reg = <0x53fa8000 0x4000>;
 			};
 
-			uart0: uart@53fbc000 { /* UART1 */
+			uart1: uart@53fbc000 {
 				status = "okay";
 			};
 		};
@@ -102,7 +101,7 @@
 
 			fec@63fec000 {
 				phy-mode = "rmii";
-				phy-reset-gpios = <&gpio6 6 0>; /* GPIO7_6 */
+				phy-reset-gpios = <&gpio7 6 0>;
 				status = "okay";
 			};
 		};
@@ -113,7 +112,7 @@
 
 		green {
 			label = "Heartbeat";
-			gpios = <&gpio6 7 0>; /* GPIO7_7 */
+			gpios = <&gpio7 7 0>;
 			linux,default-trigger = "heartbeat";
 		};
 	};

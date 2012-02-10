@@ -14,7 +14,7 @@
 #include <asm/io.h>
 #include "pcsp.h"
 
-static int nforce_wa;
+static bool nforce_wa;
 module_param(nforce_wa, bool, 0444);
 MODULE_PARM_DESC(nforce_wa, "Apply NForce chipset workaround "
 		"(expect bad sound)");

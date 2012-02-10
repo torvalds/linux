@@ -49,7 +49,6 @@
 #define KEXEC_STATE_REAL_MODE 2
 
 #ifndef __ASSEMBLY__
-#include <linux/cpumask.h>
 #include <asm/reg.h>
 
 typedef void (*crash_shutdown_t)(void);
@@ -73,11 +72,6 @@ extern void kexec_smp_wait(void);	/* get and clear naca physid, wait for
 					  master to copy new code to 0 */
 extern int crashing_cpu;
 extern void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *));
-extern cpumask_t cpus_in_sr;
-static inline int kexec_sr_activated(int cpu)
-{
-	return cpumask_test_cpu(cpu, &cpus_in_sr);
-}
 
 struct kimage;
 struct pt_regs;
@@ -94,7 +88,6 @@ extern void reserve_crashkernel(void);
 extern void machine_kexec_mask_interrupts(void);
 
 #else /* !CONFIG_KEXEC */
-static inline int kexec_sr_activated(int cpu) { return 0; }
 static inline void crash_kexec_secondary(struct pt_regs *regs) { }
 
 static inline int overlaps_crashkernel(unsigned long start, unsigned long size)

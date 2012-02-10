@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
+#include <linux/bitops.h>
 #include <sys/utsname.h>
 
 #include "evlist.h"
@@ -27,9 +28,6 @@ static struct perf_trace_event_type *events;
 
 static u32 header_argc;
 static const char **header_argv;
-
-static int dsos__write_buildid_table(struct perf_header *header, int fd);
-static int perf_session__cache_build_ids(struct perf_session *session);
 
 int perf_header__push_event(u64 id, const char *name)
 {
@@ -187,6 +185,252 @@ perf_header__set_cmdline(int argc, const char **argv)
 	return 0;
 }
 
+#define dsos__for_each_with_build_id(pos, head)	\
+	list_for_each_entry(pos, head, node)	\
+		if (!pos->has_build_id)		\
+			continue;		\
+		else
+
+static int __dsos__write_buildid_table(struct list_head *head, pid_t pid,
+				u16 misc, int fd)
+{
+	struct dso *pos;
+
+	dsos__for_each_with_build_id(pos, head) {
+		int err;
+		struct build_id_event b;
+		size_t len;
+
+		if (!pos->hit)
+			continue;
+		len = pos->long_name_len + 1;
+		len = ALIGN(len, NAME_ALIGN);
+		memset(&b, 0, sizeof(b));
+		memcpy(&b.build_id, pos->build_id, sizeof(pos->build_id));
+		b.pid = pid;
+		b.header.misc = misc;
+		b.header.size = sizeof(b) + len;
+		err = do_write(fd, &b, sizeof(b));
+		if (err < 0)
+			return err;
+		err = write_padded(fd, pos->long_name,
+				   pos->long_name_len + 1, len);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+static int machine__write_buildid_table(struct machine *machine, int fd)
+{
+	int err;
+	u16 kmisc = PERF_RECORD_MISC_KERNEL,
+	    umisc = PERF_RECORD_MISC_USER;
+
+	if (!machine__is_host(machine)) {
+		kmisc = PERF_RECORD_MISC_GUEST_KERNEL;
+		umisc = PERF_RECORD_MISC_GUEST_USER;
+	}
+
+	err = __dsos__write_buildid_table(&machine->kernel_dsos, machine->pid,
+					  kmisc, fd);
+	if (err == 0)
+		err = __dsos__write_buildid_table(&machine->user_dsos,
+						  machine->pid, umisc, fd);
+	return err;
+}
+
+static int dsos__write_buildid_table(struct perf_header *header, int fd)
+{
+	struct perf_session *session = container_of(header,
+			struct perf_session, header);
+	struct rb_node *nd;
+	int err = machine__write_buildid_table(&session->host_machine, fd);
+
+	if (err)
+		return err;
+
+	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
+		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		err = machine__write_buildid_table(pos, fd);
+		if (err)
+			break;
+	}
+	return err;
+}
+
+int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
+			  const char *name, bool is_kallsyms)
+{
+	const size_t size = PATH_MAX;
+	char *realname, *filename = zalloc(size),
+	     *linkname = zalloc(size), *targetname;
+	int len, err = -1;
+
+	if (is_kallsyms) {
+		if (symbol_conf.kptr_restrict) {
+			pr_debug("Not caching a kptr_restrict'ed /proc/kallsyms\n");
+			return 0;
+		}
+		realname = (char *)name;
+	} else
+		realname = realpath(name, NULL);
+
+	if (realname == NULL || filename == NULL || linkname == NULL)
+		goto out_free;
+
+	len = snprintf(filename, size, "%s%s%s",
+		       debugdir, is_kallsyms ? "/" : "", realname);
+	if (mkdir_p(filename, 0755))
+		goto out_free;
+
+	snprintf(filename + len, sizeof(filename) - len, "/%s", sbuild_id);
+
+	if (access(filename, F_OK)) {
+		if (is_kallsyms) {
+			 if (copyfile("/proc/kallsyms", filename))
+				goto out_free;
+		} else if (link(realname, filename) && copyfile(name, filename))
+			goto out_free;
+	}
+
+	len = snprintf(linkname, size, "%s/.build-id/%.2s",
+		       debugdir, sbuild_id);
+
+	if (access(linkname, X_OK) && mkdir_p(linkname, 0755))
+		goto out_free;
+
+	snprintf(linkname + len, size - len, "/%s", sbuild_id + 2);
+	targetname = filename + strlen(debugdir) - 5;
+	memcpy(targetname, "../..", 5);
+
+	if (symlink(targetname, linkname) == 0)
+		err = 0;
+out_free:
+	if (!is_kallsyms)
+		free(realname);
+	free(filename);
+	free(linkname);
+	return err;
+}
+
+static int build_id_cache__add_b(const u8 *build_id, size_t build_id_size,
+				 const char *name, const char *debugdir,
+				 bool is_kallsyms)
+{
+	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+
+	build_id__sprintf(build_id, build_id_size, sbuild_id);
+
+	return build_id_cache__add_s(sbuild_id, debugdir, name, is_kallsyms);
+}
+
+int build_id_cache__remove_s(const char *sbuild_id, const char *debugdir)
+{
+	const size_t size = PATH_MAX;
+	char *filename = zalloc(size),
+	     *linkname = zalloc(size);
+	int err = -1;
+
+	if (filename == NULL || linkname == NULL)
+		goto out_free;
+
+	snprintf(linkname, size, "%s/.build-id/%.2s/%s",
+		 debugdir, sbuild_id, sbuild_id + 2);
+
+	if (access(linkname, F_OK))
+		goto out_free;
+
+	if (readlink(linkname, filename, size - 1) < 0)
+		goto out_free;
+
+	if (unlink(linkname))
+		goto out_free;
+
+	/*
+	 * Since the link is relative, we must make it absolute:
+	 */
+	snprintf(linkname, size, "%s/.build-id/%.2s/%s",
+		 debugdir, sbuild_id, filename);
+
+	if (unlink(linkname))
+		goto out_free;
+
+	err = 0;
+out_free:
+	free(filename);
+	free(linkname);
+	return err;
+}
+
+static int dso__cache_build_id(struct dso *dso, const char *debugdir)
+{
+	bool is_kallsyms = dso->kernel && dso->long_name[0] != '/';
+
+	return build_id_cache__add_b(dso->build_id, sizeof(dso->build_id),
+				     dso->long_name, debugdir, is_kallsyms);
+}
+
+static int __dsos__cache_build_ids(struct list_head *head, const char *debugdir)
+{
+	struct dso *pos;
+	int err = 0;
+
+	dsos__for_each_with_build_id(pos, head)
+		if (dso__cache_build_id(pos, debugdir))
+			err = -1;
+
+	return err;
+}
+
+static int machine__cache_build_ids(struct machine *machine, const char *debugdir)
+{
+	int ret = __dsos__cache_build_ids(&machine->kernel_dsos, debugdir);
+	ret |= __dsos__cache_build_ids(&machine->user_dsos, debugdir);
+	return ret;
+}
+
+static int perf_session__cache_build_ids(struct perf_session *session)
+{
+	struct rb_node *nd;
+	int ret;
+	char debugdir[PATH_MAX];
+
+	snprintf(debugdir, sizeof(debugdir), "%s", buildid_dir);
+
+	if (mkdir(debugdir, 0755) != 0 && errno != EEXIST)
+		return -1;
+
+	ret = machine__cache_build_ids(&session->host_machine, debugdir);
+
+	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
+		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		ret |= machine__cache_build_ids(pos, debugdir);
+	}
+	return ret ? -1 : 0;
+}
+
+static bool machine__read_build_ids(struct machine *machine, bool with_hits)
+{
+	bool ret = __dsos__read_build_ids(&machine->kernel_dsos, with_hits);
+	ret |= __dsos__read_build_ids(&machine->user_dsos, with_hits);
+	return ret;
+}
+
+static bool perf_session__read_build_ids(struct perf_session *session, bool with_hits)
+{
+	struct rb_node *nd;
+	bool ret = machine__read_build_ids(&session->host_machine, with_hits);
+
+	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
+		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		ret |= machine__read_build_ids(pos, with_hits);
+	}
+
+	return ret;
+}
+
 static int write_trace_info(int fd, struct perf_header *h __used,
 			    struct perf_evlist *evlist)
 {
@@ -201,6 +445,9 @@ static int write_build_id(int fd, struct perf_header *h,
 	int err;
 
 	session = container_of(h, struct perf_session, header);
+
+	if (!perf_session__read_build_ids(session, true))
+		return -1;
 
 	err = dsos__write_buildid_table(h, fd);
 	if (err < 0) {
@@ -1065,26 +1312,30 @@ struct feature_ops {
 	bool full_only;
 };
 
-#define FEAT_OPA(n, w, p) \
-	[n] = { .name = #n, .write = w, .print = p }
-#define FEAT_OPF(n, w, p) \
-	[n] = { .name = #n, .write = w, .print = p, .full_only = true }
+#define FEAT_OPA(n, func) \
+	[n] = { .name = #n, .write = write_##func, .print = print_##func }
+#define FEAT_OPF(n, func) \
+	[n] = { .name = #n, .write = write_##func, .print = print_##func, .full_only = true }
+
+/* feature_ops not implemented: */
+#define print_trace_info		NULL
+#define print_build_id			NULL
 
 static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
-	FEAT_OPA(HEADER_TRACE_INFO, write_trace_info, NULL),
-	FEAT_OPA(HEADER_BUILD_ID, write_build_id, NULL),
-	FEAT_OPA(HEADER_HOSTNAME, write_hostname, print_hostname),
-	FEAT_OPA(HEADER_OSRELEASE, write_osrelease, print_osrelease),
-	FEAT_OPA(HEADER_VERSION, write_version, print_version),
-	FEAT_OPA(HEADER_ARCH, write_arch, print_arch),
-	FEAT_OPA(HEADER_NRCPUS, write_nrcpus, print_nrcpus),
-	FEAT_OPA(HEADER_CPUDESC, write_cpudesc, print_cpudesc),
-	FEAT_OPA(HEADER_CPUID, write_cpuid, print_cpuid),
-	FEAT_OPA(HEADER_TOTAL_MEM, write_total_mem, print_total_mem),
-	FEAT_OPA(HEADER_EVENT_DESC, write_event_desc, print_event_desc),
-	FEAT_OPA(HEADER_CMDLINE, write_cmdline, print_cmdline),
-	FEAT_OPF(HEADER_CPU_TOPOLOGY, write_cpu_topology, print_cpu_topology),
-	FEAT_OPF(HEADER_NUMA_TOPOLOGY, write_numa_topology, print_numa_topology),
+	FEAT_OPA(HEADER_TRACE_INFO,	trace_info),
+	FEAT_OPA(HEADER_BUILD_ID,	build_id),
+	FEAT_OPA(HEADER_HOSTNAME,	hostname),
+	FEAT_OPA(HEADER_OSRELEASE,	osrelease),
+	FEAT_OPA(HEADER_VERSION,	version),
+	FEAT_OPA(HEADER_ARCH,		arch),
+	FEAT_OPA(HEADER_NRCPUS,		nrcpus),
+	FEAT_OPA(HEADER_CPUDESC,	cpudesc),
+	FEAT_OPA(HEADER_CPUID,		cpuid),
+	FEAT_OPA(HEADER_TOTAL_MEM,	total_mem),
+	FEAT_OPA(HEADER_EVENT_DESC,	event_desc),
+	FEAT_OPA(HEADER_CMDLINE,	cmdline),
+	FEAT_OPF(HEADER_CPU_TOPOLOGY,	cpu_topology),
+	FEAT_OPF(HEADER_NUMA_TOPOLOGY,	numa_topology),
 };
 
 struct header_print_data {
@@ -1103,9 +1354,9 @@ static int perf_file_section__fprintf_info(struct perf_file_section *section,
 				"%d, continuing...\n", section->offset, feat);
 		return 0;
 	}
-	if (feat < HEADER_TRACE_INFO || feat >= HEADER_LAST_FEATURE) {
+	if (feat >= HEADER_LAST_FEATURE) {
 		pr_warning("unknown feature %d\n", feat);
-		return -1;
+		return 0;
 	}
 	if (!feat_ops[feat].print)
 		return 0;
@@ -1132,252 +1383,6 @@ int perf_header__fprintf_info(struct perf_session *session, FILE *fp, bool full)
 	return 0;
 }
 
-#define dsos__for_each_with_build_id(pos, head)	\
-	list_for_each_entry(pos, head, node)	\
-		if (!pos->has_build_id)		\
-			continue;		\
-		else
-
-static int __dsos__write_buildid_table(struct list_head *head, pid_t pid,
-				u16 misc, int fd)
-{
-	struct dso *pos;
-
-	dsos__for_each_with_build_id(pos, head) {
-		int err;
-		struct build_id_event b;
-		size_t len;
-
-		if (!pos->hit)
-			continue;
-		len = pos->long_name_len + 1;
-		len = ALIGN(len, NAME_ALIGN);
-		memset(&b, 0, sizeof(b));
-		memcpy(&b.build_id, pos->build_id, sizeof(pos->build_id));
-		b.pid = pid;
-		b.header.misc = misc;
-		b.header.size = sizeof(b) + len;
-		err = do_write(fd, &b, sizeof(b));
-		if (err < 0)
-			return err;
-		err = write_padded(fd, pos->long_name,
-				   pos->long_name_len + 1, len);
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
-static int machine__write_buildid_table(struct machine *machine, int fd)
-{
-	int err;
-	u16 kmisc = PERF_RECORD_MISC_KERNEL,
-	    umisc = PERF_RECORD_MISC_USER;
-
-	if (!machine__is_host(machine)) {
-		kmisc = PERF_RECORD_MISC_GUEST_KERNEL;
-		umisc = PERF_RECORD_MISC_GUEST_USER;
-	}
-
-	err = __dsos__write_buildid_table(&machine->kernel_dsos, machine->pid,
-					  kmisc, fd);
-	if (err == 0)
-		err = __dsos__write_buildid_table(&machine->user_dsos,
-						  machine->pid, umisc, fd);
-	return err;
-}
-
-static int dsos__write_buildid_table(struct perf_header *header, int fd)
-{
-	struct perf_session *session = container_of(header,
-			struct perf_session, header);
-	struct rb_node *nd;
-	int err = machine__write_buildid_table(&session->host_machine, fd);
-
-	if (err)
-		return err;
-
-	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
-		struct machine *pos = rb_entry(nd, struct machine, rb_node);
-		err = machine__write_buildid_table(pos, fd);
-		if (err)
-			break;
-	}
-	return err;
-}
-
-int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
-			  const char *name, bool is_kallsyms)
-{
-	const size_t size = PATH_MAX;
-	char *realname, *filename = zalloc(size),
-	     *linkname = zalloc(size), *targetname;
-	int len, err = -1;
-
-	if (is_kallsyms) {
-		if (symbol_conf.kptr_restrict) {
-			pr_debug("Not caching a kptr_restrict'ed /proc/kallsyms\n");
-			return 0;
-		}
-		realname = (char *)name;
-	} else
-		realname = realpath(name, NULL);
-
-	if (realname == NULL || filename == NULL || linkname == NULL)
-		goto out_free;
-
-	len = snprintf(filename, size, "%s%s%s",
-		       debugdir, is_kallsyms ? "/" : "", realname);
-	if (mkdir_p(filename, 0755))
-		goto out_free;
-
-	snprintf(filename + len, sizeof(filename) - len, "/%s", sbuild_id);
-
-	if (access(filename, F_OK)) {
-		if (is_kallsyms) {
-			 if (copyfile("/proc/kallsyms", filename))
-				goto out_free;
-		} else if (link(realname, filename) && copyfile(name, filename))
-			goto out_free;
-	}
-
-	len = snprintf(linkname, size, "%s/.build-id/%.2s",
-		       debugdir, sbuild_id);
-
-	if (access(linkname, X_OK) && mkdir_p(linkname, 0755))
-		goto out_free;
-
-	snprintf(linkname + len, size - len, "/%s", sbuild_id + 2);
-	targetname = filename + strlen(debugdir) - 5;
-	memcpy(targetname, "../..", 5);
-
-	if (symlink(targetname, linkname) == 0)
-		err = 0;
-out_free:
-	if (!is_kallsyms)
-		free(realname);
-	free(filename);
-	free(linkname);
-	return err;
-}
-
-static int build_id_cache__add_b(const u8 *build_id, size_t build_id_size,
-				 const char *name, const char *debugdir,
-				 bool is_kallsyms)
-{
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
-
-	build_id__sprintf(build_id, build_id_size, sbuild_id);
-
-	return build_id_cache__add_s(sbuild_id, debugdir, name, is_kallsyms);
-}
-
-int build_id_cache__remove_s(const char *sbuild_id, const char *debugdir)
-{
-	const size_t size = PATH_MAX;
-	char *filename = zalloc(size),
-	     *linkname = zalloc(size);
-	int err = -1;
-
-	if (filename == NULL || linkname == NULL)
-		goto out_free;
-
-	snprintf(linkname, size, "%s/.build-id/%.2s/%s",
-		 debugdir, sbuild_id, sbuild_id + 2);
-
-	if (access(linkname, F_OK))
-		goto out_free;
-
-	if (readlink(linkname, filename, size - 1) < 0)
-		goto out_free;
-
-	if (unlink(linkname))
-		goto out_free;
-
-	/*
-	 * Since the link is relative, we must make it absolute:
-	 */
-	snprintf(linkname, size, "%s/.build-id/%.2s/%s",
-		 debugdir, sbuild_id, filename);
-
-	if (unlink(linkname))
-		goto out_free;
-
-	err = 0;
-out_free:
-	free(filename);
-	free(linkname);
-	return err;
-}
-
-static int dso__cache_build_id(struct dso *dso, const char *debugdir)
-{
-	bool is_kallsyms = dso->kernel && dso->long_name[0] != '/';
-
-	return build_id_cache__add_b(dso->build_id, sizeof(dso->build_id),
-				     dso->long_name, debugdir, is_kallsyms);
-}
-
-static int __dsos__cache_build_ids(struct list_head *head, const char *debugdir)
-{
-	struct dso *pos;
-	int err = 0;
-
-	dsos__for_each_with_build_id(pos, head)
-		if (dso__cache_build_id(pos, debugdir))
-			err = -1;
-
-	return err;
-}
-
-static int machine__cache_build_ids(struct machine *machine, const char *debugdir)
-{
-	int ret = __dsos__cache_build_ids(&machine->kernel_dsos, debugdir);
-	ret |= __dsos__cache_build_ids(&machine->user_dsos, debugdir);
-	return ret;
-}
-
-static int perf_session__cache_build_ids(struct perf_session *session)
-{
-	struct rb_node *nd;
-	int ret;
-	char debugdir[PATH_MAX];
-
-	snprintf(debugdir, sizeof(debugdir), "%s", buildid_dir);
-
-	if (mkdir(debugdir, 0755) != 0 && errno != EEXIST)
-		return -1;
-
-	ret = machine__cache_build_ids(&session->host_machine, debugdir);
-
-	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
-		struct machine *pos = rb_entry(nd, struct machine, rb_node);
-		ret |= machine__cache_build_ids(pos, debugdir);
-	}
-	return ret ? -1 : 0;
-}
-
-static bool machine__read_build_ids(struct machine *machine, bool with_hits)
-{
-	bool ret = __dsos__read_build_ids(&machine->kernel_dsos, with_hits);
-	ret |= __dsos__read_build_ids(&machine->user_dsos, with_hits);
-	return ret;
-}
-
-static bool perf_session__read_build_ids(struct perf_session *session, bool with_hits)
-{
-	struct rb_node *nd;
-	bool ret = machine__read_build_ids(&session->host_machine, with_hits);
-
-	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
-		struct machine *pos = rb_entry(nd, struct machine, rb_node);
-		ret |= machine__read_build_ids(pos, with_hits);
-	}
-
-	return ret;
-}
-
 static int do_write_feat(int fd, struct perf_header *h, int type,
 			 struct perf_file_section **p,
 			 struct perf_evlist *evlist)
@@ -1386,6 +1391,8 @@ static int do_write_feat(int fd, struct perf_header *h, int type,
 	int ret = 0;
 
 	if (perf_header__has_feat(h, type)) {
+		if (!feat_ops[type].write)
+			return -1;
 
 		(*p)->offset = lseek(fd, 0, SEEK_CUR);
 
@@ -1408,17 +1415,11 @@ static int perf_header__adds_write(struct perf_header *header,
 				   struct perf_evlist *evlist, int fd)
 {
 	int nr_sections;
-	struct perf_session *session;
 	struct perf_file_section *feat_sec, *p;
 	int sec_size;
 	u64 sec_start;
+	int feat;
 	int err;
-
-	session = container_of(header, struct perf_session, header);
-
-	if (perf_header__has_feat(header, HEADER_BUILD_ID &&
-	    !perf_session__read_build_ids(session, true)))
-		perf_header__clear_feat(header, HEADER_BUILD_ID);
 
 	nr_sections = bitmap_weight(header->adds_features, HEADER_FEAT_BITS);
 	if (!nr_sections)
@@ -1433,63 +1434,10 @@ static int perf_header__adds_write(struct perf_header *header,
 	sec_start = header->data_offset + header->data_size;
 	lseek(fd, sec_start + sec_size, SEEK_SET);
 
-	err = do_write_feat(fd, header, HEADER_TRACE_INFO, &p, evlist);
-	if (err)
-		goto out_free;
-
-	err = do_write_feat(fd, header, HEADER_BUILD_ID, &p, evlist);
-	if (err) {
-		perf_header__clear_feat(header, HEADER_BUILD_ID);
-		goto out_free;
+	for_each_set_bit(feat, header->adds_features, HEADER_FEAT_BITS) {
+		if (do_write_feat(fd, header, feat, &p, evlist))
+			perf_header__clear_feat(header, feat);
 	}
-
-	err = do_write_feat(fd, header, HEADER_HOSTNAME, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_HOSTNAME);
-
-	err = do_write_feat(fd, header, HEADER_OSRELEASE, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_OSRELEASE);
-
-	err = do_write_feat(fd, header, HEADER_VERSION, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_VERSION);
-
-	err = do_write_feat(fd, header, HEADER_ARCH, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_ARCH);
-
-	err = do_write_feat(fd, header, HEADER_NRCPUS, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_NRCPUS);
-
-	err = do_write_feat(fd, header, HEADER_CPUDESC, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_CPUDESC);
-
-	err = do_write_feat(fd, header, HEADER_CPUID, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_CPUID);
-
-	err = do_write_feat(fd, header, HEADER_TOTAL_MEM, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_TOTAL_MEM);
-
-	err = do_write_feat(fd, header, HEADER_CMDLINE, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_CMDLINE);
-
-	err = do_write_feat(fd, header, HEADER_EVENT_DESC, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_EVENT_DESC);
-
-	err = do_write_feat(fd, header, HEADER_CPU_TOPOLOGY, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_CPU_TOPOLOGY);
-
-	err = do_write_feat(fd, header, HEADER_NUMA_TOPOLOGY, &p, evlist);
-	if (err)
-		perf_header__clear_feat(header, HEADER_NUMA_TOPOLOGY);
 
 	lseek(fd, sec_start, SEEK_SET);
 	/*
@@ -1499,7 +1447,6 @@ static int perf_header__adds_write(struct perf_header *header,
 	err = do_write(fd, feat_sec, sec_size);
 	if (err < 0)
 		pr_debug("failed to write feature section\n");
-out_free:
 	free(feat_sec);
 	return err;
 }
@@ -1637,20 +1584,20 @@ static int perf_header__getbuffer64(struct perf_header *header,
 int perf_header__process_sections(struct perf_header *header, int fd,
 				  void *data,
 				  int (*process)(struct perf_file_section *section,
-				  struct perf_header *ph,
-				  int feat, int fd, void *data))
+						 struct perf_header *ph,
+						 int feat, int fd, void *data))
 {
-	struct perf_file_section *feat_sec;
+	struct perf_file_section *feat_sec, *sec;
 	int nr_sections;
 	int sec_size;
-	int idx = 0;
-	int err = -1, feat = 1;
+	int feat;
+	int err;
 
 	nr_sections = bitmap_weight(header->adds_features, HEADER_FEAT_BITS);
 	if (!nr_sections)
 		return 0;
 
-	feat_sec = calloc(sizeof(*feat_sec), nr_sections);
+	feat_sec = sec = calloc(sizeof(*feat_sec), nr_sections);
 	if (!feat_sec)
 		return -1;
 
@@ -1658,20 +1605,16 @@ int perf_header__process_sections(struct perf_header *header, int fd,
 
 	lseek(fd, header->data_offset + header->data_size, SEEK_SET);
 
-	if (perf_header__getbuffer64(header, fd, feat_sec, sec_size))
+	err = perf_header__getbuffer64(header, fd, feat_sec, sec_size);
+	if (err < 0)
 		goto out_free;
 
-	err = 0;
-	while (idx < nr_sections && feat < HEADER_LAST_FEATURE) {
-		if (perf_header__has_feat(header, feat)) {
-			struct perf_file_section *sec = &feat_sec[idx++];
-
-			err = process(sec, header, feat, fd, data);
-			if (err < 0)
-				break;
-		}
-		++feat;
+	for_each_set_bit(feat, header->adds_features, HEADER_LAST_FEATURE) {
+		err = process(sec++, header, feat, fd, data);
+		if (err < 0)
+			goto out_free;
 	}
+	err = 0;
 out_free:
 	free(feat_sec);
 	return err;
@@ -1906,32 +1849,21 @@ static int perf_file_section__process(struct perf_file_section *section,
 		return 0;
 	}
 
+	if (feat >= HEADER_LAST_FEATURE) {
+		pr_debug("unknown feature %d, continuing...\n", feat);
+		return 0;
+	}
+
 	switch (feat) {
 	case HEADER_TRACE_INFO:
 		trace_report(fd, false);
 		break;
-
 	case HEADER_BUILD_ID:
 		if (perf_header__read_build_ids(ph, fd, section->offset, section->size))
 			pr_debug("Failed to read buildids, continuing...\n");
 		break;
-
-	case HEADER_HOSTNAME:
-	case HEADER_OSRELEASE:
-	case HEADER_VERSION:
-	case HEADER_ARCH:
-	case HEADER_NRCPUS:
-	case HEADER_CPUDESC:
-	case HEADER_CPUID:
-	case HEADER_TOTAL_MEM:
-	case HEADER_CMDLINE:
-	case HEADER_EVENT_DESC:
-	case HEADER_CPU_TOPOLOGY:
-	case HEADER_NUMA_TOPOLOGY:
-		break;
-
 	default:
-		pr_debug("unknown feature %d, continuing...\n", feat);
+		break;
 	}
 
 	return 0;
@@ -2041,6 +1973,8 @@ int perf_session__read_header(struct perf_session *session, int fd)
 		lseek(fd, tmp, SEEK_SET);
 	}
 
+	symbol_conf.nr_events = nr_attrs;
+
 	if (f_header.event_types.size) {
 		lseek(fd, f_header.event_types.offset, SEEK_SET);
 		events = malloc(f_header.event_types.size);
@@ -2068,9 +2002,9 @@ out_delete_evlist:
 	return -ENOMEM;
 }
 
-int perf_event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
-				perf_event__handler_t process,
-				struct perf_session *session)
+int perf_event__synthesize_attr(struct perf_tool *tool,
+				struct perf_event_attr *attr, u16 ids, u64 *id,
+				perf_event__handler_t process)
 {
 	union perf_event *ev;
 	size_t size;
@@ -2092,22 +2026,23 @@ int perf_event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
 	ev->attr.header.type = PERF_RECORD_HEADER_ATTR;
 	ev->attr.header.size = size;
 
-	err = process(ev, NULL, session);
+	err = process(tool, ev, NULL, NULL);
 
 	free(ev);
 
 	return err;
 }
 
-int perf_session__synthesize_attrs(struct perf_session *session,
+int perf_event__synthesize_attrs(struct perf_tool *tool,
+				   struct perf_session *session,
 				   perf_event__handler_t process)
 {
 	struct perf_evsel *attr;
 	int err = 0;
 
 	list_for_each_entry(attr, &session->evlist->entries, node) {
-		err = perf_event__synthesize_attr(&attr->attr, attr->ids,
-						  attr->id, process, session);
+		err = perf_event__synthesize_attr(tool, &attr->attr, attr->ids,
+						  attr->id, process);
 		if (err) {
 			pr_debug("failed to create perf header attribute\n");
 			return err;
@@ -2118,23 +2053,23 @@ int perf_session__synthesize_attrs(struct perf_session *session,
 }
 
 int perf_event__process_attr(union perf_event *event,
-			     struct perf_session *session)
+			     struct perf_evlist **pevlist)
 {
 	unsigned int i, ids, n_ids;
 	struct perf_evsel *evsel;
+	struct perf_evlist *evlist = *pevlist;
 
-	if (session->evlist == NULL) {
-		session->evlist = perf_evlist__new(NULL, NULL);
-		if (session->evlist == NULL)
+	if (evlist == NULL) {
+		*pevlist = evlist = perf_evlist__new(NULL, NULL);
+		if (evlist == NULL)
 			return -ENOMEM;
 	}
 
-	evsel = perf_evsel__new(&event->attr.attr,
-				session->evlist->nr_entries);
+	evsel = perf_evsel__new(&event->attr.attr, evlist->nr_entries);
 	if (evsel == NULL)
 		return -ENOMEM;
 
-	perf_evlist__add(session->evlist, evsel);
+	perf_evlist__add(evlist, evsel);
 
 	ids = event->header.size;
 	ids -= (void *)&event->attr.id - (void *)event;
@@ -2148,18 +2083,16 @@ int perf_event__process_attr(union perf_event *event,
 		return -ENOMEM;
 
 	for (i = 0; i < n_ids; i++) {
-		perf_evlist__id_add(session->evlist, evsel, 0, i,
-				    event->attr.id[i]);
+		perf_evlist__id_add(evlist, evsel, 0, i, event->attr.id[i]);
 	}
-
-	perf_session__update_sample_type(session);
 
 	return 0;
 }
 
-int perf_event__synthesize_event_type(u64 event_id, char *name,
+int perf_event__synthesize_event_type(struct perf_tool *tool,
+				      u64 event_id, char *name,
 				      perf_event__handler_t process,
-				      struct perf_session *session)
+				      struct machine *machine)
 {
 	union perf_event ev;
 	size_t size = 0;
@@ -2172,18 +2105,19 @@ int perf_event__synthesize_event_type(u64 event_id, char *name,
 	strncpy(ev.event_type.event_type.name, name, MAX_EVENT_NAME - 1);
 
 	ev.event_type.header.type = PERF_RECORD_HEADER_EVENT_TYPE;
-	size = strlen(name);
+	size = strlen(ev.event_type.event_type.name);
 	size = ALIGN(size, sizeof(u64));
 	ev.event_type.header.size = sizeof(ev.event_type) -
 		(sizeof(ev.event_type.event_type.name) - size);
 
-	err = process(&ev, NULL, session);
+	err = process(tool, &ev, NULL, machine);
 
 	return err;
 }
 
-int perf_event__synthesize_event_types(perf_event__handler_t process,
-				       struct perf_session *session)
+int perf_event__synthesize_event_types(struct perf_tool *tool,
+				       perf_event__handler_t process,
+				       struct machine *machine)
 {
 	struct perf_trace_event_type *type;
 	int i, err = 0;
@@ -2191,9 +2125,9 @@ int perf_event__synthesize_event_types(perf_event__handler_t process,
 	for (i = 0; i < event_count; i++) {
 		type = &events[i];
 
-		err = perf_event__synthesize_event_type(type->event_id,
+		err = perf_event__synthesize_event_type(tool, type->event_id,
 							type->name, process,
-							session);
+							machine);
 		if (err) {
 			pr_debug("failed to create perf header event type\n");
 			return err;
@@ -2203,8 +2137,8 @@ int perf_event__synthesize_event_types(perf_event__handler_t process,
 	return err;
 }
 
-int perf_event__process_event_type(union perf_event *event,
-				   struct perf_session *session __unused)
+int perf_event__process_event_type(struct perf_tool *tool __unused,
+				   union perf_event *event)
 {
 	if (perf_header__push_event(event->event_type.event_type.event_id,
 				    event->event_type.event_type.name) < 0)
@@ -2213,9 +2147,9 @@ int perf_event__process_event_type(union perf_event *event,
 	return 0;
 }
 
-int perf_event__synthesize_tracing_data(int fd, struct perf_evlist *evlist,
-					 perf_event__handler_t process,
-				   struct perf_session *session __unused)
+int perf_event__synthesize_tracing_data(struct perf_tool *tool, int fd,
+					struct perf_evlist *evlist,
+					perf_event__handler_t process)
 {
 	union perf_event ev;
 	struct tracing_data *tdata;
@@ -2246,7 +2180,7 @@ int perf_event__synthesize_tracing_data(int fd, struct perf_evlist *evlist,
 	ev.tracing_data.header.size = sizeof(ev.tracing_data);
 	ev.tracing_data.size = aligned_size;
 
-	process(&ev, NULL, session);
+	process(tool, &ev, NULL, NULL);
 
 	/*
 	 * The put function will copy all the tracing data
@@ -2288,10 +2222,10 @@ int perf_event__process_tracing_data(union perf_event *event,
 	return size_read + padding;
 }
 
-int perf_event__synthesize_build_id(struct dso *pos, u16 misc,
+int perf_event__synthesize_build_id(struct perf_tool *tool,
+				    struct dso *pos, u16 misc,
 				    perf_event__handler_t process,
-				    struct machine *machine,
-				    struct perf_session *session)
+				    struct machine *machine)
 {
 	union perf_event ev;
 	size_t len;
@@ -2311,12 +2245,13 @@ int perf_event__synthesize_build_id(struct dso *pos, u16 misc,
 	ev.build_id.header.size = sizeof(ev.build_id) + len;
 	memcpy(&ev.build_id.filename, pos->long_name, pos->long_name_len);
 
-	err = process(&ev, NULL, session);
+	err = process(tool, &ev, NULL, machine);
 
 	return err;
 }
 
-int perf_event__process_build_id(union perf_event *event,
+int perf_event__process_build_id(struct perf_tool *tool __used,
+				 union perf_event *event,
 				 struct perf_session *session)
 {
 	__event_process_build_id(&event->build_id,

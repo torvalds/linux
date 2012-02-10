@@ -80,7 +80,7 @@ struct fuse_inode {
 
 	/** The sticky bit in inode->i_mode may have been removed, so
 	    preserve the original mode */
-	mode_t orig_i_mode;
+	umode_t orig_i_mode;
 
 	/** Version of last attribute change */
 	u64 attr_version;
@@ -755,9 +755,15 @@ int fuse_reverse_inval_inode(struct super_block *sb, u64 nodeid,
 /**
  * File-system tells the kernel to invalidate parent attributes and
  * the dentry matching parent/name.
+ *
+ * If the child_nodeid is non-zero and:
+ *    - matches the inode number for the dentry matching parent/name,
+ *    - is not a mount point
+ *    - is a file or oan empty directory
+ * then the dentry is unhashed (d_delete()).
  */
 int fuse_reverse_inval_entry(struct super_block *sb, u64 parent_nodeid,
-			     struct qstr *name);
+			     u64 child_nodeid, struct qstr *name);
 
 int fuse_do_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
 		 bool isdir);
@@ -765,6 +771,8 @@ ssize_t fuse_direct_io(struct file *file, const char __user *buf,
 		       size_t count, loff_t *ppos, int write);
 long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 		   unsigned int flags);
+long fuse_ioctl_common(struct file *file, unsigned int cmd,
+		       unsigned long arg, unsigned int flags);
 unsigned fuse_file_poll(struct file *file, poll_table *wait);
 int fuse_dev_release(struct inode *inode, struct file *file);
 

@@ -752,7 +752,7 @@ int of_property_read_string_index(struct device_node *np, const char *propname,
 
 	for (i = 0; total < prop->length; total += l, p += l) {
 		l = strlen(p) + 1;
-		if ((*p != 0) && (i++ == index)) {
+		if (i++ == index) {
 			*output = p;
 			return 0;
 		}
@@ -790,11 +790,9 @@ int of_property_count_strings(struct device_node *np, const char *propname)
 
 	p = prop->value;
 
-	for (i = 0; total < prop->length; total += l, p += l) {
+	for (i = 0; total < prop->length; total += l, p += l, i++)
 		l = strlen(p) + 1;
-		if (*p != 0)
-			i++;
-	}
+
 	return i;
 }
 EXPORT_SYMBOL_GPL(of_property_count_strings);
@@ -824,17 +822,19 @@ of_parse_phandle(struct device_node *np, const char *phandle_name, int index)
 EXPORT_SYMBOL(of_parse_phandle);
 
 /**
- * of_parse_phandles_with_args - Find a node pointed by phandle in a list
+ * of_parse_phandle_with_args() - Find a node pointed by phandle in a list
  * @np:		pointer to a device tree node containing a list
  * @list_name:	property name that contains a list
  * @cells_name:	property name that specifies phandles' arguments count
  * @index:	index of a phandle to parse out
- * @out_node:	optional pointer to device_node struct pointer (will be filled)
- * @out_args:	optional pointer to arguments pointer (will be filled)
+ * @out_args:	optional pointer to output arguments structure (will be filled)
  *
  * This function is useful to parse lists of phandles and their arguments.
- * Returns 0 on success and fills out_node and out_args, on error returns
- * appropriate errno value.
+ * Returns 0 on success and fills out_args, on error returns appropriate
+ * errno value.
+ *
+ * Caller is responsible to call of_node_put() on the returned out_args->node
+ * pointer.
  *
  * Example:
  *
@@ -851,94 +851,96 @@ EXPORT_SYMBOL(of_parse_phandle);
  * }
  *
  * To get a device_node of the `node2' node you may call this:
- * of_parse_phandles_with_args(node3, "list", "#list-cells", 2, &node2, &args);
+ * of_parse_phandle_with_args(node3, "list", "#list-cells", 1, &args);
  */
-int of_parse_phandles_with_args(struct device_node *np, const char *list_name,
+int of_parse_phandle_with_args(struct device_node *np, const char *list_name,
 				const char *cells_name, int index,
-				struct device_node **out_node,
-				const void **out_args)
+				struct of_phandle_args *out_args)
 {
-	int ret = -EINVAL;
-	const __be32 *list;
-	const __be32 *list_end;
-	int size;
-	int cur_index = 0;
+	const __be32 *list, *list_end;
+	int size, cur_index = 0;
+	uint32_t count = 0;
 	struct device_node *node = NULL;
-	const void *args = NULL;
+	phandle phandle;
 
+	/* Retrieve the phandle list property */
 	list = of_get_property(np, list_name, &size);
-	if (!list) {
-		ret = -ENOENT;
-		goto err0;
-	}
+	if (!list)
+		return -EINVAL;
 	list_end = list + size / sizeof(*list);
 
+	/* Loop over the phandles until all the requested entry is found */
 	while (list < list_end) {
-		const __be32 *cells;
-		phandle phandle;
+		count = 0;
 
+		/*
+		 * If phandle is 0, then it is an empty entry with no
+		 * arguments.  Skip forward to the next entry.
+		 */
 		phandle = be32_to_cpup(list++);
-		args = list;
+		if (phandle) {
+			/*
+			 * Find the provider node and parse the #*-cells
+			 * property to determine the argument length
+			 */
+			node = of_find_node_by_phandle(phandle);
+			if (!node) {
+				pr_err("%s: could not find phandle\n",
+					 np->full_name);
+				break;
+			}
+			if (of_property_read_u32(node, cells_name, &count)) {
+				pr_err("%s: could not get %s for %s\n",
+					 np->full_name, cells_name,
+					 node->full_name);
+				break;
+			}
 
-		/* one cell hole in the list = <>; */
-		if (!phandle)
-			goto next;
-
-		node = of_find_node_by_phandle(phandle);
-		if (!node) {
-			pr_debug("%s: could not find phandle\n",
-				 np->full_name);
-			goto err0;
+			/*
+			 * Make sure that the arguments actually fit in the
+			 * remaining property data length
+			 */
+			if (list + count > list_end) {
+				pr_err("%s: arguments longer than property\n",
+					 np->full_name);
+				break;
+			}
 		}
 
-		cells = of_get_property(node, cells_name, &size);
-		if (!cells || size != sizeof(*cells)) {
-			pr_debug("%s: could not get %s for %s\n",
-				 np->full_name, cells_name, node->full_name);
-			goto err1;
-		}
+		/*
+		 * All of the error cases above bail out of the loop, so at
+		 * this point, the parsing is successful. If the requested
+		 * index matches, then fill the out_args structure and return,
+		 * or return -ENOENT for an empty entry.
+		 */
+		if (cur_index == index) {
+			if (!phandle)
+				return -ENOENT;
 
-		list += be32_to_cpup(cells);
-		if (list > list_end) {
-			pr_debug("%s: insufficient arguments length\n",
-				 np->full_name);
-			goto err1;
+			if (out_args) {
+				int i;
+				if (WARN_ON(count > MAX_PHANDLE_ARGS))
+					count = MAX_PHANDLE_ARGS;
+				out_args->np = node;
+				out_args->args_count = count;
+				for (i = 0; i < count; i++)
+					out_args->args[i] = be32_to_cpup(list++);
+			}
+			return 0;
 		}
-next:
-		if (cur_index == index)
-			break;
 
 		of_node_put(node);
 		node = NULL;
-		args = NULL;
+		list += count;
 		cur_index++;
 	}
 
-	if (!node) {
-		/*
-		 * args w/o node indicates that the loop above has stopped at
-		 * the 'hole' cell. Report this differently.
-		 */
-		if (args)
-			ret = -EEXIST;
-		else
-			ret = -ENOENT;
-		goto err0;
-	}
-
-	if (out_node)
-		*out_node = node;
-	if (out_args)
-		*out_args = args;
-
-	return 0;
-err1:
-	of_node_put(node);
-err0:
-	pr_debug("%s failed with status %d\n", __func__, ret);
-	return ret;
+	/* Loop exited without finding a valid entry; return an error */
+	if (node)
+		of_node_put(node);
+	return -EINVAL;
 }
-EXPORT_SYMBOL(of_parse_phandles_with_args);
+EXPORT_SYMBOL(of_parse_phandle_with_args);
 
 /**
  * prom_add_property - Add a property to a node
@@ -1159,7 +1161,7 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 	if (!of_aliases)
 		return;
 
-	for_each_property(pp, of_aliases->properties) {
+	for_each_property_of_node(of_aliases, pp) {
 		const char *start = pp->name;
 		const char *end = start + strlen(start);
 		struct device_node *np;

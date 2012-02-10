@@ -472,7 +472,7 @@ static const struct file_operations bfad_debugfs_op_regwr = {
 
 struct bfad_debugfs_entry {
 	const char *name;
-	mode_t	mode;
+	umode_t	mode;
 	const struct file_operations *fops;
 };
 
@@ -557,8 +557,7 @@ bfad_debugfs_exit(struct bfad_port_s *port)
 		}
 	}
 
-	/*
-	 * Remove the pci_dev debugfs directory for the port */
+	/* Remove the pci_dev debugfs directory for the port */
 	if (port->port_debugfs_root) {
 		debugfs_remove(port->port_debugfs_root);
 		port->port_debugfs_root = NULL;

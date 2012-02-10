@@ -379,7 +379,7 @@ Your cooperation is appreciated.
 		162 = /dev/smbus	System Management Bus
 		163 = /dev/lik		Logitech Internet Keyboard
 		164 = /dev/ipmo		Intel Intelligent Platform Management
-		165 = /dev/vmmon	VMWare virtual machine monitor
+		165 = /dev/vmmon	VMware virtual machine monitor
 		166 = /dev/i2o/ctl	I2O configuration manager
 		167 = /dev/specialix_sxctl Specialix serial control
 		168 = /dev/tcldrv	Technology Concepts serial control
@@ -447,6 +447,9 @@ Your cooperation is appreciated.
 		234 = /dev/btrfs-control	Btrfs control device
 		235 = /dev/autofs	Autofs control device
 		236 = /dev/mapper/control	Device-Mapper control device
+		237 = /dev/loop-control Loopback control device
+		238 = /dev/vhost-net	Host kernel accelerator for virtio net
+
 		240-254			Reserved for local use
 		255			Reserved for MISC_DYNAMIC_MINOR
 

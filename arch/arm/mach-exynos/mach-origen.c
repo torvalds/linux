@@ -22,13 +22,13 @@
 #include <linux/lcd.h>
 
 #include <asm/mach/arch.h>
+#include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 
 #include <video/platform_lcd.h>
 
 #include <plat/regs-serial.h>
 #include <plat/regs-fb-v4.h>
-#include <plat/exynos4.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/sdhci.h>
@@ -41,7 +41,10 @@
 #include <plat/fb.h>
 #include <plat/mfc.h>
 
+#include <mach/ohci.h>
 #include <mach/map.h>
+
+#include "common.h"
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define ORIGEN_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -483,6 +486,16 @@ static void __init origen_ehci_init(void)
 	s5p_ehci_set_platdata(pdata);
 }
 
+/* USB OHCI */
+static struct exynos4_ohci_platdata origen_ohci_pdata;
+
+static void __init origen_ohci_init(void)
+{
+	struct exynos4_ohci_platdata *pdata = &origen_ohci_pdata;
+
+	exynos4_ohci_set_platdata(pdata);
+}
+
 static struct gpio_keys_button origen_gpio_keys_table[] = {
 	{
 		.code			= KEY_MENU,
@@ -584,7 +597,8 @@ static struct s3c_fb_pd_win origen_fb_win0 = {
 static struct s3c_fb_platdata origen_lcd_pdata __initdata = {
 	.win[0]		= &origen_fb_win0,
 	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
-	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
+	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC |
+				VIDCON1_INV_VCLK,
 	.setup_gpio	= exynos4_fimd0_gpio_setup_24bpp,
 };
 
@@ -606,6 +620,7 @@ static struct platform_device *origen_devices[] __initdata = {
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
 	&s5p_device_mixer,
+	&exynos4_device_ohci,
 	&exynos4_device_pd[PD_LCD0],
 	&exynos4_device_pd[PD_TV],
 	&exynos4_device_pd[PD_G3D],
@@ -638,7 +653,7 @@ static void s5p_tv_setup(void)
 
 static void __init origen_map_io(void)
 {
-	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
+	exynos_init_io(NULL, 0);
 	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(origen_uartcfgs, ARRAY_SIZE(origen_uartcfgs));
 }
@@ -670,6 +685,7 @@ static void __init origen_machine_init(void)
 	s3c_sdhci0_set_platdata(&origen_hsmmc0_pdata);
 
 	origen_ehci_init();
+	origen_ohci_init();
 	clk_xusbxti.rate = 24000000;
 
 	s5p_tv_setup();
@@ -694,7 +710,9 @@ MACHINE_START(ORIGEN, "ORIGEN")
 	.atag_offset	= 0x100,
 	.init_irq	= exynos4_init_irq,
 	.map_io		= origen_map_io,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= origen_machine_init,
 	.timer		= &exynos4_timer,
 	.reserve	= &origen_reserve,
+	.restart	= exynos4_restart,
 MACHINE_END

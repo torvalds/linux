@@ -65,6 +65,30 @@ static int __init fsl_pcie_check_link(struct pci_controller *hose)
 }
 
 #if defined(CONFIG_FSL_SOC_BOOKE) || defined(CONFIG_PPC_86xx)
+
+#define MAX_PHYS_ADDR_BITS	40
+static u64 pci64_dma_offset = 1ull << MAX_PHYS_ADDR_BITS;
+
+static int fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
+{
+	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
+		return -EIO;
+
+	/*
+	 * Fixup PCI devices that are able to DMA to above the physical
+	 * address width of the SoC such that we can address any internal
+	 * SoC address from across PCI if needed
+	 */
+	if ((dev->bus == &pci_bus_type) &&
+	    dma_mask >= DMA_BIT_MASK(MAX_PHYS_ADDR_BITS)) {
+		set_dma_ops(dev, &dma_direct_ops);
+		set_dma_offset(dev, pci64_dma_offset);
+	}
+
+	*dev->dma_mask = dma_mask;
+	return 0;
+}
+
 static int __init setup_one_atmu(struct ccsr_pci __iomem *pci,
 	unsigned int index, const struct resource *res,
 	resource_size_t offset)
@@ -113,6 +137,8 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 	u32 piwar = PIWAR_EN | PIWAR_PF | PIWAR_TGI_LOCAL |
 			PIWAR_READ_SNOOP | PIWAR_WRITE_SNOOP;
 	char *name = hose->dn->full_name;
+	const u64 *reg;
+	int len;
 
 	pr_debug("PCI memory map start 0x%016llx, size 0x%016llx\n",
 		 (u64)rsrc->start, (u64)resource_size(rsrc));
@@ -179,12 +205,12 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 
 	if (paddr_hi == paddr_lo) {
 		pr_err("%s: No outbound window space\n", name);
-		return ;
+		goto out;
 	}
 
 	if (paddr_lo == 0) {
 		pr_err("%s: No space for inbound window\n", name);
-		return ;
+		goto out;
 	}
 
 	/* setup PCSRBAR/PEXCSRBAR */
@@ -205,6 +231,33 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 
 	/* Setup inbound mem window */
 	mem = memblock_end_of_DRAM();
+
+	/*
+	 * The msi-address-64 property, if it exists, indicates the physical
+	 * address of the MSIIR register.  Normally, this register is located
+	 * inside CCSR, so the ATMU that covers all of CCSR is used. But if
+	 * this property exists, then we normally need to create a new ATMU
+	 * for it.  For now, however, we cheat.  The only entity that creates
+	 * this property is the Freescale hypervisor, and the address is
+	 * specified in the partition configuration.  Typically, the address
+	 * is located in the page immediately after the end of DDR.  If so, we
+	 * can avoid allocating a new ATMU by extending the DDR ATMU by one
+	 * page.
+	 */
+	reg = of_get_property(hose->dn, "msi-address-64", &len);
+	if (reg && (len == sizeof(u64))) {
+		u64 address = be64_to_cpup(reg);
+
+		if ((address >= mem) && (address < (mem + PAGE_SIZE))) {
+			pr_info("%s: extending DDR ATMU to cover MSIIR", name);
+			mem += PAGE_SIZE;
+		} else {
+			/* TODO: Create a new ATMU for MSIIR */
+			pr_warn("%s: msi-address-64 address of %llx is "
+				"unsupported\n", name, address);
+		}
+	}
+
 	sz = min(mem, paddr_lo);
 	mem_log = __ilog2_u64(sz);
 
@@ -228,6 +281,37 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 
 		hose->dma_window_base_cur = 0x00000000;
 		hose->dma_window_size = (resource_size_t)sz;
+
+		/*
+		 * if we have >4G of memory setup second PCI inbound window to
+		 * let devices that are 64-bit address capable to work w/o
+		 * SWIOTLB and access the full range of memory
+		 */
+		if (sz != mem) {
+			mem_log = __ilog2_u64(mem);
+
+			/* Size window up if we dont fit in exact power-of-2 */
+			if ((1ull << mem_log) != mem)
+				mem_log++;
+
+			piwar = (piwar & ~PIWAR_SZ_MASK) | (mem_log - 1);
+
+			/* Setup inbound memory window */
+			out_be32(&pci->piw[win_idx].pitar,  0x00000000);
+			out_be32(&pci->piw[win_idx].piwbear,
+					pci64_dma_offset >> 44);
+			out_be32(&pci->piw[win_idx].piwbar,
+					pci64_dma_offset >> 12);
+			out_be32(&pci->piw[win_idx].piwar,  piwar);
+
+			/*
+			 * install our own dma_set_mask handler to fixup dma_ops
+			 * and dma_offset
+			 */
+			ppc_md.dma_set_mask = fsl_pci_dma_set_mask;
+
+			pr_info("%s: Setup 64-bit PCI DMA window\n", name);
+		}
 	} else {
 		u64 paddr = 0;
 
@@ -273,6 +357,7 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 			(u64)hose->dma_window_size);
 	}
 
+out:
 	iounmap(pci);
 }
 

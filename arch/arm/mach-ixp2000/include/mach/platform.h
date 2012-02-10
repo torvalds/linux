@@ -122,6 +122,7 @@ void ixp2000_map_io(void);
 void ixp2000_uart_init(void);
 void ixp2000_init_irq(void);
 void ixp2000_init_time(unsigned long);
+void ixp2000_restart(char, const char *);
 unsigned long ixp2000_gettimeoffset(void);
 
 struct pci_sys_data;

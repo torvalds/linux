@@ -10,6 +10,7 @@ void iop13xx_map_io(void);
 void iop13xx_platform_init(void);
 void iop13xx_add_tpmi_devices(void);
 void iop13xx_init_irq(void);
+void iop13xx_restart(char, const char *);
 
 /* CPUID CP6 R0 Page 0 */
 static inline int iop13xx_cpu_id(void)

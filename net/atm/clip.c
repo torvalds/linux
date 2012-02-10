@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <net/route.h> /* for struct rtable and routing */
 #include <net/icmp.h> /* icmp_send */
+#include <net/arp.h>
 #include <linux/param.h> /* for HZ */
 #include <linux/uaccess.h>
 #include <asm/byteorder.h> /* for htons etc. */
@@ -119,7 +120,7 @@ out:
 /* The neighbour entry n->lock is held. */
 static int neigh_check_cb(struct neighbour *n)
 {
-	struct atmarp_entry *entry = NEIGH2ENTRY(n);
+	struct atmarp_entry *entry = neighbour_priv(n);
 	struct clip_vcc *cv;
 
 	for (cv = entry->vccs; cv; cv = cv->next) {
@@ -189,6 +190,13 @@ static void clip_push(struct atm_vcc *vcc, struct sk_buff *skb)
 	struct clip_vcc *clip_vcc = CLIP_VCC(vcc);
 
 	pr_debug("\n");
+
+	if (!clip_devs) {
+		atm_return(vcc, skb->truesize);
+		kfree_skb(skb);
+		return;
+	}
+
 	if (!skb) {
 		pr_debug("removing VCC %p\n", clip_vcc);
 		if (clip_vcc->entry)
@@ -255,8 +263,10 @@ static void clip_pop(struct atm_vcc *vcc, struct sk_buff *skb)
 
 static void clip_neigh_solicit(struct neighbour *neigh, struct sk_buff *skb)
 {
+	__be32 *ip = (__be32 *) neigh->primary_key;
+
 	pr_debug("(neigh %p, skb %p)\n", neigh, skb);
-	to_atmarpd(act_need, PRIV(neigh->dev)->number, NEIGH2ENTRY(neigh)->ip);
+	to_atmarpd(act_need, PRIV(neigh->dev)->number, *ip);
 }
 
 static void clip_neigh_error(struct neighbour *neigh, struct sk_buff *skb)
@@ -277,71 +287,23 @@ static const struct neigh_ops clip_neigh_ops = {
 
 static int clip_constructor(struct neighbour *neigh)
 {
-	struct atmarp_entry *entry = NEIGH2ENTRY(neigh);
-	struct net_device *dev = neigh->dev;
-	struct in_device *in_dev;
-	struct neigh_parms *parms;
+	struct atmarp_entry *entry = neighbour_priv(neigh);
 
-	pr_debug("(neigh %p, entry %p)\n", neigh, entry);
-	neigh->type = inet_addr_type(&init_net, entry->ip);
+	if (neigh->tbl->family != AF_INET)
+		return -EINVAL;
+
 	if (neigh->type != RTN_UNICAST)
 		return -EINVAL;
 
-	rcu_read_lock();
-	in_dev = __in_dev_get_rcu(dev);
-	if (!in_dev) {
-		rcu_read_unlock();
-		return -EINVAL;
-	}
-
-	parms = in_dev->arp_parms;
-	__neigh_parms_put(neigh->parms);
-	neigh->parms = neigh_parms_clone(parms);
-	rcu_read_unlock();
-
+	neigh->nud_state = NUD_NONE;
 	neigh->ops = &clip_neigh_ops;
-	neigh->output = neigh->nud_state & NUD_VALID ?
-	    neigh->ops->connected_output : neigh->ops->output;
+	neigh->output = neigh->ops->output;
 	entry->neigh = neigh;
 	entry->vccs = NULL;
 	entry->expires = jiffies - 1;
+
 	return 0;
 }
-
-static u32 clip_hash(const void *pkey, const struct net_device *dev, __u32 rnd)
-{
-	return jhash_2words(*(u32 *) pkey, dev->ifindex, rnd);
-}
-
-static struct neigh_table clip_tbl = {
-	.family 	= AF_INET,
-	.entry_size 	= sizeof(struct neighbour)+sizeof(struct atmarp_entry),
-	.key_len 	= 4,
-	.hash 		= clip_hash,
-	.constructor 	= clip_constructor,
-	.id 		= "clip_arp_cache",
-
-	/* parameters are copied from ARP ... */
-	.parms = {
-		.tbl 			= &clip_tbl,
-		.base_reachable_time 	= 30 * HZ,
-		.retrans_time 		= 1 * HZ,
-		.gc_staletime 		= 60 * HZ,
-		.reachable_time 	= 30 * HZ,
-		.delay_probe_time 	= 5 * HZ,
-		.queue_len 		= 3,
-		.ucast_probes 		= 3,
-		.mcast_probes 		= 3,
-		.anycast_delay 		= 1 * HZ,
-		.proxy_delay 		= (8 * HZ) / 10,
-		.proxy_qlen 		= 64,
-		.locktime 		= 1 * HZ,
-	},
-	.gc_interval 	= 30 * HZ,
-	.gc_thresh1 	= 128,
-	.gc_thresh2 	= 512,
-	.gc_thresh3 	= 1024,
-};
 
 /* @@@ copy bh locking from arp.c -- need to bh-enable atm code before */
 
@@ -376,28 +338,19 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 		dev->stats.tx_dropped++;
 		return NETDEV_TX_OK;
 	}
-	n = dst_get_neighbour(dst);
+	n = dst_get_neighbour_noref(dst);
 	if (!n) {
-#if 0
-		n = clip_find_neighbour(skb_dst(skb), 1);
-		if (!n) {
-			dev_kfree_skb(skb);	/* lost that one */
-			dev->stats.tx_dropped++;
-			return 0;
-		}
-		dst_set_neighbour(dst, n);
-#endif
 		pr_err("NO NEIGHBOUR !\n");
 		dev_kfree_skb(skb);
 		dev->stats.tx_dropped++;
 		return NETDEV_TX_OK;
 	}
-	entry = NEIGH2ENTRY(n);
+	entry = neighbour_priv(n);
 	if (!entry->vccs) {
 		if (time_after(jiffies, entry->expires)) {
 			/* should be resolved */
 			entry->expires = jiffies + ATMARP_RETRY_DELAY * HZ;
-			to_atmarpd(act_need, PRIV(dev)->number, entry->ip);
+			to_atmarpd(act_need, PRIV(dev)->number, *((__be32 *)n->primary_key));
 		}
 		if (entry->neigh->arp_queue.qlen < ATMARP_MAX_UNRES_PACKETS)
 			skb_queue_tail(&entry->neigh->arp_queue, skb);
@@ -448,10 +401,7 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 
 static int clip_mkip(struct atm_vcc *vcc, int timeout)
 {
-	struct sk_buff_head *rq, queue;
 	struct clip_vcc *clip_vcc;
-	struct sk_buff *skb, *tmp;
-	unsigned long flags;
 
 	if (!vcc->push)
 		return -EBADFD;
@@ -472,29 +422,9 @@ static int clip_mkip(struct atm_vcc *vcc, int timeout)
 	vcc->push = clip_push;
 	vcc->pop = clip_pop;
 
-	__skb_queue_head_init(&queue);
-	rq = &sk_atm(vcc)->sk_receive_queue;
-
-	spin_lock_irqsave(&rq->lock, flags);
-	skb_queue_splice_init(rq, &queue);
-	spin_unlock_irqrestore(&rq->lock, flags);
-
 	/* re-process everything received between connection setup and MKIP */
-	skb_queue_walk_safe(&queue, skb, tmp) {
-		if (!clip_devs) {
-			atm_return(vcc, skb->truesize);
-			kfree_skb(skb);
-		} else {
-			struct net_device *dev = skb->dev;
-			unsigned int len = skb->len;
+	vcc_process_recv_queue(vcc);
 
-			skb_get(skb);
-			clip_push(vcc, skb);
-			dev->stats.rx_packets--;
-			dev->stats.rx_bytes -= len;
-			kfree_skb(skb);
-		}
-	}
 	return 0;
 }
 
@@ -523,11 +453,11 @@ static int clip_setentry(struct atm_vcc *vcc, __be32 ip)
 	rt = ip_route_output(&init_net, ip, 0, 1, 0);
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
-	neigh = __neigh_lookup(&clip_tbl, &ip, rt->dst.dev, 1);
+	neigh = __neigh_lookup(&arp_tbl, &ip, rt->dst.dev, 1);
 	ip_rt_put(rt);
 	if (!neigh)
 		return -ENOMEM;
-	entry = NEIGH2ENTRY(neigh);
+	entry = neighbour_priv(neigh);
 	if (entry != clip_vcc->entry) {
 		if (!clip_vcc->entry)
 			pr_debug("add\n");
@@ -544,13 +474,15 @@ static int clip_setentry(struct atm_vcc *vcc, __be32 ip)
 }
 
 static const struct net_device_ops clip_netdev_ops = {
-	.ndo_start_xmit = clip_start_xmit,
+	.ndo_start_xmit		= clip_start_xmit,
+	.ndo_neigh_construct	= clip_constructor,
 };
 
 static void clip_setup(struct net_device *dev)
 {
 	dev->netdev_ops = &clip_netdev_ops;
 	dev->type = ARPHRD_ATM;
+	dev->neigh_priv_len = sizeof(struct atmarp_entry);
 	dev->hard_header_len = RFC1483LLC_LEN;
 	dev->mtu = RFC1626_MTU;
 	dev->tx_queue_len = 100;	/* "normal" queue (packets) */
@@ -604,10 +536,8 @@ static int clip_device_event(struct notifier_block *this, unsigned long event,
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
-	if (event == NETDEV_UNREGISTER) {
-		neigh_ifdown(&clip_tbl, dev);
+	if (event == NETDEV_UNREGISTER)
 		return NOTIFY_DONE;
-	}
 
 	/* ignore non-CLIP devices */
 	if (dev->type != ARPHRD_ATM || dev->netdev_ops != &clip_netdev_ops)
@@ -787,9 +717,10 @@ static void svc_addr(struct seq_file *seq, struct sockaddr_atmsvc *addr)
 /* This means the neighbour entry has no attached VCC objects. */
 #define SEQ_NO_VCC_TOKEN	((void *) 2)
 
-static void atmarp_info(struct seq_file *seq, struct net_device *dev,
+static void atmarp_info(struct seq_file *seq, struct neighbour *n,
 			struct atmarp_entry *entry, struct clip_vcc *clip_vcc)
 {
+	struct net_device *dev = n->dev;
 	unsigned long exp;
 	char buf[17];
 	int svc, llc, off;
@@ -809,8 +740,7 @@ static void atmarp_info(struct seq_file *seq, struct net_device *dev,
 	seq_printf(seq, "%-6s%-4s%-4s%5ld ",
 		   dev->name, svc ? "SVC" : "PVC", llc ? "LLC" : "NULL", exp);
 
-	off = scnprintf(buf, sizeof(buf) - 1, "%pI4",
-			&entry->ip);
+	off = scnprintf(buf, sizeof(buf) - 1, "%pI4", n->primary_key);
 	while (off < 16)
 		buf[off++] = ' ';
 	buf[off] = '\0';
@@ -881,14 +811,17 @@ static void *clip_seq_sub_iter(struct neigh_seq_state *_state,
 {
 	struct clip_seq_state *state = (struct clip_seq_state *)_state;
 
-	return clip_seq_vcc_walk(state, NEIGH2ENTRY(n), pos);
+	if (n->dev->type != ARPHRD_ATM)
+		return NULL;
+
+	return clip_seq_vcc_walk(state, neighbour_priv(n), pos);
 }
 
 static void *clip_seq_start(struct seq_file *seq, loff_t * pos)
 {
 	struct clip_seq_state *state = seq->private;
 	state->ns.neigh_sub_iter = clip_seq_sub_iter;
-	return neigh_seq_start(seq, pos, &clip_tbl, NEIGH_SEQ_NEIGH_ONLY);
+	return neigh_seq_start(seq, pos, &arp_tbl, NEIGH_SEQ_NEIGH_ONLY);
 }
 
 static int clip_seq_show(struct seq_file *seq, void *v)
@@ -900,10 +833,10 @@ static int clip_seq_show(struct seq_file *seq, void *v)
 		seq_puts(seq, atm_arp_banner);
 	} else {
 		struct clip_seq_state *state = seq->private;
-		struct neighbour *n = v;
 		struct clip_vcc *vcc = state->vcc;
+		struct neighbour *n = v;
 
-		atmarp_info(seq, n->dev, NEIGH2ENTRY(n), vcc);
+		atmarp_info(seq, n, neighbour_priv(n), vcc);
 	}
 	return 0;
 }
@@ -934,9 +867,6 @@ static void atm_clip_exit_noproc(void);
 
 static int __init atm_clip_init(void)
 {
-	neigh_table_init_no_netlink(&clip_tbl);
-
-	clip_tbl_hook = &clip_tbl;
 	register_atm_ioctl(&clip_ioctl_ops);
 	register_netdevice_notifier(&clip_dev_notifier);
 	register_inetaddr_notifier(&clip_inet_notifier);
@@ -973,12 +903,6 @@ static void atm_clip_exit_noproc(void)
 	 */
 	del_timer_sync(&idle_timer);
 
-	/* Next, purge the table, so that the device
-	 * unregister loop below does not hang due to
-	 * device references remaining in the table.
-	 */
-	neigh_ifdown(&clip_tbl, NULL);
-
 	dev = clip_devs;
 	while (dev) {
 		next = PRIV(dev)->next;
@@ -986,11 +910,6 @@ static void atm_clip_exit_noproc(void)
 		free_netdev(dev);
 		dev = next;
 	}
-
-	/* Now it is safe to fully shutdown whole table. */
-	neigh_table_clear(&clip_tbl);
-
-	clip_tbl_hook = NULL;
 }
 
 static void __exit atm_clip_exit(void)

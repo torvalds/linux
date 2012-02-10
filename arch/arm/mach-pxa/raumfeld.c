@@ -292,8 +292,8 @@ static struct resource smc91x_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
-		.start	= gpio_to_irq(GPIO_ETH_IRQ),
-		.end	= gpio_to_irq(GPIO_ETH_IRQ),
+		.start	= PXA_GPIO_TO_IRQ(GPIO_ETH_IRQ),
+		.end	= PXA_GPIO_TO_IRQ(GPIO_ETH_IRQ),
 		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_FALLING,
 	}
 };
@@ -672,7 +672,7 @@ static struct lis3lv02d_platform_data lis3_pdata = {
 	.chip_select	= 1,			\
 	.controller_data = (void *) GPIO_ACCEL_CS,	\
 	.platform_data	= &lis3_pdata,		\
-	.irq		= gpio_to_irq(GPIO_ACCEL_IRQ),	\
+	.irq		= PXA_GPIO_TO_IRQ(GPIO_ACCEL_IRQ),	\
 }
 
 #define SPI_DAC7512	\
@@ -956,7 +956,7 @@ static struct eeti_ts_platform_data eeti_ts_pdata = {
 static struct i2c_board_info raumfeld_controller_i2c_board_info __initdata = {
 	.type	= "eeti_ts",
 	.addr	= 0x0a,
-	.irq	= gpio_to_irq(GPIO_TOUCH_IRQ),
+	.irq	= PXA_GPIO_TO_IRQ(GPIO_TOUCH_IRQ),
 	.platform_data = &eeti_ts_pdata,
 };
 
@@ -1093,6 +1093,7 @@ MACHINE_START(RAUMFELD_RC, "Raumfeld Controller")
 	.init_irq	= pxa3xx_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,
 	.timer		= &pxa_timer,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif
 
@@ -1104,6 +1105,7 @@ MACHINE_START(RAUMFELD_CONNECTOR, "Raumfeld Connector")
 	.init_irq	= pxa3xx_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,
 	.timer		= &pxa_timer,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif
 
@@ -1115,5 +1117,6 @@ MACHINE_START(RAUMFELD_SPEAKER, "Raumfeld Speaker")
 	.init_irq	= pxa3xx_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,
 	.timer		= &pxa_timer,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif

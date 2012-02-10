@@ -344,4 +344,5 @@ MACHINE_START(OMAPL138_HAWKBOARD, "AM18x/OMAP-L138 Hawkboard")
 	.timer		= &davinci_timer,
 	.init_machine	= omapl138_hawk_init,
 	.dma_zone_size	= SZ_128M,
+	.restart	= da8xx_restart,
 MACHINE_END

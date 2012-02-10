@@ -343,6 +343,7 @@ static const struct spi_device_id ade7854_id[] = {
 	{ "ade7878", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(spi, ade7854_id);
 
 static struct spi_driver ade7854_driver = {
 	.driver = {
@@ -353,18 +354,7 @@ static struct spi_driver ade7854_driver = {
 	.remove = __devexit_p(ade7854_spi_remove),
 	.id_table = ade7854_id,
 };
-
-static __init int ade7854_init(void)
-{
-	return spi_register_driver(&ade7854_driver);
-}
-module_init(ade7854_init);
-
-static __exit void ade7854_exit(void)
-{
-	spi_unregister_driver(&ade7854_driver);
-}
-module_exit(ade7854_exit);
+module_spi_driver(ade7854_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADE7854/58/68/78 SPI Driver");

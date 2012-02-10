@@ -87,7 +87,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 	struct svc_expkey key;
 	struct svc_expkey *ek = NULL;
 
-	if (mesg[mlen-1] != '\n')
+	if (mlen < 1 || mesg[mlen-1] != '\n')
 		return -EINVAL;
 	mesg[mlen-1] = 0;
 
@@ -1226,12 +1226,12 @@ nfsd_export_init(void)
 	int rv;
 	dprintk("nfsd: initializing export module.\n");
 
-	rv = cache_register(&svc_export_cache);
+	rv = cache_register_net(&svc_export_cache, &init_net);
 	if (rv)
 		return rv;
-	rv = cache_register(&svc_expkey_cache);
+	rv = cache_register_net(&svc_expkey_cache, &init_net);
 	if (rv)
-		cache_unregister(&svc_export_cache);
+		cache_unregister_net(&svc_export_cache, &init_net);
 	return rv;
 
 }
@@ -1255,8 +1255,8 @@ nfsd_export_shutdown(void)
 
 	dprintk("nfsd: shutting down export module.\n");
 
-	cache_unregister(&svc_expkey_cache);
-	cache_unregister(&svc_export_cache);
+	cache_unregister_net(&svc_expkey_cache, &init_net);
+	cache_unregister_net(&svc_export_cache, &init_net);
 	svcauth_unix_purge();
 
 	dprintk("nfsd: export shutdown complete.\n");

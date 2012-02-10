@@ -26,7 +26,7 @@ struct sk_buff *atm_alloc_charge(struct atm_vcc *vcc, int pdu_size,
 				 gfp_t gfp_flags)
 {
 	struct sock *sk = sk_atm(vcc);
-	int guess = atm_guess_pdu2truesize(pdu_size);
+	int guess = SKB_TRUESIZE(pdu_size);
 
 	atm_force_charge(vcc, guess);
 	if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf) {

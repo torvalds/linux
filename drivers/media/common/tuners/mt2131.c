@@ -92,9 +92,9 @@ static int mt2131_writeregs(struct mt2131_priv *priv,u8 *buf, u8 len)
 	return 0;
 }
 
-static int mt2131_set_params(struct dvb_frontend *fe,
-			     struct dvb_frontend_parameters *params)
+static int mt2131_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct mt2131_priv *priv;
 	int ret=0, i;
 	u32 freq;
@@ -105,12 +105,8 @@ static int mt2131_set_params(struct dvb_frontend *fe,
 	u8 lockval = 0;
 
 	priv = fe->tuner_priv;
-	if (fe->ops.info.type == FE_OFDM)
-		priv->bandwidth = params->u.ofdm.bandwidth;
-	else
-		priv->bandwidth = 0;
 
-	freq = params->frequency / 1000;  // Hz -> kHz
+	freq = c->frequency / 1000;  /* Hz -> kHz */
 	dprintk(1, "%s() freq=%d\n", __func__, freq);
 
 	f_lo1 = freq + MT2131_IF1 * 1000;
@@ -193,14 +189,6 @@ static int mt2131_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static int mt2131_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
-{
-	struct mt2131_priv *priv = fe->tuner_priv;
-	dprintk(1, "%s()\n", __func__);
-	*bandwidth = priv->bandwidth;
-	return 0;
-}
-
 static int mt2131_get_status(struct dvb_frontend *fe, u32 *status)
 {
 	struct mt2131_priv *priv = fe->tuner_priv;
@@ -263,7 +251,6 @@ static const struct dvb_tuner_ops mt2131_tuner_ops = {
 
 	.set_params    = mt2131_set_params,
 	.get_frequency = mt2131_get_frequency,
-	.get_bandwidth = mt2131_get_bandwidth,
 	.get_status    = mt2131_get_status
 };
 
@@ -281,7 +268,6 @@ struct dvb_frontend * mt2131_attach(struct dvb_frontend *fe,
 		return NULL;
 
 	priv->cfg = cfg;
-	priv->bandwidth = 6000000; /* 6MHz */
 	priv->i2c = i2c;
 
 	if (mt2131_readreg(priv, 0, &id) != 0) {

@@ -34,7 +34,7 @@
 #define SG2_S0_GPIO_READY	81
 
 static struct pcmcia_irqs irqs[] = {
-	{ 0, IRQ_GPIO(SG2_S0_GPIO_DETECT), "PCMCIA0 CD" },
+	{.sock = 0, .str = "PCMCIA0 CD" },
 };
 
 static struct gpio sg2_pcmcia_gpios[] = {
@@ -44,7 +44,9 @@ static struct gpio sg2_pcmcia_gpios[] = {
 
 static int sg2_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
-	skt->socket.pci_irq = IRQ_GPIO(SG2_S0_GPIO_READY);
+	skt->socket.pci_irq = gpio_to_irq(SG2_S0_GPIO_READY);
+	irqs[0].irq = gpio_to_irq(SG2_S0_GPIO_DETECT);
+
 	return soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
 }
 

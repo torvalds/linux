@@ -449,7 +449,7 @@ static int __devinit max8660_probe(struct i2c_client *client,
 
 		rdev[i] = regulator_register(&max8660_reg[id], &client->dev,
 					     pdata->subdevs[i].platform_data,
-					     max8660);
+					     max8660, NULL);
 		if (IS_ERR(rdev[i])) {
 			ret = PTR_ERR(rdev[i]);
 			dev_err(&client->dev, "failed to register %s\n",

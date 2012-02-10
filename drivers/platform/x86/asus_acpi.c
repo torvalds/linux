@@ -1053,7 +1053,7 @@ static const struct file_operations disp_proc_fops = {
 };
 
 static int
-asus_proc_add(char *name, const struct file_operations *proc_fops, mode_t mode,
+asus_proc_add(char *name, const struct file_operations *proc_fops, umode_t mode,
 		     struct acpi_device *device)
 {
 	struct proc_dir_entry *proc;
@@ -1072,7 +1072,7 @@ asus_proc_add(char *name, const struct file_operations *proc_fops, mode_t mode,
 static int asus_hotk_add_fs(struct acpi_device *device)
 {
 	struct proc_dir_entry *proc;
-	mode_t mode;
+	umode_t mode;
 
 	if ((asus_uid == 0) && (asus_gid == 0)) {
 		mode = S_IFREG | S_IRUGO | S_IWUSR | S_IWGRP;

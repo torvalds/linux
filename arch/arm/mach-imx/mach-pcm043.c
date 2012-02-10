@@ -425,4 +425,5 @@ MACHINE_START(PCM043, "Phytec Phycore pcm043")
 	.handle_irq = imx35_handle_irq,
 	.timer = &pcm043_timer,
 	.init_machine = pcm043_init,
+	.restart	= mxc_restart,
 MACHINE_END

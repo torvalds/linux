@@ -258,7 +258,7 @@ static struct in_device *inetdev_init(struct net_device *dev)
 		ip_mc_up(in_dev);
 
 	/* we can receive as soon as ip_ptr is set -- do this last */
-	RCU_INIT_POINTER(dev->ip_ptr, in_dev);
+	rcu_assign_pointer(dev->ip_ptr, in_dev);
 out:
 	return in_dev;
 out_kfree:

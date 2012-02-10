@@ -1,7 +1,3 @@
-/*
- * $Id: musycc.c,v 2.1 2007/08/15 23:32:17 rickd PMCC4_3_1B $
- */
-
 unsigned int max_intcnt = 0;
 unsigned int max_bh = 0;
 
@@ -24,52 +20,7 @@ unsigned int max_bh = 0;
  * For further information, contact via email: support@onestopsystems.com
  * One Stop Systems, Inc.  Escondido, California  U.S.A.
  *-----------------------------------------------------------------------------
- * RCS info:
- * RCS revision: $Revision: 2.1 $
- * Last changed on $Date: 2007/08/15 23:32:17 $
- * Changed by $Author: rickd $
- *-----------------------------------------------------------------------------
- * $Log: musycc.c,v $
- * Revision 2.1  2007/08/15 23:32:17  rickd
- * Use 'if 0' instead of GNU comment delimeter to avoid line wrap induced compiler errors.
- *
- * Revision 2.0  2007/08/15 22:13:20  rickd
- * Update to printf pointer %p usage and correct some UINT to ULONG for
- * 64bit comptibility.
- *
- * Revision 1.7  2006/04/21 00:56:40  rickd
- * workqueue files now prefixed with <sbecom> prefix.
- *
- * Revision 1.6  2005/10/27 18:54:19  rickd
- * Clean out old code.  Default to HDLC_FCS16, not TRANS.
- *
- * Revision 1.5  2005/10/17 23:55:28  rickd
- * Initial port of NCOMM support patches from original work found
- * in pmc_c4t1e1 as updated by NCOMM.  Ref: CONFIG_SBE_PMCC4_NCOMM.
- *
- * Revision 1.4  2005/10/13 20:35:25  rickd
- * Cleanup warning for unused <flags> variable.
- *
- * Revision 1.3  2005/10/13 19:19:22  rickd
- * Disable redundant driver removal cleanup code.
- *
- * Revision 1.2  2005/10/11 18:36:16  rickd
- * Clean up warning messages caused by de-implemented some <flags> associated
- * with spin_lock() removals.
- *
- * Revision 1.1  2005/10/05 00:45:28  rickd
- * Re-enable xmit on flow-controlled and full channel to fix restart hang.
- * Add some temp spin-lock debug code (rld_spin_owner).
- *
- * Revision 1.0  2005/09/28 00:10:06  rickd
- * Initial release for C4T1E1 support. Lots of transparent
- * mode updates.
- *
- *-----------------------------------------------------------------------------
  */
-
-char        SBEid_pmcc4_musyccc[] =
-"@(#)musycc.c - $Revision: 2.1 $      (c) Copyright 2004-2006 SBE, Inc.";
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 

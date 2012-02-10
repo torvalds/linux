@@ -676,14 +676,23 @@ static ssize_t cifs_multiuser_mount_proc_write(struct file *file,
 {
 	char c;
 	int rc;
+	static bool warned;
 
 	rc = get_user(c, buffer);
 	if (rc)
 		return rc;
 	if (c == '0' || c == 'n' || c == 'N')
 		multiuser_mount = 0;
-	else if (c == '1' || c == 'y' || c == 'Y')
+	else if (c == '1' || c == 'y' || c == 'Y') {
 		multiuser_mount = 1;
+		if (!warned) {
+			warned = true;
+			printk(KERN_WARNING "CIFS VFS: The legacy multiuser "
+				"mount code is scheduled to be deprecated in "
+				"3.5. Please switch to using the multiuser "
+				"mount option.");
+		}
+	}
 
 	return count;
 }

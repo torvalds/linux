@@ -11,7 +11,6 @@
  *
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -22,7 +21,7 @@
 
 struct rtllib_crypto_alg {
 	struct list_head list;
-	struct rtllib_crypto_ops *ops;
+	struct lib80211_crypto_ops *ops;
 };
 
 
@@ -33,15 +32,15 @@ struct rtllib_crypto {
 
 static struct rtllib_crypto *hcrypt;
 
-void rtllib_crypt_deinit_entries(struct rtllib_device *ieee,
+void rtllib_crypt_deinit_entries(struct lib80211_crypt_info *info,
 					   int force)
 {
 	struct list_head *ptr, *n;
-	struct rtllib_crypt_data *entry;
+	struct lib80211_crypt_data *entry;
 
-	for (ptr = ieee->crypt_deinit_list.next, n = ptr->next;
-	     ptr != &ieee->crypt_deinit_list; ptr = n, n = ptr->next) {
-		entry = list_entry(ptr, struct rtllib_crypt_data, list);
+	for (ptr = info->crypt_deinit_list.next, n = ptr->next;
+	     ptr != &info->crypt_deinit_list; ptr = n, n = ptr->next) {
+		entry = list_entry(ptr, struct lib80211_crypt_data, list);
 
 		if (atomic_read(&entry->refcnt) != 0 && !force)
 			continue;
@@ -53,28 +52,30 @@ void rtllib_crypt_deinit_entries(struct rtllib_device *ieee,
 		kfree(entry);
 	}
 }
+EXPORT_SYMBOL(rtllib_crypt_deinit_entries);
 
 void rtllib_crypt_deinit_handler(unsigned long data)
 {
-	struct rtllib_device *ieee = (struct rtllib_device *)data;
+	struct lib80211_crypt_info *info = (struct lib80211_crypt_info *)data;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ieee->lock, flags);
-	rtllib_crypt_deinit_entries(ieee, 0);
-	if (!list_empty(&ieee->crypt_deinit_list)) {
+	spin_lock_irqsave(info->lock, flags);
+	rtllib_crypt_deinit_entries(info, 0);
+	if (!list_empty(&info->crypt_deinit_list)) {
 		printk(KERN_DEBUG "%s: entries remaining in delayed crypt "
-		       "deletion list\n", ieee->dev->name);
-		ieee->crypt_deinit_timer.expires = jiffies + HZ;
-		add_timer(&ieee->crypt_deinit_timer);
+		       "deletion list\n", info->name);
+		info->crypt_deinit_timer.expires = jiffies + HZ;
+		add_timer(&info->crypt_deinit_timer);
 	}
-	spin_unlock_irqrestore(&ieee->lock, flags);
+	spin_unlock_irqrestore(info->lock, flags);
 
 }
+EXPORT_SYMBOL(rtllib_crypt_deinit_handler);
 
-void rtllib_crypt_delayed_deinit(struct rtllib_device *ieee,
-				    struct rtllib_crypt_data **crypt)
+void rtllib_crypt_delayed_deinit(struct lib80211_crypt_info *info,
+				 struct lib80211_crypt_data **crypt)
 {
-	struct rtllib_crypt_data *tmp;
+	struct lib80211_crypt_data *tmp;
 	unsigned long flags;
 
 	if (*crypt == NULL)
@@ -87,16 +88,17 @@ void rtllib_crypt_delayed_deinit(struct rtllib_device *ieee,
 	 * decrypt operations. Use a list of delayed deinits to avoid needing
 	 * locking. */
 
-	spin_lock_irqsave(&ieee->lock, flags);
-	list_add(&tmp->list, &ieee->crypt_deinit_list);
-	if (!timer_pending(&ieee->crypt_deinit_timer)) {
-		ieee->crypt_deinit_timer.expires = jiffies + HZ;
-		add_timer(&ieee->crypt_deinit_timer);
+	spin_lock_irqsave(info->lock, flags);
+	list_add(&tmp->list, &info->crypt_deinit_list);
+	if (!timer_pending(&info->crypt_deinit_timer)) {
+		info->crypt_deinit_timer.expires = jiffies + HZ;
+		add_timer(&info->crypt_deinit_timer);
 	}
-	spin_unlock_irqrestore(&ieee->lock, flags);
+	spin_unlock_irqrestore(info->lock, flags);
 }
+EXPORT_SYMBOL(rtllib_crypt_delayed_deinit);
 
-int rtllib_register_crypto_ops(struct rtllib_crypto_ops *ops)
+int rtllib_register_crypto_ops(struct lib80211_crypto_ops *ops)
 {
 	unsigned long flags;
 	struct rtllib_crypto_alg *alg;
@@ -104,11 +106,10 @@ int rtllib_register_crypto_ops(struct rtllib_crypto_ops *ops)
 	if (hcrypt == NULL)
 		return -1;
 
-	alg = kmalloc(sizeof(*alg), GFP_KERNEL);
+	alg = kzalloc(sizeof(*alg), GFP_KERNEL);
 	if (alg == NULL)
 		return -ENOMEM;
 
-	memset(alg, 0, sizeof(*alg));
 	alg->ops = ops;
 
 	spin_lock_irqsave(&hcrypt->lock, flags);
@@ -120,8 +121,9 @@ int rtllib_register_crypto_ops(struct rtllib_crypto_ops *ops)
 
 	return 0;
 }
+EXPORT_SYMBOL(rtllib_register_crypto_ops);
 
-int rtllib_unregister_crypto_ops(struct rtllib_crypto_ops *ops)
+int rtllib_unregister_crypto_ops(struct lib80211_crypto_ops *ops)
 {
 	unsigned long flags;
 	struct list_head *ptr;
@@ -150,9 +152,10 @@ int rtllib_unregister_crypto_ops(struct rtllib_crypto_ops *ops)
 
 	return del_alg ? 0 : -1;
 }
+EXPORT_SYMBOL(rtllib_unregister_crypto_ops);
 
 
-struct rtllib_crypto_ops *rtllib_get_crypto_ops(const char *name)
+struct lib80211_crypto_ops *rtllib_get_crypto_ops(const char *name)
 {
 	unsigned long flags;
 	struct list_head *ptr;
@@ -177,12 +180,13 @@ struct rtllib_crypto_ops *rtllib_get_crypto_ops(const char *name)
 	else
 		return NULL;
 }
+EXPORT_SYMBOL(rtllib_get_crypto_ops);
 
 
 static void * rtllib_crypt_null_init(int keyidx) { return (void *) 1; }
 static void rtllib_crypt_null_deinit(void *priv) {}
 
-static struct rtllib_crypto_ops rtllib_crypt_null = {
+static struct lib80211_crypto_ops rtllib_crypt_null = {
 	.name			= "NULL",
 	.init			= rtllib_crypt_null_init,
 	.deinit			= rtllib_crypt_null_deinit,
@@ -192,8 +196,10 @@ static struct rtllib_crypto_ops rtllib_crypt_null = {
 	.decrypt_msdu		= NULL,
 	.set_key		= NULL,
 	.get_key		= NULL,
-	.extra_prefix_len	= 0,
-	.extra_postfix_len	= 0,
+	.extra_mpdu_prefix_len	= 0,
+	.extra_mpdu_postfix_len	= 0,
+	.extra_msdu_prefix_len	= 0,
+	.extra_msdu_postfix_len	= 0,
 	.owner			= THIS_MODULE,
 };
 
@@ -202,15 +208,14 @@ int __init rtllib_crypto_init(void)
 {
 	int ret = -ENOMEM;
 
-	hcrypt = kmalloc(sizeof(*hcrypt), GFP_KERNEL);
+	hcrypt = kzalloc(sizeof(*hcrypt), GFP_KERNEL);
 	if (!hcrypt)
 		goto out;
 
-	memset(hcrypt, 0, sizeof(*hcrypt));
 	INIT_LIST_HEAD(&hcrypt->algs);
 	spin_lock_init(&hcrypt->lock);
 
-	ret = rtllib_register_crypto_ops(&rtllib_crypt_null);
+	ret = lib80211_register_crypto_ops(&rtllib_crypt_null);
 	if (ret < 0) {
 		kfree(hcrypt);
 		hcrypt = NULL;
@@ -239,3 +244,8 @@ void __exit rtllib_crypto_deinit(void)
 
 	kfree(hcrypt);
 }
+
+module_init(rtllib_crypto_init);
+module_exit(rtllib_crypto_deinit);
+
+MODULE_LICENSE("GPL");

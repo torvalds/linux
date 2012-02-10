@@ -57,6 +57,7 @@
 
 		ranges = <
 			0x0 0x0 0x40000000 0x800000
+			0x3 0x0 0xc0000000 0x200
 		>;
 
 		flash@0,0 {
@@ -66,6 +67,30 @@
 			#size-cells = <1>;
 			bank-width = <4>;
 			device-width = <2>;
+		};
+
+		/* Note: CAN support needs be enabled in U-Boot */
+		can@3,0 {
+			compatible = "intc,82527";
+			reg = <3 0x0 0x80>;
+			interrupts = <8 1>;
+			interrupt-parent = <&PIC>;
+			bosch,external-clock-frequency = <16000000>;
+			bosch,disconnect-rx1-input;
+			bosch,disconnect-tx1-output;
+			bosch,iso-low-speed-mux;
+			bosch,clock-out-frequency = <16000000>;
+		};
+
+		can@3,100 {
+			compatible = "intc,82527";
+			reg = <3 0x100 0x80>;
+			interrupts = <8 1>;
+			interrupt-parent = <&PIC>;
+			bosch,external-clock-frequency = <16000000>;
+			bosch,disconnect-rx1-input;
+			bosch,disconnect-tx1-output;
+			bosch,iso-low-speed-mux;
 		};
 	};
 

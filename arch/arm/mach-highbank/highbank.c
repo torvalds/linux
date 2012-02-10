@@ -25,7 +25,7 @@
 #include <linux/smp.h>
 
 #include <asm/cacheflush.h>
-#include <asm/unified.h>
+#include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/timer-sp.h>
@@ -73,10 +73,8 @@ static void __init highbank_map_io(void)
 
 void highbank_set_cpu_jump(int cpu, void *jump_addr)
 {
-#ifdef CONFIG_SMP
 	cpu = cpu_logical_map(cpu);
-#endif
-	writel(BSYM(virt_to_phys(jump_addr)), HB_JUMP_TABLE_VIRT(cpu));
+	writel(virt_to_phys(jump_addr), HB_JUMP_TABLE_VIRT(cpu));
 	__cpuc_flush_dcache_area(HB_JUMP_TABLE_VIRT(cpu), 16);
 	outer_clean_range(HB_JUMP_TABLE_PHYS(cpu),
 			  HB_JUMP_TABLE_PHYS(cpu) + 15);
@@ -144,6 +142,8 @@ DT_MACHINE_START(HIGHBANK, "Highbank")
 	.map_io		= highbank_map_io,
 	.init_irq	= highbank_init_irq,
 	.timer		= &highbank_timer,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= highbank_init,
 	.dt_compat	= highbank_match,
+	.restart	= highbank_restart,
 MACHINE_END

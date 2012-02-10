@@ -346,17 +346,7 @@ static struct usb_driver lg_vl600_driver = {
 	.resume		= usbnet_resume,
 };
 
-static int __init vl600_init(void)
-{
-	return usb_register(&lg_vl600_driver);
-}
-module_init(vl600_init);
-
-static void __exit vl600_exit(void)
-{
-	usb_deregister(&lg_vl600_driver);
-}
-module_exit(vl600_exit);
+module_usb_driver(lg_vl600_driver);
 
 MODULE_AUTHOR("Anrzej Zaborowski");
 MODULE_DESCRIPTION("LG-VL600 modem's ethernet link");

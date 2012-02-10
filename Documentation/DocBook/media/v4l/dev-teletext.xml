@@ -27,11 +27,3 @@ kernel 2.6.37.</para>
 
   <para>Modern devices all use the <link linkend="raw-vbi">raw</link> or
 <link linkend="sliced">sliced</link> VBI API.</para>
-
-  <!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
-  -->

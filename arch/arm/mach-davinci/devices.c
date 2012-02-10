@@ -291,6 +291,11 @@ struct platform_device davinci_wdt_device = {
 	.resource	= wdt_resources,
 };
 
+void davinci_restart(char mode, const char *cmd)
+{
+	davinci_watchdog_reset(&davinci_wdt_device);
+}
+
 static void davinci_init_wdt(void)
 {
 	platform_device_register(&davinci_wdt_device);

@@ -2,9 +2,8 @@ Kernel driver pmbus
 ====================
 
 Supported chips:
-  * Ericsson BMR45X series
-    DC/DC Converter
-    Prefixes: 'bmr450', 'bmr451', 'bmr453', 'bmr454'
+  * Ericsson BMR453, BMR454
+    Prefixes: 'bmr453', 'bmr454'
     Addresses scanned: -
     Datasheet:
  http://archive.ericsson.net/service/internet/picov/get?DocNo=28701-EN/LZT146395

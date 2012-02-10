@@ -1110,7 +1110,7 @@ static struct rdma_id_private *cma_new_conn_id(struct rdma_cm_id *listen_id,
 	if (cma_any_addr((struct sockaddr *) &rt->addr.src_addr)) {
 		rt->addr.dev_addr.dev_type = ARPHRD_INFINIBAND;
 		rdma_addr_set_sgid(&rt->addr.dev_addr, &rt->path_rec[0].sgid);
-		ib_addr_set_pkey(&rt->addr.dev_addr, rt->path_rec[0].pkey);
+		ib_addr_set_pkey(&rt->addr.dev_addr, be16_to_cpu(rt->path_rec[0].pkey));
 	} else {
 		ret = rdma_translate_ip((struct sockaddr *) &rt->addr.src_addr,
 					&rt->addr.dev_addr);
@@ -2005,11 +2005,11 @@ static int cma_resolve_loopback(struct rdma_id_private *id_priv)
 	if (cma_zero_addr(src)) {
 		dst = (struct sockaddr *) &id_priv->id.route.addr.dst_addr;
 		if ((src->sa_family = dst->sa_family) == AF_INET) {
-			((struct sockaddr_in *) src)->sin_addr.s_addr =
-				((struct sockaddr_in *) dst)->sin_addr.s_addr;
+			((struct sockaddr_in *)src)->sin_addr =
+				((struct sockaddr_in *)dst)->sin_addr;
 		} else {
-			ipv6_addr_copy(&((struct sockaddr_in6 *) src)->sin6_addr,
-				       &((struct sockaddr_in6 *) dst)->sin6_addr);
+			((struct sockaddr_in6 *)src)->sin6_addr =
+				((struct sockaddr_in6 *)dst)->sin6_addr;
 		}
 	}
 
@@ -2513,6 +2513,9 @@ static int cma_resolve_ib_udp(struct rdma_id_private *id_priv,
 
 	req.private_data_len = sizeof(struct cma_hdr) +
 			       conn_param->private_data_len;
+	if (req.private_data_len < conn_param->private_data_len)
+		return -EINVAL;
+
 	req.private_data = kzalloc(req.private_data_len, GFP_ATOMIC);
 	if (!req.private_data)
 		return -ENOMEM;
@@ -2562,6 +2565,9 @@ static int cma_connect_ib(struct rdma_id_private *id_priv,
 	memset(&req, 0, sizeof req);
 	offset = cma_user_data_offset(id_priv->id.ps);
 	req.private_data_len = offset + conn_param->private_data_len;
+	if (req.private_data_len < conn_param->private_data_len)
+		return -EINVAL;
+
 	private_data = kzalloc(req.private_data_len, GFP_ATOMIC);
 	if (!private_data)
 		return -ENOMEM;
@@ -2920,7 +2926,7 @@ static int cma_ib_mc_handler(int status, struct ib_sa_multicast *multicast)
 	mutex_lock(&id_priv->qp_mutex);
 	if (!status && id_priv->id.qp)
 		status = ib_attach_mcast(id_priv->id.qp, &multicast->rec.mgid,
-					 multicast->rec.mlid);
+					 be16_to_cpu(multicast->rec.mlid));
 	mutex_unlock(&id_priv->qp_mutex);
 
 	memset(&event, 0, sizeof event);
@@ -3181,7 +3187,7 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr)
 			if (id->qp)
 				ib_detach_mcast(id->qp,
 						&mc->multicast.ib->rec.mgid,
-						mc->multicast.ib->rec.mlid);
+						be16_to_cpu(mc->multicast.ib->rec.mlid));
 			if (rdma_node_get_transport(id_priv->cma_dev->device->node_type) == RDMA_TRANSPORT_IB) {
 				switch (rdma_port_get_link_layer(id->device, id->port_num)) {
 				case IB_LINK_LAYER_INFINIBAND:

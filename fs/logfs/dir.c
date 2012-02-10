@@ -71,7 +71,7 @@ static int write_dir(struct inode *dir, struct logfs_disk_dentry *dd,
 
 static int write_inode(struct inode *inode)
 {
-	return __logfs_write_inode(inode, WF_LOCK);
+	return __logfs_write_inode(inode, NULL, WF_LOCK);
 }
 
 static s64 dir_seek_data(struct inode *inode, s64 pos)
@@ -482,7 +482,7 @@ out:
 	return ret;
 }
 
-static int logfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int logfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
 
@@ -501,7 +501,7 @@ static int logfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	return __logfs_create(dir, dentry, inode, NULL, 0);
 }
 
-static int logfs_create(struct inode *dir, struct dentry *dentry, int mode,
+static int logfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		struct nameidata *nd)
 {
 	struct inode *inode;
@@ -517,7 +517,7 @@ static int logfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	return __logfs_create(dir, dentry, inode, NULL, 0);
 }
 
-static int logfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
+static int logfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
 		dev_t rdev)
 {
 	struct inode *inode;

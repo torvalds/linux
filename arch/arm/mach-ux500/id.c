@@ -65,6 +65,7 @@ static unsigned int partnumber(unsigned int asicid)
  * DB8500v1	0x411fc091	0x9001FFF4		0x008500A0
  * DB8500v1.1	0x411fc091	0x9001FFF4		0x008500A1
  * DB8500v2	0x412fc091	0x9001DBF4		0x008500B0
+ * DB8520v2.2	0x412fc091	0x9001DBF4		0x008500B2
  * DB5500v1	0x412fc091	0x9001FFF4		0x005500A0
  */
 
@@ -80,9 +81,10 @@ void __init ux500_map_io(void)
 		addr = 0x9001FFF4;
 		break;
 
-	case 0x412fc091: /* DB8500v2 / DB5500v1 */
+	case 0x412fc091: /* DB8520 / DB8500v2 / DB5500v1 */
 		asicid = ux500_read_asicid(0x9001DBF4);
-		if (partnumber(asicid) == 0x8500)
+		if (partnumber(asicid) == 0x8500 ||
+		    partnumber(asicid) == 0x8520)
 			/* DB8500v2 */
 			break;
 
