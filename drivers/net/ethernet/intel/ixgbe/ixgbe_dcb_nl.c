@@ -490,7 +490,7 @@ static u8 ixgbe_dcbnl_getcap(struct net_device *netdev, int capid, u8 *cap)
 	return 0;
 }
 
-static u8 ixgbe_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
+static int ixgbe_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	u8 rval = 0;
@@ -514,7 +514,7 @@ static u8 ixgbe_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
 	return rval;
 }
 
-static u8 ixgbe_dcbnl_setnumtcs(struct net_device *netdev, int tcid, u8 num)
+static int ixgbe_dcbnl_setnumtcs(struct net_device *netdev, int tcid, u8 num)
 {
 	return -EINVAL;
 }
