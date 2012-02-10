@@ -192,8 +192,8 @@ static void logfs_init_inode(struct super_block *sb, struct inode *inode)
 	li->li_height	= 0;
 	li->li_used_bytes = 0;
 	li->li_block	= NULL;
-	inode->i_uid	= 0;
-	inode->i_gid	= 0;
+	i_uid_write(inode, 0);
+	i_gid_write(inode, 0);
 	inode->i_size	= 0;
 	inode->i_blocks	= 0;
 	inode->i_ctime	= CURRENT_TIME;

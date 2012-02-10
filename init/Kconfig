@@ -946,7 +946,6 @@ config UIDGID_CONVERTED
 	depends on HPFS_FS = n
 	depends on JFFS2_FS = n
 	depends on JFS_FS = n
-	depends on LOGFS = n
 	depends on MINIX_FS = n
 	depends on NCP_FS = n
 	depends on NFSD = n
