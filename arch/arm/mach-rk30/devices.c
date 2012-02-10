@@ -652,6 +652,7 @@ static struct platform_device device_nand = {
 	.num_resources	= ARRAY_SIZE(resources_nand),
 };
 #endif
+
 #ifdef CONFIG_KEYS_RK29
 extern struct rk29_keys_platform_data rk29_keys_pdata;
 static struct platform_device device_keys = {
@@ -662,6 +663,7 @@ static struct platform_device device_keys = {
 	},
 };
 #endif
+
 static int __init rk30_init_devices(void)
 {
 	rk30_init_dma();
