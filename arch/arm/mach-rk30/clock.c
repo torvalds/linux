@@ -62,6 +62,8 @@ static struct clk_lookup clks[] = {
 	CLK("rk30_i2c.2", "i2c", &xin24m),
 	CLK("rk30_i2c.3", "i2c", &xin24m),
 	CLK("rk30_i2c.4", "i2c", &xin24m),
+	CLK("rk29xx_spim.0", "spi", &xin24m),
+	CLK("rk29xx_spim.1", "spi", &xin24m),
 };
 
 void __init rk30_clock_init(void)
