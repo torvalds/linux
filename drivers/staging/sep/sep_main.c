@@ -3067,9 +3067,13 @@ static long sep_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case SEP_IOCSENDSEPCOMMAND:
+		dev_dbg(&sep->pdev->dev,
+			"[PID%d] SEP_IOCSENDSEPCOMMAND start\n",
+			current->pid);
 		if (1 == test_bit(SEP_LEGACY_SENDMSG_DONE_OFFSET,
 				  &call_status->status)) {
-			dev_dbg(&sep->pdev->dev, "[PID%d] send msg already done\n",
+			dev_warn(&sep->pdev->dev,
+				"[PID%d] send msg already done\n",
 				current->pid);
 			error = -EPROTO;
 			goto end_function;
@@ -3079,37 +3083,71 @@ static long sep_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (!error)
 			set_bit(SEP_LEGACY_SENDMSG_DONE_OFFSET,
 				&call_status->status);
-		dev_dbg(&sep->pdev->dev, "[PID%d] SEP_IOCSENDSEPCOMMAND end\n",
+		dev_dbg(&sep->pdev->dev,
+			"[PID%d] SEP_IOCSENDSEPCOMMAND end\n",
 			current->pid);
 		break;
 	case SEP_IOCENDTRANSACTION:
+		dev_dbg(&sep->pdev->dev,
+			"[PID%d] SEP_IOCENDTRANSACTION start\n",
+			current->pid);
 		error = sep_end_transaction_handler(sep, dma_ctx, call_status,
-			my_queue_elem);
-		dev_dbg(&sep->pdev->dev, "[PID%d] SEP_IOCENDTRANSACTION end\n",
+						    my_queue_elem);
+		dev_dbg(&sep->pdev->dev,
+			"[PID%d] SEP_IOCENDTRANSACTION end\n",
 			current->pid);
 		break;
 	case SEP_IOCPREPAREDCB:
+		dev_dbg(&sep->pdev->dev,
+			"[PID%d] SEP_IOCPREPAREDCB start\n",
+			current->pid);
+	case SEP_IOCPREPAREDCB_SECURE_DMA:
+		dev_dbg(&sep->pdev->dev,
+			"[PID%d] SEP_IOCPREPAREDCB_SECURE_DMA start\n",
+			current->pid);
 		if (1 == test_bit(SEP_LEGACY_SENDMSG_DONE_OFFSET,
 				  &call_status->status)) {
-			dev_dbg(&sep->pdev->dev,
-				"[PID%d] dcb preparation needed before send msg\n",
+			dev_warn(&sep->pdev->dev,
+				"[PID%d] dcb prep needed before send msg\n",
 				current->pid);
 			error = -EPROTO;
 			goto end_function;
 		}
 
 		if (!arg) {
-			dev_dbg(&sep->pdev->dev,
-				"[PID%d] dcb prep null arg\n", current->pid);
-			error = -EINVAL;
+			dev_warn(&sep->pdev->dev,
+				"[PID%d] dcb null arg\n", current->pid);
+			error = EINVAL;
 			goto end_function;
 		}
 
-		error = sep_prepare_dcb_handler(sep, arg, false, dma_ctx);
-		dev_dbg(&sep->pdev->dev, "[PID%d] SEP_IOCPREPAREDCB end\n",
+		if (cmd == SEP_IOCPREPAREDCB) {
+			/* No secure dma */
+			dev_dbg(&sep->pdev->dev,
+				"[PID%d] SEP_IOCPREPAREDCB (no secure_dma)\n",
+				current->pid);
+
+			error = sep_prepare_dcb_handler(sep, arg, false,
+				dma_ctx);
+		} else {
+			/* Secure dma */
+			dev_dbg(&sep->pdev->dev,
+				"[PID%d] SEP_IOC_POC (with secure_dma)\n",
+				current->pid);
+
+			error = sep_prepare_dcb_handler(sep, arg, true,
+				dma_ctx);
+		}
+		dev_dbg(&sep->pdev->dev, "[PID%d] dcb's end\n",
 			current->pid);
 		break;
 	case SEP_IOCFREEDCB:
+		dev_dbg(&sep->pdev->dev, "[PID%d] SEP_IOCFREEDCB start\n",
+			current->pid);
+	case SEP_IOCFREEDCB_SECURE_DMA:
+		dev_dbg(&sep->pdev->dev,
+			"[PID%d] SEP_IOCFREEDCB_SECURE_DMA start\n",
+			current->pid);
 		error = sep_free_dcb_handler(sep, dma_ctx);
 		dev_dbg(&sep->pdev->dev, "[PID%d] SEP_IOCFREEDCB end\n",
 			current->pid);
