@@ -1902,7 +1902,7 @@ static int __init rk29xx_spim_probe(struct platform_device *pdev)
 		return -EBUSY;
 	}
 	DBG(KERN_INFO "dws->regs: %p\n", dws->regs);
-    dws->irq = irq;
+    	dws->irq = irq;
 	dws->irq_polarity = IRQF_TRIGGER_NONE;
 	dws->master = master;
 	dws->type = SSI_MOTO_SPI;

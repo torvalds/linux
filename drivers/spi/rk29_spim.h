@@ -14,7 +14,11 @@
 #ifndef __DRIVERS_SPIM_RK29XX_HEADER_H
 #define __DRIVERS_SPIM_RK29XX_HEADER_H
 #include <linux/io.h>
-#include <mach/rk29-dma-pl330.h>
+#ifdef CONFIG_ARCH_RK30
+#include <plat/dma-pl330.h>
+#else
+#include <mach/dma-pl330.h>
+#endif
 
 /* SPI register offsets */
 #define SPIM_CTRLR0				0x0000

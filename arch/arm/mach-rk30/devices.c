@@ -22,7 +22,8 @@
 #include <mach/irqs.h>
 #include <mach/board.h>
 #include <plat/dma-pl330.h>
-
+#include <mach/gpio.h>
+#include <mach/iomux.h>
 static u64 dma_dmamask = DMA_BIT_MASK(32);
 
 static struct resource resource_dmac1[] = {
@@ -464,6 +465,177 @@ static void __init rk30_init_i2c(void)
 }
 //end of i2c
 
+/*****************************************************************************************
+ * spi devices
+ * author: cmc@rock-chips.com
+ *****************************************************************************************/
+#define SPI_CHIPSELECT_NUM 2
+static struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
+	{
+		.name = "spi0 cs0",
+		.cs_gpio = RK30_PIN1_PA4,
+		.cs_iomux_name = GPIO1A4_UART1SIN_SPI0CSN0_NAME,
+		.cs_iomux_mode = GPIO1A_SPI0_CSN0,
+	},
+	{
+		.name = "spi0 cs1",
+		.cs_gpio = RK30_PIN4_PB7,
+		.cs_iomux_name = GPIO4B7_SPI0CSN1_NAME,//if no iomux,set it NULL
+		.cs_iomux_mode = GPIO4B_SPI0_CSN1,
+	}
+};
+
+static struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
+	{
+		.name = "spi1 cs0",
+		.cs_gpio = RK30_PIN2_PC4,
+		.cs_iomux_name = GPIO2C4_LCDC1DATA20_SPI1CSN0_HSADCDATA1_NAME,
+		.cs_iomux_mode = GPIO2C_SPI1_CSN0,
+	},
+	{
+		.name = "spi1 cs1",
+		.cs_gpio = RK30_PIN2_PC7,
+		.cs_iomux_name = GPIO2C7_LCDC1DATA23_SPI1CSN1_HSADCDATA4_NAME,//if no iomux,set it NULL
+		.cs_iomux_mode = GPIO2C_SPI1_CSN1,
+	}
+};
+
+static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
+{
+	int i;
+	if (cs_gpios) {
+		for (i=0; i<cs_num; i++) {
+		rk30_mux_api_set(cs_gpios[i].cs_iomux_name, cs_gpios[i].cs_iomux_mode);
+		}
+	}
+	return 0;
+}
+
+static int spi_io_deinit(struct spi_cs_gpio *cs_gpios, int cs_num)
+{
+	return 0;
+}
+
+static int spi_io_fix_leakage_bug(void)
+{
+#if 0
+	gpio_direction_output(RK29_PIN2_PC1, GPIO_LOW);
+#endif
+	return 0;
+}
+
+static int spi_io_resume_leakage_bug(void)
+{
+#if 0
+	gpio_direction_output(RK29_PIN2_PC1, GPIO_HIGH);
+#endif
+	return 0;
+}
+
+struct rk29xx_spi_platform_data rk29xx_spi0_platdata = {
+	.num_chipselect = SPI_CHIPSELECT_NUM,
+	.chipselect_gpios = rk29xx_spi0_cs_gpios,
+	.io_init = spi_io_init,
+	.io_deinit = spi_io_deinit,
+	.io_fix_leakage_bug = spi_io_fix_leakage_bug,
+	.io_resume_leakage_bug = spi_io_resume_leakage_bug,
+};
+
+struct rk29xx_spi_platform_data rk29xx_spi1_platdata = {
+	.num_chipselect = SPI_CHIPSELECT_NUM,
+	.chipselect_gpios = rk29xx_spi1_cs_gpios,
+	.io_init = spi_io_init,
+	.io_deinit = spi_io_deinit,
+	.io_fix_leakage_bug = spi_io_fix_leakage_bug,
+	.io_resume_leakage_bug = spi_io_resume_leakage_bug,
+};
+
+
+
+/*
+ * rk29xx spi master device
+ */
+#ifdef CONFIG_SPIM0_RK29
+static struct resource rk29_spi0_resources[] = {
+	{
+		.start	= IRQ_SPI0,
+		.end	= IRQ_SPI0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK30_SPI0_PHYS,
+		.end	= RK30_SPI0_PHYS + RK30_SPI0_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start  = DMACH_SPI0_TX,
+		.end    = DMACH_SPI0_TX,
+		.flags  = IORESOURCE_DMA,
+	},
+	{
+		.start  = DMACH_SPI0_RX,
+		.end    = DMACH_SPI0_RX,
+		.flags  = IORESOURCE_DMA,
+	},
+};
+
+struct platform_device rk29xx_device_spi0m = {
+	.name	= "rk29xx_spim",
+	.id	= 0,
+	.num_resources	= ARRAY_SIZE(rk29_spi0_resources),
+	.resource	= rk29_spi0_resources,
+	.dev			= {
+		.platform_data	= &rk29xx_spi0_platdata,
+	},
+};
+#endif
+
+#ifdef CONFIG_SPIM1_RK29
+static struct resource rk29_spi1_resources[] = {
+	{
+		.start	= IRQ_SPI1,
+		.end	= IRQ_SPI1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK30_SPI1_PHYS,
+		.end	= RK30_SPI1_PHYS + RK30_SPI1_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start  = DMACH_SPI1_TX,
+		.end    = DMACH_SPI1_TX,
+		.flags  = IORESOURCE_DMA,
+	},
+	{
+		.start  = DMACH_SPI1_RX,
+		.end    = DMACH_SPI1_RX,
+		.flags  = IORESOURCE_DMA,
+	},
+};
+
+struct platform_device rk29xx_device_spi1m = {
+	.name	= "rk29xx_spim",
+	.id	= 1,
+	.num_resources	= ARRAY_SIZE(rk29_spi1_resources),
+	.resource	= rk29_spi1_resources,
+	.dev			= {
+		.platform_data	= &rk29xx_spi1_platdata,
+	},
+};
+#endif
+
+static void __init rk30_init_spim(void)
+{
+#ifdef CONFIG_SPIM0_RK29
+	platform_device_register(&rk29xx_device_spi0m);
+#endif
+#ifdef CONFIG_SPIM1_RK29
+	platform_device_register(&rk29xx_device_spi1m);
+#endif
+}
+
+
 #ifdef CONFIG_MTD_NAND_RK29XX
 static struct resource resources_nand[] = {
 	{
@@ -495,6 +667,7 @@ static int __init rk30_init_devices(void)
 	rk30_init_dma();
 	rk30_init_uart();
 	rk30_init_i2c();
+	rk30_init_spim();
 #ifdef CONFIG_MTD_NAND_RK29XX
 	platform_device_register(&device_nand);
 #endif

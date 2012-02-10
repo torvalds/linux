@@ -824,6 +824,7 @@ struct mux_config {
 	const unsigned int interleave;
 	unsigned int flags;
 };
+#define rk29_mux_api_set rk30_mux_api_set
 
 extern int __init rk30_iomux_init(void);
 extern void rk30_mux_api_set(char *name, unsigned int mode);
