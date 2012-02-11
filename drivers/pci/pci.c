@@ -1916,6 +1916,15 @@ void pci_allocate_cap_save_buffers(struct pci_dev *dev)
 			"unable to preallocate PCI-X save buffer\n");
 }
 
+void pci_free_cap_save_buffers(struct pci_dev *dev)
+{
+	struct pci_cap_saved_state *tmp;
+	struct hlist_node *pos, *n;
+
+	hlist_for_each_entry_safe(tmp, pos, n, &dev->saved_cap_space, next)
+		kfree(tmp);
+}
+
 /**
  * pci_enable_ari - enable ARI forwarding if hardware support it
  * @dev: the PCI device
