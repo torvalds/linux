@@ -620,8 +620,8 @@ static int libfcoe_device_notification(struct notifier_block *notifier,
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
-		printk(KERN_ERR "libfcoe_device_notification: NETDEV_UNREGISTER %s\n",
-				netdev->name);
+		LIBFCOE_TRANSPORT_DBG("NETDEV_UNREGISTER %s\n",
+				      netdev->name);
 		fcoe_del_netdev_mapping(netdev);
 		break;
 	}
