@@ -2137,31 +2137,29 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
  * this function must be called before setting the new value of
  * rx_itr_setting
  */
-static bool ixgbe_update_rsc(struct ixgbe_adapter *adapter,
-			     struct ethtool_coalesce *ec)
+static bool ixgbe_update_rsc(struct ixgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
-	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE))
+	/* nothing to do if LRO or RSC are not enabled */
+	if (!(adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE) ||
+	    !(netdev->features & NETIF_F_LRO))
 		return false;
 
-	/* if interrupt rate is too high then disable RSC */
-	if (ec->rx_coalesce_usecs != 1 &&
-	    ec->rx_coalesce_usecs <= (IXGBE_MIN_RSC_ITR >> 2)) {
-		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
-			e_info(probe, "rx-usecs set too low, disabling RSC\n");
-			adapter->flags2 &= ~IXGBE_FLAG2_RSC_ENABLED;
-			return true;
-		}
-	} else {
-		/* check the feature flag value and enable RSC if necessary */
-		if ((netdev->features & NETIF_F_LRO) &&
-		    !(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)) {
-			e_info(probe, "rx-usecs set to %d, re-enabling RSC\n",
-			       ec->rx_coalesce_usecs);
+	/* check the feature flag value and enable RSC if necessary */
+	if (adapter->rx_itr_setting == 1 ||
+	    adapter->rx_itr_setting > IXGBE_MIN_RSC_ITR) {
+		if (!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)) {
 			adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
+			e_info(probe, "rx-usecs value high enough "
+				      "to re-enable RSC\n");
 			return true;
 		}
+	/* if interrupt rate is too high then disable RSC */
+	} else if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
+		adapter->flags2 &= ~IXGBE_FLAG2_RSC_ENABLED;
+		e_info(probe, "rx-usecs set too low, disabling RSC\n");
+		return true;
 	}
 	return false;
 }
@@ -2185,9 +2183,6 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 	    (ec->tx_coalesce_usecs > (IXGBE_MAX_EITR >> 2)))
 		return -EINVAL;
 
-	/* check the old value and enable RSC if necessary */
-	need_reset = ixgbe_update_rsc(adapter, ec);
-
 	if (ec->rx_coalesce_usecs > 1)
 		adapter->rx_itr_setting = ec->rx_coalesce_usecs << 2;
 	else
@@ -2207,6 +2202,9 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		tx_itr_param = IXGBE_10K_ITR;
 	else
 		tx_itr_param = adapter->tx_itr_setting;
+
+	/* check the old value and enable RSC if necessary */
+	need_reset = ixgbe_update_rsc(adapter);
 
 	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED)
 		num_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
