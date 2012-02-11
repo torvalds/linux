@@ -825,6 +825,19 @@ EXPORT_SYMBOL(pci_choose_state);
 #define pcie_cap_has_sltctl2(type, flags)		\
 		((flags & PCI_EXP_FLAGS_VERS) > 1)
 
+static struct pci_cap_saved_state *pci_find_saved_cap(
+	struct pci_dev *pci_dev, char cap)
+{
+	struct pci_cap_saved_state *tmp;
+	struct hlist_node *pos;
+
+	hlist_for_each_entry(tmp, pos, &pci_dev->saved_cap_space, next) {
+		if (tmp->cap.cap_nr == cap)
+			return tmp;
+	}
+	return NULL;
+}
+
 static int pci_save_pcie_state(struct pci_dev *dev)
 {
 	int pos, i = 0;
@@ -1867,6 +1880,12 @@ void platform_pci_wakeup_init(struct pci_dev *dev)
 
 	device_set_wakeup_capable(&dev->dev, true);
 	platform_pci_sleep_wake(dev, false);
+}
+
+static void pci_add_saved_cap(struct pci_dev *pci_dev,
+	struct pci_cap_saved_state *new_cap)
+{
+	hlist_add_head(&new_cap->next, &pci_dev->saved_cap_space);
 }
 
 /**
