@@ -158,3 +158,10 @@ VLANs. This may be not useful, though.]
 This requests that the NIC append the Ethernet Frame Checksum (FCS)
 to the end of the skb data.  This allows sniffers and other tools to
 read the CRC recorded by the NIC on receipt of the packet.
+
+*  rx-all
+
+This requests that the NIC receive all possible frames, including errored
+frames (such as bad FCS, etc).  This can be helpful when sniffing a link with
+bad packets on it.  Some NICs may receive more packets if also put into normal
+PROMISC mdoe.
