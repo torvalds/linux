@@ -4391,11 +4391,13 @@ static inline bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 	 * configuration later.
 	 */
 	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+		u8 prio_tc[MAX_USER_PRIORITY] = {0};
 		int tc;
 		struct ixgbe_ring_feature *f =
 					&adapter->ring_feature[RING_F_FCOE];
 
-		tc = netdev_get_prio_tc_map(dev, adapter->fcoe.up);
+		ixgbe_dcb_unpack_map(&adapter->dcb_cfg, DCB_TX_CONFIG, prio_tc);
+		tc = prio_tc[adapter->fcoe.up];
 		f->indices = dev->tc_to_txq[tc].count;
 		f->mask = dev->tc_to_txq[tc].offset;
 	}
