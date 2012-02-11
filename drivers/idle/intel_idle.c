@@ -360,7 +360,7 @@ static const struct x86_cpu_id intel_idle_ids[] = {
 	ICPU(0x1f, idle_cpu_nehalem),
 	ICPU(0x25, idle_cpu_westmere),
 	ICPU(0x2c, idle_cpu_westmere),
-	ICPU(0x2f, idle_cpu_westmere),
+	ICPU(0x2e, idle_cpu_westmere),
 	ICPU(0x1c, idle_cpu_atom),
 	ICPU(0x26, idle_cpu_lincroft),
 	ICPU(0x2f, idle_cpu_westmere),
