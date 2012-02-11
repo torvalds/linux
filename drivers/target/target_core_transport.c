@@ -76,7 +76,6 @@ static int transport_generic_get_mem(struct se_cmd *cmd);
 static void transport_put_cmd(struct se_cmd *cmd);
 static void transport_remove_cmd_from_queue(struct se_cmd *cmd);
 static int transport_set_sense_codes(struct se_cmd *cmd, u8 asc, u8 ascq);
-static void transport_generic_request_failure(struct se_cmd *);
 static void target_complete_ok_work(struct work_struct *work);
 
 int init_se_kmem_caches(void)
@@ -1866,7 +1865,7 @@ static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
 /*
  * Handle SAM-esque emulation for generic transport request failures.
  */
-static void transport_generic_request_failure(struct se_cmd *cmd)
+void transport_generic_request_failure(struct se_cmd *cmd)
 {
 	int ret = 0;
 
@@ -1958,6 +1957,7 @@ queue_full:
 	cmd->t_state = TRANSPORT_COMPLETE_QF_OK;
 	transport_handle_queue_full(cmd, cmd->se_dev);
 }
+EXPORT_SYMBOL(transport_generic_request_failure);
 
 static inline u32 transport_lba_21(unsigned char *cdb)
 {
