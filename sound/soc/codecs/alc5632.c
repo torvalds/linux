@@ -356,7 +356,7 @@ SND_SOC_DAPM_MUX("SpeakerOut N Mux", SND_SOC_NOPM, 0, 0,
 	&alc5632_spkoutn_mux_controls),
 SND_SOC_DAPM_MUX("ADCR Mux", SND_SOC_NOPM, 0, 0,
 	&alc5632_adcr_func_controls),
-SND_SOC_DAPM_MUX("I2SOut Mux", SND_SOC_NOPM, 0, 0,
+SND_SOC_DAPM_MUX("I2SOut Mux", ALC5632_PWR_MANAG_ADD1, 11, 0,
 	&alc5632_i2s_out_controls),
 
 /* output mixers */
