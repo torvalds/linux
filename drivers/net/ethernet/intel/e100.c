@@ -412,6 +412,10 @@ enum cb_status {
 	cb_ok       = 0x2000,
 };
 
+/**
+ * cb_command - Command Block flags
+ * @cb_tx_nc:  0: controler does CRC (normal),  1: CRC from skb memory
+ */
 enum cb_command {
 	cb_nop    = 0x0000,
 	cb_iaaddr = 0x0001,
@@ -421,6 +425,7 @@ enum cb_command {
 	cb_ucode  = 0x0005,
 	cb_dump   = 0x0006,
 	cb_tx_sf  = 0x0008,
+	cb_tx_nc  = 0x0010,
 	cb_cid    = 0x1f00,
 	cb_i      = 0x2000,
 	cb_s      = 0x4000,
@@ -1724,6 +1729,16 @@ static void e100_xmit_prepare(struct nic *nic, struct cb *cb,
 	struct sk_buff *skb)
 {
 	cb->command = nic->tx_command;
+
+	/*
+	 * Use the last 4 bytes of the SKB payload packet as the CRC, used for
+	 * testing, ie sending frames with bad CRC.
+	 */
+	if (unlikely(skb->no_fcs))
+		cb->command |= __constant_cpu_to_le16(cb_tx_nc);
+	else
+		cb->command &= ~__constant_cpu_to_le16(cb_tx_nc);
+
 	/* interrupt every 16 packets regardless of delay */
 	if ((nic->cbs_avail & ~15) == nic->cbs_avail)
 		cb->command |= cpu_to_le16(cb_i);
@@ -2778,6 +2793,7 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 
 	netdev->hw_features |= NETIF_F_RXFCS;
+	netdev->priv_flags |= IFF_SUPP_NOFCS;
 
 	netdev->netdev_ops = &e100_netdev_ops;
 	SET_ETHTOOL_OPS(netdev, &e100_ethtool_ops);
