@@ -67,7 +67,7 @@ ssize_t arch_print_cpu_modalias(struct device *dev,
 	for (i = 0; i < NCAPINTS*32; i++) {
 		if (boot_cpu_has(i)) {
 			n = snprintf(buf, size, ",%04X", i);
-			if (n < 0) {
+			if (n >= size) {
 				WARN(1, "x86 features overflow page\n");
 				break;
 			}
