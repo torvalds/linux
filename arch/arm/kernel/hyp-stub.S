@@ -21,6 +21,7 @@
 #include <asm/assembler.h>
 #include <asm/virt.h>
 
+#ifndef ZIMAGE
 /*
  * For the kernel proper, we need to find out the CPU boot mode long after
  * boot, so we need to store it in a writable variable.
@@ -58,6 +59,21 @@ ENTRY(__boot_cpu_mode)
 	orrne	r7, r7, #BOOT_CPU_MODE_MISMATCH
 	strne	r7, [r5, r6]		@ record what happened and give up
 	.endm
+
+#else	/* ZIMAGE */
+
+	.macro	store_primary_cpu_mode	reg1:req, reg2:req, reg3:req
+	.endm
+
+/*
+ * The zImage loader only runs on one CPU, so we don't bother with mult-CPU
+ * consistency checking:
+ */
+	.macro	compare_cpu_mode_with_primary mode, reg1, reg2, reg3
+	cmp	\mode, \mode
+	.endm
+
+#endif /* ZIMAGE */
 
 /*
  * Hypervisor stub installation functions.
@@ -174,9 +190,11 @@ ENTRY(__hyp_set_vectors)
 	bx	lr
 ENDPROC(__hyp_set_vectors)
 
+#ifndef ZIMAGE
 .align 2
 .L__boot_cpu_mode_offset:
 	.long	__boot_cpu_mode - .
+#endif
 
 .align 5
 __hyp_stub_vectors:
