@@ -1071,6 +1071,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	netdev->features |= netdev->hw_features;
 	netdev->hw_features |= NETIF_F_RXCSUM;
+	netdev->hw_features |= NETIF_F_RXFCS;
 
 	if (pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;
@@ -4137,10 +4138,9 @@ static bool e1000_clean_jumbo_rx_irq(struct e1000_adapter *adapter,
 		                  ((u32)(rx_desc->errors) << 24),
 		                  le16_to_cpu(rx_desc->csum), skb);
 
-		pskb_trim(skb, skb->len - 4);
-
-		/* probably a little skewed due to removing CRC */
-		total_rx_bytes += skb->len;
+		total_rx_bytes += (skb->len - 4); /* don't count FCS */
+		if (likely(!(netdev->features & NETIF_F_RXFCS)))
+			pskb_trim(skb, skb->len - 4);
 		total_rx_packets++;
 
 		/* eth type trans needs skb->data to point to something */
@@ -4294,13 +4294,14 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 			}
 		}
 
-		/* adjust length to remove Ethernet CRC, this must be
-		 * done after the TBI_ACCEPT workaround above */
-		length -= 4;
-
-		/* probably a little skewed due to removing CRC */
-		total_rx_bytes += length;
+		total_rx_bytes += (length - 4); /* don't count FCS */
 		total_rx_packets++;
+
+		if (likely(!(netdev->features & NETIF_F_RXFCS)))
+			/* adjust length to remove Ethernet CRC, this must be
+			 * done after the TBI_ACCEPT workaround above
+			 */
+			length -= 4;
 
 		e1000_check_copybreak(netdev, buffer_info, length, &skb);
 
