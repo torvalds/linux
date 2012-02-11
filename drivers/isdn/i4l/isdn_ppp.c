@@ -1156,7 +1156,7 @@ isdn_ppp_push_higher(isdn_net_dev * net_dev, isdn_net_local * lp, struct sk_buff
 	if (!(is->active_filter
 	      && sk_run_filter(skb, is->active_filter) == 0)) {
 		if (is->debug & 0x2)
-			printk(KERN_DEBUG "IPPP: link-active filter: reseting huptimer.\n");
+			printk(KERN_DEBUG "IPPP: link-active filter: resetting huptimer.\n");
 		lp->huptimer = 0;
 		if (mlp)
 			mlp->huptimer = 0;
@@ -1302,7 +1302,7 @@ isdn_ppp_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (!(ipt->active_filter
 	      && sk_run_filter(skb, ipt->active_filter) == 0)) {
 		if (ipt->debug & 0x4)
-			printk(KERN_DEBUG "IPPP: link-active filter: reseting huptimer.\n");
+			printk(KERN_DEBUG "IPPP: link-active filter: resetting huptimer.\n");
 		lp->huptimer = 0;
 	}
 	skb_pull(skb, 4);
