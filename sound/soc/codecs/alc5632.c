@@ -788,6 +788,7 @@ static int alc5632_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	struct alc5632_priv *alc5632 = snd_soc_codec_get_drvdata(codec);
 
 	switch (freq) {
+	case  4096000:
 	case  8192000:
 	case 11289600:
 	case 12288000:
