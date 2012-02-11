@@ -176,6 +176,8 @@ static const struct snd_kcontrol_new alc5632_snd_controls[] = {
 			ALC5632_AUX_OUT_VOL, 15, 7, 1, 1),
 	SOC_SINGLE_TLV("Voice DAC Playback Volume",
 			ALC5632_VOICE_DAC_VOL, 0, 63, 0, vdac_tlv),
+	SOC_SINGLE("Voice DAC Playback Switch",
+			ALC5632_VOICE_DAC_VOL, 12, 1, 1),
 	SOC_SINGLE_TLV("Phone Capture Volume",
 			ALC5632_PHONE_IN_VOL, 8, 31, 1, vol_tlv),
 	SOC_DOUBLE_TLV("LineIn Capture Volume",
