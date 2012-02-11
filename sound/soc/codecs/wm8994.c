@@ -778,21 +778,25 @@ static void vmid_reference(struct snd_soc_codec *codec)
 		wm8994->vmid_refcount);
 
 	if (wm8994->vmid_refcount == 1) {
+		snd_soc_update_bits(codec, WM8994_ANTIPOP_1,
+				    WM8994_LINEOUT_VMID_BUF_ENA |
+				    WM8994_LINEOUT1_DISCH |
+				    WM8994_LINEOUT2_DISCH,
+				    WM8994_LINEOUT_VMID_BUF_ENA);
+
 		/* Startup bias, VMID ramp & buffer */
 		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
+				    WM8994_BIAS_SRC |
+				    WM8994_VMID_DISCH |
 				    WM8994_STARTUP_BIAS_ENA |
 				    WM8994_VMID_BUF_ENA |
 				    WM8994_VMID_RAMP_MASK,
+				    WM8994_BIAS_SRC |
 				    WM8994_STARTUP_BIAS_ENA |
 				    WM8994_VMID_BUF_ENA |
 				    (0x3 << WM8994_VMID_RAMP_SHIFT));
 
 		wm_hubs_vmid_ena(codec);
-
-		/* Remove discharge for line out */
-		snd_soc_update_bits(codec, WM8994_ANTIPOP_1,
-				    WM8994_LINEOUT1_DISCH |
-				    WM8994_LINEOUT2_DISCH, 0);
 
 		/* Main bias enable, VMID=2x40k */
 		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
@@ -800,7 +804,11 @@ static void vmid_reference(struct snd_soc_codec *codec)
 				    WM8994_VMID_SEL_MASK,
 				    WM8994_BIAS_ENA | 0x2);
 
-		msleep(20);
+		msleep(50);
+
+		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
+				    WM8994_VMID_RAMP_MASK | WM8994_BIAS_SRC,
+				    0);
 	}
 }
 
