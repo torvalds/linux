@@ -21,11 +21,4 @@
 #define __io(a)		__typesafe_io(a)
 #define __mem_pci(a)    (a)
 
-void msm_map_qsd8x50_io(void);
-void msm_map_msm7x30_io(void);
-void msm_map_msm8x60_io(void);
-void msm_map_msm8960_io(void);
-
-extern unsigned int msm_shared_ram_phys;
-
 #endif
