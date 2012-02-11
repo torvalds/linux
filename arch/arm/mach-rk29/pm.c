@@ -460,6 +460,15 @@ static int rk29_pm_enter(suspend_state_t state)
 		   | (1 << CLK_GATE_TPIU)
 #endif
 		   ) | clkgate[0], CRU_CLKGATE0_CON);
+
+#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND
+#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)
+	cru_writel(clkgate[0]&(~(1<<CLK_GATE_I2S0)),CRU_CLKGATE0_CON);
+#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
+	cru_writel(clkgate[0]&(~(1<<CLK_GATE_I2S1)),CRU_CLKGATE0_CON);
+#endif
+#endif	
+
 	cru_writel(~0, CRU_CLKGATE1_CON);
 	cru_writel(~((1 << CLK_GATE_GPIO1 % 32)
 		   | (1 << CLK_GATE_GPIO2 % 32)
