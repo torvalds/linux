@@ -80,8 +80,15 @@ static void ioc_release_fn(struct work_struct *work)
 	struct io_context *ioc = container_of(work, struct io_context,
 					      release_work);
 	struct request_queue *last_q = NULL;
+	unsigned long flags;
 
-	spin_lock_irq(&ioc->lock);
+	/*
+	 * Exiting icq may call into put_io_context() through elevator
+	 * which will trigger lockdep warning.  The ioc's are guaranteed to
+	 * be different, use a different locking subclass here.  Use
+	 * irqsave variant as there's no spin_lock_irq_nested().
+	 */
+	spin_lock_irqsave_nested(&ioc->lock, flags, 1);
 
 	while (!hlist_empty(&ioc->icq_list)) {
 		struct io_cq *icq = hlist_entry(ioc->icq_list.first,
@@ -103,15 +110,15 @@ static void ioc_release_fn(struct work_struct *work)
 			 */
 			if (last_q) {
 				spin_unlock(last_q->queue_lock);
-				spin_unlock_irq(&ioc->lock);
+				spin_unlock_irqrestore(&ioc->lock, flags);
 				blk_put_queue(last_q);
 			} else {
-				spin_unlock_irq(&ioc->lock);
+				spin_unlock_irqrestore(&ioc->lock, flags);
 			}
 
 			last_q = this_q;
-			spin_lock_irq(this_q->queue_lock);
-			spin_lock(&ioc->lock);
+			spin_lock_irqsave(this_q->queue_lock, flags);
+			spin_lock_nested(&ioc->lock, 1);
 			continue;
 		}
 		ioc_exit_icq(icq);
@@ -119,10 +126,10 @@ static void ioc_release_fn(struct work_struct *work)
 
 	if (last_q) {
 		spin_unlock(last_q->queue_lock);
-		spin_unlock_irq(&ioc->lock);
+		spin_unlock_irqrestore(&ioc->lock, flags);
 		blk_put_queue(last_q);
 	} else {
-		spin_unlock_irq(&ioc->lock);
+		spin_unlock_irqrestore(&ioc->lock, flags);
 	}
 
 	kmem_cache_free(iocontext_cachep, ioc);
