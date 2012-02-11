@@ -384,7 +384,6 @@ static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev,
 	}
 
 	dev_hold(netdev);
-	kref_init(&fcoe->kref);
 
 	/*
 	 * Initialize FIP.
@@ -409,42 +408,6 @@ out_putmod:
 	module_put(THIS_MODULE);
 out:
 	return fcoe;
-}
-
-/**
- * fcoe_interface_release() - fcoe_port kref release function
- * @kref: Embedded reference count in an fcoe_interface struct
- */
-static void fcoe_interface_release(struct kref *kref)
-{
-	struct fcoe_interface *fcoe;
-	struct net_device *netdev;
-
-	fcoe = container_of(kref, struct fcoe_interface, kref);
-	netdev = fcoe->netdev;
-	/* tear-down the FCoE controller */
-	fcoe_ctlr_destroy(&fcoe->ctlr);
-	kfree(fcoe);
-	dev_put(netdev);
-	module_put(THIS_MODULE);
-}
-
-/**
- * fcoe_interface_get() - Get a reference to a FCoE interface
- * @fcoe: The FCoE interface to be held
- */
-static inline void fcoe_interface_get(struct fcoe_interface *fcoe)
-{
-	kref_get(&fcoe->kref);
-}
-
-/**
- * fcoe_interface_put() - Put a reference to a FCoE interface
- * @fcoe: The FCoE interface to be released
- */
-static inline void fcoe_interface_put(struct fcoe_interface *fcoe)
-{
-	kref_put(&fcoe->kref, fcoe_interface_release);
 }
 
 /**
@@ -494,7 +457,11 @@ static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	rtnl_unlock();
 
 	/* Release the self-reference taken during fcoe_interface_create() */
-	fcoe_interface_put(fcoe);
+	/* tear-down the FCoE controller */
+	fcoe_ctlr_destroy(fip);
+	kfree(fcoe);
+	dev_put(netdev);
+	module_put(THIS_MODULE);
 }
 
 /**
@@ -976,9 +943,6 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 		dev_uc_del(netdev, port->data_src_addr);
 	rtnl_unlock();
 
-	/* Release reference held in fcoe_if_create() */
-	fcoe_interface_put(fcoe);
-
 	/* Free queued packets for the per-CPU receive threads */
 	fcoe_percpu_clean(lport);
 
@@ -1168,7 +1132,6 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 		goto out_lp_destroy;
 	}
 
-	fcoe_interface_get(fcoe);
 	return lport;
 
 out_lp_destroy:
@@ -2113,7 +2076,6 @@ static void fcoe_destroy_work(struct work_struct *work)
 
 	fcoe = port->priv;
 	fcoe_if_destroy(port->lport);
-
 	fcoe_interface_cleanup(fcoe);
 
 	mutex_unlock(&fcoe_config_mutex);
