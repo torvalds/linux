@@ -443,7 +443,6 @@ static const struct snd_soc_dapm_route alc5632_dapm_routes[] = {
 	{"Mono Mix", "ADC2MONO_L Playback Switch",	"Left Capture Mix"},
 	{"Mono Mix", "ADC2MONO_R Playback Switch",	"Right Capture Mix"},
 	{"Mono Mix", "LI2MONO Playback Switch",		"Line Mix"},
-	{"Mono Mix", "VOICE2MONO Playback Switch",	"Phone Mix"},
 	{"Mono Mix", "MIC12MONO Playback Switch",	"MIC1 PGA"},
 	{"Mono Mix", "MIC22MONO Playback Switch",	"MIC2 PGA"},
 	{"Mono Mix", "DAC2MONO Playback Switch",	"DAC Left Channel"},
