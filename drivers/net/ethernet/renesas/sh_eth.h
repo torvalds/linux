@@ -575,9 +575,6 @@ enum RPADIR_BIT {
 	RPADIR_PADR = 0x0003f,
 };
 
-/* RFLR */
-#define RFLR_VALUE 0x1000
-
 /* FDR */
 #define DEFAULT_FDR_INIT	0x00000707
 

@@ -615,8 +615,8 @@ static int iscsi_post_login_handler(
 		}
 
 		pr_debug("iSCSI Login successful on CID: %hu from %s to"
-			" %s:%hu,%hu\n", conn->cid, conn->login_ip, np->np_ip,
-				np->np_port, tpg->tpgt);
+			" %s:%hu,%hu\n", conn->cid, conn->login_ip,
+			conn->local_ip, conn->local_port, tpg->tpgt);
 
 		list_add_tail(&conn->conn_list, &sess->sess_conn_list);
 		atomic_inc(&sess->nconn);
@@ -658,7 +658,8 @@ static int iscsi_post_login_handler(
 	sess->session_state = TARG_SESS_STATE_LOGGED_IN;
 
 	pr_debug("iSCSI Login successful on CID: %hu from %s to %s:%hu,%hu\n",
-		conn->cid, conn->login_ip, np->np_ip, np->np_port, tpg->tpgt);
+		conn->cid, conn->login_ip, conn->local_ip, conn->local_port,
+		tpg->tpgt);
 
 	spin_lock_bh(&sess->conn_lock);
 	list_add_tail(&conn->conn_list, &sess->sess_conn_list);
@@ -837,6 +838,14 @@ int iscsi_target_setup_login_socket(
 			(char *)&opt, sizeof(opt));
 	if (ret < 0) {
 		pr_err("kernel_setsockopt() for SO_REUSEADDR"
+			" failed\n");
+		goto fail;
+	}
+
+	ret = kernel_setsockopt(sock, IPPROTO_IP, IP_FREEBIND,
+			(char *)&opt, sizeof(opt));
+	if (ret < 0) {
+		pr_err("kernel_setsockopt() for IP_FREEBIND"
 			" failed\n");
 		goto fail;
 	}
@@ -1020,6 +1029,18 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 		snprintf(conn->login_ip, sizeof(conn->login_ip), "%pI6c",
 				&sock_in6.sin6_addr.in6_u);
 		conn->login_port = ntohs(sock_in6.sin6_port);
+
+		if (conn->sock->ops->getname(conn->sock,
+				(struct sockaddr *)&sock_in6, &err, 0) < 0) {
+			pr_err("sock_ops->getname() failed.\n");
+			iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
+					ISCSI_LOGIN_STATUS_TARGET_ERROR);
+			goto new_sess_out;
+		}
+		snprintf(conn->local_ip, sizeof(conn->local_ip), "%pI6c",
+				&sock_in6.sin6_addr.in6_u);
+		conn->local_port = ntohs(sock_in6.sin6_port);
+
 	} else {
 		memset(&sock_in, 0, sizeof(struct sockaddr_in));
 
@@ -1032,6 +1053,16 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 		}
 		sprintf(conn->login_ip, "%pI4", &sock_in.sin_addr.s_addr);
 		conn->login_port = ntohs(sock_in.sin_port);
+
+		if (conn->sock->ops->getname(conn->sock,
+				(struct sockaddr *)&sock_in, &err, 0) < 0) {
+			pr_err("sock_ops->getname() failed.\n");
+			iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
+					ISCSI_LOGIN_STATUS_TARGET_ERROR);
+			goto new_sess_out;
+		}
+		sprintf(conn->local_ip, "%pI4", &sock_in.sin_addr.s_addr);
+		conn->local_port = ntohs(sock_in.sin_port);
 	}
 
 	conn->network_transport = np->np_network_transport;
@@ -1039,7 +1070,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	pr_debug("Received iSCSI login request from %s on %s Network"
 			" Portal %s:%hu\n", conn->login_ip,
 		(conn->network_transport == ISCSI_TCP) ? "TCP" : "SCTP",
-			np->np_ip, np->np_port);
+			conn->local_ip, conn->local_port);
 
 	pr_debug("Moving to TARG_CONN_STATE_IN_LOGIN.\n");
 	conn->conn_state	= TARG_CONN_STATE_IN_LOGIN;

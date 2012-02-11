@@ -108,7 +108,7 @@ static void extend_netdev_table(struct net_device *dev, u32 new_len)
 static void update_netdev_tables(void)
 {
 	struct net_device *dev;
-	u32 max_len = atomic_read(&max_prioidx);
+	u32 max_len = atomic_read(&max_prioidx) + 1;
 	struct netprio_map *map;
 
 	rtnl_lock();
@@ -271,7 +271,6 @@ static int netprio_device_event(struct notifier_block *unused,
 {
 	struct net_device *dev = ptr;
 	struct netprio_map *old;
-	u32 max_len = atomic_read(&max_prioidx);
 
 	/*
 	 * Note this is called with rtnl_lock held so we have update side
@@ -279,11 +278,6 @@ static int netprio_device_event(struct notifier_block *unused,
 	 */
 
 	switch (event) {
-
-	case NETDEV_REGISTER:
-		if (max_len)
-			extend_netdev_table(dev, max_len);
-		break;
 	case NETDEV_UNREGISTER:
 		old = rtnl_dereference(dev->priomap);
 		RCU_INIT_POINTER(dev->priomap, NULL);

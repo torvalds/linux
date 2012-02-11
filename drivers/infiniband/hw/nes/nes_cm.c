@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2011 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -233,6 +233,7 @@ static int send_mpa_reject(struct nes_cm_node *cm_node)
 	u8 *start_ptr = &start_addr;
 	u8 **start_buff = &start_ptr;
 	u16 buff_len = 0;
+	struct ietf_mpa_v1 *mpa_frame;
 
 	skb = dev_alloc_skb(MAX_CM_BUFFER);
 	if (!skb) {
@@ -242,6 +243,8 @@ static int send_mpa_reject(struct nes_cm_node *cm_node)
 
 	/* send an MPA reject frame */
 	cm_build_mpa_frame(cm_node, start_buff, &buff_len, NULL, MPA_KEY_REPLY);
+	mpa_frame = (struct ietf_mpa_v1 *)*start_buff;
+	mpa_frame->flags |= IETF_MPA_FLAGS_REJECT;
 	form_cm_frame(skb, cm_node, NULL, 0, *start_buff, buff_len, SET_ACK | SET_FIN);
 
 	cm_node->state = NES_CM_STATE_FIN_WAIT1;
