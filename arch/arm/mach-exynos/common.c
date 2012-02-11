@@ -49,9 +49,12 @@
 static const char name_exynos4210[] = "EXYNOS4210";
 static const char name_exynos4212[] = "EXYNOS4212";
 static const char name_exynos4412[] = "EXYNOS4412";
+static const char name_exynos5250[] = "EXYNOS5250";
 
 static void exynos4_map_io(void);
+static void exynos5_map_io(void);
 static void exynos4_init_clocks(int xtal);
+static void exynos5_init_clocks(int xtal);
 static void exynos_init_uarts(struct s3c2410_uartcfg *cfg, int no);
 static int exynos_init(void);
 
@@ -80,6 +83,14 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.init_uarts	= exynos_init_uarts,
 		.init		= exynos_init,
 		.name		= name_exynos4412,
+	}, {
+		.idcode		= EXYNOS5250_SOC_ID,
+		.idmask		= EXYNOS5_SOC_MASK,
+		.map_io		= exynos5_map_io,
+		.init_clocks	= exynos5_init_clocks,
+		.init_uarts	= exynos_init_uarts,
+		.init		= exynos_init,
+		.name		= name_exynos5250,
 	},
 };
 
@@ -88,10 +99,14 @@ static struct cpu_table cpu_ids[] __initdata = {
 static struct map_desc exynos_iodesc[] __initdata = {
 	{
 		.virtual	= (unsigned long)S5P_VA_CHIPID,
-		.pfn		= __phys_to_pfn(EXYNOS4_PA_CHIPID),
+		.pfn		= __phys_to_pfn(EXYNOS_PA_CHIPID),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
-	}, {
+	},
+};
+
+static struct map_desc exynos4_iodesc[] __initdata = {
+	{
 		.virtual	= (unsigned long)S3C_VA_SYS,
 		.pfn		= __phys_to_pfn(EXYNOS4_PA_SYSCON),
 		.length		= SZ_64K,
@@ -141,11 +156,7 @@ static struct map_desc exynos_iodesc[] __initdata = {
 		.pfn		= __phys_to_pfn(EXYNOS4_PA_UART),
 		.length		= SZ_512K,
 		.type		= MT_DEVICE,
-	},
-};
-
-static struct map_desc exynos4_iodesc[] __initdata = {
-	{
+	}, {
 		.virtual	= (unsigned long)S5P_VA_CMU,
 		.pfn		= __phys_to_pfn(EXYNOS4_PA_CMU),
 		.length		= SZ_128K,
@@ -206,9 +217,78 @@ static struct map_desc exynos4_iodesc1[] __initdata = {
 	},
 };
 
+static struct map_desc exynos5_iodesc[] __initdata = {
+	{
+		.virtual	= (unsigned long)S3C_VA_SYS,
+		.pfn		= __phys_to_pfn(EXYNOS5_PA_SYSCON),
+		.length		= SZ_64K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S3C_VA_TIMER,
+		.pfn		= __phys_to_pfn(EXYNOS5_PA_TIMER),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S3C_VA_WATCHDOG,
+		.pfn		= __phys_to_pfn(EXYNOS5_PA_WATCHDOG),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_SROMC,
+		.pfn		= __phys_to_pfn(EXYNOS5_PA_SROMC),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_SYSTIMER,
+		.pfn		= __phys_to_pfn(EXYNOS5_PA_SYSTIMER),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_SYSRAM,
+		.pfn		= __phys_to_pfn(EXYNOS5_PA_SYSRAM),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_CMU,
+		.pfn		= __phys_to_pfn(EXYNOS5_PA_CMU),
+		.length		= 144 * SZ_1K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_PMU,
+		.pfn		= __phys_to_pfn(EXYNOS5_PA_PMU),
+		.length		= SZ_64K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_COMBINER_BASE,
+		.pfn		= __phys_to_pfn(EXYNOS5_PA_COMBINER),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S3C_VA_UART,
+		.pfn		= __phys_to_pfn(EXYNOS5_PA_UART),
+		.length		= SZ_512K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_GIC_CPU,
+		.pfn		= __phys_to_pfn(EXYNOS5_PA_GIC_CPU),
+		.length		= SZ_64K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_GIC_DIST,
+		.pfn		= __phys_to_pfn(EXYNOS5_PA_GIC_DIST),
+		.length		= SZ_64K,
+		.type		= MT_DEVICE,
+	},
+};
+
 void exynos4_restart(char mode, const char *cmd)
 {
 	__raw_writel(0x1, S5P_SWRESET);
+}
+
+void exynos5_restart(char mode, const char *cmd)
+{
+	__raw_writel(0x1, EXYNOS_SWRESET);
 }
 
 /*
@@ -261,6 +341,16 @@ static void __init exynos4_map_io(void)
 	s5p_hdmi_setname("exynos4-hdmi");
 }
 
+static void __init exynos5_map_io(void)
+{
+	iotable_init(exynos5_iodesc, ARRAY_SIZE(exynos5_iodesc));
+
+	/* The I2C bus controllers are directly compatible with s3c2440 */
+	s3c_i2c0_setname("s3c2440-i2c");
+	s3c_i2c1_setname("s3c2440-i2c");
+	s3c_i2c2_setname("s3c2440-i2c");
+}
+
 static void __init exynos4_init_clocks(int xtal)
 {
 	printk(KERN_DEBUG "%s: initializing clocks\n", __func__);
@@ -275,6 +365,17 @@ static void __init exynos4_init_clocks(int xtal)
 
 	exynos4_register_clocks();
 	exynos4_setup_clocks();
+}
+
+static void __init exynos5_init_clocks(int xtal)
+{
+	printk(KERN_DEBUG "%s: initializing clocks\n", __func__);
+
+	s3c24xx_register_baseclocks(xtal);
+	s5p_register_clocks(xtal);
+
+	exynos5_register_clocks();
+	exynos5_setup_clocks();
 }
 
 #define COMBINER_ENABLE_SET	0x0
@@ -420,24 +521,59 @@ void __init exynos4_init_irq(void)
 	s5p_init_irq(NULL, 0);
 }
 
+void __init exynos5_init_irq(void)
+{
+	int irq;
+
+	gic_init(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU);
+
+	for (irq = 0; irq < MAX_COMBINER_NR; irq++) {
+		combiner_init(irq, (void __iomem *)S5P_VA_COMBINER(irq),
+				COMBINER_IRQ(irq, 0));
+		combiner_cascade_irq(irq, IRQ_SPI(irq));
+	}
+
+	/*
+	 * The parameters of s5p_init_irq() are for VIC init.
+	 * Theses parameters should be NULL and 0 because EXYNOS4
+	 * uses GIC instead of VIC.
+	 */
+	s5p_init_irq(NULL, 0);
+}
+
 struct bus_type exynos4_subsys = {
 	.name		= "exynos4-core",
 	.dev_name	= "exynos4-core",
+};
+
+struct bus_type exynos5_subsys = {
+	.name		= "exynos5-core",
+	.dev_name	= "exynos5-core",
 };
 
 static struct device exynos4_dev = {
 	.bus	= &exynos4_subsys,
 };
 
-static int __init exynos4_core_init(void)
+static struct device exynos5_dev = {
+	.bus	= &exynos5_subsys,
+};
+
+static int __init exynos_core_init(void)
 {
-	return subsys_system_register(&exynos4_subsys, NULL);
+	if (soc_is_exynos5250())
+		return subsys_system_register(&exynos5_subsys, NULL);
+	else
+		return subsys_system_register(&exynos4_subsys, NULL);
 }
-core_initcall(exynos4_core_init);
+core_initcall(exynos_core_init);
 
 #ifdef CONFIG_CACHE_L2X0
 static int __init exynos4_l2x0_cache_init(void)
 {
+	if (soc_is_exynos5250())
+		return 0;
+
 	/* TAG, Data Latency Control: 2cycle */
 	__raw_writel(0x110, S5P_VA_L2CC + L2X0_TAG_LATENCY_CTRL);
 
@@ -457,14 +593,42 @@ static int __init exynos4_l2x0_cache_init(void)
 
 	return 0;
 }
-
 early_initcall(exynos4_l2x0_cache_init);
 #endif
+
+static int __init exynos5_l2_cache_init(void)
+{
+	unsigned int val;
+
+	if (!soc_is_exynos5250())
+		return 0;
+
+	asm volatile("mrc p15, 0, %0, c1, c0, 0\n"
+		     "bic %0, %0, #(1 << 2)\n"	/* cache disable */
+		     "mcr p15, 0, %0, c1, c0, 0\n"
+		     "mrc p15, 1, %0, c9, c0, 2\n"
+		     : "=r"(val));
+
+	val |= (1 << 9) | (1 << 5) | (2 << 6) | (2 << 0);
+
+	asm volatile("mcr p15, 1, %0, c9, c0, 2\n" : : "r"(val));
+	asm volatile("mrc p15, 0, %0, c1, c0, 0\n"
+		     "orr %0, %0, #(1 << 2)\n"	/* cache enable */
+		     "mcr p15, 0, %0, c1, c0, 0\n"
+		     : : "r"(val));
+
+	return 0;
+}
+early_initcall(exynos5_l2_cache_init);
 
 static int __init exynos_init(void)
 {
 	printk(KERN_INFO "EXYNOS: Initializing architecture\n");
-	return device_register(&exynos4_dev);
+
+	if (soc_is_exynos5250())
+		return device_register(&exynos5_dev);
+	else
+		return device_register(&exynos4_dev);
 }
 
 /* uart registration process */
@@ -672,6 +836,9 @@ static void exynos4_irq_eint0_15(unsigned int irq, struct irq_desc *desc)
 static int __init exynos4_init_irq_eint(void)
 {
 	int irq;
+
+	if (soc_is_exynos5250())
+		return 0;
 
 	for (irq = 0 ; irq <= 31 ; irq++) {
 		irq_set_chip_and_handler(IRQ_EINT(irq), &exynos4_irq_eint,
