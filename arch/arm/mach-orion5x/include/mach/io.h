@@ -18,16 +18,4 @@
 #define __io(a)			__typesafe_io(a)
 #define __mem_pci(a)		(a)
 
-
-/*****************************************************************************
- * Helpers to access Orion registers
- ****************************************************************************/
-/*
- * These are not preempt-safe.  Locks, if needed, must be taken
- * care of by the caller.
- */
-#define orion5x_setbits(r, mask)	writel(readl(r) | (mask), (r))
-#define orion5x_clrbits(r, mask)	writel(readl(r) & ~(mask), (r))
-
-
 #endif
