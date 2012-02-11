@@ -63,7 +63,7 @@ ssize_t arch_print_cpu_modalias(struct device *dev,
 		boot_cpu_data.x86_model);
 	size -= n;
 	buf += n;
-	size -= 2;
+	size -= 1;
 	for (i = 0; i < NCAPINTS*32; i++) {
 		if (boot_cpu_has(i)) {
 			n = snprintf(buf, size, ",%04X", i);
@@ -75,7 +75,6 @@ ssize_t arch_print_cpu_modalias(struct device *dev,
 			buf += n;
 		}
 	}
-	*buf++ = ',';
 	*buf++ = '\n';
 	return buf - bufptr;
 }
