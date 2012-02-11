@@ -39,11 +39,7 @@ extern int ixp4xx_pci_write(u32 addr, u32 cmd, u32 data);
  *    but in some cases the performance hit is acceptable. In addition, you
  *    cannot mmap() PCI devices in this case.
  */
-#ifndef	CONFIG_IXP4XX_INDIRECT_PCI
-
-#define __mem_pci(a)		(a)
-
-#else
+#ifdef	CONFIG_IXP4XX_INDIRECT_PCI
 
 /*
  * In the case of using indirect PCI, we simply return the actual PCI

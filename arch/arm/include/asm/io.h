@@ -118,7 +118,6 @@ static inline void __iomem *__typesafe_io(unsigned long addr)
 #include <mach/io.h>
 #else
 #define __io(a)		({ (void)(a); __typesafe_io(0); })
-#define __mem_pci(a)	(a)
 #endif
 
 /*
@@ -221,18 +220,18 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
  * Again, this are defined to perform little endian accesses.  See the
  * IO port primitives for more information.
  */
-#ifdef __mem_pci
-#define readb_relaxed(c) ({ u8  __r = __raw_readb(__mem_pci(c)); __r; })
+#ifndef readl
+#define readb_relaxed(c) ({ u8  __r = __raw_readb(c); __r; })
 #define readw_relaxed(c) ({ u16 __r = le16_to_cpu((__force __le16) \
-					__raw_readw(__mem_pci(c))); __r; })
+					__raw_readw(c)); __r; })
 #define readl_relaxed(c) ({ u32 __r = le32_to_cpu((__force __le32) \
-					__raw_readl(__mem_pci(c))); __r; })
+					__raw_readl(c)); __r; })
 
-#define writeb_relaxed(v,c)	((void)__raw_writeb(v,__mem_pci(c)))
+#define writeb_relaxed(v,c)	((void)__raw_writeb(v,c))
 #define writew_relaxed(v,c)	((void)__raw_writew((__force u16) \
-					cpu_to_le16(v),__mem_pci(c)))
+					cpu_to_le16(v),c))
 #define writel_relaxed(v,c)	((void)__raw_writel((__force u32) \
-					cpu_to_le32(v),__mem_pci(c)))
+					cpu_to_le32(v),c))
 
 #define readb(c)		({ u8  __v = readb_relaxed(c); __iormb(); __v; })
 #define readw(c)		({ u16 __v = readw_relaxed(c); __iormb(); __v; })
@@ -242,30 +241,19 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
 #define writew(v,c)		({ __iowmb(); writew_relaxed(v,c); })
 #define writel(v,c)		({ __iowmb(); writel_relaxed(v,c); })
 
-#define readsb(p,d,l)		__raw_readsb(__mem_pci(p),d,l)
-#define readsw(p,d,l)		__raw_readsw(__mem_pci(p),d,l)
-#define readsl(p,d,l)		__raw_readsl(__mem_pci(p),d,l)
+#define readsb(p,d,l)		__raw_readsb(p,d,l)
+#define readsw(p,d,l)		__raw_readsw(p,d,l)
+#define readsl(p,d,l)		__raw_readsl(p,d,l)
 
-#define writesb(p,d,l)		__raw_writesb(__mem_pci(p),d,l)
-#define writesw(p,d,l)		__raw_writesw(__mem_pci(p),d,l)
-#define writesl(p,d,l)		__raw_writesl(__mem_pci(p),d,l)
+#define writesb(p,d,l)		__raw_writesb(p,d,l)
+#define writesw(p,d,l)		__raw_writesw(p,d,l)
+#define writesl(p,d,l)		__raw_writesl(p,d,l)
 
-#define memset_io(c,v,l)	_memset_io(__mem_pci(c),(v),(l))
-#define memcpy_fromio(a,c,l)	_memcpy_fromio((a),__mem_pci(c),(l))
-#define memcpy_toio(c,a,l)	_memcpy_toio(__mem_pci(c),(a),(l))
+#define memset_io(c,v,l)	_memset_io(c,(v),(l))
+#define memcpy_fromio(a,c,l)	_memcpy_fromio((a),c,(l))
+#define memcpy_toio(c,a,l)	_memcpy_toio(c,(a),(l))
 
-#elif !defined(readb)
-
-#define readb(c)			(__readwrite_bug("readb"),0)
-#define readw(c)			(__readwrite_bug("readw"),0)
-#define readl(c)			(__readwrite_bug("readl"),0)
-#define writeb(v,c)			__readwrite_bug("writeb")
-#define writew(v,c)			__readwrite_bug("writew")
-#define writel(v,c)			__readwrite_bug("writel")
-
-#define check_signature(io,sig,len)	(0)
-
-#endif	/* __mem_pci */
+#endif	/* readl */
 
 /*
  * ioremap and friends.

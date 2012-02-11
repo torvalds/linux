@@ -40,7 +40,6 @@ static inline void __iomem *__io(unsigned long addr)
 #endif
 
 #define __io(a)         __io(a)
-#define __mem_pci(a)    (a)
 
 #endif
 
