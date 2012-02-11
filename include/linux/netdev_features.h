@@ -54,6 +54,7 @@ enum {
 	NETIF_F_RXCSUM_BIT,		/* Receive checksumming offload */
 	NETIF_F_NOCACHE_COPY_BIT,	/* Use no-cache copyfromuser */
 	NETIF_F_LOOPBACK_BIT,		/* Enable loopback */
+	NETIF_F_RXFCS_BIT,		/* Append FCS to skb pkt data */
 
 	/*
 	 * Add your fresh new feature above and remember to update
@@ -98,6 +99,7 @@ enum {
 #define NETIF_F_TSO		__NETIF_F(TSO)
 #define NETIF_F_UFO		__NETIF_F(UFO)
 #define NETIF_F_VLAN_CHALLENGED	__NETIF_F(VLAN_CHALLENGED)
+#define NETIF_F_RXFCS		__NETIF_F(RXFCS)
 
 /* Features valid for ethtool to change */
 /* = all defined minus driver/device-class-related */
