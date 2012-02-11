@@ -344,6 +344,7 @@ static irqreturn_t line_write_interrupt(int irq, void *data)
 	spin_lock(&line->lock);
 	err = flush_buffer(line);
 	if (err == 0) {
+		spin_unlock(&line->lock);
 		return IRQ_NONE;
 	} else if (err < 0) {
 		line->head = line->buffer;
