@@ -483,9 +483,6 @@ out:
 
 #ifdef CONFIG_GENERIC_CMOS_UPDATE
 
-/* Disable the cmos update - used by virtualization and embedded */
-int no_sync_cmos_clock  __read_mostly;
-
 static void sync_cmos_clock(struct work_struct *work);
 
 static DECLARE_DELAYED_WORK(sync_cmos_work, sync_cmos_clock);
@@ -532,8 +529,7 @@ static void sync_cmos_clock(struct work_struct *work)
 
 static void notify_cmos_timer(void)
 {
-	if (!no_sync_cmos_clock)
-		schedule_delayed_work(&sync_cmos_work, 0);
+	schedule_delayed_work(&sync_cmos_work, 0);
 }
 
 #else
