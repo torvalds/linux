@@ -29,8 +29,8 @@
 struct at91_gpio_chip {
 	struct gpio_chip	chip;
 	struct at91_gpio_chip	*next;		/* Bank sharing same clock */
-	int			id;		/* ID of register bank */
-	void __iomem		*regbase;	/* Base of register bank */
+	int			pioc_hwirq;	/* PIO bank interrupt identifier on AIC */
+	void __iomem		*regbase;	/* PIO bank virtual address */
 	struct clk		*clock;		/* associated clock */
 };
 
@@ -285,7 +285,7 @@ static int gpio_irq_set_wake(struct irq_data *d, unsigned state)
 	else
 		wakeups[bank] &= ~mask;
 
-	irq_set_irq_wake(gpio_chip[bank].id, state);
+	irq_set_irq_wake(gpio_chip[bank].pioc_hwirq, state);
 
 	return 0;
 }
@@ -499,7 +499,7 @@ void __init at91_gpio_irq_setup(void)
 	for (pioc = 0, this = gpio_chip, prev = NULL;
 			pioc++ < gpio_banks;
 			prev = this, this++) {
-		unsigned	id = this->id;
+		unsigned	pioc_hwirq = this->pioc_hwirq;
 		unsigned	i;
 
 		__raw_writel(~0, this->regbase + PIO_IDR);
@@ -518,14 +518,14 @@ void __init at91_gpio_irq_setup(void)
 		}
 
 		/* The toplevel handler handles one bank of GPIOs, except
-		 * AT91SAM9263_ID_PIOCDE handles three... PIOC is first in
-		 * the list, so we only set up that handler.
+		 * on some SoC it can handles up to three...
+		 * We only set up the handler for the first of the list.
 		 */
 		if (prev && prev->next == this)
 			continue;
 
-		irq_set_chip_data(id, this);
-		irq_set_chained_handler(id, gpio_irq_handler);
+		irq_set_chip_data(pioc_hwirq, this);
+		irq_set_chained_handler(pioc_hwirq, gpio_irq_handler);
 	}
 	pr_info("AT91: %d gpio irqs in %d banks\n", irq - gpio_to_irq(0), gpio_banks);
 }
@@ -615,7 +615,7 @@ void __init at91_gpio_init(struct at91_gpio_bank *data, int nr_banks)
 	for (i = 0; i < nr_banks; i++) {
 		at91_gpio = &gpio_chip[i];
 
-		at91_gpio->id = data[i].id;
+		at91_gpio->pioc_hwirq = data[i].pioc_hwirq;
 		at91_gpio->chip.base = i * 32;
 
 		at91_gpio->regbase = ioremap(data[i].regbase, 512);
@@ -633,8 +633,11 @@ void __init at91_gpio_init(struct at91_gpio_bank *data, int nr_banks)
 		/* enable PIO controller's clock */
 		clk_enable(at91_gpio->clock);
 
-		/* AT91SAM9263_ID_PIOCDE groups PIOC, PIOD, PIOE */
-		if (last && last->id == at91_gpio->id)
+		/*
+		 * GPIO controller are grouped on some SoC:
+		 * PIOC, PIOD and PIOE can share the same IRQ line
+		 */
+		if (last && last->pioc_hwirq == at91_gpio->pioc_hwirq)
 			last->next = at91_gpio;
 		last = at91_gpio;
 
