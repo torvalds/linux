@@ -94,6 +94,7 @@
 				interrupts = <2 4>;
 				#gpio-cells = <2>;
 				gpio-controller;
+				interrupt-controller;
 			};
 
 			pioB: gpio@fffff600 {
@@ -102,6 +103,7 @@
 				interrupts = <2 4>;
 				#gpio-cells = <2>;
 				gpio-controller;
+				interrupt-controller;
 			};
 
 			pioC: gpio@fffff800 {
@@ -110,6 +112,7 @@
 				interrupts = <3 4>;
 				#gpio-cells = <2>;
 				gpio-controller;
+				interrupt-controller;
 			};
 
 			pioD: gpio@fffffa00 {
@@ -118,6 +121,7 @@
 				interrupts = <3 4>;
 				#gpio-cells = <2>;
 				gpio-controller;
+				interrupt-controller;
 			};
 
 			dbgu: serial@fffff200 {
