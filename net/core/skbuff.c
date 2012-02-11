@@ -592,6 +592,7 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->rxhash		= old->rxhash;
 	new->ooo_okay		= old->ooo_okay;
 	new->l4_rxhash		= old->l4_rxhash;
+	new->no_fcs		= old->no_fcs;
 #ifdef CONFIG_XFRM
 	new->sp			= secpath_get(old->sp);
 #endif

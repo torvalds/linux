@@ -1082,7 +1082,8 @@ struct net_device {
 	const struct header_ops *header_ops;
 
 	unsigned int		flags;	/* interface flags (a la BSD)	*/
-	unsigned int		priv_flags; /* Like 'flags' but invisible to userspace. */
+	unsigned int		priv_flags; /* Like 'flags' but invisible to userspace.
+					     * See if.h for definitions. */
 	unsigned short		gflags;
 	unsigned short		padded;	/* How much padding added by alloc_netdev() */
 
@@ -2648,6 +2649,11 @@ static inline void netif_set_gso_max_size(struct net_device *dev,
 static inline int netif_is_bond_slave(struct net_device *dev)
 {
 	return dev->flags & IFF_SLAVE && dev->priv_flags & IFF_BONDING;
+}
+
+static inline bool netif_supports_nofcs(struct net_device *dev)
+{
+	return dev->priv_flags & IFF_SUPP_NOFCS;
 }
 
 extern struct pernet_operations __net_initdata loopback_net_ops;

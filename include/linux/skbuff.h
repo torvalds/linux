@@ -361,6 +361,7 @@ typedef unsigned char *sk_buff_data_t;
  *		ports.
  *	@wifi_acked_valid: wifi_acked was set
  *	@wifi_acked: whether frame was acked on wifi or not
+ *	@no_fcs:  Request NIC to treat last 4 bytes as Ethernet FCS
  *	@dma_cookie: a cookie to one of several possible DMA operations
  *		done by skb DMA functions
  *	@secmark: security marking
@@ -459,7 +460,8 @@ struct sk_buff {
 	__u8			l4_rxhash:1;
 	__u8			wifi_acked_valid:1;
 	__u8			wifi_acked:1;
-	/* 10/12 bit hole (depending on ndisc_nodetype presence) */
+	__u8			no_fcs:1;
+	/* 9/11 bit hole (depending on ndisc_nodetype presence) */
 	kmemcheck_bitfield_end(flags2);
 
 #ifdef CONFIG_NET_DMA
