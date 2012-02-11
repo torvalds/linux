@@ -216,7 +216,7 @@ static const struct x86_cpu_id powernow_k6_ids[] = {
 	{ X86_VENDOR_AMD, 5, 13 },
 	{}
 };
-
+MODULE_DEVICE_TABLE(x86cpu, powernow_k6_ids);
 
 /**
  * powernow_k6_init - initializes the k6 PowerNow! CPUFreq driver
