@@ -463,10 +463,13 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 		if (num_CrcStripping > bd) {
 			unsigned int crc_stripping = CrcStripping[bd];
 			e1000_validate_option(&crc_stripping, &opt, adapter);
-			if (crc_stripping == OPTION_ENABLED)
+			if (crc_stripping == OPTION_ENABLED) {
 				adapter->flags2 |= FLAG2_CRC_STRIPPING;
+				adapter->flags2 |= FLAG2_DFLT_CRC_STRIPPING;
+			}
 		} else {
 			adapter->flags2 |= FLAG2_CRC_STRIPPING;
+			adapter->flags2 |= FLAG2_DFLT_CRC_STRIPPING;
 		}
 	}
 	{ /* Kumeran Lock Loss Workaround */

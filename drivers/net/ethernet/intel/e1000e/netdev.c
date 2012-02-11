@@ -933,8 +933,16 @@ static bool e1000_clean_rx_irq(struct e1000_ring *rx_ring, int *work_done,
 		}
 
 		/* adjust length to remove Ethernet CRC */
-		if (!(adapter->flags2 & FLAG2_CRC_STRIPPING))
-			length -= 4;
+		if (!(adapter->flags2 & FLAG2_CRC_STRIPPING)) {
+			/* If configured to store CRC, don't subtract FCS,
+			 * but keep the FCS bytes out of the total_rx_bytes
+			 * counter
+			 */
+			if (netdev->features & NETIF_F_RXFCS)
+				total_rx_bytes -= 4;
+			else
+				length -= 4;
+		}
 
 		total_rx_bytes += length;
 		total_rx_packets++;
@@ -1301,8 +1309,10 @@ static bool e1000_clean_rx_irq_ps(struct e1000_ring *rx_ring, int *work_done,
 							   DMA_FROM_DEVICE);
 
 				/* remove the CRC */
-				if (!(adapter->flags2 & FLAG2_CRC_STRIPPING))
-					l1 -= 4;
+				if (!(adapter->flags2 & FLAG2_CRC_STRIPPING)) {
+					if (!(netdev->features & NETIF_F_RXFCS))
+						l1 -= 4;
+				}
 
 				skb_put(skb, l1);
 				goto copydone;
@@ -1328,8 +1338,10 @@ static bool e1000_clean_rx_irq_ps(struct e1000_ring *rx_ring, int *work_done,
 		/* strip the ethernet crc, problem is we're using pages now so
 		 * this whole operation can get a little cpu intensive
 		 */
-		if (!(adapter->flags2 & FLAG2_CRC_STRIPPING))
-			pskb_trim(skb, skb->len - 4);
+		if (!(adapter->flags2 & FLAG2_CRC_STRIPPING)) {
+			if (!(netdev->features & NETIF_F_RXFCS))
+				pskb_trim(skb, skb->len - 4);
+		}
 
 copydone:
 		total_rx_bytes += skb->len;
@@ -5982,7 +5994,7 @@ static int e1000_set_features(struct net_device *netdev,
 		adapter->flags |= FLAG_TSO_FORCE;
 
 	if (!(changed & (NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX |
-			 NETIF_F_RXCSUM | NETIF_F_RXHASH)))
+			 NETIF_F_RXCSUM | NETIF_F_RXHASH | NETIF_F_RXFCS)))
 		return 0;
 
 	/*
@@ -5994,6 +6006,20 @@ static int e1000_set_features(struct net_device *netdev,
 	    (features & NETIF_F_RXCSUM) && (features & NETIF_F_RXHASH)) {
 		e_err("Enabling both receive checksum offload and receive hashing is not possible with jumbo frames.  Disable jumbos or enable only one of the receive offload features.\n");
 		return -EINVAL;
+	}
+
+	if (changed & NETIF_F_RXFCS) {
+		if (features & NETIF_F_RXFCS) {
+			adapter->flags2 &= ~FLAG2_CRC_STRIPPING;
+		} else {
+			/* We need to take it back to defaults, which might mean
+			 * stripping is still disabled at the adapter level.
+			 */
+			if (adapter->flags2 & FLAG2_DFLT_CRC_STRIPPING)
+				adapter->flags2 |= FLAG2_CRC_STRIPPING;
+			else
+				adapter->flags2 &= ~FLAG2_CRC_STRIPPING;
+		}
 	}
 
 	netdev->features = features;
@@ -6194,6 +6220,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	/* Set user-changeable features (subset of all device features) */
 	netdev->hw_features = netdev->features;
+	netdev->hw_features |= NETIF_F_RXFCS;
 
 	if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER)
 		netdev->features |= NETIF_F_HW_VLAN_FILTER;

@@ -461,6 +461,7 @@ struct e1000_info {
 #define FLAG2_CHECK_PHY_HANG              (1 << 9)
 #define FLAG2_NO_DISABLE_RX               (1 << 10)
 #define FLAG2_PCIM2PCI_ARBITER_WA         (1 << 11)
+#define FLAG2_DFLT_CRC_STRIPPING          (1 << 12)
 
 #define E1000_RX_DESC_PS(R, i)	    \
 	(&(((union e1000_rx_desc_packet_split *)((R).desc))[i]))
