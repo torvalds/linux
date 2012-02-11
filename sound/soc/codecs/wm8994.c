@@ -838,6 +838,10 @@ static void vmid_dereference(struct snd_soc_codec *codec)
 				    WM8994_BIAS_ENA |
 				    WM8994_VMID_SEL_MASK, 0);
 
+		/* Discharge VMID */
+		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
+				    WM8994_VMID_DISCH, WM8994_VMID_DISCH);
+
 		/* Discharge line */
 		snd_soc_update_bits(codec, WM8994_ANTIPOP_1,
 				    WM8994_LINEOUT1_DISCH |
