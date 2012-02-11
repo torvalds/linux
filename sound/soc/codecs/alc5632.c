@@ -145,10 +145,9 @@ static const DECLARE_TLV_DB_SCALE(hp_tlv, -4650, 150, 0);
 /* -16.5db min scale, 1.5db steps, no mute */
 static const DECLARE_TLV_DB_SCALE(adc_rec_tlv, -1650, 150, 0);
 static const unsigned int boost_tlv[] = {
-	TLV_DB_RANGE_HEAD(3),
-	0, 0, TLV_DB_SCALE_ITEM(0, 0, 0),
-	1, 1, TLV_DB_SCALE_ITEM(2000, 0, 0),
-	2, 2, TLV_DB_SCALE_ITEM(3000, 0, 0),
+	TLV_DB_RANGE_HEAD(2),
+	0, 1, TLV_DB_SCALE_ITEM(0, 2000, 0),
+	1, 3, TLV_DB_SCALE_ITEM(2000, 1000, 0),
 };
 /* 0db min scale, 6 db steps, no mute */
 static const DECLARE_TLV_DB_SCALE(dig_tlv, 0, 600, 0);
@@ -193,9 +192,9 @@ static const struct snd_kcontrol_new alc5632_snd_controls[] = {
 	SOC_DOUBLE_TLV("Rec Capture Volume",
 			ALC5632_ADC_REC_GAIN, 8, 0, 31, 0, adc_rec_tlv),
 	SOC_SINGLE_TLV("Mic 1 Boost Volume",
-			ALC5632_MIC_CTRL, 10, 2, 0, boost_tlv),
+			ALC5632_MIC_CTRL, 10, 3, 0, boost_tlv),
 	SOC_SINGLE_TLV("Mic 2 Boost Volume",
-			ALC5632_MIC_CTRL, 8, 2, 0, boost_tlv),
+			ALC5632_MIC_CTRL, 8, 3, 0, boost_tlv),
 	SOC_SINGLE_TLV("DMIC Boost Volume",
 			ALC5632_DIGI_BOOST_CTRL, 0, 7, 0, dig_tlv),
 	SOC_SINGLE("DMIC En Capture Switch",
