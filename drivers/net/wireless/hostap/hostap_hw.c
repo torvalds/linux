@@ -1470,7 +1470,7 @@ static int prism2_hw_enable(struct net_device *dev, int initial)
 	 * before it starts acting as an AP, so reset port automatically
 	 * here just in case */
 	if (initial && prism2_reset_port(dev)) {
-		printk("%s: MAC port 0 reseting failed\n", dev->name);
+		printk("%s: MAC port 0 resetting failed\n", dev->name);
 		return 1;
 	}
 
@@ -1561,7 +1561,7 @@ static void prism2_hw_reset(struct net_device *dev)
 	static long last_reset = 0;
 
 	/* do not reset card more than once per second to avoid ending up in a
-	 * busy loop reseting the card */
+	 * busy loop resetting the card */
 	if (time_before_eq(jiffies, last_reset + HZ))
 		return;
 	last_reset = jiffies;
