@@ -258,6 +258,11 @@ enum snd_soc_compress_type {
 	SND_SOC_RBTREE_COMPRESSION
 };
 
+#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND
+int snd_soc_incall_status(int read_or_write, int status);
+#endif	
+
+
 int snd_soc_codec_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 			     unsigned int freq, int dir);
 int snd_soc_codec_set_pll(struct snd_soc_codec *codec, int pll_id, int source,

@@ -28,6 +28,10 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 
+#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND
+#include <sound/soc.h>
+#endif
+
 #if 0
 #define DBG(x...) printk(KERN_DEBUG x)
 #else
@@ -275,16 +279,16 @@ static const char *wm8958_main_supplies[] = {
 #ifdef CONFIG_PM
 static int wm8994_suspend(struct device *dev)
 {
-	struct wm8994 *wm8994 = dev_get_drvdata(dev);
-	struct wm8994_pdata *pdata = wm8994->dev->platform_data;	
+	struct wm8994 *wm8994 = dev_get_drvdata(dev);	
 	int ret;
-	
+#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND	
 	printk("on wm8994-core.c wm8994_suspend\n");
-	if(pdata->lineout_status)
+	if(snd_soc_incall_status(0,0))
 	{
-		printk("lineout is work cannot suspend\n");
+		DBG("incalling  cannot suspend\n");
 		return 0;
 	}
+#endif
 	/* Don't actually go through with the suspend if the CODEC is
 	 * still active (eg, for audio passthrough from CP. */
 	ret = wm8994_reg_read(wm8994, WM8994_POWER_MANAGEMENT_1);
@@ -329,16 +333,16 @@ static int wm8994_suspend(struct device *dev)
 
 static int wm8994_resume(struct device *dev)
 {
-	struct wm8994 *wm8994 = dev_get_drvdata(dev);
-	struct wm8994_pdata *pdata = wm8994->dev->platform_data;		
+	struct wm8994 *wm8994 = dev_get_drvdata(dev);		
 	int ret;
-	
+#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND	
 	printk("on wm8994-core.c wm8994_resume\n");
-	if(pdata->lineout_status)
+	if(snd_soc_incall_status(0,0))
 	{
-		printk("lineout is work cannot suspend\n");
+		DBG("incalling cannot resume\n");
 		return 0;
-	}	
+	}
+#endif
 	/* We may have lied to the PM core about suspending */
 	if (!wm8994->suspended)
 		return 0;

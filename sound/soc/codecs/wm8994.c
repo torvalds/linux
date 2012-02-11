@@ -912,29 +912,28 @@ static int wm8994_PA_event(struct snd_soc_dapm_widget *w,
 int lineout_event(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *control, int event)
 {
-	struct snd_soc_codec *codec = w->codec;
-	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994_pdata *pdata = wm8994->pdata;
+//	struct snd_soc_codec *codec = w->codec;
+//	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+//	struct wm8994_pdata *pdata = wm8994->pdata;
 	
 //	printk("Enter %s::%s---%d\n",__FILE__,__FUNCTION__,__LINE__);
-	
+#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND	
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		printk("wm8994 is incall status\n");
-		pdata->lineout_status = 1;
-		
+		snd_soc_incall_status(1,1);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
 		printk("wm8994 exit incall status\n");
-		pdata->lineout_status = 0;
+		snd_soc_incall_status(1,0);
 		break;
 
 	default:
 		BUG();
 		break;
 	}
-
+#endif
 	return 0;
 }
 
@@ -2630,15 +2629,16 @@ static int wm8994_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = codec->control_data;
-	struct wm8994_pdata *pdata = wm8994->pdata;
 	int i, ret;
 	
+#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND	
 	DBG("on wm8994.c wm8994_suspend\n");
-	if(pdata->lineout_status)
+	if(snd_soc_incall_status(0,0))
 	{
-		DBG("lineout is work cannot suspend\n");
+		DBG("incalling  cannot suspend\n");
 		return 0;
 	}
+#endif
 	switch (control->type) {
 	case WM8994:
 		snd_soc_update_bits(codec, WM8994_MICBIAS, WM8994_MICD_ENA, 0);
@@ -2667,16 +2667,18 @@ static int wm8994_resume(struct snd_soc_codec *codec)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = codec->control_data;
-	struct wm8994_pdata *pdata = wm8994->pdata;
 	int i, ret;
 	unsigned int val, mask;
 	
+#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND	
 	printk("on wm8994.c wm8994_resume\n");
-	if(pdata->lineout_status)
+	if(snd_soc_incall_status(0,0))
 	{
-		DBG("lineout is work cannot resume\n");
+		DBG("incalling cannot resume\n");
 		return 0;
 	}
+#endif
+
 	if (wm8994->revision < 4) {
 		/* force a HW read */
 		val = wm8994_reg_read(codec->control_data,
@@ -3395,7 +3397,6 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		dev_info(codec->dev, "have not pa control\n");	
 
 	//lineout off
-	pdata->lineout_status = 0;
 //	snd_soc_dapm_new_controls(dapm, wm8994_lineout_status_dapm_widgets,
 //				 ARRAY_SIZE(wm8994_lineout_status_dapm_widgets));	
 //	snd_soc_dapm_add_routes(dapm, wm8994_lineout_status_intercon, 

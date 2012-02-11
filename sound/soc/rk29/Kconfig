@@ -129,5 +129,11 @@ config ADJUST_VOL_BY_CODEC
     default n
     help
     	  adjust volume by codec
-        	  
+
+config PHONE_INCALL_IS_SUSPEND
+	bool "Incalling Whether suspend codec"
+    default n
+    help
+		set "y" phone incall status cannot into suspend codec
+		
 endif

@@ -1031,6 +1031,21 @@ static struct snd_pcm_ops soc_pcm_ops = {
 	.pointer	= soc_pcm_pointer,
 };
 
+#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND
+int snd_soc_incall_status(int read_or_write, int status)
+{
+	static int now_status = 0;
+	if(read_or_write == 1)
+	{//write
+		now_status = status;
+	}
+
+	return now_status;
+}
+EXPORT_SYMBOL_GPL(snd_soc_incall_status);
+#endif
+
+
 #ifdef CONFIG_PM_SLEEP
 /* powers down audio subsystem for suspend */
 int snd_soc_suspend(struct device *dev)
@@ -1038,7 +1053,14 @@ int snd_soc_suspend(struct device *dev)
 	struct snd_soc_card *card = dev_get_drvdata(dev);
 	struct snd_soc_codec *codec;
 	int i;
-
+	
+#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND
+	if(snd_soc_incall_status(0,0))
+	{
+		printk("card is incall cannot into suspend\n");
+		return 0;
+	}
+#endif	
 	/* If the initialization of this soc device failed, there is no codec
 	 * associated with it. Just bail out in this case.
 	 */
@@ -1188,6 +1210,7 @@ static void soc_resume_deferred(struct work_struct *work)
 		 * left with bias OFF or STANDBY and suspended so we must now
 		 * resume.  Otherwise the suspend was suppressed.
 		 */
+
 		if (codec->driver->resume && codec->suspended) {
 			switch (codec->dapm.bias_level) {
 			case SND_SOC_BIAS_STANDBY:
@@ -1258,7 +1281,14 @@ int snd_soc_resume(struct device *dev)
 {
 	struct snd_soc_card *card = dev_get_drvdata(dev);
 	int i, ac97_control = 0;
-
+	
+#ifdef CONFIG_PHONE_INCALL_IS_SUSPEND
+	if(snd_soc_incall_status(0,0))
+	{
+		printk("card is incall cannot into suspend\n");
+		return 0;
+	}
+#endif
 	/* AC97 devices might have other drivers hanging off them so
 	 * need to resume immediately.  Other drivers don't have that
 	 * problem and may take a substantial amount of time to resume
