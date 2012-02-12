@@ -671,9 +671,8 @@ static void iwl_dump_nic_error_log(struct iwl_trans *trans)
  */
 static void iwl_irq_handle_error(struct iwl_trans *trans)
 {
-	struct iwl_priv *priv = priv(trans);
 	/* W/A for WiFi/WiMAX coex and WiMAX own the RF */
-	if (cfg(priv)->internal_wimax_coex &&
+	if (cfg(trans)->internal_wimax_coex &&
 	    (!(iwl_read_prph(trans, APMG_CLK_CTRL_REG) &
 			APMS_CLK_VAL_MRB_FUNC_MODE) ||
 	     (iwl_read_prph(trans, APMG_PS_CTRL_REG) &
@@ -684,13 +683,13 @@ static void iwl_irq_handle_error(struct iwl_trans *trans)
 		 */
 		clear_bit(STATUS_READY, &trans->shrd->status);
 		clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
-		wake_up(&priv->shrd->wait_command_queue);
+		wake_up(&trans->shrd->wait_command_queue);
 		IWL_ERR(trans, "RF is used by WiMAX\n");
 		return;
 	}
 
 	IWL_ERR(trans, "Loaded firmware version: %s\n",
-		priv->hw->wiphy->fw_version);
+		nic(trans)->fw.fw_version);
 
 	iwl_dump_nic_error_log(trans);
 	iwl_dump_csr(trans);
