@@ -190,6 +190,7 @@ struct ixgbe_rx_queue_stats {
 	u64 non_eop_descs;
 	u64 alloc_rx_page_failed;
 	u64 alloc_rx_buff_failed;
+	u64 csum_err;
 };
 
 enum ixbge_ring_state_t {
@@ -198,6 +199,7 @@ enum ixbge_ring_state_t {
 	__IXGBE_HANG_CHECK_ARMED,
 	__IXGBE_RX_PS_ENABLED,
 	__IXGBE_RX_RSC_ENABLED,
+	__IXGBE_RX_CSUM_UDP_ZERO_ERR,
 };
 
 #define ring_is_ps_enabled(ring) \
@@ -329,6 +331,13 @@ struct ixgbe_q_vector {
 #define IXGBE_10K_ITR		400
 #define IXGBE_8K_ITR		500
 
+/* ixgbe_test_staterr - tests bits in Rx descriptor status and error fields */
+static inline __le32 ixgbe_test_staterr(union ixgbe_adv_rx_desc *rx_desc,
+					const u32 stat_err_bits)
+{
+	return rx_desc->wb.upper.status_error & cpu_to_le32(stat_err_bits);
+}
+
 static inline u16 ixgbe_desc_unused(struct ixgbe_ring *ring)
 {
 	u16 ntc = ring->next_to_clean;
@@ -337,11 +346,11 @@ static inline u16 ixgbe_desc_unused(struct ixgbe_ring *ring)
 	return ((ntc > ntu) ? 0 : ring->count) + ntc - ntu - 1;
 }
 
-#define IXGBE_RX_DESC_ADV(R, i)	    \
+#define IXGBE_RX_DESC(R, i)	    \
 	(&(((union ixgbe_adv_rx_desc *)((R)->desc))[i]))
-#define IXGBE_TX_DESC_ADV(R, i)	    \
+#define IXGBE_TX_DESC(R, i)	    \
 	(&(((union ixgbe_adv_tx_desc *)((R)->desc))[i]))
-#define IXGBE_TX_CTXTDESC_ADV(R, i)	    \
+#define IXGBE_TX_CTXTDESC(R, i)	    \
 	(&(((struct ixgbe_adv_tx_context_desc *)((R)->desc))[i]))
 
 #define IXGBE_MAX_JUMBO_FRAME_SIZE        16128
@@ -372,7 +381,6 @@ struct ixgbe_adapter {
 	 * thus the additional *_CAPABLE flags.
 	 */
 	u32 flags;
-#define IXGBE_FLAG_RX_CSUM_ENABLED              (u32)(1)
 #define IXGBE_FLAG_MSI_CAPABLE                  (u32)(1 << 1)
 #define IXGBE_FLAG_MSI_ENABLED                  (u32)(1 << 2)
 #define IXGBE_FLAG_MSIX_CAPABLE                 (u32)(1 << 3)
@@ -535,12 +543,16 @@ enum ixbge_state_t {
 	__IXGBE_IN_SFP_INIT,
 };
 
-struct ixgbe_rsc_cb {
+struct ixgbe_cb {
+	union {				/* Union defining head/tail partner */
+		struct sk_buff *head;
+		struct sk_buff *tail;
+	};
 	dma_addr_t dma;
-	u16 skb_cnt;
+	u16 append_cnt;
 	bool delay_unmap;
 };
-#define IXGBE_RSC_CB(skb) ((struct ixgbe_rsc_cb *)(skb)->cb)
+#define IXGBE_CB(skb) ((struct ixgbe_cb *)(skb)->cb)
 
 enum ixgbe_boards {
 	board_82598,
@@ -614,8 +626,7 @@ extern int ixgbe_fso(struct ixgbe_ring *tx_ring, struct sk_buff *skb,
 extern void ixgbe_cleanup_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 			  union ixgbe_adv_rx_desc *rx_desc,
-			  struct sk_buff *skb,
-			  u32 staterr);
+			  struct sk_buff *skb);
 extern int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
                               struct scatterlist *sgl, unsigned int sgc);
 extern int ixgbe_fcoe_ddp_target(struct net_device *netdev, u16 xid,

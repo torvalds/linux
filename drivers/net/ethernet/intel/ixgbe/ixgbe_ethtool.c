@@ -1739,7 +1739,7 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_ring *rx_ring,
 	/* initialize next to clean and descriptor values */
 	rx_ntc = rx_ring->next_to_clean;
 	tx_ntc = tx_ring->next_to_clean;
-	rx_desc = IXGBE_RX_DESC_ADV(rx_ring, rx_ntc);
+	rx_desc = IXGBE_RX_DESC(rx_ring, rx_ntc);
 	staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 
 	while (staterr & IXGBE_RXD_STAT_DD) {
@@ -1770,7 +1770,7 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_ring *rx_ring,
 			tx_ntc = 0;
 
 		/* fetch next descriptor */
-		rx_desc = IXGBE_RX_DESC_ADV(rx_ring, rx_ntc);
+		rx_desc = IXGBE_RX_DESC(rx_ring, rx_ntc);
 		staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	}
 

@@ -357,22 +357,20 @@ int ixgbe_fcoe_ddp_target(struct net_device *netdev, u16 xid,
  */
 int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 		   union ixgbe_adv_rx_desc *rx_desc,
-		   struct sk_buff *skb,
-		   u32 staterr)
+		   struct sk_buff *skb)
 {
-	u16 xid;
-	u32 fctl;
-	u32 fceofe, fcerr, fcstat;
 	int rc = -EINVAL;
 	struct ixgbe_fcoe *fcoe;
 	struct ixgbe_fcoe_ddp *ddp;
 	struct fc_frame_header *fh;
 	struct fcoe_crc_eof *crc;
+	__le32 fcerr = ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_ERR_FCERR);
+	__le32 ddp_err;
+	u32 fctl;
+	u16 xid;
 
-	fcerr = (staterr & IXGBE_RXDADV_ERR_FCERR);
-	fceofe = (staterr & IXGBE_RXDADV_ERR_FCEOFE);
-	if (fcerr == IXGBE_FCERR_BADCRC)
-		skb_checksum_none_assert(skb);
+	if (fcerr == cpu_to_le32(IXGBE_FCERR_BADCRC))
+		skb->ip_summed = CHECKSUM_NONE;
 	else
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
@@ -382,6 +380,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	else
 		fh = (struct fc_frame_header *)(skb->data +
 			sizeof(struct fcoe_hdr));
+
 	fctl = ntoh24(fh->fh_f_ctl);
 	if (fctl & FC_FC_EX_CTX)
 		xid =  be16_to_cpu(fh->fh_ox_id);
@@ -396,27 +395,39 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	if (!ddp->udl)
 		goto ddp_out;
 
-	if (fcerr | fceofe)
+	ddp_err = ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_ERR_FCEOFE |
+					      IXGBE_RXDADV_ERR_FCERR);
+	if (ddp_err)
 		goto ddp_out;
 
-	fcstat = (staterr & IXGBE_RXDADV_STAT_FCSTAT);
-	if (fcstat) {
+	switch (ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_STAT_FCSTAT)) {
+	/* return 0 to bypass going to ULD for DDPed data */
+	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_DDP):
 		/* update length of DDPed data */
 		ddp->len = le32_to_cpu(rx_desc->wb.lower.hi_dword.rss);
-		/* unmap the sg list when FCP_RSP is received */
-		if (fcstat == IXGBE_RXDADV_STAT_FCSTAT_FCPRSP) {
-			pci_unmap_sg(adapter->pdev, ddp->sgl,
-				     ddp->sgc, DMA_FROM_DEVICE);
-			ddp->err = (fcerr | fceofe);
-			ddp->sgl = NULL;
-			ddp->sgc = 0;
-		}
-		/* return 0 to bypass going to ULD for DDPed data */
-		if (fcstat == IXGBE_RXDADV_STAT_FCSTAT_DDP)
-			rc = 0;
-		else if (ddp->len)
+		rc = 0;
+		break;
+	/* unmap the sg list when FCPRSP is received */
+	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_FCPRSP):
+		pci_unmap_sg(adapter->pdev, ddp->sgl,
+			     ddp->sgc, DMA_FROM_DEVICE);
+		ddp->err = ddp_err;
+		ddp->sgl = NULL;
+		ddp->sgc = 0;
+		/* fall through */
+	/* if DDP length is present pass it through to ULD */
+	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NODDP):
+		/* update length of DDPed data */
+		ddp->len = le32_to_cpu(rx_desc->wb.lower.hi_dword.rss);
+		if (ddp->len)
 			rc = ddp->len;
+		break;
+	/* no match will return as an error */
+	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_NOMTCH):
+	default:
+		break;
 	}
+
 	/* In target mode, check the last data frame of the sequence.
 	 * For DDP in target mode, data is already DDPed but the header
 	 * indication of the last data frame ould allow is to tell if we
