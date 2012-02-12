@@ -457,7 +457,6 @@ retry:
 			spin_unlock_irq(&desc->iuspin);
 			goto retry;
 		}
-		clear_bit(WDM_READ, &desc->flags);
 		cntr = desc->length;
 		spin_unlock_irq(&desc->iuspin);
 	}
