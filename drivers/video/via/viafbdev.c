@@ -303,7 +303,7 @@ static int viafb_set_par(struct fb_info *info)
 			info->flags &= ~FBINFO_HWACCEL_DISABLED;
 		else
 			info->flags |= FBINFO_HWACCEL_DISABLED;
-		viafb_setmode(info->var.bits_per_pixel, viafb_bpp1);
+		viafb_setmode();
 		viafb_pan_display(&info->var, info);
 	}
 

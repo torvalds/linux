@@ -53,9 +53,6 @@ static void __devinit fp_id_to_vindex(int panel_id);
 static int lvds_register_read(int index);
 static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 		      int panel_vres);
-static void via_pitch_alignment_patch_lcd(
-	struct lvds_setting_information *plvds_setting_info,
-	struct lvds_chip_information *plvds_chip_info, int hres);
 static void lcd_patch_skew_dvp0(struct lvds_setting_information
 			 *plvds_setting_info,
 			 struct lvds_chip_information *plvds_chip_info);
@@ -453,19 +450,17 @@ static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 	}
 }
 
-static void via_pitch_alignment_patch_lcd(
-	struct lvds_setting_information *plvds_setting_info,
-	struct lvds_chip_information *plvds_chip_info, int hres)
+static void via_pitch_alignment_patch_lcd(int iga_path, int hres, int bpp)
 {
 	unsigned char cr13, cr35, cr65, cr66, cr67;
 	unsigned long dwScreenPitch = 0;
 	unsigned long dwPitch;
 
-	dwPitch = hres * (plvds_setting_info->bpp >> 3);
+	dwPitch = hres * (bpp >> 3);
 	if (dwPitch & 0x1F) {
 		dwScreenPitch = ((dwPitch + 31) & ~31) >> 3;
-		if (plvds_setting_info->iga_path == IGA2) {
-			if (plvds_setting_info->bpp > 8) {
+		if (iga_path == IGA2) {
+			if (bpp > 8) {
 				cr66 = (unsigned char)(dwScreenPitch & 0xFF);
 				viafb_write_reg(CR66, VIACR, cr66);
 				cr67 = viafb_read_reg(VIACR, CR67) & 0xFC;
@@ -483,7 +478,7 @@ static void via_pitch_alignment_patch_lcd(
 			cr65 += 2;
 			viafb_write_reg(CR65, VIACR, cr65);
 		} else {
-			if (plvds_setting_info->bpp > 8) {
+			if (bpp > 8) {
 				cr13 = (unsigned char)(dwScreenPitch & 0xFF);
 				viafb_write_reg(CR13, VIACR, cr13);
 				cr35 = viafb_read_reg(VIACR, CR35) & 0x1F;
@@ -551,7 +546,7 @@ void viafb_lcd_set_mode(const struct fb_var_screeninfo *var, u16 cxres,
 	struct lvds_chip_information *plvds_chip_info)
 {
 	int set_iga = plvds_setting_info->iga_path;
-	int mode_bpp = plvds_setting_info->bpp;
+	int mode_bpp = var->bits_per_pixel;
 	int set_hres = cxres ? cxres : var->xres;
 	int set_vres = cyres ? cyres : var->yres;
 	int panel_hres = plvds_setting_info->lcd_panel_hres;
@@ -612,8 +607,8 @@ void viafb_lcd_set_mode(const struct fb_var_screeninfo *var, u16 cxres,
 		viafb_write_reg_mask(CR6A, VIACR, 0x01, BIT0);
 
 	/* Patch for non 32bit alignment mode */
-	via_pitch_alignment_patch_lcd(plvds_setting_info, plvds_chip_info,
-		set_hres);
+	via_pitch_alignment_patch_lcd(plvds_setting_info->iga_path, set_hres,
+		var->bits_per_pixel);
 }
 
 static void integrated_lvds_disable(struct lvds_setting_information
