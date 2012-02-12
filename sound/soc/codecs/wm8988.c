@@ -963,7 +963,7 @@ MODULE_DEVICE_TABLE(i2c, wm8988_i2c_id);
 
 static struct i2c_driver wm8988_i2c_driver = {
 	.driver = {
-		.name = "wm8988-codec",
+		.name = "wm8988",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8988_i2c_probe,
