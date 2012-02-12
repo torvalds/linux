@@ -263,8 +263,8 @@ static int it913x_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	int ret;
 	u8 pro = (adap->id == 0) ? DEV_0_DMOD : DEV_1_DMOD;
 
-	if (mutex_lock_interruptible(&adap->dev->i2c_mutex) < 0)
-			return -EAGAIN;
+	mutex_lock(&adap->dev->i2c_mutex);
+
 	deb_info(1, "PID_C  (%02x)", onoff);
 
 	ret = it913x_wr_reg(udev, pro, PID_EN, onoff);
@@ -280,8 +280,8 @@ static int it913x_pid_filter(struct dvb_usb_adapter *adap,
 	int ret;
 	u8 pro = (adap->id == 0) ? DEV_0_DMOD : DEV_1_DMOD;
 
-	if (mutex_lock_interruptible(&adap->dev->i2c_mutex) < 0)
-			return -EAGAIN;
+	mutex_lock(&adap->dev->i2c_mutex);
+
 	deb_info(1, "PID_F  (%02x)", onoff);
 
 	ret = it913x_wr_reg(udev, pro, PID_LSB, (u8)(pid & 0xff));
@@ -316,8 +316,8 @@ static int it913x_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	int ret;
 	u32 reg;
 	u8 pro;
-	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
-			return -EAGAIN;
+
+	mutex_lock(&d->i2c_mutex);
 
 	debug_data_snipet(1, "Message out", msg[0].buf);
 	deb_info(2, "num of messages %d address %02x", num, msg[0].addr);
@@ -358,8 +358,7 @@ static int it913x_rc_query(struct dvb_usb_device *d)
 	int ret;
 	u32 key;
 	/* Avoid conflict with frontends*/
-	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
-			return -EAGAIN;
+	mutex_lock(&d->i2c_mutex);
 
 	ret = it913x_io(d->udev, READ_LONG, PRO_LINK, CMD_IR_GET,
 		0, 0, &ibuf[0], sizeof(ibuf));
@@ -603,15 +602,15 @@ static int it913x_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	int ret = 0;
 	u8 pro = (adap->id == 0) ? DEV_0_DMOD : DEV_1_DMOD;
 
-	if (mutex_lock_interruptible(&adap->dev->i2c_mutex) < 0)
-			return -EAGAIN;
 	deb_info(1, "STM  (%02x)", onoff);
 
-	if (!onoff)
+	if (!onoff) {
+		mutex_lock(&adap->dev->i2c_mutex);
+
 		ret = it913x_wr_reg(adap->dev->udev, pro, PID_RST, 0x1);
 
-
-	mutex_unlock(&adap->dev->i2c_mutex);
+		mutex_unlock(&adap->dev->i2c_mutex);
+	}
 
 	return ret;
 }
@@ -885,5 +884,5 @@ module_usb_driver(it913x_driver);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");
-MODULE_VERSION("1.25");
+MODULE_VERSION("1.26");
 MODULE_LICENSE("GPL");
