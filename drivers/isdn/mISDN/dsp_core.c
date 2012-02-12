@@ -1119,7 +1119,7 @@ static int __init dsp_init(void)
 	int err;
 	int tics;
 
-	printk(KERN_INFO "DSP modul %s\n", mISDN_dsp_revision);
+	printk(KERN_INFO "DSP module %s\n", mISDN_dsp_revision);
 
 	dsp_options = options;
 	dsp_debug = debug;
