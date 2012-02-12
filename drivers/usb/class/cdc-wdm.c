@@ -397,7 +397,7 @@ outnl:
 static ssize_t wdm_read
 (struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
-	int rv, cntr = 0;
+	int rv, cntr;
 	int i = 0;
 	struct wdm_device *desc = file->private_data;
 
@@ -406,7 +406,8 @@ static ssize_t wdm_read
 	if (rv < 0)
 		return -ERESTARTSYS;
 
-	if (desc->length == 0) {
+	cntr = ACCESS_ONCE(desc->length);
+	if (cntr == 0) {
 		desc->read = 0;
 retry:
 		if (test_bit(WDM_DISCONNECTING, &desc->flags)) {
@@ -457,25 +458,30 @@ retry:
 			goto retry;
 		}
 		clear_bit(WDM_READ, &desc->flags);
+		cntr = desc->length;
 		spin_unlock_irq(&desc->iuspin);
 	}
 
-	cntr = count > desc->length ? desc->length : count;
+	if (cntr > count)
+		cntr = count;
 	rv = copy_to_user(buffer, desc->ubuf, cntr);
 	if (rv > 0) {
 		rv = -EFAULT;
 		goto err;
 	}
 
+	spin_lock_irq(&desc->iuspin);
+
 	for (i = 0; i < desc->length - cntr; i++)
 		desc->ubuf[i] = desc->ubuf[i + cntr];
 
-	spin_lock_irq(&desc->iuspin);
 	desc->length -= cntr;
-	spin_unlock_irq(&desc->iuspin);
 	/* in case we had outstanding data */
 	if (!desc->length)
 		clear_bit(WDM_READ, &desc->flags);
+
+	spin_unlock_irq(&desc->iuspin);
+
 	rv = cntr;
 
 err:
