@@ -824,6 +824,8 @@ static const struct snd_soc_dapm_route wm9081_audio_paths[] = {
 static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
+	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
+
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
@@ -841,6 +843,9 @@ static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_STANDBY:
 		/* Initial cold start */
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+			regcache_cache_only(wm9081->regmap, false);
+			regcache_sync(wm9081->regmap);
+
 			/* Disable LINEOUT discharge */
 			snd_soc_update_bits(codec, WM9081_ANTI_POP_CONTROL,
 					    WM9081_LINEOUT_DISCH, 0);
@@ -892,6 +897,8 @@ static int wm9081_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, WM9081_ANTI_POP_CONTROL,
 				    WM9081_LINEOUT_DISCH,
 				    WM9081_LINEOUT_DISCH);
+
+		regcache_cache_only(wm9081->regmap, true);
 		break;
 	}
 
@@ -1289,37 +1296,14 @@ static int wm9081_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int wm9081_suspend(struct snd_soc_codec *codec)
-{
-	wm9081_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int wm9081_resume(struct snd_soc_codec *codec)
-{
-	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
-
-	regcache_sync(wm9081->regmap);
-
-	wm9081_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-#else
-#define wm9081_suspend NULL
-#define wm9081_resume NULL
-#endif
-
 static struct snd_soc_codec_driver soc_codec_dev_wm9081 = {
 	.probe = 	wm9081_probe,
 	.remove = 	wm9081_remove,
-	.suspend =	wm9081_suspend,
-	.resume =	wm9081_resume,
 
 	.set_sysclk = wm9081_set_sysclk,
 	.set_bias_level = wm9081_set_bias_level,
+
+	.idle_bias_off = true,
 
 	.controls         = wm9081_snd_controls,
 	.num_controls     = ARRAY_SIZE(wm9081_snd_controls),
@@ -1392,6 +1376,7 @@ static __devinit int wm9081_i2c_probe(struct i2c_client *i2c,
 	regmap_update_bits(wm9081->regmap, WM9081_INTERRUPT_CONTROL,
 			   WM9081_IRQ_POL | WM9081_IRQ_OP_CTRL, reg);
 
+	regcache_cache_only(wm9081->regmap, true);
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm9081, &wm9081_dai, 1);
