@@ -193,7 +193,7 @@ static int efx_mtd_erase(struct mtd_info *mtd, struct erase_info *erase)
 		erase->state = MTD_ERASE_DONE;
 	} else {
 		erase->state = MTD_ERASE_FAILED;
-		erase->fail_addr = 0xffffffff;
+		erase->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
 	}
 	mtd_erase_callback(erase);
 	return rc;
