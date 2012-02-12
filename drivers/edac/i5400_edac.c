@@ -963,7 +963,7 @@ static void calculate_dimm_size(struct i5400_pvt *pvt)
 	int dimm, max_dimms;
 	char *p, *mem_buffer;
 	int space, n;
-	int channel;
+	int channel, branch;
 
 	/* ================= Generate some debug output ================= */
 	space = PAGE_SIZE;
@@ -1024,6 +1024,19 @@ static void calculate_dimm_size(struct i5400_pvt *pvt)
 	space -= n;
 	for (channel = 0; channel < pvt->maxch; channel++) {
 		n = snprintf(p, space, "channel %d | ", channel);
+		p += n;
+		space -= n;
+	}
+
+	space -= n;
+	debugf2("%s\n", mem_buffer);
+	p = mem_buffer;
+	space = PAGE_SIZE;
+
+	n = snprintf(p, space, "           ");
+	p += n;
+	for (branch = 0; branch < MAX_BRANCHES; branch++) {
+		n = snprintf(p, space, "       branch %d       | ", branch);
 		p += n;
 		space -= n;
 	}
