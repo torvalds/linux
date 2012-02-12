@@ -61,7 +61,7 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	plat_dat = pdev->dev.platform_data;
 	priv = stmmac_dvr_probe(&(pdev->dev), plat_dat);
 	if (!priv) {
-		pr_err("%s: main drivr probe failed", __func__);
+		pr_err("%s: main driver probe failed", __func__);
 		goto out_unmap;
 	}
 
