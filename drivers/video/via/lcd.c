@@ -55,8 +55,7 @@ static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 		      int panel_vres);
 static void via_pitch_alignment_patch_lcd(
 	struct lvds_setting_information *plvds_setting_info,
-				   struct lvds_chip_information
-				   *plvds_chip_info);
+	struct lvds_chip_information *plvds_chip_info, int hres);
 static void lcd_patch_skew_dvp0(struct lvds_setting_information
 			 *plvds_setting_info,
 			 struct lvds_chip_information *plvds_chip_info);
@@ -456,14 +455,13 @@ static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 
 static void via_pitch_alignment_patch_lcd(
 	struct lvds_setting_information *plvds_setting_info,
-				   struct lvds_chip_information
-				   *plvds_chip_info)
+	struct lvds_chip_information *plvds_chip_info, int hres)
 {
 	unsigned char cr13, cr35, cr65, cr66, cr67;
 	unsigned long dwScreenPitch = 0;
 	unsigned long dwPitch;
 
-	dwPitch = plvds_setting_info->h_active * (plvds_setting_info->bpp >> 3);
+	dwPitch = hres * (plvds_setting_info->bpp >> 3);
 	if (dwPitch & 0x1F) {
 		dwScreenPitch = ((dwPitch + 31) & ~31) >> 3;
 		if (plvds_setting_info->iga_path == IGA2) {
@@ -548,13 +546,14 @@ static void lcd_patch_skew(struct lvds_setting_information
 }
 
 /* LCD Set Mode */
-void viafb_lcd_set_mode(struct lvds_setting_information *plvds_setting_info,
+void viafb_lcd_set_mode(const struct fb_var_screeninfo *var, u16 cxres,
+	u16 cyres, struct lvds_setting_information *plvds_setting_info,
 	struct lvds_chip_information *plvds_chip_info)
 {
 	int set_iga = plvds_setting_info->iga_path;
 	int mode_bpp = plvds_setting_info->bpp;
-	int set_hres = plvds_setting_info->h_active;
-	int set_vres = plvds_setting_info->v_active;
+	int set_hres = cxres ? cxres : var->xres;
+	int set_vres = cyres ? cyres : var->yres;
 	int panel_hres = plvds_setting_info->lcd_panel_hres;
 	int panel_vres = plvds_setting_info->lcd_panel_vres;
 	u32 clock;
@@ -613,7 +612,8 @@ void viafb_lcd_set_mode(struct lvds_setting_information *plvds_setting_info,
 		viafb_write_reg_mask(CR6A, VIACR, 0x01, BIT0);
 
 	/* Patch for non 32bit alignment mode */
-	via_pitch_alignment_patch_lcd(plvds_setting_info, plvds_chip_info);
+	via_pitch_alignment_patch_lcd(plvds_setting_info, plvds_chip_info,
+		set_hres);
 }
 
 static void integrated_lvds_disable(struct lvds_setting_information
