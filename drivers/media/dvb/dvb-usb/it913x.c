@@ -412,11 +412,13 @@ static int ite_firmware_select(struct usb_device *udev,
 	case IT9135_V1_FW:
 		it913x_config.firmware_ver = 1;
 		it913x_config.adc_x2 = 1;
+		it913x_config.read_slevel = false;
 		props->firmware = fw_it9135_v1;
 		break;
 	case IT9135_V2_FW:
 		it913x_config.firmware_ver = 1;
 		it913x_config.adc_x2 = 1;
+		it913x_config.read_slevel = false;
 		props->firmware = fw_it9135_v2;
 		switch (it913x_config.tuner_id_0) {
 		case IT9135_61:
@@ -432,6 +434,7 @@ static int ite_firmware_select(struct usb_device *udev,
 	default:
 		it913x_config.firmware_ver = 0;
 		it913x_config.adc_x2 = 0;
+		it913x_config.read_slevel = true;
 		props->firmware = fw_it9137;
 	}
 
