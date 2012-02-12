@@ -1307,25 +1307,26 @@ static int tcp_match_skb_to_sack(struct sock *sk, struct sk_buff *skb,
 	return in_sack;
 }
 
-static u8 tcp_sacktag_one(const struct sk_buff *skb, struct sock *sk,
-			  struct tcp_sacktag_state *state,
+/* Mark the given newly-SACKed range as such, adjusting counters and hints. */
+static u8 tcp_sacktag_one(struct sock *sk,
+			  struct tcp_sacktag_state *state, u8 sacked,
+			  u32 start_seq, u32 end_seq,
 			  int dup_sack, int pcount)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	u8 sacked = TCP_SKB_CB(skb)->sacked;
 	int fack_count = state->fack_count;
 
 	/* Account D-SACK for retransmitted packet. */
 	if (dup_sack && (sacked & TCPCB_RETRANS)) {
 		if (tp->undo_marker && tp->undo_retrans &&
-		    after(TCP_SKB_CB(skb)->end_seq, tp->undo_marker))
+		    after(end_seq, tp->undo_marker))
 			tp->undo_retrans--;
 		if (sacked & TCPCB_SACKED_ACKED)
 			state->reord = min(fack_count, state->reord);
 	}
 
 	/* Nothing to do; acked frame is about to be dropped (was ACKed). */
-	if (!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una))
+	if (!after(end_seq, tp->snd_una))
 		return sacked;
 
 	if (!(sacked & TCPCB_SACKED_ACKED)) {
@@ -1344,13 +1345,13 @@ static u8 tcp_sacktag_one(const struct sk_buff *skb, struct sock *sk,
 				/* New sack for not retransmitted frame,
 				 * which was in hole. It is reordering.
 				 */
-				if (before(TCP_SKB_CB(skb)->seq,
+				if (before(start_seq,
 					   tcp_highest_sack_seq(tp)))
 					state->reord = min(fack_count,
 							   state->reord);
 
 				/* SACK enhanced F-RTO (RFC4138; Appendix B) */
-				if (!after(TCP_SKB_CB(skb)->end_seq, tp->frto_highmark))
+				if (!after(end_seq, tp->frto_highmark))
 					state->flag |= FLAG_ONLY_ORIG_SACKED;
 			}
 
@@ -1368,8 +1369,7 @@ static u8 tcp_sacktag_one(const struct sk_buff *skb, struct sock *sk,
 
 		/* Lost marker hint past SACKed? Tweak RFC3517 cnt */
 		if (!tcp_is_fack(tp) && (tp->lost_skb_hint != NULL) &&
-		    before(TCP_SKB_CB(skb)->seq,
-			   TCP_SKB_CB(tp->lost_skb_hint)->seq))
+		    before(start_seq, TCP_SKB_CB(tp->lost_skb_hint)->seq))
 			tp->lost_cnt_hint += pcount;
 
 		if (fack_count > tp->fackets_out)
@@ -1425,7 +1425,11 @@ static int tcp_shifted_skb(struct sock *sk, struct sk_buff *skb,
 	}
 
 	/* We discard results */
-	tcp_sacktag_one(skb, sk, state, dup_sack, pcount);
+	tcp_sacktag_one(sk, state,
+			TCP_SKB_CB(skb)->sacked,
+			TCP_SKB_CB(skb)->seq,
+			TCP_SKB_CB(skb)->end_seq,
+			dup_sack, pcount);
 
 	/* Difference in this won't matter, both ACKed by the same cumul. ACK */
 	TCP_SKB_CB(prev)->sacked |= (TCP_SKB_CB(skb)->sacked & TCPCB_EVER_RETRANS);
@@ -1664,10 +1668,14 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 			break;
 
 		if (in_sack) {
-			TCP_SKB_CB(skb)->sacked = tcp_sacktag_one(skb, sk,
-								  state,
-								  dup_sack,
-								  tcp_skb_pcount(skb));
+			TCP_SKB_CB(skb)->sacked =
+				tcp_sacktag_one(sk,
+						state,
+						TCP_SKB_CB(skb)->sacked,
+						TCP_SKB_CB(skb)->seq,
+						TCP_SKB_CB(skb)->end_seq,
+						dup_sack,
+						tcp_skb_pcount(skb));
 
 			if (!before(TCP_SKB_CB(skb)->seq,
 				    tcp_highest_sack_seq(tp)))
