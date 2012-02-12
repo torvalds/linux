@@ -1121,15 +1121,4 @@ static struct i2c_driver tvp5150_driver = {
 	.id_table	= tvp5150_id,
 };
 
-static __init int init_tvp5150(void)
-{
-	return i2c_add_driver(&tvp5150_driver);
-}
-
-static __exit void exit_tvp5150(void)
-{
-	i2c_del_driver(&tvp5150_driver);
-}
-
-module_init(init_tvp5150);
-module_exit(exit_tvp5150);
+module_i2c_driver(tvp5150_driver);

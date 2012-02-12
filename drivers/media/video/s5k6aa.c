@@ -1663,18 +1663,7 @@ static struct i2c_driver s5k6aa_i2c_driver = {
 	.id_table	= s5k6aa_id,
 };
 
-static int __init s5k6aa_init(void)
-{
-	return i2c_add_driver(&s5k6aa_i2c_driver);
-}
-
-static void __exit s5k6aa_exit(void)
-{
-	i2c_del_driver(&s5k6aa_i2c_driver);
-}
-
-module_init(s5k6aa_init);
-module_exit(s5k6aa_exit);
+module_i2c_driver(s5k6aa_i2c_driver);
 
 MODULE_DESCRIPTION("Samsung S5K6AA(FX) SXGA camera driver");
 MODULE_AUTHOR("Sylwester Nawrocki <s.nawrocki@samsung.com>");

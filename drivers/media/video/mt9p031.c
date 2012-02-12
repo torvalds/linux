@@ -945,18 +945,7 @@ static struct i2c_driver mt9p031_i2c_driver = {
 	.id_table       = mt9p031_id,
 };
 
-static int __init mt9p031_mod_init(void)
-{
-	return i2c_add_driver(&mt9p031_i2c_driver);
-}
-
-static void __exit mt9p031_mod_exit(void)
-{
-	i2c_del_driver(&mt9p031_i2c_driver);
-}
-
-module_init(mt9p031_mod_init);
-module_exit(mt9p031_mod_exit);
+module_i2c_driver(mt9p031_i2c_driver);
 
 MODULE_DESCRIPTION("Aptina MT9P031 Camera driver");
 MODULE_AUTHOR("Bastian Hecht <hechtb@gmail.com>");

@@ -539,33 +539,7 @@ static struct i2c_driver si470x_i2c_driver = {
 	.id_table		= si470x_i2c_id,
 };
 
-
-
-/**************************************************************************
- * Module Interface
- **************************************************************************/
-
-/*
- * si470x_i2c_init - module init
- */
-static int __init si470x_i2c_init(void)
-{
-	printk(KERN_INFO DRIVER_DESC ", Version " DRIVER_VERSION "\n");
-	return i2c_add_driver(&si470x_i2c_driver);
-}
-
-
-/*
- * si470x_i2c_exit - module exit
- */
-static void __exit si470x_i2c_exit(void)
-{
-	i2c_del_driver(&si470x_i2c_driver);
-}
-
-
-module_init(si470x_i2c_init);
-module_exit(si470x_i2c_exit);
+module_i2c_driver(si470x_i2c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRIVER_AUTHOR);

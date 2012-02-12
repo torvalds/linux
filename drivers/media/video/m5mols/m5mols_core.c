@@ -1057,18 +1057,7 @@ static struct i2c_driver m5mols_i2c_driver = {
 	.id_table	= m5mols_id,
 };
 
-static int __init m5mols_mod_init(void)
-{
-	return i2c_add_driver(&m5mols_i2c_driver);
-}
-
-static void __exit m5mols_mod_exit(void)
-{
-	i2c_del_driver(&m5mols_i2c_driver);
-}
-
-module_init(m5mols_mod_init);
-module_exit(m5mols_mod_exit);
+module_i2c_driver(m5mols_i2c_driver);
 
 MODULE_AUTHOR("HeungJun Kim <riverful.kim@samsung.com>");
 MODULE_AUTHOR("Dongsoo Kim <dongsoo45.kim@samsung.com>");

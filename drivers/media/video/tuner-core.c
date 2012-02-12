@@ -1329,18 +1329,7 @@ static struct i2c_driver tuner_driver = {
 	.id_table	= tuner_id,
 };
 
-static __init int init_tuner(void)
-{
-	return i2c_add_driver(&tuner_driver);
-}
-
-static __exit void exit_tuner(void)
-{
-	i2c_del_driver(&tuner_driver);
-}
-
-module_init(init_tuner);
-module_exit(exit_tuner);
+module_i2c_driver(tuner_driver);
 
 MODULE_DESCRIPTION("device driver for various TV and TV+FM radio tuners");
 MODULE_AUTHOR("Ralph Metzler, Gerd Knorr, Gunther Mayer");

@@ -1001,18 +1001,7 @@ static struct i2c_driver saa6752hs_driver = {
 	.id_table	= saa6752hs_id,
 };
 
-static __init int init_saa6752hs(void)
-{
-	return i2c_add_driver(&saa6752hs_driver);
-}
-
-static __exit void exit_saa6752hs(void)
-{
-	i2c_del_driver(&saa6752hs_driver);
-}
-
-module_init(init_saa6752hs);
-module_exit(exit_saa6752hs);
+module_i2c_driver(saa6752hs_driver);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.
