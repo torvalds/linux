@@ -1435,28 +1435,7 @@ static struct i2c_driver wm9081_i2c_driver = {
 };
 #endif
 
-static int __init wm9081_modinit(void)
-{
-	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	ret = i2c_add_driver(&wm9081_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register WM9081 I2C driver: %d\n",
-		       ret);
-	}
-#endif
-	return ret;
-}
-module_init(wm9081_modinit);
-
-static void __exit wm9081_exit(void)
-{
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	i2c_del_driver(&wm9081_i2c_driver);
-#endif
-}
-module_exit(wm9081_exit);
-
+module_i2c_driver(wm9081_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM9081 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
