@@ -1,0 +1,29 @@
+/*
+ * at91sam9g20ek_2mmc.dts - Device Tree file for Atmel at91sam9g20ek 2 MMC board
+ *
+ * Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+ *
+ * Licensed under GPLv2.
+ */
+/dts-v1/;
+/include/ "at91sam9g20ek_common.dtsi"
+
+/ {
+	model = "Atmel at91sam9g20ek 2 mmc";
+	compatible = "atmel,at91sam9g20ek_2mmc", "atmel,at91sam9g20", "atmel,at91sam9";
+
+	leds {
+		compatible = "gpio-leds";
+
+		ds1 {
+			label = "ds1";
+			gpios = <&pioB 9 0>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		ds5 {
+			label = "ds5";
+			gpios = <&pioB 8 1>;
+		};
+	};
+};
