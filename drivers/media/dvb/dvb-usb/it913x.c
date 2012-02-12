@@ -64,6 +64,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 struct it913x_state {
 	u8 id;
 	struct ite_config it913x_config;
+	u8 pid_filter_onoff;
 };
 
 struct ite_config it913x_config;
@@ -259,6 +260,7 @@ static u32 it913x_query(struct usb_device *udev, u8 pro)
 
 static int it913x_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
+	struct it913x_state *st = adap->dev->priv;
 	struct usb_device *udev = adap->dev->udev;
 	int ret;
 	u8 pro = (adap->id == 0) ? DEV_0_DMOD : DEV_1_DMOD;
@@ -267,7 +269,7 @@ static int it913x_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 	deb_info(1, "PID_C  (%02x)", onoff);
 
-	ret = it913x_wr_reg(udev, pro, PID_EN, onoff);
+	ret = it913x_wr_reg(udev, pro, PID_EN, st->pid_filter_onoff);
 
 	mutex_unlock(&adap->dev->i2c_mutex);
 	return ret;
@@ -276,6 +278,7 @@ static int it913x_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 static int it913x_pid_filter(struct dvb_usb_adapter *adap,
 		int index, u16 pid, int onoff)
 {
+	struct it913x_state *st = adap->dev->priv;
 	struct usb_device *udev = adap->dev->udev;
 	int ret;
 	u8 pro = (adap->id == 0) ? DEV_0_DMOD : DEV_1_DMOD;
@@ -291,6 +294,13 @@ static int it913x_pid_filter(struct dvb_usb_adapter *adap,
 	ret |= it913x_wr_reg(udev, pro, PID_INX_EN, (u8)onoff);
 
 	ret |= it913x_wr_reg(udev, pro, PID_INX, (u8)(index & 0x1f));
+
+	if (udev->speed == USB_SPEED_HIGH && pid == 0x2000) {
+			ret |= it913x_wr_reg(udev, pro, PID_EN, !onoff);
+			st->pid_filter_onoff = !onoff;
+	} else
+		st->pid_filter_onoff =
+			adap->fe_adap[adap->active_fe].pid_filtering;
 
 	mutex_unlock(&adap->dev->i2c_mutex);
 	return 0;
@@ -599,6 +609,7 @@ static int it913x_identify_state(struct usb_device *udev,
 
 static int it913x_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
+	struct it913x_state *st = adap->dev->priv;
 	int ret = 0;
 	u8 pro = (adap->id == 0) ? DEV_0_DMOD : DEV_1_DMOD;
 
@@ -610,6 +621,9 @@ static int it913x_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 		ret = it913x_wr_reg(adap->dev->udev, pro, PID_RST, 0x1);
 
 		mutex_unlock(&adap->dev->i2c_mutex);
+		st->pid_filter_onoff =
+			adap->fe_adap[adap->active_fe].pid_filtering;
+
 	}
 
 	return ret;
@@ -884,5 +898,5 @@ module_usb_driver(it913x_driver);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("it913x USB 2 Driver");
-MODULE_VERSION("1.26");
+MODULE_VERSION("1.27");
 MODULE_LICENSE("GPL");
