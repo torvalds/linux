@@ -1258,7 +1258,6 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 {
 	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 	int ret;
-	u16 reg;
 
 	codec->control_data = wm9081->regmap;
 
@@ -1267,16 +1266,6 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
 	}
-
-	reg = 0;
-	if (wm9081->pdata.irq_high)
-		reg |= WM9081_IRQ_POL;
-	if (!wm9081->pdata.irq_cmos)
-		reg |= WM9081_IRQ_OP_CTRL;
-	snd_soc_update_bits(codec, WM9081_INTERRUPT_CONTROL,
-			    WM9081_IRQ_POL | WM9081_IRQ_OP_CTRL, reg);
-
-	wm9081_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Enable zero cross by default */
 	snd_soc_update_bits(codec, WM9081_ANALOGUE_LINEOUT,
@@ -1394,6 +1383,15 @@ static __devinit int wm9081_i2c_probe(struct i2c_client *i2c,
 	if (dev_get_platdata(&i2c->dev))
 		memcpy(&wm9081->pdata, dev_get_platdata(&i2c->dev),
 		       sizeof(wm9081->pdata));
+
+	reg = 0;
+	if (wm9081->pdata.irq_high)
+		reg |= WM9081_IRQ_POL;
+	if (!wm9081->pdata.irq_cmos)
+		reg |= WM9081_IRQ_OP_CTRL;
+	regmap_update_bits(wm9081->regmap, WM9081_INTERRUPT_CONTROL,
+			   WM9081_IRQ_POL | WM9081_IRQ_OP_CTRL, reg);
+
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm9081, &wm9081_dai, 1);
