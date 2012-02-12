@@ -52,7 +52,7 @@ static __init int pm_simtec_init(void)
 	    !machine_is_aml_m5900())
 		return 0;
 
-	printk(KERN_INFO "Simtec Board Power Manangement" COPYRIGHT "\n");
+	printk(KERN_INFO "Simtec Board Power Management" COPYRIGHT "\n");
 
 	gstatus4  = (__raw_readl(S3C2410_BANKCON7) & 0x3) << 30;
 	gstatus4 |= (__raw_readl(S3C2410_BANKCON6) & 0x3) << 28;
