@@ -445,7 +445,7 @@ static void ks8851_init_mac(struct ks8851_net *ks)
 
 /**
  * ks8851_irq - device interrupt handler
- * @irq: Interrupt number passed from the IRQ hnalder.
+ * @irq: Interrupt number passed from the IRQ handler.
  * @pw: The private word passed to register_irq(), our struct ks8851_net.
  *
  * Disable the interrupt from happening again until we've processed the

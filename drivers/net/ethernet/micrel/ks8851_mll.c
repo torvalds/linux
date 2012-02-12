@@ -839,7 +839,7 @@ static void ks_update_link_status(struct net_device *netdev, struct ks_net *ks)
 
 /**
  * ks_irq - device interrupt handler
- * @irq: Interrupt number passed from the IRQ hnalder.
+ * @irq: Interrupt number passed from the IRQ handler.
  * @pw: The private word passed to register_irq(), our struct ks_net.
  *
  * This is the handler invoked to find out what happened
