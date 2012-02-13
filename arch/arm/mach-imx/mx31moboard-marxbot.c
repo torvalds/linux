@@ -291,7 +291,7 @@ static int marxbot_isp1105_init(struct usb_phy *otg)
 }
 
 
-static int marxbot_isp1105_set_vbus(struct usb_phy *otg, bool on)
+static int marxbot_isp1105_set_vbus(struct usb_otg *otg, bool on)
 {
 	if (on)
 		gpio_set_value(USBH1_VBUSEN_B, 0);
@@ -308,18 +308,24 @@ static struct mxc_usbh_platform_data usbh1_pdata __initdata = {
 
 static int __init marxbot_usbh1_init(void)
 {
-	struct usb_phy *otg;
+	struct usb_phy *phy;
 	struct platform_device *pdev;
 
-	otg = kzalloc(sizeof(*otg), GFP_KERNEL);
-	if (!otg)
+	phy = kzalloc(sizeof(*phy), GFP_KERNEL);
+	if (!phy)
 		return -ENOMEM;
 
-	otg->label	= "ISP1105";
-	otg->init	= marxbot_isp1105_init;
-	otg->set_vbus	= marxbot_isp1105_set_vbus;
+	phy->otg = kzalloc(sizeof(struct usb_otg), GFP_KERNEL);
+	if (!phy->otg) {
+		kfree(phy);
+		return -ENOMEM;
+	}
 
-	usbh1_pdata.otg = otg;
+	phy->label	= "ISP1105";
+	phy->init	= marxbot_isp1105_init;
+	phy->otg->set_vbus	= marxbot_isp1105_set_vbus;
+
+	usbh1_pdata.otg = phy;
 
 	pdev = imx31_add_mxc_ehci_hs(1, &usbh1_pdata);
 	if (IS_ERR(pdev))
