@@ -172,23 +172,23 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 
 	ret_val = e1000_read_nvm(hw, NVM_COMPAT, 1, &nvm_data);
 	if (ret_val)
-		goto out;
+		return ret_val;
 
 	/* not supported on 82573 */
 	if (hw->mac.type == e1000_82573)
-		goto out;
+		return 0;
 
 	ret_val = e1000_read_nvm(hw, NVM_ALT_MAC_ADDR_PTR, 1,
 				 &nvm_alt_mac_addr_offset);
 	if (ret_val) {
 		e_dbg("NVM Read Error\n");
-		goto out;
+		return ret_val;
 	}
 
 	if ((nvm_alt_mac_addr_offset == 0xFFFF) ||
 	    (nvm_alt_mac_addr_offset == 0x0000))
 		/* There is no Alternate MAC Address */
-		goto out;
+		return 0;
 
 	if (hw->bus.func == E1000_FUNC_1)
 		nvm_alt_mac_addr_offset += E1000_ALT_MAC_ADDRESS_OFFSET_LAN1;
@@ -197,7 +197,7 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 		ret_val = e1000_read_nvm(hw, offset, 1, &nvm_data);
 		if (ret_val) {
 			e_dbg("NVM Read Error\n");
-			goto out;
+			return ret_val;
 		}
 
 		alt_mac_addr[i] = (u8)(nvm_data & 0xFF);
@@ -207,7 +207,7 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 	/* if multicast bit is set, the alternate address will not be used */
 	if (is_multicast_ether_addr(alt_mac_addr)) {
 		e_dbg("Ignoring Alternate Mac Address with MC bit set\n");
-		goto out;
+		return 0;
 	}
 
 	/*
@@ -217,8 +217,7 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 	 */
 	e1000e_rar_set(hw, alt_mac_addr, 0);
 
-out:
-	return ret_val;
+	return 0;
 }
 
 /**
@@ -444,7 +443,7 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 		return ret_val;
 
 	if (!link)
-		return ret_val;	/* No link detected */
+		return 0;	/* No link detected */
 
 	mac->get_link_status = false;
 
@@ -458,10 +457,8 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 	 * If we are forcing speed/duplex, then we simply return since
 	 * we have already determined whether we have link or not.
 	 */
-	if (!mac->autoneg) {
-		ret_val = -E1000_ERR_CONFIG;
-		return ret_val;
-	}
+	if (!mac->autoneg)
+		return -E1000_ERR_CONFIG;
 
 	/*
 	 * Auto-Neg is enabled.  Auto Speed Detection takes care
@@ -924,7 +921,7 @@ s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw)
 		e_dbg("No signal detected\n");
 	}
 
-	return 0;
+	return ret_val;
 }
 
 /**

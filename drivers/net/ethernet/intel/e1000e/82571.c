@@ -564,7 +564,6 @@ static void e1000_put_hw_semaphore_82571(struct e1000_hw *hw)
 static s32 e1000_get_hw_semaphore_82573(struct e1000_hw *hw)
 {
 	u32 extcnf_ctrl;
-	s32 ret_val = 0;
 	s32 i = 0;
 
 	extcnf_ctrl = er32(EXTCNF_CTRL);
@@ -586,12 +585,10 @@ static s32 e1000_get_hw_semaphore_82573(struct e1000_hw *hw)
 		/* Release semaphores */
 		e1000_put_hw_semaphore_82573(hw);
 		e_dbg("Driver can't access the PHY\n");
-		ret_val = -E1000_ERR_PHY;
-		goto out;
+		return -E1000_ERR_PHY;
 	}
 
-out:
-	return ret_val;
+	return 0;
 }
 
 /**
@@ -796,7 +793,7 @@ static s32 e1000_update_nvm_checksum_82571(struct e1000_hw *hw)
 	 * otherwise, commit the checksum to the flash NVM.
 	 */
 	if (hw->nvm.type != e1000_nvm_flash_hw)
-		return ret_val;
+		return 0;
 
 	/* Check for pending operations. */
 	for (i = 0; i < E1000_FLASH_UPDATES; i++) {
@@ -1409,7 +1406,6 @@ bool e1000_check_phy_82574(struct e1000_hw *hw)
 {
 	u16 status_1kbt = 0;
 	u16 receive_errors = 0;
-	bool phy_hung = false;
 	s32 ret_val = 0;
 
 	/*
@@ -1417,19 +1413,18 @@ bool e1000_check_phy_82574(struct e1000_hw *hw)
 	 * read the Base1000T status register If both are max then PHY is hung.
 	 */
 	ret_val = e1e_rphy(hw, E1000_RECEIVE_ERROR_COUNTER, &receive_errors);
-
 	if (ret_val)
-		goto out;
+		return false;
 	if (receive_errors == E1000_RECEIVE_ERROR_MAX)  {
 		ret_val = e1e_rphy(hw, E1000_BASE1000T_STATUS, &status_1kbt);
 		if (ret_val)
-			goto out;
+			return false;
 		if ((status_1kbt & E1000_IDLE_ERROR_COUNT_MASK) ==
 		    E1000_IDLE_ERROR_COUNT_MASK)
-			phy_hung = true;
+			return true;
 	}
-out:
-	return phy_hung;
+
+	return false;
 }
 
 /**
@@ -1497,9 +1492,7 @@ static s32 e1000_setup_copper_link_82571(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	ret_val = e1000e_setup_copper_link(hw);
-
-	return ret_val;
+	return e1000e_setup_copper_link(hw);
 }
 
 /**
@@ -1833,9 +1826,9 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw)
  **/
 static s32 e1000_read_mac_addr_82571(struct e1000_hw *hw)
 {
-	s32 ret_val = 0;
-
 	if (hw->mac.type == e1000_82571) {
+		s32 ret_val = 0;
+
 		/*
 		 * If there's an alternate MAC address place it in RAR0
 		 * so that it will override the Si installed default perm
@@ -1843,13 +1836,10 @@ static s32 e1000_read_mac_addr_82571(struct e1000_hw *hw)
 		 */
 		ret_val = e1000_check_alt_mac_addr_generic(hw);
 		if (ret_val)
-			goto out;
+			return ret_val;
 	}
 
-	ret_val = e1000_read_mac_addr_generic(hw);
-
-out:
-	return ret_val;
+	return e1000_read_mac_addr_generic(hw);
 }
 
 /**
