@@ -5446,40 +5446,36 @@ il4965_down(struct il_priv *il)
 	il4965_cancel_deferred_work(il);
 }
 
-#define HW_READY_TIMEOUT (50)
 
-static int
+static void
 il4965_set_hw_ready(struct il_priv *il)
 {
-	int ret = 0;
+	int ret;
 
 	il_set_bit(il, CSR_HW_IF_CONFIG_REG,
 		   CSR_HW_IF_CONFIG_REG_BIT_NIC_READY);
 
 	/* See if we got it */
-	ret =
-	    _il_poll_bit(il, CSR_HW_IF_CONFIG_REG,
-			 CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
-			 CSR_HW_IF_CONFIG_REG_BIT_NIC_READY, HW_READY_TIMEOUT);
-	if (ret != -ETIMEDOUT)
+	ret = _il_poll_bit(il, CSR_HW_IF_CONFIG_REG,
+			   CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
+			   CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
+			   100);
+	if (ret >= 0)
 		il->hw_ready = true;
-	else
-		il->hw_ready = false;
 
-	D_INFO("hardware %s\n", (il->hw_ready == 1) ? "ready" : "not ready");
-	return ret;
+	D_INFO("hardware %s ready\n", (il->hw_ready) ? "" : "not");
 }
 
-static int
+static void
 il4965_prepare_card_hw(struct il_priv *il)
 {
-	int ret = 0;
+	int ret;
 
-	D_INFO("il4965_prepare_card_hw enter\n");
+	il->hw_ready = false;
 
-	ret = il4965_set_hw_ready(il);
+	il4965_set_hw_ready(il);
 	if (il->hw_ready)
-		return ret;
+		return;
 
 	/* If HW is not ready, prepare the conditions to check again */
 	il_set_bit(il, CSR_HW_IF_CONFIG_REG, CSR_HW_IF_CONFIG_REG_PREPARE);
@@ -5492,8 +5488,6 @@ il4965_prepare_card_hw(struct il_priv *il)
 	/* HW should be ready by now, check again. */
 	if (ret != -ETIMEDOUT)
 		il4965_set_hw_ready(il);
-
-	return ret;
 }
 
 #define MAX_HW_RESTARTS 5
@@ -5521,9 +5515,8 @@ __il4965_up(struct il_priv *il)
 	}
 
 	il4965_prepare_card_hw(il);
-
 	if (!il->hw_ready) {
-		IL_WARN("Exit HW not ready\n");
+		IL_ERR("HW not ready\n");
 		return -EIO;
 	}
 
