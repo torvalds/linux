@@ -2165,7 +2165,7 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 				halt_status = qla4_8xxx_rd_32(ha,
 						QLA82XX_PEG_HALT_STATUS1);
 
-				if (LSW(MSB(halt_status)) == 0x67)
+				if (QLA82XX_FWERROR_CODE(halt_status) == 0x67)
 					ql4_printk(KERN_ERR, ha, "%s:"
 						   " Firmware aborted with"
 						   " error code 0x00006700."
