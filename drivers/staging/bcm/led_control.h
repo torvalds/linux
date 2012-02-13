@@ -63,11 +63,9 @@ typedef enum LedEvents {
 	IDLEMODE_CONTINUE = 0x40,
 	IDLEMODE_EXIT = 0x80,
 	LED_THREAD_INACTIVE = 0x100,  /* Makes the LED thread Inactivce. It wil be equivallent to putting the thread on hold. */
-	LED_THREAD_ACTIVE = 0x200    /* Makes the LED Thread Active back. */
+	LED_THREAD_ACTIVE = 0x200,    /* Makes the LED Thread Active back. */
+	DRIVER_HALT = 0xff
 } LedEventInfo_t;	/* Enumerated values of different driver states */
-
-#define DRIVER_HALT 0xff
-
 
 /*
  * Structure which stores the information of different LED types
