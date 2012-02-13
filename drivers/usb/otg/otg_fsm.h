@@ -82,7 +82,7 @@ struct otg_fsm {
 	int loc_sof;
 
 	struct otg_fsm_ops *ops;
-	struct usb_phy *transceiver;
+	struct usb_otg *otg;
 
 	/* Current usb protocol used: 0:undefine; 1:host; 2:client */
 	int protocol;
