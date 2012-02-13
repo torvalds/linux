@@ -1811,7 +1811,7 @@ il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	dma_unmap_len_set(out_meta, len, firstlen);
 	/* Add buffer containing Tx command and MAC(!) header to TFD's
 	 * first entry */
-	il->ops->lib->txq_attach_buf_to_tfd(il, txq, txcmd_phys, firstlen, 1, 0);
+	il->ops->txq_attach_buf_to_tfd(il, txq, txcmd_phys, firstlen, 1, 0);
 
 	if (!ieee80211_has_morefrags(hdr->frame_control)) {
 		txq->need_update = 1;
@@ -1827,8 +1827,8 @@ il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 		phys_addr =
 		    pci_map_single(il->pci_dev, skb->data + hdr_len, secondlen,
 				   PCI_DMA_TODEVICE);
-		il->ops->lib->txq_attach_buf_to_tfd(il, txq, phys_addr,
-						    secondlen, 0, 0);
+		il->ops->txq_attach_buf_to_tfd(il, txq, phys_addr, secondlen,
+					       0, 0);
 	}
 
 	scratch_phys =
@@ -1848,8 +1848,7 @@ il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	/* Set up entry for this TFD in Tx byte-count array */
 	if (info->flags & IEEE80211_TX_CTL_AMPDU)
-		il->ops->lib->txq_update_byte_cnt_tbl(il, txq,
-						      le16_to_cpu(tx_cmd->len));
+		il->ops->txq_update_byte_cnt_tbl(il, txq, le16_to_cpu(tx_cmd->len));
 
 	pci_dma_sync_single_for_device(il->pci_dev, txcmd_phys, firstlen,
 				       PCI_DMA_BIDIRECTIONAL);
@@ -2470,7 +2469,7 @@ il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx)
 		il4965_tx_status(il, skb, txq_id >= IL4965_FIRST_AMPDU_QUEUE);
 
 		txq->skbs[txq->q.read_ptr] = NULL;
-		il->ops->lib->txq_free_tfd(il, txq);
+		il->ops->txq_free_tfd(il, txq);
 	}
 	return nfreed;
 }
@@ -5072,7 +5071,7 @@ il4965_dump_nic_error_log(struct il_priv *il)
 	else
 		base = le32_to_cpu(il->card_alive.error_event_table_ptr);
 
-	if (!il->ops->lib->is_valid_rtc_data_addr(base)) {
+	if (!il->ops->is_valid_rtc_data_addr(base)) {
 		IL_ERR("Not valid error log pointer 0x%08X for %s uCode\n",
 		       base, (il->ucode_type == UCODE_INIT) ? "Init" : "RT");
 		return;
@@ -5574,7 +5573,7 @@ __il4965_up(struct il_priv *il)
 		/* load bootstrap state machine,
 		 * load bootstrap program into processor's memory,
 		 * prepare to load the "initialize" uCode */
-		ret = il->ops->lib->load_ucode(il);
+		ret = il->ops->load_ucode(il);
 
 		if (ret) {
 			IL_ERR("Unable to set up bootstrap uCode: %d\n", ret);
@@ -5615,7 +5614,7 @@ il4965_bg_init_alive_start(struct work_struct *data)
 	if (test_bit(S_EXIT_PENDING, &il->status))
 		goto out;
 
-	il->ops->lib->init_alive_start(il);
+	il->ops->init_alive_start(il);
 out:
 	mutex_unlock(&il->mutex);
 }
@@ -6047,7 +6046,7 @@ il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	if (!il_is_associated(il))
 		goto out;
 
-	if (!il->ops->lib->set_channel_switch)
+	if (!il->ops->set_channel_switch)
 		goto out;
 
 	ch = channel->hw_value;
@@ -6099,7 +6098,7 @@ il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	 */
 	set_bit(S_CHANNEL_SWITCH_PENDING, &il->status);
 	il->switch_channel = cpu_to_le16(ch);
-	if (il->ops->lib->set_channel_switch(il, ch_switch)) {
+	if (il->ops->set_channel_switch(il, ch_switch)) {
 		clear_bit(S_CHANNEL_SWITCH_PENDING, &il->status);
 		il->switch_channel = 0;
 		ieee80211_chswitch_done(il->vif, false);
@@ -6182,7 +6181,7 @@ il4965_bg_txpower_work(struct work_struct *work)
 	/* Regardless of if we are associated, we must reconfigure the
 	 * TX power since frames can be sent on non-radar channels while
 	 * not associated */
-	il->ops->lib->send_tx_power(il);
+	il->ops->send_tx_power(il);
 
 	/* Update last_temperature to keep is_calib_needed from running
 	 * when it isn't needed... */

@@ -1578,7 +1578,20 @@ struct il_debugfs_ops {
 };
 #endif
 
-struct il_lib_ops {
+struct il_led_ops {
+	int (*cmd) (struct il_priv *il, struct il_led_cmd *led_cmd);
+};
+
+struct il_legacy_ops {
+	void (*post_associate) (struct il_priv *il);
+	void (*config_ap) (struct il_priv *il);
+	/* station management */
+	int (*update_bcast_stations) (struct il_priv *il);
+	int (*manage_ibss_station) (struct il_priv *il,
+				    struct ieee80211_vif *vif, bool add);
+};
+
+struct il_ops {
 	/* Handling TX */
 	void (*txq_update_byte_cnt_tbl) (struct il_priv *il,
 					 struct il_tx_queue *txq,
@@ -1609,23 +1622,7 @@ struct il_lib_ops {
 	/* eeprom operations */
 	int (*eeprom_acquire_semaphore) (struct il_priv *il);
 	void (*eeprom_release_semaphore) (struct il_priv *il);
-};
 
-struct il_led_ops {
-	int (*cmd) (struct il_priv *il, struct il_led_cmd *led_cmd);
-};
-
-struct il_legacy_ops {
-	void (*post_associate) (struct il_priv *il);
-	void (*config_ap) (struct il_priv *il);
-	/* station management */
-	int (*update_bcast_stations) (struct il_priv *il);
-	int (*manage_ibss_station) (struct il_priv *il,
-				    struct ieee80211_vif *vif, bool add);
-};
-
-struct il_ops {
-	const struct il_lib_ops *lib;
 	const struct il_hcmd_ops *hcmd;
 	const struct il_hcmd_utils_ops *utils;
 	const struct il_led_ops *led;

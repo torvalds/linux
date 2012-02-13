@@ -923,8 +923,8 @@ il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 	/* Some power changes may have been made during the calibration.
 	 * Update and commit the RXON
 	 */
-	if (il->ops->lib->update_chain_flags)
-		il->ops->lib->update_chain_flags(il);
+	if (il->ops->update_chain_flags)
+		il->ops->update_chain_flags(il);
 
 	data->state = IL_CHAIN_NOISE_DONE;
 	il_power_update_mode(il, false);

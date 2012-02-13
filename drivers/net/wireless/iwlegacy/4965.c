@@ -1889,7 +1889,14 @@ static struct il_hcmd_utils_ops il4965_hcmd_utils = {
 	.post_scan = il4965_post_scan,
 };
 
-static struct il_lib_ops il4965_lib = {
+static const struct il_legacy_ops il4965_legacy_ops = {
+	.post_associate = il4965_post_associate,
+	.config_ap = il4965_config_ap,
+	.manage_ibss_station = il4965_manage_ibss_station,
+	.update_bcast_stations = il4965_update_bcast_stations,
+};
+
+const struct il_ops il4965_ops = {
 	.txq_update_byte_cnt_tbl = il4965_txq_update_byte_cnt_tbl,
 	.txq_attach_buf_to_tfd = il4965_hw_txq_attach_buf_to_tfd,
 	.txq_free_tfd = il4965_hw_txq_free_tfd,
@@ -1905,17 +1912,7 @@ static struct il_lib_ops il4965_lib = {
 	.update_chain_flags = il4965_update_chain_flags,
 	.eeprom_acquire_semaphore = il4965_eeprom_acquire_semaphore,
 	.eeprom_release_semaphore = il4965_eeprom_release_semaphore,
-};
 
-static const struct il_legacy_ops il4965_legacy_ops = {
-	.post_associate = il4965_post_associate,
-	.config_ap = il4965_config_ap,
-	.manage_ibss_station = il4965_manage_ibss_station,
-	.update_bcast_stations = il4965_update_bcast_stations,
-};
-
-const struct il_ops il4965_ops = {
-	.lib = &il4965_lib,
 	.hcmd = &il4965_hcmd,
 	.utils = &il4965_hcmd_utils,
 	.led = &il4965_led_ops,

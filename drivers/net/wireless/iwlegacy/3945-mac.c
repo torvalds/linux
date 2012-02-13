@@ -616,7 +616,7 @@ il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	/* Add buffer containing Tx command and MAC(!) header to TFD's
 	 * first entry */
-	il->ops->lib->txq_attach_buf_to_tfd(il, txq, txcmd_phys, len, 1, 0);
+	il->ops->txq_attach_buf_to_tfd(il, txq, txcmd_phys, len, 1, 0);
 
 	/* Set up TFD's 2nd entry to point directly to remainder of skb,
 	 * if any (802.11 null frames have no payload). */
@@ -625,8 +625,8 @@ il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 		phys_addr =
 		    pci_map_single(il->pci_dev, skb->data + hdr_len, len,
 				   PCI_DMA_TODEVICE);
-		il->ops->lib->txq_attach_buf_to_tfd(il, txq, phys_addr, len, 0,
-						    U32_PAD(len));
+		il->ops->txq_attach_buf_to_tfd(il, txq, phys_addr, len, 0,
+					       U32_PAD(len));
 	}
 
 	/* Tell device the write idx *just past* this latest filled TFD */
@@ -2413,7 +2413,7 @@ __il3945_up(struct il_priv *il)
 		/* load bootstrap state machine,
 		 * load bootstrap program into processor's memory,
 		 * prepare to load the "initialize" uCode */
-		rc = il->ops->lib->load_ucode(il);
+		rc = il->ops->load_ucode(il);
 
 		if (rc) {
 			IL_ERR("Unable to set up bootstrap uCode: %d\n", rc);

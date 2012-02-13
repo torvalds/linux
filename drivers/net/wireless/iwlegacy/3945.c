@@ -303,7 +303,7 @@ il3945_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx)
 		skb = txq->skbs[txq->q.read_ptr];
 		ieee80211_tx_status_irqsafe(il->hw, skb);
 		txq->skbs[txq->q.read_ptr] = NULL;
-		il->ops->lib->txq_free_tfd(il, txq);
+		il->ops->txq_free_tfd(il, txq);
 	}
 
 	if (il_queue_space(q) > q->low_mark && txq_id >= 0 &&
@@ -1612,7 +1612,7 @@ il3945_hw_reg_comp_txpower_temp(struct il_priv *il)
 	}
 
 	/* send Txpower command for current channel to ucode */
-	return il->ops->lib->send_tx_power(il);
+	return il->ops->send_tx_power(il);
 }
 
 int
@@ -2634,19 +2634,6 @@ static struct il_hcmd_ops il3945_hcmd = {
 	.commit_rxon = il3945_commit_rxon,
 };
 
-static struct il_lib_ops il3945_lib = {
-	.txq_attach_buf_to_tfd = il3945_hw_txq_attach_buf_to_tfd,
-	.txq_free_tfd = il3945_hw_txq_free_tfd,
-	.txq_init = il3945_hw_tx_queue_init,
-	.load_ucode = il3945_load_bsm,
-	.dump_nic_error_log = il3945_dump_nic_error_log,
-	.apm_init = il3945_apm_init,
-	.send_tx_power = il3945_send_tx_power,
-	.is_valid_rtc_data_addr = il3945_hw_valid_rtc_data_addr,
-	.eeprom_acquire_semaphore = il3945_eeprom_acquire_semaphore,
-	.eeprom_release_semaphore = il3945_eeprom_release_semaphore,
-};
-
 static const struct il_legacy_ops il3945_legacy_ops = {
 	.post_associate = il3945_post_associate,
 	.config_ap = il3945_config_ap,
@@ -2661,7 +2648,17 @@ static struct il_hcmd_utils_ops il3945_hcmd_utils = {
 };
 
 const struct il_ops il3945_ops = {
-	.lib = &il3945_lib,
+	.txq_attach_buf_to_tfd = il3945_hw_txq_attach_buf_to_tfd,
+	.txq_free_tfd = il3945_hw_txq_free_tfd,
+	.txq_init = il3945_hw_tx_queue_init,
+	.load_ucode = il3945_load_bsm,
+	.dump_nic_error_log = il3945_dump_nic_error_log,
+	.apm_init = il3945_apm_init,
+	.send_tx_power = il3945_send_tx_power,
+	.is_valid_rtc_data_addr = il3945_hw_valid_rtc_data_addr,
+	.eeprom_acquire_semaphore = il3945_eeprom_acquire_semaphore,
+	.eeprom_release_semaphore = il3945_eeprom_release_semaphore,
+
 	.hcmd = &il3945_hcmd,
 	.utils = &il3945_hcmd_utils,
 	.led = &il3945_led_ops,

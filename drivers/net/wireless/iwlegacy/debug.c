@@ -1178,8 +1178,8 @@ il_dbgfs_fh_reg_read(struct file *file, char __user *user_buf, size_t count,
 	int pos = 0;
 	ssize_t ret = -EFAULT;
 
-	if (il->ops->lib->dump_fh) {
-		ret = pos = il->ops->lib->dump_fh(il, &buf, true);
+	if (il->ops->dump_fh) {
+		ret = pos = il->ops->dump_fh(il, &buf, true);
 		if (buf) {
 			ret =
 			    simple_read_from_buffer(user_buf, count, ppos, buf,

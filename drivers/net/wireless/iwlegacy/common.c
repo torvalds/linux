@@ -730,7 +730,7 @@ il_eeprom_init(struct il_priv *il)
 	}
 	e = (__le16 *) il->eeprom;
 
-	il->ops->lib->apm_init(il);
+	il->ops->apm_init(il);
 
 	ret = il_eeprom_verify_signature(il);
 	if (ret < 0) {
@@ -740,7 +740,7 @@ il_eeprom_init(struct il_priv *il)
 	}
 
 	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
-	ret = il->ops->lib->eeprom_acquire_semaphore(il);
+	ret = il->ops->eeprom_acquire_semaphore(il);
 	if (ret < 0) {
 		IL_ERR("Failed to acquire EEPROM semaphore.\n");
 		ret = -ENOENT;
@@ -772,7 +772,7 @@ il_eeprom_init(struct il_priv *il)
 
 	ret = 0;
 done:
-	il->ops->lib->eeprom_release_semaphore(il);
+	il->ops->eeprom_release_semaphore(il);
 
 err:
 	if (ret)
@@ -1155,9 +1155,9 @@ il_power_set_mode(struct il_priv *il, struct il_powertable_cmd *cmd, bool force)
 		if (!(cmd->flags & IL_POWER_DRIVER_ALLOW_SLEEP_MSK))
 			clear_bit(S_POWER_PMI, &il->status);
 
-		if (il->ops->lib->update_chain_flags && update_chains)
-			il->ops->lib->update_chain_flags(il);
-		else if (il->ops->lib->update_chain_flags)
+		if (il->ops->update_chain_flags && update_chains)
+			il->ops->update_chain_flags(il);
+		else if (il->ops->update_chain_flags)
 			D_POWER("Cannot update the power, chain noise "
 				"calibration running: %d\n",
 				il->chain_noise_data.state);
@@ -2719,7 +2719,7 @@ il_tx_queue_unmap(struct il_priv *il, int txq_id)
 		return;
 
 	while (q->write_ptr != q->read_ptr) {
-		il->ops->lib->txq_free_tfd(il, txq);
+		il->ops->txq_free_tfd(il, txq);
 		q->read_ptr = il_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
 }
@@ -3019,7 +3019,7 @@ il_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq, int slots_num,
 	il_queue_init(il, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
 
 	/* Tell device where to find queue */
-	il->ops->lib->txq_init(il, txq);
+	il->ops->txq_init(il, txq);
 
 	return 0;
 err:
@@ -3050,7 +3050,7 @@ il_tx_queue_reset(struct il_priv *il, struct il_tx_queue *txq, int slots_num,
 	il_queue_init(il, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
 
 	/* Tell device where to find queue */
-	il->ops->lib->txq_init(il, txq);
+	il->ops->txq_init(il, txq);
 }
 EXPORT_SYMBOL(il_tx_queue_reset);
 
@@ -3157,9 +3157,9 @@ il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 #endif
 	txq->need_update = 1;
 
-	if (il->ops->lib->txq_update_byte_cnt_tbl)
+	if (il->ops->txq_update_byte_cnt_tbl)
 		/* Set up entry in queue's byte count circular buffer */
-		il->ops->lib->txq_update_byte_cnt_tbl(il, txq, 0);
+		il->ops->txq_update_byte_cnt_tbl(il, txq, 0);
 
 	phys_addr =
 	    pci_map_single(il->pci_dev, &out_cmd->hdr, fix_size,
@@ -3167,7 +3167,7 @@ il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 	dma_unmap_addr_set(out_meta, mapping, phys_addr);
 	dma_unmap_len_set(out_meta, len, fix_size);
 
-	il->ops->lib->txq_attach_buf_to_tfd(il, txq, phys_addr, fix_size, 1,
+	il->ops->txq_attach_buf_to_tfd(il, txq, phys_addr, fix_size, 1,
 					    U32_PAD(cmd->len));
 
 	/* Increment and update queue's write idx */
@@ -4101,9 +4101,9 @@ il_irq_handle_error(struct il_priv *il)
 
 	IL_ERR("Loaded firmware version: %s\n", il->hw->wiphy->fw_version);
 
-	il->ops->lib->dump_nic_error_log(il);
-	if (il->ops->lib->dump_fh)
-		il->ops->lib->dump_fh(il, NULL, false);
+	il->ops->dump_nic_error_log(il);
+	if (il->ops->dump_fh)
+		il->ops->dump_fh(il, NULL, false);
 #ifdef CONFIG_IWLEGACY_DEBUG
 	if (il_get_debug_level(il) & IL_DL_FW_ERRORS)
 		il_print_rx_config_cmd(il);
@@ -4290,7 +4290,7 @@ il_set_tx_power(struct il_priv *il, s8 tx_power, bool force)
 	if (il->tx_power_user_lmt == tx_power && !force)
 		return 0;
 
-	if (!il->ops->lib->send_tx_power)
+	if (!il->ops->send_tx_power)
 		return -EOPNOTSUPP;
 
 	/* 0 dBm mean 1 milliwatt */
@@ -4323,7 +4323,7 @@ il_set_tx_power(struct il_priv *il, s8 tx_power, bool force)
 	prev_tx_power = il->tx_power_user_lmt;
 	il->tx_power_user_lmt = tx_power;
 
-	ret = il->ops->lib->send_tx_power(il);
+	ret = il->ops->send_tx_power(il);
 
 	/* if fail to set tx_power, restore the orig. tx power */
 	if (ret) {
