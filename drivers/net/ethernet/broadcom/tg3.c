@@ -7847,7 +7847,6 @@ static void tg3_set_bdinfo(struct tg3 *tp, u32 bdinfo_addr,
 			      nic_addr);
 }
 
-static void __tg3_set_rx_mode(struct net_device *);
 static void __tg3_set_coalesce(struct tg3 *tp, struct ethtool_coalesce *ec)
 {
 	int i;
@@ -8082,6 +8081,93 @@ static void tg3_setup_rxbd_thresholds(struct tg3 *tp)
 
 	if (tg3_flag(tp, 57765_PLUS))
 		tw32(JMB_REPLENISH_LWM, bdcache_maxcnt);
+}
+
+static inline u32 calc_crc(unsigned char *buf, int len)
+{
+	u32 reg;
+	u32 tmp;
+	int j, k;
+
+	reg = 0xffffffff;
+
+	for (j = 0; j < len; j++) {
+		reg ^= buf[j];
+
+		for (k = 0; k < 8; k++) {
+			tmp = reg & 0x01;
+
+			reg >>= 1;
+
+			if (tmp)
+				reg ^= 0xedb88320;
+		}
+	}
+
+	return ~reg;
+}
+
+static void tg3_set_multi(struct tg3 *tp, unsigned int accept_all)
+{
+	/* accept or reject all multicast frames */
+	tw32(MAC_HASH_REG_0, accept_all ? 0xffffffff : 0);
+	tw32(MAC_HASH_REG_1, accept_all ? 0xffffffff : 0);
+	tw32(MAC_HASH_REG_2, accept_all ? 0xffffffff : 0);
+	tw32(MAC_HASH_REG_3, accept_all ? 0xffffffff : 0);
+}
+
+static void __tg3_set_rx_mode(struct net_device *dev)
+{
+	struct tg3 *tp = netdev_priv(dev);
+	u32 rx_mode;
+
+	rx_mode = tp->rx_mode & ~(RX_MODE_PROMISC |
+				  RX_MODE_KEEP_VLAN_TAG);
+
+#if !defined(CONFIG_VLAN_8021Q) && !defined(CONFIG_VLAN_8021Q_MODULE)
+	/* When ASF is in use, we always keep the RX_MODE_KEEP_VLAN_TAG
+	 * flag clear.
+	 */
+	if (!tg3_flag(tp, ENABLE_ASF))
+		rx_mode |= RX_MODE_KEEP_VLAN_TAG;
+#endif
+
+	if (dev->flags & IFF_PROMISC) {
+		/* Promiscuous mode. */
+		rx_mode |= RX_MODE_PROMISC;
+	} else if (dev->flags & IFF_ALLMULTI) {
+		/* Accept all multicast. */
+		tg3_set_multi(tp, 1);
+	} else if (netdev_mc_empty(dev)) {
+		/* Reject all multicast. */
+		tg3_set_multi(tp, 0);
+	} else {
+		/* Accept one or more multicast(s). */
+		struct netdev_hw_addr *ha;
+		u32 mc_filter[4] = { 0, };
+		u32 regidx;
+		u32 bit;
+		u32 crc;
+
+		netdev_for_each_mc_addr(ha, dev) {
+			crc = calc_crc(ha->addr, ETH_ALEN);
+			bit = ~crc & 0x7f;
+			regidx = (bit & 0x60) >> 5;
+			bit &= 0x1f;
+			mc_filter[regidx] |= (1 << bit);
+		}
+
+		tw32(MAC_HASH_REG_0, mc_filter[0]);
+		tw32(MAC_HASH_REG_1, mc_filter[1]);
+		tw32(MAC_HASH_REG_2, mc_filter[2]);
+		tw32(MAC_HASH_REG_3, mc_filter[3]);
+	}
+
+	if (rx_mode != tp->rx_mode) {
+		tp->rx_mode = rx_mode;
+		tw32_f(MAC_RX_MODE, rx_mode);
+		udelay(10);
+	}
 }
 
 static void tg3_rss_init_dflt_indir_tbl(struct tg3 *tp)
@@ -9965,105 +10051,6 @@ static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
 	stats->tx_dropped = tp->tx_dropped;
 
 	return stats;
-}
-
-static inline u32 calc_crc(unsigned char *buf, int len)
-{
-	u32 reg;
-	u32 tmp;
-	int j, k;
-
-	reg = 0xffffffff;
-
-	for (j = 0; j < len; j++) {
-		reg ^= buf[j];
-
-		for (k = 0; k < 8; k++) {
-			tmp = reg & 0x01;
-
-			reg >>= 1;
-
-			if (tmp)
-				reg ^= 0xedb88320;
-		}
-	}
-
-	return ~reg;
-}
-
-static void tg3_set_multi(struct tg3 *tp, unsigned int accept_all)
-{
-	/* accept or reject all multicast frames */
-	tw32(MAC_HASH_REG_0, accept_all ? 0xffffffff : 0);
-	tw32(MAC_HASH_REG_1, accept_all ? 0xffffffff : 0);
-	tw32(MAC_HASH_REG_2, accept_all ? 0xffffffff : 0);
-	tw32(MAC_HASH_REG_3, accept_all ? 0xffffffff : 0);
-}
-
-static void __tg3_set_rx_mode(struct net_device *dev)
-{
-	struct tg3 *tp = netdev_priv(dev);
-	u32 rx_mode;
-
-	rx_mode = tp->rx_mode & ~(RX_MODE_PROMISC |
-				  RX_MODE_KEEP_VLAN_TAG);
-
-#if !defined(CONFIG_VLAN_8021Q) && !defined(CONFIG_VLAN_8021Q_MODULE)
-	/* When ASF is in use, we always keep the RX_MODE_KEEP_VLAN_TAG
-	 * flag clear.
-	 */
-	if (!tg3_flag(tp, ENABLE_ASF))
-		rx_mode |= RX_MODE_KEEP_VLAN_TAG;
-#endif
-
-	if (dev->flags & IFF_PROMISC) {
-		/* Promiscuous mode. */
-		rx_mode |= RX_MODE_PROMISC;
-	} else if (dev->flags & IFF_ALLMULTI) {
-		/* Accept all multicast. */
-		tg3_set_multi(tp, 1);
-	} else if (netdev_mc_empty(dev)) {
-		/* Reject all multicast. */
-		tg3_set_multi(tp, 0);
-	} else {
-		/* Accept one or more multicast(s). */
-		struct netdev_hw_addr *ha;
-		u32 mc_filter[4] = { 0, };
-		u32 regidx;
-		u32 bit;
-		u32 crc;
-
-		netdev_for_each_mc_addr(ha, dev) {
-			crc = calc_crc(ha->addr, ETH_ALEN);
-			bit = ~crc & 0x7f;
-			regidx = (bit & 0x60) >> 5;
-			bit &= 0x1f;
-			mc_filter[regidx] |= (1 << bit);
-		}
-
-		tw32(MAC_HASH_REG_0, mc_filter[0]);
-		tw32(MAC_HASH_REG_1, mc_filter[1]);
-		tw32(MAC_HASH_REG_2, mc_filter[2]);
-		tw32(MAC_HASH_REG_3, mc_filter[3]);
-	}
-
-	if (rx_mode != tp->rx_mode) {
-		tp->rx_mode = rx_mode;
-		tw32_f(MAC_RX_MODE, rx_mode);
-		udelay(10);
-	}
-}
-
-static void tg3_set_rx_mode(struct net_device *dev)
-{
-	struct tg3 *tp = netdev_priv(dev);
-
-	if (!netif_running(dev))
-		return;
-
-	tg3_full_lock(tp, 0);
-	__tg3_set_rx_mode(dev);
-	tg3_full_unlock(tp);
 }
 
 static int tg3_get_regs_len(struct net_device *dev)
@@ -11976,6 +11963,18 @@ static const struct ethtool_ops tg3_ethtool_ops = {
 	.get_rxfh_indir		= tg3_get_rxfh_indir,
 	.set_rxfh_indir		= tg3_set_rxfh_indir,
 };
+
+static void tg3_set_rx_mode(struct net_device *dev)
+{
+	struct tg3 *tp = netdev_priv(dev);
+
+	if (!netif_running(dev))
+		return;
+
+	tg3_full_lock(tp, 0);
+	__tg3_set_rx_mode(dev);
+	tg3_full_unlock(tp);
+}
 
 static inline void tg3_set_mtu(struct net_device *dev, struct tg3 *tp,
 			       int new_mtu)
