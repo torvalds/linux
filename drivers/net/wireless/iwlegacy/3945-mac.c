@@ -2781,10 +2781,9 @@ il3945_mac_start(struct ieee80211_hw *hw)
 	struct il_priv *il = hw->priv;
 	int ret;
 
-	D_MAC80211("enter\n");
-
 	/* we should be verifying the device is ready to be opened */
 	mutex_lock(&il->mutex);
+	D_MAC80211("enter\n");
 
 	/* fetch ucode file from disk, alloc and copy to bus-master buffers ...
 	 * ucode filename and max sizes are card-specific. */
@@ -2940,15 +2939,19 @@ il3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	 * hardware will then not attempt to decrypt the frames.
 	 */
 	if (vif->type == NL80211_IFTYPE_ADHOC &&
-	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
+	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
+		D_MAC80211("leave - IBSS RSN\n");
 		return -EOPNOTSUPP;
+	}
 
 	static_key = !il_is_associated(il);
 
 	if (!static_key) {
 		sta_id = il_sta_id_or_broadcast(il, sta);
-		if (sta_id == IL_INVALID_STATION)
+		if (sta_id == IL_INVALID_STATION) {
+			D_MAC80211("leave - station not found\n");
 			return -EINVAL;
+		}
 	}
 
 	mutex_lock(&il->mutex);
@@ -2973,8 +2976,8 @@ il3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		ret = -EINVAL;
 	}
 
+	D_MAC80211("leave ret %d\n", ret);
 	mutex_unlock(&il->mutex);
-	D_MAC80211("leave\n");
 
 	return ret;
 }
@@ -2989,9 +2992,8 @@ il3945_mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	bool is_ap = vif->type == NL80211_IFTYPE_STATION;
 	u8 sta_id;
 
-	D_INFO("received request to add station %pM\n", sta->addr);
 	mutex_lock(&il->mutex);
-	D_INFO("proceeding to add station %pM\n", sta->addr);
+	D_INFO("station %pM\n", sta->addr);
 	sta_priv->common.sta_id = IL_INVALID_STATION;
 
 	ret = il_add_station_common(il, sta->addr, is_ap, sta, &sta_id);
