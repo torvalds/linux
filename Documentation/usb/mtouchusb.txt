@@ -1,7 +1,7 @@
 CHANGES
 
 - 0.3 - Created based off of scanner & INSTALL from the original touchscreen
-  driver on freshmeat (http://freshmeat.net/projects/3mtouchscreendriver)
+  driver on freecode (http://freecode.com/projects/3mtouchscreendriver)
 - Amended for linux-2.4.18, then 2.4.19
 
 - 0.5 - Complete rewrite using Linux Input in 2.6.3
