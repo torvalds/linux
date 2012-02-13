@@ -52,7 +52,7 @@ MODULE_DESCRIPTION("ISP1301 USB OTG Transceiver Driver");
 MODULE_LICENSE("GPL");
 
 struct isp1301 {
-	struct otg_transceiver	otg;
+	struct usb_phy		otg;
 	struct i2c_client	*client;
 	void			(*i2c_release)(struct device *dev);
 
@@ -1274,7 +1274,7 @@ static int isp1301_otg_enable(struct isp1301 *isp)
 
 /* add or disable the host device+driver */
 static int
-isp1301_set_host(struct otg_transceiver *otg, struct usb_bus *host)
+isp1301_set_host(struct usb_phy *otg, struct usb_bus *host)
 {
 	struct isp1301	*isp = container_of(otg, struct isp1301, otg);
 
@@ -1330,7 +1330,7 @@ isp1301_set_host(struct otg_transceiver *otg, struct usb_bus *host)
 }
 
 static int
-isp1301_set_peripheral(struct otg_transceiver *otg, struct usb_gadget *gadget)
+isp1301_set_peripheral(struct usb_phy *otg, struct usb_gadget *gadget)
 {
 	struct isp1301	*isp = container_of(otg, struct isp1301, otg);
 #ifndef	CONFIG_USB_OTG
@@ -1399,7 +1399,7 @@ isp1301_set_peripheral(struct otg_transceiver *otg, struct usb_gadget *gadget)
 /*-------------------------------------------------------------------------*/
 
 static int
-isp1301_set_power(struct otg_transceiver *dev, unsigned mA)
+isp1301_set_power(struct usb_phy *dev, unsigned mA)
 {
 	if (!the_transceiver)
 		return -ENODEV;
@@ -1409,7 +1409,7 @@ isp1301_set_power(struct otg_transceiver *dev, unsigned mA)
 }
 
 static int
-isp1301_start_srp(struct otg_transceiver *dev)
+isp1301_start_srp(struct usb_phy *dev)
 {
 	struct isp1301	*isp = container_of(dev, struct isp1301, otg);
 	u32		otg_ctrl;
@@ -1436,7 +1436,7 @@ isp1301_start_srp(struct otg_transceiver *dev)
 }
 
 static int
-isp1301_start_hnp(struct otg_transceiver *dev)
+isp1301_start_hnp(struct usb_phy *dev)
 {
 #ifdef	CONFIG_USB_OTG
 	struct isp1301	*isp = container_of(dev, struct isp1301, otg);

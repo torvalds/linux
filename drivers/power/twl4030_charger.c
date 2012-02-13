@@ -69,7 +69,7 @@ struct twl4030_bci {
 	struct device		*dev;
 	struct power_supply	ac;
 	struct power_supply	usb;
-	struct otg_transceiver	*transceiver;
+	struct usb_phy		*transceiver;
 	struct notifier_block	otg_nb;
 	struct work_struct	work;
 	int			irq_chg;

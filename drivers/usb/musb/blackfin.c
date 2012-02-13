@@ -317,7 +317,7 @@ static void bfin_musb_set_vbus(struct musb *musb, int is_on)
 		musb_readb(musb->mregs, MUSB_DEVCTL));
 }
 
-static int bfin_musb_set_power(struct otg_transceiver *x, unsigned mA)
+static int bfin_musb_set_power(struct usb_phy *x, unsigned mA)
 {
 	return 0;
 }

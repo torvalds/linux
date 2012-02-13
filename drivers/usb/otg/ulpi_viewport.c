@@ -40,7 +40,7 @@ static int ulpi_viewport_wait(void __iomem *view, u32 mask)
 	return -ETIMEDOUT;
 }
 
-static int ulpi_viewport_read(struct otg_transceiver *otg, u32 reg)
+static int ulpi_viewport_read(struct usb_phy *otg, u32 reg)
 {
 	int ret;
 	void __iomem *view = otg->io_priv;
@@ -58,7 +58,7 @@ static int ulpi_viewport_read(struct otg_transceiver *otg, u32 reg)
 	return ULPI_VIEW_DATA_READ(readl(view));
 }
 
-static int ulpi_viewport_write(struct otg_transceiver *otg, u32 val, u32 reg)
+static int ulpi_viewport_write(struct usb_phy *otg, u32 val, u32 reg)
 {
 	int ret;
 	void __iomem *view = otg->io_priv;

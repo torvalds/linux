@@ -277,7 +277,7 @@ static struct musb *the_musb;
  * mode), or low power Default-B sessions, something else supplies power.
  * Caller must take care of locking.
  */
-static int tusb_draw_power(struct otg_transceiver *x, unsigned mA)
+static int tusb_draw_power(struct usb_phy *x, unsigned mA)
 {
 	struct musb	*musb = the_musb;
 	void __iomem	*tbase = musb->ctrl_base;

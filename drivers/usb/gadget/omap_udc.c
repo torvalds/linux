@@ -2650,7 +2650,7 @@ static void omap_udc_release(struct device *dev)
 }
 
 static int __init
-omap_udc_setup(struct platform_device *odev, struct otg_transceiver *xceiv)
+omap_udc_setup(struct platform_device *odev, struct usb_phy *xceiv)
 {
 	unsigned	tmp, buf;
 
@@ -2790,7 +2790,7 @@ static int __init omap_udc_probe(struct platform_device *pdev)
 {
 	int			status = -ENODEV;
 	int			hmc;
-	struct otg_transceiver	*xceiv = NULL;
+	struct usb_phy		*xceiv = NULL;
 	const char		*type = NULL;
 	struct omap_usb_config	*config = pdev->dev.platform_data;
 	struct clk		*dc_clk;

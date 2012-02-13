@@ -144,7 +144,7 @@
 #define GPIO_USB_4PIN_ULPI_2430C	(3 << 0)
 
 struct twl4030_usb {
-	struct otg_transceiver	otg;
+	struct usb_phy		otg;
 	struct device		*dev;
 
 	/* TWL4030 internal USB regulator supplies */
@@ -548,7 +548,7 @@ static void twl4030_usb_phy_init(struct twl4030_usb *twl)
 	sysfs_notify(&twl->dev->kobj, NULL, "vbus");
 }
 
-static int twl4030_set_suspend(struct otg_transceiver *x, int suspend)
+static int twl4030_set_suspend(struct usb_phy *x, int suspend)
 {
 	struct twl4030_usb *twl = xceiv_to_twl(x);
 
@@ -560,7 +560,7 @@ static int twl4030_set_suspend(struct otg_transceiver *x, int suspend)
 	return 0;
 }
 
-static int twl4030_set_peripheral(struct otg_transceiver *x,
+static int twl4030_set_peripheral(struct usb_phy *x,
 		struct usb_gadget *gadget)
 {
 	struct twl4030_usb *twl;
@@ -576,7 +576,7 @@ static int twl4030_set_peripheral(struct otg_transceiver *x,
 	return 0;
 }
 
-static int twl4030_set_host(struct otg_transceiver *x, struct usb_bus *host)
+static int twl4030_set_host(struct usb_phy *x, struct usb_bus *host)
 {
 	struct twl4030_usb *twl;
 

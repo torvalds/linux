@@ -49,7 +49,7 @@ static struct ulpi_info ulpi_ids[] = {
 	ULPI_INFO(ULPI_ID(0x0424, 0x0006), "SMSC USB331x"),
 };
 
-static int ulpi_set_otg_flags(struct otg_transceiver *otg)
+static int ulpi_set_otg_flags(struct usb_phy *otg)
 {
 	unsigned int flags = ULPI_OTG_CTRL_DP_PULLDOWN |
 			     ULPI_OTG_CTRL_DM_PULLDOWN;
@@ -73,7 +73,7 @@ static int ulpi_set_otg_flags(struct otg_transceiver *otg)
 	return otg_io_write(otg, flags, ULPI_OTG_CTRL);
 }
 
-static int ulpi_set_fc_flags(struct otg_transceiver *otg)
+static int ulpi_set_fc_flags(struct usb_phy *otg)
 {
 	unsigned int flags = 0;
 
@@ -115,7 +115,7 @@ static int ulpi_set_fc_flags(struct otg_transceiver *otg)
 	return otg_io_write(otg, flags, ULPI_FUNC_CTRL);
 }
 
-static int ulpi_set_ic_flags(struct otg_transceiver *otg)
+static int ulpi_set_ic_flags(struct usb_phy *otg)
 {
 	unsigned int flags = 0;
 
@@ -134,7 +134,7 @@ static int ulpi_set_ic_flags(struct otg_transceiver *otg)
 	return otg_io_write(otg, flags, ULPI_IFC_CTRL);
 }
 
-static int ulpi_set_flags(struct otg_transceiver *otg)
+static int ulpi_set_flags(struct usb_phy *otg)
 {
 	int ret;
 
@@ -149,7 +149,7 @@ static int ulpi_set_flags(struct otg_transceiver *otg)
 	return ulpi_set_fc_flags(otg);
 }
 
-static int ulpi_check_integrity(struct otg_transceiver *otg)
+static int ulpi_check_integrity(struct usb_phy *otg)
 {
 	int ret, i;
 	unsigned int val = 0x55;
@@ -175,7 +175,7 @@ static int ulpi_check_integrity(struct otg_transceiver *otg)
 	return 0;
 }
 
-static int ulpi_init(struct otg_transceiver *otg)
+static int ulpi_init(struct usb_phy *otg)
 {
 	int i, vid, pid, ret;
 	u32 ulpi_id = 0;
@@ -206,7 +206,7 @@ static int ulpi_init(struct otg_transceiver *otg)
 	return ulpi_set_flags(otg);
 }
 
-static int ulpi_set_host(struct otg_transceiver *otg, struct usb_bus *host)
+static int ulpi_set_host(struct usb_phy *otg, struct usb_bus *host)
 {
 	unsigned int flags = otg_io_read(otg, ULPI_IFC_CTRL);
 
@@ -231,7 +231,7 @@ static int ulpi_set_host(struct otg_transceiver *otg, struct usb_bus *host)
 	return otg_io_write(otg, flags, ULPI_IFC_CTRL);
 }
 
-static int ulpi_set_vbus(struct otg_transceiver *otg, bool on)
+static int ulpi_set_vbus(struct usb_phy *otg, bool on)
 {
 	unsigned int flags = otg_io_read(otg, ULPI_OTG_CTRL);
 
@@ -248,11 +248,11 @@ static int ulpi_set_vbus(struct otg_transceiver *otg, bool on)
 	return otg_io_write(otg, flags, ULPI_OTG_CTRL);
 }
 
-struct otg_transceiver *
+struct usb_phy *
 otg_ulpi_create(struct otg_io_access_ops *ops,
 		unsigned int flags)
 {
-	struct otg_transceiver *otg;
+	struct usb_phy *otg;
 
 	otg = kzalloc(sizeof(*otg), GFP_KERNEL);
 	if (!otg)

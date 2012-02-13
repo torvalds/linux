@@ -32,7 +32,7 @@
 
 #define MSM_USB_BASE (hcd->regs)
 
-static struct otg_transceiver *otg;
+static struct usb_phy *otg;
 
 static int ehci_msm_reset(struct usb_hcd *hcd)
 {

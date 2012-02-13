@@ -28,7 +28,7 @@ struct ehci_hcd_mv {
 	void __iomem *cap_regs;
 	void __iomem *op_regs;
 
-	struct otg_transceiver *otg;
+	struct usb_phy *otg;
 
 	struct mv_usb_platform_data *pdata;
 

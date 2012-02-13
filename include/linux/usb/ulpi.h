@@ -181,7 +181,7 @@
 
 /*-------------------------------------------------------------------------*/
 
-struct otg_transceiver *otg_ulpi_create(struct otg_io_access_ops *ops,
+struct usb_phy *otg_ulpi_create(struct otg_io_access_ops *ops,
 					unsigned int flags);
 
 #ifdef CONFIG_USB_ULPI_VIEWPORT

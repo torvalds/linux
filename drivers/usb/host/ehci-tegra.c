@@ -35,7 +35,7 @@ struct tegra_ehci_hcd {
 	struct tegra_usb_phy *phy;
 	struct clk *clk;
 	struct clk *emc_clk;
-	struct otg_transceiver *transceiver;
+	struct usb_phy *transceiver;
 	int host_resumed;
 	int bus_suspended;
 	int port_resuming;

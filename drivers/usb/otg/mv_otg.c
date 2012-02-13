@@ -55,7 +55,7 @@ static char *state_string[] = {
 	"a_vbus_err"
 };
 
-static int mv_otg_set_vbus(struct otg_transceiver *otg, bool on)
+static int mv_otg_set_vbus(struct usb_phy *otg, bool on)
 {
 	struct mv_otg *mvotg = container_of(otg, struct mv_otg, otg);
 	if (mvotg->pdata->set_vbus == NULL)
@@ -64,7 +64,7 @@ static int mv_otg_set_vbus(struct otg_transceiver *otg, bool on)
 	return mvotg->pdata->set_vbus(on);
 }
 
-static int mv_otg_set_host(struct otg_transceiver *otg,
+static int mv_otg_set_host(struct usb_phy *otg,
 			   struct usb_bus *host)
 {
 	otg->host = host;
@@ -72,7 +72,7 @@ static int mv_otg_set_host(struct otg_transceiver *otg,
 	return 0;
 }
 
-static int mv_otg_set_peripheral(struct otg_transceiver *otg,
+static int mv_otg_set_peripheral(struct usb_phy *otg,
 				 struct usb_gadget *gadget)
 {
 	otg->gadget = gadget;
@@ -203,7 +203,7 @@ static void mv_otg_init_irq(struct mv_otg *mvotg)
 static void mv_otg_start_host(struct mv_otg *mvotg, int on)
 {
 #ifdef CONFIG_USB
-	struct otg_transceiver *otg = &mvotg->otg;
+	struct usb_phy *otg = &mvotg->otg;
 	struct usb_hcd *hcd;
 
 	if (!otg->host)
@@ -222,7 +222,7 @@ static void mv_otg_start_host(struct mv_otg *mvotg, int on)
 
 static void mv_otg_start_periphrals(struct mv_otg *mvotg, int on)
 {
-	struct otg_transceiver *otg = &mvotg->otg;
+	struct usb_phy *otg = &mvotg->otg;
 
 	if (!otg->gadget)
 		return;
@@ -343,7 +343,7 @@ static void mv_otg_update_inputs(struct mv_otg *mvotg)
 static void mv_otg_update_state(struct mv_otg *mvotg)
 {
 	struct mv_otg_ctrl *otg_ctrl = &mvotg->otg_ctrl;
-	struct otg_transceiver *otg = &mvotg->otg;
+	struct usb_phy *otg = &mvotg->otg;
 	int old_state = otg->state;
 
 	switch (old_state) {
@@ -416,7 +416,7 @@ static void mv_otg_update_state(struct mv_otg *mvotg)
 static void mv_otg_work(struct work_struct *work)
 {
 	struct mv_otg *mvotg;
-	struct otg_transceiver *otg;
+	struct usb_phy *otg;
 	int old_state;
 
 	mvotg = container_of((struct delayed_work *)work, struct mv_otg, work);

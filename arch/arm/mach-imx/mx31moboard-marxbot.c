@@ -272,7 +272,7 @@ static int marxbot_usbh1_hw_init(struct platform_device *pdev)
 #define USBH1_VBUSEN_B	IOMUX_TO_GPIO(MX31_PIN_NFRE_B)
 #define USBH1_MODE	IOMUX_TO_GPIO(MX31_PIN_NFALE)
 
-static int marxbot_isp1105_init(struct otg_transceiver *otg)
+static int marxbot_isp1105_init(struct usb_phy *otg)
 {
 	int ret = gpio_request(USBH1_MODE, "usbh1-mode");
 	if (ret)
@@ -291,7 +291,7 @@ static int marxbot_isp1105_init(struct otg_transceiver *otg)
 }
 
 
-static int marxbot_isp1105_set_vbus(struct otg_transceiver *otg, bool on)
+static int marxbot_isp1105_set_vbus(struct usb_phy *otg, bool on)
 {
 	if (on)
 		gpio_set_value(USBH1_VBUSEN_B, 0);
@@ -308,7 +308,7 @@ static struct mxc_usbh_platform_data usbh1_pdata __initdata = {
 
 static int __init marxbot_usbh1_init(void)
 {
-	struct otg_transceiver *otg;
+	struct usb_phy *otg;
 	struct platform_device *pdev;
 
 	otg = kzalloc(sizeof(*otg), GFP_KERNEL);

@@ -33,7 +33,7 @@ struct pxa3xx_u2d_ulpi {
 	struct clk		*clk;
 	void __iomem		*mmio_base;
 
-	struct otg_transceiver	*otg;
+	struct usb_phy		*otg;
 	unsigned int		ulpi_mode;
 };
 
@@ -79,7 +79,7 @@ static int pxa310_ulpi_poll(void)
 	return -ETIMEDOUT;
 }
 
-static int pxa310_ulpi_read(struct otg_transceiver *otg, u32 reg)
+static int pxa310_ulpi_read(struct usb_phy *otg, u32 reg)
 {
 	int err;
 
@@ -98,7 +98,7 @@ static int pxa310_ulpi_read(struct otg_transceiver *otg, u32 reg)
 	return u2d_readl(U2DOTGUCR) & U2DOTGUCR_RDATA;
 }
 
-static int pxa310_ulpi_write(struct otg_transceiver *otg, u32 val, u32 reg)
+static int pxa310_ulpi_write(struct usb_phy *otg, u32 val, u32 reg)
 {
 	if (pxa310_ulpi_get_phymode() != SYNCH) {
 		pr_warning("%s: PHY is not in SYNCH mode!\n", __func__);

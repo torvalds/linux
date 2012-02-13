@@ -40,7 +40,7 @@ static struct timer_list polling_timer;
 static int polling;
 
 #ifdef CONFIG_USB_OTG_UTILS
-static struct otg_transceiver *transceiver;
+static struct usb_phy *transceiver;
 static struct notifier_block otg_nb;
 #endif
 

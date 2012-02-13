@@ -68,7 +68,7 @@ enum ab8500_usb_link_status {
 };
 
 struct ab8500_usb {
-	struct otg_transceiver otg;
+	struct usb_phy otg;
 	struct device *dev;
 	int irq_num_id_rise;
 	int irq_num_id_fall;
@@ -82,7 +82,7 @@ struct ab8500_usb {
 	int rev;
 };
 
-static inline struct ab8500_usb *xceiv_to_ab(struct otg_transceiver *x)
+static inline struct ab8500_usb *xceiv_to_ab(struct usb_phy *x)
 {
 	return container_of(x, struct ab8500_usb, otg);
 }
@@ -269,7 +269,7 @@ static void ab8500_usb_phy_disable_work(struct work_struct *work)
 		ab8500_usb_peri_phy_dis(ab);
 }
 
-static int ab8500_usb_set_power(struct otg_transceiver *otg, unsigned mA)
+static int ab8500_usb_set_power(struct usb_phy *otg, unsigned mA)
 {
 	struct ab8500_usb *ab;
 
@@ -290,13 +290,13 @@ static int ab8500_usb_set_power(struct otg_transceiver *otg, unsigned mA)
  * ab->vbus_draw.
  */
 
-static int ab8500_usb_set_suspend(struct otg_transceiver *x, int suspend)
+static int ab8500_usb_set_suspend(struct usb_phy *x, int suspend)
 {
 	/* TODO */
 	return 0;
 }
 
-static int ab8500_usb_set_peripheral(struct otg_transceiver *otg,
+static int ab8500_usb_set_peripheral(struct usb_phy *otg,
 		struct usb_gadget *gadget)
 {
 	struct ab8500_usb *ab;
@@ -329,7 +329,7 @@ static int ab8500_usb_set_peripheral(struct otg_transceiver *otg,
 	return 0;
 }
 
-static int ab8500_usb_set_host(struct otg_transceiver *otg,
+static int ab8500_usb_set_host(struct usb_phy *otg,
 					struct usb_bus *host)
 {
 	struct ab8500_usb *ab;

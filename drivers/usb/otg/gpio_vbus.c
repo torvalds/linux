@@ -32,7 +32,7 @@
  * Needs to be loaded before the UDC driver that will use it.
  */
 struct gpio_vbus_data {
-	struct otg_transceiver otg;
+	struct usb_phy		otg;
 	struct device          *dev;
 	struct regulator       *vbus_draw;
 	int			vbus_draw_enabled;
@@ -149,7 +149,7 @@ static irqreturn_t gpio_vbus_irq(int irq, void *data)
 /* OTG transceiver interface */
 
 /* bind/unbind the peripheral controller */
-static int gpio_vbus_set_peripheral(struct otg_transceiver *otg,
+static int gpio_vbus_set_peripheral(struct usb_phy *otg,
 				struct usb_gadget *gadget)
 {
 	struct gpio_vbus_data *gpio_vbus;
@@ -189,7 +189,7 @@ static int gpio_vbus_set_peripheral(struct otg_transceiver *otg,
 }
 
 /* effective for B devices, ignored for A-peripheral */
-static int gpio_vbus_set_power(struct otg_transceiver *otg, unsigned mA)
+static int gpio_vbus_set_power(struct usb_phy *otg, unsigned mA)
 {
 	struct gpio_vbus_data *gpio_vbus;
 
@@ -201,7 +201,7 @@ static int gpio_vbus_set_power(struct otg_transceiver *otg, unsigned mA)
 }
 
 /* for non-OTG B devices: set/clear transceiver suspend mode */
-static int gpio_vbus_set_suspend(struct otg_transceiver *otg, int suspend)
+static int gpio_vbus_set_suspend(struct usb_phy *otg, int suspend)
 {
 	struct gpio_vbus_data *gpio_vbus;
 

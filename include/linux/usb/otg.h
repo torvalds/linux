@@ -43,14 +43,14 @@ enum usb_xceiv_events {
 	USB_EVENT_ENUMERATED,   /* gadget driver enumerated */
 };
 
-struct otg_transceiver;
+struct usb_phy;
 
 /* for transceivers connected thru an ULPI interface, the user must
  * provide access ops
  */
 struct otg_io_access_ops {
-	int (*read)(struct otg_transceiver *otg, u32 reg);
-	int (*write)(struct otg_transceiver *otg, u32 val, u32 reg);
+	int (*read)(struct usb_phy *x, u32 reg);
+	int (*write)(struct usb_phy *x, u32 val, u32 reg);
 };
 
 /*
@@ -59,7 +59,7 @@ struct otg_io_access_ops {
  * moment, using the transceiver, ID signal, HNP and sometimes static
  * configuration information (including "board isn't wired for otg").
  */
-struct otg_transceiver {
+struct usb_phy {
 	struct device		*dev;
 	const char		*label;
 	unsigned int		 flags;
@@ -82,40 +82,40 @@ struct otg_transceiver {
 	u16			port_change;
 
 	/* initialize/shutdown the OTG controller */
-	int	(*init)(struct otg_transceiver *otg);
-	void	(*shutdown)(struct otg_transceiver *otg);
+	int	(*init)(struct usb_phy *x);
+	void	(*shutdown)(struct usb_phy *x);
 
 	/* bind/unbind the host controller */
-	int	(*set_host)(struct otg_transceiver *otg,
+	int	(*set_host)(struct usb_phy *x,
 				struct usb_bus *host);
 
 	/* bind/unbind the peripheral controller */
-	int	(*set_peripheral)(struct otg_transceiver *otg,
+	int	(*set_peripheral)(struct usb_phy *x,
 				struct usb_gadget *gadget);
 
 	/* effective for B devices, ignored for A-peripheral */
-	int	(*set_power)(struct otg_transceiver *otg,
+	int	(*set_power)(struct usb_phy *x,
 				unsigned mA);
 
 	/* effective for A-peripheral, ignored for B devices */
-	int	(*set_vbus)(struct otg_transceiver *otg,
+	int	(*set_vbus)(struct usb_phy *x,
 				bool enabled);
 
 	/* for non-OTG B devices: set transceiver into suspend mode */
-	int	(*set_suspend)(struct otg_transceiver *otg,
+	int	(*set_suspend)(struct usb_phy *x,
 				int suspend);
 
 	/* for B devices only:  start session with A-Host */
-	int	(*start_srp)(struct otg_transceiver *otg);
+	int	(*start_srp)(struct usb_phy *x);
 
 	/* start or continue HNP role switch */
-	int	(*start_hnp)(struct otg_transceiver *otg);
+	int	(*start_hnp)(struct usb_phy *x);
 
 };
 
 
 /* for board-specific init logic */
-extern int otg_set_transceiver(struct otg_transceiver *);
+extern int otg_set_transceiver(struct usb_phy *);
 
 #if defined(CONFIG_NOP_USB_XCEIV) || (defined(CONFIG_NOP_USB_XCEIV_MODULE) && defined(MODULE))
 /* sometimes transceivers are accessed only through e.g. ULPI */
@@ -132,50 +132,50 @@ static inline void usb_nop_xceiv_unregister(void)
 #endif
 
 /* helpers for direct access thru low-level io interface */
-static inline int otg_io_read(struct otg_transceiver *otg, u32 reg)
+static inline int otg_io_read(struct usb_phy *x, u32 reg)
 {
-	if (otg->io_ops && otg->io_ops->read)
-		return otg->io_ops->read(otg, reg);
+	if (x->io_ops && x->io_ops->read)
+		return x->io_ops->read(x, reg);
 
 	return -EINVAL;
 }
 
-static inline int otg_io_write(struct otg_transceiver *otg, u32 val, u32 reg)
+static inline int otg_io_write(struct usb_phy *x, u32 val, u32 reg)
 {
-	if (otg->io_ops && otg->io_ops->write)
-		return otg->io_ops->write(otg, val, reg);
+	if (x->io_ops && x->io_ops->write)
+		return x->io_ops->write(x, val, reg);
 
 	return -EINVAL;
 }
 
 static inline int
-otg_init(struct otg_transceiver *otg)
+otg_init(struct usb_phy *x)
 {
-	if (otg->init)
-		return otg->init(otg);
+	if (x->init)
+		return x->init(x);
 
 	return 0;
 }
 
 static inline void
-otg_shutdown(struct otg_transceiver *otg)
+otg_shutdown(struct usb_phy *x)
 {
-	if (otg->shutdown)
-		otg->shutdown(otg);
+	if (x->shutdown)
+		x->shutdown(x);
 }
 
 /* for usb host and peripheral controller drivers */
 #ifdef CONFIG_USB_OTG_UTILS
-extern struct otg_transceiver *otg_get_transceiver(void);
-extern void otg_put_transceiver(struct otg_transceiver *);
+extern struct usb_phy *otg_get_transceiver(void);
+extern void otg_put_transceiver(struct usb_phy *);
 extern const char *otg_state_string(enum usb_otg_state state);
 #else
-static inline struct otg_transceiver *otg_get_transceiver(void)
+static inline struct usb_phy *otg_get_transceiver(void)
 {
 	return NULL;
 }
 
-static inline void otg_put_transceiver(struct otg_transceiver *x)
+static inline void otg_put_transceiver(struct usb_phy *x)
 {
 }
 
@@ -187,67 +187,67 @@ static inline const char *otg_state_string(enum usb_otg_state state)
 
 /* Context: can sleep */
 static inline int
-otg_start_hnp(struct otg_transceiver *otg)
+otg_start_hnp(struct usb_phy *x)
 {
-	return otg->start_hnp(otg);
+	return x->start_hnp(x);
 }
 
 /* Context: can sleep */
 static inline int
-otg_set_vbus(struct otg_transceiver *otg, bool enabled)
+otg_set_vbus(struct usb_phy *x, bool enabled)
 {
-	return otg->set_vbus(otg, enabled);
+	return x->set_vbus(x, enabled);
 }
 
 /* for HCDs */
 static inline int
-otg_set_host(struct otg_transceiver *otg, struct usb_bus *host)
+otg_set_host(struct usb_phy *x, struct usb_bus *host)
 {
-	return otg->set_host(otg, host);
+	return x->set_host(x, host);
 }
 
 /* for usb peripheral controller drivers */
 
 /* Context: can sleep */
 static inline int
-otg_set_peripheral(struct otg_transceiver *otg, struct usb_gadget *periph)
+otg_set_peripheral(struct usb_phy *x, struct usb_gadget *periph)
 {
-	return otg->set_peripheral(otg, periph);
+	return x->set_peripheral(x, periph);
 }
 
 static inline int
-otg_set_power(struct otg_transceiver *otg, unsigned mA)
+otg_set_power(struct usb_phy *x, unsigned mA)
 {
-	return otg->set_power(otg, mA);
+	return x->set_power(x, mA);
 }
 
 /* Context: can sleep */
 static inline int
-otg_set_suspend(struct otg_transceiver *otg, int suspend)
+otg_set_suspend(struct usb_phy *x, int suspend)
 {
-	if (otg->set_suspend != NULL)
-		return otg->set_suspend(otg, suspend);
+	if (x->set_suspend != NULL)
+		return x->set_suspend(x, suspend);
 	else
 		return 0;
 }
 
 static inline int
-otg_start_srp(struct otg_transceiver *otg)
+otg_start_srp(struct usb_phy *x)
 {
-	return otg->start_srp(otg);
+	return x->start_srp(x);
 }
 
 /* notifiers */
 static inline int
-otg_register_notifier(struct otg_transceiver *otg, struct notifier_block *nb)
+otg_register_notifier(struct usb_phy *x, struct notifier_block *nb)
 {
-	return atomic_notifier_chain_register(&otg->notifier, nb);
+	return atomic_notifier_chain_register(&x->notifier, nb);
 }
 
 static inline void
-otg_unregister_notifier(struct otg_transceiver *otg, struct notifier_block *nb)
+otg_unregister_notifier(struct usb_phy *x, struct notifier_block *nb)
 {
-	atomic_notifier_chain_unregister(&otg->notifier, nb);
+	atomic_notifier_chain_unregister(&x->notifier, nb);
 }
 
 /* for OTG controller drivers (and maybe other stuff) */

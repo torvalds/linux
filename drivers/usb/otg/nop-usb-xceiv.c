@@ -33,7 +33,7 @@
 #include <linux/slab.h>
 
 struct nop_usb_xceiv {
-	struct otg_transceiver	otg;
+	struct usb_phy		otg;
 	struct device		*dev;
 };
 
@@ -58,17 +58,17 @@ void usb_nop_xceiv_unregister(void)
 }
 EXPORT_SYMBOL(usb_nop_xceiv_unregister);
 
-static inline struct nop_usb_xceiv *xceiv_to_nop(struct otg_transceiver *x)
+static inline struct nop_usb_xceiv *xceiv_to_nop(struct usb_phy *x)
 {
 	return container_of(x, struct nop_usb_xceiv, otg);
 }
 
-static int nop_set_suspend(struct otg_transceiver *x, int suspend)
+static int nop_set_suspend(struct usb_phy *x, int suspend)
 {
 	return 0;
 }
 
-static int nop_set_peripheral(struct otg_transceiver *x,
+static int nop_set_peripheral(struct usb_phy *x,
 		struct usb_gadget *gadget)
 {
 	struct nop_usb_xceiv *nop;
@@ -88,7 +88,7 @@ static int nop_set_peripheral(struct otg_transceiver *x,
 	return 0;
 }
 
-static int nop_set_host(struct otg_transceiver *x, struct usb_bus *host)
+static int nop_set_host(struct usb_phy *x, struct usb_bus *host)
 {
 	struct nop_usb_xceiv *nop;
 

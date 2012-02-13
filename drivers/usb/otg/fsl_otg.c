@@ -452,7 +452,7 @@ void otg_reset_controller(void)
 /* Call suspend/resume routines in host driver */
 int fsl_otg_start_host(struct otg_fsm *fsm, int on)
 {
-	struct otg_transceiver *xceiv = fsm->transceiver;
+	struct usb_phy *xceiv = fsm->transceiver;
 	struct device *dev;
 	struct fsl_otg *otg_dev = container_of(xceiv, struct fsl_otg, otg);
 	u32 retval = 0;
@@ -518,7 +518,7 @@ end:
  */
 int fsl_otg_start_gadget(struct otg_fsm *fsm, int on)
 {
-	struct otg_transceiver *xceiv = fsm->transceiver;
+	struct usb_phy *xceiv = fsm->transceiver;
 	struct device *dev;
 
 	if (!xceiv->gadget || !xceiv->gadget->dev.parent)
@@ -542,7 +542,7 @@ int fsl_otg_start_gadget(struct otg_fsm *fsm, int on)
  * Called by initialization code of host driver.  Register host controller
  * to the OTG.  Suspend host for OTG role detection.
  */
-static int fsl_otg_set_host(struct otg_transceiver *otg_p, struct usb_bus *host)
+static int fsl_otg_set_host(struct usb_phy *otg_p, struct usb_bus *host)
 {
 	struct fsl_otg *otg_dev = container_of(otg_p, struct fsl_otg, otg);
 
@@ -587,7 +587,7 @@ static int fsl_otg_set_host(struct otg_transceiver *otg_p, struct usb_bus *host)
 }
 
 /* Called by initialization code of udc.  Register udc to OTG. */
-static int fsl_otg_set_peripheral(struct otg_transceiver *otg_p,
+static int fsl_otg_set_peripheral(struct usb_phy *otg_p,
 				  struct usb_gadget *gadget)
 {
 	struct fsl_otg *otg_dev = container_of(otg_p, struct fsl_otg, otg);
@@ -625,7 +625,7 @@ static int fsl_otg_set_peripheral(struct otg_transceiver *otg_p,
 }
 
 /* Set OTG port power, only for B-device */
-static int fsl_otg_set_power(struct otg_transceiver *otg_p, unsigned mA)
+static int fsl_otg_set_power(struct usb_phy *otg_p, unsigned mA)
 {
 	if (!fsl_otg_dev)
 		return -ENODEV;
@@ -658,7 +658,7 @@ static void fsl_otg_event(struct work_struct *work)
 }
 
 /* B-device start SRP */
-static int fsl_otg_start_srp(struct otg_transceiver *otg_p)
+static int fsl_otg_start_srp(struct usb_phy *otg_p)
 {
 	struct fsl_otg *otg_dev = container_of(otg_p, struct fsl_otg, otg);
 
@@ -673,7 +673,7 @@ static int fsl_otg_start_srp(struct otg_transceiver *otg_p)
 }
 
 /* A_host suspend will call this function to start hnp */
-static int fsl_otg_start_hnp(struct otg_transceiver *otg_p)
+static int fsl_otg_start_hnp(struct usb_phy *otg_p)
 {
 	struct fsl_otg *otg_dev = container_of(otg_p, struct fsl_otg, otg);
 
@@ -698,7 +698,7 @@ static int fsl_otg_start_hnp(struct otg_transceiver *otg_p)
 irqreturn_t fsl_otg_isr(int irq, void *dev_id)
 {
 	struct otg_fsm *fsm = &((struct fsl_otg *)dev_id)->fsm;
-	struct otg_transceiver *otg = &((struct fsl_otg *)dev_id)->otg;
+	struct usb_phy *otg = &((struct fsl_otg *)dev_id)->otg;
 	u32 otg_int_src, otg_sc;
 
 	otg_sc = fsl_readl(&usb_dr_regs->otgsc);
@@ -815,7 +815,7 @@ err:
 int usb_otg_start(struct platform_device *pdev)
 {
 	struct fsl_otg *p_otg;
-	struct otg_transceiver *otg_trans = otg_get_transceiver();
+	struct usb_phy *otg_trans = otg_get_transceiver();
 	struct otg_fsm *fsm;
 	int status;
 	struct resource *res;

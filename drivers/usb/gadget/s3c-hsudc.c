@@ -145,7 +145,7 @@ struct s3c_hsudc {
 	struct usb_gadget_driver *driver;
 	struct device *dev;
 	struct s3c24xx_hsudc_platdata *pd;
-	struct otg_transceiver *transceiver;
+	struct usb_phy *transceiver;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(s3c_hsudc_supply_names)];
 	spinlock_t lock;
 	void __iomem *regs;

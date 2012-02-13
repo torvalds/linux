@@ -15,7 +15,7 @@
 
 #include <linux/usb/otg.h>
 
-static struct otg_transceiver *xceiv;
+static struct usb_phy *xceiv;
 
 /**
  * otg_get_transceiver - find the (single) OTG transceiver
@@ -26,7 +26,7 @@ static struct otg_transceiver *xceiv;
  *
  * For use by USB host and peripheral drivers.
  */
-struct otg_transceiver *otg_get_transceiver(void)
+struct usb_phy *otg_get_transceiver(void)
 {
 	if (xceiv)
 		get_device(xceiv->dev);
@@ -42,7 +42,7 @@ EXPORT_SYMBOL(otg_get_transceiver);
  *
  * For use by USB host and peripheral drivers.
  */
-void otg_put_transceiver(struct otg_transceiver *x)
+void otg_put_transceiver(struct usb_phy *x)
 {
 	if (x)
 		put_device(x->dev);
@@ -57,7 +57,7 @@ EXPORT_SYMBOL(otg_put_transceiver);
  * coordinate the activities of drivers for host and peripheral
  * controllers, and in some cases for VBUS current regulation.
  */
-int otg_set_transceiver(struct otg_transceiver *x)
+int otg_set_transceiver(struct usb_phy *x)
 {
 	if (xceiv && x)
 		return -EBUSY;

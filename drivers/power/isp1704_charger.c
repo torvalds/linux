@@ -56,7 +56,7 @@ static u16 isp170x_id[] = {
 struct isp1704_charger {
 	struct device		*dev;
 	struct power_supply	psy;
-	struct otg_transceiver	*otg;
+	struct usb_phy		*otg;
 	struct notifier_block	nb;
 	struct work_struct	work;
 

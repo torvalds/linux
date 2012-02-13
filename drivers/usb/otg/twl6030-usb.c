@@ -87,7 +87,7 @@
 #define	VBUS_DET			BIT(2)
 
 struct twl6030_usb {
-	struct otg_transceiver	otg;
+	struct usb_phy	otg;
 	struct device		*dev;
 
 	/* for vbus reporting with irqs disabled */
@@ -137,7 +137,7 @@ static inline u8 twl6030_readb(struct twl6030_usb *twl, u8 module, u8 address)
 	return ret;
 }
 
-static int twl6030_phy_init(struct otg_transceiver *x)
+static int twl6030_phy_init(struct usb_phy *x)
 {
 	struct twl6030_usb *twl;
 	struct device *dev;
@@ -155,7 +155,7 @@ static int twl6030_phy_init(struct otg_transceiver *x)
 	return 0;
 }
 
-static void twl6030_phy_shutdown(struct otg_transceiver *x)
+static void twl6030_phy_shutdown(struct usb_phy *x)
 {
 	struct twl6030_usb *twl;
 	struct device *dev;
@@ -167,7 +167,7 @@ static void twl6030_phy_shutdown(struct otg_transceiver *x)
 	pdata->phy_power(twl->dev, 0, 0);
 }
 
-static int twl6030_phy_suspend(struct otg_transceiver *x, int suspend)
+static int twl6030_phy_suspend(struct usb_phy *x, int suspend)
 {
 	struct twl6030_usb *twl = xceiv_to_twl(x);
 	struct device *dev = twl->dev;
@@ -178,7 +178,7 @@ static int twl6030_phy_suspend(struct otg_transceiver *x, int suspend)
 	return 0;
 }
 
-static int twl6030_start_srp(struct otg_transceiver *x)
+static int twl6030_start_srp(struct usb_phy *x)
 {
 	struct twl6030_usb *twl = xceiv_to_twl(x);
 
@@ -324,7 +324,7 @@ static irqreturn_t twl6030_usbotg_irq(int irq, void *_twl)
 	return IRQ_HANDLED;
 }
 
-static int twl6030_set_peripheral(struct otg_transceiver *x,
+static int twl6030_set_peripheral(struct usb_phy *x,
 		struct usb_gadget *gadget)
 {
 	struct twl6030_usb *twl;
@@ -340,7 +340,7 @@ static int twl6030_set_peripheral(struct otg_transceiver *x,
 	return 0;
 }
 
-static int twl6030_enable_irq(struct otg_transceiver *x)
+static int twl6030_enable_irq(struct usb_phy *x)
 {
 	struct twl6030_usb *twl = xceiv_to_twl(x);
 
@@ -376,7 +376,7 @@ static void otg_set_vbus_work(struct work_struct *data)
 							CHARGERUSB_CTRL1);
 }
 
-static int twl6030_set_vbus(struct otg_transceiver *x, bool enabled)
+static int twl6030_set_vbus(struct usb_phy *x, bool enabled)
 {
 	struct twl6030_usb *twl = xceiv_to_twl(x);
 
@@ -386,7 +386,7 @@ static int twl6030_set_vbus(struct otg_transceiver *x, bool enabled)
 	return 0;
 }
 
-static int twl6030_set_host(struct otg_transceiver *x, struct usb_bus *host)
+static int twl6030_set_host(struct usb_phy *x, struct usb_bus *host)
 {
 	struct twl6030_usb *twl;
 
