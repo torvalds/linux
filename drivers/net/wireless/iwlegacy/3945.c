@@ -1002,7 +1002,7 @@ il3945_hw_txq_ctx_free(struct il_priv *il)
 				il_tx_queue_free(il, txq_id);
 
 	/* free tx queue structure */
-	il_txq_mem(il);
+	il_free_txq_mem(il);
 }
 
 void

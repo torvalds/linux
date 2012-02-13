@@ -4591,12 +4591,12 @@ il_alloc_txq_mem(struct il_priv *il)
 EXPORT_SYMBOL(il_alloc_txq_mem);
 
 void
-il_txq_mem(struct il_priv *il)
+il_free_txq_mem(struct il_priv *il)
 {
 	kfree(il->txq);
 	il->txq = NULL;
 }
-EXPORT_SYMBOL(il_txq_mem);
+EXPORT_SYMBOL(il_free_txq_mem);
 
 int
 il_force_reset(struct il_priv *il, bool external)

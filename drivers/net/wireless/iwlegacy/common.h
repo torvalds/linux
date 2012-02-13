@@ -1747,7 +1747,7 @@ void il_mac_remove_interface(struct ieee80211_hw *hw,
 int il_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    enum nl80211_iftype newtype, bool newp2p);
 int il_alloc_txq_mem(struct il_priv *il);
-void il_txq_mem(struct il_priv *il);
+void il_free_txq_mem(struct il_priv *il);
 
 #ifdef CONFIG_IWLEGACY_DEBUGFS
 extern void il_update_stats(struct il_priv *il, bool is_tx, __le16 fc, u16 len);

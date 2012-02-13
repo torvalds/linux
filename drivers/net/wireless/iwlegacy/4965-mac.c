@@ -1939,7 +1939,7 @@ il4965_hw_txq_ctx_free(struct il_priv *il)
 	il4965_free_dma_ptr(il, &il->scd_bc_tbls);
 
 	/* free tx queue structure */
-	il_txq_mem(il);
+	il_free_txq_mem(il);
 }
 
 /**
