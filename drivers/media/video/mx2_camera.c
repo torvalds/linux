@@ -1292,7 +1292,11 @@ static irqreturn_t mx27_camera_emma_irq(int irq_emma, void *data)
 	if (list_empty(&pcdev->active_bufs)) {
 		dev_warn(pcdev->dev, "%s: called while active list is empty\n",
 			__func__);
-		goto irq_ok;
+
+		if (!status) {
+			spin_unlock(&pcdev->lock);
+			return IRQ_NONE;
+		}
 	}
 
 	if (status & (1 << 7)) { /* overflow */
@@ -1323,7 +1327,6 @@ static irqreturn_t mx27_camera_emma_irq(int irq_emma, void *data)
 		mx27_camera_frame_done_emma(pcdev, 1, false);
 	}
 
-irq_ok:
 	spin_unlock(&pcdev->lock);
 	writel(status, pcdev->base_emma + PRP_INTRSTATUS);
 
