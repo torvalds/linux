@@ -586,13 +586,6 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 	if (pr->flags.need_hotplug_init)
 		return 0;
 
-	/*
-	 * Do not start hotplugged CPUs now, but when they
-	 * are onlined the first time
-	 */
-	if (pr->flags.need_hotplug_init)
-		return 0;
-
 	result = acpi_processor_start(pr);
 	if (result)
 		goto err_remove_sysfs;

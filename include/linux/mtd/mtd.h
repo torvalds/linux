@@ -427,9 +427,7 @@ static inline int mtd_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 
 static inline int mtd_suspend(struct mtd_info *mtd)
 {
-	if (!mtd->suspend)
-		return -EOPNOTSUPP;
-	return mtd->suspend(mtd);
+	return mtd->suspend ? mtd->suspend(mtd) : 0;
 }
 
 static inline void mtd_resume(struct mtd_info *mtd)
@@ -441,7 +439,7 @@ static inline void mtd_resume(struct mtd_info *mtd)
 static inline int mtd_block_isbad(struct mtd_info *mtd, loff_t ofs)
 {
 	if (!mtd->block_isbad)
-		return -EOPNOTSUPP;
+		return 0;
 	return mtd->block_isbad(mtd, ofs);
 }
 
