@@ -1343,12 +1343,11 @@ il4965_accumulative_stats(struct il_priv *il, __le32 * stats)
 }
 #endif
 
-#define REG_RECALIB_PERIOD (60)
-
 void
 il4965_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb)
 {
-	int change;
+	const int recalib_seconds = 60;
+	bool change;
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 
 	D_RX("Statistics notification received (%d vs %d).\n",
@@ -1369,20 +1368,21 @@ il4965_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb)
 
 	set_bit(S_STATS, &il->status);
 
-	/* Reschedule the stats timer to occur in
-	 * REG_RECALIB_PERIOD seconds to ensure we get a
-	 * thermal update even if the uCode doesn't give
-	 * us one */
+	/*
+	 * Reschedule the stats timer to occur in recalib_seconds to ensure
+	 * we get a thermal update even if the uCode doesn't give us one
+	 */
 	mod_timer(&il->stats_periodic,
-		  jiffies + msecs_to_jiffies(REG_RECALIB_PERIOD * 1000));
+		  jiffies + msecs_to_jiffies(recalib_seconds * 1000));
 
 	if (unlikely(!test_bit(S_SCANNING, &il->status)) &&
 	    (pkt->hdr.cmd == N_STATS)) {
 		il4965_rx_calc_noise(il);
 		queue_work(il->workqueue, &il->run_time_calib_work);
 	}
-	if (il->ops->lib->temp_ops.temperature && change)
-		il->ops->lib->temp_ops.temperature(il);
+
+	if (change)
+		il4965_temperature_calib(il);
 }
 
 void
@@ -4028,9 +4028,9 @@ il4965_hdl_alive(struct il_priv *il, struct il_rx_buf *rxb)
  * This callback is provided in order to send a stats request.
  *
  * This timer function is continually reset to execute within
- * REG_RECALIB_PERIOD seconds since the last N_STATS
- * was received.  We need to ensure we receive the stats in order
- * to update the temperature used for calibrating the TXPOWER.
+ * 60 seconds since the last N_STATS was received.  We need to
+ * ensure we receive the stats in order to update the temperature
+ * used for calibrating the TXPOWER.
  */
 static void
 il4965_bg_stats_periodic(unsigned long data)

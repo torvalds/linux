@@ -1588,10 +1588,6 @@ struct il_debugfs_ops {
 };
 #endif
 
-struct il_temp_ops {
-	void (*temperature) (struct il_priv *il);
-};
-
 struct il_lib_ops {
 	/* Handling TX */
 	void (*txq_update_byte_cnt_tbl) (struct il_priv *il,
@@ -1622,10 +1618,6 @@ struct il_lib_ops {
 
 	/* eeprom operations */
 	struct il_eeprom_ops eeprom_ops;
-
-	/* temperature */
-	struct il_temp_ops temp_ops;
-
 };
 
 struct il_led_ops {

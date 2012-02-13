@@ -1678,7 +1678,7 @@ il4965_is_temp_calib_needed(struct il_priv *il)
 	return 1;
 }
 
-static void
+void
 il4965_temperature_calib(struct il_priv *il)
 {
 	s32 temp;
@@ -1910,9 +1910,6 @@ static struct il_lib_ops il4965_lib = {
 		       },
 	.send_tx_power = il4965_send_tx_power,
 	.update_chain_flags = il4965_update_chain_flags,
-	.temp_ops = {
-		     .temperature = il4965_temperature_calib,
-		     },
 };
 
 static const struct il_legacy_ops il4965_legacy_ops = {
