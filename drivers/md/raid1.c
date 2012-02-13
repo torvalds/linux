@@ -624,7 +624,7 @@ int md_raid1_congested(struct mddev *mddev, int bits)
 		return 1;
 
 	rcu_read_lock();
-	for (i = 0; i < conf->raid_disks; i++) {
+	for (i = 0; i < conf->raid_disks * 2; i++) {
 		struct md_rdev *rdev = rcu_dereference(conf->mirrors[i].rdev);
 		if (rdev && !test_bit(Faulty, &rdev->flags)) {
 			struct request_queue *q = bdev_get_queue(rdev->bdev);
