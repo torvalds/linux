@@ -2272,12 +2272,8 @@ __il3945_down(struct il_priv *il)
 	 * clear all bits but the RF Kill bits and return */
 	if (!il_is_init(il)) {
 		il->status =
-		    test_bit(S_RF_KILL_HW,
-			     &il->
-			     status) << S_RF_KILL_HW |
-		    test_bit(S_GEO_CONFIGURED,
-			     &il->
-			     status) << S_GEO_CONFIGURED |
+		    test_bit(S_RF_KILL_HW, &il->status) << S_RF_KILL_HW |
+		    test_bit(S_GEO_CONFIGURED, &il->status) << S_GEO_CONFIGURED |
 		    test_bit(S_EXIT_PENDING, &il->status) << S_EXIT_PENDING;
 		goto exit;
 	}
@@ -2285,13 +2281,9 @@ __il3945_down(struct il_priv *il)
 	/* ...otherwise clear out all the status bits but the RF Kill
 	 * bit and continue taking the NIC down. */
 	il->status &=
-	    test_bit(S_RF_KILL_HW,
-		     &il->status) << S_RF_KILL_HW | test_bit(S_GEO_CONFIGURED,
-							     &il->
-							     status) <<
-	    S_GEO_CONFIGURED | test_bit(S_FW_ERROR,
-					&il->
-					status) << S_FW_ERROR |
+	    test_bit(S_RF_KILL_HW, &il->status) << S_RF_KILL_HW |
+	    test_bit(S_GEO_CONFIGURED, &il->status) << S_GEO_CONFIGURED |
+	    test_bit(S_FW_ERROR, &il->status) << S_FW_ERROR |
 	    test_bit(S_EXIT_PENDING, &il->status) << S_EXIT_PENDING;
 
 	il3945_hw_txq_ctx_stop(il);
