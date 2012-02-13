@@ -2908,9 +2908,10 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		ntfs_error(sb, "Failed to load system files.");
 		goto unl_upcase_iput_tmp_ino_err_out_now;
 	}
-	if ((sb->s_root = d_alloc_root(vol->root_ino))) {
-		/* We grab a reference, simulating an ntfs_iget(). */
-		ihold(vol->root_ino);
+
+	/* We grab a reference, simulating an ntfs_iget(). */
+	ihold(vol->root_ino);
+	if ((sb->s_root = d_make_root(vol->root_ino))) {
 		ntfs_debug("Exiting, status successful.");
 		/* Release the default upcase if it has no users. */
 		mutex_lock(&ntfs_lock);
