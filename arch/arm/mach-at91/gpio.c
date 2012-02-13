@@ -496,12 +496,17 @@ postcore_initcall(at91_gpio_debugfs_init);
 static void __init at91_gpio_irqdomain(struct at91_gpio_chip *at91_gpio)
 {
 	int irq_base;
+#if defined(CONFIG_OF)
+	struct device_node *of_node = at91_gpio->chip.of_node;
+#else
+	struct device_node *of_node = NULL;
+#endif
 
 	irq_base = irq_alloc_descs(-1, 0, at91_gpio->chip.ngpio, 0);
 	if (irq_base < 0)
 		panic("at91_gpio.%d: error %d: couldn't allocate IRQ numbers.\n",
 			at91_gpio->pioc_idx, irq_base);
-	at91_gpio->domain = irq_domain_add_legacy(at91_gpio->chip.of_node,
+	at91_gpio->domain = irq_domain_add_legacy(of_node,
 						  at91_gpio->chip.ngpio,
 						  irq_base, 0,
 						  &irq_domain_simple_ops, NULL);
