@@ -2702,9 +2702,6 @@ struct tg3_link_config {
 	u8				active_flowctrl;
 
 	u8				active_duplex;
-#define SPEED_INVALID		0xffff
-#define DUPLEX_INVALID		0xff
-#define AUTONEG_INVALID		0xff
 	u16				active_speed;
 	u32				rmt_adv;
 };
