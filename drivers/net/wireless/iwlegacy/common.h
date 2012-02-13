@@ -2114,20 +2114,20 @@ extern void il_write_targ_mem(struct il_priv *il, u32 addr, u32 val);
 static inline void
 _il_write8(struct il_priv *il, u32 ofs, u8 val)
 {
-	iowrite8(val, il->hw_base + ofs);
+	writeb(val, il->hw_base + ofs);
 }
 #define il_write8(il, ofs, val) _il_write8(il, ofs, val)
 
 static inline void
 _il_wr(struct il_priv *il, u32 ofs, u32 val)
 {
-	iowrite32(val, il->hw_base + ofs);
+	writel(val, il->hw_base + ofs);
 }
 
 static inline u32
 _il_rd(struct il_priv *il, u32 ofs)
 {
-	return ioread32(il->hw_base + ofs);
+	return readl(il->hw_base + ofs);
 }
 
 static inline void

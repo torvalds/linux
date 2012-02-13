@@ -6224,7 +6224,7 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/***********************
 	 * 3. Read REV register
 	 ***********************/
-	il->hw_base = pci_iomap(pdev, 0, 0);
+	il->hw_base = pci_ioremap_bar(pdev, 0);
 	if (!il->hw_base) {
 		err = -ENODEV;
 		goto out_pci_release_regions;
@@ -6356,7 +6356,7 @@ out_disable_msi:
 out_free_eeprom:
 	il_eeprom_free(il);
 out_iounmap:
-	pci_iounmap(pdev, il->hw_base);
+	iounmap(il->hw_base);
 out_pci_release_regions:
 	pci_set_drvdata(pdev, NULL);
 	pci_release_regions(pdev);
@@ -6438,7 +6438,7 @@ il4965_pci_remove(struct pci_dev *pdev)
 
 	free_irq(il->pci_dev->irq, il);
 	pci_disable_msi(il->pci_dev);
-	pci_iounmap(pdev, il->hw_base);
+	iounmap(il->hw_base);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
