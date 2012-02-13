@@ -2206,7 +2206,8 @@ void ieee80211_tx_pending(unsigned long data)
 
 /* functions for drivers to get certain frames */
 
-static void ieee80211_beacon_add_tim(struct ieee80211_if_ap *bss,
+static void ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
+				     struct ieee80211_if_ap *bss,
 				     struct sk_buff *skb,
 				     struct beacon_data *beacon)
 {
@@ -2223,7 +2224,7 @@ static void ieee80211_beacon_add_tim(struct ieee80211_if_ap *bss,
 					  IEEE80211_MAX_AID+1);
 
 	if (bss->dtim_count == 0)
-		bss->dtim_count = beacon->dtim_period - 1;
+		bss->dtim_count = sdata->vif.bss_conf.dtim_period - 1;
 	else
 		bss->dtim_count--;
 
@@ -2231,7 +2232,7 @@ static void ieee80211_beacon_add_tim(struct ieee80211_if_ap *bss,
 	*pos++ = WLAN_EID_TIM;
 	*pos++ = 4;
 	*pos++ = bss->dtim_count;
-	*pos++ = beacon->dtim_period;
+	*pos++ = sdata->vif.bss_conf.dtim_period;
 
 	if (bss->dtim_count == 0 && !skb_queue_empty(&bss->ps_bc_buf))
 		aid0 = 1;
@@ -2324,12 +2325,14 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 			 * of the tim bitmap in mac80211 and the driver.
 			 */
 			if (local->tim_in_locked_section) {
-				ieee80211_beacon_add_tim(ap, skb, beacon);
+				ieee80211_beacon_add_tim(sdata, ap, skb,
+							 beacon);
 			} else {
 				unsigned long flags;
 
 				spin_lock_irqsave(&local->tim_lock, flags);
-				ieee80211_beacon_add_tim(ap, skb, beacon);
+				ieee80211_beacon_add_tim(sdata, ap, skb,
+							 beacon);
 				spin_unlock_irqrestore(&local->tim_lock, flags);
 			}
 

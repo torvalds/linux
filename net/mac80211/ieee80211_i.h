@@ -228,7 +228,7 @@ struct ieee80211_rx_data {
 struct beacon_data {
 	u8 *head, *tail;
 	int head_len, tail_len;
-	int dtim_period;
+	struct rcu_head rcu_head;
 };
 
 struct ieee80211_if_ap {

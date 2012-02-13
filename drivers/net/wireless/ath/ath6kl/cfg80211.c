@@ -2269,8 +2269,42 @@ static int ath6kl_set_ap_probe_resp_ies(struct ath6kl_vif *vif,
 	return ret;
 }
 
-static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
-			    struct beacon_parameters *info, bool add)
+static int ath6kl_set_ies(struct ath6kl_vif *vif,
+			  struct cfg80211_beacon_data *info)
+{
+	struct ath6kl *ar = vif->ar;
+	int res;
+
+	if (info->beacon_ies) {
+		res = ath6kl_wmi_set_appie_cmd(ar->wmi, vif->fw_vif_idx,
+					       WMI_FRAME_BEACON,
+					       info->beacon_ies,
+					       info->beacon_ies_len);
+		if (res)
+			return res;
+	}
+
+	if (info->proberesp_ies) {
+		res = ath6kl_set_ap_probe_resp_ies(vif, info->proberesp_ies,
+						   info->proberesp_ies_len);
+		if (res)
+			return res;
+	}
+
+	if (info->assocresp_ies) {
+		res = ath6kl_wmi_set_appie_cmd(ar->wmi, vif->fw_vif_idx,
+					       WMI_FRAME_ASSOC_RESP,
+					       info->assocresp_ies,
+					       info->assocresp_ies_len);
+		if (res)
+			return res;
+	}
+
+	return 0;
+}
+
+static int ath6kl_start_ap(struct wiphy *wiphy, struct net_device *dev,
+			   struct cfg80211_ap_settings *info)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
@@ -2281,7 +2315,7 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	int res;
 	int i, ret;
 
-	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: add=%d\n", __func__, add);
+	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s:\n", __func__);
 
 	if (!ath6kl_cfg80211_ready(vif))
 		return -EIO;
@@ -2289,31 +2323,7 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	if (vif->next_mode != AP_NETWORK)
 		return -EOPNOTSUPP;
 
-	if (info->beacon_ies) {
-		res = ath6kl_wmi_set_appie_cmd(ar->wmi, vif->fw_vif_idx,
-					       WMI_FRAME_BEACON,
-					       info->beacon_ies,
-					       info->beacon_ies_len);
-		if (res)
-			return res;
-	}
-	if (info->proberesp_ies) {
-		res = ath6kl_set_ap_probe_resp_ies(vif, info->proberesp_ies,
-						   info->proberesp_ies_len);
-		if (res)
-			return res;
-	}
-	if (info->assocresp_ies) {
-		res = ath6kl_wmi_set_appie_cmd(ar->wmi, vif->fw_vif_idx,
-					       WMI_FRAME_ASSOC_RESP,
-					       info->assocresp_ies,
-					       info->assocresp_ies_len);
-		if (res)
-			return res;
-	}
-
-	if (!add)
-		return 0;
+	res = ath6kl_set_ies(vif, &info->beacon);
 
 	ar->ap_mode_bkey.valid = false;
 
@@ -2322,13 +2332,13 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	 * info->dtim_period
 	 */
 
-	if (info->head == NULL)
+	if (info->beacon.head == NULL)
 		return -EINVAL;
-	mgmt = (struct ieee80211_mgmt *) info->head;
+	mgmt = (struct ieee80211_mgmt *) info->beacon.head;
 	ies = mgmt->u.beacon.variable;
-	if (ies > info->head + info->head_len)
+	if (ies > info->beacon.head + info->beacon.head_len)
 		return -EINVAL;
-	ies_len = info->head + info->head_len - ies;
+	ies_len = info->beacon.head + info->beacon.head_len - ies;
 
 	if (info->ssid == NULL)
 		return -EINVAL;
@@ -2436,19 +2446,21 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
-static int ath6kl_add_beacon(struct wiphy *wiphy, struct net_device *dev,
-			     struct beacon_parameters *info)
+static int ath6kl_change_beacon(struct wiphy *wiphy, struct net_device *dev,
+				struct cfg80211_beacon_data *beacon)
 {
-	return ath6kl_ap_beacon(wiphy, dev, info, true);
+	struct ath6kl_vif *vif = netdev_priv(dev);
+
+	if (!ath6kl_cfg80211_ready(vif))
+		return -EIO;
+
+	if (vif->next_mode != AP_NETWORK)
+		return -EOPNOTSUPP;
+
+	return ath6kl_set_ies(vif, beacon);
 }
 
-static int ath6kl_set_beacon(struct wiphy *wiphy, struct net_device *dev,
-			     struct beacon_parameters *info)
-{
-	return ath6kl_ap_beacon(wiphy, dev, info, false);
-}
-
-static int ath6kl_del_beacon(struct wiphy *wiphy, struct net_device *dev)
+static int ath6kl_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
@@ -2783,9 +2795,9 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.resume = __ath6kl_cfg80211_resume,
 #endif
 	.set_channel = ath6kl_set_channel,
-	.add_beacon = ath6kl_add_beacon,
-	.set_beacon = ath6kl_set_beacon,
-	.del_beacon = ath6kl_del_beacon,
+	.start_ap = ath6kl_start_ap,
+	.change_beacon = ath6kl_change_beacon,
+	.stop_ap = ath6kl_stop_ap,
 	.del_station = ath6kl_del_station,
 	.change_station = ath6kl_change_station,
 	.remain_on_channel = ath6kl_remain_on_channel,

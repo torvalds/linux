@@ -871,7 +871,7 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	CMD(add_virtual_intf, NEW_INTERFACE);
 	CMD(change_virtual_intf, SET_INTERFACE);
 	CMD(add_key, NEW_KEY);
-	CMD(add_beacon, NEW_BEACON);
+	CMD(start_ap, START_AP);
 	CMD(add_station, NEW_STATION);
 	CMD(add_mpath, NEW_MPATH);
 	CMD(update_mesh_config, SET_MESH_CONFIG);
@@ -2075,15 +2075,10 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
-static int nl80211_addset_beacon(struct sk_buff *skb, struct genl_info *info)
+static int nl80211_parse_beacon(struct genl_info *info,
+				struct cfg80211_beacon_data *bcn)
 {
-        int (*call)(struct wiphy *wiphy, struct net_device *dev,
-		    struct beacon_parameters *info);
-	struct cfg80211_registered_device *rdev = info->user_ptr[0];
-	struct net_device *dev = info->user_ptr[1];
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct beacon_parameters params;
-	int haveinfo = 0, err;
+	bool haveinfo = false;
 
 	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_BEACON_TAIL]) ||
 	    !is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]) ||
@@ -2091,149 +2086,183 @@ static int nl80211_addset_beacon(struct sk_buff *skb, struct genl_info *info)
 	    !is_valid_ie_attr(info->attrs[NL80211_ATTR_IE_ASSOC_RESP]))
 		return -EINVAL;
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
-	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO)
-		return -EOPNOTSUPP;
-
-	memset(&params, 0, sizeof(params));
-
-	switch (info->genlhdr->cmd) {
-	case NL80211_CMD_NEW_BEACON:
-		/* these are required for NEW_BEACON */
-		if (!info->attrs[NL80211_ATTR_BEACON_INTERVAL] ||
-		    !info->attrs[NL80211_ATTR_DTIM_PERIOD] ||
-		    !info->attrs[NL80211_ATTR_BEACON_HEAD])
-			return -EINVAL;
-
-		params.interval =
-			nla_get_u32(info->attrs[NL80211_ATTR_BEACON_INTERVAL]);
-		params.dtim_period =
-			nla_get_u32(info->attrs[NL80211_ATTR_DTIM_PERIOD]);
-
-		err = cfg80211_validate_beacon_int(rdev, params.interval);
-		if (err)
-			return err;
-
-		/*
-		 * In theory, some of these attributes could be required for
-		 * NEW_BEACON, but since they were not used when the command was
-		 * originally added, keep them optional for old user space
-		 * programs to work with drivers that do not need the additional
-		 * information.
-		 */
-		if (info->attrs[NL80211_ATTR_SSID]) {
-			params.ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
-			params.ssid_len =
-				nla_len(info->attrs[NL80211_ATTR_SSID]);
-			if (params.ssid_len == 0 ||
-			    params.ssid_len > IEEE80211_MAX_SSID_LEN)
-				return -EINVAL;
-		}
-
-		if (info->attrs[NL80211_ATTR_HIDDEN_SSID]) {
-			params.hidden_ssid = nla_get_u32(
-				info->attrs[NL80211_ATTR_HIDDEN_SSID]);
-			if (params.hidden_ssid !=
-			    NL80211_HIDDEN_SSID_NOT_IN_USE &&
-			    params.hidden_ssid !=
-			    NL80211_HIDDEN_SSID_ZERO_LEN &&
-			    params.hidden_ssid !=
-			    NL80211_HIDDEN_SSID_ZERO_CONTENTS)
-				return -EINVAL;
-		}
-
-		params.privacy = !!info->attrs[NL80211_ATTR_PRIVACY];
-
-		if (info->attrs[NL80211_ATTR_AUTH_TYPE]) {
-			params.auth_type = nla_get_u32(
-				info->attrs[NL80211_ATTR_AUTH_TYPE]);
-			if (!nl80211_valid_auth_type(params.auth_type))
-				return -EINVAL;
-		} else
-			params.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
-
-		err = nl80211_crypto_settings(rdev, info, &params.crypto,
-					      NL80211_MAX_NR_CIPHER_SUITES);
-		if (err)
-			return err;
-
-		call = rdev->ops->add_beacon;
-		break;
-	case NL80211_CMD_SET_BEACON:
-		call = rdev->ops->set_beacon;
-		break;
-	default:
-		WARN_ON(1);
-		return -EOPNOTSUPP;
-	}
-
-	if (!call)
-		return -EOPNOTSUPP;
+	memset(bcn, 0, sizeof(*bcn));
 
 	if (info->attrs[NL80211_ATTR_BEACON_HEAD]) {
-		params.head = nla_data(info->attrs[NL80211_ATTR_BEACON_HEAD]);
-		params.head_len =
-		    nla_len(info->attrs[NL80211_ATTR_BEACON_HEAD]);
-		haveinfo = 1;
+		bcn->head = nla_data(info->attrs[NL80211_ATTR_BEACON_HEAD]);
+		bcn->head_len = nla_len(info->attrs[NL80211_ATTR_BEACON_HEAD]);
+		if (!bcn->head_len)
+			return -EINVAL;
+		haveinfo = true;
 	}
 
 	if (info->attrs[NL80211_ATTR_BEACON_TAIL]) {
-		params.tail = nla_data(info->attrs[NL80211_ATTR_BEACON_TAIL]);
-		params.tail_len =
+		bcn->tail = nla_data(info->attrs[NL80211_ATTR_BEACON_TAIL]);
+		bcn->tail_len =
 		    nla_len(info->attrs[NL80211_ATTR_BEACON_TAIL]);
-		haveinfo = 1;
+		haveinfo = true;
 	}
 
 	if (!haveinfo)
 		return -EINVAL;
 
 	if (info->attrs[NL80211_ATTR_IE]) {
-		params.beacon_ies = nla_data(info->attrs[NL80211_ATTR_IE]);
-		params.beacon_ies_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+		bcn->beacon_ies = nla_data(info->attrs[NL80211_ATTR_IE]);
+		bcn->beacon_ies_len = nla_len(info->attrs[NL80211_ATTR_IE]);
 	}
 
 	if (info->attrs[NL80211_ATTR_IE_PROBE_RESP]) {
-		params.proberesp_ies =
+		bcn->proberesp_ies =
 			nla_data(info->attrs[NL80211_ATTR_IE_PROBE_RESP]);
-		params.proberesp_ies_len =
+		bcn->proberesp_ies_len =
 			nla_len(info->attrs[NL80211_ATTR_IE_PROBE_RESP]);
 	}
 
 	if (info->attrs[NL80211_ATTR_IE_ASSOC_RESP]) {
-		params.assocresp_ies =
+		bcn->assocresp_ies =
 			nla_data(info->attrs[NL80211_ATTR_IE_ASSOC_RESP]);
-		params.assocresp_ies_len =
+		bcn->assocresp_ies_len =
 			nla_len(info->attrs[NL80211_ATTR_IE_ASSOC_RESP]);
 	}
 
 	if (info->attrs[NL80211_ATTR_PROBE_RESP]) {
-		params.probe_resp =
+		bcn->probe_resp =
 			nla_data(info->attrs[NL80211_ATTR_PROBE_RESP]);
-		params.probe_resp_len =
+		bcn->probe_resp_len =
 			nla_len(info->attrs[NL80211_ATTR_PROBE_RESP]);
 	}
 
-	err = call(&rdev->wiphy, dev, &params);
-	if (!err && params.interval)
-		wdev->beacon_interval = params.interval;
+	return 0;
+}
+
+static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_ap_settings params;
+	int err;
+
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO)
+		return -EOPNOTSUPP;
+
+	if (!rdev->ops->start_ap)
+		return -EOPNOTSUPP;
+
+	if (wdev->beacon_interval)
+		return -EALREADY;
+
+	memset(&params, 0, sizeof(params));
+
+	/* these are required for START_AP */
+	if (!info->attrs[NL80211_ATTR_BEACON_INTERVAL] ||
+	    !info->attrs[NL80211_ATTR_DTIM_PERIOD] ||
+	    !info->attrs[NL80211_ATTR_BEACON_HEAD])
+		return -EINVAL;
+
+	err = nl80211_parse_beacon(info, &params.beacon);
+	if (err)
+		return err;
+
+	params.beacon_interval =
+		nla_get_u32(info->attrs[NL80211_ATTR_BEACON_INTERVAL]);
+	params.dtim_period =
+		nla_get_u32(info->attrs[NL80211_ATTR_DTIM_PERIOD]);
+
+	err = cfg80211_validate_beacon_int(rdev, params.beacon_interval);
+	if (err)
+		return err;
+
+	/*
+	 * In theory, some of these attributes should be required here
+	 * but since they were not used when the command was originally
+	 * added, keep them optional for old user space programs to let
+	 * them continue to work with drivers that do not need the
+	 * additional information -- drivers must check!
+	 */
+	if (info->attrs[NL80211_ATTR_SSID]) {
+		params.ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
+		params.ssid_len =
+			nla_len(info->attrs[NL80211_ATTR_SSID]);
+		if (params.ssid_len == 0 ||
+		    params.ssid_len > IEEE80211_MAX_SSID_LEN)
+			return -EINVAL;
+	}
+
+	if (info->attrs[NL80211_ATTR_HIDDEN_SSID]) {
+		params.hidden_ssid = nla_get_u32(
+			info->attrs[NL80211_ATTR_HIDDEN_SSID]);
+		if (params.hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE &&
+		    params.hidden_ssid != NL80211_HIDDEN_SSID_ZERO_LEN &&
+		    params.hidden_ssid != NL80211_HIDDEN_SSID_ZERO_CONTENTS)
+			return -EINVAL;
+	}
+
+	params.privacy = !!info->attrs[NL80211_ATTR_PRIVACY];
+
+	if (info->attrs[NL80211_ATTR_AUTH_TYPE]) {
+		params.auth_type = nla_get_u32(
+			info->attrs[NL80211_ATTR_AUTH_TYPE]);
+		if (!nl80211_valid_auth_type(params.auth_type))
+			return -EINVAL;
+	} else
+		params.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
+
+	err = nl80211_crypto_settings(rdev, info, &params.crypto,
+				      NL80211_MAX_NR_CIPHER_SUITES);
+	if (err)
+		return err;
+
+	err = rdev->ops->start_ap(&rdev->wiphy, dev, &params);
+	if (!err)
+		wdev->beacon_interval = params.beacon_interval;
 	return err;
 }
 
-static int nl80211_del_beacon(struct sk_buff *skb, struct genl_info *info)
+static int nl80211_set_beacon(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_beacon_data params;
+	int err;
+
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO)
+		return -EOPNOTSUPP;
+
+	if (!rdev->ops->change_beacon)
+		return -EOPNOTSUPP;
+
+	if (!wdev->beacon_interval)
+		return -EINVAL;
+
+	err = nl80211_parse_beacon(info, &params);
+	if (err)
+		return err;
+
+	return rdev->ops->change_beacon(&rdev->wiphy, dev, &params);
+}
+
+static int nl80211_stop_ap(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
-	if (!rdev->ops->del_beacon)
+	if (!rdev->ops->stop_ap)
 		return -EOPNOTSUPP;
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO)
 		return -EOPNOTSUPP;
 
-	err = rdev->ops->del_beacon(&rdev->wiphy, dev);
+	if (!wdev->beacon_interval)
+		return -ENOENT;
+
+	err = rdev->ops->stop_ap(&rdev->wiphy, dev);
 	if (!err)
 		wdev->beacon_interval = 0;
 	return err;
@@ -6357,23 +6386,23 @@ static struct genl_ops nl80211_ops[] = {
 		.cmd = NL80211_CMD_SET_BEACON,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.doit = nl80211_addset_beacon,
+		.doit = nl80211_set_beacon,
 		.internal_flags = NL80211_FLAG_NEED_NETDEV |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL80211_CMD_NEW_BEACON,
+		.cmd = NL80211_CMD_START_AP,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.doit = nl80211_addset_beacon,
+		.doit = nl80211_start_ap,
 		.internal_flags = NL80211_FLAG_NEED_NETDEV |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL80211_CMD_DEL_BEACON,
+		.cmd = NL80211_CMD_STOP_AP,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.doit = nl80211_del_beacon,
+		.doit = nl80211_stop_ap,
 		.internal_flags = NL80211_FLAG_NEED_NETDEV |
 				  NL80211_FLAG_NEED_RTNL,
 	},
