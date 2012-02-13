@@ -307,9 +307,54 @@ static inline void __clear_fpu(struct task_struct *tsk)
 	}
 }
 
+/*
+ * Were we in an interrupt that interrupted kernel mode?
+ *
+ * We can do a kernel_fpu_begin/end() pair *ONLY* if that
+ * pair does nothing at all: TS_USEDFPU must be clear (so
+ * that we don't try to save the FPU state), and TS must
+ * be set (so that the clts/stts pair does nothing that is
+ * visible in the interrupted kernel thread).
+ */
+static inline bool interrupted_kernel_fpu_idle(void)
+{
+	return !(current_thread_info()->status & TS_USEDFPU) &&
+		(read_cr0() & X86_CR0_TS);
+}
+
+/*
+ * Were we in user mode (or vm86 mode) when we were
+ * interrupted?
+ *
+ * Doing kernel_fpu_begin/end() is ok if we are running
+ * in an interrupt context from user mode - we'll just
+ * save the FPU state as required.
+ */
+static inline bool interrupted_user_mode(void)
+{
+	struct pt_regs *regs = get_irq_regs();
+	return regs && user_mode_vm(regs);
+}
+
+/*
+ * Can we use the FPU in kernel mode with the
+ * whole "kernel_fpu_begin/end()" sequence?
+ *
+ * It's always ok in process context (ie "not interrupt")
+ * but it is sometimes ok even from an irq.
+ */
+static inline bool irq_fpu_usable(void)
+{
+	return !in_interrupt() ||
+		interrupted_user_mode() ||
+		interrupted_kernel_fpu_idle();
+}
+
 static inline void kernel_fpu_begin(void)
 {
 	struct thread_info *me = current_thread_info();
+
+	WARN_ON_ONCE(!irq_fpu_usable());
 	preempt_disable();
 	if (me->status & TS_USEDFPU)
 		__save_init_fpu(me->task);
@@ -321,14 +366,6 @@ static inline void kernel_fpu_end(void)
 {
 	stts();
 	preempt_enable();
-}
-
-static inline bool irq_fpu_usable(void)
-{
-	struct pt_regs *regs;
-
-	return !in_interrupt() || !(regs = get_irq_regs()) || \
-		user_mode(regs) || (read_cr0() & X86_CR0_TS);
 }
 
 /*
@@ -367,6 +404,7 @@ static inline void irq_ts_restore(int TS_state)
  */
 static inline void save_init_fpu(struct task_struct *tsk)
 {
+	WARN_ON_ONCE(task_thread_info(tsk)->status & TS_USEDFPU);
 	preempt_disable();
 	__save_init_fpu(tsk);
 	stts();
