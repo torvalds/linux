@@ -11,8 +11,8 @@
 #ifndef __ARCH_ARM_MACH_AT91_PM
 #define __ARCH_ARM_MACH_AT91_PM
 
+#include <mach/at91_ramc.h>
 #ifdef CONFIG_ARCH_AT91RM9200
-#include <mach/at91rm9200_mc.h>
 #include <mach/at91rm9200_sdramc.h>
 
 /*
@@ -27,7 +27,7 @@
 
 static inline void at91rm9200_standby(void)
 {
-	u32 lpr = at91_sys_read(AT91RM9200_SDRAMC_LPR);
+	u32 lpr = at91_ramc_read(0, AT91RM9200_SDRAMC_LPR);
 
 	asm volatile(
 		"b    1f\n\t"
@@ -46,7 +46,6 @@ static inline void at91rm9200_standby(void)
 #define at91_standby at91rm9200_standby
 
 #elif defined(CONFIG_ARCH_AT91SAM9G45)
-#include <mach/at91sam9_ddrsdr.h>
 
 /* We manage both DDRAM/SDRAM controllers, we need more than one value to
  * remember.
@@ -79,7 +78,6 @@ static inline void at91sam9g45_standby(void)
 #define at91_standby at91sam9g45_standby
 
 #else
-#include <mach/at91sam9_sdramc.h>
 
 #ifdef CONFIG_ARCH_AT91SAM9263
 /*

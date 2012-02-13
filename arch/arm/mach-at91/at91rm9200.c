@@ -320,6 +320,7 @@ static void __init at91rm9200_map_io(void)
 static void __init at91rm9200_ioremap_registers(void)
 {
 	at91rm9200_ioremap_st(AT91RM9200_BASE_ST);
+	at91_ioremap_ramc(0, AT91RM9200_BASE_MC, 256);
 }
 
 static void __init at91rm9200_initialize(void)

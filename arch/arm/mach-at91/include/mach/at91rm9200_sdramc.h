@@ -17,7 +17,7 @@
 #define AT91RM9200_SDRAMC_H
 
 /* SDRAM Controller registers */
-#define AT91RM9200_SDRAMC_MR		(AT91_MC + 0x90)	/* Mode Register */
+#define AT91RM9200_SDRAMC_MR		0x90			/* Mode Register */
 #define		AT91RM9200_SDRAMC_MODE	(0xf << 0)		/* Command Mode */
 #define			AT91RM9200_SDRAMC_MODE_NORMAL		(0 << 0)
 #define			AT91RM9200_SDRAMC_MODE_NOP		(1 << 0)
@@ -28,10 +28,10 @@
 #define			AT91RM9200_SDRAMC_DBW_32	(0 << 4)
 #define			AT91RM9200_SDRAMC_DBW_16	(1 << 4)
 
-#define AT91RM9200_SDRAMC_TR		(AT91_MC + 0x94)	/* Refresh Timer Register */
+#define AT91RM9200_SDRAMC_TR		0x94			/* Refresh Timer Register */
 #define		AT91RM9200_SDRAMC_COUNT	(0xfff << 0)		/* Refresh Timer Count */
 
-#define AT91RM9200_SDRAMC_CR		(AT91_MC + 0x98)	/* Configuration Register */
+#define AT91RM9200_SDRAMC_CR		0x98			/* Configuration Register */
 #define		AT91RM9200_SDRAMC_NC		(3   <<  0)		/* Number of Column Bits */
 #define			AT91RM9200_SDRAMC_NC_8	(0 << 0)
 #define			AT91RM9200_SDRAMC_NC_9	(1 << 0)
@@ -53,11 +53,11 @@
 #define		AT91RM9200_SDRAMC_TRAS	(0xf << 23)		/* Active to Precharge Delay */
 #define		AT91RM9200_SDRAMC_TXSR	(0xf << 27)		/* Exit Self Refresh to Active Delay */
 
-#define AT91RM9200_SDRAMC_SRR		(AT91_MC + 0x9c)	/* Self Refresh Register */
-#define AT91RM9200_SDRAMC_LPR		(AT91_MC + 0xa0)	/* Low Power Register */
-#define AT91RM9200_SDRAMC_IER		(AT91_MC + 0xa4)	/* Interrupt Enable Register */
-#define AT91RM9200_SDRAMC_IDR		(AT91_MC + 0xa8)	/* Interrupt Disable Register */
-#define AT91RM9200_SDRAMC_IMR		(AT91_MC + 0xac)	/* Interrupt Mask Register */
-#define AT91RM9200_SDRAMC_ISR		(AT91_MC + 0xb0)	/* Interrupt Status Register */
+#define AT91RM9200_SDRAMC_SRR		0x9c			/* Self Refresh Register */
+#define AT91RM9200_SDRAMC_LPR		0xa0			/* Low Power Register */
+#define AT91RM9200_SDRAMC_IER		0xa4			/* Interrupt Enable Register */
+#define AT91RM9200_SDRAMC_IDR		0xa8			/* Interrupt Disable Register */
+#define AT91RM9200_SDRAMC_IMR		0xac			/* Interrupt Mask Register */
+#define AT91RM9200_SDRAMC_ISR		0xb0			/* Interrupt Status Register */
 
 #endif

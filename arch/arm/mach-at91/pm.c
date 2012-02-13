@@ -196,19 +196,18 @@ extern u32 at91_slow_clock_sz;
 #endif
 
 static void __iomem *at91_pmc_base = (void __iomem*)(AT91_VA_BASE_SYS + AT91_PMC);
-#ifdef CONFIG_ARCH_AT91RM9200
-static void __iomem *at91_ramc0_base = (void __iomem*)AT91_VA_BASE_SYS;
-#elif defined(CONFIG_ARCH_AT91SAM9G45)
-static void __iomem *at91_ramc0_base = (void __iomem*)(AT91_VA_BASE_SYS + AT91_DDRSDRC0);
-#else
-static void __iomem *at91_ramc0_base = (void __iomem*)(AT91_VA_BASE_SYS + AT91_SDRAMC0);
-#endif
+void __iomem *at91_ramc_base[2];
 
-#if defined(CONFIG_ARCH_AT91SAM9G45)
-static void __iomem *at91_ramc1_base = (void __iomem*)(AT91_VA_BASE_SYS + AT91_DDRSDRC1);
-#else
-static void __iomem *at91_ramc1_base = NULL;
-#endif
+void __init at91_ioremap_ramc(int id, u32 addr, u32 size)
+{
+	if (id < 0 || id > 1) {
+		pr_emerg("Wrong RAM controller id (%d), cannot continue\n", id);
+		BUG();
+	}
+	at91_ramc_base[id] = ioremap(addr, size);
+	if (!at91_ramc_base[id])
+		panic("Impossible to ioremap ramc.%d 0x%x\n", id, addr);
+}
 
 static int at91_pm_enter(suspend_state_t state)
 {
@@ -246,7 +245,7 @@ static int at91_pm_enter(suspend_state_t state)
 				/* copy slow_clock handler to SRAM, and call it */
 				memcpy(slow_clock, at91_slow_clock, at91_slow_clock_sz);
 #endif
-				slow_clock(at91_pmc_base, at91_ramc0_base, at91_ramc1_base);
+				slow_clock(at91_pmc_base, at91_ramc_base[0], at91_ramc_base[1]);
 				break;
 			} else {
 				pr_info("AT91: PM - no slow clock mode enabled ...\n");
@@ -315,7 +314,7 @@ static int __init at91_pm_init(void)
 
 #ifdef CONFIG_ARCH_AT91RM9200
 	/* AT91RM9200 SDRAM low-power mode cannot be used with self-refresh. */
-	at91_sys_write(AT91RM9200_SDRAMC_LPR, 0);
+	at91_ramc_write(0, AT91RM9200_SDRAMC_LPR, 0);
 #endif
 
 	suspend_set_ops(&at91_pm_ops);

@@ -303,6 +303,7 @@ static void __init at91sam9x5_ioremap_registers(void)
 {
 	if (of_at91sam926x_pit_init() < 0)
 		panic("Impossible to find PIT\n");
+	at91_ioremap_ramc(0, AT91SAM9X5_BASE_DDRSDRC0, 512);
 }
 
 void __init at91sam9x5_initialize(void)

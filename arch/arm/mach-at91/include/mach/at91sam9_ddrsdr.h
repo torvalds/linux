@@ -121,10 +121,4 @@
 #define		AT91_DDRSDRC_WPVS	(1 << 0)		/* Write protect violation status */
 #define		AT91_DDRSDRC_WPVSRC	(0xffff << 8)		/* Write protect violation source */
 
-/* Register access macros */
-#define at91_ramc_read(num, reg) \
-	at91_sys_read(AT91_DDRSDRC##num + reg)
-#define at91_ramc_write(num, reg, value) \
-	at91_sys_write(AT91_DDRSDRC##num + reg, value)
-
 #endif

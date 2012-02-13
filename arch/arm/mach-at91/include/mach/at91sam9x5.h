@@ -57,7 +57,7 @@
 /*
  * System Peripherals (offset from AT91_BASE_SYS)
  */
-#define AT91_DDRSDRC0	(0xffffe800 - AT91_BASE_SYS)
+#define AT91SAM9X5_BASE_DDRSDRC0	0xffffe800
 #define AT91_PMC	(0xfffffc00 - AT91_BASE_SYS)
 
 /*

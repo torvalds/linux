@@ -71,6 +71,9 @@ extern void at91_ioremap_shdwc(u32 base_addr);
 /* Matrix */
 extern void at91_ioremap_matrix(u32 base_addr);
 
+/* Ram Controler */
+extern void at91_ioremap_ramc(int id, u32 addr, u32 size);
+
  /* GPIO */
 #define AT91RM9200_PQFP		3	/* AT91RM9200 PQFP package has 3 banks */
 #define AT91RM9200_BGA		4	/* AT91RM9200 BGA package has 4 banks */

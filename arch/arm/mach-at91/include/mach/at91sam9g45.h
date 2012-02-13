@@ -86,12 +86,12 @@
 /*
  * System Peripherals (offset from AT91_BASE_SYS)
  */
-#define AT91_DDRSDRC1	(0xffffe400 - AT91_BASE_SYS)
-#define AT91_DDRSDRC0	(0xffffe600 - AT91_BASE_SYS)
 #define AT91_PMC	(0xfffffc00 - AT91_BASE_SYS)
 #define AT91_GPBR	(0xfffffd60 - AT91_BASE_SYS)
 
 #define AT91SAM9G45_BASE_ECC	0xffffe200
+#define AT91SAM9G45_BASE_DDRSDRC1 0xffffe400
+#define AT91SAM9G45_BASE_DDRSDRC0 0xffffe600
 #define AT91SAM9G45_BASE_DMA	0xffffec00
 #define AT91SAM9G45_BASE_SMC	0xffffe800
 #define AT91SAM9G45_BASE_MATRIX	0xffffea00

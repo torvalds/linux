@@ -283,6 +283,7 @@ static void __init at91sam9261_ioremap_registers(void)
 {
 	at91_ioremap_shdwc(AT91SAM9261_BASE_SHDWC);
 	at91_ioremap_rstc(AT91SAM9261_BASE_RSTC);
+	at91_ioremap_ramc(0, AT91SAM9261_BASE_SDRAMC, 512);
 	at91sam926x_ioremap_pit(AT91SAM9261_BASE_PIT);
 	at91sam9_ioremap_smc(0, AT91SAM9261_BASE_SMC);
 	at91_ioremap_matrix(AT91SAM9261_BASE_MATRIX);
