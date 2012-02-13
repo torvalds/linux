@@ -2887,20 +2887,22 @@ EXPORT_SYMBOL(il_queue_space);
  * il_queue_init - Initialize queue's high/low-water and read/write idxes
  */
 static int
-il_queue_init(struct il_priv *il, struct il_queue *q, int count, int slots_num,
-	      u32 id)
+il_queue_init(struct il_priv *il, struct il_queue *q, int slots, u32 id)
 {
-	q->n_bd = count;
-	q->n_win = slots_num;
+	/*
+	 * TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
+	 * il_queue_inc_wrap and il_queue_dec_wrap are broken.
+	 */
+	BUILD_BUG_ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
+	/* FIXME: remove q->n_bd */
+	q->n_bd = TFD_QUEUE_SIZE_MAX;
+
+	q->n_win = slots;
 	q->id = id;
 
-	/* count must be power-of-two size, otherwise il_queue_inc_wrap
-	 * and il_queue_dec_wrap are broken. */
-	BUG_ON(!is_power_of_2(count));
-
-	/* slots_num must be power-of-two size, otherwise
+	/* slots_must be power-of-two size, otherwise
 	 * il_get_cmd_idx is broken. */
-	BUG_ON(!is_power_of_2(slots_num));
+	BUG_ON(!is_power_of_2(slots));
 
 	q->low_mark = q->n_win / 4;
 	if (q->low_mark < 4)
@@ -2959,12 +2961,11 @@ error:
  * il_tx_queue_init - Allocate and initialize one tx/cmd queue
  */
 int
-il_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq, int slots_num,
-		 u32 txq_id)
+il_tx_queue_init(struct il_priv *il, u32 txq_id)
 {
-	int i, len;
-	int ret;
-	int actual_slots = slots_num;
+	int i, len, ret;
+	int slots, actual_slots;
+	struct il_tx_queue *txq = &il->txq[txq_id];
 
 	/*
 	 * Alloc buffer array for commands (Tx or other types of commands).
@@ -2974,8 +2975,13 @@ il_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq, int slots_num,
 	 * For normal Tx queues (all other queues), no super-size command
 	 * space is needed.
 	 */
-	if (txq_id == il->cmd_queue)
-		actual_slots++;
+	if (txq_id == il->cmd_queue) {
+		slots = TFD_CMD_SLOTS;
+		actual_slots = slots + 1;
+	} else {
+		slots = TFD_TX_CMD_SLOTS;
+		actual_slots = slots;
+	}
 
 	txq->meta =
 	    kzalloc(sizeof(struct il_cmd_meta) * actual_slots, GFP_KERNEL);
@@ -2988,7 +2994,7 @@ il_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq, int slots_num,
 	len = sizeof(struct il_device_cmd);
 	for (i = 0; i < actual_slots; i++) {
 		/* only happens for cmd queue */
-		if (i == slots_num)
+		if (i == slots)
 			len = IL_MAX_CMD_SIZE;
 
 		txq->cmd[i] = kmalloc(len, GFP_KERNEL);
@@ -3011,12 +3017,8 @@ il_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq, int slots_num,
 	if (txq_id < 4)
 		il_set_swq_id(txq, txq_id, txq_id);
 
-	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
-	 * il_queue_inc_wrap and il_queue_dec_wrap are broken. */
-	BUILD_BUG_ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
-
 	/* Initialize queue's high/low-water marks, and head/tail idxes */
-	il_queue_init(il, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
+	il_queue_init(il, &txq->q, slots, txq_id);
 
 	/* Tell device where to find queue */
 	il->ops->txq_init(il, txq);
@@ -3034,20 +3036,24 @@ out_free_arrays:
 EXPORT_SYMBOL(il_tx_queue_init);
 
 void
-il_tx_queue_reset(struct il_priv *il, struct il_tx_queue *txq, int slots_num,
-		  u32 txq_id)
+il_tx_queue_reset(struct il_priv *il, u32 txq_id)
 {
-	int actual_slots = slots_num;
+	int slots, actual_slots;
+	struct il_tx_queue *txq = &il->txq[txq_id];
 
-	if (txq_id == il->cmd_queue)
-		actual_slots++;
+	if (txq_id == il->cmd_queue) {
+		slots = TFD_CMD_SLOTS;
+		actual_slots = TFD_CMD_SLOTS + 1;
+	} else {
+		slots = TFD_TX_CMD_SLOTS;
+		actual_slots = TFD_TX_CMD_SLOTS;
+	}
 
 	memset(txq->meta, 0, sizeof(struct il_cmd_meta) * actual_slots);
-
 	txq->need_update = 0;
 
 	/* Initialize queue's high/low-water marks, and head/tail idxes */
-	il_queue_init(il, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
+	il_queue_init(il, &txq->q, slots, txq_id);
 
 	/* Tell device where to find queue */
 	il->ops->txq_init(il, txq);

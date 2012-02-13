@@ -790,7 +790,6 @@ il3945_rx_init(struct il_priv *il, struct il_rx_queue *rxq)
 static int
 il3945_tx_reset(struct il_priv *il)
 {
-
 	/* bypass mode */
 	il_wr_prph(il, ALM_SCD_MODE_REG, 0x2);
 
@@ -827,8 +826,7 @@ il3945_tx_reset(struct il_priv *il)
 static int
 il3945_txq_ctx_reset(struct il_priv *il)
 {
-	int rc;
-	int txq_id, slots_num;
+	int rc, txq_id;
 
 	il3945_hw_txq_ctx_free(il);
 
@@ -844,10 +842,7 @@ il3945_txq_ctx_reset(struct il_priv *il)
 
 	/* Tx queue(s) */
 	for (txq_id = 0; txq_id < il->hw_params.max_txq_num; txq_id++) {
-		slots_num =
-		    (txq_id ==
-		     IL39_CMD_QUEUE_NUM) ? TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
-		rc = il_tx_queue_init(il, &il->txq[txq_id], slots_num, txq_id);
+		rc = il_tx_queue_init(il, txq_id);
 		if (rc) {
 			IL_ERR("Tx %d queue init failed\n", txq_id);
 			goto error;

@@ -1783,14 +1783,12 @@ void il_chswitch_done(struct il_priv *il, bool is_success);
 /*****************************************************
 * TX
 ******************************************************/
-void il_txq_update_write_ptr(struct il_priv *il, struct il_tx_queue *txq);
-int il_tx_queue_init(struct il_priv *il, struct il_tx_queue *txq, int slots_num,
-		     u32 txq_id);
-void il_tx_queue_reset(struct il_priv *il, struct il_tx_queue *txq,
-		       int slots_num, u32 txq_id);
-void il_tx_queue_unmap(struct il_priv *il, int txq_id);
-void il_tx_queue_free(struct il_priv *il, int txq_id);
-void il_setup_watchdog(struct il_priv *il);
+extern void il_txq_update_write_ptr(struct il_priv *il, struct il_tx_queue *txq);
+extern int il_tx_queue_init(struct il_priv *il, u32 txq_id);
+extern void il_tx_queue_reset(struct il_priv *il, u32 txq_id);
+extern void il_tx_queue_unmap(struct il_priv *il, int txq_id);
+extern void il_tx_queue_free(struct il_priv *il, int txq_id);
+extern void il_setup_watchdog(struct il_priv *il);
 /*****************************************************
  * TX power
  ****************************************************/
@@ -2405,10 +2403,10 @@ struct il_rb_status {
 	__le32 __unused;	/* 3945 only */
 } __packed;
 
-#define TFD_QUEUE_SIZE_MAX      (256)
-#define TFD_QUEUE_SIZE_BC_DUP	(64)
+#define TFD_QUEUE_SIZE_MAX      256
+#define TFD_QUEUE_SIZE_BC_DUP	64
 #define TFD_QUEUE_BC_SIZE	(TFD_QUEUE_SIZE_MAX + TFD_QUEUE_SIZE_BC_DUP)
-#define IL_TX_DMA_MASK        DMA_BIT_MASK(36)
+#define IL_TX_DMA_MASK		DMA_BIT_MASK(36)
 #define IL_NUM_OF_TBS		20
 
 static inline u8

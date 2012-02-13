@@ -1952,8 +1952,7 @@ il4965_hw_txq_ctx_free(struct il_priv *il)
 int
 il4965_txq_ctx_alloc(struct il_priv *il)
 {
-	int ret;
-	int txq_id, slots_num;
+	int ret, txq_id;
 	unsigned long flags;
 
 	/* Free all tx/cmd queues and keep-warm buffer */
@@ -1990,10 +1989,7 @@ il4965_txq_ctx_alloc(struct il_priv *il)
 
 	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
 	for (txq_id = 0; txq_id < il->hw_params.max_txq_num; txq_id++) {
-		slots_num =
-		    (txq_id ==
-		     il->cmd_queue) ? TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
-		ret = il_tx_queue_init(il, &il->txq[txq_id], slots_num, txq_id);
+		ret = il_tx_queue_init(il, txq_id);
 		if (ret) {
 			IL_ERR("Tx %d queue init failed\n", txq_id);
 			goto error;
@@ -2014,25 +2010,21 @@ error_bc_tbls:
 void
 il4965_txq_ctx_reset(struct il_priv *il)
 {
-	int txq_id, slots_num;
+	int txq_id;
 	unsigned long flags;
 
 	spin_lock_irqsave(&il->lock, flags);
 
 	/* Turn off all Tx DMA fifos */
 	il4965_txq_set_sched(il, 0);
-
 	/* Tell NIC where to find the "keep warm" buffer */
 	il_wr(il, FH49_KW_MEM_ADDR_REG, il->kw.dma >> 4);
 
 	spin_unlock_irqrestore(&il->lock, flags);
 
 	/* Alloc and init all Tx queues, including the command queue (#4) */
-	for (txq_id = 0; txq_id < il->hw_params.max_txq_num; txq_id++) {
-		slots_num =
-		    txq_id == il->cmd_queue ? TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
-		il_tx_queue_reset(il, &il->txq[txq_id], slots_num, txq_id);
-	}
+	for (txq_id = 0; txq_id < il->hw_params.max_txq_num; txq_id++)
+		il_tx_queue_reset(il, txq_id);
 }
 
 void
