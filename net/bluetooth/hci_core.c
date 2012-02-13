@@ -380,7 +380,8 @@ void hci_discovery_set_state(struct hci_dev *hdev, int state)
 
 	switch (state) {
 	case DISCOVERY_STOPPED:
-		mgmt_discovering(hdev, 0);
+		if (hdev->discovery.state != DISCOVERY_STARTING)
+			mgmt_discovering(hdev, 0);
 		break;
 	case DISCOVERY_STARTING:
 		break;
