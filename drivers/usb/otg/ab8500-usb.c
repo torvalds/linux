@@ -153,7 +153,7 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab)
 	u8 reg;
 	enum ab8500_usb_link_status lsts;
 	void *v = NULL;
-	enum usb_xceiv_events event;
+	enum usb_phy_events event;
 
 	abx500_get_register_interruptible(ab->dev,
 			AB8500_USB,

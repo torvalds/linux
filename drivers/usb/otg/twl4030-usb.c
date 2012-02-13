@@ -246,7 +246,7 @@ twl4030_usb_clear_bits(struct twl4030_usb *twl, u8 reg, u8 bits)
 
 /*-------------------------------------------------------------------------*/
 
-static enum usb_xceiv_events twl4030_usb_linkstat(struct twl4030_usb *twl)
+static enum usb_phy_events twl4030_usb_linkstat(struct twl4030_usb *twl)
 {
 	int	status;
 	int	linkstat = USB_EVENT_NONE;
