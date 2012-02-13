@@ -144,6 +144,9 @@ struct iscsi_transport {
 				int param, char *buf);
 	umode_t (*attr_is_visible)(int param_type, int param);
 	int (*bsg_request)(struct bsg_job *job);
+	int (*send_ping) (struct Scsi_Host *shost, uint32_t iface_num,
+			  uint32_t iface_type, uint32_t payload_size,
+			  uint32_t pid, struct sockaddr *dst_addr);
 };
 
 /*
@@ -171,6 +174,11 @@ extern void iscsi_post_host_event(uint32_t host_no,
 				  enum iscsi_host_event_code code,
 				  uint32_t data_size,
 				  uint8_t *data);
+
+extern void iscsi_ping_comp_event(uint32_t host_no,
+				  struct iscsi_transport *transport,
+				  uint32_t status, uint32_t pid,
+				  uint32_t data_size, uint8_t *data);
 
 struct iscsi_cls_conn {
 	struct list_head conn_list;	/* item in connlist */
