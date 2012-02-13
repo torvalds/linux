@@ -192,7 +192,7 @@ static void
 efx_init_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
 {
 	efx_qword_t buf_desc;
-	int index;
+	unsigned int index;
 	dma_addr_t dma_addr;
 	int i;
 
