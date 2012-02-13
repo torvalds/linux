@@ -1600,8 +1600,6 @@ struct il_lib_ops {
 				      u16 len, u8 reset, u8 pad);
 	void (*txq_free_tfd) (struct il_priv *il, struct il_tx_queue *txq);
 	int (*txq_init) (struct il_priv *il, struct il_tx_queue *txq);
-	/* setup Rx handler */
-	void (*handler_setup) (struct il_priv *il);
 	/* alive notification after init uCode load */
 	void (*init_alive_start) (struct il_priv *il);
 	/* check validity of rtc data address */
