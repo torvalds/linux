@@ -74,6 +74,8 @@
 #include "sep_dev.h"
 #include "sep_crypto.h"
 
+#if defined(CONFIG_CRYPTO) || defined(CONFIG_CRYPTO_MODULE)
+
 /* Globals for queuing */
 static spinlock_t queue_lock;
 static struct crypto_queue sep_queue;
@@ -4052,3 +4054,5 @@ void sep_crypto_takedown(void)
 
 	tasklet_kill(&sep_dev->finish_tasklet);
 }
+
+#endif

@@ -4245,7 +4245,7 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	sep->power_save_setup = 1;
 #endif
 	/* register kernel crypto driver */
-#if defined(CONFIG_CRYPTO)
+#if defined(CONFIG_CRYPTO) || defined(CONFIG_CRYPTO_MODULE)
 	error = sep_crypto_setup();
 	if (error) {
 		dev_err(&sep->pdev->dev, "crypto setup failed\n");
@@ -4292,8 +4292,9 @@ static void sep_remove(struct pci_dev *pdev)
 	misc_deregister(&sep->miscdev_sep);
 
 	/* Unregister from kernel crypto */
+#if defined(CONFIG_CRYPTO) || defined(CONFIG_CRYPTO_MODULE)
 	sep_crypto_takedown();
-
+#endif
 	/* Free the irq */
 	free_irq(sep->pdev->irq, sep);
 
