@@ -316,12 +316,18 @@ static int enter_state(suspend_state_t state)
  */
 int pm_suspend(suspend_state_t state)
 {
-	int ret;
-	if (state > PM_SUSPEND_ON && state < PM_SUSPEND_MAX) {
-		ret = enter_state(state);
-		suspend_stats_update(ret);
-		return ret;
+	int error;
+
+	if (state <= PM_SUSPEND_ON || state >= PM_SUSPEND_MAX)
+		return -EINVAL;
+
+	error = enter_state(state);
+	if (error) {
+		suspend_stats.fail++;
+		dpm_save_failed_errno(error);
+	} else {
+		suspend_stats.success++;
 	}
-	return -EINVAL;
+	return error;
 }
 EXPORT_SYMBOL(pm_suspend);
