@@ -75,6 +75,8 @@ struct se_hba *core_alloc_hba(const char *, u32, u32);
 int	core_delete_hba(struct se_hba *);
 
 /* target_core_tmr.c */
+void	core_tmr_abort_task(struct se_device *, struct se_tmr_req *,
+			struct se_session *);
 int	core_tmr_lun_reset(struct se_device *, struct se_tmr_req *,
 		struct list_head *, struct se_cmd *);
 

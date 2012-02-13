@@ -699,17 +699,24 @@ void transport_complete_task(struct se_task *task, int success)
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		return;
 	}
-
-	if (cmd->transport_state & CMD_T_FAILED) {
+	/*
+	 * Check for case where an explict ABORT_TASK has been received
+	 * and transport_wait_for_tasks() will be waiting for completion..
+	 */
+	if (cmd->transport_state & CMD_T_ABORTED &&
+	    cmd->transport_state & CMD_T_STOP) {
+		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+		complete(&cmd->t_transport_stop_comp);
+		return;
+	} else if (cmd->transport_state & CMD_T_FAILED) {
 		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		INIT_WORK(&cmd->work, target_complete_failure_work);
 	} else {
-		cmd->transport_state |= CMD_T_COMPLETE;
 		INIT_WORK(&cmd->work, target_complete_ok_work);
 	}
 
 	cmd->t_state = TRANSPORT_COMPLETE;
-	cmd->transport_state |= CMD_T_ACTIVE;
+	cmd->transport_state |= (CMD_T_COMPLETE | CMD_T_ACTIVE);
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	queue_work(target_completion_wq, &cmd->work);
@@ -4374,8 +4381,7 @@ bool transport_wait_for_tasks(struct se_cmd *cmd)
 		cmd->transport_state &= ~CMD_T_LUN_STOP;
 	}
 
-	if (!(cmd->transport_state & CMD_T_ACTIVE) ||
-	     (cmd->transport_state & CMD_T_ABORTED)) {
+	if (!(cmd->transport_state & CMD_T_ACTIVE)) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		return false;
 	}
@@ -4681,7 +4687,7 @@ static int transport_generic_do_tmr(struct se_cmd *cmd)
 
 	switch (tmr->function) {
 	case TMR_ABORT_TASK:
-		tmr->response = TMR_FUNCTION_REJECTED;
+		core_tmr_abort_task(dev, tmr, cmd->se_sess);
 		break;
 	case TMR_ABORT_TASK_SET:
 	case TMR_CLEAR_ACA:

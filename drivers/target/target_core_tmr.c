@@ -118,6 +118,70 @@ static int target_check_cdb_and_preempt(struct list_head *list,
 	return 1;
 }
 
+void core_tmr_abort_task(
+	struct se_device *dev,
+	struct se_tmr_req *tmr,
+	struct se_session *se_sess)
+{
+	struct se_cmd *se_cmd, *tmp_cmd;
+	unsigned long flags;
+	int ref_tag;
+
+	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
+	list_for_each_entry_safe(se_cmd, tmp_cmd,
+			&se_sess->sess_cmd_list, se_cmd_list) {
+
+		if (dev != se_cmd->se_dev)
+			continue;
+		ref_tag = se_cmd->se_tfo->get_task_tag(se_cmd);
+		if (tmr->ref_task_tag != ref_tag)
+			continue;
+
+		printk("ABORT_TASK: Found referenced %s task_tag: %u\n",
+			se_cmd->se_tfo->get_fabric_name(), ref_tag);
+
+		spin_lock_irq(&se_cmd->t_state_lock);
+		if (se_cmd->transport_state & CMD_T_COMPLETE) {
+			printk("ABORT_TASK: ref_tag: %u already complete, skipping\n", ref_tag);
+			spin_unlock_irq(&se_cmd->t_state_lock);
+			spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+			goto out;
+		}
+		se_cmd->transport_state |= CMD_T_ABORTED;
+		spin_unlock_irq(&se_cmd->t_state_lock);
+
+		list_del_init(&se_cmd->se_cmd_list);
+		kref_get(&se_cmd->cmd_kref);
+		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+
+		cancel_work_sync(&se_cmd->work);
+		transport_wait_for_tasks(se_cmd);
+		/*
+		 * Now send SAM_STAT_TASK_ABORTED status for the referenced
+		 * se_cmd descriptor..
+		 */
+		transport_send_task_abort(se_cmd);
+		/*
+		 * Also deal with possible extra acknowledge reference..
+		 */
+		if (se_cmd->se_cmd_flags & SCF_ACK_KREF)
+			target_put_sess_cmd(se_sess, se_cmd);
+
+		target_put_sess_cmd(se_sess, se_cmd);
+
+		printk("ABORT_TASK: Sending TMR_FUNCTION_COMPLETE for"
+				" ref_tag: %d\n", ref_tag);
+		tmr->response = TMR_FUNCTION_COMPLETE;
+		return;
+	}
+	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
+
+out:
+	printk("ABORT_TASK: Sending TMR_TASK_DOES_NOT_EXIST for ref_tag: %d\n",
+			tmr->ref_task_tag);
+	tmr->response = TMR_TASK_DOES_NOT_EXIST;
+}
+
 static void core_tmr_drain_tmr_list(
 	struct se_device *dev,
 	struct se_tmr_req *tmr,
