@@ -10154,9 +10154,6 @@ static struct tg3_ethtool_stats *tg3_get_estats(struct tg3 *tp,
 	struct tg3_ethtool_stats *old_estats = &tp->estats_prev;
 	struct tg3_hw_stats *hw_stats = tp->hw_stats;
 
-	if (!hw_stats)
-		return old_estats;
-
 	ESTAT_ADD(rx_octets);
 	ESTAT_ADD(rx_fragments);
 	ESTAT_ADD(rx_ucast_packets);
@@ -11029,7 +11026,10 @@ static void tg3_get_ethtool_stats(struct net_device *dev,
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	tg3_get_estats(tp, (struct tg3_ethtool_stats *)tmp_stats);
+	if (tp->hw_stats)
+		tg3_get_estats(tp, (struct tg3_ethtool_stats *)tmp_stats);
+	else
+		memset(tmp_stats, 0, sizeof(struct tg3_ethtool_stats));
 }
 
 static __be32 *tg3_vpd_readblock(struct tg3 *tp, u32 *vpdlen)
