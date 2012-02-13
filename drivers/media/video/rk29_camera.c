@@ -42,10 +42,10 @@
 #define PMEM_CAMIPP_NECESSARY    0x800000
 #elif (PMEM_CAM_FULL_RESOLUTION == 0x300000)
 #define PMEM_CAM_NECESSARY   0xe00000        /* 1280*720*1.5*4(preview) + 4.5M(capture raw) + 3M(jpeg encode output) */
-#define PMEM_CAMIPP_NECESSARY    0x500000
+#define PMEM_CAMIPP_NECESSARY    0x600000
 #elif (PMEM_CAM_FULL_RESOLUTION == 0x200000) /* 1280*720*1.5*4(preview) + 3M(capture raw) + 3M(jpeg encode output) */
 #define PMEM_CAM_NECESSARY   0xc00000
-#define PMEM_CAMIPP_NECESSARY    0x400000
+#define PMEM_CAMIPP_NECESSARY    0x600000
 #elif ((PMEM_CAM_FULL_RESOLUTION == 0x100000) || (PMEM_CAM_FULL_RESOLUTION == 0x130000))
 #define PMEM_CAM_NECESSARY   0x800000        /* 800*600*1.5*4(preview) + 2M(capture raw) + 2M(jpeg encode output) */
 #define PMEM_CAMIPP_NECESSARY    0x400000

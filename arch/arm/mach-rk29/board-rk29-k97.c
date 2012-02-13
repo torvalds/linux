@@ -90,7 +90,7 @@
 #define CONFIG_SENSOR_VGA_FPS_FIXED_0       12504
 #define CONFIG_SENSOR_480P_FPS_FIXED_0      12504
 #define CONFIG_SENSOR_SVGA_FPS_FIXED_0      12504
-#define CONFIG_SENSOR_720P_FPS_FIXED_0      6256
+#define CONFIG_SENSOR_720P_FPS_FIXED_0      12504
 #ifdef CONFIG_SOC_CAMERA_OV9665
 #define CONFIG_SENSOR_1 RK29_CAM_SENSOR_OV9665                      /* front camera sensor */
 #define CONFIG_SENSOR_IIC_ADDR_1            0x60
@@ -124,7 +124,7 @@
 #define CONFIG_SENSOR_VGA_FPS_FIXED_1       12504
 #define CONFIG_SENSOR_480P_FPS_FIXED_1      12504
 #define CONFIG_SENSOR_SVGA_FPS_FIXED_1      12504
-#define CONFIG_SENSOR_720P_FPS_FIXED_1      6256
+#define CONFIG_SENSOR_720P_FPS_FIXED_1      12504
 #endif  //#ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Configuration Macro End------------------------*/
 #include "../../../drivers/media/video/rk29_camera.c"
