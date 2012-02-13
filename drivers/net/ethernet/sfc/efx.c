@@ -224,18 +224,19 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 		return 0;
 
 	spent = efx_nic_process_eventq(channel, budget);
-	if (spent == 0)
-		return 0;
+	if (spent && efx_channel_has_rx_queue(channel)) {
+		struct efx_rx_queue *rx_queue =
+			efx_channel_get_rx_queue(channel);
 
-	/* Deliver last RX packet. */
-	if (channel->rx_pkt) {
-		__efx_rx_packet(channel, channel->rx_pkt);
-		channel->rx_pkt = NULL;
+		/* Deliver last RX packet. */
+		if (channel->rx_pkt) {
+			__efx_rx_packet(channel, channel->rx_pkt);
+			channel->rx_pkt = NULL;
+		}
+
+		efx_rx_strategy(channel);
+		efx_fast_push_rx_descriptors(rx_queue);
 	}
-
-	efx_rx_strategy(channel);
-
-	efx_fast_push_rx_descriptors(efx_channel_get_rx_queue(channel));
 
 	return spent;
 }
