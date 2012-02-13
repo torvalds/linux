@@ -247,7 +247,7 @@ static void musb_otg_notifier_work(struct work_struct *data_notifier_work)
 
 		if (!is_otg_enabled(musb) || musb->gadget_driver) {
 			pm_runtime_get_sync(musb->controller);
-			otg_init(musb->xceiv);
+			usb_phy_init(musb->xceiv);
 			omap2430_musb_set_vbus(musb, 1);
 		}
 		break;
@@ -257,7 +257,7 @@ static void musb_otg_notifier_work(struct work_struct *data_notifier_work)
 
 		if (musb->gadget_driver)
 			pm_runtime_get_sync(musb->controller);
-		otg_init(musb->xceiv);
+		usb_phy_init(musb->xceiv);
 		break;
 
 	case USB_EVENT_NONE:
@@ -273,7 +273,7 @@ static void musb_otg_notifier_work(struct work_struct *data_notifier_work)
 			if (musb->xceiv->set_vbus)
 				otg_set_vbus(musb->xceiv, 0);
 		}
-		otg_shutdown(musb->xceiv);
+		usb_phy_shutdown(musb->xceiv);
 		break;
 	default:
 		dev_dbg(musb->controller, "ID float\n");
@@ -291,7 +291,7 @@ static int omap2430_musb_init(struct musb *musb)
 	 * up through ULPI.  TWL4030-family PMICs include one,
 	 * which needs a driver, drivers aren't always needed.
 	 */
-	musb->xceiv = otg_get_transceiver();
+	musb->xceiv = usb_get_transceiver();
 	if (!musb->xceiv) {
 		pr_err("HS USB OTG: no transceiver configured\n");
 		return -ENODEV;
@@ -326,7 +326,7 @@ static int omap2430_musb_init(struct musb *musb)
 			musb_readl(musb->mregs, OTG_SIMENABLE));
 
 	musb->nb.notifier_call = musb_otg_notifications;
-	status = otg_register_notifier(musb->xceiv, &musb->nb);
+	status = usb_register_notifier(musb->xceiv, &musb->nb);
 
 	if (status)
 		dev_dbg(musb->controller, "notification register failed\n");
@@ -350,7 +350,7 @@ static void omap2430_musb_enable(struct musb *musb)
 	switch (musb->xceiv->last_event) {
 
 	case USB_EVENT_ID:
-		otg_init(musb->xceiv);
+		usb_phy_init(musb->xceiv);
 		if (data->interface_type != MUSB_INTERFACE_UTMI)
 			break;
 		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
@@ -369,7 +369,7 @@ static void omap2430_musb_enable(struct musb *musb)
 		break;
 
 	case USB_EVENT_VBUS:
-		otg_init(musb->xceiv);
+		usb_phy_init(musb->xceiv);
 		break;
 
 	default:
@@ -380,7 +380,7 @@ static void omap2430_musb_enable(struct musb *musb)
 static void omap2430_musb_disable(struct musb *musb)
 {
 	if (musb->xceiv->last_event)
-		otg_shutdown(musb->xceiv);
+		usb_phy_shutdown(musb->xceiv);
 }
 
 static int omap2430_musb_exit(struct musb *musb)
@@ -389,7 +389,7 @@ static int omap2430_musb_exit(struct musb *musb)
 	cancel_work_sync(&musb->otg_notifier_work);
 
 	omap2430_low_level_exit(musb);
-	otg_put_transceiver(musb->xceiv);
+	usb_put_transceiver(musb->xceiv);
 
 	return 0;
 }
@@ -495,7 +495,7 @@ static int omap2430_runtime_suspend(struct device *dev)
 						OTG_INTERFSEL);
 
 	omap2430_low_level_exit(musb);
-	otg_set_suspend(musb->xceiv, 1);
+	usb_phy_set_suspend(musb->xceiv, 1);
 
 	return 0;
 }
@@ -509,7 +509,7 @@ static int omap2430_runtime_resume(struct device *dev)
 	musb_writel(musb->mregs, OTG_INTERFSEL,
 					musb->context.otg_interfsel);
 
-	otg_set_suspend(musb->xceiv, 0);
+	usb_phy_set_suspend(musb->xceiv, 0);
 
 	return 0;
 }

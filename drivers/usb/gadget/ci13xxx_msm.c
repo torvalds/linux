@@ -37,10 +37,10 @@ static void ci13xxx_msm_notify_event(struct ci13xxx *udc, unsigned event)
 		 * Put the transceiver in non-driving mode. Otherwise host
 		 * may not detect soft-disconnection.
 		 */
-		val = otg_io_read(udc->transceiver, ULPI_FUNC_CTRL);
+		val = usb_phy_io_read(udc->transceiver, ULPI_FUNC_CTRL);
 		val &= ~ULPI_FUNC_CTRL_OPMODE_MASK;
 		val |= ULPI_FUNC_CTRL_OPMODE_NONDRIVING;
-		otg_io_write(udc->transceiver, val, ULPI_FUNC_CTRL);
+		usb_phy_io_write(udc->transceiver, val, ULPI_FUNC_CTRL);
 		break;
 	default:
 		dev_dbg(dev, "unknown ci13xxx_udc event\n");

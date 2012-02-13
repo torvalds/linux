@@ -1243,7 +1243,7 @@ static int s3c_hsudc_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 		return -ENODEV;
 
 	if (hsudc->transceiver)
-		return otg_set_power(hsudc->transceiver, mA);
+		return usb_phy_set_power(hsudc->transceiver, mA);
 
 	return -EOPNOTSUPP;
 }
@@ -1275,7 +1275,7 @@ static int __devinit s3c_hsudc_probe(struct platform_device *pdev)
 	hsudc->dev = dev;
 	hsudc->pd = pdev->dev.platform_data;
 
-	hsudc->transceiver = otg_get_transceiver();
+	hsudc->transceiver = usb_get_transceiver();
 
 	for (i = 0; i < ARRAY_SIZE(hsudc->supplies); i++)
 		hsudc->supplies[i].supply = s3c_hsudc_supply_names[i];
@@ -1377,7 +1377,7 @@ err_remap:
 	release_mem_region(res->start, resource_size(res));
 err_res:
 	if (hsudc->transceiver)
-		otg_put_transceiver(hsudc->transceiver);
+		usb_put_transceiver(hsudc->transceiver);
 
 	regulator_bulk_free(ARRAY_SIZE(hsudc->supplies), hsudc->supplies);
 err_supplies:

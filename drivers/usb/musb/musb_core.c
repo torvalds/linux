@@ -131,9 +131,9 @@ static inline struct musb *dev_to_musb(struct device *dev)
 /*-------------------------------------------------------------------------*/
 
 #ifndef CONFIG_BLACKFIN
-static int musb_ulpi_read(struct usb_phy *otg, u32 offset)
+static int musb_ulpi_read(struct usb_phy *phy, u32 offset)
 {
-	void __iomem *addr = otg->io_priv;
+	void __iomem *addr = phy->io_priv;
 	int	i = 0;
 	u8	r;
 	u8	power;
@@ -165,10 +165,9 @@ static int musb_ulpi_read(struct usb_phy *otg, u32 offset)
 	return musb_readb(addr, MUSB_ULPI_REG_DATA);
 }
 
-static int musb_ulpi_write(struct usb_phy *otg,
-		u32 offset, u32 data)
+static int musb_ulpi_write(struct usb_phy *phy, u32 offset, u32 data)
 {
-	void __iomem *addr = otg->io_priv;
+	void __iomem *addr = phy->io_priv;
 	int	i = 0;
 	u8	r = 0;
 	u8	power;
@@ -200,7 +199,7 @@ static int musb_ulpi_write(struct usb_phy *otg,
 #define musb_ulpi_write		NULL
 #endif
 
-static struct otg_io_access_ops musb_ulpi_access = {
+static struct usb_phy_io_ops musb_ulpi_access = {
 	.read = musb_ulpi_read,
 	.write = musb_ulpi_write,
 };

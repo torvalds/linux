@@ -1078,7 +1078,7 @@ static int tusb_musb_init(struct musb *musb)
 	int			ret;
 
 	usb_nop_xceiv_register();
-	musb->xceiv = otg_get_transceiver();
+	musb->xceiv = usb_get_transceiver();
 	if (!musb->xceiv)
 		return -ENODEV;
 
@@ -1130,7 +1130,7 @@ done:
 		if (sync)
 			iounmap(sync);
 
-		otg_put_transceiver(musb->xceiv);
+		usb_put_transceiver(musb->xceiv);
 		usb_nop_xceiv_unregister();
 	}
 	return ret;
@@ -1146,7 +1146,7 @@ static int tusb_musb_exit(struct musb *musb)
 
 	iounmap(musb->sync_va);
 
-	otg_put_transceiver(musb->xceiv);
+	usb_put_transceiver(musb->xceiv);
 	usb_nop_xceiv_unregister();
 	return 0;
 }

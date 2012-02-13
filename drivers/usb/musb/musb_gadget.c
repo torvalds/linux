@@ -1703,7 +1703,7 @@ static int musb_gadget_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 
 	if (!musb->xceiv->set_power)
 		return -EOPNOTSUPP;
-	return otg_set_power(musb->xceiv, mA);
+	return usb_phy_set_power(musb->xceiv, mA);
 }
 
 static int musb_gadget_pullup(struct usb_gadget *gadget, int is_on)

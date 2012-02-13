@@ -995,7 +995,7 @@ static int pxa25x_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 	udc = container_of(_gadget, struct pxa25x_udc, gadget);
 
 	if (udc->transceiver)
-		return otg_set_power(udc->transceiver, mA);
+		return usb_phy_set_power(udc->transceiver, mA);
 	return -EOPNOTSUPP;
 }
 
@@ -2159,7 +2159,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	dev->dev = &pdev->dev;
 	dev->mach = pdev->dev.platform_data;
 
-	dev->transceiver = otg_get_transceiver();
+	dev->transceiver = usb_get_transceiver();
 
 	if (gpio_is_valid(dev->mach->gpio_pullup)) {
 		if ((retval = gpio_request(dev->mach->gpio_pullup,
@@ -2238,7 +2238,7 @@ lubbock_fail0:
 		gpio_free(dev->mach->gpio_pullup);
  err_gpio_pullup:
 	if (dev->transceiver) {
-		otg_put_transceiver(dev->transceiver);
+		usb_put_transceiver(dev->transceiver);
 		dev->transceiver = NULL;
 	}
 	clk_put(dev->clk);
@@ -2280,7 +2280,7 @@ static int __exit pxa25x_udc_remove(struct platform_device *pdev)
 	clk_put(dev->clk);
 
 	if (dev->transceiver) {
-		otg_put_transceiver(dev->transceiver);
+		usb_put_transceiver(dev->transceiver);
 		dev->transceiver = NULL;
 	}
 

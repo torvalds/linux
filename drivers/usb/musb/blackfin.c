@@ -415,7 +415,7 @@ static int bfin_musb_init(struct musb *musb)
 	gpio_direction_output(musb->config->gpio_vrsel, 0);
 
 	usb_nop_xceiv_register();
-	musb->xceiv = otg_get_transceiver();
+	musb->xceiv = usb_get_transceiver();
 	if (!musb->xceiv) {
 		gpio_free(musb->config->gpio_vrsel);
 		return -ENODEV;
@@ -440,7 +440,7 @@ static int bfin_musb_exit(struct musb *musb)
 {
 	gpio_free(musb->config->gpio_vrsel);
 
-	otg_put_transceiver(musb->xceiv);
+	usb_put_transceiver(musb->xceiv);
 	usb_nop_xceiv_unregister();
 	return 0;
 }
