@@ -35,6 +35,69 @@
 #define MGMT_VERSION	0
 #define MGMT_REVISION	1
 
+static const u16 mgmt_commands[] = {
+	MGMT_OP_READ_INDEX_LIST,
+	MGMT_OP_READ_INFO,
+	MGMT_OP_SET_POWERED,
+	MGMT_OP_SET_DISCOVERABLE,
+	MGMT_OP_SET_CONNECTABLE,
+	MGMT_OP_SET_FAST_CONNECTABLE,
+	MGMT_OP_SET_PAIRABLE,
+	MGMT_OP_SET_LINK_SECURITY,
+	MGMT_OP_SET_SSP,
+	MGMT_OP_SET_HS,
+	MGMT_OP_SET_LE,
+	MGMT_OP_SET_DEV_CLASS,
+	MGMT_OP_SET_LOCAL_NAME,
+	MGMT_OP_ADD_UUID,
+	MGMT_OP_REMOVE_UUID,
+	MGMT_OP_LOAD_LINK_KEYS,
+	MGMT_OP_LOAD_LONG_TERM_KEYS,
+	MGMT_OP_DISCONNECT,
+	MGMT_OP_GET_CONNECTIONS,
+	MGMT_OP_PIN_CODE_REPLY,
+	MGMT_OP_PIN_CODE_NEG_REPLY,
+	MGMT_OP_SET_IO_CAPABILITY,
+	MGMT_OP_PAIR_DEVICE,
+	MGMT_OP_CANCEL_PAIR_DEVICE,
+	MGMT_OP_UNPAIR_DEVICE,
+	MGMT_OP_USER_CONFIRM_REPLY,
+	MGMT_OP_USER_CONFIRM_NEG_REPLY,
+	MGMT_OP_USER_PASSKEY_REPLY,
+	MGMT_OP_USER_PASSKEY_NEG_REPLY,
+	MGMT_OP_READ_LOCAL_OOB_DATA,
+	MGMT_OP_ADD_REMOTE_OOB_DATA,
+	MGMT_OP_REMOVE_REMOTE_OOB_DATA,
+	MGMT_OP_START_DISCOVERY,
+	MGMT_OP_STOP_DISCOVERY,
+	MGMT_OP_CONFIRM_NAME,
+	MGMT_OP_BLOCK_DEVICE,
+	MGMT_OP_UNBLOCK_DEVICE,
+};
+
+static const u16 mgmt_events[] = {
+	MGMT_EV_CONTROLLER_ERROR,
+	MGMT_EV_INDEX_ADDED,
+	MGMT_EV_INDEX_REMOVED,
+	MGMT_EV_NEW_SETTINGS,
+	MGMT_EV_CLASS_OF_DEV_CHANGED,
+	MGMT_EV_LOCAL_NAME_CHANGED,
+	MGMT_EV_NEW_LINK_KEY,
+	MGMT_EV_NEW_LONG_TERM_KEY,
+	MGMT_EV_DEVICE_CONNECTED,
+	MGMT_EV_DEVICE_DISCONNECTED,
+	MGMT_EV_CONNECT_FAILED,
+	MGMT_EV_PIN_CODE_REQUEST,
+	MGMT_EV_USER_CONFIRM_REQUEST,
+	MGMT_EV_USER_PASSKEY_REQUEST,
+	MGMT_EV_AUTH_FAILED,
+	MGMT_EV_DEVICE_FOUND,
+	MGMT_EV_DISCOVERING,
+	MGMT_EV_DEVICE_BLOCKED,
+	MGMT_EV_DEVICE_UNBLOCKED,
+	MGMT_EV_DEVICE_UNPAIRED,
+};
+
 /*
  * These LE scan and inquiry parameters were chosen according to LE General
  * Discovery Procedure specification.
@@ -204,6 +267,39 @@ static int read_version(struct sock *sk)
 
 	return cmd_complete(sk, MGMT_INDEX_NONE, MGMT_OP_READ_VERSION, &rp,
 								sizeof(rp));
+}
+
+static int read_commands(struct sock *sk)
+{
+	struct mgmt_rp_read_commands *rp;
+	u16 num_commands = ARRAY_SIZE(mgmt_commands);
+	u16 num_events = ARRAY_SIZE(mgmt_events);
+	u16 *opcode;
+	size_t rp_size;
+	int i, err;
+
+	BT_DBG("sock %p", sk);
+
+	rp_size = sizeof(*rp) + ((num_commands + num_events) * sizeof(u16));
+
+	rp = kmalloc(rp_size, GFP_KERNEL);
+	if (!rp)
+		return -ENOMEM;
+
+	put_unaligned_le16(num_commands, &rp->num_commands);
+	put_unaligned_le16(num_events, &rp->num_events);
+
+	for (i = 0, opcode = rp->opcodes; i < num_commands; i++, opcode++)
+		put_unaligned_le16(mgmt_commands[i], opcode);
+
+	for (i = 0; i < num_events; i++, opcode++)
+		put_unaligned_le16(mgmt_events[i], opcode);
+
+	err = cmd_complete(sk, MGMT_INDEX_NONE, MGMT_OP_READ_COMMANDS, rp,
+								rp_size);
+	kfree(rp);
+
+	return err;
 }
 
 static int read_index_list(struct sock *sk)
@@ -2322,6 +2418,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 	switch (opcode) {
 	case MGMT_OP_READ_VERSION:
 		err = read_version(sk);
+		break;
+	case MGMT_OP_READ_COMMANDS:
+		err = read_commands(sk);
 		break;
 	case MGMT_OP_READ_INDEX_LIST:
 		err = read_index_list(sk);

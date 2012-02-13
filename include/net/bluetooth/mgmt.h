@@ -63,6 +63,13 @@ struct mgmt_rp_read_version {
 	__le16 revision;
 } __packed;
 
+#define MGMT_OP_READ_COMMANDS		0x0002
+struct mgmt_rp_read_commands {
+	__le16 num_commands;
+	__le16 num_events;
+	__le16 opcodes[0];
+} __packed;
+
 #define MGMT_OP_READ_INDEX_LIST		0x0003
 struct mgmt_rp_read_index_list {
 	__le16 num_controllers;
