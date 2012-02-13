@@ -13912,6 +13912,83 @@ static struct pci_dev * __devinit tg3_find_peer(struct tg3 *tp)
 	return peer;
 }
 
+static void __devinit tg3_detect_asic_rev(struct tg3 *tp, u32 misc_ctrl_reg)
+{
+	tp->pci_chip_rev_id = misc_ctrl_reg >> MISC_HOST_CTRL_CHIPREV_SHIFT;
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_USE_PROD_ID_REG) {
+		u32 reg;
+
+		/* All devices that use the alternate
+		 * ASIC REV location have a CPMU.
+		 */
+		tg3_flag_set(tp, CPMU_PRESENT);
+
+		if (tp->pdev->device == TG3PCI_DEVICE_TIGON3_5717 ||
+		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5718 ||
+		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5719 ||
+		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5720)
+			reg = TG3PCI_GEN2_PRODID_ASICREV;
+		else if (tp->pdev->device == TG3PCI_DEVICE_TIGON3_57781 ||
+			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57785 ||
+			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57761 ||
+			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57765 ||
+			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57791 ||
+			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57795 ||
+			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57762 ||
+			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57766 ||
+			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57782 ||
+			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57786)
+			reg = TG3PCI_GEN15_PRODID_ASICREV;
+		else
+			reg = TG3PCI_PRODID_ASICREV;
+
+		pci_read_config_dword(tp->pdev, reg, &tp->pci_chip_rev_id);
+	}
+
+	/* Wrong chip ID in 5752 A0. This code can be removed later
+	 * as A0 is not in production.
+	 */
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5752_A0_HW)
+		tp->pci_chip_rev_id = CHIPREV_ID_5752_A0;
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720)
+		tg3_flag_set(tp, 5717_PLUS);
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57766)
+		tg3_flag_set(tp, 57765_CLASS);
+
+	if (tg3_flag(tp, 57765_CLASS) || tg3_flag(tp, 5717_PLUS))
+		tg3_flag_set(tp, 57765_PLUS);
+
+	/* Intentionally exclude ASIC_REV_5906 */
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780 ||
+	    tg3_flag(tp, 57765_PLUS))
+		tg3_flag_set(tp, 5755_PLUS);
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714)
+		tg3_flag_set(tp, 5780_CLASS);
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906 ||
+	    tg3_flag(tp, 5755_PLUS) ||
+	    tg3_flag(tp, 5780_CLASS))
+		tg3_flag_set(tp, 5750_PLUS);
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705 ||
+	    tg3_flag(tp, 5750_PLUS))
+		tg3_flag_set(tp, 5705_PLUS);
+}
+
 static int __devinit tg3_get_invariants(struct tg3 *tp)
 {
 	u32 misc_ctrl_reg;
@@ -13943,43 +14020,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	pci_write_config_dword(tp->pdev, TG3PCI_MISC_HOST_CTRL,
 			       tp->misc_host_ctrl);
 
-	tp->pci_chip_rev_id = (misc_ctrl_reg >>
-			       MISC_HOST_CTRL_CHIPREV_SHIFT);
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_USE_PROD_ID_REG) {
-		u32 prod_id_asic_rev;
-
-		if (tp->pdev->device == TG3PCI_DEVICE_TIGON3_5717 ||
-		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5718 ||
-		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5719 ||
-		    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5720)
-			pci_read_config_dword(tp->pdev,
-					      TG3PCI_GEN2_PRODID_ASICREV,
-					      &prod_id_asic_rev);
-		else if (tp->pdev->device == TG3PCI_DEVICE_TIGON3_57781 ||
-			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57785 ||
-			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57761 ||
-			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57765 ||
-			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57791 ||
-			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57795 ||
-			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57762 ||
-			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57766 ||
-			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57782 ||
-			 tp->pdev->device == TG3PCI_DEVICE_TIGON3_57786)
-			pci_read_config_dword(tp->pdev,
-					      TG3PCI_GEN15_PRODID_ASICREV,
-					      &prod_id_asic_rev);
-		else
-			pci_read_config_dword(tp->pdev, TG3PCI_PRODID_ASICREV,
-					      &prod_id_asic_rev);
-
-		tp->pci_chip_rev_id = prod_id_asic_rev;
-	}
-
-	/* Wrong chip ID in 5752 A0. This code can be removed later
-	 * as A0 is not in production.
-	 */
-	if (tp->pci_chip_rev_id == CHIPREV_ID_5752_A0_HW)
-		tp->pci_chip_rev_id = CHIPREV_ID_5752_A0;
+	tg3_detect_asic_rev(tp, misc_ctrl_reg);
 
 	/* If we have 5702/03 A1 or A2 on certain ICH chipsets,
 	 * we need to disable memory and use config. cycles
@@ -14077,9 +14118,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	 * Any tg3 device found behind the bridge will also need the 40-bit
 	 * DMA workaround.
 	 */
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714) {
-		tg3_flag_set(tp, 5780_CLASS);
+	if (tg3_flag(tp, 5780_CLASS)) {
 		tg3_flag_set(tp, 40BIT_DMA_BUG);
 		tp->msi_cap = pci_find_capability(tp->pdev, PCI_CAP_ID_MSI);
 	} else {
@@ -14104,39 +14143,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714)
 		tp->pdev_peer = tg3_find_peer(tp);
-
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720)
-		tg3_flag_set(tp, 5717_PLUS);
-
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57766)
-		tg3_flag_set(tp, 57765_CLASS);
-
-	if (tg3_flag(tp, 57765_CLASS) || tg3_flag(tp, 5717_PLUS))
-		tg3_flag_set(tp, 57765_PLUS);
-
-	/* Intentionally exclude ASIC_REV_5906 */
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780 ||
-	    tg3_flag(tp, 57765_PLUS))
-		tg3_flag_set(tp, 5755_PLUS);
-
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5750 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906 ||
-	    tg3_flag(tp, 5755_PLUS) ||
-	    tg3_flag(tp, 5780_CLASS))
-		tg3_flag_set(tp, 5750_PLUS);
-
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705 ||
-	    tg3_flag(tp, 5750_PLUS))
-		tg3_flag_set(tp, 5705_PLUS);
 
 	/* Determine TSO capabilities */
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5719_A0)
@@ -14466,13 +14472,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 		tg3_ape_lock_init(tp);
 	}
-
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780 ||
-	    tg3_flag(tp, 57765_PLUS))
-		tg3_flag_set(tp, CPMU_PRESENT);
 
 	/* Set up tp->grc_local_ctrl before calling
 	 * tg3_pwrsrc_switch_to_vmain().  GPIO1 driven high
