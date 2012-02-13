@@ -3649,8 +3649,8 @@ il4965_sta_modify_sleep_tx_count(struct il_priv *il, int sta_id, int cnt)
 void
 il4965_update_chain_flags(struct il_priv *il)
 {
-	if (il->ops->hcmd->set_rxon_chain) {
-		il->ops->hcmd->set_rxon_chain(il);
+	if (il->ops->set_rxon_chain) {
+		il->ops->set_rxon_chain(il);
 		if (il->active.rx_chain != il->staging.rx_chain)
 			il_commit_rxon(il);
 	}
@@ -4399,9 +4399,8 @@ il4965_irq_tasklet(struct il_priv *il)
 	/* HW RF KILL switch toggled */
 	if (inta & CSR_INT_BIT_RF_KILL) {
 		int hw_rf_kill = 0;
-		if (!
-		    (_il_rd(il, CSR_GP_CNTRL) &
-		     CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
+
+		if (!(_il_rd(il, CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
 			hw_rf_kill = 1;
 
 		IL_WARN("RF_KILL bit toggled to %s.\n",
@@ -5300,8 +5299,8 @@ il4965_alive_start(struct il_priv *il)
 		/* Initialize our rx_config data */
 		il_connection_init_rx_config(il);
 
-		if (il->ops->hcmd->set_rxon_chain)
-			il->ops->hcmd->set_rxon_chain(il);
+		if (il->ops->set_rxon_chain)
+			il->ops->set_rxon_chain(il);
 	}
 
 	/* Configure bluetooth coexistence if enabled */
@@ -6333,8 +6332,8 @@ il4965_init_drv(struct il_priv *il)
 	il->force_reset.reset_duration = IL_DELAY_NEXT_FORCE_FW_RELOAD;
 
 	/* Choose which receivers/antennas to use */
-	if (il->ops->hcmd->set_rxon_chain)
-		il->ops->hcmd->set_rxon_chain(il);
+	if (il->ops->set_rxon_chain)
+		il->ops->set_rxon_chain(il);
 
 	il_init_scan_params(il);
 

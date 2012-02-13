@@ -1553,19 +1553,6 @@ il_free_pages(struct il_priv *il, unsigned long page)
 #define IL_RX_BUF_SIZE_4K (4 * 1024)
 #define IL_RX_BUF_SIZE_8K (8 * 1024)
 
-struct il_hcmd_ops {
-	int (*rxon_assoc) (struct il_priv *il);
-	int (*commit_rxon) (struct il_priv *il);
-	void (*set_rxon_chain) (struct il_priv *il);
-};
-
-struct il_hcmd_utils_ops {
-	u16(*get_hcmd_size) (u8 cmd_id, u16 len);
-	u16(*build_addsta_hcmd) (const struct il_addsta_cmd *cmd, u8 *data);
-	int (*request_scan) (struct il_priv *il, struct ieee80211_vif *vif);
-	void (*post_scan) (struct il_priv *il);
-};
-
 #ifdef CONFIG_IWLEGACY_DEBUGFS
 struct il_debugfs_ops {
 	ssize_t(*rx_stats_read) (struct file *file, char __user *user_buf,
@@ -1577,19 +1564,6 @@ struct il_debugfs_ops {
 				      loff_t *ppos);
 };
 #endif
-
-struct il_led_ops {
-	int (*cmd) (struct il_priv *il, struct il_led_cmd *led_cmd);
-};
-
-struct il_legacy_ops {
-	void (*post_associate) (struct il_priv *il);
-	void (*config_ap) (struct il_priv *il);
-	/* station management */
-	int (*update_bcast_stations) (struct il_priv *il);
-	int (*manage_ibss_station) (struct il_priv *il,
-				    struct ieee80211_vif *vif, bool add);
-};
 
 struct il_ops {
 	/* Handling TX */
@@ -1623,11 +1597,23 @@ struct il_ops {
 	int (*eeprom_acquire_semaphore) (struct il_priv *il);
 	void (*eeprom_release_semaphore) (struct il_priv *il);
 
-	const struct il_hcmd_ops *hcmd;
-	const struct il_hcmd_utils_ops *utils;
-	const struct il_led_ops *led;
-	const struct il_nic_ops *nic;
-	const struct il_legacy_ops *legacy;
+	int (*rxon_assoc) (struct il_priv *il);
+	int (*commit_rxon) (struct il_priv *il);
+	void (*set_rxon_chain) (struct il_priv *il);
+
+	u16(*get_hcmd_size) (u8 cmd_id, u16 len);
+	u16(*build_addsta_hcmd) (const struct il_addsta_cmd *cmd, u8 *data);
+
+	int (*request_scan) (struct il_priv *il, struct ieee80211_vif *vif);
+	void (*post_scan) (struct il_priv *il);
+	void (*post_associate) (struct il_priv *il);
+	void (*config_ap) (struct il_priv *il);
+	/* station management */
+	int (*update_bcast_stations) (struct il_priv *il);
+	int (*manage_ibss_station) (struct il_priv *il,
+				    struct ieee80211_vif *vif, bool add);
+
+	int (*send_led_cmd) (struct il_priv *il, struct il_led_cmd *led_cmd);
 };
 
 struct il_mod_params {
@@ -2053,13 +2039,13 @@ int il_send_rxon_timing(struct il_priv *il);
 static inline int
 il_send_rxon_assoc(struct il_priv *il)
 {
-	return il->ops->hcmd->rxon_assoc(il);
+	return il->ops->rxon_assoc(il);
 }
 
 static inline int
 il_commit_rxon(struct il_priv *il)
 {
-	return il->ops->hcmd->commit_rxon(il);
+	return il->ops->commit_rxon(il);
 }
 
 static inline const struct ieee80211_supported_band *

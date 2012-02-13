@@ -264,10 +264,6 @@ il4965_led_enable(struct il_priv *il)
 	_il_wr(il, CSR_LED_REG, CSR_LED_REG_TRUN_ON);
 }
 
-const struct il_led_ops il4965_led_ops = {
-	.cmd = il4965_send_led_cmd,
-};
-
 static int il4965_send_tx_power(struct il_priv *il);
 static int il4965_hw_get_temperature(struct il_priv *il);
 
@@ -1737,12 +1733,6 @@ il4965_build_addsta_hcmd(const struct il_addsta_cmd *cmd, u8 * data)
 	return (u16) sizeof(struct il4965_addsta_cmd);
 }
 
-static struct il_hcmd_ops il4965_hcmd = {
-	.rxon_assoc = il4965_send_rxon_assoc,
-	.commit_rxon = il4965_commit_rxon,
-	.set_rxon_chain = il4965_set_rxon_chain,
-};
-
 static void
 il4965_post_scan(struct il_priv *il)
 {
@@ -1782,8 +1772,8 @@ il4965_post_associate(struct il_priv *il)
 
 	il_set_rxon_ht(il, &il->current_ht_config);
 
-	if (il->ops->hcmd->set_rxon_chain)
-		il->ops->hcmd->set_rxon_chain(il);
+	if (il->ops->set_rxon_chain)
+		il->ops->set_rxon_chain(il);
 
 	il->staging.assoc_id = cpu_to_le16(vif->bss_conf.aid);
 
@@ -1857,8 +1847,8 @@ il4965_config_ap(struct il_priv *il)
 		/* AP has all antennas */
 		il->chain_noise_data.active_chains = il->hw_params.valid_rx_ant;
 		il_set_rxon_ht(il, &il->current_ht_config);
-		if (il->ops->hcmd->set_rxon_chain)
-			il->ops->hcmd->set_rxon_chain(il);
+		if (il->ops->set_rxon_chain)
+			il->ops->set_rxon_chain(il);
 
 		il->staging.assoc_id = 0;
 
@@ -1882,20 +1872,6 @@ il4965_config_ap(struct il_priv *il)
 	il4965_send_beacon_cmd(il);
 }
 
-static struct il_hcmd_utils_ops il4965_hcmd_utils = {
-	.get_hcmd_size = il4965_get_hcmd_size,
-	.build_addsta_hcmd = il4965_build_addsta_hcmd,
-	.request_scan = il4965_request_scan,
-	.post_scan = il4965_post_scan,
-};
-
-static const struct il_legacy_ops il4965_legacy_ops = {
-	.post_associate = il4965_post_associate,
-	.config_ap = il4965_config_ap,
-	.manage_ibss_station = il4965_manage_ibss_station,
-	.update_bcast_stations = il4965_update_bcast_stations,
-};
-
 const struct il_ops il4965_ops = {
 	.txq_update_byte_cnt_tbl = il4965_txq_update_byte_cnt_tbl,
 	.txq_attach_buf_to_tfd = il4965_hw_txq_attach_buf_to_tfd,
@@ -1913,10 +1889,21 @@ const struct il_ops il4965_ops = {
 	.eeprom_acquire_semaphore = il4965_eeprom_acquire_semaphore,
 	.eeprom_release_semaphore = il4965_eeprom_release_semaphore,
 
-	.hcmd = &il4965_hcmd,
-	.utils = &il4965_hcmd_utils,
-	.led = &il4965_led_ops,
-	.legacy = &il4965_legacy_ops,
+	.rxon_assoc = il4965_send_rxon_assoc,
+	.commit_rxon = il4965_commit_rxon,
+	.set_rxon_chain = il4965_set_rxon_chain,
+
+	.get_hcmd_size = il4965_get_hcmd_size,
+	.build_addsta_hcmd = il4965_build_addsta_hcmd,
+	.request_scan = il4965_request_scan,
+	.post_scan = il4965_post_scan,
+
+	.post_associate = il4965_post_associate,
+	.config_ap = il4965_config_ap,
+	.manage_ibss_station = il4965_manage_ibss_station,
+	.update_bcast_stations = il4965_update_bcast_stations,
+
+	.send_led_cmd = il4965_send_led_cmd,
 };
 
 struct il_cfg il4965_cfg = {

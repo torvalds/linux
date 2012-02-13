@@ -519,7 +519,7 @@ il_led_cmd(struct il_priv *il, unsigned long on, unsigned long off)
 	    il_blink_compensation(il, off,
 				  il->cfg->led_compensation);
 
-	ret = il->ops->led->cmd(il, &led_cmd);
+	ret = il->ops->send_led_cmd(il, &led_cmd);
 	if (!ret) {
 		il->blink_on = on;
 		il->blink_off = off;
@@ -1482,9 +1482,6 @@ il_scan_initiate(struct il_priv *il, struct ieee80211_vif *vif)
 
 	lockdep_assert_held(&il->mutex);
 
-	if (WARN_ON(!il->ops->utils->request_scan))
-		return -EOPNOTSUPP;
-
 	cancel_delayed_work(&il->scan_check);
 
 	if (!il_is_ready_rf(il)) {
@@ -1507,7 +1504,7 @@ il_scan_initiate(struct il_priv *il, struct ieee80211_vif *vif)
 	set_bit(S_SCANNING, &il->status);
 	il->scan_start = jiffies;
 
-	ret = il->ops->utils->request_scan(il, vif);
+	ret = il->ops->request_scan(il, vif);
 	if (ret) {
 		clear_bit(S_SCANNING, &il->status);
 		return ret;
@@ -1669,7 +1666,7 @@ out_settings:
 	il_power_set_mode(il, &il->power_data.sleep_cmd_next, false);
 	il_set_tx_power(il, il->tx_power_next, false);
 
-	il->ops->utils->post_scan(il);
+	il->ops->post_scan(il);
 
 out:
 	mutex_unlock(&il->mutex);
@@ -1811,7 +1808,7 @@ il_send_add_sta(struct il_priv *il, struct il_addsta_cmd *sta, u8 flags)
 		might_sleep();
 	}
 
-	cmd.len = il->ops->utils->build_addsta_hcmd(sta, data);
+	cmd.len = il->ops->build_addsta_hcmd(sta, data);
 	ret = il_send_cmd(il, &cmd);
 
 	if (ret || (flags & CMD_ASYNC))
@@ -3078,7 +3075,7 @@ il_enqueue_hcmd(struct il_priv *il, struct il_host_cmd *cmd)
 	u32 idx;
 	u16 fix_size;
 
-	cmd->len = il->ops->utils->get_hcmd_size(cmd->id, cmd->len);
+	cmd->len = il->ops->get_hcmd_size(cmd->id, cmd->len);
 	fix_size = (u16) (cmd->len + sizeof(out_cmd->hdr));
 
 	/* If any of the command structures end up being larger than
@@ -3842,8 +3839,8 @@ _il_set_rxon_ht(struct il_priv *il, struct il_ht_config *ht_conf)
 		rxon->flags |= RXON_FLG_CHANNEL_MODE_LEGACY;
 	}
 
-	if (il->ops->hcmd->set_rxon_chain)
-		il->ops->hcmd->set_rxon_chain(il);
+	if (il->ops->set_rxon_chain)
+		il->ops->set_rxon_chain(il);
 
 	D_ASSOC("rxon flags 0x%X operation mode :0x%X "
 		"extension channel offset 0x%x\n", le32_to_cpu(rxon->flags),
@@ -4472,8 +4469,8 @@ il_set_mode(struct il_priv *il)
 {
 	il_connection_init_rx_config(il);
 
-	if (il->ops->hcmd->set_rxon_chain)
-		il->ops->hcmd->set_rxon_chain(il);
+	if (il->ops->set_rxon_chain)
+		il->ops->set_rxon_chain(il);
 
 	return il_commit_rxon(il);
 }
@@ -5171,9 +5168,6 @@ il_mac_config(struct ieee80211_hw *hw, u32 changed)
 	int scan_active = 0;
 	bool ht_changed = false;
 
-	if (WARN_ON(!il->ops->legacy))
-		return -EOPNOTSUPP;
-
 	mutex_lock(&il->mutex);
 
 	D_MAC80211("enter to channel %d changed 0x%X\n", channel->hw_value,
@@ -5196,8 +5190,8 @@ il_mac_config(struct ieee80211_hw *hw, u32 changed)
 		 * set up the SM PS mode to OFF if an HT channel is
 		 * configured.
 		 */
-		if (il->ops->hcmd->set_rxon_chain)
-			il->ops->hcmd->set_rxon_chain(il);
+		if (il->ops->set_rxon_chain)
+			il->ops->set_rxon_chain(il);
 	}
 
 	/* during scanning mac80211 will delay channel setting until
@@ -5266,8 +5260,8 @@ il_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 		spin_unlock_irqrestore(&il->lock, flags);
 
-		if (il->ops->legacy->update_bcast_stations)
-			ret = il->ops->legacy->update_bcast_stations(il);
+		if (il->ops->update_bcast_stations)
+			ret = il->ops->update_bcast_stations(il);
 
 set_ch_out:
 		/* The list of supported rates and rate mask can be different
@@ -5316,9 +5310,6 @@ il_mac_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct il_priv *il = hw->priv;
 	unsigned long flags;
-
-	if (WARN_ON(!il->ops->legacy))
-		return;
 
 	mutex_lock(&il->mutex);
 	D_MAC80211("enter\n");
@@ -5472,7 +5463,7 @@ il_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		return;
 	}
 
-	il->ops->legacy->post_associate(il);
+	il->ops->post_associate(il);
 }
 
 void
@@ -5481,9 +5472,6 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct il_priv *il = hw->priv;
 	int ret;
-
-	if (WARN_ON(!il->ops->legacy))
-		return;
 
 	D_MAC80211("changes = 0x%X\n", changes);
 
@@ -5587,8 +5575,8 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (changes & BSS_CHANGED_HT) {
 		il_ht_conf(il, vif);
 
-		if (il->ops->hcmd->set_rxon_chain)
-			il->ops->hcmd->set_rxon_chain(il);
+		if (il->ops->set_rxon_chain)
+			il->ops->set_rxon_chain(il);
 	}
 
 	if (changes & BSS_CHANGED_ASSOC) {
@@ -5597,7 +5585,7 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			il->timestamp = bss_conf->timestamp;
 
 			if (!il_is_rfkill(il))
-				il->ops->legacy->post_associate(il);
+				il->ops->post_associate(il);
 		} else
 			il_set_no_assoc(il, vif);
 	}
@@ -5617,14 +5605,14 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			memcpy(il->staging.bssid_addr, bss_conf->bssid,
 			       ETH_ALEN);
 			memcpy(il->bssid, bss_conf->bssid, ETH_ALEN);
-			il->ops->legacy->config_ap(il);
+			il->ops->config_ap(il);
 		} else
 			il_set_no_assoc(il, vif);
 	}
 
 	if (changes & BSS_CHANGED_IBSS) {
 		ret =
-		    il->ops->legacy->manage_ibss_station(il, vif,
+		    il->ops->manage_ibss_station(il, vif,
 							 bss_conf->ibss_joined);
 		if (ret)
 			IL_ERR("failed to %s IBSS station %pM\n",

@@ -57,10 +57,6 @@ il3945_send_led_cmd(struct il_priv *il, struct il_led_cmd *led_cmd)
 	return il_send_cmd(il, &cmd);
 }
 
-const struct il_led_ops il3945_led_ops = {
-	.cmd = il3945_send_led_cmd,
-};
-
 #define IL_DECLARE_RATE_INFO(r, ip, in, rp, rn, pp, np)    \
 	[RATE_##r##M_IDX] = { RATE_##r##M_PLCP,   \
 				    RATE_##r##M_IEEE,   \
@@ -2629,24 +2625,6 @@ il3945_load_bsm(struct il_priv *il)
 	return 0;
 }
 
-static struct il_hcmd_ops il3945_hcmd = {
-	.rxon_assoc = il3945_send_rxon_assoc,
-	.commit_rxon = il3945_commit_rxon,
-};
-
-static const struct il_legacy_ops il3945_legacy_ops = {
-	.post_associate = il3945_post_associate,
-	.config_ap = il3945_config_ap,
-	.manage_ibss_station = il3945_manage_ibss_station,
-};
-
-static struct il_hcmd_utils_ops il3945_hcmd_utils = {
-	.get_hcmd_size = il3945_get_hcmd_size,
-	.build_addsta_hcmd = il3945_build_addsta_hcmd,
-	.request_scan = il3945_request_scan,
-	.post_scan = il3945_post_scan,
-};
-
 const struct il_ops il3945_ops = {
 	.txq_attach_buf_to_tfd = il3945_hw_txq_attach_buf_to_tfd,
 	.txq_free_tfd = il3945_hw_txq_free_tfd,
@@ -2659,10 +2637,19 @@ const struct il_ops il3945_ops = {
 	.eeprom_acquire_semaphore = il3945_eeprom_acquire_semaphore,
 	.eeprom_release_semaphore = il3945_eeprom_release_semaphore,
 
-	.hcmd = &il3945_hcmd,
-	.utils = &il3945_hcmd_utils,
-	.led = &il3945_led_ops,
-	.legacy = &il3945_legacy_ops,
+	.rxon_assoc = il3945_send_rxon_assoc,
+	.commit_rxon = il3945_commit_rxon,
+
+	.get_hcmd_size = il3945_get_hcmd_size,
+	.build_addsta_hcmd = il3945_build_addsta_hcmd,
+	.request_scan = il3945_request_scan,
+	.post_scan = il3945_post_scan,
+
+	.post_associate = il3945_post_associate,
+	.config_ap = il3945_config_ap,
+	.manage_ibss_station = il3945_manage_ibss_station,
+
+	.send_led_cmd = il3945_send_led_cmd,
 };
 
 static struct il_cfg il3945_bg_cfg = {
