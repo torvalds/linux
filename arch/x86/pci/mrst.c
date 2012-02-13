@@ -239,6 +239,30 @@ int __init pci_mrst_init(void)
 	return 1;
 }
 
+/* Langwell devices are not true pci devices, they are not subject to 10 ms
+ * d3 to d0 delay required by pci spec.
+ */
+static void __devinit pci_d3delay_fixup(struct pci_dev *dev)
+{
+	/* true pci devices in lincroft should allow type 1 access, the rest
+	 * are langwell fake pci devices.
+	 */
+	if (type1_access_ok(dev->bus->number, dev->devfn, PCI_DEVICE_ID))
+		return;
+	dev->d3_delay = 0;
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_d3delay_fixup);
+
+static void __devinit mrst_power_off_unused_dev(struct pci_dev *dev)
+{
+	pci_set_power_state(dev, PCI_D3cold);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0801, mrst_power_off_unused_dev);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0809, mrst_power_off_unused_dev);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x080C, mrst_power_off_unused_dev);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0812, mrst_power_off_unused_dev);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0815, mrst_power_off_unused_dev);
+
 /*
  * Langwell devices reside at fixed offsets, don't try to move them.
  */
