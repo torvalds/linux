@@ -208,7 +208,7 @@ static int plug_change(struct Qdisc *sch, struct nlattr *opt)
 	return 0;
 }
 
-struct Qdisc_ops plug_qdisc_ops = {
+static struct Qdisc_ops plug_qdisc_ops __read_mostly = {
 	.id          =       "plug",
 	.priv_size   =       sizeof(struct plug_sched_data),
 	.enqueue     =       plug_enqueue,
