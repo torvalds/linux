@@ -149,6 +149,10 @@ static const u8 iwl_eeprom_band_7[] = {       /* 5.2 ht40 channel */
  * EEPROM chip, not a single event, so even reads could conflict if they
  * weren't arbitrated by the semaphore.
  */
+
+#define	EEPROM_SEM_TIMEOUT 10		/* milliseconds */
+#define EEPROM_SEM_RETRY_LIMIT 1000	/* number of attempts (not time) */
+
 static int iwl_eeprom_acquire_semaphore(struct iwl_bus *bus)
 {
 	u16 count;
