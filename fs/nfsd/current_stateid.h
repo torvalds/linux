@@ -14,6 +14,8 @@ extern void nfsd4_set_closestateid(struct nfsd4_compound_state *, struct nfsd4_c
 /*
  * functions to consume current state id
  */
+extern void nfsd4_get_freestateid(struct nfsd4_compound_state *, struct nfsd4_free_stateid *);
+extern void nfsd4_get_setattrstateid(struct nfsd4_compound_state *, struct nfsd4_setattr *);
 extern void nfsd4_get_closestateid(struct nfsd4_compound_state *, struct nfsd4_close *);
 extern void nfsd4_get_lockustateid(struct nfsd4_compound_state *, struct nfsd4_locku *);
 extern void nfsd4_get_readstateid(struct nfsd4_compound_state *, struct nfsd4_read *);

@@ -4734,6 +4734,19 @@ nfsd4_set_lockstateid(struct nfsd4_compound_state *cstate, struct nfsd4_lock *lo
 /*
  * functions to consume current state id
  */
+
+void
+nfsd4_get_freestateid(struct nfsd4_compound_state *cstate, struct nfsd4_free_stateid *fsp)
+{
+	get_stateid(cstate, &fsp->fr_stateid);
+}
+
+void
+nfsd4_get_setattrstateid(struct nfsd4_compound_state *cstate, struct nfsd4_setattr *setattr)
+{
+	get_stateid(cstate, &setattr->sa_stateid);
+}
+
 void
 nfsd4_get_closestateid(struct nfsd4_compound_state *cstate, struct nfsd4_close *close)
 {
