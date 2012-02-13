@@ -4110,17 +4110,17 @@ il4965_hdl_card_state(struct il_priv *il, struct il_rx_buf *rxb)
 		il4965_perform_ct_kill_task(il);
 
 	if (flags & HW_CARD_DISABLED)
-		set_bit(S_RF_KILL_HW, &il->status);
+		set_bit(S_RFKILL, &il->status);
 	else
-		clear_bit(S_RF_KILL_HW, &il->status);
+		clear_bit(S_RFKILL, &il->status);
 
 	if (!(flags & RXON_CARD_DISABLED))
 		il_scan_cancel(il);
 
-	if ((test_bit(S_RF_KILL_HW, &status) !=
-	     test_bit(S_RF_KILL_HW, &il->status)))
+	if ((test_bit(S_RFKILL, &status) !=
+	     test_bit(S_RFKILL, &il->status)))
 		wiphy_rfkill_set_hw_state(il->hw->wiphy,
-					  test_bit(S_RF_KILL_HW, &il->status));
+					  test_bit(S_RFKILL, &il->status));
 	else
 		wake_up(&il->wait_command_queue);
 }
@@ -4412,9 +4412,9 @@ il4965_irq_tasklet(struct il_priv *il)
 		 */
 		if (!test_bit(S_ALIVE, &il->status)) {
 			if (hw_rf_kill)
-				set_bit(S_RF_KILL_HW, &il->status);
+				set_bit(S_RFKILL, &il->status);
 			else
-				clear_bit(S_RF_KILL_HW, &il->status);
+				clear_bit(S_RFKILL, &il->status);
 			wiphy_rfkill_set_hw_state(il->hw->wiphy, hw_rf_kill);
 		}
 
@@ -5383,7 +5383,7 @@ __il4965_down(struct il_priv *il)
 	 * clear all bits but the RF Kill bit and return */
 	if (!il_is_init(il)) {
 		il->status =
-		    test_bit(S_RF_KILL_HW, &il->status) << S_RF_KILL_HW |
+		    test_bit(S_RFKILL, &il->status) << S_RFKILL |
 		    test_bit(S_GEO_CONFIGURED, &il->status) << S_GEO_CONFIGURED |
 		    test_bit(S_EXIT_PENDING, &il->status) << S_EXIT_PENDING;
 		goto exit;
@@ -5392,7 +5392,7 @@ __il4965_down(struct il_priv *il)
 	/* ...otherwise clear out all the status bits but the RF Kill
 	 * bit and continue taking the NIC down. */
 	il->status &=
-	    test_bit(S_RF_KILL_HW, &il->status) << S_RF_KILL_HW |
+	    test_bit(S_RFKILL, &il->status) << S_RFKILL |
 	    test_bit(S_GEO_CONFIGURED, &il->status) << S_GEO_CONFIGURED |
 	    test_bit(S_FW_ERROR, &il->status) << S_FW_ERROR |
 	    test_bit(S_EXIT_PENDING, &il->status) << S_EXIT_PENDING;
@@ -5514,9 +5514,9 @@ __il4965_up(struct il_priv *il)
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
 	if (_il_rd(il, CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
-		clear_bit(S_RF_KILL_HW, &il->status);
+		clear_bit(S_RFKILL, &il->status);
 	else {
-		set_bit(S_RF_KILL_HW, &il->status);
+		set_bit(S_RFKILL, &il->status);
 		wiphy_rfkill_set_hw_state(il->hw->wiphy, true);
 
 		il_enable_rfkill_int(il);
@@ -6612,12 +6612,12 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
 	if (_il_rd(il, CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
-		clear_bit(S_RF_KILL_HW, &il->status);
+		clear_bit(S_RFKILL, &il->status);
 	else
-		set_bit(S_RF_KILL_HW, &il->status);
+		set_bit(S_RFKILL, &il->status);
 
 	wiphy_rfkill_set_hw_state(il->hw->wiphy,
-				  test_bit(S_RF_KILL_HW, &il->status));
+				  test_bit(S_RFKILL, &il->status));
 
 	il_power_initialize(il);
 

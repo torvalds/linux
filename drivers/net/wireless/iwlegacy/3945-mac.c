@@ -809,16 +809,16 @@ il3945_hdl_card_state(struct il_priv *il, struct il_rx_buf *rxb)
 	_il_wr(il, CSR_UCODE_DRV_GP1_SET, CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 
 	if (flags & HW_CARD_DISABLED)
-		set_bit(S_RF_KILL_HW, &il->status);
+		set_bit(S_RFKILL, &il->status);
 	else
-		clear_bit(S_RF_KILL_HW, &il->status);
+		clear_bit(S_RFKILL, &il->status);
 
 	il_scan_cancel(il);
 
-	if ((test_bit(S_RF_KILL_HW, &status) !=
-	     test_bit(S_RF_KILL_HW, &il->status)))
+	if ((test_bit(S_RFKILL, &status) !=
+	     test_bit(S_RFKILL, &il->status)))
 		wiphy_rfkill_set_hw_state(il->hw->wiphy,
-					  test_bit(S_RF_KILL_HW, &il->status));
+					  test_bit(S_RFKILL, &il->status));
 	else
 		wake_up(&il->wait_command_queue);
 }
@@ -2166,7 +2166,7 @@ il3945_alive_start(struct il_priv *il)
 	D_INFO("RFKILL status: 0x%x\n", rfkill);
 
 	if (rfkill & 0x1) {
-		clear_bit(S_RF_KILL_HW, &il->status);
+		clear_bit(S_RFKILL, &il->status);
 		/* if RFKILL is not on, then wait for thermal
 		 * sensor in adapter to kick in */
 		while (il3945_hw_get_temperature(il) == 0) {
@@ -2178,7 +2178,7 @@ il3945_alive_start(struct il_priv *il)
 			D_INFO("Thermal calibration took %dus\n",
 			       thermal_spin * 10);
 	} else
-		set_bit(S_RF_KILL_HW, &il->status);
+		set_bit(S_RFKILL, &il->status);
 
 	/* After the ALIVE response, we can send commands to 3945 uCode */
 	set_bit(S_ALIVE, &il->status);
@@ -2272,7 +2272,7 @@ __il3945_down(struct il_priv *il)
 	 * clear all bits but the RF Kill bits and return */
 	if (!il_is_init(il)) {
 		il->status =
-		    test_bit(S_RF_KILL_HW, &il->status) << S_RF_KILL_HW |
+		    test_bit(S_RFKILL, &il->status) << S_RFKILL |
 		    test_bit(S_GEO_CONFIGURED, &il->status) << S_GEO_CONFIGURED |
 		    test_bit(S_EXIT_PENDING, &il->status) << S_EXIT_PENDING;
 		goto exit;
@@ -2281,7 +2281,7 @@ __il3945_down(struct il_priv *il)
 	/* ...otherwise clear out all the status bits but the RF Kill
 	 * bit and continue taking the NIC down. */
 	il->status &=
-	    test_bit(S_RF_KILL_HW, &il->status) << S_RF_KILL_HW |
+	    test_bit(S_RFKILL, &il->status) << S_RFKILL |
 	    test_bit(S_GEO_CONFIGURED, &il->status) << S_GEO_CONFIGURED |
 	    test_bit(S_FW_ERROR, &il->status) << S_FW_ERROR |
 	    test_bit(S_EXIT_PENDING, &il->status) << S_EXIT_PENDING;
@@ -2371,9 +2371,9 @@ __il3945_up(struct il_priv *il)
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
 	if (_il_rd(il, CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
-		clear_bit(S_RF_KILL_HW, &il->status);
+		clear_bit(S_RFKILL, &il->status);
 	else {
-		set_bit(S_RF_KILL_HW, &il->status);
+		set_bit(S_RFKILL, &il->status);
 		IL_WARN("Radio disabled by HW RF Kill switch\n");
 		return -ENODEV;
 	}
@@ -2405,7 +2405,7 @@ __il3945_up(struct il_priv *il)
 	       il->ucode_data.len);
 
 	/* We return success when we resume from suspend and rf_kill is on. */
-	if (test_bit(S_RF_KILL_HW, &il->status))
+	if (test_bit(S_RFKILL, &il->status))
 		return 0;
 
 	for (i = 0; i < MAX_HW_RESTARTS; i++) {
@@ -2485,15 +2485,15 @@ il3945_rfkill_poll(struct work_struct *data)
 {
 	struct il_priv *il =
 	    container_of(data, struct il_priv, _3945.rfkill_poll.work);
-	bool old_rfkill = test_bit(S_RF_KILL_HW, &il->status);
+	bool old_rfkill = test_bit(S_RFKILL, &il->status);
 	bool new_rfkill =
 	    !(_il_rd(il, CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
 
 	if (new_rfkill != old_rfkill) {
 		if (new_rfkill)
-			set_bit(S_RF_KILL_HW, &il->status);
+			set_bit(S_RFKILL, &il->status);
 		else
-			clear_bit(S_RF_KILL_HW, &il->status);
+			clear_bit(S_RFKILL, &il->status);
 
 		wiphy_rfkill_set_hw_state(il->hw->wiphy, new_rfkill);
 

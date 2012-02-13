@@ -1906,7 +1906,7 @@ void il_free_geos(struct il_priv *il);
 #define S_HCMD_ACTIVE	0	/* host command in progress */
 /* 1 is unused (used to be S_HCMD_SYNC_ACTIVE) */
 #define S_INT_ENABLED	2
-#define S_RF_KILL_HW	3
+#define S_RFKILL	3
 #define S_CT_KILL		4
 #define S_INIT		5
 #define S_ALIVE		6
@@ -1947,7 +1947,7 @@ il_is_init(struct il_priv *il)
 static inline int
 il_is_rfkill_hw(struct il_priv *il)
 {
-	return test_bit(S_RF_KILL_HW, &il->status);
+	return test_bit(S_RFKILL, &il->status);
 }
 
 static inline int

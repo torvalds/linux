@@ -350,7 +350,7 @@ il_send_cmd_sync(struct il_priv *il, struct il_host_cmd *cmd)
 		}
 	}
 
-	if (test_bit(S_RF_KILL_HW, &il->status)) {
+	if (test_bit(S_RFKILL, &il->status)) {
 		IL_ERR("Command %s aborted: RF KILL Switch\n",
 		       il_get_cmd_string(cmd->id));
 		ret = -ECANCELED;
@@ -4890,9 +4890,9 @@ il_pci_resume(struct device *device)
 		hw_rfkill = true;
 
 	if (hw_rfkill)
-		set_bit(S_RF_KILL_HW, &il->status);
+		set_bit(S_RFKILL, &il->status);
 	else
-		clear_bit(S_RF_KILL_HW, &il->status);
+		clear_bit(S_RFKILL, &il->status);
 
 	wiphy_rfkill_set_hw_state(il->hw->wiphy, hw_rfkill);
 

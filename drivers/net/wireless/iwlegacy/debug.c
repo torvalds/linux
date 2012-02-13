@@ -630,8 +630,8 @@ il_dbgfs_status_read(struct file *file, char __user *user_buf, size_t count,
 	    scnprintf(buf + pos, bufsz - pos, "S_INT_ENABLED:\t %d\n",
 		      test_bit(S_INT_ENABLED, &il->status));
 	pos +=
-	    scnprintf(buf + pos, bufsz - pos, "S_RF_KILL_HW:\t %d\n",
-		      test_bit(S_RF_KILL_HW, &il->status));
+	    scnprintf(buf + pos, bufsz - pos, "S_RFKILL:\t %d\n",
+		      test_bit(S_RFKILL, &il->status));
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, "S_CT_KILL:\t\t %d\n",
 		      test_bit(S_CT_KILL, &il->status));
