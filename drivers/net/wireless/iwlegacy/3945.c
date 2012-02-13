@@ -2646,18 +2646,9 @@ static struct il_lib_ops il3945_lib = {
 		    .config = il3945_nic_config,
 		    },
 	.eeprom_ops = {
-		       .regulatory_bands = {
-					    EEPROM_REGULATORY_BAND_1_CHANNELS,
-					    EEPROM_REGULATORY_BAND_2_CHANNELS,
-					    EEPROM_REGULATORY_BAND_3_CHANNELS,
-					    EEPROM_REGULATORY_BAND_4_CHANNELS,
-					    EEPROM_REGULATORY_BAND_5_CHANNELS,
-					    EEPROM_REGULATORY_BAND_NO_HT40,
-					    EEPROM_REGULATORY_BAND_NO_HT40,
-					    },
-		       .acquire_semaphore = il3945_eeprom_acquire_semaphore,
-		       .release_semaphore = il3945_eeprom_release_semaphore,
-		       },
+		.acquire_semaphore = il3945_eeprom_acquire_semaphore,
+		.release_semaphore = il3945_eeprom_release_semaphore,
+	},
 	.send_tx_power = il3945_send_tx_power,
 	.is_valid_rtc_data_addr = il3945_hw_valid_rtc_data_addr,
 
@@ -2707,7 +2698,17 @@ static struct il_cfg il3945_bg_cfg = {
 	.set_l0s = false,
 	.use_bsm = true,
 	.led_compensation = 64,
-	.wd_timeout = IL_DEF_WD_TIMEOUT
+	.wd_timeout = IL_DEF_WD_TIMEOUT,
+
+	.regulatory_bands = {
+		EEPROM_REGULATORY_BAND_1_CHANNELS,
+		EEPROM_REGULATORY_BAND_2_CHANNELS,
+		EEPROM_REGULATORY_BAND_3_CHANNELS,
+		EEPROM_REGULATORY_BAND_4_CHANNELS,
+		EEPROM_REGULATORY_BAND_5_CHANNELS,
+		EEPROM_REGULATORY_BAND_NO_HT40,
+		EEPROM_REGULATORY_BAND_NO_HT40,
+	},
 };
 
 static struct il_cfg il3945_abg_cfg = {
@@ -2726,7 +2727,17 @@ static struct il_cfg il3945_abg_cfg = {
 	.set_l0s = false,
 	.use_bsm = true,
 	.led_compensation = 64,
-	.wd_timeout = IL_DEF_WD_TIMEOUT
+	.wd_timeout = IL_DEF_WD_TIMEOUT,
+
+	.regulatory_bands = {
+		EEPROM_REGULATORY_BAND_1_CHANNELS,
+		EEPROM_REGULATORY_BAND_2_CHANNELS,
+		EEPROM_REGULATORY_BAND_3_CHANNELS,
+		EEPROM_REGULATORY_BAND_4_CHANNELS,
+		EEPROM_REGULATORY_BAND_5_CHANNELS,
+		EEPROM_REGULATORY_BAND_NO_HT40,
+		EEPROM_REGULATORY_BAND_NO_HT40,
+	},
 };
 
 DEFINE_PCI_DEVICE_TABLE(il3945_hw_card_ids) = {

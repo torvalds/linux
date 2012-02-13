@@ -798,8 +798,8 @@ il_init_band_reference(const struct il_priv *il, int eep_band,
 		       const struct il_eeprom_channel **eeprom_ch_info,
 		       const u8 **eeprom_ch_idx)
 {
-	u32 offset =
-	    il->ops->lib->eeprom_ops.regulatory_bands[eep_band - 1];
+	u32 offset = il->cfg->regulatory_bands[eep_band - 1];
+
 	switch (eep_band) {
 	case 1:		/* 2.4GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(il_eeprom_band_1);
@@ -1000,10 +1000,8 @@ il_init_channel_map(struct il_priv *il)
 	}
 
 	/* Check if we do have HT40 channels */
-	if (il->ops->lib->eeprom_ops.regulatory_bands[5] ==
-	    EEPROM_REGULATORY_BAND_NO_HT40 &&
-	    il->ops->lib->eeprom_ops.regulatory_bands[6] ==
-	    EEPROM_REGULATORY_BAND_NO_HT40)
+	if (il->cfg->regulatory_bands[5] == EEPROM_REGULATORY_BAND_NO_HT40 &&
+	    il->cfg->regulatory_bands[6] == EEPROM_REGULATORY_BAND_NO_HT40)
 		return 0;
 
 	/* Two additional EEPROM bands for 2.4 and 5 GHz HT40 channels */

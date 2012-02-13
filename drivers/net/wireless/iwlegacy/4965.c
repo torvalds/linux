@@ -2217,14 +2217,6 @@ static struct il_lib_ops il4965_lib = {
 		    .config = il4965_nic_config,
 		    },
 	.eeprom_ops = {
-		       .regulatory_bands = {
-					    EEPROM_REGULATORY_BAND_1_CHANNELS,
-					    EEPROM_REGULATORY_BAND_2_CHANNELS,
-					    EEPROM_REGULATORY_BAND_3_CHANNELS,
-					    EEPROM_REGULATORY_BAND_4_CHANNELS,
-					    EEPROM_REGULATORY_BAND_5_CHANNELS,
-					    EEPROM_4965_REGULATORY_BAND_24_HT40_CHANNELS,
-					    EEPROM_4965_REGULATORY_BAND_52_HT40_CHANNELS},
 		       .acquire_semaphore = il4965_eeprom_acquire_semaphore,
 		       .release_semaphore = il4965_eeprom_release_semaphore,
 		       },
@@ -2288,6 +2280,17 @@ struct il_cfg il4965_cfg = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+
+	.regulatory_bands = {
+		EEPROM_REGULATORY_BAND_1_CHANNELS,
+		EEPROM_REGULATORY_BAND_2_CHANNELS,
+		EEPROM_REGULATORY_BAND_3_CHANNELS,
+		EEPROM_REGULATORY_BAND_4_CHANNELS,
+		EEPROM_REGULATORY_BAND_5_CHANNELS,
+		EEPROM_4965_REGULATORY_BAND_24_HT40_CHANNELS,
+		EEPROM_4965_REGULATORY_BAND_52_HT40_CHANNELS
+	},
+
 };
 
 /* Module firmware */

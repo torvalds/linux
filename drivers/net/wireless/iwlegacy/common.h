@@ -426,7 +426,6 @@ struct il_eeprom_calib_info {
 #define EEPROM_REGULATORY_BAND_NO_HT40			(0)
 
 struct il_eeprom_ops {
-	const u32 regulatory_bands[7];
 	int (*acquire_semaphore) (struct il_priv *il);
 	void (*release_semaphore) (struct il_priv *il);
 };
@@ -1769,6 +1768,8 @@ struct il_cfg {
 	const bool ucode_tracing;
 	const bool sensitivity_calib_by_driver;
 	const bool chain_noise_calib_by_driver;
+
+	const u32 regulatory_bands[7];
 };
 
 /***************************
