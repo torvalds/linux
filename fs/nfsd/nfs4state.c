@@ -4745,3 +4745,15 @@ nfsd4_get_lockustateid(struct nfsd4_compound_state *cstate, struct nfsd4_locku *
 {
 	get_stateid(cstate, &locku->lu_stateid);
 }
+
+void
+nfsd4_get_readstateid(struct nfsd4_compound_state *cstate, struct nfsd4_read *read)
+{
+	get_stateid(cstate, &read->rd_stateid);
+}
+
+void
+nfsd4_get_writestateid(struct nfsd4_compound_state *cstate, struct nfsd4_write *write)
+{
+	get_stateid(cstate, &write->wr_stateid);
+}
