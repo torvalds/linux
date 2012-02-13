@@ -543,9 +543,9 @@ static int max1363_read_thresh(struct iio_dev *indio_dev,
 {
 	struct max1363_state *st = iio_priv(indio_dev);
 	if (IIO_EVENT_CODE_EXTRACT_DIR(event_code) == IIO_EV_DIR_FALLING)
-		*val = st->thresh_low[IIO_EVENT_CODE_EXTRACT_NUM(event_code)];
+		*val = st->thresh_low[IIO_EVENT_CODE_EXTRACT_CHAN(event_code)];
 	else
-		*val = st->thresh_high[IIO_EVENT_CODE_EXTRACT_NUM(event_code)];
+		*val = st->thresh_high[IIO_EVENT_CODE_EXTRACT_CHAN(event_code)];
 	return 0;
 }
 
@@ -568,10 +568,10 @@ static int max1363_write_thresh(struct iio_dev *indio_dev,
 
 	switch (IIO_EVENT_CODE_EXTRACT_DIR(event_code)) {
 	case IIO_EV_DIR_FALLING:
-		st->thresh_low[IIO_EVENT_CODE_EXTRACT_NUM(event_code)] = val;
+		st->thresh_low[IIO_EVENT_CODE_EXTRACT_CHAN(event_code)] = val;
 		break;
 	case IIO_EV_DIR_RISING:
-		st->thresh_high[IIO_EVENT_CODE_EXTRACT_NUM(event_code)] = val;
+		st->thresh_high[IIO_EVENT_CODE_EXTRACT_CHAN(event_code)] = val;
 		break;
 	}
 
@@ -622,7 +622,7 @@ static int max1363_read_event_config(struct iio_dev *indio_dev,
 	struct max1363_state *st = iio_priv(indio_dev);
 
 	int val;
-	int number = IIO_EVENT_CODE_EXTRACT_NUM(event_code);
+	int number = IIO_EVENT_CODE_EXTRACT_CHAN(event_code);
 	mutex_lock(&indio_dev->mlock);
 	if (IIO_EVENT_CODE_EXTRACT_DIR(event_code) == IIO_EV_DIR_FALLING)
 		val = (1 << number) & st->mask_low;
@@ -775,7 +775,7 @@ static int max1363_write_event_config(struct iio_dev *indio_dev,
 	int ret = 0;
 	struct max1363_state *st = iio_priv(indio_dev);
 	u16 unifiedmask;
-	int number = IIO_EVENT_CODE_EXTRACT_NUM(event_code);
+	int number = IIO_EVENT_CODE_EXTRACT_CHAN(event_code);
 
 	mutex_lock(&indio_dev->mlock);
 	unifiedmask = st->mask_low | st->mask_high;

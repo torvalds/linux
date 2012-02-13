@@ -167,7 +167,7 @@ static int ad7150_write_event_params(struct iio_dev *indio_dev, u64 event_code)
 	u16 value;
 	u8 sens, timeout;
 	struct ad7150_chip_info *chip = iio_priv(indio_dev);
-	int chan = IIO_EVENT_CODE_EXTRACT_NUM(event_code);
+	int chan = IIO_EVENT_CODE_EXTRACT_CHAN(event_code);
 	int rising = !!(IIO_EVENT_CODE_EXTRACT_DIR(event_code) ==
 			IIO_EV_DIR_RISING);
 
@@ -279,7 +279,7 @@ static int ad7150_read_event_value(struct iio_dev *indio_dev,
 				   u64 event_code,
 				   int *val)
 {
-	int chan = IIO_EVENT_CODE_EXTRACT_NUM(event_code);
+	int chan = IIO_EVENT_CODE_EXTRACT_CHAN(event_code);
 	struct ad7150_chip_info *chip = iio_priv(indio_dev);
 	int rising = !!(IIO_EVENT_CODE_EXTRACT_DIR(event_code) ==
 			IIO_EV_DIR_RISING);
@@ -309,7 +309,7 @@ static int ad7150_write_event_value(struct iio_dev *indio_dev,
 {
 	int ret;
 	struct ad7150_chip_info *chip = iio_priv(indio_dev);
-	int chan = IIO_EVENT_CODE_EXTRACT_NUM(event_code);
+	int chan = IIO_EVENT_CODE_EXTRACT_CHAN(event_code);
 	int rising = !!(IIO_EVENT_CODE_EXTRACT_DIR(event_code) ==
 			IIO_EV_DIR_RISING);
 
@@ -347,7 +347,7 @@ static ssize_t ad7150_show_timeout(struct device *dev,
 	u8 value;
 
 	/* use the event code for consistency reasons */
-	int chan = IIO_EVENT_CODE_EXTRACT_NUM(this_attr->address);
+	int chan = IIO_EVENT_CODE_EXTRACT_CHAN(this_attr->address);
 	int rising = !!(IIO_EVENT_CODE_EXTRACT_DIR(this_attr->address)
 			== IIO_EV_DIR_RISING);
 
@@ -373,7 +373,7 @@ static ssize_t ad7150_store_timeout(struct device *dev,
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad7150_chip_info *chip = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	int chan = IIO_EVENT_CODE_EXTRACT_NUM(this_attr->address);
+	int chan = IIO_EVENT_CODE_EXTRACT_CHAN(this_attr->address);
 	int rising = !!(IIO_EVENT_CODE_EXTRACT_DIR(this_attr->address) ==
 			IIO_EV_DIR_RISING);
 	u8 data;
