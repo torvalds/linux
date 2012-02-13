@@ -6292,33 +6292,6 @@ static irqreturn_t tg3_test_isr(int irq, void *dev_id)
 	return IRQ_RETVAL(0);
 }
 
-static int tg3_init_hw(struct tg3 *, int);
-static int tg3_halt(struct tg3 *, int, int);
-
-/* Restart hardware after configuration changes, self-test, etc.
- * Invoked with tp->lock held.
- */
-static int tg3_restart_hw(struct tg3 *tp, int reset_phy)
-	__releases(tp->lock)
-	__acquires(tp->lock)
-{
-	int err;
-
-	err = tg3_init_hw(tp, reset_phy);
-	if (err) {
-		netdev_err(tp->dev,
-			   "Failed to re-initialize device, aborting\n");
-		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
-		tg3_full_unlock(tp);
-		del_timer_sync(&tp->timer);
-		tp->irq_sync = 0;
-		tg3_napi_enable(tp);
-		dev_close(tp->dev);
-		tg3_full_lock(tp, 0);
-	}
-	return err;
-}
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void tg3_poll_controller(struct net_device *dev)
 {
@@ -6329,6 +6302,9 @@ static void tg3_poll_controller(struct net_device *dev)
 		tg3_interrupt(tp->napi[i].irq_vec, &tp->napi[i]);
 }
 #endif
+
+static int tg3_init_hw(struct tg3 *, int);
+static int tg3_halt(struct tg3 *, int, int);
 
 static void tg3_reset_task(struct work_struct *work)
 {
@@ -7013,6 +6989,8 @@ static inline void tg3_set_mtu(struct net_device *dev, struct tg3 *tp,
 		tg3_flag_clear(tp, JUMBO_RING_ENABLE);
 	}
 }
+
+static int tg3_restart_hw(struct tg3 *tp, int reset_phy);
 
 static int tg3_change_mtu(struct net_device *dev, int new_mtu)
 {
@@ -9133,6 +9111,30 @@ static int tg3_init_hw(struct tg3 *tp, int reset_phy)
 	tw32(TG3PCI_MEM_WIN_BASE_ADDR, 0);
 
 	return tg3_reset_hw(tp, reset_phy);
+}
+
+/* Restart hardware after configuration changes, self-test, etc.
+ * Invoked with tp->lock held.
+ */
+static int tg3_restart_hw(struct tg3 *tp, int reset_phy)
+	__releases(tp->lock)
+	__acquires(tp->lock)
+{
+	int err;
+
+	err = tg3_init_hw(tp, reset_phy);
+	if (err) {
+		netdev_err(tp->dev,
+			   "Failed to re-initialize device, aborting\n");
+		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
+		tg3_full_unlock(tp);
+		del_timer_sync(&tp->timer);
+		tp->irq_sync = 0;
+		tg3_napi_enable(tp);
+		dev_close(tp->dev);
+		tg3_full_lock(tp, 0);
+	}
+	return err;
 }
 
 #define TG3_STAT_ADD32(PSTAT, REG) \
