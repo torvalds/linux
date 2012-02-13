@@ -364,8 +364,10 @@ int radeon_fence_count_emitted(struct radeon_device *rdev, int ring)
 	int not_processed = 0;
 
 	read_lock_irqsave(&rdev->fence_lock, irq_flags);
-	if (!rdev->fence_drv[ring].initialized)
+	if (!rdev->fence_drv[ring].initialized) {
+		read_unlock_irqrestore(&rdev->fence_lock, irq_flags);
 		return 0;
+	}
 
 	if (!list_empty(&rdev->fence_drv[ring].emitted)) {
 		struct list_head *ptr;
