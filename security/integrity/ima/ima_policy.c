@@ -25,7 +25,13 @@
 #define IMA_FSMAGIC	0x0004
 #define IMA_UID		0x0008
 
-enum ima_action { UNKNOWN = -1, DONT_MEASURE = 0, MEASURE };
+#define UNKNOWN			0
+#define MEASURE			1	/* same as IMA_MEASURE */
+#define DONT_MEASURE		2
+#define MEASURE_MASK		3
+#define APPRAISE		4	/* same as IMA_APPRAISE */
+#define DONT_APPRAISE		8
+#define APPRAISE_MASK		12
 
 #define MAX_LSM_RULES 6
 enum lsm_rule_types { LSM_OBJ_USER, LSM_OBJ_ROLE, LSM_OBJ_TYPE,
@@ -34,7 +40,7 @@ enum lsm_rule_types { LSM_OBJ_USER, LSM_OBJ_ROLE, LSM_OBJ_TYPE,
 
 struct ima_measure_rule_entry {
 	struct list_head list;
-	enum ima_action action;
+	int action;
 	unsigned int flags;
 	enum ima_hooks func;
 	int mask;
@@ -163,18 +169,28 @@ static bool ima_match_rules(struct ima_measure_rule_entry *rule,
  * as elements in the list are never deleted, nor does the list
  * change.)
  */
-int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask)
+int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
+		     int flags)
 {
 	struct ima_measure_rule_entry *entry;
+	int action = 0, actmask = flags | (flags << 1);
 
 	list_for_each_entry(entry, ima_measure, list) {
-		bool rc;
 
-		rc = ima_match_rules(entry, inode, func, mask);
-		if (rc)
-			return entry->action;
+		if (!(entry->action & actmask))
+			continue;
+
+		if (!ima_match_rules(entry, inode, func, mask))
+			continue;
+
+		action |= (entry->action & (IMA_APPRAISE | IMA_MEASURE));
+		actmask &= (entry->action & APPRAISE_MASK) ?
+		    ~APPRAISE_MASK : ~MEASURE_MASK;
+		if (!actmask)
+			break;
 	}
-	return 0;
+
+	return action;
 }
 
 /**

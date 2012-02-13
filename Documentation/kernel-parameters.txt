@@ -1051,6 +1051,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	ihash_entries=	[KNL]
 			Set number of hash buckets for inode cache.
 
+	ima_appraise=	[IMA] appraise integrity measurements
+			Format: { "off" | "enforce" | "fix" }
+			default: "enforce"
+
 	ima_audit=	[IMA]
 			Format: { "0" | "1" }
 			0 -- integrity auditing messages. (Default)
