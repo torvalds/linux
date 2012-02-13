@@ -321,7 +321,7 @@ static int pda_power_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_USB_OTG_UTILS
-	transceiver = otg_get_transceiver();
+	transceiver = usb_get_transceiver();
 	if (transceiver && !pdata->is_usb_online) {
 		pdata->is_usb_online = otg_is_usb_online;
 	}
@@ -375,7 +375,7 @@ static int pda_power_probe(struct platform_device *pdev)
 #ifdef CONFIG_USB_OTG_UTILS
 	if (transceiver && pdata->use_otg_notifier) {
 		otg_nb.notifier_call = otg_handle_notification;
-		ret = otg_register_notifier(transceiver, &otg_nb);
+		ret = usb_register_notifier(transceiver, &otg_nb);
 		if (ret) {
 			dev_err(dev, "failure to register otg notifier\n");
 			goto otg_reg_notifier_failed;
@@ -409,7 +409,7 @@ usb_supply_failed:
 		free_irq(ac_irq->start, &pda_psy_ac);
 #ifdef CONFIG_USB_OTG_UTILS
 	if (transceiver)
-		otg_put_transceiver(transceiver);
+		usb_put_transceiver(transceiver);
 #endif
 ac_irq_failed:
 	if (pdata->is_ac_online)
@@ -444,7 +444,7 @@ static int pda_power_remove(struct platform_device *pdev)
 		power_supply_unregister(&pda_psy_ac);
 #ifdef CONFIG_USB_OTG_UTILS
 	if (transceiver)
-		otg_put_transceiver(transceiver);
+		usb_put_transceiver(transceiver);
 #endif
 	if (ac_draw) {
 		regulator_put(ac_draw);
