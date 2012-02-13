@@ -39,6 +39,7 @@
 #include "cache.h"
 #include "xdr4.h"
 #include "vfs.h"
+#include "current_stateid.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_PROC
 
@@ -1000,6 +1001,8 @@ static inline void nfsd4_increment_op_stats(u32 opnum)
 typedef __be32(*nfsd4op_func)(struct svc_rqst *, struct nfsd4_compound_state *,
 			      void *);
 typedef u32(*nfsd4op_rsize)(struct svc_rqst *, struct nfsd4_op *op);
+typedef void(*stateid_setter)(struct nfsd4_compound_state *, void *);
+typedef void(*stateid_getter)(struct nfsd4_compound_state *, void *);
 
 enum nfsd4_op_flags {
 	ALLOWED_WITHOUT_FH = 1 << 0,	/* No current filehandle required */
@@ -1025,6 +1028,10 @@ enum nfsd4_op_flags {
 	 * the v4.0 case).
 	 */
 	OP_CACHEME = 1 << 6,
+	/*
+	 * These are ops which clear current state id.
+	 */
+	OP_CLEAR_STATEID = 1 << 7,
 };
 
 struct nfsd4_operation {
@@ -1033,6 +1040,8 @@ struct nfsd4_operation {
 	char *op_name;
 	/* Try to get response size before operation */
 	nfsd4op_rsize op_rsize_bop;
+	stateid_setter op_get_currentstateid;
+	stateid_getter op_set_currentstateid;
 };
 
 static struct nfsd4_operation nfsd4_ops[];
@@ -1215,13 +1224,23 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 		if (op->status)
 			goto encode_op;
 
-		if (opdesc->op_func)
+		if (opdesc->op_func) {
+			if (opdesc->op_get_currentstateid)
+				opdesc->op_get_currentstateid(cstate, &op->u);
 			op->status = opdesc->op_func(rqstp, cstate, &op->u);
-		else
+		} else
 			BUG_ON(op->status == nfs_ok);
 
-		if (!op->status && need_wrongsec_check(rqstp))
-			op->status = check_nfsd_access(cstate->current_fh.fh_export, rqstp);
+		if (!op->status) {
+			if (opdesc->op_set_currentstateid)
+				opdesc->op_set_currentstateid(cstate, &op->u);
+
+			if (opdesc->op_flags & OP_CLEAR_STATEID)
+				cstate->current_stateid = NULL;
+
+			if (need_wrongsec_check(rqstp))
+				op->status = check_nfsd_access(cstate->current_fh.fh_export, rqstp);
+		}
 
 encode_op:
 		/* Only from SEQUENCE */
@@ -1413,6 +1432,8 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_CLOSE",
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_status_stateid_rsize,
+		.op_get_currentstateid = (stateid_getter)nfsd4_get_closestateid,
+		.op_set_currentstateid = (stateid_setter)nfsd4_set_closestateid,
 	},
 	[OP_COMMIT] = {
 		.op_func = (nfsd4op_func)nfsd4_commit,
@@ -1483,6 +1504,7 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_flags = OP_HANDLES_WRONGSEC | OP_MODIFIES_SOMETHING,
 		.op_name = "OP_OPEN",
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_open_rsize,
+		.op_set_currentstateid = (stateid_setter)nfsd4_set_openstateid,
 	},
 	[OP_OPEN_CONFIRM] = {
 		.op_func = (nfsd4op_func)nfsd4_open_confirm,

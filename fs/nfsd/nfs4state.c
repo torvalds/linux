@@ -4695,3 +4695,35 @@ nfs4_state_shutdown(void)
 	nfs4_unlock_state();
 	nfsd4_destroy_callback_queue();
 }
+
+static void
+get_stateid(struct nfsd4_compound_state *cstate, stateid_t *stateid)
+{
+	if (cstate->current_stateid && CURRENT_STATEID(stateid))
+		memcpy(stateid, cstate->current_stateid, sizeof(stateid_t));
+}
+
+static void
+put_stateid(struct nfsd4_compound_state *cstate, stateid_t *stateid)
+{
+	if (cstate->minorversion)
+		cstate->current_stateid = stateid;
+}
+
+void
+nfsd4_set_openstateid(struct nfsd4_compound_state *cstate, struct nfsd4_open *open)
+{
+	put_stateid(cstate, &open->op_stateid);
+}
+
+void
+nfsd4_get_closestateid(struct nfsd4_compound_state *cstate, struct nfsd4_close *close)
+{
+	get_stateid(cstate, &close->cl_stateid);
+}
+
+void
+nfsd4_set_closestateid(struct nfsd4_compound_state *cstate, struct nfsd4_close *close)
+{
+	get_stateid(cstate, &close->cl_stateid);
+}
