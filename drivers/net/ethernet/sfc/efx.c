@@ -186,11 +186,13 @@ MODULE_PARM_DESC(debug, "Bitmapped debugging message enable value");
  *
  *************************************************************************/
 
-static void efx_start_interrupts(struct efx_nic *efx);
-static void efx_stop_interrupts(struct efx_nic *efx);
+static void efx_start_interrupts(struct efx_nic *efx, bool may_keep_eventq);
+static void efx_stop_interrupts(struct efx_nic *efx, bool may_keep_eventq);
+static void efx_remove_channel(struct efx_channel *channel);
 static void efx_remove_channels(struct efx_nic *efx);
+static const struct efx_channel_type efx_default_channel_type;
 static void efx_remove_port(struct efx_nic *efx);
-static void efx_init_napi(struct efx_nic *efx);
+static void efx_init_napi_channel(struct efx_channel *channel);
 static void efx_fini_napi(struct efx_nic *efx);
 static void efx_fini_napi_channel(struct efx_channel *channel);
 static void efx_fini_struct(struct efx_nic *efx);
@@ -439,8 +441,7 @@ static void efx_remove_eventq(struct efx_channel *channel)
  *
  *************************************************************************/
 
-/* Allocate and initialise a channel structure, optionally copying
- * parameters (but not resources) from an old channel structure. */
+/* Allocate and initialise a channel structure. */
 static struct efx_channel *
 efx_alloc_channel(struct efx_nic *efx, int i, struct efx_channel *old_channel)
 {
@@ -449,45 +450,60 @@ efx_alloc_channel(struct efx_nic *efx, int i, struct efx_channel *old_channel)
 	struct efx_tx_queue *tx_queue;
 	int j;
 
-	if (old_channel) {
-		channel = kmalloc(sizeof(*channel), GFP_KERNEL);
-		if (!channel)
-			return NULL;
+	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
+	if (!channel)
+		return NULL;
 
-		*channel = *old_channel;
+	channel->efx = efx;
+	channel->channel = i;
+	channel->type = &efx_default_channel_type;
 
-		channel->napi_dev = NULL;
-		memset(&channel->eventq, 0, sizeof(channel->eventq));
-
-		rx_queue = &channel->rx_queue;
-		rx_queue->buffer = NULL;
-		memset(&rx_queue->rxd, 0, sizeof(rx_queue->rxd));
-
-		for (j = 0; j < EFX_TXQ_TYPES; j++) {
-			tx_queue = &channel->tx_queue[j];
-			if (tx_queue->channel)
-				tx_queue->channel = channel;
-			tx_queue->buffer = NULL;
-			memset(&tx_queue->txd, 0, sizeof(tx_queue->txd));
-		}
-	} else {
-		channel = kzalloc(sizeof(*channel), GFP_KERNEL);
-		if (!channel)
-			return NULL;
-
-		channel->efx = efx;
-		channel->channel = i;
-
-		for (j = 0; j < EFX_TXQ_TYPES; j++) {
-			tx_queue = &channel->tx_queue[j];
-			tx_queue->efx = efx;
-			tx_queue->queue = i * EFX_TXQ_TYPES + j;
-			tx_queue->channel = channel;
-		}
+	for (j = 0; j < EFX_TXQ_TYPES; j++) {
+		tx_queue = &channel->tx_queue[j];
+		tx_queue->efx = efx;
+		tx_queue->queue = i * EFX_TXQ_TYPES + j;
+		tx_queue->channel = channel;
 	}
 
 	rx_queue = &channel->rx_queue;
 	rx_queue->efx = efx;
+	setup_timer(&rx_queue->slow_fill, efx_rx_slow_fill,
+		    (unsigned long)rx_queue);
+
+	return channel;
+}
+
+/* Allocate and initialise a channel structure, copying parameters
+ * (but not resources) from an old channel structure.
+ */
+static struct efx_channel *
+efx_copy_channel(const struct efx_channel *old_channel)
+{
+	struct efx_channel *channel;
+	struct efx_rx_queue *rx_queue;
+	struct efx_tx_queue *tx_queue;
+	int j;
+
+	channel = kmalloc(sizeof(*channel), GFP_KERNEL);
+	if (!channel)
+		return NULL;
+
+	*channel = *old_channel;
+
+	channel->napi_dev = NULL;
+	memset(&channel->eventq, 0, sizeof(channel->eventq));
+
+	for (j = 0; j < EFX_TXQ_TYPES; j++) {
+		tx_queue = &channel->tx_queue[j];
+		if (tx_queue->channel)
+			tx_queue->channel = channel;
+		tx_queue->buffer = NULL;
+		memset(&tx_queue->txd, 0, sizeof(tx_queue->txd));
+	}
+
+	rx_queue = &channel->rx_queue;
+	rx_queue->buffer = NULL;
+	memset(&rx_queue->rxd, 0, sizeof(rx_queue->rxd));
 	setup_timer(&rx_queue->slow_fill, efx_rx_slow_fill,
 		    (unsigned long)rx_queue);
 
@@ -503,57 +519,62 @@ static int efx_probe_channel(struct efx_channel *channel)
 	netif_dbg(channel->efx, probe, channel->efx->net_dev,
 		  "creating channel %d\n", channel->channel);
 
+	rc = channel->type->pre_probe(channel);
+	if (rc)
+		goto fail;
+
 	rc = efx_probe_eventq(channel);
 	if (rc)
-		goto fail1;
+		goto fail;
 
 	efx_for_each_channel_tx_queue(tx_queue, channel) {
 		rc = efx_probe_tx_queue(tx_queue);
 		if (rc)
-			goto fail2;
+			goto fail;
 	}
 
 	efx_for_each_channel_rx_queue(rx_queue, channel) {
 		rc = efx_probe_rx_queue(rx_queue);
 		if (rc)
-			goto fail3;
+			goto fail;
 	}
 
 	channel->n_rx_frm_trunc = 0;
 
 	return 0;
 
- fail3:
-	efx_for_each_channel_rx_queue(rx_queue, channel)
-		efx_remove_rx_queue(rx_queue);
- fail2:
-	efx_for_each_channel_tx_queue(tx_queue, channel)
-		efx_remove_tx_queue(tx_queue);
- fail1:
+fail:
+	efx_remove_channel(channel);
 	return rc;
 }
 
+static void
+efx_get_channel_name(struct efx_channel *channel, char *buf, size_t len)
+{
+	struct efx_nic *efx = channel->efx;
+	const char *type;
+	int number;
+
+	number = channel->channel;
+	if (efx->tx_channel_offset == 0) {
+		type = "";
+	} else if (channel->channel < efx->tx_channel_offset) {
+		type = "-rx";
+	} else {
+		type = "-tx";
+		number -= efx->tx_channel_offset;
+	}
+	snprintf(buf, len, "%s%s-%d", efx->name, type, number);
+}
 
 static void efx_set_channel_names(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
-	const char *type = "";
-	int number;
 
-	efx_for_each_channel(channel, efx) {
-		number = channel->channel;
-		if (efx->n_channels > efx->n_rx_channels) {
-			if (channel->channel < efx->n_rx_channels) {
-				type = "-rx";
-			} else {
-				type = "-tx";
-				number -= efx->n_rx_channels;
-			}
-		}
-		snprintf(efx->channel_name[channel->channel],
-			 sizeof(efx->channel_name[0]),
-			 "%s%s-%d", efx->name, type, number);
-	}
+	efx_for_each_channel(channel, efx)
+		channel->type->get_name(channel,
+					efx->channel_name[channel->channel],
+					sizeof(efx->channel_name[0]));
 }
 
 static int efx_probe_channels(struct efx_nic *efx)
@@ -697,16 +718,40 @@ efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries)
 {
 	struct efx_channel *other_channel[EFX_MAX_CHANNELS], *channel;
 	u32 old_rxq_entries, old_txq_entries;
-	unsigned i;
-	int rc;
+	unsigned i, next_buffer_table = 0;
+	int rc = 0;
+
+	/* Not all channels should be reallocated. We must avoid
+	 * reallocating their buffer table entries.
+	 */
+	efx_for_each_channel(channel, efx) {
+		struct efx_rx_queue *rx_queue;
+		struct efx_tx_queue *tx_queue;
+
+		if (channel->type->copy)
+			continue;
+		next_buffer_table = max(next_buffer_table,
+					channel->eventq.index +
+					channel->eventq.entries);
+		efx_for_each_channel_rx_queue(rx_queue, channel)
+			next_buffer_table = max(next_buffer_table,
+						rx_queue->rxd.index +
+						rx_queue->rxd.entries);
+		efx_for_each_channel_tx_queue(tx_queue, channel)
+			next_buffer_table = max(next_buffer_table,
+						tx_queue->txd.index +
+						tx_queue->txd.entries);
+	}
 
 	efx_stop_all(efx);
-	efx_stop_interrupts(efx);
+	efx_stop_interrupts(efx, true);
 
-	/* Clone channels */
+	/* Clone channels (where possible) */
 	memset(other_channel, 0, sizeof(other_channel));
 	for (i = 0; i < efx->n_channels; i++) {
-		channel = efx_alloc_channel(efx, i, efx->channel[i]);
+		channel = efx->channel[i];
+		if (channel->type->copy)
+			channel = channel->type->copy(channel);
 		if (!channel) {
 			rc = -ENOMEM;
 			goto out;
@@ -725,23 +770,31 @@ efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries)
 		other_channel[i] = channel;
 	}
 
-	rc = efx_probe_channels(efx);
-	if (rc)
-		goto rollback;
+	/* Restart buffer table allocation */
+	efx->next_buffer_table = next_buffer_table;
 
-	efx_init_napi(efx);
-
-	/* Destroy old channels */
 	for (i = 0; i < efx->n_channels; i++) {
-		efx_fini_napi_channel(other_channel[i]);
-		efx_remove_channel(other_channel[i]);
+		channel = efx->channel[i];
+		if (!channel->type->copy)
+			continue;
+		rc = efx_probe_channel(channel);
+		if (rc)
+			goto rollback;
+		efx_init_napi_channel(efx->channel[i]);
 	}
-out:
-	/* Free unused channel structures */
-	for (i = 0; i < efx->n_channels; i++)
-		kfree(other_channel[i]);
 
-	efx_start_interrupts(efx);
+out:
+	/* Destroy unused channel structures */
+	for (i = 0; i < efx->n_channels; i++) {
+		channel = other_channel[i];
+		if (channel && channel->type->copy) {
+			efx_fini_napi_channel(channel);
+			efx_remove_channel(channel);
+			kfree(channel);
+		}
+	}
+
+	efx_start_interrupts(efx, true);
 	efx_start_all(efx);
 	return rc;
 
@@ -760,6 +813,18 @@ rollback:
 void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue)
 {
 	mod_timer(&rx_queue->slow_fill, jiffies + msecs_to_jiffies(100));
+}
+
+static const struct efx_channel_type efx_default_channel_type = {
+	.pre_probe		= efx_channel_dummy_op_int,
+	.get_name		= efx_get_channel_name,
+	.copy			= efx_copy_channel,
+	.keep_eventq		= false,
+};
+
+int efx_channel_dummy_op_int(struct efx_channel *channel)
+{
+	return 0;
 }
 
 /**************************************************************************
@@ -1162,8 +1227,13 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 {
 	unsigned int max_channels =
 		min(efx->type->phys_addr_channels, EFX_MAX_CHANNELS);
-	unsigned int i;
+	unsigned int extra_channels = 0;
+	unsigned int i, j;
 	int rc;
+
+	for (i = 0; i < EFX_MAX_EXTRA_CHANNELS; i++)
+		if (efx->extra_channel_type[i])
+			++extra_channels;
 
 	if (efx->interrupt_mode == EFX_INT_MODE_MSIX) {
 		struct msix_entry xentries[EFX_MAX_CHANNELS];
@@ -1172,6 +1242,7 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 		n_channels = efx_wanted_parallelism();
 		if (separate_tx_channels)
 			n_channels *= 2;
+		n_channels += extra_channels;
 		n_channels = min(n_channels, max_channels);
 
 		for (i = 0; i < n_channels; i++)
@@ -1191,22 +1262,23 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 
 		if (rc == 0) {
 			efx->n_channels = n_channels;
+			if (n_channels > extra_channels)
+				n_channels -= extra_channels;
 			if (separate_tx_channels) {
-				efx->n_tx_channels =
-					max(efx->n_channels / 2, 1U);
-				efx->n_rx_channels =
-					max(efx->n_channels -
-					    efx->n_tx_channels, 1U);
+				efx->n_tx_channels = max(n_channels / 2, 1U);
+				efx->n_rx_channels = max(n_channels -
+							 efx->n_tx_channels,
+							 1U);
 			} else {
-				efx->n_tx_channels = efx->n_channels;
-				efx->n_rx_channels = efx->n_channels;
+				efx->n_tx_channels = n_channels;
+				efx->n_rx_channels = n_channels;
 			}
 			rc = efx_init_rx_cpu_rmap(efx, xentries);
 			if (rc) {
 				pci_disable_msix(efx->pci_dev);
 				return rc;
 			}
-			for (i = 0; i < n_channels; i++)
+			for (i = 0; i < efx->n_channels; i++)
 				efx_get_channel(efx, i)->irq =
 					xentries[i].vector;
 		} else {
@@ -1240,11 +1312,26 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 		efx->legacy_irq = efx->pci_dev->irq;
 	}
 
+	/* Assign extra channels if possible */
+	j = efx->n_channels;
+	for (i = 0; i < EFX_MAX_EXTRA_CHANNELS; i++) {
+		if (!efx->extra_channel_type[i])
+			continue;
+		if (efx->interrupt_mode != EFX_INT_MODE_MSIX ||
+		    efx->n_channels <= extra_channels) {
+			efx->extra_channel_type[i]->handle_no_channel(efx);
+		} else {
+			--j;
+			efx_get_channel(efx, j)->type =
+				efx->extra_channel_type[i];
+		}
+	}
+
 	return 0;
 }
 
 /* Enable interrupts, then probe and start the event queues */
-static void efx_start_interrupts(struct efx_nic *efx)
+static void efx_start_interrupts(struct efx_nic *efx, bool may_keep_eventq)
 {
 	struct efx_channel *channel;
 
@@ -1253,14 +1340,15 @@ static void efx_start_interrupts(struct efx_nic *efx)
 	efx_nic_enable_interrupts(efx);
 
 	efx_for_each_channel(channel, efx) {
-		efx_init_eventq(channel);
+		if (!channel->type->keep_eventq || !may_keep_eventq)
+			efx_init_eventq(channel);
 		efx_start_eventq(channel);
 	}
 
 	efx_mcdi_mode_event(efx);
 }
 
-static void efx_stop_interrupts(struct efx_nic *efx)
+static void efx_stop_interrupts(struct efx_nic *efx, bool may_keep_eventq)
 {
 	struct efx_channel *channel;
 
@@ -1277,7 +1365,8 @@ static void efx_stop_interrupts(struct efx_nic *efx)
 			synchronize_irq(channel->irq);
 
 		efx_stop_eventq(channel);
-		efx_fini_eventq(channel);
+		if (!channel->type->keep_eventq || !may_keep_eventq)
+			efx_fini_eventq(channel);
 	}
 }
 
@@ -1383,21 +1472,22 @@ static int efx_probe_all(struct efx_nic *efx)
 	}
 
 	efx->rxq_entries = efx->txq_entries = EFX_DEFAULT_DMAQ_SIZE;
-	rc = efx_probe_channels(efx);
-	if (rc)
-		goto fail3;
 
 	rc = efx_probe_filters(efx);
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
 			  "failed to create filter tables\n");
-		goto fail4;
+		goto fail3;
 	}
+
+	rc = efx_probe_channels(efx);
+	if (rc)
+		goto fail4;
 
 	return 0;
 
  fail4:
-	efx_remove_channels(efx);
+	efx_remove_filters(efx);
  fail3:
 	efx_remove_port(efx);
  fail2:
@@ -1482,8 +1572,8 @@ static void efx_stop_all(struct efx_nic *efx)
 
 static void efx_remove_all(struct efx_nic *efx)
 {
-	efx_remove_filters(efx);
 	efx_remove_channels(efx);
+	efx_remove_filters(efx);
 	efx_remove_port(efx);
 	efx_remove_nic(efx);
 }
@@ -1627,15 +1717,21 @@ static int efx_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
  *
  **************************************************************************/
 
+static void efx_init_napi_channel(struct efx_channel *channel)
+{
+	struct efx_nic *efx = channel->efx;
+
+	channel->napi_dev = efx->net_dev;
+	netif_napi_add(channel->napi_dev, &channel->napi_str,
+		       efx_poll, napi_weight);
+}
+
 static void efx_init_napi(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 
-	efx_for_each_channel(channel, efx) {
-		channel->napi_dev = efx->net_dev;
-		netif_napi_add(channel->napi_dev, &channel->napi_str,
-			       efx_poll, napi_weight);
-	}
+	efx_for_each_channel(channel, efx)
+		efx_init_napi_channel(channel);
 }
 
 static void efx_fini_napi_channel(struct efx_channel *channel)
@@ -2013,7 +2109,7 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 	efx_stop_all(efx);
 	mutex_lock(&efx->mac_lock);
 
-	efx_stop_interrupts(efx);
+	efx_stop_interrupts(efx, false);
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE)
 		efx->phy_op->fini(efx);
 	efx->type->fini(efx);
@@ -2050,7 +2146,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 
 	efx->type->reconfigure_mac(efx);
 
-	efx_start_interrupts(efx);
+	efx_start_interrupts(efx, false);
 	efx_restore_filters(efx);
 
 	mutex_unlock(&efx->mac_lock);
@@ -2314,7 +2410,7 @@ static void efx_pci_remove_main(struct efx_nic *efx)
 	free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
 	efx->net_dev->rx_cpu_rmap = NULL;
 #endif
-	efx_stop_interrupts(efx);
+	efx_stop_interrupts(efx, false);
 	efx_nic_fini_interrupt(efx);
 	efx_fini_port(efx);
 	efx->type->fini(efx);
@@ -2341,7 +2437,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	/* Allow any queued efx_resets() to complete */
 	rtnl_unlock();
 
-	efx_stop_interrupts(efx);
+	efx_stop_interrupts(efx, false);
 	efx_unregister_netdev(efx);
 
 	efx_mtd_remove(efx);
@@ -2393,7 +2489,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 	rc = efx_nic_init_interrupt(efx);
 	if (rc)
 		goto fail5;
-	efx_start_interrupts(efx);
+	efx_start_interrupts(efx, false);
 
 	return 0;
 
@@ -2517,7 +2613,7 @@ static int efx_pm_freeze(struct device *dev)
 	netif_device_detach(efx->net_dev);
 
 	efx_stop_all(efx);
-	efx_stop_interrupts(efx);
+	efx_stop_interrupts(efx, false);
 
 	return 0;
 }
@@ -2528,7 +2624,7 @@ static int efx_pm_thaw(struct device *dev)
 
 	efx->state = STATE_INIT;
 
-	efx_start_interrupts(efx);
+	efx_start_interrupts(efx, false);
 
 	mutex_lock(&efx->mac_lock);
 	efx->phy_op->reconfigure(efx);
