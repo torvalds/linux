@@ -573,8 +573,6 @@ il3945_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 		network_packet ? '*' : ' ', le16_to_cpu(rx_hdr->channel),
 		rx_status.signal, rx_status.signal, rx_status.rate_idx);
 
-	il_dbg_log_rx_data_frame(il, le16_to_cpu(rx_hdr->len), header);
-
 	if (network_packet) {
 		il->_3945.last_beacon_time =
 		    le32_to_cpu(rx_end->beacon_timestamp);

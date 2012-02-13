@@ -573,7 +573,6 @@ il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	len = (u16) skb->len;
 	tx_cmd->len = cpu_to_le16(len);
 
-	il_dbg_log_tx_data_frame(il, len, hdr);
 	il_update_stats(il, true, fc, len);
 	tx_cmd->tx_flags &= ~TX_CMD_FLG_ANT_A_MSK;
 	tx_cmd->tx_flags &= ~TX_CMD_FLG_ANT_B_MSK;
@@ -3098,11 +3097,9 @@ il3945_store_debug_level(struct device *d, struct device_attribute *attr,
 	ret = strict_strtoul(buf, 0, &val);
 	if (ret)
 		IL_INFO("%s is not in hex or decimal form.\n", buf);
-	else {
+	else
 		il->debug_level = val;
-		if (il_alloc_traffic_mem(il))
-			IL_ERR("Not enough memory to generate traffic log\n");
-	}
+
 	return strnlen(buf, count);
 }
 
@@ -3625,9 +3622,6 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	il->pci_dev = pdev;
 	il->inta_mask = CSR_INI_SET_MASK;
 
-	if (il_alloc_traffic_mem(il))
-		IL_ERR("Not enough memory to generate traffic log\n");
-
 	/***************************
 	 * 2. Initializing PCI bus
 	 * *************************/
@@ -3790,7 +3784,6 @@ out_pci_disable_device:
 	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 out_ieee80211_free_hw:
-	il_free_traffic_mem(il);
 	ieee80211_free_hw(il->hw);
 out:
 	return err;
@@ -3858,7 +3851,6 @@ il3945_pci_remove(struct pci_dev *pdev)
 	 * until now... */
 	destroy_workqueue(il->workqueue);
 	il->workqueue = NULL;
-	il_free_traffic_mem(il);
 
 	free_irq(pdev->irq, il);
 	pci_disable_msi(pdev);

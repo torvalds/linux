@@ -1766,57 +1766,21 @@ int il_alloc_txq_mem(struct il_priv *il);
 void il_txq_mem(struct il_priv *il);
 
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-int il_alloc_traffic_mem(struct il_priv *il);
-void il_free_traffic_mem(struct il_priv *il);
-void il_reset_traffic_log(struct il_priv *il);
-void il_dbg_log_tx_data_frame(struct il_priv *il, u16 length,
-			      struct ieee80211_hdr *header);
-void il_dbg_log_rx_data_frame(struct il_priv *il, u16 length,
-			      struct ieee80211_hdr *header);
-const char *il_get_mgmt_string(int cmd);
-const char *il_get_ctrl_string(int cmd);
-void il_clear_traffic_stats(struct il_priv *il);
-void il_update_stats(struct il_priv *il, bool is_tx, __le16 fc, u16 len);
+extern void il_update_stats(struct il_priv *il, bool is_tx, __le16 fc, u16 len);
 #else
-static inline int
-il_alloc_traffic_mem(struct il_priv *il)
-{
-	return 0;
-}
-
-static inline void
-il_free_traffic_mem(struct il_priv *il)
-{
-}
-
-static inline void
-il_reset_traffic_log(struct il_priv *il)
-{
-}
-
-static inline void
-il_dbg_log_tx_data_frame(struct il_priv *il, u16 length,
-			 struct ieee80211_hdr *header)
-{
-}
-
-static inline void
-il_dbg_log_rx_data_frame(struct il_priv *il, u16 length,
-			 struct ieee80211_hdr *header)
-{
-}
-
 static inline void
 il_update_stats(struct il_priv *il, bool is_tx, __le16 fc, u16 len)
 {
 }
 #endif
+
 /*****************************************************
- * RX handlers.
- * **************************************************/
+ * Handlers
+ ***************************************************/
 void il_hdl_pm_sleep(struct il_priv *il, struct il_rx_buf *rxb);
 void il_hdl_pm_debug_stats(struct il_priv *il, struct il_rx_buf *rxb);
 void il_hdl_error(struct il_priv *il, struct il_rx_buf *rxb);
+void il_hdl_csa(struct il_priv *il, struct il_rx_buf *rxb);
 
 /*****************************************************
 * RX
@@ -1827,13 +1791,10 @@ int il_rx_queue_alloc(struct il_priv *il);
 void il_rx_queue_update_write_ptr(struct il_priv *il, struct il_rx_queue *q);
 int il_rx_queue_space(const struct il_rx_queue *q);
 void il_tx_cmd_complete(struct il_priv *il, struct il_rx_buf *rxb);
-/* Handlers */
+
 void il_hdl_spectrum_measurement(struct il_priv *il, struct il_rx_buf *rxb);
 void il_recover_from_stats(struct il_priv *il, struct il_rx_pkt *pkt);
 void il_chswitch_done(struct il_priv *il, bool is_success);
-void il_hdl_csa(struct il_priv *il, struct il_rx_buf *rxb);
-
-/* TX helpers */
 
 /*****************************************************
 * TX

@@ -688,7 +688,6 @@ il4965_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 	/* Find max signal strength (dBm) among 3 antenna/receiver chains */
 	rx_status.signal = il4965_calc_rssi(il, phy_res);
 
-	il_dbg_log_rx_data_frame(il, len, header);
 	D_STATS("Rssi %d, TSF %llu\n", rx_status.signal,
 		(unsigned long long)rx_status.mactime);
 
@@ -1781,7 +1780,6 @@ il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	/* TODO need this for burst mode later on */
 	il4965_tx_cmd_build_basic(il, skb, tx_cmd, info, hdr, sta_id);
-	il_dbg_log_tx_data_frame(il, len, hdr);
 
 	il4965_tx_cmd_build_rate(il, tx_cmd, info, fc);
 
@@ -4541,11 +4539,9 @@ il4965_store_debug_level(struct device *d, struct device_attribute *attr,
 	ret = strict_strtoul(buf, 0, &val);
 	if (ret)
 		IL_ERR("%s is not in hex or decimal form.\n", buf);
-	else {
+	else
 		il->debug_level = val;
-		if (il_alloc_traffic_mem(il))
-			IL_ERR("Not enough memory to generate traffic log\n");
-	}
+
 	return strnlen(buf, count);
 }
 
@@ -6483,9 +6479,6 @@ il4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	il->pci_dev = pdev;
 	il->inta_mask = CSR_INI_SET_MASK;
 
-	if (il_alloc_traffic_mem(il))
-		IL_ERR("Not enough memory to generate traffic log\n");
-
 	/**************************
 	 * 2. Initializing PCI bus
 	 **************************/
@@ -6663,7 +6656,6 @@ out_pci_release_regions:
 out_pci_disable_device:
 	pci_disable_device(pdev);
 out_ieee80211_free_hw:
-	il_free_traffic_mem(il);
 	ieee80211_free_hw(il->hw);
 out:
 	return err;
@@ -6734,7 +6726,6 @@ il4965_pci_remove(struct pci_dev *pdev)
 	 * until now... */
 	destroy_workqueue(il->workqueue);
 	il->workqueue = NULL;
-	il_free_traffic_mem(il);
 
 	free_irq(il->pci_dev->irq, il);
 	pci_disable_msi(il->pci_dev);
