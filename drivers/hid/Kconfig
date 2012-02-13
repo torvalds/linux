@@ -257,7 +257,9 @@ config HID_LOGITECH_DJ
 	---help---
 	Say Y if you want support for Logitech Unifying receivers and devices.
 	Unifying receivers are capable of pairing up to 6 Logitech compliant
-	devices to the same receiver.
+	devices to the same receiver. Without this driver it will be handled by
+	generic USB_HID driver and all incomming events will be multiplexed
+	into a single mouse and a single keyboard device.
 
 config LOGITECH_FF
 	bool "Logitech force feedback support"
