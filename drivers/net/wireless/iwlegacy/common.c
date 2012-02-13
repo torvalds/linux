@@ -179,7 +179,6 @@ il_read_targ_mem(struct il_priv *il, u32 addr)
 	_il_grab_nic_access(il);
 
 	_il_wr(il, HBUS_TARG_MEM_RADDR, addr);
-	rmb();
 	value = _il_rd(il, HBUS_TARG_MEM_RDAT);
 
 	_il_release_nic_access(il);
@@ -196,7 +195,6 @@ il_write_targ_mem(struct il_priv *il, u32 addr, u32 val)
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
 	if (likely(_il_grab_nic_access(il))) {
 		_il_wr(il, HBUS_TARG_MEM_WADDR, addr);
-		wmb();
 		_il_wr(il, HBUS_TARG_MEM_WDAT, val);
 		_il_release_nic_access(il);
 	}

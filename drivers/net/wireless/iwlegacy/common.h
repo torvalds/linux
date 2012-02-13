@@ -2146,6 +2146,13 @@ static inline void
 _il_release_nic_access(struct il_priv *il)
 {
 	_il_clear_bit(il, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	/*
+	 * In above we are reading CSR_GP_CNTRL register, what will flush any
+	 * previous writes, but still want write, which clear MAC_ACCESS_REQ
+	 * bit, be performed on PCI bus before any other writes scheduled on
+	 * different CPUs (after we drop reg_lock).
+	 */
+	mmiowb();
 }
 
 static inline u32
@@ -2179,7 +2186,6 @@ static inline u32
 _il_rd_prph(struct il_priv *il, u32 reg)
 {
 	_il_wr(il, HBUS_TARG_PRPH_RADDR, reg | (3 << 24));
-	rmb();
 	return _il_rd(il, HBUS_TARG_PRPH_RDAT);
 }
 
@@ -2187,7 +2193,6 @@ static inline void
 _il_wr_prph(struct il_priv *il, u32 addr, u32 val)
 {
 	_il_wr(il, HBUS_TARG_PRPH_WADDR, ((addr & 0x0000FFFF) | (3 << 24)));
-	wmb();
 	_il_wr(il, HBUS_TARG_PRPH_WDAT, val);
 }
 
