@@ -875,7 +875,7 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 
 	dev_dbg(dev, "probe start\n");
 
-	hdmi_dev = kzalloc(sizeof(*hdmi_dev), GFP_KERNEL);
+	hdmi_dev = devm_kzalloc(&pdev->dev, sizeof(*hdmi_dev), GFP_KERNEL);
 	if (!hdmi_dev) {
 		dev_err(dev, "out of memory\n");
 		ret = -ENOMEM;
@@ -886,7 +886,7 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 
 	ret = hdmi_resources_init(hdmi_dev);
 	if (ret)
-		goto fail_hdev;
+		goto fail;
 
 	/* mapping HDMI registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -896,24 +896,26 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 		goto fail_init;
 	}
 
-	hdmi_dev->regs = ioremap(res->start, resource_size(res));
+	hdmi_dev->regs = devm_ioremap(&pdev->dev, res->start,
+				      resource_size(res));
 	if (hdmi_dev->regs == NULL) {
 		dev_err(dev, "register mapping failed.\n");
 		ret = -ENXIO;
-		goto fail_hdev;
+		goto fail_init;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
 		dev_err(dev, "get interrupt resource failed.\n");
 		ret = -ENXIO;
-		goto fail_regs;
+		goto fail_init;
 	}
 
-	ret = request_irq(res->start, hdmi_irq_handler, 0, "hdmi", hdmi_dev);
+	ret = devm_request_irq(&pdev->dev, res->start, hdmi_irq_handler, 0,
+			       "hdmi", hdmi_dev);
 	if (ret) {
 		dev_err(dev, "request interrupt failed.\n");
-		goto fail_regs;
+		goto fail_init;
 	}
 	hdmi_dev->irq = res->start;
 
@@ -924,7 +926,7 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 	ret = v4l2_device_register(NULL, &hdmi_dev->v4l2_dev);
 	if (ret) {
 		dev_err(dev, "could not register v4l2 device.\n");
-		goto fail_irq;
+		goto fail_init;
 	}
 
 	drv_data = (struct hdmi_driver_data *)
@@ -969,17 +971,8 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 fail_vdev:
 	v4l2_device_unregister(&hdmi_dev->v4l2_dev);
 
-fail_irq:
-	free_irq(hdmi_dev->irq, hdmi_dev);
-
-fail_regs:
-	iounmap(hdmi_dev->regs);
-
 fail_init:
 	hdmi_resources_cleanup(hdmi_dev);
-
-fail_hdev:
-	kfree(hdmi_dev);
 
 fail:
 	dev_err(dev, "probe failed\n");
@@ -996,10 +989,7 @@ static int __devexit hdmi_remove(struct platform_device *pdev)
 	clk_disable(hdmi_dev->res.hdmi);
 	v4l2_device_unregister(&hdmi_dev->v4l2_dev);
 	disable_irq(hdmi_dev->irq);
-	free_irq(hdmi_dev->irq, hdmi_dev);
-	iounmap(hdmi_dev->regs);
 	hdmi_resources_cleanup(hdmi_dev);
-	kfree(hdmi_dev);
 	dev_info(dev, "remove successful\n");
 
 	return 0;

@@ -301,7 +301,7 @@ static int __devinit sdo_probe(struct platform_device *pdev)
 	struct clk *sclk_vpll;
 
 	dev_info(dev, "probe start\n");
-	sdev = kzalloc(sizeof *sdev, GFP_KERNEL);
+	sdev = devm_kzalloc(&pdev->dev, sizeof *sdev, GFP_KERNEL);
 	if (!sdev) {
 		dev_err(dev, "not enough memory.\n");
 		ret = -ENOMEM;
@@ -314,14 +314,14 @@ static int __devinit sdo_probe(struct platform_device *pdev)
 	if (res == NULL) {
 		dev_err(dev, "get memory resource failed.\n");
 		ret = -ENXIO;
-		goto fail_sdev;
+		goto fail;
 	}
 
-	sdev->regs = ioremap(res->start, resource_size(res));
+	sdev->regs = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (sdev->regs == NULL) {
 		dev_err(dev, "register mapping failed.\n");
 		ret = -ENXIO;
-		goto fail_sdev;
+		goto fail;
 	}
 
 	/* acquiring interrupt */
@@ -329,12 +329,13 @@ static int __devinit sdo_probe(struct platform_device *pdev)
 	if (res == NULL) {
 		dev_err(dev, "get interrupt resource failed.\n");
 		ret = -ENXIO;
-		goto fail_regs;
+		goto fail;
 	}
-	ret = request_irq(res->start, sdo_irq_handler, 0, "s5p-sdo", sdev);
+	ret = devm_request_irq(&pdev->dev, res->start, sdo_irq_handler, 0,
+			       "s5p-sdo", sdev);
 	if (ret) {
 		dev_err(dev, "request interrupt failed.\n");
-		goto fail_regs;
+		goto fail;
 	}
 	sdev->irq = res->start;
 
@@ -343,7 +344,7 @@ static int __devinit sdo_probe(struct platform_device *pdev)
 	if (IS_ERR_OR_NULL(sdev->sclk_dac)) {
 		dev_err(dev, "failed to get clock 'sclk_dac'\n");
 		ret = -ENXIO;
-		goto fail_irq;
+		goto fail;
 	}
 	sdev->dac = clk_get(dev, "dac");
 	if (IS_ERR_OR_NULL(sdev->dac)) {
@@ -415,12 +416,6 @@ fail_dac:
 	clk_put(sdev->dac);
 fail_sclk_dac:
 	clk_put(sdev->sclk_dac);
-fail_irq:
-	free_irq(sdev->irq, sdev);
-fail_regs:
-	iounmap(sdev->regs);
-fail_sdev:
-	kfree(sdev);
 fail:
 	dev_info(dev, "probe failed\n");
 	return ret;
@@ -439,9 +434,6 @@ static int __devexit sdo_remove(struct platform_device *pdev)
 	clk_put(sdev->dacphy);
 	clk_put(sdev->dac);
 	clk_put(sdev->sclk_dac);
-	free_irq(sdev->irq, sdev);
-	iounmap(sdev->regs);
-	kfree(sdev);
 
 	dev_info(&pdev->dev, "remove successful\n");
 	return 0;
