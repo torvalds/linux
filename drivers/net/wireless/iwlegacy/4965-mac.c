@@ -199,18 +199,14 @@ il4965_hw_nic_init(struct il_priv *il)
 	struct il_rx_queue *rxq = &il->rxq;
 	int ret;
 
-	/* nic_init */
 	spin_lock_irqsave(&il->lock, flags);
-	il->ops->lib->apm_ops.init(il);
-
+	il_apm_init(il);
 	/* Set interrupt coalescing calibration timer to default (512 usecs) */
 	il_write8(il, CSR_INT_COALESCING, IL_HOST_INT_CALIB_TIMEOUT_DEF);
-
 	spin_unlock_irqrestore(&il->lock, flags);
 
 	il4965_set_pwr_vmain(il);
-
-	il->ops->lib->apm_ops.config(il);
+	il4965_nic_config(il);
 
 	/* Allocate the RX queue, or reset if it is already allocated */
 	if (!rxq->bd) {

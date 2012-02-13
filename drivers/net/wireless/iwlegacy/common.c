@@ -730,7 +730,7 @@ il_eeprom_init(struct il_priv *il)
 	}
 	e = (__le16 *) il->eeprom;
 
-	il->ops->lib->apm_ops.init(il);
+	il->ops->lib->apm_init(il);
 
 	ret = il_eeprom_verify_signature(il);
 	if (ret < 0) {

@@ -958,12 +958,11 @@ il3945_hw_nic_init(struct il_priv *il)
 	struct il_rx_queue *rxq = &il->rxq;
 
 	spin_lock_irqsave(&il->lock, flags);
-	il->ops->lib->apm_ops.init(il);
+	il3945_apm_init(il);
 	spin_unlock_irqrestore(&il->lock, flags);
 
 	il3945_set_pwr_vmain(il);
-
-	il->ops->lib->apm_ops.config(il);
+	il3945_nic_config(il);
 
 	/* Allocate the RX queue, or reset if it is already allocated */
 	if (!rxq->bd) {
@@ -2641,10 +2640,7 @@ static struct il_lib_ops il3945_lib = {
 	.txq_init = il3945_hw_tx_queue_init,
 	.load_ucode = il3945_load_bsm,
 	.dump_nic_error_log = il3945_dump_nic_error_log,
-	.apm_ops = {
-		    .init = il3945_apm_init,
-		    .config = il3945_nic_config,
-		    },
+	.apm_init = il3945_apm_init,
 	.send_tx_power = il3945_send_tx_power,
 	.is_valid_rtc_data_addr = il3945_hw_valid_rtc_data_addr,
 	.eeprom_acquire_semaphore = il3945_eeprom_acquire_semaphore,

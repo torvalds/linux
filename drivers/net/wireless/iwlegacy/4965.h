@@ -60,6 +60,8 @@ int il4965_rx_init(struct il_priv *il, struct il_rx_queue *rxq);
 int il4965_hw_nic_init(struct il_priv *il);
 int il4965_dump_fh(struct il_priv *il, char **buf, bool display);
 
+void il4965_nic_config(struct il_priv *il);
+
 /* rx */
 void il4965_rx_queue_restock(struct il_priv *il);
 void il4965_rx_replenish(struct il_priv *il);

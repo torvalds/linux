@@ -508,7 +508,7 @@ iw4965_is_ht40_channel(__le32 rxon_flags)
 		chan_mod == CHANNEL_MODE_MIXED);
 }
 
-static void
+void
 il4965_nic_config(struct il_priv *il)
 {
 	unsigned long flags;
@@ -1900,10 +1900,7 @@ static struct il_lib_ops il4965_lib = {
 	.dump_nic_error_log = il4965_dump_nic_error_log,
 	.dump_fh = il4965_dump_fh,
 	.set_channel_switch = il4965_hw_channel_switch,
-	.apm_ops = {
-		    .init = il_apm_init,
-		    .config = il4965_nic_config,
-		    },
+	.apm_init = il_apm_init,
 	.send_tx_power = il4965_send_tx_power,
 	.update_chain_flags = il4965_update_chain_flags,
 	.eeprom_acquire_semaphore = il4965_eeprom_acquire_semaphore,

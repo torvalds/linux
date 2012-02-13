@@ -3672,7 +3672,7 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * PCI Tx retries from interfering with C3 CPU state */
 	pci_write_config_byte(pdev, 0x41, 0x00);
 
-	/* these spin locks will be used in apm_ops.init and EEPROM access
+	/* these spin locks will be used in apm_init and EEPROM access
 	 * we should init now
 	 */
 	spin_lock_init(&il->reg_lock);

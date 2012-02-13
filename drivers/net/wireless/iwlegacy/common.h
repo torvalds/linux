@@ -1566,11 +1566,6 @@ struct il_hcmd_utils_ops {
 	void (*post_scan) (struct il_priv *il);
 };
 
-struct il_apm_ops {
-	int (*init) (struct il_priv *il);
-	void (*config) (struct il_priv *il);
-};
-
 #ifdef CONFIG_IWLEGACY_DEBUGFS
 struct il_debugfs_ops {
 	ssize_t(*rx_stats_read) (struct file *file, char __user *user_buf,
@@ -1605,9 +1600,9 @@ struct il_lib_ops {
 	int (*set_channel_switch) (struct il_priv *il,
 				   struct ieee80211_channel_switch *ch_switch);
 	/* power management */
-	struct il_apm_ops apm_ops;
+	int (*apm_init) (struct il_priv *il);
 
-	/* power */
+	/* tx power */
 	int (*send_tx_power) (struct il_priv *il);
 	void (*update_chain_flags) (struct il_priv *il);
 
