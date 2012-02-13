@@ -1286,9 +1286,8 @@ static irqreturn_t mx27_camera_emma_irq(int irq_emma, void *data)
 	struct mx2_camera_dev *pcdev = data;
 	unsigned int status = readl(pcdev->base_emma + PRP_INTRSTATUS);
 	struct mx2_buffer *buf;
-	unsigned long flags;
 
-	spin_lock_irqsave(&pcdev->lock, flags);
+	spin_lock(&pcdev->lock);
 
 	if (list_empty(&pcdev->active_bufs)) {
 		dev_warn(pcdev->dev, "%s: called while active list is empty\n",
@@ -1325,7 +1324,7 @@ static irqreturn_t mx27_camera_emma_irq(int irq_emma, void *data)
 	}
 
 irq_ok:
-	spin_unlock_irqrestore(&pcdev->lock, flags);
+	spin_unlock(&pcdev->lock);
 	writel(status, pcdev->base_emma + PRP_INTRSTATUS);
 
 	return IRQ_HANDLED;
