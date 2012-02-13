@@ -106,7 +106,7 @@ static int ulpi_write(struct usb_phy *otg, u32 val, u32 reg)
 	return ulpi_poll(view, ULPIVW_RUN);
 }
 
-struct otg_io_access_ops mxc_ulpi_access_ops = {
+struct usb_phy_io_ops mxc_ulpi_access_ops = {
 	.read	= ulpi_read,
 	.write	= ulpi_write,
 };

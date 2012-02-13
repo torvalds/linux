@@ -74,7 +74,7 @@ static int ulpi_viewport_write(struct usb_phy *otg, u32 val, u32 reg)
 	return ulpi_viewport_wait(view, ULPI_VIEW_RUN);
 }
 
-struct otg_io_access_ops ulpi_viewport_access_ops = {
+struct usb_phy_io_ops ulpi_viewport_access_ops = {
 	.read	= ulpi_viewport_read,
 	.write	= ulpi_viewport_write,
 };

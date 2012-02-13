@@ -10,7 +10,7 @@ static inline struct usb_phy *imx_otg_ulpi_create(unsigned int flags)
 }
 #endif
 
-extern struct otg_io_access_ops mxc_ulpi_access_ops;
+extern struct usb_phy_io_ops mxc_ulpi_access_ops;
 
 #endif /* __MACH_ULPI_H */
 
