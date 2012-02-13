@@ -1155,13 +1155,15 @@ struct il_power_mgr {
 };
 
 struct il_priv {
-
-	/* ieee device used by generic ieee processing code */
 	struct ieee80211_hw *hw;
 	struct ieee80211_channel *ieee_channels;
 	struct ieee80211_rate *ieee_rates;
+
 	struct il_cfg *cfg;
 	const struct il_ops *ops;
+#ifdef CONFIG_IWLEGACY_DEBUGFS
+	const struct il_debugfs_ops *debugfs_ops;
+#endif
 
 	/* temporary frame storage list */
 	struct list_head free_frames;
@@ -1623,10 +1625,6 @@ struct il_lib_ops {
 
 	/* temperature */
 	struct il_temp_ops temp_ops;
-
-#ifdef CONFIG_IWLEGACY_DEBUGFS
-	struct il_debugfs_ops debugfs_ops;
-#endif
 
 };
 

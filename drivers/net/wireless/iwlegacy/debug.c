@@ -901,7 +901,8 @@ il_dbgfs_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	struct il_priv *il = file->private_data;
-	return il->ops->lib->debugfs_ops.rx_stats_read(file, user_buf, count, ppos);
+
+	return il->debugfs_ops->rx_stats_read(file, user_buf, count, ppos);
 }
 
 static ssize_t
@@ -909,7 +910,8 @@ il_dbgfs_ucode_tx_stats_read(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	struct il_priv *il = file->private_data;
-	return il->ops->lib->debugfs_ops.tx_stats_read(file, user_buf, count, ppos);
+
+	return il->debugfs_ops->tx_stats_read(file, user_buf, count, ppos);
 }
 
 static ssize_t
@@ -917,7 +919,8 @@ il_dbgfs_ucode_general_stats_read(struct file *file, char __user *user_buf,
 				  size_t count, loff_t *ppos)
 {
 	struct il_priv *il = file->private_data;
-	return il->ops->lib->debugfs_ops.general_stats_read(file, user_buf, count, ppos);
+
+	return il->debugfs_ops->general_stats_read(file, user_buf, count, ppos);
 }
 
 static ssize_t

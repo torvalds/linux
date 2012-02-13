@@ -1913,13 +1913,6 @@ static struct il_lib_ops il4965_lib = {
 	.temp_ops = {
 		     .temperature = il4965_temperature_calib,
 		     },
-#ifdef CONFIG_IWLEGACY_DEBUGFS
-	.debugfs_ops = {
-			.rx_stats_read = il4965_ucode_rx_stats_read,
-			.tx_stats_read = il4965_ucode_tx_stats_read,
-			.general_stats_read = il4965_ucode_general_stats_read,
-			},
-#endif
 };
 
 static const struct il_legacy_ops il4965_legacy_ops = {

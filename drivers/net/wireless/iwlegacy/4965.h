@@ -928,13 +928,7 @@ void il4965_calib_free_results(struct il_priv *il);
 
 /* Debug */
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-ssize_t il4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos);
-ssize_t il4965_ucode_tx_stats_read(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos);
-ssize_t il4965_ucode_general_stats_read(struct file *file,
-					char __user *user_buf, size_t count,
-					loff_t *ppos);
+extern const struct il_debugfs_ops il4965_debugfs_ops;
 #endif
 
 /****************************/

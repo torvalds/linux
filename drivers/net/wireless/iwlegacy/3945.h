@@ -595,13 +595,7 @@ struct il3945_tfd {
 } __packed;
 
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-ssize_t il3945_ucode_rx_stats_read(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos);
-ssize_t il3945_ucode_tx_stats_read(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos);
-ssize_t il3945_ucode_general_stats_read(struct file *file,
-					char __user *user_buf, size_t count,
-					loff_t *ppos);
+extern const struct il_debugfs_ops il3945_debugfs_ops;
 #endif
 
 #endif

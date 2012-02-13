@@ -2651,14 +2651,6 @@ static struct il_lib_ops il3945_lib = {
 	},
 	.send_tx_power = il3945_send_tx_power,
 	.is_valid_rtc_data_addr = il3945_hw_valid_rtc_data_addr,
-
-#ifdef CONFIG_IWLEGACY_DEBUGFS
-	.debugfs_ops = {
-			.rx_stats_read = il3945_ucode_rx_stats_read,
-			.tx_stats_read = il3945_ucode_tx_stats_read,
-			.general_stats_read = il3945_ucode_general_stats_read,
-			},
-#endif
 };
 
 static const struct il_legacy_ops il3945_legacy_ops = {

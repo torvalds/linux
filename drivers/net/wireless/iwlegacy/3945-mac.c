@@ -3619,6 +3619,9 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	D_INFO("*** LOAD DRIVER ***\n");
 	il->cfg = cfg;
 	il->ops = &il3945_ops;
+#ifdef CONFIG_IWLEGACY_DEBUGFS
+	il->debugfs_ops = &il3945_debugfs_ops;
+#endif
 	il->pci_dev = pdev;
 	il->inta_mask = CSR_INI_SET_MASK;
 
