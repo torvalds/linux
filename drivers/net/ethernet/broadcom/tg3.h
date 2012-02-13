@@ -2707,14 +2707,6 @@ struct tg3_link_config {
 #define AUTONEG_INVALID		0xff
 	u16				active_speed;
 	u32				rmt_adv;
-
-	/* When we go in and out of low power mode we need
-	 * to swap with this state.
-	 */
-	u16				orig_speed;
-	u8				orig_duplex;
-	u8				orig_autoneg;
-	u32				orig_advertising;
 };
 
 struct tg3_bufmgr_config {

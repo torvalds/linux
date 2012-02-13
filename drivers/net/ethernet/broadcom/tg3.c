@@ -1894,10 +1894,10 @@ static void tg3_phy_start(struct tg3 *tp)
 
 	if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER) {
 		tp->phy_flags &= ~TG3_PHYFLG_IS_LOW_POWER;
-		phydev->speed = tp->link_config.orig_speed;
-		phydev->duplex = tp->link_config.orig_duplex;
-		phydev->autoneg = tp->link_config.orig_autoneg;
-		phydev->advertising = tp->link_config.orig_advertising;
+		phydev->speed = tp->link_config.speed;
+		phydev->duplex = tp->link_config.duplex;
+		phydev->autoneg = tp->link_config.autoneg;
+		phydev->advertising = tp->link_config.advertising;
 	}
 
 	phy_start(phydev);
@@ -3564,10 +3564,10 @@ static int tg3_power_down_prepare(struct tg3 *tp)
 
 			tp->phy_flags |= TG3_PHYFLG_IS_LOW_POWER;
 
-			tp->link_config.orig_speed = phydev->speed;
-			tp->link_config.orig_duplex = phydev->duplex;
-			tp->link_config.orig_autoneg = phydev->autoneg;
-			tp->link_config.orig_advertising = phydev->advertising;
+			tp->link_config.speed = phydev->speed;
+			tp->link_config.duplex = phydev->duplex;
+			tp->link_config.autoneg = phydev->autoneg;
+			tp->link_config.advertising = phydev->advertising;
 
 			advertising = ADVERTISED_TP |
 				      ADVERTISED_Pause |
@@ -3600,12 +3600,8 @@ static int tg3_power_down_prepare(struct tg3 *tp)
 	} else {
 		do_low_power = true;
 
-		if (!(tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)) {
+		if (!(tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER))
 			tp->phy_flags |= TG3_PHYFLG_IS_LOW_POWER;
-			tp->link_config.orig_speed = tp->link_config.speed;
-			tp->link_config.orig_duplex = tp->link_config.duplex;
-			tp->link_config.orig_autoneg = tp->link_config.autoneg;
-		}
 
 		if (!(tp->phy_flags & TG3_PHYFLG_ANY_SERDES))
 			tg3_setup_phy(tp, 0);
@@ -9260,12 +9256,8 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	}
 
 	if (!tg3_flag(tp, USE_PHYLIB)) {
-		if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER) {
+		if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)
 			tp->phy_flags &= ~TG3_PHYFLG_IS_LOW_POWER;
-			tp->link_config.speed = tp->link_config.orig_speed;
-			tp->link_config.duplex = tp->link_config.orig_duplex;
-			tp->link_config.autoneg = tp->link_config.orig_autoneg;
-		}
 
 		err = tg3_setup_phy(tp, 0);
 		if (err)
@@ -10614,10 +10606,6 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		tp->link_config.duplex = cmd->duplex;
 	}
 
-	tp->link_config.orig_speed = tp->link_config.speed;
-	tp->link_config.orig_duplex = tp->link_config.duplex;
-	tp->link_config.orig_autoneg = tp->link_config.autoneg;
-
 	if (netif_running(dev))
 		tg3_setup_phy(tp, 1);
 
@@ -10864,10 +10852,10 @@ static int tg3_set_pauseparam(struct net_device *dev, struct ethtool_pauseparam 
 			if (!epause->autoneg)
 				tg3_setup_flow_control(tp, 0, 0);
 		} else {
-			tp->link_config.orig_advertising &=
+			tp->link_config.advertising &=
 					~(ADVERTISED_Pause |
 					  ADVERTISED_Asym_Pause);
-			tp->link_config.orig_advertising |= newadv;
+			tp->link_config.advertising |= newadv;
 		}
 	} else {
 		int irq_sync = 0;
@@ -13364,9 +13352,6 @@ static void __devinit tg3_phy_init_link_config(struct tg3 *tp)
 	tp->link_config.autoneg = AUTONEG_ENABLE;
 	tp->link_config.active_speed = SPEED_INVALID;
 	tp->link_config.active_duplex = DUPLEX_INVALID;
-	tp->link_config.orig_speed = SPEED_INVALID;
-	tp->link_config.orig_duplex = DUPLEX_INVALID;
-	tp->link_config.orig_autoneg = AUTONEG_INVALID;
 }
 
 static int __devinit tg3_phy_probe(struct tg3 *tp)
