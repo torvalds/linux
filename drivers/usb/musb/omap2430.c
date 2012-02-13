@@ -164,8 +164,8 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 				}
 			}
 
-			if (ret && musb->xceiv->set_vbus)
-				otg_set_vbus(musb->xceiv, 1);
+			if (ret && otg->set_vbus)
+				otg_set_vbus(otg, 1);
 		} else {
 			musb->is_active = 1;
 			otg->default_a = 1;
@@ -270,8 +270,8 @@ static void musb_otg_notifier_work(struct work_struct *data_notifier_work)
 			}
 
 		if (data->interface_type == MUSB_INTERFACE_UTMI) {
-			if (musb->xceiv->set_vbus)
-				otg_set_vbus(musb->xceiv, 0);
+			if (musb->xceiv->otg->set_vbus)
+				otg_set_vbus(musb->xceiv->otg, 0);
 		}
 		usb_phy_shutdown(musb->xceiv);
 		break;

@@ -147,7 +147,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 			hcd, ehci, ehci->transceiver);
 
 		if (ehci->transceiver) {
-			retval = otg_set_host(ehci->transceiver,
+			retval = otg_set_host(ehci->transceiver->otg,
 					      &ehci_to_hcd(ehci)->self);
 			if (retval) {
 				if (ehci->transceiver)
@@ -194,7 +194,7 @@ static void usb_hcd_fsl_remove(struct usb_hcd *hcd,
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
 	if (ehci->transceiver) {
-		otg_set_host(ehci->transceiver, NULL);
+		otg_set_host(ehci->transceiver->otg, NULL);
 		put_device(ehci->transceiver->dev);
 	}
 

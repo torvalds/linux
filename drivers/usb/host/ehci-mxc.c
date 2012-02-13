@@ -226,7 +226,7 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 			ret = -ENODEV;
 			goto err_add;
 		}
-		ret = otg_set_vbus(pdata->otg, 1);
+		ret = otg_set_vbus(pdata->otg->otg, 1);
 		if (ret) {
 			dev_err(dev, "unable to enable vbus on transceiver\n");
 			goto err_add;

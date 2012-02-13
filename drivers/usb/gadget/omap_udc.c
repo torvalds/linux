@@ -1213,7 +1213,7 @@ static int omap_wakeup(struct usb_gadget *gadget)
 	/* NOTE:  non-OTG systems may use SRP TOO... */
 	} else if (!(udc->devstat & UDC_ATT)) {
 		if (udc->transceiver)
-			retval = otg_start_srp(udc->transceiver);
+			retval = otg_start_srp(udc->transceiver->otg);
 	}
 	spin_unlock_irqrestore(&udc->lock, flags);
 
@@ -2156,7 +2156,8 @@ static int omap_udc_start(struct usb_gadget_driver *driver,
 
 	/* connect to bus through transceiver */
 	if (udc->transceiver) {
-		status = otg_set_peripheral(udc->transceiver, &udc->gadget);
+		status = otg_set_peripheral(udc->transceiver->otg,
+						&udc->gadget);
 		if (status < 0) {
 			ERR("can't bind to transceiver\n");
 			if (driver->unbind) {
@@ -2202,7 +2203,7 @@ static int omap_udc_stop(struct usb_gadget_driver *driver)
 		omap_vbus_session(&udc->gadget, 0);
 
 	if (udc->transceiver)
-		(void) otg_set_peripheral(udc->transceiver, NULL);
+		(void) otg_set_peripheral(udc->transceiver->otg, NULL);
 	else
 		pullup_disable(udc);
 

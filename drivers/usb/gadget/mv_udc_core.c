@@ -1384,7 +1384,8 @@ static int mv_udc_start(struct usb_gadget_driver *driver,
 	}
 
 	if (udc->transceiver) {
-		retval = otg_set_peripheral(udc->transceiver, &udc->gadget);
+		retval = otg_set_peripheral(udc->transceiver->otg,
+					&udc->gadget);
 		if (retval) {
 			dev_err(&udc->dev->dev,
 				"unable to register peripheral to otg\n");

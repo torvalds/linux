@@ -192,30 +192,30 @@ static inline const char *otg_state_string(enum usb_otg_state state)
 
 /* Context: can sleep */
 static inline int
-otg_start_hnp(struct usb_phy *x)
+otg_start_hnp(struct usb_otg *otg)
 {
-	if (x->otg && x->otg->start_hnp)
-		return x->otg->start_hnp(x->otg);
+	if (otg && otg->start_hnp)
+		return otg->start_hnp(otg);
 
 	return -ENOTSUPP;
 }
 
 /* Context: can sleep */
 static inline int
-otg_set_vbus(struct usb_phy *x, bool enabled)
+otg_set_vbus(struct usb_otg *otg, bool enabled)
 {
-	if (x->otg && x->otg->set_vbus)
-		return x->otg->set_vbus(x->otg, enabled);
+	if (otg && otg->set_vbus)
+		return otg->set_vbus(otg, enabled);
 
 	return -ENOTSUPP;
 }
 
 /* for HCDs */
 static inline int
-otg_set_host(struct usb_phy *x, struct usb_bus *host)
+otg_set_host(struct usb_otg *otg, struct usb_bus *host)
 {
-	if (x->otg && x->otg->set_host)
-		return x->otg->set_host(x->otg, host);
+	if (otg && otg->set_host)
+		return otg->set_host(otg, host);
 
 	return -ENOTSUPP;
 }
@@ -224,10 +224,10 @@ otg_set_host(struct usb_phy *x, struct usb_bus *host)
 
 /* Context: can sleep */
 static inline int
-otg_set_peripheral(struct usb_phy *x, struct usb_gadget *periph)
+otg_set_peripheral(struct usb_otg *otg, struct usb_gadget *periph)
 {
-	if (x->otg && x->otg->set_peripheral)
-		return x->otg->set_peripheral(x->otg, periph);
+	if (otg && otg->set_peripheral)
+		return otg->set_peripheral(otg, periph);
 
 	return -ENOTSUPP;
 }
@@ -251,10 +251,10 @@ usb_phy_set_suspend(struct usb_phy *x, int suspend)
 }
 
 static inline int
-otg_start_srp(struct usb_phy *x)
+otg_start_srp(struct usb_otg *otg)
 {
-	if (x->otg && x->otg->start_srp)
-		return x->otg->start_srp(x->otg);
+	if (otg && otg->start_srp)
+		return otg->start_srp(otg);
 
 	return -ENOTSUPP;
 }

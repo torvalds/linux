@@ -1166,7 +1166,8 @@ static int s3c_hsudc_start(struct usb_gadget *gadget,
 
 	/* connect to bus through transceiver */
 	if (hsudc->transceiver) {
-		ret = otg_set_peripheral(hsudc->transceiver, &hsudc->gadget);
+		ret = otg_set_peripheral(hsudc->transceiver->otg,
+					&hsudc->gadget);
 		if (ret) {
 			dev_err(hsudc->dev, "%s: can't bind to transceiver\n",
 					hsudc->gadget.name);
@@ -1214,7 +1215,7 @@ static int s3c_hsudc_stop(struct usb_gadget *gadget,
 	spin_unlock_irqrestore(&hsudc->lock, flags);
 
 	if (hsudc->transceiver)
-		(void) otg_set_peripheral(hsudc->transceiver, NULL);
+		(void) otg_set_peripheral(hsudc->transceiver->otg, NULL);
 
 	disable_irq(hsudc->irq);
 

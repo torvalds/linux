@@ -145,13 +145,13 @@ static int pxa310_start_otg_host_transcvr(struct usb_bus *host)
 		return err;
 	}
 
-	err = otg_set_vbus(u2d->otg, 1);
+	err = otg_set_vbus(u2d->otg->otg, 1);
 	if (err) {
 		pr_err("OTG transceiver VBUS set failed");
 		return err;
 	}
 
-	err = otg_set_host(u2d->otg, host);
+	err = otg_set_host(u2d->otg->otg, host);
 	if (err)
 		pr_err("OTG transceiver Host mode set failed");
 
@@ -189,8 +189,8 @@ static void pxa310_stop_otg_hc(void)
 {
 	pxa310_otg_transceiver_rtsm();
 
-	otg_set_host(u2d->otg, NULL);
-	otg_set_vbus(u2d->otg, 0);
+	otg_set_host(u2d->otg->otg, NULL);
+	otg_set_vbus(u2d->otg->otg, 0);
 	usb_phy_shutdown(u2d->otg);
 }
 

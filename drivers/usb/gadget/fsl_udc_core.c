@@ -1966,7 +1966,8 @@ static int fsl_start(struct usb_gadget_driver *driver,
 
 		/* connect to bus through transceiver */
 		if (udc_controller->transceiver) {
-			retval = otg_set_peripheral(udc_controller->transceiver,
+			retval = otg_set_peripheral(
+					udc_controller->transceiver->otg,
 						    &udc_controller->gadget);
 			if (retval < 0) {
 				ERR("can't bind to transceiver\n");
@@ -2006,7 +2007,7 @@ static int fsl_stop(struct usb_gadget_driver *driver)
 		return -EINVAL;
 
 	if (udc_controller->transceiver)
-		otg_set_peripheral(udc_controller->transceiver, NULL);
+		otg_set_peripheral(udc_controller->transceiver->otg, NULL);
 
 	/* stop DR, disable intr */
 	dr_controller_stop(udc_controller);

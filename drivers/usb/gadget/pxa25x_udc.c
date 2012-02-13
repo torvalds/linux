@@ -1301,7 +1301,8 @@ fail:
 
 	/* connect to bus through transceiver */
 	if (dev->transceiver) {
-		retval = otg_set_peripheral(dev->transceiver, &dev->gadget);
+		retval = otg_set_peripheral(dev->transceiver->otg,
+						&dev->gadget);
 		if (retval) {
 			DMSG("can't bind to transceiver\n");
 			if (driver->unbind)
@@ -1360,7 +1361,7 @@ static int pxa25x_stop(struct usb_gadget_driver *driver)
 	local_irq_enable();
 
 	if (dev->transceiver)
-		(void) otg_set_peripheral(dev->transceiver, NULL);
+		(void) otg_set_peripheral(dev->transceiver->otg, NULL);
 
 	driver->unbind(&dev->gadget);
 	dev->gadget.dev.driver = NULL;

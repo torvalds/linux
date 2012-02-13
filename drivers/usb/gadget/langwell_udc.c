@@ -1906,7 +1906,7 @@ static int langwell_stop(struct usb_gadget *g,
 
 	/* unbind OTG transceiver */
 	if (dev->transceiver)
-		(void)otg_set_peripheral(dev->transceiver, 0);
+		(void)otg_set_peripheral(dev->transceiver->otg, 0);
 
 	/* disable interrupt and set controller to stop state */
 	langwell_udc_stop(dev);

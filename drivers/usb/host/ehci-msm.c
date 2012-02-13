@@ -152,7 +152,7 @@ static int ehci_msm_probe(struct platform_device *pdev)
 		goto unmap;
 	}
 
-	ret = otg_set_host(phy, &hcd->self);
+	ret = otg_set_host(phy->otg, &hcd->self);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "unable to register with transceiver\n");
 		goto put_transceiver;
@@ -186,7 +186,7 @@ static int __devexit ehci_msm_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 
-	otg_set_host(phy, NULL);
+	otg_set_host(phy->otg, NULL);
 	usb_put_transceiver(phy);
 
 	usb_put_hcd(hcd);

@@ -261,7 +261,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 			goto err_disable_clk;
 		}
 
-		retval = otg_set_host(ehci_mv->otg, &hcd->self);
+		retval = otg_set_host(ehci_mv->otg->otg, &hcd->self);
 		if (retval < 0) {
 			dev_err(&pdev->dev,
 				"unable to register with transceiver\n");
@@ -332,7 +332,7 @@ static int mv_ehci_remove(struct platform_device *pdev)
 		usb_remove_hcd(hcd);
 
 	if (ehci_mv->otg) {
-		otg_set_host(ehci_mv->otg, NULL);
+		otg_set_host(ehci_mv->otg->otg, NULL);
 		usb_put_transceiver(ehci_mv->otg);
 	}
 

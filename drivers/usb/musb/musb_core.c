@@ -1961,7 +1961,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	if (is_host_enabled(musb)) {
 		struct usb_hcd	*hcd = musb_to_hcd(musb);
 
-		otg_set_host(musb->xceiv, &hcd->self);
+		otg_set_host(musb->xceiv->otg, &hcd->self);
 
 		if (is_otg_enabled(musb))
 			hcd->self.otg_port = 1;
