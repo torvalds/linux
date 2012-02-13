@@ -58,7 +58,6 @@ static struct v4l2_subdev *find_and_register_subdev(
 	}
 
 done:
-	put_driver(drv);
 	return sd;
 }
 

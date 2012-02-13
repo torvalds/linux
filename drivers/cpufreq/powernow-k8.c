@@ -40,6 +40,7 @@
 #include <linux/delay.h>
 
 #include <asm/msr.h>
+#include <asm/cpu_device_id.h>
 
 #include <linux/acpi.h>
 #include <linux/mutex.h>
@@ -520,6 +521,15 @@ static int core_voltage_post_transition(struct powernow_k8_data *data,
 	return 0;
 }
 
+static const struct x86_cpu_id powernow_k8_ids[] = {
+	/* IO based frequency switching */
+	{ X86_VENDOR_AMD, 0xf },
+	/* MSR based frequency switching supported */
+	X86_FEATURE_MATCH(X86_FEATURE_HW_PSTATE),
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, powernow_k8_ids);
+
 static void check_supported_cpu(void *_rc)
 {
 	u32 eax, ebx, ecx, edx;
@@ -527,13 +537,7 @@ static void check_supported_cpu(void *_rc)
 
 	*rc = -ENODEV;
 
-	if (__this_cpu_read(cpu_info.x86_vendor) != X86_VENDOR_AMD)
-		return;
-
 	eax = cpuid_eax(CPUID_PROCESSOR_SIGNATURE);
-	if (((eax & CPUID_XFAM) != CPUID_XFAM_K8) &&
-	    ((eax & CPUID_XFAM) < CPUID_XFAM_10H))
-		return;
 
 	if ((eax & CPUID_XFAM) == CPUID_XFAM_K8) {
 		if (((eax & CPUID_USE_XFAM_XMOD) != CPUID_USE_XFAM_XMOD) ||
@@ -1552,6 +1556,9 @@ static int __cpuinit powernowk8_init(void)
 {
 	unsigned int i, supported_cpus = 0, cpu;
 	int rv;
+
+	if (!x86_match_cpu(powernow_k8_ids))
+		return -ENODEV;
 
 	for_each_online_cpu(i) {
 		int rc;

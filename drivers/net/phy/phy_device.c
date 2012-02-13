@@ -915,9 +915,7 @@ static int phy_probe(struct device *dev)
 
 	phydev = to_phy_device(dev);
 
-	/* Make sure the driver is held.
-	 * XXX -- Is this correct? */
-	drv = get_driver(phydev->dev.driver);
+	drv = phydev->dev.driver;
 	phydrv = to_phy_driver(drv);
 	phydev->drv = phydrv;
 
@@ -957,8 +955,6 @@ static int phy_remove(struct device *dev)
 
 	if (phydev->drv->remove)
 		phydev->drv->remove(phydev);
-
-	put_driver(dev->driver);
 	phydev->drv = NULL;
 
 	return 0;

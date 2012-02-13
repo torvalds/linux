@@ -385,6 +385,14 @@ static struct cpufreq_driver nforce2_driver = {
 	.owner = THIS_MODULE,
 };
 
+#ifdef MODULE
+static DEFINE_PCI_DEVICE_TABLE(nforce2_ids) = {
+	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE2 },
+	{}
+};
+MODULE_DEVICE_TABLE(pci, nforce2_ids);
+#endif
+
 /**
  * nforce2_detect_chipset - detect the Southbridge which contains FSB PLL logic
  *

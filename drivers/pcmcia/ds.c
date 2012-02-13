@@ -127,10 +127,7 @@ pcmcia_store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	list_add_tail(&dynid->node, &pdrv->dynids.list);
 	mutex_unlock(&pdrv->dynids.lock);
 
-	if (get_driver(&pdrv->drv)) {
-		retval = driver_attach(&pdrv->drv);
-		put_driver(&pdrv->drv);
-	}
+	retval = driver_attach(&pdrv->drv);
 
 	if (retval)
 		return retval;
@@ -160,6 +157,11 @@ pcmcia_create_newid_file(struct pcmcia_driver *drv)
 	return error;
 }
 
+static void
+pcmcia_remove_newid_file(struct pcmcia_driver *drv)
+{
+	driver_remove_file(&drv->drv, &driver_attr_new_id);
+}
 
 /**
  * pcmcia_register_driver - register a PCMCIA driver with the bus core
@@ -204,6 +206,7 @@ EXPORT_SYMBOL(pcmcia_register_driver);
 void pcmcia_unregister_driver(struct pcmcia_driver *driver)
 {
 	pr_debug("unregistering driver %s\n", driver->name);
+	pcmcia_remove_newid_file(driver);
 	driver_unregister(&driver->drv);
 	pcmcia_free_dynids(driver);
 }

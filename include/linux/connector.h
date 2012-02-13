@@ -43,6 +43,7 @@
 #define CN_IDX_DRBD			0x8
 #define CN_VAL_DRBD			0x1
 #define CN_KVP_IDX			0x9	/* HyperV KVP */
+#define CN_KVP_VAL			0x1	/* queries from the kernel */
 
 #define CN_NETLINK_USERS		10	/* Highest index + 1 */
 

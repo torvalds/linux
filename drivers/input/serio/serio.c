@@ -441,7 +441,6 @@ static ssize_t serio_rebind_driver(struct device *dev, struct device_attribute *
 	} else if ((drv = driver_find(buf, &serio_bus)) != NULL) {
 		serio_disconnect_port(serio);
 		error = serio_bind_driver(serio, to_serio_driver(drv));
-		put_driver(drv);
 		serio_remove_duplicate_events(serio, SERIO_RESCAN_PORT);
 	} else {
 		error = -EINVAL;
