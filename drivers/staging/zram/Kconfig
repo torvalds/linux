@@ -1,6 +1,8 @@
 config ZRAM
 	tristate "Compressed RAM block device support"
-	depends on BLOCK && SYSFS
+	# X86 dependency is because zsmalloc uses non-portable pte/tlb
+	# functions
+	depends on BLOCK && SYSFS && X86
 	select ZSMALLOC
 	select LZO_COMPRESS
 	select LZO_DECOMPRESS
