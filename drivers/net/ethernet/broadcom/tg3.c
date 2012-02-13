@@ -4027,7 +4027,16 @@ static bool tg3_phy_copper_an_config_ok(struct tg3 *tp, u32 *lcladv)
 		if (tg3_readphy(tp, MII_CTRL1000, &tg3_ctrl))
 			return false;
 
-		tg3_ctrl &= (ADVERTISE_1000HALF | ADVERTISE_1000FULL);
+		if (tgtadv &&
+		    (tp->pci_chip_rev_id == CHIPREV_ID_5701_A0 ||
+		     tp->pci_chip_rev_id == CHIPREV_ID_5701_B0)) {
+			tgtadv |= CTL1000_AS_MASTER | CTL1000_ENABLE_MASTER;
+			tg3_ctrl &= (ADVERTISE_1000HALF | ADVERTISE_1000FULL |
+				     CTL1000_AS_MASTER | CTL1000_ENABLE_MASTER);
+		} else {
+			tg3_ctrl &= (ADVERTISE_1000HALF | ADVERTISE_1000FULL);
+		}
+
 		if (tg3_ctrl != tgtadv)
 			return false;
 	}
