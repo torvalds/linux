@@ -1898,6 +1898,7 @@ static int musb_gadget_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver)
 {
 	struct musb		*musb = gadget_to_musb(g);
+	struct usb_otg		*otg = musb->xceiv->otg;
 	unsigned long		flags;
 	int			retval = -EINVAL;
 
@@ -1945,7 +1946,7 @@ static int musb_gadget_start(struct usb_gadget *g,
 		}
 
 		if ((musb->xceiv->last_event == USB_EVENT_ID)
-					&& musb->xceiv->set_vbus)
+					&& otg->set_vbus)
 			otg_set_vbus(musb->xceiv, 1);
 
 		hcd->self.uses_pio_for_control = 1;
