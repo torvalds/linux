@@ -873,6 +873,7 @@ void gpio_unexport(unsigned gpio)
 {
 	struct gpio_desc	*desc;
 	int			status = 0;
+	struct device		*dev = NULL;
 
 	if (!gpio_is_valid(gpio)) {
 		status = -EINVAL;
@@ -884,19 +885,20 @@ void gpio_unexport(unsigned gpio)
 	desc = &gpio_desc[gpio];
 
 	if (test_bit(FLAG_EXPORT, &desc->flags)) {
-		struct device	*dev = NULL;
 
 		dev = class_find_device(&gpio_class, NULL, desc, match_export);
 		if (dev) {
 			gpio_setup_irq(desc, dev, 0);
 			clear_bit(FLAG_EXPORT, &desc->flags);
-			put_device(dev);
-			device_unregister(dev);
 		} else
 			status = -ENODEV;
 	}
 
 	mutex_unlock(&sysfs_lock);
+	if (dev) {
+		device_unregister(dev);
+		put_device(dev);
+	}
 done:
 	if (status)
 		pr_debug("%s: gpio%d status %d\n", __func__, gpio, status);
