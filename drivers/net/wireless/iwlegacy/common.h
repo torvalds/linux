@@ -1626,22 +1626,6 @@ struct il_mod_params {
 	int restart_fw;		/* def: 1 = restart firmware */
 };
 
-/*
- * @led_compensation: compensate on the led on/off time per HW according
- *	to the deviation to achieve the desired led frequency.
- *	The detail algorithm is described in common.c
- * @chain_noise_num_beacons: number of beacons used to compute chain noise
- * @wd_timeout: TX queues watchdog timeout
- * @temperature_kelvin: temperature report by uCode in kelvin
- * @ucode_tracing: support ucode continuous tracing
- * @sensitivity_calib_by_driver: driver has the capability to perform
- *	sensitivity calibration operation
- * @chain_noise_calib_by_driver: driver has the capability to perform
- *	chain noise calibration operation
- */
-struct il_base_params {
-};
-
 #define IL_LED_SOLID 11
 #define IL_DEF_LED_INTRVL cpu_to_le32(1000)
 
