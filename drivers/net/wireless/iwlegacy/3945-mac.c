@@ -2286,16 +2286,25 @@ __il3945_down(struct il_priv *il)
 	    test_bit(S_FW_ERROR, &il->status) << S_FW_ERROR |
 	    test_bit(S_EXIT_PENDING, &il->status) << S_EXIT_PENDING;
 
+	/*
+	 * We disabled and synchronized interrupt, and priv->mutex is taken, so
+	 * here is the only thread which will program device registers, but
+	 * still have lockdep assertions, so we are taking reg_lock.
+	 */
+	spin_lock_irq(&il->reg_lock);
+	/* FIXME: il_grab_nic_access if rfkill is off ? */
+
 	il3945_hw_txq_ctx_stop(il);
 	il3945_hw_rxq_stop(il);
-
 	/* Power-down device's busmaster DMA clocks */
-	il_wr_prph(il, APMG_CLK_DIS_REG, APMG_CLK_VAL_DMA_CLK_RQT);
+	_il_wr_prph(il, APMG_CLK_DIS_REG, APMG_CLK_VAL_DMA_CLK_RQT);
 	udelay(5);
-
 	/* Stop the device, and put it in low power state */
-	il_apm_stop(il);
+	_il_apm_stop(il);
 
+	spin_unlock_irq(&il->reg_lock);
+
+	il3945_hw_txq_ctx_free(il);
 exit:
 	memset(&il->card_alive, 0, sizeof(struct il_alive_resp));
 

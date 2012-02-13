@@ -4126,12 +4126,12 @@ il_irq_handle_error(struct il_priv *il)
 EXPORT_SYMBOL(il_irq_handle_error);
 
 static int
-il_apm_stop_master(struct il_priv *il)
+_il_apm_stop_master(struct il_priv *il)
 {
 	int ret = 0;
 
 	/* stop device's busmaster DMA activity */
-	il_set_bit(il, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
+	_il_set_bit(il, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
 
 	ret =
 	    _il_poll_bit(il, CSR_RESET, CSR_RESET_REG_FLAG_MASTER_DISABLED,
@@ -4145,15 +4145,17 @@ il_apm_stop_master(struct il_priv *il)
 }
 
 void
-il_apm_stop(struct il_priv *il)
+_il_apm_stop(struct il_priv *il)
 {
+	lockdep_assert_held(&il->reg_lock);
+
 	D_INFO("Stop card, put in low power state\n");
 
 	/* Stop device's DMA activity */
-	il_apm_stop_master(il);
+	_il_apm_stop_master(il);
 
 	/* Reset the entire device */
-	il_set_bit(il, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
+	_il_set_bit(il, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
 
 	udelay(10);
 
@@ -4161,7 +4163,18 @@ il_apm_stop(struct il_priv *il)
 	 * Clear "initialization complete" bit to move adapter from
 	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
 	 */
-	il_clear_bit(il, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	_il_clear_bit(il, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+}
+EXPORT_SYMBOL(_il_apm_stop);
+
+void
+il_apm_stop(struct il_priv *il)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&il->reg_lock, flags);
+	_il_apm_stop(il);
+	spin_unlock_irqrestore(&il->reg_lock, flags);
 }
 EXPORT_SYMBOL(il_apm_stop);
 

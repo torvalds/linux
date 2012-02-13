@@ -1976,7 +1976,9 @@ il_is_ready_rf(struct il_priv *il)
 
 extern void il_send_bt_config(struct il_priv *il);
 extern int il_send_stats_request(struct il_priv *il, u8 flags, bool clear);
-void il_apm_stop(struct il_priv *il);
+extern void il_apm_stop(struct il_priv *il);
+extern void _il_apm_stop(struct il_priv *il);
+
 int il_apm_init(struct il_priv *il);
 
 int il_send_rxon_timing(struct il_priv *il);

@@ -441,11 +441,15 @@ il4965_rx_queue_free(struct il_priv *il, struct il_rx_queue *rxq)
 int
 il4965_rxq_stop(struct il_priv *il)
 {
+	int ret;
 
-	/* stop Rx DMA */
-	il_wr(il, FH49_MEM_RCSR_CHNL0_CONFIG_REG, 0);
-	il_poll_bit(il, FH49_MEM_RSSR_RX_STATUS_REG,
-		    FH49_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
+	_il_wr(il, FH49_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+	ret = _il_poll_bit(il, FH49_MEM_RSSR_RX_STATUS_REG,
+			   FH49_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
+			   FH49_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
+			   1000);
+	if (ret < 0)
+		IL_ERR("Can't stop Rx DMA.\n");
 
 	return 0;
 }
@@ -2031,31 +2035,10 @@ il4965_txq_ctx_reset(struct il_priv *il)
 	}
 }
 
-/**
- * il4965_txq_ctx_stop - Stop all Tx DMA channels
- */
 void
-il4965_txq_ctx_stop(struct il_priv *il)
+il4965_txq_ctx_unmap(struct il_priv *il)
 {
-	int ch, txq_id;
-	unsigned long flags;
-
-	/* Turn off all Tx DMA fifos */
-	spin_lock_irqsave(&il->lock, flags);
-
-	il4965_txq_set_sched(il, 0);
-
-	/* Stop each Tx DMA channel, and wait for it to be idle */
-	for (ch = 0; ch < il->hw_params.dma_chnl_num; ch++) {
-		il_wr(il, FH49_TCSR_CHNL_TX_CONFIG_REG(ch), 0x0);
-		if (il_poll_bit
-		    (il, FH49_TSSR_TX_STATUS_REG,
-		     FH49_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(ch), 1000))
-			IL_ERR("Failing on timeout while stopping"
-			       " DMA channel %d [0x%08x]", ch,
-			       il_rd(il, FH49_TSSR_TX_STATUS_REG));
-	}
-	spin_unlock_irqrestore(&il->lock, flags);
+	int txq_id;
 
 	if (!il->txq)
 		return;
@@ -2066,6 +2049,30 @@ il4965_txq_ctx_stop(struct il_priv *il)
 			il_cmd_queue_unmap(il);
 		else
 			il_tx_queue_unmap(il, txq_id);
+}
+
+/**
+ * il4965_txq_ctx_stop - Stop all Tx DMA channels
+ */
+void
+il4965_txq_ctx_stop(struct il_priv *il)
+{
+	int ch, ret;
+
+	_il_wr_prph(il, IL49_SCD_TXFACT, 0);
+
+	/* Stop each Tx DMA channel, and wait for it to be idle */
+	for (ch = 0; ch < il->hw_params.dma_chnl_num; ch++) {
+		_il_wr(il, FH49_TCSR_CHNL_TX_CONFIG_REG(ch), 0x0);
+		ret =
+		    _il_poll_bit(il, FH49_TSSR_TX_STATUS_REG,
+				 FH49_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(ch),
+				 FH49_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(ch),
+				 1000);
+		if (ret < 0)
+			IL_ERR("Timeout stopping DMA channel %d [0x%08x]",
+			       ch, _il_rd(il, FH49_TSSR_TX_STATUS_REG));
+	}
 }
 
 /*
@@ -5398,19 +5405,27 @@ __il4965_down(struct il_priv *il)
 	    test_bit(S_FW_ERROR, &il->status) << S_FW_ERROR |
 	    test_bit(S_EXIT_PENDING, &il->status) << S_EXIT_PENDING;
 
+	/*
+	 * We disabled and synchronized interrupt, and priv->mutex is taken, so
+	 * here is the only thread which will program device registers, but
+	 * still have lockdep assertions, so we are taking reg_lock.
+	 */
+	spin_lock_irq(&il->reg_lock);
+	/* FIXME: il_grab_nic_access if rfkill is off ? */
+
 	il4965_txq_ctx_stop(il);
 	il4965_rxq_stop(il);
-
 	/* Power-down device's busmaster DMA clocks */
-	il_wr_prph(il, APMG_CLK_DIS_REG, APMG_CLK_VAL_DMA_CLK_RQT);
+	_il_wr_prph(il, APMG_CLK_DIS_REG, APMG_CLK_VAL_DMA_CLK_RQT);
 	udelay(5);
-
 	/* Make sure (redundant) we've released our request to stay awake */
-	il_clear_bit(il, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-
+	_il_clear_bit(il, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	/* Stop the device, and put it in low power state */
-	il_apm_stop(il);
+	_il_apm_stop(il);
 
+	spin_unlock_irq(&il->reg_lock);
+
+	il4965_txq_ctx_unmap(il);
 exit:
 	memset(&il->card_alive, 0, sizeof(struct il_alive_resp));
 

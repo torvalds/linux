@@ -1016,18 +1016,17 @@ il3945_hw_txq_ctx_stop(struct il_priv *il)
 	int txq_id;
 
 	/* stop SCD */
-	il_wr_prph(il, ALM_SCD_MODE_REG, 0);
-	il_wr_prph(il, ALM_SCD_TXFACT_REG, 0);
+	_il_wr_prph(il, ALM_SCD_MODE_REG, 0);
+	_il_wr_prph(il, ALM_SCD_TXFACT_REG, 0);
 
 	/* reset TFD queues */
 	for (txq_id = 0; txq_id < il->hw_params.max_txq_num; txq_id++) {
-		il_wr(il, FH39_TCSR_CONFIG(txq_id), 0x0);
-		il_poll_bit(il, FH39_TSSR_TX_STATUS,
-			    FH39_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(txq_id),
-			    1000);
+		_il_wr(il, FH39_TCSR_CONFIG(txq_id), 0x0);
+		_il_poll_bit(il, FH39_TSSR_TX_STATUS,
+			     FH39_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(txq_id),
+			     FH39_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(txq_id),
+			     1000);
 	}
-
-	il3945_hw_txq_ctx_free(il);
 }
 
 /**
@@ -2176,12 +2175,14 @@ il3945_txpower_set_from_eeprom(struct il_priv *il)
 int
 il3945_hw_rxq_stop(struct il_priv *il)
 {
-	int rc;
+	int ret;
 
-	il_wr(il, FH39_RCSR_CONFIG(0), 0);
-	rc = il_poll_bit(il, FH39_RSSR_STATUS,
-			 FH39_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
-	if (rc < 0)
+	_il_wr(il, FH39_RCSR_CONFIG(0), 0);
+	ret = _il_poll_bit(il, FH39_RSSR_STATUS,
+			   FH39_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
+			   FH39_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
+			   1000);
+	if (ret < 0)
 		IL_ERR("Can't stop Rx DMA.\n");
 
 	return 0;
