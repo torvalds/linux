@@ -274,8 +274,8 @@ static void isp1704_charger_work(struct work_struct *data)
 		case POWER_SUPPLY_TYPE_USB:
 		default:
 			/* enable data pullups */
-			if (isp->phy->gadget)
-				usb_gadget_connect(isp->phy->gadget);
+			if (isp->phy->otg->gadget)
+				usb_gadget_connect(isp->phy->otg->gadget);
 		}
 		break;
 	case USB_EVENT_NONE:
@@ -293,8 +293,8 @@ static void isp1704_charger_work(struct work_struct *data)
 		 * chargers. The pullups may be enabled elsewhere, so this can
 		 * not be the final solution.
 		 */
-		if (isp->phy->gadget)
-			usb_gadget_disconnect(isp->phy->gadget);
+		if (isp->phy->otg->gadget)
+			usb_gadget_disconnect(isp->phy->otg->gadget);
 
 		isp1704_charger_set_power(isp, 0);
 		break;
@@ -459,8 +459,8 @@ static int __devinit isp1704_charger_probe(struct platform_device *pdev)
 	 * enumerated. The charger driver should be always loaded before any
 	 * gadget is loaded.
 	 */
-	if (isp->phy->gadget)
-		usb_gadget_disconnect(isp->phy->gadget);
+	if (isp->phy->otg->gadget)
+		usb_gadget_disconnect(isp->phy->otg->gadget);
 
 	/* Detect charger if VBUS is valid (the cable was already plugged). */
 	ret = isp1704_read(isp, ULPI_USB_INT_STS);
