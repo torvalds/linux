@@ -3140,8 +3140,6 @@ static int tg3_nvram_write_block_buffered(struct tg3 *tp, u32 offset, u32 len,
 
 		phy_addr = tg3_nvram_phys_addr(tp, offset);
 
-		tw32(NVRAM_ADDR, phy_addr);
-
 		nvram_cmd = NVRAM_CMD_GO | NVRAM_CMD_DONE | NVRAM_CMD_WR;
 
 		if (page_off == 0 || i == 0)
@@ -3151,6 +3149,11 @@ static int tg3_nvram_write_block_buffered(struct tg3 *tp, u32 offset, u32 len,
 
 		if (i == (len - 4))
 			nvram_cmd |= NVRAM_CMD_LAST;
+
+		if ((nvram_cmd & NVRAM_CMD_FIRST) ||
+		    !tg3_flag(tp, FLASH) ||
+		    !tg3_flag(tp, 57765_PLUS))
+			tw32(NVRAM_ADDR, phy_addr);
 
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5752 &&
 		    !tg3_flag(tp, 5755_PLUS) &&
