@@ -860,11 +860,8 @@ qla4_8xxx_rom_lock(struct scsi_qla_host *ha)
 		done = qla4_8xxx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_LOCK));
 		if (done == 1)
 			break;
-		if (timeout >= qla4_8xxx_rom_lock_timeout) {
-			ql4_printk(KERN_WARNING, ha,
-			    "%s: Failed to acquire rom lock", __func__);
+		if (timeout >= qla4_8xxx_rom_lock_timeout)
 			return -1;
-		}
 
 		timeout++;
 
