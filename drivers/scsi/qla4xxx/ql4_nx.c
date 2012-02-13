@@ -1015,18 +1015,6 @@ qla4_8xxx_pinit_from_rom(struct scsi_qla_host *ha, int verbose)
 	else
 		qla4_8xxx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0xffffffff);
 
-	/* reset ms */
-	val = qla4_8xxx_rd_32(ha, QLA82XX_CRB_QDR_NET + 0xe4);
-	val |= (1 << 1);
-	qla4_8xxx_wr_32(ha, QLA82XX_CRB_QDR_NET + 0xe4, val);
-
-	msleep(20);
-	/* unreset ms */
-	val = qla4_8xxx_rd_32(ha, QLA82XX_CRB_QDR_NET + 0xe4);
-	val &= ~(1 << 1);
-	qla4_8xxx_wr_32(ha, QLA82XX_CRB_QDR_NET + 0xe4, val);
-	msleep(20);
-
 	qla4_8xxx_rom_unlock(ha);
 
 	/* Read the signature value from the flash.
