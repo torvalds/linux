@@ -4,7 +4,7 @@
  * Copyright (C) 2001, 2002, 2003, 2004 David S. Miller (davem@redhat.com)
  * Copyright (C) 2001, 2002, 2003 Jeff Garzik (jgarzik@pobox.com)
  * Copyright (C) 2004 Sun Microsystems Inc.
- * Copyright (C) 2005-2011 Broadcom Corporation.
+ * Copyright (C) 2005-2012 Broadcom Corporation.
  *
  * Firmware is:
  *	Derived from proprietary unpublished source code,
