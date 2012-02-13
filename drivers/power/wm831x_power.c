@@ -44,9 +44,9 @@ static int batt_step_table[batt_num] = {
 	3710,3714,3718,3722,3726,
 	3730,3734,3738,3742,3746,
 	3750,3756,3764,3774,3786,
-	3800,3808,3817,3827,3838,
+	3800,3808,3817,3827,3845,
 	3950,3964,3982,4002,4026,
-	4050,4074,4098,4123,4149,4178
+	4030,4034,4055,4070,4085,4120
 };
 
 static int batt_disp_table[batt_num] = {
@@ -63,16 +63,16 @@ static int batt_disp_table[batt_num] = {
 };
 
 static int batt_chg_step_table[batt_num] = {
-	3530,3565,3600,3635,3655,3680,//+160
-	3700,3717,3734,3745,3755,//+150
-	3770,3778,3786,3795,3803,//+140
+	3520,3525,3575,3600,3620,3644,//+160
+	3662,3670,3684,3700,3715,//+150
+	3720,3748,3756,3775,3790,//+140
 	3810,3814,3818,3822,3825,//+130
 	3830,3832,3834,3836,3837,//+120
-	3840,3842,3844,3846,3847,//+110
-	3850,3857,3864,3871,3876,//+100
-	3890,3897,3904,3911,3918,//+90
+	3839,3841,3842,3844,3844,//+110
+	3855,3860,3864,3871,3890,//+100
+	3910,3930,3952,3977,3997,//+90
 	4030,4047,4064,4080,4096,//+80
-	4120,4132,4144,4156,4170,4180//+70
+	4132,4144,4150,4170,4195,4200//+70
 };
 
 
@@ -739,8 +739,13 @@ void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_vol, int 
 	static int chg_num = 60;
 	static int disp_plus = 1000;
 	static int disp_minus = 1000;
+	static int disp_minus2 = 1000;
 	static int disp_curr = 0;
 	static int disp_num = 50;
+	static int batt_level_all = 0;
+	static int batt_level[20];
+	static int avr_num = 0;
+	static int avr_int = 0;
 
 
 	*level = wm831x_power->batt_info.level;
@@ -760,27 +765,48 @@ void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_vol, int 
 	{
 		disp_plus = 0;
 		disp_minus = 0;
+		disp_minus2 = 0;
 		disp_curr = 0;
-		
 		for(i = 0; i < batt_num; i++){        
-			if((batt_chg_step_table[i] <= batt_vol) && 
-					 (batt_chg_step_table[i+1] > batt_vol))
+			if(batt_vol >= batt_chg_step_table[i] && 
+					 batt_vol < batt_chg_step_table[i+1])
 				break;     
 		}
-		*level = batt_disp_table[i];
-
-		if (batt_vol <= batt_chg_step_table[0])
-			*level = 0;
-		if (batt_vol >= batt_chg_step_table[batt_num - 1])
-			*level = 100;
-
-		// ³õÊ¼×´Ì¬
+		if(batt_vol <= batt_chg_step_table[0])
+			i = 0;
+		if(batt_vol >= batt_chg_step_table[batt_num-1])
+			i = batt_num-1;
+		if(avr_int==0){
+		       	batt_level[avr_num] = batt_disp_table[i];
+		  	batt_level_all += batt_level[avr_num];
+			avr_num++;
+			if(avr_num >= 20)
+			{
+				avr_num = 0;
+				avr_int = 1;
+			}
+			else
+			{
+				*level = batt_disp_table[i];
+				return 0;
+			}
+		}
+		else {
+			batt_level_all -= batt_level[avr_num];
+			batt_level[avr_num]=batt_disp_table[i];
+			batt_level_all += batt_level[avr_num];
+			avr_num++;
+		}
+		if(avr_num >= 20) 
+	       		avr_num = 0;
+		*level = batt_level_all/20;
 		if ((chg_plus == 1000) && (chg_minus == 1000))
 		{
 			*level = *level;
 			chg_plus = 0;
 			chg_minus = 0;
 			chg_curr = 0;
+
 		}
 		else
 		{			
@@ -789,54 +815,15 @@ void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_vol, int 
 			{
 				chg_minus = 0;
 				chg_curr = 0;
-				
+				if(*level < 85)
+					chg_num =10;
+				else
+					chg_num = 5;
 				if (++chg_plus > chg_num)
 				{
 					*level = wm831x_power->batt_info.level + 1;
 					chg_plus = 0;
-					
-					if(*level < 85)
-					chg_num = 60;
-					else 
-					chg_num = 20;
-			
-				}
-				else
-				{
-					*level = wm831x_power->batt_info.level;
-				}		
-			}
-
-			else if (*level >= wm831x_power->batt_info.level)
-			{
-				chg_plus = 0;
-				chg_minus = 0;
-
-				if (++chg_curr > chg_num)
-				{
-					*level = *level;
-					chg_curr = 0;
-				}
-				else
-				{
-					*level = wm831x_power->batt_info.level;
-				}
-			}
-			else if (*level < (wm831x_power->batt_info.level-1)) 	
-			{
-				chg_plus = 0;
-				chg_curr = 0;
 				
-				if (++chg_minus > (chg_num<<1))
-				{
-					*level = wm831x_power->batt_info.level - 1;
-					chg_minus = 0;
-
-					if(*level < 85)
-					chg_num = 60;
-					else 
-					chg_num = 20;
-
 				}
 				else
 				{
@@ -863,89 +850,91 @@ void wm831x_batt_vol_level(struct wm831x_power *wm831x_power, int batt_vol, int 
 		chg_plus = 0;
 		chg_minus = 0;
 		chg_curr = 0;
-
 		for(i = 0; i < batt_num; i++){        
 			if(batt_vol >= batt_step_table[i] && 
 					 batt_vol < batt_step_table[i+1])
 				break;     
 		}
-		*level = batt_disp_table[i];
-
-		if (batt_vol <= batt_step_table[0])
-			*level = 0;
-		if (batt_vol >= batt_step_table[batt_num - 1])
-			*level = 100;
-
-		// ³õÊ¼×´Ì¬
+		if(batt_vol <= batt_step_table[0])
+			i = 0;
+		if(batt_vol >= batt_step_table[batt_num-1])
+			i = batt_num-1;
+		if(avr_int==0){
+		       	batt_level[avr_num] = batt_disp_table[i];
+		  	batt_level_all += batt_level[avr_num];
+			avr_num++;
+			if(avr_num >= 20)
+			{
+				avr_num = 0;
+				avr_int = 1;
+			}
+			else
+			{
+				*level = batt_disp_table[i];
+				return 0;
+			}
+		}
+		else {
+			batt_level_all -= batt_level[avr_num];
+			batt_level[avr_num]=batt_disp_table[i];
+			batt_level_all += batt_level[avr_num];
+			avr_num++;
+		}
+		if(avr_num >= 20) 
+	       		avr_num = 0;
+		*level = batt_level_all/20;
 		if ((disp_plus == 1000) && (disp_minus == 1000))
 		{
 			*level = *level;
 			disp_plus = 0;
 			disp_minus = 0;
+			disp_minus2 =0;
 			disp_curr = 0;
 		}
 		else
-		{			
-
-			if (*level <= (wm831x_power->batt_info.level-1)) 	
+		{	
+			if(*level <= (wm831x_power ->batt_info.level -20))
 			{
 				disp_plus = 0;
 				disp_curr = 0;
-				
-				if (++disp_minus > disp_num)
+				disp_minus2 = 0;
+				disp_num = 1;
+				 if (++disp_minus > disp_num)
+				{
+					*level = wm831x_power->batt_info.level - 20;
+					disp_minus = 0;
+				}
+				else
+				{
+					*level = wm831x_power->batt_info.level;
+				}
+			}
+			else if (*level <= (wm831x_power->batt_info.level-1)) 	
+			{
+				disp_plus = 0;
+				disp_curr = 0;
+				disp_minus = 0;
+				if((*level < 17) || (*level > 85))
+					disp_num = 30;
+				else
+					disp_num = 80;
+		
+				 if (++disp_minus2 > disp_num)
 				{
 					*level = wm831x_power->batt_info.level - 1;
-					disp_minus = 0;
-
-					if((*level < 17) || (*level > 85))
-					disp_num = 10;
-					else
-					disp_num = 50;
-
+					disp_minus2 = 0;
 				}
 				else
 				{
-					*level = wm831x_power->batt_info.level;
-				}
-			}
-			else if (*level <= wm831x_power->batt_info.level)
-			{
-				disp_plus = 0;
-				disp_minus = 0;
 
-				if (++disp_curr > disp_num)
-				{
-					*level = *level;
-					disp_curr = 0;
-				}
-				else
-				{
 					*level = wm831x_power->batt_info.level;
 				}
-			}
-			else if (*level >= (wm831x_power->batt_info.level+1))
-			{
-				disp_minus = 0;
-				disp_curr = 0;
-				
-				if (++disp_plus > (disp_num<<1))
-				{
-					*level = wm831x_power->batt_info.level + 1;
-					disp_plus = 0;
-					if((*level < 17) || (*level > 85))
-					disp_num = 10;
-					else
-					disp_num = 50;
-				}
-				else
-				{
-					*level = wm831x_power->batt_info.level;
-				}		
 			}
 			else
 			{
 				disp_plus = 0;
 				disp_minus = 0;
+				disp_minus2 = 0;
 				disp_curr = 0;
 				*level = wm831x_power->batt_info.level;
 			}
