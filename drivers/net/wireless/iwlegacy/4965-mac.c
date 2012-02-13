@@ -3778,7 +3778,7 @@ il4965_perform_ct_kill_task(struct il_priv *il)
 	_il_rd(il, CSR_UCODE_DRV_GP1);
 
 	spin_lock_irqsave(&il->reg_lock, flags);
-	if (!_il_grab_nic_access(il))
+	if (likely(_il_grab_nic_access(il)))
 		_il_release_nic_access(il);
 	spin_unlock_irqrestore(&il->reg_lock, flags);
 }

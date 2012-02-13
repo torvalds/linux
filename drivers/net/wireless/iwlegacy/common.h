@@ -2103,7 +2103,7 @@ irqreturn_t il_isr(int irq, void *data);
 
 extern void il_set_bit(struct il_priv *p, u32 r, u32 m);
 extern void il_clear_bit(struct il_priv *p, u32 r, u32 m);
-extern int _il_grab_nic_access(struct il_priv *il);
+extern bool _il_grab_nic_access(struct il_priv *il);
 extern int _il_poll_bit(struct il_priv *il, u32 addr, u32 bits, u32 mask, int timeout);
 extern int il_poll_bit(struct il_priv *il, u32 addr, u32 mask, int timeout);
 extern u32 il_rd_prph(struct il_priv *il, u32 reg);
@@ -2168,7 +2168,7 @@ il_wr(struct il_priv *il, u32 reg, u32 value)
 	unsigned long reg_flags;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
-	if (!_il_grab_nic_access(il)) {
+	if (likely(_il_grab_nic_access(il))) {
 		_il_wr(il, reg, value);
 		_il_release_nic_access(il);
 	}
@@ -2197,9 +2197,10 @@ il_set_bits_prph(struct il_priv *il, u32 reg, u32 mask)
 	unsigned long reg_flags;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
-	_il_grab_nic_access(il);
-	_il_wr_prph(il, reg, (_il_rd_prph(il, reg) | mask));
-	_il_release_nic_access(il);
+	if (likely(_il_grab_nic_access(il))) {
+		_il_wr_prph(il, reg, (_il_rd_prph(il, reg) | mask));
+		_il_release_nic_access(il);
+	}
 	spin_unlock_irqrestore(&il->reg_lock, reg_flags);
 }
 
@@ -2209,9 +2210,10 @@ il_set_bits_mask_prph(struct il_priv *il, u32 reg, u32 bits, u32 mask)
 	unsigned long reg_flags;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
-	_il_grab_nic_access(il);
-	_il_wr_prph(il, reg, ((_il_rd_prph(il, reg) & mask) | bits));
-	_il_release_nic_access(il);
+	if (likely(_il_grab_nic_access(il))) {
+		_il_wr_prph(il, reg, ((_il_rd_prph(il, reg) & mask) | bits));
+		_il_release_nic_access(il);
+	}
 	spin_unlock_irqrestore(&il->reg_lock, reg_flags);
 }
 
@@ -2222,10 +2224,11 @@ il_clear_bits_prph(struct il_priv *il, u32 reg, u32 mask)
 	u32 val;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
-	_il_grab_nic_access(il);
-	val = _il_rd_prph(il, reg);
-	_il_wr_prph(il, reg, (val & ~mask));
-	_il_release_nic_access(il);
+	if (likely(_il_grab_nic_access(il))) {
+		val = _il_rd_prph(il, reg);
+		_il_wr_prph(il, reg, (val & ~mask));
+		_il_release_nic_access(il);
+	}
 	spin_unlock_irqrestore(&il->reg_lock, reg_flags);
 }
 

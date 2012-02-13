@@ -81,7 +81,7 @@ il_clear_bit(struct il_priv *p, u32 r, u32 m)
 }
 EXPORT_SYMBOL(il_clear_bit);
 
-int
+bool
 _il_grab_nic_access(struct il_priv *il)
 {
 	int ret;
@@ -116,10 +116,10 @@ _il_grab_nic_access(struct il_priv *il)
 		WARN_ONCE(1, "Timeout waiting for ucode processor access "
 			     "(CSR_GP_CNTRL 0x%08x)\n", val);
 		_il_wr(il, CSR_RESET, CSR_RESET_REG_FLAG_FORCE_NMI);
-		return -EIO;
+		return false;
 	}
 
-	return 0;
+	return true;
 }
 EXPORT_SYMBOL_GPL(_il_grab_nic_access);
 
@@ -161,7 +161,7 @@ il_wr_prph(struct il_priv *il, u32 addr, u32 val)
 	unsigned long reg_flags;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
-	if (!_il_grab_nic_access(il)) {
+	if (likely(_il_grab_nic_access(il))) {
 		_il_wr_prph(il, addr, val);
 		_il_release_nic_access(il);
 	}
@@ -194,7 +194,7 @@ il_write_targ_mem(struct il_priv *il, u32 addr, u32 val)
 	unsigned long reg_flags;
 
 	spin_lock_irqsave(&il->reg_lock, reg_flags);
-	if (!_il_grab_nic_access(il)) {
+	if (likely(_il_grab_nic_access(il))) {
 		_il_wr(il, HBUS_TARG_MEM_WADDR, addr);
 		wmb();
 		_il_wr(il, HBUS_TARG_MEM_WDAT, val);
