@@ -254,14 +254,6 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 	minix_set_bit(0,sbi->s_imap[0]->b_data);
 	minix_set_bit(0,sbi->s_zmap[0]->b_data);
 
-	/* set up enough so that it can read an inode */
-	s->s_op = &minix_sops;
-	root_inode = minix_iget(s, MINIX_ROOT_INO);
-	if (IS_ERR(root_inode)) {
-		ret = PTR_ERR(root_inode);
-		goto out_no_root;
-	}
-
 	/* Apparently minix can create filesystems that allocate more blocks for
 	 * the bitmaps than needed.  We simply ignore that, but verify it didn't
 	 * create one with not enough blocks and bail out if so.
@@ -270,7 +262,7 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 	if (sbi->s_imap_blocks < block) {
 		printk("MINIX-fs: file system does not have enough "
 				"imap blocks allocated.  Refusing to mount\n");
-		goto out_iput;
+		goto out_no_bitmap;
 	}
 
 	block = minix_blocks_needed(
@@ -279,13 +271,21 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 	if (sbi->s_zmap_blocks < block) {
 		printk("MINIX-fs: file system does not have enough "
 				"zmap blocks allocated.  Refusing to mount.\n");
-		goto out_iput;
+		goto out_no_bitmap;
+	}
+
+	/* set up enough so that it can read an inode */
+	s->s_op = &minix_sops;
+	root_inode = minix_iget(s, MINIX_ROOT_INO);
+	if (IS_ERR(root_inode)) {
+		ret = PTR_ERR(root_inode);
+		goto out_no_root;
 	}
 
 	ret = -ENOMEM;
-	s->s_root = d_alloc_root(root_inode);
+	s->s_root = d_make_root(root_inode);
 	if (!s->s_root)
-		goto out_iput;
+		goto out_no_root;
 
 	if (!(s->s_flags & MS_RDONLY)) {
 		if (sbi->s_version != MINIX_V3) /* s_state is now out from V3 sb */
@@ -300,10 +300,6 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 			"running fsck is recommended\n");
 
 	return 0;
-
-out_iput:
-	iput(root_inode);
-	goto out_freemap;
 
 out_no_root:
 	if (!silent)
