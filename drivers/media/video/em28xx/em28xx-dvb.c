@@ -61,9 +61,6 @@ if (debug >= level) 						\
 	printk(KERN_DEBUG "%s/2-dvb: " fmt, dev->name, ## arg);	\
 } while (0)
 
-#define EM28XX_DVB_NUM_BUFS 5
-#define EM28XX_DVB_MAX_PACKETS 64
-
 struct em28xx_dvb {
 	struct dvb_frontend        *fe[2];
 
@@ -172,20 +169,21 @@ static int em28xx_start_streaming(struct em28xx_dvb *dvb)
 	max_dvb_packet_size = dev->dvb_max_pkt_size;
 	if (max_dvb_packet_size < 0)
 		return max_dvb_packet_size;
-	dprintk(1, "Using %d buffers each with %d bytes\n",
+	dprintk(1, "Using %d buffers each with %d x %d bytes\n",
 		EM28XX_DVB_NUM_BUFS,
+		EM28XX_DVB_MAX_PACKETS,
 		max_dvb_packet_size);
 
-	return em28xx_init_isoc(dev, EM28XX_DVB_MAX_PACKETS,
-				EM28XX_DVB_NUM_BUFS, max_dvb_packet_size,
-				em28xx_dvb_isoc_copy);
+	return em28xx_init_isoc(dev, EM28XX_DIGITAL_MODE,
+				EM28XX_DVB_MAX_PACKETS, EM28XX_DVB_NUM_BUFS,
+				max_dvb_packet_size, em28xx_dvb_isoc_copy);
 }
 
 static int em28xx_stop_streaming(struct em28xx_dvb *dvb)
 {
 	struct em28xx *dev = dvb->adapter.priv;
 
-	em28xx_uninit_isoc(dev);
+	em28xx_capture_start(dev, 0);
 
 	em28xx_set_mode(dev, EM28XX_SUSPEND);
 

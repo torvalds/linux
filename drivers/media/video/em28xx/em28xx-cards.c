@@ -3307,6 +3307,17 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		goto unlock_and_free;
 	}
 
+	if (has_dvb) {
+		/* pre-allocate DVB isoc transfer buffers */
+		retval = em28xx_alloc_isoc(dev, EM28XX_DIGITAL_MODE,
+					   EM28XX_DVB_MAX_PACKETS,
+					   EM28XX_DVB_NUM_BUFS,
+					   dev->dvb_max_pkt_size);
+		if (retval) {
+			goto unlock_and_free;
+		}
+	}
+
 	request_modules(dev);
 
 	/* Should be the last thing to do, to avoid newer udev's to
@@ -3379,7 +3390,7 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		     video_device_node_name(dev->vdev));
 
 		dev->state |= DEV_MISCONFIGURED;
-		em28xx_uninit_isoc(dev);
+		em28xx_uninit_isoc(dev, dev->mode);
 		dev->state |= DEV_DISCONNECTED;
 		wake_up_interruptible(&dev->wait_frame);
 		wake_up_interruptible(&dev->wait_stream);
@@ -3387,6 +3398,9 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		dev->state |= DEV_DISCONNECTED;
 		em28xx_release_resources(dev);
 	}
+
+	/* free DVB isoc buffers */
+	em28xx_uninit_isoc(dev, EM28XX_DIGITAL_MODE);
 
 	mutex_unlock(&dev->lock);
 
