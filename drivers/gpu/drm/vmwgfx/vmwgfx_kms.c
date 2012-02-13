@@ -422,7 +422,8 @@ static int do_surface_dirty_sou(struct vmw_private *dev_priv,
 				struct vmw_framebuffer *framebuffer,
 				unsigned flags, unsigned color,
 				struct drm_clip_rect *clips,
-				unsigned num_clips, int inc)
+				unsigned num_clips, int inc,
+				struct vmw_fence_obj **out_fence)
 {
 	struct vmw_display_unit *units[VMWGFX_NUM_DISPLAY_UNITS];
 	struct drm_clip_rect *clips_ptr;
@@ -542,12 +543,15 @@ static int do_surface_dirty_sou(struct vmw_private *dev_priv,
 		if (num == 0)
 			continue;
 
+		/* only return the last fence */
+		if (out_fence && *out_fence)
+			vmw_fence_obj_unreference(out_fence);
 
 		/* recalculate package length */
 		fifo_size = sizeof(*cmd) + sizeof(SVGASignedRect) * num;
 		cmd->header.size = cpu_to_le32(fifo_size - sizeof(cmd->header));
 		ret = vmw_execbuf_process(file_priv, dev_priv, NULL, cmd,
-					  fifo_size, 0, NULL);
+					  fifo_size, 0, NULL, out_fence);
 
 		if (unlikely(ret != 0))
 			break;
@@ -598,7 +602,7 @@ int vmw_framebuffer_surface_dirty(struct drm_framebuffer *framebuffer,
 
 	ret = do_surface_dirty_sou(dev_priv, file_priv, &vfbs->base,
 				   flags, color,
-				   clips, num_clips, inc);
+				   clips, num_clips, inc, NULL);
 
 	ttm_read_unlock(&vmaster->lock);
 	return 0;
@@ -809,7 +813,7 @@ static int do_dmabuf_define_gmrfb(struct drm_file *file_priv,
 	cmd->body.ptr.offset = 0;
 
 	ret = vmw_execbuf_process(file_priv, dev_priv, NULL, cmd,
-				  fifo_size, 0, NULL);
+				  fifo_size, 0, NULL, NULL);
 
 	kfree(cmd);
 
@@ -821,7 +825,8 @@ static int do_dmabuf_dirty_sou(struct drm_file *file_priv,
 			       struct vmw_framebuffer *framebuffer,
 			       unsigned flags, unsigned color,
 			       struct drm_clip_rect *clips,
-			       unsigned num_clips, int increment)
+			       unsigned num_clips, int increment,
+			       struct vmw_fence_obj **out_fence)
 {
 	struct vmw_display_unit *units[VMWGFX_NUM_DISPLAY_UNITS];
 	struct drm_clip_rect *clips_ptr;
@@ -894,9 +899,13 @@ static int do_dmabuf_dirty_sou(struct drm_file *file_priv,
 		if (hit_num == 0)
 			continue;
 
+		/* only return the last fence */
+		if (out_fence && *out_fence)
+			vmw_fence_obj_unreference(out_fence);
+
 		fifo_size = sizeof(*blits) * hit_num;
 		ret = vmw_execbuf_process(file_priv, dev_priv, NULL, blits,
-					  fifo_size, 0, NULL);
+					  fifo_size, 0, NULL, out_fence);
 
 		if (unlikely(ret != 0))
 			break;
@@ -942,7 +951,7 @@ int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 	} else {
 		ret = do_dmabuf_dirty_sou(file_priv, dev_priv, &vfbd->base,
 					  flags, color,
-					  clips, num_clips, increment);
+					  clips, num_clips, increment, NULL);
 	}
 
 	ttm_read_unlock(&vmaster->lock);
@@ -1296,7 +1305,7 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 		fifo_size = sizeof(*cmd) + sizeof(SVGASignedRect) * num;
 		cmd->header.size = cpu_to_le32(fifo_size - sizeof(cmd->header));
 		ret = vmw_execbuf_process(file_priv, dev_priv, NULL, cmd,
-					  fifo_size, 0, NULL);
+					  fifo_size, 0, NULL, NULL);
 
 		if (unlikely(ret != 0))
 			break;
@@ -1409,7 +1418,7 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 	fifo_size = sizeof(*cmd) + sizeof(*blits) * blits_pos;
 
 	ret = vmw_execbuf_process(file_priv, dev_priv, NULL, cmd, fifo_size,
-				  0, user_fence_rep);
+				  0, user_fence_rep, NULL);
 
 	kfree(cmd);
 
@@ -1671,6 +1680,70 @@ int vmw_du_update_layout(struct vmw_private *dev_priv, unsigned num,
 
 	return 0;
 }
+
+int vmw_du_page_flip(struct drm_crtc *crtc,
+		     struct drm_framebuffer *fb,
+		     struct drm_pending_vblank_event *event)
+{
+	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
+	struct drm_framebuffer *old_fb = crtc->fb;
+	struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(fb);
+	struct drm_file *file_priv = event->base.file_priv;
+	struct vmw_fence_obj *fence = NULL;
+	struct drm_clip_rect clips;
+	int ret;
+
+	/* require ScreenObject support for page flipping */
+	if (!dev_priv->sou_priv)
+		return -ENOSYS;
+
+	if (!vmw_kms_screen_object_flippable(dev_priv, crtc))
+		return -EINVAL;
+
+	crtc->fb = fb;
+
+	/* do a full screen dirty update */
+	clips.x1 = clips.y1 = 0;
+	clips.x2 = fb->width;
+	clips.y2 = fb->height;
+
+	if (vfb->dmabuf)
+		ret = do_dmabuf_dirty_sou(file_priv, dev_priv, vfb,
+					  0, 0, &clips, 1, 1, &fence);
+	else
+		ret = do_surface_dirty_sou(dev_priv, file_priv, vfb,
+					   0, 0, &clips, 1, 1, &fence);
+
+
+	if (ret != 0)
+		goto out_no_fence;
+	if (!fence) {
+		ret = -EINVAL;
+		goto out_no_fence;
+	}
+
+	ret = vmw_event_fence_action_queue(file_priv, fence,
+					   &event->base,
+					   &event->event.tv_sec,
+					   &event->event.tv_usec,
+					   true);
+
+	/*
+	 * No need to hold on to this now. The only cleanup
+	 * we need to do if we fail is unref the fence.
+	 */
+	vmw_fence_obj_unreference(&fence);
+
+	if (vmw_crtc_to_du(crtc)->is_implicit)
+		vmw_kms_screen_object_update_implicit_fb(dev_priv, crtc);
+
+	return ret;
+
+out_no_fence:
+	crtc->fb = old_fb;
+	return ret;
+}
+
 
 void vmw_du_crtc_save(struct drm_crtc *crtc)
 {

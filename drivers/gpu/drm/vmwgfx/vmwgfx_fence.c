@@ -69,12 +69,13 @@ struct vmw_user_fence {
  * be assigned the current time tv_usec val when the fence signals.
  */
 struct vmw_event_fence_action {
-	struct drm_pending_event e;
 	struct vmw_fence_action action;
+	struct list_head fpriv_head;
+
+	struct drm_pending_event *event;
 	struct vmw_fence_obj *fence;
 	struct drm_device *dev;
-	struct kref kref;
-	uint32_t size;
+
 	uint32_t *tv_sec;
 	uint32_t *tv_usec;
 };
@@ -784,46 +785,40 @@ int vmw_fence_obj_unref_ioctl(struct drm_device *dev, void *data,
 }
 
 /**
- * vmw_event_fence_action_destroy
+ * vmw_event_fence_fpriv_gone - Remove references to struct drm_file objects
  *
- * @kref: The struct kref embedded in a struct vmw_event_fence_action.
+ * @fman: Pointer to a struct vmw_fence_manager
+ * @event_list: Pointer to linked list of struct vmw_event_fence_action objects
+ * with pointers to a struct drm_file object about to be closed.
  *
- * The vmw_event_fence_action destructor that may be called either after
- * the fence action cleanup, or when the event is delivered.
- * It frees both the vmw_event_fence_action struct and the actual
- * event structure copied to user-space.
+ * This function removes all pending fence events with references to a
+ * specific struct drm_file object about to be closed. The caller is required
+ * to pass a list of all struct vmw_event_fence_action objects with such
+ * events attached. This function is typically called before the
+ * struct drm_file object's event management is taken down.
  */
-static void vmw_event_fence_action_destroy(struct kref *kref)
+void vmw_event_fence_fpriv_gone(struct vmw_fence_manager *fman,
+				struct list_head *event_list)
 {
-	struct vmw_event_fence_action *eaction =
-		container_of(kref, struct vmw_event_fence_action, kref);
-	struct ttm_mem_global *mem_glob =
-		vmw_mem_glob(vmw_priv(eaction->dev));
-	uint32_t size = eaction->size;
+	struct vmw_event_fence_action *eaction;
+	struct drm_pending_event *event;
+	unsigned long irq_flags;
 
-	kfree(eaction->e.event);
-	kfree(eaction);
-	ttm_mem_global_free(mem_glob, size);
-}
-
-
-/**
- * vmw_event_fence_action_delivered
- *
- * @e: The struct drm_pending_event embedded in a struct
- * vmw_event_fence_action.
- *
- * The struct drm_pending_event destructor that is called by drm
- * once the event is delivered. Since we don't know whether this function
- * will be called before or after the fence action destructor, we
- * free a refcount and destroy if it becomes zero.
- */
-static void vmw_event_fence_action_delivered(struct drm_pending_event *e)
-{
-	struct vmw_event_fence_action *eaction =
-		container_of(e, struct vmw_event_fence_action, e);
-
-	kref_put(&eaction->kref, vmw_event_fence_action_destroy);
+	while (1) {
+		spin_lock_irqsave(&fman->lock, irq_flags);
+		if (list_empty(event_list))
+			goto out_unlock;
+		eaction = list_first_entry(event_list,
+					   struct vmw_event_fence_action,
+					   fpriv_head);
+		list_del_init(&eaction->fpriv_head);
+		event = eaction->event;
+		eaction->event = NULL;
+		spin_unlock_irqrestore(&fman->lock, irq_flags);
+		event->destroy(event);
+	}
+out_unlock:
+	spin_unlock_irqrestore(&fman->lock, irq_flags);
 }
 
 
@@ -836,18 +831,21 @@ static void vmw_event_fence_action_delivered(struct drm_pending_event *e)
  * This function is called when the seqno of the fence where @action is
  * attached has passed. It queues the event on the submitter's event list.
  * This function is always called from atomic context, and may be called
- * from irq context. It ups a refcount reflecting that we now have two
- * destructors.
+ * from irq context.
  */
 static void vmw_event_fence_action_seq_passed(struct vmw_fence_action *action)
 {
 	struct vmw_event_fence_action *eaction =
 		container_of(action, struct vmw_event_fence_action, action);
 	struct drm_device *dev = eaction->dev;
-	struct drm_file *file_priv = eaction->e.file_priv;
+	struct drm_pending_event *event = eaction->event;
+	struct drm_file *file_priv;
 	unsigned long irq_flags;
 
-	kref_get(&eaction->kref);
+	if (unlikely(event == NULL))
+		return;
+
+	file_priv = event->file_priv;
 	spin_lock_irqsave(&dev->event_lock, irq_flags);
 
 	if (likely(eaction->tv_sec != NULL)) {
@@ -858,7 +856,9 @@ static void vmw_event_fence_action_seq_passed(struct vmw_fence_action *action)
 		*eaction->tv_usec = tv.tv_usec;
 	}
 
-	list_add_tail(&eaction->e.link, &file_priv->event_list);
+	list_del_init(&eaction->fpriv_head);
+	list_add_tail(&eaction->event->link, &file_priv->event_list);
+	eaction->event = NULL;
 	wake_up_all(&file_priv->event_wait);
 	spin_unlock_irqrestore(&dev->event_lock, irq_flags);
 }
@@ -876,9 +876,15 @@ static void vmw_event_fence_action_cleanup(struct vmw_fence_action *action)
 {
 	struct vmw_event_fence_action *eaction =
 		container_of(action, struct vmw_event_fence_action, action);
+	struct vmw_fence_manager *fman = eaction->fence->fman;
+	unsigned long irq_flags;
+
+	spin_lock_irqsave(&fman->lock, irq_flags);
+	list_del(&eaction->fpriv_head);
+	spin_unlock_irqrestore(&fman->lock, irq_flags);
 
 	vmw_fence_obj_unreference(&eaction->fence);
-	kref_put(&eaction->kref, vmw_event_fence_action_destroy);
+	kfree(eaction);
 }
 
 
@@ -946,39 +952,23 @@ void vmw_fence_obj_add_action(struct vmw_fence_obj *fence,
  * an error code, the caller needs to free that object.
  */
 
-int vmw_event_fence_action_create(struct drm_file *file_priv,
-				  struct vmw_fence_obj *fence,
-				  struct drm_event *event,
-				  uint32_t *tv_sec,
-				  uint32_t *tv_usec,
-				  bool interruptible)
+int vmw_event_fence_action_queue(struct drm_file *file_priv,
+				 struct vmw_fence_obj *fence,
+				 struct drm_pending_event *event,
+				 uint32_t *tv_sec,
+				 uint32_t *tv_usec,
+				 bool interruptible)
 {
 	struct vmw_event_fence_action *eaction;
-	struct ttm_mem_global *mem_glob =
-		vmw_mem_glob(fence->fman->dev_priv);
 	struct vmw_fence_manager *fman = fence->fman;
-	uint32_t size = fman->event_fence_action_size +
-		ttm_round_pot(event->length);
-	int ret;
-
-	/*
-	 * Account for internal structure size as well as the
-	 * event size itself.
-	 */
-
-	ret = ttm_mem_global_alloc(mem_glob, size, false, interruptible);
-	if (unlikely(ret != 0))
-		return ret;
+	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
+	unsigned long irq_flags;
 
 	eaction = kzalloc(sizeof(*eaction), GFP_KERNEL);
-	if (unlikely(eaction == NULL)) {
-		ttm_mem_global_free(mem_glob, size);
+	if (unlikely(eaction == NULL))
 		return -ENOMEM;
-	}
 
-	eaction->e.event = event;
-	eaction->e.file_priv = file_priv;
-	eaction->e.destroy = vmw_event_fence_action_delivered;
+	eaction->event = event;
 
 	eaction->action.seq_passed = vmw_event_fence_action_seq_passed;
 	eaction->action.cleanup = vmw_event_fence_action_cleanup;
@@ -986,14 +976,87 @@ int vmw_event_fence_action_create(struct drm_file *file_priv,
 
 	eaction->fence = vmw_fence_obj_reference(fence);
 	eaction->dev = fman->dev_priv->dev;
-	eaction->size = size;
 	eaction->tv_sec = tv_sec;
 	eaction->tv_usec = tv_usec;
 
-	kref_init(&eaction->kref);
+	spin_lock_irqsave(&fman->lock, irq_flags);
+	list_add_tail(&eaction->fpriv_head, &vmw_fp->fence_events);
+	spin_unlock_irqrestore(&fman->lock, irq_flags);
+
 	vmw_fence_obj_add_action(fence, &eaction->action);
 
 	return 0;
+}
+
+struct vmw_event_fence_pending {
+	struct drm_pending_event base;
+	struct drm_vmw_event_fence event;
+};
+
+int vmw_event_fence_action_create(struct drm_file *file_priv,
+				  struct vmw_fence_obj *fence,
+				  uint32_t flags,
+				  uint64_t user_data,
+				  bool interruptible)
+{
+	struct vmw_event_fence_pending *event;
+	struct drm_device *dev = fence->fman->dev_priv->dev;
+	unsigned long irq_flags;
+	int ret;
+
+	spin_lock_irqsave(&dev->event_lock, irq_flags);
+
+	ret = (file_priv->event_space < sizeof(event->event)) ? -EBUSY : 0;
+	if (likely(ret == 0))
+		file_priv->event_space -= sizeof(event->event);
+
+	spin_unlock_irqrestore(&dev->event_lock, irq_flags);
+
+	if (unlikely(ret != 0)) {
+		DRM_ERROR("Failed to allocate event space for this file.\n");
+		goto out_no_space;
+	}
+
+
+	event = kzalloc(sizeof(event->event), GFP_KERNEL);
+	if (unlikely(event == NULL)) {
+		DRM_ERROR("Failed to allocate an event.\n");
+		ret = -ENOMEM;
+		goto out_no_event;
+	}
+
+	event->event.base.type = DRM_VMW_EVENT_FENCE_SIGNALED;
+	event->event.base.length = sizeof(*event);
+	event->event.user_data = user_data;
+
+	event->base.event = &event->event.base;
+	event->base.file_priv = file_priv;
+	event->base.destroy = (void (*) (struct drm_pending_event *)) kfree;
+
+
+	if (flags & DRM_VMW_FE_FLAG_REQ_TIME)
+		ret = vmw_event_fence_action_queue(file_priv, fence,
+						   &event->base,
+						   &event->event.tv_sec,
+						   &event->event.tv_usec,
+						   interruptible);
+	else
+		ret = vmw_event_fence_action_queue(file_priv, fence,
+						   &event->base,
+						   NULL,
+						   NULL,
+						   interruptible);
+	if (ret != 0)
+		goto out_no_queue;
+
+out_no_queue:
+	event->base.destroy(&event->base);
+out_no_event:
+	spin_lock_irqsave(&dev->event_lock, irq_flags);
+	file_priv->event_space += sizeof(*event);
+	spin_unlock_irqrestore(&dev->event_lock, irq_flags);
+out_no_space:
+	return ret;
 }
 
 int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
@@ -1008,8 +1071,6 @@ int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
 		(struct drm_vmw_fence_rep __user *)(unsigned long)
 		arg->fence_rep;
 	uint32_t handle;
-	unsigned long irq_flags;
-	struct drm_vmw_event_fence *event;
 	int ret;
 
 	/*
@@ -1062,59 +1123,28 @@ int vmw_fence_event_ioctl(struct drm_device *dev, void *data,
 
 	BUG_ON(fence == NULL);
 
-	spin_lock_irqsave(&dev->event_lock, irq_flags);
-
-	ret = (file_priv->event_space < sizeof(*event)) ? -EBUSY : 0;
-	if (likely(ret == 0))
-		file_priv->event_space -= sizeof(*event);
-
-	spin_unlock_irqrestore(&dev->event_lock, irq_flags);
-
-	if (unlikely(ret != 0)) {
-		DRM_ERROR("Failed to allocate event space for this file.\n");
-		goto out_no_event_space;
-	}
-
-	event = kzalloc(sizeof(*event), GFP_KERNEL);
-	if (unlikely(event == NULL)) {
-		DRM_ERROR("Failed to allocate an event.\n");
-		goto out_no_event;
-	}
-
-	event->base.type = DRM_VMW_EVENT_FENCE_SIGNALED;
-	event->base.length = sizeof(*event);
-	event->user_data = arg->user_data;
-
 	if (arg->flags & DRM_VMW_FE_FLAG_REQ_TIME)
 		ret = vmw_event_fence_action_create(file_priv, fence,
-						    &event->base,
-						    &event->tv_sec,
-						    &event->tv_usec,
+						    arg->flags,
+						    arg->user_data,
 						    true);
 	else
 		ret = vmw_event_fence_action_create(file_priv, fence,
-						    &event->base,
-						    NULL,
-						    NULL,
+						    arg->flags,
+						    arg->user_data,
 						    true);
 
 	if (unlikely(ret != 0)) {
 		if (ret != -ERESTARTSYS)
 			DRM_ERROR("Failed to attach event to fence.\n");
-		goto out_no_attach;
+		goto out_no_create;
 	}
 
 	vmw_execbuf_copy_fence_user(dev_priv, vmw_fp, 0, user_fence_rep, fence,
 				    handle);
 	vmw_fence_obj_unreference(&fence);
 	return 0;
-out_no_attach:
-	kfree(event);
-out_no_event:
-	spin_lock_irqsave(&dev->event_lock, irq_flags);
-	file_priv->event_space += sizeof(*event);
-	spin_unlock_irqrestore(&dev->event_lock, irq_flags);
-out_no_event_space:
+out_no_create:
 	if (user_fence_rep != NULL)
 		ttm_ref_object_base_unref(vmw_fpriv(file_priv)->tfile,
 					  handle, TTM_REF_USAGE);
