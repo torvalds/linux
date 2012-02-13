@@ -67,13 +67,12 @@ static void omap_mcbsp_set_threshold(struct snd_pcm_substream *substream)
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
 	struct omap_mcbsp_data *mcbsp_data = &mcbsp->mcbsp_data;
 	struct omap_pcm_dma_data *dma_data;
-	int dma_op_mode = omap_mcbsp_get_dma_op_mode(mcbsp);
 	int words;
 
 	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	/* TODO: Currently, MODE_ELEMENT == MODE_FRAME */
-	if (dma_op_mode == MCBSP_DMA_MODE_THRESHOLD)
+	if (mcbsp->dma_op_mode == MCBSP_DMA_MODE_THRESHOLD)
 		/*
 		 * Configure McBSP threshold based on either:
 		 * packet_size, when the sDMA is in packet mode, or
@@ -106,7 +105,7 @@ static int omap_mcbsp_hwrule_min_buffersize(struct snd_pcm_hw_params *params,
 	int size;
 
 	snd_interval_any(&frames);
-	size = omap_mcbsp_get_fifo_size(mcbsp);
+	size = mcbsp->pdata->buffer_size;
 
 	frames.min = size / channels->min;
 	frames.integer = 1;
@@ -255,17 +254,14 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	if (mcbsp->pdata->buffer_size) {
 		dma_data->set_threshold = omap_mcbsp_set_threshold;
 		/* TODO: Currently, MODE_ELEMENT == MODE_FRAME */
-		if (omap_mcbsp_get_dma_op_mode(mcbsp) ==
-						MCBSP_DMA_MODE_THRESHOLD) {
+		if (mcbsp->dma_op_mode == MCBSP_DMA_MODE_THRESHOLD) {
 			int period_words, max_thrsh;
 
 			period_words = params_period_bytes(params) / (wlen / 8);
 			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-				max_thrsh = omap_mcbsp_get_max_tx_threshold(
-							    mcbsp);
+				max_thrsh = mcbsp->max_tx_thres;
 			else
-				max_thrsh = omap_mcbsp_get_max_rx_threshold(
-							    mcbsp);
+				max_thrsh = mcbsp->max_rx_thres;
 			/*
 			 * If the period contains less or equal number of words,
 			 * we are using the original threshold mode setup:

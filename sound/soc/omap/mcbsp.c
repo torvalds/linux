@@ -442,29 +442,6 @@ void omap_mcbsp_set_rx_threshold(struct omap_mcbsp *mcbsp, u16 threshold)
 }
 
 /*
- * omap_mcbsp_get_max_tx_thres just return the current configured
- * maximum threshold for transmission
- */
-u16 omap_mcbsp_get_max_tx_threshold(struct omap_mcbsp *mcbsp)
-{
-	return mcbsp->max_tx_thres;
-}
-
-/*
- * omap_mcbsp_get_max_rx_thres just return the current configured
- * maximum threshold for reception
- */
-u16 omap_mcbsp_get_max_rx_threshold(struct omap_mcbsp *mcbsp)
-{
-	return mcbsp->max_rx_thres;
-}
-
-u16 omap_mcbsp_get_fifo_size(struct omap_mcbsp *mcbsp)
-{
-	return mcbsp->pdata->buffer_size;
-}
-
-/*
  * omap_mcbsp_get_tx_delay returns the number of used slots in the McBSP FIFO
  */
 u16 omap_mcbsp_get_tx_delay(struct omap_mcbsp *mcbsp)
@@ -502,19 +479,6 @@ u16 omap_mcbsp_get_rx_delay(struct omap_mcbsp *mcbsp)
 		return 0;
 	else
 		return threshold - buffstat;
-}
-
-/*
- * omap_mcbsp_get_dma_op_mode just return the current configured
- * operating mode for the mcbsp channel
- */
-int omap_mcbsp_get_dma_op_mode(struct omap_mcbsp *mcbsp)
-{
-	int dma_op_mode;
-
-	dma_op_mode = mcbsp->dma_op_mode;
-
-	return dma_op_mode;
 }
 
 int omap_mcbsp_request(struct omap_mcbsp *mcbsp)

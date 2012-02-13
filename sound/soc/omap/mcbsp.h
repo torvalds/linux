@@ -316,9 +316,6 @@ void omap_mcbsp_config(struct omap_mcbsp *mcbsp,
 		       const struct omap_mcbsp_reg_cfg *config);
 void omap_mcbsp_set_tx_threshold(struct omap_mcbsp *mcbsp, u16 threshold);
 void omap_mcbsp_set_rx_threshold(struct omap_mcbsp *mcbsp, u16 threshold);
-u16 omap_mcbsp_get_max_tx_threshold(struct omap_mcbsp *mcbsp);
-u16 omap_mcbsp_get_max_rx_threshold(struct omap_mcbsp *mcbsp);
-u16 omap_mcbsp_get_fifo_size(struct omap_mcbsp *mcbsp);
 u16 omap_mcbsp_get_tx_delay(struct omap_mcbsp *mcbsp);
 u16 omap_mcbsp_get_rx_delay(struct omap_mcbsp *mcbsp);
 int omap_mcbsp_get_dma_op_mode(struct omap_mcbsp *mcbsp);
