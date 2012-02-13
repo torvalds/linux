@@ -1374,15 +1374,12 @@ nfsd4_enc_sequence_replay(struct nfsd4_compoundargs *args,
 	struct nfsd4_op *op;
 	struct nfsd4_slot *slot = resp->cstate.slot;
 
-	dprintk("--> %s resp->opcnt %d cachethis %u \n", __func__,
-		resp->opcnt, resp->cstate.slot->sl_cachethis);
-
 	/* Encode the replayed sequence operation */
 	op = &args->ops[resp->opcnt - 1];
 	nfsd4_encode_operation(resp, op);
 
 	/* Return nfserr_retry_uncached_rep in next operation. */
-	if (args->opcnt > 1 && slot->sl_cachethis == 0) {
+	if (args->opcnt > 1 && !(slot->sl_flags & NFSD4_SLOT_CACHETHIS)) {
 		op = &args->ops[resp->opcnt++];
 		op->status = nfserr_retry_uncached_rep;
 		nfsd4_encode_operation(resp, op);
@@ -1916,7 +1913,8 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	 * sr_highest_slotid and the sr_target_slot id to maxslots */
 	seq->maxslots = session->se_fchannel.maxreqs;
 
-	status = check_slot_seqid(seq->seqid, slot->sl_seqid, slot->sl_inuse);
+	status = check_slot_seqid(seq->seqid, slot->sl_seqid,
+					slot->sl_flags & NFSD4_SLOT_INUSE);
 	if (status == nfserr_replay_cache) {
 		cstate->slot = slot;
 		cstate->session = session;
@@ -1933,9 +1931,10 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	conn = NULL;
 
 	/* Success! bump slot seqid */
-	slot->sl_inuse = true;
 	slot->sl_seqid = seq->seqid;
-	slot->sl_cachethis = seq->cachethis;
+	slot->sl_flags = NFSD4_SLOT_INUSE;
+	if (seq->cachethis)
+		slot->sl_flags |= NFSD4_SLOT_CACHETHIS;
 
 	cstate->slot = slot;
 	cstate->session = session;

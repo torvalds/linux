@@ -3532,7 +3532,7 @@ int nfsd4_check_resp_size(struct nfsd4_compoundres *resp, u32 pad)
 	if (length > session->se_fchannel.maxresp_sz)
 		return nfserr_rep_too_big;
 
-	if (slot->sl_cachethis == 1 &&
+	if ((slot->sl_flags & NFSD4_SLOT_CACHETHIS) &&
 	    length > session->se_fchannel.maxresp_cached)
 		return nfserr_rep_too_big_to_cache;
 
@@ -3656,8 +3656,7 @@ nfs4svc_encode_compoundres(struct svc_rqst *rqstp, __be32 *p, struct nfsd4_compo
 	if (nfsd4_has_session(cs)) {
 		if (cs->status != nfserr_replay_cache) {
 			nfsd4_store_cache_entry(resp);
-			dprintk("%s: SET SLOT STATE TO AVAILABLE\n", __func__);
-			cs->slot->sl_inuse = false;
+			cs->slot->sl_flags &= ~NFSD4_SLOT_INUSE;
 		}
 		/* Renew the clientid on success and on replay */
 		release_session_client(cs->session);

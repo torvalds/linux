@@ -503,7 +503,8 @@ static inline bool nfsd4_is_solo_sequence(struct nfsd4_compoundres *resp)
 
 static inline bool nfsd4_not_cached(struct nfsd4_compoundres *resp)
 {
-	return !resp->cstate.slot->sl_cachethis || nfsd4_is_solo_sequence(resp);
+	return !(resp->cstate.slot->sl_flags & NFSD4_SLOT_CACHETHIS)
+		|| nfsd4_is_solo_sequence(resp);
 }
 
 #define NFS4_SVC_XDRSIZE		sizeof(struct nfsd4_compoundargs)

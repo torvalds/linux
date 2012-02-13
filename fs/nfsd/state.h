@@ -128,12 +128,13 @@ static inline struct nfs4_delegation *delegstateid(struct nfs4_stid *s)
 		(NFSD_CACHE_SIZE_SLOTS_PER_SESSION * NFSD_SLOT_CACHE_SIZE)
 
 struct nfsd4_slot {
-	bool	sl_inuse;
-	bool	sl_cachethis;
-	u16	sl_opcnt;
 	u32	sl_seqid;
 	__be32	sl_status;
 	u32	sl_datalen;
+	u16	sl_opcnt;
+#define NFSD4_SLOT_INUSE	(1 << 0)
+#define NFSD4_SLOT_CACHETHIS	(1 << 1)
+	u8	sl_flags;
 	char	sl_data[];
 };
 
