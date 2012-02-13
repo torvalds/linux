@@ -3607,12 +3607,8 @@ static int tg3_power_down_prepare(struct tg3 *tp)
 			tp->link_config.orig_autoneg = tp->link_config.autoneg;
 		}
 
-		if (!(tp->phy_flags & TG3_PHYFLG_ANY_SERDES)) {
-			tp->link_config.speed = SPEED_10;
-			tp->link_config.duplex = DUPLEX_HALF;
-			tp->link_config.autoneg = AUTONEG_ENABLE;
+		if (!(tp->phy_flags & TG3_PHYFLG_ANY_SERDES))
 			tg3_setup_phy(tp, 0);
-		}
 	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
