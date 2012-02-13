@@ -41,6 +41,9 @@ struct pinctrl_dev {
 	struct device *dev;
 	struct module *owner;
 	void *driver_data;
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *device_root;
+#endif
 #ifdef CONFIG_PINMUX
 	struct mutex pinmux_hogs_lock;
 	struct list_head pinmux_hogs;

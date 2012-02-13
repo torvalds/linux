@@ -355,6 +355,7 @@ struct dasd_discipline {
 	int (*reload) (struct dasd_device *);
 
 	int (*get_uid) (struct dasd_device *, struct dasd_uid *);
+	void (*kick_validate) (struct dasd_device *);
 };
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
@@ -455,6 +456,7 @@ struct dasd_device {
 	struct work_struct kick_work;
 	struct work_struct restore_device;
 	struct work_struct reload_device;
+	struct work_struct kick_validate;
 	struct timer_list timer;
 
 	debug_info_t *debug_area;
