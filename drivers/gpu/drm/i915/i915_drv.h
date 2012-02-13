@@ -313,6 +313,10 @@ typedef struct drm_i915_private {
 		u32 reg0;
 	} *gmbus;
 
+	/** gmbus_mutex protects against concurrent usage of the single hw gmbus
+	 * controller on different i2c buses. */
+	struct mutex gmbus_mutex;
+
 	struct pci_dev *bridge_dev;
 	struct intel_ring_buffer ring[I915_NUM_RINGS];
 	uint32_t next_seqno;
