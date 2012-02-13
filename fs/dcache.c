@@ -1443,30 +1443,6 @@ struct dentry *d_instantiate_unique(struct dentry *entry, struct inode *inode)
 
 EXPORT_SYMBOL(d_instantiate_unique);
 
-/**
- * d_alloc_root - allocate root dentry
- * @root_inode: inode to allocate the root for
- *
- * Allocate a root ("/") dentry for the inode given. The inode is
- * instantiated and returned. %NULL is returned if there is insufficient
- * memory or the inode passed is %NULL.
- */
- 
-struct dentry * d_alloc_root(struct inode * root_inode)
-{
-	struct dentry *res = NULL;
-
-	if (root_inode) {
-		static const struct qstr name = { .name = "/", .len = 1 };
-
-		res = __d_alloc(root_inode->i_sb, &name);
-		if (res)
-			d_instantiate(res, root_inode);
-	}
-	return res;
-}
-EXPORT_SYMBOL(d_alloc_root);
-
 struct dentry *d_make_root(struct inode *root_inode)
 {
 	struct dentry *res = NULL;
