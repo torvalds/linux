@@ -661,6 +661,8 @@ int qla4xxx_get_fwddb_entry(struct scsi_qla_host *ha,
 	}
 	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
 	memset(&mbox_sts, 0, sizeof(mbox_sts));
+	if (fw_ddb_entry)
+		memset(fw_ddb_entry, 0, sizeof(struct dev_db_entry));
 
 	mbox_cmd[0] = MBOX_CMD_GET_DATABASE_ENTRY;
 	mbox_cmd[1] = (uint32_t) fw_ddb_index;
