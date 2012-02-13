@@ -221,6 +221,15 @@ struct srb {
 	uint16_t reserved2;
 };
 
+/* Mailbox request block structure */
+struct mrb {
+	struct scsi_qla_host *ha;
+	struct mbox_cmd_iocb *mbox;
+	uint32_t mbox_cmd;
+	uint16_t iocb_cnt;		/* Number of used iocbs */
+	uint32_t pid;
+};
+
 /*
  * Asynchronous Event Queue structure
  */
@@ -303,6 +312,7 @@ struct ql4_tuple_ddb {
 
 enum qla4_work_type {
 	QLA4_EVENT_AEN,
+	QLA4_EVENT_PING_STATUS,
 };
 
 struct qla4_work_evt {
@@ -314,6 +324,12 @@ struct qla4_work_evt {
 			uint32_t data_size;
 			uint8_t data[0];
 		} aen;
+		struct {
+			uint32_t status;
+			uint32_t pid;
+			uint32_t data_size;
+			uint8_t data[0];
+		} ping;
 	} u;
 };
 
@@ -690,6 +706,11 @@ struct scsi_qla_host {
 	/* event work list */
 	struct list_head work_list;
 	spinlock_t work_lock;
+
+	/* mbox iocb */
+#define MAX_MRB		128
+	struct mrb *active_mrb_array[MAX_MRB];
+	uint32_t mrb_index;
 };
 
 struct ql4_task_data {

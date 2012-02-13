@@ -118,6 +118,10 @@ static void qla4xxx_task_cleanup(struct iscsi_task *);
 static void qla4xxx_fail_session(struct iscsi_cls_session *cls_session);
 static void qla4xxx_conn_get_stats(struct iscsi_cls_conn *cls_conn,
 				   struct iscsi_stats *stats);
+static int qla4xxx_send_ping(struct Scsi_Host *shost, uint32_t iface_num,
+			     uint32_t iface_type, uint32_t payload_size,
+			     uint32_t pid, struct sockaddr *dst_addr);
+
 /*
  * SCSI host template entry points
  */
@@ -194,9 +198,90 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.set_iface_param	= qla4xxx_iface_set_param,
 	.get_iface_param	= qla4xxx_get_iface_param,
 	.bsg_request		= qla4xxx_bsg_request,
+	.send_ping		= qla4xxx_send_ping,
 };
 
 static struct scsi_transport_template *qla4xxx_scsi_transport;
+
+static int qla4xxx_send_ping(struct Scsi_Host *shost, uint32_t iface_num,
+			     uint32_t iface_type, uint32_t payload_size,
+			     uint32_t pid, struct sockaddr *dst_addr)
+{
+	struct scsi_qla_host *ha = to_qla_host(shost);
+	struct sockaddr_in *addr;
+	struct sockaddr_in6 *addr6;
+	uint32_t options = 0;
+	uint8_t ipaddr[IPv6_ADDR_LEN];
+	int rval;
+
+	memset(ipaddr, 0, IPv6_ADDR_LEN);
+	/* IPv4 to IPv4 */
+	if ((iface_type == ISCSI_IFACE_TYPE_IPV4) &&
+	    (dst_addr->sa_family == AF_INET)) {
+		addr = (struct sockaddr_in *)dst_addr;
+		memcpy(ipaddr, &addr->sin_addr.s_addr, IP_ADDR_LEN);
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: IPv4 Ping src: %pI4 "
+				  "dest: %pI4\n", __func__,
+				  &ha->ip_config.ip_address, ipaddr));
+		rval = qla4xxx_ping_iocb(ha, options, payload_size, pid,
+					 ipaddr);
+		if (rval)
+			rval = -EINVAL;
+	} else if ((iface_type == ISCSI_IFACE_TYPE_IPV6) &&
+		   (dst_addr->sa_family == AF_INET6)) {
+		/* IPv6 to IPv6 */
+		addr6 = (struct sockaddr_in6 *)dst_addr;
+		memcpy(ipaddr, &addr6->sin6_addr.in6_u.u6_addr8, IPv6_ADDR_LEN);
+
+		options |= PING_IPV6_PROTOCOL_ENABLE;
+
+		/* Ping using LinkLocal address */
+		if ((iface_num == 0) || (iface_num == 1)) {
+			DEBUG2(ql4_printk(KERN_INFO, ha, "%s: LinkLocal Ping "
+					  "src: %pI6 dest: %pI6\n", __func__,
+					  &ha->ip_config.ipv6_link_local_addr,
+					  ipaddr));
+			options |= PING_IPV6_LINKLOCAL_ADDR;
+			rval = qla4xxx_ping_iocb(ha, options, payload_size,
+						 pid, ipaddr);
+		} else {
+			ql4_printk(KERN_WARNING, ha, "%s: iface num = %d "
+				   "not supported\n", __func__, iface_num);
+			rval = -ENOSYS;
+			goto exit_send_ping;
+		}
+
+		/*
+		 * If ping using LinkLocal address fails, try ping using
+		 * IPv6 address
+		 */
+		if (rval != QLA_SUCCESS) {
+			options &= ~PING_IPV6_LINKLOCAL_ADDR;
+			if (iface_num == 0) {
+				options |= PING_IPV6_ADDR0;
+				DEBUG2(ql4_printk(KERN_INFO, ha, "%s: IPv6 "
+						  "Ping src: %pI6 "
+						  "dest: %pI6\n", __func__,
+						  &ha->ip_config.ipv6_addr0,
+						  ipaddr));
+			} else if (iface_num == 1) {
+				options |= PING_IPV6_ADDR1;
+				DEBUG2(ql4_printk(KERN_INFO, ha, "%s: IPv6 "
+						  "Ping src: %pI6 "
+						  "dest: %pI6\n", __func__,
+						  &ha->ip_config.ipv6_addr1,
+						  ipaddr));
+			}
+			rval = qla4xxx_ping_iocb(ha, options, payload_size,
+						 pid, ipaddr);
+			if (rval)
+				rval = -EINVAL;
+		}
+	} else
+		rval = -ENOSYS;
+exit_send_ping:
+	return rval;
+}
 
 static umode_t ql4_attr_is_visible(int param_type, int param)
 {
@@ -2897,6 +2982,26 @@ int qla4xxx_post_aen_work(struct scsi_qla_host *ha,
 	return QLA_SUCCESS;
 }
 
+int qla4xxx_post_ping_evt_work(struct scsi_qla_host *ha,
+			       uint32_t status, uint32_t pid,
+			       uint32_t data_size, uint8_t *data)
+{
+	struct qla4_work_evt *e;
+
+	e = qla4xxx_alloc_work(ha, data_size, QLA4_EVENT_PING_STATUS);
+	if (!e)
+		return QLA_ERROR;
+
+	e->u.ping.status = status;
+	e->u.ping.pid = pid;
+	e->u.ping.data_size = data_size;
+	memcpy(e->u.ping.data, data, data_size);
+
+	qla4xxx_post_work(ha, e);
+
+	return QLA_SUCCESS;
+}
+
 void qla4xxx_do_work(struct scsi_qla_host *ha)
 {
 	struct qla4_work_evt *e, *tmp;
@@ -2917,6 +3022,14 @@ void qla4xxx_do_work(struct scsi_qla_host *ha)
 					      e->u.aen.code,
 					      e->u.aen.data_size,
 					      e->u.aen.data);
+			break;
+		case QLA4_EVENT_PING_STATUS:
+			iscsi_ping_comp_event(ha->host_no,
+					      &qla4xxx_iscsi_transport,
+					      e->u.ping.status,
+					      e->u.ping.pid,
+					      e->u.ping.data_size,
+					      e->u.ping.data);
 			break;
 		default:
 			ql4_printk(KERN_WARNING, ha, "event type: 0x%x not "
