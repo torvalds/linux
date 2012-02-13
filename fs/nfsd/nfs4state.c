@@ -1347,6 +1347,7 @@ nfsd4_store_cache_entry(struct nfsd4_compoundres *resp)
 	slot->sl_opcnt = resp->opcnt;
 	slot->sl_status = resp->cstate.status;
 
+	slot->sl_flags |= NFSD4_SLOT_INITIALIZED;
 	if (nfsd4_not_cached(resp)) {
 		slot->sl_datalen = 0;
 		return;
@@ -1916,6 +1917,9 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	status = check_slot_seqid(seq->seqid, slot->sl_seqid,
 					slot->sl_flags & NFSD4_SLOT_INUSE);
 	if (status == nfserr_replay_cache) {
+		status = nfserr_seq_misordered;
+		if (!(slot->sl_flags & NFSD4_SLOT_INITIALIZED))
+			goto out;
 		cstate->slot = slot;
 		cstate->session = session;
 		/* Return the cached reply status and set cstate->status
@@ -1932,9 +1936,11 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 
 	/* Success! bump slot seqid */
 	slot->sl_seqid = seq->seqid;
-	slot->sl_flags = NFSD4_SLOT_INUSE;
+	slot->sl_flags |= NFSD4_SLOT_INUSE;
 	if (seq->cachethis)
 		slot->sl_flags |= NFSD4_SLOT_CACHETHIS;
+	else
+		slot->sl_flags &= ~NFSD4_SLOT_CACHETHIS;
 
 	cstate->slot = slot;
 	cstate->session = session;

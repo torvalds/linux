@@ -134,6 +134,7 @@ struct nfsd4_slot {
 	u16	sl_opcnt;
 #define NFSD4_SLOT_INUSE	(1 << 0)
 #define NFSD4_SLOT_CACHETHIS	(1 << 1)
+#define NFSD4_SLOT_INITIALIZED	(1 << 2)
 	u8	sl_flags;
 	char	sl_data[];
 };
