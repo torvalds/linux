@@ -286,44 +286,17 @@ static void qnx4_put_super(struct super_block *sb)
 	return;
 }
 
-static int qnx4_writepage(struct page *page, struct writeback_control *wbc)
-{
-	return block_write_full_page(page,qnx4_get_block, wbc);
-}
-
 static int qnx4_readpage(struct file *file, struct page *page)
 {
 	return block_read_full_page(page,qnx4_get_block);
 }
 
-static int qnx4_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata)
-{
-	struct qnx4_inode_info *qnx4_inode = qnx4_i(mapping->host);
-	int ret;
-
-	*pagep = NULL;
-	ret = cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-				qnx4_get_block,
-				&qnx4_inode->mmu_private);
-	if (unlikely(ret)) {
-		loff_t isize = mapping->host->i_size;
-		if (pos + len > isize)
-			vmtruncate(mapping->host, isize);
-	}
-
-	return ret;
-}
 static sector_t qnx4_bmap(struct address_space *mapping, sector_t block)
 {
 	return generic_block_bmap(mapping,block,qnx4_get_block);
 }
 static const struct address_space_operations qnx4_aops = {
 	.readpage	= qnx4_readpage,
-	.writepage	= qnx4_writepage,
-	.write_begin	= qnx4_write_begin,
-	.write_end	= generic_write_end,
 	.bmap		= qnx4_bmap
 };
 

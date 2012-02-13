@@ -39,10 +39,6 @@ static int qnx4_match(int len, const char *name,
 	} else {
 		namelen = QNX4_SHORT_NAME_MAX;
 	}
-	/* "" means "." ---> so paths like "/usr/lib//libc.a" work */
-	if (!len && (de->di_fname[0] == '.') && (de->di_fname[1] == '\0')) {
-		return 1;
-	}
 	thislen = strlen( de->di_fname );
 	if ( thislen > namelen )
 		thislen = namelen;
