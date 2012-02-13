@@ -111,9 +111,10 @@ _il_grab_nic_access(struct il_priv *il)
 	    _il_poll_bit(il, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
 			 (CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
 			  CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP), 15000);
-	if (ret < 0) {
+	if (unlikely(ret < 0)) {
 		val = _il_rd(il, CSR_GP_CNTRL);
-		IL_ERR("MAC is in deep sleep!.  CSR_GP_CNTRL = 0x%08X\n", val);
+		WARN_ONCE(1, "Timeout waiting for ucode processor access "
+			     "(CSR_GP_CNTRL 0x%08x)\n", val);
 		_il_wr(il, CSR_RESET, CSR_RESET_REG_FLAG_FORCE_NMI);
 		return -EIO;
 	}
