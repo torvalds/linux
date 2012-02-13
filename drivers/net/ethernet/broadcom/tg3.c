@@ -2978,6 +2978,256 @@ static int tg3_nvram_read_be32(struct tg3 *tp, u32 offset, __be32 *val)
 	return res;
 }
 
+static int tg3_nvram_write_block_using_eeprom(struct tg3 *tp,
+				    u32 offset, u32 len, u8 *buf)
+{
+	int i, j, rc = 0;
+	u32 val;
+
+	for (i = 0; i < len; i += 4) {
+		u32 addr;
+		__be32 data;
+
+		addr = offset + i;
+
+		memcpy(&data, buf + i, 4);
+
+		/*
+		 * The SEEPROM interface expects the data to always be opposite
+		 * the native endian format.  We accomplish this by reversing
+		 * all the operations that would have been performed on the
+		 * data from a call to tg3_nvram_read_be32().
+		 */
+		tw32(GRC_EEPROM_DATA, swab32(be32_to_cpu(data)));
+
+		val = tr32(GRC_EEPROM_ADDR);
+		tw32(GRC_EEPROM_ADDR, val | EEPROM_ADDR_COMPLETE);
+
+		val &= ~(EEPROM_ADDR_ADDR_MASK | EEPROM_ADDR_DEVID_MASK |
+			EEPROM_ADDR_READ);
+		tw32(GRC_EEPROM_ADDR, val |
+			(0 << EEPROM_ADDR_DEVID_SHIFT) |
+			(addr & EEPROM_ADDR_ADDR_MASK) |
+			EEPROM_ADDR_START |
+			EEPROM_ADDR_WRITE);
+
+		for (j = 0; j < 1000; j++) {
+			val = tr32(GRC_EEPROM_ADDR);
+
+			if (val & EEPROM_ADDR_COMPLETE)
+				break;
+			msleep(1);
+		}
+		if (!(val & EEPROM_ADDR_COMPLETE)) {
+			rc = -EBUSY;
+			break;
+		}
+	}
+
+	return rc;
+}
+
+/* offset and length are dword aligned */
+static int tg3_nvram_write_block_unbuffered(struct tg3 *tp, u32 offset, u32 len,
+		u8 *buf)
+{
+	int ret = 0;
+	u32 pagesize = tp->nvram_pagesize;
+	u32 pagemask = pagesize - 1;
+	u32 nvram_cmd;
+	u8 *tmp;
+
+	tmp = kmalloc(pagesize, GFP_KERNEL);
+	if (tmp == NULL)
+		return -ENOMEM;
+
+	while (len) {
+		int j;
+		u32 phy_addr, page_off, size;
+
+		phy_addr = offset & ~pagemask;
+
+		for (j = 0; j < pagesize; j += 4) {
+			ret = tg3_nvram_read_be32(tp, phy_addr + j,
+						  (__be32 *) (tmp + j));
+			if (ret)
+				break;
+		}
+		if (ret)
+			break;
+
+		page_off = offset & pagemask;
+		size = pagesize;
+		if (len < size)
+			size = len;
+
+		len -= size;
+
+		memcpy(tmp + page_off, buf, size);
+
+		offset = offset + (pagesize - page_off);
+
+		tg3_enable_nvram_access(tp);
+
+		/*
+		 * Before we can erase the flash page, we need
+		 * to issue a special "write enable" command.
+		 */
+		nvram_cmd = NVRAM_CMD_WREN | NVRAM_CMD_GO | NVRAM_CMD_DONE;
+
+		if (tg3_nvram_exec_cmd(tp, nvram_cmd))
+			break;
+
+		/* Erase the target page */
+		tw32(NVRAM_ADDR, phy_addr);
+
+		nvram_cmd = NVRAM_CMD_GO | NVRAM_CMD_DONE | NVRAM_CMD_WR |
+			NVRAM_CMD_FIRST | NVRAM_CMD_LAST | NVRAM_CMD_ERASE;
+
+		if (tg3_nvram_exec_cmd(tp, nvram_cmd))
+			break;
+
+		/* Issue another write enable to start the write. */
+		nvram_cmd = NVRAM_CMD_WREN | NVRAM_CMD_GO | NVRAM_CMD_DONE;
+
+		if (tg3_nvram_exec_cmd(tp, nvram_cmd))
+			break;
+
+		for (j = 0; j < pagesize; j += 4) {
+			__be32 data;
+
+			data = *((__be32 *) (tmp + j));
+
+			tw32(NVRAM_WRDATA, be32_to_cpu(data));
+
+			tw32(NVRAM_ADDR, phy_addr + j);
+
+			nvram_cmd = NVRAM_CMD_GO | NVRAM_CMD_DONE |
+				NVRAM_CMD_WR;
+
+			if (j == 0)
+				nvram_cmd |= NVRAM_CMD_FIRST;
+			else if (j == (pagesize - 4))
+				nvram_cmd |= NVRAM_CMD_LAST;
+
+			ret = tg3_nvram_exec_cmd(tp, nvram_cmd);
+			if (ret)
+				break;
+		}
+		if (ret)
+			break;
+	}
+
+	nvram_cmd = NVRAM_CMD_WRDI | NVRAM_CMD_GO | NVRAM_CMD_DONE;
+	tg3_nvram_exec_cmd(tp, nvram_cmd);
+
+	kfree(tmp);
+
+	return ret;
+}
+
+/* offset and length are dword aligned */
+static int tg3_nvram_write_block_buffered(struct tg3 *tp, u32 offset, u32 len,
+		u8 *buf)
+{
+	int i, ret = 0;
+
+	for (i = 0; i < len; i += 4, offset += 4) {
+		u32 page_off, phy_addr, nvram_cmd;
+		__be32 data;
+
+		memcpy(&data, buf + i, 4);
+		tw32(NVRAM_WRDATA, be32_to_cpu(data));
+
+		page_off = offset % tp->nvram_pagesize;
+
+		phy_addr = tg3_nvram_phys_addr(tp, offset);
+
+		tw32(NVRAM_ADDR, phy_addr);
+
+		nvram_cmd = NVRAM_CMD_GO | NVRAM_CMD_DONE | NVRAM_CMD_WR;
+
+		if (page_off == 0 || i == 0)
+			nvram_cmd |= NVRAM_CMD_FIRST;
+		if (page_off == (tp->nvram_pagesize - 4))
+			nvram_cmd |= NVRAM_CMD_LAST;
+
+		if (i == (len - 4))
+			nvram_cmd |= NVRAM_CMD_LAST;
+
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5752 &&
+		    !tg3_flag(tp, 5755_PLUS) &&
+		    (tp->nvram_jedecnum == JEDEC_ST) &&
+		    (nvram_cmd & NVRAM_CMD_FIRST)) {
+			u32 cmd;
+
+			cmd = NVRAM_CMD_WREN | NVRAM_CMD_GO | NVRAM_CMD_DONE;
+			ret = tg3_nvram_exec_cmd(tp, cmd);
+			if (ret)
+				break;
+		}
+		if (!tg3_flag(tp, FLASH)) {
+			/* We always do complete word writes to eeprom. */
+			nvram_cmd |= (NVRAM_CMD_FIRST | NVRAM_CMD_LAST);
+		}
+
+		ret = tg3_nvram_exec_cmd(tp, nvram_cmd);
+		if (ret)
+			break;
+	}
+	return ret;
+}
+
+/* offset and length are dword aligned */
+static int tg3_nvram_write_block(struct tg3 *tp, u32 offset, u32 len, u8 *buf)
+{
+	int ret;
+
+	if (tg3_flag(tp, EEPROM_WRITE_PROT)) {
+		tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl &
+		       ~GRC_LCLCTRL_GPIO_OUTPUT1);
+		udelay(40);
+	}
+
+	if (!tg3_flag(tp, NVRAM)) {
+		ret = tg3_nvram_write_block_using_eeprom(tp, offset, len, buf);
+	} else {
+		u32 grc_mode;
+
+		ret = tg3_nvram_lock(tp);
+		if (ret)
+			return ret;
+
+		tg3_enable_nvram_access(tp);
+		if (tg3_flag(tp, 5750_PLUS) && !tg3_flag(tp, PROTECTED_NVRAM))
+			tw32(NVRAM_WRITE1, 0x406);
+
+		grc_mode = tr32(GRC_MODE);
+		tw32(GRC_MODE, grc_mode | GRC_MODE_NVRAM_WR_ENABLE);
+
+		if (tg3_flag(tp, NVRAM_BUFFERED) || !tg3_flag(tp, FLASH)) {
+			ret = tg3_nvram_write_block_buffered(tp, offset, len,
+				buf);
+		} else {
+			ret = tg3_nvram_write_block_unbuffered(tp, offset, len,
+				buf);
+		}
+
+		grc_mode = tr32(GRC_MODE);
+		tw32(GRC_MODE, grc_mode & ~GRC_MODE_NVRAM_WR_ENABLE);
+
+		tg3_disable_nvram_access(tp);
+		tg3_nvram_unlock(tp);
+	}
+
+	if (tg3_flag(tp, EEPROM_WRITE_PROT)) {
+		tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl);
+		udelay(40);
+	}
+
+	return ret;
+}
+
 #define RX_CPU_SCRATCH_BASE	0x30000
 #define RX_CPU_SCRATCH_SIZE	0x04000
 #define TX_CPU_SCRATCH_BASE	0x34000
@@ -10147,8 +10397,6 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	return 0;
 }
 
-static int tg3_nvram_write_block(struct tg3 *tp, u32 offset, u32 len, u8 *buf);
-
 static int tg3_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom, u8 *data)
 {
 	struct tg3 *tp = netdev_priv(dev);
@@ -12743,254 +12991,6 @@ static void __devinit tg3_nvram_init(struct tg3 *tp)
 
 		tg3_get_eeprom_size(tp);
 	}
-}
-
-static int tg3_nvram_write_block_using_eeprom(struct tg3 *tp,
-				    u32 offset, u32 len, u8 *buf)
-{
-	int i, j, rc = 0;
-	u32 val;
-
-	for (i = 0; i < len; i += 4) {
-		u32 addr;
-		__be32 data;
-
-		addr = offset + i;
-
-		memcpy(&data, buf + i, 4);
-
-		/*
-		 * The SEEPROM interface expects the data to always be opposite
-		 * the native endian format.  We accomplish this by reversing
-		 * all the operations that would have been performed on the
-		 * data from a call to tg3_nvram_read_be32().
-		 */
-		tw32(GRC_EEPROM_DATA, swab32(be32_to_cpu(data)));
-
-		val = tr32(GRC_EEPROM_ADDR);
-		tw32(GRC_EEPROM_ADDR, val | EEPROM_ADDR_COMPLETE);
-
-		val &= ~(EEPROM_ADDR_ADDR_MASK | EEPROM_ADDR_DEVID_MASK |
-			EEPROM_ADDR_READ);
-		tw32(GRC_EEPROM_ADDR, val |
-			(0 << EEPROM_ADDR_DEVID_SHIFT) |
-			(addr & EEPROM_ADDR_ADDR_MASK) |
-			EEPROM_ADDR_START |
-			EEPROM_ADDR_WRITE);
-
-		for (j = 0; j < 1000; j++) {
-			val = tr32(GRC_EEPROM_ADDR);
-
-			if (val & EEPROM_ADDR_COMPLETE)
-				break;
-			msleep(1);
-		}
-		if (!(val & EEPROM_ADDR_COMPLETE)) {
-			rc = -EBUSY;
-			break;
-		}
-	}
-
-	return rc;
-}
-
-/* offset and length are dword aligned */
-static int tg3_nvram_write_block_unbuffered(struct tg3 *tp, u32 offset, u32 len,
-		u8 *buf)
-{
-	int ret = 0;
-	u32 pagesize = tp->nvram_pagesize;
-	u32 pagemask = pagesize - 1;
-	u32 nvram_cmd;
-	u8 *tmp;
-
-	tmp = kmalloc(pagesize, GFP_KERNEL);
-	if (tmp == NULL)
-		return -ENOMEM;
-
-	while (len) {
-		int j;
-		u32 phy_addr, page_off, size;
-
-		phy_addr = offset & ~pagemask;
-
-		for (j = 0; j < pagesize; j += 4) {
-			ret = tg3_nvram_read_be32(tp, phy_addr + j,
-						  (__be32 *) (tmp + j));
-			if (ret)
-				break;
-		}
-		if (ret)
-			break;
-
-		page_off = offset & pagemask;
-		size = pagesize;
-		if (len < size)
-			size = len;
-
-		len -= size;
-
-		memcpy(tmp + page_off, buf, size);
-
-		offset = offset + (pagesize - page_off);
-
-		tg3_enable_nvram_access(tp);
-
-		/*
-		 * Before we can erase the flash page, we need
-		 * to issue a special "write enable" command.
-		 */
-		nvram_cmd = NVRAM_CMD_WREN | NVRAM_CMD_GO | NVRAM_CMD_DONE;
-
-		if (tg3_nvram_exec_cmd(tp, nvram_cmd))
-			break;
-
-		/* Erase the target page */
-		tw32(NVRAM_ADDR, phy_addr);
-
-		nvram_cmd = NVRAM_CMD_GO | NVRAM_CMD_DONE | NVRAM_CMD_WR |
-			NVRAM_CMD_FIRST | NVRAM_CMD_LAST | NVRAM_CMD_ERASE;
-
-		if (tg3_nvram_exec_cmd(tp, nvram_cmd))
-			break;
-
-		/* Issue another write enable to start the write. */
-		nvram_cmd = NVRAM_CMD_WREN | NVRAM_CMD_GO | NVRAM_CMD_DONE;
-
-		if (tg3_nvram_exec_cmd(tp, nvram_cmd))
-			break;
-
-		for (j = 0; j < pagesize; j += 4) {
-			__be32 data;
-
-			data = *((__be32 *) (tmp + j));
-
-			tw32(NVRAM_WRDATA, be32_to_cpu(data));
-
-			tw32(NVRAM_ADDR, phy_addr + j);
-
-			nvram_cmd = NVRAM_CMD_GO | NVRAM_CMD_DONE |
-				NVRAM_CMD_WR;
-
-			if (j == 0)
-				nvram_cmd |= NVRAM_CMD_FIRST;
-			else if (j == (pagesize - 4))
-				nvram_cmd |= NVRAM_CMD_LAST;
-
-			if ((ret = tg3_nvram_exec_cmd(tp, nvram_cmd)))
-				break;
-		}
-		if (ret)
-			break;
-	}
-
-	nvram_cmd = NVRAM_CMD_WRDI | NVRAM_CMD_GO | NVRAM_CMD_DONE;
-	tg3_nvram_exec_cmd(tp, nvram_cmd);
-
-	kfree(tmp);
-
-	return ret;
-}
-
-/* offset and length are dword aligned */
-static int tg3_nvram_write_block_buffered(struct tg3 *tp, u32 offset, u32 len,
-		u8 *buf)
-{
-	int i, ret = 0;
-
-	for (i = 0; i < len; i += 4, offset += 4) {
-		u32 page_off, phy_addr, nvram_cmd;
-		__be32 data;
-
-		memcpy(&data, buf + i, 4);
-		tw32(NVRAM_WRDATA, be32_to_cpu(data));
-
-		page_off = offset % tp->nvram_pagesize;
-
-		phy_addr = tg3_nvram_phys_addr(tp, offset);
-
-		tw32(NVRAM_ADDR, phy_addr);
-
-		nvram_cmd = NVRAM_CMD_GO | NVRAM_CMD_DONE | NVRAM_CMD_WR;
-
-		if (page_off == 0 || i == 0)
-			nvram_cmd |= NVRAM_CMD_FIRST;
-		if (page_off == (tp->nvram_pagesize - 4))
-			nvram_cmd |= NVRAM_CMD_LAST;
-
-		if (i == (len - 4))
-			nvram_cmd |= NVRAM_CMD_LAST;
-
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5752 &&
-		    !tg3_flag(tp, 5755_PLUS) &&
-		    (tp->nvram_jedecnum == JEDEC_ST) &&
-		    (nvram_cmd & NVRAM_CMD_FIRST)) {
-
-			if ((ret = tg3_nvram_exec_cmd(tp,
-				NVRAM_CMD_WREN | NVRAM_CMD_GO |
-				NVRAM_CMD_DONE)))
-
-				break;
-		}
-		if (!tg3_flag(tp, FLASH)) {
-			/* We always do complete word writes to eeprom. */
-			nvram_cmd |= (NVRAM_CMD_FIRST | NVRAM_CMD_LAST);
-		}
-
-		if ((ret = tg3_nvram_exec_cmd(tp, nvram_cmd)))
-			break;
-	}
-	return ret;
-}
-
-/* offset and length are dword aligned */
-static int tg3_nvram_write_block(struct tg3 *tp, u32 offset, u32 len, u8 *buf)
-{
-	int ret;
-
-	if (tg3_flag(tp, EEPROM_WRITE_PROT)) {
-		tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl &
-		       ~GRC_LCLCTRL_GPIO_OUTPUT1);
-		udelay(40);
-	}
-
-	if (!tg3_flag(tp, NVRAM)) {
-		ret = tg3_nvram_write_block_using_eeprom(tp, offset, len, buf);
-	} else {
-		u32 grc_mode;
-
-		ret = tg3_nvram_lock(tp);
-		if (ret)
-			return ret;
-
-		tg3_enable_nvram_access(tp);
-		if (tg3_flag(tp, 5750_PLUS) && !tg3_flag(tp, PROTECTED_NVRAM))
-			tw32(NVRAM_WRITE1, 0x406);
-
-		grc_mode = tr32(GRC_MODE);
-		tw32(GRC_MODE, grc_mode | GRC_MODE_NVRAM_WR_ENABLE);
-
-		if (tg3_flag(tp, NVRAM_BUFFERED) || !tg3_flag(tp, FLASH)) {
-			ret = tg3_nvram_write_block_buffered(tp, offset, len,
-				buf);
-		} else {
-			ret = tg3_nvram_write_block_unbuffered(tp, offset, len,
-				buf);
-		}
-
-		grc_mode = tr32(GRC_MODE);
-		tw32(GRC_MODE, grc_mode & ~GRC_MODE_NVRAM_WR_ENABLE);
-
-		tg3_disable_nvram_access(tp);
-		tg3_nvram_unlock(tp);
-	}
-
-	if (tg3_flag(tp, EEPROM_WRITE_PROT)) {
-		tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl);
-		udelay(40);
-	}
-
-	return ret;
 }
 
 struct subsys_tbl_ent {
