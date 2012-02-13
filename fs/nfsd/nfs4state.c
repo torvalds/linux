@@ -1575,16 +1575,11 @@ check_slot_seqid(u32 seqid, u32 slot_seqid, int slot_inuse)
 		else
 			return nfserr_seq_misordered;
 	}
-	/* Normal */
+	/* Note unsigned 32-bit arithmetic handles wraparound: */
 	if (likely(seqid == slot_seqid + 1))
 		return nfs_ok;
-	/* Replay */
 	if (seqid == slot_seqid)
 		return nfserr_replay_cache;
-	/* Wraparound */
-	if (seqid == 1 && (slot_seqid + 1) == 0)
-		return nfs_ok;
-	/* Misordered replay or misordered new request */
 	return nfserr_seq_misordered;
 }
 
