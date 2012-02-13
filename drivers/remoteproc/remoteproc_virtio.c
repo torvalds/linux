@@ -123,14 +123,14 @@ static void rproc_virtio_del_vqs(struct virtio_device *vdev)
 	struct virtqueue *vq, *n;
 	struct rproc *rproc = vdev_to_rproc(vdev);
 
+	/* power down the remote processor before deleting vqs */
+	rproc_shutdown(rproc);
+
 	list_for_each_entry_safe(vq, n, &vdev->vqs, list) {
 		struct rproc_virtio_vq_info *rpvq = vq->priv;
 		vring_del_virtqueue(vq);
 		kfree(rpvq);
 	}
-
-	/* power down the remote processor */
-	rproc_shutdown(rproc);
 }
 
 static int rproc_virtio_find_vqs(struct virtio_device *vdev, unsigned nvqs,
@@ -145,19 +145,19 @@ static int rproc_virtio_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	if (nvqs != 2)
 		return -EINVAL;
 
-	/* boot the remote processor */
-	ret = rproc_boot(rproc);
-	if (ret) {
-		dev_err(rproc->dev, "rproc_boot() failed %d\n", ret);
-		goto error;
-	}
-
 	for (i = 0; i < nvqs; ++i) {
 		vqs[i] = rp_find_vq(vdev, i, callbacks[i], names[i]);
 		if (IS_ERR(vqs[i])) {
 			ret = PTR_ERR(vqs[i]);
 			goto error;
 		}
+	}
+
+	/* now that the vqs are all set, boot the remote processor */
+	ret = rproc_boot(rproc);
+	if (ret) {
+		dev_err(rproc->dev, "rproc_boot() failed %d\n", ret);
+		goto error;
 	}
 
 	return 0;
