@@ -4714,6 +4714,12 @@ put_stateid(struct nfsd4_compound_state *cstate, stateid_t *stateid)
  * functions to set current state id
  */
 void
+nfsd4_set_opendowngradestateid(struct nfsd4_compound_state *cstate, struct nfsd4_open_downgrade *odp)
+{
+	put_stateid(cstate, &odp->od_stateid);
+}
+
+void
 nfsd4_set_openstateid(struct nfsd4_compound_state *cstate, struct nfsd4_open *open)
 {
 	put_stateid(cstate, &open->op_stateid);
@@ -4734,6 +4740,18 @@ nfsd4_set_lockstateid(struct nfsd4_compound_state *cstate, struct nfsd4_lock *lo
 /*
  * functions to consume current state id
  */
+
+void
+nfsd4_get_opendowngradestateid(struct nfsd4_compound_state *cstate, struct nfsd4_open_downgrade *odp)
+{
+	get_stateid(cstate, &odp->od_stateid);
+}
+
+void
+nfsd4_get_delegreturnstateid(struct nfsd4_compound_state *cstate, struct nfsd4_delegreturn *drp)
+{
+	get_stateid(cstate, &drp->dr_stateid);
+}
 
 void
 nfsd4_get_freestateid(struct nfsd4_compound_state *cstate, struct nfsd4_free_stateid *fsp)
