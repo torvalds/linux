@@ -4,6 +4,7 @@
 #include "state.h"
 #include "xdr4.h"
 
+extern void clear_current_stateid(struct nfsd4_compound_state *cstate);
 /*
  * functions to set current state id
  */

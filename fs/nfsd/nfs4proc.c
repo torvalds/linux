@@ -453,7 +453,10 @@ nfsd4_restorefh(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		return nfserr_restorefh;
 
 	fh_dup2(&cstate->current_fh, &cstate->save_fh);
-	cstate->current_stateid = cstate->save_stateid;
+	if (HAS_STATE_ID(cstate, SAVED_STATE_ID_FLAG)) {
+		memcpy(&cstate->current_stateid, &cstate->save_stateid, sizeof(stateid_t));
+		SET_STATE_ID(cstate, CURRENT_STATE_ID_FLAG);
+	}
 	return nfs_ok;
 }
 
@@ -465,7 +468,10 @@ nfsd4_savefh(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		return nfserr_nofilehandle;
 
 	fh_dup2(&cstate->save_fh, &cstate->current_fh);
-	cstate->save_stateid = cstate->current_stateid;
+	if (HAS_STATE_ID(cstate, CURRENT_STATE_ID_FLAG)) {
+		memcpy(&cstate->save_stateid, &cstate->current_stateid, sizeof(stateid_t));
+		SET_STATE_ID(cstate, SAVED_STATE_ID_FLAG);
+	}
 	return nfs_ok;
 }
 
@@ -1238,7 +1244,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 				opdesc->op_set_currentstateid(cstate, &op->u);
 
 			if (opdesc->op_flags & OP_CLEAR_STATEID)
-				cstate->current_stateid = NULL;
+				clear_current_stateid(cstate);
 
 			if (need_wrongsec_check(rqstp))
 				op->status = check_nfsd_access(cstate->current_fh.fh_export, rqstp);
