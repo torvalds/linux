@@ -288,7 +288,10 @@ struct ip_set_type {
 	u8 features;
 	/* Set type dimension */
 	u8 dimension;
-	/* Supported family: may be AF_UNSPEC for both AF_INET/AF_INET6 */
+	/*
+	 * Supported family: may be NFPROTO_UNSPEC for both
+	 * NFPROTO_IPV4/NFPROTO_IPV6.
+	 */
 	u8 family;
 	/* Type revisions */
 	u8 revision_min, revision_max;

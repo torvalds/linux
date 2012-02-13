@@ -554,7 +554,7 @@ hash_ipportnet_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 	u32 hashsize = IPSET_DEFAULT_HASHSIZE, maxelem = IPSET_DEFAULT_MAXELEM;
 	u8 hbits;
 
-	if (!(set->family == AF_INET || set->family == AF_INET6))
+	if (!(set->family == NFPROTO_IPV4 || set->family == NFPROTO_IPV6))
 		return -IPSET_ERR_INVALID_FAMILY;
 
 	if (unlikely(!ip_set_optattr_netorder(tb, IPSET_ATTR_HASHSIZE) ||
@@ -573,7 +573,7 @@ hash_ipportnet_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 
 	h = kzalloc(sizeof(*h)
 		    + sizeof(struct ip_set_hash_nets)
-		      * (set->family == AF_INET ? 32 : 128), GFP_KERNEL);
+		      * (set->family == NFPROTO_IPV4 ? 32 : 128), GFP_KERNEL);
 	if (!h)
 		return -ENOMEM;
 
@@ -596,16 +596,16 @@ hash_ipportnet_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 	if (tb[IPSET_ATTR_TIMEOUT]) {
 		h->timeout = ip_set_timeout_uget(tb[IPSET_ATTR_TIMEOUT]);
 
-		set->variant = set->family == AF_INET
+		set->variant = set->family == NFPROTO_IPV4
 			? &hash_ipportnet4_tvariant
 			: &hash_ipportnet6_tvariant;
 
-		if (set->family == AF_INET)
+		if (set->family == NFPROTO_IPV4)
 			hash_ipportnet4_gc_init(set);
 		else
 			hash_ipportnet6_gc_init(set);
 	} else {
-		set->variant = set->family == AF_INET
+		set->variant = set->family == NFPROTO_IPV4
 			? &hash_ipportnet4_variant : &hash_ipportnet6_variant;
 	}
 
@@ -621,7 +621,7 @@ static struct ip_set_type hash_ipportnet_type __read_mostly = {
 	.protocol	= IPSET_PROTOCOL,
 	.features	= IPSET_TYPE_IP | IPSET_TYPE_PORT | IPSET_TYPE_IP2,
 	.dimension	= IPSET_DIM_THREE,
-	.family		= AF_UNSPEC,
+	.family		= NFPROTO_UNSPEC,
 	.revision_min	= 0,
 	/*		  1	   SCTP and UDPLITE support added */
 	.revision_max	= 2,	/* Range as input support for IPv4 added */
