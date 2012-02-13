@@ -13847,8 +13847,6 @@ done:
 	tp->fw_ver[TG3_VER_SIZE - 1] = 0;
 }
 
-static struct pci_dev * __devinit tg3_find_peer(struct tg3 *);
-
 static inline u32 tg3_rx_ret_ring_size(struct tg3 *tp)
 {
 	if (tg3_flag(tp, LRG_PROD_RING_CAP))
@@ -13865,6 +13863,34 @@ static DEFINE_PCI_DEVICE_TABLE(tg3_write_reorder_chipsets) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8385_0) },
 	{ },
 };
+
+static struct pci_dev * __devinit tg3_find_peer(struct tg3 *tp)
+{
+	struct pci_dev *peer;
+	unsigned int func, devnr = tp->pdev->devfn & ~7;
+
+	for (func = 0; func < 8; func++) {
+		peer = pci_get_slot(tp->pdev->bus, devnr | func);
+		if (peer && peer != tp->pdev)
+			break;
+		pci_dev_put(peer);
+	}
+	/* 5704 can be configured in single-port mode, set peer to
+	 * tp->pdev in that case.
+	 */
+	if (!peer) {
+		peer = tp->pdev;
+		return peer;
+	}
+
+	/*
+	 * We don't need to keep the refcount elevated; there's no way
+	 * to remove one half of this device without removing the other
+	 */
+	pci_dev_put(peer);
+
+	return peer;
+}
 
 static int __devinit tg3_get_invariants(struct tg3 *tp)
 {
@@ -15362,34 +15388,6 @@ static char * __devinit tg3_bus_string(struct tg3 *tp, char *str)
 	else
 		strcat(str, ":64-bit");
 	return str;
-}
-
-static struct pci_dev * __devinit tg3_find_peer(struct tg3 *tp)
-{
-	struct pci_dev *peer;
-	unsigned int func, devnr = tp->pdev->devfn & ~7;
-
-	for (func = 0; func < 8; func++) {
-		peer = pci_get_slot(tp->pdev->bus, devnr | func);
-		if (peer && peer != tp->pdev)
-			break;
-		pci_dev_put(peer);
-	}
-	/* 5704 can be configured in single-port mode, set peer to
-	 * tp->pdev in that case.
-	 */
-	if (!peer) {
-		peer = tp->pdev;
-		return peer;
-	}
-
-	/*
-	 * We don't need to keep the refcount elevated; there's no way
-	 * to remove one half of this device without removing the other
-	 */
-	pci_dev_put(peer);
-
-	return peer;
 }
 
 static void __devinit tg3_init_coal(struct tg3 *tp)
