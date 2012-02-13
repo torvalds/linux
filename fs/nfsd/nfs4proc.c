@@ -453,6 +453,7 @@ nfsd4_restorefh(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		return nfserr_restorefh;
 
 	fh_dup2(&cstate->current_fh, &cstate->save_fh);
+	cstate->current_stateid = cstate->save_stateid;
 	return nfs_ok;
 }
 
@@ -464,6 +465,7 @@ nfsd4_savefh(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		return nfserr_nofilehandle;
 
 	fh_dup2(&cstate->save_fh, &cstate->current_fh);
+	cstate->save_stateid = cstate->current_stateid;
 	return nfs_ok;
 }
 

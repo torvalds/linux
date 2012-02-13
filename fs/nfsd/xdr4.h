@@ -55,6 +55,7 @@ struct nfsd4_compound_state {
 	u32			minorversion;
 	u32			status;
 	const stateid_t	*current_stateid;
+	const stateid_t	*save_stateid;
 };
 
 static inline bool nfsd4_has_session(struct nfsd4_compound_state *cs)
