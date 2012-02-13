@@ -28,9 +28,9 @@ struct rproc;
 void rproc_release(struct kref *kref);
 irqreturn_t rproc_vq_interrupt(struct rproc *rproc, int vq_id);
 
-/* from remoteproc_rpmsg.c */
-int rproc_add_rpmsg_vdev(struct rproc *);
-void rproc_remove_rpmsg_vdev(struct rproc *rproc);
+/* from remoteproc_virtio.c */
+int rproc_add_virtio_dev(struct rproc_vdev *rvdev, int id);
+void rproc_remove_virtio_dev(struct rproc_vdev *rvdev);
 
 /* from remoteproc_debugfs.c */
 void rproc_remove_trace_file(struct dentry *tfile);

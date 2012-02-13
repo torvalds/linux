@@ -41,6 +41,7 @@
 #include <linux/mutex.h>
 #include <linux/virtio.h>
 #include <linux/completion.h>
+#include <linux/idr.h>
 
 /*
  * The alignment between the consumer and producer parts of the vring.
@@ -387,7 +388,8 @@ enum rproc_state {
  * @mappings: list of iommu mappings we initiated, needed on shutdown
  * @firmware_loading_complete: marks e/o asynchronous firmware loading
  * @bootaddr: address of first instruction to boot rproc with (optional)
- * @rvdev: virtio device (we only support a single rpmsg virtio device for now)
+ * @rvdevs: list of remote virtio devices
+ * @notifyids: idr for dynamically assigning rproc-wide unique notify ids
  */
 struct rproc {
 	struct klist_node node;
@@ -408,23 +410,47 @@ struct rproc {
 	struct list_head mappings;
 	struct completion firmware_loading_complete;
 	u32 bootaddr;
+	struct list_head rvdevs;
+	struct idr notifyids;
+};
+
+/* we currently support only two vrings per rvdev */
+#define RVDEV_NUM_VRINGS 2
+
+/**
+ * struct rproc_vring - remoteproc vring state
+ * @va:	virtual address
+ * @dma: dma address
+ * @len: length, in bytes
+ * @da: device address
+ * @notifyid: rproc-specific unique vring index
+ * @rvdev: remote vdev
+ * @vq: the virtqueue of this vring
+ */
+struct rproc_vring {
+	void *va;
+	dma_addr_t dma;
+	int len;
+	u32 da;
+	int notifyid;
 	struct rproc_vdev *rvdev;
+	struct virtqueue *vq;
 };
 
 /**
  * struct rproc_vdev - remoteproc state for a supported virtio device
+ * @node: list node
  * @rproc: the rproc handle
  * @vdev: the virio device
- * @vq: the virtqueues for this vdev
  * @vring: the vrings for this vdev
  * @dfeatures: virtio device features
  * @gfeatures: virtio guest features
  */
 struct rproc_vdev {
+	struct list_head node;
 	struct rproc *rproc;
 	struct virtio_device vdev;
-	struct virtqueue *vq[2];
-	struct rproc_mem_entry vring[2];
+	struct rproc_vring vring[RVDEV_NUM_VRINGS];
 	unsigned long dfeatures;
 	unsigned long gfeatures;
 };
@@ -442,9 +468,14 @@ int rproc_unregister(struct rproc *rproc);
 int rproc_boot(struct rproc *rproc);
 void rproc_shutdown(struct rproc *rproc);
 
+static inline struct rproc_vdev *vdev_to_rvdev(struct virtio_device *vdev)
+{
+	return container_of(vdev, struct rproc_vdev, vdev);
+}
+
 static inline struct rproc *vdev_to_rproc(struct virtio_device *vdev)
 {
-	struct rproc_vdev *rvdev = container_of(vdev, struct rproc_vdev, vdev);
+	struct rproc_vdev *rvdev = vdev_to_rvdev(vdev);
 
 	return rvdev->rproc;
 }

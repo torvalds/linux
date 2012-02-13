@@ -20,6 +20,11 @@ platform-specific remoteproc drivers only need to provide a few low-level
 handlers, and then all rpmsg drivers will then just work
 (for more information about the virtio-based rpmsg bus and its drivers,
 please read Documentation/rpmsg.txt).
+Registration of other types of virtio devices is now also possible. Firmwares
+just need to publish what kind of virtio devices do they support, and then
+remoteproc will add those devices. This makes it possible to reuse the
+existing virtio drivers with remote processor backends at a minimal development
+cost.
 
 2. User API
 
@@ -136,8 +141,6 @@ int dummy_rproc_example(struct rproc *my_rproc)
       If found, those virtio devices will be created and added, so as a result
       of registering this remote processor, additional virtio drivers might get
       probed.
-      Currently, though, we only support a single RPMSG virtio vdev per remote
-      processor.
 
   int rproc_unregister(struct rproc *rproc)
     - Unregister a remote processor, and decrement its refcount.
@@ -174,7 +177,7 @@ struct rproc_ops {
 };
 
 Every remoteproc implementation should at least provide the ->start and ->stop
-handlers. If rpmsg functionality is also desired, then the ->kick handler
+handlers. If rpmsg/virtio functionality is also desired, then the ->kick handler
 should be provided as well.
 
 The ->start() handler takes an rproc handle and should then power on the
