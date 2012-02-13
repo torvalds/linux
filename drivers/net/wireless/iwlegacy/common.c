@@ -740,7 +740,7 @@ il_eeprom_init(struct il_priv *il)
 	}
 
 	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
-	ret = il->ops->lib->eeprom_ops.acquire_semaphore(il);
+	ret = il->ops->lib->eeprom_acquire_semaphore(il);
 	if (ret < 0) {
 		IL_ERR("Failed to acquire EEPROM semaphore.\n");
 		ret = -ENOENT;
@@ -772,7 +772,7 @@ il_eeprom_init(struct il_priv *il)
 
 	ret = 0;
 done:
-	il->ops->lib->eeprom_ops.release_semaphore(il);
+	il->ops->lib->eeprom_release_semaphore(il);
 
 err:
 	if (ret)

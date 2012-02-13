@@ -2645,12 +2645,10 @@ static struct il_lib_ops il3945_lib = {
 		    .init = il3945_apm_init,
 		    .config = il3945_nic_config,
 		    },
-	.eeprom_ops = {
-		.acquire_semaphore = il3945_eeprom_acquire_semaphore,
-		.release_semaphore = il3945_eeprom_release_semaphore,
-	},
 	.send_tx_power = il3945_send_tx_power,
 	.is_valid_rtc_data_addr = il3945_hw_valid_rtc_data_addr,
+	.eeprom_acquire_semaphore = il3945_eeprom_acquire_semaphore,
+	.eeprom_release_semaphore = il3945_eeprom_release_semaphore,
 };
 
 static const struct il_legacy_ops il3945_legacy_ops = {

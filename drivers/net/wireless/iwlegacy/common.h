@@ -425,11 +425,6 @@ struct il_eeprom_calib_info {
 
 #define EEPROM_REGULATORY_BAND_NO_HT40			(0)
 
-struct il_eeprom_ops {
-	int (*acquire_semaphore) (struct il_priv *il);
-	void (*release_semaphore) (struct il_priv *il);
-};
-
 int il_eeprom_init(struct il_priv *il);
 void il_eeprom_free(struct il_priv *il);
 const u8 *il_eeprom_query_addr(const struct il_priv *il, size_t offset);
@@ -1617,7 +1612,8 @@ struct il_lib_ops {
 	void (*update_chain_flags) (struct il_priv *il);
 
 	/* eeprom operations */
-	struct il_eeprom_ops eeprom_ops;
+	int (*eeprom_acquire_semaphore) (struct il_priv *il);
+	void (*eeprom_release_semaphore) (struct il_priv *il);
 };
 
 struct il_led_ops {
