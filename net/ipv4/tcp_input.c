@@ -1385,6 +1385,10 @@ static int tcp_shifted_skb(struct sock *sk, struct sk_buff *skb,
 
 	BUG_ON(!pcount);
 
+	/* Adjust hint for FACK. Non-FACK is handled in tcp_sacktag_one(). */
+	if (tcp_is_fack(tp) && (skb == tp->lost_skb_hint))
+		tp->lost_cnt_hint += pcount;
+
 	TCP_SKB_CB(prev)->end_seq += shifted;
 	TCP_SKB_CB(skb)->seq += shifted;
 
