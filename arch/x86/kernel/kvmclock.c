@@ -136,6 +136,15 @@ int kvm_register_clock(char *txt)
 	return ret;
 }
 
+static void kvm_save_sched_clock_state(void)
+{
+}
+
+static void kvm_restore_sched_clock_state(void)
+{
+	kvm_register_clock("primary cpu clock, resume");
+}
+
 #ifdef CONFIG_X86_LOCAL_APIC
 static void __cpuinit kvm_setup_secondary_clock(void)
 {
@@ -195,6 +204,8 @@ void __init kvmclock_init(void)
 	x86_cpuinit.early_percpu_clock_init =
 		kvm_setup_secondary_clock;
 #endif
+	x86_platform.save_sched_clock_state = kvm_save_sched_clock_state;
+	x86_platform.restore_sched_clock_state = kvm_restore_sched_clock_state;
 	machine_ops.shutdown  = kvm_shutdown;
 #ifdef CONFIG_KEXEC
 	machine_ops.crash_shutdown  = kvm_crash_shutdown;
