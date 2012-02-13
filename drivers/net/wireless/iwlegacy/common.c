@@ -4136,7 +4136,7 @@ _il_apm_stop_master(struct il_priv *il)
 	ret =
 	    _il_poll_bit(il, CSR_RESET, CSR_RESET_REG_FLAG_MASTER_DISABLED,
 			 CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
-	if (ret)
+	if (ret < 0)
 		IL_WARN("Master Disable Timed Out, 100 usec\n");
 
 	D_INFO("stop master\n");
