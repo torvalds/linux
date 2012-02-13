@@ -1369,17 +1369,6 @@ int generic_delete_inode(struct inode *inode)
 EXPORT_SYMBOL(generic_delete_inode);
 
 /*
- * Normal UNIX filesystem behaviour: delete the
- * inode when the usage count drops to zero, and
- * i_nlink is zero.
- */
-int generic_drop_inode(struct inode *inode)
-{
-	return !inode->i_nlink || inode_unhashed(inode);
-}
-EXPORT_SYMBOL_GPL(generic_drop_inode);
-
-/*
  * Called when we're dropping the last reference
  * to an inode.
  *
