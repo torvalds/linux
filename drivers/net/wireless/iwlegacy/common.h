@@ -1945,15 +1945,9 @@ il_is_init(struct il_priv *il)
 }
 
 static inline int
-il_is_rfkill_hw(struct il_priv *il)
-{
-	return test_bit(S_RFKILL, &il->status);
-}
-
-static inline int
 il_is_rfkill(struct il_priv *il)
 {
-	return il_is_rfkill_hw(il);
+	return test_bit(S_RFKILL, &il->status);
 }
 
 static inline int
