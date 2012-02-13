@@ -2113,7 +2113,7 @@ ppp_mp_reconstruct(struct ppp *ppp)
 
 				skb->len += p->len;
 				skb->data_len += p->len;
-				skb->truesize += p->len;
+				skb->truesize += p->truesize;
 
 				if (p == tail)
 					break;
