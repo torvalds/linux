@@ -1476,6 +1476,37 @@ void iscsi_conn_login_event(struct iscsi_cls_conn *conn,
 }
 EXPORT_SYMBOL_GPL(iscsi_conn_login_event);
 
+void iscsi_post_host_event(uint32_t host_no, struct iscsi_transport *transport,
+			   enum iscsi_host_event_code code, uint32_t data_size,
+			   uint8_t *data)
+{
+	struct nlmsghdr *nlh;
+	struct sk_buff *skb;
+	struct iscsi_uevent *ev;
+	int len = NLMSG_SPACE(sizeof(*ev) + data_size);
+
+	skb = alloc_skb(len, GFP_KERNEL);
+	if (!skb) {
+		printk(KERN_ERR "gracefully ignored host event (%d):%d OOM\n",
+		       host_no, code);
+		return;
+	}
+
+	nlh = __nlmsg_put(skb, 0, 0, 0, (len - sizeof(*nlh)), 0);
+	ev = NLMSG_DATA(nlh);
+	ev->transport_handle = iscsi_handle(transport);
+	ev->type = ISCSI_KEVENT_HOST_EVENT;
+	ev->r.host_event.host_no = host_no;
+	ev->r.host_event.code = code;
+	ev->r.host_event.data_size = data_size;
+
+	if (data_size)
+		memcpy((char *)ev + sizeof(*ev), data, data_size);
+
+	iscsi_multicast_skb(skb, ISCSI_NL_GRP_ISCSID, GFP_KERNEL);
+}
+EXPORT_SYMBOL_GPL(iscsi_post_host_event);
+
 static int
 iscsi_if_send_reply(uint32_t group, int seq, int type, int done, int multi,
 		    void *payload, int size)

@@ -72,12 +72,20 @@ enum iscsi_uevent_e {
 	ISCSI_KEVENT_PATH_REQ		= KEVENT_BASE + 7,
 	ISCSI_KEVENT_IF_DOWN		= KEVENT_BASE + 8,
 	ISCSI_KEVENT_CONN_LOGIN_STATE   = KEVENT_BASE + 9,
+	ISCSI_KEVENT_HOST_EVENT		= KEVENT_BASE + 10,
 };
 
 enum iscsi_tgt_dscvr {
 	ISCSI_TGT_DSCVR_SEND_TARGETS	= 1,
 	ISCSI_TGT_DSCVR_ISNS		= 2,
 	ISCSI_TGT_DSCVR_SLP		= 3,
+};
+
+enum iscsi_host_event_code {
+	ISCSI_EVENT_LINKUP		= 1,
+	ISCSI_EVENT_LINKDOWN,
+	/* must always be last */
+	ISCSI_EVENT_MAX,
 };
 
 struct iscsi_uevent {
@@ -222,6 +230,11 @@ struct iscsi_uevent {
 		struct msg_notify_if_down {
 			uint32_t	host_no;
 		} notify_if_down;
+		struct msg_host_event {
+			uint32_t	host_no;
+			uint32_t	data_size;
+			enum iscsi_host_event_code code;
+		} host_event;
 	} r;
 } __attribute__ ((aligned (sizeof(uint64_t))));
 
