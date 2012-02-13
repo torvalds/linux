@@ -1109,7 +1109,10 @@ static void dice_card_free(struct snd_card *card)
 	mutex_destroy(&dice->mutex);
 }
 
-#define DICE_CATEGORY_ID 0x04
+#define OUI_WEISS		0x001c6a
+
+#define DICE_CATEGORY_ID	0x04
+#define WEISS_CATEGORY_ID	0x00
 
 static int dice_interface_check(struct fw_unit *unit)
 {
@@ -1123,15 +1126,15 @@ static int dice_interface_check(struct fw_unit *unit)
 	struct fw_device *device = fw_parent_device(unit);
 	struct fw_csr_iterator it;
 	int key, value, vendor = -1, model = -1, err;
-	unsigned int i;
+	unsigned int category, i;
 	__be32 pointers[ARRAY_SIZE(min_values)];
 	__be32 version;
 
 	/*
 	 * Check that GUID and unit directory are constructed according to DICE
 	 * rules, i.e., that the specifier ID is the GUID's OUI, and that the
-	 * GUID chip ID consists of the 8-bit DICE category ID, the 10-bit
-	 * product ID, and a 22-bit serial number.
+	 * GUID chip ID consists of the 8-bit category ID, the 10-bit product
+	 * ID, and a 22-bit serial number.
 	 */
 	fw_csr_iterator_init(&it, unit->directory);
 	while (fw_csr_iterator_next(&it, &key, &value)) {
@@ -1144,7 +1147,11 @@ static int dice_interface_check(struct fw_unit *unit)
 			break;
 		}
 	}
-	if (device->config_rom[3] != ((vendor << 8) | DICE_CATEGORY_ID) ||
+	if (vendor == OUI_WEISS)
+		category = WEISS_CATEGORY_ID;
+	else
+		category = DICE_CATEGORY_ID;
+	if (device->config_rom[3] != ((vendor << 8) | category) ||
 	    device->config_rom[4] >> 22 != model)
 		return -ENODEV;
 
