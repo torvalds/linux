@@ -2298,7 +2298,7 @@ static int alc_build_pcms(struct hda_codec *codec)
 		 "%s Analog", codec->chip_name);
 	info->name = spec->stream_name_analog;
 
-	if (spec->multiout.dac_nids > 0) {
+	if (spec->multiout.num_dacs > 0) {
 		p = spec->stream_analog_playback;
 		if (!p)
 			p = &alc_pcm_analog_playback;
@@ -5603,6 +5603,7 @@ static const struct alc_fixup alc861_fixups[] = {
 
 static const struct snd_pci_quirk alc861_fixup_tbl[] = {
 	SND_PCI_QUIRK_VENDOR(0x1043, "ASUS laptop", PINFIX_ASUS_A6RP),
+	SND_PCI_QUIRK(0x1584, 0x0000, "Uniwill ECS M31EI", PINFIX_ASUS_A6RP),	
 	SND_PCI_QUIRK(0x1584, 0x2b01, "Haier W18", PINFIX_ASUS_A6RP),
 	SND_PCI_QUIRK(0x1734, 0x10c7, "FSC Amilo Pi1505", PINFIX_FSC_AMILO_PI1505),
 	{}

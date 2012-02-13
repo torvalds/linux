@@ -5063,9 +5063,9 @@ static int stac92xx_update_led_status(struct hda_codec *codec)
 				spec->gpio_dir, spec->gpio_data);
 	} else {
 		notmtd_lvl = spec->gpio_led_polarity ?
-				AC_PINCTL_VREF_HIZ : AC_PINCTL_VREF_GRD;
+				AC_PINCTL_VREF_50 : AC_PINCTL_VREF_GRD;
 		muted_lvl = spec->gpio_led_polarity ?
-				AC_PINCTL_VREF_GRD : AC_PINCTL_VREF_HIZ;
+				AC_PINCTL_VREF_GRD : AC_PINCTL_VREF_50;
 		spec->vref_led = muted ? muted_lvl : notmtd_lvl;
 		stac_vrefout_set(codec,	spec->vref_mute_led_nid,
 				 spec->vref_led);
