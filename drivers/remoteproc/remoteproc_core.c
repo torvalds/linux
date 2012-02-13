@@ -840,6 +840,7 @@ static int rproc_fw_sanity_check(struct rproc *rproc, const struct firmware *fw)
 	const char *name = rproc->firmware;
 	struct device *dev = rproc->dev;
 	struct elf32_hdr *ehdr;
+	char class;
 
 	if (!fw) {
 		dev_err(dev, "failed to load %s\n", name);
@@ -852,6 +853,13 @@ static int rproc_fw_sanity_check(struct rproc *rproc, const struct firmware *fw)
 	}
 
 	ehdr = (struct elf32_hdr *)fw->data;
+
+	/* We only support ELF32 at this point */
+	class = ehdr->e_ident[EI_CLASS];
+	if (class != ELFCLASS32) {
+		dev_err(dev, "Unsupported class: %d\n", class);
+		return -EINVAL;
+	}
 
 	/* We assume the firmware has the same endianess as the host */
 # ifdef __LITTLE_ENDIAN
