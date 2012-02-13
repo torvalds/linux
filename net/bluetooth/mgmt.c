@@ -3096,6 +3096,8 @@ int mgmt_start_discovery_failed(struct hci_dev *hdev, u8 status)
 	struct pending_cmd *cmd;
 	int err;
 
+	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+
 	cmd = mgmt_pending_find(MGMT_OP_START_DISCOVERY, hdev);
 	if (!cmd)
 		return -ENOENT;
