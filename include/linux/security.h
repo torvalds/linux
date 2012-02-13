@@ -22,22 +22,36 @@
 #ifndef __LINUX_SECURITY_H
 #define __LINUX_SECURITY_H
 
-#include <linux/fs.h>
-#include <linux/fsnotify.h>
-#include <linux/binfmts.h>
-#include <linux/dcache.h>
-#include <linux/signal.h>
-#include <linux/resource.h>
-#include <linux/sem.h>
-#include <linux/shm.h>
-#include <linux/mm.h> /* PAGE_ALIGN */
-#include <linux/msg.h>
-#include <linux/sched.h>
 #include <linux/key.h>
-#include <linux/xfrm.h>
+#include <linux/capability.h>
 #include <linux/slab.h>
-#include <linux/xattr.h>
-#include <net/flow.h>
+#include <linux/err.h>
+
+struct linux_binprm;
+struct cred;
+struct rlimit;
+struct siginfo;
+struct sem_array;
+struct sembuf;
+struct kern_ipc_perm;
+struct audit_context;
+struct super_block;
+struct inode;
+struct dentry;
+struct file;
+struct vfsmount;
+struct path;
+struct qstr;
+struct nameidata;
+struct iattr;
+struct fown_struct;
+struct file_operations;
+struct shmid_kernel;
+struct msg_msg;
+struct msg_queue;
+struct xattr;
+struct xfrm_sec_ctx;
+struct mm_struct;
 
 /* Maximum number of letters for an LSM name string */
 #define SECURITY_NAME_MAX	10
@@ -49,6 +63,7 @@
 struct ctl_table;
 struct audit_krule;
 struct user_namespace;
+struct timezone;
 
 /*
  * These functions are in security/capability.c and are used
@@ -131,18 +146,6 @@ struct request_sock;
 #define LSM_UNSAFE_PTRACE_CAP	4
 
 #ifdef CONFIG_MMU
-/*
- * If a hint addr is less than mmap_min_addr change hint to be as
- * low as possible but still greater than mmap_min_addr
- */
-static inline unsigned long round_hint_to_min(unsigned long hint)
-{
-	hint &= PAGE_MASK;
-	if (((void *)hint != NULL) &&
-	    (hint < mmap_min_addr))
-		return PAGE_ALIGN(mmap_min_addr);
-	return hint;
-}
 extern int mmap_min_addr_handler(struct ctl_table *table, int write,
 				 void __user *buffer, size_t *lenp, loff_t *ppos);
 #endif

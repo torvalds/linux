@@ -16,6 +16,7 @@
 #include <linux/keyctl.h>
 #include <linux/init_task.h>
 #include <linux/security.h>
+#include <linux/binfmts.h>
 #include <linux/cn_proc.h>
 
 #if 0
