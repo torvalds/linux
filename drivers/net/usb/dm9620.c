@@ -19,9 +19,9 @@
  * V1.5 - Support RK2818 (Debug the Register Function) 
  */
 
-#define DEBUG
+//#define DEBUG
 
-//#define RK2818
+#define RK2818
 
 
 #include <linux/module.h>
