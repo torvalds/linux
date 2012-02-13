@@ -1200,7 +1200,9 @@ static struct soc_camera_host_ops mx2_soc_camera_host_ops = {
 static void mx27_camera_frame_done_emma(struct mx2_camera_dev *pcdev,
 		int bufnum, bool err)
 {
+#ifdef DEBUG
 	struct mx2_fmt_cfg *prp = pcdev->emma_prp;
+#endif
 	struct mx2_buffer *buf;
 	struct vb2_buffer *vb;
 	unsigned long phys;
@@ -1222,18 +1224,16 @@ static void mx27_camera_frame_done_emma(struct mx2_camera_dev *pcdev,
 		if (prp->cfg.channel == 1) {
 			if (readl(pcdev->base_emma + PRP_DEST_RGB1_PTR +
 				4 * bufnum) != phys) {
-				dev_err(pcdev->dev, "%p != %p\n", phys,
-						readl(pcdev->base_emma +
-							PRP_DEST_RGB1_PTR +
-							4 * bufnum));
+				dev_err(pcdev->dev, "%lx != %x\n", phys,
+					readl(pcdev->base_emma +
+					PRP_DEST_RGB1_PTR + 4 * bufnum));
 			}
 		} else {
 			if (readl(pcdev->base_emma + PRP_DEST_Y_PTR -
 				0x14 * bufnum) != phys) {
-				dev_err(pcdev->dev, "%p != %p\n", phys,
-						readl(pcdev->base_emma +
-							PRP_DEST_Y_PTR -
-							0x14 * bufnum));
+				dev_err(pcdev->dev, "%lx != %x\n", phys,
+					readl(pcdev->base_emma +
+					PRP_DEST_Y_PTR - 0x14 * bufnum));
 			}
 		}
 #endif
