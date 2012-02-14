@@ -469,7 +469,7 @@ void __init spear300_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
 	if (pmx_driver.base) {
 		ret = pmx_register(&pmx_driver);
 		if (ret)
-			printk(KERN_ERR "padmux: registeration failed. err no"
+			printk(KERN_ERR "padmux: registration failed. err no"
 					": %d\n", ret);
 		/* Free Mapping, device selection already done */
 		iounmap(pmx_driver.base);
