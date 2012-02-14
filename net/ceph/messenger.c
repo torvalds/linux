@@ -80,8 +80,8 @@ const char *ceph_pr_addr(const struct sockaddr_storage *ss)
 		break;
 
 	default:
-		snprintf(s, MAX_ADDR_STR_LEN, "(unknown sockaddr family %d)",
-			 (int)ss->ss_family);
+		snprintf(s, MAX_ADDR_STR_LEN, "(unknown sockaddr family %hu)",
+			 ss->ss_family);
 	}
 
 	return s;
@@ -101,8 +101,10 @@ static struct workqueue_struct *ceph_msgr_wq;
 
 void _ceph_msgr_exit(void)
 {
-	if (ceph_msgr_wq)
+	if (ceph_msgr_wq) {
 		destroy_workqueue(ceph_msgr_wq);
+		ceph_msgr_wq = NULL;
+	}
 
 	BUG_ON(zero_page_address == NULL);
 	zero_page_address = NULL;
@@ -167,8 +169,7 @@ static void ceph_data_ready(struct sock *sk, int count_unused)
 /* socket has buffer space for writing */
 static void ceph_write_space(struct sock *sk)
 {
-	struct ceph_connection *con =
-		(struct ceph_connection *)sk->sk_user_data;
+	struct ceph_connection *con = sk->sk_user_data;
 
 	/* only queue to workqueue if there is data we want to write,
 	 * and there is sufficient space in the socket buffer to accept
@@ -215,6 +216,8 @@ static void ceph_state_change(struct sock *sk)
 	case TCP_ESTABLISHED:
 		dout("ceph_state_change TCP_ESTABLISHED\n");
 		queue_con(con);
+		break;
+	default:	/* Everything else is uninteresting */
 		break;
 	}
 }
@@ -420,22 +423,23 @@ bool ceph_con_opened(struct ceph_connection *con)
  */
 struct ceph_connection *ceph_con_get(struct ceph_connection *con)
 {
-	dout("con_get %p nref = %d -> %d\n", con,
-	     atomic_read(&con->nref), atomic_read(&con->nref) + 1);
-	if (atomic_inc_not_zero(&con->nref))
-		return con;
-	return NULL;
+	int nref = __atomic_add_unless(&con->nref, 1, 0);
+
+	dout("con_get %p nref = %d -> %d\n", con, nref, nref + 1);
+
+	return nref ? con : NULL;
 }
 
 void ceph_con_put(struct ceph_connection *con)
 {
-	dout("con_put %p nref = %d -> %d\n", con,
-	     atomic_read(&con->nref), atomic_read(&con->nref) - 1);
-	BUG_ON(atomic_read(&con->nref) == 0);
-	if (atomic_dec_and_test(&con->nref)) {
+	int nref = atomic_dec_return(&con->nref);
+
+	BUG_ON(nref < 0);
+	if (nref == 0) {
 		BUG_ON(con->sock);
 		kfree(con);
 	}
+	dout("con_put %p nref = %d -> %d\n", con, nref + 1, nref);
 }
 
 /*
