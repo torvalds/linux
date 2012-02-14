@@ -10,8 +10,13 @@
  * architectures, so that you can override them.
  */
 
+#ifndef __kernel_long_t
+typedef long		__kernel_long_t;
+typedef unsigned long	__kernel_ulong_t;
+#endif
+
 #ifndef __kernel_ino_t
-typedef unsigned long	__kernel_ino_t;
+typedef __kernel_ulong_t __kernel_ino_t;
 #endif
 
 #ifndef __kernel_mode_t
@@ -19,7 +24,7 @@ typedef unsigned int	__kernel_mode_t;
 #endif
 
 #ifndef __kernel_nlink_t
-typedef unsigned long	__kernel_nlink_t;
+typedef __kernel_ulong_t __kernel_nlink_t;
 #endif
 
 #ifndef __kernel_pid_t
@@ -36,7 +41,7 @@ typedef unsigned int	__kernel_gid_t;
 #endif
 
 #ifndef __kernel_suseconds_t
-typedef long		__kernel_suseconds_t;
+typedef __kernel_long_t		__kernel_suseconds_t;
 #endif
 
 #ifndef __kernel_daddr_t
@@ -67,9 +72,9 @@ typedef unsigned int	__kernel_size_t;
 typedef int		__kernel_ssize_t;
 typedef int		__kernel_ptrdiff_t;
 #else
-typedef unsigned long	__kernel_size_t;
-typedef long		__kernel_ssize_t;
-typedef long		__kernel_ptrdiff_t;
+typedef __kernel_ulong_t __kernel_size_t;
+typedef __kernel_long_t	__kernel_ssize_t;
+typedef __kernel_long_t	__kernel_ptrdiff_t;
 #endif
 #endif
 
@@ -82,10 +87,10 @@ typedef struct {
 /*
  * anything below here should be completely generic
  */
-typedef long		__kernel_off_t;
+typedef __kernel_long_t	__kernel_off_t;
 typedef long long	__kernel_loff_t;
-typedef long		__kernel_time_t;
-typedef long		__kernel_clock_t;
+typedef __kernel_long_t	__kernel_time_t;
+typedef __kernel_long_t	__kernel_clock_t;
 typedef int		__kernel_timer_t;
 typedef int		__kernel_clockid_t;
 typedef char *		__kernel_caddr_t;
