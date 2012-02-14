@@ -149,7 +149,7 @@
 
 #define TWL_MODULE_LAST TWL4030_MODULE_LAST
 
-#define TWL4030_NR_IRQS    8
+#define TWL4030_NR_IRQS    34 /* core:8, power:8, gpio: 18 */
 #define TWL6030_NR_IRQS    20
 
 /* Base Address defns for twl4030_map[] */
