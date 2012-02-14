@@ -40,7 +40,7 @@ unsigned int xics_interrupt_server_size		= 8;
 
 DEFINE_PER_CPU(struct xics_cppr, xics_cppr);
 
-struct irq_host *xics_host;
+struct irq_domain *xics_host;
 
 static LIST_HEAD(ics_list);
 
@@ -301,7 +301,7 @@ int xics_get_irq_server(unsigned int virq, const struct cpumask *cpumask,
 }
 #endif /* CONFIG_SMP */
 
-static int xics_host_match(struct irq_host *h, struct device_node *node)
+static int xics_host_match(struct irq_domain *h, struct device_node *node)
 {
 	struct ics *ics;
 
@@ -323,7 +323,7 @@ static struct irq_chip xics_ipi_chip = {
 	.irq_unmask = xics_ipi_unmask,
 };
 
-static int xics_host_map(struct irq_host *h, unsigned int virq,
+static int xics_host_map(struct irq_domain *h, unsigned int virq,
 			 irq_hw_number_t hw)
 {
 	struct ics *ics;
@@ -351,7 +351,7 @@ static int xics_host_map(struct irq_host *h, unsigned int virq,
 	return -EINVAL;
 }
 
-static int xics_host_xlate(struct irq_host *h, struct device_node *ct,
+static int xics_host_xlate(struct irq_domain *h, struct device_node *ct,
 			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
@@ -366,7 +366,7 @@ static int xics_host_xlate(struct irq_host *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_host_ops xics_host_ops = {
+static struct irq_domain_ops xics_host_ops = {
 	.match = xics_host_match,
 	.map = xics_host_map,
 	.xlate = xics_host_xlate,
@@ -374,7 +374,7 @@ static struct irq_host_ops xics_host_ops = {
 
 static void __init xics_init_host(void)
 {
-	xics_host = irq_alloc_host(NULL, IRQ_HOST_MAP_TREE, 0, &xics_host_ops,
+	xics_host = irq_alloc_host(NULL, IRQ_DOMAIN_MAP_TREE, 0, &xics_host_ops,
 				   XICS_IRQ_SPURIOUS);
 	BUG_ON(xics_host == NULL);
 	irq_set_default_host(xics_host);

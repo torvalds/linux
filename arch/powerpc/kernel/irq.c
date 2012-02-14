@@ -498,15 +498,15 @@ void do_softirq(void)
  */
 struct irq_map_entry {
 	irq_hw_number_t	hwirq;
-	struct irq_host	*host;
+	struct irq_domain	*host;
 };
 
-static LIST_HEAD(irq_hosts);
+static LIST_HEAD(irq_domain_list);
 static DEFINE_RAW_SPINLOCK(irq_big_lock);
 static DEFINE_MUTEX(revmap_trees_mutex);
 static struct irq_map_entry irq_map[NR_IRQS];
 static unsigned int irq_virq_count = NR_IRQS;
-static struct irq_host *irq_default_host;
+static struct irq_domain *irq_default_host;
 
 irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
 {
@@ -520,31 +520,31 @@ irq_hw_number_t virq_to_hw(unsigned int virq)
 }
 EXPORT_SYMBOL_GPL(virq_to_hw);
 
-bool virq_is_host(unsigned int virq, struct irq_host *host)
+bool virq_is_host(unsigned int virq, struct irq_domain *host)
 {
 	return irq_map[virq].host == host;
 }
 EXPORT_SYMBOL_GPL(virq_is_host);
 
-static int default_irq_host_match(struct irq_host *h, struct device_node *np)
+static int default_irq_host_match(struct irq_domain *h, struct device_node *np)
 {
 	return h->of_node != NULL && h->of_node == np;
 }
 
-struct irq_host *irq_alloc_host(struct device_node *of_node,
+struct irq_domain *irq_alloc_host(struct device_node *of_node,
 				unsigned int revmap_type,
 				unsigned int revmap_arg,
-				struct irq_host_ops *ops,
+				struct irq_domain_ops *ops,
 				irq_hw_number_t inval_irq)
 {
-	struct irq_host *host;
-	unsigned int size = sizeof(struct irq_host);
+	struct irq_domain *host;
+	unsigned int size = sizeof(struct irq_domain);
 	unsigned int i;
 	unsigned int *rmap;
 	unsigned long flags;
 
 	/* Allocate structure and revmap table if using linear mapping */
-	if (revmap_type == IRQ_HOST_MAP_LINEAR)
+	if (revmap_type == IRQ_DOMAIN_MAP_LINEAR)
 		size += revmap_arg * sizeof(unsigned int);
 	host = kzalloc(size, GFP_KERNEL);
 	if (host == NULL)
@@ -564,7 +564,7 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 	/* If it's a legacy controller, check for duplicates and
 	 * mark it as allocated (we use irq 0 host pointer for that
 	 */
-	if (revmap_type == IRQ_HOST_MAP_LEGACY) {
+	if (revmap_type == IRQ_DOMAIN_MAP_LEGACY) {
 		if (irq_map[0].host != NULL) {
 			raw_spin_unlock_irqrestore(&irq_big_lock, flags);
 			of_node_put(host->of_node);
@@ -574,12 +574,12 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 		irq_map[0].host = host;
 	}
 
-	list_add(&host->link, &irq_hosts);
+	list_add(&host->link, &irq_domain_list);
 	raw_spin_unlock_irqrestore(&irq_big_lock, flags);
 
 	/* Additional setups per revmap type */
 	switch(revmap_type) {
-	case IRQ_HOST_MAP_LEGACY:
+	case IRQ_DOMAIN_MAP_LEGACY:
 		/* 0 is always the invalid number for legacy */
 		host->inval_irq = 0;
 		/* setup us as the host for all legacy interrupts */
@@ -599,7 +599,7 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 			irq_clear_status_flags(i, IRQ_NOREQUEST);
 		}
 		break;
-	case IRQ_HOST_MAP_LINEAR:
+	case IRQ_DOMAIN_MAP_LINEAR:
 		rmap = (unsigned int *)(host + 1);
 		for (i = 0; i < revmap_arg; i++)
 			rmap[i] = NO_IRQ;
@@ -607,7 +607,7 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 		smp_wmb();
 		host->revmap_data.linear.revmap = rmap;
 		break;
-	case IRQ_HOST_MAP_TREE:
+	case IRQ_DOMAIN_MAP_TREE:
 		INIT_RADIX_TREE(&host->revmap_data.tree, GFP_KERNEL);
 		break;
 	default:
@@ -619,9 +619,9 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 	return host;
 }
 
-struct irq_host *irq_find_host(struct device_node *node)
+struct irq_domain *irq_find_host(struct device_node *node)
 {
-	struct irq_host *h, *found = NULL;
+	struct irq_domain *h, *found = NULL;
 	unsigned long flags;
 
 	/* We might want to match the legacy controller last since
@@ -630,7 +630,7 @@ struct irq_host *irq_find_host(struct device_node *node)
 	 * yet though...
 	 */
 	raw_spin_lock_irqsave(&irq_big_lock, flags);
-	list_for_each_entry(h, &irq_hosts, link)
+	list_for_each_entry(h, &irq_domain_list, link)
 		if (h->ops->match(h, node)) {
 			found = h;
 			break;
@@ -640,7 +640,7 @@ struct irq_host *irq_find_host(struct device_node *node)
 }
 EXPORT_SYMBOL_GPL(irq_find_host);
 
-void irq_set_default_host(struct irq_host *host)
+void irq_set_default_host(struct irq_domain *host)
 {
 	pr_debug("irq: Default host set to @0x%p\n", host);
 
@@ -656,7 +656,7 @@ void irq_set_virq_count(unsigned int count)
 		irq_virq_count = count;
 }
 
-static int irq_setup_virq(struct irq_host *host, unsigned int virq,
+static int irq_setup_virq(struct irq_domain *host, unsigned int virq,
 			    irq_hw_number_t hwirq)
 {
 	int res;
@@ -688,7 +688,7 @@ error:
 	return -1;
 }
 
-unsigned int irq_create_direct_mapping(struct irq_host *host)
+unsigned int irq_create_direct_mapping(struct irq_domain *host)
 {
 	unsigned int virq;
 
@@ -696,7 +696,7 @@ unsigned int irq_create_direct_mapping(struct irq_host *host)
 		host = irq_default_host;
 
 	BUG_ON(host == NULL);
-	WARN_ON(host->revmap_type != IRQ_HOST_MAP_NOMAP);
+	WARN_ON(host->revmap_type != IRQ_DOMAIN_MAP_NOMAP);
 
 	virq = irq_alloc_virt(host, 1, 0);
 	if (virq == NO_IRQ) {
@@ -712,7 +712,7 @@ unsigned int irq_create_direct_mapping(struct irq_host *host)
 	return virq;
 }
 
-unsigned int irq_create_mapping(struct irq_host *host,
+unsigned int irq_create_mapping(struct irq_domain *host,
 				irq_hw_number_t hwirq)
 {
 	unsigned int virq, hint;
@@ -738,7 +738,7 @@ unsigned int irq_create_mapping(struct irq_host *host,
 	}
 
 	/* Get a virtual interrupt number */
-	if (host->revmap_type == IRQ_HOST_MAP_LEGACY) {
+	if (host->revmap_type == IRQ_DOMAIN_MAP_LEGACY) {
 		/* Handle legacy */
 		virq = (unsigned int)hwirq;
 		if (virq == 0 || virq >= NUM_ISA_INTERRUPTS)
@@ -767,7 +767,7 @@ EXPORT_SYMBOL_GPL(irq_create_mapping);
 unsigned int irq_create_of_mapping(struct device_node *controller,
 				   const u32 *intspec, unsigned int intsize)
 {
-	struct irq_host *host;
+	struct irq_domain *host;
 	irq_hw_number_t hwirq;
 	unsigned int type = IRQ_TYPE_NONE;
 	unsigned int virq;
@@ -806,7 +806,7 @@ EXPORT_SYMBOL_GPL(irq_create_of_mapping);
 
 void irq_dispose_mapping(unsigned int virq)
 {
-	struct irq_host *host;
+	struct irq_domain *host;
 	irq_hw_number_t hwirq;
 
 	if (virq == NO_IRQ)
@@ -817,7 +817,7 @@ void irq_dispose_mapping(unsigned int virq)
 		return;
 
 	/* Never unmap legacy interrupts */
-	if (host->revmap_type == IRQ_HOST_MAP_LEGACY)
+	if (host->revmap_type == IRQ_DOMAIN_MAP_LEGACY)
 		return;
 
 	irq_set_status_flags(virq, IRQ_NOREQUEST);
@@ -836,11 +836,11 @@ void irq_dispose_mapping(unsigned int virq)
 	/* Clear reverse map */
 	hwirq = irq_map[virq].hwirq;
 	switch(host->revmap_type) {
-	case IRQ_HOST_MAP_LINEAR:
+	case IRQ_DOMAIN_MAP_LINEAR:
 		if (hwirq < host->revmap_data.linear.size)
 			host->revmap_data.linear.revmap[hwirq] = NO_IRQ;
 		break;
-	case IRQ_HOST_MAP_TREE:
+	case IRQ_DOMAIN_MAP_TREE:
 		mutex_lock(&revmap_trees_mutex);
 		radix_tree_delete(&host->revmap_data.tree, hwirq);
 		mutex_unlock(&revmap_trees_mutex);
@@ -857,7 +857,7 @@ void irq_dispose_mapping(unsigned int virq)
 }
 EXPORT_SYMBOL_GPL(irq_dispose_mapping);
 
-unsigned int irq_find_mapping(struct irq_host *host,
+unsigned int irq_find_mapping(struct irq_domain *host,
 			      irq_hw_number_t hwirq)
 {
 	unsigned int i;
@@ -870,7 +870,7 @@ unsigned int irq_find_mapping(struct irq_host *host,
 		return NO_IRQ;
 
 	/* legacy -> bail early */
-	if (host->revmap_type == IRQ_HOST_MAP_LEGACY)
+	if (host->revmap_type == IRQ_DOMAIN_MAP_LEGACY)
 		return hwirq;
 
 	/* Slow path does a linear search of the map */
@@ -925,13 +925,13 @@ int irq_choose_cpu(const struct cpumask *mask)
 }
 #endif
 
-unsigned int irq_radix_revmap_lookup(struct irq_host *host,
+unsigned int irq_radix_revmap_lookup(struct irq_domain *host,
 				     irq_hw_number_t hwirq)
 {
 	struct irq_map_entry *ptr;
 	unsigned int virq;
 
-	if (WARN_ON_ONCE(host->revmap_type != IRQ_HOST_MAP_TREE))
+	if (WARN_ON_ONCE(host->revmap_type != IRQ_DOMAIN_MAP_TREE))
 		return irq_find_mapping(host, hwirq);
 
 	/*
@@ -956,10 +956,10 @@ unsigned int irq_radix_revmap_lookup(struct irq_host *host,
 	return virq;
 }
 
-void irq_radix_revmap_insert(struct irq_host *host, unsigned int virq,
+void irq_radix_revmap_insert(struct irq_domain *host, unsigned int virq,
 			     irq_hw_number_t hwirq)
 {
-	if (WARN_ON(host->revmap_type != IRQ_HOST_MAP_TREE))
+	if (WARN_ON(host->revmap_type != IRQ_DOMAIN_MAP_TREE))
 		return;
 
 	if (virq != NO_IRQ) {
@@ -970,12 +970,12 @@ void irq_radix_revmap_insert(struct irq_host *host, unsigned int virq,
 	}
 }
 
-unsigned int irq_linear_revmap(struct irq_host *host,
+unsigned int irq_linear_revmap(struct irq_domain *host,
 			       irq_hw_number_t hwirq)
 {
 	unsigned int *revmap;
 
-	if (WARN_ON_ONCE(host->revmap_type != IRQ_HOST_MAP_LINEAR))
+	if (WARN_ON_ONCE(host->revmap_type != IRQ_DOMAIN_MAP_LINEAR))
 		return irq_find_mapping(host, hwirq);
 
 	/* Check revmap bounds */
@@ -994,7 +994,7 @@ unsigned int irq_linear_revmap(struct irq_host *host,
 	return revmap[hwirq];
 }
 
-unsigned int irq_alloc_virt(struct irq_host *host,
+unsigned int irq_alloc_virt(struct irq_domain *host,
 			    unsigned int count,
 			    unsigned int hint)
 {
@@ -1064,7 +1064,7 @@ void irq_free_virt(unsigned int virq, unsigned int count)
 
 	raw_spin_lock_irqsave(&irq_big_lock, flags);
 	for (i = virq; i < (virq + count); i++) {
-		struct irq_host *host;
+		struct irq_domain *host;
 
 		host = irq_map[i].host;
 		irq_map[i].hwirq = host->inval_irq;

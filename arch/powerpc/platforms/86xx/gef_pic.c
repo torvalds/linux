@@ -50,7 +50,7 @@
 static DEFINE_RAW_SPINLOCK(gef_pic_lock);
 
 static void __iomem *gef_pic_irq_reg_base;
-static struct irq_host *gef_pic_irq_host;
+static struct irq_domain *gef_pic_irq_host;
 static int gef_pic_cascade_irq;
 
 /*
@@ -153,7 +153,7 @@ static struct irq_chip gef_pic_chip = {
 /* When an interrupt is being configured, this call allows some flexibilty
  * in deciding which irq_chip structure is used
  */
-static int gef_pic_host_map(struct irq_host *h, unsigned int virq,
+static int gef_pic_host_map(struct irq_domain *h, unsigned int virq,
 			  irq_hw_number_t hwirq)
 {
 	/* All interrupts are LEVEL sensitive */
@@ -163,7 +163,7 @@ static int gef_pic_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static int gef_pic_host_xlate(struct irq_host *h, struct device_node *ct,
+static int gef_pic_host_xlate(struct irq_domain *h, struct device_node *ct,
 			    const u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
@@ -177,7 +177,7 @@ static int gef_pic_host_xlate(struct irq_host *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_host_ops gef_pic_host_ops = {
+static struct irq_domain_ops gef_pic_host_ops = {
 	.map	= gef_pic_host_map,
 	.xlate	= gef_pic_host_xlate,
 };
@@ -211,8 +211,8 @@ void __init gef_pic_init(struct device_node *np)
 		return;
 	}
 
-	/* Setup an irq_host structure */
-	gef_pic_irq_host = irq_alloc_host(np, IRQ_HOST_MAP_LINEAR,
+	/* Setup an irq_domain structure */
+	gef_pic_irq_host = irq_alloc_host(np, IRQ_DOMAIN_MAP_LINEAR,
 					  GEF_PIC_NUM_IRQS,
 					  &gef_pic_host_ops, NO_IRQ);
 	if (gef_pic_irq_host == NULL)

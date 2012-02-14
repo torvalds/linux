@@ -30,7 +30,7 @@
 static int opb_index = 0;
 
 struct opb_pic {
-	struct irq_host *host;
+	struct irq_domain *host;
 	void *regs;
 	int index;
 	spinlock_t lock;
@@ -179,7 +179,7 @@ static struct irq_chip opb_irq_chip = {
 	.irq_set_type	= opb_set_irq_type
 };
 
-static int opb_host_map(struct irq_host *host, unsigned int virq,
+static int opb_host_map(struct irq_domain *host, unsigned int virq,
 		irq_hw_number_t hwirq)
 {
 	struct opb_pic *opb;
@@ -196,7 +196,7 @@ static int opb_host_map(struct irq_host *host, unsigned int virq,
 	return 0;
 }
 
-static int opb_host_xlate(struct irq_host *host, struct device_node *dn,
+static int opb_host_xlate(struct irq_domain *host, struct device_node *dn,
 		const u32 *intspec, unsigned int intsize,
 		irq_hw_number_t *out_hwirq, unsigned int *out_type)
 {
@@ -207,7 +207,7 @@ static int opb_host_xlate(struct irq_host *host, struct device_node *dn,
 	return 0;
 }
 
-static struct irq_host_ops opb_host_ops = {
+static struct irq_domain_ops opb_host_ops = {
 	.map = opb_host_map,
 	.xlate = opb_host_xlate,
 };
@@ -267,7 +267,7 @@ struct opb_pic *opb_pic_init_one(struct device_node *dn)
 	 * having one interrupt to issue, we're the controller for multiple
 	 * hardware IRQs, so later we can lookup their virtual IRQs. */
 
-	opb->host = irq_alloc_host(dn, IRQ_HOST_MAP_LINEAR,
+	opb->host = irq_alloc_host(dn, IRQ_DOMAIN_MAP_LINEAR,
 			OPB_NR_IRQS, &opb_host_ops, -1);
 
 	if (!opb->host) {

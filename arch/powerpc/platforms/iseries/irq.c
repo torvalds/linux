@@ -342,7 +342,7 @@ unsigned int iSeries_get_irq(void)
 
 #ifdef CONFIG_PCI
 
-static int iseries_irq_host_map(struct irq_host *h, unsigned int virq,
+static int iseries_irq_host_map(struct irq_domain *h, unsigned int virq,
 				irq_hw_number_t hw)
 {
 	irq_set_chip_and_handler(virq, &iseries_pic, handle_fasteoi_irq);
@@ -350,13 +350,13 @@ static int iseries_irq_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static int iseries_irq_host_match(struct irq_host *h, struct device_node *np)
+static int iseries_irq_host_match(struct irq_domain *h, struct device_node *np)
 {
 	/* Match all */
 	return 1;
 }
 
-static struct irq_host_ops iseries_irq_host_ops = {
+static struct irq_domain_ops iseries_irq_domain_ops = {
 	.map = iseries_irq_host_map,
 	.match = iseries_irq_host_match,
 };
@@ -368,7 +368,7 @@ static struct irq_host_ops iseries_irq_host_ops = {
 void __init iSeries_init_IRQ(void)
 {
 	/* Register PCI event handler and open an event path */
-	struct irq_host *host;
+	struct irq_domain *host;
 	int ret;
 
 	/*
@@ -380,8 +380,8 @@ void __init iSeries_init_IRQ(void)
 	/* Create irq host. No need for a revmap since HV will give us
 	 * back our virtual irq number
 	 */
-	host = irq_alloc_host(NULL, IRQ_HOST_MAP_NOMAP, 0,
-			      &iseries_irq_host_ops, 0);
+	host = irq_alloc_host(NULL, IRQ_DOMAIN_MAP_NOMAP, 0,
+			      &iseries_irq_domain_ops, 0);
 	BUG_ON(host == NULL);
 	irq_set_default_host(host);
 

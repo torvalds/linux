@@ -37,7 +37,7 @@ struct mpc8xxx_gpio_chip {
 	 * open drain mode safely
 	 */
 	u32 data;
-	struct irq_host *irq;
+	struct irq_domain *irq;
 	void *of_dev_id_data;
 };
 
@@ -281,7 +281,7 @@ static struct irq_chip mpc8xxx_irq_chip = {
 	.irq_set_type	= mpc8xxx_irq_set_type,
 };
 
-static int mpc8xxx_gpio_irq_map(struct irq_host *h, unsigned int virq,
+static int mpc8xxx_gpio_irq_map(struct irq_domain *h, unsigned int virq,
 				irq_hw_number_t hw)
 {
 	struct mpc8xxx_gpio_chip *mpc8xxx_gc = h->host_data;
@@ -296,7 +296,7 @@ static int mpc8xxx_gpio_irq_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static int mpc8xxx_gpio_irq_xlate(struct irq_host *h, struct device_node *ct,
+static int mpc8xxx_gpio_irq_xlate(struct irq_domain *h, struct device_node *ct,
 				  const u32 *intspec, unsigned int intsize,
 				  irq_hw_number_t *out_hwirq,
 				  unsigned int *out_flags)
@@ -311,7 +311,7 @@ static int mpc8xxx_gpio_irq_xlate(struct irq_host *h, struct device_node *ct,
 	return 0;
 }
 
-static struct irq_host_ops mpc8xxx_gpio_irq_ops = {
+static struct irq_domain_ops mpc8xxx_gpio_irq_ops = {
 	.map	= mpc8xxx_gpio_irq_map,
 	.xlate	= mpc8xxx_gpio_irq_xlate,
 };
@@ -365,7 +365,7 @@ static void __init mpc8xxx_add_controller(struct device_node *np)
 		goto skip_irq;
 
 	mpc8xxx_gc->irq =
-		irq_alloc_host(np, IRQ_HOST_MAP_LINEAR, MPC8XXX_GPIO_PINS,
+		irq_alloc_host(np, IRQ_DOMAIN_MAP_LINEAR, MPC8XXX_GPIO_PINS,
 			       &mpc8xxx_gpio_irq_ops, MPC8XXX_GPIO_PINS);
 	if (!mpc8xxx_gc->irq)
 		goto skip_irq;

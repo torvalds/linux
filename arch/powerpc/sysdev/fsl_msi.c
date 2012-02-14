@@ -60,7 +60,7 @@ static struct irq_chip fsl_msi_chip = {
 	.name		= "FSL-MSI",
 };
 
-static int fsl_msi_host_map(struct irq_host *h, unsigned int virq,
+static int fsl_msi_host_map(struct irq_domain *h, unsigned int virq,
 				irq_hw_number_t hw)
 {
 	struct fsl_msi *msi_data = h->host_data;
@@ -74,7 +74,7 @@ static int fsl_msi_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_host_ops fsl_msi_host_ops = {
+static struct irq_domain_ops fsl_msi_host_ops = {
 	.map = fsl_msi_host_map,
 };
 
@@ -387,7 +387,7 @@ static int __devinit fsl_of_msi_probe(struct platform_device *dev)
 	}
 	platform_set_drvdata(dev, msi);
 
-	msi->irqhost = irq_alloc_host(dev->dev.of_node, IRQ_HOST_MAP_LINEAR,
+	msi->irqhost = irq_alloc_host(dev->dev.of_node, IRQ_DOMAIN_MAP_LINEAR,
 				      NR_MSI_IRQS, &fsl_msi_host_ops, 0);
 
 	if (msi->irqhost == NULL) {
