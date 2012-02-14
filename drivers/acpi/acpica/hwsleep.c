@@ -197,6 +197,7 @@ void acpi_hw_execute_SST(u32 indicator_id)
 	}
 }
 
+#if (!ACPI_REDUCED_HARDWARE)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_hw_legacy_sleep
@@ -512,6 +513,7 @@ acpi_status acpi_hw_legacy_wake(u8 sleep_state)
 	return_ACPI_STATUS(status);
 }
 
+#endif				/* !ACPI_REDUCED_HARDWARE */
 
 /*******************************************************************************
  *

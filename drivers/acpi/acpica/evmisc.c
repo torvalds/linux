@@ -270,6 +270,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_notify_dispatch(void *context)
 	acpi_ut_delete_generic_state(notify_info);
 }
 
+#if (!ACPI_REDUCED_HARDWARE)
 /******************************************************************************
  *
  * FUNCTION:    acpi_ev_terminate
@@ -338,3 +339,5 @@ void acpi_ev_terminate(void)
 	}
 	return_VOID;
 }
+
+#endif				/* !ACPI_REDUCED_HARDWARE */

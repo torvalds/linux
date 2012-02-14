@@ -50,6 +50,7 @@
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evxfgpe")
 
+#if (!ACPI_REDUCED_HARDWARE)	/* Entire module */
 /******************************************************************************
  *
  * FUNCTION:    acpi_update_all_gpes
@@ -695,3 +696,4 @@ acpi_get_gpe_device(u32 index, acpi_handle *gpe_device)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_get_gpe_device)
+#endif				/* !ACPI_REDUCED_HARDWARE */

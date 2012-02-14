@@ -286,6 +286,7 @@ acpi_status acpi_write(u64 value, struct acpi_generic_address *reg)
 
 ACPI_EXPORT_SYMBOL(acpi_write)
 
+#if (!ACPI_REDUCED_HARDWARE)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_read_bit_register
@@ -453,7 +454,7 @@ unlock_and_exit:
 }
 
 ACPI_EXPORT_SYMBOL(acpi_write_bit_register)
-
+#endif				/* !ACPI_REDUCED_HARDWARE */
 /*******************************************************************************
  *
  * FUNCTION:    acpi_get_sleep_type_data

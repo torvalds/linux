@@ -147,7 +147,7 @@ u8 acpi_gbl_system_awake_and_running;
  */
 u8 acpi_gbl_reduced_hardware;
 
-#endif
+#endif				/* DEFINE_ACPI_GLOBALS */
 
 /* Do not disassemble buffers to resource descriptors */
 
@@ -184,7 +184,11 @@ ACPI_EXTERN u32 acpi_gbl_trace_dbg_layer;
  * found in the RSDT/XSDT.
  */
 ACPI_EXTERN struct acpi_table_list acpi_gbl_root_table_list;
+
+#if (!ACPI_REDUCED_HARDWARE)
 ACPI_EXTERN struct acpi_table_facs *acpi_gbl_FACS;
+
+#endif				/* !ACPI_REDUCED_HARDWARE */
 
 /* These addresses are calculated from the FADT Event Block addresses */
 
@@ -397,9 +401,14 @@ ACPI_EXTERN struct acpi_fixed_event_handler
 ACPI_EXTERN struct acpi_gpe_xrupt_info *acpi_gbl_gpe_xrupt_list_head;
 ACPI_EXTERN struct acpi_gpe_block_info
 *acpi_gbl_gpe_fadt_blocks[ACPI_MAX_GPE_BLOCKS];
+
+#if (!ACPI_REDUCED_HARDWARE)
+
 ACPI_EXTERN u8 acpi_gbl_all_gpes_initialized;
 ACPI_EXTERN ACPI_GBL_EVENT_HANDLER acpi_gbl_global_event_handler;
 ACPI_EXTERN void *acpi_gbl_global_event_handler_context;
+
+#endif				/* !ACPI_REDUCED_HARDWARE */
 
 /*****************************************************************************
  *

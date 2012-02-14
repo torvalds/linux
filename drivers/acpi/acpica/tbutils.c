@@ -118,6 +118,7 @@ acpi_tb_check_xsdt(acpi_physical_address address)
 		return AE_OK;
 }
 
+#if (!ACPI_REDUCED_HARDWARE)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_tb_initialize_facs
@@ -148,6 +149,7 @@ acpi_status acpi_tb_initialize_facs(void)
 								&acpi_gbl_FACS));
 	return status;
 }
+#endif				/* !ACPI_REDUCED_HARDWARE */
 
 /*******************************************************************************
  *

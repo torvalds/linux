@@ -48,6 +48,7 @@
 #define _COMPONENT          ACPI_HARDWARE
 ACPI_MODULE_NAME("hwxfsleep")
 
+#if (!ACPI_REDUCED_HARDWARE)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_set_firmware_waking_vector
@@ -189,7 +190,7 @@ acpi_status asmlinkage acpi_enter_sleep_state_s4bios(void)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state_s4bios)
-
+#endif				/* !ACPI_REDUCED_HARDWARE */
 /*******************************************************************************
  *
  * FUNCTION:    acpi_enter_sleep_state_prep
@@ -290,6 +291,7 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 			    acpi_gbl_sleep_type_a, acpi_gbl_sleep_type_b));
 		return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
 	}
+#if (!ACPI_REDUCED_HARDWARE)
 
 	/* If Hardware Reduced flag is set, must use the extended sleep registers */
 
@@ -300,6 +302,11 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 
 		status = acpi_hw_legacy_sleep(sleep_state);
 	}
+
+#else
+	status = acpi_hw_extended_sleep(sleep_state);
+
+#endif				/* !ACPI_REDUCED_HARDWARE */
 
 	return_ACPI_STATUS(status);
 }
@@ -326,6 +333,8 @@ acpi_status acpi_leave_sleep_state_prep(u8 sleep_state)
 	ACPI_FUNCTION_TRACE(acpi_leave_sleep_state);
 
 
+#if (!ACPI_REDUCED_HARDWARE)
+
 	/* If Hardware Reduced flag is set, must use the extended sleep registers */
 
 	if (acpi_gbl_reduced_hardware || acpi_gbl_FADT.sleep_control.address) {
@@ -335,6 +344,10 @@ acpi_status acpi_leave_sleep_state_prep(u8 sleep_state)
 
 		status = acpi_hw_legacy_wake_prep(sleep_state);
 	}
+#else
+	status = acpi_hw_extended_wake_prep(sleep_state);
+
+#endif				/* !ACPI_REDUCED_HARDWARE */
 
 
 	return_ACPI_STATUS(status);
@@ -361,6 +374,8 @@ acpi_status acpi_leave_sleep_state(u8 sleep_state)
 	ACPI_FUNCTION_TRACE(acpi_leave_sleep_state);
 
 
+#if (!ACPI_REDUCED_HARDWARE)
+
 	/* If Hardware Reduced flag is set, must use the extended sleep registers */
 
 	if (acpi_gbl_reduced_hardware || acpi_gbl_FADT.sleep_control.address) {
@@ -370,6 +385,11 @@ acpi_status acpi_leave_sleep_state(u8 sleep_state)
 
 		status = acpi_hw_legacy_wake(sleep_state);
 	}
+
+#else
+	status = acpi_hw_extended_wake(sleep_state);
+
+#endif				/* !ACPI_REDUCED_HARDWARE */
 
 	return_ACPI_STATUS(status);
 }

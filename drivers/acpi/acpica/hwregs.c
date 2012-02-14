@@ -51,6 +51,7 @@
 #define _COMPONENT          ACPI_HARDWARE
 ACPI_MODULE_NAME("hwregs")
 
+#if (!ACPI_REDUCED_HARDWARE)
 /* Local Prototypes */
 static acpi_status
 acpi_hw_read_multiple(u32 *value,
@@ -61,6 +62,8 @@ static acpi_status
 acpi_hw_write_multiple(u32 value,
 		       struct acpi_generic_address *register_a,
 		       struct acpi_generic_address *register_b);
+
+#endif				/* !ACPI_REDUCED_HARDWARE */
 
 /******************************************************************************
  *
@@ -240,6 +243,7 @@ acpi_status acpi_hw_write(u32 value, struct acpi_generic_address *reg)
 	return (status);
 }
 
+#if (!ACPI_REDUCED_HARDWARE)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_hw_clear_acpi_status
@@ -285,7 +289,7 @@ exit:
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_hw_get_register_bit_mask
+ * FUNCTION:    acpi_hw_get_bit_register_info
  *
  * PARAMETERS:  register_id         - Index of ACPI Register to access
  *
@@ -658,3 +662,5 @@ acpi_hw_write_multiple(u32 value,
 
 	return (status);
 }
+
+#endif				/* !ACPI_REDUCED_HARDWARE */

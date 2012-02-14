@@ -48,7 +48,7 @@
 
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evglock")
-
+#if (!ACPI_REDUCED_HARDWARE)	/* Entire module */
 /* Local prototypes */
 static u32 acpi_ev_global_lock_handler(void *context);
 
@@ -339,3 +339,5 @@ acpi_status acpi_ev_release_global_lock(void)
 	acpi_os_release_mutex(acpi_gbl_global_lock_mutex->mutex.os_mutex);
 	return_ACPI_STATUS(status);
 }
+
+#endif				/* !ACPI_REDUCED_HARDWARE */
