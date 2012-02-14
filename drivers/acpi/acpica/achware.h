@@ -83,7 +83,7 @@ acpi_status acpi_hw_clear_acpi_status(void);
 /*
  * hwsleep - sleep/wake support
  */
-void acpi_hw_execute_SST(u32 value);
+void acpi_hw_execute_sleep_method(char *method_name, u32 integer_argument);
 
 acpi_status acpi_hw_extended_sleep(u8 sleep_state);
 
