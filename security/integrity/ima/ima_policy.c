@@ -418,7 +418,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 	if (!result && (entry->action == UNKNOWN))
 		result = -EINVAL;
 
-	audit_log_format(ab, "res=%d", !!result);
+	audit_log_format(ab, "res=%d", !result);
 	audit_log_end(ab);
 	return result;
 }
