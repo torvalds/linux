@@ -52,7 +52,7 @@
  *
  **************************************************************************/
 
-#define EFX_MAX_CHANNELS 32
+#define EFX_MAX_CHANNELS 32U
 #define EFX_MAX_RX_QUEUES EFX_MAX_CHANNELS
 
 /* Checksum generation is a per-queue option in hardware, so each
