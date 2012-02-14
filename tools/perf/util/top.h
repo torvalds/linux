@@ -34,6 +34,7 @@ struct perf_top {
 	bool		   inherit;
 	bool		   group;
 	bool		   sample_id_all_avail;
+	bool		   exclude_guest_missing;
 	bool		   dump_symtab;
 	const char	   *cpu_list;
 	struct hist_entry  *sym_filter_entry;
