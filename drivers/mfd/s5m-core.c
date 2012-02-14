@@ -74,7 +74,7 @@ EXPORT_SYMBOL_GPL(s5m_reg_write);
 
 int s5m_bulk_write(struct s5m87xx_dev *s5m87xx, u8 reg, int count, u8 *buf)
 {
-	return regmap_raw_write(s5m87xx->regmap, reg, buf, count * sizeof(u16));
+	return regmap_raw_write(s5m87xx->regmap, reg, buf, count);
 }
 EXPORT_SYMBOL_GPL(s5m_bulk_write);
 
