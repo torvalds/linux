@@ -52,38 +52,6 @@ static int qnx4_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct buffer_head *qnx4_getblk(struct inode *inode, int nr,
-				       int create)
-{
-	struct buffer_head *result = NULL;
-
-	if ( nr >= 0 )
-		nr = qnx4_block_map( inode, nr );
-	if (nr) {
-		result = sb_getblk(inode->i_sb, nr);
-		return result;
-	}
-	return NULL;
-}
-
-struct buffer_head *qnx4_bread(struct inode *inode, int block, int create)
-{
-	struct buffer_head *bh;
-
-	bh = qnx4_getblk(inode, block, create);
-	if (!bh || buffer_uptodate(bh)) {
-		return bh;
-	}
-	ll_rw_block(READ, 1, &bh);
-	wait_on_buffer(bh);
-	if (buffer_uptodate(bh)) {
-		return bh;
-	}
-	brelse(bh);
-
-	return NULL;
-}
-
 static int qnx4_get_block( struct inode *inode, sector_t iblock, struct buffer_head *bh, int create )
 {
 	unsigned long phys;

@@ -68,7 +68,9 @@ static struct buffer_head *qnx4_find_entry(int len, struct inode *dir,
 	block = offset = blkofs = 0;
 	while (blkofs * QNX4_BLOCK_SIZE + offset < dir->i_size) {
 		if (!bh) {
-			bh = qnx4_bread(dir, blkofs, 0);
+			block = qnx4_block_map(dir, blkofs);
+			if (block)
+				bh = sb_bread(dir->i_sb, block);
 			if (!bh) {
 				blkofs++;
 				continue;
@@ -76,7 +78,6 @@ static struct buffer_head *qnx4_find_entry(int len, struct inode *dir,
 		}
 		*res_dir = (struct qnx4_inode_entry *) (bh->b_data + offset);
 		if (qnx4_match(len, name, bh, &offset)) {
-			block = qnx4_block_map( dir, blkofs );
 			*ino = block * QNX4_INODES_PER_BLOCK +
 			    (offset / QNX4_DIR_ENTRY_SIZE) - 1;
 			return bh;
