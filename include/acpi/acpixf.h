@@ -419,6 +419,18 @@ acpi_status acpi_leave_sleep_state_prep(u8 sleep_state);
 acpi_status acpi_leave_sleep_state(u8 sleep_state);
 
 /*
+ * ACPI Timer interfaces
+ */
+#ifdef ACPI_FUTURE_USAGE
+acpi_status acpi_get_timer_resolution(u32 *resolution);
+
+acpi_status acpi_get_timer(u32 *ticks);
+
+acpi_status
+acpi_get_timer_duration(u32 start_ticks, u32 end_ticks, u32 *time_elapsed);
+#endif				/* ACPI_FUTURE_USAGE */
+
+/*
  * Error/Warning output
  */
 void ACPI_INTERNAL_VAR_XFACE

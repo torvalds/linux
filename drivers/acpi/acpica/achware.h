@@ -145,16 +145,4 @@ acpi_status
 acpi_hw_derive_pci_id(struct acpi_pci_id *pci_id,
 		      acpi_handle root_pci_device, acpi_handle pci_region);
 
-#ifdef	ACPI_FUTURE_USAGE
-/*
- * hwtimer - ACPI Timer prototypes
- */
-acpi_status acpi_get_timer_resolution(u32 * resolution);
-
-acpi_status acpi_get_timer(u32 * ticks);
-
-acpi_status
-acpi_get_timer_duration(u32 start_ticks, u32 end_ticks, u32 * time_elapsed);
-#endif				/* ACPI_FUTURE_USAGE */
-
 #endif				/* __ACHWARE_H__ */
