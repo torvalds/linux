@@ -1169,7 +1169,7 @@ static void efx_fini_io(struct efx_nic *efx)
 	pci_disable_device(efx->pci_dev);
 }
 
-static unsigned int efx_wanted_parallelism(void)
+static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
 {
 	cpumask_var_t thread_mask;
 	unsigned int count;
@@ -1179,8 +1179,8 @@ static unsigned int efx_wanted_parallelism(void)
 		return rss_cpus;
 
 	if (unlikely(!zalloc_cpumask_var(&thread_mask, GFP_KERNEL))) {
-		printk(KERN_WARNING
-		       "sfc: RSS disabled due to allocation failure\n");
+		netif_warn(efx, probe, efx->net_dev,
+			   "RSS disabled due to allocation failure\n");
 		return 1;
 	}
 
@@ -1239,7 +1239,7 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 		struct msix_entry xentries[EFX_MAX_CHANNELS];
 		unsigned int n_channels;
 
-		n_channels = efx_wanted_parallelism();
+		n_channels = efx_wanted_parallelism(efx);
 		if (separate_tx_channels)
 			n_channels *= 2;
 		n_channels += extra_channels;
