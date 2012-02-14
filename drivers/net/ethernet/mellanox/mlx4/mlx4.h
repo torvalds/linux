@@ -703,7 +703,6 @@ struct mlx4_msix_ctl {
 struct mlx4_steer {
 	struct list_head promisc_qps[MLX4_NUM_STEERS];
 	struct list_head steer_entries[MLX4_NUM_STEERS];
-	struct list_head high_prios;
 };
 
 struct mlx4_priv {
