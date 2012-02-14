@@ -638,7 +638,7 @@ static int evergreen_cs_track_validate_texture(struct radeon_cs_parser *p,
 	struct eg_surface surf;
 	unsigned long toffset, moffset;
 	unsigned dim, llevel, mslice, width, height, depth, i;
-	u32 texdw[7];
+	u32 texdw[8];
 	int r;
 
 	texdw[0] = radeon_get_ib_value(p, idx + 0);
