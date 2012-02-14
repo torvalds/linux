@@ -193,4 +193,13 @@ config MAX1363_RING_BUFFER
 	  Say yes here to include ring buffer support in the MAX1363
 	  ADC driver.
 
+config LPC32XX_ADC
+	tristate "NXP LPC32XX ADC"
+	depends on ARCH_LPC32XX && !TOUCHSCREEN_LPC32XX
+	help
+	  Say yes here to build support for the integrated ADC inside the
+	  LPC32XX SoC. Note that this feature uses the same hardware as the
+	  touchscreen driver, so you can only select one of the two drivers
+	  (lpc32xx_adc or lpc32xx_ts). Provides direct access via sysfs.
+
 endmenu
