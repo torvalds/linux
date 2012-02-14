@@ -8182,8 +8182,8 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RC6pp_THRESHOLD, 64000); /* unused */
 
 	if (intel_enable_rc6(dev_priv->dev))
-		rc6_mask = GEN6_RC_CTL_RC6p_ENABLE |
-			GEN6_RC_CTL_RC6_ENABLE;
+		rc6_mask = GEN6_RC_CTL_RC6_ENABLE |
+			(IS_GEN7(dev_priv->dev)) ? GEN6_RC_CTL_RC6p_ENABLE : 0;
 
 	I915_WRITE(GEN6_RC_CONTROL,
 		   rc6_mask |
