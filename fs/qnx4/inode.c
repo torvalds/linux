@@ -66,23 +66,31 @@ static int qnx4_get_block( struct inode *inode, sector_t iblock, struct buffer_h
 	return 0;
 }
 
+static inline u32 try_extent(qnx4_xtnt_t *extent, u32 *offset)
+{
+	u32 size = le32_to_cpu(extent->xtnt_size);
+	if (*offset < size)
+		return le32_to_cpu(extent->xtnt_blk) + *offset - 1;
+	*offset -= size;
+	return 0;
+}
+
 unsigned long qnx4_block_map( struct inode *inode, long iblock )
 {
 	int ix;
-	long offset, i_xblk;
-	unsigned long block = 0;
+	long i_xblk;
 	struct buffer_head *bh = NULL;
 	struct qnx4_xblk *xblk = NULL;
 	struct qnx4_inode_entry *qnx4_inode = qnx4_raw_inode(inode);
 	u16 nxtnt = le16_to_cpu(qnx4_inode->di_num_xtnts);
+	u32 offset = iblock;
+	u32 block = try_extent(&qnx4_inode->di_first_xtnt, &offset);
 
-	if ( iblock < le32_to_cpu(qnx4_inode->di_first_xtnt.xtnt_size) ) {
+	if (block) {
 		// iblock is in the first extent. This is easy.
-		block = le32_to_cpu(qnx4_inode->di_first_xtnt.xtnt_blk) + iblock - 1;
 	} else {
 		// iblock is beyond first extent. We have to follow the extent chain.
 		i_xblk = le32_to_cpu(qnx4_inode->di_xblk);
-		offset = iblock - le32_to_cpu(qnx4_inode->di_first_xtnt.xtnt_size);
 		ix = 0;
 		while ( --nxtnt > 0 ) {
 			if ( ix == 0 ) {
@@ -98,12 +106,11 @@ unsigned long qnx4_block_map( struct inode *inode, long iblock )
 					return -EIO;
 				}
 			}
-			if ( offset < le32_to_cpu(xblk->xblk_xtnts[ix].xtnt_size) ) {
+			block = try_extent(&xblk->xblk_xtnts[ix], &offset);
+			if (block) {
 				// got it!
-				block = le32_to_cpu(xblk->xblk_xtnts[ix].xtnt_blk) + offset - 1;
 				break;
 			}
-			offset -= le32_to_cpu(xblk->xblk_xtnts[ix].xtnt_size);
 			if ( ++ix >= xblk->xblk_num_xtnts ) {
 				i_xblk = le32_to_cpu(xblk->xblk_next_xblk);
 				ix = 0;
