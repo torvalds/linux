@@ -24,6 +24,8 @@
 #ifndef __ASOC_MCBSP_H
 #define __ASOC_MCBSP_H
 
+#include "omap-pcm.h"
+
 /* McBSP register numbers. Register address offset = num * reg_step */
 enum {
 	/* Common registers */
@@ -257,36 +259,92 @@ struct omap_mcbsp_reg_cfg {
 	u16 rccr;
 };
 
-void omap_mcbsp_config(unsigned int id,
+struct omap_mcbsp_st_data {
+	void __iomem *io_base_st;
+	bool running;
+	bool enabled;
+	s16 taps[128];	/* Sidetone filter coefficients */
+	int nr_taps;	/* Number of filter coefficients in use */
+	s16 ch0gain;
+	s16 ch1gain;
+};
+
+struct omap_mcbsp_data {
+	struct omap_mcbsp_reg_cfg	regs;
+	struct omap_pcm_dma_data	dma_data[2];
+	unsigned int			fmt;
+	/*
+	 * Flags indicating is the bus already activated and configured by
+	 * another substream
+	 */
+	int				active;
+	int				configured;
+	unsigned int			in_freq;
+	int				clk_div;
+	int				wlen;
+};
+
+struct omap_mcbsp {
+	struct device *dev;
+	unsigned long phys_base;
+	unsigned long phys_dma_base;
+	void __iomem *io_base;
+	u8 id;
+	u8 free;
+
+	int rx_irq;
+	int tx_irq;
+
+	/* DMA stuff */
+	u8 dma_rx_sync;
+	u8 dma_tx_sync;
+
+	/* Protect the field .free, while checking if the mcbsp is in use */
+	spinlock_t lock;
+	struct omap_mcbsp_platform_data *pdata;
+	struct clk *fclk;
+	struct omap_mcbsp_st_data *st_data;
+	struct omap_mcbsp_data mcbsp_data;
+	int dma_op_mode;
+	u16 max_tx_thres;
+	u16 max_rx_thres;
+	void *reg_cache;
+	int reg_cache_size;
+};
+
+void omap_mcbsp_config(struct omap_mcbsp *mcbsp,
 		       const struct omap_mcbsp_reg_cfg *config);
-void omap_mcbsp_set_tx_threshold(unsigned int id, u16 threshold);
-void omap_mcbsp_set_rx_threshold(unsigned int id, u16 threshold);
-u16 omap_mcbsp_get_max_tx_threshold(unsigned int id);
-u16 omap_mcbsp_get_max_rx_threshold(unsigned int id);
-u16 omap_mcbsp_get_fifo_size(unsigned int id);
-u16 omap_mcbsp_get_tx_delay(unsigned int id);
-u16 omap_mcbsp_get_rx_delay(unsigned int id);
-int omap_mcbsp_get_dma_op_mode(unsigned int id);
-int omap_mcbsp_request(unsigned int id);
-void omap_mcbsp_free(unsigned int id);
-void omap_mcbsp_start(unsigned int id, int tx, int rx);
-void omap_mcbsp_stop(unsigned int id, int tx, int rx);
+void omap_mcbsp_set_tx_threshold(struct omap_mcbsp *mcbsp, u16 threshold);
+void omap_mcbsp_set_rx_threshold(struct omap_mcbsp *mcbsp, u16 threshold);
+u16 omap_mcbsp_get_max_tx_threshold(struct omap_mcbsp *mcbsp);
+u16 omap_mcbsp_get_max_rx_threshold(struct omap_mcbsp *mcbsp);
+u16 omap_mcbsp_get_fifo_size(struct omap_mcbsp *mcbsp);
+u16 omap_mcbsp_get_tx_delay(struct omap_mcbsp *mcbsp);
+u16 omap_mcbsp_get_rx_delay(struct omap_mcbsp *mcbsp);
+int omap_mcbsp_get_dma_op_mode(struct omap_mcbsp *mcbsp);
+int omap_mcbsp_request(struct omap_mcbsp *mcbsp);
+void omap_mcbsp_free(struct omap_mcbsp *mcbsp);
+void omap_mcbsp_start(struct omap_mcbsp *mcbsp, int tx, int rx);
+void omap_mcbsp_stop(struct omap_mcbsp *mcbsp, int tx, int rx);
 
 /* McBSP functional clock source changing function */
-int omap2_mcbsp_set_clks_src(u8 id, u8 fck_src_id);
+int omap2_mcbsp_set_clks_src(struct omap_mcbsp *mcbsp, u8 fck_src_id);
 
 /* McBSP signal muxing API */
-void omap2_mcbsp1_mux_clkr_src(u8 mux);
-void omap2_mcbsp1_mux_fsr_src(u8 mux);
+void omap2_mcbsp1_mux_clkr_src(struct omap_mcbsp *mcbsp, u8 mux);
+void omap2_mcbsp1_mux_fsr_src(struct omap_mcbsp *mcbsp, u8 mux);
 
-int omap_mcbsp_dma_ch_params(unsigned int id, unsigned int stream);
-int omap_mcbsp_dma_reg_params(unsigned int id, unsigned int stream);
+int omap_mcbsp_dma_ch_params(struct omap_mcbsp *mcbsp, unsigned int stream);
+int omap_mcbsp_dma_reg_params(struct omap_mcbsp *mcbsp, unsigned int stream);
 
 /* Sidetone specific API */
-int omap_st_set_chgain(unsigned int id, int channel, s16 chgain);
-int omap_st_get_chgain(unsigned int id, int channel, s16 *chgain);
-int omap_st_enable(unsigned int id);
-int omap_st_disable(unsigned int id);
-int omap_st_is_enabled(unsigned int id);
+int omap_st_set_chgain(struct omap_mcbsp *mcbsp, int channel, s16 chgain);
+int omap_st_get_chgain(struct omap_mcbsp *mcbsp, int channel, s16 *chgain);
+int omap_st_enable(struct omap_mcbsp *mcbsp);
+int omap_st_disable(struct omap_mcbsp *mcbsp);
+int omap_st_is_enabled(struct omap_mcbsp *mcbsp);
+
+int __devinit omap_mcbsp_probe(struct platform_device *pdev);
+int __devexit omap_mcbsp_remove(struct platform_device *pdev);
 
 #endif /* __ASOC_MCBSP_H */

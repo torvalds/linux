@@ -180,18 +180,12 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 					name, oh->name);
 		return PTR_ERR(pdev);
 	}
-	omap_mcbsp_count++;
 	return 0;
 }
 
 static int __init omap2_mcbsp_init(void)
 {
 	omap_hwmod_for_each_by_class("mcbsp", omap_init_mcbsp, NULL);
-
-	mcbsp_ptr = kzalloc(omap_mcbsp_count * sizeof(struct omap_mcbsp *),
-								GFP_KERNEL);
-	if (!mcbsp_ptr)
-		return -ENOMEM;
 
 	return 0;
 }

@@ -70,43 +70,6 @@ struct omap_mcbsp_platform_data {
 	int (*mux_signal)(struct device *dev, const char *signal, const char *src);
 };
 
-struct omap_mcbsp_st_data {
-	void __iomem *io_base_st;
-	bool running;
-	bool enabled;
-	s16 taps[128];	/* Sidetone filter coefficients */
-	int nr_taps;	/* Number of filter coefficients in use */
-	s16 ch0gain;
-	s16 ch1gain;
-};
-
-struct omap_mcbsp {
-	struct device *dev;
-	unsigned long phys_base;
-	unsigned long phys_dma_base;
-	void __iomem *io_base;
-	u8 id;
-	u8 free;
-
-	int rx_irq;
-	int tx_irq;
-
-	/* DMA stuff */
-	u8 dma_rx_sync;
-	u8 dma_tx_sync;
-
-	/* Protect the field .free, while checking if the mcbsp is in use */
-	spinlock_t lock;
-	struct omap_mcbsp_platform_data *pdata;
-	struct clk *fclk;
-	struct omap_mcbsp_st_data *st_data;
-	int dma_op_mode;
-	u16 max_tx_thres;
-	u16 max_rx_thres;
-	void *reg_cache;
-	int reg_cache_size;
-};
-
 /**
  * omap_mcbsp_dev_attr - OMAP McBSP device attributes for omap_hwmod
  * @sidetone: name of the sidetone device
@@ -114,8 +77,5 @@ struct omap_mcbsp {
 struct omap_mcbsp_dev_attr {
 	const char *sidetone;
 };
-
-extern struct omap_mcbsp **mcbsp_ptr;
-extern int omap_mcbsp_count;
 
 #endif
