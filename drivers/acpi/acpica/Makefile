@@ -68,6 +68,7 @@ acpi-y +=		\
 
 acpi-y +=		\
 	hwacpi.o	\
+	hwesleep.o	\
 	hwgpe.o		\
 	hwpci.o		\
 	hwregs.o	\
