@@ -885,7 +885,7 @@ void xprt_transmit(struct rpc_task *task)
 {
 	struct rpc_rqst	*req = task->tk_rqstp;
 	struct rpc_xprt	*xprt = req->rq_xprt;
-	int status;
+	int status, numreqs;
 
 	dprintk("RPC: %5u xprt_transmit(%u)\n", task->tk_pid, req->rq_slen);
 
@@ -922,9 +922,14 @@ void xprt_transmit(struct rpc_task *task)
 
 	xprt->ops->set_retrans_timeout(task);
 
+	numreqs = atomic_read(&xprt->num_reqs);
+	if (numreqs > xprt->stat.max_slots)
+		xprt->stat.max_slots = numreqs;
 	xprt->stat.sends++;
 	xprt->stat.req_u += xprt->stat.sends - xprt->stat.recvs;
 	xprt->stat.bklog_u += xprt->backlog.qlen;
+	xprt->stat.sending_u += xprt->sending.qlen;
+	xprt->stat.pending_u += xprt->pending.qlen;
 
 	/* Don't race with disconnect */
 	if (!xprt_connected(xprt))

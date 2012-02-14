@@ -2227,7 +2227,7 @@ static void xs_local_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 		idle_time = (long)(jiffies - xprt->last_used) / HZ;
 
 	seq_printf(seq, "\txprt:\tlocal %lu %lu %lu %ld %lu %lu %lu "
-			"%llu %llu\n",
+			"%llu %llu %lu %llu %llu\n",
 			xprt->stat.bind_count,
 			xprt->stat.connect_count,
 			xprt->stat.connect_time,
@@ -2236,7 +2236,10 @@ static void xs_local_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 			xprt->stat.recvs,
 			xprt->stat.bad_xids,
 			xprt->stat.req_u,
-			xprt->stat.bklog_u);
+			xprt->stat.bklog_u,
+			xprt->stat.max_slots,
+			xprt->stat.sending_u,
+			xprt->stat.pending_u);
 }
 
 /**
@@ -2249,14 +2252,18 @@ static void xs_udp_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 {
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 
-	seq_printf(seq, "\txprt:\tudp %u %lu %lu %lu %lu %Lu %Lu\n",
+	seq_printf(seq, "\txprt:\tudp %u %lu %lu %lu %lu %llu %llu "
+			"%lu %llu %llu\n",
 			transport->srcport,
 			xprt->stat.bind_count,
 			xprt->stat.sends,
 			xprt->stat.recvs,
 			xprt->stat.bad_xids,
 			xprt->stat.req_u,
-			xprt->stat.bklog_u);
+			xprt->stat.bklog_u,
+			xprt->stat.max_slots,
+			xprt->stat.sending_u,
+			xprt->stat.pending_u);
 }
 
 /**
@@ -2273,7 +2280,8 @@ static void xs_tcp_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 	if (xprt_connected(xprt))
 		idle_time = (long)(jiffies - xprt->last_used) / HZ;
 
-	seq_printf(seq, "\txprt:\ttcp %u %lu %lu %lu %ld %lu %lu %lu %Lu %Lu\n",
+	seq_printf(seq, "\txprt:\ttcp %u %lu %lu %lu %ld %lu %lu %lu "
+			"%llu %llu %lu %llu %llu\n",
 			transport->srcport,
 			xprt->stat.bind_count,
 			xprt->stat.connect_count,
@@ -2283,7 +2291,10 @@ static void xs_tcp_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
 			xprt->stat.recvs,
 			xprt->stat.bad_xids,
 			xprt->stat.req_u,
-			xprt->stat.bklog_u);
+			xprt->stat.bklog_u,
+			xprt->stat.max_slots,
+			xprt->stat.sending_u,
+			xprt->stat.pending_u);
 }
 
 /*
