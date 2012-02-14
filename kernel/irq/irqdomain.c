@@ -13,7 +13,8 @@
 #include <linux/smp.h>
 #include <linux/fs.h>
 
-#define IRQ_DOMAIN_MAP_LEGACY 0 /* legacy 8259, gets irqs 1..15 */
+#define IRQ_DOMAIN_MAP_LEGACY 0 /* driver allocated fixed range of irqs.
+				 * ie. legacy 8259, gets irqs 1..15 */
 #define IRQ_DOMAIN_MAP_NOMAP 1 /* no fast reverse mapping */
 #define IRQ_DOMAIN_MAP_LINEAR 2 /* linear map of interrupts */
 #define IRQ_DOMAIN_MAP_TREE 3 /* radix tree */
@@ -74,9 +75,25 @@ static void irq_domain_add(struct irq_domain *domain)
 		 domain->revmap_type, domain);
 }
 
+static unsigned int irq_domain_legacy_revmap(struct irq_domain *domain,
+					     irq_hw_number_t hwirq)
+{
+	irq_hw_number_t first_hwirq = domain->revmap_data.legacy.first_hwirq;
+	int size = domain->revmap_data.legacy.size;
+
+	if (WARN_ON(hwirq < first_hwirq || hwirq >= first_hwirq + size))
+		return 0;
+	return hwirq - first_hwirq + domain->revmap_data.legacy.first_irq;
+}
+
 /**
  * irq_domain_add_legacy() - Allocate and register a legacy revmap irq_domain.
  * @of_node: pointer to interrupt controller's device tree node.
+ * @size: total number of irqs in legacy mapping
+ * @first_irq: first number of irq block assigned to the domain
+ * @first_hwirq: first hwirq number to use for the translation. Should normally
+ *               be '0', but a positive integer can be used if the effective
+ *               hwirqs numbering does not begin at zero.
  * @ops: map/unmap domain callbacks
  * @host_data: Controller private data pointer
  *
@@ -85,44 +102,64 @@ static void irq_domain_add(struct irq_domain *domain)
  * a legacy controller).
  */
 struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
+					 unsigned int size,
+					 unsigned int first_irq,
+					 irq_hw_number_t first_hwirq,
 					 struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	struct irq_domain *domain, *h;
+	struct irq_domain *domain;
 	unsigned int i;
 
 	domain = irq_domain_alloc(of_node, IRQ_DOMAIN_MAP_LEGACY, ops, host_data);
 	if (!domain)
 		return NULL;
 
+	domain->revmap_data.legacy.first_irq = first_irq;
+	domain->revmap_data.legacy.first_hwirq = first_hwirq;
+	domain->revmap_data.legacy.size = size;
+
 	mutex_lock(&irq_domain_mutex);
-	/* Make sure only one legacy controller can be created */
-	list_for_each_entry(h, &irq_domain_list, link) {
-		if (WARN_ON(h->revmap_type == IRQ_DOMAIN_MAP_LEGACY)) {
+	/* Verify that all the irqs are available */
+	for (i = 0; i < size; i++) {
+		int irq = first_irq + i;
+		struct irq_data *irq_data = irq_get_irq_data(irq);
+
+		if (WARN_ON(!irq_data || irq_data->domain)) {
 			mutex_unlock(&irq_domain_mutex);
 			of_node_put(domain->of_node);
 			kfree(domain);
 			return NULL;
 		}
 	}
-	list_add(&domain->link, &irq_domain_list);
+
+	/* Claim all of the irqs before registering a legacy domain */
+	for (i = 0; i < size; i++) {
+		struct irq_data *irq_data = irq_get_irq_data(first_irq + i);
+		irq_data->hwirq = first_hwirq + i;
+		irq_data->domain = domain;
+	}
 	mutex_unlock(&irq_domain_mutex);
 
-	/* setup us as the domain for all legacy interrupts */
-	for (i = 1; i < NUM_ISA_INTERRUPTS; i++) {
-		struct irq_data *irq_data = irq_get_irq_data(i);
-		irq_data->hwirq = i;
-		irq_data->domain = domain;
+	for (i = 0; i < size; i++) {
+		int irq = first_irq + i;
+		int hwirq = first_hwirq + i;
+
+		/* IRQ0 gets ignored */
+		if (!irq)
+			continue;
 
 		/* Legacy flags are left to default at this point,
 		 * one can then use irq_create_mapping() to
 		 * explicitly change them
 		 */
-		ops->map(domain, i, i);
+		ops->map(domain, irq, hwirq);
 
 		/* Clear norequest flags */
-		irq_clear_status_flags(i, IRQ_NOREQUEST);
+		irq_clear_status_flags(irq, IRQ_NOREQUEST);
 	}
+
+	irq_domain_add(domain);
 	return domain;
 }
 
@@ -338,24 +375,19 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 	}
 
 	/* Get a virtual interrupt number */
-	if (domain->revmap_type == IRQ_DOMAIN_MAP_LEGACY) {
-		/* Handle legacy */
-		virq = (unsigned int)hwirq;
-		if (virq == 0 || virq >= NUM_ISA_INTERRUPTS)
-			return 0;
-		return virq;
-	} else {
-		/* Allocate a virtual interrupt number */
-		hint = hwirq % irq_virq_count;
-		if (hint == 0)
-			hint++;
-		virq = irq_alloc_desc_from(hint, 0);
-		if (!virq)
-			virq = irq_alloc_desc_from(1, 0);
-		if (!virq) {
-			pr_debug("irq: -> virq allocation failed\n");
-			return 0;
-		}
+	if (domain->revmap_type == IRQ_DOMAIN_MAP_LEGACY)
+		return irq_domain_legacy_revmap(domain, hwirq);
+
+	/* Allocate a virtual interrupt number */
+	hint = hwirq % irq_virq_count;
+	if (hint == 0)
+		hint++;
+	virq = irq_alloc_desc_from(hint, 0);
+	if (!virq)
+		virq = irq_alloc_desc_from(1, 0);
+	if (!virq) {
+		pr_debug("irq: -> virq allocation failed\n");
+		return 0;
 	}
 
 	if (irq_setup_virq(domain, virq, hwirq)) {
@@ -483,7 +515,7 @@ unsigned int irq_find_mapping(struct irq_domain *domain,
 
 	/* legacy -> bail early */
 	if (domain->revmap_type == IRQ_DOMAIN_MAP_LEGACY)
-		return hwirq;
+		return irq_domain_legacy_revmap(domain, hwirq);
 
 	/* Slow path does a linear search of the map */
 	if (hint == 0)
