@@ -73,7 +73,8 @@ acpi-y +=		\
 	hwregs.o	\
 	hwsleep.o	\
 	hwvalid.o	\
-	hwxface.o
+	hwxface.o	\
+	hwxfsleep.o
 
 acpi-$(ACPI_FUTURE_USAGE) += hwtimer.o
 
