@@ -2538,7 +2538,7 @@ int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 	int attach = vhcr->op_modifier;
 	int block_loopback = vhcr->in_modifier >> 31;
 	u8 steer_type_mask = 2;
-	enum mlx4_steer_type type = gid[7] & steer_type_mask;
+	enum mlx4_steer_type type = (gid[7] & steer_type_mask) >> 1;
 
 	qpn = vhcr->in_modifier & 0xffffff;
 	err = get_res(dev, slave, qpn, RES_QP, &rqp);
