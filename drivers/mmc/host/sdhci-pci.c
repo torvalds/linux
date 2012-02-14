@@ -250,7 +250,7 @@ static int mfd_emmc_probe_slot(struct sdhci_pci_slot *slot)
 
 static int mfd_sdio_probe_slot(struct sdhci_pci_slot *slot)
 {
-	slot->host->mmc->caps |= MMC_CAP_POWER_OFF_CARD;
+	slot->host->mmc->caps |= MMC_CAP_POWER_OFF_CARD | MMC_CAP_NONREMOVABLE;
 	return 0;
 }
 
