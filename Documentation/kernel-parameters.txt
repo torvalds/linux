@@ -950,7 +950,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			     controller
 	i8042.nopnp	[HW] Don't use ACPIPnP / PnPBIOS to discover KBD/AUX
 			     controllers
-	i8042.notimeout	[HW] Ignore timeout condition signalled by conroller
+	i8042.notimeout	[HW] Ignore timeout condition signalled by controller
 	i8042.reset	[HW] Reset the controller during init and cleanup
 	i8042.unlock	[HW] Unlock (ignore) the keylock
 
@@ -2434,7 +2434,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			For more information see Documentation/vm/slub.txt.
 
 	slub_min_order=	[MM, SLUB]
-			Determines the mininum page order for slabs. Must be
+			Determines the minimum page order for slabs. Must be
 			lower than slub_max_order.
 			For more information see Documentation/vm/slub.txt.
 
@@ -2600,7 +2600,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	threadirqs	[KNL]
 			Force threading of all interrupt handlers except those
-			marked explicitely IRQF_NO_THREAD.
+			marked explicitly IRQF_NO_THREAD.
 
 	topology=	[S390]
 			Format: {off | on}
