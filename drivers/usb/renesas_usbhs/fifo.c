@@ -76,8 +76,7 @@ void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 		pipe->handler = &usbhsf_null_handler;
 	}
 
-	list_del_init(&pkt->node);
-	list_add_tail(&pkt->node, &pipe->list);
+	list_move_tail(&pkt->node, &pipe->list);
 
 	/*
 	 * each pkt must hold own handler.
@@ -107,7 +106,7 @@ static struct usbhs_pkt *__usbhsf_pkt_get(struct usbhs_pipe *pipe)
 	if (list_empty(&pipe->list))
 		return NULL;
 
-	return list_entry(pipe->list.next, struct usbhs_pkt, node);
+	return list_first_entry(&pipe->list, struct usbhs_pkt, node);
 }
 
 struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt)
