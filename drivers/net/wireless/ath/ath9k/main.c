@@ -371,11 +371,7 @@ static int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	if (sc->sc_flags & SC_OP_INVALID)
 		return -EIO;
 
-	ath9k_ps_wakeup(sc);
-
 	r = ath_reset_internal(sc, hchan, false);
-
-	ath9k_ps_restore(sc);
 
 	return r;
 }
