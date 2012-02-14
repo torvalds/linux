@@ -201,11 +201,10 @@ xilinx_intc_init(struct device_node *np)
 	out_be32(regs + XINTC_MER, 0x3UL); /* Turn on the Master Enable. */
 
 	/* Allocate and initialize an irq_domain structure. */
-	irq = irq_alloc_host(np, IRQ_DOMAIN_MAP_LINEAR, XILINX_INTC_MAXIRQS,
-			     &xilinx_intc_ops, -1);
+	irq = irq_domain_add_linear(np, XILINX_INTC_MAXIRQS, &xilinx_intc_ops,
+				    regs);
 	if (!irq)
 		panic(__FILE__ ": Cannot allocate IRQ host\n");
-	irq->host_data = regs;
 
 	return irq;
 }

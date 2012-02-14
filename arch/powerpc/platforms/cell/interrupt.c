@@ -378,8 +378,8 @@ static int __init setup_iic(void)
 void __init iic_init_IRQ(void)
 {
 	/* Setup an irq host data structure */
-	iic_host = irq_alloc_host(NULL, IRQ_DOMAIN_MAP_LINEAR, IIC_SOURCE_COUNT,
-				  &iic_host_ops, IIC_IRQ_INVALID);
+	iic_host = irq_domain_add_linear(NULL, IIC_SOURCE_COUNT, &iic_host_ops,
+					 NULL);
 	BUG_ON(iic_host == NULL);
 	irq_set_default_host(iic_host);
 

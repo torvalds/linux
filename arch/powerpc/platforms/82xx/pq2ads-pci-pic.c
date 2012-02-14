@@ -156,17 +156,13 @@ int __init pq2ads_pci_init_irq(void)
 	out_be32(&priv->regs->mask, ~0);
 	mb();
 
-	host = irq_alloc_host(np, IRQ_DOMAIN_MAP_LINEAR, NUM_IRQS,
-	                      &pci_pic_host_ops, NUM_IRQS);
+	host = irq_domain_add_linear(np, NUM_IRQS, &pci_pic_host_ops, priv);
 	if (!host) {
 		ret = -ENOMEM;
 		goto out_unmap_regs;
 	}
 
-	host->host_data = priv;
-
 	priv->host = host;
-	host->host_data = priv;
 	irq_set_handler_data(irq, priv);
 	irq_set_chained_handler(irq, pq2ads_pci_irq_demux);
 

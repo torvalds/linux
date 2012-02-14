@@ -171,8 +171,7 @@ int mpc8xx_pic_init(void)
 		goto out;
 	}
 
-	mpc8xx_pic_host = irq_alloc_host(np, IRQ_DOMAIN_MAP_LINEAR,
-					 64, &mpc8xx_pic_host_ops, 64);
+	mpc8xx_pic_host = irq_domain_add_linear(np, 64, &mpc8xx_pic_host_ops, NULL);
 	if (mpc8xx_pic_host == NULL) {
 		printk(KERN_ERR "MPC8xx PIC: failed to allocate irq host!\n");
 		ret = -ENOMEM;

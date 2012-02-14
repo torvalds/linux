@@ -270,12 +270,10 @@ static struct uic * __init uic_init_one(struct device_node *node)
 	}
 	uic->dcrbase = *dcrreg;
 
-	uic->irqhost = irq_alloc_host(node, IRQ_DOMAIN_MAP_LINEAR,
-				      NR_UIC_INTS, &uic_host_ops, -1);
+	uic->irqhost = irq_domain_add_linear(node, NR_UIC_INTS, &uic_host_ops,
+					     uic);
 	if (! uic->irqhost)
 		return NULL; /* FIXME: panic? */
-
-	uic->irqhost->host_data = uic;
 
 	/* Start with all interrupts disabled, level and non-critical */
 	mtdcr(uic->dcrbase + UIC_ER, 0);

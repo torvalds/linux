@@ -374,8 +374,7 @@ static struct irq_domain_ops xics_host_ops = {
 
 static void __init xics_init_host(void)
 {
-	xics_host = irq_alloc_host(NULL, IRQ_DOMAIN_MAP_TREE, 0, &xics_host_ops,
-				   XICS_IRQ_SPURIOUS);
+	xics_host = irq_domain_add_tree(NULL, &xics_host_ops, NULL);
 	BUG_ON(xics_host == NULL);
 	irq_set_default_host(xics_host);
 }

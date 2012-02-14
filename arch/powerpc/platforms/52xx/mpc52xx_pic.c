@@ -444,9 +444,9 @@ void __init mpc52xx_init_irq(void)
 	 * As last step, add an irq host to translate the real
 	 * hw irq information provided by the ofw to linux virq
 	 */
-	mpc52xx_irqhost = irq_alloc_host(picnode, IRQ_DOMAIN_MAP_LINEAR,
+	mpc52xx_irqhost = irq_domain_add_linear(picnode,
 	                                 MPC52xx_IRQ_HIGHTESTHWIRQ,
-	                                 &mpc52xx_irqhost_ops, -1);
+	                                 &mpc52xx_irqhost_ops, NULL);
 
 	if (!mpc52xx_irqhost)
 		panic(__FILE__ ": Cannot allocate the IRQ host\n");

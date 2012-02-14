@@ -280,9 +280,8 @@ void socrates_fpga_pic_init(struct device_node *pic)
 	int i;
 
 	/* Setup an irq_domain structure */
-	socrates_fpga_pic_irq_host = irq_alloc_host(pic, IRQ_DOMAIN_MAP_LINEAR,
-			SOCRATES_FPGA_NUM_IRQS,	&socrates_fpga_pic_host_ops,
-			SOCRATES_FPGA_NUM_IRQS);
+	socrates_fpga_pic_irq_host = irq_domain_add_linear(pic,
+		    SOCRATES_FPGA_NUM_IRQS, &socrates_fpga_pic_host_ops, NULL);
 	if (socrates_fpga_pic_irq_host == NULL) {
 		pr_err("FPGA PIC: Unable to allocate host\n");
 		return;

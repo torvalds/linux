@@ -275,9 +275,8 @@ void __init ehv_pic_init(void)
 		return;
 	}
 
-	ehv_pic->irqhost = irq_alloc_host(np, IRQ_DOMAIN_MAP_LINEAR,
-		NR_EHV_PIC_INTS, &ehv_pic_host_ops, 0);
-
+	ehv_pic->irqhost = irq_domain_add_linear(np, NR_EHV_PIC_INTS,
+						 &ehv_pic_host_ops, ehv_pic);
 	if (!ehv_pic->irqhost) {
 		of_node_put(np);
 		kfree(ehv_pic);
@@ -293,7 +292,6 @@ void __init ehv_pic_init(void)
 		of_node_put(np2);
 	}
 
-	ehv_pic->irqhost->host_data = ehv_pic;
 	ehv_pic->hc_irq = ehv_pic_irq_chip;
 	ehv_pic->hc_irq.irq_set_affinity = ehv_pic_set_affinity;
 	ehv_pic->coreint_flag = coreint_flag;

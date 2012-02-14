@@ -159,14 +159,12 @@ struct irq_domain * __init flipper_pic_init(struct device_node *np)
 
 	__flipper_quiesce(io_base);
 
-	irq_domain = irq_alloc_host(np, IRQ_DOMAIN_MAP_LINEAR, FLIPPER_NR_IRQS,
-				  &flipper_irq_domain_ops, -1);
+	irq_domain = irq_domain_add_linear(np, FLIPPER_NR_IRQS,
+				  &flipper_irq_domain_ops, io_base);
 	if (!irq_domain) {
 		pr_err("failed to allocate irq_domain\n");
 		return NULL;
 	}
-
-	irq_domain->host_data = io_base;
 
 out:
 	return irq_domain;

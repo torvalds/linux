@@ -753,8 +753,7 @@ void __init ps3_init_IRQ(void)
 	unsigned cpu;
 	struct irq_domain *host;
 
-	host = irq_alloc_host(NULL, IRQ_DOMAIN_MAP_NOMAP, 0, &ps3_host_ops,
-		PS3_INVALID_OUTLET);
+	host = irq_domain_add_nomap(NULL, &ps3_host_ops, NULL);
 	irq_set_default_host(host);
 	irq_set_virq_count(PS3_PLUG_MAX + 1);
 

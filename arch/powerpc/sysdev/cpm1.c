@@ -164,8 +164,7 @@ unsigned int cpm_pic_init(void)
 
 	out_be32(&cpic_reg->cpic_cimr, 0);
 
-	cpm_pic_host = irq_alloc_host(np, IRQ_DOMAIN_MAP_LINEAR,
-				      64, &cpm_pic_host_ops, 64);
+	cpm_pic_host = irq_domain_add_linear(np, 64, &cpm_pic_host_ops, NULL);
 	if (cpm_pic_host == NULL) {
 		printk(KERN_ERR "CPM2 PIC: failed to allocate irq host!\n");
 		sirq = NO_IRQ;

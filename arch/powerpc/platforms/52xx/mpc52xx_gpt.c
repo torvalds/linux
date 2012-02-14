@@ -252,14 +252,12 @@ mpc52xx_gpt_irq_setup(struct mpc52xx_gpt_priv *gpt, struct device_node *node)
 	if (!cascade_virq)
 		return;
 
-	gpt->irqhost = irq_alloc_host(node, IRQ_DOMAIN_MAP_LINEAR, 1,
-				      &mpc52xx_gpt_irq_ops, -1);
+	gpt->irqhost = irq_domain_add_linear(node, 1, &mpc52xx_gpt_irq_ops, gpt);
 	if (!gpt->irqhost) {
-		dev_err(gpt->dev, "irq_alloc_host() failed\n");
+		dev_err(gpt->dev, "irq_domain_add_linear() failed\n");
 		return;
 	}
 
-	gpt->irqhost->host_data = gpt;
 	irq_set_handler_data(cascade_virq, gpt);
 	irq_set_chained_handler(cascade_virq, mpc52xx_gpt_irq_cascade);
 

@@ -13,6 +13,11 @@
 #include <linux/smp.h>
 #include <linux/fs.h>
 
+#define IRQ_DOMAIN_MAP_LEGACY 0 /* legacy 8259, gets irqs 1..15 */
+#define IRQ_DOMAIN_MAP_NOMAP 1 /* no fast reverse mapping */
+#define IRQ_DOMAIN_MAP_LINEAR 2 /* linear map of interrupts */
+#define IRQ_DOMAIN_MAP_TREE 3 /* radix tree */
+
 static LIST_HEAD(irq_domain_list);
 static DEFINE_MUTEX(irq_domain_mutex);
 
@@ -27,100 +32,158 @@ static int default_irq_domain_match(struct irq_domain *d, struct device_node *np
 }
 
 /**
- * irq_alloc_host() - Allocate a new irq_domain data structure
+ * irq_domain_alloc() - Allocate a new irq_domain data structure
  * @of_node: optional device-tree node of the interrupt controller
  * @revmap_type: type of reverse mapping to use
- * @revmap_arg: for IRQ_DOMAIN_MAP_LINEAR linear only: size of the map
  * @ops: map/unmap domain callbacks
- * @inval_irq: provide a hw number in that domain space that is always invalid
+ * @host_data: Controller private data pointer
  *
- * Allocates and initialize and irq_domain structure. Note that in the case of
- * IRQ_DOMAIN_MAP_LEGACY, the map() callback will be called before this returns
- * for all legacy interrupts except 0 (which is always the invalid irq for
- * a legacy controller). For a IRQ_DOMAIN_MAP_LINEAR, the map is allocated by
- * this call as well. For a IRQ_DOMAIN_MAP_TREE, the radix tree will be
- * allocated later during boot automatically (the reverse mapping will use the
- * slow path until that happens).
+ * Allocates and initialize and irq_domain structure.  Caller is expected to
+ * register allocated irq_domain with irq_domain_register().  Returns pointer
+ * to IRQ domain, or NULL on failure.
  */
-struct irq_domain *irq_alloc_host(struct device_node *of_node,
-				unsigned int revmap_type,
-				unsigned int revmap_arg,
-				struct irq_domain_ops *ops,
-				irq_hw_number_t inval_irq)
+static struct irq_domain *irq_domain_alloc(struct device_node *of_node,
+					   unsigned int revmap_type,
+					   struct irq_domain_ops *ops,
+					   void *host_data)
 {
-	struct irq_domain *domain, *h;
-	unsigned int size = sizeof(struct irq_domain);
-	unsigned int i;
-	unsigned int *rmap;
+	struct irq_domain *domain;
 
-	/* Allocate structure and revmap table if using linear mapping */
-	if (revmap_type == IRQ_DOMAIN_MAP_LINEAR)
-		size += revmap_arg * sizeof(unsigned int);
-	domain = kzalloc(size, GFP_KERNEL);
-	if (domain == NULL)
+	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
+	if (WARN_ON(!domain))
 		return NULL;
 
 	/* Fill structure */
 	domain->revmap_type = revmap_type;
-	domain->inval_irq = inval_irq;
 	domain->ops = ops;
+	domain->host_data = host_data;
 	domain->of_node = of_node_get(of_node);
 
 	if (domain->ops->match == NULL)
 		domain->ops->match = default_irq_domain_match;
 
+	return domain;
+}
+
+static void irq_domain_add(struct irq_domain *domain)
+{
+	mutex_lock(&irq_domain_mutex);
+	list_add(&domain->link, &irq_domain_list);
+	mutex_unlock(&irq_domain_mutex);
+	pr_debug("irq: Allocated domain of type %d @0x%p\n",
+		 domain->revmap_type, domain);
+}
+
+/**
+ * irq_domain_add_legacy() - Allocate and register a legacy revmap irq_domain.
+ * @of_node: pointer to interrupt controller's device tree node.
+ * @ops: map/unmap domain callbacks
+ * @host_data: Controller private data pointer
+ *
+ * Note: the map() callback will be called before this function returns
+ * for all legacy interrupts except 0 (which is always the invalid irq for
+ * a legacy controller).
+ */
+struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
+					 struct irq_domain_ops *ops,
+					 void *host_data)
+{
+	struct irq_domain *domain, *h;
+	unsigned int i;
+
+	domain = irq_domain_alloc(of_node, IRQ_DOMAIN_MAP_LEGACY, ops, host_data);
+	if (!domain)
+		return NULL;
+
 	mutex_lock(&irq_domain_mutex);
 	/* Make sure only one legacy controller can be created */
-	if (revmap_type == IRQ_DOMAIN_MAP_LEGACY) {
-		list_for_each_entry(h, &irq_domain_list, link) {
-			if (WARN_ON(h->revmap_type == IRQ_DOMAIN_MAP_LEGACY)) {
-				mutex_unlock(&irq_domain_mutex);
-				of_node_put(domain->of_node);
-				kfree(domain);
-				return NULL;
-			}
+	list_for_each_entry(h, &irq_domain_list, link) {
+		if (WARN_ON(h->revmap_type == IRQ_DOMAIN_MAP_LEGACY)) {
+			mutex_unlock(&irq_domain_mutex);
+			of_node_put(domain->of_node);
+			kfree(domain);
+			return NULL;
 		}
 	}
 	list_add(&domain->link, &irq_domain_list);
 	mutex_unlock(&irq_domain_mutex);
 
-	/* Additional setups per revmap type */
-	switch(revmap_type) {
-	case IRQ_DOMAIN_MAP_LEGACY:
-		/* 0 is always the invalid number for legacy */
-		domain->inval_irq = 0;
-		/* setup us as the domain for all legacy interrupts */
-		for (i = 1; i < NUM_ISA_INTERRUPTS; i++) {
-			struct irq_data *irq_data = irq_get_irq_data(i);
-			irq_data->hwirq = i;
-			irq_data->domain = domain;
+	/* setup us as the domain for all legacy interrupts */
+	for (i = 1; i < NUM_ISA_INTERRUPTS; i++) {
+		struct irq_data *irq_data = irq_get_irq_data(i);
+		irq_data->hwirq = i;
+		irq_data->domain = domain;
 
-			/* Legacy flags are left to default at this point,
-			 * one can then use irq_create_mapping() to
-			 * explicitly change them
-			 */
-			ops->map(domain, i, i);
+		/* Legacy flags are left to default at this point,
+		 * one can then use irq_create_mapping() to
+		 * explicitly change them
+		 */
+		ops->map(domain, i, i);
 
-			/* Clear norequest flags */
-			irq_clear_status_flags(i, IRQ_NOREQUEST);
-		}
-		break;
-	case IRQ_DOMAIN_MAP_LINEAR:
-		rmap = (unsigned int *)(domain + 1);
-		for (i = 0; i < revmap_arg; i++)
-			rmap[i] = 0;
-		domain->revmap_data.linear.size = revmap_arg;
-		domain->revmap_data.linear.revmap = rmap;
-		break;
-	case IRQ_DOMAIN_MAP_TREE:
-		INIT_RADIX_TREE(&domain->revmap_data.tree, GFP_KERNEL);
-		break;
-	default:
-		break;
+		/* Clear norequest flags */
+		irq_clear_status_flags(i, IRQ_NOREQUEST);
 	}
+	return domain;
+}
 
-	pr_debug("irq: Allocated domain of type %d @0x%p\n", revmap_type, domain);
+/**
+ * irq_domain_add_linear() - Allocate and register a legacy revmap irq_domain.
+ * @of_node: pointer to interrupt controller's device tree node.
+ * @ops: map/unmap domain callbacks
+ * @host_data: Controller private data pointer
+ */
+struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
+					 unsigned int size,
+					 struct irq_domain_ops *ops,
+					 void *host_data)
+{
+	struct irq_domain *domain;
+	unsigned int *revmap;
 
+	revmap = kzalloc(sizeof(*revmap) * size, GFP_KERNEL);
+	if (WARN_ON(!revmap))
+		return NULL;
+
+	domain = irq_domain_alloc(of_node, IRQ_DOMAIN_MAP_LINEAR, ops, host_data);
+	if (!domain) {
+		kfree(revmap);
+		return NULL;
+	}
+	domain->revmap_data.linear.size = size;
+	domain->revmap_data.linear.revmap = revmap;
+	irq_domain_add(domain);
+	return domain;
+}
+
+struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
+					 struct irq_domain_ops *ops,
+					 void *host_data)
+{
+	struct irq_domain *domain = irq_domain_alloc(of_node,
+					IRQ_DOMAIN_MAP_NOMAP, ops, host_data);
+	if (domain)
+		irq_domain_add(domain);
+	return domain;
+}
+
+/**
+ * irq_domain_add_tree()
+ * @of_node: pointer to interrupt controller's device tree node.
+ * @ops: map/unmap domain callbacks
+ *
+ * Note: The radix tree will be allocated later during boot automatically
+ * (the reverse mapping will use the slow path until that happens).
+ */
+struct irq_domain *irq_domain_add_tree(struct device_node *of_node,
+					 struct irq_domain_ops *ops,
+					 void *host_data)
+{
+	struct irq_domain *domain = irq_domain_alloc(of_node,
+					IRQ_DOMAIN_MAP_TREE, ops, host_data);
+	if (domain) {
+		INIT_RADIX_TREE(&domain->revmap_data.tree, GFP_KERNEL);
+		irq_domain_add(domain);
+	}
 	return domain;
 }
 
@@ -392,9 +455,6 @@ void irq_dispose_mapping(unsigned int virq)
 		mutex_unlock(&revmap_trees_mutex);
 		break;
 	}
-
-	/* Destroy map */
-	irq_data->hwirq = domain->inval_irq;
 
 	irq_free_desc(virq);
 }

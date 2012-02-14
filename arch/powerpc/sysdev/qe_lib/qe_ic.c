@@ -339,8 +339,8 @@ void __init qe_ic_init(struct device_node *node, unsigned int flags,
 	if (qe_ic == NULL)
 		return;
 
-	qe_ic->irqhost = irq_alloc_host(node, IRQ_DOMAIN_MAP_LINEAR,
-					NR_QE_IC_INTS, &qe_ic_host_ops, 0);
+	qe_ic->irqhost = irq_domain_add_linear(node, NR_QE_IC_INTS,
+					       &qe_ic_host_ops, qe_ic);
 	if (qe_ic->irqhost == NULL) {
 		kfree(qe_ic);
 		return;
@@ -348,7 +348,6 @@ void __init qe_ic_init(struct device_node *node, unsigned int flags,
 
 	qe_ic->regs = ioremap(res.start, resource_size(&res));
 
-	qe_ic->irqhost->host_data = qe_ic;
 	qe_ic->hc_irq = qe_ic_irq_chip;
 
 	qe_ic->virq_high = irq_of_parse_and_map(node, 0);

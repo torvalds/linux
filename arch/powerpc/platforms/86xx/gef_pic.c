@@ -212,9 +212,8 @@ void __init gef_pic_init(struct device_node *np)
 	}
 
 	/* Setup an irq_domain structure */
-	gef_pic_irq_host = irq_alloc_host(np, IRQ_DOMAIN_MAP_LINEAR,
-					  GEF_PIC_NUM_IRQS,
-					  &gef_pic_host_ops, NO_IRQ);
+	gef_pic_irq_host = irq_domain_add_linear(np, GEF_PIC_NUM_IRQS,
+					  &gef_pic_host_ops, NULL);
 	if (gef_pic_irq_host == NULL)
 		return;
 

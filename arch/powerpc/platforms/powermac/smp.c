@@ -192,8 +192,7 @@ static int psurge_secondary_ipi_init(void)
 {
 	int rc = -ENOMEM;
 
-	psurge_host = irq_alloc_host(NULL, IRQ_DOMAIN_MAP_NOMAP, 0,
-		&psurge_host_ops, 0);
+	psurge_host = irq_domain_add_nomap(NULL, &psurge_host_ops, NULL);
 
 	if (psurge_host)
 		psurge_secondary_virq = irq_create_direct_mapping(psurge_host);

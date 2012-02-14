@@ -380,8 +380,7 @@ void __init iSeries_init_IRQ(void)
 	/* Create irq host. No need for a revmap since HV will give us
 	 * back our virtual irq number
 	 */
-	host = irq_alloc_host(NULL, IRQ_DOMAIN_MAP_NOMAP, 0,
-			      &iseries_irq_domain_ops, 0);
+	host = irq_domain_add_nomap(NULL, &iseries_irq_domain_ops, NULL);
 	BUG_ON(host == NULL);
 	irq_set_default_host(host);
 

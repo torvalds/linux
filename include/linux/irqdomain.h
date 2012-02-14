@@ -95,10 +95,6 @@ struct irq_domain {
 
 	/* type of reverse mapping_technique */
 	unsigned int revmap_type;
-#define IRQ_DOMAIN_MAP_LEGACY 0 /* legacy 8259, gets irqs 1..15 */
-#define IRQ_DOMAIN_MAP_NOMAP 1 /* no fast reverse mapping */
-#define IRQ_DOMAIN_MAP_LINEAR 2 /* linear map of interrupts */
-#define IRQ_DOMAIN_MAP_TREE 3 /* radix tree */
 	union {
 		struct {
 			unsigned int size;
@@ -120,11 +116,21 @@ struct irq_domain {
 
 #ifdef CONFIG_IRQ_DOMAIN
 #ifdef CONFIG_PPC
-extern struct irq_domain *irq_alloc_host(struct device_node *of_node,
-				       unsigned int revmap_type,
-				       unsigned int revmap_arg,
-				       struct irq_domain_ops *ops,
-				       irq_hw_number_t inval_irq);
+struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
+					 struct irq_domain_ops *ops,
+					 void *host_data);
+struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
+					 unsigned int size,
+					 struct irq_domain_ops *ops,
+					 void *host_data);
+struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
+					 struct irq_domain_ops *ops,
+					 void *host_data);
+struct irq_domain *irq_domain_add_tree(struct device_node *of_node,
+					 struct irq_domain_ops *ops,
+					 void *host_data);
+
+
 extern struct irq_domain *irq_find_host(struct device_node *node);
 extern void irq_set_default_host(struct irq_domain *host);
 extern void irq_set_virq_count(unsigned int count);

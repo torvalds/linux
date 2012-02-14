@@ -250,9 +250,8 @@ void __init mv64x60_init_irq(void)
 	paddr = of_translate_address(np, reg);
 	mv64x60_irq_reg_base = ioremap(paddr, reg[1]);
 
-	mv64x60_irq_host = irq_alloc_host(np, IRQ_DOMAIN_MAP_LINEAR,
-					  MV64x60_NUM_IRQS,
-					  &mv64x60_host_ops, MV64x60_NUM_IRQS);
+	mv64x60_irq_host = irq_domain_add_linear(np, MV64x60_NUM_IRQS,
+					  &mv64x60_host_ops, NULL);
 
 	spin_lock_irqsave(&mv64x60_lock, flags);
 	out_le32(mv64x60_gpp_reg_base + MV64x60_GPP_INTR_MASK,

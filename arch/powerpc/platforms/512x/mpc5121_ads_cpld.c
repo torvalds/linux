@@ -190,8 +190,7 @@ mpc5121_ads_cpld_pic_init(void)
 
 	cpld_pic_node = of_node_get(np);
 
-	cpld_pic_host =
-	    irq_alloc_host(np, IRQ_DOMAIN_MAP_LINEAR, 16, &cpld_pic_host_ops, 16);
+	cpld_pic_host = irq_domain_add_linear(np, 16, &cpld_pic_host_ops, NULL);
 	if (!cpld_pic_host) {
 		printk(KERN_ERR "CPLD PIC: failed to allocate irq host!\n");
 		goto end;

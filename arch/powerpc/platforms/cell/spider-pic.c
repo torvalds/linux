@@ -299,12 +299,10 @@ static void __init spider_init_one(struct device_node *of_node, int chip,
 		panic("spider_pic: can't map registers !");
 
 	/* Allocate a host */
-	pic->host = irq_alloc_host(of_node, IRQ_DOMAIN_MAP_LINEAR,
-				   SPIDER_SRC_COUNT, &spider_host_ops,
-				   SPIDER_IRQ_INVALID);
+	pic->host = irq_domain_add_linear(of_node, SPIDER_SRC_COUNT,
+					  &spider_host_ops, pic);
 	if (pic->host == NULL)
 		panic("spider_pic: can't allocate irq host !");
-	pic->host->host_data = pic;
 
 	/* Go through all sources and disable them */
 	for (i = 0; i < SPIDER_SRC_COUNT; i++) {

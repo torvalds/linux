@@ -173,14 +173,11 @@ static void __init media5200_init_irq(void)
 
 	spin_lock_init(&media5200_irq.lock);
 
-	media5200_irq.irqhost = irq_alloc_host(fpga_np, IRQ_DOMAIN_MAP_LINEAR,
-					       MEDIA5200_NUM_IRQS,
-					       &media5200_irq_ops, -1);
+	media5200_irq.irqhost = irq_domain_add_linear(fpga_np,
+			MEDIA5200_NUM_IRQS, &media5200_irq_ops, &media5200_irq);
 	if (!media5200_irq.irqhost)
 		goto out;
 	pr_debug("%s: allocated irqhost\n", __func__);
-
-	media5200_irq.irqhost->host_data = &media5200_irq;
 
 	irq_set_handler_data(cascade_virq, &media5200_irq);
 	irq_set_chained_handler(cascade_virq, media5200_irq_cascade);

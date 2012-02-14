@@ -728,17 +728,14 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 	if (ipic == NULL)
 		return NULL;
 
-	ipic->irqhost = irq_alloc_host(node, IRQ_DOMAIN_MAP_LINEAR,
-				       NR_IPIC_INTS,
-				       &ipic_host_ops, 0);
+	ipic->irqhost = irq_domain_add_linear(node, NR_IPIC_INTS,
+					      &ipic_host_ops, ipic);
 	if (ipic->irqhost == NULL) {
 		kfree(ipic);
 		return NULL;
 	}
 
 	ipic->regs = ioremap(res.start, resource_size(&res));
-
-	ipic->irqhost->host_data = ipic;
 
 	/* init hw */
 	ipic_write(ipic->regs, IPIC_SICNR, 0x0);
