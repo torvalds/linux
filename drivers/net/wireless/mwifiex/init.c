@@ -382,7 +382,8 @@ mwifiex_free_adapter(struct mwifiex_adapter *adapter)
 
 	adapter->if_ops.cleanup_if(adapter);
 
-	dev_kfree_skb_any(adapter->sleep_cfm);
+	if (adapter->sleep_cfm)
+		dev_kfree_skb_any(adapter->sleep_cfm);
 }
 
 /*
