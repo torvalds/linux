@@ -51,7 +51,7 @@ next_irq:
 
 /* MS: There is no any advance mapping mechanism. We are using simple 32bit
   intc without any cascades or any connection that's why mapping is 1:1 */
-unsigned int irq_create_mapping(struct irq_host *host, irq_hw_number_t hwirq)
+unsigned int irq_create_mapping(struct irq_domain *host, irq_hw_number_t hwirq)
 {
 	return hwirq + IRQ_OFFSET;
 }

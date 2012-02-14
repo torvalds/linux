@@ -39,7 +39,7 @@ static inline void irq_dispose_mapping(unsigned int virq)
 	return;
 }
 
-struct irq_host;
+struct irq_domain;
 
 /**
  * irq_create_mapping - Map a hardware interrupt into linux virq space
@@ -51,7 +51,7 @@ struct irq_host;
  * If the sense/trigger is to be specified, set_irq_type() should be called
  * on the number returned from that call.
  */
-extern unsigned int irq_create_mapping(struct irq_host *host,
+extern unsigned int irq_create_mapping(struct irq_domain *host,
 					irq_hw_number_t hwirq);
 
 #endif /* _ASM_MICROBLAZE_IRQ_H */
