@@ -74,7 +74,7 @@ int debug_level = 5;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.2.14 The last modify date is 2011-11-17,modifyed by XBW." 
+#define RK29_SDMMC_VERSION "Ver.2.16 The last modify date is 2012-02-13,modifyed by XBW." 
 
 #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
@@ -343,6 +343,24 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
     #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
     if(RK29_CTRL_SDMMC_ID == host->pdev->id)
     {
+#if 1 //to wirte log in log-file-system during the stage of umount. Modifyed by xbw at 2011-12-26
+        if(!strncmp(buf, "sd-Unmounting", strlen("sd-Unmounting")))
+        {
+            if(unmounting_times++%10 == 0)
+            {
+                printk(".%d.. MMC0 receive the message Unmounting(waitTimes=%d) from VOLD.====xbw[%s]====\n", \
+                    __LINE__, unmounting_times, host->dma_name);
+            }
+
+            if(0 == host->mmc->re_initialized_flags)
+                mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(RK29_SDMMC_REMOVAL_DELAY*2));
+        }
+        else if(!strncmp(buf, "sd-Idle-Unmounted", strlen("sd-Idle-Unmounted")))
+        {
+            if(0 == host->mmc->re_initialized_flags)
+                mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(RK29_SDMMC_REMOVAL_DELAY*2));
+        }
+#else
         if(!strncmp(buf, "sd-Unmounting", strlen("sd-Unmounting")))
         {
             if(unmounting_times++%10 == 0)
@@ -352,7 +370,8 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
             }
             host->mmc->re_initialized_flags = 0;
             mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(RK29_SDMMC_REMOVAL_DELAY*2));
-        }
+        } 
+#endif
         else if( !strncmp(buf, "sd-No-Media", strlen("sd-No-Media")))
         {
             printk(".%d.. MMC0 receive the message No-Media from VOLD. waitTimes=%d ====xbw[%s]====\n" ,\
@@ -445,7 +464,7 @@ struct kobj_attribute mmc_reset_attrs =
 {
         .attr = {
                 .name = "rescan",
-                .mode = 0766},
+                .mode = 0764},
         .show = NULL,
         .store = rk29_sdmmc_progress_store,
 };
@@ -1095,8 +1114,8 @@ static int rk29_sdmmc_prepare_write_data(struct rk29_sdmmc *host, struct mmc_dat
             {
         		host->dodma = 0;
         			
-        	    printk("%s..%d... CMD%d setupDMA failure!!!!!  ==xbw[%s]==\n", \
-						__FUNCTION__, __LINE__, host->cmd->opcode, host->dma_name);
+        	    printk("%s..%d... CMD%d setupDMA failure!!!!! pre_cmd=%d  ==xbw[%s]==\n", \
+						__FUNCTION__, __LINE__, host->cmd->opcode,host->old_cmd, host->dma_name);
         	    
 				host->errorstep = 0x81;
 
@@ -3017,7 +3036,7 @@ static void rk29_sdmmc_detect_change(unsigned long data)
    
 	smp_rmb();
 
-    if(RK29_CTRL_SDMMC_ID == host->pdev->id)
+    if((RK29_CTRL_SDMMC_ID == host->pdev->id) && rk29_sdmmc_get_cd(host->mmc))
     {
         host->mmc->re_initialized_flags =1;
     }
