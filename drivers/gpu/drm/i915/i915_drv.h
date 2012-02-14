@@ -298,6 +298,13 @@ enum intel_pch {
 struct intel_fbdev;
 struct intel_fbc_work;
 
+struct intel_gmbus {
+	struct i2c_adapter adapter;
+	struct i2c_adapter *force_bit;
+	u32 reg0;
+	struct drm_i915_private *dev_priv;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
@@ -315,11 +322,7 @@ typedef struct drm_i915_private {
 	/** gt_lock is also taken in irq contexts. */
 	struct spinlock gt_lock;
 
-	struct intel_gmbus {
-		struct i2c_adapter adapter;
-		struct i2c_adapter *force_bit;
-		u32 reg0;
-	} *gmbus;
+	struct intel_gmbus *gmbus;
 
 	/** gmbus_mutex protects against concurrent usage of the single hw gmbus
 	 * controller on different i2c buses. */

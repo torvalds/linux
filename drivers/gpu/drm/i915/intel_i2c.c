@@ -232,7 +232,7 @@ gmbus_xfer(struct i2c_adapter *adapter,
 	struct intel_gmbus *bus = container_of(adapter,
 					       struct intel_gmbus,
 					       adapter);
-	struct drm_i915_private *dev_priv = adapter->algo_data;
+	struct drm_i915_private *dev_priv = bus->dev_priv;
 	int i, reg_offset, ret;
 
 	mutex_lock(&dev_priv->gmbus_mutex);
@@ -406,7 +406,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 			 names[i]);
 
 		bus->adapter.dev.parent = &dev->pdev->dev;
-		bus->adapter.algo_data	= dev_priv;
+		bus->dev_priv = dev_priv;
 
 		bus->adapter.algo = &gmbus_algorithm;
 		ret = i2c_add_adapter(&bus->adapter);
@@ -447,7 +447,7 @@ void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
 
 	if (force_bit) {
 		if (bus->force_bit == NULL) {
-			struct drm_i915_private *dev_priv = adapter->algo_data;
+			struct drm_i915_private *dev_priv = bus->dev_priv;
 			bus->force_bit = intel_gpio_create(dev_priv,
 							   bus->reg0 & 0xff);
 		}
