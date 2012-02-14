@@ -762,6 +762,13 @@ typedef struct drm_i915_private {
 	struct drm_property *force_audio_property;
 } drm_i915_private_t;
 
+enum hdmi_force_audio {
+	HDMI_AUDIO_OFF_DVI = -2,	/* no aux data for HDMI-DVI converter */
+	HDMI_AUDIO_OFF,			/* force turn off HDMI audio */
+	HDMI_AUDIO_AUTO,		/* trust EDID */
+	HDMI_AUDIO_ON,			/* force turn on HDMI audio */
+};
+
 enum i915_cache_level {
 	I915_CACHE_NONE,
 	I915_CACHE_LLC,
