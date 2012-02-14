@@ -1733,5 +1733,7 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 	ath6kl_reset_device(ar, ar->target_type, true, true);
 
 	clear_bit(WLAN_ENABLED, &ar->flag);
+
+	up(&ar->sem);
 }
 EXPORT_SYMBOL(ath6kl_stop_txrx);
