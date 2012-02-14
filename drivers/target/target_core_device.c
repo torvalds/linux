@@ -889,10 +889,15 @@ void se_dev_set_default_attribs(
 						limits->logical_block_size);
 	dev->se_sub_dev->se_dev_attrib.max_sectors = limits->max_sectors;
 	/*
-	 * Set optimal_sectors from max_sectors, which can be lowered via
-	 * configfs.
+	 * Set fabric_max_sectors, which is reported in block limits
+	 * VPD page (B0h).
 	 */
-	dev->se_sub_dev->se_dev_attrib.optimal_sectors = limits->max_sectors;
+	dev->se_sub_dev->se_dev_attrib.fabric_max_sectors = DA_FABRIC_MAX_SECTORS;
+	/*
+	 * Set optimal_sectors from fabric_max_sectors, which can be
+	 * lowered via configfs.
+	 */
+	dev->se_sub_dev->se_dev_attrib.optimal_sectors = DA_FABRIC_MAX_SECTORS;
 	/*
 	 * queue_depth is based on subsystem plugin dependent requirements.
 	 */
@@ -1224,6 +1229,54 @@ int se_dev_set_max_sectors(struct se_device *dev, u32 max_sectors)
 	return 0;
 }
 
+int se_dev_set_fabric_max_sectors(struct se_device *dev, u32 fabric_max_sectors)
+{
+	if (atomic_read(&dev->dev_export_obj.obj_access_count)) {
+		pr_err("dev[%p]: Unable to change SE Device"
+			" fabric_max_sectors while dev_export_obj: %d count exists\n",
+			dev, atomic_read(&dev->dev_export_obj.obj_access_count));
+		return -EINVAL;
+	}
+	if (!fabric_max_sectors) {
+		pr_err("dev[%p]: Illegal ZERO value for"
+			" fabric_max_sectors\n", dev);
+		return -EINVAL;
+	}
+	if (fabric_max_sectors < DA_STATUS_MAX_SECTORS_MIN) {
+		pr_err("dev[%p]: Passed fabric_max_sectors: %u less than"
+			" DA_STATUS_MAX_SECTORS_MIN: %u\n", dev, fabric_max_sectors,
+				DA_STATUS_MAX_SECTORS_MIN);
+		return -EINVAL;
+	}
+	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
+		if (fabric_max_sectors > dev->se_sub_dev->se_dev_attrib.hw_max_sectors) {
+			pr_err("dev[%p]: Passed fabric_max_sectors: %u"
+				" greater than TCM/SE_Device max_sectors:"
+				" %u\n", dev, fabric_max_sectors,
+				dev->se_sub_dev->se_dev_attrib.hw_max_sectors);
+			 return -EINVAL;
+		}
+	} else {
+		if (fabric_max_sectors > DA_STATUS_MAX_SECTORS_MAX) {
+			pr_err("dev[%p]: Passed fabric_max_sectors: %u"
+				" greater than DA_STATUS_MAX_SECTORS_MAX:"
+				" %u\n", dev, fabric_max_sectors,
+				DA_STATUS_MAX_SECTORS_MAX);
+			return -EINVAL;
+		}
+	}
+	/*
+	 * Align max_sectors down to PAGE_SIZE to follow transport_allocate_data_tasks()
+	 */
+	fabric_max_sectors = se_dev_align_max_sectors(fabric_max_sectors,
+						      dev->se_sub_dev->se_dev_attrib.block_size);
+
+	dev->se_sub_dev->se_dev_attrib.fabric_max_sectors = fabric_max_sectors;
+	pr_debug("dev[%p]: SE Device max_sectors changed to %u\n",
+			dev, fabric_max_sectors);
+	return 0;
+}
+
 int se_dev_set_optimal_sectors(struct se_device *dev, u32 optimal_sectors)
 {
 	if (atomic_read(&dev->dev_export_obj.obj_access_count)) {
@@ -1237,10 +1290,10 @@ int se_dev_set_optimal_sectors(struct se_device *dev, u32 optimal_sectors)
 				" changed for TCM/pSCSI\n", dev);
 		return -EINVAL;
 	}
-	if (optimal_sectors > dev->se_sub_dev->se_dev_attrib.max_sectors) {
+	if (optimal_sectors > dev->se_sub_dev->se_dev_attrib.fabric_max_sectors) {
 		pr_err("dev[%p]: Passed optimal_sectors %u cannot be"
-			" greater than max_sectors: %u\n", dev,
-			optimal_sectors, dev->se_sub_dev->se_dev_attrib.max_sectors);
+			" greater than fabric_max_sectors: %u\n", dev,
+			optimal_sectors, dev->se_sub_dev->se_dev_attrib.fabric_max_sectors);
 		return -EINVAL;
 	}
 

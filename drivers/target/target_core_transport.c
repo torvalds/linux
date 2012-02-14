@@ -37,6 +37,7 @@
 #include <linux/in.h>
 #include <linux/cdrom.h>
 #include <linux/module.h>
+#include <linux/ratelimit.h>
 #include <asm/unaligned.h>
 #include <net/sock.h>
 #include <net/tcp.h>
@@ -3105,6 +3106,13 @@ static int transport_generic_cmd_sequencer(
 			cmd->residual_count = (cmd->data_length - size);
 		}
 		cmd->data_length = size;
+	}
+
+	if (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB &&
+	    sectors > dev->se_sub_dev->se_dev_attrib.fabric_max_sectors) {
+		printk_ratelimited(KERN_ERR "SCSI OP %02xh with too big sectors %u\n",
+				   cdb[0], sectors);
+		goto out_invalid_cdb_field;
 	}
 
 	/* reject any command that we don't have a handler for */
