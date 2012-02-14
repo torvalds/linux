@@ -652,8 +652,8 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot)
 			     SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
 
 		/* enable clock */
-		mci_writel(host, CLKENA, SDMMC_CLKEN_ENABLE |
-			   SDMMC_CLKEN_LOW_PWR);
+		mci_writel(host, CLKENA, ((SDMMC_CLKEN_ENABLE |
+			   SDMMC_CLKEN_LOW_PWR) << slot->id));
 
 		/* inform CIU */
 		mci_send_cmd(slot,
