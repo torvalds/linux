@@ -788,6 +788,15 @@ typedef u8 acpi_adr_space_type;
 #define ACPI_ENABLE_EVENT                       1
 #define ACPI_DISABLE_EVENT                      0
 
+/* Sleep function dispatch */
+
+typedef acpi_status(*ACPI_SLEEP_FUNCTION) (u8 sleep_state);
+
+struct acpi_sleep_functions {
+	ACPI_SLEEP_FUNCTION legacy_function;
+	ACPI_SLEEP_FUNCTION extended_function;
+};
+
 /*
  * External ACPI object definition
  */

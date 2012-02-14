@@ -516,6 +516,12 @@
 
 #endif				/* ACPI_DEBUG_OUTPUT */
 
+#if (!ACPI_REDUCED_HARDWARE)
+#define ACPI_HW_OPTIONAL_FUNCTION(addr)     addr
+#else
+#define ACPI_HW_OPTIONAL_FUNCTION(addr)     NULL
+#endif
+
 /*
  * Some code only gets executed when the debugger is built in.
  * Note that this is entirely independent of whether the
