@@ -605,7 +605,7 @@ int apei_read(u64 *val, struct acpi_generic_address *reg)
 	*val = 0;
 	switch(reg->space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
-		status = acpi_os_read_memory64((acpi_physical_address)
+		status = acpi_os_read_memory((acpi_physical_address)
 					     address, val, reg->bit_width);
 		if (ACPI_FAILURE(status))
 			return -EIO;
@@ -636,7 +636,7 @@ int apei_write(u64 val, struct acpi_generic_address *reg)
 
 	switch (reg->space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
-		status = acpi_os_write_memory64((acpi_physical_address)
+		status = acpi_os_write_memory((acpi_physical_address)
 					      address, val, reg->bit_width);
 		if (ACPI_FAILURE(status))
 			return -EIO;

@@ -157,6 +157,7 @@ acpi_hw_validate_register(struct acpi_generic_address *reg,
 acpi_status acpi_hw_read(u32 *value, struct acpi_generic_address *reg)
 {
 	u64 address;
+	u64 value64;
 	acpi_status status;
 
 	ACPI_FUNCTION_NAME(hw_read);
@@ -178,7 +179,9 @@ acpi_status acpi_hw_read(u32 *value, struct acpi_generic_address *reg)
 	 */
 	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
 		status = acpi_os_read_memory((acpi_physical_address)
-					     address, value, reg->bit_width);
+					     address, &value64, reg->bit_width);
+
+		*value = (u32)value64;
 	} else {		/* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
 
 		status = acpi_hw_read_port((acpi_io_address)
@@ -228,7 +231,8 @@ acpi_status acpi_hw_write(u32 value, struct acpi_generic_address *reg)
 	 */
 	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
 		status = acpi_os_write_memory((acpi_physical_address)
-					      address, value, reg->bit_width);
+					      address, (u64)value,
+					      reg->bit_width);
 	} else {		/* ACPI_ADR_SPACE_SYSTEM_IO, validated earlier */
 
 		status = acpi_hw_write_port((acpi_io_address)
