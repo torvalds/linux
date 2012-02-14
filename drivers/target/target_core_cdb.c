@@ -70,15 +70,11 @@ target_emulate_inquiry_std(struct se_cmd *cmd, char *buf)
 {
 	struct se_lun *lun = cmd->se_lun;
 	struct se_device *dev = cmd->se_dev;
-	struct se_portal_group *tpg = lun->lun_sep->sep_tpg;
 
-	if (dev == tpg->tpg_virt_lun0.lun_se_dev) {
-		buf[0] = 0x3f; /* Not connected */
-	} else {
-		buf[0] = dev->transport->get_device_type(dev);
-		if (buf[0] == TYPE_TAPE)
-			buf[1] = 0x80;
-	}
+	/* Set RMB (removable media) for tape devices */
+	if (dev->transport->get_device_type(dev) == TYPE_TAPE)
+		buf[1] = 0x80;
+
 	buf[2] = dev->transport->get_device_rev(dev);
 
 	/*
@@ -606,6 +602,7 @@ int target_emulate_inquiry(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
+	struct se_portal_group *tpg = cmd->se_lun->lun_sep->sep_tpg;
 	unsigned char *buf, *map_buf;
 	unsigned char *cdb = cmd->t_task_cdb;
 	int p, ret;
@@ -630,6 +627,11 @@ int target_emulate_inquiry(struct se_task *task)
 		buf = map_buf;
 	}
 
+	if (dev == tpg->tpg_virt_lun0.lun_se_dev)
+		buf[0] = 0x3f; /* Not connected */
+	else
+		buf[0] = dev->transport->get_device_type(dev);
+
 	if (!(cdb[1] & 0x1)) {
 		if (cdb[2]) {
 			pr_err("INQUIRY with EVPD==0 but PAGE CODE=%02x\n",
@@ -642,8 +644,6 @@ int target_emulate_inquiry(struct se_task *task)
 		ret = target_emulate_inquiry_std(cmd, buf);
 		goto out;
 	}
-
-	buf[0] = dev->transport->get_device_type(dev);
 
 	for (p = 0; p < ARRAY_SIZE(evpd_handlers); ++p) {
 		if (cdb[2] == evpd_handlers[p].page) {
