@@ -24,6 +24,7 @@
 #include <linux/irqdomain.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/of_gpio.h>
 
 #include <mach/hardware.h>
 #include <mach/at91_pio.h>
@@ -34,6 +35,7 @@ struct at91_gpio_chip {
 	struct gpio_chip	chip;
 	struct at91_gpio_chip	*next;		/* Bank sharing same clock */
 	int			pioc_hwirq;	/* PIO bank interrupt identifier on AIC */
+	int			pioc_virq;	/* PIO bank Linux virtual interrupt */
 	int			pioc_idx;	/* PIO bank index */
 	void __iomem		*regbase;	/* PIO bank virtual address */
 	struct clk		*clock;		/* associated clock */
@@ -292,7 +294,7 @@ static int gpio_irq_set_wake(struct irq_data *d, unsigned state)
 	else
 		wakeups[bank] &= ~mask;
 
-	irq_set_irq_wake(gpio_chip[bank].pioc_hwirq, state);
+	irq_set_irq_wake(at91_gpio->pioc_virq, state);
 
 	return 0;
 }
@@ -394,12 +396,12 @@ static struct irq_chip gpio_irqchip = {
 
 static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	unsigned	virq;
 	struct irq_data *idata = irq_desc_get_irq_data(desc);
 	struct irq_chip *chip = irq_data_get_irq_chip(idata);
 	struct at91_gpio_chip *at91_gpio = irq_data_get_irq_chip_data(idata);
 	void __iomem	*pio = at91_gpio->regbase;
-	u32		isr;
+	unsigned long	isr;
+	int		n;
 
 	/* temporarily mask (level sensitive) parent IRQ */
 	chip->irq_ack(idata);
@@ -417,13 +419,10 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 			continue;
 		}
 
-		virq = gpio_to_irq(at91_gpio->chip.base);
-
-		while (isr) {
-			if (isr & 1)
-				generic_handle_irq(virq);
-			virq++;
-			isr >>= 1;
+		n = find_first_bit(&isr, BITS_PER_LONG);
+		while (n < BITS_PER_LONG) {
+			generic_handle_irq(irq_find_mapping(at91_gpio->domain, n));
+			n = find_next_bit(&isr, BITS_PER_LONG, n + 1);
 		}
 	}
 	chip->irq_unmask(idata);
@@ -493,35 +492,97 @@ postcore_initcall(at91_gpio_debugfs_init);
 /*--------------------------------------------------------------------------*/
 
 /*
+ * This lock class tells lockdep that GPIO irqs are in a different
+ * category than their parents, so it won't report false recursion.
+ */
+static struct lock_class_key gpio_lock_class;
+
+#if defined(CONFIG_OF)
+static int at91_gpio_irq_map(struct irq_domain *h, unsigned int virq,
+							irq_hw_number_t hw)
+{
+	struct at91_gpio_chip	*at91_gpio = h->host_data;
+
+	irq_set_lockdep_class(virq, &gpio_lock_class);
+
+	/*
+	 * Can use the "simple" and not "edge" handler since it's
+	 * shorter, and the AIC handles interrupts sanely.
+	 */
+	irq_set_chip_and_handler(virq, &gpio_irqchip,
+				 handle_simple_irq);
+	set_irq_flags(virq, IRQF_VALID);
+	irq_set_chip_data(virq, at91_gpio);
+
+	return 0;
+}
+
+static struct irq_domain_ops at91_gpio_ops = {
+	.map	= at91_gpio_irq_map,
+	.xlate	= irq_domain_xlate_twocell,
+};
+
+int __init at91_gpio_of_irq_setup(struct device_node *node,
+				     struct device_node *parent)
+{
+	struct at91_gpio_chip	*prev = NULL;
+	int			alias_idx = of_alias_get_id(node, "gpio");
+	struct at91_gpio_chip	*at91_gpio = &gpio_chip[alias_idx];
+
+	/* Disable irqs of this PIO controller */
+	__raw_writel(~0, at91_gpio->regbase + PIO_IDR);
+
+	/* Setup irq domain */
+	at91_gpio->domain = irq_domain_add_linear(node, at91_gpio->chip.ngpio,
+						&at91_gpio_ops, at91_gpio);
+	if (!at91_gpio->domain)
+		panic("at91_gpio.%d: couldn't allocate irq domain (DT).\n",
+			at91_gpio->pioc_idx);
+
+	/* Setup chained handler */
+	if (at91_gpio->pioc_idx)
+		prev = &gpio_chip[at91_gpio->pioc_idx - 1];
+
+	/* The toplevel handler handles one bank of GPIOs, except
+	 * on some SoC it can handles up to three...
+	 * We only set up the handler for the first of the list.
+	 */
+	if (prev && prev->next == at91_gpio)
+		return 0;
+
+	at91_gpio->pioc_virq = irq_create_mapping(irq_find_host(parent),
+							at91_gpio->pioc_hwirq);
+	irq_set_chip_data(at91_gpio->pioc_virq, at91_gpio);
+	irq_set_chained_handler(at91_gpio->pioc_virq, gpio_irq_handler);
+
+	return 0;
+}
+#else
+int __init at91_gpio_of_irq_setup(struct device_node *node,
+				     struct device_node *parent)
+{
+	return -EINVAL;
+}
+#endif
+
+/*
  * irqdomain initialization: pile up irqdomains on top of AIC range
  */
 static void __init at91_gpio_irqdomain(struct at91_gpio_chip *at91_gpio)
 {
 	int irq_base;
-#if defined(CONFIG_OF)
-	struct device_node *of_node = at91_gpio->chip.of_node;
-#else
-	struct device_node *of_node = NULL;
-#endif
 
 	irq_base = irq_alloc_descs(-1, 0, at91_gpio->chip.ngpio, 0);
 	if (irq_base < 0)
 		panic("at91_gpio.%d: error %d: couldn't allocate IRQ numbers.\n",
 			at91_gpio->pioc_idx, irq_base);
-	at91_gpio->domain = irq_domain_add_legacy(of_node,
-						  at91_gpio->chip.ngpio,
+	at91_gpio->domain = irq_domain_add_legacy(NULL, at91_gpio->chip.ngpio,
 						  irq_base, 0,
 						  &irq_domain_simple_ops, NULL);
 	if (!at91_gpio->domain)
 		panic("at91_gpio.%d: couldn't allocate irq domain.\n",
 			at91_gpio->pioc_idx);
 }
-
-/*
- * This lock class tells lockdep that GPIO irqs are in a different
- * category than their parents, so it won't report false recursion.
- */
-static struct lock_class_key gpio_lock_class;
 
 /*
  * Called from the processor-specific init to enable GPIO interrupt support.
@@ -535,8 +596,7 @@ void __init at91_gpio_irq_setup(void)
 	for (pioc = 0, this = gpio_chip, prev = NULL;
 			pioc++ < gpio_banks;
 			prev = this, this++) {
-		unsigned	pioc_hwirq = this->pioc_hwirq;
-		int		offset;
+		int offset;
 
 		__raw_writel(~0, this->regbase + PIO_IDR);
 
@@ -566,8 +626,9 @@ void __init at91_gpio_irq_setup(void)
 		if (prev && prev->next == this)
 			continue;
 
-		irq_set_chip_data(pioc_hwirq, this);
-		irq_set_chained_handler(pioc_hwirq, gpio_irq_handler);
+		this->pioc_virq = irq_create_mapping(NULL, this->pioc_hwirq);
+		irq_set_chip_data(this->pioc_virq, this);
+		irq_set_chained_handler(this->pioc_virq, gpio_irq_handler);
 	}
 	pr_info("AT91: %d gpio irqs in %d banks\n", gpio_irqnbr, gpio_banks);
 }
@@ -645,7 +706,12 @@ static void at91_gpiolib_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 static int at91_gpiolib_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct at91_gpio_chip *at91_gpio = to_at91_gpio_chip(chip);
-	int virq = irq_find_mapping(at91_gpio->domain, offset);
+	int virq;
+
+	if (offset < chip->ngpio)
+		virq = irq_create_mapping(at91_gpio->domain, offset);
+	else
+		virq = -ENXIO;
 
 	dev_dbg(chip->dev, "%s: request IRQ for GPIO %d, return %d\n",
 				chip->label, offset + chip->base, virq);

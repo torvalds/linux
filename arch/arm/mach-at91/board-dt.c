@@ -15,6 +15,8 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
 #include <mach/hardware.h>
@@ -80,9 +82,16 @@ static void __init ek_add_device_nand(void)
 	at91_add_device_nand(&ek_nand_data);
 }
 
+static const struct of_device_id irq_of_match[] __initconst = {
+
+	{ .compatible = "atmel,at91rm9200-aic", .data = at91_aic_of_init },
+	{ .compatible = "atmel,at91rm9200-gpio", .data = at91_gpio_of_irq_setup },
+	{ /*sentinel*/ }
+};
+
 static void __init at91_dt_init_irq(void)
 {
-	at91_init_irq_default();
+	of_irq_init(irq_of_match);
 }
 
 static void __init at91_dt_device_init(void)

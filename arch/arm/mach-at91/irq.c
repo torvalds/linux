@@ -135,27 +135,70 @@ static struct irq_chip at91_aic_chip = {
 	.irq_set_wake	= at91_aic_set_wake,
 };
 
+static void __init at91_aic_hw_init(unsigned int spu_vector)
+{
+	int i;
+
+	/*
+	 * Perform 8 End Of Interrupt Command to make sure AIC
+	 * will not Lock out nIRQ
+	 */
+	for (i = 0; i < 8; i++)
+		at91_aic_write(AT91_AIC_EOICR, 0);
+
+	/*
+	 * Spurious Interrupt ID in Spurious Vector Register.
+	 * When there is no current interrupt, the IRQ Vector Register
+	 * reads the value stored in AIC_SPU
+	 */
+	at91_aic_write(AT91_AIC_SPU, spu_vector);
+
+	/* No debugging in AIC: Debug (Protect) Control Register */
+	at91_aic_write(AT91_AIC_DCR, 0);
+
+	/* Disable and clear all interrupts initially */
+	at91_aic_write(AT91_AIC_IDCR, 0xFFFFFFFF);
+	at91_aic_write(AT91_AIC_ICCR, 0xFFFFFFFF);
+}
+
 #if defined(CONFIG_OF)
-static int __init __at91_aic_of_init(struct device_node *node,
+static int at91_aic_irq_map(struct irq_domain *h, unsigned int virq,
+							irq_hw_number_t hw)
+{
+	/* Put virq number in Source Vector Register */
+	at91_aic_write(AT91_AIC_SVR(hw), virq);
+
+	/* Active Low interrupt, without priority */
+	at91_aic_write(AT91_AIC_SMR(hw), AT91_AIC_SRCTYPE_LOW);
+
+	irq_set_chip_and_handler(virq, &at91_aic_chip, handle_level_irq);
+	set_irq_flags(virq, IRQF_VALID | IRQF_PROBE);
+
+	return 0;
+}
+
+static struct irq_domain_ops at91_aic_irq_ops = {
+	.map	= at91_aic_irq_map,
+	.xlate	= irq_domain_xlate_twocell,
+};
+
+int __init at91_aic_of_init(struct device_node *node,
 				     struct device_node *parent)
 {
 	at91_aic_base = of_iomap(node, 0);
 	at91_aic_np = node;
 
+	at91_aic_domain = irq_domain_add_linear(at91_aic_np, NR_AIC_IRQS,
+						&at91_aic_irq_ops, NULL);
+	if (!at91_aic_domain)
+		panic("Unable to add AIC irq domain (DT)\n");
+
+	irq_set_default_host(at91_aic_domain);
+
+	at91_aic_hw_init(NR_AIC_IRQS);
+
 	return 0;
 }
-
-static const struct of_device_id aic_ids[] __initconst = {
-	{ .compatible = "atmel,at91rm9200-aic", .data = __at91_aic_of_init },
-	{ /*sentinel*/ }
-};
-
-static void __init at91_aic_of_init(void)
-{
-	of_irq_init(aic_ids);
-}
-#else
-static void __init at91_aic_of_init(void) {}
 #endif
 
 /*
@@ -166,11 +209,7 @@ void __init at91_aic_init(unsigned int priority[NR_AIC_IRQS])
 	unsigned int i;
 	int irq_base;
 
-	if (of_have_populated_dt())
-		at91_aic_of_init();
-	else
-		at91_aic_base = ioremap(AT91_AIC, 512);
-
+	at91_aic_base = ioremap(AT91_AIC, 512);
 	if (!at91_aic_base)
 		panic("Unable to ioremap AIC registers\n");
 
@@ -187,6 +226,8 @@ void __init at91_aic_init(unsigned int priority[NR_AIC_IRQS])
 	if (!at91_aic_domain)
 		panic("Unable to add AIC irq domain\n");
 
+	irq_set_default_host(at91_aic_domain);
+
 	/*
 	 * The IVR is used by macro get_irqnr_and_base to read and verify.
 	 * The irq number is NR_AIC_IRQS when a spurious interrupt has occurred.
@@ -199,22 +240,7 @@ void __init at91_aic_init(unsigned int priority[NR_AIC_IRQS])
 
 		irq_set_chip_and_handler(i, &at91_aic_chip, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
-
-		/* Perform 8 End Of Interrupt Command to make sure AIC will not Lock out nIRQ */
-		if (i < 8)
-			at91_aic_write(AT91_AIC_EOICR, 0);
 	}
 
-	/*
-	 * Spurious Interrupt ID in Spurious Vector Register is NR_AIC_IRQS
-	 * When there is no current interrupt, the IRQ Vector Register reads the value stored in AIC_SPU
-	 */
-	at91_aic_write(AT91_AIC_SPU, NR_AIC_IRQS);
-
-	/* No debugging in AIC: Debug (Protect) Control Register */
-	at91_aic_write(AT91_AIC_DCR, 0);
-
-	/* Disable and clear all interrupts initially */
-	at91_aic_write(AT91_AIC_IDCR, 0xFFFFFFFF);
-	at91_aic_write(AT91_AIC_ICCR, 0xFFFFFFFF);
+	at91_aic_hw_init(NR_AIC_IRQS);
 }

@@ -9,6 +9,7 @@
  */
 
 #include <linux/clkdev.h>
+#include <linux/of.h>
 
  /* Map io */
 extern void __init at91_map_io(void);
@@ -25,6 +26,9 @@ extern void __init at91_init_irq_default(void);
 extern void __init at91_init_interrupts(unsigned int priority[]);
 extern void __init at91x40_init_interrupts(unsigned int priority[]);
 extern void __init at91_aic_init(unsigned int priority[]);
+extern int  __init at91_aic_of_init(struct device_node *node,
+				    struct device_node *parent);
+
 
  /* Timer */
 struct sys_timer;
@@ -84,5 +88,7 @@ struct at91_gpio_bank {
 };
 extern void __init at91_gpio_init(struct at91_gpio_bank *, int nr_banks);
 extern void __init at91_gpio_irq_setup(void);
+extern int  __init at91_gpio_of_irq_setup(struct device_node *node,
+					  struct device_node *parent);
 
 extern int at91_extern_irq;
