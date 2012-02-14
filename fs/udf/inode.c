@@ -1358,6 +1358,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		iinfo->i_unique = le64_to_cpu(fe->uniqueID);
 		iinfo->i_lenEAttr = le32_to_cpu(fe->lengthExtendedAttr);
 		iinfo->i_lenAlloc = le32_to_cpu(fe->lengthAllocDescs);
+		iinfo->i_checkpoint = le32_to_cpu(fe->checkpoint);
 		offset = sizeof(struct fileEntry) + iinfo->i_lenEAttr;
 	} else {
 		inode->i_blocks = le64_to_cpu(efe->logicalBlocksRecorded) <<
@@ -1379,6 +1380,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		iinfo->i_unique = le64_to_cpu(efe->uniqueID);
 		iinfo->i_lenEAttr = le32_to_cpu(efe->lengthExtendedAttr);
 		iinfo->i_lenAlloc = le32_to_cpu(efe->lengthAllocDescs);
+		iinfo->i_checkpoint = le32_to_cpu(efe->checkpoint);
 		offset = sizeof(struct extendedFileEntry) +
 							iinfo->i_lenEAttr;
 	}
@@ -1607,6 +1609,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 		fe->uniqueID = cpu_to_le64(iinfo->i_unique);
 		fe->lengthExtendedAttr = cpu_to_le32(iinfo->i_lenEAttr);
 		fe->lengthAllocDescs = cpu_to_le32(iinfo->i_lenAlloc);
+		fe->checkpoint = cpu_to_le32(iinfo->i_checkpoint);
 		fe->descTag.tagIdent = cpu_to_le16(TAG_IDENT_FE);
 		crclen = sizeof(struct fileEntry);
 	} else {
@@ -1646,6 +1649,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 		efe->uniqueID = cpu_to_le64(iinfo->i_unique);
 		efe->lengthExtendedAttr = cpu_to_le32(iinfo->i_lenEAttr);
 		efe->lengthAllocDescs = cpu_to_le32(iinfo->i_lenAlloc);
+		efe->checkpoint = cpu_to_le32(iinfo->i_checkpoint);
 		efe->descTag.tagIdent = cpu_to_le16(TAG_IDENT_EFE);
 		crclen = sizeof(struct extendedFileEntry);
 	}
