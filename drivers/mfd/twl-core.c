@@ -263,10 +263,6 @@ struct twl_client {
 
 static struct twl_client twl_modules[TWL_NUM_SLAVES];
 
-#ifdef CONFIG_IRQ_DOMAIN
-static struct irq_domain domain;
-#endif
-
 /* mapping the module id to slave id and base address */
 struct twl_mapping {
 	unsigned char sid;	/* Slave ID */
@@ -1227,14 +1223,8 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	pdata->irq_base = status;
 	pdata->irq_end = pdata->irq_base + nr_irqs;
-
-#ifdef CONFIG_IRQ_DOMAIN
-	domain.irq_base = pdata->irq_base;
-	domain.nr_irq = nr_irqs;
-	domain.of_node = of_node_get(node);
-	domain.ops = &irq_domain_simple_ops;
-	irq_domain_add(&domain);
-#endif
+	irq_domain_add_legacy(node, nr_irqs, pdata->irq_base, 0,
+			      &irq_domain_simple_ops, NULL);
 
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C) == 0) {
 		dev_dbg(&client->dev, "can't talk I2C?\n");

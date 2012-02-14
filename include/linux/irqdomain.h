@@ -55,9 +55,6 @@ typedef unsigned long irq_hw_number_t;
  * @map: Create or update a mapping between a virtual irq number and a hw
  *       irq number. This is called only once for a given mapping.
  * @unmap: Dispose of such a mapping
- * @to_irq: (optional) given a local hardware irq number, return the linux
- *          irq number.  If to_irq is not implemented, then the irq_domain
- *          will use this translation: irq = (domain->irq_base + hwirq)
  * @xlate: Given a device tree node and interrupt specifier, decode
  *         the hardware irq number and linux irq type value.
  *
@@ -70,7 +67,6 @@ struct irq_domain_ops {
 	int (*match)(struct irq_domain *d, struct device_node *node);
 	int (*map)(struct irq_domain *d, unsigned int virq, irq_hw_number_t hw);
 	void (*unmap)(struct irq_domain *d, unsigned int virq);
-	unsigned int (*to_irq)(struct irq_domain *d, unsigned long hwirq);
 	int (*xlate)(struct irq_domain *d, struct device_node *node,
 		     const u32 *intspec, unsigned int intsize,
 		     unsigned long *out_hwirq, unsigned int *out_type);
@@ -114,16 +110,11 @@ struct irq_domain {
 	void *host_data;
 	irq_hw_number_t inval_irq;
 
-	unsigned int irq_base;
-	unsigned int nr_irq;
-	unsigned int hwirq_base;
-
 	/* Optional device node pointer */
 	struct device_node *of_node;
 };
 
 #ifdef CONFIG_IRQ_DOMAIN
-#ifdef CONFIG_PPC
 struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
 					 unsigned int size,
 					 unsigned int first_irq,
@@ -153,6 +144,10 @@ static inline struct irq_domain *irq_domain_add_legacy_isa(
 	return irq_domain_add_legacy(of_node, NUM_ISA_INTERRUPTS, 0, 0, ops,
 				     host_data);
 }
+extern struct irq_domain *irq_find_host(struct device_node *node);
+extern void irq_set_default_host(struct irq_domain *host);
+extern void irq_set_virq_count(unsigned int count);
+
 
 extern unsigned int irq_create_mapping(struct irq_domain *host,
 				       irq_hw_number_t hwirq);
@@ -167,38 +162,7 @@ extern unsigned int irq_radix_revmap_lookup(struct irq_domain *host,
 extern unsigned int irq_linear_revmap(struct irq_domain *host,
 				      irq_hw_number_t hwirq);
 
-#else /* CONFIG_PPC */
-
-/**
- * irq_domain_to_irq() - Translate from a hardware irq to a linux irq number
- *
- * Returns the linux irq number associated with a hardware irq.  By default,
- * the mapping is irq == domain->irq_base + hwirq, but this mapping can
- * be overridden if the irq_domain implements a .to_irq() hook.
- */
-static inline unsigned int irq_domain_to_irq(struct irq_domain *d,
-					     unsigned long hwirq)
-{
-	if (d->ops->to_irq)
-		return d->ops->to_irq(d, hwirq);
-	if (WARN_ON(hwirq < d->hwirq_base))
-		return 0;
-	return d->irq_base + hwirq - d->hwirq_base;
-}
-
-#define irq_domain_for_each_hwirq(d, hw) \
-	for (hw = d->hwirq_base; hw < d->hwirq_base + d->nr_irq; hw++)
-
-#define irq_domain_for_each_irq(d, hw, irq) \
-	for (hw = d->hwirq_base, irq = irq_domain_to_irq(d, hw); \
-	     hw < d->hwirq_base + d->nr_irq; \
-	     hw++, irq = irq_domain_to_irq(d, hw))
-
-extern void irq_domain_add(struct irq_domain *domain);
-extern void irq_domain_del(struct irq_domain *domain);
-
 extern struct irq_domain_ops irq_domain_simple_ops;
-
 #if defined(CONFIG_OF_IRQ)
 extern void irq_domain_add_simple(struct device_node *controller, int irq_base);
 extern void irq_domain_generate_simple(const struct of_device_id *match,
@@ -207,7 +171,6 @@ extern void irq_domain_generate_simple(const struct of_device_id *match,
 static inline void irq_domain_generate_simple(const struct of_device_id *match,
 					u64 phys_base, unsigned int irq_start) { }
 #endif /* !CONFIG_OF_IRQ */
-#endif /* !CONFIG_PPC */
 #endif /* CONFIG_IRQ_DOMAIN */
 
 #endif /* _LINUX_IRQDOMAIN_H */
