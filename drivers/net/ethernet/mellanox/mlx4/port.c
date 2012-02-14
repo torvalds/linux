@@ -87,7 +87,6 @@ static int mlx4_uc_steer_add(struct mlx4_dev *dev, u8 port, u64 mac, int *qpn)
 	mac = cpu_to_be64(mac << 16);
 	memcpy(&gid[10], &mac, ETH_ALEN);
 	gid[5] = port;
-	gid[7] = MLX4_UC_STEER << 1;
 
 	err = mlx4_unicast_attach(dev, &qp, gid, 0, MLX4_PROT_ETH);
 	if (err)
@@ -107,7 +106,6 @@ static void mlx4_uc_steer_release(struct mlx4_dev *dev, u8 port,
 	mac = cpu_to_be64(mac << 16);
 	memcpy(&gid[10], &mac, ETH_ALEN);
 	gid[5] = port;
-	gid[7] = MLX4_UC_STEER << 1;
 
 	mlx4_unicast_detach(dev, &qp, gid, MLX4_PROT_ETH);
 }
