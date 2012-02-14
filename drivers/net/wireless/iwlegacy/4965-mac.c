@@ -5523,13 +5523,11 @@ __il4965_up(struct il_priv *il)
 	/* If platform's RF_KILL switch is NOT set to KILL */
 	if (_il_rd(il, CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
 		clear_bit(S_RF_KILL_HW, &il->status);
-	else
+	else {
 		set_bit(S_RF_KILL_HW, &il->status);
-
-	if (il_is_rfkill(il)) {
 		wiphy_rfkill_set_hw_state(il->hw->wiphy, true);
 
-		il_enable_interrupts(il);
+		il_enable_rfkill_int(il);
 		IL_WARN("Radio disabled by HW RF Kill switch\n");
 		return 0;
 	}
