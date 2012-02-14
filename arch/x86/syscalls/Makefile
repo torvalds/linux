@@ -24,7 +24,7 @@ syshdr_pfx_unistd_32_ia32 := ia32_
 $(out)/unistd_32_ia32.h: $(syscall32) $(syshdr)
 	$(call if_changed,syshdr)
 
-syshdr_abi_unistd_64 := 64
+syshdr_abi_unistd_64 := common,64
 $(out)/unistd_64.h: $(syscall64) $(syshdr)
 	$(call if_changed,syshdr)
 
