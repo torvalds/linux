@@ -151,6 +151,17 @@ static void exynos_drm_preclose(struct drm_device *dev,
 
 }
 
+static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
+{
+	DRM_DEBUG_DRIVER("%s\n", __FILE__);
+
+	if (!file->driver_priv)
+		return;
+
+	kfree(file->driver_priv);
+	file->driver_priv = NULL;
+}
+
 static void exynos_drm_lastclose(struct drm_device *dev)
 {
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
@@ -193,6 +204,7 @@ static struct drm_driver exynos_drm_driver = {
 	.unload			= exynos_drm_unload,
 	.preclose		= exynos_drm_preclose,
 	.lastclose		= exynos_drm_lastclose,
+	.postclose		= exynos_drm_postclose,
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= exynos_drm_crtc_enable_vblank,
 	.disable_vblank		= exynos_drm_crtc_disable_vblank,
