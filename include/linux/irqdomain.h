@@ -9,61 +9,105 @@
  * representation into a hardware irq number that can be mapped back to a
  * Linux irq number without any extra platform support code.
  *
- * irq_domain is expected to be embedded in an interrupt controller's private
- * data structure.
+ * Interrupt controller "domain" data structure. This could be defined as a
+ * irq domain controller. That is, it handles the mapping between hardware
+ * and virtual interrupt numbers for a given interrupt domain. The domain
+ * structure is generally created by the PIC code for a given PIC instance
+ * (though a domain can cover more than one PIC if they have a flat number
+ * model). It's the domain callbacks that are responsible for setting the
+ * irq_chip on a given irq_desc after it's been mapped.
  */
+
 #ifndef _LINUX_IRQDOMAIN_H
 #define _LINUX_IRQDOMAIN_H
 
-#include <linux/irq.h>
-#include <linux/mod_devicetable.h>
+#include <linux/types.h>
+#include <linux/radix-tree.h>
 
-#ifdef CONFIG_IRQ_DOMAIN
 struct device_node;
 struct irq_domain;
+struct of_device_id;
+
+/* This type is the placeholder for a hardware interrupt number. It has to
+ * be big enough to enclose whatever representation is used by a given
+ * platform.
+ */
+typedef unsigned long irq_hw_number_t;
 
 /**
  * struct irq_domain_ops - Methods for irq_domain objects
+ * @match: Match an interrupt controller device node to a host, returns
+ *         1 on a match
+ * @map: Create or update a mapping between a virtual irq number and a hw
+ *       irq number. This is called only once for a given mapping.
+ * @unmap: Dispose of such a mapping
  * @to_irq: (optional) given a local hardware irq number, return the linux
  *          irq number.  If to_irq is not implemented, then the irq_domain
  *          will use this translation: irq = (domain->irq_base + hwirq)
- * @dt_translate: Given a device tree node and interrupt specifier, decode
- *                the hardware irq number and linux irq type value.
+ * @xlate: Given a device tree node and interrupt specifier, decode
+ *         the hardware irq number and linux irq type value.
+ *
+ * Functions below are provided by the driver and called whenever a new mapping
+ * is created or an old mapping is disposed. The driver can then proceed to
+ * whatever internal data structures management is required. It also needs
+ * to setup the irq_desc when returning from map().
  */
 struct irq_domain_ops {
+	int (*match)(struct irq_domain *d, struct device_node *node);
+	int (*map)(struct irq_domain *d, unsigned int virq, irq_hw_number_t hw);
+	void (*unmap)(struct irq_domain *d, unsigned int virq);
 	unsigned int (*to_irq)(struct irq_domain *d, unsigned long hwirq);
-
-#ifdef CONFIG_OF
-	int (*dt_translate)(struct irq_domain *d, struct device_node *node,
-			    const u32 *intspec, unsigned int intsize,
-			    unsigned long *out_hwirq, unsigned int *out_type);
-#endif /* CONFIG_OF */
+	int (*xlate)(struct irq_domain *d, struct device_node *node,
+		     const u32 *intspec, unsigned int intsize,
+		     unsigned long *out_hwirq, unsigned int *out_type);
 };
 
 /**
  * struct irq_domain - Hardware interrupt number translation object
- * @list: Element in global irq_domain list.
+ * @link: Element in global irq_domain list.
+ * @revmap_type: Method used for reverse mapping hwirq numbers to linux irq. This
+ *               will be one of the IRQ_DOMAIN_MAP_* values.
+ * @revmap_data: Revmap method specific data.
+ * @ops: pointer to irq_domain methods
+ * @host_data: private data pointer for use by owner.  Not touched by irq_domain
+ *             core code.
  * @irq_base: Start of irq_desc range assigned to the irq_domain.  The creator
  *            of the irq_domain is responsible for allocating the array of
  *            irq_desc structures.
  * @nr_irq: Number of irqs managed by the irq domain
  * @hwirq_base: Starting number for hwirqs managed by the irq domain
- * @ops: pointer to irq_domain methods
- * @priv: private data pointer for use by owner.  Not touched by irq_domain
- *        core code.
  * @of_node: (optional) Pointer to device tree nodes associated with the
  *           irq_domain.  Used when decoding device tree interrupt specifiers.
  */
 struct irq_domain {
-	struct list_head list;
+	struct list_head link;
+
+	/* type of reverse mapping_technique */
+	unsigned int revmap_type;
+#define IRQ_DOMAIN_MAP_LEGACY 0 /* legacy 8259, gets irqs 1..15 */
+#define IRQ_DOMAIN_MAP_NOMAP 1 /* no fast reverse mapping */
+#define IRQ_DOMAIN_MAP_LINEAR 2 /* linear map of interrupts */
+#define IRQ_DOMAIN_MAP_TREE 3 /* radix tree */
+	union {
+		struct {
+			unsigned int size;
+			unsigned int *revmap;
+		} linear;
+		struct radix_tree_root tree;
+	} revmap_data;
+	struct irq_domain_ops *ops;
+	void *host_data;
+	irq_hw_number_t inval_irq;
+
 	unsigned int irq_base;
 	unsigned int nr_irq;
 	unsigned int hwirq_base;
-	const struct irq_domain_ops *ops;
-	void *priv;
+
+	/* Optional device node pointer */
 	struct device_node *of_node;
 };
 
+#ifdef CONFIG_IRQ_DOMAIN
 /**
  * irq_domain_to_irq() - Translate from a hardware irq to a linux irq number
  *

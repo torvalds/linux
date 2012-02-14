@@ -43,7 +43,7 @@ void irq_domain_add(struct irq_domain *domain)
 	}
 
 	mutex_lock(&irq_domain_mutex);
-	list_add(&domain->list, &irq_domain_list);
+	list_add(&domain->link, &irq_domain_list);
 	mutex_unlock(&irq_domain_mutex);
 }
 
@@ -57,7 +57,7 @@ void irq_domain_del(struct irq_domain *domain)
 	int hwirq, irq;
 
 	mutex_lock(&irq_domain_mutex);
-	list_del(&domain->list);
+	list_del(&domain->link);
 	mutex_unlock(&irq_domain_mutex);
 
 	/* Clear the irq_domain assignments */
@@ -88,10 +88,10 @@ unsigned int irq_create_of_mapping(struct device_node *controller,
 
 	/* Find a domain which can translate the irq spec */
 	mutex_lock(&irq_domain_mutex);
-	list_for_each_entry(domain, &irq_domain_list, list) {
-		if (!domain->ops->dt_translate)
+	list_for_each_entry(domain, &irq_domain_list, link) {
+		if (!domain->ops->xlate)
 			continue;
-		rc = domain->ops->dt_translate(domain, controller,
+		rc = domain->ops->xlate(domain, controller,
 					intspec, intsize, &hwirq, &type);
 		if (rc == 0)
 			break;
@@ -126,7 +126,7 @@ void irq_dispose_mapping(unsigned int irq)
 }
 EXPORT_SYMBOL_GPL(irq_dispose_mapping);
 
-int irq_domain_simple_dt_translate(struct irq_domain *d,
+int irq_domain_simple_xlate(struct irq_domain *d,
 			    struct device_node *controller,
 			    const u32 *intspec, unsigned int intsize,
 			    unsigned long *out_hwirq, unsigned int *out_type)
@@ -181,7 +181,7 @@ EXPORT_SYMBOL_GPL(irq_domain_generate_simple);
 
 struct irq_domain_ops irq_domain_simple_ops = {
 #ifdef CONFIG_OF_IRQ
-	.dt_translate = irq_domain_simple_dt_translate,
+	.xlate = irq_domain_simple_xlate,
 #endif /* CONFIG_OF_IRQ */
 };
 EXPORT_SYMBOL_GPL(irq_domain_simple_ops);
