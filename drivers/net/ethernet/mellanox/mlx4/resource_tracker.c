@@ -374,6 +374,7 @@ static struct res_common *alloc_qp_tr(int id)
 
 	ret->com.res_id = id;
 	ret->com.state = RES_QP_RESERVED;
+	ret->local_qpn = id;
 	INIT_LIST_HEAD(&ret->mcg_list);
 	spin_lock_init(&ret->mcg_spl);
 
