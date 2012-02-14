@@ -514,9 +514,9 @@ EXPORT_SYMBOL_GPL(rt2800_write_tx_data);
 
 static int rt2800_agc_to_rssi(struct rt2x00_dev *rt2x00dev, u32 rxwi_w2)
 {
-	int rssi0 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI0);
-	int rssi1 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI1);
-	int rssi2 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI2);
+	s8 rssi0 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI0);
+	s8 rssi1 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI1);
+	s8 rssi2 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI2);
 	u16 eeprom;
 	u8 offset0;
 	u8 offset1;
@@ -552,7 +552,7 @@ static int rt2800_agc_to_rssi(struct rt2x00_dev *rt2x00dev, u32 rxwi_w2)
 	 * which gives less energy...
 	 */
 	rssi0 = max(rssi0, rssi1);
-	return max(rssi0, rssi2);
+	return (int)max(rssi0, rssi2);
 }
 
 void rt2800_process_rxwi(struct queue_entry *entry,
