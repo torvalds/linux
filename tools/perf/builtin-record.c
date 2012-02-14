@@ -205,6 +205,9 @@ static void perf_record__open(struct perf_record *rec)
 
 		if (opts->group && pos != first)
 			group_fd = first->fd;
+fallback_missing_features:
+		if (opts->exclude_guest_missing)
+			attr->exclude_guest = attr->exclude_host = 0;
 retry_sample_id:
 		attr->sample_id_all = opts->sample_id_all_avail ? 1 : 0;
 try_again:
@@ -218,15 +221,23 @@ try_again:
 			} else if (err ==  ENODEV && opts->cpu_list) {
 				die("No such device - did you specify"
 					" an out-of-range profile CPU?\n");
-			} else if (err == EINVAL && opts->sample_id_all_avail) {
-				/*
-				 * Old kernel, no attr->sample_id_type_all field
-				 */
-				opts->sample_id_all_avail = false;
-				if (!opts->sample_time && !opts->raw_samples && !time_needed)
-					attr->sample_type &= ~PERF_SAMPLE_TIME;
+			} else if (err == EINVAL) {
+				if (!opts->exclude_guest_missing &&
+				    (attr->exclude_guest || attr->exclude_host)) {
+					pr_debug("Old kernel, cannot exclude "
+						 "guest or host samples.\n");
+					opts->exclude_guest_missing = true;
+					goto fallback_missing_features;
+				} else if (opts->sample_id_all_avail) {
+					/*
+					 * Old kernel, no attr->sample_id_type_all field
+					 */
+					opts->sample_id_all_avail = false;
+					if (!opts->sample_time && !opts->raw_samples && !time_needed)
+						attr->sample_type &= ~PERF_SAMPLE_TIME;
 
-				goto retry_sample_id;
+					goto retry_sample_id;
+				}
 			}
 
 			/*
