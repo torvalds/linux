@@ -870,44 +870,36 @@ static int mlx4_QP_ATTACH(struct mlx4_dev *dev, struct mlx4_qp *qp,
 int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 			  int block_mcast_loopback, enum mlx4_protocol prot)
 {
-	enum mlx4_steer_type steer;
-
-	steer = (is_valid_ether_addr(&gid[10])) ? MLX4_UC_STEER : MLX4_MC_STEER;
-
 	if (prot == MLX4_PROT_ETH &&
 			!(dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER))
 		return 0;
 
 	if (prot == MLX4_PROT_ETH)
-		gid[7] |= (steer << 1);
+		gid[7] |= (MLX4_MC_STEER << 1);
 
 	if (mlx4_is_mfunc(dev))
 		return mlx4_QP_ATTACH(dev, qp, gid, 1,
 					block_mcast_loopback, prot);
 
 	return mlx4_qp_attach_common(dev, qp, gid, block_mcast_loopback,
-					prot, steer);
+					prot, MLX4_MC_STEER);
 }
 EXPORT_SYMBOL_GPL(mlx4_multicast_attach);
 
 int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 			  enum mlx4_protocol prot)
 {
-	enum mlx4_steer_type steer;
-
-	steer = (is_valid_ether_addr(&gid[10])) ? MLX4_UC_STEER : MLX4_MC_STEER;
-
 	if (prot == MLX4_PROT_ETH &&
 			!(dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER))
 		return 0;
 
 	if (prot == MLX4_PROT_ETH)
-		gid[7] |= (steer << 1);
+		gid[7] |= (MLX4_MC_STEER << 1);
 
 	if (mlx4_is_mfunc(dev))
 		return mlx4_QP_ATTACH(dev, qp, gid, 0, 0, prot);
 
-	return mlx4_qp_detach_common(dev, qp, gid, prot, steer);
+	return mlx4_qp_detach_common(dev, qp, gid, prot, MLX4_MC_STEER);
 }
 EXPORT_SYMBOL_GPL(mlx4_multicast_detach);
 
