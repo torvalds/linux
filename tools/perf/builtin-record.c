@@ -209,7 +209,7 @@ fallback_missing_features:
 		if (opts->exclude_guest_missing)
 			attr->exclude_guest = attr->exclude_host = 0;
 retry_sample_id:
-		attr->sample_id_all = opts->sample_id_all_avail ? 1 : 0;
+		attr->sample_id_all = opts->sample_id_all_missing ? 0 : 1;
 try_again:
 		if (perf_evsel__open(pos, evlist->cpus, evlist->threads,
 				     opts->group, group_fd) < 0) {
@@ -228,11 +228,11 @@ try_again:
 						 "guest or host samples.\n");
 					opts->exclude_guest_missing = true;
 					goto fallback_missing_features;
-				} else if (opts->sample_id_all_avail) {
+				} else if (!opts->sample_id_all_missing) {
 					/*
 					 * Old kernel, no attr->sample_id_type_all field
 					 */
-					opts->sample_id_all_avail = false;
+					opts->sample_id_all_missing = true;
 					if (!opts->sample_time && !opts->raw_samples && !time_needed)
 						attr->sample_type &= ~PERF_SAMPLE_TIME;
 
@@ -660,7 +660,6 @@ static struct perf_record record = {
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
 		.freq		     = 1000,
-		.sample_id_all_avail = true,
 	},
 	.write_mode = WRITE_FORCE,
 	.file_new   = true,

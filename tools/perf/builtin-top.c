@@ -876,7 +876,7 @@ fallback_missing_features:
 		if (top->exclude_guest_missing)
 			attr->exclude_guest = attr->exclude_host = 0;
 retry_sample_id:
-		attr->sample_id_all = top->sample_id_all_avail ? 1 : 0;
+		attr->sample_id_all = top->sample_id_all_missing ? 0 : 1;
 try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
 				     top->evlist->threads, top->group,
@@ -893,11 +893,11 @@ try_again:
 						 "guest or host samples.\n");
 					top->exclude_guest_missing = true;
 					goto fallback_missing_features;
-				} else if (top->sample_id_all_avail) {
+				} else if (!top->sample_id_all_missing) {
 					/*
 					 * Old kernel, no attr->sample_id_type_all field
 					 */
-					top->sample_id_all_avail = false;
+					top->sample_id_all_missing = true;
 					goto retry_sample_id;
 				}
 			}
@@ -1122,7 +1122,6 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		.delay_secs	     = 2,
 		.uid		     = UINT_MAX,
 		.freq		     = 1000, /* 1 KHz */
-		.sample_id_all_avail = true,
 		.mmap_pages	     = 128,
 		.sym_pcnt_filter     = 5,
 	};

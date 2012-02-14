@@ -34,7 +34,7 @@ struct perf_top {
 	bool		   vmlinux_warned;
 	bool		   inherit;
 	bool		   group;
-	bool		   sample_id_all_avail;
+	bool		   sample_id_all_missing;
 	bool		   exclude_guest_missing;
 	bool		   dump_symtab;
 	const char	   *cpu_list;

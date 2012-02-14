@@ -1013,7 +1013,6 @@ static int test__PERF_RECORD(void)
 		.no_delay   = true,
 		.freq	    = 10,
 		.mmap_pages = 256,
-		.sample_id_all_avail = true,
 	};
 	cpu_set_t *cpu_mask = NULL;
 	size_t cpu_mask_size = 0;
