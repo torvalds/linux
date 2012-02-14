@@ -240,7 +240,7 @@ static void set_sock_callbacks(struct socket *sock,
 /*
  * initiate connection to a remote socket.
  */
-static struct socket *ceph_tcp_connect(struct ceph_connection *con)
+static int ceph_tcp_connect(struct ceph_connection *con)
 {
 	struct sockaddr_storage *paddr = &con->peer_addr.in_addr;
 	struct socket *sock;
@@ -250,7 +250,7 @@ static struct socket *ceph_tcp_connect(struct ceph_connection *con)
 	ret = sock_create_kern(con->peer_addr.in_addr.ss_family, SOCK_STREAM,
 			       IPPROTO_TCP, &sock);
 	if (ret)
-		return ERR_PTR(ret);
+		return ret;
 	sock->sk->sk_allocation = GFP_NOFS;
 
 #ifdef CONFIG_LOCKDEP
@@ -273,11 +273,11 @@ static struct socket *ceph_tcp_connect(struct ceph_connection *con)
 		sock_release(sock);
 		con->error_msg = "connect error";
 
-		return ERR_PTR(ret);
+		return ret;
 	}
 	con->sock = sock;
 
-	return sock;
+	return 0;
 }
 
 static int ceph_tcp_recvmsg(struct socket *sock, void *buf, size_t len)
@@ -1854,11 +1854,9 @@ more:
 		con->in_tag = CEPH_MSGR_TAG_READY;
 		dout("try_write initiating connect on %p new state %lu\n",
 		     con, con->state);
-		con->sock = ceph_tcp_connect(con);
-		if (IS_ERR(con->sock)) {
-			con->sock = NULL;
+		ret = ceph_tcp_connect(con);
+		if (ret < 0) {
 			con->error_msg = "connect error";
-			ret = -1;
 			goto out;
 		}
 	}
