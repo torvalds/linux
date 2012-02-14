@@ -106,7 +106,7 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 		return 0;
 	}
 
-	buf[7] = 0x32; /* Sync=1 and CmdQue=1 */
+	buf[7] = 0x2; /* CmdQue=1 */
 
 	/*
 	 * Do not include vendor, product, reversion info in INQUIRY
