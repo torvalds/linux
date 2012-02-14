@@ -104,6 +104,7 @@ struct mt_device {
 #define MT_CLS_EGALAX				0x0103
 #define MT_CLS_EGALAX_SERIAL			0x0104
 #define MT_CLS_TOPSEED				0x0105
+#define MT_CLS_PANASONIC			0x0106
 
 #define MT_DEFAULT_MAXCONTACT	10
 
@@ -198,6 +199,9 @@ static struct mt_class mt_classes[] = {
 		.is_indirect = true,
 		.maxcontacts = 2,
 	},
+	{ .name = MT_CLS_PANASONIC,
+		.quirks = MT_QUIRK_NOT_SEEN_MEANS_UP,
+		.maxcontacts = 4 },
 
 	{ }
 };
@@ -278,8 +282,8 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	int code;
 
 	/* Only map fields from TouchScreen or TouchPad collections.
-         * We need to ignore fields that belong to other collections
-         * such as Mouse that might have the same GenericDesktop usages. */
+	* We need to ignore fields that belong to other collections
+	* such as Mouse that might have the same GenericDesktop usages. */
 	if (field->application == HID_DG_TOUCHSCREEN)
 		set_bit(INPUT_PROP_DIRECT, hi->input->propbit);
 	else if (field->application != HID_DG_TOUCHPAD)
@@ -581,9 +585,8 @@ static int mt_event(struct hid_device *hid, struct hid_field *field,
 			return 0;
 		}
 
-		if (usage->hid == td->last_slot_field) {
+		if (usage->hid == td->last_slot_field)
 			mt_complete_slot(td);
-		}
 
 		if (field->index == td->last_field_index
 			&& td->num_received >= td->num_expected)
@@ -856,6 +859,14 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_CONFIDENCE_MINUS_ONE,
 		HID_USB_DEVICE(USB_VENDOR_ID_TURBOX,
 			USB_DEVICE_ID_TURBOX_TOUCHSCREEN_MOSART) },
+
+	/* Panasonic panels */
+	{ .driver_data = MT_CLS_PANASONIC,
+		HID_USB_DEVICE(USB_VENDOR_ID_PANASONIC,
+			USB_DEVICE_ID_PANABOARD_UBT780) },
+	{ .driver_data = MT_CLS_PANASONIC,
+		HID_USB_DEVICE(USB_VENDOR_ID_PANASONIC,
+			USB_DEVICE_ID_PANABOARD_UBT880) },
 
 	/* PenMount panels */
 	{ .driver_data = MT_CLS_CONFIDENCE,

@@ -354,6 +354,7 @@ config HID_MULTITOUCH
 	  - LG Display panels (Dell ST2220Tc)
 	  - Lumio CrystalTouch panels
 	  - MosArt dual-touch panels
+	  - Panasonic multitouch panels
 	  - PenMount dual touch panels
 	  - Perixx Peripad 701 touchpad
 	  - PixArt optical touch screen
