@@ -25,6 +25,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/pm_runtime.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -603,7 +604,27 @@ static const struct snd_soc_dai_ops mcbsp_dai_ops = {
 	.set_sysclk	= omap_mcbsp_dai_set_dai_sysclk,
 };
 
+static int omap_mcbsp_probe(struct snd_soc_dai *dai)
+{
+	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(dai);
+
+	pm_runtime_enable(mcbsp->dev);
+
+	return 0;
+}
+
+static int omap_mcbsp_remove(struct snd_soc_dai *dai)
+{
+	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(dai);
+
+	pm_runtime_disable(mcbsp->dev);
+
+	return 0;
+}
+
 static struct snd_soc_dai_driver omap_mcbsp_dai = {
+	.probe = omap_mcbsp_probe,
+	.remove = omap_mcbsp_remove,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 16,
@@ -756,9 +777,24 @@ EXPORT_SYMBOL_GPL(omap_mcbsp_st_add_controls);
 
 static __devinit int asoc_mcbsp_probe(struct platform_device *pdev)
 {
+	struct omap_mcbsp_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct omap_mcbsp *mcbsp;
 	int ret;
 
-	ret = omap_mcbsp_probe(pdev);
+	if (!pdata) {
+		dev_err(&pdev->dev, "missing platform data.\n");
+		return -EINVAL;
+	}
+	mcbsp = devm_kzalloc(&pdev->dev, sizeof(struct omap_mcbsp), GFP_KERNEL);
+	if (!mcbsp)
+		return -ENOMEM;
+
+	mcbsp->id = pdev->id;
+	mcbsp->pdata = pdata;
+	mcbsp->dev = &pdev->dev;
+	platform_set_drvdata(pdev, mcbsp);
+
+	ret = omap_mcbsp_init(pdev);
 	if (!ret)
 		return snd_soc_register_dai(&pdev->dev, &omap_mcbsp_dai);
 
@@ -767,8 +803,19 @@ static __devinit int asoc_mcbsp_probe(struct platform_device *pdev)
 
 static int __devexit asoc_mcbsp_remove(struct platform_device *pdev)
 {
-	omap_mcbsp_remove(pdev);
+	struct omap_mcbsp *mcbsp = platform_get_drvdata(pdev);
+
 	snd_soc_unregister_dai(&pdev->dev);
+
+	if (mcbsp->pdata->ops && mcbsp->pdata->ops->free)
+		mcbsp->pdata->ops->free(mcbsp->id);
+
+	omap_mcbsp_sysfs_remove(mcbsp);
+
+	clk_put(mcbsp->fclk);
+
+	platform_set_drvdata(pdev, NULL);
+
 	return 0;
 }
 
