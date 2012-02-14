@@ -176,22 +176,6 @@ void omap_mcbsp_config(struct omap_mcbsp *mcbsp,
 }
 
 /**
- * omap_mcbsp_dma_params - returns the dma channel number
- * @id - mcbsp id
- * @stream - indicates the direction of data flow (rx or tx)
- *
- * Returns the dma channel number for the rx channel or tx channel
- * based on the value of @stream for the requested mcbsp given by @id
- */
-int omap_mcbsp_dma_ch_params(struct omap_mcbsp *mcbsp, unsigned int stream)
-{
-	if (stream)
-		return mcbsp->dma_rx_sync;
-	else
-		return mcbsp->dma_tx_sync;
-}
-
-/**
  * omap_mcbsp_dma_reg_params - returns the address of mcbsp data register
  * @id - mcbsp id
  * @stream - indicates the direction of data flow (rx or tx)
@@ -200,7 +184,8 @@ int omap_mcbsp_dma_ch_params(struct omap_mcbsp *mcbsp, unsigned int stream)
  * to be used by DMA for transferring/receiving data based on the value of
  * @stream for the requested mcbsp given by @id
  */
-int omap_mcbsp_dma_reg_params(struct omap_mcbsp *mcbsp, unsigned int stream)
+static int omap_mcbsp_dma_reg_params(struct omap_mcbsp *mcbsp,
+				     unsigned int stream)
 {
 	int data_reg;
 
@@ -983,14 +968,20 @@ int __devinit omap_mcbsp_init(struct platform_device *pdev)
 		dev_err(&pdev->dev, "invalid rx DMA channel\n");
 		return -ENODEV;
 	}
-	mcbsp->dma_rx_sync = res->start;
+	/* RX DMA request number, and port address configuration */
+	mcbsp->dma_data[1].name = "Audio Capture";
+	mcbsp->dma_data[1].dma_req = res->start;
+	mcbsp->dma_data[1].port_addr = omap_mcbsp_dma_reg_params(mcbsp, 1);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "tx");
 	if (!res) {
 		dev_err(&pdev->dev, "invalid tx DMA channel\n");
 		return -ENODEV;
 	}
-	mcbsp->dma_tx_sync = res->start;
+	/* TX DMA request number, and port address configuration */
+	mcbsp->dma_data[0].name = "Audio Playback";
+	mcbsp->dma_data[0].dma_req = res->start;
+	mcbsp->dma_data[0].port_addr = omap_mcbsp_dma_reg_params(mcbsp, 0);
 
 	mcbsp->fclk = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(mcbsp->fclk)) {

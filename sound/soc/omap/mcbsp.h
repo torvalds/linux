@@ -288,10 +288,6 @@ struct omap_mcbsp {
 	int rx_irq;
 	int tx_irq;
 
-	/* DMA stuff */
-	u8 dma_rx_sync;
-	u8 dma_tx_sync;
-
 	/* Protect the field .free, while checking if the mcbsp is in use */
 	struct omap_mcbsp_platform_data *pdata;
 	struct omap_mcbsp_st_data *st_data;
@@ -327,9 +323,6 @@ int omap2_mcbsp_set_clks_src(struct omap_mcbsp *mcbsp, u8 fck_src_id);
 /* McBSP signal muxing API */
 void omap2_mcbsp1_mux_clkr_src(struct omap_mcbsp *mcbsp, u8 mux);
 void omap2_mcbsp1_mux_fsr_src(struct omap_mcbsp *mcbsp, u8 mux);
-
-int omap_mcbsp_dma_ch_params(struct omap_mcbsp *mcbsp, unsigned int stream);
-int omap_mcbsp_dma_reg_params(struct omap_mcbsp *mcbsp, unsigned int stream);
 
 /* Sidetone specific API */
 int omap_st_set_chgain(struct omap_mcbsp *mcbsp, int channel, s16 chgain);

@@ -225,16 +225,11 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
 	struct omap_mcbsp_reg_cfg *regs = &mcbsp->cfg_regs;
 	struct omap_pcm_dma_data *dma_data;
-	int dma;
 	int wlen, channels, wpf, sync_mode = OMAP_DMA_SYNC_ELEMENT;
 	int pkt_size = 0;
-	unsigned long port;
 	unsigned int format, div, framesize, master;
 
 	dma_data = &mcbsp->dma_data[substream->stream];
-
-	dma = omap_mcbsp_dma_ch_params(mcbsp, substream->stream);
-	port = omap_mcbsp_dma_reg_params(mcbsp, substream->stream);
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -291,9 +286,6 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
-	dma_data->name = substream->stream ? "Audio Capture" : "Audio Playback";
-	dma_data->dma_req = dma;
-	dma_data->port_addr = port;
 	dma_data->sync_mode = sync_mode;
 	dma_data->packet_size = pkt_size;
 
