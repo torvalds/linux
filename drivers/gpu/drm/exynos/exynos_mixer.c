@@ -1044,7 +1044,7 @@ static int mixer_remove(struct platform_device *pdev)
 					platform_get_drvdata(pdev);
 	struct mixer_context *ctx = (struct mixer_context *)drm_hdmi_ctx->ctx;
 
-	dev_info(dev, "remove sucessful\n");
+	dev_info(dev, "remove successful\n");
 
 	mixer_resource_poweroff(ctx);
 	mixer_resources_cleanup(ctx);
