@@ -737,6 +737,35 @@ static ssize_t ab8500_val_write(struct file *file,
 }
 
 /*
+ * Interrupt status
+ */
+static u32 num_interrupts[AB8500_MAX_NR_IRQS];
+static int num_interrupt_lines;
+
+void ab8500_debug_register_interrupt(int line)
+{
+	if (line < num_interrupt_lines)
+		num_interrupts[line]++;
+}
+
+static int ab8500_interrupts_print(struct seq_file *s, void *p)
+{
+	int line;
+
+	seq_printf(s, "irq:  number of\n");
+
+	for (line = 0; line < num_interrupt_lines; line++)
+		seq_printf(s, "%3i:  %6i\n", line, num_interrupts[line]);
+
+	return 0;
+}
+
+static int ab8500_interrupts_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ab8500_interrupts_print, inode->i_private);
+}
+
+/*
  * - HWREG DB8500 formated routines
  */
 static int ab8500_hwreg_print(struct seq_file *s, void *d)
@@ -1489,6 +1518,14 @@ static const struct file_operations ab8500_val_fops = {
 	.owner = THIS_MODULE,
 };
 
+static const struct file_operations ab8500_interrupts_fops = {
+	.open = ab8500_interrupts_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
 static const struct file_operations ab8500_subscribe_fops = {
 	.open = ab8500_subscribe_unsubscribe_open,
 	.write = ab8500_subscribe_write,
@@ -1594,6 +1631,18 @@ static int ab8500_debug_probe(struct platform_device *plf)
 
 	file = debugfs_create_file("irq-subscribe", (S_IRUGO | S_IWUSR),
 	    ab8500_dir, &plf->dev, &ab8500_subscribe_fops);
+	if (!file)
+		goto err;
+
+	if (is_ab8500(ab8500))
+		num_interrupt_lines = AB8500_NR_IRQS;
+	else if (is_ab8505(ab8500))
+		num_interrupt_lines = AB8505_NR_IRQS;
+	else if (is_ab9540(ab8500))
+		num_interrupt_lines = AB9540_NR_IRQS;
+
+	file = debugfs_create_file("interrupts", (S_IRUGO),
+	    ab8500_dir, &plf->dev, &ab8500_interrupts_fops);
 	if (!file)
 		goto err;
 

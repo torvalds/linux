@@ -521,6 +521,7 @@ static irqreturn_t ab8500_irq(int irq, void *dev)
 			int virq = ab8500_irq_get_virq(ab8500, line);
 
 			handle_nested_irq(virq);
+			ab8500_debug_register_interrupt(line);
 			value &= ~(1 << bit);
 
 		} while (value);
