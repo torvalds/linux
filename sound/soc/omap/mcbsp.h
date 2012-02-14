@@ -269,27 +269,20 @@ struct omap_mcbsp_st_data {
 	s16 ch1gain;
 };
 
-struct omap_mcbsp_data {
-	struct omap_mcbsp_reg_cfg	regs;
-	struct omap_pcm_dma_data	dma_data[2];
-	unsigned int			fmt;
-	/*
-	 * Flags indicating is the bus already activated and configured by
-	 * another substream
-	 */
-	int				active;
-	int				configured;
-	unsigned int			in_freq;
-	int				clk_div;
-	int				wlen;
-};
-
 struct omap_mcbsp {
 	struct device *dev;
+	struct clk *fclk;
+	spinlock_t lock;
 	unsigned long phys_base;
 	unsigned long phys_dma_base;
 	void __iomem *io_base;
 	u8 id;
+	/*
+	 * Flags indicating is the bus already activated and configured by
+	 * another substream
+	 */
+	int active;
+	int configured;
 	u8 free;
 
 	int rx_irq;
@@ -300,16 +293,20 @@ struct omap_mcbsp {
 	u8 dma_tx_sync;
 
 	/* Protect the field .free, while checking if the mcbsp is in use */
-	spinlock_t lock;
 	struct omap_mcbsp_platform_data *pdata;
-	struct clk *fclk;
 	struct omap_mcbsp_st_data *st_data;
-	struct omap_mcbsp_data mcbsp_data;
+	struct omap_mcbsp_reg_cfg cfg_regs;
+	struct omap_pcm_dma_data dma_data[2];
 	int dma_op_mode;
 	u16 max_tx_thres;
 	u16 max_rx_thres;
 	void *reg_cache;
 	int reg_cache_size;
+
+	unsigned int fmt;
+	unsigned int in_freq;
+	int clk_div;
+	int wlen;
 };
 
 void omap_mcbsp_config(struct omap_mcbsp *mcbsp,
