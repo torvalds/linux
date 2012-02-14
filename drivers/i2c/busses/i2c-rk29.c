@@ -398,7 +398,7 @@ static int rk29_send_address(struct rk29_i2c_data *i2c,
 	if((lsr & I2C_LSR_RCV_NAK) && !(msg->flags & I2C_M_IGNORE_NAK))
 	{
 		dev_info(i2c->dev, "addr: 0x%x receive no ack\n", msg->addr);
-		return -EINVAL;
+		return -EAGAIN;
 	}
 	if(start && (msg->flags & I2C_M_TEN))
 		ret = rk29_send_2nd_addr(i2c, msg, start);
@@ -722,6 +722,9 @@ static int rk29_i2c_probe(struct platform_device *pdev)
 	i2c->adap.algo    	= &rk29_i2c_algorithm;
 	i2c->adap.class   	= I2C_CLASS_HWMON;
 	i2c->adap.nr		= pdata->bus_num;
+    i2c->adap.retries   = 3;
+    i2c->adap.timeout   = msecs_to_jiffies(500);
+
 	spin_lock_init(&i2c->cmd_lock);
 
 	i2c->dev = &pdev->dev;
