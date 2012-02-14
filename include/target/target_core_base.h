@@ -118,8 +118,8 @@
 /* Queue Algorithm Modifier default for restricted reordering in control mode page */
 #define DA_EMULATE_REST_REORD			0
 
+#define SE_INQUIRY_BUF				512
 #define SE_MODE_PAGE_BUF			512
-
 
 /* struct se_hba->hba_flags */
 enum hba_flags_table {
