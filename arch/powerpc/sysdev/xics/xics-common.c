@@ -212,15 +212,15 @@ void xics_migrate_irqs_away(void)
 		/* We can't set affinity on ISA interrupts */
 		if (virq < NUM_ISA_INTERRUPTS)
 			continue;
-		if (!virq_is_host(virq, xics_host))
-			continue;
-		irq = (unsigned int)virq_to_hw(virq);
-		/* We need to get IPIs still. */
-		if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
-			continue;
 		desc = irq_to_desc(virq);
 		/* We only need to migrate enabled IRQS */
 		if (!desc || !desc->action)
+			continue;
+		if (desc->irq_data.domain != xics_host)
+			continue;
+		irq = desc->irq_data.hwirq;
+		/* We need to get IPIs still. */
+		if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 			continue;
 		chip = irq_desc_get_chip(desc);
 		if (!chip || !chip->irq_set_affinity)

@@ -510,13 +510,6 @@ irq_hw_number_t virq_to_hw(unsigned int virq)
 }
 EXPORT_SYMBOL_GPL(virq_to_hw);
 
-bool virq_is_host(unsigned int virq, struct irq_domain *host)
-{
-	struct irq_data *irq_data = irq_get_irq_data(virq);
-	return irq_data ? irq_data->domain == host : false;
-}
-EXPORT_SYMBOL_GPL(virq_is_host);
-
 static int default_irq_host_match(struct irq_domain *h, struct device_node *np)
 {
 	return h->of_node != NULL && h->of_node == np;

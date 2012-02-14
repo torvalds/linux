@@ -58,7 +58,6 @@ extern atomic_t ppc_n_lost_interrupts;
 struct irq_data;
 extern irq_hw_number_t irqd_to_hwirq(struct irq_data *d);
 extern irq_hw_number_t virq_to_hw(unsigned int virq);
-extern bool virq_is_host(unsigned int virq, struct irq_domain *host);
 
 /**
  * irq_alloc_host - Allocate a new irq_domain data structure
