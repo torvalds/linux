@@ -97,7 +97,7 @@ static void encode_my_addr(struct ceph_messenger *msgr)
 /*
  * work queue for all reading and writing to/from the socket.
  */
-struct workqueue_struct *ceph_msgr_wq;
+static struct workqueue_struct *ceph_msgr_wq;
 
 int ceph_msgr_init(void)
 {

@@ -14,8 +14,6 @@
 struct ceph_msg;
 struct ceph_connection;
 
-extern struct workqueue_struct *ceph_msgr_wq;       /* receive work queue */
-
 /*
  * Ceph defines these callbacks for handling connection events.
  */
