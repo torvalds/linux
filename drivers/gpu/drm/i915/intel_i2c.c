@@ -390,7 +390,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 		bus->has_gpio = intel_gpio_setup(bus, i);
 
 		/* XXX force bit banging until GMBUS is fully debugged */
-		if (bus->has_gpio)
+		if (bus->has_gpio && IS_GEN2(dev))
 			bus->force_bit = true;
 	}
 
