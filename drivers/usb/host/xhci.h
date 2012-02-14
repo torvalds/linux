@@ -1344,6 +1344,7 @@ struct xhci_bus_state {
 	/* ports suspend status arrays - max 31 ports for USB2, 15 for USB3 */
 	u32			port_c_suspend;
 	u32			suspended_ports;
+	u32			port_remote_wakeup;
 	unsigned long		resume_done[USB_MAXCHILDREN];
 };
 
