@@ -319,6 +319,8 @@
 #define RING_HWS_PGA(base)	((base)+0x80)
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
 #define RENDER_HWS_PGA_GEN7	(0x04080)
+#define RING_FAULT_REG(ring)	(0x4094 + 0x100*(ring)->id)
+#define DONE_REG		0x40b0
 #define BSD_HWS_PGA_GEN7	(0x04180)
 #define BLT_HWS_PGA_GEN7	(0x04280)
 #define RING_ACTHD(base)	((base)+0x74)
@@ -352,6 +354,12 @@
 #define IPEIR_I965	0x02064
 #define IPEHR_I965	0x02068
 #define INSTDONE_I965	0x0206c
+#define RING_IPEIR(base)	((base)+0x64)
+#define RING_IPEHR(base)	((base)+0x68)
+#define RING_INSTDONE(base)	((base)+0x6c)
+#define RING_INSTPS(base)	((base)+0x70)
+#define RING_DMA_FADD(base)	((base)+0x78)
+#define RING_INSTPM(base)	((base)+0xc0)
 #define INSTPS		0x02070 /* 965+ only */
 #define INSTDONE1	0x0207c /* 965+ only */
 #define ACTHD_I965	0x02074
@@ -365,14 +373,6 @@
 #define INSTDONE	0x02090
 #define NOPID		0x02094
 #define HWSTAM		0x02098
-#define VCS_INSTDONE	0x1206C
-#define VCS_IPEIR	0x12064
-#define VCS_IPEHR	0x12068
-#define VCS_ACTHD	0x12074
-#define BCS_INSTDONE	0x2206C
-#define BCS_IPEIR	0x22064
-#define BCS_IPEHR	0x22068
-#define BCS_ACTHD	0x22074
 
 #define ERROR_GEN6	0x040a0
 
@@ -391,7 +391,7 @@
 
 #define MI_MODE		0x0209c
 # define VS_TIMER_DISPATCH				(1 << 6)
-# define MI_FLUSH_ENABLE				(1 << 11)
+# define MI_FLUSH_ENABLE				(1 << 12)
 
 #define GFX_MODE	0x02520
 #define GFX_MODE_GEN7	0x0229c
@@ -3741,5 +3741,17 @@
  * 3DSTATE_SO_BUFFERs that the next streamed vertex output goes to.
  */
 #define GEN7_SO_WRITE_OFFSET(n)		(0x5280 + (n) * 4)
+
+#define IBX_AUD_CONFIG_A			0xe2000
+#define CPT_AUD_CONFIG_A			0xe5000
+#define   AUD_CONFIG_N_VALUE_INDEX		(1 << 29)
+#define   AUD_CONFIG_N_PROG_ENABLE		(1 << 28)
+#define   AUD_CONFIG_UPPER_N_SHIFT		20
+#define   AUD_CONFIG_UPPER_N_VALUE		(0xff << 20)
+#define   AUD_CONFIG_LOWER_N_SHIFT		4
+#define   AUD_CONFIG_LOWER_N_VALUE		(0xfff << 4)
+#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_SHIFT	16
+#define   AUD_CONFIG_PIXEL_CLOCK_HDMI		(0xf << 16)
+#define   AUD_CONFIG_DISABLE_NCTS		(1 << 3)
 
 #endif /* _I915_REG_H_ */

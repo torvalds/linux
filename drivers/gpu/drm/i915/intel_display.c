@@ -936,6 +936,10 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 	u32 val;
 	bool cur_state;
 
+	/* if we need the pipe A quirk it must be always on */
+	if (pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE)
+		state = true;
+
 	reg = PIPECONF(pipe);
 	val = I915_READ(reg);
 	cur_state = !!(val & PIPECONF_ENABLE);
@@ -2037,6 +2041,8 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 		ret = i915_gem_object_get_fence(obj, pipelined);
 		if (ret)
 			goto err_unpin;
+
+		i915_gem_object_pin_fence(obj);
 	}
 
 	dev_priv->mm.interruptible = true;
@@ -2047,6 +2053,12 @@ err_unpin:
 err_interruptible:
 	dev_priv->mm.interruptible = true;
 	return ret;
+}
+
+void intel_unpin_fb_obj(struct drm_i915_gem_object *obj)
+{
+	i915_gem_object_unpin_fence(obj);
+	i915_gem_object_unpin(obj);
 }
 
 static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
@@ -2280,7 +2292,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	ret = intel_pipe_set_base_atomic(crtc, crtc->fb, x, y,
 					 LEAVE_ATOMIC_MODE_SET);
 	if (ret) {
-		i915_gem_object_unpin(to_intel_framebuffer(crtc->fb)->obj);
+		intel_unpin_fb_obj(to_intel_framebuffer(crtc->fb)->obj);
 		mutex_unlock(&dev->struct_mutex);
 		DRM_ERROR("failed to update base address\n");
 		return ret;
@@ -2288,7 +2300,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 
 	if (old_fb) {
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
-		i915_gem_object_unpin(to_intel_framebuffer(old_fb)->obj);
+		intel_unpin_fb_obj(to_intel_framebuffer(old_fb)->obj);
 	}
 
 	mutex_unlock(&dev->struct_mutex);
@@ -3351,7 +3363,7 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 
 	if (crtc->fb) {
 		mutex_lock(&dev->struct_mutex);
-		i915_gem_object_unpin(to_intel_framebuffer(crtc->fb)->obj);
+		intel_unpin_fb_obj(to_intel_framebuffer(crtc->fb)->obj);
 		mutex_unlock(&dev->struct_mutex);
 	}
 }
@@ -4548,6 +4560,7 @@ void sandybridge_update_wm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int latency = SNB_READ_WM0_LATENCY() * 100;	/* In unit 0.1us */
+	u32 val;
 	int fbc_wm, plane_wm, cursor_wm;
 	unsigned int enabled;
 
@@ -4556,8 +4569,10 @@ void sandybridge_update_wm(struct drm_device *dev)
 			    &sandybridge_display_wm_info, latency,
 			    &sandybridge_cursor_wm_info, latency,
 			    &plane_wm, &cursor_wm)) {
-		I915_WRITE(WM0_PIPEA_ILK,
-			   (plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm);
+		val = I915_READ(WM0_PIPEA_ILK);
+		val &= ~(WM0_PIPE_PLANE_MASK | WM0_PIPE_CURSOR_MASK);
+		I915_WRITE(WM0_PIPEA_ILK, val |
+			   ((plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm));
 		DRM_DEBUG_KMS("FIFO watermarks For pipe A -"
 			      " plane %d, " "cursor: %d\n",
 			      plane_wm, cursor_wm);
@@ -4568,8 +4583,10 @@ void sandybridge_update_wm(struct drm_device *dev)
 			    &sandybridge_display_wm_info, latency,
 			    &sandybridge_cursor_wm_info, latency,
 			    &plane_wm, &cursor_wm)) {
-		I915_WRITE(WM0_PIPEB_ILK,
-			   (plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm);
+		val = I915_READ(WM0_PIPEB_ILK);
+		val &= ~(WM0_PIPE_PLANE_MASK | WM0_PIPE_CURSOR_MASK);
+		I915_WRITE(WM0_PIPEB_ILK, val |
+			   ((plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm));
 		DRM_DEBUG_KMS("FIFO watermarks For pipe B -"
 			      " plane %d, cursor: %d\n",
 			      plane_wm, cursor_wm);
@@ -4582,8 +4599,10 @@ void sandybridge_update_wm(struct drm_device *dev)
 			    &sandybridge_display_wm_info, latency,
 			    &sandybridge_cursor_wm_info, latency,
 			    &plane_wm, &cursor_wm)) {
-		I915_WRITE(WM0_PIPEC_IVB,
-			   (plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm);
+		val = I915_READ(WM0_PIPEC_IVB);
+		val &= ~(WM0_PIPE_PLANE_MASK | WM0_PIPE_CURSOR_MASK);
+		I915_WRITE(WM0_PIPEC_IVB, val |
+			   ((plane_wm << WM0_PIPE_PLANE_SHIFT) | cursor_wm));
 		DRM_DEBUG_KMS("FIFO watermarks For pipe C -"
 			      " plane %d, cursor: %d\n",
 			      plane_wm, cursor_wm);
@@ -4727,6 +4746,7 @@ static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int latency = SNB_READ_WM0_LATENCY() * 100;	/* In unit 0.1us */
+	u32 val;
 	int sprite_wm, reg;
 	int ret;
 
@@ -4753,7 +4773,9 @@ static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
 		return;
 	}
 
-	I915_WRITE(reg, I915_READ(reg) | (sprite_wm << WM0_PIPE_SPRITE_SHIFT));
+	val = I915_READ(reg);
+	val &= ~WM0_PIPE_SPRITE_MASK;
+	I915_WRITE(reg, val | (sprite_wm << WM0_PIPE_SPRITE_SHIFT));
 	DRM_DEBUG_KMS("sprite watermarks For pipe %d - %d\n", pipe, sprite_wm);
 
 
@@ -6130,15 +6152,18 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	uint32_t i;
 	int len;
 	int hdmiw_hdmiedid;
+	int aud_config;
 	int aud_cntl_st;
 	int aud_cntrl_st2;
 
 	if (HAS_PCH_IBX(connector->dev)) {
 		hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID_A;
+		aud_config = IBX_AUD_CONFIG_A;
 		aud_cntl_st = IBX_AUD_CNTL_ST_A;
 		aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
 	} else {
 		hdmiw_hdmiedid = CPT_HDMIW_HDMIEDID_A;
+		aud_config = CPT_AUD_CONFIG_A;
 		aud_cntl_st = CPT_AUD_CNTL_ST_A;
 		aud_cntrl_st2 = CPT_AUD_CNTRL_ST2;
 	}
@@ -6146,6 +6171,7 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	i = to_intel_crtc(crtc)->pipe;
 	hdmiw_hdmiedid += i * 0x100;
 	aud_cntl_st += i * 0x100;
+	aud_config += i * 0x100;
 
 	DRM_DEBUG_DRIVER("ELD on pipe %c\n", pipe_name(i));
 
@@ -6165,7 +6191,9 @@ static void ironlake_write_eld(struct drm_connector *connector,
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT)) {
 		DRM_DEBUG_DRIVER("ELD: DisplayPort detected\n");
 		eld[5] |= (1 << 2);	/* Conn_Type, 0x1 = DisplayPort */
-	}
+		I915_WRITE(aud_config, AUD_CONFIG_N_VALUE_INDEX); /* 0x1 = DP */
+	} else
+		I915_WRITE(aud_config, 0);
 
 	if (intel_eld_uptodate(connector,
 			       aud_cntrl_st2, eldv,
@@ -7141,7 +7169,7 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 		container_of(__work, struct intel_unpin_work, work);
 
 	mutex_lock(&work->dev->struct_mutex);
-	i915_gem_object_unpin(work->old_fb_obj);
+	intel_unpin_fb_obj(work->old_fb_obj);
 	drm_gem_object_unreference(&work->pending_flip_obj->base);
 	drm_gem_object_unreference(&work->old_fb_obj->base);
 
@@ -7291,7 +7319,7 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
 	OUT_RING(fb->pitches[0]);
 	OUT_RING(obj->gtt_offset + offset);
-	OUT_RING(MI_NOOP);
+	OUT_RING(0); /* aux display base address, unused */
 	ADVANCE_LP_RING();
 out:
 	return ret;
@@ -7883,7 +7911,8 @@ int intel_framebuffer_init(struct drm_device *dev,
 	case DRM_FORMAT_VYUY:
 		break;
 	default:
-		DRM_ERROR("unsupported pixel format\n");
+		DRM_DEBUG_KMS("unsupported pixel format %u\n",
+				mode_cmd->pixel_format);
 		return -EINVAL;
 	}
 

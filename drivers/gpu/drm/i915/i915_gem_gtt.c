@@ -55,7 +55,7 @@ static bool do_idling(struct drm_i915_private *dev_priv)
 
 	if (unlikely(dev_priv->mm.gtt->do_idle_maps)) {
 		dev_priv->mm.interruptible = false;
-		if (i915_gpu_idle(dev_priv->dev)) {
+		if (i915_gpu_idle(dev_priv->dev, false)) {
 			DRM_ERROR("Couldn't idle GPU\n");
 			/* Wait a bit, in hopes it avoids the hang */
 			udelay(10);

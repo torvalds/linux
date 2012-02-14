@@ -399,8 +399,6 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 
 	if (INTEL_INFO(dev)->gen > 3) {
 		int mode = VS_TIMER_DISPATCH << 16 | VS_TIMER_DISPATCH;
-		if (IS_GEN6(dev) || IS_GEN7(dev))
-			mode |= MI_FLUSH_ENABLE << 16 | MI_FLUSH_ENABLE;
 		I915_WRITE(MI_MODE, mode);
 		if (IS_GEN7(dev))
 			I915_WRITE(GFX_MODE_GEN7,
@@ -744,13 +742,13 @@ void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 	 */
 	if (IS_GEN7(dev)) {
 		switch (ring->id) {
-		case RING_RENDER:
+		case RCS:
 			mmio = RENDER_HWS_PGA_GEN7;
 			break;
-		case RING_BLT:
+		case BCS:
 			mmio = BLT_HWS_PGA_GEN7;
 			break;
-		case RING_BSD:
+		case VCS:
 			mmio = BSD_HWS_PGA_GEN7;
 			break;
 		}
@@ -1212,7 +1210,7 @@ void intel_ring_advance(struct intel_ring_buffer *ring)
 
 static const struct intel_ring_buffer render_ring = {
 	.name			= "render ring",
-	.id			= RING_RENDER,
+	.id			= RCS,
 	.mmio_base		= RENDER_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
 	.init			= init_render_ring,
@@ -1235,7 +1233,7 @@ static const struct intel_ring_buffer render_ring = {
 
 static const struct intel_ring_buffer bsd_ring = {
 	.name                   = "bsd ring",
-	.id			= RING_BSD,
+	.id			= VCS,
 	.mmio_base		= BSD_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
 	.init			= init_ring_common,
@@ -1345,7 +1343,7 @@ gen6_bsd_ring_put_irq(struct intel_ring_buffer *ring)
 /* ring buffer for Video Codec for Gen6+ */
 static const struct intel_ring_buffer gen6_bsd_ring = {
 	.name			= "gen6 bsd ring",
-	.id			= RING_BSD,
+	.id			= VCS,
 	.mmio_base		= GEN6_BSD_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
 	.init			= init_ring_common,
@@ -1381,79 +1379,13 @@ blt_ring_put_irq(struct intel_ring_buffer *ring)
 			  GEN6_BLITTER_USER_INTERRUPT);
 }
 
-
-/* Workaround for some stepping of SNB,
- * each time when BLT engine ring tail moved,
- * the first command in the ring to be parsed
- * should be MI_BATCH_BUFFER_START
- */
-#define NEED_BLT_WORKAROUND(dev) \
-	(IS_GEN6(dev) && (dev->pdev->revision < 8))
-
-static inline struct drm_i915_gem_object *
-to_blt_workaround(struct intel_ring_buffer *ring)
-{
-	return ring->private;
-}
-
-static int blt_ring_init(struct intel_ring_buffer *ring)
-{
-	if (NEED_BLT_WORKAROUND(ring->dev)) {
-		struct drm_i915_gem_object *obj;
-		u32 *ptr;
-		int ret;
-
-		obj = i915_gem_alloc_object(ring->dev, 4096);
-		if (obj == NULL)
-			return -ENOMEM;
-
-		ret = i915_gem_object_pin(obj, 4096, true);
-		if (ret) {
-			drm_gem_object_unreference(&obj->base);
-			return ret;
-		}
-
-		ptr = kmap(obj->pages[0]);
-		*ptr++ = MI_BATCH_BUFFER_END;
-		*ptr++ = MI_NOOP;
-		kunmap(obj->pages[0]);
-
-		ret = i915_gem_object_set_to_gtt_domain(obj, false);
-		if (ret) {
-			i915_gem_object_unpin(obj);
-			drm_gem_object_unreference(&obj->base);
-			return ret;
-		}
-
-		ring->private = obj;
-	}
-
-	return init_ring_common(ring);
-}
-
-static int blt_ring_begin(struct intel_ring_buffer *ring,
-			  int num_dwords)
-{
-	if (ring->private) {
-		int ret = intel_ring_begin(ring, num_dwords+2);
-		if (ret)
-			return ret;
-
-		intel_ring_emit(ring, MI_BATCH_BUFFER_START);
-		intel_ring_emit(ring, to_blt_workaround(ring)->gtt_offset);
-
-		return 0;
-	} else
-		return intel_ring_begin(ring, 4);
-}
-
 static int blt_ring_flush(struct intel_ring_buffer *ring,
 			  u32 invalidate, u32 flush)
 {
 	uint32_t cmd;
 	int ret;
 
-	ret = blt_ring_begin(ring, 4);
+	ret = intel_ring_begin(ring, 4);
 	if (ret)
 		return ret;
 
@@ -1468,22 +1400,12 @@ static int blt_ring_flush(struct intel_ring_buffer *ring,
 	return 0;
 }
 
-static void blt_ring_cleanup(struct intel_ring_buffer *ring)
-{
-	if (!ring->private)
-		return;
-
-	i915_gem_object_unpin(ring->private);
-	drm_gem_object_unreference(ring->private);
-	ring->private = NULL;
-}
-
 static const struct intel_ring_buffer gen6_blt_ring = {
 	.name			= "blt ring",
-	.id			= RING_BLT,
+	.id			= BCS,
 	.mmio_base		= BLT_RING_BASE,
 	.size			= 32 * PAGE_SIZE,
-	.init			= blt_ring_init,
+	.init			= init_ring_common,
 	.write_tail		= ring_write_tail,
 	.flush			= blt_ring_flush,
 	.add_request		= gen6_add_request,
@@ -1491,7 +1413,6 @@ static const struct intel_ring_buffer gen6_blt_ring = {
 	.irq_get		= blt_ring_get_irq,
 	.irq_put		= blt_ring_put_irq,
 	.dispatch_execbuffer	= gen6_ring_dispatch_execbuffer,
-	.cleanup		= blt_ring_cleanup,
 	.sync_to		= gen6_blt_ring_sync_to,
 	.semaphore_register	= {MI_SEMAPHORE_SYNC_BR,
 				   MI_SEMAPHORE_SYNC_BV,

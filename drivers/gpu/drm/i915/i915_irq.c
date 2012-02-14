@@ -720,7 +720,6 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 	reloc_offset = src->gtt_offset;
 	for (page = 0; page < page_count; page++) {
 		unsigned long flags;
-		void __iomem *s;
 		void *d;
 
 		d = kmalloc(PAGE_SIZE, GFP_ATOMIC);
@@ -728,10 +727,29 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			goto unwind;
 
 		local_irq_save(flags);
-		s = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
-					     reloc_offset);
-		memcpy_fromio(d, s, PAGE_SIZE);
-		io_mapping_unmap_atomic(s);
+		if (reloc_offset < dev_priv->mm.gtt_mappable_end) {
+			void __iomem *s;
+
+			/* Simply ignore tiling or any overlapping fence.
+			 * It's part of the error state, and this hopefully
+			 * captures what the GPU read.
+			 */
+
+			s = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
+						     reloc_offset);
+			memcpy_fromio(d, s, PAGE_SIZE);
+			io_mapping_unmap_atomic(s);
+		} else {
+			void *s;
+
+			drm_clflush_pages(&src->pages[page], 1);
+
+			s = kmap_atomic(src->pages[page]);
+			memcpy(d, s, PAGE_SIZE);
+			kunmap_atomic(s);
+
+			drm_clflush_pages(&src->pages[page], 1);
+		}
 		local_irq_restore(flags);
 
 		dst->pages[page] = d;
@@ -804,7 +822,7 @@ static u32 capture_bo_list(struct drm_i915_error_buffer *err,
 		err->tiling = obj->tiling_mode;
 		err->dirty = obj->dirty;
 		err->purgeable = obj->madv != I915_MADV_WILLNEED;
-		err->ring = obj->ring ? obj->ring->id : 0;
+		err->ring = obj->ring ? obj->ring->id : -1;
 		err->cache_level = obj->cache_level;
 
 		if (++i == count)
@@ -876,6 +894,39 @@ i915_error_first_batchbuffer(struct drm_i915_private *dev_priv,
 	return NULL;
 }
 
+static void i915_record_ring_state(struct drm_device *dev,
+				   struct drm_i915_error_state *error,
+				   struct intel_ring_buffer *ring)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (INTEL_INFO(dev)->gen >= 6) {
+		error->faddr[ring->id] = I915_READ(RING_DMA_FADD(ring->mmio_base));
+		error->fault_reg[ring->id] = I915_READ(RING_FAULT_REG(ring));
+	}
+
+	if (INTEL_INFO(dev)->gen >= 4) {
+		error->ipeir[ring->id] = I915_READ(RING_IPEIR(ring->mmio_base));
+		error->ipehr[ring->id] = I915_READ(RING_IPEHR(ring->mmio_base));
+		error->instdone[ring->id] = I915_READ(RING_INSTDONE(ring->mmio_base));
+		error->instps[ring->id] = I915_READ(RING_INSTPS(ring->mmio_base));
+		if (ring->id == RCS) {
+			error->instdone1 = I915_READ(INSTDONE1);
+			error->bbaddr = I915_READ64(BB_ADDR);
+		}
+	} else {
+		error->ipeir[ring->id] = I915_READ(IPEIR);
+		error->ipehr[ring->id] = I915_READ(IPEHR);
+		error->instdone[ring->id] = I915_READ(INSTDONE);
+	}
+
+	error->instpm[ring->id] = I915_READ(RING_INSTPM(ring->mmio_base));
+	error->seqno[ring->id] = ring->get_seqno(ring);
+	error->acthd[ring->id] = intel_ring_get_active_head(ring);
+	error->head[ring->id] = I915_READ_HEAD(ring);
+	error->tail[ring->id] = I915_READ_TAIL(ring);
+}
+
 /**
  * i915_capture_error_state - capture an error record for later analysis
  * @dev: drm device
@@ -900,7 +951,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 		return;
 
 	/* Account for pipe specific data like PIPE*STAT */
-	error = kmalloc(sizeof(*error), GFP_ATOMIC);
+	error = kzalloc(sizeof(*error), GFP_ATOMIC);
 	if (!error) {
 		DRM_DEBUG_DRIVER("out of memory, not capturing error state\n");
 		return;
@@ -909,47 +960,22 @@ static void i915_capture_error_state(struct drm_device *dev)
 	DRM_INFO("capturing error event; look for more information in /debug/dri/%d/i915_error_state\n",
 		 dev->primary->index);
 
-	error->seqno = dev_priv->ring[RCS].get_seqno(&dev_priv->ring[RCS]);
 	error->eir = I915_READ(EIR);
 	error->pgtbl_er = I915_READ(PGTBL_ER);
 	for_each_pipe(pipe)
 		error->pipestat[pipe] = I915_READ(PIPESTAT(pipe));
-	error->instpm = I915_READ(INSTPM);
-	error->error = 0;
+
 	if (INTEL_INFO(dev)->gen >= 6) {
 		error->error = I915_READ(ERROR_GEN6);
-
-		error->bcs_acthd = I915_READ(BCS_ACTHD);
-		error->bcs_ipehr = I915_READ(BCS_IPEHR);
-		error->bcs_ipeir = I915_READ(BCS_IPEIR);
-		error->bcs_instdone = I915_READ(BCS_INSTDONE);
-		error->bcs_seqno = 0;
-		if (dev_priv->ring[BCS].get_seqno)
-			error->bcs_seqno = dev_priv->ring[BCS].get_seqno(&dev_priv->ring[BCS]);
-
-		error->vcs_acthd = I915_READ(VCS_ACTHD);
-		error->vcs_ipehr = I915_READ(VCS_IPEHR);
-		error->vcs_ipeir = I915_READ(VCS_IPEIR);
-		error->vcs_instdone = I915_READ(VCS_INSTDONE);
-		error->vcs_seqno = 0;
-		if (dev_priv->ring[VCS].get_seqno)
-			error->vcs_seqno = dev_priv->ring[VCS].get_seqno(&dev_priv->ring[VCS]);
+		error->done_reg = I915_READ(DONE_REG);
 	}
-	if (INTEL_INFO(dev)->gen >= 4) {
-		error->ipeir = I915_READ(IPEIR_I965);
-		error->ipehr = I915_READ(IPEHR_I965);
-		error->instdone = I915_READ(INSTDONE_I965);
-		error->instps = I915_READ(INSTPS);
-		error->instdone1 = I915_READ(INSTDONE1);
-		error->acthd = I915_READ(ACTHD_I965);
-		error->bbaddr = I915_READ64(BB_ADDR);
-	} else {
-		error->ipeir = I915_READ(IPEIR);
-		error->ipehr = I915_READ(IPEHR);
-		error->instdone = I915_READ(INSTDONE);
-		error->acthd = I915_READ(ACTHD);
-		error->bbaddr = 0;
-	}
+
+	i915_record_ring_state(dev, error, &dev_priv->ring[RCS]);
+	if (HAS_BLT(dev))
+		i915_record_ring_state(dev, error, &dev_priv->ring[BCS]);
+	if (HAS_BSD(dev))
+		i915_record_ring_state(dev, error, &dev_priv->ring[VCS]);
+
 	i915_gem_record_fences(dev, error);
 
 	/* Record the active batch and ring buffers */
@@ -1017,11 +1043,12 @@ void i915_destroy_error_state(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error;
+	unsigned long flags;
 
-	spin_lock(&dev_priv->error_lock);
+	spin_lock_irqsave(&dev_priv->error_lock, flags);
 	error = dev_priv->first_error;
 	dev_priv->first_error = NULL;
-	spin_unlock(&dev_priv->error_lock);
+	spin_unlock_irqrestore(&dev_priv->error_lock, flags);
 
 	if (error)
 		i915_error_state_free(dev, error);
@@ -1698,6 +1725,7 @@ void i915_hangcheck_elapsed(unsigned long data)
 	    dev_priv->last_instdone1 == instdone1) {
 		if (dev_priv->hangcheck_count++ > 1) {
 			DRM_ERROR("Hangcheck timer elapsed... GPU hung\n");
+			i915_handle_error(dev, true);
 
 			if (!IS_GEN2(dev)) {
 				/* Is the chip hanging on a WAIT_FOR_EVENT?
@@ -1705,7 +1733,6 @@ void i915_hangcheck_elapsed(unsigned long data)
 				 * and break the hang. This should work on
 				 * all but the second generation chipsets.
 				 */
-
 				if (kick_ring(&dev_priv->ring[RCS]))
 					goto repeat;
 
@@ -1718,7 +1745,6 @@ void i915_hangcheck_elapsed(unsigned long data)
 					goto repeat;
 			}
 
-			i915_handle_error(dev, true);
 			return;
 		}
 	} else {

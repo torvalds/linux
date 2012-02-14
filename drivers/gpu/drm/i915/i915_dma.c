@@ -2132,7 +2132,7 @@ int i915_driver_unload(struct drm_device *dev)
 		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
 
 	mutex_lock(&dev->struct_mutex);
-	ret = i915_gpu_idle(dev);
+	ret = i915_gpu_idle(dev, true);
 	if (ret)
 		DRM_ERROR("failed to idle hardware: %d\n", ret);
 	mutex_unlock(&dev->struct_mutex);
