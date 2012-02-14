@@ -676,7 +676,7 @@ static void prepare_write_banner(struct ceph_messenger *msgr,
 
 static int prepare_write_connect(struct ceph_messenger *msgr,
 				 struct ceph_connection *con,
-				 int after_banner)
+				 int include_banner)
 {
 	unsigned global_seq = get_global_seq(con->msgr, 0);
 	int proto;
@@ -705,7 +705,9 @@ static int prepare_write_connect(struct ceph_messenger *msgr,
 	con->out_connect.protocol_version = cpu_to_le32(proto);
 	con->out_connect.flags = 0;
 
-	if (!after_banner) {
+	if (include_banner)
+		prepare_write_banner(msgr, con);
+	else {
 		con->out_kvec_left = 0;
 		con->out_kvec_bytes = 0;
 	}
@@ -1846,7 +1848,6 @@ more:
 
 	/* open the socket first? */
 	if (con->sock == NULL) {
-		prepare_write_banner(msgr, con);
 		prepare_write_connect(msgr, con, 1);
 		prepare_read_banner(con);
 		set_bit(CONNECTING, &con->state);
