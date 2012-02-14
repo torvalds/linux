@@ -725,23 +725,11 @@ static int pinctrl_hog_map(struct pinctrl_dev *pctldev,
 	struct pinctrl *p;
 	int ret;
 
-	if (map->dev_name) {
-		/*
-		 * TODO: the day we have device tree support, we can
-		 * traverse the device tree and hog to specific device nodes
-		 * without any problems, so then we can hog pinmuxes for
-		 * all devices that just want a static pin mux at this point.
-		 */
-		dev_err(pctldev->dev, "map %s wants to hog a non-system pinmux, this is not going to work\n",
-				map->name);
-		return -EINVAL;
-	}
-
 	hog = kzalloc(sizeof(struct pinctrl_hog), GFP_KERNEL);
 	if (!hog)
 		return -ENOMEM;
 
-	p = pinctrl_get(NULL, map->name);
+	p = pinctrl_get(pctldev->dev, map->name);
 	if (IS_ERR(p)) {
 		kfree(hog);
 		dev_err(pctldev->dev,
