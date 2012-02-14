@@ -1587,12 +1587,6 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
 
-	/*
-	 * Leave this as the first check because we need to turn on the
-	 * radio if it was disabled before prior to processing the rest
-	 * of the changes. Likewise we must only disable the radio towards
-	 * the end.
-	 */
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
 		sc->ps_idle = !!(conf->flags & IEEE80211_CONF_IDLE);
 		if (sc->ps_idle)
