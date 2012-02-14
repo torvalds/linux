@@ -33,6 +33,7 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_encoder.h"
 #include "exynos_drm_fbdev.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_gem.h"
@@ -98,6 +99,9 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	ret = exynos_drm_device_register(dev);
 	if (ret)
 		goto err_vblank;
+
+	/* setup possible_clones. */
+	exynos_drm_encoder_setup(dev);
 
 	/*
 	 * create and configure fb helper and also exynos specific
