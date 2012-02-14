@@ -146,7 +146,7 @@ static __init int rk30_timer_init_clockevent(void)
 	clockevents_calc_mult_shift(ce, 24000000, 4);
 	ce->max_delta_ns = clockevent_delta2ns(0xFFFFFFFFUL, ce);
 	ce->min_delta_ns = clockevent_delta2ns(1, ce) + 1;
-
+	ce->irq = rk30_timer_clockevent_irq.irq;
 	ce->cpumask = cpu_all_mask;
 
 	clockevents_register_device(ce);
