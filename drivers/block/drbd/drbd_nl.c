@@ -2410,9 +2410,47 @@ out:
 	return 0;
 }
 
+static int drbd_bmio_set_susp_al(struct drbd_conf *mdev)
+{
+	int rv;
+
+	rv = drbd_bmio_set_n_write(mdev);
+	drbd_suspend_al(mdev);
+	return rv;
+}
+
 int drbd_adm_invalidate_peer(struct sk_buff *skb, struct genl_info *info)
 {
-	return drbd_adm_simple_request_state(skb, info, NS(conn, C_STARTING_SYNC_S));
+	int retcode; /* drbd_ret_code, drbd_state_rv */
+	struct drbd_conf *mdev;
+
+	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_MINOR);
+	if (!adm_ctx.reply_skb)
+		return retcode;
+	if (retcode != NO_ERROR)
+		goto out;
+
+	mdev = adm_ctx.mdev;
+
+	retcode = _drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S), CS_ORDERED);
+	if (retcode < SS_SUCCESS) {
+		if (retcode == SS_NEED_CONNECTION && mdev->state.role == R_PRIMARY) {
+			/* The peer will get a resync upon connect anyways.
+			 * Just make that into a full resync. */
+			retcode = drbd_request_state(mdev, NS(pdsk, D_INCONSISTENT));
+			if (retcode >= SS_SUCCESS) {
+				if (drbd_bitmap_io(mdev, &drbd_bmio_set_susp_al,
+						   "set_n_write from invalidate_peer",
+						   BM_LOCKED_SET_ALLOWED))
+					retcode = ERR_IO_MD_DISK;
+			}
+		} else
+			retcode = drbd_request_state(mdev, NS(conn, C_STARTING_SYNC_S));
+	}
+
+out:
+	drbd_adm_finish(info, retcode);
+	return 0;
 }
 
 int drbd_adm_pause_sync(struct sk_buff *skb, struct genl_info *info)

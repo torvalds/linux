@@ -628,6 +628,11 @@ is_valid_conn_transition(enum drbd_conns oc, enum drbd_conns nc)
 	if (oc == C_STANDALONE && nc != C_UNCONNECTED)
 		return SS_NEED_CONNECTION;
 
+	/* When establishing a connection we need to go through WF_REPORT_PARAMS!
+	   Necessary to do the right thing upon invalidate-remote on a disconnected resource */
+	if (oc < C_WF_REPORT_PARAMS && nc >= C_CONNECTED)
+		return SS_NEED_CONNECTION;
+
 	/* After a network error only C_UNCONNECTED or C_DISCONNECTING may follow. */
 	if (oc >= C_TIMEOUT && oc <= C_TEAR_DOWN && nc != C_UNCONNECTED && nc != C_DISCONNECTING)
 		return SS_IN_TRANSIENT_STATE;
