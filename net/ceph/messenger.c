@@ -99,6 +99,20 @@ static void encode_my_addr(struct ceph_messenger *msgr)
  */
 static struct workqueue_struct *ceph_msgr_wq;
 
+void _ceph_msgr_exit(void)
+{
+	if (ceph_msgr_wq)
+		destroy_workqueue(ceph_msgr_wq);
+
+	BUG_ON(zero_page_address == NULL);
+	zero_page_address = NULL;
+
+	BUG_ON(zero_page == NULL);
+	kunmap(zero_page);
+	page_cache_release(zero_page);
+	zero_page = NULL;
+}
+
 int ceph_msgr_init(void)
 {
 	BUG_ON(zero_page != NULL);
@@ -109,33 +123,21 @@ int ceph_msgr_init(void)
 	zero_page_address = kmap(zero_page);
 
 	ceph_msgr_wq = alloc_workqueue("ceph-msgr", WQ_NON_REENTRANT, 0);
-	if (!ceph_msgr_wq) {
-		pr_err("msgr_init failed to create workqueue\n");
+	if (ceph_msgr_wq)
+		return 0;
 
-		zero_page_address = NULL;
-		kunmap(zero_page);
-		page_cache_release(zero_page);
-		zero_page = NULL;
+	pr_err("msgr_init failed to create workqueue\n");
+	_ceph_msgr_exit();
 
-		return -ENOMEM;
-	}
-
-	return 0;
+	return -ENOMEM;
 }
 EXPORT_SYMBOL(ceph_msgr_init);
 
 void ceph_msgr_exit(void)
 {
 	BUG_ON(ceph_msgr_wq == NULL);
-	destroy_workqueue(ceph_msgr_wq);
 
-	BUG_ON(zero_page_address == NULL);
-	zero_page_address = NULL;
-
-	BUG_ON(zero_page == NULL);
-	kunmap(zero_page);
-	page_cache_release(zero_page);
-	zero_page = NULL;
+	_ceph_msgr_exit();
 }
 EXPORT_SYMBOL(ceph_msgr_exit);
 
