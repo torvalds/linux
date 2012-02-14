@@ -1085,7 +1085,8 @@ static u32 efx_ethtool_get_rxfh_indir_size(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
-	return (efx_nic_rev(efx) < EFX_REV_FALCON_B0 ?
+	return ((efx_nic_rev(efx) < EFX_REV_FALCON_B0 ||
+		 efx->n_rx_channels == 1) ?
 		0 : ARRAY_SIZE(efx->rx_indir_table));
 }
 

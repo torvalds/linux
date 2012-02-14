@@ -1175,25 +1175,40 @@ static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
 	unsigned int count;
 	int cpu;
 
-	if (rss_cpus)
-		return rss_cpus;
-
-	if (unlikely(!zalloc_cpumask_var(&thread_mask, GFP_KERNEL))) {
-		netif_warn(efx, probe, efx->net_dev,
-			   "RSS disabled due to allocation failure\n");
-		return 1;
-	}
-
-	count = 0;
-	for_each_online_cpu(cpu) {
-		if (!cpumask_test_cpu(cpu, thread_mask)) {
-			++count;
-			cpumask_or(thread_mask, thread_mask,
-				   topology_thread_cpumask(cpu));
+	if (rss_cpus) {
+		count = rss_cpus;
+	} else {
+		if (unlikely(!zalloc_cpumask_var(&thread_mask, GFP_KERNEL))) {
+			netif_warn(efx, probe, efx->net_dev,
+				   "RSS disabled due to allocation failure\n");
+			return 1;
 		}
+
+		count = 0;
+		for_each_online_cpu(cpu) {
+			if (!cpumask_test_cpu(cpu, thread_mask)) {
+				++count;
+				cpumask_or(thread_mask, thread_mask,
+					   topology_thread_cpumask(cpu));
+			}
+		}
+
+		free_cpumask_var(thread_mask);
 	}
 
-	free_cpumask_var(thread_mask);
+	/* If RSS is requested for the PF *and* VFs then we can't write RSS
+	 * table entries that are inaccessible to VFs
+	 */
+	if (efx_sriov_wanted(efx) && efx_vf_size(efx) > 1 &&
+	    count > efx_vf_size(efx)) {
+		netif_warn(efx, probe, efx->net_dev,
+			   "Reducing number of RSS channels from %u to %u for "
+			   "VF support. Increase vf-msix-limit to use more "
+			   "channels on the PF.\n",
+			   count, efx_vf_size(efx));
+		count = efx_vf_size(efx);
+	}
+
 	return count;
 }
 
@@ -1327,6 +1342,10 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 		}
 	}
 
+	/* RSS might be usable on VFs even if it is disabled on the PF */
+	efx->rss_spread = (efx->n_rx_channels > 1 ?
+			   efx->n_rx_channels : efx_vf_size(efx));
+
 	return 0;
 }
 
@@ -1426,7 +1445,7 @@ static int efx_probe_nic(struct efx_nic *efx)
 		get_random_bytes(&efx->rx_hash_key, sizeof(efx->rx_hash_key));
 	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); i++)
 		efx->rx_indir_table[i] =
-			ethtool_rxfh_indir_default(i, efx->n_rx_channels);
+			ethtool_rxfh_indir_default(i, efx->rss_spread);
 
 	efx_set_channels(efx);
 	netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
@@ -1915,6 +1934,7 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 	}
 
 	memcpy(net_dev->dev_addr, new_addr, net_dev->addr_len);
+	efx_sriov_mac_address_changed(efx);
 
 	/* Reconfigure the MAC */
 	mutex_lock(&efx->mac_lock);
@@ -1981,6 +2001,12 @@ static const struct net_device_ops efx_netdev_ops = {
 	.ndo_set_mac_address	= efx_set_mac_address,
 	.ndo_set_rx_mode	= efx_set_rx_mode,
 	.ndo_set_features	= efx_set_features,
+#ifdef CONFIG_SFC_SRIOV
+	.ndo_set_vf_mac		= efx_sriov_set_vf_mac,
+	.ndo_set_vf_vlan	= efx_sriov_set_vf_vlan,
+	.ndo_set_vf_spoofchk	= efx_sriov_set_vf_spoofchk,
+	.ndo_get_vf_config	= efx_sriov_get_vf_config,
+#endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = efx_netpoll,
 #endif
@@ -2150,6 +2176,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 
 	efx_start_interrupts(efx, false);
 	efx_restore_filters(efx);
+	efx_sriov_reset(efx);
 
 	mutex_unlock(&efx->mac_lock);
 
@@ -2440,6 +2467,7 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	rtnl_unlock();
 
 	efx_stop_interrupts(efx, false);
+	efx_sriov_fini(efx);
 	efx_unregister_netdev(efx);
 
 	efx_mtd_remove(efx);
@@ -2580,6 +2608,11 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	rc = efx_register_netdev(efx);
 	if (rc)
 		goto fail4;
+
+	rc = efx_sriov_init(efx);
+	if (rc)
+		netif_err(efx, probe, efx->net_dev,
+			  "SR-IOV can't be enabled rc %d\n", rc);
 
 	netif_dbg(efx, probe, efx->net_dev, "initialisation successful\n");
 
@@ -2732,6 +2765,10 @@ static int __init efx_init_module(void)
 	if (rc)
 		goto err_notifier;
 
+	rc = efx_init_sriov();
+	if (rc)
+		goto err_sriov;
+
 	reset_workqueue = create_singlethread_workqueue("sfc_reset");
 	if (!reset_workqueue) {
 		rc = -ENOMEM;
@@ -2747,6 +2784,8 @@ static int __init efx_init_module(void)
  err_pci:
 	destroy_workqueue(reset_workqueue);
  err_reset:
+	efx_fini_sriov();
+ err_sriov:
 	unregister_netdevice_notifier(&efx_netdev_notifier);
  err_notifier:
 	return rc;
@@ -2758,6 +2797,7 @@ static void __exit efx_exit_module(void)
 
 	pci_unregister_driver(&efx_pci_driver);
 	destroy_workqueue(reset_workqueue);
+	efx_fini_sriov();
 	unregister_netdevice_notifier(&efx_netdev_notifier);
 
 }

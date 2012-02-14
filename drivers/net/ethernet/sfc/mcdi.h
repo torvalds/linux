@@ -146,6 +146,8 @@ extern int efx_mcdi_wol_filter_set_magic(struct efx_nic *efx,
 extern int efx_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out);
 extern int efx_mcdi_wol_filter_remove(struct efx_nic *efx, int id);
 extern int efx_mcdi_wol_filter_reset(struct efx_nic *efx);
+extern int efx_mcdi_flush_rxqs(struct efx_nic *efx);
+extern int efx_mcdi_set_mac(struct efx_nic *efx);
 extern int efx_mcdi_mac_stats(struct efx_nic *efx, dma_addr_t dma_addr,
 			      u32 dma_len, int enable, int clear);
 extern int efx_mcdi_mac_reconfigure(struct efx_nic *efx);

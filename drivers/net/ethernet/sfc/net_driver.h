@@ -24,6 +24,7 @@
 #include <linux/device.h>
 #include <linux/highmem.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 #include <linux/vmalloc.h>
 #include <linux/i2c.h>
 
@@ -54,7 +55,8 @@
 
 #define EFX_MAX_CHANNELS 32U
 #define EFX_MAX_RX_QUEUES EFX_MAX_CHANNELS
-#define EFX_MAX_EXTRA_CHANNELS	0U
+#define EFX_EXTRA_CHANNEL_IOV	0
+#define EFX_MAX_EXTRA_CHANNELS	1U
 
 /* Checksum generation is a per-queue option in hardware, so each
  * queue visible to the networking core is backed by two hardware TX
@@ -629,6 +631,8 @@ union efx_multicast_hash {
 };
 
 struct efx_filter_state;
+struct efx_vf;
+struct vfdi_status;
 
 /**
  * struct efx_nic - an Efx NIC
@@ -712,6 +716,17 @@ struct efx_filter_state;
  *	completed (either success or failure). Not used when MCDI is used to
  *	flush receive queues.
  * @flush_wq: wait queue used by efx_nic_flush_queues() to wait for flush completions.
+ * @vf: Array of &struct efx_vf objects.
+ * @vf_count: Number of VFs intended to be enabled.
+ * @vf_init_count: Number of VFs that have been fully initialised.
+ * @vi_scale: log2 number of vnics per VF.
+ * @vf_buftbl_base: The zeroth buffer table index used to back VF queues.
+ * @vfdi_status: Common VFDI status page to be dmad to VF address space.
+ * @local_addr_list: List of local addresses. Protected by %local_lock.
+ * @local_page_list: List of DMA addressable pages used to broadcast
+ *	%local_addr_list. Protected by %local_lock.
+ * @local_lock: Mutex protecting %local_addr_list and %local_page_list.
+ * @peer_work: Work item to broadcast peer addresses to VMs.
  * @monitor_work: Hardware monitor workitem
  * @biu_lock: BIU (bus interface unit) lock
  * @last_irq_cpu: Last CPU to handle a possible test interrupt.  This
@@ -762,6 +777,7 @@ struct efx_nic {
 	unsigned next_buffer_table;
 	unsigned n_channels;
 	unsigned n_rx_channels;
+	unsigned rss_spread;
 	unsigned tx_channel_offset;
 	unsigned n_tx_channels;
 	unsigned int rx_buffer_len;
@@ -819,6 +835,20 @@ struct efx_nic {
 	atomic_t rxq_flush_pending;
 	atomic_t rxq_flush_outstanding;
 	wait_queue_head_t flush_wq;
+
+#ifdef CONFIG_SFC_SRIOV
+	struct efx_channel *vfdi_channel;
+	struct efx_vf *vf;
+	unsigned vf_count;
+	unsigned vf_init_count;
+	unsigned vi_scale;
+	unsigned vf_buftbl_base;
+	struct efx_buffer vfdi_status;
+	struct list_head local_addr_list;
+	struct list_head local_page_list;
+	struct mutex local_lock;
+	struct work_struct peer_work;
+#endif
 
 	/* The following fields may be written more often */
 

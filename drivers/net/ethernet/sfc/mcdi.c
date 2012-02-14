@@ -560,6 +560,9 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 	case MCDI_EVENT_CODE_MAC_STATS_DMA:
 		/* MAC stats are gather lazily.  We can ignore this. */
 		break;
+	case MCDI_EVENT_CODE_FLR:
+		efx_sriov_flr(efx, MCDI_EVENT_FIELD(*event, FLR_VF));
+		break;
 
 	default:
 		netif_err(efx, hw, efx->net_dev, "Unknown MCDI event 0x%x\n",
@@ -1154,6 +1157,37 @@ fail:
 	return rc;
 }
 
+int efx_mcdi_flush_rxqs(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+	struct efx_rx_queue *rx_queue;
+	__le32 *qid;
+	int rc, count;
+
+	qid = kmalloc(EFX_MAX_CHANNELS * sizeof(*qid), GFP_KERNEL);
+	if (qid == NULL)
+		return -ENOMEM;
+
+	count = 0;
+	efx_for_each_channel(channel, efx) {
+		efx_for_each_channel_rx_queue(rx_queue, channel) {
+			if (rx_queue->flush_pending) {
+				rx_queue->flush_pending = false;
+				atomic_dec(&efx->rxq_flush_pending);
+				qid[count++] = cpu_to_le32(
+					efx_rx_queue_index(rx_queue));
+			}
+		}
+	}
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_FLUSH_RX_QUEUES, (u8 *)qid,
+			  count * sizeof(*qid), NULL, 0, NULL);
+	WARN_ON(rc > 0);
+
+	kfree(qid);
+
+	return rc;
+}
 
 int efx_mcdi_wol_filter_reset(struct efx_nic *efx)
 {

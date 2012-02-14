@@ -12,7 +12,7 @@
 #include "mcdi.h"
 #include "mcdi_pcol.h"
 
-static int efx_mcdi_set_mac(struct efx_nic *efx)
+int efx_mcdi_set_mac(struct efx_nic *efx)
 {
 	u32 reject, fcntl;
 	u8 cmdbytes[MC_CMD_SET_MAC_IN_LEN];
