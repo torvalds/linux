@@ -292,7 +292,7 @@ svc_rdma_get_reply_array(struct rpcrdma_msg *rmsgp)
 	if (wr_ary) {
 		rp_ary = (struct rpcrdma_write_array *)
 			&wr_ary->
-			wc_array[wr_ary->wc_nchunks].wc_target.rs_length;
+			wc_array[ntohl(wr_ary->wc_nchunks)].wc_target.rs_length;
 
 		goto found_it;
 	}
