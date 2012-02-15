@@ -1127,7 +1127,7 @@ static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst, const vo
 	else if (rt->rt_gateway)
 		pkey = (const __be32 *) &rt->rt_gateway;
 
-	n = __ipv4_neigh_lookup(&arp_tbl, dev, *(__force u32 *)pkey);
+	n = __ipv4_neigh_lookup(dev, *(__force u32 *)pkey);
 	if (n)
 		return n;
 	return neigh_create(&arp_tbl, pkey, dev);

@@ -15,14 +15,14 @@ static inline u32 arp_hashfn(u32 key, const struct net_device *dev, u32 hash_rnd
 	return val * hash_rnd;
 }
 
-static inline struct neighbour *__ipv4_neigh_lookup(struct neigh_table *tbl, struct net_device *dev, u32 key)
+static inline struct neighbour *__ipv4_neigh_lookup(struct net_device *dev, u32 key)
 {
 	struct neigh_hash_table *nht;
 	struct neighbour *n;
 	u32 hash_val;
 
 	rcu_read_lock_bh();
-	nht = rcu_dereference_bh(tbl->nht);
+	nht = rcu_dereference_bh(arp_tbl.nht);
 	hash_val = arp_hashfn(key, dev, nht->hash_rnd[0]) >> (32 - nht->hash_shift);
 	for (n = rcu_dereference_bh(nht->hash_buckets[hash_val]);
 	     n != NULL;
