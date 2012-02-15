@@ -5287,6 +5287,8 @@ static int nfs4_verify_fore_channel_attrs(struct nfs41_create_session_args *args
 		return -EINVAL;
 	if (rcvd->max_reqs == 0)
 		return -EINVAL;
+	if (rcvd->max_reqs > NFS4_MAX_SLOT_TABLE)
+		rcvd->max_reqs = NFS4_MAX_SLOT_TABLE;
 	return 0;
 }
 
@@ -5302,9 +5304,9 @@ static int nfs4_verify_back_channel_attrs(struct nfs41_create_session_args *args
 	if (rcvd->max_resp_sz_cached > sent->max_resp_sz_cached)
 		return -EINVAL;
 	/* These would render the backchannel useless: */
-	if (rcvd->max_ops  == 0)
+	if (rcvd->max_ops != sent->max_ops)
 		return -EINVAL;
-	if (rcvd->max_reqs == 0)
+	if (rcvd->max_reqs != sent->max_reqs)
 		return -EINVAL;
 	return 0;
 }
