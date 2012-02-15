@@ -1609,6 +1609,23 @@ void efx_nic_fini_interrupt(struct efx_nic *efx)
 		free_irq(efx->legacy_irq, efx);
 }
 
+void efx_nic_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw)
+{
+	unsigned vi_count, buftbl_min;
+
+	/* Account for the buffer table entries backing the datapath channels
+	 * and the descriptor caches for those channels.
+	 */
+	buftbl_min = ((efx->n_rx_channels * EFX_MAX_DMAQ_SIZE +
+		       efx->n_tx_channels * EFX_TXQ_TYPES * EFX_MAX_DMAQ_SIZE +
+		       efx->n_channels * EFX_MAX_EVQ_SIZE)
+		      * sizeof(efx_qword_t) / EFX_BUF_SIZE);
+	vi_count = max(efx->n_channels, efx->n_tx_channels * EFX_TXQ_TYPES);
+
+	efx->tx_dc_base = sram_lim_qw - vi_count * TX_DC_ENTRIES;
+	efx->rx_dc_base = efx->tx_dc_base - vi_count * RX_DC_ENTRIES;
+}
+
 u32 efx_nic_fpga_ver(struct efx_nic *efx)
 {
 	efx_oword_t altera_build;
@@ -1621,11 +1638,9 @@ void efx_nic_init_common(struct efx_nic *efx)
 	efx_oword_t temp;
 
 	/* Set positions of descriptor caches in SRAM. */
-	EFX_POPULATE_OWORD_1(temp, FRF_AZ_SRM_TX_DC_BASE_ADR,
-			     efx->type->tx_dc_base / 8);
+	EFX_POPULATE_OWORD_1(temp, FRF_AZ_SRM_TX_DC_BASE_ADR, efx->tx_dc_base);
 	efx_writeo(efx, &temp, FR_AZ_SRM_TX_DC_CFG);
-	EFX_POPULATE_OWORD_1(temp, FRF_AZ_SRM_RX_DC_BASE_ADR,
-			     efx->type->rx_dc_base / 8);
+	EFX_POPULATE_OWORD_1(temp, FRF_AZ_SRM_RX_DC_BASE_ADR, efx->rx_dc_base);
 	efx_writeo(efx, &temp, FR_AZ_SRM_RX_DC_CFG);
 
 	/* Set TX descriptor cache size. */

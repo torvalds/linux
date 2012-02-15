@@ -1333,6 +1333,12 @@ out:
 	return rc;
 }
 
+static void falcon_dimension_resources(struct efx_nic *efx)
+{
+	efx->rx_dc_base = 0x20000;
+	efx->tx_dc_base = 0x26000;
+}
+
 /* Probe all SPI devices on the NIC */
 static void falcon_probe_spi_devices(struct efx_nic *efx)
 {
@@ -1749,6 +1755,7 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.probe = falcon_probe_nic,
 	.remove = falcon_remove_nic,
 	.init = falcon_init_nic,
+	.dimension_resources = falcon_dimension_resources,
 	.fini = efx_port_dummy_op_void,
 	.monitor = falcon_monitor,
 	.map_reset_reason = falcon_map_reset_reason,
@@ -1783,8 +1790,6 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.max_interrupt_mode = EFX_INT_MODE_MSI,
 	.phys_addr_channels = 4,
 	.timer_period_max =  1 << FRF_AB_TC_TIMER_VAL_WIDTH,
-	.tx_dc_base = 0x130000,
-	.rx_dc_base = 0x100000,
 	.offload_features = NETIF_F_IP_CSUM,
 };
 
@@ -1792,6 +1797,7 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.probe = falcon_probe_nic,
 	.remove = falcon_remove_nic,
 	.init = falcon_init_nic,
+	.dimension_resources = falcon_dimension_resources,
 	.fini = efx_port_dummy_op_void,
 	.monitor = falcon_monitor,
 	.map_reset_reason = falcon_map_reset_reason,
@@ -1835,8 +1841,6 @@ const struct efx_nic_type falcon_b0_nic_type = {
 				   * interrupt handler only supports 32
 				   * channels */
 	.timer_period_max =  1 << FRF_AB_TC_TIMER_VAL_WIDTH,
-	.tx_dc_base = 0x130000,
-	.rx_dc_base = 0x100000,
 	.offload_features = NETIF_F_IP_CSUM | NETIF_F_RXHASH | NETIF_F_NTUPLE,
 };
 
