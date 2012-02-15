@@ -288,6 +288,8 @@ struct tracer {
 /* for function tracing recursion */
 #define TRACE_INTERNAL_BIT		(1<<11)
 #define TRACE_GLOBAL_BIT		(1<<12)
+#define TRACE_CONTROL_BIT		(1<<13)
+
 /*
  * Abuse of the trace_recursion.
  * As we need a way to maintain state if we are tracing the function
