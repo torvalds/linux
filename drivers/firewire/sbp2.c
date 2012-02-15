@@ -1141,6 +1141,10 @@ static int sbp2_probe(struct device *dev)
 	struct Scsi_Host *shost;
 	u32 model, firmware_revision;
 
+	/* cannot (or should not) handle targets on the local node */
+	if (device->is_local)
+		return -ENODEV;
+
 	if (dma_get_max_seg_size(device->card->device) > SBP2_MAX_SEG_SIZE)
 		BUG_ON(dma_set_max_seg_size(device->card->device,
 					    SBP2_MAX_SEG_SIZE));
