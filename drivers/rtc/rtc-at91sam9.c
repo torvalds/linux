@@ -57,6 +57,7 @@ struct sam9_rtc {
 	void __iomem		*rtt;
 	struct rtc_device	*rtcdev;
 	u32			imr;
+	void __iomem		*gpbr;
 };
 
 #define rtt_readl(rtc, field) \
@@ -65,9 +66,9 @@ struct sam9_rtc {
 	__raw_writel((val), (rtc)->rtt + AT91_RTT_ ## field)
 
 #define gpbr_readl(rtc) \
-	at91_sys_read(AT91_GPBR + 4 * CONFIG_RTC_DRV_AT91SAM9_GPBR)
+	__raw_readl((rtc)->gpbr)
 #define gpbr_writel(rtc, val) \
-	at91_sys_write(AT91_GPBR + 4 * CONFIG_RTC_DRV_AT91SAM9_GPBR, (val))
+	__raw_writel((val), (rtc)->gpbr)
 
 /*
  * Read current time and date in RTC
@@ -289,14 +290,17 @@ static const struct rtc_class_ops at91_rtc_ops = {
  */
 static int __devinit at91_rtc_probe(struct platform_device *pdev)
 {
-	struct resource	*r;
+	struct resource	*r, *r_gpbr;
 	struct sam9_rtc	*rtc;
 	int		ret;
 	u32		mr;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r)
+	r_gpbr = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!r || !r_gpbr) {
+		dev_err(&pdev->dev, "need 2 ressources\n");
 		return -ENODEV;
+	}
 
 	rtc = kzalloc(sizeof *rtc, GFP_KERNEL);
 	if (!rtc)
@@ -312,6 +316,13 @@ static int __devinit at91_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to map registers, aborting.\n");
 		ret = -ENOMEM;
 		goto fail;
+	}
+
+	rtc->gpbr = ioremap(r_gpbr->start, resource_size(r_gpbr));
+	if (!rtc->gpbr) {
+		dev_err(&pdev->dev, "failed to map gpbr registers, aborting.\n");
+		ret = -ENOMEM;
+		goto fail_gpbr;
 	}
 
 	mr = rtt_readl(rtc, MR);
@@ -340,7 +351,7 @@ static int __devinit at91_rtc_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_dbg(&pdev->dev, "can't share IRQ %d?\n", AT91_ID_SYS);
 		rtc_device_unregister(rtc->rtcdev);
-		goto fail;
+		goto fail_register;
 	}
 
 	/* NOTE:  sam9260 rev A silicon has a ROM bug which resets the
@@ -356,6 +367,8 @@ static int __devinit at91_rtc_probe(struct platform_device *pdev)
 	return 0;
 
 fail_register:
+	iounmap(rtc->gpbr);
+fail_gpbr:
 	iounmap(rtc->rtt);
 fail:
 	platform_set_drvdata(pdev, NULL);
@@ -377,6 +390,7 @@ static int __devexit at91_rtc_remove(struct platform_device *pdev)
 
 	rtc_device_unregister(rtc->rtcdev);
 
+	iounmap(rtc->gpbr);
 	iounmap(rtc->rtt);
 	platform_set_drvdata(pdev, NULL);
 	kfree(rtc);

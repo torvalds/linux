@@ -84,10 +84,8 @@
 #define AT91SAM9G45_BASE_TC5		0xfffd4080
 
 /*
- * System Peripherals (offset from AT91_BASE_SYS)
+ * System Peripherals
  */
-#define AT91_GPBR	(0xfffffd60 - AT91_BASE_SYS)
-
 #define AT91SAM9G45_BASE_ECC	0xffffe200
 #define AT91SAM9G45_BASE_DDRSDRC1 0xffffe400
 #define AT91SAM9G45_BASE_DDRSDRC0 0xffffe600
@@ -106,6 +104,7 @@
 #define AT91SAM9G45_BASE_PIT	0xfffffd30
 #define AT91SAM9G45_BASE_WDT	0xfffffd40
 #define AT91SAM9G45_BASE_RTC	0xfffffdb0
+#define AT91SAM9G45_BASE_GPBR	0xfffffd60
 
 #define AT91_USART0	AT91SAM9G45_BASE_US0
 #define AT91_USART1	AT91SAM9G45_BASE_US1

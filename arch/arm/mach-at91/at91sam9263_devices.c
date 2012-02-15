@@ -967,6 +967,8 @@ static struct resource rtt0_resources[] = {
 		.start	= AT91SAM9263_BASE_RTT0,
 		.end	= AT91SAM9263_BASE_RTT0 + SZ_16 - 1,
 		.flags	= IORESOURCE_MEM,
+	}, {
+		.flags	= IORESOURCE_MEM,
 	}
 };
 
@@ -974,13 +976,14 @@ static struct platform_device at91sam9263_rtt0_device = {
 	.name		= "at91_rtt",
 	.id		= 0,
 	.resource	= rtt0_resources,
-	.num_resources	= ARRAY_SIZE(rtt0_resources),
 };
 
 static struct resource rtt1_resources[] = {
 	{
 		.start	= AT91SAM9263_BASE_RTT1,
 		.end	= AT91SAM9263_BASE_RTT1 + SZ_16 - 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
 		.flags	= IORESOURCE_MEM,
 	}
 };
@@ -989,31 +992,48 @@ static struct platform_device at91sam9263_rtt1_device = {
 	.name		= "at91_rtt",
 	.id		= 1,
 	.resource	= rtt1_resources,
-	.num_resources	= ARRAY_SIZE(rtt1_resources),
 };
 
 #if IS_ENABLED(CONFIG_RTC_DRV_AT91SAM9)
 static void __init at91_add_device_rtt_rtc(void)
 {
 	struct platform_device *pdev;
+	struct resource *r;
 
 	switch (CONFIG_RTC_DRV_AT91SAM9_RTT) {
 	case 0:
+		/*
+		 * The second resource is needed only for the chosen RTT:
+		 * GPBR will serve as the storage for RTC time offset
+		 */
+		at91sam9263_rtt0_device.num_resources = 2;
+		at91sam9263_rtt1_device.num_resources = 1;
 		pdev = &at91sam9263_rtt0_device;
+		r = rtt0_resources;
 		break;
 	case 1:
+		at91sam9263_rtt0_device.num_resources = 1;
+		at91sam9263_rtt1_device.num_resources = 2;
 		pdev = &at91sam9263_rtt1_device;
+		r = rtt1_resources;
 		break;
 	default:
-		pr_err("at91sam9263: support only 2 RTT (%d)\n",
-			 CONFIG_RTC_DRV_AT91SAM9_RTT);
+		pr_err("at91sam9263: only supports 2 RTT (%d)\n",
+		       CONFIG_RTC_DRV_AT91SAM9_RTT);
 		return;
 	}
 
 	pdev->name = "rtc-at91sam9";
+	r[1].start = AT91SAM9263_BASE_GPBR + 4 * CONFIG_RTC_DRV_AT91SAM9_GPBR;
+	r[1].end = r[1].start + 3;
 }
 #else
-static void __init at91_add_device_rtt_rtc(void) {}
+static void __init at91_add_device_rtt_rtc(void)
+{
+	/* Only one resource is needed: RTT not used as RTC */
+	at91sam9263_rtt0_device.num_resources = 1;
+	at91sam9263_rtt1_device.num_resources = 1;
+}
 #endif
 
 static void __init at91_add_device_rtt(void)
