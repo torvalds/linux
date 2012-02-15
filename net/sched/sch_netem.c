@@ -501,9 +501,8 @@ tfifo_dequeue:
 
 		/* if more time remaining? */
 		if (cb->time_to_send <= psched_get_time()) {
-			skb = qdisc_dequeue_tail(sch);
-			if (unlikely(!skb))
-				goto qdisc_dequeue;
+			__skb_unlink(skb, &sch->q);
+			sch->qstats.backlog -= qdisc_pkt_len(skb);
 
 #ifdef CONFIG_NET_CLS_ACT
 			/*
@@ -539,7 +538,6 @@ deliver:
 		qdisc_watchdog_schedule(&q->watchdog, cb->time_to_send);
 	}
 
-qdisc_dequeue:
 	if (q->qdisc) {
 		skb = q->qdisc->ops->dequeue(q->qdisc);
 		if (skb)
