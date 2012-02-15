@@ -779,15 +779,15 @@ static void mixer_win_reset(struct mixer_context *ctx)
 	mixer_reg_writemask(res, MXR_STATUS, MXR_STATUS_16_BURST,
 		MXR_STATUS_BURST_MASK);
 
-	/* setting default layer priority: layer1 > video > layer0
+	/* setting default layer priority: layer1 > layer0 > video
 	 * because typical usage scenario would be
+	 * layer1 - OSD
 	 * layer0 - framebuffer
 	 * video - video overlay
-	 * layer1 - OSD
 	 */
-	val  = MXR_LAYER_CFG_GRP0_VAL(1);
-	val |= MXR_LAYER_CFG_VP_VAL(2);
-	val |= MXR_LAYER_CFG_GRP1_VAL(3);
+	val = MXR_LAYER_CFG_GRP1_VAL(3);
+	val |= MXR_LAYER_CFG_GRP0_VAL(2);
+	val |= MXR_LAYER_CFG_VP_VAL(1);
 	mixer_reg_write(res, MXR_LAYER_CFG, val);
 
 	/* setting background color */
