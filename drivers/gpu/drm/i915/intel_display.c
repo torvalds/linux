@@ -4680,8 +4680,17 @@ sandybridge_compute_sprite_srwm(struct drm_device *dev, int plane,
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
 	clock = crtc->mode.clock;
+	if (!clock) {
+		*sprite_wm = 0;
+		return false;
+	}
 
 	line_time_us = (sprite_width * 1000) / clock;
+	if (!line_time_us) {
+		*sprite_wm = 0;
+		return false;
+	}
+
 	line_count = (latency_ns / line_time_us + 1000) / 1000;
 	line_size = sprite_width * pixel_size;
 
