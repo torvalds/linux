@@ -141,16 +141,10 @@ static int exynos_drm_unload(struct drm_device *dev)
 }
 
 static void exynos_drm_preclose(struct drm_device *dev,
-					struct drm_file *file_priv)
+					struct drm_file *file)
 {
-	struct exynos_drm_private *dev_priv = dev->dev_private;
+	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
-	/*
-	 * drm framework frees all events at release time,
-	 * so private event list should be cleared.
-	 */
-	if (!list_empty(&dev_priv->pageflip_event_list))
-		INIT_LIST_HEAD(&dev_priv->pageflip_event_list);
 }
 
 static void exynos_drm_lastclose(struct drm_device *dev)
