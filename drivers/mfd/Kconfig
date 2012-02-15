@@ -186,7 +186,7 @@ config MFD_TPS65912
 	depends on GPIOLIB
 
 config MFD_TPS65912_I2C
-	bool "TPS95612 Power Management chip with I2C"
+	bool "TPS65912 Power Management chip with I2C"
 	select MFD_CORE
 	select MFD_TPS65912
 	depends on I2C=y && GPIOLIB
