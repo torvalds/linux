@@ -1859,18 +1859,20 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	/* read and set MAC address */
 	read_mac_address(ndev, pd->mac_addr);
 
+	/* ioremap the TSU registers */
+	if (mdp->cd->tsu) {
+		struct resource *rtsu;
+		rtsu = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		if (!rtsu) {
+			dev_err(&pdev->dev, "Not found TSU resource\n");
+			goto out_release;
+		}
+		mdp->tsu_addr = ioremap(rtsu->start,
+					resource_size(rtsu));
+	}
+
 	/* initialize first or needed device */
 	if (!devno || pd->needs_init) {
-		if (mdp->cd->tsu) {
-			struct resource *rtsu;
-			rtsu = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-			if (!rtsu) {
-				dev_err(&pdev->dev, "Not found TSU resource\n");
-				goto out_release;
-			}
-			mdp->tsu_addr = ioremap(rtsu->start,
-						resource_size(rtsu));
-		}
 		if (mdp->cd->chip_reset)
 			mdp->cd->chip_reset(ndev);
 
@@ -1919,7 +1921,8 @@ static int sh_eth_drv_remove(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
-	iounmap(mdp->tsu_addr);
+	if (mdp->cd->tsu)
+		iounmap(mdp->tsu_addr);
 	sh_mdio_release(ndev);
 	unregister_netdev(ndev);
 	pm_runtime_disable(&pdev->dev);
