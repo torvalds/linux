@@ -9492,13 +9492,8 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 {
 	struct bnx2x *bp = params->bp;
 	u16 autoneg_val, an_1000_val, an_10_100_val, an_10g_val;
-	u16 tmp_req_line_speed;
 
-	tmp_req_line_speed = phy->req_line_speed;
-	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
-		if (phy->req_line_speed == SPEED_10000)
-			phy->req_line_speed = SPEED_AUTO_NEG;
-	} else {
+	if (phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
 		/* Save spirom version */
 		bnx2x_save_848xx_spirom_version(phy, bp, params->port);
 	}
@@ -9641,8 +9636,6 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 				 MDIO_AN_DEVAD,
 				 MDIO_AN_REG_8481_10GBASE_T_AN_CTRL,
 				 1);
-
-	phy->req_line_speed = tmp_req_line_speed;
 
 	return 0;
 }
