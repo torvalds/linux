@@ -9298,6 +9298,11 @@ static void __devinit bnx2x_link_settings_requested(struct bnx2x *bp)
 					SPEED_AUTO_NEG;
 				bp->port.advertising[idx] |=
 					bp->port.supported[idx];
+				if (bp->link_params.phy[EXT_PHY1].type ==
+				    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833)
+					bp->port.advertising[idx] |=
+					(SUPPORTED_100baseT_Half |
+					 SUPPORTED_100baseT_Full);
 			} else {
 				/* force 10G, no AN */
 				bp->link_params.req_line_speed[idx] =
