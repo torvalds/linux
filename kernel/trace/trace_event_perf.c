@@ -44,22 +44,16 @@ static int perf_trace_event_perm(struct ftrace_event_call *tp_event,
 	return 0;
 }
 
-static int perf_trace_event_init(struct ftrace_event_call *tp_event,
-				 struct perf_event *p_event)
+static int perf_trace_event_reg(struct ftrace_event_call *tp_event,
+				struct perf_event *p_event)
 {
 	struct hlist_head __percpu *list;
-	int ret;
+	int ret = -ENOMEM;
 	int cpu;
-
-	ret = perf_trace_event_perm(tp_event, p_event);
-	if (ret)
-		return ret;
 
 	p_event->tp_event = tp_event;
 	if (tp_event->perf_refcount++ > 0)
 		return 0;
-
-	ret = -ENOMEM;
 
 	list = alloc_percpu(struct hlist_head);
 	if (!list)
@@ -83,7 +77,7 @@ static int perf_trace_event_init(struct ftrace_event_call *tp_event,
 		}
 	}
 
-	ret = tp_event->class->reg(tp_event, TRACE_REG_PERF_REGISTER);
+	ret = tp_event->class->reg(tp_event, TRACE_REG_PERF_REGISTER, NULL);
 	if (ret)
 		goto fail;
 
@@ -108,6 +102,69 @@ fail:
 	return ret;
 }
 
+static void perf_trace_event_unreg(struct perf_event *p_event)
+{
+	struct ftrace_event_call *tp_event = p_event->tp_event;
+	int i;
+
+	if (--tp_event->perf_refcount > 0)
+		goto out;
+
+	tp_event->class->reg(tp_event, TRACE_REG_PERF_UNREGISTER, NULL);
+
+	/*
+	 * Ensure our callback won't be called anymore. The buffers
+	 * will be freed after that.
+	 */
+	tracepoint_synchronize_unregister();
+
+	free_percpu(tp_event->perf_events);
+	tp_event->perf_events = NULL;
+
+	if (!--total_ref_count) {
+		for (i = 0; i < PERF_NR_CONTEXTS; i++) {
+			free_percpu(perf_trace_buf[i]);
+			perf_trace_buf[i] = NULL;
+		}
+	}
+out:
+	module_put(tp_event->mod);
+}
+
+static int perf_trace_event_open(struct perf_event *p_event)
+{
+	struct ftrace_event_call *tp_event = p_event->tp_event;
+	return tp_event->class->reg(tp_event, TRACE_REG_PERF_OPEN, p_event);
+}
+
+static void perf_trace_event_close(struct perf_event *p_event)
+{
+	struct ftrace_event_call *tp_event = p_event->tp_event;
+	tp_event->class->reg(tp_event, TRACE_REG_PERF_CLOSE, p_event);
+}
+
+static int perf_trace_event_init(struct ftrace_event_call *tp_event,
+				 struct perf_event *p_event)
+{
+	int ret;
+
+	ret = perf_trace_event_perm(tp_event, p_event);
+	if (ret)
+		return ret;
+
+	ret = perf_trace_event_reg(tp_event, p_event);
+	if (ret)
+		return ret;
+
+	ret = perf_trace_event_open(p_event);
+	if (ret) {
+		perf_trace_event_unreg(p_event);
+		return ret;
+	}
+
+	return 0;
+}
+
 int perf_trace_init(struct perf_event *p_event)
 {
 	struct ftrace_event_call *tp_event;
@@ -128,6 +185,14 @@ int perf_trace_init(struct perf_event *p_event)
 	mutex_unlock(&event_mutex);
 
 	return ret;
+}
+
+void perf_trace_destroy(struct perf_event *p_event)
+{
+	mutex_lock(&event_mutex);
+	perf_trace_event_close(p_event);
+	perf_trace_event_unreg(p_event);
+	mutex_unlock(&event_mutex);
 }
 
 int perf_trace_add(struct perf_event *p_event, int flags)
@@ -152,37 +217,6 @@ int perf_trace_add(struct perf_event *p_event, int flags)
 void perf_trace_del(struct perf_event *p_event, int flags)
 {
 	hlist_del_rcu(&p_event->hlist_entry);
-}
-
-void perf_trace_destroy(struct perf_event *p_event)
-{
-	struct ftrace_event_call *tp_event = p_event->tp_event;
-	int i;
-
-	mutex_lock(&event_mutex);
-	if (--tp_event->perf_refcount > 0)
-		goto out;
-
-	tp_event->class->reg(tp_event, TRACE_REG_PERF_UNREGISTER);
-
-	/*
-	 * Ensure our callback won't be called anymore. The buffers
-	 * will be freed after that.
-	 */
-	tracepoint_synchronize_unregister();
-
-	free_percpu(tp_event->perf_events);
-	tp_event->perf_events = NULL;
-
-	if (!--total_ref_count) {
-		for (i = 0; i < PERF_NR_CONTEXTS; i++) {
-			free_percpu(perf_trace_buf[i]);
-			perf_trace_buf[i] = NULL;
-		}
-	}
-out:
-	module_put(tp_event->mod);
-	mutex_unlock(&event_mutex);
 }
 
 __kprobes void *perf_trace_buf_prepare(int size, unsigned short type,
