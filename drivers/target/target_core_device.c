@@ -652,7 +652,9 @@ int target_report_luns(struct se_task *se_task)
 	unsigned char *buf;
 	u32 cdb_offset = 0, lun_count = 0, offset = 8, i;
 
-	buf = (unsigned char *) transport_kmap_data_sg(se_cmd);
+	buf = transport_kmap_data_sg(se_cmd);
+	if (!buf)
+		return -ENOMEM;
 
 	/*
 	 * If no struct se_session pointer is present, this struct se_cmd is
