@@ -19,7 +19,6 @@
 #include <linux/log2.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
-#include <media/v4l2-subdev.h>
 #include <linux/videodev2.h>
 
 #include <media/mt9p031.h>
