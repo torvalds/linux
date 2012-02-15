@@ -1309,10 +1309,19 @@ static void sbp2_unmap_scatterlist(struct device *card_device,
 static unsigned int sbp2_status_to_sense_data(u8 *sbp2_status, u8 *sense_data)
 {
 	int sam_status;
+	int sfmt = (sbp2_status[0] >> 6) & 0x03;
 
-	sense_data[0] = 0x70;
+	if (sfmt == 2 || sfmt == 3) {
+		/*
+		 * Reserved for future standardization (2) or
+		 * Status block format vendor-dependent (3)
+		 */
+		return DID_ERROR << 16;
+	}
+
+	sense_data[0] = 0x70 | sfmt | (sbp2_status[1] & 0x80);
 	sense_data[1] = 0x0;
-	sense_data[2] = sbp2_status[1];
+	sense_data[2] = ((sbp2_status[1] << 1) & 0xe0) | (sbp2_status[1] & 0x0f);
 	sense_data[3] = sbp2_status[4];
 	sense_data[4] = sbp2_status[5];
 	sense_data[5] = sbp2_status[6];
