@@ -404,7 +404,7 @@ static inline void irq_ts_restore(int TS_state)
  */
 static inline void save_init_fpu(struct task_struct *tsk)
 {
-	WARN_ON_ONCE(task_thread_info(tsk)->status & TS_USEDFPU);
+	WARN_ON_ONCE(!(task_thread_info(tsk)->status & TS_USEDFPU));
 	preempt_disable();
 	__save_init_fpu(tsk);
 	stts();
