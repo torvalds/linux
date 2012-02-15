@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/via-core.h>
+#include <linux/via_i2c.h>
 #include <asm/olpc.h>
 
 #define _MASTER_FILE
@@ -1670,12 +1671,23 @@ static void viafb_remove_proc(struct viafb_shared *shared)
 }
 #undef IS_VT1636
 
-static int parse_mode(const char *str, u32 *xres, u32 *yres)
+static int parse_mode(const char *str, u32 devices, u32 *xres, u32 *yres)
 {
+	const struct fb_videomode *mode = NULL;
 	char *ptr;
 
 	if (!str) {
-		if (machine_is_olpc()) {
+		if (devices == VIA_CRT)
+			mode = via_aux_get_preferred_mode(
+				viaparinfo->shared->i2c_26);
+		else if (devices == VIA_DVP1)
+			mode = via_aux_get_preferred_mode(
+				viaparinfo->shared->i2c_31);
+
+		if (mode) {
+			*xres = mode->xres;
+			*yres = mode->yres;
+		} else if (machine_is_olpc()) {
 			*xres = 1200;
 			*yres = 900;
 		} else {
@@ -1729,6 +1741,29 @@ static struct viafb_pm_hooks viafb_fb_pm_hooks = {
 
 #endif
 
+static void __devinit i2c_bus_probe(struct viafb_shared *shared)
+{
+	/* should be always CRT */
+	printk(KERN_INFO "viafb: Probing I2C bus 0x26\n");
+	shared->i2c_26 = via_aux_probe(viafb_find_i2c_adapter(VIA_PORT_26));
+
+	/* seems to be usually DVP1 */
+	printk(KERN_INFO "viafb: Probing I2C bus 0x31\n");
+	shared->i2c_31 = via_aux_probe(viafb_find_i2c_adapter(VIA_PORT_31));
+
+	/* FIXME: what is this? */
+	printk(KERN_INFO "viafb: Probing I2C bus 0x2C\n");
+	shared->i2c_2C = via_aux_probe(viafb_find_i2c_adapter(VIA_PORT_2C));
+
+	printk(KERN_INFO "viafb: Finished I2C bus probing");
+}
+
+static void i2c_bus_free(struct viafb_shared *shared)
+{
+	via_aux_free(shared->i2c_26);
+	via_aux_free(shared->i2c_31);
+	via_aux_free(shared->i2c_2C);
+}
 
 int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 {
@@ -1762,6 +1797,7 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 		&viaparinfo->shared->lvds_setting_info2;
 	viaparinfo->chip_info = &viaparinfo->shared->chip_info;
 
+	i2c_bus_probe(viaparinfo->shared);
 	if (viafb_dual_fb)
 		viafb_SAMM_ON = 1;
 	parse_lcd_port();
@@ -1804,10 +1840,11 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 			viafb_second_size * 1024 * 1024;
 	}
 
-	parse_mode(viafb_mode, &default_xres, &default_yres);
+	parse_mode(viafb_mode, viaparinfo->shared->iga1_devices,
+		&default_xres, &default_yres);
 	if (viafb_SAMM_ON == 1)
-		parse_mode(viafb_mode1, &viafb_second_xres,
-			&viafb_second_yres);
+		parse_mode(viafb_mode1, viaparinfo->shared->iga2_devices,
+			&viafb_second_xres, &viafb_second_yres);
 
 	default_var.xres = default_xres;
 	default_var.yres = default_yres;
@@ -1915,6 +1952,7 @@ out_fb1_release:
 	if (viafbinfo1)
 		framebuffer_release(viafbinfo1);
 out_fb_release:
+	i2c_bus_free(viaparinfo->shared);
 	framebuffer_release(viafbinfo);
 	return rc;
 }
@@ -1927,6 +1965,7 @@ void __devexit via_fb_pci_remove(struct pci_dev *pdev)
 	if (viafb_dual_fb)
 		unregister_framebuffer(viafbinfo1);
 	viafb_remove_proc(viaparinfo->shared);
+	i2c_bus_free(viaparinfo->shared);
 	framebuffer_release(viafbinfo);
 	if (viafb_dual_fb)
 		framebuffer_release(viafbinfo1);
@@ -2033,9 +2072,9 @@ int __init viafb_init(void)
 	if (r < 0)
 		return r;
 #endif
-	if (parse_mode(viafb_mode, &dummy_x, &dummy_y)
+	if (parse_mode(viafb_mode, 0, &dummy_x, &dummy_y)
 		|| !viafb_get_best_mode(dummy_x, dummy_y, viafb_refresh)
-		|| parse_mode(viafb_mode1, &dummy_x, &dummy_y)
+		|| parse_mode(viafb_mode1, 0, &dummy_x, &dummy_y)
 		|| !viafb_get_best_mode(dummy_x, dummy_y, viafb_refresh1)
 		|| viafb_bpp < 0 || viafb_bpp > 32
 		|| viafb_bpp1 < 0 || viafb_bpp1 > 32
