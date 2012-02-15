@@ -849,7 +849,7 @@ static int __devinit tc35815_init_one(struct pci_dev *pdev,
 	/* Retrieve the ethernet address. */
 	if (tc35815_init_dev_addr(dev)) {
 		dev_warn(&pdev->dev, "not valid ether addr\n");
-		random_ether_addr(dev->dev_addr);
+		eth_hw_addr_random(dev);
 	}
 
 	rc = register_netdev(dev);

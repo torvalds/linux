@@ -87,7 +87,7 @@ static void __init macb_get_hwaddr(struct macb *bp)
 		memcpy(bp->dev->dev_addr, addr, sizeof(addr));
 	} else {
 		netdev_info(bp->dev, "invalid hw address, using random\n");
-		random_ether_addr(bp->dev->dev_addr);
+		eth_hw_addr_random(bp->dev);
 	}
 }
 

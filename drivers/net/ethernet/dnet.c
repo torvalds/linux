@@ -895,7 +895,7 @@ static int __devinit dnet_probe(struct platform_device *pdev)
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		/* choose a random ethernet address */
-		random_ether_addr(dev->dev_addr);
+		eth_hw_addr_random(dev);
 		__dnet_set_hwaddr(bp);
 	}
 

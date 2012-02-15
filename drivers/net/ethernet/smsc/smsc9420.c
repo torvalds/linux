@@ -509,10 +509,9 @@ static void smsc9420_check_mac_address(struct net_device *dev)
 			smsc_dbg(PROBE, "Mac Address is read from EEPROM");
 		} else {
 			/* eeprom values are invalid, generate random MAC */
-			random_ether_addr(dev->dev_addr);
+			eth_hw_addr_random(dev);
 			smsc9420_set_mac_address(dev);
-			smsc_dbg(PROBE,
-				"MAC Address is set to random_ether_addr");
+			smsc_dbg(PROBE, "MAC Address is set to random");
 		}
 	}
 }

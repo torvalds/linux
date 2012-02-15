@@ -983,7 +983,7 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		/* Report it and use a random ethernet address instead */
 		netdev_err(dev, "Invalid MAC address: %pM\n", dev->dev_addr);
-		random_ether_addr(dev->dev_addr);
+		eth_hw_addr_random(dev);
 		netdev_info(dev, "Using random MAC address: %pM\n",
 			    dev->dev_addr);
 	}

@@ -281,7 +281,7 @@ static int __devinit mipsnet_probe(struct platform_device *dev)
 	 * Lacking any better mechanism to allocate a MAC address we use a
 	 * random one ...
 	 */
-	random_ether_addr(netdev->dev_addr);
+	eth_hw_addr_random(netdev);
 
 	err = register_netdev(netdev);
 	if (err) {

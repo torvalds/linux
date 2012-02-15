@@ -527,7 +527,7 @@ static int __devinit sis900_probe(struct pci_dev *pci_dev,
 		ret = sis900_get_mac_addr(pci_dev, net_dev);
 
 	if (!ret || !is_valid_ether_addr(net_dev->dev_addr)) {
-		random_ether_addr(net_dev->dev_addr);
+		eth_hw_addr_random(net_dev);
 		printk(KERN_WARNING "%s: Unreadable or invalid MAC address,"
 				"using random generated one\n", dev_name);
 	}

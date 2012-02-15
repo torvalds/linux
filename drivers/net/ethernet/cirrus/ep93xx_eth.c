@@ -859,7 +859,7 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 	ep->mdc_divisor = 40;	/* Max HCLK 100 MHz, min MDIO clk 2.5 MHz.  */
 
 	if (is_zero_ether_addr(dev->dev_addr))
-		random_ether_addr(dev->dev_addr);
+		eth_hw_addr_random(dev);
 
 	err = register_netdev(dev);
 	if (err) {
