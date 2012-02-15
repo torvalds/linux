@@ -319,7 +319,7 @@ int omap_pm_get_dev_context_loss_count(struct device *dev)
 	if (WARN_ON(!dev))
 		return -ENODEV;
 
-	if (dev->parent == &omap_device_parent) {
+	if (dev->pm_domain == &omap_device_pm_domain) {
 		count = omap_device_get_context_loss_count(pdev);
 	} else {
 		WARN_ONCE(off_mode_enabled, "omap_pm: using dummy context loss counter; device %s should be converted to omap_device",
