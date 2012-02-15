@@ -835,6 +835,11 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	unsigned int reload_msec;
 	unsigned long reload_jiffies;
 
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (iwl_get_debug_level(priv->shrd) & IWL_DL_FW_ERRORS)
+		iwl_print_rx_config_cmd(priv, IWL_RXON_CTX_BSS);
+#endif
+
 	/* Set the FW error flag -- cleared on iwl_down */
 	set_bit(STATUS_FW_ERROR, &priv->shrd->status);
 

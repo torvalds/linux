@@ -557,16 +557,6 @@ iwl_remove_notification(struct iwl_shared *shrd,
 void iwl_reset_traffic_log(struct iwl_priv *priv);
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 
-#ifdef CONFIG_IWLWIFI_DEBUG
-void iwl_print_rx_config_cmd(struct iwl_priv *priv,
-			     enum iwl_rxon_context_id ctxid);
-#else
-static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv,
-					   enum iwl_rxon_context_id ctxid)
-{
-}
-#endif
-
 #define IWL_CMD(x) case x: return #x
 #define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
 
