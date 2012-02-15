@@ -2,6 +2,11 @@
 # ARM CPU Frequency scaling drivers
 #
 
+config ARM_OMAP2PLUS_CPUFREQ
+	bool "TI OMAP2+"
+	default ARCH_OMAP2PLUS
+	select CPU_FREQ_TABLE
+
 config ARM_S3C64XX_CPUFREQ
 	bool "Samsung S3C64XX"
 	depends on CPU_S3C6410
