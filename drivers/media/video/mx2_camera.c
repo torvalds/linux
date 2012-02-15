@@ -1429,9 +1429,6 @@ static int __devinit mx2_camera_probe(struct platform_device *pdev)
 		goto exit_kfree;
 	}
 
-	dev_dbg(&pdev->dev, "Camera clock frequency: %ld\n",
-			clk_get_rate(pcdev->clk_csi));
-
 	pcdev->res_csi = res_csi;
 	pcdev->pdata = pdev->dev.platform_data;
 	if (pcdev->pdata) {
