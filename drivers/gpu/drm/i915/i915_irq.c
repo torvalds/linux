@@ -729,7 +729,8 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 			goto unwind;
 
 		local_irq_save(flags);
-		if (reloc_offset < dev_priv->mm.gtt_mappable_end) {
+		if (reloc_offset < dev_priv->mm.gtt_mappable_end &&
+		    src->has_global_gtt_mapping) {
 			void __iomem *s;
 
 			/* Simply ignore tiling or any overlapping fence.

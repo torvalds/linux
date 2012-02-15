@@ -394,12 +394,16 @@ void i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
 				       obj->base.size >> PAGE_SHIFT,
 				       obj->pages,
 				       agp_type);
+
+	obj->has_global_gtt_mapping = 1;
 }
 
 void i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj)
 {
 	intel_gtt_clear_range(obj->gtt_space->start >> PAGE_SHIFT,
 			      obj->base.size >> PAGE_SHIFT);
+
+	obj->has_global_gtt_mapping = 0;
 }
 
 void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)

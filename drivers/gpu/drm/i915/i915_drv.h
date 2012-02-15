@@ -882,6 +882,7 @@ struct drm_i915_gem_object {
 	unsigned int cache_level:2;
 
 	unsigned int has_aliasing_ppgtt_mapping:1;
+	unsigned int has_global_gtt_mapping:1;
 
 	struct page **pages;
 

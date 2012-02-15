@@ -1153,6 +1153,9 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			goto unlock;
 	}
 
+	if (!obj->has_global_gtt_mapping)
+		i915_gem_gtt_bind_object(obj, obj->cache_level);
+
 	if (obj->tiling_mode == I915_TILING_NONE)
 		ret = i915_gem_object_put_fence(obj);
 	else
@@ -2097,7 +2100,8 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 
 	trace_i915_gem_object_unbind(obj);
 
-	i915_gem_gtt_unbind_object(obj);
+	if (obj->has_global_gtt_mapping)
+		i915_gem_gtt_unbind_object(obj);
 	if (obj->has_aliasing_ppgtt_mapping) {
 		i915_ppgtt_unbind_object(dev_priv->mm.aliasing_ppgtt, obj);
 		obj->has_aliasing_ppgtt_mapping = 0;
@@ -2952,7 +2956,8 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				return ret;
 		}
 
-		i915_gem_gtt_bind_object(obj, cache_level);
+		if (obj->has_global_gtt_mapping)
+			i915_gem_gtt_bind_object(obj, cache_level);
 		if (obj->has_aliasing_ppgtt_mapping)
 			i915_ppgtt_bind_object(dev_priv->mm.aliasing_ppgtt,
 					       obj, cache_level);
@@ -3341,6 +3346,9 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 		if (ret)
 			return ret;
 	}
+
+	if (!obj->has_global_gtt_mapping && map_and_fenceable)
+		i915_gem_gtt_bind_object(obj, obj->cache_level);
 
 	if (obj->pin_count++ == 0) {
 		if (!obj->active)
