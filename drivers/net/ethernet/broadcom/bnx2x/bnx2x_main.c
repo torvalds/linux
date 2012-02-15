@@ -11352,17 +11352,6 @@ static void bnx2x_eeh_recover(struct bnx2x *bp)
 
 	mutex_init(&bp->port.phy_mutex);
 
-	bp->common.shmem_base = REG_RD(bp, MISC_REG_SHARED_MEM_ADDR);
-	bp->link_params.shmem_base = bp->common.shmem_base;
-	BNX2X_DEV_INFO("shmem offset is 0x%x\n", bp->common.shmem_base);
-
-	if (!bp->common.shmem_base ||
-	    (bp->common.shmem_base < 0xA0000) ||
-	    (bp->common.shmem_base >= 0xC0000)) {
-		BNX2X_DEV_INFO("MCP not active\n");
-		bp->flags |= NO_MCP_FLAG;
-		return;
-	}
 
 	val = SHMEM_RD(bp, validity_map[BP_PORT(bp)]);
 	if ((val & (SHR_MEM_VALIDITY_DEV_INFO | SHR_MEM_VALIDITY_MB))
