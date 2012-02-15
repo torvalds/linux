@@ -70,10 +70,6 @@
 
 
 #define RK29_I2C_START_TMO_COUNT        100 // msleep 1 * 100
-#define ABNORMAL_STOP_DELAY             200 //unit us
-static unsigned int abnormal_stop_addr[] = {
-    0x2d,
-};
 
 int i2c_suspended(struct i2c_adapter *adap)
 {
@@ -171,7 +167,7 @@ static void  rk29_i2c_set_clk(struct rk30_i2c *i2c, unsigned long scl_rate)
 	return;
 }
 
-static void rk29_i2c_init_hw(struct rk30_i2c *i2c)
+static void rk29_i2c_init_hw(struct rk30_i2c *i2c, unsigned long scl_rate)
 {
 	unsigned long opr = readl(i2c->regs + I2C_OPR);
 	
@@ -183,7 +179,7 @@ static void rk29_i2c_init_hw(struct rk30_i2c *i2c)
 	opr &= ~I2C_OPR_RESET_STATUS;
 	writel(opr, i2c->regs + I2C_OPR);
 	
-	rk29_i2c_set_clk(i2c, 100000); 
+	rk29_i2c_set_clk(i2c, scl_rate); 
 
 	rk29_i2c_disable_irq(i2c);
 	writel(0, i2c->regs + I2C_LCMR);
@@ -242,18 +238,8 @@ static void rk29_i2c_message_start(struct rk30_i2c *i2c,
 
 static inline void rk29_i2c_stop(struct rk30_i2c *i2c, int ret)
 {
-    unsigned int n, i;
-
 	i2c_dbg(i2c->dev, "STOP\n");
     udelay(i2c->tx_setup);
-
-    n = sizeof(abnormal_stop_addr)/sizeof(abnormal_stop_addr[0]);
-    for(i = 0; i < n; i++){
-        if(i2c->addr == abnormal_stop_addr[i])
-            udelay(ABNORMAL_STOP_DELAY);
-    }
-
-
 
     writel(I2C_LCMR_STOP|I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
 
@@ -306,16 +292,14 @@ static int rk29_i2c_irq_nextbyte(struct rk30_i2c *i2c, unsigned long isr)
 			dev_err(i2c->dev, "START: addr[0x%02x] ack was not received(isr)\n", i2c->addr);
 			goto out;
         }
-
 		if ((lsr & I2C_LSR_RCV_NAK) &&
 		    !(i2c->msg->flags & I2C_M_IGNORE_NAK)) {
             writel(isr & ~I2C_ISR_MTX_RCVD_ACK, i2c->regs + I2C_ISR);
 
-			rk29_i2c_stop(i2c, -ENXIO);
+			rk29_i2c_stop(i2c, -EAGAIN);
 			dev_err(i2c->dev, "START: addr[0x%02x] ack was not received(lsr)\n", i2c->addr);
 			goto out;
 		}
-
 		if (i2c->msg->flags & I2C_M_RD)
 			i2c->state = STATE_READ;
 		else
@@ -474,6 +458,7 @@ static int rk29_i2c_set_master(struct rk30_i2c *i2c)
 	    lsr = readl(i2c->regs + I2C_LSR);
 		if (!(lsr & I2C_LSR_BUSY))
 			return 0;
+        writel(I2C_LCMR_STOP|I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
 		msleep(1);
 	}
 	return -ETIMEDOUT;
@@ -512,7 +497,7 @@ static int rk29_i2c_doxfer(struct rk30_i2c *i2c,
 	rk29_i2c_message_start(i2c, msgs);
 	spin_unlock_irq(&i2c->lock);
 
-	timeout = wait_event_timeout(i2c->wait, i2c->msg_num == 0, HZ * 5);
+	timeout = wait_event_timeout(i2c->wait, i2c->msg_num == 0, msecs_to_jiffies(I2C_WAIT_TIMEOUT));
 
 	ret = i2c->msg_idx;
 
@@ -520,15 +505,19 @@ static int rk29_i2c_doxfer(struct rk30_i2c *i2c,
 	    i2c_dbg(i2c->dev, "addr[0x%02x] wait event timeout\n", msgs[0].addr);
 	else if (ret != num)
 		i2c_dbg(i2c->dev, "addr[0x%02x ]incomplete xfer (%d)\n", msgs[0].addr, ret);
-    msleep(1);
     if((readl(i2c->regs + I2C_LSR) &  I2C_LSR_BUSY) ||
        readl(i2c->regs + I2C_LCMR) &  I2C_LCMR_STOP ){
-        dev_warn(i2c->dev, "WARNING: STOP abnormal, addr[0x%02x] isr = 0x%x, lsr = 0x%x, lcmr = 0x%x\n",
-                msgs[0].addr,
-                readl(i2c->regs + I2C_ISR),
-                readl(i2c->regs + I2C_LSR),
-                readl(i2c->regs + I2C_LCMR)
+        msleep(1);
+        writel(I2C_LCMR_STOP|I2C_LCMR_RESUME, i2c->regs + I2C_LCMR);
+        if((readl(i2c->regs + I2C_LSR) &  I2C_LSR_BUSY) ||
+            readl(i2c->regs + I2C_LCMR) &  I2C_LCMR_STOP ){
+            dev_warn(i2c->dev, "WARNING: STOP abnormal, addr[0x%02x] isr = 0x%x, lsr = 0x%x, lcmr = 0x%x\n",
+                    msgs[0].addr,
+                    readl(i2c->regs + I2C_ISR),
+                    readl(i2c->regs + I2C_LSR),
+                    readl(i2c->regs + I2C_LCMR)
                 );
+        }
     }
  out:
 	return ret;
@@ -544,8 +533,7 @@ static int rk29_i2c_xfer(struct i2c_adapter *adap,
 			struct i2c_msg *msgs, int num)
 {
 	struct rk30_i2c *i2c = (struct rk30_i2c *)adap->algo_data;
-	int retry;
-	int ret;
+	int ret = 0;
     unsigned long scl_rate;
 
     if(msgs[0].scl_rate <= 400000 && msgs[0].scl_rate >= 10000)
@@ -567,23 +555,12 @@ static int rk29_i2c_xfer(struct i2c_adapter *adap,
     rk29_i2c_enable_mport(i2c);
     udelay(i2c->tx_setup);
 
-	for (retry = 0; retry < adap->retries; retry++) {
+	ret = rk29_i2c_doxfer(i2c, msgs, num);
 
-		ret = rk29_i2c_doxfer(i2c, msgs, num);
-
-		if (ret != -EAGAIN) {
-			return ret;
-		}
-
-		i2c_dbg(i2c->dev, "Retrying transmission (%d)\n", retry);
-
-		msleep(1);
-	}
-	
     rk29_i2c_disable_mport(i2c);
     if(i2c->is_div_from_arm[i2c->adap.nr])
 		wake_unlock(&i2c->idlelock[i2c->adap.nr]);
-	return -EREMOTEIO;
+	return ret;
 }
 
 /* declare our i2c functionality */
@@ -605,7 +582,6 @@ int i2c_add_rk29_adapter(struct i2c_adapter *adap)
     struct rk30_i2c *i2c = (struct rk30_i2c *)adap->algo_data;
 
     adap->algo = &rk29_i2c_algorithm;
-	adap->retries = 2;
 
     i2c->i2c_init_hw = &rk29_i2c_init_hw;
     i2c->i2c_set_clk = &rk29_i2c_set_clk;

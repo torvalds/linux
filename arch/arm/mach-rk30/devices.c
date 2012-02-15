@@ -265,16 +265,66 @@ static void __init rk30_init_uart(void)
 }
 
 // i2c
+#ifdef CONFIG_I2C0_CONTROLLER_RK29
+#define I2C0_ADAP_TYPE  I2C_RK29_ADAP
+#define I2C0_START      RK30_I2C0_PHYS
+#define I2C0_END        RK30_I2C0_PHYS + SZ_4K - 1
+#endif
+#ifdef CONFIG_I2C0_CONTROLLER_RK30
+#define I2C0_ADAP_TYPE   I2C_RK30_ADAP
+#define I2C0_START      RK30_I2C0_PHYS + SZ_4K
+#define I2C0_END        RK30_I2C0_PHYS + SZ_8K - 1
+#endif
+
+#ifdef CONFIG_I2C1_CONTROLLER_RK29
+#define I2C1_ADAP_TYPE  I2C_RK29_ADAP
+#define I2C1_START      RK30_I2C1_PHYS
+#define I2C1_END        RK30_I2C1_PHYS + SZ_4K - 1
+#endif
+#ifdef CONFIG_I2C1_CONTROLLER_RK30
+#define I2C1_ADAP_TYPE   I2C_RK30_ADAP
+#define I2C1_START      RK30_I2C1_PHYS + SZ_4K
+#define I2C1_END        RK30_I2C1_PHYS + SZ_8K - 1
+#endif
+
+#ifdef CONFIG_I2C2_CONTROLLER_RK29
+#define I2C2_ADAP_TYPE  I2C_RK29_ADAP
+#define I2C2_START      RK30_I2C2_PHYS
+#define I2C2_END        RK30_I2C2_PHYS + SZ_4K - 1
+#endif
+#ifdef CONFIG_I2C2_CONTROLLER_RK30
+#define I2C2_ADAP_TYPE   I2C_RK30_ADAP
+#define I2C2_START      RK30_I2C2_PHYS + SZ_4K
+#define I2C2_END        RK30_I2C2_PHYS + SZ_8K - 1
+#endif
+
+#ifdef CONFIG_I2C3_CONTROLLER_RK29
+#define I2C3_ADAP_TYPE  I2C_RK29_ADAP
+#define I2C3_START      RK30_I2C3_PHYS
+#define I2C3_END        RK30_I2C3_PHYS + SZ_4K - 1
+#endif
+#ifdef CONFIG_I2C3_CONTROLLER_RK30
+#define I2C3_ADAP_TYPE   I2C_RK30_ADAP
+#define I2C3_START      RK30_I2C3_PHYS + SZ_4K
+#define I2C3_END        RK30_I2C3_PHYS + SZ_8K - 1
+#endif
+
+#ifdef CONFIG_I2C4_CONTROLLER_RK29
+#define I2C4_ADAP_TYPE  I2C_RK29_ADAP
+#define I2C4_START      RK30_I2C4_PHYS
+#define I2C4_END        RK30_I2C4_PHYS + SZ_4K - 1
+#endif
+#ifdef CONFIG_I2C4_CONTROLLER_RK30
+#define I2C4_ADAP_TYPE   I2C_RK30_ADAP
+#define I2C4_START      RK30_I2C4_PHYS + SZ_4K
+#define I2C4_END        RK30_I2C4_PHYS + SZ_8K - 1
+#endif
+
 #ifdef CONFIG_I2C0_RK30
 static struct rk30_i2c_platform_data default_i2c0_data = {
 	.bus_num = 0,
 	.is_div_from_arm = 1,
-#ifdef CONFIG_I2C0_CONTROLLER_RK29
-	.adap_type = I2C_RK29_ADAP,
-#endif
-#ifdef CONFIG_I2C0_CONTROLLER_RK30
-	.adap_type = I2C_RK30_ADAP,
-#endif
+	.adap_type = I2C0_ADAP_TYPE,
 };
 
 static struct resource resources_i2c0[] = {
@@ -284,8 +334,8 @@ static struct resource resources_i2c0[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= RK30_I2C0_PHYS,
-		.end	= RK30_I2C0_PHYS + RK30_I2C0_SIZE - 1,
+		.start	= I2C0_START,
+        .end    = I2C0_END,    
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -305,12 +355,7 @@ static struct platform_device device_i2c0 = {
 static struct rk30_i2c_platform_data default_i2c1_data = {
 	.bus_num = 1,
 	.is_div_from_arm = 1,
-#ifdef CONFIG_I2C1_CONTROLLER_RK29
-	.adap_type = I2C_RK29_ADAP,
-#endif
-#ifdef CONFIG_I2C1_CONTROLLER_RK30
-	.adap_type = I2C_RK30_ADAP,
-#endif
+	.adap_type = I2C1_ADAP_TYPE,
 };
 
 static struct resource resources_i2c1[] = {
@@ -320,8 +365,8 @@ static struct resource resources_i2c1[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= RK30_I2C1_PHYS,
-		.end	= RK30_I2C1_PHYS + RK30_I2C1_SIZE - 1,
+		.start	= I2C1_START,
+        .end    = I2C1_END,    
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -341,12 +386,7 @@ static struct platform_device device_i2c1 = {
 static struct rk30_i2c_platform_data default_i2c2_data = {
 	.bus_num = 2,
 	.is_div_from_arm = 0,
-#ifdef CONFIG_I2C2_CONTROLLER_RK29
-	.adap_type = I2C_RK29_ADAP,
-#endif
-#ifdef CONFIG_I2C2_CONTROLLER_RK30
-	.adap_type = I2C_RK30_ADAP,
-#endif
+	.adap_type = I2C2_ADAP_TYPE,
 };
 
 static struct resource resources_i2c2[] = {
@@ -356,8 +396,8 @@ static struct resource resources_i2c2[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= RK30_I2C2_PHYS,
-		.end	= RK30_I2C2_PHYS + RK30_I2C2_SIZE - 1,
+		.start	= I2C2_START,
+        .end    = I2C2_END,    
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -377,12 +417,7 @@ static struct platform_device device_i2c2 = {
 static struct rk30_i2c_platform_data default_i2c3_data = {
 	.bus_num = 3,
 	.is_div_from_arm = 0,
-#ifdef CONFIG_I2C3_CONTROLLER_RK29
-	.adap_type = I2C_RK29_ADAP,
-#endif
-#ifdef CONFIG_I2C3_CONTROLLER_RK30
-	.adap_type = I2C_RK30_ADAP,
-#endif
+	.adap_type = I2C3_ADAP_TYPE,
 };
 
 static struct resource resources_i2c3[] = {
@@ -392,8 +427,8 @@ static struct resource resources_i2c3[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= RK30_I2C3_PHYS,
-		.end	= RK30_I2C3_PHYS + RK30_I2C3_SIZE - 1,
+		.start	= I2C3_START,
+        .end    = I2C3_END,    
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -413,12 +448,7 @@ static struct platform_device device_i2c3 = {
 static struct rk30_i2c_platform_data default_i2c4_data = {
 	.bus_num = 4,
 	.is_div_from_arm = 0,
-#ifdef CONFIG_I2C4_CONTROLLER_RK29
-	.adap_type = I2C_RK29_ADAP,
-#endif
-#ifdef CONFIG_I2C4_CONTROLLER_RK30
-	.adap_type = I2C_RK30_ADAP,
-#endif
+	.adap_type = I2C4_ADAP_TYPE,
 };
 
 static struct resource resources_i2c4[] = {
@@ -428,8 +458,8 @@ static struct resource resources_i2c4[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
-		.start	= RK30_I2C4_PHYS,
-		.end	= RK30_I2C4_PHYS + RK30_I2C4_SIZE - 1,
+		.start	= I2C4_START,
+        .end    = I2C4_END,    
 		.flags	= IORESOURCE_MEM,
 	},
 };

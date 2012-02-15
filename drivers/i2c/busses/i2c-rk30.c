@@ -15,6 +15,12 @@
 #include "i2c-rk30.h"
 
 #define TX_SETUP                        1 //unit us
+void i2c_adap_sel(struct rk30_i2c *i2c, int nr, int adap_type)
+{
+    unsigned int p = readl(i2c->con_base);
+
+    writel(rk30_set_bit(p, adap_type, I2C_ADAP_SEL_BIT(nr)), i2c->con_base);
+}
 
 #ifdef CONFIG_CPU_FREQ
 
@@ -86,19 +92,25 @@ static int rk30_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no platform data\n");
 		return -EINVAL;
 	}
-    if(pdata->io_init)
-		pdata->io_init();
+
 
 	i2c = kzalloc(sizeof(struct rk30_i2c), GFP_KERNEL);
 	if (!i2c) {
 		dev_err(&pdev->dev, "no memory for state\n");
 		return -ENOMEM;
 	}
+    i2c->con_base = (void __iomem *)GRF_I2C_CON_BASE;
+    i2c_adap_sel(i2c, pdata->bus_num, pdata->adap_type);
+
+    if(pdata->io_init)
+		pdata->io_init();
 
 	strlcpy(i2c->adap.name, "rk30_i2c", sizeof(i2c->adap.name));
 	i2c->adap.owner   = THIS_MODULE;
 	i2c->adap.class   = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	i2c->tx_setup     = TX_SETUP;
+	i2c->adap.retries = 5;
+    i2c->adap.timeout = msecs_to_jiffies(500);
 
 	spin_lock_init(&i2c->lock);
 	init_waitqueue_head(&i2c->wait);
@@ -192,7 +204,7 @@ static int rk30_i2c_probe(struct platform_device *pdev)
     if(i2c->is_div_from_arm[i2c->adap.nr])
         wake_lock_init(&i2c->idlelock[i2c->adap.nr], WAKE_LOCK_IDLE, name);
 
-    i2c->i2c_init_hw(i2c);
+    i2c->i2c_init_hw(i2c, 100 * 1000);
 	dev_info(&pdev->dev, "%s: RK30 I2C adapter\n", dev_name(&i2c->adap.dev));
 	return 0;
 //err_none:
