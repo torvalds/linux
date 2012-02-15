@@ -489,8 +489,6 @@ static int ar5008_hw_rf_alloc_ext_banks(struct ath_hw *ah)
 	ATH_ALLOC_BANK(ah->analogBank6Data, ah->iniBank6.ia_rows);
 	ATH_ALLOC_BANK(ah->analogBank6TPCData, ah->iniBank6TPC.ia_rows);
 	ATH_ALLOC_BANK(ah->analogBank7Data, ah->iniBank7.ia_rows);
-	ATH_ALLOC_BANK(ah->addac5416_21,
-		       ah->iniAddac.ia_rows * ah->iniAddac.ia_columns);
 	ATH_ALLOC_BANK(ah->bank6Temp, ah->iniBank6.ia_rows);
 
 	return 0;
@@ -519,7 +517,6 @@ static void ar5008_hw_rf_free_ext_banks(struct ath_hw *ah)
 	ATH_FREE_BANK(ah->analogBank6Data);
 	ATH_FREE_BANK(ah->analogBank6TPCData);
 	ATH_FREE_BANK(ah->analogBank7Data);
-	ATH_FREE_BANK(ah->addac5416_21);
 	ATH_FREE_BANK(ah->bank6Temp);
 
 #undef ATH_FREE_BANK
@@ -799,27 +796,7 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 	REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_EXTERNAL_RADIO);
 	ah->eep_ops->set_addac(ah, chan);
 
-	if (AR_SREV_5416_22_OR_LATER(ah)) {
-		REG_WRITE_ARRAY(&ah->iniAddac, 1, regWrites);
-	} else {
-		struct ar5416IniArray temp;
-		u32 addacSize =
-			sizeof(u32) * ah->iniAddac.ia_rows *
-			ah->iniAddac.ia_columns;
-
-		/* For AR5416 2.0/2.1 */
-		memcpy(ah->addac5416_21,
-		       ah->iniAddac.ia_array, addacSize);
-
-		/* override CLKDRV value at [row, column] = [31, 1] */
-		(ah->addac5416_21)[31 * ah->iniAddac.ia_columns + 1] = 0;
-
-		temp.ia_array = ah->addac5416_21;
-		temp.ia_columns = ah->iniAddac.ia_columns;
-		temp.ia_rows = ah->iniAddac.ia_rows;
-		REG_WRITE_ARRAY(&temp, 1, regWrites);
-	}
-
+	REG_WRITE_ARRAY(&ah->iniAddac, 1, regWrites);
 	REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_INTERNAL_ADDAC);
 
 	ENABLE_REGWRITE_BUFFER(ah);
