@@ -280,7 +280,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
                                         unsigned int priority)
 {
 	int allowed = 0;
-	ulong uninitialized_var(msr_mask);
+	ulong msr_mask = 0;
 	bool update_esr = false, update_dear = false;
 	ulong crit_raw = vcpu->arch.shared->critical;
 	ulong crit_r1 = kvmppc_get_gpr(vcpu, 1);
@@ -322,20 +322,19 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	case BOOKE_IRQPRIO_AP_UNAVAIL:
 	case BOOKE_IRQPRIO_ALIGNMENT:
 		allowed = 1;
-		msr_mask = MSR_GS | MSR_CE | MSR_ME | MSR_DE;
+		msr_mask = MSR_CE | MSR_ME | MSR_DE;
 		int_class = INT_CLASS_NONCRIT;
 		break;
 	case BOOKE_IRQPRIO_CRITICAL:
 	case BOOKE_IRQPRIO_DBELL_CRIT:
 		allowed = vcpu->arch.shared->msr & MSR_CE;
 		allowed = allowed && !crit;
-		msr_mask = MSR_GS | MSR_ME;
+		msr_mask = MSR_ME;
 		int_class = INT_CLASS_CRIT;
 		break;
 	case BOOKE_IRQPRIO_MACHINE_CHECK:
 		allowed = vcpu->arch.shared->msr & MSR_ME;
 		allowed = allowed && !crit;
-		msr_mask = MSR_GS;
 		int_class = INT_CLASS_MC;
 		break;
 	case BOOKE_IRQPRIO_DECREMENTER:
@@ -346,13 +345,13 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 	case BOOKE_IRQPRIO_DBELL:
 		allowed = vcpu->arch.shared->msr & MSR_EE;
 		allowed = allowed && !crit;
-		msr_mask = MSR_GS | MSR_CE | MSR_ME | MSR_DE;
+		msr_mask = MSR_CE | MSR_ME | MSR_DE;
 		int_class = INT_CLASS_NONCRIT;
 		break;
 	case BOOKE_IRQPRIO_DEBUG:
 		allowed = vcpu->arch.shared->msr & MSR_DE;
 		allowed = allowed && !crit;
-		msr_mask = MSR_GS | MSR_ME;
+		msr_mask = MSR_ME;
 		int_class = INT_CLASS_CRIT;
 		break;
 	}
