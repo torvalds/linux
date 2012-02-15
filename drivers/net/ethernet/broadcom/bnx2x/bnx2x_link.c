@@ -1612,6 +1612,9 @@ static void bnx2x_umac_enable(struct link_params *params,
 	if (!(vars->flow_ctrl & BNX2X_FLOW_CTRL_RX))
 		val |= UMAC_COMMAND_CONFIG_REG_PAUSE_IGNORE;
 
+	if (vars->duplex == DUPLEX_HALF)
+		val |= UMAC_COMMAND_CONFIG_REG_HD_ENA;
+
 	REG_WR(bp, umac_base + UMAC_REG_COMMAND_CONFIG, val);
 	udelay(50);
 
