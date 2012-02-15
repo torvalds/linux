@@ -79,7 +79,7 @@ int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 	}
 	case HC_VENDOR_KVM | KVM_HC_FEATURES:
 		r = HC_EV_SUCCESS;
-#if defined(CONFIG_PPC_BOOK3S) || defined(CONFIG_KVM_E500)
+#if defined(CONFIG_PPC_BOOK3S) || defined(CONFIG_KVM_E500V2)
 		/* XXX Missing magic page on 44x */
 		r2 |= (1 << KVM_FEATURE_MAGIC_PAGE);
 #endif
@@ -235,7 +235,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PPC_PAIRED_SINGLES:
 	case KVM_CAP_PPC_OSI:
 	case KVM_CAP_PPC_GET_PVINFO:
-#if defined(CONFIG_KVM_E500) || defined(CONFIG_KVM_E500MC)
+#if defined(CONFIG_KVM_E500V2) || defined(CONFIG_KVM_E500MC)
 	case KVM_CAP_SW_TLB:
 #endif
 		r = 1;
@@ -629,7 +629,7 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		r = 0;
 		vcpu->arch.papr_enabled = true;
 		break;
-#if defined(CONFIG_KVM_E500) || defined(CONFIG_KVM_E500MC)
+#if defined(CONFIG_KVM_E500V2) || defined(CONFIG_KVM_E500MC)
 	case KVM_CAP_SW_TLB: {
 		struct kvm_config_tlb cfg;
 		void __user *user_ptr = (void __user *)(uintptr_t)cap->args[0];
@@ -706,7 +706,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 
-#if defined(CONFIG_KVM_E500) || defined(CONFIG_KVM_E500MC)
+#if defined(CONFIG_KVM_E500V2) || defined(CONFIG_KVM_E500MC)
 	case KVM_DIRTY_TLB: {
 		struct kvm_dirty_tlb dirty;
 		r = -EFAULT;

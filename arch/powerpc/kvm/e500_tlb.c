@@ -156,7 +156,7 @@ static inline void write_host_tlbe(struct kvmppc_vcpu_e500 *vcpu_e500,
 	}
 }
 
-#ifdef CONFIG_KVM_E500
+#ifdef CONFIG_KVM_E500V2
 void kvmppc_map_magic(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);

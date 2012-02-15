@@ -762,7 +762,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		gpa_t gpaddr;
 		gfn_t gfn;
 
-#ifdef CONFIG_KVM_E500
+#ifdef CONFIG_KVM_E500V2
 		if (!(vcpu->arch.shared->msr & MSR_PR) &&
 		    (eaddr & PAGE_MASK) == vcpu->arch.magic_page_ea) {
 			kvmppc_map_magic(vcpu);

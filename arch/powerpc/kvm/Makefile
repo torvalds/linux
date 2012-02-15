@@ -36,7 +36,7 @@ kvm-e500-objs := \
 	e500.o \
 	e500_tlb.o \
 	e500_emulate.o
-kvm-objs-$(CONFIG_KVM_E500) := $(kvm-e500-objs)
+kvm-objs-$(CONFIG_KVM_E500V2) := $(kvm-e500-objs)
 
 kvm-e500mc-objs := \
 	$(common-objs-y) \
@@ -98,7 +98,7 @@ kvm-objs-$(CONFIG_KVM_BOOK3S_32) := $(kvm-book3s_32-objs)
 kvm-objs := $(kvm-objs-m) $(kvm-objs-y)
 
 obj-$(CONFIG_KVM_440) += kvm.o
-obj-$(CONFIG_KVM_E500) += kvm.o
+obj-$(CONFIG_KVM_E500V2) += kvm.o
 obj-$(CONFIG_KVM_E500MC) += kvm.o
 obj-$(CONFIG_KVM_BOOK3S_64) += kvm.o
 obj-$(CONFIG_KVM_BOOK3S_32) += kvm.o

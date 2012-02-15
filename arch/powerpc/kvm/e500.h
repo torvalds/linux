@@ -39,7 +39,7 @@ struct tlbe_priv {
 	struct tlbe_ref ref; /* TLB0 only -- TLB1 uses tlb_refs */
 };
 
-#ifdef CONFIG_KVM_E500
+#ifdef CONFIG_KVM_E500V2
 struct vcpu_id_table;
 #endif
 
@@ -89,7 +89,7 @@ struct kvmppc_vcpu_e500 {
 	u64 *g2h_tlb1_map;
 	unsigned int *h2g_tlb1_rmap;
 
-#ifdef CONFIG_KVM_E500
+#ifdef CONFIG_KVM_E500V2
 	u32 pid[E500_PID_NUM];
 
 	/* vcpu id table */
@@ -136,7 +136,7 @@ void kvmppc_get_sregs_e500_tlb(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
 int kvmppc_set_sregs_e500_tlb(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
 
 
-#ifdef CONFIG_KVM_E500
+#ifdef CONFIG_KVM_E500V2
 unsigned int kvmppc_e500_get_sid(struct kvmppc_vcpu_e500 *vcpu_e500,
 				 unsigned int as, unsigned int gid,
 				 unsigned int pr, int avoid_recursion);
