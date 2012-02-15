@@ -794,7 +794,7 @@ static void vmid_reference(struct snd_soc_codec *codec)
 				    WM8994_BIAS_SRC |
 				    WM8994_STARTUP_BIAS_ENA |
 				    WM8994_VMID_BUF_ENA |
-				    (0x3 << WM8994_VMID_RAMP_SHIFT));
+				    (0x2 << WM8994_VMID_RAMP_SHIFT));
 
 		wm_hubs_vmid_ena(codec);
 
