@@ -10,6 +10,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/capability.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -513,11 +515,11 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 
 #ifndef CONFIG_JFFS2_FS_WRITEBUFFER
 	if (c->mtd->type == MTD_NANDFLASH) {
-		pr_err("jffs2: Cannot operate on NAND flash unless jffs2 NAND support is compiled in.\n");
+		pr_err("Cannot operate on NAND flash unless jffs2 NAND support is compiled in\n");
 		return -EINVAL;
 	}
 	if (c->mtd->type == MTD_DATAFLASH) {
-		pr_err("jffs2: Cannot operate on DataFlash unless jffs2 DataFlash support is compiled in.\n");
+		pr_err("Cannot operate on DataFlash unless jffs2 DataFlash support is compiled in\n");
 		return -EINVAL;
 	}
 #endif
@@ -531,12 +533,12 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 	if ((c->sector_size * blocks) != c->flash_size) {
 		c->flash_size = c->sector_size * blocks;
-		pr_info("jffs2: Flash size not aligned to erasesize, reducing to %dKiB\n",
+		pr_info("Flash size not aligned to erasesize, reducing to %dKiB\n",
 			c->flash_size / 1024);
 	}
 
 	if (c->flash_size < 5*c->sector_size) {
-		pr_err("jffs2: Too few erase blocks (%d)\n",
+		pr_err("Too few erase blocks (%d)\n",
 		       c->flash_size / c->sector_size);
 		return -EINVAL;
 	}

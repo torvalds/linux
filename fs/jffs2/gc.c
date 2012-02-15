@@ -10,6 +10,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/mtd/mtd.h>
 #include <linux/slab.h>
@@ -88,7 +90,7 @@ again:
 		goto again;
 	} else {
 		/* Eep. All were empty */
-		jffs2_dbg(1, "jffs2: No clean, dirty _or_ erasable blocks to GC from! Where are they all?\n");
+		jffs2_dbg(1, "No clean, dirty _or_ erasable blocks to GC from! Where are they all?\n");
 		return NULL;
 	}
 
@@ -249,7 +251,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 			mutex_unlock(&c->alloc_sem);
 			return -EAGAIN;
 		}
-		jffs2_dbg(1, "jffs2: Couldn't find erase block to garbage collect!\n");
+		jffs2_dbg(1, "Couldn't find erase block to garbage collect!\n");
 		spin_unlock(&c->erase_completion_lock);
 		mutex_unlock(&c->alloc_sem);
 		return -EIO;

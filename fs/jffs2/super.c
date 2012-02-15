@@ -9,6 +9,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -214,7 +216,7 @@ static int jffs2_parse_options(struct jffs2_sb_info *c, char *data)
 						JFFS2_COMPR_MODE_FORCEZLIB;
 #endif
 			else {
-				pr_err("JFFS2 Error: unknown compressor \"%s\"",
+				pr_err("Error: unknown compressor \"%s\"\n",
 				       name);
 				kfree(name);
 				return -EINVAL;
@@ -223,7 +225,7 @@ static int jffs2_parse_options(struct jffs2_sb_info *c, char *data)
 			c->mount_opts.override_compr = true;
 			break;
 		default:
-			pr_err("JFFS2 Error: unrecognized mount option '%s' or missing value\n",
+			pr_err("Error: unrecognized mount option '%s' or missing value\n",
 			       p);
 			return -EINVAL;
 		}
@@ -371,7 +373,7 @@ static int __init init_jffs2_fs(void)
 	BUILD_BUG_ON(sizeof(struct jffs2_raw_inode) != 68);
 	BUILD_BUG_ON(sizeof(struct jffs2_raw_summary) != 32);
 
-	pr_info("JFFS2 version 2.2."
+	pr_info("version 2.2."
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 	       " (NAND)"
 #endif
@@ -386,22 +388,22 @@ static int __init init_jffs2_fs(void)
 						SLAB_MEM_SPREAD),
 					     jffs2_i_init_once);
 	if (!jffs2_inode_cachep) {
-		pr_err("JFFS2 error: Failed to initialise inode cache\n");
+		pr_err("error: Failed to initialise inode cache\n");
 		return -ENOMEM;
 	}
 	ret = jffs2_compressors_init();
 	if (ret) {
-		pr_err("JFFS2 error: Failed to initialise compressors\n");
+		pr_err("error: Failed to initialise compressors\n");
 		goto out;
 	}
 	ret = jffs2_create_slab_caches();
 	if (ret) {
-		pr_err("JFFS2 error: Failed to initialise slab caches\n");
+		pr_err("error: Failed to initialise slab caches\n");
 		goto out_compressors;
 	}
 	ret = register_filesystem(&jffs2_fs_type);
 	if (ret) {
-		pr_err("JFFS2 error: Failed to register filesystem\n");
+		pr_err("error: Failed to register filesystem\n");
 		goto out_slab;
 	}
 	return 0;

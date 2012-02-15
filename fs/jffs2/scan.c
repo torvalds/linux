@@ -9,6 +9,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -218,15 +220,14 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 		case BLK_STATE_ALLDIRTY:
 			/* Nothing valid - not even a clean marker. Needs erasing. */
 			/* For now we just put it on the erasing list. We'll start the erases later */
-			jffs2_dbg(1, "JFFS2: Erase block at 0x%08x is not formatted. It will be erased\n",
+			jffs2_dbg(1, "Erase block at 0x%08x is not formatted. It will be erased\n",
 				  jeb->offset);
 			list_add(&jeb->list, &c->erase_pending_list);
 			c->nr_erasing_blocks++;
 			break;
 
 		case BLK_STATE_BADBLOCK:
-			jffs2_dbg(1, "JFFS2: Block at 0x%08x is bad\n",
-				  jeb->offset);
+			jffs2_dbg(1, "Block at 0x%08x is bad\n", jeb->offset);
 			list_add(&jeb->list, &c->bad_list);
 			c->bad_size += c->sector_size;
 			c->free_size -= c->sector_size;

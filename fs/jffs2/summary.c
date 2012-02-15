@@ -11,6 +11,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/mtd/mtd.h>
@@ -811,8 +813,7 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 
 	sum_ofs = jeb->offset + c->sector_size - jeb->free_size;
 
-	dbg_summary("JFFS2: writing out data to flash to pos : 0x%08x\n",
-		    sum_ofs);
+	dbg_summary("writing out data to flash to pos : 0x%08x\n", sum_ofs);
 
 	ret = jffs2_flash_writev(c, vecs, 2, sum_ofs, &retlen, 0);
 

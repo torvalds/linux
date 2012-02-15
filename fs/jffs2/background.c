@@ -10,6 +10,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/jffs2.h>
 #include <linux/mtd/mtd.h>
@@ -48,8 +50,7 @@ int jffs2_start_garbage_collect_thread(struct jffs2_sb_info *c)
 		ret = PTR_ERR(tsk);
 	} else {
 		/* Wait for it... */
-		jffs2_dbg(1, "JFFS2: Garbage collect thread is pid %d\n",
-			  tsk->pid);
+		jffs2_dbg(1, "Garbage collect thread is pid %d\n", tsk->pid);
 		wait_for_completion(&c->gc_thread_start);
 		ret = tsk->pid;
 	}
@@ -62,7 +63,7 @@ void jffs2_stop_garbage_collect_thread(struct jffs2_sb_info *c)
 	int wait = 0;
 	spin_lock(&c->erase_completion_lock);
 	if (c->gc_task) {
-		jffs2_dbg(1, "jffs2: Killing GC task %d\n", c->gc_task->pid);
+		jffs2_dbg(1, "Killing GC task %d\n", c->gc_task->pid);
 		send_sig(SIGKILL, c->gc_task, 1);
 		wait = 1;
 	}

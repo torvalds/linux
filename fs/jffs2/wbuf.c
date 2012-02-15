@@ -11,6 +11,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/mtd/mtd.h>
@@ -1135,7 +1137,7 @@ int jffs2_write_nand_badblock(struct jffs2_sb_info *c, struct jffs2_eraseblock *
 	if( ++jeb->bad_count < MAX_ERASE_FAILURES)
 		return 0;
 
-	pr_warn("JFFS2: marking eraseblock at %08x as bad\n", bad_offset);
+	pr_warn("marking eraseblock at %08x as bad\n", bad_offset);
 	ret = mtd_block_markbad(c->mtd, bad_offset);
 
 	if (ret) {
@@ -1161,7 +1163,7 @@ int jffs2_nand_flash_setup(struct jffs2_sb_info *c)
 		return -EINVAL;
 	}
 
-	jffs2_dbg(1, "JFFS2 using OOB on NAND\n");
+	jffs2_dbg(1, "using OOB on NAND\n");
 
 	c->oobavail = oinfo->oobavail;
 
@@ -1228,7 +1230,7 @@ int jffs2_dataflash_setup(struct jffs2_sb_info *c) {
 
 	if ((c->flash_size % c->sector_size) != 0) {
 		c->flash_size = (c->flash_size / c->sector_size) * c->sector_size;
-		pr_warn("JFFS2 flash size adjusted to %dKiB\n", c->flash_size);
+		pr_warn("flash size adjusted to %dKiB\n", c->flash_size);
 	};
 
 	c->wbuf_ofs = 0xFFFFFFFF;
@@ -1245,7 +1247,7 @@ int jffs2_dataflash_setup(struct jffs2_sb_info *c) {
 	}
 #endif
 
-	pr_info("JFFS2 write-buffering enabled buffer (%d) erasesize (%d)\n",
+	pr_info("write-buffering enabled buffer (%d) erasesize (%d)\n",
 		c->wbuf_pagesize, c->sector_size);
 
 	return 0;
@@ -1304,7 +1306,7 @@ int jffs2_ubivol_setup(struct jffs2_sb_info *c) {
 	if (!c->wbuf)
 		return -ENOMEM;
 
-	pr_info("JFFS2 write-buffering enabled buffer (%d) erasesize (%d)\n",
+	pr_info("write-buffering enabled buffer (%d) erasesize (%d)\n",
 		c->wbuf_pagesize, c->sector_size);
 
 	return 0;

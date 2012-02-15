@@ -14,6 +14,8 @@
 #error "The userspace support got too messy and was removed. Update your mkfs.jffs2"
 #endif
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/zlib.h>
 #include <linux/zutil.h>
