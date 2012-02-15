@@ -326,6 +326,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 		int_class = INT_CLASS_NONCRIT;
 		break;
 	case BOOKE_IRQPRIO_CRITICAL:
+	case BOOKE_IRQPRIO_DBELL_CRIT:
 		allowed = vcpu->arch.shared->msr & MSR_CE;
 		allowed = allowed && !crit;
 		msr_mask = MSR_GS | MSR_ME;
@@ -342,6 +343,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 		keep_irq = true;
 		/* fall through */
 	case BOOKE_IRQPRIO_EXTERNAL:
+	case BOOKE_IRQPRIO_DBELL:
 		allowed = vcpu->arch.shared->msr & MSR_EE;
 		allowed = allowed && !crit;
 		msr_mask = MSR_GS | MSR_CE | MSR_ME | MSR_DE;

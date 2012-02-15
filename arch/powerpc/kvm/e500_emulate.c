@@ -14,15 +14,73 @@
 
 #include <asm/kvm_ppc.h>
 #include <asm/disassemble.h>
+#include <asm/dbell.h>
 
 #include "booke.h"
 #include "e500.h"
 
+#define XOP_MSGSND  206
+#define XOP_MSGCLR  238
 #define XOP_TLBIVAX 786
 #define XOP_TLBSX   914
 #define XOP_TLBRE   946
 #define XOP_TLBWE   978
 #define XOP_TLBILX  18
+
+#ifdef CONFIG_KVM_E500MC
+static int dbell2prio(ulong param)
+{
+	int msg = param & PPC_DBELL_TYPE_MASK;
+	int prio = -1;
+
+	switch (msg) {
+	case PPC_DBELL_TYPE(PPC_DBELL):
+		prio = BOOKE_IRQPRIO_DBELL;
+		break;
+	case PPC_DBELL_TYPE(PPC_DBELL_CRIT):
+		prio = BOOKE_IRQPRIO_DBELL_CRIT;
+		break;
+	default:
+		break;
+	}
+
+	return prio;
+}
+
+static int kvmppc_e500_emul_msgclr(struct kvm_vcpu *vcpu, int rb)
+{
+	ulong param = vcpu->arch.gpr[rb];
+	int prio = dbell2prio(param);
+
+	if (prio < 0)
+		return EMULATE_FAIL;
+
+	clear_bit(prio, &vcpu->arch.pending_exceptions);
+	return EMULATE_DONE;
+}
+
+static int kvmppc_e500_emul_msgsnd(struct kvm_vcpu *vcpu, int rb)
+{
+	ulong param = vcpu->arch.gpr[rb];
+	int prio = dbell2prio(rb);
+	int pir = param & PPC_DBELL_PIR_MASK;
+	int i;
+	struct kvm_vcpu *cvcpu;
+
+	if (prio < 0)
+		return EMULATE_FAIL;
+
+	kvm_for_each_vcpu(i, cvcpu, vcpu->kvm) {
+		int cpir = cvcpu->arch.shared->pir;
+		if ((param & PPC_DBELL_MSG_BRDCAST) || (cpir == pir)) {
+			set_bit(prio, &cvcpu->arch.pending_exceptions);
+			kvm_vcpu_kick(cvcpu);
+		}
+	}
+
+	return EMULATE_DONE;
+}
+#endif
 
 int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
                            unsigned int inst, int *advance)
@@ -35,6 +93,16 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	switch (get_op(inst)) {
 	case 31:
 		switch (get_xop(inst)) {
+
+#ifdef CONFIG_KVM_E500MC
+		case XOP_MSGSND:
+			emulated = kvmppc_e500_emul_msgsnd(vcpu, get_rb(inst));
+			break;
+
+		case XOP_MSGCLR:
+			emulated = kvmppc_e500_emul_msgclr(vcpu, get_rb(inst));
+			break;
+#endif
 
 		case XOP_TLBRE:
 			emulated = kvmppc_e500_emul_tlbre(vcpu);
