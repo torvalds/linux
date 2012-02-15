@@ -97,4 +97,5 @@ int stmmac_resume(struct net_device *ndev);
 int stmmac_suspend(struct net_device *ndev);
 int stmmac_dvr_remove(struct net_device *ndev);
 struct stmmac_priv *stmmac_dvr_probe(struct device *device,
-				struct plat_stmmacenet_data *plat_dat);
+				     struct plat_stmmacenet_data *plat_dat,
+				     void __iomem *addr);
