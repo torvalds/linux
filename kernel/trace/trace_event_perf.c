@@ -211,12 +211,14 @@ int perf_trace_add(struct perf_event *p_event, int flags)
 	list = this_cpu_ptr(pcpu_list);
 	hlist_add_head_rcu(&p_event->hlist_entry, list);
 
-	return 0;
+	return tp_event->class->reg(tp_event, TRACE_REG_PERF_ADD, p_event);
 }
 
 void perf_trace_del(struct perf_event *p_event, int flags)
 {
+	struct ftrace_event_call *tp_event = p_event->tp_event;
 	hlist_del_rcu(&p_event->hlist_entry);
+	tp_event->class->reg(tp_event, TRACE_REG_PERF_DEL, p_event);
 }
 
 __kprobes void *perf_trace_buf_prepare(int size, unsigned short type,
