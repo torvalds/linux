@@ -268,6 +268,7 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data_giga = {
 	.rpadir_value   = 2 << 16,
 	.no_trimd	= 1,
 	.no_ade		= 1,
+	.tsu		= 1,
 };
 
 static struct sh_eth_cpu_data *sh_eth_get_cpu_data(struct sh_eth_private *mdp)
