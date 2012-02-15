@@ -41,7 +41,12 @@ other process (and its descendents) are allowed to call PTRACE_ATTACH
 against it. Only one such declared debugging process can exists for
 each inferior at a time. For example, this is used by KDE, Chromium, and
 Firefox's crash handlers, and by Wine for allowing only Wine processes
-to ptrace each other.
+to ptrace each other. If a process wishes to entirely disable these ptrace
+restrictions, it can call prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, ...)
+so that any otherwise allowed process (even those in external pid namespaces)
+may attach.
+
+The sysctl settings are:
 
 0 - classic ptrace permissions: a process can PTRACE_ATTACH to any other
     process running under the same uid, as long as it is dumpable (i.e.
