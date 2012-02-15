@@ -747,17 +747,18 @@ static int write_partial_kvec(struct ceph_connection *con)
 		con->out_kvec_bytes -= ret;
 		if (con->out_kvec_bytes == 0)
 			break;            /* done */
-		while (ret > 0) {
-			if (ret >= con->out_kvec_cur->iov_len) {
-				ret -= con->out_kvec_cur->iov_len;
-				con->out_kvec_cur++;
-				con->out_kvec_left--;
-			} else {
-				con->out_kvec_cur->iov_len -= ret;
-				con->out_kvec_cur->iov_base += ret;
-				ret = 0;
-				break;
-			}
+
+		/* account for full iov entries consumed */
+		while (ret >= con->out_kvec_cur->iov_len) {
+			BUG_ON(!con->out_kvec_left);
+			ret -= con->out_kvec_cur->iov_len;
+			con->out_kvec_cur++;
+			con->out_kvec_left--;
+		}
+		/* and for a partially-consumed entry */
+		if (ret) {
+			con->out_kvec_cur->iov_len -= ret;
+			con->out_kvec_cur->iov_base += ret;
 		}
 	}
 	con->out_kvec_left = 0;
