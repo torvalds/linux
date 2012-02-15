@@ -79,7 +79,7 @@ static int jffs2_zlib_compress(unsigned char *data_in,
 	mutex_lock(&deflate_mutex);
 
 	if (Z_OK != zlib_deflateInit(&def_strm, 3)) {
-		printk(KERN_WARNING "deflateInit failed\n");
+		pr_warn("deflateInit failed\n");
 		mutex_unlock(&deflate_mutex);
 		return -1;
 	}
@@ -169,7 +169,7 @@ static int jffs2_zlib_decompress(unsigned char *data_in,
 
 
 	if (Z_OK != zlib_inflateInit2(&inf_strm, wbits)) {
-		printk(KERN_WARNING "inflateInit failed\n");
+		pr_warn("inflateInit failed\n");
 		mutex_unlock(&inflate_mutex);
 		return 1;
 	}
@@ -177,7 +177,7 @@ static int jffs2_zlib_decompress(unsigned char *data_in,
 	while((ret = zlib_inflate(&inf_strm, Z_FINISH)) == Z_OK)
 		;
 	if (ret != Z_STREAM_END) {
-		printk(KERN_NOTICE "inflate returned %d\n", ret);
+		pr_notice("inflate returned %d\n", ret);
 	}
 	zlib_inflateEnd(&inf_strm);
 	mutex_unlock(&inflate_mutex);

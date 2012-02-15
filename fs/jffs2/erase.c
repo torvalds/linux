@@ -51,7 +51,7 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 		  jeb->offset, jeb->offset, jeb->offset + c->sector_size);
 	instr = kmalloc(sizeof(struct erase_info) + sizeof(struct erase_priv_struct), GFP_KERNEL);
 	if (!instr) {
-		printk(KERN_WARNING "kmalloc for struct erase_info in jffs2_erase_block failed. Refiling block for later\n");
+		pr_warn("kmalloc for struct erase_info in jffs2_erase_block failed. Refiling block for later\n");
 		mutex_lock(&c->erase_free_sem);
 		spin_lock(&c->erase_completion_lock);
 		list_move(&jeb->list, &c->erase_pending_list);
@@ -99,9 +99,11 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 	}
 
 	if (ret == -EROFS)
-		printk(KERN_WARNING "Erase at 0x%08x failed immediately: -EROFS. Is the sector locked?\n", jeb->offset);
+		pr_warn("Erase at 0x%08x failed immediately: -EROFS. Is the sector locked?\n",
+			jeb->offset);
 	else
-		printk(KERN_WARNING "Erase at 0x%08x failed immediately: errno %d\n", jeb->offset, ret);
+		pr_warn("Erase at 0x%08x failed immediately: errno %d\n",
+			jeb->offset, ret);
 
 	jffs2_erase_failed(c, jeb, bad_offset);
 }
@@ -217,7 +219,7 @@ static void jffs2_erase_callback(struct erase_info *instr)
 	struct erase_priv_struct *priv = (void *)instr->priv;
 
 	if(instr->state != MTD_ERASE_DONE) {
-		printk(KERN_WARNING "Erase at 0x%08llx finished, but state != MTD_ERASE_DONE. State is 0x%x instead.\n",
+		pr_warn("Erase at 0x%08llx finished, but state != MTD_ERASE_DONE. State is 0x%x instead.\n",
 			(unsigned long long)instr->addr, instr->state);
 		jffs2_erase_failed(priv->c, priv->jeb, instr->fail_addr);
 	} else {
@@ -284,7 +286,7 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 
 		printk(KERN_DEBUG);
 		while(this) {
-			printk(KERN_CONT "0x%08x(%d)->",
+			pr_cont("0x%08x(%d)->",
 			       ref_offset(this), ref_flags(this));
 			if (++i == 5) {
 				printk(KERN_DEBUG);
@@ -292,7 +294,7 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 			}
 			this = this->next_in_ino;
 		}
-		printk(KERN_CONT "\n");
+		pr_cont("\n");
 	});
 
 	switch (ic->class) {
@@ -364,8 +366,10 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 		} while(--retlen);
 		mtd_unpoint(c->mtd, jeb->offset, c->sector_size);
 		if (retlen) {
-			printk(KERN_WARNING "Newly-erased block contained word 0x%lx at offset 0x%08tx\n",
-			       *wordebuf, jeb->offset + c->sector_size-retlen*sizeof(*wordebuf));
+			pr_warn("Newly-erased block contained word 0x%lx at offset 0x%08tx\n",
+				*wordebuf,
+				jeb->offset +
+				c->sector_size-retlen * sizeof(*wordebuf));
 			return -EIO;
 		}
 		return 0;
@@ -373,7 +377,8 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
  do_flash_read:
 	ebuf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!ebuf) {
-		printk(KERN_WARNING "Failed to allocate page buffer for verifying erase at 0x%08x. Refiling\n", jeb->offset);
+		pr_warn("Failed to allocate page buffer for verifying erase at 0x%08x. Refiling\n",
+			jeb->offset);
 		return -EAGAIN;
 	}
 
@@ -387,12 +392,14 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 
 		ret = mtd_read(c->mtd, ofs, readlen, &retlen, ebuf);
 		if (ret) {
-			printk(KERN_WARNING "Read of newly-erased block at 0x%08x failed: %d. Putting on bad_list\n", ofs, ret);
+			pr_warn("Read of newly-erased block at 0x%08x failed: %d. Putting on bad_list\n",
+				ofs, ret);
 			ret = -EIO;
 			goto fail;
 		}
 		if (retlen != readlen) {
-			printk(KERN_WARNING "Short read from newly-erased block at 0x%08x. Wanted %d, got %zd\n", ofs, readlen, retlen);
+			pr_warn("Short read from newly-erased block at 0x%08x. Wanted %d, got %zd\n",
+				ofs, readlen, retlen);
 			ret = -EIO;
 			goto fail;
 		}
@@ -401,7 +408,8 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 			unsigned long *datum = ebuf + i;
 			if (*datum + 1) {
 				*bad_offset += i;
-				printk(KERN_WARNING "Newly-erased block contained word 0x%lx at offset 0x%08x\n", *datum, *bad_offset);
+				pr_warn("Newly-erased block contained word 0x%lx at offset 0x%08x\n",
+					*datum, *bad_offset);
 				ret = -EIO;
 				goto fail;
 			}
@@ -456,10 +464,10 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 
 		if (ret || retlen != sizeof(marker)) {
 			if (ret)
-				printk(KERN_WARNING "Write clean marker to block at 0x%08x failed: %d\n",
+				pr_warn("Write clean marker to block at 0x%08x failed: %d\n",
 				       jeb->offset, ret);
 			else
-				printk(KERN_WARNING "Short write to newly-erased block at 0x%08x: Wanted %zd, got %zd\n",
+				pr_warn("Short write to newly-erased block at 0x%08x: Wanted %zd, got %zd\n",
 				       jeb->offset, sizeof(marker), retlen);
 
 			goto filebad;

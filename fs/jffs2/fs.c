@@ -320,14 +320,16 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 		/* Read the device numbers from the media */
 		if (f->metadata->size != sizeof(jdev.old_id) &&
 		    f->metadata->size != sizeof(jdev.new_id)) {
-			printk(KERN_NOTICE "Device node has strange size %d\n", f->metadata->size);
+			pr_notice("Device node has strange size %d\n",
+				  f->metadata->size);
 			goto error_io;
 		}
 		jffs2_dbg(1, "Reading device numbers from flash\n");
 		ret = jffs2_read_dnode(c, f, f->metadata, (char *)&jdev, 0, f->metadata->size);
 		if (ret < 0) {
 			/* Eep */
-			printk(KERN_NOTICE "Read device numbers for inode %lu failed\n", (unsigned long)inode->i_ino);
+			pr_notice("Read device numbers for inode %lu failed\n",
+				  (unsigned long)inode->i_ino);
 			goto error;
 		}
 		if (f->metadata->size == sizeof(jdev.old_id))
@@ -342,7 +344,8 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 		break;
 
 	default:
-		printk(KERN_WARNING "jffs2_read_inode(): Bogus imode %o for ino %lu\n", inode->i_mode, (unsigned long)inode->i_ino);
+		pr_warn("%s(): Bogus i_mode %o for ino %lu\n",
+			__func__, inode->i_mode, (unsigned long)inode->i_ino);
 	}
 
 	mutex_unlock(&f->sem);
@@ -510,11 +513,11 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 
 #ifndef CONFIG_JFFS2_FS_WRITEBUFFER
 	if (c->mtd->type == MTD_NANDFLASH) {
-		printk(KERN_ERR "jffs2: Cannot operate on NAND flash unless jffs2 NAND support is compiled in.\n");
+		pr_err("jffs2: Cannot operate on NAND flash unless jffs2 NAND support is compiled in.\n");
 		return -EINVAL;
 	}
 	if (c->mtd->type == MTD_DATAFLASH) {
-		printk(KERN_ERR "jffs2: Cannot operate on DataFlash unless jffs2 DataFlash support is compiled in.\n");
+		pr_err("jffs2: Cannot operate on DataFlash unless jffs2 DataFlash support is compiled in.\n");
 		return -EINVAL;
 	}
 #endif
@@ -528,12 +531,13 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 	if ((c->sector_size * blocks) != c->flash_size) {
 		c->flash_size = c->sector_size * blocks;
-		printk(KERN_INFO "jffs2: Flash size not aligned to erasesize, reducing to %dKiB\n",
+		pr_info("jffs2: Flash size not aligned to erasesize, reducing to %dKiB\n",
 			c->flash_size / 1024);
 	}
 
 	if (c->flash_size < 5*c->sector_size) {
-		printk(KERN_ERR "jffs2: Too few erase blocks (%d)\n", c->flash_size / c->sector_size);
+		pr_err("jffs2: Too few erase blocks (%d)\n",
+		       c->flash_size / c->sector_size);
 		return -EINVAL;
 	}
 
@@ -658,8 +662,8 @@ struct jffs2_inode_info *jffs2_gc_fetch_inode(struct jffs2_sb_info *c,
 			return ERR_CAST(inode);
 	}
 	if (is_bad_inode(inode)) {
-		printk(KERN_NOTICE "Eep. read_inode() failed for ino #%u. unlinked %d\n",
-		       inum, unlinked);
+		pr_notice("Eep. read_inode() failed for ino #%u. unlinked %d\n",
+			  inum, unlinked);
 		/* NB. This will happen again. We need to do something appropriate here. */
 		iput(inode);
 		return ERR_PTR(-EIO);

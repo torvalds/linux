@@ -103,7 +103,7 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 	if (ino) {
 		inode = jffs2_iget(dir_i->i_sb, ino);
 		if (IS_ERR(inode))
-			printk(KERN_WARNING "iget() failed for ino #%u\n", ino);
+			pr_warn("iget() failed for ino #%u\n", ino);
 	}
 
 	return d_splice_alias(inode, target);
@@ -365,7 +365,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	/* We use f->target field to store the target path. */
 	f->target = kmemdup(target, targetlen + 1, GFP_KERNEL);
 	if (!f->target) {
-		printk(KERN_WARNING "Can't allocate %d bytes of memory\n", targetlen + 1);
+		pr_warn("Can't allocate %d bytes of memory\n", targetlen + 1);
 		mutex_unlock(&f->sem);
 		jffs2_complete_reservation(c);
 		ret = -ENOMEM;
@@ -860,7 +860,8 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 			f->inocache->pino_nlink++;
 		mutex_unlock(&f->sem);
 
-		printk(KERN_NOTICE "jffs2_rename(): Link succeeded, unlink failed (err %d). You now have a hard link\n", ret);
+		pr_notice("%s(): Link succeeded, unlink failed (err %d). You now have a hard link\n",
+			  __func__, ret);
 		/* Might as well let the VFS know */
 		d_instantiate(new_dentry, old_dentry->d_inode);
 		ihold(old_dentry->d_inode);

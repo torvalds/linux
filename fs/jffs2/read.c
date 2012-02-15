@@ -36,13 +36,14 @@ int jffs2_read_dnode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 	ret = jffs2_flash_read(c, ref_offset(fd->raw), sizeof(*ri), &readlen, (char *)ri);
 	if (ret) {
 		jffs2_free_raw_inode(ri);
-		printk(KERN_WARNING "Error reading node from 0x%08x: %d\n", ref_offset(fd->raw), ret);
+		pr_warn("Error reading node from 0x%08x: %d\n",
+			ref_offset(fd->raw), ret);
 		return ret;
 	}
 	if (readlen != sizeof(*ri)) {
 		jffs2_free_raw_inode(ri);
-		printk(KERN_WARNING "Short read from 0x%08x: wanted 0x%zx bytes, got 0x%zx\n",
-		       ref_offset(fd->raw), sizeof(*ri), readlen);
+		pr_warn("Short read from 0x%08x: wanted 0x%zx bytes, got 0x%zx\n",
+			ref_offset(fd->raw), sizeof(*ri), readlen);
 		return -EIO;
 	}
 	crc = crc32(0, ri, sizeof(*ri)-8);
@@ -52,8 +53,8 @@ int jffs2_read_dnode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 		  crc, je32_to_cpu(ri->dsize), je32_to_cpu(ri->csize),
 		  je32_to_cpu(ri->offset), buf);
 	if (crc != je32_to_cpu(ri->node_crc)) {
-		printk(KERN_WARNING "Node CRC %08x != calculated CRC %08x for node at %08x\n",
-		       je32_to_cpu(ri->node_crc), crc, ref_offset(fd->raw));
+		pr_warn("Node CRC %08x != calculated CRC %08x for node at %08x\n",
+			je32_to_cpu(ri->node_crc), crc, ref_offset(fd->raw));
 		ret = -EIO;
 		goto out_ri;
 	}
@@ -66,8 +67,8 @@ int jffs2_read_dnode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 	}
 
 	D1(if(ofs + len > je32_to_cpu(ri->dsize)) {
-		printk(KERN_WARNING "jffs2_read_dnode() asked for %d bytes at %d from %d-byte node\n",
-		       len, ofs, je32_to_cpu(ri->dsize));
+			pr_warn("jffs2_read_dnode() asked for %d bytes at %d from %d-byte node\n",
+				len, ofs, je32_to_cpu(ri->dsize));
 		ret = -EINVAL;
 		goto out_ri;
 	});
@@ -119,8 +120,8 @@ int jffs2_read_dnode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 
 	crc = crc32(0, readbuf, je32_to_cpu(ri->csize));
 	if (crc != je32_to_cpu(ri->data_crc)) {
-		printk(KERN_WARNING "Data CRC %08x != calculated CRC %08x for node at %08x\n",
-		       je32_to_cpu(ri->data_crc), crc, ref_offset(fd->raw));
+		pr_warn("Data CRC %08x != calculated CRC %08x for node at %08x\n",
+			je32_to_cpu(ri->data_crc), crc, ref_offset(fd->raw));
 		ret = -EIO;
 		goto out_decomprbuf;
 	}
@@ -131,7 +132,7 @@ int jffs2_read_dnode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 			  je32_to_cpu(ri->dsize), decomprbuf);
 		ret = jffs2_decompress(c, f, ri->compr | (ri->usercompr << 8), readbuf, decomprbuf, je32_to_cpu(ri->csize), je32_to_cpu(ri->dsize));
 		if (ret) {
-			printk(KERN_WARNING "Error: jffs2_decompress returned %d\n", ret);
+			pr_warn("Error: jffs2_decompress returned %d\n", ret);
 			goto out_decomprbuf;
 		}
 	}

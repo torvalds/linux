@@ -68,7 +68,7 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 	unsigned long cnt = 2;
 
 	D1(if(je32_to_cpu(ri->hdr_crc) != crc32(0, ri, sizeof(struct jffs2_unknown_node)-4)) {
-		printk(KERN_CRIT "Eep. CRC not correct in jffs2_write_dnode()\n");
+		pr_crit("Eep. CRC not correct in jffs2_write_dnode()\n");
 		BUG();
 	}
 	   );
@@ -78,7 +78,9 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 	vecs[1].iov_len = datalen;
 
 	if (je32_to_cpu(ri->totlen) != sizeof(*ri) + datalen) {
-		printk(KERN_WARNING "jffs2_write_dnode: ri->totlen (0x%08x) != sizeof(*ri) (0x%08zx) + datalen (0x%08x)\n", je32_to_cpu(ri->totlen), sizeof(*ri), datalen);
+		pr_warn("%s(): ri->totlen (0x%08x) != sizeof(*ri) (0x%08zx) + datalen (0x%08x)\n",
+			__func__, je32_to_cpu(ri->totlen),
+			sizeof(*ri), datalen);
 	}
 
 	fn = jffs2_alloc_full_dnode();
@@ -106,8 +108,8 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 				 (alloc_mode==ALLOC_GC)?0:f->inocache->ino);
 
 	if (ret || (retlen != sizeof(*ri) + datalen)) {
-		printk(KERN_NOTICE "Write of %zd bytes at 0x%08x failed. returned %d, retlen %zd\n",
-		       sizeof(*ri)+datalen, flash_ofs, ret, retlen);
+		pr_notice("Write of %zd bytes at 0x%08x failed. returned %d, retlen %zd\n",
+			  sizeof(*ri) + datalen, flash_ofs, ret, retlen);
 
 		/* Mark the space as dirtied */
 		if (retlen) {
@@ -118,7 +120,8 @@ struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2
 			   this node */
 			jffs2_add_physical_node_ref(c, flash_ofs | REF_OBSOLETE, PAD(sizeof(*ri)+datalen), NULL);
 		} else {
-			printk(KERN_NOTICE "Not marking the space at 0x%08x as dirty because the flash driver returned retlen zero\n", flash_ofs);
+			pr_notice("Not marking the space at 0x%08x as dirty because the flash driver returned retlen zero\n",
+				  flash_ofs);
 		}
 		if (!retried && alloc_mode != ALLOC_NORETRY) {
 			/* Try to reallocate space and retry */
@@ -214,17 +217,17 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 		  je32_to_cpu(rd->name_crc));
 
 	D1(if(je32_to_cpu(rd->hdr_crc) != crc32(0, rd, sizeof(struct jffs2_unknown_node)-4)) {
-		printk(KERN_CRIT "Eep. CRC not correct in jffs2_write_dirent()\n");
+		pr_crit("Eep. CRC not correct in jffs2_write_dirent()\n");
 		BUG();
 	   });
 
 	if (strnlen(name, namelen) != namelen) {
 		/* This should never happen, but seems to have done on at least one
 		   occasion: https://dev.laptop.org/ticket/4184 */
-		printk(KERN_CRIT "Error in jffs2_write_dirent() -- name contains zero bytes!\n");
-		printk(KERN_CRIT "Directory inode #%u, name at *0x%p \"%s\"->ino #%u, name_crc 0x%08x\n",
-		       je32_to_cpu(rd->pino), name, name, je32_to_cpu(rd->ino),
-		       je32_to_cpu(rd->name_crc));
+		pr_crit("Error in jffs2_write_dirent() -- name contains zero bytes!\n");
+		pr_crit("Directory inode #%u, name at *0x%p \"%s\"->ino #%u, name_crc 0x%08x\n",
+			je32_to_cpu(rd->pino), name, name, je32_to_cpu(rd->ino),
+			je32_to_cpu(rd->name_crc));
 		WARN_ON(1);
 		return ERR_PTR(-EIO);
 	}
@@ -263,13 +266,14 @@ struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jff
 	ret = jffs2_flash_writev(c, vecs, 2, flash_ofs, &retlen,
 				 (alloc_mode==ALLOC_GC)?0:je32_to_cpu(rd->pino));
 	if (ret || (retlen != sizeof(*rd) + namelen)) {
-		printk(KERN_NOTICE "Write of %zd bytes at 0x%08x failed. returned %d, retlen %zd\n",
-			       sizeof(*rd)+namelen, flash_ofs, ret, retlen);
+		pr_notice("Write of %zd bytes at 0x%08x failed. returned %d, retlen %zd\n",
+			  sizeof(*rd) + namelen, flash_ofs, ret, retlen);
 		/* Mark the space as dirtied */
 		if (retlen) {
 			jffs2_add_physical_node_ref(c, flash_ofs | REF_OBSOLETE, PAD(sizeof(*rd)+namelen), NULL);
 		} else {
-			printk(KERN_NOTICE "Not marking the space at 0x%08x as dirty because the flash driver returned retlen zero\n", flash_ofs);
+			pr_notice("Not marking the space at 0x%08x as dirty because the flash driver returned retlen zero\n",
+				  flash_ofs);
 		}
 		if (!retried) {
 			/* Try to reallocate space and retry */
@@ -417,7 +421,7 @@ int jffs2_write_inode_range(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 		mutex_unlock(&f->sem);
 		jffs2_complete_reservation(c);
 		if (!datalen) {
-			printk(KERN_WARNING "Eep. We didn't actually write any data in jffs2_write_inode_range()\n");
+			pr_warn("Eep. We didn't actually write any data in jffs2_write_inode_range()\n");
 			ret = -EIO;
 			break;
 		}
@@ -634,8 +638,9 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 				dead_f->dents = fd->next;
 
 				if (fd->ino) {
-					printk(KERN_WARNING "Deleting inode #%u with active dentry \"%s\"->ino #%u\n",
-					       dead_f->inocache->ino, fd->name, fd->ino);
+					pr_warn("Deleting inode #%u with active dentry \"%s\"->ino #%u\n",
+						dead_f->inocache->ino,
+						fd->name, fd->ino);
 				} else {
 					jffs2_dbg(1, "Removing deletion dirent for \"%s\" from dir ino #%u\n",
 						  fd->name,

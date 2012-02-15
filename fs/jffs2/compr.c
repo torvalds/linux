@@ -79,7 +79,7 @@ static int jffs2_selected_compress(u8 compr, unsigned char *data_in,
 
 	output_buf = kmalloc(*cdatalen, GFP_KERNEL);
 	if (!output_buf) {
-		printk(KERN_WARNING "JFFS2: No memory for compressor allocation. Compression failed.\n");
+		pr_warn("JFFS2: No memory for compressor allocation. Compression failed.\n");
 		return ret;
 	}
 	orig_slen = *datalen;
@@ -188,7 +188,8 @@ uint16_t jffs2_compress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 				tmp_buf = kmalloc(orig_slen, GFP_KERNEL);
 				spin_lock(&jffs2_compressor_list_lock);
 				if (!tmp_buf) {
-					printk(KERN_WARNING "JFFS2: No memory for compressor allocation. (%d bytes)\n", orig_slen);
+					pr_warn("JFFS2: No memory for compressor allocation. (%d bytes)\n",
+						orig_slen);
 					continue;
 				}
 				else {
@@ -235,7 +236,7 @@ uint16_t jffs2_compress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 				cpage_out, datalen, cdatalen);
 		break;
 	default:
-		printk(KERN_ERR "JFFS2: unknown compression mode.\n");
+		pr_err("JFFS2: unknown compression mode\n");
 	}
 
 	if (ret == JFFS2_COMPR_NONE) {
@@ -277,7 +278,8 @@ int jffs2_decompress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 				ret = this->decompress(cdata_in, data_out, cdatalen, datalen);
 				spin_lock(&jffs2_compressor_list_lock);
 				if (ret) {
-					printk(KERN_WARNING "Decompressor \"%s\" returned %d\n", this->name, ret);
+					pr_warn("Decompressor \"%s\" returned %d\n",
+						this->name, ret);
 				}
 				else {
 					this->stat_decompr_blocks++;
@@ -287,7 +289,8 @@ int jffs2_decompress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 				return ret;
 			}
 		}
-		printk(KERN_WARNING "JFFS2 compression type 0x%02x not available.\n", comprtype);
+		pr_warn("JFFS2 compression type 0x%02x not available\n",
+			comprtype);
 		spin_unlock(&jffs2_compressor_list_lock);
 		return -EIO;
 	}
@@ -299,7 +302,7 @@ int jffs2_register_compressor(struct jffs2_compressor *comp)
 	struct jffs2_compressor *this;
 
 	if (!comp->name) {
-		printk(KERN_WARNING "NULL compressor name at registering JFFS2 compressor. Failed.\n");
+		pr_warn("NULL compressor name at registering JFFS2 compressor. Failed.\n");
 		return -1;
 	}
 	comp->compr_buf_size=0;
@@ -340,7 +343,7 @@ int jffs2_unregister_compressor(struct jffs2_compressor *comp)
 
 	if (comp->usecount) {
 		spin_unlock(&jffs2_compressor_list_lock);
-		printk(KERN_WARNING "JFFS2: Compressor module is in use. Unregister failed.\n");
+		pr_warn("JFFS2: Compressor module is in use. Unregister failed.\n");
 		return -1;
 	}
 	list_del(&comp->list);

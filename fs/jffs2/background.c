@@ -42,7 +42,8 @@ int jffs2_start_garbage_collect_thread(struct jffs2_sb_info *c)
 
 	tsk = kthread_run(jffs2_garbage_collect_thread, c, "jffs2_gcd_mtd%d", c->mtd->index);
 	if (IS_ERR(tsk)) {
-		printk(KERN_WARNING "fork failed for JFFS2 garbage collect thread: %ld\n", -PTR_ERR(tsk));
+		pr_warn("fork failed for JFFS2 garbage collect thread: %ld\n",
+			-PTR_ERR(tsk));
 		complete(&c->gc_thread_exit);
 		ret = PTR_ERR(tsk);
 	} else {
@@ -152,7 +153,7 @@ static int jffs2_garbage_collect_thread(void *_c)
 
 		jffs2_dbg(1, "%s(): pass\n", __func__);
 		if (jffs2_garbage_collect_pass(c) == -ENOSPC) {
-			printk(KERN_NOTICE "No space for garbage collection. Aborting GC thread\n");
+			pr_notice("No space for garbage collection. Aborting GC thread\n");
 			goto die;
 		}
 	}

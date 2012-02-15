@@ -47,7 +47,7 @@ static void *jffs2_follow_link(struct dentry *dentry, struct nameidata *nd)
 	 */
 
 	if (!p) {
-		printk(KERN_ERR "jffs2_follow_link(): can't find symlink target\n");
+		pr_err("%s(): can't find symlink target\n", __func__);
 		p = ERR_PTR(-EIO);
 	}
 	jffs2_dbg(1, "%s(): target path is '%s'\n",

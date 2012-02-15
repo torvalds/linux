@@ -214,8 +214,8 @@ static int jffs2_parse_options(struct jffs2_sb_info *c, char *data)
 						JFFS2_COMPR_MODE_FORCEZLIB;
 #endif
 			else {
-				printk(KERN_ERR "JFFS2 Error: unknown compressor \"%s\"",
-						name);
+				pr_err("JFFS2 Error: unknown compressor \"%s\"",
+				       name);
 				kfree(name);
 				return -EINVAL;
 			}
@@ -223,8 +223,8 @@ static int jffs2_parse_options(struct jffs2_sb_info *c, char *data)
 			c->mount_opts.override_compr = true;
 			break;
 		default:
-			printk(KERN_ERR "JFFS2 Error: unrecognized mount option '%s' or missing value\n",
-					p);
+			pr_err("JFFS2 Error: unrecognized mount option '%s' or missing value\n",
+			       p);
 			return -EINVAL;
 		}
 	}
@@ -371,7 +371,7 @@ static int __init init_jffs2_fs(void)
 	BUILD_BUG_ON(sizeof(struct jffs2_raw_inode) != 68);
 	BUILD_BUG_ON(sizeof(struct jffs2_raw_summary) != 32);
 
-	printk(KERN_INFO "JFFS2 version 2.2."
+	pr_info("JFFS2 version 2.2."
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 	       " (NAND)"
 #endif
@@ -386,22 +386,22 @@ static int __init init_jffs2_fs(void)
 						SLAB_MEM_SPREAD),
 					     jffs2_i_init_once);
 	if (!jffs2_inode_cachep) {
-		printk(KERN_ERR "JFFS2 error: Failed to initialise inode cache\n");
+		pr_err("JFFS2 error: Failed to initialise inode cache\n");
 		return -ENOMEM;
 	}
 	ret = jffs2_compressors_init();
 	if (ret) {
-		printk(KERN_ERR "JFFS2 error: Failed to initialise compressors\n");
+		pr_err("JFFS2 error: Failed to initialise compressors\n");
 		goto out;
 	}
 	ret = jffs2_create_slab_caches();
 	if (ret) {
-		printk(KERN_ERR "JFFS2 error: Failed to initialise slab caches\n");
+		pr_err("JFFS2 error: Failed to initialise slab caches\n");
 		goto out_compressors;
 	}
 	ret = register_filesystem(&jffs2_fs_type);
 	if (ret) {
-		printk(KERN_ERR "JFFS2 error: Failed to register filesystem\n");
+		pr_err("JFFS2 error: Failed to register filesystem\n");
 		goto out_slab;
 	}
 	return 0;
