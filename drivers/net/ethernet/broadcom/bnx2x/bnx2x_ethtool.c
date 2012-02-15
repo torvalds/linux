@@ -2016,13 +2016,21 @@ static int bnx2x_test_nvram(struct bnx2x *bp)
 		{ 0x708,  0x70 }, /* manuf_key_info */
 		{     0,     0 }
 	};
-	__be32 buf[0x350 / 4];
-	u8 *data = (u8 *)buf;
+	__be32 *buf;
+	u8 *data;
 	int i, rc;
 	u32 magic, crc;
 
 	if (BP_NOMCP(bp))
 		return 0;
+
+	buf = kmalloc(0x350, GFP_KERNEL);
+	if (!buf) {
+		DP(NETIF_MSG_PROBE, "kmalloc failed\n");
+		rc = -ENOMEM;
+		goto test_nvram_exit;
+	}
+	data = (u8 *)buf;
 
 	rc = bnx2x_nvram_read(bp, 0, data, 4);
 	if (rc) {
@@ -2057,6 +2065,7 @@ static int bnx2x_test_nvram(struct bnx2x *bp)
 	}
 
 test_nvram_exit:
+	kfree(buf);
 	return rc;
 }
 
