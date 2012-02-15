@@ -540,6 +540,7 @@ struct bnx2x_fastpath {
 	struct ustorm_per_queue_stats old_uclient;
 	struct xstorm_per_queue_stats old_xclient;
 	struct bnx2x_eth_q_stats eth_q_stats;
+	struct bnx2x_eth_q_stats_old eth_q_stats_old;
 
 	/* The size is calculated using the following:
 	     sizeof name field from netdev structure +
@@ -1046,7 +1047,6 @@ struct bnx2x_slowpath {
 	struct nig_stats		nig_stats;
 	struct host_port_stats		port_stats;
 	struct host_func_stats		func_stats;
-	struct host_func_stats		func_stats_base;
 
 	u32				wb_comp;
 	u32				wb_data[4];
@@ -1462,6 +1462,10 @@ struct bnx2x {
 
 	u16			stats_counter;
 	struct bnx2x_eth_stats	eth_stats;
+	struct bnx2x_eth_stats_old	eth_stats_old;
+	struct bnx2x_net_stats_old	net_stats_old;
+	struct bnx2x_fw_port_stats_old	fw_stats_old;
+	bool			stats_init;
 
 	struct z_stream_s	*strm;
 	void			*gunzip_buf;

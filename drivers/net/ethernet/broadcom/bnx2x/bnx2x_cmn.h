@@ -1492,6 +1492,79 @@ static inline u16 bnx2x_extract_max_cfg(struct bnx2x *bp, u32 mf_cfg)
 }
 
 /**
+ * bnx2x_bz_fp - zero content of the fastpath structure.
+ *
+ * @bp:		driver handle
+ * @index:	fastpath index to be zeroed
+ *
+ * Makes sure the contents of the bp->fp[index].napi is kept
+ * intact.
+ */
+static inline void bnx2x_bz_fp(struct bnx2x *bp, int index)
+{
+	struct bnx2x_fastpath *fp = &bp->fp[index];
+	struct napi_struct orig_napi = fp->napi;
+	/* bzero bnx2x_fastpath contents */
+	if (bp->stats_init)
+		memset(fp, 0, sizeof(*fp));
+	else {
+		/* Keep Queue statistics */
+		struct bnx2x_eth_q_stats *tmp_eth_q_stats;
+		struct bnx2x_eth_q_stats_old *tmp_eth_q_stats_old;
+
+		tmp_eth_q_stats = kzalloc(sizeof(struct bnx2x_eth_q_stats),
+					  GFP_KERNEL);
+		if (tmp_eth_q_stats)
+			memcpy(tmp_eth_q_stats, &fp->eth_q_stats,
+			       sizeof(struct bnx2x_eth_q_stats));
+
+		tmp_eth_q_stats_old =
+			kzalloc(sizeof(struct bnx2x_eth_q_stats_old),
+				GFP_KERNEL);
+		if (tmp_eth_q_stats_old)
+			memcpy(tmp_eth_q_stats_old, &fp->eth_q_stats_old,
+			       sizeof(struct bnx2x_eth_q_stats_old));
+
+		memset(fp, 0, sizeof(*fp));
+
+		if (tmp_eth_q_stats) {
+			memcpy(&fp->eth_q_stats, tmp_eth_q_stats,
+				   sizeof(struct bnx2x_eth_q_stats));
+			kfree(tmp_eth_q_stats);
+		}
+
+		if (tmp_eth_q_stats_old) {
+			memcpy(&fp->eth_q_stats_old, tmp_eth_q_stats_old,
+			       sizeof(struct bnx2x_eth_q_stats_old));
+			kfree(tmp_eth_q_stats_old);
+		}
+
+	}
+
+	/* Restore the NAPI object as it has been already initialized */
+	fp->napi = orig_napi;
+
+	fp->bp = bp;
+	fp->index = index;
+	if (IS_ETH_FP(fp))
+		fp->max_cos = bp->max_cos;
+	else
+		/* Special queues support only one CoS */
+		fp->max_cos = 1;
+
+	/*
+	 * set the tpa flag for each queue. The tpa flag determines the queue
+	 * minimal size so it must be set prior to queue memory allocation
+	 */
+	fp->disable_tpa = (bp->flags & TPA_ENABLE_FLAG) == 0;
+#ifdef BCM_CNIC
+	/* We don't want TPA on an FCoE L2 ring */
+	if (IS_FCOE_FP(fp))
+		fp->disable_tpa = 1;
+#endif
+}
+
+/**
  * bnx2x_get_iscsi_info - update iSCSI params according to licensing info.
  *
  * @bp:		driver handle

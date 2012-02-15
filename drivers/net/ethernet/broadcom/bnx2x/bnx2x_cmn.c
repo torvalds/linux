@@ -32,46 +32,6 @@
 
 
 /**
- * bnx2x_bz_fp - zero content of the fastpath structure.
- *
- * @bp:		driver handle
- * @index:	fastpath index to be zeroed
- *
- * Makes sure the contents of the bp->fp[index].napi is kept
- * intact.
- */
-static inline void bnx2x_bz_fp(struct bnx2x *bp, int index)
-{
-	struct bnx2x_fastpath *fp = &bp->fp[index];
-	struct napi_struct orig_napi = fp->napi;
-	/* bzero bnx2x_fastpath contents */
-	memset(fp, 0, sizeof(*fp));
-
-	/* Restore the NAPI object as it has been already initialized */
-	fp->napi = orig_napi;
-
-	fp->bp = bp;
-	fp->index = index;
-	if (IS_ETH_FP(fp))
-		fp->max_cos = bp->max_cos;
-	else
-		/* Special queues support only one CoS */
-		fp->max_cos = 1;
-
-	/*
-	 * set the tpa flag for each queue. The tpa flag determines the queue
-	 * minimal size so it must be set prior to queue memory allocation
-	 */
-	fp->disable_tpa = ((bp->flags & TPA_ENABLE_FLAG) == 0);
-
-#ifdef BCM_CNIC
-	/* We don't want TPA on an FCoE L2 ring */
-	if (IS_FCOE_FP(fp))
-		fp->disable_tpa = 1;
-#endif
-}
-
-/**
  * bnx2x_move_fp - move content of the fastpath structure.
  *
  * @bp:		driver handle
@@ -2084,6 +2044,7 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 	bnx2x_drv_pulse(bp);
 
 	bnx2x_stats_handle(bp, STATS_EVENT_STOP);
+	bnx2x_save_statistics(bp);
 
 	/* Cleanup the chip if needed */
 	if (unload_mode != UNLOAD_RECOVERY)

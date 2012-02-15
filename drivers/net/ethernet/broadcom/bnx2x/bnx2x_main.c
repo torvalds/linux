@@ -10235,6 +10235,8 @@ static int bnx2x_open(struct net_device *dev)
 	int other_engine = BP_PATH(bp) ? 0 : 1;
 	bool other_load_status, load_status;
 
+	bp->stats_init = true;
+
 	netif_carrier_off(dev);
 
 	bnx2x_set_power_state(bp, PCI_D0);
