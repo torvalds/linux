@@ -28,6 +28,7 @@
 #include <asm/asm-compat.h>
 #include <asm/asm-offsets.h>
 #include <asm/bitsperlong.h>
+#include <asm/thread_info.h>
 
 #include "../kernel/head_booke.h" /* for THREAD_NORMSAVE() */
 
@@ -171,9 +172,36 @@
 	PPC_STL	r30, VCPU_GPR(r30)(r4)
 	PPC_STL	r31, VCPU_GPR(r31)(r4)
 	mtspr	SPRN_EPLC, r8
+
+	/* disable preemption, so we are sure we hit the fixup handler */
+#ifdef CONFIG_PPC64
+	clrrdi	r8,r1,THREAD_SHIFT
+#else
+	rlwinm	r8,r1,0,0,31-THREAD_SHIFT       /* current thread_info */
+#endif
+	li	r7, 1
+	stw	r7, TI_PREEMPT(r8)
+
 	isync
-	lwepx	r9, 0, r5
+
+	/*
+	 * In case the read goes wrong, we catch it and write an invalid value
+	 * in LAST_INST instead.
+	 */
+1:	lwepx	r9, 0, r5
+2:
+.section .fixup, "ax"
+3:	li	r9, KVM_INST_FETCH_FAILED
+	b	2b
+.previous
+.section __ex_table,"a"
+	PPC_LONG_ALIGN
+	PPC_LONG 1b,3b
+.previous
+
 	mtspr	SPRN_EPLC, r3
+	li	r7, 0
+	stw	r7, TI_PREEMPT(r8)
 	stw	r9, VCPU_LAST_INST(r4)
 	.endif
 
