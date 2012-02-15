@@ -218,6 +218,7 @@ static const struct device *lu_dev(const struct sbp2_logical_unit *lu)
 #define SBP2_CSR_UNIT_CHARACTERISTICS	0x3a
 #define SBP2_CSR_FIRMWARE_REVISION	0x3c
 #define SBP2_CSR_LOGICAL_UNIT_NUMBER	0x14
+#define SBP2_CSR_UNIT_UNIQUE_ID		0x8d
 #define SBP2_CSR_LOGICAL_UNIT_DIRECTORY	0xd4
 
 /* Management orb opcodes */
@@ -1005,6 +1006,13 @@ static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
 	return 0;
 }
 
+static void sbp2_get_unit_unique_id(struct sbp2_target *tgt,
+				    const u32 *leaf)
+{
+	if ((leaf[0] & 0xffff0000) == 0x00020000)
+		tgt->guid = (u64)leaf[1] << 32 | leaf[2];
+}
+
 static int sbp2_scan_logical_unit_dir(struct sbp2_target *tgt,
 				      const u32 *directory)
 {
@@ -1054,6 +1062,10 @@ static int sbp2_scan_unit_dir(struct sbp2_target *tgt, const u32 *directory,
 		case SBP2_CSR_LOGICAL_UNIT_NUMBER:
 			if (sbp2_add_logical_unit(tgt, value) < 0)
 				return -ENOMEM;
+			break;
+
+		case SBP2_CSR_UNIT_UNIQUE_ID:
+			sbp2_get_unit_unique_id(tgt, ci.p - 1 + value);
 			break;
 
 		case SBP2_CSR_LOGICAL_UNIT_DIRECTORY:
