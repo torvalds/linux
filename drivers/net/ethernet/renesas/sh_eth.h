@@ -679,6 +679,10 @@ enum TSU_FWSLC_BIT {
 	TSU_FWSLC_CAMSEL11 = 0x0002, TSU_FWSLC_CAMSEL10 = 0x0001,
 };
 
+/* TSU_VTAGn */
+#define TSU_VTAG_ENABLE		0x80000000
+#define TSU_VTAG_VID_MASK	0x00000fff
+
 /*
  * The sh ether Tx buffer descriptors.
  * This structure should be 20 bytes.
@@ -781,6 +785,7 @@ struct sh_eth_private {
 	char post_fw;		/* POST forward */
 	struct net_device_stats tsu_stats;	/* TSU forward status */
 	int port;		/* for TSU */
+	int vlan_num_ids;	/* for VLAN tag filter */
 
 	unsigned no_ether_link:1;
 	unsigned ether_link_active_low:1;

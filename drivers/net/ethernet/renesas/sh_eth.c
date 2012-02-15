@@ -1888,6 +1888,62 @@ static void sh_eth_set_multicast_list(struct net_device *ndev)
 
 	spin_unlock_irqrestore(&mdp->lock, flags);
 }
+
+static int sh_eth_get_vtag_index(struct sh_eth_private *mdp)
+{
+	if (!mdp->port)
+		return TSU_VTAG0;
+	else
+		return TSU_VTAG1;
+}
+
+static int sh_eth_vlan_rx_add_vid(struct net_device *ndev, u16 vid)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	int vtag_reg_index = sh_eth_get_vtag_index(mdp);
+
+	if (unlikely(!mdp->cd->tsu))
+		return -EPERM;
+
+	/* No filtering if vid = 0 */
+	if (!vid)
+		return 0;
+
+	mdp->vlan_num_ids++;
+
+	/*
+	 * The controller has one VLAN tag HW filter. So, if the filter is
+	 * already enabled, the driver disables it and the filte
+	 */
+	if (mdp->vlan_num_ids > 1) {
+		/* disable VLAN filter */
+		sh_eth_tsu_write(mdp, 0, vtag_reg_index);
+		return 0;
+	}
+
+	sh_eth_tsu_write(mdp, TSU_VTAG_ENABLE | (vid & TSU_VTAG_VID_MASK),
+			 vtag_reg_index);
+
+	return 0;
+}
+
+static int sh_eth_vlan_rx_kill_vid(struct net_device *ndev, u16 vid)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	int vtag_reg_index = sh_eth_get_vtag_index(mdp);
+
+	if (unlikely(!mdp->cd->tsu))
+		return -EPERM;
+
+	/* No filtering if vid = 0 */
+	if (!vid)
+		return 0;
+
+	mdp->vlan_num_ids--;
+	sh_eth_tsu_write(mdp, 0, vtag_reg_index);
+
+	return 0;
+}
 #endif /* SH_ETH_HAS_TSU */
 
 /* SuperH's TSU register init function */
@@ -2037,6 +2093,8 @@ static const struct net_device_ops sh_eth_netdev_ops = {
 	.ndo_get_stats		= sh_eth_get_stats,
 #if defined(SH_ETH_HAS_TSU)
 	.ndo_set_rx_mode	= sh_eth_set_multicast_list,
+	.ndo_vlan_rx_add_vid	= sh_eth_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= sh_eth_vlan_rx_kill_vid,
 #endif
 	.ndo_tx_timeout		= sh_eth_tx_timeout,
 	.ndo_do_ioctl		= sh_eth_do_ioctl,
@@ -2141,6 +2199,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		mdp->tsu_addr = ioremap(rtsu->start,
 					resource_size(rtsu));
 		mdp->port = devno % 2;
+		ndev->features = NETIF_F_HW_VLAN_FILTER;
 	}
 
 	/* initialize first or needed device */
