@@ -7,6 +7,8 @@
  *  Based on EP93xx wdt driver
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
@@ -160,7 +162,7 @@ ltq_wdt_release(struct inode *inode, struct file *file)
 	if (ltq_wdt_ok_to_close)
 		ltq_wdt_disable();
 	else
-		pr_err("ltq_wdt: watchdog closed without warning\n");
+		pr_err("watchdog closed without warning\n");
 	ltq_wdt_ok_to_close = 0;
 	clear_bit(0, &ltq_wdt_in_use);
 

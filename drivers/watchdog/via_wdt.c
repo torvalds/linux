@@ -10,6 +10,9 @@
  * Caveat: PnP must be enabled in BIOS to allow full access to watchdog
  * control registers. If not, the watchdog must be configured in BIOS manually.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>

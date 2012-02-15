@@ -8,6 +8,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -233,8 +235,8 @@ static int __devinit ks8695wdt_probe(struct platform_device *pdev)
 	if (res)
 		return res;
 
-	printk(KERN_INFO "KS8695 Watchdog Timer enabled (%d seconds%s)\n",
-				wdt_time, nowayout ? ", nowayout" : "");
+	pr_info("KS8695 Watchdog Timer enabled (%d seconds%s)\n",
+		wdt_time, nowayout ? ", nowayout" : "");
 	return 0;
 }
 

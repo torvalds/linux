@@ -52,6 +52,8 @@
  *  This driver uses memory mapped IO, and spinlock.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -68,9 +70,6 @@
 #include <linux/uaccess.h>
 
 #include <asm/system.h>
-
-#define OUR_NAME "sc520_wdt"
-#define PFX OUR_NAME ": "
 
 /*
  * The AMD Elan SC520 timeout value is 492us times a power of 2 (0-7)
@@ -151,8 +150,7 @@ static void wdt_timer_ping(unsigned long data)
 		/* Re-set the timer interval */
 		mod_timer(&timer, jiffies + WDT_INTERVAL);
 	} else
-		printk(KERN_WARNING PFX
-			"Heartbeat lost! Will not ping the watchdog\n");
+		pr_warn("Heartbeat lost! Will not ping the watchdog\n");
 }
 
 /*
@@ -187,7 +185,7 @@ static int wdt_startup(void)
 	/* Start the watchdog */
 	wdt_config(WDT_ENB | WDT_WRST_ENB | WDT_EXP_SEL_04);
 
-	printk(KERN_INFO PFX "Watchdog timer is now enabled.\n");
+	pr_info("Watchdog timer is now enabled\n");
 	return 0;
 }
 
@@ -199,7 +197,7 @@ static int wdt_turnoff(void)
 	/* Stop the watchdog */
 	wdt_config(0);
 
-	printk(KERN_INFO PFX "Watchdog timer is now disabled...\n");
+	pr_info("Watchdog timer is now disabled...\n");
 	return 0;
 }
 
@@ -270,8 +268,7 @@ static int fop_close(struct inode *inode, struct file *file)
 	if (wdt_expect_close == 42)
 		wdt_turnoff();
 	else {
-		printk(KERN_CRIT PFX
-			"Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, not stopping watchdog!\n");
 		wdt_keepalive();
 	}
 	clear_bit(0, &wdt_is_open);
@@ -393,36 +390,32 @@ static int __init sc520_wdt_init(void)
 	   if not reset to the default */
 	if (wdt_set_heartbeat(timeout)) {
 		wdt_set_heartbeat(WATCHDOG_TIMEOUT);
-		printk(KERN_INFO PFX
-		    "timeout value must be 1 <= timeout <= 3600, using %d\n",
-							WATCHDOG_TIMEOUT);
+		pr_info("timeout value must be 1 <= timeout <= 3600, using %d\n",
+			WATCHDOG_TIMEOUT);
 	}
 
 	wdtmrctl = ioremap(MMCR_BASE + OFFS_WDTMRCTL, 2);
 	if (!wdtmrctl) {
-		printk(KERN_ERR PFX "Unable to remap memory\n");
+		pr_err("Unable to remap memory\n");
 		rc = -ENOMEM;
 		goto err_out_region2;
 	}
 
 	rc = register_reboot_notifier(&wdt_notifier);
 	if (rc) {
-		printk(KERN_ERR PFX
-			"cannot register reboot notifier (err=%d)\n", rc);
+		pr_err("cannot register reboot notifier (err=%d)\n", rc);
 		goto err_out_ioremap;
 	}
 
 	rc = misc_register(&wdt_miscdev);
 	if (rc) {
-		printk(KERN_ERR PFX
-			"cannot register miscdev on minor=%d (err=%d)\n",
-							WATCHDOG_MINOR, rc);
+		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
+		       WATCHDOG_MINOR, rc);
 		goto err_out_notifier;
 	}
 
-	printk(KERN_INFO PFX
-	   "WDT driver for SC520 initialised. timeout=%d sec (nowayout=%d)\n",
-							timeout, nowayout);
+	pr_info("WDT driver for SC520 initialised. timeout=%d sec (nowayout=%d)\n",
+		timeout, nowayout);
 
 	return 0;
 

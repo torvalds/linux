@@ -17,6 +17,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -114,8 +116,7 @@ static int ath79_wdt_release(struct inode *inode, struct file *file)
 	if (test_bit(WDT_FLAGS_EXPECT_CLOSE, &wdt_flags))
 		ath79_wdt_disable();
 	else {
-		pr_crit(DRIVER_NAME ": device closed unexpectedly, "
-			"watchdog timer will not stop!\n");
+		pr_crit("device closed unexpectedly, watchdog timer will not stop!\n");
 		ath79_wdt_keepalive();
 	}
 

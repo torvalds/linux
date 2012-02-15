@@ -16,7 +16,8 @@
  * If we receive an expected close for the watchdog then we keep the timer
  * running, otherwise the timer is stopped and the watchdog will expire.
  */
-#define pr_fmt(fmt) "dw_wdt: " fmt
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/bitops.h>
 #include <linux/clk.h>

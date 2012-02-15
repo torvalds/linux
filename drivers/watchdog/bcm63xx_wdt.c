@@ -10,6 +10,8 @@
  *  2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/bitops.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -82,7 +84,7 @@ static void bcm63xx_timer_tick(unsigned long unused)
 		bcm63xx_wdt_hw_start();
 		mod_timer(&bcm63xx_wdt_device.timer, jiffies + HZ);
 	} else
-		printk(KERN_CRIT PFX ": watchdog will restart system\n");
+		pr_crit("watchdog will restart system\n");
 }
 
 static void bcm63xx_wdt_pet(void)
@@ -126,8 +128,7 @@ static int bcm63xx_wdt_release(struct inode *inode, struct file *file)
 	if (expect_close == 42)
 		bcm63xx_wdt_pause();
 	else {
-		printk(KERN_CRIT PFX
-			": Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, not stopping watchdog!\n");
 		bcm63xx_wdt_start();
 	}
 	clear_bit(0, &bcm63xx_wdt_device.inuse);

@@ -17,6 +17,9 @@
  *     Added expect close support, made emulated timeout runtime changeable
  *     general cleanups, add some ioctls
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
@@ -440,20 +443,20 @@ static int __init sh_wdt_init(void)
 		     clock_division_ratio > 0x7)) {
 		clock_division_ratio = WTCSR_CKS_4096;
 
-		pr_info("%s: divisor must be 0x5<=x<=0x7, using %d\n",
-			 DRV_NAME, clock_division_ratio);
+		pr_info("divisor must be 0x5<=x<=0x7, using %d\n",
+			clock_division_ratio);
 	}
 
 	rc = sh_wdt_set_heartbeat(heartbeat);
 	if (unlikely(rc)) {
 		heartbeat = WATCHDOG_HEARTBEAT;
 
-		pr_info("%s: heartbeat value must be 1<=x<=3600, using %d\n",
-			DRV_NAME, heartbeat);
+		pr_info("heartbeat value must be 1<=x<=3600, using %d\n",
+			heartbeat);
 	}
 
-	pr_info("%s: configured with heartbeat=%d sec (nowayout=%d)\n",
-		DRV_NAME, heartbeat, nowayout);
+	pr_info("configured with heartbeat=%d sec (nowayout=%d)\n",
+		heartbeat, nowayout);
 
 	return platform_driver_register(&sh_wdt_driver);
 }

@@ -23,6 +23,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -45,8 +47,6 @@
 #define S3C_VA_WATCHDOG (0)
 
 #include <plat/regs-watchdog.h>
-
-#define PFX "s3c2410-wdt: "
 
 #define CONFIG_S3C2410_WATCHDOG_ATBOOT		(0)
 #define CONFIG_S3C2410_WATCHDOG_DEFAULT_TIME	(15)
@@ -84,10 +84,11 @@ static DEFINE_SPINLOCK(wdt_lock);
 
 /* watchdog control routines */
 
-#define DBG(msg...) do { \
-	if (debug) \
-		printk(KERN_INFO msg); \
-	} while (0)
+#define DBG(fmt, ...)					\
+do {							\
+	if (debug)					\
+		pr_info(fmt, ##__VA_ARGS__);		\
+} while (0)
 
 /* functions */
 
@@ -354,7 +355,7 @@ static int __devinit s3c2410wdt_probe(struct platform_device *pdev)
 
 	ret = s3c2410wdt_cpufreq_register();
 	if (ret < 0) {
-		printk(KERN_ERR PFX "failed to register cpufreq\n");
+		pr_err("failed to register cpufreq\n");
 		goto err_clk;
 	}
 
@@ -483,8 +484,8 @@ static int s3c2410wdt_resume(struct platform_device *dev)
 	writel(wtdat_save, wdt_base + S3C2410_WTCNT); /* Reset count */
 	writel(wtcon_save, wdt_base + S3C2410_WTCON);
 
-	printk(KERN_INFO PFX "watchdog %sabled\n",
-	       (wtcon_save & S3C2410_WTCON_ENABLE) ? "en" : "dis");
+	pr_info("watchdog %sabled\n",
+		(wtcon_save & S3C2410_WTCON_ENABLE) ? "en" : "dis");
 
 	return 0;
 }
@@ -518,12 +519,10 @@ static struct platform_driver s3c2410wdt_driver = {
 };
 
 
-static char banner[] __initdata =
-	KERN_INFO "S3C2410 Watchdog Timer, (c) 2004 Simtec Electronics\n";
-
 static int __init watchdog_init(void)
 {
-	printk(banner);
+	pr_info("S3C2410 Watchdog Timer, (c) 2004 Simtec Electronics\n";
+
 	return platform_driver_register(&s3c2410wdt_driver);
 }
 

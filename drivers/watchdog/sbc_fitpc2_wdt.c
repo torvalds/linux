@@ -171,8 +171,7 @@ static int fitpc2_wdt_release(struct inode *inode, struct file *file)
 		wdt_disable();
 		pr_info("Device disabled\n");
 	} else {
-		pr_warning("Device closed unexpectedly -"
-			" timer will not stop\n");
+		pr_warn("Device closed unexpectedly - timer will not stop\n");
 		wdt_enable();
 	}
 
@@ -222,8 +221,8 @@ static int __init fitpc2_wdt_init(void)
 	}
 
 	if (margin < 31 || margin > 255) {
-		pr_err("margin must be in range 31 - 255"
-		       " seconds, you tried to set %d\n", margin);
+		pr_err("margin must be in range 31 - 255 seconds, you tried to set %d\n",
+		       margin);
 		err = -EINVAL;
 		goto err_margin;
 	}
@@ -231,7 +230,7 @@ static int __init fitpc2_wdt_init(void)
 	err = misc_register(&fitpc2_wdt_miscdev);
 	if (err) {
 		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-							WATCHDOG_MINOR, err);
+		       WATCHDOG_MINOR, err);
 		goto err_margin;
 	}
 

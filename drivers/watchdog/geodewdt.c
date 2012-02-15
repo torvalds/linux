@@ -9,6 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -100,7 +101,7 @@ static int geodewdt_release(struct inode *inode, struct file *file)
 		geodewdt_disable();
 		module_put(THIS_MODULE);
 	} else {
-		printk(KERN_CRIT "Unexpected close - watchdog is not stopping.\n");
+		pr_crit("Unexpected close - watchdog is not stopping\n");
 		geodewdt_ping();
 
 		set_bit(WDT_FLAGS_ORPHAN, &wdt_flags);
@@ -220,7 +221,7 @@ static int __devinit geodewdt_probe(struct platform_device *dev)
 
 	wdt_timer = cs5535_mfgpt_alloc_timer(MFGPT_TIMER_ANY, MFGPT_DOMAIN_WORKING);
 	if (!wdt_timer) {
-		printk(KERN_ERR "geodewdt:  No timers were available\n");
+		pr_err("No timers were available\n");
 		return -ENODEV;
 	}
 

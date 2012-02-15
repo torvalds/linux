@@ -29,6 +29,8 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -47,7 +49,6 @@
 
 #define WATCHDOG_VERSION	"1.14"
 #define WATCHDOG_NAME		"IT87 WDT"
-#define PFX			WATCHDOG_NAME ": "
 #define DRIVER_VERSION		WATCHDOG_NAME " driver, v" WATCHDOG_VERSION "\n"
 #define WD_MAGIC		'V'
 
@@ -428,8 +429,7 @@ static int wdt_release(struct inode *inode, struct file *file)
 			clear_bit(WDTS_TIMER_RUN, &wdt_status);
 		} else {
 			wdt_keepalive();
-			printk(KERN_CRIT PFX
-			       "unexpected close, not stopping watchdog!\n");
+			pr_crit("unexpected close, not stopping watchdog!\n");
 		}
 	}
 	clear_bit(WDTS_DEV_OPEN, &wdt_status);
@@ -621,16 +621,14 @@ static int __init it87_wdt_init(void)
 		try_gameport = 0;
 		break;
 	case IT8705_ID:
-		printk(KERN_ERR PFX
-		       "Unsupported Chip found, Chip %04x Revision %02x\n",
+		pr_err("Unsupported Chip found, Chip %04x Revision %02x\n",
 		       chip_type, chip_rev);
 		return -ENODEV;
 	case NO_DEV_ID:
-		printk(KERN_ERR PFX "no device\n");
+		pr_err("no device\n");
 		return -ENODEV;
 	default:
-		printk(KERN_ERR PFX
-		       "Unknown Chip found, Chip %04x Revision %04x\n",
+		pr_err("Unknown Chip found, Chip %04x Revision %04x\n",
 		       chip_type, chip_rev);
 		return -ENODEV;
 	}
@@ -663,13 +661,11 @@ static int __init it87_wdt_init(void)
 	if (!test_bit(WDTS_USE_GP, &wdt_status)) {
 		if (!request_region(CIR_BASE, 8, WATCHDOG_NAME)) {
 			if (gp_rreq_fail)
-				printk(KERN_ERR PFX
-					"I/O Address 0x%04x and 0x%04x"
-					" already in use\n", base, CIR_BASE);
+				pr_err("I/O Address 0x%04x and 0x%04x already in use\n",
+				       base, CIR_BASE);
 			else
-				printk(KERN_ERR PFX
-					"I/O Address 0x%04x already in use\n",
-					CIR_BASE);
+				pr_err("I/O Address 0x%04x already in use\n",
+				       CIR_BASE);
 			rc = -EIO;
 			goto err_out;
 		}
@@ -688,9 +684,8 @@ static int __init it87_wdt_init(void)
 
 	if (timeout < 1 || timeout > max_units * 60) {
 		timeout = DEFAULT_TIMEOUT;
-		printk(KERN_WARNING PFX
-		       "Timeout value out of range, use default %d sec\n",
-		       DEFAULT_TIMEOUT);
+		pr_warn("Timeout value out of range, use default %d sec\n",
+			DEFAULT_TIMEOUT);
 	}
 
 	if (timeout > max_units)
@@ -698,16 +693,14 @@ static int __init it87_wdt_init(void)
 
 	rc = register_reboot_notifier(&wdt_notifier);
 	if (rc) {
-		printk(KERN_ERR PFX
-		       "Cannot register reboot notifier (err=%d)\n", rc);
+		pr_err("Cannot register reboot notifier (err=%d)\n", rc);
 		goto err_out_region;
 	}
 
 	rc = misc_register(&wdt_miscdev);
 	if (rc) {
-		printk(KERN_ERR PFX
-		       "Cannot register miscdev on minor=%d (err=%d)\n",
-			wdt_miscdev.minor, rc);
+		pr_err("Cannot register miscdev on minor=%d (err=%d)\n",
+		       wdt_miscdev.minor, rc);
 		goto err_out_reboot;
 	}
 
@@ -722,9 +715,8 @@ static int __init it87_wdt_init(void)
 		outb(0x09, CIR_IER(base));
 	}
 
-	printk(KERN_INFO PFX "Chip IT%04x revision %d initialized. "
-		"timeout=%d sec (nowayout=%d testmode=%d exclusive=%d "
-		"nogameport=%d)\n", chip_type, chip_rev, timeout,
+	pr_info("Chip IT%04x revision %d initialized. timeout=%d sec (nowayout=%d testmode=%d exclusive=%d nogameport=%d)\n",
+		chip_type, chip_rev, timeout,
 		nowayout, testmode, exclusive, nogameport);
 
 	superio_exit();

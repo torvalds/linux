@@ -36,6 +36,8 @@
  *	Added Matt Domsch's nowayout module option.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -49,8 +51,6 @@
 #include <linux/jiffies.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
-
-#define PFX "SoftDog: "
 
 #define TIMER_MARGIN	60		/* Default is 60 seconds */
 static int soft_margin = TIMER_MARGIN;	/* in seconds */
@@ -103,14 +103,14 @@ static void watchdog_fire(unsigned long data)
 		module_put(THIS_MODULE);
 
 	if (soft_noboot)
-		printk(KERN_CRIT PFX "Triggered - Reboot ignored.\n");
+		pr_crit("Triggered - Reboot ignored\n");
 	else if (soft_panic) {
-		printk(KERN_CRIT PFX "Initiating panic.\n");
-		panic("Software Watchdog Timer expired.");
+		pr_crit("Initiating panic\n");
+		panic("Software Watchdog Timer expired");
 	} else {
-		printk(KERN_CRIT PFX "Initiating system reboot.\n");
+		pr_crit("Initiating system reboot\n");
 		emergency_restart();
-		printk(KERN_CRIT PFX "Reboot didn't ?????\n");
+		pr_crit("Reboot didn't ?????\n");
 	}
 }
 
@@ -166,8 +166,7 @@ static int softdog_release(struct inode *inode, struct file *file)
 		softdog_stop();
 		module_put(THIS_MODULE);
 	} else {
-		printk(KERN_CRIT PFX
-			"Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, not stopping watchdog!\n");
 		set_bit(0, &orphan_timer);
 		softdog_keepalive();
 	}
@@ -275,10 +274,6 @@ static struct notifier_block softdog_notifier = {
 	.notifier_call	= softdog_notify_sys,
 };
 
-static char banner[] __initdata = KERN_INFO "Software Watchdog Timer: 0.07 "
-	"initialized. soft_noboot=%d soft_margin=%d sec soft_panic=%d "
-	"(nowayout= %d)\n";
-
 static int __init watchdog_init(void)
 {
 	int ret;
@@ -287,28 +282,26 @@ static int __init watchdog_init(void)
 	   if not reset to the default */
 	if (softdog_set_heartbeat(soft_margin)) {
 		softdog_set_heartbeat(TIMER_MARGIN);
-		printk(KERN_INFO PFX
-		    "soft_margin must be 0 < soft_margin < 65536, using %d\n",
+		pr_info("soft_margin must be 0 < soft_margin < 65536, using %d\n",
 			TIMER_MARGIN);
 	}
 
 	ret = register_reboot_notifier(&softdog_notifier);
 	if (ret) {
-		printk(KERN_ERR PFX
-			"cannot register reboot notifier (err=%d)\n", ret);
+		pr_err("cannot register reboot notifier (err=%d)\n", ret);
 		return ret;
 	}
 
 	ret = misc_register(&softdog_miscdev);
 	if (ret) {
-		printk(KERN_ERR PFX
-			"cannot register miscdev on minor=%d (err=%d)\n",
-						WATCHDOG_MINOR, ret);
+		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
+		       WATCHDOG_MINOR, ret);
 		unregister_reboot_notifier(&softdog_notifier);
 		return ret;
 	}
 
-	printk(banner, soft_noboot, soft_margin, soft_panic, nowayout);
+	pr_info("Software Watchdog Timer: 0.07 initialized. soft_noboot=%d soft_margin=%d sec soft_panic=%d (nowayout= %d)\n",
+		soft_noboot, soft_margin, soft_panic, nowayout);
 
 	return 0;
 }
