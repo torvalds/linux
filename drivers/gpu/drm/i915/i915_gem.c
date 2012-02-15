@@ -2102,6 +2102,7 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 		i915_ppgtt_unbind_object(dev_priv->mm.aliasing_ppgtt, obj);
 		obj->has_aliasing_ppgtt_mapping = 0;
 	}
+	i915_gem_gtt_finish_object(obj);
 
 	i915_gem_object_put_pages_gtt(obj);
 
@@ -2746,7 +2747,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 		return ret;
 	}
 
-	ret = i915_gem_gtt_bind_object(obj);
+	ret = i915_gem_gtt_prepare_object(obj);
 	if (ret) {
 		i915_gem_object_put_pages_gtt(obj);
 		drm_mm_put_block(obj->gtt_space);
@@ -2757,6 +2758,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 
 		goto search_free;
 	}
+	i915_gem_gtt_bind_object(obj, obj->cache_level);
 
 	list_add_tail(&obj->gtt_list, &dev_priv->mm.gtt_list);
 	list_add_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
@@ -2950,7 +2952,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				return ret;
 		}
 
-		i915_gem_gtt_rebind_object(obj, cache_level);
+		i915_gem_gtt_bind_object(obj, cache_level);
 		if (obj->has_aliasing_ppgtt_mapping)
 			i915_ppgtt_bind_object(dev_priv->mm.aliasing_ppgtt,
 					       obj, cache_level);

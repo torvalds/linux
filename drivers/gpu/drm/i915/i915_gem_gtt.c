@@ -355,42 +355,28 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 
 	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list) {
 		i915_gem_clflush_object(obj);
-		i915_gem_gtt_rebind_object(obj, obj->cache_level);
+		i915_gem_gtt_bind_object(obj, obj->cache_level);
 	}
 
 	intel_gtt_chipset_flush();
 }
 
-int i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj)
+int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned int agp_type = cache_level_to_agp_type(dev, obj->cache_level);
-	int ret;
 
-	if (dev_priv->mm.gtt->needs_dmar) {
-		ret = intel_gtt_map_memory(obj->pages,
-					   obj->base.size >> PAGE_SHIFT,
-					   &obj->sg_list,
-					   &obj->num_sg);
-		if (ret != 0)
-			return ret;
-
-		intel_gtt_insert_sg_entries(obj->sg_list,
-					    obj->num_sg,
-					    obj->gtt_space->start >> PAGE_SHIFT,
-					    agp_type);
-	} else
-		intel_gtt_insert_pages(obj->gtt_space->start >> PAGE_SHIFT,
-				       obj->base.size >> PAGE_SHIFT,
-				       obj->pages,
-				       agp_type);
-
-	return 0;
+	if (dev_priv->mm.gtt->needs_dmar)
+		return intel_gtt_map_memory(obj->pages,
+					    obj->base.size >> PAGE_SHIFT,
+					    &obj->sg_list,
+					    &obj->num_sg);
+	else
+		return 0;
 }
 
-void i915_gem_gtt_rebind_object(struct drm_i915_gem_object *obj,
-				enum i915_cache_level cache_level)
+void i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
+			      enum i915_cache_level cache_level)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -412,14 +398,17 @@ void i915_gem_gtt_rebind_object(struct drm_i915_gem_object *obj,
 
 void i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj)
 {
+	intel_gtt_clear_range(obj->gtt_space->start >> PAGE_SHIFT,
+			      obj->base.size >> PAGE_SHIFT);
+}
+
+void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
+{
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool interruptible;
 
 	interruptible = do_idling(dev_priv);
-
-	intel_gtt_clear_range(obj->gtt_space->start >> PAGE_SHIFT,
-			      obj->base.size >> PAGE_SHIFT);
 
 	if (obj->sg_list) {
 		intel_gtt_unmap_memory(obj->sg_list, obj->num_sg);
