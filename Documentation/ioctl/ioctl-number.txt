@@ -189,7 +189,7 @@ Code  Seq#(hex)	Include File		Comments
 'Y'	all	linux/cyclades.h
 'Z'	14-15	drivers/message/fusion/mptctl.h
 '['	00-07	linux/usb/tmc.h		USB Test and Measurement Devices
-					<mailto:gregkh@suse.de>
+					<mailto:gregkh@linuxfoundation.org>
 'a'	all	linux/atm*.h, linux/sonet.h	ATM on linux
 					<http://lrcwww.epfl.ch/>
 'b'	00-FF				conflict! bit3 vme host bridge
