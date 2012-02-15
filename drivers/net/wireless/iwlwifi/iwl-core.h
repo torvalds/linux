@@ -197,6 +197,8 @@ const char *get_ctrl_string(int cmd);
 void iwl_clear_traffic_stats(struct iwl_priv *priv);
 void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc,
 		      u16 len);
+void iwl_reset_traffic_log(struct iwl_priv *priv);
+
 #else
 static inline int iwl_alloc_traffic_mem(struct iwl_priv *priv)
 {

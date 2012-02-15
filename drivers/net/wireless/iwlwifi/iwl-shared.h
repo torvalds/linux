@@ -553,10 +553,6 @@ void __releases(wait_entry)
 iwl_remove_notification(struct iwl_shared *shrd,
 			   struct iwl_notification_wait *wait_entry);
 
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-void iwl_reset_traffic_log(struct iwl_priv *priv);
-#endif /* CONFIG_IWLWIFI_DEBUGFS */
-
 #define IWL_CMD(x) case x: return #x
 #define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
 
