@@ -21,7 +21,7 @@
 *******************************************************************************/
 
 #define STMMAC_RESOURCE_NAME   "stmmaceth"
-#define DRV_MODULE_VERSION	"Dec_2011"
+#define DRV_MODULE_VERSION	"Feb_2012"
 #include <linux/stmmac.h>
 #include <linux/phy.h>
 #include "common.h"
