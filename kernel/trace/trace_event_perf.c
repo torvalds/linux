@@ -24,6 +24,11 @@ static int	total_ref_count;
 static int perf_trace_event_perm(struct ftrace_event_call *tp_event,
 				 struct perf_event *p_event)
 {
+	/* The ftrace function trace is allowed only for root. */
+	if (ftrace_event_is_function(tp_event) &&
+	    perf_paranoid_kernel() && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	/* No tracing, just counting, so no obvious leak */
 	if (!(p_event->attr.sample_type & PERF_SAMPLE_RAW))
 		return 0;
@@ -250,3 +255,84 @@ __kprobes void *perf_trace_buf_prepare(int size, unsigned short type,
 	return raw_data;
 }
 EXPORT_SYMBOL_GPL(perf_trace_buf_prepare);
+
+#ifdef CONFIG_FUNCTION_TRACER
+static void
+perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip)
+{
+	struct ftrace_entry *entry;
+	struct hlist_head *head;
+	struct pt_regs regs;
+	int rctx;
+
+#define ENTRY_SIZE (ALIGN(sizeof(struct ftrace_entry) + sizeof(u32), \
+		    sizeof(u64)) - sizeof(u32))
+
+	BUILD_BUG_ON(ENTRY_SIZE > PERF_MAX_TRACE_SIZE);
+
+	perf_fetch_caller_regs(&regs);
+
+	entry = perf_trace_buf_prepare(ENTRY_SIZE, TRACE_FN, NULL, &rctx);
+	if (!entry)
+		return;
+
+	entry->ip = ip;
+	entry->parent_ip = parent_ip;
+
+	head = this_cpu_ptr(event_function.perf_events);
+	perf_trace_buf_submit(entry, ENTRY_SIZE, rctx, 0,
+			      1, &regs, head);
+
+#undef ENTRY_SIZE
+}
+
+static int perf_ftrace_function_register(struct perf_event *event)
+{
+	struct ftrace_ops *ops = &event->ftrace_ops;
+
+	ops->flags |= FTRACE_OPS_FL_CONTROL;
+	ops->func = perf_ftrace_function_call;
+	return register_ftrace_function(ops);
+}
+
+static int perf_ftrace_function_unregister(struct perf_event *event)
+{
+	struct ftrace_ops *ops = &event->ftrace_ops;
+	return unregister_ftrace_function(ops);
+}
+
+static void perf_ftrace_function_enable(struct perf_event *event)
+{
+	ftrace_function_local_enable(&event->ftrace_ops);
+}
+
+static void perf_ftrace_function_disable(struct perf_event *event)
+{
+	ftrace_function_local_disable(&event->ftrace_ops);
+}
+
+int perf_ftrace_event_register(struct ftrace_event_call *call,
+			       enum trace_reg type, void *data)
+{
+	switch (type) {
+	case TRACE_REG_REGISTER:
+	case TRACE_REG_UNREGISTER:
+		break;
+	case TRACE_REG_PERF_REGISTER:
+	case TRACE_REG_PERF_UNREGISTER:
+		return 0;
+	case TRACE_REG_PERF_OPEN:
+		return perf_ftrace_function_register(data);
+	case TRACE_REG_PERF_CLOSE:
+		return perf_ftrace_function_unregister(data);
+	case TRACE_REG_PERF_ADD:
+		perf_ftrace_function_enable(data);
+		return 0;
+	case TRACE_REG_PERF_DEL:
+		perf_ftrace_function_disable(data);
+		return 0;
+	}
+
+	return -EINVAL;
+}
+#endif /* CONFIG_FUNCTION_TRACER */

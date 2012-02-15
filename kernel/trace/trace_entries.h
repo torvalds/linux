@@ -55,7 +55,7 @@
 /*
  * Function trace entry - function address and parent function address:
  */
-FTRACE_ENTRY(function, ftrace_entry,
+FTRACE_ENTRY_REG(function, ftrace_entry,
 
 	TRACE_FN,
 
@@ -64,7 +64,9 @@ FTRACE_ENTRY(function, ftrace_entry,
 		__field(	unsigned long,	parent_ip	)
 	),
 
-	F_printk(" %lx <-- %lx", __entry->ip, __entry->parent_ip)
+	F_printk(" %lx <-- %lx", __entry->ip, __entry->parent_ip),
+
+	perf_ftrace_event_register
 );
 
 /* Function call entry */
