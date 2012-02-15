@@ -191,9 +191,7 @@ struct isci_host {
 	struct asd_sas_port sas_ports[SCI_MAX_PORTS];
 	struct sas_ha_struct sas_ha;
 
-	spinlock_t state_lock;
 	struct pci_dev *pdev;
-	enum isci_status status;
 	#define IHOST_START_PENDING 0
 	#define IHOST_STOP_PENDING 1
 	unsigned long flags;
@@ -314,27 +312,6 @@ static inline struct isci_pci_info *to_pci_info(struct pci_dev *pdev)
 	for (id = 0, ihost = to_pci_info(pdev)->hosts[id]; \
 	     id < ARRAY_SIZE(to_pci_info(pdev)->hosts) && ihost; \
 	     ihost = to_pci_info(pdev)->hosts[++id])
-
-static inline enum isci_status isci_host_get_state(struct isci_host *isci_host)
-{
-	return isci_host->status;
-}
-
-static inline void isci_host_change_state(struct isci_host *isci_host,
-					  enum isci_status status)
-{
-	unsigned long flags;
-
-	dev_dbg(&isci_host->pdev->dev,
-		"%s: isci_host = %p, state = 0x%x",
-		__func__,
-		isci_host,
-		status);
-	spin_lock_irqsave(&isci_host->state_lock, flags);
-	isci_host->status = status;
-	spin_unlock_irqrestore(&isci_host->state_lock, flags);
-
-}
 
 static inline void wait_for_start(struct isci_host *ihost)
 {

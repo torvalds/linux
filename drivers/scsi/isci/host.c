@@ -642,7 +642,6 @@ static void isci_host_start_complete(struct isci_host *ihost, enum sci_status co
 	if (completion_status != SCI_SUCCESS)
 		dev_info(&ihost->pdev->dev,
 			"controller start timed out, continuing...\n");
-	isci_host_change_state(ihost, isci_ready);
 	clear_bit(IHOST_START_PENDING, &ihost->flags);
 	wake_up(&ihost->eventq);
 }
@@ -657,12 +656,7 @@ int isci_host_scan_finished(struct Scsi_Host *shost, unsigned long time)
 
 	sas_drain_work(ha);
 
-	dev_dbg(&ihost->pdev->dev,
-		"%s: ihost->status = %d, time = %ld\n",
-		 __func__, isci_host_get_state(ihost), time);
-
 	return 1;
-
 }
 
 /**
@@ -1054,7 +1048,6 @@ void isci_host_scan_start(struct Scsi_Host *shost)
 
 static void isci_host_stop_complete(struct isci_host *ihost, enum sci_status completion_status)
 {
-	isci_host_change_state(ihost, isci_stopped);
 	sci_controller_disable_interrupts(ihost);
 	clear_bit(IHOST_STOP_PENDING, &ihost->flags);
 	wake_up(&ihost->eventq);
@@ -1262,7 +1255,6 @@ void isci_host_deinit(struct isci_host *ihost)
 	for (i = 0; i < isci_gpio_count(ihost); i++)
 		writel(SGPIO_HW_CONTROL, &ihost->scu_registers->peg0.sgpio.output_data_select[i]);
 
-	isci_host_change_state(ihost, isci_stopping);
 	for (i = 0; i < SCI_MAX_PORTS; i++) {
 		struct isci_port *iport = &ihost->ports[i];
 		struct isci_remote_device *idev, *d;
@@ -2494,11 +2486,8 @@ int isci_host_init(struct isci_host *ihost)
 	struct sci_user_parameters sci_user_params;
 	struct isci_pci_info *pci_info = to_pci_info(ihost->pdev);
 
-	spin_lock_init(&ihost->state_lock);
 	spin_lock_init(&ihost->scic_lock);
 	init_waitqueue_head(&ihost->eventq);
-
-	isci_host_change_state(ihost, isci_starting);
 
 	status = sci_controller_construct(ihost, scu_base(ihost),
 					  smu_base(ihost));
