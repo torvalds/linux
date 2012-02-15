@@ -799,13 +799,12 @@ static int __devinit usbhs_omap_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, omap);
 
+	omap_usbhs_init(dev);
 	ret = omap_usbhs_alloc_children(pdev);
 	if (ret) {
 		dev_err(dev, "omap_usbhs_alloc_children failed\n");
 		goto err_alloc;
 	}
-
-	omap_usbhs_init(dev);
 
 	goto end_probe;
 
