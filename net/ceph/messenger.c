@@ -1544,10 +1544,9 @@ static int read_partial_message_section(struct ceph_connection *con,
 		if (ret <= 0)
 			return ret;
 		section->iov_len += ret;
-		if (section->iov_len == sec_len)
-			*crc = crc32c(0, section->iov_base,
-				      section->iov_len);
 	}
+	if (section->iov_len == sec_len)
+		*crc = crc32c(0, section->iov_base, section->iov_len);
 
 	return 1;
 }
@@ -1638,6 +1637,7 @@ static int read_partial_message(struct ceph_connection *con)
 	bool do_datacrc = con->msgr->nocrc;
 	int skip;
 	u64 seq;
+	u32 crc;
 
 	dout("read_partial_message con %p msg %p\n", con, m);
 
@@ -1650,18 +1650,16 @@ static int read_partial_message(struct ceph_connection *con)
 		if (ret <= 0)
 			return ret;
 		con->in_base_pos += ret;
-		if (con->in_base_pos == sizeof(con->in_hdr)) {
-			u32 crc = crc32c(0, &con->in_hdr,
-					offsetof(struct ceph_msg_header, crc));
-
-			if (cpu_to_le32(crc) != con->in_hdr.crc) {
-				pr_err("read_partial_message bad hdr "
-				       " crc %u != expected %u\n",
-				       crc, con->in_hdr.crc);
-				return -EBADMSG;
-			}
-		}
 	}
+
+	crc = crc32c(0, &con->in_hdr, offsetof(struct ceph_msg_header, crc));
+	if (cpu_to_le32(crc) != con->in_hdr.crc) {
+		pr_err("read_partial_message bad hdr "
+		       " crc %u != expected %u\n",
+		       crc, con->in_hdr.crc);
+		return -EBADMSG;
+	}
+
 	front_len = le32_to_cpu(con->in_hdr.front_len);
 	if (front_len > CEPH_MSG_MAX_FRONT_LEN)
 		return -EIO;
