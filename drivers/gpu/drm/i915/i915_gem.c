@@ -2762,7 +2762,9 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 
 		goto search_free;
 	}
-	i915_gem_gtt_bind_object(obj, obj->cache_level);
+
+	if (!dev_priv->mm.aliasing_ppgtt)
+		i915_gem_gtt_bind_object(obj, obj->cache_level);
 
 	list_add_tail(&obj->gtt_list, &dev_priv->mm.gtt_list);
 	list_add_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
