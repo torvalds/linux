@@ -27,13 +27,6 @@
 #include <linux/spinlock.h>
 #include <linux/clk.h>
 
-/* macro for building platform_device for McBSP ports */
-#define OMAP_MCBSP_PLATFORM_DEVICE(port_nr)		\
-static struct platform_device omap_mcbsp##port_nr = {	\
-	.name	= "omap-mcbsp-dai",			\
-	.id	= port_nr - 1,			\
-}
-
 #define MCBSP_CONFIG_TYPE2	0x2
 #define MCBSP_CONFIG_TYPE3	0x3
 #define MCBSP_CONFIG_TYPE4	0x4

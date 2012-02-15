@@ -26,7 +26,6 @@
 
 #include <plat/tc.h>
 #include <plat/board.h>
-#include <plat/mcbsp.h>
 #include <plat/mmc.h>
 #include <plat/dma.h>
 #include <plat/omap_hwmod.h>
@@ -304,29 +303,8 @@ static struct platform_device omap_pcm = {
 	.id	= -1,
 };
 
-/*
- * OMAP2420 has 2 McBSP ports
- * OMAP2430 has 5 McBSP ports
- * OMAP3 has 5 McBSP ports
- * OMAP4 has 4 McBSP ports
- */
-OMAP_MCBSP_PLATFORM_DEVICE(1);
-OMAP_MCBSP_PLATFORM_DEVICE(2);
-OMAP_MCBSP_PLATFORM_DEVICE(3);
-OMAP_MCBSP_PLATFORM_DEVICE(4);
-OMAP_MCBSP_PLATFORM_DEVICE(5);
-
 static void omap_init_audio(void)
 {
-	platform_device_register(&omap_mcbsp1);
-	platform_device_register(&omap_mcbsp2);
-	if (cpu_is_omap243x() || cpu_is_omap34xx() || cpu_is_omap44xx()) {
-		platform_device_register(&omap_mcbsp3);
-		platform_device_register(&omap_mcbsp4);
-	}
-	if (cpu_is_omap243x() || cpu_is_omap34xx())
-		platform_device_register(&omap_mcbsp5);
-
 	platform_device_register(&omap_pcm);
 }
 
