@@ -47,7 +47,6 @@
 #include <linux/ioport.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/module.h>
 
 #include "core.h"
 #include "io.h"
