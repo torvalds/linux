@@ -7125,6 +7125,11 @@ int bnx2x_alloc_mem(struct bnx2x *bp)
 	BNX2X_PCI_ALLOC(bp->slowpath, &bp->slowpath_mapping,
 			sizeof(struct bnx2x_slowpath));
 
+#ifdef BCM_CNIC
+	/* write address to which L5 should insert its values */
+	bp->cnic_eth_dev.addr_drv_info_to_mcp = &bp->slowpath->drv_info_to_mcp;
+#endif
+
 	/* Allocated memory for FW statistics  */
 	if (bnx2x_alloc_fw_stats_mem(bp))
 		goto alloc_mem_err;
