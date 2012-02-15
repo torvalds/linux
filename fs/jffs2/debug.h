@@ -51,6 +51,7 @@
  * superseded by nicer dbg_xxx() macros...
  */
 #if CONFIG_JFFS2_FS_DEBUG > 0
+#define DEBUG
 #define D1(x) x
 #else
 #define D1(x)
@@ -61,6 +62,12 @@
 #else
 #define D2(x)
 #endif
+
+#define jffs2_dbg(level, fmt, ...)		\
+do {						\
+	if (CONFIG_JFFS2_FS_DEBUG >= level)	\
+		pr_debug(fmt, ##__VA_ARGS__);	\
+} while (0)
 
 /* The prefixes of JFFS2 messages */
 #define JFFS2_DBG_PREFIX	"[JFFS2 DBG]"

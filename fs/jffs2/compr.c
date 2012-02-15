@@ -309,7 +309,7 @@ int jffs2_register_compressor(struct jffs2_compressor *comp)
 	comp->stat_compr_new_size=0;
 	comp->stat_compr_blocks=0;
 	comp->stat_decompr_blocks=0;
-	D1(printk(KERN_DEBUG "Registering JFFS2 compressor \"%s\"\n", comp->name));
+	jffs2_dbg(1, "Registering JFFS2 compressor \"%s\"\n", comp->name);
 
 	spin_lock(&jffs2_compressor_list_lock);
 
@@ -332,9 +332,9 @@ out:
 
 int jffs2_unregister_compressor(struct jffs2_compressor *comp)
 {
-	D2(struct jffs2_compressor *this;)
+	D2(struct jffs2_compressor *this);
 
-	D1(printk(KERN_DEBUG "Unregistering JFFS2 compressor \"%s\"\n", comp->name));
+	jffs2_dbg(1, "Unregistering JFFS2 compressor \"%s\"\n", comp->name);
 
 	spin_lock(&jffs2_compressor_list_lock);
 
@@ -377,17 +377,17 @@ int __init jffs2_compressors_init(void)
 /* Setting default compression mode */
 #ifdef CONFIG_JFFS2_CMODE_NONE
 	jffs2_compression_mode = JFFS2_COMPR_MODE_NONE;
-	D1(printk(KERN_INFO "JFFS2: default compression mode: none\n");)
+	jffs2_dbg(1, "JFFS2: default compression mode: none\n");
 #else
 #ifdef CONFIG_JFFS2_CMODE_SIZE
 	jffs2_compression_mode = JFFS2_COMPR_MODE_SIZE;
-	D1(printk(KERN_INFO "JFFS2: default compression mode: size\n");)
+	jffs2_dbg(1, "JFFS2: default compression mode: size\n");
 #else
 #ifdef CONFIG_JFFS2_CMODE_FAVOURLZO
 	jffs2_compression_mode = JFFS2_COMPR_MODE_FAVOURLZO;
-	D1(printk(KERN_INFO "JFFS2: default compression mode: favourlzo\n");)
+	jffs2_dbg(1, "JFFS2: default compression mode: favourlzo\n");
 #else
-	D1(printk(KERN_INFO "JFFS2: default compression mode: priority\n");)
+	jffs2_dbg(1, "JFFS2: default compression mode: priority\n");
 #endif
 #endif
 #endif

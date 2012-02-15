@@ -39,7 +39,7 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	int ret;
 	int alloc_type = ALLOC_NORMAL;
 
-	D1(printk(KERN_DEBUG "jffs2_setattr(): ino #%lu\n", inode->i_ino));
+	jffs2_dbg(1, "%s(): ino #%lu\n", __func__, inode->i_ino);
 
 	/* Special cases - we don't want more than one data node
 	   for these types on the medium at any time. So setattr
@@ -50,7 +50,8 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 		/* For these, we don't actually need to read the old node */
 		mdatalen = jffs2_encode_dev(&dev, inode->i_rdev);
 		mdata = (char *)&dev;
-		D1(printk(KERN_DEBUG "jffs2_setattr(): Writing %d bytes of kdev_t\n", mdatalen));
+		jffs2_dbg(1, "%s(): Writing %d bytes of kdev_t\n",
+			  __func__, mdatalen);
 	} else if (S_ISLNK(inode->i_mode)) {
 		mutex_lock(&f->sem);
 		mdatalen = f->metadata->size;
@@ -66,7 +67,8 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 			return ret;
 		}
 		mutex_unlock(&f->sem);
-		D1(printk(KERN_DEBUG "jffs2_setattr(): Writing %d bytes of symlink target\n", mdatalen));
+		jffs2_dbg(1, "%s(): Writing %d bytes of symlink target\n",
+			  __func__, mdatalen);
 	}
 
 	ri = jffs2_alloc_raw_inode();
@@ -233,7 +235,8 @@ void jffs2_evict_inode (struct inode *inode)
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 
-	D1(printk(KERN_DEBUG "jffs2_evict_inode(): ino #%lu mode %o\n", inode->i_ino, inode->i_mode));
+	jffs2_dbg(1, "%s(): ino #%lu mode %o\n",
+		  __func__, inode->i_ino, inode->i_mode);
 	truncate_inode_pages(&inode->i_data, 0);
 	end_writeback(inode);
 	jffs2_do_clear_inode(c, f);
@@ -249,7 +252,7 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 	dev_t rdev = 0;
 	int ret;
 
-	D1(printk(KERN_DEBUG "jffs2_iget(): ino == %lu\n", ino));
+	jffs2_dbg(1, "%s(): ino == %lu\n", __func__, ino);
 
 	inode = iget_locked(sb, ino);
 	if (!inode)
@@ -320,7 +323,7 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 			printk(KERN_NOTICE "Device node has strange size %d\n", f->metadata->size);
 			goto error_io;
 		}
-		D1(printk(KERN_DEBUG "Reading device numbers from flash\n"));
+		jffs2_dbg(1, "Reading device numbers from flash\n");
 		ret = jffs2_read_dnode(c, f, f->metadata, (char *)&jdev, 0, f->metadata->size);
 		if (ret < 0) {
 			/* Eep */
@@ -344,7 +347,7 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 
 	mutex_unlock(&f->sem);
 
-	D1(printk(KERN_DEBUG "jffs2_read_inode() returning\n"));
+	jffs2_dbg(1, "jffs2_read_inode() returning\n");
 	unlock_new_inode(inode);
 	return inode;
 
@@ -362,11 +365,13 @@ void jffs2_dirty_inode(struct inode *inode, int flags)
 	struct iattr iattr;
 
 	if (!(inode->i_state & I_DIRTY_DATASYNC)) {
-		D2(printk(KERN_DEBUG "jffs2_dirty_inode() not calling setattr() for ino #%lu\n", inode->i_ino));
+		jffs2_dbg(2, "%s(): not calling setattr() for ino #%lu\n",
+			  __func__, inode->i_ino);
 		return;
 	}
 
-	D1(printk(KERN_DEBUG "jffs2_dirty_inode() calling setattr() for ino #%lu\n", inode->i_ino));
+	jffs2_dbg(1, "%s(): calling setattr() for ino #%lu\n",
+		  __func__, inode->i_ino);
 
 	iattr.ia_valid = ATTR_MODE|ATTR_UID|ATTR_GID|ATTR_ATIME|ATTR_MTIME|ATTR_CTIME;
 	iattr.ia_mode = inode->i_mode;
@@ -414,7 +419,8 @@ struct inode *jffs2_new_inode (struct inode *dir_i, umode_t mode, struct jffs2_r
 	struct jffs2_inode_info *f;
 	int ret;
 
-	D1(printk(KERN_DEBUG "jffs2_new_inode(): dir_i %ld, mode 0x%x\n", dir_i->i_ino, mode));
+	jffs2_dbg(1, "%s(): dir_i %ld, mode 0x%x\n",
+		  __func__, dir_i->i_ino, mode);
 
 	c = JFFS2_SB_INFO(sb);
 
@@ -550,17 +556,17 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	if ((ret = jffs2_do_mount_fs(c)))
 		goto out_inohash;
 
-	D1(printk(KERN_DEBUG "jffs2_do_fill_super(): Getting root inode\n"));
+	jffs2_dbg(1, "%s(): Getting root inode\n", __func__);
 	root_i = jffs2_iget(sb, 1);
 	if (IS_ERR(root_i)) {
-		D1(printk(KERN_WARNING "get root inode failed\n"));
+		jffs2_dbg(1, "get root inode failed\n");
 		ret = PTR_ERR(root_i);
 		goto out_root;
 	}
 
 	ret = -ENOMEM;
 
-	D1(printk(KERN_DEBUG "jffs2_do_fill_super(): d_alloc_root()\n"));
+	jffs2_dbg(1, "%s(): d_alloc_root()\n", __func__);
 	sb->s_root = d_alloc_root(root_i);
 	if (!sb->s_root)
 		goto out_root_i;
@@ -620,20 +626,21 @@ struct jffs2_inode_info *jffs2_gc_fetch_inode(struct jffs2_sb_info *c,
 		*/
 		inode = ilookup(OFNI_BS_2SFFJ(c), inum);
 		if (!inode) {
-			D1(printk(KERN_DEBUG "ilookup() failed for ino #%u; inode is probably deleted.\n",
-				  inum));
+			jffs2_dbg(1, "ilookup() failed for ino #%u; inode is probably deleted.\n",
+				  inum);
 
 			spin_lock(&c->inocache_lock);
 			ic = jffs2_get_ino_cache(c, inum);
 			if (!ic) {
-				D1(printk(KERN_DEBUG "Inode cache for ino #%u is gone.\n", inum));
+				jffs2_dbg(1, "Inode cache for ino #%u is gone\n",
+					  inum);
 				spin_unlock(&c->inocache_lock);
 				return NULL;
 			}
 			if (ic->state != INO_STATE_CHECKEDABSENT) {
 				/* Wait for progress. Don't just loop */
-				D1(printk(KERN_DEBUG "Waiting for ino #%u in state %d\n",
-					  ic->ino, ic->state));
+				jffs2_dbg(1, "Waiting for ino #%u in state %d\n",
+					  ic->ino, ic->state);
 				sleep_on_spinunlock(&c->inocache_wq, &c->inocache_lock);
 			} else {
 				spin_unlock(&c->inocache_lock);

@@ -45,13 +45,15 @@ static int __init alloc_workspaces(void)
 	if (!def_strm.workspace)
 		return -ENOMEM;
 
-	D1(printk(KERN_DEBUG "Allocated %d bytes for deflate workspace\n", zlib_deflate_workspacesize(MAX_WBITS, MAX_MEM_LEVEL)));
+	jffs2_dbg(1, "Allocated %d bytes for deflate workspace\n",
+		  zlib_deflate_workspacesize(MAX_WBITS, MAX_MEM_LEVEL));
 	inf_strm.workspace = vmalloc(zlib_inflate_workspacesize());
 	if (!inf_strm.workspace) {
 		vfree(def_strm.workspace);
 		return -ENOMEM;
 	}
-	D1(printk(KERN_DEBUG "Allocated %d bytes for inflate workspace\n", zlib_inflate_workspacesize()));
+	jffs2_dbg(1, "Allocated %d bytes for inflate workspace\n",
+		  zlib_inflate_workspacesize());
 	return 0;
 }
 
@@ -91,13 +93,14 @@ static int jffs2_zlib_compress(unsigned char *data_in,
 	while (def_strm.total_out < *dstlen - STREAM_END_SPACE && def_strm.total_in < *sourcelen) {
 		def_strm.avail_out = *dstlen - (def_strm.total_out + STREAM_END_SPACE);
 		def_strm.avail_in = min((unsigned)(*sourcelen-def_strm.total_in), def_strm.avail_out);
-		D1(printk(KERN_DEBUG "calling deflate with avail_in %d, avail_out %d\n",
-			  def_strm.avail_in, def_strm.avail_out));
+		jffs2_dbg(1, "calling deflate with avail_in %d, avail_out %d\n",
+			  def_strm.avail_in, def_strm.avail_out);
 		ret = zlib_deflate(&def_strm, Z_PARTIAL_FLUSH);
-		D1(printk(KERN_DEBUG "deflate returned with avail_in %d, avail_out %d, total_in %ld, total_out %ld\n",
-			  def_strm.avail_in, def_strm.avail_out, def_strm.total_in, def_strm.total_out));
+		jffs2_dbg(1, "deflate returned with avail_in %d, avail_out %d, total_in %ld, total_out %ld\n",
+			  def_strm.avail_in, def_strm.avail_out,
+			  def_strm.total_in, def_strm.total_out);
 		if (ret != Z_OK) {
-			D1(printk(KERN_DEBUG "deflate in loop returned %d\n", ret));
+			jffs2_dbg(1, "deflate in loop returned %d\n", ret);
 			zlib_deflateEnd(&def_strm);
 			mutex_unlock(&deflate_mutex);
 			return -1;
@@ -109,20 +112,20 @@ static int jffs2_zlib_compress(unsigned char *data_in,
 	zlib_deflateEnd(&def_strm);
 
 	if (ret != Z_STREAM_END) {
-		D1(printk(KERN_DEBUG "final deflate returned %d\n", ret));
+		jffs2_dbg(1, "final deflate returned %d\n", ret);
 		ret = -1;
 		goto out;
 	}
 
 	if (def_strm.total_out >= def_strm.total_in) {
-		D1(printk(KERN_DEBUG "zlib compressed %ld bytes into %ld; failing\n",
-			  def_strm.total_in, def_strm.total_out));
+		jffs2_dbg(1, "zlib compressed %ld bytes into %ld; failing\n",
+			  def_strm.total_in, def_strm.total_out);
 		ret = -1;
 		goto out;
 	}
 
-	D1(printk(KERN_DEBUG "zlib compressed %ld bytes into %ld\n",
-		  def_strm.total_in, def_strm.total_out));
+	jffs2_dbg(1, "zlib compressed %ld bytes into %ld\n",
+		  def_strm.total_in, def_strm.total_out);
 
 	*dstlen = def_strm.total_out;
 	*sourcelen = def_strm.total_in;
@@ -155,13 +158,13 @@ static int jffs2_zlib_decompress(unsigned char *data_in,
 	    ((data_in[0] & 0x0f) == Z_DEFLATED) &&
 	    !(((data_in[0]<<8) + data_in[1]) % 31)) {
 
-		D2(printk(KERN_DEBUG "inflate skipping adler32\n"));
+		jffs2_dbg(2, "inflate skipping adler32\n");
 		wbits = -((data_in[0] >> 4) + 8);
 		inf_strm.next_in += 2;
 		inf_strm.avail_in -= 2;
 	} else {
 		/* Let this remain D1 for now -- it should never happen */
-		D1(printk(KERN_DEBUG "inflate not skipping adler32\n"));
+		jffs2_dbg(1, "inflate not skipping adler32\n");
 	}
 
 
