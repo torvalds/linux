@@ -120,7 +120,7 @@ config KVM_EXIT_TIMING
 
 config KVM_E500V2
 	bool "KVM support for PowerPC E500v2 processors"
-	depends on EXPERIMENTAL && E500
+	depends on EXPERIMENTAL && E500 && !PPC_E500MC
 	select KVM
 	select KVM_MMIO
 	---help---
