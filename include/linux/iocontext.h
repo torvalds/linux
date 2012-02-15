@@ -6,8 +6,10 @@
 #include <linux/workqueue.h>
 
 enum {
-	ICQ_IOPRIO_CHANGED,
-	ICQ_CGROUP_CHANGED,
+	ICQ_IOPRIO_CHANGED	= 1 << 0,
+	ICQ_CGROUP_CHANGED	= 1 << 1,
+
+	ICQ_CHANGED_MASK	= ICQ_IOPRIO_CHANGED | ICQ_CGROUP_CHANGED,
 };
 
 /*
@@ -88,7 +90,7 @@ struct io_cq {
 		struct rcu_head		__rcu_head;
 	};
 
-	unsigned long		changed;
+	unsigned int		flags;
 };
 
 /*
@@ -139,6 +141,7 @@ struct io_context *get_task_io_context(struct task_struct *task,
 				       gfp_t gfp_flags, int node);
 void ioc_ioprio_changed(struct io_context *ioc, int ioprio);
 void ioc_cgroup_changed(struct io_context *ioc);
+unsigned int icq_get_changed(struct io_cq *icq);
 #else
 struct io_context;
 static inline void put_io_context(struct io_context *ioc) { }
