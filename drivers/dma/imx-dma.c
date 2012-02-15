@@ -24,7 +24,6 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/dmaengine.h>
-#include <linux/module.h>
 
 #include <asm/irq.h>
 #include <mach/dma-v1.h>
