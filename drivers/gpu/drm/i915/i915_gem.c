@@ -1605,11 +1605,19 @@ i915_add_request(struct intel_ring_buffer *ring,
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	uint32_t seqno;
+	u32 request_ring_position;
 	int was_empty;
 	int ret;
 
 	BUG_ON(request == NULL);
 	seqno = i915_gem_next_request_seqno(ring);
+
+	/* Record the position of the start of the request so that
+	 * should we detect the updated seqno part-way through the
+	 * GPU processing the request, we never over-estimate the
+	 * position of the head.
+	 */
+	request_ring_position = intel_ring_get_tail(ring);
 
 	ret = ring->add_request(ring, &seqno);
 	if (ret)
@@ -1619,6 +1627,7 @@ i915_add_request(struct intel_ring_buffer *ring,
 
 	request->seqno = seqno;
 	request->ring = ring;
+	request->tail = request_ring_position;
 	request->emitted_jiffies = jiffies;
 	was_empty = list_empty(&ring->request_list);
 	list_add_tail(&request->list, &ring->request_list);
@@ -1755,7 +1764,7 @@ void i915_gem_reset(struct drm_device *dev)
 /**
  * This function clears the request list as sequence numbers are passed.
  */
-static void
+void
 i915_gem_retire_requests_ring(struct intel_ring_buffer *ring)
 {
 	uint32_t seqno;
@@ -1783,6 +1792,12 @@ i915_gem_retire_requests_ring(struct intel_ring_buffer *ring)
 			break;
 
 		trace_i915_gem_request_retire(ring, request->seqno);
+		/* We know the GPU must have read the request to have
+		 * sent us the seqno + interrupt, so use the position
+		 * of tail of the request to update the last known position
+		 * of the GPU head.
+		 */
+		ring->last_retired_head = request->tail;
 
 		list_del(&request->list);
 		i915_gem_request_remove_from_client(request);

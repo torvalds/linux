@@ -944,6 +944,9 @@ struct drm_i915_gem_request {
 	/** GEM sequence number associated with this request. */
 	uint32_t seqno;
 
+	/** Postion in the ringbuffer of the end of the request */
+	u32 tail;
+
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
 
@@ -1213,6 +1216,8 @@ i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj)
 }
 
 void i915_gem_retire_requests(struct drm_device *dev);
+void i915_gem_retire_requests_ring(struct intel_ring_buffer *ring);
+
 void i915_gem_reset(struct drm_device *dev);
 void i915_gem_clflush_object(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_object_set_domain(struct drm_i915_gem_object *obj,

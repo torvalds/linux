@@ -46,6 +46,16 @@ struct  intel_ring_buffer {
 	int		effective_size;
 	struct intel_hw_status_page status_page;
 
+	/** We track the position of the requests in the ring buffer, and
+	 * when each is retired we increment last_retired_head as the GPU
+	 * must have finished processing the request and so we know we
+	 * can advance the ringbuffer up to that position.
+	 *
+	 * last_retired_head is set to -1 after the value is consumed so
+	 * we can detect new retirements.
+	 */
+	u32		last_retired_head;
+
 	spinlock_t	irq_lock;
 	u32		irq_refcount;
 	u32		irq_mask;
@@ -192,6 +202,11 @@ int intel_init_blt_ring_buffer(struct drm_device *dev);
 
 u32 intel_ring_get_active_head(struct intel_ring_buffer *ring);
 void intel_ring_setup_status_page(struct intel_ring_buffer *ring);
+
+static inline u32 intel_ring_get_tail(struct intel_ring_buffer *ring)
+{
+	return ring->tail;
+}
 
 static inline void i915_trace_irq_get(struct intel_ring_buffer *ring, u32 seqno)
 {
