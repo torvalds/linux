@@ -1859,8 +1859,8 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	/* read and set MAC address */
 	read_mac_address(ndev, pd->mac_addr);
 
-	/* First device only init */
-	if (!devno) {
+	/* initialize first or needed device */
+	if (!devno || pd->needs_init) {
 		if (mdp->cd->tsu) {
 			struct resource *rtsu;
 			rtsu = platform_get_resource(pdev, IORESOURCE_MEM, 1);
