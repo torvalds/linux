@@ -79,7 +79,6 @@ static void ioc_release_fn(struct work_struct *work)
 {
 	struct io_context *ioc = container_of(work, struct io_context,
 					      release_work);
-	struct request_queue *last_q = NULL;
 	unsigned long flags;
 
 	/*
@@ -93,44 +92,19 @@ static void ioc_release_fn(struct work_struct *work)
 	while (!hlist_empty(&ioc->icq_list)) {
 		struct io_cq *icq = hlist_entry(ioc->icq_list.first,
 						struct io_cq, ioc_node);
-		struct request_queue *this_q = icq->q;
+		struct request_queue *q = icq->q;
 
-		if (this_q != last_q) {
-			/*
-			 * Need to switch to @this_q.  Once we release
-			 * @ioc->lock, it can go away along with @cic.
-			 * Hold on to it.
-			 */
-			__blk_get_queue(this_q);
-
-			/*
-			 * blk_put_queue() might sleep thanks to kobject
-			 * idiocy.  Always release both locks, put and
-			 * restart.
-			 */
-			if (last_q) {
-				spin_unlock(last_q->queue_lock);
-				spin_unlock_irqrestore(&ioc->lock, flags);
-				blk_put_queue(last_q);
-			} else {
-				spin_unlock_irqrestore(&ioc->lock, flags);
-			}
-
-			last_q = this_q;
-			spin_lock_irqsave(this_q->queue_lock, flags);
-			spin_lock_nested(&ioc->lock, 1);
-			continue;
+		if (spin_trylock(q->queue_lock)) {
+			ioc_exit_icq(icq);
+			spin_unlock(q->queue_lock);
+		} else {
+			spin_unlock_irqrestore(&ioc->lock, flags);
+			cpu_relax();
+			spin_lock_irqsave_nested(&ioc->lock, flags, 1);
 		}
-		ioc_exit_icq(icq);
 	}
 
-	if (last_q) {
-		spin_unlock(last_q->queue_lock);
-		spin_unlock_irqrestore(&ioc->lock, flags);
-		blk_put_queue(last_q);
-	} else {
-		spin_unlock_irqrestore(&ioc->lock, flags);
-	}
+	spin_unlock_irqrestore(&ioc->lock, flags);
 
 	kmem_cache_free(iocontext_cachep, ioc);
 }
