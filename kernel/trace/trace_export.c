@@ -18,6 +18,14 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM	ftrace
 
+/*
+ * The FTRACE_ENTRY_REG macro allows ftrace entry to define register
+ * function and thus become accesible via perf.
+ */
+#undef FTRACE_ENTRY_REG
+#define FTRACE_ENTRY_REG(name, struct_name, id, tstruct, print, regfn) \
+	FTRACE_ENTRY(name, struct_name, id, PARAMS(tstruct), PARAMS(print))
+
 /* not needed for this file */
 #undef __field_struct
 #define __field_struct(type, item)
@@ -152,13 +160,14 @@ ftrace_define_fields_##name(struct ftrace_event_call *event_call)	\
 #undef F_printk
 #define F_printk(fmt, args...) #fmt ", "  __stringify(args)
 
-#undef FTRACE_ENTRY
-#define FTRACE_ENTRY(call, struct_name, etype, tstruct, print)		\
+#undef FTRACE_ENTRY_REG
+#define FTRACE_ENTRY_REG(call, struct_name, etype, tstruct, print, regfn)\
 									\
 struct ftrace_event_class event_class_ftrace_##call = {			\
 	.system			= __stringify(TRACE_SYSTEM),		\
 	.define_fields		= ftrace_define_fields_##call,		\
 	.fields			= LIST_HEAD_INIT(event_class_ftrace_##call.fields),\
+	.reg			= regfn,				\
 };									\
 									\
 struct ftrace_event_call __used event_##call = {			\
@@ -169,5 +178,10 @@ struct ftrace_event_call __used event_##call = {			\
 };									\
 struct ftrace_event_call __used						\
 __attribute__((section("_ftrace_events"))) *__event_##call = &event_##call;
+
+#undef FTRACE_ENTRY
+#define FTRACE_ENTRY(call, struct_name, etype, tstruct, print)		\
+	FTRACE_ENTRY_REG(call, struct_name, etype,			\
+			 PARAMS(tstruct), PARAMS(print), NULL)
 
 #include "trace_entries.h"
