@@ -345,7 +345,7 @@ autosuspend the device.
 Drivers need not be concerned about balancing changes to the usage
 counter; the USB core will undo any remaining "get"s when a driver
 is unbound from its interface.  As a corollary, drivers must not call
-any of the usb_autopm_* functions after their diconnect() routine has
+any of the usb_autopm_* functions after their disconnect() routine has
 returned.
 
 Drivers using the async routines are responsible for their own
