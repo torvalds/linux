@@ -521,6 +521,7 @@ static void prepare_write_message_footer(struct ceph_connection *con)
 static void prepare_write_message(struct ceph_connection *con)
 {
 	struct ceph_msg *m;
+	u32 crc;
 
 	ceph_con_out_kvec_reset(con);
 	con->out_kvec_is_msg = true;
@@ -569,17 +570,17 @@ static void prepare_write_message(struct ceph_connection *con)
 			m->middle->vec.iov_base);
 
 	/* fill in crc (except data pages), footer */
-	con->out_msg->hdr.crc =
-		cpu_to_le32(crc32c(0, &m->hdr,
-				      sizeof(m->hdr) - sizeof(m->hdr.crc)));
+	crc = crc32c(0, &m->hdr, offsetof(struct ceph_msg_header, crc));
+	con->out_msg->hdr.crc = cpu_to_le32(crc);
 	con->out_msg->footer.flags = CEPH_MSG_FOOTER_COMPLETE;
-	con->out_msg->footer.front_crc =
-		cpu_to_le32(crc32c(0, m->front.iov_base, m->front.iov_len));
-	if (m->middle)
-		con->out_msg->footer.middle_crc =
-			cpu_to_le32(crc32c(0, m->middle->vec.iov_base,
-					   m->middle->vec.iov_len));
-	else
+
+	crc = crc32c(0, m->front.iov_base, m->front.iov_len);
+	con->out_msg->footer.front_crc = cpu_to_le32(crc);
+	if (m->middle) {
+		crc = crc32c(0, m->middle->vec.iov_base,
+				m->middle->vec.iov_len);
+		con->out_msg->footer.middle_crc = cpu_to_le32(crc);
+	} else
 		con->out_msg->footer.middle_crc = 0;
 	con->out_msg->footer.data_crc = 0;
 	dout("prepare_write_message front_crc %u data_crc %u\n",
@@ -875,12 +876,13 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 			    total_max_write);
 
 		if (do_crc && !con->out_msg_pos.did_page_crc) {
+			u32 crc;
 			void *base = kaddr + con->out_msg_pos.page_pos;
 			u32 tmpcrc = le32_to_cpu(con->out_msg->footer.data_crc);
 
 			BUG_ON(kaddr == NULL);
-			con->out_msg->footer.data_crc =
-				cpu_to_le32(crc32c(tmpcrc, base, len));
+			crc = crc32c(tmpcrc, base, len);
+			con->out_msg->footer.data_crc = cpu_to_le32(crc);
 			con->out_msg_pos.did_page_crc = true;
 		}
 		ret = kernel_sendpage(con->sock, page,
@@ -1650,8 +1652,9 @@ static int read_partial_message(struct ceph_connection *con)
 		con->in_base_pos += ret;
 		if (con->in_base_pos == sizeof(con->in_hdr)) {
 			u32 crc = crc32c(0, &con->in_hdr,
-				 sizeof(con->in_hdr) - sizeof(con->in_hdr.crc));
-			if (crc != le32_to_cpu(con->in_hdr.crc)) {
+					offsetof(struct ceph_msg_header, crc));
+
+			if (cpu_to_le32(crc) != con->in_hdr.crc) {
 				pr_err("read_partial_message bad hdr "
 				       " crc %u != expected %u\n",
 				       crc, con->in_hdr.crc);
