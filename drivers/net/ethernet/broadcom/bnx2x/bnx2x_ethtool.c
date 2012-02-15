@@ -246,6 +246,34 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	else
 		cmd->autoneg = AUTONEG_DISABLE;
 
+	/* Publish LP advertised speeds and FC */
+	if (bp->link_vars.link_status & LINK_STATUS_AUTO_NEGOTIATE_COMPLETE) {
+		u32 status = bp->link_vars.link_status;
+
+		cmd->lp_advertising |= ADVERTISED_Autoneg;
+		if (status & LINK_STATUS_LINK_PARTNER_SYMMETRIC_PAUSE)
+			cmd->lp_advertising |= ADVERTISED_Pause;
+		if (status & LINK_STATUS_LINK_PARTNER_ASYMMETRIC_PAUSE)
+			cmd->lp_advertising |= ADVERTISED_Asym_Pause;
+
+		if (status & LINK_STATUS_LINK_PARTNER_10THD_CAPABLE)
+			cmd->lp_advertising |= ADVERTISED_10baseT_Half;
+		if (status & LINK_STATUS_LINK_PARTNER_10TFD_CAPABLE)
+			cmd->lp_advertising |= ADVERTISED_10baseT_Full;
+		if (status & LINK_STATUS_LINK_PARTNER_100TXHD_CAPABLE)
+			cmd->lp_advertising |= ADVERTISED_100baseT_Half;
+		if (status & LINK_STATUS_LINK_PARTNER_100TXFD_CAPABLE)
+			cmd->lp_advertising |= ADVERTISED_100baseT_Full;
+		if (status & LINK_STATUS_LINK_PARTNER_1000THD_CAPABLE)
+			cmd->lp_advertising |= ADVERTISED_1000baseT_Half;
+		if (status & LINK_STATUS_LINK_PARTNER_1000TFD_CAPABLE)
+			cmd->lp_advertising |= ADVERTISED_1000baseT_Full;
+		if (status & LINK_STATUS_LINK_PARTNER_2500XFD_CAPABLE)
+			cmd->lp_advertising |= ADVERTISED_2500baseX_Full;
+		if (status & LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE)
+			cmd->lp_advertising |= ADVERTISED_10000baseT_Full;
+	}
+
 	cmd->maxtxpkt = 0;
 	cmd->maxrxpkt = 0;
 
@@ -1415,12 +1443,19 @@ static void bnx2x_get_pauseparam(struct net_device *dev,
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	int cfg_idx = bnx2x_get_link_cfg_idx(bp);
+	int cfg_reg;
+
 	epause->autoneg = (bp->link_params.req_flow_ctrl[cfg_idx] ==
 			   BNX2X_FLOW_CTRL_AUTO);
 
-	epause->rx_pause = ((bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_RX) ==
+	if (!epause->autoneg)
+		cfg_reg = bp->link_vars.flow_ctrl;
+	else
+		cfg_reg = bp->link_params.req_fc_auto_adv;
+
+	epause->rx_pause = ((cfg_reg & BNX2X_FLOW_CTRL_RX) ==
 			    BNX2X_FLOW_CTRL_RX);
-	epause->tx_pause = ((bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_TX) ==
+	epause->tx_pause = ((cfg_reg & BNX2X_FLOW_CTRL_TX) ==
 			    BNX2X_FLOW_CTRL_TX);
 
 	DP(NETIF_MSG_LINK, "ethtool_pauseparam: cmd %d\n"
