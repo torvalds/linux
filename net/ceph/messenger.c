@@ -38,6 +38,11 @@ static char tag_keepalive = CEPH_MSGR_TAG_KEEPALIVE;
 static struct lock_class_key socket_class;
 #endif
 
+/*
+ * When skipping (ignoring) a block of input we read it into a "skip
+ * buffer," which is this many bytes in size.
+ */
+#define SKIP_BUF_SIZE	1024
 
 static void queue_con(struct ceph_connection *con);
 static void con_work(struct work_struct *);
@@ -892,8 +897,7 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 				      MSG_DONTWAIT | MSG_NOSIGNAL |
 				      MSG_MORE);
 
-		if (do_crc &&
-		    (msg->pages || msg->pagelist || msg->bio || in_trail))
+		if (do_crc && kaddr != zero_page_address)
 			kunmap(page);
 
 		if (ret == -EAGAIN)
@@ -1982,8 +1986,9 @@ more:
 		 *
 		 * FIXME: there must be a better way to do this!
 		 */
-		static char buf[1024];
-		int skip = min(1024, -con->in_base_pos);
+		static char buf[SKIP_BUF_SIZE];
+		int skip = min((int) sizeof (buf), -con->in_base_pos);
+
 		dout("skipping %d / %d bytes\n", skip, -con->in_base_pos);
 		ret = ceph_tcp_recvmsg(con->sock, buf, skip);
 		if (ret <= 0)
