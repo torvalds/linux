@@ -278,7 +278,8 @@ static int rockchip_pcm_prepare(struct snd_pcm_substream *substream)
         }
         DBG("Enter::%s, %d, ret=%d, Channel=%d, Addr=0x%X\n", __FUNCTION__, __LINE__, ret, prtd->params->channel, prtd->params->dma_addr);
         ret = rk29_dma_config(prtd->params->channel, 
-                prtd->params->dma_size, 16);
+                prtd->params->dma_size, 1);
+		prtd->params->flag = 1;  
 
         DBG("Enter:%s, %d, ret = %d, Channel=%d, Size=%d\n", 
                 __FUNCTION__, __LINE__, ret, prtd->params->channel, 
