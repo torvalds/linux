@@ -806,14 +806,8 @@ static void bnx2x_get_drvinfo(struct net_device *dev,
 	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 
 	phy_fw_ver[0] = '\0';
-	if (bp->port.pmf) {
-		bnx2x_acquire_phy_lock(bp);
-		bnx2x_get_ext_phy_fw_version(&bp->link_params,
-					     (bp->state != BNX2X_STATE_CLOSED),
-					     phy_fw_ver, PHY_FW_VER_LEN);
-		bnx2x_release_phy_lock(bp);
-	}
-
+	bnx2x_get_ext_phy_fw_version(&bp->link_params,
+				     phy_fw_ver, PHY_FW_VER_LEN);
 	strlcpy(info->fw_version, bp->fw_ver, sizeof(info->fw_version));
 	snprintf(info->fw_version + strlen(bp->fw_ver), 32 - strlen(bp->fw_ver),
 		 "bc %d.%d.%d%s%s",

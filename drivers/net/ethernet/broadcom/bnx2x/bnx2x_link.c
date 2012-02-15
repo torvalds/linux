@@ -6042,8 +6042,8 @@ static int bnx2x_null_format_ver(u32 spirom_ver, u8 *str, u16 *len)
 	return 0;
 }
 
-int bnx2x_get_ext_phy_fw_version(struct link_params *params, u8 driver_loaded,
-				 u8 *version, u16 len)
+int bnx2x_get_ext_phy_fw_version(struct link_params *params, u8 *version,
+				 u16 len)
 {
 	struct bnx2x *bp;
 	u32 spirom_ver = 0;
