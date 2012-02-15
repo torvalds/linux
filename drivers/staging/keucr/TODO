@@ -9,4 +9,4 @@ TODO:
 	- smcommon.h & smilsub.c: use kernel hweight8(), hweight16()
 
 Please send any patches for this driver to Al Cho <acho@novell.com> and
-Greg Kroah-Hartman <gregkh@suse.de>.
+Greg Kroah-Hartman <gregkh@linuxfoundation.org>.
