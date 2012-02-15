@@ -1604,18 +1604,289 @@ static int sh_eth_do_ioctl(struct net_device *ndev, struct ifreq *rq,
 }
 
 #if defined(SH_ETH_HAS_TSU)
+/* For TSU_POSTn. Please refer to the manual about this (strange) bitfields */
+static void *sh_eth_tsu_get_post_reg_offset(struct sh_eth_private *mdp,
+					    int entry)
+{
+	return sh_eth_tsu_get_offset(mdp, TSU_POST1) + (entry / 8 * 4);
+}
+
+static u32 sh_eth_tsu_get_post_mask(int entry)
+{
+	return 0x0f << (28 - ((entry % 8) * 4));
+}
+
+static u32 sh_eth_tsu_get_post_bit(struct sh_eth_private *mdp, int entry)
+{
+	return (0x08 >> (mdp->port << 1)) << (28 - ((entry % 8) * 4));
+}
+
+static void sh_eth_tsu_enable_cam_entry_post(struct net_device *ndev,
+					     int entry)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u32 tmp;
+	void *reg_offset;
+
+	reg_offset = sh_eth_tsu_get_post_reg_offset(mdp, entry);
+	tmp = ioread32(reg_offset);
+	iowrite32(tmp | sh_eth_tsu_get_post_bit(mdp, entry), reg_offset);
+}
+
+static bool sh_eth_tsu_disable_cam_entry_post(struct net_device *ndev,
+					      int entry)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u32 post_mask, ref_mask, tmp;
+	void *reg_offset;
+
+	reg_offset = sh_eth_tsu_get_post_reg_offset(mdp, entry);
+	post_mask = sh_eth_tsu_get_post_mask(entry);
+	ref_mask = sh_eth_tsu_get_post_bit(mdp, entry) & ~post_mask;
+
+	tmp = ioread32(reg_offset);
+	iowrite32(tmp & ~post_mask, reg_offset);
+
+	/* If other port enables, the function returns "true" */
+	return tmp & ref_mask;
+}
+
+static int sh_eth_tsu_busy(struct net_device *ndev)
+{
+	int timeout = SH_ETH_TSU_TIMEOUT_MS * 100;
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+
+	while ((sh_eth_tsu_read(mdp, TSU_ADSBSY) & TSU_ADSBSY_0)) {
+		udelay(10);
+		timeout--;
+		if (timeout <= 0) {
+			dev_err(&ndev->dev, "%s: timeout\n", __func__);
+			return -ETIMEDOUT;
+		}
+	}
+
+	return 0;
+}
+
+static int sh_eth_tsu_write_entry(struct net_device *ndev, void *reg,
+				  const u8 *addr)
+{
+	u32 val;
+
+	val = addr[0] << 24 | addr[1] << 16 | addr[2] << 8 | addr[3];
+	iowrite32(val, reg);
+	if (sh_eth_tsu_busy(ndev) < 0)
+		return -EBUSY;
+
+	val = addr[4] << 8 | addr[5];
+	iowrite32(val, reg + 4);
+	if (sh_eth_tsu_busy(ndev) < 0)
+		return -EBUSY;
+
+	return 0;
+}
+
+static void sh_eth_tsu_read_entry(void *reg, u8 *addr)
+{
+	u32 val;
+
+	val = ioread32(reg);
+	addr[0] = (val >> 24) & 0xff;
+	addr[1] = (val >> 16) & 0xff;
+	addr[2] = (val >> 8) & 0xff;
+	addr[3] = val & 0xff;
+	val = ioread32(reg + 4);
+	addr[4] = (val >> 8) & 0xff;
+	addr[5] = val & 0xff;
+}
+
+
+static int sh_eth_tsu_find_entry(struct net_device *ndev, const u8 *addr)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	void *reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
+	int i;
+	u8 c_addr[ETH_ALEN];
+
+	for (i = 0; i < SH_ETH_TSU_CAM_ENTRIES; i++, reg_offset += 8) {
+		sh_eth_tsu_read_entry(reg_offset, c_addr);
+		if (memcmp(addr, c_addr, ETH_ALEN) == 0)
+			return i;
+	}
+
+	return -ENOENT;
+}
+
+static int sh_eth_tsu_find_empty(struct net_device *ndev)
+{
+	u8 blank[ETH_ALEN];
+	int entry;
+
+	memset(blank, 0, sizeof(blank));
+	entry = sh_eth_tsu_find_entry(ndev, blank);
+	return (entry < 0) ? -ENOMEM : entry;
+}
+
+static int sh_eth_tsu_disable_cam_entry_table(struct net_device *ndev,
+					      int entry)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	void *reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
+	int ret;
+	u8 blank[ETH_ALEN];
+
+	sh_eth_tsu_write(mdp, sh_eth_tsu_read(mdp, TSU_TEN) &
+			 ~(1 << (31 - entry)), TSU_TEN);
+
+	memset(blank, 0, sizeof(blank));
+	ret = sh_eth_tsu_write_entry(ndev, reg_offset + entry * 8, blank);
+	if (ret < 0)
+		return ret;
+	return 0;
+}
+
+static int sh_eth_tsu_add_entry(struct net_device *ndev, const u8 *addr)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	void *reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
+	int i, ret;
+
+	if (!mdp->cd->tsu)
+		return 0;
+
+	i = sh_eth_tsu_find_entry(ndev, addr);
+	if (i < 0) {
+		/* No entry found, create one */
+		i = sh_eth_tsu_find_empty(ndev);
+		if (i < 0)
+			return -ENOMEM;
+		ret = sh_eth_tsu_write_entry(ndev, reg_offset + i * 8, addr);
+		if (ret < 0)
+			return ret;
+
+		/* Enable the entry */
+		sh_eth_tsu_write(mdp, sh_eth_tsu_read(mdp, TSU_TEN) |
+				 (1 << (31 - i)), TSU_TEN);
+	}
+
+	/* Entry found or created, enable POST */
+	sh_eth_tsu_enable_cam_entry_post(ndev, i);
+
+	return 0;
+}
+
+static int sh_eth_tsu_del_entry(struct net_device *ndev, const u8 *addr)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	int i, ret;
+
+	if (!mdp->cd->tsu)
+		return 0;
+
+	i = sh_eth_tsu_find_entry(ndev, addr);
+	if (i) {
+		/* Entry found */
+		if (sh_eth_tsu_disable_cam_entry_post(ndev, i))
+			goto done;
+
+		/* Disable the entry if both ports was disabled */
+		ret = sh_eth_tsu_disable_cam_entry_table(ndev, i);
+		if (ret < 0)
+			return ret;
+	}
+done:
+	return 0;
+}
+
+static int sh_eth_tsu_purge_all(struct net_device *ndev)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	int i, ret;
+
+	if (unlikely(!mdp->cd->tsu))
+		return 0;
+
+	for (i = 0; i < SH_ETH_TSU_CAM_ENTRIES; i++) {
+		if (sh_eth_tsu_disable_cam_entry_post(ndev, i))
+			continue;
+
+		/* Disable the entry if both ports was disabled */
+		ret = sh_eth_tsu_disable_cam_entry_table(ndev, i);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static void sh_eth_tsu_purge_mcast(struct net_device *ndev)
+{
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u8 addr[ETH_ALEN];
+	void *reg_offset = sh_eth_tsu_get_offset(mdp, TSU_ADRH0);
+	int i;
+
+	if (unlikely(!mdp->cd->tsu))
+		return;
+
+	for (i = 0; i < SH_ETH_TSU_CAM_ENTRIES; i++, reg_offset += 8) {
+		sh_eth_tsu_read_entry(reg_offset, addr);
+		if (is_multicast_ether_addr(addr))
+			sh_eth_tsu_del_entry(ndev, addr);
+	}
+}
+
 /* Multicast reception directions set */
 static void sh_eth_set_multicast_list(struct net_device *ndev)
 {
+	struct sh_eth_private *mdp = netdev_priv(ndev);
+	u32 ecmr_bits;
+	int mcast_all = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mdp->lock, flags);
+	/*
+	 * Initial condition is MCT = 1, PRM = 0.
+	 * Depending on ndev->flags, set PRM or clear MCT
+	 */
+	ecmr_bits = (sh_eth_read(ndev, ECMR) & ~ECMR_PRM) | ECMR_MCT;
+
+	if (!(ndev->flags & IFF_MULTICAST)) {
+		sh_eth_tsu_purge_mcast(ndev);
+		mcast_all = 1;
+	}
+	if (ndev->flags & IFF_ALLMULTI) {
+		sh_eth_tsu_purge_mcast(ndev);
+		ecmr_bits &= ~ECMR_MCT;
+		mcast_all = 1;
+	}
+
 	if (ndev->flags & IFF_PROMISC) {
-		/* Set promiscuous. */
-		sh_eth_write(ndev, (sh_eth_read(ndev, ECMR) & ~ECMR_MCT) |
-				ECMR_PRM, ECMR);
+		sh_eth_tsu_purge_all(ndev);
+		ecmr_bits = (ecmr_bits & ~ECMR_MCT) | ECMR_PRM;
+	} else if (mdp->cd->tsu) {
+		struct netdev_hw_addr *ha;
+		netdev_for_each_mc_addr(ha, ndev) {
+			if (mcast_all && is_multicast_ether_addr(ha->addr))
+				continue;
+
+			if (sh_eth_tsu_add_entry(ndev, ha->addr) < 0) {
+				if (!mcast_all) {
+					sh_eth_tsu_purge_mcast(ndev);
+					ecmr_bits &= ~ECMR_MCT;
+					mcast_all = 1;
+				}
+			}
+		}
 	} else {
 		/* Normal, unicast/broadcast-only mode. */
-		sh_eth_write(ndev, (sh_eth_read(ndev, ECMR) & ~ECMR_PRM) |
-				ECMR_MCT, ECMR);
+		ecmr_bits = (ecmr_bits & ~ECMR_PRM) | ECMR_MCT;
 	}
+
+	/* update the ethernet mode */
+	sh_eth_write(ndev, ecmr_bits, ECMR);
+
+	spin_unlock_irqrestore(&mdp->lock, flags);
 }
 #endif /* SH_ETH_HAS_TSU */
 
@@ -1869,6 +2140,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		}
 		mdp->tsu_addr = ioremap(rtsu->start,
 					resource_size(rtsu));
+		mdp->port = devno % 2;
 	}
 
 	/* initialize first or needed device */

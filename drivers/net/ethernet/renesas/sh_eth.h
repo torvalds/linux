@@ -29,6 +29,8 @@
 #define RX_RING_SIZE	64	/* Rx ring size */
 #define ETHERSMALL		60
 #define PKT_BUF_SZ		1538
+#define SH_ETH_TSU_TIMEOUT_MS	500
+#define SH_ETH_TSU_CAM_ENTRIES	32
 
 enum {
 	/* E-DMAC registers */
@@ -778,6 +780,7 @@ struct sh_eth_private {
 	char post_rx;		/* POST receive */
 	char post_fw;		/* POST forward */
 	struct net_device_stats tsu_stats;	/* TSU forward status */
+	int port;		/* for TSU */
 
 	unsigned no_ether_link:1;
 	unsigned ether_link_active_low:1;
@@ -809,6 +812,12 @@ static inline unsigned long sh_eth_read(struct net_device *ndev,
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
 	return ioread32(mdp->addr + mdp->reg_offset[enum_index]);
+}
+
+static inline void *sh_eth_tsu_get_offset(struct sh_eth_private *mdp,
+					  int enum_index)
+{
+	return mdp->tsu_addr + mdp->reg_offset[enum_index];
 }
 
 static inline void sh_eth_tsu_write(struct sh_eth_private *mdp,
