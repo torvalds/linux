@@ -201,7 +201,9 @@ enum {
 	Opt_ip,
 	Opt_last_string,
 	/* string args above */
+	Opt_share,
 	Opt_noshare,
+	Opt_crc,
 	Opt_nocrc,
 };
 
@@ -217,7 +219,9 @@ static match_table_t opt_tokens = {
 	{Opt_key, "key=%s"},
 	{Opt_ip, "ip=%s"},
 	/* string args above */
+	{Opt_share, "share"},
 	{Opt_noshare, "noshare"},
+	{Opt_crc, "crc"},
 	{Opt_nocrc, "nocrc"},
 	{-1, NULL}
 };
@@ -399,10 +403,16 @@ ceph_parse_options(char *options, const char *dev_name,
 			opt->mount_timeout = intval;
 			break;
 
+		case Opt_share:
+			opt->flags &= ~CEPH_OPT_NOSHARE;
+			break;
 		case Opt_noshare:
 			opt->flags |= CEPH_OPT_NOSHARE;
 			break;
 
+		case Opt_crc:
+			opt->flags &= ~CEPH_OPT_NOCRC;
+			break;
 		case Opt_nocrc:
 			opt->flags |= CEPH_OPT_NOCRC;
 			break;
