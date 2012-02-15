@@ -1424,6 +1424,7 @@ static int __devinit mx2_camera_probe(struct platform_device *pdev)
 
 	pcdev->clk_csi = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pcdev->clk_csi)) {
+		dev_err(&pdev->dev, "Could not get csi clock\n");
 		err = PTR_ERR(pcdev->clk_csi);
 		goto exit_kfree;
 	}
