@@ -799,9 +799,10 @@ static int i915_error_state(struct seq_file *m, void *unused)
 				   dev_priv->ring[i].name,
 				   error->ring[i].num_requests);
 			for (j = 0; j < error->ring[i].num_requests; j++) {
-				seq_printf(m, "  seqno 0x%08x, emitted %ld\n",
+				seq_printf(m, "  seqno 0x%08x, emitted %ld, tail 0x%08x\n",
 					   error->ring[i].requests[j].seqno,
-					   error->ring[i].requests[j].jiffies);
+					   error->ring[i].requests[j].jiffies,
+					   error->ring[i].requests[j].tail);
 			}
 		}
 

@@ -183,6 +183,7 @@ struct drm_i915_error_state {
 		struct drm_i915_error_request {
 			long jiffies;
 			u32 seqno;
+			u32 tail;
 		} *requests;
 		int num_requests;
 	} ring[I915_NUM_RINGS];
