@@ -728,8 +728,19 @@ static struct platform_device at91sam9260_rtt_device = {
 	.num_resources	= ARRAY_SIZE(rtt_resources),
 };
 
+
+#if IS_ENABLED(CONFIG_RTC_DRV_AT91SAM9)
+static void __init at91_add_device_rtt_rtc(void)
+{
+	at91sam9260_rtt_device.name = "rtc-at91sam9";
+}
+#else
+static void __init at91_add_device_rtt_rtc(void) {}
+#endif
+
 static void __init at91_add_device_rtt(void)
 {
+	at91_add_device_rtt_rtc();
 	platform_device_register(&at91sam9260_rtt_device);
 }
 

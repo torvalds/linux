@@ -992,8 +992,33 @@ static struct platform_device at91sam9263_rtt1_device = {
 	.num_resources	= ARRAY_SIZE(rtt1_resources),
 };
 
+#if IS_ENABLED(CONFIG_RTC_DRV_AT91SAM9)
+static void __init at91_add_device_rtt_rtc(void)
+{
+	struct platform_device *pdev;
+
+	switch (CONFIG_RTC_DRV_AT91SAM9_RTT) {
+	case 0:
+		pdev = &at91sam9263_rtt0_device;
+		break;
+	case 1:
+		pdev = &at91sam9263_rtt1_device;
+		break;
+	default:
+		pr_err("at91sam9263: support only 2 RTT (%d)\n",
+			 CONFIG_RTC_DRV_AT91SAM9_RTT);
+		return;
+	}
+
+	pdev->name = "rtc-at91sam9";
+}
+#else
+static void __init at91_add_device_rtt_rtc(void) {}
+#endif
+
 static void __init at91_add_device_rtt(void)
 {
+	at91_add_device_rtt_rtc();
 	platform_device_register(&at91sam9263_rtt0_device);
 	platform_device_register(&at91sam9263_rtt1_device);
 }
