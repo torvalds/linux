@@ -43,6 +43,14 @@
 #define UART_OFFSET AT91_USART5
 #endif
 
+void __iomem *at91_uart;
+
+static inline void arch_decomp_setup(void)
+{
+#ifdef UART_OFFSET
+	at91_uart = (void __iomem *) UART_OFFSET;	/* physical address */
+#endif
+}
 /*
  * The following code assumes the serial port has already been
  * initialized by the bootloader.  If you didn't setup a port in
@@ -53,26 +61,20 @@
 static void putc(int c)
 {
 #ifdef UART_OFFSET
-	void __iomem *sys = (void __iomem *) UART_OFFSET;	/* physical address */
-
-	while (!(__raw_readl(sys + ATMEL_US_CSR) & ATMEL_US_TXRDY))
+	while (!(__raw_readl(at91_uart + ATMEL_US_CSR) & ATMEL_US_TXRDY))
 		barrier();
-	__raw_writel(c, sys + ATMEL_US_THR);
+	__raw_writel(c, at91_uart + ATMEL_US_THR);
 #endif
 }
 
 static inline void flush(void)
 {
 #ifdef UART_OFFSET
-	void __iomem *sys = (void __iomem *) UART_OFFSET;	/* physical address */
-
 	/* wait for transmission to complete */
-	while (!(__raw_readl(sys + ATMEL_US_CSR) & ATMEL_US_TXEMPTY))
+	while (!(__raw_readl(at91_uart + ATMEL_US_CSR) & ATMEL_US_TXEMPTY))
 		barrier();
 #endif
 }
-
-#define arch_decomp_setup()
 
 #define arch_decomp_wdog()
 
