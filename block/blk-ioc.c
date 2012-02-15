@@ -36,10 +36,22 @@ static void icq_free_icq_rcu(struct rcu_head *head)
 	kmem_cache_free(icq->__rcu_icq_cache, icq);
 }
 
-/*
- * Exit and free an icq.  Called with both ioc and q locked.
- */
+/* Exit an icq. Called with both ioc and q locked. */
 static void ioc_exit_icq(struct io_cq *icq)
+{
+	struct elevator_type *et = icq->q->elevator->type;
+
+	if (icq->flags & ICQ_EXITED)
+		return;
+
+	if (et->ops.elevator_exit_icq_fn)
+		et->ops.elevator_exit_icq_fn(icq);
+
+	icq->flags |= ICQ_EXITED;
+}
+
+/* Release an icq.  Called with both ioc and q locked. */
+static void ioc_destroy_icq(struct io_cq *icq)
 {
 	struct io_context *ioc = icq->ioc;
 	struct request_queue *q = icq->q;
@@ -60,8 +72,7 @@ static void ioc_exit_icq(struct io_cq *icq)
 	if (rcu_dereference_raw(ioc->icq_hint) == icq)
 		rcu_assign_pointer(ioc->icq_hint, NULL);
 
-	if (et->ops.elevator_exit_icq_fn)
-		et->ops.elevator_exit_icq_fn(icq);
+	ioc_exit_icq(icq);
 
 	/*
 	 * @icq->q might have gone away by the time RCU callback runs
@@ -95,7 +106,7 @@ static void ioc_release_fn(struct work_struct *work)
 		struct request_queue *q = icq->q;
 
 		if (spin_trylock(q->queue_lock)) {
-			ioc_exit_icq(icq);
+			ioc_destroy_icq(icq);
 			spin_unlock(q->queue_lock);
 		} else {
 			spin_unlock_irqrestore(&ioc->lock, flags);
@@ -142,13 +153,41 @@ EXPORT_SYMBOL(put_io_context);
 void exit_io_context(struct task_struct *task)
 {
 	struct io_context *ioc;
+	struct io_cq *icq;
+	struct hlist_node *n;
+	unsigned long flags;
 
 	task_lock(task);
 	ioc = task->io_context;
 	task->io_context = NULL;
 	task_unlock(task);
 
-	atomic_dec(&ioc->nr_tasks);
+	if (!atomic_dec_and_test(&ioc->nr_tasks)) {
+		put_io_context(ioc);
+		return;
+	}
+
+	/*
+	 * Need ioc lock to walk icq_list and q lock to exit icq.  Perform
+	 * reverse double locking.  Read comment in ioc_release_fn() for
+	 * explanation on the nested locking annotation.
+	 */
+retry:
+	spin_lock_irqsave_nested(&ioc->lock, flags, 1);
+	hlist_for_each_entry(icq, n, &ioc->icq_list, ioc_node) {
+		if (icq->flags & ICQ_EXITED)
+			continue;
+		if (spin_trylock(icq->q->queue_lock)) {
+			ioc_exit_icq(icq);
+			spin_unlock(icq->q->queue_lock);
+		} else {
+			spin_unlock_irqrestore(&ioc->lock, flags);
+			cpu_relax();
+			goto retry;
+		}
+	}
+	spin_unlock_irqrestore(&ioc->lock, flags);
+
 	put_io_context(ioc);
 }
 
@@ -168,7 +207,7 @@ void ioc_clear_queue(struct request_queue *q)
 		struct io_context *ioc = icq->ioc;
 
 		spin_lock(&ioc->lock);
-		ioc_exit_icq(icq);
+		ioc_destroy_icq(icq);
 		spin_unlock(&ioc->lock);
 	}
 }
