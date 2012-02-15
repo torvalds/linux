@@ -281,6 +281,14 @@ static inline struct property *of_find_property(const struct device_node *np,
 	return NULL;
 }
 
+static inline struct device_node *of_find_compatible_node(
+						struct device_node *from,
+						const char *type,
+						const char *compat)
+{
+	return NULL;
+}
+
 static inline int of_property_read_u32_array(const struct device_node *np,
 					     const char *propname,
 					     u32 *out_values, size_t sz)
