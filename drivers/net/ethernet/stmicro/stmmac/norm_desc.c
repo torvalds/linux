@@ -104,7 +104,7 @@ static int ndesc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 		ret = discard_frame;
 	}
 	if (unlikely(p->des01.rx.dribbling))
-		ret = discard_frame;
+		x->dribbling_bit++;
 
 	if (unlikely(p->des01.rx.length_error)) {
 		x->rx_length++;
