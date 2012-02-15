@@ -3022,6 +3022,7 @@ static int nv_set_mac_address(struct net_device *dev, void *addr)
 
 	/* synchronized against open : rtnl_lock() held by caller */
 	memcpy(dev->dev_addr, macaddr->sa_data, ETH_ALEN);
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	if (netif_running(dev)) {
 		netif_tx_lock_bh(dev);
@@ -5741,7 +5742,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		dev_err(&pci_dev->dev,
 			"Invalid MAC address detected: %pM - Please complain to your hardware vendor.\n",
 			dev->dev_addr);
-		random_ether_addr(dev->dev_addr);
+		eth_hw_addr_random(dev);
 		dev_err(&pci_dev->dev,
 			"Using random MAC address: %pM\n", dev->dev_addr);
 	}

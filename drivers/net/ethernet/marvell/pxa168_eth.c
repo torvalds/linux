@@ -629,6 +629,7 @@ static int pxa168_eth_set_mac_address(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(sa->sa_data))
 		return -EINVAL;
 	memcpy(oldMac, dev->dev_addr, ETH_ALEN);
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
 	netif_addr_lock_bh(dev);
 	update_hash_table_mac_address(pep, oldMac, dev->dev_addr);
@@ -1520,7 +1521,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	INIT_WORK(&pep->tx_timeout_task, pxa168_eth_tx_timeout_task);
 
 	printk(KERN_INFO "%s:Using random mac address\n", DRIVER_NAME);
-	random_ether_addr(dev->dev_addr);
+	eth_hw_addr_random(dev);
 
 	pep->pd = pdev->dev.platform_data;
 	pep->rx_ring_size = NUM_RX_DESCS;

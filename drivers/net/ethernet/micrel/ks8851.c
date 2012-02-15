@@ -439,7 +439,7 @@ static void ks8851_init_mac(struct ks8851_net *ks)
 				dev->dev_addr);
 	}
 
-	random_ether_addr(dev->dev_addr);
+	eth_hw_addr_random(dev);
 	ks8851_write_mac_addr(dev);
 }
 
@@ -1050,6 +1050,7 @@ static int ks8851_set_mac_address(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(sa->sa_data))
 		return -EADDRNOTAVAIL;
 
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
 	return ks8851_write_mac_addr(dev);
 }

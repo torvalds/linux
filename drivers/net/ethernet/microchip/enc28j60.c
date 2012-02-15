@@ -527,6 +527,7 @@ static int enc28j60_set_mac_address(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(address->sa_data))
 		return -EADDRNOTAVAIL;
 
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, address->sa_data, dev->addr_len);
 	return enc28j60_set_hw_macaddr(dev);
 }
@@ -1575,7 +1576,7 @@ static int __devinit enc28j60_probe(struct spi_device *spi)
 		ret = -EIO;
 		goto error_irq;
 	}
-	random_ether_addr(dev->dev_addr);
+	eth_hw_addr_random(dev);
 	enc28j60_set_hw_macaddr(dev);
 
 	/* Board setup must set the relevant edge trigger type;
