@@ -738,7 +738,7 @@ static int i915_error_state(struct seq_file *m, void *unused)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error;
 	unsigned long flags;
-	int i, page, offset, elt;
+	int i, j, page, offset, elt;
 
 	spin_lock_irqsave(&dev_priv->error_lock, flags);
 	if (!dev_priv->first_error) {
@@ -778,10 +778,10 @@ static int i915_error_state(struct seq_file *m, void *unused)
 				    error->pinned_bo,
 				    error->pinned_bo_count);
 
-	for (i = 0; i < ARRAY_SIZE(error->batchbuffer); i++) {
-		if (error->batchbuffer[i]) {
-			struct drm_i915_error_object *obj = error->batchbuffer[i];
+	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
+		struct drm_i915_error_object *obj;
 
+		if ((obj = error->ring[i].batchbuffer)) {
 			seq_printf(m, "%s --- gtt_offset = 0x%08x\n",
 				   dev_priv->ring[i].name,
 				   obj->gtt_offset);
@@ -793,11 +793,19 @@ static int i915_error_state(struct seq_file *m, void *unused)
 				}
 			}
 		}
-	}
 
-	for (i = 0; i < ARRAY_SIZE(error->ringbuffer); i++) {
-		if (error->ringbuffer[i]) {
-			struct drm_i915_error_object *obj = error->ringbuffer[i];
+		if (error->ring[i].num_requests) {
+			seq_printf(m, "%s --- %d requests\n",
+				   dev_priv->ring[i].name,
+				   error->ring[i].num_requests);
+			for (j = 0; j < error->ring[i].num_requests; j++) {
+				seq_printf(m, "  seqno 0x%08x, emitted %ld\n",
+					   error->ring[i].requests[j].seqno,
+					   error->ring[i].requests[j].jiffies);
+			}
+		}
+
+		if ((obj = error->ring[i].ringbuffer)) {
 			seq_printf(m, "%s --- ringbuffer = 0x%08x\n",
 				   dev_priv->ring[i].name,
 				   obj->gtt_offset);

@@ -788,11 +788,11 @@ i915_error_state_free(struct drm_device *dev,
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(error->batchbuffer); i++)
-		i915_error_object_free(error->batchbuffer[i]);
-
-	for (i = 0; i < ARRAY_SIZE(error->ringbuffer); i++)
-		i915_error_object_free(error->ringbuffer[i]);
+	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
+		i915_error_object_free(error->ring[i].batchbuffer);
+		i915_error_object_free(error->ring[i].ringbuffer);
+		kfree(error->ring[i].requests);
+	}
 
 	kfree(error->active_bo);
 	kfree(error->overlay);
@@ -934,6 +934,51 @@ static void i915_record_ring_state(struct drm_device *dev,
 	error->cpu_ring_tail[ring->id] = ring->tail;
 }
 
+static void i915_gem_record_rings(struct drm_device *dev,
+				  struct drm_i915_error_state *error)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_request *request;
+	int i, count;
+
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		struct intel_ring_buffer *ring = &dev_priv->ring[i];
+
+		if (ring->obj == NULL)
+			continue;
+
+		i915_record_ring_state(dev, error, ring);
+
+		error->ring[i].batchbuffer =
+			i915_error_first_batchbuffer(dev_priv, ring);
+
+		error->ring[i].ringbuffer =
+			i915_error_object_create(dev_priv, ring->obj);
+
+		count = 0;
+		list_for_each_entry(request, &ring->request_list, list)
+			count++;
+
+		error->ring[i].num_requests = count;
+		error->ring[i].requests =
+			kmalloc(count*sizeof(struct drm_i915_error_request),
+				GFP_ATOMIC);
+		if (error->ring[i].requests == NULL) {
+			error->ring[i].num_requests = 0;
+			continue;
+		}
+
+		count = 0;
+		list_for_each_entry(request, &ring->request_list, list) {
+			struct drm_i915_error_request *erq;
+
+			erq = &error->ring[i].requests[count++];
+			erq->seqno = request->seqno;
+			erq->jiffies = request->emitted_jiffies;
+		}
+	}
+}
+
 /**
  * i915_capture_error_state - capture an error record for later analysis
  * @dev: drm device
@@ -977,24 +1022,8 @@ static void i915_capture_error_state(struct drm_device *dev)
 		error->done_reg = I915_READ(DONE_REG);
 	}
 
-	i915_record_ring_state(dev, error, &dev_priv->ring[RCS]);
-	if (HAS_BLT(dev))
-		i915_record_ring_state(dev, error, &dev_priv->ring[BCS]);
-	if (HAS_BSD(dev))
-		i915_record_ring_state(dev, error, &dev_priv->ring[VCS]);
-
 	i915_gem_record_fences(dev, error);
-
-	/* Record the active batch and ring buffers */
-	for (i = 0; i < I915_NUM_RINGS; i++) {
-		error->batchbuffer[i] =
-			i915_error_first_batchbuffer(dev_priv,
-						     &dev_priv->ring[i]);
-
-		error->ringbuffer[i] =
-			i915_error_object_create(dev_priv,
-						 dev_priv->ring[i].obj);
-	}
+	i915_gem_record_rings(dev, error);
 
 	/* Record buffers on the active and pinned lists. */
 	error->active_bo = NULL;

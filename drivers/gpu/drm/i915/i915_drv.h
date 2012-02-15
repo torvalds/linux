@@ -174,11 +174,18 @@ struct drm_i915_error_state {
 	u32 faddr[I915_NUM_RINGS];
 	u64 fence[I915_MAX_NUM_FENCES];
 	struct timeval time;
-	struct drm_i915_error_object {
-		int page_count;
-		u32 gtt_offset;
-		u32 *pages[0];
-	} *ringbuffer[I915_NUM_RINGS], *batchbuffer[I915_NUM_RINGS];
+	struct drm_i915_error_ring {
+		struct drm_i915_error_object {
+			int page_count;
+			u32 gtt_offset;
+			u32 *pages[0];
+		} *ringbuffer, *batchbuffer;
+		struct drm_i915_error_request {
+			long jiffies;
+			u32 seqno;
+		} *requests;
+		int num_requests;
+	} ring[I915_NUM_RINGS];
 	struct drm_i915_error_buffer {
 		u32 size;
 		u32 name;
