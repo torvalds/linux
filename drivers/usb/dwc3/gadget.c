@@ -826,12 +826,20 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep, bool starting)
 {
 	struct dwc3_request	*req, *n;
 	u32			trbs_left;
+	u32			max;
 	unsigned int		last_one = 0;
 
 	BUILD_BUG_ON_NOT_POWER_OF_2(DWC3_TRB_NUM);
 
 	/* the first request must not be queued */
 	trbs_left = (dep->busy_slot - dep->free_slot) & DWC3_TRB_MASK;
+
+	/* Can't wrap around on a non-isoc EP since there's no link TRB */
+	if (!usb_endpoint_xfer_isoc(dep->desc)) {
+		max = DWC3_TRB_NUM - (dep->free_slot & DWC3_TRB_MASK);
+		if (trbs_left > max)
+			trbs_left = max;
+	}
 
 	/*
 	 * If busy & slot are equal than it is either full or empty. If we are
