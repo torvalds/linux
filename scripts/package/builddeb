@@ -130,8 +130,10 @@ if grep -q '^CONFIG_MODULES=y' .config ; then
 	fi
 fi
 
-make headers_check
-make headers_install INSTALL_HDR_PATH="$libc_headers_dir/usr"
+if [ "$ARCH" != "um" ]; then
+	make headers_check
+	make headers_install INSTALL_HDR_PATH="$libc_headers_dir/usr"
+fi
 
 # Install the maintainer scripts
 # Note: hook scripts under /etc/kernel are also executed by official Debian
@@ -263,8 +265,6 @@ Description: Linux kernel headers for $KERNELRELEASE on $arch
  This is useful for people who need to build external modules
 EOF
 
-create_package "$kernel_headers_packagename" "$kernel_headers_dir"
-
 # Do we have firmware? Move it out of the way and build it into a package.
 if [ -e "$tmpdir/lib/firmware" ]; then
 	mv "$tmpdir/lib/firmware" "$fwdir/lib/"
@@ -291,7 +291,11 @@ Description: Linux support headers for userspace development
  are used by the installed headers for GNU glibc and other system libraries.
 EOF
 
-create_package "$libc_headers_packagename" "$libc_headers_dir"
+if [ "$ARCH" != "um" ]; then
+	create_package "$kernel_headers_packagename" "$kernel_headers_dir"
+	create_package "$libc_headers_packagename" "$libc_headers_dir"
+fi
+
 create_package "$packagename" "$tmpdir"
 
 exit 0
