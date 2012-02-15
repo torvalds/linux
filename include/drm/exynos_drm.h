@@ -97,6 +97,8 @@ struct drm_exynos_plane_set_zpos {
 #define DRM_IOCTL_EXYNOS_PLANE_SET_ZPOS	DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_EXYNOS_PLANE_SET_ZPOS, struct drm_exynos_plane_set_zpos)
 
+#ifdef __KERNEL__
+
 /**
  * A structure for lcd panel information.
  *
@@ -152,4 +154,5 @@ struct exynos_drm_hdmi_pdata {
 	unsigned int			bpp;
 };
 
-#endif
+#endif	/* __KERNEL__ */
+#endif	/* _EXYNOS_DRM_H_ */
