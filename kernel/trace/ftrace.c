@@ -1186,6 +1186,12 @@ static void free_ftrace_hash_rcu(struct ftrace_hash *hash)
 	call_rcu_sched(&hash->rcu, __free_ftrace_hash_rcu);
 }
 
+void ftrace_free_filter(struct ftrace_ops *ops)
+{
+	free_ftrace_hash(ops->filter_hash);
+	free_ftrace_hash(ops->notrace_hash);
+}
+
 static struct ftrace_hash *alloc_ftrace_hash(int size_bits)
 {
 	struct ftrace_hash *hash;

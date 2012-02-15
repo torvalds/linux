@@ -250,6 +250,7 @@ int ftrace_set_notrace(struct ftrace_ops *ops, unsigned char *buf,
 			int len, int reset);
 void ftrace_set_global_filter(unsigned char *buf, int len, int reset);
 void ftrace_set_global_notrace(unsigned char *buf, int len, int reset);
+void ftrace_free_filter(struct ftrace_ops *ops);
 
 int register_ftrace_command(struct ftrace_func_command *cmd);
 int unregister_ftrace_command(struct ftrace_func_command *cmd);
@@ -380,9 +381,6 @@ extern void ftrace_enable_daemon(void);
 #else
 static inline int skip_trace(unsigned long ip) { return 0; }
 static inline int ftrace_force_update(void) { return 0; }
-static inline void ftrace_set_filter(unsigned char *buf, int len, int reset)
-{
-}
 static inline void ftrace_disable_daemon(void) { }
 static inline void ftrace_enable_daemon(void) { }
 static inline void ftrace_release_mod(struct module *mod) {}
@@ -406,6 +404,9 @@ static inline int ftrace_text_reserved(void *start, void *end)
  */
 #define ftrace_regex_open(ops, flag, inod, file) ({ -ENODEV; })
 #define ftrace_set_early_filter(ops, buf, enable) do { } while (0)
+#define ftrace_set_filter(ops, buf, len, reset) ({ -ENODEV; })
+#define ftrace_set_notrace(ops, buf, len, reset) ({ -ENODEV; })
+#define ftrace_free_filter(ops) do { } while (0)
 
 static inline ssize_t ftrace_filter_write(struct file *file, const char __user *ubuf,
 			    size_t cnt, loff_t *ppos) { return -ENODEV; }
