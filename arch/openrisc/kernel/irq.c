@@ -23,6 +23,7 @@
 #include <linux/irq.h>
 #include <linux/seq_file.h>
 #include <linux/kernel_stat.h>
+#include <linux/export.h>
 
 #include <linux/irqflags.h>
 
