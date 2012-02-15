@@ -133,7 +133,7 @@ struct iwl_bus {
 
 	/* pointer to bus specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
-	char bus_specific[0] __attribute__((__aligned__(sizeof(void *))));
+	char bus_specific[0] __aligned(sizeof(void *));
 };
 
 /*****************************************************

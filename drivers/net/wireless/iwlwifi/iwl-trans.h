@@ -347,7 +347,7 @@ struct iwl_trans {
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
-	char trans_specific[0] __attribute__((__aligned__(sizeof(void *))));
+	char trans_specific[0] __aligned(sizeof(void *));
 };
 
 static inline int iwl_trans_start_hw(struct iwl_trans *trans)
