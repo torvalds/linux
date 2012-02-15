@@ -92,11 +92,11 @@ static dma_addr_t to_sgl_element_pair_dma(struct isci_host *ihost,
 	if (idx == 0) {
 		offset = (void *) &ireq->tc->sgl_pair_ab -
 			 (void *) &ihost->task_context_table[0];
-		return ihost->task_context_dma + offset;
+		return ihost->tc_dma + offset;
 	} else if (idx == 1) {
 		offset = (void *) &ireq->tc->sgl_pair_cd -
 			 (void *) &ihost->task_context_table[0];
-		return ihost->task_context_dma + offset;
+		return ihost->tc_dma + offset;
 	}
 
 	return sci_io_request_get_dma_addr(ireq, &ireq->sg_table[idx - 2]);

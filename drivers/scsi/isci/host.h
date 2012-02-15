@@ -158,13 +158,17 @@ struct isci_host {
 	struct sci_power_control power_control;
 	u8 io_request_sequence[SCI_MAX_IO_REQUESTS];
 	struct scu_task_context *task_context_table;
-	dma_addr_t task_context_dma;
+	dma_addr_t tc_dma;
 	union scu_remote_node_context *remote_node_context_table;
+	dma_addr_t rnc_dma;
 	u32 *completion_queue;
+	dma_addr_t cq_dma;
 	u32 completion_queue_get;
 	u32 logical_port_entries;
 	u32 remote_node_entries;
 	u32 task_context_entries;
+	void *ufi_buf;
+	dma_addr_t ufi_dma;
 	struct sci_unsolicited_frame_control uf_control;
 
 	/* phy startup */
@@ -452,36 +456,17 @@ void sci_controller_free_remote_node_context(
 	struct isci_remote_device *idev,
 	u16 node_id);
 
-struct isci_request *sci_request_by_tag(struct isci_host *ihost,
-					     u16 io_tag);
-
-void sci_controller_power_control_queue_insert(
-	struct isci_host *ihost,
-	struct isci_phy *iphy);
-
-void sci_controller_power_control_queue_remove(
-	struct isci_host *ihost,
-	struct isci_phy *iphy);
-
-void sci_controller_link_up(
-	struct isci_host *ihost,
-	struct isci_port *iport,
-	struct isci_phy *iphy);
-
-void sci_controller_link_down(
-	struct isci_host *ihost,
-	struct isci_port *iport,
-	struct isci_phy *iphy);
-
-void sci_controller_remote_device_stopped(
-	struct isci_host *ihost,
-	struct isci_remote_device *idev);
-
-void sci_controller_copy_task_context(
-	struct isci_host *ihost,
-	struct isci_request *ireq);
-
-void sci_controller_register_setup(struct isci_host *ihost);
+struct isci_request *sci_request_by_tag(struct isci_host *ihost, u16 io_tag);
+void sci_controller_power_control_queue_insert(struct isci_host *ihost,
+					       struct isci_phy *iphy);
+void sci_controller_power_control_queue_remove(struct isci_host *ihost,
+					       struct isci_phy *iphy);
+void sci_controller_link_up(struct isci_host *ihost, struct isci_port *iport,
+			    struct isci_phy *iphy);
+void sci_controller_link_down(struct isci_host *ihost, struct isci_port *iport,
+			      struct isci_phy *iphy);
+void sci_controller_remote_device_stopped(struct isci_host *ihost,
+					  struct isci_remote_device *idev);
 
 enum sci_status sci_controller_continue_io(struct isci_request *ireq);
 int isci_host_scan_finished(struct Scsi_Host *, unsigned long);
@@ -491,27 +476,9 @@ enum sci_status isci_free_tag(struct isci_host *ihost, u16 io_tag);
 void isci_tci_free(struct isci_host *ihost, u16 tci);
 
 int isci_host_init(struct isci_host *);
-
-void isci_host_init_controller_names(
-	struct isci_host *isci_host,
-	unsigned int controller_idx);
-
-void isci_host_deinit(
-	struct isci_host *);
-
-void isci_host_port_link_up(
-	struct isci_host *,
-	struct isci_port *,
-	struct isci_phy *);
-int isci_host_dev_found(struct domain_device *);
-
-void isci_host_remote_device_start_complete(
-	struct isci_host *,
-	struct isci_remote_device *,
-	enum sci_status);
-
-void sci_controller_disable_interrupts(
-	struct isci_host *ihost);
+void isci_host_completion_routine(unsigned long data);
+void isci_host_deinit(struct isci_host *);
+void sci_controller_disable_interrupts(struct isci_host *ihost);
 
 enum sci_status sci_controller_start_io(
 	struct isci_host *ihost,

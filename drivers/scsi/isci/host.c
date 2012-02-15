@@ -1074,7 +1074,7 @@ static void sci_controller_completion_handler(struct isci_host *ihost)
  * @data: This parameter specifies the ISCI host object
  *
  */
-static void isci_host_completion_routine(unsigned long data)
+void isci_host_completion_routine(unsigned long data)
 {
 	struct isci_host *ihost = (struct isci_host *)data;
 	struct list_head    completed_request_list;
@@ -1315,29 +1315,6 @@ static void __iomem *smu_base(struct isci_host *isci_host)
 	int id = isci_host->id;
 
 	return pcim_iomap_table(pdev)[SCI_SMU_BAR * 2] + SCI_SMU_BAR_SIZE * id;
-}
-
-static void isci_user_parameters_get(struct sci_user_parameters *u)
-{
-	int i;
-
-	for (i = 0; i < SCI_MAX_PHYS; i++) {
-		struct sci_phy_user_params *u_phy = &u->phys[i];
-
-		u_phy->max_speed_generation = phy_gen;
-
-		/* we are not exporting these for now */
-		u_phy->align_insertion_frequency = 0x7f;
-		u_phy->in_connection_align_insertion_frequency = 0xff;
-		u_phy->notify_enable_spin_up_insertion_frequency = 0x33;
-	}
-
-	u->stp_inactivity_timeout = stp_inactive_to;
-	u->ssp_inactivity_timeout = ssp_inactive_to;
-	u->stp_max_occupancy_timeout = stp_max_occ_to;
-	u->ssp_max_occupancy_timeout = ssp_max_occ_to;
-	u->no_outbound_task_timeout = no_outbound_task_to;
-	u->max_concurr_spinup = max_concurr_spinup;
 }
 
 static void sci_controller_initial_state_enter(struct sci_base_state_machine *sm)
@@ -1648,55 +1625,6 @@ static const struct sci_base_state sci_controller_state_table[] = {
 	[SCIC_FAILED] = {}
 };
 
-static void sci_controller_set_default_config_parameters(struct isci_host *ihost)
-{
-	/* these defaults are overridden by the platform / firmware */
-	u16 index;
-
-	/* Default to APC mode. */
-	ihost->oem_parameters.controller.mode_type = SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE;
-
-	/* Default to APC mode. */
-	ihost->oem_parameters.controller.max_concurr_spin_up = 1;
-
-	/* Default to no SSC operation. */
-	ihost->oem_parameters.controller.do_enable_ssc = false;
-
-	/* Default to short cables on all phys. */
-	ihost->oem_parameters.controller.cable_selection_mask = 0;
-
-	/* Initialize all of the port parameter information to narrow ports. */
-	for (index = 0; index < SCI_MAX_PORTS; index++) {
-		ihost->oem_parameters.ports[index].phy_mask = 0;
-	}
-
-	/* Initialize all of the phy parameter information. */
-	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		/* Default to 3G (i.e. Gen 2). */
-		ihost->user_parameters.phys[index].max_speed_generation =
-			SCIC_SDS_PARM_GEN2_SPEED;
-
-		/* the frequencies cannot be 0 */
-		ihost->user_parameters.phys[index].align_insertion_frequency = 0x7f;
-		ihost->user_parameters.phys[index].in_connection_align_insertion_frequency = 0xff;
-		ihost->user_parameters.phys[index].notify_enable_spin_up_insertion_frequency = 0x33;
-
-		/*
-		 * Previous Vitesse based expanders had a arbitration issue that
-		 * is worked around by having the upper 32-bits of SAS address
-		 * with a value greater then the Vitesse company identifier.
-		 * Hence, usage of 0x5FCFFFFF. */
-		ihost->oem_parameters.phys[index].sas_address.low = 0x1 + ihost->id;
-		ihost->oem_parameters.phys[index].sas_address.high = 0x5FCFFFFF;
-	}
-
-	ihost->user_parameters.stp_inactivity_timeout = 5;
-	ihost->user_parameters.ssp_inactivity_timeout = 5;
-	ihost->user_parameters.stp_max_occupancy_timeout = 5;
-	ihost->user_parameters.ssp_max_occupancy_timeout = 20;
-	ihost->user_parameters.no_outbound_task_timeout = 2;
-}
-
 static void controller_timeout(unsigned long data)
 {
 	struct sci_timer *tmr = (struct sci_timer *)data;
@@ -1752,9 +1680,6 @@ static enum sci_status sci_controller_construct(struct isci_host *ihost,
 	ihost->invalid_phy_mask = 0;
 
 	sci_init_timer(&ihost->timer, controller_timeout);
-
-	/* Initialize the User and OEM parameters to default values. */
-	sci_controller_set_default_config_parameters(ihost);
 
 	return sci_controller_reset(ihost);
 }
@@ -1833,27 +1758,6 @@ int sci_oem_parameters_validate(struct sci_oem_params *oem, u8 version)
 	}
 
 	return 0;
-}
-
-static enum sci_status sci_oem_parameters_set(struct isci_host *ihost)
-{
-	u32 state = ihost->sm.current_state_id;
-	struct isci_pci_info *pci_info = to_pci_info(ihost->pdev);
-
-	if (state == SCIC_RESET ||
-	    state == SCIC_INITIALIZING ||
-	    state == SCIC_INITIALIZED) {
-		u8 oem_version = pci_info->orom ? pci_info->orom->hdr.version :
-			ISCI_ROM_VER_1_0;
-
-		if (sci_oem_parameters_validate(&ihost->oem_parameters,
-						oem_version))
-			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-
-		return SCI_SUCCESS;
-	}
-
-	return SCI_FAILURE_INVALID_STATE;
 }
 
 static u8 max_spin_up(struct isci_host *ihost)
@@ -2372,95 +2276,76 @@ static enum sci_status sci_controller_initialize(struct isci_host *ihost)
 	return result;
 }
 
-static enum sci_status sci_user_parameters_set(struct isci_host *ihost,
-					       struct sci_user_parameters *sci_parms)
+static int sci_controller_dma_alloc(struct isci_host *ihost)
 {
-	u32 state = ihost->sm.current_state_id;
+	struct device *dev = &ihost->pdev->dev;
+	size_t size;
+	int i;
 
-	if (state == SCIC_RESET ||
-	    state == SCIC_INITIALIZING ||
-	    state == SCIC_INITIALIZED) {
-		u16 index;
+	/* detect re-initialization */
+	if (ihost->completion_queue)
+		return 0;
 
-		/*
-		 * Validate the user parameters.  If they are not legal, then
-		 * return a failure.
-		 */
-		for (index = 0; index < SCI_MAX_PHYS; index++) {
-			struct sci_phy_user_params *user_phy;
+	size = SCU_MAX_COMPLETION_QUEUE_ENTRIES * sizeof(u32);
+	ihost->completion_queue = dmam_alloc_coherent(dev, size, &ihost->cq_dma,
+						      GFP_KERNEL);
+	if (!ihost->completion_queue)
+		return -ENOMEM;
 
-			user_phy = &sci_parms->phys[index];
+	size = ihost->remote_node_entries * sizeof(union scu_remote_node_context);
+	ihost->remote_node_context_table = dmam_alloc_coherent(dev, size, &ihost->rnc_dma,
+							       GFP_KERNEL);
 
-			if (!((user_phy->max_speed_generation <=
-						SCIC_SDS_PARM_MAX_SPEED) &&
-			      (user_phy->max_speed_generation >
-						SCIC_SDS_PARM_NO_SPEED)))
-				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+	if (!ihost->remote_node_context_table)
+		return -ENOMEM;
 
-			if (user_phy->in_connection_align_insertion_frequency <
-					3)
-				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+	size = ihost->task_context_entries * sizeof(struct scu_task_context),
+	ihost->task_context_table = dmam_alloc_coherent(dev, size, &ihost->tc_dma,
+							GFP_KERNEL);
+	if (!ihost->task_context_table)
+		return -ENOMEM;
 
-			if ((user_phy->in_connection_align_insertion_frequency <
-						3) ||
-			    (user_phy->align_insertion_frequency == 0) ||
-			    (user_phy->
-				notify_enable_spin_up_insertion_frequency ==
-						0))
-				return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-		}
+	size = SCI_UFI_TOTAL_SIZE;
+	ihost->ufi_buf = dmam_alloc_coherent(dev, size, &ihost->ufi_dma, GFP_KERNEL);
+	if (!ihost->ufi_buf)
+		return -ENOMEM;
 
-		if ((sci_parms->stp_inactivity_timeout == 0) ||
-		    (sci_parms->ssp_inactivity_timeout == 0) ||
-		    (sci_parms->stp_max_occupancy_timeout == 0) ||
-		    (sci_parms->ssp_max_occupancy_timeout == 0) ||
-		    (sci_parms->no_outbound_task_timeout == 0))
-			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+	for (i = 0; i < SCI_MAX_IO_REQUESTS; i++) {
+		struct isci_request *ireq;
+		dma_addr_t dma;
 
-		memcpy(&ihost->user_parameters, sci_parms, sizeof(*sci_parms));
+		ireq = dmam_alloc_coherent(dev, sizeof(*ireq), &dma, GFP_KERNEL);
+		if (!ireq)
+			return -ENOMEM;
 
-		return SCI_SUCCESS;
+		ireq->tc = &ihost->task_context_table[i];
+		ireq->owning_controller = ihost;
+		spin_lock_init(&ireq->state_lock);
+		ireq->request_daddr = dma;
+		ireq->isci_host = ihost;
+		ihost->reqs[i] = ireq;
 	}
 
-	return SCI_FAILURE_INVALID_STATE;
+	return 0;
 }
 
 static int sci_controller_mem_init(struct isci_host *ihost)
 {
-	struct device *dev = &ihost->pdev->dev;
-	dma_addr_t dma;
-	size_t size;
-	int err;
+	int err = sci_controller_dma_alloc(ihost);
 
-	size = SCU_MAX_COMPLETION_QUEUE_ENTRIES * sizeof(u32);
-	ihost->completion_queue = dmam_alloc_coherent(dev, size, &dma, GFP_KERNEL);
-	if (!ihost->completion_queue)
-		return -ENOMEM;
-
-	writel(lower_32_bits(dma), &ihost->smu_registers->completion_queue_lower);
-	writel(upper_32_bits(dma), &ihost->smu_registers->completion_queue_upper);
-
-	size = ihost->remote_node_entries * sizeof(union scu_remote_node_context);
-	ihost->remote_node_context_table = dmam_alloc_coherent(dev, size, &dma,
-							       GFP_KERNEL);
-	if (!ihost->remote_node_context_table)
-		return -ENOMEM;
-
-	writel(lower_32_bits(dma), &ihost->smu_registers->remote_node_context_lower);
-	writel(upper_32_bits(dma), &ihost->smu_registers->remote_node_context_upper);
-
-	size = ihost->task_context_entries * sizeof(struct scu_task_context),
-	ihost->task_context_table = dmam_alloc_coherent(dev, size, &dma, GFP_KERNEL);
-	if (!ihost->task_context_table)
-		return -ENOMEM;
-
-	ihost->task_context_dma = dma;
-	writel(lower_32_bits(dma), &ihost->smu_registers->host_task_table_lower);
-	writel(upper_32_bits(dma), &ihost->smu_registers->host_task_table_upper);
-
-	err = sci_unsolicited_frame_control_construct(ihost);
 	if (err)
 		return err;
+
+	writel(lower_32_bits(ihost->cq_dma), &ihost->smu_registers->completion_queue_lower);
+	writel(upper_32_bits(ihost->cq_dma), &ihost->smu_registers->completion_queue_upper);
+
+	writel(lower_32_bits(ihost->rnc_dma), &ihost->smu_registers->remote_node_context_lower);
+	writel(upper_32_bits(ihost->rnc_dma), &ihost->smu_registers->remote_node_context_upper);
+
+	writel(lower_32_bits(ihost->tc_dma), &ihost->smu_registers->host_task_table_lower);
+	writel(upper_32_bits(ihost->tc_dma), &ihost->smu_registers->host_task_table_upper);
+
+	sci_unsolicited_frame_control_construct(ihost);
 
 	/*
 	 * Inform the silicon as to the location of the UF headers and
@@ -2479,19 +2364,20 @@ static int sci_controller_mem_init(struct isci_host *ihost)
 	return 0;
 }
 
+/**
+ * isci_host_init - (re-)initialize hardware and internal (private) state
+ * @ihost: host to init
+ *
+ * Any public facing objects (like asd_sas_port, and asd_sas_phys), or
+ * one-time initialization objects like locks and waitqueues, are
+ * not touched (they are initialized in isci_host_alloc)
+ */
 int isci_host_init(struct isci_host *ihost)
 {
-	int err = 0, i;
+	int i, err;
 	enum sci_status status;
-	struct sci_user_parameters sci_user_params;
-	struct isci_pci_info *pci_info = to_pci_info(ihost->pdev);
 
-	spin_lock_init(&ihost->scic_lock);
-	init_waitqueue_head(&ihost->eventq);
-
-	status = sci_controller_construct(ihost, scu_base(ihost),
-					  smu_base(ihost));
-
+	status = sci_controller_construct(ihost, scu_base(ihost), smu_base(ihost));
 	if (status != SCI_SUCCESS) {
 		dev_err(&ihost->pdev->dev,
 			"%s: sci_controller_construct failed - status = %x\n",
@@ -2499,48 +2385,6 @@ int isci_host_init(struct isci_host *ihost)
 			status);
 		return -ENODEV;
 	}
-
-	ihost->sas_ha.dev = &ihost->pdev->dev;
-	ihost->sas_ha.lldd_ha = ihost;
-
-	/*
-	 * grab initial values stored in the controller object for OEM and USER
-	 * parameters
-	 */
-	isci_user_parameters_get(&sci_user_params);
-	status = sci_user_parameters_set(ihost, &sci_user_params);
-	if (status != SCI_SUCCESS) {
-		dev_warn(&ihost->pdev->dev,
-			 "%s: sci_user_parameters_set failed\n",
-			 __func__);
-		return -ENODEV;
-	}
-
-	/* grab any OEM parameters specified in orom */
-	if (pci_info->orom) {
-		status = isci_parse_oem_parameters(&ihost->oem_parameters,
-						   pci_info->orom,
-						   ihost->id);
-		if (status != SCI_SUCCESS) {
-			dev_warn(&ihost->pdev->dev,
-				 "parsing firmware oem parameters failed\n");
-			return -EINVAL;
-		}
-	}
-
-	status = sci_oem_parameters_set(ihost);
-	if (status != SCI_SUCCESS) {
-		dev_warn(&ihost->pdev->dev,
-				"%s: sci_oem_parameters_set failed\n",
-				__func__);
-		return -ENODEV;
-	}
-
-	tasklet_init(&ihost->completion_tasklet,
-		     isci_host_completion_routine, (unsigned long)ihost);
-
-	INIT_LIST_HEAD(&ihost->requests_to_complete);
-	INIT_LIST_HEAD(&ihost->requests_to_errorback);
 
 	spin_lock_irq(&ihost->scic_lock);
 	status = sci_controller_initialize(ihost);
@@ -2557,46 +2401,11 @@ int isci_host_init(struct isci_host *ihost)
 	if (err)
 		return err;
 
-	for (i = 0; i < SCI_MAX_PORTS; i++) {
-		struct isci_port *iport = &ihost->ports[i];
-
-		INIT_LIST_HEAD(&iport->remote_dev_list);
-		iport->isci_host = ihost;
-	}
-
-	for (i = 0; i < SCI_MAX_PHYS; i++)
-		isci_phy_init(&ihost->phys[i], ihost, i);
-
 	/* enable sgpio */
 	writel(1, &ihost->scu_registers->peg0.sgpio.interface_control);
 	for (i = 0; i < isci_gpio_count(ihost); i++)
 		writel(SGPIO_HW_CONTROL, &ihost->scu_registers->peg0.sgpio.output_data_select[i]);
 	writel(0, &ihost->scu_registers->peg0.sgpio.vendor_specific_code);
-
-	for (i = 0; i < SCI_MAX_REMOTE_DEVICES; i++) {
-		struct isci_remote_device *idev = &ihost->devices[i];
-
-		INIT_LIST_HEAD(&idev->reqs_in_process);
-		INIT_LIST_HEAD(&idev->node);
-	}
-
-	for (i = 0; i < SCI_MAX_IO_REQUESTS; i++) {
-		struct isci_request *ireq;
-		dma_addr_t dma;
-
-		ireq = dmam_alloc_coherent(&ihost->pdev->dev,
-					   sizeof(struct isci_request), &dma,
-					   GFP_KERNEL);
-		if (!ireq)
-			return -ENOMEM;
-
-		ireq->tc = &ihost->task_context_table[i];
-		ireq->owning_controller = ihost;
-		spin_lock_init(&ireq->state_lock);
-		ireq->request_daddr = dma;
-		ireq->isci_host = ihost;
-		ihost->reqs[i] = ireq;
-	}
 
 	return 0;
 }
