@@ -3793,7 +3793,7 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 
 	/* Enable Autoneg */
 	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
-			 MDIO_WC_REG_IEEE0BLK_MIICNTL, 0x1000);
+			 MDIO_WC_REG_IEEE0BLK_MIICNTL, 0x1200);
 
 }
 
