@@ -46,7 +46,7 @@ struct signature_hdr {
 	char		mpi[0];
 } __packed;
 
-#if defined(CONFIG_DIGSIG) || defined(CONFIG_DIGSIG_MODULE)
+#if defined(CONFIG_SIGNATURE) || defined(CONFIG_SIGNATURE_MODULE)
 
 int digsig_verify(struct key *keyring, const char *sig, int siglen,
 					const char *digest, int digestlen);
@@ -59,6 +59,6 @@ static inline int digsig_verify(struct key *keyring, const char *sig,
 	return -EOPNOTSUPP;
 }
 
-#endif /* CONFIG_DIGSIG */
+#endif /* CONFIG_SIGNATURE */
 
 #endif /* _DIGSIG_H */

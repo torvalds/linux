@@ -818,6 +818,7 @@ int ceph_removexattr(struct dentry *dentry, const char *name)
 	struct ceph_vxattr_cb *vxattrs = ceph_inode_vxattrs(inode);
 	int issued;
 	int err;
+	int required_blob_size;
 	int dirty;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
@@ -833,13 +834,33 @@ int ceph_removexattr(struct dentry *dentry, const char *name)
 			return -EOPNOTSUPP;
 	}
 
+	err = -ENOMEM;
 	spin_lock(&ci->i_ceph_lock);
 	__build_xattrs(inode);
+retry:
 	issued = __ceph_caps_issued(ci, NULL);
 	dout("removexattr %p issued %s\n", inode, ceph_cap_string(issued));
 
 	if (!(issued & CEPH_CAP_XATTR_EXCL))
 		goto do_sync;
+
+	required_blob_size = __get_required_blob_size(ci, 0, 0);
+
+	if (!ci->i_xattrs.prealloc_blob ||
+	    required_blob_size > ci->i_xattrs.prealloc_blob->alloc_len) {
+		struct ceph_buffer *blob;
+
+		spin_unlock(&ci->i_ceph_lock);
+		dout(" preaallocating new blob size=%d\n", required_blob_size);
+		blob = ceph_buffer_new(required_blob_size, GFP_NOFS);
+		if (!blob)
+			goto out;
+		spin_lock(&ci->i_ceph_lock);
+		if (ci->i_xattrs.prealloc_blob)
+			ceph_buffer_put(ci->i_xattrs.prealloc_blob);
+		ci->i_xattrs.prealloc_blob = blob;
+		goto retry;
+	}
 
 	err = __remove_xattr_by_name(ceph_inode(inode), name);
 	dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_XATTR_EXCL);
@@ -853,6 +874,7 @@ int ceph_removexattr(struct dentry *dentry, const char *name)
 do_sync:
 	spin_unlock(&ci->i_ceph_lock);
 	err = ceph_send_removexattr(dentry, name);
+out:
 	return err;
 }
 

@@ -219,6 +219,13 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		ha->mailbox_timeout_count++;
 		mbx_sts[0] = (-1);
 		set_bit(DPC_RESET_HA, &ha->dpc_flags);
+		if (is_qla8022(ha)) {
+			ql4_printk(KERN_INFO, ha,
+				   "disabling pause transmit on port 0 & 1.\n");
+			qla4_8xxx_wr_32(ha, QLA82XX_CRB_NIU + 0x98,
+					CRB_NIU_XG_PAUSE_CTL_P0 |
+					CRB_NIU_XG_PAUSE_CTL_P1);
+		}
 		goto mbox_exit;
 	}
 

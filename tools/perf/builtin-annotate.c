@@ -235,7 +235,7 @@ out_delete:
 }
 
 static const char * const annotate_usage[] = {
-	"perf annotate [<options>] <command>",
+	"perf annotate [<options>]",
 	NULL
 };
 
@@ -311,11 +311,6 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 			usage_with_options(annotate_usage, options);
 
 		annotate.sym_hist_filter = argv[0];
-	}
-
-	if (field_sep && *field_sep == '.') {
-		pr_err("'.' is the only non valid --field-separator argument\n");
-		return -1;
 	}
 
 	return __cmd_annotate(&annotate);

@@ -168,6 +168,7 @@ static int snd_vortex_pcm_open(struct snd_pcm_substream *substream)
 			runtime->hw = snd_vortex_playback_hw_adb;
 #ifdef CHIP_AU8830
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
+			VORTEX_IS_QUAD(vortex) &&
 			VORTEX_PCM_TYPE(substream->pcm) == VORTEX_PCM_ADB) {
 			runtime->hw.channels_max = 4;
 			snd_pcm_hw_constraint_list(runtime, 0,

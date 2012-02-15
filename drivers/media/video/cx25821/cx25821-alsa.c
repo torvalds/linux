@@ -102,7 +102,7 @@ struct cx25821_audio_dev {
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = { 1, [1 ... (SNDRV_CARDS - 1)] = 1 };
+static bool enable[SNDRV_CARDS] = { 1, [1 ... (SNDRV_CARDS - 1)] = 1 };
 
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable cx25821 soundcard. default enabled.");
@@ -176,8 +176,7 @@ static int _cx25821_start_audio_dma(struct cx25821_audio_dev *chip)
 
 	/* Set the input mode to 16-bit */
 	tmp = cx_read(AUD_A_CFG);
-	cx_write(AUD_A_CFG,
-		 tmp | FLD_AUD_DST_PK_MODE | FLD_AUD_DST_ENABLE |
+	cx_write(AUD_A_CFG, tmp | FLD_AUD_DST_PK_MODE | FLD_AUD_DST_ENABLE |
 		 FLD_AUD_CLK_ENABLE);
 
 	/*
@@ -188,9 +187,8 @@ static int _cx25821_start_audio_dma(struct cx25821_audio_dev *chip)
 	*/
 
 	/* Enables corresponding bits at AUD_INT_STAT */
-	cx_write(AUD_A_INT_MSK,
-		 FLD_AUD_DST_RISCI1 | FLD_AUD_DST_OF | FLD_AUD_DST_SYNC |
-		 FLD_AUD_DST_OPC_ERR);
+	cx_write(AUD_A_INT_MSK, FLD_AUD_DST_RISCI1 | FLD_AUD_DST_OF |
+		 FLD_AUD_DST_SYNC | FLD_AUD_DST_OPC_ERR);
 
 	/* Clean any pending interrupt bits already set */
 	cx_write(AUD_A_INT_STAT, ~0);
@@ -200,8 +198,8 @@ static int _cx25821_start_audio_dma(struct cx25821_audio_dev *chip)
 
 	/* Turn on audio downstream fifo and risc enable 0x101 */
 	tmp = cx_read(AUD_INT_DMA_CTL);
-	cx_set(AUD_INT_DMA_CTL,
-	       tmp | (FLD_AUD_DST_A_RISC_EN | FLD_AUD_DST_A_FIFO_EN));
+	cx_set(AUD_INT_DMA_CTL, tmp |
+	       (FLD_AUD_DST_A_RISC_EN | FLD_AUD_DST_A_FIFO_EN));
 
 	mdelay(100);
 	return 0;
@@ -220,9 +218,8 @@ static int _cx25821_stop_audio_dma(struct cx25821_audio_dev *chip)
 
 	/* disable irqs */
 	cx_clear(PCI_INT_MSK, PCI_MSK_AUD_INT);
-	cx_clear(AUD_A_INT_MSK,
-		 AUD_INT_OPC_ERR | AUD_INT_DN_SYNC | AUD_INT_DN_RISCI2 |
-		 AUD_INT_DN_RISCI1);
+	cx_clear(AUD_A_INT_MSK, AUD_INT_OPC_ERR | AUD_INT_DN_SYNC |
+		 AUD_INT_DN_RISCI2 | AUD_INT_DN_RISCI1);
 
 	return 0;
 }
@@ -234,15 +231,15 @@ static int _cx25821_stop_audio_dma(struct cx25821_audio_dev *chip)
  */
 static char *cx25821_aud_irqs[32] = {
 	"dn_risci1", "up_risci1", "rds_dn_risc1",	/* 0-2 */
-	NULL,			/* reserved */
+	NULL,						/* reserved */
 	"dn_risci2", "up_risci2", "rds_dn_risc2",	/* 4-6 */
-	NULL,			/* reserved */
-	"dnf_of", "upf_uf", "rds_dnf_uf",	/* 8-10 */
-	NULL,			/* reserved */
-	"dn_sync", "up_sync", "rds_dn_sync",	/* 12-14 */
-	NULL,			/* reserved */
-	"opc_err", "par_err", "rip_err",	/* 16-18 */
-	"pci_abort", "ber_irq", "mchg_irq"	/* 19-21 */
+	NULL,						/* reserved */
+	"dnf_of", "upf_uf", "rds_dnf_uf",		/* 8-10 */
+	NULL,						/* reserved */
+	"dn_sync", "up_sync", "rds_dn_sync",		/* 12-14 */
+	NULL,						/* reserved */
+	"opc_err", "par_err", "rip_err",		/* 16-18 */
+	"pci_abort", "ber_irq", "mchg_irq"		/* 19-21 */
 };
 
 /*
@@ -258,10 +255,8 @@ static void cx25821_aud_irq(struct cx25821_audio_dev *chip, u32 status,
 
 	cx_write(AUD_A_INT_STAT, status);
 	if (debug > 1 || (status & mask & ~0xff))
-		cx25821_print_irqbits(dev->name, "irq aud",
-				      cx25821_aud_irqs,
-				      ARRAY_SIZE(cx25821_aud_irqs), status,
-				      mask);
+		cx25821_print_irqbits(dev->name, "irq aud", cx25821_aud_irqs,
+				ARRAY_SIZE(cx25821_aud_irqs), status, mask);
 
 	/* risc op code error */
 	if (status & AUD_INT_OPC_ERR) {
@@ -270,8 +265,7 @@ static void cx25821_aud_irq(struct cx25821_audio_dev *chip, u32 status,
 		cx_clear(AUD_INT_DMA_CTL,
 			 FLD_AUD_DST_A_RISC_EN | FLD_AUD_DST_A_FIFO_EN);
 		cx25821_sram_channel_dump_audio(dev,
-						&cx25821_sram_channels
-						[AUDIO_SRAM_CHANNEL]);
+				&cx25821_sram_channels[AUDIO_SRAM_CHANNEL]);
 	}
 	if (status & AUD_INT_DN_SYNC) {
 		pr_warn("WARNING %s: Downstream sync error!\n", dev->name);
@@ -317,8 +311,9 @@ static irqreturn_t cx25821_irq(int irq, void *dev_id)
 				cx25821_aud_irq(chip, audint_status,
 						audint_mask);
 				break;
-			} else
+			} else {
 				goto out;
+			}
 		}
 
 		handled = 1;
@@ -361,9 +356,8 @@ static int dsp_buffer_free(struct cx25821_audio_dev *chip)
  */
 #define DEFAULT_FIFO_SIZE	384
 static struct snd_pcm_hardware snd_cx25821_digital_hw = {
-	.info = SNDRV_PCM_INFO_MMAP |
-	    SNDRV_PCM_INFO_INTERLEAVED |
-	    SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_MMAP_VALID,
+	.info = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
+		SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_MMAP_VALID,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 
 	.rates = SNDRV_PCM_RATE_48000,
@@ -396,8 +390,8 @@ static int snd_cx25821_pcm_open(struct snd_pcm_substream *substream)
 		return -ENODEV;
 	}
 
-	err =
-	    snd_pcm_hw_constraint_pow2(runtime, 0, SNDRV_PCM_HW_PARAM_PERIODS);
+	err = snd_pcm_hw_constraint_pow2(runtime, 0,
+					 SNDRV_PCM_HW_PARAM_PERIODS);
 	if (err < 0)
 		goto _error;
 
@@ -468,8 +462,7 @@ static int snd_cx25821_hw_params(struct snd_pcm_substream *substream,
 	dma = &buf->dma;
 	videobuf_dma_init(dma);
 	ret = videobuf_dma_init_kernel(dma, PCI_DMA_FROMDEVICE,
-				       (PAGE_ALIGN(chip->dma_size) >>
-					PAGE_SHIFT));
+			(PAGE_ALIGN(chip->dma_size) >> PAGE_SHIFT));
 	if (ret < 0)
 		goto error;
 
@@ -477,10 +470,8 @@ static int snd_cx25821_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		goto error;
 
-	ret =
-	    cx25821_risc_databuffer_audio(chip->pci, &buf->risc, dma->sglist,
-					  chip->period_size, chip->num_periods,
-					  1);
+	ret = cx25821_risc_databuffer_audio(chip->pci, &buf->risc, dma->sglist,
+			chip->period_size, chip->num_periods, 1);
 	if (ret < 0) {
 		pr_info("DEBUG: ERROR after cx25821_risc_databuffer_audio()\n");
 		goto error;
@@ -686,7 +677,7 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 	}
 
 	err = snd_card_create(index[devno], id[devno], THIS_MODULE,
-			 sizeof(struct cx25821_audio_dev), &card);
+			sizeof(struct cx25821_audio_dev), &card);
 	if (err < 0) {
 		pr_info("DEBUG ERROR: cannot create snd_card_new in %s\n",
 			__func__);
@@ -711,8 +702,8 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 			  IRQF_SHARED, chip->dev->name, chip);
 
 	if (err < 0) {
-		pr_err("ERROR %s: can't get IRQ %d for ALSA\n",
-		       chip->dev->name, dev->pci->irq);
+		pr_err("ERROR %s: can't get IRQ %d for ALSA\n", chip->dev->name,
+			dev->pci->irq);
 		goto error;
 	}
 
@@ -730,8 +721,8 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 		chip->iobase, chip->irq);
 	strcpy(card->mixername, "CX25821");
 
-	pr_info("%s/%i: ALSA support for cx25821 boards\n",
-		card->driver, devno);
+	pr_info("%s/%i: ALSA support for cx25821 boards\n", card->driver,
+		devno);
 
 	err = snd_card_register(card);
 	if (err < 0) {

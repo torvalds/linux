@@ -46,8 +46,8 @@
    allocations > PAGE_SIZE and the number of packets in a page
    is an integer 512 is the largest possible packet on EHCI */
 
-static int debug;
-static int nmea;
+static bool debug;
+static bool nmea;
 
 /* Used in interface blacklisting */
 struct sierra_iface_info {

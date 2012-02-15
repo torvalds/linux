@@ -179,7 +179,7 @@ config GENERIC_CPU_DEVICES
 source "drivers/base/regmap/Kconfig"
 
 config DMA_SHARED_BUFFER
-	bool "Buffer framework to be shared between drivers"
+	bool
 	default n
 	select ANON_INODES
 	depends on EXPERIMENTAL

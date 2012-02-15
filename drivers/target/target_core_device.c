@@ -42,13 +42,11 @@
 #include <scsi/scsi_device.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_device.h>
-#include <target/target_core_tpg.h>
-#include <target/target_core_transport.h>
-#include <target/target_core_fabric_ops.h>
+#include <target/target_core_backend.h>
+#include <target/target_core_fabric.h>
 
+#include "target_core_internal.h"
 #include "target_core_alua.h"
-#include "target_core_hba.h"
 #include "target_core_pr.h"
 #include "target_core_ua.h"
 
@@ -1134,8 +1132,6 @@ int se_dev_set_emulate_rest_reord(struct se_device *dev, int flag)
  */
 int se_dev_set_queue_depth(struct se_device *dev, u32 queue_depth)
 {
-	u32 orig_queue_depth = dev->queue_depth;
-
 	if (atomic_read(&dev->dev_export_obj.obj_access_count)) {
 		pr_err("dev[%p]: Unable to change SE Device TCQ while"
 			" dev_export_obj: %d count exists\n", dev,
@@ -1169,11 +1165,6 @@ int se_dev_set_queue_depth(struct se_device *dev, u32 queue_depth)
 	}
 
 	dev->se_sub_dev->se_dev_attrib.queue_depth = dev->queue_depth = queue_depth;
-	if (queue_depth > orig_queue_depth)
-		atomic_add(queue_depth - orig_queue_depth, &dev->depth_left);
-	else if (queue_depth < orig_queue_depth)
-		atomic_sub(orig_queue_depth - queue_depth, &dev->depth_left);
-
 	pr_debug("dev[%p]: SE Device TCQ Depth changed to: %u\n",
 			dev, queue_depth);
 	return 0;

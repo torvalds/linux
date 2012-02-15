@@ -1234,7 +1234,7 @@ static struct usb_serial_driver option_1port_device = {
 #endif
 };
 
-static int debug;
+static bool debug;
 
 /* per port private data */
 

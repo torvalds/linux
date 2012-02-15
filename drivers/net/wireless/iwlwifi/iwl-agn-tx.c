@@ -91,6 +91,7 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 		tx_cmd->tid_tspec = qc[0] & 0xf;
 		tx_flags &= ~TX_CMD_FLG_SEQ_CTL_MSK;
 	} else {
+		tx_cmd->tid_tspec = IWL_TID_NON_QOS;
 		if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
 			tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
 		else
@@ -620,7 +621,7 @@ int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	sta_priv->lq_sta.lq.agg_params.agg_frame_cnt_limit =
 		sta_priv->max_agg_bufsize;
 
-	IWL_INFO(priv, "Tx aggregation enabled on ra = %pM tid = %d\n",
+	IWL_DEBUG_HT(priv, "Tx aggregation enabled on ra = %pM tid = %d\n",
 		 sta->addr, tid);
 
 	return iwl_send_lq_cmd(priv, ctx,
@@ -807,6 +808,8 @@ static void iwl_rx_reply_tx_agg(struct iwl_priv *priv,
 	struct iwl_ht_agg *agg = &priv->tid_data[sta_id][tid].agg;
 	u32 status = le16_to_cpu(tx_resp->status.status);
 	int i;
+
+	WARN_ON(tid == IWL_TID_NON_QOS);
 
 	if (agg->wait_for_ba)
 		IWL_DEBUG_TX_REPLY(priv,
@@ -1035,10 +1038,13 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 		}
 
 		__skb_queue_head_init(&skbs);
-		priv->tid_data[sta_id][tid].next_reclaimed = next_reclaimed;
 
-		IWL_DEBUG_TX_REPLY(priv, "Next reclaimed packet:%d",
-					  next_reclaimed);
+		if (tid != IWL_TID_NON_QOS) {
+			priv->tid_data[sta_id][tid].next_reclaimed =
+				next_reclaimed;
+			IWL_DEBUG_TX_REPLY(priv, "Next reclaimed packet:%d",
+						  next_reclaimed);
+		}
 
 		/*we can free until ssn % q.n_bd not inclusive */
 		WARN_ON(iwl_trans_reclaim(trans(priv), sta_id, tid, txq_id,

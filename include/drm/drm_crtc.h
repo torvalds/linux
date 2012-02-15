@@ -453,7 +453,7 @@ struct drm_encoder_funcs {
 #define DRM_CONNECTOR_MAX_UMODES 16
 #define DRM_CONNECTOR_MAX_PROPERTY 16
 #define DRM_CONNECTOR_LEN 32
-#define DRM_CONNECTOR_MAX_ENCODER 2
+#define DRM_CONNECTOR_MAX_ENCODER 3
 
 /**
  * drm_encoder - central DRM encoder structure

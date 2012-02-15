@@ -41,7 +41,7 @@ static void __exit tsi148_exit(void);
 
 
 /* Module parameter */
-static int err_chk;
+static bool err_chk;
 static int geoid;
 
 static const char driver_name[] = "vme_tsi148";

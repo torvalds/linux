@@ -36,6 +36,7 @@ BEGIN_FTR_SECTION;						\
 	b	1f;						\
 END_FTR_SECTION(0, 1);						\
 	ld      r12,hcall_tracepoint_refcount@toc(r2);		\
+	std	r12,32(r1);					\
 	cmpdi	r12,0;						\
 	beq+	1f;						\
 	mflr	r0;						\
@@ -74,7 +75,7 @@ END_FTR_SECTION(0, 1);						\
 BEGIN_FTR_SECTION;						\
 	b	1f;						\
 END_FTR_SECTION(0, 1);						\
-	ld      r12,hcall_tracepoint_refcount@toc(r2);		\
+	ld      r12,32(r1);					\
 	cmpdi	r12,0;						\
 	beq+	1f;						\
 	mflr	r0;						\

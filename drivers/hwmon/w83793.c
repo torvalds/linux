@@ -61,7 +61,7 @@ module_param_array(force_subclients, short, NULL, 0);
 MODULE_PARM_DESC(force_subclients, "List of subclient addresses: "
 		       "{bus, clientaddr, subclientaddr1, subclientaddr2}");
 
-static int reset;
+static bool reset;
 module_param(reset, bool, 0);
 MODULE_PARM_DESC(reset, "Set to 1 to reset chip, not recommended");
 

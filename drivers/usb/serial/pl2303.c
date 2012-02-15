@@ -36,7 +36,7 @@
  */
 #define DRIVER_DESC "Prolific PL2303 USB to serial adaptor driver"
 
-static int debug;
+static bool debug;
 
 #define PL2303_CLOSING_WAIT	(30*HZ)
 

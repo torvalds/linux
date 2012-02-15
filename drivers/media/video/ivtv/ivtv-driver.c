@@ -99,7 +99,7 @@ static int i2c_clock_period[IVTV_MAX_CARDS] = { -1, -1, -1, -1, -1, -1, -1, -1,
 
 static unsigned int cardtype_c = 1;
 static unsigned int tuner_c = 1;
-static unsigned int radio_c = 1;
+static bool radio_c = 1;
 static unsigned int i2c_clock_period_c = 1;
 static char pal[] = "---";
 static char secam[] = "--";
@@ -730,9 +730,6 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	sched_setscheduler(itv->irq_worker_task, SCHED_FIFO, &param);
 
 	init_kthread_work(&itv->irq_work, ivtv_irq_work_handler);
-
-	/* start counting open_id at 1 */
-	itv->open_id = 1;
 
 	/* Initial settings */
 	itv->cxhdl.port = CX2341X_PORT_MEMORY;

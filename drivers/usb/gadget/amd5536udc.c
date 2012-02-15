@@ -152,15 +152,15 @@ static const char *ep_string[] = {
 };
 
 /* DMA usage flag */
-static int use_dma = 1;
+static bool use_dma = 1;
 /* packet per buffer dma */
-static int use_dma_ppb = 1;
+static bool use_dma_ppb = 1;
 /* with per descr. update */
-static int use_dma_ppb_du;
+static bool use_dma_ppb_du;
 /* buffer fill mode */
 static int use_dma_bufferfill_mode;
 /* full speed only mode */
-static int use_fullspeed;
+static bool use_fullspeed;
 /* tx buffer size for high speed */
 static unsigned long hs_tx_buf = UDC_EPIN_BUFF_SIZE;
 

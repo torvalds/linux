@@ -32,6 +32,8 @@
 #include <linux/rculist.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
+#include <linux/highmem.h>
 #include <acpi/atomicio.h>
 
 #define ACPI_PFX "ACPI: "
@@ -97,6 +99,37 @@ static void __iomem *__acpi_try_ioremap(phys_addr_t paddr,
 		return NULL;
 }
 
+#ifndef CONFIG_IA64
+#define should_use_kmap(pfn)	page_is_ram(pfn)
+#else
+/* ioremap will take care of cache attributes */
+#define should_use_kmap(pfn)	0
+#endif
+
+static void __iomem *acpi_map(phys_addr_t pg_off, unsigned long pg_sz)
+{
+	unsigned long pfn;
+
+	pfn = pg_off >> PAGE_SHIFT;
+	if (should_use_kmap(pfn)) {
+		if (pg_sz > PAGE_SIZE)
+			return NULL;
+		return (void __iomem __force *)kmap(pfn_to_page(pfn));
+	} else
+		return ioremap(pg_off, pg_sz);
+}
+
+static void acpi_unmap(phys_addr_t pg_off, void __iomem *vaddr)
+{
+	unsigned long pfn;
+
+	pfn = pg_off >> PAGE_SHIFT;
+	if (page_is_ram(pfn))
+		kunmap(pfn_to_page(pfn));
+	else
+		iounmap(vaddr);
+}
+
 /*
  * Used to pre-map the specified IO memory area. First try to find
  * whether the area is already pre-mapped, if it is, increase the
@@ -119,7 +152,7 @@ static void __iomem *acpi_pre_map(phys_addr_t paddr,
 
 	pg_off = paddr & PAGE_MASK;
 	pg_sz = ((paddr + size + PAGE_SIZE - 1) & PAGE_MASK) - pg_off;
-	vaddr = ioremap(pg_off, pg_sz);
+	vaddr = acpi_map(pg_off, pg_sz);
 	if (!vaddr)
 		return NULL;
 	map = kmalloc(sizeof(*map), GFP_KERNEL);
@@ -135,7 +168,7 @@ static void __iomem *acpi_pre_map(phys_addr_t paddr,
 	vaddr = __acpi_try_ioremap(paddr, size);
 	if (vaddr) {
 		spin_unlock_irqrestore(&acpi_iomaps_lock, flags);
-		iounmap(map->vaddr);
+		acpi_unmap(pg_off, map->vaddr);
 		kfree(map);
 		return vaddr;
 	}
@@ -144,7 +177,7 @@ static void __iomem *acpi_pre_map(phys_addr_t paddr,
 
 	return map->vaddr + (paddr - map->paddr);
 err_unmap:
-	iounmap(vaddr);
+	acpi_unmap(pg_off, vaddr);
 	return NULL;
 }
 
@@ -177,7 +210,7 @@ static void acpi_post_unmap(phys_addr_t paddr, unsigned long size)
 		return;
 
 	synchronize_rcu();
-	iounmap(map->vaddr);
+	acpi_unmap(map->paddr, map->vaddr);
 	kfree(map);
 }
 
@@ -260,6 +293,21 @@ int acpi_post_unmap_gar(struct acpi_generic_address *reg)
 }
 EXPORT_SYMBOL_GPL(acpi_post_unmap_gar);
 
+#ifdef readq
+static inline u64 read64(const volatile void __iomem *addr)
+{
+	return readq(addr);
+}
+#else
+static inline u64 read64(const volatile void __iomem *addr)
+{
+	u64 l, h;
+	l = readl(addr);
+	h = readl(addr+4);
+	return l | (h << 32);
+}
+#endif
+
 /*
  * Can be used in atomic (including NMI) or process context. RCU read
  * lock can only be released after the IO memory area accessing.
@@ -280,11 +328,9 @@ static int acpi_atomic_read_mem(u64 paddr, u64 *val, u32 width)
 	case 32:
 		*val = readl(addr);
 		break;
-#ifdef readq
 	case 64:
-		*val = readq(addr);
+		*val = read64(addr);
 		break;
-#endif
 	default:
 		return -EINVAL;
 	}
@@ -292,6 +338,19 @@ static int acpi_atomic_read_mem(u64 paddr, u64 *val, u32 width)
 
 	return 0;
 }
+
+#ifdef writeq
+static inline void write64(u64 val, volatile void __iomem *addr)
+{
+	writeq(val, addr);
+}
+#else
+static inline void write64(u64 val, volatile void __iomem *addr)
+{
+	writel(val, addr);
+	writel(val>>32, addr+4);
+}
+#endif
 
 static int acpi_atomic_write_mem(u64 paddr, u64 val, u32 width)
 {
@@ -309,11 +368,9 @@ static int acpi_atomic_write_mem(u64 paddr, u64 val, u32 width)
 	case 32:
 		writel(val, addr);
 		break;
-#ifdef writeq
 	case 64:
-		writeq(val, addr);
+		write64(val, addr);
 		break;
-#endif
 	default:
 		return -EINVAL;
 	}

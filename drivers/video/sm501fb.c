@@ -2230,18 +2230,7 @@ static struct platform_driver sm501fb_driver = {
 	},
 };
 
-static int __devinit sm501fb_init(void)
-{
-	return platform_driver_register(&sm501fb_driver);
-}
-
-static void __exit sm501fb_cleanup(void)
-{
-	platform_driver_unregister(&sm501fb_driver);
-}
-
-module_init(sm501fb_init);
-module_exit(sm501fb_cleanup);
+module_platform_driver(sm501fb_driver);
 
 module_param_named(mode, fb_mode, charp, 0);
 MODULE_PARM_DESC(mode,

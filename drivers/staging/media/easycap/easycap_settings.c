@@ -313,7 +313,7 @@ const struct easycap_standard easycap_standard[] = {
 
 struct easycap_format easycap_format[1 + SETTINGS_MANY];
 
-int fillin_formats(void)
+int easycap_video_fillin_formats(void)
 {
 	const char *name1, *name2, *name3, *name4;
 	struct v4l2_format *fmt;

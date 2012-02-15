@@ -69,7 +69,7 @@ struct psbl_rec {
 	u32	ffs_size;
 };
 
-static __initdata char psp_env_version[] = "TIENV0.8";
+static const char psp_env_version[] __initconst = "TIENV0.8";
 
 struct psp_env_chunk {
 	u8	num;
@@ -84,7 +84,7 @@ struct psp_var_map_entry {
 	char	*value;
 };
 
-static struct psp_var_map_entry psp_var_map[] = {
+static const struct psp_var_map_entry psp_var_map[] = {
 	{  1,	"cpufrequency" },
 	{  2,	"memsize" },
 	{  3,	"flashsize" },

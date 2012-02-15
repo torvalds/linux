@@ -38,6 +38,8 @@ struct mxl111sf_tuner_state {
 
 	struct mxl111sf_tuner_config *cfg;
 
+	enum mxl_if_freq if_freq;
+
 	u32 frequency;
 	u32 bandwidth;
 };
@@ -186,7 +188,10 @@ static int mxl1x1sf_tuner_set_if_output_freq(struct mxl111sf_tuner_state *state)
 	ctrl = iffcw & 0x00ff;
 #endif
 	ret = mxl111sf_tuner_write_reg(state, V6_TUNER_IF_FCW_REG, ctrl);
-	mxl_fail(ret);
+	if (mxl_fail(ret))
+		goto fail;
+
+	state->if_freq = state->cfg->if_freq;
 fail:
 	return ret;
 }
@@ -267,55 +272,49 @@ static int mxl1x1sf_tuner_loop_thru_ctrl(struct mxl111sf_tuner_state *state,
 
 /* ------------------------------------------------------------------------ */
 
-static int mxl111sf_tuner_set_params(struct dvb_frontend *fe,
-				     struct dvb_frontend_parameters *params)
+static int mxl111sf_tuner_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u32 delsys  = c->delivery_system;
 	struct mxl111sf_tuner_state *state = fe->tuner_priv;
 	int ret;
 	u8 bw;
 
 	mxl_dbg("()");
 
-	if (fe->ops.info.type == FE_ATSC) {
-		switch (params->u.vsb.modulation) {
-		case VSB_8:
-		case VSB_16:
-			bw = 0; /* ATSC */
-			break;
-		case QAM_64:
-		case QAM_256:
-			bw = 1; /* US CABLE */
-			break;
-		default:
-			err("%s: modulation not set!", __func__);
-			return -EINVAL;
-		}
-	} else if (fe->ops.info.type == FE_OFDM) {
-		switch (params->u.ofdm.bandwidth) {
-		case BANDWIDTH_6_MHZ:
+	switch (delsys) {
+	case SYS_ATSC:
+		bw = 0; /* ATSC */
+		break;
+	case SYS_DVBC_ANNEX_B:
+		bw = 1; /* US CABLE */
+		break;
+	case SYS_DVBT:
+		switch (c->bandwidth_hz) {
+		case 6000000:
 			bw = 6;
 			break;
-		case BANDWIDTH_7_MHZ:
+		case 7000000:
 			bw = 7;
 			break;
-		case BANDWIDTH_8_MHZ:
+		case 8000000:
 			bw = 8;
 			break;
 		default:
 			err("%s: bandwidth not set!", __func__);
 			return -EINVAL;
 		}
-	} else {
+		break;
+	default:
 		err("%s: modulation type not supported!", __func__);
 		return -EINVAL;
 	}
-	ret = mxl1x1sf_tune_rf(fe, params->frequency, bw);
+	ret = mxl1x1sf_tune_rf(fe, c->frequency, bw);
 	if (mxl_fail(ret))
 		goto fail;
 
-	state->frequency = params->frequency;
-	state->bandwidth = (fe->ops.info.type == FE_OFDM) ?
-		params->u.ofdm.bandwidth : 0;
+	state->frequency = c->frequency;
+	state->bandwidth = c->bandwidth_hz;
 fail:
 	return ret;
 }
@@ -407,6 +406,54 @@ static int mxl111sf_tuner_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	return 0;
 }
 
+static int mxl111sf_tuner_get_if_frequency(struct dvb_frontend *fe,
+					   u32 *frequency)
+{
+	struct mxl111sf_tuner_state *state = fe->tuner_priv;
+
+	*frequency = 0;
+
+	switch (state->if_freq) {
+	case MXL_IF_4_0:   /* 4.0   MHz */
+		*frequency = 4000000;
+		break;
+	case MXL_IF_4_5:   /* 4.5   MHz */
+		*frequency = 4500000;
+		break;
+	case MXL_IF_4_57:  /* 4.57  MHz */
+		*frequency = 4570000;
+		break;
+	case MXL_IF_5_0:   /* 5.0   MHz */
+		*frequency = 5000000;
+		break;
+	case MXL_IF_5_38:  /* 5.38  MHz */
+		*frequency = 5380000;
+		break;
+	case MXL_IF_6_0:   /* 6.0   MHz */
+		*frequency = 6000000;
+		break;
+	case MXL_IF_6_28:  /* 6.28  MHz */
+		*frequency = 6280000;
+		break;
+	case MXL_IF_7_2:   /* 7.2   MHz */
+		*frequency = 7200000;
+		break;
+	case MXL_IF_35_25: /* 35.25 MHz */
+		*frequency = 35250000;
+		break;
+	case MXL_IF_36:    /* 36    MHz */
+		*frequency = 36000000;
+		break;
+	case MXL_IF_36_15: /* 36.15 MHz */
+		*frequency = 36150000;
+		break;
+	case MXL_IF_44:    /* 44    MHz */
+		*frequency = 44000000;
+		break;
+	}
+	return 0;
+}
+
 static int mxl111sf_tuner_release(struct dvb_frontend *fe)
 {
 	struct mxl111sf_tuner_state *state = fe->tuner_priv;
@@ -436,6 +483,7 @@ static struct dvb_tuner_ops mxl111sf_tuner_tuner_ops = {
 	.get_rf_strength   = mxl111sf_get_rf_strength,
 	.get_frequency     = mxl111sf_tuner_get_frequency,
 	.get_bandwidth     = mxl111sf_tuner_get_bandwidth,
+	.get_if_frequency  = mxl111sf_tuner_get_if_frequency,
 	.release           = mxl111sf_tuner_release,
 };
 

@@ -32,7 +32,7 @@
 #include <linux/iommu.h>
 #include <linux/intel-iommu.h>
 
-static int allow_unsafe_assigned_interrupts;
+static bool allow_unsafe_assigned_interrupts;
 module_param_named(allow_unsafe_assigned_interrupts,
 		   allow_unsafe_assigned_interrupts, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(allow_unsafe_assigned_interrupts,

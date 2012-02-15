@@ -3,6 +3,11 @@
 #include <linux/lguest.h>
 #include "../../../drivers/lguest/lg.h"
 
+#define __SYSCALL_I386(nr, sym, compat) [nr] = 1,
+static char syscalls[] = {
+#include <asm/syscalls_32.h>
+};
+
 /* workaround for a warning with -Wmissing-prototypes */
 void foo(void);
 
@@ -76,4 +81,7 @@ void foo(void)
 	OFFSET(LGUEST_PAGES_regs_errcode, lguest_pages, regs.errcode);
 	OFFSET(LGUEST_PAGES_regs, lguest_pages, regs);
 #endif
+	BLANK();
+	DEFINE(__NR_syscall_max, sizeof(syscalls) - 1);
+	DEFINE(NR_syscalls, sizeof(syscalls));
 }

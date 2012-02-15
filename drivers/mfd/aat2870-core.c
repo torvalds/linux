@@ -407,13 +407,13 @@ static int aat2870_i2c_probe(struct i2c_client *client,
 		aat2870->init(aat2870);
 
 	if (aat2870->en_pin >= 0) {
-		ret = gpio_request(aat2870->en_pin, "aat2870-en");
+		ret = gpio_request_one(aat2870->en_pin, GPIOF_OUT_INIT_HIGH,
+				       "aat2870-en");
 		if (ret < 0) {
 			dev_err(&client->dev,
 				"Failed to request GPIO %d\n", aat2870->en_pin);
 			goto out_kfree;
 		}
-		gpio_direction_output(aat2870->en_pin, 1);
 	}
 
 	aat2870_enable(aat2870);
@@ -468,9 +468,10 @@ static int aat2870_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int aat2870_i2c_suspend(struct i2c_client *client, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int aat2870_i2c_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct aat2870_data *aat2870 = i2c_get_clientdata(client);
 
 	aat2870_disable(aat2870);
@@ -478,8 +479,9 @@ static int aat2870_i2c_suspend(struct i2c_client *client, pm_message_t state)
 	return 0;
 }
 
-static int aat2870_i2c_resume(struct i2c_client *client)
+static int aat2870_i2c_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct aat2870_data *aat2870 = i2c_get_clientdata(client);
 	struct aat2870_register *reg = NULL;
 	int i;
@@ -495,12 +497,12 @@ static int aat2870_i2c_resume(struct i2c_client *client)
 
 	return 0;
 }
-#else
-#define aat2870_i2c_suspend	NULL
-#define aat2870_i2c_resume	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
-static struct i2c_device_id aat2870_i2c_id_table[] = {
+static SIMPLE_DEV_PM_OPS(aat2870_pm_ops, aat2870_i2c_suspend,
+			 aat2870_i2c_resume);
+
+static const struct i2c_device_id aat2870_i2c_id_table[] = {
 	{ "aat2870", 0 },
 	{ }
 };
@@ -510,11 +512,10 @@ static struct i2c_driver aat2870_i2c_driver = {
 	.driver = {
 		.name	= "aat2870",
 		.owner	= THIS_MODULE,
+		.pm	= &aat2870_pm_ops,
 	},
 	.probe		= aat2870_i2c_probe,
 	.remove		= aat2870_i2c_remove,
-	.suspend	= aat2870_i2c_suspend,
-	.resume		= aat2870_i2c_resume,
 	.id_table	= aat2870_i2c_id_table,
 };
 

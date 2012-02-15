@@ -36,6 +36,15 @@ static DEFINE_MUTEX(ucb1x00_mutex);
 static LIST_HEAD(ucb1x00_drivers);
 static LIST_HEAD(ucb1x00_devices);
 
+static struct mcp_device_id ucb1x00_id[] = {
+	{ "ucb1x00", 0 },  /* auto-detection */
+	{ "ucb1200", UCB_ID_1200 },
+	{ "ucb1300", UCB_ID_1300 },
+	{ "tc35143", UCB_ID_TC35143 },
+	{ }
+};
+MODULE_DEVICE_TABLE(mcp, ucb1x00_id);
+
 /**
  *	ucb1x00_io_set_dir - set IO direction
  *	@ucb: UCB1x00 structure describing chip
@@ -527,17 +536,33 @@ static struct class ucb1x00_class = {
 
 static int ucb1x00_probe(struct mcp *mcp)
 {
+	const struct mcp_device_id *mid;
 	struct ucb1x00 *ucb;
 	struct ucb1x00_driver *drv;
+	struct ucb1x00_plat_data *pdata;
 	unsigned int id;
 	int ret = -ENODEV;
 	int temp;
 
 	mcp_enable(mcp);
 	id = mcp_reg_read(mcp, UCB_ID);
+	mid = mcp_get_device_id(mcp);
 
-	if (id != UCB_ID_1200 && id != UCB_ID_1300 && id != UCB_ID_TC35143) {
-		printk(KERN_WARNING "UCB1x00 ID not found: %04x\n", id);
+	if (mid && mid->driver_data) {
+		if (id != mid->driver_data) {
+			printk(KERN_WARNING "%s wrong ID %04x found: %04x\n",
+				mid->name, (unsigned int) mid->driver_data, id);
+			goto err_disable;
+		}
+	} else {
+		mid = &ucb1x00_id[1];
+		while (mid->driver_data) {
+			if (id == mid->driver_data)
+				break;
+			mid++;
+		}
+		printk(KERN_WARNING "%s ID not found: %04x\n",
+			ucb1x00_id[0].name, id);
 		goto err_disable;
 	}
 
@@ -546,28 +571,28 @@ static int ucb1x00_probe(struct mcp *mcp)
 	if (!ucb)
 		goto err_disable;
 
-
+	pdata = mcp->attached_device.platform_data;
 	ucb->dev.class = &ucb1x00_class;
 	ucb->dev.parent = &mcp->attached_device;
-	dev_set_name(&ucb->dev, "ucb1x00");
+	dev_set_name(&ucb->dev, mid->name);
 
 	spin_lock_init(&ucb->lock);
 	spin_lock_init(&ucb->io_lock);
 	sema_init(&ucb->adc_sem, 1);
 
-	ucb->id  = id;
+	ucb->id  = mid;
 	ucb->mcp = mcp;
 	ucb->irq = ucb1x00_detect_irq(ucb);
 	if (ucb->irq == NO_IRQ) {
-		printk(KERN_ERR "UCB1x00: IRQ probe failed\n");
+		printk(KERN_ERR "%s: IRQ probe failed\n", mid->name);
 		ret = -ENODEV;
 		goto err_free;
 	}
 
 	ucb->gpio.base = -1;
-	if (mcp->gpio_base != 0) {
+	if (pdata && (pdata->gpio_base >= 0)) {
 		ucb->gpio.label = dev_name(&ucb->dev);
-		ucb->gpio.base = mcp->gpio_base;
+		ucb->gpio.base = pdata->gpio_base;
 		ucb->gpio.ngpio = 10;
 		ucb->gpio.set = ucb1x00_gpio_set;
 		ucb->gpio.get = ucb1x00_gpio_get;
@@ -580,10 +605,10 @@ static int ucb1x00_probe(struct mcp *mcp)
 		dev_info(&ucb->dev, "gpio_base not set so no gpiolib support");
 
 	ret = request_irq(ucb->irq, ucb1x00_irq, IRQF_TRIGGER_RISING,
-			  "UCB1x00", ucb);
+			  mid->name, ucb);
 	if (ret) {
-		printk(KERN_ERR "ucb1x00: unable to grab irq%d: %d\n",
-			ucb->irq, ret);
+		printk(KERN_ERR "%s: unable to grab irq%d: %d\n",
+			mid->name, ucb->irq, ret);
 		goto err_gpio;
 	}
 
@@ -705,6 +730,7 @@ static struct mcp_driver ucb1x00_driver = {
 	.remove		= ucb1x00_remove,
 	.suspend	= ucb1x00_suspend,
 	.resume		= ucb1x00_resume,
+	.id_table	= ucb1x00_id,
 };
 
 static int __init ucb1x00_init(void)

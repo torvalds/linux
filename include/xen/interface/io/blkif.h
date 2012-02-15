@@ -84,6 +84,21 @@ typedef uint64_t blkif_sector_t;
  *     e07154r6-Data_Set_Management_Proposal_for_ATA-ACS2.doc
  * http://www.seagate.com/staticfiles/support/disc/manuals/
  *     Interface%20manuals/100293068c.pdf
+ * The backend can optionally provide three extra XenBus attributes to
+ * further optimize the discard functionality:
+ * 'discard-aligment' - Devices that support discard functionality may
+ * internally allocate space in units that are bigger than the exported
+ * logical block size. The discard-alignment parameter indicates how many bytes
+ * the beginning of the partition is offset from the internal allocation unit's
+ * natural alignment.
+ * 'discard-granularity'  - Devices that support discard functionality may
+ * internally allocate space using units that are bigger than the logical block
+ * size. The discard-granularity parameter indicates the size of the internal
+ * allocation unit in bytes if reported by the device. Otherwise the
+ * discard-granularity will be set to match the device's physical block size.
+ * 'discard-secure' - All copies of the discarded sectors (potentially created
+ * by garbage collection) must also be erased.  To use this feature, the flag
+ * BLKIF_DISCARD_SECURE must be set in the blkif_request_trim.
  */
 #define BLKIF_OP_DISCARD           5
 
@@ -95,6 +110,12 @@ typedef uint64_t blkif_sector_t;
 #define BLKIF_MAX_SEGMENTS_PER_REQUEST 11
 
 struct blkif_request_rw {
+	uint8_t        nr_segments;  /* number of segments                   */
+	blkif_vdev_t   handle;       /* only for read/write requests         */
+#ifdef CONFIG_X86_64
+	uint32_t       _pad1;	     /* offsetof(blkif_request,u.rw.id) == 8 */
+#endif
+	uint64_t       id;           /* private guest value, echoed in resp  */
 	blkif_sector_t sector_number;/* start sector idx on disk (r/w only)  */
 	struct blkif_request_segment {
 		grant_ref_t gref;        /* reference to I/O buffer frame        */
@@ -102,23 +123,28 @@ struct blkif_request_rw {
 		/* @last_sect: last sector in frame to transfer (inclusive).     */
 		uint8_t     first_sect, last_sect;
 	} seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-};
+} __attribute__((__packed__));
 
 struct blkif_request_discard {
+	uint8_t        flag;         /* BLKIF_DISCARD_SECURE or zero.        */
+#define BLKIF_DISCARD_SECURE (1<<0)  /* ignored if discard-secure=0          */
+	blkif_vdev_t   _pad1;        /* only for read/write requests         */
+#ifdef CONFIG_X86_64
+	uint32_t       _pad2;        /* offsetof(blkif_req..,u.discard.id)==8*/
+#endif
+	uint64_t       id;           /* private guest value, echoed in resp  */
 	blkif_sector_t sector_number;
-	uint64_t nr_sectors;
-};
+	uint64_t       nr_sectors;
+	uint8_t        _pad3;
+} __attribute__((__packed__));
 
 struct blkif_request {
 	uint8_t        operation;    /* BLKIF_OP_???                         */
-	uint8_t        nr_segments;  /* number of segments                   */
-	blkif_vdev_t   handle;       /* only for read/write requests         */
-	uint64_t       id;           /* private guest value, echoed in resp  */
 	union {
 		struct blkif_request_rw rw;
 		struct blkif_request_discard discard;
 	} u;
-};
+} __attribute__((__packed__));
 
 struct blkif_response {
 	uint64_t        id;              /* copied from request */

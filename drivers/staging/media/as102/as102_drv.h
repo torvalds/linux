@@ -17,38 +17,30 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#if defined(CONFIG_AS102_USB)
 #include <linux/usb.h>
-extern struct usb_driver as102_usb_driver;
-#endif
-
-#if defined(CONFIG_AS102_SPI)
-#include <linux/platform_device.h>
-#include <linux/spi/spi.h>
-#include <linux/cdev.h>
-
-extern struct spi_driver as102_spi_driver;
-#endif
-
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dmxdev.h"
+#include <dvb_demux.h>
+#include <dvb_frontend.h>
+#include <dmxdev.h>
+#include "as10x_cmd.h"
+#include "as102_usb_drv.h"
 
 #define DRIVER_FULL_NAME "Abilis Systems as10x usb driver"
 #define DRIVER_NAME "as10x_usb"
 
 extern int as102_debug;
 #define debug	as102_debug
+extern struct usb_driver as102_usb_driver;
+extern int elna_enable;
 
 #define dprintk(debug, args...) \
 	do { if (debug) {	\
-		printk(KERN_DEBUG "%s: ",__FUNCTION__);	\
+		pr_debug("%s: ", __func__);	\
 		printk(args);	\
 	} } while (0)
 
 #ifdef TRACE
-#define ENTER()                 printk(">> enter %s\n", __FUNCTION__)
-#define LEAVE()                 printk("<< leave %s\n", __FUNCTION__)
+#define ENTER()	pr_debug(">> enter %s\n", __func__)
+#define LEAVE()	pr_debug("<< leave %s\n", __func__)
 #else
 #define ENTER()
 #define LEAVE()
@@ -59,39 +51,14 @@ extern int as102_debug;
 #define AS102_USB_BUF_SIZE	512
 #define MAX_STREAM_URB		32
 
-#include "as10x_cmd.h"
-
-#if defined(CONFIG_AS102_USB)
-#include "as102_usb_drv.h"
-#endif
-
-#if defined(CONFIG_AS102_SPI)
-#include "as10x_spi_drv.h"
-#endif
-
-
-struct as102_bus_adapter_t {
-#if defined(CONFIG_AS102_USB)
+struct as10x_bus_adapter_t {
 	struct usb_device *usb_dev;
-#elif defined(CONFIG_AS102_SPI)
-	struct spi_device *spi_dev;
-	struct cdev cdev; /* spidev raw device */
-
-	struct timer_list timer;
-	struct completion xfer_done;
-#endif
 	/* bus token lock */
 	struct mutex lock;
 	/* low level interface for bus adapter */
 	union as10x_bus_token_t {
-#if defined(CONFIG_AS102_USB)
 		/* usb token */
 		struct as10x_usb_token_cmd_t usb;
-#endif
-#if defined(CONFIG_AS102_SPI)
-		/* spi token */
-		struct as10x_spi_token_cmd_t spi;
-#endif
 	} token;
 
 	/* token cmd xfer id */
@@ -106,7 +73,7 @@ struct as102_bus_adapter_t {
 
 struct as102_dev_t {
 	const char *name;
-	struct as102_bus_adapter_t bus_adap;
+	struct as10x_bus_adapter_t bus_adap;
 	struct list_head device_entry;
 	struct kref kref;
 	unsigned long minor;
@@ -138,5 +105,3 @@ void as102_dvb_unregister(struct as102_dev_t *dev);
 
 int as102_dvb_register_fe(struct as102_dev_t *dev, struct dvb_frontend *fe);
 int as102_dvb_unregister_fe(struct dvb_frontend *dev);
-
-/* EOF - vim: set textwidth=80 ts=8 sw=8 sts=8 noet: */

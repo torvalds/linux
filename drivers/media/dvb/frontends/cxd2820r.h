@@ -63,19 +63,6 @@ struct cxd2820r_config {
 	 */
 	bool spec_inv;
 
-	/* IFs for all used modes.
-	 * Default: none, must set
-	 * Values: <kHz>
-	 */
-	u16 if_dvbt_6;
-	u16 if_dvbt_7;
-	u16 if_dvbt_8;
-	u16 if_dvbt2_5;
-	u16 if_dvbt2_6;
-	u16 if_dvbt2_7;
-	u16 if_dvbt2_8;
-	u16 if_dvbc;
-
 	/* GPIOs for all used modes.
 	 * Default: none, disabled
 	 * Values: <see above>

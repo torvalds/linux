@@ -55,7 +55,7 @@
 
 #define AUTO_OFF_TIMEOUT 2000
 
-int enable_hs;
+bool enable_hs;
 
 static void hci_rx_work(struct work_struct *work);
 static void hci_cmd_work(struct work_struct *work);
@@ -640,7 +640,8 @@ static int hci_dev_do_close(struct hci_dev *hdev)
 	/* Reset device */
 	skb_queue_purge(&hdev->cmd_q);
 	atomic_set(&hdev->cmd_cnt, 1);
-	if (!test_bit(HCI_RAW, &hdev->flags)) {
+	if (!test_bit(HCI_RAW, &hdev->flags) &&
+				test_bit(HCI_QUIRK_NO_RESET, &hdev->quirks)) {
 		set_bit(HCI_INIT, &hdev->flags);
 		__hci_request(hdev, hci_reset_req, 0,
 					msecs_to_jiffies(250));

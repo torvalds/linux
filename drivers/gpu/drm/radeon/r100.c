@@ -2186,7 +2186,6 @@ bool r100_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 void r100_bm_disable(struct radeon_device *rdev)
 {
 	u32 tmp;
-	u16 tmp16;
 
 	/* disable bus mastering */
 	tmp = RREG32(R_000030_BUS_CNTL);
@@ -2197,8 +2196,7 @@ void r100_bm_disable(struct radeon_device *rdev)
 	WREG32(R_000030_BUS_CNTL, (tmp & 0xFFFFFFFF) | 0x00000040);
 	tmp = RREG32(RADEON_BUS_CNTL);
 	mdelay(1);
-	pci_read_config_word(rdev->pdev, 0x4, &tmp16);
-	pci_write_config_word(rdev->pdev, 0x4, tmp16 & 0xFFFB);
+	pci_clear_master(rdev->pdev);
 	mdelay(1);
 }
 

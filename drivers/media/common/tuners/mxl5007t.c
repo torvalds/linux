@@ -165,6 +165,8 @@ struct mxl5007t_state {
 	struct reg_pair_t tab_init_cable[ARRAY_SIZE(init_tab_cable)];
 	struct reg_pair_t tab_rftune[ARRAY_SIZE(reg_pair_rftune)];
 
+	enum mxl5007t_if_freq if_freq;
+
 	u32 frequency;
 	u32 bandwidth;
 };
@@ -285,6 +287,8 @@ static void mxl5007t_set_if_freq_bits(struct mxl5007t_state *state,
 
 	/* set inverted IF or normal IF */
 	set_reg_bits(state->tab_init, 0x02, 0x10, invert_if ? 0x10 : 0x00);
+
+	state->if_freq = if_freq;
 
 	return;
 }
@@ -612,47 +616,43 @@ fail:
 
 /* ------------------------------------------------------------------------- */
 
-static int mxl5007t_set_params(struct dvb_frontend *fe,
-			       struct dvb_frontend_parameters *params)
+static int mxl5007t_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u32 delsys = c->delivery_system;
 	struct mxl5007t_state *state = fe->tuner_priv;
 	enum mxl5007t_bw_mhz bw;
 	enum mxl5007t_mode mode;
 	int ret;
-	u32 freq = params->frequency;
+	u32 freq = c->frequency;
 
-	if (fe->ops.info.type == FE_ATSC) {
-		switch (params->u.vsb.modulation) {
-		case VSB_8:
-		case VSB_16:
-			mode = MxL_MODE_ATSC;
-			break;
-		case QAM_64:
-		case QAM_256:
-			mode = MxL_MODE_CABLE;
-			break;
-		default:
-			mxl_err("modulation not set!");
-			return -EINVAL;
-		}
+	switch (delsys) {
+	case SYS_ATSC:
+		mode = MxL_MODE_ATSC;
 		bw = MxL_BW_6MHz;
-	} else if (fe->ops.info.type == FE_OFDM) {
-		switch (params->u.ofdm.bandwidth) {
-		case BANDWIDTH_6_MHZ:
+		break;
+	case SYS_DVBC_ANNEX_B:
+		mode = MxL_MODE_CABLE;
+		bw = MxL_BW_6MHz;
+		break;
+	case SYS_DVBT:
+	case SYS_DVBT2:
+		mode = MxL_MODE_DVBT;
+		switch (c->bandwidth_hz) {
+		case 6000000:
 			bw = MxL_BW_6MHz;
 			break;
-		case BANDWIDTH_7_MHZ:
+		case 7000000:
 			bw = MxL_BW_7MHz;
 			break;
-		case BANDWIDTH_8_MHZ:
+		case 8000000:
 			bw = MxL_BW_8MHz;
 			break;
 		default:
-			mxl_err("bandwidth not set!");
 			return -EINVAL;
 		}
-		mode = MxL_MODE_DVBT;
-	} else {
+		break;
+	default:
 		mxl_err("modulation type not supported!");
 		return -EINVAL;
 	}
@@ -671,8 +671,7 @@ static int mxl5007t_set_params(struct dvb_frontend *fe,
 		goto fail;
 
 	state->frequency = freq;
-	state->bandwidth = (fe->ops.info.type == FE_OFDM) ?
-		params->u.ofdm.bandwidth : 0;
+	state->bandwidth = c->bandwidth_hz;
 fail:
 	mutex_unlock(&state->lock);
 
@@ -738,6 +737,50 @@ static int mxl5007t_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	return 0;
 }
 
+static int mxl5007t_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	struct mxl5007t_state *state = fe->tuner_priv;
+
+	*frequency = 0;
+
+	switch (state->if_freq) {
+	case MxL_IF_4_MHZ:
+		*frequency = 4000000;
+		break;
+	case MxL_IF_4_5_MHZ:
+		*frequency = 4500000;
+		break;
+	case MxL_IF_4_57_MHZ:
+		*frequency = 4570000;
+		break;
+	case MxL_IF_5_MHZ:
+		*frequency = 5000000;
+		break;
+	case MxL_IF_5_38_MHZ:
+		*frequency = 5380000;
+		break;
+	case MxL_IF_6_MHZ:
+		*frequency = 6000000;
+		break;
+	case MxL_IF_6_28_MHZ:
+		*frequency = 6280000;
+		break;
+	case MxL_IF_9_1915_MHZ:
+		*frequency = 9191500;
+		break;
+	case MxL_IF_35_25_MHZ:
+		*frequency = 35250000;
+		break;
+	case MxL_IF_36_15_MHZ:
+		*frequency = 36150000;
+		break;
+	case MxL_IF_44_MHZ:
+		*frequency = 44000000;
+		break;
+	}
+	return 0;
+}
+
 static int mxl5007t_release(struct dvb_frontend *fe)
 {
 	struct mxl5007t_state *state = fe->tuner_priv;
@@ -767,6 +810,7 @@ static struct dvb_tuner_ops mxl5007t_tuner_ops = {
 	.get_frequency     = mxl5007t_get_frequency,
 	.get_bandwidth     = mxl5007t_get_bandwidth,
 	.release           = mxl5007t_release,
+	.get_if_frequency  = mxl5007t_get_if_frequency,
 };
 
 static int mxl5007t_get_chip_id(struct mxl5007t_state *state)

@@ -84,7 +84,7 @@ retry:
 /*
  * Turn off NFSv4 uid/gid mapping when using AUTH_SYS
  */
-static int nfs4_disable_idmapping = 1;
+static bool nfs4_disable_idmapping = true;
 
 /*
  * RPC cruft for NFS

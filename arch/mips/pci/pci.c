@@ -4,8 +4,11 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  *
- * Copyright (C) 2003, 04 Ralf Baechle (ralf@linux-mips.org)
+ * Copyright (C) 2003, 04, 11 Ralf Baechle (ralf@linux-mips.org)
+ * Copyright (C) 2011 Wind River Systems,
+ *   written by Ralf Baechle (ralf@linux-mips.org)
  */
+#include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
@@ -13,6 +16,8 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/pci.h>
+
+#include <asm/cpu-info.h>
 
 /*
  * Indicate whether we respect the PCI setup left by the firmware.
@@ -157,9 +162,31 @@ out:
 	       "Skipping PCI bus scan due to resource conflict\n");
 }
 
+static void __init pcibios_set_cache_line_size(void)
+{
+	struct cpuinfo_mips *c = &current_cpu_data;
+	unsigned int lsize;
+
+	/*
+	 * Set PCI cacheline size to that of the highest level in the
+	 * cache hierarchy.
+	 */
+	lsize = c->dcache.linesz;
+	lsize = c->scache.linesz ? : lsize;
+	lsize = c->tcache.linesz ? : lsize;
+
+	BUG_ON(!lsize);
+
+	pci_dfl_cache_line_size = lsize >> 2;
+
+	pr_debug("PCI: pci_cache_line_size set to %d bytes\n", lsize);
+}
+
 static int __init pcibios_init(void)
 {
 	struct pci_controller *hose;
+
+	pcibios_set_cache_line_size();
 
 	/* Scan all of the recorded PCI controllers.  */
 	for (hose = hose_head; hose; hose = hose->next)
