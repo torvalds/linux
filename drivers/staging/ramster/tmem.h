@@ -9,7 +9,6 @@
 #ifndef _TMEM_H_
 #define _TMEM_H_
 
-#include <linux/types.h>
 #include <linux/highmem.h>
 #include <linux/hash.h>
 #include <linux/atomic.h>
@@ -89,6 +88,31 @@ struct tmem_oid {
 	uint64_t oid[3];
 };
 
+struct tmem_xhandle {
+	uint8_t client_id;
+	uint8_t xh_data_cksum;
+	uint16_t xh_data_size;
+	uint16_t pool_id;
+	struct tmem_oid oid;
+	uint32_t index;
+	void *extra;
+};
+
+static inline struct tmem_xhandle tmem_xhandle_fill(uint16_t client_id,
+					struct tmem_pool *pool,
+					struct tmem_oid *oidp,
+					uint32_t index)
+{
+	struct tmem_xhandle xh;
+	xh.client_id = client_id;
+	xh.xh_data_cksum = (uint8_t)-1;
+	xh.xh_data_size = (uint16_t)-1;
+	xh.pool_id = pool->pool_id;
+	xh.oid = *oidp;
+	xh.index = index;
+	return xh;
+}
+
 static inline void tmem_oid_set_invalid(struct tmem_oid *oidp)
 {
 	oidp->oid[0] = oidp->oid[1] = oidp->oid[2] = -1UL;
@@ -147,7 +171,11 @@ struct tmem_obj {
 	unsigned int objnode_tree_height;
 	unsigned long objnode_count;
 	long pampd_count;
-	void *extra; /* for private use by pampd implementation */
+	/* for current design of ramster, all pages belonging to
+	 * an object reside on the same remotenode and extra is
+	 * used to record the number of the remotenode so a
+	 * flush-object operation can specify it */
+	void *extra; /* for use by pampd implementation */
 	DECL_SENTINEL
 };
 
@@ -174,9 +202,14 @@ struct tmem_pamops {
 	int (*get_data_and_free)(char *, size_t *, bool, void *,
 				struct tmem_pool *, struct tmem_oid *,
 				uint32_t);
-	void (*free)(void *, struct tmem_pool *, struct tmem_oid *, uint32_t);
+	void (*free)(void *, struct tmem_pool *,
+				struct tmem_oid *, uint32_t, bool);
 	void (*free_obj)(struct tmem_pool *, struct tmem_obj *);
 	bool (*is_remote)(void *);
+	void *(*repatriate_preload)(void *, struct tmem_pool *,
+					struct tmem_oid *, uint32_t, bool *);
+	int (*repatriate)(void *, void *, struct tmem_pool *,
+				struct tmem_oid *, uint32_t, bool, void *);
 	void (*new_obj)(struct tmem_obj *);
 	int (*replace_in_obj)(void *, struct tmem_obj *);
 };
@@ -193,11 +226,16 @@ extern void tmem_register_hostops(struct tmem_hostops *m);
 
 /* core tmem accessor functions */
 extern int tmem_put(struct tmem_pool *, struct tmem_oid *, uint32_t index,
-			char *, size_t, bool, bool);
+			char *, size_t, bool, int);
 extern int tmem_get(struct tmem_pool *, struct tmem_oid *, uint32_t index,
 			char *, size_t *, bool, int);
 extern int tmem_replace(struct tmem_pool *, struct tmem_oid *, uint32_t index,
 			void *);
+extern void *tmem_localify_get_pampd(struct tmem_pool *, struct tmem_oid *,
+				   uint32_t index, struct tmem_obj **,
+				   void **);
+extern void tmem_localify_finish(struct tmem_obj *, uint32_t index,
+				 void *, void *, bool);
 extern int tmem_flush_page(struct tmem_pool *, struct tmem_oid *,
 			uint32_t index);
 extern int tmem_flush_object(struct tmem_pool *, struct tmem_oid *);

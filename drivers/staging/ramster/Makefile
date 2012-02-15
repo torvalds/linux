@@ -1,3 +1,1 @@
-zcache-y	:=	zcache-main.o tmem.o
-
-obj-$(CONFIG_ZCACHE)	+=	zcache.o
+obj-$(CONFIG_RAMSTER)	+=	zcache-main.o tmem.o r2net.o xvmalloc.o cluster/
