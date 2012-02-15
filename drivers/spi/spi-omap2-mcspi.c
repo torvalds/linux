@@ -34,6 +34,8 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <linux/spi/spi.h>
 
@@ -1079,15 +1081,39 @@ static int omap_mcspi_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static struct omap2_mcspi_platform_config omap2_pdata = {
+	.regs_offset = 0,
+};
+
+static struct omap2_mcspi_platform_config omap4_pdata = {
+	.regs_offset = OMAP4_MCSPI_REG_OFFSET,
+};
+
+static const struct of_device_id omap_mcspi_of_match[] = {
+	{
+		.compatible = "ti,omap2-mcspi",
+		.data = &omap2_pdata,
+	},
+	{
+		.compatible = "ti,omap4-mcspi",
+		.data = &omap4_pdata,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, omap_mcspi_of_match);
 
 static int __init omap2_mcspi_probe(struct platform_device *pdev)
 {
 	struct spi_master	*master;
-	struct omap2_mcspi_platform_config *pdata = pdev->dev.platform_data;
+	struct omap2_mcspi_platform_config *pdata;
 	struct omap2_mcspi	*mcspi;
 	struct resource		*r;
 	int			status = 0, i;
 	char			wq_name[20];
+	u32			regs_offset = 0;
+	static int		bus_num = 1;
+	struct device_node	*node = pdev->dev.of_node;
+	const struct of_device_id *match;
 
 	master = spi_alloc_master(&pdev->dev, sizeof *mcspi);
 	if (master == NULL) {
@@ -1098,13 +1124,26 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 
-	if (pdev->id != -1)
-		master->bus_num = pdev->id;
-
 	master->setup = omap2_mcspi_setup;
 	master->transfer = omap2_mcspi_transfer;
 	master->cleanup = omap2_mcspi_cleanup;
-	master->num_chipselect = pdata->num_cs;
+	master->dev.of_node = node;
+
+	match = of_match_device(omap_mcspi_of_match, &pdev->dev);
+	if (match) {
+		u32 num_cs = 1; /* default number of chipselect */
+		pdata = match->data;
+
+		of_property_read_u32(node, "ti,spi-num-cs", &num_cs);
+		master->num_chipselect = num_cs;
+		master->bus_num = bus_num++;
+	} else {
+		pdata = pdev->dev.platform_data;
+		master->num_chipselect = pdata->num_cs;
+		if (pdev->id != -1)
+			master->bus_num = pdev->id;
+	}
+	regs_offset = pdata->regs_offset;
 
 	dev_set_drvdata(&pdev->dev, master);
 
@@ -1124,8 +1163,8 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 		goto free_master;
 	}
 
-	r->start += pdata->regs_offset;
-	r->end += pdata->regs_offset;
+	r->start += regs_offset;
+	r->end += regs_offset;
 	mcspi->phys = r->start;
 	if (!request_mem_region(r->start, resource_size(r),
 				dev_name(&pdev->dev))) {
@@ -1285,7 +1324,8 @@ static struct platform_driver omap2_mcspi_driver = {
 	.driver = {
 		.name =		"omap2_mcspi",
 		.owner =	THIS_MODULE,
-		.pm =		&omap2_mcspi_pm_ops
+		.pm =		&omap2_mcspi_pm_ops,
+		.of_match_table = omap_mcspi_of_match,
 	},
 	.remove =	__exit_p(omap2_mcspi_remove),
 };
