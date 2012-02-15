@@ -2657,15 +2657,15 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_info_pin_switch);
 int snd_soc_dapm_get_pin_switch(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	const char *pin = (const char *)kcontrol->private_value;
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&card->mutex);
 
 	ucontrol->value.integer.value[0] =
-		snd_soc_dapm_get_pin_status(&codec->dapm, pin);
+		snd_soc_dapm_get_pin_status(&card->dapm, pin);
 
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&card->mutex);
 
 	return 0;
 }
@@ -2680,19 +2680,19 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_get_pin_switch);
 int snd_soc_dapm_put_pin_switch(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	const char *pin = (const char *)kcontrol->private_value;
 
-	mutex_lock(&codec->mutex);
+	mutex_lock(&card->mutex);
 
 	if (ucontrol->value.integer.value[0])
-		snd_soc_dapm_enable_pin(&codec->dapm, pin);
+		snd_soc_dapm_enable_pin(&card->dapm, pin);
 	else
-		snd_soc_dapm_disable_pin(&codec->dapm, pin);
+		snd_soc_dapm_disable_pin(&card->dapm, pin);
 
-	snd_soc_dapm_sync(&codec->dapm);
+	snd_soc_dapm_sync(&card->dapm);
 
-	mutex_unlock(&codec->mutex);
+	mutex_unlock(&card->mutex);
 
 	return 0;
 }
