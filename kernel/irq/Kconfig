@@ -107,6 +107,10 @@ config GENERIC_IRQ_RESERVATION_MODE
 config IRQ_FORCED_THREADING
        bool
 
+config IRQ_FORCED_THREADING_DEFAULT
+	bool "Use IRQ threading by default"
+	depends on IRQ_FORCED_THREADING
+
 config SPARSE_IRQ
 	bool "Support sparse irq numbering" if MAY_HAVE_SPARSE_IRQ
 	---help---
