@@ -67,6 +67,12 @@
  * saved in vcpu: cr, ctr, r3-r13
  */
 .macro kvm_handler_common intno, srr0, flags
+	/* Restore host stack pointer */
+	PPC_STL	r1, VCPU_GPR(r1)(r4)
+	PPC_STL	r2, VCPU_GPR(r2)(r4)
+	PPC_LL	r1, VCPU_HOST_STACK(r4)
+	PPC_LL	r2, HOST_R2(r1)
+
 	mfspr	r10, SPRN_PID
 	lwz	r8, VCPU_HOST_PID(r4)
 	PPC_LL	r11, VCPU_SHARED(r4)
@@ -290,10 +296,8 @@ _GLOBAL(kvmppc_resume_host)
 	/* Save remaining volatile guest register state to vcpu. */
 	mfspr	r3, SPRN_VRSAVE
 	PPC_STL	r0, VCPU_GPR(r0)(r4)
-	PPC_STL	r1, VCPU_GPR(r1)(r4)
 	mflr	r5
 	mfspr	r6, SPRN_SPRG4
-	PPC_STL	r2, VCPU_GPR(r2)(r4)
 	PPC_STL	r5, VCPU_LR(r4)
 	mfspr	r7, SPRN_SPRG5
 	PPC_STL	r3, VCPU_VRSAVE(r4)
@@ -333,10 +337,6 @@ _GLOBAL(kvmppc_resume_host)
 	rlwinm	r3, r3, 0, ~SPRN_EPCR_DMIUH
 	mtspr	SPRN_EPCR, r3
 	isync
-
-	/* Restore host stack pointer */
-	PPC_LL	r1, VCPU_HOST_STACK(r4)
-	PPC_LL	r2, HOST_R2(r1)
 
 	/* Switch to kernel stack and jump to handler. */
 	PPC_LL	r3, HOST_RUN(r1)
