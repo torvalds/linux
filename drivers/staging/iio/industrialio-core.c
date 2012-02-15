@@ -594,6 +594,7 @@ struct iio_dev *iio_allocate_device(int sizeof_priv)
 		device_initialize(&dev->dev);
 		dev_set_drvdata(&dev->dev, (void *)dev);
 		mutex_init(&dev->mlock);
+		mutex_init(&dev->info_exist_lock);
 
 		dev->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
 		if (dev->id < 0) {
@@ -718,6 +719,9 @@ EXPORT_SYMBOL(iio_device_register);
 
 void iio_device_unregister(struct iio_dev *indio_dev)
 {
+	mutex_lock(&indio_dev->info_exist_lock);
+	indio_dev->info = NULL;
+	mutex_unlock(&indio_dev->info_exist_lock);
 	device_unregister(&indio_dev->dev);
 }
 EXPORT_SYMBOL(iio_device_unregister);
