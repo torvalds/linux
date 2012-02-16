@@ -34,7 +34,6 @@
 
 #include "util.h"
 #include "event.h"
-#include "string.h"
 #include "strlist.h"
 #include "debug.h"
 #include "cache.h"
