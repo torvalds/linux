@@ -582,8 +582,7 @@ next:
 	if (start <= end && next_node) {
 		state = rb_entry(next_node, struct extent_state,
 				 rb_node);
-		if (state->start == start)
-			goto hit_next;
+		goto hit_next;
 	}
 	goto search_again;
 
