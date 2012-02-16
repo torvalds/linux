@@ -8711,6 +8711,8 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 	}
 }
 
+static int bnx2x_close(struct net_device *dev);
+
 /* bnx2x_nic_unload() flushes the bnx2x_wq, thus reset task is
  * scheduled on a general queue in order to prevent a dead lock.
  */
@@ -10288,7 +10290,7 @@ static int bnx2x_open(struct net_device *dev)
 }
 
 /* called with rtnl_lock */
-int bnx2x_close(struct net_device *dev)
+static int bnx2x_close(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
