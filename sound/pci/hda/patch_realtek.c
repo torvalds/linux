@@ -2972,8 +2972,12 @@ static bool alc_auto_is_dac_reachable(struct hda_codec *codec,
 
 static hda_nid_t get_dac_if_single(struct hda_codec *codec, hda_nid_t pin)
 {
+	struct alc_spec *spec = codec->spec;
 	hda_nid_t sel = alc_go_down_to_selector(codec, pin);
-	if (snd_hda_get_conn_list(codec, sel, NULL) == 1)
+	hda_nid_t srcs[5];
+	int num = snd_hda_get_connections(codec, sel, srcs,
+					  ARRAY_SIZE(srcs));
+	if (num == 1 || (num == 2 && srcs[1] == spec->mixer_nid))
 		return alc_auto_look_for_dac(codec, pin);
 	return 0;
 }
