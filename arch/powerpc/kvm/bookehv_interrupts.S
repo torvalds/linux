@@ -83,10 +83,6 @@
 	stw	r10, VCPU_GUEST_PID(r4)
 	mtspr	SPRN_PID, r8
 
-	.if	\flags & NEED_EMU
-	lwz	r9, VCPU_KVM(r4)
-	.endif
-
 #ifdef CONFIG_KVM_EXIT_TIMING
 	/* save exit time */
 1:	mfspr	r7, SPRN_TBRU
@@ -97,6 +93,10 @@
 	bne-	1b
 	PPC_STL	r9, VCPU_TIMING_EXIT_TBU(r4)
 #endif
+
+	.if	\flags & NEED_EMU
+	lwz	r9, VCPU_KVM(r4)
+	.endif
 
 	oris	r8, r6, MSR_CE@h
 #ifndef CONFIG_64BIT
