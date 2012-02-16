@@ -650,7 +650,7 @@ int target_report_luns(struct se_task *se_task)
 	struct se_lun *se_lun;
 	struct se_session *se_sess = se_cmd->se_sess;
 	unsigned char *buf;
-	u32 cdb_offset = 0, lun_count = 0, offset = 8, i;
+	u32 lun_count = 0, offset = 8, i;
 
 	buf = transport_kmap_data_sg(se_cmd);
 	if (!buf)
@@ -679,12 +679,11 @@ int target_report_luns(struct se_task *se_task)
 		 * See SPC2-R20 7.19.
 		 */
 		lun_count++;
-		if ((cdb_offset + 8) >= se_cmd->data_length)
+		if ((offset + 8) > se_cmd->data_length)
 			continue;
 
 		int_to_scsilun(deve->mapped_lun, (struct scsi_lun *)&buf[offset]);
 		offset += 8;
-		cdb_offset += 8;
 	}
 	spin_unlock_irq(&se_sess->se_node_acl->device_list_lock);
 
