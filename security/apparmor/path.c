@@ -94,17 +94,20 @@ static int d_namespace_path(struct path *path, char *buf, int buflen,
 	} else
 		res = d_absolute_path(path, buf, buflen);
 
-	*name = res;
 	/* handle error conditions - and still allow a partial path to
 	 * be returned.
 	 */
 	if (IS_ERR(res)) {
-		error = PTR_ERR(res);
-		*name = buf;
-		goto out;
-	}
-	if (!our_mnt(path->mnt))
+		res = dentry_path_raw(path->dentry, buf, buflen);
+		if (IS_ERR(res)) {
+			error = PTR_ERR(res);
+			*name = buf;
+			goto out;
+		};
+	} else if (!our_mnt(path->mnt))
 		connected = 0;
+
+	*name = res;
 
 ok:
 	/* Handle two cases:
