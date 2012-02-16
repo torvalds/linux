@@ -5396,7 +5396,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x3bf8, "Lenovo Ideapd", ALC269_FIXUP_PCM_44K),
 	SND_PCI_QUIRK(0x17aa, 0x9e54, "LENOVO NB", ALC269_FIXUP_LENOVO_EAPD),
 
-#if 1
+#if 0
 	/* Below is a quirk table taken from the old code.
 	 * Basically the device should work as is without the fixup table.
 	 * If BIOS doesn't give a proper info, enable the corresponding
