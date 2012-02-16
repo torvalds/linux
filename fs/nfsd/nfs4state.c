@@ -2866,7 +2866,7 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_ol_
 	struct nfs4_delegation *dp;
 	struct nfs4_openowner *oo = container_of(stp->st_stateowner, struct nfs4_openowner, oo_owner);
 	int cb_up;
-	int status, flag = 0;
+	int status = 0, flag = 0;
 
 	cb_up = nfsd4_cb_channel_good(oo->oo_owner.so_client);
 	flag = NFS4_OPEN_DELEGATE_NONE;
@@ -2907,11 +2907,32 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_ol_
 	dprintk("NFSD: delegation stateid=" STATEID_FMT "\n",
 		STATEID_VAL(&dp->dl_stid.sc_stateid));
 out:
-	if (open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS
-			&& flag == NFS4_OPEN_DELEGATE_NONE
-			&& open->op_delegate_type != NFS4_OPEN_DELEGATE_NONE)
-		dprintk("NFSD: WARNING: refusing delegation reclaim\n");
 	open->op_delegate_type = flag;
+	if (flag == NFS4_OPEN_DELEGATE_NONE) {
+		if (open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS &&
+		    open->op_delegate_type != NFS4_OPEN_DELEGATE_NONE)
+			dprintk("NFSD: WARNING: refusing delegation reclaim\n");
+
+		if (open->op_deleg_want) {
+			open->op_delegate_type = NFS4_OPEN_DELEGATE_NONE_EXT;
+			if (status == -EAGAIN)
+				open->op_why_no_deleg = WND4_CONTENTION;
+			else {
+				open->op_why_no_deleg = WND4_RESOURCE;
+				switch (open->op_deleg_want) {
+				case NFS4_SHARE_WANT_READ_DELEG:
+				case NFS4_SHARE_WANT_WRITE_DELEG:
+				case NFS4_SHARE_WANT_ANY_DELEG:
+					break;
+				case NFS4_SHARE_WANT_CANCEL:
+					open->op_why_no_deleg = WND4_CANCELLED;
+					break;
+				case NFS4_SHARE_WANT_NO_DELEG:
+					BUG();	/* not supposed to get here */
+				}
+			}
+		}
+	}
 	return;
 out_free:
 	nfs4_put_delegation(dp);
@@ -2981,20 +3002,45 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	update_stateid(&stp->st_stid.sc_stateid);
 	memcpy(&open->op_stateid, &stp->st_stid.sc_stateid, sizeof(stateid_t));
 
-	if (nfsd4_has_session(&resp->cstate))
+	if (nfsd4_has_session(&resp->cstate)) {
 		open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
+
+		if (open->op_deleg_want & NFS4_SHARE_WANT_NO_DELEG) {
+			open->op_delegate_type = NFS4_OPEN_DELEGATE_NONE_EXT;
+			open->op_why_no_deleg = WND4_NOT_WANTED;
+			goto nodeleg;
+		}
+	}
 
 	/*
 	* Attempt to hand out a delegation. No error return, because the
 	* OPEN succeeds even if we fail.
 	*/
 	nfs4_open_delegation(current_fh, open, stp);
-
+nodeleg:
 	status = nfs_ok;
 
 	dprintk("%s: stateid=" STATEID_FMT "\n", __func__,
 		STATEID_VAL(&stp->st_stid.sc_stateid));
 out:
+	/* 4.1 client trying to upgrade/downgrade delegation? */
+	if (open->op_delegate_type == NFS4_OPEN_DELEGATE_NONE && dp &&
+	    open->op_deleg_want) {
+		if (open->op_deleg_want == NFS4_SHARE_WANT_READ_DELEG &&
+		    dp->dl_type == NFS4_OPEN_DELEGATE_WRITE) {
+			open->op_delegate_type = NFS4_OPEN_DELEGATE_NONE_EXT;
+			open->op_why_no_deleg = WND4_NOT_SUPP_DOWNGRADE;
+		} else if (open->op_deleg_want == NFS4_SHARE_WANT_WRITE_DELEG &&
+			   dp->dl_type == NFS4_OPEN_DELEGATE_WRITE) {
+			open->op_delegate_type = NFS4_OPEN_DELEGATE_NONE_EXT;
+			open->op_why_no_deleg = WND4_NOT_SUPP_UPGRADE;
+		}
+		/* Otherwise the client must be confused wanting a delegation
+		 * it already has, therefore we don't return
+		 * NFS4_OPEN_DELEGATE_NONE_EXT and reason.
+		 */
+	}
+
 	if (fp)
 		put_nfs4_file(fp);
 	if (status == 0 && open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS)
