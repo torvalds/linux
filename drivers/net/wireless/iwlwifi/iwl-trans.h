@@ -63,12 +63,9 @@
 #ifndef __iwl_trans_h__
 #define __iwl_trans_h__
 
-#include <linux/debugfs.h>
-#include <linux/skbuff.h>
+#include <linux/ieee80211.h>
 
 #include "iwl-shared.h"
-#include "iwl-commands.h"
-#include "iwl-ucode.h"
 #include "iwl-debug.h"
 
 /**
@@ -109,6 +106,9 @@
 struct iwl_priv;
 struct iwl_shared;
 struct iwl_op_mode;
+struct fw_img;
+struct sk_buff;
+struct dentry;
 
 /**
  * DOC: Host command section

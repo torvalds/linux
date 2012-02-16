@@ -76,6 +76,7 @@
 #include "iwl-eeprom.h"
 #include "iwl-agn-hw.h"
 #include "iwl-core.h"
+#include "iwl-ucode.h"
 
 static int iwl_trans_rx_alloc(struct iwl_trans *trans)
 {
