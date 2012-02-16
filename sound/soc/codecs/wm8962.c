@@ -2479,6 +2479,8 @@ static void wm8962_configure_bclk(struct snd_soc_codec *codec)
 		return;
 	}
 
+	dev_dbg(codec->dev, "Selected sysclk ratio %d\n", sysclk_rates[i]);
+
 	snd_soc_update_bits(codec, WM8962_CLOCKING_4,
 			    WM8962_SYSCLK_RATE_MASK, clocking4);
 
