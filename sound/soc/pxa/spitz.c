@@ -44,9 +44,9 @@ static int spitz_jack_func;
 static int spitz_spk_func;
 static int spitz_mic_gpio;
 
-static void spitz_ext_control(struct snd_soc_codec *codec)
+static void spitz_ext_control(struct snd_soc_card *card)
 {
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = &card->dapm;
 
 	if (spitz_spk_func == SPITZ_SPK_ON)
 		snd_soc_dapm_enable_pin(dapm, "Ext Spk");
@@ -173,13 +173,13 @@ static int spitz_get_jack(struct snd_kcontrol *kcontrol,
 static int spitz_set_jack(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 
 	if (spitz_jack_func == ucontrol->value.integer.value[0])
 		return 0;
 
 	spitz_jack_func = ucontrol->value.integer.value[0];
-	spitz_ext_control(codec);
+	spitz_ext_control(card);
 	return 1;
 }
 
@@ -193,13 +193,13 @@ static int spitz_get_spk(struct snd_kcontrol *kcontrol,
 static int spitz_set_spk(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec =  snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card =  snd_kcontrol_chip(kcontrol);
 
 	if (spitz_spk_func == ucontrol->value.integer.value[0])
 		return 0;
 
 	spitz_spk_func = ucontrol->value.integer.value[0];
-	spitz_ext_control(codec);
+	spitz_ext_control(card);
 	return 1;
 }
 
