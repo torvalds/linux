@@ -178,6 +178,9 @@ static int g2d_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct g2d_ctx *ctx = container_of(ctrl->handler, struct g2d_ctx,
 								ctrl_handler);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ctx->dev->ctrl_lock, flags);
 	switch (ctrl->id) {
 	case V4L2_CID_COLORFX:
 		if (ctrl->val == V4L2_COLORFX_NEGATIVE)
@@ -190,10 +193,8 @@ static int g2d_s_ctrl(struct v4l2_ctrl *ctrl)
 		ctx->flip = ctx->ctrl_hflip->val | (ctx->ctrl_vflip->val << 1);
 		break;
 
-	default:
-		v4l2_err(&ctx->dev->v4l2_dev, "unknown control\n");
-		return -EINVAL;
 	}
+	spin_unlock_irqrestore(&ctx->dev->ctrl_lock, flags);
 	return 0;
 }
 
@@ -558,6 +559,7 @@ static void device_run(void *prv)
 	struct g2d_ctx *ctx = prv;
 	struct g2d_dev *dev = ctx->dev;
 	struct vb2_buffer *src, *dst;
+	unsigned long flags;
 	u32 cmd = 0;
 
 	dev->curr = ctx;
@@ -567,6 +569,8 @@ static void device_run(void *prv)
 
 	clk_enable(dev->gate);
 	g2d_reset(dev);
+
+	spin_lock_irqsave(&dev->ctrl_lock, flags);
 
 	g2d_set_src_size(dev, &ctx->in);
 	g2d_set_src_addr(dev, vb2_dma_contig_plane_dma_addr(src, 0));
@@ -582,6 +586,8 @@ static void device_run(void *prv)
 		cmd |= g2d_cmd_stretch(1);
 	g2d_set_cmd(dev, cmd);
 	g2d_start(dev);
+
+	spin_unlock_irqrestore(&dev->ctrl_lock, flags);
 }
 
 static irqreturn_t g2d_isr(int irq, void *prv)
@@ -671,7 +677,7 @@ static int g2d_probe(struct platform_device *pdev)
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
-	spin_lock_init(&dev->irqlock);
+	spin_lock_init(&dev->ctrl_lock);
 	mutex_init(&dev->mutex);
 	atomic_set(&dev->num_inst, 0);
 	init_waitqueue_head(&dev->irq_queue);

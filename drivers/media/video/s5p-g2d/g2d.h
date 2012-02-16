@@ -20,7 +20,7 @@ struct g2d_dev {
 	struct v4l2_m2m_dev	*m2m_dev;
 	struct video_device	*vfd;
 	struct mutex		mutex;
-	spinlock_t		irqlock;
+	spinlock_t		ctrl_lock;
 	atomic_t		num_inst;
 	struct vb2_alloc_ctx	*alloc_ctx;
 	struct resource		*res_regs;
