@@ -106,12 +106,6 @@
  *	6) Eventually, the free function will be called.
  */
 
-/**
- * DOC: API needed by the transport layer from the op_mode
- *
- * TODO
- */
-
 struct iwl_priv;
 struct iwl_shared;
 struct iwl_op_mode;
