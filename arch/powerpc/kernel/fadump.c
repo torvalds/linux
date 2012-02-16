@@ -32,6 +32,7 @@
 #include <linux/delay.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/crash_dump.h>
 
 #include <asm/page.h>
 #include <asm/prom.h>
@@ -43,6 +44,8 @@ static struct fadump_mem_struct fdm;
 static const struct fadump_mem_struct *fdm_active;
 
 static DEFINE_MUTEX(fadump_mutex);
+struct fad_crash_memory_ranges crash_memory_ranges[INIT_CRASHMEM_RANGES];
+int crash_mem_ranges;
 
 /* Scan the Firmware Assisted dump configuration details. */
 int __init early_init_dt_scan_fw_dump(unsigned long node,
@@ -235,6 +238,10 @@ static unsigned long get_fadump_area_size(void)
 	size += fw_dump.cpu_state_data_size;
 	size += fw_dump.hpte_region_size;
 	size += fw_dump.boot_memory_size;
+	size += sizeof(struct fadump_crash_info_header);
+	size += sizeof(struct elfhdr); /* ELF core header.*/
+	/* Program headers for crash memory regions. */
+	size += sizeof(struct elf_phdr) * (memblock_num_regions(memory) + 2);
 
 	size = PAGE_ALIGN(size);
 	return size;
@@ -300,6 +307,12 @@ int __init fadump_reserve_mem(void)
 				"for saving crash dump\n",
 				(unsigned long)(size >> 20),
 				(unsigned long)(base >> 20));
+
+		fw_dump.fadumphdr_addr =
+				fdm_active->rmr_region.destination_address +
+				fdm_active->rmr_region.source_len;
+		pr_debug("fadumphdr_addr = %p\n",
+				(void *) fw_dump.fadumphdr_addr);
 	} else {
 		/* Reserve the memory at the top of memory. */
 		size = get_fadump_area_size();
@@ -380,14 +393,226 @@ static void register_fw_dump(struct fadump_mem_struct *fdm)
 	}
 }
 
+/*
+ * Validate and process the dump data stored by firmware before exporting
+ * it through '/proc/vmcore'.
+ */
+static int __init process_fadump(const struct fadump_mem_struct *fdm_active)
+{
+	struct fadump_crash_info_header *fdh;
+
+	if (!fdm_active || !fw_dump.fadumphdr_addr)
+		return -EINVAL;
+
+	/* Check if the dump data is valid. */
+	if ((fdm_active->header.dump_status_flag == FADUMP_ERROR_FLAG) ||
+			(fdm_active->rmr_region.error_flags != 0)) {
+		printk(KERN_ERR "Dump taken by platform is not valid\n");
+		return -EINVAL;
+	}
+	if (fdm_active->rmr_region.bytes_dumped !=
+			fdm_active->rmr_region.source_len) {
+		printk(KERN_ERR "Dump taken by platform is incomplete\n");
+		return -EINVAL;
+	}
+
+	/* Validate the fadump crash info header */
+	fdh = __va(fw_dump.fadumphdr_addr);
+	if (fdh->magic_number != FADUMP_CRASH_INFO_MAGIC) {
+		printk(KERN_ERR "Crash info header is not valid.\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * We are done validating dump info and elfcore header is now ready
+	 * to be exported. set elfcorehdr_addr so that vmcore module will
+	 * export the elfcore header through '/proc/vmcore'.
+	 */
+	elfcorehdr_addr = fdh->elfcorehdr_addr;
+
+	return 0;
+}
+
+static inline void fadump_add_crash_memory(unsigned long long base,
+					unsigned long long end)
+{
+	if (base == end)
+		return;
+
+	pr_debug("crash_memory_range[%d] [%#016llx-%#016llx], %#llx bytes\n",
+		crash_mem_ranges, base, end - 1, (end - base));
+	crash_memory_ranges[crash_mem_ranges].base = base;
+	crash_memory_ranges[crash_mem_ranges].size = end - base;
+	crash_mem_ranges++;
+}
+
+static void fadump_exclude_reserved_area(unsigned long long start,
+					unsigned long long end)
+{
+	unsigned long long ra_start, ra_end;
+
+	ra_start = fw_dump.reserve_dump_area_start;
+	ra_end = ra_start + fw_dump.reserve_dump_area_size;
+
+	if ((ra_start < end) && (ra_end > start)) {
+		if ((start < ra_start) && (end > ra_end)) {
+			fadump_add_crash_memory(start, ra_start);
+			fadump_add_crash_memory(ra_end, end);
+		} else if (start < ra_start) {
+			fadump_add_crash_memory(start, ra_start);
+		} else if (ra_end < end) {
+			fadump_add_crash_memory(ra_end, end);
+		}
+	} else
+		fadump_add_crash_memory(start, end);
+}
+
+static int fadump_init_elfcore_header(char *bufp)
+{
+	struct elfhdr *elf;
+
+	elf = (struct elfhdr *) bufp;
+	bufp += sizeof(struct elfhdr);
+	memcpy(elf->e_ident, ELFMAG, SELFMAG);
+	elf->e_ident[EI_CLASS] = ELF_CLASS;
+	elf->e_ident[EI_DATA] = ELF_DATA;
+	elf->e_ident[EI_VERSION] = EV_CURRENT;
+	elf->e_ident[EI_OSABI] = ELF_OSABI;
+	memset(elf->e_ident+EI_PAD, 0, EI_NIDENT-EI_PAD);
+	elf->e_type = ET_CORE;
+	elf->e_machine = ELF_ARCH;
+	elf->e_version = EV_CURRENT;
+	elf->e_entry = 0;
+	elf->e_phoff = sizeof(struct elfhdr);
+	elf->e_shoff = 0;
+	elf->e_flags = ELF_CORE_EFLAGS;
+	elf->e_ehsize = sizeof(struct elfhdr);
+	elf->e_phentsize = sizeof(struct elf_phdr);
+	elf->e_phnum = 0;
+	elf->e_shentsize = 0;
+	elf->e_shnum = 0;
+	elf->e_shstrndx = 0;
+
+	return 0;
+}
+
+/*
+ * Traverse through memblock structure and setup crash memory ranges. These
+ * ranges will be used create PT_LOAD program headers in elfcore header.
+ */
+static void fadump_setup_crash_memory_ranges(void)
+{
+	struct memblock_region *reg;
+	unsigned long long start, end;
+
+	pr_debug("Setup crash memory ranges.\n");
+	crash_mem_ranges = 0;
+	/*
+	 * add the first memory chunk (RMA_START through boot_memory_size) as
+	 * a separate memory chunk. The reason is, at the time crash firmware
+	 * will move the content of this memory chunk to different location
+	 * specified during fadump registration. We need to create a separate
+	 * program header for this chunk with the correct offset.
+	 */
+	fadump_add_crash_memory(RMA_START, fw_dump.boot_memory_size);
+
+	for_each_memblock(memory, reg) {
+		start = (unsigned long long)reg->base;
+		end = start + (unsigned long long)reg->size;
+		if (start == RMA_START && end >= fw_dump.boot_memory_size)
+			start = fw_dump.boot_memory_size;
+
+		/* add this range excluding the reserved dump area. */
+		fadump_exclude_reserved_area(start, end);
+	}
+}
+
+static int fadump_create_elfcore_headers(char *bufp)
+{
+	struct elfhdr *elf;
+	struct elf_phdr *phdr;
+	int i;
+
+	fadump_init_elfcore_header(bufp);
+	elf = (struct elfhdr *)bufp;
+	bufp += sizeof(struct elfhdr);
+
+	/* setup PT_LOAD sections. */
+
+	for (i = 0; i < crash_mem_ranges; i++) {
+		unsigned long long mbase, msize;
+		mbase = crash_memory_ranges[i].base;
+		msize = crash_memory_ranges[i].size;
+
+		if (!msize)
+			continue;
+
+		phdr = (struct elf_phdr *)bufp;
+		bufp += sizeof(struct elf_phdr);
+		phdr->p_type	= PT_LOAD;
+		phdr->p_flags	= PF_R|PF_W|PF_X;
+		phdr->p_offset	= mbase;
+
+		if (mbase == RMA_START) {
+			/*
+			 * The entire RMA region will be moved by firmware
+			 * to the specified destination_address. Hence set
+			 * the correct offset.
+			 */
+			phdr->p_offset = fdm.rmr_region.destination_address;
+		}
+
+		phdr->p_paddr = mbase;
+		phdr->p_vaddr = (unsigned long)__va(mbase);
+		phdr->p_filesz = msize;
+		phdr->p_memsz = msize;
+		phdr->p_align = 0;
+
+		/* Increment number of program headers. */
+		(elf->e_phnum)++;
+	}
+	return 0;
+}
+
+static unsigned long init_fadump_header(unsigned long addr)
+{
+	struct fadump_crash_info_header *fdh;
+
+	if (!addr)
+		return 0;
+
+	fw_dump.fadumphdr_addr = addr;
+	fdh = __va(addr);
+	addr += sizeof(struct fadump_crash_info_header);
+
+	memset(fdh, 0, sizeof(struct fadump_crash_info_header));
+	fdh->magic_number = FADUMP_CRASH_INFO_MAGIC;
+	fdh->elfcorehdr_addr = addr;
+
+	return addr;
+}
+
 static void register_fadump(void)
 {
+	unsigned long addr;
+	void *vaddr;
+
 	/*
 	 * If no memory is reserved then we can not register for firmware-
 	 * assisted dump.
 	 */
 	if (!fw_dump.reserve_dump_area_size)
 		return;
+
+	fadump_setup_crash_memory_ranges();
+
+	addr = fdm.rmr_region.destination_address + fdm.rmr_region.source_len;
+	/* Initialize fadump crash info header. */
+	addr = init_fadump_header(addr);
+	vaddr = __va(addr);
+
+	pr_debug("Creating ELF core headers at %#016lx\n", addr);
+	fadump_create_elfcore_headers(vaddr);
 
 	/* register the future kernel dump with firmware. */
 	register_fw_dump(&fdm);
@@ -585,8 +810,14 @@ int __init setup_fadump(void)
 	}
 
 	fadump_show_config();
+	/*
+	 * If dump data is available then see if it is valid and prepare for
+	 * saving it to the disk.
+	 */
+	if (fw_dump.dump_active)
+		process_fadump(fdm_active);
 	/* Initialize the kernel dump memory structure for FAD registration. */
-	if (fw_dump.reserve_dump_area_size)
+	else if (fw_dump.reserve_dump_area_size)
 		init_fadump_mem_struct(&fdm, fw_dump.reserve_dump_area_start);
 	fadump_init_files();
 

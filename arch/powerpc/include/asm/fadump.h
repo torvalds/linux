@@ -43,6 +43,12 @@
 #define MIN_BOOT_MEM	(((RMA_END < (0x1UL << 28)) ? (0x1UL << 28) : RMA_END) \
 			+ (0x1UL << 26))
 
+#define memblock_num_regions(memblock_type)	(memblock.memblock_type.cnt)
+
+#ifndef ELF_CORE_EFLAGS
+#define ELF_CORE_EFLAGS 0
+#endif
+
 /* Firmware provided dump sections */
 #define FADUMP_CPU_STATE_DATA	0x0001
 #define FADUMP_HPTE_REGION	0x0002
@@ -55,6 +61,9 @@
 #define FADUMP_REGISTER		1
 #define FADUMP_UNREGISTER	2
 #define FADUMP_INVALIDATE	3
+
+/* Dump status flag */
+#define FADUMP_ERROR_FLAG	0x2000
 
 /* Kernel Dump section info */
 struct fadump_section {
@@ -109,12 +118,46 @@ struct fw_dump {
 	/* cmd line option during boot */
 	unsigned long	reserve_bootvar;
 
+	unsigned long	fadumphdr_addr;
 	int		ibm_configure_kernel_dump;
 
 	unsigned long	fadump_enabled:1;
 	unsigned long	fadump_supported:1;
 	unsigned long	dump_active:1;
 	unsigned long	dump_registered:1;
+};
+
+/*
+ * Copy the ascii values for first 8 characters from a string into u64
+ * variable at their respective indexes.
+ * e.g.
+ *  The string "FADMPINF" will be converted into 0x4641444d50494e46
+ */
+static inline u64 str_to_u64(const char *str)
+{
+	u64 val = 0;
+	int i;
+
+	for (i = 0; i < sizeof(val); i++)
+		val = (*str) ? (val << 8) | *str++ : val << 8;
+	return val;
+}
+#define STR_TO_HEX(x)	str_to_u64(x)
+
+#define FADUMP_CRASH_INFO_MAGIC		STR_TO_HEX("FADMPINF")
+
+/* fadump crash info structure */
+struct fadump_crash_info_header {
+	u64		magic_number;
+	u64		elfcorehdr_addr;
+};
+
+/* Crash memory ranges */
+#define INIT_CRASHMEM_RANGES	(INIT_MEMBLOCK_REGIONS + 2)
+
+struct fad_crash_memory_ranges {
+	unsigned long long	base;
+	unsigned long long	size;
 };
 
 extern int early_init_dt_scan_fw_dump(unsigned long node,
