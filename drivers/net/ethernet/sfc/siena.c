@@ -225,6 +225,15 @@ static int siena_probe_nvconfig(struct efx_nic *efx)
 	return rc;
 }
 
+static void siena_dimension_resources(struct efx_nic *efx)
+{
+	/* Each port has a small block of internal SRAM dedicated to
+	 * the buffer table and descriptor caches.  In theory we can
+	 * map both blocks to one port, but we don't.
+	 */
+	efx_nic_dimension_resources(efx, FR_CZ_BUF_FULL_TBL_ROWS / 2);
+}
+
 static int siena_probe_nic(struct efx_nic *efx)
 {
 	struct siena_nic_data *nic_data;
@@ -303,6 +312,8 @@ static int siena_probe_nic(struct efx_nic *efx)
 	rc = efx_mcdi_mon_probe(efx);
 	if (rc)
 		goto fail5;
+
+	efx_sriov_probe(efx);
 
 	return 0;
 
@@ -619,6 +630,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.probe = siena_probe_nic,
 	.remove = siena_remove_nic,
 	.init = siena_init_nic,
+	.dimension_resources = siena_dimension_resources,
 	.fini = efx_port_dummy_op_void,
 	.monitor = NULL,
 	.map_reset_reason = siena_map_reset_reason,
@@ -657,8 +669,6 @@ const struct efx_nic_type siena_a0_nic_type = {
 				   * interrupt handler only supports 32
 				   * channels */
 	.timer_period_max = 1 << FRF_CZ_TC_TIMER_VAL_WIDTH,
-	.tx_dc_base = 0x88000,
-	.rx_dc_base = 0x68000,
 	.offload_features = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			     NETIF_F_RXHASH | NETIF_F_NTUPLE),
 };

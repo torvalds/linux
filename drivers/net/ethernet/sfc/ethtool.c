@@ -808,11 +808,16 @@ static int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
 	return efx_reset(efx, rc);
 }
 
+/* MAC address mask including only MC flag */
+static const u8 mac_addr_mc_mask[ETH_ALEN] = { 0x01, 0, 0, 0, 0, 0 };
+
 static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 				      struct ethtool_rx_flow_spec *rule)
 {
 	struct ethtool_tcpip4_spec *ip_entry = &rule->h_u.tcp_ip4_spec;
 	struct ethtool_tcpip4_spec *ip_mask = &rule->m_u.tcp_ip4_spec;
+	struct ethhdr *mac_entry = &rule->h_u.ether_spec;
+	struct ethhdr *mac_mask = &rule->m_u.ether_spec;
 	struct efx_filter_spec spec;
 	u16 vid;
 	u8 proto;
@@ -828,11 +833,18 @@ static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 	else
 		rule->ring_cookie = spec.dmaq_id;
 
-	rc = efx_filter_get_eth_local(&spec, &vid,
-				      rule->h_u.ether_spec.h_dest);
+	if (spec.type == EFX_FILTER_MC_DEF || spec.type == EFX_FILTER_UC_DEF) {
+		rule->flow_type = ETHER_FLOW;
+		memcpy(mac_mask->h_dest, mac_addr_mc_mask, ETH_ALEN);
+		if (spec.type == EFX_FILTER_MC_DEF)
+			memcpy(mac_entry->h_dest, mac_addr_mc_mask, ETH_ALEN);
+		return 0;
+	}
+
+	rc = efx_filter_get_eth_local(&spec, &vid, mac_entry->h_dest);
 	if (rc == 0) {
 		rule->flow_type = ETHER_FLOW;
-		memset(rule->m_u.ether_spec.h_dest, ~0, ETH_ALEN);
+		memset(mac_mask->h_dest, ~0, ETH_ALEN);
 		if (vid != EFX_FILTER_VID_UNSPEC) {
 			rule->flow_type |= FLOW_EXT;
 			rule->h_ext.vlan_tci = htons(vid);
@@ -1001,27 +1013,40 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 	}
 
 	case ETHER_FLOW | FLOW_EXT:
-		/* Must match all or none of VID */
-		if (rule->m_ext.vlan_tci != htons(0xfff) &&
-		    rule->m_ext.vlan_tci != 0)
-			return -EINVAL;
-	case ETHER_FLOW:
-		/* Must match all of destination */
-		if (!is_broadcast_ether_addr(mac_mask->h_dest))
-			return -EINVAL;
-		/* and nothing else */
+	case ETHER_FLOW: {
+		u16 vlan_tag_mask = (rule->flow_type & FLOW_EXT ?
+				     ntohs(rule->m_ext.vlan_tci) : 0);
+
+		/* Must not match on source address or Ethertype */
 		if (!is_zero_ether_addr(mac_mask->h_source) ||
 		    mac_mask->h_proto)
 			return -EINVAL;
 
-		rc = efx_filter_set_eth_local(
-			&spec,
-			(rule->flow_type & FLOW_EXT && rule->m_ext.vlan_tci) ?
-			ntohs(rule->h_ext.vlan_tci) : EFX_FILTER_VID_UNSPEC,
-			mac_entry->h_dest);
+		/* Is it a default UC or MC filter? */
+		if (!compare_ether_addr(mac_mask->h_dest, mac_addr_mc_mask) &&
+		    vlan_tag_mask == 0) {
+			if (is_multicast_ether_addr(mac_entry->h_dest))
+				rc = efx_filter_set_mc_def(&spec);
+			else
+				rc = efx_filter_set_uc_def(&spec);
+		}
+		/* Otherwise, it must match all of destination and all
+		 * or none of VID.
+		 */
+		else if (is_broadcast_ether_addr(mac_mask->h_dest) &&
+			 (vlan_tag_mask == 0xfff || vlan_tag_mask == 0)) {
+			rc = efx_filter_set_eth_local(
+				&spec,
+				vlan_tag_mask ?
+				ntohs(rule->h_ext.vlan_tci) : EFX_FILTER_VID_UNSPEC,
+				mac_entry->h_dest);
+		} else {
+			rc = -EINVAL;
+		}
 		if (rc)
 			return rc;
 		break;
+	}
 
 	default:
 		return -EINVAL;
@@ -1060,7 +1085,8 @@ static u32 efx_ethtool_get_rxfh_indir_size(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
-	return (efx_nic_rev(efx) < EFX_REV_FALCON_B0 ?
+	return ((efx_nic_rev(efx) < EFX_REV_FALCON_B0 ||
+		 efx->n_rx_channels == 1) ?
 		0 : ARRAY_SIZE(efx->rx_indir_table));
 }
 

@@ -24,6 +24,7 @@
 #include <linux/device.h>
 #include <linux/highmem.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 #include <linux/vmalloc.h>
 #include <linux/i2c.h>
 
@@ -52,8 +53,10 @@
  *
  **************************************************************************/
 
-#define EFX_MAX_CHANNELS 32
+#define EFX_MAX_CHANNELS 32U
 #define EFX_MAX_RX_QUEUES EFX_MAX_CHANNELS
+#define EFX_EXTRA_CHANNEL_IOV	0
+#define EFX_MAX_EXTRA_CHANNELS	1U
 
 /* Checksum generation is a per-queue option in hardware, so each
  * queue visible to the networking core is backed by two hardware TX
@@ -81,15 +84,8 @@ struct efx_special_buffer {
 	void *addr;
 	dma_addr_t dma_addr;
 	unsigned int len;
-	int index;
-	int entries;
-};
-
-enum efx_flush_state {
-	FLUSH_NONE,
-	FLUSH_PENDING,
-	FLUSH_FAILED,
-	FLUSH_DONE,
+	unsigned int index;
+	unsigned int entries;
 };
 
 /**
@@ -138,7 +134,6 @@ struct efx_tx_buffer {
  * @txd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
  * @initialised: Has hardware queue been initialised?
- * @flushed: Used when handling queue flushing
  * @read_count: Current read pointer.
  *	This is the number of buffers that have been removed from both rings.
  * @old_write_count: The value of @write_count when last checked.
@@ -181,7 +176,6 @@ struct efx_tx_queue {
 	struct efx_special_buffer txd;
 	unsigned int ptr_mask;
 	bool initialised;
-	enum efx_flush_state flushed;
 
 	/* Members used mainly on the completion path */
 	unsigned int read_count ____cacheline_aligned_in_smp;
@@ -249,6 +243,9 @@ struct efx_rx_page_state {
  * @buffer: The software buffer ring
  * @rxd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
+ * @enabled: Receive queue enabled indicator.
+ * @flush_pending: Set when a RX flush is pending. Has the same lifetime as
+ *	@rxq_flush_pending.
  * @added_count: Number of buffers added to the receive queue.
  * @notified_count: Number of buffers given to NIC (<= @added_count).
  * @removed_count: Number of buffers removed from the receive queue.
@@ -263,13 +260,14 @@ struct efx_rx_page_state {
  * @alloc_page_count: RX allocation strategy counter.
  * @alloc_skb_count: RX allocation strategy counter.
  * @slow_fill: Timer used to defer efx_nic_generate_fill_event().
- * @flushed: Use when handling queue flushing
  */
 struct efx_rx_queue {
 	struct efx_nic *efx;
 	struct efx_rx_buffer *buffer;
 	struct efx_special_buffer rxd;
 	unsigned int ptr_mask;
+	bool enabled;
+	bool flush_pending;
 
 	int added_count;
 	int notified_count;
@@ -283,8 +281,6 @@ struct efx_rx_queue {
 	unsigned int alloc_skb_count;
 	struct timer_list slow_fill;
 	unsigned int slow_fill_count;
-
-	enum efx_flush_state flushed;
 };
 
 /**
@@ -318,6 +314,7 @@ enum efx_rx_alloc_method {
  *
  * @efx: Associated Efx NIC
  * @channel: Channel instance number
+ * @type: Channel type definition
  * @enabled: Channel enabled indicator
  * @irq: IRQ number (MSI and MSI-X only)
  * @irq_moderation: IRQ moderation value (in hardware ticks)
@@ -348,6 +345,7 @@ enum efx_rx_alloc_method {
 struct efx_channel {
 	struct efx_nic *efx;
 	int channel;
+	const struct efx_channel_type *type;
 	bool enabled;
 	int irq;
 	unsigned int irq_moderation;
@@ -384,6 +382,26 @@ struct efx_channel {
 
 	struct efx_rx_queue rx_queue;
 	struct efx_tx_queue tx_queue[EFX_TXQ_TYPES];
+};
+
+/**
+ * struct efx_channel_type - distinguishes traffic and extra channels
+ * @handle_no_channel: Handle failure to allocate an extra channel
+ * @pre_probe: Set up extra state prior to initialisation
+ * @post_remove: Tear down extra state after finalisation, if allocated.
+ *	May be called on channels that have not been probed.
+ * @get_name: Generate the channel's name (used for its IRQ handler)
+ * @copy: Copy the channel state prior to reallocation.  May be %NULL if
+ *	reallocation is not supported.
+ * @keep_eventq: Flag for whether event queue should be kept initialised
+ *	while the device is stopped
+ */
+struct efx_channel_type {
+	void (*handle_no_channel)(struct efx_nic *);
+	int (*pre_probe)(struct efx_channel *);
+	void (*get_name)(struct efx_channel *, char *buf, size_t len);
+	struct efx_channel *(*copy)(const struct efx_channel *);
+	bool keep_eventq;
 };
 
 enum efx_led_mode {
@@ -613,6 +631,8 @@ union efx_multicast_hash {
 };
 
 struct efx_filter_state;
+struct efx_vf;
+struct vfdi_status;
 
 /**
  * struct efx_nic - an Efx NIC
@@ -638,8 +658,13 @@ struct efx_filter_state;
  * @rx_queue: RX DMA queues
  * @channel: Channels
  * @channel_name: Names for channels and their IRQs
+ * @extra_channel_types: Types of extra (non-traffic) channels that
+ *	should be allocated for this NIC
  * @rxq_entries: Size of receive queues requested by user.
  * @txq_entries: Size of transmit queues requested by user.
+ * @tx_dc_base: Base qword address in SRAM of TX queue descriptor caches
+ * @rx_dc_base: Base qword address in SRAM of RX queue descriptor caches
+ * @sram_lim_qw: Qword address limit of SRAM
  * @next_buffer_table: First available buffer table id
  * @n_channels: Number of channels in use
  * @n_rx_channels: Number of channels used for RX (= number of RX queues)
@@ -677,10 +702,31 @@ struct efx_filter_state;
  * @promiscuous: Promiscuous flag. Protected by netif_tx_lock.
  * @multicast_hash: Multicast hash table
  * @wanted_fc: Wanted flow control flags
+ * @fc_disable: When non-zero flow control is disabled. Typically used to
+ *	ensure that network back pressure doesn't delay dma queue flushes.
+ *	Serialised by the rtnl lock.
  * @mac_work: Work item for changing MAC promiscuity and multicast hash
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
+ * @drain_pending: Count of RX and TX queues that haven't been flushed and drained.
+ * @rxq_flush_pending: Count of number of receive queues that need to be flushed.
+ *	Decremented when the efx_flush_rx_queue() is called.
+ * @rxq_flush_outstanding: Count of number of RX flushes started but not yet
+ *	completed (either success or failure). Not used when MCDI is used to
+ *	flush receive queues.
+ * @flush_wq: wait queue used by efx_nic_flush_queues() to wait for flush completions.
+ * @vf: Array of &struct efx_vf objects.
+ * @vf_count: Number of VFs intended to be enabled.
+ * @vf_init_count: Number of VFs that have been fully initialised.
+ * @vi_scale: log2 number of vnics per VF.
+ * @vf_buftbl_base: The zeroth buffer table index used to back VF queues.
+ * @vfdi_status: Common VFDI status page to be dmad to VF address space.
+ * @local_addr_list: List of local addresses. Protected by %local_lock.
+ * @local_page_list: List of DMA addressable pages used to broadcast
+ *	%local_addr_list. Protected by %local_lock.
+ * @local_lock: Mutex protecting %local_addr_list and %local_page_list.
+ * @peer_work: Work item to broadcast peer addresses to VMs.
  * @monitor_work: Hardware monitor workitem
  * @biu_lock: BIU (bus interface unit) lock
  * @last_irq_cpu: Last CPU to handle a possible test interrupt.  This
@@ -720,12 +766,18 @@ struct efx_nic {
 
 	struct efx_channel *channel[EFX_MAX_CHANNELS];
 	char channel_name[EFX_MAX_CHANNELS][IFNAMSIZ + 6];
+	const struct efx_channel_type *
+	extra_channel_type[EFX_MAX_EXTRA_CHANNELS];
 
 	unsigned rxq_entries;
 	unsigned txq_entries;
+	unsigned tx_dc_base;
+	unsigned rx_dc_base;
+	unsigned sram_lim_qw;
 	unsigned next_buffer_table;
 	unsigned n_channels;
 	unsigned n_rx_channels;
+	unsigned rss_spread;
 	unsigned tx_channel_offset;
 	unsigned n_tx_channels;
 	unsigned int rx_buffer_len;
@@ -769,6 +821,7 @@ struct efx_nic {
 	bool promiscuous;
 	union efx_multicast_hash multicast_hash;
 	u8 wanted_fc;
+	unsigned fc_disable;
 
 	atomic_t rx_reset;
 	enum efx_loopback_mode loopback_mode;
@@ -777,6 +830,25 @@ struct efx_nic {
 	void *loopback_selftest;
 
 	struct efx_filter_state *filter_state;
+
+	atomic_t drain_pending;
+	atomic_t rxq_flush_pending;
+	atomic_t rxq_flush_outstanding;
+	wait_queue_head_t flush_wq;
+
+#ifdef CONFIG_SFC_SRIOV
+	struct efx_channel *vfdi_channel;
+	struct efx_vf *vf;
+	unsigned vf_count;
+	unsigned vf_init_count;
+	unsigned vi_scale;
+	unsigned vf_buftbl_base;
+	struct efx_buffer vfdi_status;
+	struct list_head local_addr_list;
+	struct list_head local_page_list;
+	struct mutex local_lock;
+	struct work_struct peer_work;
+#endif
 
 	/* The following fields may be written more often */
 
@@ -803,6 +875,8 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @probe: Probe the controller
  * @remove: Free resources allocated by probe()
  * @init: Initialise the controller
+ * @dimension_resources: Dimension controller resources (buffer table,
+ *	and VIs once the available interrupt resources are clear)
  * @fini: Shut down the controller
  * @monitor: Periodic function for polling link state and hardware monitor
  * @map_reset_reason: Map ethtool reset reason to a reset method
@@ -842,8 +916,6 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @phys_addr_channels: Number of channels with physically addressed
  *	descriptors
  * @timer_period_max: Maximum period of interrupt timer (in ticks)
- * @tx_dc_base: Base address in SRAM of TX queue descriptor caches
- * @rx_dc_base: Base address in SRAM of RX queue descriptor caches
  * @offload_features: net_device feature flags for protocol offload
  *	features implemented in hardware
  */
@@ -851,6 +923,7 @@ struct efx_nic_type {
 	int (*probe)(struct efx_nic *efx);
 	void (*remove)(struct efx_nic *efx);
 	int (*init)(struct efx_nic *efx);
+	void (*dimension_resources)(struct efx_nic *efx);
 	void (*fini)(struct efx_nic *efx);
 	void (*monitor)(struct efx_nic *efx);
 	enum reset_type (*map_reset_reason)(enum reset_type reason);
@@ -887,8 +960,6 @@ struct efx_nic_type {
 	unsigned int max_interrupt_mode;
 	unsigned int phys_addr_channels;
 	unsigned int timer_period_max;
-	unsigned int tx_dc_base;
-	unsigned int rx_dc_base;
 	netdev_features_t offload_features;
 };
 
@@ -911,6 +982,13 @@ efx_get_channel(struct efx_nic *efx, unsigned index)
 	     _channel;							\
 	     _channel = (_channel->channel + 1 < (_efx)->n_channels) ?	\
 		     (_efx)->channel[_channel->channel + 1] : NULL)
+
+/* Iterate over all used channels in reverse */
+#define efx_for_each_channel_rev(_channel, _efx)			\
+	for (_channel = (_efx)->channel[(_efx)->n_channels - 1];	\
+	     _channel;							\
+	     _channel = _channel->channel ?				\
+		     (_efx)->channel[_channel->channel - 1] : NULL)
 
 static inline struct efx_tx_queue *
 efx_get_tx_queue(struct efx_nic *efx, unsigned index, unsigned type)
@@ -955,13 +1033,6 @@ static inline bool efx_tx_queue_used(struct efx_tx_queue *tx_queue)
 	for (_tx_queue = (_channel)->tx_queue;				\
 	     _tx_queue < (_channel)->tx_queue + EFX_TXQ_TYPES;		\
 	     _tx_queue++)
-
-static inline struct efx_rx_queue *
-efx_get_rx_queue(struct efx_nic *efx, unsigned index)
-{
-	EFX_BUG_ON_PARANOID(index >= efx->n_rx_channels);
-	return &efx->channel[index]->rx_queue;
-}
 
 static inline bool efx_channel_has_rx_queue(struct efx_channel *channel)
 {

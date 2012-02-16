@@ -110,7 +110,7 @@ efx_max_tx_len(struct efx_nic *efx, dma_addr_t dma_addr)
 	 * little benefit from using descriptors that cross those
 	 * boundaries and we keep things simple by not doing so.
 	 */
-	unsigned len = (~dma_addr & 0xfff) + 1;
+	unsigned len = (~dma_addr & (EFX_PAGE_SIZE - 1)) + 1;
 
 	/* Work around hardware bug for unaligned buffers. */
 	if (EFX_WORKAROUND_5391(efx) && (dma_addr & 0xf))
