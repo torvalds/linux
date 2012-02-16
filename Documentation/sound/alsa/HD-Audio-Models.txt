@@ -29,11 +29,7 @@ ALC880
 
 ALC260
 ======
-  basic		fixed pin assignment (old default model)
-  test		for testing/debugging purpose, almost all controls can
-		adjusted.  Appearing only when compiled with
-		$CONFIG_SND_DEBUG=y
-  auto		auto-config reading BIOS (default)
+  N/A
 
 ALC262
 ======
