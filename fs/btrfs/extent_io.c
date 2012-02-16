@@ -513,6 +513,15 @@ hit_next:
 	WARN_ON(state->end < start);
 	last_end = state->end;
 
+	if (state->end < end && !need_resched())
+		next_node = rb_next(&state->rb_node);
+	else
+		next_node = NULL;
+
+	/* the state doesn't have the wanted bits, go ahead */
+	if (!(state->state & bits))
+		goto next;
+
 	/*
 	 *     | ---- desired range ---- |
 	 *  | state | or
@@ -565,12 +574,8 @@ hit_next:
 		goto out;
 	}
 
-	if (state->end < end && prealloc && !need_resched())
-		next_node = rb_next(&state->rb_node);
-	else
-		next_node = NULL;
-
 	set |= clear_state_bit(tree, state, &bits, wake);
+next:
 	if (last_end == (u64)-1)
 		goto out;
 	start = last_end + 1;
