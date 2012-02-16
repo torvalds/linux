@@ -424,7 +424,7 @@ static inline struct sdhci_s3c_drv_data *sdhci_s3c_get_driver_data(
 
 static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 {
-	struct s3c_sdhci_platdata *pdata = pdev->dev.platform_data;
+	struct s3c_sdhci_platdata *pdata;
 	struct sdhci_s3c_drv_data *drv_data;
 	struct device *dev = &pdev->dev;
 	struct sdhci_host *host;
@@ -432,7 +432,7 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, irq, ptr, clks;
 
-	if (!pdata) {
+	if (!pdev->dev.platform_data) {
 		dev_err(dev, "no device data specified\n");
 		return -ENOENT;
 	}
@@ -454,6 +454,13 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 		dev_err(dev, "sdhci_alloc_host() failed\n");
 		return PTR_ERR(host);
 	}
+
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		ret = -ENOMEM;
+		goto err_io_clk;
+	}
+	memcpy(pdata, pdev->dev.platform_data, sizeof(*pdata));
 
 	drv_data = sdhci_s3c_get_driver_data(pdev);
 	sc = sdhci_priv(host);
