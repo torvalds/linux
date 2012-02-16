@@ -469,11 +469,6 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		return -EINVAL;
 	}
 
-	if (!current->thread.kvm_vcpu) {
-		WARN(1, "no vcpu\n");
-		return -EPERM;
-	}
-
 	local_irq_disable();
 
 	kvmppc_core_prepare_to_enter(vcpu);
