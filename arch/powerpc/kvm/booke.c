@@ -439,8 +439,9 @@ static void kvmppc_core_check_exceptions(struct kvm_vcpu *vcpu)
 }
 
 /* Check pending exceptions and deliver one, if possible. */
-void kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
+int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 {
+	int r = 0;
 	WARN_ON_ONCE(!irqs_disabled());
 
 	kvmppc_core_check_exceptions(vcpu);
@@ -451,8 +452,46 @@ void kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 		local_irq_disable();
 
 		kvmppc_set_exit_type(vcpu, EMULATED_MTMSRWE_EXITS);
-		kvmppc_core_check_exceptions(vcpu);
+		r = 1;
 	};
+
+	return r;
+}
+
+/*
+ * Common checks before entering the guest world.  Call with interrupts
+ * disabled.
+ *
+ * returns !0 if a signal is pending and check_signal is true
+ */
+static int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu, bool check_signal)
+{
+	int r = 0;
+
+	WARN_ON_ONCE(!irqs_disabled());
+	while (true) {
+		if (need_resched()) {
+			local_irq_enable();
+			cond_resched();
+			local_irq_disable();
+			continue;
+		}
+
+		if (check_signal && signal_pending(current)) {
+			r = 1;
+			break;
+		}
+
+		if (kvmppc_core_prepare_to_enter(vcpu)) {
+			/* interrupts got enabled in between, so we
+			   are back at square 1 */
+			continue;
+		}
+
+		break;
+	}
+
+	return r;
 }
 
 int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
@@ -470,10 +509,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	}
 
 	local_irq_disable();
-
-	kvmppc_core_prepare_to_enter(vcpu);
-
-	if (signal_pending(current)) {
+	if (kvmppc_prepare_to_enter(vcpu, true)) {
 		kvm_run->exit_reason = KVM_EXIT_INTR;
 		ret = -EINTR;
 		goto out;
@@ -598,25 +634,21 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	switch (exit_nr) {
 	case BOOKE_INTERRUPT_MACHINE_CHECK:
-		kvm_resched(vcpu);
 		r = RESUME_GUEST;
 		break;
 
 	case BOOKE_INTERRUPT_EXTERNAL:
 		kvmppc_account_exit(vcpu, EXT_INTR_EXITS);
-		kvm_resched(vcpu);
 		r = RESUME_GUEST;
 		break;
 
 	case BOOKE_INTERRUPT_DECREMENTER:
 		kvmppc_account_exit(vcpu, DEC_EXITS);
-		kvm_resched(vcpu);
 		r = RESUME_GUEST;
 		break;
 
 	case BOOKE_INTERRUPT_DOORBELL:
 		kvmppc_account_exit(vcpu, DBELL_EXITS);
-		kvm_resched(vcpu);
 		r = RESUME_GUEST;
 		break;
 
@@ -865,19 +897,15 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		BUG();
 	}
 
+	/*
+	 * To avoid clobbering exit_reason, only check for signals if we
+	 * aren't already exiting to userspace for some other reason.
+	 */
 	local_irq_disable();
-
-	kvmppc_core_prepare_to_enter(vcpu);
-
-	if (!(r & RESUME_HOST)) {
-		/* To avoid clobbering exit_reason, only check for signals if
-		 * we aren't already exiting to userspace for some other
-		 * reason. */
-		if (signal_pending(current)) {
-			run->exit_reason = KVM_EXIT_INTR;
-			r = (-EINTR << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
-			kvmppc_account_exit(vcpu, SIGNAL_EXITS);
-		}
+	if (kvmppc_prepare_to_enter(vcpu, !(r & RESUME_HOST))) {
+		run->exit_reason = KVM_EXIT_INTR;
+		r = (-EINTR << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
+		kvmppc_account_exit(vcpu, SIGNAL_EXITS);
 	}
 
 	return r;

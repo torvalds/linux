@@ -258,7 +258,7 @@ static bool clear_irqprio(struct kvm_vcpu *vcpu, unsigned int priority)
 	return true;
 }
 
-void kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
+int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 {
 	unsigned long *pending = &vcpu->arch.pending_exceptions;
 	unsigned long old_pending = vcpu->arch.pending_exceptions;
@@ -283,6 +283,8 @@ void kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 
 	/* Tell the guest about our interrupt status */
 	kvmppc_update_int_pending(vcpu, *pending, old_pending);
+
+	return 0;
 }
 
 pfn_t kvmppc_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn)
