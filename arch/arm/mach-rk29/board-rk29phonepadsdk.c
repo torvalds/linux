@@ -905,6 +905,7 @@ static struct wm8994_pdata wm8994_platform_data = {
 
 	.micdet_irq = 0,
 	.irq_base = 0,
+	.lineout1_diff = 1,
 	.PA_control_pin=RK29_PIN6_PB6,
 	
 };
