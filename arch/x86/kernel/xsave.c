@@ -168,7 +168,7 @@ int save_i387_xstate(void __user *buf)
 	if (!used_math())
 		return 0;
 
-	if (task_thread_info(tsk)->status & TS_USEDFPU) {
+	if (user_has_fpu()) {
 		if (use_xsave())
 			err = xsave_user(buf);
 		else
@@ -176,8 +176,7 @@ int save_i387_xstate(void __user *buf)
 
 		if (err)
 			return err;
-		task_thread_info(tsk)->status &= ~TS_USEDFPU;
-		stts();
+		user_fpu_end();
 	} else {
 		sanitize_i387_state(tsk);
 		if (__copy_to_user(buf, &tsk->thread.fpu.state->fxsave,
@@ -292,10 +291,7 @@ int restore_i387_xstate(void __user *buf)
 			return err;
 	}
 
-	if (!(task_thread_info(current)->status & TS_USEDFPU)) {
-		clts();
-		task_thread_info(current)->status |= TS_USEDFPU;
-	}
+	user_fpu_begin();
 	if (use_xsave())
 		err = restore_user_xstate(buf);
 	else
