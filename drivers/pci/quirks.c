@@ -2854,14 +2854,15 @@ static void do_one_fixup_debug(void (*fn)(struct pci_dev *dev), struct pci_dev *
 	ktime_t calltime, delta, rettime;
 	unsigned long long duration;
 
-	printk(KERN_DEBUG "calling  %pF @ %i\n", fn, task_pid_nr(current));
+	printk(KERN_DEBUG "calling  %pF @ %i for %s\n",
+			fn, task_pid_nr(current), dev_name(&dev->dev));
 	calltime = ktime_get();
 	fn(dev);
 	rettime = ktime_get();
 	delta = ktime_sub(rettime, calltime);
 	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
-	printk(KERN_DEBUG "pci fixup %pF returned after %lld usecs\n", fn,
-		duration);
+	printk(KERN_DEBUG "pci fixup %pF returned after %lld usecs for %s\n",
+			fn, duration, dev_name(&dev->dev));
 }
 
 /*
