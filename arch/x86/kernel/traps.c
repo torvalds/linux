@@ -588,7 +588,7 @@ void __math_state_restore(void)
 		return;
 	}
 
-	thread->status |= TS_USEDFPU;	/* So we fnsave on switch_to() */
+	__thread_set_has_fpu(thread);	/* clts in caller! */
 	tsk->fpu_counter++;
 }
 
