@@ -400,6 +400,23 @@ static const enum dss_feat_id omap4430_es1_0_dss_feat_list[] = {
 	FEAT_FIFO_MERGE,
 };
 
+static const enum dss_feat_id omap4430_es2_0_1_2_dss_feat_list[] = {
+	FEAT_MGR_LCD2,
+	FEAT_CORE_CLK_DIV,
+	FEAT_LCD_CLK_SRC,
+	FEAT_DSI_DCS_CMD_CONFIG_VC,
+	FEAT_DSI_VC_OCP_WIDTH,
+	FEAT_DSI_GNQ,
+	FEAT_HDMI_CTS_SWMODE,
+	FEAT_HANDLE_UV_SEPARATE,
+	FEAT_ATTR2,
+	FEAT_CPR,
+	FEAT_PRELOAD,
+	FEAT_FIR_COEF_V,
+	FEAT_ALPHA_FREE_ZORDER,
+	FEAT_FIFO_MERGE,
+};
+
 static const enum dss_feat_id omap4_dss_feat_list[] = {
 	FEAT_MGR_LCD2,
 	FEAT_CORE_CLK_DIV,
@@ -408,6 +425,7 @@ static const enum dss_feat_id omap4_dss_feat_list[] = {
 	FEAT_DSI_VC_OCP_WIDTH,
 	FEAT_DSI_GNQ,
 	FEAT_HDMI_CTS_SWMODE,
+	FEAT_HDMI_AUDIO_USE_MCLK,
 	FEAT_HANDLE_UV_SEPARATE,
 	FEAT_ATTR2,
 	FEAT_CPR,
@@ -481,6 +499,25 @@ static const struct omap_dss_features omap4430_es1_0_dss_features  = {
 
 	.features = omap4430_es1_0_dss_feat_list,
 	.num_features = ARRAY_SIZE(omap4430_es1_0_dss_feat_list),
+
+	.num_mgrs = 3,
+	.num_ovls = 4,
+	.supported_displays = omap4_dss_supported_displays,
+	.supported_color_modes = omap4_dss_supported_color_modes,
+	.overlay_caps = omap4_dss_overlay_caps,
+	.clksrc_names = omap4_dss_clk_source_names,
+	.dss_params = omap4_dss_param_range,
+	.buffer_size_unit = 16,
+	.burst_size_unit = 16,
+};
+
+/* For OMAP4430 ES 2.0, 2.1 and 2.2 revisions */
+static const struct omap_dss_features omap4430_es2_0_1_2_dss_features = {
+	.reg_fields = omap4_dss_reg_fields,
+	.num_reg_fields = ARRAY_SIZE(omap4_dss_reg_fields),
+
+	.features = omap4430_es2_0_1_2_dss_feat_list,
+	.num_features = ARRAY_SIZE(omap4430_es2_0_1_2_dss_feat_list),
 
 	.num_mgrs = 3,
 	.num_ovls = 4,
@@ -634,6 +671,10 @@ void dss_features_init(void)
 		omap_current_dss_features = &omap3430_dss_features;
 	else if (omap_rev() == OMAP4430_REV_ES1_0)
 		omap_current_dss_features = &omap4430_es1_0_dss_features;
+	else if (omap_rev() == OMAP4430_REV_ES2_0 ||
+		omap_rev() == OMAP4430_REV_ES2_1 ||
+		omap_rev() == OMAP4430_REV_ES2_2)
+		omap_current_dss_features = &omap4430_es2_0_1_2_dss_features;
 	else if (cpu_is_omap44xx())
 		omap_current_dss_features = &omap4_dss_features;
 	else
