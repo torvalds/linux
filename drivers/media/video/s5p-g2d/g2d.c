@@ -185,6 +185,11 @@ static int g2d_s_ctrl(struct v4l2_ctrl *ctrl)
 		else
 			ctx->rop = ROP4_COPY;
 		break;
+
+	case V4L2_CID_HFLIP:
+		ctx->flip = ctx->ctrl_hflip->val | (ctx->ctrl_vflip->val << 1);
+		break;
+
 	default:
 		v4l2_err(&ctx->dev->v4l2_dev, "unknown control\n");
 		return -EINVAL;
@@ -200,11 +205,13 @@ int g2d_setup_ctrls(struct g2d_ctx *ctx)
 {
 	struct g2d_dev *dev = ctx->dev;
 
-	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 1);
-	if (ctx->ctrl_handler.error) {
-		v4l2_err(&dev->v4l2_dev, "v4l2_ctrl_handler_init failed\n");
-		return ctx->ctrl_handler.error;
-	}
+	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 3);
+
+	ctx->ctrl_hflip = v4l2_ctrl_new_std(&ctx->ctrl_handler, &g2d_ctrl_ops,
+						V4L2_CID_HFLIP, 0, 1, 1, 0);
+
+	ctx->ctrl_vflip = v4l2_ctrl_new_std(&ctx->ctrl_handler, &g2d_ctrl_ops,
+						V4L2_CID_VFLIP, 0, 1, 1, 0);
 
 	v4l2_ctrl_new_std_menu(
 		&ctx->ctrl_handler,
@@ -215,9 +222,13 @@ int g2d_setup_ctrls(struct g2d_ctx *ctx)
 		V4L2_COLORFX_NONE);
 
 	if (ctx->ctrl_handler.error) {
-		v4l2_err(&dev->v4l2_dev, "v4l2_ctrl_handler_init failed\n");
-		return ctx->ctrl_handler.error;
+		int err = ctx->ctrl_handler.error;
+		v4l2_err(&dev->v4l2_dev, "g2d_setup_ctrls failed\n");
+		v4l2_ctrl_handler_free(&ctx->ctrl_handler);
+		return err;
 	}
+
+	v4l2_ctrl_cluster(2, &ctx->ctrl_hflip);
 
 	return 0;
 }
@@ -564,6 +575,8 @@ static void device_run(void *prv)
 	g2d_set_dst_addr(dev, vb2_dma_contig_plane_dma_addr(dst, 0));
 
 	g2d_set_rop4(dev, ctx->rop);
+	g2d_set_flip(dev, ctx->flip);
+
 	if (ctx->in.c_width != ctx->out.c_width ||
 		ctx->in.c_height != ctx->out.c_height)
 		cmd |= g2d_cmd_stretch(1);
