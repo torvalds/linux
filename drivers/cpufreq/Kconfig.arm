@@ -2,6 +2,28 @@
 # ARM CPU Frequency scaling drivers
 #
 
+config ARM_S3C2416_CPUFREQ
+	bool "S3C2416 CPU Frequency scaling support"
+	depends on CPU_S3C2416
+	help
+	  This adds the CPUFreq driver for the Samsung S3C2416 and
+	  S3C2450 SoC. The S3C2416 supports changing the rate of the
+	  armdiv clock source and also entering a so called dynamic
+	  voltage scaling mode in which it is possible to reduce the
+	  core voltage of the cpu.
+
+	  If in doubt, say N.
+
+config ARM_S3C2416_CPUFREQ_VCORESCALE
+	bool "Allow voltage scaling for S3C2416 arm core (EXPERIMENTAL)"
+	depends on ARM_S3C2416_CPUFREQ && REGULATOR && EXPERIMENTAL
+	help
+	  Enable CPU voltage scaling when entering the dvs mode.
+	  It uses information gathered through existing hardware and
+	  tests but not documented in any datasheet.
+
+	  If in doubt, say N.
+
 config ARM_S3C64XX_CPUFREQ
 	bool "Samsung S3C64XX"
 	depends on CPU_S3C6410
