@@ -2154,9 +2154,10 @@ static int bio_readpage_error(struct bio *failed_bio, struct page *page,
 		 "this_mirror=%d, num_copies=%d, in_validation=%d\n", read_mode,
 		 failrec->this_mirror, num_copies, failrec->in_validation);
 
-	tree->ops->submit_bio_hook(inode, read_mode, bio, failrec->this_mirror,
-					failrec->bio_flags, 0);
-	return 0;
+	ret = tree->ops->submit_bio_hook(inode, read_mode, bio,
+					 failrec->this_mirror,
+					 failrec->bio_flags, 0);
+	return ret;
 }
 
 /* lots and lots of room for performance fixes in the end_bio funcs */
@@ -2790,9 +2791,12 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 				delalloc_start = delalloc_end + 1;
 				continue;
 			}
-			tree->ops->fill_delalloc(inode, page, delalloc_start,
-						 delalloc_end, &page_started,
-						 &nr_written);
+			ret = tree->ops->fill_delalloc(inode, page,
+						       delalloc_start,
+						       delalloc_end,
+						       &page_started,
+						       &nr_written);
+			BUG_ON(ret);
 			/*
 			 * delalloc_end is already one less than the total
 			 * length, so we don't subtract one from
