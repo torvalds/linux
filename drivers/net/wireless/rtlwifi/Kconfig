@@ -50,7 +50,7 @@ config RTLWIFI
 	default m
 
 config RTLWIFI_DEBUG
-	tristate "Additional debugging output"
+	bool "Additional debugging output"
 	depends on RTL8192CE || RTL8192CU || RTL8192SE || RTL8192DE
 	default y
 
