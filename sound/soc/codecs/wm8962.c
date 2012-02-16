@@ -3718,7 +3718,7 @@ static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 	}
 	if (reg != 0x6243) {
 		dev_err(&i2c->dev,
-			"Device is not a WM8962, ID %x != 0x6243\n", ret);
+			"Device is not a WM8962, ID %x != 0x6243\n", reg);
 		ret = -EINVAL;
 		goto err_regmap;
 	}

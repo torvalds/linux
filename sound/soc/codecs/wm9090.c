@@ -639,7 +639,7 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 	if (ret < 0)
 		goto err;
 	if (reg != 0x9093) {
-		dev_err(&i2c->dev, "Device is not a WM9090, ID=%x\n", ret);
+		dev_err(&i2c->dev, "Device is not a WM9090, ID=%x\n", reg);
 		ret = -ENODEV;
 		goto err;
 	}
