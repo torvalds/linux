@@ -12,6 +12,9 @@ config SND_HWDEP
 config SND_RAWMIDI
 	tristate
 
+config SND_COMPRESS_OFFLOAD
+	tristate
+
 # To be effective this also requires INPUT - users should say:
 #    select SND_JACK if INPUT=y || INPUT=SND
 # to avoid having to force INPUT on.
@@ -151,16 +154,6 @@ config SND_DYNAMIC_MINORS
 	  /dev/snd/ are allocated dynamically.  This allows you to have
 	  more than 8 sound cards, but requires a dynamic device file
 	  system like udev.
-
-	  If you are unsure about this, say N here.
-
-config SND_COMPRESS_OFFLOAD
-	tristate "ALSA Compressed audio offload support"
-	default n
-	help
-	  If you want support for offloading compressed audio and have such
-	  a hardware, then you should say Y here and also to the DSP driver
-	  of your platform.
 
 	  If you are unsure about this, say N here.
 

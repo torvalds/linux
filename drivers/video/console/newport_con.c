@@ -25,13 +25,12 @@
 #include <asm/system.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <asm/gio_device.h>
+
 #include <video/newport.h>
 
 #include <linux/linux_logo.h>
 #include <linux/font.h>
-
-
-extern unsigned long sgi_gfxaddr;
 
 #define FONT_DATA ((unsigned char *)font_vga_8x16.data)
 
@@ -304,12 +303,6 @@ static const char *newport_startup(void)
 {
 	int i;
 
-	if (!sgi_gfxaddr)
-		return NULL;
-
-	if (!npregs)
-		npregs = (struct newport_regs *)/* ioremap cannot fail */
-			ioremap(sgi_gfxaddr, sizeof(struct newport_regs));
 	npregs->cset.config = NPORT_CFG_GD0;
 
 	if (newport_wait(npregs))
@@ -743,26 +736,58 @@ const struct consw newport_con = {
 	.con_save_screen  = DUMMY
 };
 
-#ifdef MODULE
-static int __init newport_console_init(void)
+static int newport_probe(struct gio_device *dev,
+			 const struct gio_device_id *id)
 {
-	if (!sgi_gfxaddr)
-		return 0;
+	unsigned long newport_addr;
 
-	if (!npregs)
-		npregs = (struct newport_regs *)/* ioremap cannot fail */
-			ioremap(sgi_gfxaddr, sizeof(struct newport_regs));
+	if (!dev->resource.start)
+		return -EINVAL;
+
+	if (npregs)
+		return -EBUSY; /* we only support one Newport as console */
+
+	newport_addr = dev->resource.start + 0xF0000;
+	if (!request_mem_region(newport_addr, 0x10000, "Newport"))
+		return -ENODEV;
+
+	npregs = (struct newport_regs *)/* ioremap cannot fail */
+		ioremap(newport_addr, sizeof(struct newport_regs));
 
 	return take_over_console(&newport_con, 0, MAX_NR_CONSOLES - 1, 1);
 }
-module_init(newport_console_init);
 
-static void __exit newport_console_exit(void)
+static void newport_remove(struct gio_device *dev)
 {
 	give_up_console(&newport_con);
 	iounmap((void *)npregs);
 }
+
+static struct gio_device_id newport_ids[] = {
+	{ .id = 0x7e },
+	{ .id = 0xff }
+};
+
+MODULE_ALIAS("gio:7e");
+
+static struct gio_driver newport_driver = {
+	.name = "newport",
+	.id_table = newport_ids,
+	.probe = newport_probe,
+	.remove = newport_remove,
+};
+
+int __init newport_console_init(void)
+{
+	return gio_register_driver(&newport_driver);
+}
+
+void __exit newport_console_exit(void)
+{
+	gio_unregister_driver(&newport_driver);
+}
+
+module_init(newport_console_init);
 module_exit(newport_console_exit);
-#endif
 
 MODULE_LICENSE("GPL");

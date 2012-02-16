@@ -1197,6 +1197,7 @@ static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x093a, 0x2629), .driver_info = FL_VFLIP},
 	{USB_DEVICE(0x093a, 0x262a)},
 	{USB_DEVICE(0x093a, 0x262c)},
+	{USB_DEVICE(0x145f, 0x013c)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

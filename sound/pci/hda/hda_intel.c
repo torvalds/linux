@@ -469,6 +469,7 @@ struct azx {
 	unsigned int irq_pending_warned :1;
 	unsigned int probing :1; /* codec probing phase */
 	unsigned int snoop:1;
+	unsigned int align_buffer_size:1;
 
 	/* for debugging */
 	unsigned int last_cmd[AZX_MAX_CODECS];
@@ -1690,7 +1691,7 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	runtime->hw.rates = hinfo->rates;
 	snd_pcm_limit_hw_rates(runtime);
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
-	if (align_buffer_size)
+	if (chip->align_buffer_size)
 		/* constrain buffer sizes to be multiple of 128
 		   bytes. This is more efficient in terms of memory
 		   access but isn't required by the HDA spec and
@@ -2498,6 +2499,7 @@ static struct snd_pci_quirk position_fix_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x1043, 0x81b3, "ASUS", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1043, 0x81e7, "ASUS M2V", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x104d, 0x9069, "Sony VPCS11V9E", POS_FIX_LPIB),
+	SND_PCI_QUIRK(0x10de, 0xcb89, "Macbook Pro 7,1", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1297, 0x3166, "Shuttle", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1458, 0xa022, "ga-ma770-ud3", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1462, 0x1002, "MSI Wind U115", POS_FIX_LPIB),
@@ -2772,8 +2774,9 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	}
 
 	/* disable buffer size rounding to 128-byte multiples if supported */
+	chip->align_buffer_size = align_buffer_size;
 	if (chip->driver_caps & AZX_DCAPS_BUFSIZE)
-		align_buffer_size = 0;
+		chip->align_buffer_size = 0;
 
 	/* allow 64bit DMA address if supported by H/W */
 	if ((gcap & ICH6_GCAP_64OK) && !pci_set_dma_mask(pci, DMA_BIT_MASK(64)))

@@ -829,7 +829,7 @@ static struct console lpcons = {
 
 static int parport_nr[LP_NO] = { [0 ... LP_NO-1] = LP_PARPORT_UNSPEC };
 static char *parport[LP_NO];
-static int reset;
+static bool reset;
 
 module_param_array(parport, charp, NULL, 0);
 module_param(reset, bool, 0);

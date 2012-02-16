@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -134,6 +134,13 @@ acpi_tb_check_xsdt(acpi_physical_address address)
 acpi_status acpi_tb_initialize_facs(void)
 {
 	acpi_status status;
+
+	/* If Hardware Reduced flag is set, there is no FACS */
+
+	if (acpi_gbl_reduced_hardware) {
+		acpi_gbl_FACS = NULL;
+		return (AE_OK);
+	}
 
 	status = acpi_get_table_by_index(ACPI_TABLE_INDEX_FACS,
 					 ACPI_CAST_INDIRECT_PTR(struct

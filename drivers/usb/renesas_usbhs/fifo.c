@@ -772,10 +772,10 @@ static void usbhsf_dma_prepare_tasklet(unsigned long data)
 	struct dma_async_tx_descriptor *desc;
 	struct dma_chan *chan = usbhsf_dma_chan_get(fifo, pkt);
 	struct device *dev = usbhs_priv_to_dev(priv);
-	enum dma_data_direction dir;
+	enum dma_transfer_direction dir;
 	dma_cookie_t cookie;
 
-	dir = usbhs_pipe_is_dir_in(pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+	dir = usbhs_pipe_is_dir_in(pipe) ? DMA_DEV_TO_MEM : DMA_MEM_TO_DEV;
 
 	sg_init_table(&sg, 1);
 	sg_set_page(&sg, virt_to_page(pkt->dma),

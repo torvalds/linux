@@ -87,6 +87,7 @@ config GPIO_GENERIC_PLATFORM
 
 config GPIO_IT8761E
 	tristate "IT8761E GPIO support"
+	depends on X86  # unconditional access to IO space.
 	help
 	  Say yes here to support GPIO functionality of IT8761E super I/O chip.
 
@@ -138,6 +139,7 @@ config GPIO_MXS
 config GPIO_PL061
 	bool "PrimeCell PL061 GPIO support"
 	depends on ARM_AMBA
+	select GENERIC_IRQ_CHIP
 	help
 	  Say yes here to support the PrimeCell PL061 GPIO device
 

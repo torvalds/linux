@@ -38,7 +38,6 @@ struct mt2131_priv {
 	struct i2c_adapter   *i2c;
 
 	u32 frequency;
-	u32 bandwidth;
 };
 
 #endif /* __MT2131_PRIV_H__ */

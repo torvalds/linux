@@ -116,6 +116,8 @@ config PARIDE
 
 source "drivers/block/paride/Kconfig"
 
+source "drivers/block/mtip32xx/Kconfig"
+
 config BLK_CPQ_DA
 	tristate "Compaq SMART2 support"
 	depends on PCI && VIRT_TO_BUS
@@ -314,6 +316,17 @@ config BLK_DEV_NBD
 	  module will be called nbd.
 
 	  If unsure, say N.
+
+config BLK_DEV_NVME
+	tristate "NVM Express block device"
+	depends on PCI
+	---help---
+	  The NVM Express driver is for solid state drives directly
+	  connected to the PCI or PCI Express bus.  If you know you
+	  don't have one of these, it is safe to answer N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nvme.
 
 config BLK_DEV_OSD
 	tristate "OSD object-as-blkdev support"

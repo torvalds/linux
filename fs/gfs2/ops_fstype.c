@@ -562,8 +562,12 @@ static void gfs2_others_may_mount(struct gfs2_sbd *sdp)
 {
 	char *message = "FIRSTMOUNT=Done";
 	char *envp[] = { message, NULL };
-	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
-	ls->ls_first_done = 1;
+
+	fs_info(sdp, "first mount done, others may mount\n");
+
+	if (sdp->sd_lockstruct.ls_ops->lm_first_done)
+		sdp->sd_lockstruct.ls_ops->lm_first_done(sdp);
+
 	kobject_uevent_env(&sdp->sd_kobj, KOBJ_CHANGE, envp);
 }
 
@@ -944,7 +948,6 @@ static int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
 	struct gfs2_args *args = &sdp->sd_args;
 	const char *proto = sdp->sd_proto_name;
 	const char *table = sdp->sd_table_name;
-	const char *fsname;
 	char *o, *options;
 	int ret;
 
@@ -1004,21 +1007,12 @@ hostdata_error:
 		}
 	}
 
-	if (sdp->sd_args.ar_spectator)
-		snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s.s", table);
-	else
-		snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s.%u", table,
-			 sdp->sd_lockstruct.ls_jid);
-
-	fsname = strchr(table, ':');
-	if (fsname)
-		fsname++;
 	if (lm->lm_mount == NULL) {
 		fs_info(sdp, "Now mounting FS...\n");
 		complete_all(&sdp->sd_locking_init);
 		return 0;
 	}
-	ret = lm->lm_mount(sdp, fsname);
+	ret = lm->lm_mount(sdp, table);
 	if (ret == 0)
 		fs_info(sdp, "Joined cluster. Now mounting FS...\n");
 	complete_all(&sdp->sd_locking_init);
@@ -1084,7 +1078,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 
 	if (sdp->sd_args.ar_spectator) {
                 sb->s_flags |= MS_RDONLY;
-		set_bit(SDF_NORECOVERY, &sdp->sd_flags);
+		set_bit(SDF_RORECOVERY, &sdp->sd_flags);
 	}
 	if (sdp->sd_args.ar_posix_acl)
 		sb->s_flags |= MS_POSIXACL;
@@ -1124,6 +1118,8 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	if (error)
 		goto fail;
 
+	snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s", sdp->sd_table_name);
+
 	gfs2_create_debugfs_file(sdp);
 
 	error = gfs2_sys_fs_add(sdp);
@@ -1159,6 +1155,13 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 		sdp->sd_lockstruct.ls_jid = 0;
 		goto fail_sb;
 	}
+
+	if (sdp->sd_args.ar_spectator)
+		snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s.s",
+			 sdp->sd_table_name);
+	else
+		snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s.%u",
+			 sdp->sd_table_name, sdp->sd_lockstruct.ls_jid);
 
 	error = init_inodes(sdp, DO);
 	if (error)

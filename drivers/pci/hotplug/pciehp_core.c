@@ -38,10 +38,10 @@
 #include <linux/time.h>
 
 /* Global variables */
-int pciehp_debug;
-int pciehp_poll_mode;
+bool pciehp_debug;
+bool pciehp_poll_mode;
 int pciehp_poll_time;
-int pciehp_force;
+bool pciehp_force;
 struct workqueue_struct *pciehp_wq;
 
 #define DRIVER_VERSION	"0.4"

@@ -74,7 +74,7 @@ static struct usb_driver oti6858_driver = {
 	.no_dynamic_id = 	1,
 };
 
-static int debug;
+static bool debug;
 
 /* requests */
 #define	OTI6858_REQ_GET_STATUS		(USB_DIR_IN | USB_TYPE_VENDOR | 0x00)

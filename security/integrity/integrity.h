@@ -51,7 +51,7 @@ struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
 #define INTEGRITY_KEYRING_IMA		2
 #define INTEGRITY_KEYRING_MAX		3
 
-#ifdef CONFIG_INTEGRITY_DIGSIG
+#ifdef CONFIG_INTEGRITY_SIGNATURE
 
 int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
 					const char *digest, int digestlen);
@@ -65,7 +65,7 @@ static inline int integrity_digsig_verify(const unsigned int id,
 	return -EOPNOTSUPP;
 }
 
-#endif /* CONFIG_INTEGRITY_DIGSIG */
+#endif /* CONFIG_INTEGRITY_SIGNATURE */
 
 /* set during initialization */
 extern int iint_initialized;

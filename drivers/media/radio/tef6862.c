@@ -118,9 +118,11 @@ static int tef6862_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 	i2cmsg[2] = pll & 0xff;
 
 	err = i2c_master_send(client, i2cmsg, sizeof(i2cmsg));
-	if (!err)
-		state->freq = f->frequency;
-	return err;
+	if (err != sizeof(i2cmsg))
+		return err < 0 ? err : -EIO;
+
+	state->freq = f->frequency;
+	return 0;
 }
 
 static int tef6862_g_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)

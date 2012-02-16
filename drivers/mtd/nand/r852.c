@@ -22,7 +22,7 @@
 #include "r852.h"
 
 
-static int r852_enable_dma = 1;
+static bool r852_enable_dma = 1;
 module_param(r852_enable_dma, bool, S_IRUGO);
 MODULE_PARM_DESC(r852_enable_dma, "Enable usage of the DMA (default)");
 

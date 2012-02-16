@@ -1793,10 +1793,12 @@ int evergreen_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 			ret = -EINVAL;
 			break;
 		case PACKET_TYPE2:
+			idx += 1;
 			break;
 		case PACKET_TYPE3:
 			pkt.opcode = CP_PACKET3_GET_OPCODE(ib->ptr[idx]);
 			ret = evergreen_vm_packet3_check(rdev, ib->ptr, &pkt);
+			idx += pkt.count + 2;
 			break;
 		default:
 			dev_err(rdev->dev, "Unknown packet type %d !\n", pkt.type);
@@ -1805,7 +1807,6 @@ int evergreen_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 		}
 		if (ret)
 			break;
-		idx += pkt.count + 2;
 	} while (idx < ib->length_dw);
 
 	return ret;

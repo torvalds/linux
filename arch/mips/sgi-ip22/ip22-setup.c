@@ -26,9 +26,6 @@
 #include <asm/sgi/hpc3.h>
 #include <asm/sgi/ip22.h>
 
-unsigned long sgi_gfxaddr;
-EXPORT_SYMBOL_GPL(sgi_gfxaddr);
-
 extern void ip22_be_init(void) __init;
 
 void __init plat_mem_setup(void)
@@ -78,22 +75,4 @@ void __init plat_mem_setup(void)
 		prom_flags |= PROM_FLAG_USE_AS_CONSOLE;
 		add_preferred_console("arc", 0, NULL);
 	}
-
-#if defined(CONFIG_VT) && defined(CONFIG_SGI_NEWPORT_CONSOLE)
-	{
-		ULONG *gfxinfo;
-		ULONG * (*__vec)(void) = (void *) (long)
-			*((_PULONG *)(long)((PROMBLOCK)->pvector + 0x20));
-
-		gfxinfo = __vec();
-		sgi_gfxaddr = ((gfxinfo[1] >= 0xa0000000
-			       && gfxinfo[1] <= 0xc0000000)
-			       ? gfxinfo[1] - 0xa0000000 : 0);
-
-		/* newport addresses? */
-		if (sgi_gfxaddr == 0x1f0f0000 || sgi_gfxaddr == 0x1f4f0000) {
-			conswitchp = &newport_con;
-		}
-	}
-#endif
 }

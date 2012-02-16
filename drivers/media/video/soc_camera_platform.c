@@ -189,18 +189,7 @@ static struct platform_driver soc_camera_platform_driver = {
 	.remove		= soc_camera_platform_remove,
 };
 
-static int __init soc_camera_platform_module_init(void)
-{
-	return platform_driver_register(&soc_camera_platform_driver);
-}
-
-static void __exit soc_camera_platform_module_exit(void)
-{
-	platform_driver_unregister(&soc_camera_platform_driver);
-}
-
-module_init(soc_camera_platform_module_init);
-module_exit(soc_camera_platform_module_exit);
+module_platform_driver(soc_camera_platform_driver);
 
 MODULE_DESCRIPTION("SoC Camera Platform driver");
 MODULE_AUTHOR("Magnus Damm");

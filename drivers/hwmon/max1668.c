@@ -59,7 +59,7 @@ static unsigned short max1668_addr_list[] = {
 #define DEV_ID_MAX1989		0xb
 
 /* read only mode module parameter */
-static int read_only;
+static bool read_only;
 module_param(read_only, bool, 0);
 MODULE_PARM_DESC(read_only, "Don't set any values, read only mode");
 

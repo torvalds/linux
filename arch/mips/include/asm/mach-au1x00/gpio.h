@@ -12,6 +12,7 @@
 
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/gpio-au1000.h>
+#include <asm/mach-au1x00/gpio-au1300.h>
 
 /* On Au1000, Au1500 and Au1100 GPIOs won't work as inputs before
  * SYS_PININPUTEN is written to at least once.  On Au1550/Au1200/Au1300 this
@@ -58,6 +59,8 @@ static inline int __au_irq_to_gpio(unsigned int irq)
 	switch (alchemy_get_cputype()) {
 	case ALCHEMY_CPU_AU1000...ALCHEMY_CPU_AU1200:
 		return alchemy_irq_to_gpio(irq);
+	case ALCHEMY_CPU_AU1300:
+		return au1300_irq_to_gpio(irq);
 	}
 	return -EINVAL;
 }

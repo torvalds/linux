@@ -313,8 +313,12 @@ config TOSHIBA_FIR
 	  donauboe.
 
 config AU1000_FIR
-	tristate "Alchemy Au1000 SIR/FIR"
+	tristate "Alchemy IrDA SIR/FIR"
 	depends on IRDA && MIPS_ALCHEMY
+	help
+	  Say Y/M here to build suppor the the IrDA peripheral on the
+	  Alchemy Au1000 and Au1100 SoCs.
+	  Say M to build a module; it will be called au1k_ir.ko
 
 config SMC_IRCC_FIR
 	tristate "SMSC IrCC (EXPERIMENTAL)"

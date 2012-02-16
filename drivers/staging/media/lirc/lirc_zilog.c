@@ -155,8 +155,8 @@ static struct mutex tx_data_lock;
 #define zilog_info(s, args...) printk(KERN_INFO KBUILD_MODNAME ": " s, ## args)
 
 /* module parameters */
-static int debug;	/* debug output */
-static int tx_only;	/* only handle the IR Tx function */
+static bool debug;	/* debug output */
+static bool tx_only;	/* only handle the IR Tx function */
 static int minor = -1;	/* minor number */
 
 #define dprintk(fmt, args...)						\

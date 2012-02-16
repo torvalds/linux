@@ -42,7 +42,7 @@ static const unsigned short normal_i2c[] = {
 };
 
 
-static int reset;
+static bool reset;
 module_param(reset, bool, 0);
 MODULE_PARM_DESC(reset, "Set to 1 to reset chip, not recommended");
 

@@ -714,6 +714,7 @@ information.</para>
     &sub-nv12m;
     &sub-nv12mt;
     &sub-nv16;
+    &sub-nv24;
     &sub-m420;
   </section>
 
@@ -890,6 +891,11 @@ kernel sources in the file <filename>Documentation/video4linux/cx2341x/README.hm
 	    <entry>'M310'</entry>
 	    <entry>Compressed BGGR Bayer format used by the gspca driver.</entry>
 	  </row>
+	  <row id="V4L2-PIX-FMT-JL2005BCD">
+	    <entry><constant>V4L2_PIX_FMT_JL2005BCD</constant></entry>
+	    <entry>'JL20'</entry>
+	    <entry>JPEG compressed RGGB Bayer format used by the gspca driver.</entry>
+	  </row>
 	  <row id="V4L2-PIX-FMT-OV511">
 	    <entry><constant>V4L2_PIX_FMT_OV511</constant></entry>
 	    <entry>'O511'</entry>
@@ -997,11 +1003,3 @@ the other bits are set to 0.</entry>
       </tgroup>
     </table>
   </section>
-
-  <!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
-  -->

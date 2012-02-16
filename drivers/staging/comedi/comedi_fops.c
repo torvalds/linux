@@ -61,7 +61,7 @@ EXPORT_SYMBOL(comedi_debug);
 module_param(comedi_debug, int, 0644);
 #endif
 
-int comedi_autoconfig = 1;
+bool comedi_autoconfig = 1;
 module_param(comedi_autoconfig, bool, 0444);
 
 static int comedi_num_legacy_minors;

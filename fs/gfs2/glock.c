@@ -1353,7 +1353,7 @@ void gfs2_glock_complete(struct gfs2_glock *gl, int ret)
 	spin_lock(&gl->gl_spin);
 	gl->gl_reply = ret;
 
-	if (unlikely(test_bit(DFL_BLOCK_LOCKS, &ls->ls_flags))) {
+	if (unlikely(test_bit(DFL_BLOCK_LOCKS, &ls->ls_recover_flags))) {
 		if (gfs2_should_freeze(gl)) {
 			set_bit(GLF_FROZEN, &gl->gl_flags);
 			spin_unlock(&gl->gl_spin);

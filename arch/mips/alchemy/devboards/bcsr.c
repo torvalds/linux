@@ -97,14 +97,9 @@ static void bcsr_csc_handler(unsigned int irq, struct irq_desc *d)
 	enable_irq(irq);
 }
 
-/* NOTE: both the enable and mask bits must be cleared, otherwise the
- * CPLD generates tons of spurious interrupts (at least on my DB1200).
- *	-- mlau
- */
 static void bcsr_irq_mask(struct irq_data *d)
 {
 	unsigned short v = 1 << (d->irq - bcsr_csc_base);
-	__raw_writew(v, bcsr_virt + BCSR_REG_INTCLR);
 	__raw_writew(v, bcsr_virt + BCSR_REG_MASKCLR);
 	wmb();
 }
@@ -112,7 +107,6 @@ static void bcsr_irq_mask(struct irq_data *d)
 static void bcsr_irq_maskack(struct irq_data *d)
 {
 	unsigned short v = 1 << (d->irq - bcsr_csc_base);
-	__raw_writew(v, bcsr_virt + BCSR_REG_INTCLR);
 	__raw_writew(v, bcsr_virt + BCSR_REG_MASKCLR);
 	__raw_writew(v, bcsr_virt + BCSR_REG_INTSTAT);	/* ack */
 	wmb();
@@ -121,7 +115,6 @@ static void bcsr_irq_maskack(struct irq_data *d)
 static void bcsr_irq_unmask(struct irq_data *d)
 {
 	unsigned short v = 1 << (d->irq - bcsr_csc_base);
-	__raw_writew(v, bcsr_virt + BCSR_REG_INTSET);
 	__raw_writew(v, bcsr_virt + BCSR_REG_MASKSET);
 	wmb();
 }
@@ -137,9 +130,9 @@ void __init bcsr_init_irq(int csc_start, int csc_end, int hook_irq)
 {
 	unsigned int irq;
 
-	/* mask & disable & ack all */
-	__raw_writew(0xffff, bcsr_virt + BCSR_REG_INTCLR);
+	/* mask & enable & ack all */
 	__raw_writew(0xffff, bcsr_virt + BCSR_REG_MASKCLR);
+	__raw_writew(0xffff, bcsr_virt + BCSR_REG_INTSET);
 	__raw_writew(0xffff, bcsr_virt + BCSR_REG_INTSTAT);
 	wmb();
 

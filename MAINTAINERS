@@ -745,6 +745,7 @@ M:	Barry Song <baohua.song@csr.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-prima2/
+F:	drivers/dma/sirf-dma*
 
 ARM/EBSA110 MACHINE SUPPORT
 M:	Russell King <linux@arm.linux.org.uk>
@@ -2246,6 +2247,17 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/teigland/dlm.git
 S:	Supported
 F:	fs/dlm/
 
+DMA BUFFER SHARING FRAMEWORK
+M:	Sumit Semwal <sumit.semwal@linaro.org>
+S:	Maintained
+L:	linux-media@vger.kernel.org
+L:	dri-devel@lists.freedesktop.org
+L:	linaro-mm-sig@lists.linaro.org
+F:	drivers/base/dma-buf*
+F:	include/linux/dma-buf*
+F:	Documentation/dma-buf-sharing.txt
+T:	git git://git.linaro.org/people/sumitsemwal/linux-dma-buf.git
+
 DMA GENERIC OFFLOAD ENGINE SUBSYSTEM
 M:	Vinod Koul <vinod.koul@intel.com>
 M:	Dan Williams <dan.j.williams@intel.com>
@@ -2830,6 +2842,14 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/fujitsu-laptop.c
 
+FUJITSU M-5MO LS CAMERA ISP DRIVER
+M:	Kyungmin Park <kyungmin.park@samsung.com>
+M:	Heungjun Kim <riverful.kim@samsung.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/video/m5mols/
+F:	include/media/m5mols.h
+
 FUSE: FILESYSTEM IN USERSPACE
 M:	Miklos Szeredi <miklos@szeredi.hu>
 L:	fuse-devel@lists.sourceforge.net
@@ -3202,6 +3222,7 @@ F:	drivers/i2c/busses/i2c-stub.c
 I2C SUBSYSTEM
 M:	"Jean Delvare (PC drivers, core)" <khali@linux-fr.org>
 M:	"Ben Dooks (embedded platforms)" <ben-linux@fluff.org>
+M:	"Wolfram Sang (embedded platforms)" <w.sang@pengutronix.de>
 L:	linux-i2c@vger.kernel.org
 W:	http://i2c.wiki.kernel.org/
 T:	quilt kernel.org/pub/linux/kernel/people/jdelvare/linux-2.6/jdelvare-i2c/
@@ -3783,7 +3804,6 @@ S:	Odd Fixes
 
 KERNEL NFSD, SUNRPC, AND LOCKD SERVERS
 M:	"J. Bruce Fields" <bfields@fieldses.org>
-M:	Neil Brown <neilb@suse.de>
 L:	linux-nfs@vger.kernel.org
 W:	http://nfs.sourceforge.net/
 S:	Supported
@@ -4692,6 +4712,8 @@ Q:	http://patchwork.kernel.org/project/linux-omap/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap.git
 S:	Maintained
 F:	arch/arm/*omap*/
+F:	drivers/i2c/busses/i2c-omap.c
+F:	include/linux/i2c-omap.h
 
 OMAP CLOCK FRAMEWORK SUPPORT
 M:	Paul Walmsley <paul@pwsan.com>
@@ -5674,6 +5696,12 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
 F:	sound/soc/samsung
 
+SAMSUNG FRAMEBUFFER DRIVER
+M:	Jingoo Han <jg1.han@samsung.com>
+L:	linux-fbdev@vger.kernel.org
+S:	Maintained
+F:	drivers/video/s3c-fb.c
+
 SERIAL DRIVERS
 M:	Alan Cox <alan@linux.intel.com>
 L:	linux-serial@vger.kernel.org
@@ -5837,7 +5865,7 @@ F:	drivers/mmc/host/sdhci-spear.c
 SECURITY SUBSYSTEM
 M:	James Morris <jmorris@namei.org>
 L:	linux-security-module@vger.kernel.org (suggested Cc:)
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jmorris/security-testing-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jmorris/linux-security.git
 W:	http://security.wiki.kernel.org/
 S:	Supported
 F:	security/
@@ -5963,6 +5991,7 @@ L:	davinci-linux-open-source@linux.davincidsp.com (subscribers-only)
 Q:	http://patchwork.kernel.org/project/linux-davinci/list/
 S:	Supported
 F:	arch/arm/mach-davinci
+F:	drivers/i2c/busses/i2c-davinci.c
 
 SIS 190 ETHERNET DRIVER
 M:	Francois Romieu <romieu@fr.zoreil.com>
@@ -7181,7 +7210,7 @@ S:	Maintained
 F:	drivers/net/vmxnet3/
 
 VMware PVSCSI driver
-M:	Alok Kataria <akataria@vmware.com>
+M:	Arvind Kumar <arvindkumar@vmware.com>
 M:	VMware PV-Drivers <pv-drivers@vmware.com>
 L:	linux-scsi@vger.kernel.org
 S:	Maintained

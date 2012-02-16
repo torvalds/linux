@@ -2772,7 +2772,7 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 	di = ceph_dentry(dentry);
 	switch (h->action) {
 	case CEPH_MDS_LEASE_REVOKE:
-		if (di && di->lease_session == session) {
+		if (di->lease_session == session) {
 			if (ceph_seq_cmp(di->lease_seq, seq) > 0)
 				h->seq = cpu_to_le32(di->lease_seq);
 			__ceph_mdsc_drop_dentry_lease(dentry);
@@ -2781,7 +2781,7 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 		break;
 
 	case CEPH_MDS_LEASE_RENEW:
-		if (di && di->lease_session == session &&
+		if (di->lease_session == session &&
 		    di->lease_gen == session->s_cap_gen &&
 		    di->lease_renew_from &&
 		    di->lease_renew_after == 0) {

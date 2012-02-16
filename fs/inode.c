@@ -322,9 +322,6 @@ EXPORT_SYMBOL(clear_nlink);
 void set_nlink(struct inode *inode, unsigned int nlink)
 {
 	if (!nlink) {
-		printk_ratelimited(KERN_INFO
-			"set_nlink() clearing i_nlink on %s inode %li\n",
-			inode->i_sb->s_type->name, inode->i_ino);
 		clear_nlink(inode);
 	} else {
 		/* Yes, some filesystems do change nlink from zero to one */

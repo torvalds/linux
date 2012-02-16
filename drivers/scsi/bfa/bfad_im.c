@@ -918,16 +918,70 @@ bfad_get_itnim(struct bfad_im_port_s *im_port, int id)
 }
 
 /*
+ * Function is invoked from the SCSI Host Template slave_alloc() entry point.
+ * Has the logic to query the LUN Mask database to check if this LUN needs to
+ * be made visible to the SCSI mid-layer or not.
+ *
+ * Returns BFA_STATUS_OK if this LUN needs to be added to the OS stack.
+ * Returns -ENXIO to notify SCSI mid-layer to not add this LUN to the OS stack.
+ */
+static int
+bfad_im_check_if_make_lun_visible(struct scsi_device *sdev,
+				  struct fc_rport *rport)
+{
+	struct bfad_itnim_data_s *itnim_data =
+				(struct bfad_itnim_data_s *) rport->dd_data;
+	struct bfa_s *bfa = itnim_data->itnim->bfa_itnim->bfa;
+	struct bfa_rport_s *bfa_rport = itnim_data->itnim->bfa_itnim->rport;
+	struct bfa_lun_mask_s *lun_list = bfa_get_lun_mask_list(bfa);
+	int i = 0, ret = -ENXIO;
+
+	for (i = 0; i < MAX_LUN_MASK_CFG; i++) {
+		if (lun_list[i].state == BFA_IOIM_LUN_MASK_ACTIVE &&
+		    scsilun_to_int(&lun_list[i].lun) == sdev->lun &&
+		    lun_list[i].rp_tag == bfa_rport->rport_tag &&
+		    lun_list[i].lp_tag == (u8)bfa_rport->rport_info.lp_tag) {
+			ret = BFA_STATUS_OK;
+			break;
+		}
+	}
+	return ret;
+}
+
+/*
  * Scsi_Host template entry slave_alloc
  */
 static int
 bfad_im_slave_alloc(struct scsi_device *sdev)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
+	struct bfad_itnim_data_s *itnim_data =
+				(struct bfad_itnim_data_s *) rport->dd_data;
+	struct bfa_s *bfa = itnim_data->itnim->bfa_itnim->bfa;
 
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
+	if (bfa_get_lun_mask_status(bfa) == BFA_LUNMASK_ENABLED) {
+		/*
+		 * We should not mask LUN 0 - since this will translate
+		 * to no LUN / TARGET for SCSI ml resulting no scan.
+		 */
+		if (sdev->lun == 0) {
+			sdev->sdev_bflags |= BLIST_NOREPORTLUN |
+					     BLIST_SPARSELUN;
+			goto done;
+		}
+
+		/*
+		 * Query LUN Mask configuration - to expose this LUN
+		 * to the SCSI mid-layer or to mask it.
+		 */
+		if (bfad_im_check_if_make_lun_visible(sdev, rport) !=
+							BFA_STATUS_OK)
+			return -ENXIO;
+	}
+done:
 	sdev->hostdata = rport->dd_data;
 
 	return 0;
@@ -1036,6 +1090,8 @@ bfad_im_fc_rport_add(struct bfad_im_port_s *im_port, struct bfad_itnim_s *itnim)
 	if ((fc_rport->scsi_target_id != -1)
 	    && (fc_rport->scsi_target_id < MAX_FCP_TARGET))
 		itnim->scsi_tgt_id = fc_rport->scsi_target_id;
+
+	itnim->channel = fc_rport->channel;
 
 	return;
 }
