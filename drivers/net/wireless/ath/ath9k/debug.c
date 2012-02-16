@@ -1677,10 +1677,5 @@ int ath9k_init_debug(struct ath_hw *ah)
 	debugfs_create_u32("gpio_val", S_IRUSR | S_IWUSR,
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_val);
 
-	sc->debug.regidx = 0;
-	memset(&sc->debug.bb_mac_samp, 0, sizeof(sc->debug.bb_mac_samp));
-	sc->debug.sampidx = 0;
-	sc->debug.tsidx = 0;
-	sc->debug.rsidx = 0;
 	return 0;
 }
