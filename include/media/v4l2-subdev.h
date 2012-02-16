@@ -565,23 +565,19 @@ struct v4l2_subdev_fh {
 	container_of(fh, struct v4l2_subdev_fh, vfh)
 
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-static inline struct v4l2_mbus_framefmt *
-v4l2_subdev_get_try_format(struct v4l2_subdev_fh *fh, unsigned int pad)
-{
-	return &fh->pad[pad].try_fmt;
-}
+#define __V4L2_SUBDEV_MK_GET_TRY(rtype, fun_name, field_name)		\
+	static inline struct rtype *					\
+	v4l2_subdev_get_try_##fun_name(struct v4l2_subdev_fh *fh,	\
+				       unsigned int pad)		\
+	{								\
+		BUG_ON(unlikely(pad >= vdev_to_v4l2_subdev(		\
+					fh->vfh.vdev)->entity.num_pads)); \
+		return &fh->pad[pad].field_name;			\
+	}
 
-static inline struct v4l2_rect *
-v4l2_subdev_get_try_crop(struct v4l2_subdev_fh *fh, unsigned int pad)
-{
-	return &fh->pad[pad].try_crop;
-}
-
-static inline struct v4l2_rect *
-v4l2_subdev_get_try_compose(struct v4l2_subdev_fh *fh, unsigned int pad)
-{
-	return &fh->pad[pad].try_compose;
-}
+__V4L2_SUBDEV_MK_GET_TRY(v4l2_mbus_framefmt, format, try_fmt)
+__V4L2_SUBDEV_MK_GET_TRY(v4l2_rect, crop, try_compose)
+__V4L2_SUBDEV_MK_GET_TRY(v4l2_rect, compose, try_compose)
 #endif
 
 extern const struct v4l2_file_operations v4l2_subdev_fops;
