@@ -638,14 +638,18 @@ nfsd4_decode_lookup(struct nfsd4_compoundargs *argp, struct nfsd4_lookup *lookup
 	DECODE_TAIL;
 }
 
-static __be32 nfsd4_decode_share_access(struct nfsd4_compoundargs *argp, u32 *x)
+static __be32 nfsd4_decode_share_access(struct nfsd4_compoundargs *argp, u32 *share_access, u32 *deleg_want, u32 *deleg_when)
 {
 	__be32 *p;
 	u32 w;
 
 	READ_BUF(4);
 	READ32(w);
-	*x = w;
+	*share_access = w & NFS4_SHARE_ACCESS_MASK;
+	*deleg_want = w & NFS4_SHARE_WANT_MASK;
+	if (deleg_when)
+		*deleg_when = w & NFS4_SHARE_WHEN_MASK;
+
 	switch (w & NFS4_SHARE_ACCESS_MASK) {
 	case NFS4_SHARE_ACCESS_READ:
 	case NFS4_SHARE_ACCESS_WRITE:
@@ -673,6 +677,9 @@ static __be32 nfsd4_decode_share_access(struct nfsd4_compoundargs *argp, u32 *x)
 	w &= ~NFS4_SHARE_WANT_MASK;
 	if (!w)
 		return nfs_ok;
+
+	if (!deleg_when)	/* open_downgrade */
+		return nfserr_inval;
 	switch (w) {
 	case NFS4_SHARE_SIGNAL_DELEG_WHEN_RESRC_AVAIL:
 	case NFS4_SHARE_PUSH_DELEG_WHEN_UNCONTENDED:
@@ -719,6 +726,7 @@ static __be32
 nfsd4_decode_open(struct nfsd4_compoundargs *argp, struct nfsd4_open *open)
 {
 	DECODE_HEAD;
+	u32 dummy;
 
 	memset(open->op_bmval, 0, sizeof(open->op_bmval));
 	open->op_iattr.ia_valid = 0;
@@ -727,7 +735,9 @@ nfsd4_decode_open(struct nfsd4_compoundargs *argp, struct nfsd4_open *open)
 	/* seqid, share_access, share_deny, clientid, ownerlen */
 	READ_BUF(4);
 	READ32(open->op_seqid);
-	status = nfsd4_decode_share_access(argp, &open->op_share_access);
+	/* decode, yet ignore deleg_when until supported */
+	status = nfsd4_decode_share_access(argp, &open->op_share_access,
+					   &open->op_deleg_want, &dummy);
 	if (status)
 		goto xdr_error;
 	status = nfsd4_decode_share_deny(argp, &open->op_share_deny);
@@ -848,7 +858,8 @@ nfsd4_decode_open_downgrade(struct nfsd4_compoundargs *argp, struct nfsd4_open_d
 		return status;
 	READ_BUF(4);
 	READ32(open_down->od_seqid);
-	status = nfsd4_decode_share_access(argp, &open_down->od_share_access);
+	status = nfsd4_decode_share_access(argp, &open_down->od_share_access,
+					   &open_down->od_deleg_want, NULL);
 	if (status)
 		return status;
 	status = nfsd4_decode_share_deny(argp, &open_down->od_share_deny);

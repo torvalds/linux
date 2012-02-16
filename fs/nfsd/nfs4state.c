@@ -2637,8 +2637,6 @@ nfs4_check_delegmode(struct nfs4_delegation *dp, int flags)
 
 static int share_access_to_flags(u32 share_access)
 {
-	share_access &= NFS4_SHARE_ACCESS_MASK;
-
 	return share_access == NFS4_SHARE_ACCESS_READ ? RD_STATE : WR_STATE;
 }
 
@@ -3600,7 +3598,9 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp,
 			cstate->current_fh.fh_dentry->d_name.name);
 
 	/* We don't yet support WANT bits: */
-	od->od_share_access &= NFS4_SHARE_ACCESS_MASK;
+	if (od->od_deleg_want)
+		dprintk("NFSD: %s: od_deleg_want=0x%x ignored\n", __func__,
+			od->od_deleg_want);
 
 	nfs4_lock_state();
 	status = nfs4_preprocess_confirmed_seqid_op(cstate, od->od_seqid,

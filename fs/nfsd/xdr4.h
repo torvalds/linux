@@ -233,6 +233,7 @@ struct nfsd4_open {
 	u32		op_seqid;           /* request */
 	u32		op_share_access;    /* request */
 	u32		op_share_deny;      /* request */
+	u32		op_deleg_want;      /* request */
 	stateid_t	op_stateid;         /* response */
 	u32		op_recall;          /* recall */
 	struct nfsd4_change_info  op_cinfo; /* response */
@@ -256,8 +257,9 @@ struct nfsd4_open_confirm {
 struct nfsd4_open_downgrade {
 	stateid_t       od_stateid;
 	u32             od_seqid;
-	u32             od_share_access;
-	u32             od_share_deny;
+	u32             od_share_access;	/* request */
+	u32		od_deleg_want;		/* request */
+	u32             od_share_deny;		/* request */
 };
 
 

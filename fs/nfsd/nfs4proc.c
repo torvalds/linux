@@ -311,9 +311,6 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (open->op_create && open->op_claim_type != NFS4_OPEN_CLAIM_NULL)
 		return nfserr_inval;
 
-	/* We don't yet support WANT bits: */
-	open->op_share_access &= NFS4_SHARE_ACCESS_MASK;
-
 	open->op_created = 0;
 	/*
 	 * RFC5661 18.51.3
