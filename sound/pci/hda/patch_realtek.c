@@ -4207,21 +4207,42 @@ static const struct hda_amp_list alc260_loopbacks[] = {
  * Pin config fixes
  */
 enum {
-	PINFIX_HP_DC5750,
+	ALC260_FIXUP_HP_DC5750,
+	ALC260_FIXUP_HP_PIN_0F,
+	ALC260_FIXUP_COEF,
 };
 
 static const struct alc_fixup alc260_fixups[] = {
-	[PINFIX_HP_DC5750] = {
+	[ALC260_FIXUP_HP_DC5750] = {
 		.type = ALC_FIXUP_PINS,
 		.v.pins = (const struct alc_pincfg[]) {
 			{ 0x11, 0x90130110 }, /* speaker */
 			{ }
 		}
 	},
+	[ALC260_FIXUP_HP_PIN_0F] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x0f, 0x01214000 }, /* HP */
+			{ }
+		}
+	},
+	[ALC260_FIXUP_COEF] = {
+		.type = ALC_FIXUP_VERBS,
+		.v.verbs = (const struct hda_verb[]) {
+			{ 0x20, AC_VERB_SET_COEF_INDEX, 0x07 },
+			{ 0x20, AC_VERB_SET_PROC_COEF,  0x3040 },
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC260_FIXUP_HP_PIN_0F,
+	},
 };
 
 static const struct snd_pci_quirk alc260_fixup_tbl[] = {
-	SND_PCI_QUIRK(0x103c, 0x280a, "HP dc5750", PINFIX_HP_DC5750),
+	SND_PCI_QUIRK(0x1025, 0x007f, "Acer Aspire 9500", ALC260_FIXUP_COEF),
+	SND_PCI_QUIRK(0x103c, 0x280a, "HP dc5750", ALC260_FIXUP_HP_DC5750),
+	SND_PCI_QUIRK(0x1631, 0xc017, "PB V7900", ALC260_FIXUP_COEF),
 	{}
 };
 

@@ -9,7 +9,6 @@ enum {
 	ALC260_BASIC,
 	ALC260_FUJITSU_S702X,
 	ALC260_ACER,
-	ALC260_WILL,
 	ALC260_REPLACER_672V,
 	ALC260_FAVORIT100,
 #ifdef CONFIG_SND_DEBUG
@@ -233,23 +232,6 @@ static const struct snd_kcontrol_new alc260_favorit100_mixer[] = {
 	HDA_CODEC_VOLUME("Line/Mic Playback Volume", 0x07, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Line/Mic Playback Switch", 0x07, 0x0, HDA_INPUT),
 	ALC_PIN_MODE("Line/Mic Jack Mode", 0x12, ALC_PIN_DIR_IN),
-	{ } /* end */
-};
-
-/* Packard bell V7900  ALC260 pin usage: HP = 0x0f, Mic jack = 0x12,
- * Line In jack = 0x14, CD audio =  0x16, pc beep = 0x17.
- */
-static const struct snd_kcontrol_new alc260_will_mixer[] = {
-	HDA_CODEC_VOLUME("Master Playback Volume", 0x08, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Master Playback Switch", 0x08, 0x2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x07, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x07, 0x0, HDA_INPUT),
-	ALC_PIN_MODE("Mic Jack Mode", 0x12, ALC_PIN_DIR_IN),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x07, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x07, 0x02, HDA_INPUT),
-	ALC_PIN_MODE("Line Jack Mode", 0x14, ALC_PIN_DIR_INOUT),
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x07, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x07, 0x04, HDA_INPUT),
 	{ } /* end */
 };
 
@@ -590,16 +572,6 @@ static const struct hda_verb alc260_favorit100_init_verbs[] = {
 	{ }
 };
 
-static const struct hda_verb alc260_will_verbs[] = {
-	{0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x0b, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x0d, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x0f, AC_VERB_SET_EAPD_BTLENABLE, 0x02},
-	{0x1a, AC_VERB_SET_COEF_INDEX, 0x07},
-	{0x1a, AC_VERB_SET_PROC_COEF, 0x3040},
-	{}
-};
-
 static const struct hda_verb alc260_replacer_672v_verbs[] = {
 	{0x0f, AC_VERB_SET_EAPD_BTLENABLE, 0x02},
 	{0x1a, AC_VERB_SET_COEF_INDEX, 0x07},
@@ -851,7 +823,6 @@ static const char * const alc260_models[ALC260_MODEL_LAST] = {
 	[ALC260_BASIC]		= "basic",
 	[ALC260_FUJITSU_S702X]	= "fujitsu",
 	[ALC260_ACER]		= "acer",
-	[ALC260_WILL]		= "will",
 	[ALC260_REPLACER_672V]	= "replacer",
 	[ALC260_FAVORIT100]	= "favorit100",
 #ifdef CONFIG_SND_DEBUG
@@ -862,7 +833,6 @@ static const char * const alc260_models[ALC260_MODEL_LAST] = {
 
 static const struct snd_pci_quirk alc260_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x007b, "Acer C20x", ALC260_ACER),
-	SND_PCI_QUIRK(0x1025, 0x007f, "Acer", ALC260_WILL),
 	SND_PCI_QUIRK(0x1025, 0x008f, "Acer", ALC260_ACER),
 	SND_PCI_QUIRK(0x1509, 0x4540, "Favorit 100XS", ALC260_FAVORIT100),
 	SND_PCI_QUIRK(0x104d, 0x81bb, "Sony VAIO", ALC260_BASIC),
@@ -871,7 +841,6 @@ static const struct snd_pci_quirk alc260_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x10cf, 0x1326, "Fujitsu S702X", ALC260_FUJITSU_S702X),
 	SND_PCI_QUIRK(0x152d, 0x0729, "CTL U553W", ALC260_BASIC),
 	SND_PCI_QUIRK(0x161f, 0x2057, "Replacer 672V", ALC260_REPLACER_672V),
-	SND_PCI_QUIRK(0x1631, 0xc017, "PB V7900", ALC260_WILL),
 	{}
 };
 
@@ -923,18 +892,6 @@ static const struct alc_config_preset alc260_presets[] = {
 		.channel_mode = alc260_modes,
 		.num_mux_defs = ARRAY_SIZE(alc260_favorit100_capture_sources),
 		.input_mux = alc260_favorit100_capture_sources,
-	},
-	[ALC260_WILL] = {
-		.mixers = { alc260_will_mixer },
-		.init_verbs = { alc260_init_verbs, alc260_will_verbs },
-		.num_dacs = ARRAY_SIZE(alc260_dac_nids),
-		.dac_nids = alc260_dac_nids,
-		.num_adc_nids = ARRAY_SIZE(alc260_adc_nids),
-		.adc_nids = alc260_adc_nids,
-		.dig_out_nid = ALC260_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc260_modes),
-		.channel_mode = alc260_modes,
-		.input_mux = &alc260_capture_source,
 	},
 	[ALC260_REPLACER_672V] = {
 		.mixers = { alc260_replacer_672v_mixer },
