@@ -3308,7 +3308,7 @@ int try_release_extent_mapping(struct extent_map_tree *map,
 			len = end - start + 1;
 			write_lock(&map->lock);
 			em = lookup_extent_mapping(map, start, len);
-			if (IS_ERR_OR_NULL(em)) {
+			if (!em) {
 				write_unlock(&map->lock);
 				break;
 			}
