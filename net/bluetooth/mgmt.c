@@ -1023,6 +1023,64 @@ failed:
 	return err;
 }
 
+static int set_ssp(struct sock *sk, u16 index, void *data, u16 len)
+{
+	struct mgmt_mode *cp = data;
+	struct pending_cmd *cmd;
+	struct hci_dev *hdev;
+	uint8_t val;
+	int err;
+
+	BT_DBG("request for hci%u", index);
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_SET_SSP,
+						MGMT_STATUS_INVALID_PARAMS);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_SET_SSP,
+						MGMT_STATUS_INVALID_PARAMS);
+
+	hci_dev_lock(hdev);
+
+	if (!test_bit(HCI_UP, &hdev->flags)) {
+		err = cmd_status(sk, index, MGMT_OP_SET_SSP,
+						MGMT_STATUS_NOT_POWERED);
+		goto failed;
+	}
+
+	if (mgmt_pending_find(MGMT_OP_SET_SSP, hdev)) {
+		err = cmd_status(sk, index, MGMT_OP_SET_SSP, MGMT_STATUS_BUSY);
+		goto failed;
+	}
+
+	val = !!cp->val;
+
+	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) == val) {
+		err = send_settings_rsp(sk, MGMT_OP_SET_SSP, hdev);
+		goto failed;
+	}
+
+	cmd = mgmt_pending_add(sk, MGMT_OP_SET_SSP, hdev, data, len);
+	if (!cmd) {
+		err = -ENOMEM;
+		goto failed;
+	}
+
+	err = hci_send_cmd(hdev, HCI_OP_WRITE_SSP_MODE, sizeof(val), &val);
+	if (err < 0) {
+		mgmt_pending_remove(cmd);
+		goto failed;
+	}
+
+failed:
+	hci_dev_unlock(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 static int add_uuid(struct sock *sk, u16 index, void *data, u16 len)
 {
 	struct mgmt_cp_add_uuid *cp = data;
@@ -2505,6 +2563,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 	case MGMT_OP_SET_LINK_SECURITY:
 		err = set_link_security(sk, index, cp, len);
 		break;
+	case MGMT_OP_SET_SSP:
+		err = set_ssp(sk, index, cp, len);
+		break;
 	case MGMT_OP_ADD_UUID:
 		err = add_uuid(sk, index, cp, len);
 		break;
@@ -3042,6 +3103,30 @@ int mgmt_auth_enable_complete(struct hci_dev *hdev, u8 status)
 
 	mgmt_pending_foreach(MGMT_OP_SET_LINK_SECURITY, hdev, settings_rsp,
 								&match);
+
+	ev = cpu_to_le32(get_current_settings(hdev));
+	err = mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev), match.sk);
+
+	if (match.sk)
+		sock_put(match.sk);
+
+	return err;
+}
+
+int mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 status)
+{
+	struct cmd_lookup match = { NULL, hdev };
+	__le32 ev;
+	int err;
+
+	if (status) {
+		u8 mgmt_err = mgmt_status(status);
+		mgmt_pending_foreach(MGMT_OP_SET_SSP, hdev,
+						cmd_status_rsp, &mgmt_err);
+		return 0;
+	}
+
+	mgmt_pending_foreach(MGMT_OP_SET_SSP, hdev, settings_rsp, &match);
 
 	ev = cpu_to_le32(get_current_settings(hdev));
 	err = mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev), match.sk);

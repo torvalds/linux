@@ -447,7 +447,7 @@ static void hci_cc_write_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
 	BT_DBG("%s status 0x%x", hdev->name, status);
 
 	if (status)
-		return;
+		goto done;
 
 	sent = hci_sent_cmd_data(hdev, HCI_OP_WRITE_SSP_MODE);
 	if (!sent)
@@ -457,6 +457,10 @@ static void hci_cc_write_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
 		set_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
 	else
 		clear_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
+
+done:
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
+		mgmt_ssp_enable_complete(hdev, status);
 }
 
 static u8 hci_get_inquiry_mode(struct hci_dev *hdev)
