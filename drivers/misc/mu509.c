@@ -93,7 +93,6 @@ int modem_poweron_off(int on_off)
   {
 		MODEMDBG("------------modem_poweroff\n");
 		gpio_set_value(pdata->bp_power, GPIO_LOW);
-		msleep(2500);
 		gpio_set_value(pdata->bp_power, GPIO_HIGH);
 		msleep(2500);
 		gpio_set_value(pdata->bp_power, GPIO_LOW);
