@@ -966,8 +966,6 @@ hit_next:
 
 		set_state_bits(tree, state, &bits);
 		clear_state_bit(tree, state, &clear_bits, 0);
-
-		merge_state(tree, state);
 		if (last_end == (u64)-1)
 			goto out;
 
@@ -1012,7 +1010,6 @@ hit_next:
 		if (state->end <= end) {
 			set_state_bits(tree, state, &bits);
 			clear_state_bit(tree, state, &clear_bits, 0);
-			merge_state(tree, state);
 			if (last_end == (u64)-1)
 				goto out;
 			start = last_end + 1;
@@ -1073,8 +1070,6 @@ hit_next:
 
 		set_state_bits(tree, prealloc, &bits);
 		clear_state_bit(tree, prealloc, &clear_bits, 0);
-
-		merge_state(tree, prealloc);
 		prealloc = NULL;
 		goto out;
 	}
