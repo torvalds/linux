@@ -750,6 +750,38 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 	return retval;
 }
 
+static ssize_t read_file_reset(struct file *file, char __user *user_buf,
+			       size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	char buf[512];
+	unsigned int len = 0;
+
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%17s: %2d\n", "Baseband Hang",
+			sc->debug.stats.reset[RESET_TYPE_BB_HANG]);
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%17s: %2d\n", "Baseband Watchdog",
+			sc->debug.stats.reset[RESET_TYPE_BB_WATCHDOG]);
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%17s: %2d\n", "Fatal HW Error",
+			sc->debug.stats.reset[RESET_TYPE_FATAL_INT]);
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%17s: %2d\n", "TX HW error",
+			sc->debug.stats.reset[RESET_TYPE_TX_ERROR]);
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%17s: %2d\n", "TX Path Hang",
+			sc->debug.stats.reset[RESET_TYPE_TX_HANG]);
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%17s: %2d\n", "PLL RX Hang",
+			sc->debug.stats.reset[RESET_TYPE_PLL_HANG]);
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 		       struct ath_tx_status *ts, struct ath_txq *txq,
 		       unsigned int flags)
@@ -832,6 +864,13 @@ static const struct file_operations fops_stations = {
 
 static const struct file_operations fops_misc = {
 	.read = read_file_misc,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static const struct file_operations fops_reset = {
+	.read = read_file_reset,
 	.open = ath9k_debugfs_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -1549,6 +1588,8 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    &fops_stations);
 	debugfs_create_file("misc", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_misc);
+	debugfs_create_file("reset", S_IRUSR, sc->debug.debugfs_phy, sc,
+			    &fops_reset);
 	debugfs_create_file("recv", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_recv);
 	debugfs_create_file("rx_chainmask", S_IRUSR | S_IWUSR,
