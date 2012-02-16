@@ -545,13 +545,13 @@ static int emulation_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		return RESUME_HOST;
 
 	case EMULATE_FAIL:
-		/* XXX Deliver Program interrupt to guest. */
 		printk(KERN_CRIT "%s: emulation at %lx failed (%08x)\n",
 		       __func__, vcpu->arch.pc, vcpu->arch.last_inst);
 		/* For debugging, encode the failing instruction and
 		 * report it to userspace. */
 		run->hw.hardware_exit_reason = ~0ULL << 32;
 		run->hw.hardware_exit_reason |= vcpu->arch.last_inst;
+		kvmppc_core_queue_program(vcpu, ESR_PIL);
 		return RESUME_HOST;
 
 	default:
