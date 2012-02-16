@@ -8,7 +8,6 @@ enum {
 	ALC260_AUTO,
 	ALC260_BASIC,
 	ALC260_FUJITSU_S702X,
-	ALC260_ACER,
 	ALC260_REPLACER_672V,
 	ALC260_FAVORIT100,
 #ifdef CONFIG_SND_DEBUG
@@ -181,48 +180,6 @@ static const struct snd_kcontrol_new alc260_fujitsu_mixer[] = {
 	{ } /* end */
 };
 
-/* Mixer for Acer TravelMate(/Extensa/Aspire) notebooks.  Note that current
- * versions of the ALC260 don't act on requests to enable mic bias from NID
- * 0x0f (used to drive the headphone jack in these laptops).  The ALC260
- * datasheet doesn't mention this restriction.  At this stage it's not clear
- * whether this behaviour is intentional or is a hardware bug in chip
- * revisions available in early 2006.  Therefore for now allow the
- * "Headphone Jack Mode" control to span all choices, but if it turns out
- * that the lack of mic bias for this NID is intentional we could change the
- * mode from ALC_PIN_DIR_INOUT to ALC_PIN_DIR_INOUT_NOMICBIAS.
- *
- * In addition, Acer TravelMate(/Extensa/Aspire) notebooks in early 2006
- * don't appear to make the mic bias available from the "line" jack, even
- * though the NID used for this jack (0x14) can supply it.  The theory is
- * that perhaps Acer have included blocking capacitors between the ALC260
- * and the output jack.  If this turns out to be the case for all such
- * models the "Line Jack Mode" mode could be changed from ALC_PIN_DIR_INOUT
- * to ALC_PIN_DIR_INOUT_NOMICBIAS.
- *
- * The C20x Tablet series have a mono internal speaker which is controlled
- * via the chip's Mono sum widget and pin complex, so include the necessary
- * controls for such models.  On models without a "mono speaker" the control
- * won't do anything.
- */
-static const struct snd_kcontrol_new alc260_acer_mixer[] = {
-	HDA_CODEC_VOLUME("Master Playback Volume", 0x08, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Master Playback Switch", 0x08, 2, HDA_INPUT),
-	ALC_PIN_MODE("Headphone Jack Mode", 0x0f, ALC_PIN_DIR_INOUT),
-	HDA_CODEC_VOLUME_MONO("Speaker Playback Volume", 0x0a, 1, 0x0,
-			      HDA_OUTPUT),
-	HDA_BIND_MUTE_MONO("Speaker Playback Switch", 0x0a, 1, 2,
-			   HDA_INPUT),
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x07, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x07, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x07, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x07, 0x0, HDA_INPUT),
-	ALC_PIN_MODE("Mic Jack Mode", 0x12, ALC_PIN_DIR_IN),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x07, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x07, 0x02, HDA_INPUT),
-	ALC_PIN_MODE("Line Jack Mode", 0x14, ALC_PIN_DIR_INOUT),
-	{ } /* end */
-};
-
 /* Maxdata Favorit 100XS: one output and one input (0x12) jack
  */
 static const struct snd_kcontrol_new alc260_favorit100_mixer[] = {
@@ -384,94 +341,6 @@ static const struct hda_verb alc260_fujitsu_init_verbs[] = {
 
 	/* Do the same for the second ADC: mute capture input amp and
 	 * set ADC connection to line in (on mic1 pin)
-	 */
-	{0x05, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x05, AC_VERB_SET_CONNECT_SEL, 0x00},
-
-	/* Mute all inputs to mixer widget (even unconnected ones) */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)}, /* mic1 pin */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)}, /* mic2 pin */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)}, /* line1 pin */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)}, /* line2 pin */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)}, /* CD pin */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(5)}, /* Beep-gen pin */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(6)}, /* Line-out pin */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(7)}, /* HP-pin pin */
-
-	{ }
-};
-
-/* Initialisation sequence for ALC260 as configured in Acer TravelMate and
- * similar laptops (adapted from Fujitsu init verbs).
- */
-static const struct hda_verb alc260_acer_init_verbs[] = {
-	/* On TravelMate laptops, GPIO 0 enables the internal speaker and
-	 * the headphone jack.  Turn this on and rely on the standard mute
-	 * methods whenever the user wants to turn these outputs off.
-	 */
-	{0x01, AC_VERB_SET_GPIO_MASK, 0x01},
-	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x01},
-	{0x01, AC_VERB_SET_GPIO_DATA, 0x01},
-	/* Internal speaker/Headphone jack is connected to Line-out pin */
-	{0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	/* Internal microphone/Mic jack is connected to Mic1 pin */
-	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50},
-	/* Line In jack is connected to Line1 pin */
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	/* Some Acers (eg: C20x Tablets) use Mono pin for internal speaker */
-	{0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	/* Ensure all other unused pins are disabled and muted. */
-	{0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
-	{0x10, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
-	{0x13, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	/* Disable digital (SPDIF) pins */
-	{0x03, AC_VERB_SET_DIGI_CONVERT_1, 0},
-	{0x06, AC_VERB_SET_DIGI_CONVERT_1, 0},
-
-	/* Ensure Mic1 and Line1 pin widgets take input from the OUT1 sum
-	 * bus when acting as outputs.
-	 */
-	{0x0b, AC_VERB_SET_CONNECT_SEL, 0},
-	{0x0d, AC_VERB_SET_CONNECT_SEL, 0},
-
-	/* Start with output sum widgets muted and their output gains at min */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-
-	/* Unmute Line-out pin widget amp left and right
-	 * (no equiv mixer ctrl)
-	 */
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* Unmute mono pin widget amp output (no equiv mixer ctrl) */
-	{0x11, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* Unmute Mic1 and Line1 pin widget input buffers since they start as
-	 * inputs. If the pin mode is changed by the user the pin mode control
-	 * will take care of enabling the pin's input/output buffers as needed.
-	 * Therefore there's no need to enable the input buffer at this
-	 * stage.
-	 */
-	{0x12, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-
-	/* Mute capture amp left and right */
-	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	/* Set ADC connection select to match default mixer setting - mic
-	 * (on mic1 pin)
-	 */
-	{0x04, AC_VERB_SET_CONNECT_SEL, 0x00},
-
-	/* Do similar with the second ADC: mute capture input amp and
-	 * set ADC connection to mic to match ALSA's default state.
 	 */
 	{0x05, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x05, AC_VERB_SET_CONNECT_SEL, 0x00},
@@ -822,7 +691,6 @@ static const struct hda_verb alc260_test_init_verbs[] = {
 static const char * const alc260_models[ALC260_MODEL_LAST] = {
 	[ALC260_BASIC]		= "basic",
 	[ALC260_FUJITSU_S702X]	= "fujitsu",
-	[ALC260_ACER]		= "acer",
 	[ALC260_REPLACER_672V]	= "replacer",
 	[ALC260_FAVORIT100]	= "favorit100",
 #ifdef CONFIG_SND_DEBUG
@@ -832,8 +700,6 @@ static const char * const alc260_models[ALC260_MODEL_LAST] = {
 };
 
 static const struct snd_pci_quirk alc260_cfg_tbl[] = {
-	SND_PCI_QUIRK(0x1025, 0x007b, "Acer C20x", ALC260_ACER),
-	SND_PCI_QUIRK(0x1025, 0x008f, "Acer", ALC260_ACER),
 	SND_PCI_QUIRK(0x1509, 0x4540, "Favorit 100XS", ALC260_FAVORIT100),
 	SND_PCI_QUIRK(0x104d, 0x81bb, "Sony VAIO", ALC260_BASIC),
 	SND_PCI_QUIRK(0x104d, 0x81cc, "Sony VAIO", ALC260_BASIC),
@@ -868,18 +734,6 @@ static const struct alc_config_preset alc260_presets[] = {
 		.channel_mode = alc260_modes,
 		.num_mux_defs = ARRAY_SIZE(alc260_fujitsu_capture_sources),
 		.input_mux = alc260_fujitsu_capture_sources,
-	},
-	[ALC260_ACER] = {
-		.mixers = { alc260_acer_mixer },
-		.init_verbs = { alc260_acer_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc260_dac_nids),
-		.dac_nids = alc260_dac_nids,
-		.num_adc_nids = ARRAY_SIZE(alc260_dual_adc_nids),
-		.adc_nids = alc260_dual_adc_nids,
-		.num_channel_mode = ARRAY_SIZE(alc260_modes),
-		.channel_mode = alc260_modes,
-		.num_mux_defs = ARRAY_SIZE(alc260_acer_capture_sources),
-		.input_mux = alc260_acer_capture_sources,
 	},
 	[ALC260_FAVORIT100] = {
 		.mixers = { alc260_favorit100_mixer },

@@ -4210,6 +4210,7 @@ enum {
 	ALC260_FIXUP_HP_DC5750,
 	ALC260_FIXUP_HP_PIN_0F,
 	ALC260_FIXUP_COEF,
+	ALC260_FIXUP_GPIO1,
 };
 
 static const struct alc_fixup alc260_fixups[] = {
@@ -4237,10 +4238,16 @@ static const struct alc_fixup alc260_fixups[] = {
 		.chained = true,
 		.chain_id = ALC260_FIXUP_HP_PIN_0F,
 	},
+	[ALC260_FIXUP_GPIO1] = {
+		.type = ALC_FIXUP_VERBS,
+		.v.verbs = alc_gpio1_init_verbs,
+	},
 };
 
 static const struct snd_pci_quirk alc260_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x1025, 0x007b, "Acer C20x", ALC260_FIXUP_GPIO1),
 	SND_PCI_QUIRK(0x1025, 0x007f, "Acer Aspire 9500", ALC260_FIXUP_COEF),
+	SND_PCI_QUIRK(0x1025, 0x008f, "Acer", ALC260_FIXUP_GPIO1),
 	SND_PCI_QUIRK(0x103c, 0x280a, "HP dc5750", ALC260_FIXUP_HP_DC5750),
 	SND_PCI_QUIRK(0x1631, 0xc017, "PB V7900", ALC260_FIXUP_COEF),
 	{}
