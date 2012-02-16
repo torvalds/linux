@@ -4883,8 +4883,10 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 				clp->cl_rpcclient->cl_auth->au_flavor);
 
 	res.server_scope = kzalloc(sizeof(struct server_scope), GFP_KERNEL);
-	if (unlikely(!res.server_scope))
-		return -ENOMEM;
+	if (unlikely(!res.server_scope)) {
+		status = -ENOMEM;
+		goto out;
+	}
 
 	status = rpc_call_sync(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
 	if (!status)
@@ -4901,12 +4903,13 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 			clp->server_scope = NULL;
 		}
 
-		if (!clp->server_scope)
+		if (!clp->server_scope) {
 			clp->server_scope = res.server_scope;
-		else
-			kfree(res.server_scope);
+			goto out;
+		}
 	}
-
+	kfree(res.server_scope);
+out:
 	dprintk("<-- %s status= %d\n", __func__, status);
 	return status;
 }
