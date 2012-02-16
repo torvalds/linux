@@ -964,6 +964,65 @@ failed:
 	return err;
 }
 
+static int set_link_security(struct sock *sk, u16 index, void *data, u16 len)
+{
+	struct mgmt_mode *cp = data;
+	struct pending_cmd *cmd;
+	struct hci_dev *hdev;
+	uint8_t val;
+	int err;
+
+	BT_DBG("request for hci%u", index);
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_SET_LINK_SECURITY,
+						MGMT_STATUS_INVALID_PARAMS);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_SET_LINK_SECURITY,
+						MGMT_STATUS_INVALID_PARAMS);
+
+	hci_dev_lock(hdev);
+
+	if (!test_bit(HCI_UP, &hdev->flags)) {
+		err = cmd_status(sk, index, MGMT_OP_SET_LINK_SECURITY,
+						MGMT_STATUS_NOT_POWERED);
+		goto failed;
+	}
+
+	if (mgmt_pending_find(MGMT_OP_SET_LINK_SECURITY, hdev)) {
+		err = cmd_status(sk, index, MGMT_OP_SET_LINK_SECURITY,
+							MGMT_STATUS_BUSY);
+		goto failed;
+	}
+
+	val = !!cp->val;
+
+	if (test_bit(HCI_AUTH, &hdev->flags) == val) {
+		err = send_settings_rsp(sk, MGMT_OP_SET_LINK_SECURITY, hdev);
+		goto failed;
+	}
+
+	cmd = mgmt_pending_add(sk, MGMT_OP_SET_LINK_SECURITY, hdev, data, len);
+	if (!cmd) {
+		err = -ENOMEM;
+		goto failed;
+	}
+
+	err = hci_send_cmd(hdev, HCI_OP_WRITE_AUTH_ENABLE, sizeof(val), &val);
+	if (err < 0) {
+		mgmt_pending_remove(cmd);
+		goto failed;
+	}
+
+failed:
+	hci_dev_unlock(hdev);
+	hci_dev_put(hdev);
+
+	return err;
+}
+
 static int add_uuid(struct sock *sk, u16 index, void *data, u16 len)
 {
 	struct mgmt_cp_add_uuid *cp = data;
@@ -2443,6 +2502,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 	case MGMT_OP_SET_PAIRABLE:
 		err = set_pairable(sk, index, cp, len);
 		break;
+	case MGMT_OP_SET_LINK_SECURITY:
+		err = set_link_security(sk, index, cp, len);
+		break;
 	case MGMT_OP_ADD_UUID:
 		err = add_uuid(sk, index, cp, len);
 		break;
@@ -2963,6 +3025,31 @@ int mgmt_auth_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	ev.status = mgmt_status(status);
 
 	return mgmt_event(MGMT_EV_AUTH_FAILED, hdev, &ev, sizeof(ev), NULL);
+}
+
+int mgmt_auth_enable_complete(struct hci_dev *hdev, u8 status)
+{
+	struct cmd_lookup match = { NULL, hdev };
+	__le32 ev;
+	int err;
+
+	if (status) {
+		u8 mgmt_err = mgmt_status(status);
+		mgmt_pending_foreach(MGMT_OP_SET_LINK_SECURITY, hdev,
+						cmd_status_rsp, &mgmt_err);
+		return 0;
+	}
+
+	mgmt_pending_foreach(MGMT_OP_SET_LINK_SECURITY, hdev, settings_rsp,
+								&match);
+
+	ev = cpu_to_le32(get_current_settings(hdev));
+	err = mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev), match.sk);
+
+	if (match.sk)
+		sock_put(match.sk);
+
+	return err;
 }
 
 int mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)

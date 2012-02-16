@@ -254,6 +254,9 @@ static void hci_cc_write_auth_enable(struct hci_dev *hdev, struct sk_buff *skb)
 			clear_bit(HCI_AUTH, &hdev->flags);
 	}
 
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
+		mgmt_auth_enable_complete(hdev, status);
+
 	hci_req_complete(hdev, HCI_OP_WRITE_AUTH_ENABLE, status);
 }
 
