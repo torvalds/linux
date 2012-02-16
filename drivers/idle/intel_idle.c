@@ -331,10 +331,6 @@ static void auto_demotion_disable(void *dummy)
 
 static const struct idle_cpu idle_cpu_nehalem = {
 	.state_table = nehalem_cstates,
-};
-
-static const struct idle_cpu idle_cpu_westmere = {
-	.state_table = nehalem_cstates,
 	.auto_demotion_disable_flags = NHM_C1_AUTO_DEMOTE | NHM_C3_AUTO_DEMOTE,
 };
 
@@ -358,12 +354,12 @@ static const struct x86_cpu_id intel_idle_ids[] = {
 	ICPU(0x1a, idle_cpu_nehalem),
 	ICPU(0x1e, idle_cpu_nehalem),
 	ICPU(0x1f, idle_cpu_nehalem),
-	ICPU(0x25, idle_cpu_westmere),
-	ICPU(0x2c, idle_cpu_westmere),
-	ICPU(0x2e, idle_cpu_westmere),
+	ICPU(0x25, idle_cpu_nehalem),
+	ICPU(0x2c, idle_cpu_nehalem),
+	ICPU(0x2e, idle_cpu_nehalem),
 	ICPU(0x1c, idle_cpu_atom),
 	ICPU(0x26, idle_cpu_lincroft),
-	ICPU(0x2f, idle_cpu_westmere),
+	ICPU(0x2f, idle_cpu_nehalem),
 	ICPU(0x2a, idle_cpu_snb),
 	ICPU(0x2d, idle_cpu_snb),
 	{}
