@@ -749,6 +749,7 @@ static void free_profile(struct aa_profile *profile)
 
 	aa_free_sid(profile->sid);
 	aa_put_dfa(profile->xmatch);
+	aa_put_dfa(profile->policy.dfa);
 
 	aa_put_profile(profile->replacedby);
 

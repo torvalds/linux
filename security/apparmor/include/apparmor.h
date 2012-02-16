@@ -19,6 +19,19 @@
 
 #include "match.h"
 
+/*
+ * Class of mediation types in the AppArmor policy db
+ */
+#define AA_CLASS_ENTRY		0
+#define AA_CLASS_UNKNOWN	1
+#define AA_CLASS_FILE		2
+#define AA_CLASS_CAP		3
+#define AA_CLASS_NET		4
+#define AA_CLASS_RLIMITS	5
+#define AA_CLASS_DOMAIN		6
+
+#define AA_CLASS_LAST		AA_CLASS_DOMAIN
+
 /* Control parameters settable through module/boot flags */
 extern enum audit_mode aa_g_audit;
 extern bool aa_g_audit_header;
