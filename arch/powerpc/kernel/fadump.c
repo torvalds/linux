@@ -814,6 +814,19 @@ static void fadump_setup_crash_memory_ranges(void)
 	}
 }
 
+/*
+ * If the given physical address falls within the boot memory region then
+ * return the relocated address that points to the dump region reserved
+ * for saving initial boot memory contents.
+ */
+static inline unsigned long fadump_relocate(unsigned long paddr)
+{
+	if (paddr > RMA_START && paddr < fw_dump.boot_memory_size)
+		return fdm.rmr_region.destination_address + paddr;
+	else
+		return paddr;
+}
+
 static int fadump_create_elfcore_headers(char *bufp)
 {
 	struct elfhdr *elf;
@@ -843,6 +856,22 @@ static int fadump_create_elfcore_headers(char *bufp)
 	phdr->p_filesz = 0;
 	phdr->p_memsz = 0;
 
+	(elf->e_phnum)++;
+
+	/* setup ELF PT_NOTE for vmcoreinfo */
+	phdr = (struct elf_phdr *)bufp;
+	bufp += sizeof(struct elf_phdr);
+	phdr->p_type	= PT_NOTE;
+	phdr->p_flags	= 0;
+	phdr->p_vaddr	= 0;
+	phdr->p_align	= 0;
+
+	phdr->p_paddr	= fadump_relocate(paddr_vmcoreinfo_note());
+	phdr->p_offset	= phdr->p_paddr;
+	phdr->p_memsz	= vmcoreinfo_max_size;
+	phdr->p_filesz	= vmcoreinfo_max_size;
+
+	/* Increment number of program headers. */
 	(elf->e_phnum)++;
 
 	/* setup PT_LOAD sections. */
