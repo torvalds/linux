@@ -4213,6 +4213,7 @@ enum {
 	ALC260_FIXUP_GPIO1,
 	ALC260_FIXUP_GPIO1_TOGGLE,
 	ALC260_FIXUP_REPLACER,
+	ALC260_FIXUP_HP_B1900,
 };
 
 static void alc260_gpio1_automute(struct hda_codec *codec)
@@ -4285,6 +4286,12 @@ static const struct alc_fixup alc260_fixups[] = {
 		.chained = true,
 		.chain_id = ALC260_FIXUP_GPIO1_TOGGLE,
 	},
+	[ALC260_FIXUP_HP_B1900] = {
+		.type = ALC_FIXUP_FUNC,
+		.v.func = alc260_fixup_gpio1_toggle,
+		.chained = true,
+		.chain_id = ALC260_FIXUP_COEF,
+	}
 };
 
 static const struct snd_pci_quirk alc260_fixup_tbl[] = {
@@ -4292,6 +4299,7 @@ static const struct snd_pci_quirk alc260_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x007f, "Acer Aspire 9500", ALC260_FIXUP_COEF),
 	SND_PCI_QUIRK(0x1025, 0x008f, "Acer", ALC260_FIXUP_GPIO1),
 	SND_PCI_QUIRK(0x103c, 0x280a, "HP dc5750", ALC260_FIXUP_HP_DC5750),
+	SND_PCI_QUIRK(0x103c, 0x30ba, "HP Presario B1900", ALC260_FIXUP_HP_B1900),
 	SND_PCI_QUIRK(0x161f, 0x2057, "Replacer 672V", ALC260_FIXUP_REPLACER),
 	SND_PCI_QUIRK(0x1631, 0xc017, "PB V7900", ALC260_FIXUP_COEF),
 	{}
