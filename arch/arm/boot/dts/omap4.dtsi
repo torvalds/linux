@@ -104,25 +104,25 @@
 			      <0x48240100 0x0100>;
 		};
 
-		uart1: serial@0x4806a000 {
+		uart1: serial@4806a000 {
 			compatible = "ti,omap4-uart";
 			ti,hwmods = "uart1";
 			clock-frequency = <48000000>;
 		};
 
-		uart2: serial@0x4806c000 {
+		uart2: serial@4806c000 {
 			compatible = "ti,omap4-uart";
 			ti,hwmods = "uart2";
 			clock-frequency = <48000000>;
 		};
 
-		uart3: serial@0x48020000 {
+		uart3: serial@48020000 {
 			compatible = "ti,omap4-uart";
 			ti,hwmods = "uart3";
 			clock-frequency = <48000000>;
 		};
 
-		uart4: serial@0x4806e000 {
+		uart4: serial@4806e000 {
 			compatible = "ti,omap4-uart";
 			ti,hwmods = "uart4";
 			clock-frequency = <48000000>;
