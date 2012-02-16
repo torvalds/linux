@@ -987,8 +987,6 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 #define RX_SAMP_DBG(c) (sc->debug.bb_mac_samp[sc->debug.sampidx].rs\
 			[sc->debug.rsidx].c)
 
-	u32 phyerr;
-
 	RX_STAT_INC(rx_pkts_all);
 	sc->debug.stats.rxstats.rx_bytes_all += rs->rs_datalen;
 
@@ -1007,8 +1005,8 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 
 	if (rs->rs_status & ATH9K_RXERR_PHY) {
 		RX_STAT_INC(phy_err);
-		phyerr = rs->rs_phyerr & 0x24;
-		RX_PHY_ERR_INC(phyerr);
+		if (rs->rs_phyerr < ATH9K_PHYERR_MAX)
+			RX_PHY_ERR_INC(rs->rs_phyerr);
 	}
 
 	sc->debug.stats.rxstats.rs_rssi_ctl0 = rs->rs_rssi_ctl0;
