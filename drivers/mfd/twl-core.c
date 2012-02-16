@@ -619,6 +619,8 @@ add_regulator_linked(int num, struct regulator_init_data *pdata,
 		unsigned num_consumers, unsigned long features)
 {
 	unsigned sub_chip_id;
+	struct twl_regulator_driver_data drv_data;
+
 	/* regulator framework demands init_data ... */
 	if (!pdata)
 		return NULL;
@@ -628,7 +630,19 @@ add_regulator_linked(int num, struct regulator_init_data *pdata,
 		pdata->num_consumer_supplies = num_consumers;
 	}
 
-	pdata->driver_data = (void *)features;
+	if (pdata->driver_data) {
+		/* If we have existing drv_data, just add the flags */
+		struct twl_regulator_driver_data *tmp;
+		tmp = pdata->driver_data;
+		tmp->features |= features;
+	} else {
+		/* add new driver data struct, used only during init */
+		drv_data.features = features;
+		drv_data.set_voltage = NULL;
+		drv_data.get_voltage = NULL;
+		drv_data.data = NULL;
+		pdata->driver_data = &drv_data;
+	}
 
 	/* NOTE:  we currently ignore regulator IRQs, e.g. for short circuits */
 	sub_chip_id = twl_map[TWL_MODULE_PM_MASTER].sid;

@@ -749,6 +749,13 @@ struct twl4030_platform_data {
 	struct regulator_init_data		*vio6025;
 };
 
+struct twl_regulator_driver_data {
+	int		(*set_voltage)(void *data, int target_uV);
+	int		(*get_voltage)(void *data);
+	void		*data;
+	unsigned long	features;
+};
+
 /*----------------------------------------------------------------------*/
 
 int twl4030_sih_setup(int module);
