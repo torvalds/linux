@@ -545,7 +545,7 @@ struct v4l2_subdev {
 #define media_entity_to_v4l2_subdev(ent) \
 	container_of(ent, struct v4l2_subdev, entity)
 #define vdev_to_v4l2_subdev(vdev) \
-	video_get_drvdata(vdev)
+	((struct v4l2_subdev *)video_get_drvdata(vdev))
 
 /*
  * Used for storing subdev information per file handle
