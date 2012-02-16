@@ -61,6 +61,7 @@
 #include <asm/xmon.h>
 #include <asm/cputhreads.h>
 #include <mm/mmu_decl.h>
+#include <asm/fadump.h>
 
 #include "setup.h"
 
@@ -639,6 +640,11 @@ EXPORT_SYMBOL(check_legacy_ioport);
 static int ppc_panic_event(struct notifier_block *this,
                              unsigned long event, void *ptr)
 {
+	/*
+	 * If firmware-assisted dump has been registered then trigger
+	 * firmware-assisted dump and let firmware handle everything else.
+	 */
+	crash_fadump(NULL, ptr);
 	ppc_md.panic(ptr);  /* May not return */
 	return NOTIFY_DONE;
 }

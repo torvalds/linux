@@ -65,6 +65,18 @@
 /* Dump status flag */
 #define FADUMP_ERROR_FLAG	0x2000
 
+#define FADUMP_CPU_ID_MASK	((1UL << 32) - 1)
+
+#define CPU_UNKNOWN		(~((u32)0))
+
+/* Utility macros */
+#define SKIP_TO_NEXT_CPU(reg_entry)			\
+({							\
+	while (reg_entry->reg_id != REG_ID("CPUEND"))	\
+		reg_entry++;				\
+	reg_entry++;					\
+})
+
 /* Kernel Dump section info */
 struct fadump_section {
 	u32	request_flag;
@@ -119,6 +131,9 @@ struct fw_dump {
 	unsigned long	reserve_bootvar;
 
 	unsigned long	fadumphdr_addr;
+	unsigned long	cpu_notes_buf;
+	unsigned long	cpu_notes_buf_size;
+
 	int		ibm_configure_kernel_dump;
 
 	unsigned long	fadump_enabled:1;
@@ -143,13 +158,40 @@ static inline u64 str_to_u64(const char *str)
 	return val;
 }
 #define STR_TO_HEX(x)	str_to_u64(x)
+#define REG_ID(x)	str_to_u64(x)
 
 #define FADUMP_CRASH_INFO_MAGIC		STR_TO_HEX("FADMPINF")
+#define REGSAVE_AREA_MAGIC		STR_TO_HEX("REGSAVE")
+
+/* The firmware-assisted dump format.
+ *
+ * The register save area is an area in the partition's memory used to preserve
+ * the register contents (CPU state data) for the active CPUs during a firmware
+ * assisted dump. The dump format contains register save area header followed
+ * by register entries. Each list of registers for a CPU starts with
+ * "CPUSTRT" and ends with "CPUEND".
+ */
+
+/* Register save area header. */
+struct fadump_reg_save_area_header {
+	u64		magic_number;
+	u32		version;
+	u32		num_cpu_offset;
+};
+
+/* Register entry. */
+struct fadump_reg_entry {
+	u64		reg_id;
+	u64		reg_value;
+};
 
 /* fadump crash info structure */
 struct fadump_crash_info_header {
 	u64		magic_number;
 	u64		elfcorehdr_addr;
+	u32		crashing_cpu;
+	struct pt_regs	regs;
+	struct cpumask	cpu_online_mask;
 };
 
 /* Crash memory ranges */
@@ -165,7 +207,9 @@ extern int early_init_dt_scan_fw_dump(unsigned long node,
 extern int fadump_reserve_mem(void);
 extern int setup_fadump(void);
 extern int is_fadump_active(void);
+extern void crash_fadump(struct pt_regs *, const char *);
 #else	/* CONFIG_FA_DUMP */
 static inline int is_fadump_active(void) { return 0; }
+static inline void crash_fadump(struct pt_regs *regs, const char *str) { }
 #endif
 #endif

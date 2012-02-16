@@ -240,6 +240,7 @@ static unsigned long get_fadump_area_size(void)
 	size += fw_dump.boot_memory_size;
 	size += sizeof(struct fadump_crash_info_header);
 	size += sizeof(struct elfhdr); /* ELF core header.*/
+	size += sizeof(struct elf_phdr); /* place holder for cpu notes */
 	/* Program headers for crash memory regions. */
 	size += sizeof(struct elf_phdr) * (memblock_num_regions(memory) + 2);
 
@@ -393,6 +394,285 @@ static void register_fw_dump(struct fadump_mem_struct *fdm)
 	}
 }
 
+void crash_fadump(struct pt_regs *regs, const char *str)
+{
+	struct fadump_crash_info_header *fdh = NULL;
+
+	if (!fw_dump.dump_registered || !fw_dump.fadumphdr_addr)
+		return;
+
+	fdh = __va(fw_dump.fadumphdr_addr);
+	crashing_cpu = smp_processor_id();
+	fdh->crashing_cpu = crashing_cpu;
+	crash_save_vmcoreinfo();
+
+	if (regs)
+		fdh->regs = *regs;
+	else
+		ppc_save_regs(&fdh->regs);
+
+	fdh->cpu_online_mask = *cpu_online_mask;
+
+	/* Call ibm,os-term rtas call to trigger firmware assisted dump */
+	rtas_os_term((char *)str);
+}
+
+#define GPR_MASK	0xffffff0000000000
+static inline int fadump_gpr_index(u64 id)
+{
+	int i = -1;
+	char str[3];
+
+	if ((id & GPR_MASK) == REG_ID("GPR")) {
+		/* get the digits at the end */
+		id &= ~GPR_MASK;
+		id >>= 24;
+		str[2] = '\0';
+		str[1] = id & 0xff;
+		str[0] = (id >> 8) & 0xff;
+		sscanf(str, "%d", &i);
+		if (i > 31)
+			i = -1;
+	}
+	return i;
+}
+
+static inline void fadump_set_regval(struct pt_regs *regs, u64 reg_id,
+								u64 reg_val)
+{
+	int i;
+
+	i = fadump_gpr_index(reg_id);
+	if (i >= 0)
+		regs->gpr[i] = (unsigned long)reg_val;
+	else if (reg_id == REG_ID("NIA"))
+		regs->nip = (unsigned long)reg_val;
+	else if (reg_id == REG_ID("MSR"))
+		regs->msr = (unsigned long)reg_val;
+	else if (reg_id == REG_ID("CTR"))
+		regs->ctr = (unsigned long)reg_val;
+	else if (reg_id == REG_ID("LR"))
+		regs->link = (unsigned long)reg_val;
+	else if (reg_id == REG_ID("XER"))
+		regs->xer = (unsigned long)reg_val;
+	else if (reg_id == REG_ID("CR"))
+		regs->ccr = (unsigned long)reg_val;
+	else if (reg_id == REG_ID("DAR"))
+		regs->dar = (unsigned long)reg_val;
+	else if (reg_id == REG_ID("DSISR"))
+		regs->dsisr = (unsigned long)reg_val;
+}
+
+static struct fadump_reg_entry*
+fadump_read_registers(struct fadump_reg_entry *reg_entry, struct pt_regs *regs)
+{
+	memset(regs, 0, sizeof(struct pt_regs));
+
+	while (reg_entry->reg_id != REG_ID("CPUEND")) {
+		fadump_set_regval(regs, reg_entry->reg_id,
+					reg_entry->reg_value);
+		reg_entry++;
+	}
+	reg_entry++;
+	return reg_entry;
+}
+
+static u32 *fadump_append_elf_note(u32 *buf, char *name, unsigned type,
+						void *data, size_t data_len)
+{
+	struct elf_note note;
+
+	note.n_namesz = strlen(name) + 1;
+	note.n_descsz = data_len;
+	note.n_type   = type;
+	memcpy(buf, &note, sizeof(note));
+	buf += (sizeof(note) + 3)/4;
+	memcpy(buf, name, note.n_namesz);
+	buf += (note.n_namesz + 3)/4;
+	memcpy(buf, data, note.n_descsz);
+	buf += (note.n_descsz + 3)/4;
+
+	return buf;
+}
+
+static void fadump_final_note(u32 *buf)
+{
+	struct elf_note note;
+
+	note.n_namesz = 0;
+	note.n_descsz = 0;
+	note.n_type   = 0;
+	memcpy(buf, &note, sizeof(note));
+}
+
+static u32 *fadump_regs_to_elf_notes(u32 *buf, struct pt_regs *regs)
+{
+	struct elf_prstatus prstatus;
+
+	memset(&prstatus, 0, sizeof(prstatus));
+	/*
+	 * FIXME: How do i get PID? Do I really need it?
+	 * prstatus.pr_pid = ????
+	 */
+	elf_core_copy_kernel_regs(&prstatus.pr_reg, regs);
+	buf = fadump_append_elf_note(buf, KEXEC_CORE_NOTE_NAME, NT_PRSTATUS,
+				&prstatus, sizeof(prstatus));
+	return buf;
+}
+
+static void fadump_update_elfcore_header(char *bufp)
+{
+	struct elfhdr *elf;
+	struct elf_phdr *phdr;
+
+	elf = (struct elfhdr *)bufp;
+	bufp += sizeof(struct elfhdr);
+
+	/* First note is a place holder for cpu notes info. */
+	phdr = (struct elf_phdr *)bufp;
+
+	if (phdr->p_type == PT_NOTE) {
+		phdr->p_paddr = fw_dump.cpu_notes_buf;
+		phdr->p_offset	= phdr->p_paddr;
+		phdr->p_filesz	= fw_dump.cpu_notes_buf_size;
+		phdr->p_memsz = fw_dump.cpu_notes_buf_size;
+	}
+	return;
+}
+
+static void *fadump_cpu_notes_buf_alloc(unsigned long size)
+{
+	void *vaddr;
+	struct page *page;
+	unsigned long order, count, i;
+
+	order = get_order(size);
+	vaddr = (void *)__get_free_pages(GFP_KERNEL|__GFP_ZERO, order);
+	if (!vaddr)
+		return NULL;
+
+	count = 1 << order;
+	page = virt_to_page(vaddr);
+	for (i = 0; i < count; i++)
+		SetPageReserved(page + i);
+	return vaddr;
+}
+
+static void fadump_cpu_notes_buf_free(unsigned long vaddr, unsigned long size)
+{
+	struct page *page;
+	unsigned long order, count, i;
+
+	order = get_order(size);
+	count = 1 << order;
+	page = virt_to_page(vaddr);
+	for (i = 0; i < count; i++)
+		ClearPageReserved(page + i);
+	__free_pages(page, order);
+}
+
+/*
+ * Read CPU state dump data and convert it into ELF notes.
+ * The CPU dump starts with magic number "REGSAVE". NumCpusOffset should be
+ * used to access the data to allow for additional fields to be added without
+ * affecting compatibility. Each list of registers for a CPU starts with
+ * "CPUSTRT" and ends with "CPUEND". Each register entry is of 16 bytes,
+ * 8 Byte ASCII identifier and 8 Byte register value. The register entry
+ * with identifier "CPUSTRT" and "CPUEND" contains 4 byte cpu id as part
+ * of register value. For more details refer to PAPR document.
+ *
+ * Only for the crashing cpu we ignore the CPU dump data and get exact
+ * state from fadump crash info structure populated by first kernel at the
+ * time of crash.
+ */
+static int __init fadump_build_cpu_notes(const struct fadump_mem_struct *fdm)
+{
+	struct fadump_reg_save_area_header *reg_header;
+	struct fadump_reg_entry *reg_entry;
+	struct fadump_crash_info_header *fdh = NULL;
+	void *vaddr;
+	unsigned long addr;
+	u32 num_cpus, *note_buf;
+	struct pt_regs regs;
+	int i, rc = 0, cpu = 0;
+
+	if (!fdm->cpu_state_data.bytes_dumped)
+		return -EINVAL;
+
+	addr = fdm->cpu_state_data.destination_address;
+	vaddr = __va(addr);
+
+	reg_header = vaddr;
+	if (reg_header->magic_number != REGSAVE_AREA_MAGIC) {
+		printk(KERN_ERR "Unable to read register save area.\n");
+		return -ENOENT;
+	}
+	pr_debug("--------CPU State Data------------\n");
+	pr_debug("Magic Number: %llx\n", reg_header->magic_number);
+	pr_debug("NumCpuOffset: %x\n", reg_header->num_cpu_offset);
+
+	vaddr += reg_header->num_cpu_offset;
+	num_cpus = *((u32 *)(vaddr));
+	pr_debug("NumCpus     : %u\n", num_cpus);
+	vaddr += sizeof(u32);
+	reg_entry = (struct fadump_reg_entry *)vaddr;
+
+	/* Allocate buffer to hold cpu crash notes. */
+	fw_dump.cpu_notes_buf_size = num_cpus * sizeof(note_buf_t);
+	fw_dump.cpu_notes_buf_size = PAGE_ALIGN(fw_dump.cpu_notes_buf_size);
+	note_buf = fadump_cpu_notes_buf_alloc(fw_dump.cpu_notes_buf_size);
+	if (!note_buf) {
+		printk(KERN_ERR "Failed to allocate 0x%lx bytes for "
+			"cpu notes buffer\n", fw_dump.cpu_notes_buf_size);
+		return -ENOMEM;
+	}
+	fw_dump.cpu_notes_buf = __pa(note_buf);
+
+	pr_debug("Allocated buffer for cpu notes of size %ld at %p\n",
+			(num_cpus * sizeof(note_buf_t)), note_buf);
+
+	if (fw_dump.fadumphdr_addr)
+		fdh = __va(fw_dump.fadumphdr_addr);
+
+	for (i = 0; i < num_cpus; i++) {
+		if (reg_entry->reg_id != REG_ID("CPUSTRT")) {
+			printk(KERN_ERR "Unable to read CPU state data\n");
+			rc = -ENOENT;
+			goto error_out;
+		}
+		/* Lower 4 bytes of reg_value contains logical cpu id */
+		cpu = reg_entry->reg_value & FADUMP_CPU_ID_MASK;
+		if (!cpumask_test_cpu(cpu, &fdh->cpu_online_mask)) {
+			SKIP_TO_NEXT_CPU(reg_entry);
+			continue;
+		}
+		pr_debug("Reading register data for cpu %d...\n", cpu);
+		if (fdh && fdh->crashing_cpu == cpu) {
+			regs = fdh->regs;
+			note_buf = fadump_regs_to_elf_notes(note_buf, &regs);
+			SKIP_TO_NEXT_CPU(reg_entry);
+		} else {
+			reg_entry++;
+			reg_entry = fadump_read_registers(reg_entry, &regs);
+			note_buf = fadump_regs_to_elf_notes(note_buf, &regs);
+		}
+	}
+	fadump_final_note(note_buf);
+
+	pr_debug("Updating elfcore header (%llx) with cpu notes\n",
+							fdh->elfcorehdr_addr);
+	fadump_update_elfcore_header((char *)__va(fdh->elfcorehdr_addr));
+	return 0;
+
+error_out:
+	fadump_cpu_notes_buf_free((unsigned long)__va(fw_dump.cpu_notes_buf),
+					fw_dump.cpu_notes_buf_size);
+	fw_dump.cpu_notes_buf = 0;
+	fw_dump.cpu_notes_buf_size = 0;
+	return rc;
+
+}
+
 /*
  * Validate and process the dump data stored by firmware before exporting
  * it through '/proc/vmcore'.
@@ -400,18 +680,21 @@ static void register_fw_dump(struct fadump_mem_struct *fdm)
 static int __init process_fadump(const struct fadump_mem_struct *fdm_active)
 {
 	struct fadump_crash_info_header *fdh;
+	int rc = 0;
 
 	if (!fdm_active || !fw_dump.fadumphdr_addr)
 		return -EINVAL;
 
 	/* Check if the dump data is valid. */
 	if ((fdm_active->header.dump_status_flag == FADUMP_ERROR_FLAG) ||
+			(fdm_active->cpu_state_data.error_flags != 0) ||
 			(fdm_active->rmr_region.error_flags != 0)) {
 		printk(KERN_ERR "Dump taken by platform is not valid\n");
 		return -EINVAL;
 	}
-	if (fdm_active->rmr_region.bytes_dumped !=
-			fdm_active->rmr_region.source_len) {
+	if ((fdm_active->rmr_region.bytes_dumped !=
+			fdm_active->rmr_region.source_len) ||
+			!fdm_active->cpu_state_data.bytes_dumped) {
 		printk(KERN_ERR "Dump taken by platform is incomplete\n");
 		return -EINVAL;
 	}
@@ -422,6 +705,10 @@ static int __init process_fadump(const struct fadump_mem_struct *fdm_active)
 		printk(KERN_ERR "Crash info header is not valid.\n");
 		return -EINVAL;
 	}
+
+	rc = fadump_build_cpu_notes(fdm_active);
+	if (rc)
+		return rc;
 
 	/*
 	 * We are done validating dump info and elfcore header is now ready
@@ -537,6 +824,27 @@ static int fadump_create_elfcore_headers(char *bufp)
 	elf = (struct elfhdr *)bufp;
 	bufp += sizeof(struct elfhdr);
 
+	/*
+	 * setup ELF PT_NOTE, place holder for cpu notes info. The notes info
+	 * will be populated during second kernel boot after crash. Hence
+	 * this PT_NOTE will always be the first elf note.
+	 *
+	 * NOTE: Any new ELF note addition should be placed after this note.
+	 */
+	phdr = (struct elf_phdr *)bufp;
+	bufp += sizeof(struct elf_phdr);
+	phdr->p_type = PT_NOTE;
+	phdr->p_flags = 0;
+	phdr->p_vaddr = 0;
+	phdr->p_align = 0;
+
+	phdr->p_offset = 0;
+	phdr->p_paddr = 0;
+	phdr->p_filesz = 0;
+	phdr->p_memsz = 0;
+
+	(elf->e_phnum)++;
+
 	/* setup PT_LOAD sections. */
 
 	for (i = 0; i < crash_mem_ranges; i++) {
@@ -588,6 +896,8 @@ static unsigned long init_fadump_header(unsigned long addr)
 	memset(fdh, 0, sizeof(struct fadump_crash_info_header));
 	fdh->magic_number = FADUMP_CRASH_INFO_MAGIC;
 	fdh->elfcorehdr_addr = addr;
+	/* We will set the crashing cpu id in crash_fadump() during crash. */
+	fdh->crashing_cpu = CPU_UNKNOWN;
 
 	return addr;
 }
