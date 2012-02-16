@@ -2585,7 +2585,7 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 {
 	struct cmd_lookup match = { NULL, hdev };
 	__le32 ev;
-	int ret;
+	int err;
 
 	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
 
@@ -2596,50 +2596,50 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 
 	ev = cpu_to_le32(get_current_settings(hdev));
 
-	ret = mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev),
+	err = mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev),
 								match.sk);
 
 	if (match.sk)
 		sock_put(match.sk);
 
-	return ret;
+	return err;
 }
 
 int mgmt_discoverable(struct hci_dev *hdev, u8 discoverable)
 {
 	struct cmd_lookup match = { NULL, hdev };
 	__le32 ev;
-	int ret;
+	int err;
 
 	mgmt_pending_foreach(MGMT_OP_SET_DISCOVERABLE, hdev, settings_rsp, &match);
 
 	ev = cpu_to_le32(get_current_settings(hdev));
 
-	ret = mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev),
+	err = mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev),
 								match.sk);
 	if (match.sk)
 		sock_put(match.sk);
 
-	return ret;
+	return err;
 }
 
 int mgmt_connectable(struct hci_dev *hdev, u8 connectable)
 {
 	__le32 ev;
 	struct cmd_lookup match = { NULL, hdev };
-	int ret;
+	int err;
 
 	mgmt_pending_foreach(MGMT_OP_SET_CONNECTABLE, hdev, settings_rsp,
 								&match);
 
 	ev = cpu_to_le32(get_current_settings(hdev));
 
-	ret = mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev), match.sk);
+	err = mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev), match.sk);
 
 	if (match.sk)
 		sock_put(match.sk);
 
-	return ret;
+	return err;
 }
 
 int mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status)
