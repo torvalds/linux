@@ -803,7 +803,7 @@ init_ltq_etop(void)
 	int ret = platform_driver_probe(&ltq_mii_driver, ltq_etop_probe);
 
 	if (ret)
-		pr_err("ltq_etop: Error registering platfom driver!");
+		pr_err("ltq_etop: Error registering platform driver!");
 	return ret;
 }
 
