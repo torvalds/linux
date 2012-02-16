@@ -2445,7 +2445,7 @@ static const int bclk_divs[] = {
 };
 
 static const int sysclk_rates[] = {
-	64, 128, 192, 256, 384, 512, 768, 1024, 1408, 1536,
+	64, 128, 192, 256, 384, 512, 768, 1024, 1408, 1536, 3072, 6144
 };
 
 static void wm8962_configure_bclk(struct snd_soc_codec *codec)
