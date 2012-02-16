@@ -1497,6 +1497,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	struct buffer_head *bh = NULL;
 	struct fileEntry *fe;
 	struct extendedFileEntry *efe;
+	uint64_t lb_recorded;
 	uint32_t udfperms;
 	uint16_t icbflags;
 	uint16_t crclen;
@@ -1591,13 +1592,18 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 		dsea->minorDeviceIdent = cpu_to_le32(iminor(inode));
 	}
 
+	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
+		lb_recorded = 0; /* No extents => no blocks! */
+	else
+		lb_recorded =
+			(inode->i_blocks + (1 << (blocksize_bits - 9)) - 1) >>
+			(blocksize_bits - 9);
+
 	if (iinfo->i_efe == 0) {
 		memcpy(bh->b_data + sizeof(struct fileEntry),
 		       iinfo->i_ext.i_data,
 		       inode->i_sb->s_blocksize - sizeof(struct fileEntry));
-		fe->logicalBlocksRecorded = cpu_to_le64(
-			(inode->i_blocks + (1 << (blocksize_bits - 9)) - 1) >>
-			(blocksize_bits - 9));
+		fe->logicalBlocksRecorded = cpu_to_le64(lb_recorded);
 
 		udf_time_to_disk_stamp(&fe->accessTime, inode->i_atime);
 		udf_time_to_disk_stamp(&fe->modificationTime, inode->i_mtime);
@@ -1618,9 +1624,7 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 		       inode->i_sb->s_blocksize -
 					sizeof(struct extendedFileEntry));
 		efe->objectSize = cpu_to_le64(inode->i_size);
-		efe->logicalBlocksRecorded = cpu_to_le64(
-			(inode->i_blocks + (1 << (blocksize_bits - 9)) - 1) >>
-			(blocksize_bits - 9));
+		efe->logicalBlocksRecorded = cpu_to_le64(lb_recorded);
 
 		if (iinfo->i_crtime.tv_sec > inode->i_atime.tv_sec ||
 		    (iinfo->i_crtime.tv_sec == inode->i_atime.tv_sec &&
