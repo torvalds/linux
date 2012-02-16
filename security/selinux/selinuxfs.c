@@ -496,6 +496,7 @@ static const struct file_operations sel_policy_ops = {
 	.read		= sel_read_policy,
 	.mmap		= sel_mmap_policy,
 	.release	= sel_release_policy,
+	.llseek		= generic_file_llseek,
 };
 
 static ssize_t sel_write_load(struct file *file, const char __user *buf,
