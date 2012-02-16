@@ -259,7 +259,6 @@ static inline void fpu_save_init(struct fpu *fpu)
 static inline void __save_init_fpu(struct task_struct *tsk)
 {
 	fpu_save_init(&tsk->thread.fpu);
-	task_thread_info(tsk)->status &= ~TS_USEDFPU;
 }
 
 static inline int fpu_fxrstor_checking(struct fpu *fpu)
@@ -290,6 +289,7 @@ static inline void __unlazy_fpu(struct task_struct *tsk)
 {
 	if (task_thread_info(tsk)->status & TS_USEDFPU) {
 		__save_init_fpu(tsk);
+		task_thread_info(tsk)->status &= ~TS_USEDFPU;
 		stts();
 	} else
 		tsk->fpu_counter = 0;
@@ -356,9 +356,11 @@ static inline void kernel_fpu_begin(void)
 
 	WARN_ON_ONCE(!irq_fpu_usable());
 	preempt_disable();
-	if (me->status & TS_USEDFPU)
+	if (me->status & TS_USEDFPU) {
 		__save_init_fpu(me->task);
-	else
+		me->status &= ~TS_USEDFPU;
+		/* We do 'stts()' in kernel_fpu_end() */
+	} else
 		clts();
 }
 
@@ -449,6 +451,7 @@ static inline void save_init_fpu(struct task_struct *tsk)
 	WARN_ON_ONCE(!(task_thread_info(tsk)->status & TS_USEDFPU));
 	preempt_disable();
 	__save_init_fpu(tsk);
+	task_thread_info(tsk)->status &= ~TS_USEDFPU;
 	stts();
 	preempt_enable();
 }
