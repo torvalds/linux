@@ -2707,8 +2707,8 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_put_pin_switch);
  *
  * Returns 0 for success else error.
  */
-int snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
-	const struct snd_soc_dapm_widget *widget)
+static int snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
+				    const struct snd_soc_dapm_widget *widget)
 {
 	struct snd_soc_dapm_widget *w;
 	size_t name_len;
@@ -2798,7 +2798,6 @@ int snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 	w->connected = 1;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_soc_dapm_new_control);
 
 /**
  * snd_soc_dapm_new_controls - create new dapm controls
