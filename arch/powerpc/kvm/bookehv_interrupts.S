@@ -358,6 +358,7 @@ _GLOBAL(kvmppc_resume_host)
 	mtspr	SPRN_MAS4, r6
 	stw	r5, VCPU_SHARED_MAS7_3+0(r11)
 	mtspr	SPRN_MAS6, r8
+	/* Enable MAS register updates via exception */
 	mfspr	r3, SPRN_EPCR
 	rlwinm	r3, r3, 0, ~SPRN_EPCR_DMIUH
 	mtspr	SPRN_EPCR, r3
@@ -515,6 +516,11 @@ lightweight_exit:
 	mtspr	SPRN_PID, r3
 
 	PPC_LL	r11, VCPU_SHARED(r4)
+	/* Disable MAS register updates via exception */
+	mfspr	r3, SPRN_EPCR
+	oris	r3, r3, SPRN_EPCR_DMIUH@h
+	mtspr	SPRN_EPCR, r3
+	isync
 	/* Save host mas4 and mas6 and load guest MAS registers */
 	mfspr	r3, SPRN_MAS4
 	stw	r3, VCPU_HOST_MAS4(r4)
@@ -538,10 +544,6 @@ lightweight_exit:
 	lwz	r5, VCPU_SHARED_MAS7_3+0(r11)
 	mtspr	SPRN_MAS6, r3
 	mtspr	SPRN_MAS7, r5
-	/* Disable MAS register updates via exception */
-	mfspr	r3, SPRN_EPCR
-	oris	r3, r3, SPRN_EPCR_DMIUH@h
-	mtspr	SPRN_EPCR, r3
 
 	/*
 	 * Host interrupt handlers may have clobbered these guest-readable
