@@ -81,7 +81,7 @@ static inline unsigned int aa_dfa_null_transition(struct aa_dfa *dfa,
 						  unsigned int start)
 {
 	/* the null transition only needs the string's null terminator byte */
-	return aa_dfa_match_len(dfa, start, "", 1);
+	return aa_dfa_next(dfa, start, 0);
 }
 
 static inline bool mediated_filesystem(struct inode *inode)
