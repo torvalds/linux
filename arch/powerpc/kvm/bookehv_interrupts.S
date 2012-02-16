@@ -35,9 +35,6 @@
 #define GET_VCPU(vcpu, thread)	\
 	PPC_LL	vcpu, THREAD_KVM_VCPU(thread)
 
-#define SET_VCPU(vcpu)		\
-        PPC_STL	vcpu, (THREAD + THREAD_KVM_VCPU)(r2)
-
 #define LONGBYTES		(BITS_PER_LONG / 8)
 
 #define VCPU_GPR(n)     	(VCPU_GPRS + (n * LONGBYTES))
@@ -516,11 +513,6 @@ lightweight_exit:
 	stw	r3, VCPU_HOST_PID(r4)
 	lwz	r3, VCPU_GUEST_PID(r4)
 	mtspr	SPRN_PID, r3
-
-	/* Save vcpu pointer for the exception handlers
-	 * must be done before loading guest r2.
-	 */
-//	SET_VCPU(r4)
 
 	PPC_LL	r11, VCPU_SHARED(r4)
 	/* Save host mas4 and mas6 and load guest MAS registers */
