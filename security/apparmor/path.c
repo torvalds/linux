@@ -83,21 +83,18 @@ static int d_namespace_path(struct path *path, char *buf, int buflen,
 		struct path root;
 		get_fs_root(current->fs, &root);
 		res = __d_path(path, &root, buf, buflen);
-		if (res && !IS_ERR(res)) {
-			/* everything's fine */
-			*name = res;
-			path_put(&root);
-			goto ok;
-		}
 		path_put(&root);
-		connected = 0;
-	} else
+	} else {
 		res = d_absolute_path(path, buf, buflen);
+		if (!our_mnt(path->mnt))
+			connected = 0;
+	}
 
 	/* handle error conditions - and still allow a partial path to
 	 * be returned.
 	 */
-	if (IS_ERR(res)) {
+	if (!res || IS_ERR(res)) {
+		connected = 0;
 		res = dentry_path_raw(path->dentry, buf, buflen);
 		if (IS_ERR(res)) {
 			error = PTR_ERR(res);
@@ -109,7 +106,6 @@ static int d_namespace_path(struct path *path, char *buf, int buflen,
 
 	*name = res;
 
-ok:
 	/* Handle two cases:
 	 * 1. A deleted dentry && profile is not allowing mediation of deleted
 	 * 2. On some filesystems, newly allocated dentries appear to the
