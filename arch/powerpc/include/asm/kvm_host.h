@@ -386,6 +386,7 @@ struct kvm_vcpu_arch {
 #endif
 	u32 vrsave; /* also USPRG0 */
 	u32 mmucr;
+	/* shadow_msr is unused for BookE HV */
 	ulong shadow_msr;
 	ulong csrr0;
 	ulong csrr1;
