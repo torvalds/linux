@@ -3694,6 +3694,68 @@ int pci_is_reassigndev(struct pci_dev *dev)
 	return (pci_specified_resource_alignment(dev) != 0);
 }
 
+/*
+ * This function disables memory decoding and releases memory resources
+ * of the device specified by kernel's boot parameter 'pci=resource_alignment='.
+ * It also rounds up size to specified alignment.
+ * Later on, the kernel will assign page-aligned memory resource back
+ * to the device.
+ */
+void pci_reassigndev_resource_alignment(struct pci_dev *dev)
+{
+	int i;
+	struct resource *r;
+	resource_size_t align, size;
+	u16 command;
+
+	if (!pci_is_reassigndev(dev))
+		return;
+
+	if (dev->hdr_type == PCI_HEADER_TYPE_NORMAL &&
+	    (dev->class >> 8) == PCI_CLASS_BRIDGE_HOST) {
+		dev_warn(&dev->dev,
+			"Can't reassign resources to host bridge.\n");
+		return;
+	}
+
+	dev_info(&dev->dev,
+		"Disabling memory decoding and releasing memory resources.\n");
+	pci_read_config_word(dev, PCI_COMMAND, &command);
+	command &= ~PCI_COMMAND_MEMORY;
+	pci_write_config_word(dev, PCI_COMMAND, command);
+
+	align = pci_specified_resource_alignment(dev);
+	for (i = 0; i < PCI_BRIDGE_RESOURCES; i++) {
+		r = &dev->resource[i];
+		if (!(r->flags & IORESOURCE_MEM))
+			continue;
+		size = resource_size(r);
+		if (size < align) {
+			size = align;
+			dev_info(&dev->dev,
+				"Rounding up size of resource #%d to %#llx.\n",
+				i, (unsigned long long)size);
+		}
+		r->end = size - 1;
+		r->start = 0;
+	}
+	/* Need to disable bridge's resource window,
+	 * to enable the kernel to reassign new resource
+	 * window later on.
+	 */
+	if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE &&
+	    (dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
+		for (i = PCI_BRIDGE_RESOURCES; i < PCI_NUM_RESOURCES; i++) {
+			r = &dev->resource[i];
+			if (!(r->flags & IORESOURCE_MEM))
+				continue;
+			r->end = resource_size(r) - 1;
+			r->start = 0;
+		}
+		pci_disable_bridge_window(dev);
+	}
+}
+
 ssize_t pci_set_resource_alignment_param(const char *buf, size_t count)
 {
 	if (count > RESOURCE_ALIGNMENT_PARAM_SIZE - 1)

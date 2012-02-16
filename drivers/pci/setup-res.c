@@ -114,7 +114,6 @@ int pci_claim_resource(struct pci_dev *dev, int resource)
 }
 EXPORT_SYMBOL(pci_claim_resource);
 
-#ifdef CONFIG_PCI_QUIRKS
 void pci_disable_bridge_window(struct pci_dev *dev)
 {
 	dev_info(&dev->dev, "disabling bridge mem windows\n");
@@ -127,9 +126,6 @@ void pci_disable_bridge_window(struct pci_dev *dev)
 	pci_write_config_dword(dev, PCI_PREF_MEMORY_BASE, 0x0000fff0);
 	pci_write_config_dword(dev, PCI_PREF_BASE_UPPER32, 0xffffffff);
 }
-#endif	/* CONFIG_PCI_QUIRKS */
-
-
 
 static int __pci_assign_resource(struct pci_bus *bus, struct pci_dev *dev,
 		int resno, resource_size_t size, resource_size_t align)
