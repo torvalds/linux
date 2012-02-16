@@ -80,6 +80,8 @@ enum {
 	ALC_AUTOMUTE_MIXER,	/* mute/unmute mixer widget AMP */
 };
 
+#define MAX_VOL_NIDS	0x40
+
 struct alc_spec {
 	/* codec parameterization */
 	const struct snd_kcontrol_new *mixers[5];	/* mixer arrays */
@@ -118,8 +120,8 @@ struct alc_spec {
 	const hda_nid_t *capsrc_nids;
 	hda_nid_t dig_in_nid;		/* digital-in NID; optional */
 	hda_nid_t mixer_nid;		/* analog-mixer NID */
-	DECLARE_BITMAP(vol_ctls, 0x20 << 1);
-	DECLARE_BITMAP(sw_ctls, 0x20 << 1);
+	DECLARE_BITMAP(vol_ctls, MAX_VOL_NIDS << 1);
+	DECLARE_BITMAP(sw_ctls, MAX_VOL_NIDS << 1);
 
 	/* capture setup for dynamic dual-adc switch */
 	hda_nid_t cur_adc;
@@ -3149,7 +3151,10 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 static inline unsigned int get_ctl_pos(unsigned int data)
 {
 	hda_nid_t nid = get_amp_nid_(data);
-	unsigned int dir = get_amp_direction_(data);
+	unsigned int dir;
+	if (snd_BUG_ON(nid >= MAX_VOL_NIDS))
+		return 0;
+	dir = get_amp_direction_(data);
 	return (nid << 1) | dir;
 }
 
