@@ -3611,12 +3611,15 @@ static int may_commit_transaction(struct btrfs_root *root,
 	if (space_info != delayed_rsv->space_info)
 		return -ENOSPC;
 
+	spin_lock(&space_info->lock);
 	spin_lock(&delayed_rsv->lock);
-	if (delayed_rsv->size < bytes) {
+	if (space_info->bytes_pinned + delayed_rsv->size < bytes) {
 		spin_unlock(&delayed_rsv->lock);
+		spin_unlock(&space_info->lock);
 		return -ENOSPC;
 	}
 	spin_unlock(&delayed_rsv->lock);
+	spin_unlock(&space_info->lock);
 
 commit:
 	trans = btrfs_join_transaction(root);
