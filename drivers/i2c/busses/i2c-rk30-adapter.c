@@ -145,8 +145,8 @@ static inline void rk30_i2c_send_stop(struct rk30_i2c *i2c)
     writel(p, i2c->regs + I2C_CON);
 
 }
-/* SCL Divisor = CLKDIVL + CLKDIVH
- * SCL = i2c_rate/ 8*SCLK Divisor
+/* SCL Divisor = 8 * (CLKDIVL + CLKDIVH)
+ * SCL = i2c_rate/ SCLK Divisor
 */
 static void  rk30_i2c_set_clk(struct rk30_i2c *i2c, unsigned long scl_rate)
 {
@@ -160,6 +160,7 @@ static void  rk30_i2c_set_clk(struct rk30_i2c *i2c, unsigned long scl_rate)
     i2c->scl_rate = scl_rate;
     div = rk30_ceil(i2c_rate, scl_rate * 8);
     divh = divl = rk30_ceil(div, 2);
+    i2c_dbg(i2c->dev, "div divh divl: %d %d %d\n", div, divh, divl);
     writel(I2C_CLKDIV_VAL(divl, divh), i2c->regs + I2C_CLKDIV);
     return;
 }
@@ -260,7 +261,6 @@ static void rk30_i2c_irq_nextblock(struct rk30_i2c *i2c, unsigned int ipd)
         if(!(ipd & I2C_STARTIPD)){
             if(ipd & I2C_STOPIPD){
                 writel(I2C_STOPIPD, i2c->regs + I2C_IPD);
-                rk30_i2c_send_start(i2c);
             }
             else {
                 rk30_i2c_stop(i2c, -ENXIO);
@@ -296,8 +296,9 @@ prepare_read:
         rk30_irq_read_prepare(i2c);
         break;
     case STATE_STOP:
-        if(ipd & I2C_STOPIPD || i2c->msg_idx  < 0){
+        if(ipd & I2C_STOPIPD){
             writel(0xff, i2c->regs + I2C_IPD);
+            i2c->state = STATE_IDLE;
 	        rk30_i2c_disable_irq(i2c);
 	        wake_up(&i2c->wait);
         }
@@ -432,16 +433,15 @@ static int rk30_i2c_doxfer(struct rk30_i2c *i2c,
 	if (timeout == 0){
         dev_err(i2c->dev, "addr[0x%02x] wait event timeout, state = %d\n", msgs[0].addr, i2c->state);  
         rk30_show_regs(i2c);
+        writel(0xff, i2c->regs + I2C_IPD);
+	    rk30_i2c_disable_irq(i2c);
         rk30_i2c_send_stop(i2c);
         if(ret >= 0)
             ret = -ETIMEDOUT;
-        goto out;
+        return ret;
     }
     if(ret > 0)
         ret = num;
- out:
-    writel(0xff, i2c->regs + I2C_IPD);
-	rk30_i2c_disable_irq(i2c);
 	return ret;
 }
 
