@@ -693,18 +693,30 @@ static int g2d_probe(struct platform_device *pdev)
 		goto unmap_regs;
 	}
 
+	ret = clk_prepare(dev->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare g2d clock\n");
+		goto put_clk;
+	}
+
 	dev->gate = clk_get(&pdev->dev, "fimg2d");
 	if (IS_ERR_OR_NULL(dev->gate)) {
 		dev_err(&pdev->dev, "failed to get g2d clock gate\n");
 		ret = -ENXIO;
-		goto put_clk;
+		goto unprep_clk;
+	}
+
+	ret = clk_prepare(dev->gate);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare g2d clock gate\n");
+		goto put_clk_gate;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "failed to find IRQ\n");
 		ret = -ENXIO;
-		goto put_clk_gate;
+		goto unprep_clk_gate;
 	}
 
 	dev->irq = res->start;
@@ -764,8 +776,12 @@ alloc_ctx_cleanup:
 	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
 rel_irq:
 	free_irq(dev->irq, dev);
+unprep_clk_gate:
+	clk_unprepare(dev->gate);
 put_clk_gate:
 	clk_put(dev->gate);
+unprep_clk:
+	clk_unprepare(dev->clk);
 put_clk:
 	clk_put(dev->clk);
 unmap_regs:
@@ -787,7 +803,9 @@ static int g2d_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&dev->v4l2_dev);
 	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
 	free_irq(dev->irq, dev);
+	clk_unprepare(dev->gate);
 	clk_put(dev->gate);
+	clk_unprepare(dev->clk);
 	clk_put(dev->clk);
 	iounmap(dev->regs);
 	release_resource(dev->res_regs);
