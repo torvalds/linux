@@ -2823,17 +2823,27 @@ int snd_soc_dapm_new_controls(struct snd_soc_dapm_context *dapm,
 EXPORT_SYMBOL_GPL(snd_soc_dapm_new_controls);
 
 static void soc_dapm_stream_event(struct snd_soc_dapm_context *dapm,
-	const char *stream, int event)
+				  int stream, struct snd_soc_dai *dai,
+				  int event)
 {
 	struct snd_soc_dapm_widget *w;
+	const char *stream_name;
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+		stream_name = dai->driver->playback.stream_name;
+	else
+		stream_name = dai->driver->capture.stream_name;
+
+	if (!stream_name)
+		return;
 
 	list_for_each_entry(w, &dapm->card->widgets, list)
 	{
 		if (!w->sname || w->dapm != dapm)
 			continue;
 		dev_vdbg(w->dapm->dev, "widget %s\n %s stream %s event %d\n",
-			w->name, w->sname, stream, event);
-		if (strstr(w->sname, stream)) {
+			w->name, w->sname, stream_name, event);
+		if (strstr(w->sname, stream_name)) {
 			dapm_mark_dirty(w, "stream event");
 			switch(event) {
 			case SND_SOC_DAPM_STREAM_START:
@@ -2865,16 +2875,13 @@ static void soc_dapm_stream_event(struct snd_soc_dapm_context *dapm,
  *
  * Returns 0 for success else error.
  */
-int snd_soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd,
-	const char *stream, int event)
+int snd_soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd, int stream,
+			      struct snd_soc_dai *dai, int event)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 
-	if (stream == NULL)
-		return 0;
-
 	mutex_lock(&codec->mutex);
-	soc_dapm_stream_event(&codec->dapm, stream, event);
+	soc_dapm_stream_event(&codec->dapm, stream, dai, event);
 	mutex_unlock(&codec->mutex);
 	return 0;
 }
