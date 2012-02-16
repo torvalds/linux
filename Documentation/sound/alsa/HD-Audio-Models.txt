@@ -30,7 +30,6 @@ ALC880
 ALC260
 ======
   fujitsu	Fujitsu S7020
-  replacer	Replacer 672V
   favorit100	Maxdata Favorit 100XS
   basic		fixed pin assignment (old default model)
   test		for testing/debugging purpose, almost all controls can

@@ -8,7 +8,6 @@ enum {
 	ALC260_AUTO,
 	ALC260_BASIC,
 	ALC260_FUJITSU_S702X,
-	ALC260_REPLACER_672V,
 	ALC260_FAVORIT100,
 #ifdef CONFIG_SND_DEBUG
 	ALC260_TEST,
@@ -189,23 +188,6 @@ static const struct snd_kcontrol_new alc260_favorit100_mixer[] = {
 	HDA_CODEC_VOLUME("Line/Mic Playback Volume", 0x07, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Line/Mic Playback Switch", 0x07, 0x0, HDA_INPUT),
 	ALC_PIN_MODE("Line/Mic Jack Mode", 0x12, ALC_PIN_DIR_IN),
-	{ } /* end */
-};
-
-/* Replacer 672V ALC260 pin usage: Mic jack = 0x12,
- * Line In jack = 0x14, ATAPI Mic = 0x13, speaker = 0x0f.
- */
-static const struct snd_kcontrol_new alc260_replacer_672v_mixer[] = {
-	HDA_CODEC_VOLUME("Master Playback Volume", 0x08, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Master Playback Switch", 0x08, 0x2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x07, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x07, 0x0, HDA_INPUT),
-	ALC_PIN_MODE("Mic Jack Mode", 0x12, ALC_PIN_DIR_IN),
-	HDA_CODEC_VOLUME("ATAPI Mic Playback Volume", 0x07, 0x1, HDA_INPUT),
-	HDA_CODEC_MUTE("ATATI Mic Playback Switch", 0x07, 0x1, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x07, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x07, 0x02, HDA_INPUT),
-	ALC_PIN_MODE("Line Jack Mode", 0x14, ALC_PIN_DIR_INOUT),
 	{ } /* end */
 };
 
@@ -441,48 +423,6 @@ static const struct hda_verb alc260_favorit100_init_verbs[] = {
 	{ }
 };
 
-static const struct hda_verb alc260_replacer_672v_verbs[] = {
-	{0x0f, AC_VERB_SET_EAPD_BTLENABLE, 0x02},
-	{0x1a, AC_VERB_SET_COEF_INDEX, 0x07},
-	{0x1a, AC_VERB_SET_PROC_COEF, 0x3050},
-
-	{0x01, AC_VERB_SET_GPIO_MASK, 0x01},
-	{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x01},
-	{0x01, AC_VERB_SET_GPIO_DATA, 0x00},
-
-	{0x0f, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{}
-};
-
-/* toggle speaker-output according to the hp-jack state */
-static void alc260_replacer_672v_automute(struct hda_codec *codec)
-{
-        unsigned int present;
-
-	/* speaker --> GPIO Data 0, hp or spdif --> GPIO data 1 */
-	present = snd_hda_jack_detect(codec, 0x0f);
-	if (present) {
-		snd_hda_codec_write_cache(codec, 0x01, 0,
-					  AC_VERB_SET_GPIO_DATA, 1);
-		snd_hda_codec_write_cache(codec, 0x0f, 0,
-					  AC_VERB_SET_PIN_WIDGET_CONTROL,
-					  PIN_HP);
-	} else {
-		snd_hda_codec_write_cache(codec, 0x01, 0,
-					  AC_VERB_SET_GPIO_DATA, 0);
-		snd_hda_codec_write_cache(codec, 0x0f, 0,
-					  AC_VERB_SET_PIN_WIDGET_CONTROL,
-					  PIN_OUT);
-	}
-}
-
-static void alc260_replacer_672v_unsol_event(struct hda_codec *codec,
-                                       unsigned int res)
-{
-        if ((res >> 26) == ALC_HP_EVENT)
-                alc260_replacer_672v_automute(codec);
-}
-
 static const struct hda_verb alc260_hp_dc7600_verbs[] = {
 	{0x05, AC_VERB_SET_CONNECT_SEL, 0x01},
 	{0x15, AC_VERB_SET_CONNECT_SEL, 0x01},
@@ -691,7 +631,6 @@ static const struct hda_verb alc260_test_init_verbs[] = {
 static const char * const alc260_models[ALC260_MODEL_LAST] = {
 	[ALC260_BASIC]		= "basic",
 	[ALC260_FUJITSU_S702X]	= "fujitsu",
-	[ALC260_REPLACER_672V]	= "replacer",
 	[ALC260_FAVORIT100]	= "favorit100",
 #ifdef CONFIG_SND_DEBUG
 	[ALC260_TEST]		= "test",
@@ -706,7 +645,6 @@ static const struct snd_pci_quirk alc260_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x104d, 0x81cd, "Sony VAIO", ALC260_BASIC),
 	SND_PCI_QUIRK(0x10cf, 0x1326, "Fujitsu S702X", ALC260_FUJITSU_S702X),
 	SND_PCI_QUIRK(0x152d, 0x0729, "CTL U553W", ALC260_BASIC),
-	SND_PCI_QUIRK(0x161f, 0x2057, "Replacer 672V", ALC260_REPLACER_672V),
 	{}
 };
 
@@ -746,20 +684,6 @@ static const struct alc_config_preset alc260_presets[] = {
 		.channel_mode = alc260_modes,
 		.num_mux_defs = ARRAY_SIZE(alc260_favorit100_capture_sources),
 		.input_mux = alc260_favorit100_capture_sources,
-	},
-	[ALC260_REPLACER_672V] = {
-		.mixers = { alc260_replacer_672v_mixer },
-		.init_verbs = { alc260_init_verbs, alc260_replacer_672v_verbs },
-		.num_dacs = ARRAY_SIZE(alc260_dac_nids),
-		.dac_nids = alc260_dac_nids,
-		.num_adc_nids = ARRAY_SIZE(alc260_adc_nids),
-		.adc_nids = alc260_adc_nids,
-		.dig_out_nid = ALC260_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc260_modes),
-		.channel_mode = alc260_modes,
-		.input_mux = &alc260_capture_source,
-		.unsol_event = alc260_replacer_672v_unsol_event,
-		.init_hook = alc260_replacer_672v_automute,
 	},
 #ifdef CONFIG_SND_DEBUG
 	[ALC260_TEST] = {

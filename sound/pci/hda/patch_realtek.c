@@ -4211,7 +4211,34 @@ enum {
 	ALC260_FIXUP_HP_PIN_0F,
 	ALC260_FIXUP_COEF,
 	ALC260_FIXUP_GPIO1,
+	ALC260_FIXUP_GPIO1_TOGGLE,
+	ALC260_FIXUP_REPLACER,
 };
+
+static void alc260_gpio1_automute(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA,
+			    spec->hp_jack_present);
+}
+
+static void alc260_fixup_gpio1_toggle(struct hda_codec *codec,
+				      const struct alc_fixup *fix, int action)
+{
+	struct alc_spec *spec = codec->spec;
+	if (action == ALC_FIXUP_ACT_PROBE) {
+		/* although the machine has only one output pin, we need to
+		 * toggle GPIO1 according to the jack state
+		 */
+		spec->automute_hook = alc260_gpio1_automute;
+		spec->detect_hp = 1;
+		spec->automute_speaker = 1;
+		spec->autocfg.hp_pins[0] = 0x0f; /* copy it for automute */
+		snd_hda_jack_detect_enable(codec, 0x0f, ALC_HP_EVENT);
+		spec->unsol_event = alc_sku_unsol_event;
+		add_verb(codec->spec, alc_gpio1_init_verbs);
+	}
+}
 
 static const struct alc_fixup alc260_fixups[] = {
 	[ALC260_FIXUP_HP_DC5750] = {
@@ -4242,6 +4269,22 @@ static const struct alc_fixup alc260_fixups[] = {
 		.type = ALC_FIXUP_VERBS,
 		.v.verbs = alc_gpio1_init_verbs,
 	},
+	[ALC260_FIXUP_GPIO1_TOGGLE] = {
+		.type = ALC_FIXUP_FUNC,
+		.v.func = alc260_fixup_gpio1_toggle,
+		.chained = true,
+		.chain_id = ALC260_FIXUP_HP_PIN_0F,
+	},
+	[ALC260_FIXUP_REPLACER] = {
+		.type = ALC_FIXUP_VERBS,
+		.v.verbs = (const struct hda_verb[]) {
+			{ 0x20, AC_VERB_SET_COEF_INDEX, 0x07 },
+			{ 0x20, AC_VERB_SET_PROC_COEF,  0x3050 },
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC260_FIXUP_GPIO1_TOGGLE,
+	},
 };
 
 static const struct snd_pci_quirk alc260_fixup_tbl[] = {
@@ -4249,6 +4292,7 @@ static const struct snd_pci_quirk alc260_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x007f, "Acer Aspire 9500", ALC260_FIXUP_COEF),
 	SND_PCI_QUIRK(0x1025, 0x008f, "Acer", ALC260_FIXUP_GPIO1),
 	SND_PCI_QUIRK(0x103c, 0x280a, "HP dc5750", ALC260_FIXUP_HP_DC5750),
+	SND_PCI_QUIRK(0x161f, 0x2057, "Replacer 672V", ALC260_FIXUP_REPLACER),
 	SND_PCI_QUIRK(0x1631, 0xc017, "PB V7900", ALC260_FIXUP_COEF),
 	{}
 };
