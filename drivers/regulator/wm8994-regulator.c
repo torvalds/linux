@@ -21,6 +21,7 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 
+#include <linux/delay.h>
 #include <linux/mfd/wm8994/core.h>
 #include <linux/mfd/wm8994/registers.h>
 #include <linux/mfd/wm8994/pdata.h>
@@ -258,6 +259,7 @@ static __devinit int wm8994_ldo_probe(struct platform_device *pdev)
 				ret);
 			goto err_gpio;
 		}
+		msleep(50);
 	} else
 		ldo->is_enabled = true;
 
