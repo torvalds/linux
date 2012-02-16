@@ -55,6 +55,7 @@
 #include <asm/phyp_dump.h>
 #include <asm/kexec.h>
 #include <asm/opal.h>
+#include <asm/fadump.h>
 
 #include <mm/mmu_decl.h>
 
@@ -719,6 +720,11 @@ void __init early_init_devtree(void *params)
 	of_scan_flat_dt(early_init_dt_scan_phyp_dump, NULL);
 #endif
 
+#ifdef CONFIG_FA_DUMP
+	/* scan tree to see if dump is active during last boot */
+	of_scan_flat_dt(early_init_dt_scan_fw_dump, NULL);
+#endif
+
 	/* Pre-initialize the cmd_line with the content of boot_commmand_line,
 	 * which will be empty except when the content of the variable has
 	 * been overriden by a bootloading mechanism. This happens typically
@@ -750,7 +756,14 @@ void __init early_init_devtree(void *params)
 	if (PHYSICAL_START > MEMORY_START)
 		memblock_reserve(MEMORY_START, 0x8000);
 	reserve_kdump_trampoline();
-	reserve_crashkernel();
+#ifdef CONFIG_FA_DUMP
+	/*
+	 * If we fail to reserve memory for firmware-assisted dump then
+	 * fallback to kexec based kdump.
+	 */
+	if (fadump_reserve_mem() == 0)
+#endif
+		reserve_crashkernel();
 	early_reserve_mem();
 	phyp_dump_reserve_mem();
 
