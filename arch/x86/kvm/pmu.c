@@ -413,7 +413,7 @@ int kvm_pmu_read_pmc(struct kvm_vcpu *vcpu, unsigned pmc, u64 *data)
 	struct kvm_pmc *counters;
 	u64 ctr;
 
-	pmc &= (3u << 30) - 1;
+	pmc &= ~(3u << 30);
 	if (!fixed && pmc >= pmu->nr_arch_gp_counters)
 		return 1;
 	if (fixed && pmc >= pmu->nr_arch_fixed_counters)
