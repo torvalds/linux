@@ -7,7 +7,6 @@
 enum {
 	ALC260_AUTO,
 	ALC260_BASIC,
-	ALC260_FUJITSU_S702X,
 #ifdef CONFIG_SND_DEBUG
 	ALC260_TEST,
 #endif
@@ -48,33 +47,6 @@ static const struct hda_input_mux alc260_capture_source = {
 		{ "Line", 0x2 },
 		{ "CD", 0x4 },
 	},
-};
-
-/* On Fujitsu S702x laptops capture only makes sense from Mic/LineIn jack,
- * headphone jack and the internal CD lines since these are the only pins at
- * which audio can appear.  For flexibility, also allow the option of
- * recording the mixer output on the second ADC (ADC0 doesn't have a
- * connection to the mixer output).
- */
-static const struct hda_input_mux alc260_fujitsu_capture_sources[2] = {
-	{
-		.num_items = 3,
-		.items = {
-			{ "Mic/Line", 0x0 },
-			{ "CD", 0x4 },
-			{ "Headphone", 0x2 },
-		},
-	},
-	{
-		.num_items = 4,
-		.items = {
-			{ "Mic/Line", 0x0 },
-			{ "CD", 0x4 },
-			{ "Headphone", 0x2 },
-			{ "Mixer", 0x5 },
-		},
-	},
-
 };
 
 /* Acer TravelMate(/Extensa/Aspire) notebooks have similar configuration to
@@ -142,23 +114,6 @@ static const struct snd_kcontrol_new alc260_input_mixer[] = {
 	{ } /* end */
 };
 
-/* Fujitsu S702x series laptops.  ALC260 pin usage: Mic/Line jack = 0x12,
- * HP jack = 0x14, CD audio =  0x16, internal speaker = 0x10.
- */
-static const struct snd_kcontrol_new alc260_fujitsu_mixer[] = {
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x08, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Headphone Playback Switch", 0x08, 2, HDA_INPUT),
-	ALC_PIN_MODE("Headphone Jack Mode", 0x14, ALC_PIN_DIR_INOUT),
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x07, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x07, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic/Line Playback Volume", 0x07, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic/Line Playback Switch", 0x07, 0x0, HDA_INPUT),
-	ALC_PIN_MODE("Mic/Line Jack Mode", 0x12, ALC_PIN_DIR_IN),
-	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x09, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Speaker Playback Switch", 0x09, 2, HDA_INPUT),
-	{ } /* end */
-};
-
 /*
  * initialization verbs
  */
@@ -222,89 +177,6 @@ static const struct hda_verb alc260_init_verbs[] = {
 	/* mute Mono out path */
 	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{ }
-};
-
-/* Initialisation sequence for ALC260 as configured in Fujitsu S702x
- * laptops.  ALC260 pin usage: Mic/Line jack = 0x12, HP jack = 0x14, CD
- * audio = 0x16, internal speaker = 0x10.
- */
-static const struct hda_verb alc260_fujitsu_init_verbs[] = {
-	/* Disable all GPIOs */
-	{0x01, AC_VERB_SET_GPIO_MASK, 0},
-	/* Internal speaker is connected to headphone pin */
-	{0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	/* Headphone/Line-out jack connects to Line1 pin; make it an output */
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	/* Mic/Line-in jack is connected to mic1 pin, so make it an input */
-	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	/* Ensure all other unused pins are disabled and muted. */
-	{0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
-	{0x11, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
-	{0x13, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-
-	/* Disable digital (SPDIF) pins */
-	{0x03, AC_VERB_SET_DIGI_CONVERT_1, 0},
-	{0x06, AC_VERB_SET_DIGI_CONVERT_1, 0},
-
-	/* Ensure Line1 pin widget takes its input from the OUT1 sum bus
-	 * when acting as an output.
-	 */
-	{0x0d, AC_VERB_SET_CONNECT_SEL, 0},
-
-	/* Start with output sum widgets muted and their output gains at min */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-	{0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-
-	/* Unmute HP pin widget amp left and right (no equiv mixer ctrl) */
-	{0x10, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* Unmute Line1 pin widget output buffer since it starts as an output.
-	 * If the pin mode is changed by the user the pin mode control will
-	 * take care of enabling the pin's input/output buffers as needed.
-	 * Therefore there's no need to enable the input buffer at this
-	 * stage.
-	 */
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* Unmute input buffer of pin widget used for Line-in (no equiv
-	 * mixer ctrl)
-	 */
-	{0x12, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-
-	/* Mute capture amp left and right */
-	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	/* Set ADC connection select to match default mixer setting - line
-	 * in (on mic1 pin)
-	 */
-	{0x04, AC_VERB_SET_CONNECT_SEL, 0x00},
-
-	/* Do the same for the second ADC: mute capture input amp and
-	 * set ADC connection to line in (on mic1 pin)
-	 */
-	{0x05, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x05, AC_VERB_SET_CONNECT_SEL, 0x00},
-
-	/* Mute all inputs to mixer widget (even unconnected ones) */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)}, /* mic1 pin */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)}, /* mic2 pin */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)}, /* line1 pin */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)}, /* line2 pin */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)}, /* CD pin */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(5)}, /* Beep-gen pin */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(6)}, /* Line-out pin */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(7)}, /* HP-pin pin */
-
 	{ }
 };
 
@@ -515,7 +387,6 @@ static const struct hda_verb alc260_test_init_verbs[] = {
  */
 static const char * const alc260_models[ALC260_MODEL_LAST] = {
 	[ALC260_BASIC]		= "basic",
-	[ALC260_FUJITSU_S702X]	= "fujitsu",
 #ifdef CONFIG_SND_DEBUG
 	[ALC260_TEST]		= "test",
 #endif
@@ -526,7 +397,6 @@ static const struct snd_pci_quirk alc260_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x104d, 0x81bb, "Sony VAIO", ALC260_BASIC),
 	SND_PCI_QUIRK(0x104d, 0x81cc, "Sony VAIO", ALC260_BASIC),
 	SND_PCI_QUIRK(0x104d, 0x81cd, "Sony VAIO", ALC260_BASIC),
-	SND_PCI_QUIRK(0x10cf, 0x1326, "Fujitsu S702X", ALC260_FUJITSU_S702X),
 	SND_PCI_QUIRK(0x152d, 0x0729, "CTL U553W", ALC260_BASIC),
 	{}
 };
@@ -543,18 +413,6 @@ static const struct alc_config_preset alc260_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc260_modes),
 		.channel_mode = alc260_modes,
 		.input_mux = &alc260_capture_source,
-	},
-	[ALC260_FUJITSU_S702X] = {
-		.mixers = { alc260_fujitsu_mixer },
-		.init_verbs = { alc260_fujitsu_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc260_dac_nids),
-		.dac_nids = alc260_dac_nids,
-		.num_adc_nids = ARRAY_SIZE(alc260_dual_adc_nids),
-		.adc_nids = alc260_dual_adc_nids,
-		.num_channel_mode = ARRAY_SIZE(alc260_modes),
-		.channel_mode = alc260_modes,
-		.num_mux_defs = ARRAY_SIZE(alc260_fujitsu_capture_sources),
-		.input_mux = alc260_fujitsu_capture_sources,
 	},
 #ifdef CONFIG_SND_DEBUG
 	[ALC260_TEST] = {
