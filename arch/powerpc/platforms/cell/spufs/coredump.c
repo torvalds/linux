@@ -122,7 +122,7 @@ static struct spu_context *coredump_next_context(int *fd)
 	struct spu_context *ctx = NULL;
 
 	for (; *fd < fdt->max_fds; (*fd)++) {
-		if (!FD_ISSET(*fd, fdt->open_fds))
+		if (!fd_is_open(*fd, fdt))
 			continue;
 
 		file = fcheck(*fd);
