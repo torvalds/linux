@@ -145,22 +145,22 @@
 /* Bit fields */
 
 /* Global Configuration Register */
-#define DWC3_GCTL_PWRDNSCALE(n)	(n << 19)
+#define DWC3_GCTL_PWRDNSCALE(n)	((n) << 19)
 #define DWC3_GCTL_U2RSTECN	(1 << 16)
-#define DWC3_GCTL_RAMCLKSEL(x)	((x & DWC3_GCTL_CLK_MASK) << 6)
+#define DWC3_GCTL_RAMCLKSEL(x)	(((x) & DWC3_GCTL_CLK_MASK) << 6)
 #define DWC3_GCTL_CLK_BUS	(0)
 #define DWC3_GCTL_CLK_PIPE	(1)
 #define DWC3_GCTL_CLK_PIPEHALF	(2)
 #define DWC3_GCTL_CLK_MASK	(3)
 
 #define DWC3_GCTL_PRTCAP(n)	(((n) & (3 << 12)) >> 12)
-#define DWC3_GCTL_PRTCAPDIR(n)	(n << 12)
+#define DWC3_GCTL_PRTCAPDIR(n)	((n) << 12)
 #define DWC3_GCTL_PRTCAP_HOST	1
 #define DWC3_GCTL_PRTCAP_DEVICE	2
 #define DWC3_GCTL_PRTCAP_OTG	3
 
 #define DWC3_GCTL_CORESOFTRESET	(1 << 11)
-#define DWC3_GCTL_SCALEDOWN(n)	(n << 4)
+#define DWC3_GCTL_SCALEDOWN(n)	((n) << 4)
 #define DWC3_GCTL_DISSCRAMBLE	(1 << 3)
 #define DWC3_GCTL_DSBLCLKGTNG	(1 << 0)
 
@@ -177,7 +177,7 @@
 #define DWC3_GTXFIFOSIZ_TXFSTADDR(n) ((n) & 0xffff0000)
 
 /* Global HWPARAMS1 Register */
-#define DWC3_GHWPARAMS1_EN_PWROPT(n)	((n & (3 << 24)) >> 24)
+#define DWC3_GHWPARAMS1_EN_PWROPT(n)	(((n) & (3 << 24)) >> 24)
 #define DWC3_GHWPARAMS1_EN_PWROPT_NO	0
 #define DWC3_GHWPARAMS1_EN_PWROPT_CLK	1
 
@@ -273,10 +273,10 @@
 
 /* Device Endpoint Command Register */
 #define DWC3_DEPCMD_PARAM_SHIFT		16
-#define DWC3_DEPCMD_PARAM(x)		(x << DWC3_DEPCMD_PARAM_SHIFT)
-#define DWC3_DEPCMD_GET_RSC_IDX(x)	((x >> DWC3_DEPCMD_PARAM_SHIFT) & 0x7f)
+#define DWC3_DEPCMD_PARAM(x)		((x) << DWC3_DEPCMD_PARAM_SHIFT)
+#define DWC3_DEPCMD_GET_RSC_IDX(x)     (((x) >> DWC3_DEPCMD_PARAM_SHIFT) & 0x7f)
 #define DWC3_DEPCMD_STATUS_MASK		(0x0f << 12)
-#define DWC3_DEPCMD_STATUS(x)		((x & DWC3_DEPCMD_STATUS_MASK) >> 12)
+#define DWC3_DEPCMD_STATUS(x)		(((x) & DWC3_DEPCMD_STATUS_MASK) >> 12)
 #define DWC3_DEPCMD_HIPRI_FORCERM	(1 << 11)
 #define DWC3_DEPCMD_CMDACT		(1 << 10)
 #define DWC3_DEPCMD_CMDIOC		(1 << 8)
@@ -683,9 +683,9 @@ struct dwc3_event_depevt {
 #define DEPEVT_STATUS_TRANSFER_ACTIVE	(1 << 3)
 
 /* Within XferComplete */
-#define DEPEVT_STATUS_BUSERR    (1 << 0)
-#define DEPEVT_STATUS_SHORT     (1 << 1)
-#define DEPEVT_STATUS_IOC       (1 << 2)
+#define DEPEVT_STATUS_BUSERR	(1 << 0)
+#define DEPEVT_STATUS_SHORT	(1 << 1)
+#define DEPEVT_STATUS_IOC	(1 << 2)
 #define DEPEVT_STATUS_LST	(1 << 3)
 
 /* Stream event only */

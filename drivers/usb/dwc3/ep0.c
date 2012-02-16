@@ -374,7 +374,7 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 	case USB_RECIP_ENDPOINT:
 		switch (wValue) {
 		case USB_ENDPOINT_HALT:
-			dep =  dwc3_wIndex_to_dep(dwc, wIndex);
+			dep = dwc3_wIndex_to_dep(dwc, wIndex);
 			if (!dep)
 				return -EINVAL;
 			ret = __dwc3_gadget_ep_set_halt(dep, set);

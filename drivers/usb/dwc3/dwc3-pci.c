@@ -69,7 +69,7 @@ static int __devinit dwc3_pci_probe(struct pci_dev *pci,
 		return -ENOMEM;
 	}
 
-	glue->dev	= dev;
+	glue->dev = dev;
 
 	ret = pci_enable_device(pci);
 	if (ret) {
@@ -114,7 +114,7 @@ static int __devinit dwc3_pci_probe(struct pci_dev *pci,
 	dwc3->dev.dma_mask = dev->dma_mask;
 	dwc3->dev.dma_parms = dev->dma_parms;
 	dwc3->dev.parent = dev;
-	glue->dwc3	= dwc3;
+	glue->dwc3 = dwc3;
 
 	ret = platform_device_add(dwc3);
 	if (ret) {

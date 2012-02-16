@@ -167,11 +167,11 @@ static void dwc3_free_one_event_buffer(struct dwc3 *dwc,
 }
 
 /**
- * dwc3_alloc_one_event_buffer - Allocated one event buffer structure
+ * dwc3_alloc_one_event_buffer - Allocates one event buffer structure
  * @dwc: Pointer to our controller context structure
  * @length: size of the event buffer
  *
- * Returns a pointer to the allocated event buffer structure on succes
+ * Returns a pointer to the allocated event buffer structure on success
  * otherwise ERR_PTR(errno).
  */
 static struct dwc3_event_buffer *__devinit
@@ -215,10 +215,10 @@ static void dwc3_free_event_buffers(struct dwc3 *dwc)
 
 /**
  * dwc3_alloc_event_buffers - Allocates @num event buffers of size @length
- * @dwc: Pointer to out controller context structure
+ * @dwc: pointer to our controller context structure
  * @length: size of event buffer
  *
- * Returns 0 on success otherwise negative errno. In error the case, dwc
+ * Returns 0 on success otherwise negative errno. In the error case, dwc
  * may contain some buffers allocated but not all which were requested.
  */
 static int __devinit dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
@@ -251,7 +251,7 @@ static int __devinit dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
 
 /**
  * dwc3_event_buffers_setup - setup our allocated event buffers
- * @dwc: Pointer to out controller context structure
+ * @dwc: pointer to our controller context structure
  *
  * Returns 0 on success otherwise negative errno.
  */
@@ -363,9 +363,9 @@ static int __devinit dwc3_core_init(struct dwc3 *dwc)
 
 	/*
 	 * WORKAROUND: DWC3 revisions <1.90a have a bug
-	 * when The device fails to connect at SuperSpeed
+	 * where the device can fail to connect at SuperSpeed
 	 * and falls back to high-speed mode which causes
-	 * the device to enter in a Connect/Disconnect loop
+	 * the device to enter a Connect/Disconnect loop
 	 */
 	if (dwc->revision < DWC3_REVISION_190A)
 		reg |= DWC3_GCTL_U2RSTECN;
