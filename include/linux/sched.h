@@ -1234,6 +1234,12 @@ struct sched_rt_entity {
 #endif
 };
 
+/*
+ * default timeslice is 100 msecs (used only for SCHED_RR tasks).
+ * Timeslices get refilled after they expire.
+ */
+#define RR_TIMESLICE		(100 * HZ / 1000)
+
 struct rcu_node;
 
 enum perf_event_task_context {

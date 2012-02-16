@@ -1972,7 +1972,7 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p, int queued)
 	if (--p->rt.time_slice)
 		return;
 
-	p->rt.time_slice = DEF_TIMESLICE;
+	p->rt.time_slice = RR_TIMESLICE;
 
 	/*
 	 * Requeue to the end of queue if we are not the only element
@@ -2000,7 +2000,7 @@ static unsigned int get_rr_interval_rt(struct rq *rq, struct task_struct *task)
 	 * Time slice is 0 for SCHED_FIFO tasks
 	 */
 	if (task->policy == SCHED_RR)
-		return DEF_TIMESLICE;
+		return RR_TIMESLICE;
 	else
 		return 0;
 }
