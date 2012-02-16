@@ -295,7 +295,6 @@ static void dw_mci_stop_dma(struct dw_mci *host)
 	}
 }
 
-#ifdef CONFIG_MMC_DW_IDMAC
 static int dw_mci_get_dma_dir(struct mmc_data *data)
 {
 	if (data->flags & MMC_DATA_WRITE)
@@ -304,6 +303,7 @@ static int dw_mci_get_dma_dir(struct mmc_data *data)
 		return DMA_FROM_DEVICE;
 }
 
+#ifdef CONFIG_MMC_DW_IDMAC
 static void dw_mci_dma_cleanup(struct dw_mci *host)
 {
 	struct mmc_data *data = host->data;
