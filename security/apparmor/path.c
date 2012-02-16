@@ -157,7 +157,7 @@ out:
  * Returns: %0 else error on failure
  */
 static int get_name_to_buffer(struct path *path, int flags, char *buffer,
-			      int size, char **name)
+			      int size, char **name, const char **info)
 {
 	int adjust = (flags & PATH_IS_DIR) ? 1 : 0;
 	int error = d_namespace_path(path, buffer, size - adjust, name, flags);
@@ -169,15 +169,27 @@ static int get_name_to_buffer(struct path *path, int flags, char *buffer,
 		 */
 		strcpy(&buffer[size - 2], "/");
 
+	if (info && error) {
+		if (error == -ENOENT)
+			*info = "Failed name lookup - deleted entry";
+		else if (error == -ESTALE)
+			*info = "Failed name lookup - disconnected path";
+		else if (error == -ENAMETOOLONG)
+			*info = "Failed name lookup - name too long";
+		else
+			*info = "Failed name lookup";
+	}
+
 	return error;
 }
 
 /**
- * aa_get_name - compute the pathname of a file
+ * aa_path_name - compute the pathname of a file
  * @path: path the file  (NOT NULL)
  * @flags: flags controlling path name generation
  * @buffer: buffer that aa_get_name() allocated  (NOT NULL)
  * @name: Returns - the generated path name if !error (NOT NULL)
+ * @info: Returns - information on why the path lookup failed (MAYBE NULL)
  *
  * @name is a pointer to the beginning of the pathname (which usually differs
  * from the beginning of the buffer), or NULL.  If there is an error @name
@@ -190,7 +202,8 @@ static int get_name_to_buffer(struct path *path, int flags, char *buffer,
  *
  * Returns: %0 else error code if could retrieve name
  */
-int aa_get_name(struct path *path, int flags, char **buffer, const char **name)
+int aa_path_name(struct path *path, int flags, char **buffer, const char **name,
+		 const char **info)
 {
 	char *buf, *str = NULL;
 	int size = 256;
@@ -204,7 +217,7 @@ int aa_get_name(struct path *path, int flags, char **buffer, const char **name)
 		if (!buf)
 			return -ENOMEM;
 
-		error = get_name_to_buffer(path, flags, buf, size, &str);
+		error = get_name_to_buffer(path, flags, buf, size, &str, info);
 		if (error != -ENAMETOOLONG)
 			break;
 
@@ -212,6 +225,7 @@ int aa_get_name(struct path *path, int flags, char **buffer, const char **name)
 		size <<= 1;
 		if (size > aa_g_path_max)
 			return -ENAMETOOLONG;
+		*info = NULL;
 	}
 	*buffer = buf;
 	*name = str;
