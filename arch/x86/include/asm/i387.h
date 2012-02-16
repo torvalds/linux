@@ -400,6 +400,48 @@ static inline void irq_ts_restore(int TS_state)
 }
 
 /*
+ * The question "does this thread have fpu access?"
+ * is slightly racy, since preemption could come in
+ * and revoke it immediately after the test.
+ *
+ * However, even in that very unlikely scenario,
+ * we can just assume we have FPU access - typically
+ * to save the FP state - we'll just take a #NM
+ * fault and get the FPU access back.
+ *
+ * The actual user_fpu_begin/end() functions
+ * need to be preemption-safe, though.
+ *
+ * NOTE! user_fpu_end() must be used only after you
+ * have saved the FP state, and user_fpu_begin() must
+ * be used only immediately before restoring it.
+ * These functions do not do any save/restore on
+ * their own.
+ */
+static inline int user_has_fpu(void)
+{
+	return current_thread_info()->status & TS_USEDFPU;
+}
+
+static inline void user_fpu_end(void)
+{
+	preempt_disable();
+	current_thread_info()->status &= ~TS_USEDFPU;
+	stts();
+	preempt_enable();
+}
+
+static inline void user_fpu_begin(void)
+{
+	preempt_disable();
+	if (!user_has_fpu()) {
+		clts();
+		current_thread_info()->status |= TS_USEDFPU;
+	}
+	preempt_enable();
+}
+
+/*
  * These disable preemption on their own and are safe
  */
 static inline void save_init_fpu(struct task_struct *tsk)
