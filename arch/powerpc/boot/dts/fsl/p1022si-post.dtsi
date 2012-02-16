@@ -35,7 +35,11 @@
 &lbc {
 	#address-cells = <2>;
 	#size-cells = <1>;
-	compatible = "fsl,p1022-elbc", "fsl,elbc", "simple-bus";
+	/*
+	 * The localbus on the P1022 is not a simple-bus because of the eLBC
+	 * pin muxing when the DIU is enabled.
+	 */
+	compatible = "fsl,p1022-elbc", "fsl,elbc";
 	interrupts = <19 2 0 0>;
 };
 

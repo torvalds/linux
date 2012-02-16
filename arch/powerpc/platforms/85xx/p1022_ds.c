@@ -249,6 +249,49 @@ void __init p1022_ds_pic_init(void)
 	mpic_init(mpic);
 }
 
+#if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
+
+/*
+ * Disables a node in the device tree.
+ *
+ * This function is called before kmalloc() is available, so the 'new' object
+ * should be allocated in the global area.  The easiest way is to do that is
+ * to allocate one static local variable for each call to this function.
+ */
+static void __init disable_one_node(struct device_node *np, struct property *new)
+{
+	struct property *old;
+
+	old = of_find_property(np, new->name, NULL);
+	if (old)
+		prom_update_property(np, new, old);
+	else
+		prom_add_property(np, new);
+}
+
+/* TRUE if there is a "video=fslfb" command-line parameter. */
+static bool fslfb;
+
+/*
+ * Search for a "video=fslfb" command-line parameter, and set 'fslfb' to
+ * true if we find it.
+ *
+ * We need to use early_param() instead of __setup() because the normal
+ * __setup() gets called to late.  However, early_param() gets called very
+ * early, before the device tree is unflattened, so all we can do now is set a
+ * global variable.  Later on, p1022_ds_setup_arch() will use that variable
+ * to determine if we need to update the device tree.
+ */
+static int __init early_video_setup(char *options)
+{
+	fslfb = (strncmp(options, "fslfb:", 6) == 0);
+
+	return 0;
+}
+early_param("video", early_video_setup);
+
+#endif
+
 /*
  * Setup the architecture
  */
@@ -286,6 +329,34 @@ static void __init p1022_ds_setup_arch(void)
 	diu_ops.set_monitor_port	= p1022ds_set_monitor_port;
 	diu_ops.set_pixel_clock		= p1022ds_set_pixel_clock;
 	diu_ops.valid_monitor_port	= p1022ds_valid_monitor_port;
+
+	/*
+	 * Disable the NOR flash node if there is video=fslfb... command-line
+	 * parameter.  When the DIU is active, NOR flash is unavailable, so we
+	 * have to disable the node before the MTD driver loads.
+	 */
+	if (fslfb) {
+		struct device_node *np =
+			of_find_compatible_node(NULL, NULL, "fsl,p1022-elbc");
+
+		if (np) {
+			np = of_find_compatible_node(np, NULL, "cfi-flash");
+			if (np) {
+				static struct property nor_status = {
+					.name = "status",
+					.value = "disabled",
+					.length = sizeof("disabled"),
+				};
+
+				pr_info("p1022ds: disabling %s node",
+					np->full_name);
+				disable_one_node(np, &nor_status);
+				of_node_put(np);
+			}
+		}
+
+	}
+
 #endif
 
 	mpc85xx_smp_init();
