@@ -1099,13 +1099,20 @@ static void ar9003_hw_set_nf_limits(struct ath_hw *ah)
 {
 	ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9300_2GHZ;
 	ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9300_2GHZ;
-	if (AR_SREV_9330(ah))
-		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9330_2GHZ;
-	else
-		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9300_2GHZ;
+	ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9300_2GHZ;
 	ah->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_9300_5GHZ;
 	ah->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_9300_5GHZ;
 	ah->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_9300_5GHZ;
+
+	if (AR_SREV_9330(ah))
+		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9330_2GHZ;
+
+	if (AR_SREV_9462(ah)) {
+		ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9462_2GHZ;
+		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9462_2GHZ;
+		ah->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_9462_5GHZ;
+		ah->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_9462_5GHZ;
+	}
 }
 
 /*
