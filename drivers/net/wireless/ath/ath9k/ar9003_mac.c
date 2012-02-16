@@ -28,11 +28,14 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 	struct ar9003_txc *ads = ds;
 	int checksum = 0;
 	u32 val, ctl12, ctl17;
+	u8 desc_len;
+
+	desc_len = (AR_SREV_9462(ah) ? 0x18 : 0x17);
 
 	val = (ATHEROS_VENDOR_ID << AR_DescId_S) |
 	      (1 << AR_TxRxDesc_S) |
 	      (1 << AR_CtrlStat_S) |
-	      (i->qcu << AR_TxQcuNum_S) | 0x17;
+	      (i->qcu << AR_TxQcuNum_S) | desc_len;
 
 	checksum += val;
 	ACCESS_ONCE(ads->info) = val;
@@ -81,6 +84,7 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 	ads->ctl20 = 0;
 	ads->ctl21 = 0;
 	ads->ctl22 = 0;
+	ads->ctl23 = 0;
 
 	ctl17 = SM(i->keytype, AR_EncrType);
 	if (!i->is_first) {
