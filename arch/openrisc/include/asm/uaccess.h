@@ -26,7 +26,6 @@
 #include <linux/thread_info.h>
 #include <linux/prefetch.h>
 #include <linux/string.h>
-#include <linux/thread_info.h>
 #include <asm/page.h>
 
 #define VERIFY_READ	0
