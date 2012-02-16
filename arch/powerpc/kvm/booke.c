@@ -425,7 +425,7 @@ static void kvmppc_core_check_exceptions(struct kvm_vcpu *vcpu)
 	}
 
 	priority = __ffs(*pending);
-	while (priority <= BOOKE_IRQPRIO_MAX) {
+	while (priority < BOOKE_IRQPRIO_MAX) {
 		if (kvmppc_booke_irqprio_deliver(vcpu, priority))
 			break;
 
