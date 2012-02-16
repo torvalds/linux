@@ -162,7 +162,7 @@ struct sirfsoc_uart_port {
 	unsigned char			ms_enabled;
 
 	struct uart_port		port;
-	struct pinmux			*pmx;
+	struct pinctrl			*p;
 };
 
 /* Hardware Flow Control */
