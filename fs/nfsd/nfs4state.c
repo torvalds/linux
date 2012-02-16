@@ -2637,7 +2637,7 @@ nfs4_check_delegmode(struct nfs4_delegation *dp, int flags)
 
 static int share_access_to_flags(u32 share_access)
 {
-	share_access &= ~NFS4_SHARE_WANT_MASK;
+	share_access &= NFS4_SHARE_ACCESS_MASK;
 
 	return share_access == NFS4_SHARE_ACCESS_READ ? RD_STATE : WR_STATE;
 }
