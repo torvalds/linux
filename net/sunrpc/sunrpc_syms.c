@@ -50,6 +50,7 @@ static __net_init int sunrpc_init_net(struct net *net)
 	rpc_pipefs_init_net(net);
 	INIT_LIST_HEAD(&sn->all_clients);
 	spin_lock_init(&sn->rpc_client_lock);
+	spin_lock_init(&sn->rpcb_clnt_lock);
 	return 0;
 
 err_unixgid:
