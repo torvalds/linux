@@ -99,10 +99,10 @@
 	.endif
 
 	oris	r8, r6, MSR_CE@h
-#ifndef CONFIG_64BIT
-	stw	r6, (VCPU_SHARED_MSR + 4)(r11)
-#else
+#ifdef CONFIG_64BIT
 	std	r6, (VCPU_SHARED_MSR)(r11)
+#else
+	stw	r6, (VCPU_SHARED_MSR + 4)(r11)
 #endif
 	ori	r8, r8, MSR_ME | MSR_RI
 	PPC_STL	r5, VCPU_PC(r4)
@@ -344,10 +344,10 @@ _GLOBAL(kvmppc_resume_host)
 	stw	r5, VCPU_SHARED_MAS0(r11)
 	mfspr	r7, SPRN_MAS2
 	stw	r6, VCPU_SHARED_MAS1(r11)
-#ifndef CONFIG_64BIT
-	stw	r7, (VCPU_SHARED_MAS2 + 4)(r11)
-#else
+#ifdef CONFIG_64BIT
 	std	r7, (VCPU_SHARED_MAS2)(r11)
+#else
+	stw	r7, (VCPU_SHARED_MAS2 + 4)(r11)
 #endif
 	mfspr	r5, SPRN_MAS3
 	mfspr	r6, SPRN_MAS4
@@ -530,10 +530,10 @@ lightweight_exit:
 	stw	r3, VCPU_HOST_MAS6(r4)
 	lwz	r3, VCPU_SHARED_MAS0(r11)
 	lwz	r5, VCPU_SHARED_MAS1(r11)
-#ifndef CONFIG_64BIT
-	lwz	r6, (VCPU_SHARED_MAS2 + 4)(r11)
-#else
+#ifdef CONFIG_64BIT
 	ld	r6, (VCPU_SHARED_MAS2)(r11)
+#else
+	lwz	r6, (VCPU_SHARED_MAS2 + 4)(r11)
 #endif
 	lwz	r7, VCPU_SHARED_MAS7_3+4(r11)
 	lwz	r8, VCPU_SHARED_MAS4(r11)
@@ -572,10 +572,10 @@ lightweight_exit:
 	PPC_LL	r6, VCPU_CTR(r4)
 	PPC_LL	r7, VCPU_CR(r4)
 	PPC_LL	r8, VCPU_PC(r4)
-#ifndef CONFIG_64BIT
-	lwz	r9, (VCPU_SHARED_MSR + 4)(r11)
-#else
+#ifdef CONFIG_64BIT
 	ld	r9, (VCPU_SHARED_MSR)(r11)
+#else
+	lwz	r9, (VCPU_SHARED_MSR + 4)(r11)
 #endif
 	PPC_LL	r0, VCPU_GPR(r0)(r4)
 	PPC_LL	r1, VCPU_GPR(r1)(r4)
