@@ -121,7 +121,7 @@ else
 fi
 
 if grep -q '^CONFIG_MODULES=y' .config ; then
-	INSTALL_MOD_PATH="$tmpdir" make KBUILD_SRC= modules_install
+	INSTALL_MOD_PATH="$tmpdir" $MAKE KBUILD_SRC= modules_install
 	rm -f "$tmpdir/lib/modules/$version/build"
 	rm -f "$tmpdir/lib/modules/$version/source"
 	if [ "$ARCH" = "um" ] ; then
@@ -131,8 +131,8 @@ if grep -q '^CONFIG_MODULES=y' .config ; then
 fi
 
 if [ "$ARCH" != "um" ]; then
-	make headers_check
-	make headers_install INSTALL_HDR_PATH="$libc_headers_dir/usr"
+	$MAKE headers_check KBUILD_SRC=
+	$MAKE headers_install KBUILD_SRC= INSTALL_HDR_PATH="$libc_headers_dir/usr"
 fi
 
 # Install the maintainer scripts
