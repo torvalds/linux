@@ -88,7 +88,7 @@ int of_n_size_cells(struct device_node *np)
 }
 EXPORT_SYMBOL(of_n_size_cells);
 
-#if !defined(CONFIG_SPARC)   /* SPARC doesn't do ref counting (yet) */
+#if defined(CONFIG_OF_DYNAMIC)
 /**
  *	of_node_get - Increment refcount of a node
  *	@node:	Node to inc refcount, NULL is supported to
@@ -161,7 +161,7 @@ void of_node_put(struct device_node *node)
 		kref_put(&node->kref, of_node_release);
 }
 EXPORT_SYMBOL(of_node_put);
-#endif /* !CONFIG_SPARC */
+#endif /* CONFIG_OF_DYNAMIC */
 
 struct property *of_find_property(const struct device_node *np,
 				  const char *name,
