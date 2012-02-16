@@ -4,11 +4,8 @@
 #include <linux/types.h>
 
 #ifdef __KERNEL__
-# include <linux/bitops.h>
 # include <linux/cache.h>
-# include <linux/posix_types.h>
 # include <linux/seqlock.h>
-# include <linux/string.h>
 # include <linux/math64.h>
 #endif
 
@@ -258,26 +255,6 @@ static __always_inline void timespec_add_ns(struct timespec *a, u64 ns)
 {
 	a->tv_sec += __iter_div_u64_rem(a->tv_nsec + ns, NSEC_PER_SEC, &ns);
 	a->tv_nsec = ns;
-}
-
-static inline void __FD_SET(unsigned long __fd, __kernel_fd_set *__fdsetp)
-{
-	__set_bit(__fd, __fdsetp->fds_bits);
-}
-
-static inline void __FD_CLR(unsigned long __fd, __kernel_fd_set *__fdsetp)
-{
-	__clear_bit(__fd, __fdsetp->fds_bits);
-}
-
-static inline int __FD_ISSET(unsigned long __fd, const __kernel_fd_set *__fdsetp)
-{
-	return test_bit(__fd, __fdsetp->fds_bits);
-}
-
-static inline void __FD_ZERO(__kernel_fd_set *__fdsetp)
-{
-	memset(__fdsetp->fds_bits, 0, sizeof __fdsetp->fds_bits);
 }
 
 #endif /* __KERNEL__ */
