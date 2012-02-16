@@ -2698,24 +2698,16 @@ int snd_soc_dapm_put_pin_switch(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_put_pin_switch);
 
-/**
- * snd_soc_dapm_new_control - create new dapm control
- * @dapm: DAPM context
- * @widget: widget template
- *
- * Creates a new dapm control based upon the template.
- *
- * Returns 0 for success else error.
- */
-static int snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
-				    const struct snd_soc_dapm_widget *widget)
+static struct snd_soc_dapm_widget *
+snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
+			 const struct snd_soc_dapm_widget *widget)
 {
 	struct snd_soc_dapm_widget *w;
 	size_t name_len;
 	int ret;
 
 	if ((w = dapm_cnew_widget(widget)) == NULL)
-		return -ENOMEM;
+		return NULL;
 
 	switch (w->id) {
 	case snd_soc_dapm_regulator_supply:
@@ -2724,7 +2716,7 @@ static int snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 			ret = PTR_ERR(w->priv);
 			dev_err(dapm->dev, "Failed to request %s: %d\n",
 				w->name, ret);
-			return ret;
+			return NULL;
 		}
 		break;
 	default:
@@ -2737,7 +2729,7 @@ static int snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 	w->name = kmalloc(name_len, GFP_KERNEL);
 	if (w->name == NULL) {
 		kfree(w);
-		return -ENOMEM;
+		return NULL;
 	}
 	if (dapm->codec && dapm->codec->name_prefix)
 		snprintf(w->name, name_len, "%s %s",
@@ -2796,7 +2788,7 @@ static int snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 
 	/* machine layer set ups unconnected pins and insertions */
 	w->connected = 1;
-	return 0;
+	return w;
 }
 
 /**
@@ -2813,15 +2805,16 @@ int snd_soc_dapm_new_controls(struct snd_soc_dapm_context *dapm,
 	const struct snd_soc_dapm_widget *widget,
 	int num)
 {
-	int i, ret;
+	struct snd_soc_dapm_widget *w;
+	int i;
 
 	for (i = 0; i < num; i++) {
-		ret = snd_soc_dapm_new_control(dapm, widget);
-		if (ret < 0) {
+		w = snd_soc_dapm_new_control(dapm, widget);
+		if (!w) {
 			dev_err(dapm->dev,
-				"ASoC: Failed to create DAPM control %s: %d\n",
-				widget->name, ret);
-			return ret;
+				"ASoC: Failed to create DAPM control %s\n",
+				widget->name);
+			return -ENOMEM;
 		}
 		widget++;
 	}
