@@ -621,6 +621,7 @@ static int bfin_mac_set_mac_address(struct net_device *dev, void *p)
 	if (netif_running(dev))
 		return -EBUSY;
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	setup_mac_addr(dev->dev_addr);
 	return 0;
 }
@@ -1494,12 +1495,14 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 	 * Grab the MAC from the board somehow
 	 * this is done in the arch/blackfin/mach-bfxxx/boards/eth_mac.c
 	 */
-	if (!is_valid_ether_addr(ndev->dev_addr))
-		bfin_get_ether_addr(ndev->dev_addr);
-
-	/* If still not valid, get a random one */
-	if (!is_valid_ether_addr(ndev->dev_addr))
-		random_ether_addr(ndev->dev_addr);
+	if (!is_valid_ether_addr(ndev->dev_addr)) {
+		if (bfin_get_ether_addr(ndev->dev_addr) ||
+		     !is_valid_ether_addr(ndev->dev_addr)) {
+			/* Still not valid, get a random one */
+			netdev_warn(ndev, "Setting Ethernet MAC to a random one\n");
+			eth_hw_addr_random(ndev);
+		}
+	}
 
 	setup_mac_addr(ndev->dev_addr);
 
