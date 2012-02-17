@@ -227,7 +227,7 @@ static void iwlagn_rx_queue_restock(struct iwl_trans *trans)
 	/* If the pre-allocated buffer pool is dropping low, schedule to
 	 * refill it */
 	if (rxq->free_count <= RX_LOW_WATERMARK)
-		queue_work(trans->shrd->workqueue, &trans_pcie->rx_replenish);
+		schedule_work(&trans_pcie->rx_replenish);
 
 
 	/* If we've added more space for the firmware to place data, tell it.
@@ -351,14 +351,8 @@ void iwl_bg_rx_replenish(struct work_struct *data)
 {
 	struct iwl_trans_pcie *trans_pcie =
 	    container_of(data, struct iwl_trans_pcie, rx_replenish);
-	struct iwl_trans *trans = trans_pcie->trans;
 
-	if (test_bit(STATUS_EXIT_PENDING, &trans->shrd->status))
-		return;
-
-	mutex_lock(&trans->shrd->mutex);
-	iwlagn_rx_replenish(trans);
-	mutex_unlock(&trans->shrd->mutex);
+	iwlagn_rx_replenish(trans_pcie->trans);
 }
 
 /**

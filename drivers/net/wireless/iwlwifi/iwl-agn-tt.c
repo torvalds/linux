@@ -568,7 +568,7 @@ void iwl_tt_enter_ct_kill(struct iwl_priv *priv)
 		return;
 
 	IWL_DEBUG_TEMP(priv, "Queueing critical temperature enter.\n");
-	queue_work(priv->shrd->workqueue, &priv->ct_enter);
+	queue_work(priv->workqueue, &priv->ct_enter);
 }
 
 void iwl_tt_exit_ct_kill(struct iwl_priv *priv)
@@ -577,7 +577,7 @@ void iwl_tt_exit_ct_kill(struct iwl_priv *priv)
 		return;
 
 	IWL_DEBUG_TEMP(priv, "Queueing critical temperature exit.\n");
-	queue_work(priv->shrd->workqueue, &priv->ct_exit);
+	queue_work(priv->workqueue, &priv->ct_exit);
 }
 
 static void iwl_bg_tt_work(struct work_struct *work)
@@ -600,7 +600,7 @@ void iwl_tt_handler(struct iwl_priv *priv)
 		return;
 
 	IWL_DEBUG_TEMP(priv, "Queueing thermal throttling work.\n");
-	queue_work(priv->shrd->workqueue, &priv->tt_work);
+	queue_work(priv->workqueue, &priv->tt_work);
 }
 
 /* Thermal throttling initialization

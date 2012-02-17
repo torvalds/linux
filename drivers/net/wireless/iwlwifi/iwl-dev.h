@@ -721,6 +721,8 @@ struct iwl_priv {
 	struct ieee80211_rate *ieee_rates;
 	struct kmem_cache *tx_cmd_pool;
 
+	struct workqueue_struct *workqueue;
+
 	enum ieee80211_band band;
 
 	void (*pre_rx_handler)(struct iwl_priv *priv,

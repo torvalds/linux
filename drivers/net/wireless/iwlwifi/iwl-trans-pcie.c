@@ -1293,6 +1293,8 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	synchronize_irq(trans->irq);
 	tasklet_kill(&trans_pcie->irq_tasklet);
 
+	cancel_work_sync(&trans_pcie->rx_replenish);
+
 	/* stop and reset the on-board processor */
 	iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 }

@@ -983,7 +983,7 @@ static void iwl_check_abort_status(struct iwl_priv *priv,
 	if (frame_count == 1 && status == TX_STATUS_FAIL_RFKILL_FLUSH) {
 		IWL_ERR(priv, "Tx flush command to flush out all frames\n");
 		if (!test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
-			queue_work(priv->shrd->workqueue, &priv->tx_flush);
+			queue_work(priv->workqueue, &priv->tx_flush);
 	}
 }
 

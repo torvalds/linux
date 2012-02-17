@@ -581,7 +581,7 @@ static int iwlagn_rx_statistics(struct iwl_priv *priv,
 	if (unlikely(!test_bit(STATUS_SCANNING, &priv->shrd->status)) &&
 	    (pkt->hdr.cmd == STATISTICS_NOTIFICATION)) {
 		iwlagn_rx_calc_noise(priv);
-		queue_work(priv->shrd->workqueue, &priv->run_time_calib_work);
+		queue_work(priv->workqueue, &priv->run_time_calib_work);
 	}
 	if (cfg(priv)->lib->temperature && change)
 		cfg(priv)->lib->temperature(priv);

@@ -939,7 +939,7 @@ static void iwlagn_disable_roc_work(struct work_struct *work)
 
 static void iwl_setup_deferred_work(struct iwl_priv *priv)
 {
-	priv->shrd->workqueue = create_singlethread_workqueue(DRV_NAME);
+	priv->workqueue = create_singlethread_workqueue(DRV_NAME);
 
 	init_waitqueue_head(&priv->shrd->wait_command_queue);
 
@@ -1282,8 +1282,8 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	return 0;
 
 out_destroy_workqueue:
-	destroy_workqueue(priv->shrd->workqueue);
-	priv->shrd->workqueue = NULL;
+	destroy_workqueue(priv->workqueue);
+	priv->workqueue = NULL;
 	iwl_uninit_drv(priv);
 out_free_eeprom:
 	iwl_eeprom_free(priv->shrd);
@@ -1321,13 +1321,13 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	iwl_eeprom_free(priv->shrd);
 
 	/*netif_stop_queue(dev); */
-	flush_workqueue(priv->shrd->workqueue);
+	flush_workqueue(priv->workqueue);
 
 	/* ieee80211_unregister_hw calls iwlagn_mac_stop, which flushes
-	 * priv->shrd->workqueue... so we can't take down the workqueue
+	 * priv->workqueue... so we can't take down the workqueue
 	 * until now... */
-	destroy_workqueue(priv->shrd->workqueue);
-	priv->shrd->workqueue = NULL;
+	destroy_workqueue(priv->workqueue);
+	priv->workqueue = NULL;
 	iwl_free_traffic_mem(priv);
 
 	iwl_uninit_drv(priv);

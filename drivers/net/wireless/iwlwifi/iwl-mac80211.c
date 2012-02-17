@@ -343,7 +343,7 @@ static void iwlagn_mac_stop(struct ieee80211_hw *hw)
 
 	iwl_down(priv);
 
-	flush_workqueue(priv->shrd->workqueue);
+	flush_workqueue(priv->workqueue);
 
 	/* User space software may expect getting rfkill changes
 	 * even if interface is down, trans->down will leave the RF
@@ -1117,7 +1117,7 @@ static int iwlagn_mac_set_tim(struct ieee80211_hw *hw,
 {
 	struct iwl_priv *priv = hw->priv;
 
-	queue_work(priv->shrd->workqueue, &priv->beacon_update);
+	queue_work(priv->workqueue, &priv->beacon_update);
 
 	return 0;
 }
