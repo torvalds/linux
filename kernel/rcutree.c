@@ -2014,7 +2014,7 @@ void synchronize_sched_expedited(void)
 	/* Note that atomic_inc_return() implies full memory barrier. */
 	firstsnap = snap = atomic_inc_return(&sync_sched_expedited_started);
 	get_online_cpus();
-	WARN_ON_ONCE(cpu_is_offline(smp_processor_id()));
+	WARN_ON_ONCE(cpu_is_offline(raw_smp_processor_id()));
 
 	/*
 	 * Each pass through the following loop attempts to force a
