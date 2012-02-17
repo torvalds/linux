@@ -3264,25 +3264,7 @@ static struct i2c_driver wm8996_i2c_driver = {
 	.id_table = wm8996_i2c_id,
 };
 
-static int __init wm8996_modinit(void)
-{
-	int ret;
-
-	ret = i2c_add_driver(&wm8996_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register WM8996 I2C driver: %d\n",
-		       ret);
-	}
-
-	return ret;
-}
-module_init(wm8996_modinit);
-
-static void __exit wm8996_exit(void)
-{
-	i2c_del_driver(&wm8996_i2c_driver);
-}
-module_exit(wm8996_exit);
+module_i2c_driver(wm8996_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM8996 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
