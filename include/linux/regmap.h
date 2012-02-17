@@ -16,6 +16,8 @@
 #include <linux/device.h>
 #include <linux/list.h>
 
+#ifdef CONFIG_REGMAP
+
 struct module;
 struct i2c_client;
 struct spi_device;
@@ -198,5 +200,109 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 			struct regmap_irq_chip_data **data);
 void regmap_del_irq_chip(int irq, struct regmap_irq_chip_data *data);
 int regmap_irq_chip_get_base(struct regmap_irq_chip_data *data);
+
+#else
+
+/*
+ * These stubs should only ever be called by generic code which has
+ * regmap based facilities, if they ever get called at runtime
+ * something is going wrong and something probably needs to select
+ * REGMAP.
+ */
+
+static inline int regmap_write(struct regmap *map, unsigned int reg,
+			       unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_raw_write(struct regmap *map, unsigned int reg,
+				   const void *val, size_t val_len)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_bulk_write(struct regmap *map, unsigned int reg,
+				    const void *val, size_t val_count)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_read(struct regmap *map, unsigned int reg,
+			      unsigned int *val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_raw_read(struct regmap *map, unsigned int reg,
+				  void *val, size_t val_len)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_bulk_read(struct regmap *map, unsigned int reg,
+				   void *val, size_t val_count)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_update_bits(struct regmap *map, unsigned int reg,
+				     unsigned int mask, unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_update_bits_check(struct regmap *map,
+					   unsigned int reg,
+					   unsigned int mask, unsigned int val,
+					   bool *change)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_get_val_bytes(struct regmap *map)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regcache_sync(struct regmap *map)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline void regcache_cache_only(struct regmap *map, bool enable)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+}
+
+static inline void regcache_cache_bypass(struct regmap *map, bool enable)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+}
+
+static inline void regcache_mark_dirty(struct regmap *map)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+}
+
+static inline int regmap_register_patch(struct regmap *map,
+					const struct reg_default *regs,
+					int num_regs)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+#endif
 
 #endif
