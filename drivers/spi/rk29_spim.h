@@ -137,13 +137,15 @@ struct rk29xx_spi {
 	/* Driver message queue */
 	struct workqueue_struct	*workqueue;
 	struct work_struct	pump_messages;
-	spinlock_t		lock;
+	spinlock_t		lock;	
+	struct mutex 		dma_lock;
 	struct list_head	queue;
 	int			busy;
 	int			run;
 
 	/* Message Transfer pump */
-	struct tasklet_struct	pump_transfers;
+	struct tasklet_struct	pump_transfers;	
+	struct tasklet_struct	dma_transfers;	
 
 	/* Current message transfer state info */
 	struct spi_message	*cur_msg;
@@ -158,6 +160,8 @@ struct rk29xx_spi {
 	int			dma_mapped;
 	dma_addr_t		rx_dma;
 	dma_addr_t		tx_dma;
+	void			*buffer_tx_dma;
+	void			*buffer_rx_dma;
 	size_t			rx_map_len;
 	size_t			tx_map_len;
 	u8			n_bytes;	/* current is a 1/2 bytes op */
@@ -171,6 +175,9 @@ struct rk29xx_spi {
 
 	/* Dma info */
 	struct completion               xfer_completion;
+	
+	struct completion               tx_completion;
+	struct completion               rx_completion;
 	unsigned    state;
 	unsigned                        cur_speed;
 	unsigned long                   sfr_start;

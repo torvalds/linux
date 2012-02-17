@@ -615,6 +615,8 @@ struct platform_device rk29xx_device_spi0m = {
 	.num_resources	= ARRAY_SIZE(rk29_spi0_resources),
 	.resource	= rk29_spi0_resources,
 	.dev			= {
+		.dma_mask = &dma_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 		.platform_data	= &rk29xx_spi0_platdata,
 	},
 };
@@ -650,6 +652,8 @@ struct platform_device rk29xx_device_spi1m = {
 	.num_resources	= ARRAY_SIZE(rk29_spi1_resources),
 	.resource	= rk29_spi1_resources,
 	.dev			= {
+		.dma_mask = &dma_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 		.platform_data	= &rk29xx_spi1_platdata,
 	},
 };

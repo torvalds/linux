@@ -45,6 +45,9 @@
 #elif defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
 #include "../../../drivers/input/touchscreen/xpt2046_cbn_ts.h"
 #endif
+#if defined(CONFIG_SPIM_RK29)
+#include "../../../drivers/spi/rk29_spim.h"
+#endif
 
 
 /*****************************************************************************************
@@ -141,7 +144,12 @@ static struct xpt2046_platform_data xpt2046_info = {
 #endif	
 };
 #endif
-
+#if defined(CONFIG_TOUCHSCREEN_XPT2046_SPI)
+static struct rk29xx_spi_chip xpt2046_chip = {
+	//.poll_mode = 1,
+	.enable_dma = 1,
+};
+#endif
 static struct spi_board_info board_spi_devices[] = {
 #if defined(CONFIG_TOUCHSCREEN_XPT2046_SPI)
 	{
@@ -151,6 +159,7 @@ static struct spi_board_info board_spi_devices[] = {
 		.bus_num	= 0,
 		.irq 		= XPT2046_GPIO_INT,
 		.platform_data = &xpt2046_info,
+		.controller_data = &xpt2046_chip,
 	},
 #endif
 
