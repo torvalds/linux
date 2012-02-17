@@ -57,6 +57,7 @@ struct inquiry_entry {
 };
 
 struct discovery_state {
+	int type;
 	enum {
 		DISCOVERY_STOPPED,
 		DISCOVERY_STARTING,

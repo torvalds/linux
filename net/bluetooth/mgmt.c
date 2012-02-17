@@ -2192,7 +2192,9 @@ static int start_discovery(struct sock *sk, u16 index,
 		goto failed;
 	}
 
-	switch (cp->type) {
+	hdev->discovery.type = cp->type;
+
+	switch (hdev->discovery.type) {
 	case DISCOV_TYPE_BREDR:
 	case DISCOV_TYPE_INTERLEAVED:
 		err = hci_do_inquiry(hdev, INQUIRY_LEN_BREDR);
