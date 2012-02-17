@@ -386,6 +386,25 @@ static struct panel_config generic_dpi_panels[] = {
 
 		.name			= "innolux_at080tn52",
 	},
+
+	/* Mitsubishi AA084SB01 */
+	{
+		{
+			.x_res		= 800,
+			.y_res		= 600,
+			.pixel_clock	= 40000,
+
+			.hsw		= 1,
+			.hfp		= 254,
+			.hbp		= 1,
+
+			.vsw		= 1,
+			.vfp		= 26,
+			.vbp		= 1,
+		},
+		.config			= OMAP_DSS_LCD_TFT,
+		.name			= "mitsubishi_aa084sb01",
+	},
 };
 
 struct panel_drv_data {
