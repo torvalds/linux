@@ -296,7 +296,7 @@ static int __iwl_up(struct iwl_priv *priv)
 
  error:
 	set_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
-	__iwl_down(priv);
+	iwl_down(priv);
 	clear_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
 
 	IWL_ERR(priv, "Unable to initialize device.\n");
@@ -341,7 +341,11 @@ static void iwlagn_mac_stop(struct ieee80211_hw *hw)
 
 	priv->is_open = 0;
 
+	mutex_lock(&priv->shrd->mutex);
 	iwl_down(priv);
+	mutex_unlock(&priv->shrd->mutex);
+
+	iwl_cancel_deferred_work(priv);
 
 	flush_workqueue(priv->workqueue);
 

@@ -81,8 +81,8 @@ static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
 	hdr->data_valid = 1;
 }
 
-void __iwl_down(struct iwl_priv *priv);
 void iwl_down(struct iwl_priv *priv);
+void iwl_cancel_deferred_work(struct iwl_priv *priv);
 void iwlagn_prepare_restart(struct iwl_priv *priv);
 
 /* MAC80211 */

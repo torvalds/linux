@@ -738,13 +738,13 @@ int iwl_alive_start(struct iwl_priv *priv)
 	return iwl_power_update_mode(priv, true);
 }
 
-static void iwl_cancel_deferred_work(struct iwl_priv *priv);
-
-void __iwl_down(struct iwl_priv *priv)
+void iwl_down(struct iwl_priv *priv)
 {
 	int exit_pending;
 
 	IWL_DEBUG_INFO(priv, DRV_NAME " is going down\n");
+
+	lockdep_assert_held(&priv->shrd->mutex);
 
 	iwl_scan_cancel_timeout(priv, 200);
 
@@ -801,15 +801,6 @@ void __iwl_down(struct iwl_priv *priv)
 
 	dev_kfree_skb(priv->beacon_skb);
 	priv->beacon_skb = NULL;
-}
-
-void iwl_down(struct iwl_priv *priv)
-{
-	mutex_lock(&priv->shrd->mutex);
-	__iwl_down(priv);
-	mutex_unlock(&priv->shrd->mutex);
-
-	iwl_cancel_deferred_work(priv);
 }
 
 /*****************************************************************************
@@ -869,7 +860,7 @@ void iwlagn_prepare_restart(struct iwl_priv *priv)
 	bt_status = priv->bt_status;
 	bt_is_sco = priv->bt_is_sco;
 
-	__iwl_down(priv);
+	iwl_down(priv);
 
 	priv->bt_full_concurrent = bt_full_concurrent;
 	priv->bt_ci_compliance = bt_ci_compliance;
@@ -970,7 +961,7 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	priv->watchdog.function = iwl_bg_watchdog;
 }
 
-static void iwl_cancel_deferred_work(struct iwl_priv *priv)
+void iwl_cancel_deferred_work(struct iwl_priv *priv)
 {
 	if (cfg(priv)->lib->cancel_deferred_work)
 		cfg(priv)->lib->cancel_deferred_work(priv);
