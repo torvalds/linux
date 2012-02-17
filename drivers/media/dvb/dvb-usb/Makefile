@@ -110,8 +110,9 @@ obj-$(CONFIG_DVB_USB_MXL111SF) += mxl111sf-tuner.o
 dvb-usb-rtl28xxu-objs = rtl28xxu.o
 obj-$(CONFIG_DVB_USB_RTL28XXU) += dvb-usb-rtl28xxu.o
 
-ccflags-y += -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/
+ccflags-y += -I$(srctree)/drivers/media/dvb/dvb-core
+ccflags-y += -I$(srctree)/drivers/media/dvb/frontends/
 # due to tuner-xc3028
-ccflags-y += -Idrivers/media/common/tuners
-EXTRA_CFLAGS += -Idrivers/media/dvb/ttpci
+ccflags-y += -I$(srctree)/drivers/media/common/tuners
+ccflags-y += -I$(srctree)/drivers/media/dvb/ttpci
 
