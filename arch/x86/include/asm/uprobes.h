@@ -1,7 +1,7 @@
 #ifndef _ASM_UPROBES_H
 #define _ASM_UPROBES_H
 /*
- * Userspace Probes (UProbes) for x86
+ * User-space Probes (UProbes) for x86
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,19 +24,20 @@
  */
 
 typedef u8 uprobe_opcode_t;
-#define MAX_UINSN_BYTES 16
-#define UPROBES_XOL_SLOT_BYTES	128	/* to keep it cache aligned */
 
-#define UPROBES_BKPT_INSN 0xcc
-#define UPROBES_BKPT_INSN_SIZE 1
+#define MAX_UINSN_BYTES			  16
+#define UPROBES_XOL_SLOT_BYTES		 128	/* to keep it cache aligned */
+
+#define UPROBES_BKPT_INSN		0xcc
+#define UPROBES_BKPT_INSN_SIZE		   1
 
 struct uprobe_arch_info {
-	u16			fixups;
+	u16				fixups;
 #ifdef CONFIG_X86_64
-	unsigned long rip_rela_target_address;
+	unsigned long			rip_rela_target_address;
 #endif
 };
 
 struct uprobe;
-extern int analyze_insn(struct mm_struct *mm, struct uprobe *uprobe);
+extern int arch_uprobes_analyze_insn(struct mm_struct *mm, struct uprobe *uprobe);
 #endif	/* _ASM_UPROBES_H */

@@ -1,5 +1,5 @@
 /*
- * Userspace Probes (UProbes) for x86
+ * User-space Probes (UProbes) for x86
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
  *	Srikar Dronamraju
  *	Jim Keniston
  */
-
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/ptrace.h>
@@ -42,10 +41,10 @@
 #define UPROBES_FIX_RIP_CX	0x4000
 
 /* Adaptations for mhiramat x86 decoder v14. */
-#define OPCODE1(insn) ((insn)->opcode.bytes[0])
-#define OPCODE2(insn) ((insn)->opcode.bytes[1])
-#define OPCODE3(insn) ((insn)->opcode.bytes[2])
-#define MODRM_REG(insn) X86_MODRM_REG(insn->modrm.value)
+#define OPCODE1(insn)		((insn)->opcode.bytes[0])
+#define OPCODE2(insn)		((insn)->opcode.bytes[1])
+#define OPCODE3(insn)		((insn)->opcode.bytes[2])
+#define MODRM_REG(insn)		X86_MODRM_REG(insn->modrm.value)
 
 #define W(row, b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, ba, bb, bc, bd, be, bf)\
 	(((b0##UL << 0x0)|(b1##UL << 0x1)|(b2##UL << 0x2)|(b3##UL << 0x3) |   \
@@ -55,7 +54,7 @@
 	 << (row % 32))
 
 #ifdef CONFIG_X86_64
-static volatile u32 good_insns_64[256 / 32] = {
+static u32 good_insns_64[256 / 32] = {
 	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
 	/*      ----------------------------------------------         */
 	W(0x00, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0) | /* 00 */
@@ -81,7 +80,7 @@ static volatile u32 good_insns_64[256 / 32] = {
 
 /* Good-instruction tables for 32-bit apps */
 
-static volatile u32 good_insns_32[256 / 32] = {
+static u32 good_insns_32[256 / 32] = {
 	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
 	/*      ----------------------------------------------         */
 	W(0x00, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0) | /* 00 */
@@ -105,7 +104,7 @@ static volatile u32 good_insns_32[256 / 32] = {
 };
 
 /* Using this for both 64-bit and 32-bit apps */
-static volatile u32 good_2byte_insns[256 / 32] = {
+static u32 good_2byte_insns[256 / 32] = {
 	/*      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f         */
 	/*      ----------------------------------------------         */
 	W(0x00, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1) | /* 00 */
@@ -132,42 +131,47 @@ static volatile u32 good_2byte_insns[256 / 32] = {
 
 /*
  * opcodes we'll probably never support:
- * 6c-6d, e4-e5, ec-ed - in
- * 6e-6f, e6-e7, ee-ef - out
- * cc, cd - int3, int
- * cf - iret
- * d6 - illegal instruction
- * f1 - int1/icebp
- * f4 - hlt
- * fa, fb - cli, sti
- * 0f - lar, lsl, syscall, clts, sysret, sysenter, sysexit, invd, wbinvd, ud2
+ *
+ *  6c-6d, e4-e5, ec-ed - in
+ *  6e-6f, e6-e7, ee-ef - out
+ *  cc, cd - int3, int
+ *  cf - iret
+ *  d6 - illegal instruction
+ *  f1 - int1/icebp
+ *  f4 - hlt
+ *  fa, fb - cli, sti
+ *  0f - lar, lsl, syscall, clts, sysret, sysenter, sysexit, invd, wbinvd, ud2
  *
  * invalid opcodes in 64-bit mode:
- * 06, 0e, 16, 1e, 27, 2f, 37, 3f, 60-62, 82, c4-c5, d4-d5
  *
- * 63 - we support this opcode in x86_64 but not in i386.
+ *  06, 0e, 16, 1e, 27, 2f, 37, 3f, 60-62, 82, c4-c5, d4-d5
+ *  63 - we support this opcode in x86_64 but not in i386.
  *
  * opcodes we may need to refine support for:
- * 0f - 2-byte instructions: For many of these instructions, the validity
- * depends on the prefix and/or the reg field.  On such instructions, we
- * just consider the opcode combination valid if it corresponds to any
- * valid instruction.
- * 8f - Group 1 - only reg = 0 is OK
- * c6-c7 - Group 11 - only reg = 0 is OK
- * d9-df - fpu insns with some illegal encodings
- * f2, f3 - repnz, repz prefixes.  These are also the first byte for
- * certain floating-point instructions, such as addsd.
- * fe - Group 4 - only reg = 0 or 1 is OK
- * ff - Group 5 - only reg = 0-6 is OK
+ *
+ *  0f - 2-byte instructions: For many of these instructions, the validity
+ *  depends on the prefix and/or the reg field.  On such instructions, we
+ *  just consider the opcode combination valid if it corresponds to any
+ *  valid instruction.
+ *
+ *  8f - Group 1 - only reg = 0 is OK
+ *  c6-c7 - Group 11 - only reg = 0 is OK
+ *  d9-df - fpu insns with some illegal encodings
+ *  f2, f3 - repnz, repz prefixes.  These are also the first byte for
+ *  certain floating-point instructions, such as addsd.
+ *
+ *  fe - Group 4 - only reg = 0 or 1 is OK
+ *  ff - Group 5 - only reg = 0-6 is OK
  *
  * others -- Do we need to support these?
- * 0f - (floating-point?) prefetch instructions
- * 07, 17, 1f - pop es, pop ss, pop ds
- * 26, 2e, 36, 3e - es:, cs:, ss:, ds: segment prefixes --
+ *
+ *  0f - (floating-point?) prefetch instructions
+ *  07, 17, 1f - pop es, pop ss, pop ds
+ *  26, 2e, 36, 3e - es:, cs:, ss:, ds: segment prefixes --
  *	but 64 and 65 (fs: and gs:) seem to be used, so we support them
- * 67 - addr16 prefix
- * ce - into
- * f0 - lock prefix
+ *  67 - addr16 prefix
+ *  ce - into
+ *  f0 - lock prefix
  */
 
 /*
@@ -182,11 +186,11 @@ static bool is_prefix_bad(struct insn *insn)
 
 	for (i = 0; i < insn->prefixes.nbytes; i++) {
 		switch (insn->prefixes.bytes[i]) {
-		case 0x26:	/*INAT_PFX_ES   */
-		case 0x2E:	/*INAT_PFX_CS   */
-		case 0x36:	/*INAT_PFX_DS   */
-		case 0x3E:	/*INAT_PFX_SS   */
-		case 0xF0:	/*INAT_PFX_LOCK */
+		case 0x26:	/* INAT_PFX_ES   */
+		case 0x2E:	/* INAT_PFX_CS   */
+		case 0x36:	/* INAT_PFX_DS   */
+		case 0x3E:	/* INAT_PFX_SS   */
+		case 0xF0:	/* INAT_PFX_LOCK */
 			return true;
 		}
 	}
@@ -201,12 +205,15 @@ static int validate_insn_32bits(struct uprobe *uprobe, struct insn *insn)
 	insn_get_opcode(insn);
 	if (is_prefix_bad(insn))
 		return -ENOTSUPP;
+
 	if (test_bit(OPCODE1(insn), (unsigned long *)good_insns_32))
 		return 0;
+
 	if (insn->opcode.nbytes == 2) {
 		if (test_bit(OPCODE2(insn), (unsigned long *)good_2byte_insns))
 			return 0;
 	}
+
 	return -ENOTSUPP;
 }
 
@@ -282,12 +289,12 @@ static void prepare_fixups(struct uprobe *uprobe, struct insn *insn)
  * disastrous.
  *
  * Some useful facts about rip-relative instructions:
- * - There's always a modrm byte.
- * - There's never a SIB byte.
- * - The displacement is always 4 bytes.
+ *
+ *  - There's always a modrm byte.
+ *  - There's never a SIB byte.
+ *  - The displacement is always 4 bytes.
  */
-static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe,
-							struct insn *insn)
+static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe, struct insn *insn)
 {
 	u8 *cursor;
 	u8 reg;
@@ -342,13 +349,12 @@ static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe,
 	}
 
 	/* Target address = address of next instruction + (signed) offset */
-	uprobe->arch_info.rip_rela_target_address = (long)insn->length
-					+ insn->displacement.value;
+	uprobe->arch_info.rip_rela_target_address = (long)insn->length + insn->displacement.value;
+
 	/* Displacement field is gone; slide immediate field (if any) over. */
 	if (insn->immediate.nbytes) {
 		cursor++;
-		memmove(cursor, cursor + insn->displacement.nbytes,
-						insn->immediate.nbytes);
+		memmove(cursor, cursor + insn->displacement.nbytes, insn->immediate.nbytes);
 	}
 	return;
 }
@@ -361,8 +367,10 @@ static int validate_insn_64bits(struct uprobe *uprobe, struct insn *insn)
 	insn_get_opcode(insn);
 	if (is_prefix_bad(insn))
 		return -ENOTSUPP;
+
 	if (test_bit(OPCODE1(insn), (unsigned long *)good_insns_64))
 		return 0;
+
 	if (insn->opcode.nbytes == 2) {
 		if (test_bit(OPCODE2(insn), (unsigned long *)good_2byte_insns))
 			return 0;
@@ -370,34 +378,31 @@ static int validate_insn_64bits(struct uprobe *uprobe, struct insn *insn)
 	return -ENOTSUPP;
 }
 
-static int validate_insn_bits(struct mm_struct *mm, struct uprobe *uprobe,
-				struct insn *insn)
+static int validate_insn_bits(struct mm_struct *mm, struct uprobe *uprobe, struct insn *insn)
 {
 	if (mm->context.ia32_compat)
 		return validate_insn_32bits(uprobe, insn);
 	return validate_insn_64bits(uprobe, insn);
 }
-#else
-static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe,
-							struct insn *insn)
+#else /* 32-bit: */
+static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe, struct insn *insn)
 {
-	return;
+	/* No RIP-relative addressing on 32-bit */
 }
 
-static int validate_insn_bits(struct mm_struct *mm, struct uprobe *uprobe,
-				struct insn *insn)
+static int validate_insn_bits(struct mm_struct *mm, struct uprobe *uprobe, struct insn *insn)
 {
 	return validate_insn_32bits(uprobe, insn);
 }
 #endif /* CONFIG_X86_64 */
 
 /**
- * analyze_insn - instruction analysis including validity and fixups.
+ * arch_uprobes_analyze_insn - instruction analysis including validity and fixups.
  * @mm: the probed address space.
  * @uprobe: the probepoint information.
  * Return 0 on success or a -ve number on error.
  */
-int analyze_insn(struct mm_struct *mm, struct uprobe *uprobe)
+int arch_uprobes_analyze_insn(struct mm_struct *mm, struct uprobe *uprobe)
 {
 	int ret;
 	struct insn insn;
@@ -406,7 +411,9 @@ int analyze_insn(struct mm_struct *mm, struct uprobe *uprobe)
 	ret = validate_insn_bits(mm, uprobe, &insn);
 	if (ret != 0)
 		return ret;
+
 	handle_riprel_insn(mm, uprobe, &insn);
 	prepare_fixups(uprobe, &insn);
+
 	return 0;
 }

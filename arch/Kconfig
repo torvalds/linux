@@ -66,13 +66,19 @@ config OPTPROBES
 	depends on !PREEMPT
 
 config UPROBES
-	bool "User-space probes (EXPERIMENTAL)"
+	bool "Transparent user-space probes (EXPERIMENTAL)"
 	depends on ARCH_SUPPORTS_UPROBES
 	default n
 	help
-	  Uprobes enables kernel subsystems to establish probepoints
-	  in user applications and execute handler functions when
-	  the probepoints are hit.
+	  Uprobes is the user-space counterpart to kprobes: they
+	  enable instrumentation applications (such as 'perf probe')
+	  to establish unintrusive probes in user-space binaries and
+	  libraries, by executing handler functions when the probes
+	  are hit by user-space applications.
+
+	  ( These probes come in the form of single-byte breakpoints,
+	    managed by the kernel and kept transparent to the probed
+	    application. )
 
 	  If in doubt, say "N".
 
