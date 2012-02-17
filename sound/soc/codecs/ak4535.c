@@ -409,7 +409,6 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4535 = {
 	.num_dapm_routes = ARRAY_SIZE(ak4535_audio_map),
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static __devinit int ak4535_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
@@ -450,29 +449,8 @@ static struct i2c_driver ak4535_i2c_driver = {
 	.remove =   __devexit_p(ak4535_i2c_remove),
 	.id_table = ak4535_i2c_id,
 };
-#endif
 
-static int __init ak4535_modinit(void)
-{
-	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	ret = i2c_add_driver(&ak4535_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register AK4535 I2C driver: %d\n",
-		       ret);
-	}
-#endif
-	return ret;
-}
-module_init(ak4535_modinit);
-
-static void __exit ak4535_exit(void)
-{
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	i2c_del_driver(&ak4535_i2c_driver);
-#endif
-}
-module_exit(ak4535_exit);
+module_i2c_driver(ak4535_i2c_driver);
 
 MODULE_DESCRIPTION("Soc AK4535 driver");
 MODULE_AUTHOR("Richard Purdie");
