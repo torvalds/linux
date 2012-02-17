@@ -24,14 +24,10 @@ struct omap_dss_device;
 
 /**
  * struct panel_dvi_platform_data - panel driver configuration data
- * @platform_enable: platform specific panel enable function
- * @platform_disable: platform specific panel disable function
  * @i2c_bus_num: i2c bus id for the panel
  * @power_down_gpio: gpio number for PD pin (or -1 if not available)
  */
 struct panel_dvi_platform_data {
-	int (*platform_enable)(struct omap_dss_device *dssdev);
-	void (*platform_disable)(struct omap_dss_device *dssdev);
 	u16 i2c_bus_num;
 	int power_down_gpio;
 };

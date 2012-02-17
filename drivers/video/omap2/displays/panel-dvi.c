@@ -58,7 +58,6 @@ static inline struct panel_dvi_platform_data
 static int panel_dvi_power_on(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(&dssdev->dev);
-	struct panel_dvi_platform_data *pdata = get_pdata(dssdev);
 	int r;
 
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
@@ -68,18 +67,10 @@ static int panel_dvi_power_on(struct omap_dss_device *dssdev)
 	if (r)
 		goto err0;
 
-	if (pdata->platform_enable) {
-		r = pdata->platform_enable(dssdev);
-		if (r)
-			goto err1;
-	}
-
 	if (gpio_is_valid(ddata->pd_gpio))
 		gpio_set_value(ddata->pd_gpio, 1);
 
 	return 0;
-err1:
-	omapdss_dpi_display_disable(dssdev);
 err0:
 	return r;
 }
@@ -87,16 +78,12 @@ err0:
 static void panel_dvi_power_off(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(&dssdev->dev);
-	struct panel_dvi_platform_data *pdata = get_pdata(dssdev);
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		return;
 
 	if (gpio_is_valid(ddata->pd_gpio))
 		gpio_set_value(ddata->pd_gpio, 0);
-
-	if (pdata->platform_disable)
-		pdata->platform_disable(dssdev);
 
 	omapdss_dpi_display_disable(dssdev);
 }

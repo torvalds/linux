@@ -167,26 +167,9 @@ static void __init overo_display_init(void)
 	gpio_export(OVERO_GPIO_LCD_BL, 0);
 }
 
-static int overo_panel_enable_dvi(struct omap_dss_device *dssdev)
-{
-	if (lcd_enabled) {
-		printk(KERN_ERR "cannot enable DVI, LCD is enabled\n");
-		return -EINVAL;
-	}
-	dvi_enabled = 1;
-
-	return 0;
-}
-
-static void overo_panel_disable_dvi(struct omap_dss_device *dssdev)
-{
-	dvi_enabled = 0;
-}
-
 static struct panel_dvi_platform_data dvi_panel = {
-	.platform_enable	= overo_panel_enable_dvi,
-	.platform_disable	= overo_panel_disable_dvi,
 	.i2c_bus_num		= 3,
+	.power_down_gpio	= -1,
 };
 
 static struct omap_dss_device overo_dvi_device = {

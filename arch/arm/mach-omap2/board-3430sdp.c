@@ -113,9 +113,6 @@ static struct gpio sdp3430_dss_gpios[] __initdata = {
 	{SDP3430_LCD_PANEL_BACKLIGHT_GPIO, GPIOF_OUT_INIT_LOW, "LCD Backlight"},
 };
 
-static int lcd_enabled;
-static int dvi_enabled;
-
 static void __init sdp3430_display_init(void)
 {
 	int r;
@@ -129,42 +126,16 @@ static void __init sdp3430_display_init(void)
 
 static int sdp3430_panel_enable_lcd(struct omap_dss_device *dssdev)
 {
-	if (dvi_enabled) {
-		printk(KERN_ERR "cannot enable LCD, DVI is enabled\n");
-		return -EINVAL;
-	}
-
 	gpio_direction_output(SDP3430_LCD_PANEL_ENABLE_GPIO, 1);
 	gpio_direction_output(SDP3430_LCD_PANEL_BACKLIGHT_GPIO, 1);
-
-	lcd_enabled = 1;
 
 	return 0;
 }
 
 static void sdp3430_panel_disable_lcd(struct omap_dss_device *dssdev)
 {
-	lcd_enabled = 0;
-
 	gpio_direction_output(SDP3430_LCD_PANEL_ENABLE_GPIO, 0);
 	gpio_direction_output(SDP3430_LCD_PANEL_BACKLIGHT_GPIO, 0);
-}
-
-static int sdp3430_panel_enable_dvi(struct omap_dss_device *dssdev)
-{
-	if (lcd_enabled) {
-		printk(KERN_ERR "cannot enable DVI, LCD is enabled\n");
-		return -EINVAL;
-	}
-
-	dvi_enabled = 1;
-
-	return 0;
-}
-
-static void sdp3430_panel_disable_dvi(struct omap_dss_device *dssdev)
-{
-	dvi_enabled = 0;
 }
 
 static int sdp3430_panel_enable_tv(struct omap_dss_device *dssdev)
@@ -187,8 +158,7 @@ static struct omap_dss_device sdp3430_lcd_device = {
 };
 
 static struct panel_dvi_platform_data dvi_panel = {
-	.platform_enable	= sdp3430_panel_enable_dvi,
-	.platform_disable	= sdp3430_panel_disable_dvi,
+	.power_down_gpio	= -1,
 };
 
 static struct omap_dss_device sdp3430_dvi_device = {

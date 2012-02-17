@@ -92,9 +92,6 @@ static inline void __init omap3stalker_init_eth(void)
 #define LCD_PANEL_BKLIGHT_GPIO	210
 #define ENABLE_VPLL2_DEV_GRP	0xE0
 
-static int lcd_enabled;
-static int dvi_enabled;
-
 static void __init omap3_stalker_display_init(void)
 {
 	return;
@@ -122,26 +119,8 @@ static struct omap_dss_device omap3_stalker_tv_device = {
 	.platform_disable	= omap3_stalker_disable_tv,
 };
 
-static int omap3_stalker_enable_dvi(struct omap_dss_device *dssdev)
-{
-	if (lcd_enabled) {
-		printk(KERN_ERR "cannot enable DVI, LCD is enabled\n");
-		return -EINVAL;
-	}
-	gpio_set_value(DSS_ENABLE_GPIO, 1);
-	dvi_enabled = 1;
-	return 0;
-}
-
-static void omap3_stalker_disable_dvi(struct omap_dss_device *dssdev)
-{
-	gpio_set_value(DSS_ENABLE_GPIO, 0);
-	dvi_enabled = 0;
-}
-
 static struct panel_dvi_platform_data dvi_panel = {
-	.platform_enable	= omap3_stalker_enable_dvi,
-	.platform_disable	= omap3_stalker_disable_dvi,
+	.power_down_gpio	= DSS_ENABLE_GPIO,
 };
 
 static struct omap_dss_device omap3_stalker_dvi_device = {

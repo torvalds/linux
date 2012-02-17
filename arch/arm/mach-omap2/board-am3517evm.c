@@ -207,25 +207,8 @@ static struct omap_dss_device am3517_evm_tv_device = {
 	.platform_disable	= am3517_evm_panel_disable_tv,
 };
 
-static int am3517_evm_panel_enable_dvi(struct omap_dss_device *dssdev)
-{
-	if (lcd_enabled) {
-		printk(KERN_ERR "cannot enable DVI, LCD is enabled\n");
-		return -EINVAL;
-	}
-	dvi_enabled = 1;
-
-	return 0;
-}
-
-static void am3517_evm_panel_disable_dvi(struct omap_dss_device *dssdev)
-{
-	dvi_enabled = 0;
-}
-
 static struct panel_dvi_platform_data dvi_panel = {
-	.platform_enable	= am3517_evm_panel_enable_dvi,
-	.platform_disable	= am3517_evm_panel_disable_dvi,
+	.power_down_gpio	= -1,
 };
 
 static struct omap_dss_device am3517_evm_dvi_device = {
