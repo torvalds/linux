@@ -1709,6 +1709,7 @@ static bool wm8996_volatile_register(struct device *dev, unsigned int reg)
 static int wm8996_reset(struct wm8996_priv *wm8996)
 {
 	if (wm8996->pdata.ldo_ena > 0) {
+		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 1);
 		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
 		return 0;
 	} else {
