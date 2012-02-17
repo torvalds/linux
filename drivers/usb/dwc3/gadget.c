@@ -1765,9 +1765,6 @@ static void dwc3_ep_cmd_compl(struct dwc3_ep *dep,
 	case DWC3_DEPCMD_ENDTRANSFER:
 		dwc3_process_ep_cmd_complete(dep, event);
 		break;
-	case DWC3_DEPCMD_STARTTRANSFER:
-		dep->res_trans_idx = param & 0x7f;
-		break;
 	default:
 		printk(KERN_ERR "%s() unknown /unexpected type: %d\n",
 				__func__, cmd_type);
