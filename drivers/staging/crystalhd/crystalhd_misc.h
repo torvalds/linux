@@ -209,11 +209,6 @@ do {								\
 		printk(KERN_DEBUG "Entered %s\n", __func__);	\
 } while (0)
 
-#define BCMLOG_LEAVE						\
-do {								\
-	if (g_linklog_level & BCMLOG_ENTER_LEAVE)		\
-		printk(KERN_DEBUG "Leaving %s\n", __func__);	\
-} while (0)							\
 
 #define BCMLOG(trace, fmt, args...)	\
 do {					\
