@@ -52,11 +52,11 @@ OPTIONS
 
 -p::
 --pid=::
-	Record events on existing process ID.
+	Record events on existing process ID (comma separated list).
 
 -t::
 --tid=::
-        Record events on existing thread ID.
+        Record events on existing thread ID (comma separated list).
 
 -u::
 --uid=::

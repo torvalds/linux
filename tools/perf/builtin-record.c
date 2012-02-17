@@ -205,8 +205,11 @@ static void perf_record__open(struct perf_record *rec)
 
 		if (opts->group && pos != first)
 			group_fd = first->fd;
+fallback_missing_features:
+		if (opts->exclude_guest_missing)
+			attr->exclude_guest = attr->exclude_host = 0;
 retry_sample_id:
-		attr->sample_id_all = opts->sample_id_all_avail ? 1 : 0;
+		attr->sample_id_all = opts->sample_id_all_missing ? 0 : 1;
 try_again:
 		if (perf_evsel__open(pos, evlist->cpus, evlist->threads,
 				     opts->group, group_fd) < 0) {
@@ -218,15 +221,23 @@ try_again:
 			} else if (err ==  ENODEV && opts->cpu_list) {
 				die("No such device - did you specify"
 					" an out-of-range profile CPU?\n");
-			} else if (err == EINVAL && opts->sample_id_all_avail) {
-				/*
-				 * Old kernel, no attr->sample_id_type_all field
-				 */
-				opts->sample_id_all_avail = false;
-				if (!opts->sample_time && !opts->raw_samples && !time_needed)
-					attr->sample_type &= ~PERF_SAMPLE_TIME;
+			} else if (err == EINVAL) {
+				if (!opts->exclude_guest_missing &&
+				    (attr->exclude_guest || attr->exclude_host)) {
+					pr_debug("Old kernel, cannot exclude "
+						 "guest or host samples.\n");
+					opts->exclude_guest_missing = true;
+					goto fallback_missing_features;
+				} else if (!opts->sample_id_all_missing) {
+					/*
+					 * Old kernel, no attr->sample_id_type_all field
+					 */
+					opts->sample_id_all_missing = true;
+					if (!opts->sample_time && !opts->raw_samples && !time_needed)
+						attr->sample_type &= ~PERF_SAMPLE_TIME;
 
-				goto retry_sample_id;
+					goto retry_sample_id;
+				}
 			}
 
 			/*
@@ -494,9 +505,9 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 			return err;
 	}
 
-	if (!!rec->no_buildid
+	if (!rec->no_buildid
 	    && !perf_header__has_feat(&session->header, HEADER_BUILD_ID)) {
-		pr_err("Couldn't generating buildids. "
+		pr_err("Couldn't generate buildids. "
 		       "Use --no-buildid to profile anyway.\n");
 		return -1;
 	}
@@ -645,13 +656,10 @@ static const char * const record_usage[] = {
  */
 static struct perf_record record = {
 	.opts = {
-		.target_pid	     = -1,
-		.target_tid	     = -1,
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
 		.freq		     = 1000,
-		.sample_id_all_avail = true,
 	},
 	.write_mode = WRITE_FORCE,
 	.file_new   = true,
@@ -670,9 +678,9 @@ const struct option record_options[] = {
 		     parse_events_option),
 	OPT_CALLBACK(0, "filter", &record.evlist, "filter",
 		     "event filter", parse_filter),
-	OPT_INTEGER('p', "pid", &record.opts.target_pid,
+	OPT_STRING('p', "pid", &record.opts.target_pid, "pid",
 		    "record events on existing process id"),
-	OPT_INTEGER('t', "tid", &record.opts.target_tid,
+	OPT_STRING('t', "tid", &record.opts.target_tid, "tid",
 		    "record events on existing thread id"),
 	OPT_INTEGER('r', "realtime", &record.realtime_prio,
 		    "collect data with this RT SCHED_FIFO priority"),
@@ -739,7 +747,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 
 	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc && rec->opts.target_pid == -1 && rec->opts.target_tid == -1 &&
+	if (!argc && !rec->opts.target_pid && !rec->opts.target_tid &&
 		!rec->opts.system_wide && !rec->opts.cpu_list && !rec->uid_str)
 		usage_with_options(record_usage, record_options);
 
@@ -785,7 +793,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	if (rec->uid_str != NULL && rec->opts.uid == UINT_MAX - 1)
 		goto out_free_fd;
 
-	if (rec->opts.target_pid != -1)
+	if (rec->opts.target_pid)
 		rec->opts.target_tid = rec->opts.target_pid;
 
 	if (perf_evlist__create_maps(evsel_list, rec->opts.target_pid,

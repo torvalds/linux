@@ -677,6 +677,12 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		return;
 	}
 
+	if (!machine) {
+		pr_err("%u unprocessable samples recorded.",
+		       top->session->hists.stats.nr_unprocessable_samples++);
+		return;
+	}
+
 	if (event->header.misc & PERF_RECORD_MISC_EXACT_IP)
 		top->exact_samples++;
 
@@ -866,8 +872,11 @@ static void perf_top__start_counters(struct perf_top *top)
 		attr->mmap = 1;
 		attr->comm = 1;
 		attr->inherit = top->inherit;
+fallback_missing_features:
+		if (top->exclude_guest_missing)
+			attr->exclude_guest = attr->exclude_host = 0;
 retry_sample_id:
-		attr->sample_id_all = top->sample_id_all_avail ? 1 : 0;
+		attr->sample_id_all = top->sample_id_all_missing ? 0 : 1;
 try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
 				     top->evlist->threads, top->group,
@@ -877,12 +886,20 @@ try_again:
 			if (err == EPERM || err == EACCES) {
 				ui__error_paranoid();
 				goto out_err;
-			} else if (err == EINVAL && top->sample_id_all_avail) {
-				/*
-				 * Old kernel, no attr->sample_id_type_all field
-				 */
-				top->sample_id_all_avail = false;
-				goto retry_sample_id;
+			} else if (err == EINVAL) {
+				if (!top->exclude_guest_missing &&
+				    (attr->exclude_guest || attr->exclude_host)) {
+					pr_debug("Old kernel, cannot exclude "
+						 "guest or host samples.\n");
+					top->exclude_guest_missing = true;
+					goto fallback_missing_features;
+				} else if (!top->sample_id_all_missing) {
+					/*
+					 * Old kernel, no attr->sample_id_type_all field
+					 */
+					top->sample_id_all_missing = true;
+					goto retry_sample_id;
+				}
 			}
 			/*
 			 * If it's cycles then fall back to hrtimer
@@ -965,7 +982,7 @@ static int __cmd_top(struct perf_top *top)
 	if (ret)
 		goto out_delete;
 
-	if (top->target_tid != -1 || top->uid != UINT_MAX)
+	if (top->target_tid || top->uid != UINT_MAX)
 		perf_event__synthesize_thread_map(&top->tool, top->evlist->threads,
 						  perf_event__process,
 						  &top->session->host_machine);
@@ -1103,11 +1120,8 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	struct perf_top top = {
 		.count_filter	     = 5,
 		.delay_secs	     = 2,
-		.target_pid	     = -1,
-		.target_tid	     = -1,
 		.uid		     = UINT_MAX,
 		.freq		     = 1000, /* 1 KHz */
-		.sample_id_all_avail = true,
 		.mmap_pages	     = 128,
 		.sym_pcnt_filter     = 5,
 	};
@@ -1118,9 +1132,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		     parse_events_option),
 	OPT_INTEGER('c', "count", &top.default_interval,
 		    "event period to sample"),
-	OPT_INTEGER('p', "pid", &top.target_pid,
+	OPT_STRING('p', "pid", &top.target_pid, "pid",
 		    "profile events on existing process id"),
-	OPT_INTEGER('t', "tid", &top.target_tid,
+	OPT_STRING('t', "tid", &top.target_tid, "tid",
 		    "profile events on existing thread id"),
 	OPT_BOOLEAN('a', "all-cpus", &top.system_wide,
 			    "system-wide collection from all CPUs"),
@@ -1210,13 +1224,13 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		goto out_delete_evlist;
 
 	/* CPU and PID are mutually exclusive */
-	if (top.target_tid > 0 && top.cpu_list) {
+	if (top.target_tid && top.cpu_list) {
 		printf("WARNING: PID switch overriding CPU\n");
 		sleep(1);
 		top.cpu_list = NULL;
 	}
 
-	if (top.target_pid != -1)
+	if (top.target_pid)
 		top.target_tid = top.target_pid;
 
 	if (perf_evlist__create_maps(top.evlist, top.target_pid,

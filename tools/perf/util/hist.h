@@ -32,6 +32,7 @@ struct events_stats {
 	u32 nr_unknown_events;
 	u32 nr_invalid_chains;
 	u32 nr_unknown_id;
+	u32 nr_unprocessable_samples;
 };
 
 enum hist_column {

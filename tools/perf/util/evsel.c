@@ -68,7 +68,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts)
 	struct perf_event_attr *attr = &evsel->attr;
 	int track = !evsel->idx; /* only the first counter needs these */
 
-	attr->sample_id_all = opts->sample_id_all_avail ? 1 : 0;
+	attr->sample_id_all = opts->sample_id_all_missing ? 0 : 1;
 	attr->inherit	    = !opts->no_inherit;
 	attr->read_format   = PERF_FORMAT_TOTAL_TIME_ENABLED |
 			      PERF_FORMAT_TOTAL_TIME_RUNNING |
@@ -111,7 +111,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts)
 	if (opts->period)
 		attr->sample_type	|= PERF_SAMPLE_PERIOD;
 
-	if (opts->sample_id_all_avail &&
+	if (!opts->sample_id_all_missing &&
 	    (opts->sample_time || opts->system_wide ||
 	     !opts->no_inherit || opts->cpu_list))
 		attr->sample_type	|= PERF_SAMPLE_TIME;
@@ -130,7 +130,7 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts)
 	attr->mmap = track;
 	attr->comm = track;
 
-	if (opts->target_pid == -1 && opts->target_tid == -1 && !opts->system_wide) {
+	if (!opts->target_pid && !opts->target_tid && !opts->system_wide) {
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}

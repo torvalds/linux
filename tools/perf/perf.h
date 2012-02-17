@@ -167,7 +167,6 @@ sys_perf_event_open(struct perf_event_attr *attr,
 		      pid_t pid, int cpu, int group_fd,
 		      unsigned long flags)
 {
-	attr->size = sizeof(*attr);
 	return syscall(__NR_perf_event_open, attr, pid, cpu,
 		       group_fd, flags);
 }
@@ -186,8 +185,8 @@ extern const char perf_version_string[];
 void pthread__unblock_sigwinch(void);
 
 struct perf_record_opts {
-	pid_t	     target_pid;
-	pid_t	     target_tid;
+	const char   *target_pid;
+	const char   *target_tid;
 	uid_t	     uid;
 	bool	     call_graph;
 	bool	     group;
@@ -199,7 +198,8 @@ struct perf_record_opts {
 	bool	     raw_samples;
 	bool	     sample_address;
 	bool	     sample_time;
-	bool	     sample_id_all_avail;
+	bool	     sample_id_all_missing;
+	bool	     exclude_guest_missing;
 	bool	     system_wide;
 	bool	     period;
 	unsigned int freq;

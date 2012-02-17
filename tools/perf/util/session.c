@@ -796,6 +796,10 @@ static int perf_session_deliver_event(struct perf_session *session,
 			++session->hists.stats.nr_unknown_id;
 			return -1;
 		}
+		if (machine == NULL) {
+			++session->hists.stats.nr_unprocessable_samples;
+			return -1;
+		}
 		return tool->sample(tool, event, sample, evsel, machine);
 	case PERF_RECORD_MMAP:
 		return tool->mmap(tool, event, sample, machine);
@@ -964,6 +968,12 @@ static void perf_session__warn_about_errors(const struct perf_session *session,
  			    session->hists.stats.nr_invalid_chains,
  			    session->hists.stats.nr_events[PERF_RECORD_SAMPLE]);
  	}
+
+	if (session->hists.stats.nr_unprocessable_samples != 0) {
+		ui__warning("%u unprocessable samples recorded.\n"
+			    "Do you have a KVM guest running and not using 'perf kvm'?\n",
+			    session->hists.stats.nr_unprocessable_samples);
+	}
 }
 
 #define session_done()	(*(volatile int *)(&session_done))

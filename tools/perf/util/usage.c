@@ -83,7 +83,7 @@ void warning(const char *warn, ...)
 	va_end(params);
 }
 
-uid_t parse_target_uid(const char *str, pid_t tid, pid_t pid)
+uid_t parse_target_uid(const char *str, const char *tid, const char *pid)
 {
 	struct passwd pwd, *result;
 	char buf[1024];
@@ -91,8 +91,8 @@ uid_t parse_target_uid(const char *str, pid_t tid, pid_t pid)
 	if (str == NULL)
 		return UINT_MAX;
 
-	/* CPU and PID are mutually exclusive */
-	if (tid > 0 || pid > 0) {
+	/* UID and PID are mutually exclusive */
+	if (tid || pid) {
 		ui__warning("PID/TID switch overriding UID\n");
 		sleep(1);
 		return UINT_MAX;
