@@ -510,6 +510,7 @@ static int wacom_probe(struct hid_device *hdev,
 		wacom_poke(hdev, 1);
 		break;
 	case USB_DEVICE_ID_WACOM_INTUOS4_BLUETOOTH:
+		sprintf(hdev->name, "%s", "Wacom Intuos4 WL");
 		wdata->features = 0;
 		wacom_set_features(hdev);
 		break;
