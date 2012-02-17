@@ -77,7 +77,9 @@ static unsigned int save_arm_register[2];
 
 static int exynos_cpu_suspend(unsigned long arg)
 {
+#ifdef CONFIG_CACHE_L2X0
 	outer_flush_all();
+#endif
 
 	/* issue the standby signal into the pm unit. */
 	cpu_do_idle();
@@ -88,13 +90,19 @@ static int exynos_cpu_suspend(unsigned long arg)
 
 static void exynos_pm_prepare(void)
 {
-	u32 tmp;
+	unsigned int tmp;
 
 	s3c_pm_do_save(exynos_core_save, ARRAY_SIZE(exynos_core_save));
-	s3c_pm_do_save(exynos4_epll_save, ARRAY_SIZE(exynos4_epll_save));
-	s3c_pm_do_save(exynos4_vpll_save, ARRAY_SIZE(exynos4_vpll_save));
 
-	tmp = __raw_readl(S5P_INFORM1);
+	if (!soc_is_exynos5250()) {
+		s3c_pm_do_save(exynos4_epll_save, ARRAY_SIZE(exynos4_epll_save));
+		s3c_pm_do_save(exynos4_vpll_save, ARRAY_SIZE(exynos4_vpll_save));
+	} else {
+		/* Disable USE_RETENTION of JPEG_MEM_OPTION */
+		tmp = __raw_readl(EXYNOS5_JPEG_MEM_OPTION);
+		tmp &= ~EXYNOS5_OPTION_USE_RETENTION;
+		__raw_writel(tmp, EXYNOS5_JPEG_MEM_OPTION);
+	}
 
 	/* Set value of power down register for sleep mode */
 
@@ -107,7 +115,8 @@ static void exynos_pm_prepare(void)
 
 	/* Before enter central sequence mode, clock src register have to set */
 
-	s3c_pm_do_restore_core(exynos4_set_clksrc, ARRAY_SIZE(exynos4_set_clksrc));
+	if (!soc_is_exynos5250())
+		s3c_pm_do_restore_core(exynos4_set_clksrc, ARRAY_SIZE(exynos4_set_clksrc));
 
 	if (soc_is_exynos4210())
 		s3c_pm_do_restore_core(exynos4210_set_clksrc, ARRAY_SIZE(exynos4210_set_clksrc));
@@ -190,7 +199,7 @@ static void exynos4_restore_pll(void)
 }
 
 static struct subsys_interface exynos_pm_interface = {
-	.name		= "exynos4_pm",
+	.name		= "exynos_pm",
 	.subsys		= &exynos_subsys,
 	.add_dev	= exynos_pm_add,
 };
@@ -231,22 +240,22 @@ static int exynos_pm_suspend(void)
 	tmp &= ~S5P_CENTRAL_LOWPWR_CFG;
 	__raw_writel(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
 
-	if (soc_is_exynos4212() || soc_is_exynos4412()) {
-		tmp = __raw_readl(S5P_CENTRAL_SEQ_OPTION);
-		tmp &= ~(S5P_USE_STANDBYWFI_ISP_ARM |
-			 S5P_USE_STANDBYWFE_ISP_ARM);
-		__raw_writel(tmp, S5P_CENTRAL_SEQ_OPTION);
+	/* Setting SEQ_OPTION register */
+
+	tmp = (S5P_USE_STANDBY_WFI0 | S5P_USE_STANDBY_WFE0);
+	__raw_writel(tmp, S5P_CENTRAL_SEQ_OPTION);
+
+	if (!soc_is_exynos5250()) {
+		/* Save Power control register */
+		asm ("mrc p15, 0, %0, c15, c0, 0"
+		     : "=r" (tmp) : : "cc");
+		save_arm_register[0] = tmp;
+
+		/* Save Diagnostic register */
+		asm ("mrc p15, 0, %0, c15, c0, 1"
+		     : "=r" (tmp) : : "cc");
+		save_arm_register[1] = tmp;
 	}
-
-	/* Save Power control register */
-	asm ("mrc p15, 0, %0, c15, c0, 0"
-	     : "=r" (tmp) : : "cc");
-	save_arm_register[0] = tmp;
-
-	/* Save Diagnostic register */
-	asm ("mrc p15, 0, %0, c15, c0, 1"
-	     : "=r" (tmp) : : "cc");
-	save_arm_register[1] = tmp;
 
 	return 0;
 }
@@ -268,17 +277,19 @@ static void exynos_pm_resume(void)
 		/* No need to perform below restore code */
 		goto early_wakeup;
 	}
-	/* Restore Power control register */
-	tmp = save_arm_register[0];
-	asm volatile ("mcr p15, 0, %0, c15, c0, 0"
-		      : : "r" (tmp)
-		      : "cc");
+	if (!soc_is_exynos5250()) {
+		/* Restore Power control register */
+		tmp = save_arm_register[0];
+		asm volatile ("mcr p15, 0, %0, c15, c0, 0"
+			      : : "r" (tmp)
+			      : "cc");
 
-	/* Restore Diagnostic register */
-	tmp = save_arm_register[1];
-	asm volatile ("mcr p15, 0, %0, c15, c0, 1"
-		      : : "r" (tmp)
-		      : "cc");
+		/* Restore Diagnostic register */
+		tmp = save_arm_register[1];
+		asm volatile ("mcr p15, 0, %0, c15, c0, 1"
+			      : : "r" (tmp)
+			      : "cc");
+	}
 
 	/* For release retention */
 
@@ -292,11 +303,13 @@ static void exynos_pm_resume(void)
 
 	s3c_pm_do_restore_core(exynos_core_save, ARRAY_SIZE(exynos_core_save));
 
-	exynos4_restore_pll();
+	if (!soc_is_exynos5250()) {
+		exynos4_restore_pll();
 
 #ifdef CONFIG_SMP
-	scu_enable(S5P_VA_SCU);
+		scu_enable(S5P_VA_SCU);
 #endif
+	}
 
 early_wakeup:
 	return;
@@ -307,9 +320,9 @@ static struct syscore_ops exynos_pm_syscore_ops = {
 	.resume		= exynos_pm_resume,
 };
 
-static __init int exynos4_pm_syscore_init(void)
+static __init int exynos_pm_syscore_init(void)
 {
 	register_syscore_ops(&exynos_pm_syscore_ops);
 	return 0;
 }
-arch_initcall(exynos4_pm_syscore_init);
+arch_initcall(exynos_pm_syscore_init);
