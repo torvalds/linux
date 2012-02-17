@@ -458,7 +458,7 @@ static s32 e1000_read_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 		return ret_val;
 	}
 
-	if (hw->dev_spec.e80003es2lan.mdic_wa_enable == true) {
+	if (hw->dev_spec.e80003es2lan.mdic_wa_enable) {
 		/*
 		 * The "ready" bit in the MDIC register may be incorrectly set
 		 * before the device has completed the "Page Select" MDI
@@ -529,7 +529,7 @@ static s32 e1000_write_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 		return ret_val;
 	}
 
-	if (hw->dev_spec.e80003es2lan.mdic_wa_enable == true) {
+	if (hw->dev_spec.e80003es2lan.mdic_wa_enable) {
 		/*
 		 * The "ready" bit in the MDIC register may be incorrectly set
 		 * before the device has completed the "Page Select" MDI
