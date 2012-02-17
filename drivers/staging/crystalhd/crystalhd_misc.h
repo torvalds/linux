@@ -200,14 +200,7 @@ enum _chd_log_levels {
 	BCMLOG_INFO		= 0x00000001,	/* Generic informational */
 	BCMLOG_DBG		= 0x00000002,	/* First level Debug info */
 	BCMLOG_SSTEP		= 0x00000004,	/* Stepping information */
-	BCMLOG_ENTER_LEAVE	= 0x00000008,	/* stack tracking */
 };
-
-#define BCMLOG_ENTER						\
-do {								\
-	if (g_linklog_level & BCMLOG_ENTER_LEAVE)		\
-		printk(KERN_DEBUG "Entered %s\n", __func__);	\
-} while (0)
 
 
 #define BCMLOG(trace, fmt, args...)	\

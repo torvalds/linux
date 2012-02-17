@@ -298,7 +298,6 @@ static int chd_dec_open(struct inode *in, struct file *fd)
 	enum BC_STATUS sts = BC_STS_SUCCESS;
 	struct crystalhd_user *uc = NULL;
 
-	BCMLOG_ENTER;
 	if (!adp) {
 		BCMLOG_ERR("Invalid adp\n");
 		return -EINVAL;
@@ -327,7 +326,6 @@ static int chd_dec_close(struct inode *in, struct file *fd)
 	struct crystalhd_adp *adp = chd_get_adp();
 	struct crystalhd_user *uc;
 
-	BCMLOG_ENTER;
 	if (!adp) {
 		BCMLOG_ERR("Invalid adp\n");
 		return -EINVAL;
@@ -512,8 +510,6 @@ static void __devexit chd_dec_pci_remove(struct pci_dev *pdev)
 {
 	struct crystalhd_adp *pinfo;
 	enum BC_STATUS sts = BC_STS_SUCCESS;
-
-	BCMLOG_ENTER;
 
 	pinfo = pci_get_drvdata(pdev);
 	if (!pinfo) {

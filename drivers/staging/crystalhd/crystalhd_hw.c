@@ -1627,7 +1627,6 @@ enum BC_STATUS crystalhd_download_fw(struct crystalhd_adp *adp, void *buffer, ui
 	uint32_t fw_sig_len = 36;
 	uint32_t dram_offset = BC_FWIMG_ST_ADDR, sig_reg;
 
-	BCMLOG_ENTER;
 
 	if (!adp || !buffer || !sz) {
 		BCMLOG_ERR("Invalid Params.\n");
@@ -1723,8 +1722,6 @@ enum BC_STATUS crystalhd_do_fw_cmd(struct crystalhd_hw *hw,
 	enum BC_STATUS sts;
 
 	crystalhd_create_event(&fw_cmd_event);
-
-	BCMLOG_ENTER;
 
 	if (!hw || !fw_cmd) {
 		BCMLOG_ERR("Invalid Arguments\n");
