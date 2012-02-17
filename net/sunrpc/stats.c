@@ -133,20 +133,19 @@ EXPORT_SYMBOL_GPL(rpc_free_iostats);
 /**
  * rpc_count_iostats - tally up per-task stats
  * @task: completed rpc_task
+ * @stats: array of stat structures
  *
  * Relies on the caller for serialization.
  */
-void rpc_count_iostats(struct rpc_task *task)
+void rpc_count_iostats(const struct rpc_task *task, struct rpc_iostats *stats)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
-	struct rpc_iostats *stats;
 	struct rpc_iostats *op_metrics;
 	ktime_t delta;
 
-	if (!task->tk_client || !task->tk_client->cl_metrics || !req)
+	if (!stats || !req)
 		return;
 
-	stats = task->tk_client->cl_metrics;
 	op_metrics = &stats[task->tk_msg.rpc_proc->p_statidx];
 
 	op_metrics->om_ops++;
@@ -164,6 +163,7 @@ void rpc_count_iostats(struct rpc_task *task)
 	delta = ktime_sub(ktime_get(), task->tk_start);
 	op_metrics->om_execute = ktime_add(op_metrics->om_execute, delta);
 }
+EXPORT_SYMBOL_GPL(rpc_count_iostats);
 
 static void _print_name(struct seq_file *seq, unsigned int op,
 			struct rpc_procinfo *procs)

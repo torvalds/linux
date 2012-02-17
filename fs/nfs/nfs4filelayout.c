@@ -33,6 +33,8 @@
 #include <linux/nfs_page.h>
 #include <linux/module.h>
 
+#include <linux/sunrpc/metrics.h>
+
 #include "internal.h"
 #include "nfs4filelayout.h"
 
@@ -189,6 +191,13 @@ static void filelayout_read_call_done(struct rpc_task *task, void *data)
 	rdata->mds_ops->rpc_call_done(task, data);
 }
 
+static void filelayout_read_count_stats(struct rpc_task *task, void *data)
+{
+	struct nfs_read_data *rdata = (struct nfs_read_data *)data;
+
+	rpc_count_iostats(task, NFS_SERVER(rdata->inode)->client->cl_metrics);
+}
+
 static void filelayout_read_release(void *data)
 {
 	struct nfs_read_data *rdata = (struct nfs_read_data *)data;
@@ -268,6 +277,13 @@ static void filelayout_write_call_done(struct rpc_task *task, void *data)
 	wdata->mds_ops->rpc_call_done(task, data);
 }
 
+static void filelayout_write_count_stats(struct rpc_task *task, void *data)
+{
+	struct nfs_write_data *wdata = (struct nfs_write_data *)data;
+
+	rpc_count_iostats(task, NFS_SERVER(wdata->inode)->client->cl_metrics);
+}
+
 static void filelayout_write_release(void *data)
 {
 	struct nfs_write_data *wdata = (struct nfs_write_data *)data;
@@ -288,18 +304,21 @@ static void filelayout_commit_release(void *data)
 struct rpc_call_ops filelayout_read_call_ops = {
 	.rpc_call_prepare = filelayout_read_prepare,
 	.rpc_call_done = filelayout_read_call_done,
+	.rpc_count_stats = filelayout_read_count_stats,
 	.rpc_release = filelayout_read_release,
 };
 
 struct rpc_call_ops filelayout_write_call_ops = {
 	.rpc_call_prepare = filelayout_write_prepare,
 	.rpc_call_done = filelayout_write_call_done,
+	.rpc_count_stats = filelayout_write_count_stats,
 	.rpc_release = filelayout_write_release,
 };
 
 struct rpc_call_ops filelayout_commit_call_ops = {
 	.rpc_call_prepare = filelayout_write_prepare,
 	.rpc_call_done = filelayout_write_call_done,
+	.rpc_count_stats = filelayout_write_count_stats,
 	.rpc_release = filelayout_commit_release,
 };
 

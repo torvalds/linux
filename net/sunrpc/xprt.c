@@ -1137,7 +1137,10 @@ void xprt_release(struct rpc_task *task)
 		return;
 
 	xprt = req->rq_xprt;
-	rpc_count_iostats(task);
+	if (task->tk_ops->rpc_count_stats != NULL)
+		task->tk_ops->rpc_count_stats(task, task->tk_calldata);
+	else if (task->tk_client)
+		rpc_count_iostats(task, task->tk_client->cl_metrics);
 	spin_lock_bh(&xprt->transport_lock);
 	xprt->ops->release_xprt(xprt, task);
 	if (xprt->ops->release_request)
