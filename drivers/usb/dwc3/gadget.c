@@ -1656,7 +1656,7 @@ static void dwc3_endpoint_transfer_complete(struct dwc3 *dwc,
 static void dwc3_gadget_start_isoc(struct dwc3 *dwc,
 		struct dwc3_ep *dep, const struct dwc3_event_depevt *event)
 {
-	u32 uf;
+	u32 uf, mask;
 
 	if (list_empty(&dep->request_list)) {
 		dev_vdbg(dwc->dev, "ISOC ep %s run out for requests.\n",
@@ -1664,16 +1664,10 @@ static void dwc3_gadget_start_isoc(struct dwc3 *dwc,
 		return;
 	}
 
-	if (event->parameters) {
-		u32 mask;
-
-		mask = ~(dep->interval - 1);
-		uf = event->parameters & mask;
-		/* 4 micro frames in the future */
-		uf += dep->interval * 4;
-	} else {
-		uf = 0;
-	}
+	mask = ~(dep->interval - 1);
+	uf = event->parameters & mask;
+	/* 4 micro frames in the future */
+	uf += dep->interval * 4;
 
 	__dwc3_gadget_kick_transfer(dep, uf, 1);
 }
