@@ -385,6 +385,12 @@ void raise_softirq(unsigned int nr)
 	local_irq_restore(flags);
 }
 
+void __raise_softirq_irqoff(unsigned int nr)
+{
+	trace_softirq_raise(nr);
+	or_softirq_pending(1UL << nr);
+}
+
 void open_softirq(int nr, void (*action)(struct softirq_action *))
 {
 	softirq_vec[nr].action = action;

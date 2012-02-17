@@ -685,7 +685,7 @@ find_event_field(struct ftrace_event_call *call, char *name)
 
 static int __alloc_pred_stack(struct pred_stack *stack, int n_preds)
 {
-	stack->preds = kzalloc(sizeof(*stack->preds)*(n_preds + 1), GFP_KERNEL);
+	stack->preds = kcalloc(n_preds + 1, sizeof(*stack->preds), GFP_KERNEL);
 	if (!stack->preds)
 		return -ENOMEM;
 	stack->index = n_preds;
@@ -826,8 +826,7 @@ static int __alloc_preds(struct event_filter *filter, int n_preds)
 	if (filter->preds)
 		__free_preds(filter);
 
-	filter->preds =
-		kzalloc(sizeof(*filter->preds) * n_preds, GFP_KERNEL);
+	filter->preds = kcalloc(n_preds, sizeof(*filter->preds), GFP_KERNEL);
 
 	if (!filter->preds)
 		return -ENOMEM;
@@ -1486,7 +1485,7 @@ static int fold_pred(struct filter_pred *preds, struct filter_pred *root)
 	children = count_leafs(preds, &preds[root->left]);
 	children += count_leafs(preds, &preds[root->right]);
 
-	root->ops = kzalloc(sizeof(*root->ops) * children, GFP_KERNEL);
+	root->ops = kcalloc(children, sizeof(*root->ops), GFP_KERNEL);
 	if (!root->ops)
 		return -ENOMEM;
 
