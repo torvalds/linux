@@ -289,7 +289,7 @@ static void e1000_release_phy_80003es2lan(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_acquire_mac_csr_80003es2lan - Acquire rights to access Kumeran register
+ *  e1000_acquire_mac_csr_80003es2lan - Acquire right to access Kumeran register
  *  @hw: pointer to the HW structure
  *
  *  Acquire the semaphore to access the Kumeran interface.
@@ -305,7 +305,7 @@ static s32 e1000_acquire_mac_csr_80003es2lan(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_release_mac_csr_80003es2lan - Release rights to access Kumeran Register
+ *  e1000_release_mac_csr_80003es2lan - Release right to access Kumeran Register
  *  @hw: pointer to the HW structure
  *
  *  Release the semaphore used to access the Kumeran interface
