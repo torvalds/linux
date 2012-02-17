@@ -1678,6 +1678,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			back to using the idmapper.
 			To turn off this behaviour, set the value to '0'.
 
+	nfs.send_implementation_id =
+			[NFSv4.1] Send client implementation identification
+			information in exchange_id requests.
+			If zero, no implementation identification information
+			will be sent.
+			The default is to send the implementation identification
+			information.
+
+
 	nmi_debug=	[KNL,AVR32,SH] Specify one or more actions to take
 			when a NMI is triggered.
 			Format: [state][,regs][,debounce][,die]

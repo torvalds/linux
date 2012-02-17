@@ -99,6 +99,18 @@ config PNFS_OBJLAYOUT
 	depends on NFS_FS && NFS_V4_1 && SCSI_OSD_ULD
 	default m
 
+config NFS_V4_1_IMPLEMENTATION_ID_DOMAIN
+	string "NFSv4.1 Implementation ID Domain"
+	depends on NFS_V4_1
+	default "kernel.org"
+	help
+	  This option defines the domain portion of the implementation ID that
+	  may be sent in the NFS exchange_id operation.  The value must be in
+	  the format of a DNS domain name and should be set to the DNS domain
+	  name of the distribution.
+	  If the NFS client is unchanged from the upstream kernel, this
+	  option should be set to the default "kernel.org".
+
 config ROOT_NFS
 	bool "Root file system on NFS"
 	depends on NFS_FS=y && IP_PNP

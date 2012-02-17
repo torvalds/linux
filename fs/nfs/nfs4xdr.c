@@ -44,6 +44,8 @@
 #include <linux/pagemap.h>
 #include <linux/proc_fs.h>
 #include <linux/kdev_t.h>
+#include <linux/module.h>
+#include <linux/utsname.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/msg_prot.h>
 #include <linux/sunrpc/gss_api.h>
@@ -271,7 +273,12 @@ static int nfs4_stat_to_errno(int);
 				1 /* flags */ + \
 				1 /* spa_how */ + \
 				0 /* SP4_NONE (for now) */ + \
-				1 /* zero implemetation id array */)
+				1 /* implementation id array of size 1 */ + \
+				1 /* nii_domain */ + \
+				XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + \
+				1 /* nii_name */ + \
+				XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + \
+				3 /* nii_date */)
 #define decode_exchange_id_maxsz (op_decode_hdr_maxsz + \
 				2 /* eir_clientid */ + \
 				1 /* eir_sequenceid */ + \
@@ -837,6 +844,12 @@ const u32 nfs41_maxread_overhead = ((RPC_MAX_HEADER_WITH_AUTH +
 				     decode_putfh_maxsz) *
 				    XDR_UNIT);
 #endif /* CONFIG_NFS_V4_1 */
+
+static unsigned short send_implementation_id = 1;
+
+module_param(send_implementation_id, ushort, 0644);
+MODULE_PARM_DESC(send_implementation_id,
+		"Send implementation ID with NFSv4.1 exchange_id");
 
 static const umode_t nfs_type2fmt[] = {
 	[NF4BAD] = 0,
@@ -1766,6 +1779,8 @@ static void encode_exchange_id(struct xdr_stream *xdr,
 			       struct compound_hdr *hdr)
 {
 	__be32 *p;
+	char impl_name[NFS4_OPAQUE_LIMIT];
+	int len = 0;
 
 	p = reserve_space(xdr, 4 + sizeof(args->verifier->data));
 	*p++ = cpu_to_be32(OP_EXCHANGE_ID);
@@ -1776,7 +1791,29 @@ static void encode_exchange_id(struct xdr_stream *xdr,
 	p = reserve_space(xdr, 12);
 	*p++ = cpu_to_be32(args->flags);
 	*p++ = cpu_to_be32(0);	/* zero length state_protect4_a */
-	*p = cpu_to_be32(0);	/* zero length implementation id array */
+
+	if (send_implementation_id &&
+	    sizeof(CONFIG_NFS_V4_1_IMPLEMENTATION_ID_DOMAIN) > 1 &&
+	    sizeof(CONFIG_NFS_V4_1_IMPLEMENTATION_ID_DOMAIN)
+		<= NFS4_OPAQUE_LIMIT + 1)
+		len = snprintf(impl_name, sizeof(impl_name), "%s %s %s %s",
+			       utsname()->sysname, utsname()->release,
+			       utsname()->version, utsname()->machine);
+
+	if (len > 0) {
+		*p = cpu_to_be32(1);	/* implementation id array length=1 */
+
+		encode_string(xdr,
+			sizeof(CONFIG_NFS_V4_1_IMPLEMENTATION_ID_DOMAIN) - 1,
+			CONFIG_NFS_V4_1_IMPLEMENTATION_ID_DOMAIN);
+		encode_string(xdr, len, impl_name);
+		/* just send zeros for nii_date - the date is in nii_name */
+		p = reserve_space(xdr, 12);
+		p = xdr_encode_hyper(p, 0);
+		*p = cpu_to_be32(0);
+	} else
+		*p = cpu_to_be32(0);	/* implementation id array length=0 */
+
 	hdr->nops++;
 	hdr->replen += decode_exchange_id_maxsz;
 }
