@@ -25,7 +25,6 @@ enum {
 	ALC880_UNIWILL_P53,
 	ALC880_CLEVO,
 	ALC880_TCL_S700,
-	ALC880_LG,
 #ifdef CONFIG_SND_DEBUG
 	ALC880_TEST,
 #endif
@@ -773,11 +772,6 @@ static void alc880_uniwill_unsol_event(struct hda_codec *codec,
 	}
 }
 
-static void alc880_unsol_event(struct hda_codec *codec, unsigned int res)
-{
-	alc_exec_unsol_event(codec, res >> 28);
-}
-
 static void alc880_uniwill_p53_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -935,136 +929,6 @@ static const struct hda_verb alc880_pin_tcl_S700_init_verbs[] = {
 
 	{ }
 };
-
-/*
- * LG m1 express dual
- *
- * Pin assignment:
- *   Rear Line-In/Out (blue): 0x14
- *   Build-in Mic-In: 0x15
- *   Speaker-out: 0x17
- *   HP-Out (green): 0x1b
- *   Mic-In/Out (red): 0x19
- *   SPDIF-Out: 0x1e
- */
-
-/* To make 5.1 output working (green=Front, blue=Surr, red=CLFE) */
-static const hda_nid_t alc880_lg_dac_nids[3] = {
-	0x05, 0x02, 0x03
-};
-
-/* seems analog CD is not working */
-static const struct hda_input_mux alc880_lg_capture_source = {
-	.num_items = 3,
-	.items = {
-		{ "Mic", 0x1 },
-		{ "Line", 0x5 },
-		{ "Internal Mic", 0x6 },
-	},
-};
-
-/* 2,4,6 channel modes */
-static const struct hda_verb alc880_lg_ch2_init[] = {
-	/* set line-in and mic-in to input */
-	{ 0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
-	{ 0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
-	{ }
-};
-
-static const struct hda_verb alc880_lg_ch4_init[] = {
-	/* set line-in to out and mic-in to input */
-	{ 0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
-	{ 0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
-	{ }
-};
-
-static const struct hda_verb alc880_lg_ch6_init[] = {
-	/* set line-in and mic-in to output */
-	{ 0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
-	{ 0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
-	{ }
-};
-
-static const struct hda_channel_mode alc880_lg_ch_modes[3] = {
-	{ 2, alc880_lg_ch2_init },
-	{ 4, alc880_lg_ch4_init },
-	{ 6, alc880_lg_ch6_init },
-};
-
-static const struct snd_kcontrol_new alc880_lg_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Front Playback Switch", 0x0f, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Surround Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME_MONO("Center Playback Volume", 0x0d, 1, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x0d, 2, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE_MONO("Center Playback Switch", 0x0d, 1, 2, HDA_INPUT),
-	HDA_BIND_MUTE_MONO("LFE Playback Switch", 0x0d, 2, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x06, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x06, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x0b, 0x07, HDA_INPUT),
-	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x0b, 0x07, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Channel Mode",
-		.info = alc_ch_mode_info,
-		.get = alc_ch_mode_get,
-		.put = alc_ch_mode_put,
-	},
-	{ } /* end */
-};
-
-static const struct hda_verb alc880_lg_init_verbs[] = {
-	/* set capture source to mic-in */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	/* mute all amp mixer inputs */
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(5)},
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(6)},
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(7)},
-	/* line-in to input */
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* built-in mic */
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* speaker-out */
-	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* mic-in to input */
-	{0x11, AC_VERB_SET_CONNECT_SEL, 0x01},
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* HP-out */
-	{0x13, AC_VERB_SET_CONNECT_SEL, 0x03},
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* jack sense */
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{ }
-};
-
-/* toggle speaker-output according to the hp-jack state */
-static void alc880_lg_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x1b;
-	spec->autocfg.speaker_pins[0] = 0x17;
-	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
-}
-
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-static const struct hda_amp_list alc880_lg_loopbacks[] = {
-	{ 0x0b, HDA_INPUT, 1 },
-	{ 0x0b, HDA_INPUT, 6 },
-	{ 0x0b, HDA_INPUT, 7 },
-	{ } /* end */
-};
-#endif
 
 /*
  * Test configuration for debugging
@@ -1352,7 +1216,6 @@ static const char * const alc880_models[ALC880_MODEL_LAST] = {
 	[ALC880_UNIWILL_P53]	= "uniwill-p53",
 	[ALC880_FUJITSU]	= "fujitsu",
 	[ALC880_F1734]		= "F1734",
-	[ALC880_LG]		= "lg",
 #ifdef CONFIG_SND_DEBUG
 	[ALC880_TEST]		= "test",
 #endif
@@ -1409,9 +1272,6 @@ static const struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1734, 0x1094, "FSC Amilo M1451G", ALC880_FUJITSU),
 	SND_PCI_QUIRK(0x1734, 0x10ac, "FSC AMILO Xi 1526", ALC880_F1734),
 	SND_PCI_QUIRK(0x1734, 0x10b0, "Fujitsu", ALC880_FUJITSU),
-	SND_PCI_QUIRK(0x1854, 0x003b, "LG", ALC880_LG),
-	SND_PCI_QUIRK(0x1854, 0x005f, "LG P1 Express", ALC880_LG),
-	SND_PCI_QUIRK(0x1854, 0x0068, "LG w1", ALC880_LG),
 	SND_PCI_QUIRK(0x19db, 0x4188, "TCL S700", ALC880_TCL_S700),
 	SND_PCI_QUIRK(0x2668, 0x8086, NULL, ALC880_6ST_DIG), /* broken BIOS */
 	SND_PCI_QUIRK(0x8086, 0x2668, NULL, ALC880_6ST_DIG),
@@ -1672,24 +1532,6 @@ static const struct alc_config_preset alc880_presets[] = {
 		.channel_mode = alc880_threestack_modes,
 		.need_dac_fix = 1,
 		.input_mux = &alc880_capture_source,
-	},
-	[ALC880_LG] = {
-		.mixers = { alc880_lg_mixer },
-		.init_verbs = { alc880_volume_init_verbs,
-				alc880_lg_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc880_lg_dac_nids),
-		.dac_nids = alc880_lg_dac_nids,
-		.dig_out_nid = ALC880_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc880_lg_ch_modes),
-		.channel_mode = alc880_lg_ch_modes,
-		.need_dac_fix = 1,
-		.input_mux = &alc880_lg_capture_source,
-		.unsol_event = alc880_unsol_event,
-		.setup = alc880_lg_setup,
-		.init_hook = alc_hp_automute,
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-		.loopbacks = alc880_lg_loopbacks,
-#endif
 	},
 #ifdef CONFIG_SND_DEBUG
 	[ALC880_TEST] = {

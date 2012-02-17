@@ -17,7 +17,6 @@ ALC880
   uniwill	3-jack
   fujitsu	Fujitsu Laptops (Pi1536)
   F1734		2-jack
-  lg		LG laptop (m1 express dual)
   lg-lw		LG LW20/LW25 laptop
   tcl		TCL S700
   clevo		Clevo laptops (m520G, m665n)

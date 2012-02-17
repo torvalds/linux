@@ -4404,6 +4404,7 @@ static const struct hda_amp_list alc880_loopbacks[] = {
 enum {
 	ALC880_FIXUP_GPIO2,
 	ALC880_FIXUP_MEDION_RIM,
+	ALC880_FIXUP_LG,
 };
 
 static const struct alc_fixup alc880_fixups[] = {
@@ -4421,10 +4422,23 @@ static const struct alc_fixup alc880_fixups[] = {
 		.chained = true,
 		.chain_id = ALC880_FIXUP_GPIO2,
 	},
+	[ALC880_FIXUP_LG] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			/* disable bogus unused pins */
+			{ 0x16, 0x411111f0 },
+			{ 0x18, 0x411111f0 },
+			{ 0x1a, 0x411111f0 },
+			{ }
+		}
+	},
 };
 
 static const struct snd_pci_quirk alc880_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x161f, 0x205d, "Medion Rim 2150", ALC880_FIXUP_MEDION_RIM),
+	SND_PCI_QUIRK(0x1854, 0x003b, "LG", ALC880_FIXUP_LG),
+	SND_PCI_QUIRK(0x1854, 0x005f, "LG P1 Express", ALC880_FIXUP_LG),
+	SND_PCI_QUIRK(0x1854, 0x0068, "LG w1", ALC880_FIXUP_LG),
 	{}
 };
 
