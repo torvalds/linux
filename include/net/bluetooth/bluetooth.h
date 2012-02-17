@@ -109,12 +109,14 @@ struct bt_power {
  */
 #define BT_CHANNEL_POLICY_AMP_PREFERRED		2
 
-__printf(2, 3)
-int bt_printk(const char *level, const char *fmt, ...);
+__printf(1, 2)
+int bt_info(const char *fmt, ...);
+__printf(1, 2)
+int bt_err(const char *fmt, ...);
 
-#define BT_INFO(fmt, arg...)   bt_printk(KERN_INFO, pr_fmt(fmt), ##arg)
-#define BT_ERR(fmt, arg...)    bt_printk(KERN_ERR, pr_fmt(fmt), ##arg)
-#define BT_DBG(fmt, arg...)    pr_debug(fmt "\n", ##arg)
+#define BT_INFO(fmt, ...)	bt_info(fmt "\n", ##__VA_ARGS__)
+#define BT_ERR(fmt, ...)	bt_err(fmt "\n", ##__VA_ARGS__)
+#define BT_DBG(fmt, ...)	pr_debug(fmt "\n", ##__VA_ARGS__)
 
 /* Connection and socket states */
 enum {
