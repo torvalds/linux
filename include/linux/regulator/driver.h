@@ -104,7 +104,7 @@ struct regulator_ops {
 	int (*disable) (struct regulator_dev *);
 	int (*is_enabled) (struct regulator_dev *);
 
-	/* get/set regulator operating mode (defined in regulator.h) */
+	/* get/set regulator operating mode (defined in consumer.h) */
 	int (*set_mode) (struct regulator_dev *, unsigned int mode);
 	unsigned int (*get_mode) (struct regulator_dev *);
 
@@ -135,7 +135,7 @@ struct regulator_ops {
 	int (*set_suspend_enable) (struct regulator_dev *);
 	int (*set_suspend_disable) (struct regulator_dev *);
 
-	/* set regulator suspend operating mode (defined in regulator.h) */
+	/* set regulator suspend operating mode (defined in consumer.h) */
 	int (*set_suspend_mode) (struct regulator_dev *, unsigned int mode);
 };
 
