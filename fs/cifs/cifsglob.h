@@ -250,7 +250,8 @@ struct TCP_Server_Info {
 	bool noblocksnd;		/* use blocking sendmsg */
 	bool noautotune;		/* do not autotune send buf sizes */
 	bool tcp_nodelay;
-	atomic_t inFlight;  /* number of requests on the wire to server */
+	unsigned int in_flight;  /* number of requests on the wire to server */
+	spinlock_t req_lock; /* protect the value above */
 	struct mutex srv_mutex;
 	struct task_struct *tsk;
 	char server_GUID[16];
@@ -302,6 +303,24 @@ struct TCP_Server_Info {
 	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
 #endif
 };
+
+static inline unsigned int
+in_flight(struct TCP_Server_Info *server)
+{
+	unsigned int num;
+	spin_lock(&server->req_lock);
+	num = server->in_flight;
+	spin_unlock(&server->req_lock);
+	return num;
+}
+
+static inline void
+dec_in_flight(struct TCP_Server_Info *server)
+{
+	spin_lock(&server->req_lock);
+	server->in_flight--;
+	spin_unlock(&server->req_lock);
+}
 
 /*
  * Macros to allow the TCP_Server_Info->net field and related code to drop out

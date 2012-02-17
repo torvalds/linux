@@ -721,7 +721,7 @@ cifs_echo_callback(struct mid_q_entry *mid)
 	struct TCP_Server_Info *server = mid->callback_data;
 
 	DeleteMidQEntry(mid);
-	atomic_dec(&server->inFlight);
+	dec_in_flight(server);
 	wake_up(&server->request_q);
 }
 
@@ -1674,7 +1674,7 @@ cifs_readv_callback(struct mid_q_entry *mid)
 
 	queue_work(system_nrt_wq, &rdata->work);
 	DeleteMidQEntry(mid);
-	atomic_dec(&server->inFlight);
+	dec_in_flight(server);
 	wake_up(&server->request_q);
 }
 
@@ -2115,7 +2115,7 @@ cifs_writev_callback(struct mid_q_entry *mid)
 
 	queue_work(system_nrt_wq, &wdata->work);
 	DeleteMidQEntry(mid);
-	atomic_dec(&tcon->ses->server->inFlight);
+	dec_in_flight(tcon->ses->server);
 	wake_up(&tcon->ses->server->request_q);
 }
 

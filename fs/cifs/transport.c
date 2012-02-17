@@ -254,28 +254,29 @@ smb_send(struct TCP_Server_Info *server, struct smb_hdr *smb_buffer,
 	return smb_sendv(server, &iov, 1);
 }
 
-static int wait_for_free_request(struct TCP_Server_Info *server,
-				 const int long_op)
+static int
+wait_for_free_request(struct TCP_Server_Info *server, const int long_op)
 {
+	spin_lock(&server->req_lock);
+
 	if (long_op == CIFS_ASYNC_OP) {
 		/* oplock breaks must not be held up */
-		atomic_inc(&server->inFlight);
+		server->in_flight++;
+		spin_unlock(&server->req_lock);
 		return 0;
 	}
 
-	spin_lock(&GlobalMid_Lock);
 	while (1) {
-		if (atomic_read(&server->inFlight) >= server->maxReq) {
-			spin_unlock(&GlobalMid_Lock);
+		if (server->in_flight >= server->maxReq) {
+			spin_unlock(&server->req_lock);
 			cifs_num_waiters_inc(server);
 			wait_event(server->request_q,
-				   atomic_read(&server->inFlight)
-				     < server->maxReq);
+				   in_flight(server) < server->maxReq);
 			cifs_num_waiters_dec(server);
-			spin_lock(&GlobalMid_Lock);
+			spin_lock(&server->req_lock);
 		} else {
 			if (server->tcpStatus == CifsExiting) {
-				spin_unlock(&GlobalMid_Lock);
+				spin_unlock(&server->req_lock);
 				return -ENOENT;
 			}
 
@@ -284,8 +285,8 @@ static int wait_for_free_request(struct TCP_Server_Info *server,
 
 			/* update # of requests on the wire to server */
 			if (long_op != CIFS_BLOCKING_OP)
-				atomic_inc(&server->inFlight);
-			spin_unlock(&GlobalMid_Lock);
+				server->in_flight++;
+			spin_unlock(&server->req_lock);
 			break;
 		}
 	}
@@ -359,7 +360,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
 	mid = AllocMidQEntry(hdr, server);
 	if (mid == NULL) {
 		mutex_unlock(&server->srv_mutex);
-		atomic_dec(&server->inFlight);
+		dec_in_flight(server);
 		wake_up(&server->request_q);
 		return -ENOMEM;
 	}
@@ -392,7 +393,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct kvec *iov,
 	return rc;
 out_err:
 	delete_mid(mid);
-	atomic_dec(&server->inFlight);
+	dec_in_flight(server);
 	wake_up(&server->request_q);
 	return rc;
 }
@@ -564,7 +565,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 		mutex_unlock(&ses->server->srv_mutex);
 		cifs_small_buf_release(in_buf);
 		/* Update # of requests on wire to server */
-		atomic_dec(&ses->server->inFlight);
+		dec_in_flight(ses->server);
 		wake_up(&ses->server->request_q);
 		return rc;
 	}
@@ -601,7 +602,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 			midQ->callback = DeleteMidQEntry;
 			spin_unlock(&GlobalMid_Lock);
 			cifs_small_buf_release(in_buf);
-			atomic_dec(&ses->server->inFlight);
+			dec_in_flight(ses->server);
 			wake_up(&ses->server->request_q);
 			return rc;
 		}
@@ -612,7 +613,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 
 	rc = cifs_sync_mid_result(midQ, ses->server);
 	if (rc != 0) {
-		atomic_dec(&ses->server->inFlight);
+		dec_in_flight(ses->server);
 		wake_up(&ses->server->request_q);
 		return rc;
 	}
@@ -637,7 +638,7 @@ SendReceive2(const unsigned int xid, struct cifs_ses *ses,
 		midQ->resp_buf = NULL;
 out:
 	delete_mid(midQ);
-	atomic_dec(&ses->server->inFlight);
+	dec_in_flight(ses->server);
 	wake_up(&ses->server->request_q);
 
 	return rc;
@@ -688,7 +689,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	if (rc) {
 		mutex_unlock(&ses->server->srv_mutex);
 		/* Update # of requests on wire to server */
-		atomic_dec(&ses->server->inFlight);
+		dec_in_flight(ses->server);
 		wake_up(&ses->server->request_q);
 		return rc;
 	}
@@ -721,7 +722,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 			/* no longer considered to be "in-flight" */
 			midQ->callback = DeleteMidQEntry;
 			spin_unlock(&GlobalMid_Lock);
-			atomic_dec(&ses->server->inFlight);
+			dec_in_flight(ses->server);
 			wake_up(&ses->server->request_q);
 			return rc;
 		}
@@ -730,7 +731,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 
 	rc = cifs_sync_mid_result(midQ, ses->server);
 	if (rc != 0) {
-		atomic_dec(&ses->server->inFlight);
+		dec_in_flight(ses->server);
 		wake_up(&ses->server->request_q);
 		return rc;
 	}
@@ -747,7 +748,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	rc = cifs_check_receive(midQ, ses->server, 0);
 out:
 	delete_mid(midQ);
-	atomic_dec(&ses->server->inFlight);
+	dec_in_flight(ses->server);
 	wake_up(&ses->server->request_q);
 
 	return rc;
