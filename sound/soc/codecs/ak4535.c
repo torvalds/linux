@@ -27,8 +27,6 @@
 
 #include "ak4535.h"
 
-#define AK4535_VERSION "0.3"
-
 /* codec private data */
 struct ak4535_priv {
 	unsigned int sysclk;
@@ -371,8 +369,6 @@ static int ak4535_probe(struct snd_soc_codec *codec)
 {
 	struct ak4535_priv *ak4535 = snd_soc_codec_get_drvdata(codec);
 	int ret;
-
-	printk(KERN_INFO "AK4535 Audio Codec %s", AK4535_VERSION);
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 8, ak4535->control_type);
 	if (ret < 0) {
