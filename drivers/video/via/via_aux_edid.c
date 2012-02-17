@@ -36,10 +36,13 @@ static void query_edid(struct via_aux_drv *drv)
 	unsigned char edid[EDID_LENGTH];
 	bool valid = false;
 
-	if (spec)
+	if (spec) {
 		fb_destroy_modedb(spec->modedb);
-	else
+	} else {
 		spec = kmalloc(sizeof(*spec), GFP_KERNEL);
+		if (!spec)
+			return;
+	}
 
 	spec->version = spec->revision = 0;
 	if (via_aux_read(drv, 0x00, edid, EDID_LENGTH)) {
