@@ -231,7 +231,7 @@ static void l2cap_chan_timeout(struct work_struct *work)
 	struct sock *sk = chan->sk;
 	int reason;
 
-	BT_DBG("chan %p state %d", chan, chan->state);
+	BT_DBG("chan %p state %s", chan, state_to_string(chan->state));
 
 	lock_sock(sk);
 
@@ -413,7 +413,8 @@ void l2cap_chan_close(struct l2cap_chan *chan, int reason)
 	struct l2cap_conn *conn = chan->conn;
 	struct sock *sk = chan->sk;
 
-	BT_DBG("chan %p state %d socket %p", chan, chan->state, sk->sk_socket);
+	BT_DBG("chan %p state %s sk %p", chan,
+					state_to_string(chan->state), sk);
 
 	switch (chan->state) {
 	case BT_LISTEN:

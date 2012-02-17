@@ -282,7 +282,7 @@ static void hci_conn_timeout(struct work_struct *work)
 							disc_work.work);
 	__u8 reason;
 
-	BT_DBG("conn %p state %d", conn, conn->state);
+	BT_DBG("conn %p state %s", conn, state_to_string(conn->state));
 
 	if (atomic_read(&conn->refcnt))
 		return;

@@ -612,7 +612,8 @@ static inline void l2cap_chan_put(struct l2cap_chan *c)
 static inline void l2cap_set_timer(struct l2cap_chan *chan,
 					struct delayed_work *work, long timeout)
 {
-	BT_DBG("chan %p state %d timeout %ld", chan, chan->state, timeout);
+	BT_DBG("chan %p state %s timeout %ld", chan,
+					state_to_string(chan->state), timeout);
 
 	if (!cancel_delayed_work(work))
 		l2cap_chan_hold(chan);
