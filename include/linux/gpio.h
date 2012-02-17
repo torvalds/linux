@@ -17,6 +17,9 @@
 /* Gpio pin is open drain */
 #define GPIOF_OPEN_DRAIN	(1 << 2)
 
+/* Gpio pin is open source */
+#define GPIOF_OPEN_SOURCE	(1 << 3)
+
 /**
  * struct gpio - a structure describing a GPIO with configuration
  * @gpio:	the GPIO number
