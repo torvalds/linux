@@ -22,7 +22,6 @@ enum {
 	ALC880_UNIWILL_DIG,
 	ALC880_UNIWILL,
 	ALC880_UNIWILL_P53,
-	ALC880_TCL_S700,
 #ifdef CONFIG_SND_DEBUG
 	ALC880_TEST,
 #endif
@@ -341,20 +340,6 @@ static const struct snd_kcontrol_new alc880_asus_mixer[] = {
 static const struct snd_kcontrol_new alc880_asus_w1v_mixer[] = {
 	HDA_CODEC_VOLUME("Line2 Playback Volume", 0x0b, 0x03, HDA_INPUT),
 	HDA_CODEC_MUTE("Line2 Playback Switch", 0x0b, 0x03, HDA_INPUT),
-	{ } /* end */
-};
-
-/* TCL S700 */
-static const struct snd_kcontrol_new alc880_tcl_s700_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Front Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x0B, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x0B, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0B, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0B, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
 	{ } /* end */
 };
 
@@ -808,31 +793,6 @@ static const struct hda_verb alc880_pin_asus_init_verbs[] = {
 #define alc880_gpio2_init_verbs	alc_gpio2_init_verbs
 #define alc880_gpio3_init_verbs	alc_gpio3_init_verbs
 
-static const struct hda_verb alc880_pin_tcl_S700_init_verbs[] = {
-	/* change to EAPD mode */
-	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
-	{0x20, AC_VERB_SET_PROC_COEF,  0x3060},
-
-	/* Headphone output */
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	/* Front output*/
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x1b, AC_VERB_SET_CONNECT_SEL, 0x00},
-
-	/* Line In pin widget for input */
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	/* CD pin widget for input */
-	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	/* Mic1 (rear panel) pin widget for input and vref at 80% */
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-
-	/* change to EAPD mode */
-	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
-	{0x20, AC_VERB_SET_PROC_COEF,  0x3070},
-
-	{ }
-};
-
 /*
  * Test configuration for debugging
  *
@@ -1102,7 +1062,6 @@ static const struct hda_verb alc880_test_init_verbs[] = {
 
 static const char * const alc880_models[ALC880_MODEL_LAST] = {
 	[ALC880_3ST]		= "3stack",
-	[ALC880_TCL_S700]	= "tcl",
 	[ALC880_3ST_DIG]	= "3stack-digout",
 	[ALC880_5ST]		= "5stack",
 	[ALC880_5ST_DIG]	= "5stack-digout",
@@ -1169,7 +1128,6 @@ static const struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1734, 0x1094, "FSC Amilo M1451G", ALC880_FUJITSU),
 	SND_PCI_QUIRK(0x1734, 0x10ac, "FSC AMILO Xi 1526", ALC880_F1734),
 	SND_PCI_QUIRK(0x1734, 0x10b0, "Fujitsu", ALC880_FUJITSU),
-	SND_PCI_QUIRK(0x19db, 0x4188, "TCL S700", ALC880_TCL_S700),
 	SND_PCI_QUIRK(0x2668, 0x8086, NULL, ALC880_6ST_DIG), /* broken BIOS */
 	SND_PCI_QUIRK(0x8086, 0x2668, NULL, ALC880_6ST_DIG),
 	SND_PCI_QUIRK(0x8086, 0xa100, "Intel mobo", ALC880_5ST_DIG),
@@ -1214,20 +1172,6 @@ static const struct alc_config_preset alc880_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc880_threestack_modes),
 		.channel_mode = alc880_threestack_modes,
 		.need_dac_fix = 1,
-		.input_mux = &alc880_capture_source,
-	},
-	[ALC880_TCL_S700] = {
-		.mixers = { alc880_tcl_s700_mixer },
-		.init_verbs = { alc880_volume_init_verbs,
-				alc880_pin_tcl_S700_init_verbs,
-				alc880_gpio2_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc880_dac_nids),
-		.dac_nids = alc880_dac_nids,
-		.adc_nids = alc880_adc_nids_alt, /* FIXME: correct? */
-		.num_adc_nids = 1, /* single ADC */
-		.hp_nid = 0x03,
-		.num_channel_mode = ARRAY_SIZE(alc880_2_jack_modes),
-		.channel_mode = alc880_2_jack_modes,
 		.input_mux = &alc880_capture_source,
 	},
 	[ALC880_5ST] = {
