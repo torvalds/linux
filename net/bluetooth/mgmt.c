@@ -2250,7 +2250,7 @@ static int stop_discovery(struct sock *sk, u16 index)
 		goto unlock;
 	}
 
-	if (hdev->discovery.state == DISCOVERY_INQUIRY) {
+	if (hdev->discovery.state == DISCOVERY_FINDING) {
 		err = hci_cancel_inquiry(hdev);
 		if (err < 0)
 			mgmt_pending_remove(cmd);

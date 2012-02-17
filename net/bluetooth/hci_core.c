@@ -361,8 +361,7 @@ bool hci_discovery_active(struct hci_dev *hdev)
 	struct discovery_state *discov = &hdev->discovery;
 
 	switch (discov->state) {
-	case DISCOVERY_INQUIRY:
-	case DISCOVERY_LE_SCAN:
+	case DISCOVERY_FINDING:
 	case DISCOVERY_RESOLVING:
 		return true;
 
@@ -387,8 +386,7 @@ void hci_discovery_set_state(struct hci_dev *hdev, int state)
 		break;
 	case DISCOVERY_STARTING:
 		break;
-	case DISCOVERY_INQUIRY:
-	case DISCOVERY_LE_SCAN:
+	case DISCOVERY_FINDING:
 		mgmt_discovering(hdev, 1);
 		break;
 	case DISCOVERY_RESOLVING:
