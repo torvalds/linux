@@ -18,7 +18,6 @@ ALC880
   F1734		2-jack
   lg-lw		LG LW20/LW25 laptop
   tcl		TCL S700
-  clevo		Clevo laptops (m520G, m665n)
   medion	Medion Rim 2150
   test		for testing/debugging purpose, almost all controls can be
 		adjusted.  Appearing only when compiled with

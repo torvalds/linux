@@ -22,7 +22,6 @@ enum {
 	ALC880_UNIWILL_DIG,
 	ALC880_UNIWILL,
 	ALC880_UNIWILL_P53,
-	ALC880_CLEVO,
 	ALC880_TCL_S700,
 #ifdef CONFIG_SND_DEBUG
 	ALC880_TEST,
@@ -809,35 +808,6 @@ static const struct hda_verb alc880_pin_asus_init_verbs[] = {
 #define alc880_gpio2_init_verbs	alc_gpio2_init_verbs
 #define alc880_gpio3_init_verbs	alc_gpio3_init_verbs
 
-/* Clevo m520g init */
-static const struct hda_verb alc880_pin_clevo_init_verbs[] = {
-	/* headphone output */
-	{0x11, AC_VERB_SET_CONNECT_SEL, 0x01},
-	/* line-out */
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* Line-in */
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* CD */
-	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* Mic1 (rear panel) */
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* Mic2 (front panel) */
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* headphone */
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-        /* change to EAPD mode */
-	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
-	{0x20, AC_VERB_SET_PROC_COEF,  0x3060},
-
-	{ }
-};
-
 static const struct hda_verb alc880_pin_tcl_S700_init_verbs[] = {
 	/* change to EAPD mode */
 	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
@@ -1134,7 +1104,6 @@ static const char * const alc880_models[ALC880_MODEL_LAST] = {
 	[ALC880_3ST]		= "3stack",
 	[ALC880_TCL_S700]	= "tcl",
 	[ALC880_3ST_DIG]	= "3stack-digout",
-	[ALC880_CLEVO]		= "clevo",
 	[ALC880_5ST]		= "5stack",
 	[ALC880_5ST_DIG]	= "5stack-digout",
 	[ALC880_Z71V]		= "z71v",
@@ -1188,8 +1157,6 @@ static const struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1458, 0xa102, "Gigabyte K8", ALC880_6ST_DIG),
 	SND_PCI_QUIRK(0x1462, 0x1150, "MSI", ALC880_6ST_DIG),
 	SND_PCI_QUIRK(0x1509, 0x925d, "FIC P4M", ALC880_6ST_DIG),
-	SND_PCI_QUIRK(0x1558, 0x0520, "Clevo m520G", ALC880_CLEVO),
-	SND_PCI_QUIRK(0x1558, 0x0660, "Clevo m655n", ALC880_CLEVO),
 	SND_PCI_QUIRK(0x1558, 0x5401, "ASUS", ALC880_ASUS_DIG2),
 	SND_PCI_QUIRK(0x1565, 0x8202, "Biostar", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x1584, 0x9050, "Uniwill", ALC880_UNIWILL_DIG),
@@ -1438,18 +1405,6 @@ static const struct alc_config_preset alc880_presets[] = {
 		.unsol_event = alc880_uniwill_p53_unsol_event,
 		.setup = alc880_uniwill_p53_setup,
 		.init_hook = alc_hp_automute,
-	},
-	[ALC880_CLEVO] = {
-		.mixers = { alc880_three_stack_mixer },
-		.init_verbs = { alc880_volume_init_verbs,
-				alc880_pin_clevo_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc880_dac_nids),
-		.dac_nids = alc880_dac_nids,
-		.hp_nid = 0x03,
-		.num_channel_mode = ARRAY_SIZE(alc880_threestack_modes),
-		.channel_mode = alc880_threestack_modes,
-		.need_dac_fix = 1,
-		.input_mux = &alc880_capture_source,
 	},
 #ifdef CONFIG_SND_DEBUG
 	[ALC880_TEST] = {
