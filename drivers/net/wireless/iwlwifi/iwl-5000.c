@@ -162,7 +162,7 @@ static void iwl5000_set_ct_threshold(struct iwl_priv *priv)
 	hw_params(priv).ct_kill_threshold = CT_KILL_THRESHOLD_LEGACY;
 }
 
-static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
+static void iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
@@ -185,11 +185,9 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 
 	/* Set initial sensitivity parameters */
 	hw_params(priv).sens = &iwl5000_sensitivity;
-
-	return 0;
 }
 
-static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
+static void iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
@@ -212,8 +210,6 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 
 	/* Set initial sensitivity parameters */
 	hw_params(priv).sens = &iwl5150_sensitivity;
-
-	return 0;
 }
 
 static void iwl5150_temperature(struct iwl_priv *priv)

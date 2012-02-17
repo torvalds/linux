@@ -1082,7 +1082,7 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 #define IWL_RX_BUF_SIZE_4K (4 * 1024)
 #define IWL_RX_BUF_SIZE_8K (8 * 1024)
 
-static int iwl_set_hw_params(struct iwl_priv *priv)
+static void iwl_set_hw_params(struct iwl_priv *priv)
 {
 	if (iwlagn_mod_params.amsdu_size_8K)
 		hw_params(priv).rx_page_order =
@@ -1102,7 +1102,7 @@ static int iwl_set_hw_params(struct iwl_priv *priv)
 	hw_params(priv).wd_timeout = cfg(priv)->base_params->wd_timeout;
 
 	/* Device-specific setup */
-	return cfg(priv)->lib->set_hw_params(priv);
+	cfg(priv)->lib->set_hw_params(priv);
 }
 
 
@@ -1239,11 +1239,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	/************************
 	 * 5. Setup HW constants
 	 ************************/
-	if (iwl_set_hw_params(priv)) {
-		err = -ENOENT;
-		IWL_ERR(priv, "failed to set hw parameters\n");
-		goto out_free_eeprom;
-	}
+	iwl_set_hw_params(priv);
 
 	/*******************
 	 * 6. Setup priv

@@ -120,7 +120,7 @@ static struct iwl_sensitivity_ranges iwl1000_sensitivity = {
 	.nrg_th_cca = 62,
 };
 
-static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
+static void iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
@@ -146,8 +146,6 @@ static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 
 	/* Set initial sensitivity parameters */
 	hw_params(priv).sens = &iwl1000_sensitivity;
-
-	return 0;
 }
 
 static struct iwl_lib_ops iwl1000_lib = {
