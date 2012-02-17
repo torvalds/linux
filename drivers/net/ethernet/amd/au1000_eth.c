@@ -1129,9 +1129,6 @@ static int __devinit au1000_probe(struct platform_device *pdev)
 
 	au1000_setup_hw_rings(aup, aup->macdma);
 
-	/* set a random MAC now in case platform_data doesn't provide one */
-	random_ether_addr(dev->dev_addr);
-
 	writel(0, aup->enable);
 	aup->mac_enabled = 0;
 
@@ -1141,8 +1138,12 @@ static int __devinit au1000_probe(struct platform_device *pdev)
 					" PHY search on MAC0\n");
 		aup->phy1_search_mac0 = 1;
 	} else {
-		if (is_valid_ether_addr(pd->mac))
+		if (is_valid_ether_addr(pd->mac)) {
 			memcpy(dev->dev_addr, pd->mac, 6);
+		} else {
+			/* Set a random MAC since no valid provided by platform_data. */
+			eth_hw_addr_random(dev);
+		}
 
 		aup->phy_static_config = pd->phy_static_config;
 		aup->phy_search_highest_addr = pd->phy_search_highest_addr;
