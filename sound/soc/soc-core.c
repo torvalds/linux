@@ -933,7 +933,8 @@ static void soc_remove_dai_link(struct snd_soc_card *card, int num, int order)
 		if (codec_dai->driver->remove) {
 			err = codec_dai->driver->remove(codec_dai);
 			if (err < 0)
-				printk(KERN_ERR "asoc: failed to remove %s\n", codec_dai->name);
+				pr_err("asoc: failed to remove %s: %d\n",
+							codec_dai->name, err);
 		}
 		codec_dai->probed = 0;
 		list_del(&codec_dai->card_list);
@@ -945,7 +946,8 @@ static void soc_remove_dai_link(struct snd_soc_card *card, int num, int order)
 		if (platform->driver->remove) {
 			err = platform->driver->remove(platform);
 			if (err < 0)
-				printk(KERN_ERR "asoc: failed to remove %s\n", platform->name);
+				pr_err("asoc: failed to remove %s: %d\n",
+							platform->name, err);
 		}
 
 		/* Make sure all DAPM widgets are freed */
@@ -968,7 +970,8 @@ static void soc_remove_dai_link(struct snd_soc_card *card, int num, int order)
 		if (cpu_dai->driver->remove) {
 			err = cpu_dai->driver->remove(cpu_dai);
 			if (err < 0)
-				printk(KERN_ERR "asoc: failed to remove %s\n", cpu_dai->name);
+				pr_err("asoc: failed to remove %s: %d\n",
+							cpu_dai->name, err);
 		}
 		cpu_dai->probed = 0;
 		list_del(&cpu_dai->card_list);
@@ -1224,8 +1227,8 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num, int order)
 		if (cpu_dai->driver->probe) {
 			ret = cpu_dai->driver->probe(cpu_dai);
 			if (ret < 0) {
-				printk(KERN_ERR "asoc: failed to probe CPU DAI %s\n",
-						cpu_dai->name);
+				pr_err("asoc: failed to probe CPU DAI %s: %d\n",
+							cpu_dai->name, ret);
 				module_put(cpu_dai->dev->driver->owner);
 				return ret;
 			}
@@ -1256,8 +1259,8 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num, int order)
 		if (codec_dai->driver->probe) {
 			ret = codec_dai->driver->probe(codec_dai);
 			if (ret < 0) {
-				printk(KERN_ERR "asoc: failed to probe CODEC DAI %s\n",
-						codec_dai->name);
+				pr_err("asoc: failed to probe CODEC DAI %s: %d\n",
+							codec_dai->name, ret);
 				return ret;
 			}
 		}
@@ -1277,12 +1280,13 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num, int order)
 
 	ret = device_create_file(rtd->dev, &dev_attr_pmdown_time);
 	if (ret < 0)
-		printk(KERN_WARNING "asoc: failed to add pmdown_time sysfs\n");
+		pr_warn("asoc: failed to add pmdown_time sysfs:%d\n", ret);
 
 	/* create the pcm */
 	ret = soc_new_pcm(rtd, num);
 	if (ret < 0) {
-		printk(KERN_ERR "asoc: can't create pcm %s\n", dai_link->stream_name);
+		pr_err("asoc: can't create pcm %s :%d\n",
+				dai_link->stream_name, ret);
 		return ret;
 	}
 
@@ -1315,7 +1319,7 @@ static int soc_register_ac97_dai_link(struct snd_soc_pcm_runtime *rtd)
 
 		ret = soc_ac97_dev_register(rtd->codec);
 		if (ret < 0) {
-			printk(KERN_ERR "asoc: AC97 device register failed\n");
+			pr_err("asoc: AC97 device register failed:%d\n", ret);
 			return ret;
 		}
 
@@ -1455,8 +1459,8 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	ret = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1,
 			card->owner, 0, &card->snd_card);
 	if (ret < 0) {
-		printk(KERN_ERR "asoc: can't create sound card for card %s\n",
-			card->name);
+		pr_err("asoc: can't create sound card for card %s: %d\n",
+			card->name, ret);
 		mutex_unlock(&card->mutex);
 		return;
 	}
@@ -1576,7 +1580,8 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 
 	ret = snd_card_register(card->snd_card);
 	if (ret < 0) {
-		printk(KERN_ERR "asoc: failed to register soundcard for %s\n", card->name);
+		pr_err("asoc: failed to register soundcard for %s: %d\n",
+							card->name, ret);
 		goto probe_aux_dev_err;
 	}
 
@@ -1585,7 +1590,8 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	for (i = 0; i < card->num_rtd; i++) {
 		ret = soc_register_ac97_dai_link(&card->rtd[i]);
 		if (ret < 0) {
-			printk(KERN_ERR "asoc: failed to register AC97 %s\n", card->name);
+			pr_err("asoc: failed to register AC97 %s: %d\n",
+							card->name, ret);
 			while (--i >= 0)
 				soc_unregister_ac97_dai_link(card->rtd[i].codec);
 			goto probe_aux_dev_err;
@@ -3083,7 +3089,7 @@ static inline char *fmt_multiple_name(struct device *dev,
 		struct snd_soc_dai_driver *dai_drv)
 {
 	if (dai_drv->name == NULL) {
-		printk(KERN_ERR "asoc: error - multiple DAI %s registered with no name\n",
+		pr_err("asoc: error - multiple DAI %s registered with no name\n",
 				dev_name(dev));
 		return NULL;
 	}
@@ -3555,8 +3561,7 @@ static int __init snd_soc_init(void)
 #ifdef CONFIG_DEBUG_FS
 	snd_soc_debugfs_root = debugfs_create_dir("asoc", NULL);
 	if (IS_ERR(snd_soc_debugfs_root) || !snd_soc_debugfs_root) {
-		printk(KERN_WARNING
-		       "ASoC: Failed to create debugfs directory\n");
+		pr_warn("ASoC: Failed to create debugfs directory\n");
 		snd_soc_debugfs_root = NULL;
 	}
 
