@@ -143,28 +143,26 @@ static int __init configfs_init(void)
 		goto out;
 
 	config_kobj = kobject_create_and_add("config", kernel_kobj);
-	if (!config_kobj) {
-		kmem_cache_destroy(configfs_dir_cachep);
-		configfs_dir_cachep = NULL;
-		goto out;
-	}
-
-	err = register_filesystem(&configfs_fs_type);
-	if (err) {
-		printk(KERN_ERR "configfs: Unable to register filesystem!\n");
-		kobject_put(config_kobj);
-		kmem_cache_destroy(configfs_dir_cachep);
-		configfs_dir_cachep = NULL;
-		goto out;
-	}
+	if (!config_kobj)
+		goto out2;
 
 	err = configfs_inode_init();
-	if (err) {
-		unregister_filesystem(&configfs_fs_type);
-		kobject_put(config_kobj);
-		kmem_cache_destroy(configfs_dir_cachep);
-		configfs_dir_cachep = NULL;
-	}
+	if (err)
+		goto out3;
+
+	err = register_filesystem(&configfs_fs_type);
+	if (err)
+		goto out4;
+
+	return 0;
+out4:
+	printk(KERN_ERR "configfs: Unable to register filesystem!\n");
+	configfs_inode_exit();
+out3:
+	kobject_put(config_kobj);
+out2:
+	kmem_cache_destroy(configfs_dir_cachep);
+	configfs_dir_cachep = NULL;
 out:
 	return err;
 }

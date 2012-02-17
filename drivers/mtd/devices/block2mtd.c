@@ -14,7 +14,6 @@
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/mtd/mtd.h>
-#include <linux/buffer_head.h>
 #include <linux/mutex.h>
 #include <linux/mount.h>
 #include <linux/slab.h>
@@ -288,7 +287,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size)
 	dev->mtd.flags = MTD_CAP_RAM;
 	dev->mtd.erase = block2mtd_erase;
 	dev->mtd.write = block2mtd_write;
-	dev->mtd.writev = default_mtd_writev;
+	dev->mtd.writev = mtd_writev;
 	dev->mtd.sync = block2mtd_sync;
 	dev->mtd.read = block2mtd_read;
 	dev->mtd.priv = dev;

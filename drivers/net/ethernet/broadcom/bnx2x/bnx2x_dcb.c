@@ -685,24 +685,6 @@ int bnx2x_dcbnl_update_applist(struct bnx2x *bp, bool delall)
 }
 #endif
 
-static inline void bnx2x_update_drv_flags(struct bnx2x *bp, u32 flags, u32 set)
-{
-	if (SHMEM2_HAS(bp, drv_flags)) {
-		u32 drv_flags;
-		bnx2x_acquire_hw_lock(bp, HW_LOCK_DRV_FLAGS);
-		drv_flags = SHMEM2_RD(bp, drv_flags);
-
-		if (set)
-			SET_FLAGS(drv_flags, flags);
-		else
-			RESET_FLAGS(drv_flags, flags);
-
-		SHMEM2_WR(bp, drv_flags, drv_flags);
-		DP(NETIF_MSG_HW, "drv_flags 0x%08x\n", drv_flags);
-		bnx2x_release_hw_lock(bp, HW_LOCK_DRV_FLAGS);
-	}
-}
-
 static inline void bnx2x_dcbx_update_tc_mapping(struct bnx2x *bp)
 {
 	u8 prio, cos;
@@ -755,17 +737,25 @@ void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 			/* mark DCBX result for PMF migration */
 			bnx2x_update_drv_flags(bp, DRV_FLAGS_DCB_CONFIGURED, 1);
 #ifdef BCM_DCBNL
-			/**
+			/*
 			 * Add new app tlvs to dcbnl
 			 */
 			bnx2x_dcbnl_update_applist(bp, false);
 #endif
-			bnx2x_dcbx_stop_hw_tx(bp);
-
-			/* reconfigure the netdevice with the results of the new
+			/*
+			 * reconfigure the netdevice with the results of the new
 			 * dcbx negotiation.
 			 */
 			bnx2x_dcbx_update_tc_mapping(bp);
+
+			/*
+			 * allow other funtions to update their netdevices
+			 * accordingly
+			 */
+			if (IS_MF(bp))
+				bnx2x_link_sync_notify(bp);
+
+			bnx2x_dcbx_stop_hw_tx(bp);
 
 			return;
 		}
@@ -775,6 +765,7 @@ void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 
 		bnx2x_dcbx_update_ets_params(bp);
 		bnx2x_dcbx_resume_hw_tx(bp);
+
 		return;
 	case BNX2X_DCBX_STATE_TX_RELEASED:
 		DP(NETIF_MSG_LINK, "BNX2X_DCBX_STATE_TX_RELEASED\n");
@@ -883,7 +874,7 @@ static void bnx2x_dcbx_admin_mib_updated_params(struct bnx2x *bp,
 		/*For IEEE admin_recommendation_bw_precentage
 		 *For IEEE admin_recommendation_ets_pg */
 		af->pfc.pri_en_bitmap = (u8)dp->admin_pfc_bitmap;
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < DCBX_CONFIG_MAX_APP_PROTOCOL; i++) {
 			if (dp->admin_priority_app_table[i].valid) {
 				struct bnx2x_admin_priority_app_table *table =
 					dp->admin_priority_app_table;
@@ -923,7 +914,7 @@ static void bnx2x_dcbx_admin_mib_updated_params(struct bnx2x *bp,
 
 void bnx2x_dcbx_set_state(struct bnx2x *bp, bool dcb_on, u32 dcbx_enabled)
 {
-	if (!CHIP_IS_E1x(bp) && !CHIP_IS_E3(bp)) {
+	if (!CHIP_IS_E1x(bp)) {
 		bp->dcb_state = dcb_on;
 		bp->dcbx_enabled = dcbx_enabled;
 	} else {
@@ -1863,7 +1854,7 @@ static void bnx2x_dcbx_fw_struct(struct bnx2x *bp,
 void bnx2x_dcbx_pmf_update(struct bnx2x *bp)
 {
 	/* if we need to syncronize DCBX result from prev PMF
-	 * read it from shmem and update bp accordingly
+	 * read it from shmem and update bp and netdev accordingly
 	 */
 	if (SHMEM2_HAS(bp, drv_flags) &&
 	   GET_FLAGS(SHMEM2_RD(bp, drv_flags), DRV_FLAGS_DCB_CONFIGURED)) {
@@ -1875,6 +1866,22 @@ void bnx2x_dcbx_pmf_update(struct bnx2x *bp)
 					  bp->dcbx_error);
 		bnx2x_get_dcbx_drv_param(bp, &bp->dcbx_local_feat,
 					 bp->dcbx_error);
+#ifdef BCM_DCBNL
+		/*
+		 * Add new app tlvs to dcbnl
+		 */
+		bnx2x_dcbnl_update_applist(bp, false);
+		/*
+		 * Send a notification for the new negotiated parameters
+		 */
+		dcbnl_cee_notify(bp->dev, RTM_GETDCB, DCB_CMD_CEE_GET, 0, 0);
+#endif
+		/*
+		 * reconfigure the netdevice with the results of the new
+		 * dcbx negotiation.
+		 */
+		bnx2x_dcbx_update_tc_mapping(bp);
+
 	}
 }
 
@@ -2242,7 +2249,7 @@ static int bnx2x_set_admin_app_up(struct bnx2x *bp, u8 idtype, u16 idval, u8 up)
 	int i, ff;
 
 	/* iterate over the app entries looking for idtype and idval */
-	for (i = 0, ff = -1; i < 4; i++) {
+	for (i = 0, ff = -1; i < DCBX_CONFIG_MAX_APP_PROTOCOL; i++) {
 		struct bnx2x_admin_priority_app_table *app_ent =
 			&bp->dcbx_config_params.admin_priority_app_table[i];
 		if (bnx2x_admin_app_is_equal(app_ent, idtype, idval))
@@ -2251,7 +2258,7 @@ static int bnx2x_set_admin_app_up(struct bnx2x *bp, u8 idtype, u16 idval, u8 up)
 		if (ff < 0 && !app_ent->valid)
 			ff = i;
 	}
-	if (i < 4)
+	if (i < DCBX_CONFIG_MAX_APP_PROTOCOL)
 		/* if found overwrite up */
 		bp->dcbx_config_params.
 			admin_priority_app_table[i].priority = up;

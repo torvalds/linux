@@ -228,4 +228,5 @@ MACHINE_START(ACS5K, "Brivo Systems LLC ACS-5000 Master board")
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= acs5k_init,
 	.timer		= &ks8695_timer,
+	.restart	= ks8695_restart,
 MACHINE_END

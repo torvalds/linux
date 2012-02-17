@@ -39,6 +39,9 @@ EXPORT_SYMBOL(finv_user_asm);
 EXPORT_SYMBOL(current_text_addr);
 EXPORT_SYMBOL(dump_stack);
 
+/* arch/tile/kernel/head.S */
+EXPORT_SYMBOL(empty_zero_page);
+
 /* arch/tile/lib/, various memcpy files */
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(__copy_to_user_inatomic);

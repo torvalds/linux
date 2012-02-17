@@ -76,9 +76,9 @@
  *	the actual uCode host command ID is carried with
  *	IWL_TM_ATTR_UCODE_CMD_ID
  *
- * @IWL_TM_CMD_APP2DEV_REG_READ32:
- * @IWL_TM_CMD_APP2DEV_REG_WRITE32:
- * @IWL_TM_CMD_APP2DEV_REG_WRITE8:
+ * @IWL_TM_CMD_APP2DEV_DIRECT_REG_READ32:
+ * @IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE32:
+ * @IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE8:
  *	commands from user applicaiton to access register
  *
  * @IWL_TM_CMD_APP2DEV_GET_DEVICENAME: retrieve device name
@@ -103,16 +103,30 @@
  * @IWL_TM_CMD_DEV2APP_EEPROM_RSP:
  *	commands from kernel space to carry the eeprom response
  *	to user application
+ *
  * @IWL_TM_CMD_APP2DEV_OWNERSHIP:
  *	commands from user application to own change the ownership of the uCode
  *	if application has the ownership, the only host command from
  *	testmode will deliver to uCode. Default owner is driver
+ *
+ * @IWL_TM_CMD_APP2DEV_INDIRECT_REG_READ32:
+ * @IWL_TM_CMD_APP2DEV_INDIRECT_REG_WRITE32:
+ *	commands from user applicaiton to indirectly access peripheral register
+ *
+ * @IWL_TM_CMD_APP2DEV_READ_SRAM:
+ * @IWL_TM_CMD_APP2DEV_DUMP_SRAM:
+ *	commands from user applicaiton to read data in sram
+ *
+ * @IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW: load Weak On Wireless LAN uCode image
+ * @IWL_TM_CMD_APP2DEV_GET_FW_VERSION: retrieve uCode version
+ * @IWL_TM_CMD_APP2DEV_GET_DEVICE_ID: retrieve ID information in device
+ *
  */
 enum iwl_tm_cmd_t {
 	IWL_TM_CMD_APP2DEV_UCODE		= 1,
-	IWL_TM_CMD_APP2DEV_REG_READ32		= 2,
-	IWL_TM_CMD_APP2DEV_REG_WRITE32		= 3,
-	IWL_TM_CMD_APP2DEV_REG_WRITE8		= 4,
+	IWL_TM_CMD_APP2DEV_DIRECT_REG_READ32	= 2,
+	IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE32	= 3,
+	IWL_TM_CMD_APP2DEV_DIRECT_REG_WRITE8	= 4,
 	IWL_TM_CMD_APP2DEV_GET_DEVICENAME	= 5,
 	IWL_TM_CMD_APP2DEV_LOAD_INIT_FW		= 6,
 	IWL_TM_CMD_APP2DEV_CFG_INIT_CALIB	= 7,
@@ -126,7 +140,14 @@ enum iwl_tm_cmd_t {
 	IWL_TM_CMD_DEV2APP_UCODE_RX_PKT		= 15,
 	IWL_TM_CMD_DEV2APP_EEPROM_RSP		= 16,
 	IWL_TM_CMD_APP2DEV_OWNERSHIP		= 17,
-	IWL_TM_CMD_MAX				= 18,
+	IWL_TM_CMD_APP2DEV_INDIRECT_REG_READ32	= 18,
+	IWL_TM_CMD_APP2DEV_INDIRECT_REG_WRITE32	= 19,
+	IWL_TM_CMD_APP2DEV_READ_SRAM		= 20,
+	IWL_TM_CMD_APP2DEV_DUMP_SRAM		= 21,
+	IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW	= 22,
+	IWL_TM_CMD_APP2DEV_GET_FW_VERSION	= 23,
+	IWL_TM_CMD_APP2DEV_GET_DEVICE_ID	= 24,
+	IWL_TM_CMD_MAX				= 25,
 };
 
 /*
@@ -196,6 +217,26 @@ enum iwl_tm_cmd_t {
  *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_OWNERSHIP,
  *	The mandatory fields are:
  *	IWL_TM_ATTR_UCODE_OWNER for the new owner
+ *
+ * @IWL_TM_ATTR_SRAM_ADDR:
+ * @IWL_TM_ATTR_SRAM_SIZE:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_READ_SRAM,
+ *	The mandatory fields are:
+ *	IWL_TM_ATTR_SRAM_ADDR for the address in sram
+ *	IWL_TM_ATTR_SRAM_SIZE for the buffer size of data reading
+ *
+ * @IWL_TM_ATTR_SRAM_DUMP:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_DUMP_SRAM,
+ *	IWL_TM_ATTR_SRAM_DUMP for the data in sram
+ *
+ * @IWL_TM_ATTR_FW_VERSION:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_GET_FW_VERSION,
+ *	IWL_TM_ATTR_FW_VERSION for the uCode version
+ *
+ * @IWL_TM_ATTR_DEVICE_ID:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_GET_DEVICE_ID,
+ *	IWL_TM_ATTR_DEVICE_ID for the device ID information
+ *
  */
 enum iwl_tm_attr_t {
 	IWL_TM_ATTR_NOT_APPLICABLE		= 0,
@@ -213,7 +254,12 @@ enum iwl_tm_attr_t {
 	IWL_TM_ATTR_TRACE_DUMP			= 12,
 	IWL_TM_ATTR_FIXRATE			= 13,
 	IWL_TM_ATTR_UCODE_OWNER			= 14,
-	IWL_TM_ATTR_MAX				= 15,
+	IWL_TM_ATTR_SRAM_ADDR			= 15,
+	IWL_TM_ATTR_SRAM_SIZE			= 16,
+	IWL_TM_ATTR_SRAM_DUMP			= 17,
+	IWL_TM_ATTR_FW_VERSION			= 18,
+	IWL_TM_ATTR_DEVICE_ID			= 19,
+	IWL_TM_ATTR_MAX				= 20,
 };
 
 /* uCode trace buffer */
@@ -221,6 +267,8 @@ enum iwl_tm_attr_t {
 #define TRACE_BUFF_SIZE_MIN	0x20000
 #define TRACE_BUFF_SIZE_DEF	TRACE_BUFF_SIZE_MIN
 #define TRACE_BUFF_PADD		0x2000
-#define TRACE_CHUNK_SIZE	(PAGE_SIZE - 1024)
+
+/* Maximum data size of each dump it packet */
+#define DUMP_CHUNK_SIZE		(PAGE_SIZE - 1024)
 
 #endif

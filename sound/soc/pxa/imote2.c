@@ -30,20 +30,6 @@ static int imote2_asoc_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	/* set codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S
-				  | SND_SOC_DAIFMT_NB_NF
-				  | SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		return ret;
-
-	/* CPU should be clock master */
-	ret = snd_soc_dai_set_fmt(cpu_dai,  SND_SOC_DAIFMT_I2S
-				  | SND_SOC_DAIFMT_NB_NF
-				  | SND_SOC_DAIFMT_CBS_CFS);
-	if (ret < 0)
-		return ret;
-
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0, clk,
 				     SND_SOC_CLOCK_IN);
 	if (ret < 0)
@@ -67,42 +53,52 @@ static struct snd_soc_dai_link imote2_dai = {
 	.codec_dai_name = "wm8940-hifi",
 	.platform_name = "pxa-pcm-audio",
 	.codec_name = "wm8940-codec.0-0034",
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+		   SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &imote2_asoc_ops,
 };
 
-static struct snd_soc_card snd_soc_imote2 = {
+static struct snd_soc_card imote2 = {
 	.name = "Imote2",
+	.owner = THIS_MODULE,
 	.dai_link = &imote2_dai,
 	.num_links = 1,
 };
 
-static struct platform_device *imote2_snd_device;
-
-static int __init imote2_asoc_init(void)
+static int __devinit imote2_probe(struct platform_device *pdev)
 {
+	struct snd_soc_card *card = &imote2;
 	int ret;
 
-	if (!machine_is_intelmote2())
-		return -ENODEV;
-	imote2_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!imote2_snd_device)
-		return -ENOMEM;
+	card->dev = &pdev->dev;
 
-	platform_set_drvdata(imote2_snd_device, &snd_soc_imote2);
-	ret = platform_device_add(imote2_snd_device);
+	ret = snd_soc_register_card(card);
 	if (ret)
-		platform_device_put(imote2_snd_device);
-
+		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
+			ret);
 	return ret;
 }
-module_init(imote2_asoc_init);
 
-static void __exit imote2_asoc_exit(void)
+static int __devexit imote2_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(imote2_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
+	return 0;
 }
-module_exit(imote2_asoc_exit);
+
+static struct platform_driver imote2_driver = {
+	.driver		= {
+		.name	= "imote2-audio",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= imote2_probe,
+	.remove		= __devexit_p(imote2_remove),
+};
+
+module_platform_driver(imote2_driver);
 
 MODULE_AUTHOR("Jonathan Cameron");
 MODULE_DESCRIPTION("ALSA SoC Imote 2");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:imote2-audio");

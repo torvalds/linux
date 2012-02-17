@@ -121,6 +121,7 @@ struct toshiba_acpi_dev {
 	int illumination_supported:1;
 	int video_supported:1;
 	int fan_supported:1;
+	int system_event_supported:1;
 
 	struct mutex mutex;
 };
@@ -724,7 +725,7 @@ static int keys_proc_show(struct seq_file *m, void *v)
 	u32 hci_result;
 	u32 value;
 
-	if (!dev->key_event_valid) {
+	if (!dev->key_event_valid && dev->system_event_supported) {
 		hci_read1(dev, HCI_SYSTEM_EVENT, &value, &hci_result);
 		if (hci_result == HCI_SUCCESS) {
 			dev->key_event_valid = 1;
@@ -964,6 +965,8 @@ static int __devinit toshiba_acpi_add(struct acpi_device *acpi_dev)
 
 	/* enable event fifo */
 	hci_write1(dev, HCI_SYSTEM_EVENT, 1, &hci_result);
+	if (hci_result == HCI_SUCCESS)
+		dev->system_event_supported = 1;
 
 	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
@@ -1032,12 +1035,15 @@ static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 {
 	struct toshiba_acpi_dev *dev = acpi_driver_data(acpi_dev);
 	u32 hci_result, value;
+	int retries = 3;
 
-	if (event != 0x80)
+	if (!dev->system_event_supported || event != 0x80)
 		return;
+
 	do {
 		hci_read1(dev, HCI_SYSTEM_EVENT, &value, &hci_result);
-		if (hci_result == HCI_SUCCESS) {
+		switch (hci_result) {
+		case HCI_SUCCESS:
 			if (value == 0x100)
 				continue;
 			/* act on key press; ignore key release */
@@ -1049,14 +1055,19 @@ static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 				pr_info("Unknown key %x\n",
 				       value);
 			}
-		} else if (hci_result == HCI_NOT_SUPPORTED) {
+			break;
+		case HCI_NOT_SUPPORTED:
 			/* This is a workaround for an unresolved issue on
 			 * some machines where system events sporadically
 			 * become disabled. */
 			hci_write1(dev, HCI_SYSTEM_EVENT, 1, &hci_result);
 			pr_notice("Re-enabled hotkeys\n");
+			/* fall through */
+		default:
+			retries--;
+			break;
 		}
-	} while (hci_result != HCI_EMPTY);
+	} while (retries && hci_result != HCI_EMPTY);
 }
 
 

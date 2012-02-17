@@ -1037,20 +1037,7 @@ static struct platform_driver ti_hecc_driver = {
 	.resume = ti_hecc_resume,
 };
 
-static int __init ti_hecc_init_driver(void)
-{
-	printk(KERN_INFO DRV_DESC "\n");
-	return platform_driver_register(&ti_hecc_driver);
-}
-
-static void __exit ti_hecc_exit_driver(void)
-{
-	printk(KERN_INFO DRV_DESC " unloaded\n");
-	platform_driver_unregister(&ti_hecc_driver);
-}
-
-module_exit(ti_hecc_exit_driver);
-module_init(ti_hecc_init_driver);
+module_platform_driver(ti_hecc_driver);
 
 MODULE_AUTHOR("Anant Gole <anantgole@ti.com>");
 MODULE_LICENSE("GPL v2");

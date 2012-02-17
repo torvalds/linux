@@ -74,29 +74,28 @@
 /*
  * System Peripherals (offset from AT91_BASE_SYS)
  */
-#define AT91_ECC0	(0xffffe000 - AT91_BASE_SYS)
 #define AT91_SDRAMC0	(0xffffe200 - AT91_BASE_SYS)
-#define AT91_SMC0	(0xffffe400 - AT91_BASE_SYS)
-#define AT91_ECC1	(0xffffe600 - AT91_BASE_SYS)
 #define AT91_SDRAMC1	(0xffffe800 - AT91_BASE_SYS)
-#define AT91_SMC1	(0xffffea00 - AT91_BASE_SYS)
 #define AT91_MATRIX	(0xffffec00 - AT91_BASE_SYS)
-#define AT91_CCFG	(0xffffed10 - AT91_BASE_SYS)
-#define AT91_DBGU	(0xffffee00 - AT91_BASE_SYS)
-#define AT91_AIC	(0xfffff000 - AT91_BASE_SYS)
-#define AT91_PIOA	(0xfffff200 - AT91_BASE_SYS)
-#define AT91_PIOB	(0xfffff400 - AT91_BASE_SYS)
-#define AT91_PIOC	(0xfffff600 - AT91_BASE_SYS)
-#define AT91_PIOD	(0xfffff800 - AT91_BASE_SYS)
-#define AT91_PIOE	(0xfffffa00 - AT91_BASE_SYS)
 #define AT91_PMC	(0xfffffc00 - AT91_BASE_SYS)
-#define AT91_RSTC	(0xfffffd00 - AT91_BASE_SYS)
-#define AT91_SHDWC	(0xfffffd10 - AT91_BASE_SYS)
-#define AT91_RTT0	(0xfffffd20 - AT91_BASE_SYS)
-#define AT91_PIT	(0xfffffd30 - AT91_BASE_SYS)
-#define AT91_WDT	(0xfffffd40 - AT91_BASE_SYS)
-#define AT91_RTT1	(0xfffffd50 - AT91_BASE_SYS)
 #define AT91_GPBR	(0xfffffd60 - AT91_BASE_SYS)
+
+#define AT91SAM9263_BASE_ECC0	0xffffe000
+#define AT91SAM9263_BASE_SMC0	0xffffe400
+#define AT91SAM9263_BASE_ECC1	0xffffe600
+#define AT91SAM9263_BASE_SMC1	0xffffea00
+#define AT91SAM9263_BASE_DBGU	AT91_BASE_DBGU1
+#define AT91SAM9263_BASE_PIOA	0xfffff200
+#define AT91SAM9263_BASE_PIOB	0xfffff400
+#define AT91SAM9263_BASE_PIOC	0xfffff600
+#define AT91SAM9263_BASE_PIOD	0xfffff800
+#define AT91SAM9263_BASE_PIOE	0xfffffa00
+#define AT91SAM9263_BASE_RSTC	0xfffffd00
+#define AT91SAM9263_BASE_SHDWC	0xfffffd10
+#define AT91SAM9263_BASE_RTT0	0xfffffd20
+#define AT91SAM9263_BASE_PIT	0xfffffd30
+#define AT91SAM9263_BASE_WDT	0xfffffd40
+#define AT91SAM9263_BASE_RTT1	0xfffffd50
 
 #define AT91_USART0	AT91SAM9263_BASE_US0
 #define AT91_USART1	AT91SAM9263_BASE_US1

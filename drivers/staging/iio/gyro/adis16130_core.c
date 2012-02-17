@@ -168,19 +168,9 @@ static struct spi_driver adis16130_driver = {
 	.probe = adis16130_probe,
 	.remove = __devexit_p(adis16130_remove),
 };
-
-static __init int adis16130_init(void)
-{
-	return spi_register_driver(&adis16130_driver);
-}
-module_init(adis16130_init);
-
-static __exit void adis16130_exit(void)
-{
-	spi_unregister_driver(&adis16130_driver);
-}
-module_exit(adis16130_exit);
+module_spi_driver(adis16130_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADIS16130 High Precision Angular Rate");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:adis16130");

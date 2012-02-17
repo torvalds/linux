@@ -573,7 +573,7 @@ static struct spi_board_info spi_board_info[] __initdata = {
 	.modalias		= "libertas_spi",
 	.platform_data		= &z2_lbs_pdata,
 	.controller_data	= &z2_lbs_chip_info,
-	.irq			= gpio_to_irq(GPIO36_ZIPITZ2_WIFI_IRQ),
+	.irq			= PXA_GPIO_TO_IRQ(GPIO36_ZIPITZ2_WIFI_IRQ),
 	.max_speed_hz		= 13000000,
 	.bus_num		= 1,
 	.chip_select		= 0,
@@ -725,4 +725,5 @@ MACHINE_START(ZIPIT2, "Zipit Z2")
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= z2_init,
+	.restart	= pxa_restart,
 MACHINE_END

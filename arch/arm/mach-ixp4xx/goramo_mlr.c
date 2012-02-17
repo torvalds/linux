@@ -504,4 +504,5 @@ MACHINE_START(GORAMO_MLR, "MultiLink")
 #if defined(CONFIG_PCI)
 	.dma_zone_size	= SZ_64M,
 #endif
+	.restart	= ixp4xx_restart,
 MACHINE_END

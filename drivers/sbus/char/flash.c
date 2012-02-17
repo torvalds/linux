@@ -216,16 +216,6 @@ static struct platform_driver flash_driver = {
 	.remove		= __devexit_p(flash_remove),
 };
 
-static int __init flash_init(void)
-{
-	return platform_driver_register(&flash_driver);
-}
+module_platform_driver(flash_driver);
 
-static void __exit flash_cleanup(void)
-{
-	platform_driver_unregister(&flash_driver);
-}
-
-module_init(flash_init);
-module_exit(flash_cleanup);
 MODULE_LICENSE("GPL");

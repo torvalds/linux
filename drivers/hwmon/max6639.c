@@ -208,7 +208,7 @@ static ssize_t set_temp_max(struct device *dev,
 	unsigned long val;
 	int res;
 
-	res = strict_strtoul(buf, 10, &val);
+	res = kstrtoul(buf, 10, &val);
 	if (res)
 		return res;
 
@@ -241,7 +241,7 @@ static ssize_t set_temp_crit(struct device *dev,
 	unsigned long val;
 	int res;
 
-	res = strict_strtoul(buf, 10, &val);
+	res = kstrtoul(buf, 10, &val);
 	if (res)
 		return res;
 
@@ -275,7 +275,7 @@ static ssize_t set_temp_emergency(struct device *dev,
 	unsigned long val;
 	int res;
 
-	res = strict_strtoul(buf, 10, &val);
+	res = kstrtoul(buf, 10, &val);
 	if (res)
 		return res;
 
@@ -308,7 +308,7 @@ static ssize_t set_pwm(struct device *dev,
 	unsigned long val;
 	int res;
 
-	res = strict_strtoul(buf, 10, &val);
+	res = kstrtoul(buf, 10, &val);
 	if (res)
 		return res;
 

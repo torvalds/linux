@@ -16,6 +16,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/module.h>
+
 #include <brcmu_utils.h>
 
 MODULE_AUTHOR("Broadcom Corporation");
@@ -40,73 +41,19 @@ EXPORT_SYMBOL(brcmu_pkt_buf_get_skb);
 /* Free the driver packet. Free the tag if present */
 void brcmu_pkt_buf_free_skb(struct sk_buff *skb)
 {
-	struct sk_buff *nskb;
-	int nest = 0;
-
-	/* perversion: we use skb->next to chain multi-skb packets */
-	while (skb) {
-		nskb = skb->next;
-		skb->next = NULL;
-
-		if (skb->destructor)
-			/* cannot kfree_skb() on hard IRQ (net/core/skbuff.c) if
-			 * destructor exists
-			 */
-			dev_kfree_skb_any(skb);
-		else
-			/* can free immediately (even in_irq()) if destructor
-			 * does not exist
-			 */
-			dev_kfree_skb(skb);
-
-		nest++;
-		skb = nskb;
-	}
+	WARN_ON(skb->next);
+	if (skb->destructor)
+		/* cannot kfree_skb() on hard IRQ (net/core/skbuff.c) if
+		 * destructor exists
+		 */
+		dev_kfree_skb_any(skb);
+	else
+		/* can free immediately (even in_irq()) if destructor
+		 * does not exist
+		 */
+		dev_kfree_skb(skb);
 }
 EXPORT_SYMBOL(brcmu_pkt_buf_free_skb);
-
-
-/* copy a buffer into a pkt buffer chain */
-uint brcmu_pktfrombuf(struct sk_buff *p, uint offset, int len,
-		unsigned char *buf)
-{
-	uint n, ret = 0;
-
-	/* skip 'offset' bytes */
-	for (; p && offset; p = p->next) {
-		if (offset < (uint) (p->len))
-			break;
-		offset -= p->len;
-	}
-
-	if (!p)
-		return 0;
-
-	/* copy the data */
-	for (; p && len; p = p->next) {
-		n = min((uint) (p->len) - offset, (uint) len);
-		memcpy(p->data + offset, buf, n);
-		buf += n;
-		len -= n;
-		ret += n;
-		offset = 0;
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL(brcmu_pktfrombuf);
-
-/* return total length of buffer chain */
-uint brcmu_pkttotlen(struct sk_buff *p)
-{
-	uint total;
-
-	total = 0;
-	for (; p; p = p->next)
-		total += p->len;
-	return total;
-}
-EXPORT_SYMBOL(brcmu_pkttotlen);
 
 /*
  * osl multiple-precedence packet queue
@@ -115,21 +62,13 @@ EXPORT_SYMBOL(brcmu_pkttotlen);
 struct sk_buff *brcmu_pktq_penq(struct pktq *pq, int prec,
 				      struct sk_buff *p)
 {
-	struct pktq_prec *q;
+	struct sk_buff_head *q;
 
 	if (pktq_full(pq) || pktq_pfull(pq, prec))
 		return NULL;
 
-	q = &pq->q[prec];
-
-	if (q->head)
-		q->tail->prev = p;
-	else
-		q->head = p;
-
-	q->tail = p;
-	q->len++;
-
+	q = &pq->q[prec].skblist;
+	skb_queue_tail(q, p);
 	pq->len++;
 
 	if (pq->hi_prec < prec)
@@ -142,20 +81,13 @@ EXPORT_SYMBOL(brcmu_pktq_penq);
 struct sk_buff *brcmu_pktq_penq_head(struct pktq *pq, int prec,
 					   struct sk_buff *p)
 {
-	struct pktq_prec *q;
+	struct sk_buff_head *q;
 
 	if (pktq_full(pq) || pktq_pfull(pq, prec))
 		return NULL;
 
-	q = &pq->q[prec];
-
-	if (q->head == NULL)
-		q->tail = p;
-
-	p->prev = q->head;
-	q->head = p;
-	q->len++;
-
+	q = &pq->q[prec].skblist;
+	skb_queue_head(q, p);
 	pq->len++;
 
 	if (pq->hi_prec < prec)
@@ -167,53 +99,30 @@ EXPORT_SYMBOL(brcmu_pktq_penq_head);
 
 struct sk_buff *brcmu_pktq_pdeq(struct pktq *pq, int prec)
 {
-	struct pktq_prec *q;
+	struct sk_buff_head *q;
 	struct sk_buff *p;
 
-	q = &pq->q[prec];
-
-	p = q->head;
+	q = &pq->q[prec].skblist;
+	p = skb_dequeue(q);
 	if (p == NULL)
 		return NULL;
 
-	q->head = p->prev;
-	if (q->head == NULL)
-		q->tail = NULL;
-
-	q->len--;
-
 	pq->len--;
-
-	p->prev = NULL;
-
 	return p;
 }
 EXPORT_SYMBOL(brcmu_pktq_pdeq);
 
 struct sk_buff *brcmu_pktq_pdeq_tail(struct pktq *pq, int prec)
 {
-	struct pktq_prec *q;
-	struct sk_buff *p, *prev;
+	struct sk_buff_head *q;
+	struct sk_buff *p;
 
-	q = &pq->q[prec];
-
-	p = q->head;
+	q = &pq->q[prec].skblist;
+	p = skb_dequeue_tail(q);
 	if (p == NULL)
 		return NULL;
 
-	for (prev = NULL; p != q->tail; p = p->prev)
-		prev = p;
-
-	if (prev)
-		prev->prev = NULL;
-	else
-		q->head = NULL;
-
-	q->tail = prev;
-	q->len--;
-
 	pq->len--;
-
 	return p;
 }
 EXPORT_SYMBOL(brcmu_pktq_pdeq_tail);
@@ -222,31 +131,17 @@ void
 brcmu_pktq_pflush(struct pktq *pq, int prec, bool dir,
 		  bool (*fn)(struct sk_buff *, void *), void *arg)
 {
-	struct pktq_prec *q;
-	struct sk_buff *p, *prev = NULL;
+	struct sk_buff_head *q;
+	struct sk_buff *p, *next;
 
-	q = &pq->q[prec];
-	p = q->head;
-	while (p) {
+	q = &pq->q[prec].skblist;
+	skb_queue_walk_safe(q, p, next) {
 		if (fn == NULL || (*fn) (p, arg)) {
-			bool head = (p == q->head);
-			if (head)
-				q->head = p->prev;
-			else
-				prev->prev = p->prev;
-			p->prev = NULL;
+			skb_unlink(p, q);
 			brcmu_pkt_buf_free_skb(p);
-			q->len--;
 			pq->len--;
-			p = (head ? q->head : prev->prev);
-		} else {
-			prev = p;
-			p = p->prev;
 		}
 	}
-
-	if (q->head == NULL)
-		q->tail = NULL;
 }
 EXPORT_SYMBOL(brcmu_pktq_pflush);
 
@@ -271,8 +166,10 @@ void brcmu_pktq_init(struct pktq *pq, int num_prec, int max_len)
 
 	pq->max = (u16) max_len;
 
-	for (prec = 0; prec < num_prec; prec++)
+	for (prec = 0; prec < num_prec; prec++) {
 		pq->q[prec].max = pq->max;
+		skb_queue_head_init(&pq->q[prec].skblist);
+	}
 }
 EXPORT_SYMBOL(brcmu_pktq_init);
 
@@ -284,13 +181,13 @@ struct sk_buff *brcmu_pktq_peek_tail(struct pktq *pq, int *prec_out)
 		return NULL;
 
 	for (prec = 0; prec < pq->hi_prec; prec++)
-		if (pq->q[prec].head)
+		if (!skb_queue_empty(&pq->q[prec].skblist))
 			break;
 
 	if (prec_out)
 		*prec_out = prec;
 
-	return pq->q[prec].tail;
+	return skb_peek_tail(&pq->q[prec].skblist);
 }
 EXPORT_SYMBOL(brcmu_pktq_peek_tail);
 
@@ -303,7 +200,7 @@ int brcmu_pktq_mlen(struct pktq *pq, uint prec_bmp)
 
 	for (prec = 0; prec <= pq->hi_prec; prec++)
 		if (prec_bmp & (1 << prec))
-			len += pq->q[prec].len;
+			len += pq->q[prec].skblist.qlen;
 
 	return len;
 }
@@ -313,38 +210,31 @@ EXPORT_SYMBOL(brcmu_pktq_mlen);
 struct sk_buff *brcmu_pktq_mdeq(struct pktq *pq, uint prec_bmp,
 				      int *prec_out)
 {
-	struct pktq_prec *q;
+	struct sk_buff_head *q;
 	struct sk_buff *p;
 	int prec;
 
 	if (pq->len == 0)
 		return NULL;
 
-	while ((prec = pq->hi_prec) > 0 && pq->q[prec].head == NULL)
+	while ((prec = pq->hi_prec) > 0 &&
+	       skb_queue_empty(&pq->q[prec].skblist))
 		pq->hi_prec--;
 
-	while ((prec_bmp & (1 << prec)) == 0 || pq->q[prec].head == NULL)
+	while ((prec_bmp & (1 << prec)) == 0 ||
+	       skb_queue_empty(&pq->q[prec].skblist))
 		if (prec-- == 0)
 			return NULL;
 
-	q = &pq->q[prec];
-
-	p = q->head;
+	q = &pq->q[prec].skblist;
+	p = skb_dequeue(q);
 	if (p == NULL)
 		return NULL;
 
-	q->head = p->prev;
-	if (q->head == NULL)
-		q->tail = NULL;
-
-	q->len--;
+	pq->len--;
 
 	if (prec_out)
 		*prec_out = prec;
-
-	pq->len--;
-
-	p->prev = NULL;
 
 	return p;
 }
@@ -363,24 +253,4 @@ void brcmu_prpkt(const char *msg, struct sk_buff *p0)
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, p->data, p->len);
 }
 EXPORT_SYMBOL(brcmu_prpkt);
-#endif				/* defined(BCMDBG) */
-
-#if defined(BCMDBG)
-/*
- * print bytes formatted as hex to a string. return the resulting
- * string length
- */
-int brcmu_format_hex(char *str, const void *bytes, int len)
-{
-	int i;
-	char *p = str;
-	const u8 *src = (const u8 *)bytes;
-
-	for (i = 0; i < len; i++) {
-		p += snprintf(p, 3, "%02X", *src);
-		src++;
-	}
-	return (int)(p - str);
-}
-EXPORT_SYMBOL(brcmu_format_hex);
 #endif				/* defined(BCMDBG) */

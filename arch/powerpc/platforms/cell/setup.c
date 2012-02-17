@@ -184,24 +184,10 @@ static int __init cell_publish_devices(void)
 }
 machine_subsys_initcall(cell, cell_publish_devices);
 
-static void cell_mpic_cascade(unsigned int irq, struct irq_desc *desc)
-{
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct mpic *mpic = irq_desc_get_handler_data(desc);
-	unsigned int virq;
-
-	virq = mpic_get_one_irq(mpic);
-	if (virq != NO_IRQ)
-		generic_handle_irq(virq);
-
-	chip->irq_eoi(&desc->irq_data);
-}
-
 static void __init mpic_init_IRQ(void)
 {
 	struct device_node *dn;
 	struct mpic *mpic;
-	unsigned int virq;
 
 	for (dn = NULL;
 	     (dn = of_find_node_by_name(dn, "interrupt-controller"));) {
@@ -211,19 +197,10 @@ static void __init mpic_init_IRQ(void)
 		/* The MPIC driver will get everything it needs from the
 		 * device-tree, just pass 0 to all arguments
 		 */
-		mpic = mpic_alloc(dn, 0, 0, 0, 0, " MPIC     ");
+		mpic = mpic_alloc(dn, 0, MPIC_SECONDARY, 0, 0, " MPIC     ");
 		if (mpic == NULL)
 			continue;
 		mpic_init(mpic);
-
-		virq = irq_of_parse_and_map(dn, 0);
-		if (virq == NO_IRQ)
-			continue;
-
-		printk(KERN_INFO "%s : hooking up to IRQ %d\n",
-		       dn->full_name, virq);
-		irq_set_handler_data(virq, mpic);
-		irq_set_chained_handler(virq, cell_mpic_cascade);
 	}
 }
 

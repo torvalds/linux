@@ -1,5 +1,20 @@
+#include "../perf.h"
 #include "util.h"
 #include <sys/mman.h>
+
+/*
+ * XXX We need to find a better place for these things...
+ */
+bool perf_host  = true;
+bool perf_guest = true;
+
+void event_attr_init(struct perf_event_attr *attr)
+{
+	if (!perf_host)
+		attr->exclude_host  = 1;
+	if (!perf_guest)
+		attr->exclude_guest = 1;
+}
 
 int mkdir_p(char *path, mode_t mode)
 {

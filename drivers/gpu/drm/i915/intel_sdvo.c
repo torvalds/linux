@@ -50,6 +50,7 @@
 #define IS_TMDS(c)	(c->output_flag & SDVO_TMDS_MASK)
 #define IS_LVDS(c)	(c->output_flag & SDVO_LVDS_MASK)
 #define IS_TV_OR_LVDS(c) (c->output_flag & (SDVO_TV_MASK | SDVO_LVDS_MASK))
+#define IS_DIGITAL(c) (c->output_flag & (SDVO_TMDS_MASK | SDVO_LVDS_MASK))
 
 
 static const char *tv_format_names[] = {
@@ -1065,15 +1066,13 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 
 	/* Set the SDVO control regs. */
 	if (INTEL_INFO(dev)->gen >= 4) {
-		sdvox = 0;
+		/* The real mode polarity is set by the SDVO commands, using
+		 * struct intel_sdvo_dtd. */
+		sdvox = SDVO_VSYNC_ACTIVE_HIGH | SDVO_HSYNC_ACTIVE_HIGH;
 		if (intel_sdvo->is_hdmi)
 			sdvox |= intel_sdvo->color_range;
 		if (INTEL_INFO(dev)->gen < 5)
 			sdvox |= SDVO_BORDER_ENABLE;
-		if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
-			sdvox |= SDVO_VSYNC_ACTIVE_HIGH;
-		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
-			sdvox |= SDVO_HSYNC_ACTIVE_HIGH;
 	} else {
 		sdvox = I915_READ(intel_sdvo->sdvo_reg);
 		switch (intel_sdvo->sdvo_reg) {
@@ -1086,8 +1085,12 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 		}
 		sdvox |= (9 << 19) | SDVO_BORDER_ENABLE;
 	}
-	if (intel_crtc->pipe == 1)
-		sdvox |= SDVO_PIPE_B_SELECT;
+
+	if (INTEL_PCH_TYPE(dev) >= PCH_CPT)
+		sdvox |= TRANSCODER_CPT(intel_crtc->pipe);
+	else
+		sdvox |= TRANSCODER(intel_crtc->pipe);
+
 	if (intel_sdvo->has_hdmi_audio)
 		sdvox |= SDVO_AUDIO_ENABLE;
 
@@ -1314,6 +1317,18 @@ intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 	return status;
 }
 
+static bool
+intel_sdvo_connector_matches_edid(struct intel_sdvo_connector *sdvo,
+				  struct edid *edid)
+{
+	bool monitor_is_digital = !!(edid->input & DRM_EDID_INPUT_DIGITAL);
+	bool connector_is_digital = !!IS_DIGITAL(sdvo);
+
+	DRM_DEBUG_KMS("connector_is_digital? %d, monitor_is_digital? %d\n",
+		      connector_is_digital, monitor_is_digital);
+	return connector_is_digital == monitor_is_digital;
+}
+
 static enum drm_connector_status
 intel_sdvo_detect(struct drm_connector *connector, bool force)
 {
@@ -1358,10 +1373,12 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 		if (edid == NULL)
 			edid = intel_sdvo_get_analog_edid(connector);
 		if (edid != NULL) {
-			if (edid->input & DRM_EDID_INPUT_DIGITAL)
-				ret = connector_status_disconnected;
-			else
+			if (intel_sdvo_connector_matches_edid(intel_sdvo_connector,
+							      edid))
 				ret = connector_status_connected;
+			else
+				ret = connector_status_disconnected;
+
 			connector->display_info.raw_edid = NULL;
 			kfree(edid);
 		} else
@@ -1402,11 +1419,8 @@ static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 		edid = intel_sdvo_get_analog_edid(connector);
 
 	if (edid != NULL) {
-		struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
-		bool monitor_is_digital = !!(edid->input & DRM_EDID_INPUT_DIGITAL);
-		bool connector_is_digital = !!IS_TMDS(intel_sdvo_connector);
-
-		if (connector_is_digital == monitor_is_digital) {
+		if (intel_sdvo_connector_matches_edid(to_intel_sdvo_connector(connector),
+						      edid)) {
 			drm_mode_connector_update_edid_property(connector, edid);
 			drm_add_edid_modes(connector, edid);
 		}

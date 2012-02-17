@@ -21,8 +21,7 @@
 
 #include <scsi/scsi_device.h>
 #include <target/target_core_base.h>
-#include <target/target_core_device.h>
-#include <target/target_core_transport.h>
+#include <target/target_core_fabric.h>
 
 #include "iscsi_target_core.h"
 #include "iscsi_target_device.h"

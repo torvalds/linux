@@ -84,6 +84,8 @@ static struct omap_hwmod omap3xxx_mcbsp4_hwmod;
 static struct omap_hwmod omap3xxx_mcbsp5_hwmod;
 static struct omap_hwmod omap3xxx_mcbsp2_sidetone_hwmod;
 static struct omap_hwmod omap3xxx_mcbsp3_sidetone_hwmod;
+static struct omap_hwmod omap3xxx_usb_host_hs_hwmod;
+static struct omap_hwmod omap3xxx_usb_tll_hs_hwmod;
 
 /* L3 -> L4_CORE interface */
 static struct omap_hwmod_ocp_if omap3xxx_l3_main__l4_core = {
@@ -164,6 +166,7 @@ static struct omap_hwmod omap3xxx_uart1_hwmod;
 static struct omap_hwmod omap3xxx_uart2_hwmod;
 static struct omap_hwmod omap3xxx_uart3_hwmod;
 static struct omap_hwmod omap3xxx_uart4_hwmod;
+static struct omap_hwmod am35xx_uart4_hwmod;
 static struct omap_hwmod omap3xxx_usbhsotg_hwmod;
 
 /* l3_core -> usbhsotg interface */
@@ -297,6 +300,23 @@ static struct omap_hwmod_ocp_if omap3_l4_per__uart4 = {
 	.clk		= "uart4_ick",
 	.addr		= omap3xxx_uart4_addr_space,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/* AM35xx: L4 CORE -> UART4 interface */
+static struct omap_hwmod_addr_space am35xx_uart4_addr_space[] = {
+	{
+		.pa_start       = OMAP3_UART4_AM35XX_BASE,
+		.pa_end         = OMAP3_UART4_AM35XX_BASE + SZ_1K - 1,
+		.flags          = ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
+	},
+};
+
+static struct omap_hwmod_ocp_if am35xx_l4_core__uart4 = {
+	.master         = &omap3xxx_l4_core_hwmod,
+	.slave          = &am35xx_uart4_hwmod,
+	.clk            = "uart4_ick",
+	.addr           = am35xx_uart4_addr_space,
+	.user           = OCP_USER_MPU | OCP_USER_SDMA,
 };
 
 /* L4 CORE -> I2C1 interface */
@@ -1162,6 +1182,7 @@ static struct omap_hwmod_class_sysconfig i2c_sysc = {
 			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
 			   SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.clockact	= CLOCKACT_TEST_ICLK,
 	.sysc_fields    = &omap_hwmod_sysc_type1,
 };
 
@@ -1309,6 +1330,39 @@ static struct omap_hwmod omap3xxx_uart4_hwmod = {
 	.class		= &omap2_uart_class,
 };
 
+static struct omap_hwmod_irq_info am35xx_uart4_mpu_irqs[] = {
+	{ .irq = INT_35XX_UART4_IRQ, },
+};
+
+static struct omap_hwmod_dma_info am35xx_uart4_sdma_reqs[] = {
+	{ .name = "rx", .dma_req = AM35XX_DMA_UART4_RX, },
+	{ .name = "tx", .dma_req = AM35XX_DMA_UART4_TX, },
+};
+
+static struct omap_hwmod_ocp_if *am35xx_uart4_slaves[] = {
+	&am35xx_l4_core__uart4,
+};
+
+static struct omap_hwmod am35xx_uart4_hwmod = {
+	.name           = "uart4",
+	.mpu_irqs       = am35xx_uart4_mpu_irqs,
+	.sdma_reqs      = am35xx_uart4_sdma_reqs,
+	.main_clk       = "uart4_fck",
+	.prcm           = {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 1,
+			.module_bit = OMAP3430_EN_UART4_SHIFT,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP3430_EN_UART4_SHIFT,
+		},
+	},
+	.slaves         = am35xx_uart4_slaves,
+	.slaves_cnt     = ARRAY_SIZE(am35xx_uart4_slaves),
+	.class          = &omap2_uart_class,
+};
+
+
 static struct omap_hwmod_class i2c_class = {
 	.name	= "i2c",
 	.sysc	= &i2c_sysc,
@@ -1426,6 +1480,28 @@ static struct omap_hwmod omap3xxx_dss_core_hwmod = {
 	.masters_cnt	= ARRAY_SIZE(omap3xxx_dss_masters),
 };
 
+/*
+ * 'dispc' class
+ * display controller
+ */
+
+static struct omap_hwmod_class_sysconfig omap3_dispc_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0010,
+	.syss_offs	= 0x0014,
+	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_MIDLEMODE |
+			   SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
+			   SYSC_HAS_ENAWAKEUP),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
+			   MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap3_dispc_hwmod_class = {
+	.name	= "dispc",
+	.sysc	= &omap3_dispc_sysc,
+};
+
 /* l4_core -> dss_dispc */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__dss_dispc = {
 	.master		= &omap3xxx_l4_core_hwmod,
@@ -1449,7 +1525,7 @@ static struct omap_hwmod_ocp_if *omap3xxx_dss_dispc_slaves[] = {
 
 static struct omap_hwmod omap3xxx_dss_dispc_hwmod = {
 	.name		= "dss_dispc",
-	.class		= &omap2_dispc_hwmod_class,
+	.class		= &omap3_dispc_hwmod_class,
 	.mpu_irqs	= omap2_dispc_irqs,
 	.main_clk	= "dss1_alwon_fck",
 	.prcm		= {
@@ -1636,7 +1712,7 @@ static struct omap_hwmod_ocp_if *omap3xxx_i2c1_slaves[] = {
 
 static struct omap_hwmod omap3xxx_i2c1_hwmod = {
 	.name		= "i2c1",
-	.flags		= HWMOD_16BIT_REG,
+	.flags		= HWMOD_16BIT_REG | HWMOD_SET_DEFAULT_CLOCKACT,
 	.mpu_irqs	= omap2_i2c1_mpu_irqs,
 	.sdma_reqs	= omap2_i2c1_sdma_reqs,
 	.main_clk	= "i2c1_fck",
@@ -1670,7 +1746,7 @@ static struct omap_hwmod_ocp_if *omap3xxx_i2c2_slaves[] = {
 
 static struct omap_hwmod omap3xxx_i2c2_hwmod = {
 	.name		= "i2c2",
-	.flags		= HWMOD_16BIT_REG,
+	.flags		= HWMOD_16BIT_REG | HWMOD_SET_DEFAULT_CLOCKACT,
 	.mpu_irqs	= omap2_i2c2_mpu_irqs,
 	.sdma_reqs	= omap2_i2c2_sdma_reqs,
 	.main_clk	= "i2c2_fck",
@@ -1715,7 +1791,7 @@ static struct omap_hwmod_ocp_if *omap3xxx_i2c3_slaves[] = {
 
 static struct omap_hwmod omap3xxx_i2c3_hwmod = {
 	.name		= "i2c3",
-	.flags		= HWMOD_16BIT_REG,
+	.flags		= HWMOD_16BIT_REG | HWMOD_SET_DEFAULT_CLOCKACT,
 	.mpu_irqs	= i2c3_mpu_irqs,
 	.sdma_reqs	= i2c3_sdma_reqs,
 	.main_clk	= "i2c3_fck",
@@ -3072,7 +3148,35 @@ static struct omap_mmc_dev_attr mmc1_dev_attr = {
 	.flags = OMAP_HSMMC_SUPPORTS_DUAL_VOLT,
 };
 
-static struct omap_hwmod omap3xxx_mmc1_hwmod = {
+/* See 35xx errata 2.1.1.128 in SPRZ278F */
+static struct omap_mmc_dev_attr mmc1_pre_es3_dev_attr = {
+	.flags = (OMAP_HSMMC_SUPPORTS_DUAL_VOLT |
+		  OMAP_HSMMC_BROKEN_MULTIBLOCK_READ),
+};
+
+static struct omap_hwmod omap3xxx_pre_es3_mmc1_hwmod = {
+	.name		= "mmc1",
+	.mpu_irqs	= omap34xx_mmc1_mpu_irqs,
+	.sdma_reqs	= omap34xx_mmc1_sdma_reqs,
+	.opt_clks	= omap34xx_mmc1_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(omap34xx_mmc1_opt_clks),
+	.main_clk	= "mmchs1_fck",
+	.prcm		= {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 1,
+			.module_bit = OMAP3430_EN_MMC1_SHIFT,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP3430_ST_MMC1_SHIFT,
+		},
+	},
+	.dev_attr	= &mmc1_pre_es3_dev_attr,
+	.slaves		= omap3xxx_mmc1_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap3xxx_mmc1_slaves),
+	.class		= &omap34xx_mmc_class,
+};
+
+static struct omap_hwmod omap3xxx_es3plus_mmc1_hwmod = {
 	.name		= "mmc1",
 	.mpu_irqs	= omap34xx_mmc1_mpu_irqs,
 	.sdma_reqs	= omap34xx_mmc1_sdma_reqs,
@@ -3115,7 +3219,34 @@ static struct omap_hwmod_ocp_if *omap3xxx_mmc2_slaves[] = {
 	&omap3xxx_l4_core__mmc2,
 };
 
-static struct omap_hwmod omap3xxx_mmc2_hwmod = {
+/* See 35xx errata 2.1.1.128 in SPRZ278F */
+static struct omap_mmc_dev_attr mmc2_pre_es3_dev_attr = {
+	.flags = OMAP_HSMMC_BROKEN_MULTIBLOCK_READ,
+};
+
+static struct omap_hwmod omap3xxx_pre_es3_mmc2_hwmod = {
+	.name		= "mmc2",
+	.mpu_irqs	= omap34xx_mmc2_mpu_irqs,
+	.sdma_reqs	= omap34xx_mmc2_sdma_reqs,
+	.opt_clks	= omap34xx_mmc2_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(omap34xx_mmc2_opt_clks),
+	.main_clk	= "mmchs2_fck",
+	.prcm		= {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 1,
+			.module_bit = OMAP3430_EN_MMC2_SHIFT,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP3430_ST_MMC2_SHIFT,
+		},
+	},
+	.dev_attr	= &mmc2_pre_es3_dev_attr,
+	.slaves		= omap3xxx_mmc2_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap3xxx_mmc2_slaves),
+	.class		= &omap34xx_mmc_class,
+};
+
+static struct omap_hwmod omap3xxx_es3plus_mmc2_hwmod = {
 	.name		= "mmc2",
 	.mpu_irqs	= omap34xx_mmc2_mpu_irqs,
 	.sdma_reqs	= omap34xx_mmc2_sdma_reqs,
@@ -3177,13 +3308,223 @@ static struct omap_hwmod omap3xxx_mmc3_hwmod = {
 	.class		= &omap34xx_mmc_class,
 };
 
+/*
+ * 'usb_host_hs' class
+ * high-speed multi-port usb host controller
+ */
+static struct omap_hwmod_ocp_if omap3xxx_usb_host_hs__l3_main_2 = {
+	.master		= &omap3xxx_usb_host_hs_hwmod,
+	.slave		= &omap3xxx_l3_main_hwmod,
+	.clk		= "core_l3_ick",
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_class_sysconfig omap3xxx_usb_host_hs_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0010,
+	.syss_offs	= 0x0014,
+	.sysc_flags	= (SYSC_HAS_MIDLEMODE | SYSC_HAS_CLOCKACTIVITY |
+			   SYSC_HAS_SIDLEMODE | SYSC_HAS_ENAWAKEUP |
+			   SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
+			   MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap3xxx_usb_host_hs_hwmod_class = {
+	.name = "usb_host_hs",
+	.sysc = &omap3xxx_usb_host_hs_sysc,
+};
+
+static struct omap_hwmod_ocp_if *omap3xxx_usb_host_hs_masters[] = {
+	&omap3xxx_usb_host_hs__l3_main_2,
+};
+
+static struct omap_hwmod_addr_space omap3xxx_usb_host_hs_addrs[] = {
+	{
+		.name		= "uhh",
+		.pa_start	= 0x48064000,
+		.pa_end		= 0x480643ff,
+		.flags		= ADDR_TYPE_RT
+	},
+	{
+		.name		= "ohci",
+		.pa_start	= 0x48064400,
+		.pa_end		= 0x480647ff,
+	},
+	{
+		.name		= "ehci",
+		.pa_start	= 0x48064800,
+		.pa_end		= 0x48064cff,
+	},
+	{}
+};
+
+static struct omap_hwmod_ocp_if omap3xxx_l4_core__usb_host_hs = {
+	.master		= &omap3xxx_l4_core_hwmod,
+	.slave		= &omap3xxx_usb_host_hs_hwmod,
+	.clk		= "usbhost_ick",
+	.addr		= omap3xxx_usb_host_hs_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+static struct omap_hwmod_ocp_if *omap3xxx_usb_host_hs_slaves[] = {
+	&omap3xxx_l4_core__usb_host_hs,
+};
+
+static struct omap_hwmod_opt_clk omap3xxx_usb_host_hs_opt_clks[] = {
+	  { .role = "ehci_logic_fck", .clk = "usbhost_120m_fck", },
+};
+
+static struct omap_hwmod_irq_info omap3xxx_usb_host_hs_irqs[] = {
+	{ .name = "ohci-irq", .irq = 76 },
+	{ .name = "ehci-irq", .irq = 77 },
+	{ .irq = -1 }
+};
+
+static struct omap_hwmod omap3xxx_usb_host_hs_hwmod = {
+	.name		= "usb_host_hs",
+	.class		= &omap3xxx_usb_host_hs_hwmod_class,
+	.clkdm_name	= "l3_init_clkdm",
+	.mpu_irqs	= omap3xxx_usb_host_hs_irqs,
+	.main_clk	= "usbhost_48m_fck",
+	.prcm = {
+		.omap2 = {
+			.module_offs = OMAP3430ES2_USBHOST_MOD,
+			.prcm_reg_id = 1,
+			.module_bit = OMAP3430ES2_EN_USBHOST1_SHIFT,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP3430ES2_ST_USBHOST_IDLE_SHIFT,
+			.idlest_stdby_bit = OMAP3430ES2_ST_USBHOST_STDBY_SHIFT,
+		},
+	},
+	.opt_clks	= omap3xxx_usb_host_hs_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(omap3xxx_usb_host_hs_opt_clks),
+	.slaves		= omap3xxx_usb_host_hs_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap3xxx_usb_host_hs_slaves),
+	.masters	= omap3xxx_usb_host_hs_masters,
+	.masters_cnt	= ARRAY_SIZE(omap3xxx_usb_host_hs_masters),
+
+	/*
+	 * Errata: USBHOST Configured In Smart-Idle Can Lead To a Deadlock
+	 * id: i660
+	 *
+	 * Description:
+	 * In the following configuration :
+	 * - USBHOST module is set to smart-idle mode
+	 * - PRCM asserts idle_req to the USBHOST module ( This typically
+	 *   happens when the system is going to a low power mode : all ports
+	 *   have been suspended, the master part of the USBHOST module has
+	 *   entered the standby state, and SW has cut the functional clocks)
+	 * - an USBHOST interrupt occurs before the module is able to answer
+	 *   idle_ack, typically a remote wakeup IRQ.
+	 * Then the USB HOST module will enter a deadlock situation where it
+	 * is no more accessible nor functional.
+	 *
+	 * Workaround:
+	 * Don't use smart idle; use only force idle, hence HWMOD_SWSUP_SIDLE
+	 */
+
+	/*
+	 * Errata: USB host EHCI may stall when entering smart-standby mode
+	 * Id: i571
+	 *
+	 * Description:
+	 * When the USBHOST module is set to smart-standby mode, and when it is
+	 * ready to enter the standby state (i.e. all ports are suspended and
+	 * all attached devices are in suspend mode), then it can wrongly assert
+	 * the Mstandby signal too early while there are still some residual OCP
+	 * transactions ongoing. If this condition occurs, the internal state
+	 * machine may go to an undefined state and the USB link may be stuck
+	 * upon the next resume.
+	 *
+	 * Workaround:
+	 * Don't use smart standby; use only force standby,
+	 * hence HWMOD_SWSUP_MSTANDBY
+	 */
+
+	/*
+	 * During system boot; If the hwmod framework resets the module
+	 * the module will have smart idle settings; which can lead to deadlock
+	 * (above Errata Id:i660); so, dont reset the module during boot;
+	 * Use HWMOD_INIT_NO_RESET.
+	 */
+
+	.flags		= HWMOD_SWSUP_SIDLE | HWMOD_SWSUP_MSTANDBY |
+			  HWMOD_INIT_NO_RESET,
+};
+
+/*
+ * 'usb_tll_hs' class
+ * usb_tll_hs module is the adapter on the usb_host_hs ports
+ */
+static struct omap_hwmod_class_sysconfig omap3xxx_usb_tll_hs_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0010,
+	.syss_offs	= 0x0014,
+	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
+			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
+			   SYSC_HAS_AUTOIDLE),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap3xxx_usb_tll_hs_hwmod_class = {
+	.name = "usb_tll_hs",
+	.sysc = &omap3xxx_usb_tll_hs_sysc,
+};
+
+static struct omap_hwmod_irq_info omap3xxx_usb_tll_hs_irqs[] = {
+	{ .name = "tll-irq", .irq = 78 },
+	{ .irq = -1 }
+};
+
+static struct omap_hwmod_addr_space omap3xxx_usb_tll_hs_addrs[] = {
+	{
+		.name		= "tll",
+		.pa_start	= 0x48062000,
+		.pa_end		= 0x48062fff,
+		.flags		= ADDR_TYPE_RT
+	},
+	{}
+};
+
+static struct omap_hwmod_ocp_if omap3xxx_l4_core__usb_tll_hs = {
+	.master		= &omap3xxx_l4_core_hwmod,
+	.slave		= &omap3xxx_usb_tll_hs_hwmod,
+	.clk		= "usbtll_ick",
+	.addr		= omap3xxx_usb_tll_hs_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+static struct omap_hwmod_ocp_if *omap3xxx_usb_tll_hs_slaves[] = {
+	&omap3xxx_l4_core__usb_tll_hs,
+};
+
+static struct omap_hwmod omap3xxx_usb_tll_hs_hwmod = {
+	.name		= "usb_tll_hs",
+	.class		= &omap3xxx_usb_tll_hs_hwmod_class,
+	.clkdm_name	= "l3_init_clkdm",
+	.mpu_irqs	= omap3xxx_usb_tll_hs_irqs,
+	.main_clk	= "usbtll_fck",
+	.prcm = {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 3,
+			.module_bit = OMAP3430ES2_EN_USBTLL_SHIFT,
+			.idlest_reg_id = 3,
+			.idlest_idle_bit = OMAP3430ES2_ST_USBTLL_SHIFT,
+		},
+	},
+	.slaves		= omap3xxx_usb_tll_hs_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap3xxx_usb_tll_hs_slaves),
+};
+
 static __initdata struct omap_hwmod *omap3xxx_hwmods[] = {
 	&omap3xxx_l3_main_hwmod,
 	&omap3xxx_l4_core_hwmod,
 	&omap3xxx_l4_per_hwmod,
 	&omap3xxx_l4_wkup_hwmod,
-	&omap3xxx_mmc1_hwmod,
-	&omap3xxx_mmc2_hwmod,
 	&omap3xxx_mmc3_hwmod,
 	&omap3xxx_mpu_hwmod,
 
@@ -3198,17 +3539,11 @@ static __initdata struct omap_hwmod *omap3xxx_hwmods[] = {
 	&omap3xxx_timer9_hwmod,
 	&omap3xxx_timer10_hwmod,
 	&omap3xxx_timer11_hwmod,
-	&omap3xxx_timer12_hwmod,
 
 	&omap3xxx_wd_timer2_hwmod,
 	&omap3xxx_uart1_hwmod,
 	&omap3xxx_uart2_hwmod,
 	&omap3xxx_uart3_hwmod,
-	/* dss class */
-	&omap3xxx_dss_dispc_hwmod,
-	&omap3xxx_dss_dsi1_hwmod,
-	&omap3xxx_dss_rfbi_hwmod,
-	&omap3xxx_dss_venc_hwmod,
 
 	/* i2c class */
 	&omap3xxx_i2c1_hwmod,
@@ -3245,20 +3580,38 @@ static __initdata struct omap_hwmod *omap3xxx_hwmods[] = {
 	NULL,
 };
 
+/* GP-only hwmods */
+static __initdata struct omap_hwmod *omap3xxx_gp_hwmods[] = {
+	&omap3xxx_timer12_hwmod,
+	NULL
+};
+
 /* 3430ES1-only hwmods */
 static __initdata struct omap_hwmod *omap3430es1_hwmods[] = {
-	&omap3xxx_iva_hwmod,
 	&omap3430es1_dss_core_hwmod,
-	&omap3xxx_mailbox_hwmod,
 	NULL
 };
 
 /* 3430ES2+-only hwmods */
 static __initdata struct omap_hwmod *omap3430es2plus_hwmods[] = {
-	&omap3xxx_iva_hwmod,
 	&omap3xxx_dss_core_hwmod,
 	&omap3xxx_usbhsotg_hwmod,
-	&omap3xxx_mailbox_hwmod,
+	&omap3xxx_usb_host_hs_hwmod,
+	&omap3xxx_usb_tll_hs_hwmod,
+	NULL
+};
+
+/* <= 3430ES3-only hwmods */
+static struct omap_hwmod *omap3430_pre_es3_hwmods[] __initdata = {
+	&omap3xxx_pre_es3_mmc1_hwmod,
+	&omap3xxx_pre_es3_mmc2_hwmod,
+	NULL
+};
+
+/* 3430ES3+-only hwmods */
+static struct omap_hwmod *omap3430_es3plus_hwmods[] __initdata = {
+	&omap3xxx_es3plus_mmc1_hwmod,
+	&omap3xxx_es3plus_mmc2_hwmod,
 	NULL
 };
 
@@ -3280,12 +3633,30 @@ static __initdata struct omap_hwmod *omap36xx_hwmods[] = {
 	&omap36xx_sr2_hwmod,
 	&omap3xxx_usbhsotg_hwmod,
 	&omap3xxx_mailbox_hwmod,
+	&omap3xxx_usb_host_hs_hwmod,
+	&omap3xxx_usb_tll_hs_hwmod,
+	&omap3xxx_es3plus_mmc1_hwmod,
+	&omap3xxx_es3plus_mmc2_hwmod,
 	NULL
 };
 
 static __initdata struct omap_hwmod *am35xx_hwmods[] = {
 	&omap3xxx_dss_core_hwmod, /* XXX ??? */
 	&am35xx_usbhsotg_hwmod,
+	&am35xx_uart4_hwmod,
+	&omap3xxx_usb_host_hs_hwmod,
+	&omap3xxx_usb_tll_hs_hwmod,
+	&omap3xxx_es3plus_mmc1_hwmod,
+	&omap3xxx_es3plus_mmc2_hwmod,
+	NULL
+};
+
+static __initdata struct omap_hwmod *omap3xxx_dss_hwmods[] = {
+	/* dss class */
+	&omap3xxx_dss_dispc_hwmod,
+	&omap3xxx_dss_dsi1_hwmod,
+	&omap3xxx_dss_rfbi_hwmod,
+	&omap3xxx_dss_venc_hwmod,
 	NULL
 };
 
@@ -3299,6 +3670,13 @@ int __init omap3xxx_hwmod_init(void)
 	r = omap_hwmod_register(omap3xxx_hwmods);
 	if (r < 0)
 		return r;
+
+	/* Register GP-only hwmods. */
+	if (omap_type() == OMAP2_DEVICE_TYPE_GP) {
+		r = omap_hwmod_register(omap3xxx_gp_hwmods);
+		if (r < 0)
+			return r;
+	}
 
 	rev = omap_rev();
 
@@ -3338,8 +3716,38 @@ int __init omap3xxx_hwmod_init(void)
 		h = omap3430es2plus_hwmods;
 	};
 
+	if (h) {
+		r = omap_hwmod_register(h);
+		if (r < 0)
+			return r;
+	}
+
+	h = NULL;
+	if (rev == OMAP3430_REV_ES1_0 || rev == OMAP3430_REV_ES2_0 ||
+	    rev == OMAP3430_REV_ES2_1) {
+		h = omap3430_pre_es3_hwmods;
+	} else if (rev == OMAP3430_REV_ES3_0 || rev == OMAP3430_REV_ES3_1 ||
+		   rev == OMAP3430_REV_ES3_1_2) {
+		h = omap3430_es3plus_hwmods;
+	};
+
 	if (h)
 		r = omap_hwmod_register(h);
+	if (r < 0)
+		return r;
+
+	/*
+	 * DSS code presumes that dss_core hwmod is handled first,
+	 * _before_ any other DSS related hwmods so register common
+	 * DSS hwmods last to ensure that dss_core is already registered.
+	 * Otherwise some change things may happen, for ex. if dispc
+	 * is handled before dss_core and DSS is enabled in bootloader
+	 * DIPSC will be reset with outputs enabled which sometimes leads
+	 * to unrecoverable L3 error.
+	 * XXX The long-term fix to this is to ensure modules are set up
+	 * in dependency order in the hwmod core code.
+	 */
+	r = omap_hwmod_register(omap3xxx_dss_hwmods);
 
 	return r;
 }

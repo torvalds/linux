@@ -139,8 +139,45 @@ struct gfs2_bufdata {
 #define GDLM_STRNAME_BYTES	25
 #define GDLM_LVB_SIZE		32
 
+/*
+ * ls_recover_flags:
+ *
+ * DFL_BLOCK_LOCKS: dlm is in recovery and will grant locks that had been
+ * held by failed nodes whose journals need recovery.  Those locks should
+ * only be used for journal recovery until the journal recovery is done.
+ * This is set by the dlm recover_prep callback and cleared by the
+ * gfs2_control thread when journal recovery is complete.  To avoid
+ * races between recover_prep setting and gfs2_control clearing, recover_spin
+ * is held while changing this bit and reading/writing recover_block
+ * and recover_start.
+ *
+ * DFL_NO_DLM_OPS: dlm lockspace ops/callbacks are not being used.
+ *
+ * DFL_FIRST_MOUNT: this node is the first to mount this fs and is doing
+ * recovery of all journals before allowing other nodes to mount the fs.
+ * This is cleared when FIRST_MOUNT_DONE is set.
+ *
+ * DFL_FIRST_MOUNT_DONE: this node was the first mounter, and has finished
+ * recovery of all journals, and now allows other nodes to mount the fs.
+ *
+ * DFL_MOUNT_DONE: gdlm_mount has completed successfully and cleared
+ * BLOCK_LOCKS for the first time.  The gfs2_control thread should now
+ * control clearing BLOCK_LOCKS for further recoveries.
+ *
+ * DFL_UNMOUNT: gdlm_unmount sets to keep sdp off gfs2_control_wq.
+ *
+ * DFL_DLM_RECOVERY: set while dlm is in recovery, between recover_prep()
+ * and recover_done(), i.e. set while recover_block == recover_start.
+ */
+
 enum {
 	DFL_BLOCK_LOCKS		= 0,
+	DFL_NO_DLM_OPS		= 1,
+	DFL_FIRST_MOUNT		= 2,
+	DFL_FIRST_MOUNT_DONE	= 3,
+	DFL_MOUNT_DONE		= 4,
+	DFL_UNMOUNT		= 5,
+	DFL_DLM_RECOVERY	= 6,
 };
 
 struct lm_lockname {
@@ -244,17 +281,16 @@ struct gfs2_glock {
 
 #define GFS2_MIN_LVB_SIZE 32	/* Min size of LVB that gfs2 supports */
 
-struct gfs2_alloc {
+struct gfs2_qadata { /* quota allocation data */
 	/* Quota stuff */
-	struct gfs2_quota_data *al_qd[2*MAXQUOTAS];
-	struct gfs2_holder al_qd_ghs[2*MAXQUOTAS];
-	unsigned int al_qd_num;
+	struct gfs2_quota_data *qa_qd[2*MAXQUOTAS];
+	struct gfs2_holder qa_qd_ghs[2*MAXQUOTAS];
+	unsigned int qa_qd_num;
+};
 
-	u32 al_requested; /* Filled in by caller of gfs2_inplace_reserve() */
-	u32 al_alloced; /* Filled in by gfs2_alloc_*() */
-
-	/* Filled in by gfs2_inplace_reserve() */
-	struct gfs2_holder al_rgd_gh;
+struct gfs2_blkreserv {
+	u32 rs_requested; /* Filled in by caller of gfs2_inplace_reserve() */
+	struct gfs2_holder rs_rgd_gh; /* Filled in by gfs2_inplace_reserve() */
 };
 
 enum {
@@ -275,7 +311,8 @@ struct gfs2_inode {
 	struct gfs2_glock *i_gl; /* Move into i_gh? */
 	struct gfs2_holder i_iopen_gh;
 	struct gfs2_holder i_gh; /* for prepare/commit_write only */
-	struct gfs2_alloc *i_alloc;
+	struct gfs2_qadata *i_qadata; /* quota allocation data */
+	struct gfs2_blkreserv *i_res; /* resource group block reservation */
 	struct gfs2_rgrpd *i_rgd;
 	u64 i_goal;	/* goal block for allocations */
 	struct rw_semaphore i_rw_mutex;
@@ -392,6 +429,7 @@ struct gfs2_jdesc {
 #define JDF_RECOVERY 1
 	unsigned int jd_jid;
 	unsigned int jd_blocks;
+	int jd_recover_error;
 };
 
 struct gfs2_statfs_change_host {
@@ -461,6 +499,7 @@ enum {
 	SDF_NORECOVERY		= 4,
 	SDF_DEMOTE		= 5,
 	SDF_NOJOURNALID		= 6,
+	SDF_RORECOVERY		= 7, /* read only recovery */
 };
 
 #define GFS2_FSNAME_LEN		256
@@ -499,14 +538,26 @@ struct gfs2_sb_host {
 struct lm_lockstruct {
 	int ls_jid;
 	unsigned int ls_first;
-	unsigned int ls_first_done;
 	unsigned int ls_nodir;
 	const struct lm_lockops *ls_ops;
-	unsigned long ls_flags;
 	dlm_lockspace_t *ls_dlm;
 
-	int ls_recover_jid_done;
-	int ls_recover_jid_status;
+	int ls_recover_jid_done;   /* These two are deprecated, */
+	int ls_recover_jid_status; /* used previously by gfs_controld */
+
+	struct dlm_lksb ls_mounted_lksb; /* mounted_lock */
+	struct dlm_lksb ls_control_lksb; /* control_lock */
+	char ls_control_lvb[GDLM_LVB_SIZE]; /* control_lock lvb */
+	struct completion ls_sync_wait; /* {control,mounted}_{lock,unlock} */
+
+	spinlock_t ls_recover_spin; /* protects following fields */
+	unsigned long ls_recover_flags; /* DFL_ */
+	uint32_t ls_recover_mount; /* gen in first recover_done cb */
+	uint32_t ls_recover_start; /* gen in last recover_done cb */
+	uint32_t ls_recover_block; /* copy recover_start in last recover_prep */
+	uint32_t ls_recover_size; /* size of recover_submit, recover_result */
+	uint32_t *ls_recover_submit; /* gen in last recover_slot cb per jid */
+	uint32_t *ls_recover_result; /* result of last jid recovery */
 };
 
 struct gfs2_sbd {
@@ -544,6 +595,7 @@ struct gfs2_sbd {
 	wait_queue_head_t sd_glock_wait;
 	atomic_t sd_glock_disposal;
 	struct completion sd_locking_init;
+	struct delayed_work sd_control_work;
 
 	/* Inode Stuff */
 

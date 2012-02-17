@@ -115,21 +115,9 @@ static struct platform_driver generic_onenand_driver = {
 	.remove		= __devexit_p(generic_onenand_remove),
 };
 
-MODULE_ALIAS("platform:" DRIVER_NAME);
-
-static int __init generic_onenand_init(void)
-{
-	return platform_driver_register(&generic_onenand_driver);
-}
-
-static void __exit generic_onenand_exit(void)
-{
-	platform_driver_unregister(&generic_onenand_driver);
-}
-
-module_init(generic_onenand_init);
-module_exit(generic_onenand_exit);
+module_platform_driver(generic_onenand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kyungmin Park <kyungmin.park@samsung.com>");
 MODULE_DESCRIPTION("Glue layer for OneNAND flash on generic boards");
+MODULE_ALIAS("platform:" DRIVER_NAME);

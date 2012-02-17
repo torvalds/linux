@@ -207,9 +207,9 @@ MODULE_DEVICE_TABLE(pci, rivafb_pci_tbl);
 /* command line data, set in rivafb_setup() */
 static int flatpanel __devinitdata = -1; /* Autodetect later */
 static int forceCRTC __devinitdata = -1;
-static int noaccel   __devinitdata = 0;
+static bool noaccel  __devinitdata = 0;
 #ifdef CONFIG_MTRR
-static int nomtrr __devinitdata = 0;
+static bool nomtrr __devinitdata = 0;
 #endif
 #ifdef CONFIG_PMAC_BACKLIGHT
 static int backlight __devinitdata = 1;
@@ -218,7 +218,7 @@ static int backlight __devinitdata = 0;
 #endif
 
 static char *mode_option __devinitdata = NULL;
-static int  strictmode       = 0;
+static bool strictmode       = 0;
 
 static struct fb_fix_screeninfo __devinitdata rivafb_fix = {
 	.type		= FB_TYPE_PACKED_PIXELS,

@@ -888,23 +888,19 @@ static void ixgbe_get_drvinfo(struct net_device *netdev,
                               struct ethtool_drvinfo *drvinfo)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	char firmware_version[32];
 	u32 nvm_track_id;
 
-	strncpy(drvinfo->driver, ixgbe_driver_name,
-	        sizeof(drvinfo->driver) - 1);
-	strncpy(drvinfo->version, ixgbe_driver_version,
-	        sizeof(drvinfo->version) - 1);
+	strlcpy(drvinfo->driver, ixgbe_driver_name, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, ixgbe_driver_version,
+		sizeof(drvinfo->version));
 
 	nvm_track_id = (adapter->eeprom_verh << 16) |
 			adapter->eeprom_verl;
-	snprintf(firmware_version, sizeof(firmware_version), "0x%08x",
+	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version), "0x%08x",
 		 nvm_track_id);
 
-	strncpy(drvinfo->fw_version, firmware_version,
-		sizeof(drvinfo->fw_version) - 1);
-	strncpy(drvinfo->bus_info, pci_name(adapter->pdev),
-		sizeof(drvinfo->bus_info) - 1);
+	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+		sizeof(drvinfo->bus_info));
 	drvinfo->n_stats = IXGBE_STATS_LEN;
 	drvinfo->testinfo_len = IXGBE_TEST_LEN;
 	drvinfo->regdump_len = ixgbe_get_regs_len(netdev);
@@ -1959,12 +1955,21 @@ static int ixgbe_wol_exclusion(struct ixgbe_adapter *adapter,
 	/* WOL not supported except for the following */
 	switch(hw->device_id) {
 	case IXGBE_DEV_ID_82599_SFP:
-		/* Only this subdevice supports WOL */
-		if (hw->subsystem_device_id != IXGBE_SUBDEV_ID_82599_SFP) {
+		/* Only these subdevices could supports WOL */
+		switch (hw->subsystem_device_id) {
+		case IXGBE_SUBDEV_ID_82599_560FLR:
+			/* only support first port */
+			if (hw->bus.func != 0) {
+				wol->supported = 0;
+				break;
+			}
+		case IXGBE_SUBDEV_ID_82599_SFP:
+			retval = 0;
+			break;
+		default:
 			wol->supported = 0;
 			break;
 		}
-		retval = 0;
 		break;
 	case IXGBE_DEV_ID_82599_COMBO_BACKPLANE:
 		/* All except this subdevice support WOL */

@@ -145,7 +145,8 @@ static struct pci_ops enp2611_pci_ops = {
 static struct pci_bus * __init enp2611_pci_scan_bus(int nr,
 						struct pci_sys_data *sys)
 {
-	return pci_scan_bus(sys->busnr, &enp2611_pci_ops, sys);
+	return pci_scan_root_bus(NULL, sys->busnr, &enp2611_pci_ops, sys,
+				 &sys->resources);
 }
 
 static int __init enp2611_pci_map_irq(const struct pci_dev *dev, u8 slot,
@@ -259,6 +260,7 @@ MACHINE_START(ENP2611, "Radisys ENP-2611 PCI network processor board")
 	.init_irq	= ixp2000_init_irq,
 	.timer		= &enp2611_timer,
 	.init_machine	= enp2611_init_machine,
+	.restart	= ixp2000_restart,
 MACHINE_END
 
 

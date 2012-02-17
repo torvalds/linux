@@ -48,7 +48,7 @@
 #include "carl9170.h"
 #include "cmd.h"
 
-static int modparam_nohwcrypt;
+static bool modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware crypto offload.");
 
@@ -446,7 +446,7 @@ static void carl9170_op_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&ar->mutex);
 	if (IS_ACCEPTING_CMD(ar)) {
-		rcu_assign_pointer(ar->beacon_iter, NULL);
+		RCU_INIT_POINTER(ar->beacon_iter, NULL);
 
 		carl9170_led_set_state(ar, 0);
 
@@ -678,7 +678,7 @@ unlock:
 		vif_priv->active = false;
 		bitmap_release_region(&ar->vif_bitmap, vif_id, 0);
 		ar->vifs--;
-		rcu_assign_pointer(ar->vif_priv[vif_id].vif, NULL);
+		RCU_INIT_POINTER(ar->vif_priv[vif_id].vif, NULL);
 		list_del_rcu(&vif_priv->list);
 		mutex_unlock(&ar->mutex);
 		synchronize_rcu();
@@ -716,7 +716,7 @@ static void carl9170_op_remove_interface(struct ieee80211_hw *hw,
 	WARN_ON(vif_priv->enable_beacon);
 	vif_priv->enable_beacon = false;
 	list_del_rcu(&vif_priv->list);
-	rcu_assign_pointer(ar->vif_priv[id].vif, NULL);
+	RCU_INIT_POINTER(ar->vif_priv[id].vif, NULL);
 
 	if (vif == main_vif) {
 		rcu_read_unlock();
@@ -1258,7 +1258,7 @@ static int carl9170_op_sta_add(struct ieee80211_hw *hw,
 		}
 
 		for (i = 0; i < CARL9170_NUM_TID; i++)
-			rcu_assign_pointer(sta_info->agg[i], NULL);
+			RCU_INIT_POINTER(sta_info->agg[i], NULL);
 
 		sta_info->ampdu_max_len = 1 << (3 + sta->ht_cap.ampdu_factor);
 		sta_info->ht_sta = true;
@@ -1285,7 +1285,7 @@ static int carl9170_op_sta_remove(struct ieee80211_hw *hw,
 			struct carl9170_sta_tid *tid_info;
 
 			tid_info = rcu_dereference(sta_info->agg[i]);
-			rcu_assign_pointer(sta_info->agg[i], NULL);
+			RCU_INIT_POINTER(sta_info->agg[i], NULL);
 
 			if (!tid_info)
 				continue;
@@ -1398,7 +1398,7 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 			spin_unlock_bh(&ar->tx_ampdu_list_lock);
 		}
 
-		rcu_assign_pointer(sta_info->agg[tid], NULL);
+		RCU_INIT_POINTER(sta_info->agg[tid], NULL);
 		rcu_read_unlock();
 
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);

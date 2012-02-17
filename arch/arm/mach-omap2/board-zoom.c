@@ -138,6 +138,7 @@ MACHINE_START(OMAP_ZOOM2, "OMAP Zoom2 board")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap_zoom_init,
 	.timer		= &omap3_timer,
+	.restart	= omap_prcm_restart,
 MACHINE_END
 
 MACHINE_START(OMAP_ZOOM3, "OMAP Zoom3 board")
@@ -149,4 +150,5 @@ MACHINE_START(OMAP_ZOOM3, "OMAP Zoom3 board")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap_zoom_init,
 	.timer		= &omap3_timer,
+	.restart	= omap_prcm_restart,
 MACHINE_END

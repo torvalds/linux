@@ -78,4 +78,5 @@ MACHINE_START(IMX27IPCAM, "Freescale IMX27IPCAM")
 	.handle_irq = imx27_handle_irq,
 	.timer = &mx27ipcam_timer,
 	.init_machine = mx27ipcam_init,
+	.restart	= mxc_restart,
 MACHINE_END

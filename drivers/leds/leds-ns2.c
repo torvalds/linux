@@ -323,21 +323,10 @@ static struct platform_driver ns2_led_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-MODULE_ALIAS("platform:leds-ns2");
 
-static int __init ns2_led_init(void)
-{
-	return platform_driver_register(&ns2_led_driver);
-}
-
-static void __exit ns2_led_exit(void)
-{
-	platform_driver_unregister(&ns2_led_driver);
-}
-
-module_init(ns2_led_init);
-module_exit(ns2_led_exit);
+module_platform_driver(ns2_led_driver);
 
 MODULE_AUTHOR("Simon Guinot <sguinot@lacie.com>");
 MODULE_DESCRIPTION("Network Space v2 LED driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:leds-ns2");

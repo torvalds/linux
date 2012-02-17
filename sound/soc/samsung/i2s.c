@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
@@ -881,7 +882,7 @@ static int samsung_i2s_dai_probe(struct snd_soc_dai *dai)
 		writel(CON_RSTCLR, i2s->addr + I2SCON);
 
 	if (i2s->quirks & QUIRK_SEC_DAI)
-		idma_reg_addr_init((void *)i2s->addr,
+		idma_reg_addr_init(i2s->addr,
 					i2s->sec_dai->idma_playback.dma_addr);
 
 probe_exit:
@@ -923,7 +924,7 @@ static int samsung_i2s_dai_remove(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static struct snd_soc_dai_ops samsung_i2s_dai_ops = {
+static const struct snd_soc_dai_ops samsung_i2s_dai_ops = {
 	.trigger = i2s_trigger,
 	.hw_params = i2s_hw_params,
 	.set_fmt = i2s_set_fmt,
@@ -945,7 +946,7 @@ struct i2s_dai *i2s_alloc_dai(struct platform_device *pdev, bool sec)
 {
 	struct i2s_dai *i2s;
 
-	i2s = kzalloc(sizeof(struct i2s_dai), GFP_KERNEL);
+	i2s = devm_kzalloc(&pdev->dev, sizeof(struct i2s_dai), GFP_KERNEL);
 	if (i2s == NULL)
 		return NULL;
 
@@ -972,10 +973,8 @@ struct i2s_dai *i2s_alloc_dai(struct platform_device *pdev, bool sec)
 		i2s->pdev = platform_device_register_resndata(NULL,
 				pdev->name, pdev->id + SAMSUNG_I2S_SECOFF,
 				NULL, 0, NULL, 0);
-		if (IS_ERR(i2s->pdev)) {
-			kfree(i2s);
+		if (IS_ERR(i2s->pdev))
 			return NULL;
-		}
 	}
 
 	/* Pre-assign snd_soc_dai_set_drvdata */
@@ -1048,7 +1047,7 @@ static __devinit int samsung_i2s_probe(struct platform_device *pdev)
 	if (!pri_dai) {
 		dev_err(&pdev->dev, "Unable to alloc I2S_pri\n");
 		ret = -ENOMEM;
-		goto err1;
+		goto err;
 	}
 
 	pri_dai->dma_playback.dma_addr = regs_base + I2STXD;
@@ -1073,7 +1072,7 @@ static __devinit int samsung_i2s_probe(struct platform_device *pdev)
 		if (!sec_dai) {
 			dev_err(&pdev->dev, "Unable to alloc I2S_sec\n");
 			ret = -ENOMEM;
-			goto err2;
+			goto err;
 		}
 		sec_dai->dma_playback.dma_addr = regs_base + I2STXDS;
 		sec_dai->dma_playback.client =
@@ -1092,17 +1091,15 @@ static __devinit int samsung_i2s_probe(struct platform_device *pdev)
 	if (i2s_pdata->cfg_gpio && i2s_pdata->cfg_gpio(pdev)) {
 		dev_err(&pdev->dev, "Unable to configure gpio\n");
 		ret = -EINVAL;
-		goto err3;
+		goto err;
 	}
 
 	snd_soc_register_dai(&pri_dai->pdev->dev, &pri_dai->i2s_dai_drv);
 
+	pm_runtime_enable(&pdev->dev);
+
 	return 0;
-err3:
-	kfree(sec_dai);
-err2:
-	kfree(pri_dai);
-err1:
+err:
 	release_mem_region(regs_base, resource_size(res));
 
 	return ret;
@@ -1111,6 +1108,7 @@ err1:
 static __devexit int samsung_i2s_remove(struct platform_device *pdev)
 {
 	struct i2s_dai *i2s, *other;
+	struct resource *res;
 
 	i2s = dev_get_drvdata(&pdev->dev);
 	other = i2s->pri_dai ? : i2s->sec_dai;
@@ -1119,7 +1117,7 @@ static __devexit int samsung_i2s_remove(struct platform_device *pdev)
 		other->pri_dai = NULL;
 		other->sec_dai = NULL;
 	} else {
-		struct resource *res;
+		pm_runtime_disable(&pdev->dev);
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (res)
 			release_mem_region(res->start, resource_size(res));
@@ -1127,8 +1125,6 @@ static __devexit int samsung_i2s_remove(struct platform_device *pdev)
 
 	i2s->pri_dai = NULL;
 	i2s->sec_dai = NULL;
-
-	kfree(i2s);
 
 	snd_soc_unregister_dai(&pdev->dev);
 
@@ -1144,17 +1140,7 @@ static struct platform_driver samsung_i2s_driver = {
 	},
 };
 
-static int __init samsung_i2s_init(void)
-{
-	return platform_driver_register(&samsung_i2s_driver);
-}
-module_init(samsung_i2s_init);
-
-static void __exit samsung_i2s_exit(void)
-{
-	platform_driver_unregister(&samsung_i2s_driver);
-}
-module_exit(samsung_i2s_exit);
+module_platform_driver(samsung_i2s_driver);
 
 /* Module information */
 MODULE_AUTHOR("Jaswinder Singh, <jassi.brar@samsung.com>");

@@ -26,6 +26,7 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_pm.h"
+#include "nouveau_gpio.h"
 
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
@@ -35,22 +36,95 @@
 #include <linux/hwmon-sysfs.h>
 
 static int
-nouveau_pm_clock_set(struct drm_device *dev, struct nouveau_pm_level *perflvl,
-		     u8 id, u32 khz)
+nouveau_pwmfan_get(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
-	void *pre_state;
+	struct gpio_func gpio;
+	u32 divs, duty;
+	int ret;
 
-	if (khz == 0)
-		return 0;
+	if (!pm->pwm_get)
+		return -ENODEV;
 
-	pre_state = pm->clock_pre(dev, perflvl, id, khz);
-	if (IS_ERR(pre_state))
-		return PTR_ERR(pre_state);
+	ret = nouveau_gpio_find(dev, 0, DCB_GPIO_PWM_FAN, 0xff, &gpio);
+	if (ret == 0) {
+		ret = pm->pwm_get(dev, gpio.line, &divs, &duty);
+		if (ret == 0) {
+			divs = max(divs, duty);
+			if (dev_priv->card_type <= NV_40 || (gpio.log[0] & 1))
+				duty = divs - duty;
+			return (duty * 100) / divs;
+		}
 
-	if (pre_state)
-		pm->clock_set(dev, pre_state);
+		return nouveau_gpio_func_get(dev, gpio.func) * 100;
+	}
+
+	return -ENODEV;
+}
+
+static int
+nouveau_pwmfan_set(struct drm_device *dev, int percent)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	struct gpio_func gpio;
+	u32 divs, duty;
+	int ret;
+
+	if (!pm->pwm_set)
+		return -ENODEV;
+
+	ret = nouveau_gpio_find(dev, 0, DCB_GPIO_PWM_FAN, 0xff, &gpio);
+	if (ret == 0) {
+		divs = pm->pwm_divisor;
+		if (pm->fan.pwm_freq) {
+			/*XXX: PNVIO clock more than likely... */
+			divs = 135000 / pm->fan.pwm_freq;
+			if (dev_priv->chipset < 0xa3)
+				divs /= 4;
+		}
+
+		duty = ((divs * percent) + 99) / 100;
+		if (dev_priv->card_type <= NV_40 || (gpio.log[0] & 1))
+			duty = divs - duty;
+
+		return pm->pwm_set(dev, gpio.line, divs, duty);
+	}
+
+	return -ENODEV;
+}
+
+static int
+nouveau_pm_perflvl_aux(struct drm_device *dev, struct nouveau_pm_level *perflvl,
+		       struct nouveau_pm_level *a, struct nouveau_pm_level *b)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	int ret;
+
+	/*XXX: not on all boards, we should control based on temperature
+	 *     on recent boards..  or maybe on some other factor we don't
+	 *     know about?
+	 */
+	if (a->fanspeed && b->fanspeed && b->fanspeed > a->fanspeed) {
+		ret = nouveau_pwmfan_set(dev, perflvl->fanspeed);
+		if (ret && ret != -ENODEV) {
+			NV_ERROR(dev, "fanspeed set failed: %d\n", ret);
+			return ret;
+		}
+	}
+
+	if (pm->voltage.supported && pm->voltage_set) {
+		if (perflvl->volt_min && b->volt_min > a->volt_min) {
+			ret = pm->voltage_set(dev, perflvl->volt_min);
+			if (ret) {
+				NV_ERROR(dev, "voltage set failed: %d\n", ret);
+				return ret;
+			}
+		}
+	}
+
 	return 0;
 }
 
@@ -59,31 +133,24 @@ nouveau_pm_perflvl_set(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	void *state;
 	int ret;
 
 	if (perflvl == pm->cur)
 		return 0;
 
-	if (pm->voltage.supported && pm->voltage_set && perflvl->volt_min) {
-		ret = pm->voltage_set(dev, perflvl->volt_min);
-		if (ret) {
-			NV_ERROR(dev, "voltage_set %d failed: %d\n",
-				 perflvl->volt_min, ret);
-		}
-	}
+	ret = nouveau_pm_perflvl_aux(dev, perflvl, pm->cur, perflvl);
+	if (ret)
+		return ret;
 
-	if (pm->clocks_pre) {
-		void *state = pm->clocks_pre(dev, perflvl);
-		if (IS_ERR(state))
-			return PTR_ERR(state);
-		pm->clocks_set(dev, state);
-	} else
-	if (pm->clock_set) {
-		nouveau_pm_clock_set(dev, perflvl, PLL_CORE, perflvl->core);
-		nouveau_pm_clock_set(dev, perflvl, PLL_SHADER, perflvl->shader);
-		nouveau_pm_clock_set(dev, perflvl, PLL_MEMORY, perflvl->memory);
-		nouveau_pm_clock_set(dev, perflvl, PLL_UNK05, perflvl->unk05);
-	}
+	state = pm->clocks_pre(dev, perflvl);
+	if (IS_ERR(state))
+		return PTR_ERR(state);
+	pm->clocks_set(dev, state);
+
+	ret = nouveau_pm_perflvl_aux(dev, perflvl, perflvl, pm->cur);
+	if (ret)
+		return ret;
 
 	pm->cur = perflvl;
 	return 0;
@@ -130,28 +197,9 @@ nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 
 	memset(perflvl, 0, sizeof(*perflvl));
 
-	if (pm->clocks_get) {
-		ret = pm->clocks_get(dev, perflvl);
-		if (ret)
-			return ret;
-	} else
-	if (pm->clock_get) {
-		ret = pm->clock_get(dev, PLL_CORE);
-		if (ret > 0)
-			perflvl->core = ret;
-
-		ret = pm->clock_get(dev, PLL_MEMORY);
-		if (ret > 0)
-			perflvl->memory = ret;
-
-		ret = pm->clock_get(dev, PLL_SHADER);
-		if (ret > 0)
-			perflvl->shader = ret;
-
-		ret = pm->clock_get(dev, PLL_UNK05);
-		if (ret > 0)
-			perflvl->unk05 = ret;
-	}
+	ret = pm->clocks_get(dev, perflvl);
+	if (ret)
+		return ret;
 
 	if (pm->voltage.supported && pm->voltage_get) {
 		ret = pm->voltage_get(dev);
@@ -160,6 +208,10 @@ nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 			perflvl->volt_max = ret;
 		}
 	}
+
+	ret = nouveau_pwmfan_get(dev);
+	if (ret > 0)
+		perflvl->fanspeed = ret;
 
 	return 0;
 }
@@ -412,6 +464,172 @@ static SENSOR_DEVICE_ATTR(update_rate, S_IRUGO,
 						nouveau_hwmon_show_update_rate,
 						NULL, 0);
 
+static ssize_t
+nouveau_hwmon_show_fan0_input(struct device *d, struct device_attribute *attr,
+			      char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
+	struct gpio_func gpio;
+	u32 cycles, cur, prev;
+	u64 start;
+	int ret;
+
+	ret = nouveau_gpio_find(dev, 0, DCB_GPIO_FAN_SENSE, 0xff, &gpio);
+	if (ret)
+		return ret;
+
+	/* Monitor the GPIO input 0x3b for 250ms.
+	 * When the fan spins, it changes the value of GPIO FAN_SENSE.
+	 * We get 4 changes (0 -> 1 -> 0 -> 1 -> [...]) per complete rotation.
+	 */
+	start = ptimer->read(dev);
+	prev = nouveau_gpio_sense(dev, 0, gpio.line);
+	cycles = 0;
+	do {
+		cur = nouveau_gpio_sense(dev, 0, gpio.line);
+		if (prev != cur) {
+			cycles++;
+			prev = cur;
+		}
+
+		usleep_range(500, 1000); /* supports 0 < rpm < 7500 */
+	} while (ptimer->read(dev) - start < 250000000);
+
+	/* interpolate to get rpm */
+	return sprintf(buf, "%i\n", cycles / 4 * 4 * 60);
+}
+static SENSOR_DEVICE_ATTR(fan0_input, S_IRUGO, nouveau_hwmon_show_fan0_input,
+			  NULL, 0);
+
+static ssize_t
+nouveau_hwmon_get_pwm0(struct device *d, struct device_attribute *a, char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	int ret;
+
+	ret = nouveau_pwmfan_get(dev);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%i\n", ret);
+}
+
+static ssize_t
+nouveau_hwmon_set_pwm0(struct device *d, struct device_attribute *a,
+		       const char *buf, size_t count)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	int ret = -ENODEV;
+	long value;
+
+	if (nouveau_perflvl_wr != 7777)
+		return -EPERM;
+
+	if (strict_strtol(buf, 10, &value) == -EINVAL)
+		return -EINVAL;
+
+	if (value < pm->fan.min_duty)
+		value = pm->fan.min_duty;
+	if (value > pm->fan.max_duty)
+		value = pm->fan.max_duty;
+
+	ret = nouveau_pwmfan_set(dev, value);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static SENSOR_DEVICE_ATTR(pwm0, S_IRUGO | S_IWUSR,
+			  nouveau_hwmon_get_pwm0,
+			  nouveau_hwmon_set_pwm0, 0);
+
+static ssize_t
+nouveau_hwmon_get_pwm0_min(struct device *d,
+			   struct device_attribute *a, char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+
+	return sprintf(buf, "%i\n", pm->fan.min_duty);
+}
+
+static ssize_t
+nouveau_hwmon_set_pwm0_min(struct device *d, struct device_attribute *a,
+			   const char *buf, size_t count)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	long value;
+
+	if (strict_strtol(buf, 10, &value) == -EINVAL)
+		return -EINVAL;
+
+	if (value < 0)
+		value = 0;
+
+	if (pm->fan.max_duty - value < 10)
+		value = pm->fan.max_duty - 10;
+
+	if (value < 10)
+		pm->fan.min_duty = 10;
+	else
+		pm->fan.min_duty = value;
+
+	return count;
+}
+
+static SENSOR_DEVICE_ATTR(pwm0_min, S_IRUGO | S_IWUSR,
+			  nouveau_hwmon_get_pwm0_min,
+			  nouveau_hwmon_set_pwm0_min, 0);
+
+static ssize_t
+nouveau_hwmon_get_pwm0_max(struct device *d,
+			   struct device_attribute *a, char *buf)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+
+	return sprintf(buf, "%i\n", pm->fan.max_duty);
+}
+
+static ssize_t
+nouveau_hwmon_set_pwm0_max(struct device *d, struct device_attribute *a,
+			   const char *buf, size_t count)
+{
+	struct drm_device *dev = dev_get_drvdata(d);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+	long value;
+
+	if (strict_strtol(buf, 10, &value) == -EINVAL)
+		return -EINVAL;
+
+	if (value < 0)
+		value = 0;
+
+	if (value - pm->fan.min_duty < 10)
+		value = pm->fan.min_duty + 10;
+
+	if (value > 100)
+		pm->fan.max_duty = 100;
+	else
+		pm->fan.max_duty = value;
+
+	return count;
+}
+
+static SENSOR_DEVICE_ATTR(pwm0_max, S_IRUGO | S_IWUSR,
+			  nouveau_hwmon_get_pwm0_max,
+			  nouveau_hwmon_set_pwm0_max, 0);
+
 static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
@@ -420,20 +638,36 @@ static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_update_rate.dev_attr.attr,
 	NULL
 };
+static struct attribute *hwmon_fan_rpm_attributes[] = {
+	&sensor_dev_attr_fan0_input.dev_attr.attr,
+	NULL
+};
+static struct attribute *hwmon_pwm_fan_attributes[] = {
+	&sensor_dev_attr_pwm0.dev_attr.attr,
+	&sensor_dev_attr_pwm0_min.dev_attr.attr,
+	&sensor_dev_attr_pwm0_max.dev_attr.attr,
+	NULL
+};
 
 static const struct attribute_group hwmon_attrgroup = {
 	.attrs = hwmon_attributes,
+};
+static const struct attribute_group hwmon_fan_rpm_attrgroup = {
+	.attrs = hwmon_fan_rpm_attributes,
+};
+static const struct attribute_group hwmon_pwm_fan_attrgroup = {
+	.attrs = hwmon_pwm_fan_attributes,
 };
 #endif
 
 static int
 nouveau_hwmon_init(struct drm_device *dev)
 {
-#if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
+#if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
 	struct device *hwmon_dev;
-	int ret;
+	int ret = 0;
 
 	if (!pm->temp_get)
 		return -ENODEV;
@@ -446,17 +680,46 @@ nouveau_hwmon_init(struct drm_device *dev)
 		return ret;
 	}
 	dev_set_drvdata(hwmon_dev, dev);
+
+	/* default sysfs entries */
 	ret = sysfs_create_group(&dev->pdev->dev.kobj, &hwmon_attrgroup);
 	if (ret) {
-		NV_ERROR(dev,
-			"Unable to create hwmon sysfs file: %d\n", ret);
-		hwmon_device_unregister(hwmon_dev);
-		return ret;
+		if (ret)
+			goto error;
+	}
+
+	/* if the card has a pwm fan */
+	/*XXX: incorrect, need better detection for this, some boards have
+	 *     the gpio entries for pwm fan control even when there's no
+	 *     actual fan connected to it... therm table? */
+	if (nouveau_pwmfan_get(dev) >= 0) {
+		ret = sysfs_create_group(&dev->pdev->dev.kobj,
+					 &hwmon_pwm_fan_attrgroup);
+		if (ret)
+			goto error;
+	}
+
+	/* if the card can read the fan rpm */
+	if (nouveau_gpio_func_valid(dev, DCB_GPIO_FAN_SENSE)) {
+		ret = sysfs_create_group(&dev->pdev->dev.kobj,
+					 &hwmon_fan_rpm_attrgroup);
+		if (ret)
+			goto error;
 	}
 
 	pm->hwmon = hwmon_dev;
-#endif
+
 	return 0;
+
+error:
+	NV_ERROR(dev, "Unable to create some hwmon sysfs files: %d\n", ret);
+	hwmon_device_unregister(hwmon_dev);
+	pm->hwmon = NULL;
+	return ret;
+#else
+	pm->hwmon = NULL;
+	return 0;
+#endif
 }
 
 static void
@@ -468,6 +731,9 @@ nouveau_hwmon_fini(struct drm_device *dev)
 
 	if (pm->hwmon) {
 		sysfs_remove_group(&dev->pdev->dev.kobj, &hwmon_attrgroup);
+		sysfs_remove_group(&dev->pdev->dev.kobj, &hwmon_pwm_fan_attrgroup);
+		sysfs_remove_group(&dev->pdev->dev.kobj, &hwmon_fan_rpm_attrgroup);
+
 		hwmon_device_unregister(pm->hwmon);
 	}
 #endif

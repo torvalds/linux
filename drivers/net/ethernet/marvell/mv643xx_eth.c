@@ -136,6 +136,8 @@ static char mv643xx_eth_driver_version[] = "1.4";
 #define INT_MASK			0x0068
 #define INT_MASK_EXT			0x006c
 #define TX_FIFO_URGENT_THRESHOLD	0x0074
+#define RX_DISCARD_FRAME_CNT		0x0084
+#define RX_OVERRUN_FRAME_CNT		0x0088
 #define TXQ_FIX_PRIO_CONF_MOVED		0x00dc
 #define TX_BW_RATE_MOVED		0x00e0
 #define TX_BW_MTU_MOVED			0x00e8
@@ -334,6 +336,9 @@ struct mib_counters {
 	u32 bad_crc_event;
 	u32 collision;
 	u32 late_collision;
+	/* Non MIB hardware counters */
+	u32 rx_discard;
+	u32 rx_overrun;
 };
 
 struct lro_counters {
@@ -1225,6 +1230,10 @@ static void mib_counters_clear(struct mv643xx_eth_private *mp)
 
 	for (i = 0; i < 0x80; i += 4)
 		mib_read(mp, i);
+
+	/* Clear non MIB hw counters also */
+	rdlp(mp, RX_DISCARD_FRAME_CNT);
+	rdlp(mp, RX_OVERRUN_FRAME_CNT);
 }
 
 static void mib_counters_update(struct mv643xx_eth_private *mp)
@@ -1262,6 +1271,9 @@ static void mib_counters_update(struct mv643xx_eth_private *mp)
 	p->bad_crc_event += mib_read(mp, 0x74);
 	p->collision += mib_read(mp, 0x78);
 	p->late_collision += mib_read(mp, 0x7c);
+	/* Non MIB hardware counters */
+	p->rx_discard += rdlp(mp, RX_DISCARD_FRAME_CNT);
+	p->rx_overrun += rdlp(mp, RX_OVERRUN_FRAME_CNT);
 	spin_unlock_bh(&mp->mib_counters_lock);
 
 	mod_timer(&mp->mib_counters_timer, jiffies + 30 * HZ);
@@ -1413,6 +1425,8 @@ static const struct mv643xx_eth_stats mv643xx_eth_stats[] = {
 	MIBSTAT(bad_crc_event),
 	MIBSTAT(collision),
 	MIBSTAT(late_collision),
+	MIBSTAT(rx_discard),
+	MIBSTAT(rx_overrun),
 	LROSTAT(lro_aggregated),
 	LROSTAT(lro_flushed),
 	LROSTAT(lro_no_desc),
@@ -1502,10 +1516,12 @@ mv643xx_eth_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static void mv643xx_eth_get_drvinfo(struct net_device *dev,
 				    struct ethtool_drvinfo *drvinfo)
 {
-	strncpy(drvinfo->driver,  mv643xx_eth_driver_name, 32);
-	strncpy(drvinfo->version, mv643xx_eth_driver_version, 32);
-	strncpy(drvinfo->fw_version, "N/A", 32);
-	strncpy(drvinfo->bus_info, "platform", 32);
+	strlcpy(drvinfo->driver, mv643xx_eth_driver_name,
+		sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, mv643xx_eth_driver_version,
+		sizeof(drvinfo->version));
+	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
+	strlcpy(drvinfo->bus_info, "platform", sizeof(drvinfo->bus_info));
 	drvinfo->n_stats = ARRAY_SIZE(mv643xx_eth_stats);
 }
 
@@ -1578,10 +1594,10 @@ mv643xx_eth_set_ringparam(struct net_device *dev, struct ethtool_ringparam *er)
 
 
 static int
-mv643xx_eth_set_features(struct net_device *dev, u32 features)
+mv643xx_eth_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
-	u32 rx_csum = features & NETIF_F_RXCSUM;
+	bool rx_csum = features & NETIF_F_RXCSUM;
 
 	wrlp(mp, PORT_CONFIG, rx_csum ? 0x02000000 : 0x00000000);
 
@@ -2509,7 +2525,7 @@ static void mv643xx_eth_netpoll(struct net_device *dev)
 /* platform glue ************************************************************/
 static void
 mv643xx_eth_conf_mbus_windows(struct mv643xx_eth_shared_private *msp,
-			      struct mbus_dram_target_info *dram)
+			      const struct mbus_dram_target_info *dram)
 {
 	void __iomem *base = msp->base;
 	u32 win_enable;
@@ -2527,7 +2543,7 @@ mv643xx_eth_conf_mbus_windows(struct mv643xx_eth_shared_private *msp,
 	win_protect = 0;
 
 	for (i = 0; i < dram->num_cs; i++) {
-		struct mbus_dram_window *cs = dram->cs + i;
+		const struct mbus_dram_window *cs = dram->cs + i;
 
 		writel((cs->base & 0xffff0000) |
 			(cs->mbus_attr << 8) |
@@ -2577,6 +2593,7 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	static int mv643xx_eth_version_printed;
 	struct mv643xx_eth_shared_platform_data *pd = pdev->dev.platform_data;
 	struct mv643xx_eth_shared_private *msp;
+	const struct mbus_dram_target_info *dram;
 	struct resource *res;
 	int ret;
 
@@ -2610,7 +2627,8 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 		msp->smi_bus->name = "mv643xx_eth smi";
 		msp->smi_bus->read = smi_bus_read;
 		msp->smi_bus->write = smi_bus_write,
-		snprintf(msp->smi_bus->id, MII_BUS_ID_SIZE, "%d", pdev->id);
+		snprintf(msp->smi_bus->id, MII_BUS_ID_SIZE, "%s-%d",
+			pdev->name, pdev->id);
 		msp->smi_bus->parent = &pdev->dev;
 		msp->smi_bus->phy_mask = 0xffffffff;
 		if (mdiobus_register(msp->smi_bus) < 0)
@@ -2641,8 +2659,9 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	/*
 	 * (Re-)program MBUS remapping windows if we are asked to.
 	 */
-	if (pd != NULL && pd->dram != NULL)
-		mv643xx_eth_conf_mbus_windows(msp, pd->dram);
+	dram = mv_mbus_dram_info();
+	if (dram)
+		mv643xx_eth_conf_mbus_windows(msp, dram);
 
 	/*
 	 * Detect hardware parameters.

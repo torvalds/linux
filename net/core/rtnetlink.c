@@ -273,6 +273,17 @@ EXPORT_SYMBOL_GPL(rtnl_unregister_all);
 
 static LIST_HEAD(link_ops);
 
+static const struct rtnl_link_ops *rtnl_link_ops_get(const char *kind)
+{
+	const struct rtnl_link_ops *ops;
+
+	list_for_each_entry(ops, &link_ops, list) {
+		if (!strcmp(ops->kind, kind))
+			return ops;
+	}
+	return NULL;
+}
+
 /**
  * __rtnl_link_register - Register rtnl_link_ops with rtnetlink.
  * @ops: struct rtnl_link_ops * to register
@@ -285,6 +296,9 @@ static LIST_HEAD(link_ops);
  */
 int __rtnl_link_register(struct rtnl_link_ops *ops)
 {
+	if (rtnl_link_ops_get(ops->kind))
+		return -EEXIST;
+
 	if (!ops->dellink)
 		ops->dellink = unregister_netdevice_queue;
 
@@ -350,17 +364,6 @@ void rtnl_link_unregister(struct rtnl_link_ops *ops)
 	rtnl_unlock();
 }
 EXPORT_SYMBOL_GPL(rtnl_link_unregister);
-
-static const struct rtnl_link_ops *rtnl_link_ops_get(const char *kind)
-{
-	const struct rtnl_link_ops *ops;
-
-	list_for_each_entry(ops, &link_ops, list) {
-		if (!strcmp(ops->kind, kind))
-			return ops;
-	}
-	return NULL;
-}
 
 static size_t rtnl_link_get_size(const struct net_device *dev)
 {
@@ -1506,6 +1509,9 @@ errout:
 
 	if (send_addr_notify)
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
+	min_ifinfo_dump_size = max_t(u16, if_nlmsg_size(dev),
+				     min_ifinfo_dump_size);
+
 	return err;
 }
 
@@ -1957,7 +1963,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	sz_idx = type>>2;
 	kind = type&3;
 
-	if (kind != 2 && security_netlink_recv(skb, CAP_NET_ADMIN))
+	if (kind != 2 && !capable(CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (kind == 2 && nlh->nlmsg_flags&NLM_F_DUMP) {

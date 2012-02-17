@@ -2756,6 +2756,9 @@ isdn_net_setcfg(isdn_net_ioctl_cfg * cfg)
 			char *c,
 			*e;
 
+			if (strnlen(cfg->drvid, sizeof(cfg->drvid)) ==
+					sizeof(cfg->drvid))
+				return -EINVAL;
 			drvidx = -1;
 			chidx = -1;
 			strcpy(drvid, cfg->drvid);

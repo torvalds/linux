@@ -1726,9 +1726,10 @@ static int eepro_ethtool_get_settings(struct net_device *dev,
 static void eepro_ethtool_get_drvinfo(struct net_device *dev,
 					struct ethtool_drvinfo *drvinfo)
 {
-	strcpy(drvinfo->driver, DRV_NAME);
-	strcpy(drvinfo->version, DRV_VERSION);
-	sprintf(drvinfo->bus_info, "ISA 0x%lx", dev->base_addr);
+	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
+	snprintf(drvinfo->bus_info, sizeof(drvinfo->bus_info),
+		"ISA 0x%lx", dev->base_addr);
 }
 
 static const struct ethtool_ops eepro_ethtool_ops = {

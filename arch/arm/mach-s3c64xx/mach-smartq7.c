@@ -24,13 +24,13 @@
 #include <mach/map.h>
 #include <mach/regs-gpio.h>
 
-#include <plat/s3c6410.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>
 #include <plat/regs-fb-v4.h>
 
+#include "common.h"
 #include "mach-smartq.h"
 
 static struct gpio_led smartq7_leds[] = {
@@ -169,4 +169,5 @@ MACHINE_START(SMARTQ7, "SmartQ 7")
 	.map_io		= smartq_map_io,
 	.init_machine	= smartq7_machine_init,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c64xx_restart,
 MACHINE_END

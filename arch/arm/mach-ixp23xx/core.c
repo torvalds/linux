@@ -444,3 +444,9 @@ void __init ixp23xx_sys_init(void)
 	*IXP23XX_EXP_UNIT_FUSE |= 0xf;
 	platform_add_devices(ixp23xx_devices, ARRAY_SIZE(ixp23xx_devices));
 }
+
+void ixp23xx_restart(char mode, const char *cmd)
+{
+	/* Use on-chip reset capability */
+	*IXP23XX_RESET0 |= IXP23XX_RST_ALL;
+}

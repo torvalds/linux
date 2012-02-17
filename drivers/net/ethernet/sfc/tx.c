@@ -31,7 +31,9 @@
 #define EFX_TXQ_THRESHOLD(_efx) ((_efx)->txq_entries / 2u)
 
 static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
-			       struct efx_tx_buffer *buffer)
+			       struct efx_tx_buffer *buffer,
+			       unsigned int *pkts_compl,
+			       unsigned int *bytes_compl)
 {
 	if (buffer->unmap_len) {
 		struct pci_dev *pci_dev = tx_queue->efx->pci_dev;
@@ -48,6 +50,8 @@ static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 	}
 
 	if (buffer->skb) {
+		(*pkts_compl)++;
+		(*bytes_compl) += buffer->skb->len;
 		dev_kfree_skb_any((struct sk_buff *) buffer->skb);
 		buffer->skb = NULL;
 		netif_vdbg(tx_queue->efx, tx_done, tx_queue->efx->net_dev,
@@ -250,6 +254,8 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	buffer->skb = skb;
 	buffer->continuation = false;
 
+	netdev_tx_sent_queue(tx_queue->core_txq, skb->len);
+
 	/* Pass off to hardware */
 	efx_nic_push_buffers(tx_queue);
 
@@ -267,10 +273,11 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
  unwind:
 	/* Work backwards until we hit the original insert pointer value */
 	while (tx_queue->insert_count != tx_queue->write_count) {
+		unsigned int pkts_compl = 0, bytes_compl = 0;
 		--tx_queue->insert_count;
 		insert_ptr = tx_queue->insert_count & tx_queue->ptr_mask;
 		buffer = &tx_queue->buffer[insert_ptr];
-		efx_dequeue_buffer(tx_queue, buffer);
+		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl);
 		buffer->len = 0;
 	}
 
@@ -293,7 +300,9 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
  * specified index.
  */
 static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
-				unsigned int index)
+				unsigned int index,
+				unsigned int *pkts_compl,
+				unsigned int *bytes_compl)
 {
 	struct efx_nic *efx = tx_queue->efx;
 	unsigned int stop_index, read_ptr;
@@ -311,7 +320,7 @@ static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
 			return;
 		}
 
-		efx_dequeue_buffer(tx_queue, buffer);
+		efx_dequeue_buffer(tx_queue, buffer, pkts_compl, bytes_compl);
 		buffer->continuation = true;
 		buffer->len = 0;
 
@@ -422,10 +431,12 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 {
 	unsigned fill_level;
 	struct efx_nic *efx = tx_queue->efx;
+	unsigned int pkts_compl = 0, bytes_compl = 0;
 
 	EFX_BUG_ON_PARANOID(index > tx_queue->ptr_mask);
 
-	efx_dequeue_buffers(tx_queue, index);
+	efx_dequeue_buffers(tx_queue, index, &pkts_compl, &bytes_compl);
+	netdev_tx_completed_queue(tx_queue->core_txq, pkts_compl, bytes_compl);
 
 	/* See if we need to restart the netif queue.  This barrier
 	 * separates the update of read_count from the test of the
@@ -468,7 +479,7 @@ int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
 		  tx_queue->queue, efx->txq_entries, tx_queue->ptr_mask);
 
 	/* Allocate software ring */
-	tx_queue->buffer = kzalloc(entries * sizeof(*tx_queue->buffer),
+	tx_queue->buffer = kcalloc(entries, sizeof(*tx_queue->buffer),
 				   GFP_KERNEL);
 	if (!tx_queue->buffer)
 		return -ENOMEM;
@@ -515,13 +526,15 @@ void efx_release_tx_buffers(struct efx_tx_queue *tx_queue)
 
 	/* Free any buffers left in the ring */
 	while (tx_queue->read_count != tx_queue->write_count) {
+		unsigned int pkts_compl = 0, bytes_compl = 0;
 		buffer = &tx_queue->buffer[tx_queue->read_count & tx_queue->ptr_mask];
-		efx_dequeue_buffer(tx_queue, buffer);
+		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl);
 		buffer->continuation = true;
 		buffer->len = 0;
 
 		++tx_queue->read_count;
 	}
+	netdev_tx_reset_queue(tx_queue->core_txq);
 }
 
 void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
@@ -1159,6 +1172,8 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 		    tso_start_new_packet(tx_queue, skb, &state) < 0)
 			goto mem_err;
 	}
+
+	netdev_tx_sent_queue(tx_queue->core_txq, skb->len);
 
 	/* Pass off to hardware */
 	efx_nic_push_buffers(tx_queue);

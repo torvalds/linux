@@ -398,7 +398,6 @@ struct iscsi_cmd {
 	u32			pdu_send_order;
 	/* Current struct iscsi_pdu in struct iscsi_cmd->pdu_list */
 	u32			pdu_start;
-	u32			residual_count;
 	/* Next struct iscsi_seq to send in struct iscsi_cmd->seq_list */
 	u32			seq_send_order;
 	/* Number of struct iscsi_seq in struct iscsi_cmd->seq_list */
@@ -509,6 +508,7 @@ struct iscsi_conn {
 	u16			cid;
 	/* Remote TCP Port */
 	u16			login_port;
+	u16			local_port;
 	int			net_size;
 	u32			auth_id;
 #define CONNFLAG_SCTP_STRUCT_FILE			0x01
@@ -528,6 +528,7 @@ struct iscsi_conn {
 	unsigned char		bad_hdr[ISCSI_HDR_LEN];
 #define IPV6_ADDRESS_SPACE				48
 	unsigned char		login_ip[IPV6_ADDRESS_SPACE];
+	unsigned char		local_ip[IPV6_ADDRESS_SPACE];
 	int			conn_usage_count;
 	int			conn_waiting_on_uc;
 	atomic_t		check_immediate_queue;
@@ -535,7 +536,6 @@ struct iscsi_conn {
 	atomic_t		connection_exit;
 	atomic_t		connection_recovery;
 	atomic_t		connection_reinstatement;
-	atomic_t		connection_wait;
 	atomic_t		connection_wait_rcfr;
 	atomic_t		sleep_on_conn_wait_comp;
 	atomic_t		transport_failed;
@@ -563,8 +563,8 @@ struct iscsi_conn {
 	struct hash_desc	conn_tx_hash;
 	/* Used for scheduling TX and RX connection kthreads */
 	cpumask_var_t		conn_cpumask;
-	int			conn_rx_reset_cpumask:1;
-	int			conn_tx_reset_cpumask:1;
+	unsigned int		conn_rx_reset_cpumask:1;
+	unsigned int		conn_tx_reset_cpumask:1;
 	/* list_head of struct iscsi_cmd for this connection */
 	struct list_head	conn_cmd_list;
 	struct list_head	immed_queue_list;
@@ -643,7 +643,6 @@ struct iscsi_session {
 	atomic_t		session_reinstatement;
 	atomic_t		session_stop_active;
 	atomic_t		sleep_on_sess_wait_comp;
-	atomic_t		transport_wait_cmds;
 	/* connection list */
 	struct list_head	sess_conn_list;
 	struct list_head	cr_active_list;

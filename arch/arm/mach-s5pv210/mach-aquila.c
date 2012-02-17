@@ -33,7 +33,6 @@
 
 #include <plat/gpio-cfg.h>
 #include <plat/regs-serial.h>
-#include <plat/s5pv210.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/fb.h>
@@ -41,6 +40,8 @@
 #include <plat/sdhci.h>
 #include <plat/s5p-time.h>
 #include <plat/regs-fb-v4.h>
+
+#include "common.h"
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define AQUILA_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -596,8 +597,7 @@ static struct s3c_sdhci_platdata aquila_hsmmc2_data __initdata = {
 
 static void aquila_setup_sdhci(void)
 {
-	gpio_request(AQUILA_EXT_FLASH_EN, "FLASH_EN");
-	gpio_direction_output(AQUILA_EXT_FLASH_EN, 1);
+	gpio_request_one(AQUILA_EXT_FLASH_EN, GPIOF_OUT_INIT_HIGH, "FLASH_EN");
 
 	s3c_sdhci0_set_platdata(&aquila_hsmmc0_data);
 	s3c_sdhci1_set_platdata(&aquila_hsmmc1_data);
@@ -645,7 +645,7 @@ static void __init aquila_sound_init(void)
 
 static void __init aquila_map_io(void)
 {
-	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
+	s5pv210_init_io(NULL, 0);
 	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(aquila_uartcfgs, ARRAY_SIZE(aquila_uartcfgs));
 	s5p_set_timer_source(S5P_PWM3, S5P_PWM4);
@@ -685,4 +685,5 @@ MACHINE_START(AQUILA, "Aquila")
 	.map_io		= aquila_map_io,
 	.init_machine	= aquila_machine_init,
 	.timer		= &s5p_timer,
+	.restart	= s5pv210_restart,
 MACHINE_END

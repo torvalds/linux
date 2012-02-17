@@ -4,6 +4,7 @@
  */
 
 #include <asm-generic/vmlinux.lds.h>
+#include <asm/cache.h>
 #include <asm/thread_info.h>
 #include <asm/memory.h>
 #include <asm/page.h>
@@ -12,6 +13,12 @@
 	VMLINUX_SYMBOL(__proc_info_begin) = .;				\
 	*(.proc.info.init)						\
 	VMLINUX_SYMBOL(__proc_info_end) = .;
+
+#define IDMAP_TEXT							\
+	ALIGN_FUNCTION();						\
+	VMLINUX_SYMBOL(__idmap_text_start) = .;				\
+	*(.idmap.text)							\
+	VMLINUX_SYMBOL(__idmap_text_end) = .;
 
 #ifdef CONFIG_HOTPLUG_CPU
 #define ARM_CPU_DISCARD(x)
@@ -92,6 +99,7 @@ SECTIONS
 			SCHED_TEXT
 			LOCK_TEXT
 			KPROBES_TEXT
+			IDMAP_TEXT
 #ifdef CONFIG_MMU
 			*(.fixup)
 #endif
@@ -174,7 +182,7 @@ SECTIONS
 	}
 #endif
 
-	PERCPU_SECTION(32)
+	PERCPU_SECTION(L1_CACHE_BYTES)
 
 #ifdef CONFIG_XIP_KERNEL
 	__data_loc = ALIGN(4);		/* location in binary */
@@ -205,13 +213,13 @@ SECTIONS
 #endif
 
 		NOSAVE_DATA
-		CACHELINE_ALIGNED_DATA(32)
-		READ_MOSTLY_DATA(32)
+		CACHELINE_ALIGNED_DATA(L1_CACHE_BYTES)
+		READ_MOSTLY_DATA(L1_CACHE_BYTES)
 
 		/*
 		 * The exception fixup table (might need resorting at runtime)
 		 */
-		. = ALIGN(32);
+		. = ALIGN(4);
 		__start___ex_table = .;
 #ifdef CONFIG_MMU
 		*(__ex_table)

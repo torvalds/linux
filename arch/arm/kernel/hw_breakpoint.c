@@ -1016,10 +1016,10 @@ static int __init arch_hw_breakpoint_init(void)
 	}
 
 	/* Register debug fault handler. */
-	hook_fault_code(2, hw_breakpoint_pending, SIGTRAP, TRAP_HWBKPT,
-			"watchpoint debug exception");
-	hook_ifault_code(2, hw_breakpoint_pending, SIGTRAP, TRAP_HWBKPT,
-			"breakpoint debug exception");
+	hook_fault_code(FAULT_CODE_DEBUG, hw_breakpoint_pending, SIGTRAP,
+			TRAP_HWBKPT, "watchpoint debug exception");
+	hook_ifault_code(FAULT_CODE_DEBUG, hw_breakpoint_pending, SIGTRAP,
+			TRAP_HWBKPT, "breakpoint debug exception");
 
 	/* Register hotplug notifier. */
 	register_cpu_notifier(&dbg_reset_nb);

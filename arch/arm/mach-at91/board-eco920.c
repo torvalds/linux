@@ -47,13 +47,15 @@ static void __init eco920_init_early(void)
 	at91_set_serial_console(0);
 }
 
-static struct at91_eth_data __initdata eco920_eth_data = {
+static struct macb_platform_data __initdata eco920_eth_data = {
 	.phy_irq_pin	= AT91_PIN_PC2,
 	.is_rmii	= 1,
 };
 
 static struct at91_usbh_data __initdata eco920_usbh_data = {
 	.ports		= 1,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 static struct at91_udc_data __initdata eco920_udc_data = {
@@ -64,6 +66,9 @@ static struct at91_udc_data __initdata eco920_udc_data = {
 static struct at91_mmc_data __initdata eco920_mmc_data = {
 	.slot_b		= 0,
 	.wire4		= 0,
+	.det_pin	= -EINVAL,
+	.wp_pin		= -EINVAL,
+	.vcc_pin	= -EINVAL,
 };
 
 static struct physmap_flash_data eco920_flash_data = {

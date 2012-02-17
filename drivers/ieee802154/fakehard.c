@@ -343,7 +343,7 @@ static void ieee802154_fake_setup(struct net_device *dev)
 {
 	dev->addr_len		= IEEE802154_ADDR_LEN;
 	memset(dev->broadcast, 0xff, IEEE802154_ADDR_LEN);
-	dev->features		= NETIF_F_NO_CSUM;
+	dev->features		= NETIF_F_HW_CSUM;
 	dev->needed_tailroom	= 2; /* FCS */
 	dev->mtu		= 127;
 	dev->tx_queue_len	= 10;

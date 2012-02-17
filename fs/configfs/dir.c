@@ -311,8 +311,8 @@ static int configfs_create_dir(struct config_item * item, struct dentry *dentry)
 
 	if (item->ci_parent)
 		parent = item->ci_parent->ci_dentry;
-	else if (configfs_mount && configfs_mount->mnt_sb)
-		parent = configfs_mount->mnt_sb->s_root;
+	else if (configfs_mount)
+		parent = configfs_mount->mnt_root;
 	else
 		return -EFAULT;
 
@@ -1170,7 +1170,7 @@ void configfs_undepend_item(struct configfs_subsystem *subsys,
 }
 EXPORT_SYMBOL(configfs_undepend_item);
 
-static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int configfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int ret = 0;
 	int module_got = 0;

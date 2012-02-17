@@ -80,10 +80,14 @@ static inline void mesh_plink_fsm_restart(struct sta_info *sta)
  *       on it in the lifecycle management section!
  */
 static struct sta_info *mesh_plink_alloc(struct ieee80211_sub_if_data *sdata,
-					 u8 *hw_addr, u32 rates)
+					 u8 *hw_addr, u32 rates,
+					 struct ieee802_11_elems *elems)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_supported_band *sband;
 	struct sta_info *sta;
+
+	sband = local->hw.wiphy->bands[local->oper_channel->band];
 
 	if (local->num_sta >= MESH_MAX_PLINKS)
 		return NULL;
@@ -92,10 +96,17 @@ static struct sta_info *mesh_plink_alloc(struct ieee80211_sub_if_data *sdata,
 	if (!sta)
 		return NULL;
 
-	set_sta_flag(sta, WLAN_STA_AUTH);
-	set_sta_flag(sta, WLAN_STA_AUTHORIZED);
+	sta_info_move_state(sta, IEEE80211_STA_AUTH);
+	sta_info_move_state(sta, IEEE80211_STA_ASSOC);
+	sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
+
 	set_sta_flag(sta, WLAN_STA_WME);
+
 	sta->sta.supp_rates[local->hw.conf.channel->band] = rates;
+	if (elems->ht_cap_elem)
+		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
+						  elems->ht_cap_elem,
+						  &sta->sta.ht_cap);
 	rate_control_rate_init(sta);
 
 	return sta;
@@ -153,23 +164,31 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		enum ieee80211_self_protected_actioncode action,
 		u8 *da, __le16 llid, __le16 plid, __le16 reason) {
 	struct ieee80211_local *local = sdata->local;
-	struct sk_buff *skb = dev_alloc_skb(local->hw.extra_tx_headroom + 400 +
-			sdata->u.mesh.ie_len);
+	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
 	bool include_plid = false;
-	int ie_len = 4;
 	u16 peering_proto = 0;
-	u8 *pos;
+	u8 *pos, ie_len = 4;
+	int hdr_len = offsetof(struct ieee80211_mgmt, u.action.u.self_prot) +
+		      sizeof(mgmt->u.action.u.self_prot);
 
+	skb = dev_alloc_skb(local->tx_headroom +
+			    hdr_len +
+			    2 + /* capability info */
+			    2 + /* AID */
+			    2 + 8 + /* supported rates */
+			    2 + (IEEE80211_MAX_SUPP_RATES - 8) +
+			    2 + sdata->u.mesh.mesh_id_len +
+			    2 + sizeof(struct ieee80211_meshconf_ie) +
+			    2 + sizeof(struct ieee80211_ht_cap) +
+			    2 + sizeof(struct ieee80211_ht_info) +
+			    2 + 8 + /* peering IE */
+			    sdata->u.mesh.ie_len);
 	if (!skb)
 		return -1;
-	skb_reserve(skb, local->hw.extra_tx_headroom);
-	/* 25 is the size of the common mgmt part (24) plus the size of the
-	 * common action part (1)
-	 */
-	mgmt = (struct ieee80211_mgmt *)
-		skb_put(skb, 25 + sizeof(mgmt->u.action.u.self_prot));
-	memset(mgmt, 0, 25 + sizeof(mgmt->u.action.u.self_prot));
+	skb_reserve(skb, local->tx_headroom);
+	mgmt = (struct ieee80211_mgmt *) skb_put(skb, hdr_len);
+	memset(mgmt, 0, hdr_len);
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_ACTION);
 	memcpy(mgmt->da, da, ETH_ALEN);
@@ -235,6 +254,13 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		memcpy(pos, &reason, 2);
 		pos += 2;
 	}
+
+	if (action != WLAN_SP_MESH_PEERING_CLOSE) {
+		if (mesh_add_ht_cap_ie(skb, sdata) ||
+		    mesh_add_ht_info_ie(skb, sdata))
+			return -1;
+	}
+
 	if (mesh_add_vendor_ies(skb, sdata))
 		return -1;
 
@@ -261,7 +287,7 @@ void mesh_neighbour_update(u8 *hw_addr, u32 rates,
 					elems->ie_start, elems->total_len,
 					GFP_KERNEL);
 		else
-			sta = mesh_plink_alloc(sdata, hw_addr, rates);
+			sta = mesh_plink_alloc(sdata, hw_addr, rates, elems);
 		if (!sta)
 			return;
 		if (sta_info_insert_rcu(sta)) {
@@ -552,7 +578,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		}
 
 		rates = ieee80211_sta_get_rates(local, &elems, rx_status->band);
-		sta = mesh_plink_alloc(sdata, mgmt->sa, rates);
+		sta = mesh_plink_alloc(sdata, mgmt->sa, rates, &elems);
 		if (!sta) {
 			mpl_dbg("Mesh plink error: plink table full\n");
 			return;

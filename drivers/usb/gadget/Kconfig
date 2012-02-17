@@ -15,6 +15,7 @@
 
 menuconfig USB_GADGET
 	tristate "USB Gadget Support"
+	select NLS
 	help
 	   USB is a master/slave protocol, organized with one master
 	   host (such as a PC) controlling up to 127 peripheral devices.
@@ -124,7 +125,6 @@ config USB_GADGET_STORAGE_NUM_BUFFERS
 #
 choice
 	prompt "USB Peripheral Controller"
-	depends on USB_GADGET
 	help
 	   A USB device uses a controller to talk to its host.
 	   Systems should have only one such upstream link.
@@ -234,7 +234,6 @@ config USB_R8A66597
 
 config USB_RENESAS_USBHS_UDC
 	tristate 'Renesas USBHS controller'
-	depends on SUPERH || ARCH_SHMOBILE
 	depends on USB_RENESAS_USBHS
 	select USB_GADGET_DUALSPEED
 	help
@@ -264,7 +263,6 @@ config USB_PXA27X
 config USB_S3C_HSOTG
 	tristate "S3C HS/OtG USB Device controller"
 	depends on S3C_DEV_USB_HSOTG
-	select USB_GADGET_S3C_HSOTG_PIO
 	select USB_GADGET_DUALSPEED
 	help
 	  The Samsung S3C64XX USB2.0 high-speed gadget controller
@@ -310,25 +308,13 @@ config USB_S3C_HSUDC
 
 	  This driver has been tested on S3C2416 and S3C2450 processors.
 
-config USB_PXA_U2O
-	tristate "PXA9xx Processor USB2.0 controller"
-	depends on ARCH_MMP
+config USB_MV_UDC
+	tristate "Marvell USB2.0 Device Controller"
 	select USB_GADGET_DUALSPEED
 	help
-	  PXA9xx Processor series include a high speed USB2.0 device
-	  controller, which support high speed and full speed USB peripheral.
-
-config USB_GADGET_DWC3
-	tristate "DesignWare USB3.0 (DRD) Controller"
-	depends on USB_DWC3
-	select USB_GADGET_DUALSPEED
-	select USB_GADGET_SUPERSPEED
-	help
-	  DesignWare USB3.0 controller is a SuperSpeed USB3.0 Controller
-	  which can be configured for peripheral-only, host-only, hub-only
-	  and Dual-Role operation. This Controller was first integrated into
-	  the OMAP5 series of processors. More information about the OMAP5
-	  version of this controller, refer to http://www.ti.com/omap5.
+	  Marvell Socs (including PXA and MMP series) include a high speed
+	  USB2.0 OTG controller, which can be configured as high speed or
+	  full speed USB peripheral.
 
 #
 # Controllers available in both integrated and discrete versions
@@ -544,12 +530,10 @@ endchoice
 # Selected by UDC drivers that support high-speed operation.
 config USB_GADGET_DUALSPEED
 	bool
-	depends on USB_GADGET
 
 # Selected by UDC drivers that support super-speed opperation
 config USB_GADGET_SUPERSPEED
 	bool
-	depends on USB_GADGET
 	depends on USB_GADGET_DUALSPEED
 
 #
@@ -557,7 +541,6 @@ config USB_GADGET_SUPERSPEED
 #
 choice
 	tristate "USB Gadget Drivers"
-	depends on USB_GADGET
 	default USB_ETH
 	help
 	  A Linux "Gadget Driver" talks to the USB Peripheral Controller

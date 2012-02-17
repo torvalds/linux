@@ -14,7 +14,7 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 
@@ -51,7 +51,7 @@ static struct cpufreq_frequency_table s3c2440_plls_12[] __initdata = {
 	{ .frequency = 400000000,	.index = PLLVAL(0x5c, 1, 1),  }, 	/* FVco 800.000000 */
 };
 
-static int s3c2440_plls12_add(struct sys_device *dev)
+static int s3c2440_plls12_add(struct device *dev)
 {
 	struct clk *xtal_clk;
 	unsigned long xtal;
@@ -72,25 +72,29 @@ static int s3c2440_plls12_add(struct sys_device *dev)
 	return 0;
 }
 
-static struct sysdev_driver s3c2440_plls12_drv = {
-	.add	= s3c2440_plls12_add,
+static struct subsys_interface s3c2440_plls12_interface = {
+	.name		= "s3c2440_plls12",
+	.subsys		= &s3c2440_subsys,
+	.add_dev	= s3c2440_plls12_add,
 };
 
 static int __init s3c2440_pll_12mhz(void)
 {
-	return sysdev_driver_register(&s3c2440_sysclass, &s3c2440_plls12_drv);
+	return subsys_interface_register(&s3c2440_plls12_interface);
 
 }
 
 arch_initcall(s3c2440_pll_12mhz);
 
-static struct sysdev_driver s3c2442_plls12_drv = {
-	.add	= s3c2440_plls12_add,
+static struct subsys_interface s3c2442_plls12_interface = {
+	.name		= "s3c2442_plls12",
+	.subsys		= &s3c2442_subsys,
+	.add_dev	= s3c2440_plls12_add,
 };
 
 static int __init s3c2442_pll_12mhz(void)
 {
-	return sysdev_driver_register(&s3c2442_sysclass, &s3c2442_plls12_drv);
+	return subsys_interface_register(&s3c2442_plls12_interface);
 
 }
 

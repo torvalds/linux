@@ -218,6 +218,8 @@ source "fs/exofs/Kconfig"
 
 endif # MISC_FILESYSTEMS
 
+source "fs/exofs/Kconfig.ore"
+
 menuconfig NETWORK_FILESYSTEMS
 	bool "Network File Systems"
 	default y
@@ -265,14 +267,6 @@ source "fs/afs/Kconfig"
 source "fs/9p/Kconfig"
 
 endif # NETWORK_FILESYSTEMS
-
-if BLOCK
-menu "Partition Types"
-
-source "fs/partitions/Kconfig"
-
-endmenu
-endif
 
 source "fs/nls/Kconfig"
 source "fs/dlm/Kconfig"

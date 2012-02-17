@@ -35,7 +35,7 @@
 #include "cm-regbits-24xx.h"
 #include "cm-regbits-34xx.h"
 
-u8 cpu_mask;
+u16 cpu_mask;
 
 /*
  * clkdm_control: if true, then when a clock is enabled in the

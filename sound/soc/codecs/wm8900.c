@@ -24,7 +24,6 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -513,7 +512,7 @@ SND_SOC_DAPM_MIXER("Right Input Mixer", WM8900_REG_POWER2, 4, 0,
 		   wm8900_rinmix_controls,
 		   ARRAY_SIZE(wm8900_rinmix_controls)),
 
-SND_SOC_DAPM_MICBIAS("Mic Bias", WM8900_REG_POWER1, 4, 0),
+SND_SOC_DAPM_SUPPLY("Mic Bias", WM8900_REG_POWER1, 4, 0, NULL, 0),
 
 SND_SOC_DAPM_ADC("ADCL", "Left HiFi Capture", WM8900_REG_POWER2, 1, 0),
 SND_SOC_DAPM_ADC("ADCR", "Right HiFi Capture", WM8900_REG_POWER2, 0, 0),
@@ -543,7 +542,7 @@ SND_SOC_DAPM_MIXER("Right Output Mixer", WM8900_REG_POWER3, 2, 0,
 };
 
 /* Target, Path, Source */
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route wm8900_dapm_routes[] = {
 /* Inputs */
 {"Left Input PGA", "LINPUT1 Switch", "LINPUT1"},
 {"Left Input PGA", "LINPUT2 Switch", "LINPUT2"},
@@ -606,17 +605,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 {"HP_L", NULL, "Headphone Amplifier"},
 {"HP_R", NULL, "Headphone Amplifier"},
 };
-
-static int wm8900_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, wm8900_dapm_widgets,
-				  ARRAY_SIZE(wm8900_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-	return 0;
-}
 
 static int wm8900_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params,
@@ -987,7 +975,7 @@ static int wm8900_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	(SNDRV_PCM_FORMAT_S16_LE | SNDRV_PCM_FORMAT_S20_3LE | \
 	 SNDRV_PCM_FORMAT_S24_LE)
 
-static struct snd_soc_dai_ops wm8900_dai_ops = {
+static const struct snd_soc_dai_ops wm8900_dai_ops = {
 	.hw_params	= wm8900_hw_params,
 	.set_clkdiv	= wm8900_set_dai_clkdiv,
 	.set_pll	= wm8900_set_dai_pll,
@@ -1107,7 +1095,7 @@ static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int wm8900_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int wm8900_suspend(struct snd_soc_codec *codec)
 {
 	struct wm8900_priv *wm8900 = snd_soc_codec_get_drvdata(codec);
 	int fll_out = wm8900->fll_out;
@@ -1204,10 +1192,6 @@ static int wm8900_probe(struct snd_soc_codec *codec)
 	/* Set the DAC and mixer output bias */
 	snd_soc_write(codec, WM8900_REG_OUTBIASCTL, 0x81);
 
-	snd_soc_add_controls(codec, wm8900_snd_controls,
-				ARRAY_SIZE(wm8900_snd_controls));
-	wm8900_add_widgets(codec);
-
 	return 0;
 }
 
@@ -1228,6 +1212,13 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8900 = {
 	.reg_cache_size = ARRAY_SIZE(wm8900_reg_defaults),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8900_reg_defaults,
+
+	.controls = wm8900_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8900_snd_controls),
+	.dapm_widgets = wm8900_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8900_dapm_widgets),
+	.dapm_routes = wm8900_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wm8900_dapm_routes),
 };
 
 #if defined(CONFIG_SPI_MASTER)
@@ -1259,7 +1250,7 @@ static int __devexit wm8900_spi_remove(struct spi_device *spi)
 
 static struct spi_driver wm8900_spi_driver = {
 	.driver = {
-		.name	= "wm8900-codec",
+		.name	= "wm8900",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= wm8900_spi_probe,
@@ -1303,7 +1294,7 @@ MODULE_DEVICE_TABLE(i2c, wm8900_i2c_id);
 
 static struct i2c_driver wm8900_i2c_driver = {
 	.driver = {
-		.name = "wm8900-codec",
+		.name = "wm8900",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8900_i2c_probe,

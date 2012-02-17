@@ -27,7 +27,7 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/err.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/clk.h>
 #include <linux/mutex.h>
 #include <linux/serial_core.h>

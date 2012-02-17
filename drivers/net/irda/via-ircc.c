@@ -942,14 +942,14 @@ static int via_ircc_dma_xmit_complete(struct via_ircc_cb *self)
 	iobase = self->io.fir_base;
 	/* Disable DMA */
 //      DisableDmaChannel(self->io.dma);
-	/* Check for underrrun! */
+	/* Check for underrun! */
 	/* Clear bit, by writing 1 into it */
 	Tx_status = GetTXStatus(iobase);
 	if (Tx_status & 0x08) {
 		self->netdev->stats.tx_errors++;
 		self->netdev->stats.tx_fifo_errors++;
 		hwreset(self);
-// how to clear underrrun ?
+	/* how to clear underrun? */
 	} else {
 		self->netdev->stats.tx_packets++;
 		ResetChip(iobase, 3);

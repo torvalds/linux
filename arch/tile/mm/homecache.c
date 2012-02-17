@@ -449,9 +449,12 @@ void homecache_free_pages(unsigned long addr, unsigned int order)
 	VM_BUG_ON(!virt_addr_valid((void *)addr));
 	page = virt_to_page((void *)addr);
 	if (put_page_testzero(page)) {
-		int pages = (1 << order);
 		homecache_change_page_home(page, order, initial_page_home());
-		while (pages--)
-			__free_page(page++);
+		if (order == 0) {
+			free_hot_cold_page(page, 0);
+		} else {
+			init_page_count(page);
+			__free_pages(page, order);
+		}
 	}
 }

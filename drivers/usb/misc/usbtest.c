@@ -1765,7 +1765,6 @@ static int test_unaligned_bulk(
  * off just killing the userspace task and waiting for it to exit.
  */
 
-/* No BKL needed */
 static int
 usbtest_ioctl(struct usb_interface *intf, unsigned int code, void *buf)
 {

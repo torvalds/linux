@@ -158,7 +158,7 @@ static int als_set_default_config(struct i2c_client *client)
 		dev_err(&client->dev, "default write failed.");
 		return retval;
 	}
-	return 0;;
+	return 0;
 }
 
 static int  isl29020_probe(struct i2c_client *client,

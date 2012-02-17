@@ -463,26 +463,7 @@ static struct usb_driver dibusb_driver = {
 	.id_table	= dibusb_dib3000mb_table,
 };
 
-/* module stuff */
-static int __init dibusb_module_init(void)
-{
-	int result;
-	if ((result = usb_register(&dibusb_driver))) {
-		err("usb_register failed. Error number %d",result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit dibusb_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&dibusb_driver);
-}
-
-module_init (dibusb_module_init);
-module_exit (dibusb_module_exit);
+module_usb_driver(dibusb_driver);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
 MODULE_DESCRIPTION("Driver for DiBcom USB DVB-T devices (DiB3000M-B based)");

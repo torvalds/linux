@@ -181,6 +181,7 @@ struct x86_emulate_ops {
 	int (*set_dr)(struct x86_emulate_ctxt *ctxt, int dr, ulong value);
 	int (*set_msr)(struct x86_emulate_ctxt *ctxt, u32 msr_index, u64 data);
 	int (*get_msr)(struct x86_emulate_ctxt *ctxt, u32 msr_index, u64 *pdata);
+	int (*read_pmc)(struct x86_emulate_ctxt *ctxt, u32 pmc, u64 *pdata);
 	void (*halt)(struct x86_emulate_ctxt *ctxt);
 	void (*wbinvd)(struct x86_emulate_ctxt *ctxt);
 	int (*fix_hypercall)(struct x86_emulate_ctxt *ctxt);
@@ -189,6 +190,9 @@ struct x86_emulate_ops {
 	int (*intercept)(struct x86_emulate_ctxt *ctxt,
 			 struct x86_instruction_info *info,
 			 enum x86_intercept_stage stage);
+
+	bool (*get_cpuid)(struct x86_emulate_ctxt *ctxt,
+			 u32 *eax, u32 *ebx, u32 *ecx, u32 *edx);
 };
 
 typedef u32 __attribute__((vector_size(16))) sse128_t;
@@ -297,6 +301,19 @@ struct x86_emulate_ctxt {
 #define X86EMUL_MODE_PROT     (X86EMUL_MODE_PROT16|X86EMUL_MODE_PROT32| \
 			       X86EMUL_MODE_PROT64)
 
+/* CPUID vendors */
+#define X86EMUL_CPUID_VENDOR_AuthenticAMD_ebx 0x68747541
+#define X86EMUL_CPUID_VENDOR_AuthenticAMD_ecx 0x444d4163
+#define X86EMUL_CPUID_VENDOR_AuthenticAMD_edx 0x69746e65
+
+#define X86EMUL_CPUID_VENDOR_AMDisbetterI_ebx 0x69444d41
+#define X86EMUL_CPUID_VENDOR_AMDisbetterI_ecx 0x21726574
+#define X86EMUL_CPUID_VENDOR_AMDisbetterI_edx 0x74656273
+
+#define X86EMUL_CPUID_VENDOR_GenuineIntel_ebx 0x756e6547
+#define X86EMUL_CPUID_VENDOR_GenuineIntel_ecx 0x6c65746e
+#define X86EMUL_CPUID_VENDOR_GenuineIntel_edx 0x49656e69
+
 enum x86_intercept_stage {
 	X86_ICTP_NONE = 0,   /* Allow zero-init to not match anything */
 	X86_ICPT_PRE_EXCEPT,
@@ -364,6 +381,7 @@ enum x86_intercept {
 #endif
 
 int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len);
+bool x86_page_table_writing_insn(struct x86_emulate_ctxt *ctxt);
 #define EMULATION_FAILED -1
 #define EMULATION_OK 0
 #define EMULATION_RESTART 1

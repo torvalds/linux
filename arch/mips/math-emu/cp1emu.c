@@ -245,7 +245,7 @@ static int cop1Emulate(struct pt_regs *xcp, struct mips_fpu_struct *ctx,
 		 */
 		emulpc = xcp->cp0_epc + 4;	/* Snapshot emulation target */
 
-		if (__compute_return_epc(xcp)) {
+		if (__compute_return_epc(xcp) < 0) {
 #ifdef CP1DBG
 			printk("failed to emulate branch at %p\n",
 				(void *) (xcp->cp0_epc));

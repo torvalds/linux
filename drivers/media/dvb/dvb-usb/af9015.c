@@ -50,14 +50,14 @@ static int af9015_properties_count = ARRAY_SIZE(af9015_properties);
 
 static struct af9013_config af9015_af9013_config[] = {
 	{
-		.demod_address = AF9015_I2C_DEMOD,
-		.output_mode = AF9013_OUTPUT_MODE_USB,
+		.i2c_addr = AF9015_I2C_DEMOD,
+		.ts_mode = AF9013_TS_USB,
 		.api_version = { 0, 1, 9, 0 },
 		.gpio[0] = AF9013_GPIO_HI,
 		.gpio[3] = AF9013_GPIO_TUNER_ON,
 
 	}, {
-		.output_mode = AF9013_OUTPUT_MODE_SERIAL,
+		.ts_mode = AF9013_TS_SERIAL,
 		.api_version = { 0, 1, 9, 0 },
 		.gpio[0] = AF9013_GPIO_TUNER_ON,
 		.gpio[1] = AF9013_GPIO_LO,
@@ -216,8 +216,8 @@ static int af9015_write_reg_i2c(struct dvb_usb_device *d, u8 addr, u16 reg,
 {
 	struct req_t req = {WRITE_I2C, addr, reg, 1, 1, 1, &val};
 
-	if (addr == af9015_af9013_config[0].demod_address ||
-	    addr == af9015_af9013_config[1].demod_address)
+	if (addr == af9015_af9013_config[0].i2c_addr ||
+	    addr == af9015_af9013_config[1].i2c_addr)
 		req.addr_len = 3;
 
 	return af9015_ctrl_msg(d, &req);
@@ -228,8 +228,8 @@ static int af9015_read_reg_i2c(struct dvb_usb_device *d, u8 addr, u16 reg,
 {
 	struct req_t req = {READ_I2C, addr, reg, 0, 1, 1, val};
 
-	if (addr == af9015_af9013_config[0].demod_address ||
-	    addr == af9015_af9013_config[1].demod_address)
+	if (addr == af9015_af9013_config[0].i2c_addr ||
+	    addr == af9015_af9013_config[1].i2c_addr)
 		req.addr_len = 3;
 
 	return af9015_ctrl_msg(d, &req);
@@ -271,8 +271,8 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 		return -EAGAIN;
 
 	while (i < num) {
-		if (msg[i].addr == af9015_af9013_config[0].demod_address ||
-		    msg[i].addr == af9015_af9013_config[1].demod_address) {
+		if (msg[i].addr == af9015_af9013_config[0].i2c_addr ||
+		    msg[i].addr == af9015_af9013_config[1].i2c_addr) {
 			addr = msg[i].buf[0] << 8;
 			addr += msg[i].buf[1];
 			mbox = msg[i].buf[2];
@@ -288,8 +288,7 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 				ret = -EOPNOTSUPP;
 				goto error;
 			}
-			if (msg[i].addr ==
-				af9015_af9013_config[0].demod_address)
+			if (msg[i].addr == af9015_af9013_config[0].i2c_addr)
 				req.cmd = READ_MEMORY;
 			else
 				req.cmd = READ_I2C;
@@ -307,7 +306,7 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 				goto error;
 			}
 			if (msg[i].addr ==
-				af9015_af9013_config[0].demod_address) {
+				af9015_af9013_config[0].i2c_addr) {
 				ret = -EINVAL;
 				goto error;
 			}
@@ -325,8 +324,7 @@ Due to that the only way to select correct tuner is use demodulator I2C-gate.
 				ret = -EOPNOTSUPP;
 				goto error;
 			}
-			if (msg[i].addr ==
-				af9015_af9013_config[0].demod_address)
+			if (msg[i].addr == af9015_af9013_config[0].i2c_addr)
 				req.cmd = WRITE_MEMORY;
 			else
 				req.cmd = WRITE_I2C;
@@ -508,7 +506,7 @@ static int af9015_copy_firmware(struct dvb_usb_device *d)
 	msleep(100);
 
 	ret = af9015_read_reg_i2c(d,
-		af9015_af9013_config[1].demod_address, 0x98be, &val);
+		af9015_af9013_config[1].i2c_addr, 0x98be, &val);
 	if (ret)
 		goto error;
 	else
@@ -536,7 +534,7 @@ static int af9015_copy_firmware(struct dvb_usb_device *d)
 		goto error;
 
 	/* request boot firmware */
-	ret = af9015_write_reg_i2c(d, af9015_af9013_config[1].demod_address,
+	ret = af9015_write_reg_i2c(d, af9015_af9013_config[1].i2c_addr,
 		0xe205, 1);
 	deb_info("%s: firmware boot cmd status:%d\n", __func__, ret);
 	if (ret)
@@ -547,7 +545,7 @@ static int af9015_copy_firmware(struct dvb_usb_device *d)
 
 		/* check firmware status */
 		ret = af9015_read_reg_i2c(d,
-			af9015_af9013_config[1].demod_address, 0x98be, &val);
+			af9015_af9013_config[1].i2c_addr, 0x98be, &val);
 		deb_info("%s: firmware status cmd status:%d fw status:%02x\n",
 			__func__, ret, val);
 		if (ret)
@@ -840,7 +838,7 @@ static int af9015_read_config(struct usb_device *udev)
 	if (ret)
 		goto error;
 
-	deb_info("%s: IR mode:%d\n", __func__, val);
+	deb_info("%s: IR mode=%d\n", __func__, val);
 	for (i = 0; i < af9015_properties_count; i++) {
 		if (val == AF9015_IR_MODE_DISABLED)
 			af9015_properties[i].rc.core.rc_codes = NULL;
@@ -854,7 +852,7 @@ static int af9015_read_config(struct usb_device *udev)
 	if (ret)
 		goto error;
 	af9015_config.dual_mode = val;
-	deb_info("%s: TS mode:%d\n", __func__, af9015_config.dual_mode);
+	deb_info("%s: TS mode=%d\n", __func__, af9015_config.dual_mode);
 
 	/* Set adapter0 buffer size according to USB port speed, adapter1 buffer
 	   size can be static because it is enabled only USB2.0 */
@@ -878,7 +876,7 @@ static int af9015_read_config(struct usb_device *udev)
 		ret = af9015_rw_udev(udev, &req);
 		if (ret)
 			goto error;
-		af9015_af9013_config[1].demod_address = val;
+		af9015_af9013_config[1].i2c_addr = val;
 
 		/* enable 2nd adapter */
 		for (i = 0; i < af9015_properties_count; i++)
@@ -900,34 +898,38 @@ static int af9015_read_config(struct usb_device *udev)
 			goto error;
 		switch (val) {
 		case 0:
-			af9015_af9013_config[i].adc_clock = 28800;
+			af9015_af9013_config[i].clock = 28800000;
 			break;
 		case 1:
-			af9015_af9013_config[i].adc_clock = 20480;
+			af9015_af9013_config[i].clock = 20480000;
 			break;
 		case 2:
-			af9015_af9013_config[i].adc_clock = 28000;
+			af9015_af9013_config[i].clock = 28000000;
 			break;
 		case 3:
-			af9015_af9013_config[i].adc_clock = 25000;
+			af9015_af9013_config[i].clock = 25000000;
 			break;
 		};
-		deb_info("%s: [%d] xtal:%d set adc_clock:%d\n", __func__, i,
-			val, af9015_af9013_config[i].adc_clock);
+		deb_info("%s: [%d] xtal=%d set clock=%d\n", __func__, i,
+			val, af9015_af9013_config[i].clock);
 
-		/* tuner IF */
+		/* IF frequency */
 		req.addr = AF9015_EEPROM_IF1H + offset;
 		ret = af9015_rw_udev(udev, &req);
 		if (ret)
 			goto error;
-		af9015_af9013_config[i].tuner_if = val << 8;
+
+		af9015_af9013_config[i].if_frequency = val << 8;
+
 		req.addr = AF9015_EEPROM_IF1L + offset;
 		ret = af9015_rw_udev(udev, &req);
 		if (ret)
 			goto error;
-		af9015_af9013_config[i].tuner_if += val;
-		deb_info("%s: [%d] IF1:%d\n", __func__, i,
-			af9015_af9013_config[0].tuner_if);
+
+		af9015_af9013_config[i].if_frequency += val;
+		af9015_af9013_config[i].if_frequency *= 1000;
+		deb_info("%s: [%d] IF frequency=%d\n", __func__, i,
+			af9015_af9013_config[0].if_frequency);
 
 		/* MT2060 IF1 */
 		req.addr = AF9015_EEPROM_MT2060_IF1H  + offset;
@@ -940,7 +942,7 @@ static int af9015_read_config(struct usb_device *udev)
 		if (ret)
 			goto error;
 		af9015_config.mt2060_if1[i] += val;
-		deb_info("%s: [%d] MT2060 IF1:%d\n", __func__, i,
+		deb_info("%s: [%d] MT2060 IF1=%d\n", __func__, i,
 			af9015_config.mt2060_if1[i]);
 
 		/* tuner */
@@ -957,30 +959,30 @@ static int af9015_read_config(struct usb_device *udev)
 		case AF9013_TUNER_TDA18271:
 		case AF9013_TUNER_QT1010A:
 		case AF9013_TUNER_TDA18218:
-			af9015_af9013_config[i].rf_spec_inv = 1;
+			af9015_af9013_config[i].spec_inv = 1;
 			break;
 		case AF9013_TUNER_MXL5003D:
 		case AF9013_TUNER_MXL5005D:
 		case AF9013_TUNER_MXL5005R:
 		case AF9013_TUNER_MXL5007T:
-			af9015_af9013_config[i].rf_spec_inv = 0;
+			af9015_af9013_config[i].spec_inv = 0;
 			break;
 		case AF9013_TUNER_MC44S803:
 			af9015_af9013_config[i].gpio[1] = AF9013_GPIO_LO;
-			af9015_af9013_config[i].rf_spec_inv = 1;
+			af9015_af9013_config[i].spec_inv = 1;
 			break;
 		default:
-			warn("tuner id:%d not supported, please report!", val);
+			warn("tuner id=%d not supported, please report!", val);
 			return -ENODEV;
 		};
 
 		af9015_af9013_config[i].tuner = val;
-		deb_info("%s: [%d] tuner id:%d\n", __func__, i, val);
+		deb_info("%s: [%d] tuner id=%d\n", __func__, i, val);
 	}
 
 error:
 	if (ret)
-		err("eeprom read failed:%d", ret);
+		err("eeprom read failed=%d", ret);
 
 	/* AverMedia AVerTV Volar Black HD (A850) device have bad EEPROM
 	   content :-( Override some wrong values here. Ditto for the
@@ -998,7 +1000,7 @@ error:
 			af9015_properties[i].num_adapters = 1;
 
 		/* set correct IF */
-		af9015_af9013_config[0].tuner_if = 4570;
+		af9015_af9013_config[0].if_frequency = 4570000;
 	}
 
 	return ret;
@@ -1093,9 +1095,79 @@ error:
 	return ret;
 }
 
+/* override demod callbacks for resource locking */
+static int af9015_af9013_set_frontend(struct dvb_frontend *fe)
+{
+	int ret;
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct af9015_state *priv = adap->dev->priv;
+
+	if (mutex_lock_interruptible(&adap->dev->usb_mutex))
+		return -EAGAIN;
+
+	ret = priv->set_frontend[adap->id](fe);
+
+	mutex_unlock(&adap->dev->usb_mutex);
+
+	return ret;
+}
+
+/* override demod callbacks for resource locking */
+static int af9015_af9013_read_status(struct dvb_frontend *fe,
+	fe_status_t *status)
+{
+	int ret;
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct af9015_state *priv = adap->dev->priv;
+
+	if (mutex_lock_interruptible(&adap->dev->usb_mutex))
+		return -EAGAIN;
+
+	ret = priv->read_status[adap->id](fe, status);
+
+	mutex_unlock(&adap->dev->usb_mutex);
+
+	return ret;
+}
+
+/* override demod callbacks for resource locking */
+static int af9015_af9013_init(struct dvb_frontend *fe)
+{
+	int ret;
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct af9015_state *priv = adap->dev->priv;
+
+	if (mutex_lock_interruptible(&adap->dev->usb_mutex))
+		return -EAGAIN;
+
+	ret = priv->init[adap->id](fe);
+
+	mutex_unlock(&adap->dev->usb_mutex);
+
+	return ret;
+}
+
+/* override demod callbacks for resource locking */
+static int af9015_af9013_sleep(struct dvb_frontend *fe)
+{
+	int ret;
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct af9015_state *priv = adap->dev->priv;
+
+	if (mutex_lock_interruptible(&adap->dev->usb_mutex))
+		return -EAGAIN;
+
+	ret = priv->sleep[adap->id](fe);
+
+	mutex_unlock(&adap->dev->usb_mutex);
+
+	return ret;
+}
+
 static int af9015_af9013_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
+	struct af9015_state *state = adap->dev->priv;
 
 	if (adap->id == 1) {
 		/* copy firmware to 2nd demodulator */
@@ -1115,6 +1187,32 @@ static int af9015_af9013_frontend_attach(struct dvb_usb_adapter *adap)
 	/* attach demodulator */
 	adap->fe_adap[0].fe = dvb_attach(af9013_attach, &af9015_af9013_config[adap->id],
 		&adap->dev->i2c_adap);
+
+	/*
+	 * AF9015 firmware does not like if it gets interrupted by I2C adapter
+	 * request on some critical phases. During normal operation I2C adapter
+	 * is used only 2nd demodulator and tuner on dual tuner devices.
+	 * Override demodulator callbacks and use mutex for limit access to
+	 * those "critical" paths to keep AF9015 happy.
+	 * Note: we abuse unused usb_mutex here.
+	 */
+	if (adap->fe_adap[0].fe) {
+		state->set_frontend[adap->id] =
+			adap->fe_adap[0].fe->ops.set_frontend;
+		adap->fe_adap[0].fe->ops.set_frontend =
+			af9015_af9013_set_frontend;
+
+		state->read_status[adap->id] =
+			adap->fe_adap[0].fe->ops.read_status;
+		adap->fe_adap[0].fe->ops.read_status =
+			af9015_af9013_read_status;
+
+		state->init[adap->id] = adap->fe_adap[0].fe->ops.init;
+		adap->fe_adap[0].fe->ops.init = af9015_af9013_init;
+
+		state->sleep[adap->id] = adap->fe_adap[0].fe->ops.sleep;
+		adap->fe_adap[0].fe->ops.sleep = af9015_af9013_sleep;
+	}
 
 	return adap->fe_adap[0].fe == NULL ? -ENODEV : 0;
 }
@@ -1245,49 +1343,112 @@ static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 	return ret;
 }
 
+enum af9015_usb_table_entry {
+	AFATECH_9015,
+	AFATECH_9016,
+	WINFAST_DTV_GOLD,
+	PINNACLE_PCTV_71E,
+	KWORLD_PLUSTV_399U,
+	TINYTWIN,
+	AZUREWAVE_TU700,
+	TERRATEC_AF9015,
+	KWORLD_PLUSTV_PC160,
+	AVERTV_VOLAR_X,
+	XTENSIONS_380U,
+	MSI_DIGIVOX_DUO,
+	AVERTV_VOLAR_X_REV2,
+	TELESTAR_STARSTICK_2,
+	AVERMEDIA_A309_USB,
+	MSI_DIGIVOX_MINI_III,
+	KWORLD_E396,
+	KWORLD_E39B,
+	KWORLD_E395,
+	TREKSTOR_DVBT,
+	AVERTV_A850,
+	AVERTV_A805,
+	CONCEPTRONIC_CTVDIGRCU,
+	KWORLD_MC810,
+	GENIUS_TVGO_DVB_T03,
+	KWORLD_399U_2,
+	KWORLD_PC160_T,
+	SVEON_STV20,
+	TINYTWIN_2,
+	WINFAST_DTV2000DS,
+	KWORLD_UB383_T,
+	KWORLD_E39A,
+	AVERMEDIA_A815M,
+	CINERGY_T_STICK_RC,
+	CINERGY_T_DUAL_RC,
+	AVERTV_A850T,
+	TINYTWIN_3,
+	SVEON_STV22,
+};
+
 static struct usb_device_id af9015_usb_table[] = {
-/*  0 */{USB_DEVICE(USB_VID_AFATECH,   USB_PID_AFATECH_AF9015_9015)},
-	{USB_DEVICE(USB_VID_AFATECH,   USB_PID_AFATECH_AF9015_9016)},
-	{USB_DEVICE(USB_VID_LEADTEK,   USB_PID_WINFAST_DTV_DONGLE_GOLD)},
-	{USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV71E)},
-	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_399U)},
-/*  5 */{USB_DEVICE(USB_VID_VISIONPLUS,
-		USB_PID_TINYTWIN)},
-	{USB_DEVICE(USB_VID_VISIONPLUS,
-		USB_PID_AZUREWAVE_AD_TU700)},
-	{USB_DEVICE(USB_VID_TERRATEC,  USB_PID_TERRATEC_CINERGY_T_USB_XE_REV2)},
-	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_PC160_2T)},
-	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR_X)},
-/* 10 */{USB_DEVICE(USB_VID_XTENSIONS, USB_PID_XTENSIONS_XD_380)},
-	{USB_DEVICE(USB_VID_MSI_2,     USB_PID_MSI_DIGIVOX_DUO)},
-	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR_X_2)},
-	{USB_DEVICE(USB_VID_TELESTAR,  USB_PID_TELESTAR_STARSTICK_2)},
-	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A309)},
-/* 15 */{USB_DEVICE(USB_VID_MSI_2,     USB_PID_MSI_DIGI_VOX_MINI_III)},
-	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U)},
-	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U_2)},
-	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U_3)},
-	{USB_DEVICE(USB_VID_AFATECH,   USB_PID_TREKSTOR_DVBT)},
-/* 20 */{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A850)},
-	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A805)},
-	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_CONCEPTRONIC_CTVDIGRCU)},
-	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_MC810)},
-	{USB_DEVICE(USB_VID_KYE,       USB_PID_GENIUS_TVGO_DVB_T03)},
-/* 25 */{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_399U_2)},
-	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_PC160_T)},
-	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_SVEON_STV20)},
-	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_TINYTWIN_2)},
-	{USB_DEVICE(USB_VID_LEADTEK,   USB_PID_WINFAST_DTV2000DS)},
-/* 30 */{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_UB383_T)},
-	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U_4)},
-	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A815M)},
-	{USB_DEVICE(USB_VID_TERRATEC,  USB_PID_TERRATEC_CINERGY_T_STICK_RC)},
-	{USB_DEVICE(USB_VID_TERRATEC,
-		USB_PID_TERRATEC_CINERGY_T_STICK_DUAL_RC)},
-/* 35 */{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A850T)},
-	{USB_DEVICE(USB_VID_GTEK,      USB_PID_TINYTWIN_3)},
-	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_SVEON_STV22)},
-	{0},
+	[AFATECH_9015] =
+		{USB_DEVICE(USB_VID_AFATECH, USB_PID_AFATECH_AF9015_9015)},
+	[AFATECH_9016] =
+		{USB_DEVICE(USB_VID_AFATECH, USB_PID_AFATECH_AF9015_9016)},
+	[WINFAST_DTV_GOLD] =
+		{USB_DEVICE(USB_VID_LEADTEK, USB_PID_WINFAST_DTV_DONGLE_GOLD)},
+	[PINNACLE_PCTV_71E] =
+		{USB_DEVICE(USB_VID_PINNACLE, USB_PID_PINNACLE_PCTV71E)},
+	[KWORLD_PLUSTV_399U] =
+		{USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_399U)},
+	[TINYTWIN] = {USB_DEVICE(USB_VID_VISIONPLUS, USB_PID_TINYTWIN)},
+	[AZUREWAVE_TU700] =
+		{USB_DEVICE(USB_VID_VISIONPLUS, USB_PID_AZUREWAVE_AD_TU700)},
+	[TERRATEC_AF9015] = {USB_DEVICE(USB_VID_TERRATEC,
+				USB_PID_TERRATEC_CINERGY_T_USB_XE_REV2)},
+	[KWORLD_PLUSTV_PC160] =
+		{USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_PC160_2T)},
+	[AVERTV_VOLAR_X] =
+		{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR_X)},
+	[XTENSIONS_380U] =
+		{USB_DEVICE(USB_VID_XTENSIONS, USB_PID_XTENSIONS_XD_380)},
+	[MSI_DIGIVOX_DUO] =
+		{USB_DEVICE(USB_VID_MSI_2, USB_PID_MSI_DIGIVOX_DUO)},
+	[AVERTV_VOLAR_X_REV2] =
+		{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR_X_2)},
+	[TELESTAR_STARSTICK_2] =
+		{USB_DEVICE(USB_VID_TELESTAR,  USB_PID_TELESTAR_STARSTICK_2)},
+	[AVERMEDIA_A309_USB] =
+		{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A309)},
+	[MSI_DIGIVOX_MINI_III] =
+		{USB_DEVICE(USB_VID_MSI_2, USB_PID_MSI_DIGI_VOX_MINI_III)},
+	[KWORLD_E396] = {USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_395U)},
+	[KWORLD_E39B] = {USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_395U_2)},
+	[KWORLD_E395] = {USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_395U_3)},
+	[TREKSTOR_DVBT] = {USB_DEVICE(USB_VID_AFATECH, USB_PID_TREKSTOR_DVBT)},
+	[AVERTV_A850] = {USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A850)},
+	[AVERTV_A805] = {USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A805)},
+	[CONCEPTRONIC_CTVDIGRCU] =
+		{USB_DEVICE(USB_VID_KWORLD_2, USB_PID_CONCEPTRONIC_CTVDIGRCU)},
+	[KWORLD_MC810] = {USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_MC810)},
+	[GENIUS_TVGO_DVB_T03] =
+		{USB_DEVICE(USB_VID_KYE, USB_PID_GENIUS_TVGO_DVB_T03)},
+	[KWORLD_399U_2] = {USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_399U_2)},
+	[KWORLD_PC160_T] =
+		{USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_PC160_T)},
+	[SVEON_STV20] = {USB_DEVICE(USB_VID_KWORLD_2, USB_PID_SVEON_STV20)},
+	[TINYTWIN_2] = {USB_DEVICE(USB_VID_KWORLD_2, USB_PID_TINYTWIN_2)},
+	[WINFAST_DTV2000DS] =
+		{USB_DEVICE(USB_VID_LEADTEK, USB_PID_WINFAST_DTV2000DS)},
+	[KWORLD_UB383_T] =
+		{USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_UB383_T)},
+	[KWORLD_E39A] =
+		{USB_DEVICE(USB_VID_KWORLD_2, USB_PID_KWORLD_395U_4)},
+	[AVERMEDIA_A815M] =
+		{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A815M)},
+	[CINERGY_T_STICK_RC] = {USB_DEVICE(USB_VID_TERRATEC,
+				USB_PID_TERRATEC_CINERGY_T_STICK_RC)},
+	[CINERGY_T_DUAL_RC] = {USB_DEVICE(USB_VID_TERRATEC,
+				USB_PID_TERRATEC_CINERGY_T_STICK_DUAL_RC)},
+	[AVERTV_A850T] =
+		{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A850T)},
+	[TINYTWIN_3] = {USB_DEVICE(USB_VID_GTEK, USB_PID_TINYTWIN_3)},
+	[SVEON_STV22] = {USB_DEVICE(USB_VID_KWORLD_2, USB_PID_SVEON_STV22)},
+	{ }
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
 
@@ -1362,68 +1523,104 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.devices = {
 			{
 				.name = "Afatech AF9015 DVB-T USB2.0 stick",
-				.cold_ids = {&af9015_usb_table[0],
-					     &af9015_usb_table[1], NULL},
+				.cold_ids = {
+					&af9015_usb_table[AFATECH_9015],
+					&af9015_usb_table[AFATECH_9016],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "Leadtek WinFast DTV Dongle Gold",
-				.cold_ids = {&af9015_usb_table[2], NULL},
+				.cold_ids = {
+					&af9015_usb_table[WINFAST_DTV_GOLD],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "Pinnacle PCTV 71e",
-				.cold_ids = {&af9015_usb_table[3], NULL},
+				.cold_ids = {
+					&af9015_usb_table[PINNACLE_PCTV_71E],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "KWorld PlusTV Dual DVB-T Stick " \
 					"(DVB-T 399U)",
-				.cold_ids = {&af9015_usb_table[4],
-					     &af9015_usb_table[25], NULL},
+				.cold_ids = {
+					&af9015_usb_table[KWORLD_PLUSTV_399U],
+					&af9015_usb_table[KWORLD_399U_2],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "DigitalNow TinyTwin DVB-T Receiver",
-				.cold_ids = {&af9015_usb_table[5],
-					     &af9015_usb_table[28],
-					     &af9015_usb_table[36], NULL},
+				.cold_ids = {
+					&af9015_usb_table[TINYTWIN],
+					&af9015_usb_table[TINYTWIN_2],
+					&af9015_usb_table[TINYTWIN_3],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "TwinHan AzureWave AD-TU700(704J)",
-				.cold_ids = {&af9015_usb_table[6], NULL},
+				.cold_ids = {
+					&af9015_usb_table[AZUREWAVE_TU700],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "TerraTec Cinergy T USB XE",
-				.cold_ids = {&af9015_usb_table[7], NULL},
+				.cold_ids = {
+					&af9015_usb_table[TERRATEC_AF9015],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "KWorld PlusTV Dual DVB-T PCI " \
 					"(DVB-T PC160-2T)",
-				.cold_ids = {&af9015_usb_table[8], NULL},
+				.cold_ids = {
+					&af9015_usb_table[KWORLD_PLUSTV_PC160],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "AVerMedia AVerTV DVB-T Volar X",
-				.cold_ids = {&af9015_usb_table[9], NULL},
+				.cold_ids = {
+					&af9015_usb_table[AVERTV_VOLAR_X],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "TerraTec Cinergy T Stick RC",
-				.cold_ids = {&af9015_usb_table[33], NULL},
+				.cold_ids = {
+					&af9015_usb_table[CINERGY_T_STICK_RC],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "TerraTec Cinergy T Stick Dual RC",
-				.cold_ids = {&af9015_usb_table[34], NULL},
+				.cold_ids = {
+					&af9015_usb_table[CINERGY_T_DUAL_RC],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "AverMedia AVerTV Red HD+ (A850T)",
-				.cold_ids = {&af9015_usb_table[35], NULL},
+				.cold_ids = {
+					&af9015_usb_table[AVERTV_A850T],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 		}
@@ -1496,57 +1693,87 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.devices = {
 			{
 				.name = "Xtensions XD-380",
-				.cold_ids = {&af9015_usb_table[10], NULL},
+				.cold_ids = {
+					&af9015_usb_table[XTENSIONS_380U],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "MSI DIGIVOX Duo",
-				.cold_ids = {&af9015_usb_table[11], NULL},
+				.cold_ids = {
+					&af9015_usb_table[MSI_DIGIVOX_DUO],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "Fujitsu-Siemens Slim Mobile USB DVB-T",
-				.cold_ids = {&af9015_usb_table[12], NULL},
+				.cold_ids = {
+					&af9015_usb_table[AVERTV_VOLAR_X_REV2],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "Telestar Starstick 2",
-				.cold_ids = {&af9015_usb_table[13], NULL},
+				.cold_ids = {
+					&af9015_usb_table[TELESTAR_STARSTICK_2],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "AVerMedia A309",
-				.cold_ids = {&af9015_usb_table[14], NULL},
+				.cold_ids = {
+					&af9015_usb_table[AVERMEDIA_A309_USB],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "MSI Digi VOX mini III",
-				.cold_ids = {&af9015_usb_table[15], NULL},
+				.cold_ids = {
+					&af9015_usb_table[MSI_DIGIVOX_MINI_III],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "KWorld USB DVB-T TV Stick II " \
 					"(VS-DVB-T 395U)",
-				.cold_ids = {&af9015_usb_table[16],
-					     &af9015_usb_table[17],
-					     &af9015_usb_table[18],
-					     &af9015_usb_table[31], NULL},
+				.cold_ids = {
+					&af9015_usb_table[KWORLD_E396],
+					&af9015_usb_table[KWORLD_E39B],
+					&af9015_usb_table[KWORLD_E395],
+					&af9015_usb_table[KWORLD_E39A],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "TrekStor DVB-T USB Stick",
-				.cold_ids = {&af9015_usb_table[19], NULL},
+				.cold_ids = {
+					&af9015_usb_table[TREKSTOR_DVBT],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "AverMedia AVerTV Volar Black HD " \
 					"(A850)",
-				.cold_ids = {&af9015_usb_table[20], NULL},
+				.cold_ids = {
+					&af9015_usb_table[AVERTV_A850],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "Sveon STV22 Dual USB DVB-T Tuner HDTV",
-				.cold_ids = {&af9015_usb_table[37], NULL},
+				.cold_ids = {
+					&af9015_usb_table[SVEON_STV22],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 		}
@@ -1619,50 +1846,77 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 		.devices = {
 			{
 				.name = "AverMedia AVerTV Volar GPS 805 (A805)",
-				.cold_ids = {&af9015_usb_table[21], NULL},
+				.cold_ids = {
+					&af9015_usb_table[AVERTV_A805],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "Conceptronic USB2.0 DVB-T CTVDIGRCU " \
 					"V3.0",
-				.cold_ids = {&af9015_usb_table[22], NULL},
+				.cold_ids = {
+					&af9015_usb_table[CONCEPTRONIC_CTVDIGRCU],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "KWorld Digial MC-810",
-				.cold_ids = {&af9015_usb_table[23], NULL},
+				.cold_ids = {
+					&af9015_usb_table[KWORLD_MC810],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "Genius TVGo DVB-T03",
-				.cold_ids = {&af9015_usb_table[24], NULL},
+				.cold_ids = {
+					&af9015_usb_table[GENIUS_TVGO_DVB_T03],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "KWorld PlusTV DVB-T PCI Pro Card " \
 					"(DVB-T PC160-T)",
-				.cold_ids = {&af9015_usb_table[26], NULL},
+				.cold_ids = {
+					&af9015_usb_table[KWORLD_PC160_T],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "Sveon STV20 Tuner USB DVB-T HDTV",
-				.cold_ids = {&af9015_usb_table[27], NULL},
+				.cold_ids = {
+					&af9015_usb_table[SVEON_STV20],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "Leadtek WinFast DTV2000DS",
-				.cold_ids = {&af9015_usb_table[29], NULL},
+				.cold_ids = {
+					&af9015_usb_table[WINFAST_DTV2000DS],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "KWorld USB DVB-T Stick Mobile " \
 					"(UB383-T)",
-				.cold_ids = {&af9015_usb_table[30], NULL},
+				.cold_ids = {
+					&af9015_usb_table[KWORLD_UB383_T],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 			{
 				.name = "AverMedia AVerTV Volar M (A815Mac)",
-				.cold_ids = {&af9015_usb_table[32], NULL},
+				.cold_ids = {
+					&af9015_usb_table[AVERMEDIA_A815M],
+					NULL
+				},
 				.warm_ids = {NULL},
 			},
 		}
@@ -1713,25 +1967,7 @@ static struct usb_driver af9015_usb_driver = {
 	.id_table = af9015_usb_table,
 };
 
-/* module stuff */
-static int __init af9015_usb_module_init(void)
-{
-	int ret;
-	ret = usb_register(&af9015_usb_driver);
-	if (ret)
-		err("module init failed:%d", ret);
-
-	return ret;
-}
-
-static void __exit af9015_usb_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&af9015_usb_driver);
-}
-
-module_init(af9015_usb_module_init);
-module_exit(af9015_usb_module_exit);
+module_usb_driver(af9015_usb_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Driver for Afatech AF9015 DVB-T");

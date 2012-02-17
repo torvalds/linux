@@ -814,6 +814,16 @@ DEF_PFD(pll3_pfd_540m, PFD_480, PFD1, &pll3_usb_otg);
 DEF_PFD(pll3_pfd_508m, PFD_480, PFD2, &pll3_usb_otg);
 DEF_PFD(pll3_pfd_454m, PFD_480, PFD3, &pll3_usb_otg);
 
+static unsigned long twd_clk_get_rate(struct clk *clk)
+{
+	return clk_get_rate(clk->parent) / 2;
+}
+
+static struct clk twd_clk = {
+	.parent = &arm_clk,
+	.get_rate = twd_clk_get_rate,
+};
+
 static unsigned long pll2_200m_get_rate(struct clk *clk)
 {
 	return clk_get_rate(clk->parent) / 2;
@@ -1894,6 +1904,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("20ec000.sdma", NULL, sdma_clk),
 	_REGISTER_CLOCK("20bc000.wdog", NULL, dummy_clk),
 	_REGISTER_CLOCK("20c0000.wdog", NULL, dummy_clk),
+	_REGISTER_CLOCK("smp_twd", NULL, twd_clk),
 	_REGISTER_CLOCK(NULL, "ckih", ckih_clk),
 	_REGISTER_CLOCK(NULL, "ckil_clk", ckil_clk),
 	_REGISTER_CLOCK(NULL, "aips_tz1_clk", aips_tz1_clk),
@@ -1931,14 +1942,12 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 		val |= 0x1 << BP_CLPCR_LPM;
 		val &= ~BM_CLPCR_VSTBY;
 		val &= ~BM_CLPCR_SBYOS;
-		val |= BM_CLPCR_BYP_MMDC_CH1_LPM_HS;
 		break;
 	case STOP_POWER_OFF:
 		val |= 0x2 << BP_CLPCR_LPM;
 		val |= 0x3 << BP_CLPCR_STBY_COUNT;
 		val |= BM_CLPCR_VSTBY;
 		val |= BM_CLPCR_SBYOS;
-		val |= BM_CLPCR_BYP_MMDC_CH1_LPM_HS;
 		break;
 	default:
 		return -EINVAL;

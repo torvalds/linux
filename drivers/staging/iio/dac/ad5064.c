@@ -91,7 +91,7 @@ enum ad5064_type {
 	.indexed = 1,						\
 	.output = 1,						\
 	.channel = (chan),					\
-	.info_mask = (1 << IIO_CHAN_INFO_SCALE_SEPARATE),	\
+	.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,	\
 	.address = AD5064_ADDR_DAC(chan),			\
 	.scan_type = IIO_ST('u', (bits), 16, 20 - (bits))	\
 }
@@ -280,14 +280,14 @@ static int ad5064_read_raw(struct iio_dev *indio_dev,
 			   long m)
 {
 	struct ad5064_state *st = iio_priv(indio_dev);
-	unsigned long scale_uv;
 	unsigned int vref;
+	int scale_uv;
 
 	switch (m) {
 	case 0:
 		*val = st->dac_cache[chan->channel];
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE:
 		vref = st->chip_info->shared_vref ? 0 : chan->channel;
 		scale_uv = regulator_get_voltage(st->vref_reg[vref].consumer);
 		if (scale_uv < 0)
@@ -445,18 +445,7 @@ static struct spi_driver ad5064_driver = {
 	.remove = __devexit_p(ad5064_remove),
 	.id_table = ad5064_id,
 };
-
-static __init int ad5064_spi_init(void)
-{
-	return spi_register_driver(&ad5064_driver);
-}
-module_init(ad5064_spi_init);
-
-static __exit void ad5064_spi_exit(void)
-{
-	spi_unregister_driver(&ad5064_driver);
-}
-module_exit(ad5064_spi_exit);
+module_spi_driver(ad5064_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("Analog Devices AD5064/64-1/44/24 DAC");

@@ -176,7 +176,7 @@ void tipc_named_withdraw(struct publication *publ)
 void tipc_named_node_up(unsigned long nodearg)
 {
 	struct tipc_node *n_ptr;
-	struct link *l_ptr;
+	struct tipc_link *l_ptr;
 	struct publication *publ;
 	struct distr_item *item = NULL;
 	struct sk_buff *buf = NULL;
@@ -322,10 +322,9 @@ void tipc_named_recv(struct sk_buff *buf)
 /**
  * tipc_named_reinit - re-initialize local publication list
  *
- * This routine is called whenever TIPC networking is (re)enabled.
+ * This routine is called whenever TIPC networking is enabled.
  * All existing publications by this node that have "cluster" or "zone" scope
- * are updated to reflect the node's current network address.
- * (If the node's address is unchanged, the update loop terminates immediately.)
+ * are updated to reflect the node's new network address.
  */
 
 void tipc_named_reinit(void)
@@ -333,10 +332,9 @@ void tipc_named_reinit(void)
 	struct publication *publ;
 
 	write_lock_bh(&tipc_nametbl_lock);
-	list_for_each_entry(publ, &publ_root, local_list) {
-		if (publ->node == tipc_own_addr)
-			break;
+
+	list_for_each_entry(publ, &publ_root, local_list)
 		publ->node = tipc_own_addr;
-	}
+
 	write_unlock_bh(&tipc_nametbl_lock);
 }

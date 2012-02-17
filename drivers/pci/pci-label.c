@@ -89,7 +89,7 @@ find_smbios_instance_string(struct pci_dev *pdev, char *buf,
 	return 0;
 }
 
-static mode_t
+static umode_t
 smbios_instance_string_exist(struct kobject *kobj, struct attribute *attr,
 			     int n)
 {
@@ -275,7 +275,7 @@ device_has_dsm(struct device *dev)
 	return FALSE;
 }
 
-static mode_t
+static umode_t
 acpi_index_string_exist(struct kobject *kobj, struct attribute *attr, int n)
 {
 	struct device *dev;

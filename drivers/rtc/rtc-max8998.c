@@ -327,17 +327,7 @@ static struct platform_driver max8998_rtc_driver = {
 	.id_table	= max8998_rtc_id,
 };
 
-static int __init max8998_rtc_init(void)
-{
-	return platform_driver_register(&max8998_rtc_driver);
-}
-module_init(max8998_rtc_init);
-
-static void __exit max8998_rtc_exit(void)
-{
-	platform_driver_unregister(&max8998_rtc_driver);
-}
-module_exit(max8998_rtc_exit);
+module_platform_driver(max8998_rtc_driver);
 
 MODULE_AUTHOR("Minkyu Kang <mk7.kang@samsung.com>");
 MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");

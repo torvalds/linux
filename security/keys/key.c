@@ -291,6 +291,7 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 
 	atomic_set(&key->usage, 1);
 	init_rwsem(&key->sem);
+	lockdep_set_class(&key->sem, &type->lock_class);
 	key->type = type;
 	key->user = user;
 	key->quotalen = quotalen;
@@ -946,6 +947,8 @@ int register_key_type(struct key_type *ktype)
 	struct key_type *p;
 	int ret;
 
+	memset(&ktype->lock_class, 0, sizeof(ktype->lock_class));
+
 	ret = -EEXIST;
 	down_write(&key_types_sem);
 
@@ -996,6 +999,7 @@ void __init key_init(void)
 	list_add_tail(&key_type_keyring.link, &key_types_list);
 	list_add_tail(&key_type_dead.link, &key_types_list);
 	list_add_tail(&key_type_user.link, &key_types_list);
+	list_add_tail(&key_type_logon.link, &key_types_list);
 
 	/* record the root user tracking */
 	rb_link_node(&root_key_user.node,

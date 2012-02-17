@@ -968,25 +968,4 @@ static void mcs_disconnect(struct usb_interface *intf)
 	IRDA_DEBUG(0, "MCS7780 now disconnected.\n");
 }
 
-/* Module insertion */
-static int __init mcs_init(void)
-{
-	int result;
-
-	/* register this driver with the USB subsystem */
-	result = usb_register(&mcs_driver);
-	if (result)
-		IRDA_ERROR("usb_register failed. Error number %d\n", result);
-
-	return result;
-}
-module_init(mcs_init);
-
-/* Module removal */
-static void __exit mcs_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&mcs_driver);
-}
-module_exit(mcs_exit);
-
+module_usb_driver(mcs_driver);

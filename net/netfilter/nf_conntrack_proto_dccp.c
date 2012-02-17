@@ -629,7 +629,7 @@ static int dccp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 	return seq_printf(s, "%s ", dccp_state_names[ct->proto.dccp.state]);
 }
 
-#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 static int dccp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
 			  struct nf_conn *ct)
 {
@@ -770,7 +770,7 @@ static struct nf_conntrack_l4proto dccp_proto4 __read_mostly = {
 	.error			= dccp_error,
 	.print_tuple		= dccp_print_tuple,
 	.print_conntrack	= dccp_print_conntrack,
-#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= dccp_to_nlattr,
 	.nlattr_size		= dccp_nlattr_size,
 	.from_nlattr		= nlattr_to_dccp,
@@ -792,7 +792,7 @@ static struct nf_conntrack_l4proto dccp_proto6 __read_mostly = {
 	.error			= dccp_error,
 	.print_tuple		= dccp_print_tuple,
 	.print_conntrack	= dccp_print_conntrack,
-#if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.to_nlattr		= dccp_to_nlattr,
 	.nlattr_size		= dccp_nlattr_size,
 	.from_nlattr		= nlattr_to_dccp,

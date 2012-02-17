@@ -14,11 +14,11 @@
 
 / {
 	aliases {
-		serial0 = &uart0;
-		serial1 = &uart1;
-		serial2 = &uart2;
-		serial3 = &uart3;
-		serial4 = &uart4;
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		serial3 = &uart4;
+		serial4 = &uart5;
 	};
 
 	cpus {
@@ -165,7 +165,7 @@
 					status = "disabled";
 				};
 
-				uart0: uart@02020000 { /* UART1 */
+				uart1: uart@02020000 {
 					compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
 					reg = <0x02020000 0x4000>;
 					interrupts = <0 26 0x04>;
@@ -247,7 +247,7 @@
 				interrupts = <0 55 0x04>;
 			};
 
-			gpio0: gpio@0209c000 { /* GPIO1 */
+			gpio1: gpio@0209c000 {
 				compatible = "fsl,imx6q-gpio", "fsl,imx31-gpio";
 				reg = <0x0209c000 0x4000>;
 				interrupts = <0 66 0x04 0 67 0x04>;
@@ -257,7 +257,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio1: gpio@020a0000 { /* GPIO2 */
+			gpio2: gpio@020a0000 {
 				compatible = "fsl,imx6q-gpio", "fsl,imx31-gpio";
 				reg = <0x020a0000 0x4000>;
 				interrupts = <0 68 0x04 0 69 0x04>;
@@ -267,7 +267,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio2: gpio@020a4000 { /* GPIO3 */
+			gpio3: gpio@020a4000 {
 				compatible = "fsl,imx6q-gpio", "fsl,imx31-gpio";
 				reg = <0x020a4000 0x4000>;
 				interrupts = <0 70 0x04 0 71 0x04>;
@@ -277,7 +277,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio3: gpio@020a8000 { /* GPIO4 */
+			gpio4: gpio@020a8000 {
 				compatible = "fsl,imx6q-gpio", "fsl,imx31-gpio";
 				reg = <0x020a8000 0x4000>;
 				interrupts = <0 72 0x04 0 73 0x04>;
@@ -287,7 +287,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio4: gpio@020ac000 { /* GPIO5 */
+			gpio5: gpio@020ac000 {
 				compatible = "fsl,imx6q-gpio", "fsl,imx31-gpio";
 				reg = <0x020ac000 0x4000>;
 				interrupts = <0 74 0x04 0 75 0x04>;
@@ -297,7 +297,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio5: gpio@020b0000 { /* GPIO6 */
+			gpio6: gpio@020b0000 {
 				compatible = "fsl,imx6q-gpio", "fsl,imx31-gpio";
 				reg = <0x020b0000 0x4000>;
 				interrupts = <0 76 0x04 0 77 0x04>;
@@ -307,7 +307,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio6: gpio@020b4000 { /* GPIO7 */
+			gpio7: gpio@020b4000 {
 				compatible = "fsl,imx6q-gpio", "fsl,imx31-gpio";
 				reg = <0x020b4000 0x4000>;
 				interrupts = <0 78 0x04 0 79 0x04>;
@@ -543,28 +543,28 @@
 				interrupts = <0 18 0x04>;
 			};
 
-			uart1: uart@021e8000 { /* UART2 */
+			uart2: uart@021e8000 {
 				compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x021e8000 0x4000>;
 				interrupts = <0 27 0x04>;
 				status = "disabled";
 			};
 
-			uart2: uart@021ec000 { /* UART3 */
+			uart3: uart@021ec000 {
 				compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x021ec000 0x4000>;
 				interrupts = <0 28 0x04>;
 				status = "disabled";
 			};
 
-			uart3: uart@021f0000 { /* UART4 */
+			uart4: uart@021f0000 {
 				compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x021f0000 0x4000>;
 				interrupts = <0 29 0x04>;
 				status = "disabled";
 			};
 
-			uart4: uart@021f4000 { /* UART5 */
+			uart5: uart@021f4000 {
 				compatible = "fsl,imx6q-uart", "fsl,imx21-uart";
 				reg = <0x021f4000 0x4000>;
 				interrupts = <0 30 0x04>;

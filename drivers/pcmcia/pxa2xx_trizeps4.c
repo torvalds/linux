@@ -30,7 +30,7 @@
 extern void board_pcmcia_power(int power);
 
 static struct pcmcia_irqs irqs[] = {
-	{ 0, IRQ_GPIO(GPIO_PCD), "cs0_cd" }
+	{ .sock = 0, .str = "cs0_cd" }
 	/* on other baseboards we can have more inputs */
 };
 
@@ -53,7 +53,8 @@ static int trizeps_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 			gpio_free(GPIO_PRDY);
 			return -EINVAL;
 		}
-		skt->socket.pci_irq = IRQ_GPIO(GPIO_PRDY);
+		skt->socket.pci_irq = gpio_to_irq(GPIO_PRDY);
+		irqs[0].irq = gpio_to_irq(GPIO_PCD);
 		break;
 	default:
 		break;

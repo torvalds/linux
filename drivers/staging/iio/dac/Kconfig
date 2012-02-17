@@ -24,6 +24,29 @@ config AD5360
 	  To compile this driver as module choose M here: the module will be called
 	  ad5360.
 
+config AD5380
+	tristate "Analog Devices AD5380/81/82/83/84/90/91/92 DAC driver"
+	depends on (SPI_MASTER || I2C)
+	select REGMAP_I2C if I2C
+	select REGMAP_SPI if SPI_MASTER
+	help
+	  Say yes here to build support for Analog Devices AD5380, AD5381,
+	  AD5382, AD5383, AD5384, AD5390, AD5391, AD5392 multi-channel
+	  Digital to Analog Converters (DAC).
+
+	  To compile this driver as module choose M here: the module will be called
+	  ad5380.
+
+config AD5421
+	tristate "Analog Devices AD5421 DAC driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD5421 loop-powered
+	  digital-to-analog convertors (DAC).
+
+	  To compile this driver as module choose M here: the module will be called
+	  ad5421.
+
 config AD5624R_SPI
 	tristate "Analog Devices AD5624/44/64R DAC spi driver"
 	depends on SPI
@@ -37,7 +60,7 @@ config AD5446
 	help
 	  Say yes here to build support for Analog Devices AD5444, AD5446,
 	  AD5512A, AD5542A, AD5543, AD5553, AD5601, AD5611, AD5620, AD5621,
-	  AD5640, AD5660 DACs.
+	  AD5640, AD5660, AD5662 DACs.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5446.
@@ -52,12 +75,22 @@ config AD5504
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5504.
 
+config AD5764
+	tristate "Analog Devices AD5764/64R/44/44R DAC driver"
+	depends on SPI_MASTER
+	help
+	  Say yes here to build support for Analog Devices AD5764, AD5764R, AD5744,
+	  AD5744R Digital to Analog Converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad5764.
+
 config AD5791
-	tristate "Analog Devices AD5760/AD5780/AD5781/AD5791 DAC SPI driver"
+	tristate "Analog Devices AD5760/AD5780/AD5781/AD5790/AD5791 DAC SPI driver"
 	depends on SPI
 	help
 	  Say yes here to build support for Analog Devices AD5760, AD5780,
-	  AD5781, AD5791 High Resolution Voltage Output Digital to
+	  AD5781, AD5790, AD5791 High Resolution Voltage Output Digital to
 	  Analog Converter.
 
 	  To compile this driver as a module, choose M here: the

@@ -212,10 +212,10 @@ static long wm8350_wdt_ioctl(struct file *file, unsigned int cmd,
 
 		/* Setting both simultaneously means at least one must fail */
 		if (options == WDIOS_DISABLECARD)
-			ret = wm8350_wdt_start(wm8350);
+			ret = wm8350_wdt_stop(wm8350);
 
 		if (options == WDIOS_ENABLECARD)
-			ret = wm8350_wdt_stop(wm8350);
+			ret = wm8350_wdt_start(wm8350);
 		break;
 	}
 
@@ -311,17 +311,7 @@ static struct platform_driver wm8350_wdt_driver = {
 	},
 };
 
-static int __init wm8350_wdt_init(void)
-{
-	return platform_driver_register(&wm8350_wdt_driver);
-}
-module_init(wm8350_wdt_init);
-
-static void __exit wm8350_wdt_exit(void)
-{
-	platform_driver_unregister(&wm8350_wdt_driver);
-}
-module_exit(wm8350_wdt_exit);
+module_platform_driver(wm8350_wdt_driver);
 
 MODULE_AUTHOR("Mark Brown");
 MODULE_DESCRIPTION("WM8350 Watchdog");

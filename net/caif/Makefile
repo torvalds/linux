@@ -10,5 +10,6 @@ caif-y := caif_dev.o \
 obj-$(CONFIG_CAIF) += caif.o
 obj-$(CONFIG_CAIF_NETDEV) += chnl_net.o
 obj-$(CONFIG_CAIF) += caif_socket.o
+obj-$(CONFIG_CAIF_USB) += caif_usb.o
 
 export-y := caif.o

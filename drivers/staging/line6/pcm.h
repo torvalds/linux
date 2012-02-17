@@ -39,9 +39,6 @@
 #define LINE6_IMPULSE_DEFAULT_PERIOD 100
 #endif
 
-#define LINE6_BACKUP_MONITOR_SIGNAL 0
-#define LINE6_REUSE_DMA_AREA_FOR_PLAYBACK 0
-
 /*
 	Get substream from Line6 PCM data structure
 */
@@ -147,11 +144,6 @@ struct snd_line6_pcm {
 		 large enough to store maximum size packets.
 	*/
 	unsigned char *buffer_in;
-
-	/**
-		 Temporary buffer index for playback.
-	*/
-	int index_out;
 
 	/**
 		 Previously captured frame (for software monitoring).

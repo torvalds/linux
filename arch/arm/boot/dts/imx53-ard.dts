@@ -29,8 +29,8 @@
 		aips@50000000 { /* AIPS1 */
 			spba@50000000 {
 				esdhc@50004000 { /* ESDHC1 */
-					cd-gpios = <&gpio0 1 0>; /* GPIO1_1 */
-					wp-gpios = <&gpio0 9 0>; /* GPIO1_9 */
+					cd-gpios = <&gpio1 1 0>;
+					wp-gpios = <&gpio1 9 0>;
 					status = "okay";
 				};
 			};
@@ -44,7 +44,7 @@
 				reg = <0x53fa8000 0x4000>;
 			};
 
-			uart0: uart@53fbc000 { /* UART1 */
+			uart1: uart@53fbc000 {
 				status = "okay";
 			};
 		};
@@ -67,7 +67,7 @@
 			compatible = "smsc,lan9220", "smsc,lan9115";
 			reg = <0xf4000000 0x2000000>;
 			phy-mode = "mii";
-			interrupt-parent = <&gpio1>;
+			interrupt-parent = <&gpio2>;
 			interrupts = <31>;
 			reg-io-width = <4>;
 			smsc,irq-push-pull;
@@ -79,34 +79,34 @@
 
 		home {
 			label = "Home";
-			gpios = <&gpio4 10 0>; /* GPIO5_10 */
+			gpios = <&gpio5 10 0>;
 			linux,code = <102>; /* KEY_HOME */
 			gpio-key,wakeup;
 		};
 
 		back {
 			label = "Back";
-			gpios = <&gpio4 11 0>; /* GPIO5_11 */
+			gpios = <&gpio5 11 0>;
 			linux,code = <158>; /* KEY_BACK */
 			gpio-key,wakeup;
 		};
 
 		program {
 			label = "Program";
-			gpios = <&gpio4 12 0>; /* GPIO5_12 */
+			gpios = <&gpio5 12 0>;
 			linux,code = <362>; /* KEY_PROGRAM */
 			gpio-key,wakeup;
 		};
 
 		volume-up {
 			label = "Volume Up";
-			gpios = <&gpio4 13 0>; /* GPIO5_13 */
+			gpios = <&gpio5 13 0>;
 			linux,code = <115>; /* KEY_VOLUMEUP */
 		};
 
 		volume-down {
 			label = "Volume Down";
-			gpios = <&gpio3 0 0>; /* GPIO4_0 */
+			gpios = <&gpio4 0 0>;
 			linux,code = <114>; /* KEY_VOLUMEDOWN */
 		};
 	};

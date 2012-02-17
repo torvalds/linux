@@ -900,6 +900,7 @@ static int cx23885_load_firmware(struct cx23885_dev *dev)
 	int i, retval = 0;
 	u32 value = 0;
 	u32 gpio_output = 0;
+	u32 gpio_value;
 	u32 checksum = 0;
 	u32 *dataptr;
 
@@ -907,7 +908,7 @@ static int cx23885_load_firmware(struct cx23885_dev *dev)
 
 	/* Save GPIO settings before reset of APU */
 	retval |= mc417_memory_read(dev, 0x9020, &gpio_output);
-	retval |= mc417_memory_read(dev, 0x900C, &value);
+	retval |= mc417_memory_read(dev, 0x900C, &gpio_value);
 
 	retval  = mc417_register_write(dev,
 		IVTV_REG_VPU, 0xFFFFFFED);
@@ -991,10 +992,17 @@ static int cx23885_load_firmware(struct cx23885_dev *dev)
 
 	/* F/W power up disturbs the GPIOs, restore state */
 	retval |= mc417_register_write(dev, 0x9020, gpio_output);
-	retval |= mc417_register_write(dev, 0x900C, value);
+	retval |= mc417_register_write(dev, 0x900C, gpio_value);
 
 	retval |= mc417_register_read(dev, IVTV_REG_VPU, &value);
 	retval |= mc417_register_write(dev, IVTV_REG_VPU, value & 0xFFFFFFE8);
+
+	/* Hardcoded GPIO's here */
+	retval |= mc417_register_write(dev, 0x9020, 0x4000);
+	retval |= mc417_register_write(dev, 0x900C, 0x4000);
+
+	mc417_register_read(dev, 0x9020, &gpio_output);
+	mc417_register_read(dev, 0x900C, &gpio_value);
 
 	if (retval < 0)
 		printk(KERN_ERR "%s: Error with mc417_register_write\n",
@@ -1015,6 +1023,12 @@ static void cx23885_codec_settings(struct cx23885_dev *dev)
 {
 	dprintk(1, "%s()\n", __func__);
 
+	/* Dynamically change the height based on video standard */
+	if (dev->encodernorm.id & V4L2_STD_525_60)
+		dev->ts1.height = 480;
+	else
+		dev->ts1.height = 576;
+
 	/* assign frame size */
 	cx23885_api_cmd(dev, CX2341X_ENC_SET_FRAME_SIZE, 2, 0,
 				dev->ts1.height, dev->ts1.width);
@@ -1030,7 +1044,7 @@ static void cx23885_codec_settings(struct cx23885_dev *dev)
 	cx23885_api_cmd(dev, CX2341X_ENC_MISC, 2, 0, 4, 1);
 }
 
-static int cx23885_initialize_codec(struct cx23885_dev *dev)
+static int cx23885_initialize_codec(struct cx23885_dev *dev, int startencoder)
 {
 	int version;
 	int retval;
@@ -1112,9 +1126,11 @@ static int cx23885_initialize_codec(struct cx23885_dev *dev)
 	mc417_memory_write(dev, 2120, 0x00000080);
 
 	/* start capturing to the host interface */
-	cx23885_api_cmd(dev, CX2341X_ENC_START_CAPTURE, 2, 0,
-		CX23885_MPEG_CAPTURE, CX23885_RAW_BITS_NONE);
-	msleep(10);
+	if (startencoder) {
+		cx23885_api_cmd(dev, CX2341X_ENC_START_CAPTURE, 2, 0,
+			CX23885_MPEG_CAPTURE, CX23885_RAW_BITS_NONE);
+		msleep(10);
+	}
 
 	return 0;
 }
@@ -1196,6 +1212,16 @@ static int cx23885_querymenu(struct cx23885_dev *dev,
 		cx2341x_ctrl_get_menu(&dev->mpeg_params, qmenu->id));
 }
 
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
+{
+	struct cx23885_fh  *fh  = file->private_data;
+	struct cx23885_dev *dev = fh->dev;
+
+	call_all(dev, core, g_std, id);
+
+	return 0;
+}
+
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
 {
 	struct cx23885_fh  *fh  = file->private_data;
@@ -1208,55 +1234,31 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
 	if (i == ARRAY_SIZE(cx23885_tvnorms))
 		return -EINVAL;
 	dev->encodernorm = cx23885_tvnorms[i];
+
+	/* Have the drier core notify the subdevices */
+	mutex_lock(&dev->lock);
+	cx23885_set_tvnorm(dev, *id);
+	mutex_unlock(&dev->lock);
+
 	return 0;
 }
 
 static int vidioc_enum_input(struct file *file, void *priv,
-				struct v4l2_input *i)
+	struct v4l2_input *i)
 {
-	struct cx23885_fh  *fh  = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
-	struct cx23885_input *input;
-	int n;
-
-	if (i->index >= 4)
-		return -EINVAL;
-
-	input = &cx23885_boards[dev->board].input[i->index];
-
-	if (input->type == 0)
-		return -EINVAL;
-
-	/* FIXME
-	 * strcpy(i->name, input->name); */
-	strcpy(i->name, "unset");
-
-	if (input->type == CX23885_VMUX_TELEVISION ||
-	    input->type == CX23885_VMUX_CABLE)
-		i->type = V4L2_INPUT_TYPE_TUNER;
-	else
-		i->type  = V4L2_INPUT_TYPE_CAMERA;
-
-	for (n = 0; n < ARRAY_SIZE(cx23885_tvnorms); n++)
-		i->std |= cx23885_tvnorms[n].id;
-	return 0;
+	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
+	dprintk(1, "%s()\n", __func__);
+	return cx23885_enum_input(dev, i);
 }
 
 static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 {
-	struct cx23885_fh  *fh  = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
-
-	*i = dev->input;
-	return 0;
+	return cx23885_get_input(file, priv, i);
 }
 
 static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
-	if (i >= 4)
-		return -EINVAL;
-
-	return 0;
+	return cx23885_set_input(file, priv, i);
 }
 
 static int vidioc_g_tuner(struct file *file, void *priv,
@@ -1309,43 +1311,25 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
+	struct v4l2_frequency *f)
 {
-	struct cx23885_fh  *fh  = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
+	return cx23885_set_frequency(file, priv, f);
+}
 
-	cx23885_api_cmd(fh->dev, CX2341X_ENC_STOP_CAPTURE, 3, 0,
-		CX23885_END_NOW, CX23885_MPEG_CAPTURE,
-		CX23885_RAW_BITS_NONE);
+static int vidioc_g_ctrl(struct file *file, void *priv,
+	struct v4l2_control *ctl)
+{
+	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
 
-	dprintk(1, "VIDIOC_S_FREQUENCY: dev type %d, f\n",
-		dev->tuner_type);
-	dprintk(1, "VIDIOC_S_FREQUENCY: f tuner %d, f type %d\n",
-		f->tuner, f->type);
-	if (UNSET == dev->tuner_type)
-		return -EINVAL;
-	if (f->tuner != 0)
-		return -EINVAL;
-	if (f->type != V4L2_TUNER_ANALOG_TV)
-		return -EINVAL;
-	dev->freq = f->frequency;
-
-	call_all(dev, tuner, s_frequency, f);
-
-	cx23885_initialize_codec(dev);
-
-	return 0;
+	return cx23885_get_control(dev, ctl);
 }
 
 static int vidioc_s_ctrl(struct file *file, void *priv,
-				struct v4l2_control *ctl)
+	struct v4l2_control *ctl)
 {
-	struct cx23885_fh  *fh  = file->private_data;
-	struct cx23885_dev *dev = fh->dev;
+	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
 
-	/* Update the A/V core */
-	call_all(dev, core, s_ctrl, ctl);
-	return 0;
+	return cx23885_set_control(dev, ctl);
 }
 
 static int vidioc_querycap(struct file *file, void  *priv,
@@ -1636,7 +1620,7 @@ static ssize_t mpeg_read(struct file *file, char __user *data,
 	/* Start mpeg encoder on first read. */
 	if (atomic_cmpxchg(&fh->v4l_reading, 0, 1) == 0) {
 		if (atomic_inc_return(&dev->v4l_reader_count) == 1) {
-			if (cx23885_initialize_codec(dev) < 0)
+			if (cx23885_initialize_codec(dev, 1) < 0)
 				return -EINVAL;
 		}
 	}
@@ -1677,6 +1661,8 @@ static struct v4l2_file_operations mpeg_fops = {
 };
 
 static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
+	.vidioc_querystd	 = vidioc_g_std,
+	.vidioc_g_std		 = vidioc_g_std,
 	.vidioc_s_std		 = vidioc_s_std,
 	.vidioc_enum_input	 = vidioc_enum_input,
 	.vidioc_g_input		 = vidioc_g_input,
@@ -1686,6 +1672,7 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_g_frequency	 = vidioc_g_frequency,
 	.vidioc_s_frequency	 = vidioc_s_frequency,
 	.vidioc_s_ctrl		 = vidioc_s_ctrl,
+	.vidioc_g_ctrl		 = vidioc_g_ctrl,
 	.vidioc_querycap	 = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap	 = vidioc_g_fmt_vid_cap,
@@ -1746,8 +1733,8 @@ static struct video_device *cx23885_video_dev_alloc(
 	if (NULL == vfd)
 		return NULL;
 	*vfd = *template;
-	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)", dev->name,
-		type, cx23885_boards[tsport->dev->board].name);
+	snprintf(vfd->name, sizeof(vfd->name), "%s (%s)",
+		cx23885_boards[tsport->dev->board].name, type);
 	vfd->parent  = &pci->dev;
 	vfd->release = video_device_release;
 	return vfd;
@@ -1790,6 +1777,12 @@ int cx23885_417_register(struct cx23885_dev *dev)
 
 	printk(KERN_INFO "%s: registered device %s [mpeg]\n",
 	       dev->name, video_device_node_name(dev->v4l_device));
+
+	/* ST: Configure the encoder paramaters, but don't begin
+	 * encoding, this resolves an issue where the first time the
+	 * encoder is started video can be choppy.
+	 */
+	cx23885_initialize_codec(dev, 0);
 
 	return 0;
 }

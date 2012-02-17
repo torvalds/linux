@@ -431,7 +431,7 @@ static int ak8975_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case 0:
 		return ak8975_read_axis(indio_dev, chan->address, val);
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
+	case IIO_CHAN_INFO_SCALE:
 		*val = data->raw_to_gauss[chan->address];
 		return IIO_VAL_INT;
 	}
@@ -443,7 +443,7 @@ static int ak8975_read_raw(struct iio_dev *indio_dev,
 		.type = IIO_MAGN,					\
 		.modified = 1,						\
 		.channel2 = IIO_MOD_##axis,				\
-		.info_mask = (1 << IIO_CHAN_INFO_SCALE_SEPARATE),	\
+		.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,	\
 		.address = index,					\
 	}
 
@@ -572,19 +572,7 @@ static struct i2c_driver ak8975_driver = {
 	.remove		= __devexit_p(ak8975_remove),
 	.id_table	= ak8975_id,
 };
-
-static int __init ak8975_init(void)
-{
-	return i2c_add_driver(&ak8975_driver);
-}
-
-static void __exit ak8975_exit(void)
-{
-	i2c_del_driver(&ak8975_driver);
-}
-
-module_init(ak8975_init);
-module_exit(ak8975_exit);
+module_i2c_driver(ak8975_driver);
 
 MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
 MODULE_DESCRIPTION("AK8975 magnetometer driver");

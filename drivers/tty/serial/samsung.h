@@ -19,18 +19,23 @@ struct s3c24xx_uart_info {
 	unsigned long		tx_fifomask;
 	unsigned long		tx_fifoshift;
 	unsigned long		tx_fifofull;
+	unsigned int		def_clk_sel;
+	unsigned long		num_clks;
+	unsigned long		clksel_mask;
+	unsigned long		clksel_shift;
 
 	/* uart port features */
 
 	unsigned int		has_divslot:1;
 
-	/* clock source control */
-
-	int (*get_clksrc)(struct uart_port *, struct s3c24xx_uart_clksrc *clk);
-	int (*set_clksrc)(struct uart_port *, struct s3c24xx_uart_clksrc *clk);
-
 	/* uart controls */
 	int (*reset_port)(struct uart_port *, struct s3c2410_uartcfg *);
+};
+
+struct s3c24xx_serial_drv_data {
+	struct s3c24xx_uart_info	*info;
+	struct s3c2410_uartcfg		*def_cfg;
+	unsigned int			fifosize[CONFIG_SERIAL_SAMSUNG_UARTS];
 };
 
 struct s3c24xx_uart_port {
@@ -43,10 +48,13 @@ struct s3c24xx_uart_port {
 	unsigned int			tx_irq;
 
 	struct s3c24xx_uart_info	*info;
-	struct s3c24xx_uart_clksrc	*clksrc;
 	struct clk			*clk;
 	struct clk			*baudclk;
 	struct uart_port		port;
+	struct s3c24xx_serial_drv_data	*drv_data;
+
+	/* reference to platform data */
+	struct s3c2410_uartcfg		*cfg;
 
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block		freq_transition;
@@ -56,7 +64,6 @@ struct s3c24xx_uart_port {
 /* conversion functions */
 
 #define s3c24xx_dev_to_port(__dev) (struct uart_port *)dev_get_drvdata(__dev)
-#define s3c24xx_dev_to_cfg(__dev) (struct s3c2410_uartcfg *)((__dev)->platform_data)
 
 /* register access controls */
 
@@ -68,17 +75,6 @@ struct s3c24xx_uart_port {
 
 #define wr_regb(port, reg, val) __raw_writeb(val, portaddr(port, reg))
 #define wr_regl(port, reg, val) __raw_writel(val, portaddr(port, reg))
-
-extern int s3c24xx_serial_probe(struct platform_device *dev,
-				struct s3c24xx_uart_info *uart);
-
-extern int __devexit s3c24xx_serial_remove(struct platform_device *dev);
-
-extern int s3c24xx_serial_initconsole(struct platform_driver *drv,
-				      struct s3c24xx_uart_info **uart);
-
-extern int s3c24xx_serial_init(struct platform_driver *drv,
-			       struct s3c24xx_uart_info *info);
 
 #ifdef CONFIG_SERIAL_SAMSUNG_DEBUG
 

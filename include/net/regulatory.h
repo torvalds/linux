@@ -48,6 +48,10 @@ enum environment_cap {
  * 	99 - built by driver but a specific alpha2 cannot be determined
  * 	98 - result of an intersection between two regulatory domains
  *	97 - regulatory domain has not yet been configured
+ * @dfs_region: If CRDA responded with a regulatory domain that requires
+ *	DFS master operation on a known DFS region (NL80211_DFS_*),
+ *	dfs_region represents that region. Drivers can use this and the
+ *	@alpha2 to adjust their device's DFS parameters as required.
  * @intersect: indicates whether the wireless core should intersect
  * 	the requested regulatory domain with the presently set regulatory
  * 	domain.
@@ -67,6 +71,7 @@ struct regulatory_request {
 	int wiphy_idx;
 	enum nl80211_reg_initiator initiator;
 	char alpha2[2];
+	u8 dfs_region;
 	bool intersect;
 	bool processed;
 	enum environment_cap country_ie_env;
@@ -93,6 +98,7 @@ struct ieee80211_reg_rule {
 struct ieee80211_regdomain {
 	u32 n_reg_rules;
 	char alpha2[2];
+	u8 dfs_region;
 	struct ieee80211_reg_rule reg_rules[];
 };
 

@@ -119,8 +119,8 @@ static int ar9003_get_training_power_5g(struct ath_hw *ah)
 		break;
 	default:
 		delta = 0;
-		ath_dbg(common, ATH_DBG_CALIBRATE,
-		"Invalid tx-chainmask: %u\n", ah->txchainmask);
+		ath_dbg(common, CALIBRATE, "Invalid tx-chainmask: %u\n",
+			ah->txchainmask);
 	}
 
 	power += delta;
@@ -148,13 +148,12 @@ static int ar9003_paprd_setup_single_table(struct ath_hw *ah)
 	else
 		training_power = ar9003_get_training_power_5g(ah);
 
-	ath_dbg(common, ATH_DBG_CALIBRATE,
-		"Training power: %d, Target power: %d\n",
+	ath_dbg(common, CALIBRATE, "Training power: %d, Target power: %d\n",
 		training_power, ah->paprd_target_power);
 
 	if (training_power < 0) {
-		ath_dbg(common, ATH_DBG_CALIBRATE,
-			"PAPRD target power delta out of range");
+		ath_dbg(common, CALIBRATE,
+			"PAPRD target power delta out of range\n");
 		return -ERANGE;
 	}
 	ah->paprd_training_power = training_power;
@@ -311,8 +310,8 @@ static unsigned int ar9003_get_desired_gain(struct ath_hw *ah, int chain,
 		reg_cl_gain = AR_PHY_CL_TAB_2;
 		break;
 	default:
-		ath_dbg(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
-		"Invalid chainmask: %d\n", chain);
+		ath_dbg(ath9k_hw_common(ah), CALIBRATE,
+			"Invalid chainmask: %d\n", chain);
 		break;
 	}
 
@@ -850,7 +849,7 @@ bool ar9003_paprd_is_done(struct ath_hw *ah)
 		agc2_pwr = REG_READ_FIELD(ah, AR_PHY_PAPRD_TRAINER_STAT1,
 				AR_PHY_PAPRD_TRAINER_STAT1_PAPRD_AGC2_PWR);
 
-		ath_dbg(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
+		ath_dbg(ath9k_hw_common(ah), CALIBRATE,
 			"AGC2_PWR = 0x%x training done = 0x%x\n",
 			agc2_pwr, paprd_done);
 	/*

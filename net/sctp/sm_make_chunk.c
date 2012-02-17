@@ -3400,8 +3400,10 @@ int sctp_process_asconf_ack(struct sctp_association *asoc,
 		asconf_len -= length;
 	}
 
-	if (no_err && asoc->src_out_of_asoc_ok)
+	if (no_err && asoc->src_out_of_asoc_ok) {
 		asoc->src_out_of_asoc_ok = 0;
+		sctp_transport_immediate_rtx(asoc->peer.primary_path);
+	}
 
 	/* Free the cached last sent asconf chunk. */
 	list_del_init(&asconf->transmitted_list);

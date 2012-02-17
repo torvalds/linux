@@ -21,7 +21,6 @@
 
 #include <linux/init.h>
 #include <linux/device.h>
-#include <linux/sysdev.h>
 #include <linux/amba/bus.h>
 #include <linux/io.h>
 
@@ -43,4 +42,5 @@ MACHINE_START(VERSATILE_AB, "ARM-Versatile AB")
 	.handle_irq	= vic_handle_irq,
 	.timer		= &versatile_timer,
 	.init_machine	= versatile_init,
+	.restart	= versatile_restart,
 MACHINE_END

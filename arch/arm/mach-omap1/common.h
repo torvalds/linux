@@ -54,6 +54,7 @@ static inline void omap16xx_map_io(void)
 
 void omap1_init_early(void);
 void omap1_init_irq(void);
+void omap1_restart(char, const char *);
 
 extern struct sys_timer omap1_timer;
 extern bool omap_32k_timer_init(void);

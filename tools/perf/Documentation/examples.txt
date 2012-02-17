@@ -17,8 +17,8 @@ titan:~> perf list
   kmem:kmem_cache_alloc_node               [Tracepoint event]
   kmem:kfree                               [Tracepoint event]
   kmem:kmem_cache_free                     [Tracepoint event]
-  kmem:mm_page_free_direct                 [Tracepoint event]
-  kmem:mm_pagevec_free                     [Tracepoint event]
+  kmem:mm_page_free                        [Tracepoint event]
+  kmem:mm_page_free_batched                [Tracepoint event]
   kmem:mm_page_alloc                       [Tracepoint event]
   kmem:mm_page_alloc_zone_locked           [Tracepoint event]
   kmem:mm_page_pcpu_drain                  [Tracepoint event]
@@ -29,15 +29,15 @@ measured. For example the page alloc/free properties of a 'hackbench
 run' are:
 
  titan:~> perf stat -e kmem:mm_page_pcpu_drain -e kmem:mm_page_alloc
- -e kmem:mm_pagevec_free -e kmem:mm_page_free_direct ./hackbench 10
+ -e kmem:mm_page_free_batched -e kmem:mm_page_free ./hackbench 10
  Time: 0.575
 
  Performance counter stats for './hackbench 10':
 
           13857  kmem:mm_page_pcpu_drain
           27576  kmem:mm_page_alloc
-           6025  kmem:mm_pagevec_free
-          20934  kmem:mm_page_free_direct
+           6025  kmem:mm_page_free_batched
+          20934  kmem:mm_page_free
 
     0.613972165  seconds time elapsed
 
@@ -45,8 +45,8 @@ You can observe the statistical properties as well, by using the
 'repeat the workload N times' feature of perf stat:
 
  titan:~> perf stat --repeat 5 -e kmem:mm_page_pcpu_drain -e
-   kmem:mm_page_alloc -e kmem:mm_pagevec_free -e
-   kmem:mm_page_free_direct ./hackbench 10
+   kmem:mm_page_alloc -e kmem:mm_page_free_batched -e
+   kmem:mm_page_free ./hackbench 10
  Time: 0.627
  Time: 0.644
  Time: 0.564
@@ -57,8 +57,8 @@ You can observe the statistical properties as well, by using the
 
           12920  kmem:mm_page_pcpu_drain    ( +-   3.359% )
           25035  kmem:mm_page_alloc         ( +-   3.783% )
-           6104  kmem:mm_pagevec_free       ( +-   0.934% )
-          18376  kmem:mm_page_free_direct   ( +-   4.941% )
+           6104  kmem:mm_page_free_batched  ( +-   0.934% )
+          18376  kmem:mm_page_free	    ( +-   4.941% )
 
     0.643954516  seconds time elapsed   ( +-   2.363% )
 
@@ -158,15 +158,15 @@ Or you can observe the whole system's page allocations for 10
 seconds:
 
 titan:~/git> perf stat -a -e kmem:mm_page_pcpu_drain -e
-kmem:mm_page_alloc -e kmem:mm_pagevec_free -e
-kmem:mm_page_free_direct sleep 10
+kmem:mm_page_alloc -e kmem:mm_page_free_batched -e
+kmem:mm_page_free sleep 10
 
  Performance counter stats for 'sleep 10':
 
          171585  kmem:mm_page_pcpu_drain
          322114  kmem:mm_page_alloc
-          73623  kmem:mm_pagevec_free
-         254115  kmem:mm_page_free_direct
+          73623  kmem:mm_page_free_batched
+         254115  kmem:mm_page_free
 
    10.000591410  seconds time elapsed
 
@@ -174,15 +174,15 @@ Or observe how fluctuating the page allocations are, via statistical
 analysis done over ten 1-second intervals:
 
  titan:~/git> perf stat --repeat 10 -a -e kmem:mm_page_pcpu_drain -e
-   kmem:mm_page_alloc -e kmem:mm_pagevec_free -e
-   kmem:mm_page_free_direct sleep 1
+   kmem:mm_page_alloc -e kmem:mm_page_free_batched -e
+   kmem:mm_page_free sleep 1
 
  Performance counter stats for 'sleep 1' (10 runs):
 
           17254  kmem:mm_page_pcpu_drain    ( +-   3.709% )
           34394  kmem:mm_page_alloc         ( +-   4.617% )
-           7509  kmem:mm_pagevec_free       ( +-   4.820% )
-          25653  kmem:mm_page_free_direct   ( +-   3.672% )
+           7509  kmem:mm_page_free_batched  ( +-   4.820% )
+          25653  kmem:mm_page_free	    ( +-   3.672% )
 
     1.058135029  seconds time elapsed   ( +-   3.089% )
 

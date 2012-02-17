@@ -8,40 +8,6 @@
  *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation; either version 2 of the License, or
  *	(at your option) any later version.
- *
- * (12/12/2002) ganesh
- * 	Added support for practically all devices supported by ActiveSync
- * 	on Windows. Thanks to Wes Cilldhaire <billybobjoehenrybob@hotmail.com>.
- *
- * (26/11/2002) ganesh
- * 	Added insmod options to specify product and vendor id.
- * 	Use modprobe ipaq vendor=0xfoo product=0xbar
- *
- * (26/7/2002) ganesh
- * 	Fixed up broken error handling in ipaq_open. Retry the "kickstart"
- * 	packet much harder - this drastically reduces connection failures.
- *
- * (30/4/2002) ganesh
- * 	Added support for the Casio EM500. Completely untested. Thanks
- * 	to info from Nathan <wfilardo@fuse.net>
- *
- * (19/3/2002) ganesh
- *	Don't submit urbs while holding spinlocks. Not strictly necessary
- *	in 2.5.x.
- *
- * (8/3/2002) ganesh
- * 	The ipaq sometimes emits a '\0' before the CLIENT string. At this
- * 	point of time, the ppp ldisc is not yet attached to the tty, so
- * 	n_tty echoes "^ " to the ipaq, which messes up the chat. In 2.5.6-pre2
- * 	this causes a panic because echo_char() tries to sleep in interrupt
- * 	context.
- * 	The fix is to tell the upper layers that this is a raw device so that
- * 	echoing is suppressed. Thanks to Lyle Lindholm for a detailed bug
- * 	report.
- *
- * (25/2/2002) ganesh
- * 	Added support for the HP Jornada 548 and 568. Completely untested.
- * 	Thanks to info from Heath Robinson and Arieh Davidoff.
  */
 
 #include <linux/kernel.h>
@@ -68,7 +34,7 @@
 #define DRIVER_DESC "USB PocketPC PDA driver"
 
 static __u16 product, vendor;
-static int debug;
+static bool debug;
 static int connect_retries = KP_RETRIES;
 static int initial_wait;
 

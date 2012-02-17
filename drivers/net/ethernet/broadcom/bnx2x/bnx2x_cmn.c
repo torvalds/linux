@@ -79,19 +79,21 @@ static inline void bnx2x_bz_fp(struct bnx2x *bp, int index)
  * @to:		destination FP index
  *
  * Makes sure the contents of the bp->fp[to].napi is kept
- * intact.
+ * intact. This is done by first copying the napi struct from
+ * the target to the source, and then mem copying the entire
+ * source onto the target
  */
 static inline void bnx2x_move_fp(struct bnx2x *bp, int from, int to)
 {
 	struct bnx2x_fastpath *from_fp = &bp->fp[from];
 	struct bnx2x_fastpath *to_fp = &bp->fp[to];
-	struct napi_struct orig_napi = to_fp->napi;
+
+	/* Copy the NAPI object as it has been already initialized */
+	from_fp->napi = to_fp->napi;
+
 	/* Move bnx2x_fastpath contents */
 	memcpy(to_fp, from_fp, sizeof(*to_fp));
 	to_fp->index = to;
-
-	/* Restore the NAPI object as it has been already initialized */
-	to_fp->napi = orig_napi;
 }
 
 int load_count[2][3] = { {0} }; /* per-path: 0-common, 1-port0, 2-port1 */
@@ -100,7 +102,8 @@ int load_count[2][3] = { {0} }; /* per-path: 0-common, 1-port0, 2-port1 */
  * return idx of last bd freed
  */
 static u16 bnx2x_free_tx_pkt(struct bnx2x *bp, struct bnx2x_fp_txdata *txdata,
-			     u16 idx)
+			     u16 idx, unsigned int *pkts_compl,
+			     unsigned int *bytes_compl)
 {
 	struct sw_tx_bd *tx_buf = &txdata->tx_buf_ring[idx];
 	struct eth_tx_start_bd *tx_start_bd;
@@ -157,6 +160,10 @@ static u16 bnx2x_free_tx_pkt(struct bnx2x *bp, struct bnx2x_fp_txdata *txdata,
 
 	/* release skb */
 	WARN_ON(!skb);
+	if (skb) {
+		(*pkts_compl)++;
+		(*bytes_compl) += skb->len;
+	}
 	dev_kfree_skb_any(skb);
 	tx_buf->first_bd = 0;
 	tx_buf->skb = NULL;
@@ -168,6 +175,7 @@ int bnx2x_tx_int(struct bnx2x *bp, struct bnx2x_fp_txdata *txdata)
 {
 	struct netdev_queue *txq;
 	u16 hw_cons, sw_cons, bd_cons = txdata->tx_bd_cons;
+	unsigned int pkts_compl = 0, bytes_compl = 0;
 
 #ifdef BNX2X_STOP_ON_ERROR
 	if (unlikely(bp->panic))
@@ -187,9 +195,13 @@ int bnx2x_tx_int(struct bnx2x *bp, struct bnx2x_fp_txdata *txdata)
 				      " pkt_cons %u\n",
 		   txdata->txq_index, hw_cons, sw_cons, pkt_cons);
 
-		bd_cons = bnx2x_free_tx_pkt(bp, txdata, pkt_cons);
+		bd_cons = bnx2x_free_tx_pkt(bp, txdata, pkt_cons,
+		    &pkts_compl, &bytes_compl);
+
 		sw_cons++;
 	}
+
+	netdev_tx_completed_queue(txq, pkts_compl, bytes_compl);
 
 	txdata->tx_pkt_cons = sw_cons;
 	txdata->tx_bd_cons = bd_cons;
@@ -292,8 +304,21 @@ static void bnx2x_update_sge_prod(struct bnx2x_fastpath *fp,
 	   fp->last_max_sge, fp->rx_sge_prod);
 }
 
+/* Set Toeplitz hash value in the skb using the value from the
+ * CQE (calculated by HW).
+ */
+static u32 bnx2x_get_rxhash(const struct bnx2x *bp,
+			    const struct eth_fast_path_rx_cqe *cqe)
+{
+	/* Set Toeplitz hash from CQE */
+	if ((bp->dev->features & NETIF_F_RXHASH) &&
+	    (cqe->status_flags & ETH_FAST_PATH_RX_CQE_RSS_HASH_FLG))
+		return le32_to_cpu(cqe->rss_hash_result);
+	return 0;
+}
+
 static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
-			    struct sk_buff *skb, u16 cons, u16 prod,
+			    u16 cons, u16 prod,
 			    struct eth_fast_path_rx_cqe *cqe)
 {
 	struct bnx2x *bp = fp->bp;
@@ -308,9 +333,9 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
 	if (tpa_info->tpa_state != BNX2X_TPA_STOP)
 		BNX2X_ERR("start of bin not in stop [%d]\n", queue);
 
-	/* Try to map an empty skb from the aggregation info  */
+	/* Try to map an empty data buffer from the aggregation info  */
 	mapping = dma_map_single(&bp->pdev->dev,
-				 first_buf->skb->data,
+				 first_buf->data + NET_SKB_PAD,
 				 fp->rx_buf_size, DMA_FROM_DEVICE);
 	/*
 	 *  ...if it fails - move the skb from the consumer to the producer
@@ -320,15 +345,15 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
 
 	if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
 		/* Move the BD from the consumer to the producer */
-		bnx2x_reuse_rx_skb(fp, cons, prod);
+		bnx2x_reuse_rx_data(fp, cons, prod);
 		tpa_info->tpa_state = BNX2X_TPA_ERROR;
 		return;
 	}
 
-	/* move empty skb from pool to prod */
-	prod_rx_buf->skb = first_buf->skb;
+	/* move empty data from pool to prod */
+	prod_rx_buf->data = first_buf->data;
 	dma_unmap_addr_set(prod_rx_buf, mapping, mapping);
-	/* point prod_bd to new skb */
+	/* point prod_bd to new data */
 	prod_bd->addr_hi = cpu_to_le32(U64_HI(mapping));
 	prod_bd->addr_lo = cpu_to_le32(U64_LO(mapping));
 
@@ -342,6 +367,7 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
 	tpa_info->tpa_state = BNX2X_TPA_START;
 	tpa_info->len_on_bd = le16_to_cpu(cqe->len_on_bd);
 	tpa_info->placement_offset = cqe->placement_offset;
+	tpa_info->rxhash = bnx2x_get_rxhash(bp, cqe);
 
 #ifdef BNX2X_STOP_ON_ERROR
 	fp->tpa_queue_used |= (1 << queue);
@@ -469,11 +495,12 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 {
 	struct bnx2x_agg_info *tpa_info = &fp->tpa_info[queue];
 	struct sw_rx_bd *rx_buf = &tpa_info->first_buf;
-	u8 pad = tpa_info->placement_offset;
+	u32 pad = tpa_info->placement_offset;
 	u16 len = tpa_info->len_on_bd;
-	struct sk_buff *skb = rx_buf->skb;
+	struct sk_buff *skb = NULL;
+	u8 *data = rx_buf->data;
 	/* alloc new skb */
-	struct sk_buff *new_skb;
+	u8 *new_data;
 	u8 old_tpa_state = tpa_info->tpa_state;
 
 	tpa_info->tpa_state = BNX2X_TPA_STOP;
@@ -484,18 +511,18 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	if (old_tpa_state == BNX2X_TPA_ERROR)
 		goto drop;
 
-	/* Try to allocate the new skb */
-	new_skb = netdev_alloc_skb(bp->dev, fp->rx_buf_size);
+	/* Try to allocate the new data */
+	new_data = kmalloc(fp->rx_buf_size + NET_SKB_PAD, GFP_ATOMIC);
 
 	/* Unmap skb in the pool anyway, as we are going to change
 	   pool entry status to BNX2X_TPA_STOP even if new skb allocation
 	   fails. */
 	dma_unmap_single(&bp->pdev->dev, dma_unmap_addr(rx_buf, mapping),
 			 fp->rx_buf_size, DMA_FROM_DEVICE);
+	if (likely(new_data))
+		skb = build_skb(data);
 
-	if (likely(new_skb)) {
-		prefetch(skb);
-		prefetch(((char *)(skb)) + L1_CACHE_BYTES);
+	if (likely(skb)) {
 
 #ifdef BNX2X_STOP_ON_ERROR
 		if (pad + len > fp->rx_buf_size) {
@@ -507,8 +534,9 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		}
 #endif
 
-		skb_reserve(skb, pad);
+		skb_reserve(skb, pad + NET_SKB_PAD);
 		skb_put(skb, len);
+		skb->rxhash = tpa_info->rxhash;
 
 		skb->protocol = eth_type_trans(skb, bp->dev);
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -524,8 +552,8 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		}
 
 
-		/* put new skb in bin */
-		rx_buf->skb = new_skb;
+		/* put new data in bin */
+		rx_buf->data = new_data;
 
 		return;
 	}
@@ -537,19 +565,6 @@ drop:
 	fp->eth_q_stats.rx_skb_alloc_failed++;
 }
 
-/* Set Toeplitz hash value in the skb using the value from the
- * CQE (calculated by HW).
- */
-static inline void bnx2x_set_skb_rxhash(struct bnx2x *bp, union eth_rx_cqe *cqe,
-					struct sk_buff *skb)
-{
-	/* Set Toeplitz hash from CQE */
-	if ((bp->dev->features & NETIF_F_RXHASH) &&
-	    (cqe->fast_path_cqe.status_flags &
-	     ETH_FAST_PATH_RX_CQE_RSS_HASH_FLG))
-		skb->rxhash =
-		le32_to_cpu(cqe->fast_path_cqe.rss_hash_result);
-}
 
 int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 {
@@ -592,6 +607,7 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 		u8 cqe_fp_flags;
 		enum eth_rx_cqe_type cqe_fp_type;
 		u16 len, pad;
+		u8 *data;
 
 #ifdef BNX2X_STOP_ON_ERROR
 		if (unlikely(bp->panic))
@@ -601,13 +617,6 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 		comp_ring_cons = RCQ_BD(sw_comp_cons);
 		bd_prod = RX_BD(bd_prod);
 		bd_cons = RX_BD(bd_cons);
-
-		/* Prefetch the page containing the BD descriptor
-		   at producer's index. It will be needed when new skb is
-		   allocated */
-		prefetch((void *)(PAGE_ALIGN((unsigned long)
-					     (&fp->rx_desc_ring[bd_prod])) -
-				  PAGE_SIZE + 1));
 
 		cqe = &fp->rx_comp_ring[comp_ring_cons];
 		cqe_fp = &cqe->fast_path_cqe;
@@ -624,138 +633,123 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 		if (unlikely(CQE_TYPE_SLOW(cqe_fp_type))) {
 			bnx2x_sp_event(fp, cqe);
 			goto next_cqe;
+		}
+		rx_buf = &fp->rx_buf_ring[bd_cons];
+		data = rx_buf->data;
 
-		/* this is an rx packet */
-		} else {
-			rx_buf = &fp->rx_buf_ring[bd_cons];
-			skb = rx_buf->skb;
-			prefetch(skb);
-
-			if (!CQE_TYPE_FAST(cqe_fp_type)) {
+		if (!CQE_TYPE_FAST(cqe_fp_type)) {
 #ifdef BNX2X_STOP_ON_ERROR
-				/* sanity check */
-				if (fp->disable_tpa &&
-				    (CQE_TYPE_START(cqe_fp_type) ||
-				     CQE_TYPE_STOP(cqe_fp_type)))
-					BNX2X_ERR("START/STOP packet while "
-						  "disable_tpa type %x\n",
-						  CQE_TYPE(cqe_fp_type));
+			/* sanity check */
+			if (fp->disable_tpa &&
+			    (CQE_TYPE_START(cqe_fp_type) ||
+			     CQE_TYPE_STOP(cqe_fp_type)))
+				BNX2X_ERR("START/STOP packet while "
+					  "disable_tpa type %x\n",
+					  CQE_TYPE(cqe_fp_type));
 #endif
 
-				if (CQE_TYPE_START(cqe_fp_type)) {
-					u16 queue = cqe_fp->queue_index;
-					DP(NETIF_MSG_RX_STATUS,
-					   "calling tpa_start on queue %d\n",
-					   queue);
+			if (CQE_TYPE_START(cqe_fp_type)) {
+				u16 queue = cqe_fp->queue_index;
+				DP(NETIF_MSG_RX_STATUS,
+				   "calling tpa_start on queue %d\n",
+				   queue);
 
-					bnx2x_tpa_start(fp, queue, skb,
-							bd_cons, bd_prod,
-							cqe_fp);
+				bnx2x_tpa_start(fp, queue,
+						bd_cons, bd_prod,
+						cqe_fp);
+				goto next_rx;
+			} else {
+				u16 queue =
+					cqe->end_agg_cqe.queue_index;
+				DP(NETIF_MSG_RX_STATUS,
+				   "calling tpa_stop on queue %d\n",
+				   queue);
 
-					/* Set Toeplitz hash for LRO skb */
-					bnx2x_set_skb_rxhash(bp, cqe, skb);
-
-					goto next_rx;
-
-				} else {
-					u16 queue =
-						cqe->end_agg_cqe.queue_index;
-					DP(NETIF_MSG_RX_STATUS,
-					   "calling tpa_stop on queue %d\n",
-					   queue);
-
-					bnx2x_tpa_stop(bp, fp, queue,
-						       &cqe->end_agg_cqe,
-						       comp_ring_cons);
+				bnx2x_tpa_stop(bp, fp, queue,
+					       &cqe->end_agg_cqe,
+					       comp_ring_cons);
 #ifdef BNX2X_STOP_ON_ERROR
-					if (bp->panic)
-						return 0;
+				if (bp->panic)
+					return 0;
 #endif
 
-					bnx2x_update_sge_prod(fp, cqe_fp);
-					goto next_cqe;
-				}
+				bnx2x_update_sge_prod(fp, cqe_fp);
+				goto next_cqe;
 			}
-			/* non TPA */
-			len = le16_to_cpu(cqe_fp->pkt_len);
-			pad = cqe_fp->placement_offset;
-			dma_sync_single_for_cpu(&bp->pdev->dev,
+		}
+		/* non TPA */
+		len = le16_to_cpu(cqe_fp->pkt_len);
+		pad = cqe_fp->placement_offset;
+		dma_sync_single_for_cpu(&bp->pdev->dev,
 					dma_unmap_addr(rx_buf, mapping),
-						       pad + RX_COPY_THRESH,
-						       DMA_FROM_DEVICE);
-			prefetch(((char *)(skb)) + L1_CACHE_BYTES);
+					pad + RX_COPY_THRESH,
+					DMA_FROM_DEVICE);
+		pad += NET_SKB_PAD;
+		prefetch(data + pad); /* speedup eth_type_trans() */
+		/* is this an error packet? */
+		if (unlikely(cqe_fp_flags & ETH_RX_ERROR_FALGS)) {
+			DP(NETIF_MSG_RX_ERR,
+			   "ERROR  flags %x  rx packet %u\n",
+			   cqe_fp_flags, sw_comp_cons);
+			fp->eth_q_stats.rx_err_discard_pkt++;
+			goto reuse_rx;
+		}
 
-			/* is this an error packet? */
-			if (unlikely(cqe_fp_flags & ETH_RX_ERROR_FALGS)) {
+		/* Since we don't have a jumbo ring
+		 * copy small packets if mtu > 1500
+		 */
+		if ((bp->dev->mtu > ETH_MAX_PACKET_SIZE) &&
+		    (len <= RX_COPY_THRESH)) {
+			skb = netdev_alloc_skb_ip_align(bp->dev, len);
+			if (skb == NULL) {
 				DP(NETIF_MSG_RX_ERR,
-				   "ERROR  flags %x  rx packet %u\n",
-				   cqe_fp_flags, sw_comp_cons);
-				fp->eth_q_stats.rx_err_discard_pkt++;
+				   "ERROR  packet dropped because of alloc failure\n");
+				fp->eth_q_stats.rx_skb_alloc_failed++;
 				goto reuse_rx;
 			}
-
-			/* Since we don't have a jumbo ring
-			 * copy small packets if mtu > 1500
-			 */
-			if ((bp->dev->mtu > ETH_MAX_PACKET_SIZE) &&
-			    (len <= RX_COPY_THRESH)) {
-				struct sk_buff *new_skb;
-
-				new_skb = netdev_alloc_skb(bp->dev, len + pad);
-				if (new_skb == NULL) {
-					DP(NETIF_MSG_RX_ERR,
-					   "ERROR  packet dropped "
-					   "because of alloc failure\n");
-					fp->eth_q_stats.rx_skb_alloc_failed++;
-					goto reuse_rx;
-				}
-
-				/* aligned copy */
-				skb_copy_from_linear_data_offset(skb, pad,
-						    new_skb->data + pad, len);
-				skb_reserve(new_skb, pad);
-				skb_put(new_skb, len);
-
-				bnx2x_reuse_rx_skb(fp, bd_cons, bd_prod);
-
-				skb = new_skb;
-
-			} else
-			if (likely(bnx2x_alloc_rx_skb(bp, fp, bd_prod) == 0)) {
+			memcpy(skb->data, data + pad, len);
+			bnx2x_reuse_rx_data(fp, bd_cons, bd_prod);
+		} else {
+			if (likely(bnx2x_alloc_rx_data(bp, fp, bd_prod) == 0)) {
 				dma_unmap_single(&bp->pdev->dev,
-					dma_unmap_addr(rx_buf, mapping),
+						 dma_unmap_addr(rx_buf, mapping),
 						 fp->rx_buf_size,
 						 DMA_FROM_DEVICE);
+				skb = build_skb(data);
+				if (unlikely(!skb)) {
+					kfree(data);
+					fp->eth_q_stats.rx_skb_alloc_failed++;
+					goto next_rx;
+				}
 				skb_reserve(skb, pad);
-				skb_put(skb, len);
-
 			} else {
 				DP(NETIF_MSG_RX_ERR,
 				   "ERROR  packet dropped because "
 				   "of alloc failure\n");
 				fp->eth_q_stats.rx_skb_alloc_failed++;
 reuse_rx:
-				bnx2x_reuse_rx_skb(fp, bd_cons, bd_prod);
+				bnx2x_reuse_rx_data(fp, bd_cons, bd_prod);
 				goto next_rx;
-			}
-
-			skb->protocol = eth_type_trans(skb, bp->dev);
-
-			/* Set Toeplitz hash for a none-LRO skb */
-			bnx2x_set_skb_rxhash(bp, cqe, skb);
-
-			skb_checksum_none_assert(skb);
-
-			if (bp->dev->features & NETIF_F_RXCSUM) {
-
-				if (likely(BNX2X_RX_CSUM_OK(cqe)))
-					skb->ip_summed = CHECKSUM_UNNECESSARY;
-				else
-					fp->eth_q_stats.hw_csum_err++;
 			}
 		}
 
-		skb_record_rx_queue(skb, fp->index);
+		skb_put(skb, len);
+		skb->protocol = eth_type_trans(skb, bp->dev);
+
+		/* Set Toeplitz hash for a none-LRO skb */
+		skb->rxhash = bnx2x_get_rxhash(bp, cqe_fp);
+
+		skb_checksum_none_assert(skb);
+
+		if (bp->dev->features & NETIF_F_RXCSUM) {
+
+			if (likely(BNX2X_RX_CSUM_OK(cqe)))
+				skb->ip_summed = CHECKSUM_UNNECESSARY;
+			else
+				fp->eth_q_stats.hw_csum_err++;
+		}
+
+		skb_record_rx_queue(skb, fp->rx_queue);
 
 		if (le16_to_cpu(cqe_fp->pars_flags.flags) &
 		    PARSING_FLAGS_VLAN)
@@ -765,7 +759,7 @@ reuse_rx:
 
 
 next_rx:
-		rx_buf->skb = NULL;
+		rx_buf->data = NULL;
 
 		bd_cons = NEXT_RX_IDX(bd_cons);
 		bd_prod = NEXT_RX_IDX(bd_prod);
@@ -1011,9 +1005,9 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 				struct sw_rx_bd *first_buf =
 					&tpa_info->first_buf;
 
-				first_buf->skb = netdev_alloc_skb(bp->dev,
-						       fp->rx_buf_size);
-				if (!first_buf->skb) {
+				first_buf->data = kmalloc(fp->rx_buf_size + NET_SKB_PAD,
+							  GFP_ATOMIC);
+				if (!first_buf->data) {
 					BNX2X_ERR("Failed to allocate TPA "
 						  "skb pool for queue[%d] - "
 						  "disabling TPA on this "
@@ -1093,16 +1087,18 @@ static void bnx2x_free_tx_skbs(struct bnx2x *bp)
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 		for_each_cos_in_tx_queue(fp, cos) {
 			struct bnx2x_fp_txdata *txdata = &fp->txdata[cos];
+			unsigned pkts_compl = 0, bytes_compl = 0;
 
-			u16 bd_cons = txdata->tx_bd_cons;
 			u16 sw_prod = txdata->tx_pkt_prod;
 			u16 sw_cons = txdata->tx_pkt_cons;
 
 			while (sw_cons != sw_prod) {
-				bd_cons = bnx2x_free_tx_pkt(bp, txdata,
-							    TX_BD(sw_cons));
+				bnx2x_free_tx_pkt(bp, txdata, TX_BD(sw_cons),
+				    &pkts_compl, &bytes_compl);
 				sw_cons++;
 			}
+			netdev_tx_reset_queue(
+			    netdev_get_tx_queue(bp->dev, txdata->txq_index));
 		}
 	}
 }
@@ -1118,16 +1114,16 @@ static void bnx2x_free_rx_bds(struct bnx2x_fastpath *fp)
 
 	for (i = 0; i < NUM_RX_BD; i++) {
 		struct sw_rx_bd *rx_buf = &fp->rx_buf_ring[i];
-		struct sk_buff *skb = rx_buf->skb;
+		u8 *data = rx_buf->data;
 
-		if (skb == NULL)
+		if (data == NULL)
 			continue;
 		dma_unmap_single(&bp->pdev->dev,
 				 dma_unmap_addr(rx_buf, mapping),
 				 fp->rx_buf_size, DMA_FROM_DEVICE);
 
-		rx_buf->skb = NULL;
-		dev_kfree_skb(skb);
+		rx_buf->data = NULL;
+		kfree(data);
 	}
 }
 
@@ -1445,6 +1441,11 @@ void bnx2x_set_num_queues(struct bnx2x *bp)
 		break;
 	}
 
+#ifdef BCM_CNIC
+	/* override in ISCSI SD mod */
+	if (IS_MF_ISCSI_SD(bp))
+		bp->num_queues = 1;
+#endif
 	/* Add special queues */
 	bp->num_queues += NON_ETH_CONTEXT_USE;
 }
@@ -1509,6 +1510,7 @@ static inline void bnx2x_set_rx_buf_size(struct bnx2x *bp)
 
 	for_each_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
+		u32 mtu;
 
 		/* Always use a mini-jumbo MTU for the FCoE L2 ring */
 		if (IS_FCOE_IDX(i))
@@ -1518,13 +1520,15 @@ static inline void bnx2x_set_rx_buf_size(struct bnx2x *bp)
 			 * IP_HEADER_ALIGNMENT_PADDING to prevent a buffer
 			 * overrun attack.
 			 */
-			fp->rx_buf_size =
-				BNX2X_FCOE_MINI_JUMBO_MTU + ETH_OVREHEAD +
-				BNX2X_FW_RX_ALIGN + IP_HEADER_ALIGNMENT_PADDING;
+			mtu = BNX2X_FCOE_MINI_JUMBO_MTU;
 		else
-			fp->rx_buf_size =
-				bp->dev->mtu + ETH_OVREHEAD +
-				BNX2X_FW_RX_ALIGN + IP_HEADER_ALIGNMENT_PADDING;
+			mtu = bp->dev->mtu;
+		fp->rx_buf_size = BNX2X_FW_RX_ALIGN_START +
+				  IP_HEADER_ALIGNMENT_PADDING +
+				  ETH_OVREHEAD +
+				  mtu +
+				  BNX2X_FW_RX_ALIGN_END;
+		/* Note : rx_buf_size doesnt take into account NET_SKB_PAD */
 	}
 }
 
@@ -1541,7 +1545,8 @@ static inline int bnx2x_init_rss_pf(struct bnx2x *bp)
 	if (bp->multi_mode != ETH_RSS_MODE_DISABLED) {
 		for (i = 0; i < sizeof(ind_table); i++)
 			ind_table[i] =
-				bp->fp->cl_id +	(i % num_eth_queues);
+				bp->fp->cl_id +
+				ethtool_rxfh_indir_default(i, num_eth_queues);
 	}
 
 	/*
@@ -1929,13 +1934,17 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		break;
 	}
 
-	if (!bp->port.pmf)
+	if (bp->port.pmf)
+		bnx2x_update_drv_flags(bp, DRV_FLAGS_DCB_CONFIGURED, 0);
+	else
 		bnx2x__link_status_update(bp);
 
 	/* start the timer */
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 
 #ifdef BCM_CNIC
+	/* re-read iscsi info */
+	bnx2x_get_iscsi_info(bp);
 	bnx2x_setup_cnic_irq_info(bp);
 	if (bp->state == BNX2X_STATE_OPEN)
 		bnx2x_cnic_notify(bp, CNIC_CTL_START_CMD);
@@ -2799,6 +2808,7 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		mapping = skb_frag_dma_map(&bp->pdev->dev, frag, 0,
 					   skb_frag_size(frag), DMA_TO_DEVICE);
 		if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
+			unsigned int pkts_compl = 0, bytes_compl = 0;
 
 			DP(NETIF_MSG_TX_QUEUED, "Unable to map page - "
 						"dropping packet...\n");
@@ -2810,7 +2820,8 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			 */
 			first_bd->nbd = cpu_to_le16(nbd);
 			bnx2x_free_tx_pkt(bp, txdata,
-					  TX_BD(txdata->tx_pkt_prod));
+					  TX_BD(txdata->tx_pkt_prod),
+					  &pkts_compl, &bytes_compl);
 			return NETDEV_TX_OK;
 		}
 
@@ -2870,6 +2881,8 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		   pbd_e2->src_mac_addr_mid, pbd_e2->src_mac_addr_lo,
 		   pbd_e2->parsing_data);
 	DP(NETIF_MSG_TX_QUEUED, "doorbell: nbd %d  bd %u\n", nbd, bd_prod);
+
+	netdev_tx_sent_queue(txq, skb->len);
 
 	txdata->tx_pkt_prod++;
 	/*
@@ -2981,8 +2994,13 @@ int bnx2x_change_mac_addr(struct net_device *dev, void *p)
 	struct bnx2x *bp = netdev_priv(dev);
 	int rc = 0;
 
-	if (!is_valid_ether_addr((u8 *)(addr->sa_data)))
+	if (!bnx2x_is_valid_ether_addr(bp, addr->sa_data))
 		return -EINVAL;
+
+#ifdef BCM_CNIC
+	if (IS_MF_ISCSI_SD(bp) && !is_zero_ether_addr(addr->sa_data))
+		return -EINVAL;
+#endif
 
 	if (netif_running(dev))  {
 		rc = bnx2x_set_eth_mac(bp, false);
@@ -3098,7 +3116,12 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 	u8 cos;
 	int rx_ring_size = 0;
 
-	/* if rx_ring_size specified - use it */
+#ifdef BCM_CNIC
+	if (!bp->rx_ring_size && IS_MF_ISCSI_SD(bp)) {
+		rx_ring_size = MIN_RX_SIZE_NONTPA;
+		bp->rx_ring_size = rx_ring_size;
+	} else
+#endif
 	if (!bp->rx_ring_size) {
 
 		rx_ring_size = MAX_RX_AVAIL/BNX2X_NUM_RX_QUEUES(bp);
@@ -3108,7 +3131,7 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 				     MIN_RX_SIZE_TPA, rx_ring_size);
 
 		bp->rx_ring_size = rx_ring_size;
-	} else
+	} else /* if rx_ring_size specified - use it */
 		rx_ring_size = bp->rx_ring_size;
 
 	/* Common */
@@ -3278,14 +3301,14 @@ int __devinit bnx2x_alloc_mem_bp(struct bnx2x *bp)
 	msix_table_size = bp->igu_sb_cnt + 1;
 
 	/* fp array: RSS plus CNIC related L2 queues */
-	fp = kzalloc((BNX2X_MAX_RSS_COUNT(bp) + NON_ETH_CONTEXT_USE) *
+	fp = kcalloc(BNX2X_MAX_RSS_COUNT(bp) + NON_ETH_CONTEXT_USE,
 		     sizeof(*fp), GFP_KERNEL);
 	if (!fp)
 		goto alloc_err;
 	bp->fp = fp;
 
 	/* msix table */
-	tbl = kzalloc(msix_table_size * sizeof(*tbl), GFP_KERNEL);
+	tbl = kcalloc(msix_table_size, sizeof(*tbl), GFP_KERNEL);
 	if (!tbl)
 		goto alloc_err;
 	bp->msix_table = tbl;
@@ -3409,7 +3432,8 @@ int bnx2x_change_mtu(struct net_device *dev, int new_mtu)
 	return bnx2x_reload_if_running(dev);
 }
 
-u32 bnx2x_fix_features(struct net_device *dev, u32 features)
+netdev_features_t bnx2x_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
@@ -3420,7 +3444,7 @@ u32 bnx2x_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-int bnx2x_set_features(struct net_device *dev, u32 features)
+int bnx2x_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u32 flags = bp->flags;

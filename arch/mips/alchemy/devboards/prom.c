@@ -33,10 +33,9 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <prom.h>
 
-#if defined(CONFIG_MIPS_PB1000) || defined(CONFIG_MIPS_DB1000) || \
-    defined(CONFIG_MIPS_PB1100) || defined(CONFIG_MIPS_DB1100) || \
-    defined(CONFIG_MIPS_PB1500) || defined(CONFIG_MIPS_DB1500) || \
-    defined(CONFIG_MIPS_BOSPORUS) || defined(CONFIG_MIPS_MIRAGE)
+#if defined(CONFIG_MIPS_DB1000) || \
+    defined(CONFIG_MIPS_PB1100) || \
+    defined(CONFIG_MIPS_PB1500)
 #define ALCHEMY_BOARD_DEFAULT_MEMSIZE	0x04000000
 
 #else	/* Au1550/Au1200-based develboards */
@@ -62,5 +61,9 @@ void __init prom_init(void)
 
 void prom_putchar(unsigned char c)
 {
+#ifdef CONFIG_MIPS_DB1300
+	alchemy_uart_putchar(AU1300_UART2_PHYS_ADDR, c);
+#else
 	alchemy_uart_putchar(AU1000_UART0_PHYS_ADDR, c);
+#endif
 }

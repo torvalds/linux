@@ -714,9 +714,7 @@ int ubi_sync(int ubi_num)
 	if (!ubi)
 		return -ENODEV;
 
-	if (ubi->mtd->sync)
-		ubi->mtd->sync(ubi->mtd);
-
+	mtd_sync(ubi->mtd);
 	ubi_put_device(ubi);
 	return 0;
 }

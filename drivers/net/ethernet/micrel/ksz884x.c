@@ -743,11 +743,10 @@
 /* Change default LED mode. */
 #define SET_DEFAULT_LED			LED_SPEED_DUPLEX_ACT
 
-#define MAC_ADDR_LEN			6
-#define MAC_ADDR_ORDER(i)		(MAC_ADDR_LEN - 1 - (i))
+#define MAC_ADDR_ORDER(i)		(ETH_ALEN - 1 - (i))
 
 #define MAX_ETHERNET_BODY_SIZE		1500
-#define ETHERNET_HEADER_SIZE		14
+#define ETHERNET_HEADER_SIZE		(14 + VLAN_HLEN)
 
 #define MAX_ETHERNET_PACKET_SIZE	\
 	(MAX_ETHERNET_BODY_SIZE + ETHERNET_HEADER_SIZE)
@@ -1043,7 +1042,7 @@ enum {
  * @valid:	Valid setting indicating the entry is being used.
  */
 struct ksz_mac_table {
-	u8 mac_addr[MAC_ADDR_LEN];
+	u8 mac_addr[ETH_ALEN];
 	u16 vid;
 	u8 fid;
 	u8 ports;
@@ -1187,8 +1186,8 @@ struct ksz_switch {
 	u8 diffserv[DIFFSERV_ENTRIES];
 	u8 p_802_1p[PRIO_802_1P_ENTRIES];
 
-	u8 br_addr[MAC_ADDR_LEN];
-	u8 other_addr[MAC_ADDR_LEN];
+	u8 br_addr[ETH_ALEN];
+	u8 other_addr[ETH_ALEN];
 
 	u8 broad_per;
 	u8 member;
@@ -1292,14 +1291,14 @@ struct ksz_hw {
 	int tx_int_mask;
 	int tx_size;
 
-	u8 perm_addr[MAC_ADDR_LEN];
-	u8 override_addr[MAC_ADDR_LEN];
-	u8 address[ADDITIONAL_ENTRIES][MAC_ADDR_LEN];
+	u8 perm_addr[ETH_ALEN];
+	u8 override_addr[ETH_ALEN];
+	u8 address[ADDITIONAL_ENTRIES][ETH_ALEN];
 	u8 addr_list_size;
 	u8 mac_override;
 	u8 promiscuous;
 	u8 all_multi;
-	u8 multi_list[MAX_MULTICAST_LIST][MAC_ADDR_LEN];
+	u8 multi_list[MAX_MULTICAST_LIST][ETH_ALEN];
 	u8 multi_bits[HW_MULTICAST_SIZE];
 	u8 multi_list_size;
 
@@ -3654,7 +3653,7 @@ static void hw_add_wol_bcast(struct ksz_hw *hw)
 	static const u8 mask[] = { 0x3F };
 	static const u8 pattern[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
-	hw_set_wol_frame(hw, 2, 1, mask, MAC_ADDR_LEN, pattern);
+	hw_set_wol_frame(hw, 2, 1, mask, ETH_ALEN, pattern);
 }
 
 /**
@@ -3689,7 +3688,7 @@ static void hw_add_wol_ucast(struct ksz_hw *hw)
 {
 	static const u8 mask[] = { 0x3F };
 
-	hw_set_wol_frame(hw, 0, 1, mask, MAC_ADDR_LEN, hw->override_addr);
+	hw_set_wol_frame(hw, 0, 1, mask, ETH_ALEN, hw->override_addr);
 }
 
 /**
@@ -4055,7 +4054,7 @@ static void hw_set_addr(struct ksz_hw *hw)
 {
 	int i;
 
-	for (i = 0; i < MAC_ADDR_LEN; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		writeb(hw->override_addr[MAC_ADDR_ORDER(i)],
 			hw->io + KS884X_ADDR_0_OFFSET + i);
 
@@ -4072,17 +4071,16 @@ static void hw_read_addr(struct ksz_hw *hw)
 {
 	int i;
 
-	for (i = 0; i < MAC_ADDR_LEN; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		hw->perm_addr[MAC_ADDR_ORDER(i)] = readb(hw->io +
 			KS884X_ADDR_0_OFFSET + i);
 
 	if (!hw->mac_override) {
-		memcpy(hw->override_addr, hw->perm_addr, MAC_ADDR_LEN);
+		memcpy(hw->override_addr, hw->perm_addr, ETH_ALEN);
 		if (empty_addr(hw->override_addr)) {
-			memcpy(hw->perm_addr, DEFAULT_MAC_ADDRESS,
-				MAC_ADDR_LEN);
+			memcpy(hw->perm_addr, DEFAULT_MAC_ADDRESS, ETH_ALEN);
 			memcpy(hw->override_addr, DEFAULT_MAC_ADDRESS,
-				MAC_ADDR_LEN);
+			       ETH_ALEN);
 			hw->override_addr[5] += hw->id;
 			hw_set_addr(hw);
 		}
@@ -4130,16 +4128,16 @@ static int hw_add_addr(struct ksz_hw *hw, u8 *mac_addr)
 	int i;
 	int j = ADDITIONAL_ENTRIES;
 
-	if (!memcmp(hw->override_addr, mac_addr, MAC_ADDR_LEN))
+	if (!memcmp(hw->override_addr, mac_addr, ETH_ALEN))
 		return 0;
 	for (i = 0; i < hw->addr_list_size; i++) {
-		if (!memcmp(hw->address[i], mac_addr, MAC_ADDR_LEN))
+		if (!memcmp(hw->address[i], mac_addr, ETH_ALEN))
 			return 0;
 		if (ADDITIONAL_ENTRIES == j && empty_addr(hw->address[i]))
 			j = i;
 	}
 	if (j < ADDITIONAL_ENTRIES) {
-		memcpy(hw->address[j], mac_addr, MAC_ADDR_LEN);
+		memcpy(hw->address[j], mac_addr, ETH_ALEN);
 		hw_ena_add_addr(hw, j, hw->address[j]);
 		return 0;
 	}
@@ -4151,8 +4149,8 @@ static int hw_del_addr(struct ksz_hw *hw, u8 *mac_addr)
 	int i;
 
 	for (i = 0; i < hw->addr_list_size; i++) {
-		if (!memcmp(hw->address[i], mac_addr, MAC_ADDR_LEN)) {
-			memset(hw->address[i], 0, MAC_ADDR_LEN);
+		if (!memcmp(hw->address[i], mac_addr, ETH_ALEN)) {
+			memset(hw->address[i], 0, ETH_ALEN);
 			writel(0, hw->io + ADD_ADDR_INCR * i +
 				KS_ADD_ADDR_0_HI);
 			return 0;
@@ -4382,12 +4380,10 @@ static void ksz_update_timer(struct ksz_timer_info *info)
  */
 static int ksz_alloc_soft_desc(struct ksz_desc_info *desc_info, int transmit)
 {
-	desc_info->ring = kmalloc(sizeof(struct ksz_desc) * desc_info->alloc,
-		GFP_KERNEL);
+	desc_info->ring = kzalloc(sizeof(struct ksz_desc) * desc_info->alloc,
+				  GFP_KERNEL);
 	if (!desc_info->ring)
 		return 1;
-	memset((void *) desc_info->ring, 0,
-		sizeof(struct ksz_desc) * desc_info->alloc);
 	hw_init_desc(desc_info, transmit);
 	return 0;
 }
@@ -5676,7 +5672,7 @@ static int netdev_set_mac_address(struct net_device *dev, void *addr)
 		hw_del_addr(hw, dev->dev_addr);
 	else {
 		hw->mac_override = 1;
-		memcpy(hw->override_addr, mac->sa_data, MAC_ADDR_LEN);
+		memcpy(hw->override_addr, mac->sa_data, ETH_ALEN);
 	}
 
 	memcpy(dev->dev_addr, mac->sa_data, MAX_ADDR_LEN);
@@ -5786,7 +5782,7 @@ static void netdev_set_rx_mode(struct net_device *dev)
 		netdev_for_each_mc_addr(ha, dev) {
 			if (i >= MAX_MULTICAST_LIST)
 				break;
-			memcpy(hw->multi_list[i++], ha->addr, MAC_ADDR_LEN);
+			memcpy(hw->multi_list[i++], ha->addr, ETH_ALEN);
 		}
 		hw->multi_list_size = (u8) i;
 		hw_set_grp_addr(hw);
@@ -6093,9 +6089,10 @@ static void netdev_get_drvinfo(struct net_device *dev,
 	struct dev_priv *priv = netdev_priv(dev);
 	struct dev_info *hw_priv = priv->adapter;
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, pci_name(hw_priv->pdev));
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(hw_priv->pdev),
+		sizeof(info->bus_info));
 }
 
 /**
@@ -6587,7 +6584,8 @@ static void netdev_get_ethtool_stats(struct net_device *dev,
  *
  * Return 0 if successful; otherwise an error code.
  */
-static int netdev_set_features(struct net_device *dev, u32 features)
+static int netdev_set_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct dev_priv *priv = netdev_priv(dev);
 	struct dev_info *hw_priv = priv->adapter;
@@ -6609,7 +6607,7 @@ static int netdev_set_features(struct net_device *dev, u32 features)
 	return 0;
 }
 
-static struct ethtool_ops netdev_ethtool_ops = {
+static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_settings		= netdev_get_settings,
 	.set_settings		= netdev_set_settings,
 	.nway_reset		= netdev_nway_reset,
@@ -6860,7 +6858,7 @@ static void get_mac_addr(struct dev_info *hw_priv, u8 *macaddr, int port)
 	int num;
 
 	i = j = num = got_num = 0;
-	while (j < MAC_ADDR_LEN) {
+	while (j < ETH_ALEN) {
 		if (macaddr[i]) {
 			int digit;
 
@@ -6891,7 +6889,7 @@ static void get_mac_addr(struct dev_info *hw_priv, u8 *macaddr, int port)
 		}
 		i++;
 	}
-	if (MAC_ADDR_LEN == j) {
+	if (ETH_ALEN == j) {
 		if (MAIN_PORT == port)
 			hw_priv->hw.mac_override = 1;
 	}
@@ -7058,7 +7056,7 @@ static int __devinit pcidev_init(struct pci_dev *pdev,
 
 	/* Multiple device interfaces mode requires a second MAC address. */
 	if (hw->dev_count > 1) {
-		memcpy(sw->other_addr, hw->override_addr, MAC_ADDR_LEN);
+		memcpy(sw->other_addr, hw->override_addr, ETH_ALEN);
 		read_other_addr(hw);
 		if (mac1addr[0] != ':')
 			get_mac_addr(hw_priv, mac1addr, OTHER_PORT);
@@ -7108,12 +7106,11 @@ static int __devinit pcidev_init(struct pci_dev *pdev,
 		dev->irq = pdev->irq;
 		if (MAIN_PORT == i)
 			memcpy(dev->dev_addr, hw_priv->hw.override_addr,
-				MAC_ADDR_LEN);
+			       ETH_ALEN);
 		else {
-			memcpy(dev->dev_addr, sw->other_addr,
-				MAC_ADDR_LEN);
+			memcpy(dev->dev_addr, sw->other_addr, ETH_ALEN);
 			if (!memcmp(sw->other_addr, hw->override_addr,
-					MAC_ADDR_LEN))
+				    ETH_ALEN))
 				dev->dev_addr[5] += port->first_port;
 		}
 

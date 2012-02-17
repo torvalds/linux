@@ -224,7 +224,7 @@ static const struct file_operations tomoyo_operations = {
  *
  * Returns nothing.
  */
-static void __init tomoyo_create_entry(const char *name, const mode_t mode,
+static void __init tomoyo_create_entry(const char *name, const umode_t mode,
 				       struct dentry *parent, const u8 key)
 {
 	securityfs_create_file(name, mode, parent, ((u8 *) NULL) + key,

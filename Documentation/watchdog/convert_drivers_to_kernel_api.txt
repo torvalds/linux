@@ -163,6 +163,25 @@ Here is a simple example for a watchdog device:
 +};
 
 
+Handle the 'nowayout' feature
+-----------------------------
+
+A few drivers use nowayout statically, i.e. there is no module parameter for it
+and only CONFIG_WATCHDOG_NOWAYOUT determines if the feature is going to be
+used. This needs to be converted by initializing the status variable of the
+watchdog_device like this:
+
+        .status = WATCHDOG_NOWAYOUT_INIT_STATUS,
+
+Most drivers, however, also allow runtime configuration of nowayout, usually
+by adding a module parameter. The conversion for this would be something like:
+
+	watchdog_set_nowayout(&s3c2410_wdd, nowayout);
+
+The module parameter itself needs to stay, everything else related to nowayout
+can go, though. This will likely be some code in open(), close() or write().
+
+
 Register the watchdog device
 ----------------------------
 

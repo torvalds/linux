@@ -42,6 +42,7 @@
 #define AUTOFS_MINOR		235
 #define MAPPER_CTRL_MINOR	236
 #define LOOP_CTRL_MINOR		237
+#define VHOST_NET_MINOR		238
 #define MISC_DYNAMIC_MINOR	255
 
 struct device;
@@ -54,7 +55,7 @@ struct miscdevice  {
 	struct device *parent;
 	struct device *this_device;
 	const char *nodename;
-	mode_t mode;
+	umode_t mode;
 };
 
 extern int misc_register(struct miscdevice * misc);

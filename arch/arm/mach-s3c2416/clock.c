@@ -90,39 +90,38 @@ static struct clksrc_clk hsmmc_div[] = {
 	},
 };
 
-static struct clksrc_clk hsmmc_mux[] = {
-	[0] = {
-		.clk	= {
-			.name	= "hsmmc-if",
-			.devname	= "s3c-sdhci.0",
-			.ctrlbit = (1 << 6),
-			.enable = s3c2443_clkcon_enable_s,
-		},
-		.sources = &(struct clksrc_sources) {
-			.nr_sources = 2,
-			.sources = (struct clk *[]) {
-				[0] = &hsmmc_div[0].clk,
-				[1] = NULL, /* to fix */
-			},
-		},
-		.reg_src = { .reg = S3C2443_CLKSRC, .size = 1, .shift = 16 },
+static struct clksrc_clk hsmmc_mux0 = {
+	.clk	= {
+		.name		= "hsmmc-if",
+		.devname	= "s3c-sdhci.0",
+		.ctrlbit	= (1 << 6),
+		.enable		= s3c2443_clkcon_enable_s,
 	},
-	[1] = {
-		.clk	= {
-			.name	= "hsmmc-if",
-			.devname	= "s3c-sdhci.1",
-			.ctrlbit = (1 << 12),
-			.enable = s3c2443_clkcon_enable_s,
+	.sources	= &(struct clksrc_sources) {
+		.nr_sources	= 2,
+		.sources	= (struct clk * []) {
+			[0]	= &hsmmc_div[0].clk,
+			[1]	= NULL, /* to fix */
 		},
-		.sources = &(struct clksrc_sources) {
-			.nr_sources = 2,
-			.sources = (struct clk *[]) {
-				[0] = &hsmmc_div[1].clk,
-				[1] = NULL, /* to fix */
-			},
-		},
-		.reg_src = { .reg = S3C2443_CLKSRC, .size = 1, .shift = 17 },
 	},
+	.reg_src = { .reg = S3C2443_CLKSRC, .size = 1, .shift = 16 },
+};
+
+static struct clksrc_clk hsmmc_mux1 = {
+	.clk	= {
+		.name		= "hsmmc-if",
+		.devname	= "s3c-sdhci.1",
+		.ctrlbit	= (1 << 12),
+		.enable		= s3c2443_clkcon_enable_s,
+	},
+	.sources	= &(struct clksrc_sources) {
+		.nr_sources	= 2,
+		.sources	= (struct clk * []) {
+			[0]	= &hsmmc_div[1].clk,
+			[1]	= NULL, /* to fix */
+		},
+	},
+	.reg_src = { .reg = S3C2443_CLKSRC, .size = 1, .shift = 17 },
 };
 
 static struct clk hsmmc0_clk = {
@@ -144,8 +143,14 @@ static struct clksrc_clk *clksrcs[] __initdata = {
 	&hsspi_mux,
 	&hsmmc_div[0],
 	&hsmmc_div[1],
-	&hsmmc_mux[0],
-	&hsmmc_mux[1],
+	&hsmmc_mux0,
+	&hsmmc_mux1,
+};
+
+static struct clk_lookup s3c2416_clk_lookup[] = {
+	CLKDEV_INIT("s3c-sdhci.0", "mmc_busclk.0", &hsmmc0_clk),
+	CLKDEV_INIT("s3c-sdhci.0", "mmc_busclk.2", &hsmmc_mux0.clk),
+	CLKDEV_INIT("s3c-sdhci.1", "mmc_busclk.2", &hsmmc_mux1.clk),
 };
 
 void __init s3c2416_init_clocks(int xtal)
@@ -167,6 +172,7 @@ void __init s3c2416_init_clocks(int xtal)
 		s3c_register_clksrc(clksrcs[ptr], 1);
 
 	s3c24xx_register_clock(&hsmmc0_clk);
+	clkdev_add_table(s3c2416_clk_lookup, ARRAY_SIZE(s3c2416_clk_lookup));
 
 	s3c_pwmclk_init();
 

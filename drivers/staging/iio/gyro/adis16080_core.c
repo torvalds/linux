@@ -189,19 +189,9 @@ static struct spi_driver adis16080_driver = {
 	.probe = adis16080_probe,
 	.remove = __devexit_p(adis16080_remove),
 };
-
-static __init int adis16080_init(void)
-{
-	return spi_register_driver(&adis16080_driver);
-}
-module_init(adis16080_init);
-
-static __exit void adis16080_exit(void)
-{
-	spi_unregister_driver(&adis16080_driver);
-}
-module_exit(adis16080_exit);
+module_spi_driver(adis16080_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADIS16080/100 Yaw Rate Gyroscope Driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:adis16080");

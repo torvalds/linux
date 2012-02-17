@@ -35,7 +35,7 @@ described below will work.
 
 The most general way to create a file within a debugfs directory is with:
 
-    struct dentry *debugfs_create_file(const char *name, mode_t mode,
+    struct dentry *debugfs_create_file(const char *name, umode_t mode,
 				       struct dentry *parent, void *data,
 				       const struct file_operations *fops);
 
@@ -53,13 +53,13 @@ actually necessary; the debugfs code provides a number of helper functions
 for simple situations.  Files containing a single integer value can be
 created with any of:
 
-    struct dentry *debugfs_create_u8(const char *name, mode_t mode,
+    struct dentry *debugfs_create_u8(const char *name, umode_t mode,
 				     struct dentry *parent, u8 *value);
-    struct dentry *debugfs_create_u16(const char *name, mode_t mode,
+    struct dentry *debugfs_create_u16(const char *name, umode_t mode,
 				      struct dentry *parent, u16 *value);
-    struct dentry *debugfs_create_u32(const char *name, mode_t mode,
+    struct dentry *debugfs_create_u32(const char *name, umode_t mode,
 				      struct dentry *parent, u32 *value);
-    struct dentry *debugfs_create_u64(const char *name, mode_t mode,
+    struct dentry *debugfs_create_u64(const char *name, umode_t mode,
 				      struct dentry *parent, u64 *value);
 
 These files support both reading and writing the given value; if a specific
@@ -67,13 +67,13 @@ file should not be written to, simply set the mode bits accordingly.  The
 values in these files are in decimal; if hexadecimal is more appropriate,
 the following functions can be used instead:
 
-    struct dentry *debugfs_create_x8(const char *name, mode_t mode,
+    struct dentry *debugfs_create_x8(const char *name, umode_t mode,
 				     struct dentry *parent, u8 *value);
-    struct dentry *debugfs_create_x16(const char *name, mode_t mode,
+    struct dentry *debugfs_create_x16(const char *name, umode_t mode,
 				      struct dentry *parent, u16 *value);
-    struct dentry *debugfs_create_x32(const char *name, mode_t mode,
+    struct dentry *debugfs_create_x32(const char *name, umode_t mode,
 				      struct dentry *parent, u32 *value);
-    struct dentry *debugfs_create_x64(const char *name, mode_t mode,
+    struct dentry *debugfs_create_x64(const char *name, umode_t mode,
 				      struct dentry *parent, u64 *value);
 
 These functions are useful as long as the developer knows the size of the
@@ -81,7 +81,7 @@ value to be exported.  Some types can have different widths on different
 architectures, though, complicating the situation somewhat.  There is a
 function meant to help out in one special case:
 
-    struct dentry *debugfs_create_size_t(const char *name, mode_t mode,
+    struct dentry *debugfs_create_size_t(const char *name, umode_t mode,
 				         struct dentry *parent, 
 					 size_t *value);
 
@@ -90,21 +90,22 @@ a variable of type size_t.
 
 Boolean values can be placed in debugfs with:
 
-    struct dentry *debugfs_create_bool(const char *name, mode_t mode,
+    struct dentry *debugfs_create_bool(const char *name, umode_t mode,
 				       struct dentry *parent, u32 *value);
 
 A read on the resulting file will yield either Y (for non-zero values) or
 N, followed by a newline.  If written to, it will accept either upper- or
 lower-case values, or 1 or 0.  Any other input will be silently ignored.
 
-Finally, a block of arbitrary binary data can be exported with:
+Another option is exporting a block of arbitrary binary data, with
+this structure and function:
 
     struct debugfs_blob_wrapper {
 	void *data;
 	unsigned long size;
     };
 
-    struct dentry *debugfs_create_blob(const char *name, mode_t mode,
+    struct dentry *debugfs_create_blob(const char *name, umode_t mode,
 				       struct dentry *parent,
 				       struct debugfs_blob_wrapper *blob);
 
@@ -114,6 +115,35 @@ to return several lines of (static) formatted text output.  This function
 can be used to export binary information, but there does not appear to be
 any code which does so in the mainline.  Note that all files created with
 debugfs_create_blob() are read-only.
+
+If you want to dump a block of registers (something that happens quite
+often during development, even if little such code reaches mainline.
+Debugfs offers two functions: one to make a registers-only file, and
+another to insert a register block in the middle of another sequential
+file.
+
+    struct debugfs_reg32 {
+	char *name;
+	unsigned long offset;
+    };
+
+    struct debugfs_regset32 {
+	struct debugfs_reg32 *regs;
+	int nregs;
+	void __iomem *base;
+    };
+
+    struct dentry *debugfs_create_regset32(const char *name, mode_t mode,
+				     struct dentry *parent,
+				     struct debugfs_regset32 *regset);
+
+    int debugfs_print_regs32(struct seq_file *s, struct debugfs_reg32 *regs,
+			 int nregs, void __iomem *base, char *prefix);
+
+The "base" argument may be 0, but you may want to build the reg32 array
+using __stringify, and a number of register names (macros) are actually
+byte offsets over a base for the register block.
+
 
 There are a couple of other directory-oriented helper functions:
 

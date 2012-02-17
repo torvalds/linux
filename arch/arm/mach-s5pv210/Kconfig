@@ -60,6 +60,11 @@ config S5PV210_SETUP_FIMC
 	help
 	  Common setup code for the camera interfaces.
 
+config S5PV210_SETUP_SPI
+	bool
+	help
+	  Common setup code for SPI GPIO configurations.
+
 menu "S5PC110 Machines"
 
 config MACH_AQUILA

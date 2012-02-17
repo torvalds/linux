@@ -43,30 +43,30 @@
 
 /* Ethernet Controller Davicom DM9000 */
 #define GPIO_DM9000		101
-#define TRIZEPS4_ETH_IRQ	IRQ_GPIO(GPIO_DM9000)
+#define TRIZEPS4_ETH_IRQ	PXA_GPIO_TO_IRQ(GPIO_DM9000)
 
 /* UCB1400 audio / TS-controller */
 #define GPIO_UCB1400		1
-#define TRIZEPS4_UCB1400_IRQ	IRQ_GPIO(GPIO_UCB1400)
+#define TRIZEPS4_UCB1400_IRQ	PXA_GPIO_TO_IRQ(GPIO_UCB1400)
 
 /* PCMCIA socket Compact Flash */
 #define GPIO_PCD		11		/* PCMCIA Card Detect */
-#define TRIZEPS4_CD_IRQ		IRQ_GPIO(GPIO_PCD)
+#define TRIZEPS4_CD_IRQ		PXA_GPIO_TO_IRQ(GPIO_PCD)
 #define GPIO_PRDY		13		/* READY / nINT */
-#define TRIZEPS4_READY_NINT	IRQ_GPIO(GPIO_PRDY)
+#define TRIZEPS4_READY_NINT	PXA_GPIO_TO_IRQ(GPIO_PRDY)
 
 /* MMC socket */
 #define GPIO_MMC_DET		12
-#define TRIZEPS4_MMC_IRQ	IRQ_GPIO(GPIO_MMC_DET)
+#define TRIZEPS4_MMC_IRQ	PXA_GPIO_TO_IRQ(GPIO_MMC_DET)
 
 /* DOC NAND chip */
 #define GPIO_DOC_LOCK           94
 #define GPIO_DOC_IRQ            93
-#define TRIZEPS4_DOC_IRQ        IRQ_GPIO(GPIO_DOC_IRQ)
+#define TRIZEPS4_DOC_IRQ        PXA_GPIO_TO_IRQ(GPIO_DOC_IRQ)
 
 /* SPI interface */
 #define GPIO_SPI                53
-#define TRIZEPS4_SPI_IRQ        IRQ_GPIO(GPIO_SPI)
+#define TRIZEPS4_SPI_IRQ        PXA_GPIO_TO_IRQ(GPIO_SPI)
 
 /* LEDS using tx2 / rx2 */
 #define GPIO_SYS_BUSY_LED	46
@@ -74,7 +74,7 @@
 
 /* Off-module PIC on ConXS board */
 #define GPIO_PIC		0
-#define TRIZEPS4_PIC_IRQ	IRQ_GPIO(GPIO_PIC)
+#define TRIZEPS4_PIC_IRQ	PXA_GPIO_TO_IRQ(GPIO_PIC)
 
 #ifdef CONFIG_MACH_TRIZEPS_CONXS
 /* for CONXS base board define these registers */

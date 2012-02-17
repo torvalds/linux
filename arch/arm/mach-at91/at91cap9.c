@@ -13,7 +13,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/pm.h>
 
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -22,12 +21,11 @@
 #include <mach/cpu.h>
 #include <mach/at91cap9.h>
 #include <mach/at91_pmc.h>
-#include <mach/at91_rstc.h>
-#include <mach/at91_shdwc.h>
 
 #include "soc.h"
 #include "generic.h"
 #include "clock.h"
+#include "sam9_smc.h"
 
 /* --------------------------------------------------------------------
  *  Clocks
@@ -137,7 +135,7 @@ static struct clk pwm_clk = {
 	.type		= CLK_TYPE_PERIPHERAL,
 };
 static struct clk macb_clk = {
-	.name		= "macb_clk",
+	.name		= "pclk",
 	.pmc_mask	= 1 << AT91CAP9_ID_EMAC,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
@@ -210,6 +208,8 @@ static struct clk *periph_clocks[] __initdata = {
 };
 
 static struct clk_lookup periph_clocks_lookups[] = {
+	/* One additional fake clock for macb_hclk */
+	CLKDEV_CON_ID("hclk", &macb_clk),
 	CLKDEV_CON_DEV_ID("hclk", "atmel_usba_udc", &utmi_clk),
 	CLKDEV_CON_DEV_ID("pclk", "atmel_usba_udc", &udphs_clk),
 	CLKDEV_CON_DEV_ID("mci_clk", "at91_mci.0", &mmc0_clk),
@@ -221,6 +221,10 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("pclk", "ssc.1", &ssc1_clk),
 	/* fake hclk clock */
 	CLKDEV_CON_DEV_ID("hclk", "at91_ohci", &ohci_clk),
+	CLKDEV_CON_ID("pioA", &pioABCD_clk),
+	CLKDEV_CON_ID("pioB", &pioABCD_clk),
+	CLKDEV_CON_ID("pioC", &pioABCD_clk),
+	CLKDEV_CON_ID("pioD", &pioABCD_clk),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {
@@ -293,36 +297,21 @@ void __init at91cap9_set_console_clock(int id)
  *  GPIO
  * -------------------------------------------------------------------- */
 
-static struct at91_gpio_bank at91cap9_gpio[] = {
+static struct at91_gpio_bank at91cap9_gpio[] __initdata = {
 	{
 		.id		= AT91CAP9_ID_PIOABCD,
-		.offset		= AT91_PIOA,
-		.clock		= &pioABCD_clk,
+		.regbase	= AT91CAP9_BASE_PIOA,
 	}, {
 		.id		= AT91CAP9_ID_PIOABCD,
-		.offset		= AT91_PIOB,
-		.clock		= &pioABCD_clk,
+		.regbase	= AT91CAP9_BASE_PIOB,
 	}, {
 		.id		= AT91CAP9_ID_PIOABCD,
-		.offset		= AT91_PIOC,
-		.clock		= &pioABCD_clk,
+		.regbase	= AT91CAP9_BASE_PIOC,
 	}, {
 		.id		= AT91CAP9_ID_PIOABCD,
-		.offset		= AT91_PIOD,
-		.clock		= &pioABCD_clk,
+		.regbase	= AT91CAP9_BASE_PIOD,
 	}
 };
-
-static void at91cap9_reset(void)
-{
-	at91_sys_write(AT91_RSTC_CR, AT91_RSTC_KEY | AT91_RSTC_PROCRST | AT91_RSTC_PERRST);
-}
-
-static void at91cap9_poweroff(void)
-{
-	at91_sys_write(AT91_SHDW_CR, AT91_SHDW_KEY | AT91_SHDW_SHDW);
-}
-
 
 /* --------------------------------------------------------------------
  *  AT91CAP9 processor initialization
@@ -333,10 +322,17 @@ static void __init at91cap9_map_io(void)
 	at91_init_sram(0, AT91CAP9_SRAM_BASE, AT91CAP9_SRAM_SIZE);
 }
 
+static void __init at91cap9_ioremap_registers(void)
+{
+	at91_ioremap_shdwc(AT91CAP9_BASE_SHDWC);
+	at91_ioremap_rstc(AT91CAP9_BASE_RSTC);
+	at91sam926x_ioremap_pit(AT91CAP9_BASE_PIT);
+	at91sam9_ioremap_smc(0, AT91CAP9_BASE_SMC);
+}
+
 static void __init at91cap9_initialize(void)
 {
-	at91_arch_reset = at91cap9_reset;
-	pm_power_off = at91cap9_poweroff;
+	arm_pm_restart = at91sam9g45_restart;
 	at91_extern_irq = (1 << AT91CAP9_ID_IRQ0) | (1 << AT91CAP9_ID_IRQ1);
 
 	/* Register GPIO subsystem */
@@ -394,6 +390,7 @@ static unsigned int at91cap9_default_irq_priority[NR_AIC_IRQS] __initdata = {
 struct at91_init_soc __initdata at91cap9_soc = {
 	.map_io = at91cap9_map_io,
 	.default_irq_priority = at91cap9_default_irq_priority,
+	.ioremap_registers = at91cap9_ioremap_registers,
 	.register_clocks = at91cap9_register_clocks,
 	.init = at91cap9_initialize,
 };

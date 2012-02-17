@@ -151,6 +151,7 @@ config SND_SOC_ZYLONITE
 config SND_SOC_RAUMFELD
 	tristate "SoC Audio support Raumfeld audio adapter"
 	depends on SND_PXA2XX_SOC && (MACH_RAUMFELD_SPEAKER || MACH_RAUMFELD_CONNECTOR)
+	depends on I2C && SPI_MASTER
 	select SND_PXA_SOC_SSP
 	select SND_SOC_CS4270
 	select SND_SOC_AK4104
@@ -159,7 +160,7 @@ config SND_SOC_RAUMFELD
 
 config SND_PXA2XX_SOC_HX4700
 	tristate "SoC Audio support for HP iPAQ hx4700"
-	depends on SND_PXA2XX_SOC && MACH_H4700
+	depends on SND_PXA2XX_SOC && MACH_H4700 && I2C
 	select SND_PXA2XX_SOC_I2S
 	select SND_SOC_AK4641
 	help

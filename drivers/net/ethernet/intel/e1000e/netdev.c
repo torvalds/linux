@@ -163,16 +163,13 @@ static void e1000_regdump(struct e1000_hw *hw, struct e1000_reg_info *reginfo)
 			regs[n] = __er32(hw, E1000_TARC(n));
 		break;
 	default:
-		printk(KERN_INFO "%-15s %08x\n",
-		       reginfo->name, __er32(hw, reginfo->ofs));
+		pr_info("%-15s %08x\n",
+			reginfo->name, __er32(hw, reginfo->ofs));
 		return;
 	}
 
 	snprintf(rname, 16, "%s%s", reginfo->name, "[0-1]");
-	printk(KERN_INFO "%-15s ", rname);
-	for (n = 0; n < 2; n++)
-		printk(KERN_CONT "%08x ", regs[n]);
-	printk(KERN_CONT "\n");
+	pr_info("%-15s %08x %08x\n", rname, regs[0], regs[1]);
 }
 
 /*
@@ -208,16 +205,15 @@ static void e1000e_dump(struct e1000_adapter *adapter)
 	/* Print netdevice Info */
 	if (netdev) {
 		dev_info(&adapter->pdev->dev, "Net device Info\n");
-		printk(KERN_INFO "Device Name     state            "
-		       "trans_start      last_rx\n");
-		printk(KERN_INFO "%-15s %016lX %016lX %016lX\n",
-		       netdev->name, netdev->state, netdev->trans_start,
-		       netdev->last_rx);
+		pr_info("Device Name     state            trans_start      last_rx\n");
+		pr_info("%-15s %016lX %016lX %016lX\n",
+			netdev->name, netdev->state, netdev->trans_start,
+			netdev->last_rx);
 	}
 
 	/* Print Registers */
 	dev_info(&adapter->pdev->dev, "Register Dump\n");
-	printk(KERN_INFO " Register Name   Value\n");
+	pr_info(" Register Name   Value\n");
 	for (reginfo = (struct e1000_reg_info *)e1000_reg_info_tbl;
 	     reginfo->name; reginfo++) {
 		e1000_regdump(hw, reginfo);
@@ -228,15 +224,14 @@ static void e1000e_dump(struct e1000_adapter *adapter)
 		goto exit;
 
 	dev_info(&adapter->pdev->dev, "Tx Ring Summary\n");
-	printk(KERN_INFO "Queue [NTU] [NTC] [bi(ntc)->dma  ]"
-	       " leng ntw timestamp\n");
+	pr_info("Queue [NTU] [NTC] [bi(ntc)->dma  ] leng ntw timestamp\n");
 	buffer_info = &tx_ring->buffer_info[tx_ring->next_to_clean];
-	printk(KERN_INFO " %5d %5X %5X %016llX %04X %3X %016llX\n",
-	       0, tx_ring->next_to_use, tx_ring->next_to_clean,
-	       (unsigned long long)buffer_info->dma,
-	       buffer_info->length,
-	       buffer_info->next_to_watch,
-	       (unsigned long long)buffer_info->time_stamp);
+	pr_info(" %5d %5X %5X %016llX %04X %3X %016llX\n",
+		0, tx_ring->next_to_use, tx_ring->next_to_clean,
+		(unsigned long long)buffer_info->dma,
+		buffer_info->length,
+		buffer_info->next_to_watch,
+		(unsigned long long)buffer_info->time_stamp);
 
 	/* Print Tx Ring */
 	if (!netif_msg_tx_done(adapter))
@@ -271,37 +266,32 @@ static void e1000e_dump(struct e1000_adapter *adapter)
 	 *   +----------------------------------------------------------------+
 	 *   63       48 47     40 39  36 35    32 31     24 23  20 19        0
 	 */
-	printk(KERN_INFO "Tl[desc]     [address 63:0  ] [SpeCssSCmCsLen]"
-	       " [bi->dma       ] leng  ntw timestamp        bi->skb "
-	       "<-- Legacy format\n");
-	printk(KERN_INFO "Tc[desc]     [Ce CoCsIpceCoS] [MssHlRSCm0Plen]"
-	       " [bi->dma       ] leng  ntw timestamp        bi->skb "
-	       "<-- Ext Context format\n");
-	printk(KERN_INFO "Td[desc]     [address 63:0  ] [VlaPoRSCm1Dlen]"
-	       " [bi->dma       ] leng  ntw timestamp        bi->skb "
-	       "<-- Ext Data format\n");
+	pr_info("Tl[desc]     [address 63:0  ] [SpeCssSCmCsLen] [bi->dma       ] leng  ntw timestamp        bi->skb <-- Legacy format\n");
+	pr_info("Tc[desc]     [Ce CoCsIpceCoS] [MssHlRSCm0Plen] [bi->dma       ] leng  ntw timestamp        bi->skb <-- Ext Context format\n");
+	pr_info("Td[desc]     [address 63:0  ] [VlaPoRSCm1Dlen] [bi->dma       ] leng  ntw timestamp        bi->skb <-- Ext Data format\n");
 	for (i = 0; tx_ring->desc && (i < tx_ring->count); i++) {
+		const char *next_desc;
 		tx_desc = E1000_TX_DESC(*tx_ring, i);
 		buffer_info = &tx_ring->buffer_info[i];
 		u0 = (struct my_u0 *)tx_desc;
-		printk(KERN_INFO "T%c[0x%03X]    %016llX %016llX %016llX "
-		       "%04X  %3X %016llX %p",
-		       (!(le64_to_cpu(u0->b) & (1 << 29)) ? 'l' :
-			((le64_to_cpu(u0->b) & (1 << 20)) ? 'd' : 'c')), i,
-		       (unsigned long long)le64_to_cpu(u0->a),
-		       (unsigned long long)le64_to_cpu(u0->b),
-		       (unsigned long long)buffer_info->dma,
-		       buffer_info->length, buffer_info->next_to_watch,
-		       (unsigned long long)buffer_info->time_stamp,
-		       buffer_info->skb);
 		if (i == tx_ring->next_to_use && i == tx_ring->next_to_clean)
-			printk(KERN_CONT " NTC/U\n");
+			next_desc = " NTC/U";
 		else if (i == tx_ring->next_to_use)
-			printk(KERN_CONT " NTU\n");
+			next_desc = " NTU";
 		else if (i == tx_ring->next_to_clean)
-			printk(KERN_CONT " NTC\n");
+			next_desc = " NTC";
 		else
-			printk(KERN_CONT "\n");
+			next_desc = "";
+		pr_info("T%c[0x%03X]    %016llX %016llX %016llX %04X  %3X %016llX %p%s\n",
+			(!(le64_to_cpu(u0->b) & (1 << 29)) ? 'l' :
+			 ((le64_to_cpu(u0->b) & (1 << 20)) ? 'd' : 'c')),
+			i,
+			(unsigned long long)le64_to_cpu(u0->a),
+			(unsigned long long)le64_to_cpu(u0->b),
+			(unsigned long long)buffer_info->dma,
+			buffer_info->length, buffer_info->next_to_watch,
+			(unsigned long long)buffer_info->time_stamp,
+			buffer_info->skb, next_desc);
 
 		if (netif_msg_pktdata(adapter) && buffer_info->dma != 0)
 			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_ADDRESS,
@@ -312,9 +302,9 @@ static void e1000e_dump(struct e1000_adapter *adapter)
 	/* Print Rx Ring Summary */
 rx_ring_summary:
 	dev_info(&adapter->pdev->dev, "Rx Ring Summary\n");
-	printk(KERN_INFO "Queue [NTU] [NTC]\n");
-	printk(KERN_INFO " %5d %5X %5X\n", 0,
-	       rx_ring->next_to_use, rx_ring->next_to_clean);
+	pr_info("Queue [NTU] [NTC]\n");
+	pr_info(" %5d %5X %5X\n",
+		0, rx_ring->next_to_use, rx_ring->next_to_clean);
 
 	/* Print Rx Ring */
 	if (!netif_msg_rx_status(adapter))
@@ -337,10 +327,7 @@ rx_ring_summary:
 		 * 24 |                Buffer Address 3 [63:0]              |
 		 *    +-----------------------------------------------------+
 		 */
-		printk(KERN_INFO "R  [desc]      [buffer 0 63:0 ] "
-		       "[buffer 1 63:0 ] "
-		       "[buffer 2 63:0 ] [buffer 3 63:0 ] [bi->dma       ] "
-		       "[bi->skb] <-- Ext Pkt Split format\n");
+		pr_info("R  [desc]      [buffer 0 63:0 ] [buffer 1 63:0 ] [buffer 2 63:0 ] [buffer 3 63:0 ] [bi->dma       ] [bi->skb] <-- Ext Pkt Split format\n");
 		/* [Extended] Receive Descriptor (Write-Back) Format
 		 *
 		 *   63       48 47    32 31     13 12    8 7    4 3        0
@@ -352,35 +339,40 @@ rx_ring_summary:
 		 *   +------------------------------------------------------+
 		 *   63       48 47    32 31            20 19               0
 		 */
-		printk(KERN_INFO "RWB[desc]      [ck ipid mrqhsh] "
-		       "[vl   l0 ee  es] "
-		       "[ l3  l2  l1 hs] [reserved      ] ---------------- "
-		       "[bi->skb] <-- Ext Rx Write-Back format\n");
+		pr_info("RWB[desc]      [ck ipid mrqhsh] [vl   l0 ee  es] [ l3  l2  l1 hs] [reserved      ] ---------------- [bi->skb] <-- Ext Rx Write-Back format\n");
 		for (i = 0; i < rx_ring->count; i++) {
+			const char *next_desc;
 			buffer_info = &rx_ring->buffer_info[i];
 			rx_desc_ps = E1000_RX_DESC_PS(*rx_ring, i);
 			u1 = (struct my_u1 *)rx_desc_ps;
 			staterr =
 			    le32_to_cpu(rx_desc_ps->wb.middle.status_error);
+
+			if (i == rx_ring->next_to_use)
+				next_desc = " NTU";
+			else if (i == rx_ring->next_to_clean)
+				next_desc = " NTC";
+			else
+				next_desc = "";
+
 			if (staterr & E1000_RXD_STAT_DD) {
 				/* Descriptor Done */
-				printk(KERN_INFO "RWB[0x%03X]     %016llX "
-				       "%016llX %016llX %016llX "
-				       "---------------- %p", i,
-				       (unsigned long long)le64_to_cpu(u1->a),
-				       (unsigned long long)le64_to_cpu(u1->b),
-				       (unsigned long long)le64_to_cpu(u1->c),
-				       (unsigned long long)le64_to_cpu(u1->d),
-				       buffer_info->skb);
+				pr_info("%s[0x%03X]     %016llX %016llX %016llX %016llX ---------------- %p%s\n",
+					"RWB", i,
+					(unsigned long long)le64_to_cpu(u1->a),
+					(unsigned long long)le64_to_cpu(u1->b),
+					(unsigned long long)le64_to_cpu(u1->c),
+					(unsigned long long)le64_to_cpu(u1->d),
+					buffer_info->skb, next_desc);
 			} else {
-				printk(KERN_INFO "R  [0x%03X]     %016llX "
-				       "%016llX %016llX %016llX %016llX %p", i,
-				       (unsigned long long)le64_to_cpu(u1->a),
-				       (unsigned long long)le64_to_cpu(u1->b),
-				       (unsigned long long)le64_to_cpu(u1->c),
-				       (unsigned long long)le64_to_cpu(u1->d),
-				       (unsigned long long)buffer_info->dma,
-				       buffer_info->skb);
+				pr_info("%s[0x%03X]     %016llX %016llX %016llX %016llX %016llX %p%s\n",
+					"R  ", i,
+					(unsigned long long)le64_to_cpu(u1->a),
+					(unsigned long long)le64_to_cpu(u1->b),
+					(unsigned long long)le64_to_cpu(u1->c),
+					(unsigned long long)le64_to_cpu(u1->d),
+					(unsigned long long)buffer_info->dma,
+					buffer_info->skb, next_desc);
 
 				if (netif_msg_pktdata(adapter))
 					print_hex_dump(KERN_INFO, "",
@@ -388,13 +380,6 @@ rx_ring_summary:
 						phys_to_virt(buffer_info->dma),
 						adapter->rx_ps_bsize0, true);
 			}
-
-			if (i == rx_ring->next_to_use)
-				printk(KERN_CONT " NTU\n");
-			else if (i == rx_ring->next_to_clean)
-				printk(KERN_CONT " NTC\n");
-			else
-				printk(KERN_CONT "\n");
 		}
 		break;
 	default:
@@ -407,9 +392,7 @@ rx_ring_summary:
 		 * 8 |                      Reserved                       |
 		 *   +-----------------------------------------------------+
 		 */
-		printk(KERN_INFO "R  [desc]      [buf addr 63:0 ] "
-		       "[reserved 63:0 ] [bi->dma       ] "
-		       "[bi->skb] <-- Ext (Read) format\n");
+		pr_info("R  [desc]      [buf addr 63:0 ] [reserved 63:0 ] [bi->dma       ] [bi->skb] <-- Ext (Read) format\n");
 		/* Extended Receive Descriptor (Write-Back) Format
 		 *
 		 *   63       48 47    32 31    24 23            4 3        0
@@ -423,29 +406,37 @@ rx_ring_summary:
 		 *   +------------------------------------------------------+
 		 *   63       48 47    32 31            20 19               0
 		 */
-		printk(KERN_INFO "RWB[desc]      [cs ipid    mrq] "
-		       "[vt   ln xe  xs] "
-		       "[bi->skb] <-- Ext (Write-Back) format\n");
+		pr_info("RWB[desc]      [cs ipid    mrq] [vt   ln xe  xs] [bi->skb] <-- Ext (Write-Back) format\n");
 
 		for (i = 0; i < rx_ring->count; i++) {
+			const char *next_desc;
+
 			buffer_info = &rx_ring->buffer_info[i];
 			rx_desc = E1000_RX_DESC_EXT(*rx_ring, i);
 			u1 = (struct my_u1 *)rx_desc;
 			staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
+
+			if (i == rx_ring->next_to_use)
+				next_desc = " NTU";
+			else if (i == rx_ring->next_to_clean)
+				next_desc = " NTC";
+			else
+				next_desc = "";
+
 			if (staterr & E1000_RXD_STAT_DD) {
 				/* Descriptor Done */
-				printk(KERN_INFO "RWB[0x%03X]     %016llX "
-				       "%016llX ---------------- %p", i,
-				       (unsigned long long)le64_to_cpu(u1->a),
-				       (unsigned long long)le64_to_cpu(u1->b),
-				       buffer_info->skb);
+				pr_info("%s[0x%03X]     %016llX %016llX ---------------- %p%s\n",
+					"RWB", i,
+					(unsigned long long)le64_to_cpu(u1->a),
+					(unsigned long long)le64_to_cpu(u1->b),
+					buffer_info->skb, next_desc);
 			} else {
-				printk(KERN_INFO "R  [0x%03X]     %016llX "
-				       "%016llX %016llX %p", i,
-				       (unsigned long long)le64_to_cpu(u1->a),
-				       (unsigned long long)le64_to_cpu(u1->b),
-				       (unsigned long long)buffer_info->dma,
-				       buffer_info->skb);
+				pr_info("%s[0x%03X]     %016llX %016llX %016llX %p%s\n",
+					"R  ", i,
+					(unsigned long long)le64_to_cpu(u1->a),
+					(unsigned long long)le64_to_cpu(u1->b),
+					(unsigned long long)buffer_info->dma,
+					buffer_info->skb, next_desc);
 
 				if (netif_msg_pktdata(adapter))
 					print_hex_dump(KERN_INFO, "",
@@ -456,13 +447,6 @@ rx_ring_summary:
 						       adapter->rx_buffer_len,
 						       true);
 			}
-
-			if (i == rx_ring->next_to_use)
-				printk(KERN_CONT " NTU\n");
-			else if (i == rx_ring->next_to_clean)
-				printk(KERN_CONT " NTC\n");
-			else
-				printk(KERN_CONT "\n");
 		}
 	}
 
@@ -875,7 +859,7 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 	u32 length, staterr;
 	unsigned int i;
 	int cleaned_count = 0;
-	bool cleaned = 0;
+	bool cleaned = false;
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 
 	i = rx_ring->next_to_clean;
@@ -904,7 +888,7 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 
 		next_buffer = &rx_ring->buffer_info[i];
 
-		cleaned = 1;
+		cleaned = true;
 		cleaned_count++;
 		dma_unmap_single(&pdev->dev,
 				 buffer_info->dma,
@@ -1030,6 +1014,7 @@ static void e1000_print_hw_hang(struct work_struct *work)
 	struct e1000_adapter *adapter = container_of(work,
 	                                             struct e1000_adapter,
 	                                             print_hang_task);
+	struct net_device *netdev = adapter->netdev;
 	struct e1000_ring *tx_ring = adapter->tx_ring;
 	unsigned int i = tx_ring->next_to_clean;
 	unsigned int eop = tx_ring->buffer_info[i].next_to_watch;
@@ -1040,6 +1025,21 @@ static void e1000_print_hw_hang(struct work_struct *work)
 
 	if (test_bit(__E1000_DOWN, &adapter->state))
 		return;
+
+	if (!adapter->tx_hang_recheck &&
+	    (adapter->flags2 & FLAG2_DMA_BURST)) {
+		/* May be block on write-back, flush and detect again
+		 * flush pending descriptor writebacks to memory
+		 */
+		ew32(TIDV, adapter->tx_int_delay | E1000_TIDV_FPD);
+		/* execute the writes immediately */
+		e1e_flush();
+		adapter->tx_hang_recheck = true;
+		return;
+	}
+	/* Real hang detected */
+	adapter->tx_hang_recheck = false;
+	netif_stop_queue(netdev);
 
 	e1e_rphy(hw, PHY_STATUS, &phy_status);
 	e1e_rphy(hw, PHY_1000T_STATUS, &phy_1000t_status);
@@ -1095,6 +1095,7 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter)
 	unsigned int i, eop;
 	unsigned int count = 0;
 	unsigned int total_tx_bytes = 0, total_tx_packets = 0;
+	unsigned int bytes_compl = 0, pkts_compl = 0;
 
 	i = tx_ring->next_to_clean;
 	eop = tx_ring->buffer_info[i].next_to_watch;
@@ -1112,6 +1113,10 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter)
 			if (cleaned) {
 				total_tx_packets += buffer_info->segs;
 				total_tx_bytes += buffer_info->bytecount;
+				if (buffer_info->skb) {
+					bytes_compl += buffer_info->skb->len;
+					pkts_compl++;
+				}
 			}
 
 			e1000_put_txbuf(adapter, buffer_info);
@@ -1129,6 +1134,8 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter)
 	}
 
 	tx_ring->next_to_clean = i;
+
+	netdev_completed_queue(netdev, pkts_compl, bytes_compl);
 
 #define TX_WAKE_THRESHOLD 32
 	if (count && netif_carrier_ok(netdev) &&
@@ -1150,14 +1157,14 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter)
 		 * Detect a transmit hang in hardware, this serializes the
 		 * check with the clearing of time_stamp and movement of i
 		 */
-		adapter->detect_tx_hung = 0;
+		adapter->detect_tx_hung = false;
 		if (tx_ring->buffer_info[i].time_stamp &&
 		    time_after(jiffies, tx_ring->buffer_info[i].time_stamp
 			       + (adapter->tx_timeout_factor * HZ)) &&
-		    !(er32(STATUS) & E1000_STATUS_TXOFF)) {
+		    !(er32(STATUS) & E1000_STATUS_TXOFF))
 			schedule_work(&adapter->print_hang_task);
-			netif_stop_queue(netdev);
-		}
+		else
+			adapter->tx_hang_recheck = false;
 	}
 	adapter->total_tx_bytes += total_tx_bytes;
 	adapter->total_tx_packets += total_tx_packets;
@@ -1185,7 +1192,7 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 	unsigned int i, j;
 	u32 length, staterr;
 	int cleaned_count = 0;
-	bool cleaned = 0;
+	bool cleaned = false;
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 
 	i = rx_ring->next_to_clean;
@@ -1211,7 +1218,7 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 
 		next_buffer = &rx_ring->buffer_info[i];
 
-		cleaned = 1;
+		cleaned = true;
 		cleaned_count++;
 		dma_unmap_single(&pdev->dev, buffer_info->dma,
 				 adapter->rx_ps_bsize0, DMA_FROM_DEVICE);
@@ -1222,8 +1229,7 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			adapter->flags2 |= FLAG2_IS_DISCARDING;
 
 		if (adapter->flags2 & FLAG2_IS_DISCARDING) {
-			e_dbg("Packet Split buffers didn't pick up the full "
-			      "packet\n");
+			e_dbg("Packet Split buffers didn't pick up the full packet\n");
 			dev_kfree_skb_irq(skb);
 			if (staterr & E1000_RXD_STAT_EOP)
 				adapter->flags2 &= ~FLAG2_IS_DISCARDING;
@@ -1238,8 +1244,7 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 		length = le16_to_cpu(rx_desc->wb.middle.length0);
 
 		if (!length) {
-			e_dbg("Last part of the packet spanning multiple "
-			      "descriptors\n");
+			e_dbg("Last part of the packet spanning multiple descriptors\n");
 			dev_kfree_skb_irq(skb);
 			goto next_desc;
 		}
@@ -1917,8 +1922,7 @@ void e1000e_set_interrupt_capability(struct e1000_adapter *adapter)
 					return;
 			}
 			/* MSI-X failed, so fall through and try MSI */
-			e_err("Failed to initialize MSI-X interrupts.  "
-			      "Falling back to MSI interrupts.\n");
+			e_err("Failed to initialize MSI-X interrupts.  Falling back to MSI interrupts.\n");
 			e1000e_reset_interrupt_capability(adapter);
 		}
 		adapter->int_mode = E1000E_INT_MODE_MSI;
@@ -1928,8 +1932,7 @@ void e1000e_set_interrupt_capability(struct e1000_adapter *adapter)
 			adapter->flags |= FLAG_MSI_ENABLED;
 		} else {
 			adapter->int_mode = E1000E_INT_MODE_LEGACY;
-			e_err("Failed to initialize MSI interrupts.  Falling "
-			      "back to legacy interrupts.\n");
+			e_err("Failed to initialize MSI interrupts.  Falling back to legacy interrupts.\n");
 		}
 		/* Fall through */
 	case E1000E_INT_MODE_LEGACY:
@@ -2260,6 +2263,7 @@ static void e1000_clean_tx_ring(struct e1000_adapter *adapter)
 		e1000_put_txbuf(adapter, buffer_info);
 	}
 
+	netdev_reset_queue(adapter->netdev);
 	size = sizeof(struct e1000_buffer) * tx_ring->count;
 	memset(tx_ring->buffer_info, 0, size);
 
@@ -2518,7 +2522,7 @@ clean_rx:
 	return work_done;
 }
 
-static void e1000_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
+static int e1000_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -2528,7 +2532,7 @@ static void e1000_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	if ((adapter->hw.mng_cookie.status &
 	     E1000_MNG_DHCP_COOKIE_STATUS_VLAN) &&
 	    (vid == adapter->mng_vlan_id))
-		return;
+		return 0;
 
 	/* add VID to filter table */
 	if (adapter->flags & FLAG_HAS_HW_VLAN_FILTER) {
@@ -2539,9 +2543,11 @@ static void e1000_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	}
 
 	set_bit(vid, adapter->active_vlans);
+
+	return 0;
 }
 
-static void e1000_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
+static int e1000_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -2552,7 +2558,7 @@ static void e1000_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	    (vid == adapter->mng_vlan_id)) {
 		/* release control to f/w */
 		e1000e_release_hw_control(adapter);
-		return;
+		return 0;
 	}
 
 	/* remove VID from filter table */
@@ -2564,6 +2570,8 @@ static void e1000_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	}
 
 	clear_bit(vid, adapter->active_vlans);
+
+	return 0;
 }
 
 /**
@@ -3113,78 +3121,146 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 }
 
 /**
- *  e1000_update_mc_addr_list - Update Multicast addresses
- *  @hw: pointer to the HW structure
- *  @mc_addr_list: array of multicast addresses to program
- *  @mc_addr_count: number of multicast addresses to program
- *
- *  Updates the Multicast Table Array.
- *  The caller must have a packed mc_addr_list of multicast addresses.
- **/
-static void e1000_update_mc_addr_list(struct e1000_hw *hw, u8 *mc_addr_list,
-				      u32 mc_addr_count)
-{
-	hw->mac.ops.update_mc_addr_list(hw, mc_addr_list, mc_addr_count);
-}
-
-/**
- * e1000_set_multi - Multicast and Promiscuous mode set
+ * e1000e_write_mc_addr_list - write multicast addresses to MTA
  * @netdev: network interface device structure
  *
- * The set_multi entry point is called whenever the multicast address
- * list or the network interface flags are updated.  This routine is
- * responsible for configuring the hardware for proper multicast,
- * promiscuous mode, and all-multi behavior.
- **/
-static void e1000_set_multi(struct net_device *netdev)
+ * Writes multicast address list to the MTA hash table.
+ * Returns: -ENOMEM on failure
+ *                0 on no addresses written
+ *                X on writing X addresses to MTA
+ */
+static int e1000e_write_mc_addr_list(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	struct netdev_hw_addr *ha;
-	u8  *mta_list;
+	u8 *mta_list;
+	int i;
+
+	if (netdev_mc_empty(netdev)) {
+		/* nothing to program, so clear mc list */
+		hw->mac.ops.update_mc_addr_list(hw, NULL, 0);
+		return 0;
+	}
+
+	mta_list = kzalloc(netdev_mc_count(netdev) * ETH_ALEN, GFP_ATOMIC);
+	if (!mta_list)
+		return -ENOMEM;
+
+	/* update_mc_addr_list expects a packed array of only addresses. */
+	i = 0;
+	netdev_for_each_mc_addr(ha, netdev)
+		memcpy(mta_list + (i++ * ETH_ALEN), ha->addr, ETH_ALEN);
+
+	hw->mac.ops.update_mc_addr_list(hw, mta_list, i);
+	kfree(mta_list);
+
+	return netdev_mc_count(netdev);
+}
+
+/**
+ * e1000e_write_uc_addr_list - write unicast addresses to RAR table
+ * @netdev: network interface device structure
+ *
+ * Writes unicast address list to the RAR table.
+ * Returns: -ENOMEM on failure/insufficient address space
+ *                0 on no addresses written
+ *                X on writing X addresses to the RAR table
+ **/
+static int e1000e_write_uc_addr_list(struct net_device *netdev)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	unsigned int rar_entries = hw->mac.rar_entry_count;
+	int count = 0;
+
+	/* save a rar entry for our hardware address */
+	rar_entries--;
+
+	/* save a rar entry for the LAA workaround */
+	if (adapter->flags & FLAG_RESET_OVERWRITES_LAA)
+		rar_entries--;
+
+	/* return ENOMEM indicating insufficient memory for addresses */
+	if (netdev_uc_count(netdev) > rar_entries)
+		return -ENOMEM;
+
+	if (!netdev_uc_empty(netdev) && rar_entries) {
+		struct netdev_hw_addr *ha;
+
+		/*
+		 * write the addresses in reverse order to avoid write
+		 * combining
+		 */
+		netdev_for_each_uc_addr(ha, netdev) {
+			if (!rar_entries)
+				break;
+			e1000e_rar_set(hw, ha->addr, rar_entries--);
+			count++;
+		}
+	}
+
+	/* zero out the remaining RAR entries not used above */
+	for (; rar_entries > 0; rar_entries--) {
+		ew32(RAH(rar_entries), 0);
+		ew32(RAL(rar_entries), 0);
+	}
+	e1e_flush();
+
+	return count;
+}
+
+/**
+ * e1000e_set_rx_mode - secondary unicast, Multicast and Promiscuous mode set
+ * @netdev: network interface device structure
+ *
+ * The ndo_set_rx_mode entry point is called whenever the unicast or multicast
+ * address list or the network interface flags are updated.  This routine is
+ * responsible for configuring the hardware for proper unicast, multicast,
+ * promiscuous mode, and all-multi behavior.
+ **/
+static void e1000e_set_rx_mode(struct net_device *netdev)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
 	u32 rctl;
 
 	/* Check for Promiscuous and All Multicast modes */
-
 	rctl = er32(RCTL);
+
+	/* clear the affected bits */
+	rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE);
 
 	if (netdev->flags & IFF_PROMISC) {
 		rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
-		rctl &= ~E1000_RCTL_VFE;
 		/* Do not hardware filter VLANs in promisc mode */
 		e1000e_vlan_filter_disable(adapter);
 	} else {
+		int count;
 		if (netdev->flags & IFF_ALLMULTI) {
 			rctl |= E1000_RCTL_MPE;
-			rctl &= ~E1000_RCTL_UPE;
 		} else {
-			rctl &= ~(E1000_RCTL_UPE | E1000_RCTL_MPE);
+			/*
+			 * Write addresses to the MTA, if the attempt fails
+			 * then we should just turn on promiscuous mode so
+			 * that we can at least receive multicast traffic
+			 */
+			count = e1000e_write_mc_addr_list(netdev);
+			if (count < 0)
+				rctl |= E1000_RCTL_MPE;
 		}
 		e1000e_vlan_filter_enable(adapter);
+		/*
+		 * Write addresses to available RAR registers, if there is not
+		 * sufficient space to store all the addresses then enable
+		 * unicast promiscuous mode
+		 */
+		count = e1000e_write_uc_addr_list(netdev);
+		if (count < 0)
+			rctl |= E1000_RCTL_UPE;
 	}
 
 	ew32(RCTL, rctl);
-
-	if (!netdev_mc_empty(netdev)) {
-		int i = 0;
-
-		mta_list = kmalloc(netdev_mc_count(netdev) * 6, GFP_ATOMIC);
-		if (!mta_list)
-			return;
-
-		/* prepare a packed array of only addresses. */
-		netdev_for_each_mc_addr(ha, netdev)
-			memcpy(mta_list + (i++ * ETH_ALEN), ha->addr, ETH_ALEN);
-
-		e1000_update_mc_addr_list(hw, mta_list, i);
-		kfree(mta_list);
-	} else {
-		/*
-		 * if we're called from probe, we might not have
-		 * anything to do here, so clear out the list
-		 */
-		e1000_update_mc_addr_list(hw, NULL, 0);
-	}
 
 	if (netdev->features & NETIF_F_HW_VLAN_RX)
 		e1000e_vlan_strip_enable(adapter);
@@ -3198,7 +3274,7 @@ static void e1000_set_multi(struct net_device *netdev)
  **/
 static void e1000_configure(struct e1000_adapter *adapter)
 {
-	e1000_set_multi(adapter->netdev);
+	e1000e_set_rx_mode(adapter->netdev);
 
 	e1000_restore_vlan(adapter);
 	e1000_init_manageability_pt(adapter);
@@ -3444,7 +3520,6 @@ int e1000e_up(struct e1000_adapter *adapter)
 
 	clear_bit(__E1000_DOWN, &adapter->state);
 
-	napi_enable(&adapter->napi);
 	if (adapter->msix_entries)
 		e1000_configure_msix(adapter);
 	e1000_irq_enable(adapter);
@@ -3506,7 +3581,6 @@ void e1000e_down(struct e1000_adapter *adapter)
 	e1e_flush();
 	usleep_range(10000, 20000);
 
-	napi_disable(&adapter->napi);
 	e1000_irq_disable(adapter);
 
 	del_timer_sync(&adapter->watchdog_timer);
@@ -3782,6 +3856,7 @@ static int e1000_open(struct net_device *netdev)
 
 	e1000_irq_enable(adapter);
 
+	adapter->tx_hang_recheck = false;
 	netif_start_queue(netdev);
 
 	adapter->idle_check = true;
@@ -3827,6 +3902,8 @@ static int e1000_close(struct net_device *netdev)
 	WARN_ON(test_bit(__E1000_RESETTING, &adapter->state));
 
 	pm_runtime_get_sync(&pdev->dev);
+
+	napi_disable(&adapter->napi);
 
 	if (!test_bit(__E1000_DOWN, &adapter->state)) {
 		e1000e_down(adapter);
@@ -4168,22 +4245,19 @@ static void e1000_print_link_info(struct e1000_adapter *adapter)
 	u32 ctrl = er32(CTRL);
 
 	/* Link status message must follow this format for user tools */
-	printk(KERN_INFO "e1000e: %s NIC Link is Up %d Mbps %s, "
-	       "Flow Control: %s\n",
-	       adapter->netdev->name,
-	       adapter->link_speed,
-	       (adapter->link_duplex == FULL_DUPLEX) ?
-	       "Full Duplex" : "Half Duplex",
-	       ((ctrl & E1000_CTRL_TFCE) && (ctrl & E1000_CTRL_RFCE)) ?
-	       "Rx/Tx" :
-	       ((ctrl & E1000_CTRL_RFCE) ? "Rx" :
-		((ctrl & E1000_CTRL_TFCE) ? "Tx" : "None")));
+	printk(KERN_INFO "e1000e: %s NIC Link is Up %d Mbps %s Duplex, Flow Control: %s\n",
+		adapter->netdev->name,
+		adapter->link_speed,
+		adapter->link_duplex == FULL_DUPLEX ? "Full" : "Half",
+		(ctrl & E1000_CTRL_TFCE) && (ctrl & E1000_CTRL_RFCE) ? "Rx/Tx" :
+		(ctrl & E1000_CTRL_RFCE) ? "Rx" :
+		(ctrl & E1000_CTRL_TFCE) ? "Tx" : "None");
 }
 
 static bool e1000e_has_link(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	bool link_active = 0;
+	bool link_active = false;
 	s32 ret_val = 0;
 
 	/*
@@ -4198,7 +4272,7 @@ static bool e1000e_has_link(struct e1000_adapter *adapter)
 			ret_val = hw->mac.ops.check_for_link(hw);
 			link_active = !hw->mac.get_link_status;
 		} else {
-			link_active = 1;
+			link_active = true;
 		}
 		break;
 	case e1000_media_type_fiber:
@@ -4297,7 +4371,7 @@ static void e1000_watchdog_task(struct work_struct *work)
 
 	if (link) {
 		if (!netif_carrier_ok(netdev)) {
-			bool txb2b = 1;
+			bool txb2b = true;
 
 			/* Cancel scheduled suspend requests. */
 			pm_runtime_resume(netdev->dev.parent);
@@ -4323,21 +4397,18 @@ static void e1000_watchdog_task(struct work_struct *work)
 				e1e_rphy(hw, PHY_AUTONEG_EXP, &autoneg_exp);
 
 				if (!(autoneg_exp & NWAY_ER_LP_NWAY_CAPS))
-					e_info("Autonegotiated half duplex but"
-					       " link partner cannot autoneg. "
-					       " Try forcing full duplex if "
-					       "link gets many collisions.\n");
+					e_info("Autonegotiated half duplex but link partner cannot autoneg.  Try forcing full duplex if link gets many collisions.\n");
 			}
 
 			/* adjust timeout factor according to speed/duplex */
 			adapter->tx_timeout_factor = 1;
 			switch (adapter->link_speed) {
 			case SPEED_10:
-				txb2b = 0;
+				txb2b = false;
 				adapter->tx_timeout_factor = 16;
 				break;
 			case SPEED_100:
-				txb2b = 0;
+				txb2b = false;
 				adapter->tx_timeout_factor = 10;
 				break;
 			}
@@ -4473,7 +4544,7 @@ link_up:
 	e1000e_flush_descriptors(adapter);
 
 	/* Force detection of hung controller every watchdog period */
-	adapter->detect_tx_hung = 1;
+	adapter->detect_tx_hung = true;
 
 	/*
 	 * With 82571 controllers, LAA may be overwritten due to controller
@@ -4985,6 +5056,7 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	/* if count is 0 then mapping error has occurred */
 	count = e1000_tx_map(adapter, skb, first, max_per_txd, nr_frags, mss);
 	if (count) {
+		netdev_sent_queue(netdev, skb->len);
 		e1000_tx_queue(adapter, tx_flags, count);
 		/* Make sure there is space in the ring for the next send. */
 		e1000_maybe_stop_tx(netdev, MAX_SKB_FRAGS + 2);
@@ -5110,8 +5182,7 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	if ((adapter->hw.mac.type == e1000_pch2lan) &&
 	    !(adapter->flags2 & FLAG2_CRC_STRIPPING) &&
 	    (new_mtu > ETH_DATA_LEN)) {
-		e_err("Jumbo Frames not supported on 82579 when CRC "
-		      "stripping is disabled.\n");
+		e_err("Jumbo Frames not supported on 82579 when CRC stripping is disabled.\n");
 		return -EINVAL;
 	}
 
@@ -5331,7 +5402,7 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake,
 
 	if (wufc) {
 		e1000_setup_rctl(adapter);
-		e1000_set_multi(netdev);
+		e1000e_set_rx_mode(netdev);
 
 		/* turn on all-multi mode if wake on multicast is enabled */
 		if (wufc & E1000_WUFC_MC) {
@@ -5527,8 +5598,8 @@ static int __e1000_resume(struct pci_dev *pdev)
 				phy_data & E1000_WUS_MC ? "Multicast Packet" :
 				phy_data & E1000_WUS_BC ? "Broadcast Packet" :
 				phy_data & E1000_WUS_MAG ? "Magic Packet" :
-				phy_data & E1000_WUS_LNKC ? "Link Status "
-				" Change" : "other");
+				phy_data & E1000_WUS_LNKC ?
+				"Link Status Change" : "other");
 		}
 		e1e_wphy(&adapter->hw, BM_WUS, ~0);
 	} else {
@@ -5859,10 +5930,11 @@ static void e1000_eeprom_checks(struct e1000_adapter *adapter)
 	}
 }
 
-static int e1000_set_features(struct net_device *netdev, u32 features)
+static int e1000_set_features(struct net_device *netdev,
+	netdev_features_t features)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	u32 changed = features ^ netdev->features;
+	netdev_features_t changed = features ^ netdev->features;
 
 	if (changed & (NETIF_F_TSO | NETIF_F_TSO6))
 		adapter->flags |= FLAG_TSO_FORCE;
@@ -5884,7 +5956,7 @@ static const struct net_device_ops e1000e_netdev_ops = {
 	.ndo_stop		= e1000_close,
 	.ndo_start_xmit		= e1000_xmit_frame,
 	.ndo_get_stats64	= e1000e_get_stats64,
-	.ndo_set_rx_mode	= e1000_set_multi,
+	.ndo_set_rx_mode	= e1000e_set_rx_mode,
 	.ndo_set_mac_address	= e1000_set_mac,
 	.ndo_change_mtu		= e1000_change_mtu,
 	.ndo_do_ioctl		= e1000_ioctl,
@@ -5949,8 +6021,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 			err = dma_set_coherent_mask(&pdev->dev,
 						    DMA_BIT_MASK(32));
 			if (err) {
-				dev_err(&pdev->dev, "No usable DMA "
-					"configuration, aborting\n");
+				dev_err(&pdev->dev, "No usable DMA configuration, aborting\n");
 				goto err_dma;
 			}
 		}
@@ -6076,6 +6147,8 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 				  NETIF_F_TSO6 |
 				  NETIF_F_HW_CSUM);
 
+	netdev->priv_flags |= IFF_UNICAST_FLT;
+
 	if (pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;
 		netdev->vlan_features |= NETIF_F_HIGHDMA;
@@ -6135,7 +6208,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	/* Initialize link parameters. User can change them with ethtool */
 	adapter->hw.mac.autoneg = 1;
-	adapter->fc_autoneg = 1;
+	adapter->fc_autoneg = true;
 	adapter->hw.fc.requested_mode = e1000_fc_default;
 	adapter->hw.fc.current_mode = e1000_fc_default;
 	adapter->hw.phy.autoneg_advertised = 0x2f;

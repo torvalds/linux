@@ -82,23 +82,9 @@ config NOP_USB_XCEIV
 	tristate "NOP USB Transceiver Driver"
 	select USB_OTG_UTILS
 	help
-	 this driver is to be used by all the usb transceiver which are either
-	 built-in with usb ip or which are autonomous and doesn't require any
-	 phy programming such as ISP1x04 etc.
-
-config USB_LANGWELL_OTG
-	tristate "Intel Langwell USB OTG dual-role support"
-	depends on USB && PCI && INTEL_SCU_IPC
-	select USB_OTG
-	select USB_OTG_UTILS
-	help
-	  Say Y here if you want to build Intel Langwell USB OTG
-	  transciever driver in kernel. This driver implements role
-	  switch between EHCI host driver and Langwell USB OTG
-	  client driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called langwell_otg.
+	  This driver is to be used by all the usb transceiver which are either
+	  built-in with usb ip or which are autonomous and doesn't require any
+	  phy programming such as ISP1x04 etc.
 
 config USB_MSM_OTG
 	tristate "OTG support for Qualcomm on-chip USB controller"
@@ -114,20 +100,32 @@ config USB_MSM_OTG
 	  has an external PHY.
 
 config AB8500_USB
-        tristate "AB8500 USB Transceiver Driver"
-        depends on AB8500_CORE
-        select USB_OTG_UTILS
-        help
-          Enable this to support the USB OTG transceiver in AB8500 chip.
-          This transceiver supports high and full speed devices plus,
-          in host mode, low speed.
+	tristate "AB8500 USB Transceiver Driver"
+	depends on AB8500_CORE
+	select USB_OTG_UTILS
+	help
+	  Enable this to support the USB OTG transceiver in AB8500 chip.
+	  This transceiver supports high and full speed devices plus,
+	  in host mode, low speed.
 
 config FSL_USB2_OTG
 	bool "Freescale USB OTG Transceiver Driver"
-	depends on USB_EHCI_FSL && USB_GADGET_FSL_USB2
+	depends on USB_EHCI_FSL && USB_GADGET_FSL_USB2 && USB_SUSPEND
 	select USB_OTG
 	select USB_OTG_UTILS
 	help
 	  Enable this to support Freescale USB OTG transceiver.
+
+config USB_MV_OTG
+	tristate "Marvell USB OTG support"
+	depends on USB_MV_UDC && USB_SUSPEND
+	select USB_OTG
+	select USB_OTG_UTILS
+	help
+	  Say Y here if you want to build Marvell USB OTG transciever
+	  driver in kernel (including PXA and MMP series). This driver
+	  implements role switch between EHCI host driver and gadget driver.
+
+	  To compile this driver as a module, choose M here.
 
 endif # USB || OTG

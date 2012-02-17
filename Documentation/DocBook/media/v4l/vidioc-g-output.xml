@@ -61,8 +61,9 @@ desired output in an integer and call the
 <constant>VIDIOC_S_OUTPUT</constant> ioctl with a pointer to this integer.
 Side effects are possible. For example outputs may support different
 video standards, so the driver may implicitly switch the current
-standard. It is good practice to select an output before querying or
-negotiating any other parameters.</para>
+standard.
+standard. Because of these possible side effects applications
+must select an output before querying or negotiating any other parameters.</para>
 
     <para>Information about video outputs is available using the
 &VIDIOC-ENUMOUTPUT; ioctl.</para>

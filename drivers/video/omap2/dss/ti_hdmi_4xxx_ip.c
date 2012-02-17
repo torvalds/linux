@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
+#include <linux/gpio.h>
 
 #include "ti_hdmi_4xxx_ip.h"
 #include "dss.h"
@@ -223,16 +224,55 @@ void ti_hdmi_4xxx_pll_disable(struct hdmi_ip_data *ip_data)
 	hdmi_set_pll_pwr(ip_data, HDMI_PLLPWRCMD_ALLOFF);
 }
 
+static int hdmi_check_hpd_state(struct hdmi_ip_data *ip_data)
+{
+	unsigned long flags;
+	bool hpd;
+	int r;
+	/* this should be in ti_hdmi_4xxx_ip private data */
+	static DEFINE_SPINLOCK(phy_tx_lock);
+
+	spin_lock_irqsave(&phy_tx_lock, flags);
+
+	hpd = gpio_get_value(ip_data->hpd_gpio);
+
+	if (hpd == ip_data->phy_tx_enabled) {
+		spin_unlock_irqrestore(&phy_tx_lock, flags);
+		return 0;
+	}
+
+	if (hpd)
+		r = hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_TXON);
+	else
+		r = hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_LDOON);
+
+	if (r) {
+		DSSERR("Failed to %s PHY TX power\n",
+				hpd ? "enable" : "disable");
+		goto err;
+	}
+
+	ip_data->phy_tx_enabled = hpd;
+err:
+	spin_unlock_irqrestore(&phy_tx_lock, flags);
+	return r;
+}
+
+static irqreturn_t hpd_irq_handler(int irq, void *data)
+{
+	struct hdmi_ip_data *ip_data = data;
+
+	hdmi_check_hpd_state(ip_data);
+
+	return IRQ_HANDLED;
+}
+
 int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data)
 {
 	u16 r = 0;
 	void __iomem *phy_base = hdmi_phy_base(ip_data);
 
 	r = hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_LDOON);
-	if (r)
-		return r;
-
-	r = hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_TXON);
 	if (r)
 		return r;
 
@@ -257,12 +297,32 @@ int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data)
 	/* Write to phy address 3 to change the polarity control */
 	REG_FLD_MOD(phy_base, HDMI_TXPHY_PAD_CFG_CTRL, 0x1, 27, 27);
 
+	r = request_threaded_irq(gpio_to_irq(ip_data->hpd_gpio),
+			NULL, hpd_irq_handler,
+			IRQF_DISABLED | IRQF_TRIGGER_RISING |
+			IRQF_TRIGGER_FALLING, "hpd", ip_data);
+	if (r) {
+		DSSERR("HPD IRQ request failed\n");
+		hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_OFF);
+		return r;
+	}
+
+	r = hdmi_check_hpd_state(ip_data);
+	if (r) {
+		free_irq(gpio_to_irq(ip_data->hpd_gpio), ip_data);
+		hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_OFF);
+		return r;
+	}
+
 	return 0;
 }
 
 void ti_hdmi_4xxx_phy_disable(struct hdmi_ip_data *ip_data)
 {
+	free_irq(gpio_to_irq(ip_data->hpd_gpio), ip_data);
+
 	hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_OFF);
+	ip_data->phy_tx_enabled = false;
 }
 
 static int hdmi_core_ddc_init(struct hdmi_ip_data *ip_data)
@@ -1204,36 +1264,13 @@ int hdmi_config_audio_acr(struct hdmi_ip_data *ip_data,
 	return 0;
 }
 
-int hdmi_audio_trigger(struct hdmi_ip_data *ip_data,
-				struct snd_pcm_substream *substream, int cmd,
-				struct snd_soc_dai *dai)
+void ti_hdmi_4xxx_wp_audio_enable(struct hdmi_ip_data *ip_data, bool enable)
 {
-	int err = 0;
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_RESUME:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		REG_FLD_MOD(hdmi_av_base(ip_data),
-					HDMI_CORE_AV_AUD_MODE, 1, 0, 0);
-		REG_FLD_MOD(hdmi_wp_base(ip_data),
-					HDMI_WP_AUDIO_CTRL, 1, 31, 31);
-		REG_FLD_MOD(hdmi_wp_base(ip_data),
-					HDMI_WP_AUDIO_CTRL, 1, 30, 30);
-		break;
-
-	case SNDRV_PCM_TRIGGER_STOP:
-	case SNDRV_PCM_TRIGGER_SUSPEND:
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		REG_FLD_MOD(hdmi_av_base(ip_data),
-					HDMI_CORE_AV_AUD_MODE, 0, 0, 0);
-		REG_FLD_MOD(hdmi_wp_base(ip_data),
-					HDMI_WP_AUDIO_CTRL, 0, 30, 30);
-		REG_FLD_MOD(hdmi_wp_base(ip_data),
-					HDMI_WP_AUDIO_CTRL, 0, 31, 31);
-		break;
-	default:
-		err = -EINVAL;
-	}
-	return err;
+	REG_FLD_MOD(hdmi_av_base(ip_data),
+				HDMI_CORE_AV_AUD_MODE, enable, 0, 0);
+	REG_FLD_MOD(hdmi_wp_base(ip_data),
+				HDMI_WP_AUDIO_CTRL, enable, 31, 31);
+	REG_FLD_MOD(hdmi_wp_base(ip_data),
+				HDMI_WP_AUDIO_CTRL, enable, 30, 30);
 }
 #endif

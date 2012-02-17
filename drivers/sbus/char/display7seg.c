@@ -275,15 +275,4 @@ static struct platform_driver d7s_driver = {
 	.remove		= __devexit_p(d7s_remove),
 };
 
-static int __init d7s_init(void)
-{
-	return platform_driver_register(&d7s_driver);
-}
-
-static void __exit d7s_exit(void)
-{
-	platform_driver_unregister(&d7s_driver);
-}
-
-module_init(d7s_init);
-module_exit(d7s_exit);
+module_platform_driver(d7s_driver);

@@ -42,15 +42,12 @@ static struct xhci_segment *xhci_segment_alloc(struct xhci_hcd *xhci, gfp_t flag
 	seg = kzalloc(sizeof *seg, flags);
 	if (!seg)
 		return NULL;
-	xhci_dbg(xhci, "Allocating priv segment structure at %p\n", seg);
 
 	seg->trbs = dma_pool_alloc(xhci->segment_pool, flags, &dma);
 	if (!seg->trbs) {
 		kfree(seg);
 		return NULL;
 	}
-	xhci_dbg(xhci, "// Allocating segment at %p (virtual) 0x%llx (DMA)\n",
-			seg->trbs, (unsigned long long)dma);
 
 	memset(seg->trbs, 0, SEGMENT_SIZE);
 	seg->dma = dma;
@@ -62,12 +59,9 @@ static struct xhci_segment *xhci_segment_alloc(struct xhci_hcd *xhci, gfp_t flag
 static void xhci_segment_free(struct xhci_hcd *xhci, struct xhci_segment *seg)
 {
 	if (seg->trbs) {
-		xhci_dbg(xhci, "Freeing DMA segment at %p (virtual) 0x%llx (DMA)\n",
-				seg->trbs, (unsigned long long)seg->dma);
 		dma_pool_free(xhci->segment_pool, seg->trbs, seg->dma);
 		seg->trbs = NULL;
 	}
-	xhci_dbg(xhci, "Freeing priv segment structure at %p\n", seg);
 	kfree(seg);
 }
 
@@ -101,9 +95,6 @@ static void xhci_link_segments(struct xhci_hcd *xhci, struct xhci_segment *prev,
 			val |= TRB_CHAIN;
 		prev->trbs[TRBS_PER_SEGMENT-1].link.control = cpu_to_le32(val);
 	}
-	xhci_dbg(xhci, "Linking segment 0x%llx to segment 0x%llx (DMA)\n",
-			(unsigned long long)prev->dma,
-			(unsigned long long)next->dma);
 }
 
 /* XXX: Do we need the hcd structure in all these functions? */
@@ -117,7 +108,6 @@ void xhci_ring_free(struct xhci_hcd *xhci, struct xhci_ring *ring)
 	if (ring->first_seg) {
 		first_seg = ring->first_seg;
 		seg = first_seg->next;
-		xhci_dbg(xhci, "Freeing ring at %p\n", ring);
 		while (seg != first_seg) {
 			struct xhci_segment *next = seg->next;
 			xhci_segment_free(xhci, seg);
@@ -160,7 +150,6 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 	struct xhci_segment	*prev;
 
 	ring = kzalloc(sizeof *(ring), flags);
-	xhci_dbg(xhci, "Allocating ring at %p\n", ring);
 	if (!ring)
 		return NULL;
 
@@ -191,9 +180,6 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 		/* See section 4.9.2.1 and 6.4.4.1 */
 		prev->trbs[TRBS_PER_SEGMENT-1].link.control |=
 			cpu_to_le32(LINK_TOGGLE);
-		xhci_dbg(xhci, "Wrote link toggle flag to"
-				" segment %p (virtual), 0x%llx (DMA)\n",
-				prev, (unsigned long long)prev->dma);
 	}
 	xhci_initialize_ring_info(ring);
 	return ring;

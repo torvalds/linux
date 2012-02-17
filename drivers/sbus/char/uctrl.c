@@ -435,16 +435,6 @@ static struct platform_driver uctrl_driver = {
 };
 
 
-static int __init uctrl_init(void)
-{
-	return platform_driver_register(&uctrl_driver);
-}
+module_platform_driver(uctrl_driver);
 
-static void __exit uctrl_exit(void)
-{
-	platform_driver_unregister(&uctrl_driver);
-}
-
-module_init(uctrl_init);
-module_exit(uctrl_exit);
 MODULE_LICENSE("GPL");

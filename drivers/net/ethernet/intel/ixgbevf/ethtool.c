@@ -27,6 +27,8 @@
 
 /* ethtool support for ixgbevf */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -54,7 +56,8 @@ struct ixgbe_stats {
 			    offsetof(struct ixgbevf_adapter, m),         \
 			    offsetof(struct ixgbevf_adapter, b),         \
 			    offsetof(struct ixgbevf_adapter, r)
-static struct ixgbe_stats ixgbe_gstrings_stats[] = {
+
+static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"rx_packets", IXGBEVF_STAT(stats.vfgprc, stats.base_vfgprc,
 				    stats.saved_reset_vfgprc)},
 	{"tx_packets", IXGBEVF_STAT(stats.vfgptc, stats.base_vfgptc,
@@ -265,11 +268,11 @@ static void ixgbevf_get_drvinfo(struct net_device *netdev,
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 
-	strlcpy(drvinfo->driver, ixgbevf_driver_name, 32);
-	strlcpy(drvinfo->version, ixgbevf_driver_version, 32);
-
-	strlcpy(drvinfo->fw_version, "N/A", 4);
-	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
+	strlcpy(drvinfo->driver, ixgbevf_driver_name, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, ixgbevf_driver_version,
+		sizeof(drvinfo->version));
+	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+		sizeof(drvinfo->bus_info));
 }
 
 static void ixgbevf_get_ringparam(struct net_device *netdev,
@@ -549,8 +552,8 @@ static const u32 register_test_patterns[] = {
 	writel((W & M), (adapter->hw.hw_addr + R));                           \
 	val = readl(adapter->hw.hw_addr + R);                                 \
 	if ((W & M) != (val & M)) {                                           \
-		printk(KERN_ERR "set/check reg %04X test failed: got 0x%08X " \
-				 "expected 0x%08X\n", R, (val & M), (W & M)); \
+		pr_err("set/check reg %04X test failed: got 0x%08X expected " \
+		       "0x%08X\n", R, (val & M), (W & M));                    \
 		*data = R;                                                    \
 		writel(before, (adapter->hw.hw_addr + R));                    \
 		return 1;                                                     \
@@ -669,7 +672,7 @@ static int ixgbevf_nway_reset(struct net_device *netdev)
 	return 0;
 }
 
-static struct ethtool_ops ixgbevf_ethtool_ops = {
+static const struct ethtool_ops ixgbevf_ethtool_ops = {
 	.get_settings           = ixgbevf_get_settings,
 	.get_drvinfo            = ixgbevf_get_drvinfo,
 	.get_regs_len           = ixgbevf_get_regs_len,

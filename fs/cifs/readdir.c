@@ -554,7 +554,10 @@ static int find_cifs_entry(const int xid, struct cifs_tcon *pTcon,
 				 rc);
 			return rc;
 		}
-		cifs_save_resume_key(cifsFile->srch_inf.last_entry, cifsFile);
+		/* FindFirst/Next set last_entry to NULL on malformed reply */
+		if (cifsFile->srch_inf.last_entry)
+			cifs_save_resume_key(cifsFile->srch_inf.last_entry,
+						cifsFile);
 	}
 
 	while ((index_to_find >= cifsFile->srch_inf.index_of_last_entry) &&
@@ -562,7 +565,10 @@ static int find_cifs_entry(const int xid, struct cifs_tcon *pTcon,
 		cFYI(1, "calling findnext2");
 		rc = CIFSFindNext(xid, pTcon, cifsFile->netfid,
 				  &cifsFile->srch_inf);
-		cifs_save_resume_key(cifsFile->srch_inf.last_entry, cifsFile);
+		/* FindFirst/Next set last_entry to NULL on malformed reply */
+		if (cifsFile->srch_inf.last_entry)
+			cifs_save_resume_key(cifsFile->srch_inf.last_entry,
+						cifsFile);
 		if (rc)
 			return -ENOENT;
 	}
@@ -641,10 +647,11 @@ static int cifs_filldir(char *find_entry, struct file *file, filldir_t filldir,
 
 		name.name = scratch_buf;
 		name.len =
-			cifs_from_ucs2((char *)name.name, (__le16 *)de.name,
-				       UNICODE_NAME_MAX,
-				       min(de.namelen, (size_t)max_len), nlt,
-				       cifs_sb->mnt_cifs_flags &
+			cifs_from_utf16((char *)name.name, (__le16 *)de.name,
+					UNICODE_NAME_MAX,
+					min_t(size_t, de.namelen,
+					      (size_t)max_len), nlt,
+					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 		name.len -= nls_nullsize(nlt);
 	} else {

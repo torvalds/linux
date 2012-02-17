@@ -33,6 +33,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
@@ -1012,6 +1013,28 @@ static int twl6040_pll_put_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+int twl6040_get_dl1_gain(struct snd_soc_codec *codec)
+{
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+
+	if (snd_soc_dapm_get_pin_status(dapm, "EP"))
+		return -1; /* -1dB */
+
+	if (snd_soc_dapm_get_pin_status(dapm, "HSOR") ||
+		snd_soc_dapm_get_pin_status(dapm, "HSOL")) {
+
+		u8 val = snd_soc_read(codec, TWL6040_REG_HSLCTL);
+		if (val & TWL6040_HSDACMODE)
+			/* HSDACL in LP mode */
+			return -8; /* -8dB */
+		else
+			/* HSDACL in HP mode */
+			return -1; /* -1dB */
+	}
+	return 0; /* 0dB */
+}
+EXPORT_SYMBOL_GPL(twl6040_get_dl1_gain);
+
 int twl6040_get_clk_id(struct snd_soc_codec *codec)
 {
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
@@ -1397,7 +1420,7 @@ static int twl6040_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static struct snd_soc_dai_ops twl6040_dai_ops = {
+static const struct snd_soc_dai_ops twl6040_dai_ops = {
 	.startup	= twl6040_startup,
 	.hw_params	= twl6040_hw_params,
 	.prepare	= twl6040_prepare,
@@ -1470,7 +1493,7 @@ static struct snd_soc_dai_driver twl6040_dai[] = {
 };
 
 #ifdef CONFIG_PM
-static int twl6040_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int twl6040_suspend(struct snd_soc_codec *codec)
 {
 	twl6040_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
@@ -1620,17 +1643,7 @@ static struct platform_driver twl6040_codec_driver = {
 	.remove = __devexit_p(twl6040_codec_remove),
 };
 
-static int __init twl6040_codec_init(void)
-{
-	return platform_driver_register(&twl6040_codec_driver);
-}
-module_init(twl6040_codec_init);
-
-static void __exit twl6040_codec_exit(void)
-{
-	platform_driver_unregister(&twl6040_codec_driver);
-}
-module_exit(twl6040_codec_exit);
+module_platform_driver(twl6040_codec_driver);
 
 MODULE_DESCRIPTION("ASoC TWL6040 codec driver");
 MODULE_AUTHOR("Misael Lopez Cruz");

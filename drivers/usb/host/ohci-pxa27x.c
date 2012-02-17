@@ -502,8 +502,6 @@ static int ohci_hcd_pxa27x_drv_suspend(struct device *dev)
 	ohci->ohci.next_statechange = jiffies;
 
 	pxa27x_stop_hc(ohci, dev);
-	hcd->state = HC_STATE_SUSPENDED;
-
 	return 0;
 }
 

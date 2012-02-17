@@ -207,7 +207,15 @@ do {	current_thread_info()->syscall_noerror = 1; \
 #define instruction_pointer(regs) ((regs)->tpc)
 #define instruction_pointer_set(regs, val) ((regs)->tpc = (val))
 #define user_stack_pointer(regs) ((regs)->u_regs[UREG_FP])
-#define regs_return_value(regs) ((regs)->u_regs[UREG_I0])
+static inline int is_syscall_success(struct pt_regs *regs)
+{
+	return !(regs->tstate & (TSTATE_XCARRY | TSTATE_ICARRY));
+}
+
+static inline long regs_return_value(struct pt_regs *regs)
+{
+	return regs->u_regs[UREG_I0];
+}
 #ifdef CONFIG_SMP
 extern unsigned long profile_pc(struct pt_regs *);
 #else

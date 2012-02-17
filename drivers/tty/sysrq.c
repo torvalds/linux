@@ -32,7 +32,6 @@
 #include <linux/module.h>
 #include <linux/suspend.h>
 #include <linux/writeback.h>
-#include <linux/buffer_head.h>		/* for fsync_bdev() */
 #include <linux/swap.h>
 #include <linux/spinlock.h>
 #include <linux/vt_kern.h>
@@ -41,6 +40,7 @@
 #include <linux/oom.h>
 #include <linux/slab.h>
 #include <linux/input.h>
+#include <linux/uaccess.h>
 
 #include <asm/ptrace.h>
 #include <asm/irq_regs.h>

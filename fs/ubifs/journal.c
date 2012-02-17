@@ -697,9 +697,8 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 	int dlen = COMPRESSED_DATA_NODE_BUF_SZ, allocated = 1;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
-	dbg_jnl("ino %lu, blk %u, len %d, key %s",
-		(unsigned long)key_inum(c, key), key_block(c, key), len,
-		DBGKEY(key));
+	dbg_jnlk(key, "ino %lu, blk %u, len %d, key ",
+		(unsigned long)key_inum(c, key), key_block(c, key), len);
 	ubifs_assert(len <= UBIFS_BLOCK_SIZE);
 
 	data = kmalloc(dlen, GFP_NOFS | __GFP_NOWARN);
@@ -1177,7 +1176,7 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 		dn = (void *)trun + UBIFS_TRUN_NODE_SZ;
 		blk = new_size >> UBIFS_BLOCK_SHIFT;
 		data_key_init(c, &key, inum, blk);
-		dbg_jnl("last block key %s", DBGKEY(&key));
+		dbg_jnlk(&key, "last block key ");
 		err = ubifs_tnc_lookup(c, &key, dn);
 		if (err == -ENOENT)
 			dlen = 0; /* Not found (so it is a hole) */

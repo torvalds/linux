@@ -12,16 +12,8 @@
 #ifndef	__AMBA_PL330_H_
 #define	__AMBA_PL330_H_
 
+#include <linux/dmaengine.h>
 #include <asm/hardware/pl330.h>
-
-struct dma_pl330_peri {
-	/*
-	 * Peri_Req i/f of the DMAC that is
-	 * peripheral could be reached from.
-	 */
-	u8 peri_id; /* specific dma id */
-	enum pl330_reqtype rqtype;
-};
 
 struct dma_pl330_platdata {
 	/*
@@ -33,9 +25,12 @@ struct dma_pl330_platdata {
 	 */
 	u8 nr_valid_peri;
 	/* Array of valid peripherals */
-	struct dma_pl330_peri *peri;
+	u8 *peri_id;
+	/* Operational capabilities */
+	dma_cap_mask_t cap_mask;
 	/* Bytes to allocate for MC buffer */
 	unsigned mcbuf_sz;
 };
 
+extern bool pl330_filter(struct dma_chan *chan, void *param);
 #endif	/* __AMBA_PL330_H_ */

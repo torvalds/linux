@@ -4,7 +4,9 @@
  * struct subsys_private - structure to hold the private to the driver core portions of the bus_type/class structure.
  *
  * @subsys - the struct kset that defines this subsystem
- * @devices_kset - the list of devices associated
+ * @devices_kset - the subsystem's 'devices' directory
+ * @interfaces - list of subsystem interfaces associated
+ * @mutex - protect the devices, and interfaces lists.
  *
  * @drivers_kset - the list of drivers associated
  * @klist_devices - the klist to iterate over the @devices_kset
@@ -14,10 +16,8 @@
  * @bus - pointer back to the struct bus_type that this structure is associated
  *        with.
  *
- * @class_interfaces - list of class_interfaces associated
  * @glue_dirs - "glue" directory to put in-between the parent device to
  *              avoid namespace conflicts
- * @class_mutex - mutex to protect the children, devices, and interfaces lists.
  * @class - pointer back to the struct class that this structure is associated
  *          with.
  *
@@ -28,6 +28,8 @@
 struct subsys_private {
 	struct kset subsys;
 	struct kset *devices_kset;
+	struct list_head interfaces;
+	struct mutex mutex;
 
 	struct kset *drivers_kset;
 	struct klist klist_devices;
@@ -36,9 +38,7 @@ struct subsys_private {
 	unsigned int drivers_autoprobe:1;
 	struct bus_type *bus;
 
-	struct list_head class_interfaces;
 	struct kset glue_dirs;
-	struct mutex class_mutex;
 	struct class *class;
 };
 #define to_subsys_private(obj) container_of(obj, struct subsys_private, subsys.kobj)
@@ -94,8 +94,7 @@ extern int hypervisor_init(void);
 static inline int hypervisor_init(void) { return 0; }
 #endif
 extern int platform_bus_init(void);
-extern int system_bus_init(void);
-extern int cpu_dev_init(void);
+extern void cpu_dev_init(void);
 
 extern int bus_add_device(struct device *dev);
 extern void bus_probe_device(struct device *dev);
@@ -116,6 +115,7 @@ extern char *make_class_name(const char *name, struct kobject *kobj);
 
 extern int devres_release_all(struct device *dev);
 
+/* /sys/devices directory */
 extern struct kset *devices_kset;
 
 #if defined(CONFIG_MODULES) && defined(CONFIG_SYSFS)

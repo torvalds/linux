@@ -70,7 +70,6 @@ static void __init omap_generic_init(void)
 	if (node)
 		irq_domain_add_simple(node, 0);
 
-	omap_serial_init();
 	omap_sdrc_init(NULL, NULL);
 
 	of_platform_populate(NULL, omap_dt_match_table, NULL, NULL);
@@ -92,14 +91,13 @@ static void __init omap3_init(void)
 }
 #endif
 
-#if defined(CONFIG_SOC_OMAP2420)
+#ifdef CONFIG_SOC_OMAP2420
 static const char *omap242x_boards_compat[] __initdata = {
 	"ti,omap2420",
 	NULL,
 };
 
 DT_MACHINE_START(OMAP242X_DT, "Generic OMAP2420 (Flattened Device Tree)")
-	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap242x_map_io,
 	.init_early	= omap2420_init_early,
@@ -108,17 +106,17 @@ DT_MACHINE_START(OMAP242X_DT, "Generic OMAP2420 (Flattened Device Tree)")
 	.init_machine	= omap_generic_init,
 	.timer		= &omap2_timer,
 	.dt_compat	= omap242x_boards_compat,
+	.restart	= omap_prcm_restart,
 MACHINE_END
 #endif
 
-#if defined(CONFIG_SOC_OMAP2430)
+#ifdef CONFIG_SOC_OMAP2430
 static const char *omap243x_boards_compat[] __initdata = {
 	"ti,omap2430",
 	NULL,
 };
 
 DT_MACHINE_START(OMAP243X_DT, "Generic OMAP2430 (Flattened Device Tree)")
-	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap243x_map_io,
 	.init_early	= omap2430_init_early,
@@ -127,17 +125,17 @@ DT_MACHINE_START(OMAP243X_DT, "Generic OMAP2430 (Flattened Device Tree)")
 	.init_machine	= omap_generic_init,
 	.timer		= &omap2_timer,
 	.dt_compat	= omap243x_boards_compat,
+	.restart	= omap_prcm_restart,
 MACHINE_END
 #endif
 
-#if defined(CONFIG_ARCH_OMAP3)
+#ifdef CONFIG_ARCH_OMAP3
 static const char *omap3_boards_compat[] __initdata = {
 	"ti,omap3",
 	NULL,
 };
 
 DT_MACHINE_START(OMAP3_DT, "Generic OMAP3 (Flattened Device Tree)")
-	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= omap3430_init_early,
@@ -146,17 +144,17 @@ DT_MACHINE_START(OMAP3_DT, "Generic OMAP3 (Flattened Device Tree)")
 	.init_machine	= omap3_init,
 	.timer		= &omap3_timer,
 	.dt_compat	= omap3_boards_compat,
+	.restart	= omap_prcm_restart,
 MACHINE_END
 #endif
 
-#if defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP4
 static const char *omap4_boards_compat[] __initdata = {
 	"ti,omap4",
 	NULL,
 };
 
 DT_MACHINE_START(OMAP4_DT, "Generic OMAP4 (Flattened Device Tree)")
-	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap4_map_io,
 	.init_early	= omap4430_init_early,
@@ -165,5 +163,6 @@ DT_MACHINE_START(OMAP4_DT, "Generic OMAP4 (Flattened Device Tree)")
 	.init_machine	= omap4_init,
 	.timer		= &omap4_timer,
 	.dt_compat	= omap4_boards_compat,
+	.restart	= omap_prcm_restart,
 MACHINE_END
 #endif

@@ -29,7 +29,6 @@ static int ohci_sh_start(struct usb_hcd *hcd)
 	ohci_hcd_init(ohci);
 	ohci_init(ohci);
 	ohci_run(ohci);
-	hcd->state = HC_STATE_RUNNING;
 	return 0;
 }
 

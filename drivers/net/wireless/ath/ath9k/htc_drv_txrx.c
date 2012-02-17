@@ -355,7 +355,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv,
 		vif_idx = avp->index;
 	} else {
 		if (!priv->ah->is_monitoring) {
-			ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
+			ath_dbg(ath9k_hw_common(priv->ah), XMIT,
 				"VIF is null, but no monitor interface !\n");
 			return -EINVAL;
 		}
@@ -620,8 +620,7 @@ static struct sk_buff* ath9k_htc_tx_get_packet(struct ath9k_htc_priv *priv,
 	}
 	spin_unlock_irqrestore(&epid_queue->lock, flags);
 
-	ath_dbg(common, ATH_DBG_XMIT,
-		"No matching packet for cookie: %d, epid: %d\n",
+	ath_dbg(common, XMIT, "No matching packet for cookie: %d, epid: %d\n",
 		txs->cookie, epid);
 
 	return NULL;
@@ -705,8 +704,7 @@ static inline bool check_packet(struct ath9k_htc_priv *priv, struct sk_buff *skb
 	if (time_after(jiffies,
 		       tx_ctl->timestamp +
 		       msecs_to_jiffies(ATH9K_HTC_TX_TIMEOUT_INTERVAL))) {
-		ath_dbg(common, ATH_DBG_XMIT,
-			"Dropping a packet due to TX timeout\n");
+		ath_dbg(common, XMIT, "Dropping a packet due to TX timeout\n");
 		return true;
 	}
 
@@ -753,7 +751,7 @@ void ath9k_htc_tx_cleanup_timer(unsigned long data)
 
 		skb = ath9k_htc_tx_get_packet(priv, &event->txs);
 		if (skb) {
-			ath_dbg(common, ATH_DBG_XMIT,
+			ath_dbg(common, XMIT,
 				"Found packet for cookie: %d, epid: %d\n",
 				event->txs.cookie,
 				MS(event->txs.ts_rate, ATH9K_HTC_TXSTAT_EPID));
@@ -1167,8 +1165,7 @@ void ath9k_htc_rxep(void *drv_priv, struct sk_buff *skb,
 	spin_unlock(&priv->rx.rxbuflock);
 
 	if (rxbuf == NULL) {
-		ath_dbg(common, ATH_DBG_ANY,
-			"No free RX buffer\n");
+		ath_dbg(common, ANY, "No free RX buffer\n");
 		goto err;
 	}
 

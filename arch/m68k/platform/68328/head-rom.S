@@ -8,7 +8,7 @@
 	.global _ramend
 
 #ifdef CONFIG_INIT_LCD
-	.global splash_bits
+	.global bootlogo_bits
 #endif
 
 	.data
@@ -29,16 +29,11 @@ _ramend:
 
 #define	RAMEND	(CONFIG_RAMBASE + CONFIG_RAMSIZE)
 
-#ifdef CONFIG_INIT_LCD
-splash_bits:
-#include "bootlogo.rh"
-#endif
-	
 	.text
 _start:
 _stext:	movew	#0x2700,%sr
 #ifdef CONFIG_INIT_LCD
-	movel	#splash_bits, 0xfffffA00 /* LSSA */
+	movel	#bootlogo_bits, 0xfffffA00 /* LSSA */
 	moveb	#0x28,   0xfffffA05	/* LVPW */
 	movew	#0x280,  0xFFFFFa08	/* LXMAX */
 	movew	#0x1df,  0xFFFFFa0a	/* LYMAX */

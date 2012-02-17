@@ -420,7 +420,7 @@ static u32 ipheth_ethtool_op_get_link(struct net_device *net)
 	return netif_carrier_ok(dev->net);
 }
 
-static struct ethtool_ops ops = {
+static const struct ethtool_ops ops = {
 	.get_link = ipheth_ethtool_op_get_link
 };
 
@@ -543,25 +543,7 @@ static struct usb_driver ipheth_driver = {
 	.id_table =	ipheth_table,
 };
 
-static int __init ipheth_init(void)
-{
-	int retval;
-
-	retval = usb_register(&ipheth_driver);
-	if (retval) {
-		err("usb_register failed: %d", retval);
-		return retval;
-	}
-	return 0;
-}
-
-static void __exit ipheth_exit(void)
-{
-	usb_deregister(&ipheth_driver);
-}
-
-module_init(ipheth_init);
-module_exit(ipheth_exit);
+module_usb_driver(ipheth_driver);
 
 MODULE_AUTHOR("Diego Giagio <diego@giagio.com>");
 MODULE_DESCRIPTION("Apple iPhone USB Ethernet driver");

@@ -610,4 +610,5 @@ MACHINE_START(HERALD, "HTC Herald")
 	.init_irq       = omap1_init_irq,
 	.init_machine   = htcherald_init,
 	.timer          = &omap1_timer,
+	.restart	= omap1_restart,
 MACHINE_END

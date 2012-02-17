@@ -63,6 +63,8 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/physmap.h>
 
+#include "common.h"
+
 static struct resource amlm5900_nor_resource = {
 		.start = 0x00000000,
 		.end   = 0x01000000 - 1,
@@ -241,4 +243,5 @@ MACHINE_START(AML_M5900, "AML_M5900")
 	.init_irq	= s3c24xx_init_irq,
 	.init_machine	= amlm5900_init,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2410_restart,
 MACHINE_END

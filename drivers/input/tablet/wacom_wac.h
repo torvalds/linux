@@ -12,7 +12,7 @@
 #include <linux/types.h>
 
 /* maximum packet length for USB devices */
-#define WACOM_PKGLEN_MAX	32
+#define WACOM_PKGLEN_MAX	64
 
 /* packet length for individual models */
 #define WACOM_PKGLEN_PENPRTN	 7
@@ -22,6 +22,8 @@
 #define WACOM_PKGLEN_TPC1FG	 5
 #define WACOM_PKGLEN_TPC2FG	14
 #define WACOM_PKGLEN_BBTOUCH	20
+#define WACOM_PKGLEN_BBTOUCH3	64
+#define WACOM_PKGLEN_BBPEN	10
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -57,6 +59,7 @@ enum {
 	INTUOS4S,
 	INTUOS4,
 	INTUOS4L,
+	WACOM_24HD,
 	WACOM_21UX2,
 	CINTIQ,
 	WACOM_BEE,

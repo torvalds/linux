@@ -183,17 +183,15 @@ static void dcon_set_dconload_1(int val)
 	gpio_set_value(OLPC_GPIO_DCON_LOAD, val);
 }
 
-static u8 dcon_read_status_xo_1(void)
+static int dcon_read_status_xo_1(u8 *status)
 {
-	u8 status;
-
-	status = gpio_get_value(OLPC_GPIO_DCON_STAT0);
-	status |= gpio_get_value(OLPC_GPIO_DCON_STAT1) << 1;
+	*status = gpio_get_value(OLPC_GPIO_DCON_STAT0);
+	*status |= gpio_get_value(OLPC_GPIO_DCON_STAT1) << 1;
 
 	/* Clear the negative edge status for GPIO7 */
 	cs5535_gpio_set(OLPC_GPIO_DCON_IRQ, GPIO_NEGATIVE_EDGE_STS);
 
-	return status;
+	return 0;
 }
 
 struct dcon_platform_data dcon_pdata_xo_1 = {

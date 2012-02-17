@@ -40,13 +40,14 @@
 #include <linux/atmel-mci.h>
 #include <sound/atmel-ac97c.h>
 #include <linux/serial.h>
+#include <linux/platform_data/macb.h>
 
  /* USB Device */
 struct at91_udc_data {
-	u8	vbus_pin;		/* high == host powering us */
+	int	vbus_pin;		/* high == host powering us */
 	u8	vbus_active_low;	/* vbus polarity */
 	u8	vbus_polled;		/* Use polling, not interrupt */
-	u8	pullup_pin;		/* active == D+ pulled up */
+	int	pullup_pin;		/* active == D+ pulled up */
 	u8	pullup_active_low;	/* true == pullup_pin is active low */
 };
 extern void __init at91_add_device_udc(struct at91_udc_data *data);
@@ -56,10 +57,10 @@ extern void __init at91_add_device_usba(struct usba_platform_data *data);
 
  /* Compact Flash */
 struct at91_cf_data {
-	u8	irq_pin;		/* I/O IRQ */
-	u8	det_pin;		/* Card detect */
-	u8	vcc_pin;		/* power switching */
-	u8	rst_pin;		/* card reset */
+	int	irq_pin;		/* I/O IRQ */
+	int	det_pin;		/* Card detect */
+	int	vcc_pin;		/* power switching */
+	int	rst_pin;		/* card reset */
 	u8	chipselect;		/* EBI Chip Select number */
 	u8	flags;
 #define AT91_CF_TRUE_IDE	0x01
@@ -70,37 +71,26 @@ extern void __init at91_add_device_cf(struct at91_cf_data *data);
  /* MMC / SD */
   /* at91_mci platform config */
 struct at91_mmc_data {
-	u8		det_pin;	/* card detect IRQ */
+	int		det_pin;	/* card detect IRQ */
 	unsigned	slot_b:1;	/* uses Slot B */
 	unsigned	wire4:1;	/* (SD) supports DAT0..DAT3 */
-	u8		wp_pin;		/* (SD) writeprotect detect */
-	u8		vcc_pin;	/* power switching (high == on) */
+	int		wp_pin;		/* (SD) writeprotect detect */
+	int		vcc_pin;	/* power switching (high == on) */
 };
 extern void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data);
 
   /* atmel-mci platform config */
 extern void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data);
 
- /* Ethernet (EMAC & MACB) */
-struct at91_eth_data {
-	u32		phy_mask;
-	u8		phy_irq_pin;	/* PHY IRQ */
-	u8		is_rmii;	/* using RMII interface? */
-};
-extern void __init at91_add_device_eth(struct at91_eth_data *data);
-
-#if defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9263) || defined(CONFIG_ARCH_AT91SAM9G20) || defined(CONFIG_ARCH_AT91CAP9) \
-	|| defined(CONFIG_ARCH_AT91SAM9G45)
-#define eth_platform_data	at91_eth_data
-#endif
+extern void __init at91_add_device_eth(struct macb_platform_data *data);
 
  /* USB Host */
 struct at91_usbh_data {
 	u8		ports;		/* number of ports on root hub */
-	u8		vbus_pin[2];	/* port power-control pin */
-	u8              vbus_pin_inverted;
+	int		vbus_pin[2];	/* port power-control pin */
+	u8              vbus_pin_active_low[2];
 	u8              overcurrent_supported;
-	u8              overcurrent_pin[2];
+	int             overcurrent_pin[2];
 	u8              overcurrent_status[2];
 	u8              overcurrent_changed[2];
 };
@@ -110,9 +100,9 @@ extern void __init at91_add_device_usbh_ehci(struct at91_usbh_data *data);
 
  /* NAND / SmartMedia */
 struct atmel_nand_data {
-	u8		enable_pin;	/* chip enable */
-	u8		det_pin;	/* card detect */
-	u8		rdy_pin;	/* ready/busy */
+	int		enable_pin;	/* chip enable */
+	int		det_pin;	/* card detect */
+	int		rdy_pin;	/* ready/busy */
 	u8              rdy_pin_active_low;     /* rdy_pin value is inverted */
 	u8		ale;		/* address line number connected to ALE */
 	u8		cle;		/* address line number connected to CLE */

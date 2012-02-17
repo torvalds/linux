@@ -172,16 +172,4 @@ static struct platform_driver jornada720_ts_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init jornada720_ts_init(void)
-{
-	return platform_driver_register(&jornada720_ts_driver);
-}
-
-static void __exit jornada720_ts_exit(void)
-{
-	platform_driver_unregister(&jornada720_ts_driver);
-}
-
-module_init(jornada720_ts_init);
-module_exit(jornada720_ts_exit);
+module_platform_driver(jornada720_ts_driver);

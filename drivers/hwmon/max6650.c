@@ -464,7 +464,7 @@ static SENSOR_DEVICE_ATTR(gpio1_alarm, S_IRUGO, get_alarm, NULL,
 static SENSOR_DEVICE_ATTR(gpio2_alarm, S_IRUGO, get_alarm, NULL,
 			  MAX6650_ALRM_GPIO2);
 
-static mode_t max6650_attrs_visible(struct kobject *kobj, struct attribute *a,
+static umode_t max6650_attrs_visible(struct kobject *kobj, struct attribute *a,
 				    int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);

@@ -166,52 +166,6 @@ static inline unsigned long cmpxchg_386(volatile void *ptr, unsigned long old,
 
 #endif
 
-#define cmpxchg8b(ptr, o1, o2, n1, n2)				\
-({								\
-	char __ret;						\
-	__typeof__(o2) __dummy;					\
-	__typeof__(*(ptr)) __old1 = (o1);			\
-	__typeof__(o2) __old2 = (o2);				\
-	__typeof__(*(ptr)) __new1 = (n1);			\
-	__typeof__(o2) __new2 = (n2);				\
-	asm volatile(LOCK_PREFIX "cmpxchg8b %2; setz %1"	\
-		       : "=d"(__dummy), "=a" (__ret), "+m" (*ptr)\
-		       : "a" (__old1), "d"(__old2),		\
-		         "b" (__new1), "c" (__new2)		\
-		       : "memory");				\
-	__ret; })
-
-
-#define cmpxchg8b_local(ptr, o1, o2, n1, n2)			\
-({								\
-	char __ret;						\
-	__typeof__(o2) __dummy;					\
-	__typeof__(*(ptr)) __old1 = (o1);			\
-	__typeof__(o2) __old2 = (o2);				\
-	__typeof__(*(ptr)) __new1 = (n1);			\
-	__typeof__(o2) __new2 = (n2);				\
-	asm volatile("cmpxchg8b %2; setz %1"			\
-		       : "=d"(__dummy), "=a"(__ret), "+m" (*ptr)\
-		       : "a" (__old), "d"(__old2),		\
-		         "b" (__new1), "c" (__new2),		\
-		       : "memory");				\
-	__ret; })
-
-
-#define cmpxchg_double(ptr, o1, o2, n1, n2)				\
-({									\
-	BUILD_BUG_ON(sizeof(*(ptr)) != 4);				\
-	VM_BUG_ON((unsigned long)(ptr) % 8);				\
-	cmpxchg8b((ptr), (o1), (o2), (n1), (n2));			\
-})
-
-#define cmpxchg_double_local(ptr, o1, o2, n1, n2)			\
-({									\
-       BUILD_BUG_ON(sizeof(*(ptr)) != 4);				\
-       VM_BUG_ON((unsigned long)(ptr) % 8);				\
-       cmpxchg16b_local((ptr), (o1), (o2), (n1), (n2));			\
-})
-
 #define system_has_cmpxchg_double() cpu_has_cx8
 
 #endif /* _ASM_X86_CMPXCHG_32_H */

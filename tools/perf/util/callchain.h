@@ -101,6 +101,9 @@ int callchain_append(struct callchain_root *root,
 int callchain_merge(struct callchain_cursor *cursor,
 		    struct callchain_root *dst, struct callchain_root *src);
 
+struct ip_callchain;
+union perf_event;
+
 bool ip_callchain__valid(struct ip_callchain *chain,
 			 const union perf_event *event);
 /*

@@ -84,6 +84,7 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 		}
 	}
 	rtlhal->version  = (enum version_8192c)chip_version;
+	pr_info("rtl8192cu: Chip version 0x%x\n", chip_version);
 	switch (rtlhal->version) {
 	case VERSION_NORMAL_TSMC_CHIP_92C_1T2R:
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,

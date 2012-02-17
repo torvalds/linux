@@ -108,7 +108,7 @@ static int ocfs2_parse_options(struct super_block *sb, char *options,
 			       int is_remount);
 static int ocfs2_check_set_options(struct super_block *sb,
 				   struct mount_options *options);
-static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt);
+static int ocfs2_show_options(struct seq_file *s, struct dentry *root);
 static void ocfs2_put_super(struct super_block *sb);
 static int ocfs2_mount_volume(struct super_block *sb);
 static int ocfs2_remount(struct super_block *sb, int *flags, char *data);
@@ -569,7 +569,6 @@ static struct inode *ocfs2_alloc_inode(struct super_block *sb)
 static void ocfs2_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(ocfs2_inode_cachep, OCFS2_I(inode));
 }
 
@@ -1534,9 +1533,9 @@ bail:
 	return status;
 }
 
-static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
+static int ocfs2_show_options(struct seq_file *s, struct dentry *root)
 {
-	struct ocfs2_super *osb = OCFS2_SB(mnt->mnt_sb);
+	struct ocfs2_super *osb = OCFS2_SB(root->d_sb);
 	unsigned long opts = osb->s_mount_opt;
 	unsigned int local_alloc_megs;
 
@@ -1568,8 +1567,7 @@ static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	if (osb->preferred_slot != OCFS2_INVALID_SLOT)
 		seq_printf(s, ",preferred_slot=%d", osb->preferred_slot);
 
-	if (!(mnt->mnt_flags & MNT_NOATIME) && !(mnt->mnt_flags & MNT_RELATIME))
-		seq_printf(s, ",atime_quantum=%u", osb->s_atime_quantum);
+	seq_printf(s, ",atime_quantum=%u", osb->s_atime_quantum);
 
 	if (osb->osb_commit_interval)
 		seq_printf(s, ",commit=%u",

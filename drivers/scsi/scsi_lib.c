@@ -1316,15 +1316,10 @@ static inline int scsi_target_queue_ready(struct Scsi_Host *shost,
 	}
 
 	if (scsi_target_is_busy(starget)) {
-		if (list_empty(&sdev->starved_entry))
-			list_add_tail(&sdev->starved_entry,
-				      &shost->starved_list);
+		list_move_tail(&sdev->starved_entry, &shost->starved_list);
 		return 0;
 	}
 
-	/* We're OK to process the command, so we can't be starved */
-	if (!list_empty(&sdev->starved_entry))
-		list_del_init(&sdev->starved_entry);
 	return 1;
 }
 

@@ -55,9 +55,14 @@ int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter)
 {
 	bool cancel_flag = false;
 	int status = adapter->cmd_wait_q.status;
-	struct cmd_ctrl_node *cmd_queued = adapter->cmd_queued;
+	struct cmd_ctrl_node *cmd_queued;
 
+	if (!adapter->cmd_queued)
+		return 0;
+
+	cmd_queued = adapter->cmd_queued;
 	adapter->cmd_queued = NULL;
+
 	dev_dbg(adapter->dev, "cmd pending\n");
 	atomic_inc(&adapter->cmd_pending);
 
@@ -234,7 +239,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 				      "associating...\n");
 
 		if (!netif_queue_stopped(priv->netdev))
-			netif_stop_queue(priv->netdev);
+			mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 
 		/* Clear any past association response stored for
 		 * application retrieval */
@@ -265,7 +270,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		ret = mwifiex_check_network_compatibility(priv, bss_desc);
 
 		if (!netif_queue_stopped(priv->netdev))
-			netif_stop_queue(priv->netdev);
+			mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 
 		if (!ret) {
 			dev_dbg(adapter->dev, "info: network found in scan"
@@ -467,67 +472,6 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 
 	info->is_hs_configured = adapter->is_hs_configured;
 	info->is_deep_sleep = adapter->is_deep_sleep;
-
-	return 0;
-}
-
-/*
- * The function sets band configurations.
- *
- * it performs extra checks to make sure the Ad-Hoc
- * band and channel are compatible. Otherwise it returns an error.
- *
- */
-int mwifiex_set_radio_band_cfg(struct mwifiex_private *priv,
-			       struct mwifiex_ds_band_cfg *radio_cfg)
-{
-	struct mwifiex_adapter *adapter = priv->adapter;
-	u8 infra_band, adhoc_band;
-	u32 adhoc_channel;
-
-	infra_band = (u8) radio_cfg->config_bands;
-	adhoc_band = (u8) radio_cfg->adhoc_start_band;
-	adhoc_channel = radio_cfg->adhoc_channel;
-
-	/* SET Infra band */
-	if ((infra_band | adapter->fw_bands) & ~adapter->fw_bands)
-		return -1;
-
-	adapter->config_bands = infra_band;
-
-	/* SET Ad-hoc Band */
-	if ((adhoc_band | adapter->fw_bands) & ~adapter->fw_bands)
-		return -1;
-
-	if (adhoc_band)
-		adapter->adhoc_start_band = adhoc_band;
-	adapter->chan_offset = (u8) radio_cfg->sec_chan_offset;
-	/*
-	 * If no adhoc_channel is supplied verify if the existing adhoc
-	 * channel compiles with new adhoc_band
-	 */
-	if (!adhoc_channel) {
-		if (!mwifiex_get_cfp_by_band_and_channel_from_cfg80211
-		     (priv, adapter->adhoc_start_band,
-		     priv->adhoc_channel)) {
-			/* Pass back the default channel */
-			radio_cfg->adhoc_channel = DEFAULT_AD_HOC_CHANNEL;
-			if ((adapter->adhoc_start_band & BAND_A)
-			    || (adapter->adhoc_start_band & BAND_AN))
-				radio_cfg->adhoc_channel =
-					DEFAULT_AD_HOC_CHANNEL_A;
-		}
-	} else {	/* Retrurn error if adhoc_band and
-			   adhoc_channel combination is invalid */
-		if (!mwifiex_get_cfp_by_band_and_channel_from_cfg80211
-		    (priv, adapter->adhoc_start_band, (u16) adhoc_channel))
-			return -1;
-		priv->adhoc_channel = (u8) adhoc_channel;
-	}
-	if ((adhoc_band & BAND_GN) || (adhoc_band & BAND_AN))
-		adapter->adhoc_11n_enabled = true;
-	else
-		adapter->adhoc_11n_enabled = false;
 
 	return 0;
 }
@@ -832,8 +776,8 @@ int mwifiex_drv_get_data_rate(struct mwifiex_private *priv,
 
 	if (!ret) {
 		if (rate->is_rate_auto)
-			rate->rate = mwifiex_index_to_data_rate(priv->tx_rate,
-							priv->tx_htinfo);
+			rate->rate = mwifiex_index_to_data_rate(priv,
+					priv->tx_rate, priv->tx_htinfo);
 		else
 			rate->rate = priv->data_rate;
 	} else {

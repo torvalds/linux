@@ -20,7 +20,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../buffer_generic.h"
+#include "../buffer.h"
 
 #include "adis16260.h"
 
@@ -390,9 +390,9 @@ enum adis16260_channel {
 #define ADIS16260_GYRO_CHANNEL_SET(axis, mod)				\
 	struct iio_chan_spec adis16260_channels_##axis[] = {		\
 		IIO_CHAN(IIO_ANGL_VEL, 1, 0, 0, NULL, 0, mod,		\
-			 (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE) |	\
-			 (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE) |	\
-			 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),		\
+			 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |	\
+			 IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |	\
+			 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
 			 gyro, ADIS16260_SCAN_GYRO,			\
 			 IIO_ST('s', 14, 16, 0), 0),			\
 		IIO_CHAN(IIO_ANGL, 1, 0, 0, NULL, 0, mod,		\
@@ -400,16 +400,16 @@ enum adis16260_channel {
 			 angle, ADIS16260_SCAN_ANGL,			\
 			 IIO_ST('u', 14, 16, 0), 0),			\
 		IIO_CHAN(IIO_TEMP, 0, 1, 0, NULL, 0, 0,			\
-			 (1 << IIO_CHAN_INFO_OFFSET_SEPARATE) |		\
-			 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),		\
+			 IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |		\
+			 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
 			 temp, ADIS16260_SCAN_TEMP,			\
 			 IIO_ST('u', 12, 16, 0), 0),			\
 		IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "supply", 0, 0,		\
-			 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),		\
+			 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
 			 in_supply, ADIS16260_SCAN_SUPPLY,		\
 			 IIO_ST('u', 12, 16, 0), 0),			\
 		IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,		\
-			 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),		\
+			 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
 			 in_aux, ADIS16260_SCAN_AUX_ADC,		\
 			 IIO_ST('u', 12, 16, 0), 0),			\
 		IIO_CHAN_SOFT_TIMESTAMP(5)				\
@@ -464,8 +464,7 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 		*val = val16;
 		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
 			*val = 0;
@@ -489,10 +488,10 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 		break;
-	case (1 << IIO_CHAN_INFO_OFFSET_SEPARATE):
+	case IIO_CHAN_INFO_OFFSET:
 		*val = 25;
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
 			bits = 12;
@@ -512,7 +511,7 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 		*val = val16;
 		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
+	case IIO_CHAN_INFO_CALIBSCALE:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
 			bits = 12;
@@ -544,11 +543,11 @@ static int adis16260_write_raw(struct iio_dev *indio_dev,
 	s16 val16;
 	u8 addr;
 	switch (mask) {
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS:
 		val16 = val & ((1 << bits) - 1);
 		addr = adis16260_addresses[chan->address][1];
 		return adis16260_spi_write_reg_16(indio_dev, addr, val16);
-	case (1 << IIO_CHAN_INFO_CALIBSCALE_SEPARATE):
+	case IIO_CHAN_INFO_CALIBSCALE:
 		val16 = val & ((1 << bits) - 1);
 		addr = adis16260_addresses[chan->address][2];
 		return adis16260_spi_write_reg_16(indio_dev, addr, val16);
@@ -633,11 +632,16 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 	}
 	if (indio_dev->buffer) {
 		/* Set default scan mode */
-		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_SUPPLY);
-		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_GYRO);
-		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_AUX_ADC);
-		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_TEMP);
-		iio_scan_mask_set(indio_dev->buffer, ADIS16260_SCAN_ANGL);
+		iio_scan_mask_set(indio_dev, indio_dev->buffer,
+				  ADIS16260_SCAN_SUPPLY);
+		iio_scan_mask_set(indio_dev, indio_dev->buffer,
+				  ADIS16260_SCAN_GYRO);
+		iio_scan_mask_set(indio_dev, indio_dev->buffer,
+				  ADIS16260_SCAN_AUX_ADC);
+		iio_scan_mask_set(indio_dev, indio_dev->buffer,
+				  ADIS16260_SCAN_TEMP);
+		iio_scan_mask_set(indio_dev, indio_dev->buffer,
+				  ADIS16260_SCAN_ANGL);
 	}
 	if (spi->irq) {
 		ret = adis16260_probe_trigger(indio_dev);
@@ -701,6 +705,7 @@ static const struct spi_device_id adis16260_id[] = {
 	{"adis16251", 1},
 	{}
 };
+MODULE_DEVICE_TABLE(spi, adis16260_id);
 
 static struct spi_driver adis16260_driver = {
 	.driver = {
@@ -711,18 +716,7 @@ static struct spi_driver adis16260_driver = {
 	.remove = __devexit_p(adis16260_remove),
 	.id_table = adis16260_id,
 };
-
-static __init int adis16260_init(void)
-{
-	return spi_register_driver(&adis16260_driver);
-}
-module_init(adis16260_init);
-
-static __exit void adis16260_exit(void)
-{
-	spi_unregister_driver(&adis16260_driver);
-}
-module_exit(adis16260_exit);
+module_spi_driver(adis16260_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADIS16260/5 Digital Gyroscope Sensor");

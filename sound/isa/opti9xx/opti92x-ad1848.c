@@ -63,7 +63,7 @@ MODULE_SUPPORTED_DEVICE("{{OPTi,82C924 (AD1848)},"
 
 static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
 static char *id = SNDRV_DEFAULT_STR1;		/* ID for this card */
-//static int enable = SNDRV_DEFAULT_ENABLE1;	/* Enable this card */
+//static bool enable = SNDRV_DEFAULT_ENABLE1;	/* Enable this card */
 #ifdef CONFIG_PNP
 static int isapnp = 1;			/* Enable ISA PnP detection */
 #endif

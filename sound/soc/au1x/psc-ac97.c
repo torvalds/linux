@@ -337,7 +337,7 @@ static int au1xpsc_ac97_probe(struct snd_soc_dai *dai)
 	return au1xpsc_ac97_workdata ? 0 : -ENODEV;
 }
 
-static struct snd_soc_dai_ops au1xpsc_ac97_dai_ops = {
+static const struct snd_soc_dai_ops au1xpsc_ac97_dai_ops = {
 	.startup	= au1xpsc_ac97_startup,
 	.trigger	= au1xpsc_ac97_trigger,
 	.hw_params	= au1xpsc_ac97_hw_params,
@@ -368,35 +368,35 @@ static int __devinit au1xpsc_ac97_drvprobe(struct platform_device *pdev)
 	unsigned long sel;
 	struct au1xpsc_audio_data *wd;
 
-	wd = kzalloc(sizeof(struct au1xpsc_audio_data), GFP_KERNEL);
+	wd = devm_kzalloc(&pdev->dev, sizeof(struct au1xpsc_audio_data),
+			  GFP_KERNEL);
 	if (!wd)
 		return -ENOMEM;
 
 	mutex_init(&wd->lock);
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iores) {
-		ret = -ENODEV;
-		goto out0;
-	}
+	if (!iores)
+		return -ENODEV;
 
-	ret = -EBUSY;
-	if (!request_mem_region(iores->start, resource_size(iores),
-				pdev->name))
-		goto out0;
+	if (!devm_request_mem_region(&pdev->dev, iores->start,
+				     resource_size(iores),
+				     pdev->name))
+		return -EBUSY;
 
-	wd->mmio = ioremap(iores->start, resource_size(iores));
+	wd->mmio = devm_ioremap(&pdev->dev, iores->start,
+				resource_size(iores));
 	if (!wd->mmio)
-		goto out1;
+		return -EBUSY;
 
 	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!dmares)
-		goto out2;
+		return -EBUSY;
 	wd->dmaids[SNDRV_PCM_STREAM_PLAYBACK] = dmares->start;
 
 	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (!dmares)
-		goto out2;
+		return -EBUSY;
 	wd->dmaids[SNDRV_PCM_STREAM_CAPTURE] = dmares->start;
 
 	/* configuration: max dma trigger threshold, enable ac97 */
@@ -421,24 +421,15 @@ static int __devinit au1xpsc_ac97_drvprobe(struct platform_device *pdev)
 
 	ret = snd_soc_register_dai(&pdev->dev, &wd->dai_drv);
 	if (ret)
-		goto out2;
+		return ret;
 
 	au1xpsc_ac97_workdata = wd;
 	return 0;
-
-out2:
-	iounmap(wd->mmio);
-out1:
-	release_mem_region(iores->start, resource_size(iores));
-out0:
-	kfree(wd);
-	return ret;
 }
 
 static int __devexit au1xpsc_ac97_drvremove(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_data *wd = platform_get_drvdata(pdev);
-	struct resource *r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	snd_soc_unregister_dai(&pdev->dev);
 
@@ -447,10 +438,6 @@ static int __devexit au1xpsc_ac97_drvremove(struct platform_device *pdev)
 	au_sync();
 	au_writel(PSC_CTRL_DISABLE, PSC_CTRL(wd));
 	au_sync();
-
-	iounmap(wd->mmio);
-	release_mem_region(r->start, resource_size(r));
-	kfree(wd);
 
 	au1xpsc_ac97_workdata = NULL;	/* MDEV */
 

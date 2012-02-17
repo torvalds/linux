@@ -148,7 +148,6 @@ static void __cpuinit init_amd_k6(struct cpuinfo_x86 *c)
 
 static void __cpuinit amd_k7_smp_check(struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_SMP
 	/* calling is from identify_secondary_cpu() ? */
 	if (!c->cpu_index)
 		return;
@@ -192,7 +191,6 @@ static void __cpuinit amd_k7_smp_check(struct cpuinfo_x86 *c)
 
 valid_k7:
 	;
-#endif
 }
 
 static void __cpuinit init_amd_k7(struct cpuinfo_x86 *c)
@@ -353,6 +351,13 @@ static void __cpuinit srat_detect_node(struct cpuinfo_x86 *c)
 	if (node == NUMA_NO_NODE)
 		node = per_cpu(cpu_llc_id, cpu);
 
+	/*
+	 * If core numbers are inconsistent, it's likely a multi-fabric platform,
+	 * so invoke platform-specific handler
+	 */
+	if (c->phys_proc_id != node)
+		x86_cpuinit.fixup_cpu_id(c, node);
+
 	if (!node_online(node)) {
 		/*
 		 * Two possibilities here:
@@ -442,8 +447,6 @@ static void __cpuinit bsp_init_amd(struct cpuinfo_x86 *c)
 
 static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 {
-	u32 dummy;
-
 	early_init_amd_mc(c);
 
 	/*
@@ -473,12 +476,12 @@ static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 			set_cpu_cap(c, X86_FEATURE_EXTD_APICID);
 	}
 #endif
-
-	rdmsr_safe(MSR_AMD64_PATCH_LEVEL, &c->microcode, &dummy);
 }
 
 static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 {
+	u32 dummy;
+
 #ifdef CONFIG_SMP
 	unsigned long long value;
 
@@ -657,6 +660,8 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 			checking_wrmsrl(MSR_AMD64_MCx_MASK(4), mask);
 		}
 	}
+
+	rdmsr_safe(MSR_AMD64_PATCH_LEVEL, &c->microcode, &dummy);
 }
 
 #ifdef CONFIG_X86_32

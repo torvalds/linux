@@ -427,7 +427,7 @@ struct bna_ethport {
 
 /* Doorbell structure */
 struct bna_ib_dbell {
-	void *__iomem doorbell_addr;
+	void __iomem   *doorbell_addr;
 	u32		doorbell_ack;
 };
 
@@ -463,7 +463,7 @@ struct bna_tcb {
 	u32		consumer_index;
 	volatile u32	*hw_consumer_index;
 	u32		q_depth;
-	void *__iomem q_dbell;
+	void __iomem   *q_dbell;
 	struct bna_ib_dbell *i_dbell;
 	int			page_idx;
 	int			page_count;
@@ -599,7 +599,7 @@ struct bna_rcb {
 	u32		producer_index;
 	u32		consumer_index;
 	u32		q_depth;
-	void *__iomem q_dbell;
+	void __iomem   *q_dbell;
 	int			page_idx;
 	int			page_count;
 	/* Control path */
@@ -966,6 +966,7 @@ struct bna {
 
 	struct bna_ioceth ioceth;
 	struct bfa_cee cee;
+	struct bfa_flash flash;
 	struct bfa_msgq msgq;
 
 	struct bna_ethport ethport;

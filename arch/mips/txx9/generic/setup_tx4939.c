@@ -15,7 +15,7 @@
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/ethtool.h>
 #include <linux/param.h>
 #include <linux/ptrace.h>

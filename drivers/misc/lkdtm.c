@@ -354,6 +354,7 @@ static void lkdtm_do_action(enum ctype which)
 static void lkdtm_handler(void)
 {
 	unsigned long flags;
+	bool do_it = false;
 
 	spin_lock_irqsave(&count_lock, flags);
 	count--;
@@ -361,10 +362,13 @@ static void lkdtm_handler(void)
 			cp_name_to_str(cpoint), cp_type_to_str(cptype), count);
 
 	if (count == 0) {
-		lkdtm_do_action(cptype);
+		do_it = true;
 		count = cpoint_count;
 	}
 	spin_unlock_irqrestore(&count_lock, flags);
+
+	if (do_it)
+		lkdtm_do_action(cptype);
 }
 
 static int lkdtm_register_cpoint(enum cname which)

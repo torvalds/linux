@@ -335,18 +335,7 @@ static struct platform_driver omap4_keypad_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init omap4_keypad_init(void)
-{
-	return platform_driver_register(&omap4_keypad_driver);
-}
-module_init(omap4_keypad_init);
-
-static void __exit omap4_keypad_exit(void)
-{
-	platform_driver_unregister(&omap4_keypad_driver);
-}
-module_exit(omap4_keypad_exit);
+module_platform_driver(omap4_keypad_driver);
 
 MODULE_AUTHOR("Texas Instruments");
 MODULE_DESCRIPTION("OMAP4 Keypad Driver");

@@ -316,21 +316,6 @@ pdev_fixup_device_resources(struct pci_sys_data *root, struct pci_dev *dev)
 	}
 }
 
-static void __devinit
-pbus_assign_bus_resources(struct pci_bus *bus, struct pci_sys_data *root)
-{
-	struct pci_dev *dev = bus->self;
-	int i;
-
-	if (!dev) {
-		/*
-		 * Assign root bus resources.
-		 */
-		for (i = 0; i < 3; i++)
-			bus->resource[i] = root->resource[i];
-	}
-}
-
 /*
  * pcibios_fixup_bus - Called after each bus is probed,
  * but before its children are examined.
@@ -340,8 +325,6 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	struct pci_sys_data *root = bus->sysdata;
 	struct pci_dev *dev;
 	u16 features = PCI_COMMAND_SERR | PCI_COMMAND_PARITY | PCI_COMMAND_FAST_BACK;
-
-	pbus_assign_bus_resources(bus, root);
 
 	/*
 	 * Walk the devices on this bus, working out what we can
@@ -508,12 +491,18 @@ static void __init pcibios_init_hw(struct hw_pci *hw)
 		sys->busnr   = busnr;
 		sys->swizzle = hw->swizzle;
 		sys->map_irq = hw->map_irq;
-		sys->resource[0] = &ioport_resource;
-		sys->resource[1] = &iomem_resource;
+		INIT_LIST_HEAD(&sys->resources);
 
 		ret = hw->setup(nr, sys);
 
 		if (ret > 0) {
+			if (list_empty(&sys->resources)) {
+				pci_add_resource(&sys->resources,
+						 &ioport_resource);
+				pci_add_resource(&sys->resources,
+						 &iomem_resource);
+			}
+
 			sys->bus = hw->scan(nr, sys);
 
 			if (!sys->bus)
@@ -570,6 +559,13 @@ void __init pci_common_init(struct hw_pci *hw)
 		pci_bus_add_devices(bus);
 	}
 }
+
+#ifndef CONFIG_PCI_HOST_ITE8152
+void pcibios_set_master(struct pci_dev *dev)
+{
+	/* No special bus mastering setup handling */
+}
+#endif
 
 char * __init pcibios_setup(char *str)
 {

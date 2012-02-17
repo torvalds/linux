@@ -74,9 +74,10 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 {
 	struct vmw_legacy_display *lds = dev_priv->ldu_priv;
 	struct vmw_legacy_display_unit *entry;
+	struct vmw_display_unit *du = NULL;
 	struct drm_framebuffer *fb = NULL;
 	struct drm_crtc *crtc = NULL;
-	int i = 0;
+	int i = 0, ret;
 
 	/* If there is no display topology the host just assumes
 	 * that the guest will set the same layout as the host.
@@ -94,7 +95,7 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 			return 0;
 		fb = entry->base.crtc.fb;
 
-		return vmw_kms_write_svga(dev_priv, w, h, fb->pitch,
+		return vmw_kms_write_svga(dev_priv, w, h, fb->pitches[0],
 					  fb->bits_per_pixel, fb->depth);
 	}
 
@@ -102,7 +103,7 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 		entry = list_entry(lds->active.next, typeof(*entry), active);
 		fb = entry->base.crtc.fb;
 
-		vmw_kms_write_svga(dev_priv, fb->width, fb->height, fb->pitch,
+		vmw_kms_write_svga(dev_priv, fb->width, fb->height, fb->pitches[0],
 				   fb->bits_per_pixel, fb->depth);
 	}
 
@@ -128,6 +129,25 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 	BUG_ON(i != lds->num_active);
 
 	lds->last_num_active = lds->num_active;
+
+
+	/* Find the first du with a cursor. */
+	list_for_each_entry(entry, &lds->active, active) {
+		du = &entry->base;
+
+		if (!du->cursor_dmabuf)
+			continue;
+
+		ret = vmw_cursor_update_dmabuf(dev_priv,
+					       du->cursor_dmabuf,
+					       64, 64,
+					       du->hotspot_x,
+					       du->hotspot_y);
+		if (ret == 0)
+			break;
+
+		DRM_ERROR("Could not update cursor image\n");
+	}
 
 	return 0;
 }

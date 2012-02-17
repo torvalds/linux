@@ -56,7 +56,7 @@ module_param_array(force_subclients, short, NULL, 0);
 MODULE_PARM_DESC(force_subclients, "List of subclient addresses: "
 			"{bus, clientaddr, subclientaddr1, subclientaddr2}");
 
-static int init;
+static bool init;
 module_param(init, bool, 0);
 MODULE_PARM_DESC(init, "Set to one to force chip initialization");
 
@@ -749,7 +749,7 @@ store_chassis_clear(struct device *dev, struct device_attribute *attr,
 	unsigned long val;
 	u8 reg;
 
-	if (strict_strtoul(buf, 10, &val) || val != 0)
+	if (kstrtoul(buf, 10, &val) || val != 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);

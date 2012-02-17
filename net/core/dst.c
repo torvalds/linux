@@ -366,7 +366,7 @@ static void dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 		dev_hold(dst->dev);
 		dev_put(dev);
 		rcu_read_lock();
-		neigh = dst_get_neighbour(dst);
+		neigh = dst_get_neighbour_noref(dst);
 		if (neigh && neigh->dev == dev) {
 			neigh->dev = dst->dev;
 			dev_hold(dst->dev);

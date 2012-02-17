@@ -558,7 +558,7 @@ static const struct i2c_algorithm tegra_i2c_algo = {
 	.functionality	= tegra_i2c_func,
 };
 
-static int tegra_i2c_probe(struct platform_device *pdev)
+static int __devinit tegra_i2c_probe(struct platform_device *pdev)
 {
 	struct tegra_i2c_dev *i2c_dev;
 	struct tegra_i2c_platform_data *pdata = pdev->dev.platform_data;
@@ -636,7 +636,10 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 			i2c_dev->bus_clk_rate = be32_to_cpup(prop);
 	}
 
-	if (pdev->id == 3)
+	if (pdev->dev.of_node)
+		i2c_dev->is_dvc = of_device_is_compatible(pdev->dev.of_node,
+						"nvidia,tegra20-i2c-dvc");
+	else if (pdev->id == 3)
 		i2c_dev->is_dvc = 1;
 	init_completion(&i2c_dev->msg_complete);
 
@@ -690,7 +693,7 @@ err_iounmap:
 	return ret;
 }
 
-static int tegra_i2c_remove(struct platform_device *pdev)
+static int __devexit tegra_i2c_remove(struct platform_device *pdev)
 {
 	struct tegra_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
 	i2c_del_adapter(&i2c_dev->adapter);
@@ -742,6 +745,7 @@ static int tegra_i2c_resume(struct platform_device *pdev)
 /* Match table for of_platform binding */
 static const struct of_device_id tegra_i2c_of_match[] __devinitconst = {
 	{ .compatible = "nvidia,tegra20-i2c", },
+	{ .compatible = "nvidia,tegra20-i2c-dvc", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, tegra_i2c_of_match);

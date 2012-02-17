@@ -24,7 +24,7 @@
 
 #define VENDOR_ID	0x0fc5
 #define PRODUCT_ID	0x1227
-#define MAXLEN		6
+#define MAXLEN		8
 
 /* table of devices that work with this driver */
 static const struct usb_device_id id_table[] = {
@@ -437,23 +437,7 @@ static struct usb_driver sevseg_driver = {
 	.supports_autosuspend = 1,
 };
 
-static int __init usb_sevseg_init(void)
-{
-	int rc = 0;
-
-	rc = usb_register(&sevseg_driver);
-	if (rc)
-		err("usb_register failed. Error number %d", rc);
-	return rc;
-}
-
-static void __exit usb_sevseg_exit(void)
-{
-	usb_deregister(&sevseg_driver);
-}
-
-module_init(usb_sevseg_init);
-module_exit(usb_sevseg_exit);
+module_usb_driver(sevseg_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

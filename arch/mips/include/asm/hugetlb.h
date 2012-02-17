@@ -70,7 +70,7 @@ static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
 					 unsigned long addr, pte_t *ptep)
 {
-	flush_tlb_mm(vma->vm_mm);
+	flush_tlb_page(vma, addr & huge_page_mask(hstate_vma(vma)));
 }
 
 static inline int huge_pte_none(pte_t pte)

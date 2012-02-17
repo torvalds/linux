@@ -142,7 +142,7 @@
 
 /*
  * The ibm,sdram-4xx-ddr2 Device Control Registers (DCRs) are
- * indirectly acccessed and have a base and length defined by the
+ * indirectly accessed and have a base and length defined by the
  * device tree. The base can be anything; however, we expect the
  * length to be precisely two registers, the first for the address
  * window and the second for the data window.

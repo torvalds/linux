@@ -44,6 +44,7 @@
 #include <net/dst.h>
 
 #include <linux/seq_file.h>
+#include <linux/memcontrol.h>
 
 extern struct inet_hashinfo tcp_hashinfo;
 
@@ -229,7 +230,6 @@ extern int sysctl_tcp_fack;
 extern int sysctl_tcp_reordering;
 extern int sysctl_tcp_ecn;
 extern int sysctl_tcp_dsack;
-extern long sysctl_tcp_mem[3];
 extern int sysctl_tcp_wmem[3];
 extern int sysctl_tcp_rmem[3];
 extern int sysctl_tcp_app_win;
@@ -285,7 +285,7 @@ static inline bool tcp_too_many_orphans(struct sock *sk, int shift)
 	}
 
 	if (sk->sk_wmem_queued > SOCK_MIN_SNDBUF &&
-	    atomic_long_read(&tcp_memory_allocated) > sysctl_tcp_mem[2])
+	    sk_memory_allocated(sk) > sk_prot_mem_limits(sk, 2))
 		return true;
 	return false;
 }
@@ -310,6 +310,8 @@ extern struct proto tcp_prot;
 #define TCP_DEC_STATS(net, field)	SNMP_DEC_STATS((net)->mib.tcp_statistics, field)
 #define TCP_ADD_STATS_USER(net, field, val) SNMP_ADD_STATS_USER((net)->mib.tcp_statistics, field, val)
 #define TCP_ADD_STATS(net, field, val)	SNMP_ADD_STATS((net)->mib.tcp_statistics, field, val)
+
+extern void tcp_init_mem(struct net *net);
 
 extern void tcp_v4_err(struct sk_buff *skb, u32);
 
@@ -628,7 +630,7 @@ extern u32 __tcp_select_window(struct sock *sk);
 struct tcp_skb_cb {
 	union {
 		struct inet_skb_parm	h4;
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 		struct inet6_skb_parm	h6;
 #endif
 	} header;	/* For incoming frames		*/
@@ -773,12 +775,12 @@ static inline int tcp_is_reno(const struct tcp_sock *tp)
 
 static inline int tcp_is_fack(const struct tcp_sock *tp)
 {
-	return tp->rx_opt.sack_ok & 2;
+	return tp->rx_opt.sack_ok & TCP_FACK_ENABLED;
 }
 
 static inline void tcp_enable_fack(struct tcp_sock *tp)
 {
-	tp->rx_opt.sack_ok |= 2;
+	tp->rx_opt.sack_ok |= TCP_FACK_ENABLED;
 }
 
 static inline unsigned int tcp_left_out(const struct tcp_sock *tp)
@@ -833,6 +835,14 @@ static inline __u32 tcp_current_ssthresh(const struct sock *sk)
 
 extern void tcp_enter_cwr(struct sock *sk, const int set_ssthresh);
 extern __u32 tcp_init_cwnd(const struct tcp_sock *tp, const struct dst_entry *dst);
+
+/* The maximum number of MSS of available cwnd for which TSO defers
+ * sending if not using sysctl_tcp_tso_win_divisor.
+ */
+static inline __u32 tcp_max_tso_deferred_mss(const struct tcp_sock *tp)
+{
+	return 3;
+}
 
 /* Slow start with delack produces 3 packets of burst, so that
  * it is safe "de facto".  This will be the default - same as
@@ -1144,7 +1154,7 @@ struct tcp6_md5sig_key {
 /* - sock block */
 struct tcp_md5sig_info {
 	struct tcp4_md5sig_key	*keys4;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	struct tcp6_md5sig_key	*keys6;
 	u32			entries6;
 	u32			alloced6;
@@ -1171,7 +1181,7 @@ struct tcp6_pseudohdr {
 
 union tcp_md5sum_block {
 	struct tcp4_pseudohdr ip4;
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	struct tcp6_pseudohdr ip6;
 #endif
 };
@@ -1430,7 +1440,8 @@ extern struct request_sock_ops tcp6_request_sock_ops;
 extern void tcp_v4_destroy_sock(struct sock *sk);
 
 extern int tcp_v4_gso_send_check(struct sk_buff *skb);
-extern struct sk_buff *tcp_tso_segment(struct sk_buff *skb, u32 features);
+extern struct sk_buff *tcp_tso_segment(struct sk_buff *skb,
+				       netdev_features_t features);
 extern struct sk_buff **tcp_gro_receive(struct sk_buff **head,
 					struct sk_buff *skb);
 extern struct sk_buff **tcp4_gro_receive(struct sk_buff **head,

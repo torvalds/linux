@@ -154,7 +154,7 @@ static unsigned long get_vas_id(void)
 	u64 id;
 
 	lv1_get_logical_ppe_id(&id);
-	lv1_get_virtual_address_space_id_of_ppe(id, &id);
+	lv1_get_virtual_address_space_id_of_ppe(&id);
 
 	return id;
 }

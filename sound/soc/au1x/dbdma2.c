@@ -341,7 +341,7 @@ static int au1xpsc_pcm_new(struct snd_soc_pcm_runtime *rtd)
 }
 
 /* au1xpsc audio platform */
-struct snd_soc_platform_driver au1xpsc_soc_platform = {
+static struct snd_soc_platform_driver au1xpsc_soc_platform = {
 	.ops		= &au1xpsc_pcm_ops,
 	.pcm_new	= au1xpsc_pcm_new,
 	.pcm_free	= au1xpsc_pcm_free_dma_buffers,
@@ -350,27 +350,21 @@ struct snd_soc_platform_driver au1xpsc_soc_platform = {
 static int __devinit au1xpsc_pcm_drvprobe(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_dmadata *dmadata;
-	int ret;
 
-	dmadata = kzalloc(2 * sizeof(struct au1xpsc_audio_dmadata), GFP_KERNEL);
+	dmadata = devm_kzalloc(&pdev->dev,
+			       2 * sizeof(struct au1xpsc_audio_dmadata),
+			       GFP_KERNEL);
 	if (!dmadata)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, dmadata);
 
-	ret = snd_soc_register_platform(&pdev->dev, &au1xpsc_soc_platform);
-	if (ret)
-		kfree(dmadata);
-
-	return ret;
+	return snd_soc_register_platform(&pdev->dev, &au1xpsc_soc_platform);
 }
 
 static int __devexit au1xpsc_pcm_drvremove(struct platform_device *pdev)
 {
-	struct au1xpsc_audio_dmadata *dmadata = platform_get_drvdata(pdev);
-
 	snd_soc_unregister_platform(&pdev->dev);
-	kfree(dmadata);
 
 	return 0;
 }
@@ -384,18 +378,7 @@ static struct platform_driver au1xpsc_pcm_driver = {
 	.remove		= __devexit_p(au1xpsc_pcm_drvremove),
 };
 
-static int __init au1xpsc_audio_dbdma_load(void)
-{
-	return platform_driver_register(&au1xpsc_pcm_driver);
-}
-
-static void __exit au1xpsc_audio_dbdma_unload(void)
-{
-	platform_driver_unregister(&au1xpsc_pcm_driver);
-}
-
-module_init(au1xpsc_audio_dbdma_load);
-module_exit(au1xpsc_audio_dbdma_unload);
+module_platform_driver(au1xpsc_pcm_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Au12x0/Au1550 PSC Audio DMA driver");

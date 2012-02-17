@@ -13,8 +13,10 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/slab.h>
-#include <linux/skbuff.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
 
@@ -22,6 +24,14 @@
 #include <aiutils.h>
 #include "types.h"
 #include "dma.h"
+#include "soc.h"
+
+/*
+ * dma register field offset calculation
+ */
+#define DMA64REGOFFS(field)		offsetof(struct dma64regs, field)
+#define DMA64TXREGOFFS(di, field)	(di->d64txregbase + DMA64REGOFFS(field))
+#define DMA64RXREGOFFS(di, field)	(di->d64rxregbase + DMA64REGOFFS(field))
 
 /*
  * DMA hardware requires each descriptor ring to be 8kB aligned, and fit within
@@ -168,26 +178,25 @@
 
 /* debug/trace */
 #ifdef BCMDBG
-#define	DMA_ERROR(args) \
-	do { \
-		if (!(*di->msg_level & 1)) \
-			; \
-		else \
-			printk args; \
-	} while (0)
-#define	DMA_TRACE(args) \
-	do { \
-		if (!(*di->msg_level & 2)) \
-			; \
-		else \
-			printk args; \
-	} while (0)
+#define	DMA_ERROR(fmt, ...)					\
+do {								\
+	if (*di->msg_level & 1)					\
+		pr_debug("%s: " fmt, __func__, ##__VA_ARGS__);	\
+} while (0)
+#define	DMA_TRACE(fmt, ...)					\
+do {								\
+	if (*di->msg_level & 2)					\
+		pr_debug("%s: " fmt, __func__, ##__VA_ARGS__);	\
+} while (0)
 #else
-#define	DMA_ERROR(args)
-#define	DMA_TRACE(args)
+#define	DMA_ERROR(fmt, ...)			\
+	no_printk(fmt, ##__VA_ARGS__)
+#define	DMA_TRACE(fmt, ...)			\
+	no_printk(fmt, ##__VA_ARGS__)
 #endif				/* BCMDBG */
 
-#define	DMA_NONE(args)
+#define	DMA_NONE(fmt, ...)			\
+	no_printk(fmt, ##__VA_ARGS__)
 
 #define	MAXNAMEL	8	/* 8 char names */
 
@@ -218,15 +227,16 @@ struct dma_info {
 	uint *msg_level;	/* message level pointer */
 	char name[MAXNAMEL];	/* callers name for diag msgs */
 
-	struct pci_dev *pbus;		/* bus handle */
+	struct bcma_device *core;
+	struct device *dmadev;
 
 	bool dma64;	/* this dma engine is operating in 64-bit mode */
 	bool addrext;	/* this dma engine supports DmaExtendedAddrChanges */
 
 	/* 64-bit dma tx engine registers */
-	struct dma64regs __iomem *d64txregs;
+	uint d64txregbase;
 	/* 64-bit dma rx engine registers */
-	struct dma64regs __iomem *d64rxregs;
+	uint d64rxregbase;
 	/* pointer to dma64 tx descriptor ring */
 	struct dma64desc *txd64;
 	/* pointer to dma64 rx descriptor ring */
@@ -361,7 +371,7 @@ static uint _dma_ctrlflags(struct dma_info *di, uint mask, uint flags)
 	uint dmactrlflags;
 
 	if (di == NULL) {
-		DMA_ERROR(("_dma_ctrlflags: NULL dma handle\n"));
+		DMA_ERROR("NULL dma handle\n");
 		return 0;
 	}
 
@@ -373,15 +383,16 @@ static uint _dma_ctrlflags(struct dma_info *di, uint mask, uint flags)
 	if (dmactrlflags & DMA_CTRL_PEN) {
 		u32 control;
 
-		control = R_REG(&di->d64txregs->control);
-		W_REG(&di->d64txregs->control,
+		control = bcma_read32(di->core, DMA64TXREGOFFS(di, control));
+		bcma_write32(di->core, DMA64TXREGOFFS(di, control),
 		      control | D64_XC_PD);
-		if (R_REG(&di->d64txregs->control) & D64_XC_PD)
+		if (bcma_read32(di->core, DMA64TXREGOFFS(di, control)) &
+		    D64_XC_PD)
 			/* We *can* disable it so it is supported,
 			 * restore control register
 			 */
-			W_REG(&di->d64txregs->control,
-			control);
+			bcma_write32(di->core, DMA64TXREGOFFS(di, control),
+				     control);
 		else
 			/* Not supported, don't allow it to be enabled */
 			dmactrlflags &= ~DMA_CTRL_PEN;
@@ -392,12 +403,12 @@ static uint _dma_ctrlflags(struct dma_info *di, uint mask, uint flags)
 	return dmactrlflags;
 }
 
-static bool _dma64_addrext(struct dma64regs __iomem *dma64regs)
+static bool _dma64_addrext(struct dma_info *di, uint ctrl_offset)
 {
 	u32 w;
-	OR_REG(&dma64regs->control, D64_XC_AE);
-	w = R_REG(&dma64regs->control);
-	AND_REG(&dma64regs->control, ~D64_XC_AE);
+	bcma_set32(di->core, ctrl_offset, D64_XC_AE);
+	w = bcma_read32(di->core, ctrl_offset);
+	bcma_mask32(di->core, ctrl_offset, ~D64_XC_AE);
 	return (w & D64_XC_AE) == D64_XC_AE;
 }
 
@@ -410,15 +421,15 @@ static bool _dma_isaddrext(struct dma_info *di)
 	/* DMA64 supports full 32- or 64-bit operation. AE is always valid */
 
 	/* not all tx or rx channel are available */
-	if (di->d64txregs != NULL) {
-		if (!_dma64_addrext(di->d64txregs))
-			DMA_ERROR(("%s: _dma_isaddrext: DMA64 tx doesn't have "
-				   "AE set\n", di->name));
+	if (di->d64txregbase != 0) {
+		if (!_dma64_addrext(di, DMA64TXREGOFFS(di, control)))
+			DMA_ERROR("%s: DMA64 tx doesn't have AE set\n",
+				  di->name);
 		return true;
-	} else if (di->d64rxregs != NULL) {
-		if (!_dma64_addrext(di->d64rxregs))
-			DMA_ERROR(("%s: _dma_isaddrext: DMA64 rx doesn't have "
-				   "AE set\n", di->name));
+	} else if (di->d64rxregbase != 0) {
+		if (!_dma64_addrext(di, DMA64RXREGOFFS(di, control)))
+			DMA_ERROR("%s: DMA64 rx doesn't have AE set\n",
+				  di->name);
 		return true;
 	}
 
@@ -430,14 +441,14 @@ static bool _dma_descriptor_align(struct dma_info *di)
 	u32 addrl;
 
 	/* Check to see if the descriptors need to be aligned on 4K/8K or not */
-	if (di->d64txregs != NULL) {
-		W_REG(&di->d64txregs->addrlow, 0xff0);
-		addrl = R_REG(&di->d64txregs->addrlow);
+	if (di->d64txregbase != 0) {
+		bcma_write32(di->core, DMA64TXREGOFFS(di, addrlow), 0xff0);
+		addrl = bcma_read32(di->core, DMA64TXREGOFFS(di, addrlow));
 		if (addrl != 0)
 			return false;
-	} else if (di->d64rxregs != NULL) {
-		W_REG(&di->d64rxregs->addrlow, 0xff0);
-		addrl = R_REG(&di->d64rxregs->addrlow);
+	} else if (di->d64rxregbase != 0) {
+		bcma_write32(di->core, DMA64RXREGOFFS(di, addrlow), 0xff0);
+		addrl = bcma_read32(di->core, DMA64RXREGOFFS(di, addrlow));
 		if (addrl != 0)
 			return false;
 	}
@@ -448,7 +459,7 @@ static bool _dma_descriptor_align(struct dma_info *di)
  * Descriptor table must start at the DMA hardware dictated alignment, so
  * allocated memory must be large enough to support this requirement.
  */
-static void *dma_alloc_consistent(struct pci_dev *pdev, uint size,
+static void *dma_alloc_consistent(struct dma_info *di, uint size,
 				  u16 align_bits, uint *alloced,
 				  dma_addr_t *pap)
 {
@@ -458,7 +469,7 @@ static void *dma_alloc_consistent(struct pci_dev *pdev, uint size,
 			size += align;
 		*alloced = size;
 	}
-	return pci_alloc_consistent(pdev, size, pap);
+	return dma_alloc_coherent(di->dmadev, size, pap, GFP_ATOMIC);
 }
 
 static
@@ -484,7 +495,7 @@ static void *dma_ringalloc(struct dma_info *di, u32 boundary, uint size,
 	u32 desc_strtaddr;
 	u32 alignbytes = 1 << *alignbits;
 
-	va = dma_alloc_consistent(di->pbus, size, *alignbits, alloced, descpa);
+	va = dma_alloc_consistent(di, size, *alignbits, alloced, descpa);
 
 	if (NULL == va)
 		return NULL;
@@ -493,8 +504,8 @@ static void *dma_ringalloc(struct dma_info *di, u32 boundary, uint size,
 	if (((desc_strtaddr + size - 1) & boundary) != (desc_strtaddr
 							& boundary)) {
 		*alignbits = dma_align_sizetobits(size);
-		pci_free_consistent(di->pbus, size, va, *descpa);
-		va = dma_alloc_consistent(di->pbus, size, *alignbits,
+		dma_free_coherent(di->dmadev, size, va, *descpa);
+		va = dma_alloc_consistent(di, size, *alignbits,
 			alloced, descpa);
 	}
 	return va;
@@ -519,8 +530,8 @@ static bool dma64_alloc(struct dma_info *di, uint direction)
 		va = dma_ringalloc(di, D64RINGALIGN, size, &align_bits,
 			&alloced, &di->txdpaorig);
 		if (va == NULL) {
-			DMA_ERROR(("%s: dma64_alloc: DMA_ALLOC_CONSISTENT(ntxd)"
-				   " failed\n", di->name));
+			DMA_ERROR("%s: DMA_ALLOC_CONSISTENT(ntxd) failed\n",
+				  di->name);
 			return false;
 		}
 		align = (1 << align_bits);
@@ -533,8 +544,8 @@ static bool dma64_alloc(struct dma_info *di, uint direction)
 		va = dma_ringalloc(di, D64RINGALIGN, size, &align_bits,
 			&alloced, &di->rxdpaorig);
 		if (va == NULL) {
-			DMA_ERROR(("%s: dma64_alloc: DMA_ALLOC_CONSISTENT(nrxd)"
-				   " failed\n", di->name));
+			DMA_ERROR("%s: DMA_ALLOC_CONSISTENT(nrxd) failed\n",
+				  di->name);
 			return false;
 		}
 		align = (1 << align_bits);
@@ -554,12 +565,13 @@ static bool _dma_alloc(struct dma_info *di, uint direction)
 }
 
 struct dma_pub *dma_attach(char *name, struct si_pub *sih,
-		     void __iomem *dmaregstx, void __iomem *dmaregsrx,
-		     uint ntxd, uint nrxd,
-		     uint rxbufsize, int rxextheadroom,
-		     uint nrxpost, uint rxoffset, uint *msg_level)
+			   struct bcma_device *core,
+			   uint txregbase, uint rxregbase, uint ntxd, uint nrxd,
+			   uint rxbufsize, int rxextheadroom,
+			   uint nrxpost, uint rxoffset, uint *msg_level)
 {
 	struct dma_info *di;
+	u8 rev = core->id.rev;
 	uint size;
 
 	/* allocate private info structure */
@@ -570,11 +582,13 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	di->msg_level = msg_level ? msg_level : &dma_msg_level;
 
 
-	di->dma64 = ((ai_core_sflags(sih, 0, 0) & SISF_DMA64) == SISF_DMA64);
+	di->dma64 =
+		((bcma_aread32(core, BCMA_IOST) & SISF_DMA64) == SISF_DMA64);
 
-	/* init dma reg pointer */
-	di->d64txregs = (struct dma64regs __iomem *) dmaregstx;
-	di->d64rxregs = (struct dma64regs __iomem *) dmaregsrx;
+	/* init dma reg info */
+	di->core = core;
+	di->d64txregbase = txregbase;
+	di->d64rxregbase = rxregbase;
 
 	/*
 	 * Default flags (which can be changed by the driver calling
@@ -583,17 +597,17 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	 */
 	_dma_ctrlflags(di, DMA_CTRL_ROC | DMA_CTRL_PEN, 0);
 
-	DMA_TRACE(("%s: dma_attach: %s flags 0x%x ntxd %d nrxd %d "
-		   "rxbufsize %d rxextheadroom %d nrxpost %d rxoffset %d "
-		   "dmaregstx %p dmaregsrx %p\n", name, "DMA64",
-		   di->dma.dmactrlflags, ntxd, nrxd, rxbufsize,
-		   rxextheadroom, nrxpost, rxoffset, dmaregstx, dmaregsrx));
+	DMA_TRACE("%s: %s flags 0x%x ntxd %d nrxd %d "
+		  "rxbufsize %d rxextheadroom %d nrxpost %d rxoffset %d "
+		  "txregbase %u rxregbase %u\n", name, "DMA64",
+		  di->dma.dmactrlflags, ntxd, nrxd, rxbufsize,
+		  rxextheadroom, nrxpost, rxoffset, txregbase, rxregbase);
 
 	/* make a private copy of our callers name */
 	strncpy(di->name, name, MAXNAMEL);
 	di->name[MAXNAMEL - 1] = '\0';
 
-	di->pbus = ((struct si_info *)sih)->pbus;
+	di->dmadev = core->dma_dev;
 
 	/* save tunables */
 	di->ntxd = (u16) ntxd;
@@ -625,12 +639,12 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 	di->dataoffsetlow = di->ddoffsetlow;
 	di->dataoffsethigh = di->ddoffsethigh;
 	/* WAR64450 : DMACtl.Addr ext fields are not supported in SDIOD core. */
-	if ((ai_coreid(sih) == SDIOD_CORE_ID)
-	    && ((ai_corerev(sih) > 0) && (ai_corerev(sih) <= 2)))
-		di->addrext = 0;
-	else if ((ai_coreid(sih) == I2S_CORE_ID) &&
-		 ((ai_corerev(sih) == 0) || (ai_corerev(sih) == 1)))
-		di->addrext = 0;
+	if ((core->id.id == SDIOD_CORE_ID)
+	    && ((rev > 0) && (rev <= 2)))
+		di->addrext = false;
+	else if ((core->id.id == I2S_CORE_ID) &&
+		 ((rev == 0) || (rev == 1)))
+		di->addrext = false;
 	else
 		di->addrext = _dma_isaddrext(di);
 
@@ -645,8 +659,8 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 		di->dmadesc_align = 4;	/* 16 byte alignment */
 	}
 
-	DMA_NONE(("DMA descriptor align_needed %d, align %d\n",
-		  di->aligndesc_4k, di->dmadesc_align));
+	DMA_NONE("DMA descriptor align_needed %d, align %d\n",
+		 di->aligndesc_4k, di->dmadesc_align);
 
 	/* allocate tx packet pointer vector */
 	if (ntxd) {
@@ -684,21 +698,21 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 
 	if ((di->ddoffsetlow != 0) && !di->addrext) {
 		if (di->txdpa > SI_PCI_DMA_SZ) {
-			DMA_ERROR(("%s: dma_attach: txdpa 0x%x: addrext not "
-				   "supported\n", di->name, (u32)di->txdpa));
+			DMA_ERROR("%s: txdpa 0x%x: addrext not supported\n",
+				  di->name, (u32)di->txdpa);
 			goto fail;
 		}
 		if (di->rxdpa > SI_PCI_DMA_SZ) {
-			DMA_ERROR(("%s: dma_attach: rxdpa 0x%x: addrext not "
-				   "supported\n", di->name, (u32)di->rxdpa));
+			DMA_ERROR("%s: rxdpa 0x%x: addrext not supported\n",
+				  di->name, (u32)di->rxdpa);
 			goto fail;
 		}
 	}
 
-	DMA_TRACE(("ddoffsetlow 0x%x ddoffsethigh 0x%x dataoffsetlow 0x%x "
-		   "dataoffsethigh " "0x%x addrext %d\n", di->ddoffsetlow,
-		   di->ddoffsethigh, di->dataoffsetlow, di->dataoffsethigh,
-		   di->addrext));
+	DMA_TRACE("ddoffsetlow 0x%x ddoffsethigh 0x%x dataoffsetlow 0x%x dataoffsethigh 0x%x addrext %d\n",
+		  di->ddoffsetlow, di->ddoffsethigh,
+		  di->dataoffsetlow, di->dataoffsethigh,
+		  di->addrext);
 
 	return (struct dma_pub *) di;
 
@@ -744,17 +758,17 @@ void dma_detach(struct dma_pub *pub)
 {
 	struct dma_info *di = (struct dma_info *)pub;
 
-	DMA_TRACE(("%s: dma_detach\n", di->name));
+	DMA_TRACE("%s:\n", di->name);
 
 	/* free dma descriptor rings */
 	if (di->txd64)
-		pci_free_consistent(di->pbus, di->txdalloc,
-				    ((s8 *)di->txd64 - di->txdalign),
-				    (di->txdpaorig));
+		dma_free_coherent(di->dmadev, di->txdalloc,
+				  ((s8 *)di->txd64 - di->txdalign),
+				  (di->txdpaorig));
 	if (di->rxd64)
-		pci_free_consistent(di->pbus, di->rxdalloc,
-				    ((s8 *)di->rxd64 - di->rxdalign),
-				    (di->rxdpaorig));
+		dma_free_coherent(di->dmadev, di->rxdalloc,
+				  ((s8 *)di->rxd64 - di->rxdalign),
+				  (di->rxdpaorig));
 
 	/* free packet pointer vectors */
 	kfree(di->txp);
@@ -779,11 +793,15 @@ _dma_ddtable_init(struct dma_info *di, uint direction, dma_addr_t pa)
 	if ((di->ddoffsetlow == 0)
 	    || !(pa & PCI32ADDR_HIGH)) {
 		if (direction == DMA_TX) {
-			W_REG(&di->d64txregs->addrlow, pa + di->ddoffsetlow);
-			W_REG(&di->d64txregs->addrhigh, di->ddoffsethigh);
+			bcma_write32(di->core, DMA64TXREGOFFS(di, addrlow),
+				     pa + di->ddoffsetlow);
+			bcma_write32(di->core, DMA64TXREGOFFS(di, addrhigh),
+				     di->ddoffsethigh);
 		} else {
-			W_REG(&di->d64rxregs->addrlow, pa + di->ddoffsetlow);
-			W_REG(&di->d64rxregs->addrhigh, di->ddoffsethigh);
+			bcma_write32(di->core, DMA64RXREGOFFS(di, addrlow),
+				     pa + di->ddoffsetlow);
+			bcma_write32(di->core, DMA64RXREGOFFS(di, addrhigh),
+				     di->ddoffsethigh);
 		}
 	} else {
 		/* DMA64 32bits address extension */
@@ -794,15 +812,19 @@ _dma_ddtable_init(struct dma_info *di, uint direction, dma_addr_t pa)
 		pa &= ~PCI32ADDR_HIGH;
 
 		if (direction == DMA_TX) {
-			W_REG(&di->d64txregs->addrlow, pa + di->ddoffsetlow);
-			W_REG(&di->d64txregs->addrhigh, di->ddoffsethigh);
-			SET_REG(&di->d64txregs->control,
-				D64_XC_AE, (ae << D64_XC_AE_SHIFT));
+			bcma_write32(di->core, DMA64TXREGOFFS(di, addrlow),
+				     pa + di->ddoffsetlow);
+			bcma_write32(di->core, DMA64TXREGOFFS(di, addrhigh),
+				     di->ddoffsethigh);
+			bcma_maskset32(di->core, DMA64TXREGOFFS(di, control),
+				       D64_XC_AE, (ae << D64_XC_AE_SHIFT));
 		} else {
-			W_REG(&di->d64rxregs->addrlow, pa + di->ddoffsetlow);
-			W_REG(&di->d64rxregs->addrhigh, di->ddoffsethigh);
-			SET_REG(&di->d64rxregs->control,
-				D64_RC_AE, (ae << D64_RC_AE_SHIFT));
+			bcma_write32(di->core, DMA64RXREGOFFS(di, addrlow),
+				     pa + di->ddoffsetlow);
+			bcma_write32(di->core, DMA64RXREGOFFS(di, addrhigh),
+				     di->ddoffsethigh);
+			bcma_maskset32(di->core, DMA64RXREGOFFS(di, control),
+				       D64_RC_AE, (ae << D64_RC_AE_SHIFT));
 		}
 	}
 }
@@ -812,11 +834,11 @@ static void _dma_rxenable(struct dma_info *di)
 	uint dmactrlflags = di->dma.dmactrlflags;
 	u32 control;
 
-	DMA_TRACE(("%s: dma_rxenable\n", di->name));
+	DMA_TRACE("%s:\n", di->name);
 
-	control =
-	    (R_REG(&di->d64rxregs->control) & D64_RC_AE) |
-	    D64_RC_RE;
+	control = D64_RC_RE | (bcma_read32(di->core,
+					   DMA64RXREGOFFS(di, control)) &
+			       D64_RC_AE);
 
 	if ((dmactrlflags & DMA_CTRL_PEN) == 0)
 		control |= D64_RC_PD;
@@ -824,7 +846,7 @@ static void _dma_rxenable(struct dma_info *di)
 	if (dmactrlflags & DMA_CTRL_ROC)
 		control |= D64_RC_OC;
 
-	W_REG(&di->d64rxregs->control,
+	bcma_write32(di->core, DMA64RXREGOFFS(di, control),
 		((di->rxoffset << D64_RC_RO_SHIFT) | control));
 }
 
@@ -832,7 +854,7 @@ void dma_rxinit(struct dma_pub *pub)
 {
 	struct dma_info *di = (struct dma_info *)pub;
 
-	DMA_TRACE(("%s: dma_rxinit\n", di->name));
+	DMA_TRACE("%s:\n", di->name);
 
 	if (di->nrxd == 0)
 		return;
@@ -867,7 +889,8 @@ static struct sk_buff *dma64_getnextrxp(struct dma_info *di, bool forceall)
 		return NULL;
 
 	curr =
-	    B2I(((R_REG(&di->d64rxregs->status0) & D64_RS0_CD_MASK) -
+	    B2I(((bcma_read32(di->core,
+			      DMA64RXREGOFFS(di, status0)) & D64_RS0_CD_MASK) -
 		 di->rcvptrbase) & D64_RS0_CD_MASK, struct dma64desc);
 
 	/* ignore curr if forceall */
@@ -881,7 +904,7 @@ static struct sk_buff *dma64_getnextrxp(struct dma_info *di, bool forceall)
 	pa = le32_to_cpu(di->rxd64[i].addrlow) - di->dataoffsetlow;
 
 	/* clear this packet from the descriptor ring */
-	pci_unmap_single(di->pbus, pa, di->rxbufsize, PCI_DMA_FROMDEVICE);
+	dma_unmap_single(di->dmadev, pa, di->rxbufsize, DMA_FROM_DEVICE);
 
 	di->rxd64[i].addrlow = cpu_to_le32(0xdeadbeef);
 	di->rxd64[i].addrhigh = cpu_to_le32(0xdeadbeef);
@@ -901,7 +924,7 @@ static struct sk_buff *_dma_getnextrxp(struct dma_info *di, bool forceall)
 
 /*
  * !! rx entry routine
- * returns a pointer to the next frame received, or NULL if there are no more
+ * returns the number packages in the next frame, or 0 if there are no more
  *   if DMA_CTRL_RXMULTI is defined, DMA scattering(multiple buffers) is
  *   supported with pkts chain
  *   otherwise, it's treated as giant pkt and will be tossed.
@@ -909,74 +932,83 @@ static struct sk_buff *_dma_getnextrxp(struct dma_info *di, bool forceall)
  *   buffer data. After it reaches the max size of buffer, the data continues
  *   in next DMA descriptor buffer WITHOUT DMA header
  */
-struct sk_buff *dma_rx(struct dma_pub *pub)
+int dma_rx(struct dma_pub *pub, struct sk_buff_head *skb_list)
 {
 	struct dma_info *di = (struct dma_info *)pub;
-	struct sk_buff *p, *head, *tail;
+	struct sk_buff_head dma_frames;
+	struct sk_buff *p, *next;
 	uint len;
 	uint pkt_len;
 	int resid = 0;
+	int pktcnt = 1;
 
+	skb_queue_head_init(&dma_frames);
  next_frame:
-	head = _dma_getnextrxp(di, false);
-	if (head == NULL)
-		return NULL;
+	p = _dma_getnextrxp(di, false);
+	if (p == NULL)
+		return 0;
 
-	len = le16_to_cpu(*(__le16 *) (head->data));
-	DMA_TRACE(("%s: dma_rx len %d\n", di->name, len));
-	dma_spin_for_len(len, head);
+	len = le16_to_cpu(*(__le16 *) (p->data));
+	DMA_TRACE("%s: dma_rx len %d\n", di->name, len);
+	dma_spin_for_len(len, p);
 
 	/* set actual length */
 	pkt_len = min((di->rxoffset + len), di->rxbufsize);
-	__skb_trim(head, pkt_len);
+	__skb_trim(p, pkt_len);
+	skb_queue_tail(&dma_frames, p);
 	resid = len - (di->rxbufsize - di->rxoffset);
 
 	/* check for single or multi-buffer rx */
 	if (resid > 0) {
-		tail = head;
 		while ((resid > 0) && (p = _dma_getnextrxp(di, false))) {
-			tail->next = p;
 			pkt_len = min_t(uint, resid, di->rxbufsize);
 			__skb_trim(p, pkt_len);
-
-			tail = p;
+			skb_queue_tail(&dma_frames, p);
 			resid -= di->rxbufsize;
+			pktcnt++;
 		}
 
 #ifdef BCMDBG
 		if (resid > 0) {
 			uint cur;
 			cur =
-			    B2I(((R_REG(&di->d64rxregs->status0) &
-				  D64_RS0_CD_MASK) -
-				 di->rcvptrbase) & D64_RS0_CD_MASK,
-				struct dma64desc);
-			DMA_ERROR(("dma_rx, rxin %d rxout %d, hw_curr %d\n",
-				   di->rxin, di->rxout, cur));
+			    B2I(((bcma_read32(di->core,
+					      DMA64RXREGOFFS(di, status0)) &
+				  D64_RS0_CD_MASK) - di->rcvptrbase) &
+				D64_RS0_CD_MASK, struct dma64desc);
+			DMA_ERROR("rxin %d rxout %d, hw_curr %d\n",
+				   di->rxin, di->rxout, cur);
 		}
 #endif				/* BCMDBG */
 
 		if ((di->dma.dmactrlflags & DMA_CTRL_RXMULTI) == 0) {
-			DMA_ERROR(("%s: dma_rx: bad frame length (%d)\n",
-				   di->name, len));
-			brcmu_pkt_buf_free_skb(head);
+			DMA_ERROR("%s: bad frame length (%d)\n",
+				  di->name, len);
+			skb_queue_walk_safe(&dma_frames, p, next) {
+				skb_unlink(p, &dma_frames);
+				brcmu_pkt_buf_free_skb(p);
+			}
 			di->dma.rxgiants++;
+			pktcnt = 1;
 			goto next_frame;
 		}
 	}
 
-	return head;
+	skb_queue_splice_tail(&dma_frames, skb_list);
+	return pktcnt;
 }
 
 static bool dma64_rxidle(struct dma_info *di)
 {
-	DMA_TRACE(("%s: dma_rxidle\n", di->name));
+	DMA_TRACE("%s:\n", di->name);
 
 	if (di->nrxd == 0)
 		return true;
 
-	return ((R_REG(&di->d64rxregs->status0) & D64_RS0_CD_MASK) ==
-		(R_REG(&di->d64rxregs->ptr) & D64_RS0_CD_MASK));
+	return ((bcma_read32(di->core,
+			     DMA64RXREGOFFS(di, status0)) & D64_RS0_CD_MASK) ==
+		(bcma_read32(di->core, DMA64RXREGOFFS(di, ptr)) &
+		 D64_RS0_CD_MASK));
 }
 
 /*
@@ -1010,7 +1042,7 @@ bool dma_rxfill(struct dma_pub *pub)
 
 	n = di->nrxpost - nrxdactive(di, rxin, rxout);
 
-	DMA_TRACE(("%s: dma_rxfill: post %d\n", di->name, n));
+	DMA_TRACE("%s: post %d\n", di->name, n);
 
 	if (di->rxbufsize > BCMEXTRAHDROOM)
 		extra_offset = di->rxextrahdrroom;
@@ -1023,11 +1055,9 @@ bool dma_rxfill(struct dma_pub *pub)
 		p = brcmu_pkt_buf_get_skb(di->rxbufsize + extra_offset);
 
 		if (p == NULL) {
-			DMA_ERROR(("%s: dma_rxfill: out of rxbufs\n",
-				   di->name));
+			DMA_ERROR("%s: out of rxbufs\n", di->name);
 			if (i == 0 && dma64_rxidle(di)) {
-				DMA_ERROR(("%s: rxfill64: ring is empty !\n",
-					   di->name));
+				DMA_ERROR("%s: ring is empty !\n", di->name);
 				ring_empty = true;
 			}
 			di->dma.rxnobuf++;
@@ -1042,8 +1072,8 @@ bool dma_rxfill(struct dma_pub *pub)
 		 */
 		*(u32 *) (p->data) = 0;
 
-		pa = pci_map_single(di->pbus, p->data,
-			di->rxbufsize, PCI_DMA_FROMDEVICE);
+		pa = dma_map_single(di->dmadev, p->data, di->rxbufsize,
+				    DMA_FROM_DEVICE);
 
 		/* save the free packet pointer */
 		di->rxp[rxout] = p;
@@ -1061,7 +1091,7 @@ bool dma_rxfill(struct dma_pub *pub)
 	di->rxout = rxout;
 
 	/* update the chip lastdscr pointer */
-	W_REG(&di->d64rxregs->ptr,
+	bcma_write32(di->core, DMA64RXREGOFFS(di, ptr),
 	      di->rcvptrbase + I2B(rxout, struct dma64desc));
 
 	return ring_empty;
@@ -1072,7 +1102,7 @@ void dma_rxreclaim(struct dma_pub *pub)
 	struct dma_info *di = (struct dma_info *)pub;
 	struct sk_buff *p;
 
-	DMA_TRACE(("%s: dma_rxreclaim\n", di->name));
+	DMA_TRACE("%s:\n", di->name);
 
 	while ((p = _dma_getnextrxp(di, true)))
 		brcmu_pkt_buf_free_skb(p);
@@ -1103,7 +1133,7 @@ void dma_txinit(struct dma_pub *pub)
 	struct dma_info *di = (struct dma_info *)pub;
 	u32 control = D64_XC_XE;
 
-	DMA_TRACE(("%s: dma_txinit\n", di->name));
+	DMA_TRACE("%s:\n", di->name);
 
 	if (di->ntxd == 0)
 		return;
@@ -1122,7 +1152,7 @@ void dma_txinit(struct dma_pub *pub)
 
 	if ((di->dma.dmactrlflags & DMA_CTRL_PEN) == 0)
 		control |= D64_XC_PD;
-	OR_REG(&di->d64txregs->control, control);
+	bcma_set32(di->core, DMA64TXREGOFFS(di, control), control);
 
 	/* DMA engine with alignment requirement requires table to be inited
 	 * before enabling the engine
@@ -1135,24 +1165,24 @@ void dma_txsuspend(struct dma_pub *pub)
 {
 	struct dma_info *di = (struct dma_info *)pub;
 
-	DMA_TRACE(("%s: dma_txsuspend\n", di->name));
+	DMA_TRACE("%s:\n", di->name);
 
 	if (di->ntxd == 0)
 		return;
 
-	OR_REG(&di->d64txregs->control, D64_XC_SE);
+	bcma_set32(di->core, DMA64TXREGOFFS(di, control), D64_XC_SE);
 }
 
 void dma_txresume(struct dma_pub *pub)
 {
 	struct dma_info *di = (struct dma_info *)pub;
 
-	DMA_TRACE(("%s: dma_txresume\n", di->name));
+	DMA_TRACE("%s:\n", di->name);
 
 	if (di->ntxd == 0)
 		return;
 
-	AND_REG(&di->d64txregs->control, ~D64_XC_SE);
+	bcma_mask32(di->core, DMA64TXREGOFFS(di, control), ~D64_XC_SE);
 }
 
 bool dma_txsuspended(struct dma_pub *pub)
@@ -1160,8 +1190,9 @@ bool dma_txsuspended(struct dma_pub *pub)
 	struct dma_info *di = (struct dma_info *)pub;
 
 	return (di->ntxd == 0) ||
-	    ((R_REG(&di->d64txregs->control) & D64_XC_SE) ==
-	     D64_XC_SE);
+	       ((bcma_read32(di->core,
+			     DMA64TXREGOFFS(di, control)) & D64_XC_SE) ==
+		D64_XC_SE);
 }
 
 void dma_txreclaim(struct dma_pub *pub, enum txd_range range)
@@ -1169,11 +1200,11 @@ void dma_txreclaim(struct dma_pub *pub, enum txd_range range)
 	struct dma_info *di = (struct dma_info *)pub;
 	struct sk_buff *p;
 
-	DMA_TRACE(("%s: dma_txreclaim %s\n", di->name,
-		   (range == DMA_RANGE_ALL) ? "all" :
-		   ((range ==
-		     DMA_RANGE_TRANSMITTED) ? "transmitted" :
-		    "transferred")));
+	DMA_TRACE("%s: %s\n",
+		  di->name,
+		  range == DMA_RANGE_ALL ? "all" :
+		  range == DMA_RANGE_TRANSMITTED ? "transmitted" :
+		  "transferred");
 
 	if (di->txin == di->txout)
 		return;
@@ -1194,16 +1225,17 @@ bool dma_txreset(struct dma_pub *pub)
 		return true;
 
 	/* suspend tx DMA first */
-	W_REG(&di->d64txregs->control, D64_XC_SE);
+	bcma_write32(di->core, DMA64TXREGOFFS(di, control), D64_XC_SE);
 	SPINWAIT(((status =
-		   (R_REG(&di->d64txregs->status0) & D64_XS0_XS_MASK))
-		  != D64_XS0_XS_DISABLED) && (status != D64_XS0_XS_IDLE)
-		 && (status != D64_XS0_XS_STOPPED), 10000);
+		   (bcma_read32(di->core, DMA64TXREGOFFS(di, status0)) &
+		    D64_XS0_XS_MASK)) != D64_XS0_XS_DISABLED) &&
+		  (status != D64_XS0_XS_IDLE) && (status != D64_XS0_XS_STOPPED),
+		 10000);
 
-	W_REG(&di->d64txregs->control, 0);
+	bcma_write32(di->core, DMA64TXREGOFFS(di, control), 0);
 	SPINWAIT(((status =
-		   (R_REG(&di->d64txregs->status0) & D64_XS0_XS_MASK))
-		  != D64_XS0_XS_DISABLED), 10000);
+		   (bcma_read32(di->core, DMA64TXREGOFFS(di, status0)) &
+		    D64_XS0_XS_MASK)) != D64_XS0_XS_DISABLED), 10000);
 
 	/* wait for the last transaction to complete */
 	udelay(300);
@@ -1219,10 +1251,10 @@ bool dma_rxreset(struct dma_pub *pub)
 	if (di->nrxd == 0)
 		return true;
 
-	W_REG(&di->d64rxregs->control, 0);
+	bcma_write32(di->core, DMA64RXREGOFFS(di, control), 0);
 	SPINWAIT(((status =
-		   (R_REG(&di->d64rxregs->status0) & D64_RS0_RS_MASK))
-		  != D64_RS0_RS_DISABLED), 10000);
+		   (bcma_read32(di->core, DMA64RXREGOFFS(di, status0)) &
+		    D64_RS0_RS_MASK)) != D64_RS0_RS_DISABLED), 10000);
 
 	return status == D64_RS0_RS_DISABLED;
 }
@@ -1233,72 +1265,58 @@ bool dma_rxreset(struct dma_pub *pub)
  *   the error(toss frames) could be fatal and cause many subsequent hard
  *   to debug problems
  */
-int dma_txfast(struct dma_pub *pub, struct sk_buff *p0, bool commit)
+int dma_txfast(struct dma_pub *pub, struct sk_buff *p, bool commit)
 {
 	struct dma_info *di = (struct dma_info *)pub;
-	struct sk_buff *p, *next;
 	unsigned char *data;
 	uint len;
 	u16 txout;
 	u32 flags = 0;
 	dma_addr_t pa;
 
-	DMA_TRACE(("%s: dma_txfast\n", di->name));
+	DMA_TRACE("%s:\n", di->name);
 
 	txout = di->txout;
 
 	/*
-	 * Walk the chain of packet buffers
-	 * allocating and initializing transmit descriptor entries.
+	 * obtain and initialize transmit descriptor entry.
 	 */
-	for (p = p0; p; p = next) {
-		data = p->data;
-		len = p->len;
-		next = p->next;
+	data = p->data;
+	len = p->len;
 
-		/* return nonzero if out of tx descriptors */
-		if (nexttxd(di, txout) == di->txin)
-			goto outoftxd;
+	/* no use to transmit a zero length packet */
+	if (len == 0)
+		return 0;
 
-		if (len == 0)
-			continue;
+	/* return nonzero if out of tx descriptors */
+	if (nexttxd(di, txout) == di->txin)
+		goto outoftxd;
 
-		/* get physical address of buffer start */
-		pa = pci_map_single(di->pbus, data, len, PCI_DMA_TODEVICE);
+	/* get physical address of buffer start */
+	pa = dma_map_single(di->dmadev, data, len, DMA_TO_DEVICE);
 
-		flags = 0;
-		if (p == p0)
-			flags |= D64_CTRL1_SOF;
+	/* With a DMA segment list, Descriptor table is filled
+	 * using the segment list instead of looping over
+	 * buffers in multi-chain DMA. Therefore, EOF for SGLIST
+	 * is when end of segment list is reached.
+	 */
+	flags = D64_CTRL1_SOF | D64_CTRL1_IOC | D64_CTRL1_EOF;
+	if (txout == (di->ntxd - 1))
+		flags |= D64_CTRL1_EOT;
 
-		/* With a DMA segment list, Descriptor table is filled
-		 * using the segment list instead of looping over
-		 * buffers in multi-chain DMA. Therefore, EOF for SGLIST
-		 * is when end of segment list is reached.
-		 */
-		if (next == NULL)
-			flags |= (D64_CTRL1_IOC | D64_CTRL1_EOF);
-		if (txout == (di->ntxd - 1))
-			flags |= D64_CTRL1_EOT;
+	dma64_dd_upd(di, di->txd64, pa, txout, &flags, len);
 
-		dma64_dd_upd(di, di->txd64, pa, txout, &flags, len);
-
-		txout = nexttxd(di, txout);
-	}
-
-	/* if last txd eof not set, fix it */
-	if (!(flags & D64_CTRL1_EOF))
-		di->txd64[prevtxd(di, txout)].ctrl1 =
-		     cpu_to_le32(flags | D64_CTRL1_IOC | D64_CTRL1_EOF);
+	txout = nexttxd(di, txout);
 
 	/* save the packet */
-	di->txp[prevtxd(di, txout)] = p0;
+	di->txp[prevtxd(di, txout)] = p;
 
 	/* bump the tx descriptor index */
 	di->txout = txout;
 
 	/* kick the chip */
 	if (commit)
-		W_REG(&di->d64txregs->ptr,
+		bcma_write32(di->core, DMA64TXREGOFFS(di, ptr),
 		      di->xmtptrbase + I2B(txout, struct dma64desc));
 
 	/* tx flow control */
@@ -1307,8 +1325,8 @@ int dma_txfast(struct dma_pub *pub, struct sk_buff *p0, bool commit)
 	return 0;
 
  outoftxd:
-	DMA_ERROR(("%s: dma_txfast: out of txds !!!\n", di->name));
-	brcmu_pkt_buf_free_skb(p0);
+	DMA_ERROR("%s: out of txds !!!\n", di->name);
+	brcmu_pkt_buf_free_skb(p);
 	di->dma.txavail = 0;
 	di->dma.txnobuf++;
 	return -1;
@@ -1331,11 +1349,11 @@ struct sk_buff *dma_getnexttxp(struct dma_pub *pub, enum txd_range range)
 	u16 active_desc;
 	struct sk_buff *txp;
 
-	DMA_TRACE(("%s: dma_getnexttxp %s\n", di->name,
-		   (range == DMA_RANGE_ALL) ? "all" :
-		   ((range ==
-		     DMA_RANGE_TRANSMITTED) ? "transmitted" :
-		    "transferred")));
+	DMA_TRACE("%s: %s\n",
+		  di->name,
+		  range == DMA_RANGE_ALL ? "all" :
+		  range == DMA_RANGE_TRANSMITTED ? "transmitted" :
+		  "transferred");
 
 	if (di->ntxd == 0)
 		return NULL;
@@ -1346,16 +1364,15 @@ struct sk_buff *dma_getnexttxp(struct dma_pub *pub, enum txd_range range)
 	if (range == DMA_RANGE_ALL)
 		end = di->txout;
 	else {
-		struct dma64regs __iomem *dregs = di->d64txregs;
-
-		end = (u16) (B2I(((R_REG(&dregs->status0) &
-				 D64_XS0_CD_MASK) -
-				 di->xmtptrbase) & D64_XS0_CD_MASK,
-				 struct dma64desc));
+		end = (u16) (B2I(((bcma_read32(di->core,
+					       DMA64TXREGOFFS(di, status0)) &
+				   D64_XS0_CD_MASK) - di->xmtptrbase) &
+				 D64_XS0_CD_MASK, struct dma64desc));
 
 		if (range == DMA_RANGE_TRANSFERED) {
 			active_desc =
-			    (u16) (R_REG(&dregs->status1) &
+				(u16)(bcma_read32(di->core,
+						  DMA64TXREGOFFS(di, status1)) &
 				      D64_XS1_AD_MASK);
 			active_desc =
 			    (active_desc - di->xmtptrbase) & D64_XS0_CD_MASK;
@@ -1384,7 +1401,7 @@ struct sk_buff *dma_getnexttxp(struct dma_pub *pub, enum txd_range range)
 		txp = di->txp[i];
 		di->txp[i] = NULL;
 
-		pci_unmap_single(di->pbus, pa, size, PCI_DMA_TODEVICE);
+		dma_unmap_single(di->dmadev, pa, size, DMA_TO_DEVICE);
 	}
 
 	di->txin = i;
@@ -1395,8 +1412,8 @@ struct sk_buff *dma_getnexttxp(struct dma_pub *pub, enum txd_range range)
 	return txp;
 
  bogus:
-	DMA_NONE(("dma_getnexttxp: bogus curr: start %d end %d txout %d "
-		  "force %d\n", start, end, di->txout, forceall));
+	DMA_NONE("bogus curr: start %d end %d txout %d\n",
+		 start, end, di->txout);
 	return NULL;
 }
 

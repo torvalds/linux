@@ -627,9 +627,6 @@ static struct i2c_adapter pmcmsptwi_adapter = {
 	.name		= DRV_NAME,
 };
 
-/* work with hotplug and coldplug */
-MODULE_ALIAS("platform:" DRV_NAME);
-
 static struct platform_driver pmcmsptwi_driver = {
 	.probe  = pmcmsptwi_probe,
 	.remove	= __devexit_p(pmcmsptwi_remove),
@@ -639,18 +636,8 @@ static struct platform_driver pmcmsptwi_driver = {
 	},
 };
 
-static int __init pmcmsptwi_init(void)
-{
-	return platform_driver_register(&pmcmsptwi_driver);
-}
-
-static void __exit pmcmsptwi_exit(void)
-{
-	platform_driver_unregister(&pmcmsptwi_driver);
-}
+module_platform_driver(pmcmsptwi_driver);
 
 MODULE_DESCRIPTION("PMC MSP TWI/SMBus/I2C driver");
 MODULE_LICENSE("GPL");
-
-module_init(pmcmsptwi_init);
-module_exit(pmcmsptwi_exit);
+MODULE_ALIAS("platform:" DRV_NAME);

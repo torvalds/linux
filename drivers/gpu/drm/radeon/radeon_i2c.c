@@ -897,6 +897,7 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 	i2c->rec = *rec;
 	i2c->adapter.owner = THIS_MODULE;
 	i2c->adapter.class = I2C_CLASS_DDC;
+	i2c->adapter.dev.parent = &dev->pdev->dev;
 	i2c->dev = dev;
 	i2c_set_adapdata(&i2c->adapter, i2c);
 	if (rec->mm_i2c ||
@@ -957,6 +958,7 @@ struct radeon_i2c_chan *radeon_i2c_create_dp(struct drm_device *dev,
 	i2c->rec = *rec;
 	i2c->adapter.owner = THIS_MODULE;
 	i2c->adapter.class = I2C_CLASS_DDC;
+	i2c->adapter.dev.parent = &dev->pdev->dev;
 	i2c->dev = dev;
 	snprintf(i2c->adapter.name, sizeof(i2c->adapter.name),
 		 "Radeon aux bus %s", name);

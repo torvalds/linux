@@ -54,7 +54,7 @@ static inline int have_tvp7002(void)
 	return 0;
 }
 
-#define DM365_EVM_PHY_ID		"0:01"
+#define DM365_EVM_PHY_ID		"davinci_mdio-0:01"
 /*
  * A MAX-II CPLD is used for various board control functions.
  */
@@ -107,7 +107,7 @@ static struct mtd_partition davinci_nand_partitions[] = {
 		/* UBL (a few copies) plus U-Boot */
 		.name		= "bootloader",
 		.offset		= 0,
-		.size		= 28 * NAND_BLOCK_SIZE,
+		.size		= 30 * NAND_BLOCK_SIZE,
 		.mask_flags	= MTD_WRITEABLE, /* force read-only */
 	}, {
 		/* U-Boot environment */
@@ -618,5 +618,6 @@ MACHINE_START(DAVINCI_DM365_EVM, "DaVinci DM365 EVM")
 	.timer		= &davinci_timer,
 	.init_machine	= dm365_evm_init,
 	.dma_zone_size	= SZ_128M,
+	.restart	= davinci_restart,
 MACHINE_END
 

@@ -78,6 +78,7 @@ int pm_qos_remove_notifier(int pm_qos_class, struct notifier_block *notifier);
 int pm_qos_request_active(struct pm_qos_request *req);
 s32 pm_qos_read_value(struct pm_qos_constraints *c);
 
+s32 __dev_pm_qos_read_value(struct device *dev);
 s32 dev_pm_qos_read_value(struct device *dev);
 int dev_pm_qos_add_request(struct device *dev, struct dev_pm_qos_request *req,
 			   s32 value);
@@ -91,6 +92,8 @@ int dev_pm_qos_add_global_notifier(struct notifier_block *notifier);
 int dev_pm_qos_remove_global_notifier(struct notifier_block *notifier);
 void dev_pm_qos_constraints_init(struct device *dev);
 void dev_pm_qos_constraints_destroy(struct device *dev);
+int dev_pm_qos_add_ancestor_request(struct device *dev,
+				    struct dev_pm_qos_request *req, s32 value);
 #else
 static inline int pm_qos_update_target(struct pm_qos_constraints *c,
 				       struct plist_node *node,
@@ -107,7 +110,19 @@ static inline void pm_qos_remove_request(struct pm_qos_request *req)
 			{ return; }
 
 static inline int pm_qos_request(int pm_qos_class)
-			{ return 0; }
+{
+	switch (pm_qos_class) {
+	case PM_QOS_CPU_DMA_LATENCY:
+		return PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE;
+	case PM_QOS_NETWORK_LATENCY:
+		return PM_QOS_NETWORK_LAT_DEFAULT_VALUE;
+	case PM_QOS_NETWORK_THROUGHPUT:
+		return PM_QOS_NETWORK_THROUGHPUT_DEFAULT_VALUE;
+	default:
+		return PM_QOS_DEFAULT_VALUE;
+	}
+}
+
 static inline int pm_qos_add_notifier(int pm_qos_class,
 				      struct notifier_block *notifier)
 			{ return 0; }
@@ -119,6 +134,8 @@ static inline int pm_qos_request_active(struct pm_qos_request *req)
 static inline s32 pm_qos_read_value(struct pm_qos_constraints *c)
 			{ return 0; }
 
+static inline s32 __dev_pm_qos_read_value(struct device *dev)
+			{ return 0; }
 static inline s32 dev_pm_qos_read_value(struct device *dev)
 			{ return 0; }
 static inline int dev_pm_qos_add_request(struct device *dev,
@@ -150,6 +167,9 @@ static inline void dev_pm_qos_constraints_destroy(struct device *dev)
 {
 	dev->power.power_state = PMSG_INVALID;
 }
+static inline int dev_pm_qos_add_ancestor_request(struct device *dev,
+				    struct dev_pm_qos_request *req, s32 value)
+			{ return 0; }
 #endif
 
 #endif

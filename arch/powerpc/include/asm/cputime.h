@@ -29,25 +29,8 @@ static inline void setup_cputime_one_jiffy(void) { }
 #include <asm/time.h>
 #include <asm/param.h>
 
-typedef u64 cputime_t;
-typedef u64 cputime64_t;
-
-#define cputime_zero			((cputime_t)0)
-#define cputime_max			((~((cputime_t)0) >> 1) - 1)
-#define cputime_add(__a, __b)		((__a) +  (__b))
-#define cputime_sub(__a, __b)		((__a) -  (__b))
-#define cputime_div(__a, __n)		((__a) /  (__n))
-#define cputime_halve(__a)		((__a) >> 1)
-#define cputime_eq(__a, __b)		((__a) == (__b))
-#define cputime_gt(__a, __b)		((__a) >  (__b))
-#define cputime_ge(__a, __b)		((__a) >= (__b))
-#define cputime_lt(__a, __b)		((__a) <  (__b))
-#define cputime_le(__a, __b)		((__a) <= (__b))
-
-#define cputime64_zero			((cputime64_t)0)
-#define cputime64_add(__a, __b)		((__a) + (__b))
-#define cputime64_sub(__a, __b)		((__a) - (__b))
-#define cputime_to_cputime64(__ct)	(__ct)
+typedef u64 __nocast cputime_t;
+typedef u64 __nocast cputime64_t;
 
 #ifdef __KERNEL__
 
@@ -65,7 +48,7 @@ DECLARE_PER_CPU(unsigned long, cputime_scaled_last_delta);
 
 static inline unsigned long cputime_to_jiffies(const cputime_t ct)
 {
-	return mulhdu(ct, __cputime_jiffies_factor);
+	return mulhdu((__force u64) ct, __cputime_jiffies_factor);
 }
 
 /* Estimate the scaled cputime by scaling the real cputime based on
@@ -74,14 +57,15 @@ static inline cputime_t cputime_to_scaled(const cputime_t ct)
 {
 	if (cpu_has_feature(CPU_FTR_SPURR) &&
 	    __get_cpu_var(cputime_last_delta))
-		return ct * __get_cpu_var(cputime_scaled_last_delta) /
-			    __get_cpu_var(cputime_last_delta);
+		return (__force u64) ct *
+			__get_cpu_var(cputime_scaled_last_delta) /
+			__get_cpu_var(cputime_last_delta);
 	return ct;
 }
 
 static inline cputime_t jiffies_to_cputime(const unsigned long jif)
 {
-	cputime_t ct;
+	u64 ct;
 	unsigned long sec;
 
 	/* have to be a little careful about overflow */
@@ -93,7 +77,7 @@ static inline cputime_t jiffies_to_cputime(const unsigned long jif)
 	}
 	if (sec)
 		ct += (cputime_t) sec * tb_ticks_per_sec;
-	return ct;
+	return (__force cputime_t) ct;
 }
 
 static inline void setup_cputime_one_jiffy(void)
@@ -103,7 +87,7 @@ static inline void setup_cputime_one_jiffy(void)
 
 static inline cputime64_t jiffies64_to_cputime64(const u64 jif)
 {
-	cputime_t ct;
+	u64 ct;
 	u64 sec;
 
 	/* have to be a little careful about overflow */
@@ -114,28 +98,28 @@ static inline cputime64_t jiffies64_to_cputime64(const u64 jif)
 		do_div(ct, HZ);
 	}
 	if (sec)
-		ct += (cputime_t) sec * tb_ticks_per_sec;
-	return ct;
+		ct += (u64) sec * tb_ticks_per_sec;
+	return (__force cputime64_t) ct;
 }
 
 static inline u64 cputime64_to_jiffies64(const cputime_t ct)
 {
-	return mulhdu(ct, __cputime_jiffies_factor);
+	return mulhdu((__force u64) ct, __cputime_jiffies_factor);
 }
 
 /*
  * Convert cputime <-> microseconds
  */
-extern u64 __cputime_msec_factor;
+extern u64 __cputime_usec_factor;
 
 static inline unsigned long cputime_to_usecs(const cputime_t ct)
 {
-	return mulhdu(ct, __cputime_msec_factor) * USEC_PER_MSEC;
+	return mulhdu((__force u64) ct, __cputime_usec_factor);
 }
 
 static inline cputime_t usecs_to_cputime(const unsigned long us)
 {
-	cputime_t ct;
+	u64 ct;
 	unsigned long sec;
 
 	/* have to be a little careful about overflow */
@@ -143,12 +127,14 @@ static inline cputime_t usecs_to_cputime(const unsigned long us)
 	sec = us / 1000000;
 	if (ct) {
 		ct *= tb_ticks_per_sec;
-		do_div(ct, 1000);
+		do_div(ct, 1000000);
 	}
 	if (sec)
 		ct += (cputime_t) sec * tb_ticks_per_sec;
-	return ct;
+	return (__force cputime_t) ct;
 }
+
+#define usecs_to_cputime64(us)		usecs_to_cputime(us)
 
 /*
  * Convert cputime <-> seconds
@@ -157,12 +143,12 @@ extern u64 __cputime_sec_factor;
 
 static inline unsigned long cputime_to_secs(const cputime_t ct)
 {
-	return mulhdu(ct, __cputime_sec_factor);
+	return mulhdu((__force u64) ct, __cputime_sec_factor);
 }
 
 static inline cputime_t secs_to_cputime(const unsigned long sec)
 {
-	return (cputime_t) sec * tb_ticks_per_sec;
+	return (__force cputime_t)((u64) sec * tb_ticks_per_sec);
 }
 
 /*
@@ -170,7 +156,7 @@ static inline cputime_t secs_to_cputime(const unsigned long sec)
  */
 static inline void cputime_to_timespec(const cputime_t ct, struct timespec *p)
 {
-	u64 x = ct;
+	u64 x = (__force u64) ct;
 	unsigned int frac;
 
 	frac = do_div(x, tb_ticks_per_sec);
@@ -182,11 +168,11 @@ static inline void cputime_to_timespec(const cputime_t ct, struct timespec *p)
 
 static inline cputime_t timespec_to_cputime(const struct timespec *p)
 {
-	cputime_t ct;
+	u64 ct;
 
 	ct = (u64) p->tv_nsec * tb_ticks_per_sec;
 	do_div(ct, 1000000000);
-	return ct + (u64) p->tv_sec * tb_ticks_per_sec;
+	return (__force cputime_t)(ct + (u64) p->tv_sec * tb_ticks_per_sec);
 }
 
 /*
@@ -194,7 +180,7 @@ static inline cputime_t timespec_to_cputime(const struct timespec *p)
  */
 static inline void cputime_to_timeval(const cputime_t ct, struct timeval *p)
 {
-	u64 x = ct;
+	u64 x = (__force u64) ct;
 	unsigned int frac;
 
 	frac = do_div(x, tb_ticks_per_sec);
@@ -206,11 +192,11 @@ static inline void cputime_to_timeval(const cputime_t ct, struct timeval *p)
 
 static inline cputime_t timeval_to_cputime(const struct timeval *p)
 {
-	cputime_t ct;
+	u64 ct;
 
 	ct = (u64) p->tv_usec * tb_ticks_per_sec;
 	do_div(ct, 1000000);
-	return ct + (u64) p->tv_sec * tb_ticks_per_sec;
+	return (__force cputime_t)(ct + (u64) p->tv_sec * tb_ticks_per_sec);
 }
 
 /*
@@ -220,12 +206,12 @@ extern u64 __cputime_clockt_factor;
 
 static inline unsigned long cputime_to_clock_t(const cputime_t ct)
 {
-	return mulhdu(ct, __cputime_clockt_factor);
+	return mulhdu((__force u64) ct, __cputime_clockt_factor);
 }
 
 static inline cputime_t clock_t_to_cputime(const unsigned long clk)
 {
-	cputime_t ct;
+	u64 ct;
 	unsigned long sec;
 
 	/* have to be a little careful about overflow */
@@ -236,8 +222,8 @@ static inline cputime_t clock_t_to_cputime(const unsigned long clk)
 		do_div(ct, USER_HZ);
 	}
 	if (sec)
-		ct += (cputime_t) sec * tb_ticks_per_sec;
-	return ct;
+		ct += (u64) sec * tb_ticks_per_sec;
+	return (__force cputime_t) ct;
 }
 
 #define cputime64_to_clock_t(ct)	cputime_to_clock_t((cputime_t)(ct))

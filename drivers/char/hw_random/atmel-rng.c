@@ -141,17 +141,7 @@ static struct platform_driver atmel_trng_driver = {
 	},
 };
 
-static int __init atmel_trng_init(void)
-{
-	return platform_driver_register(&atmel_trng_driver);
-}
-module_init(atmel_trng_init);
-
-static void __exit atmel_trng_exit(void)
-{
-	platform_driver_unregister(&atmel_trng_driver);
-}
-module_exit(atmel_trng_exit);
+module_platform_driver(atmel_trng_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Peter Korsgaard <jacmet@sunsite.dk>");

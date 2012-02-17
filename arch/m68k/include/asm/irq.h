@@ -25,7 +25,8 @@
 #define NR_IRQS	0
 #endif
 
-#ifdef CONFIG_MMU
+#if defined(CONFIG_M68020) || defined(CONFIG_M68030) || \
+    defined(CONFIG_M68040) || defined(CONFIG_M68060)
 
 /*
  * Interrupt source definitions
@@ -49,19 +50,6 @@
 
 #define IRQ_USER	8
 
-/*
- * various flags for request_irq() - the Amiga now uses the standard
- * mechanism like all other architectures - IRQF_DISABLED and
- * IRQF_SHARED are your friends.
- */
-#ifndef MACH_AMIGA_ONLY
-#define IRQ_FLG_LOCK	(0x0001)	/* handler is not replaceable	*/
-#define IRQ_FLG_REPLACE	(0x0002)	/* replace existing handler	*/
-#define IRQ_FLG_FAST	(0x0004)
-#define IRQ_FLG_SLOW	(0x0008)
-#define IRQ_FLG_STD	(0x8000)	/* internally used		*/
-#endif
-
 struct irq_data;
 struct irq_chip;
 struct irq_desc;
@@ -80,7 +68,7 @@ extern unsigned int irq_canonicalize(unsigned int irq);
 
 #else
 #define irq_canonicalize(irq)  (irq)
-#endif /* CONFIG_MMU */
+#endif /* !(CONFIG_M68020 || CONFIG_M68030 || CONFIG_M68040 || CONFIG_M68060) */
 
 asmlinkage void do_IRQ(int irq, struct pt_regs *regs);
 extern atomic_t irq_err_count;

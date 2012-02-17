@@ -522,7 +522,7 @@ static void velocity_init_cam_filter(struct velocity_info *vptr)
 	mac_set_vlan_cam_mask(regs, vptr->vCAMmask);
 }
 
-static void velocity_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int velocity_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 
@@ -530,9 +530,10 @@ static void velocity_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	set_bit(vid, vptr->active_vlans);
 	velocity_init_cam_filter(vptr);
 	spin_unlock_irq(&vptr->lock);
+	return 0;
 }
 
-static void velocity_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int velocity_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 
@@ -540,6 +541,7 @@ static void velocity_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid
 	clear_bit(vid, vptr->active_vlans);
 	velocity_init_cam_filter(vptr);
 	spin_unlock_irq(&vptr->lock);
+	return 0;
 }
 
 static void velocity_init_rx_ring_indexes(struct velocity_info *vptr)
@@ -3270,9 +3272,9 @@ static int velocity_set_settings(struct net_device *dev,
 static void velocity_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
-	strcpy(info->driver, VELOCITY_NAME);
-	strcpy(info->version, VELOCITY_VERSION);
-	strcpy(info->bus_info, pci_name(vptr->pdev));
+	strlcpy(info->driver, VELOCITY_NAME, sizeof(info->driver));
+	strlcpy(info->version, VELOCITY_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(vptr->pdev), sizeof(info->bus_info));
 }
 
 static void velocity_ethtool_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)

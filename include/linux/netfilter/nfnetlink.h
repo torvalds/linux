@@ -48,7 +48,8 @@ struct nfgenmsg {
 #define NFNL_SUBSYS_ULOG		4
 #define NFNL_SUBSYS_OSF			5
 #define NFNL_SUBSYS_IPSET		6
-#define NFNL_SUBSYS_COUNT		7
+#define NFNL_SUBSYS_ACCT		7
+#define NFNL_SUBSYS_COUNT		8
 
 #ifdef __KERNEL__
 

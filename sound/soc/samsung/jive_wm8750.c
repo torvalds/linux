@@ -101,7 +101,6 @@ static int jive_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int err;
 
 	/* These endpoints are not being used. */
 	snd_soc_dapm_nc_pin(dapm, "LINPUT2");
@@ -128,10 +127,11 @@ static struct snd_soc_dai_link jive_dai = {
 /* jive audio machine driver */
 static struct snd_soc_card snd_soc_machine_jive = {
 	.name		= "Jive",
+	.owner		= THIS_MODULE,
 	.dai_link	= &jive_dai,
 	.num_links	= 1,
 
-	.dapm_widgtets	= wm8750_dapm_widgets,
+	.dapm_widgets	= wm8750_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(wm8750_dapm_widgets),
 	.dapm_routes	= audio_map,
 	.num_dapm_routes = ARRAY_SIZE(audio_map),

@@ -309,4 +309,5 @@ MACHINE_START(BADGE4, "Hewlett-Packard Laboratories BadgePAD 4")
 #ifdef CONFIG_SA1111
 	.dma_zone_size	= SZ_1M,
 #endif
+	.restart	= sa11x0_restart,
 MACHINE_END

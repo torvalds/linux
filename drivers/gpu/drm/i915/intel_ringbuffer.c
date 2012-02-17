@@ -414,6 +414,11 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 			return ret;
 	}
 
+	if (INTEL_INFO(dev)->gen >= 6) {
+		I915_WRITE(INSTPM,
+			   INSTPM_FORCE_ORDERING << 16 | INSTPM_FORCE_ORDERING);
+	}
+
 	return ret;
 }
 
@@ -631,6 +636,19 @@ render_ring_add_request(struct intel_ring_buffer *ring,
 }
 
 static u32
+gen6_ring_get_seqno(struct intel_ring_buffer *ring)
+{
+	struct drm_device *dev = ring->dev;
+
+	/* Workaround to force correct ordering between irq and seqno writes on
+	 * ivb (and maybe also on snb) by reading from a CS register (like
+	 * ACTHD) before reading the status page. */
+	if (IS_GEN7(dev))
+		intel_ring_get_active_head(ring);
+	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
+}
+
+static u32
 ring_get_seqno(struct intel_ring_buffer *ring)
 {
 	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
@@ -795,6 +813,12 @@ gen6_ring_get_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
 	if (!dev->irq_enabled)
 	       return false;
 
+	/* It looks like we need to prevent the gt from suspending while waiting
+	 * for an notifiy irq, otherwise irqs seem to get lost on at least the
+	 * blt/bsd rings on ivb. */
+	if (IS_GEN7(dev))
+		gen6_gt_force_wake_get(dev_priv);
+
 	spin_lock(&ring->irq_lock);
 	if (ring->irq_refcount++ == 0) {
 		ring->irq_mask &= ~rflag;
@@ -819,6 +843,9 @@ gen6_ring_put_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
 		ironlake_disable_irq(dev_priv, gflag);
 	}
 	spin_unlock(&ring->irq_lock);
+
+	if (IS_GEN7(dev))
+		gen6_gt_force_wake_put(dev_priv);
 }
 
 static bool
@@ -1119,7 +1146,16 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 	}
 
 	trace_i915_ring_wait_begin(ring);
-	end = jiffies + 3 * HZ;
+	if (drm_core_check_feature(dev, DRIVER_GEM))
+		/* With GEM the hangcheck timer should kick us out of the loop,
+		 * leaving it early runs the risk of corrupting GEM state (due
+		 * to running on almost untested codepaths). But on resume
+		 * timers don't work yet, so prevent a complete hang in that
+		 * case by choosing an insanely large timeout. */
+		end = jiffies + 60 * HZ;
+	else
+		end = jiffies + 3 * HZ;
+
 	do {
 		ring->head = I915_READ_HEAD(ring);
 		ring->space = ring_space(ring);
@@ -1316,7 +1352,7 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
 	.write_tail		= gen6_bsd_ring_write_tail,
 	.flush			= gen6_ring_flush,
 	.add_request		= gen6_add_request,
-	.get_seqno		= ring_get_seqno,
+	.get_seqno		= gen6_ring_get_seqno,
 	.irq_get		= gen6_bsd_ring_get_irq,
 	.irq_put		= gen6_bsd_ring_put_irq,
 	.dispatch_execbuffer	= gen6_ring_dispatch_execbuffer,
@@ -1451,7 +1487,7 @@ static const struct intel_ring_buffer gen6_blt_ring = {
 	.write_tail		= ring_write_tail,
 	.flush			= blt_ring_flush,
 	.add_request		= gen6_add_request,
-	.get_seqno		= ring_get_seqno,
+	.get_seqno		= gen6_ring_get_seqno,
 	.irq_get		= blt_ring_get_irq,
 	.irq_put		= blt_ring_put_irq,
 	.dispatch_execbuffer	= gen6_ring_dispatch_execbuffer,
@@ -1474,6 +1510,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		ring->flush = gen6_render_ring_flush;
 		ring->irq_get = gen6_render_ring_get_irq;
 		ring->irq_put = gen6_render_ring_put_irq;
+		ring->get_seqno = gen6_ring_get_seqno;
 	} else if (IS_GEN5(dev)) {
 		ring->add_request = pc_render_add_request;
 		ring->get_seqno = pc_render_get_seqno;

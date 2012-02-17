@@ -132,7 +132,4 @@ void wl1271_event_mbox_config(struct wl1271 *wl);
 int wl1271_event_handle(struct wl1271 *wl, u8 mbox);
 void wl1271_pspoll_work(struct work_struct *work);
 
-/* Functions from main.c */
-bool wl1271_is_active_sta(struct wl1271 *wl, u8 hlid);
-
 #endif

@@ -21,13 +21,14 @@
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
-#include <plat/exynos4.h>
 #include <plat/gpio-cfg.h>
 #include <plat/regs-serial.h>
 #include <plat/regs-srom.h>
 #include <plat/sdhci.h>
 
 #include <mach/map.h>
+
+#include "common.h"
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define ARMLEX4210_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -188,7 +189,7 @@ static void __init armlex4210_smsc911x_init(void)
 
 static void __init armlex4210_map_io(void)
 {
-	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
+	exynos_init_io(NULL, 0);
 	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(armlex4210_uartcfgs,
 			   ARRAY_SIZE(armlex4210_uartcfgs));
@@ -214,4 +215,5 @@ MACHINE_START(ARMLEX4210, "ARMLEX4210")
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= armlex4210_machine_init,
 	.timer		= &exynos4_timer,
+	.restart	= exynos4_restart,
 MACHINE_END

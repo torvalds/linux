@@ -370,18 +370,7 @@ static struct platform_driver stk17ta8_rtc_driver = {
 	},
 };
 
-static __init int stk17ta8_init(void)
-{
-	return platform_driver_register(&stk17ta8_rtc_driver);
-}
-
-static __exit void stk17ta8_exit(void)
-{
-	platform_driver_unregister(&stk17ta8_rtc_driver);
-}
-
-module_init(stk17ta8_init);
-module_exit(stk17ta8_exit);
+module_platform_driver(stk17ta8_rtc_driver);
 
 MODULE_AUTHOR("Thomas Hommel <thomas.hommel@ge.com>");
 MODULE_DESCRIPTION("Simtek STK17TA8 RTC driver");

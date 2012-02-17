@@ -10,11 +10,11 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/mbus.h>
 #include <video/vga.h>
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
+#include <plat/addr-map.h>
 #include "common.h"
 
 struct pcie_port {
@@ -153,11 +153,10 @@ static int __init mv78xx0_pcie_setup(int nr, struct pci_sys_data *sys)
 	 * Generic PCIe unit setup.
 	 */
 	orion_pcie_set_local_bus_nr(pp->base, sys->busnr);
-	orion_pcie_setup(pp->base, &mv78xx0_mbus_dram_info);
+	orion_pcie_setup(pp->base);
 
-	sys->resource[0] = &pp->res[0];
-	sys->resource[1] = &pp->res[1];
-	sys->resource[2] = NULL;
+	pci_add_resource(&sys->resources, &pp->res[0]);
+	pci_add_resource(&sys->resources, &pp->res[1]);
 
 	return 1;
 }
@@ -251,7 +250,8 @@ mv78xx0_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 	struct pci_bus *bus;
 
 	if (nr < num_pcie_ports) {
-		bus = pci_scan_bus(sys->busnr, &pcie_ops, sys);
+		bus = pci_scan_root_bus(NULL, sys->busnr, &pcie_ops, sys,
+					&sys->resources);
 	} else {
 		bus = NULL;
 		BUG();

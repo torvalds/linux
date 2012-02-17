@@ -49,13 +49,14 @@ filelayout_get_dense_offset(struct nfs4_filelayout_segment *flseg,
 			    loff_t offset)
 {
 	u32 stripe_width = flseg->stripe_unit * flseg->dsaddr->stripe_count;
-	u64 tmp;
+	u64 stripe_no;
+	u32 rem;
 
 	offset -= flseg->pattern_offset;
-	tmp = offset;
-	do_div(tmp, stripe_width);
+	stripe_no = div_u64(offset, stripe_width);
+	div_u64_rem(offset, flseg->stripe_unit, &rem);
 
-	return tmp * flseg->stripe_unit + do_div(offset, flseg->stripe_unit);
+	return stripe_no * flseg->stripe_unit + rem;
 }
 
 /* This function is used by the layout driver to calculate the

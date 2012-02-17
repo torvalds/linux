@@ -53,28 +53,24 @@ static LIST_HEAD(cmtp_session_list);
 static struct cmtp_session *__cmtp_get_session(bdaddr_t *bdaddr)
 {
 	struct cmtp_session *session;
-	struct list_head *p;
 
 	BT_DBG("");
 
-	list_for_each(p, &cmtp_session_list) {
-		session = list_entry(p, struct cmtp_session, list);
+	list_for_each_entry(session, &cmtp_session_list, list)
 		if (!bacmp(bdaddr, &session->bdaddr))
 			return session;
-	}
+
 	return NULL;
 }
 
 static void __cmtp_link_session(struct cmtp_session *session)
 {
-	__module_get(THIS_MODULE);
 	list_add(&session->list, &cmtp_session_list);
 }
 
 static void __cmtp_unlink_session(struct cmtp_session *session)
 {
 	list_del(&session->list);
-	module_put(THIS_MODULE);
 }
 
 static void __cmtp_copy_session(struct cmtp_session *session, struct cmtp_conninfo *ci)
@@ -327,6 +323,7 @@ static int cmtp_session(void *arg)
 	up_write(&cmtp_session_sem);
 
 	kfree(session);
+	module_put_and_exit(0);
 	return 0;
 }
 
@@ -376,9 +373,11 @@ int cmtp_add_connection(struct cmtp_connadd_req *req, struct socket *sock)
 
 	__cmtp_link_session(session);
 
+	__module_get(THIS_MODULE);
 	session->task = kthread_run(cmtp_session, session, "kcmtpd_ctr_%d",
 								session->num);
 	if (IS_ERR(session->task)) {
+		module_put(THIS_MODULE);
 		err = PTR_ERR(session->task);
 		goto unlink;
 	}
@@ -431,18 +430,15 @@ int cmtp_del_connection(struct cmtp_conndel_req *req)
 
 int cmtp_get_connlist(struct cmtp_connlist_req *req)
 {
-	struct list_head *p;
+	struct cmtp_session *session;
 	int err = 0, n = 0;
 
 	BT_DBG("");
 
 	down_read(&cmtp_session_sem);
 
-	list_for_each(p, &cmtp_session_list) {
-		struct cmtp_session *session;
+	list_for_each_entry(session, &cmtp_session_list, list) {
 		struct cmtp_conninfo ci;
-
-		session = list_entry(p, struct cmtp_session, list);
 
 		__cmtp_copy_session(session, &ci);
 

@@ -187,8 +187,10 @@ struct twl6040 {
 	int rev;
 	u8 vibra_ctrl_cache[2];
 
+	/* PLL configuration */
 	int pll;
 	unsigned int sysclk;
+	unsigned int mclk;
 
 	unsigned int irq;
 	unsigned int irq_base;

@@ -296,13 +296,6 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		     ((data & PSW_MASK_EA) && !(data & PSW_MASK_BA))))
 			/* Invalid psw mask. */
 			return -EINVAL;
-		if (addr == (addr_t) &dummy->regs.psw.addr)
-			/*
-			 * The debugger changed the instruction address,
-			 * reset system call restart, see signal.c:do_signal
-			 */
-			task_thread_info(child)->system_call = 0;
-
 		*(addr_t *)((addr_t) &task_pt_regs(child)->psw + addr) = data;
 
 	} else if (addr < (addr_t) (&dummy->regs.orig_gpr2)) {
@@ -614,11 +607,6 @@ static int __poke_user_compat(struct task_struct *child,
 			/* Transfer 31 bit amode bit to psw mask. */
 			regs->psw.mask = (regs->psw.mask & ~PSW_MASK_BA) |
 				(__u64)(tmp & PSW32_ADDR_AMODE);
-			/*
-			 * The debugger changed the instruction address,
-			 * reset system call restart, see signal.c:do_signal
-			 */
-			task_thread_info(child)->system_call = 0;
 		} else {
 			/* gpr 0-15 */
 			*(__u32*)((addr_t) &regs->psw + addr*2 + 4) = tmp;
@@ -752,20 +740,17 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_enter(regs, regs->gprs[2]);
 
-	if (unlikely(current->audit_context))
-		audit_syscall_entry(is_compat_task() ?
-					AUDIT_ARCH_S390 : AUDIT_ARCH_S390X,
-				    regs->gprs[2], regs->orig_gpr2,
-				    regs->gprs[3], regs->gprs[4],
-				    regs->gprs[5]);
+	audit_syscall_entry(is_compat_task() ?
+				AUDIT_ARCH_S390 : AUDIT_ARCH_S390X,
+			    regs->gprs[2], regs->orig_gpr2,
+			    regs->gprs[3], regs->gprs[4],
+			    regs->gprs[5]);
 	return ret ?: regs->gprs[2];
 }
 
 asmlinkage void do_syscall_trace_exit(struct pt_regs *regs)
 {
-	if (unlikely(current->audit_context))
-		audit_syscall_exit(AUDITSC_RESULT(regs->gprs[2]),
-				   regs->gprs[2]);
+	audit_syscall_exit(regs);
 
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_exit(regs, regs->gprs[2]);
@@ -905,6 +890,14 @@ static int s390_last_break_get(struct task_struct *target,
 	return 0;
 }
 
+static int s390_last_break_set(struct task_struct *target,
+			       const struct user_regset *regset,
+			       unsigned int pos, unsigned int count,
+			       const void *kbuf, const void __user *ubuf)
+{
+	return 0;
+}
+
 #endif
 
 static int s390_system_call_get(struct task_struct *target,
@@ -951,6 +944,7 @@ static const struct user_regset s390_regsets[] = {
 		.size = sizeof(long),
 		.align = sizeof(long),
 		.get = s390_last_break_get,
+		.set = s390_last_break_set,
 	},
 #endif
 	[REGSET_SYSTEM_CALL] = {
@@ -1116,6 +1110,14 @@ static int s390_compat_last_break_get(struct task_struct *target,
 	return 0;
 }
 
+static int s390_compat_last_break_set(struct task_struct *target,
+				      const struct user_regset *regset,
+				      unsigned int pos, unsigned int count,
+				      const void *kbuf, const void __user *ubuf)
+{
+	return 0;
+}
+
 static const struct user_regset s390_compat_regsets[] = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
@@ -1139,6 +1141,7 @@ static const struct user_regset s390_compat_regsets[] = {
 		.size = sizeof(long),
 		.align = sizeof(long),
 		.get = s390_compat_last_break_get,
+		.set = s390_compat_last_break_set,
 	},
 	[REGSET_SYSTEM_CALL] = {
 		.core_note_type = NT_S390_SYSTEM_CALL,

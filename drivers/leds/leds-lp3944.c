@@ -453,18 +453,7 @@ static struct i2c_driver lp3944_driver = {
 	.id_table = lp3944_id,
 };
 
-static int __init lp3944_module_init(void)
-{
-	return i2c_add_driver(&lp3944_driver);
-}
-
-static void __exit lp3944_module_exit(void)
-{
-	i2c_del_driver(&lp3944_driver);
-}
-
-module_init(lp3944_module_init);
-module_exit(lp3944_module_exit);
+module_i2c_driver(lp3944_driver);
 
 MODULE_AUTHOR("Antonio Ospite <ospite@studenti.unina.it>");
 MODULE_DESCRIPTION("LP3944 Fun Light Chip");

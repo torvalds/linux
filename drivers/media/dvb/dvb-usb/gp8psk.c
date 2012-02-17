@@ -320,26 +320,7 @@ static struct usb_driver gp8psk_usb_driver = {
 	.id_table	= gp8psk_usb_table,
 };
 
-/* module stuff */
-static int __init gp8psk_usb_module_init(void)
-{
-	int result;
-	if ((result = usb_register(&gp8psk_usb_driver))) {
-		err("usb_register failed. (%d)",result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit gp8psk_usb_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&gp8psk_usb_driver);
-}
-
-module_init(gp8psk_usb_module_init);
-module_exit(gp8psk_usb_module_exit);
+module_usb_driver(gp8psk_usb_driver);
 
 MODULE_AUTHOR("Alan Nisota <alannisota@gamil.com>");
 MODULE_DESCRIPTION("Driver for Genpix DVB-S");

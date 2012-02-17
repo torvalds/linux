@@ -99,9 +99,9 @@ static int rtl92d_init_sw_vars(struct ieee80211_hw *hw)
 
 	rtlpriv->dm.dm_initialgain_enable = true;
 	rtlpriv->dm.dm_flag = 0;
-	rtlpriv->dm.disable_framebursting = 0;
+	rtlpriv->dm.disable_framebursting = false;
 	rtlpriv->dm.thermalvalue = 0;
-	rtlpriv->dm.useramask = 1;
+	rtlpriv->dm.useramask = true;
 
 	/* dual mac */
 	if (rtlpriv->rtlhal.current_bandtype == BAND_ON_5G)

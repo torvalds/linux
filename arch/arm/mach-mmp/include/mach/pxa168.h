@@ -5,6 +5,7 @@ struct sys_timer;
 
 extern struct sys_timer pxa168_timer;
 extern void __init pxa168_init_irq(void);
+extern void pxa168_restart(char, const char *);
 extern void pxa168_clear_keypad_wakeup(void);
 
 #include <linux/i2c.h>
@@ -41,6 +42,8 @@ struct pxa168_usb_pdata {
 };
 /* pdata can be NULL */
 int __init pxa168_add_usb_host(struct pxa168_usb_pdata *pdata);
+
+extern struct platform_device pxa168_device_gpio;
 
 static inline int pxa168_add_uart(int id)
 {

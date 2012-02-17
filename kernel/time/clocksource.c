@@ -23,8 +23,8 @@
  *   o Allow clocksource drivers to be unregistered
  */
 
+#include <linux/device.h>
 #include <linux/clocksource.h>
-#include <linux/sysdev.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/sched.h> /* for spin_unlock_irq() using preempt_count() m68k */
@@ -548,7 +548,7 @@ static u64 clocksource_max_deferment(struct clocksource *cs)
 	 * note a margin of 12.5% is used because this can be computed with
 	 * a shift, versus say 10% which would require division.
 	 */
-	return max_nsecs - (max_nsecs >> 5);
+	return max_nsecs - (max_nsecs >> 3);
 }
 
 #ifndef CONFIG_ARCH_USES_GETTIMEOFFSET
@@ -647,7 +647,7 @@ static void clocksource_enqueue(struct clocksource *cs)
 
 /**
  * __clocksource_updatefreq_scale - Used update clocksource with new freq
- * @t:		clocksource to be registered
+ * @cs:		clocksource to be registered
  * @scale:	Scale factor multiplied against freq to get clocksource hz
  * @freq:	clocksource frequency (cycles per second) divided by scale
  *
@@ -669,7 +669,7 @@ void __clocksource_updatefreq_scale(struct clocksource *cs, u32 scale, u32 freq)
 	 * ~ 0.06ppm granularity for NTP. We apply the same 12.5%
 	 * margin as we do in clocksource_max_deferment()
 	 */
-	sec = (cs->mask - (cs->mask >> 5));
+	sec = (cs->mask - (cs->mask >> 3));
 	do_div(sec, freq);
 	do_div(sec, scale);
 	if (!sec)
@@ -699,7 +699,7 @@ EXPORT_SYMBOL_GPL(__clocksource_updatefreq_scale);
 
 /**
  * __clocksource_register_scale - Used to install new clocksources
- * @t:		clocksource to be registered
+ * @cs:		clocksource to be registered
  * @scale:	Scale factor multiplied against freq to get clocksource hz
  * @freq:	clocksource frequency (cycles per second) divided by scale
  *
@@ -727,7 +727,7 @@ EXPORT_SYMBOL_GPL(__clocksource_register_scale);
 
 /**
  * clocksource_register - Used to install new clocksources
- * @t:		clocksource to be registered
+ * @cs:		clocksource to be registered
  *
  * Returns -EBUSY if registration fails, zero otherwise.
  */
@@ -761,6 +761,8 @@ static void __clocksource_change_rating(struct clocksource *cs, int rating)
 
 /**
  * clocksource_change_rating - Change the rating of a registered clocksource
+ * @cs:		clocksource to be changed
+ * @rating:	new rating
  */
 void clocksource_change_rating(struct clocksource *cs, int rating)
 {
@@ -772,6 +774,7 @@ EXPORT_SYMBOL(clocksource_change_rating);
 
 /**
  * clocksource_unregister - remove a registered clocksource
+ * @cs:	clocksource to be unregistered
  */
 void clocksource_unregister(struct clocksource *cs)
 {
@@ -787,13 +790,14 @@ EXPORT_SYMBOL(clocksource_unregister);
 /**
  * sysfs_show_current_clocksources - sysfs interface for current clocksource
  * @dev:	unused
+ * @attr:	unused
  * @buf:	char buffer to be filled with clocksource list
  *
  * Provides sysfs interface for listing current clocksource.
  */
 static ssize_t
-sysfs_show_current_clocksources(struct sys_device *dev,
-				struct sysdev_attribute *attr, char *buf)
+sysfs_show_current_clocksources(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	ssize_t count = 0;
 
@@ -807,14 +811,15 @@ sysfs_show_current_clocksources(struct sys_device *dev,
 /**
  * sysfs_override_clocksource - interface for manually overriding clocksource
  * @dev:	unused
+ * @attr:	unused
  * @buf:	name of override clocksource
  * @count:	length of buffer
  *
  * Takes input from sysfs interface for manually overriding the default
  * clocksource selection.
  */
-static ssize_t sysfs_override_clocksource(struct sys_device *dev,
-					  struct sysdev_attribute *attr,
+static ssize_t sysfs_override_clocksource(struct device *dev,
+					  struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
 	size_t ret = count;
@@ -842,13 +847,14 @@ static ssize_t sysfs_override_clocksource(struct sys_device *dev,
 /**
  * sysfs_show_available_clocksources - sysfs interface for listing clocksource
  * @dev:	unused
+ * @attr:	unused
  * @buf:	char buffer to be filled with clocksource list
  *
  * Provides sysfs interface for listing registered clocksources
  */
 static ssize_t
-sysfs_show_available_clocksources(struct sys_device *dev,
-				  struct sysdev_attribute *attr,
+sysfs_show_available_clocksources(struct device *dev,
+				  struct device_attribute *attr,
 				  char *buf)
 {
 	struct clocksource *src;
@@ -877,35 +883,36 @@ sysfs_show_available_clocksources(struct sys_device *dev,
 /*
  * Sysfs setup bits:
  */
-static SYSDEV_ATTR(current_clocksource, 0644, sysfs_show_current_clocksources,
+static DEVICE_ATTR(current_clocksource, 0644, sysfs_show_current_clocksources,
 		   sysfs_override_clocksource);
 
-static SYSDEV_ATTR(available_clocksource, 0444,
+static DEVICE_ATTR(available_clocksource, 0444,
 		   sysfs_show_available_clocksources, NULL);
 
-static struct sysdev_class clocksource_sysclass = {
+static struct bus_type clocksource_subsys = {
 	.name = "clocksource",
+	.dev_name = "clocksource",
 };
 
-static struct sys_device device_clocksource = {
+static struct device device_clocksource = {
 	.id	= 0,
-	.cls	= &clocksource_sysclass,
+	.bus	= &clocksource_subsys,
 };
 
 static int __init init_clocksource_sysfs(void)
 {
-	int error = sysdev_class_register(&clocksource_sysclass);
+	int error = subsys_system_register(&clocksource_subsys, NULL);
 
 	if (!error)
-		error = sysdev_register(&device_clocksource);
+		error = device_register(&device_clocksource);
 	if (!error)
-		error = sysdev_create_file(
+		error = device_create_file(
 				&device_clocksource,
-				&attr_current_clocksource);
+				&dev_attr_current_clocksource);
 	if (!error)
-		error = sysdev_create_file(
+		error = device_create_file(
 				&device_clocksource,
-				&attr_available_clocksource);
+				&dev_attr_available_clocksource);
 	return error;
 }
 

@@ -1406,7 +1406,6 @@ static struct bus_type vio_bus_type = {
 	.match = vio_bus_match,
 	.probe = vio_bus_probe,
 	.remove = vio_bus_remove,
-	.pm = GENERIC_SUBSYS_PM_OPS,
 };
 
 /**

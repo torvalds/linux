@@ -48,8 +48,8 @@ typedef struct {
 	unsigned long flags;		/* Miscellaneous flags, see below. */
 	uid_t uid;			/* uid that files will be mounted as. */
 	gid_t gid;			/* gid that files will be mounted as. */
-	mode_t fmask;			/* The mask for file permissions. */
-	mode_t dmask;			/* The mask for directory
+	umode_t fmask;			/* The mask for file permissions. */
+	umode_t dmask;			/* The mask for directory
 					   permissions. */
 	u8 mft_zone_multiplier;		/* Initial mft zone multiplier. */
 	u8 on_errors;			/* What to do on filesystem errors. */

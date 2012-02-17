@@ -29,10 +29,11 @@
 #include <scsi/scsi.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_transport.h>
-#include <target/target_core_fabric_ops.h>
+#include <target/target_core_backend.h>
+#include <target/target_core_fabric.h>
+
+#include "target_core_internal.h"
 #include "target_core_ua.h"
-#include "target_core_cdb.h"
 
 static void
 target_fill_alua_data(struct se_port *port, unsigned char *buf)
@@ -82,7 +83,7 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 		return -EINVAL;
 	}
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 
 	if (dev == tpg->tpg_virt_lun0.lun_se_dev) {
 		buf[0] = 0x3f; /* Not connected */
@@ -92,6 +93,18 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 			buf[1] = 0x80;
 	}
 	buf[2] = dev->transport->get_device_rev(dev);
+
+	/*
+	 * NORMACA and HISUP = 0, RESPONSE DATA FORMAT = 2
+	 *
+	 * SPC4 says:
+	 *   A RESPONSE DATA FORMAT field set to 2h indicates that the
+	 *   standard INQUIRY data is in the format defined in this
+	 *   standard. Response data format values less than 2h are
+	 *   obsolete. Response data format values greater than 2h are
+	 *   reserved.
+	 */
+	buf[3] = 2;
 
 	/*
 	 * Enable SCCS and TPGS fields for Emulated ALUA
@@ -115,15 +128,13 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 		goto out;
 	}
 
-	snprintf((unsigned char *)&buf[8], 8, "LIO-ORG");
-	snprintf((unsigned char *)&buf[16], 16, "%s",
-		 &dev->se_sub_dev->t10_wwn.model[0]);
-	snprintf((unsigned char *)&buf[32], 4, "%s",
-		 &dev->se_sub_dev->t10_wwn.revision[0]);
+	snprintf(&buf[8], 8, "LIO-ORG");
+	snprintf(&buf[16], 16, "%s", dev->se_sub_dev->t10_wwn.model);
+	snprintf(&buf[32], 4, "%s", dev->se_sub_dev->t10_wwn.revision);
 	buf[4] = 31; /* Set additional length to 31 */
 
 out:
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 	return 0;
 }
 
@@ -138,8 +149,7 @@ target_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 			SDF_EMULATED_VPD_UNIT_SERIAL) {
 		u32 unit_serial_len;
 
-		unit_serial_len =
-			strlen(&dev->se_sub_dev->t10_wwn.unit_serial[0]);
+		unit_serial_len = strlen(dev->se_sub_dev->t10_wwn.unit_serial);
 		unit_serial_len++; /* For NULL Terminator */
 
 		if (((len + 4) + unit_serial_len) > cmd->data_length) {
@@ -148,8 +158,8 @@ target_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 			buf[3] = (len & 0xff);
 			return 0;
 		}
-		len += sprintf((unsigned char *)&buf[4], "%s",
-			&dev->se_sub_dev->t10_wwn.unit_serial[0]);
+		len += sprintf(&buf[4], "%s",
+			dev->se_sub_dev->t10_wwn.unit_serial);
 		len++; /* Extra Byte for NULL Terminator */
 		buf[3] = len;
 	}
@@ -279,14 +289,13 @@ check_t10_vend_desc:
 			len += (prod_len + unit_serial_len);
 			goto check_port;
 		}
-		id_len += sprintf((unsigned char *)&buf[off+12],
-				"%s:%s", prod,
+		id_len += sprintf(&buf[off+12], "%s:%s", prod,
 				&dev->se_sub_dev->t10_wwn.unit_serial[0]);
 	}
 	buf[off] = 0x2; /* ASCII */
 	buf[off+1] = 0x1; /* T10 Vendor ID */
 	buf[off+2] = 0x0;
-	memcpy((unsigned char *)&buf[off+4], "LIO-ORG", 8);
+	memcpy(&buf[off+4], "LIO-ORG", 8);
 	/* Extra Byte for NULL Terminator */
 	id_len++;
 	/* Identifier Length */
@@ -478,7 +487,7 @@ target_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 	if (cmd->data_length < 60)
 		return 0;
 
-	buf[2] = 0x3c;
+	buf[3] = 0x3c;
 	/* Set HEADSUP, ORDSUP, SIMPSUP */
 	buf[5] = 0x07;
 
@@ -689,6 +698,13 @@ int target_emulate_inquiry(struct se_task *task)
 	int p, ret;
 
 	if (!(cdb[1] & 0x1)) {
+		if (cdb[2]) {
+			pr_err("INQUIRY with EVPD==0 but PAGE CODE=%02x\n",
+			       cdb[2]);
+			cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
+			return -EINVAL;
+		}
+
 		ret = target_emulate_inquiry_std(cmd);
 		goto out;
 	}
@@ -703,10 +719,11 @@ int target_emulate_inquiry(struct se_task *task)
 	if (cmd->data_length < 4) {
 		pr_err("SCSI Inquiry payload length: %u"
 			" too small for EVPD=1\n", cmd->data_length);
+		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
 		return -EINVAL;
 	}
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 
 	buf[0] = dev->transport->get_device_type(dev);
 
@@ -719,10 +736,11 @@ int target_emulate_inquiry(struct se_task *task)
 	}
 
 	pr_err("Unknown VPD Code: 0x%02x\n", cdb[2]);
+	cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
 	ret = -EINVAL;
 
 out_unmap:
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 out:
 	if (!ret) {
 		task->task_scsi_status = GOOD;
@@ -744,7 +762,7 @@ int target_emulate_readcapacity(struct se_task *task)
 	else
 		blocks = (u32)blocks_long;
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 
 	buf[0] = (blocks >> 24) & 0xff;
 	buf[1] = (blocks >> 16) & 0xff;
@@ -760,7 +778,7 @@ int target_emulate_readcapacity(struct se_task *task)
 	if (dev->se_sub_dev->se_dev_attrib.emulate_tpu || dev->se_sub_dev->se_dev_attrib.emulate_tpws)
 		put_unaligned_be32(0xFFFFFFFF, &buf[0]);
 
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 
 	task->task_scsi_status = GOOD;
 	transport_complete_task(task, 1);
@@ -774,7 +792,7 @@ int target_emulate_readcapacity_16(struct se_task *task)
 	unsigned char *buf;
 	unsigned long long blocks = dev->transport->get_blocks(dev);
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 
 	buf[0] = (blocks >> 56) & 0xff;
 	buf[1] = (blocks >> 48) & 0xff;
@@ -795,7 +813,7 @@ int target_emulate_readcapacity_16(struct se_task *task)
 	if (dev->se_sub_dev->se_dev_attrib.emulate_tpu || dev->se_sub_dev->se_dev_attrib.emulate_tpws)
 		buf[14] = 0x80;
 
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 
 	task->task_scsi_status = GOOD;
 	transport_complete_task(task, 1);
@@ -969,7 +987,8 @@ int target_emulate_modesense(struct se_task *task)
 	default:
 		pr_err("MODE SENSE: unimplemented page/subpage: 0x%02x/0x%02x\n",
 		       cdb[2] & 0x3f, cdb[3]);
-		return PYX_TRANSPORT_UNKNOWN_MODE_PAGE;
+		cmd->scsi_sense_reason = TCM_UNKNOWN_MODE_PAGE;
+		return -EINVAL;
 	}
 	offset += length;
 
@@ -1007,9 +1026,9 @@ int target_emulate_modesense(struct se_task *task)
 			offset = cmd->data_length;
 	}
 
-	rbuf = transport_kmap_first_data_page(cmd);
+	rbuf = transport_kmap_data_sg(cmd);
 	memcpy(rbuf, buf, offset);
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 
 	task->task_scsi_status = GOOD;
 	transport_complete_task(task, 1);
@@ -1027,10 +1046,11 @@ int target_emulate_request_sense(struct se_task *task)
 	if (cdb[1] & 0x01) {
 		pr_err("REQUEST_SENSE description emulation not"
 			" supported\n");
-		return PYX_TRANSPORT_INVALID_CDB_FIELD;
+		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
+		return -ENOSYS;
 	}
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 
 	if (!core_scsi3_ua_clear_for_request_sense(cmd, &ua_asc, &ua_ascq)) {
 		/*
@@ -1038,11 +1058,8 @@ int target_emulate_request_sense(struct se_task *task)
 		 */
 		buf[0] = 0x70;
 		buf[SPC_SENSE_KEY_OFFSET] = UNIT_ATTENTION;
-		/*
-		 * Make sure request data length is enough for additional
-		 * sense data.
-		 */
-		if (cmd->data_length <= 18) {
+
+		if (cmd->data_length < 18) {
 			buf[7] = 0x00;
 			err = -EINVAL;
 			goto end;
@@ -1059,11 +1076,8 @@ int target_emulate_request_sense(struct se_task *task)
 		 */
 		buf[0] = 0x70;
 		buf[SPC_SENSE_KEY_OFFSET] = NO_SENSE;
-		/*
-		 * Make sure request data length is enough for additional
-		 * sense data.
-		 */
-		if (cmd->data_length <= 18) {
+
+		if (cmd->data_length < 18) {
 			buf[7] = 0x00;
 			err = -EINVAL;
 			goto end;
@@ -1076,7 +1090,7 @@ int target_emulate_request_sense(struct se_task *task)
 	}
 
 end:
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 	task->task_scsi_status = GOOD;
 	transport_complete_task(task, 1);
 	return 0;
@@ -1100,7 +1114,8 @@ int target_emulate_unmap(struct se_task *task)
 	if (!dev->transport->do_discard) {
 		pr_err("UNMAP emulation not supported for: %s\n",
 				dev->transport->name);
-		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
+		return -ENOSYS;
 	}
 
 	/* First UNMAP block descriptor starts at 8 byte offset */
@@ -1109,7 +1124,7 @@ int target_emulate_unmap(struct se_task *task)
 	dl = get_unaligned_be16(&cdb[0]);
 	bd_dl = get_unaligned_be16(&cdb[2]);
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 
 	ptr = &buf[offset];
 	pr_debug("UNMAP: Sub: %s Using dl: %hu bd_dl: %hu size: %hu"
@@ -1133,7 +1148,7 @@ int target_emulate_unmap(struct se_task *task)
 	}
 
 err:
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 	if (!ret) {
 		task->task_scsi_status = GOOD;
 		transport_complete_task(task, 1);
@@ -1157,7 +1172,8 @@ int target_emulate_write_same(struct se_task *task)
 	if (!dev->transport->do_discard) {
 		pr_err("WRITE_SAME emulation not supported"
 				" for: %s\n", dev->transport->name);
-		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
+		return -ENOSYS;
 	}
 
 	if (cmd->t_task_cdb[0] == WRITE_SAME)
@@ -1193,11 +1209,13 @@ int target_emulate_write_same(struct se_task *task)
 int target_emulate_synchronize_cache(struct se_task *task)
 {
 	struct se_device *dev = task->task_se_cmd->se_dev;
+	struct se_cmd *cmd = task->task_se_cmd;
 
 	if (!dev->transport->do_sync_cache) {
 		pr_err("SYNCHRONIZE_CACHE emulation not supported"
 			" for: %s\n", dev->transport->name);
-		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
+		return -ENOSYS;
 	}
 
 	dev->transport->do_sync_cache(task);
