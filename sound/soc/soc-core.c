@@ -2018,7 +2018,7 @@ EXPORT_SYMBOL_GPL(snd_soc_set_runtime_hwparams);
  * Returns 0 for success, else error.
  */
 struct snd_kcontrol *snd_soc_cnew(const struct snd_kcontrol_new *_template,
-				  void *data, char *long_name,
+				  void *data, const char *long_name,
 				  const char *prefix)
 {
 	struct snd_kcontrol_new template;
