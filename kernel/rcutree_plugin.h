@@ -2138,7 +2138,7 @@ static void rcu_prepare_for_idle(int cpu)
 		/* Can we go dyntick-idle despite still having callbacks? */
 		trace_rcu_prep_idle("Dyntick with callbacks");
 		per_cpu(rcu_dyntick_drain, cpu) = 0;
-		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
+		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies;
 		if (rcu_cpu_has_nonlazy_callbacks(cpu))
 			hrtimer_start(&per_cpu(rcu_idle_gp_timer, cpu),
 				      rcu_idle_gp_wait, HRTIMER_MODE_REL);
