@@ -47,6 +47,23 @@ unsigned long __hyp_get_vectors(void);
 #define __boot_cpu_mode	(SVC_MODE)
 #endif
 
+#ifndef ZIMAGE
+void hyp_mode_check(void);
+
+/* Reports the availability of HYP mode */
+static inline bool is_hyp_mode_available(void)
+{
+	return ((__boot_cpu_mode & MODE_MASK) == HYP_MODE &&
+		!(__boot_cpu_mode & BOOT_CPU_MODE_MISMATCH));
+}
+
+/* Check if the bootloader has booted CPUs in different modes */
+static inline bool is_hyp_mode_mismatched(void)
+{
+	return !!(__boot_cpu_mode & BOOT_CPU_MODE_MISMATCH);
+}
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* ! VIRT_H */
