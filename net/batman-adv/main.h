@@ -147,6 +147,7 @@ enum dbg_level {
 #include <linux/seq_file.h>
 #include "types.h"
 
+extern char bat_routing_algo[];
 extern struct list_head hardif_list;
 
 extern unsigned char broadcast_addr[];
@@ -157,6 +158,9 @@ void mesh_free(struct net_device *soft_iface);
 void inc_module_count(void);
 void dec_module_count(void);
 int is_my_mac(const uint8_t *addr);
+int bat_algo_register(struct bat_algo_ops *bat_algo_ops);
+int bat_algo_select(struct bat_priv *bat_priv, char *name);
+int bat_algo_seq_print_text(struct seq_file *seq, void *offset);
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
 int debug_log(struct bat_priv *bat_priv, const char *fmt, ...) __printf(2, 3);
@@ -202,6 +206,17 @@ static inline int compare_eth(const void *data1, const void *data2)
 	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
 }
 
+/**
+ * has_timed_out - compares current time (jiffies) and timestamp + timeout
+ * @timestamp:		base value to compare with (in jiffies)
+ * @timeout:		added to base value before comparing (in milliseconds)
+ *
+ * Returns true if current time is after timestamp + timeout
+ */
+static inline bool has_timed_out(unsigned long timestamp, unsigned int timeout)
+{
+	return time_is_before_jiffies(timestamp + msecs_to_jiffies(timeout));
+}
 
 #define atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
 

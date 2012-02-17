@@ -108,14 +108,6 @@ static struct tt_global_entry *tt_global_hash_find(struct bat_priv *bat_priv,
 
 }
 
-static bool is_out_of_time(unsigned long starting_time, unsigned long timeout)
-{
-	unsigned long deadline;
-	deadline = starting_time + msecs_to_jiffies(timeout);
-
-	return time_after(jiffies, deadline);
-}
-
 static void tt_local_entry_free_ref(struct tt_local_entry *tt_local_entry)
 {
 	if (atomic_dec_and_test(&tt_local_entry->common.refcount))
@@ -420,8 +412,8 @@ static void tt_local_purge(struct bat_priv *bat_priv)
 			if (tt_local_entry->common.flags & TT_CLIENT_PENDING)
 				continue;
 
-			if (!is_out_of_time(tt_local_entry->last_seen,
-					    TT_LOCAL_TIMEOUT * 1000))
+			if (!has_timed_out(tt_local_entry->last_seen,
+					   TT_LOCAL_TIMEOUT * 1000))
 				continue;
 
 			tt_local_set_pending(bat_priv, tt_local_entry,
@@ -733,6 +725,7 @@ void tt_global_del_orig(struct bat_priv *bat_priv,
 		spin_unlock_bh(list_lock);
 	}
 	atomic_set(&orig_node->tt_size, 0);
+	orig_node->tt_initialised = false;
 }
 
 static void tt_global_roam_purge(struct bat_priv *bat_priv)
@@ -757,8 +750,8 @@ static void tt_global_roam_purge(struct bat_priv *bat_priv)
 						       common);
 			if (!(tt_global_entry->common.flags & TT_CLIENT_ROAM))
 				continue;
-			if (!is_out_of_time(tt_global_entry->roam_at,
-					    TT_CLIENT_ROAM_TIMEOUT * 1000))
+			if (!has_timed_out(tt_global_entry->roam_at,
+					   TT_CLIENT_ROAM_TIMEOUT * 1000))
 				continue;
 
 			bat_dbg(DBG_TT, bat_priv, "Deleting global "
@@ -977,8 +970,8 @@ static void tt_req_purge(struct bat_priv *bat_priv)
 
 	spin_lock_bh(&bat_priv->tt_req_list_lock);
 	list_for_each_entry_safe(node, safe, &bat_priv->tt_req_list, list) {
-		if (is_out_of_time(node->issued_at,
-		    TT_REQUEST_TIMEOUT * 1000)) {
+		if (has_timed_out(node->issued_at,
+				  TT_REQUEST_TIMEOUT * 1000)) {
 			list_del(&node->list);
 			kfree(node);
 		}
@@ -996,8 +989,8 @@ static struct tt_req_node *new_tt_req_node(struct bat_priv *bat_priv,
 	spin_lock_bh(&bat_priv->tt_req_list_lock);
 	list_for_each_entry(tt_req_node_tmp, &bat_priv->tt_req_list, list) {
 		if (compare_eth(tt_req_node_tmp, orig_node) &&
-		    !is_out_of_time(tt_req_node_tmp->issued_at,
-				    TT_REQUEST_TIMEOUT * 1000))
+		    !has_timed_out(tt_req_node_tmp->issued_at,
+				   TT_REQUEST_TIMEOUT * 1000))
 			goto unlock;
 	}
 
@@ -1134,11 +1127,11 @@ static int send_tt_request(struct bat_priv *bat_priv,
 	tt_request = (struct tt_query_packet *)skb_put(skb,
 				sizeof(struct tt_query_packet));
 
-	tt_request->packet_type = BAT_TT_QUERY;
-	tt_request->version = COMPAT_VERSION;
+	tt_request->header.packet_type = BAT_TT_QUERY;
+	tt_request->header.version = COMPAT_VERSION;
 	memcpy(tt_request->src, primary_if->net_dev->dev_addr, ETH_ALEN);
 	memcpy(tt_request->dst, dst_orig_node->orig, ETH_ALEN);
-	tt_request->ttl = TTL;
+	tt_request->header.ttl = TTL;
 	tt_request->ttvn = ttvn;
 	tt_request->tt_data = tt_crc;
 	tt_request->flags = TT_REQUEST;
@@ -1264,9 +1257,9 @@ static bool send_other_tt_response(struct bat_priv *bat_priv,
 		tt_response = (struct tt_query_packet *)skb->data;
 	}
 
-	tt_response->packet_type = BAT_TT_QUERY;
-	tt_response->version = COMPAT_VERSION;
-	tt_response->ttl = TTL;
+	tt_response->header.packet_type = BAT_TT_QUERY;
+	tt_response->header.version = COMPAT_VERSION;
+	tt_response->header.ttl = TTL;
 	memcpy(tt_response->src, req_dst_orig_node->orig, ETH_ALEN);
 	memcpy(tt_response->dst, tt_request->src, ETH_ALEN);
 	tt_response->flags = TT_RESPONSE;
@@ -1381,9 +1374,9 @@ static bool send_my_tt_response(struct bat_priv *bat_priv,
 		tt_response = (struct tt_query_packet *)skb->data;
 	}
 
-	tt_response->packet_type = BAT_TT_QUERY;
-	tt_response->version = COMPAT_VERSION;
-	tt_response->ttl = TTL;
+	tt_response->header.packet_type = BAT_TT_QUERY;
+	tt_response->header.version = COMPAT_VERSION;
+	tt_response->header.ttl = TTL;
 	memcpy(tt_response->src, primary_if->net_dev->dev_addr, ETH_ALEN);
 	memcpy(tt_response->dst, tt_request->src, ETH_ALEN);
 	tt_response->flags = TT_RESPONSE;
@@ -1450,6 +1443,7 @@ static void _tt_update_changes(struct bat_priv *bat_priv,
 				 */
 				return;
 	}
+	orig_node->tt_initialised = true;
 }
 
 static void tt_fill_gtable(struct bat_priv *bat_priv,
@@ -1589,8 +1583,8 @@ static void tt_roam_purge(struct bat_priv *bat_priv)
 
 	spin_lock_bh(&bat_priv->tt_roam_list_lock);
 	list_for_each_entry_safe(node, safe, &bat_priv->tt_roam_list, list) {
-		if (!is_out_of_time(node->first_time,
-				    ROAMING_MAX_TIME * 1000))
+		if (!has_timed_out(node->first_time,
+				   ROAMING_MAX_TIME * 1000))
 			continue;
 
 		list_del(&node->list);
@@ -1617,8 +1611,8 @@ static bool tt_check_roam_count(struct bat_priv *bat_priv,
 		if (!compare_eth(tt_roam_node->addr, client))
 			continue;
 
-		if (is_out_of_time(tt_roam_node->first_time,
-				   ROAMING_MAX_TIME * 1000))
+		if (has_timed_out(tt_roam_node->first_time,
+				  ROAMING_MAX_TIME * 1000))
 			continue;
 
 		if (!atomic_dec_not_zero(&tt_roam_node->counter))
@@ -1669,9 +1663,9 @@ void send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
 	roam_adv_packet = (struct roam_adv_packet *)skb_put(skb,
 					sizeof(struct roam_adv_packet));
 
-	roam_adv_packet->packet_type = BAT_ROAM_ADV;
-	roam_adv_packet->version = COMPAT_VERSION;
-	roam_adv_packet->ttl = TTL;
+	roam_adv_packet->header.packet_type = BAT_ROAM_ADV;
+	roam_adv_packet->header.version = COMPAT_VERSION;
+	roam_adv_packet->header.ttl = TTL;
 	primary_if = primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
@@ -1854,8 +1848,10 @@ void tt_update_orig(struct bat_priv *bat_priv, struct orig_node *orig_node,
 	uint8_t orig_ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
 	bool full_table = true;
 
-	/* the ttvn increased by one -> we can apply the attached changes */
-	if (ttvn - orig_ttvn == 1) {
+	/* orig table not initialised AND first diff is in the OGM OR the ttvn
+	 * increased by one -> we can apply the attached changes */
+	if ((!orig_node->tt_initialised && ttvn == 1) ||
+	    ttvn - orig_ttvn == 1) {
 		/* the OGM could not contain the changes due to their size or
 		 * because they have already been sent TT_OGM_APPEND_MAX times.
 		 * In this case send a tt request */
@@ -1889,7 +1885,8 @@ void tt_update_orig(struct bat_priv *bat_priv, struct orig_node *orig_node,
 	} else {
 		/* if we missed more than one change or our tables are not
 		 * in sync anymore -> request fresh tt data */
-		if (ttvn != orig_ttvn || orig_node->tt_crc != tt_crc) {
+		if (!orig_node->tt_initialised || ttvn != orig_ttvn ||
+		    orig_node->tt_crc != tt_crc) {
 request_table:
 			bat_dbg(DBG_TT, bat_priv, "TT inconsistency for %pM. "
 				"Need to retrieve the correct information "

@@ -81,6 +81,7 @@ struct orig_node {
 	int16_t tt_buff_len;
 	spinlock_t tt_buff_lock; /* protects tt_buff */
 	atomic_t tt_size;
+	bool tt_initialised;
 	/* The tt_poss_change flag is used to detect an ongoing roaming phase.
 	 * If true, then I sent a Roaming_adv to this orig_node and I have to
 	 * inspect every packet directed to it to check whether it is still
@@ -205,6 +206,7 @@ struct bat_priv {
 	atomic_t gw_reselect;
 	struct hard_iface __rcu *primary_if;  /* rcu protected pointer */
 	struct vis_info *my_vis_info;
+	struct bat_algo_ops *bat_algo_ops;
 };
 
 struct socket_client {
@@ -341,6 +343,25 @@ struct softif_neigh {
 	unsigned long last_seen;
 	atomic_t refcount;
 	struct rcu_head rcu;
+};
+
+struct bat_algo_ops {
+	struct hlist_node list;
+	char *name;
+	/* init OGM when hard-interface is enabled */
+	void (*bat_ogm_init)(struct hard_iface *hard_iface);
+	/* init primary OGM when primary interface is selected */
+	void (*bat_ogm_init_primary)(struct hard_iface *hard_iface);
+	/* init mac addresses of the OGM belonging to this hard-interface */
+	void (*bat_ogm_update_mac)(struct hard_iface *hard_iface);
+	/* prepare a new outgoing OGM for the send queue */
+	void (*bat_ogm_schedule)(struct hard_iface *hard_iface,
+				 int tt_num_changes);
+	/* send scheduled OGM */
+	void (*bat_ogm_emit)(struct forw_packet *forw_packet);
+	/* receive incoming OGM */
+	void (*bat_ogm_receive)(struct hard_iface *if_incoming,
+				struct sk_buff *skb);
 };
 
 #endif /* _NET_BATMAN_ADV_TYPES_H_ */

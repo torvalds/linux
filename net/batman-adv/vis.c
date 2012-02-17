@@ -617,7 +617,7 @@ static int generate_vis_packet(struct bat_priv *bat_priv)
 	packet->vis_type = atomic_read(&bat_priv->vis_mode);
 
 	memcpy(packet->target_orig, broadcast_addr, ETH_ALEN);
-	packet->ttl = TTL;
+	packet->header.ttl = TTL;
 	packet->seqno = htonl(ntohl(packet->seqno) + 1);
 	packet->entries = 0;
 	skb_trim(info->skb_packet, sizeof(*packet));
@@ -818,19 +818,19 @@ static void send_vis_packet(struct bat_priv *bat_priv, struct vis_info *info)
 		goto out;
 
 	packet = (struct vis_packet *)info->skb_packet->data;
-	if (packet->ttl < 2) {
+	if (packet->header.ttl < 2) {
 		pr_debug("Error - can't send vis packet: ttl exceeded\n");
 		goto out;
 	}
 
 	memcpy(packet->sender_orig, primary_if->net_dev->dev_addr, ETH_ALEN);
-	packet->ttl--;
+	packet->header.ttl--;
 
 	if (is_broadcast_ether_addr(packet->target_orig))
 		broadcast_vis_packet(bat_priv, info);
 	else
 		unicast_vis_packet(bat_priv, info);
-	packet->ttl++; /* restore TTL */
+	packet->header.ttl++; /* restore TTL */
 
 out:
 	if (primary_if)
@@ -910,9 +910,9 @@ int vis_init(struct bat_priv *bat_priv)
 	INIT_LIST_HEAD(&bat_priv->my_vis_info->send_list);
 	kref_init(&bat_priv->my_vis_info->refcount);
 	bat_priv->my_vis_info->bat_priv = bat_priv;
-	packet->version = COMPAT_VERSION;
-	packet->packet_type = BAT_VIS;
-	packet->ttl = TTL;
+	packet->header.version = COMPAT_VERSION;
+	packet->header.packet_type = BAT_VIS;
+	packet->header.ttl = TTL;
 	packet->seqno = 0;
 	packet->entries = 0;
 
