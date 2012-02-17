@@ -1,9 +1,8 @@
-/* linux/arch/arm/mach-exynos4/pm.c
- *
- * Copyright (c) 2011 Samsung Electronics Co., Ltd.
+/*
+ * Copyright (c) 2011-2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * EXYNOS4210 - Power Management support
+ * EXYNOS - Power Management support
  *
  * Based on arch/arm/mach-s3c2410/pm.c
  * Copyright (c) 2006 Simtec Electronics
@@ -63,7 +62,7 @@ static struct sleep_save exynos4_vpll_save[] = {
 	SAVE_ITEM(EXYNOS4_VPLL_CON1),
 };
 
-static struct sleep_save exynos4_core_save[] = {
+static struct sleep_save exynos_core_save[] = {
 	/* SROM side */
 	SAVE_ITEM(S5P_SROM_BW),
 	SAVE_ITEM(S5P_SROM_BC0),
@@ -76,7 +75,7 @@ static struct sleep_save exynos4_core_save[] = {
 /* For Cortex-A9 Diagnostic and Power control register */
 static unsigned int save_arm_register[2];
 
-static int exynos4_cpu_suspend(unsigned long arg)
+static int exynos_cpu_suspend(unsigned long arg)
 {
 	outer_flush_all();
 
@@ -87,11 +86,11 @@ static int exynos4_cpu_suspend(unsigned long arg)
 	panic("sleep resumed to originator?");
 }
 
-static void exynos4_pm_prepare(void)
+static void exynos_pm_prepare(void)
 {
 	u32 tmp;
 
-	s3c_pm_do_save(exynos4_core_save, ARRAY_SIZE(exynos4_core_save));
+	s3c_pm_do_save(exynos_core_save, ARRAY_SIZE(exynos_core_save));
 	s3c_pm_do_save(exynos4_epll_save, ARRAY_SIZE(exynos4_epll_save));
 	s3c_pm_do_save(exynos4_vpll_save, ARRAY_SIZE(exynos4_vpll_save));
 
@@ -115,10 +114,10 @@ static void exynos4_pm_prepare(void)
 
 }
 
-static int exynos4_pm_add(struct device *dev, struct subsys_interface *sif)
+static int exynos_pm_add(struct device *dev, struct subsys_interface *sif)
 {
-	pm_cpu_prep = exynos4_pm_prepare;
-	pm_cpu_sleep = exynos4_cpu_suspend;
+	pm_cpu_prep = exynos_pm_prepare;
+	pm_cpu_sleep = exynos_cpu_suspend;
 
 	return 0;
 }
@@ -190,13 +189,13 @@ static void exynos4_restore_pll(void)
 	} while (epll_wait || vpll_wait);
 }
 
-static struct subsys_interface exynos4_pm_interface = {
+static struct subsys_interface exynos_pm_interface = {
 	.name		= "exynos4_pm",
 	.subsys		= &exynos_subsys,
-	.add_dev	= exynos4_pm_add,
+	.add_dev	= exynos_pm_add,
 };
 
-static __init int exynos4_pm_drvinit(void)
+static __init int exynos_pm_drvinit(void)
 {
 	struct clk *pll_base;
 	unsigned int tmp;
@@ -209,18 +208,20 @@ static __init int exynos4_pm_drvinit(void)
 	tmp |= ((0xFF << 8) | (0x1F << 1));
 	__raw_writel(tmp, S5P_WAKEUP_MASK);
 
-	pll_base = clk_get(NULL, "xtal");
+	if (!soc_is_exynos5250()) {
+		pll_base = clk_get(NULL, "xtal");
 
-	if (!IS_ERR(pll_base)) {
-		pll_base_rate = clk_get_rate(pll_base);
-		clk_put(pll_base);
+		if (!IS_ERR(pll_base)) {
+			pll_base_rate = clk_get_rate(pll_base);
+			clk_put(pll_base);
+		}
 	}
 
-	return subsys_interface_register(&exynos4_pm_interface);
+	return subsys_interface_register(&exynos_pm_interface);
 }
-arch_initcall(exynos4_pm_drvinit);
+arch_initcall(exynos_pm_drvinit);
 
-static int exynos4_pm_suspend(void)
+static int exynos_pm_suspend(void)
 {
 	unsigned long tmp;
 
@@ -250,7 +251,7 @@ static int exynos4_pm_suspend(void)
 	return 0;
 }
 
-static void exynos4_pm_resume(void)
+static void exynos_pm_resume(void)
 {
 	unsigned long tmp;
 
@@ -289,7 +290,7 @@ static void exynos4_pm_resume(void)
 	__raw_writel((1 << 28), S5P_PAD_RET_EBIA_OPTION);
 	__raw_writel((1 << 28), S5P_PAD_RET_EBIB_OPTION);
 
-	s3c_pm_do_restore_core(exynos4_core_save, ARRAY_SIZE(exynos4_core_save));
+	s3c_pm_do_restore_core(exynos_core_save, ARRAY_SIZE(exynos_core_save));
 
 	exynos4_restore_pll();
 
@@ -301,14 +302,14 @@ early_wakeup:
 	return;
 }
 
-static struct syscore_ops exynos4_pm_syscore_ops = {
-	.suspend	= exynos4_pm_suspend,
-	.resume		= exynos4_pm_resume,
+static struct syscore_ops exynos_pm_syscore_ops = {
+	.suspend	= exynos_pm_suspend,
+	.resume		= exynos_pm_resume,
 };
 
 static __init int exynos4_pm_syscore_init(void)
 {
-	register_syscore_ops(&exynos4_pm_syscore_ops);
+	register_syscore_ops(&exynos_pm_syscore_ops);
 	return 0;
 }
 arch_initcall(exynos4_pm_syscore_init);
