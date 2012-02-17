@@ -74,22 +74,17 @@ EXPORT_SYMBOL_GPL(wakeup_source_create);
 /**
  * wakeup_source_destroy - Destroy a struct wakeup_source object.
  * @ws: Wakeup source to destroy.
+ *
+ * Callers must ensure that __pm_stay_awake() or __pm_wakeup_event() will never
+ * be run in parallel with this function for the same wakeup source object.
  */
 void wakeup_source_destroy(struct wakeup_source *ws)
 {
 	if (!ws)
 		return;
 
-	spin_lock_irq(&ws->lock);
-	while (ws->active) {
-		spin_unlock_irq(&ws->lock);
-
-		schedule_timeout_interruptible(msecs_to_jiffies(TIMEOUT));
-
-		spin_lock_irq(&ws->lock);
-	}
-	spin_unlock_irq(&ws->lock);
-
+	del_timer_sync(&ws->timer);
+	__pm_relax(ws);
 	kfree(ws->name);
 	kfree(ws);
 }
