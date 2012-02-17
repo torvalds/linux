@@ -4608,7 +4608,7 @@ static void dsi_put_clocks(struct platform_device *dsidev)
 }
 
 /* DSI1 HW IP initialisation */
-static int omap_dsihw_probe(struct platform_device *dsidev)
+static int __init omap_dsihw_probe(struct platform_device *dsidev)
 {
 	u32 rev;
 	int r, i, dsi_module = dsi_get_dsidev_id(dsidev);
@@ -4721,7 +4721,7 @@ err_runtime_get:
 	return r;
 }
 
-static int omap_dsihw_remove(struct platform_device *dsidev)
+static int __exit omap_dsihw_remove(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
@@ -4768,7 +4768,7 @@ static const struct dev_pm_ops dsi_pm_ops = {
 };
 
 static struct platform_driver omap_dsihw_driver = {
-	.remove         = omap_dsihw_remove,
+	.remove         = __exit_p(omap_dsihw_remove),
 	.driver         = {
 		.name   = "omapdss_dsi",
 		.owner  = THIS_MODULE,
@@ -4776,12 +4776,12 @@ static struct platform_driver omap_dsihw_driver = {
 	},
 };
 
-int dsi_init_platform_driver(void)
+int __init dsi_init_platform_driver(void)
 {
 	return platform_driver_probe(&omap_dsihw_driver, omap_dsihw_probe);
 }
 
-void dsi_uninit_platform_driver(void)
+void __exit dsi_uninit_platform_driver(void)
 {
 	platform_driver_unregister(&omap_dsihw_driver);
 }

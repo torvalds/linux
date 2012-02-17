@@ -3482,7 +3482,7 @@ static void _omap_dispc_initial_config(void)
 }
 
 /* DISPC HW IP initialisation */
-static int omap_dispchw_probe(struct platform_device *pdev)
+static int __init omap_dispchw_probe(struct platform_device *pdev)
 {
 	u32 rev;
 	int r = 0;
@@ -3564,7 +3564,7 @@ err_runtime_get:
 	return r;
 }
 
-static int omap_dispchw_remove(struct platform_device *pdev)
+static int __exit omap_dispchw_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 
@@ -3593,7 +3593,7 @@ static const struct dev_pm_ops dispc_pm_ops = {
 };
 
 static struct platform_driver omap_dispchw_driver = {
-	.remove         = omap_dispchw_remove,
+	.remove         = __exit_p(omap_dispchw_remove),
 	.driver         = {
 		.name   = "omapdss_dispc",
 		.owner  = THIS_MODULE,
@@ -3601,12 +3601,12 @@ static struct platform_driver omap_dispchw_driver = {
 	},
 };
 
-int dispc_init_platform_driver(void)
+int __init dispc_init_platform_driver(void)
 {
 	return platform_driver_probe(&omap_dispchw_driver, omap_dispchw_probe);
 }
 
-void dispc_uninit_platform_driver(void)
+void __exit dispc_uninit_platform_driver(void)
 {
 	platform_driver_unregister(&omap_dispchw_driver);
 }

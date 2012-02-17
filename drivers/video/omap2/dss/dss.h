@@ -231,7 +231,7 @@ int dss_ovl_check(struct omap_overlay *ovl, struct omap_overlay_info *info,
 		const struct omap_video_timings *mgr_timings);
 
 /* DSS */
-int dss_init_platform_driver(void);
+int dss_init_platform_driver(void) __init;
 void dss_uninit_platform_driver(void);
 
 void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select);
@@ -268,8 +268,8 @@ int dss_calc_clock_div(bool is_tft, unsigned long req_pck,
 		struct dispc_clock_info *dispc_cinfo);
 
 /* SDI */
-int sdi_init_platform_driver(void);
-void sdi_uninit_platform_driver(void);
+int sdi_init_platform_driver(void) __init;
+void sdi_uninit_platform_driver(void) __exit;
 int sdi_init_display(struct omap_dss_device *display);
 
 /* DSI */
@@ -278,8 +278,8 @@ int sdi_init_display(struct omap_dss_device *display);
 struct dentry;
 struct file_operations;
 
-int dsi_init_platform_driver(void);
-void dsi_uninit_platform_driver(void);
+int dsi_init_platform_driver(void) __init;
+void dsi_uninit_platform_driver(void) __exit;
 
 int dsi_runtime_get(struct platform_device *dsidev);
 void dsi_runtime_put(struct platform_device *dsidev);
@@ -359,13 +359,13 @@ static inline struct platform_device *dsi_get_dsidev_from_id(int module)
 #endif
 
 /* DPI */
-int dpi_init_platform_driver(void);
-void dpi_uninit_platform_driver(void);
+int dpi_init_platform_driver(void) __init;
+void dpi_uninit_platform_driver(void) __exit;
 int dpi_init_display(struct omap_dss_device *dssdev);
 
 /* DISPC */
-int dispc_init_platform_driver(void);
-void dispc_uninit_platform_driver(void);
+int dispc_init_platform_driver(void) __init;
+void dispc_uninit_platform_driver(void) __exit;
 void dispc_dump_clocks(struct seq_file *s);
 void dispc_irq_handler(void);
 
@@ -430,8 +430,8 @@ void dispc_mgr_setup(enum omap_channel channel,
 
 /* VENC */
 #ifdef CONFIG_OMAP2_DSS_VENC
-int venc_init_platform_driver(void);
-void venc_uninit_platform_driver(void);
+int venc_init_platform_driver(void) __init;
+void venc_uninit_platform_driver(void) __exit;
 int venc_init_display(struct omap_dss_device *display);
 unsigned long venc_get_pixel_clock(void);
 #else
@@ -444,8 +444,8 @@ static inline unsigned long venc_get_pixel_clock(void)
 
 /* HDMI */
 #ifdef CONFIG_OMAP4_DSS_HDMI
-int hdmi_init_platform_driver(void);
-void hdmi_uninit_platform_driver(void);
+int hdmi_init_platform_driver(void) __init;
+void hdmi_uninit_platform_driver(void) __exit;
 int hdmi_init_display(struct omap_dss_device *dssdev);
 unsigned long hdmi_get_pixel_clock(void);
 #else
@@ -470,8 +470,8 @@ int hdmi_panel_init(void);
 void hdmi_panel_exit(void);
 
 /* RFBI */
-int rfbi_init_platform_driver(void);
-void rfbi_uninit_platform_driver(void);
+int rfbi_init_platform_driver(void) __init;
+void rfbi_uninit_platform_driver(void) __exit;
 int rfbi_init_display(struct omap_dss_device *display);
 
 

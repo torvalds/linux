@@ -744,7 +744,7 @@ void dss_debug_dump_clocks(struct seq_file *s)
 #endif
 
 /* DSS HW IP initialisation */
-static int omap_dsshw_probe(struct platform_device *pdev)
+static int __init omap_dsshw_probe(struct platform_device *pdev)
 {
 	struct resource *dss_mem;
 	u32 rev;
@@ -805,7 +805,7 @@ err_runtime_get:
 	return r;
 }
 
-static int omap_dsshw_remove(struct platform_device *pdev)
+static int __exit omap_dsshw_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 
@@ -845,7 +845,7 @@ static const struct dev_pm_ops dss_pm_ops = {
 };
 
 static struct platform_driver omap_dsshw_driver = {
-	.remove         = omap_dsshw_remove,
+	.remove         = __exit_p(omap_dsshw_remove),
 	.driver         = {
 		.name   = "omapdss_dss",
 		.owner  = THIS_MODULE,
@@ -853,7 +853,7 @@ static struct platform_driver omap_dsshw_driver = {
 	},
 };
 
-int dss_init_platform_driver(void)
+int __init dss_init_platform_driver(void)
 {
 	return platform_driver_probe(&omap_dsshw_driver, omap_dsshw_probe);
 }

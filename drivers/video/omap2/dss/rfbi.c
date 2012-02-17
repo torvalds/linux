@@ -928,7 +928,7 @@ int rfbi_init_display(struct omap_dss_device *dssdev)
 }
 
 /* RFBI HW IP initialisation */
-static int omap_rfbihw_probe(struct platform_device *pdev)
+static int __init omap_rfbihw_probe(struct platform_device *pdev)
 {
 	u32 rev;
 	struct resource *rfbi_mem;
@@ -985,7 +985,7 @@ err_runtime_get:
 	return r;
 }
 
-static int omap_rfbihw_remove(struct platform_device *pdev)
+static int __exit omap_rfbihw_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 	return 0;
@@ -1015,7 +1015,7 @@ static const struct dev_pm_ops rfbi_pm_ops = {
 };
 
 static struct platform_driver omap_rfbihw_driver = {
-	.remove         = omap_rfbihw_remove,
+	.remove         = __exit_p(omap_rfbihw_remove),
 	.driver         = {
 		.name   = "omapdss_rfbi",
 		.owner  = THIS_MODULE,
@@ -1023,12 +1023,12 @@ static struct platform_driver omap_rfbihw_driver = {
 	},
 };
 
-int rfbi_init_platform_driver(void)
+int __init rfbi_init_platform_driver(void)
 {
 	return platform_driver_probe(&omap_rfbihw_driver, omap_rfbihw_probe);
 }
 
-void rfbi_uninit_platform_driver(void)
+void __exit rfbi_uninit_platform_driver(void)
 {
 	platform_driver_unregister(&omap_rfbihw_driver);
 }

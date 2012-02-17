@@ -176,30 +176,30 @@ int sdi_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static int omap_sdi_probe(struct platform_device *pdev)
+static int __init omap_sdi_probe(struct platform_device *pdev)
 {
 	return 0;
 }
 
-static int omap_sdi_remove(struct platform_device *pdev)
+static int __exit omap_sdi_remove(struct platform_device *pdev)
 {
 	return 0;
 }
 
 static struct platform_driver omap_sdi_driver = {
-	.remove         = omap_sdi_remove,
+	.remove         = __exit_p(omap_sdi_remove),
 	.driver         = {
 		.name   = "omapdss_sdi",
 		.owner  = THIS_MODULE,
 	},
 };
 
-int sdi_init_platform_driver(void)
+int __init sdi_init_platform_driver(void)
 {
 	return platform_driver_probe(&omap_sdi_driver, omap_sdi_probe);
 }
 
-void sdi_uninit_platform_driver(void)
+void __exit sdi_uninit_platform_driver(void)
 {
 	platform_driver_unregister(&omap_sdi_driver);
 }

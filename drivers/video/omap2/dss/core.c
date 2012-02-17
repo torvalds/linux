@@ -203,7 +203,7 @@ static inline int dss_debugfs_create_file(const char *name,
 #endif /* CONFIG_DEBUG_FS && CONFIG_OMAP2_DSS_DEBUG_SUPPORT */
 
 /* PLATFORM DEVICE */
-static int omap_dss_probe(struct platform_device *pdev)
+static int __init omap_dss_probe(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	int r;
@@ -483,7 +483,7 @@ static void omap_dss_unregister_device(struct omap_dss_device *dssdev)
 }
 
 /* BUS */
-static int omap_dss_bus_register(void)
+static int __init omap_dss_bus_register(void)
 {
 	int r;
 
