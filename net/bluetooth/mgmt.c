@@ -1274,8 +1274,8 @@ static int load_link_keys(struct sock *sk, u16 index, void *data, u16 len)
 	for (i = 0; i < key_count; i++) {
 		struct mgmt_link_key_info *key = &cp->keys[i];
 
-		hci_add_link_key(hdev, NULL, 0, &key->bdaddr, key->val, key->type,
-								key->pin_len);
+		hci_add_link_key(hdev, NULL, 0, &key->addr.bdaddr, key->val,
+						key->type, key->pin_len);
 	}
 
 	cmd_complete(sk, index, MGMT_OP_LOAD_LINK_KEYS, NULL, 0);
@@ -2788,7 +2788,8 @@ int mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key,
 	memset(&ev, 0, sizeof(ev));
 
 	ev.store_hint = persistent;
-	bacpy(&ev.key.bdaddr, &key->bdaddr);
+	bacpy(&ev.key.addr.bdaddr, &key->bdaddr);
+	ev.key.addr.type = MGMT_ADDR_BREDR;
 	ev.key.type = key->type;
 	memcpy(ev.key.val, key->val, 16);
 	ev.key.pin_len = key->pin_len;

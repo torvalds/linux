@@ -153,7 +153,7 @@ struct mgmt_cp_remove_uuid {
 } __packed;
 
 struct mgmt_link_key_info {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 	u8 type;
 	u8 val[16];
 	u8 pin_len;
