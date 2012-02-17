@@ -852,15 +852,13 @@ static int vidioc_querycap(struct file *file, void *priv,
 static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 			       struct v4l2_fmtdesc *f)
 {
-	int index = 0;
-	if (f)
-		index = f->index;
+	int index = f->index;
 
 	if (index >= ARRAY_SIZE(formats))
 		return -EINVAL;
-    if (!jpeg_enable && ((formats[index].fourcc == V4L2_PIX_FMT_JPEG) ||
-			 (formats[index].fourcc == V4L2_PIX_FMT_MJPEG)))
-	return -EINVAL;
+	if (!jpeg_enable && ((formats[index].fourcc == V4L2_PIX_FMT_JPEG) ||
+			(formats[index].fourcc == V4L2_PIX_FMT_MJPEG)))
+		return -EINVAL;
 	dprintk(4, "name %s\n", formats[index].name);
 	strlcpy(f->description, formats[index].name, sizeof(f->description));
 	f->pixelformat = formats[index].fourcc;
