@@ -148,7 +148,7 @@ static int ak4104_hw_params(struct snd_pcm_substream *substream,
 
 	/* set the IEC958 bits: consumer mode, no copyright bit */
 	val |= IEC958_AES0_CON_NOT_COPYRIGHT;
-	ak4104_spi_write(codec, AK4104_REG_CHN_STATUS(0), val);
+	snd_soc_write(codec, AK4104_REG_CHN_STATUS(0), val);
 
 	val = 0;
 
@@ -167,7 +167,7 @@ static int ak4104_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	return ak4104_spi_write(codec, AK4104_REG_CHN_STATUS(3), val);
+	return snd_soc_write(codec, AK4104_REG_CHN_STATUS(3), val);
 }
 
 static const struct snd_soc_dai_ops ak4101_dai_ops = {
