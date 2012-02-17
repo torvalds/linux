@@ -203,6 +203,11 @@ static const unsigned char hactblg0[162] = {
 	0xf9, 0xfa
 };
 
+static inline struct s5p_jpeg_ctx *ctrl_to_ctx(struct v4l2_ctrl *c)
+{
+	return container_of(c->handler, struct s5p_jpeg_ctx, ctrl_handler);
+}
+
 static inline struct s5p_jpeg_ctx *fh_to_ctx(struct v4l2_fh *fh)
 {
 	return container_of(fh, struct s5p_jpeg_ctx, fh);
@@ -274,6 +279,7 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 		      struct vb2_queue *dst_vq);
 static struct s5p_jpeg_fmt *s5p_jpeg_find_format(unsigned int mode,
 						 __u32 pixelformat);
+static int s5p_jpeg_controls_create(struct s5p_jpeg_ctx *ctx);
 
 static int s5p_jpeg_open(struct file *file)
 {
@@ -288,6 +294,8 @@ static int s5p_jpeg_open(struct file *file)
 		return -ENOMEM;
 
 	v4l2_fh_init(&ctx->fh, vfd);
+	/* Use separate control handler per file handle */
+	ctx->fh.ctrl_handler = &ctx->ctrl_handler;
 	file->private_data = &ctx->fh;
 	v4l2_fh_add(&ctx->fh);
 
@@ -299,6 +307,10 @@ static int s5p_jpeg_open(struct file *file)
 		ctx->mode = S5P_JPEG_DECODE;
 		out_fmt = s5p_jpeg_find_format(ctx->mode, V4L2_PIX_FMT_JPEG);
 	}
+
+	ret = s5p_jpeg_controls_create(ctx);
+	if (ret < 0)
+		goto error;
 
 	ctx->m2m_ctx = v4l2_m2m_ctx_init(jpeg->m2m_dev, ctx, queue_init);
 	if (IS_ERR(ctx->m2m_ctx)) {
@@ -322,6 +334,7 @@ static int s5p_jpeg_release(struct file *file)
 	struct s5p_jpeg_ctx *ctx = fh_to_ctx(file->private_data);
 
 	v4l2_m2m_ctx_release(ctx->m2m_ctx);
+	v4l2_ctrl_handler_free(&ctx->ctrl_handler);
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
@@ -833,33 +846,89 @@ int s5p_jpeg_g_selection(struct file *file, void *priv,
 	return 0;
 }
 
-static int s5p_jpeg_g_jpegcomp(struct file *file, void *priv,
-			       struct v4l2_jpegcompression *compr)
+/*
+ * V4L2 controls
+ */
+
+static int s5p_jpeg_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct s5p_jpeg_ctx *ctx = priv;
+	struct s5p_jpeg_ctx *ctx = ctrl_to_ctx(ctrl);
+	struct s5p_jpeg *jpeg = ctx->jpeg;
+	unsigned long flags;
 
-	if (ctx->mode == S5P_JPEG_DECODE)
-		return -ENOTTY;
+	switch (ctrl->id) {
+	case V4L2_CID_JPEG_CHROMA_SUBSAMPLING:
+		spin_lock_irqsave(&jpeg->slock, flags);
 
-	memset(compr, 0, sizeof(*compr));
-	compr->quality = ctx->compr_quality;
+		WARN_ON(ctx->subsampling > S5P_SUBSAMPLING_MODE_GRAY);
+		if (ctx->subsampling > 2)
+			ctrl->val = V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY;
+		else
+			ctrl->val = ctx->subsampling;
+		spin_unlock_irqrestore(&jpeg->slock, flags);
+		break;
+	}
 
 	return 0;
 }
 
-static int s5p_jpeg_s_jpegcomp(struct file *file, void *priv,
-			       struct v4l2_jpegcompression *compr)
+static int s5p_jpeg_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct s5p_jpeg_ctx *ctx = priv;
+	struct s5p_jpeg_ctx *ctx = ctrl_to_ctx(ctrl);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ctx->jpeg->slock, flags);
+
+	switch (ctrl->id) {
+	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
+		ctx->compr_quality = S5P_JPEG_COMPR_QUAL_WORST - ctrl->val;
+		break;
+	case V4L2_CID_JPEG_RESTART_INTERVAL:
+		ctx->restart_interval = ctrl->val;
+		break;
+	case V4L2_CID_JPEG_CHROMA_SUBSAMPLING:
+		ctx->subsampling = ctrl->val;
+		break;
+	}
+
+	spin_unlock_irqrestore(&ctx->jpeg->slock, flags);
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops s5p_jpeg_ctrl_ops = {
+	.g_volatile_ctrl	= s5p_jpeg_g_volatile_ctrl,
+	.s_ctrl			= s5p_jpeg_s_ctrl,
+};
+
+static int s5p_jpeg_controls_create(struct s5p_jpeg_ctx *ctx)
+{
+	unsigned int mask = ~0x27; /* 444, 422, 420, GRAY */
+	struct v4l2_ctrl *ctrl;
+
+	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 3);
+
+	if (ctx->mode == S5P_JPEG_ENCODE) {
+		v4l2_ctrl_new_std(&ctx->ctrl_handler, &s5p_jpeg_ctrl_ops,
+				  V4L2_CID_JPEG_COMPRESSION_QUALITY,
+				  0, 3, 1, 3);
+
+		v4l2_ctrl_new_std(&ctx->ctrl_handler, &s5p_jpeg_ctrl_ops,
+				  V4L2_CID_JPEG_RESTART_INTERVAL,
+				  0, 3, 0xffff, 0);
+		mask = ~0x06; /* 422, 420 */
+	}
+
+	ctrl = v4l2_ctrl_new_std_menu(&ctx->ctrl_handler, &s5p_jpeg_ctrl_ops,
+				      V4L2_CID_JPEG_CHROMA_SUBSAMPLING,
+				      V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY, mask,
+				      V4L2_JPEG_CHROMA_SUBSAMPLING_422);
+
+	if (ctx->ctrl_handler.error)
+		return ctx->ctrl_handler.error;
 
 	if (ctx->mode == S5P_JPEG_DECODE)
-		return -ENOTTY;
-
-	compr->quality = clamp(compr->quality, S5P_JPEG_COMPR_QUAL_BEST,
-			       S5P_JPEG_COMPR_QUAL_WORST);
-
-	ctx->compr_quality = S5P_JPEG_COMPR_QUAL_WORST - compr->quality;
-
+		ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE |
+			V4L2_CTRL_FLAG_READ_ONLY;
 	return 0;
 }
 
@@ -888,9 +957,6 @@ static const struct v4l2_ioctl_ops s5p_jpeg_ioctl_ops = {
 	.vidioc_streamoff		= s5p_jpeg_streamoff,
 
 	.vidioc_g_selection		= s5p_jpeg_g_selection,
-
-	.vidioc_g_jpegcomp		= s5p_jpeg_g_jpegcomp,
-	.vidioc_s_jpegcomp		= s5p_jpeg_s_jpegcomp,
 };
 
 /*
@@ -919,13 +985,8 @@ static void s5p_jpeg_device_run(void *priv)
 			jpeg_input_raw_mode(jpeg->regs, S5P_JPEG_RAW_IN_565);
 		else
 			jpeg_input_raw_mode(jpeg->regs, S5P_JPEG_RAW_IN_422);
-		if (ctx->cap_q.fmt->fourcc == V4L2_PIX_FMT_YUYV)
-			jpeg_subsampling_mode(jpeg->regs,
-					      S5P_JPEG_SUBSAMPLING_422);
-		else
-			jpeg_subsampling_mode(jpeg->regs,
-					      S5P_JPEG_SUBSAMPLING_420);
-		jpeg_dri(jpeg->regs, 0);
+		jpeg_subsampling_mode(jpeg->regs, ctx->subsampling);
+		jpeg_dri(jpeg->regs, ctx->restart_interval);
 		jpeg_x(jpeg->regs, ctx->out_q.w);
 		jpeg_y(jpeg->regs, ctx->out_q.h);
 		jpeg_imgadr(jpeg->regs, src_addr);
@@ -972,6 +1033,7 @@ static void s5p_jpeg_device_run(void *priv)
 		jpeg_jpgadr(jpeg->regs, src_addr);
 		jpeg_imgadr(jpeg->regs, dst_addr);
 	}
+
 	jpeg_start(jpeg->regs);
 }
 
@@ -1173,6 +1235,8 @@ static irqreturn_t s5p_jpeg_irq(int irq, void *dev_id)
 	bool timer_elapsed = false;
 	bool op_completed = false;
 
+	spin_lock(&jpeg->slock);
+
 	curr_ctx = v4l2_m2m_get_curr_priv(jpeg->m2m_dev);
 
 	src_buf = v4l2_m2m_src_buf_remove(curr_ctx->m2m_ctx);
@@ -1203,6 +1267,8 @@ static irqreturn_t s5p_jpeg_irq(int irq, void *dev_id)
 	v4l2_m2m_buf_done(dst_buf, state);
 	v4l2_m2m_job_finish(jpeg->m2m_dev, curr_ctx->m2m_ctx);
 
+	curr_ctx->subsampling = jpeg_get_subsampling_mode(jpeg->regs);
+	spin_unlock(&jpeg->slock);
 	jpeg_clear_int(jpeg->regs);
 
 	return IRQ_HANDLED;
@@ -1226,6 +1292,7 @@ static int s5p_jpeg_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mutex_init(&jpeg->lock);
+	spin_lock_init(&jpeg->slock);
 	jpeg->dev = &pdev->dev;
 
 	/* memory-mapped registers */
