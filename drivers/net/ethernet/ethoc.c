@@ -776,9 +776,15 @@ static int ethoc_set_mac_address(struct net_device *dev, void *addr)
 	struct ethoc *priv = netdev_priv(dev);
 	u8 *mac = (u8 *)addr;
 
+	if (!is_valid_ether_addr(mac))
+		return -EADDRNOTAVAIL;
+
 	ethoc_write(priv, MAC_ADDR0, (mac[2] << 24) | (mac[3] << 16) |
 				     (mac[4] <<  8) | (mac[5] <<  0));
 	ethoc_write(priv, MAC_ADDR1, (mac[0] <<  8) | (mac[1] <<  0));
+
+	memcpy(dev->dev_addr, mac, ETH_ALEN);
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	return 0;
 }
@@ -909,6 +915,7 @@ static int __devinit ethoc_probe(struct platform_device *pdev)
 	unsigned int phy;
 	int num_bd;
 	int ret = 0;
+	bool random_mac = false;
 
 	/* allocate networking device */
 	netdev = alloc_etherdev(sizeof(struct ethoc));
@@ -1049,10 +1056,19 @@ static int __devinit ethoc_probe(struct platform_device *pdev)
 
 	/* Check the MAC again for validity, if it still isn't choose and
 	 * program a random one. */
-	if (!is_valid_ether_addr(netdev->dev_addr))
+	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		random_ether_addr(netdev->dev_addr);
+		random_mac = true;
+	}
 
-	ethoc_set_mac_address(netdev, netdev->dev_addr);
+	ret = ethoc_set_mac_address(netdev, netdev->dev_addr);
+	if (ret) {
+		dev_err(&netdev->dev, "failed to set MAC address\n");
+		goto error;
+	}
+
+	if (random_mac)
+		netdev->addr_assign_type |= NET_ADDR_RANDOM;
 
 	/* register MII bus */
 	priv->mdio = mdiobus_alloc();
