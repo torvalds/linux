@@ -1662,18 +1662,7 @@ static struct platform_driver axienet_of_driver = {
 	},
 };
 
-static int __init axienet_init(void)
-{
-	return platform_driver_register(&axienet_of_driver);
-}
-
-static void __exit axienet_exit(void)
-{
-	platform_driver_unregister(&axienet_of_driver);
-}
-
-module_init(axienet_init);
-module_exit(axienet_exit);
+module_platform_driver(axienet_of_driver);
 
 MODULE_DESCRIPTION("Xilinx Axi Ethernet driver");
 MODULE_AUTHOR("Xilinx");
