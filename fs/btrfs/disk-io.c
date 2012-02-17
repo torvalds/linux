@@ -2302,6 +2302,14 @@ int open_ctree(struct super_block *sb,
 		goto fail_sb_buffer;
 	}
 
+	if ((features & BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS) &&
+			(leafsize != nodesize || sectorsize != nodesize)) {
+		printk(KERN_WARNING "btrfs: unequal leaf/node/sector sizes "
+				"are not allowed for mixed block groups on %s\n",
+				sb->s_id);
+		goto fail_sb_buffer;
+	}
+
 	mutex_lock(&fs_info->chunk_mutex);
 	ret = btrfs_read_sys_array(tree_root);
 	mutex_unlock(&fs_info->chunk_mutex);
