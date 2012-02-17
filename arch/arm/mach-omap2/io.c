@@ -389,7 +389,7 @@ static void __init omap_hwmod_init_postsetup(void)
 	omap_pm_if_early_init();
 }
 
-#ifdef CONFIG_ARCH_OMAP2
+#ifdef CONFIG_SOC_OMAP2420
 void __init omap2420_init_early(void)
 {
 	omap2_set_globals_242x();
@@ -401,7 +401,9 @@ void __init omap2420_init_early(void)
 	omap_hwmod_init_postsetup();
 	omap2420_clk_init();
 }
+#endif
 
+#ifdef CONFIG_SOC_OMAP2430
 void __init omap2430_init_early(void)
 {
 	omap2_set_globals_243x();
