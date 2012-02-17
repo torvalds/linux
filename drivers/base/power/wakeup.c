@@ -344,7 +344,6 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 {
 	ws->active = true;
 	ws->active_count++;
-	ws->timer_expires = jiffies;
 	ws->last_time = ktime_get();
 
 	/* Increment the counter of events in progress. */
@@ -365,9 +364,14 @@ void __pm_stay_awake(struct wakeup_source *ws)
 		return;
 
 	spin_lock_irqsave(&ws->lock, flags);
+
 	ws->event_count++;
 	if (!ws->active)
 		wakeup_source_activate(ws);
+
+	del_timer(&ws->timer);
+	ws->timer_expires = 0;
+
 	spin_unlock_irqrestore(&ws->lock, flags);
 }
 EXPORT_SYMBOL_GPL(__pm_stay_awake);
@@ -541,7 +545,7 @@ void __pm_wakeup_event(struct wakeup_source *ws, unsigned int msec)
 	if (!expires)
 		expires = 1;
 
-	if (time_after(expires, ws->timer_expires)) {
+	if (!ws->timer_expires || time_after(expires, ws->timer_expires)) {
 		mod_timer(&ws->timer, expires);
 		ws->timer_expires = expires;
 	}
