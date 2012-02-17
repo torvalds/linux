@@ -531,8 +531,8 @@ typedef union efx_oword {
 
 
 /* Static initialiser */
-#define EFX_OWORD32(a, b, c, d)						\
-	{ .u32 = { cpu_to_le32(a), cpu_to_le32(b), \
+#define EFX_OWORD32(a, b, c, d)				\
+	{ .u32 = { cpu_to_le32(a), cpu_to_le32(b),	\
 		   cpu_to_le32(c), cpu_to_le32(d) } }
 
 #endif /* EFX_BITFIELD_H */
