@@ -3768,17 +3768,7 @@ static struct i2c_driver wm8962_i2c_driver = {
 	.id_table = wm8962_i2c_id,
 };
 
-static int __init wm8962_modinit(void)
-{
-	return i2c_add_driver(&wm8962_i2c_driver);
-}
-module_init(wm8962_modinit);
-
-static void __exit wm8962_exit(void)
-{
-	i2c_del_driver(&wm8962_i2c_driver);
-}
-module_exit(wm8962_exit);
+module_i2c_driver(wm8962_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM8962 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
