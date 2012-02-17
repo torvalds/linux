@@ -252,21 +252,18 @@ static int ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 	if (pdata->have_sysif_regs) {
 		temp = in_be32(non_ehci + FSL_SOC_USB_CTRL);
 		out_be32(non_ehci + FSL_SOC_USB_CTRL, temp | 0x00000004);
-		out_be32(non_ehci + FSL_SOC_USB_SNOOP1, 0x0000001b);
+
+		/*
+		* Turn on cache snooping hardware, since some PowerPC platforms
+		* wholly rely on hardware to deal with cache coherent
+		*/
+
+		/* Setup Snooping for all the 4GB space */
+		/* SNOOP1 starts from 0x0, size 2G */
+		out_be32(non_ehci + FSL_SOC_USB_SNOOP1, 0x0 | SNOOP_SIZE_2GB);
+		/* SNOOP2 starts from 0x80000000, size 2G */
+		out_be32(non_ehci + FSL_SOC_USB_SNOOP2, 0x80000000 | SNOOP_SIZE_2GB);
 	}
-
-#if defined(CONFIG_PPC32) && !defined(CONFIG_NOT_COHERENT_CACHE)
-	/*
-	 * Turn on cache snooping hardware, since some PowerPC platforms
-	 * wholly rely on hardware to deal with cache coherent
-	 */
-
-	/* Setup Snooping for all the 4GB space */
-	/* SNOOP1 starts from 0x0, size 2G */
-	out_be32(non_ehci + FSL_SOC_USB_SNOOP1, 0x0 | SNOOP_SIZE_2GB);
-	/* SNOOP2 starts from 0x80000000, size 2G */
-	out_be32(non_ehci + FSL_SOC_USB_SNOOP2, 0x80000000 | SNOOP_SIZE_2GB);
-#endif
 
 	if ((pdata->operating_mode == FSL_USB2_DR_HOST) ||
 			(pdata->operating_mode == FSL_USB2_DR_OTG))
