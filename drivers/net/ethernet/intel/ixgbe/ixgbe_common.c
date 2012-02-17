@@ -3604,3 +3604,174 @@ void ixgbe_clear_tx_pending(struct ixgbe_hw *hw)
 	IXGBE_WRITE_REG(hw, IXGBE_GCR_EXT, gcr_ext);
 	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg0);
 }
+
+static const u8 ixgbe_emc_temp_data[4] = {
+	IXGBE_EMC_INTERNAL_DATA,
+	IXGBE_EMC_DIODE1_DATA,
+	IXGBE_EMC_DIODE2_DATA,
+	IXGBE_EMC_DIODE3_DATA
+};
+static const u8 ixgbe_emc_therm_limit[4] = {
+	IXGBE_EMC_INTERNAL_THERM_LIMIT,
+	IXGBE_EMC_DIODE1_THERM_LIMIT,
+	IXGBE_EMC_DIODE2_THERM_LIMIT,
+	IXGBE_EMC_DIODE3_THERM_LIMIT
+};
+
+/**
+ *  ixgbe_get_ets_data - Extracts the ETS bit data
+ *  @hw: pointer to hardware structure
+ *  @ets_cfg: extected ETS data
+ *  @ets_offset: offset of ETS data
+ *
+ *  Returns error code.
+ **/
+static s32 ixgbe_get_ets_data(struct ixgbe_hw *hw, u16 *ets_cfg,
+			      u16 *ets_offset)
+{
+	s32 status = 0;
+
+	status = hw->eeprom.ops.read(hw, IXGBE_ETS_CFG, ets_offset);
+	if (status)
+		goto out;
+
+	if ((*ets_offset == 0x0000) || (*ets_offset == 0xFFFF)) {
+		status = IXGBE_NOT_IMPLEMENTED;
+		goto out;
+	}
+
+	status = hw->eeprom.ops.read(hw, *ets_offset, ets_cfg);
+	if (status)
+		goto out;
+
+	if ((*ets_cfg & IXGBE_ETS_TYPE_MASK) != IXGBE_ETS_TYPE_EMC_SHIFTED) {
+		status = IXGBE_NOT_IMPLEMENTED;
+		goto out;
+	}
+
+out:
+	return status;
+}
+
+/**
+ *  ixgbe_get_thermal_sensor_data - Gathers thermal sensor data
+ *  @hw: pointer to hardware structure
+ *
+ *  Returns the thermal sensor data structure
+ **/
+s32 ixgbe_get_thermal_sensor_data_generic(struct ixgbe_hw *hw)
+{
+	s32 status = 0;
+	u16 ets_offset;
+	u16 ets_cfg;
+	u16 ets_sensor;
+	u8  num_sensors;
+	u8  i;
+	struct ixgbe_thermal_sensor_data *data = &hw->mac.thermal_sensor_data;
+
+	/* Only support thermal sensors attached to 82599 physical port 0 */
+	if ((hw->mac.type != ixgbe_mac_82599EB) ||
+	     (IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1)) {
+		status = IXGBE_NOT_IMPLEMENTED;
+		goto out;
+	}
+
+	status = ixgbe_get_ets_data(hw, &ets_cfg, &ets_offset);
+	if (status)
+		goto out;
+
+	num_sensors = (ets_cfg & IXGBE_ETS_NUM_SENSORS_MASK);
+	if (num_sensors > IXGBE_MAX_SENSORS)
+		num_sensors = IXGBE_MAX_SENSORS;
+
+	for (i = 0; i < num_sensors; i++) {
+		u8  sensor_index;
+		u8  sensor_location;
+
+		status = hw->eeprom.ops.read(hw, (ets_offset + 1 + i),
+					     &ets_sensor);
+		if (status)
+			goto out;
+
+		sensor_index = ((ets_sensor & IXGBE_ETS_DATA_INDEX_MASK) >>
+				IXGBE_ETS_DATA_INDEX_SHIFT);
+		sensor_location = ((ets_sensor & IXGBE_ETS_DATA_LOC_MASK) >>
+				   IXGBE_ETS_DATA_LOC_SHIFT);
+
+		if (sensor_location != 0) {
+			status = hw->phy.ops.read_i2c_byte(hw,
+					ixgbe_emc_temp_data[sensor_index],
+					IXGBE_I2C_THERMAL_SENSOR_ADDR,
+					&data->sensor[i].temp);
+			if (status)
+				goto out;
+		}
+	}
+out:
+	return status;
+}
+
+/**
+ * ixgbe_init_thermal_sensor_thresh_generic - Inits thermal sensor thresholds
+ * @hw: pointer to hardware structure
+ *
+ * Inits the thermal sensor thresholds according to the NVM map
+ * and save off the threshold and location values into mac.thermal_sensor_data
+ **/
+s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw)
+{
+	s32 status = 0;
+	u16 ets_offset;
+	u16 ets_cfg;
+	u16 ets_sensor;
+	u8  low_thresh_delta;
+	u8  num_sensors;
+	u8  therm_limit;
+	u8  i;
+	struct ixgbe_thermal_sensor_data *data = &hw->mac.thermal_sensor_data;
+
+	memset(data, 0, sizeof(struct ixgbe_thermal_sensor_data));
+
+	/* Only support thermal sensors attached to 82599 physical port 0 */
+	if ((hw->mac.type != ixgbe_mac_82599EB) ||
+	    (IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1)) {
+		status = IXGBE_NOT_IMPLEMENTED;
+		goto out;
+	}
+
+	status = ixgbe_get_ets_data(hw, &ets_cfg, &ets_offset);
+	if (status)
+		goto out;
+
+	low_thresh_delta = ((ets_cfg & IXGBE_ETS_LTHRES_DELTA_MASK) >>
+			     IXGBE_ETS_LTHRES_DELTA_SHIFT);
+	num_sensors = (ets_cfg & IXGBE_ETS_NUM_SENSORS_MASK);
+	if (num_sensors > IXGBE_MAX_SENSORS)
+		num_sensors = IXGBE_MAX_SENSORS;
+
+	for (i = 0; i < num_sensors; i++) {
+		u8  sensor_index;
+		u8  sensor_location;
+
+		hw->eeprom.ops.read(hw, (ets_offset + 1 + i), &ets_sensor);
+		sensor_index = ((ets_sensor & IXGBE_ETS_DATA_INDEX_MASK) >>
+				IXGBE_ETS_DATA_INDEX_SHIFT);
+		sensor_location = ((ets_sensor & IXGBE_ETS_DATA_LOC_MASK) >>
+				   IXGBE_ETS_DATA_LOC_SHIFT);
+		therm_limit = ets_sensor & IXGBE_ETS_DATA_HTHRESH_MASK;
+
+		hw->phy.ops.write_i2c_byte(hw,
+			ixgbe_emc_therm_limit[sensor_index],
+			IXGBE_I2C_THERMAL_SENSOR_ADDR, therm_limit);
+
+		if (sensor_location == 0)
+			continue;
+
+		data->sensor[i].location = sensor_location;
+		data->sensor[i].caution_thresh = therm_limit;
+		data->sensor[i].max_op_thresh = therm_limit - low_thresh_delta;
+	}
+out:
+	return status;
+}
+
