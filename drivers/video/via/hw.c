@@ -1467,7 +1467,8 @@ void viafb_set_vclock(u32 clk, int set_iga)
 	via_write_misc_reg_mask(0x0C, 0x0C); /* select external clock */
 }
 
-static struct display_timing var_to_timing(const struct fb_var_screeninfo *var, u16 cxres, u16 cyres)
+struct display_timing var_to_timing(const struct fb_var_screeninfo *var,
+	u16 cxres, u16 cyres)
 {
 	struct display_timing timing;
 	u16 dx = (var->xres - cxres) / 2, dy = (var->yres - cyres) / 2;
@@ -2007,20 +2008,20 @@ int viafb_setmode(void)
 
 int viafb_get_refresh(int hres, int vres, u32 long_refresh)
 {
-	struct crt_mode_table *best;
+	const struct fb_videomode *best;
 
 	best = viafb_get_best_mode(hres, vres, long_refresh);
 	if (!best)
 		return 60;
 
-	if (abs(best->refresh_rate - long_refresh) > 3) {
+	if (abs(best->refresh - long_refresh) > 3) {
 		if (hres == 1200 && vres == 900)
 			return 49; /* OLPC DCON only supports 50 Hz */
 		else
 			return 60;
 	}
 
-	return best->refresh_rate;
+	return best->refresh;
 }
 
 static void device_off(void)
@@ -2114,26 +2115,16 @@ void viafb_set_dpa_gfx(int output_interface, struct GFX_DPA_SETTING\
 }
 
 void viafb_fill_var_timing_info(struct fb_var_screeninfo *var,
-	struct crt_mode_table *mode)
+	const struct fb_videomode *mode)
 {
-	struct display_timing crt_reg;
-
-	crt_reg = mode->crtc;
-	var->pixclock = 1000000000 / (crt_reg.hor_total * crt_reg.ver_total)
-		* 1000 / mode->refresh_rate;
-	var->xres = crt_reg.hor_addr;
-	var->yres = crt_reg.ver_addr;
-	var->left_margin =
-	    crt_reg.hor_total - (crt_reg.hor_sync_start + crt_reg.hor_sync_end);
-	var->right_margin = crt_reg.hor_sync_start - crt_reg.hor_addr;
-	var->hsync_len = crt_reg.hor_sync_end;
-	var->upper_margin =
-	    crt_reg.ver_total - (crt_reg.ver_sync_start + crt_reg.ver_sync_end);
-	var->lower_margin = crt_reg.ver_sync_start - crt_reg.ver_addr;
-	var->vsync_len = crt_reg.ver_sync_end;
-	var->sync = 0;
-	if (mode->h_sync_polarity == POSITIVE)
-		var->sync |= FB_SYNC_HOR_HIGH_ACT;
-	if (mode->v_sync_polarity == POSITIVE)
-		var->sync |= FB_SYNC_VERT_HIGH_ACT;
+	var->pixclock = mode->pixclock;
+	var->xres = mode->xres;
+	var->yres = mode->yres;
+	var->left_margin = mode->left_margin;
+	var->right_margin = mode->right_margin;
+	var->hsync_len = mode->hsync_len;
+	var->upper_margin = mode->upper_margin;
+	var->lower_margin = mode->lower_margin;
+	var->vsync_len = mode->vsync_len;
+	var->sync = mode->sync;
 }

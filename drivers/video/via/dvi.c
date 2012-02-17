@@ -176,7 +176,7 @@ void viafb_dvi_set_mode(const struct fb_var_screeninfo *var,
 	u16 cxres, u16 cyres, int iga)
 {
 	struct fb_var_screeninfo dvi_var = *var;
-	struct crt_mode_table *rb_mode;
+	const struct fb_videomode *rb_mode;
 	int maxPixelClock;
 
 	maxPixelClock = viaparinfo->shared->tmds_setting_info.max_pixel_clock;

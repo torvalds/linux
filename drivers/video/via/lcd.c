@@ -75,9 +75,6 @@ static void check_diport_of_integrated_lvds(
 	struct lvds_chip_information *plvds_chip_info,
 				     struct lvds_setting_information
 				     *plvds_setting_info);
-static struct display_timing lcd_centering_timging(struct display_timing
-					    mode_crt_reg,
-					   struct display_timing panel_crt_reg);
 
 static inline bool check_lvds_chip(int device_id_subaddr, int device_id)
 {
@@ -552,39 +549,34 @@ void viafb_lcd_set_mode(const struct fb_var_screeninfo *var, u16 cxres,
 	int panel_hres = plvds_setting_info->lcd_panel_hres;
 	int panel_vres = plvds_setting_info->lcd_panel_vres;
 	u32 clock;
-	struct display_timing mode_crt_reg, panel_crt_reg, timing;
-	struct crt_mode_table *mode_crt_table, *panel_crt_table;
+	struct display_timing timing;
+	struct fb_var_screeninfo panel_var;
+	const struct fb_videomode *mode_crt_table, *panel_crt_table;
 
 	DEBUG_MSG(KERN_INFO "viafb_lcd_set_mode!!\n");
 	/* Get mode table */
 	mode_crt_table = viafb_get_best_mode(set_hres, set_vres, 60);
-	mode_crt_reg = mode_crt_table->crtc;
 	/* Get panel table Pointer */
 	panel_crt_table = viafb_get_best_mode(panel_hres, panel_vres, 60);
-	panel_crt_reg = panel_crt_table->crtc;
+	viafb_fill_var_timing_info(&panel_var, panel_crt_table);
 	DEBUG_MSG(KERN_INFO "bellow viafb_lcd_set_mode!!\n");
 	if (VT1636_LVDS == plvds_chip_info->lvds_chip_name)
 		viafb_init_lvds_vt1636(plvds_setting_info, plvds_chip_info);
-	clock = panel_crt_reg.hor_total * panel_crt_reg.ver_total
-		* panel_crt_table->refresh_rate;
+	clock = PICOS2KHZ(panel_crt_table->pixclock) * 1000;
 	plvds_setting_info->vclk = clock;
 
 	if (set_iga == IGA2 && (set_hres < panel_hres || set_vres < panel_vres)
 		&& plvds_setting_info->display_method == LCD_EXPANDSION) {
-		timing = panel_crt_reg;
+		timing = var_to_timing(&panel_var, panel_hres, panel_vres);
 		load_lcd_scaling(set_hres, set_vres, panel_hres, panel_vres);
 	} else {
-		timing = lcd_centering_timging(mode_crt_reg, panel_crt_reg);
+		timing = var_to_timing(&panel_var, set_hres, set_vres);
 		if (set_iga == IGA2)
 			/* disable scaling */
 			via_write_reg_mask(VIACR, 0x79, 0x00,
 				BIT0 + BIT1 + BIT2);
 	}
 
-	timing.hor_blank_end += timing.hor_blank_start;
-	timing.hor_sync_end += timing.hor_sync_start;
-	timing.ver_blank_end += timing.ver_blank_start;
-	timing.ver_sync_end += timing.ver_sync_start;
 	if (set_iga == IGA1)
 		via_set_primary_timing(&timing);
 	else if (set_iga == IGA2)
@@ -966,37 +958,6 @@ void __devinit viafb_init_lvds_output_interface(struct lvds_chip_information
 		}
 		break;
 	}
-}
-
-static struct display_timing lcd_centering_timging(struct display_timing
-					    mode_crt_reg,
-					    struct display_timing panel_crt_reg)
-{
-	struct display_timing crt_reg;
-
-	crt_reg.hor_total = panel_crt_reg.hor_total;
-	crt_reg.hor_addr = mode_crt_reg.hor_addr;
-	crt_reg.hor_blank_start =
-	    (panel_crt_reg.hor_addr - mode_crt_reg.hor_addr) / 2 +
-	    crt_reg.hor_addr;
-	crt_reg.hor_blank_end = panel_crt_reg.hor_blank_end;
-	crt_reg.hor_sync_start =
-	    (panel_crt_reg.hor_sync_start -
-	     panel_crt_reg.hor_blank_start) + crt_reg.hor_blank_start;
-	crt_reg.hor_sync_end = panel_crt_reg.hor_sync_end;
-
-	crt_reg.ver_total = panel_crt_reg.ver_total;
-	crt_reg.ver_addr = mode_crt_reg.ver_addr;
-	crt_reg.ver_blank_start =
-	    (panel_crt_reg.ver_addr - mode_crt_reg.ver_addr) / 2 +
-	    crt_reg.ver_addr;
-	crt_reg.ver_blank_end = panel_crt_reg.ver_blank_end;
-	crt_reg.ver_sync_start =
-	    (panel_crt_reg.ver_sync_start -
-	     panel_crt_reg.ver_blank_start) + crt_reg.ver_blank_start;
-	crt_reg.ver_sync_end = panel_crt_reg.ver_sync_end;
-
-	return crt_reg;
 }
 
 bool viafb_lcd_get_mobile_state(bool *mobile)
