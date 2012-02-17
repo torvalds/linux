@@ -2661,6 +2661,7 @@ static const char e100_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"tx_deferred", "tx_single_collisions", "tx_multi_collisions",
 	"tx_flow_control_pause", "rx_flow_control_pause",
 	"rx_flow_control_unsupported", "tx_tco_packets", "rx_tco_packets",
+	"rx_short_frame_errors", "rx_over_length_errors",
 };
 #define E100_NET_STATS_LEN	21
 #define E100_STATS_LEN	ARRAY_SIZE(e100_gstrings_stats)
@@ -2694,6 +2695,8 @@ static void e100_get_ethtool_stats(struct net_device *netdev,
 	data[i++] = nic->rx_fc_unsupported;
 	data[i++] = nic->tx_tco_frames;
 	data[i++] = nic->rx_tco_frames;
+	data[i++] = nic->rx_short_frame_errors;
+	data[i++] = nic->rx_over_length_errors;
 }
 
 static void e100_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
