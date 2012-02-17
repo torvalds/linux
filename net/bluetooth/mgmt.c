@@ -2299,7 +2299,7 @@ static int confirm_name(struct sock *sk, u16 index, void *data, u16 len)
 		goto failed;
 	}
 
-	e = hci_inquiry_cache_lookup_unknown(hdev, &cp->bdaddr);
+	e = hci_inquiry_cache_lookup_unknown(hdev, &cp->addr.bdaddr);
 	if (!e) {
 		err = cmd_status (sk, index, MGMT_OP_CONFIRM_NAME,
 				MGMT_STATUS_INVALID_PARAMS);

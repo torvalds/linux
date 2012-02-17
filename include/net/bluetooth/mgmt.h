@@ -296,11 +296,11 @@ struct mgmt_cp_start_discovery {
 
 #define MGMT_OP_CONFIRM_NAME		0x0025
 struct mgmt_cp_confirm_name {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 	__u8 name_known;
 } __packed;
 struct mgmt_rp_confirm_name {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 	__u8 status;
 } __packed;
 
