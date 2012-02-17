@@ -17,6 +17,7 @@
 #include <linux/list.h>
 
 struct snd_pcm_substream;
+struct snd_soc_dapm_widget;
 
 /*
  * DAI hardware audio formats.
@@ -237,6 +238,9 @@ struct snd_soc_dai {
 	unsigned int active;
 	unsigned char pop_wait:1;
 	unsigned char probed:1;
+
+	struct snd_soc_dapm_widget *playback_widget;
+	struct snd_soc_dapm_widget *capture_widget;
 
 	/* DAI DMA data */
 	void *playback_dma_data;

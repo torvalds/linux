@@ -52,6 +52,7 @@ static int dapm_up_seq[] = {
 	[snd_soc_dapm_supply] = 1,
 	[snd_soc_dapm_regulator_supply] = 1,
 	[snd_soc_dapm_micbias] = 2,
+	[snd_soc_dapm_dai] = 3,
 	[snd_soc_dapm_aif_in] = 3,
 	[snd_soc_dapm_aif_out] = 3,
 	[snd_soc_dapm_mic] = 4,
@@ -86,6 +87,7 @@ static int dapm_down_seq[] = {
 	[snd_soc_dapm_value_mux] = 9,
 	[snd_soc_dapm_aif_in] = 10,
 	[snd_soc_dapm_aif_out] = 10,
+	[snd_soc_dapm_dai] = 10,
 	[snd_soc_dapm_regulator_supply] = 11,
 	[snd_soc_dapm_supply] = 11,
 	[snd_soc_dapm_post] = 12,
@@ -365,6 +367,7 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 	case snd_soc_dapm_regulator_supply:
 	case snd_soc_dapm_aif_in:
 	case snd_soc_dapm_aif_out:
+	case snd_soc_dapm_dai:
 	case snd_soc_dapm_hp:
 	case snd_soc_dapm_mic:
 	case snd_soc_dapm_spk:
@@ -522,17 +525,17 @@ static int dapm_new_mixer(struct snd_soc_dapm_widget *w)
 				 * for widgets so cut the prefix off
 				 * the front of the widget name.
 				 */
-				snprintf(path->long_name, name_len, "%s %s",
-					 w->name + prefix_len,
+				snprintf((char *)path->long_name, name_len,
+					 "%s %s", w->name + prefix_len,
 					 w->kcontrol_news[i].name);
 				break;
 			case snd_soc_dapm_mixer_named_ctl:
-				snprintf(path->long_name, name_len, "%s",
-					 w->kcontrol_news[i].name);
+				snprintf((char *)path->long_name, name_len,
+					 "%s", w->kcontrol_news[i].name);
 				break;
 			}
 
-			path->long_name[name_len - 1] = '\0';
+			((char *)path->long_name)[name_len - 1] = '\0';
 
 			path->kcontrol = snd_soc_cnew(&w->kcontrol_news[i],
 						      wlist, path->long_name,
@@ -566,7 +569,7 @@ static int dapm_new_mux(struct snd_soc_dapm_widget *w)
 	struct snd_soc_dapm_widget_list *wlist;
 	int shared, wlistentries;
 	size_t wlistsize;
-	char *name;
+	const char *name;
 
 	if (w->num_kcontrols != 1) {
 		dev_err(dapm->dev,
@@ -702,6 +705,7 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget)
 	switch (widget->id) {
 	case snd_soc_dapm_adc:
 	case snd_soc_dapm_aif_out:
+	case snd_soc_dapm_dai:
 		if (widget->active) {
 			widget->outputs = snd_soc_dapm_suspend_check(widget);
 			return widget->outputs;
@@ -773,6 +777,7 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget)
 	switch (widget->id) {
 	case snd_soc_dapm_dac:
 	case snd_soc_dapm_aif_in:
+	case snd_soc_dapm_dai:
 		if (widget->active) {
 			widget->inputs = snd_soc_dapm_suspend_check(widget);
 			return widget->inputs;
@@ -890,6 +895,13 @@ static int dapm_generic_check_power(struct snd_soc_dapm_widget *w)
 	out = is_connected_output_ep(w);
 	dapm_clear_walk(w->dapm);
 	return out != 0 && in != 0;
+}
+
+static int dapm_dai_check_power(struct snd_soc_dapm_widget *w)
+{
+	DAPM_UPDATE_STAT(w, power_checks);
+
+	return w->active;
 }
 
 /* Check to see if an ADC has power */
@@ -2049,6 +2061,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 	case snd_soc_dapm_regulator_supply:
 	case snd_soc_dapm_aif_in:
 	case snd_soc_dapm_aif_out:
+	case snd_soc_dapm_dai:
 		list_add(&path->list, &dapm->card->paths);
 		list_add(&path->list_sink, &wsink->sources);
 		list_add(&path->list_source, &wsource->sinks);
@@ -2732,10 +2745,10 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 		return NULL;
 	}
 	if (dapm->codec && dapm->codec->name_prefix)
-		snprintf(w->name, name_len, "%s %s",
+		snprintf((char *)w->name, name_len, "%s %s",
 			dapm->codec->name_prefix, widget->name);
 	else
-		snprintf(w->name, name_len, "%s", widget->name);
+		snprintf((char *)w->name, name_len, "%s", widget->name);
 
 	switch (w->id) {
 	case snd_soc_dapm_switch:
@@ -2770,6 +2783,9 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 	case snd_soc_dapm_supply:
 	case snd_soc_dapm_regulator_supply:
 		w->power_check = dapm_supply_check_power;
+		break;
+	case snd_soc_dapm_dai:
+		w->power_check = dapm_dai_check_power;
 		break;
 	default:
 		w->power_check = dapm_always_on_check_power;
@@ -2821,6 +2837,109 @@ int snd_soc_dapm_new_controls(struct snd_soc_dapm_context *dapm,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_new_controls);
+
+int snd_soc_dapm_new_dai_widgets(struct snd_soc_dapm_context *dapm,
+				 struct snd_soc_dai *dai)
+{
+	struct snd_soc_dapm_widget template;
+	struct snd_soc_dapm_widget *w;
+
+	WARN_ON(dapm->dev != dai->dev);
+
+	memset(&template, 0, sizeof(template));
+	template.reg = SND_SOC_NOPM;
+
+	if (dai->driver->playback.stream_name) {
+		template.id = snd_soc_dapm_dai;
+		template.name = dai->driver->playback.stream_name;
+		template.sname = dai->driver->playback.stream_name;
+
+		dev_dbg(dai->dev, "adding %s widget\n",
+			template.name);
+
+		w = snd_soc_dapm_new_control(dapm, &template);
+		if (!w) {
+			dev_err(dapm->dev, "Failed to create %s widget\n",
+				dai->driver->playback.stream_name);
+		}
+
+		w->priv = dai;
+		dai->playback_widget = w;
+	}
+
+	if (dai->driver->capture.stream_name) {
+		template.id = snd_soc_dapm_dai;
+		template.name = dai->driver->capture.stream_name;
+		template.sname = dai->driver->capture.stream_name;
+
+		dev_dbg(dai->dev, "adding %s widget\n",
+			template.name);
+
+		w = snd_soc_dapm_new_control(dapm, &template);
+		if (!w) {
+			dev_err(dapm->dev, "Failed to create %s widget\n",
+				dai->driver->capture.stream_name);
+		}
+
+		w->priv = dai;
+		dai->capture_widget = w;
+	}
+
+	return 0;
+}
+
+int snd_soc_dapm_link_dai_widgets(struct snd_soc_card *card)
+{
+	struct snd_soc_dapm_widget *dai_w, *w;
+	struct snd_soc_dai *dai;
+	struct snd_soc_dapm_route r;
+
+	memset(&r, 0, sizeof(r));
+
+	/* For each DAI widget... */
+	list_for_each_entry(dai_w, &card->widgets, list) {
+		if (dai_w->id != snd_soc_dapm_dai)
+			continue;
+
+		dai = dai_w->priv;
+
+		/* ...find all widgets with the same stream and link them */
+		list_for_each_entry(w, &card->widgets, list) {
+			if (w->dapm != dai_w->dapm)
+				continue;
+
+			if (w->id == snd_soc_dapm_dai)
+				continue;
+
+			if (!w->sname)
+				continue;
+
+			if (dai->driver->playback.stream_name &&
+			    strstr(w->sname,
+				   dai->driver->playback.stream_name)) {
+				r.source = dai->playback_widget->name;
+				r.sink = w->name;
+				dev_dbg(dai->dev, "%s -> %s\n",
+					 r.source, r.sink);
+
+				snd_soc_dapm_add_route(w->dapm, &r);
+			}
+
+			if (dai->driver->capture.stream_name &&
+			    strstr(w->sname,
+				   dai->driver->capture.stream_name)) {
+				r.source = w->name;
+				r.sink = dai->capture_widget->name;
+				dev_dbg(dai->dev, "%s -> %s\n",
+					r.source, r.sink);
+
+				snd_soc_dapm_add_route(w->dapm, &r);
+			}
+		}
+	}
+
+	return 0;
+}
 
 static void soc_dapm_stream_event(struct snd_soc_dapm_context *dapm,
 				  int stream, struct snd_soc_dai *dai,

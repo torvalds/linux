@@ -355,6 +355,9 @@ int snd_soc_dapm_put_pin_switch(struct snd_kcontrol *kcontrol,
 int snd_soc_dapm_new_controls(struct snd_soc_dapm_context *dapm,
 	const struct snd_soc_dapm_widget *widget,
 	int num);
+int snd_soc_dapm_new_dai_widgets(struct snd_soc_dapm_context *dapm,
+				 struct snd_soc_dai *dai);
+int snd_soc_dapm_link_dai_widgets(struct snd_soc_card *card);
 
 /* dapm path setup */
 int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm);
@@ -425,6 +428,7 @@ enum snd_soc_dapm_type {
 	snd_soc_dapm_aif_in,		/* audio interface input */
 	snd_soc_dapm_aif_out,		/* audio interface output */
 	snd_soc_dapm_siggen,		/* signal generator */
+	snd_soc_dapm_dai,		/* link to DAI structure */
 };
 
 /*
