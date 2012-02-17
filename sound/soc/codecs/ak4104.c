@@ -224,7 +224,6 @@ static int ak4104_probe(struct snd_soc_codec *codec)
 	if (ret < 0)
 		return ret;
 
-	dev_info(codec->dev, "SPI device initialized\n");
 	return 0;
 }
 
