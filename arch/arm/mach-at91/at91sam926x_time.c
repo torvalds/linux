@@ -174,8 +174,10 @@ static int __init of_at91sam926x_pit_init(void)
 
 	/* Get the interrupts property */
 	ret = irq_of_parse_and_map(np, 0);
-	if (!ret)
+	if (!ret) {
+		pr_crit("AT91: PIT: Unable to get IRQ from DT\n");
 		goto ioremap_err;
+	}
 	at91sam926x_pit_irq.irq = ret;
 
 	of_node_put(np);
@@ -203,6 +205,7 @@ static void __init at91sam926x_pit_init(void)
 {
 	unsigned long	pit_rate;
 	unsigned	bits;
+	int		ret;
 
 	/* For device tree enabled device: initialize here */
 	of_at91sam926x_pit_init();
@@ -227,7 +230,9 @@ static void __init at91sam926x_pit_init(void)
 	clocksource_register_hz(&pit_clk, pit_rate);
 
 	/* Set up irq handler */
-	setup_irq(at91sam926x_pit_irq.irq, &at91sam926x_pit_irq);
+	ret = setup_irq(at91sam926x_pit_irq.irq, &at91sam926x_pit_irq);
+	if (ret)
+		pr_crit("AT91: PIT: Unable to setup IRQ\n");
 
 	/* Set up and register clockevents */
 	pit_clkevt.mult = div_sc(pit_rate, NSEC_PER_SEC, pit_clkevt.shift);
