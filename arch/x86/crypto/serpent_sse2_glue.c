@@ -676,68 +676,23 @@ static void ablk_exit(struct crypto_tfm *tfm)
 	cryptd_free_ablkcipher(ctx->cryptd_tfm);
 }
 
-static void ablk_init_common(struct crypto_tfm *tfm,
-			     struct cryptd_ablkcipher *cryptd_tfm)
+static int ablk_init(struct crypto_tfm *tfm)
 {
 	struct async_serpent_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct cryptd_ablkcipher *cryptd_tfm;
+	char drv_name[CRYPTO_MAX_ALG_NAME];
+
+	snprintf(drv_name, sizeof(drv_name), "__driver-%s",
+					crypto_tfm_alg_driver_name(tfm));
+
+	cryptd_tfm = cryptd_alloc_ablkcipher(drv_name, 0, 0);
+	if (IS_ERR(cryptd_tfm))
+		return PTR_ERR(cryptd_tfm);
 
 	ctx->cryptd_tfm = cryptd_tfm;
 	tfm->crt_ablkcipher.reqsize = sizeof(struct ablkcipher_request) +
 		crypto_ablkcipher_reqsize(&cryptd_tfm->base);
-}
 
-static int ablk_ecb_init(struct crypto_tfm *tfm)
-{
-	struct cryptd_ablkcipher *cryptd_tfm;
-
-	cryptd_tfm = cryptd_alloc_ablkcipher("__driver-ecb-serpent-sse2", 0, 0);
-	if (IS_ERR(cryptd_tfm))
-		return PTR_ERR(cryptd_tfm);
-	ablk_init_common(tfm, cryptd_tfm);
-	return 0;
-}
-
-static int ablk_cbc_init(struct crypto_tfm *tfm)
-{
-	struct cryptd_ablkcipher *cryptd_tfm;
-
-	cryptd_tfm = cryptd_alloc_ablkcipher("__driver-cbc-serpent-sse2", 0, 0);
-	if (IS_ERR(cryptd_tfm))
-		return PTR_ERR(cryptd_tfm);
-	ablk_init_common(tfm, cryptd_tfm);
-	return 0;
-}
-
-static int ablk_ctr_init(struct crypto_tfm *tfm)
-{
-	struct cryptd_ablkcipher *cryptd_tfm;
-
-	cryptd_tfm = cryptd_alloc_ablkcipher("__driver-ctr-serpent-sse2", 0, 0);
-	if (IS_ERR(cryptd_tfm))
-		return PTR_ERR(cryptd_tfm);
-	ablk_init_common(tfm, cryptd_tfm);
-	return 0;
-}
-
-static int ablk_lrw_init(struct crypto_tfm *tfm)
-{
-	struct cryptd_ablkcipher *cryptd_tfm;
-
-	cryptd_tfm = cryptd_alloc_ablkcipher("__driver-lrw-serpent-sse2", 0, 0);
-	if (IS_ERR(cryptd_tfm))
-		return PTR_ERR(cryptd_tfm);
-	ablk_init_common(tfm, cryptd_tfm);
-	return 0;
-}
-
-static int ablk_xts_init(struct crypto_tfm *tfm)
-{
-	struct cryptd_ablkcipher *cryptd_tfm;
-
-	cryptd_tfm = cryptd_alloc_ablkcipher("__driver-xts-serpent-sse2", 0, 0);
-	if (IS_ERR(cryptd_tfm))
-		return PTR_ERR(cryptd_tfm);
-	ablk_init_common(tfm, cryptd_tfm);
 	return 0;
 }
 
@@ -858,7 +813,7 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
 	.cra_list		= LIST_HEAD_INIT(serpent_algs[5].cra_list),
-	.cra_init		= ablk_ecb_init,
+	.cra_init		= ablk_init,
 	.cra_exit		= ablk_exit,
 	.cra_u = {
 		.ablkcipher = {
@@ -880,7 +835,7 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
 	.cra_list		= LIST_HEAD_INIT(serpent_algs[6].cra_list),
-	.cra_init		= ablk_cbc_init,
+	.cra_init		= ablk_init,
 	.cra_exit		= ablk_exit,
 	.cra_u = {
 		.ablkcipher = {
@@ -903,7 +858,7 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
 	.cra_list		= LIST_HEAD_INIT(serpent_algs[7].cra_list),
-	.cra_init		= ablk_ctr_init,
+	.cra_init		= ablk_init,
 	.cra_exit		= ablk_exit,
 	.cra_u = {
 		.ablkcipher = {
@@ -927,7 +882,7 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
 	.cra_list		= LIST_HEAD_INIT(serpent_algs[8].cra_list),
-	.cra_init		= ablk_lrw_init,
+	.cra_init		= ablk_init,
 	.cra_exit		= ablk_exit,
 	.cra_u = {
 		.ablkcipher = {
@@ -952,7 +907,7 @@ static struct crypto_alg serpent_algs[10] = { {
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
 	.cra_list		= LIST_HEAD_INIT(serpent_algs[9].cra_list),
-	.cra_init		= ablk_xts_init,
+	.cra_init		= ablk_init,
 	.cra_exit		= ablk_exit,
 	.cra_u = {
 		.ablkcipher = {
