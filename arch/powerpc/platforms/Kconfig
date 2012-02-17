@@ -86,6 +86,14 @@ config MPIC_WEIRD
 	bool
 	default n
 
+config MPIC_MSGR
+	bool "MPIC message register support"
+	depends on MPIC
+	default n
+	help
+	  Enables support for the MPIC message registers.  These
+	  registers are used for inter-processor communication.
+
 config PPC_I8259
 	bool
 	default n
