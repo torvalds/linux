@@ -956,6 +956,18 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb,
 							struct sock *skip_sk);
 
 /* Management interface */
+#define MGMT_ADDR_BREDR			0x00
+#define MGMT_ADDR_LE_PUBLIC		0x01
+#define MGMT_ADDR_LE_RANDOM		0x02
+#define MGMT_ADDR_INVALID		0xff
+
+#define DISCOV_TYPE_BREDR		(BIT(MGMT_ADDR_BREDR))
+#define DISCOV_TYPE_LE			(BIT(MGMT_ADDR_LE_PUBLIC) | \
+						BIT(MGMT_ADDR_LE_RANDOM))
+#define DISCOV_TYPE_INTERLEAVED		(BIT(MGMT_ADDR_BREDR) | \
+						BIT(MGMT_ADDR_LE_PUBLIC) | \
+						BIT(MGMT_ADDR_LE_RANDOM))
+
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t len);
 int mgmt_index_added(struct hci_dev *hdev);
 int mgmt_index_removed(struct hci_dev *hdev);

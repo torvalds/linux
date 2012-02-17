@@ -2157,7 +2157,6 @@ static int start_discovery(struct sock *sk, u16 index,
 						void *data, u16 len)
 {
 	struct mgmt_cp_start_discovery *cp = data;
-	unsigned long discov_type = cp->type;
 	struct pending_cmd *cmd;
 	struct hci_dev *hdev;
 	int err;
@@ -2193,14 +2192,20 @@ static int start_discovery(struct sock *sk, u16 index,
 		goto failed;
 	}
 
-	if (test_bit(MGMT_ADDR_BREDR, &discov_type))
+	switch (cp->type) {
+	case DISCOV_TYPE_BREDR:
+	case DISCOV_TYPE_INTERLEAVED:
 		err = hci_do_inquiry(hdev, INQUIRY_LEN_BREDR);
-	else if (test_bit(MGMT_ADDR_LE_PUBLIC, &discov_type) &&
-				test_bit(MGMT_ADDR_LE_RANDOM, &discov_type))
+		break;
+
+	case DISCOV_TYPE_LE:
 		err = hci_le_scan(hdev, LE_SCAN_TYPE, LE_SCAN_INT,
 					LE_SCAN_WIN, LE_SCAN_TIMEOUT_LE_ONLY);
-	else
+		break;
+
+	default:
 		err = -EINVAL;
+	}
 
 	if (err < 0)
 		mgmt_pending_remove(cmd);

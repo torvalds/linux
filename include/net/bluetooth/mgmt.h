@@ -48,11 +48,6 @@ struct mgmt_hdr {
 	__le16 len;
 } __packed;
 
-#define MGMT_ADDR_BREDR			0x00
-#define MGMT_ADDR_LE_PUBLIC		0x01
-#define MGMT_ADDR_LE_RANDOM		0x02
-#define MGMT_ADDR_INVALID		0xff
-
 struct mgmt_addr_info {
 	bdaddr_t bdaddr;
 	__u8 type;
