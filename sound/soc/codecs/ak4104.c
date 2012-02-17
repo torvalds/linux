@@ -110,12 +110,6 @@ static int ak4104_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_codec *codec = codec_dai->codec;
 	int val = 0;
 
-	val = ak4104_read_reg_cache(codec, AK4104_REG_CONTROL1);
-	if (val < 0)
-		return val;
-
-	val &= ~(AK4104_CONTROL1_DIF0 | AK4104_CONTROL1_DIF1);
-
 	/* set DAI format */
 	switch (format & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_RIGHT_J:
@@ -135,7 +129,13 @@ static int ak4104_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	if ((format & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS)
 		return -EINVAL;
 
-	return ak4104_spi_write(codec, AK4104_REG_CONTROL1, val);
+	ret = snd_soc_update_bits(codec, AK4104_REG_CONTROL1,
+				  AK4104_CONTROL1_DIF0 | AK4104_CONTROL1_DIF1,
+				  val);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int ak4104_hw_params(struct snd_pcm_substream *substream,
@@ -211,16 +211,15 @@ static int ak4104_probe(struct snd_soc_codec *codec)
 		return -ENODEV;
 
 	/* set power-up and non-reset bits */
-	val = ak4104_read_reg_cache(codec, AK4104_REG_CONTROL1);
-	val |= AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN;
-	ret = ak4104_spi_write(codec, AK4104_REG_CONTROL1, val);
+	ret = snd_soc_update_bits(codec, AK4104_REG_CONTROL1,
+				  AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN,
+				  AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN);
 	if (ret < 0)
 		return ret;
 
 	/* enable transmitter */
-	val = ak4104_read_reg_cache(codec, AK4104_REG_TX);
-	val |= AK4104_TX_TXE;
-	ret = ak4104_spi_write(codec, AK4104_REG_TX, val);
+	ret = snd_soc_update_bits(codec, AK4104_REG_TX,
+				  AK4104_TX_TXE, AK4104_TX_TXE);
 	if (ret < 0)
 		return ret;
 
@@ -229,17 +228,10 @@ static int ak4104_probe(struct snd_soc_codec *codec)
 
 static int ak4104_remove(struct snd_soc_codec *codec)
 {
-	int val, ret;
+	snd_soc_update_bits(codec, AK4104_REG_CONTROL1,
+			    AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN, 0);
 
-	val = ak4104_read_reg_cache(codec, AK4104_REG_CONTROL1);
-	if (val < 0)
-		return val;
-
-	/* clear power-up and non-reset bits */
-	val &= ~(AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN);
-	ret = ak4104_spi_write(codec, AK4104_REG_CONTROL1, val);
-
-	return ret;
+	return 0;
 }
 
 static struct snd_soc_codec_driver soc_codec_device_ak4104 = {
