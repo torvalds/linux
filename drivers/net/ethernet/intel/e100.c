@@ -622,6 +622,7 @@ struct nic {
 	u32 rx_fc_pause;
 	u32 rx_fc_unsupported;
 	u32 rx_tco_frames;
+	u32 rx_short_frame_errors;
 	u32 rx_over_length_errors;
 
 	u16 eeprom_wc;
@@ -1622,7 +1623,9 @@ static void e100_update_stats(struct nic *nic)
 		ns->collisions += nic->tx_collisions;
 		ns->tx_errors += le32_to_cpu(s->tx_max_collisions) +
 			le32_to_cpu(s->tx_lost_crs);
-		ns->rx_length_errors += le32_to_cpu(s->rx_short_frame_errors) +
+		nic->rx_short_frame_errors +=
+			le32_to_cpu(s->rx_short_frame_errors);
+		ns->rx_length_errors = nic->rx_short_frame_errors +
 			nic->rx_over_length_errors;
 		ns->rx_crc_errors += le32_to_cpu(s->rx_crc_errors);
 		ns->rx_frame_errors += le32_to_cpu(s->rx_alignment_errors);
