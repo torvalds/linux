@@ -199,18 +199,18 @@ struct mgmt_rp_get_connections {
 
 #define MGMT_OP_PIN_CODE_REPLY		0x0016
 struct mgmt_cp_pin_code_reply {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 	__u8 pin_len;
 	__u8 pin_code[16];
 } __packed;
 struct mgmt_rp_pin_code_reply {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 	uint8_t status;
 } __packed;
 
 #define MGMT_OP_PIN_CODE_NEG_REPLY	0x0017
 struct mgmt_cp_pin_code_neg_reply {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 } __packed;
 
 #define MGMT_OP_SET_IO_CAPABILITY	0x0018
@@ -377,7 +377,7 @@ struct mgmt_ev_connect_failed {
 
 #define MGMT_EV_PIN_CODE_REQUEST	0x000E
 struct mgmt_ev_pin_code_request {
-	bdaddr_t bdaddr;
+	struct mgmt_addr_info addr;
 	__u8 secure;
 } __packed;
 
