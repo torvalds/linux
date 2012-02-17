@@ -592,7 +592,7 @@ static void mac80211_hwsim_tx_frame_nl(struct ieee80211_hw *hw,
 	return;
 
 nla_put_failure:
-	printk(KERN_DEBUG "mac80211_hwsim: error occured in %s\n", __func__);
+	printk(KERN_DEBUG "mac80211_hwsim: error occurred in %s\n", __func__);
 }
 
 static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
@@ -1564,7 +1564,7 @@ static int hwsim_cloned_frame_received_nl(struct sk_buff *skb_2,
 
 	return 0;
 err:
-	printk(KERN_DEBUG "mac80211_hwsim: error occured in %s\n", __func__);
+	printk(KERN_DEBUG "mac80211_hwsim: error occurred in %s\n", __func__);
 	goto out;
 out:
 	dev_kfree_skb(skb);
@@ -1584,7 +1584,7 @@ static int hwsim_register_received_nl(struct sk_buff *skb_2,
 
 	return 0;
 out:
-	printk(KERN_DEBUG "mac80211_hwsim: error occured in %s\n", __func__);
+	printk(KERN_DEBUG "mac80211_hwsim: error occurred in %s\n", __func__);
 	return -EINVAL;
 }
 
@@ -1647,7 +1647,7 @@ static int hwsim_init_netlink(void)
 	return 0;
 
 failure:
-	printk(KERN_DEBUG "mac80211_hwsim: error occured in %s\n", __func__);
+	printk(KERN_DEBUG "mac80211_hwsim: error occurred in %s\n", __func__);
 	return -EINVAL;
 }
 
