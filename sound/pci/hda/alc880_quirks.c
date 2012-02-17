@@ -10,7 +10,6 @@ enum {
 	ALC880_3ST_DIG,
 	ALC880_5ST,
 	ALC880_5ST_DIG,
-	ALC880_W810,
 	ALC880_Z71V,
 	ALC880_6ST,
 	ALC880_6ST_DIG,
@@ -226,55 +225,10 @@ static const struct snd_kcontrol_new alc880_six_stack_mixer[] = {
 };
 
 
-/*
- * ALC880 W810 model
- *
- * W810 has rear IO for:
- * Front (DAC 02)
- * Surround (DAC 03)
- * Center/LFE (DAC 04)
- * Digital out (06)
- *
- * The system also has a pair of internal speakers, and a headphone jack.
- * These are both connected to Line2 on the codec, hence to DAC 02.
- *
- * There is a variable resistor to control the speaker or headphone
- * volume. This is a hardware-only device without a software API.
- *
- * Plugging headphones in will disable the internal speakers. This is
- * implemented in hardware, not via the driver using jack sense. In
- * a similar fashion, plugging into the rear socket marked "front" will
- * disable both the speakers and headphones.
- *
- * For input, there's a microphone jack, and an "audio in" jack.
- * These may not do anything useful with this driver yet, because I
- * haven't setup any initialization verbs for these yet...
- */
-
 static const hda_nid_t alc880_w810_dac_nids[3] = {
 	/* front, rear/surround, clfe */
 	0x02, 0x03, 0x04
 };
-
-/* fixed 6 channels */
-static const struct hda_channel_mode alc880_w810_modes[1] = {
-	{ 6, NULL }
-};
-
-/* Pin assignment: Front = 0x14, Surr = 0x15, CLFE = 0x16, HP = 0x1b */
-static const struct snd_kcontrol_new alc880_w810_base_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Surround Playback Switch", 0x0d, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME_MONO("Center Playback Volume", 0x0e, 1, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x0e, 2, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE_MONO("Center Playback Switch", 0x0e, 1, 2, HDA_INPUT),
-	HDA_BIND_MUTE_MONO("LFE Playback Switch", 0x0e, 2, 2, HDA_INPUT),
-	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
-	{ } /* end */
-};
-
 
 /*
  * Z710V model
@@ -589,27 +543,6 @@ static const struct hda_verb alc880_pin_5stack_init_verbs[] = {
 	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 	/* CD pin widget for input */
 	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-
-	{ }
-};
-
-/*
- * W810 pin configuration:
- * front = 0x14, surround = 0x15, clfe = 0x16, HP = 0x1b
- */
-static const struct hda_verb alc880_pin_w810_init_verbs[] = {
-	/* hphone/speaker input selector: front DAC */
-	{0x13, AC_VERB_SET_CONNECT_SEL, 0x0},
-
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 
 	{ }
 };
@@ -1204,7 +1137,6 @@ static const char * const alc880_models[ALC880_MODEL_LAST] = {
 	[ALC880_CLEVO]		= "clevo",
 	[ALC880_5ST]		= "5stack",
 	[ALC880_5ST_DIG]	= "5stack-digout",
-	[ALC880_W810]		= "w810",
 	[ALC880_Z71V]		= "z71v",
 	[ALC880_6ST]		= "6stack",
 	[ALC880_6ST_DIG]	= "6stack-digout",
@@ -1223,7 +1155,6 @@ static const char * const alc880_models[ALC880_MODEL_LAST] = {
 };
 
 static const struct snd_pci_quirk alc880_cfg_tbl[] = {
-	SND_PCI_QUIRK(0x1019, 0x0f69, "Coeus G610P", ALC880_W810),
 	SND_PCI_QUIRK(0x1019, 0xa880, "ECS", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x1019, 0xa884, "Acer APFV", ALC880_6ST),
 	SND_PCI_QUIRK(0x1025, 0x0070, "ULI", ALC880_3ST_DIG),
@@ -1265,7 +1196,6 @@ static const struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1584, 0x9054, "Uniwill", ALC880_F1734),
 	SND_PCI_QUIRK(0x1584, 0x9070, "Uniwill", ALC880_UNIWILL),
 	SND_PCI_QUIRK(0x1584, 0x9077, "Uniwill P53", ALC880_UNIWILL_P53),
-	SND_PCI_QUIRK(0x161f, 0x203d, "W810", ALC880_W810),
 	SND_PCI_QUIRK(0x1695, 0x400d, "EPoX", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x1695, 0x4012, "EPox EP-5LDA", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x1734, 0x107c, "FSC F1734", ALC880_F1734),
@@ -1377,18 +1307,6 @@ static const struct alc_config_preset alc880_presets[] = {
 		.channel_mode = alc880_sixstack_modes,
 		.input_mux = &alc880_6stack_capture_source,
 	},
-	[ALC880_W810] = {
-		.mixers = { alc880_w810_base_mixer },
-		.init_verbs = { alc880_volume_init_verbs,
-				alc880_pin_w810_init_verbs,
-				alc880_gpio2_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc880_w810_dac_nids),
-		.dac_nids = alc880_w810_dac_nids,
-		.dig_out_nid = ALC880_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc880_w810_modes),
-		.channel_mode = alc880_w810_modes,
-		.input_mux = &alc880_capture_source,
-	},
 	[ALC880_Z71V] = {
 		.mixers = { alc880_z71v_mixer },
 		.init_verbs = { alc880_volume_init_verbs,
@@ -1499,7 +1417,7 @@ static const struct alc_config_preset alc880_presets[] = {
 				alc880_uniwill_p53_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_asus_dac_nids),
 		.dac_nids = alc880_asus_dac_nids,
-		.num_channel_mode = ARRAY_SIZE(alc880_w810_modes),
+		.num_channel_mode = ARRAY_SIZE(alc880_threestack_modes),
 		.channel_mode = alc880_threestack_modes,
 		.input_mux = &alc880_capture_source,
 		.unsol_event = alc880_uniwill_p53_unsol_event,
