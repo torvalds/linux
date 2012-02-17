@@ -405,6 +405,24 @@ static struct panel_config generic_dpi_panels[] = {
 		.config			= OMAP_DSS_LCD_TFT,
 		.name			= "mitsubishi_aa084sb01",
 	},
+	/* EDT ET0500G0DH6 */
+	{
+		{
+			.x_res		= 800,
+			.y_res		= 480,
+			.pixel_clock	= 33260,
+
+			.hsw		= 128,
+			.hfp		= 216,
+			.hbp		= 40,
+
+			.vsw		= 2,
+			.vfp		= 35,
+			.vbp		= 10,
+		},
+		.config			= OMAP_DSS_LCD_TFT,
+		.name			= "edt_et0500g0dh6",
+	},
 };
 
 struct panel_drv_data {
