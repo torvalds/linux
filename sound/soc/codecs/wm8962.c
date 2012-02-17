@@ -2705,6 +2705,8 @@ static int wm8962_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 
 	wm8962->sysclk_rate = freq;
 
+	wm8962_configure_bclk(codec);
+
 	return 0;
 }
 
