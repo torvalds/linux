@@ -327,7 +327,9 @@ static int temac_set_mac_address(struct net_device *ndev, void *address)
 		memcpy(ndev->dev_addr, address, ETH_ALEN);
 
 	if (!is_valid_ether_addr(ndev->dev_addr))
-		random_ether_addr(ndev->dev_addr);
+		eth_hw_addr_random(ndev);
+	else
+		dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	/* set up unicast MAC address filter set its mac address */
 	mutex_lock(&lp->indirect_mutex);
