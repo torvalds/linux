@@ -62,6 +62,9 @@ struct dss_reg {
 #define REG_FLD_MOD(idx, val, start, end) \
 	dss_write_reg(idx, FLD_MOD(dss_read_reg(idx), val, start, end))
 
+static int dss_runtime_get(void);
+static void dss_runtime_put(void);
+
 static struct {
 	struct platform_device *pdev;
 	void __iomem    *base;
@@ -707,7 +710,7 @@ static void dss_put_clocks(void)
 	clk_put(dss.dss_clk);
 }
 
-int dss_runtime_get(void)
+static int dss_runtime_get(void)
 {
 	int r;
 
@@ -718,7 +721,7 @@ int dss_runtime_get(void)
 	return r < 0 ? r : 0;
 }
 
-void dss_runtime_put(void)
+static void dss_runtime_put(void)
 {
 	int r;
 

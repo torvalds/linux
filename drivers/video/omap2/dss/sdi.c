@@ -72,10 +72,6 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_reg_enable;
 
-	r = dss_runtime_get();
-	if (r)
-		goto err_get_dss;
-
 	r = dispc_runtime_get();
 	if (r)
 		goto err_get_dispc;
@@ -138,8 +134,6 @@ err_set_dss_clock_div:
 err_calc_clock_div:
 	dispc_runtime_put();
 err_get_dispc:
-	dss_runtime_put();
-err_get_dss:
 	regulator_disable(sdi.vdds_sdi_reg);
 err_reg_enable:
 	omap_dss_stop_device(dssdev);
@@ -155,7 +149,6 @@ void omapdss_sdi_display_disable(struct omap_dss_device *dssdev)
 	dss_sdi_disable();
 
 	dispc_runtime_put();
-	dss_runtime_put();
 
 	regulator_disable(sdi.vdds_sdi_reg);
 

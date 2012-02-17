@@ -903,7 +903,6 @@ static int venc_runtime_suspend(struct device *dev)
 		clk_disable(venc.tv_dac_clk);
 
 	dispc_runtime_put();
-	dss_runtime_put();
 
 	return 0;
 }
@@ -912,23 +911,14 @@ static int venc_runtime_resume(struct device *dev)
 {
 	int r;
 
-	r = dss_runtime_get();
-	if (r < 0)
-		goto err_get_dss;
-
 	r = dispc_runtime_get();
 	if (r < 0)
-		goto err_get_dispc;
+		return r;
 
 	if (venc.tv_dac_clk)
 		clk_enable(venc.tv_dac_clk);
 
 	return 0;
-
-err_get_dispc:
-	dss_runtime_put();
-err_get_dss:
-	return r;
 }
 
 static const struct dev_pm_ops venc_pm_ops = {

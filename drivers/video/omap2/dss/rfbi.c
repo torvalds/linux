@@ -992,7 +992,6 @@ static int omap_rfbihw_remove(struct platform_device *pdev)
 static int rfbi_runtime_suspend(struct device *dev)
 {
 	dispc_runtime_put();
-	dss_runtime_put();
 
 	return 0;
 }
@@ -1001,20 +1000,11 @@ static int rfbi_runtime_resume(struct device *dev)
 {
 	int r;
 
-	r = dss_runtime_get();
-	if (r < 0)
-		goto err_get_dss;
-
 	r = dispc_runtime_get();
 	if (r < 0)
-		goto err_get_dispc;
+		return r;
 
 	return 0;
-
-err_get_dispc:
-	dss_runtime_put();
-err_get_dss:
-	return r;
 }
 
 static const struct dev_pm_ops rfbi_pm_ops = {

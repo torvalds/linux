@@ -129,25 +129,12 @@ static int hdmi_runtime_get(void)
 
 	DSSDBG("hdmi_runtime_get\n");
 
-	/*
-	 * HACK: Add dss_runtime_get() to ensure DSS clock domain is enabled.
-	 * This should be removed later.
-	 */
-	r = dss_runtime_get();
-	if (r < 0)
-		goto err_get_dss;
-
 	r = pm_runtime_get_sync(&hdmi.pdev->dev);
 	WARN_ON(r < 0);
 	if (r < 0)
-		goto err_get_hdmi;
+		return r;
 
 	return 0;
-
-err_get_hdmi:
-	dss_runtime_put();
-err_get_dss:
-	return r;
 }
 
 static void hdmi_runtime_put(void)
@@ -158,12 +145,6 @@ static void hdmi_runtime_put(void)
 
 	r = pm_runtime_put_sync(&hdmi.pdev->dev);
 	WARN_ON(r < 0);
-
-	/*
-	 * HACK: This is added to complement the dss_runtime_get() call in
-	 * hdmi_runtime_get(). This should be removed later.
-	 */
-	dss_runtime_put();
 }
 
 int hdmi_init_display(struct omap_dss_device *dssdev)
@@ -866,7 +847,6 @@ static int hdmi_runtime_suspend(struct device *dev)
 	clk_disable(hdmi.sys_clk);
 
 	dispc_runtime_put();
-	dss_runtime_put();
 
 	return 0;
 }
@@ -875,23 +855,13 @@ static int hdmi_runtime_resume(struct device *dev)
 {
 	int r;
 
-	r = dss_runtime_get();
-	if (r < 0)
-		goto err_get_dss;
-
 	r = dispc_runtime_get();
 	if (r < 0)
-		goto err_get_dispc;
-
+		return r;
 
 	clk_enable(hdmi.sys_clk);
 
 	return 0;
-
-err_get_dispc:
-	dss_runtime_put();
-err_get_dss:
-	return r;
 }
 
 static const struct dev_pm_ops hdmi_pm_ops = {

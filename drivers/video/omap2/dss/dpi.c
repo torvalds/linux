@@ -202,10 +202,6 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 			goto err_reg_enable;
 	}
 
-	r = dss_runtime_get();
-	if (r)
-		goto err_get_dss;
-
 	r = dispc_runtime_get();
 	if (r)
 		goto err_get_dispc;
@@ -244,8 +240,6 @@ err_dsi_pll_init:
 err_get_dsi:
 	dispc_runtime_put();
 err_get_dispc:
-	dss_runtime_put();
-err_get_dss:
 	if (cpu_is_omap34xx())
 		regulator_disable(dpi.vdds_dsi_reg);
 err_reg_enable:
@@ -266,7 +260,6 @@ void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 	}
 
 	dispc_runtime_put();
-	dss_runtime_put();
 
 	if (cpu_is_omap34xx())
 		regulator_disable(dpi.vdds_dsi_reg);
@@ -283,20 +276,13 @@ void dpi_set_timings(struct omap_dss_device *dssdev,
 	DSSDBG("dpi_set_timings\n");
 	dssdev->panel.timings = *timings;
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
-		r = dss_runtime_get();
+		r = dispc_runtime_get();
 		if (r)
 			return;
-
-		r = dispc_runtime_get();
-		if (r) {
-			dss_runtime_put();
-			return;
-		}
 
 		dpi_set_mode(dssdev);
 
 		dispc_runtime_put();
-		dss_runtime_put();
 	} else {
 		dss_mgr_set_timings(dssdev->manager, timings);
 	}
