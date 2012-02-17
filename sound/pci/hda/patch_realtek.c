@@ -3298,6 +3298,11 @@ static void debug_show_configs(struct alc_spec *spec, struct auto_pin_cfg *cfg)
 		      spec->multiout.dac_nids[1],
 		      spec->multiout.dac_nids[2],
 		      spec->multiout.dac_nids[3]);
+	if (spec->multi_ios > 0)
+		debug_badness("multi_ios(%d) = %x/%x : %x/%x\n",
+			      spec->multi_ios,
+			      spec->multi_io[0].pin, spec->multi_io[1].pin,
+			      spec->multi_io[0].dac, spec->multi_io[1].dac);
 	debug_badness("hp_outs = %x/%x/%x/%x : %x/%x/%x/%x\n",
 		      cfg->hp_pins[0], cfg->hp_pins[1],
 		      cfg->hp_pins[2], cfg->hp_pins[2],
