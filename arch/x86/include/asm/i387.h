@@ -211,15 +211,6 @@ static inline void fpu_fxsave(struct fpu *fpu)
 
 #endif	/* CONFIG_X86_64 */
 
-/* We need a safe address that is cheap to find and that is already
-   in L1 during context switch. The best choices are unfortunately
-   different for UP and SMP */
-#ifdef CONFIG_SMP
-#define safe_address (__per_cpu_offset[0])
-#else
-#define safe_address (kstat_cpu(0).cpustat.user)
-#endif
-
 /*
  * These must be called with preempt disabled
  */
@@ -243,16 +234,6 @@ static inline void fpu_save_init(struct fpu *fpu)
 
 	if (unlikely(fpu->state->fxsave.swd & X87_FSW_ES))
 		asm volatile("fnclex");
-
-	/* AMD K7/K8 CPUs don't save/restore FDP/FIP/FOP unless an exception
-	   is pending.  Clear the x87 state here by setting it to fixed
-	   values. safe_address is a random variable that should be in L1 */
-	alternative_input(
-		ASM_NOP8 ASM_NOP2,
-		"emms\n\t"	  	/* clear stack tags */
-		"fildl %P[addr]",	/* set F?P to defined value */
-		X86_FEATURE_FXSAVE_LEAK,
-		[addr] "m" (safe_address));
 }
 
 static inline void __save_init_fpu(struct task_struct *tsk)
