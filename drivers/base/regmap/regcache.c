@@ -372,6 +372,13 @@ bool regcache_set_val(void *base, unsigned int idx,
 		cache[idx] = val;
 		break;
 	}
+	case 4: {
+		u32 *cache = base;
+		if (cache[idx] == val)
+			return true;
+		cache[idx] = val;
+		break;
+	}
 	default:
 		BUG();
 	}
@@ -391,6 +398,10 @@ unsigned int regcache_get_val(const void *base, unsigned int idx,
 	}
 	case 2: {
 		const u16 *cache = base;
+		return cache[idx];
+	}
+	case 4: {
+		const u32 *cache = base;
 		return cache[idx];
 	}
 	default:
