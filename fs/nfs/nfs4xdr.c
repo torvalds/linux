@@ -291,7 +291,11 @@ static int nfs4_stat_to_errno(int);
 				/* eir_server_scope<> */ \
 				XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + 1 + \
 				1 /* eir_server_impl_id array length */ + \
-				0 /* ignored eir_server_impl_id contents */)
+				1 /* nii_domain */ + \
+				XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + \
+				1 /* nii_name */ + \
+				XDR_QUADLEN(NFS4_OPAQUE_LIMIT) + \
+				3 /* nii_date */)
 #define encode_channel_attrs_maxsz  (6 + 1 /* ca_rdma_ird.len (0) */)
 #define decode_channel_attrs_maxsz  (6 + \
 				     1 /* ca_rdma_ird.len */ + \
@@ -5256,6 +5260,7 @@ static int decode_exchange_id(struct xdr_stream *xdr,
 	char *dummy_str;
 	int status;
 	struct nfs_client *clp = res->client;
+	uint32_t impl_id_count;
 
 	status = decode_op_hdr(xdr, OP_EXCHANGE_ID);
 	if (status)
@@ -5297,11 +5302,38 @@ static int decode_exchange_id(struct xdr_stream *xdr,
 	memcpy(res->server_scope->server_scope, dummy_str, dummy);
 	res->server_scope->server_scope_sz = dummy;
 
-	/* Throw away Implementation id array */
-	status = decode_opaque_inline(xdr, &dummy, &dummy_str);
-	if (unlikely(status))
-		return status;
+	/* Implementation Id */
+	p = xdr_inline_decode(xdr, 4);
+	if (unlikely(!p))
+		goto out_overflow;
+	impl_id_count = be32_to_cpup(p++);
 
+	if (impl_id_count) {
+		/* nii_domain */
+		status = decode_opaque_inline(xdr, &dummy, &dummy_str);
+		if (unlikely(status))
+			return status;
+		if (unlikely(dummy > NFS4_OPAQUE_LIMIT))
+			return -EIO;
+		memcpy(res->impl_id->domain, dummy_str, dummy);
+
+		/* nii_name */
+		status = decode_opaque_inline(xdr, &dummy, &dummy_str);
+		if (unlikely(status))
+			return status;
+		if (unlikely(dummy > NFS4_OPAQUE_LIMIT))
+			return -EIO;
+		memcpy(res->impl_id->name, dummy_str, dummy);
+
+		/* nii_date */
+		p = xdr_inline_decode(xdr, 12);
+		if (unlikely(!p))
+			goto out_overflow;
+		p = xdr_decode_hyper(p, &res->impl_id->date.seconds);
+		res->impl_id->date.nseconds = be32_to_cpup(p);
+
+		/* if there's more than one entry, ignore the rest */
+	}
 	return 0;
 out_overflow:
 	print_overflow_msg(__func__, xdr);

@@ -4950,9 +4950,22 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 		goto out;
 	}
 
+	res.impl_id = kzalloc(sizeof(struct nfs41_impl_id), GFP_KERNEL);
+	if (unlikely(!res.impl_id)) {
+		status = -ENOMEM;
+		goto out_server_scope;
+	}
+
 	status = rpc_call_sync(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
 	if (!status)
 		status = nfs4_check_cl_exchange_flags(clp->cl_exchange_flags);
+
+	if (!status) {
+		/* use the most recent implementation id */
+		kfree(clp->impl_id);
+		clp->impl_id = res.impl_id;
+	} else
+		kfree(res.impl_id);
 
 	if (!status) {
 		if (clp->server_scope &&
@@ -4970,8 +4983,16 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 			goto out;
 		}
 	}
+
+out_server_scope:
 	kfree(res.server_scope);
 out:
+	if (clp->impl_id)
+		dprintk("%s: Server Implementation ID: "
+			"domain: %s, name: %s, date: %llu,%u\n",
+			__func__, clp->impl_id->domain, clp->impl_id->name,
+			clp->impl_id->date.seconds,
+			clp->impl_id->date.nseconds);
 	dprintk("<-- %s status= %d\n", __func__, status);
 	return status;
 }

@@ -304,6 +304,7 @@ static void nfs_free_client(struct nfs_client *clp)
 	put_net(clp->net);
 	kfree(clp->cl_hostname);
 	kfree(clp->server_scope);
+	kfree(clp->impl_id);
 	kfree(clp);
 
 	dprintk("<-- nfs_free_client()\n");

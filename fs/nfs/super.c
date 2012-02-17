@@ -809,6 +809,14 @@ static int nfs_show_stats(struct seq_file *m, struct dentry *root)
 
 	seq_printf(m, "\n\tage:\t%lu", (jiffies - nfss->mount_time) / HZ);
 
+	if (nfss->nfs_client && nfss->nfs_client->impl_id) {
+		struct nfs41_impl_id *impl_id = nfss->nfs_client->impl_id;
+		seq_printf(m, "\n\timpl_id:\tname='%s',domain='%s',"
+			   "date='%llu,%u'",
+			   impl_id->name, impl_id->domain,
+			   impl_id->date.seconds, impl_id->date.nseconds);
+	}
+
 	seq_printf(m, "\n\tcaps:\t");
 	seq_printf(m, "caps=0x%x", nfss->caps);
 	seq_printf(m, ",wtmult=%u", nfss->wtmult);

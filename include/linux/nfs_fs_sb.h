@@ -18,6 +18,7 @@ struct nfs4_sequence_res;
 struct nfs_server;
 struct nfs4_minor_version_ops;
 struct server_scope;
+struct nfs41_impl_id;
 
 /*
  * The nfs_client identifies our client state to the server.
@@ -86,6 +87,7 @@ struct nfs_client {
 #endif
 
 	struct server_scope	*server_scope;	/* from exchange_id */
+	struct nfs41_impl_id	*impl_id;	/* from exchange_id */
 	struct net		*net;
 };
 

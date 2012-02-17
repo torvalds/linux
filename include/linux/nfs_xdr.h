@@ -1054,14 +1054,6 @@ struct nfstime4 {
 };
 
 #ifdef CONFIG_NFS_V4_1
-struct nfs_impl_id4 {
-	u32		domain_len;
-	char		*domain;
-	u32		name_len;
-	char		*name;
-	struct nfstime4	date;
-};
-
 #define NFS4_EXCHANGE_ID_LEN	(48)
 struct nfs41_exchange_id_args {
 	struct nfs_client		*client;
@@ -1082,10 +1074,17 @@ struct server_scope {
 	char 				server_scope[NFS4_OPAQUE_LIMIT];
 };
 
+struct nfs41_impl_id {
+	char				domain[NFS4_OPAQUE_LIMIT + 1];
+	char				name[NFS4_OPAQUE_LIMIT + 1];
+	struct nfstime4			date;
+};
+
 struct nfs41_exchange_id_res {
 	struct nfs_client		*client;
 	u32				flags;
 	struct server_scope		*server_scope;
+	struct nfs41_impl_id		*impl_id;
 };
 
 struct nfs41_create_session_args {
