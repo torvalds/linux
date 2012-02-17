@@ -1581,6 +1581,7 @@ int __gpio_get_value(unsigned gpio)
 	int value;
 
 	chip = gpio_to_chip(gpio);
+	/* Should be using gpio_get_value_cansleep() */
 	WARN_ON(chip->can_sleep);
 	value = chip->get ? chip->get(chip, gpio - chip->base) : 0;
 	trace_gpio_value(gpio, 1, value);
@@ -1653,6 +1654,7 @@ void __gpio_set_value(unsigned gpio, int value)
 	struct gpio_chip	*chip;
 
 	chip = gpio_to_chip(gpio);
+	/* Should be using gpio_set_value_cansleep() */
 	WARN_ON(chip->can_sleep);
 	trace_gpio_value(gpio, 0, value);
 	if (test_bit(FLAG_OPEN_DRAIN,  &gpio_desc[gpio].flags))
