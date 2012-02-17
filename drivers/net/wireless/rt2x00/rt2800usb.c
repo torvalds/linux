@@ -1102,12 +1102,26 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x5a57, 0x0284) },
 #endif
 #ifdef CONFIG_RT2800USB_RT53XX
+	/* Alpha */
+	{ USB_DEVICE(0x2001, 0x3c15) },
+	{ USB_DEVICE(0x2001, 0x3c19) },
+	/* Arcadyan */
+	{ USB_DEVICE(0x043e, 0x7a12) },
 	/* Azurewave */
 	{ USB_DEVICE(0x13d3, 0x3329) },
 	{ USB_DEVICE(0x13d3, 0x3365) },
+	/* LG innotek */
+	{ USB_DEVICE(0x043e, 0x7a22) },
+	/* Panasonic */
+	{ USB_DEVICE(0x04da, 0x1801) },
+	{ USB_DEVICE(0x04da, 0x1800) },
+	/* Philips */
+	{ USB_DEVICE(0x0471, 0x2104) },
 	/* Ralink */
 	{ USB_DEVICE(0x148f, 0x5370) },
 	{ USB_DEVICE(0x148f, 0x5372) },
+	/* Unknown */
+	{ USB_DEVICE(0x04da, 0x23f6) },
 #endif
 #ifdef CONFIG_RT2800USB_UNKNOWN
 	/*

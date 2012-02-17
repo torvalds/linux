@@ -480,7 +480,8 @@ static int rt2800pci_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	if (rt2x00_is_pcie(rt2x00dev) &&
 	    (rt2x00_rt(rt2x00dev, RT3572) ||
-	     rt2x00_rt(rt2x00dev, RT5390))) {
+	     rt2x00_rt(rt2x00dev, RT5390) ||
+	     rt2x00_rt(rt2x00dev, RT5392))) {
 		rt2x00pci_register_read(rt2x00dev, AUX_CTRL, &reg);
 		rt2x00_set_field32(&reg, AUX_CTRL_FORCE_PCIE_CLK, 1);
 		rt2x00_set_field32(&reg, AUX_CTRL_WAKE_PCIE_EN, 1);
