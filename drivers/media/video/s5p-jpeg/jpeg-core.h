@@ -14,6 +14,7 @@
 #define JPEG_CORE_H_
 
 #include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
 
 #define S5P_JPEG_M2M_NAME		"s5p-jpeg"
 
@@ -125,6 +126,7 @@ struct s5p_jpeg_ctx {
 	struct v4l2_m2m_ctx	*m2m_ctx;
 	struct s5p_jpeg_q_data	out_q;
 	struct s5p_jpeg_q_data	cap_q;
+	struct v4l2_fh		fh;
 	bool			hdr_parsed;
 };
 
