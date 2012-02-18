@@ -717,39 +717,15 @@ asmlinkage void __attribute__((weak)) smp_threshold_interrupt(void)
 }
 
 /*
- * 'math_state_restore()' saves the current math information in the
- * old math state array, and gets the new ones from the current task
- *
- * Careful.. There are problems with IBM-designed IRQ13 behaviour.
- * Don't touch unless you *really* know how it works.
- *
- * Must be called with kernel preemption disabled (eg with local
- * local interrupts as in the case of do_device_not_available).
+ * This gets called with the process already owning the
+ * FPU state, and with CR0.TS cleared. It just needs to
+ * restore the FPU register state.
  */
-void math_state_restore(void)
+void __math_state_restore(struct task_struct *tsk)
 {
-	struct task_struct *tsk = current;
-
 	/* We need a safe address that is cheap to find and that is already
-	   in L1. We're just bringing in "tsk->thread.has_fpu", so use that */
+	   in L1. We've just brought in "tsk->thread.has_fpu", so use that */
 #define safe_address (tsk->thread.has_fpu)
-
-	if (!tsk_used_math(tsk)) {
-		local_irq_enable();
-		/*
-		 * does a slab alloc which can sleep
-		 */
-		if (init_fpu(tsk)) {
-			/*
-			 * ran out of memory!
-			 */
-			do_group_exit(SIGKILL);
-			return;
-		}
-		local_irq_disable();
-	}
-
-	__thread_fpu_begin(tsk);
 
 	/* AMD K7/K8 CPUs don't save/restore FDP/FIP/FOP unless an exception
 	   is pending.  Clear the x87 state here by setting it to fixed
@@ -769,6 +745,39 @@ void math_state_restore(void)
 		force_sig(SIGSEGV, tsk);
 		return;
 	}
+}
+
+/*
+ * 'math_state_restore()' saves the current math information in the
+ * old math state array, and gets the new ones from the current task
+ *
+ * Careful.. There are problems with IBM-designed IRQ13 behaviour.
+ * Don't touch unless you *really* know how it works.
+ *
+ * Must be called with kernel preemption disabled (eg with local
+ * local interrupts as in the case of do_device_not_available).
+ */
+void math_state_restore(void)
+{
+	struct task_struct *tsk = current;
+
+	if (!tsk_used_math(tsk)) {
+		local_irq_enable();
+		/*
+		 * does a slab alloc which can sleep
+		 */
+		if (init_fpu(tsk)) {
+			/*
+			 * ran out of memory!
+			 */
+			do_group_exit(SIGKILL);
+			return;
+		}
+		local_irq_disable();
+	}
+
+	__thread_fpu_begin(tsk);
+	__math_state_restore(tsk);
 
 	tsk->fpu_counter++;
 }
