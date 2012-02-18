@@ -1477,7 +1477,7 @@ static struct display_timing var_to_timing(const struct fb_var_screeninfo *var, 
 	timing.hor_sync_end = timing.hor_sync_start + var->hsync_len;
 	timing.hor_total = timing.hor_sync_end + var->left_margin + dx;
 	timing.hor_blank_start = timing.hor_addr + dx;
-	timing.hor_blank_end = timing.hor_total - dy;
+	timing.hor_blank_end = timing.hor_total - dx;
 	timing.ver_addr = cyres;
 	timing.ver_sync_start = timing.ver_addr + var->lower_margin + dy;
 	timing.ver_sync_end = timing.ver_sync_start + var->vsync_len;
