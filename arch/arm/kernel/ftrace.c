@@ -19,6 +19,8 @@
 #include <asm/opcodes.h>
 #include <asm/ftrace.h>
 
+#include "insn.h"
+
 #ifdef CONFIG_THUMB2_KERNEL
 #define	NOP		0xf85deb04	/* pop.w {lr} */
 #else
@@ -61,64 +63,9 @@ static unsigned long adjust_address(struct dyn_ftrace *rec, unsigned long addr)
 }
 #endif
 
-#ifdef CONFIG_THUMB2_KERNEL
-static unsigned long ftrace_gen_branch(unsigned long pc, unsigned long addr,
-				       bool link)
-{
-	unsigned long s, j1, j2, i1, i2, imm10, imm11;
-	unsigned long first, second;
-	long offset;
-
-	offset = (long)addr - (long)(pc + 4);
-	if (offset < -16777216 || offset > 16777214) {
-		WARN_ON_ONCE(1);
-		return 0;
-	}
-
-	s	= (offset >> 24) & 0x1;
-	i1	= (offset >> 23) & 0x1;
-	i2	= (offset >> 22) & 0x1;
-	imm10	= (offset >> 12) & 0x3ff;
-	imm11	= (offset >>  1) & 0x7ff;
-
-	j1 = (!i1) ^ s;
-	j2 = (!i2) ^ s;
-
-	first = 0xf000 | (s << 10) | imm10;
-	second = 0x9000 | (j1 << 13) | (j2 << 11) | imm11;
-	if (link)
-		second |= 1 << 14;
-
-	return __opcode_thumb32_compose(first, second);
-}
-#else
-static unsigned long ftrace_gen_branch(unsigned long pc, unsigned long addr,
-				       bool link)
-{
-	unsigned long opcode = 0xea000000;
-	long offset;
-
-	if (link)
-		opcode |= 1 << 24;
-
-	offset = (long)addr - (long)(pc + 8);
-	if (unlikely(offset < -33554432 || offset > 33554428)) {
-		/* Can't generate branches that far (from ARM ARM). Ftrace
-		 * doesn't generate branches outside of kernel text.
-		 */
-		WARN_ON_ONCE(1);
-		return 0;
-	}
-
-	offset = (offset >> 2) & 0x00ffffff;
-
-	return opcode | offset;
-}
-#endif
-
 static unsigned long ftrace_call_replace(unsigned long pc, unsigned long addr)
 {
-	return ftrace_gen_branch(pc, addr, true);
+	return arm_gen_branch_link(pc, addr);
 }
 
 static int ftrace_modify_code(unsigned long pc, unsigned long old,
@@ -258,7 +205,7 @@ static int __ftrace_modify_caller(unsigned long *callsite,
 {
 	unsigned long caller_fn = (unsigned long) func;
 	unsigned long pc = (unsigned long) callsite;
-	unsigned long branch = ftrace_gen_branch(pc, caller_fn, false);
+	unsigned long branch = arm_gen_branch(pc, caller_fn);
 	unsigned long nop = 0xe1a00000;	/* mov r0, r0 */
 	unsigned long old = enable ? nop : branch;
 	unsigned long new = enable ? branch : nop;
