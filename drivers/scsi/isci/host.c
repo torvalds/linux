@@ -2557,8 +2557,12 @@ int isci_host_init(struct isci_host *ihost)
 	if (err)
 		return err;
 
-	for (i = 0; i < SCI_MAX_PORTS; i++)
-		isci_port_init(&ihost->ports[i], ihost, i);
+	for (i = 0; i < SCI_MAX_PORTS; i++) {
+		struct isci_port *iport = &ihost->ports[i];
+
+		INIT_LIST_HEAD(&iport->remote_dev_list);
+		iport->isci_host = ihost;
+	}
 
 	for (i = 0; i < SCI_MAX_PHYS; i++)
 		isci_phy_init(&ihost->phys[i], ihost, i);

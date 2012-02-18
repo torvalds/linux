@@ -97,7 +97,6 @@ enum isci_status {
 struct isci_port {
 	struct isci_host *isci_host;
 	struct list_head remote_dev_list;
-	struct list_head domain_dev_list;
 	#define IPORT_RESET_PENDING 0
 	unsigned long state;
 	enum sci_status hard_reset_status;
@@ -272,11 +271,6 @@ void sci_port_get_attached_sas_address(
 
 void isci_port_formed(struct asd_sas_phy *);
 void isci_port_deformed(struct asd_sas_phy *);
-
-void isci_port_init(
-	struct isci_port *port,
-	struct isci_host *host,
-	int index);
 
 int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *iport,
 				 struct isci_phy *iphy);

@@ -1606,13 +1606,6 @@ void sci_port_construct(struct isci_port *iport, u8 index,
 		iport->phy_table[index] = NULL;
 }
 
-void isci_port_init(struct isci_port *iport, struct isci_host *ihost, int index)
-{
-	INIT_LIST_HEAD(&iport->remote_dev_list);
-	INIT_LIST_HEAD(&iport->domain_dev_list);
-	iport->isci_host = ihost;
-}
-
 void sci_port_broadcast_change_received(struct isci_port *iport, struct isci_phy *iphy)
 {
 	struct isci_host *ihost = iport->owning_controller;
