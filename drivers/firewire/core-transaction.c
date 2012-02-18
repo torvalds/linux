@@ -602,6 +602,9 @@ EXPORT_SYMBOL(fw_core_add_address_handler);
 
 /**
  * fw_core_remove_address_handler() - unregister an address handler
+ *
+ * When fw_core_remove_address_handler() returns, @handler->callback() is
+ * guaranteed to not run on any CPU anymore.
  */
 void fw_core_remove_address_handler(struct fw_address_handler *handler)
 {
@@ -838,16 +841,16 @@ static void handle_exclusive_region_request(struct fw_card *card,
 	spin_lock_irqsave(&address_handler_lock, flags);
 	handler = lookup_enclosing_address_handler(&address_handler_list,
 						   offset, request->length);
-	spin_unlock_irqrestore(&address_handler_lock, flags);
-
-	if (handler == NULL)
-		fw_send_response(card, request, RCODE_ADDRESS_ERROR);
-	else
+	if (handler)
 		handler->address_callback(card, request,
 					  tcode, destination, source,
 					  p->generation, offset,
 					  request->data, request->length,
 					  handler->callback_data);
+	spin_unlock_irqrestore(&address_handler_lock, flags);
+
+	if (!handler)
+		fw_send_response(card, request, RCODE_ADDRESS_ERROR);
 }
 
 static void handle_fcp_region_request(struct fw_card *card,
