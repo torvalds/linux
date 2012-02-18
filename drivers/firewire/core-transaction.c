@@ -565,7 +565,6 @@ int fw_core_add_address_handler(struct fw_address_handler *handler,
 				const struct fw_address_region *region)
 {
 	struct fw_address_handler *other;
-	unsigned long flags;
 	int ret = -EBUSY;
 
 	if (region->start & 0xffff000000000003ULL ||
@@ -575,7 +574,7 @@ int fw_core_add_address_handler(struct fw_address_handler *handler,
 	    handler->length == 0)
 		return -EINVAL;
 
-	spin_lock_irqsave(&address_handler_lock, flags);
+	spin_lock_bh(&address_handler_lock);
 
 	handler->offset = region->start;
 	while (handler->offset + handler->length <= region->end) {
@@ -594,7 +593,7 @@ int fw_core_add_address_handler(struct fw_address_handler *handler,
 		}
 	}
 
-	spin_unlock_irqrestore(&address_handler_lock, flags);
+	spin_unlock_bh(&address_handler_lock);
 
 	return ret;
 }
@@ -608,11 +607,9 @@ EXPORT_SYMBOL(fw_core_add_address_handler);
  */
 void fw_core_remove_address_handler(struct fw_address_handler *handler)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&address_handler_lock, flags);
+	spin_lock_bh(&address_handler_lock);
 	list_del(&handler->link);
-	spin_unlock_irqrestore(&address_handler_lock, flags);
+	spin_unlock_bh(&address_handler_lock);
 }
 EXPORT_SYMBOL(fw_core_remove_address_handler);
 
@@ -829,7 +826,6 @@ static void handle_exclusive_region_request(struct fw_card *card,
 					    unsigned long long offset)
 {
 	struct fw_address_handler *handler;
-	unsigned long flags;
 	int tcode, destination, source;
 
 	destination = HEADER_GET_DESTINATION(p->header[0]);
@@ -838,7 +834,7 @@ static void handle_exclusive_region_request(struct fw_card *card,
 	if (tcode == TCODE_LOCK_REQUEST)
 		tcode = 0x10 + HEADER_GET_EXTENDED_TCODE(p->header[3]);
 
-	spin_lock_irqsave(&address_handler_lock, flags);
+	spin_lock_bh(&address_handler_lock);
 	handler = lookup_enclosing_address_handler(&address_handler_list,
 						   offset, request->length);
 	if (handler)
@@ -847,7 +843,7 @@ static void handle_exclusive_region_request(struct fw_card *card,
 					  p->generation, offset,
 					  request->data, request->length,
 					  handler->callback_data);
-	spin_unlock_irqrestore(&address_handler_lock, flags);
+	spin_unlock_bh(&address_handler_lock);
 
 	if (!handler)
 		fw_send_response(card, request, RCODE_ADDRESS_ERROR);
@@ -859,7 +855,6 @@ static void handle_fcp_region_request(struct fw_card *card,
 				      unsigned long long offset)
 {
 	struct fw_address_handler *handler;
-	unsigned long flags;
 	int tcode, destination, source;
 
 	if ((offset != (CSR_REGISTER_BASE | CSR_FCP_COMMAND) &&
@@ -881,7 +876,7 @@ static void handle_fcp_region_request(struct fw_card *card,
 		return;
 	}
 
-	spin_lock_irqsave(&address_handler_lock, flags);
+	spin_lock_bh(&address_handler_lock);
 	list_for_each_entry(handler, &address_handler_list, link) {
 		if (is_enclosing_handler(handler, offset, request->length))
 			handler->address_callback(card, NULL, tcode,
@@ -891,7 +886,7 @@ static void handle_fcp_region_request(struct fw_card *card,
 						  request->length,
 						  handler->callback_data);
 	}
-	spin_unlock_irqrestore(&address_handler_lock, flags);
+	spin_unlock_bh(&address_handler_lock);
 
 	fw_send_response(card, request, RCODE_COMPLETE);
 }
