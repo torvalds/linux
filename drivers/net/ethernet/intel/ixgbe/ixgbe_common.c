@@ -2578,6 +2578,58 @@ void ixgbe_release_swfw_sync(struct ixgbe_hw *hw, u16 mask)
 }
 
 /**
+ *  ixgbe_disable_rx_buff_generic - Stops the receive data path
+ *  @hw: pointer to hardware structure
+ *
+ *  Stops the receive data path and waits for the HW to internally
+ *  empty the Rx security block.
+ **/
+s32 ixgbe_disable_rx_buff_generic(struct ixgbe_hw *hw)
+{
+#define IXGBE_MAX_SECRX_POLL 40
+	int i;
+	int secrxreg;
+
+	secrxreg = IXGBE_READ_REG(hw, IXGBE_SECRXCTRL);
+	secrxreg |= IXGBE_SECRXCTRL_RX_DIS;
+	IXGBE_WRITE_REG(hw, IXGBE_SECRXCTRL, secrxreg);
+	for (i = 0; i < IXGBE_MAX_SECRX_POLL; i++) {
+		secrxreg = IXGBE_READ_REG(hw, IXGBE_SECRXSTAT);
+		if (secrxreg & IXGBE_SECRXSTAT_SECRX_RDY)
+			break;
+		else
+			/* Use interrupt-safe sleep just in case */
+			udelay(10);
+	}
+
+	/* For informational purposes only */
+	if (i >= IXGBE_MAX_SECRX_POLL)
+		hw_dbg(hw, "Rx unit being enabled before security "
+		       "path fully disabled.  Continuing with init.\n");
+
+	return 0;
+
+}
+
+/**
+ *  ixgbe_enable_rx_buff - Enables the receive data path
+ *  @hw: pointer to hardware structure
+ *
+ *  Enables the receive data path
+ **/
+s32 ixgbe_enable_rx_buff_generic(struct ixgbe_hw *hw)
+{
+	int secrxreg;
+
+	secrxreg = IXGBE_READ_REG(hw, IXGBE_SECRXCTRL);
+	secrxreg &= ~IXGBE_SECRXCTRL_RX_DIS;
+	IXGBE_WRITE_REG(hw, IXGBE_SECRXCTRL, secrxreg);
+	IXGBE_WRITE_FLUSH(hw);
+
+	return 0;
+}
+
+/**
  *  ixgbe_enable_rx_dma_generic - Enable the Rx DMA unit
  *  @hw: pointer to hardware structure
  *  @regval: register value to write to RXCTRL

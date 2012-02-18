@@ -3661,6 +3661,8 @@ static void ixgbe_fdir_filter_restore(struct ixgbe_adapter *adapter)
 
 static void ixgbe_configure(struct ixgbe_adapter *adapter)
 {
+	struct ixgbe_hw *hw = &adapter->hw;
+
 	ixgbe_configure_pb(adapter);
 #ifdef CONFIG_IXGBE_DCB
 	ixgbe_configure_dcb(adapter);
@@ -3674,6 +3676,16 @@ static void ixgbe_configure(struct ixgbe_adapter *adapter)
 		ixgbe_configure_fcoe(adapter);
 
 #endif /* IXGBE_FCOE */
+
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+		hw->mac.ops.disable_rx_buff(hw);
+		break;
+	default:
+		break;
+	}
+
 	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
 		ixgbe_init_fdir_signature_82599(&adapter->hw,
 						adapter->fdir_pballoc);
@@ -3681,6 +3693,15 @@ static void ixgbe_configure(struct ixgbe_adapter *adapter)
 		ixgbe_init_fdir_perfect_82599(&adapter->hw,
 					      adapter->fdir_pballoc);
 		ixgbe_fdir_filter_restore(adapter);
+	}
+
+	switch (hw->mac.type) {
+	case ixgbe_mac_82599EB:
+	case ixgbe_mac_X540:
+		hw->mac.ops.enable_rx_buff(hw);
+		break;
+	default:
+		break;
 	}
 
 	ixgbe_configure_virtualization(adapter);

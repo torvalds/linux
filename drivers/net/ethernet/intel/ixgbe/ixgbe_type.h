@@ -2728,6 +2728,8 @@ struct ixgbe_mac_operations {
 	s32 (*read_analog_reg8)(struct ixgbe_hw*, u32, u8*);
 	s32 (*write_analog_reg8)(struct ixgbe_hw*, u32, u8);
 	s32 (*setup_sfp)(struct ixgbe_hw *);
+	s32 (*disable_rx_buff)(struct ixgbe_hw *);
+	s32 (*enable_rx_buff)(struct ixgbe_hw *);
 	s32 (*enable_rx_dma)(struct ixgbe_hw *, u32);
 	s32 (*acquire_swfw_sync)(struct ixgbe_hw *, u16);
 	void (*release_swfw_sync)(struct ixgbe_hw *, u16);
