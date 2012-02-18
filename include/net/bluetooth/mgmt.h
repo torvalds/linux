@@ -318,8 +318,8 @@ struct mgmt_ev_cmd_complete {
 
 #define MGMT_EV_CMD_STATUS		0x0002
 struct mgmt_ev_cmd_status {
-	__u8 status;
 	__le16 opcode;
+	__u8 status;
 } __packed;
 
 #define MGMT_EV_CONTROLLER_ERROR	0x0003
