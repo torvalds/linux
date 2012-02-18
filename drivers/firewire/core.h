@@ -1,6 +1,7 @@
 #ifndef _FIREWIRE_CORE_H
 #define _FIREWIRE_CORE_H
 
+#include <linux/compiler.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/list.h>
@@ -23,6 +24,11 @@ struct fw_packet;
 
 
 /* -card */
+
+extern __printf(2, 3)
+void fw_err(const struct fw_card *card, const char *fmt, ...);
+extern __printf(2, 3)
+void fw_notice(const struct fw_card *card, const char *fmt, ...);
 
 /* bitfields within the PHY registers */
 #define PHY_LINK_ACTIVE		0x80

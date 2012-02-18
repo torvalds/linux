@@ -770,7 +770,7 @@ static struct fw_request *allocate_request(struct fw_card *card,
 		break;
 
 	default:
-		fw_error("ERROR - corrupt request received - %08x %08x %08x\n",
+		fw_notice(card, "ERROR - corrupt request received - %08x %08x %08x\n",
 			 p->header[0], p->header[1], p->header[2]);
 		return NULL;
 	}
@@ -960,7 +960,7 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 
 	if (&t->link == &card->transaction_list) {
  timed_out:
-		fw_notify("Unsolicited response (source %x, tlabel %x)\n",
+		fw_notice(card, "unsolicited response (source %x, tlabel %x)\n",
 			  source, tlabel);
 		return;
 	}

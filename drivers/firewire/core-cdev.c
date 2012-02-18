@@ -389,7 +389,7 @@ static void queue_bus_reset_event(struct client *client)
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (e == NULL) {
-		fw_notify("Out of memory when allocating event\n");
+		fw_notice(client->device->card, "out of memory when allocating event\n");
 		return;
 	}
 
@@ -691,7 +691,7 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 	r = kmalloc(sizeof(*r), GFP_ATOMIC);
 	e = kmalloc(sizeof(*e), GFP_ATOMIC);
 	if (r == NULL || e == NULL) {
-		fw_notify("Out of memory when allocating event\n");
+		fw_notice(card, "out of memory when allocating event\n");
 		goto failed;
 	}
 	r->card    = card;
@@ -928,7 +928,7 @@ static void iso_callback(struct fw_iso_context *context, u32 cycle,
 
 	e = kmalloc(sizeof(*e) + header_length, GFP_ATOMIC);
 	if (e == NULL) {
-		fw_notify("Out of memory when allocating event\n");
+		fw_notice(context->card, "out of memory when allocating event\n");
 		return;
 	}
 	e->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT;
@@ -948,7 +948,7 @@ static void iso_mc_callback(struct fw_iso_context *context,
 
 	e = kmalloc(sizeof(*e), GFP_ATOMIC);
 	if (e == NULL) {
-		fw_notify("Out of memory when allocating event\n");
+		fw_notice(context->card, "out of memory when allocating event\n");
 		return;
 	}
 	e->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT_MULTICHANNEL;
@@ -1548,7 +1548,7 @@ void fw_cdev_handle_phy_packet(struct fw_card *card, struct fw_packet *p)
 	list_for_each_entry(client, &card->phy_receiver_list, phy_receiver_link) {
 		e = kmalloc(sizeof(*e) + 8, GFP_ATOMIC);
 		if (e == NULL) {
-			fw_notify("Out of memory when allocating event\n");
+			fw_notice(card, "out of memory when allocating event\n");
 			break;
 		}
 		e->phy_packet.closure	= client->phy_receiver_closure;
