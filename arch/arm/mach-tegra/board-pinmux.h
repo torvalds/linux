@@ -15,11 +15,9 @@
 #ifndef __MACH_TEGRA_BOARD_PINMUX_H
 #define __MACH_TEGRA_BOARD_PINMUX_H
 
-#define GPIO_DEV "tegra-gpio"
 #define PINMUX_DEV "tegra-pinmux"
 
 struct tegra_pingroup_config;
-struct tegra_gpio_table;
 
 struct tegra_board_pinmux_conf {
 	struct tegra_pingroup_config *pgs;
@@ -27,9 +25,6 @@ struct tegra_board_pinmux_conf {
 
 	struct tegra_drive_pingroup_config *drives;
 	int drive_count;
-
-	struct tegra_gpio_table *gpios;
-	int gpio_count;
 };
 
 void tegra_board_pinmux_init(struct tegra_board_pinmux_conf *conf_a,

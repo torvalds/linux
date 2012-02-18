@@ -15,13 +15,11 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/gpio.h>
 #include <linux/of.h>
 
 #include <mach/pinmux.h>
 #include <mach/pinmux-tegra20.h>
 
-#include "gpio-names.h"
 #include "board-paz00.h"
 #include "board-pinmux.h"
 
@@ -144,21 +142,9 @@ static struct tegra_pingroup_config paz00_pinmux[] = {
 	{TEGRA_PINGROUP_XM2D,  TEGRA_MUX_NONE,          TEGRA_PUPD_NORMAL,    TEGRA_TRI_NORMAL},
 };
 
-static struct tegra_gpio_table gpio_table[] = {
-	{ .gpio = TEGRA_GPIO_SD1_CD,	.enable = true },
-	{ .gpio = TEGRA_GPIO_SD1_WP,	.enable = true },
-	{ .gpio = TEGRA_GPIO_SD1_POWER,	.enable = true },
-	{ .gpio = TEGRA_ULPI_RST,	.enable = true },
-	{ .gpio = TEGRA_WIFI_PWRN,	.enable = true },
-	{ .gpio = TEGRA_WIFI_RST,	.enable = true },
-	{ .gpio = TEGRA_WIFI_LED,	.enable = true },
-};
-
 static struct tegra_board_pinmux_conf conf = {
 	.pgs = paz00_pinmux,
 	.pg_count = ARRAY_SIZE(paz00_pinmux),
-	.gpios = gpio_table,
-	.gpio_count = ARRAY_SIZE(gpio_table),
 };
 
 void paz00_pinmux_init(void)

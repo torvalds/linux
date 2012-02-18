@@ -18,25 +18,12 @@
 #include <linux/of.h>
 #include <linux/string.h>
 
-#include <mach/gpio-tegra.h>
 #include <mach/pinmux.h>
 
 #include "board-pinmux.h"
 #include "devices.h"
 
 struct tegra_board_pinmux_conf *confs[2];
-
-static void tegra_board_pinmux_setup_gpios(void)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(confs); i++) {
-		if (!confs[i])
-			continue;
-
-		tegra_gpio_config(confs[i]->gpios, confs[i]->gpio_count);
-	}
-}
 
 static void tegra_board_pinmux_setup_pinmux(void)
 {
@@ -57,29 +44,17 @@ static void tegra_board_pinmux_setup_pinmux(void)
 static int tegra_board_pinmux_bus_notify(struct notifier_block *nb,
 					 unsigned long event, void *vdev)
 {
-	static bool had_gpio;
-	static bool had_pinmux;
-
 	struct device *dev = vdev;
-	const char *devname;
 
 	if (event != BUS_NOTIFY_BOUND_DRIVER)
 		return NOTIFY_DONE;
 
-	devname = dev_name(dev);
-
-	if (!had_gpio && !strcmp(devname, GPIO_DEV)) {
-		tegra_board_pinmux_setup_gpios();
-		had_gpio = true;
-	} else if (!had_pinmux && !strcmp(devname, PINMUX_DEV)) {
-		tegra_board_pinmux_setup_pinmux();
-		had_pinmux = true;
-	}
-
-	if (had_gpio && had_pinmux)
-		return NOTIFY_STOP_MASK;
-	else
+	if (strcmp(dev_name(dev), PINMUX_DEV))
 		return NOTIFY_DONE;
+
+	tegra_board_pinmux_setup_pinmux();
+
+	return NOTIFY_STOP_MASK;
 }
 
 static struct notifier_block nb = {

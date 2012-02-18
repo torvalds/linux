@@ -13,7 +13,6 @@
  * GNU General Public License for more details.
  *
  */
-#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/of.h>
@@ -21,7 +20,6 @@
 #include <mach/pinmux.h>
 #include <mach/pinmux-tegra20.h>
 
-#include "gpio-names.h"
 #include "board-pinmux.h"
 #include "board-trimslice.h"
 
@@ -144,19 +142,9 @@ static struct tegra_pingroup_config trimslice_pinmux[] = {
 	{TEGRA_PINGROUP_XM2D,  TEGRA_MUX_NONE,          TEGRA_PUPD_NORMAL,      TEGRA_TRI_NORMAL},
 };
 
-static struct tegra_gpio_table gpio_table[] = {
-	{ .gpio = TRIMSLICE_GPIO_SD4_CD, .enable = true	}, /* mmc4 cd */
-	{ .gpio = TRIMSLICE_GPIO_SD4_WP, .enable = true	}, /* mmc4 wp */
-
-	{ .gpio = TRIMSLICE_GPIO_USB1_MODE, .enable = true }, /* USB1 mode */
-	{ .gpio = TRIMSLICE_GPIO_USB2_RST,  .enable = true }, /* USB2 PHY rst */
-};
-
 static struct tegra_board_pinmux_conf conf = {
 	.pgs = trimslice_pinmux,
 	.pg_count = ARRAY_SIZE(trimslice_pinmux),
-	.gpios = gpio_table,
-	.gpio_count = ARRAY_SIZE(gpio_table),
 };
 
 void trimslice_pinmux_init(void)

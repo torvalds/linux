@@ -15,13 +15,11 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/gpio.h>
 #include <linux/of.h>
 
 #include <mach/pinmux.h>
 #include <mach/pinmux-tegra20.h>
 
-#include "gpio-names.h"
 #include "board-pinmux.h"
 #include "board-seaboard.h"
 
@@ -179,35 +177,9 @@ static struct tegra_pingroup_config ventana_pinmux[] = {
 	{TEGRA_PINGROUP_SPIG, TEGRA_MUX_SPI2_ALT, TEGRA_PUPD_NORMAL,    TEGRA_TRI_TRISTATE},
 };
 
-static struct tegra_gpio_table common_gpio_table[] = {
-	{ .gpio = TEGRA_GPIO_SD2_CD,		.enable = true },
-	{ .gpio = TEGRA_GPIO_SD2_WP,		.enable = true },
-	{ .gpio = TEGRA_GPIO_SD2_POWER,		.enable = true },
-	{ .gpio = TEGRA_GPIO_CDC_IRQ,		.enable = true },
-};
-
-static struct tegra_gpio_table seaboard_gpio_table[] = {
-	{ .gpio = TEGRA_GPIO_LIDSWITCH,		.enable = true },
-	{ .gpio = TEGRA_GPIO_POWERKEY,		.enable = true },
-	{ .gpio = TEGRA_GPIO_HP_DET,		.enable = true },
-	{ .gpio = TEGRA_GPIO_ISL29018_IRQ,	.enable = true },
-	{ .gpio = TEGRA_GPIO_USB1,		.enable = true },
-};
-
-static struct tegra_gpio_table ventana_gpio_table[] = {
-	/* hp_det */
-	{ .gpio = TEGRA_GPIO_PW2,		.enable = true },
-	/* int_mic_en */
-	{ .gpio = TEGRA_GPIO_PX0,		.enable = true },
-	/* ext_mic_en */
-	{ .gpio = TEGRA_GPIO_PX1,		.enable = true },
-};
-
 static struct tegra_board_pinmux_conf common_conf = {
 	.pgs = common_pinmux,
 	.pg_count = ARRAY_SIZE(common_pinmux),
-	.gpios = common_gpio_table,
-	.gpio_count = ARRAY_SIZE(common_gpio_table),
 };
 
 static struct tegra_board_pinmux_conf seaboard_conf = {
@@ -215,15 +187,11 @@ static struct tegra_board_pinmux_conf seaboard_conf = {
 	.pg_count = ARRAY_SIZE(seaboard_pinmux),
 	.drives = seaboard_drive_pinmux,
 	.drive_count = ARRAY_SIZE(seaboard_drive_pinmux),
-	.gpios = seaboard_gpio_table,
-	.gpio_count = ARRAY_SIZE(seaboard_gpio_table),
 };
 
 static struct tegra_board_pinmux_conf ventana_conf = {
 	.pgs = ventana_pinmux,
 	.pg_count = ARRAY_SIZE(ventana_pinmux),
-	.gpios = ventana_gpio_table,
-	.gpio_count = ARRAY_SIZE(ventana_gpio_table),
 };
 
 void seaboard_pinmux_init(void)

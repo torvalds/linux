@@ -269,7 +269,6 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 				"failed to allocate power gpio\n");
 			goto err_power_req;
 		}
-		tegra_gpio_enable(plat->power_gpio);
 		gpio_direction_output(plat->power_gpio, 1);
 	}
 
@@ -280,7 +279,6 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 				"failed to allocate cd gpio\n");
 			goto err_cd_req;
 		}
-		tegra_gpio_enable(plat->cd_gpio);
 		gpio_direction_input(plat->cd_gpio);
 
 		rc = request_irq(gpio_to_irq(plat->cd_gpio), carddetect_irq,
@@ -301,7 +299,6 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 				"failed to allocate wp gpio\n");
 			goto err_wp_req;
 		}
-		tegra_gpio_enable(plat->wp_gpio);
 		gpio_direction_input(plat->wp_gpio);
 	}
 
@@ -329,23 +326,17 @@ err_add_host:
 	clk_disable(pltfm_host->clk);
 	clk_put(pltfm_host->clk);
 err_clk_get:
-	if (gpio_is_valid(plat->wp_gpio)) {
-		tegra_gpio_disable(plat->wp_gpio);
+	if (gpio_is_valid(plat->wp_gpio))
 		gpio_free(plat->wp_gpio);
-	}
 err_wp_req:
 	if (gpio_is_valid(plat->cd_gpio))
 		free_irq(gpio_to_irq(plat->cd_gpio), host);
 err_cd_irq_req:
-	if (gpio_is_valid(plat->cd_gpio)) {
-		tegra_gpio_disable(plat->cd_gpio);
+	if (gpio_is_valid(plat->cd_gpio))
 		gpio_free(plat->cd_gpio);
-	}
 err_cd_req:
-	if (gpio_is_valid(plat->power_gpio)) {
-		tegra_gpio_disable(plat->power_gpio);
+	if (gpio_is_valid(plat->power_gpio))
 		gpio_free(plat->power_gpio);
-	}
 err_power_req:
 err_no_plat:
 	sdhci_pltfm_free(pdev);
@@ -362,21 +353,16 @@ static int __devexit sdhci_tegra_remove(struct platform_device *pdev)
 
 	sdhci_remove_host(host, dead);
 
-	if (gpio_is_valid(plat->wp_gpio)) {
-		tegra_gpio_disable(plat->wp_gpio);
+	if (gpio_is_valid(plat->wp_gpio))
 		gpio_free(plat->wp_gpio);
-	}
 
 	if (gpio_is_valid(plat->cd_gpio)) {
 		free_irq(gpio_to_irq(plat->cd_gpio), host);
-		tegra_gpio_disable(plat->cd_gpio);
 		gpio_free(plat->cd_gpio);
 	}
 
-	if (gpio_is_valid(plat->power_gpio)) {
-		tegra_gpio_disable(plat->power_gpio);
+	if (gpio_is_valid(plat->power_gpio))
 		gpio_free(plat->power_gpio);
-	}
 
 	clk_disable(pltfm_host->clk);
 	clk_put(pltfm_host->clk);
