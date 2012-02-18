@@ -386,8 +386,9 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	int cpu = smp_processor_id();
 	struct tss_struct *tss = &per_cpu(init_tss, cpu);
 	unsigned fsindex, gsindex;
+	fpu_switch_t fpu;
 
-	__unlazy_fpu(prev_p);
+	fpu = switch_fpu_prepare(prev_p, next_p);
 
 	/*
 	 * Reload esp0, LDT and the page table pointer:
@@ -456,6 +457,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	if (next->gs)
 		wrmsrl(MSR_KERNEL_GS_BASE, next->gs);
 	prev->gsindex = gsindex;
+
+	switch_fpu_finish(next_p, fpu);
 
 	/*
 	 * Switch the PDA and FPU contexts.

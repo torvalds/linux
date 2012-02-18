@@ -299,10 +299,11 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 				 *next = &next_p->thread;
 	int cpu = smp_processor_id();
 	struct tss_struct *tss = &per_cpu(init_tss, cpu);
+	fpu_switch_t fpu;
 
 	/* never put a printk in __switch_to... printk() calls wake_up*() indirectly */
 
-	__unlazy_fpu(prev_p);
+	fpu = switch_fpu_prepare(prev_p, next_p);
 
 	/*
 	 * Reload esp0.
@@ -356,6 +357,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 */
 	if (prev->gs | next->gs)
 		lazy_load_gs(next->gs);
+
+	switch_fpu_finish(next_p, fpu);
 
 	percpu_write(current_task, next_p);
 
