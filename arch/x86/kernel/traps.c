@@ -728,12 +728,11 @@ asmlinkage void __attribute__((weak)) smp_threshold_interrupt(void)
  */
 void math_state_restore(void)
 {
-	struct thread_info *thread = current_thread_info();
-	struct task_struct *tsk = thread->task;
+	struct task_struct *tsk = current;
 
 	/* We need a safe address that is cheap to find and that is already
-	   in L1. We just brought in "thread->task", so use that */
-#define safe_address (thread->task)
+	   in L1. We're just bringing in "tsk->thread.has_fpu", so use that */
+#define safe_address (tsk->thread.has_fpu)
 
 	if (!tsk_used_math(tsk)) {
 		local_irq_enable();
@@ -750,7 +749,7 @@ void math_state_restore(void)
 		local_irq_disable();
 	}
 
-	__thread_fpu_begin(thread);
+	__thread_fpu_begin(tsk);
 
 	/* AMD K7/K8 CPUs don't save/restore FDP/FIP/FOP unless an exception
 	   is pending.  Clear the x87 state here by setting it to fixed
@@ -766,7 +765,7 @@ void math_state_restore(void)
 	 * Paranoid restore. send a SIGSEGV if we fail to restore the state.
 	 */
 	if (unlikely(restore_fpu_checking(tsk))) {
-		__thread_fpu_end(thread);
+		__thread_fpu_end(tsk);
 		force_sig(SIGSEGV, tsk);
 		return;
 	}

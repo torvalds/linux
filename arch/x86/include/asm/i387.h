@@ -264,21 +264,21 @@ static inline int restore_fpu_checking(struct task_struct *tsk)
  * be preemption protection *and* they need to be
  * properly paired with the CR0.TS changes!
  */
-static inline int __thread_has_fpu(struct thread_info *ti)
+static inline int __thread_has_fpu(struct task_struct *tsk)
 {
-	return ti->status & TS_USEDFPU;
+	return tsk->thread.has_fpu;
 }
 
 /* Must be paired with an 'stts' after! */
-static inline void __thread_clear_has_fpu(struct thread_info *ti)
+static inline void __thread_clear_has_fpu(struct task_struct *tsk)
 {
-	ti->status &= ~TS_USEDFPU;
+	tsk->thread.has_fpu = 0;
 }
 
 /* Must be paired with a 'clts' before! */
-static inline void __thread_set_has_fpu(struct thread_info *ti)
+static inline void __thread_set_has_fpu(struct task_struct *tsk)
 {
-	ti->status |= TS_USEDFPU;
+	tsk->thread.has_fpu = 1;
 }
 
 /*
@@ -288,16 +288,16 @@ static inline void __thread_set_has_fpu(struct thread_info *ti)
  * These generally need preemption protection to work,
  * do try to avoid using these on their own.
  */
-static inline void __thread_fpu_end(struct thread_info *ti)
+static inline void __thread_fpu_end(struct task_struct *tsk)
 {
-	__thread_clear_has_fpu(ti);
+	__thread_clear_has_fpu(tsk);
 	stts();
 }
 
-static inline void __thread_fpu_begin(struct thread_info *ti)
+static inline void __thread_fpu_begin(struct task_struct *tsk)
 {
 	clts();
-	__thread_set_has_fpu(ti);
+	__thread_set_has_fpu(tsk);
 }
 
 /*
@@ -308,21 +308,21 @@ extern int restore_i387_xstate(void __user *buf);
 
 static inline void __unlazy_fpu(struct task_struct *tsk)
 {
-	if (__thread_has_fpu(task_thread_info(tsk))) {
+	if (__thread_has_fpu(tsk)) {
 		__save_init_fpu(tsk);
-		__thread_fpu_end(task_thread_info(tsk));
+		__thread_fpu_end(tsk);
 	} else
 		tsk->fpu_counter = 0;
 }
 
 static inline void __clear_fpu(struct task_struct *tsk)
 {
-	if (__thread_has_fpu(task_thread_info(tsk))) {
+	if (__thread_has_fpu(tsk)) {
 		/* Ignore delayed exceptions from user space */
 		asm volatile("1: fwait\n"
 			     "2:\n"
 			     _ASM_EXTABLE(1b, 2b));
-		__thread_fpu_end(task_thread_info(tsk));
+		__thread_fpu_end(tsk);
 	}
 }
 
@@ -337,7 +337,7 @@ static inline void __clear_fpu(struct task_struct *tsk)
  */
 static inline bool interrupted_kernel_fpu_idle(void)
 {
-	return !__thread_has_fpu(current_thread_info()) &&
+	return !__thread_has_fpu(current) &&
 		(read_cr0() & X86_CR0_TS);
 }
 
@@ -371,12 +371,12 @@ static inline bool irq_fpu_usable(void)
 
 static inline void kernel_fpu_begin(void)
 {
-	struct thread_info *me = current_thread_info();
+	struct task_struct *me = current;
 
 	WARN_ON_ONCE(!irq_fpu_usable());
 	preempt_disable();
 	if (__thread_has_fpu(me)) {
-		__save_init_fpu(me->task);
+		__save_init_fpu(me);
 		__thread_clear_has_fpu(me);
 		/* We do 'stts()' in kernel_fpu_end() */
 	} else
@@ -441,13 +441,13 @@ static inline void irq_ts_restore(int TS_state)
  */
 static inline int user_has_fpu(void)
 {
-	return __thread_has_fpu(current_thread_info());
+	return __thread_has_fpu(current);
 }
 
 static inline void user_fpu_end(void)
 {
 	preempt_disable();
-	__thread_fpu_end(current_thread_info());
+	__thread_fpu_end(current);
 	preempt_enable();
 }
 
@@ -455,7 +455,7 @@ static inline void user_fpu_begin(void)
 {
 	preempt_disable();
 	if (!user_has_fpu())
-		__thread_fpu_begin(current_thread_info());
+		__thread_fpu_begin(current);
 	preempt_enable();
 }
 
@@ -464,10 +464,10 @@ static inline void user_fpu_begin(void)
  */
 static inline void save_init_fpu(struct task_struct *tsk)
 {
-	WARN_ON_ONCE(!__thread_has_fpu(task_thread_info(tsk)));
+	WARN_ON_ONCE(!__thread_has_fpu(tsk));
 	preempt_disable();
 	__save_init_fpu(tsk);
-	__thread_fpu_end(task_thread_info(tsk));
+	__thread_fpu_end(tsk);
 	preempt_enable();
 }
 
