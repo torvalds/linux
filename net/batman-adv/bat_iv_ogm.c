@@ -355,10 +355,9 @@ static void bat_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 	if ((atomic_read(&bat_priv->aggregated_ogms)) &&
 	    (packet_len < MAX_AGGREGATION_BYTES))
 		forw_packet_aggr->skb = dev_alloc_skb(MAX_AGGREGATION_BYTES +
-						      sizeof(struct ethhdr));
+						      ETH_HLEN);
 	else
-		forw_packet_aggr->skb = dev_alloc_skb(packet_len +
-						      sizeof(struct ethhdr));
+		forw_packet_aggr->skb = dev_alloc_skb(packet_len + ETH_HLEN);
 
 	if (!forw_packet_aggr->skb) {
 		if (!own_packet)
@@ -366,7 +365,7 @@ static void bat_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 		kfree(forw_packet_aggr);
 		goto out;
 	}
-	skb_reserve(forw_packet_aggr->skb, sizeof(struct ethhdr));
+	skb_reserve(forw_packet_aggr->skb, ETH_HLEN);
 
 	INIT_HLIST_NODE(&forw_packet_aggr->list);
 

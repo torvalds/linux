@@ -290,9 +290,7 @@ static void bla_send_claim(struct bat_priv *bat_priv, uint8_t *mac,
 		goto out;
 
 	ethhdr = (struct ethhdr *)skb->data;
-	hw_src = (uint8_t *)ethhdr +
-		 sizeof(struct ethhdr) +
-		 sizeof(struct arphdr);
+	hw_src = (uint8_t *)ethhdr + ETH_HLEN + sizeof(struct arphdr);
 
 	/* now we pretend that the client would have sent this ... */
 	switch (claimtype) {
@@ -340,7 +338,7 @@ static void bla_send_claim(struct bat_priv *bat_priv, uint8_t *mac,
 	skb_reset_mac_header(skb);
 	skb->protocol = eth_type_trans(skb, soft_iface);
 	bat_priv->stats.rx_packets++;
-	bat_priv->stats.rx_bytes += skb->len + sizeof(struct ethhdr);
+	bat_priv->stats.rx_bytes += skb->len + ETH_HLEN;
 	soft_iface->last_rx = jiffies;
 
 	netif_rx(skb);
@@ -844,7 +842,7 @@ static int bla_process_claim(struct bat_priv *bat_priv,
 		headlen = sizeof(*vhdr);
 	} else {
 		proto = ntohs(ethhdr->h_proto);
-		headlen = sizeof(*ethhdr);
+		headlen = ETH_HLEN;
 	}
 
 	if (proto != ETH_P_ARP)
@@ -1302,7 +1300,7 @@ int bla_is_backbone_gw(struct sk_buff *skb,
 		return 0;
 
 	/* first, find out the vid. */
-	if (!pskb_may_pull(skb, hdr_size + sizeof(struct ethhdr)))
+	if (!pskb_may_pull(skb, hdr_size + ETH_HLEN))
 		return 0;
 
 	ethhdr = (struct ethhdr *)(((uint8_t *)skb->data) + hdr_size);
