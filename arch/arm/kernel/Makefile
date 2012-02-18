@@ -8,6 +8,7 @@ AFLAGS_head.o        := -DTEXT_OFFSET=$(TEXT_OFFSET)
 ifdef CONFIG_FUNCTION_TRACER
 CFLAGS_REMOVE_ftrace.o = -pg
 CFLAGS_REMOVE_insn.o = -pg
+CFLAGS_REMOVE_patch.o = -pg
 endif
 
 CFLAGS_REMOVE_return_address.o = -pg
@@ -38,7 +39,7 @@ obj-$(CONFIG_HAVE_ARM_TWD)	+= smp_twd.o
 obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o insn.o
 obj-$(CONFIG_FUNCTION_GRAPH_TRACER)	+= ftrace.o insn.o
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
-obj-$(CONFIG_KPROBES)		+= kprobes.o kprobes-common.o
+obj-$(CONFIG_KPROBES)		+= kprobes.o kprobes-common.o patch.o
 ifdef CONFIG_THUMB2_KERNEL
 obj-$(CONFIG_KPROBES)		+= kprobes-thumb.o
 else
