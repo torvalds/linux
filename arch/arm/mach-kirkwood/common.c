@@ -86,7 +86,7 @@ static struct clk __init *kirkwood_register_gate(const char *name, u8 bit_idx)
 
 void __init kirkwood_clk_init(void)
 {
-	struct clk *runit, *ge0, *ge1;
+	struct clk *runit, *ge0, *ge1, *sata0, *sata1, *usb0;
 
 	tclk = clk_register_fixed_rate(NULL, "tclk", NULL,
 				       CLK_IS_ROOT, kirkwood_tclk);
@@ -94,8 +94,8 @@ void __init kirkwood_clk_init(void)
 	runit = kirkwood_register_gate("runit",  CGC_BIT_RUNIT);
 	ge0 = kirkwood_register_gate("ge0",    CGC_BIT_GE0);
 	ge1 = kirkwood_register_gate("ge1",    CGC_BIT_GE1);
-	kirkwood_register_gate("sata0",  CGC_BIT_SATA0);
-	kirkwood_register_gate("sata1",  CGC_BIT_SATA1);
+	sata0 = kirkwood_register_gate("sata0",  CGC_BIT_SATA0);
+	sata1 = kirkwood_register_gate("sata1",  CGC_BIT_SATA1);
 	kirkwood_register_gate("usb0",   CGC_BIT_USB0);
 	kirkwood_register_gate("sdio",   CGC_BIT_SDIO);
 	kirkwood_register_gate("crypto", CGC_BIT_CRYPTO);
@@ -113,6 +113,8 @@ void __init kirkwood_clk_init(void)
 	orion_clkdev_add(NULL, MV643XX_ETH_NAME ".0", ge0);
 	orion_clkdev_add(NULL, MV643XX_ETH_NAME ".1", ge1);
 	orion_clkdev_add(NULL, "orion_wdt", tclk);
+	orion_clkdev_add("0", "sata_mv.0", sata0);
+	orion_clkdev_add("1", "sata_mv.0", sata1);
 }
 
 /*****************************************************************************
