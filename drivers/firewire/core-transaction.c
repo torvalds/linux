@@ -840,14 +840,6 @@ static void handle_exclusive_region_request(struct fw_card *card,
 						   offset, request->length);
 	spin_unlock_irqrestore(&address_handler_lock, flags);
 
-	/*
-	 * FIXME: lookup the fw_node corresponding to the sender of
-	 * this request and pass that to the address handler instead
-	 * of the node ID.  We may also want to move the address
-	 * allocations to fw_node so we only do this callback if the
-	 * upper layers registered it for this node.
-	 */
-
 	if (handler == NULL)
 		fw_send_response(card, request, RCODE_ADDRESS_ERROR);
 	else
