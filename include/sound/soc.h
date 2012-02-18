@@ -192,6 +192,14 @@
 		((unsigned long)&(struct soc_bytes)           \
 		{.base = xbase, .num_regs = xregs }) }
 
+#define SND_SOC_BYTES_MASK(xname, xbase, xregs, xmask)	      \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,   \
+	.info = snd_soc_bytes_info, .get = snd_soc_bytes_get, \
+	.put = snd_soc_bytes_put, .private_value =	      \
+		((unsigned long)&(struct soc_bytes)           \
+		{.base = xbase, .num_regs = xregs,	      \
+		 .mask = xmask }) }
+
 /*
  * Simplified versions of above macros, declaring a struct and calculating
  * ARRAY_SIZE internally
@@ -904,6 +912,7 @@ struct soc_mixer_control {
 struct soc_bytes {
 	int base;
 	int num_regs;
+	u32 mask;
 };
 
 /* enumerated kcontrol */
