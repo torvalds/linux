@@ -125,8 +125,6 @@ MODULE_PARM_DESC(workarounds, "Work around device bugs (default = 0"
 	", override internal blacklist = " __stringify(SBP2_WORKAROUND_OVERRIDE)
 	", or a combination)");
 
-static const char sbp2_driver_name[] = "sbp2";
-
 /*
  * We create one struct sbp2_logical_unit per SBP-2 Logical Unit Number Entry
  * and one struct scsi_device per sbp2_logical_unit.
@@ -1270,7 +1268,7 @@ static const struct ieee1394_device_id sbp2_id_table[] = {
 static struct fw_driver sbp2_driver = {
 	.driver   = {
 		.owner  = THIS_MODULE,
-		.name   = sbp2_driver_name,
+		.name   = KBUILD_MODNAME,
 		.bus    = &fw_bus_type,
 		.probe  = sbp2_probe,
 		.remove = sbp2_remove,
@@ -1599,7 +1597,7 @@ static struct device_attribute *sbp2_scsi_sysfs_attrs[] = {
 static struct scsi_host_template scsi_driver_template = {
 	.module			= THIS_MODULE,
 	.name			= "SBP-2 IEEE-1394",
-	.proc_name		= sbp2_driver_name,
+	.proc_name		= "sbp2",
 	.queuecommand		= sbp2_scsi_queuecommand,
 	.slave_alloc		= sbp2_scsi_slave_alloc,
 	.slave_configure	= sbp2_scsi_slave_configure,
