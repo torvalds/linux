@@ -926,12 +926,10 @@ int pci_setup_device(struct pci_dev *dev)
 
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class);
 	dev->revision = class & 0xff;
-	class >>= 8;				    /* upper 3 bytes */
-	dev->class = class;
-	class >>= 8;
+	dev->class = class >> 8;		    /* upper 3 bytes */
 
-	dev_printk(KERN_DEBUG, &dev->dev, "[%04x:%04x] type %d class %#08x\n",
-		   dev->vendor, dev->device, dev->hdr_type, class);
+	dev_printk(KERN_DEBUG, &dev->dev, "[%04x:%04x] type %02x class %#08x\n",
+		   dev->vendor, dev->device, dev->hdr_type, dev->class);
 
 	/* need to have dev->class ready */
 	dev->cfg_size = pci_cfg_space_size(dev);
@@ -1013,8 +1011,8 @@ int pci_setup_device(struct pci_dev *dev)
 		return -EIO;
 
 	bad:
-		dev_err(&dev->dev, "ignoring class %02x (doesn't match header "
-			"type %02x)\n", class, dev->hdr_type);
+		dev_err(&dev->dev, "ignoring class %#08x (doesn't match header "
+			"type %02x)\n", dev->class, dev->hdr_type);
 		dev->class = PCI_CLASS_NOT_DEFINED;
 	}
 
