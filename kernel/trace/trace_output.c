@@ -300,7 +300,7 @@ ftrace_print_flags_seq(struct trace_seq *p, const char *delim,
 	unsigned long mask;
 	const char *str;
 	const char *ret = p->buffer + p->len;
-	int i;
+	int i, first = 1;
 
 	for (i = 0;  flag_array[i].name && flags; i++) {
 
@@ -310,8 +310,10 @@ ftrace_print_flags_seq(struct trace_seq *p, const char *delim,
 
 		str = flag_array[i].name;
 		flags &= ~mask;
-		if (p->len && delim)
+		if (!first && delim)
 			trace_seq_puts(p, delim);
+		else
+			first = 0;
 		trace_seq_puts(p, str);
 	}
 
