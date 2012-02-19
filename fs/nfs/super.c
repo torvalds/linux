@@ -911,6 +911,7 @@ static struct nfs_parsed_mount_data *nfs_alloc_parsed_mount_data(unsigned int ve
 		data->auth_flavor_len	= 1;
 		data->version		= version;
 		data->minorversion	= 0;
+		data->net		= current->nsproxy->net_ns;
 		security_init_mnt_opts(&data->lsm_opts);
 	}
 	return data;
@@ -1109,8 +1110,6 @@ static int nfs_parse_mount_options(char *raw,
 		goto out_security_failure;
 
 	free_secdata(secdata);
-
-	mnt->net = current->nsproxy->net_ns;
 
 	while ((p = strsep(&raw, ",")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
