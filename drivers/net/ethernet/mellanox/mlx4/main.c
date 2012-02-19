@@ -986,6 +986,9 @@ static int map_bf_area(struct mlx4_dev *dev)
 	resource_size_t bf_len;
 	int err = 0;
 
+	if (!dev->caps.bf_reg_size)
+		return -ENXIO;
+
 	bf_start = pci_resource_start(dev->pdev, 2) +
 			(dev->caps.num_uars << PAGE_SHIFT);
 	bf_len = pci_resource_len(dev->pdev, 2) -
