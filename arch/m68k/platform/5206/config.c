@@ -19,17 +19,6 @@
 
 /***************************************************************************/
 
-void m5206_cpu_reset(void)
-{
-	local_irq_disable();
-	/* Set watchdog to soft reset, and enabled */
-	__raw_writeb(0xc0, MCF_MBAR + MCFSIM_SYPCR);
-	for (;;)
-		/* wait for watchdog to timeout */;
-}
-
-/***************************************************************************/
-
 void __init config_BSP(char *commandp, int size)
 {
 #if defined(CONFIG_NETtel)
@@ -38,7 +27,6 @@ void __init config_BSP(char *commandp, int size)
 	commandp[size-1] = 0;
 #endif /* CONFIG_NETtel */
 
-	mach_reset = m5206_cpu_reset;
 	mach_sched_init = hw_timer_init;
 
 	/* Only support the external interrupts on their primary level */

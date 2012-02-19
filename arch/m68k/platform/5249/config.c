@@ -83,21 +83,10 @@ static void __init m5249_smc91x_init(void)
 
 /***************************************************************************/
 
-void m5249_cpu_reset(void)
-{
-	local_irq_disable();
-	/* Set watchdog to soft reset, and enabled */
-	__raw_writeb(0xc0, MCF_MBAR + MCFSIM_SYPCR);
-	for (;;)
-		/* wait for watchdog to timeout */;
-}
-
-/***************************************************************************/
-
 void __init config_BSP(char *commandp, int size)
 {
-	mach_reset = m5249_cpu_reset;
 	mach_sched_init = hw_timer_init;
+
 #ifdef CONFIG_M5249C3
 	m5249_smc91x_init();
 #endif

@@ -19,20 +19,8 @@
 
 /***************************************************************************/
 
-void m5407_cpu_reset(void)
-{
-	local_irq_disable();
-	/* set watchdog to soft reset, and enabled */
-	__raw_writeb(0xc0, MCF_MBAR + MCFSIM_SYPCR);
-	for (;;)
-		/* wait for watchdog to timeout */;
-}
-
-/***************************************************************************/
-
 void __init config_BSP(char *commandp, int size)
 {
-	mach_reset = m5407_cpu_reset;
 	mach_sched_init = hw_timer_init;
 
 	/* Only support the external interrupts on their primary level */
