@@ -3325,6 +3325,7 @@ int mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 int mgmt_start_discovery_failed(struct hci_dev *hdev, u8 status)
 {
 	struct pending_cmd *cmd;
+	u8 type;
 	int err;
 
 	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
@@ -3333,7 +3334,10 @@ int mgmt_start_discovery_failed(struct hci_dev *hdev, u8 status)
 	if (!cmd)
 		return -ENOENT;
 
-	err = cmd_status(cmd->sk, hdev->id, cmd->opcode, mgmt_status(status));
+	type = hdev->discovery.type;
+
+	err = cmd_complete(cmd->sk, hdev->id, cmd->opcode, mgmt_status(status),
+							&type, sizeof(type));
 	mgmt_pending_remove(cmd);
 
 	return err;
@@ -3366,7 +3370,14 @@ int mgmt_discovering(struct hci_dev *hdev, u8 discovering)
 		cmd = mgmt_pending_find(MGMT_OP_STOP_DISCOVERY, hdev);
 
 	if (cmd != NULL) {
-		cmd_complete(cmd->sk, hdev->id, cmd->opcode, 0, NULL, 0);
+		u8 type = hdev->discovery.type;
+
+		if (discovering)
+			cmd_complete(cmd->sk, hdev->id, cmd->opcode, 0,
+							&type, sizeof(type));
+		else
+			cmd_complete(cmd->sk, hdev->id, cmd->opcode, 0,
+								NULL, 0);
 		mgmt_pending_remove(cmd);
 	}
 
