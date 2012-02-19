@@ -1179,9 +1179,9 @@ static void __devexit i740fb_remove(struct pci_dev *dev)
 	struct fb_info *info = pci_get_drvdata(dev);
 
 	if (info) {
-#ifdef CONFIG_MTRR
 		struct i740fb_par *par = info->par;
 
+#ifdef CONFIG_MTRR
 		if (par->mtrr_reg >= 0) {
 			mtrr_del(par->mtrr_reg, 0, 0);
 			par->mtrr_reg = -1;
