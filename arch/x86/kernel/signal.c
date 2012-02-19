@@ -60,9 +60,8 @@
 	regs->seg = GET_SEG(seg) | 3;			\
 } while (0)
 
-static int
-restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
-		   unsigned long *pax)
+int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
+		       unsigned long *pax)
 {
 	void __user *buf;
 	unsigned int tmpflags;
@@ -117,9 +116,8 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 	return err;
 }
 
-static int
-setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
-		 struct pt_regs *regs, unsigned long mask)
+int setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
+		     struct pt_regs *regs, unsigned long mask)
 {
 	int err = 0;
 
