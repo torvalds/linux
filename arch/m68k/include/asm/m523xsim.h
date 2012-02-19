@@ -65,8 +65,8 @@
 /*
  *  Reset Control Unit (relative to IPSBAR).
  */
-#define	MCF_RCR			0x110000
-#define	MCF_RSR			0x110001
+#define	MCF_RCR			(MCF_IPSBAR + 0x110000)
+#define	MCF_RSR			(MCF_IPSBAR + 0x110001)
 
 #define	MCF_RCR_SWRESET		0x80		/* Software reset bit */
 #define	MCF_RCR_FRCSTOUT	0x40		/* Force external reset */

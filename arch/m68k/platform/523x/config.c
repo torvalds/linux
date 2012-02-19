@@ -57,7 +57,7 @@ static void __init m523x_fec_init(void)
 static void m523x_cpu_reset(void)
 {
 	local_irq_disable();
-	__raw_writeb(MCF_RCR_SWRESET, MCF_IPSBAR + MCF_RCR);
+	__raw_writeb(MCF_RCR_SWRESET, MCF_RCR);
 }
 
 /***************************************************************************/
