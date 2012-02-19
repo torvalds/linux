@@ -180,6 +180,11 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 {
 	int r;
 
+	if (cpu_is_omap34xx() && !dpi.vdds_dsi_reg) {
+		DSSERR("no VDSS_DSI regulator\n");
+		return -ENODEV;
+	}
+
 	if (dssdev->manager == NULL) {
 		DSSERR("failed to enable display: no manager\n");
 		return -ENODEV;

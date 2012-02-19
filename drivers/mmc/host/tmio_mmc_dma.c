@@ -34,6 +34,18 @@ void tmio_mmc_enable_dma(struct tmio_mmc_host *host, bool enable)
 #endif
 }
 
+void tmio_mmc_abort_dma(struct tmio_mmc_host *host)
+{
+	tmio_mmc_enable_dma(host, false);
+
+	if (host->chan_rx)
+		dmaengine_terminate_all(host->chan_rx);
+	if (host->chan_tx)
+		dmaengine_terminate_all(host->chan_tx);
+
+	tmio_mmc_enable_dma(host, true);
+}
+
 static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 {
 	struct scatterlist *sg = host->sg_ptr, *sg_tmp;

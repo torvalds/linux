@@ -986,7 +986,7 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 		printk(KERN_INFO
 			"%s: no PHY, assuming direct connection to switch\n",
 			ndev->name);
-		strncpy(mdio_bus_id, "0", MII_BUS_ID_SIZE);
+		strncpy(mdio_bus_id, "fixed-0", MII_BUS_ID_SIZE);
 		phy_id = 0;
 	}
 
