@@ -74,17 +74,8 @@ static void __init m520x_fec_init(void)
 
 /***************************************************************************/
 
-static void m520x_cpu_reset(void)
-{
-	local_irq_disable();
-	__raw_writeb(MCF_RCR_SWRESET, MCF_RCR);
-}
-
-/***************************************************************************/
-
 void __init config_BSP(char *commandp, int size)
 {
-	mach_reset = m520x_cpu_reset;
 	mach_sched_init = hw_timer_init;
 	m520x_uarts_init();
 	m520x_fec_init();

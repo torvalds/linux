@@ -61,14 +61,6 @@ static void __init m532x_fec_init(void)
 
 /***************************************************************************/
 
-static void m532x_cpu_reset(void)
-{
-	local_irq_disable();
-	__raw_writeb(MCF_RCR_SWRESET, MCF_RCR);
-}
-
-/***************************************************************************/
-
 void __init config_BSP(char *commandp, int size)
 {
 #if !defined(CONFIG_BOOTPARAM)
@@ -83,7 +75,6 @@ void __init config_BSP(char *commandp, int size)
 #endif
 
 	mach_sched_init = hw_timer_init;
-	mach_reset = m532x_cpu_reset;
 	m532x_uarts_init();
 	m532x_fec_init();
 #ifdef CONFIG_SPI_COLDFIRE_QSPI

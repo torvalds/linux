@@ -60,14 +60,6 @@ static void __init m528x_fec_init(void)
 
 /***************************************************************************/
 
-static void m528x_cpu_reset(void)
-{
-	local_irq_disable();
-	__raw_writeb(MCF_RCR_SWRESET, MCF_RCR);
-}
-
-/***************************************************************************/
-
 #ifdef CONFIG_WILDFIRE
 void wildfire_halt(void)
 {
@@ -103,7 +95,6 @@ void __init config_BSP(char *commandp, int size)
 #ifdef CONFIG_WILDFIREMOD
 	mach_halt = wildfiremod_halt;
 #endif
-	mach_reset = m528x_cpu_reset;
 	mach_sched_init = hw_timer_init;
 	m528x_uarts_init();
 	m528x_fec_init();
