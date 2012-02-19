@@ -26,20 +26,6 @@
 
 static int F_ID;
 
-void w1_bq27000_write(struct device *dev, u8 buf, u8 reg)
-{
-	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
-
-	if (!dev) {
-		pr_info("Could not obtain slave dev ptr\n");
-		return;
-	}
-
-	w1_write_8(sl->master, HDQ_CMD_WRITE | reg);
-	w1_write_8(sl->master, buf);
-}
-EXPORT_SYMBOL(w1_bq27000_write);
-
 static int w1_bq27000_read(struct device *dev, unsigned int reg)
 {
 	u8 val;
