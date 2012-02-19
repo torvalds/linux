@@ -29,7 +29,6 @@ extern unsigned int sig_xstate_size;
 extern void fpu_init(void);
 extern void mxcsr_feature_mask_init(void);
 extern int init_fpu(struct task_struct *child);
-extern void __math_state_restore(struct task_struct *);
 extern void math_state_restore(void);
 extern int dump_fpu(struct pt_regs *, struct user_i387_struct *);
 
@@ -269,6 +268,16 @@ static inline int fpu_restore_checking(struct fpu *fpu)
 
 static inline int restore_fpu_checking(struct task_struct *tsk)
 {
+	/* AMD K7/K8 CPUs don't save/restore FDP/FIP/FOP unless an exception
+	   is pending.  Clear the x87 state here by setting it to fixed
+	   values. "m" is a random variable that should be in L1 */
+	alternative_input(
+		ASM_NOP8 ASM_NOP2,
+		"emms\n\t"	  	/* clear stack tags */
+		"fildl %P[addr]",	/* set F?P to defined value */
+		X86_FEATURE_FXSAVE_LEAK,
+		[addr] "m" (tsk->thread.has_fpu));
+
 	return fpu_restore_checking(&tsk->thread.fpu);
 }
 
@@ -378,8 +387,10 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
  */
 static inline void switch_fpu_finish(struct task_struct *new, fpu_switch_t fpu)
 {
-	if (fpu.preload)
-		__math_state_restore(new);
+	if (fpu.preload) {
+		if (unlikely(restore_fpu_checking(new)))
+			__thread_fpu_end(new);
+	}
 }
 
 /*
