@@ -10,6 +10,8 @@
 #ifndef _ASM_X86_SYS_IA32_H
 #define _ASM_X86_SYS_IA32_H
 
+#ifdef CONFIG_COMPAT
+
 #include <linux/compiler.h>
 #include <linux/linkage.h>
 #include <linux/types.h>
@@ -81,4 +83,7 @@ asmlinkage long sys32_ipc(u32, int, int, int, compat_uptr_t, u32);
 
 asmlinkage long sys32_fanotify_mark(int, unsigned int, u32, u32, int,
 				    const char __user *);
+
+#endif /* CONFIG_COMPAT */
+
 #endif /* _ASM_X86_SYS_IA32_H */
