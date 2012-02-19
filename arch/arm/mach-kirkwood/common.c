@@ -87,7 +87,7 @@ static struct clk __init *kirkwood_register_gate(const char *name, u8 bit_idx)
 void __init kirkwood_clk_init(void)
 {
 	struct clk *runit, *ge0, *ge1, *sata0, *sata1, *usb0, *sdio;
-	struct clk *crypto;
+	struct clk *crypto, *xor0, *xor1;
 
 	tclk = clk_register_fixed_rate(NULL, "tclk", NULL,
 				       CLK_IS_ROOT, kirkwood_tclk);
@@ -100,8 +100,8 @@ void __init kirkwood_clk_init(void)
 	usb0 = kirkwood_register_gate("usb0",   CGC_BIT_USB0);
 	sdio = kirkwood_register_gate("sdio",   CGC_BIT_SDIO);
 	crypto = kirkwood_register_gate("crypto", CGC_BIT_CRYPTO);
-	kirkwood_register_gate("xor0",   CGC_BIT_XOR0);
-	kirkwood_register_gate("xor1",   CGC_BIT_XOR1);
+	xor0 = kirkwood_register_gate("xor0",   CGC_BIT_XOR0);
+	xor1 = kirkwood_register_gate("xor1",   CGC_BIT_XOR1);
 	kirkwood_register_gate("pex0",   CGC_BIT_PEX0);
 	kirkwood_register_gate("pex1",   CGC_BIT_PEX1);
 	kirkwood_register_gate("audio",  CGC_BIT_AUDIO);
@@ -120,6 +120,8 @@ void __init kirkwood_clk_init(void)
 	orion_clkdev_add(NULL, "orion_nand", runit);
 	orion_clkdev_add(NULL, "mvsdio", sdio);
 	orion_clkdev_add(NULL, "mv_crypto", crypto);
+	orion_clkdev_add(NULL, MV_XOR_SHARED_NAME ".0", xor0);
+	orion_clkdev_add(NULL, MV_XOR_SHARED_NAME ".1", xor1);
 }
 
 /*****************************************************************************
@@ -336,7 +338,6 @@ void __init kirkwood_crypto_init(void)
 void __init kirkwood_xor0_init(void)
 {
 	kirkwood_clk_ctrl |= CGC_XOR0;
-
 	orion_xor0_init(XOR0_PHYS_BASE, XOR0_HIGH_PHYS_BASE,
 			IRQ_KIRKWOOD_XOR_00, IRQ_KIRKWOOD_XOR_01);
 }
@@ -348,7 +349,6 @@ void __init kirkwood_xor0_init(void)
 void __init kirkwood_xor1_init(void)
 {
 	kirkwood_clk_ctrl |= CGC_XOR1;
-
 	orion_xor1_init(XOR1_PHYS_BASE, XOR1_HIGH_PHYS_BASE,
 			IRQ_KIRKWOOD_XOR_10, IRQ_KIRKWOOD_XOR_11);
 }
