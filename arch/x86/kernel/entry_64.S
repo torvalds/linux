@@ -763,6 +763,21 @@ ENTRY(stub_x32_rt_sigreturn)
 	CFI_ENDPROC
 END(stub_x32_rt_sigreturn)
 
+ENTRY(stub_x32_execve)
+	CFI_STARTPROC
+	addq $8, %rsp
+	PARTIAL_FRAME 0
+	SAVE_REST
+	FIXUP_TOP_OF_STACK %r11
+	movq %rsp, %rcx
+	call sys32_execve
+	RESTORE_TOP_OF_STACK %r11
+	movq %rax,RAX(%rsp)
+	RESTORE_REST
+	jmp int_ret_from_sys_call
+	CFI_ENDPROC
+END(stub_x32_execve)
+
 #endif
 
 /*

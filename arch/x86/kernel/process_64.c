@@ -364,7 +364,9 @@ start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 void start_thread_ia32(struct pt_regs *regs, u32 new_ip, u32 new_sp)
 {
 	start_thread_common(regs, new_ip, new_sp,
-			    __USER32_CS, __USER32_DS, __USER32_DS);
+			    test_thread_flag(TIF_X32)
+			    ? __USER_CS : __USER32_CS,
+			    __USER_DS, __USER_DS);
 }
 #endif
 
@@ -508,6 +510,7 @@ void set_personality_64bit(void)
 
 	/* Make sure to be in 64bit mode */
 	clear_thread_flag(TIF_IA32);
+	clear_thread_flag(TIF_X32);
 	clear_thread_flag(TIF_ADDR32);
 	clear_thread_flag(TIF_X32);
 
@@ -522,22 +525,28 @@ void set_personality_64bit(void)
 	current->personality &= ~READ_IMPLIES_EXEC;
 }
 
-void set_personality_ia32(void)
+void set_personality_ia32(bool x32)
 {
 	/* inherit personality from parent */
 
 	/* Make sure to be in 32bit mode */
-	set_thread_flag(TIF_IA32);
 	set_thread_flag(TIF_ADDR32);
-	clear_thread_flag(TIF_X32);
-	current->personality |= force_personality32;
 
 	/* Mark the associated mm as containing 32-bit tasks. */
 	if (current->mm)
 		current->mm->context.ia32_compat = 1;
 
-	/* Prepare the first "return" to user space */
-	current_thread_info()->status |= TS_COMPAT;
+	if (x32) {
+		clear_thread_flag(TIF_IA32);
+		set_thread_flag(TIF_X32);
+		current->personality &= ~READ_IMPLIES_EXEC;
+	} else {
+		set_thread_flag(TIF_IA32);
+		clear_thread_flag(TIF_X32);
+		current->personality |= force_personality32;
+		/* Prepare the first "return" to user space */
+		current_thread_info()->status |= TS_COMPAT;
+	}
 }
 
 unsigned long get_wchan(struct task_struct *p)
