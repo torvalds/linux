@@ -45,9 +45,6 @@ static int w1_bq27000_read(struct device *dev, unsigned int reg)
 	u8 val;
 	struct w1_slave *sl = container_of(dev->parent, struct w1_slave, dev);
 
-	if (!dev)
-		return 0;
-
 	w1_write_8(sl->master, HDQ_CMD_READ | reg);
 	val = w1_read_8(sl->master);
 
