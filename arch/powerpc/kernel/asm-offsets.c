@@ -466,7 +466,7 @@ int main(void)
 	DEFINE(VCPU_PENDING_EXC, offsetof(struct kvm_vcpu, arch.pending_exceptions));
 	DEFINE(VCPU_CEDED, offsetof(struct kvm_vcpu, arch.ceded));
 	DEFINE(VCPU_PRODDED, offsetof(struct kvm_vcpu, arch.prodded));
-	DEFINE(VCPU_VPA, offsetof(struct kvm_vcpu, arch.vpa));
+	DEFINE(VCPU_VPA, offsetof(struct kvm_vcpu, arch.vpa.pinned_addr));
 	DEFINE(VCPU_MMCR, offsetof(struct kvm_vcpu, arch.mmcr));
 	DEFINE(VCPU_PMC, offsetof(struct kvm_vcpu, arch.pmc));
 	DEFINE(VCPU_SLB, offsetof(struct kvm_vcpu, arch.slb));

@@ -82,7 +82,7 @@ struct kvm_vcpu;
 
 struct lppaca;
 struct slb_shadow;
-struct dtl;
+struct dtl_entry;
 
 struct kvm_vm_stat {
 	u32 remote_tlb_flush;
@@ -279,6 +279,19 @@ struct kvmppc_vcore {
 #define VCORE_EXITING	2
 #define VCORE_SLEEPING	3
 
+/*
+ * Struct used to manage memory for a virtual processor area
+ * registered by a PAPR guest.  There are three types of area
+ * that a guest can register.
+ */
+struct kvmppc_vpa {
+	void *pinned_addr;	/* Address in kernel linear mapping */
+	void *pinned_end;	/* End of region */
+	unsigned long next_gpa;	/* Guest phys addr for update */
+	unsigned long len;	/* Number of bytes required */
+	u8 update_pending;	/* 1 => update pinned_addr from next_gpa */
+};
+
 struct kvmppc_pte {
 	ulong eaddr;
 	u64 vpage;
@@ -473,11 +486,6 @@ struct kvm_vcpu_arch {
 	u8 prodded;
 	u32 last_inst;
 
-	struct lppaca *vpa;
-	struct slb_shadow *slb_shadow;
-	struct dtl *dtl;
-	struct dtl *dtl_end;
-
 	wait_queue_head_t *wqp;
 	struct kvmppc_vcore *vcore;
 	int ret;
@@ -502,6 +510,13 @@ struct kvm_vcpu_arch {
 	struct task_struct *run_task;
 	struct kvm_run *kvm_run;
 	pgd_t *pgdir;
+
+	spinlock_t vpa_update_lock;
+	struct kvmppc_vpa vpa;
+	struct kvmppc_vpa dtl;
+	struct dtl_entry *dtl_ptr;
+	unsigned long dtl_index;
+	struct kvmppc_vpa slb_shadow;
 #endif
 };
 
