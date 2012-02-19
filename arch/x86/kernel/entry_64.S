@@ -1532,6 +1532,13 @@ ENTRY(nmi)
 	pushq_cfi %rdx
 
 	/*
+	 * If %cs was not the kernel segment, then the NMI triggered in user
+	 * space, which means it is definitely not nested.
+	 */
+	cmp $__KERNEL_CS, 16(%rsp)
+	jne first_nmi
+
+	/*
 	 * Check the special variable on the stack to see if NMIs are
 	 * executing.
 	 */
