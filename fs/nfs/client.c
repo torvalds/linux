@@ -172,7 +172,7 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	clp->cl_rpcclient = ERR_PTR(-EINVAL);
 
 	clp->cl_proto = cl_init->proto;
-	clp->net = cl_init->net;
+	clp->net = get_net(cl_init->net);
 
 #ifdef CONFIG_NFS_V4
 	err = nfs_get_cb_ident_idr(clp, cl_init->minorversion);
@@ -300,6 +300,7 @@ static void nfs_free_client(struct nfs_client *clp)
 
 	nfs4_deviceid_purge_client(clp);
 
+	put_net(clp->net);
 	kfree(clp->cl_hostname);
 	kfree(clp->server_scope);
 	kfree(clp);
