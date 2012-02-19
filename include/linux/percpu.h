@@ -718,7 +718,8 @@ do {									\
 # ifndef __this_cpu_add_return_8
 #  define __this_cpu_add_return_8(pcp, val)	__this_cpu_generic_add_return(pcp, val)
 # endif
-# define __this_cpu_add_return(pcp, val)	__pcpu_size_call_return2(this_cpu_add_return_, pcp, val)
+# define __this_cpu_add_return(pcp, val)	\
+	__pcpu_size_call_return2(__this_cpu_add_return_, pcp, val)
 #endif
 
 #define __this_cpu_sub_return(pcp, val)	this_cpu_add_return(pcp, -(val))
