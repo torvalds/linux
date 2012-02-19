@@ -36,8 +36,6 @@ asmlinkage long sys32_rt_sigaction(int, struct sigaction32 __user *,
 				   struct sigaction32 __user *, unsigned int);
 asmlinkage long sys32_sigaction(int, struct old_sigaction32 __user *,
 				struct old_sigaction32 __user *);
-asmlinkage long sys32_rt_sigprocmask(int, compat_sigset_t __user *,
-				     compat_sigset_t __user *, unsigned int);
 asmlinkage long sys32_alarm(unsigned int);
 
 asmlinkage long sys32_waitpid(compat_pid_t, unsigned int *, int);
