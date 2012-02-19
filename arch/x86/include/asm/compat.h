@@ -7,6 +7,7 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <asm/user32.h>
+#include <asm/unistd.h>
 
 #define COMPAT_USER_HZ		100
 #define COMPAT_UTS_MACHINE	"i686\0\0"
@@ -212,9 +213,17 @@ static inline void __user *arch_compat_alloc_user_space(long len)
 	return (void __user *)regs->sp - len;
 }
 
-static inline int is_compat_task(void)
+static inline bool is_compat_task(void)
 {
-	return current_thread_info()->status & TS_COMPAT;
+#ifdef CONFIG_IA32_EMULATION
+	if (current_thread_info()->status & TS_COMPAT)
+		return true;
+#endif
+#ifdef CONFIG_X86_X32_ABI
+	if (task_pt_regs(current)->orig_ax & __X32_SYSCALL_BIT)
+		return true;
+#endif
+	return false;
 }
 
 #endif /* _ASM_X86_COMPAT_H */
