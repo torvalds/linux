@@ -551,7 +551,7 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst, __u8
 	if (!acl) {
 		acl = hci_conn_add(hdev, ACL_LINK, dst);
 		if (!acl)
-			return NULL;
+			return ERR_PTR(-ENOMEM);
 	}
 
 	hci_conn_hold(acl);
@@ -571,7 +571,7 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst, __u8
 		sco = hci_conn_add(hdev, type, dst);
 		if (!sco) {
 			hci_conn_put(acl);
-			return NULL;
+			return ERR_PTR(-ENOMEM);
 		}
 	}
 
