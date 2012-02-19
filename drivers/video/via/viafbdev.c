@@ -1752,8 +1752,10 @@ static void __devinit i2c_bus_probe(struct viafb_shared *shared)
 	shared->i2c_31 = via_aux_probe(viafb_find_i2c_adapter(VIA_PORT_31));
 
 	/* FIXME: what is this? */
-	printk(KERN_INFO "viafb: Probing I2C bus 0x2C\n");
-	shared->i2c_2C = via_aux_probe(viafb_find_i2c_adapter(VIA_PORT_2C));
+	if (!machine_is_olpc()) {
+		printk(KERN_INFO "viafb: Probing I2C bus 0x2C\n");
+		shared->i2c_2C = via_aux_probe(viafb_find_i2c_adapter(VIA_PORT_2C));
+	}
 
 	printk(KERN_INFO "viafb: Finished I2C bus probing");
 }
