@@ -1044,6 +1044,8 @@ DEFINE_PER_CPU(char *, irq_stack_ptr) =
 
 DEFINE_PER_CPU(unsigned int, irq_count) = -1;
 
+DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
+
 /*
  * Special IST stacks which the CPU switches to when it calls
  * an IST-marked descriptor entry. Up to 7 stacks (hardware

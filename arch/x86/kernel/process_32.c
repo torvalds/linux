@@ -304,7 +304,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 
 	/* never put a printk in __switch_to... printk() calls wake_up*() indirectly */
 
-	fpu = switch_fpu_prepare(prev_p, next_p);
+	fpu = switch_fpu_prepare(prev_p, next_p, cpu);
 
 	/*
 	 * Reload esp0.

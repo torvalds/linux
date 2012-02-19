@@ -389,7 +389,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	unsigned fsindex, gsindex;
 	fpu_switch_t fpu;
 
-	fpu = switch_fpu_prepare(prev_p, next_p);
+	fpu = switch_fpu_prepare(prev_p, next_p, cpu);
 
 	/*
 	 * Reload esp0, LDT and the page table pointer:
