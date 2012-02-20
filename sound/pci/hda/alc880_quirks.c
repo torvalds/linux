@@ -14,7 +14,6 @@ enum {
 	ALC880_6ST_DIG,
 	ALC880_ASUS,
 	ALC880_ASUS_DIG,
-	ALC880_ASUS_W1V,
 	ALC880_ASUS_DIG2,
 #ifdef CONFIG_SND_DEBUG
 	ALC880_TEST,
@@ -260,21 +259,6 @@ static const struct snd_kcontrol_new alc880_asus_mixer[] = {
 		.get = alc_ch_mode_get,
 		.put = alc_ch_mode_put,
 	},
-	{ } /* end */
-};
-
-/*
- * ALC880 ASUS W1V model
- *
- * DAC: HP/Front = 0x02 (0x0c), Surr = 0x03 (0x0d), CLFE = 0x04 (0x0e)
- * Pin assignment: HP/Front = 0x14, Surr = 0x15, CLFE = 0x16,
- *  Mic = 0x18, Line = 0x1a, Line2 = 0x1b
- */
-
-/* additional mixers to alc880_asus_mixer */
-static const struct snd_kcontrol_new alc880_asus_w1v_mixer[] = {
-	HDA_CODEC_VOLUME("Line2 Playback Volume", 0x0b, 0x03, HDA_INPUT),
-	HDA_CODEC_MUTE("Line2 Playback Switch", 0x0b, 0x03, HDA_INPUT),
 	{ } /* end */
 };
 
@@ -761,7 +745,6 @@ static const char * const alc880_models[ALC880_MODEL_LAST] = {
 	[ALC880_6ST]		= "6stack",
 	[ALC880_6ST_DIG]	= "6stack-digout",
 	[ALC880_ASUS]		= "asus",
-	[ALC880_ASUS_W1V]	= "asus-w1v",
 	[ALC880_ASUS_DIG]	= "asus-dig",
 	[ALC880_ASUS_DIG2]	= "asus-dig2",
 #ifdef CONFIG_SND_DEBUG
@@ -780,7 +763,6 @@ static const struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0xe309, "ULI", ALC880_3ST_DIG),
 	SND_PCI_QUIRK(0x1025, 0xe310, "ULI", ALC880_3ST),
 	SND_PCI_QUIRK(0x1039, 0x1234, NULL, ALC880_6ST_DIG),
-	SND_PCI_QUIRK(0x1043, 0x10b3, "ASUS W1V", ALC880_ASUS_W1V),
 	SND_PCI_QUIRK(0x1043, 0x10c2, "ASUS W6A", ALC880_ASUS_DIG),
 	SND_PCI_QUIRK(0x1043, 0x10c3, "ASUS Wxx", ALC880_ASUS_DIG),
 	SND_PCI_QUIRK(0x1043, 0x1113, "ASUS", ALC880_ASUS_DIG),
@@ -927,19 +909,6 @@ static const struct alc_config_preset alc880_presets[] = {
 		.init_verbs = { alc880_volume_init_verbs,
 				alc880_pin_asus_init_verbs,
 				alc880_gpio2_init_verbs }, /* use GPIO2 */
-		.num_dacs = ARRAY_SIZE(alc880_asus_dac_nids),
-		.dac_nids = alc880_asus_dac_nids,
-		.dig_out_nid = ALC880_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc880_asus_modes),
-		.channel_mode = alc880_asus_modes,
-		.need_dac_fix = 1,
-		.input_mux = &alc880_capture_source,
-	},
-	[ALC880_ASUS_W1V] = {
-		.mixers = { alc880_asus_mixer, alc880_asus_w1v_mixer },
-		.init_verbs = { alc880_volume_init_verbs,
-				alc880_pin_asus_init_verbs,
-				alc880_gpio1_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_asus_dac_nids),
 		.dac_nids = alc880_asus_dac_nids,
 		.dig_out_nid = ALC880_DIGOUT_NID,

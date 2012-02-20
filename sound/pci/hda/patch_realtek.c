@@ -4438,6 +4438,7 @@ static const struct hda_amp_list alc880_loopbacks[] = {
  * ALC880 fix-ups
  */
 enum {
+	ALC880_FIXUP_GPIO1,
 	ALC880_FIXUP_GPIO2,
 	ALC880_FIXUP_MEDION_RIM,
 	ALC880_FIXUP_LG,
@@ -4461,6 +4462,10 @@ static void alc880_fixup_vol_knob(struct hda_codec *codec,
 }
 
 static const struct alc_fixup alc880_fixups[] = {
+	[ALC880_FIXUP_GPIO1] = {
+		.type = ALC_FIXUP_VERBS,
+		.v.verbs = alc_gpio1_init_verbs,
+	},
 	[ALC880_FIXUP_GPIO2] = {
 		.type = ALC_FIXUP_VERBS,
 		.v.verbs = alc_gpio2_init_verbs,
@@ -4602,6 +4607,7 @@ static const struct alc_fixup alc880_fixups[] = {
 
 static const struct snd_pci_quirk alc880_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1019, 0x0f69, "Coeus G610P", ALC880_FIXUP_W810),
+	SND_PCI_QUIRK(0x1043, 0x10b3, "ASUS W1V", ALC880_FIXUP_GPIO1),
 	SND_PCI_QUIRK(0x1043, 0x1964, "ASUS Z71V", ALC880_FIXUP_Z71V),
 	SND_PCI_QUIRK_VENDOR(0x1558, "Clevo", ALC880_FIXUP_EAPD_COEF),
 	SND_PCI_QUIRK(0x1584, 0x9050, "Uniwill", ALC880_FIXUP_UNIWILL_DIG),
