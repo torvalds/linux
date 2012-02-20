@@ -127,7 +127,7 @@ struct mlog_bits {
 	unsigned long words[MLOG_MAX_BITS / BITS_PER_LONG];
 };
 
-extern struct mlog_bits mlog_and_bits, mlog_not_bits;
+extern struct mlog_bits r2_mlog_and_bits, r2_mlog_not_bits;
 
 #if BITS_PER_LONG == 32
 
@@ -186,8 +186,8 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
 #define mlog(mask, fmt, args...) do {					\
 	u64 __m = MLOG_MASK_PREFIX | (mask);				\
 	if ((__m & ML_ALLOWED_BITS) &&					\
-	    __mlog_test_u64(__m, mlog_and_bits) &&			\
-	    !__mlog_test_u64(__m, mlog_not_bits)) {			\
+	    __mlog_test_u64(__m, r2_mlog_and_bits) &&			\
+	    !__mlog_test_u64(__m, r2_mlog_not_bits)) {			\
 		if (__m & ML_ERROR)					\
 			__mlog_printk(KERN_ERR, "ERROR: "fmt , ##args);	\
 		else if (__m & ML_NOTICE)				\
@@ -214,7 +214,7 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
 
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
-int mlog_sys_init(struct kset *r2cb_subsys);
-void mlog_sys_shutdown(void);
+int r2_mlog_sys_init(struct kset *r2cb_subsys);
+void r2_mlog_sys_shutdown(void);
 
 #endif /* R2CLUSTER_MASKLOG_H */
