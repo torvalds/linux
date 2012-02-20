@@ -89,6 +89,7 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct sock *sk;
 	struct hlist_node *node;
+	struct sk_buff *skb_copy = NULL;
 
 	BT_DBG("hdev %p len %d", hdev, skb->len);
 
@@ -131,18 +132,27 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 				continue;
 		}
 
-		nskb = skb_clone(skb, GFP_ATOMIC);
+		if (!skb_copy) {
+			/* Create a private copy with headroom */
+			skb_copy = __pskb_copy(skb, 1, GFP_ATOMIC);
+			if (!skb_copy)
+				continue;
+
+			/* Put type byte before the data */
+			memcpy(skb_push(skb_copy, 1), &bt_cb(skb)->pkt_type, 1);
+		}
+
+		nskb = skb_clone(skb_copy, GFP_ATOMIC);
 		if (!nskb)
 			continue;
-
-		/* Put type byte before the data */
-		memcpy(skb_push(nskb, 1), &bt_cb(nskb)->pkt_type, 1);
 
 		if (sock_queue_rcv_skb(sk, nskb))
 			kfree_skb(nskb);
 	}
 
 	read_unlock(&hci_sk_list.lock);
+
+	kfree_skb(skb_copy);
 }
 
 /* Send frame to control socket */
