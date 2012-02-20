@@ -1309,10 +1309,12 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	struct usb_device *usbdev;
 	int mindevnum;
 	int unit_number;
+	struct pvr2_hdw *hdw;
 	int *nr_ptr = NULL;
 	dip->v4lp = vp;
 
-	usbdev = pvr2_hdw_get_dev(vp->channel.mc_head->hdw);
+	hdw = vp->channel.mc_head->hdw;
+	usbdev = pvr2_hdw_get_dev(hdw);
 	dip->v4l_type = v4l_type;
 	switch (v4l_type) {
 	case VFL_TYPE_GRABBER:
@@ -1351,13 +1353,13 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	{
 		int val;
 		pvr2_ctrl_get_value(
-			pvr2_hdw_get_ctrl_by_id(vp->channel.mc_head->hdw,
+			pvr2_hdw_get_ctrl_by_id(hdw,
 						PVR2_CID_STDAVAIL), &val);
 		dip->devbase.tvnorms = (v4l2_std_id)val;
 	}
 
 	mindevnum = -1;
-	unit_number = pvr2_hdw_get_unit_number(vp->channel.mc_head->hdw);
+	unit_number = pvr2_hdw_get_unit_number(hdw);
 	if (nr_ptr && (unit_number >= 0) && (unit_number < PVR_NUM)) {
 		mindevnum = nr_ptr[unit_number];
 	}
@@ -1374,7 +1376,7 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 	       video_device_node_name(&dip->devbase),
 	       pvr2_config_get_name(dip->config));
 
-	pvr2_hdw_v4l_store_minor_number(vp->channel.mc_head->hdw,
+	pvr2_hdw_v4l_store_minor_number(hdw,
 					dip->minor_type,dip->devbase.minor);
 }
 
