@@ -169,6 +169,11 @@ static struct resource sh_eth_giga1_resources[] = {
 		.end    = 0xfee00fff,
 		.flags  = IORESOURCE_MEM,
 	}, {
+		/* TSU */
+		.start  = 0xfee01800,
+		.end    = 0xfee01fff,
+		.flags  = IORESOURCE_MEM,
+	}, {
 		.start  = 316,
 		.end    = 316,
 		.flags  = IORESOURCE_IRQ,
