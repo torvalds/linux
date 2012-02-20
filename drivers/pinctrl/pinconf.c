@@ -285,6 +285,8 @@ static int pinconf_groups_show(struct seq_file *s, void *what)
 
 		seq_printf(s, "%u (%s):", selector, gname);
 		pinconf_dump_group(pctldev, s, selector, gname);
+		seq_printf(s, "\n");
+
 		selector++;
 	}
 
