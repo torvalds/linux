@@ -1170,6 +1170,8 @@ struct drm_device {
 	struct idr object_name_idr;
 	/*@} */
 	int switch_power_state;
+
+	atomic_t unplugged; /* device has been unplugged or gone away */
 };
 
 #define DRM_SWITCH_POWER_ON 0
@@ -1234,6 +1236,19 @@ static inline int drm_mtrr_del(int handle, unsigned long offset,
 	return 0;
 }
 #endif
+
+static inline void drm_device_set_unplugged(struct drm_device *dev)
+{
+	smp_wmb();
+	atomic_set(&dev->unplugged, 1);
+}
+
+static inline int drm_device_is_unplugged(struct drm_device *dev)
+{
+	int ret = atomic_read(&dev->unplugged);
+	smp_rmb();
+	return ret;
+}
 
 /******************************************************************/
 /** \name Internal function definitions */
@@ -1455,6 +1470,7 @@ extern void drm_master_put(struct drm_master **master);
 
 extern void drm_put_dev(struct drm_device *dev);
 extern int drm_put_minor(struct drm_minor **minor);
+extern void drm_unplug_dev(struct drm_device *dev);
 extern unsigned int drm_debug;
 
 extern unsigned int drm_vblank_offdelay;

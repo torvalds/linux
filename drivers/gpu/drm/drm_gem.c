@@ -661,6 +661,9 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_hash_item *hash;
 	int ret = 0;
 
+	if (drm_device_is_unplugged(dev))
+		return -ENODEV;
+
 	mutex_lock(&dev->struct_mutex);
 
 	if (drm_ht_find_item(&mm->offset_hash, vma->vm_pgoff, &hash)) {
