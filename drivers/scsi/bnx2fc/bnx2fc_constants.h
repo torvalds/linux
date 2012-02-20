@@ -7,7 +7,7 @@
 
 /* Current FCoE HSI version number composed of two fields (16 bit) */
 /* Implies on a change broken previous HSI */
-#define FCOE_HSI_MAJOR_VERSION (1)
+#define FCOE_HSI_MAJOR_VERSION (2)
 /* Implies on a change which does not broken previous HSI */
 #define FCOE_HSI_MINOR_VERSION (1)
 
