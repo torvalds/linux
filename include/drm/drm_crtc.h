@@ -826,6 +826,8 @@ extern int drm_connector_init(struct drm_device *dev,
 			      int connector_type);
 
 extern void drm_connector_cleanup(struct drm_connector *connector);
+/* helper to unplug all connectors from sysfs for device */
+extern void drm_connector_unplug_all(struct drm_device *dev);
 
 extern int drm_encoder_init(struct drm_device *dev,
 			    struct drm_encoder *encoder,
