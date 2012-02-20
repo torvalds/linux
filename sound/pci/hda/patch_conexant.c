@@ -3931,6 +3931,50 @@ static void enable_unsol_pins(struct hda_codec *codec, int num_pins,
 		snd_hda_jack_detect_enable(codec, pins[i], action);
 }
 
+static bool found_in_nid_list(hda_nid_t nid, const hda_nid_t *list, int nums)
+{
+	int i;
+	for (i = 0; i < nums; i++)
+		if (list[i] == nid)
+			return true;
+	return false;
+}
+
+/* is the given NID found in any of autocfg items? */
+static bool found_in_autocfg(struct auto_pin_cfg *cfg, hda_nid_t nid)
+{
+	int i;
+
+	if (found_in_nid_list(nid, cfg->line_out_pins, cfg->line_outs) ||
+	    found_in_nid_list(nid, cfg->hp_pins, cfg->hp_outs) ||
+	    found_in_nid_list(nid, cfg->speaker_pins, cfg->speaker_outs) ||
+	    found_in_nid_list(nid, cfg->dig_out_pins, cfg->dig_outs))
+		return true;
+	for (i = 0; i < cfg->num_inputs; i++)
+		if (cfg->inputs[i].pin == nid)
+			return true;
+	if (cfg->dig_in_pin == nid)
+		return true;
+	return false;
+}
+
+/* clear unsol-event tags on unused pins; Conexant codecs seem to leave
+ * invalid unsol tags by some reason
+ */
+static void clear_unsol_on_unused_pins(struct hda_codec *codec)
+{
+	struct conexant_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int i;
+
+	for (i = 0; i < codec->init_pins.used; i++) {
+		struct hda_pincfg *pin = snd_array_elem(&codec->init_pins, i);
+		if (!found_in_autocfg(cfg, pin->nid))
+			snd_hda_codec_write(codec, pin->nid, 0,
+					    AC_VERB_SET_UNSOLICITED_ENABLE, 0);
+	}
+}
+
 static void cx_auto_init_output(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
@@ -3971,6 +4015,7 @@ static void cx_auto_init_output(struct hda_codec *codec)
 	/* turn on all EAPDs if no individual EAPD control is available */
 	if (!spec->pin_eapd_ctrls)
 		cx_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, true);
+	clear_unsol_on_unused_pins(codec);
 }
 
 static void cx_auto_init_input(struct hda_codec *codec)
