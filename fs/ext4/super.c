@@ -1342,7 +1342,7 @@ enum {
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_jqfmt_vfsv1, Opt_quota,
 	Opt_noquota, Opt_ignore, Opt_barrier, Opt_nobarrier, Opt_err,
-	Opt_resize, Opt_usrquota, Opt_grpquota, Opt_i_version,
+	Opt_usrquota, Opt_grpquota, Opt_i_version,
 	Opt_stripe, Opt_delalloc, Opt_nodelalloc, Opt_mblk_io_submit,
 	Opt_nomblk_io_submit, Opt_block_validity, Opt_noblock_validity,
 	Opt_inode_readahead_blks, Opt_journal_ioprio,
@@ -1403,7 +1403,6 @@ static const match_table_t tokens = {
 	{Opt_nobarrier, "nobarrier"},
 	{Opt_i_version, "i_version"},
 	{Opt_stripe, "stripe=%u"},
-	{Opt_resize, "resize"},
 	{Opt_delalloc, "delalloc"},
 	{Opt_nodelalloc, "nodelalloc"},
 	{Opt_mblk_io_submit, "mblk_io_submit"},
@@ -1513,7 +1512,7 @@ static int clear_qf_name(struct super_block *sb, int qtype)
 static int parse_options(char *options, struct super_block *sb,
 			 unsigned long *journal_devnum,
 			 unsigned int *journal_ioprio,
-			 ext4_fsblk_t *n_blocks_count, int is_remount)
+			 int is_remount)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	char *p;
@@ -1793,17 +1792,6 @@ set_qf_format:
 				clear_opt(sb, BARRIER);
 			break;
 		case Opt_ignore:
-			break;
-		case Opt_resize:
-			if (!is_remount) {
-				ext4_msg(sb, KERN_ERR,
-					"resize option only available "
-					"for remount");
-				return 0;
-			}
-			if (match_int(&args[0], &option) != 0)
-				return 0;
-			*n_blocks_count = option;
 			break;
 		case Opt_nobh:
 			ext4_msg(sb, KERN_WARNING,
@@ -3241,13 +3229,13 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_li_wait_mult = EXT4_DEF_LI_WAIT_MULT;
 
 	if (!parse_options((char *) sbi->s_es->s_mount_opts, sb,
-			   &journal_devnum, &journal_ioprio, NULL, 0)) {
+			   &journal_devnum, &journal_ioprio, 0)) {
 		ext4_msg(sb, KERN_WARNING,
 			 "failed to parse options in superblock: %s",
 			 sbi->s_es->s_mount_opts);
 	}
 	if (!parse_options((char *) data, sb, &journal_devnum,
-			   &journal_ioprio, NULL, 0))
+			   &journal_ioprio, 0))
 		goto failed_mount;
 
 	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA) {
@@ -4380,7 +4368,6 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct ext4_super_block *es;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	ext4_fsblk_t n_blocks_count = 0;
 	unsigned long old_sb_flags;
 	struct ext4_mount_options old_opts;
 	int enable_quota = 0;
@@ -4413,8 +4400,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	/*
 	 * Allow the "check" option to be passed as a remount option.
 	 */
-	if (!parse_options(data, sb, NULL, &journal_ioprio,
-			   &n_blocks_count, 1)) {
+	if (!parse_options(data, sb, NULL, &journal_ioprio, 1)) {
 		err = -EINVAL;
 		goto restore_opts;
 	}
@@ -4432,8 +4418,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 		set_task_ioprio(sbi->s_journal->j_task, journal_ioprio);
 	}
 
-	if ((*flags & MS_RDONLY) != (sb->s_flags & MS_RDONLY) ||
-		n_blocks_count > ext4_blocks_count(es)) {
+	if ((*flags & MS_RDONLY) != (sb->s_flags & MS_RDONLY)) {
 		if (sbi->s_mount_flags & EXT4_MF_FS_ABORTED) {
 			err = -EROFS;
 			goto restore_opts;
@@ -4508,8 +4493,6 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 			if (sbi->s_journal)
 				ext4_clear_journal_err(sb, es);
 			sbi->s_mount_state = le16_to_cpu(es->s_state);
-			if ((err = ext4_group_extend(sb, es, n_blocks_count)))
-				goto restore_opts;
 			if (!ext4_setup_super(sb, es, 0))
 				sb->s_flags &= ~MS_RDONLY;
 			if (EXT4_HAS_INCOMPAT_FEATURE(sb,

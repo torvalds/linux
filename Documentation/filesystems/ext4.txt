@@ -353,11 +353,6 @@ nouid32			Disables 32-bit UIDs and GIDs.  This is for
 			interoperability  with  older kernels which only
 			store and expect 16-bit values.
 
-resize			Allows to resize filesystem to the end of the last
-			existing block group, further resize has to be done
-			with resize2fs either online, or offline. It can be
-			used only with conjunction with remount.
-
 block_validity		This options allows to enables/disables the in-kernel
 noblock_validity	facility for tracking filesystem metadata blocks
 			within internal data structures. This allows multi-
