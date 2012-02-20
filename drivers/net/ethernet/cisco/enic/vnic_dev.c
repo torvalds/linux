@@ -613,7 +613,7 @@ int vnic_dev_hang_notify(struct vnic_dev *vdev)
 	return vnic_dev_cmd(vdev, CMD_HANG_NOTIFY, &a0, &a1, wait);
 }
 
-int vnic_dev_mac_addr(struct vnic_dev *vdev, u8 *mac_addr)
+int vnic_dev_get_mac_addr(struct vnic_dev *vdev, u8 *mac_addr)
 {
 	u64 a0, a1;
 	int wait = 1000;
@@ -622,7 +622,7 @@ int vnic_dev_mac_addr(struct vnic_dev *vdev, u8 *mac_addr)
 	for (i = 0; i < ETH_ALEN; i++)
 		mac_addr[i] = 0;
 
-	err = vnic_dev_cmd(vdev, CMD_MAC_ADDR, &a0, &a1, wait);
+	err = vnic_dev_cmd(vdev, CMD_GET_MAC_ADDR, &a0, &a1, wait);
 	if (err)
 		return err;
 
@@ -803,7 +803,7 @@ int vnic_dev_init(struct vnic_dev *vdev, int arg)
 			/* Emulate these for old CMD_INIT_v1 which
 			 * didn't pass a0 so no CMD_INITF_*.
 			 */
-			vnic_dev_cmd(vdev, CMD_MAC_ADDR, &a0, &a1, wait);
+			vnic_dev_cmd(vdev, CMD_GET_MAC_ADDR, &a0, &a1, wait);
 			vnic_dev_cmd(vdev, CMD_ADDR_ADD, &a0, &a1, wait);
 		}
 	}
