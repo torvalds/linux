@@ -18,6 +18,7 @@
 #include <linux/termios.h>
 #include <linux/dmaengine.h>
 #include <linux/amba/bus.h>
+#include <linux/amba/mmci.h>
 #include <linux/amba/serial.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
@@ -43,9 +44,9 @@
 #include <mach/gpio-u300.h>
 
 #include "clock.h"
-#include "mmc.h"
 #include "spi.h"
 #include "i2c.h"
+#include "u300-gpio.h"
 
 /*
  * Static I/O mappings that are needed for booting the U300 platforms. The
@@ -116,11 +117,6 @@ static AMBA_APB_DEVICE(uart1, "uart1", 0, U300_UART1_BASE,
 /* AHB device at 0x4000 offset */
 static AMBA_APB_DEVICE(pl172, "pl172", 0, U300_EMIF_CFG_BASE, { }, NULL);
 
-
-/*
- * Everything within this next ifdef deals with external devices connected to
- * the APP SPI bus.
- */
 /* Fast device at 0x6000 offset */
 static AMBA_APB_DEVICE(pl022, "pl022", 0, U300_SPI_BASE,
 	{ IRQ_U300_SPI }, NULL);
@@ -128,8 +124,26 @@ static AMBA_APB_DEVICE(pl022, "pl022", 0, U300_SPI_BASE,
 /* Fast device at 0x1000 offset */
 #define U300_MMCSD_IRQS	{ IRQ_U300_MMCSD_MCIINTR0, IRQ_U300_MMCSD_MCIINTR1 }
 
+static struct mmci_platform_data mmcsd_platform_data = {
+	/*
+	 * Do not set ocr_mask or voltage translation function,
+	 * we have a regulator we can control instead.
+	 */
+	.f_max = 24000000,
+	.gpio_wp = -1,
+	.gpio_cd = U300_GPIO_PIN_MMC_CD,
+	.cd_invert = true,
+	.capabilities = MMC_CAP_MMC_HIGHSPEED |
+	MMC_CAP_SD_HIGHSPEED | MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
+#ifdef CONFIG_COH901318
+	.dma_filter = coh901318_filter_id,
+	.dma_rx_param = (void *) U300_DMA_MMCSD_RX_TX,
+	/* Don't specify a TX channel, this RX channel is bidirectional */
+#endif
+};
+
 static AMBA_APB_DEVICE(mmcsd, "mmci", 0, U300_MMCSD_BASE,
-	U300_MMCSD_IRQS, NULL);
+	U300_MMCSD_IRQS, &mmcsd_platform_data);
 
 /*
  * The order of device declaration may be important, since some devices
@@ -1825,16 +1839,6 @@ void __init u300_init_devices(void)
 		U300_SYSCON_SMCR_SEMI_SREFREQ_ENABLE;
 	writew(val, U300_SYSCON_VBASE + U300_SYSCON_SMCR);
 }
-
-static int core_module_init(void)
-{
-	/*
-	 * This needs to be initialized later: it needs the input framework
-	 * to be initialized first.
-	 */
-	return mmc_init(&mmcsd_device);
-}
-module_init(core_module_init);
 
 /* Forward declare this function from the watchdog */
 void coh901327_watchdog_reset(void);
