@@ -346,7 +346,7 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 				void *write_data,unsigned int write_len,
 				void *read_data,unsigned int read_len);
 static int pvr2_hdw_check_cropcap(struct pvr2_hdw *hdw);
-
+static v4l2_std_id pvr2_hdw_get_detected_std(struct pvr2_hdw *hdw);
 
 static void trace_stbit(const char *name,int val)
 {
@@ -840,6 +840,12 @@ static int ctrl_hsm_get(struct pvr2_ctrl *cptr,int *vp)
 	return 0;
 }
 
+static int ctrl_stddetect_get(struct pvr2_ctrl *cptr, int *vp)
+{
+	*vp = pvr2_hdw_get_detected_std(cptr->hdw);
+	return 0;
+}
+
 static int ctrl_stdavail_get(struct pvr2_ctrl *cptr,int *vp)
 {
 	*vp = cptr->hdw->std_mask_avail;
@@ -1302,6 +1308,15 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.is_dirty = ctrl_stdenumcur_is_dirty,
 		.clear_dirty = ctrl_stdenumcur_clear_dirty,
 		.type = pvr2_ctl_enum,
+	},{
+		.desc = "Video Standards Detected Mask",
+		.name = "video_standard_mask_detected",
+		.internal_id = PVR2_CID_STDDETECT,
+		.skip_init = !0,
+		.get_value = ctrl_stddetect_get,
+		.val_to_sym = ctrl_std_val_to_sym,
+		.sym_to_val = ctrl_std_sym_to_val,
+		.type = pvr2_ctl_bitmask,
 	}
 };
 
@@ -2629,7 +2644,17 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 		cptr->info = &hdw->std_info_cur;
 		hdw->std_info_cur.def.type_bitmask.bit_names =
 			hdw->std_mask_ptrs;
-		hdw->std_info_avail.def.type_bitmask.valid_bits =
+		hdw->std_info_cur.def.type_bitmask.valid_bits =
+			valid_std_mask;
+	}
+	cptr = pvr2_hdw_get_ctrl_by_id(hdw,PVR2_CID_STDDETECT);
+	if (cptr) {
+		memcpy(&hdw->std_info_detect,cptr->info,
+		       sizeof(hdw->std_info_detect));
+		cptr->info = &hdw->std_info_detect;
+		hdw->std_info_detect.def.type_bitmask.bit_names =
+			hdw->std_mask_ptrs;
+		hdw->std_info_detect.def.type_bitmask.valid_bits =
 			valid_std_mask;
 	}
 
@@ -2995,12 +3020,13 @@ static void pvr2_subdev_set_control(struct pvr2_hdw *hdw, int id,
 		pvr2_subdev_set_control(hdw, id, #lab, (hdw)->lab##_val); \
 	}
 
-int pvr2_hdw_get_detected_std(struct pvr2_hdw *hdw, v4l2_std_id *std)
+v4l2_std_id pvr2_hdw_get_detected_std(struct pvr2_hdw *hdw)
 {
-	*std = V4L2_STD_ALL;
+	v4l2_std_id std;
+	std = V4L2_STD_ALL;
 	v4l2_device_call_all(&hdw->v4l2_dev, 0,
-			     video, querystd, std);
-	return 0;
+			     video, querystd, &std);
+	return std;
 }
 
 /* Execute whatever commands are required to update the state of all the

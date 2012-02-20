@@ -323,6 +323,7 @@ struct pvr2_hdw {
 	struct pvr2_ctl_info std_info_enum;
 	struct pvr2_ctl_info std_info_avail;
 	struct pvr2_ctl_info std_info_cur;
+	struct pvr2_ctl_info std_info_detect;
 	struct v4l2_standard *std_defs;
 	const char **std_enum_names;
 
