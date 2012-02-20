@@ -641,18 +641,13 @@ EXPORT_SYMBOL_GPL(pinctrl_disable);
 
 /**
  * pinctrl_register_mappings() - register a set of pin controller mappings
- * @maps: the pincontrol mappings table to register, this should be marked with
- *	__initdata so it can be discarded after boot, this function will
- *	perform a shallow copy for the mapping entries.
+ * @maps: the pincontrol mappings table to register. This should probably be
+ *	marked with __initdata so it can be discarded after boot. This
+ *	function will perform a shallow copy for the mapping entries.
  * @num_maps: the number of maps in the mapping table
- *
- * Only call this once during initialization of your machine, the function is
- * tagged as __init and won't be callable after init has completed. The map
- * passed into this function will be owned by the pinmux core and cannot be
- * freed.
  */
-int __init pinctrl_register_mappings(struct pinctrl_map const *maps,
-				     unsigned num_maps)
+int pinctrl_register_mappings(struct pinctrl_map const *maps,
+			      unsigned num_maps)
 {
 	void *tmp_maps;
 	int i;
