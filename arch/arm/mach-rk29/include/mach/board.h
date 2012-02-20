@@ -21,6 +21,7 @@
 #include <linux/types.h>
 #include <linux/timer.h>
 #include <linux/notifier.h>
+#include <plat/board.h>
 
 struct led_newton_pwm {
 	const char	*name;
@@ -75,23 +76,6 @@ struct rk29_button_light_info{
 	int (*io_deinit)(void);
 };
 
-/*spi*/
-struct spi_cs_gpio {
-	const char *name;
-	unsigned int cs_gpio;
-	char *cs_iomux_name;
-	unsigned int cs_iomux_mode;
-};
-
-struct rk29xx_spi_platform_data {
-	int (*io_init)(struct spi_cs_gpio*, int);
-	int (*io_deinit)(struct spi_cs_gpio*, int);
-	int (*io_fix_leakage_bug)(void);
-	int (*io_resume_leakage_bug)(void);
-	struct spi_cs_gpio *chipselect_gpios;	
-	u16 num_chipselect;
-};
-
 /*vmac*/
 struct rk29_vmac_platform_data {
 	int (*vmac_register_set)(void);
@@ -128,17 +112,6 @@ struct rk29fb_info{
     int (*io_deinit)(void);
     int (*io_enable)(void);
     int (*io_disable)(void);
-};
-
-struct rk29_bl_info{
-    u32 pwm_id;
-    u32 bl_ref;
-    int (*io_init)(void);
-    int (*io_deinit)(void);
-	int (*pwm_suspend)(void);
-	int (*pwm_resume)(void);
-	int min_brightness;	/* 0 ~ 255 */
-	unsigned int delay_ms;	/* in milliseconds */
 };
 
 #ifndef _LINUX_WLAN_PLAT_H_
@@ -391,16 +364,6 @@ void __init rk29_setup_early_printk(void);
 void __init rk29_map_common_io(void);
 void __init board_power_init(void);
 
-#define BOOT_MODE_NORMAL		0
-#define BOOT_MODE_FACTORY2		1
-#define BOOT_MODE_RECOVERY		2
-#define BOOT_MODE_CHARGE		3
-#define BOOT_MODE_POWER_TEST		4
-#define BOOT_MODE_OFFMODE_CHARGING	5
-#define BOOT_MODE_REBOOT		6
-#define BOOT_MODE_PANIC			7
-int board_boot_mode(void);
-
 enum periph_pll {
 	periph_pll_96mhz = 96000000, /* save more power */
 	periph_pll_144mhz = 144000000,
@@ -424,15 +387,5 @@ enum codec_pll {
 
 void __init rk29_clock_init(enum periph_pll ppll_rate); /* codec pll is 297MHz, has xin27m */
 void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate, bool has_xin27m);
-
-/* for USB detection */
-#ifdef CONFIG_USB_GADGET
-int board_usb_detect_init(unsigned gpio);
-#else
-static int inline board_usb_detect_init(unsigned gpio) { return 0; }
-#endif
-
-/* for wakeup Android */
-void rk28_send_wakeup_key(void);
 
 #endif
