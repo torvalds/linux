@@ -42,7 +42,7 @@
 	.equ	swapper_pg_dir, KERNEL_RAM_VADDR - 0x4000
 
 	.macro	pgtbl, rd, phys
-#if defined(CONFIG_ARCH_RK29) || defined(CONFIG_ARCH_RK30)
+#ifdef CONFIG_PLAT_RK
 	add	\rd, \phys, #((TEXT_OFFSET - 0x4000) & 0xffff0000)
 	add	\rd, \rd,   #((TEXT_OFFSET - 0x4000) & 0x0000ffff)
 #else
