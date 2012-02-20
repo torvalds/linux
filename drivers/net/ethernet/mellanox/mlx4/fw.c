@@ -685,7 +685,7 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 	return err;
 }
 
-static int mlx4_QUERY_PORT(struct mlx4_dev *dev, void *ptr, u8 port)
+int mlx4_QUERY_PORT(struct mlx4_dev *dev, void *ptr, u8 port)
 {
 	struct mlx4_cmd_mailbox *outbox = ptr;
 
