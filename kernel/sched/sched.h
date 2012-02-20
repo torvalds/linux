@@ -212,9 +212,6 @@ struct cfs_rq {
 	struct rb_root tasks_timeline;
 	struct rb_node *rb_leftmost;
 
-	struct list_head tasks;
-	struct list_head *balance_iterator;
-
 	/*
 	 * 'curr' points to currently running entity on this cfs_rq.
 	 * It is set to NULL otherwise (i.e when none are currently running).
@@ -241,11 +238,6 @@ struct cfs_rq {
 	struct task_group *tg;	/* group that "owns" this runqueue */
 
 #ifdef CONFIG_SMP
-	/*
-	 * the part of load.weight contributed by tasks
-	 */
-	unsigned long task_weight;
-
 	/*
 	 *   h_load = weight * f(tg)
 	 *
@@ -419,6 +411,8 @@ struct rq {
 	/* cpu of this runqueue: */
 	int cpu;
 	int online;
+
+	struct list_head cfs_tasks;
 
 	u64 rt_avg;
 	u64 age_stamp;

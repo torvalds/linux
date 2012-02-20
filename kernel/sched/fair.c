@@ -776,29 +776,16 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
  * Scheduling class queueing methods:
  */
 
-#if defined CONFIG_SMP && defined CONFIG_FAIR_GROUP_SCHED
-static void
-add_cfs_task_weight(struct cfs_rq *cfs_rq, unsigned long weight)
-{
-	cfs_rq->task_weight += weight;
-}
-#else
-static inline void
-add_cfs_task_weight(struct cfs_rq *cfs_rq, unsigned long weight)
-{
-}
-#endif
-
 static void
 account_entity_enqueue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	update_load_add(&cfs_rq->load, se->load.weight);
 	if (!parent_entity(se))
 		update_load_add(&rq_of(cfs_rq)->load, se->load.weight);
-	if (entity_is_task(se)) {
-		add_cfs_task_weight(cfs_rq, se->load.weight);
-		list_add(&se->group_node, &cfs_rq->tasks);
-	}
+#ifdef CONFIG_SMP
+	if (entity_is_task(se))
+		list_add(&se->group_node, &rq_of(cfs_rq)->cfs_tasks);
+#endif
 	cfs_rq->nr_running++;
 }
 
@@ -808,10 +795,8 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	update_load_sub(&cfs_rq->load, se->load.weight);
 	if (!parent_entity(se))
 		update_load_sub(&rq_of(cfs_rq)->load, se->load.weight);
-	if (entity_is_task(se)) {
-		add_cfs_task_weight(cfs_rq, -se->load.weight);
+	if (entity_is_task(se))
 		list_del_init(&se->group_node);
-	}
 	cfs_rq->nr_running--;
 }
 
@@ -3085,17 +3070,14 @@ static bool yield_to_task_fair(struct rq *rq, struct task_struct *p, bool preemp
 static unsigned long __read_mostly max_load_balance_interval = HZ/10;
 
 #define LBF_ALL_PINNED	0x01
-#define LBF_NEED_BREAK	0x02	/* clears into HAD_BREAK */
-#define LBF_HAD_BREAK	0x04
-#define LBF_HAD_BREAKS	0x0C	/* count HAD_BREAKs overflows into ABORT */
-#define LBF_ABORT	0x10
+#define LBF_NEED_BREAK	0x02
+#define LBF_ABORT	0x04
 
 struct lb_env {
 	struct sched_domain	*sd;
 
 	int			src_cpu;
 	struct rq		*src_rq;
-	struct cfs_rq		*src_cfs_rq;
 
 	int			dst_cpu;
 	struct rq		*dst_rq;
@@ -3103,6 +3085,10 @@ struct lb_env {
 	enum cpu_idle_type	idle;
 	unsigned long		max_load_move;
 	unsigned int		flags;
+
+	unsigned int		loop;
+	unsigned int		loop_break;
+	unsigned int		loop_max;
 };
 
 /*
@@ -3208,53 +3194,69 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 static int move_one_task(struct lb_env *env)
 {
 	struct task_struct *p, *n;
-	struct cfs_rq *cfs_rq;
 
-	for_each_leaf_cfs_rq(env->src_rq, cfs_rq) {
-		list_for_each_entry_safe(p, n, &cfs_rq->tasks, se.group_node) {
-			if (throttled_lb_pair(task_group(p),
-					      env->src_cpu, env->dst_cpu))
-				break;
+	list_for_each_entry_safe(p, n, &env->src_rq->cfs_tasks, se.group_node) {
+		if (throttled_lb_pair(task_group(p), env->src_rq->cpu, env->dst_cpu))
+			continue;
 
-			if (!can_migrate_task(p, env))
-				continue;
+		if (!can_migrate_task(p, env))
+			continue;
 
-			move_task(p, env);
-			/*
-			 * Right now, this is only the second place move_task()
-			 * is called, so we can safely collect move_task()
-			 * stats here rather than inside move_task().
-			 */
-			schedstat_inc(env->sd, lb_gained[env->idle]);
-			return 1;
-		}
+		move_task(p, env);
+		/*
+		 * Right now, this is only the second place move_task()
+		 * is called, so we can safely collect move_task()
+		 * stats here rather than inside move_task().
+		 */
+		schedstat_inc(env->sd, lb_gained[env->idle]);
+		return 1;
 	}
-
 	return 0;
 }
 
+static unsigned long task_h_load(struct task_struct *p);
+
 static unsigned long balance_tasks(struct lb_env *env)
 {
-	int loops = 0, pulled = 0;
 	long rem_load_move = env->max_load_move;
 	struct task_struct *p, *n;
+	unsigned long load;
+	int pulled = 0;
 
 	if (env->max_load_move == 0)
 		goto out;
 
-	list_for_each_entry_safe(p, n, &env->src_cfs_rq->tasks, se.group_node) {
-		if (loops++ > sysctl_sched_nr_migrate) {
+	list_for_each_entry_safe(p, n, &env->src_rq->cfs_tasks, se.group_node) {
+		env->loop++;
+		/* We've more or less seen every task there is, call it quits */
+		if (env->loop > env->loop_max) {
+			env->flags |= LBF_ABORT;
+			break;
+		}
+		/* take a beather every nr_migrate tasks */
+		if (env->loop > env->loop_break) {
+			env->loop_break += sysctl_sched_nr_migrate;
 			env->flags |= LBF_NEED_BREAK;
 			break;
 		}
 
-		if ((p->se.load.weight >> 1) > rem_load_move ||
-		    !can_migrate_task(p, env))
-			continue;
+		if (throttled_lb_pair(task_group(p), env->src_rq->cpu,
+					env->dst_cpu))
+			goto next;
+
+		load = task_h_load(p);
+		if (load < 16 && !env->sd->nr_balance_failed)
+			goto next;
+
+		if ((load * 2) > rem_load_move)
+			goto next;
+
+		if (!can_migrate_task(p, env))
+			goto next;
 
 		move_task(p, env);
 		pulled++;
-		rem_load_move -= p->se.load.weight;
+		rem_load_move -= load;
 
 #ifdef CONFIG_PREEMPT
 		/*
@@ -3274,6 +3276,10 @@ static unsigned long balance_tasks(struct lb_env *env)
 		 */
 		if (rem_load_move <= 0)
 			break;
+
+		continue;
+next:
+		list_move_tail(&p->se.group_node, &env->src_rq->cfs_tasks);
 	}
 out:
 	/*
@@ -3363,65 +3369,33 @@ static int tg_load_down(struct task_group *tg, void *data)
 
 static void update_h_load(long cpu)
 {
+	rcu_read_lock();
 	walk_tg_tree(tg_load_down, tg_nop, (void *)cpu);
+	rcu_read_unlock();
 }
 
-static unsigned long load_balance_fair(struct lb_env *env)
+static unsigned long task_h_load(struct task_struct *p)
 {
-	unsigned long max_load_move = env->max_load_move;
-	long rem_load_move = env->max_load_move;
+	struct cfs_rq *cfs_rq = task_cfs_rq(p);
+	unsigned long load;
 
-	rcu_read_lock();
-	update_h_load(cpu_of(env->src_rq));
+	load = p->se.load.weight;
+	load = div_u64(load * cfs_rq->h_load, cfs_rq->load.weight + 1);
 
-	for_each_leaf_cfs_rq(env->src_rq, env->src_cfs_rq) {
-		unsigned long busiest_h_load = env->src_cfs_rq->h_load;
-		unsigned long busiest_weight = env->src_cfs_rq->load.weight;
-		u64 rem_load, moved_load;
-
-		if (env->flags & (LBF_NEED_BREAK|LBF_ABORT))
-			break;
-
-		/*
-		 * empty group or part of a throttled hierarchy
-		 */
-		if (!env->src_cfs_rq->task_weight)
-			continue;
-
-		if (throttled_lb_pair(env->src_cfs_rq->tg,
-				      cpu_of(env->src_rq),
-				      env->dst_cpu))
-			continue;
-
-		rem_load = (u64)rem_load_move * busiest_weight;
-		rem_load = div_u64(rem_load, busiest_h_load + 1);
-
-		env->max_load_move = rem_load;
-
-		moved_load = balance_tasks(env);
-		if (!moved_load)
-			continue;
-
-		moved_load *= busiest_h_load;
-		moved_load = div_u64(moved_load, busiest_weight + 1);
-
-		rem_load_move -= moved_load;
-		if (rem_load_move < 0)
-			break;
-	}
-	rcu_read_unlock();
-
-	return max_load_move - rem_load_move;
+	return load;
 }
 #else
 static inline void update_shares(int cpu)
 {
 }
 
-static unsigned long load_balance_fair(struct lb_env *env)
+static inline void update_h_load(long cpu)
 {
-	env->src_cfs_rq = &env->src_rq->cfs;
-	return balance_tasks(env);
+}
+
+static unsigned long task_h_load(struct task_struct *p)
+{
+	return p->se.load.weight;
 }
 #endif
 
@@ -3437,9 +3411,10 @@ static int move_tasks(struct lb_env *env)
 	unsigned long max_load_move = env->max_load_move;
 	unsigned long total_load_moved = 0, load_moved;
 
+	update_h_load(cpu_of(env->src_rq));
 	do {
 		env->max_load_move = max_load_move - total_load_moved;
-		load_moved = load_balance_fair(env);
+		load_moved = balance_tasks(env);
 		total_load_moved += load_moved;
 
 		if (env->flags & (LBF_NEED_BREAK|LBF_ABORT))
@@ -4464,6 +4439,7 @@ static int load_balance(int this_cpu, struct rq *this_rq,
 		.dst_cpu	= this_cpu,
 		.dst_rq		= this_rq,
 		.idle		= idle,
+		.loop_break	= sysctl_sched_nr_migrate,
 	};
 
 	cpumask_copy(cpus, cpu_active_mask);
@@ -4504,6 +4480,7 @@ redo:
 		env.max_load_move = imbalance;
 		env.src_cpu = busiest->cpu;
 		env.src_rq = busiest;
+		env.loop_max = busiest->nr_running;
 
 		local_irq_save(flags);
 		double_rq_lock(this_rq, busiest);
@@ -4521,9 +4498,7 @@ redo:
 			goto out_balanced;
 
 		if (env.flags & LBF_NEED_BREAK) {
-			env.flags += LBF_HAD_BREAK - LBF_NEED_BREAK;
-			if (env.flags & LBF_ABORT)
-				goto out_balanced;
+			env.flags &= ~LBF_NEED_BREAK;
 			goto redo;
 		}
 
@@ -5357,7 +5332,6 @@ static void set_curr_task_fair(struct rq *rq)
 void init_cfs_rq(struct cfs_rq *cfs_rq)
 {
 	cfs_rq->tasks_timeline = RB_ROOT;
-	INIT_LIST_HEAD(&cfs_rq->tasks);
 	cfs_rq->min_vruntime = (u64)(-(1LL << 20));
 #ifndef CONFIG_64BIT
 	cfs_rq->min_vruntime_copy = cfs_rq->min_vruntime;
