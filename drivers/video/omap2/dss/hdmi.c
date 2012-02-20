@@ -63,7 +63,6 @@
 
 static struct {
 	struct mutex lock;
-	struct omap_display_platform_data *pdata;
 	struct platform_device *pdev;
 	struct hdmi_ip_data ip_data;
 
@@ -797,7 +796,6 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 	struct resource *hdmi_mem;
 	int r;
 
-	hdmi.pdata = pdev->dev.platform_data;
 	hdmi.pdev = pdev;
 
 	mutex_init(&hdmi.lock);

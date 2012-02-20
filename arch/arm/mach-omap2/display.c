@@ -191,10 +191,24 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;
 	int i, oh_count;
-	struct omap_display_platform_data pdata;
 	const struct omap_dss_hwmod_data *curr_dss_hwmod;
 
-	memset(&pdata, 0, sizeof(pdata));
+	/* create omapdss device */
+
+	board_data->dsi_enable_pads = omap_dsi_enable_pads;
+	board_data->dsi_disable_pads = omap_dsi_disable_pads;
+	board_data->get_context_loss_count = omap_pm_get_dev_context_loss_count;
+	board_data->set_min_bus_tput = omap_dss_set_min_bus_tput;
+
+	omap_display_device.dev.platform_data = board_data;
+
+	r = platform_device_register(&omap_display_device);
+	if (r < 0) {
+		pr_err("Unable to register omapdss device\n");
+		return r;
+	}
+
+	/* create devices for dss hwmods */
 
 	if (cpu_is_omap24xx()) {
 		curr_dss_hwmod = omap2_dss_hwmod_data;
@@ -207,16 +221,6 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 		oh_count = ARRAY_SIZE(omap4_dss_hwmod_data);
 	}
 
-	if (board_data->dsi_enable_pads == NULL)
-		board_data->dsi_enable_pads = omap_dsi_enable_pads;
-	if (board_data->dsi_disable_pads == NULL)
-		board_data->dsi_disable_pads = omap_dsi_disable_pads;
-
-	pdata.board_data = board_data;
-	pdata.board_data->get_context_loss_count =
-		omap_pm_get_dev_context_loss_count;
-	pdata.board_data->set_min_bus_tput = omap_dss_set_min_bus_tput;
-
 	for (i = 0; i < oh_count; i++) {
 		oh = omap_hwmod_lookup(curr_dss_hwmod[i].oh_name);
 		if (!oh) {
@@ -226,21 +230,16 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 		}
 
 		pdev = omap_device_build(curr_dss_hwmod[i].dev_name,
-				curr_dss_hwmod[i].id, oh, &pdata,
-				sizeof(struct omap_display_platform_data),
+				curr_dss_hwmod[i].id, oh,
+				NULL, 0,
 				NULL, 0, 0);
 
 		if (WARN((IS_ERR(pdev)), "Could not build omap_device for %s\n",
 				curr_dss_hwmod[i].oh_name))
 			return -ENODEV;
 	}
-	omap_display_device.dev.platform_data = board_data;
 
-	r = platform_device_register(&omap_display_device);
-	if (r < 0)
-		printk(KERN_ERR "Unable to register OMAP-Display device\n");
-
-	return r;
+	return 0;
 }
 
 static void dispc_disable_outputs(void)
