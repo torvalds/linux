@@ -758,21 +758,6 @@ static struct omap_dss_device sdp4430_lcd2_device = {
 	.channel		= OMAP_DSS_CHANNEL_LCD2,
 };
 
-static void sdp4430_lcd_init(void)
-{
-	int r;
-
-	r = gpio_request_one(dsi1_panel.reset_gpio, GPIOF_DIR_OUT,
-		"lcd1_reset_gpio");
-	if (r)
-		pr_err("%s: Could not get lcd1_reset_gpio\n", __func__);
-
-	r = gpio_request_one(dsi2_panel.reset_gpio, GPIOF_DIR_OUT,
-		"lcd2_reset_gpio");
-	if (r)
-		pr_err("%s: Could not get lcd2_reset_gpio\n", __func__);
-}
-
 static struct omap_dss_hdmi_data sdp4430_hdmi_data = {
 	.hpd_gpio = HDMI_GPIO_HPD,
 };
@@ -858,7 +843,6 @@ static void __init omap_4430sdp_display_init(void)
 	if (r)
 		pr_err("%s: Could not get display_sel GPIO\n", __func__);
 
-	sdp4430_lcd_init();
 	sdp4430_picodlp_init();
 	omap_display_init(&sdp4430_dss_data);
 	/*
