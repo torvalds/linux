@@ -1020,6 +1020,11 @@ jbd2_journal_write_metadata_buffer(transaction_t	  *transaction,
 /* Transaction locking */
 extern void		__wait_on_journal (journal_t *);
 
+/* Transaction cache support */
+extern void jbd2_journal_destroy_transaction_cache(void);
+extern int  jbd2_journal_init_transaction_cache(void);
+extern void jbd2_journal_free_transaction(transaction_t *);
+
 /*
  * Journal locking.
  *

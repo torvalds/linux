@@ -1048,7 +1048,7 @@ restart_loop:
 	jbd_debug(1, "JBD2: commit %d complete, head %d\n",
 		  journal->j_commit_sequence, journal->j_tail_sequence);
 	if (to_free)
-		kfree(commit_transaction);
+		jbd2_journal_free_transaction(commit_transaction);
 
 	wake_up(&journal->j_wait_done_commit);
 }
