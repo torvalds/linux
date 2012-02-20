@@ -2712,7 +2712,7 @@ static void rdev_init_debugfs(struct regulator_dev *rdev)
 {
 #ifdef CONFIG_DEBUG_FS
 	rdev->debugfs = debugfs_create_dir(rdev_get_name(rdev), debugfs_root);
-	if (IS_ERR(rdev->debugfs) || !rdev->debugfs) {
+	if (IS_ERR_OR_NULL(rdev->debugfs)) {
 		rdev_warn(rdev, "Failed to create debugfs directory\n");
 		rdev->debugfs = NULL;
 		return;
@@ -3127,14 +3127,13 @@ static int __init regulator_init(void)
 
 #ifdef CONFIG_DEBUG_FS
 	debugfs_root = debugfs_create_dir("regulator", NULL);
-	if (IS_ERR(debugfs_root) || !debugfs_root) {
+	if (IS_ERR_OR_NULL(debugfs_root)) {
 		pr_warn("regulator: Failed to create debugfs directory\n");
 		debugfs_root = NULL;
 	}
 
-	if (IS_ERR(debugfs_create_file("supply_map", 0444, debugfs_root,
-				       NULL, &supply_map_fops)))
-		pr_warn("regulator: Failed to create supplies debugfs\n");
+	debugfs_create_file("supply_map", 0444, debugfs_root, NULL,
+			    &supply_map_fops);
 #endif
 
 	regulator_dummy_init();
