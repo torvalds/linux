@@ -282,10 +282,9 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 	case Q_XGETQUOTA:
 		return quota_getxquota(sb, type, id, addr);
 	case Q_XQUOTASYNC:
-		/* caller already holds s_umount */
 		if (sb->s_flags & MS_RDONLY)
 			return -EROFS;
-		writeback_inodes_sb(sb, WB_REASON_SYNC);
+		/* XFS quotas are fully coherent now, making this call a noop */
 		return 0;
 	default:
 		return -EINVAL;
