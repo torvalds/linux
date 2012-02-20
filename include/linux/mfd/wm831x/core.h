@@ -240,6 +240,7 @@ struct regulator_dev;
 
 #define WM831X_NUM_IRQ_REGS 5
 #define WM831X_IRQ_LIST	1
+
 enum wm831x_parent {
 	WM8310 = 0x8310,
 	WM8311 = 0x8311,
@@ -247,6 +248,7 @@ enum wm831x_parent {
 	WM8320 = 0x8320,
 	WM8321 = 0x8321,
 	WM8325 = 0x8325,
+	WM8326 = 0x8326,
 };
 
 struct wm831x {
