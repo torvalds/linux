@@ -293,8 +293,8 @@ static inline void omap_hsmmc_mux(struct omap_mmc_platform_data *mmc_controller,
 	}
 }
 
-static int omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
-				 struct omap_mmc_platform_data *mmc)
+static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
+					struct omap_mmc_platform_data *mmc)
 {
 	char *hc_name;
 
@@ -553,7 +553,7 @@ free_mmc:
 	kfree(mmc_data);
 }
 
-void omap_hsmmc_init(struct omap2_hsmmc_info *controllers)
+void __init omap_hsmmc_init(struct omap2_hsmmc_info *controllers)
 {
 	u32 reg;
 

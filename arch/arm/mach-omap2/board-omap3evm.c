@@ -362,7 +362,6 @@ static int omap3evm_twl_gpio_setup(struct device *dev,
 	int r, lcd_bl_en;
 
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
-	omap_mux_init_gpio(63, OMAP_PIN_INPUT);
 	mmc[0].gpio_cd = gpio + 0;
 	omap_hsmmc_late_init(mmc);
 
@@ -645,7 +644,9 @@ static void __init omap3_evm_init(void)
 	omap_board_config = omap3_evm_config;
 	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
 
+	omap_mux_init_gpio(63, OMAP_PIN_INPUT);
 	omap_hsmmc_init(mmc);
+
 	omap3_evm_i2c_init();
 
 	omap_display_init(&omap3_evm_dss_data);
