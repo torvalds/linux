@@ -28,7 +28,6 @@
 
 /* Private internal control ids, look these up with
    pvr2_hdw_get_ctrl_by_id() - these are NOT visible in V4L */
-#define PVR2_CID_STDENUM 1
 #define PVR2_CID_STDCUR 2
 #define PVR2_CID_STDAVAIL 3
 #define PVR2_CID_INPUT 4
@@ -210,10 +209,6 @@ int pvr2_hdw_set_stream_type(struct pvr2_hdw *, enum pvr2_config);
 
 /* Get handle to video output stream */
 struct pvr2_stream *pvr2_hdw_get_video_stream(struct pvr2_hdw *);
-
-/* Emit a video standard struct */
-int pvr2_hdw_get_stdenum_value(struct pvr2_hdw *hdw,struct v4l2_standard *std,
-			       unsigned int idx);
 
 /* Enable / disable retrieval of CPU firmware or prom contents.  This must
    be enabled before pvr2_hdw_cpufw_get() will function.  Note that doing
