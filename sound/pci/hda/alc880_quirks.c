@@ -19,7 +19,6 @@ enum {
 	ALC880_ASUS_DIG2,
 	ALC880_UNIWILL_DIG,
 	ALC880_UNIWILL,
-	ALC880_UNIWILL_P53,
 #ifdef CONFIG_SND_DEBUG
 	ALC880_TEST,
 #endif
@@ -335,16 +334,6 @@ static const struct snd_kcontrol_new alc880_uniwill_mixer[] = {
 	{ } /* end */
 };
 
-static const struct snd_kcontrol_new alc880_uniwill_p53_mixer[] = {
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Headphone Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Speaker Playback Switch", 0x0d, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	{ } /* end */
-};
-
 /*
  * initialize the codec volumes, etc
  */
@@ -568,39 +557,6 @@ static const struct hda_verb alc880_uniwill_init_verbs[] = {
 	{ }
 };
 
-/*
-* Uniwill P53
-* HP = 0x14, InternalSpeaker = 0x15, mic = 0x19,
- */
-static const struct hda_verb alc880_uniwill_p53_init_verbs[] = {
-	{0x13, AC_VERB_SET_CONNECT_SEL, 0x00}, /* HP */
-
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x00 << 8))},
-	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, (0x7000 | (0x01 << 8))},
-
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-
-	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{0x21, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_DCVOL_EVENT},
-
-	{ }
-};
-
 static const struct hda_verb alc880_beep_init_verbs[] = {
 	{ 0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(5) },
 	{ }
@@ -637,41 +593,6 @@ static void alc880_uniwill_unsol_event(struct hda_codec *codec,
 		alc_exec_unsol_event(codec, res);
 		break;
 	}
-}
-
-static void alc880_uniwill_p53_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x14;
-	spec->autocfg.speaker_pins[0] = 0x15;
-	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
-}
-
-static void alc880_uniwill_p53_dcvol_automute(struct hda_codec *codec)
-{
-	unsigned int present;
-
-	present = snd_hda_codec_read(codec, 0x21, 0,
-				     AC_VERB_GET_VOLUME_KNOB_CONTROL, 0);
-	present &= HDA_AMP_VOLMASK;
-	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_OUTPUT, 0,
-				 HDA_AMP_VOLMASK, present);
-	snd_hda_codec_amp_stereo(codec, 0x0d, HDA_OUTPUT, 0,
-				 HDA_AMP_VOLMASK, present);
-}
-
-static void alc880_uniwill_p53_unsol_event(struct hda_codec *codec,
-					   unsigned int res)
-{
-	/* Looks like the unsol event is incompatible with the standard
-	 * definition.  4bit tag is placed at 28 bit!
-	 */
-	res >>= 28;
-	if (res == ALC_DCVOL_EVENT)
-		alc880_uniwill_p53_dcvol_automute(codec);
-	else
-		alc_exec_unsol_event(codec, res);
 }
 
 /*
@@ -991,7 +912,6 @@ static const char * const alc880_models[ALC880_MODEL_LAST] = {
 	[ALC880_ASUS_DIG]	= "asus-dig",
 	[ALC880_ASUS_DIG2]	= "asus-dig2",
 	[ALC880_UNIWILL_DIG]	= "uniwill",
-	[ALC880_UNIWILL_P53]	= "uniwill-p53",
 #ifdef CONFIG_SND_DEBUG
 	[ALC880_TEST]		= "test",
 #endif
@@ -1036,7 +956,6 @@ static const struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1565, 0x8202, "Biostar", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x1584, 0x9050, "Uniwill", ALC880_UNIWILL_DIG),
 	SND_PCI_QUIRK(0x1584, 0x9070, "Uniwill", ALC880_UNIWILL),
-	SND_PCI_QUIRK(0x1584, 0x9077, "Uniwill P53", ALC880_UNIWILL_P53),
 	SND_PCI_QUIRK(0x1695, 0x400d, "EPoX", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x1695, 0x4012, "EPox EP-5LDA", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x2668, 0x8086, NULL, ALC880_6ST_DIG), /* broken BIOS */
@@ -1218,19 +1137,6 @@ static const struct alc_config_preset alc880_presets[] = {
 		.unsol_event = alc880_uniwill_unsol_event,
 		.setup = alc880_uniwill_setup,
 		.init_hook = alc880_uniwill_init_hook,
-	},
-	[ALC880_UNIWILL_P53] = {
-		.mixers = { alc880_uniwill_p53_mixer },
-		.init_verbs = { alc880_volume_init_verbs,
-				alc880_uniwill_p53_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc880_asus_dac_nids),
-		.dac_nids = alc880_asus_dac_nids,
-		.num_channel_mode = ARRAY_SIZE(alc880_threestack_modes),
-		.channel_mode = alc880_threestack_modes,
-		.input_mux = &alc880_capture_source,
-		.unsol_event = alc880_uniwill_p53_unsol_event,
-		.setup = alc880_uniwill_p53_setup,
-		.init_hook = alc_hp_automute,
 	},
 #ifdef CONFIG_SND_DEBUG
 	[ALC880_TEST] = {
