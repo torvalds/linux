@@ -801,8 +801,7 @@ static int pinctrl_hog_maps(struct pinctrl_dev *pctldev)
 
 	mutex_lock(&pinctrl_maps_mutex);
 	for_each_maps(maps_node, i, map) {
-		if (map->ctrl_dev_name &&
-		    !strcmp(map->ctrl_dev_name, devname) &&
+		if (!strcmp(map->ctrl_dev_name, devname) &&
 		    !strcmp(map->dev_name, devname)) {
 			/* OK time to hog! */
 			ret = pinctrl_hog_map(pctldev, map);
