@@ -1631,12 +1631,12 @@ static ssize_t ath6kl_listen_int_write(struct file *file,
 	if (kstrtou16(buf, 0, &listen_interval))
 		return -EINVAL;
 
-	if ((listen_interval < 1) || (listen_interval > 50))
+	if ((listen_interval < 15) || (listen_interval > 3000))
 		return -EINVAL;
 
-	ar->listen_intvl_b = listen_interval;
-	ath6kl_wmi_listeninterval_cmd(ar->wmi, vif->fw_vif_idx, 0,
-				      ar->listen_intvl_b);
+	vif->listen_intvl_t = listen_interval;
+	ath6kl_wmi_listeninterval_cmd(ar->wmi, vif->fw_vif_idx,
+				      vif->listen_intvl_t, 0);
 
 	return count;
 }
@@ -1646,10 +1646,15 @@ static ssize_t ath6kl_listen_int_read(struct file *file,
 				      size_t count, loff_t *ppos)
 {
 	struct ath6kl *ar = file->private_data;
+	struct ath6kl_vif *vif;
 	char buf[32];
 	int len;
 
-	len = scnprintf(buf, sizeof(buf), "%u\n", ar->listen_intvl_b);
+	vif = ath6kl_vif_first(ar);
+	if (!vif)
+		return -EIO;
+
+	len = scnprintf(buf, sizeof(buf), "%u\n", vif->listen_intvl_t);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }

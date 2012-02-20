@@ -228,9 +228,7 @@ struct ath6kl *ath6kl_core_create(struct device *dev)
 	clear_bit(SKIP_SCAN, &ar->flag);
 	clear_bit(DESTROY_IN_PROGRESS, &ar->flag);
 
-	ar->listen_intvl_b = A_DEFAULT_LISTEN_INTERVAL;
 	ar->tx_pwr = 0;
-
 	ar->intra_bss = 1;
 	ar->lrssi_roam_threshold = DEF_LRSSI_ROAM_THRESHOLD;
 
