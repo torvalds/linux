@@ -656,6 +656,11 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_le
 			goto done;
 		}
 
+		if (!capable(CAP_NET_ADMIN)) {
+			err = -EPERM;
+			goto done;
+		}
+
 		set_bit(HCI_PI_MGMT_INIT, &hci_pi(sk)->flags);
 		break;
 
