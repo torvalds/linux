@@ -208,17 +208,13 @@ int __init jbd2_journal_init_revoke_caches(void)
 	J_ASSERT(!jbd2_revoke_record_cache);
 	J_ASSERT(!jbd2_revoke_table_cache);
 
-	jbd2_revoke_record_cache = kmem_cache_create("jbd2_revoke_record",
-					   sizeof(struct jbd2_revoke_record_s),
-					   0,
-					   SLAB_HWCACHE_ALIGN|SLAB_TEMPORARY,
-					   NULL);
+	jbd2_revoke_record_cache = KMEM_CACHE(jbd2_revoke_record_s,
+					SLAB_HWCACHE_ALIGN|SLAB_TEMPORARY);
 	if (!jbd2_revoke_record_cache)
 		goto record_cache_failure;
 
-	jbd2_revoke_table_cache = kmem_cache_create("jbd2_revoke_table",
-					   sizeof(struct jbd2_revoke_table_s),
-					   0, SLAB_TEMPORARY, NULL);
+	jbd2_revoke_table_cache = KMEM_CACHE(jbd2_revoke_table_s,
+					     SLAB_TEMPORARY);
 	if (!jbd2_revoke_table_cache)
 		goto table_cache_failure;
 	return 0;
