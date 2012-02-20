@@ -159,6 +159,18 @@ xlog_grant_head_init(
 	spin_lock_init(&head->lock);
 }
 
+STATIC void
+xlog_grant_head_wake_all(
+	struct xlog_grant_head	*head)
+{
+	struct xlog_ticket	*tic;
+
+	spin_lock(&head->lock);
+	list_for_each_entry(tic, &head->waiters, t_queue)
+		wake_up_process(tic->t_task);
+	spin_unlock(&head->lock);
+}
+
 STATIC bool
 xlog_reserveq_wake(
 	struct log		*log,
@@ -3557,7 +3569,6 @@ xfs_log_force_umount(
 	struct xfs_mount	*mp,
 	int			logerror)
 {
-	xlog_ticket_t	*tic;
 	xlog_t		*log;
 	int		retval;
 
@@ -3625,15 +3636,8 @@ xfs_log_force_umount(
 	 * we don't enqueue anything once the SHUTDOWN flag is set, and this
 	 * action is protected by the grant locks.
 	 */
-	spin_lock(&log->l_reserve_head.lock);
-	list_for_each_entry(tic, &log->l_reserve_head.waiters, t_queue)
-		wake_up_process(tic->t_task);
-	spin_unlock(&log->l_reserve_head.lock);
-
-	spin_lock(&log->l_write_head.lock);
-	list_for_each_entry(tic, &log->l_write_head.waiters, t_queue)
-		wake_up_process(tic->t_task);
-	spin_unlock(&log->l_write_head.lock);
+	xlog_grant_head_wake_all(&log->l_reserve_head);
+	xlog_grant_head_wake_all(&log->l_write_head);
 
 	if (!(log->l_iclog->ic_state & XLOG_STATE_IOERROR)) {
 		ASSERT(!logerror);
