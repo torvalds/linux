@@ -348,10 +348,10 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 		if (__save_init_fpu(old))
 			fpu_lazy_state_intact(old);
 		__thread_clear_has_fpu(old);
-		old->fpu_counter++;
 
 		/* Don't change CR0.TS if we just switch! */
 		if (fpu.preload) {
+			new->fpu_counter++;
 			__thread_set_has_fpu(new);
 			prefetch(new->thread.fpu.state);
 		} else
@@ -359,6 +359,7 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 	} else {
 		old->fpu_counter = 0;
 		if (fpu.preload) {
+			new->fpu_counter++;
 			if (fpu_lazy_restore(new))
 				fpu.preload = 0;
 			else
