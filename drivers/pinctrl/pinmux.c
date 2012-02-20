@@ -40,6 +40,34 @@ struct pinmux_group {
 	unsigned group_selector;
 };
 
+int pinmux_check_ops(struct pinctrl_dev *pctldev)
+{
+	const struct pinmux_ops *ops = pctldev->desc->pmxops;
+	unsigned selector = 0;
+
+	/* Check that we implement required operations */
+	if (!ops->list_functions ||
+	    !ops->get_function_name ||
+	    !ops->get_function_groups ||
+	    !ops->enable ||
+	    !ops->disable)
+		return -EINVAL;
+
+	/* Check that all functions registered have names */
+	while (ops->list_functions(pctldev, selector) >= 0) {
+		const char *fname = ops->get_function_name(pctldev,
+							   selector);
+		if (!fname) {
+			pr_err("pinmux ops has no name for function%u\n",
+				selector);
+			return -EINVAL;
+		}
+		selector++;
+	}
+
+	return 0;
+}
+
 /**
  * pin_request() - request a single pin to be muxed in, typically for GPIO
  * @pin: the pin number in the global pin space
@@ -559,34 +587,6 @@ void pinmux_disable(struct pinctrl *p)
 		ops->disable(pctldev, p->func_selector,
 			     grp->group_selector);
 	}
-}
-
-int pinmux_check_ops(struct pinctrl_dev *pctldev)
-{
-	const struct pinmux_ops *ops = pctldev->desc->pmxops;
-	unsigned selector = 0;
-
-	/* Check that we implement required operations */
-	if (!ops->list_functions ||
-	    !ops->get_function_name ||
-	    !ops->get_function_groups ||
-	    !ops->enable ||
-	    !ops->disable)
-		return -EINVAL;
-
-	/* Check that all functions registered have names */
-	while (ops->list_functions(pctldev, selector) >= 0) {
-		const char *fname = ops->get_function_name(pctldev,
-							   selector);
-		if (!fname) {
-			pr_err("pinmux ops has no name for function%u\n",
-				selector);
-			return -EINVAL;
-		}
-		selector++;
-	}
-
-	return 0;
 }
 
 #ifdef CONFIG_DEBUG_FS
