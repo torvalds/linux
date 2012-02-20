@@ -221,12 +221,13 @@ xlog_writeq_wake(
 }
 
 STATIC int
-xlog_reserveq_wait(
+xlog_grant_head_wait(
 	struct log		*log,
+	struct xlog_grant_head	*head,
 	struct xlog_ticket	*tic,
 	int			need_bytes)
 {
-	list_add_tail(&tic->t_queue, &log->l_reserve_head.waiters);
+	list_add_tail(&tic->t_queue, &head->waiters);
 
 	do {
 		if (XLOG_FORCED_SHUTDOWN(log))
@@ -234,7 +235,7 @@ xlog_reserveq_wait(
 		xlog_grant_push_ail(log, need_bytes);
 
 		__set_current_state(TASK_UNINTERRUPTIBLE);
-		spin_unlock(&log->l_reserve_head.lock);
+		spin_unlock(&head->lock);
 
 		XFS_STATS_INC(xs_sleep_logspace);
 
@@ -242,44 +243,10 @@ xlog_reserveq_wait(
 		schedule();
 		trace_xfs_log_grant_wake(log, tic);
 
-		spin_lock(&log->l_reserve_head.lock);
+		spin_lock(&head->lock);
 		if (XLOG_FORCED_SHUTDOWN(log))
 			goto shutdown;
-	} while (xlog_space_left(log, &log->l_reserve_head.grant) < need_bytes);
-
-	list_del_init(&tic->t_queue);
-	return 0;
-shutdown:
-	list_del_init(&tic->t_queue);
-	return XFS_ERROR(EIO);
-}
-
-STATIC int
-xlog_writeq_wait(
-	struct log		*log,
-	struct xlog_ticket	*tic,
-	int			need_bytes)
-{
-	list_add_tail(&tic->t_queue, &log->l_write_head.waiters);
-
-	do {
-		if (XLOG_FORCED_SHUTDOWN(log))
-			goto shutdown;
-		xlog_grant_push_ail(log, need_bytes);
-
-		__set_current_state(TASK_UNINTERRUPTIBLE);
-		spin_unlock(&log->l_write_head.lock);
-
-		XFS_STATS_INC(xs_sleep_logspace);
-
-		trace_xfs_log_regrant_write_sleep(log, tic);
-		schedule();
-		trace_xfs_log_regrant_write_wake(log, tic);
-
-		spin_lock(&log->l_write_head.lock);
-		if (XLOG_FORCED_SHUTDOWN(log))
-			goto shutdown;
-	} while (xlog_space_left(log, &log->l_write_head.grant) < need_bytes);
+	} while (xlog_space_left(log, &head->grant) < need_bytes);
 
 	list_del_init(&tic->t_queue);
 	return 0;
@@ -2596,12 +2563,15 @@ xlog_grant_log_space(
 	if (!list_empty_careful(&log->l_reserve_head.waiters)) {
 		spin_lock(&log->l_reserve_head.lock);
 		if (!xlog_reserveq_wake(log, &free_bytes) ||
-		    free_bytes < need_bytes)
-			error = xlog_reserveq_wait(log, tic, need_bytes);
+		    free_bytes < need_bytes) {
+			error = xlog_grant_head_wait(log, &log->l_reserve_head,
+						     tic, need_bytes);
+		}
 		spin_unlock(&log->l_reserve_head.lock);
 	} else if (free_bytes < need_bytes) {
 		spin_lock(&log->l_reserve_head.lock);
-		error = xlog_reserveq_wait(log, tic, need_bytes);
+		error = xlog_grant_head_wait(log, &log->l_reserve_head, tic,
+					     need_bytes);
 		spin_unlock(&log->l_reserve_head.lock);
 	}
 	if (error)
@@ -2649,12 +2619,15 @@ xlog_regrant_write_log_space(
 	if (!list_empty_careful(&log->l_write_head.waiters)) {
 		spin_lock(&log->l_write_head.lock);
 		if (!xlog_writeq_wake(log, &free_bytes) ||
-		    free_bytes < need_bytes)
-			error = xlog_writeq_wait(log, tic, need_bytes);
+		    free_bytes < need_bytes) {
+			error = xlog_grant_head_wait(log, &log->l_write_head,
+						     tic, need_bytes);
+		}
 		spin_unlock(&log->l_write_head.lock);
 	} else if (free_bytes < need_bytes) {
 		spin_lock(&log->l_write_head.lock);
-		error = xlog_writeq_wait(log, tic, need_bytes);
+		error = xlog_grant_head_wait(log, &log->l_write_head, tic,
+					     need_bytes);
 		spin_unlock(&log->l_write_head.lock);
 	}
 
