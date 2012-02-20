@@ -144,9 +144,6 @@ journal_async_commit	Commit block can be written to disk without waiting
 			mount the device. This will enable 'journal_checksum'
 			internally.
 
-journal=update		Update the ext4 file system's journal to the current
-			format.
-
 journal_dev=devnum	When the external journal device's major/minor numbers
 			have changed, this option allows the user to specify
 			the new journal location.  The journal device is

@@ -71,7 +71,6 @@ EXPORT_SYMBOL(jbd2_journal_revoke);
 
 EXPORT_SYMBOL(jbd2_journal_init_dev);
 EXPORT_SYMBOL(jbd2_journal_init_inode);
-EXPORT_SYMBOL(jbd2_journal_update_format);
 EXPORT_SYMBOL(jbd2_journal_check_used_features);
 EXPORT_SYMBOL(jbd2_journal_check_available_features);
 EXPORT_SYMBOL(jbd2_journal_set_features);
@@ -96,7 +95,6 @@ EXPORT_SYMBOL(jbd2_journal_release_jbd_inode);
 EXPORT_SYMBOL(jbd2_journal_begin_ordered_truncate);
 EXPORT_SYMBOL(jbd2_inode_cache);
 
-static int journal_convert_superblock_v1(journal_t *, journal_superblock_t *);
 static void __journal_abort_soft (journal_t *journal, int errno);
 static int jbd2_journal_create_slab(size_t slab_size);
 
@@ -1550,61 +1548,6 @@ void jbd2_journal_clear_features(journal_t *journal, unsigned long compat,
 	sb->s_feature_incompat  &= ~cpu_to_be32(incompat);
 }
 EXPORT_SYMBOL(jbd2_journal_clear_features);
-
-/**
- * int jbd2_journal_update_format () - Update on-disk journal structure.
- * @journal: Journal to act on.
- *
- * Given an initialised but unloaded journal struct, poke about in the
- * on-disk structure to update it to the most recent supported version.
- */
-int jbd2_journal_update_format (journal_t *journal)
-{
-	journal_superblock_t *sb;
-	int err;
-
-	err = journal_get_superblock(journal);
-	if (err)
-		return err;
-
-	sb = journal->j_superblock;
-
-	switch (be32_to_cpu(sb->s_header.h_blocktype)) {
-	case JBD2_SUPERBLOCK_V2:
-		return 0;
-	case JBD2_SUPERBLOCK_V1:
-		return journal_convert_superblock_v1(journal, sb);
-	default:
-		break;
-	}
-	return -EINVAL;
-}
-
-static int journal_convert_superblock_v1(journal_t *journal,
-					 journal_superblock_t *sb)
-{
-	int offset, blocksize;
-	struct buffer_head *bh;
-
-	printk(KERN_WARNING
-		"JBD2: Converting superblock from version 1 to 2.\n");
-
-	/* Pre-initialise new fields to zero */
-	offset = ((char *) &(sb->s_feature_compat)) - ((char *) sb);
-	blocksize = be32_to_cpu(sb->s_blocksize);
-	memset(&sb->s_feature_compat, 0, blocksize-offset);
-
-	sb->s_nr_users = cpu_to_be32(1);
-	sb->s_header.h_blocktype = cpu_to_be32(JBD2_SUPERBLOCK_V2);
-	journal->j_format_version = 2;
-
-	bh = journal->j_sb_buffer;
-	BUFFER_TRACE(bh, "marking dirty");
-	mark_buffer_dirty(bh);
-	sync_dirty_buffer(bh);
-	return 0;
-}
-
 
 /**
  * int jbd2_journal_flush () - Flush journal
