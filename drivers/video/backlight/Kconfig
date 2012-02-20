@@ -298,8 +298,8 @@ config BACKLIGHT_RK2818_BL
 	  rk2818 backlight support.
 	  
 config BACKLIGHT_RK29_BL
-        bool "rk29 backlight driver"
-	depends on BACKLIGHT_CLASS_DEVICE && ARCH_RK29
+        bool "rk backlight driver"
+	depends on BACKLIGHT_CLASS_DEVICE && (ARCH_RK29 || ARCH_RK30)
 	default y
 	help
 	  rk29 backlight support.	  

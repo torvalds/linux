@@ -36,5 +36,17 @@ struct rk29xx_spi_platform_data {
 	u16 num_chipselect;
 };
 
+struct rk29_bl_info{
+    u32 pwm_id;
+    u32 bl_ref;
+    int (*io_init)(void);
+    int (*io_deinit)(void);
+	int (*pwm_suspend)(void);
+	int (*pwm_resume)(void);
+	int min_brightness;	/* 0 ~ 255 */
+	unsigned int delay_ms;	/* in milliseconds */
+};
+
+
 
 #endif

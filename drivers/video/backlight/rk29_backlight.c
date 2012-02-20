@@ -25,7 +25,6 @@
 
 #include <linux/earlysuspend.h>
 #include <asm/io.h>
-#include <mach/rk29_iomap.h>
 #include <mach/board.h>
 
 #include "rk2818_backlight.h"
@@ -39,9 +38,15 @@
 #define DBG(x...)
 #endif
 
-
+#if defined(CONFIG_ARCH_RK30)
+#include <mach/io.h>
+#define write_pwm_reg(id, addr, val)        __raw_writel(val, addr+(RK30_PWM01_BASE+(id>>1)*0x20000)+id*10)
+#define read_pwm_reg(id, addr)              __raw_readl(addr+(RK30_PWM01_BASE+(id>>1)*0x20000+id*0x10))    
+#else defined(CONFIG_ARCH_RK29)
+#include <mach/rk29_iomap.h>
 #define write_pwm_reg(id, addr, val)        __raw_writel(val, addr+(RK29_PWM_BASE+id*0x10))
 #define read_pwm_reg(id, addr)              __raw_readl(addr+(RK29_PWM_BASE+id*0x10))    
+#endif
 
 static struct clk *pwm_clk;
 static struct backlight_device *rk29_bl;
@@ -145,7 +150,7 @@ static struct early_suspend bl_early_suspend = {
 	.resume = rk29_bl_resume,
 	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 1,
 };
-#endif
+
 void rk29_backlight_set(bool on)
 {
 	printk("%s: set %d\n", __func__, on);
@@ -156,6 +161,7 @@ void rk29_backlight_set(bool on)
 	return;
 }
 EXPORT_SYMBOL(rk29_backlight_set);
+#endif
 
 static int rk29_backlight_probe(struct platform_device *pdev)
 {		
@@ -167,7 +173,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	struct backlight_properties props;
 
 	if (rk29_bl) {
-		DBG(KERN_CRIT "%s: backlight device register has existed \n",
+		printk(KERN_CRIT "%s: backlight device register has existed \n",
 				__func__);
 		return -EEXIST;		
 	}
@@ -187,7 +193,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	props.max_brightness = BL_STEP;
 	rk29_bl = backlight_device_register("rk28_bl", &pdev->dev, rk29_bl_info, &rk29_bl_ops, &props);
 	if (!rk29_bl) {
-		DBG(KERN_CRIT "%s: backlight device register error\n",
+		printk(KERN_CRIT "%s: backlight device register error\n",
 				__func__);
 		return -ENODEV;		
 	}
@@ -195,7 +201,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	pwm_clk = clk_get(NULL, "pwm");
 	if (IS_ERR(pwm_clk)) {
 		printk(KERN_ERR "failed to get pwm clock source\n");
-		return -ENODEV;	
+		//return -ENODEV;	
 	}
 	pwm_clk_rate = clk_get_rate(pwm_clk);
 	div_total = pwm_clk_rate / PWM_APB_PRE_DIV;
@@ -215,7 +221,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	write_pwm_reg(id, PWM_REG_HRC, divh);
 	write_pwm_reg(id, PWM_REG_CNTR, 0x0);
 	write_pwm_reg(id, PWM_REG_CTRL, PWM_DIV|PWM_ENABLE|PWM_TIME_EN);
-
+	
 	rk29_bl->props.power = FB_BLANK_UNBLANK;
 	rk29_bl->props.fb_blank = FB_BLANK_UNBLANK;
 	rk29_bl->props.brightness = BL_STEP / 2;
