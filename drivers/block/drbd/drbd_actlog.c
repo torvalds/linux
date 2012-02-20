@@ -276,8 +276,16 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
 		/* Double check: it may have been committed by someone else,
 		 * while we have been waiting for the lock. */
 		if (mdev->act_log->pending_changes) {
-			al_write_transaction(mdev);
-			mdev->al_writ_cnt++;
+			bool write_al_updates;
+
+			rcu_read_lock();
+			write_al_updates = rcu_dereference(mdev->ldev->disk_conf)->al_updates;
+			rcu_read_unlock();
+
+			if (write_al_updates) {
+				al_write_transaction(mdev);
+				mdev->al_writ_cnt++;
+			}
 
 			spin_lock_irq(&mdev->al_lock);
 			/* FIXME

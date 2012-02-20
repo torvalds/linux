@@ -338,6 +338,7 @@ extern const char *drbd_set_st_err_str(enum drbd_state_rv);
 #define MDF_PEER_OUT_DATED	(1 << 5)
 #define MDF_CRASHED_PRIMARY	(1 << 6)
 #define MDF_AL_CLEAN		(1 << 7)
+#define MDF_AL_DISABLED		(1 << 8)
 
 enum drbd_uuid_index {
 	UI_CURRENT,

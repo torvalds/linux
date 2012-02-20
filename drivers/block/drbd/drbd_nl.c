@@ -1230,6 +1230,11 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 
 	mutex_unlock(&mdev->tconn->conf_update);
 
+	if (new_disk_conf->al_updates)
+		mdev->ldev->md.flags &= MDF_AL_DISABLED;
+	else
+		mdev->ldev->md.flags |= MDF_AL_DISABLED;
+
 	drbd_bump_write_ordering(mdev->tconn, WO_bdev_flush);
 
 	drbd_md_sync(mdev);
@@ -1545,7 +1550,9 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	} else if (dd == grew)
 		set_bit(RESYNC_AFTER_NEG, &mdev->flags);
 
-	if (drbd_md_test_flag(mdev->ldev, MDF_FULL_SYNC)) {
+	if (drbd_md_test_flag(mdev->ldev, MDF_FULL_SYNC) ||
+	    (test_bit(CRASHED_PRIMARY, &mdev->flags) &&
+	     drbd_md_test_flag(mdev->ldev, MDF_AL_DISABLED))) {
 		dev_info(DEV, "Assuming that all blocks are out of sync "
 		     "(aka FullSync)\n");
 		if (drbd_bitmap_io(mdev, &drbd_bmio_set_n_write,
@@ -1588,12 +1595,18 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	if (ns.disk == D_CONSISTENT &&
 	    (ns.pdsk == D_OUTDATED || rcu_dereference(mdev->ldev->disk_conf)->fencing == FP_DONT_CARE))
 		ns.disk = D_UP_TO_DATE;
-	rcu_read_unlock();
 
 	/* All tests on MDF_PRIMARY_IND, MDF_CONNECTED_IND,
 	   MDF_CONSISTENT and MDF_WAS_UP_TO_DATE must happen before
 	   this point, because drbd_request_state() modifies these
 	   flags. */
+
+	if (rcu_dereference(mdev->ldev->disk_conf)->al_updates)
+		mdev->ldev->md.flags &= MDF_AL_DISABLED;
+	else
+		mdev->ldev->md.flags |= MDF_AL_DISABLED;
+
+	rcu_read_unlock();
 
 	/* In case we are C_CONNECTED postpone any decision on the new disk
 	   state after the negotiation phase. */
