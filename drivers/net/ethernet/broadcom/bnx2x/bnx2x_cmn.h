@@ -1504,6 +1504,13 @@ static inline bool bnx2x_mtu_allows_gro(int mtu)
 	 */
 	return mtu <= SGE_PAGE_SIZE && (U_ETH_SGL_SIZE * fpp) <= MAX_SKB_FRAGS;
 }
+
+static inline bool bnx2x_need_gro_check(int mtu)
+{
+	return (SGE_PAGES / (mtu - ETH_MAX_TPA_HEADER_SIZE - 1)) !=
+		(SGE_PAGES / (mtu - ETH_MIN_TPA_HEADER_SIZE + 1));
+}
+
 /**
  * bnx2x_bz_fp - zero content of the fastpath structure.
  *
