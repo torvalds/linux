@@ -567,14 +567,16 @@ static struct pinctrl *pinctrl_get_locked(struct device *dev, const char *name)
 		}
 	}
 
-	/* We should have atleast one map, right */
-	if (!num_maps) {
-		pr_err("could not find any mux maps for device %s, ID %s\n",
-		       devname ? devname : "(anonymous)",
-		       name ? name : "(undefined)");
-		kfree(p);
-		return ERR_PTR(-EINVAL);
-	}
+	/*
+	 * This may be perfectly legitimate. An IP block may get re-used
+	 * across SoCs. Not all of those SoCs may need pinmux settings for the
+	 * IP block, e.g. if one SoC dedicates pins to that function but
+	 * another doesn't. The driver won't know this, and will always
+	 * attempt to set up the pinmux. The mapping table defines whether any
+	 * HW programming is actually needed.
+	 */
+	if (!num_maps)
+		dev_info(dev, "zero maps found for mapping %s\n", name);
 
 	pr_debug("found %u mux maps for device %s, UD %s\n",
 		 num_maps,
