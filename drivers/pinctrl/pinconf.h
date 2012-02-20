@@ -14,12 +14,9 @@
 #ifdef CONFIG_PINCONF
 
 int pinconf_check_ops(struct pinctrl_dev *pctldev);
+
 void pinconf_init_device_debugfs(struct dentry *devroot,
 				 struct pinctrl_dev *pctldev);
-int pin_config_get_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
-			   unsigned long *config);
-int pin_config_set_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
-			   unsigned long config);
 
 #else
 
