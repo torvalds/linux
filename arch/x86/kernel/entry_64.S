@@ -1535,14 +1535,14 @@ ENTRY(nmi)
 	 * If %cs was not the kernel segment, then the NMI triggered in user
 	 * space, which means it is definitely not nested.
 	 */
-	cmp $__KERNEL_CS, 16(%rsp)
+	cmpl $__KERNEL_CS, 16(%rsp)
 	jne first_nmi
 
 	/*
 	 * Check the special variable on the stack to see if NMIs are
 	 * executing.
 	 */
-	cmp $1, -8(%rsp)
+	cmpl $1, -8(%rsp)
 	je nested_nmi
 
 	/*
