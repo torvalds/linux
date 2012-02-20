@@ -42,18 +42,7 @@
 #define RTC_DEF_TRIM		0
 
 static const unsigned long RTC_FREQ = 1024;
-static struct rtc_time rtc_alarm;
 static DEFINE_SPINLOCK(sa1100_rtc_lock);
-
-static inline int rtc_periodic_alarm(struct rtc_time *tm)
-{
-	return  (tm->tm_year == -1) ||
-		((unsigned)tm->tm_mon >= 12) ||
-		((unsigned)(tm->tm_mday - 1) >= 31) ||
-		((unsigned)tm->tm_hour > 23) ||
-		((unsigned)tm->tm_min > 59) ||
-		((unsigned)tm->tm_sec > 59);
-}
 
 /*
  * Calculate the next alarm time given the requested alarm time mask
@@ -146,9 +135,6 @@ static irqreturn_t sa1100_rtc_interrupt(int irq, void *dev_id)
 
 	rtc_update_irq(rtc, 1, events);
 
-	if (rtsr & RTSR_AL && rtc_periodic_alarm(&rtc_alarm))
-		rtc_update_alarm(&rtc_alarm);
-
 	spin_unlock(&sa1100_rtc_lock);
 
 	return IRQ_HANDLED;
@@ -225,7 +211,6 @@ static int sa1100_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	u32	rtsr;
 
-	memcpy(&alrm->time, &rtc_alarm, sizeof(struct rtc_time));
 	rtsr = RTSR;
 	alrm->enabled = (rtsr & RTSR_ALE) ? 1 : 0;
 	alrm->pending = (rtsr & RTSR_AL) ? 1 : 0;
