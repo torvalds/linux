@@ -293,7 +293,7 @@ struct amt_host_if {
 };
 
 
-bool amt_host_if_init(struct amt_host_if *acmd,
+static bool amt_host_if_init(struct amt_host_if *acmd,
 		      unsigned long send_timeout, bool verbose)
 {
 	acmd->send_timeout = (send_timeout) ? send_timeout : 20000;
@@ -301,13 +301,13 @@ bool amt_host_if_init(struct amt_host_if *acmd,
 	return acmd->initialized;
 }
 
-void amt_host_if_deinit(struct amt_host_if *acmd)
+static void amt_host_if_deinit(struct amt_host_if *acmd)
 {
 	mei_deinit(&acmd->mei_cl);
 	acmd->initialized = false;
 }
 
-uint32_t amt_verify_code_versions(const struct amt_host_if_resp_header *resp)
+static uint32_t amt_verify_code_versions(const struct amt_host_if_resp_header *resp)
 {
 	uint32_t status = AMT_STATUS_SUCCESS;
 	struct amt_code_versions *code_ver;
@@ -346,7 +346,7 @@ out:
 	return status;
 }
 
-uint32_t amt_verify_response_header(uint32_t command,
+static uint32_t amt_verify_response_header(uint32_t command,
 				const struct amt_host_if_msg_header *resp_hdr,
 				uint32_t response_size)
 {
@@ -409,7 +409,7 @@ static uint32_t amt_host_if_call(struct amt_host_if *acmd,
 }
 
 
-uint32_t amt_get_code_versions(struct amt_host_if *cmd,
+static uint32_t amt_get_code_versions(struct amt_host_if *cmd,
 			       struct amt_code_versions *versions)
 {
 	struct amt_host_if_resp_header *response = NULL;
@@ -454,6 +454,8 @@ int main(int argc, char **argv)
 	}
 
 	status = amt_get_code_versions(&acmd, &ver);
+
+	amt_host_if_deinit(&acmd);
 
 	switch (status) {
 	case AMT_STATUS_HOST_IF_EMPTY_RESPONSE:
