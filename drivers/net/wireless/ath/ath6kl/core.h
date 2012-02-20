@@ -186,6 +186,9 @@ struct ath6kl_fw_ie {
 #define MBOX_YIELD_LIMIT 99
 
 #define ATH6KL_DEFAULT_LISTEN_INTVAL	100 /* in TUs */
+#define ATH6KL_DEFAULT_BMISS_TIME	1500
+#define ATH6KL_MAX_WOW_LISTEN_INTL	300 /* in TUs */
+#define ATH6KL_MAX_BMISS_TIME		5000
 
 /* configuration lags */
 /*
@@ -511,6 +514,7 @@ struct ath6kl_vif {
 	u16 next_chan;
 	u16 assoc_bss_beacon_int;
 	u16 listen_intvl_t;
+	u16 bmiss_time_t;
 	u8 assoc_bss_dtim_period;
 	struct net_device_stats net_stats;
 	struct target_stats target_stats;
