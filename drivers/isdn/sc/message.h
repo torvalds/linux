@@ -21,7 +21,7 @@
 /*
  * Board message macros, defines and structures
  */
- 
+
 #ifndef MESSAGE_H
 #define MESSAGE_H
 
@@ -36,19 +36,19 @@
  * Macro to determine if a message is a loader message
  */
 #define IS_CM_MESSAGE(mesg, tx, cx, dx)		\
-		((mesg.type == cmRspType##tx)		\
-		&&(mesg.class == cmRspClass##cx)	\
-		&&(mesg.code == cmRsp##dx))
+	((mesg.type == cmRspType##tx)		\
+	 && (mesg.class == cmRspClass##cx)	\
+	 && (mesg.code == cmRsp##dx))
 
 /*
  * Macro to determine if a message is a firmware message
  */
 #define IS_CE_MESSAGE(mesg, tx, cx, dx)		\
-		((mesg.type == ceRspType##tx)		\
-		&&(mesg.class == ceRspClass##cx)	\
-		&&(mesg.code == ceRsp##tx##dx))
+	((mesg.type == ceRspType##tx)		\
+	 && (mesg.class == ceRspClass##cx)	\
+	 && (mesg.code == ceRsp##tx##dx))
 
-/* 
+/*
  * Loader Request and Response Messages
  */
 
@@ -186,7 +186,7 @@ typedef struct {
 } LLData;
 
 
-/* 
+/*
  * Message payload template for an HWConfig message
  */
 typedef struct {

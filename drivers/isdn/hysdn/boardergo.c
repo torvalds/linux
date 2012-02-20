@@ -25,7 +25,7 @@
 #include "hysdn_defs.h"
 #include "boardergo.h"
 
-#define byteout(addr,val) outb(val,addr)
+#define byteout(addr, val) outb(val, addr)
 #define bytein(addr) inb(addr)
 
 /***************************************************/
@@ -73,7 +73,7 @@ ergo_interrupt(int intno, void *dev_id)
 static void
 ergo_irq_bh(struct work_struct *ugli_api)
 {
-	hysdn_card * card = container_of(ugli_api, hysdn_card, irq_queue);
+	hysdn_card *card = container_of(ugli_api, hysdn_card, irq_queue);
 	tErgDpram *dpr;
 	int again;
 	unsigned long flags;
@@ -125,7 +125,7 @@ ergo_irq_bh(struct work_struct *ugli_api)
 /* stop the card (hardware reset) and disable interrupts */
 /*********************************************************/
 static void
-ergo_stopcard(hysdn_card * card)
+ergo_stopcard(hysdn_card *card)
 {
 	unsigned long flags;
 	unsigned char val;
@@ -150,7 +150,7 @@ ergo_stopcard(hysdn_card * card)
 /* enable or disable the cards error log. The event is queued if possible */
 /**************************************************************************/
 static void
-ergo_set_errlog_state(hysdn_card * card, int on)
+ergo_set_errlog_state(hysdn_card *card, int on)
 {
 	unsigned long flags;
 
@@ -180,7 +180,7 @@ ergo_set_errlog_state(hysdn_card * card, int on)
 static const char TestText[36] = "This Message is filler, why read it";
 
 static int
-ergo_testram(hysdn_card * card)
+ergo_testram(hysdn_card *card)
 {
 	tErgDpram *dpr = card->dpram;
 
@@ -212,12 +212,12 @@ ergo_testram(hysdn_card * card)
 /*****************************************************************************/
 static int
 ergo_writebootimg(struct HYSDN_CARD *card, unsigned char *buf,
-			unsigned long offs)
+		  unsigned long offs)
 {
 	unsigned char *dst;
 	tErgDpram *dpram;
 	int cnt = (BOOT_IMG_SIZE >> 2);		/* number of words to move and swap (byte order!) */
-	
+
 	if (card->debug_flags & LOG_POF_CARD)
 		hysdn_addlog(card, "ERGO: write bootldr offs=0x%lx ", offs);
 
@@ -355,7 +355,7 @@ ergo_waitpofready(struct HYSDN_CARD *card)
 			/* enable the cards interrupt */
 			byteout(card->iobase + PCI9050_INTR_REG,
 				bytein(card->iobase + PCI9050_INTR_REG) |
-			(PCI9050_INTR_REG_ENPCI | PCI9050_INTR_REG_EN1));
+				(PCI9050_INTR_REG_ENPCI | PCI9050_INTR_REG_EN1));
 			card->irq_enabled = 1;	/* we are ready to receive interrupts */
 
 			dpr->ToPcFlag = 0;	/* reset data indicator */
@@ -363,15 +363,15 @@ ergo_waitpofready(struct HYSDN_CARD *card)
 			dpr->ToPcInt = 1;	/* interrupt to E1 for all cards */
 
 			spin_unlock_irqrestore(&card->hysdn_lock, flags);
-			if ((hynet_enable & (1 << card->myid)) 
-			    && (i = hysdn_net_create(card))) 
+			if ((hynet_enable & (1 << card->myid))
+			    && (i = hysdn_net_create(card)))
 			{
 				ergo_stopcard(card);
 				card->state = CARD_STATE_BOOTERR;
 				return (i);
 			}
 #ifdef CONFIG_HYSDN_CAPI
-			if((i = hycapi_capi_create(card))) {
+			if ((i = hycapi_capi_create(card))) {
 				printk(KERN_WARNING "HYSDN: failed to create capi-interface.\n");
 			}
 #endif /* CONFIG_HYSDN_CAPI */
@@ -393,7 +393,7 @@ ergo_waitpofready(struct HYSDN_CARD *card)
 /* Use only during module release.                                                  */
 /************************************************************************************/
 static void
-ergo_releasehardware(hysdn_card * card)
+ergo_releasehardware(hysdn_card *card)
 {
 	ergo_stopcard(card);	/* first stop the card if not already done */
 	free_irq(card->irq, card);	/* release interrupt */
@@ -410,9 +410,9 @@ ergo_releasehardware(hysdn_card * card)
 /* Use only during module init.                                                  */
 /*********************************************************************************/
 int
-ergo_inithardware(hysdn_card * card)
+ergo_inithardware(hysdn_card *card)
 {
-	if (!request_region(card->iobase + PCI9050_INTR_REG, 1, "HYSDN")) 
+	if (!request_region(card->iobase + PCI9050_INTR_REG, 1, "HYSDN"))
 		return (-1);
 	if (!request_region(card->iobase + PCI9050_USER_IO, 1, "HYSDN")) {
 		release_region(card->iobase + PCI9050_INTR_REG, 1);

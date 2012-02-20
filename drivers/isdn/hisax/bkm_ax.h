@@ -4,7 +4,7 @@
  *
  * Author       Roland Klabunde
  * Copyright    by Roland Klabunde   <R.Klabunde@Berkom.de>
- * 
+ *
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  *
@@ -32,36 +32,36 @@
 
 /* Application specific registers I20 (Siemens SZB6120H) */
 typedef	struct {
-		/* Video front end horizontal configuration register */
+	/* Video front end horizontal configuration register */
 	volatile u_int	i20VFEHorzCfg;	/* Offset 00 */
-		/* Video front end vertical configuration register */
-	volatile u_int	i20VFEVertCfg;	/* Offset 04 */	
-		/* Video front end scaler and pixel format register */
-	volatile u_int	i20VFEScaler;	/* Offset 08 */	
-		/* Video display top register */
-	volatile u_int	i20VDispTop;   	/* Offset 0C */	
-		/* Video display bottom register */
-	volatile u_int	i20VDispBottom;	/* Offset 10 */	
-		/* Video stride, status and frame grab register */
-	volatile u_int	i20VidFrameGrab;/* Offset 14 */	
-		/* Video display configuration register */
-	volatile u_int	i20VDispCfg;	/* Offset 18 */	
-		/* Video masking map top */
-	volatile u_int	i20VMaskTop;	/* Offset 1C */	
-		/* Video masking map bottom */
-	volatile u_int	i20VMaskBottom;	/* Offset 20 */	
-		/* Overlay control register */
-	volatile u_int 	i20OvlyControl;	/* Offset 24 */	
-		/* System, PCI and general purpose pins control register */
- 	volatile u_int	i20SysControl; 	/* Offset 28 */	
+	/* Video front end vertical configuration register */
+	volatile u_int	i20VFEVertCfg;	/* Offset 04 */
+	/* Video front end scaler and pixel format register */
+	volatile u_int	i20VFEScaler;	/* Offset 08 */
+	/* Video display top register */
+	volatile u_int	i20VDispTop;	/* Offset 0C */
+	/* Video display bottom register */
+	volatile u_int	i20VDispBottom;	/* Offset 10 */
+	/* Video stride, status and frame grab register */
+	volatile u_int	i20VidFrameGrab;/* Offset 14 */
+	/* Video display configuration register */
+	volatile u_int	i20VDispCfg;	/* Offset 18 */
+	/* Video masking map top */
+	volatile u_int	i20VMaskTop;	/* Offset 1C */
+	/* Video masking map bottom */
+	volatile u_int	i20VMaskBottom;	/* Offset 20 */
+	/* Overlay control register */
+	volatile u_int	i20OvlyControl;	/* Offset 24 */
+	/* System, PCI and general purpose pins control register */
+	volatile u_int	i20SysControl;	/* Offset 28 */
 #define	sysRESET		0x01000000	/* bit 24:Softreset (Low)		*/
-			/* GPIO 4...0: Output fixed for our cfg! */
+	/* GPIO 4...0: Output fixed for our cfg! */
 #define	sysCFG			0x000000E0	/* GPIO 7,6,5: Input */
 	/* General purpose pins and guest bus control register */
- 	volatile u_int	i20GuestControl;/* Offset 2C */	
+	volatile u_int	i20GuestControl;/* Offset 2C */
 #define	guestWAIT_CFG	0x00005555	/* 4 PCI waits for all */
 #define	guestISDN_INT_E	0x01000000	/* ISDN Int en (low) */
-#define	guestVID_INT_E 	0x02000000	/* Video interrupt en (low) */
+#define	guestVID_INT_E	0x02000000	/* Video interrupt en (low) */
 #define	guestADI1_INT_R	0x04000000	/* ADI #1 int req (low) */
 #define	guestADI2_INT_R	0x08000000	/* ADI #2 int req (low) */
 #define	guestISDN_RES	0x10000000	/* ISDN reset bit (high) */
@@ -78,18 +78,18 @@ typedef	struct {
 #define	g_A4T_ISAR_INT_S 0x40000000	/* ISAR interrupt pnd (Low) */
 #define	g_A4T_ISAC_INT_S 0x80000000	/* ISAC interrupt pnd (Low) */
 
- 	volatile u_int	i20CodeSource;	/* Offset 30 */	
- 	volatile u_int	i20CodeXferCtrl;/* Offset 34 */	
- 	volatile u_int	i20CodeMemPtr;	/* Offset 38 */	
+	volatile u_int	i20CodeSource;	/* Offset 30 */
+	volatile u_int	i20CodeXferCtrl;/* Offset 34 */
+	volatile u_int	i20CodeMemPtr;	/* Offset 38 */
 
-  	volatile u_int	i20IntStatus;	/* Offset 3C */	
- 	volatile u_int	i20IntCtrl;	/* Offset 40 */	
+	volatile u_int	i20IntStatus;	/* Offset 3C */
+	volatile u_int	i20IntCtrl;	/* Offset 40 */
 #define	intISDN		0x40000000	/* GIRQ1En (ISAC/ADI) (High) */
 #define	intVID		0x20000000	/* GIRQ0En (VSYNC)    (High) */
 #define	intCOD		0x10000000	/* CodRepIrqEn        (High) */
-#define	intPCI 		0x01000000	/* PCI IntA enable    (High) */
+#define	intPCI		0x01000000	/* PCI IntA enable    (High) */
 
- 	volatile u_int	i20I2CCtrl;	/* Offset 44					*/	
+	volatile u_int	i20I2CCtrl;	/* Offset 44					*/
 } I20_REGISTER_FILE, *PI20_REGISTER_FILE;
 
 /*
@@ -98,7 +98,7 @@ typedef	struct {
  */
 #define	PO_OFFSET	0x00000200	/* Postoffice offset from base */
 
-#define	GCS_0		0x00000000 	/* Guest bus chip selects */
+#define	GCS_0		0x00000000	/* Guest bus chip selects */
 #define	GCS_1		0x00100000
 #define	GCS_2		0x00200000
 #define	GCS_3		0x00300000
@@ -108,12 +108,12 @@ typedef	struct {
 
 #define	PO_PEND		0x02000000
 
-#define POSTOFFICE(postoffice) *(volatile unsigned int*)(postoffice)
+#define POSTOFFICE(postoffice) *(volatile unsigned int *)(postoffice)
 
-/* Wait unlimited (don't worry)										*/ 
-#define	__WAITI20__(postoffice)										\
-do {		   	 		   											\
-  	while ((POSTOFFICE(postoffice) & PO_PEND)) ;					\
-} while (0)
+/* Wait unlimited (don't worry)										*/
+#define	__WAITI20__(postoffice)					\
+	do {							\
+		while ((POSTOFFICE(postoffice) & PO_PEND)) ;	\
+	} while (0)
 
 #endif	/* __BKM_AX_H__ */
