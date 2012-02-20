@@ -1076,17 +1076,6 @@ xfs_qm_dqflush(
 
 }
 
-void
-xfs_dqunlock(
-	xfs_dquot_t *dqp)
-{
-	xfs_dqunlock_nonotify(dqp);
-	if (dqp->q_logitem.qli_dquot == dqp) {
-		xfs_trans_unlocked_item(dqp->q_logitem.qli_item.li_ailp,
-					&dqp->q_logitem.qli_item);
-	}
-}
-
 /*
  * Lock two xfs_dquot structures.
  *

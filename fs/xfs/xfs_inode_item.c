@@ -596,11 +596,7 @@ xfs_inode_item_trylock(
 	/* Stale items should force out the iclog */
 	if (ip->i_flags & XFS_ISTALE) {
 		xfs_ifunlock(ip);
-		/*
-		 * we hold the AIL lock - notify the unlock routine of this
-		 * so it doesn't try to get the lock again.
-		 */
-		xfs_iunlock(ip, XFS_ILOCK_SHARED|XFS_IUNLOCK_NONOTIFY);
+		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 		return XFS_ITEM_PINNED;
 	}
 

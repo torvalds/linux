@@ -110,7 +110,7 @@ static inline void xfs_dqlock(struct xfs_dquot *dqp)
 	mutex_lock(&dqp->q_qlock);
 }
 
-static inline void xfs_dqunlock_nonotify(struct xfs_dquot *dqp)
+static inline void xfs_dqunlock(struct xfs_dquot *dqp)
 {
 	mutex_unlock(&dqp->q_qlock);
 }
@@ -166,7 +166,6 @@ extern int		xfs_qm_dqget(xfs_mount_t *, xfs_inode_t *,
 extern void		xfs_qm_dqput(xfs_dquot_t *);
 
 extern void		xfs_dqlock2(struct xfs_dquot *, struct xfs_dquot *);
-extern void		xfs_dqunlock(struct xfs_dquot *);
 extern void		xfs_dqflock_pushbuf_wait(struct xfs_dquot *dqp);
 
 static inline struct xfs_dquot *xfs_qm_dqhold(struct xfs_dquot *dqp)
