@@ -54,8 +54,6 @@
 
 #define AUTO_OFF_TIMEOUT 2000
 
-bool enable_hs;
-
 static void hci_rx_work(struct work_struct *work);
 static void hci_cmd_work(struct work_struct *work);
 static void hci_tx_work(struct work_struct *work);
@@ -2913,6 +2911,3 @@ int hci_cancel_inquiry(struct hci_dev *hdev)
 
 	return hci_send_cmd(hdev, HCI_OP_INQUIRY_CANCEL, 0, NULL);
 }
-
-module_param(enable_hs, bool, 0644);
-MODULE_PARM_DESC(enable_hs, "Enable High Speed");

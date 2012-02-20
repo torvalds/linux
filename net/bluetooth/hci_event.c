@@ -44,8 +44,6 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-static bool enable_le;
-
 /* Handle HCI Event packets */
 
 static void hci_cc_inquiry_cancel(struct hci_dev *hdev, struct sk_buff *skb)
@@ -3545,6 +3543,3 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	kfree_skb(skb);
 	hdev->stat.evt_rx++;
 }
-
-module_param(enable_le, bool, 0644);
-MODULE_PARM_DESC(enable_le, "Enable LE support");
