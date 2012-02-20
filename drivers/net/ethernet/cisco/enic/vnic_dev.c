@@ -1023,3 +1023,15 @@ int vnic_dev_deinit_done(struct vnic_dev *vdev, int *status)
 {
 	return vnic_dev_cmd_status(vdev, CMD_DEINIT, status);
 }
+
+int vnic_dev_set_mac_addr(struct vnic_dev *vdev, u8 *mac_addr)
+{
+	u64 a0, a1;
+	int wait = 1000;
+	int i;
+
+	for (i = 0; i < ETH_ALEN; i++)
+		((u8 *)&a0)[i] = mac_addr[i];
+
+	return vnic_dev_cmd(vdev, CMD_SET_MAC_ADDR, &a0, &a1, wait);
+}

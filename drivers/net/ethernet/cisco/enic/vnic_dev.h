@@ -131,5 +131,6 @@ int vnic_dev_init_prov2(struct vnic_dev *vdev, u8 *buf, u32 len);
 int vnic_dev_enable2(struct vnic_dev *vdev, int active);
 int vnic_dev_enable2_done(struct vnic_dev *vdev, int *status);
 int vnic_dev_deinit_done(struct vnic_dev *vdev, int *status);
+int vnic_dev_set_mac_addr(struct vnic_dev *vdev, u8 *mac_addr);
 
 #endif /* _VNIC_DEV_H_ */
