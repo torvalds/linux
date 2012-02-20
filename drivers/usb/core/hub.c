@@ -177,6 +177,21 @@ static struct usb_hub *hdev_to_hub(struct usb_device *hdev)
 	return usb_get_intfdata(hdev->actconfig->interface[0]);
 }
 
+static int usb_device_supports_lpm(struct usb_device *udev)
+{
+	/* USB 2.1 (and greater) devices indicate LPM support through
+	 * their USB 2.0 Extended Capabilities BOS descriptor.
+	 */
+	if (udev->speed == USB_SPEED_HIGH) {
+		if (udev->bos->ext_cap &&
+			(USB_LPM_SUPPORT &
+			 le32_to_cpu(udev->bos->ext_cap->bmAttributes)))
+			return 1;
+		return 0;
+	}
+	return 0;
+}
+
 /* USB 2.0 spec Section 11.24.4.5 */
 static int get_hub_descriptor(struct usb_device *hdev, void *data)
 {
@@ -3211,11 +3226,8 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 
 	if (udev->wusb == 0 && le16_to_cpu(udev->descriptor.bcdUSB) >= 0x0201) {
 		retval = usb_get_bos_descriptor(udev);
-		if (!retval) {
-			if (udev->bos->ext_cap && (USB_LPM_SUPPORT &
-				le32_to_cpu(udev->bos->ext_cap->bmAttributes)))
-					udev->lpm_capable = 1;
-		}
+		if (!retval)
+			udev->lpm_capable = usb_device_supports_lpm(udev);
 	}
 
 	retval = 0;
