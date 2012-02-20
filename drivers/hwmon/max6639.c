@@ -72,8 +72,8 @@ static unsigned short normal_i2c[] = { 0x2c, 0x2e, 0x2f, I2C_CLIENT_END };
 
 static const int rpm_ranges[] = { 2000, 4000, 8000, 16000 };
 
-#define FAN_FROM_REG(val, div, rpm_range)	((val) == 0 ? -1 : \
-	(val) == 255 ? 0 : (rpm_ranges[rpm_range] * 30) / ((div + 1) * (val)))
+#define FAN_FROM_REG(val, rpm_range)	((val) == 0 || (val) == 255 ? \
+				0 : (rpm_ranges[rpm_range] * 30) / (val))
 #define TEMP_LIMIT_TO_REG(val)	SENSORS_LIMIT((val) / 1000, 0, 255)
 
 /*
@@ -333,7 +333,7 @@ static ssize_t show_fan_input(struct device *dev,
 		return PTR_ERR(data);
 
 	return sprintf(buf, "%d\n", FAN_FROM_REG(data->fan[attr->index],
-		       data->ppr, data->rpm_range));
+		       data->rpm_range));
 }
 
 static ssize_t show_alarm(struct device *dev,
