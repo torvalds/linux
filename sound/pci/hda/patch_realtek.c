@@ -1556,6 +1556,13 @@ static void alc_pick_fixup(struct hda_codec *codec,
 	int id = -1;
 	const char *name = NULL;
 
+	/* when model=nofixup is given, don't pick up any fixups */
+	if (codec->modelname && !strcmp(codec->modelname, "nofixup")) {
+		spec->fixup_list = NULL;
+		spec->fixup_id = -1;
+		return;
+	}
+
 	if (codec->modelname && models) {
 		while (models->name) {
 			if (!strcmp(codec->modelname, models->name)) {
