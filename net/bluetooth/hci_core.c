@@ -2131,7 +2131,7 @@ static int hci_send_frame(struct sk_buff *skb)
 		/* Time stamp */
 		__net_timestamp(skb);
 
-		hci_send_to_sock(hdev, skb, NULL);
+		hci_send_to_sock(hdev, skb);
 	}
 
 	/* Get rid of skb owner, prior to sending to the driver. */
@@ -2818,7 +2818,7 @@ static void hci_rx_work(struct work_struct *work)
 	while ((skb = skb_dequeue(&hdev->rx_q))) {
 		if (atomic_read(&hdev->promisc)) {
 			/* Send copy to the sockets */
-			hci_send_to_sock(hdev, skb, NULL);
+			hci_send_to_sock(hdev, skb);
 		}
 
 		if (test_bit(HCI_RAW, &hdev->flags)) {

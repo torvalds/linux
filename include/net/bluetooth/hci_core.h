@@ -953,8 +953,8 @@ void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 opcode);
 void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data);
 
 /* ----- HCI Sockets ----- */
-void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb,
-							struct sock *skip_sk);
+void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb);
+void hci_send_to_control(struct sk_buff *skb, struct sock *skip_sk);
 
 /* Management interface */
 #define MGMT_ADDR_BREDR			0x00

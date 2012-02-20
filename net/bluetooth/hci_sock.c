@@ -85,8 +85,7 @@ static struct bt_sock_list hci_sk_list = {
 };
 
 /* Send frame to RAW socket */
-void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb,
-							struct sock *skip_sk)
+void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct sock *sk;
 	struct hlist_node *node;
@@ -94,12 +93,10 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb,
 	BT_DBG("hdev %p len %d", hdev, skb->len);
 
 	read_lock(&hci_sk_list.lock);
+
 	sk_for_each(sk, node, &hci_sk_list.head) {
 		struct hci_filter *flt;
 		struct sk_buff *nskb;
-
-		if (sk == skip_sk)
-			continue;
 
 		if (sk->sk_state != BT_BOUND || hci_pi(sk)->hdev != hdev)
 			continue;
@@ -108,11 +105,8 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb,
 		if (skb->sk == sk)
 			continue;
 
-		if (bt_cb(skb)->channel != hci_pi(sk)->channel)
+		if (hci_pi(sk)->channel != HCI_CHANNEL_RAW)
 			continue;
-
-		if (bt_cb(skb)->channel == HCI_CHANNEL_CONTROL)
-			goto clone;
 
 		/* Apply filter */
 		flt = &hci_pi(sk)->filter;
@@ -137,18 +131,51 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb,
 				continue;
 		}
 
-clone:
 		nskb = skb_clone(skb, GFP_ATOMIC);
 		if (!nskb)
 			continue;
 
 		/* Put type byte before the data */
-		if (bt_cb(skb)->channel == HCI_CHANNEL_RAW)
-			memcpy(skb_push(nskb, 1), &bt_cb(nskb)->pkt_type, 1);
+		memcpy(skb_push(nskb, 1), &bt_cb(nskb)->pkt_type, 1);
 
 		if (sock_queue_rcv_skb(sk, nskb))
 			kfree_skb(nskb);
 	}
+
+	read_unlock(&hci_sk_list.lock);
+}
+
+/* Send frame to control socket */
+void hci_send_to_control(struct sk_buff *skb, struct sock *skip_sk)
+{
+	struct sock *sk;
+	struct hlist_node *node;
+
+	BT_DBG("len %d", skb->len);
+
+	read_lock(&hci_sk_list.lock);
+
+	sk_for_each(sk, node, &hci_sk_list.head) {
+		struct sk_buff *nskb;
+
+		/* Skip the original socket */
+		if (sk == skip_sk)
+			continue;
+
+		if (sk->sk_state != BT_BOUND)
+			continue;
+
+		if (hci_pi(sk)->channel != HCI_CHANNEL_CONTROL)
+			continue;
+
+		nskb = skb_clone(skb, GFP_ATOMIC);
+		if (!nskb)
+			continue;
+
+		if (sock_queue_rcv_skb(sk, nskb))
+			kfree_skb(nskb);
+	}
+
 	read_unlock(&hci_sk_list.lock);
 }
 
