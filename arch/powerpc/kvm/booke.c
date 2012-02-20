@@ -679,6 +679,10 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = RESUME_GUEST;
 		break;
 
+	case BOOKE_INTERRUPT_PERFORMANCE_MONITOR:
+		r = RESUME_GUEST;
+		break;
+
 	case BOOKE_INTERRUPT_HV_PRIV:
 		r = emulation_exit(run, vcpu);
 		break;
