@@ -2702,6 +2702,8 @@ static inline unsigned long bnx2x_get_q_flags(struct bnx2x *bp,
 	if (!fp->disable_tpa) {
 		__set_bit(BNX2X_Q_FLG_TPA, &flags);
 		__set_bit(BNX2X_Q_FLG_TPA_IPV6, &flags);
+		if (fp->mode == TPA_MODE_GRO)
+			__set_bit(BNX2X_Q_FLG_TPA_GRO, &flags);
 	}
 
 	if (leading) {
@@ -10167,10 +10169,10 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 
 	/* Set TPA flags */
 	if (bp->disable_tpa) {
-		bp->flags &= ~TPA_ENABLE_FLAG;
+		bp->flags &= ~(TPA_ENABLE_FLAG | GRO_ENABLE_FLAG);
 		bp->dev->features &= ~NETIF_F_LRO;
 	} else {
-		bp->flags |= TPA_ENABLE_FLAG;
+		bp->flags |= (TPA_ENABLE_FLAG | GRO_ENABLE_FLAG);
 		bp->dev->features |= NETIF_F_LRO;
 	}
 
@@ -10716,8 +10718,9 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	dev->priv_flags |= IFF_UNICAST_FLT;
 
 	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-		NETIF_F_TSO | NETIF_F_TSO_ECN | NETIF_F_TSO6 | NETIF_F_LRO |
-		NETIF_F_RXCSUM | NETIF_F_RXHASH | NETIF_F_HW_VLAN_TX;
+		NETIF_F_TSO | NETIF_F_TSO_ECN | NETIF_F_TSO6 |
+		NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_GRO |
+		NETIF_F_RXHASH | NETIF_F_HW_VLAN_TX;
 
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 		NETIF_F_TSO | NETIF_F_TSO_ECN | NETIF_F_TSO6 | NETIF_F_HIGHDMA;

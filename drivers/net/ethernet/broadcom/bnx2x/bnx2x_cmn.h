@@ -534,8 +534,9 @@ int bnx2x_change_mtu(struct net_device *dev, int new_mtu);
  */
 int bnx2x_fcoe_get_wwn(struct net_device *dev, u64 *wwn, int type);
 #endif
+
 netdev_features_t bnx2x_fix_features(struct net_device *dev,
-	netdev_features_t features);
+				     netdev_features_t features);
 int bnx2x_set_features(struct net_device *dev, netdev_features_t features);
 
 /**
@@ -1491,6 +1492,18 @@ static inline u16 bnx2x_extract_max_cfg(struct bnx2x *bp, u32 mf_cfg)
 	return max_cfg;
 }
 
+/* checks if HW supports GRO for given MTU */
+static inline bool bnx2x_mtu_allows_gro(int mtu)
+{
+	/* gro frags per page */
+	int fpp = SGE_PAGE_SIZE / (mtu - ETH_MAX_TPA_HEADER_SIZE);
+
+	/*
+	 * 1. number of frags should not grow above MAX_SKB_FRAGS
+	 * 2. frag must fit the page
+	 */
+	return mtu <= SGE_PAGE_SIZE && (U_ETH_SGL_SIZE * fpp) <= MAX_SKB_FRAGS;
+}
 /**
  * bnx2x_bz_fp - zero content of the fastpath structure.
  *
@@ -1556,7 +1569,14 @@ static inline void bnx2x_bz_fp(struct bnx2x *bp, int index)
 	 * set the tpa flag for each queue. The tpa flag determines the queue
 	 * minimal size so it must be set prior to queue memory allocation
 	 */
-	fp->disable_tpa = (bp->flags & TPA_ENABLE_FLAG) == 0;
+	fp->disable_tpa = !(bp->flags & TPA_ENABLE_FLAG ||
+				  (bp->flags & GRO_ENABLE_FLAG &&
+				   bnx2x_mtu_allows_gro(bp->dev->mtu)));
+	if (bp->flags & TPA_ENABLE_FLAG)
+		fp->mode = TPA_MODE_LRO;
+	else if (bp->flags & GRO_ENABLE_FLAG)
+		fp->mode = TPA_MODE_GRO;
+
 #ifdef BCM_CNIC
 	/* We don't want TPA on an FCoE L2 ring */
 	if (IS_FCOE_FP(fp))

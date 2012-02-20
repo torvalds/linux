@@ -1931,7 +1931,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	if (!CQE_TYPE_FAST(cqe_fp_type) || (cqe_fp_flags & ETH_RX_ERROR_FALGS))
 		goto test_loopback_rx_exit;
 
-	len = le16_to_cpu(cqe->fast_path_cqe.pkt_len);
+	len = le16_to_cpu(cqe->fast_path_cqe.pkt_len_or_gro_seg_len);
 	if (len != pkt_size)
 		goto test_loopback_rx_exit;
 

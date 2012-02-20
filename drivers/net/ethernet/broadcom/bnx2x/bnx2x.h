@@ -445,6 +445,8 @@ struct bnx2x_agg_info {
 	u16			vlan_tag;
 	u16			len_on_bd;
 	u32			rxhash;
+	u16			gro_size;
+	u16			full_page;
 };
 
 #define Q_STATS_OFFSET32(stat_name) \
@@ -473,6 +475,11 @@ struct bnx2x_fp_txdata {
 	int			txq_index;
 };
 
+enum bnx2x_tpa_mode_t {
+	TPA_MODE_LRO,
+	TPA_MODE_GRO
+};
+
 struct bnx2x_fastpath {
 	struct bnx2x		*bp; /* parent */
 
@@ -488,6 +495,8 @@ struct bnx2x_fastpath {
 	u32			rx_buf_size;
 
 	dma_addr_t		status_blk_mapping;
+
+	enum bnx2x_tpa_mode_t	mode;
 
 	u8			max_cos; /* actual number of active tx coses */
 	struct bnx2x_fp_txdata	txdata[BNX2X_MULTI_TX_COS];
@@ -1199,6 +1208,8 @@ struct bnx2x {
 #define ETH_MIN_PACKET_SIZE		60
 #define ETH_MAX_PACKET_SIZE		1500
 #define ETH_MAX_JUMBO_PACKET_SIZE	9600
+/* TCP with Timestamp Option (32) + IPv6 (40) */
+#define ETH_MAX_TPA_HEADER_SIZE		72
 
 	/* Max supported alignment is 256 (8 shift) */
 #define BNX2X_RX_ALIGN_SHIFT		min(8, L1_CACHE_SHIFT)
@@ -1269,6 +1280,7 @@ struct bnx2x {
 #define NO_MCP_FLAG			(1 << 9)
 
 #define BP_NOMCP(bp)			(bp->flags & NO_MCP_FLAG)
+#define GRO_ENABLE_FLAG			(1 << 10)
 #define MF_FUNC_DIS			(1 << 11)
 #define OWN_CNIC_IRQ			(1 << 12)
 #define NO_ISCSI_OOO_FLAG		(1 << 13)

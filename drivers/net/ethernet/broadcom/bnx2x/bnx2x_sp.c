@@ -4431,9 +4431,10 @@ static void bnx2x_q_fill_init_rx_data(struct bnx2x_queue_sp_obj *o,
 				struct client_init_rx_data *rx_data,
 				unsigned long *flags)
 {
-		/* Rx data */
 	rx_data->tpa_en = test_bit(BNX2X_Q_FLG_TPA, flags) *
 				CLIENT_INIT_RX_DATA_TPA_EN_IPV4;
+	rx_data->tpa_en |= test_bit(BNX2X_Q_FLG_TPA_GRO, flags) *
+				CLIENT_INIT_RX_DATA_TPA_MODE;
 	rx_data->vmqueue_mode_en_flg = 0;
 
 	rx_data->cache_line_alignment_log_size =
