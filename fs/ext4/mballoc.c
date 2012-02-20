@@ -427,7 +427,7 @@ static void *mb_find_buddy(struct ext4_buddy *e4b, int order, int *max)
 {
 	char *bb;
 
-	BUG_ON(EXT4_MB_BITMAP(e4b) == EXT4_MB_BUDDY(e4b));
+	BUG_ON(e4b->bd_bitmap == e4b->bd_buddy);
 	BUG_ON(max == NULL);
 
 	if (order > e4b->bd_blkbits + 1) {
@@ -438,10 +438,10 @@ static void *mb_find_buddy(struct ext4_buddy *e4b, int order, int *max)
 	/* at order 0 we see each particular block */
 	if (order == 0) {
 		*max = 1 << (e4b->bd_blkbits + 3);
-		return EXT4_MB_BITMAP(e4b);
+		return e4b->bd_bitmap;
 	}
 
-	bb = EXT4_MB_BUDDY(e4b) + EXT4_SB(e4b->bd_sb)->s_mb_offsets[order];
+	bb = e4b->bd_buddy + EXT4_SB(e4b->bd_sb)->s_mb_offsets[order];
 	*max = EXT4_SB(e4b->bd_sb)->s_mb_maxs[order];
 
 	return bb;
@@ -590,7 +590,7 @@ static int __mb_check_buddy(struct ext4_buddy *e4b, char *file,
 			for (j = 0; j < (1 << order); j++) {
 				k = (i * (1 << order)) + j;
 				MB_CHECK_ASSERT(
-					!mb_test_bit(k, EXT4_MB_BITMAP(e4b)));
+					!mb_test_bit(k, e4b->bd_bitmap));
 			}
 			count++;
 		}
@@ -1203,10 +1203,10 @@ static int mb_find_order_for_block(struct ext4_buddy *e4b, int block)
 	int order = 1;
 	void *bb;
 
-	BUG_ON(EXT4_MB_BITMAP(e4b) == EXT4_MB_BUDDY(e4b));
+	BUG_ON(e4b->bd_bitmap == e4b->bd_buddy);
 	BUG_ON(block >= (1 << (e4b->bd_blkbits + 3)));
 
-	bb = EXT4_MB_BUDDY(e4b);
+	bb = e4b->bd_buddy;
 	while (order <= e4b->bd_blkbits + 1) {
 		block = block >> 1;
 		if (!mb_test_bit(block, bb)) {
@@ -1276,9 +1276,9 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 
 	/* let's maintain fragments counter */
 	if (first != 0)
-		block = !mb_test_bit(first - 1, EXT4_MB_BITMAP(e4b));
+		block = !mb_test_bit(first - 1, e4b->bd_bitmap);
 	if (first + count < EXT4_SB(sb)->s_mb_maxs[0])
-		max = !mb_test_bit(first + count, EXT4_MB_BITMAP(e4b));
+		max = !mb_test_bit(first + count, e4b->bd_bitmap);
 	if (block && max)
 		e4b->bd_info->bb_fragments--;
 	else if (!block && !max)
@@ -1289,7 +1289,7 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 		block = first++;
 		order = 0;
 
-		if (!mb_test_bit(block, EXT4_MB_BITMAP(e4b))) {
+		if (!mb_test_bit(block, e4b->bd_bitmap)) {
 			ext4_fsblk_t blocknr;
 
 			blocknr = ext4_group_first_block_no(sb, e4b->bd_group);
@@ -1300,7 +1300,7 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 					      "freeing already freed block "
 					      "(bit %u)", block);
 		}
-		mb_clear_bit(block, EXT4_MB_BITMAP(e4b));
+		mb_clear_bit(block, e4b->bd_bitmap);
 		e4b->bd_info->bb_counters[order]++;
 
 		/* start of the buddy */
@@ -1382,7 +1382,7 @@ static int mb_find_extent(struct ext4_buddy *e4b, int order, int block,
 			break;
 
 		next = (block + 1) * (1 << order);
-		if (mb_test_bit(next, EXT4_MB_BITMAP(e4b)))
+		if (mb_test_bit(next, e4b->bd_bitmap))
 			break;
 
 		order = mb_find_order_for_block(e4b, next);
@@ -1419,9 +1419,9 @@ static int mb_mark_used(struct ext4_buddy *e4b, struct ext4_free_extent *ex)
 
 	/* let's maintain fragments counter */
 	if (start != 0)
-		mlen = !mb_test_bit(start - 1, EXT4_MB_BITMAP(e4b));
+		mlen = !mb_test_bit(start - 1, e4b->bd_bitmap);
 	if (start + len < EXT4_SB(e4b->bd_sb)->s_mb_maxs[0])
-		max = !mb_test_bit(start + len, EXT4_MB_BITMAP(e4b));
+		max = !mb_test_bit(start + len, e4b->bd_bitmap);
 	if (mlen && max)
 		e4b->bd_info->bb_fragments++;
 	else if (!mlen && !max)
@@ -1464,7 +1464,7 @@ static int mb_mark_used(struct ext4_buddy *e4b, struct ext4_free_extent *ex)
 	}
 	mb_set_largest_free_order(e4b->bd_sb, e4b->bd_info);
 
-	ext4_set_bits(EXT4_MB_BITMAP(e4b), ex->fe_start, len0);
+	ext4_set_bits(e4b->bd_bitmap, ex->fe_start, len0);
 	mb_check_buddy(e4b);
 
 	return ret;
@@ -1763,7 +1763,7 @@ void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 					struct ext4_buddy *e4b)
 {
 	struct super_block *sb = ac->ac_sb;
-	void *bitmap = EXT4_MB_BITMAP(e4b);
+	void *bitmap = e4b->bd_bitmap;
 	struct ext4_free_extent ex;
 	int i;
 	int free;
@@ -1823,7 +1823,7 @@ void ext4_mb_scan_aligned(struct ext4_allocation_context *ac,
 {
 	struct super_block *sb = ac->ac_sb;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	void *bitmap = EXT4_MB_BITMAP(e4b);
+	void *bitmap = e4b->bd_bitmap;
 	struct ext4_free_extent ex;
 	ext4_fsblk_t first_group_block;
 	ext4_fsblk_t a;

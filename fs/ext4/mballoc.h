@@ -212,8 +212,6 @@ struct ext4_buddy {
 	__u16 bd_blkbits;
 	ext4_group_t bd_group;
 };
-#define EXT4_MB_BITMAP(e4b)	((e4b)->bd_bitmap)
-#define EXT4_MB_BUDDY(e4b)	((e4b)->bd_buddy)
 
 static inline ext4_fsblk_t ext4_grp_offs_to_block(struct super_block *sb,
 					struct ext4_free_extent *fex)
