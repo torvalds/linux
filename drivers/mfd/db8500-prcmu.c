@@ -821,6 +821,38 @@ u8 db8500_prcmu_get_power_state_result(void)
 	return readb(tcdm_base + PRCM_ACK_MB0_AP_PWRSTTR_STATUS);
 }
 
+#define PRCMU_A9_MASK_REQ               0x00000328
+#define PRCMU_A9_MASK_REQ_MASK          0x00000001
+#define PRCMU_GIC_DELAY                 1
+
+/* This function decouple the gic from the prcmu */
+int db8500_prcmu_gic_decouple(void)
+{
+	u32 val = readl(_PRCMU_BASE + PRCMU_A9_MASK_REQ);
+
+	/* Set bit 0 register value to 1 */
+	writel(val | PRCMU_A9_MASK_REQ_MASK, _PRCMU_BASE + PRCMU_A9_MASK_REQ);
+
+	/* Make sure the register is updated */
+	readl(_PRCMU_BASE + PRCMU_A9_MASK_REQ);
+
+	/* Wait a few cycles for the gic mask completion */
+	udelay(PRCMU_GIC_DELAY);
+
+	return 0;
+}
+
+/* This function recouple the gic with the prcmu */
+int db8500_prcmu_gic_recouple(void)
+{
+	u32 val = readl(_PRCMU_BASE + PRCMU_A9_MASK_REQ);
+
+	/* Set bit 0 register value to 0 */
+	writel(val & ~PRCMU_A9_MASK_REQ_MASK, _PRCMU_BASE + PRCMU_A9_MASK_REQ);
+
+	return 0;
+}
+
 /* This function should only be called while mb0_transfer.lock is held. */
 static void config_wakeups(void)
 {
