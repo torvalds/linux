@@ -956,11 +956,12 @@ int __devinit ab8500_init(struct ab8500 *ab8500)
 	return ret;
 
 out_freeirq:
-	if (ab8500->irq_base) {
+	if (ab8500->irq_base)
 		free_irq(ab8500->irq, ab8500);
 out_removeirq:
+	if (ab8500->irq_base)
 		ab8500_irq_remove(ab8500);
-	}
+
 	return ret;
 }
 
