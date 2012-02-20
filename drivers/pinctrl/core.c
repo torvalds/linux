@@ -293,9 +293,9 @@ pinctrl_match_gpio_range(struct pinctrl_dev *pctldev, unsigned gpio)
  * the GPIO subsystem, return the device and the matching GPIO range. Returns
  * negative if the GPIO range could not be found in any device.
  */
-int pinctrl_get_device_gpio_range(unsigned gpio,
-				struct pinctrl_dev **outdev,
-				struct pinctrl_gpio_range **outrange)
+static int pinctrl_get_device_gpio_range(unsigned gpio,
+					 struct pinctrl_dev **outdev,
+					 struct pinctrl_gpio_range **outrange)
 {
 	struct pinctrl_dev *pctldev = NULL;
 
@@ -332,6 +332,7 @@ void pinctrl_add_gpio_range(struct pinctrl_dev *pctldev,
 	list_add_tail(&range->node, &pctldev->gpio_ranges);
 	mutex_unlock(&pctldev->gpio_ranges_lock);
 }
+EXPORT_SYMBOL_GPL(pinctrl_add_gpio_range);
 
 /**
  * pinctrl_remove_gpio_range() - remove a range of GPIOs fro a pin controller
@@ -345,6 +346,7 @@ void pinctrl_remove_gpio_range(struct pinctrl_dev *pctldev,
 	list_del(&range->node);
 	mutex_unlock(&pctldev->gpio_ranges_lock);
 }
+EXPORT_SYMBOL_GPL(pinctrl_remove_gpio_range);
 
 /**
  * pinctrl_get_group_selector() - returns the group selector for a group
@@ -785,7 +787,7 @@ static int pinctrl_hog_map(struct pinctrl_dev *pctldev,
  * map entries that need to be hogged, i.e. get+enabled until the system shuts
  * down.
  */
-int pinctrl_hog_maps(struct pinctrl_dev *pctldev)
+static int pinctrl_hog_maps(struct pinctrl_dev *pctldev)
 {
 	struct device *dev = pctldev->dev;
 	const char *devname = dev_name(dev);
@@ -819,7 +821,7 @@ int pinctrl_hog_maps(struct pinctrl_dev *pctldev)
  * pinctrl_unhog_maps() - unhog specific map entries on controller device
  * @pctldev: the pin control device to unhog entries on
  */
-void pinctrl_unhog_maps(struct pinctrl_dev *pctldev)
+static void pinctrl_unhog_maps(struct pinctrl_dev *pctldev)
 {
 	struct list_head *node, *tmp;
 
