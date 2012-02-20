@@ -4,6 +4,25 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/compiler.h>
+#include <linux/log2.h>
+
+/*
+ * Runtime evaluation of get_order()
+ */
+static inline __attribute_const__
+int __get_order(unsigned long size)
+{
+	int order;
+
+	size--;
+	size >>= PAGE_SHIFT;
+#if BITS_PER_LONG == 32
+	order = fls(size);
+#else
+	order = fls64(size);
+#endif
+	return order;
+}
 
 /**
  * get_order - Determine the allocation order of a memory size
@@ -27,18 +46,15 @@
  * This function may be used to initialise variables with compile time
  * evaluations of constants.
  */
-static inline __attribute_const__ int get_order(unsigned long size)
-{
-	int order;
-
-	size = (size - 1) >> (PAGE_SHIFT - 1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-	return order;
-}
+#define get_order(n)						\
+(								\
+	__builtin_constant_p(n) ? (				\
+		(n == 0UL) ? BITS_PER_LONG - PAGE_SHIFT :	\
+		((n < (1UL << PAGE_SHIFT)) ? 0 :		\
+		 ilog2((n) - 1) - PAGE_SHIFT + 1)		\
+	) :							\
+	__get_order(n)						\
+)
 
 #endif	/* __ASSEMBLY__ */
 
