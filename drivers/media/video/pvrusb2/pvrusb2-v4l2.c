@@ -107,7 +107,6 @@ static struct v4l2_fmtdesc pvr_fmtdesc [] = {
 		// This should really be V4L2_PIX_FMT_MPEG, but xawtv
 		// breaks when I do that.
 		.pixelformat    = 0, // V4L2_PIX_FMT_MPEG,
-		.reserved       = { 0, 0, 0, 0 }
 	}
 };
 
@@ -145,7 +144,6 @@ static struct v4l2_format pvr_format [] = {
 				.start = { 0, 0 },
 				.count = { 0, 0 },
 				.flags = 0,
-				.reserved = { 0, 0 }
 			}
 		}
 	}
