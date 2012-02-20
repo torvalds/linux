@@ -671,7 +671,7 @@ xfs_trans_ail_update_bulk(
 
 	if (mlip_changed && !XFS_FORCED_SHUTDOWN(ailp->xa_mount)) {
 		xlog_assign_tail_lsn(ailp->xa_mount);
-		xfs_log_space_wake(ailp->xa_mount, false);
+		xfs_log_space_wake(ailp->xa_mount);
 	}
 }
 
@@ -733,7 +733,7 @@ xfs_trans_ail_delete_bulk(
 
 	if (mlip_changed && !XFS_FORCED_SHUTDOWN(ailp->xa_mount)) {
 		xlog_assign_tail_lsn(ailp->xa_mount);
-		xfs_log_space_wake(ailp->xa_mount, false);
+		xfs_log_space_wake(ailp->xa_mount);
 	}
 }
 

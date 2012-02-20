@@ -762,18 +762,13 @@ xfs_log_item_init(
 
 /*
  * Wake up processes waiting for log space after we have moved the log tail.
- *
- * If opportunistic is set wake up one waiter even if we do not have enough
- * free space by our strict accounting.
  */
 void
 xfs_log_space_wake(
-	struct xfs_mount	*mp,
-	bool			opportunistic)
+	struct xfs_mount	*mp)
 {
-	struct xlog_ticket	*tic;
 	struct log		*log = mp->m_log;
-	int			need_bytes, free_bytes;
+	int			free_bytes;
 
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return;
@@ -783,16 +778,7 @@ xfs_log_space_wake(
 
 		spin_lock(&log->l_grant_write_lock);
 		free_bytes = xlog_space_left(log, &log->l_grant_write_head);
-		list_for_each_entry(tic, &log->l_writeq, t_queue) {
-			ASSERT(tic->t_flags & XLOG_TIC_PERM_RESERV);
-
-			if (free_bytes < tic->t_unit_res && !opportunistic)
-				break;
-			opportunistic = false;
-			free_bytes -= tic->t_unit_res;
-			trace_xfs_log_regrant_write_wake_up(log, tic);
-			wake_up(&tic->t_wait);
-		}
+		xlog_writeq_wake(log, &free_bytes);
 		spin_unlock(&log->l_grant_write_lock);
 	}
 
@@ -801,18 +787,7 @@ xfs_log_space_wake(
 
 		spin_lock(&log->l_grant_reserve_lock);
 		free_bytes = xlog_space_left(log, &log->l_grant_reserve_head);
-		list_for_each_entry(tic, &log->l_reserveq, t_queue) {
-			if (tic->t_flags & XLOG_TIC_PERM_RESERV)
-				need_bytes = tic->t_unit_res*tic->t_cnt;
-			else
-				need_bytes = tic->t_unit_res;
-			if (free_bytes < need_bytes && !opportunistic)
-				break;
-			opportunistic = false;
-			free_bytes -= need_bytes;
-			trace_xfs_log_grant_wake_up(log, tic);
-			wake_up(&tic->t_wait);
-		}
+		xlog_reserveq_wake(log, &free_bytes);
 		spin_unlock(&log->l_grant_reserve_lock);
 	}
 }
@@ -2748,7 +2723,7 @@ xlog_ungrant_log_space(xlog_t	     *log,
 
 	trace_xfs_log_ungrant_exit(log, ticket);
 
-	xfs_log_space_wake(log->l_mp, false);
+	xfs_log_space_wake(log->l_mp);
 }
 
 /*
