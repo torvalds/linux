@@ -20,7 +20,7 @@
 #include <asm/ucontext.h>
 #include <asm/vdso.h>
 #ifdef CONFIG_PPC64
-#include "ppc32.h"
+#include "../kernel/ppc32.h"
 #endif
 
 

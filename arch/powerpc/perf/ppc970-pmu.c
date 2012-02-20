@@ -252,7 +252,7 @@ static int p970_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 		alt[1] = event ^ 0x1000;
 		return 2;
 	}
-		
+
 	return 1;
 }
 

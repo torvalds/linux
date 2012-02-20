@@ -131,7 +131,7 @@ static u32 marked_bus_events[16] = {
 	0x00000022,	/* BFP set 2: byte 0 bits 1, 5 */
 	0, 0
 };
-	
+
 /*
  * Returns 1 if event counts things relating to marked instructions
  * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if not.
