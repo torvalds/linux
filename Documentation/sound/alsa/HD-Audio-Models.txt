@@ -8,7 +8,6 @@ ALC880
   5stack-digout	5-jack in back, 2-jack in front, a SPDIF out
   6stack	6-jack in back, 2-jack in front
   6stack-digout	6-jack with a SPDIF out
-  z71v		3-jack (HP shared SPDIF)
   asus		3-jack (ASUS Mobo)
   asus-w1v	ASUS W1V
   asus-dig	ASUS with SPDIF out

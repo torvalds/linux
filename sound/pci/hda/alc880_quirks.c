@@ -10,7 +10,6 @@ enum {
 	ALC880_3ST_DIG,
 	ALC880_5ST,
 	ALC880_5ST_DIG,
-	ALC880_Z71V,
 	ALC880_6ST,
 	ALC880_6ST_DIG,
 	ALC880_ASUS,
@@ -223,34 +222,9 @@ static const hda_nid_t alc880_w810_dac_nids[3] = {
 	0x02, 0x03, 0x04
 };
 
-/*
- * Z710V model
- *
- * DAC: Front = 0x02 (0x0c), HP = 0x03 (0x0d)
- * Pin assignment: Front = 0x14, HP = 0x15, Mic = 0x18, Mic2 = 0x19(?),
- *                 Line = 0x1a
- */
-
-static const hda_nid_t alc880_z71v_dac_nids[1] = {
-	0x02
-};
-#define ALC880_Z71V_HP_DAC	0x03
-
 /* fixed 2 channels */
 static const struct hda_channel_mode alc880_2_jack_modes[1] = {
 	{ 2, NULL }
-};
-
-static const struct snd_kcontrol_new alc880_z71v_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Headphone Playback Switch", 0x0d, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	{ } /* end */
 };
 
 /*
@@ -435,24 +409,6 @@ static const struct hda_verb alc880_pin_5stack_init_verbs[] = {
 	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
 	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 	/* CD pin widget for input */
-	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-
-	{ }
-};
-
-/*
- * Z71V pin configuration:
- * Speaker-out = 0x14, HP = 0x15, Mic = 0x18, Line-in = 0x1a, Mic2 = 0x1b (?)
- */
-static const struct hda_verb alc880_pin_z71v_init_verbs[] = {
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
 	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 
 	{ }
@@ -802,7 +758,6 @@ static const char * const alc880_models[ALC880_MODEL_LAST] = {
 	[ALC880_3ST_DIG]	= "3stack-digout",
 	[ALC880_5ST]		= "5stack",
 	[ALC880_5ST_DIG]	= "5stack-digout",
-	[ALC880_Z71V]		= "z71v",
 	[ALC880_6ST]		= "6stack",
 	[ALC880_6ST_DIG]	= "6stack-digout",
 	[ALC880_ASUS]		= "asus",
@@ -831,7 +786,6 @@ static const struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x1113, "ASUS", ALC880_ASUS_DIG),
 	SND_PCI_QUIRK(0x1043, 0x1123, "ASUS", ALC880_ASUS_DIG),
 	SND_PCI_QUIRK(0x1043, 0x1173, "ASUS", ALC880_ASUS_DIG),
-	SND_PCI_QUIRK(0x1043, 0x1964, "ASUS Z71V", ALC880_Z71V),
 	/* SND_PCI_QUIRK(0x1043, 0x1964, "ASUS", ALC880_ASUS_DIG), */
 	SND_PCI_QUIRK(0x1043, 0x1973, "ASUS", ALC880_ASUS_DIG),
 	SND_PCI_QUIRK(0x1043, 0x19b3, "ASUS", ALC880_ASUS_DIG),
@@ -942,18 +896,6 @@ static const struct alc_config_preset alc880_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc880_sixstack_modes),
 		.channel_mode = alc880_sixstack_modes,
 		.input_mux = &alc880_6stack_capture_source,
-	},
-	[ALC880_Z71V] = {
-		.mixers = { alc880_z71v_mixer },
-		.init_verbs = { alc880_volume_init_verbs,
-				alc880_pin_z71v_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc880_z71v_dac_nids),
-		.dac_nids = alc880_z71v_dac_nids,
-		.dig_out_nid = ALC880_DIGOUT_NID,
-		.hp_nid = 0x03,
-		.num_channel_mode = ARRAY_SIZE(alc880_2_jack_modes),
-		.channel_mode = alc880_2_jack_modes,
-		.input_mux = &alc880_capture_source,
 	},
 	[ALC880_ASUS] = {
 		.mixers = { alc880_asus_mixer },
