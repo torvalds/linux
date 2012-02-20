@@ -827,7 +827,12 @@ static void pl011_dma_rx_callback(void *data)
 {
 	struct uart_amba_port *uap = data;
 	struct pl011_dmarx_data *dmarx = &uap->dmarx;
+	struct dma_chan *rxchan = dmarx->chan;
 	bool lastbuf = dmarx->use_buf_b;
+	struct pl011_sgbuf *sgbuf = dmarx->use_buf_b ?
+		&dmarx->sgbuf_b : &dmarx->sgbuf_a;
+	size_t pending;
+	struct dma_tx_state state;
 	int ret;
 
 	/*
@@ -838,11 +843,21 @@ static void pl011_dma_rx_callback(void *data)
 	 * we immediately trigger the next DMA job.
 	 */
 	spin_lock_irq(&uap->port.lock);
+	/*
+	 * Rx data can be taken by the UART interrupts during
+	 * the DMA irq handler. So we check the residue here.
+	 */
+	rxchan->device->device_tx_status(rxchan, dmarx->cookie, &state);
+	pending = sgbuf->sg.length - state.residue;
+	BUG_ON(pending > PL011_DMA_BUFFER_SIZE);
+	/* Then we terminate the transfer - we now know our residue */
+	dmaengine_terminate_all(rxchan);
+
 	uap->dmarx.running = false;
 	dmarx->use_buf_b = !lastbuf;
 	ret = pl011_dma_rx_trigger_dma(uap);
 
-	pl011_dma_rx_chars(uap, PL011_DMA_BUFFER_SIZE, lastbuf, false);
+	pl011_dma_rx_chars(uap, pending, lastbuf, false);
 	spin_unlock_irq(&uap->port.lock);
 	/*
 	 * Do this check after we picked the DMA chars so we don't
