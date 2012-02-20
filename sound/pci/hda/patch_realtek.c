@@ -4566,8 +4566,6 @@ static int patch_alc880(struct hda_codec *codec)
 		set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
 	}
 
-	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
-
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC_MODEL_AUTO)
 		spec->init_hook = alc_auto_init_std;
@@ -4577,6 +4575,8 @@ static int patch_alc880(struct hda_codec *codec)
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc880_loopbacks;
 #endif
+
+	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
 
 	return 0;
 
@@ -4749,8 +4749,6 @@ static int patch_alc260(struct hda_codec *codec)
 		set_beep_amp(spec, 0x07, 0x05, HDA_INPUT);
 	}
 
-	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
-
 	codec->patch_ops = alc_patch_ops;
 	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc_eapd_shutup;
@@ -4758,6 +4756,8 @@ static int patch_alc260(struct hda_codec *codec)
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc260_loopbacks;
 #endif
+
+	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
 
 	return 0;
 
@@ -5165,8 +5165,6 @@ static int patch_alc882(struct hda_codec *codec)
 		set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
 	}
 
-	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
-
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC_MODEL_AUTO)
 		spec->init_hook = alc_auto_init_std;
@@ -5177,6 +5175,8 @@ static int patch_alc882(struct hda_codec *codec)
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc882_loopbacks;
 #endif
+
+	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
 
 	return 0;
 
@@ -5331,8 +5331,6 @@ static int patch_alc262(struct hda_codec *codec)
 		set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
 	}
 
-	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
-
 	codec->patch_ops = alc_patch_ops;
 	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc_eapd_shutup;
@@ -5341,6 +5339,8 @@ static int patch_alc262(struct hda_codec *codec)
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc262_loopbacks;
 #endif
+
+	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
 
 	return 0;
 
@@ -5992,8 +5992,6 @@ static int patch_alc269(struct hda_codec *codec)
 		set_beep_amp(spec, 0x0b, 0x04, HDA_INPUT);
 	}
 
-	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
-
 	codec->patch_ops = alc_patch_ops;
 #ifdef CONFIG_PM
 	codec->patch_ops.resume = alc269_resume;
@@ -6007,6 +6005,8 @@ static int patch_alc269(struct hda_codec *codec)
 	if (alc269_mic2_for_mute_led(codec))
 		codec->patch_ops.check_power_status = alc269_mic2_mute_check_ps;
 #endif
+
+	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
 
 	return 0;
 
@@ -6146,8 +6146,6 @@ static int patch_alc861(struct hda_codec *codec)
 		set_beep_amp(spec, 0x23, 0, HDA_OUTPUT);
 	}
 
-	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
-
 	codec->patch_ops = alc_patch_ops;
 	spec->init_hook = alc_auto_init_std;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -6155,6 +6153,8 @@ static int patch_alc861(struct hda_codec *codec)
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc861_loopbacks;
 #endif
+
+	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
 
 	return 0;
 
@@ -6270,8 +6270,6 @@ static int patch_alc861vd(struct hda_codec *codec)
 		set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
 	}
 
-	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
-
 	codec->patch_ops = alc_patch_ops;
 
 	spec->init_hook = alc_auto_init_std;
@@ -6280,6 +6278,8 @@ static int patch_alc861vd(struct hda_codec *codec)
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc861vd_loopbacks;
 #endif
+
+	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
 
 	return 0;
 
@@ -6659,8 +6659,6 @@ static int patch_alc662(struct hda_codec *codec)
 		}
 	}
 
-	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
-
 	codec->patch_ops = alc_patch_ops;
 	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc_eapd_shutup;
@@ -6669,6 +6667,8 @@ static int patch_alc662(struct hda_codec *codec)
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc662_loopbacks;
 #endif
+
+	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
 
 	return 0;
 
