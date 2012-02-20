@@ -2748,7 +2748,7 @@ xlog_ungrant_log_space(xlog_t	     *log,
 
 	trace_xfs_log_ungrant_exit(log, ticket);
 
-	xfs_log_space_wake(log->l_mp, true);
+	xfs_log_space_wake(log->l_mp, false);
 }
 
 /*
