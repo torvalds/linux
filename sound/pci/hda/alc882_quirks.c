@@ -34,8 +34,16 @@ static const hda_nid_t alc882_dac_nids[4] = {
 #define alc883_dac_nids		alc882_dac_nids
 
 /* ADCs */
-#define alc882_adc_nids		alc880_adc_nids
-#define alc882_adc_nids_alt	alc880_adc_nids_alt
+static const hda_nid_t alc882_adc_nids[3] = {
+	/* ADC0-2 */
+	0x07, 0x08, 0x09,
+};
+
+static const hda_nid_t alc882_adc_nids_alt[2] = {
+	/* ADC1-2 */
+	0x08, 0x09,
+};
+
 #define alc883_adc_nids		alc882_adc_nids_alt
 
 static const hda_nid_t alc882_capsrc_nids_alt[2] = { 0x23, 0x22 };
@@ -774,7 +782,7 @@ static const struct snd_pci_quirk alc882_ssid_cfg_tbl[] = {
 static const struct alc_config_preset alc882_presets[] = {
 	   [ALC885_MBA21] = {
 			.mixers = { alc885_mba21_mixer },
-			.init_verbs = { alc885_mba21_init_verbs, alc880_gpio1_init_verbs },
+			.init_verbs = { alc885_mba21_init_verbs, alc_gpio1_init_verbs },
 			.num_dacs = 2,
 			.dac_nids = alc882_dac_nids,
 			.channel_mode = alc885_mba21_ch_modes,
@@ -787,7 +795,7 @@ static const struct alc_config_preset alc882_presets[] = {
 	[ALC885_MBP3] = {
 		.mixers = { alc885_mbp3_mixer, alc882_chmode_mixer },
 		.init_verbs = { alc885_mbp3_init_verbs,
-				alc880_gpio1_init_verbs },
+				alc_gpio1_init_verbs },
 		.num_dacs = 2,
 		.dac_nids = alc882_dac_nids,
 		.hp_nid = 0x04,
@@ -803,7 +811,7 @@ static const struct alc_config_preset alc882_presets[] = {
 	[ALC885_MB5] = {
 		.mixers = { alc885_mb5_mixer, alc882_chmode_mixer },
 		.init_verbs = { alc885_mb5_init_verbs,
-				alc880_gpio1_init_verbs },
+				alc_gpio1_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
 		.dac_nids = alc882_dac_nids,
 		.channel_mode = alc885_mb5_6ch_modes,
@@ -818,7 +826,7 @@ static const struct alc_config_preset alc882_presets[] = {
 	[ALC885_MACMINI3] = {
 		.mixers = { alc885_macmini3_mixer, alc882_chmode_mixer },
 		.init_verbs = { alc885_macmini3_init_verbs,
-				alc880_gpio1_init_verbs },
+				alc_gpio1_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
 		.dac_nids = alc882_dac_nids,
 		.channel_mode = alc885_macmini3_6ch_modes,
@@ -833,7 +841,7 @@ static const struct alc_config_preset alc882_presets[] = {
 	[ALC885_IMAC91] = {
 		.mixers = {alc885_imac91_mixer},
 		.init_verbs = { alc885_imac91_init_verbs,
-				alc880_gpio1_init_verbs },
+				alc_gpio1_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
 		.dac_nids = alc882_dac_nids,
 		.channel_mode = alc885_mba21_ch_modes,
@@ -848,7 +856,7 @@ static const struct alc_config_preset alc882_presets[] = {
 	[ALC889A_MB31] = {
 		.mixers = { alc889A_mb31_mixer, alc883_chmode_mixer},
 		.init_verbs = { alc883_init_verbs, alc889A_mb31_verbs,
-			alc880_gpio1_init_verbs },
+			alc_gpio1_init_verbs },
 		.adc_nids = alc883_adc_nids,
 		.num_adc_nids = ARRAY_SIZE(alc883_adc_nids),
 		.capsrc_nids = alc883_capsrc_nids,
