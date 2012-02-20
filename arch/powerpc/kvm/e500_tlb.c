@@ -1268,8 +1268,8 @@ int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 
 	vcpu->arch.tlbcfg[1] = mfspr(SPRN_TLB1CFG) &
 			     ~(TLBnCFG_N_ENTRY | TLBnCFG_ASSOC);
-	vcpu->arch.tlbcfg[0] |= vcpu_e500->gtlb_params[1].entries;
-	vcpu->arch.tlbcfg[0] |=
+	vcpu->arch.tlbcfg[1] |= vcpu_e500->gtlb_params[1].entries;
+	vcpu->arch.tlbcfg[1] |=
 		vcpu_e500->gtlb_params[1].ways << TLBnCFG_ASSOC_SHIFT;
 
 	return 0;
