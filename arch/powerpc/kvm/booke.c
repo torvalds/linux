@@ -595,6 +595,48 @@ static int emulation_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	}
 }
 
+static void kvmppc_fill_pt_regs(struct pt_regs *regs)
+{
+	ulong r1, ip, msr, lr;
+
+	asm("mr %0, 1" : "=r"(r1));
+	asm("mflr %0" : "=r"(lr));
+	asm("mfmsr %0" : "=r"(msr));
+	asm("bl 1f; 1: mflr %0" : "=r"(ip));
+
+	memset(regs, 0, sizeof(*regs));
+	regs->gpr[1] = r1;
+	regs->nip = ip;
+	regs->msr = msr;
+	regs->link = lr;
+}
+
+static void kvmppc_restart_interrupt(struct kvm_vcpu *vcpu,
+				     unsigned int exit_nr)
+{
+	struct pt_regs regs;
+
+	switch (exit_nr) {
+	case BOOKE_INTERRUPT_EXTERNAL:
+		kvmppc_fill_pt_regs(&regs);
+		do_IRQ(&regs);
+		break;
+	case BOOKE_INTERRUPT_DECREMENTER:
+		kvmppc_fill_pt_regs(&regs);
+		timer_interrupt(&regs);
+		break;
+#if defined(CONFIG_PPC_FSL_BOOK3E) || defined(CONFIG_PPC_BOOK3E_64)
+	case BOOKE_INTERRUPT_DOORBELL:
+		kvmppc_fill_pt_regs(&regs);
+		doorbell_exception(&regs);
+		break;
+#endif
+	case BOOKE_INTERRUPT_MACHINE_CHECK:
+		/* FIXME */
+		break;
+	}
+}
+
 /**
  * kvmppc_handle_exit
  *
@@ -608,24 +650,8 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	/* update before a new last_exit_type is rewritten */
 	kvmppc_update_timing_stats(vcpu);
 
-	switch (exit_nr) {
-	case BOOKE_INTERRUPT_EXTERNAL:
-		do_IRQ(current->thread.regs);
-		break;
-
-	case BOOKE_INTERRUPT_DECREMENTER:
-		timer_interrupt(current->thread.regs);
-		break;
-
-#if defined(CONFIG_PPC_FSL_BOOK3E) || defined(CONFIG_PPC_BOOK3E_64)
-	case BOOKE_INTERRUPT_DOORBELL:
-		doorbell_exception(current->thread.regs);
-		break;
-#endif
-	case BOOKE_INTERRUPT_MACHINE_CHECK:
-		/* FIXME */
-		break;
-	}
+	/* restart interrupts if they were meant for the host */
+	kvmppc_restart_interrupt(vcpu, exit_nr);
 
 	local_irq_enable();
 
