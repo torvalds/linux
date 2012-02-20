@@ -588,18 +588,25 @@ static int hmc5843_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int hmc5843_suspend(struct i2c_client *client, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+static int hmc5843_suspend(struct device *dev)
 {
-	hmc5843_configure(client, MODE_SLEEP);
+	hmc5843_configure(to_i2c_client(dev), MODE_SLEEP);
 	return 0;
 }
 
-static int hmc5843_resume(struct i2c_client *client)
+static int hmc5843_resume(struct device *dev)
 {
-	struct hmc5843_data *data = i2c_get_clientdata(client);
-	hmc5843_configure(client, data->operating_mode);
+	struct hmc5843_data *data = i2c_get_clientdata(to_i2c_client(dev));
+	hmc5843_configure(to_i2c_client(dev), data->operating_mode);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(hmc5843_pm_ops, hmc5843_suspend, hmc5843_resume);
+#define HMC5843_PM_OPS (&hmc5843_pm_ops)
+#else
+#define HMC5843_PM_OPS NULL
+#endif
 
 static const struct i2c_device_id hmc5843_id[] = {
 	{ "hmc5843", 0 },
@@ -610,14 +617,13 @@ MODULE_DEVICE_TABLE(i2c, hmc5843_id);
 static struct i2c_driver hmc5843_driver = {
 	.driver = {
 		.name	= "hmc5843",
+		.pm	= HMC5843_PM_OPS,
 	},
 	.id_table	= hmc5843_id,
 	.probe		= hmc5843_probe,
 	.remove		= hmc5843_remove,
 	.detect		= hmc5843_detect,
 	.address_list	= normal_i2c,
-	.suspend	= hmc5843_suspend,
-	.resume		= hmc5843_resume,
 };
 module_i2c_driver(hmc5843_driver);
 

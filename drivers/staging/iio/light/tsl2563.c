@@ -118,7 +118,7 @@ struct tsl2563_chip {
 	struct delayed_work	poweroff_work;
 
 	/* Remember state for suspend and resume functions */
-	pm_message_t		state;
+	bool suspended;
 
 	struct tsl2563_gainlevel_coeff const *gainlevel;
 
@@ -315,7 +315,7 @@ static int tsl2563_get_adc(struct tsl2563_chip *chip)
 	int retry = 1;
 	int ret = 0;
 
-	if (chip->state.event != PM_EVENT_ON)
+	if (chip->suspended)
 		goto out;
 
 	if (!chip->int_enabled) {
@@ -810,9 +810,10 @@ static int tsl2563_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int tsl2563_suspend(struct i2c_client *client, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int tsl2563_suspend(struct device *dev)
 {
-	struct tsl2563_chip *chip = i2c_get_clientdata(client);
+	struct tsl2563_chip *chip = i2c_get_clientdata(to_i2c_client(dev));
 	int ret;
 
 	mutex_lock(&chip->lock);
@@ -821,16 +822,16 @@ static int tsl2563_suspend(struct i2c_client *client, pm_message_t state)
 	if (ret)
 		goto out;
 
-	chip->state = state;
+	chip->suspended = true;
 
 out:
 	mutex_unlock(&chip->lock);
 	return ret;
 }
 
-static int tsl2563_resume(struct i2c_client *client)
+static int tsl2563_resume(struct device *dev)
 {
-	struct tsl2563_chip *chip = i2c_get_clientdata(client);
+	struct tsl2563_chip *chip = i2c_get_clientdata(to_i2c_client(dev));
 	int ret;
 
 	mutex_lock(&chip->lock);
@@ -843,12 +844,18 @@ static int tsl2563_resume(struct i2c_client *client)
 	if (ret)
 		goto out;
 
-	chip->state.event = PM_EVENT_ON;
+	chip->suspended = false;
 
 out:
 	mutex_unlock(&chip->lock);
 	return ret;
 }
+
+static SIMPLE_DEV_PM_OPS(tsl2563_pm_ops, tsl2563_suspend, tsl2563_resume);
+#define TSL2563_PM_OPS (&tsl2563_pm_ops)
+#else
+#define TSL2563_PM_OPS NULL
+#endif
 
 static const struct i2c_device_id tsl2563_id[] = {
 	{ "tsl2560", 0 },
@@ -862,9 +869,8 @@ MODULE_DEVICE_TABLE(i2c, tsl2563_id);
 static struct i2c_driver tsl2563_i2c_driver = {
 	.driver = {
 		.name	 = "tsl2563",
+		.pm	= TSL2563_PM_OPS,
 	},
-	.suspend	= tsl2563_suspend,
-	.resume		= tsl2563_resume,
 	.probe		= tsl2563_probe,
 	.remove		= __devexit_p(tsl2563_remove),
 	.id_table	= tsl2563_id,

@@ -125,30 +125,14 @@ static const struct i2c_device_id adt7316_i2c_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, adt7316_i2c_id);
 
-#ifdef CONFIG_PM
-static int adt7316_i2c_suspend(struct i2c_client *client, pm_message_t message)
-{
-	return adt7316_disable(&client->dev);
-}
-
-static int adt7316_i2c_resume(struct i2c_client *client)
-{
-	return adt7316_enable(&client->dev);
-}
-#else
-# define adt7316_i2c_suspend NULL
-# define adt7316_i2c_resume  NULL
-#endif
-
 static struct i2c_driver adt7316_driver = {
 	.driver = {
 		.name = "adt7316",
+		.pm = ADT7316_PM_OPS,
 		.owner  = THIS_MODULE,
 	},
 	.probe = adt7316_i2c_probe,
 	.remove = __devexit_p(adt7316_i2c_remove),
-	.suspend = adt7316_i2c_suspend,
-	.resume = adt7316_i2c_resume,
 	.id_table = adt7316_i2c_id,
 };
 module_i2c_driver(adt7316_driver);
