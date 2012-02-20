@@ -758,8 +758,8 @@ xfs_qm_scall_getquota(
 		XFS_FSB_TO_BB(mp, be64_to_cpu(dqp->q_core.d_blk_softlimit));
 	dst->d_ino_hardlimit = be64_to_cpu(dqp->q_core.d_ino_hardlimit);
 	dst->d_ino_softlimit = be64_to_cpu(dqp->q_core.d_ino_softlimit);
-	dst->d_bcount = XFS_FSB_TO_BB(mp, be64_to_cpu(dqp->q_core.d_bcount));
-	dst->d_icount = be64_to_cpu(dqp->q_core.d_icount);
+	dst->d_bcount = XFS_FSB_TO_BB(mp, dqp->q_res_bcount);
+	dst->d_icount = dqp->q_res_icount;
 	dst->d_btimer = be32_to_cpu(dqp->q_core.d_btimer);
 	dst->d_itimer = be32_to_cpu(dqp->q_core.d_itimer);
 	dst->d_iwarns = be16_to_cpu(dqp->q_core.d_iwarns);
@@ -768,7 +768,7 @@ xfs_qm_scall_getquota(
 		XFS_FSB_TO_BB(mp, be64_to_cpu(dqp->q_core.d_rtb_hardlimit));
 	dst->d_rtb_softlimit =
 		XFS_FSB_TO_BB(mp, be64_to_cpu(dqp->q_core.d_rtb_softlimit));
-	dst->d_rtbcount = XFS_FSB_TO_BB(mp, be64_to_cpu(dqp->q_core.d_rtbcount));
+	dst->d_rtbcount = XFS_FSB_TO_BB(mp, dqp->q_res_rtbcount);
 	dst->d_rtbtimer = be32_to_cpu(dqp->q_core.d_rtbtimer);
 	dst->d_rtbwarns = be16_to_cpu(dqp->q_core.d_rtbwarns);
 
