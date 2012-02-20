@@ -32,10 +32,9 @@
 
 static struct s5p_jpeg_fmt formats_enc[] = {
 	{
-		.name		= "YUV 4:2:0 planar, YCbCr",
-		.fourcc		= V4L2_PIX_FMT_YUV420,
-		.depth		= 12,
-		.colplanes	= 3,
+		.name		= "JPEG JFIF",
+		.fourcc		= V4L2_PIX_FMT_JPEG,
+		.colplanes	= 1,
 		.types		= MEM2MEM_CAPTURE,
 	},
 	{
@@ -43,7 +42,7 @@ static struct s5p_jpeg_fmt formats_enc[] = {
 		.fourcc		= V4L2_PIX_FMT_YUYV,
 		.depth		= 16,
 		.colplanes	= 1,
-		.types		= MEM2MEM_CAPTURE | MEM2MEM_OUTPUT,
+		.types		= MEM2MEM_OUTPUT,
 	},
 	{
 		.name		= "RGB565",
@@ -1025,11 +1024,14 @@ static void s5p_jpeg_device_run(void *priv)
 		jpeg_htbl_dc(jpeg->regs, 2);
 		jpeg_htbl_ac(jpeg->regs, 3);
 		jpeg_htbl_dc(jpeg->regs, 3);
-	} else {
+	} else { /* S5P_JPEG_DECODE */
 		jpeg_rst_int_enable(jpeg->regs, true);
 		jpeg_data_num_int_enable(jpeg->regs, true);
 		jpeg_final_mcu_num_int_enable(jpeg->regs, true);
-		jpeg_outform_raw(jpeg->regs, S5P_JPEG_RAW_OUT_422);
+		if (ctx->cap_q.fmt->fourcc == V4L2_PIX_FMT_YUYV)
+			jpeg_outform_raw(jpeg->regs, S5P_JPEG_RAW_OUT_422);
+		else
+			jpeg_outform_raw(jpeg->regs, S5P_JPEG_RAW_OUT_420);
 		jpeg_jpgadr(jpeg->regs, src_addr);
 		jpeg_imgadr(jpeg->regs, dst_addr);
 	}
@@ -1269,6 +1271,7 @@ static irqreturn_t s5p_jpeg_irq(int irq, void *dev_id)
 
 	curr_ctx->subsampling = jpeg_get_subsampling_mode(jpeg->regs);
 	spin_unlock(&jpeg->slock);
+
 	jpeg_clear_int(jpeg->regs);
 
 	return IRQ_HANDLED;
