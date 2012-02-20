@@ -143,13 +143,9 @@ static __init int rk30_timer_init_clockevent(void)
 
 	setup_irq(rk30_timer_clockevent_irq.irq, &rk30_timer_clockevent_irq);
 
-	clockevents_calc_mult_shift(ce, 24000000, 4);
-	ce->max_delta_ns = clockevent_delta2ns(0xFFFFFFFFUL, ce);
-	ce->min_delta_ns = clockevent_delta2ns(1, ce) + 1;
 	ce->irq = rk30_timer_clockevent_irq.irq;
 	ce->cpumask = cpu_all_mask;
-
-	clockevents_register_device(ce);
+	clockevents_config_and_register(ce, 24000000, 0xF, 0xFFFFFFFF);
 
 	return 0;
 }
@@ -181,8 +177,7 @@ static void __init rk30_timer_init_clocksource(void)
 	RK_TIMER_SETCOUNT(TIMER_CLKSRC, 0xFFFFFFFF);
 	RK_TIMER_ENABLE_FREE_RUNNING(TIMER_CLKSRC);
 
-	clocksource_calc_mult_shift(cs, 24000000, 60);
-	if (clocksource_register(cs))
+	if (clocksource_register_hz(cs, 24000000))
 		printk(err, cs->name);
 }
 
