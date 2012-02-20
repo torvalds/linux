@@ -50,8 +50,6 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/hci_mon.h>
 
-static bool enable_mgmt;
-
 static atomic_t monitor_promisc = ATOMIC_INIT(0);
 
 /* ----- HCI socket interface ----- */
@@ -651,7 +649,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_le
 		break;
 
 	case HCI_CHANNEL_CONTROL:
-		if (haddr.hci_dev != HCI_DEV_NONE || !enable_mgmt) {
+		if (haddr.hci_dev != HCI_DEV_NONE) {
 			err = -EINVAL;
 			goto done;
 		}
@@ -1129,6 +1127,3 @@ void hci_sock_cleanup(void)
 
 	proto_unregister(&hci_sk_proto);
 }
-
-module_param(enable_mgmt, bool, 0644);
-MODULE_PARM_DESC(enable_mgmt, "Enable Management interface");
