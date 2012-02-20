@@ -677,10 +677,19 @@ static int hci_sock_getsockopt(struct socket *sock, int level, int optname, char
 {
 	struct hci_ufilter uf;
 	struct sock *sk = sock->sk;
-	int len, opt;
+	int len, opt, err = 0;
+
+	BT_DBG("sk %p, opt %d", sk, optname);
 
 	if (get_user(len, optlen))
 		return -EFAULT;
+
+	lock_sock(sk);
+
+	if (hci_pi(sk)->channel != HCI_CHANNEL_RAW) {
+		err = -EINVAL;
+		goto done;
+	}
 
 	switch (optname) {
 	case HCI_DATA_DIR:
@@ -690,7 +699,7 @@ static int hci_sock_getsockopt(struct socket *sock, int level, int optname, char
 			opt = 0;
 
 		if (put_user(opt, optval))
-			return -EFAULT;
+			err = -EFAULT;
 		break;
 
 	case HCI_TIME_STAMP:
@@ -700,7 +709,7 @@ static int hci_sock_getsockopt(struct socket *sock, int level, int optname, char
 			opt = 0;
 
 		if (put_user(opt, optval))
-			return -EFAULT;
+			err = -EFAULT;
 		break;
 
 	case HCI_FILTER:
@@ -715,15 +724,17 @@ static int hci_sock_getsockopt(struct socket *sock, int level, int optname, char
 
 		len = min_t(unsigned int, len, sizeof(uf));
 		if (copy_to_user(optval, &uf, len))
-			return -EFAULT;
+			err = -EFAULT;
 		break;
 
 	default:
-		return -ENOPROTOOPT;
+		err = -ENOPROTOOPT;
 		break;
 	}
 
-	return 0;
+done:
+	release_sock(sk);
+	return err;
 }
 
 static const struct proto_ops hci_sock_ops = {
