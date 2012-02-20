@@ -797,5 +797,7 @@ void __jbd2_journal_drop_transaction(journal_t *journal, transaction_t *transact
 	J_ASSERT(journal->j_committing_transaction != transaction);
 	J_ASSERT(journal->j_running_transaction != transaction);
 
+	trace_jbd2_drop_transaction(journal, transaction);
+
 	jbd_debug(1, "Dropping transaction %d, all done\n", transaction->t_tid);
 }

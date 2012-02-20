@@ -1185,6 +1185,8 @@ void jbd2_journal_update_superblock(journal_t *journal, int wait)
 	} else
 		write_dirty_buffer(bh, WRITE);
 
+	trace_jbd2_update_superblock_end(journal, wait);
+
 out:
 	/* If we have just flushed the log (by marking s_start==0), then
 	 * any future commit will have to be careful to update the
