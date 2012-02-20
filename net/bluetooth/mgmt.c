@@ -418,6 +418,9 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
 		settings |= MGMT_SETTING_SSP;
 
+	if (test_bit(HCI_HS_ENABLED, &hdev->dev_flags))
+		settings |= MGMT_SETTING_HS;
+
 	return settings;
 }
 
@@ -1090,6 +1093,41 @@ failed:
 	hci_dev_unlock(hdev);
 	hci_dev_put(hdev);
 
+	return err;
+}
+
+static int set_hs(struct sock *sk, u16 index, void *data, u16 len)
+{
+	struct mgmt_mode *cp = data;
+	struct hci_dev *hdev;
+	int err;
+
+	BT_DBG("request for hci%u", index);
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_SET_HS,
+						MGMT_STATUS_INVALID_PARAMS);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_SET_HS,
+						MGMT_STATUS_INVALID_PARAMS);
+
+	if (!enable_hs) {
+		err = cmd_status(sk, index, MGMT_OP_SET_HS,
+					MGMT_STATUS_NOT_SUPPORTED);
+		goto failed;
+	}
+
+	if (cp->val)
+		set_bit(HCI_HS_ENABLED, &hdev->dev_flags);
+	else
+		clear_bit(HCI_HS_ENABLED, &hdev->dev_flags);
+
+	err = send_settings_rsp(sk, MGMT_OP_SET_HS, hdev);
+
+failed:
+	hci_dev_put(hdev);
 	return err;
 }
 
@@ -2654,6 +2692,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_SET_SSP:
 		err = set_ssp(sk, index, cp, len);
+		break;
+	case MGMT_OP_SET_HS:
+		err = set_hs(sk, index, cp, len);
 		break;
 	case MGMT_OP_ADD_UUID:
 		err = add_uuid(sk, index, cp, len);
