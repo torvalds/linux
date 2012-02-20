@@ -1065,6 +1065,12 @@ static int set_ssp(struct sock *sk, u16 index, void *data, u16 len)
 		goto failed;
 	}
 
+	if (!(hdev->features[6] & LMP_SIMPLE_PAIR)) {
+		err = cmd_status(sk, index, MGMT_OP_SET_SSP,
+						MGMT_STATUS_NOT_SUPPORTED);
+		goto failed;
+	}
+
 	if (mgmt_pending_find(MGMT_OP_SET_SSP, hdev)) {
 		err = cmd_status(sk, index, MGMT_OP_SET_SSP, MGMT_STATUS_BUSY);
 		goto failed;
