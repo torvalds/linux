@@ -3250,6 +3250,18 @@ int mgmt_auth_enable_complete(struct hci_dev *hdev, u8 status)
 	return err;
 }
 
+static int clear_eir(struct hci_dev *hdev)
+{
+	struct hci_cp_write_eir cp;
+
+	if (!(hdev->features[6] & LMP_EXT_INQ))
+		return 0;
+
+	memset(&cp, 0, sizeof(cp));
+
+	return hci_send_cmd(hdev, HCI_OP_WRITE_EIR, sizeof(cp), &cp);
+}
+
 int mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 status)
 {
 	struct cmd_lookup match = { NULL, hdev };
@@ -3268,8 +3280,14 @@ int mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 status)
 	ev = cpu_to_le32(get_current_settings(hdev));
 	err = mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev), match.sk);
 
-	if (match.sk)
+	if (match.sk) {
 		sock_put(match.sk);
+
+		if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
+			update_eir(hdev);
+		else
+			clear_eir(hdev);
+	}
 
 	return err;
 }
