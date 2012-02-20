@@ -670,103 +670,6 @@ static void __init rk30_init_spim(void)
 }
 
 
-/***********************************************************
-*	rk30  backlight
-************************************************************/
-#ifdef CONFIG_BACKLIGHT_RK29_BL
-#define PWM_ID            0
-#define PWM_MUX_NAME      GPIO0A3_PWM0_NAME
-#define PWM_MUX_MODE      GPIO0A_PWM0
-#define PWM_MUX_MODE_GPIO GPIO0A_GPIO0A3
-#define PWM_GPIO 	  RK30_PIN0_PA3
-#define PWM_EFFECT_VALUE  1
-
-#define LCD_DISP_ON_PIN
-
-#ifdef  LCD_DISP_ON_PIN
-//#define BL_EN_MUX_NAME    GPIOF34_UART3_SEL_NAME
-//#define BL_EN_MUX_MODE    IOMUXB_GPIO1_B34
-
-#define BL_EN_PIN         INVALID_GPIO //?
-#define BL_EN_VALUE       GPIO_HIGH
-#endif
-static int rk29_backlight_io_init(void)
-{
-	int ret = 0;
-	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
-#ifdef  LCD_DISP_ON_PIN
-	// rk30_mux_api_set(BL_EN_MUX_NAME, BL_EN_MUX_MODE);
-
-	ret = gpio_request(BL_EN_PIN, NULL);
-	if(ret != 0)
-	{
-		gpio_free(BL_EN_PIN);
-	}
-
-	gpio_direction_output(BL_EN_PIN, 0);
-	gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
-#endif
-    return ret;
-}
-
-static int rk29_backlight_io_deinit(void)
-{
-	int ret = 0;
-#ifdef  LCD_DISP_ON_PIN
-	gpio_free(BL_EN_PIN);
-#endif
-	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);   
-    return ret;
-}
-
-static int rk29_backlight_pwm_suspend(void)
-{
-	int ret = 0;
-	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
-	if (gpio_request(PWM_GPIO, NULL)) {
-		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
-		return -1;
-	}
-	gpio_direction_output(PWM_GPIO, GPIO_LOW);
-#ifdef  LCD_DISP_ON_PIN
-	gpio_direction_output(BL_EN_PIN, 0);
-	gpio_set_value(BL_EN_PIN, !BL_EN_VALUE);
-#endif
-	return ret;
-}
-
-static int rk29_backlight_pwm_resume(void)
-{
-	gpio_free(PWM_GPIO);
-	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
-#ifdef  LCD_DISP_ON_PIN
-	msleep(30);
-	gpio_direction_output(BL_EN_PIN, 1);
-	gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
-#endif
-	return 0;
-}
-
-struct rk29_bl_info rk29_bl_info = {
-    .pwm_id   = PWM_ID,
-    .bl_ref   = PWM_EFFECT_VALUE,
-    .io_init   = rk29_backlight_io_init,
-    .io_deinit = rk29_backlight_io_deinit,
-    .pwm_suspend = rk29_backlight_pwm_suspend,
-    .pwm_resume = rk29_backlight_pwm_resume,
-};
-
-
-struct platform_device rk29_device_backlight = {
-	.name	= "rk29_backlight",
-	.id 	= -1,
-        .dev    = {
-           .platform_data  = &rk29_bl_info,
-        }
-};
-
-#endif
-
 #ifdef CONFIG_MTD_NAND_RK29XX
 static struct resource resources_nand[] = {
 	{
@@ -800,11 +703,7 @@ static int __init rk30_init_devices(void)
 	rk30_init_dma();
 	rk30_init_uart();
 	rk30_init_i2c();
-	rk30_init_spim();
-	
-#ifdef CONFIG_BACKLIGHT_RK29_BL
-		platform_device_register(&rk29_device_backlight);
-#endif
+	rk30_init_spim();	
 #ifdef CONFIG_MTD_NAND_RK29XX
 	platform_device_register(&device_nand);
 #endif
