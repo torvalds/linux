@@ -55,6 +55,7 @@
 #include <asm/spu.h>
 #include <asm/udbg.h>
 #include <asm/code-patching.h>
+#include <asm/fadump.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -625,6 +626,16 @@ static void __init htab_initialize(void)
 		/* Using a hypervisor which owns the htab */
 		htab_address = NULL;
 		_SDR1 = 0; 
+#ifdef CONFIG_FA_DUMP
+		/*
+		 * If firmware assisted dump is active firmware preserves
+		 * the contents of htab along with entire partition memory.
+		 * Clear the htab if firmware assisted dump is active so
+		 * that we dont end up using old mappings.
+		 */
+		if (is_fadump_active() && ppc_md.hpte_clear_all)
+			ppc_md.hpte_clear_all();
+#endif
 	} else {
 		/* Find storage for the HPT.  Must be contiguous in
 		 * the absolute address space. On cell we want it to be
