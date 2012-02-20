@@ -67,15 +67,10 @@ STATIC void xlog_state_switch_iclogs(xlog_t		*log,
 				     int		eventual_size);
 STATIC void xlog_state_want_sync(xlog_t	*log, xlog_in_core_t *iclog);
 
-/* local functions to manipulate grant head */
-STATIC int  xlog_grant_log_space(xlog_t		*log,
-				 xlog_ticket_t	*xtic);
 STATIC void xlog_grant_push_ail(struct log	*log,
 				int		need_bytes);
 STATIC void xlog_regrant_reserve_log_space(xlog_t	 *log,
 					   xlog_ticket_t *ticket);
-STATIC int xlog_regrant_write_log_space(xlog_t		*log,
-					 xlog_ticket_t  *ticket);
 STATIC void xlog_ungrant_log_space(xlog_t	 *log,
 				   xlog_ticket_t *ticket);
 
@@ -324,6 +319,128 @@ xlog_tic_add_region(xlog_ticket_t *tic, uint len, uint type)
 }
 
 /*
+ * Replenish the byte reservation required by moving the grant write head.
+ */
+int
+xfs_log_regrant(
+	struct xfs_mount	*mp,
+	struct xlog_ticket	*tic)
+{
+	struct log		*log = mp->m_log;
+	int			need_bytes;
+	int			error = 0;
+
+	if (XLOG_FORCED_SHUTDOWN(log))
+		return XFS_ERROR(EIO);
+
+	XFS_STATS_INC(xs_try_logspace);
+
+	/*
+	 * This is a new transaction on the ticket, so we need to change the
+	 * transaction ID so that the next transaction has a different TID in
+	 * the log. Just add one to the existing tid so that we can see chains
+	 * of rolling transactions in the log easily.
+	 */
+	tic->t_tid++;
+
+	xlog_grant_push_ail(log, tic->t_unit_res);
+
+	tic->t_curr_res = tic->t_unit_res;
+	xlog_tic_reset_res(tic);
+
+	if (tic->t_cnt > 0)
+		return 0;
+
+	trace_xfs_log_regrant(log, tic);
+
+	error = xlog_grant_head_check(log, &log->l_write_head, tic,
+				      &need_bytes);
+	if (error)
+		goto out_error;
+
+	xlog_grant_add_space(log, &log->l_write_head.grant, need_bytes);
+	trace_xfs_log_regrant_exit(log, tic);
+	xlog_verify_grant_tail(log);
+	return 0;
+
+out_error:
+	/*
+	 * If we are failing, make sure the ticket doesn't have any current
+	 * reservations.  We don't want to add this back when the ticket/
+	 * transaction gets cancelled.
+	 */
+	tic->t_curr_res = 0;
+	tic->t_cnt = 0;	/* ungrant will give back unit_res * t_cnt. */
+	return error;
+}
+
+/*
+ * Reserve log space and return a ticket corresponding the reservation.
+ *
+ * Each reservation is going to reserve extra space for a log record header.
+ * When writes happen to the on-disk log, we don't subtract the length of the
+ * log record header from any reservation.  By wasting space in each
+ * reservation, we prevent over allocation problems.
+ */
+int
+xfs_log_reserve(
+	struct xfs_mount	*mp,
+	int		 	unit_bytes,
+	int		 	cnt,
+	struct xlog_ticket	**ticp,
+	__uint8_t	 	client,
+	bool			permanent,
+	uint		 	t_type)
+{
+	struct log		*log = mp->m_log;
+	struct xlog_ticket	*tic;
+	int			need_bytes;
+	int			error = 0;
+
+	ASSERT(client == XFS_TRANSACTION || client == XFS_LOG);
+
+	if (XLOG_FORCED_SHUTDOWN(log))
+		return XFS_ERROR(EIO);
+
+	XFS_STATS_INC(xs_try_logspace);
+
+	ASSERT(*ticp == NULL);
+	tic = xlog_ticket_alloc(log, unit_bytes, cnt, client, permanent,
+				KM_SLEEP | KM_MAYFAIL);
+	if (!tic)
+		return XFS_ERROR(ENOMEM);
+
+	tic->t_trans_type = t_type;
+	*ticp = tic;
+
+	xlog_grant_push_ail(log, tic->t_unit_res * tic->t_cnt);
+
+	trace_xfs_log_reserve(log, tic);
+
+	error = xlog_grant_head_check(log, &log->l_reserve_head, tic,
+				      &need_bytes);
+	if (error)
+		goto out_error;
+
+	xlog_grant_add_space(log, &log->l_reserve_head.grant, need_bytes);
+	xlog_grant_add_space(log, &log->l_write_head.grant, need_bytes);
+	trace_xfs_log_reserve_exit(log, tic);
+	xlog_verify_grant_tail(log);
+	return 0;
+
+out_error:
+	/*
+	 * If we are failing, make sure the ticket doesn't have any current
+	 * reservations.  We don't want to add this back when the ticket/
+	 * transaction gets cancelled.
+	 */
+	tic->t_curr_res = 0;
+	tic->t_cnt = 0;	/* ungrant will give back unit_res * t_cnt. */
+	return error;
+}
+
+
+/*
  * NOTES:
  *
  *	1. currblock field gets updated at startup and after in-core logs
@@ -431,88 +548,6 @@ xfs_log_release_iclog(
 
 	return 0;
 }
-
-/*
- *  1. Reserve an amount of on-disk log space and return a ticket corresponding
- *	to the reservation.
- *  2. Potentially, push buffers at tail of log to disk.
- *
- * Each reservation is going to reserve extra space for a log record header.
- * When writes happen to the on-disk log, we don't subtract the length of the
- * log record header from any reservation.  By wasting space in each
- * reservation, we prevent over allocation problems.
- */
-int
-xfs_log_reserve(
-	struct xfs_mount	*mp,
-	int		 	unit_bytes,
-	int		 	cnt,
-	struct xlog_ticket	**ticket,
-	__uint8_t	 	client,
-	uint		 	flags,
-	uint		 	t_type)
-{
-	struct log		*log = mp->m_log;
-	struct xlog_ticket	*internal_ticket;
-	int			retval = 0;
-
-	ASSERT(client == XFS_TRANSACTION || client == XFS_LOG);
-
-	if (XLOG_FORCED_SHUTDOWN(log))
-		return XFS_ERROR(EIO);
-
-	XFS_STATS_INC(xs_try_logspace);
-
-
-	if (*ticket != NULL) {
-		ASSERT(flags & XFS_LOG_PERM_RESERV);
-		internal_ticket = *ticket;
-
-		/*
-		 * this is a new transaction on the ticket, so we need to
-		 * change the transaction ID so that the next transaction has a
-		 * different TID in the log. Just add one to the existing tid
-		 * so that we can see chains of rolling transactions in the log
-		 * easily.
-		 */
-		internal_ticket->t_tid++;
-
-		trace_xfs_log_reserve(log, internal_ticket);
-
-		xlog_grant_push_ail(log, internal_ticket->t_unit_res);
-		retval = xlog_regrant_write_log_space(log, internal_ticket);
-	} else {
-		/* may sleep if need to allocate more tickets */
-		internal_ticket = xlog_ticket_alloc(log, unit_bytes, cnt,
-						  client, flags,
-						  KM_SLEEP|KM_MAYFAIL);
-		if (!internal_ticket)
-			return XFS_ERROR(ENOMEM);
-		internal_ticket->t_trans_type = t_type;
-		*ticket = internal_ticket;
-
-		trace_xfs_log_reserve(log, internal_ticket);
-
-		xlog_grant_push_ail(log,
-				    (internal_ticket->t_unit_res *
-				     internal_ticket->t_cnt));
-		retval = xlog_grant_log_space(log, internal_ticket);
-	}
-
-	if (unlikely(retval)) {
-		/*
-		 * If we are failing, make sure the ticket doesn't have any
-		 * current reservations.  We don't want to add this back
-		 * when the ticket/ transaction gets cancelled.
-		 */
-		internal_ticket->t_curr_res = 0;
-		/* ungrant will give back unit_res * t_cnt. */
-		internal_ticket->t_cnt = 0;
-	}
-
-	return retval;
-}
-
 
 /*
  * Mount a log filesystem
@@ -2565,58 +2600,6 @@ restart:
 	return 0;
 }	/* xlog_state_get_iclog_space */
 
-STATIC int
-xlog_grant_log_space(
-	struct log		*log,
-	struct xlog_ticket	*tic)
-{
-	int			need_bytes;
-	int			error = 0;
-
-	trace_xfs_log_grant_enter(log, tic);
-
-	error = xlog_grant_head_check(log, &log->l_reserve_head, tic,
-				      &need_bytes);
-	if (error)
-		return error;
-
-	xlog_grant_add_space(log, &log->l_reserve_head.grant, need_bytes);
-	xlog_grant_add_space(log, &log->l_write_head.grant, need_bytes);
-	trace_xfs_log_grant_exit(log, tic);
-	xlog_verify_grant_tail(log);
-	return 0;
-}
-
-/*
- * Replenish the byte reservation required by moving the grant write head.
- */
-STATIC int
-xlog_regrant_write_log_space(
-	struct log		*log,
-	struct xlog_ticket	*tic)
-{
-	int			need_bytes;
-	int			error = 0;
-
-	tic->t_curr_res = tic->t_unit_res;
-	xlog_tic_reset_res(tic);
-
-	if (tic->t_cnt > 0)
-		return 0;
-
-	trace_xfs_log_regrant_write_enter(log, tic);
-
-	error = xlog_grant_head_check(log, &log->l_write_head, tic,
-				      &need_bytes);
-	if (error)
-		return error;
-
-	xlog_grant_add_space(log, &log->l_write_head.grant, need_bytes);
-	trace_xfs_log_regrant_write_exit(log, tic);
-	xlog_verify_grant_tail(log);
-	return 0;
-}
-
 /* The first cnt-1 times through here we don't need to
  * move the grant write head because the permanent
  * reservation has reserved cnt times the unit amount.
@@ -3156,7 +3139,7 @@ xlog_ticket_alloc(
 	int		unit_bytes,
 	int		cnt,
 	char		client,
-	uint		xflags,
+	bool		permanent,
 	int		alloc_flags)
 {
 	struct xlog_ticket *tic;
@@ -3260,7 +3243,7 @@ xlog_ticket_alloc(
 	tic->t_clientid		= client;
 	tic->t_flags		= XLOG_TIC_INITED;
 	tic->t_trans_type	= 0;
-	if (xflags & XFS_LOG_PERM_RESERV)
+	if (permanent)
 		tic->t_flags |= XLOG_TIC_PERM_RESERV;
 
 	xlog_tic_reset_res(tic);

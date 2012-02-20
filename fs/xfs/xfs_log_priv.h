@@ -552,7 +552,7 @@ extern void	 xlog_pack_data(xlog_t *log, xlog_in_core_t *iclog, int);
 
 extern kmem_zone_t *xfs_log_ticket_zone;
 struct xlog_ticket *xlog_ticket_alloc(struct log *log, int unit_bytes,
-				int count, char client, uint xflags,
+				int count, char client, bool permanent,
 				int alloc_flags);
 
 
