@@ -222,7 +222,6 @@ struct bt_skb_cb {
 	__u16 tx_seq;
 	__u8 retries;
 	__u8 sar;
-	unsigned short channel;
 	__u8 force_active;
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))

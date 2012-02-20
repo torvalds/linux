@@ -911,8 +911,6 @@ static int mgmt_event(u16 event, struct hci_dev *hdev, void *data,
 	if (!skb)
 		return -ENOMEM;
 
-	bt_cb(skb)->channel = HCI_CHANNEL_CONTROL;
-
 	hdr = (void *) skb_put(skb, sizeof(*hdr));
 	hdr->opcode = cpu_to_le16(event);
 	if (hdev)
