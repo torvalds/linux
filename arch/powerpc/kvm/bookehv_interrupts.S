@@ -91,10 +91,6 @@
 	PPC_STL	r9, VCPU_TIMING_EXIT_TBU(r4)
 #endif
 
-	.if	\flags & NEED_EMU
-	lwz	r9, VCPU_KVM(r4)
-	.endif
-
 	oris	r8, r6, MSR_CE@h
 #ifdef CONFIG_64BIT
 	std	r6, (VCPU_SHARED_MSR)(r11)
@@ -112,9 +108,6 @@
 	 * appropriate for the exception type).
 	 */
 	cmpw	r6, r8
-	.if	\flags & NEED_EMU
-	lwz	r9, KVM_LPID(r9)
-	.endif
 	beq	1f
 	mfmsr	r7
 	.if	\srr0 != SPRN_MCSRR0 && \srr0 != SPRN_CSRR0
