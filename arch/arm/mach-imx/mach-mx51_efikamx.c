@@ -284,8 +284,7 @@ static struct sys_timer mx51_efikamx_timer = {
 	.init = mx51_efikamx_timer_init,
 };
 
-MACHINE_START(MX51_EFIKAMX, "Genesi EfikaMX nettop")
-	/* Maintainer: Amit Kucheria <amit.kucheria@linaro.org> */
+MACHINE_START(MX51_EFIKAMX, "Genesi Efika MX (Smarttop)")
 	.atag_offset = 0x100,
 	.map_io = mx51_map_io,
 	.init_early = imx51_init_early,
