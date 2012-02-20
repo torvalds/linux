@@ -915,7 +915,11 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 				dentry->d_name.name, dentry->d_name.len,
 				parent_inode, &key,
 				BTRFS_FT_DIR, index);
-	BUG_ON(ret);
+	if (ret) {
+		pending->error = -EEXIST;
+		dput(parent);
+		goto fail;
+	}
 
 	btrfs_i_size_write(parent_inode, parent_inode->i_size +
 					 dentry->d_name.len * 2);
@@ -993,12 +997,9 @@ static noinline int create_pending_snapshots(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_pending_snapshot *pending;
 	struct list_head *head = &trans->transaction->pending_snapshots;
-	int ret;
 
-	list_for_each_entry(pending, head, list) {
-		ret = create_pending_snapshot(trans, fs_info, pending);
-		BUG_ON(ret);
-	}
+	list_for_each_entry(pending, head, list)
+		create_pending_snapshot(trans, fs_info, pending);
 	return 0;
 }
 

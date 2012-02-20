@@ -4585,12 +4585,30 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 		ret = btrfs_insert_dir_item(trans, root, name, name_len,
 					    parent_inode, &key,
 					    btrfs_inode_type(inode), index);
-		BUG_ON(ret);
+		if (ret)
+			goto fail_dir_item;
 
 		btrfs_i_size_write(parent_inode, parent_inode->i_size +
 				   name_len * 2);
 		parent_inode->i_mtime = parent_inode->i_ctime = CURRENT_TIME;
 		ret = btrfs_update_inode(trans, root, parent_inode);
+	}
+	return ret;
+
+fail_dir_item:
+	if (unlikely(ino == BTRFS_FIRST_FREE_OBJECTID)) {
+		u64 local_index;
+		int err;
+		err = btrfs_del_root_ref(trans, root->fs_info->tree_root,
+				 key.objectid, root->root_key.objectid,
+				 parent_ino, &local_index, name, name_len);
+
+	} else if (add_backref) {
+		u64 local_index;
+		int err;
+
+		err = btrfs_del_inode_ref(trans, root, name, name_len,
+					  ino, parent_ino, &local_index);
 	}
 	return ret;
 }
