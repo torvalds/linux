@@ -407,7 +407,7 @@ int ext4_wait_block_bitmap(struct super_block *sb, ext4_group_t block_group,
 	if (!buffer_uptodate(bh)) {
 		ext4_error(sb, "Cannot read block bitmap - "
 			   "block_group = %u, block_bitmap = %llu",
-			   block_group, bh->b_blocknr);
+			   block_group, (unsigned long long) bh->b_blocknr);
 		return 1;
 	}
 	clear_buffer_new(bh);
