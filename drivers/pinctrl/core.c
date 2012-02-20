@@ -518,13 +518,12 @@ static struct pinctrl *pinctrl_get_locked(struct device *dev, const char *name)
 		 */
 		pctldev = get_pinctrl_dev_from_devname(map->ctrl_dev_name);
 		if (!pctldev) {
-			pr_warning("could not find a pinctrl device for pinmux function %s, fishy, they shall all have one\n",
-				   map->function);
-			pr_warning("given pinctrl device name: %s",
-				   map->ctrl_dev_name);
-
-			/* Continue to check the other mappings anyway... */
-			continue;
+			dev_err(dev, "unknown pinctrl device %s in map entry",
+				map->ctrl_dev_name);
+			pinmux_put(p);
+			kfree(p);
+			/* Eventually, this should trigger deferred probe */
+			return ERR_PTR(-ENODEV);
 		}
 
 		pr_debug("in map, found pctldev %s to handle function %s",
