@@ -48,8 +48,11 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+#include <net/bluetooth/hci_mon.h>
 
 static bool enable_mgmt;
+
+static atomic_t monitor_promisc = ATOMIC_INIT(0);
 
 /* ----- HCI socket interface ----- */
 
@@ -189,6 +192,174 @@ void hci_send_to_control(struct sk_buff *skb, struct sock *skip_sk)
 	read_unlock(&hci_sk_list.lock);
 }
 
+/* Send frame to monitor socket */
+void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct sock *sk;
+	struct hlist_node *node;
+	struct sk_buff *skb_copy = NULL;
+	__le16 opcode;
+
+	if (!atomic_read(&monitor_promisc))
+		return;
+
+	BT_DBG("hdev %p len %d", hdev, skb->len);
+
+	switch (bt_cb(skb)->pkt_type) {
+	case HCI_COMMAND_PKT:
+		opcode = __constant_cpu_to_le16(HCI_MON_COMMAND_PKT);
+		break;
+	case HCI_EVENT_PKT:
+		opcode = __constant_cpu_to_le16(HCI_MON_EVENT_PKT);
+		break;
+	case HCI_ACLDATA_PKT:
+		if (bt_cb(skb)->incoming)
+			opcode = __constant_cpu_to_le16(HCI_MON_ACL_RX_PKT);
+		else
+			opcode = __constant_cpu_to_le16(HCI_MON_ACL_TX_PKT);
+		break;
+	case HCI_SCODATA_PKT:
+		if (bt_cb(skb)->incoming)
+			opcode = __constant_cpu_to_le16(HCI_MON_SCO_RX_PKT);
+		else
+			opcode = __constant_cpu_to_le16(HCI_MON_SCO_TX_PKT);
+		break;
+	default:
+		return;
+	}
+
+	read_lock(&hci_sk_list.lock);
+
+	sk_for_each(sk, node, &hci_sk_list.head) {
+		struct sk_buff *nskb;
+
+		if (sk->sk_state != BT_BOUND)
+			continue;
+
+		if (hci_pi(sk)->channel != HCI_CHANNEL_MONITOR)
+			continue;
+
+		if (!skb_copy) {
+			struct hci_mon_hdr *hdr;
+
+			/* Create a private copy with headroom */
+			skb_copy = __pskb_copy(skb, HCI_MON_HDR_SIZE, GFP_ATOMIC);
+			if (!skb_copy)
+				continue;
+
+			/* Put header before the data */
+			hdr = (void *) skb_push(skb_copy, HCI_MON_HDR_SIZE);
+			hdr->opcode = opcode;
+			hdr->index = cpu_to_le16(hdev->id);
+			hdr->len = cpu_to_le16(skb->len);
+		}
+
+		nskb = skb_clone(skb_copy, GFP_ATOMIC);
+		if (!nskb)
+			continue;
+
+		if (sock_queue_rcv_skb(sk, nskb))
+			kfree_skb(nskb);
+	}
+
+	read_unlock(&hci_sk_list.lock);
+
+	kfree_skb(skb_copy);
+}
+
+static void send_monitor_event(struct sk_buff *skb)
+{
+	struct sock *sk;
+	struct hlist_node *node;
+
+	BT_DBG("len %d", skb->len);
+
+	read_lock(&hci_sk_list.lock);
+
+	sk_for_each(sk, node, &hci_sk_list.head) {
+		struct sk_buff *nskb;
+
+		if (sk->sk_state != BT_BOUND)
+			continue;
+
+		if (hci_pi(sk)->channel != HCI_CHANNEL_MONITOR)
+			continue;
+
+		nskb = skb_clone(skb, GFP_ATOMIC);
+		if (!nskb)
+			continue;
+
+		if (sock_queue_rcv_skb(sk, nskb))
+			kfree_skb(nskb);
+	}
+
+	read_unlock(&hci_sk_list.lock);
+}
+
+static struct sk_buff *create_monitor_event(struct hci_dev *hdev, int event)
+{
+	struct hci_mon_hdr *hdr;
+	struct hci_mon_new_index *ni;
+	struct sk_buff *skb;
+	__le16 opcode;
+
+	switch (event) {
+	case HCI_DEV_REG:
+		skb = bt_skb_alloc(HCI_MON_NEW_INDEX_SIZE, GFP_ATOMIC);
+		if (!skb)
+			return NULL;
+
+		ni = (void *) skb_put(skb, HCI_MON_NEW_INDEX_SIZE);
+		ni->type = hdev->dev_type;
+		ni->bus = hdev->bus;
+		bacpy(&ni->bdaddr, &hdev->bdaddr);
+		memcpy(ni->name, hdev->name, 8);
+
+		opcode = __constant_cpu_to_le16(HCI_MON_NEW_INDEX);
+		break;
+
+	case HCI_DEV_UNREG:
+		skb = bt_skb_alloc(0, GFP_ATOMIC);
+		if (!skb)
+			return NULL;
+
+		opcode = __constant_cpu_to_le16(HCI_MON_DEL_INDEX);
+		break;
+
+	default:
+		return NULL;
+	}
+
+	__net_timestamp(skb);
+
+	hdr = (void *) skb_push(skb, HCI_MON_HDR_SIZE);
+	hdr->opcode = opcode;
+	hdr->index = cpu_to_le16(hdev->id);
+	hdr->len = cpu_to_le16(skb->len - HCI_MON_HDR_SIZE);
+
+	return skb;
+}
+
+static void send_monitor_replay(struct sock *sk)
+{
+	struct hci_dev *hdev;
+
+	read_lock(&hci_dev_list_lock);
+
+	list_for_each_entry(hdev, &hci_dev_list, list) {
+		struct sk_buff *skb;
+
+		skb = create_monitor_event(hdev, HCI_DEV_REG);
+		if (!skb)
+			continue;
+
+		if (sock_queue_rcv_skb(sk, skb))
+			kfree_skb(skb);
+	}
+
+	read_unlock(&hci_dev_list_lock);
+}
+
 /* Generate internal stack event */
 static void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data)
 {
@@ -222,6 +393,17 @@ void hci_sock_dev_event(struct hci_dev *hdev, int event)
 	struct hci_ev_si_device ev;
 
 	BT_DBG("hdev %s event %d", hdev->name, event);
+
+	/* Send event to monitor */
+	if (atomic_read(&monitor_promisc)) {
+		struct sk_buff *skb;
+
+		skb = create_monitor_event(hdev, event);
+		if (skb) {
+			send_monitor_event(skb);
+			kfree_skb(skb);
+		}
+	}
 
 	/* Send event to sockets */
 	ev.event  = event;
@@ -261,6 +443,9 @@ static int hci_sock_release(struct socket *sock)
 		return 0;
 
 	hdev = hci_pi(sk)->hdev;
+
+	if (hci_pi(sk)->channel == HCI_CHANNEL_MONITOR)
+		atomic_dec(&monitor_promisc);
 
 	bt_sock_unlink(&hci_sk_list, sk);
 
@@ -474,6 +659,22 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_le
 		set_bit(HCI_PI_MGMT_INIT, &hci_pi(sk)->flags);
 		break;
 
+	case HCI_CHANNEL_MONITOR:
+		if (haddr.hci_dev != HCI_DEV_NONE) {
+			err = -EINVAL;
+			goto done;
+		}
+
+		if (!capable(CAP_NET_RAW)) {
+			err = -EPERM;
+			goto done;
+		}
+
+		send_monitor_replay(sk);
+
+		atomic_inc(&monitor_promisc);
+		break;
+
 	default:
 		err = -EINVAL;
 		goto done;
@@ -578,6 +779,9 @@ static int hci_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	case HCI_CHANNEL_RAW:
 		hci_sock_cmsg(sk, msg, skb);
 		break;
+	case HCI_CHANNEL_MONITOR:
+		sock_recv_timestamp(msg, sk, skb);
+		break;
 	}
 
 	skb_free_datagram(sk, skb);
@@ -611,6 +815,9 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		break;
 	case HCI_CHANNEL_CONTROL:
 		err = mgmt_control(sk, msg, len);
+		goto done;
+	case HCI_CHANNEL_MONITOR:
+		err = -EOPNOTSUPP;
 		goto done;
 	default:
 		err = -EINVAL;

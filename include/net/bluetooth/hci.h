@@ -1320,6 +1320,7 @@ struct sockaddr_hci {
 
 #define HCI_CHANNEL_RAW		0
 #define HCI_CHANNEL_CONTROL	1
+#define HCI_CHANNEL_MONITOR	2
 
 struct hci_filter {
 	unsigned long type_mask;

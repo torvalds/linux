@@ -2113,10 +2113,14 @@ static int hci_send_frame(struct sk_buff *skb)
 
 	BT_DBG("%s type %d len %d", hdev->name, bt_cb(skb)->pkt_type, skb->len);
 
-	if (atomic_read(&hdev->promisc)) {
-		/* Time stamp */
-		__net_timestamp(skb);
+	/* Time stamp */
+	__net_timestamp(skb);
 
+	/* Send copy to monitor */
+	hci_send_to_monitor(hdev, skb);
+
+	if (atomic_read(&hdev->promisc)) {
+		/* Send copy to the sockets */
 		hci_send_to_sock(hdev, skb);
 	}
 
@@ -2802,6 +2806,9 @@ static void hci_rx_work(struct work_struct *work)
 	BT_DBG("%s", hdev->name);
 
 	while ((skb = skb_dequeue(&hdev->rx_q))) {
+		/* Send copy to monitor */
+		hci_send_to_monitor(hdev, skb);
+
 		if (atomic_read(&hdev->promisc)) {
 			/* Send copy to the sockets */
 			hci_send_to_sock(hdev, skb);
