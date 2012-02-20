@@ -150,6 +150,15 @@ xlog_grant_add_space(
 	} while (head_val != old);
 }
 
+STATIC void
+xlog_grant_head_init(
+	struct xlog_grant_head	*head)
+{
+	xlog_assign_grant_head(&head->grant, 1, 0);
+	INIT_LIST_HEAD(&head->waiters);
+	spin_lock_init(&head->lock);
+}
+
 STATIC bool
 xlog_reserveq_wake(
 	struct log		*log,
@@ -1070,12 +1079,9 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	xlog_assign_atomic_lsn(&log->l_tail_lsn, 1, 0);
 	xlog_assign_atomic_lsn(&log->l_last_sync_lsn, 1, 0);
 	log->l_curr_cycle  = 1;	    /* 0 is bad since this is initial value */
-	xlog_assign_grant_head(&log->l_reserve_head.grant, 1, 0);
-	xlog_assign_grant_head(&log->l_write_head.grant, 1, 0);
-	INIT_LIST_HEAD(&log->l_reserve_head.waiters);
-	INIT_LIST_HEAD(&log->l_write_head.waiters);
-	spin_lock_init(&log->l_reserve_head.lock);
-	spin_lock_init(&log->l_write_head.lock);
+
+	xlog_grant_head_init(&log->l_reserve_head);
+	xlog_grant_head_init(&log->l_write_head);
 
 	error = EFSCORRUPTED;
 	if (xfs_sb_version_hassector(&mp->m_sb)) {
