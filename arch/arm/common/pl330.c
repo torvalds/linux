@@ -145,7 +145,7 @@
 
 #define	PART		0x330
 #define DESIGNER	0x41
-#define REVISION	0x1
+#define REVISION	0x0
 #define INTEG_CFG	0x0
 #define PERIPH_ID_VAL	((PART << 0) | (DESIGNER << 12))
 
