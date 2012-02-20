@@ -12,9 +12,6 @@ enum {
 	ALC880_5ST_DIG,
 	ALC880_6ST,
 	ALC880_6ST_DIG,
-	ALC880_ASUS,
-	ALC880_ASUS_DIG,
-	ALC880_ASUS_DIG2,
 #ifdef CONFIG_SND_DEBUG
 	ALC880_TEST,
 #endif
@@ -227,42 +224,6 @@ static const struct hda_channel_mode alc880_2_jack_modes[1] = {
 };
 
 /*
- * ALC880 ASUS model
- *
- * DAC: HP/Front = 0x02 (0x0c), Surr = 0x03 (0x0d), CLFE = 0x04 (0x0e)
- * Pin assignment: HP/Front = 0x14, Surr = 0x15, CLFE = 0x16,
- *  Mic = 0x18, Line = 0x1a
- */
-
-#define alc880_asus_dac_nids	alc880_w810_dac_nids	/* identical with w810 */
-#define alc880_asus_modes	alc880_threestack_modes	/* 2/6 channel mode */
-
-static const struct snd_kcontrol_new alc880_asus_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Surround Playback Switch", 0x0d, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME_MONO("Center Playback Volume", 0x0e, 1, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x0e, 2, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE_MONO("Center Playback Switch", 0x0e, 1, 2, HDA_INPUT),
-	HDA_BIND_MUTE_MONO("LFE Playback Switch", 0x0e, 2, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Channel Mode",
-		.info = alc_ch_mode_info,
-		.get = alc_ch_mode_get,
-		.put = alc_ch_mode_put,
-	},
-	{ } /* end */
-};
-
-/*
  * initialize the codec volumes, etc
  */
 
@@ -430,38 +391,6 @@ static const struct hda_verb alc880_pin_6stack_init_verbs[] = {
 
 static const struct hda_verb alc880_beep_init_verbs[] = {
 	{ 0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(5) },
-	{ }
-};
-
-/*
- * ASUS pin configuration:
- * HP/front = 0x14, surr = 0x15, clfe = 0x16, mic = 0x18, line = 0x1a
- */
-static const struct hda_verb alc880_pin_asus_init_verbs[] = {
-	{0x10, AC_VERB_SET_CONNECT_SEL, 0x02},
-	{0x11, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x12, AC_VERB_SET_CONNECT_SEL, 0x01},
-	{0x13, AC_VERB_SET_CONNECT_SEL, 0x00},
-
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-
 	{ }
 };
 
@@ -744,9 +673,6 @@ static const char * const alc880_models[ALC880_MODEL_LAST] = {
 	[ALC880_5ST_DIG]	= "5stack-digout",
 	[ALC880_6ST]		= "6stack",
 	[ALC880_6ST_DIG]	= "6stack-digout",
-	[ALC880_ASUS]		= "asus",
-	[ALC880_ASUS_DIG]	= "asus-dig",
-	[ALC880_ASUS_DIG2]	= "asus-dig2",
 #ifdef CONFIG_SND_DEBUG
 	[ALC880_TEST]		= "test",
 #endif
@@ -763,19 +689,7 @@ static const struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0xe309, "ULI", ALC880_3ST_DIG),
 	SND_PCI_QUIRK(0x1025, 0xe310, "ULI", ALC880_3ST),
 	SND_PCI_QUIRK(0x1039, 0x1234, NULL, ALC880_6ST_DIG),
-	SND_PCI_QUIRK(0x1043, 0x10c2, "ASUS W6A", ALC880_ASUS_DIG),
-	SND_PCI_QUIRK(0x1043, 0x10c3, "ASUS Wxx", ALC880_ASUS_DIG),
-	SND_PCI_QUIRK(0x1043, 0x1113, "ASUS", ALC880_ASUS_DIG),
-	SND_PCI_QUIRK(0x1043, 0x1123, "ASUS", ALC880_ASUS_DIG),
-	SND_PCI_QUIRK(0x1043, 0x1173, "ASUS", ALC880_ASUS_DIG),
-	/* SND_PCI_QUIRK(0x1043, 0x1964, "ASUS", ALC880_ASUS_DIG), */
-	SND_PCI_QUIRK(0x1043, 0x1973, "ASUS", ALC880_ASUS_DIG),
-	SND_PCI_QUIRK(0x1043, 0x19b3, "ASUS", ALC880_ASUS_DIG),
-	SND_PCI_QUIRK(0x1043, 0x814e, "ASUS P5GD1 w/SPDIF", ALC880_6ST_DIG),
-	SND_PCI_QUIRK(0x1043, 0x8181, "ASUS P4GPL", ALC880_ASUS_DIG),
-	SND_PCI_QUIRK(0x1043, 0x8196, "ASUS P5GD1", ALC880_6ST),
-	SND_PCI_QUIRK(0x1043, 0x81b4, "ASUS", ALC880_6ST),
-	SND_PCI_QUIRK_VENDOR(0x1043, "ASUS", ALC880_ASUS), /* default ASUS */
+
 	SND_PCI_QUIRK(0x104d, 0x81a0, "Sony", ALC880_3ST),
 	SND_PCI_QUIRK(0x104d, 0x81d6, "Sony", ALC880_3ST),
 	SND_PCI_QUIRK(0x107b, 0x3032, "Gateway", ALC880_5ST),
@@ -785,7 +699,6 @@ static const struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1458, 0xa102, "Gigabyte K8", ALC880_6ST_DIG),
 	SND_PCI_QUIRK(0x1462, 0x1150, "MSI", ALC880_6ST_DIG),
 	SND_PCI_QUIRK(0x1509, 0x925d, "FIC P4M", ALC880_6ST_DIG),
-	SND_PCI_QUIRK(0x1558, 0x5401, "ASUS", ALC880_ASUS_DIG2),
 	SND_PCI_QUIRK(0x1565, 0x8202, "Biostar", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x1695, 0x400d, "EPoX", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x1695, 0x4012, "EPox EP-5LDA", ALC880_5ST_DIG),
@@ -878,44 +791,6 @@ static const struct alc_config_preset alc880_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc880_sixstack_modes),
 		.channel_mode = alc880_sixstack_modes,
 		.input_mux = &alc880_6stack_capture_source,
-	},
-	[ALC880_ASUS] = {
-		.mixers = { alc880_asus_mixer },
-		.init_verbs = { alc880_volume_init_verbs,
-				alc880_pin_asus_init_verbs,
-				alc880_gpio1_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc880_asus_dac_nids),
-		.dac_nids = alc880_asus_dac_nids,
-		.num_channel_mode = ARRAY_SIZE(alc880_asus_modes),
-		.channel_mode = alc880_asus_modes,
-		.need_dac_fix = 1,
-		.input_mux = &alc880_capture_source,
-	},
-	[ALC880_ASUS_DIG] = {
-		.mixers = { alc880_asus_mixer },
-		.init_verbs = { alc880_volume_init_verbs,
-				alc880_pin_asus_init_verbs,
-				alc880_gpio1_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc880_asus_dac_nids),
-		.dac_nids = alc880_asus_dac_nids,
-		.dig_out_nid = ALC880_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc880_asus_modes),
-		.channel_mode = alc880_asus_modes,
-		.need_dac_fix = 1,
-		.input_mux = &alc880_capture_source,
-	},
-	[ALC880_ASUS_DIG2] = {
-		.mixers = { alc880_asus_mixer },
-		.init_verbs = { alc880_volume_init_verbs,
-				alc880_pin_asus_init_verbs,
-				alc880_gpio2_init_verbs }, /* use GPIO2 */
-		.num_dacs = ARRAY_SIZE(alc880_asus_dac_nids),
-		.dac_nids = alc880_asus_dac_nids,
-		.dig_out_nid = ALC880_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc880_asus_modes),
-		.channel_mode = alc880_asus_modes,
-		.need_dac_fix = 1,
-		.input_mux = &alc880_capture_source,
 	},
 #ifdef CONFIG_SND_DEBUG
 	[ALC880_TEST] = {

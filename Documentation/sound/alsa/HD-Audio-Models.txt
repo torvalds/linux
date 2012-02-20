@@ -8,9 +8,6 @@ ALC880
   5stack-digout	5-jack in back, 2-jack in front, a SPDIF out
   6stack	6-jack in back, 2-jack in front
   6stack-digout	6-jack with a SPDIF out
-  asus		3-jack (ASUS Mobo)
-  asus-dig	ASUS with SPDIF out
-  asus-dig2	ASUS with SPDIF out (using GPIO2)
   test		for testing/debugging purpose, almost all controls can be
 		adjusted.  Appearing only when compiled with
 		$CONFIG_SND_DEBUG=y
