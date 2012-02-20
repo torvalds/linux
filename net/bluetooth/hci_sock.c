@@ -367,34 +367,49 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_le
 	if (haddr.hci_family != AF_BLUETOOTH)
 		return -EINVAL;
 
-	if (haddr.hci_channel > HCI_CHANNEL_CONTROL)
-		return -EINVAL;
-
-	if (haddr.hci_channel == HCI_CHANNEL_CONTROL) {
-		if (!enable_mgmt)
-			return -EINVAL;
-		set_bit(HCI_PI_MGMT_INIT, &hci_pi(sk)->flags);
-	}
-
 	lock_sock(sk);
 
-	if (sk->sk_state == BT_BOUND || hci_pi(sk)->hdev) {
+	if (sk->sk_state == BT_BOUND) {
 		err = -EALREADY;
 		goto done;
 	}
 
-	if (haddr.hci_dev != HCI_DEV_NONE) {
-		hdev = hci_dev_get(haddr.hci_dev);
-		if (!hdev) {
-			err = -ENODEV;
+	switch (haddr.hci_channel) {
+	case HCI_CHANNEL_RAW:
+		if (hci_pi(sk)->hdev) {
+			err = -EALREADY;
 			goto done;
 		}
 
-		atomic_inc(&hdev->promisc);
+		if (haddr.hci_dev != HCI_DEV_NONE) {
+			hdev = hci_dev_get(haddr.hci_dev);
+			if (!hdev) {
+				err = -ENODEV;
+				goto done;
+			}
+
+			atomic_inc(&hdev->promisc);
+		}
+
+		hci_pi(sk)->hdev = hdev;
+		break;
+
+	case HCI_CHANNEL_CONTROL:
+		if (haddr.hci_dev != HCI_DEV_NONE || !enable_mgmt) {
+			err = -EINVAL;
+			goto done;
+		}
+
+		set_bit(HCI_PI_MGMT_INIT, &hci_pi(sk)->flags);
+		break;
+
+	default:
+		err = -EINVAL;
+		goto done;
 	}
 
+
 	hci_pi(sk)->channel = haddr.hci_channel;
-	hci_pi(sk)->hdev = hdev;
 	sk->sk_state = BT_BOUND;
 
 done:
