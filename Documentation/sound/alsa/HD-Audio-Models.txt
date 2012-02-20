@@ -13,7 +13,6 @@ ALC880
   asus-w1v	ASUS W1V
   asus-dig	ASUS with SPDIF out
   asus-dig2	ASUS with SPDIF out (using GPIO2)
-  uniwill	3-jack
   test		for testing/debugging purpose, almost all controls can be
 		adjusted.  Appearing only when compiled with
 		$CONFIG_SND_DEBUG=y

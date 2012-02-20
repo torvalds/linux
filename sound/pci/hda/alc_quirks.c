@@ -165,15 +165,3 @@ static void alc_simple_setup_automute(struct alc_spec *spec, int mode)
 	spec->automute_lo = spec->automute_lo_possible = !!lo_pin;
 	spec->automute_speaker = spec->automute_speaker_possible = !!spec->autocfg.speaker_pins[0];
 }
-
-/* auto-toggle front mic */
-static void alc88x_simple_mic_automute(struct hda_codec *codec)
-{
- 	unsigned int present;
-	unsigned char bits;
-
-	present = snd_hda_jack_detect(codec, 0x18);
-	bits = present ? HDA_AMP_MUTE : 0;
-	snd_hda_codec_amp_stereo(codec, 0x0b, HDA_INPUT, 1, HDA_AMP_MUTE, bits);
-}
-
