@@ -2238,14 +2238,28 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	} else {
 		printk(KERN_DEBUG "%s: associated\n", sdata->name);
 
-		ieee80211_destroy_assoc_data(sdata, true);
+		/* tell driver about sync done first */
+		if (assoc_data->synced) {
+			drv_finish_tx_sync(sdata->local, sdata,
+					   assoc_data->bss->bssid,
+					   IEEE80211_TX_SYNC_ASSOC);
+			assoc_data->synced = false;
+		}
 
 		if (!ieee80211_assoc_success(sdata, *bss, mgmt, len)) {
 			/* oops -- internal error -- send timeout for now */
+			ieee80211_destroy_assoc_data(sdata, true);
 			sta_info_destroy_addr(sdata, mgmt->bssid);
 			cfg80211_put_bss(*bss);
 			return RX_MGMT_CFG80211_ASSOC_TIMEOUT;
 		}
+
+		/*
+		 * destroy assoc_data afterwards, as otherwise an idle
+		 * recalc after assoc_data is NULL but before associated
+		 * is set can cause the interface to go idle
+		 */
+		ieee80211_destroy_assoc_data(sdata, true);
 	}
 
 	return RX_MGMT_CFG80211_RX_ASSOC;
