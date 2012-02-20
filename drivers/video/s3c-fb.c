@@ -1433,7 +1433,7 @@ static int __devinit s3c_fb_probe(struct platform_device *pdev)
 		goto err_lcd_clk;
 	}
 	sfb->irq_no = res->start;
-	ret = request_irq(sfb->irq_no, s3c_fb_irq,
+	ret = devm_request_irq(dev, sfb->irq_no, s3c_fb_irq,
 			  0, "s3c_fb", sfb);
 	if (ret) {
 		dev_err(dev, "irq request failed\n");
@@ -1499,7 +1499,6 @@ static int __devinit s3c_fb_probe(struct platform_device *pdev)
 
 err_pm_runtime:
 	pm_runtime_put_sync(sfb->dev);
-	free_irq(sfb->irq_no, sfb);
 
 err_lcd_clk:
 	pm_runtime_disable(sfb->dev);
@@ -1534,8 +1533,6 @@ static int __devexit s3c_fb_remove(struct platform_device *pdev)
 	for (win = 0; win < S3C_FB_MAX_WIN; win++)
 		if (sfb->windows[win])
 			s3c_fb_release_win(sfb, sfb->windows[win]);
-
-	free_irq(sfb->irq_no, sfb);
 
 	if (!sfb->variant.has_clksel) {
 		clk_disable(sfb->lcd_clk);
