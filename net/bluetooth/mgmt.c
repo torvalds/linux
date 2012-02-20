@@ -3392,6 +3392,7 @@ int mgmt_stop_discovery_failed(struct hci_dev *hdev, u8 status)
 
 int mgmt_discovering(struct hci_dev *hdev, u8 discovering)
 {
+	struct mgmt_ev_discovering ev;
 	struct pending_cmd *cmd;
 
 	BT_DBG("%s discovering %u", hdev->name, discovering);
@@ -3409,8 +3410,11 @@ int mgmt_discovering(struct hci_dev *hdev, u8 discovering)
 		mgmt_pending_remove(cmd);
 	}
 
-	return mgmt_event(MGMT_EV_DISCOVERING, hdev, &discovering,
-						sizeof(discovering), NULL);
+	memset(&ev, 0, sizeof(ev));
+	ev.type = hdev->discovery.type;
+	ev.discovering = discovering;
+
+	return mgmt_event(MGMT_EV_DISCOVERING, hdev, &ev, sizeof(ev), NULL);
 }
 
 int mgmt_device_blocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)

@@ -402,6 +402,10 @@ struct mgmt_ev_device_found {
 } __packed;
 
 #define MGMT_EV_DISCOVERING		0x0013
+struct mgmt_ev_discovering {
+	__u8 type;
+	__u8 discovering;
+} __packed;
 
 #define MGMT_EV_DEVICE_BLOCKED		0x0014
 struct mgmt_ev_device_blocked {
