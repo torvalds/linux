@@ -643,15 +643,15 @@ xfs_trans_unlocked_item(
 	 * at the tail, it doesn't matter what result we get back.  This
 	 * is slightly racy because since we were just unlocked, we could
 	 * go to sleep between the call to xfs_ail_min and the call to
-	 * xfs_log_move_tail, have someone else lock us, commit to us disk,
+	 * xfs_log_space_wake, have someone else lock us, commit to us disk,
 	 * move us out of the tail of the AIL, and then we wake up.  However,
-	 * the call to xfs_log_move_tail() doesn't do anything if there's
+	 * the call to xfs_log_space_wake() doesn't do anything if there's
 	 * not enough free space to wake people up so we're safe calling it.
 	 */
 	min_lip = xfs_ail_min(ailp);
 
 	if (min_lip == lip)
-		xfs_log_move_tail(ailp->xa_mount, 1);
+		xfs_log_space_wake(ailp->xa_mount, true);
 }	/* xfs_trans_unlocked_item */
 
 /*
@@ -685,7 +685,6 @@ xfs_trans_ail_update_bulk(
 	xfs_lsn_t		lsn) __releases(ailp->xa_lock)
 {
 	xfs_log_item_t		*mlip;
-	xfs_lsn_t		tail_lsn;
 	int			mlip_changed = 0;
 	int			i;
 	LIST_HEAD(tmp);
@@ -712,22 +711,12 @@ xfs_trans_ail_update_bulk(
 
 	if (!list_empty(&tmp))
 		xfs_ail_splice(ailp, cur, &tmp, lsn);
-
-	if (!mlip_changed) {
-		spin_unlock(&ailp->xa_lock);
-		return;
-	}
-
-	/*
-	 * It is not safe to access mlip after the AIL lock is dropped, so we
-	 * must get a copy of li_lsn before we do so.  This is especially
-	 * important on 32-bit platforms where accessing and updating 64-bit
-	 * values like li_lsn is not atomic.
-	 */
-	mlip = xfs_ail_min(ailp);
-	tail_lsn = mlip->li_lsn;
 	spin_unlock(&ailp->xa_lock);
-	xfs_log_move_tail(ailp->xa_mount, tail_lsn);
+
+	if (mlip_changed && !XFS_FORCED_SHUTDOWN(ailp->xa_mount)) {
+		xlog_assign_tail_lsn(ailp->xa_mount);
+		xfs_log_space_wake(ailp->xa_mount, false);
+	}
 }
 
 /*
@@ -758,7 +747,6 @@ xfs_trans_ail_delete_bulk(
 	int			nr_items) __releases(ailp->xa_lock)
 {
 	xfs_log_item_t		*mlip;
-	xfs_lsn_t		tail_lsn;
 	int			mlip_changed = 0;
 	int			i;
 
@@ -785,23 +773,12 @@ xfs_trans_ail_delete_bulk(
 		if (mlip == lip)
 			mlip_changed = 1;
 	}
-
-	if (!mlip_changed) {
-		spin_unlock(&ailp->xa_lock);
-		return;
-	}
-
-	/*
-	 * It is not safe to access mlip after the AIL lock is dropped, so we
-	 * must get a copy of li_lsn before we do so.  This is especially
-	 * important on 32-bit platforms where accessing and updating 64-bit
-	 * values like li_lsn is not atomic. It is possible we've emptied the
-	 * AIL here, so if that is the case, pass an LSN of 0 to the tail move.
-	 */
-	mlip = xfs_ail_min(ailp);
-	tail_lsn = mlip ? mlip->li_lsn : 0;
 	spin_unlock(&ailp->xa_lock);
-	xfs_log_move_tail(ailp->xa_mount, tail_lsn);
+
+	if (mlip_changed && !XFS_FORCED_SHUTDOWN(ailp->xa_mount)) {
+		xlog_assign_tail_lsn(ailp->xa_mount);
+		xfs_log_space_wake(ailp->xa_mount, false);
+	}
 }
 
 /*

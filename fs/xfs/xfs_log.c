@@ -760,37 +760,35 @@ xfs_log_item_init(
 	INIT_LIST_HEAD(&item->li_cil);
 }
 
+/*
+ * Wake up processes waiting for log space after we have moved the log tail.
+ *
+ * If opportunistic is set wake up one waiter even if we do not have enough
+ * free space by our strict accounting.
+ */
 void
-xfs_log_move_tail(xfs_mount_t	*mp,
-		  xfs_lsn_t	tail_lsn)
+xfs_log_space_wake(
+	struct xfs_mount	*mp,
+	bool			opportunistic)
 {
-	xlog_ticket_t	*tic;
-	xlog_t		*log = mp->m_log;
-	int		need_bytes, free_bytes;
+	struct xlog_ticket	*tic;
+	struct log		*log = mp->m_log;
+	int			need_bytes, free_bytes;
 
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return;
 
-	if (tail_lsn == 0)
-		tail_lsn = atomic64_read(&log->l_last_sync_lsn);
-
-	/* tail_lsn == 1 implies that we weren't passed a valid value.  */
-	if (tail_lsn != 1)
-		atomic64_set(&log->l_tail_lsn, tail_lsn);
-
 	if (!list_empty_careful(&log->l_writeq)) {
-#ifdef DEBUG
-		if (log->l_flags & XLOG_ACTIVE_RECOVERY)
-			panic("Recovery problem");
-#endif
+		ASSERT(!(log->l_flags & XLOG_ACTIVE_RECOVERY));
+
 		spin_lock(&log->l_grant_write_lock);
 		free_bytes = xlog_space_left(log, &log->l_grant_write_head);
 		list_for_each_entry(tic, &log->l_writeq, t_queue) {
 			ASSERT(tic->t_flags & XLOG_TIC_PERM_RESERV);
 
-			if (free_bytes < tic->t_unit_res && tail_lsn != 1)
+			if (free_bytes < tic->t_unit_res && !opportunistic)
 				break;
-			tail_lsn = 0;
+			opportunistic = false;
 			free_bytes -= tic->t_unit_res;
 			trace_xfs_log_regrant_write_wake_up(log, tic);
 			wake_up(&tic->t_wait);
@@ -799,10 +797,8 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 	}
 
 	if (!list_empty_careful(&log->l_reserveq)) {
-#ifdef DEBUG
-		if (log->l_flags & XLOG_ACTIVE_RECOVERY)
-			panic("Recovery problem");
-#endif
+		ASSERT(!(log->l_flags & XLOG_ACTIVE_RECOVERY));
+
 		spin_lock(&log->l_grant_reserve_lock);
 		free_bytes = xlog_space_left(log, &log->l_grant_reserve_head);
 		list_for_each_entry(tic, &log->l_reserveq, t_queue) {
@@ -810,9 +806,9 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 				need_bytes = tic->t_unit_res*tic->t_cnt;
 			else
 				need_bytes = tic->t_unit_res;
-			if (free_bytes < need_bytes && tail_lsn != 1)
+			if (free_bytes < need_bytes && !opportunistic)
 				break;
-			tail_lsn = 0;
+			opportunistic = false;
 			free_bytes -= need_bytes;
 			trace_xfs_log_grant_wake_up(log, tic);
 			wake_up(&tic->t_wait);
@@ -867,21 +863,7 @@ xfs_log_need_covered(xfs_mount_t *mp)
 	return needed;
 }
 
-/******************************************************************************
- *
- *	local routines
- *
- ******************************************************************************
- */
-
-/* xfs_trans_tail_ail returns 0 when there is nothing in the list.
- * The log manager must keep track of the last LR which was committed
- * to disk.  The lsn of this LR will become the new tail_lsn whenever
- * xfs_trans_tail_ail returns 0.  If we don't do this, we run into
- * the situation where stuff could be written into the log but nothing
- * was ever in the AIL when asked.  Eventually, we panic since the
- * tail hits the head.
- *
+/*
  * We may be holding the log iclog lock upon entering this routine.
  */
 xfs_lsn_t
@@ -891,10 +873,17 @@ xlog_assign_tail_lsn(
 	xfs_lsn_t		tail_lsn;
 	struct log		*log = mp->m_log;
 
+	/*
+	 * To make sure we always have a valid LSN for the log tail we keep
+	 * track of the last LSN which was committed in log->l_last_sync_lsn,
+	 * and use that when the AIL was empty and xfs_ail_min_lsn returns 0.
+	 *
+	 * If the AIL has been emptied we also need to wake any process
+	 * waiting for this condition.
+	 */
 	tail_lsn = xfs_ail_min_lsn(mp->m_ail);
 	if (!tail_lsn)
 		tail_lsn = atomic64_read(&log->l_last_sync_lsn);
-
 	atomic64_set(&log->l_tail_lsn, tail_lsn);
 	return tail_lsn;
 }
@@ -2759,9 +2748,8 @@ xlog_ungrant_log_space(xlog_t	     *log,
 
 	trace_xfs_log_ungrant_exit(log, ticket);
 
-	xfs_log_move_tail(log->l_mp, 1);
-}	/* xlog_ungrant_log_space */
-
+	xfs_log_space_wake(log->l_mp, true);
+}
 
 /*
  * Flush iclog to disk if this is the last reference to the given iclog and
