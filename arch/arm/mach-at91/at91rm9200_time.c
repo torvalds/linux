@@ -111,7 +111,7 @@ clkevt32k_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 {
 	/* Disable and flush pending timer interrupts */
 	at91_st_write(AT91_ST_IDR, AT91_ST_PITS | AT91_ST_ALMS);
-	(void) at91_st_read(AT91_ST_SR);
+	at91_st_read(AT91_ST_SR);
 
 	last_crtr = read_CRTR();
 	switch (mode) {
@@ -157,7 +157,7 @@ clkevt32k_next_event(unsigned long delta, struct clock_event_device *dev)
 
 	/* Cancel any pending alarm; flush any pending IRQ */
 	at91_st_write(AT91_ST_RTAR, alm);
-	(void) at91_st_read(AT91_ST_SR);
+	at91_st_read(AT91_ST_SR);
 
 	/* Schedule alarm by writing RTAR. */
 	alm += delta;
@@ -192,7 +192,7 @@ void __init at91rm9200_timer_init(void)
 	/* Disable all timer interrupts, and clear any pending ones */
 	at91_st_write(AT91_ST_IDR,
 		AT91_ST_PITS | AT91_ST_WDOVF | AT91_ST_RTTINC | AT91_ST_ALMS);
-	(void) at91_st_read(AT91_ST_SR);
+	at91_st_read(AT91_ST_SR);
 
 	/* Make IRQs happen for the system timer */
 	setup_irq(AT91_ID_SYS, &at91rm9200_timer_irq);
