@@ -7,6 +7,8 @@
  *
  * Author: Linus Walleij <linus.walleij@linaro.org>
  *
+ * Copyright (C) 2012 NVIDIA CORPORATION. All rights reserved.
+ *
  * License terms: GNU General Public License (GPL) version 2
  */
 #define pr_fmt(fmt) "pinctrl core: " fmt
@@ -31,6 +33,18 @@
 #include "pinconf.h"
 
 /**
+ * struct pinctrl_maps - a list item containing part of the mapping table
+ * @node: mapping table list node
+ * @maps: array of mapping table entries
+ * @num_maps: the number of entries in @maps
+ */
+struct pinctrl_maps {
+	struct list_head node;
+	struct pinctrl_map const *maps;
+	unsigned num_maps;
+};
+
+/**
  * struct pinctrl_hog - a list item to stash control hogs
  * @node: pin control hog list node
  * @map: map entry responsible for this hogging
@@ -51,8 +65,14 @@ static DEFINE_MUTEX(pinctrl_list_mutex);
 static LIST_HEAD(pinctrl_list);
 
 /* Global pinctrl maps */
-static struct pinctrl_map *pinctrl_maps;
-static unsigned pinctrl_maps_num;
+static DEFINE_MUTEX(pinctrl_maps_mutex);
+static LIST_HEAD(pinctrl_maps);
+
+#define for_each_maps(_maps_node_, _i_, _map_) \
+	list_for_each_entry(_maps_node_, &pinctrl_maps, node) \
+		for (_i_ = 0, _map_ = &_maps_node_->maps[_i_]; \
+			_i_ < _maps_node_->num_maps; \
+			i++, _map_ = &_maps_node_->maps[_i_])
 
 const char *pinctrl_dev_get_name(struct pinctrl_dev *pctldev)
 {
@@ -454,23 +474,17 @@ int pinctrl_gpio_direction_output(unsigned gpio)
 }
 EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_output);
 
-/**
- * pinctrl_get() - retrieves the pin controller handle for a certain device
- * @dev: the device to get the pin controller handle for
- * @name: an optional specific control mapping name or NULL, the name is only
- *	needed if you want to have more than one mapping per device, or if you
- *	need an anonymous pin control (not tied to any specific device)
- */
-struct pinctrl *pinctrl_get(struct device *dev, const char *name)
+static struct pinctrl *pinctrl_get_locked(struct device *dev, const char *name)
 {
-	struct pinctrl_map const *map = NULL;
 	struct pinctrl_dev *pctldev = NULL;
 	const char *devname = NULL;
 	struct pinctrl *p;
 	bool found_map;
 	unsigned num_maps = 0;
 	int ret = -ENODEV;
+	struct pinctrl_maps *maps_node;
 	int i;
+	struct pinctrl_map const *map;
 
 	/* We must have dev or ID or both */
 	if (!dev && !name)
@@ -494,8 +508,7 @@ struct pinctrl *pinctrl_get(struct device *dev, const char *name)
 	pinmux_init_pinctrl_handle(p);
 
 	/* Iterate over the pin control maps to locate the right ones */
-	for (i = 0; i < pinctrl_maps_num; i++) {
-		map = &pinctrl_maps[i];
+	for_each_maps(maps_node, i, map) {
 		found_map = false;
 
 		/*
@@ -514,7 +527,6 @@ struct pinctrl *pinctrl_get(struct device *dev, const char *name)
 
 		pr_debug("in map, found pctldev %s to handle function %s",
 			 dev_name(pctldev->dev), map->function);
-
 
 		/*
 		 * If we're looking for a specific named map, this must match,
@@ -571,6 +583,24 @@ struct pinctrl *pinctrl_get(struct device *dev, const char *name)
 	mutex_lock(&pinctrl_list_mutex);
 	list_add_tail(&p->node, &pinctrl_list);
 	mutex_unlock(&pinctrl_list_mutex);
+
+	return p;
+}
+
+/**
+ * pinctrl_get() - retrieves the pin controller handle for a certain device
+ * @dev: the device to get the pin controller handle for
+ * @name: an optional specific control mapping name or NULL, the name is only
+ *	needed if you want to have more than one mapping per device, or if you
+ *	need an anonymous pin control (not tied to any specific device)
+ */
+struct pinctrl *pinctrl_get(struct device *dev, const char *name)
+{
+	struct pinctrl *p;
+
+	mutex_lock(&pinctrl_maps_mutex);
+	p = pinctrl_get_locked(dev, name);
+	mutex_unlock(&pinctrl_maps_mutex);
 
 	return p;
 }
@@ -649,8 +679,8 @@ EXPORT_SYMBOL_GPL(pinctrl_disable);
 int pinctrl_register_mappings(struct pinctrl_map const *maps,
 			      unsigned num_maps)
 {
-	void *tmp_maps;
 	int i;
+	struct pinctrl_maps *maps_node;
 
 	pr_debug("add %d pinmux maps\n", num_maps);
 
@@ -684,31 +714,23 @@ int pinctrl_register_mappings(struct pinctrl_map const *maps,
 				 maps[i].function);
 	}
 
-	/*
-	 * Make a copy of the map array - string pointers will end up in the
-	 * kernel const section anyway so these do not need to be deep copied.
-	 */
-	if (!pinctrl_maps_num) {
-		/* On first call, just copy them */
-		tmp_maps = kmemdup(maps,
-				   sizeof(struct pinctrl_map) * num_maps,
-				   GFP_KERNEL);
-		if (!tmp_maps)
-			return -ENOMEM;
-	} else {
-		/* Subsequent calls, reallocate array to new size */
-		size_t oldsize = sizeof(struct pinctrl_map) * pinctrl_maps_num;
-		size_t newsize = sizeof(struct pinctrl_map) * num_maps;
-
-		tmp_maps = krealloc(pinctrl_maps,
-				    oldsize + newsize, GFP_KERNEL);
-		if (!tmp_maps)
-			return -ENOMEM;
-		memcpy((tmp_maps + oldsize), maps, newsize);
+	maps_node = kzalloc(sizeof(*maps_node), GFP_KERNEL);
+	if (!maps_node) {
+		pr_err("failed to alloc struct pinctrl_maps\n");
+		return -ENOMEM;
 	}
 
-	pinctrl_maps = tmp_maps;
-	pinctrl_maps_num += num_maps;
+	maps_node->num_maps = num_maps;
+	maps_node->maps = kmemdup(maps, sizeof(*maps) * num_maps, GFP_KERNEL);
+	if (!maps_node->maps) {
+		kfree(maps_node);
+		return -ENOMEM;
+	}
+
+	mutex_lock(&pinctrl_maps_mutex);
+	list_add_tail(&maps_node->node, &pinctrl_maps);
+	mutex_unlock(&pinctrl_maps_mutex);
+
 	return 0;
 }
 
@@ -724,7 +746,7 @@ static int pinctrl_hog_map(struct pinctrl_dev *pctldev,
 	if (!hog)
 		return -ENOMEM;
 
-	p = pinctrl_get(pctldev->dev, map->name);
+	p = pinctrl_get_locked(pctldev->dev, map->name);
 	if (IS_ERR(p)) {
 		kfree(hog);
 		dev_err(pctldev->dev,
@@ -768,23 +790,28 @@ int pinctrl_hog_maps(struct pinctrl_dev *pctldev)
 	struct device *dev = pctldev->dev;
 	const char *devname = dev_name(dev);
 	int ret;
+	struct pinctrl_maps *maps_node;
 	int i;
+	struct pinctrl_map const *map;
 
 	INIT_LIST_HEAD(&pctldev->pinctrl_hogs);
 	mutex_init(&pctldev->pinctrl_hogs_lock);
 
-	for (i = 0; i < pinctrl_maps_num; i++) {
-		struct pinctrl_map const *map = &pinctrl_maps[i];
-
+	mutex_lock(&pinctrl_maps_mutex);
+	for_each_maps(maps_node, i, map) {
 		if (map->ctrl_dev_name &&
 		    !strcmp(map->ctrl_dev_name, devname) &&
 		    !strcmp(map->dev_name, devname)) {
 			/* OK time to hog! */
 			ret = pinctrl_hog_map(pctldev, map);
-			if (ret)
+			if (ret) {
+				mutex_unlock(&pinctrl_maps_mutex);
 				return ret;
+			}
 		}
 	}
+	mutex_unlock(&pinctrl_maps_mutex);
+
 	return 0;
 }
 
@@ -900,13 +927,14 @@ static int pinctrl_gpioranges_show(struct seq_file *s, void *what)
 
 static int pinctrl_maps_show(struct seq_file *s, void *what)
 {
+	struct pinctrl_maps *maps_node;
 	int i;
+	struct pinctrl_map const *map;
 
 	seq_puts(s, "Pinctrl maps:\n");
 
-	for (i = 0; i < pinctrl_maps_num; i++) {
-		struct pinctrl_map const *map = &pinctrl_maps[i];
-
+	mutex_lock(&pinctrl_maps_mutex);
+	for_each_maps(maps_node, i, map) {
 		seq_printf(s, "%s:\n", map->name);
 		if (map->dev_name)
 			seq_printf(s, "  device: %s\n",
@@ -919,6 +947,8 @@ static int pinctrl_maps_show(struct seq_file *s, void *what)
 		seq_printf(s, "  group: %s\n", map->group ? map->group :
 			   "(default)");
 	}
+	mutex_unlock(&pinctrl_maps_mutex);
+
 	return 0;
 }
 
