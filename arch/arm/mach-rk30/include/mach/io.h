@@ -162,6 +162,7 @@
 #define RK30_I2C1_PHYS          0x2002e000
 #define RK30_I2C1_SIZE          SZ_8K
 #define RK30_PWM01_PHYS         0x20030000
+#define RK30_PWM01_BASE         RK30_IO_TO_VIRT1(RK30_PWM01_PHYS)
 #define RK30_PWM01_SIZE         SZ_16K
 #define RK30_GPIO0_PHYS         0x20034000
 #define RK30_GPIO0_BASE         RK30_IO_TO_VIRT1(RK30_GPIO0_PHYS)
@@ -184,6 +185,7 @@
 #define RK30_WDT_PHYS           0x2004c000
 #define RK30_WDT_SIZE           SZ_16K
 #define RK30_PWM23_PHYS         0x20050000
+#define RK30_PWM23_BASE         RK30_IO_TO_VIRT1(RK30_PWM23_PHYS)
 #define RK30_PWM23_SIZE         SZ_16K
 #define RK30_I2C2_PHYS          0x20054000
 #define RK30_I2C2_SIZE          SZ_16K
