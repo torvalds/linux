@@ -205,6 +205,14 @@ int pvr2_s_std(struct file *file, void *priv, v4l2_std_id *std)
 		pvr2_hdw_get_ctrl_by_id(hdw, PVR2_CID_STDCUR), *std);
 }
 
+static int pvr2_querystd(struct file *file, void *priv, v4l2_std_id *std)
+{
+	struct pvr2_v4l2_fh *fh = file->private_data;
+	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
+
+	return pvr2_hdw_get_detected_std(hdw, std);
+}
+
 static int pvr2_enum_input(struct file *file, void *priv, struct v4l2_input *vi)
 {
 	struct pvr2_v4l2_fh *fh = file->private_data;
@@ -844,6 +852,7 @@ static const struct v4l2_ioctl_ops pvr2_ioctl_ops = {
 	.vidioc_g_tuner			    = pvr2_g_tuner,
 	.vidioc_g_std			    = pvr2_g_std,
 	.vidioc_s_std			    = pvr2_s_std,
+	.vidioc_querystd		    = pvr2_querystd,
 	.vidioc_log_status		    = pvr2_log_status,
 	.vidioc_enum_fmt_vid_cap	    = pvr2_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap		    = pvr2_g_fmt_vid_cap,
