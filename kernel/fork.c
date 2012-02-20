@@ -910,7 +910,7 @@ static int copy_io(unsigned long clone_flags, struct task_struct *tsk)
 			return -ENOMEM;
 
 		new_ioc->ioprio = ioc->ioprio;
-		put_io_context(new_ioc, NULL);
+		put_io_context(new_ioc);
 	}
 #endif
 	return 0;

@@ -670,7 +670,7 @@ static void octeon_mgmt_adjust_link(struct net_device *netdev)
 static int octeon_mgmt_init_phy(struct net_device *netdev)
 {
 	struct octeon_mgmt *p = netdev_priv(netdev);
-	char phy_id[20];
+	char phy_id[MII_BUS_ID_SIZE + 3];
 
 	if (octeon_is_simulation()) {
 		/* No PHYs in the simulator. */
@@ -678,7 +678,7 @@ static int octeon_mgmt_init_phy(struct net_device *netdev)
 		return 0;
 	}
 
-	snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT, "0", p->port);
+	snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT, "mdio-octeon-0", p->port);
 
 	p->phydev = phy_connect(netdev, phy_id, octeon_mgmt_adjust_link, 0,
 				PHY_INTERFACE_MODE_MII);

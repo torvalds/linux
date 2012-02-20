@@ -124,7 +124,7 @@ static u8 res_config_addrs[] = {
 	[RES_MAIN_REF]	= 0x94,
 };
 
-static int __init twl4030_write_script_byte(u8 address, u8 byte)
+static int __devinit twl4030_write_script_byte(u8 address, u8 byte)
 {
 	int err;
 
@@ -138,7 +138,7 @@ out:
 	return err;
 }
 
-static int __init twl4030_write_script_ins(u8 address, u16 pmb_message,
+static int __devinit twl4030_write_script_ins(u8 address, u16 pmb_message,
 					   u8 delay, u8 next)
 {
 	int err;
@@ -158,7 +158,7 @@ out:
 	return err;
 }
 
-static int __init twl4030_write_script(u8 address, struct twl4030_ins *script,
+static int __devinit twl4030_write_script(u8 address, struct twl4030_ins *script,
 				       int len)
 {
 	int err;
@@ -183,7 +183,7 @@ static int __init twl4030_write_script(u8 address, struct twl4030_ins *script,
 	return err;
 }
 
-static int __init twl4030_config_wakeup3_sequence(u8 address)
+static int __devinit twl4030_config_wakeup3_sequence(u8 address)
 {
 	int err;
 	u8 data;
@@ -208,7 +208,7 @@ out:
 	return err;
 }
 
-static int __init twl4030_config_wakeup12_sequence(u8 address)
+static int __devinit twl4030_config_wakeup12_sequence(u8 address)
 {
 	int err = 0;
 	u8 data;
@@ -262,7 +262,7 @@ out:
 	return err;
 }
 
-static int __init twl4030_config_sleep_sequence(u8 address)
+static int __devinit twl4030_config_sleep_sequence(u8 address)
 {
 	int err;
 
@@ -276,7 +276,7 @@ static int __init twl4030_config_sleep_sequence(u8 address)
 	return err;
 }
 
-static int __init twl4030_config_warmreset_sequence(u8 address)
+static int __devinit twl4030_config_warmreset_sequence(u8 address)
 {
 	int err;
 	u8 rd_data;
@@ -324,7 +324,7 @@ out:
 	return err;
 }
 
-static int __init twl4030_configure_resource(struct twl4030_resconfig *rconfig)
+static int __devinit twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 {
 	int rconfig_addr;
 	int err;
@@ -416,7 +416,7 @@ static int __init twl4030_configure_resource(struct twl4030_resconfig *rconfig)
 	return 0;
 }
 
-static int __init load_twl4030_script(struct twl4030_script *tscript,
+static int __devinit load_twl4030_script(struct twl4030_script *tscript,
 	       u8 address)
 {
 	int err;
@@ -527,7 +527,7 @@ void twl4030_power_off(void)
 		pr_err("TWL4030 Unable to power off\n");
 }
 
-void __init twl4030_power_init(struct twl4030_power_data *twl4030_scripts)
+void __devinit twl4030_power_init(struct twl4030_power_data *twl4030_scripts)
 {
 	int err = 0;
 	int i;

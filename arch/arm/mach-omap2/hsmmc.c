@@ -293,8 +293,8 @@ static inline void omap_hsmmc_mux(struct omap_mmc_platform_data *mmc_controller,
 	}
 }
 
-static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
-					struct omap_mmc_platform_data *mmc)
+static int omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
+				 struct omap_mmc_platform_data *mmc)
 {
 	char *hc_name;
 
@@ -428,9 +428,10 @@ static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
 	return 0;
 }
 
+static int omap_hsmmc_done;
 #define MAX_OMAP_MMC_HWMOD_NAME_LEN		16
 
-void __init omap_init_hsmmc(struct omap2_hsmmc_info *hsmmcinfo, int ctrl_nr)
+void omap_init_hsmmc(struct omap2_hsmmc_info *hsmmcinfo, int ctrl_nr)
 {
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;
@@ -487,9 +488,14 @@ done:
 	kfree(mmc_data);
 }
 
-void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
+void omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 {
 	u32 reg;
+
+	if (omap_hsmmc_done)
+		return;
+
+	omap_hsmmc_done = 1;
 
 	if (!cpu_is_omap44xx()) {
 		if (cpu_is_omap2430()) {
