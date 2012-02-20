@@ -782,7 +782,7 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 	int groups_per_page;
 	int err = 0;
 	int i;
-	ext4_group_t first_group;
+	ext4_group_t first_group, group;
 	int first_block;
 	struct super_block *sb;
 	struct buffer_head *bhs;
@@ -806,24 +806,23 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 
 	/* allocate buffer_heads to read bitmaps */
 	if (groups_per_page > 1) {
-		err = -ENOMEM;
 		i = sizeof(struct buffer_head *) * groups_per_page;
 		bh = kzalloc(i, GFP_NOFS);
-		if (bh == NULL)
+		if (bh == NULL) {
+			err = -ENOMEM;
 			goto out;
+		}
 	} else
 		bh = &bhs;
 
 	first_group = page->index * blocks_per_page / 2;
 
 	/* read all groups the page covers into the cache */
-	for (i = 0; i < groups_per_page; i++) {
-		struct ext4_group_desc *desc;
-
-		if (first_group + i >= ngroups)
+	for (i = 0, group = first_group; i < groups_per_page; i++, group++) {
+		if (group >= ngroups)
 			break;
 
-		grinfo = ext4_get_group_info(sb, first_group + i);
+		grinfo = ext4_get_group_info(sb, group);
 		/*
 		 * If page is uptodate then we came here after online resize
 		 * which added some new uninitialized group info structs, so
@@ -834,69 +833,21 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 			bh[i] = NULL;
 			continue;
 		}
-
-		err = -EIO;
-		desc = ext4_get_group_desc(sb, first_group + i, NULL);
-		if (desc == NULL)
+		if (!(bh[i] = ext4_read_block_bitmap_nowait(sb, group))) {
+			err = -ENOMEM;
 			goto out;
-
-		err = -ENOMEM;
-		bh[i] = sb_getblk(sb, ext4_block_bitmap(sb, desc));
-		if (bh[i] == NULL)
-			goto out;
-
-		if (bitmap_uptodate(bh[i]))
-			continue;
-
-		lock_buffer(bh[i]);
-		if (bitmap_uptodate(bh[i])) {
-			unlock_buffer(bh[i]);
-			continue;
 		}
-		ext4_lock_group(sb, first_group + i);
-		if (desc->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
-			ext4_init_block_bitmap(sb, bh[i],
-						first_group + i, desc);
-			set_bitmap_uptodate(bh[i]);
-			set_buffer_uptodate(bh[i]);
-			ext4_unlock_group(sb, first_group + i);
-			unlock_buffer(bh[i]);
-			continue;
-		}
-		ext4_unlock_group(sb, first_group + i);
-		if (buffer_uptodate(bh[i])) {
-			/*
-			 * if not uninit if bh is uptodate,
-			 * bitmap is also uptodate
-			 */
-			set_bitmap_uptodate(bh[i]);
-			unlock_buffer(bh[i]);
-			continue;
-		}
-		get_bh(bh[i]);
-		/*
-		 * submit the buffer_head for read. We can
-		 * safely mark the bitmap as uptodate now.
-		 * We do it here so the bitmap uptodate bit
-		 * get set with buffer lock held.
-		 */
-		set_bitmap_uptodate(bh[i]);
-		bh[i]->b_end_io = end_buffer_read_sync;
-		submit_bh(READ, bh[i]);
-		mb_debug(1, "read bitmap for group %u\n", first_group + i);
+		mb_debug(1, "read bitmap for group %u\n", group);
 	}
 
 	/* wait for I/O completion */
-	for (i = 0; i < groups_per_page; i++)
-		if (bh[i])
-			wait_on_buffer(bh[i]);
-
-	err = -EIO;
-	for (i = 0; i < groups_per_page; i++)
-		if (bh[i] && !buffer_uptodate(bh[i]))
+	for (i = 0, group = first_group; i < groups_per_page; i++, group++) {
+		if (bh[i] && ext4_wait_block_bitmap(sb, group, bh[i])) {
+			err = -EIO;
 			goto out;
+		}
+	}
 
-	err = 0;
 	first_block = page->index * blocks_per_page;
 	for (i = 0; i < blocks_per_page; i++) {
 		int group;

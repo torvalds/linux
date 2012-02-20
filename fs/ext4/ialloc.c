@@ -92,6 +92,16 @@ static unsigned ext4_init_inode_bitmap(struct super_block *sb,
 	return EXT4_INODES_PER_GROUP(sb);
 }
 
+void ext4_end_bitmap_read(struct buffer_head *bh, int uptodate)
+{
+	if (uptodate) {
+		set_buffer_uptodate(bh);
+		set_bitmap_uptodate(bh);
+	}
+	unlock_buffer(bh);
+	put_bh(bh);
+}
+
 /*
  * Read the inode allocation bitmap for a given block_group, reading
  * into the specified slot in the superblock's bitmap cache.
@@ -147,18 +157,18 @@ ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
 		return bh;
 	}
 	/*
-	 * submit the buffer_head for read. We can
-	 * safely mark the bitmap as uptodate now.
-	 * We do it here so the bitmap uptodate bit
-	 * get set with buffer lock held.
+	 * submit the buffer_head for reading
 	 */
 	trace_ext4_load_inode_bitmap(sb, block_group);
-	set_bitmap_uptodate(bh);
-	if (bh_submit_read(bh) < 0) {
+	bh->b_end_io = ext4_end_bitmap_read;
+	get_bh(bh);
+	submit_bh(READ, bh);
+	wait_on_buffer(bh);
+	if (!buffer_uptodate(bh)) {
 		put_bh(bh);
 		ext4_error(sb, "Cannot read inode bitmap - "
-			    "block_group = %u, inode_bitmap = %llu",
-			    block_group, bitmap_blk);
+			   "block_group = %u, inode_bitmap = %llu",
+			   block_group, bitmap_blk);
 		return NULL;
 	}
 	return bh;

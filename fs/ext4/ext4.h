@@ -1794,8 +1794,14 @@ extern struct ext4_group_desc * ext4_get_group_desc(struct super_block * sb,
 						    ext4_group_t block_group,
 						    struct buffer_head ** bh);
 extern int ext4_should_retry_alloc(struct super_block *sb, int *retries);
-struct buffer_head *ext4_read_block_bitmap(struct super_block *sb,
-				      ext4_group_t block_group);
+
+extern struct buffer_head *ext4_read_block_bitmap_nowait(struct super_block *sb,
+						ext4_group_t block_group);
+extern int ext4_wait_block_bitmap(struct super_block *sb,
+				  ext4_group_t block_group,
+				  struct buffer_head *bh);
+extern struct buffer_head *ext4_read_block_bitmap(struct super_block *sb,
+						  ext4_group_t block_group);
 extern void ext4_init_block_bitmap(struct super_block *sb,
 				   struct buffer_head *bh,
 				   ext4_group_t group,
@@ -1841,6 +1847,7 @@ extern void ext4_check_inodes_bitmap(struct super_block *);
 extern void ext4_mark_bitmap_end(int start_bit, int end_bit, char *bitmap);
 extern int ext4_init_inode_table(struct super_block *sb,
 				 ext4_group_t group, int barrier);
+extern void ext4_end_bitmap_read(struct buffer_head *bh, int uptodate);
 
 /* mballoc.c */
 extern long ext4_mb_stats;
