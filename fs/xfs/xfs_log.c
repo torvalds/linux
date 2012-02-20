@@ -169,7 +169,7 @@ xlog_reserveq_wake(
 		*free_bytes -= need_bytes;
 
 		trace_xfs_log_grant_wake_up(log, tic);
-		wake_up(&tic->t_wait);
+		wake_up_process(tic->t_task);
 	}
 
 	return true;
@@ -193,7 +193,7 @@ xlog_writeq_wake(
 		*free_bytes -= need_bytes;
 
 		trace_xfs_log_regrant_write_wake_up(log, tic);
-		wake_up(&tic->t_wait);
+		wake_up_process(tic->t_task);
 	}
 
 	return true;
@@ -212,10 +212,13 @@ xlog_reserveq_wait(
 			goto shutdown;
 		xlog_grant_push_ail(log, need_bytes);
 
-		XFS_STATS_INC(xs_sleep_logspace);
-		trace_xfs_log_grant_sleep(log, tic);
+		__set_current_state(TASK_UNINTERRUPTIBLE);
+		spin_unlock(&log->l_grant_reserve_lock);
 
-		xlog_wait(&tic->t_wait, &log->l_grant_reserve_lock);
+		XFS_STATS_INC(xs_sleep_logspace);
+
+		trace_xfs_log_grant_sleep(log, tic);
+		schedule();
 		trace_xfs_log_grant_wake(log, tic);
 
 		spin_lock(&log->l_grant_reserve_lock);
@@ -243,10 +246,13 @@ xlog_writeq_wait(
 			goto shutdown;
 		xlog_grant_push_ail(log, need_bytes);
 
-		XFS_STATS_INC(xs_sleep_logspace);
-		trace_xfs_log_regrant_write_sleep(log, tic);
+		__set_current_state(TASK_UNINTERRUPTIBLE);
+		spin_unlock(&log->l_grant_write_lock);
 
-		xlog_wait(&tic->t_wait, &log->l_grant_write_lock);
+		XFS_STATS_INC(xs_sleep_logspace);
+
+		trace_xfs_log_regrant_write_sleep(log, tic);
+		schedule();
 		trace_xfs_log_regrant_write_wake(log, tic);
 
 		spin_lock(&log->l_grant_write_lock);
@@ -3276,6 +3282,7 @@ xlog_ticket_alloc(
         }
 
 	atomic_set(&tic->t_ref, 1);
+	tic->t_task		= current;
 	INIT_LIST_HEAD(&tic->t_queue);
 	tic->t_unit_res		= unit_bytes;
 	tic->t_curr_res		= unit_bytes;
@@ -3287,7 +3294,6 @@ xlog_ticket_alloc(
 	tic->t_trans_type	= 0;
 	if (xflags & XFS_LOG_PERM_RESERV)
 		tic->t_flags |= XLOG_TIC_PERM_RESERV;
-	init_waitqueue_head(&tic->t_wait);
 
 	xlog_tic_reset_res(tic);
 
@@ -3615,12 +3621,12 @@ xfs_log_force_umount(
 	 */
 	spin_lock(&log->l_grant_reserve_lock);
 	list_for_each_entry(tic, &log->l_reserveq, t_queue)
-		wake_up(&tic->t_wait);
+		wake_up_process(tic->t_task);
 	spin_unlock(&log->l_grant_reserve_lock);
 
 	spin_lock(&log->l_grant_write_lock);
 	list_for_each_entry(tic, &log->l_writeq, t_queue)
-		wake_up(&tic->t_wait);
+		wake_up_process(tic->t_task);
 	spin_unlock(&log->l_grant_write_lock);
 
 	if (!(log->l_iclog->ic_state & XLOG_STATE_IOERROR)) {
