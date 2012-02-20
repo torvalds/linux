@@ -309,7 +309,7 @@ void pinctrl_add_gpio_range(struct pinctrl_dev *pctldev,
 			    struct pinctrl_gpio_range *range)
 {
 	mutex_lock(&pctldev->gpio_ranges_lock);
-	list_add(&range->node, &pctldev->gpio_ranges);
+	list_add_tail(&range->node, &pctldev->gpio_ranges);
 	mutex_unlock(&pctldev->gpio_ranges_lock);
 }
 
@@ -569,7 +569,7 @@ struct pinctrl *pinctrl_get(struct device *dev, const char *name)
 
 	/* Add the pinmux to the global list */
 	mutex_lock(&pinctrl_list_mutex);
-	list_add(&p->node, &pinctrl_list);
+	list_add_tail(&p->node, &pinctrl_list);
 	mutex_unlock(&pinctrl_list_mutex);
 
 	return p;
@@ -749,7 +749,7 @@ static int pinctrl_hog_map(struct pinctrl_dev *pctldev,
 	dev_info(pctldev->dev, "hogged map %s, function %s\n", map->name,
 		 map->function);
 	mutex_lock(&pctldev->pinctrl_hogs_lock);
-	list_add(&hog->node, &pctldev->pinctrl_hogs);
+	list_add_tail(&hog->node, &pctldev->pinctrl_hogs);
 	mutex_unlock(&pctldev->pinctrl_hogs_lock);
 
 	return 0;
@@ -1197,7 +1197,7 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 
 	pinctrl_init_device_debugfs(pctldev);
 	mutex_lock(&pinctrldev_list_mutex);
-	list_add(&pctldev->node, &pinctrldev_list);
+	list_add_tail(&pctldev->node, &pinctrldev_list);
 	mutex_unlock(&pinctrldev_list_mutex);
 	pinctrl_hog_maps(pctldev);
 	return pctldev;

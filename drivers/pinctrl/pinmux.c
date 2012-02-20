@@ -480,7 +480,7 @@ static int pinmux_enable_muxmap(struct pinctrl_dev *pctldev,
 		kfree(grp);
 		return ret;
 	}
-	list_add(&grp->node, &p->groups);
+	list_add_tail(&grp->node, &p->groups);
 
 	return 0;
 }
