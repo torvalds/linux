@@ -424,7 +424,7 @@ static void __init omap_ldp_init(void)
 	board_nand_init(ldp_nand_partitions,
 		ARRAY_SIZE(ldp_nand_partitions), ZOOM_NAND_CS, 0);
 
-	omap2_hsmmc_init(mmc);
+	omap_hsmmc_init(mmc);
 	ldp_display_init();
 }
 

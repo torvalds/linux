@@ -128,7 +128,7 @@ static void __init board_mmc_init(void)
 		return;
 	}
 
-	omap2_hsmmc_init(board_mmc_info);
+	omap_hsmmc_init(board_mmc_info);
 }
 
 static struct omap_smsc911x_platform_data __initdata board_smsc911x_data = {

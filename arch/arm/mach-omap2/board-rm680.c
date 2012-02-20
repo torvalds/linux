@@ -120,7 +120,7 @@ static void __init rm680_peripherals_init(void)
 				ARRAY_SIZE(rm680_peripherals_devices));
 	rm680_i2c_init();
 	gpmc_onenand_init(board_onenand_data);
-	omap2_hsmmc_init(mmc);
+	omap_hsmmc_init(mmc);
 }
 
 #ifdef CONFIG_OMAP_MUX

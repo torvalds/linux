@@ -209,10 +209,11 @@ static struct regulator_init_data omap3stalker_vsim = {
 
 static struct omap2_hsmmc_info mmc[] = {
 	{
-	 .mmc		= 1,
-	 .caps		= MMC_CAP_4_BIT_DATA,
-	 .gpio_cd	= -EINVAL,
-	 .gpio_wp	= 23,
+		.mmc		= 1,
+		.caps		= MMC_CAP_4_BIT_DATA,
+		.gpio_cd	= -EINVAL,
+		.gpio_wp	= 23,
+		.deferred	= true,
 	 },
 	{}			/* Terminator */
 };
@@ -284,7 +285,7 @@ omap3stalker_twl_gpio_setup(struct device *dev,
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	omap_mux_init_gpio(23, OMAP_PIN_INPUT);
 	mmc[0].gpio_cd = gpio + 0;
-	omap2_hsmmc_init(mmc);
+	omap_hsmmc_late_init(mmc);
 
 	/*
 	 * Most GPIOs are for USB OTG.  Some are mostly sent to
@@ -425,6 +426,7 @@ static void __init omap3_stalker_init(void)
 	omap_board_config = omap3_stalker_config;
 	omap_board_config_size = ARRAY_SIZE(omap3_stalker_config);
 
+	omap_hsmmc_init(mmc);
 	omap3_stalker_i2c_init();
 
 	platform_add_devices(omap3_stalker_devices,
