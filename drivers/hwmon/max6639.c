@@ -429,9 +429,9 @@ static int max6639_init_client(struct i2c_client *client)
 	struct max6639_data *data = i2c_get_clientdata(client);
 	struct max6639_platform_data *max6639_info =
 		client->dev.platform_data;
-	int i = 0;
+	int i;
 	int rpm_range = 1; /* default: 4000 RPM */
-	int err = 0;
+	int err;
 
 	/* Reset chip to default values, see below for GCONFIG setup */
 	err = i2c_smbus_write_byte_data(client, MAX6639_REG_GCONFIG,
@@ -446,17 +446,19 @@ static int max6639_init_client(struct i2c_client *client)
 	else
 		data->ppr = 2;
 	data->ppr -= 1;
-	err = i2c_smbus_write_byte_data(client,
-			MAX6639_REG_FAN_PPR(i),
-			data->ppr << 5);
-	if (err)
-		goto exit;
 
 	if (max6639_info)
 		rpm_range = rpm_range_to_reg(max6639_info->rpm_range);
 	data->rpm_range = rpm_range;
 
 	for (i = 0; i < 2; i++) {
+
+		/* Set Fan pulse per revolution */
+		err = i2c_smbus_write_byte_data(client,
+				MAX6639_REG_FAN_PPR(i),
+				data->ppr << 6);
+		if (err)
+			goto exit;
 
 		/* Fans config PWM, RPM */
 		err = i2c_smbus_write_byte_data(client,
