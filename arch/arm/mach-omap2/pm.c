@@ -28,7 +28,7 @@
 
 static struct omap_device_pm_latency *pm_lats;
 
-static int _init_omap_device(char *name)
+static int __init _init_omap_device(char *name)
 {
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;
