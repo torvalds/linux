@@ -4448,6 +4448,7 @@ enum {
 	ALC880_FIXUP_FUJITSU,
 	ALC880_FIXUP_F1734,
 	ALC880_FIXUP_UNIWILL,
+	ALC880_FIXUP_UNIWILL_DIG,
 };
 
 /* enable the volume-knob widget support on NID 0x21 */
@@ -4567,11 +4568,23 @@ static const struct alc_fixup alc880_fixups[] = {
 			{ }
 		},
 	},
+	[ALC880_FIXUP_UNIWILL_DIG] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			/* disable bogus unused pins */
+			{ 0x17, 0x411111f0 },
+			{ 0x19, 0x411111f0 },
+			{ 0x1b, 0x411111f0 },
+			{ 0x1f, 0x411111f0 },
+			{ }
+		}
+	},
 };
 
 static const struct snd_pci_quirk alc880_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1019, 0x0f69, "Coeus G610P", ALC880_FIXUP_W810),
 	SND_PCI_QUIRK_VENDOR(0x1558, "Clevo", ALC880_FIXUP_EAPD_COEF),
+	SND_PCI_QUIRK(0x1584, 0x9050, "Uniwill", ALC880_FIXUP_UNIWILL_DIG),
 	SND_PCI_QUIRK(0x1584, 0x9054, "Uniwill", ALC880_FIXUP_F1734),
 	SND_PCI_QUIRK(0x1584, 0x9070, "Uniwill", ALC880_FIXUP_UNIWILL),
 	SND_PCI_QUIRK(0x1584, 0x9077, "Uniwill P53", ALC880_FIXUP_VOL_KNOB),

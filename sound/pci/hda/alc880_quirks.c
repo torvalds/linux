@@ -17,7 +17,6 @@ enum {
 	ALC880_ASUS_DIG,
 	ALC880_ASUS_W1V,
 	ALC880_ASUS_DIG2,
-	ALC880_UNIWILL_DIG,
 #ifdef CONFIG_SND_DEBUG
 	ALC880_TEST,
 #endif
@@ -852,7 +851,6 @@ static const struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1509, 0x925d, "FIC P4M", ALC880_6ST_DIG),
 	SND_PCI_QUIRK(0x1558, 0x5401, "ASUS", ALC880_ASUS_DIG2),
 	SND_PCI_QUIRK(0x1565, 0x8202, "Biostar", ALC880_5ST_DIG),
-	SND_PCI_QUIRK(0x1584, 0x9050, "Uniwill", ALC880_UNIWILL_DIG),
 	SND_PCI_QUIRK(0x1695, 0x400d, "EPoX", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x1695, 0x4012, "EPox EP-5LDA", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x2668, 0x8086, NULL, ALC880_6ST_DIG), /* broken BIOS */
@@ -1000,18 +998,6 @@ static const struct alc_config_preset alc880_presets[] = {
 		.init_verbs = { alc880_volume_init_verbs,
 				alc880_pin_asus_init_verbs,
 				alc880_gpio1_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc880_asus_dac_nids),
-		.dac_nids = alc880_asus_dac_nids,
-		.dig_out_nid = ALC880_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc880_asus_modes),
-		.channel_mode = alc880_asus_modes,
-		.need_dac_fix = 1,
-		.input_mux = &alc880_capture_source,
-	},
-	[ALC880_UNIWILL_DIG] = {
-		.mixers = { alc880_asus_mixer },
-		.init_verbs = { alc880_volume_init_verbs,
-				alc880_pin_asus_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_asus_dac_nids),
 		.dac_nids = alc880_asus_dac_nids,
 		.dig_out_nid = ALC880_DIGOUT_NID,
