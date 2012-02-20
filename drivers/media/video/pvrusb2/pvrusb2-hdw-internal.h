@@ -329,7 +329,7 @@ struct pvr2_hdw {
 
 	// Generated string names, one per actual V4L2 standard
 	const char *std_mask_ptrs[32];
-	char std_mask_names[32][10];
+	char std_mask_names[32][16];
 
 	int unit_number;             /* ID for driver instance */
 	unsigned long serial_number; /* ID for hardware itself */
