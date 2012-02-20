@@ -13,7 +13,6 @@ enum {
 	ALC880_Z71V,
 	ALC880_6ST,
 	ALC880_6ST_DIG,
-	ALC880_F1734,
 	ALC880_ASUS,
 	ALC880_ASUS_DIG,
 	ALC880_ASUS_W1V,
@@ -256,40 +255,6 @@ static const struct snd_kcontrol_new alc880_z71v_mixer[] = {
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
 	{ } /* end */
 };
-
-
-/*
- * ALC880 F1734 model
- *
- * DAC: HP = 0x02 (0x0c), Front = 0x03 (0x0d)
- * Pin assignment: HP = 0x14, Front = 0x15, Mic = 0x18
- */
-
-static const hda_nid_t alc880_f1734_dac_nids[1] = {
-	0x03
-};
-#define ALC880_F1734_HP_DAC	0x02
-
-static const struct snd_kcontrol_new alc880_f1734_mixer[] = {
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Headphone Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Speaker Playback Switch", 0x0d, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
-	{ } /* end */
-};
-
-static const struct hda_input_mux alc880_f1734_capture_source = {
-	.num_items = 2,
-	.items = {
-		{ "Mic", 0x1 },
-		{ "CD", 0x4 },
-	},
-};
-
 
 /*
  * ALC880 ASUS model
@@ -710,38 +675,6 @@ static void alc880_uniwill_p53_unsol_event(struct hda_codec *codec,
 }
 
 /*
- * F1734 pin configuration:
- * HP = 0x14, speaker-out = 0x15, mic = 0x18
- */
-static const struct hda_verb alc880_pin_f1734_init_verbs[] = {
-	{0x07, AC_VERB_SET_CONNECT_SEL, 0x01},
-	{0x10, AC_VERB_SET_CONNECT_SEL, 0x02},
-	{0x11, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x12, AC_VERB_SET_CONNECT_SEL, 0x01},
-	{0x13, AC_VERB_SET_CONNECT_SEL, 0x00},
-
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF50},
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-
-	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|ALC_HP_EVENT},
-	{0x21, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN|ALC_DCVOL_EVENT},
-
-	{ }
-};
-
-/*
  * ASUS pin configuration:
  * HP/front = 0x14, surr = 0x15, clfe = 0x16, mic = 0x18, line = 0x1a
  */
@@ -1059,7 +992,6 @@ static const char * const alc880_models[ALC880_MODEL_LAST] = {
 	[ALC880_ASUS_DIG2]	= "asus-dig2",
 	[ALC880_UNIWILL_DIG]	= "uniwill",
 	[ALC880_UNIWILL_P53]	= "uniwill-p53",
-	[ALC880_F1734]		= "F1734",
 #ifdef CONFIG_SND_DEBUG
 	[ALC880_TEST]		= "test",
 #endif
@@ -1103,13 +1035,10 @@ static const struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1558, 0x5401, "ASUS", ALC880_ASUS_DIG2),
 	SND_PCI_QUIRK(0x1565, 0x8202, "Biostar", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x1584, 0x9050, "Uniwill", ALC880_UNIWILL_DIG),
-	SND_PCI_QUIRK(0x1584, 0x9054, "Uniwill", ALC880_F1734),
 	SND_PCI_QUIRK(0x1584, 0x9070, "Uniwill", ALC880_UNIWILL),
 	SND_PCI_QUIRK(0x1584, 0x9077, "Uniwill P53", ALC880_UNIWILL_P53),
 	SND_PCI_QUIRK(0x1695, 0x400d, "EPoX", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x1695, 0x4012, "EPox EP-5LDA", ALC880_5ST_DIG),
-	SND_PCI_QUIRK(0x1734, 0x107c, "FSC F1734", ALC880_F1734),
-	SND_PCI_QUIRK(0x1734, 0x10ac, "FSC AMILO Xi 1526", ALC880_F1734),
 	SND_PCI_QUIRK(0x2668, 0x8086, NULL, ALC880_6ST_DIG), /* broken BIOS */
 	SND_PCI_QUIRK(0x8086, 0x2668, NULL, ALC880_6ST_DIG),
 	SND_PCI_QUIRK(0x8086, 0xa100, "Intel mobo", ALC880_5ST_DIG),
@@ -1211,20 +1140,6 @@ static const struct alc_config_preset alc880_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc880_2_jack_modes),
 		.channel_mode = alc880_2_jack_modes,
 		.input_mux = &alc880_capture_source,
-	},
-	[ALC880_F1734] = {
-		.mixers = { alc880_f1734_mixer },
-		.init_verbs = { alc880_volume_init_verbs,
-				alc880_pin_f1734_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc880_f1734_dac_nids),
-		.dac_nids = alc880_f1734_dac_nids,
-		.hp_nid = 0x02,
-		.num_channel_mode = ARRAY_SIZE(alc880_2_jack_modes),
-		.channel_mode = alc880_2_jack_modes,
-		.input_mux = &alc880_f1734_capture_source,
-		.unsol_event = alc880_uniwill_p53_unsol_event,
-		.setup = alc880_uniwill_p53_setup,
-		.init_hook = alc_hp_automute,
 	},
 	[ALC880_ASUS] = {
 		.mixers = { alc880_asus_mixer },
