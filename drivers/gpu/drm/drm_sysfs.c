@@ -454,6 +454,8 @@ void drm_sysfs_connector_remove(struct drm_connector *connector)
 {
 	int i;
 
+	if (!connector->kdev.parent)
+		return;
 	DRM_DEBUG("removing \"%s\" from sysfs\n",
 		  drm_get_connector_name(connector));
 
@@ -461,6 +463,7 @@ void drm_sysfs_connector_remove(struct drm_connector *connector)
 		device_remove_file(&connector->kdev, &connector_attrs[i]);
 	sysfs_remove_bin_file(&connector->kdev.kobj, &edid_attr);
 	device_unregister(&connector->kdev);
+	connector->kdev.parent = NULL;
 }
 EXPORT_SYMBOL(drm_sysfs_connector_remove);
 
@@ -533,7 +536,9 @@ err_out:
  */
 void drm_sysfs_device_remove(struct drm_minor *minor)
 {
-	device_unregister(&minor->kdev);
+	if (minor->kdev.parent)
+		device_unregister(&minor->kdev);
+	minor->kdev.parent = NULL;
 }
 
 
