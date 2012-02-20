@@ -53,7 +53,7 @@ static int mc13783_adc_read(struct device *dev,
 
 	ret = mc13xxx_adc_do_conversion(priv->mc13xxx,
 			MC13XXX_ADC_MODE_MULT_CHAN,
-			channel, sample);
+			channel, 0, 0, sample);
 	if (ret)
 		return ret;
 
