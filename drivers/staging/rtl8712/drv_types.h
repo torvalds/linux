@@ -37,6 +37,8 @@ struct _adapter;
 #include "wlan_bssdef.h"
 #include "rtl8712_spec.h"
 #include "rtl8712_hal.h"
+#include <linux/mutex.h>
+#include <linux/completion.h>
 
 enum _NIC_VERSION {
 	RTL8711_NIC,
@@ -168,6 +170,7 @@ struct _adapter {
 	s32	bSurpriseRemoved;
 	u32	IsrContent;
 	u32	ImrContent;
+	bool	fw_found;
 	u8	EepromAddressSize;
 	u8	hw_init_completed;
 	struct task_struct *cmdThread;
@@ -184,6 +187,10 @@ struct _adapter {
 	_workitem wkFilterRxFF0;
 	u8 blnEnableRxFF0Filter;
 	spinlock_t lockRxFF0Filter;
+	const struct firmware *fw;
+	struct usb_interface *pusb_intf;
+	struct mutex mutex_start;
+	struct completion rtl8712_fw_ready;
 };
 
 static inline u8 *myid(struct eeprom_priv *peepriv)

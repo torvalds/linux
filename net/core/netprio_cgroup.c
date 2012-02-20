@@ -58,11 +58,12 @@ static int get_prioidx(u32 *prio)
 
 	spin_lock_irqsave(&prioidx_map_lock, flags);
 	prioidx = find_first_zero_bit(prioidx_map, sizeof(unsigned long) * PRIOIDX_SZ);
+	if (prioidx == sizeof(unsigned long) * PRIOIDX_SZ) {
+		spin_unlock_irqrestore(&prioidx_map_lock, flags);
+		return -ENOSPC;
+	}
 	set_bit(prioidx, prioidx_map);
 	spin_unlock_irqrestore(&prioidx_map_lock, flags);
-	if (prioidx == sizeof(unsigned long) * PRIOIDX_SZ)
-		return -ENOSPC;
-
 	atomic_set(&max_prioidx, prioidx);
 	*prio = prioidx;
 	return 0;
@@ -107,7 +108,7 @@ static void extend_netdev_table(struct net_device *dev, u32 new_len)
 static void update_netdev_tables(void)
 {
 	struct net_device *dev;
-	u32 max_len = atomic_read(&max_prioidx);
+	u32 max_len = atomic_read(&max_prioidx) + 1;
 	struct netprio_map *map;
 
 	rtnl_lock();
@@ -270,7 +271,6 @@ static int netprio_device_event(struct notifier_block *unused,
 {
 	struct net_device *dev = ptr;
 	struct netprio_map *old;
-	u32 max_len = atomic_read(&max_prioidx);
 
 	/*
 	 * Note this is called with rtnl_lock held so we have update side
@@ -278,11 +278,6 @@ static int netprio_device_event(struct notifier_block *unused,
 	 */
 
 	switch (event) {
-
-	case NETDEV_REGISTER:
-		if (max_len)
-			extend_netdev_table(dev, max_len);
-		break;
 	case NETDEV_UNREGISTER:
 		old = rtnl_dereference(dev->priomap);
 		RCU_INIT_POINTER(dev->priomap, NULL);

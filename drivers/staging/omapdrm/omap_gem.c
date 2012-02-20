@@ -116,6 +116,9 @@ struct omap_gem_object {
 	} *sync;
 };
 
+static int get_pages(struct drm_gem_object *obj, struct page ***pages);
+static uint64_t mmap_offset(struct drm_gem_object *obj);
+
 /* To deal with userspace mmap'ings of 2d tiled buffers, which (a) are
  * not necessarily pinned in TILER all the time, and (b) when they are
  * they are not necessarily page aligned, we reserve one or more small
@@ -149,7 +152,7 @@ static void evict_entry(struct drm_gem_object *obj,
 {
 	if (obj->dev->dev_mapping) {
 		size_t size = PAGE_SIZE * usergart[fmt].height;
-		loff_t off = omap_gem_mmap_offset(obj) +
+		loff_t off = mmap_offset(obj) +
 				(entry->obj_pgoff << PAGE_SHIFT);
 		unmap_mapping_range(obj->dev->dev_mapping, off, size, 1);
 	}
@@ -188,8 +191,6 @@ static inline bool is_shmem(struct drm_gem_object *obj)
 {
 	return obj->filp != NULL;
 }
-
-static int get_pages(struct drm_gem_object *obj, struct page ***pages);
 
 static DEFINE_SPINLOCK(sync_lock);
 
@@ -251,7 +252,7 @@ static void omap_gem_detach_pages(struct drm_gem_object *obj)
 }
 
 /** get mmap offset */
-uint64_t omap_gem_mmap_offset(struct drm_gem_object *obj)
+static uint64_t mmap_offset(struct drm_gem_object *obj)
 {
 	if (!obj->map_list.map) {
 		/* Make it mmapable */
@@ -265,6 +266,15 @@ uint64_t omap_gem_mmap_offset(struct drm_gem_object *obj)
 	}
 
 	return (uint64_t)obj->map_list.hash.key << PAGE_SHIFT;
+}
+
+uint64_t omap_gem_mmap_offset(struct drm_gem_object *obj)
+{
+	uint64_t offset;
+	mutex_lock(&obj->dev->struct_mutex);
+	offset = mmap_offset(obj);
+	mutex_unlock(&obj->dev->struct_mutex);
+	return offset;
 }
 
 /** get mmap size */
@@ -1033,6 +1043,11 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 	if (obj->map_list.map) {
 		drm_gem_free_mmap_offset(obj);
 	}
+
+	/* this means the object is still pinned.. which really should
+	 * not happen.  I think..
+	 */
+	WARN_ON(omap_obj->paddr_cnt > 0);
 
 	/* don't free externally allocated backing memory */
 	if (!(omap_obj->flags & OMAP_BO_EXT_MEM)) {

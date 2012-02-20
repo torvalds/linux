@@ -969,11 +969,14 @@ static void atmci_start_request(struct atmel_mci *host,
 	host->data_status = 0;
 
 	if (host->need_reset) {
+		iflags = atmci_readl(host, ATMCI_IMR);
+		iflags &= (ATMCI_SDIOIRQA | ATMCI_SDIOIRQB);
 		atmci_writel(host, ATMCI_CR, ATMCI_CR_SWRST);
 		atmci_writel(host, ATMCI_CR, ATMCI_CR_MCIEN);
 		atmci_writel(host, ATMCI_MR, host->mode_reg);
 		if (host->caps.has_cfg_reg)
 			atmci_writel(host, ATMCI_CFG, host->cfg_reg);
+		atmci_writel(host, ATMCI_IER, iflags);
 		host->need_reset = false;
 	}
 	atmci_writel(host, ATMCI_SDCR, slot->sdc_reg);

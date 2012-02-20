@@ -60,8 +60,6 @@ source "drivers/staging/rts5139/Kconfig"
 
 source "drivers/staging/frontier/Kconfig"
 
-source "drivers/staging/pohmelfs/Kconfig"
-
 source "drivers/staging/phison/Kconfig"
 
 source "drivers/staging/line6/Kconfig"
@@ -119,8 +117,6 @@ source "drivers/staging/speakup/Kconfig"
 source "drivers/staging/cptm1217/Kconfig"
 
 source "drivers/staging/ste_rmi4/Kconfig"
-
-source "drivers/staging/gma500/Kconfig"
 
 source "drivers/staging/mei/Kconfig"
 
