@@ -32,6 +32,7 @@
 #define AB8500_IT_SOURCE6_REG		0x05
 #define AB8500_IT_SOURCE7_REG		0x06
 #define AB8500_IT_SOURCE8_REG		0x07
+#define AB9540_IT_SOURCE13_REG		0x0C
 #define AB8500_IT_SOURCE19_REG		0x12
 #define AB8500_IT_SOURCE20_REG		0x13
 #define AB8500_IT_SOURCE21_REG		0x14
@@ -53,6 +54,7 @@
 #define AB8500_IT_LATCH9_REG		0x28
 #define AB8500_IT_LATCH10_REG		0x29
 #define AB8500_IT_LATCH12_REG		0x2B
+#define AB9540_IT_LATCH13_REG		0x2C
 #define AB8500_IT_LATCH19_REG		0x32
 #define AB8500_IT_LATCH20_REG		0x33
 #define AB8500_IT_LATCH21_REG		0x34
@@ -95,6 +97,9 @@
 
 #define AB8500_TURN_ON_STATUS		0x00
 
+#define AB9540_MODEM_CTRL2_REG			0x23
+#define AB9540_MODEM_CTRL2_SWDBBRSTN_BIT	BIT(2)
+
 /*
  * Map interrupt numbers to the LATCH and MASK register offsets, Interrupt
  * numbers are indexed into this array with (num / 8). The interupts are
@@ -106,6 +111,11 @@
 /* AB8500 support */
 static const int ab8500_irq_regoffset[AB8500_NUM_IRQ_REGS] = {
 	0, 1, 2, 3, 4, 6, 7, 8, 9, 11, 18, 19, 20, 21,
+};
+
+/* AB9540 support */
+static const int ab9540_irq_regoffset[AB9540_NUM_IRQ_REGS] = {
+	0, 1, 2, 3, 4, 6, 7, 8, 9, 11, 18, 19, 20, 21, 12, 13, 24,
 };
 
 static const char ab8500_version_str[][7] = {
@@ -354,7 +364,10 @@ static int ab8500_irq_init(struct ab8500 *ab8500)
 	int irq;
 	int num_irqs;
 
-	num_irqs = AB8500_NR_IRQS;
+	if (is_ab9540(ab8500))
+		num_irqs = AB9540_NR_IRQS;
+	else
+		num_irqs = AB8500_NR_IRQS;
 
 	for (irq = base; irq < base + num_irqs; irq++) {
 		irq_set_chip_data(irq, ab8500);
@@ -377,7 +390,10 @@ static void ab8500_irq_remove(struct ab8500 *ab8500)
 	int irq;
 	int num_irqs;
 
-	num_irqs = AB8500_NR_IRQS;
+	if (is_ab9540(ab8500))
+		num_irqs = AB9540_NR_IRQS;
+	else
+		num_irqs = AB8500_NR_IRQS;
 
 	for (irq = base; irq < base + num_irqs; irq++) {
 #ifdef CONFIG_ARM
@@ -388,11 +404,34 @@ static void ab8500_irq_remove(struct ab8500 *ab8500)
 	}
 }
 
+/* AB8500 GPIO Resources */
 static struct resource __devinitdata ab8500_gpio_resources[] = {
 	{
 		.name	= "GPIO_INT6",
 		.start	= AB8500_INT_GPIO6R,
 		.end	= AB8500_INT_GPIO41F,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+/* AB9540 GPIO Resources */
+static struct resource __devinitdata ab9540_gpio_resources[] = {
+	{
+		.name	= "GPIO_INT6",
+		.start	= AB8500_INT_GPIO6R,
+		.end	= AB8500_INT_GPIO41F,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "GPIO_INT14",
+		.start	= AB9540_INT_GPIO50R,
+		.end	= AB9540_INT_GPIO54R,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "GPIO_INT15",
+		.start	= AB9540_INT_GPIO50F,
+		.end	= AB9540_INT_GPIO54F,
 		.flags	= IORESOURCE_IRQ,
 	}
 };
@@ -713,7 +752,7 @@ static struct resource __devinitdata ab8500_temp_resources[] = {
 	},
 };
 
-static struct mfd_cell __devinitdata ab8500_devs[] = {
+static struct mfd_cell __devinitdata abx500_common_devs[] = {
 #ifdef CONFIG_DEBUG_FS
 	{
 		.name = "ab8500-debug",
@@ -726,11 +765,6 @@ static struct mfd_cell __devinitdata ab8500_devs[] = {
 	},
 	{
 		.name = "ab8500-regulator",
-	},
-	{
-		.name = "ab8500-gpio",
-		.num_resources = ARRAY_SIZE(ab8500_gpio_resources),
-		.resources = ab8500_gpio_resources,
 	},
 	{
 		.name = "ab8500-gpadc",
@@ -770,11 +804,7 @@ static struct mfd_cell __devinitdata ab8500_devs[] = {
 	{
 		.name = "ab8500-codec",
 	},
-	{
-		.name = "ab8500-usb",
-		.num_resources = ARRAY_SIZE(ab8500_usb_resources),
-		.resources = ab8500_usb_resources,
-	},
+
 	{
 		.name = "ab8500-poweron-key",
 		.num_resources = ARRAY_SIZE(ab8500_poweronkey_db_resources),
@@ -800,6 +830,32 @@ static struct mfd_cell __devinitdata ab8500_devs[] = {
 		.name = "ab8500-temp",
 		.num_resources = ARRAY_SIZE(ab8500_temp_resources),
 		.resources = ab8500_temp_resources,
+	},
+};
+
+static struct mfd_cell __devinitdata ab8500_devs[] = {
+	{
+		.name = "ab8500-gpio",
+		.num_resources = ARRAY_SIZE(ab8500_gpio_resources),
+		.resources = ab8500_gpio_resources,
+	},
+	{
+		.name = "ab8500-usb",
+		.num_resources = ARRAY_SIZE(ab8500_usb_resources),
+		.resources = ab8500_usb_resources,
+	},
+};
+
+static struct mfd_cell __devinitdata ab9540_devs[] = {
+	{
+		.name = "ab8500-gpio",
+		.num_resources = ARRAY_SIZE(ab9540_gpio_resources),
+		.resources = ab9540_gpio_resources,
+	},
+	{
+		.name = "ab9540-usb",
+		.num_resources = ARRAY_SIZE(ab8500_usb_resources),
+		.resources = ab8500_usb_resources,
 	},
 };
 
@@ -864,9 +920,64 @@ static ssize_t show_turn_on_status(struct device *dev,
 	return sprintf(buf, "%#x\n", value);
 }
 
+static ssize_t show_ab9540_dbbrstn(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct ab8500 *ab8500;
+	int ret;
+	u8 value;
+
+	ab8500 = dev_get_drvdata(dev);
+
+	ret = get_register_interruptible(ab8500, AB8500_REGU_CTRL2,
+		AB9540_MODEM_CTRL2_REG, &value);
+	if (ret < 0)
+		return ret;
+
+	return sprintf(buf, "%d\n",
+			(value & AB9540_MODEM_CTRL2_SWDBBRSTN_BIT) ? 1 : 0);
+}
+
+static ssize_t store_ab9540_dbbrstn(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct ab8500 *ab8500;
+	int ret = count;
+	int err;
+	u8 bitvalues;
+
+	ab8500 = dev_get_drvdata(dev);
+
+	if (count > 0) {
+		switch (buf[0]) {
+		case '0':
+			bitvalues = 0;
+			break;
+		case '1':
+			bitvalues = AB9540_MODEM_CTRL2_SWDBBRSTN_BIT;
+			break;
+		default:
+			goto exit;
+		}
+
+		err = mask_and_set_register_interruptible(ab8500,
+			AB8500_REGU_CTRL2, AB9540_MODEM_CTRL2_REG,
+			AB9540_MODEM_CTRL2_SWDBBRSTN_BIT, bitvalues);
+		if (err)
+			dev_info(ab8500->dev,
+				"Failed to set DBBRSTN %c, err %#x\n",
+				buf[0], err);
+	}
+
+exit:
+	return ret;
+}
+
 static DEVICE_ATTR(chip_id, S_IRUGO, show_chip_id, NULL);
 static DEVICE_ATTR(switch_off_status, S_IRUGO, show_switch_off_status, NULL);
 static DEVICE_ATTR(turn_on_status, S_IRUGO, show_turn_on_status, NULL);
+static DEVICE_ATTR(dbbrstn, S_IRUGO | S_IWUSR,
+			show_ab9540_dbbrstn, store_ab9540_dbbrstn);
 
 static struct attribute *ab8500_sysfs_entries[] = {
 	&dev_attr_chip_id.attr,
@@ -875,8 +986,20 @@ static struct attribute *ab8500_sysfs_entries[] = {
 	NULL,
 };
 
+static struct attribute *ab9540_sysfs_entries[] = {
+	&dev_attr_chip_id.attr,
+	&dev_attr_switch_off_status.attr,
+	&dev_attr_turn_on_status.attr,
+	&dev_attr_dbbrstn.attr,
+	NULL,
+};
+
 static struct attribute_group ab8500_attr_group = {
 	.attrs	= ab8500_sysfs_entries,
+};
+
+static struct attribute_group ab9540_attr_group = {
+	.attrs	= ab9540_sysfs_entries,
 };
 
 int __devinit ab8500_init(struct ab8500 *ab8500, enum ab8500_version version)
@@ -915,8 +1038,14 @@ int __devinit ab8500_init(struct ab8500 *ab8500, enum ab8500_version version)
 			ab8500->chip_id >> 4,
 			ab8500->chip_id & 0x0F);
 
-	ab8500->mask_size = AB8500_NUM_IRQ_REGS;
-	ab8500->irq_reg_offset = ab8500_irq_regoffset;
+	/* Configure AB8500 or AB9540 IRQ */
+	if (is_ab9540(ab8500)) {
+		ab8500->mask_size = AB9540_NUM_IRQ_REGS;
+		ab8500->irq_reg_offset = ab9540_irq_regoffset;
+	} else {
+		ab8500->mask_size = AB8500_NUM_IRQ_REGS;
+		ab8500->irq_reg_offset = ab8500_irq_regoffset;
+	}
 	ab8500->mask = kzalloc(ab8500->mask_size, GFP_KERNEL);
 	if (!ab8500->mask)
 		return -ENOMEM;
@@ -982,17 +1111,34 @@ int __devinit ab8500_init(struct ab8500 *ab8500, enum ab8500_version version)
 			goto out_removeirq;
 	}
 
-	ret = mfd_add_devices(ab8500->dev, 0, ab8500_devs,
-			      ARRAY_SIZE(ab8500_devs), NULL,
+	ret = mfd_add_devices(ab8500->dev, 0, abx500_common_devs,
+			      ARRAY_SIZE(abx500_common_devs), NULL,
+			      ab8500->irq_base);
+
+	if (ret)
+		goto out_freeirq;
+
+	if (is_ab9540(ab8500))
+		ret = mfd_add_devices(ab8500->dev, 0, ab9540_devs,
+			      ARRAY_SIZE(ab9540_devs), NULL,
+			      ab8500->irq_base);
+	else
+		ret = mfd_add_devices(ab8500->dev, 0, ab8500_devs,
+			      ARRAY_SIZE(ab9540_devs), NULL,
 			      ab8500->irq_base);
 	if (ret)
 		goto out_freeirq;
 
-	ret = sysfs_create_group(&ab8500->dev->kobj, &ab8500_attr_group);
+	if (is_ab9540(ab8500))
+		ret = sysfs_create_group(&ab8500->dev->kobj,
+					&ab9540_attr_group);
+	else
+		ret = sysfs_create_group(&ab8500->dev->kobj,
+					&ab8500_attr_group);
 	if (ret)
 		dev_err(ab8500->dev, "error creating sysfs entries\n");
-
-	return ret;
+	else
+		return ret;
 
 out_freeirq:
 	if (ab8500->irq_base)
@@ -1010,7 +1156,10 @@ out_freemask:
 
 int __devexit ab8500_exit(struct ab8500 *ab8500)
 {
-	sysfs_remove_group(&ab8500->dev->kobj, &ab8500_attr_group);
+	if (is_ab9540(ab8500))
+		sysfs_remove_group(&ab8500->dev->kobj, &ab9540_attr_group);
+	else
+		sysfs_remove_group(&ab8500->dev->kobj, &ab8500_attr_group);
 	mfd_remove_devices(ab8500->dev);
 	if (ab8500->irq_base) {
 		free_irq(ab8500->irq, ab8500);
