@@ -283,6 +283,9 @@ struct mgmt_cp_start_discovery {
 } __packed;
 
 #define MGMT_OP_STOP_DISCOVERY		0x0024
+struct mgmt_cp_stop_discovery {
+	__u8 type;
+} __packed;
 
 #define MGMT_OP_CONFIRM_NAME		0x0025
 struct mgmt_cp_confirm_name {
