@@ -8,6 +8,7 @@
  */
 
 #include <linux/slab.h>
+#include <asm/unaligned.h>
 #include "wme.h"
 #include "mesh.h"
 
