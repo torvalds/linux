@@ -97,14 +97,7 @@
 #define USE_WAKEUP_LAT			0
 #define IGNORE_WAKEUP_LAT		1
 
-static int omap_device_register(struct platform_device *pdev);
 static int omap_early_device_register(struct platform_device *pdev);
-static struct omap_device *omap_device_alloc(struct platform_device *pdev,
-				      struct omap_hwmod **ohs, int oh_cnt,
-				      struct omap_device_pm_latency *pm_lats,
-				      int pm_lats_cnt);
-static void omap_device_delete(struct omap_device *od);
-
 
 static struct omap_device_pm_latency omap_default_latency[] = {
 	{
@@ -509,7 +502,7 @@ static int omap_device_fill_resources(struct omap_device *od,
  *
  * Returns an struct omap_device pointer or ERR_PTR() on error;
  */
-static struct omap_device *omap_device_alloc(struct platform_device *pdev,
+struct omap_device *omap_device_alloc(struct platform_device *pdev,
 					struct omap_hwmod **ohs, int oh_cnt,
 					struct omap_device_pm_latency *pm_lats,
 					int pm_lats_cnt)
@@ -591,7 +584,7 @@ oda_exit1:
 	return ERR_PTR(ret);
 }
 
-static void omap_device_delete(struct omap_device *od)
+void omap_device_delete(struct omap_device *od)
 {
 	if (!od)
 		return;
@@ -817,7 +810,7 @@ static struct dev_pm_domain omap_device_pm_domain = {
  * platform_device_register() on the underlying platform_device.
  * Returns the return value of platform_device_register().
  */
-static int omap_device_register(struct platform_device *pdev)
+int omap_device_register(struct platform_device *pdev)
 {
 	pr_debug("omap_device: %s: registering\n", pdev->name);
 
