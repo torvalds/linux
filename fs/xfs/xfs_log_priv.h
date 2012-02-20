@@ -470,6 +470,16 @@ struct xfs_cil {
 #define XLOG_CIL_HARD_SPACE_LIMIT(log)	(3 * (log->l_logsize >> 4))
 
 /*
+ * ticket grant locks, queues and accounting have their own cachlines
+ * as these are quite hot and can be operated on concurrently.
+ */
+struct xlog_grant_head {
+	spinlock_t		lock ____cacheline_aligned_in_smp;
+	struct list_head	waiters;
+	atomic64_t		grant;
+};
+
+/*
  * The reservation head lsn is not made up of a cycle number and block number.
  * Instead, it uses a cycle number and byte number.  Logs don't expect to
  * overflow 31 bits worth of byte offset, so using a byte number will mean
@@ -520,17 +530,8 @@ typedef struct log {
 	/* lsn of 1st LR with unflushed * buffers */
 	atomic64_t		l_tail_lsn ____cacheline_aligned_in_smp;
 
-	/*
-	 * ticket grant locks, queues and accounting have their own cachlines
-	 * as these are quite hot and can be operated on concurrently.
-	 */
-	spinlock_t		l_grant_reserve_lock ____cacheline_aligned_in_smp;
-	struct list_head	l_reserveq;
-	atomic64_t		l_grant_reserve_head;
-
-	spinlock_t		l_grant_write_lock ____cacheline_aligned_in_smp;
-	struct list_head	l_writeq;
-	atomic64_t		l_grant_write_head;
+	struct xlog_grant_head	l_reserve_head;
+	struct xlog_grant_head	l_write_head;
 
 	/* The following field are used for debugging; need to hold icloglock */
 #ifdef DEBUG
