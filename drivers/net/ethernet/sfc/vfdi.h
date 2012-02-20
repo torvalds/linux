@@ -152,7 +152,8 @@ enum vfdi_op {
  *	all traffic at this receive queue.
  * @u.mac_filter.flags: MAC filter flags.
  * @u.set_status_page.dma_addr: Base address for the &struct vfdi_status.
- *	This address must be such that the structure fits within a page.
+ *	This address must be page-aligned and the PF may write up to a
+ *	whole page (allowing for extension of the structure).
  * @u.set_status_page.peer_page_count: Number of additional pages the VF
  *	has provided into which peer addresses may be DMAd.
  * @u.set_status_page.peer_page_addr: Array of DMA addresses of pages.
