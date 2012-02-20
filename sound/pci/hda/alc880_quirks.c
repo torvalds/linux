@@ -18,7 +18,6 @@ enum {
 	ALC880_ASUS_DIG,
 	ALC880_ASUS_W1V,
 	ALC880_ASUS_DIG2,
-	ALC880_FUJITSU,
 	ALC880_UNIWILL_DIG,
 	ALC880_UNIWILL,
 	ALC880_UNIWILL_P53,
@@ -368,20 +367,6 @@ static const struct snd_kcontrol_new alc880_uniwill_mixer[] = {
 		.get = alc_ch_mode_get,
 		.put = alc_ch_mode_put,
 	},
-	{ } /* end */
-};
-
-static const struct snd_kcontrol_new alc880_fujitsu_mixer[] = {
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Headphone Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Speaker Playback Switch", 0x0d, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
 	{ } /* end */
 };
 
@@ -1074,7 +1059,6 @@ static const char * const alc880_models[ALC880_MODEL_LAST] = {
 	[ALC880_ASUS_DIG2]	= "asus-dig2",
 	[ALC880_UNIWILL_DIG]	= "uniwill",
 	[ALC880_UNIWILL_P53]	= "uniwill-p53",
-	[ALC880_FUJITSU]	= "fujitsu",
 	[ALC880_F1734]		= "F1734",
 #ifdef CONFIG_SND_DEBUG
 	[ALC880_TEST]		= "test",
@@ -1125,9 +1109,7 @@ static const struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1695, 0x400d, "EPoX", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x1695, 0x4012, "EPox EP-5LDA", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x1734, 0x107c, "FSC F1734", ALC880_F1734),
-	SND_PCI_QUIRK(0x1734, 0x1094, "FSC Amilo M1451G", ALC880_FUJITSU),
 	SND_PCI_QUIRK(0x1734, 0x10ac, "FSC AMILO Xi 1526", ALC880_F1734),
-	SND_PCI_QUIRK(0x1734, 0x10b0, "Fujitsu", ALC880_FUJITSU),
 	SND_PCI_QUIRK(0x2668, 0x8086, NULL, ALC880_6ST_DIG), /* broken BIOS */
 	SND_PCI_QUIRK(0x8086, 0x2668, NULL, ALC880_6ST_DIG),
 	SND_PCI_QUIRK(0x8086, 0xa100, "Intel mobo", ALC880_5ST_DIG),
@@ -1330,21 +1312,6 @@ static const struct alc_config_preset alc880_presets[] = {
 		.dac_nids = alc880_asus_dac_nids,
 		.num_channel_mode = ARRAY_SIZE(alc880_threestack_modes),
 		.channel_mode = alc880_threestack_modes,
-		.input_mux = &alc880_capture_source,
-		.unsol_event = alc880_uniwill_p53_unsol_event,
-		.setup = alc880_uniwill_p53_setup,
-		.init_hook = alc_hp_automute,
-	},
-	[ALC880_FUJITSU] = {
-		.mixers = { alc880_fujitsu_mixer },
-		.init_verbs = { alc880_volume_init_verbs,
-				alc880_uniwill_p53_init_verbs,
-	       			alc880_beep_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc880_dac_nids),
-		.dac_nids = alc880_dac_nids,
-		.dig_out_nid = ALC880_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc880_2_jack_modes),
-		.channel_mode = alc880_2_jack_modes,
 		.input_mux = &alc880_capture_source,
 		.unsol_event = alc880_uniwill_p53_unsol_event,
 		.setup = alc880_uniwill_p53_setup,

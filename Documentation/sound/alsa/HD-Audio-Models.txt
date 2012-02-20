@@ -14,7 +14,6 @@ ALC880
   asus-dig	ASUS with SPDIF out
   asus-dig2	ASUS with SPDIF out (using GPIO2)
   uniwill	3-jack
-  fujitsu	Fujitsu Laptops (Pi1536)
   F1734		2-jack
   test		for testing/debugging purpose, almost all controls can be
 		adjusted.  Appearing only when compiled with
