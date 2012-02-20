@@ -303,8 +303,8 @@ static void at91rm9200_restart(char mode, const char *cmd)
 	/*
 	 * Perform a hardware reset with the use of the Watchdog timer.
 	 */
-	at91_sys_write(AT91_ST_WDMR, AT91_ST_RSTEN | AT91_ST_EXTEN | 1);
-	at91_sys_write(AT91_ST_CR, AT91_ST_WDRST);
+	at91_st_write(AT91_ST_WDMR, AT91_ST_RSTEN | AT91_ST_EXTEN | 1);
+	at91_st_write(AT91_ST_CR, AT91_ST_WDRST);
 }
 
 /* --------------------------------------------------------------------
@@ -319,6 +319,7 @@ static void __init at91rm9200_map_io(void)
 
 static void __init at91rm9200_ioremap_registers(void)
 {
+	at91rm9200_ioremap_st(AT91RM9200_BASE_ST);
 }
 
 static void __init at91rm9200_initialize(void)
