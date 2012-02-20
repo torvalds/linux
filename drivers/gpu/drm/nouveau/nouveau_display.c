@@ -317,6 +317,9 @@ nouveau_display_create(struct drm_device *dev)
 		dev->mode_config.max_height = 8192;
 	}
 
+	dev->mode_config.preferred_depth = 24;
+	dev->mode_config.prefer_shadow = 1;
+
 	drm_kms_helper_poll_init(dev);
 	drm_kms_helper_poll_disable(dev);
 
