@@ -31,11 +31,24 @@
 
 #include "twl-common.h"
 #include "pm.h"
+#include "voltage.h"
 
 static struct i2c_board_info __initdata pmic_i2c_board_info = {
 	.addr		= 0x48,
 	.flags		= I2C_CLIENT_WAKE,
 };
+
+static int twl_set_voltage(void *data, int target_uV)
+{
+	struct voltagedomain *voltdm = (struct voltagedomain *)data;
+	return voltdm_scale(voltdm, target_uV);
+}
+
+static int twl_get_voltage(void *data)
+{
+	struct voltagedomain *voltdm = (struct voltagedomain *)data;
+	return voltdm_get_voltage(voltdm);
+}
 
 void __init omap_pmic_init(int bus, u32 clkrate,
 			   const char *pmic_type, int pmic_irq,
@@ -158,6 +171,16 @@ static struct regulator_init_data omap3_vdd2 = {
 	.consumer_supplies		= omap3_vdd2_supply,
 };
 
+static struct twl_regulator_driver_data omap3_vdd1_drvdata = {
+	.get_voltage = twl_get_voltage,
+	.set_voltage = twl_set_voltage,
+};
+
+static struct twl_regulator_driver_data omap3_vdd2_drvdata = {
+	.get_voltage = twl_get_voltage,
+	.set_voltage = twl_set_voltage,
+};
+
 void __init omap3_pmic_get_config(struct twl4030_platform_data *pmic_data,
 				  u32 pdata_flags, u32 regulators_flags)
 {
@@ -165,10 +188,16 @@ void __init omap3_pmic_get_config(struct twl4030_platform_data *pmic_data,
 		pmic_data->irq_base = TWL4030_IRQ_BASE;
 	if (!pmic_data->irq_end)
 		pmic_data->irq_end = TWL4030_IRQ_END;
-	if (!pmic_data->vdd1)
+	if (!pmic_data->vdd1) {
+		omap3_vdd1.driver_data = &omap3_vdd1_drvdata;
+		omap3_vdd1_drvdata.data = voltdm_lookup("mpu_iva");
 		pmic_data->vdd1 = &omap3_vdd1;
-	if (!pmic_data->vdd2)
+	}
+	if (!pmic_data->vdd2) {
+		omap3_vdd2.driver_data = &omap3_vdd2_drvdata;
+		omap3_vdd2_drvdata.data = voltdm_lookup("core");
 		pmic_data->vdd2 = &omap3_vdd2;
+	}
 
 	/* Common platform data configurations */
 	if (pdata_flags & TWL_COMMON_PDATA_USB && !pmic_data->usb)
