@@ -189,6 +189,67 @@ void hci_send_to_control(struct sk_buff *skb, struct sock *skip_sk)
 	read_unlock(&hci_sk_list.lock);
 }
 
+/* Generate internal stack event */
+static void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data)
+{
+	struct hci_event_hdr *hdr;
+	struct hci_ev_stack_internal *ev;
+	struct sk_buff *skb;
+
+	skb = bt_skb_alloc(HCI_EVENT_HDR_SIZE + sizeof(*ev) + dlen, GFP_ATOMIC);
+	if (!skb)
+		return;
+
+	hdr = (void *) skb_put(skb, HCI_EVENT_HDR_SIZE);
+	hdr->evt  = HCI_EV_STACK_INTERNAL;
+	hdr->plen = sizeof(*ev) + dlen;
+
+	ev  = (void *) skb_put(skb, sizeof(*ev) + dlen);
+	ev->type = type;
+	memcpy(ev->data, data, dlen);
+
+	bt_cb(skb)->incoming = 1;
+	__net_timestamp(skb);
+
+	bt_cb(skb)->pkt_type = HCI_EVENT_PKT;
+	skb->dev = (void *) hdev;
+	hci_send_to_sock(hdev, skb);
+	kfree_skb(skb);
+}
+
+void hci_sock_dev_event(struct hci_dev *hdev, int event)
+{
+	struct hci_ev_si_device ev;
+
+	BT_DBG("hdev %s event %d", hdev->name, event);
+
+	/* Send event to sockets */
+	ev.event  = event;
+	ev.dev_id = hdev->id;
+	hci_si_event(NULL, HCI_EV_SI_DEVICE, sizeof(ev), &ev);
+
+	if (event == HCI_DEV_UNREG) {
+		struct sock *sk;
+		struct hlist_node *node;
+
+		/* Detach sockets from device */
+		read_lock(&hci_sk_list.lock);
+		sk_for_each(sk, node, &hci_sk_list.head) {
+			bh_lock_sock_nested(sk);
+			if (hci_pi(sk)->hdev == hdev) {
+				hci_pi(sk)->hdev = NULL;
+				sk->sk_err = EPIPE;
+				sk->sk_state = BT_OPEN;
+				sk->sk_state_change(sk);
+
+				hci_dev_put(hdev);
+			}
+			bh_unlock_sock(sk);
+		}
+		read_unlock(&hci_sk_list.lock);
+	}
+}
+
 static int hci_sock_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
@@ -821,50 +882,10 @@ static int hci_sock_create(struct net *net, struct socket *sock, int protocol,
 	return 0;
 }
 
-static int hci_sock_dev_event(struct notifier_block *this, unsigned long event, void *ptr)
-{
-	struct hci_dev *hdev = (struct hci_dev *) ptr;
-	struct hci_ev_si_device ev;
-
-	BT_DBG("hdev %s event %ld", hdev->name, event);
-
-	/* Send event to sockets */
-	ev.event  = event;
-	ev.dev_id = hdev->id;
-	hci_si_event(NULL, HCI_EV_SI_DEVICE, sizeof(ev), &ev);
-
-	if (event == HCI_DEV_UNREG) {
-		struct sock *sk;
-		struct hlist_node *node;
-
-		/* Detach sockets from device */
-		read_lock(&hci_sk_list.lock);
-		sk_for_each(sk, node, &hci_sk_list.head) {
-			bh_lock_sock_nested(sk);
-			if (hci_pi(sk)->hdev == hdev) {
-				hci_pi(sk)->hdev = NULL;
-				sk->sk_err = EPIPE;
-				sk->sk_state = BT_OPEN;
-				sk->sk_state_change(sk);
-
-				hci_dev_put(hdev);
-			}
-			bh_unlock_sock(sk);
-		}
-		read_unlock(&hci_sk_list.lock);
-	}
-
-	return NOTIFY_DONE;
-}
-
 static const struct net_proto_family hci_sock_family_ops = {
 	.family	= PF_BLUETOOTH,
 	.owner	= THIS_MODULE,
 	.create	= hci_sock_create,
-};
-
-static struct notifier_block hci_sock_nblock = {
-	.notifier_call = hci_sock_dev_event
 };
 
 int __init hci_sock_init(void)
@@ -878,8 +899,6 @@ int __init hci_sock_init(void)
 	err = bt_sock_register(BTPROTO_HCI, &hci_sock_family_ops);
 	if (err < 0)
 		goto error;
-
-	hci_register_notifier(&hci_sock_nblock);
 
 	BT_INFO("HCI socket layer initialized");
 
@@ -895,8 +914,6 @@ void hci_sock_cleanup(void)
 {
 	if (bt_sock_unregister(BTPROTO_HCI) < 0)
 		BT_ERR("HCI socket unregistration failed");
-
-	hci_unregister_notifier(&hci_sock_nblock);
 
 	proto_unregister(&hci_sk_proto);
 }

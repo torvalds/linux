@@ -35,7 +35,6 @@
 #include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
 #include <net/sock.h>
 
 #include <asm/system.h>
