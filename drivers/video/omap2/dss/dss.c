@@ -786,18 +786,6 @@ static int omap_dsshw_probe(struct platform_device *pdev)
 	dss.lcd_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
 	dss.lcd_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
 
-	r = dpi_init();
-	if (r) {
-		DSSERR("Failed to initialize DPI\n");
-		goto err_dpi;
-	}
-
-	r = sdi_init();
-	if (r) {
-		DSSERR("Failed to initialize SDI\n");
-		goto err_sdi;
-	}
-
 	rev = dss_read_reg(DSS_REVISION);
 	printk(KERN_INFO "OMAP DSS rev %d.%d\n",
 			FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
@@ -805,10 +793,7 @@ static int omap_dsshw_probe(struct platform_device *pdev)
 	dss_runtime_put();
 
 	return 0;
-err_sdi:
-	dpi_exit();
-err_dpi:
-	dss_runtime_put();
+
 err_runtime_get:
 	pm_runtime_disable(&pdev->dev);
 	dss_put_clocks();
@@ -817,9 +802,6 @@ err_runtime_get:
 
 static int omap_dsshw_remove(struct platform_device *pdev)
 {
-	dpi_exit();
-	sdi_exit();
-
 	pm_runtime_disable(&pdev->dev);
 
 	dss_put_clocks();

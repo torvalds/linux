@@ -272,17 +272,12 @@ int dss_calc_clock_div(bool is_tft, unsigned long req_pck,
 
 /* SDI */
 #ifdef CONFIG_OMAP2_DSS_SDI
-int sdi_init(void);
-void sdi_exit(void);
+int sdi_init_platform_driver(void);
+void sdi_uninit_platform_driver(void);
 int sdi_init_display(struct omap_dss_device *display);
 #else
-static inline int sdi_init(void)
-{
-	return 0;
-}
-static inline void sdi_exit(void)
-{
-}
+static inline int sdi_init_platform_driver(void) { return 0; }
+static inline void sdi_uninit_platform_driver(void) { }
 #endif
 
 /* DSI */
@@ -384,17 +379,12 @@ static inline struct platform_device *dsi_get_dsidev_from_id(int module)
 
 /* DPI */
 #ifdef CONFIG_OMAP2_DSS_DPI
-int dpi_init(void);
-void dpi_exit(void);
+int dpi_init_platform_driver(void);
+void dpi_uninit_platform_driver(void);
 int dpi_init_display(struct omap_dss_device *dssdev);
 #else
-static inline int dpi_init(void)
-{
-	return 0;
-}
-static inline void dpi_exit(void)
-{
-}
+static inline int dpi_init_platform_driver(void) { return 0; }
+static inline void dpi_uninit_platform_driver(void) { }
 #endif
 
 /* DISPC */

@@ -379,12 +379,31 @@ int dpi_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-int dpi_init(void)
+static int omap_dpi_probe(struct platform_device *pdev)
 {
 	return 0;
 }
 
-void dpi_exit(void)
+static int omap_dpi_remove(struct platform_device *pdev)
 {
+	return 0;
 }
 
+static struct platform_driver omap_dpi_driver = {
+	.probe		= omap_dpi_probe,
+	.remove         = omap_dpi_remove,
+	.driver         = {
+		.name   = "omapdss_dpi",
+		.owner  = THIS_MODULE,
+	},
+};
+
+int dpi_init_platform_driver(void)
+{
+	return platform_driver_register(&omap_dpi_driver);
+}
+
+void dpi_uninit_platform_driver(void)
+{
+	platform_driver_unregister(&omap_dpi_driver);
+}

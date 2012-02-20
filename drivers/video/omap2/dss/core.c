@@ -536,6 +536,18 @@ static int __init omap_dss_register_drivers(void)
 		goto err_dispc;
 	}
 
+	r = dpi_init_platform_driver();
+	if (r) {
+		DSSERR("Failed to initialize dpi platform driver\n");
+		goto err_dpi;
+	}
+
+	r = sdi_init_platform_driver();
+	if (r) {
+		DSSERR("Failed to initialize sdi platform driver\n");
+		goto err_sdi;
+	}
+
 	r = rfbi_init_platform_driver();
 	if (r) {
 		DSSERR("Failed to initialize rfbi platform driver\n");
@@ -569,6 +581,10 @@ err_dsi:
 err_venc:
 	rfbi_uninit_platform_driver();
 err_rfbi:
+	sdi_uninit_platform_driver();
+err_sdi:
+	dpi_uninit_platform_driver();
+err_dpi:
 	dispc_uninit_platform_driver();
 err_dispc:
 	dss_uninit_platform_driver();
@@ -584,6 +600,8 @@ static void __exit omap_dss_unregister_drivers(void)
 	dsi_uninit_platform_driver();
 	venc_uninit_platform_driver();
 	rfbi_uninit_platform_driver();
+	sdi_uninit_platform_driver();
+	dpi_uninit_platform_driver();
 	dispc_uninit_platform_driver();
 	dss_uninit_platform_driver();
 

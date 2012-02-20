@@ -24,6 +24,7 @@
 #include <linux/err.h>
 #include <linux/regulator/consumer.h>
 #include <linux/export.h>
+#include <linux/platform_device.h>
 
 #include <video/omapdss.h>
 #include "dss.h"
@@ -182,11 +183,31 @@ int sdi_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-int sdi_init(void)
+static int omap_sdi_probe(struct platform_device *pdev)
 {
 	return 0;
 }
 
-void sdi_exit(void)
+static int omap_sdi_remove(struct platform_device *pdev)
 {
+	return 0;
+}
+
+static struct platform_driver omap_sdi_driver = {
+	.probe		= omap_sdi_probe,
+	.remove         = omap_sdi_remove,
+	.driver         = {
+		.name   = "omapdss_sdi",
+		.owner  = THIS_MODULE,
+	},
+};
+
+int sdi_init_platform_driver(void)
+{
+	return platform_driver_register(&omap_sdi_driver);
+}
+
+void sdi_uninit_platform_driver(void)
+{
+	platform_driver_unregister(&omap_sdi_driver);
 }
