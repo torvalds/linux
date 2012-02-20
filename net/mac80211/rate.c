@@ -314,7 +314,7 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
 		info->control.rates[i].idx = -1;
 		info->control.rates[i].flags = 0;
-		info->control.rates[i].count = 1;
+		info->control.rates[i].count = 0;
 	}
 
 	if (sdata->local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL)
