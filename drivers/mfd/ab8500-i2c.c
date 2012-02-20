@@ -38,6 +38,7 @@ static int ab8500_i2c_read(struct ab8500 *ab8500, u16 addr)
 
 static int __devinit ab8500_i2c_probe(struct platform_device *plf)
 {
+	const struct platform_device_id *platid = platform_get_device_id(plf);
 	struct ab8500 *ab8500;
 	struct resource *resource;
 	int ret;
@@ -61,9 +62,10 @@ static int __devinit ab8500_i2c_probe(struct platform_device *plf)
 
 	platform_set_drvdata(plf, ab8500);
 
-	ret = ab8500_init(ab8500);
+	ret = ab8500_init(ab8500, platid->driver_data);
 	if (ret)
 		kfree(ab8500);
+
 
 	return ret;
 }
@@ -78,13 +80,22 @@ static int __devexit ab8500_i2c_remove(struct platform_device *plf)
 	return 0;
 }
 
+static const struct platform_device_id ab8500_id[] = {
+	{ "ab8500-i2c", AB8500_VERSION_AB8500 },
+	{ "ab8505-i2c", AB8500_VERSION_AB8505 },
+	{ "ab9540-i2c", AB8500_VERSION_AB9540 },
+	{ "ab8540-i2c", AB8500_VERSION_AB8540 },
+	{ }
+};
+
 static struct platform_driver ab8500_i2c_driver = {
 	.driver = {
 		.name = "ab8500-i2c",
 		.owner = THIS_MODULE,
 	},
 	.probe	= ab8500_i2c_probe,
-	.remove	= __devexit_p(ab8500_i2c_remove)
+	.remove	= __devexit_p(ab8500_i2c_remove),
+	.id_table = ab8500_id,
 };
 
 static int __init ab8500_i2c_init(void)

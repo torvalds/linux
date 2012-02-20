@@ -90,6 +90,7 @@
 #define AB8500_IT_MASK24_REG		0x57
 
 #define AB8500_REV_REG			0x80
+#define AB8500_IC_NAME_REG		0x82
 #define AB8500_SWITCH_OFF_STATUS	0x00
 
 #define AB8500_TURN_ON_STATUS		0x00
@@ -103,6 +104,13 @@
  */
 static const int ab8500_irq_regoffset[AB8500_NUM_IRQ_REGS] = {
 	0, 1, 2, 3, 4, 6, 7, 8, 9, 11, 18, 19, 20, 21,
+};
+
+static const char ab8500_version_str[][7] = {
+	[AB8500_VERSION_AB8500] = "AB8500",
+	[AB8500_VERSION_AB8505] = "AB8505",
+	[AB8500_VERSION_AB9540] = "AB9540",
+	[AB8500_VERSION_AB8540] = "AB8540",
 };
 
 static int ab8500_get_chip_id(struct device *dev)
@@ -256,9 +264,12 @@ static void ab8500_irq_sync_unlock(struct irq_data *data)
 		if (new == old)
 			continue;
 
-		/* Interrupt register 12 doesn't exist prior to version 2.0 */
-		if (ab8500_irq_regoffset[i] == 11 &&
-			ab8500->chip_id < AB8500_CUT2P0)
+		/*
+		 * Interrupt register 12 doesn't exist prior to AB8500 version
+		 * 2.0
+		 */
+		if (ab8500->irq_reg_offset[i] == 11 &&
+			is_ab8500_1p1_or_earlier(ab8500))
 			continue;
 
 		ab8500->oldmask[i] = new;
@@ -311,8 +322,11 @@ static irqreturn_t ab8500_irq(int irq, void *dev)
 		int status;
 		u8 value;
 
-		/* Interrupt register 12 doesn't exist prior to version 2.0 */
-		if (regoffset == 11 && ab8500->chip_id < AB8500_CUT2P0)
+		/*
+		 * Interrupt register 12 doesn't exist prior to AB8500 version
+		 * 2.0
+		 */
+		if (regoffset == 11 && is_ab8500_1p1_or_earlier(ab8500))
 			continue;
 
 		status = get_register_interruptible(ab8500, AB8500_INTERRUPT,
@@ -857,7 +871,7 @@ static struct attribute_group ab8500_attr_group = {
 	.attrs	= ab8500_sysfs_entries,
 };
 
-int __devinit ab8500_init(struct ab8500 *ab8500)
+int __devinit ab8500_init(struct ab8500 *ab8500, enum ab8500_version version)
 {
 	struct ab8500_platform_data *plat = dev_get_platdata(ab8500->dev);
 	int ret;
@@ -870,24 +884,28 @@ int __devinit ab8500_init(struct ab8500 *ab8500)
 	mutex_init(&ab8500->lock);
 	mutex_init(&ab8500->irq_lock);
 
+	if (version != AB8500_VERSION_UNDEFINED)
+		ab8500->version = version;
+	else {
+		ret = get_register_interruptible(ab8500, AB8500_MISC,
+			AB8500_IC_NAME_REG, &value);
+		if (ret < 0)
+			return ret;
+
+		ab8500->version = value;
+	}
+
 	ret = get_register_interruptible(ab8500, AB8500_MISC,
 		AB8500_REV_REG, &value);
 	if (ret < 0)
 		return ret;
 
-	switch (value) {
-	case AB8500_CUT1P0:
-	case AB8500_CUT1P1:
-	case AB8500_CUT2P0:
-	case AB8500_CUT3P0:
-	case AB8500_CUT3P3:
-		dev_info(ab8500->dev, "detected chip, revision: %#x\n", value);
-		break;
-	default:
-		dev_err(ab8500->dev, "unknown chip, revision: %#x\n", value);
-		return -EINVAL;
-	}
 	ab8500->chip_id = value;
+
+	dev_info(ab8500->dev, "detected chip, %s rev. %1x.%1x\n",
+			ab8500_version_str[ab8500->version],
+			ab8500->chip_id >> 4,
+			ab8500->chip_id & 0x0F);
 
 	/*
 	 * ab8500 has switched off due to (SWITCH_OFF_STATUS):
@@ -912,9 +930,12 @@ int __devinit ab8500_init(struct ab8500 *ab8500)
 
 	/* Clear and mask all interrupts */
 	for (i = 0; i < AB8500_NUM_IRQ_REGS; i++) {
-		/* Interrupt register 12 doesn't exist prior to version 2.0 */
-		if (ab8500_irq_regoffset[i] == 11 &&
-			ab8500->chip_id < AB8500_CUT2P0)
+		/*
+		 * Interrupt register 12 doesn't exist prior to AB8500 version
+		 * 2.0
+		 */
+		if (ab8500->irq_reg_offset[i] == 11 &&
+				is_ab8500_1p1_or_earlier(ab8500))
 			continue;
 
 		get_register_interruptible(ab8500, AB8500_INTERRUPT,

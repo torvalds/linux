@@ -8,6 +8,28 @@
 #define MFD_AB8500_H
 
 #include <linux/device.h>
+/*
+ * AB IC versions
+ *
+ * AB8500_VERSION_AB8500 should be 0xFF but will never be read as need a
+ * non-supported multi-byte I2C access via PRCMU. Set to 0x00 to ease the
+ * print of version string.
+ */
+enum ab8500_version {
+	AB8500_VERSION_AB8500 = 0x0,
+	AB8500_VERSION_AB8505 = 0x1,
+	AB8500_VERSION_AB9540 = 0x2,
+	AB8500_VERSION_AB8540 = 0x3,
+	AB8500_VERSION_UNDEFINED,
+};
+
+/* AB8500 CIDs*/
+#define AB8500_CUTEARLY	0x00
+#define AB8500_CUT1P0	0x10
+#define AB8500_CUT1P1	0x11
+#define AB8500_CUT2P0	0x20
+#define AB8500_CUT3P0	0x30
+#define AB8500_CUT3P3	0x33
 
 /*
  * AB8500 bank addresses
@@ -145,6 +167,7 @@
  * @lock: read/write operations lock
  * @irq_lock: genirq bus lock
  * @irq: irq line
+ * @version: chip version id (e.g. ab8500 or ab9540)
  * @chip_id: chip revision id
  * @write: register write
  * @read: register read
@@ -160,6 +183,7 @@ struct ab8500 {
 
 	int		irq_base;
 	int		irq;
+	enum ab8500_version version;
 	u8		chip_id;
 
 	int (*write) (struct ab8500 *a8500, u16 addr, u8 data);
@@ -195,7 +219,40 @@ struct ab8500_platform_data {
 	struct ab8500_gpio_platform_data *gpio;
 };
 
-extern int __devinit ab8500_init(struct ab8500 *ab8500);
+extern int __devinit ab8500_init(struct ab8500 *ab8500,
+				 enum ab8500_version version);
 extern int __devexit ab8500_exit(struct ab8500 *ab8500);
+
+static inline int is_ab8500(struct ab8500 *ab)
+{
+	return ab->version == AB8500_VERSION_AB8500;
+}
+
+static inline int is_ab8505(struct ab8500 *ab)
+{
+	return ab->version == AB8500_VERSION_AB8505;
+}
+
+static inline int is_ab9540(struct ab8500 *ab)
+{
+	return ab->version == AB8500_VERSION_AB9540;
+}
+
+static inline int is_ab8540(struct ab8500 *ab)
+{
+	return ab->version == AB8500_VERSION_AB8540;
+}
+
+/* include also ab8505, ab9540... */
+static inline int is_ab8500_1p1_or_earlier(struct ab8500 *ab)
+{
+	return (is_ab8500(ab) && (ab->chip_id <= AB8500_CUT1P1));
+}
+
+/* include also ab8505, ab9540... */
+static inline int is_ab8500_2p0_or_earlier(struct ab8500 *ab)
+{
+	return (is_ab8500(ab) && (ab->chip_id <= AB8500_CUT2P0));
+}
 
 #endif /* MFD_AB8500_H */
