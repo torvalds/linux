@@ -297,7 +297,6 @@ static struct stub_device *stub_device_alloc(struct usb_device *udev,
 	sdev->devid		= (busnum << 16) | devnum;
 	sdev->ud.side		= USBIP_STUB;
 	sdev->ud.status		= SDEV_ST_AVAILABLE;
-	/* sdev->ud.lock = SPIN_LOCK_UNLOCKED; */
 	spin_lock_init(&sdev->ud.lock);
 	sdev->ud.tcp_socket	= NULL;
 
@@ -306,7 +305,6 @@ static struct stub_device *stub_device_alloc(struct usb_device *udev,
 	INIT_LIST_HEAD(&sdev->priv_free);
 	INIT_LIST_HEAD(&sdev->unlink_free);
 	INIT_LIST_HEAD(&sdev->unlink_tx);
-	/* sdev->priv_lock = SPIN_LOCK_UNLOCKED; */
 	spin_lock_init(&sdev->priv_lock);
 
 	init_waitqueue_head(&sdev->tx_waitq);

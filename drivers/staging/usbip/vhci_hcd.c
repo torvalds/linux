@@ -895,14 +895,12 @@ static void vhci_device_init(struct vhci_device *vdev)
 
 	vdev->ud.side   = USBIP_VHCI;
 	vdev->ud.status = VDEV_ST_NULL;
-	/* vdev->ud.lock   = SPIN_LOCK_UNLOCKED; */
 	spin_lock_init(&vdev->ud.lock);
 
 	INIT_LIST_HEAD(&vdev->priv_rx);
 	INIT_LIST_HEAD(&vdev->priv_tx);
 	INIT_LIST_HEAD(&vdev->unlink_tx);
 	INIT_LIST_HEAD(&vdev->unlink_rx);
-	/* vdev->priv_lock = SPIN_LOCK_UNLOCKED; */
 	spin_lock_init(&vdev->priv_lock);
 
 	init_waitqueue_head(&vdev->waitq_tx);
