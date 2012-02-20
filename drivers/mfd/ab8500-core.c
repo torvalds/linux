@@ -97,11 +97,13 @@
 
 /*
  * Map interrupt numbers to the LATCH and MASK register offsets, Interrupt
- * numbers are indexed into this array with (num / 8).
+ * numbers are indexed into this array with (num / 8). The interupts are
+ * defined in linux/mfd/ab8500.h
  *
  * This is one off from the register names, i.e. AB8500_IT_MASK1_REG is at
  * offset 0.
  */
+/* AB8500 support */
 static const int ab8500_irq_regoffset[AB8500_NUM_IRQ_REGS] = {
 	0, 1, 2, 3, 4, 6, 7, 8, 9, 11, 18, 19, 20, 21,
 };
@@ -256,7 +258,7 @@ static void ab8500_irq_sync_unlock(struct irq_data *data)
 	struct ab8500 *ab8500 = irq_data_get_irq_chip_data(data);
 	int i;
 
-	for (i = 0; i < AB8500_NUM_IRQ_REGS; i++) {
+	for (i = 0; i < ab8500->mask_size; i++) {
 		u8 old = ab8500->oldmask[i];
 		u8 new = ab8500->mask[i];
 		int reg;
@@ -274,7 +276,7 @@ static void ab8500_irq_sync_unlock(struct irq_data *data)
 
 		ab8500->oldmask[i] = new;
 
-		reg = AB8500_IT_MASK1_REG + ab8500_irq_regoffset[i];
+		reg = AB8500_IT_MASK1_REG + ab8500->irq_reg_offset[i];
 		set_register_interruptible(ab8500, AB8500_INTERRUPT, reg, new);
 	}
 
@@ -317,8 +319,8 @@ static irqreturn_t ab8500_irq(int irq, void *dev)
 
 	dev_vdbg(ab8500->dev, "interrupt\n");
 
-	for (i = 0; i < AB8500_NUM_IRQ_REGS; i++) {
-		int regoffset = ab8500_irq_regoffset[i];
+	for (i = 0; i < ab8500->mask_size; i++) {
+		int regoffset = ab8500->irq_reg_offset[i];
 		int status;
 		u8 value;
 
@@ -350,8 +352,11 @@ static int ab8500_irq_init(struct ab8500 *ab8500)
 {
 	int base = ab8500->irq_base;
 	int irq;
+	int num_irqs;
 
-	for (irq = base; irq < base + AB8500_NR_IRQS; irq++) {
+	num_irqs = AB8500_NR_IRQS;
+
+	for (irq = base; irq < base + num_irqs; irq++) {
 		irq_set_chip_data(irq, ab8500);
 		irq_set_chip_and_handler(irq, &ab8500_irq_chip,
 					 handle_simple_irq);
@@ -370,8 +375,11 @@ static void ab8500_irq_remove(struct ab8500 *ab8500)
 {
 	int base = ab8500->irq_base;
 	int irq;
+	int num_irqs;
 
-	for (irq = base; irq < base + AB8500_NR_IRQS; irq++) {
+	num_irqs = AB8500_NR_IRQS;
+
+	for (irq = base; irq < base + num_irqs; irq++) {
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, 0);
 #endif
@@ -907,6 +915,16 @@ int __devinit ab8500_init(struct ab8500 *ab8500, enum ab8500_version version)
 			ab8500->chip_id >> 4,
 			ab8500->chip_id & 0x0F);
 
+	ab8500->mask_size = AB8500_NUM_IRQ_REGS;
+	ab8500->irq_reg_offset = ab8500_irq_regoffset;
+	ab8500->mask = kzalloc(ab8500->mask_size, GFP_KERNEL);
+	if (!ab8500->mask)
+		return -ENOMEM;
+	ab8500->oldmask = kzalloc(ab8500->mask_size, GFP_KERNEL);
+	if (!ab8500->oldmask) {
+		ret = -ENOMEM;
+		goto out_freemask;
+	}
 	/*
 	 * ab8500 has switched off due to (SWITCH_OFF_STATUS):
 	 * 0x01 Swoff bit programming
@@ -929,7 +947,7 @@ int __devinit ab8500_init(struct ab8500 *ab8500, enum ab8500_version version)
 		plat->init(ab8500);
 
 	/* Clear and mask all interrupts */
-	for (i = 0; i < AB8500_NUM_IRQ_REGS; i++) {
+	for (i = 0; i < ab8500->mask_size; i++) {
 		/*
 		 * Interrupt register 12 doesn't exist prior to AB8500 version
 		 * 2.0
@@ -939,23 +957,23 @@ int __devinit ab8500_init(struct ab8500 *ab8500, enum ab8500_version version)
 			continue;
 
 		get_register_interruptible(ab8500, AB8500_INTERRUPT,
-			AB8500_IT_LATCH1_REG + ab8500_irq_regoffset[i],
+			AB8500_IT_LATCH1_REG + ab8500->irq_reg_offset[i],
 			&value);
 		set_register_interruptible(ab8500, AB8500_INTERRUPT,
-			AB8500_IT_MASK1_REG + ab8500_irq_regoffset[i], 0xff);
+			AB8500_IT_MASK1_REG + ab8500->irq_reg_offset[i], 0xff);
 	}
 
 	ret = abx500_register_ops(ab8500->dev, &ab8500_ops);
 	if (ret)
-		return ret;
+		goto out_freeoldmask;
 
-	for (i = 0; i < AB8500_NUM_IRQ_REGS; i++)
+	for (i = 0; i < ab8500->mask_size; i++)
 		ab8500->mask[i] = ab8500->oldmask[i] = 0xff;
 
 	if (ab8500->irq_base) {
 		ret = ab8500_irq_init(ab8500);
 		if (ret)
-			return ret;
+			goto out_freeoldmask;
 
 		ret = request_threaded_irq(ab8500->irq, NULL, ab8500_irq,
 					   IRQF_ONESHOT | IRQF_NO_SUSPEND,
@@ -982,6 +1000,10 @@ out_freeirq:
 out_removeirq:
 	if (ab8500->irq_base)
 		ab8500_irq_remove(ab8500);
+out_freeoldmask:
+	kfree(ab8500->oldmask);
+out_freemask:
+	kfree(ab8500->mask);
 
 	return ret;
 }
@@ -994,6 +1016,8 @@ int __devexit ab8500_exit(struct ab8500 *ab8500)
 		free_irq(ab8500->irq, ab8500);
 		ab8500_irq_remove(ab8500);
 	}
+	kfree(ab8500->oldmask);
+	kfree(ab8500->mask);
 
 	return 0;
 }

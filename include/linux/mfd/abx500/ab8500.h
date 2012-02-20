@@ -175,6 +175,9 @@ enum ab8500_version {
  * @tx_buf: tx buf for SPI
  * @mask: cache of IRQ regs for bus lock
  * @oldmask: cache of previous IRQ regs for bus lock
+ * @mask_size: Actual number of valid entries in mask[], oldmask[] and
+ * irq_reg_offset
+ * @irq_reg_offset: Array of offsets into IRQ registers
  */
 struct ab8500 {
 	struct device	*dev;
@@ -192,8 +195,10 @@ struct ab8500 {
 	unsigned long	tx_buf[4];
 	unsigned long	rx_buf[4];
 
-	u8 mask[AB8500_NUM_IRQ_REGS];
-	u8 oldmask[AB8500_NUM_IRQ_REGS];
+	u8 *mask;
+	u8 *oldmask;
+	int mask_size;
+	const int *irq_reg_offset;
 };
 
 struct regulator_reg_init;
