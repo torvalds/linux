@@ -76,8 +76,11 @@ EXPORT_SYMBOL_GPL(jump_label_inc);
 static void __jump_label_dec(struct jump_label_key *key,
 		unsigned long rate_limit, struct delayed_work *work)
 {
-	if (!atomic_dec_and_mutex_lock(&key->enabled, &jump_label_mutex))
+	if (!atomic_dec_and_mutex_lock(&key->enabled, &jump_label_mutex)) {
+		WARN(atomic_read(&key->enabled) < 0,
+		     "jump label: negative count!\n");
 		return;
+	}
 
 	if (rate_limit) {
 		atomic_inc(&key->enabled);
