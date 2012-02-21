@@ -278,24 +278,24 @@ static void hdmi_compute_pll(struct omap_dss_device *dssdev, int phy,
 
 	refclk = clkin / pi->regn;
 
-	/*
-	 * multiplier is pixel_clk/ref_clk
-	 * Multiplying by 100 to avoid fractional part removal
-	 */
-	pi->regm = (phy * 100 / (refclk)) / 100;
-
 	if (dssdev->clocks.hdmi.regm2 == 0)
 		pi->regm2 = HDMI_DEFAULT_REGM2;
 	else
 		pi->regm2 = dssdev->clocks.hdmi.regm2;
 
 	/*
+	 * multiplier is pixel_clk/ref_clk
+	 * Multiplying by 100 to avoid fractional part removal
+	 */
+	pi->regm = phy * pi->regm2 / refclk;
+
+	/*
 	 * fractional multiplier is remainder of the difference between
 	 * multiplier and actual phy(required pixel clock thus should be
 	 * multiplied by 2^18(262144) divided by the reference clock
 	 */
-	mf = (phy - pi->regm * refclk) * 262144;
-	pi->regmf = mf / (refclk);
+	mf = (phy - pi->regm / pi->regm2 * refclk) * 262144;
+	pi->regmf = pi->regm2 * mf / refclk;
 
 	/*
 	 * Dcofreq should be set to 1 if required pixel clock
