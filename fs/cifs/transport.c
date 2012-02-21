@@ -257,6 +257,8 @@ smb_send(struct TCP_Server_Info *server, struct smb_hdr *smb_buffer,
 static int
 wait_for_free_request(struct TCP_Server_Info *server, const int long_op)
 {
+	int rc;
+
 	spin_lock(&server->req_lock);
 
 	if (long_op == CIFS_ASYNC_OP) {
@@ -271,8 +273,11 @@ wait_for_free_request(struct TCP_Server_Info *server, const int long_op)
 		if (server->credits <= 0) {
 			spin_unlock(&server->req_lock);
 			cifs_num_waiters_inc(server);
-			wait_event(server->request_q, has_credits(server));
+			rc = wait_event_killable(server->request_q,
+						 has_credits(server));
 			cifs_num_waiters_dec(server);
+			if (rc)
+				return rc;
 			spin_lock(&server->req_lock);
 		} else {
 			if (server->tcpStatus == CifsExiting) {
