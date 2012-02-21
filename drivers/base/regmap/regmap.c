@@ -604,16 +604,32 @@ EXPORT_SYMBOL_GPL(regmap_read);
 int regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 		    size_t val_len)
 {
-	size_t val_count = val_len / map->format.val_bytes;
-	int ret;
-
-	WARN_ON(!regmap_volatile_range(map, reg, val_count) &&
-		map->cache_type != REGCACHE_NONE);
+	size_t val_bytes = map->format.val_bytes;
+	size_t val_count = val_len / val_bytes;
+	unsigned int v;
+	int ret, i;
 
 	mutex_lock(&map->lock);
 
-	ret = _regmap_raw_read(map, reg, val, val_len);
+	if (regmap_volatile_range(map, reg, val_count) || map->cache_bypass ||
+	    map->cache_type == REGCACHE_NONE) {
+		/* Physical block read if there's no cache involved */
+		ret = _regmap_raw_read(map, reg, val, val_len);
 
+	} else {
+		/* Otherwise go word by word for the cache; should be low
+		 * cost as we expect to hit the cache.
+		 */
+		for (i = 0; i < val_count; i++) {
+			ret = _regmap_read(map, reg + i, &v);
+			if (ret != 0)
+				goto out;
+
+			map->format.format_val(val + (i * val_bytes), v);
+		}
+	}
+
+ out:
 	mutex_unlock(&map->lock);
 
 	return ret;
