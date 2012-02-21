@@ -802,7 +802,7 @@ static int et131x_init_eeprom(struct et131x_adapter *adapter)
 	/* THIS IS A WORKAROUND:
 	 * I need to call this function twice to get my card in a
 	 * LG M1 Express Dual running. I tried also a msleep before this
-	 * function, because I thougth there could be some time condidions
+	 * function, because I thought there could be some time condidions
 	 * but it didn't work. Call the whole function twice also work.
 	 */
 	if (pci_read_config_byte(pdev, ET1310_PCI_EEPROM_STATUS, &eestatus)) {
@@ -987,7 +987,7 @@ static void et1310_config_mac_regs1(struct et131x_adapter *adapter)
 	writel(station1, &macregs->station_addr_1);
 	writel(station2, &macregs->station_addr_2);
 
-	/* Max ethernet packet in bytes that will passed by the mac without
+	/* Max ethernet packet in bytes that will be passed by the mac without
 	 * being truncated.  Allow the MAC to pass 4 more than our max packet
 	 * size.  This is 4 for the Ethernet CRC.
 	 *
@@ -4413,7 +4413,7 @@ static void et131x_up(struct net_device *netdev)
 
 /**
  * et131x_down - Bring down the device
- * @netdev: device to be broght down
+ * @netdev: device to be brought down
  */
 static void et131x_down(struct net_device *netdev)
 {
