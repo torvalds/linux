@@ -604,8 +604,16 @@ static void service_cache_off(struct work_struct *work)
 
 static void mgmt_init_hdev(struct hci_dev *hdev)
 {
-	if (!test_and_set_bit(HCI_MGMT, &hdev->dev_flags))
+	if (!test_and_set_bit(HCI_MGMT, &hdev->dev_flags)) {
 		INIT_DELAYED_WORK(&hdev->service_cache, service_cache_off);
+
+		/* Non-mgmt controlled devices get this bit set
+		 * implicitly so that pairing works for them, however
+		 * for mgmt we require user-space to explicitly enable
+		 * it
+		 */
+		clear_bit(HCI_PAIRABLE, &hdev->dev_flags);
+	}
 
 	if (!test_and_set_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
 		schedule_delayed_work(&hdev->service_cache,
