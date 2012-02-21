@@ -927,14 +927,17 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 		 */
 		ret = ath6kl_wmi_beginscan_cmd(ar->wmi, vif->fw_vif_idx,
 						WMI_LONG_SCAN, force_fg_scan,
-						false, 0, 0, n_channels,
-						channels, request->no_cck,
+						false, 0,
+						ATH6KL_FG_SCAN_INTERVAL,
+						n_channels, channels,
+						request->no_cck,
 						request->rates);
 	} else {
 		ret = ath6kl_wmi_startscan_cmd(ar->wmi, vif->fw_vif_idx,
 						WMI_LONG_SCAN, force_fg_scan,
-						false, 0, 0, n_channels,
-						channels);
+						false, 0,
+						ATH6KL_FG_SCAN_INTERVAL,
+						n_channels, channels);
 	}
 	if (ret)
 		ath6kl_err("wmi_startscan_cmd failed\n");

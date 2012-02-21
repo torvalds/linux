@@ -63,6 +63,9 @@
 #define A_DEFAULT_LISTEN_INTERVAL         1      /* beacon intervals */
 #define A_MAX_WOW_LISTEN_INTERVAL         1000
 
+/* Channel dwell time in fg scan */
+#define ATH6KL_FG_SCAN_INTERVAL		50 /* in ms */
+
 /* includes also the null byte */
 #define ATH6KL_FIRMWARE_MAGIC               "QCA-ATH6KL"
 
