@@ -58,9 +58,9 @@ void au_hn_free(struct au_hinode *hinode)
 
 	hn = hinode->hi_notify;
 	if (hn) {
-		au_hnotify_op.free(hinode);
-		au_cache_free_hnotify(hn);
 		hinode->hi_notify = NULL;
+		if (au_hnotify_op.free(hinode, hn))
+			au_cache_free_hnotify(hn);
 	}
 }
 
