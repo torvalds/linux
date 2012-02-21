@@ -35,11 +35,7 @@
 struct imx_pcm_runtime_data {
 	int period_bytes;
 	int periods;
-	int dma;
 	unsigned long offset;
-	unsigned long size;
-	void *buf;
-	int period_time;
 	struct dma_async_tx_descriptor *desc;
 	struct dma_chan *dma_chan;
 	struct imx_dma_data dma_data;
@@ -144,18 +140,13 @@ static int snd_imx_pcm_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	chan = iprtd->dma_chan;
 
-	iprtd->size = params_buffer_bytes(params);
 	iprtd->periods = params_periods(params);
 	iprtd->period_bytes = params_period_bytes(params);
 	iprtd->offset = 0;
-	iprtd->period_time = HZ / (params_rate(params) /
-			params_period_size(params));
 
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 
 	dma_addr = runtime->dma_addr;
-
-	iprtd->buf = (unsigned int *)substream->dma_buffer.area;
 
 	iprtd->desc = chan->device->device_prep_dma_cyclic(chan, dma_addr,
 			iprtd->period_bytes * iprtd->periods,
