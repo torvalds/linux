@@ -3224,6 +3224,9 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 		snd_soc_jack_report(wm8994->micdet[0].jack,
 				    SND_JACK_MECHANICAL, SND_JACK_MECHANICAL);
 
+		snd_soc_update_bits(codec, WM8958_MICBIAS2,
+				    WM8958_MICB2_DISCH, 0);
+
 		/*
 		 * Start off measument of microphone impedence to find
 		 * out what's actually there.
@@ -3234,6 +3237,9 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 				    WM8958_MICD_ENA, WM8958_MICD_ENA);
 	} else {
 		dev_dbg(codec->dev, "Jack not detected\n");
+
+		snd_soc_update_bits(codec, WM8958_MICBIAS2,
+				    WM8958_MICB2_DISCH, WM8958_MICB2_DISCH);
 
 		snd_soc_jack_report(wm8994->micdet[0].jack, 0,
 				    SND_JACK_MECHANICAL | SND_JACK_HEADSET |
@@ -3320,6 +3326,9 @@ int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 		 * otherwise jump straight to microphone detection.
 		 */
 		if (wm8994->jackdet) {
+			snd_soc_update_bits(codec, WM8958_MICBIAS2,
+					    WM8958_MICB2_DISCH,
+					    WM8958_MICB2_DISCH);
 			snd_soc_update_bits(codec, WM8994_LDO_1,
 					    WM8994_LDO1_DISCH, 0);
 			wm1811_jackdet_set_mode(codec,
