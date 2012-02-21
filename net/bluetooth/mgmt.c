@@ -392,10 +392,7 @@ static u32 get_current_settings(struct hci_dev *hdev)
 {
 	u32 settings = 0;
 
-	if (!test_bit(HCI_UP, &hdev->flags))
-		return settings;
-
-	if (!test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
+	if (hdev_is_powered(hdev))
 		settings |= MGMT_SETTING_POWERED;
 
 	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
