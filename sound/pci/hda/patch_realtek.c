@@ -222,8 +222,6 @@ struct alc_spec {
 	struct snd_array bind_ctls;
 };
 
-#define ALC_MODEL_AUTO		0	/* common for all chips */
-
 static bool check_amp_caps(struct hda_codec *codec, hda_nid_t nid,
 			   int dir, unsigned int bits)
 {
@@ -1071,45 +1069,6 @@ static bool alc_check_dyn_adc_switch(struct hda_codec *codec)
 
 	snd_printdd("realtek: enabling ADC switching\n");
 	spec->dyn_adc_switch = 1;
-	return true;
-}
-
-/* rebuild imux for matching with the given auto-mic pins (if not yet) */
-static bool alc_rebuild_imux_for_auto_mic(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	struct hda_input_mux *imux;
-	static char * const texts[3] = {
-		"Mic", "Internal Mic", "Dock Mic"
-	};
-	int i;
-
-	if (!spec->auto_mic)
-		return false;
-	imux = &spec->private_imux[0];
-	if (spec->input_mux == imux)
-		return true;
-	spec->imux_pins[0] = spec->ext_mic_pin;
-	spec->imux_pins[1] = spec->int_mic_pin;
-	spec->imux_pins[2] = spec->dock_mic_pin;
-	for (i = 0; i < 3; i++) {
-		strcpy(imux->items[i].label, texts[i]);
-		if (spec->imux_pins[i]) {
-			hda_nid_t pin = spec->imux_pins[i];
-			int c;
-			for (c = 0; c < spec->num_adc_nids; c++) {
-				hda_nid_t cap = get_capsrc(spec, c);
-				int idx = get_connection_index(codec, cap, pin);
-				if (idx >= 0) {
-					imux->items[i].index = idx;
-					break;
-				}
-			}
-			imux->num_items = i + 1;
-		}
-	}
-	spec->num_mux_defs = 1;
-	spec->input_mux = imux;
 	return true;
 }
 
@@ -2092,6 +2051,7 @@ static int alc_build_controls(struct hda_codec *codec)
  */
 
 static void alc_init_special_input_src(struct hda_codec *codec);
+static void alc_auto_init_std(struct hda_codec *codec);
 
 static int alc_init(struct hda_codec *codec)
 {
@@ -2104,6 +2064,7 @@ static int alc_init(struct hda_codec *codec)
 	for (i = 0; i < spec->num_init_verbs; i++)
 		snd_hda_sequence_write(codec, spec->init_verbs[i]);
 	alc_init_special_input_src(codec);
+	alc_auto_init_std(codec);
 
 	if (spec->init_hook)
 		spec->init_hook(codec);
@@ -4442,6 +4403,9 @@ static int alc_parse_auto_config(struct hda_codec *codec,
 	if (spec->kctls.list)
 		add_mixer(spec, spec->kctls.list);
 
+	if (!spec->no_analog && !spec->cap_mixer)
+		set_capture_mixer(codec);
+
 	return 1;
 }
 
@@ -4844,15 +4808,6 @@ static int patch_alc880(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->no_analog && !spec->adc_nids) {
-		alc_auto_fill_adc_caps(codec);
-		alc_rebuild_imux_for_auto_mic(codec);
-		alc_remove_invalid_adc_nids(codec);
-	}
-
-	if (!spec->no_analog && !spec->cap_mixer)
-		set_capture_mixer(codec);
-
 	if (!spec->no_analog) {
 		err = snd_hda_attach_beep_device(codec, 0x1);
 		if (err < 0)
@@ -4861,7 +4816,6 @@ static int patch_alc880(struct hda_codec *codec)
 	}
 
 	codec->patch_ops = alc_patch_ops;
-	spec->init_hook = alc_auto_init_std;
 
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
 
@@ -5009,15 +4963,6 @@ static int patch_alc260(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->no_analog && !spec->adc_nids) {
-		alc_auto_fill_adc_caps(codec);
-		alc_rebuild_imux_for_auto_mic(codec);
-		alc_remove_invalid_adc_nids(codec);
-	}
-
-	if (!spec->no_analog && !spec->cap_mixer)
-		set_capture_mixer(codec);
-
 	if (!spec->no_analog) {
 		err = snd_hda_attach_beep_device(codec, 0x1);
 		if (err < 0)
@@ -5026,7 +4971,6 @@ static int patch_alc260(struct hda_codec *codec)
 	}
 
 	codec->patch_ops = alc_patch_ops;
-	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc_eapd_shutup;
 
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
@@ -5477,15 +5421,6 @@ static int patch_alc882(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->no_analog && !spec->adc_nids) {
-		alc_auto_fill_adc_caps(codec);
-		alc_rebuild_imux_for_auto_mic(codec);
-		alc_remove_invalid_adc_nids(codec);
-	}
-
-	if (!spec->no_analog && !spec->cap_mixer)
-		set_capture_mixer(codec);
-
 	if (!spec->no_analog && has_cdefine_beep(codec)) {
 		err = snd_hda_attach_beep_device(codec, 0x1);
 		if (err < 0)
@@ -5494,7 +5429,6 @@ static int patch_alc882(struct hda_codec *codec)
 	}
 
 	codec->patch_ops = alc_patch_ops;
-	spec->init_hook = alc_auto_init_std;
 
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
 
@@ -5631,15 +5565,6 @@ static int patch_alc262(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->no_analog && !spec->adc_nids) {
-		alc_auto_fill_adc_caps(codec);
-		alc_rebuild_imux_for_auto_mic(codec);
-		alc_remove_invalid_adc_nids(codec);
-	}
-
-	if (!spec->no_analog && !spec->cap_mixer)
-		set_capture_mixer(codec);
-
 	if (!spec->no_analog && has_cdefine_beep(codec)) {
 		err = snd_hda_attach_beep_device(codec, 0x1);
 		if (err < 0)
@@ -5648,7 +5573,6 @@ static int patch_alc262(struct hda_codec *codec)
 	}
 
 	codec->patch_ops = alc_patch_ops;
-	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc_eapd_shutup;
 
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
@@ -5745,17 +5669,7 @@ static int patch_alc268(struct hda_codec *codec)
 					  (0 << AC_AMPCAP_MUTE_SHIFT));
 	}
 
-	if (!spec->no_analog && !spec->adc_nids) {
-		alc_auto_fill_adc_caps(codec);
-		alc_rebuild_imux_for_auto_mic(codec);
-		alc_remove_invalid_adc_nids(codec);
-	}
-
-	if (!spec->no_analog && !spec->cap_mixer)
-		set_capture_mixer(codec);
-
 	codec->patch_ops = alc_patch_ops;
-	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc_eapd_shutup;
 
 	return 0;
@@ -6283,15 +6197,6 @@ static int patch_alc269(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->no_analog && !spec->adc_nids) {
-		alc_auto_fill_adc_caps(codec);
-		alc_rebuild_imux_for_auto_mic(codec);
-		alc_remove_invalid_adc_nids(codec);
-	}
-
-	if (!spec->no_analog && !spec->cap_mixer)
-		set_capture_mixer(codec);
-
 	if (!spec->no_analog && has_cdefine_beep(codec)) {
 		err = snd_hda_attach_beep_device(codec, 0x1);
 		if (err < 0)
@@ -6303,7 +6208,6 @@ static int patch_alc269(struct hda_codec *codec)
 #ifdef CONFIG_PM
 	codec->patch_ops.resume = alc269_resume;
 #endif
-	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc269_shutup;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -6424,15 +6328,6 @@ static int patch_alc861(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->no_analog && !spec->adc_nids) {
-		alc_auto_fill_adc_caps(codec);
-		alc_rebuild_imux_for_auto_mic(codec);
-		alc_remove_invalid_adc_nids(codec);
-	}
-
-	if (!spec->no_analog && !spec->cap_mixer)
-		set_capture_mixer(codec);
-
 	if (!spec->no_analog) {
 		err = snd_hda_attach_beep_device(codec, 0x23);
 		if (err < 0)
@@ -6441,7 +6336,6 @@ static int patch_alc861(struct hda_codec *codec)
 	}
 
 	codec->patch_ops = alc_patch_ops;
-	spec->init_hook = alc_auto_init_std;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->power_hook = alc_power_eapd;
 #endif
@@ -6542,15 +6436,6 @@ static int patch_alc861vd(struct hda_codec *codec)
 		add_verb(spec, alc660vd_eapd_verbs);
 	}
 
-	if (!spec->no_analog && !spec->adc_nids) {
-		alc_auto_fill_adc_caps(codec);
-		alc_rebuild_imux_for_auto_mic(codec);
-		alc_remove_invalid_adc_nids(codec);
-	}
-
-	if (!spec->no_analog && !spec->cap_mixer)
-		set_capture_mixer(codec);
-
 	if (!spec->no_analog) {
 		err = snd_hda_attach_beep_device(codec, 0x23);
 		if (err < 0)
@@ -6560,7 +6445,6 @@ static int patch_alc861vd(struct hda_codec *codec)
 
 	codec->patch_ops = alc_patch_ops;
 
-	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc_eapd_shutup;
 
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
@@ -6912,15 +6796,6 @@ static int patch_alc662(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	if (!spec->no_analog && !spec->adc_nids) {
-		alc_auto_fill_adc_caps(codec);
-		alc_rebuild_imux_for_auto_mic(codec);
-		alc_remove_invalid_adc_nids(codec);
-	}
-
-	if (!spec->no_analog && !spec->cap_mixer)
-		set_capture_mixer(codec);
-
 	if (!spec->no_analog && has_cdefine_beep(codec)) {
 		err = snd_hda_attach_beep_device(codec, 0x1);
 		if (err < 0)
@@ -6941,7 +6816,6 @@ static int patch_alc662(struct hda_codec *codec)
 	}
 
 	codec->patch_ops = alc_patch_ops;
-	spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc_eapd_shutup;
 
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PROBE);
@@ -6984,11 +6858,7 @@ static int patch_alc680(struct hda_codec *codec)
 		return err;
 	}
 
-	if (!spec->no_analog && !spec->cap_mixer)
-		set_capture_mixer(codec);
-
 	codec->patch_ops = alc_patch_ops;
-	spec->init_hook = alc_auto_init_std;
 
 	return 0;
 }
