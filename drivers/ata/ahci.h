@@ -210,6 +210,9 @@ enum {
 	AHCI_HFLAG_NO_SNTF		= (1 << 12), /* no sntf */
 	AHCI_HFLAG_NO_FPDMA_AA		= (1 << 13), /* no FPDMA AA */
 	AHCI_HFLAG_YES_FBS		= (1 << 14), /* force FBS cap on */
+	AHCI_HFLAG_DELAY_ENGINE		= (1 << 15), /* do not start engine on
+						        port start (wait until
+						        error-handling stage) */
 
 	/* ap->flags bits */
 
