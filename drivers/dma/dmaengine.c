@@ -510,8 +510,8 @@ struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, v
 					 dma_chan_name(chan));
 				list_del_rcu(&device->global_node);
 			} else if (err)
-				pr_debug("dmaengine: failed to get %s: (%d)\n",
-					 dma_chan_name(chan), err);
+				pr_debug("%s: failed to get %s: (%d)\n",
+					__func__, dma_chan_name(chan), err);
 			else
 				break;
 			if (--device->privatecnt == 0)
@@ -564,8 +564,8 @@ void dmaengine_get(void)
 				list_del_rcu(&device->global_node);
 				break;
 			} else if (err)
-				pr_err("dmaengine: failed to get %s: (%d)\n",
-				       dma_chan_name(chan), err);
+				pr_err("%s: failed to get %s: (%d)\n",
+					__func__, dma_chan_name(chan), err);
 		}
 	}
 
