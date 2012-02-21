@@ -419,70 +419,9 @@ static inline void __clear_fpu(struct task_struct *tsk)
 	}
 }
 
-/*
- * Were we in an interrupt that interrupted kernel mode?
- *
- * We can do a kernel_fpu_begin/end() pair *ONLY* if that
- * pair does nothing at all: the thread must not have fpu (so
- * that we don't try to save the FPU state), and TS must
- * be set (so that the clts/stts pair does nothing that is
- * visible in the interrupted kernel thread).
- */
-static inline bool interrupted_kernel_fpu_idle(void)
-{
-	return !__thread_has_fpu(current) &&
-		(read_cr0() & X86_CR0_TS);
-}
-
-/*
- * Were we in user mode (or vm86 mode) when we were
- * interrupted?
- *
- * Doing kernel_fpu_begin/end() is ok if we are running
- * in an interrupt context from user mode - we'll just
- * save the FPU state as required.
- */
-static inline bool interrupted_user_mode(void)
-{
-	struct pt_regs *regs = get_irq_regs();
-	return regs && user_mode_vm(regs);
-}
-
-/*
- * Can we use the FPU in kernel mode with the
- * whole "kernel_fpu_begin/end()" sequence?
- *
- * It's always ok in process context (ie "not interrupt")
- * but it is sometimes ok even from an irq.
- */
-static inline bool irq_fpu_usable(void)
-{
-	return !in_interrupt() ||
-		interrupted_user_mode() ||
-		interrupted_kernel_fpu_idle();
-}
-
-static inline void kernel_fpu_begin(void)
-{
-	struct task_struct *me = current;
-
-	WARN_ON_ONCE(!irq_fpu_usable());
-	preempt_disable();
-	if (__thread_has_fpu(me)) {
-		__save_init_fpu(me);
-		__thread_clear_has_fpu(me);
-		/* We do 'stts()' in kernel_fpu_end() */
-	} else {
-		percpu_write(fpu_owner_task, NULL);
-		clts();
-	}
-}
-
-static inline void kernel_fpu_end(void)
-{
-	stts();
-	preempt_enable();
-}
+extern bool irq_fpu_usable(void);
+extern void kernel_fpu_begin(void);
+extern void kernel_fpu_end(void);
 
 /*
  * Some instructions like VIA's padlock instructions generate a spurious
@@ -566,16 +505,7 @@ static inline void save_init_fpu(struct task_struct *tsk)
 	preempt_enable();
 }
 
-static inline void unlazy_fpu(struct task_struct *tsk)
-{
-	preempt_disable();
-	if (__thread_has_fpu(tsk)) {
-		__save_init_fpu(tsk);
-		__thread_fpu_end(tsk);
-	} else
-		tsk->fpu_counter = 0;
-	preempt_enable();
-}
+extern void unlazy_fpu(struct task_struct *tsk);
 
 static inline void clear_fpu(struct task_struct *tsk)
 {
