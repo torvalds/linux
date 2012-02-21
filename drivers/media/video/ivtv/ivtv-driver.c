@@ -55,7 +55,7 @@
 #include "ivtv-routing.h"
 #include "ivtv-controls.h"
 #include "ivtv-gpio.h"
-
+#include <linux/dma-mapping.h>
 #include <media/tveeprom.h>
 #include <media/saa7115.h>
 #include <media/v4l2-chip-ident.h>
@@ -813,7 +813,7 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 		IVTV_ERR("Can't enable device!\n");
 		return -EIO;
 	}
-	if (pci_set_dma_mask(pdev, 0xffffffff)) {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		IVTV_ERR("No suitable DMA available.\n");
 		return -EIO;
 	}
