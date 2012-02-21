@@ -21,6 +21,7 @@
 #include <asm/idle.h>
 #include <asm/uaccess.h>
 #include <asm/i387.h>
+#include <asm/fpu-internal.h>
 #include <asm/debugreg.h>
 
 struct kmem_cache *task_xstate_cachep;

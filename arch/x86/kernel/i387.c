@@ -16,6 +16,7 @@
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/i387.h>
+#include <asm/fpu-internal.h>
 #include <asm/user.h>
 
 #ifdef CONFIG_X86_64
@@ -124,7 +125,7 @@ EXPORT_SYMBOL_GPL(xstate_size);
 unsigned int sig_xstate_ia32_size = sizeof(struct _fpstate_ia32);
 static struct i387_fxsave_struct fx_scratch __cpuinitdata;
 
-void __cpuinit mxcsr_feature_mask_init(void)
+static void __cpuinit mxcsr_feature_mask_init(void)
 {
 	unsigned long mask = 0;
 
