@@ -398,10 +398,10 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	if (!test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
 		settings |= MGMT_SETTING_POWERED;
 
-	if (test_bit(HCI_PSCAN, &hdev->flags))
+	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
 		settings |= MGMT_SETTING_CONNECTABLE;
 
-	if (test_bit(HCI_ISCAN, &hdev->flags))
+	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
 		settings |= MGMT_SETTING_DISCOVERABLE;
 
 	if (test_bit(HCI_PAIRABLE, &hdev->dev_flags))
@@ -804,6 +804,7 @@ static int set_discoverable(struct sock *sk, u16 index, void *data, u16 len)
 	struct mgmt_cp_set_discoverable *cp = data;
 	struct hci_dev *hdev;
 	struct pending_cmd *cmd;
+	u16 timeout;
 	u8 scan;
 	int err;
 
@@ -818,9 +819,11 @@ static int set_discoverable(struct sock *sk, u16 index, void *data, u16 len)
 		return cmd_status(sk, index, MGMT_OP_SET_DISCOVERABLE,
 						MGMT_STATUS_INVALID_PARAMS);
 
+	timeout = get_unaligned_le16(&cp->timeout);
+
 	hci_dev_lock(hdev);
 
-	if (!hdev_is_powered(hdev)) {
+	if (!hdev_is_powered(hdev) && timeout > 0) {
 		err = cmd_status(sk, index, MGMT_OP_SET_DISCOVERABLE,
 						MGMT_STATUS_NOT_POWERED);
 		goto failed;
@@ -833,8 +836,22 @@ static int set_discoverable(struct sock *sk, u16 index, void *data, u16 len)
 		goto failed;
 	}
 
-	if (cp->val == test_bit(HCI_ISCAN, &hdev->flags) &&
-					test_bit(HCI_PSCAN, &hdev->flags)) {
+	if (!test_bit(HCI_CONNECTABLE, &hdev->dev_flags)) {
+		err = cmd_status(sk, index, MGMT_OP_SET_DISCOVERABLE,
+							MGMT_STATUS_REJECTED);
+		goto failed;
+	}
+
+	if (!hdev_is_powered(hdev)) {
+		if (cp->val)
+			set_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
+		else
+			clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
+		err = send_settings_rsp(sk, MGMT_OP_SET_DISCOVERABLE, hdev);
+		goto failed;
+	}
+
+	if (!!cp->val == test_bit(HCI_DISCOVERABLE, &hdev->dev_flags)) {
 		err = send_settings_rsp(sk, MGMT_OP_SET_DISCOVERABLE, hdev);
 		goto failed;
 	}
@@ -857,7 +874,7 @@ static int set_discoverable(struct sock *sk, u16 index, void *data, u16 len)
 		mgmt_pending_remove(cmd);
 
 	if (cp->val)
-		hdev->discov_timeout = get_unaligned_le16(&cp->timeout);
+		hdev->discov_timeout = timeout;
 
 failed:
 	hci_dev_unlock(hdev);
@@ -888,8 +905,13 @@ static int set_connectable(struct sock *sk, u16 index, void *data, u16 len)
 	hci_dev_lock(hdev);
 
 	if (!hdev_is_powered(hdev)) {
-		err = cmd_status(sk, index, MGMT_OP_SET_CONNECTABLE,
-						MGMT_STATUS_NOT_POWERED);
+		if (cp->val)
+			set_bit(HCI_CONNECTABLE, &hdev->dev_flags);
+		else {
+			clear_bit(HCI_CONNECTABLE, &hdev->dev_flags);
+			clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
+		}
+		err = send_settings_rsp(sk, MGMT_OP_SET_CONNECTABLE, hdev);
 		goto failed;
 	}
 
@@ -900,7 +922,7 @@ static int set_connectable(struct sock *sk, u16 index, void *data, u16 len)
 		goto failed;
 	}
 
-	if (cp->val == test_bit(HCI_PSCAN, &hdev->flags)) {
+	if (!!cp->val == test_bit(HCI_PSCAN, &hdev->flags)) {
 		err = send_settings_rsp(sk, MGMT_OP_SET_CONNECTABLE, hdev);
 		goto failed;
 	}
@@ -2881,9 +2903,22 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 	__le32 ev;
 	int err;
 
+	if (!test_bit(HCI_MGMT, &hdev->dev_flags))
+		return 0;
+
 	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
 
-	if (!powered) {
+	if (powered) {
+		u8 scan = 0;
+
+		if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
+			scan |= SCAN_PAGE;
+		if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
+			scan |= SCAN_INQUIRY;
+
+		if (scan)
+			hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+	} else {
 		u8 status = ENETDOWN;
 		mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status);
 	}
@@ -2902,15 +2937,25 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 int mgmt_discoverable(struct hci_dev *hdev, u8 discoverable)
 {
 	struct cmd_lookup match = { NULL, hdev };
-	__le32 ev;
-	int err;
+	bool changed = false;
+	int err = 0;
 
 	mgmt_pending_foreach(MGMT_OP_SET_DISCOVERABLE, hdev, settings_rsp, &match);
 
-	ev = cpu_to_le32(get_current_settings(hdev));
+	if (discoverable) {
+		if (!test_and_set_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
+			changed = true;
+	} else {
+		if (test_and_clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
+			changed = true;
+	}
 
-	err = mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev),
+	if (changed) {
+		__le32 ev = cpu_to_le32(get_current_settings(hdev));
+		err = mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev),
 								match.sk);
+	}
+
 	if (match.sk)
 		sock_put(match.sk);
 
@@ -2919,16 +2964,26 @@ int mgmt_discoverable(struct hci_dev *hdev, u8 discoverable)
 
 int mgmt_connectable(struct hci_dev *hdev, u8 connectable)
 {
-	__le32 ev;
 	struct cmd_lookup match = { NULL, hdev };
-	int err;
+	bool changed = false;
+	int err = 0;
 
 	mgmt_pending_foreach(MGMT_OP_SET_CONNECTABLE, hdev, settings_rsp,
 								&match);
 
-	ev = cpu_to_le32(get_current_settings(hdev));
+	if (connectable) {
+		if (!test_and_set_bit(HCI_CONNECTABLE, &hdev->dev_flags))
+			changed = true;
+	} else {
+		if (test_and_clear_bit(HCI_CONNECTABLE, &hdev->dev_flags))
+			changed = true;
+	}
 
-	err = mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev), match.sk);
+	if (changed) {
+		__le32 ev = cpu_to_le32(get_current_settings(hdev));
+		err = mgmt_event(MGMT_EV_NEW_SETTINGS, hdev, &ev, sizeof(ev),
+								match.sk);
+	}
 
 	if (match.sk)
 		sock_put(match.sk);

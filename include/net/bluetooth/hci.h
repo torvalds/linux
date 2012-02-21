@@ -96,6 +96,8 @@ enum {
 	HCI_LE_SCAN,
 	HCI_SSP_ENABLED,
 	HCI_HS_ENABLED,
+	HCI_CONNECTABLE,
+	HCI_DISCOVERABLE,
 };
 
 /* HCI ioctl defines */
