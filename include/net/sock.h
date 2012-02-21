@@ -357,6 +357,7 @@ struct sock {
 	struct page		*sk_sndmsg_page;
 	struct sk_buff		*sk_send_head;
 	__u32			sk_sndmsg_off;
+	__s32			sk_peek_off;
 	int			sk_write_pending;
 #ifdef CONFIG_SECURITY
 	void			*sk_security;
@@ -372,6 +373,30 @@ struct sock {
 						  struct sk_buff *skb);  
 	void                    (*sk_destruct)(struct sock *sk);
 };
+
+static inline int sk_peek_offset(struct sock *sk, int flags)
+{
+	if ((flags & MSG_PEEK) && (sk->sk_peek_off >= 0))
+		return sk->sk_peek_off;
+	else
+		return 0;
+}
+
+static inline void sk_peek_offset_bwd(struct sock *sk, int val)
+{
+	if (sk->sk_peek_off >= 0) {
+		if (sk->sk_peek_off >= val)
+			sk->sk_peek_off -= val;
+		else
+			sk->sk_peek_off = 0;
+	}
+}
+
+static inline void sk_peek_offset_fwd(struct sock *sk, int val)
+{
+	if (sk->sk_peek_off >= 0)
+		sk->sk_peek_off += val;
+}
 
 /*
  * Hashed lists helper routines

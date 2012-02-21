@@ -84,6 +84,7 @@ To add: #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
 
 #define SO_WIFI_STATUS		41
 #define SCM_WIFI_STATUS		SO_WIFI_STATUS
+#define SO_PEEK_OFF		42
 
 #ifdef __KERNEL__
 

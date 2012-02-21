@@ -73,5 +73,6 @@
 
 #define SO_WIFI_STATUS		41
 #define SCM_WIFI_STATUS		SO_WIFI_STATUS
+#define SO_PEEK_OFF		42
 
 #endif /* _ASM_IA64_SOCKET_H */
