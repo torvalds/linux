@@ -62,13 +62,13 @@ INSTALLING the kernel source:
    directory where you have permissions (eg. your home directory) and
    unpack it:
 
-		gzip -cd linux-3.X.tar.gz | tar xvf -
+		gzip -cd linux-3.x.tar.gz | tar xvf -
 
    or
-		bzip2 -dc linux-3.X.tar.bz2 | tar xvf -
+		bzip2 -dc linux-3.x.tar.bz2 | tar xvf -
 
 
-   Replace "XX" with the version number of the latest kernel.
+   Replace "x" with the version number of the latest kernel.
 
    Do NOT use the /usr/src/linux area! This area has a (usually
    incomplete) set of kernel headers that are used by the library header
@@ -85,10 +85,10 @@ INSTALLING the kernel source:
    or
 		bzip2 -dc ../patch-3.x.bz2 | patch -p1
 
-   (repeat xx for all versions bigger than the version of your current
+   (repeat x for all versions bigger than the version of your current
    source tree, _in_order_) and you should be ok.  You may want to remove
    the backup files (xxx~ or xxx.orig), and make sure that there are no
-   failed patches (xxx# or xxx.rej). If there are, either you or me has
+   failed patches (xxx# or xxx.rej). If there are, either you or I have
    made a mistake.
 
    Unlike patches for the 3.x kernels, patches for the 3.x.y kernels
