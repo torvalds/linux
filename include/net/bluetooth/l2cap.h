@@ -497,6 +497,7 @@ struct l2cap_chan {
 
 	void		*data;
 	struct l2cap_ops *ops;
+	struct mutex		lock;
 };
 
 struct l2cap_ops {
@@ -607,6 +608,16 @@ static inline void l2cap_chan_put(struct l2cap_chan *c)
 {
 	if (atomic_dec_and_test(&c->refcnt))
 		kfree(c);
+}
+
+static inline void l2cap_chan_lock(struct l2cap_chan *chan)
+{
+	mutex_lock(&chan->lock);
+}
+
+static inline void l2cap_chan_unlock(struct l2cap_chan *chan)
+{
+	mutex_unlock(&chan->lock);
 }
 
 static inline void l2cap_set_timer(struct l2cap_chan *chan,
