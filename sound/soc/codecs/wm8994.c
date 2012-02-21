@@ -3492,11 +3492,13 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 
 	case WM8958:
 		wm8994->hubs.dcs_readback_mode = 1;
+		wm8994->hubs.hp_startup_mode = 1;
 		break;
 
 	case WM1811:
 		wm8994->hubs.dcs_readback_mode = 2;
 		wm8994->hubs.no_series_update = 1;
+		wm8994->hubs.hp_startup_mode = 1;
 
 		switch (wm8994->revision) {
 		case 0:
