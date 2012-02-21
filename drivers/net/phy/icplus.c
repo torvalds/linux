@@ -98,20 +98,24 @@ static int ip175c_config_init(struct phy_device *phydev)
 
 static int ip1xx_reset(struct phy_device *phydev)
 {
-	int err, bmcr;
+	int bmcr;
 
 	/* Software Reset PHY */
 	bmcr = phy_read(phydev, MII_BMCR);
+	if (bmcr < 0)
+		return bmcr;
 	bmcr |= BMCR_RESET;
-	err = phy_write(phydev, MII_BMCR, bmcr);
-	if (err < 0)
-		return err;
+	bmcr = phy_write(phydev, MII_BMCR, bmcr);
+	if (bmcr < 0)
+		return bmcr;
 
 	do {
 		bmcr = phy_read(phydev, MII_BMCR);
+		if (bmcr < 0)
+			return bmcr;
 	} while (bmcr & BMCR_RESET);
 
-	return err;
+	return 0;
 }
 
 static int ip1001_config_init(struct phy_device *phydev)
@@ -124,7 +128,10 @@ static int ip1001_config_init(struct phy_device *phydev)
 
 	/* Enable Auto Power Saving mode */
 	c = phy_read(phydev, IP1001_SPEC_CTRL_STATUS_2);
+	if (c < 0)
+		return c;
 	c |= IP1001_APS_ON;
+	c = phy_write(phydev, IP1001_SPEC_CTRL_STATUS_2, c);
 	if (c < 0)
 		return c;
 
@@ -132,11 +139,16 @@ static int ip1001_config_init(struct phy_device *phydev)
 		/* Additional delay (2ns) used to adjust RX clock phase
 		 * at RGMII interface */
 		c = phy_read(phydev, IP10XX_SPEC_CTRL_STATUS);
+		if (c < 0)
+			return c;
+
 		c |= IP1001_PHASE_SEL_MASK;
 		c = phy_write(phydev, IP10XX_SPEC_CTRL_STATUS, c);
+		if (c < 0)
+			return c;
 	}
 
-	return c;
+	return 0;
 }
 
 static int ip101a_config_init(struct phy_device *phydev)
