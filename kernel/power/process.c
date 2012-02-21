@@ -53,11 +53,9 @@ static int try_to_freeze_tasks(bool user_only)
 			 * It is "frozen enough".  If the task does wake
 			 * up, it will immediately call try_to_freeze.
 			 *
-			 * Because freeze_task() goes through p's
-			 * scheduler lock after setting TIF_FREEZE, it's
-			 * guaranteed that either we see TASK_RUNNING or
-			 * try_to_stop() after schedule() in ptrace/signal
-			 * stop sees TIF_FREEZE.
+			 * Because freeze_task() goes through p's scheduler lock, it's
+			 * guaranteed that TASK_STOPPED/TRACED -> TASK_RUNNING
+			 * transition can't race with task state testing here.
 			 */
 			if (!task_is_stopped_or_traced(p) &&
 			    !freezer_should_skip(p))
