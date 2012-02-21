@@ -282,9 +282,6 @@ static void add_resources(struct pci_root_info *info)
 	int i;
 	struct resource *res, *root, *conflict;
 
-	if (!pci_use_crs)
-		return;
-
 	coalesce_windows(info, IORESOURCE_MEM);
 	coalesce_windows(info, IORESOURCE_IO);
 
@@ -336,8 +333,13 @@ get_current_resources(struct acpi_device *device, int busnum,
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, setup_resource,
 				&info);
 
-	add_resources(&info);
-	return;
+	if (pci_use_crs) {
+		add_resources(&info);
+
+		return;
+	}
+
+	kfree(info.name);
 
 name_alloc_fail:
 	kfree(info.res);
