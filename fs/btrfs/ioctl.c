@@ -1333,6 +1333,12 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 		goto out;
 	}
 
+	if (name[0] == '.' &&
+	   (namelen == 1 || (name[1] == '.' && namelen == 2))) {
+		ret = -EEXIST;
+		goto out;
+	}
+
 	if (subvol) {
 		ret = btrfs_mksubvol(&file->f_path, name, namelen,
 				     NULL, transid, readonly);
