@@ -349,6 +349,13 @@ static const struct usb_device_id	products [] = {
 	ZAURUS_MASTER_INTERFACE,
 	.driver_info = OLYMPUS_MXL_INFO,
 },
+
+/* Logitech Harmony 900 - uses the pseudo-MDLM (BLAN) driver */
+{
+	USB_DEVICE_AND_INTERFACE_INFO(0x046d, 0xc11f, USB_CLASS_COMM,
+			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
+	.driver_info = (unsigned long) &bogus_mdlm_info,
+},
 	{ },		// END
 };
 MODULE_DEVICE_TABLE(usb, products);
