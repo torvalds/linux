@@ -276,14 +276,15 @@ static int cinergyt2_fe_set_frontend(struct dvb_frontend *fe)
 	param.flags = 0;
 
 	switch (fep->bandwidth_hz) {
+	default:
 	case 8000000:
-		param.bandwidth = 0;
+		param.bandwidth = 8;
 		break;
 	case 7000000:
-		param.bandwidth = 1;
+		param.bandwidth = 7;
 		break;
 	case 6000000:
-		param.bandwidth = 2;
+		param.bandwidth = 6;
 		break;
 	}
 

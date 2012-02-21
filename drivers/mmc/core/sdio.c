@@ -98,10 +98,11 @@ fail:
 	return ret;
 }
 
-static int sdio_read_cccr(struct mmc_card *card)
+static int sdio_read_cccr(struct mmc_card *card, u32 ocr)
 {
 	int ret;
 	int cccr_vsn;
+	int uhs = ocr & R4_18V_PRESENT;
 	unsigned char data;
 	unsigned char speed;
 
@@ -149,7 +150,7 @@ static int sdio_read_cccr(struct mmc_card *card)
 		card->scr.sda_spec3 = 0;
 		card->sw_caps.sd3_bus_mode = 0;
 		card->sw_caps.sd3_drv_type = 0;
-		if (cccr_vsn >= SDIO_CCCR_REV_3_00) {
+		if (cccr_vsn >= SDIO_CCCR_REV_3_00 && uhs) {
 			card->scr.sda_spec3 = 1;
 			ret = mmc_io_rw_direct(card, 0, 0,
 				SDIO_CCCR_UHS, 0, &data);
@@ -712,7 +713,7 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 	/*
 	 * Read the common registers.
 	 */
-	err = sdio_read_cccr(card);
+	err = sdio_read_cccr(card, ocr);
 	if (err)
 		goto remove;
 
