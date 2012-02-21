@@ -876,11 +876,20 @@ static int set_discoverable(struct sock *sk, u16 index, void *data, u16 len)
 	}
 
 	if (!hdev_is_powered(hdev)) {
-		if (cp->val)
-			set_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
-		else
-			clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
+		bool changed = false;
+
+		if (!!cp->val != test_bit(HCI_DISCOVERABLE, &hdev->dev_flags)) {
+			change_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
+			changed = true;
+		}
+
 		err = send_settings_rsp(sk, MGMT_OP_SET_DISCOVERABLE, hdev);
+		if (err < 0)
+			goto failed;
+
+		if (changed)
+			err = new_settings(hdev, sk);
+
 		goto failed;
 	}
 
@@ -938,13 +947,25 @@ static int set_connectable(struct sock *sk, u16 index, void *data, u16 len)
 	hci_dev_lock(hdev);
 
 	if (!hdev_is_powered(hdev)) {
+		bool changed = false;
+
+		if (!!cp->val != test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
+			changed = true;
+
 		if (cp->val)
 			set_bit(HCI_CONNECTABLE, &hdev->dev_flags);
 		else {
 			clear_bit(HCI_CONNECTABLE, &hdev->dev_flags);
 			clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
 		}
+
 		err = send_settings_rsp(sk, MGMT_OP_SET_CONNECTABLE, hdev);
+		if (err < 0)
+			goto failed;
+
+		if (changed)
+			err = new_settings(hdev, sk);
+
 		goto failed;
 	}
 
