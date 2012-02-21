@@ -3613,14 +3613,17 @@ static int alc_auto_create_multi_out_ctls(struct hda_codec *codec,
 		dac = spec->multiout.dac_nids[i];
 		if (!dac)
 			continue;
-		if (i >= cfg->line_outs)
+		if (i >= cfg->line_outs) {
 			pin = spec->multi_io[i - 1].pin;
-		else
+			index = 0;
+			name = channel_name[i];
+		} else {
 			pin = cfg->line_out_pins[i];
+			name = alc_get_line_out_pfx(spec, i, true, &index);
+		}
 
 		sw = alc_look_for_out_mute_nid(codec, pin, dac);
 		vol = alc_look_for_out_vol_nid(codec, pin, dac);
-		name = alc_get_line_out_pfx(spec, i, true, &index);
 		if (!name || !strcmp(name, "CLFE")) {
 			/* Center/LFE */
 			err = alc_auto_add_vol_ctl(codec, "Center", 0, vol, 1);
