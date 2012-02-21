@@ -2305,6 +2305,12 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	btrfs_close_extra_devices(fs_devices);
 
+	if (!fs_devices->latest_bdev) {
+		printk(KERN_CRIT "btrfs: failed to read devices on %s\n",
+		       sb->s_id);
+		goto fail_tree_roots;
+	}
+
 retry_root_backup:
 	blocksize = btrfs_level_size(tree_root,
 				     btrfs_super_root_level(disk_super));

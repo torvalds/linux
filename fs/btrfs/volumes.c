@@ -459,12 +459,23 @@ int btrfs_close_extra_devices(struct btrfs_fs_devices *fs_devices)
 {
 	struct btrfs_device *device, *next;
 
+	struct block_device *latest_bdev = NULL;
+	u64 latest_devid = 0;
+	u64 latest_transid = 0;
+
 	mutex_lock(&uuid_mutex);
 again:
 	/* This is the initialized path, it is safe to release the devices. */
 	list_for_each_entry_safe(device, next, &fs_devices->devices, dev_list) {
-		if (device->in_fs_metadata)
+		if (device->in_fs_metadata) {
+			if (!latest_transid ||
+			    device->generation > latest_transid) {
+				latest_devid = device->devid;
+				latest_transid = device->generation;
+				latest_bdev = device->bdev;
+			}
 			continue;
+		}
 
 		if (device->bdev) {
 			blkdev_put(device->bdev, device->mode);
@@ -486,6 +497,10 @@ again:
 		fs_devices = fs_devices->seed;
 		goto again;
 	}
+
+	fs_devices->latest_bdev = latest_bdev;
+	fs_devices->latest_devid = latest_devid;
+	fs_devices->latest_trans = latest_transid;
 
 	mutex_unlock(&uuid_mutex);
 	return 0;
