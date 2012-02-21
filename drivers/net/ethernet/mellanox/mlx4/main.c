@@ -1828,7 +1828,7 @@ slave_start:
 		goto err_master_mfunc;
 
 	priv->msix_ctl.pool_bm = 0;
-	spin_lock_init(&priv->msix_ctl.pool_lock);
+	mutex_init(&priv->msix_ctl.pool_lock);
 
 	mlx4_enable_msi_x(dev);
 	if ((mlx4_is_mfunc(dev)) &&
