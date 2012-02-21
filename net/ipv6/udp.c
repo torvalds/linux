@@ -342,7 +342,7 @@ int udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 	struct inet_sock *inet = inet_sk(sk);
 	struct sk_buff *skb;
 	unsigned int ulen, copied;
-	int peeked;
+	int peeked, off = 0;
 	int err;
 	int is_udplite = IS_UDPLITE(sk);
 	int is_udp4;
@@ -359,7 +359,7 @@ int udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 
 try_again:
 	skb = __skb_recv_datagram(sk, flags | (noblock ? MSG_DONTWAIT : 0),
-				  &peeked, &err);
+				  &peeked, &off, &err);
 	if (!skb)
 		goto out;
 

@@ -2046,7 +2046,7 @@ static inline void skb_frag_add_head(struct sk_buff *skb, struct sk_buff *frag)
 	for (iter = skb_shinfo(skb)->frag_list; iter; iter = iter->next)
 
 extern struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned flags,
-					   int *peeked, int *err);
+					   int *peeked, int *off, int *err);
 extern struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags,
 					 int noblock, int *err);
 extern unsigned int    datagram_poll(struct file *file, struct socket *sock,

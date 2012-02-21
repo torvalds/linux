@@ -132,6 +132,8 @@ out_noerr:
  *	__skb_recv_datagram - Receive a datagram skbuff
  *	@sk: socket
  *	@flags: MSG_ flags
+ *	@off: an offset in bytes to peek skb from. Returns an offset
+ *	      within an skb where data actually starts
  *	@peeked: returns non-zero if this packet has been seen before
  *	@err: error code returned
  *
@@ -158,7 +160,7 @@ out_noerr:
  *	the standard around please.
  */
 struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned flags,
-				    int *peeked, int *err)
+				    int *peeked, int *off, int *err)
 {
 	struct sk_buff *skb;
 	long timeo;
@@ -183,19 +185,22 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned flags,
 		struct sk_buff_head *queue = &sk->sk_receive_queue;
 
 		spin_lock_irqsave(&queue->lock, cpu_flags);
-		skb = skb_peek(queue);
-		if (skb) {
+		skb_queue_walk(queue, skb) {
 			*peeked = skb->peeked;
 			if (flags & MSG_PEEK) {
+				if (*off >= skb->len) {
+					*off -= skb->len;
+					continue;
+				}
 				skb->peeked = 1;
 				atomic_inc(&skb->users);
 			} else
 				__skb_unlink(skb, queue);
+
+			spin_unlock_irqrestore(&queue->lock, cpu_flags);
+			return skb;
 		}
 		spin_unlock_irqrestore(&queue->lock, cpu_flags);
-
-		if (skb)
-			return skb;
 
 		/* User doesn't want to wait */
 		error = -EAGAIN;
@@ -215,10 +220,10 @@ EXPORT_SYMBOL(__skb_recv_datagram);
 struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags,
 				  int noblock, int *err)
 {
-	int peeked;
+	int peeked, off = 0;
 
 	return __skb_recv_datagram(sk, flags | (noblock ? MSG_DONTWAIT : 0),
-				   &peeked, err);
+				   &peeked, &off, err);
 }
 EXPORT_SYMBOL(skb_recv_datagram);
 
