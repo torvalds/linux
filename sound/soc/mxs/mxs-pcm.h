@@ -29,11 +29,7 @@ struct mxs_pcm_dma_params {
 struct mxs_pcm_runtime_data {
 	int period_bytes;
 	int periods;
-	int dma;
 	unsigned long offset;
-	unsigned long size;
-	void *buf;
-	int period_time;
 	struct dma_async_tx_descriptor *desc;
 	struct dma_chan *dma_chan;
 	struct mxs_dma_data dma_data;
