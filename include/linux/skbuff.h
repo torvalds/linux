@@ -877,6 +877,24 @@ static inline struct sk_buff *skb_peek(const struct sk_buff_head *list_)
 }
 
 /**
+ *	skb_peek_next - peek skb following the given one from a queue
+ *	@skb: skb to start from
+ *	@list_: list to peek at
+ *
+ *	Returns %NULL when the end of the list is met or a pointer to the
+ *	next element. The reference count is not incremented and the
+ *	reference is therefore volatile. Use with caution.
+ */
+static inline struct sk_buff *skb_peek_next(struct sk_buff *skb,
+		const struct sk_buff_head *list_)
+{
+	struct sk_buff *next = skb->next;
+	if (next == (struct sk_buff *)list_)
+		next = NULL;
+	return next;
+}
+
+/**
  *	skb_peek_tail - peek at the tail of an &sk_buff_head
  *	@list_: list to peek at
  *
