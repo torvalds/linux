@@ -229,7 +229,7 @@ static struct thread_map *thread_map__new_by_tid_str(const char *tid_str)
 	if (!tid_str) {
 		threads = malloc(sizeof(*threads) + sizeof(pid_t));
 		if (threads != NULL) {
-			threads->map[1] = -1;
+			threads->map[0] = -1;
 			threads->nr	= 1;
 		}
 		return threads;
