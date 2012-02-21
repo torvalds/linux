@@ -1601,7 +1601,7 @@ static int sundance_set_mac_addr(struct net_device *dev, void *data)
 	const struct sockaddr *addr = data;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
 	__set_mac_addr(dev);
 

@@ -1148,7 +1148,7 @@ static int tsi108_set_mac(struct net_device *dev, void *addr)
 	int i;
 
 	if (!is_valid_ether_addr(addr))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	for (i = 0; i < 6; i++)
 		/* +2 is for the offset of the HW addr type */

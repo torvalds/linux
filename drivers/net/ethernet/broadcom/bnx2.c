@@ -7773,7 +7773,7 @@ bnx2_change_mac_addr(struct net_device *dev, void *p)
 	struct bnx2 *bp = netdev_priv(dev);
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	if (netif_running(dev))

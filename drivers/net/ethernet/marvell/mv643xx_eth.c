@@ -1832,7 +1832,7 @@ static int mv643xx_eth_set_mac_address(struct net_device *dev, void *addr)
 	struct sockaddr *sa = addr;
 
 	if (!is_valid_ether_addr(sa->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
 

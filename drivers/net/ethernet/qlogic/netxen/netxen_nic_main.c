@@ -518,7 +518,7 @@ static int netxen_nic_set_mac(struct net_device *netdev, void *p)
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	if (netif_running(netdev)) {
 		netif_device_detach(netdev);

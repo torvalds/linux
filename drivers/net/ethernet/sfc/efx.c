@@ -1935,7 +1935,7 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 		netif_err(efx, drv, efx->net_dev,
 			  "invalid ethernet MAC address requested: %pM\n",
 			  new_addr);
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 	}
 
 	memcpy(net_dev->dev_addr, new_addr, net_dev->addr_len);

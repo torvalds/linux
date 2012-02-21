@@ -1017,7 +1017,7 @@ static int greth_set_mac_add(struct net_device *dev, void *p)
 	regs = (struct greth_regs *) greth->regs;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	GRETH_REGSAVE(regs->esa_msb, dev->dev_addr[0] << 8 | dev->dev_addr[1]);

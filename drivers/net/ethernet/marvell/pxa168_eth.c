@@ -627,7 +627,7 @@ static int pxa168_eth_set_mac_address(struct net_device *dev, void *addr)
 	unsigned char oldMac[ETH_ALEN];
 
 	if (!is_valid_ether_addr(sa->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 	memcpy(oldMac, dev->dev_addr, ETH_ALEN);
 	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);

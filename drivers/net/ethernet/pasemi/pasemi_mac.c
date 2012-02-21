@@ -238,7 +238,7 @@ static int pasemi_mac_set_mac_addr(struct net_device *dev, void *p)
 	unsigned int adr0, adr1;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
