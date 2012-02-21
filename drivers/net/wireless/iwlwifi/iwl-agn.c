@@ -1151,6 +1151,7 @@ int iwl_op_mode_dvm_start(struct iwl_bus *bus,
 	struct iwl_priv *priv;
 	struct ieee80211_hw *hw;
 	u16 num_mac;
+	u32 ucode_flags;
 
 	/************************
 	 * 1. Allocating HW data
@@ -1242,6 +1243,22 @@ int iwl_op_mode_dvm_start(struct iwl_bus *bus,
 	 ************************/
 	iwl_set_hw_params(priv);
 
+	ucode_flags = fw->ucode_capa.flags;
+
+#ifndef CONFIG_IWLWIFI_P2P
+	ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
+#endif
+	if (!(hw_params(priv).sku & EEPROM_SKU_CAP_IPAN_ENABLE))
+		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
+
+	/*
+	 * if not PAN, then don't support P2P -- might be a uCode
+	 * packaging bug or due to the eeprom check above
+	 */
+	if (!(ucode_flags & IWL_UCODE_TLV_FLAGS_PAN))
+		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
+
+
 	/*******************
 	 * 6. Setup priv
 	 *******************/
@@ -1266,9 +1283,9 @@ int iwl_op_mode_dvm_start(struct iwl_bus *bus,
 		 "%s", fw->fw_version);
 
 	priv->new_scan_threshold_behaviour =
-		!!(fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWSCAN);
+		!!(ucode_flags & IWL_UCODE_TLV_FLAGS_NEWSCAN);
 
-	if (fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN) {
+	if (ucode_flags & IWL_UCODE_TLV_FLAGS_PAN) {
 		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
 		priv->shrd->cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
 	} else {
@@ -1282,7 +1299,7 @@ int iwl_op_mode_dvm_start(struct iwl_bus *bus,
 		fw->ucode_capa.standard_phy_calibration_size + 1;
 
 	/* initialize all valid contexts */
-	iwl_init_context(priv, fw->ucode_capa.flags);
+	iwl_init_context(priv, ucode_flags);
 
 	/**************************************************
 	 * This is still part of probe() in a sense...

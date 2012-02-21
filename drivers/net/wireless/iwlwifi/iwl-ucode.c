@@ -1226,9 +1226,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		nic->inst_evtlog_size =
 			cfg->base_params->max_event_log_size;
 	nic->inst_errlog_ptr = pieces.inst_errlog_ptr;
-#ifndef CONFIG_IWLWIFI_P2P
-	fw->ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
-#endif
+
 	/*
 	 * figure out the offset of chain noise reset and gain commands
 	 * base on the size of standard phy calibration commands table size
@@ -1237,16 +1235,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	    IWL_MAX_PHY_CALIBRATE_TBL_SIZE)
 		fw->ucode_capa.standard_phy_calibration_size =
 			IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE;
-
-	if (!(cfg->sku & EEPROM_SKU_CAP_IPAN_ENABLE))
-		fw->ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
-
-	/*
-	 * if not PAN, then don't support P2P -- might be a uCode
-	 * packaging bug or due to the eeprom check above
-	 */
-	if (!(fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN))
-		fw->ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
 
 	/* We have our copies now, allow OS release its copies */
 	release_firmware(ucode_raw);
