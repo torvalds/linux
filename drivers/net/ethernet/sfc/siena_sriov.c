@@ -796,12 +796,13 @@ static int efx_vfdi_set_status_page(struct efx_vf *vf)
 {
 	struct efx_nic *efx = vf->efx;
 	struct vfdi_req *req = vf->buf.addr;
-	unsigned int page_count;
+	u64 page_count = req->u.set_status_page.peer_page_count;
+	u64 max_page_count =
+		(EFX_PAGE_SIZE -
+		 offsetof(struct vfdi_req, u.set_status_page.peer_page_addr[0]))
+		/ sizeof(req->u.set_status_page.peer_page_addr[0]);
 
-	page_count = req->u.set_status_page.peer_page_count;
-	if (!req->u.set_status_page.dma_addr || EFX_PAGE_SIZE <
-	    offsetof(struct vfdi_req,
-		     u.set_status_page.peer_page_addr[page_count])) {
+	if (!req->u.set_status_page.dma_addr || page_count > max_page_count) {
 		if (net_ratelimit())
 			netif_err(efx, hw, efx->net_dev,
 				  "ERROR: Invalid SET_STATUS_PAGE from %s\n",
