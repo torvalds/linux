@@ -2965,8 +2965,6 @@ int mgmt_discoverable(struct hci_dev *hdev, u8 discoverable)
 	bool changed = false;
 	int err = 0;
 
-	mgmt_pending_foreach(MGMT_OP_SET_DISCOVERABLE, hdev, settings_rsp, &match);
-
 	if (discoverable) {
 		if (!test_and_set_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
 			changed = true;
@@ -2974,6 +2972,9 @@ int mgmt_discoverable(struct hci_dev *hdev, u8 discoverable)
 		if (test_and_clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
 			changed = true;
 	}
+
+	mgmt_pending_foreach(MGMT_OP_SET_DISCOVERABLE, hdev, settings_rsp,
+								&match);
 
 	if (changed)
 		err = new_settings(hdev, match.sk);
@@ -2990,9 +2991,6 @@ int mgmt_connectable(struct hci_dev *hdev, u8 connectable)
 	bool changed = false;
 	int err = 0;
 
-	mgmt_pending_foreach(MGMT_OP_SET_CONNECTABLE, hdev, settings_rsp,
-								&match);
-
 	if (connectable) {
 		if (!test_and_set_bit(HCI_CONNECTABLE, &hdev->dev_flags))
 			changed = true;
@@ -3000,6 +2998,9 @@ int mgmt_connectable(struct hci_dev *hdev, u8 connectable)
 		if (test_and_clear_bit(HCI_CONNECTABLE, &hdev->dev_flags))
 			changed = true;
 	}
+
+	mgmt_pending_foreach(MGMT_OP_SET_CONNECTABLE, hdev, settings_rsp,
+								&match);
 
 	if (changed)
 		err = new_settings(hdev, match.sk);
