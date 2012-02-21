@@ -292,114 +292,6 @@ struct iwl_vif_priv {
 	u8 ibss_bssid_sta_id;
 };
 
-/* v1/v2 uCode file layout */
-struct iwl_ucode_header {
-	__le32 ver;	/* major/minor/API/serial */
-	union {
-		struct {
-			__le32 inst_size;	/* bytes of runtime code */
-			__le32 data_size;	/* bytes of runtime data */
-			__le32 init_size;	/* bytes of init code */
-			__le32 init_data_size;	/* bytes of init data */
-			__le32 boot_size;	/* bytes of bootstrap code */
-			u8 data[0];		/* in same order as sizes */
-		} v1;
-		struct {
-			__le32 build;		/* build number */
-			__le32 inst_size;	/* bytes of runtime code */
-			__le32 data_size;	/* bytes of runtime data */
-			__le32 init_size;	/* bytes of init code */
-			__le32 init_data_size;	/* bytes of init data */
-			__le32 boot_size;	/* bytes of bootstrap code */
-			u8 data[0];		/* in same order as sizes */
-		} v2;
-	} u;
-};
-
-/*
- * new TLV uCode file layout
- *
- * The new TLV file format contains TLVs, that each specify
- * some piece of data. To facilitate "groups", for example
- * different instruction image with different capabilities,
- * bundled with the same init image, an alternative mechanism
- * is provided:
- * When the alternative field is 0, that means that the item
- * is always valid. When it is non-zero, then it is only
- * valid in conjunction with items of the same alternative,
- * in which case the driver (user) selects one alternative
- * to use.
- */
-
-enum iwl_ucode_tlv_type {
-	IWL_UCODE_TLV_INVALID		= 0, /* unused */
-	IWL_UCODE_TLV_INST		= 1,
-	IWL_UCODE_TLV_DATA		= 2,
-	IWL_UCODE_TLV_INIT		= 3,
-	IWL_UCODE_TLV_INIT_DATA		= 4,
-	IWL_UCODE_TLV_BOOT		= 5,
-	IWL_UCODE_TLV_PROBE_MAX_LEN	= 6, /* a u32 value */
-	IWL_UCODE_TLV_PAN		= 7,
-	IWL_UCODE_TLV_RUNT_EVTLOG_PTR	= 8,
-	IWL_UCODE_TLV_RUNT_EVTLOG_SIZE	= 9,
-	IWL_UCODE_TLV_RUNT_ERRLOG_PTR	= 10,
-	IWL_UCODE_TLV_INIT_EVTLOG_PTR	= 11,
-	IWL_UCODE_TLV_INIT_EVTLOG_SIZE	= 12,
-	IWL_UCODE_TLV_INIT_ERRLOG_PTR	= 13,
-	IWL_UCODE_TLV_ENHANCE_SENS_TBL	= 14,
-	IWL_UCODE_TLV_PHY_CALIBRATION_SIZE = 15,
-	IWL_UCODE_TLV_WOWLAN_INST	= 16,
-	IWL_UCODE_TLV_WOWLAN_DATA	= 17,
-	IWL_UCODE_TLV_FLAGS		= 18,
-};
-
-/**
- * enum iwl_ucode_tlv_flag - ucode API flags
- * @IWL_UCODE_TLV_FLAGS_PAN: This is PAN capable microcode; this previously
- *	was a separate TLV but moved here to save space.
- * @IWL_UCODE_TLV_FLAGS_NEWSCAN: new uCode scan behaviour on hidden SSID,
- *	treats good CRC threshold as a boolean
- * @IWL_UCODE_TLV_FLAGS_MFP: This uCode image supports MFP (802.11w).
- * @IWL_UCODE_TLV_FLAGS_P2P: This uCode image supports P2P.
- */
-enum iwl_ucode_tlv_flag {
-	IWL_UCODE_TLV_FLAGS_PAN		= BIT(0),
-	IWL_UCODE_TLV_FLAGS_NEWSCAN	= BIT(1),
-	IWL_UCODE_TLV_FLAGS_MFP		= BIT(2),
-	IWL_UCODE_TLV_FLAGS_P2P		= BIT(3),
-};
-
-struct iwl_ucode_tlv {
-	__le16 type;		/* see above */
-	__le16 alternative;	/* see comment */
-	__le32 length;		/* not including type/length fields */
-	u8 data[0];
-} __packed;
-
-#define IWL_TLV_UCODE_MAGIC	0x0a4c5749
-
-struct iwl_tlv_ucode_header {
-	/*
-	 * The TLV style ucode header is distinguished from
-	 * the v1/v2 style header by first four bytes being
-	 * zero, as such is an invalid combination of
-	 * major/minor/API/serial versions.
-	 */
-	__le32 zero;
-	__le32 magic;
-	u8 human_readable[64];
-	__le32 ver;		/* major/minor/API/serial */
-	__le32 build;
-	__le64 alternatives;	/* bitmask of valid alternatives */
-	/*
-	 * The data contained herein has a TLV layout,
-	 * see above for the TLV header and types.
-	 * Note that each TLV is padded to a length
-	 * that is a multiple of 4 for alignment.
-	 */
-	u8 data[0];
-};
-
 struct iwl_sensitivity_ranges {
 	u16 min_nrg_cck;
 	u16 max_nrg_cck;
@@ -821,7 +713,6 @@ struct iwl_wipan_noa_data {
 struct iwl_priv {
 
 	/*data shared among all the driver's layers */
-	struct iwl_shared _shrd;
 	struct iwl_shared *shrd;
 
 	/* ieee device used by generic ieee processing code */

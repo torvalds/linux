@@ -198,7 +198,7 @@ static bool _rtl_pci_platform_switch_device_pci_aspm(
 }
 
 /*When we set 0x01 to enable clk request. Set 0x0 to disable clk req.*/
-static bool _rtl_pci_switch_clk_req(struct ieee80211_hw *hw, u8 value)
+static void _rtl_pci_switch_clk_req(struct ieee80211_hw *hw, u8 value)
 {
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
@@ -207,8 +207,6 @@ static bool _rtl_pci_switch_clk_req(struct ieee80211_hw *hw, u8 value)
 
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8192SE)
 		udelay(100);
-
-	return true;
 }
 
 /*Disable RTL8192SE ASPM & Disable Pci Bridge ASPM*/
@@ -1150,10 +1148,12 @@ static void _rtl_pci_free_tx_ring(struct ieee80211_hw *hw,
 		ring->idx = (ring->idx + 1) % ring->entries;
 	}
 
-	pci_free_consistent(rtlpci->pdev,
-			    sizeof(*ring->desc) * ring->entries,
-			    ring->desc, ring->dma);
-	ring->desc = NULL;
+	if (ring->desc) {
+		pci_free_consistent(rtlpci->pdev,
+				    sizeof(*ring->desc) * ring->entries,
+				    ring->desc, ring->dma);
+		ring->desc = NULL;
+	}
 }
 
 static void _rtl_pci_free_rx_ring(struct rtl_pci *rtlpci)
@@ -1177,12 +1177,14 @@ static void _rtl_pci_free_rx_ring(struct rtl_pci *rtlpci)
 			kfree_skb(skb);
 		}
 
-		pci_free_consistent(rtlpci->pdev,
+		if (rtlpci->rx_ring[rx_queue_idx].desc) {
+			pci_free_consistent(rtlpci->pdev,
 				    sizeof(*rtlpci->rx_ring[rx_queue_idx].
 					   desc) * rtlpci->rxringcount,
 				    rtlpci->rx_ring[rx_queue_idx].desc,
 				    rtlpci->rx_ring[rx_queue_idx].dma);
-		rtlpci->rx_ring[rx_queue_idx].desc = NULL;
+			rtlpci->rx_ring[rx_queue_idx].desc = NULL;
+		}
 	}
 }
 
@@ -1760,8 +1762,8 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
 			RT_ASSERT(false,
 				  "Unable to obtain 32bit DMA for consistent allocations\n");
-			pci_disable_device(pdev);
-			return -ENOMEM;
+			err = -ENOMEM;
+			goto fail1;
 		}
 	}
 
@@ -1803,7 +1805,7 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 	err = pci_request_regions(pdev, KBUILD_MODNAME);
 	if (err) {
 		RT_ASSERT(false, "Can't obtain PCI resources\n");
-		goto fail2;
+		goto fail1;
 	}
 
 	pmem_start = pci_resource_start(pdev, rtlpriv->cfg->bar_id);
@@ -1816,6 +1818,7 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 			rtlpriv->cfg->bar_id, pmem_len);
 	if (rtlpriv->io.pci_mem_start == 0) {
 		RT_ASSERT(false, "Can't map PCI mem\n");
+		err = -ENOMEM;
 		goto fail2;
 	}
 
@@ -1832,8 +1835,10 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 	pci_write_config_byte(pdev, 0x04, 0x07);
 
 	/* find adapter */
-	if (!_rtl_pci_find_adapter(pdev, hw))
+	if (!_rtl_pci_find_adapter(pdev, hw)) {
+		err = -ENODEV;
 		goto fail3;
+	}
 
 	/* Init IO handler */
 	_rtl_pci_io_handler_init(&pdev->dev, hw);
@@ -1843,6 +1848,7 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 
 	if (rtlpriv->cfg->ops->init_sw_vars(hw)) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Can't init_sw_vars\n");
+		err = -ENODEV;
 		goto fail3;
 	}
 
@@ -1887,7 +1893,6 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 	return 0;
 
 fail3:
-	pci_set_drvdata(pdev, NULL);
 	rtl_deinit_core(hw);
 	_rtl_pci_io_handler_release(hw);
 
@@ -1899,10 +1904,12 @@ fail2:
 	complete(&rtlpriv->firmware_loading_complete);
 
 fail1:
-
+	if (hw)
+		ieee80211_free_hw(hw);
+	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 
-	return -ENODEV;
+	return err;
 
 }
 EXPORT_SYMBOL(rtl_pci_probe);

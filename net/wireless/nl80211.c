@@ -2654,13 +2654,6 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
 	case NL80211_IFTYPE_STATION:
-		/* disallow things sta doesn't support */
-		if (params.plink_action)
-			return -EINVAL;
-		if (params.ht_capa)
-			return -EINVAL;
-		if (params.listen_interval >= 0)
-			return -EINVAL;
 		/*
 		 * Don't allow userspace to change the TDLS_PEER flag,
 		 * but silently ignore attempts to change it since we
@@ -2668,7 +2661,15 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 		 * to change the flag.
 		 */
 		params.sta_flags_mask &= ~BIT(NL80211_STA_FLAG_TDLS_PEER);
-
+		/* fall through */
+	case NL80211_IFTYPE_ADHOC:
+		/* disallow things sta doesn't support */
+		if (params.plink_action)
+			return -EINVAL;
+		if (params.ht_capa)
+			return -EINVAL;
+		if (params.listen_interval >= 0)
+			return -EINVAL;
 		/* reject any changes other than AUTHORIZED */
 		if (params.sta_flags_mask & ~BIT(NL80211_STA_FLAG_AUTHORIZED))
 			return -EINVAL;
@@ -4083,7 +4084,6 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
 	struct cfg80211_bss *res = &intbss->pub;
 	void *hdr;
 	struct nlattr *bss;
-	int i;
 
 	ASSERT_WDEV_LOCK(wdev);
 
@@ -4136,13 +4136,6 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
 		if (intbss == wdev->current_bss)
 			NLA_PUT_U32(msg, NL80211_BSS_STATUS,
 				    NL80211_BSS_STATUS_ASSOCIATED);
-		else for (i = 0; i < MAX_AUTH_BSSES; i++) {
-			if (intbss != wdev->auth_bsses[i])
-				continue;
-			NLA_PUT_U32(msg, NL80211_BSS_STATUS,
-				    NL80211_BSS_STATUS_AUTHENTICATED);
-			break;
-		}
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		if (intbss == wdev->current_bss)
@@ -4410,10 +4403,16 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 
 	local_state_change = !!info->attrs[NL80211_ATTR_LOCAL_STATE_CHANGE];
 
+	/*
+	 * Since we no longer track auth state, ignore
+	 * requests to only change local state.
+	 */
+	if (local_state_change)
+		return 0;
+
 	return cfg80211_mlme_auth(rdev, dev, chan, auth_type, bssid,
 				  ssid, ssid_len, ie, ie_len,
-				  key.p.key, key.p.key_len, key.idx,
-				  local_state_change);
+				  key.p.key, key.p.key_len, key.idx);
 }
 
 static int nl80211_crypto_settings(struct cfg80211_registered_device *rdev,
@@ -4803,6 +4802,9 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 		if (IS_ERR(connkeys))
 			return PTR_ERR(connkeys);
 	}
+
+	ibss.control_port =
+		nla_get_flag(info->attrs[NL80211_ATTR_CONTROL_PORT]);
 
 	err = cfg80211_join_ibss(rdev, dev, &ibss, connkeys);
 	if (err)
@@ -5408,7 +5410,7 @@ static bool ht_rateset_to_mask(struct ieee80211_supported_band *sband,
 		rbit = BIT(rates[i] % 8);
 
 		/* check validity */
-		if ((ridx < 0) || (ridx > IEEE80211_HT_MCS_MASK_LEN))
+		if ((ridx < 0) || (ridx >= IEEE80211_HT_MCS_MASK_LEN))
 			return false;
 
 		/* check availability */

@@ -35,10 +35,10 @@
 struct iwl_priv;
 
 /*No matter what is m (priv, bus, trans), this will work */
-#define IWL_ERR(m, f, a...) dev_err(bus(m)->dev, f, ## a)
-#define IWL_WARN(m, f, a...) dev_warn(bus(m)->dev, f, ## a)
-#define IWL_INFO(m, f, a...) dev_info(bus(m)->dev, f, ## a)
-#define IWL_CRIT(m, f, a...) dev_crit(bus(m)->dev, f, ## a)
+#define IWL_ERR(m, f, a...) dev_err(trans(m)->dev, f, ## a)
+#define IWL_WARN(m, f, a...) dev_warn(trans(m)->dev, f, ## a)
+#define IWL_INFO(m, f, a...) dev_info(trans(m)->dev, f, ## a)
+#define IWL_CRIT(m, f, a...) dev_crit(trans(m)->dev, f, ## a)
 
 #define iwl_print_hex_error(m, p, len)					\
 do {									\
@@ -50,7 +50,7 @@ do {									\
 #define IWL_DEBUG(m, level, fmt, ...)					\
 do {									\
 	if (iwl_get_debug_level((m)->shrd) & (level))			\
-		dev_err(bus(m)->dev, "%c %s " fmt,			\
+		dev_err(trans(m)->dev, "%c %s " fmt,			\
 			in_interrupt() ? 'I' : 'U', __func__,		\
 			##__VA_ARGS__);					\
 } while (0)
@@ -59,7 +59,7 @@ do {									\
 do {									\
 	if (iwl_get_debug_level((m)->shrd) & (level) &&			\
 	    net_ratelimit())						\
-		dev_err(bus(m)->dev, "%c %s " fmt,			\
+		dev_err(trans(m)->dev, "%c %s " fmt,			\
 			in_interrupt() ? 'I' : 'U', __func__,		\
 			##__VA_ARGS__);					\
 } while (0)
@@ -74,12 +74,12 @@ do {                                            			\
 #define IWL_DEBUG_QUIET_RFKILL(p, fmt, ...)				\
 do {									\
 	if (!iwl_is_rfkill(p->shrd))					\
-		dev_err(bus(p)->dev, "%s%c %s " fmt,			\
+		dev_err(trans(p)->dev, "%s%c %s " fmt,			\
 			"",						\
 			in_interrupt() ? 'I' : 'U', __func__,		\
 			##__VA_ARGS__);					\
 	else if	(iwl_get_debug_level(p->shrd) & IWL_DL_RADIO)		\
-		dev_err(bus(p)->dev, "%s%c %s " fmt,			\
+		dev_err(trans(p)->dev, "%s%c %s " fmt,			\
 			"(RFKILL) ",					\
 			in_interrupt() ? 'I' : 'U', __func__,		\
 			##__VA_ARGS__);					\

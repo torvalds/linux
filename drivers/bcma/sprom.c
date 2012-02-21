@@ -250,6 +250,7 @@ int bcma_sprom_get(struct bcma_bus *bus)
 {
 	u16 offset;
 	u16 *sprom;
+	u32 sromctrl;
 	int err = 0;
 
 	if (!bus->drv_cc.core)
@@ -257,6 +258,12 @@ int bcma_sprom_get(struct bcma_bus *bus)
 
 	if (!(bus->drv_cc.capabilities & BCMA_CC_CAP_SPROM))
 		return -ENOENT;
+
+	if (bus->drv_cc.core->id.rev >= 32) {
+		sromctrl = bcma_read32(bus->drv_cc.core, BCMA_CC_SROM_CONTROL);
+		if (!(sromctrl & BCMA_CC_SROM_CONTROL_PRESENT))
+			return -ENOENT;
+	}
 
 	sprom = kcalloc(SSB_SPROMSIZE_WORDS_R4, sizeof(u16),
 			GFP_KERNEL);

@@ -4914,8 +4914,6 @@ F:	fs/ocfs2/
 
 ORINOCO DRIVER
 L:	linux-wireless@vger.kernel.org
-L:	orinoco-users@lists.sourceforge.net
-L:	orinoco-devel@lists.sourceforge.net
 W:	http://linuxwireless.org/en/users/Drivers/orinoco
 W:	http://www.nongnu.org/orinoco/
 S:	Orphan

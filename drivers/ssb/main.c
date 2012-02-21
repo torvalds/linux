@@ -1094,6 +1094,9 @@ u32 ssb_clockspeed(struct ssb_bus *bus)
 	u32 plltype;
 	u32 clkctl_n, clkctl_m;
 
+	if (bus->chipco.capabilities & SSB_CHIPCO_CAP_PMU)
+		return ssb_pmu_get_controlclock(&bus->chipco);
+
 	if (ssb_extif_available(&bus->extif))
 		ssb_extif_get_clockcontrol(&bus->extif, &plltype,
 					   &clkctl_n, &clkctl_m);

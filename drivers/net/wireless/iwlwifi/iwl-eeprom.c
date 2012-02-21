@@ -156,16 +156,16 @@ static int iwl_eeprom_acquire_semaphore(struct iwl_bus *bus)
 
 	for (count = 0; count < EEPROM_SEM_RETRY_LIMIT; count++) {
 		/* Request semaphore */
-		iwl_set_bit(bus, CSR_HW_IF_CONFIG_REG,
+		iwl_set_bit(trans(bus), CSR_HW_IF_CONFIG_REG,
 			    CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
 
 		/* See if we got it */
-		ret = iwl_poll_bit(bus, CSR_HW_IF_CONFIG_REG,
+		ret = iwl_poll_bit(trans(bus), CSR_HW_IF_CONFIG_REG,
 				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 				EEPROM_SEM_TIMEOUT);
 		if (ret >= 0) {
-			IWL_DEBUG_EEPROM(bus,
+			IWL_DEBUG_EEPROM(trans(bus),
 				"Acquired semaphore after %d tries.\n",
 				count+1);
 			return ret;
@@ -177,14 +177,15 @@ static int iwl_eeprom_acquire_semaphore(struct iwl_bus *bus)
 
 static void iwl_eeprom_release_semaphore(struct iwl_bus *bus)
 {
-	iwl_clear_bit(bus, CSR_HW_IF_CONFIG_REG,
+	iwl_clear_bit(trans(bus), CSR_HW_IF_CONFIG_REG,
 		CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
 
 }
 
 static int iwl_eeprom_verify_signature(struct iwl_trans *trans)
 {
-	u32 gp = iwl_read32(bus(trans), CSR_EEPROM_GP) & CSR_EEPROM_GP_VALID_MSK;
+	u32 gp = iwl_read32(trans, CSR_EEPROM_GP) &
+			   CSR_EEPROM_GP_VALID_MSK;
 	int ret = 0;
 
 	IWL_DEBUG_EEPROM(trans, "EEPROM signature=0x%08x\n", gp);
@@ -305,13 +306,13 @@ void iwl_eeprom_get_mac(const struct iwl_shared *shrd, u8 *mac)
 
 static void iwl_set_otp_access(struct iwl_bus *bus, enum iwl_access_mode mode)
 {
-	iwl_read32(bus, CSR_OTP_GP_REG);
+	iwl_read32(trans(bus), CSR_OTP_GP_REG);
 
 	if (mode == IWL_OTP_ACCESS_ABSOLUTE)
-		iwl_clear_bit(bus, CSR_OTP_GP_REG,
+		iwl_clear_bit(trans(bus), CSR_OTP_GP_REG,
 			      CSR_OTP_GP_REG_OTP_ACCESS_MODE);
 	else
-		iwl_set_bit(bus, CSR_OTP_GP_REG,
+		iwl_set_bit(trans(bus), CSR_OTP_GP_REG,
 			    CSR_OTP_GP_REG_OTP_ACCESS_MODE);
 }
 
@@ -332,7 +333,7 @@ static int iwl_get_nvm_type(struct iwl_bus *bus, u32 hw_rev)
 		nvm_type = NVM_DEVICE_TYPE_EEPROM;
 		break;
 	default:
-		otpgp = iwl_read32(bus, CSR_OTP_GP_REG);
+		otpgp = iwl_read32(trans(bus), CSR_OTP_GP_REG);
 		if (otpgp & CSR_OTP_GP_REG_DEVICE_SELECT)
 			nvm_type = NVM_DEVICE_TYPE_OTP;
 		else
@@ -347,22 +348,22 @@ static int iwl_init_otp_access(struct iwl_bus *bus)
 	int ret;
 
 	/* Enable 40MHz radio clock */
-	iwl_write32(bus, CSR_GP_CNTRL,
-		    iwl_read32(bus, CSR_GP_CNTRL) |
+	iwl_write32(trans(bus), CSR_GP_CNTRL,
+		    iwl_read32(trans(bus), CSR_GP_CNTRL) |
 		    CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	/* wait for clock to be ready */
-	ret = iwl_poll_bit(bus, CSR_GP_CNTRL,
+	ret = iwl_poll_bit(trans(bus), CSR_GP_CNTRL,
 				 CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 				 CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
 				 25000);
 	if (ret < 0)
 		IWL_ERR(bus, "Time out access OTP\n");
 	else {
-		iwl_set_bits_prph(bus, APMG_PS_CTRL_REG,
+		iwl_set_bits_prph(trans(bus), APMG_PS_CTRL_REG,
 				  APMG_PS_CTRL_VAL_RESET_REQ);
 		udelay(5);
-		iwl_clear_bits_prph(bus, APMG_PS_CTRL_REG,
+		iwl_clear_bits_prph(trans(bus), APMG_PS_CTRL_REG,
 				    APMG_PS_CTRL_VAL_RESET_REQ);
 
 		/*
@@ -370,7 +371,7 @@ static int iwl_init_otp_access(struct iwl_bus *bus)
 		 * this is only applicable for HW with OTP shadow RAM
 		 */
 		if (cfg(bus)->base_params->shadow_ram_support)
-			iwl_set_bit(bus, CSR_DBG_LINK_PWR_MGMT_REG,
+			iwl_set_bit(trans(bus), CSR_DBG_LINK_PWR_MGMT_REG,
 				CSR_RESET_LINK_PWR_MGMT_DISABLED);
 	}
 	return ret;
@@ -382,9 +383,9 @@ static int iwl_read_otp_word(struct iwl_bus *bus, u16 addr, __le16 *eeprom_data)
 	u32 r;
 	u32 otpgp;
 
-	iwl_write32(bus, CSR_EEPROM_REG,
+	iwl_write32(trans(bus), CSR_EEPROM_REG,
 		    CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
-	ret = iwl_poll_bit(bus, CSR_EEPROM_REG,
+	ret = iwl_poll_bit(trans(bus), CSR_EEPROM_REG,
 				 CSR_EEPROM_REG_READ_VALID_MSK,
 				 CSR_EEPROM_REG_READ_VALID_MSK,
 				 IWL_EEPROM_ACCESS_TIMEOUT);
@@ -392,13 +393,13 @@ static int iwl_read_otp_word(struct iwl_bus *bus, u16 addr, __le16 *eeprom_data)
 		IWL_ERR(bus, "Time out reading OTP[%d]\n", addr);
 		return ret;
 	}
-	r = iwl_read32(bus, CSR_EEPROM_REG);
+	r = iwl_read32(trans(bus), CSR_EEPROM_REG);
 	/* check for ECC errors: */
-	otpgp = iwl_read32(bus, CSR_OTP_GP_REG);
+	otpgp = iwl_read32(trans(bus), CSR_OTP_GP_REG);
 	if (otpgp & CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK) {
 		/* stop in this case */
 		/* set the uncorrectable OTP ECC bit for acknowledgement */
-		iwl_set_bit(bus, CSR_OTP_GP_REG,
+		iwl_set_bit(trans(bus), CSR_OTP_GP_REG,
 			CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
 		IWL_ERR(bus, "Uncorrectable OTP ECC error, abort OTP read\n");
 		return -EINVAL;
@@ -406,7 +407,7 @@ static int iwl_read_otp_word(struct iwl_bus *bus, u16 addr, __le16 *eeprom_data)
 	if (otpgp & CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK) {
 		/* continue in this case */
 		/* set the correctable OTP ECC bit for acknowledgement */
-		iwl_set_bit(bus, CSR_OTP_GP_REG,
+		iwl_set_bit(trans(bus), CSR_OTP_GP_REG,
 				CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK);
 		IWL_ERR(bus, "Correctable OTP ECC error, continue read\n");
 	}
@@ -656,7 +657,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 {
 	struct iwl_shared *shrd = priv->shrd;
 	__le16 *e;
-	u32 gp = iwl_read32(bus(priv), CSR_EEPROM_GP);
+	u32 gp = iwl_read32(trans(priv), CSR_EEPROM_GP);
 	int sz;
 	int ret;
 	u16 addr;
@@ -675,8 +676,6 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 		goto alloc_err;
 	}
 	e = (__le16 *)shrd->eeprom;
-
-	iwl_apm_init(priv);
 
 	ret = iwl_eeprom_verify_signature(trans(priv));
 	if (ret < 0) {
@@ -701,11 +700,11 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 			ret = -ENOENT;
 			goto done;
 		}
-		iwl_write32(bus(priv), CSR_EEPROM_GP,
-			    iwl_read32(bus(priv), CSR_EEPROM_GP) &
+		iwl_write32(trans(priv), CSR_EEPROM_GP,
+			    iwl_read32(trans(priv), CSR_EEPROM_GP) &
 			    ~CSR_EEPROM_GP_IF_OWNER_MSK);
 
-		iwl_set_bit(bus(priv), CSR_OTP_GP_REG,
+		iwl_set_bit(trans(priv), CSR_OTP_GP_REG,
 			     CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK |
 			     CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
 		/* traversing the linked list if no shadow ram supported */
@@ -730,10 +729,10 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 		for (addr = 0; addr < sz; addr += sizeof(u16)) {
 			u32 r;
 
-			iwl_write32(bus(priv), CSR_EEPROM_REG,
+			iwl_write32(trans(priv), CSR_EEPROM_REG,
 				    CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 
-			ret = iwl_poll_bit(bus(priv), CSR_EEPROM_REG,
+			ret = iwl_poll_bit(trans(priv), CSR_EEPROM_REG,
 						  CSR_EEPROM_REG_READ_VALID_MSK,
 						  CSR_EEPROM_REG_READ_VALID_MSK,
 						  IWL_EEPROM_ACCESS_TIMEOUT);
@@ -741,7 +740,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 				IWL_ERR(priv, "Time out reading EEPROM[%d]\n", addr);
 				goto done;
 			}
-			r = iwl_read32(bus(priv), CSR_EEPROM_REG);
+			r = iwl_read32(trans(priv), CSR_EEPROM_REG);
 			e[addr / 2] = cpu_to_le16(r >> 16);
 		}
 	}
@@ -758,8 +757,6 @@ done:
 err:
 	if (ret)
 		iwl_eeprom_free(priv->shrd);
-	/* Reset chip to save power until we load uCode during "up". */
-	iwl_apm_stop(priv);
 alloc_err:
 	return ret;
 }
@@ -1072,7 +1069,7 @@ void iwl_rf_config(struct iwl_priv *priv)
 
 	/* write radio config values to register */
 	if (EEPROM_RF_CFG_TYPE_MSK(radio_cfg) <= EEPROM_RF_CONFIG_TYPE_MAX) {
-		iwl_set_bit(bus(priv), CSR_HW_IF_CONFIG_REG,
+		iwl_set_bit(trans(priv), CSR_HW_IF_CONFIG_REG,
 			    EEPROM_RF_CFG_TYPE_MSK(radio_cfg) |
 			    EEPROM_RF_CFG_STEP_MSK(radio_cfg) |
 			    EEPROM_RF_CFG_DASH_MSK(radio_cfg));
@@ -1084,7 +1081,7 @@ void iwl_rf_config(struct iwl_priv *priv)
 		WARN_ON(1);
 
 	/* set CSR_HW_CONFIG_REG for uCode use */
-	iwl_set_bit(bus(priv), CSR_HW_IF_CONFIG_REG,
+	iwl_set_bit(trans(priv), CSR_HW_IF_CONFIG_REG,
 		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
 		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
 }

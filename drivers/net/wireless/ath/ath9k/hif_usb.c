@@ -981,7 +981,7 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 		return -ENOMEM;
 
 	while (len) {
-		transfer = min_t(int, len, 4096);
+		transfer = min_t(size_t, len, 4096);
 		memcpy(buf, data, transfer);
 
 		err = usb_control_msg(hif_dev->udev,

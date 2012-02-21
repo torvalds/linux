@@ -199,15 +199,7 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-		/*
-		 * While not associated, claim a BSSID of all-zeroes
-		 * so that drivers don't do any weird things with the
-		 * BSSID at that time.
-		 */
-		if (sdata->vif.bss_conf.assoc)
-			sdata->vif.bss_conf.bssid = sdata->u.mgd.bssid;
-		else
-			sdata->vif.bss_conf.bssid = zero;
+		sdata->vif.bss_conf.bssid = sdata->u.mgd.bssid;
 	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		sdata->vif.bss_conf.bssid = sdata->u.ibss.bssid;
 	else if (sdata->vif.type == NL80211_IFTYPE_AP)
@@ -535,6 +527,9 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	int priv_size, i;
 	struct wiphy *wiphy;
 
+	if (WARN_ON(ops->sta_state && (ops->sta_add || ops->sta_remove)))
+		return NULL;
+
 	/* Ensure 32-byte alignment of our private data and hw private data.
 	 * We use the wiphy priv data for both our ieee80211_local and for
 	 * the driver's private data
@@ -700,6 +695,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	    && (!local->ops->suspend || !local->ops->resume)
 #endif
 	    )
+		return -EINVAL;
+
+	if ((hw->flags & IEEE80211_HW_SCAN_WHILE_IDLE) && !local->ops->hw_scan)
 		return -EINVAL;
 
 	if (hw->max_report_rates == 0)

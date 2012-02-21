@@ -297,12 +297,6 @@ static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
 	       cfg(priv)->bt_params->advanced_bt_coexist;
 }
 
-static inline void iwl_enable_rfkill_int(struct iwl_priv *priv)
-{
-	IWL_DEBUG_ISR(priv, "Enabling rfkill interrupt\n");
-	iwl_write32(bus(priv), CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
-}
-
 extern bool bt_siso_mode;
 
 #endif /* __iwl_core_h__ */

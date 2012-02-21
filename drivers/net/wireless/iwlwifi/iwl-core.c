@@ -203,10 +203,9 @@ int iwl_init_geos(struct iwl_priv *priv)
 
 	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
 	     cfg(priv)->sku & EEPROM_SKU_CAP_BAND_52GHZ) {
-		char buf[32];
-		bus_get_hw_id_string(bus(priv), buf, sizeof(buf));
 		IWL_INFO(priv, "Incorrectly detected BG card as ABG. "
-			"Please send your %s to maintainer.\n", buf);
+			"Please send your %s to maintainer.\n",
+			trans(priv)->hw_id_str);
 		cfg(priv)->sku &= ~EEPROM_SKU_CAP_BAND_52GHZ;
 	}
 
@@ -882,129 +881,6 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 				  "Detected FW error, but not restarting\n");
 	}
 }
-
-static int iwl_apm_stop_master(struct iwl_priv *priv)
-{
-	int ret = 0;
-
-	/* stop device's busmaster DMA activity */
-	iwl_set_bit(bus(priv), CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
-
-	ret = iwl_poll_bit(bus(priv), CSR_RESET,
-			CSR_RESET_REG_FLAG_MASTER_DISABLED,
-			CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
-	if (ret)
-		IWL_WARN(priv, "Master Disable Timed Out, 100 usec\n");
-
-	IWL_DEBUG_INFO(priv, "stop master\n");
-
-	return ret;
-}
-
-void iwl_apm_stop(struct iwl_priv *priv)
-{
-	IWL_DEBUG_INFO(priv, "Stop card, put in low power state\n");
-
-	clear_bit(STATUS_DEVICE_ENABLED, &priv->shrd->status);
-
-	/* Stop device's DMA activity */
-	iwl_apm_stop_master(priv);
-
-	/* Reset the entire device */
-	iwl_set_bit(bus(priv), CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
-
-	udelay(10);
-
-	/*
-	 * Clear "initialization complete" bit to move adapter from
-	 * D0A* (powered-up Active) --> D0U* (Uninitialized) state.
-	 */
-	iwl_clear_bit(bus(priv), CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-}
-
-
-/*
- * Start up NIC's basic functionality after it has been reset
- * (e.g. after platform boot, or shutdown via iwl_apm_stop())
- * NOTE:  This does not load uCode nor start the embedded processor
- */
-int iwl_apm_init(struct iwl_priv *priv)
-{
-	int ret = 0;
-	IWL_DEBUG_INFO(priv, "Init card's basic functions\n");
-
-	/*
-	 * Use "set_bit" below rather than "write", to preserve any hardware
-	 * bits already set by default after reset.
-	 */
-
-	/* Disable L0S exit timer (platform NMI Work/Around) */
-	iwl_set_bit(bus(priv), CSR_GIO_CHICKEN_BITS,
-			  CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
-
-	/*
-	 * Disable L0s without affecting L1;
-	 *  don't wait for ICH L0s (ICH bug W/A)
-	 */
-	iwl_set_bit(bus(priv), CSR_GIO_CHICKEN_BITS,
-			  CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX);
-
-	/* Set FH wait threshold to maximum (HW error during stress W/A) */
-	iwl_set_bit(bus(priv), CSR_DBG_HPET_MEM_REG, CSR_DBG_HPET_MEM_REG_VAL);
-
-	/*
-	 * Enable HAP INTA (interrupt from management bus) to
-	 * wake device's PCI Express link L1a -> L0s
-	 */
-	iwl_set_bit(bus(priv), CSR_HW_IF_CONFIG_REG,
-				    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
-
-	bus_apm_config(bus(priv));
-
-	/* Configure analog phase-lock-loop before activating to D0A */
-	if (cfg(priv)->base_params->pll_cfg_val)
-		iwl_set_bit(bus(priv), CSR_ANA_PLL_CFG,
-			    cfg(priv)->base_params->pll_cfg_val);
-
-	/*
-	 * Set "initialization complete" bit to move adapter from
-	 * D0U* --> D0A* (powered-up active) state.
-	 */
-	iwl_set_bit(bus(priv), CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
-
-	/*
-	 * Wait for clock stabilization; once stabilized, access to
-	 * device-internal resources is supported, e.g. iwl_write_prph()
-	 * and accesses to uCode SRAM.
-	 */
-	ret = iwl_poll_bit(bus(priv), CSR_GP_CNTRL,
-			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
-	if (ret < 0) {
-		IWL_DEBUG_INFO(priv, "Failed to init the card\n");
-		goto out;
-	}
-
-	/*
-	 * Enable DMA clock and wait for it to stabilize.
-	 *
-	 * Write to "CLK_EN_REG"; "1" bits enable clocks, while "0" bits
-	 * do not disable clocks.  This preserves any hardware bits already
-	 * set by default in "CLK_CTRL_REG" after reset.
-	 */
-	iwl_write_prph(bus(priv), APMG_CLK_EN_REG, APMG_CLK_VAL_DMA_CLK_RQT);
-	udelay(20);
-
-	/* Disable L1-Active */
-	iwl_set_bits_prph(bus(priv), APMG_PCIDEV_STT_REG,
-			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
-
-	set_bit(STATUS_DEVICE_ENABLED, &priv->shrd->status);
-
-out:
-	return ret;
-}
-
 
 int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 {

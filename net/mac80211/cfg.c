@@ -2028,7 +2028,7 @@ ieee80211_offchan_tx_done(struct ieee80211_work *wk, struct sk_buff *skb)
 	if (wk->offchan_tx.wait && !wk->offchan_tx.status)
 		cfg80211_mgmt_tx_status(wk->sdata->dev,
 					(unsigned long) wk->offchan_tx.frame,
-					wk->ie, wk->ie_len, false, GFP_KERNEL);
+					wk->data, wk->data_len, false, GFP_KERNEL);
 
 	return WORK_DONE_DESTROY;
 }
@@ -2179,8 +2179,8 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 	wk->done = ieee80211_offchan_tx_done;
 	wk->offchan_tx.frame = skb;
 	wk->offchan_tx.wait = wait;
-	wk->ie_len = len;
-	memcpy(wk->ie, buf, len);
+	wk->data_len = len;
+	memcpy(wk->data, buf, len);
 
 	ieee80211_add_work(wk);
 	return 0;

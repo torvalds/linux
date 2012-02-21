@@ -54,8 +54,41 @@ int ath6kl_printk(const char *level, const char *fmt, ...)
 
 	return rtn;
 }
+EXPORT_SYMBOL(ath6kl_printk);
 
 #ifdef CONFIG_ATH6KL_DEBUG
+
+void ath6kl_dbg(enum ATH6K_DEBUG_MASK mask, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (!(debug_mask & mask))
+		return;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	ath6kl_printk(KERN_DEBUG, "%pV", &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL(ath6kl_dbg);
+
+void ath6kl_dbg_dump(enum ATH6K_DEBUG_MASK mask,
+		     const char *msg, const char *prefix,
+		     const void *buf, size_t len)
+{
+	if (debug_mask & mask) {
+		if (msg)
+			ath6kl_dbg(mask, "%s\n", msg);
+
+		print_hex_dump_bytes(prefix, DUMP_PREFIX_OFFSET, buf, len);
+	}
+}
+EXPORT_SYMBOL(ath6kl_dbg_dump);
 
 #define REG_OUTPUT_LEN_PER_LINE	25
 #define REGTYPE_STR_LEN		100
@@ -82,31 +115,31 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 			   struct ath6kl_irq_enable_reg *irq_enable_reg)
 {
 
-	ath6kl_dbg(ATH6KL_DBG_ANY, ("<------- Register Table -------->\n"));
+	ath6kl_dbg(ATH6KL_DBG_IRQ, ("<------- Register Table -------->\n"));
 
 	if (irq_proc_reg != NULL) {
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			"Host Int status:           0x%x\n",
 			irq_proc_reg->host_int_status);
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "CPU Int status:            0x%x\n",
 			irq_proc_reg->cpu_int_status);
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Error Int status:          0x%x\n",
 			irq_proc_reg->error_int_status);
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Counter Int status:        0x%x\n",
 			irq_proc_reg->counter_int_status);
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Mbox Frame:                0x%x\n",
 			irq_proc_reg->mbox_frame);
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Rx Lookahead Valid:        0x%x\n",
 			irq_proc_reg->rx_lkahd_valid);
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Rx Lookahead 0:            0x%x\n",
 			irq_proc_reg->rx_lkahd[0]);
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Rx Lookahead 1:            0x%x\n",
 			irq_proc_reg->rx_lkahd[1]);
 
@@ -115,16 +148,16 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 			 * If the target supports GMBOX hardware, dump some
 			 * additional state.
 			 */
-			ath6kl_dbg(ATH6KL_DBG_ANY,
+			ath6kl_dbg(ATH6KL_DBG_IRQ,
 				"GMBOX Host Int status 2:   0x%x\n",
 				irq_proc_reg->host_int_status2);
-			ath6kl_dbg(ATH6KL_DBG_ANY,
+			ath6kl_dbg(ATH6KL_DBG_IRQ,
 				"GMBOX RX Avail:            0x%x\n",
 				irq_proc_reg->gmbox_rx_avail);
-			ath6kl_dbg(ATH6KL_DBG_ANY,
+			ath6kl_dbg(ATH6KL_DBG_IRQ,
 				"GMBOX lookahead alias 0:   0x%x\n",
 				irq_proc_reg->rx_gmbox_lkahd_alias[0]);
-			ath6kl_dbg(ATH6KL_DBG_ANY,
+			ath6kl_dbg(ATH6KL_DBG_IRQ,
 				"GMBOX lookahead alias 1:   0x%x\n",
 				irq_proc_reg->rx_gmbox_lkahd_alias[1]);
 		}
@@ -132,13 +165,13 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 	}
 
 	if (irq_enable_reg != NULL) {
-		ath6kl_dbg(ATH6KL_DBG_ANY,
+		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			"Int status Enable:         0x%x\n",
 			irq_enable_reg->int_status_en);
-		ath6kl_dbg(ATH6KL_DBG_ANY, "Counter Int status Enable: 0x%x\n",
+		ath6kl_dbg(ATH6KL_DBG_IRQ, "Counter Int status Enable: 0x%x\n",
 			irq_enable_reg->cntr_int_status_en);
 	}
-	ath6kl_dbg(ATH6KL_DBG_ANY, "<------------------------------->\n");
+	ath6kl_dbg(ATH6KL_DBG_IRQ, "<------------------------------->\n");
 }
 
 static void dump_cred_dist(struct htc_endpoint_credit_dist *ep_dist)
@@ -174,9 +207,6 @@ static void dump_cred_dist(struct htc_endpoint_credit_dist *ep_dist)
 void dump_cred_dist_stats(struct htc_target *target)
 {
 	struct htc_endpoint_credit_dist *ep_list;
-
-	if (!AR_DBG_LVL_CHECK(ATH6KL_DBG_CREDIT))
-		return;
 
 	list_for_each_entry(ep_list, &target->cred_dist_list, list)
 		dump_cred_dist(ep_list);
@@ -1411,6 +1441,8 @@ static ssize_t ath6kl_create_qos_write(struct file *file,
 		return -EINVAL;
 	pstream.medium_time = cpu_to_le32(val32);
 
+	pstream.nominal_phy = le32_to_cpu(pstream.min_phy_rate) / 1000000;
+
 	ath6kl_wmi_create_pstream_cmd(ar->wmi, vif->fw_vif_idx, &pstream);
 
 	return count;
@@ -1505,57 +1537,46 @@ static const struct file_operations fops_bgscan_int = {
 };
 
 static ssize_t ath6kl_listen_int_write(struct file *file,
-						const char __user *user_buf,
-						size_t count, loff_t *ppos)
+				       const char __user *user_buf,
+				       size_t count, loff_t *ppos)
 {
 	struct ath6kl *ar = file->private_data;
-	u16 listen_int_t, listen_int_b;
+	struct ath6kl_vif *vif;
+	u16 listen_interval;
 	char buf[32];
-	char *sptr, *token;
 	ssize_t len;
+
+	vif = ath6kl_vif_first(ar);
+	if (!vif)
+		return -EIO;
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
 		return -EFAULT;
 
 	buf[len] = '\0';
-	sptr = buf;
-
-	token = strsep(&sptr, " ");
-	if (!token)
+	if (kstrtou16(buf, 0, &listen_interval))
 		return -EINVAL;
 
-	if (kstrtou16(token, 0, &listen_int_t))
+	if ((listen_interval < 1) || (listen_interval > 50))
 		return -EINVAL;
 
-	if (kstrtou16(sptr, 0, &listen_int_b))
-		return -EINVAL;
-
-	if ((listen_int_t < 15) || (listen_int_t > 5000))
-		return -EINVAL;
-
-	if ((listen_int_b < 1) || (listen_int_b > 50))
-		return -EINVAL;
-
-	ar->listen_intvl_t = listen_int_t;
-	ar->listen_intvl_b = listen_int_b;
-
-	ath6kl_wmi_listeninterval_cmd(ar->wmi, 0, ar->listen_intvl_t,
+	ar->listen_intvl_b = listen_interval;
+	ath6kl_wmi_listeninterval_cmd(ar->wmi, vif->fw_vif_idx, 0,
 				      ar->listen_intvl_b);
 
 	return count;
 }
 
 static ssize_t ath6kl_listen_int_read(struct file *file,
-						char __user *user_buf,
-						size_t count, loff_t *ppos)
+				      char __user *user_buf,
+				      size_t count, loff_t *ppos)
 {
 	struct ath6kl *ar = file->private_data;
 	char buf[32];
 	int len;
 
-	len = scnprintf(buf, sizeof(buf), "%u %u\n", ar->listen_intvl_t,
-					ar->listen_intvl_b);
+	len = scnprintf(buf, sizeof(buf), "%u\n", ar->listen_intvl_b);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
@@ -1709,6 +1730,9 @@ int ath6kl_debug_init(struct ath6kl *ar)
 
 	debugfs_create_file("bgscan_interval", S_IWUSR,
 				ar->debugfs_phy, ar, &fops_bgscan_int);
+
+	debugfs_create_file("listen_interval", S_IRUSR | S_IWUSR,
+			    ar->debugfs_phy, ar, &fops_listen_int);
 
 	debugfs_create_file("power_params", S_IWUSR, ar->debugfs_phy, ar,
 						&fops_power_params);

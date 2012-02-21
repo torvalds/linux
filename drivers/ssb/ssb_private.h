@@ -207,4 +207,8 @@ static inline void b43_pci_ssb_bridge_exit(void)
 }
 #endif /* CONFIG_SSB_B43_PCI_BRIDGE */
 
+/* driver_chipcommon_pmu.c */
+extern u32 ssb_pmu_get_cpu_clock(struct ssb_chipcommon *cc);
+extern u32 ssb_pmu_get_controlclock(struct ssb_chipcommon *cc);
+
 #endif /* LINUX_SSB_PRIVATE_H_ */

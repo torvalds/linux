@@ -87,7 +87,7 @@ static void iwl2000_nic_config(struct iwl_priv *priv)
 	iwl_rf_config(priv);
 
 	if (cfg(priv)->iq_invert)
-		iwl_set_bit(bus(priv), CSR_GP_DRIVER_REG,
+		iwl_set_bit(trans(priv), CSR_GP_DRIVER_REG,
 			    CSR_GP_DRIVER_REG_BIT_RADIO_IQ_INVER);
 }
 
@@ -124,8 +124,6 @@ static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	hw_params(priv).max_txq_num = cfg(priv)->base_params->num_of_queues;
-	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
-
 	hw_params(priv).max_data_size = IWL60_RTC_DATA_SIZE;
 	hw_params(priv).max_inst_size = IWL60_RTC_INST_SIZE;
 

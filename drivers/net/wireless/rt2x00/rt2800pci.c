@@ -1093,6 +1093,7 @@ static const struct data_queue_desc rt2800pci_queue_bcn = {
 
 static const struct rt2x00_ops rt2800pci_ops = {
 	.name			= KBUILD_MODNAME,
+	.drv_data_size		= sizeof(struct rt2800_drv_data),
 	.max_sta_intf		= 1,
 	.max_ap_intf		= 8,
 	.eeprom_size		= EEPROM_SIZE,

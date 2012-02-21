@@ -32,7 +32,9 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
+#include <linux/firmware.h>
 
+#include "iwl-ucode.h"
 #include "iwl-wifi.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
@@ -80,29 +82,29 @@ static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
  *
  ******************************************************************************/
 
-static void iwl_free_fw_desc(struct iwl_bus *bus, struct fw_desc *desc)
+static void iwl_free_fw_desc(struct iwl_trans *trans, struct fw_desc *desc)
 {
 	if (desc->v_addr)
-		dma_free_coherent(bus->dev, desc->len,
+		dma_free_coherent(trans->dev, desc->len,
 				  desc->v_addr, desc->p_addr);
 	desc->v_addr = NULL;
 	desc->len = 0;
 }
 
-static void iwl_free_fw_img(struct iwl_bus *bus, struct fw_img *img)
+static void iwl_free_fw_img(struct iwl_trans *trans, struct fw_img *img)
 {
-	iwl_free_fw_desc(bus, &img->code);
-	iwl_free_fw_desc(bus, &img->data);
+	iwl_free_fw_desc(trans, &img->code);
+	iwl_free_fw_desc(trans, &img->data);
 }
 
 void iwl_dealloc_ucode(struct iwl_trans *trans)
 {
-	iwl_free_fw_img(bus(trans), &trans->ucode_rt);
-	iwl_free_fw_img(bus(trans), &trans->ucode_init);
-	iwl_free_fw_img(bus(trans), &trans->ucode_wowlan);
+	iwl_free_fw_img(trans, &trans->ucode_rt);
+	iwl_free_fw_img(trans, &trans->ucode_init);
+	iwl_free_fw_img(trans, &trans->ucode_wowlan);
 }
 
-int iwl_alloc_fw_desc(struct iwl_bus *bus, struct fw_desc *desc,
+static int iwl_alloc_fw_desc(struct iwl_trans *trans, struct fw_desc *desc,
 		      const void *data, size_t len)
 {
 	if (!len) {
@@ -110,66 +112,13 @@ int iwl_alloc_fw_desc(struct iwl_bus *bus, struct fw_desc *desc,
 		return -EINVAL;
 	}
 
-	desc->v_addr = dma_alloc_coherent(bus->dev, len,
+	desc->v_addr = dma_alloc_coherent(trans->dev, len,
 					  &desc->p_addr, GFP_KERNEL);
 	if (!desc->v_addr)
 		return -ENOMEM;
 
 	desc->len = len;
 	memcpy(desc->v_addr, data, len);
-	return 0;
-}
-
-/*
- * ucode
- */
-static int iwl_load_section(struct iwl_trans *trans, const char *name,
-				struct fw_desc *image, u32 dst_addr)
-{
-	struct iwl_bus *bus = bus(trans);
-	dma_addr_t phy_addr = image->p_addr;
-	u32 byte_cnt = image->len;
-	int ret;
-
-	trans->ucode_write_complete = 0;
-
-	iwl_write_direct32(bus,
-		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
-		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE);
-
-	iwl_write_direct32(bus,
-		FH_SRVC_CHNL_SRAM_ADDR_REG(FH_SRVC_CHNL), dst_addr);
-
-	iwl_write_direct32(bus,
-		FH_TFDIB_CTRL0_REG(FH_SRVC_CHNL),
-		phy_addr & FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK);
-
-	iwl_write_direct32(bus,
-		FH_TFDIB_CTRL1_REG(FH_SRVC_CHNL),
-		(iwl_get_dma_hi_addr(phy_addr)
-			<< FH_MEM_TFDIB_REG1_ADDR_BITSHIFT) | byte_cnt);
-
-	iwl_write_direct32(bus,
-		FH_TCSR_CHNL_TX_BUF_STS_REG(FH_SRVC_CHNL),
-		1 << FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_NUM |
-		1 << FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_IDX |
-		FH_TCSR_CHNL_TX_BUF_STS_REG_VAL_TFDB_VALID);
-
-	iwl_write_direct32(bus,
-		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
-		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE	|
-		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	|
-		FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
-
-	IWL_DEBUG_FW(bus, "%s uCode section being loaded...\n", name);
-	ret = wait_event_timeout(trans->shrd->wait_command_queue,
-				 trans->ucode_write_complete, 5 * HZ);
-	if (!ret) {
-		IWL_ERR(trans, "Could not load the %s uCode section\n",
-			name);
-		return -ETIMEDOUT;
-	}
-
 	return 0;
 }
 
@@ -187,28 +136,6 @@ static inline struct fw_img *iwl_get_ucode_image(struct iwl_trans *trans,
 		break;
 	}
 	return NULL;
-}
-
-static int iwl_load_given_ucode(struct iwl_trans *trans,
-				   enum iwl_ucode_type ucode_type)
-{
-	int ret = 0;
-	struct fw_img *image = iwl_get_ucode_image(trans, ucode_type);
-
-
-	if (!image) {
-		IWL_ERR(trans, "Invalid ucode requested (%d)\n",
-			ucode_type);
-		return -EINVAL;
-	}
-
-	ret = iwl_load_section(trans, "INST", &image->code,
-				   IWLAGN_RTC_INST_LOWER_BOUND);
-	if (ret)
-		return ret;
-
-	return iwl_load_section(trans, "DATA", &image->data,
-				    IWLAGN_RTC_DATA_LOWER_BOUND);
 }
 
 /*
@@ -447,7 +374,7 @@ static int iwl_alive_notify(struct iwl_trans *trans)
 	if (!priv->tx_cmd_pool)
 		return -ENOMEM;
 
-	iwl_trans_tx_start(trans);
+	iwl_trans_fw_alive(trans);
 	for_each_context(priv, ctx)
 		ctx->last_tx_rejected = false;
 
@@ -470,7 +397,7 @@ static int iwl_alive_notify(struct iwl_trans *trans)
  *   using sample data 100 bytes apart.  If these sample points are good,
  *   it's a pretty good bet that everything between them is good, too.
  */
-static int iwl_verify_inst_sparse(struct iwl_bus *bus,
+static int iwl_verify_inst_sparse(struct iwl_trans *trans,
 				      struct fw_desc *fw_desc)
 {
 	__le32 *image = (__le32 *)fw_desc->v_addr;
@@ -478,15 +405,15 @@ static int iwl_verify_inst_sparse(struct iwl_bus *bus,
 	u32 val;
 	u32 i;
 
-	IWL_DEBUG_FW(bus, "ucode inst image size is %u\n", len);
+	IWL_DEBUG_FW(trans, "ucode inst image size is %u\n", len);
 
 	for (i = 0; i < len; i += 100, image += 100/sizeof(u32)) {
 		/* read data comes through single port, auto-incr addr */
 		/* NOTE: Use the debugless read so we don't flood kernel log
 		 * if IWL_DL_IO is set */
-		iwl_write_direct32(bus, HBUS_TARG_MEM_RADDR,
+		iwl_write_direct32(trans, HBUS_TARG_MEM_RADDR,
 			i + IWLAGN_RTC_INST_LOWER_BOUND);
-		val = iwl_read32(bus, HBUS_TARG_MEM_RDAT);
+		val = iwl_read32(trans, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image))
 			return -EIO;
 	}
@@ -494,7 +421,7 @@ static int iwl_verify_inst_sparse(struct iwl_bus *bus,
 	return 0;
 }
 
-static void iwl_print_mismatch_inst(struct iwl_bus *bus,
+static void iwl_print_mismatch_inst(struct iwl_trans *trans,
 				    struct fw_desc *fw_desc)
 {
 	__le32 *image = (__le32 *)fw_desc->v_addr;
@@ -503,18 +430,18 @@ static void iwl_print_mismatch_inst(struct iwl_bus *bus,
 	u32 offs;
 	int errors = 0;
 
-	IWL_DEBUG_FW(bus, "ucode inst image size is %u\n", len);
+	IWL_DEBUG_FW(trans, "ucode inst image size is %u\n", len);
 
-	iwl_write_direct32(bus, HBUS_TARG_MEM_RADDR,
+	iwl_write_direct32(trans, HBUS_TARG_MEM_RADDR,
 			   IWLAGN_RTC_INST_LOWER_BOUND);
 
 	for (offs = 0;
 	     offs < len && errors < 20;
 	     offs += sizeof(u32), image++) {
 		/* read data comes through single port, auto-incr addr */
-		val = iwl_read32(bus, HBUS_TARG_MEM_RDAT);
+		val = iwl_read32(trans, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
-			IWL_ERR(bus, "uCode INST section at "
+			IWL_ERR(trans, "uCode INST section at "
 				"offset 0x%x, is 0x%x, s/b 0x%x\n",
 				offs, val, le32_to_cpu(*image));
 			errors++;
@@ -536,14 +463,14 @@ static int iwl_verify_ucode(struct iwl_trans *trans,
 		return -EINVAL;
 	}
 
-	if (!iwl_verify_inst_sparse(bus(trans), &img->code)) {
+	if (!iwl_verify_inst_sparse(trans, &img->code)) {
 		IWL_DEBUG_FW(trans, "uCode is good in inst SRAM\n");
 		return 0;
 	}
 
 	IWL_ERR(trans, "UCODE IMAGE IN INSTRUCTION SRAM NOT VALID!!\n");
 
-	iwl_print_mismatch_inst(bus(trans), &img->code);
+	iwl_print_mismatch_inst(trans, &img->code);
 	return -EIO;
 }
 
@@ -647,27 +574,26 @@ int iwl_load_ucode_wait_alive(struct iwl_trans *trans,
 {
 	struct iwl_notification_wait alive_wait;
 	struct iwl_alive_data alive_data;
+	struct fw_img *fw;
 	int ret;
 	enum iwl_ucode_type old_type;
-
-	ret = iwl_trans_start_device(trans);
-	if (ret)
-		return ret;
 
 	iwl_init_notification_wait(trans->shrd, &alive_wait, REPLY_ALIVE,
 				      iwl_alive_fn, &alive_data);
 
 	old_type = trans->shrd->ucode_type;
 	trans->shrd->ucode_type = ucode_type;
+	fw = iwl_get_ucode_image(trans, ucode_type);
 
-	ret = iwl_load_given_ucode(trans, ucode_type);
+	if (!fw)
+		return -EINVAL;
+
+	ret = iwl_trans_start_fw(trans, fw);
 	if (ret) {
 		trans->shrd->ucode_type = old_type;
 		iwl_remove_notification(trans->shrd, &alive_wait);
 		return ret;
 	}
-
-	iwl_trans_kick_nic(trans);
 
 	/*
 	 * Some things may run in the background now, but we
@@ -756,3 +682,609 @@ int iwl_run_init_ucode(struct iwl_trans *trans)
 	iwl_trans_stop_device(trans);
 	return ret;
 }
+
+static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context);
+
+#define UCODE_EXPERIMENTAL_INDEX	100
+#define UCODE_EXPERIMENTAL_TAG		"exp"
+
+int __must_check iwl_request_firmware(struct iwl_priv *priv, bool first)
+{
+	const char *name_pre = cfg(priv)->fw_name_pre;
+	char tag[8];
+
+	if (first) {
+#ifdef CONFIG_IWLWIFI_DEBUG_EXPERIMENTAL_UCODE
+		priv->fw_index = UCODE_EXPERIMENTAL_INDEX;
+		strcpy(tag, UCODE_EXPERIMENTAL_TAG);
+	} else if (priv->fw_index == UCODE_EXPERIMENTAL_INDEX) {
+#endif
+		priv->fw_index = cfg(priv)->ucode_api_max;
+		sprintf(tag, "%d", priv->fw_index);
+	} else {
+		priv->fw_index--;
+		sprintf(tag, "%d", priv->fw_index);
+	}
+
+	if (priv->fw_index < cfg(priv)->ucode_api_min) {
+		IWL_ERR(priv, "no suitable firmware found!\n");
+		return -ENOENT;
+	}
+
+	sprintf(priv->firmware_name, "%s%s%s", name_pre, tag, ".ucode");
+
+	IWL_DEBUG_INFO(priv, "attempting to load firmware %s'%s'\n",
+		       (priv->fw_index == UCODE_EXPERIMENTAL_INDEX)
+				? "EXPERIMENTAL " : "",
+		       priv->firmware_name);
+
+	return request_firmware_nowait(THIS_MODULE, 1, priv->firmware_name,
+				       trans(priv)->dev,
+				       GFP_KERNEL, priv, iwl_ucode_callback);
+}
+
+struct iwlagn_firmware_pieces {
+	const void *inst, *data, *init, *init_data, *wowlan_inst, *wowlan_data;
+	size_t inst_size, data_size, init_size, init_data_size,
+	       wowlan_inst_size, wowlan_data_size;
+
+	u32 build;
+
+	u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
+	u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
+};
+
+static int iwlagn_load_legacy_firmware(struct iwl_priv *priv,
+				       const struct firmware *ucode_raw,
+				       struct iwlagn_firmware_pieces *pieces)
+{
+	struct iwl_ucode_header *ucode = (void *)ucode_raw->data;
+	u32 api_ver, hdr_size;
+	const u8 *src;
+
+	priv->ucode_ver = le32_to_cpu(ucode->ver);
+	api_ver = IWL_UCODE_API(priv->ucode_ver);
+
+	switch (api_ver) {
+	default:
+		hdr_size = 28;
+		if (ucode_raw->size < hdr_size) {
+			IWL_ERR(priv, "File size too small!\n");
+			return -EINVAL;
+		}
+		pieces->build = le32_to_cpu(ucode->u.v2.build);
+		pieces->inst_size = le32_to_cpu(ucode->u.v2.inst_size);
+		pieces->data_size = le32_to_cpu(ucode->u.v2.data_size);
+		pieces->init_size = le32_to_cpu(ucode->u.v2.init_size);
+		pieces->init_data_size = le32_to_cpu(ucode->u.v2.init_data_size);
+		src = ucode->u.v2.data;
+		break;
+	case 0:
+	case 1:
+	case 2:
+		hdr_size = 24;
+		if (ucode_raw->size < hdr_size) {
+			IWL_ERR(priv, "File size too small!\n");
+			return -EINVAL;
+		}
+		pieces->build = 0;
+		pieces->inst_size = le32_to_cpu(ucode->u.v1.inst_size);
+		pieces->data_size = le32_to_cpu(ucode->u.v1.data_size);
+		pieces->init_size = le32_to_cpu(ucode->u.v1.init_size);
+		pieces->init_data_size = le32_to_cpu(ucode->u.v1.init_data_size);
+		src = ucode->u.v1.data;
+		break;
+	}
+
+	/* Verify size of file vs. image size info in file's header */
+	if (ucode_raw->size != hdr_size + pieces->inst_size +
+				pieces->data_size + pieces->init_size +
+				pieces->init_data_size) {
+
+		IWL_ERR(priv,
+			"uCode file size %d does not match expected size\n",
+			(int)ucode_raw->size);
+		return -EINVAL;
+	}
+
+	pieces->inst = src;
+	src += pieces->inst_size;
+	pieces->data = src;
+	src += pieces->data_size;
+	pieces->init = src;
+	src += pieces->init_size;
+	pieces->init_data = src;
+	src += pieces->init_data_size;
+
+	return 0;
+}
+
+static int iwlagn_load_firmware(struct iwl_priv *priv,
+				const struct firmware *ucode_raw,
+				struct iwlagn_firmware_pieces *pieces,
+				struct iwlagn_ucode_capabilities *capa)
+{
+	struct iwl_tlv_ucode_header *ucode = (void *)ucode_raw->data;
+	struct iwl_ucode_tlv *tlv;
+	size_t len = ucode_raw->size;
+	const u8 *data;
+	int wanted_alternative = iwlagn_mod_params.wanted_ucode_alternative;
+	int tmp;
+	u64 alternatives;
+	u32 tlv_len;
+	enum iwl_ucode_tlv_type tlv_type;
+	const u8 *tlv_data;
+
+	if (len < sizeof(*ucode)) {
+		IWL_ERR(priv, "uCode has invalid length: %zd\n", len);
+		return -EINVAL;
+	}
+
+	if (ucode->magic != cpu_to_le32(IWL_TLV_UCODE_MAGIC)) {
+		IWL_ERR(priv, "invalid uCode magic: 0X%x\n",
+			le32_to_cpu(ucode->magic));
+		return -EINVAL;
+	}
+
+	/*
+	 * Check which alternatives are present, and "downgrade"
+	 * when the chosen alternative is not present, warning
+	 * the user when that happens. Some files may not have
+	 * any alternatives, so don't warn in that case.
+	 */
+	alternatives = le64_to_cpu(ucode->alternatives);
+	tmp = wanted_alternative;
+	if (wanted_alternative > 63)
+		wanted_alternative = 63;
+	while (wanted_alternative && !(alternatives & BIT(wanted_alternative)))
+		wanted_alternative--;
+	if (wanted_alternative && wanted_alternative != tmp)
+		IWL_WARN(priv,
+			 "uCode alternative %d not available, choosing %d\n",
+			 tmp, wanted_alternative);
+
+	priv->ucode_ver = le32_to_cpu(ucode->ver);
+	pieces->build = le32_to_cpu(ucode->build);
+	data = ucode->data;
+
+	len -= sizeof(*ucode);
+
+	while (len >= sizeof(*tlv)) {
+		u16 tlv_alt;
+
+		len -= sizeof(*tlv);
+		tlv = (void *)data;
+
+		tlv_len = le32_to_cpu(tlv->length);
+		tlv_type = le16_to_cpu(tlv->type);
+		tlv_alt = le16_to_cpu(tlv->alternative);
+		tlv_data = tlv->data;
+
+		if (len < tlv_len) {
+			IWL_ERR(priv, "invalid TLV len: %zd/%u\n",
+				len, tlv_len);
+			return -EINVAL;
+		}
+		len -= ALIGN(tlv_len, 4);
+		data += sizeof(*tlv) + ALIGN(tlv_len, 4);
+
+		/*
+		 * Alternative 0 is always valid.
+		 *
+		 * Skip alternative TLVs that are not selected.
+		 */
+		if (tlv_alt != 0 && tlv_alt != wanted_alternative)
+			continue;
+
+		switch (tlv_type) {
+		case IWL_UCODE_TLV_INST:
+			pieces->inst = tlv_data;
+			pieces->inst_size = tlv_len;
+			break;
+		case IWL_UCODE_TLV_DATA:
+			pieces->data = tlv_data;
+			pieces->data_size = tlv_len;
+			break;
+		case IWL_UCODE_TLV_INIT:
+			pieces->init = tlv_data;
+			pieces->init_size = tlv_len;
+			break;
+		case IWL_UCODE_TLV_INIT_DATA:
+			pieces->init_data = tlv_data;
+			pieces->init_data_size = tlv_len;
+			break;
+		case IWL_UCODE_TLV_BOOT:
+			IWL_ERR(priv, "Found unexpected BOOT ucode\n");
+			break;
+		case IWL_UCODE_TLV_PROBE_MAX_LEN:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			capa->max_probe_length =
+					le32_to_cpup((__le32 *)tlv_data);
+			break;
+		case IWL_UCODE_TLV_PAN:
+			if (tlv_len)
+				goto invalid_tlv_len;
+			capa->flags |= IWL_UCODE_TLV_FLAGS_PAN;
+			break;
+		case IWL_UCODE_TLV_FLAGS:
+			/* must be at least one u32 */
+			if (tlv_len < sizeof(u32))
+				goto invalid_tlv_len;
+			/* and a proper number of u32s */
+			if (tlv_len % sizeof(u32))
+				goto invalid_tlv_len;
+			/*
+			 * This driver only reads the first u32 as
+			 * right now no more features are defined,
+			 * if that changes then either the driver
+			 * will not work with the new firmware, or
+			 * it'll not take advantage of new features.
+			 */
+			capa->flags = le32_to_cpup((__le32 *)tlv_data);
+			break;
+		case IWL_UCODE_TLV_INIT_EVTLOG_PTR:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->init_evtlog_ptr =
+					le32_to_cpup((__le32 *)tlv_data);
+			break;
+		case IWL_UCODE_TLV_INIT_EVTLOG_SIZE:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->init_evtlog_size =
+					le32_to_cpup((__le32 *)tlv_data);
+			break;
+		case IWL_UCODE_TLV_INIT_ERRLOG_PTR:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->init_errlog_ptr =
+					le32_to_cpup((__le32 *)tlv_data);
+			break;
+		case IWL_UCODE_TLV_RUNT_EVTLOG_PTR:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->inst_evtlog_ptr =
+					le32_to_cpup((__le32 *)tlv_data);
+			break;
+		case IWL_UCODE_TLV_RUNT_EVTLOG_SIZE:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->inst_evtlog_size =
+					le32_to_cpup((__le32 *)tlv_data);
+			break;
+		case IWL_UCODE_TLV_RUNT_ERRLOG_PTR:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->inst_errlog_ptr =
+					le32_to_cpup((__le32 *)tlv_data);
+			break;
+		case IWL_UCODE_TLV_ENHANCE_SENS_TBL:
+			if (tlv_len)
+				goto invalid_tlv_len;
+			priv->enhance_sensitivity_table = true;
+			break;
+		case IWL_UCODE_TLV_WOWLAN_INST:
+			pieces->wowlan_inst = tlv_data;
+			pieces->wowlan_inst_size = tlv_len;
+			break;
+		case IWL_UCODE_TLV_WOWLAN_DATA:
+			pieces->wowlan_data = tlv_data;
+			pieces->wowlan_data_size = tlv_len;
+			break;
+		case IWL_UCODE_TLV_PHY_CALIBRATION_SIZE:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			capa->standard_phy_calibration_size =
+					le32_to_cpup((__le32 *)tlv_data);
+			break;
+		default:
+			IWL_DEBUG_INFO(priv, "unknown TLV: %d\n", tlv_type);
+			break;
+		}
+	}
+
+	if (len) {
+		IWL_ERR(priv, "invalid TLV after parsing: %zd\n", len);
+		iwl_print_hex_dump(priv, IWL_DL_FW, (u8 *)data, len);
+		return -EINVAL;
+	}
+
+	return 0;
+
+ invalid_tlv_len:
+	IWL_ERR(priv, "TLV %d has invalid size: %u\n", tlv_type, tlv_len);
+	iwl_print_hex_dump(priv, IWL_DL_FW, tlv_data, tlv_len);
+
+	return -EINVAL;
+}
+
+/**
+ * iwl_ucode_callback - callback when firmware was loaded
+ *
+ * If loaded successfully, copies the firmware into buffers
+ * for the card to fetch (via DMA).
+ */
+static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
+{
+	struct iwl_priv *priv = context;
+	struct iwl_ucode_header *ucode;
+	int err;
+	struct iwlagn_firmware_pieces pieces;
+	const unsigned int api_max = cfg(priv)->ucode_api_max;
+	unsigned int api_ok = cfg(priv)->ucode_api_ok;
+	const unsigned int api_min = cfg(priv)->ucode_api_min;
+	u32 api_ver;
+	char buildstr[25];
+	u32 build;
+	struct iwlagn_ucode_capabilities ucode_capa = {
+		.max_probe_length = 200,
+		.standard_phy_calibration_size =
+			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE,
+	};
+
+	if (!api_ok)
+		api_ok = api_max;
+
+	memset(&pieces, 0, sizeof(pieces));
+
+	if (!ucode_raw) {
+		if (priv->fw_index <= api_ok)
+			IWL_ERR(priv,
+				"request for firmware file '%s' failed.\n",
+				priv->firmware_name);
+		goto try_again;
+	}
+
+	IWL_DEBUG_INFO(priv, "Loaded firmware file '%s' (%zd bytes).\n",
+		       priv->firmware_name, ucode_raw->size);
+
+	/* Make sure that we got at least the API version number */
+	if (ucode_raw->size < 4) {
+		IWL_ERR(priv, "File size way too small!\n");
+		goto try_again;
+	}
+
+	/* Data from ucode file:  header followed by uCode images */
+	ucode = (struct iwl_ucode_header *)ucode_raw->data;
+
+	if (ucode->ver)
+		err = iwlagn_load_legacy_firmware(priv, ucode_raw, &pieces);
+	else
+		err = iwlagn_load_firmware(priv, ucode_raw, &pieces,
+					   &ucode_capa);
+
+	if (err)
+		goto try_again;
+
+	api_ver = IWL_UCODE_API(priv->ucode_ver);
+	build = pieces.build;
+
+	/*
+	 * api_ver should match the api version forming part of the
+	 * firmware filename ... but we don't check for that and only rely
+	 * on the API version read from firmware header from here on forward
+	 */
+	/* no api version check required for experimental uCode */
+	if (priv->fw_index != UCODE_EXPERIMENTAL_INDEX) {
+		if (api_ver < api_min || api_ver > api_max) {
+			IWL_ERR(priv,
+				"Driver unable to support your firmware API. "
+				"Driver supports v%u, firmware is v%u.\n",
+				api_max, api_ver);
+			goto try_again;
+		}
+
+		if (api_ver < api_ok) {
+			if (api_ok != api_max)
+				IWL_ERR(priv, "Firmware has old API version, "
+					"expected v%u through v%u, got v%u.\n",
+					api_ok, api_max, api_ver);
+			else
+				IWL_ERR(priv, "Firmware has old API version, "
+					"expected v%u, got v%u.\n",
+					api_max, api_ver);
+			IWL_ERR(priv, "New firmware can be obtained from "
+				      "http://www.intellinuxwireless.org/.\n");
+		}
+	}
+
+	if (build)
+		sprintf(buildstr, " build %u%s", build,
+		       (priv->fw_index == UCODE_EXPERIMENTAL_INDEX)
+				? " (EXP)" : "");
+	else
+		buildstr[0] = '\0';
+
+	IWL_INFO(priv, "loaded firmware version %u.%u.%u.%u%s\n",
+		 IWL_UCODE_MAJOR(priv->ucode_ver),
+		 IWL_UCODE_MINOR(priv->ucode_ver),
+		 IWL_UCODE_API(priv->ucode_ver),
+		 IWL_UCODE_SERIAL(priv->ucode_ver),
+		 buildstr);
+
+	snprintf(priv->hw->wiphy->fw_version,
+		 sizeof(priv->hw->wiphy->fw_version),
+		 "%u.%u.%u.%u%s",
+		 IWL_UCODE_MAJOR(priv->ucode_ver),
+		 IWL_UCODE_MINOR(priv->ucode_ver),
+		 IWL_UCODE_API(priv->ucode_ver),
+		 IWL_UCODE_SERIAL(priv->ucode_ver),
+		 buildstr);
+
+	/*
+	 * For any of the failures below (before allocating pci memory)
+	 * we will try to load a version with a smaller API -- maybe the
+	 * user just got a corrupted version of the latest API.
+	 */
+
+	IWL_DEBUG_INFO(priv, "f/w package hdr ucode version raw = 0x%x\n",
+		       priv->ucode_ver);
+	IWL_DEBUG_INFO(priv, "f/w package hdr runtime inst size = %Zd\n",
+		       pieces.inst_size);
+	IWL_DEBUG_INFO(priv, "f/w package hdr runtime data size = %Zd\n",
+		       pieces.data_size);
+	IWL_DEBUG_INFO(priv, "f/w package hdr init inst size = %Zd\n",
+		       pieces.init_size);
+	IWL_DEBUG_INFO(priv, "f/w package hdr init data size = %Zd\n",
+		       pieces.init_data_size);
+
+	/* Verify that uCode images will fit in card's SRAM */
+	if (pieces.inst_size > hw_params(priv).max_inst_size) {
+		IWL_ERR(priv, "uCode instr len %Zd too large to fit in\n",
+			pieces.inst_size);
+		goto try_again;
+	}
+
+	if (pieces.data_size > hw_params(priv).max_data_size) {
+		IWL_ERR(priv, "uCode data len %Zd too large to fit in\n",
+			pieces.data_size);
+		goto try_again;
+	}
+
+	if (pieces.init_size > hw_params(priv).max_inst_size) {
+		IWL_ERR(priv, "uCode init instr len %Zd too large to fit in\n",
+			pieces.init_size);
+		goto try_again;
+	}
+
+	if (pieces.init_data_size > hw_params(priv).max_data_size) {
+		IWL_ERR(priv, "uCode init data len %Zd too large to fit in\n",
+			pieces.init_data_size);
+		goto try_again;
+	}
+
+	/* Allocate ucode buffers for card's bus-master loading ... */
+
+	/* Runtime instructions and 2 copies of data:
+	 * 1) unmodified from disk
+	 * 2) backup cache for save/restore during power-downs */
+	if (iwl_alloc_fw_desc(trans(priv), &trans(priv)->ucode_rt.code,
+			      pieces.inst, pieces.inst_size))
+		goto err_pci_alloc;
+	if (iwl_alloc_fw_desc(trans(priv), &trans(priv)->ucode_rt.data,
+			      pieces.data, pieces.data_size))
+		goto err_pci_alloc;
+
+	/* Initialization instructions and data */
+	if (pieces.init_size && pieces.init_data_size) {
+		if (iwl_alloc_fw_desc(trans(priv),
+				      &trans(priv)->ucode_init.code,
+				      pieces.init, pieces.init_size))
+			goto err_pci_alloc;
+		if (iwl_alloc_fw_desc(trans(priv),
+				      &trans(priv)->ucode_init.data,
+				      pieces.init_data, pieces.init_data_size))
+			goto err_pci_alloc;
+	}
+
+	/* WoWLAN instructions and data */
+	if (pieces.wowlan_inst_size && pieces.wowlan_data_size) {
+		if (iwl_alloc_fw_desc(trans(priv),
+				      &trans(priv)->ucode_wowlan.code,
+				      pieces.wowlan_inst,
+				      pieces.wowlan_inst_size))
+			goto err_pci_alloc;
+		if (iwl_alloc_fw_desc(trans(priv),
+				      &trans(priv)->ucode_wowlan.data,
+				      pieces.wowlan_data,
+				      pieces.wowlan_data_size))
+			goto err_pci_alloc;
+	}
+
+	/* Now that we can no longer fail, copy information */
+
+	/*
+	 * The (size - 16) / 12 formula is based on the information recorded
+	 * for each event, which is of mode 1 (including timestamp) for all
+	 * new microcodes that include this information.
+	 */
+	priv->init_evtlog_ptr = pieces.init_evtlog_ptr;
+	if (pieces.init_evtlog_size)
+		priv->init_evtlog_size = (pieces.init_evtlog_size - 16)/12;
+	else
+		priv->init_evtlog_size =
+			cfg(priv)->base_params->max_event_log_size;
+	priv->init_errlog_ptr = pieces.init_errlog_ptr;
+	priv->inst_evtlog_ptr = pieces.inst_evtlog_ptr;
+	if (pieces.inst_evtlog_size)
+		priv->inst_evtlog_size = (pieces.inst_evtlog_size - 16)/12;
+	else
+		priv->inst_evtlog_size =
+			cfg(priv)->base_params->max_event_log_size;
+	priv->inst_errlog_ptr = pieces.inst_errlog_ptr;
+#ifndef CONFIG_IWLWIFI_P2P
+	ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
+#endif
+
+	priv->new_scan_threshold_behaviour =
+		!!(ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWSCAN);
+
+	if (!(cfg(priv)->sku & EEPROM_SKU_CAP_IPAN_ENABLE))
+		ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
+
+	/*
+	 * if not PAN, then don't support P2P -- might be a uCode
+	 * packaging bug or due to the eeprom check above
+	 */
+	if (!(ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN))
+		ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
+
+	if (ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN) {
+		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
+		priv->shrd->cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
+	} else {
+		priv->sta_key_max_num = STA_KEY_MAX_NUM;
+		priv->shrd->cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
+	}
+	/*
+	 * figure out the offset of chain noise reset and gain commands
+	 * base on the size of standard phy calibration commands table size
+	 */
+	if (ucode_capa.standard_phy_calibration_size >
+	    IWL_MAX_PHY_CALIBRATE_TBL_SIZE)
+		ucode_capa.standard_phy_calibration_size =
+			IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE;
+
+	priv->phy_calib_chain_noise_reset_cmd =
+		ucode_capa.standard_phy_calibration_size;
+	priv->phy_calib_chain_noise_gain_cmd =
+		ucode_capa.standard_phy_calibration_size + 1;
+
+	/* initialize all valid contexts */
+	iwl_init_context(priv, ucode_capa.flags);
+
+	/**************************************************
+	 * This is still part of probe() in a sense...
+	 *
+	 * 9. Setup and register with mac80211 and debugfs
+	 **************************************************/
+	err = iwlagn_mac_setup_register(priv, &ucode_capa);
+	if (err)
+		goto out_unbind;
+
+	err = iwl_dbgfs_register(priv, DRV_NAME);
+	if (err)
+		IWL_ERR(priv, "failed to create debugfs files. Ignoring error: %d\n", err);
+
+	/* We have our copies now, allow OS release its copies */
+	release_firmware(ucode_raw);
+	complete(&priv->firmware_loading_complete);
+	return;
+
+ try_again:
+	/* try next, if any */
+	if (iwl_request_firmware(priv, false))
+		goto out_unbind;
+	release_firmware(ucode_raw);
+	return;
+
+ err_pci_alloc:
+	IWL_ERR(priv, "failed to allocate pci memory\n");
+	iwl_dealloc_ucode(trans(priv));
+ out_unbind:
+	complete(&priv->firmware_loading_complete);
+	device_release_driver(trans(priv)->dev);
+	release_firmware(ucode_raw);
+}
+

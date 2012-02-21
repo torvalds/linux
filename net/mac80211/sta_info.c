@@ -100,25 +100,6 @@ struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 	sta = rcu_dereference_check(local->sta_hash[STA_HASH(addr)],
 				    lockdep_is_held(&local->sta_mtx));
 	while (sta) {
-		if (sta->sdata == sdata && !sta->dummy &&
-		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
-			break;
-		sta = rcu_dereference_check(sta->hnext,
-					    lockdep_is_held(&local->sta_mtx));
-	}
-	return sta;
-}
-
-/* get a station info entry even if it is a dummy station*/
-struct sta_info *sta_info_get_rx(struct ieee80211_sub_if_data *sdata,
-			      const u8 *addr)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta;
-
-	sta = rcu_dereference_check(local->sta_hash[STA_HASH(addr)],
-				    lockdep_is_held(&local->sta_mtx));
-	while (sta) {
 		if (sta->sdata == sdata &&
 		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
 			break;
@@ -133,30 +114,6 @@ struct sta_info *sta_info_get_rx(struct ieee80211_sub_if_data *sdata,
  * or from one of its vlans
  */
 struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
-				  const u8 *addr)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta;
-
-	sta = rcu_dereference_check(local->sta_hash[STA_HASH(addr)],
-				    lockdep_is_held(&local->sta_mtx));
-	while (sta) {
-		if ((sta->sdata == sdata ||
-		     (sta->sdata->bss && sta->sdata->bss == sdata->bss)) &&
-		    !sta->dummy &&
-		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
-			break;
-		sta = rcu_dereference_check(sta->hnext,
-					    lockdep_is_held(&local->sta_mtx));
-	}
-	return sta;
-}
-
-/*
- * Get sta info either from the specified interface
- * or from one of its vlans (including dummy stations)
- */
-struct sta_info *sta_info_get_bss_rx(struct ieee80211_sub_if_data *sdata,
 				  const u8 *addr)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -293,6 +250,8 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta->sdata = sdata;
 	sta->last_rx = jiffies;
 
+	sta->sta_state = IEEE80211_STA_NONE;
+
 	do_posix_clock_monotonic_gettime(&uptime);
 	sta->last_connected = uptime.tv_sec;
 	ewma_init(&sta->avg_signal, 1024, 8);
@@ -349,6 +308,43 @@ static int sta_info_insert_check(struct sta_info *sta)
 	return 0;
 }
 
+static int sta_info_insert_drv_state(struct ieee80211_local *local,
+				     struct ieee80211_sub_if_data *sdata,
+				     struct sta_info *sta)
+{
+	enum ieee80211_sta_state state;
+	int err = 0;
+
+	for (state = IEEE80211_STA_NOTEXIST; state < sta->sta_state; state++) {
+		err = drv_sta_state(local, sdata, sta, state, state + 1);
+		if (err)
+			break;
+	}
+
+	if (!err) {
+		/*
+		 * Drivers using legacy sta_add/sta_remove callbacks only
+		 * get uploaded set to true after sta_add is called.
+		 */
+		if (!local->ops->sta_add)
+			sta->uploaded = true;
+		return 0;
+	}
+
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
+		printk(KERN_DEBUG
+		       "%s: failed to move IBSS STA %pM to state %d (%d) - keeping it anyway.\n",
+		       sdata->name, sta->sta.addr, state + 1, err);
+		err = 0;
+	}
+
+	/* unwind on error */
+	for (; state > IEEE80211_STA_NOTEXIST; state--)
+		WARN_ON(drv_sta_state(local, sdata, sta, state, state - 1));
+
+	return err;
+}
+
 /*
  * should be called with sta_mtx locked
  * this function replaces the mutex lock
@@ -358,72 +354,43 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 {
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	struct sta_info *exist_sta;
-	bool dummy_reinsert = false;
+	struct station_info sinfo;
 	int err = 0;
 
 	lockdep_assert_held(&local->sta_mtx);
 
-	/*
-	 * check if STA exists already.
-	 * only accept a scenario of a second call to sta_info_insert_finish
-	 * with a dummy station entry that was inserted earlier
-	 * in that case - assume that the dummy station flag should
-	 * be removed.
-	 */
-	exist_sta = sta_info_get_bss_rx(sdata, sta->sta.addr);
-	if (exist_sta) {
-		if (exist_sta == sta && sta->dummy) {
-			dummy_reinsert = true;
-		} else {
-			err = -EEXIST;
-			goto out_err;
-		}
+	/* check if STA exists already */
+	if (sta_info_get_bss(sdata, sta->sta.addr)) {
+		err = -EEXIST;
+		goto out_err;
 	}
 
-	if (!sta->dummy || dummy_reinsert) {
-		/* notify driver */
-		err = drv_sta_add(local, sdata, &sta->sta);
-		if (err) {
-			if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
-				goto out_err;
-			printk(KERN_DEBUG "%s: failed to add IBSS STA %pM to "
-					  "driver (%d) - keeping it anyway.\n",
-			       sdata->name, sta->sta.addr, err);
-		} else
-			sta->uploaded = true;
-	}
+	/* notify driver */
+	err = sta_info_insert_drv_state(local, sdata, sta);
+	if (err)
+		goto out_err;
 
-	if (!dummy_reinsert) {
-		local->num_sta++;
-		local->sta_generation++;
-		smp_mb();
+	local->num_sta++;
+	local->sta_generation++;
+	smp_mb();
 
-		/* make the station visible */
-		sta_info_hash_add(local, sta);
+	/* make the station visible */
+	sta_info_hash_add(local, sta);
 
-		list_add(&sta->list, &local->sta_list);
+	list_add(&sta->list, &local->sta_list);
 
-		set_sta_flag(sta, WLAN_STA_INSERTED);
-	} else {
-		sta->dummy = false;
-	}
+	set_sta_flag(sta, WLAN_STA_INSERTED);
 
-	if (!sta->dummy) {
-		struct station_info sinfo;
+	ieee80211_sta_debugfs_add(sta);
+	rate_control_add_sta_debugfs(sta);
 
-		ieee80211_sta_debugfs_add(sta);
-		rate_control_add_sta_debugfs(sta);
-
-		memset(&sinfo, 0, sizeof(sinfo));
-		sinfo.filled = 0;
-		sinfo.generation = local->sta_generation;
-		cfg80211_new_sta(sdata->dev, sta->sta.addr, &sinfo, GFP_KERNEL);
-	}
+	memset(&sinfo, 0, sizeof(sinfo));
+	sinfo.filled = 0;
+	sinfo.generation = local->sta_generation;
+	cfg80211_new_sta(sdata->dev, sta->sta.addr, &sinfo, GFP_KERNEL);
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	wiphy_debug(local->hw.wiphy, "Inserted %sSTA %pM\n",
-			sta->dummy ? "dummy " : "", sta->sta.addr);
+	wiphy_debug(local->hw.wiphy, "Inserted STA %pM\n", sta->sta.addr);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 	/* move reference to rcu-protected */
@@ -472,25 +439,6 @@ int sta_info_insert(struct sta_info *sta)
 
 	rcu_read_unlock();
 
-	return err;
-}
-
-/* Caller must hold sta->local->sta_mtx */
-int sta_info_reinsert(struct sta_info *sta)
-{
-	struct ieee80211_local *local = sta->local;
-	int err = 0;
-
-	err = sta_info_insert_check(sta);
-	if (err) {
-		mutex_unlock(&local->sta_mtx);
-		return err;
-	}
-
-	might_sleep();
-
-	err = sta_info_insert_finish(sta);
-	rcu_read_unlock();
 	return err;
 }
 
@@ -757,20 +705,17 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 		RCU_INIT_POINTER(sdata->u.vlan.sta, NULL);
 
 	while (sta->sta_state > IEEE80211_STA_NONE) {
-		int err = sta_info_move_state(sta, sta->sta_state - 1);
-		if (err) {
+		ret = sta_info_move_state(sta, sta->sta_state - 1);
+		if (ret) {
 			WARN_ON_ONCE(1);
 			break;
 		}
 	}
 
 	if (sta->uploaded) {
-		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-			sdata = container_of(sdata->bss,
-					     struct ieee80211_sub_if_data,
-					     u.ap);
-		drv_sta_remove(local, sdata, &sta->sta);
-		sdata = sta->sdata;
+		ret = drv_sta_state(local, sdata, sta, IEEE80211_STA_NONE,
+				    IEEE80211_STA_NOTEXIST);
+		WARN_ON_ONCE(ret != 0);
 	}
 
 	/*
@@ -843,7 +788,7 @@ int sta_info_destroy_addr(struct ieee80211_sub_if_data *sdata, const u8 *addr)
 	int ret;
 
 	mutex_lock(&sdata->local->sta_mtx);
-	sta = sta_info_get_rx(sdata, addr);
+	sta = sta_info_get(sdata, addr);
 	ret = __sta_info_destroy(sta);
 	mutex_unlock(&sdata->local->sta_mtx);
 
@@ -857,7 +802,7 @@ int sta_info_destroy_addr_bss(struct ieee80211_sub_if_data *sdata,
 	int ret;
 
 	mutex_lock(&sdata->local->sta_mtx);
-	sta = sta_info_get_bss_rx(sdata, addr);
+	sta = sta_info_get_bss(sdata, addr);
 	ret = __sta_info_destroy(sta);
 	mutex_unlock(&sdata->local->sta_mtx);
 
@@ -1408,20 +1353,60 @@ int sta_info_move_state(struct sta_info *sta,
 	if (sta->sta_state == new_state)
 		return 0;
 
+	/* check allowed transitions first */
+
+	switch (new_state) {
+	case IEEE80211_STA_NONE:
+		if (sta->sta_state != IEEE80211_STA_AUTH)
+			return -EINVAL;
+		break;
+	case IEEE80211_STA_AUTH:
+		if (sta->sta_state != IEEE80211_STA_NONE &&
+		    sta->sta_state != IEEE80211_STA_ASSOC)
+			return -EINVAL;
+		break;
+	case IEEE80211_STA_ASSOC:
+		if (sta->sta_state != IEEE80211_STA_AUTH &&
+		    sta->sta_state != IEEE80211_STA_AUTHORIZED)
+			return -EINVAL;
+		break;
+	case IEEE80211_STA_AUTHORIZED:
+		if (sta->sta_state != IEEE80211_STA_ASSOC)
+			return -EINVAL;
+		break;
+	default:
+		WARN(1, "invalid state %d", new_state);
+		return -EINVAL;
+	}
+
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+	printk(KERN_DEBUG "%s: moving STA %pM to state %d\n",
+		sta->sdata->name, sta->sta.addr, new_state);
+#endif
+
+	/*
+	 * notify the driver before the actual changes so it can
+	 * fail the transition
+	 */
+	if (test_sta_flag(sta, WLAN_STA_INSERTED)) {
+		int err = drv_sta_state(sta->local, sta->sdata, sta,
+					sta->sta_state, new_state);
+		if (err)
+			return err;
+	}
+
+	/* reflect the change in all state variables */
+
 	switch (new_state) {
 	case IEEE80211_STA_NONE:
 		if (sta->sta_state == IEEE80211_STA_AUTH)
 			clear_bit(WLAN_STA_AUTH, &sta->_flags);
-		else
-			return -EINVAL;
 		break;
 	case IEEE80211_STA_AUTH:
 		if (sta->sta_state == IEEE80211_STA_NONE)
 			set_bit(WLAN_STA_AUTH, &sta->_flags);
 		else if (sta->sta_state == IEEE80211_STA_ASSOC)
 			clear_bit(WLAN_STA_ASSOC, &sta->_flags);
-		else
-			return -EINVAL;
 		break;
 	case IEEE80211_STA_ASSOC:
 		if (sta->sta_state == IEEE80211_STA_AUTH) {
@@ -1430,24 +1415,19 @@ int sta_info_move_state(struct sta_info *sta,
 			if (sta->sdata->vif.type == NL80211_IFTYPE_AP)
 				atomic_dec(&sta->sdata->u.ap.num_sta_authorized);
 			clear_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
-		} else
-			return -EINVAL;
+		}
 		break;
 	case IEEE80211_STA_AUTHORIZED:
 		if (sta->sta_state == IEEE80211_STA_ASSOC) {
 			if (sta->sdata->vif.type == NL80211_IFTYPE_AP)
 				atomic_inc(&sta->sdata->u.ap.num_sta_authorized);
 			set_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
-		} else
-			return -EINVAL;
+		}
 		break;
 	default:
-		WARN(1, "invalid state %d", new_state);
-		return -EINVAL;
+		break;
 	}
 
-	printk(KERN_DEBUG "%s: moving STA %pM to state %d\n",
-		sta->sdata->name, sta->sta.addr, new_state);
 	sta->sta_state = new_state;
 
 	return 0;

@@ -131,16 +131,26 @@ struct iwl_host_cmd {
 	u8 id;
 };
 
+/* one for each uCode image (inst/data, boot/init/runtime) */
+struct fw_desc {
+	dma_addr_t p_addr;	/* hardware address */
+	void *v_addr;		/* software address */
+	u32 len;		/* size in bytes */
+};
+
+struct fw_img {
+	struct fw_desc code;	/* firmware code image */
+	struct fw_desc data;	/* firmware data image */
+};
+
 /**
  * struct iwl_trans_ops - transport specific operations
- * @alloc: allocates the meta data (not the queues themselves)
- * @request_irq: requests IRQ - will be called before the FW load in probe flow
- * @start_device: allocates and inits all the resources for the transport
- *                layer.
- * @prepare_card_hw: claim the ownership on the HW. Will be called during
- *                   probe.
- * @tx_start: starts and configures all the Tx fifo - usually done once the fw
- *           is alive.
+ * @start_hw: starts the HW- from that point on, the HW can send interrupts
+ * @stop_hw: stops the HW- from that point on, the HW will be in low power but
+ *	will still issue interrupt if the HW RF kill is triggered.
+ * @start_fw: allocates and inits all the resources for the transport
+ *	layer. Also kick a fw image. This handler may sleep.
+ * @fw_alive: called when the fw sends alive notification
  * @wake_any_queue: wake all the queues of a specfic context IWL_RXON_CTX_*
  * @stop_device:stops the whole device (embedded CPU put to reset)
  * @send_cmd:send a host command
@@ -150,7 +160,6 @@ struct iwl_host_cmd {
  * @tx_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
  *                 ready and a successful ADDBA response has been received.
  * @tx_agg_disable: de-configure a Tx queue to send AMPDUs
- * @kick_nic: remove the RESET from the embedded CPU and let it run
  * @free: release all the ressource for the transport layer itself such as
  *        irq, tasklet etc...
  * @stop_queue: stop a specific queue
@@ -160,15 +169,17 @@ struct iwl_host_cmd {
  *	automatically deleted.
  * @suspend: stop the device unless WoWLAN is configured
  * @resume: resume activity of the device
+ * @write8: write a u8 to a register at offset ofs from the BAR
+ * @write32: write a u32 to a register at offset ofs from the BAR
+ * @read32: read a u32 register at offset ofs from the BAR
  */
 struct iwl_trans_ops {
 
-	struct iwl_trans *(*alloc)(struct iwl_shared *shrd);
-	int (*request_irq)(struct iwl_trans *iwl_trans);
-	int (*start_device)(struct iwl_trans *trans);
-	int (*prepare_card_hw)(struct iwl_trans *trans);
+	int (*start_hw)(struct iwl_trans *iwl_trans);
+	void (*stop_hw)(struct iwl_trans *iwl_trans);
+	int (*start_fw)(struct iwl_trans *trans, struct fw_img *fw);
+	void (*fw_alive)(struct iwl_trans *trans);
 	void (*stop_device)(struct iwl_trans *trans);
-	void (*tx_start)(struct iwl_trans *trans);
 
 	void (*wake_any_queue)(struct iwl_trans *trans,
 			       enum iwl_rxon_context_id ctx,
@@ -191,8 +202,6 @@ struct iwl_trans_ops {
 			     enum iwl_rxon_context_id ctx, int sta_id, int tid,
 			     int frame_limit, u16 ssn);
 
-	void (*kick_nic)(struct iwl_trans *trans);
-
 	void (*free)(struct iwl_trans *trans);
 
 	void (*stop_queue)(struct iwl_trans *trans, int q, const char *msg);
@@ -204,18 +213,9 @@ struct iwl_trans_ops {
 	int (*suspend)(struct iwl_trans *trans);
 	int (*resume)(struct iwl_trans *trans);
 #endif
-};
-
-/* one for each uCode image (inst/data, boot/init/runtime) */
-struct fw_desc {
-	dma_addr_t p_addr;	/* hardware address */
-	void *v_addr;		/* software address */
-	u32 len;		/* size in bytes */
-};
-
-struct fw_img {
-	struct fw_desc code;	/* firmware code image */
-	struct fw_desc data;	/* firmware data image */
+	void (*write8)(struct iwl_trans *trans, u32 ofs, u8 val);
+	void (*write32)(struct iwl_trans *trans, u32 ofs, u32 val);
+	u32 (*read32)(struct iwl_trans *trans, u32 ofs);
 };
 
 /* Opaque calibration results */
@@ -231,17 +231,31 @@ struct iwl_calib_result {
  * @ops - pointer to iwl_trans_ops
  * @shrd - pointer to iwl_shared which holds shared data from the upper layer
  * @hcmd_lock: protects HCMD
+ * @reg_lock - protect hw register access
+ * @dev - pointer to struct device * that represents the device
+ * @irq - the irq number for the device
+ * @hw_id: a u32 with the ID of the device / subdevice.
+  *	Set during transport alloaction.
+ * @hw_id_str: a string with info about HW ID. Set during transport allocation.
  * @ucode_write_complete: indicates that the ucode has been copied.
  * @ucode_rt: run time ucode image
  * @ucode_init: init ucode image
  * @ucode_wowlan: wake on wireless ucode image (optional)
  * @nvm_device_type: indicates OTP or eeprom
+ * @pm_support: set to true in start_hw if link pm is supported
  * @calib_results: list head for init calibration results
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
 	struct iwl_shared *shrd;
 	spinlock_t hcmd_lock;
+	spinlock_t reg_lock;
+
+	struct device *dev;
+	unsigned int irq;
+	u32 hw_rev;
+	u32 hw_id;
+	char hw_id_str[52];
 
 	u8 ucode_write_complete;	/* the image write is complete */
 	struct fw_img ucode_rt;
@@ -250,6 +264,7 @@ struct iwl_trans {
 
 	/* eeprom related variables */
 	int    nvm_device_type;
+	bool pm_support;
 
 	/* init calibration results */
 	struct list_head calib_results;
@@ -259,29 +274,31 @@ struct iwl_trans {
 	char trans_specific[0] __attribute__((__aligned__(sizeof(void *))));
 };
 
-static inline int iwl_trans_request_irq(struct iwl_trans *trans)
+static inline int iwl_trans_start_hw(struct iwl_trans *trans)
 {
-	return trans->ops->request_irq(trans);
+	return trans->ops->start_hw(trans);
 }
 
-static inline int iwl_trans_start_device(struct iwl_trans *trans)
+static inline void iwl_trans_stop_hw(struct iwl_trans *trans)
 {
-	return trans->ops->start_device(trans);
+	trans->ops->stop_hw(trans);
 }
 
-static inline int iwl_trans_prepare_card_hw(struct iwl_trans *trans)
+static inline void iwl_trans_fw_alive(struct iwl_trans *trans)
 {
-	return trans->ops->prepare_card_hw(trans);
+	trans->ops->fw_alive(trans);
+}
+
+static inline int iwl_trans_start_fw(struct iwl_trans *trans, struct fw_img *fw)
+{
+	might_sleep();
+
+	return trans->ops->start_fw(trans, fw);
 }
 
 static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 {
 	trans->ops->stop_device(trans);
-}
-
-static inline void iwl_trans_tx_start(struct iwl_trans *trans)
-{
-	trans->ops->tx_start(trans);
 }
 
 static inline void iwl_trans_wake_any_queue(struct iwl_trans *trans,
@@ -337,11 +354,6 @@ static inline void iwl_trans_tx_agg_setup(struct iwl_trans *trans,
 	trans->ops->tx_agg_setup(trans, ctx, sta_id, tid, frame_limit, ssn);
 }
 
-static inline void iwl_trans_kick_nic(struct iwl_trans *trans)
-{
-	trans->ops->kick_nic(trans);
-}
-
 static inline void iwl_trans_free(struct iwl_trans *trans)
 {
 	trans->ops->free(trans);
@@ -380,13 +392,24 @@ static inline int iwl_trans_resume(struct iwl_trans *trans)
 }
 #endif
 
-/*****************************************************
-* Transport layers implementations
-******************************************************/
-extern const struct iwl_trans_ops trans_ops_pcie;
+static inline void iwl_trans_write8(struct iwl_trans *trans, u32 ofs, u8 val)
+{
+	trans->ops->write8(trans, ofs, val);
+}
 
-int iwl_alloc_fw_desc(struct iwl_bus *bus, struct fw_desc *desc,
-		      const void *data, size_t len);
+static inline void iwl_trans_write32(struct iwl_trans *trans, u32 ofs, u32 val)
+{
+	trans->ops->write32(trans, ofs, val);
+}
+
+static inline u32 iwl_trans_read32(struct iwl_trans *trans, u32 ofs)
+{
+	return trans->ops->read32(trans, ofs);
+}
+
+/*****************************************************
+* Utils functions
+******************************************************/
 void iwl_dealloc_ucode(struct iwl_trans *trans);
 
 int iwl_send_calib_results(struct iwl_trans *trans);
@@ -394,4 +417,18 @@ int iwl_calib_set(struct iwl_trans *trans,
 		  const struct iwl_calib_hdr *cmd, int len);
 void iwl_calib_free_results(struct iwl_trans *trans);
 
+/*****************************************************
+* Transport layers implementations + their allocation function
+******************************************************/
+struct pci_dev;
+struct pci_device_id;
+extern const struct iwl_trans_ops trans_ops_pcie;
+struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
+				       struct pci_dev *pdev,
+				       const struct pci_device_id *ent);
+
+extern const struct iwl_trans_ops trans_ops_idi;
+struct iwl_trans *iwl_trans_idi_alloc(struct iwl_shared *shrd,
+				      void *pdev_void,
+				      const void *ent_void);
 #endif /* __iwl_trans_h__ */
