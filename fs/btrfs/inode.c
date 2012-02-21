@@ -4069,7 +4069,7 @@ static struct inode *new_simple_dir(struct super_block *s,
 	BTRFS_I(inode)->dummy_inode = 1;
 
 	inode->i_ino = BTRFS_EMPTY_SUBVOL_DIR_OBJECTID;
-	inode->i_op = &simple_dir_inode_operations;
+	inode->i_op = &btrfs_dir_ro_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	inode->i_mode = S_IFDIR | S_IRUGO | S_IWUSR | S_IXUGO;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
@@ -4140,13 +4140,17 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 static int btrfs_dentry_delete(const struct dentry *dentry)
 {
 	struct btrfs_root *root;
+	struct inode *inode = dentry->d_inode;
 
-	if (!dentry->d_inode && !IS_ROOT(dentry))
-		dentry = dentry->d_parent;
+	if (!inode && !IS_ROOT(dentry))
+		inode = dentry->d_parent->d_inode;
 
-	if (dentry->d_inode) {
-		root = BTRFS_I(dentry->d_inode)->root;
+	if (inode) {
+		root = BTRFS_I(inode)->root;
 		if (btrfs_root_refs(&root->root_item) == 0)
+			return 1;
+
+		if (btrfs_ino(inode) == BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)
 			return 1;
 	}
 	return 0;
