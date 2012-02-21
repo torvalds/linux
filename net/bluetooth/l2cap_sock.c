@@ -796,6 +796,7 @@ static int l2cap_sock_shutdown(struct socket *sock, int how)
 {
 	struct sock *sk = sock->sk;
 	struct l2cap_chan *chan;
+	struct l2cap_conn *conn;
 	int err = 0;
 
 	BT_DBG("sock %p, sk %p", sock, sk);
@@ -804,6 +805,10 @@ static int l2cap_sock_shutdown(struct socket *sock, int how)
 		return 0;
 
 	chan = l2cap_pi(sk)->chan;
+	conn = chan->conn;
+
+	if (conn)
+		mutex_lock(&conn->chan_lock);
 
 	lock_sock(sk);
 	if (!sk->sk_shutdown) {
@@ -811,6 +816,7 @@ static int l2cap_sock_shutdown(struct socket *sock, int how)
 			err = __l2cap_wait_ack(sk);
 
 		sk->sk_shutdown = SHUTDOWN_MASK;
+
 		l2cap_chan_close(chan, 0);
 
 		if (sock_flag(sk, SOCK_LINGER) && sk->sk_lingertime)
@@ -822,6 +828,10 @@ static int l2cap_sock_shutdown(struct socket *sock, int how)
 		err = -sk->sk_err;
 
 	release_sock(sk);
+
+	if (conn)
+		mutex_unlock(&conn->chan_lock);
+
 	return err;
 }
 
