@@ -10,6 +10,16 @@
  * for more details.
  */
 
+#define LCCR0           0x0000          /* LCD Control Reg. 0 */
+#define LCSR            0x0004          /* LCD Status Reg. */
+#define DBAR1           0x0010          /* LCD DMA Base Address Reg. channel 1 */
+#define DCAR1           0x0014          /* LCD DMA Current Address Reg. channel 1 */
+#define DBAR2           0x0018          /* LCD DMA Base Address Reg.  channel 2 */
+#define DCAR2           0x001C          /* LCD DMA Current Address Reg. channel 2 */
+#define LCCR1           0x0020          /* LCD Control Reg. 1 */
+#define LCCR2           0x0024          /* LCD Control Reg. 2 */
+#define LCCR3           0x0028          /* LCD Control Reg. 3 */
+
 /* Shadows for LCD controller registers */
 struct sa1100fb_lcd_reg {
 	unsigned long lccr0;
@@ -22,6 +32,7 @@ struct sa1100fb_info {
 	struct fb_info		fb;
 	struct device		*dev;
 	const struct sa1100fb_rgb *rgb[NR_RGB];
+	void __iomem		*base;
 
 	/*
 	 * These are the addresses we mapped

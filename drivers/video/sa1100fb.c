@@ -705,9 +705,12 @@ static int sa1100fb_activate_var(struct fb_var_screeninfo *var, struct sa1100fb_
 	 * Only update the registers if the controller is enabled
 	 * and something has changed.
 	 */
-	if ((LCCR0 != fbi->reg_lccr0)       || (LCCR1 != fbi->reg_lccr1) ||
-	    (LCCR2 != fbi->reg_lccr2)       || (LCCR3 != fbi->reg_lccr3) ||
-	    (DBAR1 != fbi->dbar1) || (DBAR2 != fbi->dbar2))
+	if (readl_relaxed(fbi->base + LCCR0) != fbi->reg_lccr0 ||
+	    readl_relaxed(fbi->base + LCCR1) != fbi->reg_lccr1 ||
+	    readl_relaxed(fbi->base + LCCR2) != fbi->reg_lccr2 ||
+	    readl_relaxed(fbi->base + LCCR3) != fbi->reg_lccr3 ||
+	    readl_relaxed(fbi->base + DBAR1) != fbi->dbar1 ||
+	    readl_relaxed(fbi->base + DBAR2) != fbi->dbar2)
 		sa1100fb_schedule_work(fbi, C_REENABLE);
 
 	return 0;
@@ -789,28 +792,29 @@ static void sa1100fb_enable_controller(struct sa1100fb_info *fbi)
 	fbi->palette_cpu[0] |= palette_pbs(&fbi->fb.var);
 
 	/* Sequence from 11.7.10 */
-	LCCR3 = fbi->reg_lccr3;
-	LCCR2 = fbi->reg_lccr2;
-	LCCR1 = fbi->reg_lccr1;
-	LCCR0 = fbi->reg_lccr0 & ~LCCR0_LEN;
-	DBAR1 = fbi->dbar1;
-	DBAR2 = fbi->dbar2;
-	LCCR0 |= LCCR0_LEN;
+	writel_relaxed(fbi->reg_lccr3, fbi->base + LCCR3);
+	writel_relaxed(fbi->reg_lccr2, fbi->base + LCCR2);
+	writel_relaxed(fbi->reg_lccr1, fbi->base + LCCR1);
+	writel_relaxed(fbi->reg_lccr0 & ~LCCR0_LEN, fbi->base + LCCR0);
+	writel_relaxed(fbi->dbar1, fbi->base + DBAR1);
+	writel_relaxed(fbi->dbar2, fbi->base + DBAR2);
+	writel_relaxed(fbi->reg_lccr0 | LCCR0_LEN, fbi->base + LCCR0);
 
 	if (machine_is_shannon())
 		gpio_set_value(SHANNON_GPIO_DISP_EN, 1);
 
-	dev_dbg(fbi->dev, "DBAR1 = 0x%08lx\n", DBAR1);
-	dev_dbg(fbi->dev, "DBAR2 = 0x%08lx\n", DBAR2);
-	dev_dbg(fbi->dev, "LCCR0 = 0x%08lx\n", LCCR0);
-	dev_dbg(fbi->dev, "LCCR1 = 0x%08lx\n", LCCR1);
-	dev_dbg(fbi->dev, "LCCR2 = 0x%08lx\n", LCCR2);
-	dev_dbg(fbi->dev, "LCCR3 = 0x%08lx\n", LCCR3);
+	dev_dbg(fbi->dev, "DBAR1: 0x%08x\n", readl_relaxed(fbi->base + DBAR1));
+	dev_dbg(fbi->dev, "DBAR2: 0x%08x\n", readl_relaxed(fbi->base + DBAR2));
+	dev_dbg(fbi->dev, "LCCR0: 0x%08x\n", readl_relaxed(fbi->base + LCCR0));
+	dev_dbg(fbi->dev, "LCCR1: 0x%08x\n", readl_relaxed(fbi->base + LCCR1));
+	dev_dbg(fbi->dev, "LCCR2: 0x%08x\n", readl_relaxed(fbi->base + LCCR2));
+	dev_dbg(fbi->dev, "LCCR3: 0x%08x\n", readl_relaxed(fbi->base + LCCR3));
 }
 
 static void sa1100fb_disable_controller(struct sa1100fb_info *fbi)
 {
 	DECLARE_WAITQUEUE(wait, current);
+	u32 lccr0;
 
 	dev_dbg(fbi->dev, "Disabling LCD controller\n");
 
@@ -820,9 +824,14 @@ static void sa1100fb_disable_controller(struct sa1100fb_info *fbi)
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	add_wait_queue(&fbi->ctrlr_wait, &wait);
 
-	LCSR = 0xffffffff;	/* Clear LCD Status Register */
-	LCCR0 &= ~LCCR0_LDM;	/* Enable LCD Disable Done Interrupt */
-	LCCR0 &= ~LCCR0_LEN;	/* Disable LCD Controller */
+	/* Clear LCD Status Register */
+	writel_relaxed(~0, fbi->base + LCSR);
+
+	lccr0 = readl_relaxed(fbi->base + LCCR0);
+	lccr0 &= ~LCCR0_LDM;	/* Enable LCD Disable Done Interrupt */
+	writel_relaxed(lccr0, fbi->base + LCCR0);
+	lccr0 &= ~LCCR0_LEN;	/* Disable LCD Controller */
+	writel_relaxed(lccr0, fbi->base + LCCR0);
 
 	schedule_timeout(20 * HZ / 1000);
 	remove_wait_queue(&fbi->ctrlr_wait, &wait);
@@ -834,14 +843,15 @@ static void sa1100fb_disable_controller(struct sa1100fb_info *fbi)
 static irqreturn_t sa1100fb_handle_irq(int irq, void *dev_id)
 {
 	struct sa1100fb_info *fbi = dev_id;
-	unsigned int lcsr = LCSR;
+	unsigned int lcsr = readl_relaxed(fbi->base + LCSR);
 
 	if (lcsr & LCSR_LDD) {
-		LCCR0 |= LCCR0_LDM;
+		u32 lccr0 = readl_relaxed(fbi->base + LCCR0) | LCCR0_LDM;
+		writel_relaxed(lccr0, fbi->base + LCCR0);
 		wake_up(&fbi->ctrlr_wait);
 	}
 
-	LCSR = lcsr;
+	writel_relaxed(lcsr, fbi->base + LCSR);
 	return IRQ_HANDLED;
 }
 
@@ -1198,6 +1208,7 @@ static struct sa1100fb_info * __devinit sa1100fb_init_fbinfo(struct device *dev)
 static int __devinit sa1100fb_probe(struct platform_device *pdev)
 {
 	struct sa1100fb_info *fbi;
+	struct resource *res;
 	int ret, irq;
 
 	if (!pdev->dev.platform_data) {
@@ -1205,16 +1216,21 @@ static int __devinit sa1100fb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
+	if (irq < 0 || !res)
 		return -EINVAL;
 
-	if (!request_mem_region(0xb0100000, 0x10000, "LCD"))
+	if (!request_mem_region(res->start, resource_size(res), "LCD"))
 		return -EBUSY;
 
 	fbi = sa1100fb_init_fbinfo(&pdev->dev);
 	ret = -ENOMEM;
 	if (!fbi)
+		goto failed;
+
+	fbi->base = ioremap(res->start, resource_size(res));
+	if (!fbi->base)
 		goto failed;
 
 	/* Initialize video memory */
@@ -1263,9 +1279,11 @@ static int __devinit sa1100fb_probe(struct platform_device *pdev)
  err_free_irq:
 	free_irq(irq, fbi);
  failed:
+	if (fbi)
+		iounmap(fbi->base);
 	platform_set_drvdata(pdev, NULL);
 	kfree(fbi);
-	release_mem_region(0xb0100000, 0x10000);
+	release_mem_region(res->start, resource_size(res));
 	return ret;
 }
 

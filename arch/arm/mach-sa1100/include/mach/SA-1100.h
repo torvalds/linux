@@ -1903,16 +1903,6 @@
 #define LCD_Int100_0A	0xF     	/* LCD Intensity = 100.0% =  1     */
                 	        	/* (Alternative)                   */
 
-#define LCCR0		__REG(0xB0100000)  /* LCD Control Reg. 0 */
-#define LCSR		__REG(0xB0100004)  /* LCD Status Reg. */
-#define DBAR1		__REG(0xB0100010)  /* LCD DMA Base Address Reg. channel 1 */
-#define DCAR1		__REG(0xB0100014)  /* LCD DMA Current Address Reg. channel 1 */
-#define DBAR2		__REG(0xB0100018)  /* LCD DMA Base Address Reg.  channel 2 */
-#define DCAR2		__REG(0xB010001C)  /* LCD DMA Current Address Reg. channel 2 */
-#define LCCR1		__REG(0xB0100020)  /* LCD Control Reg. 1 */
-#define LCCR2		__REG(0xB0100024)  /* LCD Control Reg. 2 */
-#define LCCR3		__REG(0xB0100028)  /* LCD Control Reg. 3 */
-
 #define LCCR0_LEN	0x00000001	/* LCD ENable                      */
 #define LCCR0_CMS	0x00000002	/* Color/Monochrome display Select */
 #define LCCR0_Color	(LCCR0_CMS*0)	/*  Color display                  */
