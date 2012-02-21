@@ -567,7 +567,7 @@ static void log_flush_commit(struct gfs2_sbd *sdp)
 	log_write_header(sdp, 0, 0);
 }
 
-int bd_cmp(void *priv, struct list_head *a, struct list_head *b)
+static int bd_cmp(void *priv, struct list_head *a, struct list_head *b)
 {
 	struct gfs2_bufdata *bda, *bdb;
 
