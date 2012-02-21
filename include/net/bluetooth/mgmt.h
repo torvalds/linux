@@ -135,6 +135,7 @@ struct mgmt_cp_set_dev_class {
 #define MGMT_OP_SET_LOCAL_NAME		0x000F
 struct mgmt_cp_set_local_name {
 	__u8 name[MGMT_MAX_NAME_LENGTH];
+	__u8 short_name[MGMT_MAX_SHORT_NAME_LENGTH];
 } __packed;
 
 #define MGMT_OP_ADD_UUID		0x0010
