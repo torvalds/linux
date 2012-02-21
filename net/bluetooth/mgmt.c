@@ -2560,6 +2560,13 @@ static int set_fast_connectable(struct sock *sk, u16 index,
 	if (!hdev)
 		return cmd_status(sk, index, MGMT_OP_SET_FAST_CONNECTABLE,
 						MGMT_STATUS_INVALID_PARAMS);
+	if (!hdev_is_powered(hdev))
+		return cmd_status(sk, index, MGMT_OP_SET_FAST_CONNECTABLE,
+						MGMT_STATUS_NOT_POWERED);
+
+	if (!test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
+		return cmd_status(sk, index, MGMT_OP_SET_FAST_CONNECTABLE,
+							MGMT_STATUS_REJECTED);
 
 	hci_dev_lock(hdev);
 
