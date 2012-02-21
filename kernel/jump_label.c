@@ -424,7 +424,7 @@ static void jump_label_update(struct jump_label_key *key, int enable)
 	struct jump_entry *entry = key->entries, *stop = __stop___jump_table;
 
 #ifdef CONFIG_MODULES
-	struct module *mod = __module_address((jump_label_t)key);
+	struct module *mod = __module_address((unsigned long)key);
 
 	__jump_label_mod_update(key, enable);
 
