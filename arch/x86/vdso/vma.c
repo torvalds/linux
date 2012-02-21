@@ -187,15 +187,15 @@ up_fail:
 
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
-	return setup_additional_pages (bprm, uses_interp, vdso_pages,
-				       vdso_size);
+	return setup_additional_pages(bprm, uses_interp, vdso_pages,
+				      vdso_size);
 }
 
 #ifdef CONFIG_X86_X32_ABI
 int x32_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
-	return setup_additional_pages (bprm, uses_interp, vdsox32_pages,
-				       vdsox32_size);
+	return setup_additional_pages(bprm, uses_interp, vdsox32_pages,
+				      vdsox32_size);
 }
 #endif
 
