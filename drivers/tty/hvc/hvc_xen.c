@@ -55,7 +55,6 @@ struct xencons_info {
 
 static LIST_HEAD(xenconsoles);
 static DEFINE_SPINLOCK(xencons_lock);
-static struct xenbus_driver xencons_driver;
 
 /* ------------------------------------------------------------------ */
 
@@ -298,53 +297,6 @@ static int xen_initial_domain_console_init(void)
 	return 0;
 }
 
-static int __init xen_hvc_init(void)
-{
-	int r;
-	struct xencons_info *info;
-	const struct hv_ops *ops;
-
-	if (!xen_domain())
-		return -ENODEV;
-
-	if (xen_initial_domain()) {
-		ops = &dom0_hvc_ops;
-		r = xen_initial_domain_console_init();
-		if (r < 0)
-			return r;
-		info = vtermno_to_xencons(HVC_COOKIE);
-	} else {
-		ops = &domU_hvc_ops;
-		if (xen_hvm_domain())
-			r = xen_hvm_console_init();
-		else
-			r = xen_pv_console_init();
-		if (r < 0)
-			return r;
-
-		info = vtermno_to_xencons(HVC_COOKIE);
-		info->irq = bind_evtchn_to_irq(info->evtchn);
-	}
-	if (info->irq < 0)
-		info->irq = 0; /* NO_IRQ */
-	else
-		irq_set_noprobe(info->irq);
-
-	info->hvc = hvc_alloc(HVC_COOKIE, info->irq, ops, 256);
-	if (IS_ERR(info->hvc)) {
-		r = PTR_ERR(info->hvc);
-		spin_lock(&xencons_lock);
-		list_del(&info->list);
-		spin_unlock(&xencons_lock);
-		if (info->irq)
-			unbind_from_irqhandler(info->irq, NULL);
-		kfree(info);
-		return r;
-	}
-
-	return xenbus_register_frontend(&xencons_driver);
-}
-
 void xen_console_resume(void)
 {
 	struct xencons_info *info = vtermno_to_xencons(HVC_COOKIE);
@@ -391,6 +343,9 @@ static int xen_console_remove(struct xencons_info *info)
 	}
 	return 0;
 }
+
+#ifdef CONFIG_HVC_XEN_FRONTEND
+static struct xenbus_driver xencons_driver;
 
 static int xencons_remove(struct xenbus_device *dev)
 {
@@ -543,6 +498,65 @@ static const struct xenbus_device_id xencons_ids[] = {
 };
 
 
+static DEFINE_XENBUS_DRIVER(xencons, "xenconsole",
+	.probe = xencons_probe,
+	.remove = xencons_remove,
+	.resume = xencons_resume,
+	.otherend_changed = xencons_backend_changed,
+);
+#endif /* CONFIG_HVC_XEN_FRONTEND */
+
+static int __init xen_hvc_init(void)
+{
+	int r;
+	struct xencons_info *info;
+	const struct hv_ops *ops;
+
+	if (!xen_domain())
+		return -ENODEV;
+
+	if (xen_initial_domain()) {
+		ops = &dom0_hvc_ops;
+		r = xen_initial_domain_console_init();
+		if (r < 0)
+			return r;
+		info = vtermno_to_xencons(HVC_COOKIE);
+	} else {
+		ops = &domU_hvc_ops;
+		if (xen_hvm_domain())
+			r = xen_hvm_console_init();
+		else
+			r = xen_pv_console_init();
+		if (r < 0)
+			return r;
+
+		info = vtermno_to_xencons(HVC_COOKIE);
+		info->irq = bind_evtchn_to_irq(info->evtchn);
+	}
+	if (info->irq < 0)
+		info->irq = 0; /* NO_IRQ */
+	else
+		irq_set_noprobe(info->irq);
+
+	info->hvc = hvc_alloc(HVC_COOKIE, info->irq, ops, 256);
+	if (IS_ERR(info->hvc)) {
+		r = PTR_ERR(info->hvc);
+		spin_lock(&xencons_lock);
+		list_del(&info->list);
+		spin_unlock(&xencons_lock);
+		if (info->irq)
+			unbind_from_irqhandler(info->irq, NULL);
+		kfree(info);
+		return r;
+	}
+
+	r = 0;
+#ifdef CONFIG_HVC_XEN_FRONTEND
+	r = xenbus_register_frontend(&xencons_driver);
+#endif
+	return r;
+}
+
 static void __exit xen_hvc_fini(void)
 {
 	struct xencons_info *entry, *next;
@@ -580,12 +594,6 @@ static int xen_cons_init(void)
 	return 0;
 }
 
-static DEFINE_XENBUS_DRIVER(xencons, "xenconsole",
-	.probe = xencons_probe,
-	.remove = xencons_remove,
-	.resume = xencons_resume,
-	.otherend_changed = xencons_backend_changed,
-);
 
 module_init(xen_hvc_init);
 module_exit(xen_hvc_fini);

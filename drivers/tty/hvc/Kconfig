@@ -76,6 +76,14 @@ config HVC_XEN
 	help
 	  Xen virtual console device driver
 
+config HVC_XEN_FRONTEND
+	bool "Xen Hypervisor Multiple Consoles support"
+	depends on HVC_XEN
+	select XEN_XENBUS_FRONTEND
+	default y
+	help
+	  Xen driver for secondary virtual consoles
+
 config HVC_UDBG
        bool "udbg based fake hypervisor console"
        depends on PPC && EXPERIMENTAL
