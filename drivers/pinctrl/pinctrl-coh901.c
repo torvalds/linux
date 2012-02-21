@@ -705,7 +705,6 @@ static inline void u300_gpio_free_ports(struct u300_gpio *gpio)
 	list_for_each_safe(p, n, &gpio->port_list) {
 		port = list_entry(p, struct u300_gpio_port, node);
 		list_del(&port->node);
-		free_irq(port->irq, port);
 		kfree(port);
 	}
 }
@@ -861,10 +860,18 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 		goto err_no_chip;
 	}
 
+	/* Spawn pin controller device as child of the GPIO, pass gpio chip */
+	plat->pinctrl_device->dev.platform_data = &gpio->chip;
+	err = platform_device_register(plat->pinctrl_device);
+	if (err)
+		goto err_no_pinctrl;
+
 	platform_set_drvdata(pdev, gpio);
 
 	return 0;
 
+err_no_pinctrl:
+	err = gpiochip_remove(&gpio->chip);
 err_no_chip:
 err_no_port:
 	u300_gpio_free_ports(gpio);
@@ -918,7 +925,6 @@ static struct platform_driver u300_gpio_driver = {
 	},
 	.remove		= __exit_p(u300_gpio_remove),
 };
-
 
 static int __init u300_gpio_init(void)
 {

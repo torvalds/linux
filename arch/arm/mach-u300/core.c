@@ -1477,7 +1477,7 @@ static struct coh901318_platform coh901318_platform = {
 	.max_channels = U300_DMA_CHANNELS,
 };
 
-static struct resource pinmux_resources[] = {
+static struct resource pinctrl_resources[] = {
 	{
 		.start = U300_SYSCON_BASE,
 		.end   = U300_SYSCON_BASE + SZ_4K - 1,
@@ -1506,6 +1506,13 @@ static struct platform_device i2c1_device = {
 	.resource = i2c1_resources,
 };
 
+static struct platform_device pinctrl_device = {
+	.name = "pinctrl-u300",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(pinctrl_resources),
+	.resource = pinctrl_resources,
+};
+
 /*
  * The different variants have a few different versions of the
  * GPIO block, with different number of ports.
@@ -1525,6 +1532,7 @@ static struct u300_gpio_platform u300_gpio_plat = {
 #endif
 	.gpio_base = 0,
 	.gpio_irq_base = IRQ_U300_GPIO_BASE,
+	.pinctrl_device = &pinctrl_device,
 };
 
 static struct platform_device gpio_device = {
@@ -1597,23 +1605,16 @@ static struct platform_device dma_device = {
 	},
 };
 
-static struct platform_device pinmux_device = {
-	.name = "pinmux-u300",
-	.id = -1,
-	.num_resources = ARRAY_SIZE(pinmux_resources),
-	.resource = pinmux_resources,
-};
-
 /* Pinmux settings */
 static struct pinctrl_map __initdata u300_pinmux_map[] = {
 	/* anonymous maps for chip power and EMIFs */
-	PIN_MAP_SYS_HOG("POWER", "pinmux-u300", "power"),
-	PIN_MAP_SYS_HOG("EMIF0", "pinmux-u300", "emif0"),
-	PIN_MAP_SYS_HOG("EMIF1", "pinmux-u300", "emif1"),
+	PIN_MAP_SYS_HOG("POWER", "pinctrl-u300", "power"),
+	PIN_MAP_SYS_HOG("EMIF0", "pinctrl-u300", "emif0"),
+	PIN_MAP_SYS_HOG("EMIF1", "pinctrl-u300", "emif1"),
 	/* per-device maps for MMC/SD, SPI and UART */
-	PIN_MAP("MMCSD", "pinmux-u300", "mmc0", "mmci"),
-	PIN_MAP("SPI", "pinmux-u300", "spi0", "pl022"),
-	PIN_MAP("UART0", "pinmux-u300", "uart0", "uart0"),
+	PIN_MAP("MMCSD", "pinctrl-u300", "mmc0", "mmci"),
+	PIN_MAP("SPI", "pinctrl-u300", "spi0", "pl022"),
+	PIN_MAP("UART0", "pinctrl-u300", "uart0", "uart0"),
 };
 
 struct u300_mux_hog {
@@ -1676,7 +1677,6 @@ static struct platform_device *platform_devs[] __initdata = {
 	&gpio_device,
 	&nand_device,
 	&wdog_device,
-	&pinmux_device,
 };
 
 /*
