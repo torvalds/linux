@@ -143,12 +143,6 @@ struct il_queue {
 				 * space less than this */
 };
 
-/* One for each TFD */
-struct il_tx_info {
-	struct sk_buff *skb;
-	struct il_rxon_context *ctx;
-};
-
 /**
  * struct il_tx_queue - Tx Queue for DMA
  * @q: generic Rx/Tx queue descriptor
@@ -156,7 +150,7 @@ struct il_tx_info {
  * @cmd: array of command/TX buffer pointers
  * @meta: array of meta data for each command/tx buffer
  * @dma_addr_cmd: physical address of cmd/tx buffer array
- * @txb: array of per-TFD driver data
+ * @skbs: array of per-TFD socket buffer pointers
  * @time_stamp: time (in jiffies) of last read_ptr change
  * @need_update: indicates need to update read/write idx
  * @sched_retry: indicates queue is high-throughput aggregation (HT AGG) enabled
@@ -172,7 +166,7 @@ struct il_tx_queue {
 	void *tfds;
 	struct il_device_cmd **cmd;
 	struct il_cmd_meta *meta;
-	struct il_tx_info *txb;
+	struct sk_buff **skbs;
 	unsigned long time_stamp;
 	u8 need_update;
 	u8 sched_retry;
@@ -735,13 +729,12 @@ struct il_qos_info {
 struct il_station_entry {
 	struct il_addsta_cmd sta;
 	struct il_tid_data tid[MAX_TID_COUNT];
-	u8 used, ctxid;
+	u8 used;
 	struct il_hw_key keyinfo;
 	struct il_link_quality_cmd *lq;
 };
 
 struct il_station_priv_common {
-	struct il_rxon_context *ctx;
 	u8 sta_id;
 };
 
@@ -752,7 +745,6 @@ struct il_station_priv_common {
  * space for us to put data into.
  */
 struct il_vif_priv {
-	struct il_rxon_context *ctx;
 	u8 ibss_bssid_sta_id;
 };
 
@@ -816,6 +808,7 @@ struct il_sensitivity_ranges {
 
 /**
  * struct il_hw_params
+ * @bcast_id: f/w broadcast station ID
  * @max_txq_num: Max # Tx queues supported
  * @dma_chnl_num: Number of Tx DMA/FIFO channels
  * @scd_bc_tbls_size: size of scheduler byte count tables
@@ -836,6 +829,7 @@ struct il_sensitivity_ranges {
  * @struct il_sensitivity_ranges: range of sensitivity values
  */
 struct il_hw_params {
+	u8 bcast_id;
 	u8 max_txq_num;
 	u8 dma_chnl_num;
 	u16 scd_bc_tbls_size;
@@ -1152,55 +1146,6 @@ struct il_force_reset {
 
 struct il_rxon_context {
 	struct ieee80211_vif *vif;
-
-	const u8 *ac_to_fifo;
-	const u8 *ac_to_queue;
-	u8 mcast_queue;
-
-	/*
-	 * We could use the vif to indicate active, but we
-	 * also need it to be active during disabling when
-	 * we already removed the vif for type setting.
-	 */
-	bool always_active, is_active;
-
-	bool ht_need_multiple_chains;
-
-	int ctxid;
-
-	u32 interface_modes, exclusive_interface_modes;
-	u8 unused_devtype, ap_devtype, ibss_devtype, station_devtype;
-
-	/*
-	 * We declare this const so it can only be
-	 * changed via explicit cast within the
-	 * routines that actually update the physical
-	 * hardware.
-	 */
-	const struct il_rxon_cmd active;
-	struct il_rxon_cmd staging;
-
-	struct il_rxon_time_cmd timing;
-
-	struct il_qos_info qos_data;
-
-	u8 bcast_sta_id, ap_sta_id;
-
-	u8 rxon_cmd, rxon_assoc_cmd, rxon_timing_cmd;
-	u8 qos_cmd;
-	u8 wep_key_cmd;
-
-	struct il_wep_key wep_keys[WEP_KEYS_MAX];
-	u8 key_mapping_keys;
-
-	__le32 station_flags;
-
-	struct {
-		bool non_gf_sta_present;
-		u8 protection;
-		bool enabled, is_40mhz;
-		u8 extension_chan_offset;
-	} ht;
 };
 
 struct il_power_mgr {
@@ -1217,6 +1162,7 @@ struct il_priv {
 	struct ieee80211_channel *ieee_channels;
 	struct ieee80211_rate *ieee_rates;
 	struct il_cfg *cfg;
+	const struct il_ops *ops;
 
 	/* temporary frame storage list */
 	struct list_head free_frames;
@@ -1304,7 +1250,28 @@ struct il_priv {
 	u8 ucode_write_complete;	/* the image write is complete */
 	char firmware_name[25];
 
-	struct il_rxon_context ctx;
+	struct ieee80211_vif *vif;
+
+	struct il_qos_info qos_data;
+
+	struct {
+		bool enabled;
+		bool is_40mhz;
+		bool non_gf_sta_present;
+		u8 protection;
+		u8 extension_chan_offset;
+	} ht;
+
+	/*
+	 * We declare this const so it can only be
+	 * changed via explicit cast within the
+	 * routines that actually update the physical
+	 * hardware.
+	 */
+	const struct il_rxon_cmd active;
+	struct il_rxon_cmd staging;
+
+	struct il_rxon_time_cmd timing;
 
 	__le16 switch_channel;
 
@@ -1427,6 +1394,9 @@ struct il_priv {
 			u8 phy_calib_chain_noise_reset_cmd;
 			u8 phy_calib_chain_noise_gain_cmd;
 
+			u8 key_mapping_keys;
+			struct il_wep_key wep_keys[WEP_KEYS_MAX];
+
 			struct il_notif_stats stats;
 #ifdef CONFIG_IWLEGACY_DEBUGFS
 			struct il_notif_stats accum_stats;
@@ -1449,7 +1419,7 @@ struct il_priv {
 	struct work_struct rx_replenish;
 	struct work_struct abort_scan;
 
-	struct il_rxon_context *beacon_ctx;
+	bool beacon_enabled;
 	struct sk_buff *beacon_skb;
 
 	struct work_struct tx_flush;
@@ -1507,42 +1477,16 @@ il_txq_ctx_deactivate(struct il_priv *il, int txq_id)
 	clear_bit(txq_id, &il->txq_ctx_active_msk);
 }
 
-static inline struct ieee80211_hdr *
-il_tx_queue_get_hdr(struct il_priv *il, int txq_id, int idx)
-{
-	if (il->txq[txq_id].txb[idx].skb)
-		return (struct ieee80211_hdr *)il->txq[txq_id].txb[idx].skb->
-		    data;
-	return NULL;
-}
-
-static inline struct il_rxon_context *
-il_rxon_ctx_from_vif(struct ieee80211_vif *vif)
-{
-	struct il_vif_priv *vif_priv = (void *)vif->drv_priv;
-
-	return vif_priv->ctx;
-}
-
-#define for_each_context(il, _ctx) \
-	for (_ctx = &il->ctx; _ctx == &il->ctx; _ctx++)
-
 static inline int
 il_is_associated(struct il_priv *il)
 {
-	return (il->ctx.active.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
+	return (il->active.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
 }
 
 static inline int
 il_is_any_associated(struct il_priv *il)
 {
 	return il_is_associated(il);
-}
-
-static inline int
-il_is_associated_ctx(struct il_rxon_context *ctx)
-{
-	return (ctx->active.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;
 }
 
 static inline int
@@ -1614,10 +1558,9 @@ il_free_pages(struct il_priv *il, unsigned long page)
 #define IL_RX_BUF_SIZE_8K (8 * 1024)
 
 struct il_hcmd_ops {
-	int (*rxon_assoc) (struct il_priv *il, struct il_rxon_context *ctx);
-	int (*commit_rxon) (struct il_priv *il, struct il_rxon_context *ctx);
-	void (*set_rxon_chain) (struct il_priv *il,
-				struct il_rxon_context *ctx);
+	int (*rxon_assoc) (struct il_priv *il);
+	int (*commit_rxon) (struct il_priv *il);
+	void (*set_rxon_chain) (struct il_priv *il);
 };
 
 struct il_hcmd_utils_ops {
@@ -1649,8 +1592,6 @@ struct il_temp_ops {
 };
 
 struct il_lib_ops {
-	/* set hw dependent parameters */
-	int (*set_hw_params) (struct il_priv *il);
 	/* Handling TX */
 	void (*txq_update_byte_cnt_tbl) (struct il_priv *il,
 					 struct il_tx_queue *txq,
@@ -1712,7 +1653,6 @@ struct il_ops {
 	const struct il_led_ops *led;
 	const struct il_nic_ops *nic;
 	const struct il_legacy_ops *legacy;
-	const struct ieee80211_ops *ieee80211_ops;
 };
 
 struct il_mod_params {
@@ -1739,21 +1679,6 @@ struct il_mod_params {
  *	chain noise calibration operation
  */
 struct il_base_params {
-	int eeprom_size;
-	int num_of_queues;	/* def: HW dependent */
-	int num_of_ampdu_queues;	/* def: HW dependent */
-	/* for il_apm_init() */
-	u32 pll_cfg_val;
-	bool set_l0s;
-	bool use_bsm;
-
-	u16 led_compensation;
-	int chain_noise_num_beacons;
-	unsigned int wd_timeout;
-	bool temperature_kelvin;
-	const bool ucode_tracing;
-	const bool sensitivity_calib_by_driver;
-	const bool chain_noise_calib_by_driver;
 };
 
 #define IL_LED_SOLID 11
@@ -1821,7 +1746,6 @@ struct il_cfg {
 	unsigned int sku;
 	u16 eeprom_ver;
 	u16 eeprom_calib_ver;
-	const struct il_ops *ops;
 	/* module based parameters which can be set from modprobe cmd */
 	const struct il_mod_params *mod_params;
 	/* params not likely to change within a device family */
@@ -1829,31 +1753,43 @@ struct il_cfg {
 	/* params likely to change within a device family */
 	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
 	enum il_led_mode led_mode;
+
+	int eeprom_size;
+	int num_of_queues;		/* def: HW dependent */
+	int num_of_ampdu_queues;	/* def: HW dependent */
+	/* for il_apm_init() */
+	u32 pll_cfg_val;
+	bool set_l0s;
+	bool use_bsm;
+
+	u16 led_compensation;
+	int chain_noise_num_beacons;
+	unsigned int wd_timeout;
+	bool temperature_kelvin;
+	const bool ucode_tracing;
+	const bool sensitivity_calib_by_driver;
+	const bool chain_noise_calib_by_driver;
 };
 
 /***************************
  *   L i b                 *
  ***************************/
 
-struct ieee80211_hw *il_alloc_all(struct il_cfg *cfg);
 int il_mac_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   u16 queue, const struct ieee80211_tx_queue_params *params);
 int il_mac_tx_last_beacon(struct ieee80211_hw *hw);
 
-void il_set_rxon_hwcrypto(struct il_priv *il, struct il_rxon_context *ctx,
-			  int hw_decrypt);
-int il_check_rxon_cmd(struct il_priv *il, struct il_rxon_context *ctx);
-int il_full_rxon_required(struct il_priv *il, struct il_rxon_context *ctx);
-int il_set_rxon_channel(struct il_priv *il, struct ieee80211_channel *ch,
-			struct il_rxon_context *ctx);
-void il_set_flags_for_band(struct il_priv *il, struct il_rxon_context *ctx,
-			   enum ieee80211_band band, struct ieee80211_vif *vif);
+void il_set_rxon_hwcrypto(struct il_priv *il, int hw_decrypt);
+int il_check_rxon_cmd(struct il_priv *il);
+int il_full_rxon_required(struct il_priv *il);
+int il_set_rxon_channel(struct il_priv *il, struct ieee80211_channel *ch);
+void il_set_flags_for_band(struct il_priv *il, enum ieee80211_band band,
+			   struct ieee80211_vif *vif);
 u8 il_get_single_channel_number(struct il_priv *il, enum ieee80211_band band);
 void il_set_rxon_ht(struct il_priv *il, struct il_ht_config *ht_conf);
-bool il_is_ht40_tx_allowed(struct il_priv *il, struct il_rxon_context *ctx,
+bool il_is_ht40_tx_allowed(struct il_priv *il,
 			   struct ieee80211_sta_ht_cap *ht_cap);
-void il_connection_init_rx_config(struct il_priv *il,
-				  struct il_rxon_context *ctx);
+void il_connection_init_rx_config(struct il_priv *il);
 void il_set_rate(struct il_priv *il);
 int il_set_decrypted_flag(struct il_priv *il, struct ieee80211_hdr *hdr,
 			  u32 decrypt_res, struct ieee80211_rx_status *stats);
@@ -1956,7 +1892,7 @@ int il_set_tx_power(struct il_priv *il, s8 tx_power, bool force);
  * Rate
  ******************************************************************************/
 
-u8 il_get_lowest_plcp(struct il_priv *il, struct il_rxon_context *ctx);
+u8 il_get_lowest_plcp(struct il_priv *il);
 
 /*******************************************************************************
  * Scanning
@@ -2043,10 +1979,10 @@ extern const struct dev_pm_ops il_pm_ops;
 ******************************************************/
 void il4965_dump_nic_error_log(struct il_priv *il);
 #ifdef CONFIG_IWLEGACY_DEBUG
-void il_print_rx_config_cmd(struct il_priv *il, struct il_rxon_context *ctx);
+void il_print_rx_config_cmd(struct il_priv *il);
 #else
 static inline void
-il_print_rx_config_cmd(struct il_priv *il, struct il_rxon_context *ctx)
+il_print_rx_config_cmd(struct il_priv *il)
 {
 }
 #endif
@@ -2135,17 +2071,18 @@ extern int il_send_stats_request(struct il_priv *il, u8 flags, bool clear);
 void il_apm_stop(struct il_priv *il);
 int il_apm_init(struct il_priv *il);
 
-int il_send_rxon_timing(struct il_priv *il, struct il_rxon_context *ctx);
+int il_send_rxon_timing(struct il_priv *il);
+
 static inline int
-il_send_rxon_assoc(struct il_priv *il, struct il_rxon_context *ctx)
+il_send_rxon_assoc(struct il_priv *il)
 {
-	return il->cfg->ops->hcmd->rxon_assoc(il, ctx);
+	return il->ops->hcmd->rxon_assoc(il);
 }
 
 static inline int
-il_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
+il_commit_rxon(struct il_priv *il)
 {
-	return il->cfg->ops->hcmd->commit_rxon(il, ctx);
+	return il->ops->hcmd->commit_rxon(il);
 }
 
 static inline const struct ieee80211_supported_band *
@@ -2303,23 +2240,22 @@ il_clear_bits_prph(struct il_priv *il, u32 reg, u32 mask)
 				   (this is for the IBSS BSSID stations) */
 #define IL_STA_BCAST BIT(4)	/* this station is the special bcast station */
 
-void il_restore_stations(struct il_priv *il, struct il_rxon_context *ctx);
-void il_clear_ucode_stations(struct il_priv *il, struct il_rxon_context *ctx);
+void il_restore_stations(struct il_priv *il);
+void il_clear_ucode_stations(struct il_priv *il);
 void il_dealloc_bcast_stations(struct il_priv *il);
 int il_get_free_ucode_key_idx(struct il_priv *il);
 int il_send_add_sta(struct il_priv *il, struct il_addsta_cmd *sta, u8 flags);
-int il_add_station_common(struct il_priv *il, struct il_rxon_context *ctx,
-			  const u8 *addr, bool is_ap,
+int il_add_station_common(struct il_priv *il, const u8 *addr, bool is_ap,
 			  struct ieee80211_sta *sta, u8 *sta_id_r);
 int il_remove_station(struct il_priv *il, const u8 sta_id, const u8 * addr);
 int il_mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		      struct ieee80211_sta *sta);
 
-u8 il_prep_station(struct il_priv *il, struct il_rxon_context *ctx,
-		   const u8 *addr, bool is_ap, struct ieee80211_sta *sta);
+u8 il_prep_station(struct il_priv *il, const u8 *addr, bool is_ap,
+		   struct ieee80211_sta *sta);
 
-int il_send_lq_cmd(struct il_priv *il, struct il_rxon_context *ctx,
-		   struct il_link_quality_cmd *lq, u8 flags, bool init);
+int il_send_lq_cmd(struct il_priv *il, struct il_link_quality_cmd *lq,
+		   u8 flags, bool init);
 
 /**
  * il_clear_driver_stations - clear knowledge of all stations from driver
@@ -2334,24 +2270,11 @@ static inline void
 il_clear_driver_stations(struct il_priv *il)
 {
 	unsigned long flags;
-	struct il_rxon_context *ctx = &il->ctx;
 
 	spin_lock_irqsave(&il->sta_lock, flags);
 	memset(il->stations, 0, sizeof(il->stations));
 	il->num_stations = 0;
-
 	il->ucode_key_table = 0;
-
-	/*
-	 * Remove all key information that is not stored as part
-	 * of station information since mac80211 may not have had
-	 * a chance to remove all the keys. When device is
-	 * reconfigured by mac80211 after an error all keys will
-	 * be reconfigured.
-	 */
-	memset(ctx->wep_keys, 0, sizeof(ctx->wep_keys));
-	ctx->key_mapping_keys = 0;
-
 	spin_unlock_irqrestore(&il->sta_lock, flags);
 }
 
@@ -2376,13 +2299,12 @@ il_sta_id(struct ieee80211_sta *sta)
  * inline wraps that pattern.
  */
 static inline int
-il_sta_id_or_broadcast(struct il_priv *il, struct il_rxon_context *context,
-		       struct ieee80211_sta *sta)
+il_sta_id_or_broadcast(struct il_priv *il, struct ieee80211_sta *sta)
 {
 	int sta_id;
 
 	if (!sta)
-		return context->bcast_sta_id;
+		return il->hw_params.bcast_id;
 
 	sta_id = il_sta_id(sta);
 

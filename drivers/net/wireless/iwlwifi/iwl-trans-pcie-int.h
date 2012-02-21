@@ -201,6 +201,7 @@ struct iwl_tx_queue {
  * @rxq: all the RX queue data
  * @rx_replenish: work that will be called when buffers need to be allocated
  * @trans: pointer to the generic transport area
+ * @irq_requested: true when the irq has been requested
  * @scd_base_addr: scheduler sram base address in SRAM
  * @scd_bc_tbls: pointer to the byte count table of the scheduler
  * @kw: keep warm address
@@ -211,6 +212,8 @@ struct iwl_tx_queue {
  * @txq_ctx_active_msk: what queue is active
  * queue_stopped: tracks what queue is stopped
  * queue_stop_count: tracks what SW queue is stopped
+ * @pci_dev: basic pci-network driver stuff
+ * @hw_base: pci hardware address support
  */
 struct iwl_trans_pcie {
 	struct iwl_rx_queue rxq;
@@ -223,6 +226,7 @@ struct iwl_trans_pcie {
 	int ict_index;
 	u32 inta;
 	bool use_ict;
+	bool irq_requested;
 	struct tasklet_struct irq_tasklet;
 	struct isr_statistics isr_stats;
 
@@ -241,6 +245,10 @@ struct iwl_trans_pcie {
 #define IWL_MAX_HW_QUEUES	32
 	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
 	atomic_t queue_stop_count[4];
+
+	/* PCI bus related data */
+	struct pci_dev *pci_dev;
+	void __iomem *hw_base;
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
@@ -258,7 +266,7 @@ void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 /*****************************************************
 * ICT
 ******************************************************/
-int iwl_reset_ict(struct iwl_trans *trans);
+void iwl_reset_ict(struct iwl_trans *trans);
 void iwl_disable_ict(struct iwl_trans *trans);
 int iwl_alloc_isr_ict(struct iwl_trans *trans);
 void iwl_free_isr_ict(struct iwl_trans *trans);
@@ -311,12 +319,12 @@ static inline void iwl_disable_interrupts(struct iwl_trans *trans)
 	clear_bit(STATUS_INT_ENABLED, &trans->shrd->status);
 
 	/* disable interrupts from uCode/NIC to host */
-	iwl_write32(bus(trans), CSR_INT_MASK, 0x00000000);
+	iwl_write32(trans, CSR_INT_MASK, 0x00000000);
 
 	/* acknowledge/clear/reset any interrupts still pending
 	 * from uCode or flow handler (Rx/Tx DMA) */
-	iwl_write32(bus(trans), CSR_INT, 0xffffffff);
-	iwl_write32(bus(trans), CSR_FH_INT_STATUS, 0xffffffff);
+	iwl_write32(trans, CSR_INT, 0xffffffff);
+	iwl_write32(trans, CSR_FH_INT_STATUS, 0xffffffff);
 	IWL_DEBUG_ISR(trans, "Disabled interrupts\n");
 }
 
@@ -327,7 +335,7 @@ static inline void iwl_enable_interrupts(struct iwl_trans *trans)
 
 	IWL_DEBUG_ISR(trans, "Enabling interrupts\n");
 	set_bit(STATUS_INT_ENABLED, &trans->shrd->status);
-	iwl_write32(bus(trans), CSR_INT_MASK, trans_pcie->inta_mask);
+	iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
 }
 
 /*

@@ -38,17 +38,16 @@ struct il_rxon_context;
 
 /* configuration for the _4965 devices */
 extern struct il_cfg il4965_cfg;
+extern const struct il_ops il4965_ops;
 
 extern struct il_mod_params il4965_mod_params;
-
-extern struct ieee80211_ops il4965_hw_ops;
 
 /* tx queue */
 void il4965_free_tfds_in_queue(struct il_priv *il, int sta_id, int tid,
 			       int freed);
 
 /* RXON */
-void il4965_set_rxon_chain(struct il_priv *il, struct il_rxon_context *ctx);
+void il4965_set_rxon_chain(struct il_priv *il);
 
 /* uCode */
 int il4965_verify_ucode(struct il_priv *il);
@@ -134,21 +133,18 @@ il4965_get_tx_fail_reason(u32 status)
 #endif
 
 /* station management */
-int il4965_alloc_bcast_station(struct il_priv *il, struct il_rxon_context *ctx);
-int il4965_add_bssid_station(struct il_priv *il, struct il_rxon_context *ctx,
-			     const u8 *addr, u8 *sta_id_r);
+int il4965_alloc_bcast_station(struct il_priv *il);
+int il4965_add_bssid_station(struct il_priv *il, const u8 *addr, u8 *sta_id_r);
 int il4965_remove_default_wep_key(struct il_priv *il,
-				  struct il_rxon_context *ctx,
 				  struct ieee80211_key_conf *key);
-int il4965_set_default_wep_key(struct il_priv *il, struct il_rxon_context *ctx,
+int il4965_set_default_wep_key(struct il_priv *il,
 			       struct ieee80211_key_conf *key);
-int il4965_restore_default_wep_keys(struct il_priv *il,
-				    struct il_rxon_context *ctx);
-int il4965_set_dynamic_key(struct il_priv *il, struct il_rxon_context *ctx,
+int il4965_restore_default_wep_keys(struct il_priv *il);
+int il4965_set_dynamic_key(struct il_priv *il,
 			   struct ieee80211_key_conf *key, u8 sta_id);
-int il4965_remove_dynamic_key(struct il_priv *il, struct il_rxon_context *ctx,
+int il4965_remove_dynamic_key(struct il_priv *il,
 			      struct ieee80211_key_conf *key, u8 sta_id);
-void il4965_update_tkip_key(struct il_priv *il, struct il_rxon_context *ctx,
+void il4965_update_tkip_key(struct il_priv *il,
 			    struct ieee80211_key_conf *keyconf,
 			    struct ieee80211_sta *sta, u32 iv32,
 			    u16 *phase1key);

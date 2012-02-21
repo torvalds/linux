@@ -100,7 +100,7 @@ void iwl_txq_update_write_ptr(struct iwl_trans *trans, struct iwl_tx_queue *txq)
 
 	if (hw_params(trans).shadow_reg_enable) {
 		/* shadow register enabled */
-		iwl_write32(bus(trans), HBUS_TARG_WRPTR,
+		iwl_write32(trans, HBUS_TARG_WRPTR,
 			    txq->q.write_ptr | (txq_id << 8));
 	} else {
 		/* if we're trying to save power */
@@ -108,18 +108,18 @@ void iwl_txq_update_write_ptr(struct iwl_trans *trans, struct iwl_tx_queue *txq)
 			/* wake up nic if it's powered down ...
 			 * uCode will wake up, and interrupt us again, so next
 			 * time we'll skip this part. */
-			reg = iwl_read32(bus(trans), CSR_UCODE_DRV_GP1);
+			reg = iwl_read32(trans, CSR_UCODE_DRV_GP1);
 
 			if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
 				IWL_DEBUG_INFO(trans,
 					"Tx queue %d requesting wakeup,"
 					" GP1 = 0x%x\n", txq_id, reg);
-				iwl_set_bit(bus(trans), CSR_GP_CNTRL,
+				iwl_set_bit(trans, CSR_GP_CNTRL,
 					CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 				return;
 			}
 
-			iwl_write_direct32(bus(trans), HBUS_TARG_WRPTR,
+			iwl_write_direct32(trans, HBUS_TARG_WRPTR,
 				     txq->q.write_ptr | (txq_id << 8));
 
 		/*
@@ -128,7 +128,7 @@ void iwl_txq_update_write_ptr(struct iwl_trans *trans, struct iwl_tx_queue *txq)
 		 * trying to tx (during RFKILL, we're not trying to tx).
 		 */
 		} else
-			iwl_write32(bus(trans), HBUS_TARG_WRPTR,
+			iwl_write32(trans, HBUS_TARG_WRPTR,
 				    txq->q.write_ptr | (txq_id << 8));
 	}
 	txq->need_update = 0;
@@ -190,14 +190,14 @@ static void iwlagn_unmap_tfd(struct iwl_trans *trans, struct iwl_cmd_meta *meta,
 
 	/* Unmap tx_cmd */
 	if (num_tbs)
-		dma_unmap_single(bus(trans)->dev,
+		dma_unmap_single(trans->dev,
 				dma_unmap_addr(meta, mapping),
 				dma_unmap_len(meta, len),
 				DMA_BIDIRECTIONAL);
 
 	/* Unmap chunks, if any. */
 	for (i = 1; i < num_tbs; i++)
-		dma_unmap_single(bus(trans)->dev, iwl_tfd_tb_get_addr(tfd, i),
+		dma_unmap_single(trans->dev, iwl_tfd_tb_get_addr(tfd, i),
 				iwl_tfd_tb_get_len(tfd, i), dma_dir);
 }
 
@@ -383,14 +383,14 @@ static int iwlagn_tx_queue_set_q2ratid(struct iwl_trans *trans, u16 ra_tid,
 	tbl_dw_addr = trans_pcie->scd_base_addr +
 			SCD_TRANS_TBL_OFFSET_QUEUE(txq_id);
 
-	tbl_dw = iwl_read_targ_mem(bus(trans), tbl_dw_addr);
+	tbl_dw = iwl_read_targ_mem(trans, tbl_dw_addr);
 
 	if (txq_id & 0x1)
 		tbl_dw = (scd_q2ratid << 16) | (tbl_dw & 0x0000FFFF);
 	else
 		tbl_dw = scd_q2ratid | (tbl_dw & 0xFFFF0000);
 
-	iwl_write_targ_mem(bus(trans), tbl_dw_addr, tbl_dw);
+	iwl_write_targ_mem(trans, tbl_dw_addr, tbl_dw);
 
 	return 0;
 }
@@ -399,7 +399,7 @@ static void iwlagn_tx_queue_stop_scheduler(struct iwl_trans *trans, u16 txq_id)
 {
 	/* Simply stop the queue, but don't change any configuration;
 	 * the SCD_ACT_EN bit is the write-enable mask for the ACTIVE bit. */
-	iwl_write_prph(bus(trans),
+	iwl_write_prph(trans,
 		SCD_QUEUE_STATUS_BITS(txq_id),
 		(0 << SCD_QUEUE_STTS_REG_POS_ACTIVE)|
 		(1 << SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
@@ -409,9 +409,9 @@ void iwl_trans_set_wr_ptrs(struct iwl_trans *trans,
 				int txq_id, u32 index)
 {
 	IWL_DEBUG_TX_QUEUES(trans, "Q %d  WrPtr: %d", txq_id, index & 0xff);
-	iwl_write_direct32(bus(trans), HBUS_TARG_WRPTR,
+	iwl_write_direct32(trans, HBUS_TARG_WRPTR,
 			(index & 0xff) | (txq_id << 8));
-	iwl_write_prph(bus(trans), SCD_QUEUE_RDPTR(txq_id), index);
+	iwl_write_prph(trans, SCD_QUEUE_RDPTR(txq_id), index);
 }
 
 void iwl_trans_tx_queue_set_status(struct iwl_trans *trans,
@@ -423,7 +423,7 @@ void iwl_trans_tx_queue_set_status(struct iwl_trans *trans,
 	int active =
 		test_bit(txq_id, &trans_pcie->txq_ctx_active_msk) ? 1 : 0;
 
-	iwl_write_prph(bus(trans), SCD_QUEUE_STATUS_BITS(txq_id),
+	iwl_write_prph(trans, SCD_QUEUE_STATUS_BITS(txq_id),
 			(active << SCD_QUEUE_STTS_REG_POS_ACTIVE) |
 			(tx_fifo_id << SCD_QUEUE_STTS_REG_POS_TXF) |
 			(1 << SCD_QUEUE_STTS_REG_POS_WSL) |
@@ -431,9 +431,12 @@ void iwl_trans_tx_queue_set_status(struct iwl_trans *trans,
 
 	txq->sched_retry = scd_retry;
 
-	IWL_DEBUG_TX_QUEUES(trans, "%s %s Queue %d on FIFO %d\n",
-		       active ? "Activate" : "Deactivate",
-		       scd_retry ? "BA" : "AC/CMD", txq_id, tx_fifo_id);
+	if (active)
+		IWL_DEBUG_TX_QUEUES(trans, "Activate %s Queue %d on FIFO %d\n",
+			scd_retry ? "BA" : "AC/CMD", txq_id, tx_fifo_id);
+	else
+		IWL_DEBUG_TX_QUEUES(trans, "Deactivate %s Queue %d\n",
+			scd_retry ? "BA" : "AC/CMD", txq_id);
 }
 
 static inline int get_fifo_from_tid(struct iwl_trans_pcie *trans_pcie,
@@ -498,10 +501,10 @@ void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
 	iwlagn_tx_queue_set_q2ratid(trans, ra_tid, txq_id);
 
 	/* Set this queue as a chain-building queue */
-	iwl_set_bits_prph(bus(trans), SCD_QUEUECHAIN_SEL, (1<<txq_id));
+	iwl_set_bits_prph(trans, SCD_QUEUECHAIN_SEL, (1<<txq_id));
 
 	/* enable aggregations for the queue */
-	iwl_set_bits_prph(bus(trans), SCD_AGGR_SEL, (1<<txq_id));
+	iwl_set_bits_prph(trans, SCD_AGGR_SEL, (1<<txq_id));
 
 	/* Place first TFD at index corresponding to start sequence number.
 	 * Assumes that ssn_idx is valid (!= 0xFFF) */
@@ -510,7 +513,7 @@ void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
 	iwl_trans_set_wr_ptrs(trans, txq_id, ssn);
 
 	/* Set up Tx window size and frame limit for this queue */
-	iwl_write_targ_mem(bus(trans), trans_pcie->scd_base_addr +
+	iwl_write_targ_mem(trans, trans_pcie->scd_base_addr +
 			SCD_CONTEXT_QUEUE_OFFSET(txq_id) +
 			sizeof(u32),
 			((frame_limit <<
@@ -520,7 +523,7 @@ void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
 			SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
 			SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
 
-	iwl_set_bits_prph(bus(trans), SCD_INTERRUPT_MASK, (1 << txq_id));
+	iwl_set_bits_prph(trans, SCD_INTERRUPT_MASK, (1 << txq_id));
 
 	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
 	iwl_trans_tx_queue_set_status(trans, &trans_pcie->txq[txq_id],
@@ -584,7 +587,7 @@ int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans, int sta_id, int tid)
 
 	iwlagn_tx_queue_stop_scheduler(trans, txq_id);
 
-	iwl_clear_bits_prph(bus(trans), SCD_AGGR_SEL, (1 << txq_id));
+	iwl_clear_bits_prph(trans, SCD_AGGR_SEL, (1 << txq_id));
 
 	trans_pcie->agg_txq[sta_id][tid] = 0;
 	trans_pcie->txq[txq_id].q.read_ptr = 0;
@@ -592,7 +595,7 @@ int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans, int sta_id, int tid)
 	/* supposes that ssn_idx is valid (!= 0xFFF) */
 	iwl_trans_set_wr_ptrs(trans, txq_id, 0);
 
-	iwl_clear_bits_prph(bus(trans), SCD_INTERRUPT_MASK, (1 << txq_id));
+	iwl_clear_bits_prph(trans, SCD_INTERRUPT_MASK, (1 << txq_id));
 	iwl_txq_ctx_deactivate(trans_pcie, txq_id);
 	iwl_trans_tx_queue_set_status(trans, &trans_pcie->txq[txq_id], 0, 0);
 	return 0;
@@ -725,9 +728,9 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 			le16_to_cpu(out_cmd->hdr.sequence), cmd_size,
 			q->write_ptr, idx, trans->shrd->cmd_queue);
 
-	phys_addr = dma_map_single(bus(trans)->dev, &out_cmd->hdr, copy_size,
+	phys_addr = dma_map_single(trans->dev, &out_cmd->hdr, copy_size,
 				DMA_BIDIRECTIONAL);
-	if (unlikely(dma_mapping_error(bus(trans)->dev, phys_addr))) {
+	if (unlikely(dma_mapping_error(trans->dev, phys_addr))) {
 		idx = -ENOMEM;
 		goto out;
 	}
@@ -748,10 +751,10 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 			continue;
 		if (!(cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY))
 			continue;
-		phys_addr = dma_map_single(bus(trans)->dev,
+		phys_addr = dma_map_single(trans->dev,
 					   (void *)cmd->data[i],
 					   cmd->len[i], DMA_BIDIRECTIONAL);
-		if (dma_mapping_error(bus(trans)->dev, phys_addr)) {
+		if (dma_mapping_error(trans->dev, phys_addr)) {
 			iwlagn_unmap_tfd(trans, out_meta,
 					 &txq->tfds[q->write_ptr],
 					 DMA_BIDIRECTIONAL);

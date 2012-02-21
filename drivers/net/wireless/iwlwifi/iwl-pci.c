@@ -71,112 +71,6 @@
 #include "iwl-csr.h"
 #include "iwl-cfg.h"
 
-/* PCI registers */
-#define PCI_CFG_RETRY_TIMEOUT	0x041
-#define PCI_CFG_LINK_CTRL_VAL_L0S_EN	0x01
-#define PCI_CFG_LINK_CTRL_VAL_L1_EN	0x02
-
-struct iwl_pci_bus {
-	/* basic pci-network driver stuff */
-	struct pci_dev *pci_dev;
-
-	/* pci hardware address support */
-	void __iomem *hw_base;
-};
-
-#define IWL_BUS_GET_PCI_BUS(_iwl_bus) \
-			((struct iwl_pci_bus *) ((_iwl_bus)->bus_specific))
-
-#define IWL_BUS_GET_PCI_DEV(_iwl_bus) \
-			((IWL_BUS_GET_PCI_BUS(_iwl_bus))->pci_dev)
-
-static u16 iwl_pciexp_link_ctrl(struct iwl_bus *bus)
-{
-	int pos;
-	u16 pci_lnk_ctl;
-
-	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
-
-	pos = pci_pcie_cap(pci_dev);
-	pci_read_config_word(pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
-	return pci_lnk_ctl;
-}
-
-static bool iwl_pci_is_pm_supported(struct iwl_bus *bus)
-{
-	u16 lctl = iwl_pciexp_link_ctrl(bus);
-
-	return !(lctl & PCI_CFG_LINK_CTRL_VAL_L0S_EN);
-}
-
-static void iwl_pci_apm_config(struct iwl_bus *bus)
-{
-	/*
-	 * HW bug W/A for instability in PCIe bus L0S->L1 transition.
-	 * Check if BIOS (or OS) enabled L1-ASPM on this device.
-	 * If so (likely), disable L0S, so device moves directly L0->L1;
-	 *    costs negligible amount of power savings.
-	 * If not (unlikely), enable L0S, so there is at least some
-	 *    power savings, even without L1.
-	 */
-	u16 lctl = iwl_pciexp_link_ctrl(bus);
-
-	if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
-				PCI_CFG_LINK_CTRL_VAL_L1_EN) {
-		/* L1-ASPM enabled; disable(!) L0S */
-		iwl_set_bit(bus, CSR_GIO_REG,
-				CSR_GIO_REG_VAL_L0S_ENABLED);
-		dev_printk(KERN_INFO, bus->dev, "L1 Enabled; Disabling L0S\n");
-	} else {
-		/* L1-ASPM disabled; enable(!) L0S */
-		iwl_clear_bit(bus, CSR_GIO_REG,
-				CSR_GIO_REG_VAL_L0S_ENABLED);
-		dev_printk(KERN_INFO, bus->dev, "L1 Disabled; Enabling L0S\n");
-	}
-}
-
-static void iwl_pci_get_hw_id_string(struct iwl_bus *bus, char buf[],
-			      int buf_len)
-{
-	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
-
-	snprintf(buf, buf_len, "PCI ID: 0x%04X:0x%04X", pci_dev->device,
-		 pci_dev->subsystem_device);
-}
-
-static u32 iwl_pci_get_hw_id(struct iwl_bus *bus)
-{
-	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
-
-	return (pci_dev->device << 16) + pci_dev->subsystem_device;
-}
-
-static void iwl_pci_write8(struct iwl_bus *bus, u32 ofs, u8 val)
-{
-	iowrite8(val, IWL_BUS_GET_PCI_BUS(bus)->hw_base + ofs);
-}
-
-static void iwl_pci_write32(struct iwl_bus *bus, u32 ofs, u32 val)
-{
-	iowrite32(val, IWL_BUS_GET_PCI_BUS(bus)->hw_base + ofs);
-}
-
-static u32 iwl_pci_read32(struct iwl_bus *bus, u32 ofs)
-{
-	u32 val = ioread32(IWL_BUS_GET_PCI_BUS(bus)->hw_base + ofs);
-	return val;
-}
-
-static const struct iwl_bus_ops bus_ops_pci = {
-	.get_pm_support = iwl_pci_is_pm_supported,
-	.apm_config = iwl_pci_apm_config,
-	.get_hw_id_string = iwl_pci_get_hw_id_string,
-	.get_hw_id = iwl_pci_get_hw_id,
-	.write8 = iwl_pci_write8,
-	.write32 = iwl_pci_write32,
-	.read32 = iwl_pci_read32,
-};
-
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \
 	.vendor = PCI_VENDOR_ID_INTEL,  .device = (dev), \
 	.subvendor = PCI_ANY_ID, .subdevice = (subdev), \
@@ -362,112 +256,61 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 };
 MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 
+/* PCI registers */
+#define PCI_CFG_RETRY_TIMEOUT	0x041
+
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
 	struct iwl_bus *bus;
-	struct iwl_pci_bus *pci_bus;
-	u16 pci_cmd;
 	int err;
 
-	bus = kzalloc(sizeof(*bus) + sizeof(*pci_bus), GFP_KERNEL);
+	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
 	if (!bus) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			   "Couldn't allocate iwl_pci_bus");
-		err = -ENOMEM;
-		goto out_no_pci;
+		return -ENOMEM;
 	}
 
-	pci_bus = IWL_BUS_GET_PCI_BUS(bus);
-	pci_bus->pci_dev = pdev;
+	bus->shrd = kzalloc(sizeof(*bus->shrd), GFP_KERNEL);
+	if (!bus->shrd) {
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "Couldn't allocate iwl_shared");
+		err = -ENOMEM;
+		goto out_free_bus;
+	}
+
+	bus->shrd->bus = bus;
 
 	pci_set_drvdata(pdev, bus);
 
-	/* W/A - seems to solve weird behavior. We need to remove this if we
-	 * don't want to stay in L1 all the time. This wastes a lot of power */
-	pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1 |
-				PCIE_LINK_STATE_CLKPM);
-
-	if (pci_enable_device(pdev)) {
-		err = -ENODEV;
-		goto out_no_pci;
+#ifdef CONFIG_IWLWIFI_IDI
+	trans(bus) = iwl_trans_idi_alloc(bus->shrd, pdev, ent);
+	if (trans(bus) == NULL) {
+		err = -ENOMEM;
+		goto out_free_bus;
 	}
 
-	pci_set_master(pdev);
-
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(36));
-	if (!err)
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(36));
-	if (err) {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
-		if (!err)
-			err = pci_set_consistent_dma_mask(pdev,
-							DMA_BIT_MASK(32));
-		/* both attempts failed: */
-		if (err) {
-			dev_printk(KERN_ERR, bus->dev,
-				   "No suitable DMA available.\n");
-			goto out_pci_disable_device;
-		}
+	err = iwl_probe(bus, &trans_ops_idi, cfg);
+#else
+	trans(bus) = iwl_trans_pcie_alloc(bus->shrd, pdev, ent);
+	if (trans(bus) == NULL) {
+		err = -ENOMEM;
+		goto out_free_bus;
 	}
-
-	err = pci_request_regions(pdev, DRV_NAME);
-	if (err) {
-		dev_printk(KERN_ERR, bus->dev, "pci_request_regions failed");
-		goto out_pci_disable_device;
-	}
-
-	pci_bus->hw_base = pci_iomap(pdev, 0, 0);
-	if (!pci_bus->hw_base) {
-		dev_printk(KERN_ERR, bus->dev, "pci_iomap failed");
-		err = -ENODEV;
-		goto out_pci_release_regions;
-	}
-
-	dev_printk(KERN_INFO, &pdev->dev,
-		"pci_resource_len = 0x%08llx\n",
-		(unsigned long long) pci_resource_len(pdev, 0));
-	dev_printk(KERN_INFO, &pdev->dev,
-		"pci_resource_base = %p\n", pci_bus->hw_base);
-
-	dev_printk(KERN_INFO, &pdev->dev,
-		"HW Revision ID = 0x%X\n", pdev->revision);
-
-	/* We disable the RETRY_TIMEOUT register (0x41) to keep
-	 * PCI Tx retries from interfering with C3 CPU state */
-	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
-
-	err = pci_enable_msi(pdev);
-	if (err)
-		dev_printk(KERN_ERR, &pdev->dev,
-			"pci_enable_msi failed(0X%x)", err);
-
-	/* TODO: Move this away, not needed if not MSI */
-	/* enable rfkill interrupt: hw bug w/a */
-	pci_read_config_word(pdev, PCI_COMMAND, &pci_cmd);
-	if (pci_cmd & PCI_COMMAND_INTX_DISABLE) {
-		pci_cmd &= ~PCI_COMMAND_INTX_DISABLE;
-		pci_write_config_word(pdev, PCI_COMMAND, pci_cmd);
-	}
-
-	bus->dev = &pdev->dev;
-	bus->irq = pdev->irq;
-	bus->ops = &bus_ops_pci;
 
 	err = iwl_probe(bus, &trans_ops_pcie, cfg);
+#endif
 	if (err)
-		goto out_disable_msi;
+		goto out_free_trans;
+
 	return 0;
 
-out_disable_msi:
-	pci_disable_msi(pdev);
-	pci_iounmap(pdev, pci_bus->hw_base);
-out_pci_release_regions:
+out_free_trans:
+	iwl_trans_free(trans(bus));
 	pci_set_drvdata(pdev, NULL);
-	pci_release_regions(pdev);
-out_pci_disable_device:
-	pci_disable_device(pdev);
-out_no_pci:
+out_free_bus:
+	kfree(bus->shrd);
 	kfree(bus);
 	return err;
 }
@@ -475,18 +318,14 @@ out_no_pci:
 static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 {
 	struct iwl_bus *bus = pci_get_drvdata(pdev);
-	struct iwl_pci_bus *pci_bus = IWL_BUS_GET_PCI_BUS(bus);
-	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
 	struct iwl_shared *shrd = bus->shrd;
 
 	iwl_remove(shrd->priv);
+	iwl_trans_free(shrd->trans);
 
-	pci_disable_msi(pci_dev);
-	pci_iounmap(pci_dev, pci_bus->hw_base);
-	pci_release_regions(pci_dev);
-	pci_disable_device(pci_dev);
-	pci_set_drvdata(pci_dev, NULL);
+	pci_set_drvdata(pdev, NULL);
 
+	kfree(bus->shrd);
 	kfree(bus);
 }
 

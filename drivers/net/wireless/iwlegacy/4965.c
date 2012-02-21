@@ -569,82 +569,6 @@ il4965_chain_noise_reset(struct il_priv *il)
 	}
 }
 
-static struct il_sensitivity_ranges il4965_sensitivity = {
-	.min_nrg_cck = 97,
-	.max_nrg_cck = 0,	/* not used, set to 0 */
-
-	.auto_corr_min_ofdm = 85,
-	.auto_corr_min_ofdm_mrc = 170,
-	.auto_corr_min_ofdm_x1 = 105,
-	.auto_corr_min_ofdm_mrc_x1 = 220,
-
-	.auto_corr_max_ofdm = 120,
-	.auto_corr_max_ofdm_mrc = 210,
-	.auto_corr_max_ofdm_x1 = 140,
-	.auto_corr_max_ofdm_mrc_x1 = 270,
-
-	.auto_corr_min_cck = 125,
-	.auto_corr_max_cck = 200,
-	.auto_corr_min_cck_mrc = 200,
-	.auto_corr_max_cck_mrc = 400,
-
-	.nrg_th_cck = 100,
-	.nrg_th_ofdm = 100,
-
-	.barker_corr_th_min = 190,
-	.barker_corr_th_min_mrc = 390,
-	.nrg_th_cca = 62,
-};
-
-static void
-il4965_set_ct_threshold(struct il_priv *il)
-{
-	/* want Kelvin */
-	il->hw_params.ct_kill_threshold =
-	    CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD_LEGACY);
-}
-
-/**
- * il4965_hw_set_hw_params
- *
- * Called when initializing driver
- */
-static int
-il4965_hw_set_hw_params(struct il_priv *il)
-{
-	if (il->cfg->mod_params->num_of_queues >= IL_MIN_NUM_QUEUES &&
-	    il->cfg->mod_params->num_of_queues <= IL49_NUM_QUEUES)
-		il->cfg->base_params->num_of_queues =
-		    il->cfg->mod_params->num_of_queues;
-
-	il->hw_params.max_txq_num = il->cfg->base_params->num_of_queues;
-	il->hw_params.dma_chnl_num = FH49_TCSR_CHNL_NUM;
-	il->hw_params.scd_bc_tbls_size =
-	    il->cfg->base_params->num_of_queues *
-	    sizeof(struct il4965_scd_bc_tbl);
-	il->hw_params.tfd_size = sizeof(struct il_tfd);
-	il->hw_params.max_stations = IL4965_STATION_COUNT;
-	il->ctx.bcast_sta_id = IL4965_BROADCAST_ID;
-	il->hw_params.max_data_size = IL49_RTC_DATA_SIZE;
-	il->hw_params.max_inst_size = IL49_RTC_INST_SIZE;
-	il->hw_params.max_bsm_size = BSM_SRAM_SIZE;
-	il->hw_params.ht40_channel = BIT(IEEE80211_BAND_5GHZ);
-
-	il->hw_params.rx_wrt_ptr_reg = FH49_RSCSR_CHNL0_WPTR;
-
-	il->hw_params.tx_chains_num = il4965_num_of_ant(il->cfg->valid_tx_ant);
-	il->hw_params.rx_chains_num = il4965_num_of_ant(il->cfg->valid_rx_ant);
-	il->hw_params.valid_tx_ant = il->cfg->valid_tx_ant;
-	il->hw_params.valid_rx_ant = il->cfg->valid_rx_ant;
-
-	il4965_set_ct_threshold(il);
-
-	il->hw_params.sens = &il4965_sensitivity;
-	il->hw_params.beacon_time_tsf_bits = IL4965_EXT_BEACON_TIME_POS;
-
-	return 0;
-}
-
 static s32
 il4965_math_div_round(s32 num, s32 denom, s32 * res)
 {
@@ -1342,7 +1266,6 @@ il4965_send_tx_power(struct il_priv *il)
 	u8 band = 0;
 	bool is_ht40 = false;
 	u8 ctrl_chan_high = 0;
-	struct il_rxon_context *ctx = &il->ctx;
 
 	if (WARN_ONCE
 	    (test_bit(S_SCAN_HW, &il->status),
@@ -1351,16 +1274,16 @@ il4965_send_tx_power(struct il_priv *il)
 
 	band = il->band == IEEE80211_BAND_2GHZ;
 
-	is_ht40 = iw4965_is_ht40_channel(ctx->active.flags);
+	is_ht40 = iw4965_is_ht40_channel(il->active.flags);
 
-	if (is_ht40 && (ctx->active.flags & RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK))
+	if (is_ht40 && (il->active.flags & RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK))
 		ctrl_chan_high = 1;
 
 	cmd.band = band;
-	cmd.channel = ctx->active.channel;
+	cmd.channel = il->active.channel;
 
 	ret =
-	    il4965_fill_txpower_tbl(il, band, le16_to_cpu(ctx->active.channel),
+	    il4965_fill_txpower_tbl(il, band, le16_to_cpu(il->active.channel),
 				    is_ht40, ctrl_chan_high, &cmd.tx_power);
 	if (ret)
 		goto out;
@@ -1372,12 +1295,12 @@ out:
 }
 
 static int
-il4965_send_rxon_assoc(struct il_priv *il, struct il_rxon_context *ctx)
+il4965_send_rxon_assoc(struct il_priv *il)
 {
 	int ret = 0;
 	struct il4965_rxon_assoc_cmd rxon_assoc;
-	const struct il_rxon_cmd *rxon1 = &ctx->staging;
-	const struct il_rxon_cmd *rxon2 = &ctx->active;
+	const struct il_rxon_cmd *rxon1 = &il->staging;
+	const struct il_rxon_cmd *rxon2 = &il->active;
 
 	if (rxon1->flags == rxon2->flags &&
 	    rxon1->filter_flags == rxon2->filter_flags &&
@@ -1392,16 +1315,16 @@ il4965_send_rxon_assoc(struct il_priv *il, struct il_rxon_context *ctx)
 		return 0;
 	}
 
-	rxon_assoc.flags = ctx->staging.flags;
-	rxon_assoc.filter_flags = ctx->staging.filter_flags;
-	rxon_assoc.ofdm_basic_rates = ctx->staging.ofdm_basic_rates;
-	rxon_assoc.cck_basic_rates = ctx->staging.cck_basic_rates;
+	rxon_assoc.flags = il->staging.flags;
+	rxon_assoc.filter_flags = il->staging.filter_flags;
+	rxon_assoc.ofdm_basic_rates = il->staging.ofdm_basic_rates;
+	rxon_assoc.cck_basic_rates = il->staging.cck_basic_rates;
 	rxon_assoc.reserved = 0;
 	rxon_assoc.ofdm_ht_single_stream_basic_rates =
-	    ctx->staging.ofdm_ht_single_stream_basic_rates;
+	    il->staging.ofdm_ht_single_stream_basic_rates;
 	rxon_assoc.ofdm_ht_dual_stream_basic_rates =
-	    ctx->staging.ofdm_ht_dual_stream_basic_rates;
-	rxon_assoc.rx_chain_select_flags = ctx->staging.rx_chain;
+	    il->staging.ofdm_ht_dual_stream_basic_rates;
+	rxon_assoc.rx_chain_select_flags = il->staging.rx_chain;
 
 	ret =
 	    il_send_cmd_pdu_async(il, C_RXON_ASSOC, sizeof(rxon_assoc),
@@ -1411,23 +1334,20 @@ il4965_send_rxon_assoc(struct il_priv *il, struct il_rxon_context *ctx)
 }
 
 static int
-il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
+il4965_commit_rxon(struct il_priv *il)
 {
 	/* cast away the const for active_rxon in this function */
-	struct il_rxon_cmd *active_rxon = (void *)&ctx->active;
+	struct il_rxon_cmd *active_rxon = (void *)&il->active;
 	int ret;
-	bool new_assoc = !!(ctx->staging.filter_flags & RXON_FILTER_ASSOC_MSK);
+	bool new_assoc = !!(il->staging.filter_flags & RXON_FILTER_ASSOC_MSK);
 
 	if (!il_is_alive(il))
 		return -EBUSY;
 
-	if (!ctx->is_active)
-		return 0;
-
 	/* always get timestamp with Rx frame */
-	ctx->staging.flags |= RXON_FLG_TSF2HOST_MSK;
+	il->staging.flags |= RXON_FLG_TSF2HOST_MSK;
 
-	ret = il_check_rxon_cmd(il, ctx);
+	ret = il_check_rxon_cmd(il);
 	if (ret) {
 		IL_ERR("Invalid RXON configuration.  Not committing.\n");
 		return -EINVAL;
@@ -1438,7 +1358,7 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	 * abort any previous channel switch if still in process
 	 */
 	if (test_bit(S_CHANNEL_SWITCH_PENDING, &il->status) &&
-	    il->switch_channel != ctx->staging.channel) {
+	    il->switch_channel != il->staging.channel) {
 		D_11H("abort channel switch on %d\n",
 		      le16_to_cpu(il->switch_channel));
 		il_chswitch_done(il, false);
@@ -1447,15 +1367,15 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	/* If we don't need to send a full RXON, we can use
 	 * il_rxon_assoc_cmd which is used to reconfigure filter
 	 * and other flags for the current radio configuration. */
-	if (!il_full_rxon_required(il, ctx)) {
-		ret = il_send_rxon_assoc(il, ctx);
+	if (!il_full_rxon_required(il)) {
+		ret = il_send_rxon_assoc(il);
 		if (ret) {
 			IL_ERR("Error setting RXON_ASSOC (%d)\n", ret);
 			return ret;
 		}
 
-		memcpy(active_rxon, &ctx->staging, sizeof(*active_rxon));
-		il_print_rx_config_cmd(il, ctx);
+		memcpy(active_rxon, &il->staging, sizeof(*active_rxon));
+		il_print_rx_config_cmd(il);
 		/*
 		 * We do not commit tx power settings while channel changing,
 		 * do it now if tx power changed.
@@ -1468,12 +1388,12 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	 * an RXON_ASSOC and the new config wants the associated mask enabled,
 	 * we must clear the associated from the active configuration
 	 * before we apply the new config */
-	if (il_is_associated_ctx(ctx) && new_assoc) {
+	if (il_is_associated(il) && new_assoc) {
 		D_INFO("Toggling associated bit on current RXON\n");
 		active_rxon->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 
 		ret =
-		    il_send_cmd_pdu(il, ctx->rxon_cmd,
+		    il_send_cmd_pdu(il, C_RXON,
 				    sizeof(struct il_rxon_cmd), active_rxon);
 
 		/* If the mask clearing failed then we set
@@ -1483,9 +1403,9 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 			IL_ERR("Error clearing ASSOC_MSK (%d)\n", ret);
 			return ret;
 		}
-		il_clear_ucode_stations(il, ctx);
-		il_restore_stations(il, ctx);
-		ret = il4965_restore_default_wep_keys(il, ctx);
+		il_clear_ucode_stations(il);
+		il_restore_stations(il);
+		ret = il4965_restore_default_wep_keys(il);
 		if (ret) {
 			IL_ERR("Failed to restore WEP keys (%d)\n", ret);
 			return ret;
@@ -1494,9 +1414,9 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 
 	D_INFO("Sending RXON\n" "* with%s RXON_FILTER_ASSOC_MSK\n"
 	       "* channel = %d\n" "* bssid = %pM\n", (new_assoc ? "" : "out"),
-	       le16_to_cpu(ctx->staging.channel), ctx->staging.bssid_addr);
+	       le16_to_cpu(il->staging.channel), il->staging.bssid_addr);
 
-	il_set_rxon_hwcrypto(il, ctx, !il->cfg->mod_params->sw_crypto);
+	il_set_rxon_hwcrypto(il, !il->cfg->mod_params->sw_crypto);
 
 	/* Apply the new configuration
 	 * RXON unassoc clears the station table in uCode so restoration of
@@ -1504,17 +1424,17 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 	 */
 	if (!new_assoc) {
 		ret =
-		    il_send_cmd_pdu(il, ctx->rxon_cmd,
-				    sizeof(struct il_rxon_cmd), &ctx->staging);
+		    il_send_cmd_pdu(il, C_RXON,
+				    sizeof(struct il_rxon_cmd), &il->staging);
 		if (ret) {
 			IL_ERR("Error setting new RXON (%d)\n", ret);
 			return ret;
 		}
 		D_INFO("Return from !new_assoc RXON.\n");
-		memcpy(active_rxon, &ctx->staging, sizeof(*active_rxon));
-		il_clear_ucode_stations(il, ctx);
-		il_restore_stations(il, ctx);
-		ret = il4965_restore_default_wep_keys(il, ctx);
+		memcpy(active_rxon, &il->staging, sizeof(*active_rxon));
+		il_clear_ucode_stations(il);
+		il_restore_stations(il);
+		ret = il4965_restore_default_wep_keys(il);
 		if (ret) {
 			IL_ERR("Failed to restore WEP keys (%d)\n", ret);
 			return ret;
@@ -1526,15 +1446,15 @@ il4965_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx)
 		 * RXON assoc doesn't clear the station table in uCode,
 		 */
 		ret =
-		    il_send_cmd_pdu(il, ctx->rxon_cmd,
-				    sizeof(struct il_rxon_cmd), &ctx->staging);
+		    il_send_cmd_pdu(il, C_RXON,
+				    sizeof(struct il_rxon_cmd), &il->staging);
 		if (ret) {
 			IL_ERR("Error setting new RXON (%d)\n", ret);
 			return ret;
 		}
-		memcpy(active_rxon, &ctx->staging, sizeof(*active_rxon));
+		memcpy(active_rxon, &il->staging, sizeof(*active_rxon));
 	}
-	il_print_rx_config_cmd(il, ctx);
+	il_print_rx_config_cmd(il);
 
 	il4965_init_sensitivity(il);
 
@@ -1553,7 +1473,6 @@ static int
 il4965_hw_channel_switch(struct il_priv *il,
 			 struct ieee80211_channel_switch *ch_switch)
 {
-	struct il_rxon_context *ctx = &il->ctx;
 	int rc;
 	u8 band = 0;
 	bool is_ht40 = false;
@@ -1564,21 +1483,24 @@ il4965_hw_channel_switch(struct il_priv *il,
 	u16 ch;
 	u32 tsf_low;
 	u8 switch_count;
-	u16 beacon_interval = le16_to_cpu(ctx->timing.beacon_interval);
-	struct ieee80211_vif *vif = ctx->vif;
-	band = il->band == IEEE80211_BAND_2GHZ;
+	u16 beacon_interval = le16_to_cpu(il->timing.beacon_interval);
+	struct ieee80211_vif *vif = il->vif;
+	band = (il->band == IEEE80211_BAND_2GHZ);
 
-	is_ht40 = iw4965_is_ht40_channel(ctx->staging.flags);
+	if (WARN_ON_ONCE(vif == NULL))
+		return -EIO;
 
-	if (is_ht40 && (ctx->staging.flags & RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK))
+	is_ht40 = iw4965_is_ht40_channel(il->staging.flags);
+
+	if (is_ht40 && (il->staging.flags & RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK))
 		ctrl_chan_high = 1;
 
 	cmd.band = band;
 	cmd.expect_beacon = 0;
 	ch = ch_switch->channel->hw_value;
 	cmd.channel = cpu_to_le16(ch);
-	cmd.rxon_flags = ctx->staging.flags;
-	cmd.rxon_filter_flags = ctx->staging.filter_flags;
+	cmd.rxon_flags = il->staging.flags;
+	cmd.rxon_filter_flags = il->staging.filter_flags;
 	switch_count = ch_switch->count;
 	tsf_low = ch_switch->timestamp & 0x0ffffffff;
 	/*
@@ -1611,7 +1533,7 @@ il4965_hw_channel_switch(struct il_priv *il,
 		cmd.expect_beacon = il_is_channel_radar(ch_info);
 	else {
 		IL_ERR("invalid channel switch from %u to %u\n",
-		       ctx->active.channel, ch);
+		       il->active.channel, ch);
 		return -EFAULT;
 	}
 
@@ -1876,7 +1798,7 @@ il4965_tx_status_reply_tx(struct il_priv *il, struct il_ht_agg *agg,
 		D_TX_REPLY("FrameCnt = %d, StartIdx=%d idx=%d\n",
 			   agg->frame_count, agg->start_idx, idx);
 
-		info = IEEE80211_SKB_CB(il->txq[txq_id].txb[idx].skb);
+		info = IEEE80211_SKB_CB(il->txq[txq_id].skbs[idx]);
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 		info->flags |= il4965_tx_status_to_mac80211(status);
@@ -1891,6 +1813,7 @@ il4965_tx_status_reply_tx(struct il_priv *il, struct il_ht_agg *agg,
 		/* Two or more frames were attempted; expect block-ack */
 		u64 bitmap = 0;
 		int start = agg->start_idx;
+		struct sk_buff *skb;
 
 		/* Construct bit-map of pending frames within Tx win */
 		for (i = 0; i < agg->frame_count; i++) {
@@ -1908,12 +1831,10 @@ il4965_tx_status_reply_tx(struct il_priv *il, struct il_ht_agg *agg,
 			D_TX_REPLY("FrameCnt = %d, txq_id=%d idx=%d\n",
 				   agg->frame_count, txq_id, idx);
 
-			hdr = il_tx_queue_get_hdr(il, txq_id, idx);
-			if (!hdr) {
-				IL_ERR("BUG_ON idx doesn't point to valid skb"
-				       " idx=%d, txq_id=%d\n", idx, txq_id);
+			skb = il->txq[txq_id].skbs[idx];
+			if (WARN_ON_ONCE(skb == NULL))
 				return -1;
-			}
+			hdr = (struct ieee80211_hdr *) skb->data;
 
 			sc = le16_to_cpu(hdr->seq_ctrl);
 			if (idx != (SEQ_TO_SN(sc) & 0xff)) {
@@ -1969,7 +1890,7 @@ il4965_find_station(struct il_priv *il, const u8 * addr)
 		start = IL_STA_ID;
 
 	if (is_broadcast_ether_addr(addr))
-		return il->ctx.bcast_sta_id;
+		return il->hw_params.bcast_id;
 
 	spin_lock_irqsave(&il->sta_lock, flags);
 	for (i = start; i < il->hw_params.max_stations; i++)
@@ -2021,6 +1942,7 @@ il4965_hdl_tx(struct il_priv *il, struct il_rx_buf *rxb)
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int idx = SEQ_TO_IDX(sequence);
 	struct il_tx_queue *txq = &il->txq[txq_id];
+	struct sk_buff *skb;
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_tx_info *info;
 	struct il4965_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
@@ -2039,10 +1961,12 @@ il4965_hdl_tx(struct il_priv *il, struct il_rx_buf *rxb)
 	}
 
 	txq->time_stamp = jiffies;
-	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb);
+
+	skb = txq->skbs[txq->q.read_ptr];
+	info = IEEE80211_SKB_CB(skb);
 	memset(&info->status, 0, sizeof(info->status));
 
-	hdr = il_tx_queue_get_hdr(il, txq_id, idx);
+	hdr = (struct ieee80211_hdr *) skb->data;
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & 0xf;
@@ -2133,21 +2057,18 @@ static struct il_hcmd_ops il4965_hcmd = {
 static void
 il4965_post_scan(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &il->ctx;
-
 	/*
 	 * Since setting the RXON may have been deferred while
 	 * performing the scan, fire one off if needed
 	 */
-	if (memcmp(&ctx->staging, &ctx->active, sizeof(ctx->staging)))
-		il_commit_rxon(il, ctx);
+	if (memcmp(&il->staging, &il->active, sizeof(il->staging)))
+		il_commit_rxon(il);
 }
 
 static void
 il4965_post_associate(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &il->ctx;
-	struct ieee80211_vif *vif = ctx->vif;
+	struct ieee80211_vif *vif = il->vif;
 	struct ieee80211_conf *conf = NULL;
 	int ret = 0;
 
@@ -2161,41 +2082,41 @@ il4965_post_associate(struct il_priv *il)
 
 	conf = &il->hw->conf;
 
-	ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	il_commit_rxon(il, ctx);
+	il->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+	il_commit_rxon(il);
 
-	ret = il_send_rxon_timing(il, ctx);
+	ret = il_send_rxon_timing(il);
 	if (ret)
 		IL_WARN("RXON timing - " "Attempting to continue.\n");
 
-	ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
+	il->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
 
 	il_set_rxon_ht(il, &il->current_ht_config);
 
-	if (il->cfg->ops->hcmd->set_rxon_chain)
-		il->cfg->ops->hcmd->set_rxon_chain(il, ctx);
+	if (il->ops->hcmd->set_rxon_chain)
+		il->ops->hcmd->set_rxon_chain(il);
 
-	ctx->staging.assoc_id = cpu_to_le16(vif->bss_conf.aid);
+	il->staging.assoc_id = cpu_to_le16(vif->bss_conf.aid);
 
 	D_ASSOC("assoc id %d beacon interval %d\n", vif->bss_conf.aid,
 		vif->bss_conf.beacon_int);
 
 	if (vif->bss_conf.use_short_preamble)
-		ctx->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
+		il->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 	else
-		ctx->staging.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
+		il->staging.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
 
-	if (ctx->staging.flags & RXON_FLG_BAND_24G_MSK) {
+	if (il->staging.flags & RXON_FLG_BAND_24G_MSK) {
 		if (vif->bss_conf.use_short_slot)
-			ctx->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
+			il->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
 		else
-			ctx->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
+			il->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 	}
 
-	il_commit_rxon(il, ctx);
+	il_commit_rxon(il);
 
 	D_ASSOC("Associated as %d to: %pM\n", vif->bss_conf.aid,
-		ctx->active.bssid_addr);
+		il->active.bssid_addr);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
@@ -2223,8 +2144,7 @@ il4965_post_associate(struct il_priv *il)
 static void
 il4965_config_ap(struct il_priv *il)
 {
-	struct il_rxon_context *ctx = &il->ctx;
-	struct ieee80211_vif *vif = ctx->vif;
+	struct ieee80211_vif *vif = il->vif;
 	int ret = 0;
 
 	lockdep_assert_held(&il->mutex);
@@ -2233,14 +2153,14 @@ il4965_config_ap(struct il_priv *il)
 		return;
 
 	/* The following should be done only at AP bring up */
-	if (!il_is_associated_ctx(ctx)) {
+	if (!il_is_associated(il)) {
 
 		/* RXON - unassoc (to set timing command) */
-		ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-		il_commit_rxon(il, ctx);
+		il->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+		il_commit_rxon(il);
 
 		/* RXON Timing */
-		ret = il_send_rxon_timing(il, ctx);
+		ret = il_send_rxon_timing(il);
 		if (ret)
 			IL_WARN("RXON timing failed - "
 				"Attempting to continue.\n");
@@ -2248,27 +2168,27 @@ il4965_config_ap(struct il_priv *il)
 		/* AP has all antennas */
 		il->chain_noise_data.active_chains = il->hw_params.valid_rx_ant;
 		il_set_rxon_ht(il, &il->current_ht_config);
-		if (il->cfg->ops->hcmd->set_rxon_chain)
-			il->cfg->ops->hcmd->set_rxon_chain(il, ctx);
+		if (il->ops->hcmd->set_rxon_chain)
+			il->ops->hcmd->set_rxon_chain(il);
 
-		ctx->staging.assoc_id = 0;
+		il->staging.assoc_id = 0;
 
 		if (vif->bss_conf.use_short_preamble)
-			ctx->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
+			il->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 		else
-			ctx->staging.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
+			il->staging.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
 
-		if (ctx->staging.flags & RXON_FLG_BAND_24G_MSK) {
+		if (il->staging.flags & RXON_FLG_BAND_24G_MSK) {
 			if (vif->bss_conf.use_short_slot)
-				ctx->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
+				il->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
 			else
-				ctx->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
+				il->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 		}
 		/* need to send beacon cmd before committing assoc RXON! */
 		il4965_send_beacon_cmd(il);
 		/* restore RXON assoc */
-		ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
-		il_commit_rxon(il, ctx);
+		il->staging.filter_flags |= RXON_FILTER_ASSOC_MSK;
+		il_commit_rxon(il);
 	}
 	il4965_send_beacon_cmd(il);
 }
@@ -2281,7 +2201,6 @@ static struct il_hcmd_utils_ops il4965_hcmd_utils = {
 };
 
 static struct il_lib_ops il4965_lib = {
-	.set_hw_params = il4965_hw_set_hw_params,
 	.txq_update_byte_cnt_tbl = il4965_txq_update_byte_cnt_tbl,
 	.txq_attach_buf_to_tfd = il4965_hw_txq_attach_buf_to_tfd,
 	.txq_free_tfd = il4965_hw_txq_free_tfd,
@@ -2330,38 +2249,32 @@ static const struct il_legacy_ops il4965_legacy_ops = {
 	.update_bcast_stations = il4965_update_bcast_stations,
 };
 
-struct ieee80211_ops il4965_hw_ops = {
-	.tx = il4965_mac_tx,
-	.start = il4965_mac_start,
-	.stop = il4965_mac_stop,
-	.add_interface = il_mac_add_interface,
-	.remove_interface = il_mac_remove_interface,
-	.change_interface = il_mac_change_interface,
-	.config = il_mac_config,
-	.configure_filter = il4965_configure_filter,
-	.set_key = il4965_mac_set_key,
-	.update_tkip_key = il4965_mac_update_tkip_key,
-	.conf_tx = il_mac_conf_tx,
-	.reset_tsf = il_mac_reset_tsf,
-	.bss_info_changed = il_mac_bss_info_changed,
-	.ampdu_action = il4965_mac_ampdu_action,
-	.hw_scan = il_mac_hw_scan,
-	.sta_add = il4965_mac_sta_add,
-	.sta_remove = il_mac_sta_remove,
-	.channel_switch = il4965_mac_channel_switch,
-	.tx_last_beacon = il_mac_tx_last_beacon,
-};
-
-static const struct il_ops il4965_ops = {
+const struct il_ops il4965_ops = {
 	.lib = &il4965_lib,
 	.hcmd = &il4965_hcmd,
 	.utils = &il4965_hcmd_utils,
 	.led = &il4965_led_ops,
 	.legacy = &il4965_legacy_ops,
-	.ieee80211_ops = &il4965_hw_ops,
 };
 
-static struct il_base_params il4965_base_params = {
+struct il_cfg il4965_cfg = {
+	.name = "Intel(R) Wireless WiFi Link 4965AGN",
+	.fw_name_pre = IL4965_FW_PRE,
+	.ucode_api_max = IL4965_UCODE_API_MAX,
+	.ucode_api_min = IL4965_UCODE_API_MIN,
+	.sku = IL_SKU_A | IL_SKU_G | IL_SKU_N,
+	.valid_tx_ant = ANT_AB,
+	.valid_rx_ant = ANT_ABC,
+	.eeprom_ver = EEPROM_4965_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_4965_TX_POWER_VERSION,
+	.mod_params = &il4965_mod_params,
+	.led_mode = IL_LED_BLINK,
+	/*
+	 * Force use of chains B and C for scan RX on 5 GHz band
+	 * because the device has off-channel reception on chain A.
+	 */
+	.scan_rx_antennas[IEEE80211_BAND_5GHZ] = ANT_BC,
+
 	.eeprom_size = IL4965_EEPROM_IMG_SIZE,
 	.num_of_queues = IL49_NUM_QUEUES,
 	.num_of_ampdu_queues = IL49_NUM_AMPDU_QUEUES,
@@ -2375,27 +2288,6 @@ static struct il_base_params il4965_base_params = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
-};
-
-struct il_cfg il4965_cfg = {
-	.name = "Intel(R) Wireless WiFi Link 4965AGN",
-	.fw_name_pre = IL4965_FW_PRE,
-	.ucode_api_max = IL4965_UCODE_API_MAX,
-	.ucode_api_min = IL4965_UCODE_API_MIN,
-	.sku = IL_SKU_A | IL_SKU_G | IL_SKU_N,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_ABC,
-	.eeprom_ver = EEPROM_4965_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_4965_TX_POWER_VERSION,
-	.ops = &il4965_ops,
-	.mod_params = &il4965_mod_params,
-	.base_params = &il4965_base_params,
-	.led_mode = IL_LED_BLINK,
-	/*
-	 * Force use of chains B and C for scan RX on 5 GHz band
-	 * because the device has off-channel reception on chain A.
-	 */
-	.scan_rx_antennas[IEEE80211_BAND_5GHZ] = ANT_BC,
 };
 
 /* Module firmware */

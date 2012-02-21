@@ -647,6 +647,7 @@ struct rt2x00lib_ops {
  */
 struct rt2x00_ops {
 	const char *name;
+	const unsigned int drv_data_size;
 	const unsigned int max_sta_intf;
 	const unsigned int max_ap_intf;
 	const unsigned int eeprom_size;
@@ -740,6 +741,11 @@ struct rt2x00_dev {
 	 * Callback functions.
 	 */
 	const struct rt2x00_ops *ops;
+
+	/*
+	 * Driver data.
+	 */
+	void *drv_data;
 
 	/*
 	 * IEEE80211 control structure.
@@ -886,16 +892,9 @@ struct rt2x00_dev {
 	u8 rssi_offset;
 
 	/*
-	 * Frequency offset (for rt61pci & rt73usb).
+	 * Frequency offset.
 	 */
 	u8 freq_offset;
-
-	/*
-	 * Calibration information (for rt2800usb & rt2800pci).
-	 * [0] -> BW20
-	 * [1] -> BW40
-	 */
-	u8 calibration[2];
 
 	/*
 	 * Association id.

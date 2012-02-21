@@ -73,8 +73,6 @@ struct iwlagn_ucode_capabilities {
 
 extern struct ieee80211_ops iwlagn_hw_ops;
 
-int iwl_reset_ict(struct iwl_trans *trans);
-
 static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
 {
 	hdr->op_code = cmd;
@@ -109,6 +107,7 @@ void iwlagn_config_ht40(struct ieee80211_conf *conf,
 int iwlagn_rx_calib_result(struct iwl_priv *priv,
 			    struct iwl_rx_mem_buffer *rxb,
 			    struct iwl_device_cmd *cmd);
+void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags);
 
 /* lib */
 int iwlagn_send_tx_power(struct iwl_priv *priv);

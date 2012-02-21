@@ -324,7 +324,7 @@ static bool rate_idx_match_mcs_mask(struct ieee80211_tx_rate *rate,
 	rbit = rate->idx % 8;
 
 	/* sanity check */
-	if (ridx < 0 || ridx > IEEE80211_HT_MCS_MASK_LEN)
+	if (ridx < 0 || ridx >= IEEE80211_HT_MCS_MASK_LEN)
 		return false;
 
 	/* See whether the selected rate or anything below it is allowed. */
@@ -439,7 +439,7 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 	u32 mask;
 	u8 mcs_mask[IEEE80211_HT_MCS_MASK_LEN];
 
-	if (sta) {
+	if (sta && test_sta_flag(sta, WLAN_STA_RATE_CONTROL)) {
 		ista = &sta->sta;
 		priv_sta = sta->rate_ctrl_priv;
 	}

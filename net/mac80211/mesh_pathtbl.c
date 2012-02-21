@@ -336,7 +336,7 @@ static void mesh_path_move_to_queue(struct mesh_path *gate_mpath,
 }
 
 
-static struct mesh_path *path_lookup(struct mesh_table *tbl, u8 *dst,
+static struct mesh_path *mpath_lookup(struct mesh_table *tbl, u8 *dst,
 					  struct ieee80211_sub_if_data *sdata)
 {
 	struct mesh_path *mpath;
@@ -371,12 +371,12 @@ static struct mesh_path *path_lookup(struct mesh_table *tbl, u8 *dst,
  */
 struct mesh_path *mesh_path_lookup(u8 *dst, struct ieee80211_sub_if_data *sdata)
 {
-	return path_lookup(rcu_dereference(mesh_paths), dst, sdata);
+	return mpath_lookup(rcu_dereference(mesh_paths), dst, sdata);
 }
 
 struct mesh_path *mpp_path_lookup(u8 *dst, struct ieee80211_sub_if_data *sdata)
 {
-	return path_lookup(rcu_dereference(mpp_paths), dst, sdata);
+	return mpath_lookup(rcu_dereference(mpp_paths), dst, sdata);
 }
 
 

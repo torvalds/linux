@@ -376,7 +376,12 @@ mwifiex_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
 			     struct ieee80211_channel *chan,
 			     enum nl80211_channel_type channel_type)
 {
-	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_private *priv;
+
+	if (dev)
+		priv = mwifiex_netdev_get_priv(dev);
+	else
+		priv = mwifiex_cfg80211_get_priv(wiphy);
 
 	if (priv->media_connected) {
 		wiphy_err(wiphy, "This setting is valid only when station "
@@ -534,6 +539,11 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 		ret = -EFAULT;
 	}
 
+	/* Get DTIM period information from firmware */
+	mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
+			      HostCmd_ACT_GEN_GET, DTIM_PERIOD_I,
+			      &priv->dtim_period);
+
 	/*
 	 * Bit 0 in tx_htinfo indicates that current Tx rate is 11n rate. Valid
 	 * MCS index values for us are 0 to 7.
@@ -568,8 +578,7 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 						WLAN_CAPABILITY_SHORT_SLOT_TIME)
 			sinfo->bss_param.flags |=
 					BSS_PARAM_FLAGS_SHORT_SLOT_TIME;
-		sinfo->bss_param.dtim_period =
-			priv->curr_bss_params.bss_descriptor.dtim_period;
+		sinfo->bss_param.dtim_period = priv->dtim_period;
 		sinfo->bss_param.beacon_interval =
 			priv->curr_bss_params.bss_descriptor.beacon_period;
 	}
@@ -858,7 +867,12 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 		ret = mwifiex_set_rf_channel(priv, channel,
 						priv->adapter->channel_type);
 
-	ret = mwifiex_set_encode(priv, NULL, 0, 0, 1);	/* Disable keys */
+	/* As this is new association, clear locally stored
+	 * keys and security related flags */
+	priv->sec_info.wpa_enabled = false;
+	priv->sec_info.wpa2_enabled = false;
+	priv->wep_key_curr_index = 0;
+	ret = mwifiex_set_encode(priv, NULL, 0, 0, 1);
 
 	if (mode == NL80211_IFTYPE_ADHOC) {
 		/* "privacy" is set only for ad-hoc mode */
@@ -903,6 +917,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 			dev_dbg(priv->adapter->dev,
 				"info: setting wep encryption"
 				" with key len %d\n", sme->key_len);
+			priv->wep_key_curr_index = sme->key_idx;
 			ret = mwifiex_set_encode(priv, sme->key, sme->key_len,
 							sme->key_idx, 0);
 		}

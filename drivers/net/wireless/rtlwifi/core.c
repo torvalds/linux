@@ -296,12 +296,10 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 			 * because that will cause nullfunc send by mac80211
 			 * fail, and cause pkt loss, we have tested that 5mA
 			 * is worked very well */
-			if (!rtlpriv->psc.multi_buffered) {
+			if (!rtlpriv->psc.multi_buffered)
 				queue_delayed_work(rtlpriv->works.rtl_wq,
 						&rtlpriv->works.ps_work,
 						MSECS(5));
-				pr_info("In section\n");
-			}
 		} else {
 			rtl_swlps_rf_awake(hw);
 			rtlpriv->psc.sw_ps_enabled = false;

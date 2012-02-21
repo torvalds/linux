@@ -1185,13 +1185,12 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry(sta, &local->sta_list, list) {
 		if (sta->uploaded) {
-			sdata = sta->sdata;
-			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-				sdata = container_of(sdata->bss,
-					     struct ieee80211_sub_if_data,
-					     u.ap);
+			enum ieee80211_sta_state state;
 
-			WARN_ON(drv_sta_add(local, sdata, &sta->sta));
+			for (state = IEEE80211_STA_NOTEXIST;
+			     state < sta->sta_state - 1; state++)
+				WARN_ON(drv_sta_state(local, sta->sdata, sta,
+						      state, state + 1));
 		}
 	}
 	mutex_unlock(&local->sta_mtx);

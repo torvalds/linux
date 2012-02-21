@@ -98,13 +98,12 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry(sta, &local->sta_list, list) {
 		if (sta->uploaded) {
-			sdata = sta->sdata;
-			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-				sdata = container_of(sdata->bss,
-					     struct ieee80211_sub_if_data,
-					     u.ap);
+			enum ieee80211_sta_state state;
 
-			drv_sta_remove(local, sdata, &sta->sta);
+			state = sta->sta_state;
+			for (; state > IEEE80211_STA_NOTEXIST; state--)
+				WARN_ON(drv_sta_state(local, sdata, sta,
+						      state, state - 1));
 		}
 
 		mesh_plink_quiesce(sta);
