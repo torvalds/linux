@@ -559,6 +559,7 @@ static const struct proto_ops unix_stream_ops = {
 	.recvmsg =	unix_stream_recvmsg,
 	.mmap =		sock_no_mmap,
 	.sendpage =	sock_no_sendpage,
+	.set_peek_off =	unix_set_peek_off,
 };
 
 static const struct proto_ops unix_dgram_ops = {
@@ -1904,6 +1905,7 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 	int target;
 	int err = 0;
 	long timeo;
+	int skip;
 
 	err = -EINVAL;
 	if (sk->sk_state != TCP_ESTABLISHED)
@@ -1933,12 +1935,15 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 		goto out;
 	}
 
+	skip = sk_peek_offset(sk, flags);
+
 	do {
 		int chunk;
 		struct sk_buff *skb;
 
 		unix_state_lock(sk);
 		skb = skb_peek(&sk->sk_receive_queue);
+again:
 		if (skb == NULL) {
 			unix_sk(sk)->recursion_level = 0;
 			if (copied >= target)
@@ -1973,6 +1978,13 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 			unix_state_unlock(sk);
 			break;
 		}
+
+		if (skip >= skb->len) {
+			skip -= skb->len;
+			skb = skb_peek_next(skb, &sk->sk_receive_queue);
+			goto again;
+		}
+
 		unix_state_unlock(sk);
 
 		if (check_creds) {
@@ -1992,8 +2004,8 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 			sunaddr = NULL;
 		}
 
-		chunk = min_t(unsigned int, skb->len, size);
-		if (memcpy_toiovec(msg->msg_iov, skb->data, chunk)) {
+		chunk = min_t(unsigned int, skb->len - skip, size);
+		if (memcpy_toiovec(msg->msg_iov, skb->data + skip, chunk)) {
 			if (copied == 0)
 				copied = -EFAULT;
 			break;
@@ -2004,6 +2016,8 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 		/* Mark read part of skb as used */
 		if (!(flags & MSG_PEEK)) {
 			skb_pull(skb, chunk);
+
+			sk_peek_offset_bwd(sk, chunk);
 
 			if (UNIXCB(skb).fp)
 				unix_detach_fds(siocb->scm, skb);
@@ -2021,6 +2035,8 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 			 */
 			if (UNIXCB(skb).fp)
 				siocb->scm->fp = scm_fp_dup(UNIXCB(skb).fp);
+
+			sk_peek_offset_fwd(sk, chunk);
 
 			break;
 		}
