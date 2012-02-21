@@ -1,5 +1,6 @@
 /*
- * AD5064, AD5064-1, AD5044, AD5024 Digital to analog converters  driver
+ * AD5024, AD5025, AD5044, AD5045, AD5064, AD5064-1 Digital to analog converters
+ * driver
  *
  * Copyright 2011 Analog Devices Inc.
  *
@@ -84,9 +85,12 @@ struct ad5064_state {
 
 enum ad5064_type {
 	ID_AD5024,
+	ID_AD5025,
 	ID_AD5044,
+	ID_AD5045,
 	ID_AD5064,
 	ID_AD5064_1,
+	ID_AD5065,
 };
 
 static int ad5064_spi_write(struct ad5064_state *st, unsigned int cmd,
@@ -301,10 +305,20 @@ static const struct ad5064_chip_info ad5064_chip_info_tbl[] = {
 		.channels = ad5024_channels,
 		.num_channels = 4,
 	},
+	[ID_AD5025] = {
+		.shared_vref = false,
+		.channels = ad5024_channels,
+		.num_channels = 2,
+	},
 	[ID_AD5044] = {
 		.shared_vref = false,
 		.channels = ad5044_channels,
 		.num_channels = 4,
+	},
+	[ID_AD5045] = {
+		.shared_vref = false,
+		.channels = ad5044_channels,
+		.num_channels = 2,
 	},
 	[ID_AD5064] = {
 		.shared_vref = false,
@@ -315,6 +329,11 @@ static const struct ad5064_chip_info ad5064_chip_info_tbl[] = {
 		.shared_vref = true,
 		.channels = ad5064_channels,
 		.num_channels = 4,
+	},
+	[ID_AD5065] = {
+		.shared_vref = false,
+		.channels = ad5064_channels,
+		.num_channels = 2,
 	},
 };
 
@@ -412,9 +431,12 @@ static int __devexit ad5064_remove(struct spi_device *spi)
 
 static const struct spi_device_id ad5064_id[] = {
 	{"ad5024", ID_AD5024},
+	{"ad5025", ID_AD5025},
 	{"ad5044", ID_AD5044},
+	{"ad5045", ID_AD5045},
 	{"ad5064", ID_AD5064},
 	{"ad5064-1", ID_AD5064_1},
+	{"ad5065", ID_AD5065},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad5064_id);
@@ -431,5 +453,5 @@ static struct spi_driver ad5064_driver = {
 module_spi_driver(ad5064_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
-MODULE_DESCRIPTION("Analog Devices AD5064/64-1/44/24 DAC");
+MODULE_DESCRIPTION("Analog Devices AD5024/25/44/45/64/64-1/65 DAC");
 MODULE_LICENSE("GPL v2");

@@ -4,11 +4,11 @@
 menu "Digital to analog converters"
 
 config AD5064
-	tristate "Analog Devices AD5064/64-1/44/24 DAC driver"
+	tristate "Analog Devices AD5064/64-1/65/44/45/24/25 DAC driver"
 	depends on SPI
 	help
-	  Say yes here to build support for Analog Devices AD5064, AD5064-1,
-	  AD5044, AD5024 Digital to Analog Converter.
+	  Say yes here to build support for Analog Devices AD5024, AD5025, AD5044,
+	  AD5045, AD5064, AD5064-1, AD5065 Digital to Analog Converter.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5064.
