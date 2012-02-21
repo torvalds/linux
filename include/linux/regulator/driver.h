@@ -207,9 +207,7 @@ struct regulator_dev {
 
 	void *reg_data;		/* regulator_dev data */
 
-#ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
-#endif
 };
 
 struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
