@@ -823,6 +823,8 @@ next_elt:
 		write_unlock_bh(&tbl->lock);
 		cond_resched();
 		write_lock_bh(&tbl->lock);
+		nht = rcu_dereference_protected(tbl->nht,
+						lockdep_is_held(&tbl->lock));
 	}
 	/* Cycle through all hash buckets every base_reachable_time/2 ticks.
 	 * ARP entry timeouts range from 1/2 base_reachable_time to 3/2
