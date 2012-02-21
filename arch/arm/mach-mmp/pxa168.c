@@ -24,7 +24,6 @@
 #include <mach/dma.h>
 #include <mach/devices.h>
 #include <mach/mfp.h>
-#include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <mach/pxa168.h>
 
