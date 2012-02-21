@@ -185,6 +185,9 @@ struct wm8994_pdata {
         unsigned int jd_scthr:2;
         unsigned int jd_thr:2;
 
+	/* Configure WM1811 jack detection for use with external capacitor */
+	unsigned int jd_ext_cap:1;
+
 	/* WM8958 microphone bias configuration */
 	int micbias[2];
 

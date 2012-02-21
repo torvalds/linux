@@ -3172,6 +3172,14 @@ static void wm8958_default_micdet(u16 status, void *data)
 
 			wm1811_jackdet_set_mode(codec,
 						WM1811_JACKDET_MODE_JACK);
+
+			if (wm8994->pdata->jd_ext_cap) {
+				mutex_lock(&codec->mutex);
+				snd_soc_dapm_disable_pin(&codec->dapm,
+							 "MICBIAS2");
+				snd_soc_dapm_sync(&codec->dapm);
+				mutex_unlock(&codec->mutex);
+			}
 		}
 	}
 
@@ -3227,6 +3235,15 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 		snd_soc_update_bits(codec, WM8958_MICBIAS2,
 				    WM8958_MICB2_DISCH, 0);
 
+		/* If required for an external cap force MICBIAS on */
+		if (wm8994->pdata->jd_ext_cap) {
+			mutex_lock(&codec->mutex);
+			snd_soc_dapm_force_enable_pin(&codec->dapm,
+						      "MICBIAS2");
+			snd_soc_dapm_sync(&codec->dapm);
+			mutex_unlock(&codec->mutex);
+		}
+
 		/*
 		 * Start off measument of microphone impedence to find
 		 * out what's actually there.
@@ -3240,6 +3257,13 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 
 		snd_soc_update_bits(codec, WM8958_MICBIAS2,
 				    WM8958_MICB2_DISCH, WM8958_MICB2_DISCH);
+
+		if (wm8994->pdata->jd_ext_cap) {
+			mutex_lock(&codec->mutex);
+			snd_soc_dapm_disable_pin(&codec->dapm, "MICBIAS2");
+			snd_soc_dapm_sync(&codec->dapm);
+			mutex_unlock(&codec->mutex);
+		}
 
 		snd_soc_jack_report(wm8994->micdet[0].jack, 0,
 				    SND_JACK_MECHANICAL | SND_JACK_HEADSET |
