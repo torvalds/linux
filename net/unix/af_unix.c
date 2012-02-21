@@ -1845,7 +1845,7 @@ static int unix_dgram_recvmsg(struct kiocb *iocb, struct socket *sock,
 		if (UNIXCB(skb).fp)
 			siocb->scm->fp = scm_fp_dup(UNIXCB(skb).fp);
 	}
-	err = size;
+	err = (flags & MSG_TRUNC) ? skb->len - skip : size;
 
 	scm_recv(sock, msg, siocb->scm, flags);
 
