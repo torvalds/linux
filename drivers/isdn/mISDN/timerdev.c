@@ -98,13 +98,13 @@ mISDN_read(struct file *filep, char __user *buf, size_t count, loff_t *off)
 
 	if (*debug & DEBUG_TIMER)
 		printk(KERN_DEBUG "%s(%p, %p, %d, %p)\n", __func__,
-			filep, buf, (int)count, off);
+		       filep, buf, (int)count, off);
 
 	if (list_empty(&dev->expired) && (dev->work == 0)) {
 		if (filep->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 		wait_event_interruptible(dev->wait, (dev->work ||
-		    !list_empty(&dev->expired)));
+						     !list_empty(&dev->expired)));
 		if (signal_pending(current))
 			return -ERESTARTSYS;
 	}
@@ -141,7 +141,7 @@ mISDN_poll(struct file *filep, poll_table *wait)
 			mask |= (POLLIN | POLLRDNORM);
 		if (*debug & DEBUG_TIMER)
 			printk(KERN_DEBUG "%s work(%d) empty(%d)\n", __func__,
-				dev->work, list_empty(&dev->expired));
+			       dev->work, list_empty(&dev->expired));
 	}
 	return mask;
 }
@@ -161,7 +161,7 @@ dev_expire_timer(unsigned long data)
 static int
 misdn_add_timer(struct mISDNtimerdev *dev, int timeout)
 {
-	int 			id;
+	int			id;
 	u_long			flags;
 	struct mISDNtimer	*timer;
 
@@ -224,7 +224,7 @@ mISDN_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 	if (*debug & DEBUG_TIMER)
 		printk(KERN_DEBUG "%s(%p, %x, %lx)\n", __func__,
-		    filep, cmd, arg);
+		       filep, cmd, arg);
 	mutex_lock(&mISDN_mutex);
 	switch (cmd) {
 	case IMADDTIMER:
@@ -235,7 +235,7 @@ mISDN_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		id = misdn_add_timer(dev, tout);
 		if (*debug & DEBUG_TIMER)
 			printk(KERN_DEBUG "%s add %d id %d\n", __func__,
-			    tout, id);
+			       tout, id);
 		if (id < 0) {
 			ret = id;
 			break;

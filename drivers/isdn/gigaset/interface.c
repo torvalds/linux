@@ -33,10 +33,10 @@ static int if_lock(struct cardstate *cs, int *arg)
 	}
 
 	if (!cmd && cs->mstate == MS_LOCKED && cs->connected) {
-		cs->ops->set_modem_ctrl(cs, 0, TIOCM_DTR|TIOCM_RTS);
+		cs->ops->set_modem_ctrl(cs, 0, TIOCM_DTR | TIOCM_RTS);
 		cs->ops->baud_rate(cs, B115200);
 		cs->ops->set_line_ctrl(cs, CS8);
-		cs->control_state = TIOCM_DTR|TIOCM_RTS;
+		cs->control_state = TIOCM_DTR | TIOCM_RTS;
 	}
 
 	cs->waiting = 1;
@@ -252,17 +252,17 @@ static int if_ioctl(struct tty_struct *tty,
 			break;
 		case GIGASET_BRKCHARS:
 			retval = copy_from_user(&buf,
-					(const unsigned char __user *) arg, 6)
+						(const unsigned char __user *) arg, 6)
 				? -EFAULT : 0;
 			if (retval >= 0) {
 				gigaset_dbg_buffer(DEBUG_IF, "GIGASET_BRKCHARS",
-						6, (const unsigned char *) arg);
+						   6, (const unsigned char *) arg);
 				retval = cs->ops->brkchars(cs, buf);
 			}
 			break;
 		case GIGASET_VERSION:
 			retval = copy_from_user(version,
-					(unsigned __user *) arg, sizeof version)
+						(unsigned __user *) arg, sizeof version)
 				? -EFAULT : 0;
 			if (retval >= 0)
 				retval = if_version(cs, version);
@@ -299,7 +299,7 @@ static int if_tiocmget(struct tty_struct *tty)
 	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS;
 
-	retval = cs->control_state & (TIOCM_RTS|TIOCM_DTR);
+	retval = cs->control_state & (TIOCM_RTS | TIOCM_DTR);
 
 	mutex_unlock(&cs->mutex);
 
@@ -329,7 +329,7 @@ static int if_tiocmset(struct tty_struct *tty,
 		gig_dbg(DEBUG_IF, "not connected");
 		retval = -ENODEV;
 	} else {
-		mc = (cs->control_state | set) & ~clear & (TIOCM_RTS|TIOCM_DTR);
+		mc = (cs->control_state | set) & ~clear & (TIOCM_RTS | TIOCM_DTR);
 		retval = cs->ops->set_modem_ctrl(cs, cs->control_state, mc);
 		cs->control_state = mc;
 	}
@@ -680,9 +680,9 @@ void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
 		goto enomem;
 
 	tty->magic =		TTY_DRIVER_MAGIC,
-	tty->type =		TTY_DRIVER_TYPE_SERIAL,
-	tty->subtype =		SERIAL_TYPE_NORMAL,
-	tty->flags =		TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
+		tty->type =		TTY_DRIVER_TYPE_SERIAL,
+		tty->subtype =		SERIAL_TYPE_NORMAL,
+		tty->flags =		TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 
 	tty->driver_name =	procname;
 	tty->name =		devname;

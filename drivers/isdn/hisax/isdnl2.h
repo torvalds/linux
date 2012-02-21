@@ -23,4 +23,3 @@
 #define RSP    1
 
 #define LC_FLUSH_WAIT 1
-

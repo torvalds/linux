@@ -33,13 +33,13 @@
  */
 
 /*
-#define MAX_FRAME_SIZE	2048
+  #define MAX_FRAME_SIZE	2048
 */
 
 struct hfc_chan {
 	struct dchannel	*dch;	/* link if channel is a D-channel */
 	struct bchannel	*bch;	/* link if channel is a B-channel */
-	int		port; 	/* the interface port this */
+	int		port;	/* the interface port this */
 				/* channel is associated with */
 	int		nt_timer; /* -1 if off, 0 if elapsed, >0 if running */
 	int		los, ais, slip_tx, slip_rx, rdi; /* current alarms */
@@ -89,7 +89,7 @@ struct hfcm_hw {
 #define	HFC_CFG_REPORT_RDI	8 /* the card should report remote alarm */
 #define	HFC_CFG_DTMF		9 /* enable DTMF-detection */
 #define	HFC_CFG_CRC4		10 /* disable CRC-4 Multiframe mode, */
-					/* use double frame instead. */
+/* use double frame instead. */
 
 #define HFC_TYPE_E1		1 /* controller is HFC-E1 */
 #define HFC_TYPE_4S		4 /* controller is HFC-4S */
@@ -109,9 +109,9 @@ struct hfcm_hw {
 #define	HFC_CHIP_E1CLOCK_GET	10 /* always get clock from E1 interface */
 #define	HFC_CHIP_E1CLOCK_PUT	11 /* always put clock from E1 interface */
 #define	HFC_CHIP_WATCHDOG	12 /* whether we should send signals */
-					/* to the watchdog */
+/* to the watchdog */
 #define	HFC_CHIP_B410P		13 /* whether we have a b410p with echocan in */
-					/* hw */
+/* hw */
 #define	HFC_CHIP_PLXSD		14 /* whether we have a Speech-Design PLX */
 #define	HFC_CHIP_EMBSD          15 /* whether we have a SD Embedded board */
 
@@ -148,26 +148,26 @@ struct hfc_multi {
 	int		io_mode; /* selects mode */
 #ifdef HFC_REGISTER_DEBUG
 	void		(*HFC_outb)(struct hfc_multi *hc, u_char reg,
-				u_char val, const char *function, int line);
+				    u_char val, const char *function, int line);
 	void		(*HFC_outb_nodebug)(struct hfc_multi *hc, u_char reg,
-				u_char val, const char *function, int line);
+					    u_char val, const char *function, int line);
 	u_char		(*HFC_inb)(struct hfc_multi *hc, u_char reg,
-				const char *function, int line);
+				   const char *function, int line);
 	u_char		(*HFC_inb_nodebug)(struct hfc_multi *hc, u_char reg,
-				const char *function, int line);
+					   const char *function, int line);
 	u_short		(*HFC_inw)(struct hfc_multi *hc, u_char reg,
-				const char *function, int line);
+				   const char *function, int line);
 	u_short		(*HFC_inw_nodebug)(struct hfc_multi *hc, u_char reg,
-				const char *function, int line);
+					   const char *function, int line);
 	void		(*HFC_wait)(struct hfc_multi *hc,
-				const char *function, int line);
+				    const char *function, int line);
 	void		(*HFC_wait_nodebug)(struct hfc_multi *hc,
-				const char *function, int line);
+					    const char *function, int line);
 #else
 	void		(*HFC_outb)(struct hfc_multi *hc, u_char reg,
-				u_char val);
+				    u_char val);
 	void		(*HFC_outb_nodebug)(struct hfc_multi *hc, u_char reg,
-				u_char val);
+					    u_char val);
 	u_char		(*HFC_inb)(struct hfc_multi *hc, u_char reg);
 	u_char		(*HFC_inb_nodebug)(struct hfc_multi *hc, u_char reg);
 	u_short		(*HFC_inw)(struct hfc_multi *hc, u_char reg);
@@ -176,9 +176,9 @@ struct hfc_multi {
 	void		(*HFC_wait_nodebug)(struct hfc_multi *hc);
 #endif
 	void		(*read_fifo)(struct hfc_multi *hc, u_char *data,
-				int len);
+				     int len);
 	void		(*write_fifo)(struct hfc_multi *hc, u_char *data,
-				int len);
+				      int len);
 	u_long		pci_origmembase, plx_origmembase;
 	void __iomem	*pci_membase; /* PCI memory */
 	void __iomem	*plx_membase; /* PLX memory */
@@ -211,10 +211,10 @@ struct hfc_multi {
 					/* an optical Interface */
 	int		dslot;	/* channel # of d-channel (E1) default 16 */
 
-	u_long		wdcount; 	/* every 500 ms we need to */
+	u_long		wdcount;	/* every 500 ms we need to */
 					/* send the watchdog a signal */
 	u_char		wdbyte; /* watchdog toggle byte */
-	u_int		activity[8]; 	/* if there is any action on this */
+	u_int		activity[8];	/* if there is any action on this */
 					/* port (will be cleared after */
 					/* showing led-states) */
 	int		e1_state; /* keep track of last state */
@@ -268,7 +268,7 @@ struct hfc_multi {
 #define PLX_DSP_RES_N		PLX_GPIO8
 /* GPIO4..8 Enable & Set to OUT, SLAVE_EN_N = 1 */
 #define PLX_GPIOC_INIT		(PLX_GPIO4_DIR | PLX_GPIO5_DIR | PLX_GPIO6_DIR \
-			| PLX_GPIO7_DIR | PLX_GPIO8_DIR | PLX_SLAVE_EN_N)
+				 | PLX_GPIO7_DIR | PLX_GPIO8_DIR | PLX_SLAVE_EN_N)
 
 /* PLX Interrupt Control/STATUS */
 #define PLX_INTCSR_LINTI1_ENABLE 0x01
@@ -290,7 +290,7 @@ struct hfc_multi {
 /* write only registers */
 #define R_CIRM			0x00
 #define R_CTRL			0x01
-#define R_BRG_PCM_CFG 		0x02
+#define R_BRG_PCM_CFG		0x02
 #define R_RAM_ADDR0		0x08
 #define R_RAM_ADDR1		0x09
 #define R_RAM_ADDR2		0x0A
@@ -687,8 +687,8 @@ struct hfc_multi {
 #define V_NEG_CLK		0x08
 #define V_HCLK			0x10
 /*
-#define V_JATT_AUTO_DEL		0x20
-#define V_JATT_AUTO		0x40
+  #define V_JATT_AUTO_DEL		0x20
+  #define V_JATT_AUTO		0x40
 */
 #define V_JATT_OFF		0x80
 /* R_STATE */
@@ -1230,4 +1230,3 @@ struct hfc_register_names {
 	{"R_IRQ_FIFO_BL7",	0xCF},
 };
 #endif /* HFC_REGISTER_DEBUG */
-
