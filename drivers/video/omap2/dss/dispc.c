@@ -735,11 +735,11 @@ static void dispc_ovl_set_color_mode(enum omap_plane plane,
 		switch (color_mode) {
 		case OMAP_DSS_COLOR_NV12:
 			m = 0x0; break;
-		case OMAP_DSS_COLOR_RGB12U:
+		case OMAP_DSS_COLOR_RGBX16:
 			m = 0x1; break;
 		case OMAP_DSS_COLOR_RGBA16:
 			m = 0x2; break;
-		case OMAP_DSS_COLOR_RGBX16:
+		case OMAP_DSS_COLOR_RGB12U:
 			m = 0x4; break;
 		case OMAP_DSS_COLOR_ARGB16:
 			m = 0x5; break;
@@ -788,9 +788,9 @@ static void dispc_ovl_set_color_mode(enum omap_plane plane,
 			m = 0x8; break;
 		case OMAP_DSS_COLOR_RGB24P:
 			m = 0x9; break;
-		case OMAP_DSS_COLOR_YUV2:
+		case OMAP_DSS_COLOR_RGBX16:
 			m = 0xa; break;
-		case OMAP_DSS_COLOR_UYVY:
+		case OMAP_DSS_COLOR_RGBA16:
 			m = 0xb; break;
 		case OMAP_DSS_COLOR_ARGB32:
 			m = 0xc; break;
