@@ -180,18 +180,19 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned flags,
 		 * However, this function was correct in any case. 8)
 		 */
 		unsigned long cpu_flags;
+		struct sk_buff_head *queue = &sk->sk_receive_queue;
 
-		spin_lock_irqsave(&sk->sk_receive_queue.lock, cpu_flags);
-		skb = skb_peek(&sk->sk_receive_queue);
+		spin_lock_irqsave(&queue->lock, cpu_flags);
+		skb = skb_peek(queue);
 		if (skb) {
 			*peeked = skb->peeked;
 			if (flags & MSG_PEEK) {
 				skb->peeked = 1;
 				atomic_inc(&skb->users);
 			} else
-				__skb_unlink(skb, &sk->sk_receive_queue);
+				__skb_unlink(skb, queue);
 		}
-		spin_unlock_irqrestore(&sk->sk_receive_queue.lock, cpu_flags);
+		spin_unlock_irqrestore(&queue->lock, cpu_flags);
 
 		if (skb)
 			return skb;
