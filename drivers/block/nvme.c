@@ -1576,15 +1576,33 @@ static void nvme_release_prp_pools(struct nvme_dev *dev)
 	dma_pool_destroy(dev->prp_small_pool);
 }
 
-/* XXX: Use an ida or something to let remove / add work correctly */
-static void nvme_set_instance(struct nvme_dev *dev)
+static DEFINE_IDA(nvme_instance_ida);
+
+static int nvme_set_instance(struct nvme_dev *dev)
 {
-	static int instance;
-	dev->instance = instance++;
+	int instance, error;
+
+	do {
+		if (!ida_pre_get(&nvme_instance_ida, GFP_KERNEL))
+			return -ENODEV;
+
+		spin_lock(&dev_list_lock);
+		error = ida_get_new(&nvme_instance_ida, &instance);
+		spin_unlock(&dev_list_lock);
+	} while (error == -EAGAIN);
+
+	if (error)
+		return -ENODEV;
+
+	dev->instance = instance;
+	return 0;
 }
 
 static void nvme_release_instance(struct nvme_dev *dev)
 {
+	spin_lock(&dev_list_lock);
+	ida_remove(&nvme_instance_ida, dev->instance);
+	spin_unlock(&dev_list_lock);
 }
 
 static int __devinit nvme_probe(struct pci_dev *pdev,
@@ -1617,7 +1635,10 @@ static int __devinit nvme_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, dev);
 	dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
-	nvme_set_instance(dev);
+	result = nvme_set_instance(dev);
+	if (result)
+		goto disable;
+
 	dev->entry[0].vector = pdev->irq;
 
 	result = nvme_setup_prp_pools(dev);
