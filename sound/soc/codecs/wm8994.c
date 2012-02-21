@@ -784,6 +784,8 @@ static void vmid_reference(struct snd_soc_codec *codec)
 				    WM8994_LINEOUT2_DISCH,
 				    WM8994_LINEOUT_VMID_BUF_ENA);
 
+		wm_hubs_vmid_ena(codec);
+
 		/* Startup bias, VMID ramp & buffer */
 		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
 				    WM8994_BIAS_SRC |
@@ -795,8 +797,6 @@ static void vmid_reference(struct snd_soc_codec *codec)
 				    WM8994_STARTUP_BIAS_ENA |
 				    WM8994_VMID_BUF_ENA |
 				    (0x2 << WM8994_VMID_RAMP_SHIFT));
-
-		wm_hubs_vmid_ena(codec);
 
 		/* Main bias enable, VMID=2x40k */
 		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
