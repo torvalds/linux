@@ -1235,6 +1235,6 @@ static void __exit tps65910_cleanup(void)
 module_exit(tps65910_cleanup);
 
 MODULE_AUTHOR("Graeme Gregory <gg@slimlogic.co.uk>");
-MODULE_DESCRIPTION("TPS6507x voltage regulator driver");
+MODULE_DESCRIPTION("TPS65910/TPS65911 voltage regulator driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:tps65910-pmic");

@@ -344,10 +344,10 @@ config REGULATOR_TPS6524X
 	  port controller.
 
 config REGULATOR_TPS65910
-	tristate "TI TPS65910 Power Regulator"
+	tristate "TI TPS65910/TPS65911 Power Regulators"
 	depends on MFD_TPS65910
 	help
-	  This driver supports TPS65910 voltage regulator chips.
+	  This driver supports TPS65910/TPS65911 voltage regulator chips.
 
 config REGULATOR_TPS62360
 	tristate "TI TPS62360 Power Regulator"
