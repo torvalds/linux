@@ -3353,7 +3353,11 @@ static int fill_and_eval_dacs(struct hda_codec *codec,
 	}
 	if (cfg->hp_outs && cfg->line_out_type == AUTO_PIN_SPEAKER_OUT) {
 		/* try multi-ios with HP + inputs */
-		err = alc_auto_fill_multi_ios(codec, cfg->hp_pins[0], false, 1);
+		int offset = 0;
+		if (cfg->line_outs >= 3)
+			offset = 1;
+		err = alc_auto_fill_multi_ios(codec, cfg->hp_pins[0], false,
+					      offset);
 		if (err < 0)
 			return err;
 		badness += err;
