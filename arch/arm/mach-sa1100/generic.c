@@ -345,9 +345,17 @@ void sa11x0_register_irda(struct irda_platform_data *irda)
 	sa11x0_register_device(&sa11x0ir_device, irda);
 }
 
+static struct resource sa1100_rtc_resources[] = {
+	DEFINE_RES_MEM(0x90010000, 0x9001003f),
+	DEFINE_RES_IRQ_NAMED(IRQ_RTC1Hz, "rtc 1Hz"),
+	DEFINE_RES_IRQ_NAMED(IRQ_RTCAlrm, "rtc alarm"),
+};
+
 static struct platform_device sa11x0rtc_device = {
 	.name		= "sa1100-rtc",
 	.id		= -1,
+	.num_resources	= ARRAY_SIZE(sa1100_rtc_resources),
+	.resource	= sa1100_rtc_resources,
 };
 
 static struct platform_device *sa11x0_devices[] __initdata = {
