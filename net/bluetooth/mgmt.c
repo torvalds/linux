@@ -339,9 +339,6 @@ static int read_index_list(struct sock *sk)
 
 	i = 0;
 	list_for_each_entry(d, &hci_dev_list, list) {
-		if (test_and_clear_bit(HCI_AUTO_OFF, &d->dev_flags))
-			cancel_delayed_work(&d->power_off);
-
 		if (test_bit(HCI_SETUP, &d->dev_flags))
 			continue;
 
@@ -392,10 +389,11 @@ static u32 get_current_settings(struct hci_dev *hdev)
 {
 	u32 settings = 0;
 
-	if (test_bit(HCI_UP, &hdev->flags))
-		settings |= MGMT_SETTING_POWERED;
-	else
+	if (!test_bit(HCI_UP, &hdev->flags))
 		return settings;
+
+	if (!test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
+		settings |= MGMT_SETTING_POWERED;
 
 	if (test_bit(HCI_PSCAN, &hdev->flags))
 		settings |= MGMT_SETTING_CONNECTABLE;
@@ -623,9 +621,6 @@ static int read_controller_info(struct sock *sk, u16 index)
 		return cmd_status(sk, index, MGMT_OP_READ_INFO,
 						MGMT_STATUS_INVALID_PARAMS);
 
-	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags))
-		cancel_delayed_work_sync(&hdev->power_off);
-
 	hci_dev_lock(hdev);
 
 	if (test_and_clear_bit(HCI_PI_MGMT_INIT, &hci_pi(sk)->flags))
@@ -752,6 +747,16 @@ static int set_powered(struct sock *sk, u16 index, void *data, u16 len)
 						MGMT_STATUS_INVALID_PARAMS);
 
 	hci_dev_lock(hdev);
+
+	if (test_and_clear_bit(HCI_AUTO_OFF, &hdev->dev_flags)) {
+		cancel_delayed_work(&hdev->power_off);
+
+		if (cp->val) {
+			err = send_settings_rsp(sk, MGMT_OP_SET_POWERED, hdev);
+			mgmt_powered(hdev, 1);
+			goto failed;
+		}
+	}
 
 	up = test_bit(HCI_UP, &hdev->flags);
 	if ((cp->val && up) || (!cp->val && !up)) {
