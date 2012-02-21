@@ -55,7 +55,7 @@
  * author: hhb@rock-chips.com
  *****************************************************************************************/
 #if defined(CONFIG_TOUCHSCREEN_XPT2046_NORMAL_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_TSLIB_SPI)
-#define XPT2046_GPIO_INT	RK30_PIN6_PB7 
+#define XPT2046_GPIO_INT	RK30_PIN4_PC2 
 #define DEBOUNCE_REPTIME  	3
 
 
@@ -67,8 +67,8 @@ static struct xpt2046_platform_data xpt2046_info = {
 	.debounce_rep		= DEBOUNCE_REPTIME,
 	.debounce_tol		= 20,
 	.gpio_pendown		= XPT2046_GPIO_INT,
-	.pendown_iomux_name = GPIO6B7_TESTCLOCKOUT_NAME,	
-	.pendown_iomux_mode = GPIO6B_GPIO6B7,	
+	.pendown_iomux_name = GPIO4C2_SMCDATA2_TRACEDATA2_NAME,	
+	.pendown_iomux_mode = GPIO4C_GPIO4C2,	
 	.touch_virtualkey_length = 60,
 	.penirq_recheck_delay_usecs = 1,
 #if defined(CONFIG_TOUCHSCREEN_480X800)
@@ -109,8 +109,8 @@ static struct xpt2046_platform_data xpt2046_info = {
 	.debounce_rep		= DEBOUNCE_REPTIME,
 	.debounce_tol		= 20,
 	.gpio_pendown		= XPT2046_GPIO_INT,
-	.pendown_iomux_name = GPIO6B7_TESTCLOCKOUT_NAME,	
-	.pendown_iomux_mode = GPIO6B_GPIO6B7,	
+	.pendown_iomux_name = GPIO4C2_SMCDATA2_TRACEDATA2_NAME,	
+	.pendown_iomux_mode = GPIO4C_GPIO4C2,	
 	.touch_virtualkey_length = 60,
 	.penirq_recheck_delay_usecs = 1,
 	
@@ -155,7 +155,7 @@ static struct spi_board_info board_spi_devices[] = {
 	{
 		.modalias	= "xpt2046_ts",
 		.chip_select	= 1,// 2,
-		.max_speed_hz	= 1 * 1000 * 1000,/* (max sample rate @ 3V) * (cmd + data + overhead) */
+		.max_speed_hz	= 1 * 1000 * 800,/* (max sample rate @ 3V) * (cmd + data + overhead) */
 		.bus_num	= 0,
 		.irq 		= XPT2046_GPIO_INT,
 		.platform_data = &xpt2046_info,
@@ -263,7 +263,32 @@ struct platform_device rk29_device_backlight = {
 
 #endif
 
+/*MMA8452 gsensor*/
+#if defined (CONFIG_GS_MMA8452)
+#define MMA8452_INT_PIN   RK30_PIN4_PC0
 
+static int mma8452_init_platform_hw(void)
+{
+	rk30_mux_api_set(GPIO4C0_SMCDATA0_TRACEDATA0_NAME, GPIO4C_GPIO4C0);
+
+	if(gpio_request(MMA8452_INT_PIN,NULL) != 0){
+		gpio_free(MMA8452_INT_PIN);
+		printk("mma8452_init_platform_hw gpio_request error\n");
+		return -EIO;
+	}
+	gpio_pull_updown(MMA8452_INT_PIN, 1);
+	return 0;
+}
+
+
+static struct mma8452_platform_data mma8452_info = {
+	.model= 8452,
+	.swap_xy = 0,
+	.swap_xyz = 1,
+	.init_platform_hw= mma8452_init_platform_hw,
+	.orientation = { -1, 0, 0, 0, 0, 1, 0, -1, 0},
+};
+#endif
 
 
 static struct platform_device *devices[] __initdata = {
@@ -276,6 +301,16 @@ static struct platform_device *devices[] __initdata = {
 // i2c
 #ifdef CONFIG_I2C0_RK30
 static struct i2c_board_info __initdata i2c0_info[] = {
+#if defined (CONFIG_GS_MMA8452)
+	    {
+	      .type	      = "gs_mma8452",
+	      .addr	      = 0x1c,
+	      .flags	      = 0,
+	      .irq	      = MMA8452_INT_PIN,
+	      .platform_data  = &mma8452_info,
+	    },
+#endif
+
 };
 #endif
 
