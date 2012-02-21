@@ -88,6 +88,25 @@ enum iio_endian {
 	IIO_LE,
 };
 
+struct iio_chan_spec;
+struct iio_dev;
+
+/**
+ * struct iio_chan_spec_ext_info - Extended channel info attribute
+ * @name:	Info attribute name
+ * @shared:	Whether this attribute is shared between all channels.
+ * @read:	Read callback for this info attribute, may be NULL.
+ * @write:	Write callback for this info attribute, may be NULL.
+ */
+struct iio_chan_spec_ext_info {
+	const char *name;
+	bool shared;
+	ssize_t (*read)(struct iio_dev *, struct iio_chan_spec const *,
+			char *buf);
+	ssize_t (*write)(struct iio_dev *, struct iio_chan_spec const *,
+			const char *buf, size_t len);
+};
+
 /**
  * struct iio_chan_spec - specification of a single channel
  * @type:		What type of measurement is the channel making.
@@ -107,6 +126,9 @@ enum iio_endian {
  * @info_mask:		What information is to be exported about this channel.
  *			This includes calibbias, scale etc.
  * @event_mask:	What events can this channel produce.
+ * @ext_info:		Array of extended info attributes for this channel.
+ *			The array is NULL terminated, the last element should
+ *			have it's name field set to NULL.
  * @extend_name:	Allows labeling of channel attributes with an
  *			informative name. Note this has no effect codes etc,
  *			unlike modifiers.
@@ -141,6 +163,7 @@ struct iio_chan_spec {
 	} scan_type;
 	long			info_mask;
 	long			event_mask;
+	const struct iio_chan_spec_ext_info *ext_info;
 	char			*extend_name;
 	const char		*datasheet_name;
 	unsigned		processed_val:1;

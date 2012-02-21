@@ -144,6 +144,33 @@ static void __exit iio_exit(void)
 	bus_unregister(&iio_bus_type);
 }
 
+static ssize_t iio_read_channel_ext_info(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	const struct iio_chan_spec_ext_info *ext_info;
+
+	ext_info = &this_attr->c->ext_info[this_attr->address];
+
+	return ext_info->read(indio_dev, this_attr->c, buf);
+}
+
+static ssize_t iio_write_channel_ext_info(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf,
+					 size_t len)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	const struct iio_chan_spec_ext_info *ext_info;
+
+	ext_info = &this_attr->c->ext_info[this_attr->address];
+
+	return ext_info->write(indio_dev, this_attr->c, buf, len);
+}
+
 static ssize_t iio_read_channel_info(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
@@ -423,6 +450,7 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 					struct iio_chan_spec const *chan)
 {
 	int ret, i, attrcount = 0;
+	const struct iio_chan_spec_ext_info *ext_info;
 
 	if (chan->channel < 0)
 		return 0;
@@ -457,6 +485,31 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 			goto error_ret;
 		attrcount++;
 	}
+
+	if (chan->ext_info) {
+		unsigned int i = 0;
+		for (ext_info = chan->ext_info; ext_info->name; ext_info++) {
+			ret = __iio_add_chan_devattr(ext_info->name,
+					chan,
+					ext_info->read ?
+					    &iio_read_channel_ext_info : NULL,
+					ext_info->write ?
+					    &iio_write_channel_ext_info : NULL,
+					i,
+					ext_info->shared,
+					&indio_dev->dev,
+					&indio_dev->channel_attr_list);
+			i++;
+			if (ret == -EBUSY && ext_info->shared)
+				continue;
+
+			if (ret)
+				goto error_ret;
+
+			attrcount++;
+		}
+	}
+
 	ret = attrcount;
 error_ret:
 	return ret;
