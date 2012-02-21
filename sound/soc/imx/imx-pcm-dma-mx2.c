@@ -186,16 +186,6 @@ static int snd_imx_pcm_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int snd_imx_pcm_prepare(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct imx_pcm_dma_params *dma_params;
-
-	dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
-
-	return 0;
-}
-
 static int snd_imx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -291,7 +281,6 @@ static struct snd_pcm_ops imx_pcm_ops = {
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= snd_imx_pcm_hw_params,
 	.hw_free	= snd_imx_pcm_hw_free,
-	.prepare	= snd_imx_pcm_prepare,
 	.trigger	= snd_imx_pcm_trigger,
 	.pointer	= snd_imx_pcm_pointer,
 	.mmap		= snd_imx_pcm_mmap,
