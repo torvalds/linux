@@ -209,11 +209,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_5GHZ			= BIT(12),
 	ATH9K_HW_CAP_APM			= BIT(13),
 	ATH9K_HW_CAP_RTT			= BIT(14),
-#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	ATH9K_HW_CAP_MCI			= BIT(15),
-#else
-	ATH9K_HW_CAP_MCI			= 0,
-#endif
 	ATH9K_HW_CAP_DFS			= BIT(16),
 };
 

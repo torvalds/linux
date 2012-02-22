@@ -389,9 +389,6 @@ int ath_mci_setup(struct ath_softc *sc)
 	struct ath_mci_coex *mci = &sc->mci_coex;
 	struct ath_mci_buf *buf = &mci->sched_buf;
 
-	if (!ATH9K_HW_CAP_MCI)
-		return 0;
-
 	buf->bf_addr = dma_alloc_coherent(sc->dev,
 				  ATH_MCI_SCHED_BUF_SIZE + ATH_MCI_GPM_BUF_SIZE,
 				  &buf->bf_paddr, GFP_KERNEL);
@@ -426,9 +423,6 @@ void ath_mci_cleanup(struct ath_softc *sc)
 	struct ath_mci_coex *mci = &sc->mci_coex;
 	struct ath_mci_buf *buf = &mci->sched_buf;
 
-	if (!ATH9K_HW_CAP_MCI)
-		return;
-
 	if (buf->bf_addr)
 		dma_free_coherent(sc->dev,
 				  ATH_MCI_SCHED_BUF_SIZE + ATH_MCI_GPM_BUF_SIZE,
@@ -449,9 +443,6 @@ void ath_mci_intr(struct ath_softc *sc)
 	u32 *pgpm;
 	u32 more_data = MCI_GPM_MORE;
 	bool skip_gpm = false;
-
-	if (!ATH9K_HW_CAP_MCI)
-		return;
 
 	ar9003_mci_get_interrupt(sc->sc_ah, &mci_int, &mci_int_rxmsg);
 
