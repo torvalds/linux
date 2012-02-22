@@ -817,6 +817,9 @@ static int mgmt_event(u16 event, struct hci_dev *hdev, void *data,
 	if (data)
 		memcpy(skb_put(skb, data_len), data, data_len);
 
+	/* Time stamp */
+	__net_timestamp(skb);
+
 	hci_send_to_control(skb, skip_sk);
 	kfree_skb(skb);
 
