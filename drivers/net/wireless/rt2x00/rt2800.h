@@ -1637,6 +1637,7 @@ struct mac_iveiv_entry {
 
 /*
  * H2M_MAILBOX_CSR: Host-to-MCU Mailbox.
+ * CMD_TOKEN: Command id, 0xff disable status reporting.
  */
 #define H2M_MAILBOX_CSR			0x7010
 #define H2M_MAILBOX_CSR_ARG0		FIELD32(0x000000ff)
@@ -1646,6 +1647,8 @@ struct mac_iveiv_entry {
 
 /*
  * H2M_MAILBOX_CID:
+ * Free slots contain 0xff. MCU will store command's token to lowest free slot.
+ * If all slots are occupied status will be dropped.
  */
 #define H2M_MAILBOX_CID			0x7014
 #define H2M_MAILBOX_CID_CMD0		FIELD32(0x000000ff)
@@ -1655,6 +1658,7 @@ struct mac_iveiv_entry {
 
 /*
  * H2M_MAILBOX_STATUS:
+ * Command status will be saved to same slot as command id.
  */
 #define H2M_MAILBOX_STATUS		0x701c
 
@@ -2298,6 +2302,12 @@ struct mac_iveiv_entry {
 
 /*
  * MCU mailbox commands.
+ * MCU_SLEEP - go to power-save mode.
+ *             arg1: 1: save as much power as possible, 0: save less power.
+ *             status: 1: success, 2: already asleep,
+ *                     3: maybe MAC is busy so can't finish this task.
+ * MCU_RADIO_OFF
+ *             arg0: 0: do power-saving, NOT turn off radio.
  */
 #define MCU_SLEEP			0x30
 #define MCU_WAKEUP			0x31
@@ -2318,7 +2328,10 @@ struct mac_iveiv_entry {
 /*
  * MCU mailbox tokens
  */
-#define TOKEN_WAKUP			3
+#define TOKEN_SLEEP			1
+#define TOKEN_RADIO_OFF			2
+#define TOKEN_WAKEUP			3
+
 
 /*
  * DMA descriptor defines.

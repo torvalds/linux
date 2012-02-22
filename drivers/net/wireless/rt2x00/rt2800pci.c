@@ -522,14 +522,16 @@ static int rt2800pci_set_state(struct rt2x00_dev *rt2x00dev,
 			       enum dev_state state)
 {
 	if (state == STATE_AWAKE) {
-		rt2800_mcu_request(rt2x00dev, MCU_WAKEUP, TOKEN_WAKUP, 0, 0x02);
-		rt2800pci_mcu_status(rt2x00dev, TOKEN_WAKUP);
+		rt2800_mcu_request(rt2x00dev, MCU_WAKEUP, TOKEN_WAKEUP,
+				   0, 0x02);
+		rt2800pci_mcu_status(rt2x00dev, TOKEN_WAKEUP);
 	} else if (state == STATE_SLEEP) {
 		rt2x00pci_register_write(rt2x00dev, H2M_MAILBOX_STATUS,
 					 0xffffffff);
 		rt2x00pci_register_write(rt2x00dev, H2M_MAILBOX_CID,
 					 0xffffffff);
-		rt2800_mcu_request(rt2x00dev, MCU_SLEEP, 0x01, 0xff, 0x01);
+		rt2800_mcu_request(rt2x00dev, MCU_SLEEP, TOKEN_SLEEP,
+				   0xff, 0x01);
 	}
 
 	return 0;
