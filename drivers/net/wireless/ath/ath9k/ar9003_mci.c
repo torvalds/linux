@@ -16,6 +16,7 @@
 
 #include <linux/export.h>
 #include "hw.h"
+#include "hw-ops.h"
 #include "ar9003_phy.h"
 #include "ar9003_mci.h"
 
@@ -567,6 +568,131 @@ static bool ar9003_mci_send_coex_bt_flags(struct ath_hw *ah, bool wait_done,
 							wait_done, true);
 }
 
+void ar9003_mci_check_bt(struct ath_hw *ah)
+{
+	struct ath9k_hw_mci *mci_hw = &ah->btcoex_hw.mci;
+
+	if (!mci_hw->ready)
+		return;
+
+	/*
+	 * check BT state again to make
+	 * sure it's not changed.
+	 */
+	ar9003_mci_sync_bt_state(ah);
+	ar9003_mci_2g5g_switch(ah, true);
+
+	if ((mci_hw->bt_state == MCI_BT_AWAKE) &&
+	    (mci_hw->query_bt == true)) {
+		mci_hw->need_flush_btinfo = true;
+	}
+}
+
+bool ar9003_mci_start_reset(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_hw_mci *mci_hw = &ah->btcoex_hw.mci;
+	u32 payload[4] = {0, 0, 0, 0};
+
+	ar9003_mci_2g5g_changed(ah, IS_CHAN_2GHZ(chan));
+
+	if (mci_hw->bt_state != MCI_BT_CAL_START)
+		return false;
+
+	ath_dbg(common, MCI, "MCI stop rx for BT CAL\n");
+
+	mci_hw->bt_state = MCI_BT_CAL;
+
+	/*
+	 * MCI FIX: disable mci interrupt here. This is to avoid
+	 * SW_MSG_DONE or RX_MSG bits to trigger MCI_INT and
+	 * lead to mci_intr reentry.
+	 */
+
+	ar9003_mci_disable_interrupt(ah);
+
+	ath_dbg(common, MCI, "send WLAN_CAL_GRANT\n");
+
+	MCI_GPM_SET_CAL_TYPE(payload, MCI_GPM_WLAN_CAL_GRANT);
+	ar9003_mci_send_message(ah, MCI_GPM, 0, payload,
+				16, true, false);
+
+	ath_dbg(common, MCI, "\nMCI BT is calibrating\n");
+
+	/* Wait BT calibration to be completed for 25ms */
+
+	if (ar9003_mci_wait_for_gpm(ah, MCI_GPM_BT_CAL_DONE,
+				    0, 25000))
+		ath_dbg(common, MCI,
+			"MCI got BT_CAL_DONE\n");
+	else
+		ath_dbg(common, MCI,
+			"MCI ### BT cal takes to long, force bt_state to be bt_awake\n");
+
+	mci_hw->bt_state = MCI_BT_AWAKE;
+	/* MCI FIX: enable mci interrupt here */
+	ar9003_mci_enable_interrupt(ah);
+
+	return true;
+}
+
+int ar9003_mci_end_reset(struct ath_hw *ah, struct ath9k_channel *chan,
+			 struct ath9k_hw_cal_data *caldata)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_hw_mci *mci_hw = &ah->btcoex_hw.mci;
+
+	if (!mci_hw->ready)
+		return 0;
+
+	if (!IS_CHAN_2GHZ(chan) || (mci_hw->bt_state != MCI_BT_SLEEP))
+		goto exit;
+
+	if (ar9003_mci_check_int(ah, AR_MCI_INTERRUPT_RX_MSG_REMOTE_RESET) ||
+	    ar9003_mci_check_int(ah, AR_MCI_INTERRUPT_RX_MSG_REQ_WAKE)) {
+
+		/*
+		 * BT is sleeping. Check if BT wakes up during
+		 * WLAN calibration. If BT wakes up during
+		 * WLAN calibration, need to go through all
+		 * message exchanges again and recal.
+		 */
+
+		ath_dbg(common, MCI,
+			"MCI BT wakes up during WLAN calibration\n");
+
+		REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_RAW,
+			  AR_MCI_INTERRUPT_RX_MSG_REMOTE_RESET |
+			  AR_MCI_INTERRUPT_RX_MSG_REQ_WAKE);
+
+		ath_dbg(common, MCI, "MCI send REMOTE_RESET\n");
+
+		ar9003_mci_remote_reset(ah, true);
+		ar9003_mci_send_sys_waking(ah, true);
+		udelay(1);
+
+		if (IS_CHAN_2GHZ(chan))
+			ar9003_mci_send_lna_transfer(ah, true);
+
+		mci_hw->bt_state = MCI_BT_AWAKE;
+
+		ath_dbg(common, MCI, "MCI re-cal\n");
+
+		if (caldata) {
+			caldata->done_txiqcal_once = false;
+			caldata->done_txclcal_once = false;
+			caldata->rtt_hist.num_readings = 0;
+		}
+
+		if (!ath9k_hw_init_cal(ah, chan))
+			return -EIO;
+
+	}
+exit:
+	ar9003_mci_enable_interrupt(ah);
+	return 0;
+}
+
 void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 		      bool is_full_sleep)
 {
@@ -694,6 +820,22 @@ void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 
 	if (en_int)
 		ar9003_mci_enable_interrupt(ah);
+}
+
+void ar9003_mci_stop_bt(struct ath_hw *ah, bool save_fullsleep)
+{
+	struct ath9k_hw_mci *mci_hw = &ah->btcoex_hw.mci;
+
+	ar9003_mci_disable_interrupt(ah);
+
+	if (mci_hw->ready && !save_fullsleep) {
+		ar9003_mci_mute_bt(ah);
+		udelay(20);
+		REG_WRITE(ah, AR_BTCOEX_CTRL, 0);
+	}
+
+	mci_hw->bt_state = MCI_BT_SLEEP;
+	mci_hw->ready = false;
 }
 
 void ar9003_mci_mute_bt(struct ath_hw *ah)

@@ -1209,6 +1209,7 @@ void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan);
 bool ar9003_mci_send_message(struct ath_hw *ah, u8 header, u32 flag,
 			     u32 *payload, u8 len, bool wait_done,
 			     bool check_bt);
+void ar9003_mci_stop_bt(struct ath_hw *ah, bool sava_fullsleep);
 void ar9003_mci_mute_bt(struct ath_hw *ah);
 u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data);
 void ar9003_mci_init_cal_req(struct ath_hw *ah, bool *is_reusable);
@@ -1225,6 +1226,10 @@ void ar9003_mci_set_full_sleep(struct ath_hw *ah);
 void ar9003_mci_disable_interrupt(struct ath_hw *ah);
 void ar9003_mci_enable_interrupt(struct ath_hw *ah);
 void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool wait_done);
+void ar9003_mci_check_bt(struct ath_hw *ah);
+bool ar9003_mci_start_reset(struct ath_hw *ah, struct ath9k_channel *chan);
+int ar9003_mci_end_reset(struct ath_hw *ah, struct ath9k_channel *chan,
+			 struct ath9k_hw_cal_data *caldata);
 void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 		      bool is_full_sleep);
 bool ar9003_mci_check_int(struct ath_hw *ah, u32 ints);
@@ -1235,6 +1240,11 @@ void ar9003_mci_sync_bt_state(struct ath_hw *ah);
 void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
 			      u32 *rx_msg_intr);
 void ar9003_mci_get_isr(struct ath_hw *ah, enum ath9k_int *masked);
+
+static inline bool ar9003_mci_is_ready(struct ath_hw *ah)
+{
+	return ah->btcoex_hw.mci.ready;
+}
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 static inline enum ath_btcoex_scheme
