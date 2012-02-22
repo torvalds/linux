@@ -103,9 +103,51 @@ out:
 	return ret;
 }
 
+#undef REGMAP_ALLOW_WRITE_DEBUGFS
+#ifdef REGMAP_ALLOW_WRITE_DEBUGFS
+/*
+ * This can be dangerous especially when we have clients such as
+ * PMICs, therefore don't provide any real compile time configuration option
+ * for this feature, people who want to use this will need to modify
+ * the source code directly.
+ */
+static ssize_t regmap_map_write_file(struct file *file,
+				     const char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	char buf[32];
+	size_t buf_size;
+	char *start = buf;
+	unsigned long reg, value;
+	struct regmap *map = file->private_data;
+
+	buf_size = min(count, (sizeof(buf)-1));
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	buf[buf_size] = 0;
+
+	while (*start == ' ')
+		start++;
+	reg = simple_strtoul(start, &start, 16);
+	while (*start == ' ')
+		start++;
+	if (strict_strtoul(start, 16, &value))
+		return -EINVAL;
+
+	/* Userspace has been fiddling around behind the kernel's back */
+	add_taint(TAINT_USER);
+
+	regmap_write(map, reg, value);
+	return buf_size;
+}
+#else
+#define regmap_map_write_file NULL
+#endif
+
 static const struct file_operations regmap_map_fops = {
 	.open = regmap_open_file,
 	.read = regmap_map_read_file,
+	.write = regmap_map_write_file,
 	.llseek = default_llseek,
 };
 
