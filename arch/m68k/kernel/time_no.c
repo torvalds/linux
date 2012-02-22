@@ -65,11 +65,6 @@ void read_persistent_clock(struct timespec *ts)
 	}
 }
 
-int update_persistent_clock(struct timespec now)
-{
-	return set_rtc_mmss(now.tv_sec);
-}
-
 void __init time_init(void)
 {
 	mach_sched_init(timer_interrupt);
