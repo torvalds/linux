@@ -456,7 +456,8 @@ struct ath_btcoex {
 
 int ath9k_init_btcoex(struct ath_softc *sc);
 void ath9k_deinit_btcoex(struct ath_softc *sc);
-int ath_init_btcoex_timer(struct ath_softc *sc);
+void ath9k_start_btcoex(struct ath_softc *sc);
+void ath9k_stop_btcoex(struct ath_softc *sc);
 void ath9k_btcoex_timer_resume(struct ath_softc *sc);
 void ath9k_btcoex_timer_pause(struct ath_softc *sc);
 
