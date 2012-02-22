@@ -491,7 +491,7 @@ static int pinmux_enable_muxmap(struct pinctrl_dev *pctldev,
 	p->func_selector = func_selector;
 
 	/* Now add this group selector, we may have many of them */
-	grp = kmalloc(sizeof(struct pinmux_group), GFP_KERNEL);
+	grp = kmalloc(sizeof(*grp), GFP_KERNEL);
 	if (!grp)
 		return -ENOMEM;
 	grp->group_selector = group_selector;

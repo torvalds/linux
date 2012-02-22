@@ -502,7 +502,7 @@ static struct pinctrl *pinctrl_get_locked(struct device *dev, const char *name)
 	 * mapping, this is what consumers will get when requesting
 	 * a pin control handle with pinctrl_get()
 	 */
-	p = kzalloc(sizeof(struct pinctrl), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (p == NULL) {
 		dev_err(dev, "failed to alloc struct pinctrl\n");
 		return ERR_PTR(-ENOMEM);
@@ -726,7 +726,7 @@ static int pinctrl_hog_map(struct pinctrl_dev *pctldev,
 	struct pinctrl *p;
 	int ret;
 
-	hog = kzalloc(sizeof(struct pinctrl_hog), GFP_KERNEL);
+	hog = kzalloc(sizeof(*hog), GFP_KERNEL);
 	if (!hog) {
 		dev_err(pctldev->dev, "failed to alloc struct pinctrl_hog\n");
 		return -ENOMEM;
@@ -1160,7 +1160,7 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	if (pctldesc->name == NULL)
 		return NULL;
 
-	pctldev = kzalloc(sizeof(struct pinctrl_dev), GFP_KERNEL);
+	pctldev = kzalloc(sizeof(*pctldev), GFP_KERNEL);
 	if (pctldev == NULL) {
 		dev_err(dev, "failed to alloc struct pinctrl_dev\n");
 		return NULL;
