@@ -90,7 +90,24 @@ static int autofs4_write(struct file *file, const void *addr, int bytes)
 
 	return (bytes > 0);
 }
-	
+
+/*
+ * The autofs_v5 packet was misdesigned.
+ *
+ * The packets are identical on x86-32 and x86-64, but have different
+ * alignment. Which means that 'sizeof()' will give different results.
+ * Fix it up for the case of running 32-bit user mode on a 64-bit kernel.
+ */
+static noinline size_t autofs_v5_packet_size(struct autofs_sb_info *sbi)
+{
+	size_t pktsz = sizeof(struct autofs_v5_packet);
+#if defined(CONFIG_X86_64) && defined(CONFIG_COMPAT)
+	if (sbi->compat_daemon > 0)
+		pktsz -= 4;
+#endif
+	return pktsz;
+}
+
 static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 				 struct autofs_wait_queue *wq,
 				 int type)
@@ -147,8 +164,7 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 	{
 		struct autofs_v5_packet *packet = &pkt.v5_pkt.v5_packet;
 
-		pktsz = sizeof(*packet);
-
+		pktsz = autofs_v5_packet_size(sbi);
 		packet->wait_queue_token = wq->wait_queue_token;
 		packet->len = wq->name.len;
 		memcpy(packet->name, wq->name.name, wq->name.len);
