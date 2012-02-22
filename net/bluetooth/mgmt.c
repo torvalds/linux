@@ -1561,7 +1561,6 @@ static int unpair_device(struct sock *sk, u16 index, void *data, u16 len)
 	struct hci_cp_disconnect dc;
 	struct pending_cmd *cmd;
 	struct hci_conn *conn;
-	u8 status = 0;
 	int err;
 
 	if (len != sizeof(*cp))
@@ -1579,32 +1578,38 @@ static int unpair_device(struct sock *sk, u16 index, void *data, u16 len)
 	bacpy(&rp.addr.bdaddr, &cp->addr.bdaddr);
 	rp.addr.type = cp->addr.type;
 
+	if (!hdev_is_powered(hdev)) {
+		err = cmd_complete(sk, index, MGMT_OP_UNPAIR_DEVICE,
+						MGMT_STATUS_NOT_POWERED,
+						&rp, sizeof(rp));
+		goto unlock;
+	}
+
 	if (cp->addr.type == MGMT_ADDR_BREDR)
 		err = hci_remove_link_key(hdev, &cp->addr.bdaddr);
 	else
 		err = hci_remove_ltk(hdev, &cp->addr.bdaddr);
 
 	if (err < 0) {
-		status = MGMT_STATUS_NOT_PAIRED;
+		err = cmd_complete(sk, index, MGMT_OP_UNPAIR_DEVICE,
+						MGMT_STATUS_NOT_PAIRED,
+						&rp, sizeof(rp));
 		goto unlock;
 	}
 
-	if (!test_bit(HCI_UP, &hdev->flags) || !cp->disconnect) {
-		err = cmd_complete(sk, index, MGMT_OP_UNPAIR_DEVICE, status,
-							&rp, sizeof(rp));
-		device_unpaired(hdev, &cp->addr.bdaddr, cp->addr.type, sk);
-		goto unlock;
+	if (cp->disconnect) {
+		if (cp->addr.type == MGMT_ADDR_BREDR)
+			conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK,
+							&cp->addr.bdaddr);
+		else
+			conn = hci_conn_hash_lookup_ba(hdev, LE_LINK,
+							&cp->addr.bdaddr);
+	} else {
+		conn = NULL;
 	}
-
-	if (cp->addr.type == MGMT_ADDR_BREDR)
-		conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK,
-							&cp->addr.bdaddr);
-	else
-		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK,
-							&cp->addr.bdaddr);
 
 	if (!conn) {
-		err = cmd_complete(sk, index, MGMT_OP_UNPAIR_DEVICE, status,
+		err = cmd_complete(sk, index, MGMT_OP_UNPAIR_DEVICE, 0,
 							&rp, sizeof(rp));
 		device_unpaired(hdev, &cp->addr.bdaddr, cp->addr.type, sk);
 		goto unlock;
@@ -1624,9 +1629,6 @@ static int unpair_device(struct sock *sk, u16 index, void *data, u16 len)
 		mgmt_pending_remove(cmd);
 
 unlock:
-	if (err < 0)
-		err = cmd_complete(sk, index, MGMT_OP_UNPAIR_DEVICE, status,
-							&rp, sizeof(rp));
 	hci_dev_unlock(hdev);
 	hci_dev_put(hdev);
 
