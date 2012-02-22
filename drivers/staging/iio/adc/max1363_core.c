@@ -1245,10 +1245,31 @@ static int max1363_initial_setup(struct max1363_state *st)
 	return max1363_set_scan_mode(st);
 }
 
+static int __devinit max1363_alloc_scan_masks(struct iio_dev *indio_dev)
+{
+	struct max1363_state *st = iio_priv(indio_dev);
+	unsigned long *masks;
+	int i;
+
+	masks = kzalloc(BITS_TO_LONGS(MAX1363_MAX_CHANNELS)*sizeof(long)*
+			  (st->chip_info->num_modes + 1), GFP_KERNEL);
+	if (!masks)
+		return -ENOMEM;
+
+	for (i = 0; i < st->chip_info->num_modes; i++)
+		bitmap_copy(masks + BITS_TO_LONGS(MAX1363_MAX_CHANNELS)*i,
+			    max1363_mode_table[st->chip_info->mode_list[i]]
+			    .modemask, MAX1363_MAX_CHANNELS);
+
+	indio_dev->available_scan_masks = masks;
+
+	return 0;
+}
+
 static int __devinit max1363_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
-	int ret, i;
+	int ret;
 	struct max1363_state *st;
 	struct iio_dev *indio_dev;
 	struct regulator *reg;
@@ -1276,19 +1297,10 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	st->chip_info = &max1363_chip_info_tbl[id->driver_data];
 	st->client = client;
 
-	indio_dev->available_scan_masks
-		= kzalloc(BITS_TO_LONGS(MAX1363_MAX_CHANNELS)*sizeof(long)*
-			  (st->chip_info->num_modes + 1), GFP_KERNEL);
-	if (!indio_dev->available_scan_masks) {
-		ret = -ENOMEM;
+	ret = max1363_alloc_scan_masks(indio_dev);
+	if (ret)
 		goto error_free_device;
-	}
 
-	for (i = 0; i < st->chip_info->num_modes; i++)
-		bitmap_copy(indio_dev->available_scan_masks +
-			    BITS_TO_LONGS(MAX1363_MAX_CHANNELS)*i,
-			    max1363_mode_table[st->chip_info->mode_list[i]]
-			    .modemask, MAX1363_MAX_CHANNELS);
 	/* Estabilish that the iio_dev is a child of the i2c device */
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;

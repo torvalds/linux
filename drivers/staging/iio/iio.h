@@ -345,9 +345,9 @@ struct iio_dev {
 	struct iio_buffer		*buffer;
 	struct mutex			mlock;
 
-	unsigned long			*available_scan_masks;
+	const unsigned long		*available_scan_masks;
 	unsigned			masklength;
-	unsigned long			*active_scan_mask;
+	const unsigned long		*active_scan_mask;
 	struct iio_trigger		*trig;
 	struct iio_poll_func		*pollfunc;
 
