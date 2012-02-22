@@ -304,6 +304,7 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host, struct mmc_command
 {
 	struct mmc_data *data = host->data;
 	int c = cmd->opcode;
+	u32 irq_mask = TMIO_MASK_CMD;
 
 	/* Command 12 is handled by hardware */
 	if (cmd->opcode == 12 && !cmd->arg) {
@@ -339,7 +340,9 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host, struct mmc_command
 			c |= TRANSFER_READ;
 	}
 
-	tmio_mmc_enable_mmc_irqs(host, TMIO_MASK_CMD);
+	if (!host->native_hotplug)
+		irq_mask &= ~(TMIO_STAT_CARD_REMOVE | TMIO_STAT_CARD_INSERT);
+	tmio_mmc_enable_mmc_irqs(host, irq_mask);
 
 	/* Fire off the command */
 	sd_ctrl_write32(host, CTL_ARG_REG, cmd->arg);
@@ -963,6 +966,8 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 		irq_mask |= TMIO_MASK_READOP;
 	if (!_host->chan_tx)
 		irq_mask |= TMIO_MASK_WRITEOP;
+	if (!_host->native_hotplug)
+		irq_mask &= ~(TMIO_STAT_CARD_REMOVE | TMIO_STAT_CARD_INSERT);
 
 	tmio_mmc_enable_mmc_irqs(_host, irq_mask);
 
