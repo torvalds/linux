@@ -554,7 +554,7 @@ static int max16065_probe(struct i2c_client *client,
 				     | I2C_FUNC_SMBUS_READ_WORD_DATA))
 		return -ENODEV;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (unlikely(!data))
 		return -ENOMEM;
 
@@ -567,20 +567,16 @@ static int max16065_probe(struct i2c_client *client,
 
 	if (have_secondary) {
 		val = i2c_smbus_read_byte_data(client, MAX16065_SW_ENABLE);
-		if (unlikely(val < 0)) {
-			ret = val;
-			goto out_free;
-		}
+		if (unlikely(val < 0))
+			return val;
 		secondary_is_max = val & MAX16065_WARNING_OV;
 	}
 
 	/* Read scale registers, convert to range */
 	for (i = 0; i < DIV_ROUND_UP(data->num_adc, 4); i++) {
 		val = i2c_smbus_read_byte_data(client, MAX16065_SCALE(i));
-		if (unlikely(val < 0)) {
-			ret = val;
-			goto out_free;
-		}
+		if (unlikely(val < 0))
+			return val;
 		for (j = 0; j < 4 && i * 4 + j < data->num_adc; j++) {
 			data->range[i * 4 + j] =
 			  max16065_adc_range[(val >> (j * 2)) & 0x3];
@@ -595,10 +591,8 @@ static int max16065_probe(struct i2c_client *client,
 		for (j = 0; j < data->num_adc; j++) {
 			val = i2c_smbus_read_byte_data(client,
 						       MAX16065_LIMIT(i, j));
-			if (unlikely(val < 0)) {
-				ret = val;
-				goto out_free;
-			}
+			if (unlikely(val < 0))
+				return val;
 			data->limit[i][j] = LIMIT_TO_MV(val, data->range[j]);
 		}
 	}
@@ -661,8 +655,6 @@ static int max16065_probe(struct i2c_client *client,
 
 out:
 	max16065_cleanup(client);
-out_free:
-	kfree(data);
 	return ret;
 }
 
@@ -672,7 +664,6 @@ static int max16065_remove(struct i2c_client *client)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	max16065_cleanup(client);
-	kfree(data);
 
 	return 0;
 }
