@@ -410,7 +410,7 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	if (hdev->host_features[0] & LMP_HOST_LE)
 		settings |= MGMT_SETTING_LE;
 
-	if (test_bit(HCI_AUTH, &hdev->flags))
+	if (test_bit(HCI_LINK_SECURITY, &hdev->dev_flags))
 		settings |= MGMT_SETTING_LINK_SECURITY;
 
 	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
@@ -1067,8 +1067,21 @@ static int set_link_security(struct sock *sk, u16 index, void *data, u16 len)
 	hci_dev_lock(hdev);
 
 	if (!hdev_is_powered(hdev)) {
-		err = cmd_status(sk, index, MGMT_OP_SET_LINK_SECURITY,
-						MGMT_STATUS_NOT_POWERED);
+		bool changed = false;
+
+		if (!!cp->val != test_bit(HCI_LINK_SECURITY,
+							&hdev->dev_flags)) {
+			change_bit(HCI_LINK_SECURITY, &hdev->dev_flags);
+			changed = true;
+		}
+
+		err = send_settings_rsp(sk, MGMT_OP_SET_LINK_SECURITY, hdev);
+		if (err < 0)
+			goto failed;
+
+		if (changed)
+			err = new_settings(hdev, sk);
+
 		goto failed;
 	}
 
@@ -3338,7 +3351,8 @@ int mgmt_auth_failed(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 int mgmt_auth_enable_complete(struct hci_dev *hdev, u8 status)
 {
 	struct cmd_lookup match = { NULL, hdev };
-	int err;
+	bool changed = false;
+	int err = 0;
 
 	if (status) {
 		u8 mgmt_err = mgmt_status(status);
@@ -3347,10 +3361,19 @@ int mgmt_auth_enable_complete(struct hci_dev *hdev, u8 status)
 		return 0;
 	}
 
+	if (test_bit(HCI_AUTH, &hdev->flags)) {
+		if (!test_and_set_bit(HCI_LINK_SECURITY, &hdev->dev_flags))
+			changed = true;
+	} else {
+		if (test_and_clear_bit(HCI_LINK_SECURITY, &hdev->dev_flags))
+			changed = true;
+	}
+
 	mgmt_pending_foreach(MGMT_OP_SET_LINK_SECURITY, hdev, settings_rsp,
 								&match);
 
-	err = new_settings(hdev, match.sk);
+	if (changed)
+		err = new_settings(hdev, match.sk);
 
 	if (match.sk)
 		sock_put(match.sk);

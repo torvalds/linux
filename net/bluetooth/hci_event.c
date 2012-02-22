@@ -594,6 +594,12 @@ static void hci_setup(struct hci_dev *hdev)
 							sizeof(cp), &cp);
 	}
 
+	if (test_bit(HCI_LINK_SECURITY, &hdev->dev_flags)) {
+		u8 enable = 1;
+		hci_send_cmd(hdev, HCI_OP_WRITE_AUTH_ENABLE,
+						sizeof(enable), &enable);
+	}
+
 	if (hdev->features[4] & LMP_LE)
 		hci_set_le_support(hdev);
 }

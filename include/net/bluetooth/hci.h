@@ -98,6 +98,7 @@ enum {
 	HCI_HS_ENABLED,
 	HCI_CONNECTABLE,
 	HCI_DISCOVERABLE,
+	HCI_LINK_SECURITY,
 };
 
 /* HCI ioctl defines */
