@@ -391,6 +391,8 @@ int ath9k_init_btcoex(struct ath_softc *sc)
 	struct ath_hw *ah = sc->sc_ah;
 	int r;
 
+	ath9k_hw_btcoex_init_scheme(ah);
+
 	switch (ath9k_hw_get_btcoex_scheme(sc->sc_ah)) {
 	case ATH_BTCOEX_CFG_NONE:
 		break;

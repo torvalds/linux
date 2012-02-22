@@ -98,6 +98,40 @@ void ath9k_hw_init_btcoex_hw(struct ath_hw *ah, int qnum)
 }
 EXPORT_SYMBOL(ath9k_hw_init_btcoex_hw);
 
+void ath9k_hw_btcoex_init_scheme(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
+
+	/*
+	 * Check if BTCOEX is globally disabled.
+	 */
+	if (!common->btcoex_enabled) {
+		btcoex_hw->scheme = ATH_BTCOEX_CFG_NONE;
+		return;
+	}
+
+	if (AR_SREV_9462(ah)) {
+		btcoex_hw->scheme = ATH_BTCOEX_CFG_MCI;
+	} else if (AR_SREV_9300_20_OR_LATER(ah)) {
+		btcoex_hw->scheme = ATH_BTCOEX_CFG_3WIRE;
+		btcoex_hw->btactive_gpio = ATH_BTACTIVE_GPIO_9300;
+		btcoex_hw->wlanactive_gpio = ATH_WLANACTIVE_GPIO_9300;
+		btcoex_hw->btpriority_gpio = ATH_BTPRIORITY_GPIO_9300;
+	} else if (AR_SREV_9280_20_OR_LATER(ah)) {
+		btcoex_hw->btactive_gpio = ATH_BTACTIVE_GPIO_9280;
+		btcoex_hw->wlanactive_gpio = ATH_WLANACTIVE_GPIO_9280;
+
+		if (AR_SREV_9285(ah)) {
+			btcoex_hw->scheme = ATH_BTCOEX_CFG_3WIRE;
+			btcoex_hw->btpriority_gpio = ATH_BTPRIORITY_GPIO_9285;
+		} else {
+			btcoex_hw->scheme = ATH_BTCOEX_CFG_2WIRE;
+		}
+	}
+}
+EXPORT_SYMBOL(ath9k_hw_btcoex_init_scheme);
+
 void ath9k_hw_btcoex_init_2wire(struct ath_hw *ah)
 {
 	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;

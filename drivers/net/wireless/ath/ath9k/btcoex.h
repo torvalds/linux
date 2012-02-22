@@ -97,6 +97,7 @@ struct ath_btcoex_hw {
 	u32 wlan_weight[AR9300_NUM_WLAN_WEIGHTS];
 };
 
+void ath9k_hw_btcoex_init_scheme(struct ath_hw *ah);
 void ath9k_hw_btcoex_init_2wire(struct ath_hw *ah);
 void ath9k_hw_btcoex_init_3wire(struct ath_hw *ah);
 void ath9k_hw_btcoex_init_mci(struct ath_hw *ah);

@@ -2303,7 +2303,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
 	unsigned int chip_chainmask;
 
 	u16 eeval;
@@ -2421,30 +2420,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->hw_caps &= ~ATH9K_HW_CAP_4KB_SPLITTRANS;
 	else
 		pCap->hw_caps |= ATH9K_HW_CAP_4KB_SPLITTRANS;
-
-	if (common->btcoex_enabled) {
-		if (AR_SREV_9462(ah))
-			btcoex_hw->scheme = ATH_BTCOEX_CFG_MCI;
-		else if (AR_SREV_9300_20_OR_LATER(ah)) {
-			btcoex_hw->scheme = ATH_BTCOEX_CFG_3WIRE;
-			btcoex_hw->btactive_gpio = ATH_BTACTIVE_GPIO_9300;
-			btcoex_hw->wlanactive_gpio = ATH_WLANACTIVE_GPIO_9300;
-			btcoex_hw->btpriority_gpio = ATH_BTPRIORITY_GPIO_9300;
-		} else if (AR_SREV_9280_20_OR_LATER(ah)) {
-			btcoex_hw->btactive_gpio = ATH_BTACTIVE_GPIO_9280;
-			btcoex_hw->wlanactive_gpio = ATH_WLANACTIVE_GPIO_9280;
-
-			if (AR_SREV_9285(ah)) {
-				btcoex_hw->scheme = ATH_BTCOEX_CFG_3WIRE;
-				btcoex_hw->btpriority_gpio =
-						ATH_BTPRIORITY_GPIO_9285;
-			} else {
-				btcoex_hw->scheme = ATH_BTCOEX_CFG_2WIRE;
-			}
-		}
-	} else {
-		btcoex_hw->scheme = ATH_BTCOEX_CFG_NONE;
-	}
 
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		pCap->hw_caps |= ATH9K_HW_CAP_EDMA | ATH9K_HW_CAP_FASTCLOCK;
