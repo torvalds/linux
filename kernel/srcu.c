@@ -308,7 +308,7 @@ static void flip_idx_and_wait(struct srcu_struct *sp, bool expedited)
  */
 static void __synchronize_srcu(struct srcu_struct *sp, bool expedited)
 {
-	int idx;
+	int idx = 0;
 
 	rcu_lockdep_assert(!lock_is_held(&sp->dep_map) &&
 			   !lock_is_held(&rcu_bh_lock_map) &&
@@ -316,30 +316,7 @@ static void __synchronize_srcu(struct srcu_struct *sp, bool expedited)
 			   !lock_is_held(&rcu_sched_lock_map),
 			   "Illegal synchronize_srcu() in same-type SRCU (or RCU) read-side critical section");
 
-	smp_mb();  /* Ensure prior action happens before grace period. */
-	idx = ACCESS_ONCE(sp->completed);
-	smp_mb();  /* Access to ->completed before lock acquisition. */
 	mutex_lock(&sp->mutex);
-
-	/*
-	 * Check to see if someone else did the work for us while we were
-	 * waiting to acquire the lock.  We need -three- advances of
-	 * the counter, not just one.  If there was but one, we might have
-	 * shown up -after- our helper's first synchronize_sched(), thus
-	 * having failed to prevent CPU-reordering races with concurrent
-	 * srcu_read_unlock()s on other CPUs (see comment below).  If there
-	 * was only two, we are guaranteed to have waited through only one
-	 * full index-flip phase.  So we either (1) wait for three or
-	 * (2) supply the additional ones we need.
-	 */
-
-	if (sp->completed == idx + 2)
-		idx = 1;
-	else if (sp->completed == idx + 3) {
-		mutex_unlock(&sp->mutex);
-		return;
-	} else
-		idx = 0;
 
 	/*
 	 * If there were no helpers, then we need to do two flips of
