@@ -19,21 +19,9 @@
 #ifndef _MXS_PCM_H
 #define _MXS_PCM_H
 
-#include <mach/dma.h>
-
 struct mxs_pcm_dma_params {
 	int chan_irq;
 	int chan_num;
-};
-
-struct mxs_pcm_runtime_data {
-	int period_bytes;
-	int periods;
-	unsigned long offset;
-	struct dma_async_tx_descriptor *desc;
-	struct dma_chan *dma_chan;
-	struct mxs_dma_data dma_data;
-	struct mxs_pcm_dma_params *dma_params;
 };
 
 #endif
