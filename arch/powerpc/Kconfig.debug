@@ -196,13 +196,6 @@ config PPC_EARLY_DEBUG_MAPLE
 	help
 	  Select this to enable early debugging for Maple.
 
-config PPC_EARLY_DEBUG_ISERIES
-	bool "iSeries HV Console"
-	depends on PPC_ISERIES
-	help
-	  Select this to enable early debugging for legacy iSeries. You need
-	  to hit "Ctrl-x Ctrl-x" to see the messages on the console.
-
 config PPC_EARLY_DEBUG_PAS_REALMODE
 	bool "PA Semi real mode"
 	depends on PPC_PASEMI

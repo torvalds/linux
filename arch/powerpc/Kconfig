@@ -614,7 +614,7 @@ endmenu
 
 config ISA_DMA_API
 	bool
-	default !PPC_ISERIES || PCI
+	default PCI
 
 menu "Bus options"
 

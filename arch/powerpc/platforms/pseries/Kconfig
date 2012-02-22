@@ -72,7 +72,7 @@ config IO_EVENT_IRQ
 
 config LPARCFG
 	bool "LPAR Configuration Data"
-	depends on PPC_PSERIES || PPC_ISERIES
+	depends on PPC_PSERIES
 	help
 	Provide system capacity information via human readable
 	<key word>=<value> pairs through a /proc/ppc64/lparcfg interface.
