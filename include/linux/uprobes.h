@@ -29,12 +29,6 @@
 struct vm_area_struct;
 #ifdef CONFIG_ARCH_SUPPORTS_UPROBES
 #include <asm/uprobes.h>
-#else
-
-typedef u8 uprobe_opcode_t;
-struct uprobe_arch_info {};
-
-#define MAX_UINSN_BYTES 4
 #endif
 
 /* flags that denote/change uprobes behaviour */
@@ -56,22 +50,9 @@ struct uprobe_consumer {
 	struct uprobe_consumer *next;
 };
 
-struct uprobe {
-	struct rb_node		rb_node;	/* node in the rb tree */
-	atomic_t		ref;
-	struct rw_semaphore	consumer_rwsem;
-	struct list_head	pending_list;
-	struct uprobe_arch_info arch_info;
-	struct uprobe_consumer	*consumers;
-	struct inode		*inode;		/* Also hold a ref to inode */
-	loff_t			offset;
-	int			flags;
-	u8			insn[MAX_UINSN_BYTES];
-};
-
 #ifdef CONFIG_UPROBES
-extern int __weak set_bkpt(struct mm_struct *mm, struct uprobe *uprobe, unsigned long vaddr);
-extern int __weak set_orig_insn(struct mm_struct *mm, struct uprobe *uprobe, unsigned long vaddr, bool verify);
+extern int __weak set_bkpt(struct mm_struct *mm, struct arch_uprobe *auprobe, unsigned long vaddr);
+extern int __weak set_orig_insn(struct mm_struct *mm, struct arch_uprobe *auprobe, unsigned long vaddr, bool verify);
 extern bool __weak is_bkpt_insn(uprobe_opcode_t *insn);
 extern int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *consumer);
 extern void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consumer *consumer);

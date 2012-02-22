@@ -200,9 +200,9 @@ static bool is_prefix_bad(struct insn *insn)
 	return false;
 }
 
-static int validate_insn_32bits(struct uprobe *uprobe, struct insn *insn)
+static int validate_insn_32bits(struct arch_uprobe *auprobe, struct insn *insn)
 {
-	insn_init(insn, uprobe->insn, false);
+	insn_init(insn, auprobe->insn, false);
 
 	/* Skip good instruction prefixes; reject "bad" ones. */
 	insn_get_opcode(insn);
@@ -222,11 +222,11 @@ static int validate_insn_32bits(struct uprobe *uprobe, struct insn *insn)
 
 /*
  * Figure out which fixups post_xol() will need to perform, and annotate
- * uprobe->arch_info.fixups accordingly.  To start with,
- * uprobe->arch_info.fixups is either zero or it reflects rip-related
+ * arch_uprobe->fixups accordingly.  To start with,
+ * arch_uprobe->fixups is either zero or it reflects rip-related
  * fixups.
  */
-static void prepare_fixups(struct uprobe *uprobe, struct insn *insn)
+static void prepare_fixups(struct arch_uprobe *auprobe, struct insn *insn)
 {
 	bool fix_ip = true, fix_call = false;	/* defaults */
 	int reg;
@@ -269,17 +269,17 @@ static void prepare_fixups(struct uprobe *uprobe, struct insn *insn)
 		break;
 	}
 	if (fix_ip)
-		uprobe->arch_info.fixups |= UPROBES_FIX_IP;
+		auprobe->fixups |= UPROBES_FIX_IP;
 	if (fix_call)
-		uprobe->arch_info.fixups |= UPROBES_FIX_CALL;
+		auprobe->fixups |= UPROBES_FIX_CALL;
 }
 
 #ifdef CONFIG_X86_64
 /*
- * If uprobe->insn doesn't use rip-relative addressing, return
+ * If arch_uprobe->insn doesn't use rip-relative addressing, return
  * immediately.  Otherwise, rewrite the instruction so that it accesses
  * its memory operand indirectly through a scratch register.  Set
- * uprobe->arch_info.fixups and uprobe->arch_info.rip_rela_target_address
+ * arch_uprobe->fixups and arch_uprobe->rip_rela_target_address
  * accordingly.  (The contents of the scratch register will be saved
  * before we single-step the modified instruction, and restored
  * afterward.)
@@ -297,7 +297,7 @@ static void prepare_fixups(struct uprobe *uprobe, struct insn *insn)
  *  - There's never a SIB byte.
  *  - The displacement is always 4 bytes.
  */
-static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe, struct insn *insn)
+static void handle_riprel_insn(struct mm_struct *mm, struct arch_uprobe *auprobe, struct insn *insn)
 {
 	u8 *cursor;
 	u8 reg;
@@ -305,7 +305,7 @@ static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe, stru
 	if (mm->context.ia32_compat)
 		return;
 
-	uprobe->arch_info.rip_rela_target_address = 0x0;
+	auprobe->rip_rela_target_address = 0x0;
 	if (!insn_rip_relative(insn))
 		return;
 
@@ -315,7 +315,7 @@ static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe, stru
 	 * we want to encode rax/rcx, not r8/r9.
 	 */
 	if (insn->rex_prefix.nbytes) {
-		cursor = uprobe->insn + insn_offset_rex_prefix(insn);
+		cursor = auprobe->insn + insn_offset_rex_prefix(insn);
 		*cursor &= 0xfe;	/* Clearing REX.B bit */
 	}
 
@@ -324,7 +324,7 @@ static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe, stru
 	 * displacement.  Beyond the displacement, for some instructions,
 	 * is the immediate operand.
 	 */
-	cursor = uprobe->insn + insn_offset_modrm(insn);
+	cursor = auprobe->insn + insn_offset_modrm(insn);
 	insn_get_length(insn);
 
 	/*
@@ -341,18 +341,18 @@ static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe, stru
 		 * is NOT the register operand, so we use %rcx (register
 		 * #1) for the scratch register.
 		 */
-		uprobe->arch_info.fixups = UPROBES_FIX_RIP_CX;
+		auprobe->fixups = UPROBES_FIX_RIP_CX;
 		/* Change modrm from 00 000 101 to 00 000 001. */
 		*cursor = 0x1;
 	} else {
 		/* Use %rax (register #0) for the scratch register. */
-		uprobe->arch_info.fixups = UPROBES_FIX_RIP_AX;
+		auprobe->fixups = UPROBES_FIX_RIP_AX;
 		/* Change modrm from 00 xxx 101 to 00 xxx 000 */
 		*cursor = (reg << 3);
 	}
 
 	/* Target address = address of next instruction + (signed) offset */
-	uprobe->arch_info.rip_rela_target_address = (long)insn->length + insn->displacement.value;
+	auprobe->rip_rela_target_address = (long)insn->length + insn->displacement.value;
 
 	/* Displacement field is gone; slide immediate field (if any) over. */
 	if (insn->immediate.nbytes) {
@@ -362,9 +362,9 @@ static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe, stru
 	return;
 }
 
-static int validate_insn_64bits(struct uprobe *uprobe, struct insn *insn)
+static int validate_insn_64bits(struct arch_uprobe *auprobe, struct insn *insn)
 {
-	insn_init(insn, uprobe->insn, true);
+	insn_init(insn, auprobe->insn, true);
 
 	/* Skip good instruction prefixes; reject "bad" ones. */
 	insn_get_opcode(insn);
@@ -381,42 +381,42 @@ static int validate_insn_64bits(struct uprobe *uprobe, struct insn *insn)
 	return -ENOTSUPP;
 }
 
-static int validate_insn_bits(struct mm_struct *mm, struct uprobe *uprobe, struct insn *insn)
+static int validate_insn_bits(struct mm_struct *mm, struct arch_uprobe *auprobe, struct insn *insn)
 {
 	if (mm->context.ia32_compat)
-		return validate_insn_32bits(uprobe, insn);
-	return validate_insn_64bits(uprobe, insn);
+		return validate_insn_32bits(auprobe, insn);
+	return validate_insn_64bits(auprobe, insn);
 }
 #else /* 32-bit: */
-static void handle_riprel_insn(struct mm_struct *mm, struct uprobe *uprobe, struct insn *insn)
+static void handle_riprel_insn(struct mm_struct *mm, struct arch_uprobe *auprobe, struct insn *insn)
 {
 	/* No RIP-relative addressing on 32-bit */
 }
 
-static int validate_insn_bits(struct mm_struct *mm, struct uprobe *uprobe, struct insn *insn)
+static int validate_insn_bits(struct mm_struct *mm, struct arch_uprobe *auprobe, struct insn *insn)
 {
-	return validate_insn_32bits(uprobe, insn);
+	return validate_insn_32bits(auprobe, insn);
 }
 #endif /* CONFIG_X86_64 */
 
 /**
  * arch_uprobes_analyze_insn - instruction analysis including validity and fixups.
  * @mm: the probed address space.
- * @uprobe: the probepoint information.
+ * @arch_uprobe: the probepoint information.
  * Return 0 on success or a -ve number on error.
  */
-int arch_uprobes_analyze_insn(struct mm_struct *mm, struct uprobe *uprobe)
+int arch_uprobes_analyze_insn(struct mm_struct *mm, struct arch_uprobe *auprobe)
 {
 	int ret;
 	struct insn insn;
 
-	uprobe->arch_info.fixups = 0;
-	ret = validate_insn_bits(mm, uprobe, &insn);
+	auprobe->fixups = 0;
+	ret = validate_insn_bits(mm, auprobe, &insn);
 	if (ret != 0)
 		return ret;
 
-	handle_riprel_insn(mm, uprobe, &insn);
-	prepare_fixups(uprobe, &insn);
+	handle_riprel_insn(mm, auprobe, &insn);
+	prepare_fixups(auprobe, &insn);
 
 	return 0;
 }

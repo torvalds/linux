@@ -31,13 +31,13 @@ typedef u8 uprobe_opcode_t;
 #define UPROBES_BKPT_INSN		0xcc
 #define UPROBES_BKPT_INSN_SIZE		   1
 
-struct uprobe_arch_info {
+struct arch_uprobe {
 	u16				fixups;
+	u8				insn[MAX_UINSN_BYTES];
 #ifdef CONFIG_X86_64
 	unsigned long			rip_rela_target_address;
 #endif
 };
 
-struct uprobe;
-extern int arch_uprobes_analyze_insn(struct mm_struct *mm, struct uprobe *uprobe);
+extern int arch_uprobes_analyze_insn(struct mm_struct *mm, struct arch_uprobe *arch_uprobe);
 #endif	/* _ASM_UPROBES_H */
