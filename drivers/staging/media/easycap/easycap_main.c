@@ -3542,9 +3542,8 @@ static int easycap_usb_probe(struct usb_interface *intf,
 		/*
 		 * It is essential to initialize the hardware before,
 		 * rather than after, the device is registered,
-		 * because some versions of the videodev module
-		 * call easycap_open() immediately after registration,
-		 * causing a clash.
+		 * because some udev rules triggers easycap_open()
+		 * immediately after registration, causing a clash.
 		 */
 		peasycap->ntsc = easycap_ntsc;
 		JOM(8, "defaulting initially to %s\n",
