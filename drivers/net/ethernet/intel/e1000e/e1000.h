@@ -725,11 +725,6 @@ static inline s32 e1000_get_phy_info(struct e1000_hw *hw)
 	return hw->phy.ops.get_info(hw);
 }
 
-static inline s32 e1000e_check_mng_mode(struct e1000_hw *hw)
-{
-	return hw->mac.ops.check_mng_mode(hw);
-}
-
 extern bool e1000e_check_mng_mode_generic(struct e1000_hw *hw);
 extern bool e1000e_enable_tx_pkt_filtering(struct e1000_hw *hw);
 extern s32 e1000e_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer, u16 length);
