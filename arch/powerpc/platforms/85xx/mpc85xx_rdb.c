@@ -26,6 +26,9 @@
 #include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>
+#include <asm/qe.h>
+#include <asm/qe_ic.h>
+#include <asm/fsl_guts.h>
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
@@ -47,6 +50,10 @@ void __init mpc85xx_rdb_pic_init(void)
 	struct mpic *mpic;
 	unsigned long root = of_get_flat_dt_root();
 
+#ifdef CONFIG_QUICC_ENGINE
+	struct device_node *np;
+#endif
+
 	if (of_flat_dt_is_compatible(root, "fsl,MPC85XXRDB-CAMP")) {
 		mpic = mpic_alloc(NULL, 0, MPIC_NO_RESET |
 			MPIC_BIG_ENDIAN |
@@ -61,6 +68,18 @@ void __init mpc85xx_rdb_pic_init(void)
 
 	BUG_ON(mpic == NULL);
 	mpic_init(mpic);
+
+#ifdef CONFIG_QUICC_ENGINE
+	np = of_find_compatible_node(NULL, NULL, "fsl,qe-ic");
+	if (np) {
+		qe_ic_init(np, 0, qe_ic_cascade_low_mpic,
+				qe_ic_cascade_high_mpic);
+		of_node_put(np);
+
+	} else
+		pr_err("%s: Could not find qe-ic node\n", __func__);
+#endif
+
 }
 
 /*
@@ -68,7 +87,7 @@ void __init mpc85xx_rdb_pic_init(void)
  */
 static void __init mpc85xx_rdb_setup_arch(void)
 {
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) || defined(CONFIG_QUICC_ENGINE)
 	struct device_node *np;
 #endif
 
@@ -84,6 +103,62 @@ static void __init mpc85xx_rdb_setup_arch(void)
 #endif
 
 	mpc85xx_smp_init();
+
+#ifdef CONFIG_QUICC_ENGINE
+	np = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	if (!np) {
+		pr_err("%s: Could not find Quicc Engine node\n", __func__);
+		goto qe_fail;
+	}
+
+	qe_reset();
+	of_node_put(np);
+
+	np = of_find_node_by_name(NULL, "par_io");
+	if (np) {
+		struct device_node *ucc;
+
+		par_io_init(np);
+		of_node_put(np);
+
+		for_each_node_by_name(ucc, "ucc")
+			par_io_of_config(ucc);
+
+	}
+#if defined(CONFIG_UCC_GETH) || defined(CONFIG_SERIAL_QE)
+	if (machine_is(p1025_rdb)) {
+
+		struct ccsr_guts_85xx __iomem *guts;
+
+		np = of_find_node_by_name(NULL, "global-utilities");
+		if (np) {
+			guts = of_iomap(np, 0);
+			if (!guts) {
+
+				pr_err("mpc85xx-rdb: could not map global utilities register\n");
+
+			} else {
+			/* P1025 has pins muxed for QE and other functions. To
+			* enable QE UEC mode, we need to set bit QE0 for UCC1
+			* in Eth mode, QE0 and QE3 for UCC5 in Eth mode, QE9
+			* and QE12 for QE MII management singals in PMUXCR
+			* register.
+			*/
+				setbits32(&guts->pmuxcr, MPC85xx_PMUXCR_QE(0) |
+						MPC85xx_PMUXCR_QE(3) |
+						MPC85xx_PMUXCR_QE(9) |
+						MPC85xx_PMUXCR_QE(12));
+				iounmap(guts);
+			}
+			of_node_put(np);
+		}
+
+	}
+#endif
+
+qe_fail:
+#endif	/* CONFIG_QUICC_ENGINE */
+
 	printk(KERN_INFO "MPC85xx RDB board from Freescale Semiconductor\n");
 }
 
