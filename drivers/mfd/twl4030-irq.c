@@ -293,7 +293,6 @@ static unsigned twl4030_irq_base;
  */
 static irqreturn_t handle_twl4030_pih(int irq, void *devid)
 {
-	int		module_irq;
 	irqreturn_t	ret;
 	u8		pih_isr;
 
@@ -304,12 +303,13 @@ static irqreturn_t handle_twl4030_pih(int irq, void *devid)
 		return IRQ_NONE;
 	}
 
-	/* these handlers deal with the relevant SIH irq status */
-	for (module_irq = twl4030_irq_base;
-			pih_isr;
-			pih_isr >>= 1, module_irq++) {
-		if (pih_isr & 0x1)
-			handle_nested_irq(module_irq);
+	while (pih_isr) {
+		unsigned long	pending = __ffs(pih_isr);
+		unsigned int	irq;
+
+		pih_isr &= ~BIT(pending);
+		irq = pending + twl4030_irq_base;
+		handle_nested_irq(irq);
 	}
 
 	return IRQ_HANDLED;
