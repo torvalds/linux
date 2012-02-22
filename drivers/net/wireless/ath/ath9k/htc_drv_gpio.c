@@ -22,6 +22,8 @@
 
 #define ATH_HTC_BTCOEX_PRODUCT_ID "wb193"
 
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+
 /*
  * Detects if there is any priority bt traffic
  */
@@ -113,7 +115,7 @@ static void ath_btcoex_duty_cycle_work(struct work_struct *work)
 	ath9k_hw_btcoex_enable(priv->ah);
 }
 
-void ath_htc_init_btcoex_work(struct ath9k_htc_priv *priv)
+static void ath_htc_init_btcoex_work(struct ath9k_htc_priv *priv)
 {
 	struct ath_btcoex *btcoex = &priv->btcoex;
 
@@ -133,7 +135,7 @@ void ath_htc_init_btcoex_work(struct ath9k_htc_priv *priv)
  * (Re)start btcoex work
  */
 
-void ath_htc_resume_btcoex_work(struct ath9k_htc_priv *priv)
+static void ath_htc_resume_btcoex_work(struct ath9k_htc_priv *priv)
 {
 	struct ath_btcoex *btcoex = &priv->btcoex;
 	struct ath_hw *ah = priv->ah;
@@ -153,7 +155,7 @@ void ath_htc_resume_btcoex_work(struct ath9k_htc_priv *priv)
 /*
  * Cancel btcoex and bt duty cycle work.
  */
-void ath_htc_cancel_btcoex_work(struct ath9k_htc_priv *priv)
+static void ath_htc_cancel_btcoex_work(struct ath9k_htc_priv *priv)
 {
 	if (ath9k_hw_get_btcoex_scheme(priv->ah) == ATH_BTCOEX_CFG_NONE)
 		return;
@@ -215,6 +217,8 @@ void ath9k_htc_init_btcoex(struct ath9k_htc_priv *priv, char *product)
 		break;
 	}
 }
+
+#endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 
 /*******/
 /* LED */
