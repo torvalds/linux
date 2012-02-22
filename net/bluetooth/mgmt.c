@@ -1138,9 +1138,23 @@ static int set_ssp(struct sock *sk, u16 index, void *data, u16 len)
 
 	hci_dev_lock(hdev);
 
+	val = !!cp->val;
+
 	if (!hdev_is_powered(hdev)) {
-		err = cmd_status(sk, index, MGMT_OP_SET_SSP,
-						MGMT_STATUS_NOT_POWERED);
+		bool changed = false;
+
+		if (val != test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
+			change_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
+			changed = true;
+		}
+
+		err = send_settings_rsp(sk, MGMT_OP_SET_SSP, hdev);
+		if (err < 0)
+			goto failed;
+
+		if (changed)
+			err = new_settings(hdev, sk);
+
 		goto failed;
 	}
 
@@ -1154,8 +1168,6 @@ static int set_ssp(struct sock *sk, u16 index, void *data, u16 len)
 		err = cmd_status(sk, index, MGMT_OP_SET_SSP, MGMT_STATUS_BUSY);
 		goto failed;
 	}
-
-	val = !!cp->val;
 
 	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) == val) {
 		err = send_settings_rsp(sk, MGMT_OP_SET_SSP, hdev);
@@ -3393,21 +3405,37 @@ static int clear_eir(struct hci_dev *hdev)
 	return hci_send_cmd(hdev, HCI_OP_WRITE_EIR, sizeof(cp), &cp);
 }
 
-int mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 status)
+int mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 {
 	struct cmd_lookup match = { NULL, hdev };
-	int err;
+	bool changed = false;
+	int err = 0;
 
 	if (status) {
 		u8 mgmt_err = mgmt_status(status);
+
+		if (enable && test_and_clear_bit(HCI_SSP_ENABLED,
+							&hdev->dev_flags))
+			err = new_settings(hdev, NULL);
+
 		mgmt_pending_foreach(MGMT_OP_SET_SSP, hdev,
 						cmd_status_rsp, &mgmt_err);
-		return 0;
+
+		return err;
+	}
+
+	if (enable) {
+		if (!test_and_set_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
+			changed = true;
+	} else {
+		if (test_and_clear_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
+			changed = true;
 	}
 
 	mgmt_pending_foreach(MGMT_OP_SET_SSP, hdev, settings_rsp, &match);
 
-	err = new_settings(hdev, match.sk);
+	if (changed)
+		err = new_settings(hdev, match.sk);
 
 	if (match.sk) {
 		sock_put(match.sk);

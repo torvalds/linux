@@ -427,21 +427,18 @@ static void hci_cc_write_ssp_mode(struct hci_dev *hdev, struct sk_buff *skb)
 
 	BT_DBG("%s status 0x%x", hdev->name, status);
 
-	if (status)
-		goto done;
-
 	sent = hci_sent_cmd_data(hdev, HCI_OP_WRITE_SSP_MODE);
 	if (!sent)
 		return;
 
-	if (*((u8 *) sent))
-		set_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
-	else
-		clear_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
-
-done:
 	if (test_bit(HCI_MGMT, &hdev->dev_flags))
-		mgmt_ssp_enable_complete(hdev, status);
+		mgmt_ssp_enable_complete(hdev, *((u8 *) sent), status);
+	else if (!status) {
+		if (*((u8 *) sent))
+			set_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
+		else
+			clear_bit(HCI_SSP_ENABLED, &hdev->dev_flags);
+	}
 }
 
 static u8 hci_get_inquiry_mode(struct hci_dev *hdev)
@@ -560,7 +557,8 @@ static void hci_setup(struct hci_dev *hdev)
 	if (hdev->hci_ver > BLUETOOTH_VER_1_1)
 		hci_send_cmd(hdev, HCI_OP_READ_LOCAL_COMMANDS, 0, NULL);
 
-	if (hdev->features[6] & LMP_SIMPLE_PAIR) {
+	if (hdev->features[6] & LMP_SIMPLE_PAIR &&
+				test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
 		u8 mode = 0x01;
 		hci_send_cmd(hdev, HCI_OP_WRITE_SSP_MODE, sizeof(mode), &mode);
 	}
