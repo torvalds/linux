@@ -407,7 +407,7 @@ static u32 get_current_settings(struct hci_dev *hdev)
 	if (!(hdev->features[4] & LMP_NO_BREDR))
 		settings |= MGMT_SETTING_BREDR;
 
-	if (hdev->host_features[0] & LMP_HOST_LE)
+	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags))
 		settings |= MGMT_SETTING_LE;
 
 	if (test_bit(HCI_LINK_SECURITY, &hdev->dev_flags))
@@ -1225,6 +1225,82 @@ static int set_hs(struct sock *sk, u16 index, void *data, u16 len)
 		clear_bit(HCI_HS_ENABLED, &hdev->dev_flags);
 
 	err = send_settings_rsp(sk, MGMT_OP_SET_HS, hdev);
+
+failed:
+	hci_dev_put(hdev);
+	return err;
+}
+
+static int set_le(struct sock *sk, u16 index, void *data, u16 len)
+{
+	struct mgmt_mode *cp = data;
+	struct hci_cp_write_le_host_supported hci_cp;
+	struct pending_cmd *cmd;
+	struct hci_dev *hdev;
+	int err;
+	u8 val;
+
+	BT_DBG("request for hci%u", index);
+
+	if (len != sizeof(*cp))
+		return cmd_status(sk, index, MGMT_OP_SET_LE,
+						MGMT_STATUS_INVALID_PARAMS);
+
+	hdev = hci_dev_get(index);
+	if (!hdev)
+		return cmd_status(sk, index, MGMT_OP_SET_LE,
+						MGMT_STATUS_INVALID_PARAMS);
+
+	if (!enable_le || !(hdev->features[4] & LMP_LE)) {
+		err = cmd_status(sk, index, MGMT_OP_SET_LE,
+						MGMT_STATUS_NOT_SUPPORTED);
+		goto failed;
+	}
+
+	val = !!cp->val;
+
+	if (!hdev_is_powered(hdev)) {
+		bool changed = false;
+
+		if (val != test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
+			change_bit(HCI_LE_ENABLED, &hdev->dev_flags);
+			changed = true;
+		}
+
+		err = send_settings_rsp(sk, MGMT_OP_SET_LE, hdev);
+		if (err < 0)
+			goto failed;
+
+		if (changed)
+			err = new_settings(hdev, sk);
+
+		goto failed;
+	}
+
+	if (mgmt_pending_find(MGMT_OP_SET_LE, hdev)) {
+		err = cmd_status(sk, index, MGMT_OP_SET_LE, MGMT_STATUS_BUSY);
+		goto failed;
+	}
+
+	cmd = mgmt_pending_add(sk, MGMT_OP_SET_LE, hdev, data, len);
+	if (!cmd) {
+		err = -ENOMEM;
+		goto failed;
+	}
+
+	memset(&hci_cp, 0, sizeof(hci_cp));
+
+	if (val) {
+		hci_cp.le = val;
+		hci_cp.simul = !!(hdev->features[6] & LMP_SIMUL_LE_BR);
+	}
+
+	err = hci_send_cmd(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED,
+						sizeof(hci_cp), &hci_cp);
+	if (err < 0) {
+		mgmt_pending_remove(cmd);
+		goto failed;
+	}
 
 failed:
 	hci_dev_put(hdev);
@@ -2816,6 +2892,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 	case MGMT_OP_SET_HS:
 		err = set_hs(sk, index, cp, len);
 		break;
+	case MGMT_OP_SET_LE:
+		err = set_le(sk, index, cp, len);
+		break;
 	case MGMT_OP_ADD_UUID:
 		err = add_uuid(sk, index, cp, len);
 		break;
@@ -3517,6 +3596,44 @@ int mgmt_read_local_oob_data_reply_complete(struct hci_dev *hdev, u8 *hash,
 	}
 
 	mgmt_pending_remove(cmd);
+
+	return err;
+}
+
+int mgmt_le_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
+{
+	struct cmd_lookup match = { NULL, hdev };
+	bool changed = false;
+	int err = 0;
+
+	if (status) {
+		u8 mgmt_err = mgmt_status(status);
+
+		if (enable && test_and_clear_bit(HCI_LE_ENABLED,
+							&hdev->dev_flags))
+			err = new_settings(hdev, NULL);
+
+		mgmt_pending_foreach(MGMT_OP_SET_LE, hdev,
+						cmd_status_rsp, &mgmt_err);
+
+		return err;
+	}
+
+	if (enable) {
+		if (!test_and_set_bit(HCI_LE_ENABLED, &hdev->dev_flags))
+			changed = true;
+	} else {
+		if (test_and_clear_bit(HCI_LE_ENABLED, &hdev->dev_flags))
+			changed = true;
+	}
+
+	mgmt_pending_foreach(MGMT_OP_SET_LE, hdev, settings_rsp, &match);
+
+	if (changed)
+		err = new_settings(hdev, match.sk);
+
+	if (match.sk)
+		sock_put(match.sk);
 
 	return err;
 }

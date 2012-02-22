@@ -539,7 +539,7 @@ static void hci_set_le_support(struct hci_dev *hdev)
 
 	memset(&cp, 0, sizeof(cp));
 
-	if (enable_le) {
+	if (enable_le && test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
 		cp.le = 1;
 		cp.simul = !!(hdev->features[6] & LMP_SIMUL_LE_BR);
 	}
@@ -1130,9 +1130,14 @@ static inline void hci_cc_write_le_host_supported(struct hci_dev *hdev,
 							struct sk_buff *skb)
 {
 	struct hci_cp_read_local_ext_features cp;
+	struct hci_cp_write_le_host_supported *sent;
 	__u8 status = *((__u8 *) skb->data);
 
 	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED);
+	if (sent && test_bit(HCI_MGMT, &hdev->dev_flags))
+		mgmt_le_enable_complete(hdev, sent->le, status);
 
 	if (status)
 		return;
