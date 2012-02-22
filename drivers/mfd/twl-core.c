@@ -45,10 +45,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c/twl.h>
 
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-#include <plat/cpu.h>
-#endif
-
 /*
  * The TWL4030 "Triton 2" is one of a family of a multi-function "Power
  * Management and System Companion Device" chips originally designed for
