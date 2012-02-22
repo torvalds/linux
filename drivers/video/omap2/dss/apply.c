@@ -391,6 +391,10 @@ int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 	if (mgr_manual_update(mgr))
 		return 0;
 
+	r = dispc_runtime_get();
+	if (r)
+		return r;
+
 	irq = dispc_mgr_get_vsync_irq(mgr->id);
 
 	mp = get_mgr_priv(mgr);
@@ -431,6 +435,8 @@ int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 		}
 	}
 
+	dispc_runtime_put();
+
 	return r;
 }
 
@@ -453,6 +459,10 @@ int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl)
 
 	if (ovl_manual_update(ovl))
 		return 0;
+
+	r = dispc_runtime_get();
+	if (r)
+		return r;
 
 	irq = dispc_mgr_get_vsync_irq(ovl->manager->id);
 
@@ -493,6 +503,8 @@ int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl)
 			break;
 		}
 	}
+
+	dispc_runtime_put();
 
 	return r;
 }
