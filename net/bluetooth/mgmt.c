@@ -2260,21 +2260,28 @@ static int set_local_name(struct sock *sk, u16 index, void *data,
 
 	hci_dev_lock(hdev);
 
+	memcpy(hdev->short_name, mgmt_cp->short_name,
+						sizeof(hdev->short_name));
+
 	if (!hdev_is_powered(hdev)) {
-		err = cmd_status(sk, index, MGMT_OP_SET_LOCAL_NAME,
-						MGMT_STATUS_NOT_POWERED);
+		memcpy(hdev->dev_name, mgmt_cp->name, sizeof(hdev->dev_name));
+
+		err = cmd_complete(sk, hdev->id, MGMT_OP_SET_LOCAL_NAME, 0,
+								data, len);
+		if (err < 0)
+			goto failed;
+
+		err = mgmt_event(MGMT_EV_LOCAL_NAME_CHANGED, hdev, data, len,
+									sk);
+
 		goto failed;
 	}
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_SET_LOCAL_NAME, hdev, data,
-									len);
+	cmd = mgmt_pending_add(sk, MGMT_OP_SET_LOCAL_NAME, hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto failed;
 	}
-
-	memcpy(hdev->short_name, mgmt_cp->short_name,
-						sizeof(hdev->short_name));
 
 	memcpy(hci_cp.name, mgmt_cp->name, sizeof(hci_cp.name));
 	err = hci_send_cmd(hdev, HCI_OP_WRITE_LOCAL_NAME, sizeof(hci_cp),
@@ -3563,10 +3570,17 @@ int mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
 {
 	struct pending_cmd *cmd;
 	struct mgmt_cp_set_local_name ev;
-	int err;
+	bool changed = false;
+	int err = 0;
+
+	if (memcmp(name, hdev->dev_name, sizeof(hdev->dev_name)) != 0) {
+		memcpy(hdev->dev_name, name, sizeof(hdev->dev_name));
+		changed = true;
+	}
 
 	memset(&ev, 0, sizeof(ev));
 	memcpy(ev.name, name, HCI_MAX_NAME_LENGTH);
+	memcpy(ev.short_name, hdev->short_name, HCI_MAX_SHORT_NAME_LENGTH);
 
 	cmd = mgmt_pending_find(MGMT_OP_SET_LOCAL_NAME, hdev);
 	if (!cmd)
@@ -3578,16 +3592,16 @@ int mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
 		goto failed;
 	}
 
-	update_eir(hdev);
-
 	err = cmd_complete(cmd->sk, hdev->id, MGMT_OP_SET_LOCAL_NAME, 0, &ev,
 								sizeof(ev));
 	if (err < 0)
 		goto failed;
 
 send_event:
-	err = mgmt_event(MGMT_EV_LOCAL_NAME_CHANGED, hdev, &ev, sizeof(ev),
-							cmd ? cmd->sk : NULL);
+	if (changed)
+		err = mgmt_event(MGMT_EV_LOCAL_NAME_CHANGED, hdev, &ev,
+					sizeof(ev), cmd ? cmd->sk : NULL);
+
 	update_eir(hdev);
 
 failed:

@@ -209,11 +209,10 @@ static void hci_cc_write_local_name(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_dev_lock(hdev);
 
-	if (status == 0)
-		memcpy(hdev->dev_name, sent, HCI_MAX_NAME_LENGTH);
-
 	if (test_bit(HCI_MGMT, &hdev->dev_flags))
 		mgmt_set_local_name_complete(hdev, sent, status);
+	else if (!status)
+		memcpy(hdev->dev_name, sent, HCI_MAX_NAME_LENGTH);
 
 	hci_dev_unlock(hdev);
 }
@@ -562,6 +561,14 @@ static void hci_setup(struct hci_dev *hdev)
 
 	if (hdev->hci_ver > BLUETOOTH_VER_1_1)
 		hci_send_cmd(hdev, HCI_OP_READ_LOCAL_COMMANDS, 0, NULL);
+
+	if (!test_bit(HCI_SETUP, &hdev->dev_flags) &&
+					test_bit(HCI_MGMT, &hdev->dev_flags)) {
+		struct hci_cp_write_local_name cp;
+
+		memcpy(cp.name, hdev->dev_name, sizeof(cp.name));
+		hci_send_cmd(hdev, HCI_OP_WRITE_LOCAL_NAME, sizeof(cp), &cp);
+	}
 
 	if (hdev->features[6] & LMP_SIMPLE_PAIR) {
 		if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
