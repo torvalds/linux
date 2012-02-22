@@ -188,13 +188,27 @@ int at91_suspend_entering_slow_clock(void)
 EXPORT_SYMBOL(at91_suspend_entering_slow_clock);
 
 
-static void (*slow_clock)(void);
+static void (*slow_clock)(void __iomem *pmc, void __iomem *ramc0, void __iomem *ramc1);
 
 #ifdef CONFIG_AT91_SLOW_CLOCK
-extern void at91_slow_clock(void);
+extern void at91_slow_clock(void __iomem *pmc, void __iomem *ramc0, void __iomem *ramc1);
 extern u32 at91_slow_clock_sz;
 #endif
 
+static void __iomem *at91_pmc_base = (void __iomem*)(AT91_VA_BASE_SYS + AT91_PMC);
+#ifdef CONFIG_ARCH_AT91RM9200
+static void __iomem *at91_ramc0_base = (void __iomem*)AT91_VA_BASE_SYS;
+#elif defined(CONFIG_ARCH_AT91SAM9G45)
+static void __iomem *at91_ramc0_base = (void __iomem*)(AT91_VA_BASE_SYS + AT91_DDRSDRC0);
+#else
+static void __iomem *at91_ramc0_base = (void __iomem*)(AT91_VA_BASE_SYS + AT91_SDRAMC0);
+#endif
+
+#if defined(CONFIG_ARCH_AT91SAM9G45)
+static void __iomem *at91_ramc1_base = (void __iomem*)(AT91_VA_BASE_SYS + AT91_DDRSDRC1);
+#else
+static void __iomem *at91_ramc1_base = NULL;
+#endif
 
 static int at91_pm_enter(suspend_state_t state)
 {
@@ -232,7 +246,7 @@ static int at91_pm_enter(suspend_state_t state)
 				/* copy slow_clock handler to SRAM, and call it */
 				memcpy(slow_clock, at91_slow_clock, at91_slow_clock_sz);
 #endif
-				slow_clock();
+				slow_clock(at91_pmc_base, at91_ramc0_base, at91_ramc1_base);
 				break;
 			} else {
 				pr_info("AT91: PM - no slow clock mode enabled ...\n");
