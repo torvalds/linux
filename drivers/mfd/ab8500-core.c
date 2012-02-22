@@ -749,6 +749,12 @@ static struct resource ab8500_charger_resources[] = {
 		.end = AB8500_INT_CH_WD_EXP,
 		.flags = IORESOURCE_IRQ,
 	},
+	{
+		.name = "VBUS_CH_DROP_END",
+		.start = AB8500_INT_VBUS_CH_DROP_END,
+		.end = AB8500_INT_VBUS_CH_DROP_END,
+		.flags = IORESOURCE_IRQ,
+	},
 };
 
 static struct resource ab8500_btemp_resources[] = {
