@@ -244,8 +244,8 @@ static int write_opcode(struct mm_struct *mm, struct uprobe *uprobe,
 
 	/* poke the new insn in, ASSUMES we don't cross page boundary */
 	vaddr &= ~PAGE_MASK;
-	BUG_ON(vaddr + uprobe_opcode_sz > PAGE_SIZE);
-	memcpy(vaddr_new + vaddr, &opcode, uprobe_opcode_sz);
+	BUG_ON(vaddr + UPROBES_BKPT_INSN_SIZE > PAGE_SIZE);
+	memcpy(vaddr_new + vaddr, &opcode, UPROBES_BKPT_INSN_SIZE);
 
 	kunmap_atomic(vaddr_new);
 	kunmap_atomic(vaddr_old);
@@ -293,7 +293,7 @@ static int read_opcode(struct mm_struct *mm, unsigned long vaddr, uprobe_opcode_
 	lock_page(page);
 	vaddr_new = kmap_atomic(page);
 	vaddr &= ~PAGE_MASK;
-	memcpy(opcode, vaddr_new + vaddr, uprobe_opcode_sz);
+	memcpy(opcode, vaddr_new + vaddr, UPROBES_BKPT_INSN_SIZE);
 	kunmap_atomic(vaddr_new);
 	unlock_page(page);
 

@@ -37,8 +37,6 @@ struct uprobe_arch_info {};
 #define MAX_UINSN_BYTES 4
 #endif
 
-#define uprobe_opcode_sz sizeof(uprobe_opcode_t)
-
 /* flags that denote/change uprobes behaviour */
 
 /* Have a copy of original instruction */
