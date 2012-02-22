@@ -119,9 +119,6 @@ static void ath_htc_init_btcoex_work(struct ath9k_htc_priv *priv)
 {
 	struct ath_btcoex *btcoex = &priv->btcoex;
 
-	if (ath9k_hw_get_btcoex_scheme(priv->ah) == ATH_BTCOEX_CFG_NONE)
-		return;
-
 	btcoex->btcoex_period = ATH_BTCOEX_DEF_BT_PERIOD;
 	btcoex->btcoex_no_stomp = (100 - ATH_BTCOEX_DEF_DUTY_CYCLE) *
 		btcoex->btcoex_period / 100;
@@ -140,9 +137,6 @@ static void ath_htc_resume_btcoex_work(struct ath9k_htc_priv *priv)
 	struct ath_btcoex *btcoex = &priv->btcoex;
 	struct ath_hw *ah = priv->ah;
 
-	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_NONE)
-		return;
-
 	ath_dbg(ath9k_hw_common(ah), BTCOEX, "Starting btcoex work\n");
 
 	btcoex->bt_priority_cnt = 0;
@@ -157,9 +151,6 @@ static void ath_htc_resume_btcoex_work(struct ath9k_htc_priv *priv)
  */
 static void ath_htc_cancel_btcoex_work(struct ath9k_htc_priv *priv)
 {
-	if (ath9k_hw_get_btcoex_scheme(priv->ah) == ATH_BTCOEX_CFG_NONE)
-		return;
-
 	cancel_delayed_work_sync(&priv->coex_period_work);
 	cancel_delayed_work_sync(&priv->duty_cycle_work);
 }
@@ -195,8 +186,6 @@ void ath9k_htc_init_btcoex(struct ath9k_htc_priv *priv, char *product)
 
 	if (product && strncmp(product, ATH_HTC_BTCOEX_PRODUCT_ID, 5) == 0) {
 		ah->btcoex_hw.scheme = ATH_BTCOEX_CFG_3WIRE;
-		if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_NONE)
-			return;
 	}
 
 	switch (ath9k_hw_get_btcoex_scheme(priv->ah)) {

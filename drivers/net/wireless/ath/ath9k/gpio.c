@@ -251,9 +251,6 @@ static int ath_init_btcoex_timer(struct ath_softc *sc)
 {
 	struct ath_btcoex *btcoex = &sc->btcoex;
 
-	if (ath9k_hw_get_btcoex_scheme(sc->sc_ah) == ATH_BTCOEX_CFG_NONE)
-		return 0;
-
 	btcoex->btcoex_period = ATH_BTCOEX_DEF_BT_PERIOD * 1000;
 	btcoex->btcoex_no_stomp = (100 - ATH_BTCOEX_DEF_DUTY_CYCLE) *
 		btcoex->btcoex_period / 100;
@@ -286,9 +283,6 @@ void ath9k_btcoex_timer_resume(struct ath_softc *sc)
 
 	ath_dbg(ath9k_hw_common(ah), BTCOEX, "Starting btcoex timers\n");
 
-	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_NONE)
-		return;
-
 	/* make sure duty cycle timer is also stopped when resuming */
 	if (btcoex->hw_timer_enabled)
 		ath9k_gen_timer_stop(sc->sc_ah, btcoex->no_stomp_timer);
@@ -308,9 +302,6 @@ void ath9k_btcoex_timer_pause(struct ath_softc *sc)
 {
 	struct ath_btcoex *btcoex = &sc->btcoex;
 	struct ath_hw *ah = sc->sc_ah;
-
-	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_NONE)
-		return;
 
 	del_timer_sync(&btcoex->period_timer);
 

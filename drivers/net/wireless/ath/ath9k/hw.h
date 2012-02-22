@@ -1076,7 +1076,7 @@ ath9k_hw_get_btcoex_scheme(struct ath_hw *ah)
 {
 	return ATH_BTCOEX_CFG_NONE;
 }
-#endif
+#endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 
 #define ATH9K_CLOCK_RATE_CCK		22
 #define ATH9K_CLOCK_RATE_5GHZ_OFDM	40
