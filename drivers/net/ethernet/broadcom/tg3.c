@@ -3894,51 +3894,33 @@ done:
 
 static void tg3_phy_copper_begin(struct tg3 *tp)
 {
-	u32 new_adv;
-	int i;
+	if (tp->link_config.autoneg == AUTONEG_ENABLE ||
+	    (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)) {
+		u32 adv, fc;
 
-	if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER) {
-		new_adv = ADVERTISED_10baseT_Half |
-			  ADVERTISED_10baseT_Full;
-		if (tg3_flag(tp, WOL_SPEED_100MB))
-			new_adv |= ADVERTISED_100baseT_Half |
-				   ADVERTISED_100baseT_Full;
+		if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER) {
+			adv = ADVERTISED_10baseT_Half |
+			      ADVERTISED_10baseT_Full;
+			if (tg3_flag(tp, WOL_SPEED_100MB))
+				adv |= ADVERTISED_100baseT_Half |
+				       ADVERTISED_100baseT_Full;
 
-		tg3_phy_autoneg_cfg(tp, new_adv,
-				    FLOW_CTRL_TX | FLOW_CTRL_RX);
-	} else if (tp->link_config.speed == SPEED_UNKNOWN) {
-		if (tp->phy_flags & TG3_PHYFLG_10_100_ONLY)
-			tp->link_config.advertising &=
-				~(ADVERTISED_1000baseT_Half |
-				  ADVERTISED_1000baseT_Full);
-
-		tg3_phy_autoneg_cfg(tp, tp->link_config.advertising,
-				    tp->link_config.flowctrl);
-	} else {
-		/* Asking for a specific link mode. */
-		if (tp->link_config.speed == SPEED_1000) {
-			if (tp->link_config.duplex == DUPLEX_FULL)
-				new_adv = ADVERTISED_1000baseT_Full;
-			else
-				new_adv = ADVERTISED_1000baseT_Half;
-		} else if (tp->link_config.speed == SPEED_100) {
-			if (tp->link_config.duplex == DUPLEX_FULL)
-				new_adv = ADVERTISED_100baseT_Full;
-			else
-				new_adv = ADVERTISED_100baseT_Half;
+			fc = FLOW_CTRL_TX | FLOW_CTRL_RX;
 		} else {
-			if (tp->link_config.duplex == DUPLEX_FULL)
-				new_adv = ADVERTISED_10baseT_Full;
-			else
-				new_adv = ADVERTISED_10baseT_Half;
+			adv = tp->link_config.advertising;
+			if (tp->phy_flags & TG3_PHYFLG_10_100_ONLY)
+				adv &= ~(ADVERTISED_1000baseT_Half |
+					 ADVERTISED_1000baseT_Full);
+
+			fc = tp->link_config.flowctrl;
 		}
 
-		tg3_phy_autoneg_cfg(tp, new_adv,
-				    tp->link_config.flowctrl);
-	}
+		tg3_phy_autoneg_cfg(tp, adv, fc);
 
-	if (tp->link_config.autoneg == AUTONEG_DISABLE &&
-	    tp->link_config.speed != SPEED_UNKNOWN) {
+		tg3_writephy(tp, MII_BMCR,
+			     BMCR_ANENABLE | BMCR_ANRESTART);
+	} else {
+		int i;
 		u32 bmcr, orig_bmcr;
 
 		tp->link_config.active_speed = tp->link_config.speed;
@@ -3980,9 +3962,6 @@ static void tg3_phy_copper_begin(struct tg3 *tp)
 			tg3_writephy(tp, MII_BMCR, bmcr);
 			udelay(40);
 		}
-	} else {
-		tg3_writephy(tp, MII_BMCR,
-			     BMCR_ANENABLE | BMCR_ANRESTART);
 	}
 }
 
