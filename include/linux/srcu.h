@@ -35,7 +35,7 @@ struct srcu_struct_array {
 };
 
 /* Bit definitions for field ->c above and ->snap below. */
-#define SRCU_USAGE_BITS		2
+#define SRCU_USAGE_BITS		1
 #define SRCU_REF_MASK		(ULONG_MAX >> SRCU_USAGE_BITS)
 #define SRCU_USAGE_COUNT	(SRCU_REF_MASK + 1)
 

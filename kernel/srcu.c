@@ -138,14 +138,14 @@ static bool srcu_readers_active_idx_check(struct srcu_struct *sp, int idx)
 
 	/*
 	 * Now, we check the ->snap array that srcu_readers_active_idx()
-	 * filled in from the per-CPU counter values.  Since both
-	 * __srcu_read_lock() and __srcu_read_unlock() increment the
-	 * upper bits of the per-CPU counter, an increment/decrement
-	 * pair will change the value of the counter.  Since there is
-	 * only one possible increment, the only way to wrap the counter
-	 * is to have a huge number of counter decrements, which requires
-	 * a huge number of tasks and huge SRCU read-side critical-section
-	 * nesting levels, even on 32-bit systems.
+	 * filled in from the per-CPU counter values. Since
+	 * __srcu_read_lock() increments the upper bits of the per-CPU
+	 * counter, an increment/decrement pair will change the value
+	 * of the counter.  Since there is only one possible increment,
+	 * the only way to wrap the counter is to have a huge number of
+	 * counter decrements, which requires a huge number of tasks and
+	 * huge SRCU read-side critical-section nesting levels, even on
+	 * 32-bit systems.
 	 *
 	 * All of the ways of confusing the readings require that the scan
 	 * in srcu_readers_active_idx() see the read-side task's decrement,
@@ -234,8 +234,7 @@ void __srcu_read_unlock(struct srcu_struct *sp, int idx)
 {
 	preempt_disable();
 	smp_mb(); /* C */  /* Avoid leaking the critical section. */
-	ACCESS_ONCE(this_cpu_ptr(sp->per_cpu_ref)->c[idx]) +=
-		SRCU_USAGE_COUNT - 1;
+	ACCESS_ONCE(this_cpu_ptr(sp->per_cpu_ref)->c[idx]) -= 1;
 	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(__srcu_read_unlock);
