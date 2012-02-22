@@ -830,6 +830,7 @@ struct e1000_nvm_operations {
 	s32  (*acquire)(struct e1000_hw *);
 	s32  (*read)(struct e1000_hw *, u16, u16, u16 *);
 	void (*release)(struct e1000_hw *);
+	void (*reload)(struct e1000_hw *);
 	s32  (*update)(struct e1000_hw *);
 	s32  (*valid_led_default)(struct e1000_hw *, u16 *);
 	s32  (*validate)(struct e1000_hw *);

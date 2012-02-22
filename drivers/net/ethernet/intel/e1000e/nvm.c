@@ -625,13 +625,13 @@ s32 e1000e_update_nvm_checksum_generic(struct e1000_hw *hw)
 }
 
 /**
- *  e1000e_reload_nvm - Reloads EEPROM
+ *  e1000e_reload_nvm_generic - Reloads EEPROM
  *  @hw: pointer to the HW structure
  *
  *  Reloads the EEPROM by setting the "Reinitialize from EEPROM" bit in the
  *  extended control register.
  **/
-void e1000e_reload_nvm(struct e1000_hw *hw)
+void e1000e_reload_nvm_generic(struct e1000_hw *hw)
 {
 	u32 ctrl_ext;
 

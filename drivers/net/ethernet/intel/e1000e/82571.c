@@ -1989,6 +1989,7 @@ static const struct e1000_nvm_operations e82571_nvm_ops = {
 	.acquire		= e1000_acquire_nvm_82571,
 	.read			= e1000e_read_nvm_eerd,
 	.release		= e1000_release_nvm_82571,
+	.reload			= e1000e_reload_nvm_generic,
 	.update			= e1000_update_nvm_checksum_82571,
 	.valid_led_default	= e1000_valid_led_default_82571,
 	.validate		= e1000_validate_nvm_checksum_82571,

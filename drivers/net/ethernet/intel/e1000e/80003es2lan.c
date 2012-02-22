@@ -1457,6 +1457,7 @@ static const struct e1000_nvm_operations es2_nvm_ops = {
 	.acquire		= e1000_acquire_nvm_80003es2lan,
 	.read			= e1000e_read_nvm_eerd,
 	.release		= e1000_release_nvm_80003es2lan,
+	.reload			= e1000e_reload_nvm_generic,
 	.update			= e1000e_update_nvm_checksum_generic,
 	.valid_led_default	= e1000e_valid_led_default,
 	.validate		= e1000e_validate_nvm_checksum_generic,

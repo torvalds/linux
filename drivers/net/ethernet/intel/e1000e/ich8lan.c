@@ -2609,7 +2609,7 @@ release:
 	 * until after the next adapter reset.
 	 */
 	if (!ret_val) {
-		e1000e_reload_nvm(hw);
+		nvm->ops.reload(hw);
 		usleep_range(10000, 20000);
 	}
 
@@ -4043,6 +4043,7 @@ static const struct e1000_nvm_operations ich8_nvm_ops = {
 	.acquire		= e1000_acquire_nvm_ich8lan,
 	.read		 	= e1000_read_nvm_ich8lan,
 	.release		= e1000_release_nvm_ich8lan,
+	.reload			= e1000e_reload_nvm_generic,
 	.update			= e1000_update_nvm_checksum_ich8lan,
 	.valid_led_default	= e1000_valid_led_default_ich8lan,
 	.validate		= e1000_validate_nvm_checksum_ich8lan,
