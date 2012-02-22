@@ -263,8 +263,7 @@ void e1000e_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
  *  @mc_addr: pointer to a multicast address
  *
  *  Generates a multicast address hash value which is used to determine
- *  the multicast filter table array address and new table value.  See
- *  e1000_mta_set_generic()
+ *  the multicast filter table array address and new table value.
  **/
 static u32 e1000_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
 {
