@@ -179,7 +179,7 @@ static struct fdtable * alloc_fdtable(unsigned int nr)
 	if (!data)
 		goto out_arr;
 	fdt->open_fds = data;
-	data += nr / BITS_PER_LONG;
+	data += nr / BITS_PER_BYTE;
 	fdt->close_on_exec = data;
 	fdt->next = NULL;
 
