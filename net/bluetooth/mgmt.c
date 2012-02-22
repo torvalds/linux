@@ -1470,7 +1470,7 @@ static int set_dev_class(struct sock *sk, u16 index, void *data, u16 len)
 
 	if (err == 0)
 		err = cmd_complete(sk, index, MGMT_OP_SET_DEV_CLASS, 0,
-								NULL, 0);
+							hdev->dev_class, 3);
 
 unlock:
 	hci_dev_unlock(hdev);
