@@ -449,7 +449,7 @@ static void mx25_camera_frame_done(struct mx2_camera_dev *pcdev, int fb,
 		buf = NULL;
 		writel(0, pcdev->base_csi + fb_reg);
 	} else {
-		buf = list_entry(pcdev->capture.next, struct mx2_buffer,
+		buf = list_first_entry(&pcdev->capture, struct mx2_buffer,
 				queue);
 		vb = &buf->vb;
 		list_del(&buf->queue);
@@ -709,8 +709,8 @@ static int mx2_start_streaming(struct vb2_queue *q, unsigned int count)
 
 		spin_lock_irqsave(&pcdev->lock, flags);
 
-		buf = list_entry(pcdev->capture.next,
-				 struct mx2_buffer, queue);
+		buf = list_first_entry(&pcdev->capture, struct mx2_buffer,
+				       queue);
 		buf->bufnum = 0;
 		vb = &buf->vb;
 		buf->state = MX2_STATE_ACTIVE;
@@ -719,8 +719,8 @@ static int mx2_start_streaming(struct vb2_queue *q, unsigned int count)
 		mx27_update_emma_buf(pcdev, phys, buf->bufnum);
 		list_move_tail(pcdev->capture.next, &pcdev->active_bufs);
 
-		buf = list_entry(pcdev->capture.next,
-				 struct mx2_buffer, queue);
+		buf = list_first_entry(&pcdev->capture, struct mx2_buffer,
+				       queue);
 		buf->bufnum = 1;
 		vb = &buf->vb;
 		buf->state = MX2_STATE_ACTIVE;
@@ -1205,8 +1205,7 @@ static void mx27_camera_frame_done_emma(struct mx2_camera_dev *pcdev,
 	struct vb2_buffer *vb;
 	unsigned long phys;
 
-	buf = list_entry(pcdev->active_bufs.next,
-			 struct mx2_buffer, queue);
+	buf = list_first_entry(&pcdev->active_bufs, struct mx2_buffer, queue);
 
 	BUG_ON(buf->bufnum != bufnum);
 
@@ -1260,8 +1259,8 @@ static void mx27_camera_frame_done_emma(struct mx2_camera_dev *pcdev,
 			return;
 		}
 
-		buf = list_entry(pcdev->discard.next,
-			struct mx2_buffer, queue);
+		buf = list_first_entry(&pcdev->discard, struct mx2_buffer,
+				       queue);
 		buf->bufnum = bufnum;
 
 		list_move_tail(pcdev->discard.next, &pcdev->active_bufs);
@@ -1269,8 +1268,7 @@ static void mx27_camera_frame_done_emma(struct mx2_camera_dev *pcdev,
 		return;
 	}
 
-	buf = list_entry(pcdev->capture.next,
-			struct mx2_buffer, queue);
+	buf = list_first_entry(&pcdev->capture, struct mx2_buffer, queue);
 
 	buf->bufnum = bufnum;
 
@@ -1304,7 +1302,7 @@ static irqreturn_t mx27_camera_emma_irq(int irq_emma, void *data)
 		       pcdev->base_emma + PRP_CNTL);
 		writel(cntl, pcdev->base_emma + PRP_CNTL);
 
-		buf = list_entry(pcdev->active_bufs.next,
+		buf = list_first_entry(&pcdev->active_bufs,
 			struct mx2_buffer, queue);
 		mx27_camera_frame_done_emma(pcdev,
 					buf->bufnum, true);
@@ -1316,8 +1314,8 @@ static irqreturn_t mx27_camera_emma_irq(int irq_emma, void *data)
 		 * Both buffers have triggered, process the one we're expecting
 		 * to first
 		 */
-		buf = list_entry(pcdev->active_bufs.next,
-			struct mx2_buffer, queue);
+		buf = list_first_entry(&pcdev->active_bufs, struct mx2_buffer,
+				       queue);
 		mx27_camera_frame_done_emma(pcdev, buf->bufnum, false);
 		status &= ~(1 << (6 - buf->bufnum)); /* mark processed */
 	} else if ((status & (1 << 6)) || (status & (1 << 4))) {
