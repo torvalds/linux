@@ -634,6 +634,10 @@ static void kvmppc_restart_interrupt(struct kvm_vcpu *vcpu,
 	case BOOKE_INTERRUPT_MACHINE_CHECK:
 		/* FIXME */
 		break;
+	case BOOKE_INTERRUPT_PERFORMANCE_MONITOR:
+		kvmppc_fill_pt_regs(&regs);
+		performance_monitor_exception(&regs);
+		break;
 	}
 }
 
