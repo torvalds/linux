@@ -173,8 +173,6 @@ static u32 map_old_perms(u32 old)
 	if (old & 0x40)	/* AA_EXEC_MMAP */
 		new |= AA_EXEC_MMAP;
 
-	new |= AA_MAY_META_READ;
-
 	return new;
 }
 
@@ -212,6 +210,7 @@ static struct file_perms compute_perms(struct aa_dfa *dfa, unsigned int state,
 		perms.quiet = map_old_perms(dfa_other_quiet(dfa, state));
 		perms.xindex = dfa_other_xindex(dfa, state);
 	}
+	perms.allow |= AA_MAY_META_READ;
 
 	/* change_profile wasn't determined by ownership in old mapping */
 	if (ACCEPT_TABLE(dfa)[state] & 0x80000000)
