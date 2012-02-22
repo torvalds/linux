@@ -22,9 +22,6 @@
 
 static void ar9003_mci_reset_req_wakeup(struct ath_hw *ah)
 {
-	if (!AR_SREV_9462_20(ah))
-		return;
-
 	REG_RMW_FIELD(ah, AR_MCI_COMMAND2,
 		      AR_MCI_COMMAND2_RESET_REQ_WAKEUP, 1);
 	udelay(1);
@@ -496,14 +493,9 @@ static void ar9003_mci_observation_set_up(struct ath_hw *ah)
 
 	REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL, AR_GPIO_JTAG_DISABLE);
 
-	if (AR_SREV_9462_20_OR_LATER(ah)) {
-		REG_RMW_FIELD(ah, AR_PHY_GLB_CONTROL,
-			      AR_GLB_DS_JTAG_DISABLE, 1);
-		REG_RMW_FIELD(ah, AR_PHY_GLB_CONTROL,
-			      AR_GLB_WLAN_UART_INTF_EN, 0);
-		REG_SET_BIT(ah, AR_GLB_GPIO_CONTROL,
-			    ATH_MCI_CONFIG_MCI_OBS_GPIO);
-	}
+	REG_RMW_FIELD(ah, AR_PHY_GLB_CONTROL, AR_GLB_DS_JTAG_DISABLE, 1);
+	REG_RMW_FIELD(ah, AR_PHY_GLB_CONTROL, AR_GLB_WLAN_UART_INTF_EN, 0);
+	REG_SET_BIT(ah, AR_GLB_GPIO_CONTROL, ATH_MCI_CONFIG_MCI_OBS_GPIO);
 
 	REG_RMW_FIELD(ah, AR_BTCOEX_CTRL2, AR_BTCOEX_CTRL2_GPIO_OBS_SEL, 0);
 	REG_RMW_FIELD(ah, AR_BTCOEX_CTRL2, AR_BTCOEX_CTRL2_MAC_BB_OBS_SEL, 1);
@@ -1053,9 +1045,7 @@ static void ar9003_mci_send_2g5g_status(struct ath_hw *ah, bool wait_done)
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 	u32 new_flags, to_set, to_clear;
 
-	if (AR_SREV_9462_20(ah) &&
-	    mci->update_2g5g &&
-	    (mci->bt_state != MCI_BT_SLEEP)) {
+	if (mci->update_2g5g && (mci->bt_state != MCI_BT_SLEEP)) {
 
 		if (mci->is_2g) {
 			new_flags = MCI_2G_FLAGS;
@@ -1193,14 +1183,13 @@ void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool wait_done)
 			REG_CLR_BIT(ah, AR_MCI_TX_CTRL,
 				    AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
 
-			if (AR_SREV_9462_20(ah)) {
 				REG_CLR_BIT(ah, AR_PHY_GLB_CONTROL,
 					    AR_BTCOEX_CTRL_BT_OWN_SPDT_CTRL);
+
 				if (!(mci->config &
 				      ATH_MCI_CONFIG_DISABLE_OSLA)) {
 					REG_SET_BIT(ah, AR_BTCOEX_CTRL,
 					AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN);
-				}
 			}
 		} else {
 			ath_dbg(common, MCI, "MCI Send LNA take\n");
@@ -1210,12 +1199,10 @@ void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool wait_done)
 			REG_SET_BIT(ah, AR_MCI_TX_CTRL,
 				    AR_MCI_TX_CTRL_DISABLE_LNA_UPDATE);
 
-			if (AR_SREV_9462_20(ah)) {
-				REG_SET_BIT(ah, AR_PHY_GLB_CONTROL,
-					    AR_BTCOEX_CTRL_BT_OWN_SPDT_CTRL);
-				REG_CLR_BIT(ah, AR_BTCOEX_CTRL,
-					AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN);
-			}
+			REG_SET_BIT(ah, AR_PHY_GLB_CONTROL,
+				    AR_BTCOEX_CTRL_BT_OWN_SPDT_CTRL);
+			REG_CLR_BIT(ah, AR_BTCOEX_CTRL,
+				    AR_BTCOEX_CTRL_ONE_STEP_LOOK_AHEAD_EN);
 
 			ar9003_mci_send_2g5g_status(ah, true);
 		}
@@ -1532,8 +1519,7 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 		ar9003_mci_reset_req_wakeup(ah);
 		mci->update_2g5g = true;
 
-		if ((AR_SREV_9462_20_OR_LATER(ah)) &&
-		    (mci->config & ATH_MCI_CONFIG_MCI_OBS_MASK)) {
+		if (mci->config & ATH_MCI_CONFIG_MCI_OBS_MASK) {
 			/* Check if we still have control of the GPIOs */
 			if ((REG_READ(ah, AR_GLB_GPIO_CONTROL) &
 				      ATH_MCI_CONFIG_MCI_OBS_GPIO) !=
