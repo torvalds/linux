@@ -1011,6 +1011,54 @@ bool ar9003_mci_send_message(struct ath_hw *ah, u8 header, u32 flag,
 }
 EXPORT_SYMBOL(ar9003_mci_send_message);
 
+void ar9003_mci_init_cal_req(struct ath_hw *ah, bool *is_reusable)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_hw_mci *mci_hw = &ah->btcoex_hw.mci;
+	u32 pld[4] = {0, 0, 0, 0};
+
+	if ((mci_hw->bt_state != MCI_BT_AWAKE) ||
+	    (mci_hw->config & ATH_MCI_CONFIG_DISABLE_MCI_CAL))
+		return;
+
+	/* send CAL_REQ only when BT is AWAKE. */
+	ath_dbg(common, MCI, "MCI send WLAN_CAL_REQ 0x%x\n",
+		mci_hw->wlan_cal_seq);
+
+	MCI_GPM_SET_CAL_TYPE(pld, MCI_GPM_WLAN_CAL_REQ);
+	pld[MCI_GPM_WLAN_CAL_W_SEQUENCE] = mci_hw->wlan_cal_seq++;
+
+	ar9003_mci_send_message(ah, MCI_GPM, 0, pld, 16, true, false);
+
+	/* Wait BT_CAL_GRANT for 50ms */
+	ath_dbg(common, MCI, "MCI wait for BT_CAL_GRANT\n");
+
+	if (ar9003_mci_wait_for_gpm(ah, MCI_GPM_BT_CAL_GRANT, 0, 50000)) {
+		ath_dbg(common, MCI, "MCI got BT_CAL_GRANT\n");
+	} else {
+		is_reusable = false;
+		ath_dbg(common, MCI, "MCI BT is not responding\n");
+	}
+}
+
+void ar9003_mci_init_cal_done(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_hw_mci *mci_hw = &ah->btcoex_hw.mci;
+	u32 pld[4] = {0, 0, 0, 0};
+
+	if ((mci_hw->bt_state != MCI_BT_AWAKE) ||
+	    (mci_hw->config & ATH_MCI_CONFIG_DISABLE_MCI_CAL))
+		return;
+
+	ath_dbg(common, MCI, "MCI Send WLAN_CAL_DONE 0x%x\n",
+		mci_hw->wlan_cal_done);
+
+	MCI_GPM_SET_CAL_TYPE(pld, MCI_GPM_WLAN_CAL_DONE);
+	pld[MCI_GPM_WLAN_CAL_W_SEQUENCE] = mci_hw->wlan_cal_done++;
+	ar9003_mci_send_message(ah, MCI_GPM, 0, pld, 16, true, false);
+}
+
 void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
 		      u16 len, u32 sched_addr)
 {

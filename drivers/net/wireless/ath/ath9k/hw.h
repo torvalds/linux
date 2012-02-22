@@ -1211,6 +1211,8 @@ bool ar9003_mci_send_message(struct ath_hw *ah, u8 header, u32 flag,
 			     bool check_bt);
 void ar9003_mci_mute_bt(struct ath_hw *ah);
 u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data);
+void ar9003_mci_init_cal_req(struct ath_hw *ah, bool *is_reusable);
+void ar9003_mci_init_cal_done(struct ath_hw *ah);
 void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
 		      u16 len, u32 sched_addr);
 void ar9003_mci_cleanup(struct ath_hw *ah);
