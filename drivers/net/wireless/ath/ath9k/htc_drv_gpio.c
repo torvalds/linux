@@ -160,6 +160,30 @@ void ath_htc_cancel_btcoex_work(struct ath9k_htc_priv *priv)
 	cancel_delayed_work_sync(&priv->duty_cycle_work);
 }
 
+void ath9k_htc_start_btcoex(struct ath9k_htc_priv *priv)
+{
+	struct ath_hw *ah = priv->ah;
+
+	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE) {
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_LOW_WLAN_WGHT);
+		ath9k_hw_btcoex_enable(ah);
+		ath_htc_resume_btcoex_work(priv);
+	}
+}
+
+void ath9k_htc_stop_btcoex(struct ath9k_htc_priv *priv)
+{
+	struct ath_hw *ah = priv->ah;
+
+	if (ah->btcoex_hw.enabled &&
+	    ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) {
+		ath9k_hw_btcoex_disable(ah);
+		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
+			ath_htc_cancel_btcoex_work(priv);
+	}
+}
+
 /*******/
 /* LED */
 /*******/
