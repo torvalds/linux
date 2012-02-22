@@ -1231,6 +1231,7 @@ void ar9003_mci_send_lna_transfer(struct ath_hw *ah, bool wait_done);
 void ar9003_mci_sync_bt_state(struct ath_hw *ah);
 void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
 			      u32 *rx_msg_intr);
+void ar9003_mci_get_isr(struct ath_hw *ah, enum ath9k_int *masked);
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 static inline enum ath_btcoex_scheme

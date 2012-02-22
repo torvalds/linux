@@ -412,6 +412,31 @@ void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
 }
 EXPORT_SYMBOL(ar9003_mci_get_interrupt);
 
+void ar9003_mci_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
+	u32 raw_intr, rx_msg_intr;
+
+	rx_msg_intr = REG_READ(ah, AR_MCI_INTERRUPT_RX_MSG_RAW);
+	raw_intr = REG_READ(ah, AR_MCI_INTERRUPT_RAW);
+
+	if ((raw_intr == 0xdeadbeef) || (rx_msg_intr == 0xdeadbeef)) {
+		ath_dbg(common, MCI,
+			"MCI gets 0xdeadbeef during int processing\n");
+	} else {
+		mci->rx_msg_intr |= rx_msg_intr;
+		mci->raw_intr |= raw_intr;
+		*masked |= ATH9K_INT_MCI;
+
+		if (rx_msg_intr & AR_MCI_INTERRUPT_RX_MSG_CONT_INFO)
+			mci->cont_status = REG_READ(ah, AR_MCI_CONT_STATUS);
+
+		REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_RAW, rx_msg_intr);
+		REG_WRITE(ah, AR_MCI_INTERRUPT_RAW, raw_intr);
+	}
+}
+
 void ar9003_mci_2g5g_changed(struct ath_hw *ah, bool is_2g)
 {
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
