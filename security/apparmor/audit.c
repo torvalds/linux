@@ -89,6 +89,7 @@ static char *aa_audit_type[] = {
 	"STATUS",
 	"ERROR",
 	"KILLED"
+	"AUTO"
 };
 
 /*

@@ -28,8 +28,6 @@ struct aa_profile;
 extern const char *audit_mode_names[];
 #define AUDIT_MAX_INDEX 5
 
-#define AUDIT_APPARMOR_AUTO 0	/* auto choose audit message type */
-
 enum audit_mode {
 	AUDIT_NORMAL,		/* follow normal auditing of accesses */
 	AUDIT_QUIET_DENIED,	/* quiet all denied access messages */
@@ -45,7 +43,8 @@ enum audit_type {
 	AUDIT_APPARMOR_HINT,
 	AUDIT_APPARMOR_STATUS,
 	AUDIT_APPARMOR_ERROR,
-	AUDIT_APPARMOR_KILL
+	AUDIT_APPARMOR_KILL,
+	AUDIT_APPARMOR_AUTO
 };
 
 extern const char *op_table[];
