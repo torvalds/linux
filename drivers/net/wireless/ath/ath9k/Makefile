@@ -31,14 +31,14 @@ ath9k_hw-y:=	\
 		eeprom_4k.o \
 		eeprom_9287.o \
 		ani.o \
-		btcoex.o \
 		mac.o \
 		ar9002_mac.o \
 		ar9003_mac.o \
 		ar9003_eeprom.o \
-		ar9003_paprd.o \
-		ar9003_mci.o
+		ar9003_paprd.o
 
+ath9k_hw-$(CONFIG_ATH9K_BTCOEX_SUPPORT) += btcoex.o \
+					   ar9003_mci.o
 obj-$(CONFIG_ATH9K_HW) += ath9k_hw.o
 
 obj-$(CONFIG_ATH9K_COMMON) += ath9k_common.o

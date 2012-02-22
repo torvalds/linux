@@ -802,8 +802,9 @@ struct ath_hw {
 	int firpwr[5];
 	enum ath9k_ani_cmd ani_function;
 
-	/* Bluetooth coexistance */
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	struct ath_btcoex_hw btcoex_hw;
+#endif
 
 	u32 intr_txqs;
 	u8 txchainmask;
@@ -1052,13 +1053,29 @@ void ath9k_hw_proc_mib_event(struct ath_hw *ah);
 void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan);
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+static inline bool ath9k_hw_btcoex_is_enabled(struct ath_hw *ah)
+{
+	return ah->btcoex_hw.enabled;
+}
+void ath9k_hw_btcoex_enable(struct ath_hw *ah);
 static inline enum ath_btcoex_scheme
 ath9k_hw_get_btcoex_scheme(struct ath_hw *ah)
 {
 	return ah->btcoex_hw.scheme;
 }
 #else
-#define ath9k_hw_get_btcoex_scheme(...) ATH_BTCOEX_CFG_NONE
+static inline bool ath9k_hw_btcoex_is_enabled(struct ath_hw *ah)
+{
+	return false;
+}
+static inline void ath9k_hw_btcoex_enable(struct ath_hw *ah)
+{
+}
+static inline enum ath_btcoex_scheme
+ath9k_hw_get_btcoex_scheme(struct ath_hw *ah)
+{
+	return ATH_BTCOEX_CFG_NONE;
+}
 #endif
 
 #define ATH9K_CLOCK_RATE_CCK		22
