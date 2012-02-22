@@ -550,7 +550,10 @@ static void via_auto_init_output(struct hda_codec *codec,
 	pin = path->path[path->depth - 1];
 
 	init_output_pin(codec, pin, pin_type);
-	caps = query_amp_caps(codec, pin, HDA_OUTPUT);
+	if (get_wcaps(codec, pin) & AC_WCAP_OUT_AMP)
+		caps = query_amp_caps(codec, pin, HDA_OUTPUT);
+	else
+		caps = 0;
 	if (caps & AC_AMPCAP_MUTE) {
 		unsigned int val;
 		val = (caps & AC_AMPCAP_OFFSET) >> AC_AMPCAP_OFFSET_SHIFT;
@@ -645,6 +648,10 @@ static void via_auto_init_analog_input(struct hda_codec *codec)
 
 	/* init ADCs */
 	for (i = 0; i < spec->num_adc_nids; i++) {
+		hda_nid_t nid = spec->adc_nids[i];
+		if (!(get_wcaps(codec, nid) & AC_WCAP_IN_AMP) ||
+		    !(query_amp_caps(codec, nid, HDA_INPUT) & AC_AMPCAP_MUTE))
+			continue;
 		snd_hda_codec_write(codec, spec->adc_nids[i], 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_IN_UNMUTE(0));
@@ -1508,6 +1515,8 @@ static int via_build_controls(struct hda_codec *codec)
 	/* assign Capture Source enums to NID */
 	kctl = snd_hda_find_mixer_ctl(codec, "Input Source");
 	for (i = 0; kctl && i < kctl->count; i++) {
+		if (!spec->mux_nids[i])
+			continue;
 		err = snd_hda_add_nid(codec, kctl, i, spec->mux_nids[i]);
 		if (err < 0)
 			return err;
