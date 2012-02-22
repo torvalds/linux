@@ -1219,6 +1219,7 @@ void ar9003_mci_send_coex_halt_bt_gpm(struct ath_hw *ah, bool halt,
 u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
 			    u8 gpm_opcode, int time_out);
 void ar9003_mci_2g5g_changed(struct ath_hw *ah, bool is_2g);
+void ar9003_mci_set_full_sleep(struct ath_hw *ah);
 void ar9003_mci_disable_interrupt(struct ath_hw *ah);
 void ar9003_mci_enable_interrupt(struct ath_hw *ah);
 void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool wait_done);

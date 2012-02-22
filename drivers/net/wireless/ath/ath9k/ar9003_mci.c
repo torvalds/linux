@@ -365,6 +365,23 @@ static void ar9003_mci_prep_interface(struct ath_hw *ah)
 	REG_WRITE(ah, AR_MCI_INTERRUPT_EN, saved_mci_int_en);
 }
 
+void ar9003_mci_set_full_sleep(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
+
+	if (ar9003_mci_state(ah, MCI_STATE_ENABLE, NULL) &&
+	    (mci->bt_state != MCI_BT_SLEEP) &&
+	    !mci->halted_bt_gpm) {
+		ath_dbg(common, MCI,
+			"MCI halt BT GPM (full_sleep)\n");
+		ar9003_mci_send_coex_halt_bt_gpm(ah, true, true);
+	}
+
+	mci->ready = false;
+	REG_WRITE(ah, AR_RTC_KEEP_AWAKE, 0x2);
+}
+
 void ar9003_mci_disable_interrupt(struct ath_hw *ah)
 {
 	if (!ATH9K_HW_CAP_MCI)
