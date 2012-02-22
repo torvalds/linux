@@ -1696,7 +1696,7 @@ static inline void hci_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *
 	hci_dev_lock(hdev);
 
 	for (; num_rsp; num_rsp--, info++) {
-		bool name_known;
+		bool name_known, ssp;
 
 		bacpy(&data.bdaddr, &info->bdaddr);
 		data.pscan_rep_mode	= info->pscan_rep_mode;
@@ -1707,9 +1707,9 @@ static inline void hci_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *
 		data.rssi		= 0x00;
 		data.ssp_mode		= 0x00;
 
-		name_known = hci_inquiry_cache_update(hdev, &data, false);
+		name_known = hci_inquiry_cache_update(hdev, &data, false, &ssp);
 		mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
-					info->dev_class, 0, !name_known,
+					info->dev_class, 0, !name_known, ssp,
 					NULL, 0);
 	}
 
@@ -2783,7 +2783,7 @@ static inline void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, struct
 {
 	struct inquiry_data data;
 	int num_rsp = *((__u8 *) skb->data);
-	bool name_known;
+	bool name_known, ssp;
 
 	BT_DBG("%s num_rsp %d", hdev->name, num_rsp);
 
@@ -2807,10 +2807,10 @@ static inline void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, struct
 			data.ssp_mode		= 0x00;
 
 			name_known = hci_inquiry_cache_update(hdev, &data,
-								false);
+								false, &ssp);
 			mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
 						info->dev_class, info->rssi,
-						!name_known, NULL, 0);
+						!name_known, ssp, NULL, 0);
 		}
 	} else {
 		struct inquiry_info_with_rssi *info = (void *) (skb->data + 1);
@@ -2825,10 +2825,10 @@ static inline void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, struct
 			data.rssi		= info->rssi;
 			data.ssp_mode		= 0x00;
 			name_known = hci_inquiry_cache_update(hdev, &data,
-								false);
+								false, &ssp);
 			mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
 						info->dev_class, info->rssi,
-						!name_known, NULL, 0);
+						!name_known, ssp, NULL, 0);
 		}
 	}
 
@@ -2964,7 +2964,7 @@ static inline void hci_extended_inquiry_result_evt(struct hci_dev *hdev, struct 
 	hci_dev_lock(hdev);
 
 	for (; num_rsp; num_rsp--, info++) {
-		bool name_known;
+		bool name_known, ssp;
 
 		bacpy(&data.bdaddr, &info->bdaddr);
 		data.pscan_rep_mode	= info->pscan_rep_mode;
@@ -2982,10 +2982,11 @@ static inline void hci_extended_inquiry_result_evt(struct hci_dev *hdev, struct 
 		else
 			name_known = true;
 
-		name_known = hci_inquiry_cache_update(hdev, &data, name_known);
+		name_known = hci_inquiry_cache_update(hdev, &data, name_known,
+									&ssp);
 		mgmt_device_found(hdev, &info->bdaddr, ACL_LINK, 0x00,
 						info->dev_class, info->rssi,
-						!name_known, info->data,
+						!name_known, ssp, info->data,
 						sizeof(info->data));
 	}
 
@@ -3310,7 +3311,8 @@ static inline void hci_le_adv_report_evt(struct hci_dev *hdev,
 
 		rssi = ev->data[ev->length];
 		mgmt_device_found(hdev, &ev->bdaddr, LE_LINK, ev->bdaddr_type,
-					NULL, rssi, 0, ev->data, ev->length);
+					NULL, rssi, 0, 1, ev->data,
+					ev->length);
 
 		ptr += sizeof(*ev) + ev->length + 1;
 	}

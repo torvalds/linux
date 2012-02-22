@@ -407,7 +407,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup_resolve(struct hci_dev *hdev,
 void hci_inquiry_cache_update_resolve(struct hci_dev *hdev,
 						struct inquiry_entry *ie);
 bool hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
-							bool name_known);
+						bool name_known, bool *ssp);
 
 /* ----- HCI Connections ----- */
 enum {
@@ -1018,7 +1018,8 @@ int mgmt_read_local_oob_data_reply_complete(struct hci_dev *hdev, u8 *hash,
 int mgmt_le_enable_complete(struct hci_dev *hdev, u8 enable, u8 status);
 int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 					u8 addr_type, u8 *dev_class, s8 rssi,
-					u8 cfm_name, u8 *eir, u16 eir_len);
+					u8 cfm_name, u8 ssp, u8 *eir,
+					u16 eir_len);
 int mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 			u8 addr_type, s8 rssi, u8 *name, u8 name_len);
 int mgmt_start_discovery_failed(struct hci_dev *hdev, u8 status);

@@ -466,15 +466,21 @@ void hci_inquiry_cache_update_resolve(struct hci_dev *hdev,
 }
 
 bool hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
-							bool name_known)
+						bool name_known, bool *ssp)
 {
 	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *ie;
 
 	BT_DBG("cache %p, %s", cache, batostr(&data->bdaddr));
 
+	if (ssp)
+		*ssp = data->ssp_mode;
+
 	ie = hci_inquiry_cache_lookup(hdev, &data->bdaddr);
 	if (ie) {
+		if (ie->data.ssp_mode && ssp)
+			*ssp = true;
+
 		if (ie->name_state == NAME_NEEDED &&
 						data->rssi != ie->data.rssi) {
 			ie->data.rssi = data->rssi;

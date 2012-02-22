@@ -3730,7 +3730,7 @@ int mgmt_le_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 
 int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 				u8 addr_type, u8 *dev_class, s8 rssi,
-				u8 cfm_name, u8 *eir, u16 eir_len)
+				u8 cfm_name, u8 ssp, u8 *eir, u16 eir_len)
 {
 	char buf[512];
 	struct mgmt_ev_device_found *ev = (void *) buf;
@@ -3747,6 +3747,8 @@ int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	ev->rssi = rssi;
 	if (cfm_name)
 		ev->flags[0] |= MGMT_DEV_FOUND_CONFIRM_NAME;
+	if (!ssp)
+		ev->flags[0] |= MGMT_DEV_FOUND_LEGACY_PAIRING;
 
 	if (eir_len > 0)
 		memcpy(ev->eir, eir, eir_len);
