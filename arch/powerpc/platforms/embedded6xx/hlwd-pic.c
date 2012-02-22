@@ -189,7 +189,7 @@ struct irq_domain *hlwd_pic_init(struct device_node *np)
 
 unsigned int hlwd_pic_get_irq(void)
 {
-	return __hlwd_pic_get_irq(hlwd_irq_domain);
+	return __hlwd_pic_get_irq(hlwd_irq_host);
 }
 
 /*
@@ -213,7 +213,7 @@ void hlwd_pic_probe(void)
 			irq_set_handler_data(cascade_virq, host);
 			irq_set_chained_handler(cascade_virq,
 						hlwd_pic_irq_cascade);
-			hlwd_irq_domain = host;
+			hlwd_irq_host = host;
 			break;
 		}
 	}
@@ -227,7 +227,7 @@ void hlwd_pic_probe(void)
  */
 void hlwd_quiesce(void)
 {
-	void __iomem *io_base = hlwd_irq_domain->host_data;
+	void __iomem *io_base = hlwd_irq_host->host_data;
 
 	__hlwd_quiesce(io_base);
 }

@@ -172,7 +172,7 @@ out:
 
 unsigned int flipper_pic_get_irq(void)
 {
-	void __iomem *io_base = flipper_irq_domain->host_data;
+	void __iomem *io_base = flipper_irq_host->host_data;
 	int irq;
 	u32 irq_status;
 
@@ -182,7 +182,7 @@ unsigned int flipper_pic_get_irq(void)
 		return NO_IRQ;	/* no more IRQs pending */
 
 	irq = __ffs(irq_status);
-	return irq_linear_revmap(flipper_irq_domain, irq);
+	return irq_linear_revmap(flipper_irq_host, irq);
 }
 
 /*
@@ -197,7 +197,7 @@ void __init flipper_pic_probe(void)
 	np = of_find_compatible_node(NULL, NULL, "nintendo,flipper-pic");
 	BUG_ON(!np);
 
-	flipper_irq_domain = flipper_pic_init(np);
+	flipper_irq_host = flipper_pic_init(np);
 	BUG_ON(!flipper_irq_host);
 
 	irq_set_default_host(flipper_irq_host);
