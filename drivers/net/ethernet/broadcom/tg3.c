@@ -6163,6 +6163,7 @@ static inline void tg3_reset_task_cancel(struct tg3 *tp)
 {
 	cancel_work_sync(&tp->reset_task);
 	tg3_flag_clear(tp, RESET_TASK_PENDING);
+	tg3_flag_clear(tp, TX_RECOVERY_PENDING);
 }
 
 static int tg3_poll_msix(struct napi_struct *napi, int budget)
@@ -15937,7 +15938,6 @@ static pci_ers_result_t tg3_io_error_detected(struct pci_dev *pdev,
 
 	/* Want to make sure that the reset task doesn't run */
 	tg3_reset_task_cancel(tp);
-	tg3_flag_clear(tp, TX_RECOVERY_PENDING);
 
 	netif_device_detach(netdev);
 
