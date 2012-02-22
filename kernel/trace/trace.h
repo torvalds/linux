@@ -154,6 +154,7 @@ struct trace_array {
 	struct ring_buffer	*buffer;
 	unsigned long		entries;
 	int			cpu;
+	int			buffer_disabled;
 	cycle_t			time_start;
 	struct task_struct	*waiter;
 	struct trace_array_cpu	*data[NR_CPUS];
