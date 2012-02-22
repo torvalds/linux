@@ -81,9 +81,7 @@ static int __init init_hrt_clocksource(void)
 	if (mhz27)
 		freq *= 27;
 
-	pr_info("enabling scx200 high-res timer (%s MHz +%d ppm)\n",
-	printk(KERN_INFO "enabling scx200 high-res timer (%s MHz +%d ppm)\n",
-		mhz27 ? "27":"1", ppm);
+	pr_info("enabling scx200 high-res timer (%s MHz +%d ppm)\n", mhz27 ? "27":"1", ppm);
 
 	return clocksource_register_hz(&cs_hrt, freq);
 }
