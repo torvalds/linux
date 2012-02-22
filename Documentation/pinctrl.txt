@@ -494,14 +494,10 @@ Definitions:
     {"map-i2c0", i2c0, pinctrl0, fi2c0, gi2c0}
   }
 
-  Every map must be assigned a symbolic name, pin controller and function.
-  The group is not compulsory - if it is omitted the first group presented by
-  the driver as applicable for the function will be selected, which is
-  useful for simple cases.
-
-  The device name is present in map entries tied to specific devices. Maps
-  without device names are referred to as SYSTEM pinmuxes, such as can be taken
-  by the machine implementation on boot and not tied to any specific device.
+  Every map must be assigned a state name, pin controller, device and
+  function. The group is not compulsory - if it is omitted the first group
+  presented by the driver as applicable for the function will be selected,
+  which is useful for simple cases.
 
   It is possible to map several groups to the same combination of device,
   pin controller and function. This is for cases where a certain function on
@@ -983,8 +979,7 @@ after this you should be able to see this in the debugfs listing of all pins.
 System pin control hogging
 ==========================
 
-A system pin control map entry, i.e. a pin control setting that does not have
-a device associated with it, can be hogged by the core when the pin controller
+Pin control map entries can be hogged by the core when the pin controller
 is registered. This means that the core will attempt to call pinctrl_get() and
 pinctrl_enable() on it immediately after the pin control device has been
 registered.

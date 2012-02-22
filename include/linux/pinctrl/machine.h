@@ -46,13 +46,6 @@ struct pinctrl_map {
 	{ .name = a, .ctrl_dev_name = b, .function = c, .dev_name = d }
 
 /*
- * Convenience macro to map a system function onto a certain pinctrl device.
- * System functions are not assigned to a particular device.
- */
-#define PIN_MAP_SYS(a, b, c) \
-	{ .name = a, .ctrl_dev_name = b, .function = c }
-
-/*
  * Convenience macro to map a system function onto a certain pinctrl device,
  * to be hogged by the pin control core until the system shuts down.
  */
