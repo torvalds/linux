@@ -584,10 +584,9 @@ static int smm665_probe(struct i2c_client *client,
 	if (i2c_smbus_read_byte_data(client, SMM665_ADOC_ENABLE) < 0)
 		return -ENODEV;
 
-	ret = -ENOMEM;
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
-		goto out_return;
+		return -ENOMEM;
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -596,7 +595,7 @@ static int smm665_probe(struct i2c_client *client,
 	data->cmdreg = i2c_new_dummy(adapter, (client->addr & ~SMM665_REGMASK)
 				     | SMM665_CMDREG_BASE);
 	if (!data->cmdreg)
-		goto out_kfree;
+		return -ENOMEM;
 
 	switch (data->type) {
 	case smm465:
@@ -679,9 +678,6 @@ out_remove_group:
 	sysfs_remove_group(&client->dev.kobj, &smm665_group);
 out_unregister:
 	i2c_unregister_device(data->cmdreg);
-out_kfree:
-	kfree(data);
-out_return:
 	return ret;
 }
 
@@ -692,8 +688,6 @@ static int smm665_remove(struct i2c_client *client)
 	i2c_unregister_device(data->cmdreg);
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &smm665_group);
-
-	kfree(data);
 
 	return 0;
 }
