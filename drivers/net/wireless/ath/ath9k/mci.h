@@ -17,6 +17,8 @@
 #ifndef MCI_H
 #define MCI_H
 
+#include "ar9003_mci.h"
+
 #define ATH_MCI_SCHED_BUF_SIZE		(16 * 16) /* 16 entries, 4 dword each */
 #define ATH_MCI_GPM_MAX_ENTRY		16
 #define ATH_MCI_GPM_BUF_SIZE		(ATH_MCI_GPM_MAX_ENTRY * 16)

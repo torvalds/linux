@@ -16,6 +16,7 @@
 #include <linux/export.h>
 #include "hw.h"
 #include "ar9003_mac.h"
+#include "ar9003_mci.h"
 
 static void ar9003_hw_rx_enable(struct ath_hw *hw)
 {
