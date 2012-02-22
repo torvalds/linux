@@ -21,11 +21,12 @@ extern void __iomem *at91_ramc_base[];
 .extern at91_ramc_base
 #endif
 
-#ifdef CONFIG_ARCH_AT91RM9200
-#include <mach/at91rm9200_mc.h>
-#else
+#define AT91_MEMCTRL_MC		0
+#define AT91_MEMCTRL_SDRAMC	1
+#define AT91_MEMCTRL_DDRSDR	2
+
+#include <mach/at91rm9200_sdramc.h>
 #include <mach/at91sam9_ddrsdr.h>
 #include <mach/at91sam9_sdramc.h>
-#endif
 
 #endif /* __AT91_RAMC_H__ */

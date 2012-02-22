@@ -188,10 +188,12 @@ int at91_suspend_entering_slow_clock(void)
 EXPORT_SYMBOL(at91_suspend_entering_slow_clock);
 
 
-static void (*slow_clock)(void __iomem *pmc, void __iomem *ramc0, void __iomem *ramc1);
+static void (*slow_clock)(void __iomem *pmc, void __iomem *ramc0,
+			  void __iomem *ramc1, int memctrl);
 
 #ifdef CONFIG_AT91_SLOW_CLOCK
-extern void at91_slow_clock(void __iomem *pmc, void __iomem *ramc0, void __iomem *ramc1);
+extern void at91_slow_clock(void __iomem *pmc, void __iomem *ramc0,
+			    void __iomem *ramc1, int memctrl);
 extern u32 at91_slow_clock_sz;
 #endif
 
@@ -241,11 +243,18 @@ static int at91_pm_enter(suspend_state_t state)
 			 * turning off the main oscillator; reverse on wakeup.
 			 */
 			if (slow_clock) {
+				int memctrl = AT91_MEMCTRL_SDRAMC;
+
+				if (cpu_is_at91rm9200())
+					memctrl = AT91_MEMCTRL_MC;
+				else if (cpu_is_at91sam9g45())
+					memctrl = AT91_MEMCTRL_DDRSDR;
 #ifdef CONFIG_AT91_SLOW_CLOCK
 				/* copy slow_clock handler to SRAM, and call it */
 				memcpy(slow_clock, at91_slow_clock, at91_slow_clock_sz);
 #endif
-				slow_clock(at91_pmc_base, at91_ramc_base[0], at91_ramc_base[1]);
+				slow_clock(at91_pmc_base, at91_ramc_base[0],
+					   at91_ramc_base[1], memctrl);
 				break;
 			} else {
 				pr_info("AT91: PM - no slow clock mode enabled ...\n");
