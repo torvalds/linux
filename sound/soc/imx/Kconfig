@@ -1,7 +1,6 @@
 menuconfig SND_IMX_SOC
 	tristate "SoC Audio for Freescale i.MX CPUs"
 	depends on ARCH_MXC
-	select FIQ
 	select SND_SOC_AC97_BUS
 	help
 	  Say Y or M if you want to add support for codecs attached to
@@ -11,6 +10,7 @@ menuconfig SND_IMX_SOC
 if SND_IMX_SOC
 
 config SND_MXC_SOC_FIQ
+	select FIQ
 	tristate
 
 config SND_MXC_SOC_MX2
