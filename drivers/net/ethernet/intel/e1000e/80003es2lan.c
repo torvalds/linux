@@ -1432,6 +1432,7 @@ static const struct e1000_mac_operations es2_mac_ops = {
 	.setup_link		= e1000e_setup_link_generic,
 	/* setup_physical_interface dependent on media type */
 	.setup_led		= e1000e_setup_led_generic,
+	.config_collision_dist	= e1000e_config_collision_dist_generic,
 };
 
 static const struct e1000_phy_operations es2_phy_ops = {

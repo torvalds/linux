@@ -746,7 +746,7 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	 * of MAC speed/duplex configuration.  So we only need to
 	 * configure Collision Distance in the MAC.
 	 */
-	e1000e_config_collision_dist(hw);
+	mac->ops.config_collision_dist(hw);
 
 	/*
 	 * Configure Flow Control now that Auto-Neg has completed.
@@ -4022,6 +4022,7 @@ static const struct e1000_mac_operations ich8_mac_ops = {
 	.setup_link		= e1000_setup_link_ich8lan,
 	.setup_physical_interface= e1000_setup_copper_link_ich8lan,
 	/* id_led_init dependent on mac type */
+	.config_collision_dist	= e1000e_config_collision_dist_generic,
 };
 
 static const struct e1000_phy_operations ich8_phy_ops = {

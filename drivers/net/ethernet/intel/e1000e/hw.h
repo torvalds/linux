@@ -781,6 +781,7 @@ struct e1000_mac_operations {
 	s32  (*setup_physical_interface)(struct e1000_hw *);
 	s32  (*setup_led)(struct e1000_hw *);
 	void (*write_vfta)(struct e1000_hw *, u32, u32);
+	void (*config_collision_dist)(struct e1000_hw *);
 	s32  (*read_mac_addr)(struct e1000_hw *);
 };
 

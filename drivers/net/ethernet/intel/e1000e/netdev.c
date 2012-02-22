@@ -2855,7 +2855,7 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 	/* enable Report Status bit */
 	adapter->txd_cmd |= E1000_TXD_CMD_RS;
 
-	e1000e_config_collision_dist(hw);
+	hw->mac.ops.config_collision_dist(hw);
 }
 
 /**

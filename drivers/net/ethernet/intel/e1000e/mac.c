@@ -465,7 +465,7 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 	 * of MAC speed/duplex configuration.  So we only need to
 	 * configure Collision Distance in the MAC.
 	 */
-	e1000e_config_collision_dist(hw);
+	mac->ops.config_collision_dist(hw);
 
 	/*
 	 * Configure Flow Control now that Auto-Neg has completed.
@@ -890,7 +890,7 @@ s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw)
 	/* Take the link out of reset */
 	ctrl &= ~E1000_CTRL_LRST;
 
-	e1000e_config_collision_dist(hw);
+	hw->mac.ops.config_collision_dist(hw);
 
 	ret_val = e1000_commit_fc_settings_generic(hw);
 	if (ret_val)
@@ -925,14 +925,13 @@ s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw)
 }
 
 /**
- *  e1000e_config_collision_dist - Configure collision distance
+ *  e1000e_config_collision_dist_generic - Configure collision distance
  *  @hw: pointer to the HW structure
  *
  *  Configures the collision distance to the default value and is used
- *  during link setup. Currently no func pointer exists and all
- *  implementations are handled in the generic version of this function.
+ *  during link setup.
  **/
-void e1000e_config_collision_dist(struct e1000_hw *hw)
+void e1000e_config_collision_dist_generic(struct e1000_hw *hw)
 {
 	u32 tctl;
 

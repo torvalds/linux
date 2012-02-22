@@ -575,7 +575,7 @@ extern s32 e1000e_set_fc_watermarks(struct e1000_hw *hw);
 extern void e1000e_set_pcie_no_snoop(struct e1000_hw *hw, u32 no_snoop);
 extern s32 e1000e_get_hw_semaphore(struct e1000_hw *hw);
 extern s32 e1000e_valid_led_default(struct e1000_hw *hw, u16 *data);
-extern void e1000e_config_collision_dist(struct e1000_hw *hw);
+extern void e1000e_config_collision_dist_generic(struct e1000_hw *hw);
 extern s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw);
 extern s32 e1000e_force_mac_fc(struct e1000_hw *hw);
 extern s32 e1000e_blink_led_generic(struct e1000_hw *hw);

@@ -1927,6 +1927,7 @@ static const struct e1000_mac_operations e82571_mac_ops = {
 	.setup_link		= e1000_setup_link_82571,
 	/* .setup_physical_interface: media type dependent */
 	.setup_led		= e1000e_setup_led_generic,
+	.config_collision_dist	= e1000e_config_collision_dist_generic,
 	.read_mac_addr		= e1000_read_mac_addr_82571,
 };
 
