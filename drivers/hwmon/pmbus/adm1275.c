@@ -229,7 +229,8 @@ static int adm1275_probe(struct i2c_client *client,
 	if (device_config < 0)
 		return device_config;
 
-	data = kzalloc(sizeof(struct adm1275_data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct adm1275_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -297,23 +298,12 @@ static int adm1275_probe(struct i2c_client *client,
 		break;
 	}
 
-	ret = pmbus_do_probe(client, id, info);
-	if (ret)
-		goto err_mem;
-	return 0;
-
-err_mem:
-	kfree(data);
-	return ret;
+	return pmbus_do_probe(client, id, info);
 }
 
 static int adm1275_remove(struct i2c_client *client)
 {
-	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
-	const struct adm1275_data *data = to_adm1275_data(info);
-
 	pmbus_do_remove(client);
-	kfree(data);
 	return 0;
 }
 

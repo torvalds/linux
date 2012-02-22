@@ -155,7 +155,8 @@ static int ucd9000_probe(struct i2c_client *client,
 			   "Device mismatch: Configured %s, detected %s\n",
 			   id->name, mid->name);
 
-	data = kzalloc(sizeof(struct ucd9000_data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct ucd9000_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 	info = &data->info;
@@ -164,13 +165,12 @@ static int ucd9000_probe(struct i2c_client *client,
 	if (ret < 0) {
 		dev_err(&client->dev,
 			"Failed to read number of active pages\n");
-		goto out;
+		return ret;
 	}
 	info->pages = ret;
 	if (!info->pages) {
 		dev_err(&client->dev, "No pages configured\n");
-		ret = -ENODEV;
-		goto out;
+		return -ENODEV;
 	}
 
 	/* The internal temperature sensor is always active */
@@ -181,8 +181,7 @@ static int ucd9000_probe(struct i2c_client *client,
 					block_buffer);
 	if (ret <= 0) {
 		dev_err(&client->dev, "Failed to read configuration data\n");
-		ret = -ENODEV;
-		goto out;
+		return -ENODEV;
 	}
 	for (i = 0; i < ret; i++) {
 		int page = UCD9000_MON_PAGE(block_buffer[i]);
@@ -218,7 +217,7 @@ static int ucd9000_probe(struct i2c_client *client,
 							UCD9000_FAN_CONFIG,
 							data->fan_data[i]);
 			if (ret < 0)
-				goto out;
+				return ret;
 		}
 		i2c_smbus_write_byte_data(client, UCD9000_FAN_CONFIG_INDEX, 0);
 
@@ -227,23 +226,12 @@ static int ucd9000_probe(struct i2c_client *client,
 		  | PMBUS_HAVE_FAN34 | PMBUS_HAVE_STATUS_FAN34;
 	}
 
-	ret = pmbus_do_probe(client, mid, info);
-	if (ret < 0)
-		goto out;
-	return 0;
-
-out:
-	kfree(data);
-	return ret;
+	return pmbus_do_probe(client, mid, info);
 }
 
 static int ucd9000_remove(struct i2c_client *client)
 {
-	struct ucd9000_data *data;
-
-	data = to_ucd9000_data(pmbus_get_driver_info(client));
 	pmbus_do_remove(client);
-	kfree(data);
 	return 0;
 }
 

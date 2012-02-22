@@ -193,7 +193,8 @@ static int zl6100_probe(struct i2c_client *client,
 			   "Device mismatch: Configured %s, detected %s\n",
 			   id->name, mid->name);
 
-	data = kzalloc(sizeof(struct zl6100_data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct zl6100_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -223,7 +224,8 @@ static int zl6100_probe(struct i2c_client *client,
 
 	ret = i2c_smbus_read_word_data(client, ZL6100_MFR_CONFIG);
 	if (ret < 0)
-		goto err_mem;
+		return ret;
+
 	if (ret & ZL6100_MFR_XTEMP_ENABLE)
 		info->func[0] |= PMBUS_HAVE_TEMP2;
 
@@ -235,23 +237,12 @@ static int zl6100_probe(struct i2c_client *client,
 	info->write_word_data = zl6100_write_word_data;
 	info->write_byte = zl6100_write_byte;
 
-	ret = pmbus_do_probe(client, mid, info);
-	if (ret)
-		goto err_mem;
-	return 0;
-
-err_mem:
-	kfree(data);
-	return ret;
+	return pmbus_do_probe(client, mid, info);
 }
 
 static int zl6100_remove(struct i2c_client *client)
 {
-	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
-	const struct zl6100_data *data = to_zl6100_data(info);
-
 	pmbus_do_remove(client);
-	kfree(data);
 	return 0;
 }
 

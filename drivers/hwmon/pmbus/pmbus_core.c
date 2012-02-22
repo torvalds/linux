@@ -1676,7 +1676,7 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 				     | I2C_FUNC_SMBUS_WORD_DATA))
 		return -ENODEV;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		dev_err(&client->dev, "No memory to allocate driver data\n");
 		return -ENOMEM;
@@ -1688,8 +1688,7 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 	/* Bail out if PMBus status register does not exist. */
 	if (i2c_smbus_read_byte_data(client, PMBUS_STATUS_BYTE) < 0) {
 		dev_err(&client->dev, "PMBus status register not found\n");
-		ret = -ENODEV;
-		goto out_data;
+		return -ENODEV;
 	}
 
 	if (pdata)
@@ -1702,50 +1701,49 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 		ret = (*info->identify)(client, info);
 		if (ret < 0) {
 			dev_err(&client->dev, "Chip identification failed\n");
-			goto out_data;
+			return ret;
 		}
 	}
 
 	if (info->pages <= 0 || info->pages > PMBUS_PAGES) {
 		dev_err(&client->dev, "Bad number of PMBus pages: %d\n",
 			info->pages);
-		ret = -ENODEV;
-		goto out_data;
+		return -ENODEV;
 	}
 
 	ret = pmbus_identify_common(client, data);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to identify chip capabilities\n");
-		goto out_data;
+		return ret;
 	}
 
 	ret = -ENOMEM;
-	data->sensors = kzalloc(sizeof(struct pmbus_sensor) * data->max_sensors,
-				GFP_KERNEL);
+	data->sensors = devm_kzalloc(&client->dev, sizeof(struct pmbus_sensor)
+				     * data->max_sensors, GFP_KERNEL);
 	if (!data->sensors) {
 		dev_err(&client->dev, "No memory to allocate sensor data\n");
-		goto out_data;
+		return -ENOMEM;
 	}
 
-	data->booleans = kzalloc(sizeof(struct pmbus_boolean)
+	data->booleans = devm_kzalloc(&client->dev, sizeof(struct pmbus_boolean)
 				 * data->max_booleans, GFP_KERNEL);
 	if (!data->booleans) {
 		dev_err(&client->dev, "No memory to allocate boolean data\n");
-		goto out_sensors;
+		return -ENOMEM;
 	}
 
-	data->labels = kzalloc(sizeof(struct pmbus_label) * data->max_labels,
-			       GFP_KERNEL);
+	data->labels = devm_kzalloc(&client->dev, sizeof(struct pmbus_label)
+				    * data->max_labels, GFP_KERNEL);
 	if (!data->labels) {
 		dev_err(&client->dev, "No memory to allocate label data\n");
-		goto out_booleans;
+		return -ENOMEM;
 	}
 
-	data->attributes = kzalloc(sizeof(struct attribute *)
-				   * data->max_attributes, GFP_KERNEL);
+	data->attributes = devm_kzalloc(&client->dev, sizeof(struct attribute *)
+					* data->max_attributes, GFP_KERNEL);
 	if (!data->attributes) {
 		dev_err(&client->dev, "No memory to allocate attribute data\n");
-		goto out_labels;
+		return -ENOMEM;
 	}
 
 	pmbus_find_attributes(client, data);
@@ -1756,8 +1754,7 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 	 */
 	if (!data->num_attributes) {
 		dev_err(&client->dev, "No attributes found\n");
-		ret = -ENODEV;
-		goto out_attributes;
+		return -ENODEV;
 	}
 
 	/* Register sysfs hooks */
@@ -1765,7 +1762,7 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 	ret = sysfs_create_group(&client->dev.kobj, &data->group);
 	if (ret) {
 		dev_err(&client->dev, "Failed to create sysfs entries\n");
-		goto out_attributes;
+		return ret;
 	}
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -1777,16 +1774,6 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 
 out_hwmon_device_register:
 	sysfs_remove_group(&client->dev.kobj, &data->group);
-out_attributes:
-	kfree(data->attributes);
-out_labels:
-	kfree(data->labels);
-out_booleans:
-	kfree(data->booleans);
-out_sensors:
-	kfree(data->sensors);
-out_data:
-	kfree(data);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pmbus_do_probe);
@@ -1796,11 +1783,6 @@ void pmbus_do_remove(struct i2c_client *client)
 	struct pmbus_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &data->group);
-	kfree(data->attributes);
-	kfree(data->labels);
-	kfree(data->booleans);
-	kfree(data->sensors);
-	kfree(data);
 }
 EXPORT_SYMBOL_GPL(pmbus_do_remove);
 

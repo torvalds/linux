@@ -166,32 +166,21 @@ static int pmbus_probe(struct i2c_client *client,
 		       const struct i2c_device_id *id)
 {
 	struct pmbus_driver_info *info;
-	int ret;
 
-	info = kzalloc(sizeof(struct pmbus_driver_info), GFP_KERNEL);
+	info = devm_kzalloc(&client->dev, sizeof(struct pmbus_driver_info),
+			    GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
 	info->pages = id->driver_data;
 	info->identify = pmbus_identify;
 
-	ret = pmbus_do_probe(client, id, info);
-	if (ret < 0)
-		goto out;
-	return 0;
-
-out:
-	kfree(info);
-	return ret;
+	return pmbus_do_probe(client, id, info);
 }
 
 static int pmbus_remove(struct i2c_client *client)
 {
-	const struct pmbus_driver_info *info;
-
-	info = pmbus_get_driver_info(client);
 	pmbus_do_remove(client);
-	kfree(info);
 	return 0;
 }
 
