@@ -24,6 +24,7 @@
 #include <asm/mach/time.h>
 #include <asm/hardware/gic.h>
 #include <asm/localtimer.h>
+#include <asm/sched_clock.h>
 
 #include <mach/msm_iomap.h>
 #include <mach/cpu.h>
@@ -105,12 +106,12 @@ static union {
 
 static void __iomem *source_base;
 
-static cycle_t msm_read_timer_count(struct clocksource *cs)
+static notrace cycle_t msm_read_timer_count(struct clocksource *cs)
 {
 	return readl_relaxed(source_base + TIMER_COUNT_VAL);
 }
 
-static cycle_t msm_read_timer_count_shift(struct clocksource *cs)
+static notrace cycle_t msm_read_timer_count_shift(struct clocksource *cs)
 {
 	/*
 	 * Shift timer count down by a constant due to unreliable lower bits
@@ -126,6 +127,11 @@ static struct clocksource msm_clocksource = {
 	.mask	= CLOCKSOURCE_MASK(32),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
+
+static notrace u32 msm_sched_clock_read(void)
+{
+	return msm_clocksource.read(&msm_clocksource);
+}
 
 static void __init msm_timer_init(void)
 {
@@ -189,6 +195,8 @@ err:
 	res = clocksource_register_hz(cs, dgt_hz);
 	if (res)
 		pr_err("clocksource_register failed\n");
+	setup_sched_clock(msm_sched_clock_read,
+			cpu_is_msm7x01() ? 32 - MSM_DGT_SHIFT : 32, dgt_hz);
 }
 
 #ifdef CONFIG_LOCAL_TIMERS
