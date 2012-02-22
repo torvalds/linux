@@ -2474,6 +2474,8 @@ static int create_mic_boost_ctls(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	const struct auto_pin_cfg *cfg = &spec->autocfg;
+	const char *prev_label = NULL;
+	int type_idx = 0;
 	int i, err;
 
 	for (i = 0; i < cfg->num_inputs; i++) {
@@ -2488,8 +2490,13 @@ static int create_mic_boost_ctls(struct hda_codec *codec)
 		if (caps == -1 || !(caps & AC_AMPCAP_NUM_STEPS))
 			continue;
 		label = hda_get_autocfg_input_label(codec, cfg, i);
+		if (prev_label && !strcmp(label, prev_label))
+			type_idx++;
+		else
+			type_idx = 0;
+		prev_label = label;
 		snprintf(name, sizeof(name), "%s Boost Volume", label);
-		err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
+		err = __via_add_control(spec, VIA_CTL_WIDGET_VOL, name, type_idx,
 			      HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_INPUT));
 		if (err < 0)
 			return err;
