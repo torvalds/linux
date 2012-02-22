@@ -67,7 +67,7 @@ config OPTPROBES
 
 config UPROBES
 	bool "Transparent user-space probes (EXPERIMENTAL)"
-	depends on ARCH_SUPPORTS_UPROBES
+	depends on ARCH_SUPPORTS_UPROBES && PERF_EVENTS
 	default n
 	help
 	  Uprobes is the user-space counterpart to kprobes: they
