@@ -952,9 +952,9 @@ static int set_connectable(struct sock *sk, u16 index, void *data, u16 len)
 		if (!!cp->val != test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
 			changed = true;
 
-		if (cp->val)
+		if (cp->val) {
 			set_bit(HCI_CONNECTABLE, &hdev->dev_flags);
-		else {
+		} else {
 			clear_bit(HCI_CONNECTABLE, &hdev->dev_flags);
 			clear_bit(HCI_DISCOVERABLE, &hdev->dev_flags);
 		}
@@ -987,9 +987,9 @@ static int set_connectable(struct sock *sk, u16 index, void *data, u16 len)
 		goto failed;
 	}
 
-	if (cp->val)
+	if (cp->val) {
 		scan = SCAN_PAGE;
-	else {
+	} else {
 		scan = 0;
 
 		if (test_bit(HCI_ISCAN, &hdev->flags) &&
