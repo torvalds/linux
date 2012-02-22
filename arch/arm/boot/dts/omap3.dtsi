@@ -199,5 +199,21 @@
 			ti,hwmods = "mcspi4";
 			ti,spi-num-cs = <1>;
 		};
+
+		mmc1: mmc@4809c000 {
+			compatible = "ti,omap3-hsmmc";
+			ti,hwmods = "mmc1";
+			ti,dual-volt;
+		};
+
+		mmc2: mmc@480b4000 {
+			compatible = "ti,omap3-hsmmc";
+			ti,hwmods = "mmc2";
+		};
+
+		mmc3: mmc@480ad000 {
+			compatible = "ti,omap3-hsmmc";
+			ti,hwmods = "mmc3";
+		};
 	};
 };
