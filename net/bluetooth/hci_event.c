@@ -557,10 +557,19 @@ static void hci_setup(struct hci_dev *hdev)
 	if (hdev->hci_ver > BLUETOOTH_VER_1_1)
 		hci_send_cmd(hdev, HCI_OP_READ_LOCAL_COMMANDS, 0, NULL);
 
-	if (hdev->features[6] & LMP_SIMPLE_PAIR &&
-				test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
-		u8 mode = 0x01;
-		hci_send_cmd(hdev, HCI_OP_WRITE_SSP_MODE, sizeof(mode), &mode);
+	if (hdev->features[6] & LMP_SIMPLE_PAIR) {
+		if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
+			u8 mode = 0x01;
+			hci_send_cmd(hdev, HCI_OP_WRITE_SSP_MODE,
+							sizeof(mode), &mode);
+		} else {
+			struct hci_cp_write_eir cp;
+
+			memset(hdev->eir, 0, sizeof(hdev->eir));
+			memset(&cp, 0, sizeof(cp));
+
+			hci_send_cmd(hdev, HCI_OP_WRITE_EIR, sizeof(cp), &cp);
+		}
 	}
 
 	if (hdev->features[3] & LMP_RSSI_INQ)
