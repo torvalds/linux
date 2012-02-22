@@ -1123,7 +1123,7 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_w
 	 * "in_flight reached zero, all done" event.
 	 */
 	if (!atomic_dec_and_test(&ctx->in_flight))
-		wait_until_done_or_disk_failure(mdev, &ctx->done);
+		wait_until_done_or_disk_failure(mdev, mdev->ldev, &ctx->done);
 	else
 		kref_put(&ctx->kref, &bm_aio_ctx_destroy);
 
@@ -1242,7 +1242,7 @@ int drbd_bm_write_page(struct drbd_conf *mdev, unsigned int idx) __must_hold(loc
 	}
 
 	bm_page_io_async(ctx, idx, WRITE_SYNC);
-	wait_until_done_or_disk_failure(mdev, &ctx->done);
+	wait_until_done_or_disk_failure(mdev, mdev->ldev, &ctx->done);
 
 	if (ctx->error)
 		drbd_chk_io_error(mdev, 1, true);
