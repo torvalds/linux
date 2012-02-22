@@ -966,18 +966,6 @@ typhoon_get_stats(struct net_device *dev)
 	return stats;
 }
 
-static int
-typhoon_set_mac_address(struct net_device *dev, void *addr)
-{
-	struct sockaddr *saddr = (struct sockaddr *) addr;
-
-	if(netif_running(dev))
-		return -EBUSY;
-
-	memcpy(dev->dev_addr, saddr->sa_data, dev->addr_len);
-	return 0;
-}
-
 static void
 typhoon_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
@@ -2266,7 +2254,7 @@ static const struct net_device_ops typhoon_netdev_ops = {
 	.ndo_tx_timeout		= typhoon_tx_timeout,
 	.ndo_get_stats		= typhoon_get_stats,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address	= typhoon_set_mac_address,
+	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_change_mtu		= eth_change_mtu,
 };
 
