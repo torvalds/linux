@@ -3400,6 +3400,8 @@ static int clear_eir(struct hci_dev *hdev)
 	if (!(hdev->features[6] & LMP_EXT_INQ))
 		return 0;
 
+	memset(hdev->eir, 0, sizeof(hdev->eir));
+
 	memset(&cp, 0, sizeof(cp));
 
 	return hci_send_cmd(hdev, HCI_OP_WRITE_EIR, sizeof(cp), &cp);
