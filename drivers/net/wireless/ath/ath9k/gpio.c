@@ -110,6 +110,8 @@ void ath_start_rfkill_poll(struct ath_softc *sc)
 		wiphy_rfkill_start_polling(sc->hw->wiphy);
 }
 
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+
 /******************/
 /*     BTCOEX     */
 /******************/
@@ -423,3 +425,5 @@ int ath9k_init_btcoex(struct ath_softc *sc)
 
 	return 0;
 }
+
+#endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
