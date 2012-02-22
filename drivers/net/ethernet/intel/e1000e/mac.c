@@ -969,7 +969,9 @@ s32 e1000e_set_fc_watermarks(struct e1000_hw *hw)
 		 * XON frames.
 		 */
 		fcrtl = hw->fc.low_water;
-		fcrtl |= E1000_FCRTL_XONE;
+		if (hw->fc.send_xon)
+			fcrtl |= E1000_FCRTL_XONE;
+
 		fcrth = hw->fc.high_water;
 	}
 	ew32(FCRTL, fcrtl);
