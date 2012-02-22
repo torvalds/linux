@@ -65,17 +65,13 @@ static bool filter(struct dma_chan *chan, void *param)
         return true;
 }
 
-static int imx_ssi_dma_alloc(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+static int imx_ssi_dma_alloc(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct imx_pcm_dma_params *dma_params;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
-	struct dma_slave_config slave_config;
 	dma_cap_mask_t mask;
-	enum dma_slave_buswidth buswidth;
-	int ret;
 
 	dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
@@ -84,13 +80,29 @@ static int imx_ssi_dma_alloc(struct snd_pcm_substream *substream,
 	iprtd->dma_data.dma_request = dma_params->dma;
 
 	/* Try to grab a DMA channel */
-	if (!iprtd->dma_chan) {
-		dma_cap_zero(mask);
-		dma_cap_set(DMA_SLAVE, mask);
-		iprtd->dma_chan = dma_request_channel(mask, filter, iprtd);
-		if (!iprtd->dma_chan)
-			return -EINVAL;
-	}
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_SLAVE, mask);
+	iprtd->dma_chan = dma_request_channel(mask, filter, iprtd);
+	if (!iprtd->dma_chan)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int snd_imx_pcm_hw_params(struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
+	struct dma_chan *chan = iprtd->dma_chan;
+	struct imx_pcm_dma_params *dma_params;
+	struct dma_slave_config slave_config;
+	enum dma_slave_buswidth buswidth;
+	unsigned long dma_addr;
+	int ret;
+
+	dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -116,29 +128,10 @@ static int imx_ssi_dma_alloc(struct snd_pcm_substream *substream,
 		slave_config.src_maxburst = dma_params->burstsize;
 	}
 
-	ret = dmaengine_slave_config(iprtd->dma_chan, &slave_config);
+	ret = dmaengine_slave_config(chan, &slave_config);
 	if (ret)
 		return ret;
 
-	return 0;
-}
-
-static int snd_imx_pcm_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
-	unsigned long dma_addr;
-	struct dma_chan *chan;
-	struct imx_pcm_dma_params *dma_params;
-	int ret;
-
-	dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
-	ret = imx_ssi_dma_alloc(substream, params);
-	if (ret)
-		return ret;
-	chan = iprtd->dma_chan;
 
 	iprtd->periods = params_periods(params);
 	iprtd->period_bytes = params_period_bytes(params);
@@ -160,19 +153,6 @@ static int snd_imx_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	iprtd->desc->callback = audio_dma_irq;
 	iprtd->desc->callback_param = substream;
-
-	return 0;
-}
-
-static int snd_imx_pcm_hw_free(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
-
-	if (iprtd->dma_chan) {
-		dma_release_channel(iprtd->dma_chan);
-		iprtd->dma_chan = NULL;
-	}
 
 	return 0;
 }
@@ -251,6 +231,12 @@ static int snd_imx_open(struct snd_pcm_substream *substream)
 		return ret;
 	}
 
+	ret = imx_ssi_dma_alloc(substream);
+	if (ret < 0) {
+		kfree(iprtd);
+		return ret;
+	}
+
 	snd_soc_set_runtime_hwparams(substream, &snd_imx_hardware);
 
 	return 0;
@@ -261,6 +247,7 @@ static int snd_imx_close(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
 
+	dma_release_channel(iprtd->dma_chan);
 	kfree(iprtd);
 
 	return 0;
@@ -271,7 +258,6 @@ static struct snd_pcm_ops imx_pcm_ops = {
 	.close		= snd_imx_close,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= snd_imx_pcm_hw_params,
-	.hw_free	= snd_imx_pcm_hw_free,
 	.trigger	= snd_imx_pcm_trigger,
 	.pointer	= snd_imx_pcm_pointer,
 	.mmap		= snd_imx_pcm_mmap,
