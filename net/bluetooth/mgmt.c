@@ -264,7 +264,7 @@ static int cmd_complete(struct sock *sk, u16 index, u16 cmd, u8 status,
 	if (err < 0)
 		kfree_skb(skb);
 
-	return err;;
+	return err;
 }
 
 static int read_version(struct sock *sk)
@@ -2532,7 +2532,7 @@ static int confirm_name(struct sock *sk, u16 index, void *data, u16 len)
 
 	e = hci_inquiry_cache_lookup_unknown(hdev, &cp->addr.bdaddr);
 	if (!e) {
-		err = cmd_status (sk, index, MGMT_OP_CONFIRM_NAME,
+		err = cmd_status(sk, index, MGMT_OP_CONFIRM_NAME,
 				MGMT_STATUS_INVALID_PARAMS);
 		goto failed;
 	}
