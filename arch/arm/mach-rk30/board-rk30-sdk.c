@@ -49,6 +49,8 @@
 #include "../../../drivers/spi/rk29_spim.h"
 #endif
 
+#define RK30_FB0_MEM_SIZE 8*SZ_1M
+
 
 /*****************************************************************************************
  * xpt2046 touch panel
@@ -290,11 +292,37 @@ static struct mma8452_platform_data mma8452_info = {
 };
 #endif
 
+#ifdef CONFIG_FB_ROCKCHIP
+/* rk30 fb resource */
+ static struct resource resource_fb[] = {
+	[0] = {
+		.name  = "fb0 buf",
+		.start = 0,
+		.end   = 0,//RK30_FB0_MEM_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+};
 
+/*platform_device*/
+struct platform_device device_fb = {
+	.name		  = "rk-fb",
+	.id		  = -1,
+	.num_resources	  = ARRAY_SIZE(resource_fb),
+	.resource	  = resource_fb,
+};
+#endif
+
+extern struct platform_device rk30_device_lcdc;
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
 #endif	
+#ifdef CONFIG_FB_ROCKCHIP
+	&device_fb,
+#endif
+#ifdef CONFIG_LCDC_RK30
+	&rk30_device_lcdc,
+#endif
 
 };
 
@@ -363,6 +391,8 @@ static void __init machine_rk30_board_init(void)
 
 static void __init rk30_reserve(void)
 {
+	resource_fb[0].start = board_mem_reserve_add("fb0",RK30_FB0_MEM_SIZE);
+	resource_fb[0].end	= resource_fb[0].start + RK30_FB0_MEM_SIZE - 1;
 	board_mem_reserved();
 }
 

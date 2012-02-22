@@ -687,6 +687,42 @@ static struct platform_device device_nand = {
 };
 #endif
 
+static struct resource resource_lcdc[] = {
+	[0] = {
+		.name  = "lcdc0 reg",
+		.start = RK30_LCDC0_PHYS,
+		.end   = RK30_LCDC0_PHYS + RK30_LCDC0_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.name  = "lcdc1 reg",
+		.start = RK30_LCDC1_PHYS,
+		.end   = RK30_LCDC1_PHYS + RK30_LCDC1_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[2] = {
+		.name  = "lcdc0 irq",
+		.start = IRQ_LCDC0,
+		.end   = IRQ_LCDC0,
+		.flags = IORESOURCE_IRQ,
+	},
+	[3] = {
+		.name  = "lcdc1 irq",
+		.start = IRQ_LCDC1,
+		.end   = IRQ_LCDC1,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+/*platform_device*/
+struct platform_device rk30_device_lcdc = {
+	.name		  = "rk30-lcdc",
+	.id		  = 4,
+	.num_resources	  = ARRAY_SIZE(resource_lcdc),
+	.resource	  = resource_lcdc,
+};
+
+
 #ifdef CONFIG_KEYS_RK29
 extern struct rk29_keys_platform_data rk29_keys_pdata;
 static struct platform_device device_keys = {

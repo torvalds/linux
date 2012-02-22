@@ -40,6 +40,34 @@ struct rk29_bl_info {
 #define BOOT_MODE_REBOOT		6
 #define BOOT_MODE_PANIC			7
 
+struct rk29lcd_info {
+	u32 lcd_id;
+	u32 txd_pin;
+	u32 clk_pin;
+	u32 cs_pin;
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+};
+
+struct rk29_fb_setting_info {
+	u8 data_num;
+	u8 vsync_en;
+	u8 den_en;
+	u8 mcu_fmk_en;
+	u8 disp_on_en;
+	u8 standby_en;
+};
+
+struct rk29_fb_info {
+	u32 fb_id;
+	u32 mcu_fmk_pin;
+	struct rk29lcd_info *lcd_info;
+	int (*io_init)(struct rk_fb_setting_info *fb_setting);
+	int (*io_deinit)(void);
+	int (*io_enable)(void);
+	int (*io_disable)(void);
+};
+
 int board_boot_mode(void);
 
 /* for USB detection */
