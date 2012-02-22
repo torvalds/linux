@@ -274,7 +274,7 @@ static ssize_t debug_read_mem(struct file *file, char __user *userbuf,
 	mutex_lock(&iommu_debug_lock);
 
 	area = omap_find_iovm_area(dev, (u32)ppos);
-	if (IS_ERR(area)) {
+	if (!area) {
 		bytes = -EINVAL;
 		goto err_out;
 	}
@@ -311,7 +311,7 @@ static ssize_t debug_write_mem(struct file *file, const char __user *userbuf,
 	}
 
 	area = omap_find_iovm_area(dev, (u32)ppos);
-	if (IS_ERR(area)) {
+	if (!area) {
 		count = -EINVAL;
 		goto err_out;
 	}
