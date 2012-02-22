@@ -617,10 +617,8 @@
 #define AR_PHY_AIC_CTRL_1_B0	(AR_SM_BASE + 0x4b4)
 #define AR_PHY_AIC_CTRL_2_B0	(AR_SM_BASE + 0x4b8)
 #define AR_PHY_AIC_CTRL_3_B0	(AR_SM_BASE + 0x4bc)
-#define AR_PHY_AIC_STAT_0_B0	(AR_SM_BASE + (AR_SREV_9462_10(ah) ? \
-					0x4c0 : 0x4c4))
-#define AR_PHY_AIC_STAT_1_B0	(AR_SM_BASE + (AR_SREV_9462_10(ah) ? \
-					0x4c4 : 0x4c8))
+#define AR_PHY_AIC_STAT_0_B0	(AR_SM_BASE + 0x4c4))
+#define AR_PHY_AIC_STAT_1_B0	(AR_SM_BASE + 0x4c8))
 #define AR_PHY_AIC_CTRL_4_B0	(AR_SM_BASE + 0x4c0)
 #define AR_PHY_AIC_STAT_2_B0	(AR_SM_BASE + 0x4cc)
 

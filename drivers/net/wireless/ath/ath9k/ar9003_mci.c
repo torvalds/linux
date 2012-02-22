@@ -274,14 +274,6 @@ static void ar9003_mci_prep_interface(struct ath_hw *ah)
 	ath_dbg(common, MCI, "MCI send REMOTE_RESET\n");
 	ar9003_mci_remote_reset(ah, true);
 
-	/*
-	 * This delay is required for the reset delay worst case value 255 in
-	 * MCI_COMMAND2 register
-	 */
-
-	if (AR_SREV_9462_10(ah))
-		udelay(252);
-
 	ath_dbg(common, MCI, "MCI Send REQ_WAKE to remoter(BT)\n");
 	ar9003_mci_send_req_wake(ah, true);
 
@@ -291,8 +283,6 @@ static void ar9003_mci_prep_interface(struct ath_hw *ah)
 		ath_dbg(common, MCI, "MCI SYS_WAKING from remote(BT)\n");
 		mci->bt_state = MCI_BT_AWAKE;
 
-		if (AR_SREV_9462_10(ah))
-			udelay(10);
 		/*
 		 * we don't need to send more remote_reset at this moment.
 		 * If BT receive first remote_reset, then BT HW will
@@ -339,15 +329,14 @@ static void ar9003_mci_prep_interface(struct ath_hw *ah)
 		REG_WRITE(ah, AR_MCI_INTERRUPT_RAW,
 			  AR_MCI_INTERRUPT_BT_PRI);
 
-		if (AR_SREV_9462_10(ah) || mci->is_2g) {
+		if (mci->is_2g) {
 			/* Send LNA_TRANS */
 			ath_dbg(common, MCI, "MCI send LNA_TRANS to BT\n");
 			ar9003_mci_send_lna_transfer(ah, true);
 			udelay(5);
 		}
 
-		if (AR_SREV_9462_10(ah) || (mci->is_2g &&
-					    !mci->update_2g5g)) {
+		if ((mci->is_2g && !mci->update_2g5g)) {
 			if (ar9003_mci_wait_for_interrupt(ah,
 				AR_MCI_INTERRUPT_RX_MSG_RAW,
 				AR_MCI_INTERRUPT_RX_MSG_LNA_INFO,
@@ -357,14 +346,6 @@ static void ar9003_mci_prep_interface(struct ath_hw *ah)
 			else
 				ath_dbg(common, MCI,
 					"MCI BT didn't respond to LNA_TRANS\n");
-		}
-
-		if (AR_SREV_9462_10(ah)) {
-			/* Send another remote_reset to deassert BT clk_req. */
-			ath_dbg(common, MCI,
-				"MCI another remote_reset to deassert clk_req\n");
-			ar9003_mci_remote_reset(ah, true);
-			udelay(252);
 		}
 	}
 
@@ -618,9 +599,6 @@ void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
 	} else
 		ath_dbg(common, MCI, "MCI SCHED one step look ahead off\n");
 
-	if (AR_SREV_9462_10(ah))
-		regval |= SM(1, AR_BTCOEX_CTRL_SPDT_ENABLE_10);
-
 	REG_WRITE(ah, AR_BTCOEX_CTRL, regval);
 
 	if (AR_SREV_9462_20(ah)) {
@@ -771,9 +749,6 @@ static void ar9003_mci_send_2g5g_status(struct ath_hw *ah, bool wait_done)
 			ar9003_mci_send_coex_bt_flags(ah, wait_done,
 					MCI_GPM_COEX_BT_FLAGS_SET, to_set);
 	}
-
-	if (AR_SREV_9462_10(ah) && (mci->bt_state != MCI_BT_SLEEP))
-		mci->update_2g5g = false;
 }
 
 static void ar9003_mci_queue_unsent_gpm(struct ath_hw *ah, u8 header,
@@ -810,11 +785,8 @@ static void ar9003_mci_queue_unsent_gpm(struct ath_hw *ah, u8 header,
 	switch (opcode) {
 	case MCI_GPM_COEX_BT_UPDATE_FLAGS:
 
-		if (AR_SREV_9462_10(ah))
-			break;
-
 		if (*(((u8 *)payload) + MCI_GPM_COEX_B_BT_FLAGS_OP) ==
-				MCI_GPM_COEX_BT_FLAGS_READ)
+		    MCI_GPM_COEX_BT_FLAGS_READ)
 			break;
 
 		mci->update_2g5g = queue;
@@ -1438,9 +1410,7 @@ u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data)
 		break;
 
 	case MCI_STATE_SEND_STATUS_QUERY:
-		query_type = (AR_SREV_9462_10(ah)) ?
-				MCI_GPM_COEX_QUERY_BT_ALL_INFO :
-				MCI_GPM_COEX_QUERY_BT_TOPOLOGY;
+		query_type = MCI_GPM_COEX_QUERY_BT_TOPOLOGY;
 
 		ar9003_mci_send_coex_bt_status_query(ah, true, query_type);
 		break;

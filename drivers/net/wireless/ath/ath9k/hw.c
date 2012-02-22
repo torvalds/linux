@@ -1962,8 +1962,7 @@ static void ath9k_set_power_sleep(struct ath_hw *ah, int setChip)
 			REG_WRITE(ah, AR_RC, AR_RC_AHB | AR_RC_HOSTIF);
 
 		/* Shutdown chip. Active low */
-		if (!AR_SREV_5416(ah) &&
-				!AR_SREV_9271(ah) && !AR_SREV_9462_10(ah)) {
+		if (!AR_SREV_5416(ah) && !AR_SREV_9271(ah)) {
 			REG_CLR_BIT(ah, AR_RTC_RESET, AR_RTC_RESET_EN);
 			udelay(2);
 		}
