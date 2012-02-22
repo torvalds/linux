@@ -2529,6 +2529,7 @@ int r600_resume(struct radeon_device *rdev)
 	r = r600_startup(rdev);
 	if (r) {
 		DRM_ERROR("r600 startup failed on resume\n");
+		rdev->accel_working = false;
 		return r;
 	}
 
