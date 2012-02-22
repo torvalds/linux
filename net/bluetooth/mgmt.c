@@ -3437,14 +3437,13 @@ int mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 	if (changed)
 		err = new_settings(hdev, match.sk);
 
-	if (match.sk) {
+	if (match.sk)
 		sock_put(match.sk);
 
-		if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
-			update_eir(hdev);
-		else
-			clear_eir(hdev);
-	}
+	if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
+		update_eir(hdev);
+	else
+		clear_eir(hdev);
 
 	return err;
 }
