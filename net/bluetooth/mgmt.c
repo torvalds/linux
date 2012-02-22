@@ -1456,14 +1456,14 @@ static int set_dev_class(struct sock *sk, u16 index, void *data, u16 len)
 
 	hci_dev_lock(hdev);
 
-	if (!hdev_is_powered(hdev)) {
-		err = cmd_status(sk, index, MGMT_OP_SET_DEV_CLASS,
-						MGMT_STATUS_NOT_POWERED);
-		goto unlock;
-	}
-
 	hdev->major_class = cp->major;
 	hdev->minor_class = cp->minor;
+
+	if (!hdev_is_powered(hdev)) {
+		err = cmd_complete(sk, index, MGMT_OP_SET_DEV_CLASS, 0,
+							hdev->dev_class, 3);
+		goto unlock;
+	}
 
 	if (test_and_clear_bit(HCI_SERVICE_CACHE, &hdev->dev_flags)) {
 		hci_dev_unlock(hdev);
