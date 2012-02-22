@@ -1735,6 +1735,12 @@ static int get_connections(struct sock *sk, u16 index)
 
 	hci_dev_lock(hdev);
 
+	if (!hdev_is_powered(hdev)) {
+		err = cmd_status(sk, index, MGMT_OP_GET_CONNECTIONS,
+						MGMT_STATUS_NOT_POWERED);
+		goto unlock;
+	}
+
 	count = 0;
 	list_for_each_entry(c, &hdev->conn_hash.list, list) {
 		if (test_bit(HCI_CONN_MGMT_CONNECTED, &c->flags))
@@ -1766,8 +1772,9 @@ static int get_connections(struct sock *sk, u16 index)
 
 	err = cmd_complete(sk, index, MGMT_OP_GET_CONNECTIONS, 0, rp, rp_len);
 
-unlock:
 	kfree(rp);
+
+unlock:
 	hci_dev_unlock(hdev);
 	hci_dev_put(hdev);
 	return err;
@@ -2002,6 +2009,12 @@ static int pair_device(struct sock *sk, u16 index, void *data, u16 len)
 
 	hci_dev_lock(hdev);
 
+	if (!hdev_is_powered(hdev)) {
+		err = cmd_status(sk, index, MGMT_OP_PAIR_DEVICE,
+						MGMT_STATUS_NOT_POWERED);
+		goto unlock;
+	}
+
 	sec_level = BT_SECURITY_MEDIUM;
 	if (cp->io_cap == 0x03)
 		auth_type = HCI_AT_DEDICATED_BONDING;
@@ -2083,6 +2096,12 @@ static int cancel_pair_device(struct sock *sk, u16 index,
 						MGMT_STATUS_INVALID_PARAMS);
 
 	hci_dev_lock(hdev);
+
+	if (!hdev_is_powered(hdev)) {
+		err = cmd_status(sk, index, MGMT_OP_CANCEL_PAIR_DEVICE,
+						MGMT_STATUS_NOT_POWERED);
+		goto unlock;
+	}
 
 	cmd = mgmt_pending_find(MGMT_OP_PAIR_DEVICE, hdev);
 	if (!cmd) {
@@ -2375,6 +2394,13 @@ static int add_remote_oob_data(struct sock *sk, u16 index, void *data,
 
 	hci_dev_lock(hdev);
 
+	if (!hdev_is_powered(hdev)) {
+		err = cmd_complete(sk, index, MGMT_OP_ADD_REMOTE_OOB_DATA,
+						MGMT_STATUS_NOT_POWERED,
+						&cp->addr, sizeof(cp->addr));
+		goto unlock;
+	}
+
 	err = hci_add_remote_oob_data(hdev, &cp->addr.bdaddr, cp->hash,
 								cp->randomizer);
 	if (err < 0)
@@ -2385,6 +2411,7 @@ static int add_remote_oob_data(struct sock *sk, u16 index, void *data,
 	err = cmd_complete(sk, index, MGMT_OP_ADD_REMOTE_OOB_DATA, status,
 						&cp->addr, sizeof(cp->addr));
 
+unlock:
 	hci_dev_unlock(hdev);
 	hci_dev_put(hdev);
 
@@ -2413,6 +2440,13 @@ static int remove_remote_oob_data(struct sock *sk, u16 index,
 
 	hci_dev_lock(hdev);
 
+	if (!hdev_is_powered(hdev)) {
+		err = cmd_complete(sk, index, MGMT_OP_REMOVE_REMOTE_OOB_DATA,
+						MGMT_STATUS_NOT_POWERED,
+						&cp->addr, sizeof(cp->addr));
+		goto unlock;
+	}
+
 	err = hci_remove_remote_oob_data(hdev, &cp->addr.bdaddr);
 	if (err < 0)
 		status = MGMT_STATUS_INVALID_PARAMS;
@@ -2422,6 +2456,7 @@ static int remove_remote_oob_data(struct sock *sk, u16 index,
 	err = cmd_complete(sk, index, MGMT_OP_REMOVE_REMOTE_OOB_DATA, status,
 						&cp->addr, sizeof(cp->addr));
 
+unlock:
 	hci_dev_unlock(hdev);
 	hci_dev_put(hdev);
 
