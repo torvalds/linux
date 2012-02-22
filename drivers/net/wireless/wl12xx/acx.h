@@ -995,15 +995,17 @@ struct wl1271_acx_ba_receiver_setup {
 	u8 padding[2];
 } __packed;
 
-struct wl1271_acx_fw_tsf_information {
+struct wl12xx_acx_fw_tsf_information {
 	struct acx_header header;
 
+	u8 role_id;
+	u8 padding1[3];
 	__le32 current_tsf_high;
 	__le32 current_tsf_low;
 	__le32 last_bttt_high;
 	__le32 last_tbtt_low;
 	u8 last_dtim_count;
-	u8 padding[3];
+	u8 padding2[3];
 } __packed;
 
 struct wl1271_acx_ps_rx_streaming {
@@ -1151,79 +1153,81 @@ struct wl12xx_acx_config_hangover {
 } __packed;
 
 enum {
-	ACX_WAKE_UP_CONDITIONS      = 0x0002,
-	ACX_MEM_CFG                 = 0x0003,
-	ACX_SLOT                    = 0x0004,
-	ACX_AC_CFG                  = 0x0007,
-	ACX_MEM_MAP                 = 0x0008,
-	ACX_AID                     = 0x000A,
-	ACX_MEDIUM_USAGE            = 0x000F,
-	ACX_TX_QUEUE_CFG            = 0x0011, /* FIXME: only used by wl1251 */
-	ACX_STATISTICS              = 0x0013, /* Debug API */
-	ACX_PWR_CONSUMPTION_STATISTICS = 0x0014,
-	ACX_FEATURE_CFG             = 0x0015,
-	ACX_TID_CFG                 = 0x001A,
-	ACX_PS_RX_STREAMING         = 0x001B,
-	ACX_BEACON_FILTER_OPT       = 0x001F,
-	ACX_NOISE_HIST              = 0x0021,
-	ACX_HDK_VERSION             = 0x0022, /* ??? */
-	ACX_PD_THRESHOLD            = 0x0023,
-	ACX_TX_CONFIG_OPT           = 0x0024,
-	ACX_CCA_THRESHOLD           = 0x0025,
-	ACX_EVENT_MBOX_MASK         = 0x0026,
-	ACX_CONN_MONIT_PARAMS       = 0x002D,
-	ACX_BCN_DTIM_OPTIONS        = 0x0031,
-	ACX_SG_ENABLE               = 0x0032,
-	ACX_SG_CFG                  = 0x0033,
-	ACX_FM_COEX_CFG             = 0x0034,
-	ACX_BEACON_FILTER_TABLE     = 0x0038,
-	ACX_ARP_IP_FILTER           = 0x0039,
-	ACX_ROAMING_STATISTICS_TBL  = 0x003B,
-	ACX_RATE_POLICY             = 0x003D,
-	ACX_CTS_PROTECTION          = 0x003E,
-	ACX_SLEEP_AUTH              = 0x003F,
-	ACX_PREAMBLE_TYPE	    = 0x0040,
-	ACX_ERROR_CNT               = 0x0041,
-	ACX_IBSS_FILTER		    = 0x0044,
-	ACX_SERVICE_PERIOD_TIMEOUT  = 0x0045,
-	ACX_TSF_INFO                = 0x0046,
-	ACX_CONFIG_PS_WMM           = 0x0049,
-	ACX_ENABLE_RX_DATA_FILTER   = 0x004A,
-	ACX_SET_RX_DATA_FILTER      = 0x004B,
-	ACX_GET_DATA_FILTER_STATISTICS = 0x004C,
-	ACX_RX_CONFIG_OPT           = 0x004E,
-	ACX_FRAG_CFG                = 0x004F,
-	ACX_BET_ENABLE              = 0x0050,
-	ACX_RSSI_SNR_TRIGGER        = 0x0051,
-	ACX_RSSI_SNR_WEIGHTS        = 0x0052,
-	ACX_KEEP_ALIVE_MODE         = 0x0053,
-	ACX_SET_KEEP_ALIVE_CONFIG   = 0x0054,
-	ACX_BA_SESSION_INIT_POLICY  = 0x0055,
-	ACX_BA_SESSION_RX_SETUP     = 0x0056,
-	ACX_PEER_HT_CAP             = 0x0057,
-	ACX_HT_BSS_OPERATION        = 0x0058,
-	ACX_COEX_ACTIVITY           = 0x0059,
-	ACX_BURST_MODE              = 0x005C,
-	ACX_SET_RATE_MGMT_PARAMS    = 0x005D,
-	ACX_SET_RATE_ADAPT_PARAMS   = 0x0060,
-	ACX_SET_DCO_ITRIM_PARAMS    = 0x0061,
-	ACX_GEN_FW_CMD              = 0x0070,
-	ACX_HOST_IF_CFG_BITMAP      = 0x0071,
-	ACX_MAX_TX_FAILURE          = 0x0072,
-	ACX_UPDATE_INCONNECTION_STA_LIST = 0x0073,
-	DOT11_RX_MSDU_LIFE_TIME     = 0x1004,
-	DOT11_CUR_TX_PWR            = 0x100D,
-	DOT11_RX_DOT11_MODE         = 0x1012,
-	DOT11_RTS_THRESHOLD         = 0x1013,
-	DOT11_GROUP_ADDRESS_TBL     = 0x1014,
-	ACX_PM_CONFIG               = 0x1016,
-	ACX_CONFIG_PS               = 0x1017,
-	ACX_CONFIG_HANGOVER         = 0x1018,
+	ACX_WAKE_UP_CONDITIONS           = 0x0000,
+	ACX_MEM_CFG                      = 0x0001,
+	ACX_SLOT                         = 0x0002,
+	ACX_AC_CFG                       = 0x0003,
+	ACX_MEM_MAP                      = 0x0004,
+	ACX_AID                          = 0x0005,
+	ACX_MEDIUM_USAGE                 = 0x0006,
+	ACX_STATISTICS                   = 0x0007,
+	ACX_PWR_CONSUMPTION_STATISTICS   = 0x0008,
+	ACX_TID_CFG                      = 0x0009,
+	ACX_PS_RX_STREAMING              = 0x000A,
+	ACX_BEACON_FILTER_OPT            = 0x000B,
+	ACX_NOISE_HIST                   = 0x000C,
+	ACX_HDK_VERSION                  = 0x000D,
+	ACX_PD_THRESHOLD                 = 0x000E,
+	ACX_TX_CONFIG_OPT                = 0x000F,
+	ACX_CCA_THRESHOLD                = 0x0010,
+	ACX_EVENT_MBOX_MASK              = 0x0011,
+	ACX_CONN_MONIT_PARAMS            = 0x0012,
+	ACX_DISABLE_BROADCASTS           = 0x0013,
+	ACX_BCN_DTIM_OPTIONS             = 0x0014,
+	ACX_SG_ENABLE                    = 0x0015,
+	ACX_SG_CFG                       = 0x0016,
+	ACX_FM_COEX_CFG                  = 0x0017,
+	ACX_BEACON_FILTER_TABLE          = 0x0018,
+	ACX_ARP_IP_FILTER                = 0x0019,
+	ACX_ROAMING_STATISTICS_TBL       = 0x001A,
+	ACX_RATE_POLICY                  = 0x001B,
+	ACX_CTS_PROTECTION               = 0x001C,
+	ACX_SLEEP_AUTH                   = 0x001D,
+	ACX_PREAMBLE_TYPE                = 0x001E,
+	ACX_ERROR_CNT                    = 0x001F,
+	ACX_IBSS_FILTER                  = 0x0020,
+	ACX_SERVICE_PERIOD_TIMEOUT       = 0x0021,
+	ACX_TSF_INFO                     = 0x0022,
+	ACX_CONFIG_PS_WMM                = 0x0023,
+	ACX_ENABLE_RX_DATA_FILTER        = 0x0024,
+	ACX_SET_RX_DATA_FILTER           = 0x0025,
+	ACX_GET_DATA_FILTER_STATISTICS   = 0x0026,
+	ACX_RX_CONFIG_OPT                = 0x0027,
+	ACX_FRAG_CFG                     = 0x0028,
+	ACX_BET_ENABLE                   = 0x0029,
+	ACX_RSSI_SNR_TRIGGER             = 0x002A,
+	ACX_RSSI_SNR_WEIGHTS             = 0x002B,
+	ACX_KEEP_ALIVE_MODE              = 0x002C,
+	ACX_SET_KEEP_ALIVE_CONFIG        = 0x002D,
+	ACX_BA_SESSION_INIT_POLICY       = 0x002E,
+	ACX_BA_SESSION_RX_SETUP          = 0x002F,
+	ACX_PEER_HT_CAP                  = 0x0030,
+	ACX_HT_BSS_OPERATION             = 0x0031,
+	ACX_COEX_ACTIVITY                = 0x0032,
+	ACX_BURST_MODE                   = 0x0033,
+	ACX_SET_RATE_MGMT_PARAMS         = 0x0034,
+	ACX_GET_RATE_MGMT_PARAMS         = 0x0035,
+	ACX_SET_RATE_ADAPT_PARAMS        = 0x0036,
+	ACX_SET_DCO_ITRIM_PARAMS         = 0x0037,
+	ACX_GEN_FW_CMD                   = 0x0038,
+	ACX_HOST_IF_CFG_BITMAP           = 0x0039,
+	ACX_MAX_TX_FAILURE               = 0x003A,
+	ACX_UPDATE_INCONNECTION_STA_LIST = 0x003B,
+	DOT11_RX_MSDU_LIFE_TIME          = 0x003C,
+	DOT11_CUR_TX_PWR                 = 0x003D,
+	DOT11_RTS_THRESHOLD              = 0x003E,
+	DOT11_GROUP_ADDRESS_TBL          = 0x003F,
+	ACX_PM_CONFIG                    = 0x0040,
+	ACX_CONFIG_PS                    = 0x0041,
+	ACX_CONFIG_HANGOVER              = 0x0042,
+	ACX_FEATURE_CFG                  = 0x0043,
+	ACX_PROTECTION_CFG               = 0x0044,
 };
 
 
 int wl1271_acx_wake_up_conditions(struct wl1271 *wl,
-				  struct wl12xx_vif *wlvif);
+				  struct wl12xx_vif *wlvif,
+				  u8 wake_up_event, u8 listen_interval);
 int wl1271_acx_sleep_auth(struct wl1271 *wl, u8 sleep_auth);
 int wl1271_acx_tx_power(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			int power);
@@ -1296,7 +1300,8 @@ int wl12xx_acx_set_ba_initiator_policy(struct wl1271 *wl,
 				       struct wl12xx_vif *wlvif);
 int wl12xx_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index,
 				       u16 ssn, bool enable, u8 peer_hlid);
-int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime);
+int wl12xx_acx_tsf_info(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			u64 *mactime);
 int wl1271_acx_ps_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			       bool enable);
 int wl1271_acx_ap_max_tx_retry(struct wl1271 *wl, struct wl12xx_vif *wlvif);

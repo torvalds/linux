@@ -30,6 +30,7 @@
 #include "acx.h"
 #include "reg.h"
 #include "ps.h"
+#include "io.h"
 
 #define WL1271_TM_MAX_DATA_LENGTH 1024
 
@@ -41,6 +42,7 @@ enum wl1271_tm_commands {
 	WL1271_TM_CMD_NVS_PUSH,		/* Not in use. Keep to not break ABI */
 	WL1271_TM_CMD_SET_PLT_MODE,
 	WL1271_TM_CMD_RECOVER,
+	WL1271_TM_CMD_GET_MAC,
 
 	__WL1271_TM_CMD_AFTER_LAST
 };
@@ -264,6 +266,52 @@ static int wl1271_tm_cmd_recover(struct wl1271 *wl, struct nlattr *tb[])
 	return 0;
 }
 
+static int wl12xx_tm_cmd_get_mac(struct wl1271 *wl, struct nlattr *tb[])
+{
+	struct sk_buff *skb;
+	u8 mac_addr[ETH_ALEN];
+	int ret = 0;
+
+	mutex_lock(&wl->mutex);
+
+	if (!wl->plt) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (wl->fuse_oui_addr == 0 && wl->fuse_nic_addr == 0) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	mac_addr[0] = (u8)(wl->fuse_oui_addr >> 16);
+	mac_addr[1] = (u8)(wl->fuse_oui_addr >> 8);
+	mac_addr[2] = (u8) wl->fuse_oui_addr;
+	mac_addr[3] = (u8)(wl->fuse_nic_addr >> 16);
+	mac_addr[4] = (u8)(wl->fuse_nic_addr >> 8);
+	mac_addr[5] = (u8) wl->fuse_nic_addr;
+
+	skb = cfg80211_testmode_alloc_reply_skb(wl->hw->wiphy, ETH_ALEN);
+	if (!skb) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	NLA_PUT(skb, WL1271_TM_ATTR_DATA, ETH_ALEN, mac_addr);
+	ret = cfg80211_testmode_reply(skb);
+	if (ret < 0)
+		goto out;
+
+out:
+	mutex_unlock(&wl->mutex);
+	return ret;
+
+nla_put_failure:
+	kfree_skb(skb);
+	ret = -EMSGSIZE;
+	goto out;
+}
+
 int wl1271_tm_cmd(struct ieee80211_hw *hw, void *data, int len)
 {
 	struct wl1271 *wl = hw->priv;
@@ -288,6 +336,8 @@ int wl1271_tm_cmd(struct ieee80211_hw *hw, void *data, int len)
 		return wl1271_tm_cmd_set_plt_mode(wl, tb);
 	case WL1271_TM_CMD_RECOVER:
 		return wl1271_tm_cmd_recover(wl, tb);
+	case WL1271_TM_CMD_GET_MAC:
+		return wl12xx_tm_cmd_get_mac(wl, tb);
 	default:
 		return -EOPNOTSUPP;
 	}
