@@ -1985,11 +1985,6 @@ i915_wait_request(struct intel_ring_buffer *ring,
 	if (atomic_read(&dev_priv->mm.wedged))
 		ret = -EAGAIN;
 
-	if (ret && ret != -ERESTARTSYS)
-		DRM_ERROR("%s returns %d (awaiting %d at %d, next %d)\n",
-			  __func__, ret, seqno, ring->get_seqno(ring),
-			  dev_priv->next_seqno);
-
 	/* Directly dispatch request retiring.  While we have the work queue
 	 * to handle this, the waiter on a request often wants an associated
 	 * buffer to have made it to the inactive list, and we would need
