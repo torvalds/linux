@@ -125,15 +125,15 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 
 	err = l2cap_chan_connect(chan, la.l2_psm, la.l2_cid, &la.l2_bdaddr);
 	if (err)
-		goto done;
+		return err;
 
 	lock_sock(sk);
 
 	err = bt_sock_wait_state(sk, BT_CONNECTED,
 			sock_sndtimeo(sk, flags & O_NONBLOCK));
-done:
-	if (sock_owned_by_user(sk))
-		release_sock(sk);
+
+	release_sock(sk);
+
 	return err;
 }
 
