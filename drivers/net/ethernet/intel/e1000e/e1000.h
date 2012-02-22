@@ -559,7 +559,7 @@ extern s32 e1000e_get_speed_and_duplex_copper(struct e1000_hw *hw, u16 *speed, u
 extern s32 e1000e_get_speed_and_duplex_fiber_serdes(struct e1000_hw *hw, u16 *speed, u16 *duplex);
 extern s32 e1000e_disable_pcie_master(struct e1000_hw *hw);
 extern s32 e1000e_get_auto_rd_done(struct e1000_hw *hw);
-extern s32 e1000e_id_led_init(struct e1000_hw *hw);
+extern s32 e1000e_id_led_init_generic(struct e1000_hw *hw);
 extern void e1000e_clear_hw_cntrs_base(struct e1000_hw *hw);
 extern s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw);
 extern s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw);

@@ -580,7 +580,7 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 		/* check management mode */
 		mac->ops.check_mng_mode = e1000_check_mng_mode_ich8lan;
 		/* ID LED init */
-		mac->ops.id_led_init = e1000e_id_led_init;
+		mac->ops.id_led_init = e1000e_id_led_init_generic;
 		/* blink LED */
 		mac->ops.blink_led = e1000e_blink_led_generic;
 		/* setup LED */
@@ -2962,7 +2962,7 @@ static s32 e1000_valid_led_default_ich8lan(struct e1000_hw *hw, u16 *data)
  *
  *  PCH also does not have an "always on" or "always off" mode which
  *  complicates the ID feature.  Instead of using the "on" mode to indicate
- *  in ledctl_mode2 the LEDs to use for ID (see e1000e_id_led_init()),
+ *  in ledctl_mode2 the LEDs to use for ID (see e1000e_id_led_init_generic()),
  *  use "link_up" mode.  The LEDs will still ID on request if there is no
  *  link based on logic in e1000_led_[on|off]_pchlan().
  **/
@@ -4006,7 +4006,6 @@ release:
 }
 
 static const struct e1000_mac_operations ich8_mac_ops = {
-	.id_led_init		= e1000e_id_led_init,
 	/* check_mng_mode dependent on mac type */
 	.check_for_link		= e1000_check_for_copper_link_ich8lan,
 	/* cleanup_led dependent on mac type */

@@ -1399,11 +1399,11 @@ s32 e1000e_valid_led_default(struct e1000_hw *hw, u16 *data)
 }
 
 /**
- *  e1000e_id_led_init -
+ *  e1000e_id_led_init_generic -
  *  @hw: pointer to the HW structure
  *
  **/
-s32 e1000e_id_led_init(struct e1000_hw *hw)
+s32 e1000e_id_led_init_generic(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	s32 ret_val;
