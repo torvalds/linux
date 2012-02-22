@@ -67,7 +67,6 @@ struct ath9k_hw_mci {
 	u32 wlan_cal_done;
 	u32 config;
 	u8 *gpm_buf;
-	u8 *sched_buf;
 	bool ready;
 	bool update_2g5g;
 	bool is_2g;

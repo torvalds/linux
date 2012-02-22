@@ -383,84 +383,60 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 	}
 }
 
-static int ath_mci_buf_alloc(struct ath_softc *sc, struct ath_mci_buf *buf)
-{
-	int error = 0;
-
-	buf->bf_addr = dma_alloc_coherent(sc->dev, buf->bf_len,
-					  &buf->bf_paddr, GFP_KERNEL);
-
-	if (buf->bf_addr == NULL) {
-		error = -ENOMEM;
-		goto fail;
-	}
-
-	return 0;
-
-fail:
-	memset(buf, 0, sizeof(*buf));
-	return error;
-}
-
-static void ath_mci_buf_free(struct ath_softc *sc, struct ath_mci_buf *buf)
-{
-	if (buf->bf_addr) {
-		dma_free_coherent(sc->dev, buf->bf_len, buf->bf_addr,
-							buf->bf_paddr);
-		memset(buf, 0, sizeof(*buf));
-	}
-}
-
 int ath_mci_setup(struct ath_softc *sc)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_mci_coex *mci = &sc->mci_coex;
-	int error = 0;
+	struct ath_mci_buf *buf = &mci->sched_buf;
 
 	if (!ATH9K_HW_CAP_MCI)
 		return 0;
 
-	mci->sched_buf.bf_len = ATH_MCI_SCHED_BUF_SIZE + ATH_MCI_GPM_BUF_SIZE;
+	buf->bf_addr = dma_alloc_coherent(sc->dev,
+				  ATH_MCI_SCHED_BUF_SIZE + ATH_MCI_GPM_BUF_SIZE,
+				  &buf->bf_paddr, GFP_KERNEL);
 
-	if (ath_mci_buf_alloc(sc, &mci->sched_buf)) {
+	if (buf->bf_addr == NULL) {
 		ath_dbg(common, FATAL, "MCI buffer alloc failed\n");
-		error = -ENOMEM;
-		goto fail;
+		return -ENOMEM;
 	}
+
+	memset(buf->bf_addr, MCI_GPM_RSVD_PATTERN,
+	       ATH_MCI_SCHED_BUF_SIZE + ATH_MCI_GPM_BUF_SIZE);
 
 	mci->sched_buf.bf_len = ATH_MCI_SCHED_BUF_SIZE;
 
-	memset(mci->sched_buf.bf_addr, MCI_GPM_RSVD_PATTERN,
-						mci->sched_buf.bf_len);
-
 	mci->gpm_buf.bf_len = ATH_MCI_GPM_BUF_SIZE;
-	mci->gpm_buf.bf_addr = (u8 *)mci->sched_buf.bf_addr +
-							mci->sched_buf.bf_len;
+	mci->gpm_buf.bf_addr = (u8 *)mci->sched_buf.bf_addr + mci->sched_buf.bf_len;
 	mci->gpm_buf.bf_paddr = mci->sched_buf.bf_paddr + mci->sched_buf.bf_len;
-
-	/* initialize the buffer */
-	memset(mci->gpm_buf.bf_addr, MCI_GPM_RSVD_PATTERN, mci->gpm_buf.bf_len);
 
 	ar9003_mci_setup(sc->sc_ah, mci->gpm_buf.bf_paddr,
 			 mci->gpm_buf.bf_addr, (mci->gpm_buf.bf_len >> 4),
 			 mci->sched_buf.bf_paddr);
-fail:
-	return error;
+
+	ath_dbg(common, MCI, "MCI Initialized\n");
+
+	return 0;
 }
 
 void ath_mci_cleanup(struct ath_softc *sc)
 {
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_mci_coex *mci = &sc->mci_coex;
+	struct ath_mci_buf *buf = &mci->sched_buf;
 
 	if (!ATH9K_HW_CAP_MCI)
 		return;
 
-	/*
-	 * both schedule and gpm buffers will be released
-	 */
-	ath_mci_buf_free(sc, &mci->sched_buf);
+	if (buf->bf_addr)
+		dma_free_coherent(sc->dev,
+				  ATH_MCI_SCHED_BUF_SIZE + ATH_MCI_GPM_BUF_SIZE,
+				  buf->bf_addr, buf->bf_paddr);
+
 	ar9003_mci_cleanup(ah);
+
+	ath_dbg(common, MCI, "MCI De-Initialized\n");
 }
 
 void ath_mci_intr(struct ath_softc *sc)

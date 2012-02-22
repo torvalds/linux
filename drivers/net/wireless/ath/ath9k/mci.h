@@ -113,7 +113,6 @@ struct ath_mci_profile {
 	u8 num_bdr;
 };
 
-
 struct ath_mci_buf {
 	void *bf_addr;		/* virtual addr of desc */
 	dma_addr_t bf_paddr;    /* physical addr of buffer */
@@ -121,10 +120,8 @@ struct ath_mci_buf {
 };
 
 struct ath_mci_coex {
-	atomic_t mci_cal_flag;
 	struct ath_mci_buf sched_buf;
 	struct ath_mci_buf gpm_buf;
-	u32 bt_cal_start;
 };
 
 void ath_mci_flush_profile(struct ath_mci_profile *mci);

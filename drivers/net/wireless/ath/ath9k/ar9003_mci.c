@@ -973,7 +973,6 @@ void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
 		      u16 len, u32 sched_addr)
 {
 	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
-	void *sched_buf = (void *)((char *) gpm_buf + (sched_addr - gpm_addr));
 
 	if (!ATH9K_HW_CAP_MCI)
 		return;
@@ -982,7 +981,6 @@ void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
 	mci->gpm_buf = gpm_buf;
 	mci->gpm_len = len;
 	mci->sched_addr = sched_addr;
-	mci->sched_buf = sched_buf;
 
 	ar9003_mci_reset(ah, true, true, true);
 }
@@ -990,14 +988,11 @@ EXPORT_SYMBOL(ar9003_mci_setup);
 
 void ar9003_mci_cleanup(struct ath_hw *ah)
 {
-	struct ath_common *common = ath9k_hw_common(ah);
-
 	if (!ATH9K_HW_CAP_MCI)
 		return;
 
 	/* Turn off MCI and Jupiter mode. */
 	REG_WRITE(ah, AR_BTCOEX_CTRL, 0x00);
-	ath_dbg(common, MCI, "MCI ar9003_mci_cleanup\n");
 	ar9003_mci_disable_interrupt(ah);
 }
 EXPORT_SYMBOL(ar9003_mci_cleanup);
