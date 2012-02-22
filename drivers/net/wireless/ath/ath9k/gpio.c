@@ -318,6 +318,20 @@ void ath9k_btcoex_timer_pause(struct ath_softc *sc)
 	btcoex->hw_timer_enabled = false;
 }
 
+u16 ath9k_btcoex_aggr_limit(struct ath_softc *sc, u32 max_4ms_framelen)
+{
+	struct ath_mci_profile *mci = &sc->btcoex.mci;
+	u16 aggr_limit = 0;
+
+	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI) && mci->aggr_limit)
+		aggr_limit = (max_4ms_framelen * mci->aggr_limit) >> 4;
+	else if (sc->sc_flags & SC_OP_BT_PRIORITY_DETECTED)
+		aggr_limit = min((max_4ms_framelen * 3) / 8,
+				 (u32)ATH_AMPDU_LIMIT_MAX);
+
+	return aggr_limit;
+}
+
 void ath9k_btcoex_handle_interrupt(struct ath_softc *sc, u32 status)
 {
 	struct ath_hw *ah = sc->sc_ah;
