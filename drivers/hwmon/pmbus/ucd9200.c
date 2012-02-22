@@ -163,20 +163,13 @@ static int ucd9200_probe(struct i2c_client *client,
 	return pmbus_do_probe(client, mid, info);
 }
 
-static int ucd9200_remove(struct i2c_client *client)
-{
-	pmbus_do_remove(client);
-	return 0;
-}
-
-
 /* This is the driver that will be inserted */
 static struct i2c_driver ucd9200_driver = {
 	.driver = {
 		.name = "ucd9200",
 	},
 	.probe = ucd9200_probe,
-	.remove = ucd9200_remove,
+	.remove = pmbus_do_remove,
 	.id_table = ucd9200_id,
 };
 

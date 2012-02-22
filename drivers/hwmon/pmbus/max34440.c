@@ -224,12 +224,6 @@ static int max34440_probe(struct i2c_client *client,
 	return pmbus_do_probe(client, id, &max34440_info[id->driver_data]);
 }
 
-static int max34440_remove(struct i2c_client *client)
-{
-	pmbus_do_remove(client);
-	return 0;
-}
-
 static const struct i2c_device_id max34440_id[] = {
 	{"max34440", max34440},
 	{"max34441", max34441},
@@ -244,7 +238,7 @@ static struct i2c_driver max34440_driver = {
 		   .name = "max34440",
 		   },
 	.probe = max34440_probe,
-	.remove = max34440_remove,
+	.remove = pmbus_do_remove,
 	.id_table = max34440_id,
 };
 

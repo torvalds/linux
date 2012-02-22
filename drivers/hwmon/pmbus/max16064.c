@@ -103,12 +103,6 @@ static int max16064_probe(struct i2c_client *client,
 	return pmbus_do_probe(client, id, &max16064_info);
 }
 
-static int max16064_remove(struct i2c_client *client)
-{
-	pmbus_do_remove(client);
-	return 0;
-}
-
 static const struct i2c_device_id max16064_id[] = {
 	{"max16064", 0},
 	{}
@@ -122,7 +116,7 @@ static struct i2c_driver max16064_driver = {
 		   .name = "max16064",
 		   },
 	.probe = max16064_probe,
-	.remove = max16064_remove,
+	.remove = pmbus_do_remove,
 	.id_table = max16064_id,
 };
 

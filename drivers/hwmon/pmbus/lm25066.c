@@ -295,12 +295,6 @@ static int lm25066_probe(struct i2c_client *client,
 	return pmbus_do_probe(client, id, info);
 }
 
-static int lm25066_remove(struct i2c_client *client)
-{
-	pmbus_do_remove(client);
-	return 0;
-}
-
 static const struct i2c_device_id lm25066_id[] = {
 	{"lm25066", lm25066},
 	{"lm5064", lm5064},
@@ -316,7 +310,7 @@ static struct i2c_driver lm25066_driver = {
 		   .name = "lm25066",
 		   },
 	.probe = lm25066_probe,
-	.remove = lm25066_remove,
+	.remove = pmbus_do_remove,
 	.id_table = lm25066_id,
 };
 

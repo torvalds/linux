@@ -178,12 +178,6 @@ static int pmbus_probe(struct i2c_client *client,
 	return pmbus_do_probe(client, id, info);
 }
 
-static int pmbus_remove(struct i2c_client *client)
-{
-	pmbus_do_remove(client);
-	return 0;
-}
-
 /*
  * Use driver_data to set the number of pages supported by the chip.
  */
@@ -209,7 +203,7 @@ static struct i2c_driver pmbus_driver = {
 		   .name = "pmbus",
 		   },
 	.probe = pmbus_probe,
-	.remove = pmbus_remove,
+	.remove = pmbus_do_remove,
 	.id_table = pmbus_id,
 };
 

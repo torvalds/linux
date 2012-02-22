@@ -361,19 +361,13 @@ static int ltc2978_probe(struct i2c_client *client,
 	return pmbus_do_probe(client, id, info);
 }
 
-static int ltc2978_remove(struct i2c_client *client)
-{
-	pmbus_do_remove(client);
-	return 0;
-}
-
 /* This is the driver that will be inserted */
 static struct i2c_driver ltc2978_driver = {
 	.driver = {
 		   .name = "ltc2978",
 		   },
 	.probe = ltc2978_probe,
-	.remove = ltc2978_remove,
+	.remove = pmbus_do_remove,
 	.id_table = ltc2978_id,
 };
 

@@ -240,18 +240,12 @@ static int zl6100_probe(struct i2c_client *client,
 	return pmbus_do_probe(client, mid, info);
 }
 
-static int zl6100_remove(struct i2c_client *client)
-{
-	pmbus_do_remove(client);
-	return 0;
-}
-
 static struct i2c_driver zl6100_driver = {
 	.driver = {
 		   .name = "zl6100",
 		   },
 	.probe = zl6100_probe,
-	.remove = zl6100_remove,
+	.remove = pmbus_do_remove,
 	.id_table = zl6100_id,
 };
 

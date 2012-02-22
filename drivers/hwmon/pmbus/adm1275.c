@@ -301,18 +301,12 @@ static int adm1275_probe(struct i2c_client *client,
 	return pmbus_do_probe(client, id, info);
 }
 
-static int adm1275_remove(struct i2c_client *client)
-{
-	pmbus_do_remove(client);
-	return 0;
-}
-
 static struct i2c_driver adm1275_driver = {
 	.driver = {
 		   .name = "adm1275",
 		   },
 	.probe = adm1275_probe,
-	.remove = adm1275_remove,
+	.remove = pmbus_do_remove,
 	.id_table = adm1275_id,
 };
 
