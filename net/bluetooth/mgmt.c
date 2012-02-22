@@ -3586,6 +3586,10 @@ int mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
 	if (!cmd)
 		goto send_event;
 
+	/* Always assume that either the short or the complete name has
+	 * changed if there was a pending mgmt command */
+	changed = true;
+
 	if (status) {
 		err = cmd_status(cmd->sk, hdev->id, MGMT_OP_SET_LOCAL_NAME,
 							mgmt_status(status));
