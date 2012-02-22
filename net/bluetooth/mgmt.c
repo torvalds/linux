@@ -3745,7 +3745,8 @@ int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	bacpy(&ev->addr.bdaddr, bdaddr);
 	ev->addr.type = link_to_mgmt(link_type, addr_type);
 	ev->rssi = rssi;
-	ev->confirm_name = cfm_name;
+	if (cfm_name)
+		ev->flags[0] |= MGMT_DEV_FOUND_CONFIRM_NAME;
 
 	if (eir_len > 0)
 		memcpy(ev->eir, eir, eir_len);
