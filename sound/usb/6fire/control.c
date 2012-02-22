@@ -74,6 +74,14 @@ static void usb6fire_control_output_vol_update(struct control_runtime *rt)
 			}
 }
 
+static void usb6fire_control_output_mute_update(struct control_runtime *rt)
+{
+	struct comm_runtime *comm_rt = rt->chip->comm;
+
+	if (comm_rt)
+		comm_rt->write8(comm_rt, 0x12, 0x0e, ~rt->output_mute);
+}
+
 static void usb6fire_control_line_phono_update(struct control_runtime *rt)
 {
 	struct comm_runtime *comm_rt = rt->chip->comm;
@@ -208,6 +216,51 @@ static int usb6fire_control_output_vol_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int usb6fire_control_output_mute_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct control_runtime *rt = snd_kcontrol_chip(kcontrol);
+	unsigned int ch = kcontrol->private_value;
+	u8 old = rt->output_mute;
+	u8 value = 0;
+
+	if (ch > 4) {
+		snd_printk(KERN_ERR PREFIX "Invalid channel in volume control.");
+		return -EINVAL;
+	}
+
+	rt->output_mute &= ~(3 << ch);
+	if (ucontrol->value.integer.value[0])
+		value |= 1;
+	if (ucontrol->value.integer.value[1])
+		value |= 2;
+	rt->output_mute |= value << ch;
+
+	if (rt->output_mute != old)
+		usb6fire_control_output_mute_update(rt);
+
+	return rt->output_mute != old;
+}
+
+static int usb6fire_control_output_mute_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct control_runtime *rt = snd_kcontrol_chip(kcontrol);
+	unsigned int ch = kcontrol->private_value;
+	u8 value = rt->output_mute >> ch;
+
+	if (ch > 4) {
+		snd_printk(KERN_ERR PREFIX "Invalid channel in volume control.");
+		return -EINVAL;
+	}
+
+	ucontrol->value.integer.value[0] = 1 & value;
+	value >>= 1;
+	ucontrol->value.integer.value[1] = 1 & value;
+
+	return 0;
+}
+
 static int usb6fire_control_line_phono_info(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_info *uinfo)
 {
@@ -339,6 +392,40 @@ static struct __devinitdata snd_kcontrol_new vol_elements[] = {
 	{}
 };
 
+static struct __devinitdata snd_kcontrol_new mute_elements[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Analog Playback Switch",
+		.index = 0,
+		.private_value = 0,
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+		.info = snd_ctl_boolean_stereo_info,
+		.get = usb6fire_control_output_mute_get,
+		.put = usb6fire_control_output_mute_put,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Analog Playback Switch",
+		.index = 1,
+		.private_value = 2,
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+		.info = snd_ctl_boolean_stereo_info,
+		.get = usb6fire_control_output_mute_get,
+		.put = usb6fire_control_output_mute_put,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Analog Playback Switch",
+		.index = 2,
+		.private_value = 4,
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+		.info = snd_ctl_boolean_stereo_info,
+		.get = usb6fire_control_output_mute_get,
+		.put = usb6fire_control_output_mute_put,
+	},
+	{}
+};
+
 static struct __devinitdata snd_kcontrol_new elements[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -430,13 +517,21 @@ int __devinit usb6fire_control_init(struct sfire_chip *chip)
 	usb6fire_control_opt_coax_update(rt);
 	usb6fire_control_line_phono_update(rt);
 	usb6fire_control_output_vol_update(rt);
+	usb6fire_control_output_mute_update(rt);
 	usb6fire_control_streaming_update(rt);
 
 	ret = usb6fire_control_add_virtual(rt, chip->card,
 		"Master Playback Volume", vol_elements);
 	if (ret) {
-		kfree(rt);
 		snd_printk(KERN_ERR PREFIX "cannot add control.\n");
+		kfree(rt);
+		return ret;
+	}
+	ret = usb6fire_control_add_virtual(rt, chip->card,
+		"Master Playback Switch", mute_elements);
+	if (ret) {
+		snd_printk(KERN_ERR PREFIX "cannot add control.\n");
+		kfree(rt);
 		return ret;
 	}
 

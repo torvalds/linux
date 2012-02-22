@@ -45,6 +45,7 @@ struct control_runtime {
 	bool usb_streaming;
 	u8 output_vol[6];
 	u8 ovol_updated;
+	u8 output_mute;
 };
 
 int __devinit usb6fire_control_init(struct sfire_chip *chip);
