@@ -1957,7 +1957,7 @@ static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
 
 	while (count) {
 		scb = (void *) skb->cb;
-		len = min(scb->expect, (__u16)count);
+		len = min_t(__u16, scb->expect, count);
 
 		memcpy(skb_put(skb, len), data, len);
 
