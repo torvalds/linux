@@ -1819,13 +1819,13 @@ static void tg3_adjust_link(struct net_device *dev)
 		      (6 << TX_LENGTHS_IPG_SHIFT) |
 		      (32 << TX_LENGTHS_SLOT_TIME_SHIFT)));
 
-	if ((phydev->link && tp->link_config.active_speed == SPEED_UNKNOWN) ||
-	    (!phydev->link && tp->link_config.active_speed != SPEED_UNKNOWN) ||
+	if (phydev->link != tp->old_link ||
 	    phydev->speed != tp->link_config.active_speed ||
 	    phydev->duplex != tp->link_config.active_duplex ||
 	    oldflowctrl != tp->link_config.active_flowctrl)
 		linkmesg = 1;
 
+	tp->old_link = phydev->link;
 	tp->link_config.active_speed = phydev->speed;
 	tp->link_config.active_duplex = phydev->duplex;
 
@@ -13352,6 +13352,8 @@ static void __devinit tg3_phy_init_link_config(struct tg3 *tp)
 	tp->link_config.autoneg = AUTONEG_ENABLE;
 	tp->link_config.active_speed = SPEED_UNKNOWN;
 	tp->link_config.active_duplex = DUPLEX_UNKNOWN;
+
+	tp->old_link = -1;
 }
 
 static int __devinit tg3_phy_probe(struct tg3 *tp)
