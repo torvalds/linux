@@ -58,7 +58,7 @@ struct rk29_fb_setting_info {
 	u8 standby_en;
 };
 
-struct rk29_fb_info {
+struct rk29fb_info {
 	u32 fb_id;
 	u32 mcu_fmk_pin;
 	struct rk29lcd_info *lcd_info;
