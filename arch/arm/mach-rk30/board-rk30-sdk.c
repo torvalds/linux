@@ -245,7 +245,7 @@ static int rk29_backlight_pwm_resume(void)
 	return 0;
 }
 
-struct rk29_bl_info rk29_bl_info = {
+static struct rk29_bl_info rk29_bl_info = {
     .pwm_id   = PWM_ID,
     .bl_ref   = PWM_EFFECT_VALUE,
     .io_init   = rk29_backlight_io_init,
@@ -255,7 +255,7 @@ struct rk29_bl_info rk29_bl_info = {
 };
 
 
-struct platform_device rk29_device_backlight = {
+static struct platform_device rk29_device_backlight = {
 	.name	= "rk29_backlight",
 	.id 	= -1,
         .dev    = {
@@ -293,8 +293,7 @@ static struct mma8452_platform_data mma8452_info = {
 #endif
 
 #ifdef CONFIG_FB_ROCKCHIP
-/* rk30 fb resource */
- static struct resource resource_fb[] = {
+static struct resource resource_fb[] = {
 	[0] = {
 		.name  = "fb0 buf",
 		.start = 0,
@@ -303,8 +302,7 @@ static struct mma8452_platform_data mma8452_info = {
 	},
 };
 
-/*platform_device*/
-struct platform_device device_fb = {
+static struct platform_device device_fb = {
 	.name		  = "rk-fb",
 	.id		  = -1,
 	.num_resources	  = ARRAY_SIZE(resource_fb),
@@ -312,7 +310,6 @@ struct platform_device device_fb = {
 };
 #endif
 
-extern struct platform_device rk30_device_lcdc;
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
@@ -320,10 +317,6 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_FB_ROCKCHIP
 	&device_fb,
 #endif
-#ifdef CONFIG_LCDC_RK30
-	&rk30_device_lcdc,
-#endif
-
 };
 
 // i2c
@@ -391,8 +384,10 @@ static void __init machine_rk30_board_init(void)
 
 static void __init rk30_reserve(void)
 {
+#ifdef CONFIG_FB_ROCKCHIP
 	resource_fb[0].start = board_mem_reserve_add("fb0",RK30_FB0_MEM_SIZE);
-	resource_fb[0].end	= resource_fb[0].start + RK30_FB0_MEM_SIZE - 1;
+	resource_fb[0].end = resource_fb[0].start + RK30_FB0_MEM_SIZE - 1;
+#endif
 	board_mem_reserved();
 }
 

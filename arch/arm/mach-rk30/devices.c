@@ -495,40 +495,12 @@ static void __init rk30_init_i2c(void)
 }
 //end of i2c
 
+#if defined(CONFIG_SPIM0_RK29) || defined(CONFIG_SPIM1_RK29)
 /*****************************************************************************************
  * spi devices
  * author: cmc@rock-chips.com
  *****************************************************************************************/
 #define SPI_CHIPSELECT_NUM 2
-static struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
-	{
-		.name = "spi0 cs0",
-		.cs_gpio = RK30_PIN1_PA4,
-		.cs_iomux_name = GPIO1A4_UART1SIN_SPI0CSN0_NAME,
-		.cs_iomux_mode = GPIO1A_SPI0_CSN0,
-	},
-	{
-		.name = "spi0 cs1",
-		.cs_gpio = RK30_PIN4_PB7,
-		.cs_iomux_name = GPIO4B7_SPI0CSN1_NAME,//if no iomux,set it NULL
-		.cs_iomux_mode = GPIO4B_SPI0_CSN1,
-	}
-};
-
-static struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
-	{
-		.name = "spi1 cs0",
-		.cs_gpio = RK30_PIN2_PC4,
-		.cs_iomux_name = GPIO2C4_LCDC1DATA20_SPI1CSN0_HSADCDATA1_NAME,
-		.cs_iomux_mode = GPIO2C_SPI1_CSN0,
-	},
-	{
-		.name = "spi1 cs1",
-		.cs_gpio = RK30_PIN2_PC7,
-		.cs_iomux_name = GPIO2C7_LCDC1DATA23_SPI1CSN1_HSADCDATA4_NAME,//if no iomux,set it NULL
-		.cs_iomux_mode = GPIO2C_SPI1_CSN1,
-	}
-};
 
 static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
 {
@@ -561,8 +533,28 @@ static int spi_io_resume_leakage_bug(void)
 #endif
 	return 0;
 }
+#endif
 
-struct rk29xx_spi_platform_data rk29xx_spi0_platdata = {
+/*
+ * rk29xx spi master device
+ */
+#ifdef CONFIG_SPIM0_RK29
+static struct spi_cs_gpio rk29xx_spi0_cs_gpios[SPI_CHIPSELECT_NUM] = {
+	{
+		.name = "spi0 cs0",
+		.cs_gpio = RK30_PIN1_PA4,
+		.cs_iomux_name = GPIO1A4_UART1SIN_SPI0CSN0_NAME,
+		.cs_iomux_mode = GPIO1A_SPI0_CSN0,
+	},
+	{
+		.name = "spi0 cs1",
+		.cs_gpio = RK30_PIN4_PB7,
+		.cs_iomux_name = GPIO4B7_SPI0CSN1_NAME,//if no iomux,set it NULL
+		.cs_iomux_mode = GPIO4B_SPI0_CSN1,
+	}
+};
+
+static struct rk29xx_spi_platform_data rk29xx_spi0_platdata = {
 	.num_chipselect = SPI_CHIPSELECT_NUM,
 	.chipselect_gpios = rk29xx_spi0_cs_gpios,
 	.io_init = spi_io_init,
@@ -571,21 +563,6 @@ struct rk29xx_spi_platform_data rk29xx_spi0_platdata = {
 	.io_resume_leakage_bug = spi_io_resume_leakage_bug,
 };
 
-struct rk29xx_spi_platform_data rk29xx_spi1_platdata = {
-	.num_chipselect = SPI_CHIPSELECT_NUM,
-	.chipselect_gpios = rk29xx_spi1_cs_gpios,
-	.io_init = spi_io_init,
-	.io_deinit = spi_io_deinit,
-	.io_fix_leakage_bug = spi_io_fix_leakage_bug,
-	.io_resume_leakage_bug = spi_io_resume_leakage_bug,
-};
-
-
-
-/*
- * rk29xx spi master device
- */
-#ifdef CONFIG_SPIM0_RK29
 static struct resource rk29_spi0_resources[] = {
 	{
 		.start	= IRQ_SPI0,
@@ -623,6 +600,30 @@ struct platform_device rk29xx_device_spi0m = {
 #endif
 
 #ifdef CONFIG_SPIM1_RK29
+static struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
+	{
+		.name = "spi1 cs0",
+		.cs_gpio = RK30_PIN2_PC4,
+		.cs_iomux_name = GPIO2C4_LCDC1DATA20_SPI1CSN0_HSADCDATA1_NAME,
+		.cs_iomux_mode = GPIO2C_SPI1_CSN0,
+	},
+	{
+		.name = "spi1 cs1",
+		.cs_gpio = RK30_PIN2_PC7,
+		.cs_iomux_name = GPIO2C7_LCDC1DATA23_SPI1CSN1_HSADCDATA4_NAME,//if no iomux,set it NULL
+		.cs_iomux_mode = GPIO2C_SPI1_CSN1,
+	}
+};
+
+static struct rk29xx_spi_platform_data rk29xx_spi1_platdata = {
+	.num_chipselect = SPI_CHIPSELECT_NUM,
+	.chipselect_gpios = rk29xx_spi1_cs_gpios,
+	.io_init = spi_io_init,
+	.io_deinit = spi_io_deinit,
+	.io_fix_leakage_bug = spi_io_fix_leakage_bug,
+	.io_resume_leakage_bug = spi_io_resume_leakage_bug,
+};
+
 static struct resource rk29_spi1_resources[] = {
 	{
 		.start	= IRQ_SPI1,
@@ -669,7 +670,6 @@ static void __init rk30_init_spim(void)
 #endif
 }
 
-
 #ifdef CONFIG_MTD_NAND_RK29XX
 static struct resource resources_nand[] = {
 	{
@@ -687,6 +687,7 @@ static struct platform_device device_nand = {
 };
 #endif
 
+#ifdef CONFIG_LCDC_RK30
 static struct resource resource_lcdc[] = {
 	[0] = {
 		.name  = "lcdc0 reg",
@@ -714,14 +715,13 @@ static struct resource resource_lcdc[] = {
 	},
 };
 
-/*platform_device*/
-struct platform_device rk30_device_lcdc = {
+static struct platform_device device_lcdc = {
 	.name		  = "rk30-lcdc",
 	.id		  = 4,
 	.num_resources	  = ARRAY_SIZE(resource_lcdc),
 	.resource	  = resource_lcdc,
 };
-
+#endif
 
 #ifdef CONFIG_KEYS_RK29
 extern struct rk29_keys_platform_data rk29_keys_pdata;
@@ -745,6 +745,9 @@ static int __init rk30_init_devices(void)
 #endif
 #ifdef CONFIG_KEYS_RK29
 	platform_device_register(&device_keys);
+#endif
+#ifdef CONFIG_LCDC_RK30
+	platform_device_register(&device_lcdc);
 #endif
         return 0;
 }

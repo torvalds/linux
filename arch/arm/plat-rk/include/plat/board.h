@@ -62,7 +62,7 @@ struct rk29_fb_info {
 	u32 fb_id;
 	u32 mcu_fmk_pin;
 	struct rk29lcd_info *lcd_info;
-	int (*io_init)(struct rk_fb_setting_info *fb_setting);
+	int (*io_init)(struct rk29_fb_setting_info *fb_setting);
 	int (*io_deinit)(void);
 	int (*io_enable)(void);
 	int (*io_disable)(void);
