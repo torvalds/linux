@@ -383,6 +383,7 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 	u32 clk_cmd;
 	struct io_mgr *hio_mgr;
 	u32 ul_load_monitor_timer;
+	u32 wdt_en = 0;
 	struct omap_dsp_platform_data *pdata =
 		omap_dspbridge_dev->dev.platform_data;
 
@@ -594,9 +595,12 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		if (!wait_for_start(dev_context, dw_sync_addr))
 			status = -ETIMEDOUT;
 
-		/* Start wdt */
-		dsp_wdt_sm_set((void *)ul_shm_base);
-		dsp_wdt_enable(true);
+		dev_get_symbol(dev_context->dev_obj, "_WDT_enable", &wdt_en);
+		if (wdt_en) {
+			/* Start wdt */
+			dsp_wdt_sm_set((void *)ul_shm_base);
+			dsp_wdt_enable(true);
+		}
 
 		status = dev_get_io_mgr(dev_context->dev_obj, &hio_mgr);
 		if (hio_mgr) {
