@@ -20,6 +20,8 @@
 /*     BTCOEX     */
 /******************/
 
+#define ATH_HTC_BTCOEX_PRODUCT_ID "wb193"
+
 /*
  * Detects if there is any priority bt traffic
  */
@@ -181,6 +183,36 @@ void ath9k_htc_stop_btcoex(struct ath9k_htc_priv *priv)
 		ath9k_hw_btcoex_disable(ah);
 		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
 			ath_htc_cancel_btcoex_work(priv);
+	}
+}
+
+void ath9k_htc_init_btcoex(struct ath9k_htc_priv *priv, char *product)
+{
+	struct ath_hw *ah = priv->ah;
+	int qnum;
+
+	if (product && strncmp(product, ATH_HTC_BTCOEX_PRODUCT_ID, 5) == 0) {
+		ah->btcoex_hw.scheme = ATH_BTCOEX_CFG_3WIRE;
+		if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_NONE)
+			return;
+	}
+
+	switch (ath9k_hw_get_btcoex_scheme(priv->ah)) {
+	case ATH_BTCOEX_CFG_NONE:
+		break;
+	case ATH_BTCOEX_CFG_3WIRE:
+		priv->ah->btcoex_hw.btactive_gpio = 7;
+		priv->ah->btcoex_hw.btpriority_gpio = 6;
+		priv->ah->btcoex_hw.wlanactive_gpio = 8;
+		priv->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
+		ath9k_hw_btcoex_init_3wire(priv->ah);
+		ath_htc_init_btcoex_work(priv);
+		qnum = priv->hwq_map[WME_AC_BE];
+		ath9k_hw_init_btcoex_hw(priv->ah, qnum);
+		break;
+	default:
+		WARN_ON(1);
+		break;
 	}
 }
 

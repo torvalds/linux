@@ -400,6 +400,7 @@ struct ath_btcoex {
 	u32 btscan_no_stomp;
 };
 
+void ath9k_htc_init_btcoex(struct ath9k_htc_priv *priv, char *product);
 void ath9k_htc_start_btcoex(struct ath9k_htc_priv *priv);
 void ath9k_htc_stop_btcoex(struct ath9k_htc_priv *priv);
 void ath_htc_init_btcoex_work(struct ath9k_htc_priv *priv);
