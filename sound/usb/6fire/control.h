@@ -43,7 +43,8 @@ struct control_runtime {
 	bool line_phono_switch;
 	bool digital_thru_switch;
 	bool usb_streaming;
-	u8 master_vol;
+	u8 output_vol[6];
+	u8 ovol_updated;
 };
 
 int __devinit usb6fire_control_init(struct sfire_chip *chip);
