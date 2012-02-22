@@ -3561,6 +3561,7 @@ int mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
 send_event:
 	err = mgmt_event(MGMT_EV_LOCAL_NAME_CHANGED, hdev, &ev, sizeof(ev),
 							cmd ? cmd->sk : NULL);
+	update_eir(hdev);
 
 failed:
 	if (cmd)

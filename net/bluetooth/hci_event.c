@@ -209,11 +209,11 @@ static void hci_cc_write_local_name(struct hci_dev *hdev, struct sk_buff *skb)
 
 	hci_dev_lock(hdev);
 
-	if (test_bit(HCI_MGMT, &hdev->dev_flags))
-		mgmt_set_local_name_complete(hdev, sent, status);
-
 	if (status == 0)
 		memcpy(hdev->dev_name, sent, HCI_MAX_NAME_LENGTH);
+
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
+		mgmt_set_local_name_complete(hdev, sent, status);
 
 	hci_dev_unlock(hdev);
 }
