@@ -3555,7 +3555,7 @@ static s32 e1000_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_set_kmrn_lock_loss_workaround_ich8lan - Set Kumeran workaround state
+ *  e1000e_set_kmrn_lock_loss_workaround_ich8lan - Set Kumeran workaround state
  *  @hw: pointer to the HW structure
  *  @state: boolean value used to set the current Kumeran workaround state
  *
