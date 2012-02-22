@@ -3353,7 +3353,7 @@ static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 		hw->fc.current_mode);
 
 	/* Continue to configure the copper link. */
-	ret_val = e1000_setup_copper_link_ich8lan(hw);
+	ret_val = hw->mac.ops.setup_physical_interface(hw);
 	if (ret_val)
 		return ret_val;
 
