@@ -1331,9 +1331,13 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	/*
 	 * By default, the last source number comes from the MPIC, but the
 	 * device-tree and board support code can override it on buggy hw.
+	 * If we get passed an isu_size (multi-isu MPIC) then we use that
+	 * as a default instead of the value read from the HW.
 	 */
 	last_irq = (greg_feature & MPIC_GREG_FEATURE_LAST_SRC_MASK)
-				>> MPIC_GREG_FEATURE_LAST_SRC_SHIFT;
+				>> MPIC_GREG_FEATURE_LAST_SRC_SHIFT;	
+	if (isu_size)
+		last_irq = isu_size  * MPIC_MAX_ISU - 1;
 	of_property_read_u32(mpic->node, "last-interrupt-source", &last_irq);
 	if (irq_count)
 		last_irq = irq_count - 1;
@@ -1352,7 +1356,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic->isu_mask = (1 << mpic->isu_shift) - 1;
 
 	mpic->irqhost = irq_alloc_host(mpic->node, IRQ_HOST_MAP_LINEAR,
-				       mpic->isu_size, &mpic_host_ops,
+				       last_irq + 1, &mpic_host_ops,
 				       intvec_top + 1);
 
 	/*
