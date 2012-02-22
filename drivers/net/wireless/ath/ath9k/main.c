@@ -735,12 +735,7 @@ void ath9k_tasklet(unsigned long data)
 			ath_tx_tasklet(sc);
 	}
 
-	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE)
-		if (status & ATH9K_INT_GENTIMER)
-			ath_gen_timer_isr(sc->sc_ah);
-
-	if ((status & ATH9K_INT_MCI) && ATH9K_HW_CAP_MCI)
-		ath_mci_intr(sc);
+	ath9k_btcoex_handle_interrupt(sc, status);
 
 out:
 	/* re-enable hardware interrupt */

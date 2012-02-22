@@ -460,6 +460,7 @@ void ath9k_start_btcoex(struct ath_softc *sc);
 void ath9k_stop_btcoex(struct ath_softc *sc);
 void ath9k_btcoex_timer_resume(struct ath_softc *sc);
 void ath9k_btcoex_timer_pause(struct ath_softc *sc);
+void ath9k_btcoex_handle_interrupt(struct ath_softc *sc, u32 status);
 
 /********************/
 /*   LED Control    */
