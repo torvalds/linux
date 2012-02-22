@@ -3720,16 +3720,12 @@ static int wm8962_runtime_resume(struct device *dev)
 	regmap_update_bits(wm8962->regmap, WM8962_PWR_MGMT_1,
 			   WM8962_VMID_SEL_MASK, 0x100);
 
-	dev_crit(dev, "RESUME\n");
-
 	return 0;
 }
 
 static int wm8962_runtime_suspend(struct device *dev)
 {
 	struct wm8962_priv *wm8962 = dev_get_drvdata(dev);
-
-	dev_crit(dev, "SUSPEND\n");
 
 	regmap_update_bits(wm8962->regmap, WM8962_PWR_MGMT_1,
 			   WM8962_VMID_SEL_MASK | WM8962_BIAS_ENA, 0);
