@@ -449,27 +449,8 @@ static int ath9k_init_btcoex(struct ath_softc *sc)
 		if (r)
 			return r;
 
-		if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI) {
-			ah->btcoex_hw.mci.ready = false;
-			ah->btcoex_hw.mci.bt_state = 0;
-			ah->btcoex_hw.mci.bt_ver_major = 3;
-			ah->btcoex_hw.mci.bt_ver_minor = 0;
-			ah->btcoex_hw.mci.bt_version_known = false;
-			ah->btcoex_hw.mci.update_2g5g = true;
-			ah->btcoex_hw.mci.is_2g = true;
-			ah->btcoex_hw.mci.wlan_channels_update = false;
-			ah->btcoex_hw.mci.wlan_channels[0] = 0x00000000;
-			ah->btcoex_hw.mci.wlan_channels[1] = 0xffffffff;
-			ah->btcoex_hw.mci.wlan_channels[2] = 0xffffffff;
-			ah->btcoex_hw.mci.wlan_channels[3] = 0x7fffffff;
-			ah->btcoex_hw.mci.query_bt = true;
-			ah->btcoex_hw.mci.unhalt_bt_gpm = true;
-			ah->btcoex_hw.mci.halted_bt_gpm = false;
-			ah->btcoex_hw.mci.need_flush_btinfo = false;
-			ah->btcoex_hw.mci.wlan_cal_seq = 0;
-			ah->btcoex_hw.mci.wlan_cal_done = 0;
-			ah->btcoex_hw.mci.config = 0x2201;
-		}
+		ath9k_hw_btcoex_init_mci(ah);
+
 		break;
 	default:
 		WARN_ON(1);
