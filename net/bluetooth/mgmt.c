@@ -1141,6 +1141,12 @@ static int set_ssp(struct sock *sk, u16 index, void *data, u16 len)
 
 	hci_dev_lock(hdev);
 
+	if (!(hdev->features[6] & LMP_SIMPLE_PAIR)) {
+		err = cmd_status(sk, index, MGMT_OP_SET_SSP,
+						MGMT_STATUS_NOT_SUPPORTED);
+		goto failed;
+	}
+
 	val = !!cp->val;
 
 	if (!hdev_is_powered(hdev)) {
@@ -1158,12 +1164,6 @@ static int set_ssp(struct sock *sk, u16 index, void *data, u16 len)
 		if (changed)
 			err = new_settings(hdev, sk);
 
-		goto failed;
-	}
-
-	if (!(hdev->features[6] & LMP_SIMPLE_PAIR)) {
-		err = cmd_status(sk, index, MGMT_OP_SET_SSP,
-						MGMT_STATUS_NOT_SUPPORTED);
 		goto failed;
 	}
 
