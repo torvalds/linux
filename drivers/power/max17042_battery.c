@@ -31,6 +31,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/power_supply.h>
 #include <linux/power/max17042_battery.h>
+#include <linux/of.h>
 
 /* Status register bits */
 #define STATUS_POR_BIT         (1 << 1)
@@ -608,6 +609,40 @@ static void max17042_init_worker(struct work_struct *work)
 	chip->init_complete = 1;
 }
 
+#ifdef CONFIG_OF
+static struct max17042_platform_data *
+max17042_get_pdata(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	u32 prop;
+	struct max17042_platform_data *pdata;
+
+	if (!np)
+		return dev->platform_data;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return NULL;
+
+	/*
+	 * Require current sense resistor value to be specified for
+	 * current-sense functionality to be enabled at all.
+	 */
+	if (of_property_read_u32(np, "maxim,rsns-microohm", &prop) == 0) {
+		pdata->r_sns = prop;
+		pdata->enable_current_sense = true;
+	}
+
+	return pdata;
+}
+#else
+static struct max17042_platform_data *
+max17042_get_pdata(struct device *dev)
+{
+	return dev->platform_data;
+}
+#endif
+
 static int __devinit max17042_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -624,7 +659,11 @@ static int __devinit max17042_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	chip->client = client;
-	chip->pdata = client->dev.platform_data;
+	chip->pdata = max17042_get_pdata(&client->dev);
+	if (!chip->pdata) {
+		dev_err(&client->dev, "no platform data provided\n");
+		return -EINVAL;
+	}
 
 	i2c_set_clientdata(client, chip);
 
@@ -689,6 +728,14 @@ static int __devexit max17042_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id max17042_dt_match[] = {
+	{ .compatible = "maxim,max17042" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, max17042_dt_match);
+#endif
+
 static const struct i2c_device_id max17042_id[] = {
 	{ "max17042", 0 },
 	{ }
@@ -698,6 +745,7 @@ MODULE_DEVICE_TABLE(i2c, max17042_id);
 static struct i2c_driver max17042_i2c_driver = {
 	.driver	= {
 		.name	= "max17042",
+		.of_match_table = of_match_ptr(max17042_dt_match),
 	},
 	.probe		= max17042_probe,
 	.remove		= __devexit_p(max17042_remove),
