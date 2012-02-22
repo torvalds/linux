@@ -212,8 +212,10 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 	}
 
 	pindesc = kzalloc(sizeof(*pindesc), GFP_KERNEL);
-	if (pindesc == NULL)
+	if (pindesc == NULL) {
+		dev_err(pctldev->dev, "failed to alloc struct pin_desc\n");
 		return -ENOMEM;
+	}
 
 	spin_lock_init(&pindesc->lock);
 
@@ -493,7 +495,7 @@ static struct pinctrl *pinctrl_get_locked(struct device *dev, const char *name)
 
 	devname = dev_name(dev);
 
-	pr_debug("get pin control handle device %s state %s\n", devname, name);
+	dev_dbg(dev, "pinctrl_get() for device %s state %s\n", devname, name);
 
 	/*
 	 * create the state cookie holder struct pinctrl for each
@@ -501,8 +503,10 @@ static struct pinctrl *pinctrl_get_locked(struct device *dev, const char *name)
 	 * a pin control handle with pinctrl_get()
 	 */
 	p = kzalloc(sizeof(struct pinctrl), GFP_KERNEL);
-	if (p == NULL)
+	if (p == NULL) {
+		dev_err(dev, "failed to alloc struct pinctrl\n");
 		return ERR_PTR(-ENOMEM);
+	}
 	mutex_init(&p->mutex);
 	pinmux_init_pinctrl_handle(p);
 
@@ -521,8 +525,8 @@ static struct pinctrl *pinctrl_get_locked(struct device *dev, const char *name)
 			return ERR_PTR(-ENODEV);
 		}
 
-		pr_debug("in map, found pctldev %s to handle function %s",
-			 dev_name(pctldev->dev), map->function);
+		dev_dbg(dev, "in map, found pctldev %s to handle function %s",
+			dev_name(pctldev->dev), map->function);
 
 		/* Map must be for this device */
 		if (strcmp(map->dev_name, devname))
@@ -558,8 +562,8 @@ static struct pinctrl *pinctrl_get_locked(struct device *dev, const char *name)
 	if (!num_maps)
 		dev_info(dev, "zero maps found for mapping %s\n", name);
 
-	pr_debug("found %u mux maps for device %s, UD %s\n",
-		 num_maps, devname, name ? name : "(undefined)");
+	dev_dbg(dev, "found %u maps for device %s state %s\n",
+		num_maps, devname, name ? name : "(undefined)");
 
 	/* Add the pinmux to the global list */
 	mutex_lock(&pinctrl_list_mutex);
@@ -670,7 +674,7 @@ int pinctrl_register_mappings(struct pinctrl_map const *maps,
 	for (i = 0; i < num_maps; i++) {
 		if (!maps[i].name) {
 			pr_err("failed to register map %d: no map name given\n",
-					i);
+			       i);
 			return -EINVAL;
 		}
 
@@ -682,13 +686,13 @@ int pinctrl_register_mappings(struct pinctrl_map const *maps,
 
 		if (!maps[i].function) {
 			pr_err("failed to register map %s (%d): no function ID given\n",
-					maps[i].name, i);
+			       maps[i].name, i);
 			return -EINVAL;
 		}
 
 		if (!maps[i].dev_name) {
 			pr_err("failed to register map %s (%d): no device given\n",
-					maps[i].name, i);
+			       maps[i].name, i);
 			return -EINVAL;
 		}
 	}
@@ -702,6 +706,7 @@ int pinctrl_register_mappings(struct pinctrl_map const *maps,
 	maps_node->num_maps = num_maps;
 	maps_node->maps = kmemdup(maps, sizeof(*maps) * num_maps, GFP_KERNEL);
 	if (!maps_node->maps) {
+		pr_err("failed to duplicate mapping table\n");
 		kfree(maps_node);
 		return -ENOMEM;
 	}
@@ -722,8 +727,10 @@ static int pinctrl_hog_map(struct pinctrl_dev *pctldev,
 	int ret;
 
 	hog = kzalloc(sizeof(struct pinctrl_hog), GFP_KERNEL);
-	if (!hog)
+	if (!hog) {
+		dev_err(pctldev->dev, "failed to alloc struct pinctrl_hog\n");
 		return -ENOMEM;
+	}
 
 	p = pinctrl_get_locked(pctldev->dev, map->name);
 	if (IS_ERR(p)) {
@@ -1154,8 +1161,10 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 		return NULL;
 
 	pctldev = kzalloc(sizeof(struct pinctrl_dev), GFP_KERNEL);
-	if (pctldev == NULL)
+	if (pctldev == NULL) {
+		dev_err(dev, "failed to alloc struct pinctrl_dev\n");
 		return NULL;
+	}
 
 	/* Initialize pin control device struct */
 	pctldev->owner = pctldesc->owner;
