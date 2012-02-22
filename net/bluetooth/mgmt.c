@@ -532,6 +532,9 @@ static int update_eir(struct hci_dev *hdev)
 {
 	struct hci_cp_write_eir cp;
 
+	if (!test_bit(HCI_UP, &hdev->flags))
+		return 0;
+
 	if (!(hdev->features[6] & LMP_EXT_INQ))
 		return 0;
 
@@ -569,6 +572,9 @@ static int update_class(struct hci_dev *hdev)
 	u8 cod[3];
 
 	BT_DBG("%s", hdev->name);
+
+	if (!test_bit(HCI_UP, &hdev->flags))
+		return 0;
 
 	if (test_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
 		return 0;
