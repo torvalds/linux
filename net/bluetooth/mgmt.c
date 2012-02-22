@@ -900,6 +900,17 @@ static int set_discoverable(struct sock *sk, u16 index, void *data, u16 len)
 	}
 
 	if (!!cp->val == test_bit(HCI_DISCOVERABLE, &hdev->dev_flags)) {
+		if (hdev->discov_timeout > 0) {
+			cancel_delayed_work(&hdev->discov_off);
+			hdev->discov_timeout = 0;
+		}
+
+		if (cp->val && timeout > 0) {
+			hdev->discov_timeout = timeout;
+			queue_delayed_work(hdev->workqueue, &hdev->discov_off,
+				msecs_to_jiffies(hdev->discov_timeout * 1000));
+		}
+
 		err = send_settings_rsp(sk, MGMT_OP_SET_DISCOVERABLE, hdev);
 		goto failed;
 	}
