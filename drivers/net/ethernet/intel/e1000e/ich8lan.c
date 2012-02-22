@@ -3212,7 +3212,7 @@ static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 	}
 
 	/* Setup link and flow control */
-	ret_val = e1000_setup_link_ich8lan(hw);
+	ret_val = mac->ops.setup_link(hw);
 
 	/* Set the transmit descriptor write-back policy for both queues */
 	txdctl = er32(TXDCTL(0));

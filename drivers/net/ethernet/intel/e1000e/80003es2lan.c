@@ -838,7 +838,7 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, 0);
 
 	/* Setup link and flow control */
-	ret_val = e1000e_setup_link(hw);
+	ret_val = mac->ops.setup_link(hw);
 
 	/* Disable IBIST slave mode (far-end loopback) */
 	e1000_read_kmrn_reg_80003es2lan(hw, E1000_KMRNCTRLSTA_INBAND_PARAM,
@@ -1429,7 +1429,7 @@ static const struct e1000_mac_operations es2_mac_ops = {
 	.clear_vfta		= e1000_clear_vfta_generic,
 	.reset_hw		= e1000_reset_hw_80003es2lan,
 	.init_hw		= e1000_init_hw_80003es2lan,
-	.setup_link		= e1000e_setup_link,
+	.setup_link		= e1000e_setup_link_generic,
 	/* setup_physical_interface dependent on media type */
 	.setup_led		= e1000e_setup_led_generic,
 };

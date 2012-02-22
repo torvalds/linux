@@ -1143,7 +1143,7 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, 0);
 
 	/* Setup link and flow control */
-	ret_val = e1000_setup_link_82571(hw);
+	ret_val = mac->ops.setup_link(hw);
 
 	/* Set the transmit descriptor write-back policy */
 	reg_data = er32(TXDCTL(0));
@@ -1455,7 +1455,7 @@ static s32 e1000_setup_link_82571(struct e1000_hw *hw)
 		break;
 	}
 
-	return e1000e_setup_link(hw);
+	return e1000e_setup_link_generic(hw);
 }
 
 /**
