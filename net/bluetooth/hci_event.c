@@ -350,14 +350,19 @@ static void hci_cc_write_class_of_dev(struct hci_dev *hdev, struct sk_buff *skb)
 
 	BT_DBG("%s status 0x%x", hdev->name, status);
 
-	if (status)
-		return;
-
 	sent = hci_sent_cmd_data(hdev, HCI_OP_WRITE_CLASS_OF_DEV);
 	if (!sent)
 		return;
 
-	memcpy(hdev->dev_class, sent, 3);
+	hci_dev_lock(hdev);
+
+	if (status == 0)
+		memcpy(hdev->dev_class, sent, 3);
+
+	if (test_bit(HCI_MGMT, &hdev->dev_flags))
+		mgmt_set_class_of_dev_complete(hdev, sent, status);
+
+	hci_dev_unlock(hdev);
 }
 
 static void hci_cc_read_voice_setting(struct hci_dev *hdev, struct sk_buff *skb)

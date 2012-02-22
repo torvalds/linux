@@ -3546,6 +3546,16 @@ int mgmt_ssp_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 	return err;
 }
 
+int mgmt_set_class_of_dev_complete(struct hci_dev *hdev, u8 *dev_class,
+								u8 status)
+{
+	int err;
+
+	err = mgmt_event(MGMT_EV_CLASS_OF_DEV_CHANGED, hdev, dev_class, 3, NULL);
+
+	return err;
+}
+
 int mgmt_set_local_name_complete(struct hci_dev *hdev, u8 *name, u8 status)
 {
 	struct pending_cmd *cmd;
