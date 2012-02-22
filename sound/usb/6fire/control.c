@@ -55,6 +55,7 @@ static const u16 rates_6fire_vl[] = {0x00, 0x01, 0x00, 0x01, 0x00, 0x01};
 static const u16 rates_6fire_vh[] = {0x11, 0x11, 0x10, 0x10, 0x00, 0x00};
 
 static DECLARE_TLV_DB_MINMAX(tlv_output, -9000, 0);
+static DECLARE_TLV_DB_MINMAX(tlv_input, -1500, 1500);
 
 enum {
 	DIGITAL_THRU_ONLY_SAMPLERATE = 3
@@ -80,6 +81,20 @@ static void usb6fire_control_output_mute_update(struct control_runtime *rt)
 
 	if (comm_rt)
 		comm_rt->write8(comm_rt, 0x12, 0x0e, ~rt->output_mute);
+}
+
+static void usb6fire_control_input_vol_update(struct control_runtime *rt)
+{
+	struct comm_runtime *comm_rt = rt->chip->comm;
+	int i;
+
+	if (comm_rt)
+		for (i = 0; i < 2; i++)
+			if (!(rt->ivol_updated & (1 << i))) {
+				comm_rt->write8(comm_rt, 0x12, 0x1c + i,
+					rt->input_vol[i] & 0x3f);
+				rt->ivol_updated |= 1 << i;
+			}
 }
 
 static void usb6fire_control_line_phono_update(struct control_runtime *rt)
@@ -257,6 +272,50 @@ static int usb6fire_control_output_mute_get(struct snd_kcontrol *kcontrol,
 	ucontrol->value.integer.value[0] = 1 & value;
 	value >>= 1;
 	ucontrol->value.integer.value[1] = 1 & value;
+
+	return 0;
+}
+
+static int usb6fire_control_input_vol_info(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 2;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 30;
+	return 0;
+}
+
+static int usb6fire_control_input_vol_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct control_runtime *rt = snd_kcontrol_chip(kcontrol);
+	int changed = 0;
+
+	if (rt->input_vol[0] != ucontrol->value.integer.value[0]) {
+		rt->input_vol[0] = ucontrol->value.integer.value[0] - 15;
+		rt->ivol_updated &= ~(1 << 0);
+		changed = 1;
+	}
+	if (rt->input_vol[1] != ucontrol->value.integer.value[1]) {
+		rt->input_vol[1] = ucontrol->value.integer.value[1] - 15;
+		rt->ivol_updated &= ~(1 << 1);
+		changed = 1;
+	}
+
+	if (changed)
+		usb6fire_control_input_vol_update(rt);
+
+	return changed;
+}
+
+static int usb6fire_control_input_vol_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct control_runtime *rt = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.integer.value[0] = rt->input_vol[0] + 15;
+	ucontrol->value.integer.value[1] = rt->input_vol[1] + 15;
 
 	return 0;
 }
@@ -454,6 +513,17 @@ static struct __devinitdata snd_kcontrol_new elements[] = {
 		.get = usb6fire_control_digital_thru_get,
 		.put = usb6fire_control_digital_thru_put
 	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Analog Capture Volume",
+		.index = 0,
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+		.info = usb6fire_control_input_vol_info,
+		.get = usb6fire_control_input_vol_get,
+		.put = usb6fire_control_input_vol_put,
+		.tlv = { .p = tlv_input }
+	},
 	{}
 };
 
@@ -518,6 +588,7 @@ int __devinit usb6fire_control_init(struct sfire_chip *chip)
 	usb6fire_control_line_phono_update(rt);
 	usb6fire_control_output_vol_update(rt);
 	usb6fire_control_output_mute_update(rt);
+	usb6fire_control_input_vol_update(rt);
 	usb6fire_control_streaming_update(rt);
 
 	ret = usb6fire_control_add_virtual(rt, chip->card,

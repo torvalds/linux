@@ -46,6 +46,8 @@ struct control_runtime {
 	u8 output_vol[6];
 	u8 ovol_updated;
 	u8 output_mute;
+	s8 input_vol[2];
+	u8 ivol_updated;
 };
 
 int __devinit usb6fire_control_init(struct sfire_chip *chip);
