@@ -1134,8 +1134,8 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		 * We've written the data and are going to read it back to make
 		 * sure it was written correctly.
 		 */
-
-		err = ubi_io_read_data(ubi, ubi->peb_buf2, to, 0, aldata_size);
+		memset(ubi->peb_buf1, 0xFF, aldata_size);
+		err = ubi_io_read_data(ubi, ubi->peb_buf1, to, 0, aldata_size);
 		if (err) {
 			if (err != UBI_IO_BITFLIPS) {
 				ubi_warn("error %d while reading data back "
@@ -1149,7 +1149,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 
 		cond_resched();
 
-		if (memcmp(ubi->peb_buf1, ubi->peb_buf2, aldata_size)) {
+		if (crc != crc32(UBI_CRC32_INIT, ubi->peb_buf1, data_size)) {
 			ubi_warn("read data back from PEB %d and it is "
 				 "different", to);
 			err = -EINVAL;
