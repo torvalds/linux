@@ -33,6 +33,35 @@ static int regmap_open_file(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static ssize_t regmap_name_read_file(struct file *file,
+				     char __user *user_buf, size_t count,
+				     loff_t *ppos)
+{
+	struct regmap *map = file->private_data;
+	int ret;
+	char *buf;
+
+	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = snprintf(buf, PAGE_SIZE, "%s\n", map->dev->driver->name);
+	if (ret < 0) {
+		kfree(buf);
+		return ret;
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
+	kfree(buf);
+	return ret;
+}
+
+static const struct file_operations regmap_name_fops = {
+	.open = regmap_open_file,
+	.read = regmap_name_read_file,
+	.llseek = default_llseek,
+};
+
 static ssize_t regmap_map_read_file(struct file *file, char __user *user_buf,
 				    size_t count, loff_t *ppos)
 {
@@ -227,6 +256,9 @@ void regmap_debugfs_init(struct regmap *map)
 		dev_warn(map->dev, "Failed to create debugfs directory\n");
 		return;
 	}
+
+	debugfs_create_file("name", 0400, map->debugfs,
+			    map, &regmap_name_fops);
 
 	if (map->max_register) {
 		debugfs_create_file("registers", 0400, map->debugfs,
