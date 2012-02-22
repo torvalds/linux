@@ -662,11 +662,6 @@ static inline s32 e1000_phy_hw_reset(struct e1000_hw *hw)
 	return hw->phy.ops.reset(hw);
 }
 
-static inline s32 e1000_check_reset_block(struct e1000_hw *hw)
-{
-	return hw->phy.ops.check_reset_block(hw);
-}
-
 static inline s32 e1e_rphy(struct e1000_hw *hw, u32 offset, u16 *data)
 {
 	return hw->phy.ops.read_reg(hw, offset, data);

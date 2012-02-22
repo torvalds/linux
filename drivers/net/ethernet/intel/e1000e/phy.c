@@ -2133,7 +2133,7 @@ s32 e1000e_phy_hw_reset_generic(struct e1000_hw *hw)
 	s32 ret_val;
 	u32 ctrl;
 
-	ret_val = e1000_check_reset_block(hw);
+	ret_val = phy->ops.check_reset_block(hw);
 	if (ret_val)
 		return 0;
 
