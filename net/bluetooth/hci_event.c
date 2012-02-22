@@ -227,7 +227,8 @@ static void hci_cc_read_local_name(struct hci_dev *hdev, struct sk_buff *skb)
 	if (rp->status)
 		return;
 
-	memcpy(hdev->dev_name, rp->name, HCI_MAX_NAME_LENGTH);
+	if (test_bit(HCI_SETUP, &hdev->dev_flags))
+		memcpy(hdev->dev_name, rp->name, HCI_MAX_NAME_LENGTH);
 }
 
 static void hci_cc_write_auth_enable(struct hci_dev *hdev, struct sk_buff *skb)
