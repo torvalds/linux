@@ -115,18 +115,6 @@ struct pinctrl_dev *get_pinctrl_dev_from_devname(const char *devname)
 	return found ? pctldev : NULL;
 }
 
-struct pin_desc *pin_desc_get(struct pinctrl_dev *pctldev, unsigned int pin)
-{
-	struct pin_desc *pindesc;
-	unsigned long flags;
-
-	spin_lock_irqsave(&pctldev->pin_desc_tree_lock, flags);
-	pindesc = radix_tree_lookup(&pctldev->pin_desc_tree, pin);
-	spin_unlock_irqrestore(&pctldev->pin_desc_tree_lock, flags);
-
-	return pindesc;
-}
-
 /**
  * pin_get_from_name() - look up a pin number from a name
  * @pctldev: the pin control device to lookup the pin on
@@ -182,7 +170,6 @@ static void pinctrl_free_pindescs(struct pinctrl_dev *pctldev,
 {
 	int i;
 
-	spin_lock(&pctldev->pin_desc_tree_lock);
 	for (i = 0; i < num_pins; i++) {
 		struct pin_desc *pindesc;
 
@@ -196,7 +183,6 @@ static void pinctrl_free_pindescs(struct pinctrl_dev *pctldev,
 		}
 		kfree(pindesc);
 	}
-	spin_unlock(&pctldev->pin_desc_tree_lock);
 }
 
 static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
@@ -232,9 +218,7 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 		pindesc->dynamic_name = true;
 	}
 
-	spin_lock(&pctldev->pin_desc_tree_lock);
 	radix_tree_insert(&pctldev->pin_desc_tree, number, pindesc);
-	spin_unlock(&pctldev->pin_desc_tree_lock);
 	pr_debug("registered pin %d (%s) on %s\n",
 		 number, pindesc->name, pctldev->desc->name);
 	return 0;
@@ -756,9 +740,7 @@ static int pinctrl_hog_map(struct pinctrl_dev *pctldev,
 
 	dev_info(pctldev->dev, "hogged map %s, function %s\n", map->name,
 		 map->function);
-	mutex_lock(&pctldev->pinctrl_hogs_lock);
 	list_add_tail(&hog->node, &pctldev->pinctrl_hogs);
-	mutex_unlock(&pctldev->pinctrl_hogs_lock);
 
 	return 0;
 }
@@ -781,7 +763,6 @@ static int pinctrl_hog_maps(struct pinctrl_dev *pctldev)
 	struct pinctrl_map const *map;
 
 	INIT_LIST_HEAD(&pctldev->pinctrl_hogs);
-	mutex_init(&pctldev->pinctrl_hogs_lock);
 
 	mutex_lock(&pinctrl_maps_mutex);
 	for_each_maps(maps_node, i, map) {
@@ -808,7 +789,6 @@ static void pinctrl_unhog_maps(struct pinctrl_dev *pctldev)
 {
 	struct list_head *node, *tmp;
 
-	mutex_lock(&pctldev->pinctrl_hogs_lock);
 	list_for_each_safe(node, tmp, &pctldev->pinctrl_hogs) {
 		struct pinctrl_hog *hog =
 			list_entry(node, struct pinctrl_hog, node);
@@ -817,7 +797,6 @@ static void pinctrl_unhog_maps(struct pinctrl_dev *pctldev)
 		list_del(node);
 		kfree(hog);
 	}
-	mutex_unlock(&pctldev->pinctrl_hogs_lock);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -1171,7 +1150,6 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	pctldev->desc = pctldesc;
 	pctldev->driver_data = driver_data;
 	INIT_RADIX_TREE(&pctldev->pin_desc_tree, GFP_KERNEL);
-	spin_lock_init(&pctldev->pin_desc_tree_lock);
 	INIT_LIST_HEAD(&pctldev->gpio_ranges);
 	mutex_init(&pctldev->gpio_ranges_lock);
 	pctldev->dev = dev;
@@ -1207,11 +1185,12 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 		goto out_err;
 	}
 
-	pinctrl_init_device_debugfs(pctldev);
 	mutex_lock(&pinctrldev_list_mutex);
 	list_add_tail(&pctldev->node, &pinctrldev_list);
 	mutex_unlock(&pinctrldev_list_mutex);
 	pinctrl_hog_maps(pctldev);
+	pinctrl_init_device_debugfs(pctldev);
+
 	return pctldev;
 
 out_err:
