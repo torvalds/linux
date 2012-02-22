@@ -648,6 +648,7 @@ static int read_controller_info(struct sock *sk, u16 index)
 	memcpy(rp.dev_class, hdev->dev_class, 3);
 
 	memcpy(rp.name, hdev->dev_name, sizeof(hdev->dev_name));
+	memcpy(rp.short_name, hdev->short_name, sizeof(hdev->short_name));
 
 	hci_dev_unlock(hdev);
 	hci_dev_put(hdev);
