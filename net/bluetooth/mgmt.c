@@ -2273,6 +2273,9 @@ static int set_local_name(struct sock *sk, u16 index, void *data,
 		goto failed;
 	}
 
+	memcpy(hdev->short_name, mgmt_cp->short_name,
+						sizeof(hdev->short_name));
+
 	memcpy(hci_cp.name, mgmt_cp->name, sizeof(hci_cp.name));
 	err = hci_send_cmd(hdev, HCI_OP_WRITE_LOCAL_NAME, sizeof(hci_cp),
 								&hci_cp);

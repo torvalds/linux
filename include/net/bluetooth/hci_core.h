@@ -129,6 +129,8 @@ struct le_scan_params {
 	int timeout;
 };
 
+#define HCI_MAX_SHORT_NAME_LENGTH	10
+
 #define NUM_REASSEMBLY 4
 struct hci_dev {
 	struct list_head list;
@@ -141,6 +143,7 @@ struct hci_dev {
 	__u8		dev_type;
 	bdaddr_t	bdaddr;
 	__u8		dev_name[HCI_MAX_NAME_LENGTH];
+	__u8		short_name[HCI_MAX_SHORT_NAME_LENGTH];
 	__u8		eir[HCI_MAX_EIR_LENGTH];
 	__u8		dev_class[3];
 	__u8		major_class;

@@ -75,7 +75,7 @@ struct mgmt_rp_read_index_list {
 /* Reserve one extra byte for names in management messages so that they
  * are always guaranteed to be nul-terminated */
 #define MGMT_MAX_NAME_LENGTH		(HCI_MAX_NAME_LENGTH + 1)
-#define MGMT_MAX_SHORT_NAME_LENGTH	(10 + 1)
+#define MGMT_MAX_SHORT_NAME_LENGTH	(HCI_MAX_SHORT_NAME_LENGTH + 1)
 
 #define MGMT_SETTING_POWERED		0x00000001
 #define MGMT_SETTING_CONNECTABLE	0x00000002
