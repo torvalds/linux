@@ -38,6 +38,23 @@ static u8 esdhc_readb(struct sdhci_host *host, int reg)
 	int base = reg & ~0x3;
 	int shift = (reg & 0x3) * 8;
 	u8 ret = (in_be32(host->ioaddr + base) >> shift) & 0xff;
+
+	/*
+	 * "DMA select" locates at offset 0x28 in SD specification, but on
+	 * P5020 or P3041, it locates at 0x29.
+	 */
+	if (reg == SDHCI_HOST_CONTROL) {
+		u32 dma_bits;
+
+		dma_bits = in_be32(host->ioaddr + reg);
+		/* DMA select is 22,23 bits in Protocol Control Register */
+		dma_bits = (dma_bits >> 5) & SDHCI_CTRL_DMA_MASK;
+
+		/* fixup the result */
+		ret &= ~SDHCI_CTRL_DMA_MASK;
+		ret |= dma_bits;
+	}
+
 	return ret;
 }
 
@@ -56,6 +73,21 @@ static void esdhc_writew(struct sdhci_host *host, u16 val, int reg)
 
 static void esdhc_writeb(struct sdhci_host *host, u8 val, int reg)
 {
+	/*
+	 * "DMA select" location is offset 0x28 in SD specification, but on
+	 * P5020 or P3041, it's located at 0x29.
+	 */
+	if (reg == SDHCI_HOST_CONTROL) {
+		u32 dma_bits;
+
+		/* DMA select is 22,23 bits in Protocol Control Register */
+		dma_bits = (val & SDHCI_CTRL_DMA_MASK) << 5;
+		clrsetbits_be32(host->ioaddr + reg , SDHCI_CTRL_DMA_MASK << 5,
+			dma_bits);
+		val &= ~SDHCI_CTRL_DMA_MASK;
+		val |= in_be32(host->ioaddr + reg) & SDHCI_CTRL_DMA_MASK;
+	}
+
 	/* Prevent SDHCI core from writing reserved bits (e.g. HISPD). */
 	if (reg == SDHCI_HOST_CONTROL)
 		val &= ~ESDHC_HOST_CONTROL_RES;

@@ -257,12 +257,9 @@ static int ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 			return IB_MAD_RESULT_SUCCESS;
 
 		/*
-		 * Don't process SMInfo queries or vendor-specific
-		 * MADs -- the SMA can't handle them.
+		 * Don't process SMInfo queries -- the SMA can't handle them.
 		 */
-		if (in_mad->mad_hdr.attr_id == IB_SMP_ATTR_SM_INFO ||
-		    ((in_mad->mad_hdr.attr_id & IB_SMP_ATTR_VENDOR_MASK) ==
-		     IB_SMP_ATTR_VENDOR_MASK))
+		if (in_mad->mad_hdr.attr_id == IB_SMP_ATTR_SM_INFO)
 			return IB_MAD_RESULT_SUCCESS;
 	} else if (in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_PERF_MGMT ||
 		   in_mad->mad_hdr.mgmt_class == MLX4_IB_VENDOR_CLASS1   ||
