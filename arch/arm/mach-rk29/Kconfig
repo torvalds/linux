@@ -163,6 +163,9 @@ config DDR_SDRAM_FREQ
 	int "DDR SDRAM frequence (in MHz)"
 	default 400
 
+config MACH_RK29_2906
+	bool "ROCKCHIP RK2906 Feature"
+
 config DDR_FREQ
 	bool "Enable DDR frequency scaling"
 
