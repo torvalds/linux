@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/export.h>
+#include <linux/omapfb.h>
 
 #include <media/soc_camera.h>
 
@@ -169,10 +170,6 @@ static struct omap_usb_config ams_delta_usb_config __initdata = {
 	.pins[0]	= 2,
 };
 
-static struct omap_board_config_kernel ams_delta_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&ams_delta_lcd_config },
-};
-
 static struct resource ams_delta_nand_resources[] = {
 	[0] = {
 		.start	= OMAP1_MPUIO_BASE,
@@ -302,8 +299,6 @@ static void __init ams_delta_init(void)
 	omap_cfg_reg(J19_1610_CAM_D6);
 	omap_cfg_reg(J18_1610_CAM_D7);
 
-	omap_board_config = ams_delta_config;
-	omap_board_config_size = ARRAY_SIZE(ams_delta_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
 
@@ -321,6 +316,8 @@ static void __init ams_delta_init(void)
 	ams_delta_init_fiq();
 
 	omap_writew(omap_readw(ARM_RSTCT1) | 0x0004, ARM_RSTCT1);
+
+	omapfb_set_lcd_config(&ams_delta_lcd_config);
 }
 
 static struct plat_serial8250_port ams_delta_modem_ports[] = {
