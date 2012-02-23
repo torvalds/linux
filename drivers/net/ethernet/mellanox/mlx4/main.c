@@ -538,7 +538,7 @@ int mlx4_change_port_types(struct mlx4_dev *dev,
 		mlx4_unregister_device(dev);
 		for (port = 1; port <= dev->caps.num_ports; port++) {
 			mlx4_CLOSE_PORT(dev, port);
-			dev->caps.port_type[port + 1] = port_types[port];
+			dev->caps.port_type[port] = port_types[port - 1];
 			err = mlx4_SET_PORT(dev, port);
 			if (err) {
 				mlx4_err(dev, "Failed to set port %d, "
