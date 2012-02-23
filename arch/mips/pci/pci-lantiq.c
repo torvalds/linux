@@ -296,7 +296,7 @@ int __init pcibios_init(void)
 {
 	int ret = platform_driver_register(&ltq_pci_driver);
 	if (ret)
-		printk(KERN_INFO "ltq_pci: Error registering platfom driver!");
+		printk(KERN_INFO "ltq_pci: Error registering platform driver!");
 	return ret;
 }
 

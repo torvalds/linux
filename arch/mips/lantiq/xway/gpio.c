@@ -188,7 +188,7 @@ int __init ltq_gpio_init(void)
 	int ret = platform_driver_register(&ltq_gpio_driver);
 
 	if (ret)
-		pr_info("ltq_gpio : Error registering platfom driver!");
+		pr_info("ltq_gpio : Error registering platform driver!");
 	return ret;
 }
 
