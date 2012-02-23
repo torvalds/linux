@@ -700,7 +700,6 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	 */
 	drm_gem_object_reference(obj);
 
-	vma->vm_file = filp;	/* Needed for drm_vm_open() */
 	drm_vm_open_locked(vma);
 
 out_unlock:

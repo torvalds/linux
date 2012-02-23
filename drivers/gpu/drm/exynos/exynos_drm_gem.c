@@ -208,7 +208,6 @@ static int exynos_drm_gem_mmap_buffer(struct file *filp,
 
 	/* in case of direct mapping, always having non-cachable attribute */
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	vma->vm_file = filp;
 
 	vm_size = vma->vm_end - vma->vm_start;
 	/*
