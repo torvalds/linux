@@ -3249,8 +3249,8 @@ int mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, u8 persistent)
 }
 
 int mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
-					u8 addr_type, u8 *name, u8 name_len,
-					u8 *dev_class)
+					u8 addr_type, u32 flags, u8 *name,
+					u8 name_len, u8 *dev_class)
 {
 	char buf[512];
 	struct mgmt_ev_device_connected *ev = (void *) buf;
@@ -3258,6 +3258,8 @@ int mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 
 	bacpy(&ev->addr.bdaddr, bdaddr);
 	ev->addr.type = link_to_mgmt(link_type, addr_type);
+
+	put_unaligned_le32(flags, &ev->flags);
 
 	if (name_len > 0)
 		eir_len = eir_append_data(ev->eir, 0, EIR_NAME_COMPLETE,

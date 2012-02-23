@@ -1368,7 +1368,7 @@ static void hci_check_pending_name(struct hci_dev *hdev, struct hci_conn *conn,
 	struct inquiry_entry *e;
 
 	if (conn && !test_and_set_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
-		mgmt_device_connected(hdev, bdaddr, ACL_LINK, 0x00,
+		mgmt_device_connected(hdev, bdaddr, ACL_LINK, 0x00, 0,
 					name, name_len, conn->dev_class);
 
 	if (discov->state == DISCOVERY_STOPPED)
@@ -2104,7 +2104,7 @@ static inline void hci_remote_features_evt(struct hci_dev *hdev, struct sk_buff 
 		hci_send_cmd(hdev, HCI_OP_REMOTE_NAME_REQ, sizeof(cp), &cp);
 	} else if (!test_and_set_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
 		mgmt_device_connected(hdev, &conn->dst, conn->type,
-						conn->dst_type, NULL, 0,
+						conn->dst_type, 0, NULL, 0,
 						conn->dev_class);
 
 	if (!hci_outgoing_auth_needed(hdev, conn)) {
@@ -2872,7 +2872,7 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 		hci_send_cmd(hdev, HCI_OP_REMOTE_NAME_REQ, sizeof(cp), &cp);
 	} else if (!test_and_set_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
 		mgmt_device_connected(hdev, &conn->dst, conn->type,
-						conn->dst_type, NULL, 0,
+						conn->dst_type, 0, NULL, 0,
 						conn->dev_class);
 
 	if (!hci_outgoing_auth_needed(hdev, conn)) {
@@ -3282,7 +3282,7 @@ static inline void hci_le_conn_complete_evt(struct hci_dev *hdev, struct sk_buff
 
 	if (!test_and_set_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
 		mgmt_device_connected(hdev, &ev->bdaddr, conn->type,
-						conn->dst_type, NULL, 0, 0);
+						conn->dst_type, 0, NULL, 0, 0);
 
 	conn->sec_level = BT_SECURITY_LOW;
 	conn->handle = __le16_to_cpu(ev->handle);
