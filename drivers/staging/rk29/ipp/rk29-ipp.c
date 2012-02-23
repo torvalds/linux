@@ -27,7 +27,7 @@
 #include <asm/io.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <mach/rk29_iomap.h>
+#include <mach/io.h>
 #include <mach/irqs.h>
 #include <linux/fs.h>
 #include <asm/uaccess.h>
@@ -38,7 +38,7 @@
 #include <linux/wait.h>
 #include <linux/syscalls.h>
 #include <linux/timer.h>
-#include <mach/rk29-ipp.h>
+#include <plat/ipp.h>
 #include <linux/time.h>
 #include <asm/cacheflush.h>
 #include <linux/slab.h>

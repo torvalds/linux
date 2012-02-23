@@ -745,6 +745,28 @@ static struct platform_device device_rga = {
 };
 #endif
 
+#ifdef CONFIG_RK29_IPP
+static struct resource resource_ipp[] = {
+	[0] = {
+		.start = RK30_IPP_PHYS,
+		.end   = RK30_IPP_PHYS + RK30_IPP_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_IPP,
+		.end   = IRQ_IPP,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device device_ipp = {
+	.name		= "rk29-ipp",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(resource_ipp),
+	.resource	= resource_ipp,
+};
+#endif
+
 #ifdef CONFIG_KEYS_RK29
 extern struct rk29_keys_platform_data rk29_keys_pdata;
 static struct platform_device device_keys = {
@@ -770,6 +792,9 @@ static int __init rk30_init_devices(void)
 #endif
 #ifdef CONFIG_RGA_RK30
 	platform_device_register(&device_rga);
+#endif
+#ifdef CONFIG_RK29_IPP
+	platform_device_register(&device_ipp);
 #endif
 #ifdef CONFIG_LCDC_RK30
 	platform_device_register(&device_lcdc);
