@@ -721,8 +721,14 @@ static void i915_ring_error_state(struct seq_file *m,
 	if (INTEL_INFO(dev)->gen >= 6) {
 		seq_printf(m, "  FADDR: 0x%08x\n", error->faddr[ring]);
 		seq_printf(m, "  FAULT_REG: 0x%08x\n", error->fault_reg[ring]);
+		seq_printf(m, "  SYNC_0: 0x%08x\n",
+			   error->semaphore_mboxes[ring][0]);
+		seq_printf(m, "  SYNC_1: 0x%08x\n",
+			   error->semaphore_mboxes[ring][1]);
 	}
 	seq_printf(m, "  seqno: 0x%08x\n", error->seqno[ring]);
+	seq_printf(m, "  ring->head: 0x%08x\n", error->cpu_ring_head[ring]);
+	seq_printf(m, "  ring->tail: 0x%08x\n", error->cpu_ring_tail[ring]);
 }
 
 static int i915_error_state(struct seq_file *m, void *unused)
@@ -732,7 +738,7 @@ static int i915_error_state(struct seq_file *m, void *unused)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_error_state *error;
 	unsigned long flags;
-	int i, page, offset, elt;
+	int i, j, page, offset, elt;
 
 	spin_lock_irqsave(&dev_priv->error_lock, flags);
 	if (!dev_priv->first_error) {
@@ -772,10 +778,10 @@ static int i915_error_state(struct seq_file *m, void *unused)
 				    error->pinned_bo,
 				    error->pinned_bo_count);
 
-	for (i = 0; i < ARRAY_SIZE(error->batchbuffer); i++) {
-		if (error->batchbuffer[i]) {
-			struct drm_i915_error_object *obj = error->batchbuffer[i];
+	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
+		struct drm_i915_error_object *obj;
 
+		if ((obj = error->ring[i].batchbuffer)) {
 			seq_printf(m, "%s --- gtt_offset = 0x%08x\n",
 				   dev_priv->ring[i].name,
 				   obj->gtt_offset);
@@ -787,11 +793,20 @@ static int i915_error_state(struct seq_file *m, void *unused)
 				}
 			}
 		}
-	}
 
-	for (i = 0; i < ARRAY_SIZE(error->ringbuffer); i++) {
-		if (error->ringbuffer[i]) {
-			struct drm_i915_error_object *obj = error->ringbuffer[i];
+		if (error->ring[i].num_requests) {
+			seq_printf(m, "%s --- %d requests\n",
+				   dev_priv->ring[i].name,
+				   error->ring[i].num_requests);
+			for (j = 0; j < error->ring[i].num_requests; j++) {
+				seq_printf(m, "  seqno 0x%08x, emitted %ld, tail 0x%08x\n",
+					   error->ring[i].requests[j].seqno,
+					   error->ring[i].requests[j].jiffies,
+					   error->ring[i].requests[j].tail);
+			}
+		}
+
+		if ((obj = error->ring[i].ringbuffer)) {
 			seq_printf(m, "%s --- ringbuffer = 0x%08x\n",
 				   dev_priv->ring[i].name,
 				   obj->gtt_offset);
@@ -1431,7 +1446,57 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 			   I915_READ16(C0DRB3));
 		seq_printf(m, "C1DRB3 = 0x%04x\n",
 			   I915_READ16(C1DRB3));
+	} else if (IS_GEN6(dev) || IS_GEN7(dev)) {
+		seq_printf(m, "MAD_DIMM_C0 = 0x%08x\n",
+			   I915_READ(MAD_DIMM_C0));
+		seq_printf(m, "MAD_DIMM_C1 = 0x%08x\n",
+			   I915_READ(MAD_DIMM_C1));
+		seq_printf(m, "MAD_DIMM_C2 = 0x%08x\n",
+			   I915_READ(MAD_DIMM_C2));
+		seq_printf(m, "TILECTL = 0x%08x\n",
+			   I915_READ(TILECTL));
+		seq_printf(m, "ARB_MODE = 0x%08x\n",
+			   I915_READ(ARB_MODE));
+		seq_printf(m, "DISP_ARB_CTL = 0x%08x\n",
+			   I915_READ(DISP_ARB_CTL));
 	}
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
+static int i915_ppgtt_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
+	int i, ret;
+
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+	if (INTEL_INFO(dev)->gen == 6)
+		seq_printf(m, "GFX_MODE: 0x%08x\n", I915_READ(GFX_MODE));
+
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		ring = &dev_priv->ring[i];
+
+		seq_printf(m, "%s\n", ring->name);
+		if (INTEL_INFO(dev)->gen == 7)
+			seq_printf(m, "GFX_MODE: 0x%08x\n", I915_READ(RING_MODE_GEN7(ring)));
+		seq_printf(m, "PP_DIR_BASE: 0x%08x\n", I915_READ(RING_PP_DIR_BASE(ring)));
+		seq_printf(m, "PP_DIR_BASE_READ: 0x%08x\n", I915_READ(RING_PP_DIR_BASE_READ(ring)));
+		seq_printf(m, "PP_DIR_DCLV: 0x%08x\n", I915_READ(RING_PP_DIR_DCLV(ring)));
+	}
+	if (dev_priv->mm.aliasing_ppgtt) {
+		struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
+
+		seq_printf(m, "aliasing PPGTT:\n");
+		seq_printf(m, "pd gtt offset: 0x%08x\n", ppgtt->pd_offset);
+	}
+	seq_printf(m, "ECOCHK: 0x%08x\n", I915_READ(GAM_ECOCHK));
 	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
@@ -1778,6 +1843,7 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_context_status", i915_context_status, 0},
 	{"i915_gen6_forcewake_count", i915_gen6_forcewake_count_info, 0},
 	{"i915_swizzle_info", i915_swizzle_info, 0},
+	{"i915_ppgtt_info", i915_ppgtt_info, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 

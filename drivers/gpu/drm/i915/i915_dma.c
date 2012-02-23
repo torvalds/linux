@@ -1196,22 +1196,39 @@ static int i915_load_gem_init(struct drm_device *dev)
 	/* Basic memrange allocator for stolen space */
 	drm_mm_init(&dev_priv->mm.stolen, 0, prealloc_size);
 
-	/* Let GEM Manage all of the aperture.
-	 *
-	 * However, leave one page at the end still bound to the scratch page.
-	 * There are a number of places where the hardware apparently
-	 * prefetches past the end of the object, and we've seen multiple
-	 * hangs with the GPU head pointer stuck in a batchbuffer bound
-	 * at the last page of the aperture.  One page should be enough to
-	 * keep any prefetching inside of the aperture.
-	 */
-	i915_gem_do_init(dev, 0, mappable_size, gtt_size - PAGE_SIZE);
-
 	mutex_lock(&dev->struct_mutex);
-	ret = i915_gem_init_ringbuffer(dev);
+	if (i915_enable_ppgtt && HAS_ALIASING_PPGTT(dev)) {
+		/* PPGTT pdes are stolen from global gtt ptes, so shrink the
+		 * aperture accordingly when using aliasing ppgtt. */
+		gtt_size -= I915_PPGTT_PD_ENTRIES*PAGE_SIZE;
+		/* For paranoia keep the guard page in between. */
+		gtt_size -= PAGE_SIZE;
+
+		i915_gem_do_init(dev, 0, mappable_size, gtt_size);
+
+		ret = i915_gem_init_aliasing_ppgtt(dev);
+		if (ret)
+			return ret;
+	} else {
+		/* Let GEM Manage all of the aperture.
+		 *
+		 * However, leave one page at the end still bound to the scratch
+		 * page.  There are a number of places where the hardware
+		 * apparently prefetches past the end of the object, and we've
+		 * seen multiple hangs with the GPU head pointer stuck in a
+		 * batchbuffer bound at the last page of the aperture.  One page
+		 * should be enough to keep any prefetching inside of the
+		 * aperture.
+		 */
+		i915_gem_do_init(dev, 0, mappable_size, gtt_size - PAGE_SIZE);
+	}
+
+	ret = i915_gem_init_hw(dev);
 	mutex_unlock(&dev->struct_mutex);
-	if (ret)
+	if (ret) {
+		i915_gem_cleanup_aliasing_ppgtt(dev);
 		return ret;
+	}
 
 	/* Try to set up FBC with a reasonable compressed buffer size */
 	if (I915_HAS_FBC(dev) && i915_powersave) {
@@ -1298,6 +1315,7 @@ cleanup_gem:
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_cleanup_ringbuffer(dev);
 	mutex_unlock(&dev->struct_mutex);
+	i915_gem_cleanup_aliasing_ppgtt(dev);
 cleanup_vga_switcheroo:
 	vga_switcheroo_unregister_client(dev->pdev);
 cleanup_vga_client:
@@ -2187,6 +2205,7 @@ int i915_driver_unload(struct drm_device *dev)
 		i915_gem_free_all_phys_object(dev);
 		i915_gem_cleanup_ringbuffer(dev);
 		mutex_unlock(&dev->struct_mutex);
+		i915_gem_cleanup_aliasing_ppgtt(dev);
 		if (I915_HAS_FBC(dev) && i915_powersave)
 			i915_cleanup_compression(dev);
 		drm_mm_takedown(&dev_priv->mm.stolen);

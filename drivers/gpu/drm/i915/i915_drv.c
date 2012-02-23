@@ -103,6 +103,11 @@ MODULE_PARM_DESC(enable_hangcheck,
 		"WARNING: Disabling this can cause system wide hangs. "
 		"(default: true)");
 
+bool i915_enable_ppgtt __read_mostly = 1;
+module_param_named(i915_enable_ppgtt, i915_enable_ppgtt, bool, 0600);
+MODULE_PARM_DESC(i915_enable_ppgtt,
+		"Enable PPGTT (default: true)");
+
 static struct drm_driver driver;
 extern int intel_agp_enabled;
 
@@ -380,16 +385,27 @@ void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 	spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);
 }
 
+static void gen6_gt_check_fifodbg(struct drm_i915_private *dev_priv)
+{
+	u32 gtfifodbg;
+	gtfifodbg = I915_READ_NOTRACE(GTFIFODBG);
+	if (WARN(gtfifodbg & GT_FIFO_CPU_ERROR_MASK,
+	     "MMIO read or write has been dropped %x\n", gtfifodbg))
+		I915_WRITE_NOTRACE(GTFIFODBG, GT_FIFO_CPU_ERROR_MASK);
+}
+
 void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE, 0);
-	POSTING_READ(FORCEWAKE);
+	/* The below doubles as a POSTING_READ */
+	gen6_gt_check_fifodbg(dev_priv);
 }
 
 void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv)
 {
 	I915_WRITE_NOTRACE(FORCEWAKE_MT, (1<<16) | 0);
-	POSTING_READ(FORCEWAKE_MT);
+	/* The below doubles as a POSTING_READ */
+	gen6_gt_check_fifodbg(dev_priv);
 }
 
 /*
@@ -405,8 +421,10 @@ void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 	spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);
 }
 
-void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
+int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 {
+	int ret = 0;
+
 	if (dev_priv->gt_fifo_count < GT_FIFO_NUM_RESERVED_ENTRIES) {
 		int loop = 500;
 		u32 fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
@@ -414,10 +432,13 @@ void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 			udelay(10);
 			fifo = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
 		}
-		WARN_ON(loop < 0 && fifo <= GT_FIFO_NUM_RESERVED_ENTRIES);
+		if (WARN_ON(loop < 0 && fifo <= GT_FIFO_NUM_RESERVED_ENTRIES))
+			++ret;
 		dev_priv->gt_fifo_count = fifo;
 	}
 	dev_priv->gt_fifo_count--;
+
+	return ret;
 }
 
 static int i915_drm_freeze(struct drm_device *dev)
@@ -498,7 +519,7 @@ static int i915_drm_thaw(struct drm_device *dev)
 		mutex_lock(&dev->struct_mutex);
 		dev_priv->mm.suspended = 0;
 
-		error = i915_gem_init_ringbuffer(dev);
+		error = i915_gem_init_hw(dev);
 		mutex_unlock(&dev->struct_mutex);
 
 		if (HAS_PCH_SPLIT(dev))
@@ -713,11 +734,15 @@ int i915_reset(struct drm_device *dev, u8 flags)
 			!dev_priv->mm.suspended) {
 		dev_priv->mm.suspended = 0;
 
+		i915_gem_init_swizzling(dev);
+
 		dev_priv->ring[RCS].init(&dev_priv->ring[RCS]);
 		if (HAS_BSD(dev))
 		    dev_priv->ring[VCS].init(&dev_priv->ring[VCS]);
 		if (HAS_BLT(dev))
 		    dev_priv->ring[BCS].init(&dev_priv->ring[BCS]);
+
+		i915_gem_init_ppgtt(dev);
 
 		mutex_unlock(&dev->struct_mutex);
 		drm_irq_uninstall(dev);
@@ -981,11 +1006,15 @@ __i915_read(64, q)
 
 #define __i915_write(x, y) \
 void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
+	u32 __fifo_ret = 0; \
 	trace_i915_reg_rw(true, reg, val, sizeof(val)); \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
-		__gen6_gt_wait_for_fifo(dev_priv); \
+		__fifo_ret = __gen6_gt_wait_for_fifo(dev_priv); \
 	} \
 	write##y(val, dev_priv->regs + reg); \
+	if (unlikely(__fifo_ret)) { \
+		gen6_gt_check_fifodbg(dev_priv); \
+	} \
 }
 __i915_write(8, b)
 __i915_write(16, w)

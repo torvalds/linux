@@ -1576,6 +1576,28 @@ i915_gem_process_flushing_list(struct intel_ring_buffer *ring,
 	}
 }
 
+static u32
+i915_gem_get_seqno(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	u32 seqno = dev_priv->next_seqno;
+
+	/* reserve 0 for non-seqno */
+	if (++dev_priv->next_seqno == 0)
+		dev_priv->next_seqno = 1;
+
+	return seqno;
+}
+
+u32
+i915_gem_next_request_seqno(struct intel_ring_buffer *ring)
+{
+	if (ring->outstanding_lazy_request == 0)
+		ring->outstanding_lazy_request = i915_gem_get_seqno(ring->dev);
+
+	return ring->outstanding_lazy_request;
+}
+
 int
 i915_add_request(struct intel_ring_buffer *ring,
 		 struct drm_file *file,
@@ -1583,10 +1605,19 @@ i915_add_request(struct intel_ring_buffer *ring,
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	uint32_t seqno;
+	u32 request_ring_position;
 	int was_empty;
 	int ret;
 
 	BUG_ON(request == NULL);
+	seqno = i915_gem_next_request_seqno(ring);
+
+	/* Record the position of the start of the request so that
+	 * should we detect the updated seqno part-way through the
+	 * GPU processing the request, we never over-estimate the
+	 * position of the head.
+	 */
+	request_ring_position = intel_ring_get_tail(ring);
 
 	ret = ring->add_request(ring, &seqno);
 	if (ret)
@@ -1596,6 +1627,7 @@ i915_add_request(struct intel_ring_buffer *ring,
 
 	request->seqno = seqno;
 	request->ring = ring;
+	request->tail = request_ring_position;
 	request->emitted_jiffies = jiffies;
 	was_empty = list_empty(&ring->request_list);
 	list_add_tail(&request->list, &ring->request_list);
@@ -1610,7 +1642,7 @@ i915_add_request(struct intel_ring_buffer *ring,
 		spin_unlock(&file_priv->mm.lock);
 	}
 
-	ring->outstanding_lazy_request = false;
+	ring->outstanding_lazy_request = 0;
 
 	if (!dev_priv->mm.suspended) {
 		if (i915_enable_hangcheck) {
@@ -1732,7 +1764,7 @@ void i915_gem_reset(struct drm_device *dev)
 /**
  * This function clears the request list as sequence numbers are passed.
  */
-static void
+void
 i915_gem_retire_requests_ring(struct intel_ring_buffer *ring)
 {
 	uint32_t seqno;
@@ -1760,6 +1792,12 @@ i915_gem_retire_requests_ring(struct intel_ring_buffer *ring)
 			break;
 
 		trace_i915_gem_request_retire(ring, request->seqno);
+		/* We know the GPU must have read the request to have
+		 * sent us the seqno + interrupt, so use the position
+		 * of tail of the request to update the last known position
+		 * of the GPU head.
+		 */
+		ring->last_retired_head = request->tail;
 
 		list_del(&request->list);
 		i915_gem_request_remove_from_client(request);
@@ -2020,6 +2058,7 @@ static void i915_gem_object_finish_gtt(struct drm_i915_gem_object *obj)
 int
 i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 {
+	drm_i915_private_t *dev_priv = obj->base.dev->dev_private;
 	int ret = 0;
 
 	if (obj->gtt_space == NULL)
@@ -2064,6 +2103,11 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	trace_i915_gem_object_unbind(obj);
 
 	i915_gem_gtt_unbind_object(obj);
+	if (obj->has_aliasing_ppgtt_mapping) {
+		i915_ppgtt_unbind_object(dev_priv->mm.aliasing_ppgtt, obj);
+		obj->has_aliasing_ppgtt_mapping = 0;
+	}
+
 	i915_gem_object_put_pages_gtt(obj);
 
 	list_del_init(&obj->gtt_list);
@@ -2882,6 +2926,8 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				    enum i915_cache_level cache_level)
 {
+	struct drm_device *dev = obj->base.dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
 
 	if (obj->cache_level == cache_level)
@@ -2910,6 +2956,9 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 		}
 
 		i915_gem_gtt_rebind_object(obj, cache_level);
+		if (obj->has_aliasing_ppgtt_mapping)
+			i915_ppgtt_bind_object(dev_priv->mm.aliasing_ppgtt,
+					       obj, cache_level);
 	}
 
 	if (cache_level == I915_CACHE_NONE) {
@@ -3681,11 +3730,70 @@ i915_gem_idle(struct drm_device *dev)
 	return 0;
 }
 
+void i915_gem_init_swizzling(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	if (INTEL_INFO(dev)->gen < 5 ||
+	    dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_NONE)
+		return;
+
+	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
+				 DISP_TILE_SURFACE_SWIZZLING);
+
+	if (IS_GEN5(dev))
+		return;
+
+	I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_SWZCTL);
+	if (IS_GEN6(dev))
+		I915_WRITE(ARB_MODE, ARB_MODE_ENABLE(ARB_MODE_SWIZZLE_SNB));
+	else
+		I915_WRITE(ARB_MODE, ARB_MODE_ENABLE(ARB_MODE_SWIZZLE_IVB));
+}
+
+void i915_gem_init_ppgtt(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	uint32_t pd_offset;
+	struct intel_ring_buffer *ring;
+	int i;
+
+	if (!dev_priv->mm.aliasing_ppgtt)
+		return;
+
+	pd_offset = dev_priv->mm.aliasing_ppgtt->pd_offset;
+	pd_offset /= 64; /* in cachelines, */
+	pd_offset <<= 16;
+
+	if (INTEL_INFO(dev)->gen == 6) {
+		uint32_t ecochk = I915_READ(GAM_ECOCHK);
+		I915_WRITE(GAM_ECOCHK, ecochk | ECOCHK_SNB_BIT |
+				       ECOCHK_PPGTT_CACHE64B);
+		I915_WRITE(GFX_MODE, GFX_MODE_ENABLE(GFX_PPGTT_ENABLE));
+	} else if (INTEL_INFO(dev)->gen >= 7) {
+		I915_WRITE(GAM_ECOCHK, ECOCHK_PPGTT_CACHE64B);
+		/* GFX_MODE is per-ring on gen7+ */
+	}
+
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		ring = &dev_priv->ring[i];
+
+		if (INTEL_INFO(dev)->gen >= 7)
+			I915_WRITE(RING_MODE_GEN7(ring),
+				   GFX_MODE_ENABLE(GFX_PPGTT_ENABLE));
+
+		I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
+		I915_WRITE(RING_PP_DIR_BASE(ring), pd_offset);
+	}
+}
+
 int
-i915_gem_init_ringbuffer(struct drm_device *dev)
+i915_gem_init_hw(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
+
+	i915_gem_init_swizzling(dev);
 
 	ret = intel_init_render_ring_buffer(dev);
 	if (ret)
@@ -3704,6 +3812,8 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	}
 
 	dev_priv->next_seqno = 1;
+
+	i915_gem_init_ppgtt(dev);
 
 	return 0;
 
@@ -3742,7 +3852,7 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	mutex_lock(&dev->struct_mutex);
 	dev_priv->mm.suspended = 0;
 
-	ret = i915_gem_init_ringbuffer(dev);
+	ret = i915_gem_init_hw(dev);
 	if (ret != 0) {
 		mutex_unlock(&dev->struct_mutex);
 		return ret;

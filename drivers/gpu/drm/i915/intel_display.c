@@ -1266,7 +1266,8 @@ static void intel_enable_transcoder(struct drm_i915_private *dev_priv,
 				    enum pipe pipe)
 {
 	int reg;
-	u32 val;
+	u32 val, pipeconf_val;
+	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 
 	/* PCH only available on ILK+ */
 	BUG_ON(dev_priv->info->gen < 5);
@@ -1280,6 +1281,7 @@ static void intel_enable_transcoder(struct drm_i915_private *dev_priv,
 
 	reg = TRANSCONF(pipe);
 	val = I915_READ(reg);
+	pipeconf_val = I915_READ(PIPECONF(pipe));
 
 	if (HAS_PCH_IBX(dev_priv->dev)) {
 		/*
@@ -1287,8 +1289,19 @@ static void intel_enable_transcoder(struct drm_i915_private *dev_priv,
 		 * that in pipeconf reg.
 		 */
 		val &= ~PIPE_BPC_MASK;
-		val |= I915_READ(PIPECONF(pipe)) & PIPE_BPC_MASK;
+		val |= pipeconf_val & PIPE_BPC_MASK;
 	}
+
+	val &= ~TRANS_INTERLACE_MASK;
+	if ((pipeconf_val & PIPECONF_INTERLACE_MASK) == PIPECONF_INTERLACED_ILK)
+		if (HAS_PCH_IBX(dev_priv->dev) &&
+		    intel_pipe_has_type(crtc, INTEL_OUTPUT_SDVO))
+			val |= TRANS_LEGACY_INTERLACED_ILK;
+		else
+			val |= TRANS_INTERLACED;
+	else
+		val |= TRANS_PROGRESSIVE;
+
 	I915_WRITE(reg, val | TRANS_ENABLE);
 	if (wait_for(I915_READ(reg) & TRANS_STATE_ENABLE, 100))
 		DRM_ERROR("failed to enable transcoder %d\n", pipe);
@@ -1901,7 +1914,7 @@ static void intel_update_fbc(struct drm_device *dev)
 	if (enable_fbc < 0) {
 		DRM_DEBUG_KMS("fbc set to per-chip default\n");
 		enable_fbc = 1;
-		if (INTEL_INFO(dev)->gen <= 5)
+		if (INTEL_INFO(dev)->gen <= 6)
 			enable_fbc = 0;
 	}
 	if (!enable_fbc) {
@@ -2973,6 +2986,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	I915_WRITE(TRANS_VTOTAL(pipe), I915_READ(VTOTAL(pipe)));
 	I915_WRITE(TRANS_VBLANK(pipe), I915_READ(VBLANK(pipe)));
 	I915_WRITE(TRANS_VSYNC(pipe),  I915_READ(VSYNC(pipe)));
+	I915_WRITE(TRANS_VSYNCSHIFT(pipe),  I915_READ(VSYNCSHIFT(pipe)));
 
 	intel_fdi_normal_train(crtc);
 
@@ -3437,11 +3451,8 @@ static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
 			return false;
 	}
 
-	/* XXX some encoders set the crtcinfo, others don't.
-	 * Obviously we need some form of conflict resolution here...
-	 */
-	if (adjusted_mode->crtc_htotal == 0)
-		drm_mode_set_crtcinfo(adjusted_mode, 0);
+	/* All interlaced capable intel hw wants timings in frames. */
+	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	return true;
 }
@@ -5106,7 +5117,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	int plane = intel_crtc->plane;
 	int refclk, num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
-	u32 dpll, dspcntr, pipeconf;
+	u32 dpll, dspcntr, pipeconf, vsyncshift;
 	bool ok, has_reduced_clock = false, is_sdvo = false, is_dvo = false;
 	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
@@ -5387,17 +5398,22 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
-	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+	pipeconf &= ~PIPECONF_INTERLACE_MASK;
+	if (!IS_GEN2(dev) &&
+	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
 		/* the chip adds 2 halflines automatically */
-		adjusted_mode->crtc_vdisplay -= 1;
 		adjusted_mode->crtc_vtotal -= 1;
-		adjusted_mode->crtc_vblank_start -= 1;
 		adjusted_mode->crtc_vblank_end -= 1;
-		adjusted_mode->crtc_vsync_end -= 1;
-		adjusted_mode->crtc_vsync_start -= 1;
-	} else
-		pipeconf &= ~PIPECONF_INTERLACE_MASK; /* progressive */
+		vsyncshift = adjusted_mode->crtc_hsync_start
+			     - adjusted_mode->crtc_htotal/2;
+	} else {
+		pipeconf |= PIPECONF_PROGRESSIVE;
+		vsyncshift = 0;
+	}
+
+	if (!IS_GEN3(dev))
+		I915_WRITE(VSYNCSHIFT(pipe), vsyncshift);
 
 	I915_WRITE(HTOTAL(pipe),
 		   (adjusted_mode->crtc_hdisplay - 1) |
@@ -5979,17 +5995,19 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
+	pipeconf &= ~PIPECONF_INTERLACE_MASK;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
+		pipeconf |= PIPECONF_INTERLACED_ILK;
 		/* the chip adds 2 halflines automatically */
-		adjusted_mode->crtc_vdisplay -= 1;
 		adjusted_mode->crtc_vtotal -= 1;
-		adjusted_mode->crtc_vblank_start -= 1;
 		adjusted_mode->crtc_vblank_end -= 1;
-		adjusted_mode->crtc_vsync_end -= 1;
-		adjusted_mode->crtc_vsync_start -= 1;
-	} else
-		pipeconf &= ~PIPECONF_INTERLACE_W_FIELD_INDICATION; /* progressive */
+		I915_WRITE(VSYNCSHIFT(pipe),
+			   adjusted_mode->crtc_hsync_start
+			   - adjusted_mode->crtc_htotal/2);
+	} else {
+		pipeconf |= PIPECONF_PROGRESSIVE;
+		I915_WRITE(VSYNCSHIFT(pipe), 0);
+	}
 
 	I915_WRITE(HTOTAL(pipe),
 		   (adjusted_mode->crtc_hdisplay - 1) |
@@ -6031,12 +6049,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	POSTING_READ(PIPECONF(pipe));
 
 	intel_wait_for_vblank(dev, pipe);
-
-	if (IS_GEN5(dev)) {
-		/* enable address swizzle for tiling buffer */
-		temp = I915_READ(DISP_ARB_CTL);
-		I915_WRITE(DISP_ARB_CTL, temp | DISP_TILE_SURFACE_SWIZZLING);
-	}
 
 	I915_WRITE(DSPCNTR(plane), dspcntr);
 	POSTING_READ(DSPCNTR(plane));
@@ -6999,9 +7011,7 @@ static void intel_increase_pllclock(struct drm_crtc *crtc)
 	if (!HAS_PIPE_CXSR(dev) && (dpll & DISPLAY_RATE_SELECT_FPA1)) {
 		DRM_DEBUG_DRIVER("upclocking LVDS\n");
 
-		/* Unlock panel regs */
-		I915_WRITE(PP_CONTROL,
-			   I915_READ(PP_CONTROL) | PANEL_UNLOCK_REGS);
+		assert_panel_unlocked(dev_priv, pipe);
 
 		dpll &= ~DISPLAY_RATE_SELECT_FPA1;
 		I915_WRITE(dpll_reg, dpll);
@@ -7010,9 +7020,6 @@ static void intel_increase_pllclock(struct drm_crtc *crtc)
 		dpll = I915_READ(dpll_reg);
 		if (dpll & DISPLAY_RATE_SELECT_FPA1)
 			DRM_DEBUG_DRIVER("failed to upclock LVDS!\n");
-
-		/* ...and lock them again */
-		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) & 0x3);
 	}
 
 	/* Schedule downclock */
@@ -7042,9 +7049,7 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 	if (!HAS_PIPE_CXSR(dev) && intel_crtc->lowfreq_avail) {
 		DRM_DEBUG_DRIVER("downclocking LVDS\n");
 
-		/* Unlock panel regs */
-		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) |
-			   PANEL_UNLOCK_REGS);
+		assert_panel_unlocked(dev_priv, pipe);
 
 		dpll |= DISPLAY_RATE_SELECT_FPA1;
 		I915_WRITE(dpll_reg, dpll);
@@ -7052,9 +7057,6 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 		dpll = I915_READ(dpll_reg);
 		if (!(dpll & DISPLAY_RATE_SELECT_FPA1))
 			DRM_DEBUG_DRIVER("failed to downclock LVDS!\n");
-
-		/* ...and lock them again */
-		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) & 0x3);
 	}
 
 }
@@ -7753,10 +7755,9 @@ static void intel_setup_outputs(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *encoder;
 	bool dpd_is_edp = false;
-	bool has_lvds = false;
+	bool has_lvds;
 
-	if (IS_MOBILE(dev) && !IS_I830(dev))
-		has_lvds = intel_lvds_init(dev);
+	has_lvds = intel_lvds_init(dev);
 	if (!has_lvds && !HAS_PCH_SPLIT(dev)) {
 		/* disable the panel fitter on everything but LVDS */
 		I915_WRITE(PFIT_CONTROL, 0);
@@ -8234,6 +8235,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
 	u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 	u32 pcu_mbox, rc6_mask = 0;
+	u32 gtfifodbg;
 	int cur_freq, min_freq, max_freq;
 	int i;
 
@@ -8245,6 +8247,13 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	 */
 	I915_WRITE(GEN6_RC_STATE, 0);
 	mutex_lock(&dev_priv->dev->struct_mutex);
+
+	/* Clear the DBG now so we don't confuse earlier errors */
+	if ((gtfifodbg = I915_READ(GTFIFODBG))) {
+		DRM_ERROR("GT fifo had a previous error %x\n", gtfifodbg);
+		I915_WRITE(GTFIFODBG, gtfifodbg);
+	}
+
 	gen6_gt_force_wake_get(dev_priv);
 
 	/* disable the counters and set deterministic thresholds */

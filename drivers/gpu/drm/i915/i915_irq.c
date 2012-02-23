@@ -788,11 +788,11 @@ i915_error_state_free(struct drm_device *dev,
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(error->batchbuffer); i++)
-		i915_error_object_free(error->batchbuffer[i]);
-
-	for (i = 0; i < ARRAY_SIZE(error->ringbuffer); i++)
-		i915_error_object_free(error->ringbuffer[i]);
+	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
+		i915_error_object_free(error->ring[i].batchbuffer);
+		i915_error_object_free(error->ring[i].ringbuffer);
+		kfree(error->ring[i].requests);
+	}
 
 	kfree(error->active_bo);
 	kfree(error->overlay);
@@ -903,6 +903,10 @@ static void i915_record_ring_state(struct drm_device *dev,
 	if (INTEL_INFO(dev)->gen >= 6) {
 		error->faddr[ring->id] = I915_READ(RING_DMA_FADD(ring->mmio_base));
 		error->fault_reg[ring->id] = I915_READ(RING_FAULT_REG(ring));
+		error->semaphore_mboxes[ring->id][0]
+			= I915_READ(RING_SYNC_0(ring->mmio_base));
+		error->semaphore_mboxes[ring->id][1]
+			= I915_READ(RING_SYNC_1(ring->mmio_base));
 	}
 
 	if (INTEL_INFO(dev)->gen >= 4) {
@@ -925,6 +929,55 @@ static void i915_record_ring_state(struct drm_device *dev,
 	error->acthd[ring->id] = intel_ring_get_active_head(ring);
 	error->head[ring->id] = I915_READ_HEAD(ring);
 	error->tail[ring->id] = I915_READ_TAIL(ring);
+
+	error->cpu_ring_head[ring->id] = ring->head;
+	error->cpu_ring_tail[ring->id] = ring->tail;
+}
+
+static void i915_gem_record_rings(struct drm_device *dev,
+				  struct drm_i915_error_state *error)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_request *request;
+	int i, count;
+
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		struct intel_ring_buffer *ring = &dev_priv->ring[i];
+
+		if (ring->obj == NULL)
+			continue;
+
+		i915_record_ring_state(dev, error, ring);
+
+		error->ring[i].batchbuffer =
+			i915_error_first_batchbuffer(dev_priv, ring);
+
+		error->ring[i].ringbuffer =
+			i915_error_object_create(dev_priv, ring->obj);
+
+		count = 0;
+		list_for_each_entry(request, &ring->request_list, list)
+			count++;
+
+		error->ring[i].num_requests = count;
+		error->ring[i].requests =
+			kmalloc(count*sizeof(struct drm_i915_error_request),
+				GFP_ATOMIC);
+		if (error->ring[i].requests == NULL) {
+			error->ring[i].num_requests = 0;
+			continue;
+		}
+
+		count = 0;
+		list_for_each_entry(request, &ring->request_list, list) {
+			struct drm_i915_error_request *erq;
+
+			erq = &error->ring[i].requests[count++];
+			erq->seqno = request->seqno;
+			erq->jiffies = request->emitted_jiffies;
+			erq->tail = request->tail;
+		}
+	}
 }
 
 /**
@@ -970,24 +1023,8 @@ static void i915_capture_error_state(struct drm_device *dev)
 		error->done_reg = I915_READ(DONE_REG);
 	}
 
-	i915_record_ring_state(dev, error, &dev_priv->ring[RCS]);
-	if (HAS_BLT(dev))
-		i915_record_ring_state(dev, error, &dev_priv->ring[BCS]);
-	if (HAS_BSD(dev))
-		i915_record_ring_state(dev, error, &dev_priv->ring[VCS]);
-
 	i915_gem_record_fences(dev, error);
-
-	/* Record the active batch and ring buffers */
-	for (i = 0; i < I915_NUM_RINGS; i++) {
-		error->batchbuffer[i] =
-			i915_error_first_batchbuffer(dev_priv,
-						     &dev_priv->ring[i]);
-
-		error->ringbuffer[i] =
-			i915_error_object_create(dev_priv,
-						 dev_priv->ring[i].obj);
-	}
+	i915_gem_record_rings(dev, error);
 
 	/* Record buffers on the active and pinned lists. */
 	error->active_bo = NULL;
@@ -1777,18 +1814,6 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 		INIT_WORK(&dev_priv->rps_work, gen6_pm_rps_work);
 
 	I915_WRITE(HWSTAM, 0xeffe);
-
-	if (IS_GEN6(dev)) {
-		/* Workaround stalls observed on Sandy Bridge GPUs by
-		 * making the blitter command streamer generate a
-		 * write to the Hardware Status Page for
-		 * MI_USER_INTERRUPT.  This appears to serialize the
-		 * previous seqno write out before the interrupt
-		 * happens.
-		 */
-		I915_WRITE(GEN6_BLITTER_HWSTAM, ~GEN6_BLITTER_USER_INTERRUPT);
-		I915_WRITE(GEN6_BSD_HWSTAM, ~GEN6_BSD_USER_INTERRUPT);
-	}
 
 	/* XXX hotplug from PCH */
 

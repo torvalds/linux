@@ -159,6 +159,10 @@ struct drm_i915_error_state {
 	u32 ipehr[I915_NUM_RINGS];
 	u32 instdone[I915_NUM_RINGS];
 	u32 acthd[I915_NUM_RINGS];
+	u32 semaphore_mboxes[I915_NUM_RINGS][I915_NUM_RINGS - 1];
+	/* our own tracking of ring head and tail */
+	u32 cpu_ring_head[I915_NUM_RINGS];
+	u32 cpu_ring_tail[I915_NUM_RINGS];
 	u32 error; /* gen6+ */
 	u32 instpm[I915_NUM_RINGS];
 	u32 instps[I915_NUM_RINGS];
@@ -170,11 +174,19 @@ struct drm_i915_error_state {
 	u32 faddr[I915_NUM_RINGS];
 	u64 fence[I915_MAX_NUM_FENCES];
 	struct timeval time;
-	struct drm_i915_error_object {
-		int page_count;
-		u32 gtt_offset;
-		u32 *pages[0];
-	} *ringbuffer[I915_NUM_RINGS], *batchbuffer[I915_NUM_RINGS];
+	struct drm_i915_error_ring {
+		struct drm_i915_error_object {
+			int page_count;
+			u32 gtt_offset;
+			u32 *pages[0];
+		} *ringbuffer, *batchbuffer;
+		struct drm_i915_error_request {
+			long jiffies;
+			u32 seqno;
+			u32 tail;
+		} *requests;
+		int num_requests;
+	} ring[I915_NUM_RINGS];
 	struct drm_i915_error_buffer {
 		u32 size;
 		u32 name;
@@ -254,6 +266,16 @@ struct intel_device_info {
 	u8 has_llc:1;
 };
 
+#define I915_PPGTT_PD_ENTRIES 512
+#define I915_PPGTT_PT_ENTRIES 1024
+struct i915_hw_ppgtt {
+	unsigned num_pd_entries;
+	struct page **pt_pages;
+	uint32_t pd_offset;
+	dma_addr_t *pt_dma_addr;
+	dma_addr_t scratch_page_dma_addr;
+};
+
 enum no_fbc_reason {
 	FBC_NO_OUTPUT, /* no outputs enabled to compress */
 	FBC_STOLEN_TOO_SMALL, /* not enough space to hold compressed buffers */
@@ -298,6 +320,10 @@ typedef struct drm_i915_private {
 		struct i2c_adapter *force_bit;
 		u32 reg0;
 	} *gmbus;
+
+	/** gmbus_mutex protects against concurrent usage of the single hw gmbus
+	 * controller on different i2c buses. */
+	struct mutex gmbus_mutex;
 
 	struct pci_dev *bridge_dev;
 	struct intel_ring_buffer ring[I915_NUM_RINGS];
@@ -580,6 +606,9 @@ typedef struct drm_i915_private {
 		struct io_mapping *gtt_mapping;
 		int gtt_mtrr;
 
+		/** PPGTT used for aliasing the PPGTT with the GTT */
+		struct i915_hw_ppgtt *aliasing_ppgtt;
+
 		struct shrinker inactive_shrinker;
 
 		/**
@@ -745,6 +774,13 @@ typedef struct drm_i915_private {
 	struct drm_property *force_audio_property;
 } drm_i915_private_t;
 
+enum hdmi_force_audio {
+	HDMI_AUDIO_OFF_DVI = -2,	/* no aux data for HDMI-DVI converter */
+	HDMI_AUDIO_OFF,			/* force turn off HDMI audio */
+	HDMI_AUDIO_AUTO,		/* trust EDID */
+	HDMI_AUDIO_ON,			/* force turn on HDMI audio */
+};
+
 enum i915_cache_level {
 	I915_CACHE_NONE,
 	I915_CACHE_LLC,
@@ -837,6 +873,8 @@ struct drm_i915_gem_object {
 
 	unsigned int cache_level:2;
 
+	unsigned int has_aliasing_ppgtt_mapping:1;
+
 	struct page **pages;
 
 	/**
@@ -914,6 +952,9 @@ struct drm_i915_gem_request {
 	/** GEM sequence number associated with this request. */
 	uint32_t seqno;
 
+	/** Postion in the ringbuffer of the end of the request */
+	u32 tail;
+
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
 
@@ -973,6 +1014,8 @@ struct drm_i915_file_private {
 #define HAS_LLC(dev)            (INTEL_INFO(dev)->has_llc)
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
+#define HAS_ALIASING_PPGTT(dev)	(INTEL_INFO(dev)->gen >=6)
+
 #define HAS_OVERLAY(dev)		(INTEL_INFO(dev)->has_overlay)
 #define OVERLAY_NEEDS_PHYSICAL(dev)	(INTEL_INFO(dev)->overlay_needs_physical)
 
@@ -1015,6 +1058,7 @@ extern int i915_vbt_sdvo_panel_type __read_mostly;
 extern int i915_enable_rc6 __read_mostly;
 extern int i915_enable_fbc __read_mostly;
 extern bool i915_enable_hangcheck __read_mostly;
+extern bool i915_enable_ppgtt __read_mostly;
 
 extern int i915_suspend(struct drm_device *dev, pm_message_t state);
 extern int i915_resume(struct drm_device *dev);
@@ -1155,12 +1199,7 @@ i915_seqno_passed(uint32_t seq1, uint32_t seq2)
 	return (int32_t)(seq1 - seq2) >= 0;
 }
 
-static inline u32
-i915_gem_next_request_seqno(struct intel_ring_buffer *ring)
-{
-	drm_i915_private_t *dev_priv = ring->dev->dev_private;
-	return ring->outstanding_lazy_request = dev_priv->next_seqno;
-}
+u32 i915_gem_next_request_seqno(struct intel_ring_buffer *ring);
 
 int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
 					   struct intel_ring_buffer *pipelined);
@@ -1185,13 +1224,17 @@ i915_gem_object_unpin_fence(struct drm_i915_gem_object *obj)
 }
 
 void i915_gem_retire_requests(struct drm_device *dev);
+void i915_gem_retire_requests_ring(struct intel_ring_buffer *ring);
+
 void i915_gem_reset(struct drm_device *dev);
 void i915_gem_clflush_object(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_object_set_domain(struct drm_i915_gem_object *obj,
 					    uint32_t read_domains,
 					    uint32_t write_domain);
 int __must_check i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj);
-int __must_check i915_gem_init_ringbuffer(struct drm_device *dev);
+int __must_check i915_gem_init_hw(struct drm_device *dev);
+void i915_gem_init_swizzling(struct drm_device *dev);
+void i915_gem_init_ppgtt(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 void i915_gem_do_init(struct drm_device *dev,
 		      unsigned long start,
@@ -1231,6 +1274,14 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				    enum i915_cache_level cache_level);
 
 /* i915_gem_gtt.c */
+int __must_check i915_gem_init_aliasing_ppgtt(struct drm_device *dev);
+void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev);
+void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
+			    struct drm_i915_gem_object *obj,
+			    enum i915_cache_level cache_level);
+void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
+			      struct drm_i915_gem_object *obj);
+
 void i915_gem_restore_gtt_mappings(struct drm_device *dev);
 int __must_check i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj);
 void i915_gem_gtt_rebind_object(struct drm_i915_gem_object *obj,
@@ -1369,7 +1420,7 @@ extern void intel_display_print_error_state(struct seq_file *m,
  */
 void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
 void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);
-void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv);
+int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv);
 
 /* We give fast paths for the really cool registers */
 #define NEEDS_FORCE_WAKE(dev_priv, reg) \
