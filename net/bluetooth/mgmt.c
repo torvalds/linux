@@ -1401,7 +1401,7 @@ static int remove_uuid(struct sock *sk, u16 index, void *data, u16 len)
 			schedule_delayed_work(&hdev->service_cache,
 					msecs_to_jiffies(SERVICE_CACHE_TIMEOUT));
 
-		goto unlock;
+		goto update_class;
 	}
 
 	found = 0;
@@ -1422,6 +1422,7 @@ static int remove_uuid(struct sock *sk, u16 index, void *data, u16 len)
 		goto unlock;
 	}
 
+update_class:
 	err = update_class(hdev);
 	if (err < 0)
 		goto unlock;
