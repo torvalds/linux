@@ -5,9 +5,12 @@ config FB_ROCKCHIP
         select FB_CFB_COPYAREA
         select FB_CFB_IMAGEBLIT
         ---help---
-          Framebuffer driver for rochip based  Platform
+          Framebuffer driver for rockchip based platform
+
 config LCDC_RK30
         tristate "Frame buffer driver support for rk30 lcdc "
         depends on FB_ROCKCHIP
         help
           Frame buffer driver for rk30 lcdc based boards.
+
+source "drivers/video/rockchip/rga/Kconfig"

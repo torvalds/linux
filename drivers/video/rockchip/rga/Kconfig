@@ -1,0 +1,9 @@
+menu "RGA"
+	depends on ARCH_RK30
+
+config RGA_RK30
+	tristate "ROCKCHIP RK30 RGA"
+	help
+	  rk30 rga module.
+
+endmenu
