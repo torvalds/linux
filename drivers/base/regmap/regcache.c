@@ -299,6 +299,51 @@ out:
 EXPORT_SYMBOL_GPL(regcache_sync);
 
 /**
+ * regcache_sync_region: Sync part  of the register cache with the hardware.
+ *
+ * @map: map to sync.
+ * @min: first register to sync
+ * @max: last register to sync
+ *
+ * Write all non-default register values in the specified region to
+ * the hardware.
+ *
+ * Return a negative value on failure, 0 on success.
+ */
+int regcache_sync_region(struct regmap *map, unsigned int min,
+			 unsigned int max)
+{
+	int ret = 0;
+	const char *name;
+	unsigned int bypass;
+
+	BUG_ON(!map->cache_ops || !map->cache_ops->sync);
+
+	mutex_lock(&map->lock);
+
+	/* Remember the initial bypass state */
+	bypass = map->cache_bypass;
+
+	name = map->cache_ops->name;
+	dev_dbg(map->dev, "Syncing %s cache from %d-%d\n", name, min, max);
+
+	trace_regcache_sync(map->dev, name, "start region");
+
+	if (!map->cache_dirty)
+		goto out;
+
+	ret = map->cache_ops->sync(map, min, max);
+
+out:
+	trace_regcache_sync(map->dev, name, "stop region");
+	/* Restore the bypass state */
+	map->cache_bypass = bypass;
+	mutex_unlock(&map->lock);
+
+	return ret;
+}
+
+/**
  * regcache_cache_only: Put a register map into cache only mode
  *
  * @map: map to configure
