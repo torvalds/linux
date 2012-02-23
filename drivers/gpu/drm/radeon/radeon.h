@@ -1204,6 +1204,8 @@ struct radeon_asic {
 	void (*pre_page_flip)(struct radeon_device *rdev, int crtc);
 	u32 (*page_flip)(struct radeon_device *rdev, int crtc, u64 crtc_base);
 	void (*post_page_flip)(struct radeon_device *rdev, int crtc);
+	/* wait for vblank */
+	void (*wait_for_vblank)(struct radeon_device *rdev, int crtc);
 };
 
 /*
@@ -1692,6 +1694,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_pre_page_flip(rdev, crtc) rdev->asic->pre_page_flip((rdev), (crtc))
 #define radeon_page_flip(rdev, crtc, base) rdev->asic->page_flip((rdev), (crtc), (base))
 #define radeon_post_page_flip(rdev, crtc) rdev->asic->post_page_flip((rdev), (crtc))
+#define radeon_wait_for_vblank(rdev, crtc) rdev->asic->wait_for_vblank((rdev), (crtc))
 
 /* Common functions */
 /* AGP */

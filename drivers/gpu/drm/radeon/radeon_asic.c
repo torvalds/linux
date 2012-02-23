@@ -178,6 +178,7 @@ static struct radeon_asic r100_asic = {
 	.pre_page_flip = &r100_pre_page_flip,
 	.page_flip = &r100_page_flip,
 	.post_page_flip = &r100_post_page_flip,
+	.wait_for_vblank = &r100_wait_for_vblank,
 };
 
 static struct radeon_asic r200_asic = {
@@ -229,6 +230,7 @@ static struct radeon_asic r200_asic = {
 	.pre_page_flip = &r100_pre_page_flip,
 	.page_flip = &r100_page_flip,
 	.post_page_flip = &r100_post_page_flip,
+	.wait_for_vblank = &r100_wait_for_vblank,
 };
 
 static struct radeon_asic r300_asic = {
@@ -281,6 +283,7 @@ static struct radeon_asic r300_asic = {
 	.pre_page_flip = &r100_pre_page_flip,
 	.page_flip = &r100_page_flip,
 	.post_page_flip = &r100_post_page_flip,
+	.wait_for_vblank = &r100_wait_for_vblank,
 };
 
 static struct radeon_asic r300_asic_pcie = {
@@ -332,6 +335,7 @@ static struct radeon_asic r300_asic_pcie = {
 	.pre_page_flip = &r100_pre_page_flip,
 	.page_flip = &r100_page_flip,
 	.post_page_flip = &r100_post_page_flip,
+	.wait_for_vblank = &r100_wait_for_vblank,
 };
 
 static struct radeon_asic r420_asic = {
@@ -384,6 +388,7 @@ static struct radeon_asic r420_asic = {
 	.pre_page_flip = &r100_pre_page_flip,
 	.page_flip = &r100_page_flip,
 	.post_page_flip = &r100_post_page_flip,
+	.wait_for_vblank = &r100_wait_for_vblank,
 };
 
 static struct radeon_asic rs400_asic = {
@@ -436,6 +441,7 @@ static struct radeon_asic rs400_asic = {
 	.pre_page_flip = &r100_pre_page_flip,
 	.page_flip = &r100_page_flip,
 	.post_page_flip = &r100_post_page_flip,
+	.wait_for_vblank = &r100_wait_for_vblank,
 };
 
 static struct radeon_asic rs600_asic = {
@@ -488,6 +494,7 @@ static struct radeon_asic rs600_asic = {
 	.pre_page_flip = &rs600_pre_page_flip,
 	.page_flip = &rs600_page_flip,
 	.post_page_flip = &rs600_post_page_flip,
+	.wait_for_vblank = &avivo_wait_for_vblank,
 };
 
 static struct radeon_asic rs690_asic = {
@@ -540,6 +547,7 @@ static struct radeon_asic rs690_asic = {
 	.pre_page_flip = &rs600_pre_page_flip,
 	.page_flip = &rs600_page_flip,
 	.post_page_flip = &rs600_post_page_flip,
+	.wait_for_vblank = &avivo_wait_for_vblank,
 };
 
 static struct radeon_asic rv515_asic = {
@@ -592,6 +600,7 @@ static struct radeon_asic rv515_asic = {
 	.pre_page_flip = &rs600_pre_page_flip,
 	.page_flip = &rs600_page_flip,
 	.post_page_flip = &rs600_post_page_flip,
+	.wait_for_vblank = &avivo_wait_for_vblank,
 };
 
 static struct radeon_asic r520_asic = {
@@ -644,6 +653,7 @@ static struct radeon_asic r520_asic = {
 	.pre_page_flip = &rs600_pre_page_flip,
 	.page_flip = &rs600_page_flip,
 	.post_page_flip = &rs600_post_page_flip,
+	.wait_for_vblank = &avivo_wait_for_vblank,
 };
 
 static struct radeon_asic r600_asic = {
@@ -695,6 +705,7 @@ static struct radeon_asic r600_asic = {
 	.pre_page_flip = &rs600_pre_page_flip,
 	.page_flip = &rs600_page_flip,
 	.post_page_flip = &rs600_post_page_flip,
+	.wait_for_vblank = &avivo_wait_for_vblank,
 };
 
 static struct radeon_asic rs780_asic = {
@@ -746,6 +757,7 @@ static struct radeon_asic rs780_asic = {
 	.pre_page_flip = &rs600_pre_page_flip,
 	.page_flip = &rs600_page_flip,
 	.post_page_flip = &rs600_post_page_flip,
+	.wait_for_vblank = &avivo_wait_for_vblank,
 };
 
 static struct radeon_asic rv770_asic = {
@@ -797,6 +809,7 @@ static struct radeon_asic rv770_asic = {
 	.pre_page_flip = &rs600_pre_page_flip,
 	.page_flip = &rv770_page_flip,
 	.post_page_flip = &rs600_post_page_flip,
+	.wait_for_vblank = &avivo_wait_for_vblank,
 };
 
 static struct radeon_asic evergreen_asic = {
@@ -848,6 +861,7 @@ static struct radeon_asic evergreen_asic = {
 	.pre_page_flip = &evergreen_pre_page_flip,
 	.page_flip = &evergreen_page_flip,
 	.post_page_flip = &evergreen_post_page_flip,
+	.wait_for_vblank = &dce4_wait_for_vblank,
 };
 
 static struct radeon_asic sumo_asic = {
@@ -899,6 +913,7 @@ static struct radeon_asic sumo_asic = {
 	.pre_page_flip = &evergreen_pre_page_flip,
 	.page_flip = &evergreen_page_flip,
 	.post_page_flip = &evergreen_post_page_flip,
+	.wait_for_vblank = &dce4_wait_for_vblank,
 };
 
 static struct radeon_asic btc_asic = {
@@ -950,6 +965,7 @@ static struct radeon_asic btc_asic = {
 	.pre_page_flip = &evergreen_pre_page_flip,
 	.page_flip = &evergreen_page_flip,
 	.post_page_flip = &evergreen_post_page_flip,
+	.wait_for_vblank = &dce4_wait_for_vblank,
 };
 
 static const struct radeon_vm_funcs cayman_vm_funcs = {
@@ -1024,6 +1040,7 @@ static struct radeon_asic cayman_asic = {
 	.pre_page_flip = &evergreen_pre_page_flip,
 	.page_flip = &evergreen_page_flip,
 	.post_page_flip = &evergreen_post_page_flip,
+	.wait_for_vblank = &dce4_wait_for_vblank,
 };
 
 int radeon_asic_init(struct radeon_device *rdev)

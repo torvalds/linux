@@ -219,6 +219,7 @@
 #       define EVERGREEN_CRTC_MASTER_EN                 (1 << 0)
 #       define EVERGREEN_CRTC_DISP_READ_REQUEST_DISABLE (1 << 24)
 #define EVERGREEN_CRTC_STATUS                           0x6e8c
+#       define EVERGREEN_CRTC_V_BLANK                   (1 << 0)
 #define EVERGREEN_CRTC_STATUS_POSITION                  0x6e90
 #define EVERGREEN_MASTER_UPDATE_MODE                    0x6ef8
 #define EVERGREEN_CRTC_UPDATE_LOCK                      0x6ed4

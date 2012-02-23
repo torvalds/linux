@@ -65,6 +65,40 @@ MODULE_FIRMWARE(FIRMWARE_R520);
 
 #include "r100_track.h"
 
+void r100_wait_for_vblank(struct radeon_device *rdev, int crtc)
+{
+	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc];
+	int i;
+
+	if (radeon_crtc->crtc_id == 0) {
+		if (RREG32(RADEON_CRTC_GEN_CNTL) & RADEON_CRTC_EN) {
+			for (i = 0; i < rdev->usec_timeout; i++) {
+				if (!(RREG32(RADEON_CRTC_STATUS) & RADEON_CRTC_VBLANK_CUR))
+					break;
+				udelay(1);
+			}
+			for (i = 0; i < rdev->usec_timeout; i++) {
+				if (RREG32(RADEON_CRTC_STATUS) & RADEON_CRTC_VBLANK_CUR)
+					break;
+				udelay(1);
+			}
+		}
+	} else {
+		if (RREG32(RADEON_CRTC2_GEN_CNTL) & RADEON_CRTC2_EN) {
+			for (i = 0; i < rdev->usec_timeout; i++) {
+				if (!(RREG32(RADEON_CRTC2_STATUS) & RADEON_CRTC2_VBLANK_CUR))
+					break;
+				udelay(1);
+			}
+			for (i = 0; i < rdev->usec_timeout; i++) {
+				if (RREG32(RADEON_CRTC2_STATUS) & RADEON_CRTC2_VBLANK_CUR)
+					break;
+				udelay(1);
+			}
+		}
+	}
+}
+
 /* This files gather functions specifics to:
  * r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280
  */

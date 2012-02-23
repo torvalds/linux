@@ -139,6 +139,7 @@ extern void r100_pm_get_dynpm_state(struct radeon_device *rdev);
 extern void r100_pre_page_flip(struct radeon_device *rdev, int crtc);
 extern u32 r100_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
 extern void r100_post_page_flip(struct radeon_device *rdev, int crtc);
+extern void r100_wait_for_vblank(struct radeon_device *rdev, int crtc);
 
 /*
  * r200,rv250,rs300,rv280
@@ -236,7 +237,7 @@ extern void rs600_pre_page_flip(struct radeon_device *rdev, int crtc);
 extern u32 rs600_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
 extern void rs600_post_page_flip(struct radeon_device *rdev, int crtc);
 void rs600_set_safe_registers(struct radeon_device *rdev);
-
+extern void avivo_wait_for_vblank(struct radeon_device *rdev, int crtc);
 
 /*
  * rs690,rs740
@@ -423,6 +424,7 @@ extern void sumo_pm_init_profile(struct radeon_device *rdev);
 extern void evergreen_pre_page_flip(struct radeon_device *rdev, int crtc);
 extern u32 evergreen_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
 extern void evergreen_post_page_flip(struct radeon_device *rdev, int crtc);
+extern void dce4_wait_for_vblank(struct radeon_device *rdev, int crtc);
 void evergreen_disable_interrupt_state(struct radeon_device *rdev);
 int evergreen_blit_init(struct radeon_device *rdev);
 

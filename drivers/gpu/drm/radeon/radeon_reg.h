@@ -539,9 +539,11 @@
 
 #define RADEON_CRTC2_PITCH                  0x032c
 #define RADEON_CRTC_STATUS                  0x005c
+#       define RADEON_CRTC_VBLANK_CUR       (1 <<  0)
 #       define RADEON_CRTC_VBLANK_SAVE      (1 <<  1)
 #       define RADEON_CRTC_VBLANK_SAVE_CLEAR  (1 <<  1)
 #define RADEON_CRTC2_STATUS                  0x03fc
+#       define RADEON_CRTC2_VBLANK_CUR       (1 <<  0)
 #       define RADEON_CRTC2_VBLANK_SAVE      (1 <<  1)
 #       define RADEON_CRTC2_VBLANK_SAVE_CLEAR  (1 <<  1)
 #define RADEON_CRTC_V_SYNC_STRT_WID         0x020c
