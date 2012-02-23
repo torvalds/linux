@@ -183,6 +183,7 @@ error_cancel:
 		oblocks = map.br_startoff + map.br_blockcount;
 	}
 	return 0;
+
 error:
 	return error;
 }
@@ -2139,11 +2140,9 @@ xfs_rtfree_extent(
 	xfs_buf_t	*sumbp;		/* summary file block buffer */
 
 	mp = tp->t_mountp;
-	/*
-	 * Synchronize by locking the bitmap inode.
-	 */
-	xfs_ilock(mp->m_rbmip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, mp->m_rbmip, XFS_ILOCK_EXCL);
+
+	ASSERT(mp->m_rbmip->i_itemp != NULL);
+	ASSERT(xfs_isilocked(mp->m_rbmip, XFS_ILOCK_EXCL));
 
 #if defined(__KERNEL__) && defined(DEBUG)
 	/*
