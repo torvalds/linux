@@ -38,6 +38,9 @@
 
 #include <mach/hardware.h>
 
+/* OPP tolerance in percentage */
+#define	OPP_TOLERANCE	4
+
 #ifdef CONFIG_SMP
 struct lpj_info {
 	unsigned long	ref;
@@ -81,7 +84,7 @@ static int omap_target(struct cpufreq_policy *policy,
 	int r, ret = 0;
 	struct cpufreq_freqs freqs;
 	struct opp *opp;
-	unsigned long freq, volt = 0, volt_old = 0;
+	unsigned long freq, volt = 0, volt_old = 0, tol = 0;
 
 	if (!freq_table) {
 		dev_err(mpu_dev, "%s: cpu%d: no freq table!\n", __func__,
@@ -125,6 +128,7 @@ static int omap_target(struct cpufreq_policy *policy,
 			return -EINVAL;
 		}
 		volt = opp_get_voltage(opp);
+		tol = volt * OPP_TOLERANCE / 100;
 		volt_old = regulator_get_voltage(mpu_reg);
 	}
 
@@ -134,7 +138,7 @@ static int omap_target(struct cpufreq_policy *policy,
 
 	/* scaling up?  scale voltage before frequency */
 	if (mpu_reg && (freqs.new > freqs.old)) {
-		r = regulator_set_voltage(mpu_reg, volt, volt);
+		r = regulator_set_voltage(mpu_reg, volt - tol, volt + tol);
 		if (r < 0) {
 			dev_warn(mpu_dev, "%s: unable to scale voltage up.\n",
 				 __func__);
@@ -147,7 +151,7 @@ static int omap_target(struct cpufreq_policy *policy,
 
 	/* scaling down?  scale voltage after frequency */
 	if (mpu_reg && (freqs.new < freqs.old)) {
-		r = regulator_set_voltage(mpu_reg, volt, volt);
+		r = regulator_set_voltage(mpu_reg, volt - tol, volt + tol);
 		if (r < 0) {
 			dev_warn(mpu_dev, "%s: unable to scale voltage down.\n",
 				 __func__);
