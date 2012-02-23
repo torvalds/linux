@@ -300,8 +300,17 @@ struct usb_serial_driver {
 #define to_usb_serial_driver(d) \
 	container_of(d, struct usb_serial_driver, driver)
 
+/*
+ * These two routines are kept only for backward compatibility.
+ * Don't use them; call usb_serial_{de}register_drivers() instead.
+ */
 extern int  usb_serial_register(struct usb_serial_driver *driver);
 extern void usb_serial_deregister(struct usb_serial_driver *driver);
+
+extern int usb_serial_register_drivers(struct usb_driver *udriver,
+		struct usb_serial_driver * const serial_drivers[]);
+extern void usb_serial_deregister_drivers(struct usb_driver *udriver,
+		struct usb_serial_driver * const serial_drivers[]);
 extern void usb_serial_port_softint(struct usb_serial_port *port);
 
 extern int usb_serial_probe(struct usb_interface *iface,
