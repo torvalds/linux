@@ -487,6 +487,7 @@ static int drbd_accept(const char **what, struct socket *sock, struct socket **n
 		goto out;
 	}
 	(*newsock)->ops  = sock->ops;
+	__module_get((*newsock)->ops->owner);
 
 out:
 	return err;
