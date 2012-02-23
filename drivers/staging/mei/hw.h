@@ -237,7 +237,7 @@ struct hbm_host_version_request {
 
 struct hbm_host_version_response {
 	struct hbm_cmd cmd;
-	int host_version_supported;
+	u8 host_version_supported;
 	struct hbm_version me_max_version;
 } __packed;
 
