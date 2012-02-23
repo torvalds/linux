@@ -188,4 +188,43 @@
 			status = "disabled";
 		};
 	};
+
+	i2c@0 {
+		compatible = "i2c-gpio";
+		gpios = <&pioA 30 0 /* sda */
+			 &pioA 31 0 /* scl */
+			>;
+		i2c-gpio,sda-open-drain;
+		i2c-gpio,scl-open-drain;
+		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	i2c@1 {
+		compatible = "i2c-gpio";
+		gpios = <&pioC 0 0 /* sda */
+			 &pioC 1 0 /* scl */
+			>;
+		i2c-gpio,sda-open-drain;
+		i2c-gpio,scl-open-drain;
+		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	i2c@2 {
+		compatible = "i2c-gpio";
+		gpios = <&pioB 4 0 /* sda */
+			 &pioB 5 0 /* scl */
+			>;
+		i2c-gpio,sda-open-drain;
+		i2c-gpio,scl-open-drain;
+		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
 };
