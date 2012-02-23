@@ -32,7 +32,7 @@
 #include <linux/bitops.h>
 
 #include <mach/hardware.h>
-#include <asm/irq.h>
+#include <mach/irqs.h>
 
 #ifdef CONFIG_ARCH_PXA
 #include <mach/regs-rtc.h>
