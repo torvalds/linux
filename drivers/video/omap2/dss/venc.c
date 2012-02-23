@@ -959,5 +959,5 @@ void venc_uninit_platform_driver(void)
 	if (cpu_is_omap44xx())
 		return;
 
-	return platform_driver_unregister(&omap_venchw_driver);
+	platform_driver_unregister(&omap_venchw_driver);
 }

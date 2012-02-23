@@ -3611,5 +3611,5 @@ int dispc_init_platform_driver(void)
 
 void dispc_uninit_platform_driver(void)
 {
-	return platform_driver_unregister(&omap_dispchw_driver);
+	platform_driver_unregister(&omap_dispchw_driver);
 }

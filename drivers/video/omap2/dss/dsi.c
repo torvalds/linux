@@ -4814,5 +4814,5 @@ int dsi_init_platform_driver(void)
 
 void dsi_uninit_platform_driver(void)
 {
-	return platform_driver_unregister(&omap_dsihw_driver);
+	platform_driver_unregister(&omap_dsihw_driver);
 }

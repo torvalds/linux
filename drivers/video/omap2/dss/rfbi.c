@@ -1039,5 +1039,5 @@ int rfbi_init_platform_driver(void)
 
 void rfbi_uninit_platform_driver(void)
 {
-	return platform_driver_unregister(&omap_rfbihw_driver);
+	platform_driver_unregister(&omap_rfbihw_driver);
 }

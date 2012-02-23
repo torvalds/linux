@@ -916,5 +916,5 @@ int hdmi_init_platform_driver(void)
 
 void hdmi_uninit_platform_driver(void)
 {
-	return platform_driver_unregister(&omapdss_hdmihw_driver);
+	platform_driver_unregister(&omapdss_hdmihw_driver);
 }
