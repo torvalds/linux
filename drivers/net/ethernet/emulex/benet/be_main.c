@@ -2447,6 +2447,11 @@ static void be_vf_clear(struct be_adapter *adapter)
 
 static int be_clear(struct be_adapter *adapter)
 {
+	if (adapter->flags & BE_FLAGS_WORKER_SCHEDULED) {
+		cancel_delayed_work_sync(&adapter->work);
+		adapter->flags &= ~BE_FLAGS_WORKER_SCHEDULED;
+	}
+
 	if (sriov_enabled(adapter))
 		be_vf_clear(adapter);
 
@@ -2647,6 +2652,9 @@ static int be_setup(struct be_adapter *adapter)
 		if (status)
 			goto err;
 	}
+
+	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
+	adapter->flags |= BE_FLAGS_WORKER_SCHEDULED;
 
 	return 0;
 err:
@@ -3208,8 +3216,6 @@ static void __devexit be_remove(struct pci_dev *pdev)
 	if (!adapter)
 		return;
 
-	cancel_delayed_work_sync(&adapter->work);
-
 	unregister_netdev(adapter->netdev);
 
 	be_clear(adapter);
@@ -3533,7 +3539,6 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	dev_info(&pdev->dev, "%s: %s port %d\n", netdev->name, nic_name(pdev),
 		adapter->port_num);
 
-	schedule_delayed_work(&adapter->work, msecs_to_jiffies(100));
 	return 0;
 
 unsetup:
@@ -3563,7 +3568,6 @@ static int be_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct be_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev =  adapter->netdev;
 
-	cancel_delayed_work_sync(&adapter->work);
 	if (adapter->wol)
 		be_setup_wol(adapter, true);
 
@@ -3612,7 +3616,6 @@ static int be_resume(struct pci_dev *pdev)
 	if (adapter->wol)
 		be_setup_wol(adapter, false);
 
-	schedule_delayed_work(&adapter->work, msecs_to_jiffies(100));
 	return 0;
 }
 
