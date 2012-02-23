@@ -617,10 +617,6 @@ static void mgmt_init_hdev(struct hci_dev *hdev)
 		 */
 		clear_bit(HCI_PAIRABLE, &hdev->dev_flags);
 	}
-
-	if (!test_and_set_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
-		schedule_delayed_work(&hdev->service_cache,
-				msecs_to_jiffies(SERVICE_CACHE_TIMEOUT));
 }
 
 static int read_controller_info(struct sock *sk, u16 index)
@@ -1399,6 +1395,12 @@ static int remove_uuid(struct sock *sk, u16 index, void *data, u16 len)
 
 	if (memcmp(cp->uuid, bt_uuid_any, 16) == 0) {
 		err = hci_uuids_clear(hdev);
+
+		if (hdev_is_powered(hdev) &&
+				!test_and_set_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
+			schedule_delayed_work(&hdev->service_cache,
+					msecs_to_jiffies(SERVICE_CACHE_TIMEOUT));
+
 		goto unlock;
 	}
 
