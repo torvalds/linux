@@ -643,16 +643,16 @@ static int dwc3_gadget_ep_enable(struct usb_ep *ep,
 
 	switch (usb_endpoint_type(desc)) {
 	case USB_ENDPOINT_XFER_CONTROL:
-		strncat(dep->name, "-control", sizeof(dep->name));
+		strlcat(dep->name, "-control", sizeof(dep->name));
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		strncat(dep->name, "-isoc", sizeof(dep->name));
+		strlcat(dep->name, "-isoc", sizeof(dep->name));
 		break;
 	case USB_ENDPOINT_XFER_BULK:
-		strncat(dep->name, "-bulk", sizeof(dep->name));
+		strlcat(dep->name, "-bulk", sizeof(dep->name));
 		break;
 	case USB_ENDPOINT_XFER_INT:
-		strncat(dep->name, "-int", sizeof(dep->name));
+		strlcat(dep->name, "-int", sizeof(dep->name));
 		break;
 	default:
 		dev_err(dwc->dev, "invalid endpoint transfer type\n");
