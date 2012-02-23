@@ -26,8 +26,6 @@
 
 *******************************************************************************/
 
-#include <linux/delay.h>
-
 #include "e1000.h"
 
 static s32 e1000_get_phy_cfg_done(struct e1000_hw *hw);
@@ -3153,7 +3151,7 @@ s32 e1000_link_stall_workaround_hv(struct e1000_hw *hw)
 		     BM_CS_STATUS_SPEED_1000))
 		return 0;
 
-	mdelay(200);
+	msleep(200);
 
 	/* flush the packets in the fifo buffer */
 	ret_val = e1e_wphy(hw, HV_MUX_DATA_CTRL, HV_MUX_DATA_CTRL_GEN_TO_MAC |
