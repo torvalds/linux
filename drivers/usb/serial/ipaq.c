@@ -510,7 +510,6 @@ static struct usb_driver ipaq_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	ipaq_id_table,
-	.no_dynamic_id =	1,
 };
 
 
@@ -521,13 +520,16 @@ static struct usb_serial_driver ipaq_device = {
 		.name =		"ipaq",
 	},
 	.description =		"PocketPC PDA",
-	.usb_driver =		&ipaq_driver,
 	.id_table =		ipaq_id_table,
 	.bulk_in_size =		256,
 	.bulk_out_size =	256,
 	.open =			ipaq_open,
 	.attach =		ipaq_startup,
 	.calc_num_ports =	ipaq_calc_num_ports,
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&ipaq_device, NULL
 };
 
 static int ipaq_open(struct tty_struct *tty,
@@ -624,30 +626,22 @@ static int ipaq_startup(struct usb_serial *serial)
 static int __init ipaq_init(void)
 {
 	int retval;
-	retval = usb_serial_register(&ipaq_device);
-	if (retval)
-		goto failed_usb_serial_register;
+
 	if (vendor) {
 		ipaq_id_table[0].idVendor = vendor;
 		ipaq_id_table[0].idProduct = product;
 	}
-	retval = usb_register(&ipaq_driver);
-	if (retval)
-		goto failed_usb_register;
 
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-	return 0;
-failed_usb_register:
-	usb_serial_deregister(&ipaq_device);
-failed_usb_serial_register:
+	retval = usb_serial_register_drivers(&ipaq_driver, serial_drivers);
+	if (retval == 0)
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+			       DRIVER_DESC "\n");
 	return retval;
 }
 
 static void __exit ipaq_exit(void)
 {
-	usb_deregister(&ipaq_driver);
-	usb_serial_deregister(&ipaq_device);
+	usb_serial_deregister_drivers(&ipaq_driver, serial_drivers);
 }
 
 

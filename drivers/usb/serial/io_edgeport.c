@@ -3189,35 +3189,12 @@ static int __init edgeport_init(void)
 {
 	int retval;
 
-	retval = usb_serial_register(&edgeport_2port_device);
-	if (retval)
-		goto failed_2port_device_register;
-	retval = usb_serial_register(&edgeport_4port_device);
-	if (retval)
-		goto failed_4port_device_register;
-	retval = usb_serial_register(&edgeport_8port_device);
-	if (retval)
-		goto failed_8port_device_register;
-	retval = usb_serial_register(&epic_device);
-	if (retval)
-		goto failed_epic_device_register;
-	retval = usb_register(&io_driver);
-	if (retval)
-		goto failed_usb_register;
-	atomic_set(&CmdUrbs, 0);
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-	return 0;
-
-failed_usb_register:
-	usb_serial_deregister(&epic_device);
-failed_epic_device_register:
-	usb_serial_deregister(&edgeport_8port_device);
-failed_8port_device_register:
-	usb_serial_deregister(&edgeport_4port_device);
-failed_4port_device_register:
-	usb_serial_deregister(&edgeport_2port_device);
-failed_2port_device_register:
+	retval = usb_serial_register_drivers(&io_driver, serial_drivers);
+	if (retval == 0) {
+		atomic_set(&CmdUrbs, 0);
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+			       DRIVER_DESC "\n");
+	}
 	return retval;
 }
 
@@ -3228,11 +3205,7 @@ failed_2port_device_register:
  ****************************************************************************/
 static void __exit edgeport_exit (void)
 {
-	usb_deregister(&io_driver);
-	usb_serial_deregister(&edgeport_2port_device);
-	usb_serial_deregister(&edgeport_4port_device);
-	usb_serial_deregister(&edgeport_8port_device);
-	usb_serial_deregister(&epic_device);
+	usb_serial_deregister_drivers(&io_driver, serial_drivers);
 }
 
 module_init(edgeport_init);

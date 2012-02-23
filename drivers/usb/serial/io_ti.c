@@ -202,7 +202,6 @@ static struct usb_driver io_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
-	.no_dynamic_id = 	1,
 };
 
 
@@ -2725,7 +2724,6 @@ static struct usb_serial_driver edgeport_1port_device = {
 		.name		= "edgeport_ti_1",
 	},
 	.description		= "Edgeport TI 1 port adapter",
-	.usb_driver		= &io_driver,
 	.id_table		= edgeport_1port_id_table,
 	.num_ports		= 1,
 	.open			= edge_open,
@@ -2757,7 +2755,6 @@ static struct usb_serial_driver edgeport_2port_device = {
 		.name		= "edgeport_ti_2",
 	},
 	.description		= "Edgeport TI 2 port adapter",
-	.usb_driver		= &io_driver,
 	.id_table		= edgeport_2port_id_table,
 	.num_ports		= 2,
 	.open			= edge_open,
@@ -2782,35 +2779,25 @@ static struct usb_serial_driver edgeport_2port_device = {
 	.write_bulk_callback	= edge_bulk_out_callback,
 };
 
+static struct usb_serial_driver * const serial_drivers[] = {
+	&edgeport_1port_device, &edgeport_2port_device, NULL
+};
+
 
 static int __init edgeport_init(void)
 {
 	int retval;
-	retval = usb_serial_register(&edgeport_1port_device);
-	if (retval)
-		goto failed_1port_device_register;
-	retval = usb_serial_register(&edgeport_2port_device);
-	if (retval)
-		goto failed_2port_device_register;
-	retval = usb_register(&io_driver);
-	if (retval)
-		goto failed_usb_register;
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-	return 0;
-failed_usb_register:
-	usb_serial_deregister(&edgeport_2port_device);
-failed_2port_device_register:
-	usb_serial_deregister(&edgeport_1port_device);
-failed_1port_device_register:
+
+	retval = usb_serial_register_drivers(&io_driver, serial_drivers);
+	if (retval == 0)
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+			       DRIVER_DESC "\n");
 	return retval;
 }
 
 static void __exit edgeport_exit(void)
 {
-	usb_deregister(&io_driver);
-	usb_serial_deregister(&edgeport_1port_device);
-	usb_serial_deregister(&edgeport_2port_device);
+	usb_serial_deregister_drivers(&io_driver, serial_drivers);
 }
 
 module_init(edgeport_init);
