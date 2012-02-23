@@ -1367,7 +1367,7 @@ static int add_uuid(struct sock *sk, u16 index, void *data, u16 len)
 	if (err < 0)
 		goto failed;
 
-	err = cmd_complete(sk, index, MGMT_OP_ADD_UUID, 0, NULL, 0);
+	err = cmd_complete(sk, index, MGMT_OP_ADD_UUID, 0, hdev->dev_class, 3);
 
 failed:
 	hci_dev_unlock(hdev);
@@ -1428,7 +1428,8 @@ static int remove_uuid(struct sock *sk, u16 index, void *data, u16 len)
 	if (err < 0)
 		goto unlock;
 
-	err = cmd_complete(sk, index, MGMT_OP_REMOVE_UUID, 0, NULL, 0);
+	err = cmd_complete(sk, index, MGMT_OP_REMOVE_UUID, 0,
+							hdev->dev_class, 3);
 
 unlock:
 	hci_dev_unlock(hdev);
