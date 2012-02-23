@@ -765,6 +765,7 @@ out_err:
 	list_for_each_entry_reverse(evsel, &evlist->entries, node)
 		perf_evsel__close(evsel, ncpus, nthreads);
 
+	errno = -err;
 	return err;
 }
 
