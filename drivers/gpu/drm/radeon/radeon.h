@@ -1147,13 +1147,13 @@ struct radeon_asic {
 		void (*emit_fence)(struct radeon_device *rdev, struct radeon_fence *fence);
 		void (*emit_semaphore)(struct radeon_device *rdev, struct radeon_ring *cp,
 				       struct radeon_semaphore *semaphore, bool emit_wait);
+		int (*cs_parse)(struct radeon_cs_parser *p);
 	} ring[RADEON_NUM_RINGS];
 
 	int (*ring_test)(struct radeon_device *rdev, struct radeon_ring *cp);
 	int (*irq_set)(struct radeon_device *rdev);
 	int (*irq_process)(struct radeon_device *rdev);
 	u32 (*get_vblank_counter)(struct radeon_device *rdev, int crtc);
-	int (*cs_parse)(struct radeon_cs_parser *p);
 	int (*copy_blit)(struct radeon_device *rdev,
 			 uint64_t src_offset,
 			 uint64_t dst_offset,
@@ -1662,7 +1662,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_fini(rdev) (rdev)->asic->fini((rdev))
 #define radeon_resume(rdev) (rdev)->asic->resume((rdev))
 #define radeon_suspend(rdev) (rdev)->asic->suspend((rdev))
-#define radeon_cs_parse(p) rdev->asic->cs_parse((p))
+#define radeon_cs_parse(rdev, r, p) (rdev)->asic->ring[(r)].cs_parse((p))
 #define radeon_vga_set_state(rdev, state) (rdev)->asic->vga_set_state((rdev), (state))
 #define radeon_gpu_is_lockup(rdev, cp) (rdev)->asic->gpu_is_lockup((rdev), (cp))
 #define radeon_asic_reset(rdev) (rdev)->asic->asic_reset((rdev))

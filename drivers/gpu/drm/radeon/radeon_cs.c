@@ -348,7 +348,7 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 		return r;
 	}
 	parser->ib->length_dw = ib_chunk->length_dw;
-	r = radeon_cs_parse(parser);
+	r = radeon_cs_parse(rdev, parser->ring, parser);
 	if (r || parser->parser_error) {
 		DRM_ERROR("Invalid command stream !\n");
 		return r;
