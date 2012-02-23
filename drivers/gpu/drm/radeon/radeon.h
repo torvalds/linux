@@ -1199,11 +1199,13 @@ struct radeon_asic {
 	void (*ioctl_wait_idle)(struct radeon_device *rdev, struct radeon_bo *bo);
 	bool (*gui_idle)(struct radeon_device *rdev);
 	/* power management */
-	void (*pm_misc)(struct radeon_device *rdev);
-	void (*pm_prepare)(struct radeon_device *rdev);
-	void (*pm_finish)(struct radeon_device *rdev);
-	void (*pm_init_profile)(struct radeon_device *rdev);
-	void (*pm_get_dynpm_state)(struct radeon_device *rdev);
+	struct {
+		void (*misc)(struct radeon_device *rdev);
+		void (*prepare)(struct radeon_device *rdev);
+		void (*finish)(struct radeon_device *rdev);
+		void (*init_profile)(struct radeon_device *rdev);
+		void (*get_dynpm_state)(struct radeon_device *rdev);
+	} pm;
 	/* pageflipping */
 	struct {
 		void (*pre_page_flip)(struct radeon_device *rdev, int crtc);
@@ -1694,11 +1696,11 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_hpd_sense(rdev, h) (rdev)->asic->hpd.sense((rdev), (h))
 #define radeon_hpd_set_polarity(rdev, h) (rdev)->asic->hpd.set_polarity((rdev), (h))
 #define radeon_gui_idle(rdev) (rdev)->asic->gui_idle((rdev))
-#define radeon_pm_misc(rdev) (rdev)->asic->pm_misc((rdev))
-#define radeon_pm_prepare(rdev) (rdev)->asic->pm_prepare((rdev))
-#define radeon_pm_finish(rdev) (rdev)->asic->pm_finish((rdev))
-#define radeon_pm_init_profile(rdev) (rdev)->asic->pm_init_profile((rdev))
-#define radeon_pm_get_dynpm_state(rdev) (rdev)->asic->pm_get_dynpm_state((rdev))
+#define radeon_pm_misc(rdev) (rdev)->asic->pm.misc((rdev))
+#define radeon_pm_prepare(rdev) (rdev)->asic->pm.prepare((rdev))
+#define radeon_pm_finish(rdev) (rdev)->asic->pm.finish((rdev))
+#define radeon_pm_init_profile(rdev) (rdev)->asic->pm.init_profile((rdev))
+#define radeon_pm_get_dynpm_state(rdev) (rdev)->asic->pm.get_dynpm_state((rdev))
 #define radeon_pre_page_flip(rdev, crtc) rdev->asic->pflip.pre_page_flip((rdev), (crtc))
 #define radeon_page_flip(rdev, crtc, base) rdev->asic->pflip.page_flip((rdev), (crtc), (base))
 #define radeon_post_page_flip(rdev, crtc) rdev->asic->pflip.post_page_flip((rdev), (crtc))
