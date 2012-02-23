@@ -9,7 +9,7 @@
 #include <linux/sched.h>
 #include <asm/mmu.h>
 
-extern void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm);
+extern void uml_setup_stubs(struct mm_struct *mm);
 extern void arch_exit_mmap(struct mm_struct *mm);
 
 #define deactivate_mm(tsk,mm)	do { } while (0)
@@ -23,7 +23,9 @@ static inline void activate_mm(struct mm_struct *old, struct mm_struct *new)
 	 * when the new ->mm is used for the first time.
 	 */
 	__switch_mm(&new->context.id);
-	arch_dup_mmap(old, new);
+	down_write(&new->mmap_sem);
+	uml_setup_stubs(new);
+	up_write(&new->mmap_sem);
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, 
@@ -37,6 +39,11 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		if(next != &init_mm)
 			__switch_mm(&next->context.id);
 	}
+}
+
+static inline void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
+{
+	uml_setup_stubs(mm);
 }
 
 static inline void enter_lazy_tlb(struct mm_struct *mm, 

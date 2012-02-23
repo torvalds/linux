@@ -101,7 +101,7 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 	return ret;
 }
 
-void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
+void uml_setup_stubs(struct mm_struct *mm)
 {
 	struct page **pages;
 	int err, ret;
