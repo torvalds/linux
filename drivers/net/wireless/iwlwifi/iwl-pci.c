@@ -278,7 +278,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 #ifdef CONFIG_IWLWIFI_IDI
 	iwl_trans = iwl_trans_idi_alloc(shrd, pdev, ent);
-	if (trans == NULL) {
+	if (iwl_trans == NULL) {
 		err = -ENOMEM;
 		goto out_free_bus;
 	}
