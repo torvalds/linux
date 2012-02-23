@@ -1136,9 +1136,6 @@ struct radeon_asic {
 	int (*asic_reset)(struct radeon_device *rdev);
 	void (*gart_tlb_flush)(struct radeon_device *rdev);
 	int (*gart_set_page)(struct radeon_device *rdev, int i, uint64_t addr);
-	int (*cp_init)(struct radeon_device *rdev, unsigned ring_size);
-	void (*cp_fini)(struct radeon_device *rdev);
-	void (*cp_disable)(struct radeon_device *rdev);
 	void (*ring_start)(struct radeon_device *rdev);
 
 	struct {
