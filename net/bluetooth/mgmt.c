@@ -1394,6 +1394,20 @@ failed:
 	return err;
 }
 
+static bool enable_service_cache(struct hci_dev *hdev)
+{
+	if (!hdev_is_powered(hdev))
+		return false;
+
+	if (!test_and_set_bit(HCI_SERVICE_CACHE, &hdev->dev_flags)) {
+		schedule_delayed_work(&hdev->service_cache,
+				msecs_to_jiffies(SERVICE_CACHE_TIMEOUT));
+		return true;
+	}
+
+	return false;
+}
+
 static int remove_uuid(struct sock *sk, u16 index, void *data, u16 len)
 {
 	struct mgmt_cp_remove_uuid *cp = data;
@@ -1425,10 +1439,11 @@ static int remove_uuid(struct sock *sk, u16 index, void *data, u16 len)
 	if (memcmp(cp->uuid, bt_uuid_any, 16) == 0) {
 		err = hci_uuids_clear(hdev);
 
-		if (hdev_is_powered(hdev) &&
-				!test_and_set_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
-			schedule_delayed_work(&hdev->service_cache,
-					msecs_to_jiffies(SERVICE_CACHE_TIMEOUT));
+		if (enable_service_cache(hdev)) {
+			err = cmd_complete(sk, index, MGMT_OP_REMOVE_UUID, 0,
+							hdev->dev_class, 3);
+			goto unlock;
+		}
 
 		goto update_class;
 	}
