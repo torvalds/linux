@@ -287,9 +287,11 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 				nd = self->curr_hot;
 			break;
 		case 'H':
+		case 'h':
 			nd = self->curr_hot;
 			break;
 		case 'S':
+		case 's':
 			if (annotate_browser__toggle_source(self))
 				ui_helpline__puts(help);
 			continue;
