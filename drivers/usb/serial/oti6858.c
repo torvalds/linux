@@ -71,7 +71,6 @@ static struct usb_driver oti6858_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
-	.no_dynamic_id = 	1,
 };
 
 static bool debug;
@@ -157,7 +156,6 @@ static struct usb_serial_driver oti6858_device = {
 		.name =		"oti6858",
 	},
 	.id_table =		id_table,
-	.usb_driver =		&oti6858_driver,
 	.num_ports =		1,
 	.open =			oti6858_open,
 	.close =		oti6858_close,
@@ -174,6 +172,10 @@ static struct usb_serial_driver oti6858_device = {
 	.chars_in_buffer =	oti6858_chars_in_buffer,
 	.attach =		oti6858_startup,
 	.release =		oti6858_release,
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&oti6858_device, NULL
 };
 
 struct oti6858_private {
@@ -960,21 +962,12 @@ static void oti6858_write_bulk_callback(struct urb *urb)
 
 static int __init oti6858_init(void)
 {
-	int retval;
-
-	retval = usb_serial_register(&oti6858_device);
-	if (retval == 0) {
-		retval = usb_register(&oti6858_driver);
-		if (retval)
-			usb_serial_deregister(&oti6858_device);
-	}
-	return retval;
+	return usb_serial_register_drivers(&oti6858_driver, serial_drivers);
 }
 
 static void __exit oti6858_exit(void)
 {
-	usb_deregister(&oti6858_driver);
-	usb_serial_deregister(&oti6858_device);
+	usb_serial_deregister_drivers(&oti6858_driver, serial_drivers);
 }
 
 module_init(oti6858_init);

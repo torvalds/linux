@@ -604,7 +604,6 @@ static struct usb_driver opticon_driver = {
 	.suspend =	opticon_suspend,
 	.resume =	opticon_resume,
 	.id_table =	id_table,
-	.no_dynamic_id = 	1,
 };
 
 static struct usb_serial_driver opticon_device = {
@@ -613,7 +612,6 @@ static struct usb_serial_driver opticon_device = {
 		.name =		"opticon",
 	},
 	.id_table =		id_table,
-	.usb_driver = 		&opticon_driver,
 	.num_ports =		1,
 	.attach =		opticon_startup,
 	.open =			opticon_open,
@@ -629,23 +627,18 @@ static struct usb_serial_driver opticon_device = {
 	.tiocmset =		opticon_tiocmset,
 };
 
+static struct usb_serial_driver * const serial_drivers[] = {
+	&opticon_device, NULL
+};
+
 static int __init opticon_init(void)
 {
-	int retval;
-
-	retval = usb_serial_register(&opticon_device);
-	if (retval)
-		return retval;
-	retval = usb_register(&opticon_driver);
-	if (retval)
-		usb_serial_deregister(&opticon_device);
-	return retval;
+	return usb_serial_register_drivers(&opticon_driver, serial_drivers);
 }
 
 static void __exit opticon_exit(void)
 {
-	usb_deregister(&opticon_driver);
-	usb_serial_deregister(&opticon_device);
+	usb_serial_deregister_drivers(&opticon_driver, serial_drivers);
 }
 
 module_init(opticon_init);
