@@ -780,8 +780,6 @@ static void delete_vma_from_mm(struct vm_area_struct *vma)
 
 	if (vma->vm_next)
 		vma->vm_next->vm_prev = vma->vm_prev;
-
-	vma->vm_mm = NULL;
 }
 
 /*
