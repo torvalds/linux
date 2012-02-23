@@ -43,6 +43,8 @@ static struct {
 
 	struct regulator *vdds_dsi_reg;
 	struct regulator *vdds_sdi_reg;
+
+	const char *default_display_name;
 } core;
 
 static char *def_disp_name;
@@ -222,6 +224,11 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 	if (r)
 		goto err_debugfs;
 
+	if (def_disp_name)
+		core.default_display_name = def_disp_name;
+	else if (pdata->default_device)
+		core.default_display_name = pdata->default_device->name;
+
 	for (i = 0; i < pdata->num_devices; ++i) {
 		struct omap_dss_device *dssdev = pdata->devices[i];
 
@@ -235,9 +242,6 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 
 			goto err_register;
 		}
-
-		if (def_disp_name && strcmp(def_disp_name, dssdev->name) == 0)
-			pdata->default_device = dssdev;
 	}
 
 	return 0;
@@ -360,7 +364,6 @@ static int dss_driver_probe(struct device *dev)
 	int r;
 	struct omap_dss_driver *dssdrv = to_dss_driver(dev->driver);
 	struct omap_dss_device *dssdev = to_dss_device(dev);
-	struct omap_dss_board_info *pdata = core.pdev->dev.platform_data;
 	bool force;
 
 	DSSDBG("driver_probe: dev %s/%s, drv %s\n",
@@ -369,7 +372,8 @@ static int dss_driver_probe(struct device *dev)
 
 	dss_init_device(core.pdev, dssdev);
 
-	force = pdata->default_device == dssdev;
+	force = core.default_display_name &&
+		strcmp(core.default_display_name, dssdev->name) == 0;
 	dss_recheck_connections(dssdev, force);
 
 	r = dssdrv->probe(dssdev);
