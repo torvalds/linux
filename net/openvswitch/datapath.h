@@ -27,8 +27,7 @@
 #include <linux/u64_stats_sync.h>
 
 #include "flow.h"
-
-struct vport;
+#include "vport.h"
 
 #define DP_MAX_PORTS 1024
 #define SAMPLE_ACTION_DEPTH 3
@@ -63,6 +62,7 @@ struct dp_stats_percpu {
  * @port_list: List of all ports in @ports in arbitrary order.  RTNL required
  * to iterate or modify.
  * @stats_percpu: Per-CPU datapath statistics.
+ * @net: Reference to net namespace.
  *
  * Context: See the comment on locking at the top of datapath.c for additional
  * locking information.
@@ -80,6 +80,11 @@ struct datapath {
 
 	/* Stats. */
 	struct dp_stats_percpu __percpu *stats_percpu;
+
+#ifdef CONFIG_NET_NS
+	/* Network namespace ref. */
+	struct net *net;
+#endif
 };
 
 /**
@@ -107,6 +112,16 @@ struct dp_upcall_info {
 	const struct nlattr *userdata;
 	u32 pid;
 };
+
+static inline struct net *ovs_dp_get_net(struct datapath *dp)
+{
+	return read_pnet(&dp->net);
+}
+
+static inline void ovs_dp_set_net(struct datapath *dp, struct net *net)
+{
+	write_pnet(&dp->net, net);
+}
 
 extern struct notifier_block ovs_dp_device_notifier;
 extern struct genl_multicast_group ovs_dp_vport_multicast_group;

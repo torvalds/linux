@@ -20,6 +20,7 @@
 #define VPORT_H 1
 
 #include <linux/list.h>
+#include <linux/netlink.h>
 #include <linux/openvswitch.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
@@ -38,7 +39,7 @@ void ovs_vport_exit(void);
 struct vport *ovs_vport_add(const struct vport_parms *);
 void ovs_vport_del(struct vport *);
 
-struct vport *ovs_vport_locate(const char *name);
+struct vport *ovs_vport_locate(struct net *net, const char *name);
 
 void ovs_vport_get_stats(struct vport *, struct ovs_vport_stats *);
 

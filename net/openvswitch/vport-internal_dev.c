@@ -144,7 +144,7 @@ static void do_setup(struct net_device *netdev)
 	netdev->tx_queue_len = 0;
 
 	netdev->features = NETIF_F_LLTX | NETIF_F_SG | NETIF_F_FRAGLIST |
-				NETIF_F_HIGHDMA | NETIF_F_HW_CSUM | NETIF_F_TSO;
+			   NETIF_F_HIGHDMA | NETIF_F_HW_CSUM | NETIF_F_TSO;
 
 	netdev->vlan_features = netdev->features;
 	netdev->features |= NETIF_F_HW_VLAN_TX;
@@ -175,8 +175,13 @@ static struct vport *internal_dev_create(const struct vport_parms *parms)
 		goto error_free_vport;
 	}
 
+	dev_net_set(netdev_vport->dev, ovs_dp_get_net(vport->dp));
 	internal_dev = internal_dev_priv(netdev_vport->dev);
 	internal_dev->vport = vport;
+
+	/* Restrict bridge port to current netns. */
+	if (vport->port_no == OVSP_LOCAL)
+		netdev_vport->dev->features |= NETIF_F_NETNS_LOCAL;
 
 	err = register_netdevice(netdev_vport->dev);
 	if (err)
