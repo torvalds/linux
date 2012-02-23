@@ -463,12 +463,12 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			  const unsigned long page_frame_number,
 			  const unsigned long offset_in_page,
 			  const unsigned long syndrome,
-			  const int layer0,
-			  const int layer1,
-			  const int layer2,
+			  const int top_layer,
+			  const int mid_layer,
+			  const int low_layer,
 			  const char *msg,
 			  const char *other_detail,
-			  const void *mcelog);
+			  const void *arch_log);
 
 /*
  * edac_device APIs
