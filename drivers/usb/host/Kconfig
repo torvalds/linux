@@ -196,7 +196,7 @@ config USB_EHCI_S5P
 
 config USB_EHCI_MV
 	bool "EHCI support for Marvell on-chip controller"
-	depends on USB_EHCI_HCD
+	depends on USB_EHCI_HCD && (ARCH_PXA || ARCH_MMP)
 	select USB_EHCI_ROOT_HUB_TT
 	---help---
 	  Enables support for Marvell (including PXA and MMP series) on-chip
