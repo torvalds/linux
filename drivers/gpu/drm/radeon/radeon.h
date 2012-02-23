@@ -1133,12 +1133,23 @@ struct radeon_asic {
 	void (*vga_set_state)(struct radeon_device *rdev, bool state);
 	bool (*gpu_is_lockup)(struct radeon_device *rdev, struct radeon_ring *cp);
 	int (*asic_reset)(struct radeon_device *rdev);
-
+	/* ioctl hw specific callback. Some hw might want to perform special
+	 * operation on specific ioctl. For instance on wait idle some hw
+	 * might want to perform and HDP flush through MMIO as it seems that
+	 * some R6XX/R7XX hw doesn't take HDP flush into account if programmed
+	 * through ring.
+	 */
+	void (*ioctl_wait_idle)(struct radeon_device *rdev, struct radeon_bo *bo);
+	/* check if 3D engine is idle */
+	bool (*gui_idle)(struct radeon_device *rdev);
+	/* wait for mc_idle */
+	int (*mc_wait_for_idle)(struct radeon_device *rdev);
+	/* gart */
 	struct {
 		void (*tlb_flush)(struct radeon_device *rdev);
 		int (*set_page)(struct radeon_device *rdev, int i, uint64_t addr);
 	} gart;
-
+	/* ring specific callbacks */
 	struct {
 		void (*ib_execute)(struct radeon_device *rdev, struct radeon_ib *ib);
 		int (*ib_parse)(struct radeon_device *rdev, struct radeon_ib *ib);
@@ -1150,12 +1161,12 @@ struct radeon_asic {
 		int (*ring_test)(struct radeon_device *rdev, struct radeon_ring *cp);
 		int (*ib_test)(struct radeon_device *rdev, struct radeon_ring *cp);
 	} ring[RADEON_NUM_RINGS];
-
+	/* irqs */
 	struct {
 		int (*set)(struct radeon_device *rdev);
 		int (*process)(struct radeon_device *rdev);
 	} irq;
-
+	/* displays */
 	struct {
 		/* display watermarks */
 		void (*bandwidth_update)(struct radeon_device *rdev);
@@ -1164,7 +1175,7 @@ struct radeon_asic {
 		/* wait for vblank */
 		void (*wait_for_vblank)(struct radeon_device *rdev, int crtc);
 	} display;
-
+	/* copy functions for bo handling */
 	struct {
 		int (*blit)(struct radeon_device *rdev,
 			    uint64_t src_offset,
@@ -1187,30 +1198,20 @@ struct radeon_asic {
 		/* ring used for bo copies */
 		u32 copy_ring_index;
 	} copy;
-
+	/* surfaces */
 	struct {
 		int (*set_reg)(struct radeon_device *rdev, int reg,
 				       uint32_t tiling_flags, uint32_t pitch,
 				       uint32_t offset, uint32_t obj_size);
 		void (*clear_reg)(struct radeon_device *rdev, int reg);
 	} surface;
-
+	/* hotplug detect */
 	struct {
 		void (*init)(struct radeon_device *rdev);
 		void (*fini)(struct radeon_device *rdev);
 		bool (*sense)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
 		void (*set_polarity)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
 	} hpd;
-
-	/* ioctl hw specific callback. Some hw might want to perform special
-	 * operation on specific ioctl. For instance on wait idle some hw
-	 * might want to perform and HDP flush through MMIO as it seems that
-	 * some R6XX/R7XX hw doesn't take HDP flush into account if programmed
-	 * through ring.
-	 */
-	void (*ioctl_wait_idle)(struct radeon_device *rdev, struct radeon_bo *bo);
-	/* check if 3D engine is idle */
-	bool (*gui_idle)(struct radeon_device *rdev);
 	/* power management */
 	struct {
 		void (*misc)(struct radeon_device *rdev);
@@ -1232,9 +1233,6 @@ struct radeon_asic {
 		u32 (*page_flip)(struct radeon_device *rdev, int crtc, u64 crtc_base);
 		void (*post_page_flip)(struct radeon_device *rdev, int crtc);
 	} pflip;
-
-	/* wait for mc_idle */
-	int (*mc_wait_for_idle)(struct radeon_device *rdev);
 };
 
 /*
