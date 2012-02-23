@@ -1310,8 +1310,7 @@ sched_autogroup_write(struct file *file, const char __user *buf,
 	if (!p)
 		return -ESRCH;
 
-	err = nice;
-	err = proc_sched_autogroup_set_nice(p, &err);
+	err = proc_sched_autogroup_set_nice(p, nice);
 	if (err)
 		count = err;
 
