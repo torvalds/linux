@@ -238,10 +238,10 @@ static inline void mmc_host_clk_init(struct mmc_host *host)
 	/* Hold MCI clock for 8 cycles by default */
 	host->clk_delay = 8;
 	/*
-	 * Default clock gating delay is 200ms.
+	 * Default clock gating delay is 0ms to avoid wasting power.
 	 * This value can be tuned by writing into sysfs entry.
 	 */
-	host->clkgate_delay = 200;
+	host->clkgate_delay = 0;
 	host->clk_gated = false;
 	INIT_DELAYED_WORK(&host->clk_gate_work, mmc_host_clk_gate_work);
 	spin_lock_init(&host->clk_lock);
