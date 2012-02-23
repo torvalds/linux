@@ -102,7 +102,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 			state = sta->sta_state;
 			for (; state > IEEE80211_STA_NOTEXIST; state--)
-				WARN_ON(drv_sta_state(local, sdata, sta,
+				WARN_ON(drv_sta_state(local, sta->sdata, sta,
 						      state, state - 1));
 		}
 
