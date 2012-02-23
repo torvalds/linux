@@ -29,9 +29,12 @@ EXPORT_SYMBOL(at91_soc_initdata);
 void __init at91rm9200_set_type(int type)
 {
 	if (type == ARCH_REVISON_9200_PQFP)
-		at91_soc_initdata.subtype = AT91_SOC_RM9200_BGA;
-	else
 		at91_soc_initdata.subtype = AT91_SOC_RM9200_PQFP;
+	else
+		at91_soc_initdata.subtype = AT91_SOC_RM9200_BGA;
+
+	pr_info("AT91: filled in soc subtype: %s\n",
+		at91_get_soc_subtype(&at91_soc_initdata));
 }
 
 void __init at91_init_irq_default(void)
@@ -279,6 +282,15 @@ void __init at91_ioremap_shdwc(u32 base_addr)
 	if (!at91_shdwc_base)
 		panic("Impossible to ioremap at91_shdwc_base\n");
 	pm_power_off = at91sam9_poweroff;
+}
+
+void __iomem *at91_rstc_base;
+
+void __init at91_ioremap_rstc(u32 base_addr)
+{
+	at91_rstc_base = ioremap(base_addr, 16);
+	if (!at91_rstc_base)
+		panic("Impossible to ioremap at91_rstc_base\n");
 }
 
 void __init at91_initialize(unsigned long main_clock)

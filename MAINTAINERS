@@ -2246,6 +2246,17 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/teigland/dlm.git
 S:	Supported
 F:	fs/dlm/
 
+DMA BUFFER SHARING FRAMEWORK
+M:	Sumit Semwal <sumit.semwal@linaro.org>
+S:	Maintained
+L:	linux-media@vger.kernel.org
+L:	dri-devel@lists.freedesktop.org
+L:	linaro-mm-sig@lists.linaro.org
+F:	drivers/base/dma-buf*
+F:	include/linux/dma-buf*
+F:	Documentation/dma-buf-sharing.txt
+T:	git git://git.linaro.org/people/sumitsemwal/linux-dma-buf.git
+
 DMA GENERIC OFFLOAD ENGINE SUBSYSTEM
 M:	Vinod Koul <vinod.koul@intel.com>
 M:	Dan Williams <dan.j.williams@intel.com>
@@ -2339,6 +2350,9 @@ F:	include/drm/i915*
 
 DRM DRIVERS FOR EXYNOS
 M:	Inki Dae <inki.dae@samsung.com>
+M:	Joonyoung Shim <jy0922.shim@samsung.com>
+M:	Seung-Woo Kim <sw0312.kim@samsung.com>
+M:	Kyungmin Park <kyungmin.park@samsung.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/exynos
@@ -2391,7 +2405,7 @@ F:	net/bridge/netfilter/ebt*.c
 
 ECRYPT FILE SYSTEM
 M:	Tyler Hicks <tyhicks@canonical.com>
-M:	Dustin Kirkland <kirkland@canonical.com>
+M:	Dustin Kirkland <dustin.kirkland@gazzang.com>
 L:	ecryptfs@vger.kernel.org
 W:	https://launchpad.net/ecryptfs
 S:	Supported
@@ -4126,6 +4140,7 @@ F:	fs/partitions/ldm.*
 
 LogFS
 M:	Joern Engel <joern@logfs.org>
+M:	Prasad Joshi <prasadjoshi.linux@gmail.com>
 L:	logfs@logfs.org
 W:	logfs.org
 S:	Maintained
@@ -4266,13 +4281,6 @@ L:	linux-fbdev@vger.kernel.org
 S:	Orphan
 F:	drivers/video/matrox/matroxfb_*
 F:	include/linux/matroxfb.h
-
-MAX1668 TEMPERATURE SENSOR DRIVER
-M:	"David George" <david.george@ska.ac.za>
-L:	lm-sensors@lm-sensors.org
-S:	Maintained
-F:	Documentation/hwmon/max1668
-F:	drivers/hwmon/max1668.c
 
 MAX6650 HARDWARE MONITOR AND FAN CONTROLLER DRIVER
 M:	"Hans J. Koch" <hjk@hansjkoch.de>
@@ -6664,7 +6672,7 @@ TTY LAYER
 M:	Greg Kroah-Hartman <gregkh@suse.de>
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/tty-2.6.git
-F:	drivers/tty/*
+F:	drivers/tty/
 F:	drivers/tty/serial/serial_core.c
 F:	include/linux/serial_core.h
 F:	include/linux/serial.h
@@ -7357,6 +7365,7 @@ S:	Supported
 F:	Documentation/hwmon/wm83??
 F:	arch/arm/mach-s3c64xx/mach-crag6410*
 F:	drivers/leds/leds-wm83*.c
+F:	drivers/hwmon/wm83??-hwmon.c
 F:	drivers/input/misc/wm831x-on.c
 F:	drivers/input/touchscreen/wm831x-ts.c
 F:	drivers/input/touchscreen/wm97*.c
