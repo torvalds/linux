@@ -783,7 +783,6 @@ int radeon_ib_pool_init(struct radeon_device *rdev);
 void radeon_ib_pool_fini(struct radeon_device *rdev);
 int radeon_ib_pool_start(struct radeon_device *rdev);
 int radeon_ib_pool_suspend(struct radeon_device *rdev);
-int radeon_ib_test(struct radeon_device *rdev);
 /* Ring access between begin & end cannot sleep */
 int radeon_ring_index(struct radeon_device *rdev, struct radeon_ring *cp);
 void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_ring *cp);
@@ -1136,8 +1135,6 @@ struct radeon_asic {
 	int (*asic_reset)(struct radeon_device *rdev);
 	void (*gart_tlb_flush)(struct radeon_device *rdev);
 	int (*gart_set_page)(struct radeon_device *rdev, int i, uint64_t addr);
-	void (*ring_start)(struct radeon_device *rdev);
-
 	struct {
 		void (*ib_execute)(struct radeon_device *rdev, struct radeon_ib *ib);
 		int (*ib_parse)(struct radeon_device *rdev, struct radeon_ib *ib);
@@ -1145,9 +1142,10 @@ struct radeon_asic {
 		void (*emit_semaphore)(struct radeon_device *rdev, struct radeon_ring *cp,
 				       struct radeon_semaphore *semaphore, bool emit_wait);
 		int (*cs_parse)(struct radeon_cs_parser *p);
+		void (*ring_start)(struct radeon_device *rdev, struct radeon_ring *cp);
+		int (*ring_test)(struct radeon_device *rdev, struct radeon_ring *cp);
+		int (*ib_test)(struct radeon_device *rdev, struct radeon_ring *cp);
 	} ring[RADEON_NUM_RINGS];
-
-	int (*ring_test)(struct radeon_device *rdev, struct radeon_ring *cp);
 
 	struct {
 		int (*set)(struct radeon_device *rdev);
@@ -1677,8 +1675,9 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_asic_reset(rdev) (rdev)->asic->asic_reset((rdev))
 #define radeon_gart_tlb_flush(rdev) (rdev)->asic->gart_tlb_flush((rdev))
 #define radeon_gart_set_page(rdev, i, p) (rdev)->asic->gart_set_page((rdev), (i), (p))
-#define radeon_ring_start(rdev) (rdev)->asic->ring_start((rdev))
-#define radeon_ring_test(rdev, cp) (rdev)->asic->ring_test((rdev), (cp))
+#define radeon_ring_start(rdev, r, cp) (rdev)->asic->ring[(r)].ring_start((rdev), (cp))
+#define radeon_ring_test(rdev, r, cp) (rdev)->asic->ring[(r)].ring_test((rdev), (cp))
+#define radeon_ib_test(rdev, r, cp) (rdev)->asic->ring[(r)].ib_test((rdev), (cp))
 #define radeon_ring_ib_execute(rdev, r, ib) (rdev)->asic->ring[(r)].ib_execute((rdev), (ib))
 #define radeon_ring_ib_parse(rdev, r, ib) (rdev)->asic->ring[(r)].ib_parse((rdev), (ib))
 #define radeon_irq_set(rdev) (rdev)->asic->irq.set((rdev))

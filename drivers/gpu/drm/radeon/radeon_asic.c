@@ -138,14 +138,15 @@ static struct radeon_asic r100_asic = {
 	.asic_reset = &r100_asic_reset,
 	.gart_tlb_flush = &r100_pci_gart_tlb_flush,
 	.gart_set_page = &r100_pci_gart_set_page,
-	.ring_start = &r100_ring_start,
-	.ring_test = &r100_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
 			.emit_fence = &r100_fence_ring_emit,
 			.emit_semaphore = &r100_semaphore_ring_emit,
 			.cs_parse = &r100_cs_parse,
+			.ring_start = &r100_ring_start,
+			.ring_test = &r100_ring_test,
+			.ib_test = &r100_ib_test,
 		}
 	},
 	.irq = {
@@ -205,14 +206,15 @@ static struct radeon_asic r200_asic = {
 	.asic_reset = &r100_asic_reset,
 	.gart_tlb_flush = &r100_pci_gart_tlb_flush,
 	.gart_set_page = &r100_pci_gart_set_page,
-	.ring_start = &r100_ring_start,
-	.ring_test = &r100_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
 			.emit_fence = &r100_fence_ring_emit,
 			.emit_semaphore = &r100_semaphore_ring_emit,
 			.cs_parse = &r100_cs_parse,
+			.ring_start = &r100_ring_start,
+			.ring_test = &r100_ring_test,
+			.ib_test = &r100_ib_test,
 		}
 	},
 	.irq = {
@@ -271,14 +273,15 @@ static struct radeon_asic r300_asic = {
 	.asic_reset = &r300_asic_reset,
 	.gart_tlb_flush = &r100_pci_gart_tlb_flush,
 	.gart_set_page = &r100_pci_gart_set_page,
-	.ring_start = &r300_ring_start,
-	.ring_test = &r100_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
 			.emit_fence = &r300_fence_ring_emit,
 			.emit_semaphore = &r100_semaphore_ring_emit,
 			.cs_parse = &r300_cs_parse,
+			.ring_start = &r300_ring_start,
+			.ring_test = &r100_ring_test,
+			.ib_test = &r100_ib_test,
 		}
 	},
 	.irq = {
@@ -338,14 +341,15 @@ static struct radeon_asic r300_asic_pcie = {
 	.asic_reset = &r300_asic_reset,
 	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
 	.gart_set_page = &rv370_pcie_gart_set_page,
-	.ring_start = &r300_ring_start,
-	.ring_test = &r100_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
 			.emit_fence = &r300_fence_ring_emit,
 			.emit_semaphore = &r100_semaphore_ring_emit,
 			.cs_parse = &r300_cs_parse,
+			.ring_start = &r300_ring_start,
+			.ring_test = &r100_ring_test,
+			.ib_test = &r100_ib_test,
 		}
 	},
 	.irq = {
@@ -404,14 +408,15 @@ static struct radeon_asic r420_asic = {
 	.asic_reset = &r300_asic_reset,
 	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
 	.gart_set_page = &rv370_pcie_gart_set_page,
-	.ring_start = &r300_ring_start,
-	.ring_test = &r100_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
 			.emit_fence = &r300_fence_ring_emit,
 			.emit_semaphore = &r100_semaphore_ring_emit,
 			.cs_parse = &r300_cs_parse,
+			.ring_start = &r300_ring_start,
+			.ring_test = &r100_ring_test,
+			.ib_test = &r100_ib_test,
 		}
 	},
 	.irq = {
@@ -471,14 +476,15 @@ static struct radeon_asic rs400_asic = {
 	.asic_reset = &r300_asic_reset,
 	.gart_tlb_flush = &rs400_gart_tlb_flush,
 	.gart_set_page = &rs400_gart_set_page,
-	.ring_start = &r300_ring_start,
-	.ring_test = &r100_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
 			.emit_fence = &r300_fence_ring_emit,
 			.emit_semaphore = &r100_semaphore_ring_emit,
 			.cs_parse = &r300_cs_parse,
+			.ring_start = &r300_ring_start,
+			.ring_test = &r100_ring_test,
+			.ib_test = &r100_ib_test,
 		}
 	},
 	.irq = {
@@ -538,14 +544,15 @@ static struct radeon_asic rs600_asic = {
 	.asic_reset = &rs600_asic_reset,
 	.gart_tlb_flush = &rs600_gart_tlb_flush,
 	.gart_set_page = &rs600_gart_set_page,
-	.ring_start = &r300_ring_start,
-	.ring_test = &r100_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
 			.emit_fence = &r300_fence_ring_emit,
 			.emit_semaphore = &r100_semaphore_ring_emit,
 			.cs_parse = &r300_cs_parse,
+			.ring_start = &r300_ring_start,
+			.ring_test = &r100_ring_test,
+			.ib_test = &r100_ib_test,
 		}
 	},
 	.irq = {
@@ -605,14 +612,15 @@ static struct radeon_asic rs690_asic = {
 	.asic_reset = &rs600_asic_reset,
 	.gart_tlb_flush = &rs400_gart_tlb_flush,
 	.gart_set_page = &rs400_gart_set_page,
-	.ring_start = &r300_ring_start,
-	.ring_test = &r100_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
 			.emit_fence = &r300_fence_ring_emit,
 			.emit_semaphore = &r100_semaphore_ring_emit,
 			.cs_parse = &r300_cs_parse,
+			.ring_start = &r300_ring_start,
+			.ring_test = &r100_ring_test,
+			.ib_test = &r100_ib_test,
 		}
 	},
 	.irq = {
@@ -672,14 +680,15 @@ static struct radeon_asic rv515_asic = {
 	.asic_reset = &rs600_asic_reset,
 	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
 	.gart_set_page = &rv370_pcie_gart_set_page,
-	.ring_start = &rv515_ring_start,
-	.ring_test = &r100_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
 			.emit_fence = &r300_fence_ring_emit,
 			.emit_semaphore = &r100_semaphore_ring_emit,
 			.cs_parse = &r300_cs_parse,
+			.ring_start = &rv515_ring_start,
+			.ring_test = &r100_ring_test,
+			.ib_test = &r100_ib_test,
 		}
 	},
 	.irq = {
@@ -739,14 +748,15 @@ static struct radeon_asic r520_asic = {
 	.asic_reset = &rs600_asic_reset,
 	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
 	.gart_set_page = &rv370_pcie_gart_set_page,
-	.ring_start = &rv515_ring_start,
-	.ring_test = &r100_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
 			.emit_fence = &r300_fence_ring_emit,
 			.emit_semaphore = &r100_semaphore_ring_emit,
 			.cs_parse = &r300_cs_parse,
+			.ring_start = &rv515_ring_start,
+			.ring_test = &r100_ring_test,
+			.ib_test = &r100_ib_test,
 		}
 	},
 	.irq = {
@@ -806,13 +816,14 @@ static struct radeon_asic r600_asic = {
 	.asic_reset = &r600_asic_reset,
 	.gart_tlb_flush = &r600_pcie_gart_tlb_flush,
 	.gart_set_page = &rs600_gart_set_page,
-	.ring_test = &r600_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r600_ring_ib_execute,
 			.emit_fence = &r600_fence_ring_emit,
 			.emit_semaphore = &r600_semaphore_ring_emit,
 			.cs_parse = &r600_cs_parse,
+			.ring_test = &r600_ring_test,
+			.ib_test = &r600_ib_test,
 		}
 	},
 	.irq = {
@@ -872,13 +883,14 @@ static struct radeon_asic rs780_asic = {
 	.asic_reset = &r600_asic_reset,
 	.gart_tlb_flush = &r600_pcie_gart_tlb_flush,
 	.gart_set_page = &rs600_gart_set_page,
-	.ring_test = &r600_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r600_ring_ib_execute,
 			.emit_fence = &r600_fence_ring_emit,
 			.emit_semaphore = &r600_semaphore_ring_emit,
 			.cs_parse = &r600_cs_parse,
+			.ring_test = &r600_ring_test,
+			.ib_test = &r600_ib_test,
 		}
 	},
 	.irq = {
@@ -938,13 +950,14 @@ static struct radeon_asic rv770_asic = {
 	.vga_set_state = &r600_vga_set_state,
 	.gart_tlb_flush = &r600_pcie_gart_tlb_flush,
 	.gart_set_page = &rs600_gart_set_page,
-	.ring_test = &r600_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r600_ring_ib_execute,
 			.emit_fence = &r600_fence_ring_emit,
 			.emit_semaphore = &r600_semaphore_ring_emit,
 			.cs_parse = &r600_cs_parse,
+			.ring_test = &r600_ring_test,
+			.ib_test = &r600_ib_test,
 		}
 	},
 	.irq = {
@@ -1004,13 +1017,14 @@ static struct radeon_asic evergreen_asic = {
 	.vga_set_state = &r600_vga_set_state,
 	.gart_tlb_flush = &evergreen_pcie_gart_tlb_flush,
 	.gart_set_page = &rs600_gart_set_page,
-	.ring_test = &r600_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &evergreen_ring_ib_execute,
 			.emit_fence = &r600_fence_ring_emit,
 			.emit_semaphore = &r600_semaphore_ring_emit,
 			.cs_parse = &evergreen_cs_parse,
+			.ring_test = &r600_ring_test,
+			.ib_test = &r600_ib_test,
 		}
 	},
 	.irq = {
@@ -1070,13 +1084,14 @@ static struct radeon_asic sumo_asic = {
 	.vga_set_state = &r600_vga_set_state,
 	.gart_tlb_flush = &evergreen_pcie_gart_tlb_flush,
 	.gart_set_page = &rs600_gart_set_page,
-	.ring_test = &r600_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &evergreen_ring_ib_execute,
 			.emit_fence = &r600_fence_ring_emit,
 			.emit_semaphore = &r600_semaphore_ring_emit,
 			.cs_parse = &evergreen_cs_parse,
+			.ring_test = &r600_ring_test,
+			.ib_test = &r600_ib_test,
 		},
 	},
 	.irq = {
@@ -1136,13 +1151,14 @@ static struct radeon_asic btc_asic = {
 	.vga_set_state = &r600_vga_set_state,
 	.gart_tlb_flush = &evergreen_pcie_gart_tlb_flush,
 	.gart_set_page = &rs600_gart_set_page,
-	.ring_test = &r600_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &evergreen_ring_ib_execute,
 			.emit_fence = &r600_fence_ring_emit,
 			.emit_semaphore = &r600_semaphore_ring_emit,
 			.cs_parse = &evergreen_cs_parse,
+			.ring_test = &r600_ring_test,
+			.ib_test = &r600_ib_test,
 		}
 	},
 	.irq = {
@@ -1212,7 +1228,6 @@ static struct radeon_asic cayman_asic = {
 	.vga_set_state = &r600_vga_set_state,
 	.gart_tlb_flush = &cayman_pcie_gart_tlb_flush,
 	.gart_set_page = &rs600_gart_set_page,
-	.ring_test = &r600_ring_test,
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
@@ -1220,6 +1235,8 @@ static struct radeon_asic cayman_asic = {
 			.emit_fence = &cayman_fence_ring_emit,
 			.emit_semaphore = &r600_semaphore_ring_emit,
 			.cs_parse = &evergreen_cs_parse,
+			.ring_test = &r600_ring_test,
+			.ib_test = &r600_ib_test,
 		},
 		[CAYMAN_RING_TYPE_CP1_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
@@ -1227,6 +1244,8 @@ static struct radeon_asic cayman_asic = {
 			.emit_fence = &cayman_fence_ring_emit,
 			.emit_semaphore = &r600_semaphore_ring_emit,
 			.cs_parse = &evergreen_cs_parse,
+			.ring_test = &r600_ring_test,
+			.ib_test = &r600_ib_test,
 		},
 		[CAYMAN_RING_TYPE_CP2_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
@@ -1234,6 +1253,8 @@ static struct radeon_asic cayman_asic = {
 			.emit_fence = &cayman_fence_ring_emit,
 			.emit_semaphore = &r600_semaphore_ring_emit,
 			.cs_parse = &evergreen_cs_parse,
+			.ring_test = &r600_ring_test,
+			.ib_test = &r600_ib_test,
 		}
 	},
 	.irq = {

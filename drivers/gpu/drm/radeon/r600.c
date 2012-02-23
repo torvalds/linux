@@ -2226,7 +2226,7 @@ int r600_cp_resume(struct radeon_device *rdev)
 
 	r600_cp_start(rdev);
 	ring->ready = true;
-	r = radeon_ring_test(rdev, ring);
+	r = radeon_ring_test(rdev, RADEON_RING_TYPE_GFX_INDEX, ring);
 	if (r) {
 		ring->ready = false;
 		return r;
@@ -2490,7 +2490,7 @@ int r600_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
+	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
 	if (r) {
 		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 		rdev->accel_working = false;
@@ -2697,13 +2697,14 @@ void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 	radeon_ring_write(ring, ib->length_dw);
 }
 
-int r600_ib_test(struct radeon_device *rdev, int ring)
+int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	struct radeon_ib *ib;
 	uint32_t scratch;
 	uint32_t tmp = 0;
 	unsigned i;
 	int r;
+	int ring_index = radeon_ring_index(rdev, ring);
 
 	r = radeon_scratch_get(rdev, &scratch);
 	if (r) {
@@ -2711,7 +2712,7 @@ int r600_ib_test(struct radeon_device *rdev, int ring)
 		return r;
 	}
 	WREG32(scratch, 0xCAFEDEAD);
-	r = radeon_ib_get(rdev, ring, &ib, 256);
+	r = radeon_ib_get(rdev, ring_index, &ib, 256);
 	if (r) {
 		DRM_ERROR("radeon: failed to get ib (%d).\n", r);
 		return r;

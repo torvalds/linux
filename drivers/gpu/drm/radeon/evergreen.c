@@ -1539,7 +1539,7 @@ int evergreen_cp_resume(struct radeon_device *rdev)
 
 	evergreen_cp_start(rdev);
 	ring->ready = true;
-	r = radeon_ring_test(rdev, ring);
+	r = radeon_ring_test(rdev, RADEON_RING_TYPE_GFX_INDEX, ring);
 	if (r) {
 		ring->ready = false;
 		return r;
@@ -3237,7 +3237,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
+	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
 	if (r) {
 		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 		rdev->accel_working = false;

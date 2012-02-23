@@ -1318,7 +1318,7 @@ int cayman_cp_resume(struct radeon_device *rdev)
 	rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX].ready = false;
 	rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX].ready = false;
 	/* this only test cp0 */
-	r = radeon_ring_test(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
+	r = radeon_ring_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
 	if (r) {
 		rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 		rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX].ready = false;
@@ -1518,7 +1518,7 @@ static int cayman_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
+	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
 	if (r) {
 		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 		rdev->accel_working = false;
