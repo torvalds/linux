@@ -236,7 +236,7 @@ static inline void activate_irq(int irq)
 #endif
 }
 
-int twl6030_irq_set_wake(struct irq_data *d, unsigned int on)
+static int twl6030_irq_set_wake(struct irq_data *d, unsigned int on)
 {
 	if (on)
 		atomic_inc(&twl6030_wakeirqs);
