@@ -127,9 +127,11 @@ static inline bool be_is_mc(struct be_adapter *adapter) {
 static void be_queue_free(struct be_adapter *adapter, struct be_queue_info *q)
 {
 	struct be_dma_mem *mem = &q->dma_mem;
-	if (mem->va)
+	if (mem->va) {
 		dma_free_coherent(&adapter->pdev->dev, mem->size, mem->va,
 				  mem->dma);
+		mem->va = NULL;
+	}
 }
 
 static int be_queue_alloc(struct be_adapter *adapter, struct be_queue_info *q,
@@ -1660,7 +1662,7 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 		if (rc)
 			return rc;
 	}
-	return rc;
+	return 0;
 }
 
 static void be_mcc_queues_destroy(struct be_adapter *adapter)
