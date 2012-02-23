@@ -1250,7 +1250,6 @@ static void ti_bulk_out_callback(struct urb *urb)
 {
 	struct ti_port *tport = urb->context;
 	struct usb_serial_port *port = tport->tp_port;
-	struct device *dev = &urb->dev->dev;
 	int status = urb->status;
 
 	dbg("%s - port %d", __func__, port->number);
@@ -1268,7 +1267,7 @@ static void ti_bulk_out_callback(struct urb *urb)
 		wake_up_interruptible(&tport->tp_write_wait);
 		return;
 	default:
-		dev_err(dev, "%s - nonzero urb status, %d\n",
+		dev_err_console(port, "%s - nonzero urb status, %d\n",
 			__func__, status);
 		tport->tp_tdev->td_urb_error = 1;
 		wake_up_interruptible(&tport->tp_write_wait);
@@ -1337,7 +1336,7 @@ static void ti_send(struct ti_port *tport)
 
 	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 	if (result) {
-		dev_err(&port->dev, "%s - submit write urb failed, %d\n",
+		dev_err_console(port, "%s - submit write urb failed, %d\n",
 							__func__, result);
 		tport->tp_write_urb_in_use = 0;
 		/* TODO: reschedule ti_send */

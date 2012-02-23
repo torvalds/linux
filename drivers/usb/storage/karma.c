@@ -230,6 +230,7 @@ static struct usb_driver karma_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	karma_usb_ids,
 	.soft_unbind =	1,
+	.no_dynamic_id = 1,
 };
 
 module_usb_driver(karma_driver);

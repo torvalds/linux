@@ -1509,7 +1509,7 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 		    kmalloc(URB_TRANSFER_BUFFER_SIZE, GFP_KERNEL);
 
 		if (urb->transfer_buffer == NULL) {
-			dev_err(&port->dev, "%s no more kernel memory...\n",
+			dev_err_console(port, "%s no more kernel memory...\n",
 				__func__);
 			goto exit;
 		}
@@ -1535,7 +1535,7 @@ static int mos7840_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	if (status) {
 		mos7840_port->busy[i] = 0;
-		dev_err(&port->dev, "%s - usb_submit_urb(write bulk) failed "
+		dev_err_console(port, "%s - usb_submit_urb(write bulk) failed "
 			"with status = %d\n", __func__, status);
 		bytes_sent = status;
 		goto exit;

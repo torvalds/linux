@@ -254,7 +254,7 @@ static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 	result = usb_submit_urb(wport->write_urb, GFP_ATOMIC);
 	if (result) {
 		set_bit(0, &wport->write_urbs_free);
-		dev_err(&port->dev,
+		dev_err_console(port,
 			"%s - failed submitting write urb, error %d\n",
 			__func__, result);
 	} else

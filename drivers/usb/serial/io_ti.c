@@ -1817,7 +1817,7 @@ static void edge_bulk_out_callback(struct urb *urb)
 		    __func__, status);
 		return;
 	default:
-		dev_err(&urb->dev->dev, "%s - nonzero write bulk status "
+		dev_err_console(port, "%s - nonzero write bulk status "
 			"received: %d\n", __func__, status);
 	}
 
@@ -2111,7 +2111,7 @@ static void edge_send(struct tty_struct *tty)
 	/* send the data out the bulk port */
 	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 	if (result) {
-		dev_err(&port->dev,
+		dev_err_console(port,
 			"%s - failed submitting write urb, error %d\n",
 				__func__, result);
 		edge_port->ep_write_urb_in_use = 0;

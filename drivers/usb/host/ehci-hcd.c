@@ -1376,6 +1376,11 @@ MODULE_LICENSE ("GPL");
 #define        PLATFORM_DRIVER         ehci_mv_driver
 #endif
 
+#ifdef CONFIG_MACH_LOONGSON1
+#include "ehci-ls1x.c"
+#define PLATFORM_DRIVER		ehci_ls1x_driver
+#endif
+
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \
     !defined(PS3_SYSTEM_BUS_DRIVER) && !defined(OF_PLATFORM_DRIVER) && \
     !defined(XILINX_OF_PLATFORM_DRIVER)

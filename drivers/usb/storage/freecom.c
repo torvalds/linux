@@ -553,6 +553,7 @@ static struct usb_driver freecom_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	freecom_usb_ids,
 	.soft_unbind =	1,
+	.no_dynamic_id = 1,
 };
 
 module_usb_driver(freecom_driver);

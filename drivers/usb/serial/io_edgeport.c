@@ -1286,7 +1286,7 @@ static void send_more_port_data(struct edgeport_serial *edge_serial,
 	count = fifo->count;
 	buffer = kmalloc(count+2, GFP_ATOMIC);
 	if (buffer == NULL) {
-		dev_err(&edge_port->port->dev,
+		dev_err_console(edge_port->port,
 				"%s - no more kernel memory...\n", __func__);
 		edge_port->write_in_progress = false;
 		goto exit_send;
@@ -1331,7 +1331,7 @@ static void send_more_port_data(struct edgeport_serial *edge_serial,
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status) {
 		/* something went wrong */
-		dev_err(&edge_port->port->dev,
+		dev_err_console(edge_port->port,
 			"%s - usb_submit_urb(write bulk) failed, status = %d, data lost\n",
 				__func__, status);
 		edge_port->write_in_progress = false;

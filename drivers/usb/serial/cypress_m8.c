@@ -800,7 +800,7 @@ send:
 		cypress_write_int_callback, port, priv->write_urb_interval);
 	result = usb_submit_urb(port->interrupt_out_urb, GFP_ATOMIC);
 	if (result) {
-		dev_err(&port->dev,
+		dev_err_console(port,
 				"%s - failed submitting write urb, error %d\n",
 							__func__, result);
 		priv->write_urb_in_use = 0;

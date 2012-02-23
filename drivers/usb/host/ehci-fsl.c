@@ -323,7 +323,9 @@ static int ehci_fsl_setup(struct usb_hcd *hcd)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int retval;
 	struct fsl_usb2_platform_data *pdata;
+	struct device *dev;
 
+	dev = hcd->self.controller;
 	pdata = hcd->self.controller->platform_data;
 	ehci->big_endian_desc = pdata->big_endian_desc;
 	ehci->big_endian_mmio = pdata->big_endian_mmio;
@@ -352,6 +354,16 @@ static int ehci_fsl_setup(struct usb_hcd *hcd)
 	ehci->sbrn = 0x20;
 
 	ehci_reset(ehci);
+
+	if (of_device_is_compatible(dev->parent->of_node,
+				    "fsl,mpc5121-usb2-dr")) {
+		/*
+		 * set SBUSCFG:AHBBRST so that control msgs don't
+		 * fail when doing heavy PATA writes.
+		 */
+		ehci_writel(ehci, SBUSCFG_INCR8,
+			    hcd->regs + FSL_SOC_USB_SBUSCFG);
+	}
 
 	retval = ehci_fsl_reinit(ehci);
 	return retval;
@@ -475,6 +487,8 @@ static int ehci_fsl_mpc512x_drv_resume(struct device *dev)
 		    hcd->regs + FSL_SOC_USB_USBGENCTRL);
 	ehci_writel(ehci, ISIPHYCTRL_PXE | ISIPHYCTRL_PHYE,
 		    hcd->regs + FSL_SOC_USB_ISIPHYCTRL);
+
+	ehci_writel(ehci, SBUSCFG_INCR8, hcd->regs + FSL_SOC_USB_SBUSCFG);
 
 	/* restore EHCI registers */
 	ehci_writel(ehci, pdata->pm_command, &ehci->regs->command);
