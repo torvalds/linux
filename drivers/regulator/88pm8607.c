@@ -196,7 +196,7 @@ static const unsigned int LDO12_suspend_table[] = {
 };
 
 static const unsigned int LDO13_table[] = {
-	1300000, 1800000, 2000000, 2500000, 2800000, 3000000, 0, 0,
+	1200000, 1300000, 1800000, 2000000, 2500000, 2800000, 3000000, 0,
 };
 
 static const unsigned int LDO13_suspend_table[] = {
@@ -389,10 +389,10 @@ static struct pm8607_regulator_info pm8607_regulator_info[] = {
 	PM8607_LDO( 7,         LDO7, 0, 3, SUPPLIES_EN12, 1),
 	PM8607_LDO( 8,         LDO8, 0, 3, SUPPLIES_EN12, 2),
 	PM8607_LDO( 9,         LDO9, 0, 3, SUPPLIES_EN12, 3),
-	PM8607_LDO(10,        LDO10, 0, 3, SUPPLIES_EN12, 4),
+	PM8607_LDO(10,        LDO10, 0, 4, SUPPLIES_EN12, 4),
 	PM8607_LDO(12,        LDO12, 0, 4, SUPPLIES_EN12, 5),
 	PM8607_LDO(13, VIBRATOR_SET, 1, 3,  VIBRATOR_SET, 0),
-	PM8607_LDO(14,        LDO14, 0, 4, SUPPLIES_EN12, 6),
+	PM8607_LDO(14,        LDO14, 0, 3, SUPPLIES_EN12, 6),
 };
 
 static int __devinit pm8607_regulator_probe(struct platform_device *pdev)
