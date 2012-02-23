@@ -40,7 +40,6 @@ static struct usb_driver debug_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
-	.no_dynamic_id =	1,
 };
 
 /* This HW really does not support a serial break, so one will be
@@ -74,30 +73,24 @@ static struct usb_serial_driver debug_device = {
 		.name =		"debug",
 	},
 	.id_table =		id_table,
-	.usb_driver =		&debug_driver,
 	.num_ports =		1,
 	.bulk_out_size =	USB_DEBUG_MAX_PACKET_SIZE,
 	.break_ctl =		usb_debug_break_ctl,
 	.process_read_urb =	usb_debug_process_read_urb,
 };
 
+static struct usb_serial_driver * const serial_drivers[] = {
+	&debug_device, NULL
+};
+
 static int __init debug_init(void)
 {
-	int retval;
-
-	retval = usb_serial_register(&debug_device);
-	if (retval)
-		return retval;
-	retval = usb_register(&debug_driver);
-	if (retval)
-		usb_serial_deregister(&debug_device);
-	return retval;
+	return usb_serial_register_drivers(&debug_driver, serial_drivers);
 }
 
 static void __exit debug_exit(void)
 {
-	usb_deregister(&debug_driver);
-	usb_serial_deregister(&debug_device);
+	usb_serial_deregister_drivers(&debug_driver, serial_drivers);
 }
 
 module_init(debug_init);

@@ -27,7 +27,6 @@ static struct usb_driver zio_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
-	.no_dynamic_id =	1,
 };
 
 static struct usb_serial_driver zio_device = {
@@ -36,27 +35,21 @@ static struct usb_serial_driver zio_device = {
 		.name =		"zio",
 	},
 	.id_table =		id_table,
-	.usb_driver =		&zio_driver,
 	.num_ports =		1,
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&zio_device, NULL
 };
 
 static int __init zio_init(void)
 {
-	int retval;
-
-	retval = usb_serial_register(&zio_device);
-	if (retval)
-		return retval;
-	retval = usb_register(&zio_driver);
-	if (retval)
-		usb_serial_deregister(&zio_device);
-	return retval;
+	return usb_serial_register_drivers(&zio_driver, serial_drivers);
 }
 
 static void __exit zio_exit(void)
 {
-	usb_deregister(&zio_driver);
-	usb_serial_deregister(&zio_device);
+	usb_serial_deregister_drivers(&zio_driver, serial_drivers);
 }
 
 module_init(zio_init);
