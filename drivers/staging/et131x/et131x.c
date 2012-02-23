@@ -5177,7 +5177,7 @@ static int et131x_set_mac_addr(struct net_device *netdev, void *new_mac)
 
 	/* Make sure the requested MAC is valid */
 	if (!is_valid_ether_addr(address->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	et131x_disable_txrx(netdev);
 	et131x_handle_send_interrupt(adapter);
