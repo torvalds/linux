@@ -478,7 +478,9 @@ static struct drm_info_list radeon_debugfs_ring_info_list[] = {
 static int radeon_debugfs_ib_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct radeon_ib *ib = node->info_ent->data;
+	struct drm_device *dev = node->minor->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_ib *ib = &rdev->ib_pool.ibs[*((unsigned*)node->info_ent->data)];
 	unsigned i;
 
 	if (ib == NULL) {
@@ -495,6 +497,7 @@ static int radeon_debugfs_ib_info(struct seq_file *m, void *data)
 
 static struct drm_info_list radeon_debugfs_ib_list[RADEON_IB_POOL_SIZE];
 static char radeon_debugfs_ib_names[RADEON_IB_POOL_SIZE][32];
+static unsigned radeon_debugfs_ib_idx[RADEON_IB_POOL_SIZE];
 #endif
 
 int radeon_debugfs_ring_init(struct radeon_device *rdev)
@@ -514,10 +517,11 @@ int radeon_debugfs_ib_init(struct radeon_device *rdev)
 
 	for (i = 0; i < RADEON_IB_POOL_SIZE; i++) {
 		sprintf(radeon_debugfs_ib_names[i], "radeon_ib_%04u", i);
+		radeon_debugfs_ib_idx[i] = i;
 		radeon_debugfs_ib_list[i].name = radeon_debugfs_ib_names[i];
 		radeon_debugfs_ib_list[i].show = &radeon_debugfs_ib_info;
 		radeon_debugfs_ib_list[i].driver_features = 0;
-		radeon_debugfs_ib_list[i].data = &rdev->ib_pool.ibs[i];
+		radeon_debugfs_ib_list[i].data = &radeon_debugfs_ib_idx[i];
 	}
 	return radeon_debugfs_add_files(rdev, radeon_debugfs_ib_list,
 					RADEON_IB_POOL_SIZE);
