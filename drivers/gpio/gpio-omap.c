@@ -93,6 +93,11 @@ struct gpio_bank {
 #define GPIO_BIT(bank, gpio) (1 << GPIO_INDEX(bank, gpio))
 #define GPIO_MOD_CTRL_BIT	BIT(0)
 
+static int irq_to_gpio(struct gpio_bank *bank, unsigned int gpio_irq)
+{
+	return gpio_irq - bank->irq_base + bank->chip.base;
+}
+
 static void _set_gpio_direction(struct gpio_bank *bank, int gpio, int is_input)
 {
 	void __iomem *reg = bank->base;
@@ -369,7 +374,7 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 
 static int gpio_irq_type(struct irq_data *d, unsigned type)
 {
-	struct gpio_bank *bank;
+	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
 	unsigned gpio;
 	int retval;
 	unsigned long flags;
@@ -377,12 +382,10 @@ static int gpio_irq_type(struct irq_data *d, unsigned type)
 	if (!cpu_class_is_omap2() && d->irq > IH_MPUIO_BASE)
 		gpio = OMAP_MPUIO(d->irq - IH_MPUIO_BASE);
 	else
-		gpio = d->irq - IH_GPIO_BASE;
+		gpio = irq_to_gpio(bank, d->irq);
 
 	if (type & ~IRQ_TYPE_SENSE_MASK)
 		return -EINVAL;
-
-	bank = irq_data_get_irq_chip_data(d);
 
 	if (!bank->regs->leveldetect0 &&
 		(type & (IRQ_TYPE_LEVEL_LOW|IRQ_TYPE_LEVEL_HIGH)))
@@ -524,14 +527,10 @@ static void _reset_gpio(struct gpio_bank *bank, int gpio)
 /* Use disable_irq_wake() and enable_irq_wake() functions from drivers */
 static int gpio_wake_enable(struct irq_data *d, unsigned int enable)
 {
-	unsigned int gpio = d->irq - IH_GPIO_BASE;
-	struct gpio_bank *bank;
-	int retval;
+	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
+	unsigned int gpio = irq_to_gpio(bank, d->irq);
 
-	bank = irq_data_get_irq_chip_data(d);
-	retval = _set_gpio_wakeup(bank, gpio, enable);
-
-	return retval;
+	return _set_gpio_wakeup(bank, gpio, enable);
 }
 
 static int omap_gpio_request(struct gpio_chip *chip, unsigned offset)
@@ -675,10 +674,12 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 		gpio_irq = bank->irq_base;
 		for (; isr != 0; isr >>= 1, gpio_irq++) {
-			gpio_index = GPIO_INDEX(bank, irq_to_gpio(gpio_irq));
+			int gpio = irq_to_gpio(bank, gpio_irq);
 
 			if (!(isr & 1))
 				continue;
+
+			gpio_index = GPIO_INDEX(bank, gpio);
 
 			/*
 			 * Some chips can't respond to both rising and falling
@@ -705,8 +706,8 @@ exit:
 
 static void gpio_irq_shutdown(struct irq_data *d)
 {
-	unsigned int gpio = d->irq - IH_GPIO_BASE;
 	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
+	unsigned int gpio = irq_to_gpio(bank, d->irq);
 	unsigned long flags;
 
 	spin_lock_irqsave(&bank->lock, flags);
@@ -716,16 +717,16 @@ static void gpio_irq_shutdown(struct irq_data *d)
 
 static void gpio_ack_irq(struct irq_data *d)
 {
-	unsigned int gpio = d->irq - IH_GPIO_BASE;
 	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
+	unsigned int gpio = irq_to_gpio(bank, d->irq);
 
 	_clear_gpio_irqstatus(bank, gpio);
 }
 
 static void gpio_mask_irq(struct irq_data *d)
 {
-	unsigned int gpio = d->irq - IH_GPIO_BASE;
 	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
+	unsigned int gpio = irq_to_gpio(bank, d->irq);
 	unsigned long flags;
 
 	spin_lock_irqsave(&bank->lock, flags);
@@ -736,8 +737,8 @@ static void gpio_mask_irq(struct irq_data *d)
 
 static void gpio_unmask_irq(struct irq_data *d)
 {
-	unsigned int gpio = d->irq - IH_GPIO_BASE;
 	struct gpio_bank *bank = irq_data_get_irq_chip_data(d);
+	unsigned int gpio = irq_to_gpio(bank, d->irq);
 	unsigned int irq_mask = GPIO_BIT(bank, gpio);
 	u32 trigger = irqd_get_trigger_type(d);
 	unsigned long flags;
