@@ -836,7 +836,6 @@ struct radeon_cs_parser {
 	struct radeon_cs_reloc	*relocs;
 	struct radeon_cs_reloc	**relocs_ptr;
 	struct list_head	validated;
-	bool			sync_to_ring[RADEON_NUM_RINGS];
 	/* indices of various chunks */
 	int			chunk_ib_idx;
 	int			chunk_relocs_idx;

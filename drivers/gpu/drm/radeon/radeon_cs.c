@@ -85,12 +85,6 @@ int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			radeon_bo_list_add_object(&p->relocs[i].lobj,
 						  &p->validated);
 
-			if (p->relocs[i].robj->tbo.sync_obj && !(r->flags & RADEON_RELOC_DONT_SYNC)) {
-				struct radeon_fence *fence = p->relocs[i].robj->tbo.sync_obj;
-				if (!radeon_fence_signaled(fence)) {
-					p->sync_to_ring[fence->ring] = true;
-				}
-			}
 		} else
 			p->relocs[i].handle = 0;
 	}
@@ -118,11 +112,24 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 
 static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 {
+	bool sync_to_ring[RADEON_NUM_RINGS] = { };
 	int i, r;
+
+	for (i = 0; i < p->nrelocs; i++) {
+		if (!p->relocs[i].robj || !p->relocs[i].robj->tbo.sync_obj)
+			continue;
+
+		if (!(p->relocs[i].flags & RADEON_RELOC_DONT_SYNC)) {
+			struct radeon_fence *fence = p->relocs[i].robj->tbo.sync_obj;
+			if (!radeon_fence_signaled(fence)) {
+				sync_to_ring[fence->ring] = true;
+			}
+		}
+	}
 
 	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
 		/* no need to sync to our own or unused rings */
-		if (i == p->ring || !p->sync_to_ring[i] || !p->rdev->ring[i].ready)
+		if (i == p->ring || !sync_to_ring[i] || !p->rdev->ring[i].ready)
 			continue;
 
 		if (!p->ib->fence->semaphore) {
