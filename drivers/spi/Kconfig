@@ -126,7 +126,7 @@ config SPI_COLDFIRE_QSPI
 
 config SPI_DAVINCI
 	tristate "Texas Instruments DaVinci/DA8x/OMAP-L/AM1x SoC SPI controller"
-	depends on SPI_MASTER && ARCH_DAVINCI
+	depends on ARCH_DAVINCI
 	select SPI_BITBANG
 	help
 	  SPI master controller for DaVinci/DA8x/OMAP-L/AM1x SPI modules.
@@ -188,7 +188,7 @@ config SPI_MPC52xx_PSC
 
 config SPI_MPC512x_PSC
 	tristate "Freescale MPC512x PSC SPI controller"
-	depends on SPI_MASTER && PPC_MPC512x
+	depends on PPC_MPC512x
 	help
 	  This enables using the Freescale MPC5121 Programmable Serial
 	  Controller in SPI master mode.
@@ -238,7 +238,7 @@ config SPI_OMAP24XX
 
 config SPI_OMAP_100K
 	tristate "OMAP SPI 100K"
-	depends on SPI_MASTER && (ARCH_OMAP850 || ARCH_OMAP730)
+	depends on ARCH_OMAP850 || ARCH_OMAP730
 	help
 	  OMAP SPI 100K master controller for omap7xx boards.
 
@@ -262,7 +262,7 @@ config SPI_PL022
 
 config SPI_PPC4xx
 	tristate "PPC4xx SPI Controller"
-	depends on PPC32 && 4xx && SPI_MASTER
+	depends on PPC32 && 4xx
 	select SPI_BITBANG
 	help
 	  This selects a driver for the PPC4xx SPI Controller.
@@ -338,7 +338,7 @@ config SPI_SH_HSPI
 
 config SPI_STMP3XXX
 	tristate "Freescale STMP37xx/378x SPI/SSP controller"
-	depends on ARCH_STMP3XXX && SPI_MASTER
+	depends on ARCH_STMP3XXX
 	help
 	  SPI driver for Freescale STMP37xx/378x SoC SSP interface
 
@@ -396,7 +396,6 @@ config SPI_NUC900
 
 config SPI_DESIGNWARE
 	tristate "DesignWare SPI controller core support"
-	depends on SPI_MASTER
 	help
 	  general driver for SPI controller core from DesignWare
 
