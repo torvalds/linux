@@ -2719,20 +2719,7 @@ int r600_ib_test(struct radeon_device *rdev, int ring)
 	ib->ptr[0] = PACKET3(PACKET3_SET_CONFIG_REG, 1);
 	ib->ptr[1] = ((scratch - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
 	ib->ptr[2] = 0xDEADBEEF;
-	ib->ptr[3] = PACKET2(0);
-	ib->ptr[4] = PACKET2(0);
-	ib->ptr[5] = PACKET2(0);
-	ib->ptr[6] = PACKET2(0);
-	ib->ptr[7] = PACKET2(0);
-	ib->ptr[8] = PACKET2(0);
-	ib->ptr[9] = PACKET2(0);
-	ib->ptr[10] = PACKET2(0);
-	ib->ptr[11] = PACKET2(0);
-	ib->ptr[12] = PACKET2(0);
-	ib->ptr[13] = PACKET2(0);
-	ib->ptr[14] = PACKET2(0);
-	ib->ptr[15] = PACKET2(0);
-	ib->length_dw = 16;
+	ib->length_dw = 3;
 	r = radeon_ib_schedule(rdev, ib);
 	if (r) {
 		radeon_scratch_free(rdev, scratch);
