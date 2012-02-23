@@ -71,7 +71,7 @@ int __devinit smp_a2_kick_cpu(int nr)
 
 static int __init smp_a2_probe(void)
 {
-	return cpus_weight(cpu_possible_map);
+	return num_possible_cpus();
 }
 
 static struct smp_ops_t a2_smp_ops = {
