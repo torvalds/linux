@@ -1188,13 +1188,6 @@ struct radeon_asic {
 		u32 copy_ring_index;
 	} copy;
 
-	uint32_t (*get_engine_clock)(struct radeon_device *rdev);
-	void (*set_engine_clock)(struct radeon_device *rdev, uint32_t eng_clock);
-	uint32_t (*get_memory_clock)(struct radeon_device *rdev);
-	void (*set_memory_clock)(struct radeon_device *rdev, uint32_t mem_clock);
-	int (*get_pcie_lanes)(struct radeon_device *rdev);
-	void (*set_pcie_lanes)(struct radeon_device *rdev, int lanes);
-	void (*set_clock_gating)(struct radeon_device *rdev, int enable);
 	int (*set_surface_reg)(struct radeon_device *rdev, int reg,
 			       uint32_t tiling_flags, uint32_t pitch,
 			       uint32_t offset, uint32_t obj_size);
@@ -1223,6 +1216,13 @@ struct radeon_asic {
 		void (*finish)(struct radeon_device *rdev);
 		void (*init_profile)(struct radeon_device *rdev);
 		void (*get_dynpm_state)(struct radeon_device *rdev);
+		uint32_t (*get_engine_clock)(struct radeon_device *rdev);
+		void (*set_engine_clock)(struct radeon_device *rdev, uint32_t eng_clock);
+		uint32_t (*get_memory_clock)(struct radeon_device *rdev);
+		void (*set_memory_clock)(struct radeon_device *rdev, uint32_t mem_clock);
+		int (*get_pcie_lanes)(struct radeon_device *rdev);
+		void (*set_pcie_lanes)(struct radeon_device *rdev, int lanes);
+		void (*set_clock_gating)(struct radeon_device *rdev, int enable);
 	} pm;
 	/* pageflipping */
 	struct {
@@ -1700,13 +1700,13 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_copy_blit_ring_index(rdev) (rdev)->asic->copy.blit_ring_index
 #define radeon_copy_dma_ring_index(rdev) (rdev)->asic->copy.dma_ring_index
 #define radeon_copy_ring_index(rdev) (rdev)->asic->copy.copy_ring_index
-#define radeon_get_engine_clock(rdev) (rdev)->asic->get_engine_clock((rdev))
-#define radeon_set_engine_clock(rdev, e) (rdev)->asic->set_engine_clock((rdev), (e))
-#define radeon_get_memory_clock(rdev) (rdev)->asic->get_memory_clock((rdev))
-#define radeon_set_memory_clock(rdev, e) (rdev)->asic->set_memory_clock((rdev), (e))
-#define radeon_get_pcie_lanes(rdev) (rdev)->asic->get_pcie_lanes((rdev))
-#define radeon_set_pcie_lanes(rdev, l) (rdev)->asic->set_pcie_lanes((rdev), (l))
-#define radeon_set_clock_gating(rdev, e) (rdev)->asic->set_clock_gating((rdev), (e))
+#define radeon_get_engine_clock(rdev) (rdev)->asic->pm.get_engine_clock((rdev))
+#define radeon_set_engine_clock(rdev, e) (rdev)->asic->pm.set_engine_clock((rdev), (e))
+#define radeon_get_memory_clock(rdev) (rdev)->asic->pm.get_memory_clock((rdev))
+#define radeon_set_memory_clock(rdev, e) (rdev)->asic->pm.set_memory_clock((rdev), (e))
+#define radeon_get_pcie_lanes(rdev) (rdev)->asic->pm.get_pcie_lanes((rdev))
+#define radeon_set_pcie_lanes(rdev, l) (rdev)->asic->pm.set_pcie_lanes((rdev), (l))
+#define radeon_set_clock_gating(rdev, e) (rdev)->asic->pm.set_clock_gating((rdev), (e))
 #define radeon_set_surface_reg(rdev, r, f, p, o, s) ((rdev)->asic->set_surface_reg((rdev), (r), (f), (p), (o), (s)))
 #define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->clear_surface_reg((rdev), (r)))
 #define radeon_bandwidth_update(rdev) (rdev)->asic->display.bandwidth_update((rdev))

@@ -334,7 +334,7 @@ void radeon_get_clock_info(struct drm_device *dev)
 
 	if (!rdev->clock.default_sclk)
 		rdev->clock.default_sclk = radeon_get_engine_clock(rdev);
-	if ((!rdev->clock.default_mclk) && rdev->asic->get_memory_clock)
+	if ((!rdev->clock.default_mclk) && rdev->asic->pm.get_memory_clock)
 		rdev->clock.default_mclk = radeon_get_memory_clock(rdev);
 
 	rdev->pm.current_sclk = rdev->clock.default_sclk;
