@@ -6628,4 +6628,4 @@ MODULE_DESCRIPTION("Intel(R) PRO/1000 Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
-/* e1000_main.c */
+/* netdev.c */
