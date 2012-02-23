@@ -23,6 +23,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/module.h>
+#include <linux/clk.h>
 #include <linux/rtc.h>
 #include <linux/init.h>
 #include <linux/fs.h>
@@ -48,6 +49,7 @@ struct sa1100_rtc {
 	int			irq_1hz;
 	int			irq_alarm;
 	struct rtc_device	*rtc;
+	struct clk		*clk;
 };
 
 static irqreturn_t sa1100_rtc_interrupt(int irq, void *dev_id)
@@ -104,6 +106,9 @@ static int sa1100_rtc_open(struct device *dev)
 	struct rtc_device *rtc = info->rtc;
 	int ret;
 
+	ret = clk_prepare_enable(info->clk);
+	if (ret)
+		goto fail_clk;
 	ret = request_irq(info->irq_1hz, sa1100_rtc_interrupt, IRQF_DISABLED,
 		"rtc 1Hz", dev);
 	if (ret) {
@@ -124,6 +129,8 @@ static int sa1100_rtc_open(struct device *dev)
  fail_ai:
 	free_irq(info->irq_1hz, dev);
  fail_ui:
+	clk_disable_unprepare(info->clk);
+ fail_clk:
 	return ret;
 }
 
@@ -137,6 +144,7 @@ static void sa1100_rtc_release(struct device *dev)
 
 	free_irq(info->irq_alarm, dev);
 	free_irq(info->irq_1hz, dev);
+	clk_disable_unprepare(info->clk);
 }
 
 static int sa1100_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
@@ -234,6 +242,12 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 	info = kzalloc(sizeof(struct sa1100_rtc), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
+	info->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(info->clk)) {
+		dev_err(&pdev->dev, "failed to find rtc clock source\n");
+		ret = PTR_ERR(info->clk);
+		goto err_clk;
+	}
 	info->irq_1hz = irq_1hz;
 	info->irq_alarm = irq_alarm;
 	spin_lock_init(&info->lock);
@@ -292,6 +306,8 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 	return 0;
 err_dev:
 	platform_set_drvdata(pdev, NULL);
+	clk_put(info->clk);
+err_clk:
 	kfree(info);
 	return ret;
 }
@@ -302,6 +318,7 @@ static int sa1100_rtc_remove(struct platform_device *pdev)
 
 	if (info) {
 		rtc_device_unregister(info->rtc);
+		clk_put(info->clk);
 		platform_set_drvdata(pdev, NULL);
 		kfree(info);
 	}
