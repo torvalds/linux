@@ -2133,6 +2133,7 @@ static void read_mc_regs(struct amd64_pvt *pvt)
 static u32 amd64_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
 {
 	u32 cs_mode, nr_pages;
+	u32 dbam = dct ? pvt->dbam1 : pvt->dbam0;
 
 	/*
 	 * The math on this doesn't look right on the surface because x/2*4 can
@@ -2141,15 +2142,9 @@ static u32 amd64_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
 	 * number of bits to shift the DBAM register to extract the proper CSROW
 	 * field.
 	 */
-	cs_mode = (pvt->dbam0 >> ((csrow_nr / 2) * 4)) & 0xF;
+	cs_mode =  (dbam >> ((csrow_nr / 2) * 4)) & 0xF;
 
 	nr_pages = pvt->ops->dbam_to_cs(pvt, dct, cs_mode) << (20 - PAGE_SHIFT);
-
-	/*
-	 * If dual channel then double the memory size of single channel.
-	 * Channel count is 1 or 2
-	 */
-	nr_pages <<= (pvt->channel_count - 1);
 
 	debugf0("  (csrow=%d) DBAM map index= %d\n", csrow_nr, cs_mode);
 	debugf0("    nr_pages= %u  channel-count = %d\n",
@@ -2181,7 +2176,7 @@ static int init_csrows(struct mem_ctl_info *mci)
 	for_each_chip_select(i, 0, pvt) {
 		csrow = &mci->csrows[i];
 
-		if (!csrow_enabled(i, 0, pvt)) {
+		if (!csrow_enabled(i, 0, pvt) && !csrow_enabled(i, 1, pvt)) {
 			debugf1("----CSROW %d EMPTY for node %d\n", i,
 				pvt->mc_node_id);
 			continue;
@@ -2191,7 +2186,10 @@ static int init_csrows(struct mem_ctl_info *mci)
 			i, pvt->mc_node_id);
 
 		empty = 0;
-		csrow->nr_pages = amd64_csrow_nr_pages(pvt, 0, i);
+		if (csrow_enabled(i, 0, pvt))
+			csrow->nr_pages = amd64_csrow_nr_pages(pvt, 0, i);
+		if (csrow_enabled(i, 1, pvt))
+			csrow->nr_pages += amd64_csrow_nr_pages(pvt, 1, i);
 		find_csrow_limits(mci, i, &input_addr_min, &input_addr_max);
 		sys_addr = input_addr_to_sys_addr(mci, input_addr_min);
 		csrow->first_page = (u32) (sys_addr >> PAGE_SHIFT);
