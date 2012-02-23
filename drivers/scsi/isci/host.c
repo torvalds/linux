@@ -1046,7 +1046,7 @@ void isci_host_scan_start(struct Scsi_Host *shost)
 	spin_unlock_irq(&ihost->scic_lock);
 }
 
-static void isci_host_stop_complete(struct isci_host *ihost, enum sci_status completion_status)
+static void isci_host_stop_complete(struct isci_host *ihost)
 {
 	sci_controller_disable_interrupts(ihost);
 	clear_bit(IHOST_STOP_PENDING, &ihost->flags);
@@ -1232,7 +1232,7 @@ static enum sci_status sci_controller_reset(struct isci_host *ihost)
 	switch (ihost->sm.current_state_id) {
 	case SCIC_RESET:
 	case SCIC_READY:
-	case SCIC_STOPPED:
+	case SCIC_STOPPING:
 	case SCIC_FAILED:
 		/*
 		 * The reset operation is not a graceful cleanup, just
@@ -1247,6 +1247,44 @@ static enum sci_status sci_controller_reset(struct isci_host *ihost)
 	}
 }
 
+static enum sci_status sci_controller_stop_phys(struct isci_host *ihost)
+{
+	u32 index;
+	enum sci_status status;
+	enum sci_status phy_status;
+
+	status = SCI_SUCCESS;
+
+	for (index = 0; index < SCI_MAX_PHYS; index++) {
+		phy_status = sci_phy_stop(&ihost->phys[index]);
+
+		if (phy_status != SCI_SUCCESS &&
+		    phy_status != SCI_FAILURE_INVALID_STATE) {
+			status = SCI_FAILURE;
+
+			dev_warn(&ihost->pdev->dev,
+				 "%s: Controller stop operation failed to stop "
+				 "phy %d because of status %d.\n",
+				 __func__,
+				 ihost->phys[index].phy_index, phy_status);
+		}
+	}
+
+	return status;
+}
+
+
+/**
+ * isci_host_deinit - shutdown frame reception and dma
+ * @ihost: host to take down
+ *
+ * This is called in either the driver shutdown or the suspend path.  In
+ * the shutdown case libsas went through port teardown and normal device
+ * removal (i.e. physical links stayed up to service scsi_device removal
+ * commands).  In the suspend case we disable the hardware without
+ * notifying libsas of the link down events since we want libsas to
+ * remember the domain across the suspend/resume cycle
+ */
 void isci_host_deinit(struct isci_host *ihost)
 {
 	int i;
@@ -1255,16 +1293,6 @@ void isci_host_deinit(struct isci_host *ihost)
 	for (i = 0; i < isci_gpio_count(ihost); i++)
 		writel(SGPIO_HW_CONTROL, &ihost->scu_registers->peg0.sgpio.output_data_select[i]);
 
-	for (i = 0; i < SCI_MAX_PORTS; i++) {
-		struct isci_port *iport = &ihost->ports[i];
-		struct isci_remote_device *idev, *d;
-
-		list_for_each_entry_safe(idev, d, &iport->remote_dev_list, node) {
-			if (test_bit(IDEV_ALLOCATED, &idev->flags))
-				isci_remote_device_stop(ihost, idev);
-		}
-	}
-
 	set_bit(IHOST_STOP_PENDING, &ihost->flags);
 
 	spin_lock_irq(&ihost->scic_lock);
@@ -1272,6 +1300,13 @@ void isci_host_deinit(struct isci_host *ihost)
 	spin_unlock_irq(&ihost->scic_lock);
 
 	wait_for_stop(ihost);
+
+	/* phy stop is after controller stop to allow port and device to
+	 * go idle before shutting down the phys, but the expectation is
+	 * that i/o has been shut off well before we reach this
+	 * function.
+	 */
+	sci_controller_stop_phys(ihost);
 
 	/* disable sgpio: where the above wait should give time for the
 	 * enclosure to sample the gpios going inactive
@@ -1476,32 +1511,6 @@ static void sci_controller_ready_state_exit(struct sci_base_state_machine *sm)
 	sci_controller_set_interrupt_coalescence(ihost, 0, 0);
 }
 
-static enum sci_status sci_controller_stop_phys(struct isci_host *ihost)
-{
-	u32 index;
-	enum sci_status status;
-	enum sci_status phy_status;
-
-	status = SCI_SUCCESS;
-
-	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		phy_status = sci_phy_stop(&ihost->phys[index]);
-
-		if (phy_status != SCI_SUCCESS &&
-		    phy_status != SCI_FAILURE_INVALID_STATE) {
-			status = SCI_FAILURE;
-
-			dev_warn(&ihost->pdev->dev,
-				 "%s: Controller stop operation failed to stop "
-				 "phy %d because of status %d.\n",
-				 __func__,
-				 ihost->phys[index].phy_index, phy_status);
-		}
-	}
-
-	return status;
-}
-
 static enum sci_status sci_controller_stop_ports(struct isci_host *ihost)
 {
 	u32 index;
@@ -1561,10 +1570,11 @@ static void sci_controller_stopping_state_enter(struct sci_base_state_machine *s
 {
 	struct isci_host *ihost = container_of(sm, typeof(*ihost), sm);
 
-	/* Stop all of the components for this controller */
-	sci_controller_stop_phys(ihost);
-	sci_controller_stop_ports(ihost);
 	sci_controller_stop_devices(ihost);
+	sci_controller_stop_ports(ihost);
+
+	if (!sci_controller_has_remote_devices_stopping(ihost))
+		isci_host_stop_complete(ihost);
 }
 
 static void sci_controller_stopping_state_exit(struct sci_base_state_machine *sm)
@@ -1621,7 +1631,6 @@ static const struct sci_base_state sci_controller_state_table[] = {
 		.enter_state = sci_controller_stopping_state_enter,
 		.exit_state = sci_controller_stopping_state_exit,
 	},
-	[SCIC_STOPPED] = {},
 	[SCIC_FAILED] = {}
 };
 
@@ -1641,7 +1650,7 @@ static void controller_timeout(unsigned long data)
 		sci_controller_transition_to_ready(ihost, SCI_FAILURE_TIMEOUT);
 	else if (sm->current_state_id == SCIC_STOPPING) {
 		sci_change_state(sm, SCIC_FAILED);
-		isci_host_stop_complete(ihost, SCI_FAILURE_TIMEOUT);
+		isci_host_stop_complete(ihost);
 	} else	/* / @todo Now what do we want to do in this case? */
 		dev_err(&ihost->pdev->dev,
 			"%s: Controller timer fired when controller was not "
@@ -2452,7 +2461,7 @@ void sci_controller_link_down(struct isci_host *ihost, struct isci_port *iport,
 	}
 }
 
-static bool sci_controller_has_remote_devices_stopping(struct isci_host *ihost)
+bool sci_controller_has_remote_devices_stopping(struct isci_host *ihost)
 {
 	u32 index;
 
@@ -2478,7 +2487,7 @@ void sci_controller_remote_device_stopped(struct isci_host *ihost,
 	}
 
 	if (!sci_controller_has_remote_devices_stopping(ihost))
-		sci_change_state(&ihost->sm, SCIC_STOPPED);
+		isci_host_stop_complete(ihost);
 }
 
 void sci_controller_post_request(struct isci_host *ihost, u32 request)

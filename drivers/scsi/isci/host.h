@@ -277,13 +277,6 @@ enum sci_controller_states {
 	SCIC_STOPPING,
 
 	/**
-	 * This state indicates that the controller has successfully been stopped.
-	 * In this state no new IO operations are permitted.
-	 * This state is entered from the STOPPING state.
-	 */
-	SCIC_STOPPED,
-
-	/**
 	 * This state indicates that the controller could not successfully be
 	 * initialized.  In this state no new IO operations are permitted.
 	 * This state is entered from the INITIALIZING state.
@@ -479,6 +472,7 @@ int isci_host_init(struct isci_host *);
 void isci_host_completion_routine(unsigned long data);
 void isci_host_deinit(struct isci_host *);
 void sci_controller_disable_interrupts(struct isci_host *ihost);
+bool sci_controller_has_remote_devices_stopping(struct isci_host *ihost);
 
 enum sci_status sci_controller_start_io(
 	struct isci_host *ihost,
