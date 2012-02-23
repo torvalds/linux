@@ -1030,9 +1030,12 @@ static inline bool efx_tx_queue_used(struct efx_tx_queue *tx_queue)
 
 /* Iterate over all possible TX queues belonging to a channel */
 #define efx_for_each_possible_channel_tx_queue(_tx_queue, _channel)	\
-	for (_tx_queue = (_channel)->tx_queue;				\
-	     _tx_queue < (_channel)->tx_queue + EFX_TXQ_TYPES;		\
-	     _tx_queue++)
+	if (!efx_channel_has_tx_queues(_channel))			\
+		;							\
+	else								\
+		for (_tx_queue = (_channel)->tx_queue;			\
+		     _tx_queue < (_channel)->tx_queue + EFX_TXQ_TYPES;	\
+		     _tx_queue++)
 
 static inline bool efx_channel_has_rx_queue(struct efx_channel *channel)
 {

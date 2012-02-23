@@ -37,7 +37,7 @@ static const struct {
 	SENSOR(PHY0_TEMP,	   "PHY temp.",		   EFX_HWMON_TEMP, 0),
 	SENSOR(PHY0_COOLING,	   "PHY cooling",	   EFX_HWMON_COOL, 0),
 	SENSOR(PHY1_TEMP,	   "PHY temp.",		   EFX_HWMON_TEMP, 1),
-	SENSOR(PHY1_COOLING, 	   "PHY cooling",	   EFX_HWMON_COOL, 1),
+	SENSOR(PHY1_COOLING,	   "PHY cooling",	   EFX_HWMON_COOL, 1),
 	SENSOR(IN_1V0,		   "1.0V supply",	   EFX_HWMON_IN,   -1),
 	SENSOR(IN_1V2,		   "1.2V supply",	   EFX_HWMON_IN,   -1),
 	SENSOR(IN_1V8,		   "1.8V supply",	   EFX_HWMON_IN,   -1),

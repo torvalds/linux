@@ -585,7 +585,12 @@ static int efx_probe_channels(struct efx_nic *efx)
 	/* Restart special buffer allocation */
 	efx->next_buffer_table = 0;
 
-	efx_for_each_channel(channel, efx) {
+	/* Probe channels in reverse, so that any 'extra' channels
+	 * use the start of the buffer table. This allows the traffic
+	 * channels to be resized without moving them or wasting the
+	 * entries before them.
+	 */
+	efx_for_each_channel_rev(channel, efx) {
 		rc = efx_probe_channel(channel);
 		if (rc) {
 			netif_err(efx, probe, efx->net_dev,
