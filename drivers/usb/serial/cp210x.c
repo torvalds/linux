@@ -154,7 +154,6 @@ static struct usb_driver cp210x_driver = {
 	.probe		= usb_serial_probe,
 	.disconnect	= usb_serial_disconnect,
 	.id_table	= id_table,
-	.no_dynamic_id	= 	1,
 };
 
 static struct usb_serial_driver cp210x_device = {
@@ -162,7 +161,6 @@ static struct usb_serial_driver cp210x_device = {
 		.owner =	THIS_MODULE,
 		.name = 	"cp210x",
 	},
-	.usb_driver		= &cp210x_driver,
 	.id_table		= id_table,
 	.num_ports		= 1,
 	.bulk_in_size		= 256,
@@ -175,6 +173,10 @@ static struct usb_serial_driver cp210x_device = {
 	.tiocmset		= cp210x_tiocmset,
 	.attach			= cp210x_startup,
 	.dtr_rts		= cp210x_dtr_rts
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&cp210x_device, NULL
 };
 
 /* Config request types */
@@ -852,27 +854,16 @@ static int __init cp210x_init(void)
 {
 	int retval;
 
-	retval = usb_serial_register(&cp210x_device);
-	if (retval)
-		return retval; /* Failed to register */
-
-	retval = usb_register(&cp210x_driver);
-	if (retval) {
-		/* Failed to register */
-		usb_serial_deregister(&cp210x_device);
-		return retval;
-	}
-
-	/* Success */
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-	return 0;
+	retval = usb_serial_register_drivers(&cp210x_driver, serial_drivers);
+	if (retval == 0)
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+			       DRIVER_DESC "\n");
+	return retval;
 }
 
 static void __exit cp210x_exit(void)
 {
-	usb_deregister(&cp210x_driver);
-	usb_serial_deregister(&cp210x_device);
+	usb_serial_deregister_drivers(&cp210x_driver, serial_drivers);
 }
 
 module_init(cp210x_init);

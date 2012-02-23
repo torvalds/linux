@@ -625,7 +625,6 @@ static struct usb_driver ch341_driver = {
 	.resume		= usb_serial_resume,
 	.reset_resume	= ch341_reset_resume,
 	.id_table	= id_table,
-	.no_dynamic_id	= 1,
 	.supports_autosuspend =	1,
 };
 
@@ -635,7 +634,6 @@ static struct usb_serial_driver ch341_device = {
 		.name	= "ch341-uart",
 	},
 	.id_table          = id_table,
-	.usb_driver        = &ch341_driver,
 	.num_ports         = 1,
 	.open              = ch341_open,
 	.dtr_rts	   = ch341_dtr_rts,
@@ -650,23 +648,18 @@ static struct usb_serial_driver ch341_device = {
 	.attach            = ch341_attach,
 };
 
+static struct usb_serial_driver * const serial_drivers[] = {
+	&ch341_device, NULL
+};
+
 static int __init ch341_init(void)
 {
-	int retval;
-
-	retval = usb_serial_register(&ch341_device);
-	if (retval)
-		return retval;
-	retval = usb_register(&ch341_driver);
-	if (retval)
-		usb_serial_deregister(&ch341_device);
-	return retval;
+	return usb_serial_register_drivers(&ch341_driver, serial_drivers);
 }
 
 static void __exit ch341_exit(void)
 {
-	usb_deregister(&ch341_driver);
-	usb_serial_deregister(&ch341_device);
+	usb_serial_deregister_drivers(&ch341_driver, serial_drivers);
 }
 
 module_init(ch341_init);
