@@ -1074,7 +1074,7 @@ static int rv770_startup(struct radeon_device *rdev)
 	r = r600_blit_init(rdev);
 	if (r) {
 		r600_blit_fini(rdev);
-		rdev->asic->copy = NULL;
+		rdev->asic->copy.copy = NULL;
 		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
 	}
 

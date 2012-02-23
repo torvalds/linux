@@ -1154,21 +1154,30 @@ struct radeon_asic {
 	int (*irq_set)(struct radeon_device *rdev);
 	int (*irq_process)(struct radeon_device *rdev);
 	u32 (*get_vblank_counter)(struct radeon_device *rdev, int crtc);
-	int (*copy_blit)(struct radeon_device *rdev,
-			 uint64_t src_offset,
-			 uint64_t dst_offset,
-			 unsigned num_gpu_pages,
-			 struct radeon_fence *fence);
-	int (*copy_dma)(struct radeon_device *rdev,
-			uint64_t src_offset,
-			uint64_t dst_offset,
-			unsigned num_gpu_pages,
-			struct radeon_fence *fence);
-	int (*copy)(struct radeon_device *rdev,
-		    uint64_t src_offset,
-		    uint64_t dst_offset,
-		    unsigned num_gpu_pages,
-		    struct radeon_fence *fence);
+
+	struct {
+		int (*blit)(struct radeon_device *rdev,
+			    uint64_t src_offset,
+			    uint64_t dst_offset,
+			    unsigned num_gpu_pages,
+			    struct radeon_fence *fence);
+		u32 blit_ring_index;
+		int (*dma)(struct radeon_device *rdev,
+			   uint64_t src_offset,
+			   uint64_t dst_offset,
+			   unsigned num_gpu_pages,
+			   struct radeon_fence *fence);
+		u32 dma_ring_index;
+		/* method used for bo copy */
+		int (*copy)(struct radeon_device *rdev,
+			    uint64_t src_offset,
+			    uint64_t dst_offset,
+			    unsigned num_gpu_pages,
+			    struct radeon_fence *fence);
+		/* ring used for bo copies */
+		u32 copy_ring_index;
+	} copy;
+
 	uint32_t (*get_engine_clock)(struct radeon_device *rdev);
 	void (*set_engine_clock)(struct radeon_device *rdev, uint32_t eng_clock);
 	uint32_t (*get_memory_clock)(struct radeon_device *rdev);
@@ -1505,8 +1514,6 @@ struct radeon_device {
 	unsigned 		debugfs_count;
 	/* virtual memory */
 	struct radeon_vm_manager	vm_manager;
-	/* ring used for bo copies */
-	u32				copy_ring;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
@@ -1677,9 +1684,12 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_get_vblank_counter(rdev, crtc) (rdev)->asic->get_vblank_counter((rdev), (crtc))
 #define radeon_fence_ring_emit(rdev, r, fence) (rdev)->asic->ring[(r)].emit_fence((rdev), (fence))
 #define radeon_semaphore_ring_emit(rdev, r, cp, semaphore, emit_wait) (rdev)->asic->ring[(r)].emit_semaphore((rdev), (cp), (semaphore), (emit_wait))
-#define radeon_copy_blit(rdev, s, d, np, f) (rdev)->asic->copy_blit((rdev), (s), (d), (np), (f))
-#define radeon_copy_dma(rdev, s, d, np, f) (rdev)->asic->copy_dma((rdev), (s), (d), (np), (f))
-#define radeon_copy(rdev, s, d, np, f) (rdev)->asic->copy((rdev), (s), (d), (np), (f))
+#define radeon_copy_blit(rdev, s, d, np, f) (rdev)->asic->copy.blit((rdev), (s), (d), (np), (f))
+#define radeon_copy_dma(rdev, s, d, np, f) (rdev)->asic->copy.dma((rdev), (s), (d), (np), (f))
+#define radeon_copy(rdev, s, d, np, f) (rdev)->asic->copy.copy((rdev), (s), (d), (np), (f))
+#define radeon_copy_blit_ring_index(rdev) (rdev)->asic->copy.blit_ring_index
+#define radeon_copy_dma_ring_index(rdev) (rdev)->asic->copy.dma_ring_index
+#define radeon_copy_ring_index(rdev) (rdev)->asic->copy.copy_ring_index
 #define radeon_get_engine_clock(rdev) (rdev)->asic->get_engine_clock((rdev))
 #define radeon_set_engine_clock(rdev, e) (rdev)->asic->set_engine_clock((rdev), (e))
 #define radeon_get_memory_clock(rdev) (rdev)->asic->get_memory_clock((rdev))

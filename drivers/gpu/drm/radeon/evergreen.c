@@ -3197,7 +3197,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 	r = evergreen_blit_init(rdev);
 	if (r) {
 		r600_blit_fini(rdev);
-		rdev->asic->copy = NULL;
+		rdev->asic->copy.copy = NULL;
 		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
 	}
 
