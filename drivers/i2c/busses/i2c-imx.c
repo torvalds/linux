@@ -149,11 +149,6 @@ static int i2c_imx_bus_busy(struct imx_i2c_struct *i2c_imx, int for_busy)
 			break;
 		if (!for_busy && !(temp & I2SR_IBB))
 			break;
-		if (signal_pending(current)) {
-			dev_dbg(&i2c_imx->adapter.dev,
-				"<%s> I2C Interrupted\n", __func__);
-			return -EINTR;
-		}
 		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
 			dev_dbg(&i2c_imx->adapter.dev,
 				"<%s> I2C bus is busy\n", __func__);
