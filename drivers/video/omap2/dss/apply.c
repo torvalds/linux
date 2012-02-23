@@ -354,6 +354,7 @@ static void wait_pending_extra_info_updates(void)
 	bool updating;
 	unsigned long flags;
 	unsigned long t;
+	int r;
 
 	spin_lock_irqsave(&data_lock, flags);
 
@@ -369,11 +370,11 @@ static void wait_pending_extra_info_updates(void)
 	spin_unlock_irqrestore(&data_lock, flags);
 
 	t = msecs_to_jiffies(500);
-	wait_for_completion_timeout(&extra_updated_completion, t);
-
-	updating = extra_info_update_ongoing();
-
-	WARN_ON(updating);
+	r = wait_for_completion_timeout(&extra_updated_completion, t);
+	if (r == 0)
+		DSSWARN("timeout in wait_pending_extra_info_updates\n");
+	else if (r < 0)
+		DSSERR("wait_pending_extra_info_updates failed: %d\n", r);
 }
 
 int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
