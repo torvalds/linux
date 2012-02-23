@@ -1205,9 +1205,11 @@ struct radeon_asic {
 	void (*pm_init_profile)(struct radeon_device *rdev);
 	void (*pm_get_dynpm_state)(struct radeon_device *rdev);
 	/* pageflipping */
-	void (*pre_page_flip)(struct radeon_device *rdev, int crtc);
-	u32 (*page_flip)(struct radeon_device *rdev, int crtc, u64 crtc_base);
-	void (*post_page_flip)(struct radeon_device *rdev, int crtc);
+	struct {
+		void (*pre_page_flip)(struct radeon_device *rdev, int crtc);
+		u32 (*page_flip)(struct radeon_device *rdev, int crtc, u64 crtc_base);
+		void (*post_page_flip)(struct radeon_device *rdev, int crtc);
+	} pflip;
 	/* wait for vblank */
 	void (*wait_for_vblank)(struct radeon_device *rdev, int crtc);
 	/* wait for mc_idle */
@@ -1697,9 +1699,9 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_pm_finish(rdev) (rdev)->asic->pm_finish((rdev))
 #define radeon_pm_init_profile(rdev) (rdev)->asic->pm_init_profile((rdev))
 #define radeon_pm_get_dynpm_state(rdev) (rdev)->asic->pm_get_dynpm_state((rdev))
-#define radeon_pre_page_flip(rdev, crtc) rdev->asic->pre_page_flip((rdev), (crtc))
-#define radeon_page_flip(rdev, crtc, base) rdev->asic->page_flip((rdev), (crtc), (base))
-#define radeon_post_page_flip(rdev, crtc) rdev->asic->post_page_flip((rdev), (crtc))
+#define radeon_pre_page_flip(rdev, crtc) rdev->asic->pflip.pre_page_flip((rdev), (crtc))
+#define radeon_page_flip(rdev, crtc, base) rdev->asic->pflip.page_flip((rdev), (crtc), (base))
+#define radeon_post_page_flip(rdev, crtc) rdev->asic->pflip.post_page_flip((rdev), (crtc))
 #define radeon_wait_for_vblank(rdev, crtc) rdev->asic->wait_for_vblank((rdev), (crtc))
 #define radeon_mc_wait_for_idle(rdev) rdev->asic->mc_wait_for_idle((rdev))
 

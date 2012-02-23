@@ -177,9 +177,11 @@ static struct radeon_asic r100_asic = {
 	.pm_finish = &r100_pm_finish,
 	.pm_init_profile = &r100_pm_init_profile,
 	.pm_get_dynpm_state = &r100_pm_get_dynpm_state,
-	.pre_page_flip = &r100_pre_page_flip,
-	.page_flip = &r100_page_flip,
-	.post_page_flip = &r100_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &r100_pre_page_flip,
+		.page_flip = &r100_page_flip,
+		.post_page_flip = &r100_post_page_flip,
+	},
 	.wait_for_vblank = &r100_wait_for_vblank,
 	.mc_wait_for_idle = &r100_mc_wait_for_idle,
 };
@@ -232,9 +234,11 @@ static struct radeon_asic r200_asic = {
 	.pm_finish = &r100_pm_finish,
 	.pm_init_profile = &r100_pm_init_profile,
 	.pm_get_dynpm_state = &r100_pm_get_dynpm_state,
-	.pre_page_flip = &r100_pre_page_flip,
-	.page_flip = &r100_page_flip,
-	.post_page_flip = &r100_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &r100_pre_page_flip,
+		.page_flip = &r100_page_flip,
+		.post_page_flip = &r100_post_page_flip,
+	},
 	.wait_for_vblank = &r100_wait_for_vblank,
 	.mc_wait_for_idle = &r100_mc_wait_for_idle,
 };
@@ -288,9 +292,11 @@ static struct radeon_asic r300_asic = {
 	.pm_finish = &r100_pm_finish,
 	.pm_init_profile = &r100_pm_init_profile,
 	.pm_get_dynpm_state = &r100_pm_get_dynpm_state,
-	.pre_page_flip = &r100_pre_page_flip,
-	.page_flip = &r100_page_flip,
-	.post_page_flip = &r100_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &r100_pre_page_flip,
+		.page_flip = &r100_page_flip,
+		.post_page_flip = &r100_post_page_flip,
+	},
 	.wait_for_vblank = &r100_wait_for_vblank,
 	.mc_wait_for_idle = &r300_mc_wait_for_idle,
 };
@@ -343,9 +349,11 @@ static struct radeon_asic r300_asic_pcie = {
 	.pm_finish = &r100_pm_finish,
 	.pm_init_profile = &r100_pm_init_profile,
 	.pm_get_dynpm_state = &r100_pm_get_dynpm_state,
-	.pre_page_flip = &r100_pre_page_flip,
-	.page_flip = &r100_page_flip,
-	.post_page_flip = &r100_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &r100_pre_page_flip,
+		.page_flip = &r100_page_flip,
+		.post_page_flip = &r100_post_page_flip,
+	},
 	.wait_for_vblank = &r100_wait_for_vblank,
 	.mc_wait_for_idle = &r300_mc_wait_for_idle,
 };
@@ -399,9 +407,11 @@ static struct radeon_asic r420_asic = {
 	.pm_finish = &r100_pm_finish,
 	.pm_init_profile = &r420_pm_init_profile,
 	.pm_get_dynpm_state = &r100_pm_get_dynpm_state,
-	.pre_page_flip = &r100_pre_page_flip,
-	.page_flip = &r100_page_flip,
-	.post_page_flip = &r100_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &r100_pre_page_flip,
+		.page_flip = &r100_page_flip,
+		.post_page_flip = &r100_post_page_flip,
+	},
 	.wait_for_vblank = &r100_wait_for_vblank,
 	.mc_wait_for_idle = &r300_mc_wait_for_idle,
 };
@@ -455,9 +465,11 @@ static struct radeon_asic rs400_asic = {
 	.pm_finish = &r100_pm_finish,
 	.pm_init_profile = &r100_pm_init_profile,
 	.pm_get_dynpm_state = &r100_pm_get_dynpm_state,
-	.pre_page_flip = &r100_pre_page_flip,
-	.page_flip = &r100_page_flip,
-	.post_page_flip = &r100_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &r100_pre_page_flip,
+		.page_flip = &r100_page_flip,
+		.post_page_flip = &r100_post_page_flip,
+	},
 	.wait_for_vblank = &r100_wait_for_vblank,
 	.mc_wait_for_idle = &rs400_mc_wait_for_idle,
 };
@@ -511,9 +523,11 @@ static struct radeon_asic rs600_asic = {
 	.pm_finish = &rs600_pm_finish,
 	.pm_init_profile = &r420_pm_init_profile,
 	.pm_get_dynpm_state = &r100_pm_get_dynpm_state,
-	.pre_page_flip = &rs600_pre_page_flip,
-	.page_flip = &rs600_page_flip,
-	.post_page_flip = &rs600_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &rs600_pre_page_flip,
+		.page_flip = &rs600_page_flip,
+		.post_page_flip = &rs600_post_page_flip,
+	},
 	.wait_for_vblank = &avivo_wait_for_vblank,
 	.mc_wait_for_idle = &rs600_mc_wait_for_idle,
 };
@@ -567,9 +581,11 @@ static struct radeon_asic rs690_asic = {
 	.pm_finish = &rs600_pm_finish,
 	.pm_init_profile = &r420_pm_init_profile,
 	.pm_get_dynpm_state = &r100_pm_get_dynpm_state,
-	.pre_page_flip = &rs600_pre_page_flip,
-	.page_flip = &rs600_page_flip,
-	.post_page_flip = &rs600_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &rs600_pre_page_flip,
+		.page_flip = &rs600_page_flip,
+		.post_page_flip = &rs600_post_page_flip,
+	},
 	.wait_for_vblank = &avivo_wait_for_vblank,
 	.mc_wait_for_idle = &rs690_mc_wait_for_idle,
 };
@@ -623,9 +639,11 @@ static struct radeon_asic rv515_asic = {
 	.pm_finish = &rs600_pm_finish,
 	.pm_init_profile = &r420_pm_init_profile,
 	.pm_get_dynpm_state = &r100_pm_get_dynpm_state,
-	.pre_page_flip = &rs600_pre_page_flip,
-	.page_flip = &rs600_page_flip,
-	.post_page_flip = &rs600_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &rs600_pre_page_flip,
+		.page_flip = &rs600_page_flip,
+		.post_page_flip = &rs600_post_page_flip,
+	},
 	.wait_for_vblank = &avivo_wait_for_vblank,
 	.mc_wait_for_idle = &rv515_mc_wait_for_idle,
 };
@@ -679,9 +697,11 @@ static struct radeon_asic r520_asic = {
 	.pm_finish = &rs600_pm_finish,
 	.pm_init_profile = &r420_pm_init_profile,
 	.pm_get_dynpm_state = &r100_pm_get_dynpm_state,
-	.pre_page_flip = &rs600_pre_page_flip,
-	.page_flip = &rs600_page_flip,
-	.post_page_flip = &rs600_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &rs600_pre_page_flip,
+		.page_flip = &rs600_page_flip,
+		.post_page_flip = &rs600_post_page_flip,
+	},
 	.wait_for_vblank = &avivo_wait_for_vblank,
 	.mc_wait_for_idle = &r520_mc_wait_for_idle,
 };
@@ -734,9 +754,11 @@ static struct radeon_asic r600_asic = {
 	.pm_finish = &rs600_pm_finish,
 	.pm_init_profile = &r600_pm_init_profile,
 	.pm_get_dynpm_state = &r600_pm_get_dynpm_state,
-	.pre_page_flip = &rs600_pre_page_flip,
-	.page_flip = &rs600_page_flip,
-	.post_page_flip = &rs600_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &rs600_pre_page_flip,
+		.page_flip = &rs600_page_flip,
+		.post_page_flip = &rs600_post_page_flip,
+	},
 	.wait_for_vblank = &avivo_wait_for_vblank,
 	.mc_wait_for_idle = &r600_mc_wait_for_idle,
 };
@@ -789,9 +811,11 @@ static struct radeon_asic rs780_asic = {
 	.pm_finish = &rs600_pm_finish,
 	.pm_init_profile = &rs780_pm_init_profile,
 	.pm_get_dynpm_state = &r600_pm_get_dynpm_state,
-	.pre_page_flip = &rs600_pre_page_flip,
-	.page_flip = &rs600_page_flip,
-	.post_page_flip = &rs600_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &rs600_pre_page_flip,
+		.page_flip = &rs600_page_flip,
+		.post_page_flip = &rs600_post_page_flip,
+	},
 	.wait_for_vblank = &avivo_wait_for_vblank,
 	.mc_wait_for_idle = &r600_mc_wait_for_idle,
 };
@@ -844,9 +868,11 @@ static struct radeon_asic rv770_asic = {
 	.pm_finish = &rs600_pm_finish,
 	.pm_init_profile = &r600_pm_init_profile,
 	.pm_get_dynpm_state = &r600_pm_get_dynpm_state,
-	.pre_page_flip = &rs600_pre_page_flip,
-	.page_flip = &rv770_page_flip,
-	.post_page_flip = &rs600_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &rs600_pre_page_flip,
+		.page_flip = &rv770_page_flip,
+		.post_page_flip = &rs600_post_page_flip,
+	},
 	.wait_for_vblank = &avivo_wait_for_vblank,
 	.mc_wait_for_idle = &r600_mc_wait_for_idle,
 };
@@ -899,9 +925,11 @@ static struct radeon_asic evergreen_asic = {
 	.pm_finish = &evergreen_pm_finish,
 	.pm_init_profile = &r600_pm_init_profile,
 	.pm_get_dynpm_state = &r600_pm_get_dynpm_state,
-	.pre_page_flip = &evergreen_pre_page_flip,
-	.page_flip = &evergreen_page_flip,
-	.post_page_flip = &evergreen_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &evergreen_pre_page_flip,
+		.page_flip = &evergreen_page_flip,
+		.post_page_flip = &evergreen_post_page_flip,
+	},
 	.wait_for_vblank = &dce4_wait_for_vblank,
 	.mc_wait_for_idle = &evergreen_mc_wait_for_idle,
 };
@@ -954,9 +982,11 @@ static struct radeon_asic sumo_asic = {
 	.pm_finish = &evergreen_pm_finish,
 	.pm_init_profile = &sumo_pm_init_profile,
 	.pm_get_dynpm_state = &r600_pm_get_dynpm_state,
-	.pre_page_flip = &evergreen_pre_page_flip,
-	.page_flip = &evergreen_page_flip,
-	.post_page_flip = &evergreen_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &evergreen_pre_page_flip,
+		.page_flip = &evergreen_page_flip,
+		.post_page_flip = &evergreen_post_page_flip,
+	},
 	.wait_for_vblank = &dce4_wait_for_vblank,
 	.mc_wait_for_idle = &evergreen_mc_wait_for_idle,
 };
@@ -1009,9 +1039,11 @@ static struct radeon_asic btc_asic = {
 	.pm_finish = &evergreen_pm_finish,
 	.pm_init_profile = &r600_pm_init_profile,
 	.pm_get_dynpm_state = &r600_pm_get_dynpm_state,
-	.pre_page_flip = &evergreen_pre_page_flip,
-	.page_flip = &evergreen_page_flip,
-	.post_page_flip = &evergreen_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &evergreen_pre_page_flip,
+		.page_flip = &evergreen_page_flip,
+		.post_page_flip = &evergreen_post_page_flip,
+	},
 	.wait_for_vblank = &dce4_wait_for_vblank,
 	.mc_wait_for_idle = &evergreen_mc_wait_for_idle,
 };
@@ -1087,9 +1119,11 @@ static struct radeon_asic cayman_asic = {
 	.pm_finish = &evergreen_pm_finish,
 	.pm_init_profile = &r600_pm_init_profile,
 	.pm_get_dynpm_state = &r600_pm_get_dynpm_state,
-	.pre_page_flip = &evergreen_pre_page_flip,
-	.page_flip = &evergreen_page_flip,
-	.post_page_flip = &evergreen_post_page_flip,
+	.pflip = {
+		.pre_page_flip = &evergreen_pre_page_flip,
+		.page_flip = &evergreen_page_flip,
+		.post_page_flip = &evergreen_post_page_flip,
+	},
 	.wait_for_vblank = &dce4_wait_for_vblank,
 	.mc_wait_for_idle = &evergreen_mc_wait_for_idle,
 };
