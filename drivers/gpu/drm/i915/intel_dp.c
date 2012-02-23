@@ -49,7 +49,7 @@ struct intel_dp {
 	uint32_t DP;
 	uint8_t  link_configuration[DP_LINK_CONFIGURATION_SIZE];
 	bool has_audio;
-	int force_audio;
+	enum hdmi_force_audio force_audio;
 	uint32_t color_range;
 	int dpms_mode;
 	uint8_t link_bw;
@@ -2116,8 +2116,8 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	if (status != connector_status_connected)
 		return status;
 
-	if (intel_dp->force_audio) {
-		intel_dp->has_audio = intel_dp->force_audio > 0;
+	if (intel_dp->force_audio != HDMI_AUDIO_AUTO) {
+		intel_dp->has_audio = (intel_dp->force_audio == HDMI_AUDIO_ON);
 	} else {
 		edid = intel_dp_get_edid(connector, &intel_dp->adapter);
 		if (edid) {
@@ -2217,10 +2217,10 @@ intel_dp_set_property(struct drm_connector *connector,
 
 		intel_dp->force_audio = i;
 
-		if (i == 0)
+		if (i == HDMI_AUDIO_AUTO)
 			has_audio = intel_dp_detect_audio(connector);
 		else
-			has_audio = i > 0;
+			has_audio = (i == HDMI_AUDIO_ON);
 
 		if (has_audio == intel_dp->has_audio)
 			return 0;
