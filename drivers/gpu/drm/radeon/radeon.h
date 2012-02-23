@@ -1133,8 +1133,12 @@ struct radeon_asic {
 	void (*vga_set_state)(struct radeon_device *rdev, bool state);
 	bool (*gpu_is_lockup)(struct radeon_device *rdev, struct radeon_ring *cp);
 	int (*asic_reset)(struct radeon_device *rdev);
-	void (*gart_tlb_flush)(struct radeon_device *rdev);
-	int (*gart_set_page)(struct radeon_device *rdev, int i, uint64_t addr);
+
+	struct {
+		void (*tlb_flush)(struct radeon_device *rdev);
+		int (*set_page)(struct radeon_device *rdev, int i, uint64_t addr);
+	} gart;
+
 	struct {
 		void (*ib_execute)(struct radeon_device *rdev, struct radeon_ib *ib);
 		int (*ib_parse)(struct radeon_device *rdev, struct radeon_ib *ib);
@@ -1673,8 +1677,8 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_vga_set_state(rdev, state) (rdev)->asic->vga_set_state((rdev), (state))
 #define radeon_gpu_is_lockup(rdev, cp) (rdev)->asic->gpu_is_lockup((rdev), (cp))
 #define radeon_asic_reset(rdev) (rdev)->asic->asic_reset((rdev))
-#define radeon_gart_tlb_flush(rdev) (rdev)->asic->gart_tlb_flush((rdev))
-#define radeon_gart_set_page(rdev, i, p) (rdev)->asic->gart_set_page((rdev), (i), (p))
+#define radeon_gart_tlb_flush(rdev) (rdev)->asic->gart.tlb_flush((rdev))
+#define radeon_gart_set_page(rdev, i, p) (rdev)->asic->gart.set_page((rdev), (i), (p))
 #define radeon_ring_start(rdev, r, cp) (rdev)->asic->ring[(r)].ring_start((rdev), (cp))
 #define radeon_ring_test(rdev, r, cp) (rdev)->asic->ring[(r)].ring_test((rdev), (cp))
 #define radeon_ib_test(rdev, r, cp) (rdev)->asic->ring[(r)].ib_test((rdev), (cp))

@@ -630,8 +630,8 @@ int r100_pci_gart_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 	rdev->gart.table_size = rdev->gart.num_gpu_pages * 4;
-	rdev->asic->gart_tlb_flush = &r100_pci_gart_tlb_flush;
-	rdev->asic->gart_set_page = &r100_pci_gart_set_page;
+	rdev->asic->gart.tlb_flush = &r100_pci_gart_tlb_flush;
+	rdev->asic->gart.set_page = &r100_pci_gart_set_page;
 	return radeon_gart_table_ram_alloc(rdev);
 }
 

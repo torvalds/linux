@@ -114,13 +114,13 @@ void radeon_agp_disable(struct radeon_device *rdev)
 			rdev->family == CHIP_R423) {
 		DRM_INFO("Forcing AGP to PCIE mode\n");
 		rdev->flags |= RADEON_IS_PCIE;
-		rdev->asic->gart_tlb_flush = &rv370_pcie_gart_tlb_flush;
-		rdev->asic->gart_set_page = &rv370_pcie_gart_set_page;
+		rdev->asic->gart.tlb_flush = &rv370_pcie_gart_tlb_flush;
+		rdev->asic->gart.set_page = &rv370_pcie_gart_set_page;
 	} else {
 		DRM_INFO("Forcing AGP to PCI mode\n");
 		rdev->flags |= RADEON_IS_PCI;
-		rdev->asic->gart_tlb_flush = &r100_pci_gart_tlb_flush;
-		rdev->asic->gart_set_page = &r100_pci_gart_set_page;
+		rdev->asic->gart.tlb_flush = &r100_pci_gart_tlb_flush;
+		rdev->asic->gart.set_page = &r100_pci_gart_set_page;
 	}
 	rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
 }
@@ -136,8 +136,10 @@ static struct radeon_asic r100_asic = {
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_is_lockup = &r100_gpu_is_lockup,
 	.asic_reset = &r100_asic_reset,
-	.gart_tlb_flush = &r100_pci_gart_tlb_flush,
-	.gart_set_page = &r100_pci_gart_set_page,
+	.gart = {
+		.tlb_flush = &r100_pci_gart_tlb_flush,
+		.set_page = &r100_pci_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
@@ -204,8 +206,10 @@ static struct radeon_asic r200_asic = {
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_is_lockup = &r100_gpu_is_lockup,
 	.asic_reset = &r100_asic_reset,
-	.gart_tlb_flush = &r100_pci_gart_tlb_flush,
-	.gart_set_page = &r100_pci_gart_set_page,
+	.gart = {
+		.tlb_flush = &r100_pci_gart_tlb_flush,
+		.set_page = &r100_pci_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
@@ -271,8 +275,10 @@ static struct radeon_asic r300_asic = {
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_is_lockup = &r300_gpu_is_lockup,
 	.asic_reset = &r300_asic_reset,
-	.gart_tlb_flush = &r100_pci_gart_tlb_flush,
-	.gart_set_page = &r100_pci_gart_set_page,
+	.gart = {
+		.tlb_flush = &r100_pci_gart_tlb_flush,
+		.set_page = &r100_pci_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
@@ -339,8 +345,10 @@ static struct radeon_asic r300_asic_pcie = {
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_is_lockup = &r300_gpu_is_lockup,
 	.asic_reset = &r300_asic_reset,
-	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
-	.gart_set_page = &rv370_pcie_gart_set_page,
+	.gart = {
+		.tlb_flush = &rv370_pcie_gart_tlb_flush,
+		.set_page = &rv370_pcie_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
@@ -406,8 +414,10 @@ static struct radeon_asic r420_asic = {
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_is_lockup = &r300_gpu_is_lockup,
 	.asic_reset = &r300_asic_reset,
-	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
-	.gart_set_page = &rv370_pcie_gart_set_page,
+	.gart = {
+		.tlb_flush = &rv370_pcie_gart_tlb_flush,
+		.set_page = &rv370_pcie_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
@@ -474,8 +484,10 @@ static struct radeon_asic rs400_asic = {
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_is_lockup = &r300_gpu_is_lockup,
 	.asic_reset = &r300_asic_reset,
-	.gart_tlb_flush = &rs400_gart_tlb_flush,
-	.gart_set_page = &rs400_gart_set_page,
+	.gart = {
+		.tlb_flush = &rs400_gart_tlb_flush,
+		.set_page = &rs400_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
@@ -542,8 +554,10 @@ static struct radeon_asic rs600_asic = {
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_is_lockup = &r300_gpu_is_lockup,
 	.asic_reset = &rs600_asic_reset,
-	.gart_tlb_flush = &rs600_gart_tlb_flush,
-	.gart_set_page = &rs600_gart_set_page,
+	.gart = {
+		.tlb_flush = &rs600_gart_tlb_flush,
+		.set_page = &rs600_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
@@ -610,8 +624,10 @@ static struct radeon_asic rs690_asic = {
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_is_lockup = &r300_gpu_is_lockup,
 	.asic_reset = &rs600_asic_reset,
-	.gart_tlb_flush = &rs400_gart_tlb_flush,
-	.gart_set_page = &rs400_gart_set_page,
+	.gart = {
+		.tlb_flush = &rs400_gart_tlb_flush,
+		.set_page = &rs400_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
@@ -678,8 +694,10 @@ static struct radeon_asic rv515_asic = {
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_is_lockup = &r300_gpu_is_lockup,
 	.asic_reset = &rs600_asic_reset,
-	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
-	.gart_set_page = &rv370_pcie_gart_set_page,
+	.gart = {
+		.tlb_flush = &rv370_pcie_gart_tlb_flush,
+		.set_page = &rv370_pcie_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
@@ -746,8 +764,10 @@ static struct radeon_asic r520_asic = {
 	.vga_set_state = &r100_vga_set_state,
 	.gpu_is_lockup = &r300_gpu_is_lockup,
 	.asic_reset = &rs600_asic_reset,
-	.gart_tlb_flush = &rv370_pcie_gart_tlb_flush,
-	.gart_set_page = &rv370_pcie_gart_set_page,
+	.gart = {
+		.tlb_flush = &rv370_pcie_gart_tlb_flush,
+		.set_page = &rv370_pcie_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r100_ring_ib_execute,
@@ -814,8 +834,10 @@ static struct radeon_asic r600_asic = {
 	.vga_set_state = &r600_vga_set_state,
 	.gpu_is_lockup = &r600_gpu_is_lockup,
 	.asic_reset = &r600_asic_reset,
-	.gart_tlb_flush = &r600_pcie_gart_tlb_flush,
-	.gart_set_page = &rs600_gart_set_page,
+	.gart = {
+		.tlb_flush = &r600_pcie_gart_tlb_flush,
+		.set_page = &rs600_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r600_ring_ib_execute,
@@ -881,8 +903,10 @@ static struct radeon_asic rs780_asic = {
 	.gpu_is_lockup = &r600_gpu_is_lockup,
 	.vga_set_state = &r600_vga_set_state,
 	.asic_reset = &r600_asic_reset,
-	.gart_tlb_flush = &r600_pcie_gart_tlb_flush,
-	.gart_set_page = &rs600_gart_set_page,
+	.gart = {
+		.tlb_flush = &r600_pcie_gart_tlb_flush,
+		.set_page = &rs600_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r600_ring_ib_execute,
@@ -948,8 +972,10 @@ static struct radeon_asic rv770_asic = {
 	.asic_reset = &r600_asic_reset,
 	.gpu_is_lockup = &r600_gpu_is_lockup,
 	.vga_set_state = &r600_vga_set_state,
-	.gart_tlb_flush = &r600_pcie_gart_tlb_flush,
-	.gart_set_page = &rs600_gart_set_page,
+	.gart = {
+		.tlb_flush = &r600_pcie_gart_tlb_flush,
+		.set_page = &rs600_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &r600_ring_ib_execute,
@@ -1015,8 +1041,10 @@ static struct radeon_asic evergreen_asic = {
 	.gpu_is_lockup = &evergreen_gpu_is_lockup,
 	.asic_reset = &evergreen_asic_reset,
 	.vga_set_state = &r600_vga_set_state,
-	.gart_tlb_flush = &evergreen_pcie_gart_tlb_flush,
-	.gart_set_page = &rs600_gart_set_page,
+	.gart = {
+		.tlb_flush = &evergreen_pcie_gart_tlb_flush,
+		.set_page = &rs600_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &evergreen_ring_ib_execute,
@@ -1082,8 +1110,10 @@ static struct radeon_asic sumo_asic = {
 	.gpu_is_lockup = &evergreen_gpu_is_lockup,
 	.asic_reset = &evergreen_asic_reset,
 	.vga_set_state = &r600_vga_set_state,
-	.gart_tlb_flush = &evergreen_pcie_gart_tlb_flush,
-	.gart_set_page = &rs600_gart_set_page,
+	.gart = {
+		.tlb_flush = &evergreen_pcie_gart_tlb_flush,
+		.set_page = &rs600_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &evergreen_ring_ib_execute,
@@ -1149,8 +1179,10 @@ static struct radeon_asic btc_asic = {
 	.gpu_is_lockup = &evergreen_gpu_is_lockup,
 	.asic_reset = &evergreen_asic_reset,
 	.vga_set_state = &r600_vga_set_state,
-	.gart_tlb_flush = &evergreen_pcie_gart_tlb_flush,
-	.gart_set_page = &rs600_gart_set_page,
+	.gart = {
+		.tlb_flush = &evergreen_pcie_gart_tlb_flush,
+		.set_page = &rs600_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &evergreen_ring_ib_execute,
@@ -1226,8 +1258,10 @@ static struct radeon_asic cayman_asic = {
 	.gpu_is_lockup = &cayman_gpu_is_lockup,
 	.asic_reset = &cayman_asic_reset,
 	.vga_set_state = &r600_vga_set_state,
-	.gart_tlb_flush = &cayman_pcie_gart_tlb_flush,
-	.gart_set_page = &rs600_gart_set_page,
+	.gart = {
+		.tlb_flush = &cayman_pcie_gart_tlb_flush,
+		.set_page = &rs600_gart_set_page,
+	},
 	.ring = {
 		[RADEON_RING_TYPE_GFX_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
