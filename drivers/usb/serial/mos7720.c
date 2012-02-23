@@ -2169,7 +2169,6 @@ static struct usb_driver usb_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	moschip_port_id_table,
-	.no_dynamic_id =	1,
 };
 
 static struct usb_serial_driver moschip7720_2port_driver = {
@@ -2178,7 +2177,6 @@ static struct usb_serial_driver moschip7720_2port_driver = {
 		.name =		"moschip7720",
 	},
 	.description		= "Moschip 2 port adapter",
-	.usb_driver		= &usb_driver,
 	.id_table		= moschip_port_id_table,
 	.calc_num_ports		= mos77xx_calc_num_ports,
 	.open			= mos7720_open,
@@ -2201,38 +2199,26 @@ static struct usb_serial_driver moschip7720_2port_driver = {
 	.read_int_callback	= NULL  /* dynamically assigned in probe() */
 };
 
+static struct usb_serial_driver * const serial_drivers[] = {
+	&moschip7720_2port_driver, NULL
+};
+
 static int __init moschip7720_init(void)
 {
 	int retval;
 
 	dbg("%s: Entering ..........", __func__);
 
-	/* Register with the usb serial */
-	retval = usb_serial_register(&moschip7720_2port_driver);
-	if (retval)
-		goto failed_port_device_register;
-
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-
-	/* Register with the usb */
-	retval = usb_register(&usb_driver);
-	if (retval)
-		goto failed_usb_register;
-
-	return 0;
-
-failed_usb_register:
-	usb_serial_deregister(&moschip7720_2port_driver);
-
-failed_port_device_register:
+	retval = usb_serial_register_drivers(&usb_driver, serial_drivers);
+	if (retval == 0)
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+			       DRIVER_DESC "\n");
 	return retval;
 }
 
 static void __exit moschip7720_exit(void)
 {
-	usb_deregister(&usb_driver);
-	usb_serial_deregister(&moschip7720_2port_driver);
+	usb_serial_deregister_drivers(&usb_driver, serial_drivers);
 }
 
 module_init(moschip7720_init);

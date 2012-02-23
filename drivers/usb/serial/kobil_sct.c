@@ -90,7 +90,6 @@ static struct usb_driver kobil_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
-	.no_dynamic_id = 	1,
 };
 
 
@@ -100,7 +99,6 @@ static struct usb_serial_driver kobil_device = {
 		.name =		"kobil",
 	},
 	.description =		"KOBIL USB smart card terminal",
-	.usb_driver = 		&kobil_driver,
 	.id_table =		id_table,
 	.num_ports =		1,
 	.attach =		kobil_startup,
@@ -117,6 +115,9 @@ static struct usb_serial_driver kobil_device = {
 	.read_int_callback =	kobil_read_int_callback,
 };
 
+static struct usb_serial_driver * const serial_drivers[] = {
+	&kobil_device, NULL
+};
 
 struct kobil_private {
 	int write_int_endpoint_address;
@@ -685,28 +686,18 @@ static int kobil_ioctl(struct tty_struct *tty,
 static int __init kobil_init(void)
 {
 	int retval;
-	retval = usb_serial_register(&kobil_device);
-	if (retval)
-		goto failed_usb_serial_register;
-	retval = usb_register(&kobil_driver);
-	if (retval)
-		goto failed_usb_register;
 
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-
-	return 0;
-failed_usb_register:
-	usb_serial_deregister(&kobil_device);
-failed_usb_serial_register:
+	retval = usb_serial_register_drivers(&kobil_driver, serial_drivers);
+	if (retval == 0)
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+			       DRIVER_DESC "\n");
 	return retval;
 }
 
 
 static void __exit kobil_exit(void)
 {
-	usb_deregister(&kobil_driver);
-	usb_serial_deregister(&kobil_device);
+	usb_serial_deregister_drivers(&kobil_driver, serial_drivers);
 }
 
 module_init(kobil_init);

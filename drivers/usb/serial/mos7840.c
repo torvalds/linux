@@ -2638,7 +2638,6 @@ static struct usb_driver io_driver = {
 	.probe = usb_serial_probe,
 	.disconnect = usb_serial_disconnect,
 	.id_table = moschip_id_table_combined,
-	.no_dynamic_id = 1,
 };
 
 static struct usb_serial_driver moschip7840_4port_device = {
@@ -2647,7 +2646,6 @@ static struct usb_serial_driver moschip7840_4port_device = {
 		   .name = "mos7840",
 		   },
 	.description = DRIVER_DESC,
-	.usb_driver = &io_driver,
 	.id_table = moschip_port_id_table,
 	.num_ports = 4,
 	.open = mos7840_open,
@@ -2674,6 +2672,10 @@ static struct usb_serial_driver moschip7840_4port_device = {
 	.read_int_callback = mos7840_interrupt_callback,
 };
 
+static struct usb_serial_driver * const serial_drivers[] = {
+	&moschip7840_4port_device, NULL
+};
+
 /****************************************************************************
  * moschip7840_init
  *	This is called by the module subsystem, or on startup to initialize us
@@ -2684,24 +2686,12 @@ static int __init moschip7840_init(void)
 
 	dbg("%s", " mos7840_init :entering..........");
 
-	/* Register with the usb serial */
-	retval = usb_serial_register(&moschip7840_4port_device);
+	retval = usb_serial_register_drivers(&io_driver, serial_drivers);
+	if (retval == 0)
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+			       DRIVER_DESC "\n");
 
-	if (retval)
-		goto failed_port_device_register;
-
-	dbg("%s", "Entering...");
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-
-	/* Register with the usb */
-	retval = usb_register(&io_driver);
-	if (retval == 0) {
-		dbg("%s", "Leaving...");
-		return 0;
-	}
-	usb_serial_deregister(&moschip7840_4port_device);
-failed_port_device_register:
+	dbg("%s", "Leaving...");
 	return retval;
 }
 
@@ -2714,9 +2704,7 @@ static void __exit moschip7840_exit(void)
 
 	dbg("%s", " mos7840_exit :entering..........");
 
-	usb_deregister(&io_driver);
-
-	usb_serial_deregister(&moschip7840_4port_device);
+	usb_serial_deregister_drivers(&io_driver, serial_drivers);
 
 	dbg("%s", "Entering...");
 }
