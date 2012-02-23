@@ -1156,7 +1156,14 @@ struct radeon_asic {
 		int (*process)(struct radeon_device *rdev);
 	} irq;
 
-	u32 (*get_vblank_counter)(struct radeon_device *rdev, int crtc);
+	struct {
+		/* display watermarks */
+		void (*bandwidth_update)(struct radeon_device *rdev);
+		/* get frame count */
+		u32 (*get_vblank_counter)(struct radeon_device *rdev, int crtc);
+		/* wait for vblank */
+		void (*wait_for_vblank)(struct radeon_device *rdev, int crtc);
+	} display;
 
 	struct {
 		int (*blit)(struct radeon_device *rdev,
@@ -1192,7 +1199,6 @@ struct radeon_asic {
 			       uint32_t tiling_flags, uint32_t pitch,
 			       uint32_t offset, uint32_t obj_size);
 	void (*clear_surface_reg)(struct radeon_device *rdev, int reg);
-	void (*bandwidth_update)(struct radeon_device *rdev);
 
 	struct {
 		void (*init)(struct radeon_device *rdev);
@@ -1224,8 +1230,7 @@ struct radeon_asic {
 		u32 (*page_flip)(struct radeon_device *rdev, int crtc, u64 crtc_base);
 		void (*post_page_flip)(struct radeon_device *rdev, int crtc);
 	} pflip;
-	/* wait for vblank */
-	void (*wait_for_vblank)(struct radeon_device *rdev, int crtc);
+
 	/* wait for mc_idle */
 	int (*mc_wait_for_idle)(struct radeon_device *rdev);
 };
@@ -1686,7 +1691,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_ring_ib_parse(rdev, r, ib) (rdev)->asic->ring[(r)].ib_parse((rdev), (ib))
 #define radeon_irq_set(rdev) (rdev)->asic->irq.set((rdev))
 #define radeon_irq_process(rdev) (rdev)->asic->irq.process((rdev))
-#define radeon_get_vblank_counter(rdev, crtc) (rdev)->asic->get_vblank_counter((rdev), (crtc))
+#define radeon_get_vblank_counter(rdev, crtc) (rdev)->asic->display.get_vblank_counter((rdev), (crtc))
 #define radeon_fence_ring_emit(rdev, r, fence) (rdev)->asic->ring[(r)].emit_fence((rdev), (fence))
 #define radeon_semaphore_ring_emit(rdev, r, cp, semaphore, emit_wait) (rdev)->asic->ring[(r)].emit_semaphore((rdev), (cp), (semaphore), (emit_wait))
 #define radeon_copy_blit(rdev, s, d, np, f) (rdev)->asic->copy.blit((rdev), (s), (d), (np), (f))
@@ -1704,7 +1709,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_set_clock_gating(rdev, e) (rdev)->asic->set_clock_gating((rdev), (e))
 #define radeon_set_surface_reg(rdev, r, f, p, o, s) ((rdev)->asic->set_surface_reg((rdev), (r), (f), (p), (o), (s)))
 #define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->clear_surface_reg((rdev), (r)))
-#define radeon_bandwidth_update(rdev) (rdev)->asic->bandwidth_update((rdev))
+#define radeon_bandwidth_update(rdev) (rdev)->asic->display.bandwidth_update((rdev))
 #define radeon_hpd_init(rdev) (rdev)->asic->hpd.init((rdev))
 #define radeon_hpd_fini(rdev) (rdev)->asic->hpd.fini((rdev))
 #define radeon_hpd_sense(rdev, h) (rdev)->asic->hpd.sense((rdev), (h))
@@ -1718,7 +1723,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_pre_page_flip(rdev, crtc) rdev->asic->pflip.pre_page_flip((rdev), (crtc))
 #define radeon_page_flip(rdev, crtc, base) rdev->asic->pflip.page_flip((rdev), (crtc), (base))
 #define radeon_post_page_flip(rdev, crtc) rdev->asic->pflip.post_page_flip((rdev), (crtc))
-#define radeon_wait_for_vblank(rdev, crtc) rdev->asic->wait_for_vblank((rdev), (crtc))
+#define radeon_wait_for_vblank(rdev, crtc) rdev->asic->display.wait_for_vblank((rdev), (crtc))
 #define radeon_mc_wait_for_idle(rdev) rdev->asic->mc_wait_for_idle((rdev))
 
 /* Common functions */

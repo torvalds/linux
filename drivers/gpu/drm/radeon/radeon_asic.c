@@ -155,7 +155,11 @@ static struct radeon_asic r100_asic = {
 		.set = &r100_irq_set,
 		.process = &r100_irq_process,
 	},
-	.get_vblank_counter = &r100_get_vblank_counter,
+	.display = {
+		.bandwidth_update = &r100_bandwidth_update,
+		.get_vblank_counter = &r100_get_vblank_counter,
+		.wait_for_vblank = &r100_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r100_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -173,7 +177,6 @@ static struct radeon_asic r100_asic = {
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
-	.bandwidth_update = &r100_bandwidth_update,
 	.hpd = {
 		.init = &r100_hpd_init,
 		.fini = &r100_hpd_fini,
@@ -194,7 +197,6 @@ static struct radeon_asic r100_asic = {
 		.page_flip = &r100_page_flip,
 		.post_page_flip = &r100_post_page_flip,
 	},
-	.wait_for_vblank = &r100_wait_for_vblank,
 	.mc_wait_for_idle = &r100_mc_wait_for_idle,
 };
 
@@ -225,7 +227,11 @@ static struct radeon_asic r200_asic = {
 		.set = &r100_irq_set,
 		.process = &r100_irq_process,
 	},
-	.get_vblank_counter = &r100_get_vblank_counter,
+	.display = {
+		.bandwidth_update = &r100_bandwidth_update,
+		.get_vblank_counter = &r100_get_vblank_counter,
+		.wait_for_vblank = &r100_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r100_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -242,7 +248,6 @@ static struct radeon_asic r200_asic = {
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
-	.bandwidth_update = &r100_bandwidth_update,
 	.hpd = {
 		.init = &r100_hpd_init,
 		.fini = &r100_hpd_fini,
@@ -263,7 +268,6 @@ static struct radeon_asic r200_asic = {
 		.page_flip = &r100_page_flip,
 		.post_page_flip = &r100_post_page_flip,
 	},
-	.wait_for_vblank = &r100_wait_for_vblank,
 	.mc_wait_for_idle = &r100_mc_wait_for_idle,
 };
 
@@ -294,7 +298,11 @@ static struct radeon_asic r300_asic = {
 		.set = &r100_irq_set,
 		.process = &r100_irq_process,
 	},
-	.get_vblank_counter = &r100_get_vblank_counter,
+	.display = {
+		.bandwidth_update = &r100_bandwidth_update,
+		.get_vblank_counter = &r100_get_vblank_counter,
+		.wait_for_vblank = &r100_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r100_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -312,7 +320,6 @@ static struct radeon_asic r300_asic = {
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
-	.bandwidth_update = &r100_bandwidth_update,
 	.hpd = {
 		.init = &r100_hpd_init,
 		.fini = &r100_hpd_fini,
@@ -333,7 +340,6 @@ static struct radeon_asic r300_asic = {
 		.page_flip = &r100_page_flip,
 		.post_page_flip = &r100_post_page_flip,
 	},
-	.wait_for_vblank = &r100_wait_for_vblank,
 	.mc_wait_for_idle = &r300_mc_wait_for_idle,
 };
 
@@ -364,7 +370,11 @@ static struct radeon_asic r300_asic_pcie = {
 		.set = &r100_irq_set,
 		.process = &r100_irq_process,
 	},
-	.get_vblank_counter = &r100_get_vblank_counter,
+	.display = {
+		.bandwidth_update = &r100_bandwidth_update,
+		.get_vblank_counter = &r100_get_vblank_counter,
+		.wait_for_vblank = &r100_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r100_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -381,7 +391,6 @@ static struct radeon_asic r300_asic_pcie = {
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
-	.bandwidth_update = &r100_bandwidth_update,
 	.hpd = {
 		.init = &r100_hpd_init,
 		.fini = &r100_hpd_fini,
@@ -402,7 +411,6 @@ static struct radeon_asic r300_asic_pcie = {
 		.page_flip = &r100_page_flip,
 		.post_page_flip = &r100_post_page_flip,
 	},
-	.wait_for_vblank = &r100_wait_for_vblank,
 	.mc_wait_for_idle = &r300_mc_wait_for_idle,
 };
 
@@ -433,7 +441,11 @@ static struct radeon_asic r420_asic = {
 		.set = &r100_irq_set,
 		.process = &r100_irq_process,
 	},
-	.get_vblank_counter = &r100_get_vblank_counter,
+	.display = {
+		.bandwidth_update = &r100_bandwidth_update,
+		.get_vblank_counter = &r100_get_vblank_counter,
+		.wait_for_vblank = &r100_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r100_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -451,7 +463,7 @@ static struct radeon_asic r420_asic = {
 	.set_clock_gating = &radeon_atom_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
-	.bandwidth_update = &r100_bandwidth_update,
+
 	.hpd = {
 		.init = &r100_hpd_init,
 		.fini = &r100_hpd_fini,
@@ -472,7 +484,6 @@ static struct radeon_asic r420_asic = {
 		.page_flip = &r100_page_flip,
 		.post_page_flip = &r100_post_page_flip,
 	},
-	.wait_for_vblank = &r100_wait_for_vblank,
 	.mc_wait_for_idle = &r300_mc_wait_for_idle,
 };
 
@@ -503,7 +514,11 @@ static struct radeon_asic rs400_asic = {
 		.set = &r100_irq_set,
 		.process = &r100_irq_process,
 	},
-	.get_vblank_counter = &r100_get_vblank_counter,
+	.display = {
+		.bandwidth_update = &r100_bandwidth_update,
+		.get_vblank_counter = &r100_get_vblank_counter,
+		.wait_for_vblank = &r100_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r100_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -521,7 +536,6 @@ static struct radeon_asic rs400_asic = {
 	.set_clock_gating = &radeon_legacy_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
-	.bandwidth_update = &r100_bandwidth_update,
 	.hpd = {
 		.init = &r100_hpd_init,
 		.fini = &r100_hpd_fini,
@@ -542,7 +556,6 @@ static struct radeon_asic rs400_asic = {
 		.page_flip = &r100_page_flip,
 		.post_page_flip = &r100_post_page_flip,
 	},
-	.wait_for_vblank = &r100_wait_for_vblank,
 	.mc_wait_for_idle = &rs400_mc_wait_for_idle,
 };
 
@@ -573,7 +586,11 @@ static struct radeon_asic rs600_asic = {
 		.set = &rs600_irq_set,
 		.process = &rs600_irq_process,
 	},
-	.get_vblank_counter = &rs600_get_vblank_counter,
+	.display = {
+		.bandwidth_update = &rs600_bandwidth_update,
+		.get_vblank_counter = &rs600_get_vblank_counter,
+		.wait_for_vblank = &avivo_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r100_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -591,7 +608,6 @@ static struct radeon_asic rs600_asic = {
 	.set_clock_gating = &radeon_atom_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
-	.bandwidth_update = &rs600_bandwidth_update,
 	.hpd = {
 		.init = &rs600_hpd_init,
 		.fini = &rs600_hpd_fini,
@@ -612,7 +628,6 @@ static struct radeon_asic rs600_asic = {
 		.page_flip = &rs600_page_flip,
 		.post_page_flip = &rs600_post_page_flip,
 	},
-	.wait_for_vblank = &avivo_wait_for_vblank,
 	.mc_wait_for_idle = &rs600_mc_wait_for_idle,
 };
 
@@ -643,7 +658,11 @@ static struct radeon_asic rs690_asic = {
 		.set = &rs600_irq_set,
 		.process = &rs600_irq_process,
 	},
-	.get_vblank_counter = &rs600_get_vblank_counter,
+	.display = {
+		.get_vblank_counter = &rs600_get_vblank_counter,
+		.bandwidth_update = &rs690_bandwidth_update,
+		.wait_for_vblank = &avivo_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r100_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -661,7 +680,6 @@ static struct radeon_asic rs690_asic = {
 	.set_clock_gating = &radeon_atom_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
-	.bandwidth_update = &rs690_bandwidth_update,
 	.hpd = {
 		.init = &rs600_hpd_init,
 		.fini = &rs600_hpd_fini,
@@ -682,7 +700,6 @@ static struct radeon_asic rs690_asic = {
 		.page_flip = &rs600_page_flip,
 		.post_page_flip = &rs600_post_page_flip,
 	},
-	.wait_for_vblank = &avivo_wait_for_vblank,
 	.mc_wait_for_idle = &rs690_mc_wait_for_idle,
 };
 
@@ -713,7 +730,11 @@ static struct radeon_asic rv515_asic = {
 		.set = &rs600_irq_set,
 		.process = &rs600_irq_process,
 	},
-	.get_vblank_counter = &rs600_get_vblank_counter,
+	.display = {
+		.get_vblank_counter = &rs600_get_vblank_counter,
+		.bandwidth_update = &rv515_bandwidth_update,
+		.wait_for_vblank = &avivo_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r100_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -731,7 +752,6 @@ static struct radeon_asic rv515_asic = {
 	.set_clock_gating = &radeon_atom_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
-	.bandwidth_update = &rv515_bandwidth_update,
 	.hpd = {
 		.init = &rs600_hpd_init,
 		.fini = &rs600_hpd_fini,
@@ -752,7 +772,6 @@ static struct radeon_asic rv515_asic = {
 		.page_flip = &rs600_page_flip,
 		.post_page_flip = &rs600_post_page_flip,
 	},
-	.wait_for_vblank = &avivo_wait_for_vblank,
 	.mc_wait_for_idle = &rv515_mc_wait_for_idle,
 };
 
@@ -783,7 +802,11 @@ static struct radeon_asic r520_asic = {
 		.set = &rs600_irq_set,
 		.process = &rs600_irq_process,
 	},
-	.get_vblank_counter = &rs600_get_vblank_counter,
+	.display = {
+		.bandwidth_update = &rv515_bandwidth_update,
+		.get_vblank_counter = &rs600_get_vblank_counter,
+		.wait_for_vblank = &avivo_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r100_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -801,7 +824,6 @@ static struct radeon_asic r520_asic = {
 	.set_clock_gating = &radeon_atom_set_clock_gating,
 	.set_surface_reg = r100_set_surface_reg,
 	.clear_surface_reg = r100_clear_surface_reg,
-	.bandwidth_update = &rv515_bandwidth_update,
 	.hpd = {
 		.init = &rs600_hpd_init,
 		.fini = &rs600_hpd_fini,
@@ -822,7 +844,6 @@ static struct radeon_asic r520_asic = {
 		.page_flip = &rs600_page_flip,
 		.post_page_flip = &rs600_post_page_flip,
 	},
-	.wait_for_vblank = &avivo_wait_for_vblank,
 	.mc_wait_for_idle = &r520_mc_wait_for_idle,
 };
 
@@ -852,7 +873,11 @@ static struct radeon_asic r600_asic = {
 		.set = &r600_irq_set,
 		.process = &r600_irq_process,
 	},
-	.get_vblank_counter = &rs600_get_vblank_counter,
+	.display = {
+		.bandwidth_update = &rv515_bandwidth_update,
+		.get_vblank_counter = &rs600_get_vblank_counter,
+		.wait_for_vblank = &avivo_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r600_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -870,7 +895,6 @@ static struct radeon_asic r600_asic = {
 	.set_clock_gating = NULL,
 	.set_surface_reg = r600_set_surface_reg,
 	.clear_surface_reg = r600_clear_surface_reg,
-	.bandwidth_update = &rv515_bandwidth_update,
 	.hpd = {
 		.init = &r600_hpd_init,
 		.fini = &r600_hpd_fini,
@@ -891,7 +915,6 @@ static struct radeon_asic r600_asic = {
 		.page_flip = &rs600_page_flip,
 		.post_page_flip = &rs600_post_page_flip,
 	},
-	.wait_for_vblank = &avivo_wait_for_vblank,
 	.mc_wait_for_idle = &r600_mc_wait_for_idle,
 };
 
@@ -921,7 +944,11 @@ static struct radeon_asic rs780_asic = {
 		.set = &r600_irq_set,
 		.process = &r600_irq_process,
 	},
-	.get_vblank_counter = &rs600_get_vblank_counter,
+	.display = {
+		.bandwidth_update = &rs690_bandwidth_update,
+		.get_vblank_counter = &rs600_get_vblank_counter,
+		.wait_for_vblank = &avivo_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r600_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -939,7 +966,6 @@ static struct radeon_asic rs780_asic = {
 	.set_clock_gating = NULL,
 	.set_surface_reg = r600_set_surface_reg,
 	.clear_surface_reg = r600_clear_surface_reg,
-	.bandwidth_update = &rs690_bandwidth_update,
 	.hpd = {
 		.init = &r600_hpd_init,
 		.fini = &r600_hpd_fini,
@@ -960,7 +986,6 @@ static struct radeon_asic rs780_asic = {
 		.page_flip = &rs600_page_flip,
 		.post_page_flip = &rs600_post_page_flip,
 	},
-	.wait_for_vblank = &avivo_wait_for_vblank,
 	.mc_wait_for_idle = &r600_mc_wait_for_idle,
 };
 
@@ -990,7 +1015,11 @@ static struct radeon_asic rv770_asic = {
 		.set = &r600_irq_set,
 		.process = &r600_irq_process,
 	},
-	.get_vblank_counter = &rs600_get_vblank_counter,
+	.display = {
+		.bandwidth_update = &rv515_bandwidth_update,
+		.get_vblank_counter = &rs600_get_vblank_counter,
+		.wait_for_vblank = &avivo_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r600_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -1008,7 +1037,6 @@ static struct radeon_asic rv770_asic = {
 	.set_clock_gating = &radeon_atom_set_clock_gating,
 	.set_surface_reg = r600_set_surface_reg,
 	.clear_surface_reg = r600_clear_surface_reg,
-	.bandwidth_update = &rv515_bandwidth_update,
 	.hpd = {
 		.init = &r600_hpd_init,
 		.fini = &r600_hpd_fini,
@@ -1029,7 +1057,6 @@ static struct radeon_asic rv770_asic = {
 		.page_flip = &rv770_page_flip,
 		.post_page_flip = &rs600_post_page_flip,
 	},
-	.wait_for_vblank = &avivo_wait_for_vblank,
 	.mc_wait_for_idle = &r600_mc_wait_for_idle,
 };
 
@@ -1059,7 +1086,11 @@ static struct radeon_asic evergreen_asic = {
 		.set = &evergreen_irq_set,
 		.process = &evergreen_irq_process,
 	},
-	.get_vblank_counter = &evergreen_get_vblank_counter,
+	.display = {
+		.bandwidth_update = &evergreen_bandwidth_update,
+		.get_vblank_counter = &evergreen_get_vblank_counter,
+		.wait_for_vblank = &dce4_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r600_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -1077,7 +1108,6 @@ static struct radeon_asic evergreen_asic = {
 	.set_clock_gating = NULL,
 	.set_surface_reg = r600_set_surface_reg,
 	.clear_surface_reg = r600_clear_surface_reg,
-	.bandwidth_update = &evergreen_bandwidth_update,
 	.hpd = {
 		.init = &evergreen_hpd_init,
 		.fini = &evergreen_hpd_fini,
@@ -1098,7 +1128,6 @@ static struct radeon_asic evergreen_asic = {
 		.page_flip = &evergreen_page_flip,
 		.post_page_flip = &evergreen_post_page_flip,
 	},
-	.wait_for_vblank = &dce4_wait_for_vblank,
 	.mc_wait_for_idle = &evergreen_mc_wait_for_idle,
 };
 
@@ -1128,7 +1157,11 @@ static struct radeon_asic sumo_asic = {
 		.set = &evergreen_irq_set,
 		.process = &evergreen_irq_process,
 	},
-	.get_vblank_counter = &evergreen_get_vblank_counter,
+	.display = {
+		.bandwidth_update = &evergreen_bandwidth_update,
+		.get_vblank_counter = &evergreen_get_vblank_counter,
+		.wait_for_vblank = &dce4_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r600_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -1146,7 +1179,6 @@ static struct radeon_asic sumo_asic = {
 	.set_clock_gating = NULL,
 	.set_surface_reg = r600_set_surface_reg,
 	.clear_surface_reg = r600_clear_surface_reg,
-	.bandwidth_update = &evergreen_bandwidth_update,
 	.hpd = {
 		.init = &evergreen_hpd_init,
 		.fini = &evergreen_hpd_fini,
@@ -1167,7 +1199,6 @@ static struct radeon_asic sumo_asic = {
 		.page_flip = &evergreen_page_flip,
 		.post_page_flip = &evergreen_post_page_flip,
 	},
-	.wait_for_vblank = &dce4_wait_for_vblank,
 	.mc_wait_for_idle = &evergreen_mc_wait_for_idle,
 };
 
@@ -1197,7 +1228,11 @@ static struct radeon_asic btc_asic = {
 		.set = &evergreen_irq_set,
 		.process = &evergreen_irq_process,
 	},
-	.get_vblank_counter = &evergreen_get_vblank_counter,
+	.display = {
+		.bandwidth_update = &evergreen_bandwidth_update,
+		.get_vblank_counter = &evergreen_get_vblank_counter,
+		.wait_for_vblank = &dce4_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r600_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -1215,7 +1250,6 @@ static struct radeon_asic btc_asic = {
 	.set_clock_gating = NULL,
 	.set_surface_reg = r600_set_surface_reg,
 	.clear_surface_reg = r600_clear_surface_reg,
-	.bandwidth_update = &evergreen_bandwidth_update,
 	.hpd = {
 		.init = &evergreen_hpd_init,
 		.fini = &evergreen_hpd_fini,
@@ -1236,7 +1270,6 @@ static struct radeon_asic btc_asic = {
 		.page_flip = &evergreen_page_flip,
 		.post_page_flip = &evergreen_post_page_flip,
 	},
-	.wait_for_vblank = &dce4_wait_for_vblank,
 	.mc_wait_for_idle = &evergreen_mc_wait_for_idle,
 };
 
@@ -1295,7 +1328,11 @@ static struct radeon_asic cayman_asic = {
 		.set = &evergreen_irq_set,
 		.process = &evergreen_irq_process,
 	},
-	.get_vblank_counter = &evergreen_get_vblank_counter,
+	.display = {
+		.bandwidth_update = &evergreen_bandwidth_update,
+		.get_vblank_counter = &evergreen_get_vblank_counter,
+		.wait_for_vblank = &dce4_wait_for_vblank,
+	},
 	.copy = {
 		.blit = &r600_copy_blit,
 		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
@@ -1313,7 +1350,6 @@ static struct radeon_asic cayman_asic = {
 	.set_clock_gating = NULL,
 	.set_surface_reg = r600_set_surface_reg,
 	.clear_surface_reg = r600_clear_surface_reg,
-	.bandwidth_update = &evergreen_bandwidth_update,
 	.hpd = {
 		.init = &evergreen_hpd_init,
 		.fini = &evergreen_hpd_fini,
@@ -1334,7 +1370,6 @@ static struct radeon_asic cayman_asic = {
 		.page_flip = &evergreen_page_flip,
 		.post_page_flip = &evergreen_post_page_flip,
 	},
-	.wait_for_vblank = &dce4_wait_for_vblank,
 	.mc_wait_for_idle = &evergreen_mc_wait_for_idle,
 };
 
