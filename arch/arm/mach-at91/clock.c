@@ -432,19 +432,24 @@ static int at91_clk_show(struct seq_file *s, void *unused)
 	u32		scsr, pcsr, uckr = 0, sr;
 	struct clk	*clk;
 
-	seq_printf(s, "SCSR = %8x\n", scsr = at91_sys_read(AT91_PMC_SCSR));
-	seq_printf(s, "PCSR = %8x\n", pcsr = at91_sys_read(AT91_PMC_PCSR));
+	scsr = at91_sys_read(AT91_PMC_SCSR);
+	pcsr = at91_sys_read(AT91_PMC_PCSR);
+	sr = at91_sys_read(AT91_PMC_SR);
+	seq_printf(s, "SCSR = %8x\n", scsr);
+	seq_printf(s, "PCSR = %8x\n", pcsr);
 	seq_printf(s, "MOR  = %8x\n", at91_sys_read(AT91_CKGR_MOR));
 	seq_printf(s, "MCFR = %8x\n", at91_sys_read(AT91_CKGR_MCFR));
 	seq_printf(s, "PLLA = %8x\n", at91_sys_read(AT91_CKGR_PLLAR));
 	if (cpu_has_pllb())
 		seq_printf(s, "PLLB = %8x\n", at91_sys_read(AT91_CKGR_PLLBR));
-	if (cpu_has_utmi())
-		seq_printf(s, "UCKR = %8x\n", uckr = at91_sys_read(AT91_CKGR_UCKR));
+	if (cpu_has_utmi()) {
+		uckr = at91_sys_read(AT91_CKGR_UCKR);
+		seq_printf(s, "UCKR = %8x\n", uckr);
+	}
 	seq_printf(s, "MCKR = %8x\n", at91_sys_read(AT91_PMC_MCKR));
 	if (cpu_has_upll())
 		seq_printf(s, "USB  = %8x\n", at91_sys_read(AT91_PMC_USB));
-	seq_printf(s, "SR   = %8x\n", sr = at91_sys_read(AT91_PMC_SR));
+	seq_printf(s, "SR   = %8x\n", sr);
 
 	seq_printf(s, "\n");
 
