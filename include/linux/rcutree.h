@@ -98,13 +98,6 @@ extern void rcu_force_quiescent_state(void);
 extern void rcu_bh_force_quiescent_state(void);
 extern void rcu_sched_force_quiescent_state(void);
 
-/* A context switch is a grace period for RCU-sched and RCU-bh. */
-static inline int rcu_blocking_is_gp(void)
-{
-	might_sleep();  /* Check for RCU read-side critical section. */
-	return num_online_cpus() == 1;
-}
-
 extern void rcu_scheduler_starting(void);
 extern int rcu_scheduler_active __read_mostly;
 
