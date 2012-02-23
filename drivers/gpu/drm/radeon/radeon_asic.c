@@ -148,8 +148,10 @@ static struct radeon_asic r100_asic = {
 			.cs_parse = &r100_cs_parse,
 		}
 	},
-	.irq_set = &r100_irq_set,
-	.irq_process = &r100_irq_process,
+	.irq = {
+		.set = &r100_irq_set,
+		.process = &r100_irq_process,
+	},
 	.get_vblank_counter = &r100_get_vblank_counter,
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -213,8 +215,10 @@ static struct radeon_asic r200_asic = {
 			.cs_parse = &r100_cs_parse,
 		}
 	},
-	.irq_set = &r100_irq_set,
-	.irq_process = &r100_irq_process,
+	.irq = {
+		.set = &r100_irq_set,
+		.process = &r100_irq_process,
+	},
 	.get_vblank_counter = &r100_get_vblank_counter,
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -277,8 +281,10 @@ static struct radeon_asic r300_asic = {
 			.cs_parse = &r300_cs_parse,
 		}
 	},
-	.irq_set = &r100_irq_set,
-	.irq_process = &r100_irq_process,
+	.irq = {
+		.set = &r100_irq_set,
+		.process = &r100_irq_process,
+	},
 	.get_vblank_counter = &r100_get_vblank_counter,
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -342,8 +348,10 @@ static struct radeon_asic r300_asic_pcie = {
 			.cs_parse = &r300_cs_parse,
 		}
 	},
-	.irq_set = &r100_irq_set,
-	.irq_process = &r100_irq_process,
+	.irq = {
+		.set = &r100_irq_set,
+		.process = &r100_irq_process,
+	},
 	.get_vblank_counter = &r100_get_vblank_counter,
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -406,8 +414,10 @@ static struct radeon_asic r420_asic = {
 			.cs_parse = &r300_cs_parse,
 		}
 	},
-	.irq_set = &r100_irq_set,
-	.irq_process = &r100_irq_process,
+	.irq = {
+		.set = &r100_irq_set,
+		.process = &r100_irq_process,
+	},
 	.get_vblank_counter = &r100_get_vblank_counter,
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -471,8 +481,10 @@ static struct radeon_asic rs400_asic = {
 			.cs_parse = &r300_cs_parse,
 		}
 	},
-	.irq_set = &r100_irq_set,
-	.irq_process = &r100_irq_process,
+	.irq = {
+		.set = &r100_irq_set,
+		.process = &r100_irq_process,
+	},
 	.get_vblank_counter = &r100_get_vblank_counter,
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -536,8 +548,10 @@ static struct radeon_asic rs600_asic = {
 			.cs_parse = &r300_cs_parse,
 		}
 	},
-	.irq_set = &rs600_irq_set,
-	.irq_process = &rs600_irq_process,
+	.irq = {
+		.set = &rs600_irq_set,
+		.process = &rs600_irq_process,
+	},
 	.get_vblank_counter = &rs600_get_vblank_counter,
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -601,8 +615,10 @@ static struct radeon_asic rs690_asic = {
 			.cs_parse = &r300_cs_parse,
 		}
 	},
-	.irq_set = &rs600_irq_set,
-	.irq_process = &rs600_irq_process,
+	.irq = {
+		.set = &rs600_irq_set,
+		.process = &rs600_irq_process,
+	},
 	.get_vblank_counter = &rs600_get_vblank_counter,
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -666,8 +682,10 @@ static struct radeon_asic rv515_asic = {
 			.cs_parse = &r300_cs_parse,
 		}
 	},
-	.irq_set = &rs600_irq_set,
-	.irq_process = &rs600_irq_process,
+	.irq = {
+		.set = &rs600_irq_set,
+		.process = &rs600_irq_process,
+	},
 	.get_vblank_counter = &rs600_get_vblank_counter,
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -731,8 +749,10 @@ static struct radeon_asic r520_asic = {
 			.cs_parse = &r300_cs_parse,
 		}
 	},
-	.irq_set = &rs600_irq_set,
-	.irq_process = &rs600_irq_process,
+	.irq = {
+		.set = &rs600_irq_set,
+		.process = &rs600_irq_process,
+	},
 	.get_vblank_counter = &rs600_get_vblank_counter,
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -795,8 +815,10 @@ static struct radeon_asic r600_asic = {
 			.cs_parse = &r600_cs_parse,
 		}
 	},
-	.irq_set = &r600_irq_set,
-	.irq_process = &r600_irq_process,
+	.irq = {
+		.set = &r600_irq_set,
+		.process = &r600_irq_process,
+	},
 	.get_vblank_counter = &rs600_get_vblank_counter,
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -859,8 +881,10 @@ static struct radeon_asic rs780_asic = {
 			.cs_parse = &r600_cs_parse,
 		}
 	},
-	.irq_set = &r600_irq_set,
-	.irq_process = &r600_irq_process,
+	.irq = {
+		.set = &r600_irq_set,
+		.process = &r600_irq_process,
+	},
 	.get_vblank_counter = &rs600_get_vblank_counter,
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -923,8 +947,10 @@ static struct radeon_asic rv770_asic = {
 			.cs_parse = &r600_cs_parse,
 		}
 	},
-	.irq_set = &r600_irq_set,
-	.irq_process = &r600_irq_process,
+	.irq = {
+		.set = &r600_irq_set,
+		.process = &r600_irq_process,
+	},
 	.get_vblank_counter = &rs600_get_vblank_counter,
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -987,8 +1013,10 @@ static struct radeon_asic evergreen_asic = {
 			.cs_parse = &evergreen_cs_parse,
 		}
 	},
-	.irq_set = &evergreen_irq_set,
-	.irq_process = &evergreen_irq_process,
+	.irq = {
+		.set = &evergreen_irq_set,
+		.process = &evergreen_irq_process,
+	},
 	.get_vblank_counter = &evergreen_get_vblank_counter,
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1051,8 +1079,10 @@ static struct radeon_asic sumo_asic = {
 			.cs_parse = &evergreen_cs_parse,
 		},
 	},
-	.irq_set = &evergreen_irq_set,
-	.irq_process = &evergreen_irq_process,
+	.irq = {
+		.set = &evergreen_irq_set,
+		.process = &evergreen_irq_process,
+	},
 	.get_vblank_counter = &evergreen_get_vblank_counter,
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1115,8 +1145,10 @@ static struct radeon_asic btc_asic = {
 			.cs_parse = &evergreen_cs_parse,
 		}
 	},
-	.irq_set = &evergreen_irq_set,
-	.irq_process = &evergreen_irq_process,
+	.irq = {
+		.set = &evergreen_irq_set,
+		.process = &evergreen_irq_process,
+	},
 	.get_vblank_counter = &evergreen_get_vblank_counter,
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1204,8 +1236,10 @@ static struct radeon_asic cayman_asic = {
 			.cs_parse = &evergreen_cs_parse,
 		}
 	},
-	.irq_set = &evergreen_irq_set,
-	.irq_process = &evergreen_irq_process,
+	.irq = {
+		.set = &evergreen_irq_set,
+		.process = &evergreen_irq_process,
+	},
 	.get_vblank_counter = &evergreen_get_vblank_counter,
 	.copy = {
 		.blit = &r600_copy_blit,

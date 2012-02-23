@@ -1151,8 +1151,12 @@ struct radeon_asic {
 	} ring[RADEON_NUM_RINGS];
 
 	int (*ring_test)(struct radeon_device *rdev, struct radeon_ring *cp);
-	int (*irq_set)(struct radeon_device *rdev);
-	int (*irq_process)(struct radeon_device *rdev);
+
+	struct {
+		int (*set)(struct radeon_device *rdev);
+		int (*process)(struct radeon_device *rdev);
+	} irq;
+
 	u32 (*get_vblank_counter)(struct radeon_device *rdev, int crtc);
 
 	struct {
@@ -1205,6 +1209,7 @@ struct radeon_asic {
 	 * through ring.
 	 */
 	void (*ioctl_wait_idle)(struct radeon_device *rdev, struct radeon_bo *bo);
+	/* check if 3D engine is idle */
 	bool (*gui_idle)(struct radeon_device *rdev);
 	/* power management */
 	struct {
@@ -1679,8 +1684,8 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_ring_test(rdev, cp) (rdev)->asic->ring_test((rdev), (cp))
 #define radeon_ring_ib_execute(rdev, r, ib) (rdev)->asic->ring[(r)].ib_execute((rdev), (ib))
 #define radeon_ring_ib_parse(rdev, r, ib) (rdev)->asic->ring[(r)].ib_parse((rdev), (ib))
-#define radeon_irq_set(rdev) (rdev)->asic->irq_set((rdev))
-#define radeon_irq_process(rdev) (rdev)->asic->irq_process((rdev))
+#define radeon_irq_set(rdev) (rdev)->asic->irq.set((rdev))
+#define radeon_irq_process(rdev) (rdev)->asic->irq.process((rdev))
 #define radeon_get_vblank_counter(rdev, crtc) (rdev)->asic->get_vblank_counter((rdev), (crtc))
 #define radeon_fence_ring_emit(rdev, r, fence) (rdev)->asic->ring[(r)].emit_fence((rdev), (fence))
 #define radeon_semaphore_ring_emit(rdev, r, cp, semaphore, emit_wait) (rdev)->asic->ring[(r)].emit_semaphore((rdev), (cp), (semaphore), (emit_wait))
