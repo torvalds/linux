@@ -42,33 +42,29 @@ static struct usb_serial_driver siemens_usb_mpi_device = {
 		.name =		"siemens_mpi",
 	},
 	.id_table =		id_table,
-	.usb_driver =		&siemens_usb_mpi_driver,
 	.num_ports =		1,
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&siemens_usb_mpi_device, NULL
 };
 
 static int __init siemens_usb_mpi_init(void)
 {
 	int retval;
 
-	retval = usb_serial_register(&siemens_usb_mpi_device);
-	if (retval)
-		goto failed_usb_serial_register;
-	retval = usb_register(&siemens_usb_mpi_driver);
-	if (retval)
-		goto failed_usb_register;
-	printk(KERN_INFO DRIVER_DESC "\n");
-	printk(KERN_INFO DRIVER_VERSION " " DRIVER_AUTHOR "\n");
-	return retval;
-failed_usb_register:
-	usb_serial_deregister(&siemens_usb_mpi_device);
-failed_usb_serial_register:
+	retval = usb_serial_register_drivers(&siemens_usb_mpi_driver,
+			serial_drivers);
+	if (retval == 0) {
+		printk(KERN_INFO DRIVER_DESC "\n");
+		printk(KERN_INFO DRIVER_VERSION " " DRIVER_AUTHOR "\n");
+	}
 	return retval;
 }
 
 static void __exit siemens_usb_mpi_exit(void)
 {
-	usb_deregister(&siemens_usb_mpi_driver);
-	usb_serial_deregister(&siemens_usb_mpi_device);
+	usb_serial_deregister_drivers(&siemens_usb_mpi_driver, serial_drivers);
 }
 
 module_init(siemens_usb_mpi_init);

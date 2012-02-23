@@ -246,7 +246,6 @@ static struct usb_serial_driver qcdevice = {
 	},
 	.description         = "Qualcomm USB modem",
 	.id_table            = id_table,
-	.usb_driver          = &qcdriver,
 	.num_ports           = 1,
 	.probe               = qcprobe,
 	.open		     = usb_wwan_open,
@@ -263,27 +262,18 @@ static struct usb_serial_driver qcdevice = {
 #endif
 };
 
+static struct usb_serial_driver * const serial_drivers[] = {
+	&qcdevice, NULL
+};
+
 static int __init qcinit(void)
 {
-	int retval;
-
-	retval = usb_serial_register(&qcdevice);
-	if (retval)
-		return retval;
-
-	retval = usb_register(&qcdriver);
-	if (retval) {
-		usb_serial_deregister(&qcdevice);
-		return retval;
-	}
-
-	return 0;
+	return usb_serial_register_drivers(&qcdriver, serial_drivers);
 }
 
 static void __exit qcexit(void)
 {
-	usb_deregister(&qcdriver);
-	usb_serial_deregister(&qcdevice);
+	usb_serial_deregister_drivers(&qcdriver, serial_drivers);
 }
 
 module_init(qcinit);

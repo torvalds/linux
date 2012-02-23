@@ -156,7 +156,6 @@ static struct usb_driver safe_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
-	.no_dynamic_id = 	1,
 };
 
 static const __u16 crc10_table[256] = {
@@ -309,16 +308,19 @@ static struct usb_serial_driver safe_device = {
 		.name =		"safe_serial",
 	},
 	.id_table =		id_table,
-	.usb_driver =		&safe_driver,
 	.num_ports =		1,
 	.process_read_urb =	safe_process_read_urb,
 	.prepare_write_buffer =	safe_prepare_write_buffer,
 	.attach =		safe_startup,
 };
 
+static struct usb_serial_driver * const serial_drivers[] = {
+	&safe_device, NULL
+};
+
 static int __init safe_init(void)
 {
-	int i, retval;
+	int i;
 
 	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
 	       DRIVER_DESC "\n");
@@ -337,24 +339,12 @@ static int __init safe_init(void)
 		}
 	}
 
-	retval = usb_serial_register(&safe_device);
-	if (retval)
-		goto failed_usb_serial_register;
-	retval = usb_register(&safe_driver);
-	if (retval)
-		goto failed_usb_register;
-
-	return 0;
-failed_usb_register:
-	usb_serial_deregister(&safe_device);
-failed_usb_serial_register:
-	return retval;
+	return usb_serial_register_drivers(&safe_driver, serial_drivers);
 }
 
 static void __exit safe_exit(void)
 {
-	usb_deregister(&safe_driver);
-	usb_serial_deregister(&safe_device);
+	usb_serial_deregister_drivers(&safe_driver, serial_drivers);
 }
 
 module_init(safe_init);
