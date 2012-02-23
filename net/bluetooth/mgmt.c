@@ -2602,12 +2602,18 @@ static int start_discovery(struct sock *sk, u16 index,
 
 	switch (hdev->discovery.type) {
 	case DISCOV_TYPE_BREDR:
-		err = hci_do_inquiry(hdev, INQUIRY_LEN_BREDR);
+		if (lmp_bredr_capable(hdev))
+			err = hci_do_inquiry(hdev, INQUIRY_LEN_BREDR);
+		else
+			err = -ENOTSUPP;
 		break;
 
 	case DISCOV_TYPE_LE:
-		err = hci_le_scan(hdev, LE_SCAN_TYPE, LE_SCAN_INT,
+		if (lmp_host_le_capable(hdev))
+			err = hci_le_scan(hdev, LE_SCAN_TYPE, LE_SCAN_INT,
 					LE_SCAN_WIN, LE_SCAN_TIMEOUT_LE_ONLY);
+		else
+			err = -ENOTSUPP;
 		break;
 
 	case DISCOV_TYPE_INTERLEAVED:
