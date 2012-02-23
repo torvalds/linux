@@ -168,16 +168,6 @@ extern void tipc_netlink_stop(void);
 extern int  tipc_socket_init(void);
 extern void tipc_socket_stop(void);
 
-static inline int delimit(int val, int min, int max)
-{
-	if (val > max)
-		return max;
-	if (val < min)
-		return min;
-	return val;
-}
-
-
 /*
  * TIPC timer and signal code
  */
