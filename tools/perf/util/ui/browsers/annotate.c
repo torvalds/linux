@@ -233,9 +233,9 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 	struct rb_node *nd = NULL;
 	struct map_symbol *ms = self->b.priv;
 	struct symbol *sym = ms->sym;
-	const char *help = "<-, ESC: exit, TAB/shift+TAB: cycle hottest lines, "
-			   "H: Hottest, -> Line action, S -> Toggle source "
-			   "code view";
+	const char *help = "<-/ESC: Exit, TAB/shift+TAB: Cycle hot lines, "
+			   "H: Go to hottest line, ->/ENTER: Line action, "
+			   "S: Toggle source code view";
 	int key;
 
 	if (ui_browser__show(&self->b, sym->name, help) < 0)
