@@ -7,7 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/tty.h>
 #include <linux/proc_fs.h>
-#include <linux/string.h> 
+#include <linux/string.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/ucb1x00.h>
@@ -16,7 +16,6 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 
-#include <asm/irq.h>
 #include <mach/hardware.h>
 #include <asm/setup.h>
 
@@ -27,6 +26,7 @@
 #include <asm/mach/serial_sa1100.h>
 #include <mach/mcp.h>
 #include <mach/simpad.h>
+#include <mach/irqs.h>
 
 #include <linux/serial_core.h>
 #include <linux/ioport.h>
@@ -393,6 +393,7 @@ MACHINE_START(SIMPAD, "Simpad")
 	/* Maintainer: Holger Freyther */
 	.atag_offset	= 0x100,
 	.map_io		= simpad_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 	.restart	= sa11x0_restart,

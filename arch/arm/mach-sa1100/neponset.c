@@ -21,6 +21,7 @@
 #include <mach/hardware.h>
 #include <mach/assabet.h>
 #include <mach/neponset.h>
+#include <mach/irqs.h>
 
 #define NEP_IRQ_SMC91X	0
 #define NEP_IRQ_USAR	1

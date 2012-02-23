@@ -23,9 +23,7 @@
 #include <linux/mtd/partitions.h>
 #include <video/s1d13xxxfb.h>
 
-#include <mach/hardware.h>
 #include <asm/hardware/sa1111.h>
-#include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
@@ -33,6 +31,9 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <asm/mach/serial_sa1100.h>
+
+#include <mach/hardware.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 
@@ -344,6 +345,7 @@ MACHINE_START(JORNADA720, "HP Jornada 720")
 	/* Maintainer: Kristoffer Ericson <Kristoffer.Ericson@gmail.com> */
 	.atag_offset	= 0x100,
 	.map_io		= jornada720_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= jornada720_mach_init,

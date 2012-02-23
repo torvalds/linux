@@ -21,6 +21,7 @@
 #include <asm/mach/irda.h>
 
 #include <mach/h3xxx.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 
@@ -105,6 +106,7 @@ static void __init h3100_mach_init(void)
 MACHINE_START(H3100, "Compaq iPAQ H3100")
 	.atag_offset	= 0x100,
 	.map_io		= h3100_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= h3100_mach_init,

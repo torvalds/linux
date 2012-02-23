@@ -33,7 +33,6 @@
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
-#include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/setup.h>
 #include <mach/collie.h>
@@ -47,6 +46,7 @@
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/locomo.h>
 #include <mach/mcp.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 
@@ -393,6 +393,7 @@ static void __init collie_map_io(void)
 
 MACHINE_START(COLLIE, "Sharp-Collie")
 	.map_io		= collie_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= collie_init,

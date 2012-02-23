@@ -18,7 +18,6 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
-#include <asm/irq.h>
 #include <mach/hardware.h>
 #include <asm/setup.h>
 
@@ -30,6 +29,7 @@
 
 #include <mach/cerf.h>
 #include <mach/mcp.h>
+#include <mach/irqs.h>
 #include "generic.h"
 
 static struct resource cerfuart2_resources[] = {
@@ -130,6 +130,7 @@ static void __init cerf_init(void)
 MACHINE_START(CERF, "Intrinsyc CerfBoard/CerfCube")
 	/* Maintainer: support@intrinsyc.com */
 	.map_io		= cerf_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= cerf_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= cerf_init,

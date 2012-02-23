@@ -28,6 +28,7 @@
 
 #include <mach/hardware.h>
 #include <mach/nanoengine.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 
@@ -107,6 +108,7 @@ static void __init nanoengine_init(void)
 MACHINE_START(NANOENGINE, "BSE nanoEngine")
 	.atag_offset	= 0x100,
 	.map_io		= nanoengine_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= nanoengine_init,

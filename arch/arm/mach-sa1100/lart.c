@@ -17,6 +17,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/serial_sa1100.h>
 #include <mach/mcp.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 
@@ -143,6 +144,7 @@ static void __init lart_map_io(void)
 MACHINE_START(LART, "LART")
 	.atag_offset	= 0x100,
 	.map_io		= lart_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.init_machine	= lart_init,
 	.timer		= &sa1100_timer,

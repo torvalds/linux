@@ -17,6 +17,7 @@
 #include <linux/syscore_ops.h>
 
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 #include <asm/mach/irq.h>
 
 #include "generic.h"

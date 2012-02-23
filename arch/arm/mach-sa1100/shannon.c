@@ -21,6 +21,7 @@
 #include <asm/mach/serial_sa1100.h>
 #include <mach/mcp.h>
 #include <mach/shannon.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 
@@ -99,6 +100,7 @@ static void __init shannon_map_io(void)
 MACHINE_START(SHANNON, "Shannon (AKA: Tuxscreen)")
 	.atag_offset	= 0x100,
 	.map_io		= shannon_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= shannon_init,

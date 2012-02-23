@@ -22,18 +22,19 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/irq.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/serial_sa1100.h>
+
+#include <mach/hardware.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 
@@ -194,6 +195,7 @@ static void __init hackkit_init(void)
 MACHINE_START(HACKKIT, "HackKit Cpu Board")
 	.atag_offset	= 0x100,
 	.map_io		= hackkit_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= hackkit_init,

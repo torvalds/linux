@@ -82,3 +82,5 @@
 #else
 #define NR_IRQS			(IRQ_BOARD_START)
 #endif
+
+#define SA1100_NR_IRQS NR_IRQS
