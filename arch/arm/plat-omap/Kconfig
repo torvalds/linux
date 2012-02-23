@@ -26,7 +26,7 @@ config ARCH_OMAP2PLUS
 	select GENERIC_IRQ_CHIP
 	select OMAP_DM_TIMER
 	select USE_OF
-	select PROC_DEVICETREE
+	select PROC_DEVICETREE if PROC_FS
 	help
 	  "Systems based on OMAP2, OMAP3 or OMAP4"
 
