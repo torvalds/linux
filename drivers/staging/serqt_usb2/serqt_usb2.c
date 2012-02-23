@@ -200,7 +200,6 @@ static struct usb_driver serqt_usb_driver = {
 	.probe = usb_serial_probe,
 	.disconnect = usb_serial_disconnect,
 	.id_table = serqt_id_table,
-	.no_dynamic_id = 1,
 };
 
 static int port_paranoia_check(struct usb_serial_port *port,
@@ -1590,7 +1589,6 @@ static struct usb_serial_driver quatech_device = {
 		   .name = "serqt",
 		   },
 	.description = DRIVER_DESC,
-	.usb_driver = &serqt_usb_driver,
 	.id_table = serqt_id_table,
 	.num_ports = 8,
 	.open = qt_open,
@@ -1610,37 +1608,27 @@ static struct usb_serial_driver quatech_device = {
 	.release = qt_release,
 };
 
+static struct usb_serial_driver * const serial_drivers[] = {
+	&quatech_device, NULL
+};
+
 static int __init serqt_usb_init(void)
 {
 	int retval;
 
 	dbg("%s\n", __func__);
 
-	/* register with usb-serial */
-	retval = usb_serial_register(&quatech_device);
-
-	if (retval)
-		goto failed_usb_serial_register;
-
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-
-	/* register with usb */
-
-	retval = usb_register(&serqt_usb_driver);
+	retval = usb_serial_register_drivers(&serqt_usb_driver,
+			serial_drivers);
 	if (retval == 0)
-		return 0;
-
-	/* if we're here, usb_register() failed */
-	usb_serial_deregister(&quatech_device);
-failed_usb_serial_register:
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+				DRIVER_DESC "\n");
 	return retval;
 }
 
 static void __exit serqt_usb_exit(void)
 {
-	usb_deregister(&serqt_usb_driver);
-	usb_serial_deregister(&quatech_device);
+	usb_serial_deregister_drivers(&serqt_usb_driver, serial_drivers);
 }
 
 module_init(serqt_usb_init);
