@@ -3262,6 +3262,7 @@ static void e1000e_set_rx_mode(struct net_device *netdev)
 		e1000e_vlan_filter_disable(adapter);
 	} else {
 		int count;
+
 		if (netdev->flags & IFF_ALLMULTI) {
 			rctl |= E1000_RCTL_MPE;
 		} else {
@@ -6103,7 +6104,6 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	const struct e1000_info *ei = e1000_info_tbl[ent->driver_data];
 	resource_size_t mmio_start, mmio_len;
 	resource_size_t flash_start, flash_len;
-
 	static int cards_found;
 	u16 aspm_disable_flag = 0;
 	int i, err, pci_using_dac;
@@ -6347,11 +6347,11 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	} else if (adapter->flags & FLAG_APME_IN_CTRL3) {
 		if (adapter->flags & FLAG_APME_CHECK_PORT_B &&
 		    (adapter->hw.bus.func == 1))
-			e1000_read_nvm(&adapter->hw,
-				NVM_INIT_CONTROL3_PORT_B, 1, &eeprom_data);
+			e1000_read_nvm(&adapter->hw, NVM_INIT_CONTROL3_PORT_B,
+				       1, &eeprom_data);
 		else
-			e1000_read_nvm(&adapter->hw,
-				NVM_INIT_CONTROL3_PORT_A, 1, &eeprom_data);
+			e1000_read_nvm(&adapter->hw, NVM_INIT_CONTROL3_PORT_A,
+				       1, &eeprom_data);
 	}
 
 	/* fetch WoL from EEPROM */

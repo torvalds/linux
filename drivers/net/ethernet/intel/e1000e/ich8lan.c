@@ -1230,9 +1230,8 @@ s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable)
 	u32 reg = 0;
 	u16 kmrn_reg = 0;
 
-	ret_val = e1000e_read_kmrn_reg_locked(hw,
-	                                     E1000_KMRNCTRLSTA_K1_CONFIG,
-	                                     &kmrn_reg);
+	ret_val = e1000e_read_kmrn_reg_locked(hw, E1000_KMRNCTRLSTA_K1_CONFIG,
+					      &kmrn_reg);
 	if (ret_val)
 		return ret_val;
 
@@ -1241,9 +1240,8 @@ s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable)
 	else
 		kmrn_reg &= ~E1000_KMRNCTRLSTA_K1_ENABLE;
 
-	ret_val = e1000e_write_kmrn_reg_locked(hw,
-	                                      E1000_KMRNCTRLSTA_K1_CONFIG,
-	                                      kmrn_reg);
+	ret_val = e1000e_write_kmrn_reg_locked(hw, E1000_KMRNCTRLSTA_K1_CONFIG,
+					       kmrn_reg);
 	if (ret_val)
 		return ret_val;
 

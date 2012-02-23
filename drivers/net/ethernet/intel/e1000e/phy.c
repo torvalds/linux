@@ -1007,12 +1007,12 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 	 * The possible values of the "fc" parameter are:
 	 *      0:  Flow control is completely disabled
 	 *      1:  Rx flow control is enabled (we can receive pause frames
-	 *	  but not send pause frames).
+	 *          but not send pause frames).
 	 *      2:  Tx flow control is enabled (we can send pause frames
-	 *	  but we do not support receiving pause frames).
+	 *          but we do not support receiving pause frames).
 	 *      3:  Both Rx and Tx flow control (symmetric) are enabled.
 	 *  other:  No software override.  The flow control configuration
-	 *	  in the EEPROM is used.
+	 *          in the EEPROM is used.
 	 */
 	switch (hw->fc.current_mode) {
 	case e1000_fc_none:
@@ -1172,10 +1172,8 @@ s32 e1000e_setup_copper_link(struct e1000_hw *hw)
 	 * Check link status. Wait up to 100 microseconds for link to become
 	 * valid.
 	 */
-	ret_val = e1000e_phy_has_link_generic(hw,
-					     COPPER_LINK_UP_LIMIT,
-					     10,
-					     &link);
+	ret_val = e1000e_phy_has_link_generic(hw, COPPER_LINK_UP_LIMIT, 10,
+					      &link);
 	if (ret_val)
 		return ret_val;
 
@@ -1237,10 +1235,8 @@ s32 e1000e_phy_force_speed_duplex_igp(struct e1000_hw *hw)
 	if (phy->autoneg_wait_to_complete) {
 		e_dbg("Waiting for forced speed/duplex link on IGP phy.\n");
 
-		ret_val = e1000e_phy_has_link_generic(hw,
-						     PHY_FORCE_LIMIT,
-						     100000,
-						     &link);
+		ret_val = e1000e_phy_has_link_generic(hw, PHY_FORCE_LIMIT,
+						      100000, &link);
 		if (ret_val)
 			return ret_val;
 
@@ -1248,10 +1244,8 @@ s32 e1000e_phy_force_speed_duplex_igp(struct e1000_hw *hw)
 			e_dbg("Link taking longer than expected.\n");
 
 		/* Try once more */
-		ret_val = e1000e_phy_has_link_generic(hw,
-						     PHY_FORCE_LIMIT,
-						     100000,
-						     &link);
+		ret_val = e1000e_phy_has_link_generic(hw, PHY_FORCE_LIMIT,
+						      100000, &link);
 	}
 
 	return ret_val;
@@ -1412,10 +1406,8 @@ s32 e1000_phy_force_speed_duplex_ife(struct e1000_hw *hw)
 	if (phy->autoneg_wait_to_complete) {
 		e_dbg("Waiting for forced speed/duplex link on IFE phy.\n");
 
-		ret_val = e1000e_phy_has_link_generic(hw,
-		                                     PHY_FORCE_LIMIT,
-		                                     100000,
-		                                     &link);
+		ret_val = e1000e_phy_has_link_generic(hw, PHY_FORCE_LIMIT,
+						      100000, &link);
 		if (ret_val)
 			return ret_val;
 
@@ -1423,10 +1415,8 @@ s32 e1000_phy_force_speed_duplex_ife(struct e1000_hw *hw)
 			e_dbg("Link taking longer than expected.\n");
 
 		/* Try once more */
-		ret_val = e1000e_phy_has_link_generic(hw,
-		                                     PHY_FORCE_LIMIT,
-		                                     100000,
-		                                     &link);
+		ret_val = e1000e_phy_has_link_generic(hw, PHY_FORCE_LIMIT,
+						      100000, &link);
 		if (ret_val)
 			return ret_val;
 	}
@@ -2167,6 +2157,7 @@ s32 e1000e_phy_hw_reset_generic(struct e1000_hw *hw)
 s32 e1000e_get_cfg_done(struct e1000_hw *hw)
 {
 	mdelay(10);
+
 	return 0;
 }
 
@@ -3155,13 +3146,11 @@ s32 e1000_link_stall_workaround_hv(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	data &= BM_CS_STATUS_LINK_UP |
-	        BM_CS_STATUS_RESOLVED |
-	        BM_CS_STATUS_SPEED_MASK;
+	data &= BM_CS_STATUS_LINK_UP | BM_CS_STATUS_RESOLVED |
+		BM_CS_STATUS_SPEED_MASK;
 
-	if (data != (BM_CS_STATUS_LINK_UP |
-	             BM_CS_STATUS_RESOLVED |
-	             BM_CS_STATUS_SPEED_1000))
+	if (data != (BM_CS_STATUS_LINK_UP | BM_CS_STATUS_RESOLVED |
+		     BM_CS_STATUS_SPEED_1000))
 		return 0;
 
 	mdelay(200);
@@ -3227,10 +3216,8 @@ s32 e1000_phy_force_speed_duplex_82577(struct e1000_hw *hw)
 	if (phy->autoneg_wait_to_complete) {
 		e_dbg("Waiting for forced speed/duplex link on 82577 phy\n");
 
-		ret_val = e1000e_phy_has_link_generic(hw,
-		                                     PHY_FORCE_LIMIT,
-		                                     100000,
-		                                     &link);
+		ret_val = e1000e_phy_has_link_generic(hw, PHY_FORCE_LIMIT,
+						      100000, &link);
 		if (ret_val)
 			return ret_val;
 
@@ -3238,10 +3225,8 @@ s32 e1000_phy_force_speed_duplex_82577(struct e1000_hw *hw)
 			e_dbg("Link taking longer than expected.\n");
 
 		/* Try once more */
-		ret_val = e1000e_phy_has_link_generic(hw,
-		                                     PHY_FORCE_LIMIT,
-		                                     100000,
-		                                     &link);
+		ret_val = e1000e_phy_has_link_generic(hw, PHY_FORCE_LIMIT,
+						      100000, &link);
 	}
 
 	return ret_val;

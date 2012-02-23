@@ -629,7 +629,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 	if (E1000_TXCW_ANE & er32(TXCW)) {
 		status = er32(STATUS);
 		if (status & E1000_STATUS_LU) {
-			/* SYNCH bit and IV bit are sticky, so reread rxcw.  */
+			/* SYNCH bit and IV bit are sticky, so reread rxcw. */
 			udelay(10);
 			rxcw = er32(RXCW);
 			if (rxcw & E1000_RXCW_SYNCH) {

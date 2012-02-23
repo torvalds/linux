@@ -1269,18 +1269,16 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 		reg |= E1000_PBA_ECC_CORR_EN;
 		ew32(PBA_ECC, reg);
 	}
+
 	/*
 	 * Workaround for hardware errata.
 	 * Ensure that DMA Dynamic Clock gating is disabled on 82571 and 82572
 	 */
-
-        if ((hw->mac.type == e1000_82571) ||
-           (hw->mac.type == e1000_82572)) {
-                reg = er32(CTRL_EXT);
-                reg &= ~E1000_CTRL_EXT_DMA_DYN_CLK_EN;
-                ew32(CTRL_EXT, reg);
-        }
-
+	if ((hw->mac.type == e1000_82571) || (hw->mac.type == e1000_82572)) {
+		reg = er32(CTRL_EXT);
+		reg &= ~E1000_CTRL_EXT_DMA_DYN_CLK_EN;
+		ew32(CTRL_EXT, reg);
+	}
 
 	/* PCI-Ex Control Registers */
 	switch (hw->mac.type) {
