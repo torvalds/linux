@@ -318,7 +318,7 @@ static int omap_st_start(struct omap_mcbsp *mcbsp)
 {
 	struct omap_mcbsp_st_data *st_data = mcbsp->st_data;
 
-	if (st_data && st_data->enabled && !st_data->running) {
+	if (st_data->enabled && !st_data->running) {
 		omap_st_fir_write(mcbsp, st_data->taps);
 		omap_st_chgain(mcbsp);
 
@@ -350,7 +350,7 @@ static int omap_st_stop(struct omap_mcbsp *mcbsp)
 {
 	struct omap_mcbsp_st_data *st_data = mcbsp->st_data;
 
-	if (st_data && st_data->running) {
+	if (st_data->running) {
 		if (!mcbsp->free) {
 			omap_st_off(mcbsp);
 			st_data->running = 0;
