@@ -69,7 +69,7 @@ static int pscsi_attach_hba(struct se_hba *hba, u32 host_id)
 		return -ENOMEM;
 	}
 	phv->phv_host_id = host_id;
-	phv->phv_mode = PHV_VIRUTAL_HOST_ID;
+	phv->phv_mode = PHV_VIRTUAL_HOST_ID;
 
 	hba->hba_ptr = phv;
 
@@ -114,7 +114,7 @@ static int pscsi_pmode_enable_hba(struct se_hba *hba, unsigned long mode_flag)
 			return 0;
 
 		phv->phv_lld_host = NULL;
-		phv->phv_mode = PHV_VIRUTAL_HOST_ID;
+		phv->phv_mode = PHV_VIRTUAL_HOST_ID;
 
 		pr_debug("CORE_HBA[%d] - Disabled pSCSI HBA Passthrough"
 			" %s\n", hba->hba_id, (sh->hostt->name) ?
@@ -531,7 +531,7 @@ static struct se_device *pscsi_create_virtdevice(
 			return ERR_PTR(-ENODEV);
 		}
 		/*
-		 * For the newer PHV_VIRUTAL_HOST_ID struct scsi_device
+		 * For the newer PHV_VIRTUAL_HOST_ID struct scsi_device
 		 * reference, we enforce that udev_path has been set
 		 */
 		if (!(se_dev->su_dev_flags & SDF_USING_UDEV_PATH)) {
@@ -540,7 +540,7 @@ static struct se_device *pscsi_create_virtdevice(
 			return ERR_PTR(-EINVAL);
 		}
 		/*
-		 * If no scsi_host_id= was passed for PHV_VIRUTAL_HOST_ID,
+		 * If no scsi_host_id= was passed for PHV_VIRTUAL_HOST_ID,
 		 * use the original TCM hba ID to reference Linux/SCSI Host No
 		 * and enable for PHV_LLD_SCSI_HOST_NO mode.
 		 */
@@ -569,8 +569,8 @@ static struct se_device *pscsi_create_virtdevice(
 			}
 		}
 	} else {
-		if (phv->phv_mode == PHV_VIRUTAL_HOST_ID) {
-			pr_err("pSCSI: PHV_VIRUTAL_HOST_ID set while"
+		if (phv->phv_mode == PHV_VIRTUAL_HOST_ID) {
+			pr_err("pSCSI: PHV_VIRTUAL_HOST_ID set while"
 				" struct Scsi_Host exists\n");
 			return ERR_PTR(-EEXIST);
 		}
@@ -600,7 +600,7 @@ static struct se_device *pscsi_create_virtdevice(
 		}
 
 		if (!dev) {
-			if (phv->phv_mode == PHV_VIRUTAL_HOST_ID)
+			if (phv->phv_mode == PHV_VIRTUAL_HOST_ID)
 				scsi_host_put(sh);
 			else if (legacy_mode_enable) {
 				pscsi_pmode_enable_hba(hba, 0);
@@ -616,7 +616,7 @@ static struct se_device *pscsi_create_virtdevice(
 	pr_err("pSCSI: Unable to locate %d:%d:%d:%d\n", sh->host_no,
 		pdv->pdv_channel_id,  pdv->pdv_target_id, pdv->pdv_lun_id);
 
-	if (phv->phv_mode == PHV_VIRUTAL_HOST_ID)
+	if (phv->phv_mode == PHV_VIRTUAL_HOST_ID)
 		scsi_host_put(sh);
 	else if (legacy_mode_enable) {
 		pscsi_pmode_enable_hba(hba, 0);
@@ -898,7 +898,7 @@ static ssize_t pscsi_show_configfs_dev_params(struct se_hba *hba,
 	ssize_t bl;
 	int i;
 
-	if (phv->phv_mode == PHV_VIRUTAL_HOST_ID)
+	if (phv->phv_mode == PHV_VIRTUAL_HOST_ID)
 		snprintf(host_id, 16, "%d", pdv->pdv_host_id);
 	else
 		snprintf(host_id, 16, "PHBA Mode");
