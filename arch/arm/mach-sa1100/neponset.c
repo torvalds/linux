@@ -229,7 +229,6 @@ static struct irq_chip nochip = {
 };
 
 static struct sa1111_platform_data sa1111_info = {
-	.irq_base	= IRQ_BOARD_END,
 	.disable_devs	= SA1111_DEVID_PS2_MSE,
 };
 

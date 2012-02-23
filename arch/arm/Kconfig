@@ -760,6 +760,7 @@ config ARCH_SA1100
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_IDE
 	select NEED_MACH_MEMORY_H
+	select SPARSE_IRQ
 	help
 	  Support for StrongARM 11x0 based boards.
 
