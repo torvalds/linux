@@ -2085,6 +2085,7 @@ static void rcu_prepare_for_idle_init(int cpu)
 static void rcu_cleanup_after_idle(int cpu)
 {
 	hrtimer_cancel(&per_cpu(rcu_idle_gp_timer, cpu));
+	trace_rcu_prep_idle("Cleanup after idle");
 }
 
 /*
