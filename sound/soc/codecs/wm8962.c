@@ -3673,7 +3673,6 @@ static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 				ret);
 	}
 
-	pm_runtime_set_active(&i2c->dev);
 	pm_runtime_enable(&i2c->dev);
 	pm_request_idle(&i2c->dev);
 
