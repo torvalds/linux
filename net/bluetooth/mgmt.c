@@ -1725,8 +1725,8 @@ static int get_connections(struct sock *sk, u16 index)
 	struct hci_dev *hdev;
 	struct hci_conn *c;
 	size_t rp_len;
-	u16 count;
-	int i, err;
+	int err;
+	u16 i;
 
 	BT_DBG("");
 
@@ -1743,20 +1743,18 @@ static int get_connections(struct sock *sk, u16 index)
 		goto unlock;
 	}
 
-	count = 0;
+	i = 0;
 	list_for_each_entry(c, &hdev->conn_hash.list, list) {
 		if (test_bit(HCI_CONN_MGMT_CONNECTED, &c->flags))
-			count++;
+			i++;
 	}
 
-	rp_len = sizeof(*rp) + (count * sizeof(struct mgmt_addr_info));
+	rp_len = sizeof(*rp) + (i * sizeof(struct mgmt_addr_info));
 	rp = kmalloc(rp_len, GFP_ATOMIC);
 	if (!rp) {
 		err = -ENOMEM;
 		goto unlock;
 	}
-
-	put_unaligned_le16(count, &rp->conn_count);
 
 	i = 0;
 	list_for_each_entry(c, &hdev->conn_hash.list, list) {
@@ -1768,6 +1766,8 @@ static int get_connections(struct sock *sk, u16 index)
 			continue;
 		i++;
 	}
+
+	put_unaligned_le16(i, &rp->conn_count);
 
 	/* Recalculate length in case of filtered SCO connections, etc */
 	rp_len = sizeof(*rp) + (i * sizeof(struct mgmt_addr_info));
