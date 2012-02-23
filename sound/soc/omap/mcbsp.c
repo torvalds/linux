@@ -273,10 +273,8 @@ static void omap_st_chgain(struct omap_mcbsp *mcbsp)
 
 int omap_st_set_chgain(struct omap_mcbsp *mcbsp, int channel, s16 chgain)
 {
-	struct omap_mcbsp_st_data *st_data;
+	struct omap_mcbsp_st_data *st_data = mcbsp->st_data;
 	int ret = 0;
-
-	st_data = mcbsp->st_data;
 
 	if (!st_data)
 		return -ENOENT;
@@ -298,10 +296,8 @@ int omap_st_set_chgain(struct omap_mcbsp *mcbsp, int channel, s16 chgain)
 
 int omap_st_get_chgain(struct omap_mcbsp *mcbsp, int channel, s16 *chgain)
 {
-	struct omap_mcbsp_st_data *st_data;
+	struct omap_mcbsp_st_data *st_data = mcbsp->st_data;
 	int ret = 0;
-
-	st_data = mcbsp->st_data;
 
 	if (!st_data)
 		return -ENOENT;
@@ -337,9 +333,7 @@ static int omap_st_start(struct omap_mcbsp *mcbsp)
 
 int omap_st_enable(struct omap_mcbsp *mcbsp)
 {
-	struct omap_mcbsp_st_data *st_data;
-
-	st_data = mcbsp->st_data;
+	struct omap_mcbsp_st_data *st_data = mcbsp->st_data;
 
 	if (!st_data)
 		return -ENODEV;
@@ -368,10 +362,8 @@ static int omap_st_stop(struct omap_mcbsp *mcbsp)
 
 int omap_st_disable(struct omap_mcbsp *mcbsp)
 {
-	struct omap_mcbsp_st_data *st_data;
+	struct omap_mcbsp_st_data *st_data = mcbsp->st_data;
 	int ret = 0;
-
-	st_data = mcbsp->st_data;
 
 	if (!st_data)
 		return -ENODEV;
@@ -386,13 +378,10 @@ int omap_st_disable(struct omap_mcbsp *mcbsp)
 
 int omap_st_is_enabled(struct omap_mcbsp *mcbsp)
 {
-	struct omap_mcbsp_st_data *st_data;
-
-	st_data = mcbsp->st_data;
+	struct omap_mcbsp_st_data *st_data = mcbsp->st_data;
 
 	if (!st_data)
 		return -ENODEV;
-
 
 	return st_data->enabled;
 }
