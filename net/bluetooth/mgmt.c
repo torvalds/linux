@@ -532,7 +532,7 @@ static int update_eir(struct hci_dev *hdev)
 {
 	struct hci_cp_write_eir cp;
 
-	if (!test_bit(HCI_UP, &hdev->flags))
+	if (!hdev_is_powered(hdev))
 		return 0;
 
 	if (!(hdev->features[6] & LMP_EXT_INQ))
@@ -573,7 +573,7 @@ static int update_class(struct hci_dev *hdev)
 
 	BT_DBG("%s", hdev->name);
 
-	if (!test_bit(HCI_UP, &hdev->flags))
+	if (!hdev_is_powered(hdev))
 		return 0;
 
 	if (test_bit(HCI_SERVICE_CACHE, &hdev->dev_flags))
@@ -3121,6 +3121,9 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 
 		if (scan)
 			hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+
+		update_class(hdev);
+		update_eir(hdev);
 	} else {
 		u8 status = ENETDOWN;
 		mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status);
