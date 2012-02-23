@@ -357,7 +357,8 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 	return 0;
 }
 
-static int regcache_rbtree_sync(struct regmap *map)
+static int regcache_rbtree_sync(struct regmap *map, unsigned int min,
+				unsigned int max)
 {
 	struct regcache_rbtree_ctx *rbtree_ctx;
 	struct rb_node *node;
@@ -365,12 +366,30 @@ static int regcache_rbtree_sync(struct regmap *map)
 	unsigned int regtmp;
 	unsigned int val;
 	int ret;
-	int i;
+	int i, base, end;
 
 	rbtree_ctx = map->cache;
 	for (node = rb_first(&rbtree_ctx->root); node; node = rb_next(node)) {
 		rbnode = rb_entry(node, struct regcache_rbtree_node, node);
-		for (i = 0; i < rbnode->blklen; i++) {
+
+		if (rbnode->base_reg < min)
+			continue;
+		if (rbnode->base_reg > max)
+			break;
+		if (rbnode->base_reg + rbnode->blklen < min)
+			continue;
+
+		if (min < rbnode->base_reg + rbnode->blklen)
+			base = min - rbnode->base_reg;
+		else
+			base = 0;
+
+		if (max < rbnode->base_reg + rbnode->blklen)
+			end = rbnode->base_reg + rbnode->blklen - max;
+		else
+			end = rbnode->blklen;
+
+		for (i = base; i < end; i++) {
 			regtmp = rbnode->base_reg + i;
 			val = regcache_rbtree_get_register(rbnode, i,
 							   map->cache_word_size);

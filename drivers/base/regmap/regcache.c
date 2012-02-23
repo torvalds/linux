@@ -283,7 +283,7 @@ int regcache_sync(struct regmap *map)
 	}
 	map->cache_bypass = 0;
 
-	ret = map->cache_ops->sync(map);
+	ret = map->cache_ops->sync(map, 0, map->max_register);
 
 	if (ret == 0)
 		map->cache_dirty = false;

@@ -87,7 +87,7 @@ struct regcache_ops {
 	int (*exit)(struct regmap *map);
 	int (*read)(struct regmap *map, unsigned int reg, unsigned int *value);
 	int (*write)(struct regmap *map, unsigned int reg, unsigned int value);
-	int (*sync)(struct regmap *map);
+	int (*sync)(struct regmap *map, unsigned int min, unsigned int max);
 };
 
 bool regmap_writeable(struct regmap *map, unsigned int reg);
