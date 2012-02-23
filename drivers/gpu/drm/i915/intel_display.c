@@ -6561,7 +6561,7 @@ intel_framebuffer_create_for_mode(struct drm_device *dev,
 	mode_cmd.height = mode->vdisplay;
 	mode_cmd.pitches[0] = intel_framebuffer_pitch_for_width(mode_cmd.width,
 								bpp);
-	mode_cmd.pixel_format = 0;
+	mode_cmd.pixel_format = drm_mode_legacy_fb_format(bpp, depth);
 
 	return intel_framebuffer_create(dev, &mode_cmd, obj);
 }
