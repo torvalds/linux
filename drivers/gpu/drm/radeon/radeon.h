@@ -1188,10 +1188,12 @@ struct radeon_asic {
 		u32 copy_ring_index;
 	} copy;
 
-	int (*set_surface_reg)(struct radeon_device *rdev, int reg,
-			       uint32_t tiling_flags, uint32_t pitch,
-			       uint32_t offset, uint32_t obj_size);
-	void (*clear_surface_reg)(struct radeon_device *rdev, int reg);
+	struct {
+		int (*set_reg)(struct radeon_device *rdev, int reg,
+				       uint32_t tiling_flags, uint32_t pitch,
+				       uint32_t offset, uint32_t obj_size);
+		void (*clear_reg)(struct radeon_device *rdev, int reg);
+	} surface;
 
 	struct {
 		void (*init)(struct radeon_device *rdev);
@@ -1707,8 +1709,8 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_get_pcie_lanes(rdev) (rdev)->asic->pm.get_pcie_lanes((rdev))
 #define radeon_set_pcie_lanes(rdev, l) (rdev)->asic->pm.set_pcie_lanes((rdev), (l))
 #define radeon_set_clock_gating(rdev, e) (rdev)->asic->pm.set_clock_gating((rdev), (e))
-#define radeon_set_surface_reg(rdev, r, f, p, o, s) ((rdev)->asic->set_surface_reg((rdev), (r), (f), (p), (o), (s)))
-#define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->clear_surface_reg((rdev), (r)))
+#define radeon_set_surface_reg(rdev, r, f, p, o, s) ((rdev)->asic->surface.set_reg((rdev), (r), (f), (p), (o), (s)))
+#define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->surface.clear_reg((rdev), (r)))
 #define radeon_bandwidth_update(rdev) (rdev)->asic->display.bandwidth_update((rdev))
 #define radeon_hpd_init(rdev) (rdev)->asic->hpd.init((rdev))
 #define radeon_hpd_fini(rdev) (rdev)->asic->hpd.fini((rdev))

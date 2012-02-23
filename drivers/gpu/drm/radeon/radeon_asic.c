@@ -168,8 +168,10 @@ static struct radeon_asic r100_asic = {
 		.copy = &r100_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r100_set_surface_reg,
-	.clear_surface_reg = r100_clear_surface_reg,
+	.surface = {
+		.set_reg = r100_set_surface_reg,
+		.clear_reg = r100_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &r100_hpd_init,
 		.fini = &r100_hpd_fini,
@@ -240,8 +242,10 @@ static struct radeon_asic r200_asic = {
 		.copy = &r100_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r100_set_surface_reg,
-	.clear_surface_reg = r100_clear_surface_reg,
+	.surface = {
+		.set_reg = r100_set_surface_reg,
+		.clear_reg = r100_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &r100_hpd_init,
 		.fini = &r100_hpd_fini,
@@ -312,8 +316,10 @@ static struct radeon_asic r300_asic = {
 		.copy = &r100_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r100_set_surface_reg,
-	.clear_surface_reg = r100_clear_surface_reg,
+	.surface = {
+		.set_reg = r100_set_surface_reg,
+		.clear_reg = r100_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &r100_hpd_init,
 		.fini = &r100_hpd_fini,
@@ -384,8 +390,10 @@ static struct radeon_asic r300_asic_pcie = {
 		.copy = &r100_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r100_set_surface_reg,
-	.clear_surface_reg = r100_clear_surface_reg,
+	.surface = {
+		.set_reg = r100_set_surface_reg,
+		.clear_reg = r100_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &r100_hpd_init,
 		.fini = &r100_hpd_fini,
@@ -456,9 +464,10 @@ static struct radeon_asic r420_asic = {
 		.copy = &r100_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r100_set_surface_reg,
-	.clear_surface_reg = r100_clear_surface_reg,
-
+	.surface = {
+		.set_reg = r100_set_surface_reg,
+		.clear_reg = r100_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &r100_hpd_init,
 		.fini = &r100_hpd_fini,
@@ -529,8 +538,10 @@ static struct radeon_asic rs400_asic = {
 		.copy = &r100_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r100_set_surface_reg,
-	.clear_surface_reg = r100_clear_surface_reg,
+	.surface = {
+		.set_reg = r100_set_surface_reg,
+		.clear_reg = r100_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &r100_hpd_init,
 		.fini = &r100_hpd_fini,
@@ -601,8 +612,10 @@ static struct radeon_asic rs600_asic = {
 		.copy = &r100_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r100_set_surface_reg,
-	.clear_surface_reg = r100_clear_surface_reg,
+	.surface = {
+		.set_reg = r100_set_surface_reg,
+		.clear_reg = r100_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &rs600_hpd_init,
 		.fini = &rs600_hpd_fini,
@@ -673,8 +686,10 @@ static struct radeon_asic rs690_asic = {
 		.copy = &r200_copy_dma,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r100_set_surface_reg,
-	.clear_surface_reg = r100_clear_surface_reg,
+	.surface = {
+		.set_reg = r100_set_surface_reg,
+		.clear_reg = r100_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &rs600_hpd_init,
 		.fini = &rs600_hpd_fini,
@@ -745,8 +760,10 @@ static struct radeon_asic rv515_asic = {
 		.copy = &r100_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r100_set_surface_reg,
-	.clear_surface_reg = r100_clear_surface_reg,
+	.surface = {
+		.set_reg = r100_set_surface_reg,
+		.clear_reg = r100_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &rs600_hpd_init,
 		.fini = &rs600_hpd_fini,
@@ -817,8 +834,10 @@ static struct radeon_asic r520_asic = {
 		.copy = &r100_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r100_set_surface_reg,
-	.clear_surface_reg = r100_clear_surface_reg,
+	.surface = {
+		.set_reg = r100_set_surface_reg,
+		.clear_reg = r100_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &rs600_hpd_init,
 		.fini = &rs600_hpd_fini,
@@ -888,8 +907,10 @@ static struct radeon_asic r600_asic = {
 		.copy = &r600_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r600_set_surface_reg,
-	.clear_surface_reg = r600_clear_surface_reg,
+	.surface = {
+		.set_reg = r600_set_surface_reg,
+		.clear_reg = r600_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &r600_hpd_init,
 		.fini = &r600_hpd_fini,
@@ -959,8 +980,10 @@ static struct radeon_asic rs780_asic = {
 		.copy = &r600_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r600_set_surface_reg,
-	.clear_surface_reg = r600_clear_surface_reg,
+	.surface = {
+		.set_reg = r600_set_surface_reg,
+		.clear_reg = r600_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &r600_hpd_init,
 		.fini = &r600_hpd_fini,
@@ -1030,8 +1053,10 @@ static struct radeon_asic rv770_asic = {
 		.copy = &r600_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r600_set_surface_reg,
-	.clear_surface_reg = r600_clear_surface_reg,
+	.surface = {
+		.set_reg = r600_set_surface_reg,
+		.clear_reg = r600_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &r600_hpd_init,
 		.fini = &r600_hpd_fini,
@@ -1101,8 +1126,10 @@ static struct radeon_asic evergreen_asic = {
 		.copy = &r600_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r600_set_surface_reg,
-	.clear_surface_reg = r600_clear_surface_reg,
+	.surface = {
+		.set_reg = r600_set_surface_reg,
+		.clear_reg = r600_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &evergreen_hpd_init,
 		.fini = &evergreen_hpd_fini,
@@ -1172,8 +1199,10 @@ static struct radeon_asic sumo_asic = {
 		.copy = &r600_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r600_set_surface_reg,
-	.clear_surface_reg = r600_clear_surface_reg,
+	.surface = {
+		.set_reg = r600_set_surface_reg,
+		.clear_reg = r600_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &evergreen_hpd_init,
 		.fini = &evergreen_hpd_fini,
@@ -1243,8 +1272,10 @@ static struct radeon_asic btc_asic = {
 		.copy = &r600_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r600_set_surface_reg,
-	.clear_surface_reg = r600_clear_surface_reg,
+	.surface = {
+		.set_reg = r600_set_surface_reg,
+		.clear_reg = r600_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &evergreen_hpd_init,
 		.fini = &evergreen_hpd_fini,
@@ -1343,8 +1374,10 @@ static struct radeon_asic cayman_asic = {
 		.copy = &r600_copy_blit,
 		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
 	},
-	.set_surface_reg = r600_set_surface_reg,
-	.clear_surface_reg = r600_clear_surface_reg,
+	.surface = {
+		.set_reg = r600_set_surface_reg,
+		.clear_reg = r600_clear_surface_reg,
+	},
 	.hpd = {
 		.init = &evergreen_hpd_init,
 		.fini = &evergreen_hpd_fini,
