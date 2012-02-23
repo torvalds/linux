@@ -343,6 +343,12 @@ static int regcache_lzo_sync(struct regmap *map)
 		ret = regcache_read(map, i, &val);
 		if (ret)
 			return ret;
+
+		/* Is this the hardware default?  If so skip. */
+		ret = regcache_lookup_reg(map, i);
+		if (ret > 0 && val == map->reg_defaults[ret].def)
+			continue;
+
 		map->cache_bypass = 1;
 		ret = _regmap_write(map, i, val);
 		map->cache_bypass = 0;
