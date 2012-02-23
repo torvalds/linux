@@ -106,6 +106,8 @@ int via_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	idr_init(&dev->object_name_idr);
 
+	pci_set_master(dev->pdev);
+
 	ret = drm_vblank_init(dev, 1);
 	if (ret) {
 		kfree(dev_priv);

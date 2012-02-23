@@ -686,8 +686,6 @@ void drm_mode_set_crtcinfo(struct drm_display_mode *p, int adjust_flags)
 			p->crtc_vsync_end /= 2;
 			p->crtc_vtotal /= 2;
 		}
-
-		p->crtc_vtotal |= 1;
 	}
 
 	if (p->flags & DRM_MODE_FLAG_DBLSCAN) {

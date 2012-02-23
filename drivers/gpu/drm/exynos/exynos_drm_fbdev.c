@@ -46,39 +46,13 @@ struct exynos_drm_fbdev {
 	struct exynos_drm_gem_obj	*exynos_gem_obj;
 };
 
-static int exynos_drm_fbdev_set_par(struct fb_info *info)
-{
-	struct fb_var_screeninfo *var = &info->var;
-
-	switch (var->bits_per_pixel) {
-	case 32:
-	case 24:
-	case 18:
-	case 16:
-	case 12:
-		info->fix.visual = FB_VISUAL_TRUECOLOR;
-		break;
-	case 1:
-		info->fix.visual = FB_VISUAL_MONO01;
-		break;
-	default:
-		info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
-		break;
-	}
-
-	info->fix.line_length = (var->xres_virtual * var->bits_per_pixel) / 8;
-
-	return drm_fb_helper_set_par(info);
-}
-
-
 static struct fb_ops exynos_drm_fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
 	.fb_check_var	= drm_fb_helper_check_var,
-	.fb_set_par	= exynos_drm_fbdev_set_par,
+	.fb_set_par	= drm_fb_helper_set_par,
 	.fb_blank	= drm_fb_helper_blank,
 	.fb_pan_display	= drm_fb_helper_pan_display,
 	.fb_setcmap	= drm_fb_helper_setcmap,

@@ -283,6 +283,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->dev = dev;
 	dev->dev_private = (void *) dev_priv;
 
+	pci_set_master(dev->pdev);
+
 	if (!IS_PSB(dev)) {
 		if (pci_enable_msi(dev->pdev))
 			dev_warn(dev->dev, "Enabling MSI failed!\n");

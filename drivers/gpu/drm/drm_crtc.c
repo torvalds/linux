@@ -38,11 +38,6 @@
 #include "drm_edid.h"
 #include "drm_fourcc.h"
 
-struct drm_prop_enum_list {
-	int type;
-	char *name;
-};
-
 /* Avoid boilerplate.  I'm tired of typing. */
 #define DRM_ENUM_NAME_FN(fnname, list)				\
 	char *fnname(int val)					\
@@ -442,7 +437,7 @@ void drm_mode_remove(struct drm_connector *connector,
 		     struct drm_display_mode *mode)
 {
 	list_del(&mode->head);
-	kfree(mode);
+	drm_mode_destroy(connector->dev, mode);
 }
 EXPORT_SYMBOL(drm_mode_remove);
 
@@ -454,7 +449,7 @@ EXPORT_SYMBOL(drm_mode_remove);
  * @name: user visible name of the connector
  *
  * LOCKING:
- * Caller must hold @dev's mode_config lock.
+ * Takes mode config lock.
  *
  * Initialises a preallocated connector. Connectors should be
  * subclassed as part of driver connector objects.
@@ -497,7 +492,7 @@ EXPORT_SYMBOL(drm_connector_init);
  * @connector: connector to cleanup
  *
  * LOCKING:
- * Caller must hold @dev's mode_config lock.
+ * Takes mode config lock.
  *
  * Cleans up the connector but doesn't free the object.
  */
@@ -658,7 +653,6 @@ static int drm_mode_create_standard_connector_properties(struct drm_device *dev)
 {
 	struct drm_property *edid;
 	struct drm_property *dpms;
-	int i;
 
 	/*
 	 * Standard properties (apply to all connectors)
@@ -668,11 +662,9 @@ static int drm_mode_create_standard_connector_properties(struct drm_device *dev)
 				   "EDID", 0);
 	dev->mode_config.edid_property = edid;
 
-	dpms = drm_property_create(dev, DRM_MODE_PROP_ENUM,
-				   "DPMS", ARRAY_SIZE(drm_dpms_enum_list));
-	for (i = 0; i < ARRAY_SIZE(drm_dpms_enum_list); i++)
-		drm_property_add_enum(dpms, i, drm_dpms_enum_list[i].type,
-				      drm_dpms_enum_list[i].name);
+	dpms = drm_property_create_enum(dev, 0,
+				   "DPMS", drm_dpms_enum_list,
+				   ARRAY_SIZE(drm_dpms_enum_list));
 	dev->mode_config.dpms_property = dpms;
 
 	return 0;
@@ -688,30 +680,21 @@ int drm_mode_create_dvi_i_properties(struct drm_device *dev)
 {
 	struct drm_property *dvi_i_selector;
 	struct drm_property *dvi_i_subconnector;
-	int i;
 
 	if (dev->mode_config.dvi_i_select_subconnector_property)
 		return 0;
 
 	dvi_i_selector =
-		drm_property_create(dev, DRM_MODE_PROP_ENUM,
+		drm_property_create_enum(dev, 0,
 				    "select subconnector",
+				    drm_dvi_i_select_enum_list,
 				    ARRAY_SIZE(drm_dvi_i_select_enum_list));
-	for (i = 0; i < ARRAY_SIZE(drm_dvi_i_select_enum_list); i++)
-		drm_property_add_enum(dvi_i_selector, i,
-				      drm_dvi_i_select_enum_list[i].type,
-				      drm_dvi_i_select_enum_list[i].name);
 	dev->mode_config.dvi_i_select_subconnector_property = dvi_i_selector;
 
-	dvi_i_subconnector =
-		drm_property_create(dev, DRM_MODE_PROP_ENUM |
-				    DRM_MODE_PROP_IMMUTABLE,
+	dvi_i_subconnector = drm_property_create_enum(dev, DRM_MODE_PROP_IMMUTABLE,
 				    "subconnector",
+				    drm_dvi_i_subconnector_enum_list,
 				    ARRAY_SIZE(drm_dvi_i_subconnector_enum_list));
-	for (i = 0; i < ARRAY_SIZE(drm_dvi_i_subconnector_enum_list); i++)
-		drm_property_add_enum(dvi_i_subconnector, i,
-				      drm_dvi_i_subconnector_enum_list[i].type,
-				      drm_dvi_i_subconnector_enum_list[i].name);
 	dev->mode_config.dvi_i_subconnector_property = dvi_i_subconnector;
 
 	return 0;
@@ -742,51 +725,33 @@ int drm_mode_create_tv_properties(struct drm_device *dev, int num_modes,
 	/*
 	 * Basic connector properties
 	 */
-	tv_selector = drm_property_create(dev, DRM_MODE_PROP_ENUM,
+	tv_selector = drm_property_create_enum(dev, 0,
 					  "select subconnector",
+					  drm_tv_select_enum_list,
 					  ARRAY_SIZE(drm_tv_select_enum_list));
-	for (i = 0; i < ARRAY_SIZE(drm_tv_select_enum_list); i++)
-		drm_property_add_enum(tv_selector, i,
-				      drm_tv_select_enum_list[i].type,
-				      drm_tv_select_enum_list[i].name);
 	dev->mode_config.tv_select_subconnector_property = tv_selector;
 
 	tv_subconnector =
-		drm_property_create(dev, DRM_MODE_PROP_ENUM |
-				    DRM_MODE_PROP_IMMUTABLE, "subconnector",
+		drm_property_create_enum(dev, DRM_MODE_PROP_IMMUTABLE,
+				    "subconnector",
+				    drm_tv_subconnector_enum_list,
 				    ARRAY_SIZE(drm_tv_subconnector_enum_list));
-	for (i = 0; i < ARRAY_SIZE(drm_tv_subconnector_enum_list); i++)
-		drm_property_add_enum(tv_subconnector, i,
-				      drm_tv_subconnector_enum_list[i].type,
-				      drm_tv_subconnector_enum_list[i].name);
 	dev->mode_config.tv_subconnector_property = tv_subconnector;
 
 	/*
 	 * Other, TV specific properties: margins & TV modes.
 	 */
 	dev->mode_config.tv_left_margin_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "left margin", 2);
-	dev->mode_config.tv_left_margin_property->values[0] = 0;
-	dev->mode_config.tv_left_margin_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "left margin", 0, 100);
 
 	dev->mode_config.tv_right_margin_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "right margin", 2);
-	dev->mode_config.tv_right_margin_property->values[0] = 0;
-	dev->mode_config.tv_right_margin_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "right margin", 0, 100);
 
 	dev->mode_config.tv_top_margin_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "top margin", 2);
-	dev->mode_config.tv_top_margin_property->values[0] = 0;
-	dev->mode_config.tv_top_margin_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "top margin", 0, 100);
 
 	dev->mode_config.tv_bottom_margin_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "bottom margin", 2);
-	dev->mode_config.tv_bottom_margin_property->values[0] = 0;
-	dev->mode_config.tv_bottom_margin_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "bottom margin", 0, 100);
 
 	dev->mode_config.tv_mode_property =
 		drm_property_create(dev, DRM_MODE_PROP_ENUM,
@@ -796,40 +761,22 @@ int drm_mode_create_tv_properties(struct drm_device *dev, int num_modes,
 				      i, modes[i]);
 
 	dev->mode_config.tv_brightness_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "brightness", 2);
-	dev->mode_config.tv_brightness_property->values[0] = 0;
-	dev->mode_config.tv_brightness_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "brightness", 0, 100);
 
 	dev->mode_config.tv_contrast_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "contrast", 2);
-	dev->mode_config.tv_contrast_property->values[0] = 0;
-	dev->mode_config.tv_contrast_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "contrast", 0, 100);
 
 	dev->mode_config.tv_flicker_reduction_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "flicker reduction", 2);
-	dev->mode_config.tv_flicker_reduction_property->values[0] = 0;
-	dev->mode_config.tv_flicker_reduction_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "flicker reduction", 0, 100);
 
 	dev->mode_config.tv_overscan_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "overscan", 2);
-	dev->mode_config.tv_overscan_property->values[0] = 0;
-	dev->mode_config.tv_overscan_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "overscan", 0, 100);
 
 	dev->mode_config.tv_saturation_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "saturation", 2);
-	dev->mode_config.tv_saturation_property->values[0] = 0;
-	dev->mode_config.tv_saturation_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "saturation", 0, 100);
 
 	dev->mode_config.tv_hue_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE,
-				    "hue", 2);
-	dev->mode_config.tv_hue_property->values[0] = 0;
-	dev->mode_config.tv_hue_property->values[1] = 100;
+		drm_property_create_range(dev, 0, "hue", 0, 100);
 
 	return 0;
 }
@@ -845,18 +792,14 @@ EXPORT_SYMBOL(drm_mode_create_tv_properties);
 int drm_mode_create_scaling_mode_property(struct drm_device *dev)
 {
 	struct drm_property *scaling_mode;
-	int i;
 
 	if (dev->mode_config.scaling_mode_property)
 		return 0;
 
 	scaling_mode =
-		drm_property_create(dev, DRM_MODE_PROP_ENUM, "scaling mode",
+		drm_property_create_enum(dev, 0, "scaling mode",
+				drm_scaling_mode_enum_list,
 				    ARRAY_SIZE(drm_scaling_mode_enum_list));
-	for (i = 0; i < ARRAY_SIZE(drm_scaling_mode_enum_list); i++)
-		drm_property_add_enum(scaling_mode, i,
-				      drm_scaling_mode_enum_list[i].type,
-				      drm_scaling_mode_enum_list[i].name);
 
 	dev->mode_config.scaling_mode_property = scaling_mode;
 
@@ -874,18 +817,14 @@ EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
 int drm_mode_create_dithering_property(struct drm_device *dev)
 {
 	struct drm_property *dithering_mode;
-	int i;
 
 	if (dev->mode_config.dithering_mode_property)
 		return 0;
 
 	dithering_mode =
-		drm_property_create(dev, DRM_MODE_PROP_ENUM, "dithering",
+		drm_property_create_enum(dev, 0, "dithering",
+				drm_dithering_mode_enum_list,
 				    ARRAY_SIZE(drm_dithering_mode_enum_list));
-	for (i = 0; i < ARRAY_SIZE(drm_dithering_mode_enum_list); i++)
-		drm_property_add_enum(dithering_mode, i,
-				      drm_dithering_mode_enum_list[i].type,
-				      drm_dithering_mode_enum_list[i].name);
 	dev->mode_config.dithering_mode_property = dithering_mode;
 
 	return 0;
@@ -902,20 +841,15 @@ EXPORT_SYMBOL(drm_mode_create_dithering_property);
 int drm_mode_create_dirty_info_property(struct drm_device *dev)
 {
 	struct drm_property *dirty_info;
-	int i;
 
 	if (dev->mode_config.dirty_info_property)
 		return 0;
 
 	dirty_info =
-		drm_property_create(dev, DRM_MODE_PROP_ENUM |
-				    DRM_MODE_PROP_IMMUTABLE,
+		drm_property_create_enum(dev, DRM_MODE_PROP_IMMUTABLE,
 				    "dirty",
+				    drm_dirty_info_enum_list,
 				    ARRAY_SIZE(drm_dirty_info_enum_list));
-	for (i = 0; i < ARRAY_SIZE(drm_dirty_info_enum_list); i++)
-		drm_property_add_enum(dirty_info, i,
-				      drm_dirty_info_enum_list[i].type,
-				      drm_dirty_info_enum_list[i].name);
 	dev->mode_config.dirty_info_property = dirty_info;
 
 	return 0;
@@ -1048,6 +982,9 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 				 head) {
 		plane->funcs->destroy(plane);
 	}
+
+	idr_remove_all(&dev->mode_config.crtc_idr);
+	idr_destroy(&dev->mode_config.crtc_idr);
 }
 EXPORT_SYMBOL(drm_mode_config_cleanup);
 
@@ -1311,7 +1248,7 @@ out:
  * @arg: arg from ioctl
  *
  * LOCKING:
- * Caller? (FIXME)
+ * Takes mode config lock.
  *
  * Construct a CRTC configuration structure to return to the user.
  *
@@ -1371,7 +1308,7 @@ out:
  * @arg: arg from ioctl
  *
  * LOCKING:
- * Caller? (FIXME)
+ * Takes mode config lock.
  *
  * Construct a connector configuration structure to return to the user.
  *
@@ -1553,6 +1490,9 @@ out:
  * @data: ioctl data
  * @file_priv: DRM file info
  *
+ * LOCKING:
+ * Takes mode config lock.
+ *
  * Return an plane count and set of IDs.
  */
 int drm_mode_getplane_res(struct drm_device *dev, void *data,
@@ -1598,6 +1538,9 @@ out:
  * @dev: DRM device
  * @data: ioctl data
  * @file_priv: DRM file info
+ *
+ * LOCKING:
+ * Takes mode config lock.
  *
  * Return plane info, including formats supported, gamma size, any
  * current fb, etc.
@@ -1663,6 +1606,9 @@ out:
  * @dev: DRM device
  * @data: ioctl data*
  * @file_prive: DRM file info
+ *
+ * LOCKING:
+ * Takes mode config lock.
  *
  * Set plane info, including placement, fb, scaling, and other factors.
  * Or pass a NULL fb to disable.
@@ -1794,7 +1740,7 @@ out:
  * @arg: arg from ioctl
  *
  * LOCKING:
- * Caller? (FIXME)
+ * Takes mode config lock.
  *
  * Build a new CRTC configuration based on user request.
  *
@@ -2275,7 +2221,7 @@ out:
  * @arg: arg from ioctl
  *
  * LOCKING:
- * Caller? (FIXME)
+ * Takes mode config lock.
  *
  * Lookup the FB given its ID and return info about it.
  *
@@ -2616,6 +2562,53 @@ fail:
 	return NULL;
 }
 EXPORT_SYMBOL(drm_property_create);
+
+struct drm_property *drm_property_create_enum(struct drm_device *dev, int flags,
+					 const char *name,
+					 const struct drm_prop_enum_list *props,
+					 int num_values)
+{
+	struct drm_property *property;
+	int i, ret;
+
+	flags |= DRM_MODE_PROP_ENUM;
+
+	property = drm_property_create(dev, flags, name, num_values);
+	if (!property)
+		return NULL;
+
+	for (i = 0; i < num_values; i++) {
+		ret = drm_property_add_enum(property, i,
+				      props[i].type,
+				      props[i].name);
+		if (ret) {
+			drm_property_destroy(dev, property);
+			return NULL;
+		}
+	}
+
+	return property;
+}
+EXPORT_SYMBOL(drm_property_create_enum);
+
+struct drm_property *drm_property_create_range(struct drm_device *dev, int flags,
+					 const char *name,
+					 uint64_t min, uint64_t max)
+{
+	struct drm_property *property;
+
+	flags |= DRM_MODE_PROP_RANGE;
+
+	property = drm_property_create(dev, flags, name, 2);
+	if (!property)
+		return NULL;
+
+	property->values[0] = min;
+	property->values[1] = max;
+
+	return property;
+}
+EXPORT_SYMBOL(drm_property_create_range);
 
 int drm_property_add_enum(struct drm_property *property, int index,
 			  uint64_t value, const char *name)
@@ -3021,7 +3014,7 @@ void drm_mode_connector_detach_encoder(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_mode_connector_detach_encoder);
 
-bool drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
+int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 				  int gamma_size)
 {
 	crtc->gamma_size = gamma_size;
@@ -3029,10 +3022,10 @@ bool drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 	crtc->gamma_store = kzalloc(gamma_size * sizeof(uint16_t) * 3, GFP_KERNEL);
 	if (!crtc->gamma_store) {
 		crtc->gamma_size = 0;
-		return false;
+		return -ENOMEM;
 	}
 
-	return true;
+	return 0;
 }
 EXPORT_SYMBOL(drm_mode_crtc_set_gamma_size);
 

@@ -9098,6 +9098,9 @@ void intel_modeset_init(struct drm_device *dev)
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
 
+	dev->mode_config.preferred_depth = 24;
+	dev->mode_config.prefer_shadow = 1;
+
 	dev->mode_config.funcs = (void *)&intel_mode_funcs;
 
 	intel_init_quirks(dev);

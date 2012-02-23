@@ -796,6 +796,9 @@ struct drm_mode_config {
 	struct drm_property *scaling_mode_property;
 	struct drm_property *dithering_mode_property;
 	struct drm_property *dirty_info_property;
+
+	/* dumb ioctl parameters */
+	uint32_t preferred_depth, prefer_shadow;
 };
 
 #define obj_to_crtc(x) container_of(x, struct drm_crtc, base)
@@ -807,6 +810,10 @@ struct drm_mode_config {
 #define obj_to_blob(x) container_of(x, struct drm_property_blob, base)
 #define obj_to_plane(x) container_of(x, struct drm_plane, base)
 
+struct drm_prop_enum_list {
+	int type;
+	char *name;
+};
 
 extern void drm_crtc_init(struct drm_device *dev,
 			  struct drm_crtc *crtc,
@@ -904,6 +911,13 @@ extern int drm_connector_attach_property(struct drm_connector *connector,
 				      struct drm_property *property, uint64_t init_val);
 extern struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 						const char *name, int num_values);
+extern struct drm_property *drm_property_create_enum(struct drm_device *dev, int flags,
+					 const char *name,
+					 const struct drm_prop_enum_list *props,
+					 int num_values);
+struct drm_property *drm_property_create_range(struct drm_device *dev, int flags,
+					 const char *name,
+					 uint64_t min, uint64_t max);
 extern void drm_property_destroy(struct drm_device *dev, struct drm_property *property);
 extern int drm_property_add_enum(struct drm_property *property, int index,
 				 uint64_t value, const char *name);
@@ -919,7 +933,7 @@ extern int drm_mode_connector_attach_encoder(struct drm_connector *connector,
 					     struct drm_encoder *encoder);
 extern void drm_mode_connector_detach_encoder(struct drm_connector *connector,
 					   struct drm_encoder *encoder);
-extern bool drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
+extern int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 					 int gamma_size);
 extern struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
 		uint32_t id, uint32_t type);

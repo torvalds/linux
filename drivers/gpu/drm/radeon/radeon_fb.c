@@ -254,11 +254,7 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 	info->apertures->ranges[0].base = rdev->ddev->mode_config.fb_base;
 	info->apertures->ranges[0].size = rdev->mc.aper_size;
 
-	info->pixmap.size = 64*1024;
-	info->pixmap.buf_align = 8;
-	info->pixmap.access_align = 32;
-	info->pixmap.flags = FB_PIXMAP_SYSTEM;
-	info->pixmap.scan_align = 1;
+	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
 	if (info->screen_base == NULL) {
 		ret = -ENOSPC;

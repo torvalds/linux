@@ -1031,6 +1031,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	struct radeon_bo *rbo;
 	uint64_t fb_location;
 	uint32_t fb_format, fb_pitch_pixels, tiling_flags;
+	unsigned bankw, bankh, mtaspect, tile_split;
 	u32 fb_swap = EVERGREEN_GRPH_ENDIAN_SWAP(EVERGREEN_GRPH_ENDIAN_NONE);
 	u32 tmp, viewport_w, viewport_h;
 	int r;
@@ -1121,20 +1122,13 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 			break;
 		}
 
-		switch ((tmp & 0xf000) >> 12) {
-		case 0: /* 1KB rows */
-		default:
-			fb_format |= EVERGREEN_GRPH_TILE_SPLIT(EVERGREEN_ADDR_SURF_TILE_SPLIT_1KB);
-			break;
-		case 1: /* 2KB rows */
-			fb_format |= EVERGREEN_GRPH_TILE_SPLIT(EVERGREEN_ADDR_SURF_TILE_SPLIT_2KB);
-			break;
-		case 2: /* 4KB rows */
-			fb_format |= EVERGREEN_GRPH_TILE_SPLIT(EVERGREEN_ADDR_SURF_TILE_SPLIT_4KB);
-			break;
-		}
-
 		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_2D_TILED_THIN1);
+
+		evergreen_tiling_fields(tiling_flags, &bankw, &bankh, &mtaspect, &tile_split);
+		fb_format |= EVERGREEN_GRPH_TILE_SPLIT(tile_split);
+		fb_format |= EVERGREEN_GRPH_BANK_WIDTH(bankw);
+		fb_format |= EVERGREEN_GRPH_BANK_HEIGHT(bankh);
+		fb_format |= EVERGREEN_GRPH_MACRO_TILE_ASPECT(mtaspect);
 	} else if (tiling_flags & RADEON_TILING_MICRO)
 		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1);
 

@@ -37,7 +37,7 @@
 
 /* Intel GPIO access functions */
 
-#define I2C_RISEFALL_TIME 20
+#define I2C_RISEFALL_TIME 10
 
 static inline struct intel_gmbus *
 to_intel_gmbus(struct i2c_adapter *i2c)
@@ -383,7 +383,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret, i;
 
-	dev_priv->gmbus = kcalloc(sizeof(struct intel_gmbus), GMBUS_NUM_PORTS,
+	dev_priv->gmbus = kcalloc(GMBUS_NUM_PORTS, sizeof(struct intel_gmbus),
 				  GFP_KERNEL);
 	if (dev_priv->gmbus == NULL)
 		return -ENOMEM;

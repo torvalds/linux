@@ -87,23 +87,27 @@ int r100_reloc_pitch_offset(struct radeon_cs_parser *p,
 		r100_cs_dump_packet(p, pkt);
 		return r;
 	}
+
 	value = radeon_get_ib_value(p, idx);
 	tmp = value & 0x003fffff;
 	tmp += (((u32)reloc->lobj.gpu_offset) >> 10);
 
-	if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
-		tile_flags |= RADEON_DST_TILE_MACRO;
-	if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO) {
-		if (reg == RADEON_SRC_PITCH_OFFSET) {
-			DRM_ERROR("Cannot src blit from microtiled surface\n");
-			r100_cs_dump_packet(p, pkt);
-			return -EINVAL;
+	if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+			tile_flags |= RADEON_DST_TILE_MACRO;
+		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO) {
+			if (reg == RADEON_SRC_PITCH_OFFSET) {
+				DRM_ERROR("Cannot src blit from microtiled surface\n");
+				r100_cs_dump_packet(p, pkt);
+				return -EINVAL;
+			}
+			tile_flags |= RADEON_DST_TILE_MICRO;
 		}
-		tile_flags |= RADEON_DST_TILE_MICRO;
-	}
 
-	tmp |= tile_flags;
-	p->ib->ptr[idx] = (value & 0x3fc00000) | tmp;
+		tmp |= tile_flags;
+		p->ib->ptr[idx] = (value & 0x3fc00000) | tmp;
+	} else
+		p->ib->ptr[idx] = (value & 0xffc00000) | tmp;
 	return 0;
 }
 
@@ -1554,7 +1558,17 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 			r100_cs_dump_packet(p, pkt);
 			return r;
 		}
-		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
+		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+				tile_flags |= RADEON_TXO_MACRO_TILE;
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+				tile_flags |= RADEON_TXO_MICRO_TILE_X2;
+
+			tmp = idx_value & ~(0x7 << 2);
+			tmp |= tile_flags;
+			ib[idx] = tmp + ((u32)reloc->lobj.gpu_offset);
+		} else
+			ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
 		track->textures[i].robj = reloc->robj;
 		track->tex_dirty = true;
 		break;
@@ -1625,15 +1639,17 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 			r100_cs_dump_packet(p, pkt);
 			return r;
 		}
+		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+				tile_flags |= RADEON_COLOR_TILE_ENABLE;
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+				tile_flags |= RADEON_COLOR_MICROTILE_ENABLE;
 
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
-			tile_flags |= RADEON_COLOR_TILE_ENABLE;
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
-			tile_flags |= RADEON_COLOR_MICROTILE_ENABLE;
-
-		tmp = idx_value & ~(0x7 << 16);
-		tmp |= tile_flags;
-		ib[idx] = tmp;
+			tmp = idx_value & ~(0x7 << 16);
+			tmp |= tile_flags;
+			ib[idx] = tmp;
+		} else
+			ib[idx] = idx_value;
 
 		track->cb[0].pitch = idx_value & RADEON_COLORPITCH_MASK;
 		track->cb_dirty = true;

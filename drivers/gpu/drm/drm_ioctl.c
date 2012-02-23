@@ -277,6 +277,12 @@ int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	case DRM_CAP_VBLANK_HIGH_CRTC:
 		req->value = 1;
 		break;
+	case DRM_CAP_DUMB_PREFERRED_DEPTH:
+		req->value = dev->mode_config.preferred_depth;
+		break;
+	case DRM_CAP_DUMB_PREFER_SHADOW:
+		req->value = dev->mode_config.prefer_shadow;
+		break;
 	default:
 		return -EINVAL;
 	}
