@@ -33,7 +33,7 @@
 
 /* This files gather functions specifics to: r520,rv530,rv560,rv570,r580 */
 
-static int r520_mc_wait_for_idle(struct radeon_device *rdev)
+int r520_mc_wait_for_idle(struct radeon_device *rdev)
 {
 	unsigned i;
 	uint32_t tmp;

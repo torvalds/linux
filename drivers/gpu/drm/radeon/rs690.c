@@ -31,7 +31,7 @@
 #include "atom.h"
 #include "rs690d.h"
 
-static int rs690_mc_wait_for_idle(struct radeon_device *rdev)
+int rs690_mc_wait_for_idle(struct radeon_device *rdev)
 {
 	unsigned i;
 	uint32_t tmp;

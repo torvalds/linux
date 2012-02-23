@@ -140,6 +140,7 @@ extern void r100_pre_page_flip(struct radeon_device *rdev, int crtc);
 extern u32 r100_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
 extern void r100_post_page_flip(struct radeon_device *rdev, int crtc);
 extern void r100_wait_for_vblank(struct radeon_device *rdev, int crtc);
+extern int r100_mc_wait_for_idle(struct radeon_device *rdev);
 
 /*
  * r200,rv250,rs300,rv280
@@ -177,6 +178,7 @@ extern int rv370_pcie_gart_init(struct radeon_device *rdev);
 extern void rv370_pcie_gart_fini(struct radeon_device *rdev);
 extern int rv370_pcie_gart_enable(struct radeon_device *rdev);
 extern void rv370_pcie_gart_disable(struct radeon_device *rdev);
+extern int r300_mc_wait_for_idle(struct radeon_device *rdev);
 
 /*
  * r420,r423,rv410
@@ -207,6 +209,7 @@ int rs400_gart_enable(struct radeon_device *rdev);
 void rs400_gart_adjust_size(struct radeon_device *rdev);
 void rs400_gart_disable(struct radeon_device *rdev);
 void rs400_gart_fini(struct radeon_device *rdev);
+extern int rs400_mc_wait_for_idle(struct radeon_device *rdev);
 
 /*
  * rs600.
@@ -238,6 +241,7 @@ extern u32 rs600_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
 extern void rs600_post_page_flip(struct radeon_device *rdev, int crtc);
 void rs600_set_safe_registers(struct radeon_device *rdev);
 extern void avivo_wait_for_vblank(struct radeon_device *rdev, int crtc);
+extern int rs600_mc_wait_for_idle(struct radeon_device *rdev);
 
 /*
  * rs690,rs740
@@ -252,6 +256,7 @@ void rs690_bandwidth_update(struct radeon_device *rdev);
 void rs690_line_buffer_adjust(struct radeon_device *rdev,
 					struct drm_display_mode *mode1,
 					struct drm_display_mode *mode2);
+extern int rs690_mc_wait_for_idle(struct radeon_device *rdev);
 
 /*
  * rv515
@@ -279,13 +284,14 @@ void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save);
 void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save);
 void rv515_clock_startup(struct radeon_device *rdev);
 void rv515_debugfs(struct radeon_device *rdev);
-
+int rv515_mc_wait_for_idle(struct radeon_device *rdev);
 
 /*
  * r520,rv530,rv560,rv570,r580
  */
 int r520_init(struct radeon_device *rdev);
 int r520_resume(struct radeon_device *rdev);
+int r520_mc_wait_for_idle(struct radeon_device *rdev);
 
 /*
  * r600,rv610,rv630,rv620,rv635,rv670,rs780,rs880
@@ -376,6 +382,7 @@ void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence)
 void r600_kms_blit_copy(struct radeon_device *rdev,
 			u64 src_gpu_addr, u64 dst_gpu_addr,
 			unsigned num_gpu_pages);
+int r600_mc_wait_for_idle(struct radeon_device *rdev);
 
 /*
  * rv770,rv730,rv710,rv740
@@ -427,6 +434,7 @@ extern void evergreen_post_page_flip(struct radeon_device *rdev, int crtc);
 extern void dce4_wait_for_vblank(struct radeon_device *rdev, int crtc);
 void evergreen_disable_interrupt_state(struct radeon_device *rdev);
 int evergreen_blit_init(struct radeon_device *rdev);
+int evergreen_mc_wait_for_idle(struct radeon_device *rdev);
 
 /*
  * cayman
