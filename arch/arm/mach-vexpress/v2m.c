@@ -6,6 +6,10 @@
 #include <linux/amba/mmci.h>
 #include <linux/io.h>
 #include <linux/init.h>
+#include <linux/of_address.h>
+#include <linux/of_fdt.h>
+#include <linux/of_irq.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/smsc911x.h>
@@ -21,6 +25,8 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/hardware/arm_timer.h>
+#include <asm/hardware/cache-l2x0.h>
+#include <asm/hardware/gic.h>
 #include <asm/hardware/timer-sp.h>
 #include <asm/hardware/sp810.h>
 #include <asm/hardware/gic.h>
@@ -430,8 +436,9 @@ static void __init v2m_populate_ct_desc(void)
 			ct_desc = ct_descs[i];
 
 	if (!ct_desc)
-		panic("vexpress: failed to populate core tile description "
-		      "for tile ID 0x%8x\n", current_tile_id);
+		panic("vexpress: this kernel does not support core tile ID 0x%08x when booting via ATAGs.\n"
+		      "You may need a device tree blob or a different kernel to boot on this board.\n",
+		      current_tile_id);
 }
 
 static void __init v2m_map_io(void)
@@ -476,3 +483,145 @@ MACHINE_START(VEXPRESS, "ARM-Versatile Express")
 	.init_machine	= v2m_init,
 	.restart	= v2m_restart,
 MACHINE_END
+
+#if defined(CONFIG_ARCH_VEXPRESS_DT)
+
+void __init v2m_dt_map_io(void)
+{
+	iotable_init(v2m_io_desc, ARRAY_SIZE(v2m_io_desc));
+
+#if defined(CONFIG_SMP)
+	vexpress_dt_smp_map_io();
+#endif
+}
+
+static struct clk_lookup v2m_dt_lookups[] = {
+	{	/* AMBA bus clock */
+		.con_id		= "apb_pclk",
+		.clk		= &dummy_apb_pclk,
+	}, {	/* SP804 timers */
+		.dev_id		= "sp804",
+		.con_id		= "v2m-timer0",
+		.clk		= &v2m_sp804_clk,
+	}, {	/* SP804 timers */
+		.dev_id		= "sp804",
+		.con_id		= "v2m-timer1",
+		.clk		= &v2m_sp804_clk,
+	}, {	/* PL180 MMCI */
+		.dev_id		= "mb:mmci", /* 10005000.mmci */
+		.clk		= &osc2_clk,
+	}, {	/* PL050 KMI0 */
+		.dev_id		= "10006000.kmi",
+		.clk		= &osc2_clk,
+	}, {	/* PL050 KMI1 */
+		.dev_id		= "10007000.kmi",
+		.clk		= &osc2_clk,
+	}, {	/* PL011 UART0 */
+		.dev_id		= "10009000.uart",
+		.clk		= &osc2_clk,
+	}, {	/* PL011 UART1 */
+		.dev_id		= "1000a000.uart",
+		.clk		= &osc2_clk,
+	}, {	/* PL011 UART2 */
+		.dev_id		= "1000b000.uart",
+		.clk		= &osc2_clk,
+	}, {	/* PL011 UART3 */
+		.dev_id		= "1000c000.uart",
+		.clk		= &osc2_clk,
+	}, {	/* SP805 WDT */
+		.dev_id		= "1000f000.wdt",
+		.clk		= &v2m_ref_clk,
+	}, {	/* PL111 CLCD */
+		.dev_id		= "1001f000.clcd",
+		.clk		= &osc1_clk,
+	},
+};
+
+void __init v2m_dt_init_early(void)
+{
+	struct device_node *node;
+	u32 dt_hbi;
+
+	node = of_find_compatible_node(NULL, NULL, "arm,vexpress-sysreg");
+	v2m_sysreg_base = of_iomap(node, 0);
+	if (WARN_ON(!v2m_sysreg_base))
+		return;
+
+	/* Confirm board type against DT property, if available */
+	if (of_property_read_u32(allnodes, "arm,hbi", &dt_hbi) == 0) {
+		u32 misc = readl(v2m_sysreg_base + V2M_SYS_MISC);
+		u32 id = readl(v2m_sysreg_base + (misc & SYS_MISC_MASTERSITE ?
+				V2M_SYS_PROCID1 : V2M_SYS_PROCID0));
+		u32 hbi = id & SYS_PROCIDx_HBI_MASK;
+
+		if (WARN_ON(dt_hbi != hbi))
+			pr_warning("vexpress: DT HBI (%x) is not matching "
+					"hardware (%x)!\n", dt_hbi, hbi);
+	}
+
+	clkdev_add_table(v2m_dt_lookups, ARRAY_SIZE(v2m_dt_lookups));
+	versatile_sched_clock_init(v2m_sysreg_base + V2M_SYS_24MHZ, 24000000);
+}
+
+static  struct of_device_id vexpress_irq_match[] __initdata = {
+	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
+	{}
+};
+
+static void __init v2m_dt_init_irq(void)
+{
+	of_irq_init(vexpress_irq_match);
+}
+
+static void __init v2m_dt_timer_init(void)
+{
+	struct device_node *node;
+	const char *path;
+	int err;
+
+	node = of_find_compatible_node(NULL, NULL, "arm,sp810");
+	v2m_sysctl_init(of_iomap(node, 0));
+
+	err = of_property_read_string(of_aliases, "arm,v2m_timer", &path);
+	if (WARN_ON(err))
+		return;
+	node = of_find_node_by_path(path);
+	v2m_sp804_init(of_iomap(node, 0), irq_of_parse_and_map(node, 0));
+}
+
+static struct sys_timer v2m_dt_timer = {
+	.init = v2m_dt_timer_init,
+};
+
+static struct of_dev_auxdata v2m_dt_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("arm,vexpress-flash", V2M_NOR0, "physmap-flash",
+			&v2m_flash_data),
+	OF_DEV_AUXDATA("arm,primecell", V2M_MMCI, "mb:mmci", &v2m_mmci_data),
+	{}
+};
+
+static void __init v2m_dt_init(void)
+{
+	l2x0_of_init(0x00400000, 0xfe0fffff);
+	of_platform_populate(NULL, of_default_bus_match_table,
+			v2m_dt_auxdata_lookup, NULL);
+	pm_power_off = v2m_power_off;
+}
+
+const static char *v2m_dt_match[] __initconst = {
+	"arm,vexpress",
+	NULL,
+};
+
+DT_MACHINE_START(VEXPRESS_DT, "ARM-Versatile Express")
+	.dt_compat	= v2m_dt_match,
+	.map_io		= v2m_dt_map_io,
+	.init_early	= v2m_dt_init_early,
+	.init_irq	= v2m_dt_init_irq,
+	.timer		= &v2m_dt_timer,
+	.init_machine	= v2m_dt_init,
+	.handle_irq	= gic_handle_irq,
+	.restart	= v2m_restart,
+MACHINE_END
+
+#endif
