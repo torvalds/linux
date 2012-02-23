@@ -1182,10 +1182,14 @@ struct radeon_asic {
 			       uint32_t offset, uint32_t obj_size);
 	void (*clear_surface_reg)(struct radeon_device *rdev, int reg);
 	void (*bandwidth_update)(struct radeon_device *rdev);
-	void (*hpd_init)(struct radeon_device *rdev);
-	void (*hpd_fini)(struct radeon_device *rdev);
-	bool (*hpd_sense)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
-	void (*hpd_set_polarity)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
+
+	struct {
+		void (*init)(struct radeon_device *rdev);
+		void (*fini)(struct radeon_device *rdev);
+		bool (*sense)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
+		void (*set_polarity)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
+	} hpd;
+
 	/* ioctl hw specific callback. Some hw might want to perform special
 	 * operation on specific ioctl. For instance on wait idle some hw
 	 * might want to perform and HDP flush through MMIO as it seems that
@@ -1683,10 +1687,10 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_set_surface_reg(rdev, r, f, p, o, s) ((rdev)->asic->set_surface_reg((rdev), (r), (f), (p), (o), (s)))
 #define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->clear_surface_reg((rdev), (r)))
 #define radeon_bandwidth_update(rdev) (rdev)->asic->bandwidth_update((rdev))
-#define radeon_hpd_init(rdev) (rdev)->asic->hpd_init((rdev))
-#define radeon_hpd_fini(rdev) (rdev)->asic->hpd_fini((rdev))
-#define radeon_hpd_sense(rdev, hpd) (rdev)->asic->hpd_sense((rdev), (hpd))
-#define radeon_hpd_set_polarity(rdev, hpd) (rdev)->asic->hpd_set_polarity((rdev), (hpd))
+#define radeon_hpd_init(rdev) (rdev)->asic->hpd.init((rdev))
+#define radeon_hpd_fini(rdev) (rdev)->asic->hpd.fini((rdev))
+#define radeon_hpd_sense(rdev, h) (rdev)->asic->hpd.sense((rdev), (h))
+#define radeon_hpd_set_polarity(rdev, h) (rdev)->asic->hpd.set_polarity((rdev), (h))
 #define radeon_gui_idle(rdev) (rdev)->asic->gui_idle((rdev))
 #define radeon_pm_misc(rdev) (rdev)->asic->pm_misc((rdev))
 #define radeon_pm_prepare(rdev) (rdev)->asic->pm_prepare((rdev))
