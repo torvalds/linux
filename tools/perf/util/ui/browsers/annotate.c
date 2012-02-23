@@ -343,6 +343,7 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 				pthread_mutex_unlock(&notes->lock);
 				symbol__tui_annotate(target, ms->map, evidx,
 						     timer, arg, delay_secs);
+				ui_browser__show_title(&self->b, sym->name);
 			}
 			continue;
 		case K_LEFT:
