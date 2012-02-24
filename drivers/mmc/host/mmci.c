@@ -1271,12 +1271,13 @@ static int __devinit mmci_probe(struct amba_device *dev,
 	/*
 	 * Block size can be up to 2048 bytes, but must be a power of two.
 	 */
-	mmc->max_blk_size = 2048;
+	mmc->max_blk_size = 1 << 11;
 
 	/*
-	 * No limit on the number of blocks transferred.
+	 * Limit the number of blocks transferred so that we don't overflow
+	 * the maximum request size.
 	 */
-	mmc->max_blk_count = mmc->max_req_size;
+	mmc->max_blk_count = mmc->max_req_size >> 11;
 
 	spin_lock_init(&host->lock);
 
