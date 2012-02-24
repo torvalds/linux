@@ -2960,6 +2960,10 @@ static void init_easycap(struct easycap *peasycap,
 	peasycap->audio_isoc_buffer_size = -1;
 
 	peasycap->frame_buffer_many = FRAME_BUFFER_MANY;
+
+	peasycap->ntsc = easycap_ntsc;
+	JOM(8, "defaulting initially to %s\n",
+		easycap_ntsc ? "NTSC" : "PAL");
 }
 
 static int populate_inputset(struct easycap *peasycap)
@@ -2972,7 +2976,6 @@ static int populate_inputset(struct easycap *peasycap)
 
 	inputset = peasycap->inputset;
 
-	/* FIXME: peasycap->ntsc is not yet initialized */
 	fmtidx = peasycap->ntsc ? NTSC_M : PAL_BGHIN;
 
 	m = 0;
@@ -3650,9 +3653,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 		 * because some udev rules triggers easycap_open()
 		 * immediately after registration, causing a clash.
 		 */
-		peasycap->ntsc = easycap_ntsc;
-		JOM(8, "defaulting initially to %s\n",
-			easycap_ntsc ? "NTSC" : "PAL");
 		rc = reset(peasycap);
 		if (rc) {
 			SAM("ERROR: reset() rc = %i\n", rc);
