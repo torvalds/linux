@@ -81,6 +81,7 @@
  */
 #define SYN_CAP_CLICKPAD(ex0c)		((ex0c) & 0x100000) /* 1-button ClickPad */
 #define SYN_CAP_CLICKPAD2BTN(ex0c)	((ex0c) & 0x000100) /* 2-button ClickPad */
+#define SYN_CAP_CLICKPAD2BTN2(ex0c)	((ex0c) & 0x200000) /* 2-button ClickPad */
 #define SYN_CAP_MAX_DIMENSIONS(ex0c)	((ex0c) & 0x020000)
 #define SYN_CAP_MIN_DIMENSIONS(ex0c)	((ex0c) & 0x002000)
 #define SYN_CAP_ADV_GESTURE(ex0c)	((ex0c) & 0x080000)
