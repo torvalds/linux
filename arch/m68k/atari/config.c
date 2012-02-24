@@ -414,9 +414,9 @@ void __init config_atari(void)
 					 * FDC val = 4 -> Supervisor only */
 		asm volatile ("\n"
 			"	.chip	68030\n"
-			"	pmove	%0@,%/tt1\n"
+			"	pmove	%0,%/tt1\n"
 			"	.chip	68k"
-			: : "a" (&tt1_val));
+			: : "m" (tt1_val));
 	} else {
 	        asm volatile ("\n"
 			"	.chip	68040\n"
@@ -569,10 +569,10 @@ static void atari_reset(void)
 			: "d0");
 	} else
 		asm volatile ("\n"
-			"	pmove	%0@,%%tc\n"
+			"	pmove	%0,%%tc\n"
 			"	jmp	%1@"
 			: /* no outputs */
-			: "a" (&tc_val), "a" (reset_addr));
+			: "m" (tc_val), "a" (reset_addr));
 }
 
 

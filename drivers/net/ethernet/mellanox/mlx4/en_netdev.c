@@ -702,6 +702,8 @@ int mlx4_en_start_port(struct net_device *dev)
 	/* Schedule multicast task to populate multicast list */
 	queue_work(mdev->workqueue, &priv->mcast_task);
 
+	mlx4_set_stats_bitmap(mdev->dev, &priv->stats_bitmap);
+
 	priv->port_up = true;
 	netif_tx_start_all_queues(dev);
 	return 0;
@@ -807,12 +809,37 @@ static void mlx4_en_restart(struct work_struct *work)
 	mutex_unlock(&mdev->state_lock);
 }
 
+static void mlx4_en_clear_stats(struct net_device *dev)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
+	int i;
+
+	if (mlx4_en_DUMP_ETH_STATS(mdev, priv->port, 1))
+		en_dbg(HW, priv, "Failed dumping statistics\n");
+
+	memset(&priv->stats, 0, sizeof(priv->stats));
+	memset(&priv->pstats, 0, sizeof(priv->pstats));
+	memset(&priv->pkstats, 0, sizeof(priv->pkstats));
+	memset(&priv->port_stats, 0, sizeof(priv->port_stats));
+
+	for (i = 0; i < priv->tx_ring_num; i++) {
+		priv->tx_ring[i].bytes = 0;
+		priv->tx_ring[i].packets = 0;
+		priv->tx_ring[i].tx_csum = 0;
+	}
+	for (i = 0; i < priv->rx_ring_num; i++) {
+		priv->rx_ring[i].bytes = 0;
+		priv->rx_ring[i].packets = 0;
+		priv->rx_ring[i].csum_ok = 0;
+		priv->rx_ring[i].csum_none = 0;
+	}
+}
 
 static int mlx4_en_open(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
-	int i;
 	int err = 0;
 
 	mutex_lock(&mdev->state_lock);
@@ -823,21 +850,8 @@ static int mlx4_en_open(struct net_device *dev)
 		goto out;
 	}
 
-	/* Reset HW statistics and performance counters */
-	if (mlx4_en_DUMP_ETH_STATS(mdev, priv->port, 1))
-		en_dbg(HW, priv, "Failed dumping statistics\n");
-
-	memset(&priv->stats, 0, sizeof(priv->stats));
-	memset(&priv->pstats, 0, sizeof(priv->pstats));
-
-	for (i = 0; i < priv->tx_ring_num; i++) {
-		priv->tx_ring[i].bytes = 0;
-		priv->tx_ring[i].packets = 0;
-	}
-	for (i = 0; i < priv->rx_ring_num; i++) {
-		priv->rx_ring[i].bytes = 0;
-		priv->rx_ring[i].packets = 0;
-	}
+	/* Reset HW statistics and SW counters */
+	mlx4_en_clear_stats(dev);
 
 	err = mlx4_en_start_port(dev);
 	if (err)
@@ -878,7 +892,8 @@ void mlx4_en_free_resources(struct mlx4_en_priv *priv)
 
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		if (priv->rx_ring[i].rx_info)
-			mlx4_en_destroy_rx_ring(priv, &priv->rx_ring[i]);
+			mlx4_en_destroy_rx_ring(priv, &priv->rx_ring[i],
+				priv->prof->rx_ring_size, priv->stride);
 		if (priv->rx_cq[i].buf)
 			mlx4_en_destroy_cq(priv, &priv->rx_cq[i]);
 	}

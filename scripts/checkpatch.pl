@@ -1924,6 +1924,12 @@ sub process {
 			my $pre_ctx = "$1$2";
 
 			my ($level, @ctx) = ctx_statement_level($linenr, $realcnt, 0);
+
+			if ($line =~ /^\+\t{6,}/) {
+				WARN("DEEP_INDENTATION",
+				     "Too many leading tabs - consider code refactoring\n" . $herecurr);
+			}
+
 			my $ctx_cnt = $realcnt - $#ctx - 1;
 			my $ctx = join("\n", @ctx);
 

@@ -130,13 +130,18 @@ int ecryptfs_write(struct inode *ecryptfs_inode, char *data, loff_t offset,
 		pgoff_t ecryptfs_page_idx = (pos >> PAGE_CACHE_SHIFT);
 		size_t start_offset_in_page = (pos & ~PAGE_CACHE_MASK);
 		size_t num_bytes = (PAGE_CACHE_SIZE - start_offset_in_page);
-		size_t total_remaining_bytes = ((offset + size) - pos);
+		loff_t total_remaining_bytes = ((offset + size) - pos);
+
+		if (fatal_signal_pending(current)) {
+			rc = -EINTR;
+			break;
+		}
 
 		if (num_bytes > total_remaining_bytes)
 			num_bytes = total_remaining_bytes;
 		if (pos < offset) {
 			/* remaining zeros to write, up to destination offset */
-			size_t total_remaining_zeros = (offset - pos);
+			loff_t total_remaining_zeros = (offset - pos);
 
 			if (num_bytes > total_remaining_zeros)
 				num_bytes = total_remaining_zeros;
@@ -151,7 +156,7 @@ int ecryptfs_write(struct inode *ecryptfs_inode, char *data, loff_t offset,
 			       ecryptfs_page_idx, rc);
 			goto out;
 		}
-		ecryptfs_page_virt = kmap_atomic(ecryptfs_page, KM_USER0);
+		ecryptfs_page_virt = kmap_atomic(ecryptfs_page);
 
 		/*
 		 * pos: where we're now writing, offset: where the request was
@@ -174,7 +179,7 @@ int ecryptfs_write(struct inode *ecryptfs_inode, char *data, loff_t offset,
 			       (data + data_offset), num_bytes);
 			data_offset += num_bytes;
 		}
-		kunmap_atomic(ecryptfs_page_virt, KM_USER0);
+		kunmap_atomic(ecryptfs_page_virt);
 		flush_dcache_page(ecryptfs_page);
 		SetPageUptodate(ecryptfs_page);
 		unlock_page(ecryptfs_page);
@@ -193,15 +198,19 @@ int ecryptfs_write(struct inode *ecryptfs_inode, char *data, loff_t offset,
 		}
 		pos += num_bytes;
 	}
-	if ((offset + size) > ecryptfs_file_size) {
-		i_size_write(ecryptfs_inode, (offset + size));
+	if (pos > ecryptfs_file_size) {
+		i_size_write(ecryptfs_inode, pos);
 		if (crypt_stat->flags & ECRYPTFS_ENCRYPTED) {
-			rc = ecryptfs_write_inode_size_to_metadata(
+			int rc2;
+
+			rc2 = ecryptfs_write_inode_size_to_metadata(
 								ecryptfs_inode);
-			if (rc) {
+			if (rc2) {
 				printk(KERN_ERR	"Problem with "
 				       "ecryptfs_write_inode_size_to_metadata; "
-				       "rc = [%d]\n", rc);
+				       "rc = [%d]\n", rc2);
+				if (!rc)
+					rc = rc2;
 				goto out;
 			}
 		}
@@ -273,76 +282,3 @@ int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
 	flush_dcache_page(page_for_ecryptfs);
 	return rc;
 }
-
-#if 0
-/**
- * ecryptfs_read
- * @data: The virtual address into which to write the data read (and
- *        possibly decrypted) from the lower file
- * @offset: The offset in the decrypted view of the file from which to
- *          read into @data
- * @size: The number of bytes to read into @data
- * @ecryptfs_file: The eCryptfs file from which to read
- *
- * Read an arbitrary amount of data from an arbitrary location in the
- * eCryptfs page cache. This is done on an extent-by-extent basis;
- * individual extents are decrypted and read from the lower page
- * cache (via VFS reads). This function takes care of all the
- * address translation to locations in the lower filesystem.
- *
- * Returns zero on success; non-zero otherwise
- */
-int ecryptfs_read(char *data, loff_t offset, size_t size,
-		  struct file *ecryptfs_file)
-{
-	struct inode *ecryptfs_inode = ecryptfs_file->f_dentry->d_inode;
-	struct page *ecryptfs_page;
-	char *ecryptfs_page_virt;
-	loff_t ecryptfs_file_size = i_size_read(ecryptfs_inode);
-	loff_t data_offset = 0;
-	loff_t pos;
-	int rc = 0;
-
-	if ((offset + size) > ecryptfs_file_size) {
-		rc = -EINVAL;
-		printk(KERN_ERR "%s: Attempt to read data past the end of the "
-			"file; offset = [%lld]; size = [%td]; "
-		       "ecryptfs_file_size = [%lld]\n",
-		       __func__, offset, size, ecryptfs_file_size);
-		goto out;
-	}
-	pos = offset;
-	while (pos < (offset + size)) {
-		pgoff_t ecryptfs_page_idx = (pos >> PAGE_CACHE_SHIFT);
-		size_t start_offset_in_page = (pos & ~PAGE_CACHE_MASK);
-		size_t num_bytes = (PAGE_CACHE_SIZE - start_offset_in_page);
-		size_t total_remaining_bytes = ((offset + size) - pos);
-
-		if (num_bytes > total_remaining_bytes)
-			num_bytes = total_remaining_bytes;
-		ecryptfs_page = ecryptfs_get_locked_page(ecryptfs_inode,
-							 ecryptfs_page_idx);
-		if (IS_ERR(ecryptfs_page)) {
-			rc = PTR_ERR(ecryptfs_page);
-			printk(KERN_ERR "%s: Error getting page at "
-			       "index [%ld] from eCryptfs inode "
-			       "mapping; rc = [%d]\n", __func__,
-			       ecryptfs_page_idx, rc);
-			goto out;
-		}
-		ecryptfs_page_virt = kmap_atomic(ecryptfs_page, KM_USER0);
-		memcpy((data + data_offset),
-		       ((char *)ecryptfs_page_virt + start_offset_in_page),
-		       num_bytes);
-		kunmap_atomic(ecryptfs_page_virt, KM_USER0);
-		flush_dcache_page(ecryptfs_page);
-		SetPageUptodate(ecryptfs_page);
-		unlock_page(ecryptfs_page);
-		page_cache_release(ecryptfs_page);
-		pos += num_bytes;
-		data_offset += num_bytes;
-	}
-out:
-	return rc;
-}
-#endif  /*  0  */

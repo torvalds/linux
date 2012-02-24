@@ -1872,7 +1872,7 @@ static void intel_update_fbc(struct drm_device *dev)
 	if (enable_fbc < 0) {
 		DRM_DEBUG_KMS("fbc set to per-chip default\n");
 		enable_fbc = 1;
-		if (INTEL_INFO(dev)->gen <= 5)
+		if (INTEL_INFO(dev)->gen <= 6)
 			enable_fbc = 0;
 	}
 	if (!enable_fbc) {
@@ -5307,6 +5307,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
+	pipeconf &= ~PIPECONF_INTERLACE_MASK;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
 		/* the chip adds 2 halflines automatically */
@@ -5317,7 +5318,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		adjusted_mode->crtc_vsync_end -= 1;
 		adjusted_mode->crtc_vsync_start -= 1;
 	} else
-		pipeconf &= ~PIPECONF_INTERLACE_MASK; /* progressive */
+		pipeconf |= PIPECONF_PROGRESSIVE;
 
 	I915_WRITE(HTOTAL(pipe),
 		   (adjusted_mode->crtc_hdisplay - 1) |
@@ -5808,12 +5809,15 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	if (is_lvds) {
 		temp = I915_READ(PCH_LVDS);
 		temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
-		if (HAS_PCH_CPT(dev))
+		if (HAS_PCH_CPT(dev)) {
+			temp &= ~PORT_TRANS_SEL_MASK;
 			temp |= PORT_TRANS_SEL_CPT(pipe);
-		else if (pipe == 1)
-			temp |= LVDS_PIPEB_SELECT;
-		else
-			temp &= ~LVDS_PIPEB_SELECT;
+		} else {
+			if (pipe == 1)
+				temp |= LVDS_PIPEB_SELECT;
+			else
+				temp &= ~LVDS_PIPEB_SELECT;
+		}
 
 		/* set the corresponsding LVDS_BORDER bit */
 		temp |= dev_priv->lvds_border_bits;
@@ -5899,6 +5903,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
+	pipeconf &= ~PIPECONF_INTERLACE_MASK;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
 		/* the chip adds 2 halflines automatically */
@@ -5909,7 +5914,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		adjusted_mode->crtc_vsync_end -= 1;
 		adjusted_mode->crtc_vsync_start -= 1;
 	} else
-		pipeconf &= ~PIPECONF_INTERLACE_W_FIELD_INDICATION; /* progressive */
+		pipeconf |= PIPECONF_PROGRESSIVE;
 
 	I915_WRITE(HTOTAL(pipe),
 		   (adjusted_mode->crtc_hdisplay - 1) |
@@ -9025,12 +9030,9 @@ void intel_modeset_init(struct drm_device *dev)
 
 	for (i = 0; i < dev_priv->num_pipe; i++) {
 		intel_crtc_init(dev, i);
-		if (HAS_PCH_SPLIT(dev)) {
-			ret = intel_plane_init(dev, i);
-			if (ret)
-				DRM_ERROR("plane %d init failed: %d\n",
-					  i, ret);
-		}
+		ret = intel_plane_init(dev, i);
+		if (ret)
+			DRM_DEBUG_KMS("plane %d init failed: %d\n", i, ret);
 	}
 
 	/* Just disable it once at startup */

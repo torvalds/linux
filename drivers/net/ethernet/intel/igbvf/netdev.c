@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) 82576 Virtual Function Linux driver
-  Copyright(c) 2009 - 2010 Intel Corporation.
+  Copyright(c) 2009 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -53,7 +53,7 @@ const char igbvf_driver_version[] = DRV_VERSION;
 static const char igbvf_driver_string[] =
 		  "Intel(R) Gigabit Virtual Function Network Driver";
 static const char igbvf_copyright[] =
-		  "Copyright (c) 2009 - 2011 Intel Corporation.";
+		  "Copyright (c) 2009 - 2012 Intel Corporation.";
 
 static int igbvf_poll(struct napi_struct *napi, int budget);
 static void igbvf_reset(struct igbvf_adapter *);
@@ -1193,11 +1193,6 @@ static int igbvf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-
-	igbvf_irq_disable(adapter);
-
-	if (!test_bit(__IGBVF_DOWN, &adapter->state))
-		igbvf_irq_enable(adapter);
 
 	if (hw->mac.ops.set_vfta(hw, vid, false)) {
 		dev_err(&adapter->pdev->dev,

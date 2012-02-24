@@ -172,7 +172,7 @@ static inline void f75375_write8(struct i2c_client *client, u8 reg,
 static inline void f75375_write16(struct i2c_client *client, u8 reg,
 		u16 value)
 {
-	int err = i2c_smbus_write_byte_data(client, reg, (value << 8));
+	int err = i2c_smbus_write_byte_data(client, reg, (value >> 8));
 	if (err)
 		return;
 	i2c_smbus_write_byte_data(client, reg + 1, (value & 0xFF));
@@ -200,9 +200,6 @@ static struct f75375_data *f75375_update_device(struct device *dev)
 				f75375_read16(client, F75375_REG_FAN_MIN(nr));
 			data->fan_target[nr] =
 				f75375_read16(client, F75375_REG_FAN_EXP(nr));
-			data->pwm[nr] =	f75375_read8(client,
-				F75375_REG_FAN_PWM_DUTY(nr));
-
 		}
 		for (nr = 0; nr < 4; nr++) {
 			data->in_max[nr] =
@@ -218,6 +215,8 @@ static struct f75375_data *f75375_update_device(struct device *dev)
 	if (time_after(jiffies, data->last_updated + 2 * HZ)
 		|| !data->valid) {
 		for (nr = 0; nr < 2; nr++) {
+			data->pwm[nr] =	f75375_read8(client,
+				F75375_REG_FAN_PWM_DUTY(nr));
 			/* assign MSB, therefore shift it by 8 bits */
 			data->temp11[nr] =
 				f75375_read8(client, F75375_REG_TEMP(nr)) << 8;
@@ -369,7 +368,7 @@ static int set_pwm_enable_direct(struct i2c_client *client, int nr, int val)
 			fanmode  |= (3 << FAN_CTRL_MODE(nr));
 			break;
 		case 2: /* AUTOMATIC*/
-			fanmode  |= (2 << FAN_CTRL_MODE(nr));
+			fanmode  |= (1 << FAN_CTRL_MODE(nr));
 			break;
 		case 3: /* fan speed */
 			break;
@@ -723,7 +722,7 @@ static void f75375_init(struct i2c_client *client, struct f75375_data *data,
 			if (data->kind == f75387) {
 				bool manu, duty;
 
-				if (!(conf & (1 << F75387_FAN_CTRL_LINEAR(nr))))
+				if (!(mode & (1 << F75387_FAN_CTRL_LINEAR(nr))))
 					data->pwm_mode[nr] = 1;
 
 				manu = ((mode >> F75387_FAN_MANU_MODE(nr)) & 1);

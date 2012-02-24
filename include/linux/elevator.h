@@ -42,12 +42,6 @@ struct elevator_ops
 	elevator_merged_fn *elevator_merged_fn;
 	elevator_merge_req_fn *elevator_merge_req_fn;
 	elevator_allow_merge_fn *elevator_allow_merge_fn;
-
-	/*
-	 * Used for both plugged list and elevator merging and in the
-	 * former case called without queue_lock.  Read comment on top of
-	 * attempt_plug_merge() for details.
-	 */
 	elevator_bio_merged_fn *elevator_bio_merged_fn;
 
 	elevator_dispatch_fn *elevator_dispatch_fn;
@@ -122,7 +116,6 @@ extern void elv_dispatch_add_tail(struct request_queue *, struct request *);
 extern void elv_add_request(struct request_queue *, struct request *, int);
 extern void __elv_add_request(struct request_queue *, struct request *, int);
 extern int elv_merge(struct request_queue *, struct request **, struct bio *);
-extern int elv_try_merge(struct request *, struct bio *);
 extern void elv_merge_requests(struct request_queue *, struct request *,
 			       struct request *);
 extern void elv_merged_request(struct request_queue *, struct request *, int);
@@ -155,7 +148,7 @@ extern ssize_t elv_iosched_store(struct request_queue *, const char *, size_t);
 extern int elevator_init(struct request_queue *, char *);
 extern void elevator_exit(struct elevator_queue *);
 extern int elevator_change(struct request_queue *, const char *);
-extern int elv_rq_merge_ok(struct request *, struct bio *);
+extern bool elv_rq_merge_ok(struct request *, struct bio *);
 
 /*
  * Helper functions.

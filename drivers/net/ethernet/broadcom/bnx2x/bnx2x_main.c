@@ -117,10 +117,6 @@ static int dropless_fc;
 module_param(dropless_fc, int, 0);
 MODULE_PARM_DESC(dropless_fc, " Pause on exhausted host ring");
 
-static int poll;
-module_param(poll, int, 0);
-MODULE_PARM_DESC(poll, " Use polling (for debug)");
-
 static int mrrs = -1;
 module_param(mrrs, int, 0);
 MODULE_PARM_DESC(mrrs, " Force Max Read Req Size (0..3) (for debug)");
@@ -941,7 +937,7 @@ void bnx2x_panic_dump(struct bnx2x *bp)
 			struct sw_rx_bd *sw_bd = &fp->rx_buf_ring[j];
 
 			BNX2X_ERR("fp%d: rx_bd[%x]=[%x:%x]  sw_bd=[%p]\n",
-				  i, j, rx_bd[1], rx_bd[0], sw_bd->skb);
+				  i, j, rx_bd[1], rx_bd[0], sw_bd->data);
 		}
 
 		start = RX_SGE(fp->rx_sge_prod);
@@ -4834,19 +4830,10 @@ void bnx2x_drv_pulse(struct bnx2x *bp)
 
 static void bnx2x_timer(unsigned long data)
 {
-	u8 cos;
 	struct bnx2x *bp = (struct bnx2x *) data;
 
 	if (!netif_running(bp->dev))
 		return;
-
-	if (poll) {
-		struct bnx2x_fastpath *fp = &bp->fp[0];
-
-		for_each_cos_in_tx_queue(fp, cos)
-			bnx2x_tx_int(bp, &fp->txdata[cos]);
-		bnx2x_rx_int(fp, 1000);
-	}
 
 	if (!BP_NOMCP(bp)) {
 		int mb_idx = BP_FW_MB_IDX(bp);
@@ -10063,7 +10050,6 @@ static void __devinit bnx2x_set_modes_bitmap(struct bnx2x *bp)
 static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 {
 	int func;
-	int timer_interval;
 	int rc;
 
 	mutex_init(&bp->port.phy_mutex);
@@ -10139,8 +10125,7 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	bp->tx_ticks = (50 / BNX2X_BTR) * BNX2X_BTR;
 	bp->rx_ticks = (25 / BNX2X_BTR) * BNX2X_BTR;
 
-	timer_interval = (CHIP_REV_IS_SLOW(bp) ? 5*HZ : HZ);
-	bp->current_interval = (poll ? poll : timer_interval);
+	bp->current_interval = CHIP_REV_IS_SLOW(bp) ? 5*HZ : HZ;
 
 	init_timer(&bp->timer);
 	bp->timer.expires = jiffies + bp->current_interval;
@@ -10536,6 +10521,9 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 {
 	struct bnx2x *bp;
 	int rc;
+	bool chip_is_e1x = (board_type == BCM57710 ||
+			    board_type == BCM57711 ||
+			    board_type == BCM57711E);
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	bp = netdev_priv(dev);
@@ -10624,7 +10612,7 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	REG_WR(bp, PXP2_REG_PGL_ADDR_90_F0, 0);
 	REG_WR(bp, PXP2_REG_PGL_ADDR_94_F0, 0);
 
-	if (CHIP_IS_E1x(bp)) {
+	if (chip_is_e1x) {
 		REG_WR(bp, PXP2_REG_PGL_ADDR_88_F1, 0);
 		REG_WR(bp, PXP2_REG_PGL_ADDR_8C_F1, 0);
 		REG_WR(bp, PXP2_REG_PGL_ADDR_90_F1, 0);
@@ -10635,9 +10623,7 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	 * Enable internal target-read (in case we are probed after PF FLR).
 	 * Must be done prior to any BAR read access. Only for 57712 and up
 	 */
-	if (board_type != BCM57710 &&
-	    board_type != BCM57711 &&
-	    board_type != BCM57711E)
+	if (!chip_is_e1x)
 		REG_WR(bp, PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ, 1);
 
 	/* Reset the load counter */

@@ -56,6 +56,26 @@ static inline unsigned long hweight_long(unsigned long w)
 }
 
 /**
+ * rol64 - rotate a 64-bit value left
+ * @word: value to rotate
+ * @shift: bits to roll
+ */
+static inline __u64 rol64(__u64 word, unsigned int shift)
+{
+	return (word << shift) | (word >> (64 - shift));
+}
+
+/**
+ * ror64 - rotate a 64-bit value right
+ * @word: value to rotate
+ * @shift: bits to roll
+ */
+static inline __u64 ror64(__u64 word, unsigned int shift)
+{
+	return (word >> shift) | (word << (64 - shift));
+}
+
+/**
  * rol32 - rotate a 32-bit value left
  * @word: value to rotate
  * @shift: bits to roll
