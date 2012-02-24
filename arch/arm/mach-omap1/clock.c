@@ -16,7 +16,6 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/clk.h>
-#include <linux/io.h>
 #include <linux/clkdev.h>
 
 #include <asm/mach-types.h>
@@ -27,6 +26,7 @@
 #include <plat/sram.h>
 #include <plat/clkdev_omap.h>
 
+#include "iomap.h"
 #include "clock.h"
 #include "opp.h"
 

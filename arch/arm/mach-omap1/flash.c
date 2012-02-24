@@ -6,10 +6,10 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/io.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 
-#include <plat/io.h>
 #include <plat/tc.h>
 #include <plat/flash.h>
 

@@ -28,7 +28,6 @@
 #include <linux/errno.h>
 #include <linux/export.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -40,9 +39,12 @@
 #include <plat/usb.h>
 #include <plat/tc.h>
 #include <plat/board.h>
-#include "common.h"
 #include <plat/keypad.h>
 #include <plat/board-sx1.h>
+
+#include <mach/hardware.h>
+
+#include "common.h"
 
 /* Write to I2C device */
 int sx1_i2c_write_byte(u8 devaddr, u8 regoffset, u8 value)
