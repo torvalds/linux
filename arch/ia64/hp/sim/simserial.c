@@ -702,15 +702,8 @@ startup(struct async_struct *info)
 			handler = rs_interrupt_single;
 
 		retval = request_irq(state->irq, handler, IRQ_T(info), "simserial", NULL);
-		if (retval) {
-			if (capable(CAP_SYS_ADMIN)) {
-				if (info->tty)
-					set_bit(TTY_IO_ERROR,
-						&info->tty->flags);
-				retval = 0;
-			}
+		if (retval)
 			goto errout;
-		}
 	}
 
 	/*
