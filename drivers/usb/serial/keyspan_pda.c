@@ -91,7 +91,6 @@ static struct usb_driver keyspan_pda_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
-	.no_dynamic_id = 	1,
 };
 
 static const struct usb_device_id id_table_std[] = {
@@ -779,7 +778,6 @@ static struct usb_serial_driver keyspan_pda_fake_device = {
 		.name =		"keyspan_pda_pre",
 	},
 	.description =		"Keyspan PDA - (prerenumeration)",
-	.usb_driver = 		&keyspan_pda_driver,
 	.id_table =		id_table_fake,
 	.num_ports =		1,
 	.attach =		keyspan_pda_fake_startup,
@@ -793,7 +791,6 @@ static struct usb_serial_driver xircom_pgs_fake_device = {
 		.name =		"xircom_no_firm",
 	},
 	.description =		"Xircom / Entregra PGS - (prerenumeration)",
-	.usb_driver = 		&keyspan_pda_driver,
 	.id_table =		id_table_fake_xircom,
 	.num_ports =		1,
 	.attach =		keyspan_pda_fake_startup,
@@ -806,7 +803,6 @@ static struct usb_serial_driver keyspan_pda_device = {
 		.name =		"keyspan_pda",
 	},
 	.description =		"Keyspan PDA",
-	.usb_driver = 		&keyspan_pda_driver,
 	.id_table =		id_table_std,
 	.num_ports =		1,
 	.dtr_rts =		keyspan_pda_dtr_rts,
@@ -827,56 +823,27 @@ static struct usb_serial_driver keyspan_pda_device = {
 	.release =		keyspan_pda_release,
 };
 
+static struct usb_serial_driver * const serial_drivers[] = {
+	&keyspan_pda_device,
+#ifdef KEYSPAN
+	&keyspan_pda_fake_device,
+#endif
+#ifdef XIRCOM
+	&xircom_pgs_fake_device,
+#endif
+	NULL
+};
 
 static int __init keyspan_pda_init(void)
 {
-	int retval;
-	retval = usb_serial_register(&keyspan_pda_device);
-	if (retval)
-		goto failed_pda_register;
-#ifdef KEYSPAN
-	retval = usb_serial_register(&keyspan_pda_fake_device);
-	if (retval)
-		goto failed_pda_fake_register;
-#endif
-#ifdef XIRCOM
-	retval = usb_serial_register(&xircom_pgs_fake_device);
-	if (retval)
-		goto failed_xircom_register;
-#endif
-	retval = usb_register(&keyspan_pda_driver);
-	if (retval)
-		goto failed_usb_register;
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-	return 0;
-failed_usb_register:
-#ifdef XIRCOM
-	usb_serial_deregister(&xircom_pgs_fake_device);
-failed_xircom_register:
-#endif /* XIRCOM */
-#ifdef KEYSPAN
-	usb_serial_deregister(&keyspan_pda_fake_device);
-#endif
-#ifdef KEYSPAN
-failed_pda_fake_register:
-#endif
-	usb_serial_deregister(&keyspan_pda_device);
-failed_pda_register:
-	return retval;
+	return usb_serial_register_drivers(&keyspan_pda_driver,
+					   serial_drivers);
 }
-
 
 static void __exit keyspan_pda_exit(void)
 {
-	usb_deregister(&keyspan_pda_driver);
-	usb_serial_deregister(&keyspan_pda_device);
-#ifdef KEYSPAN
-	usb_serial_deregister(&keyspan_pda_fake_device);
-#endif
-#ifdef XIRCOM
-	usb_serial_deregister(&xircom_pgs_fake_device);
-#endif
+	usb_serial_deregister_drivers(&keyspan_pda_driver,
+				      serial_drivers);
 }
 
 
