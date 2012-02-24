@@ -493,10 +493,11 @@ C_ENTRY(sys_clone):
 	bnei	r6, 1f;			/* See if child SP arg (arg 1) is 0. */
 	lwi	r6, r1, PT_R1;	/* If so, use paret's stack ptr */
 1:	addik	r7, r1, 0;			/* Arg 2: parent context */
-	add	r8, r0, r0;			/* Arg 3: (unused) */
-	add	r9, r0, r0;			/* Arg 4: (unused) */
+	lwi     r9, r1, PT_R8;          /* parent tid.  */
+	lwi     r10, r1, PT_R9;         /* child tid.  */
+	/* do_fork will pick up TLS from regs->r10.  */
 	brid	do_fork		/* Do real work (tail-call) */
-	add	r10, r0, r0;			/* Arg 5: (unused) */
+	add     r8, r0, r0;             /* Arg 3: (unused) */
 
 C_ENTRY(sys_execve):
 	brid	microblaze_execve;	/* Do real work (tail-call).*/
