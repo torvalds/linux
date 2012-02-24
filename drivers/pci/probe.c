@@ -1562,12 +1562,15 @@ unsigned int __devinit pci_scan_child_bus(struct pci_bus *bus)
 struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 		struct pci_ops *ops, void *sysdata, struct list_head *resources)
 {
-	int error, i;
+	int error;
 	struct pci_host_bridge *bridge;
 	struct pci_bus *b, *b2;
 	struct device *dev;
-	struct pci_bus_resource *bus_res, *n;
+	struct pci_host_bridge_window *window, *n;
 	struct resource *res;
+	resource_size_t offset;
+	char bus_addr[64];
+	char *fmt;
 
 	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)
@@ -1617,19 +1620,30 @@ struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 	b->number = b->secondary = bus;
 
 	bridge->bus = b;
-
-	/* Add initial resources to the bus */
-	list_for_each_entry_safe(bus_res, n, resources, list)
-		list_move_tail(&bus_res->list, &b->resources);
+	INIT_LIST_HEAD(&bridge->windows);
 
 	if (parent)
 		dev_info(parent, "PCI host bridge to bus %s\n", dev_name(&b->dev));
 	else
 		printk(KERN_INFO "PCI host bridge to bus %s\n", dev_name(&b->dev));
 
-	pci_bus_for_each_resource(b, res, i) {
-		if (res)
-			dev_info(&b->dev, "root bus resource %pR\n", res);
+	/* Add initial resources to the bus */
+	list_for_each_entry_safe(window, n, resources, list) {
+		list_move_tail(&window->list, &bridge->windows);
+		res = window->res;
+		offset = window->offset;
+		pci_bus_add_resource(b, res, 0);
+		if (offset) {
+			if (resource_type(res) == IORESOURCE_IO)
+				fmt = " (bus address [%#06llx-%#06llx])";
+			else
+				fmt = " (bus address [%#010llx-%#010llx])";
+			snprintf(bus_addr, sizeof(bus_addr), fmt,
+				 (unsigned long long) (res->start - offset),
+				 (unsigned long long) (res->end - offset));
+		} else
+			bus_addr[0] = '\0';
+		dev_info(&b->dev, "root bus resource %pR%s\n", res, bus_addr);
 	}
 
 	down_write(&pci_bus_sem);
