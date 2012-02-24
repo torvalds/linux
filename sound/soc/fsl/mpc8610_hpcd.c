@@ -336,12 +336,8 @@ static int mpc8610_hpcd_probe(struct platform_device *pdev)
 	const char *sprop;
 	const u32 *iprop;
 
-	/* We are only interested in SSIs with a codec phandle in them,
-	 * so let's make sure this SSI has one. The MPC8610 HPCD only
-	 * knows about the CS4270 codec, so reject anything else.
-	 */
-	codec_np = get_node_by_phandle_name(np, "codec-handle",
-					    "cirrus,cs4270");
+	/* Find the codec node for this SSI. */
+	codec_np = of_parse_phandle(np, "codec-handle", 0);
 	if (!codec_np) {
 		dev_err(dev, "invalid codec node\n");
 		return -EINVAL;
