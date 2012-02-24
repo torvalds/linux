@@ -579,11 +579,7 @@ advance:
 	if (temp)
 		goto error2;
 
-	dev_info(&dev->udev->dev, "MAC-Address: "
-				"0x%02x:0x%02x:0x%02x:0x%02x:0x%02x:0x%02x\n",
-				dev->net->dev_addr[0], dev->net->dev_addr[1],
-				dev->net->dev_addr[2], dev->net->dev_addr[3],
-				dev->net->dev_addr[4], dev->net->dev_addr[5]);
+	dev_info(&dev->udev->dev, "MAC-Address: %pM\n", dev->net->dev_addr);
 
 	dev->in = usb_rcvbulkpipe(dev->udev,
 		ctx->in_ep->desc.bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
