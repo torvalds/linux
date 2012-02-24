@@ -13,7 +13,8 @@ Detection
 
 All ALPS touchpads should respond to the "E6 report" command sequence:
 E8-E6-E6-E6-E9. An ALPS touchpad should respond with either 00-00-0A or
-00-00-64.
+00-00-64 if no buttons are pressed. The bits 0-2 of the first byte will be 1s
+if some buttons are pressed.
 
 If the E6 report is successful, the touchpad model is identified using the "E7
 report" sequence: E8-E7-E7-E7-E9. The response is the model signature and is
