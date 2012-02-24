@@ -266,10 +266,6 @@ extern void omap_writeb(u8 v, u32 pa);
 extern void omap_writew(u16 v, u32 pa);
 extern void omap_writel(u32 v, u32 pa);
 
-struct omap_sdrc_params;
-extern void omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
-				      struct omap_sdrc_params *sdrc_cs1);
-
 extern void __init omap_init_consistent_dma_size(void);
 
 #endif
