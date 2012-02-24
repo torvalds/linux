@@ -889,28 +889,6 @@ static int pinctrl_gpioranges_show(struct seq_file *s, void *what)
 	return 0;
 }
 
-static int pinctrl_maps_show(struct seq_file *s, void *what)
-{
-	struct pinctrl_maps *maps_node;
-	int i;
-	struct pinctrl_map const *map;
-
-	seq_puts(s, "Pinctrl maps:\n");
-
-	mutex_lock(&pinctrl_maps_mutex);
-	for_each_maps(maps_node, i, map) {
-		seq_printf(s, "%s:\n", map->name);
-		seq_printf(s, "  device: %s\n", map->dev_name);
-		seq_printf(s, "  controlling device %s\n", map->ctrl_dev_name);
-		seq_printf(s, "  function: %s\n", map->function);
-		seq_printf(s, "  group: %s\n", map->group ? map->group :
-			   "(default)");
-	}
-	mutex_unlock(&pinctrl_maps_mutex);
-
-	return 0;
-}
-
 static int pinmux_hogs_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev = s->private;
@@ -943,6 +921,28 @@ static int pinctrl_devices_show(struct seq_file *s, void *what)
 		seq_puts(s, "\n");
 	}
 	mutex_unlock(&pinctrldev_list_mutex);
+
+	return 0;
+}
+
+static int pinctrl_maps_show(struct seq_file *s, void *what)
+{
+	struct pinctrl_maps *maps_node;
+	int i;
+	struct pinctrl_map const *map;
+
+	seq_puts(s, "Pinctrl maps:\n");
+
+	mutex_lock(&pinctrl_maps_mutex);
+	for_each_maps(maps_node, i, map) {
+		seq_printf(s, "%s:\n", map->name);
+		seq_printf(s, "  device: %s\n", map->dev_name);
+		seq_printf(s, "  controlling device %s\n", map->ctrl_dev_name);
+		seq_printf(s, "  function: %s\n", map->function);
+		seq_printf(s, "  group: %s\n", map->group ? map->group :
+			   "(default)");
+	}
+	mutex_unlock(&pinctrl_maps_mutex);
 
 	return 0;
 }
@@ -988,11 +988,6 @@ static int pinctrl_gpioranges_open(struct inode *inode, struct file *file)
 	return single_open(file, pinctrl_gpioranges_show, inode->i_private);
 }
 
-static int pinctrl_maps_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pinctrl_maps_show, inode->i_private);
-}
-
 static int pinmux_hogs_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, pinmux_hogs_show, inode->i_private);
@@ -1001,6 +996,11 @@ static int pinmux_hogs_open(struct inode *inode, struct file *file)
 static int pinctrl_devices_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, pinctrl_devices_show, NULL);
+}
+
+static int pinctrl_maps_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, pinctrl_maps_show, NULL);
 }
 
 static int pinctrl_open(struct inode *inode, struct file *file)
@@ -1029,13 +1029,6 @@ static const struct file_operations pinctrl_gpioranges_ops = {
 	.release	= single_release,
 };
 
-static const struct file_operations pinctrl_maps_ops = {
-	.open		= pinctrl_maps_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static const struct file_operations pinmux_hogs_ops = {
 	.open		= pinmux_hogs_open,
 	.read		= seq_read,
@@ -1045,6 +1038,13 @@ static const struct file_operations pinmux_hogs_ops = {
 
 static const struct file_operations pinctrl_devices_ops = {
 	.open		= pinctrl_devices_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static const struct file_operations pinctrl_maps_ops = {
+	.open		= pinctrl_maps_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
@@ -1078,8 +1078,6 @@ static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
 			    device_root, pctldev, &pinctrl_groups_ops);
 	debugfs_create_file("gpio-ranges", S_IFREG | S_IRUGO,
 			    device_root, pctldev, &pinctrl_gpioranges_ops);
-	debugfs_create_file("pinctrl-maps", S_IFREG | S_IRUGO,
-			    device_root, pctldev, &pinctrl_maps_ops);
 	debugfs_create_file("pinmux-hogs", S_IFREG | S_IRUGO,
 			    device_root, pctldev, &pinmux_hogs_ops);
 	pinmux_init_device_debugfs(device_root, pctldev);
@@ -1102,6 +1100,8 @@ static void pinctrl_init_debugfs(void)
 
 	debugfs_create_file("pinctrl-devices", S_IFREG | S_IRUGO,
 			    debugfs_root, NULL, &pinctrl_devices_ops);
+	debugfs_create_file("pinctrl-maps", S_IFREG | S_IRUGO,
+			    debugfs_root, NULL, &pinctrl_maps_ops);
 	debugfs_create_file("pinctrl-handles", S_IFREG | S_IRUGO,
 			    debugfs_root, NULL, &pinctrl_ops);
 }
