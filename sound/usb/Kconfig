@@ -106,6 +106,7 @@ config SND_USB_6FIRE
         select BITREVERSE
         select SND_RAWMIDI
         select SND_PCM
+        select SND_VMASTER
         help
           Say Y here to include support for TerraTec 6fire DMX USB interface.
 
