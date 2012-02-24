@@ -5265,7 +5265,7 @@ void intel_crtc_load_lut(struct drm_crtc *crtc)
 	int i;
 
 	/* The clocks have to be on to load the palette. */
-	if (!crtc->enabled)
+	if (!crtc->enabled || !intel_crtc->active)
 		return;
 
 	/* use legacy palette for Ironlake */
