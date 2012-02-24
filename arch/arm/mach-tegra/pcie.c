@@ -408,7 +408,7 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 	pp->res[0].flags = IORESOURCE_IO;
 	if (request_resource(&ioport_resource, &pp->res[0]))
 		panic("Request PCIe IO resource failed\n");
-	pci_add_resource(&sys->resources, &pp->res[0]);
+	pci_add_resource_offset(&sys->resources, &pp->res[0], sys->io_offset);
 
 	/*
 	 * IORESOURCE_MEM
@@ -427,7 +427,7 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 	pp->res[1].flags = IORESOURCE_MEM;
 	if (request_resource(&iomem_resource, &pp->res[1]))
 		panic("Request PCIe Memory resource failed\n");
-	pci_add_resource(&sys->resources, &pp->res[1]);
+	pci_add_resource_offset(&sys->resources, &pp->res[1], sys->mem_offset);
 
 	/*
 	 * IORESOURCE_MEM | IORESOURCE_PREFETCH
@@ -446,7 +446,7 @@ static int tegra_pcie_setup(int nr, struct pci_sys_data *sys)
 	pp->res[2].flags = IORESOURCE_MEM | IORESOURCE_PREFETCH;
 	if (request_resource(&iomem_resource, &pp->res[2]))
 		panic("Request PCIe Prefetch Memory resource failed\n");
-	pci_add_resource(&sys->resources, &pp->res[2]);
+	pci_add_resource_offset(&sys->resources, &pp->res[2], sys->mem_offset);
 
 	return 1;
 }

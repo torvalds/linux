@@ -294,28 +294,6 @@ static inline int pdev_bad_for_parity(struct pci_dev *dev)
 }
 
 /*
- * Adjust the device resources from bus-centric to Linux-centric.
- */
-static void __devinit
-pdev_fixup_device_resources(struct pci_sys_data *root, struct pci_dev *dev)
-{
-	resource_size_t offset;
-	int i;
-
-	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-		if (dev->resource[i].start == 0)
-			continue;
-		if (dev->resource[i].flags & IORESOURCE_MEM)
-			offset = root->mem_offset;
-		else
-			offset = root->io_offset;
-
-		dev->resource[i].start += offset;
-		dev->resource[i].end   += offset;
-	}
-}
-
-/*
  * pcibios_fixup_bus - Called after each bus is probed,
  * but before its children are examined.
  */
@@ -331,8 +309,6 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	 */
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		u16 status;
-
-		pdev_fixup_device_resources(root, dev);
 
 		pci_read_config_word(dev, PCI_STATUS, &status);
 
@@ -399,43 +375,6 @@ EXPORT_SYMBOL(pcibios_fixup_bus);
 #endif
 
 /*
- * Convert from Linux-centric to bus-centric addresses for bridge devices.
- */
-void
-pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
-			 struct resource *res)
-{
-	struct pci_sys_data *root = dev->sysdata;
-	unsigned long offset = 0;
-
-	if (res->flags & IORESOURCE_IO)
-		offset = root->io_offset;
-	if (res->flags & IORESOURCE_MEM)
-		offset = root->mem_offset;
-
-	region->start = res->start - offset;
-	region->end   = res->end - offset;
-}
-EXPORT_SYMBOL(pcibios_resource_to_bus);
-
-void __devinit
-pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
-			struct pci_bus_region *region)
-{
-	struct pci_sys_data *root = dev->sysdata;
-	unsigned long offset = 0;
-
-	if (res->flags & IORESOURCE_IO)
-		offset = root->io_offset;
-	if (res->flags & IORESOURCE_MEM)
-		offset = root->mem_offset;
-
-	res->start = region->start + offset;
-	res->end   = region->end + offset;
-}
-EXPORT_SYMBOL(pcibios_bus_to_resource);
-
-/*
  * Swizzle the device pin each time we cross a bridge.
  * This might update pin and returns the slot number.
  */
@@ -496,10 +435,10 @@ static void __init pcibios_init_hw(struct hw_pci *hw)
 
 		if (ret > 0) {
 			if (list_empty(&sys->resources)) {
-				pci_add_resource(&sys->resources,
-						 &ioport_resource);
-				pci_add_resource(&sys->resources,
-						 &iomem_resource);
+				pci_add_resource_offset(&sys->resources,
+					 &ioport_resource, sys->io_offset);
+				pci_add_resource_offset(&sys->resources,
+					 &iomem_resource, sys->mem_offset);
 			}
 
 			sys->bus = hw->scan(nr, sys);
