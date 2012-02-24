@@ -875,12 +875,19 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			sci_change_state(&iphy->sm, SCI_PHY_STARTING);
 			break;
 		case SCU_EVENT_BROADCAST_CHANGE:
+		case SCU_EVENT_BROADCAST_SES:
+		case SCU_EVENT_BROADCAST_RESERVED0:
+		case SCU_EVENT_BROADCAST_RESERVED1:
+		case SCU_EVENT_BROADCAST_EXPANDER:
+		case SCU_EVENT_BROADCAST_AEN:
 			/* Broadcast change received. Notify the port. */
 			if (phy_get_non_dummy_port(iphy) != NULL)
 				sci_port_broadcast_change_received(iphy->owning_port, iphy);
 			else
 				iphy->bcn_received_while_port_unassigned = true;
 			break;
+		case SCU_EVENT_BROADCAST_RESERVED3:
+		case SCU_EVENT_BROADCAST_RESERVED4:
 		default:
 			phy_event_warn(iphy, state, event_code);
 			return SCI_FAILURE_INVALID_STATE;
