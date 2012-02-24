@@ -1957,7 +1957,8 @@ static void __devinit quirk_e100_interrupt(struct pci_dev *dev)
 
 	iounmap(csr);
 }
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_ANY_ID, quirk_e100_interrupt);
+DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
+			PCI_CLASS_NETWORK_ETHERNET, 8, quirk_e100_interrupt);
 
 /*
  * The 82575 and 82598 may experience data corruption issues when transitioning
