@@ -1389,7 +1389,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 }
 
 static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
-				   bool remove_sta, bool tx)
+				   u16 stype, u16 reason, bool tx,
+				   u8 *frame_buf)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_local *local = sdata->local;
@@ -1398,6 +1399,9 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	u8 bssid[ETH_ALEN];
 
 	ASSERT_MGD_MTX(ifmgd);
+
+	if (WARN_ON_ONCE(tx && !frame_buf))
+		return;
 
 	if (WARN_ON(!ifmgd->associated))
 		return;
@@ -1432,6 +1436,19 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	}
 	mutex_unlock(&local->sta_mtx);
 
+	/* deauthenticate/disassociate now */
+	if (tx || frame_buf)
+		ieee80211_send_deauth_disassoc(sdata, bssid, stype, reason,
+					       tx, frame_buf);
+
+	/* flush out frame */
+	if (tx)
+		drv_flush(local, false);
+
+	/* remove AP and TDLS peers */
+	sta_info_flush(local, sdata);
+
+	/* finally reset all BSS / config parameters */
 	changed |= ieee80211_reset_erp_info(sdata);
 
 	ieee80211_led_assoc(local, 0);
@@ -1470,10 +1487,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	/* The BSSID (not really interesting) and HT changed */
 	changed |= BSS_CHANGED_BSSID | BSS_CHANGED_HT;
 	ieee80211_bss_info_change_notify(sdata, changed);
-
-	/* remove AP and TDLS peers */
-	if (remove_sta)
-		sta_info_flush(local, sdata);
 
 	del_timer_sync(&sdata->u.mgd.conn_mon_timer);
 	del_timer_sync(&sdata->u.mgd.bcn_mon_timer);
@@ -1684,17 +1697,15 @@ static void __ieee80211_connection_loss(struct ieee80211_sub_if_data *sdata)
 	printk(KERN_DEBUG "%s: Connection to AP %pM lost.\n",
 	       sdata->name, bssid);
 
-	ieee80211_set_disassoc(sdata, true, false);
+	ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH,
+			       WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
+			       false, frame_buf);
 	mutex_unlock(&ifmgd->mtx);
 
 	/*
 	 * must be outside lock due to cfg80211,
 	 * but that's not a problem.
 	 */
-	ieee80211_send_deauth_disassoc(sdata, bssid,
-				       IEEE80211_STYPE_DEAUTH,
-				       WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
-				       false, frame_buf);
 	cfg80211_send_deauth(sdata->dev, frame_buf, DEAUTH_DISASSOC_LEN);
 
 	mutex_lock(&local->mtx);
@@ -1902,7 +1913,8 @@ ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
 	printk(KERN_DEBUG "%s: deauthenticated from %pM (Reason: %u)\n",
 			sdata->name, bssid, reason_code);
 
-	ieee80211_set_disassoc(sdata, true, false);
+	ieee80211_set_disassoc(sdata, 0, 0, false, NULL);
+
 	mutex_lock(&sdata->local->mtx);
 	ieee80211_recalc_idle(sdata->local);
 	mutex_unlock(&sdata->local->mtx);
@@ -1932,10 +1944,12 @@ ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 	printk(KERN_DEBUG "%s: disassociated from %pM (Reason: %u)\n",
 			sdata->name, mgmt->sa, reason_code);
 
-	ieee80211_set_disassoc(sdata, true, false);
+	ieee80211_set_disassoc(sdata, 0, 0, false, NULL);
+
 	mutex_lock(&sdata->local->mtx);
 	ieee80211_recalc_idle(sdata->local);
 	mutex_unlock(&sdata->local->mtx);
+
 	return RX_MGMT_CFG80211_DISASSOC;
 }
 
@@ -2699,15 +2713,14 @@ static void ieee80211_sta_connection_lost(struct ieee80211_sub_if_data *sdata,
 	ifmgd->flags &= ~(IEEE80211_STA_CONNECTION_POLL |
 			  IEEE80211_STA_BEACON_POLL);
 
-	ieee80211_set_disassoc(sdata, true, false);
+	ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH, reason,
+			       false, frame_buf);
 	mutex_unlock(&ifmgd->mtx);
+
 	/*
 	 * must be outside lock due to cfg80211,
 	 * but that's not a problem.
 	 */
-	ieee80211_send_deauth_disassoc(sdata, bssid,
-				       IEEE80211_STYPE_DEAUTH,
-				       reason, false, frame_buf);
 	cfg80211_send_deauth(sdata->dev, frame_buf, DEAUTH_DISASSOC_LEN);
 
 	mutex_lock(&local->mtx);
@@ -3192,7 +3205,7 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	ifmgd->auth_data = auth_data;
 
 	if (ifmgd->associated)
-		ieee80211_set_disassoc(sdata, true, false);
+		ieee80211_set_disassoc(sdata, 0, 0, false, NULL);
 
 	printk(KERN_DEBUG "%s: authenticate with %pM\n",
 	       sdata->name, req->bss->bssid);
@@ -3270,7 +3283,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	mutex_lock(&ifmgd->mtx);
 
 	if (ifmgd->associated)
-		ieee80211_set_disassoc(sdata, true, false);
+		ieee80211_set_disassoc(sdata, 0, 0, false, NULL);
 
 	if (ifmgd->auth_data && !ifmgd->auth_data->done) {
 		err = -EBUSY;
@@ -3443,31 +3456,32 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 			 struct cfg80211_deauth_request *req)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	bool assoc_bss = false;
 	u8 frame_buf[DEAUTH_DISASSOC_LEN];
 
 	mutex_lock(&ifmgd->mtx);
 
-	if (ifmgd->associated &&
-	    memcmp(ifmgd->associated->bssid, req->bssid, ETH_ALEN) == 0) {
-		ieee80211_set_disassoc(sdata, false, true);
-		assoc_bss = true;
-	} else if (ifmgd->auth_data) {
+	if (ifmgd->auth_data) {
 		ieee80211_destroy_auth_data(sdata, false);
 		mutex_unlock(&ifmgd->mtx);
 		return 0;
 	}
-	mutex_unlock(&ifmgd->mtx);
 
-	printk(KERN_DEBUG "%s: deauthenticating from %pM by local choice (reason=%d)\n",
+	printk(KERN_DEBUG
+	       "%s: deauthenticating from %pM by local choice (reason=%d)\n",
 	       sdata->name, req->bssid, req->reason_code);
 
-	ieee80211_send_deauth_disassoc(sdata, req->bssid,
-				       IEEE80211_STYPE_DEAUTH,
+	if (ifmgd->associated &&
+	    memcmp(ifmgd->associated->bssid, req->bssid, ETH_ALEN) == 0)
+		ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH,
 				       req->reason_code, true, frame_buf);
+	else
+		ieee80211_send_deauth_disassoc(sdata, req->bssid,
+					       IEEE80211_STYPE_DEAUTH,
+					       req->reason_code, true,
+					       frame_buf);
+	mutex_unlock(&ifmgd->mtx);
+
 	__cfg80211_send_deauth(sdata->dev, frame_buf, DEAUTH_DISASSOC_LEN);
-	if (assoc_bss)
-		sta_info_flush(sdata->local, sdata);
 
 	mutex_lock(&sdata->local->mtx);
 	ieee80211_recalc_idle(sdata->local);
@@ -3500,16 +3514,12 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 	       sdata->name, req->bss->bssid, req->reason_code);
 
 	memcpy(bssid, req->bss->bssid, ETH_ALEN);
-	ieee80211_set_disassoc(sdata, false, !req->local_state_change);
-
+	ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DISASSOC,
+			       req->reason_code, !req->local_state_change,
+			       frame_buf);
 	mutex_unlock(&ifmgd->mtx);
 
-	ieee80211_send_deauth_disassoc(sdata, req->bss->bssid,
-				       IEEE80211_STYPE_DISASSOC,
-				       req->reason_code,
-				       !req->local_state_change, frame_buf);
 	__cfg80211_send_disassoc(sdata->dev, frame_buf, DEAUTH_DISASSOC_LEN);
-	sta_info_flush(sdata->local, sdata);
 
 	mutex_lock(&sdata->local->mtx);
 	ieee80211_recalc_idle(sdata->local);
