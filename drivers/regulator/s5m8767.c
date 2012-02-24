@@ -452,39 +452,13 @@ static int s5m8767_set_voltage_time_sel(struct regulator_dev *rdev,
 	struct s5m8767_info *s5m8767 = rdev_get_drvdata(rdev);
 	const struct s5m_voltage_desc *desc;
 	int reg_id = rdev_get_id(rdev);
-	int mask;
-	int new_val, old_val;
 
-	switch (reg_id) {
-	case S5M8767_LDO1 ... S5M8767_LDO28:
-		mask = 0x3f;
-		break;
-	case S5M8767_BUCK1 ... S5M8767_BUCK6:
-		mask = 0xff;
-		break;
-	case S5M8767_BUCK7 ... S5M8767_BUCK8:
-		return -EINVAL;
-	case S5M8767_BUCK9:
-		mask = 0xff;
-		break;
-	default:
-		return -EINVAL;
-	}
 	desc = reg_voltage_map[reg_id];
 
-	new_val = s5m8767_convert_voltage(desc, new_sel, new_sel);
-	if (new_val < 0)
-		return new_val;
-
-	old_val = s5m8767_convert_voltage(desc, old_sel, old_sel);
-	if (old_val < 0)
-		return old_val;
-
 	if (old_sel < new_sel)
-		return DIV_ROUND_UP(desc->step * (new_val - old_val),
+		return DIV_ROUND_UP(desc->step * (new_sel - old_sel),
 					s5m8767->ramp_delay);
-	else
-		return 0;
+	return 0;
 }
 
 static struct regulator_ops s5m8767_ldo_ops = {
