@@ -40,11 +40,14 @@
 #define PMBUS_IOUT_SENSORS_PER_PAGE	8	/* input, min, max, crit,
 						   lowest, highest, avg,
 						   reset */
-#define PMBUS_POUT_SENSORS_PER_PAGE	4	/* input, cap, max, crit */
+#define PMBUS_POUT_SENSORS_PER_PAGE	7	/* input, cap, max, crit,
+						 * highest, avg, reset
+						 */
 #define PMBUS_MAX_SENSORS_PER_FAN	1	/* input */
-#define PMBUS_MAX_SENSORS_PER_TEMP	8	/* input, min, max, lcrit,
-						   crit, lowest, highest,
-						   reset */
+#define PMBUS_MAX_SENSORS_PER_TEMP	9	/* input, min, max, lcrit,
+						 * crit, lowest, highest, avg,
+						 * reset
+						 */
 
 #define PMBUS_MAX_INPUT_BOOLEANS	7	/* v: min_alarm, max_alarm,
 						   lcrit_alarm, crit_alarm;
@@ -1334,6 +1337,17 @@ static const struct pmbus_limit_attr pout_limit_attrs[] = {
 		.attr = "crit",
 		.alarm = "crit_alarm",
 		.sbit = PB_POUT_OP_FAULT,
+	}, {
+		.reg = PMBUS_VIRT_READ_POUT_AVG,
+		.update = true,
+		.attr = "average",
+	}, {
+		.reg = PMBUS_VIRT_READ_POUT_MAX,
+		.update = true,
+		.attr = "input_highest",
+	}, {
+		.reg = PMBUS_VIRT_RESET_POUT_HISTORY,
+		.attr = "reset_history",
 	}
 };
 
@@ -1389,6 +1403,9 @@ static const struct pmbus_limit_attr temp_limit_attrs[] = {
 		.reg = PMBUS_VIRT_READ_TEMP_MIN,
 		.attr = "lowest",
 	}, {
+		.reg = PMBUS_VIRT_READ_TEMP_AVG,
+		.attr = "average",
+	}, {
 		.reg = PMBUS_VIRT_READ_TEMP_MAX,
 		.attr = "highest",
 	}, {
@@ -1423,6 +1440,9 @@ static const struct pmbus_limit_attr temp_limit_attrs2[] = {
 	}, {
 		.reg = PMBUS_VIRT_READ_TEMP2_MIN,
 		.attr = "lowest",
+	}, {
+		.reg = PMBUS_VIRT_READ_TEMP2_AVG,
+		.attr = "average",
 	}, {
 		.reg = PMBUS_VIRT_READ_TEMP2_MAX,
 		.attr = "highest",
