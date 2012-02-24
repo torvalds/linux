@@ -85,8 +85,6 @@ extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 /* implement the pci_ DMA API in terms of the generic device dma_ one */
 #include <asm-generic/pci-dma-compat.h>
 
-#define ARCH_HAS_GENERIC_PCI_OFFSETS
-
 static inline struct resource *
 pcibios_select_root(struct pci_dev *pdev, struct resource *res)
 {

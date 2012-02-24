@@ -6,8 +6,6 @@
 #ifndef _ASM_GENERIC_PCI_H
 #define _ASM_GENERIC_PCI_H
 
-#define ARCH_HAS_GENERIC_PCI_OFFSETS
-
 static inline struct resource *
 pcibios_select_root(struct pci_dev *pdev, struct resource *res)
 {

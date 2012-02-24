@@ -52,8 +52,6 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
  * 64Kbytes by the Host controller.
  */
 
-#define ARCH_HAS_GENERIC_PCI_OFFSETS
-
 static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
 	return PCI_IRQ_NONE;

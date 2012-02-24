@@ -114,8 +114,6 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 /* Board-specific fixup routines. */
 int pcibios_map_platform_irq(const struct pci_dev *dev, u8 slot, u8 pin);
 
-#define ARCH_HAS_GENERIC_PCI_OFFSETS
-
 #define pci_domain_nr(bus) ((struct pci_channel *)(bus)->sysdata)->index
 
 static inline int pci_proc_domain(struct pci_bus *bus)

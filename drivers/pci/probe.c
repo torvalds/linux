@@ -66,8 +66,8 @@ static bool resource_contains(struct resource *res1, struct resource *res2)
 	return res1->start <= res2->start && res1->end >= res2->end;
 }
 
-void pci_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
-			struct resource *res)
+void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
+			     struct resource *res)
 {
 	struct pci_host_bridge *bridge = pci_host_bridge(dev);
 	struct pci_host_bridge_window *window;
@@ -86,6 +86,7 @@ void pci_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
 	region->start = res->start - offset;
 	region->end = res->end - offset;
 }
+EXPORT_SYMBOL(pcibios_resource_to_bus);
 
 static bool region_contains(struct pci_bus_region *region1,
 			    struct pci_bus_region *region2)
@@ -93,8 +94,8 @@ static bool region_contains(struct pci_bus_region *region1,
 	return region1->start <= region2->start && region1->end >= region2->end;
 }
 
-void pci_bus_to_resource(struct pci_dev *dev, struct resource *res,
-			 struct pci_bus_region *region)
+void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
+			     struct pci_bus_region *region)
 {
 	struct pci_host_bridge *bridge = pci_host_bridge(dev);
 	struct pci_host_bridge_window *window;
@@ -117,22 +118,7 @@ void pci_bus_to_resource(struct pci_dev *dev, struct resource *res,
 	res->start = region->start + offset;
 	res->end = region->end + offset;
 }
-
-#ifdef ARCH_HAS_GENERIC_PCI_OFFSETS
-void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
-			     struct resource *res)
-{
-	pci_resource_to_bus(dev, region, res);
-}
-EXPORT_SYMBOL(pcibios_resource_to_bus);
-
-void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
-			     struct pci_bus_region *region)
-{
-	pci_bus_to_resource(dev, res, region);
-}
 EXPORT_SYMBOL(pcibios_bus_to_resource);
-#endif
 
 /*
  * PCI Bus Class
@@ -309,11 +295,11 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 			pci_write_config_dword(dev, pos + 4, 0);
 			region.start = 0;
 			region.end = sz64;
-			pci_bus_to_resource(dev, res, &region);
+			pcibios_bus_to_resource(dev, res, &region);
 		} else {
 			region.start = l64;
 			region.end = l64 + sz64;
-			pci_bus_to_resource(dev, res, &region);
+			pcibios_bus_to_resource(dev, res, &region);
 			dev_printk(KERN_DEBUG, &dev->dev, "reg %x: %pR\n",
 				   pos, res);
 		}
@@ -325,7 +311,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 
 		region.start = l;
 		region.end = l + sz;
-		pci_bus_to_resource(dev, res, &region);
+		pcibios_bus_to_resource(dev, res, &region);
 
 		dev_printk(KERN_DEBUG, &dev->dev, "reg %x: %pR\n", pos, res);
 	}
@@ -383,7 +369,7 @@ static void __devinit pci_read_bridge_io(struct pci_bus *child)
 		res->flags = (io_base_lo & PCI_IO_RANGE_TYPE_MASK) | IORESOURCE_IO;
 		region.start = base;
 		region.end = limit + 0xfff;
-		pci_bus_to_resource(dev, &res2, &region);
+		pcibios_bus_to_resource(dev, &res2, &region);
 		if (!res->start)
 			res->start = res2.start;
 		if (!res->end)
@@ -409,7 +395,7 @@ static void __devinit pci_read_bridge_mmio(struct pci_bus *child)
 		res->flags = (mem_base_lo & PCI_MEMORY_RANGE_TYPE_MASK) | IORESOURCE_MEM;
 		region.start = base;
 		region.end = limit + 0xfffff;
-		pci_bus_to_resource(dev, res, &region);
+		pcibios_bus_to_resource(dev, res, &region);
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
 	}
 }
@@ -458,7 +444,7 @@ static void __devinit pci_read_bridge_mmio_pref(struct pci_bus *child)
 			res->flags |= IORESOURCE_MEM_64;
 		region.start = base;
 		region.end = limit + 0xfffff;
-		pci_bus_to_resource(dev, res, &region);
+		pcibios_bus_to_resource(dev, res, &region);
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
 	}
 }
@@ -1071,24 +1057,24 @@ int pci_setup_device(struct pci_dev *dev)
 				region.end = 0x1F7;
 				res = &dev->resource[0];
 				res->flags = LEGACY_IO_RESOURCE;
-				pci_bus_to_resource(dev, res, &region);
+				pcibios_bus_to_resource(dev, res, &region);
 				region.start = 0x3F6;
 				region.end = 0x3F6;
 				res = &dev->resource[1];
 				res->flags = LEGACY_IO_RESOURCE;
-				pci_bus_to_resource(dev, res, &region);
+				pcibios_bus_to_resource(dev, res, &region);
 			}
 			if ((progif & 4) == 0) {
 				region.start = 0x170;
 				region.end = 0x177;
 				res = &dev->resource[2];
 				res->flags = LEGACY_IO_RESOURCE;
-				pci_bus_to_resource(dev, res, &region);
+				pcibios_bus_to_resource(dev, res, &region);
 				region.start = 0x376;
 				region.end = 0x376;
 				res = &dev->resource[3];
 				res->flags = LEGACY_IO_RESOURCE;
-				pci_bus_to_resource(dev, res, &region);
+				pcibios_bus_to_resource(dev, res, &region);
 			}
 		}
 		break;
