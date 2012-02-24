@@ -1718,8 +1718,12 @@ int snd_soc_poweroff(struct device *dev)
 EXPORT_SYMBOL_GPL(snd_soc_poweroff);
 
 const struct dev_pm_ops snd_soc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(snd_soc_suspend, snd_soc_resume)
+	.suspend = snd_soc_suspend,
+	.resume = snd_soc_resume,
+	.freeze = snd_soc_suspend,
+	.thaw = snd_soc_resume,
 	.poweroff = snd_soc_poweroff,
+	.restore = snd_soc_resume,
 };
 EXPORT_SYMBOL_GPL(snd_soc_pm_ops);
 
