@@ -1294,6 +1294,31 @@ static bool __init pci_realloc_enabled(void)
 	return pci_realloc_enable >= user_enabled;
 }
 
+static void __init pci_realloc_detect(void)
+{
+#if defined(CONFIG_PCI_IOV) && defined(CONFIG_PCI_REALLOC_ENABLE_AUTO)
+	struct pci_dev *dev = NULL;
+
+	if (pci_realloc_enable != undefined)
+		return;
+
+	for_each_pci_dev(dev) {
+		int i;
+
+		for (i = PCI_IOV_RESOURCES; i <= PCI_IOV_RESOURCE_END; i++) {
+			struct resource *r = &dev->resource[i];
+
+			/* Not assigned, or rejected by kernel ? */
+			if (r->flags && !r->start) {
+				pci_realloc_enable = auto_enabled;
+
+				return;
+			}
+		}
+	}
+#endif
+}
+
 /*
  * first try will not touch pci bridge res
  * second  and later try will clear small leaf bridge res
@@ -1315,6 +1340,7 @@ pci_assign_unassigned_resources(void)
 	int pci_try_num = 1;
 
 	/* don't realloc if asked to do so */
+	pci_realloc_detect();
 	if (pci_realloc_enabled()) {
 		int max_depth = pci_get_max_depth();
 
@@ -1349,6 +1375,8 @@ again:
 	if (tried_times >= pci_try_num) {
 		if (pci_realloc_enable == undefined)
 			printk(KERN_INFO "Some PCI device resources are unassigned, try booting with pci=realloc\n");
+		else if (pci_realloc_enable == auto_enabled)
+			printk(KERN_INFO "Automatically enabled pci realloc, if you have problem, try booting with pci=realloc=off\n");
 
 		free_list(&fail_head);
 		goto enable_and_dump;

@@ -31,6 +31,19 @@ config PCI_DEBUG
 
 	  When in doubt, say N.
 
+config PCI_REALLOC_ENABLE_AUTO
+	bool "Enable PCI resource re-allocation detection"
+	depends on PCI
+	help
+	  Say Y here if you want the PCI core to detect if PCI resource
+	  re-allocation needs to be enabled. You can always use pci=realloc=on
+          or pci=realloc=off to override it.  Note this feature is a no-op
+          unless PCI_IOV support is also enabled; in that case it will
+          automatically re-allocate PCI resources if SR-IOV BARs have not
+          been allocated by the BIOS.
+
+	  When in doubt, say N.
+
 config PCI_STUB
 	tristate "PCI Stub driver"
 	depends on PCI
