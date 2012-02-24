@@ -20,12 +20,9 @@
 #include <asm/cpu-info.h>
 
 /*
- * Indicate whether we respect the PCI setup left by the firmware.
- *
- * Make this long-lived  so that we know when shutting down
- * whether we probed only or not.
+ * If PCI_PROBE_ONLY in pci_flags is set, we don't change any PCI resource
+ * assignments.
  */
-int pci_probe_only;
 
 #define PCI_ASSIGN_ALL_BUSSES	1
 
@@ -92,7 +89,7 @@ static void __devinit pcibios_scanbus(struct pci_controller *hose)
 	if (!hose->iommu)
 		PCI_DMA_BUS_IS_PHYS = 1;
 
-	if (hose->get_busno && pci_probe_only)
+	if (hose->get_busno && pci_has_flag(PCI_PROBE_ONLY))
 		next_busno = (*hose->get_busno)();
 
 	pci_add_resource(&resources, hose->mem_resource);
@@ -115,7 +112,7 @@ static void __devinit pcibios_scanbus(struct pci_controller *hose)
 			need_domain_info = 1;
 		}
 
-		if (!pci_probe_only) {
+		if (!pci_has_flag(PCI_PROBE_ONLY)) {
 			pci_bus_size_bridges(bus);
 			pci_bus_assign_resources(bus);
 			pci_enable_bridges(bus);
@@ -282,7 +279,7 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 	struct list_head *ln;
 	struct pci_dev *dev = bus->self;
 
-	if (pci_probe_only && dev &&
+	if (pci_has_flag(PCI_PROBE_ONLY) && dev &&
 	    (dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
 		pci_read_bridge_bases(bus);
 		pcibios_fixup_device_resources(dev, bus);

@@ -92,6 +92,7 @@ extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 #include <asm/scatterlist.h>
 #include <linux/string.h>
 #include <asm/io.h>
+#include <asm-generic/pci-bridge.h>
 
 struct pci_dev;
 
@@ -144,8 +145,6 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 /* MSI arch hook for OCTEON */
 #define arch_setup_msi_irqs arch_setup_msi_irqs
 #endif
-
-extern int pci_probe_only;
 
 extern char * (*pcibios_plat_setup)(char *str);
 
