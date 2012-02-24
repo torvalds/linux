@@ -50,9 +50,6 @@ static int global_phb_number;		/* Global phb counter */
 /* ISA Memory physical address */
 resource_size_t isa_mem_base;
 
-/* Default PCI flags is 0 on ppc32, modified at boot on ppc64 */
-unsigned int pci_flags = 0;
-
 
 static struct dma_map_ops *pci_dma_ops = &dma_direct_ops;
 
