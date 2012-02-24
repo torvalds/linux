@@ -36,7 +36,6 @@ static bool
 mark_free(struct drm_i915_gem_object *obj, struct list_head *unwind)
 {
 	list_add(&obj->exec_list, unwind);
-	drm_gem_object_reference(&obj->base);
 	return drm_mm_scan_add_block(obj->gtt_space);
 }
 
@@ -139,7 +138,6 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 		BUG_ON(ret);
 
 		list_del_init(&obj->exec_list);
-		drm_gem_object_unreference(&obj->base);
 	}
 
 	/* We expect the caller to unpin, evict all and try again, or give up.
@@ -158,10 +156,10 @@ found:
 				       exec_list);
 		if (drm_mm_scan_remove_block(obj->gtt_space)) {
 			list_move(&obj->exec_list, &eviction_list);
+			drm_gem_object_reference(&obj->base);
 			continue;
 		}
 		list_del_init(&obj->exec_list);
-		drm_gem_object_unreference(&obj->base);
 	}
 
 	/* Unbinding will emit any required flushes */
