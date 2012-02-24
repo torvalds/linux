@@ -1789,11 +1789,11 @@ int tty_release(struct inode *inode, struct file *filp)
 	 * the slots and preserving the termios structure.
 	 */
 	release_tty(tty, idx);
-	tty_unlock();
 
 	/* Make this pty number available for reallocation */
 	if (devpts)
 		devpts_kill_index(inode, idx);
+	tty_unlock();
 	return 0;
 }
 

@@ -54,8 +54,8 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 	wake_up_interruptible(&tty->link->write_wait);
 	if (tty->driver->subtype == PTY_TYPE_MASTER) {
 		set_bit(TTY_OTHER_CLOSED, &tty->flags);
-		tty_unlock();
 		devpts_pty_kill(tty->link);
+		tty_unlock();
 		tty_vhangup(tty->link);
 		tty_lock();
 	}
@@ -613,7 +613,9 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 		return retval;
 
 	/* find a device that is not in use. */
+	tty_lock();
 	index = devpts_new_index(inode);
+	tty_unlock();
 	if (index < 0) {
 		retval = index;
 		goto err_file;
@@ -648,8 +650,8 @@ err_release:
 	tty_release(inode, filp);
 	return retval;
 out:
-	tty_unlock();
 	devpts_kill_index(inode, index);
+	tty_unlock();
 err_file:
 	tty_free_file(filp);
 	return retval;
