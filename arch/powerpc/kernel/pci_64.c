@@ -33,7 +33,7 @@
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
 
-unsigned long pci_probe_only = 1;
+unsigned long pci_probe_only = 0;
 
 /* pci_io_base -- the base address from which io bars are offsets.
  * This is the lowest I/O base address (so bar values are always positive),

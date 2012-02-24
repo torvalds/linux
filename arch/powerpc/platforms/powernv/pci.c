@@ -557,9 +557,6 @@ void __init pnv_pci_init(void)
 
 	pci_set_flags(PCI_CAN_SKIP_ISA_ALIGN);
 
-	/* We do not want to just probe */
-	pci_probe_only = 0;
-
 	/* OPAL absent, try POPAL first then RTAS detection of PHBs */
 	if (!firmware_has_feature(FW_FEATURE_OPAL)) {
 #ifdef CONFIG_PPC_POWERNV_RTAS
