@@ -1736,10 +1736,7 @@ errout_skb:
 
 int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 		       const struct nlmsghdr *nlh,
-		       int (*dump)(struct sk_buff *skb,
-				   struct netlink_callback *),
-		       int (*done)(struct netlink_callback *),
-		       u16 min_dump_alloc)
+		       struct netlink_dump_control *control)
 {
 	struct netlink_callback *cb;
 	struct sock *sk;
@@ -1750,10 +1747,10 @@ int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	if (cb == NULL)
 		return -ENOBUFS;
 
-	cb->dump = dump;
-	cb->done = done;
+	cb->dump = control->dump;
+	cb->done = control->done;
 	cb->nlh = nlh;
-	cb->min_dump_alloc = min_dump_alloc;
+	cb->min_dump_alloc = control->min_dump_alloc;
 	atomic_inc(&skb->users);
 	cb->skb = skb;
 

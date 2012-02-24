@@ -1981,8 +1981,13 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 		__rtnl_unlock();
 		rtnl = net->rtnl;
-		err = netlink_dump_start(rtnl, skb, nlh, dumpit,
-					 NULL, min_dump_alloc);
+		{
+			struct netlink_dump_control c = {
+				.dump		= dumpit,
+				.min_dump_alloc	= min_dump_alloc,
+			};
+			err = netlink_dump_start(rtnl, skb, nlh, &c);
+		}
 		rtnl_lock();
 		return err;
 	}
