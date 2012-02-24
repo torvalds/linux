@@ -266,8 +266,6 @@ extern void omap_writeb(u8 v, u32 pa);
 extern void omap_writew(u16 v, u32 pa);
 extern void omap_writel(u32 v, u32 pa);
 
-extern void __init omap_init_consistent_dma_size(void);
-
 #endif
 
 #endif
