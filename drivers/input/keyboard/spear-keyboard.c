@@ -313,12 +313,9 @@ static int spear_kbd_resume(struct device *dev)
 
 	return 0;
 }
-
-static const struct dev_pm_ops spear_kbd_pm_ops = {
-	.suspend	= spear_kbd_suspend,
-	.resume		= spear_kbd_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(spear_kbd_pm_ops, spear_kbd_suspend, spear_kbd_resume);
 
 static struct platform_driver spear_kbd_driver = {
 	.probe		= spear_kbd_probe,
@@ -326,9 +323,7 @@ static struct platform_driver spear_kbd_driver = {
 	.driver		= {
 		.name	= "keyboard",
 		.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm	= &spear_kbd_pm_ops,
-#endif
 	},
 };
 module_platform_driver(spear_kbd_driver);
