@@ -48,13 +48,6 @@ static void free_list(struct list_head *head)
 	}
 }
 
-int pci_realloc_enable = 0;
-#define pci_realloc_enabled() pci_realloc_enable
-void pci_realloc(void)
-{
-	pci_realloc_enable = 1;
-}
-
 /**
  * add_to_list() - add a new resource tracker to the list
  * @head:	Head of the list
@@ -1273,6 +1266,33 @@ static int __init pci_get_max_depth(void)
 	return depth;
 }
 
+/*
+ * -1: undefined, will auto detect later
+ *  0: disabled by user
+ *  1: disabled by auto detect
+ *  2: enabled by user
+ *  3: enabled by auto detect
+ */
+enum enable_type {
+	undefined = -1,
+	user_disabled,
+	auto_disabled,
+	user_enabled,
+	auto_enabled,
+};
+
+static enum enable_type pci_realloc_enable __initdata = undefined;
+void __init pci_realloc_get_opt(char *str)
+{
+	if (!strncmp(str, "off", 3))
+		pci_realloc_enable = user_disabled;
+	else if (!strncmp(str, "on", 2))
+		pci_realloc_enable = user_enabled;
+}
+static bool __init pci_realloc_enabled(void)
+{
+	return pci_realloc_enable >= user_enabled;
+}
 
 /*
  * first try will not touch pci bridge res
