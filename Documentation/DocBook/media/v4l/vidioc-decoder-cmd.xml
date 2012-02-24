@@ -118,7 +118,7 @@ this command, drivers and applications must set this field to zero.</entry>
 	  <row>
             <entry></entry>
             <entry></entry>
-	    <entry>__u32</entry>
+	    <entry>__s32</entry>
 	    <entry><structfield>speed</structfield></entry>
             <entry>Playback speed and direction. The playback speed is defined as
 <structfield>speed</structfield>/1000 of the normal speed. So 1000 is normal playback.
