@@ -626,8 +626,8 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 
 	/* The pin number can be retrived from the pin controller descriptor */
 	for (i = 0; i < pctldev->desc->npins; i++) {
-
 		struct pin_desc *desc;
+		bool is_hog = false;
 
 		pin = pctldev->desc->pins[i].number;
 		desc = pin_desc_get(pctldev, pin);
@@ -635,9 +635,14 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 		if (desc == NULL)
 			continue;
 
-		seq_printf(s, "pin %d (%s): %s\n", pin,
+		if (desc->owner &&
+		    !strcmp(desc->owner, pinctrl_dev_get_name(pctldev)))
+			is_hog = true;
+
+		seq_printf(s, "pin %d (%s): %s%s\n", pin,
 			   desc->name ? desc->name : "unnamed",
-			   desc->owner ? desc->owner : "UNCLAIMED");
+			   desc->owner ? desc->owner : "UNCLAIMED",
+			   is_hog ? " (HOG)" : "");
 	}
 
 	return 0;
