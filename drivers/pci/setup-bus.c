@@ -1292,7 +1292,6 @@ pci_assign_unassigned_resources(void)
 	struct pci_dev_resource *fail_res;
 	unsigned long type_mask = IORESOURCE_IO | IORESOURCE_MEM |
 				  IORESOURCE_PREFETCH;
-	unsigned long failed_type;
 	int pci_try_num = 1;
 
 	/* don't realloc if asked to do so */
@@ -1327,16 +1326,7 @@ again:
 	if (list_empty(&fail_head))
 		goto enable_and_dump;
 
-	failed_type = 0;
-	list_for_each_entry(fail_res, &fail_head, list)
-		failed_type |= fail_res->flags;
-
-	/*
-	 * io port are tight, don't try extra
-	 * or if reach the limit, don't want to try more
-	 */
-	failed_type &= type_mask;
-	if ((failed_type == IORESOURCE_IO) || (tried_times >= pci_try_num)) {
+	if (tried_times >= pci_try_num) {
 		free_list(&fail_head);
 		goto enable_and_dump;
 	}
