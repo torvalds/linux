@@ -3242,6 +3242,44 @@ static int create_video_urbs(struct easycap *peasycap)
 	return 0;
 }
 
+static void config_easycap(struct easycap *peasycap,
+			   u8 bInterfaceNumber,
+			   u8 bInterfaceClass,
+			   u8 bInterfaceSubClass)
+{
+	if ((USB_CLASS_VIDEO == bInterfaceClass) ||
+	    (USB_CLASS_VENDOR_SPEC == bInterfaceClass)) {
+		if (-1 == peasycap->video_interface) {
+			peasycap->video_interface = bInterfaceNumber;
+			JOM(4, "setting peasycap->video_interface=%i\n",
+				peasycap->video_interface);
+		} else {
+			if (peasycap->video_interface != bInterfaceNumber) {
+				SAM("ERROR: attempting to reset "
+				    "peasycap->video_interface\n");
+				SAM("...... continuing with "
+				    "%i=peasycap->video_interface\n",
+				    peasycap->video_interface);
+			}
+		}
+	} else if ((USB_CLASS_AUDIO == bInterfaceClass) &&
+		   (USB_SUBCLASS_AUDIOSTREAMING == bInterfaceSubClass)) {
+		if (-1 == peasycap->audio_interface) {
+			peasycap->audio_interface = bInterfaceNumber;
+			JOM(4, "setting peasycap->audio_interface=%i\n",
+				peasycap->audio_interface);
+		} else {
+			if (peasycap->audio_interface != bInterfaceNumber) {
+				SAM("ERROR: attempting to reset "
+				    "peasycap->audio_interface\n");
+				SAM("...... continuing with "
+				    "%i=peasycap->audio_interface\n",
+				    peasycap->audio_interface);
+			}
+		}
+	}
+}
+
 static const struct v4l2_file_operations v4l2_fops = {
 	.owner		= THIS_MODULE,
 	.open		= easycap_open_noinode,
@@ -3340,37 +3378,9 @@ static int easycap_usb_probe(struct usb_interface *intf,
 			return -ENODEV;
 	}
 
-	if ((USB_CLASS_VIDEO == bInterfaceClass) ||
-	    (USB_CLASS_VENDOR_SPEC == bInterfaceClass)) {
-		if (-1 == peasycap->video_interface) {
-			peasycap->video_interface = bInterfaceNumber;
-			JOM(4, "setting peasycap->video_interface=%i\n",
-							peasycap->video_interface);
-		} else {
-			if (peasycap->video_interface != bInterfaceNumber) {
-				SAM("ERROR: attempting to reset "
-						"peasycap->video_interface\n");
-				SAM("...... continuing with "
-						"%i=peasycap->video_interface\n",
-						peasycap->video_interface);
-			}
-		}
-	} else if ((USB_CLASS_AUDIO == bInterfaceClass) &&
-		   (USB_SUBCLASS_AUDIOSTREAMING == bInterfaceSubClass)) {
-		if (-1 == peasycap->audio_interface) {
-			peasycap->audio_interface = bInterfaceNumber;
-			JOM(4, "setting peasycap->audio_interface=%i\n",
-							 peasycap->audio_interface);
-		} else {
-			if (peasycap->audio_interface != bInterfaceNumber) {
-				SAM("ERROR: attempting to reset "
-						"peasycap->audio_interface\n");
-				SAM("...... continuing with "
-						"%i=peasycap->audio_interface\n",
-						peasycap->audio_interface);
-			}
-		}
-	}
+	config_easycap(peasycap, bInterfaceNumber,
+				 bInterfaceClass,
+				 bInterfaceSubClass);
 
 	/*
 	 * Investigate all altsettings. This is done in detail
