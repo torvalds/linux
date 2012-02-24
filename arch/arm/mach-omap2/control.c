@@ -15,9 +15,10 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 
-#include "common.h"
 #include <plat/sdrc.h>
 
+#include "iomap.h"
+#include "common.h"
 #include "cm-regbits-34xx.h"
 #include "prm-regbits-34xx.h"
 #include "prm2xxx_3xxx.h"

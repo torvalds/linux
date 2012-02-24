@@ -19,6 +19,7 @@
 
 #include <plat/clkdev_omap.h>
 
+#include "iomap.h"
 #include "clock.h"
 #include "clock2xxx.h"
 #include "opp2xxx.h"

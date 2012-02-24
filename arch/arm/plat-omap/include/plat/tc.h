@@ -89,7 +89,8 @@
  * from NOR flash (using external chipselect 3) rather than mask ROM,
  * which uses BM to interchange the physical CS0 and CS3 addresses.
  */
-static inline u32 omap_cs0_phys(void)
+#ifdef CONFIG_ARCH_OMAP1
+static inline u32 omap_cs0m_phys(void)
 {
 	return (omap_readl(EMIFS_CONFIG) & OMAP_EMIFS_CONFIG_BM)
 			?  OMAP_CS3_PHYS : 0;
@@ -100,6 +101,7 @@ static inline u32 omap_cs3_phys(void)
 	return (omap_readl(EMIFS_CONFIG) & OMAP_EMIFS_CONFIG_BM)
 			? 0 : OMAP_CS3_PHYS;
 }
+#endif
 
 #endif	/* __ASSEMBLER__ */
 

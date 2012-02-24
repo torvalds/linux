@@ -21,6 +21,8 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 
+#include "iomap.h"
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alexander Shishkin");
 

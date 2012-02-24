@@ -23,10 +23,12 @@
  * MA 02111-1307 USA
  */
 #include <linux/linkage.h>
-#include <asm/assembler.h>
-#include <plat/sram.h>
-#include <mach/io.h>
 
+#include <asm/assembler.h>
+
+#include <plat/sram.h>
+
+#include "iomap.h"
 #include "cm2xxx_3xxx.h"
 #include "prm2xxx_3xxx.h"
 #include "sdrc.h"

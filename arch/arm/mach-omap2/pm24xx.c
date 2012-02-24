@@ -35,12 +35,14 @@
 #include <asm/mach/irq.h>
 #include <asm/mach-types.h>
 
-#include <mach/irqs.h>
 #include <plat/clock.h>
 #include <plat/sram.h>
 #include <plat/dma.h>
 #include <plat/board.h>
 
+#include <mach/irqs.h>
+
+#include "iomap.h"
 #include "common.h"
 #include "prm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"
@@ -49,7 +51,6 @@
 #include "sdrc.h"
 #include "pm.h"
 #include "control.h"
-
 #include "powerdomain.h"
 #include "clockdomain.h"
 

@@ -18,8 +18,8 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
+#include "iomap.h"
 #include "common.h"
-
 #include "cm.h"
 #include "cm2xxx_3xxx.h"
 #include "cm-regbits-24xx.h"
