@@ -35,10 +35,6 @@ static inline int efx_nic_rev(struct efx_nic *efx)
 
 extern u32 efx_nic_fpga_ver(struct efx_nic *efx);
 
-static inline bool efx_nic_has_mc(struct efx_nic *efx)
-{
-	return efx_nic_rev(efx) >= EFX_REV_SIENA_A0;
-}
 /* NIC has two interlinked PCI functions for the same port. */
 static inline bool efx_nic_is_dual_func(struct efx_nic *efx)
 {
