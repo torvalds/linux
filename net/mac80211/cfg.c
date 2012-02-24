@@ -1595,19 +1595,15 @@ static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ieee80211_deauth(struct wiphy *wiphy, struct net_device *dev,
-			    struct cfg80211_deauth_request *req,
-			    void *cookie)
+			    struct cfg80211_deauth_request *req)
 {
-	return ieee80211_mgd_deauth(IEEE80211_DEV_TO_SUB_IF(dev),
-				    req, cookie);
+	return ieee80211_mgd_deauth(IEEE80211_DEV_TO_SUB_IF(dev), req);
 }
 
 static int ieee80211_disassoc(struct wiphy *wiphy, struct net_device *dev,
-			      struct cfg80211_disassoc_request *req,
-			      void *cookie)
+			      struct cfg80211_disassoc_request *req)
 {
-	return ieee80211_mgd_disassoc(IEEE80211_DEV_TO_SUB_IF(dev),
-				      req, cookie);
+	return ieee80211_mgd_disassoc(IEEE80211_DEV_TO_SUB_IF(dev), req);
 }
 
 static int ieee80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
