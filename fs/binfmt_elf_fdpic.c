@@ -335,8 +335,6 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
 	current->mm->context.exec_fdpic_loadmap = 0;
 	current->mm->context.interp_fdpic_loadmap = 0;
 
-	current->flags &= ~PF_FORKNOEXEC;
-
 #ifdef CONFIG_MMU
 	elf_fdpic_arch_lay_out_mm(&exec_params,
 				  &interp_params,
@@ -414,7 +412,6 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
 #endif
 
 	install_exec_creds(bprm);
-	current->flags &= ~PF_FORKNOEXEC;
 	if (create_elf_fdpic_tables(bprm, current->mm,
 				    &exec_params, &interp_params) < 0)
 		goto error_kill;

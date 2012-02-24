@@ -267,7 +267,6 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	}
 
 	install_exec_creds(bprm);
- 	current->flags &= ~PF_FORKNOEXEC;
 
 	if (N_MAGIC(ex) == OMAGIC) {
 		unsigned long text_addr, map_size;
