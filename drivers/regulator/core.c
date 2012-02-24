@@ -1836,8 +1836,12 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 			if (ret < 0)
 				return ret;
 			old_selector = ret;
-			delay = rdev->desc->ops->set_voltage_time_sel(rdev,
+			ret = rdev->desc->ops->set_voltage_time_sel(rdev,
 						old_selector, selector);
+			if (ret < 0)
+				rdev_warn(rdev, "set_voltage_time_sel() failed: %d\n", ret);
+			else
+				delay = ret;
 		}
 
 		if (best_val != INT_MAX) {
