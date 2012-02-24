@@ -34,7 +34,7 @@
 
 
 
-static int dbg_thresd = 0;
+static int dbg_thresd =1;
 #define DBG(x...) do { if(unlikely(dbg_thresd)) printk(KERN_INFO x); } while (0)
 
 
@@ -246,7 +246,7 @@ static int win1_blank(int blank_mode, struct rk30_lcdc_device *lcdc_dev)
 	//mcu_refresh(inf);
     return 0;
 }
-static int rk30_lcdc_blank(struct rk_fb_device_driver*fb_drv,int layer_id,int blank_mode)
+static int rk30_lcdc_blank(struct rk_lcdc_device_driver*fb_drv,int layer_id,int blank_mode)
 {
 	struct rk30_lcdc_device * lcdc_dev = NULL;
 	struct lcdc_info * info = platform_get_drvdata(g_lcdc_pdev);
@@ -316,25 +316,28 @@ static  int win0_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
     LcdWrReg(lcdc_dev, WIN0_DSP_ST, v_DSP_STX(xpos) | v_DSP_STY(ypos));
     LcdWrReg(lcdc_dev, WIN0_DSP_INFO, v_DSP_WIDTH(par->xsize) | v_DSP_HEIGHT(par->ysize));
     LcdWrReg(lcdc_dev, WIN0_SCL_FACTOR_YRGB, v_X_SCL_FACTOR(ScaleYrgbX) | v_Y_SCL_FACTOR(ScaleYrgbY));
-	LcdWrReg(lcdc_dev, WIN0_SCL_FACTOR_CBR,  v_X_SCL_FACTOR(ScaleCbrX) | v_Y_SCL_FACTOR(ScaleCbrY));
+    LcdWrReg(lcdc_dev, WIN0_SCL_FACTOR_CBR,  v_X_SCL_FACTOR(ScaleCbrX) | v_Y_SCL_FACTOR(ScaleCbrY));
     switch(par->format)
     {
-    	case RGB888:  //rgb888
-    	     LcdMskReg(lcdc_dev, WIN0_VIR, m_WORDLO, v_RGB888_VIRWIDTH(xvir));
-       	     break;
-    	case RGB565:  //rgb565
-    	     LcdMskReg(lcdc_dev, WIN0_VIR, m_WORDLO, v_YUV_VIRWIDTH(xvir));
-             break;
-    	case YUV420:   
-    	     LcdMskReg(lcdc_dev, WIN0_VIR, m_WORDLO,v_RGB565_VIRWIDTH(xvir));
-             break;
-    	default:
-	     	LcdMskReg(lcdc_dev, WIN0_VIR, m_WORDLO, v_RGB888_VIRWIDTH(xvir));
-	     break;
+        case ARGB888:
+            LcdMskReg(lcdc_dev, WIN0_VIR, m_WORDLO, v_ARGB888_VIRWIDTH(xvir));
+            break;
+        case RGB888:  //rgb888
+            LcdMskReg(lcdc_dev, WIN0_VIR, m_WORDLO, v_RGB888_VIRWIDTH(xvir));
+            break;
+        case RGB565:  //rgb565
+            LcdMskReg(lcdc_dev, WIN0_VIR, m_WORDLO, v_RGB565_VIRWIDTH(xvir));
+            break;
+        case YUV422:
+        case YUV420:   
+            LcdMskReg(lcdc_dev, WIN0_VIR, m_WORDLO,v_YUV_VIRWIDTH(xvir));
+            break;
+        default:
+            LcdMskReg(lcdc_dev, WIN0_VIR, m_WORDLO, v_RGB888_VIRWIDTH(xvir));
+            break;
     }
 
     LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
-	printk(KERN_INFO "%s>>>>done!\n",__func__);
 	
     return 0;
 
@@ -389,16 +392,20 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
     LcdMskReg(lcdc_dev, WIN1_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR, v_COLORKEY_EN(1) | v_KEYCOLOR(0));
 	switch(par->format)
     {
-    	case RGB888:  //rgb888
-    	     LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO, v_RGB888_VIRWIDTH(xvir));
-       	     break;
-    	case RGB565:  //rgb565
-    	     LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO, v_YUV_VIRWIDTH(xvir));
-             break;
-    	case YUV420:   
-    	     LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO,v_RGB565_VIRWIDTH(xvir));
-             break;
-    	default:
+	case ARGB888:
+		LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO, v_ARGB888_VIRWIDTH(xvir));
+		break;
+	case RGB888:  //rgb888
+		LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO, v_RGB888_VIRWIDTH(xvir));
+		break;
+	case RGB565:  //rgb565
+		LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO, v_RGB565_VIRWIDTH(xvir));
+		break;
+	case YUV422:
+	case YUV420:   
+		LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO,v_YUV_VIRWIDTH(xvir));
+		break;
+	default:
 	     	LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO, v_RGB888_VIRWIDTH(xvir));
 	     	break;
     }
@@ -409,7 +416,7 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
     return 0;
 }
 
-static int rk30_lcdc_set_par(struct rk_fb_device_driver *fb_drv,int layer_id)
+static int rk30_lcdc_set_par(struct rk_lcdc_device_driver *fb_drv,int layer_id)
 {
 	struct rk30_lcdc_device *lcdc_dev=NULL;
 	struct layer_par *par = &fb_drv->layer_par[0];
@@ -440,7 +447,7 @@ static int rk30_lcdc_set_par(struct rk_fb_device_driver *fb_drv,int layer_id)
 	return 0;
 }
  
-int rk30_lcdc_pan(struct rk_fb_device_driver * dev_drv,int layer_id)
+int rk30_lcdc_pan(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 {
 	
     return 0;
@@ -488,7 +495,7 @@ static struct layer_par lcdc1_layer[] = {
 	},
 };
 
-static struct rk_fb_device_driver lcdc0_driver = {
+static struct rk_lcdc_device_driver lcdc0_driver = {
 	.name			= "lcdc0",
 	.layer_par		= lcdc0_layer,
 	.num_layer		= ARRAY_SIZE(lcdc0_layer),
@@ -499,7 +506,7 @@ static struct rk_fb_device_driver lcdc0_driver = {
 	.blank         = rk30_lcdc_blank,
 	.pan           = rk30_lcdc_pan,
 };
-static struct rk_fb_device_driver lcdc1_driver = {
+static struct rk_lcdc_device_driver lcdc1_driver = {
 	.name			= "lcdc1",
 	.layer_par		= lcdc1_layer,
 	.num_layer		= ARRAY_SIZE(lcdc1_layer),

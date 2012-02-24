@@ -18,22 +18,23 @@
 
 #define RK30_MAX_LCDC_SUPPORT	4
 #define RK30_MAX_LAYER_SUPPORT	4
+#define RK_MAX_FB_SUPPORT     4
 
 
 /********************************************************************
-**                            宏定义                                *
+**                          display output format                        *
 ********************************************************************/
-/* 输往屏的数据格式 */
+/* */
 #define OUT_P888            0
-#define OUT_P666            1    //666的屏, 接DATA0-17
-#define OUT_P565            2    //565的屏, 接DATA0-15
+#define OUT_P666            1    //
+#define OUT_P565            2    //
 #define OUT_S888x           4
 #define OUT_CCIR656         6
 #define OUT_S888            8
 #define OUT_S888DUMY        12
-#define OUT_P16BPP4         24  //模拟方式,控制器并不支持
-#define OUT_D888_P666       0x21  //666的屏, 接DATA2-7, DATA10-15, DATA18-23
-#define OUT_D888_P565       0x22  //565的屏, 接DATA3-7, DATA10-15, DATA19-23
+#define OUT_P16BPP4         24  //
+#define OUT_D888_P666       0x21  //
+#define OUT_D888_P565       0x22  //
 
 enum data_format{
 	ARGB888 = 0,
@@ -81,7 +82,7 @@ struct layer_par {
 	int id;
 };
 
-struct rk_fb_device_driver{
+struct rk_lcdc_device_driver{
 	const char *name;
 	int id;
 	struct device  *dev;
@@ -93,21 +94,20 @@ struct rk_fb_device_driver{
 	int (*ioctl)(unsigned int cmd, unsigned long arg,struct layer_par *layer_par);
 	int (*suspend)(struct layer_par *layer_par);
 	int (*resume)(struct layer_par *layer_par);
-	int (*blank)(struct rk_fb_device_driver *rk_fb_dev_drv,int layer_id,int blank_mode);
-	int (*set_par)(struct rk_fb_device_driver *rk_fb_dev_drv,int layer_id);
-	int (*pan)(struct rk_fb_device_driver *rk_fb_dev_drv,int layer_id);
+	int (*blank)(struct rk_lcdc_device_driver *rk_fb_dev_drv,int layer_id,int blank_mode);
+	int (*set_par)(struct rk_lcdc_device_driver *rk_fb_dev_drv,int layer_id);
+	int (*pan)(struct rk_lcdc_device_driver *rk_fb_dev_drv,int layer_id);
 	
 };
 
 struct rk_fb_inf {
-    struct fb_info *fb1;
-    struct fb_info *fb0;
-
-	struct rk_fb_device_driver *rk_lcdc_device[RK30_MAX_LCDC_SUPPORT];
-	
-	int num_lcdc;
+    struct fb_info *fb[RK_MAX_FB_SUPPORT];
+    int num_fb;
+    
+    struct rk_lcdc_device_driver *rk_lcdc_device[RK30_MAX_LCDC_SUPPORT];
+    int num_lcdc;
 };
-extern int rk_fb_register(struct rk_fb_device_driver *fb_device_driver);
-extern int rk_fb_unregister(struct rk_fb_device_driver *fb_device_driver);
+extern int rk_fb_register(struct rk_lcdc_device_driver *fb_device_driver);
+extern int rk_fb_unregister(struct rk_lcdc_device_driver *fb_device_driver);
 
 #endif

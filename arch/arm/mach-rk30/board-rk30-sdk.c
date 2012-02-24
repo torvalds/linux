@@ -300,6 +300,18 @@ static struct resource resource_fb[] = {
 		.end   = 0,//RK30_FB0_MEM_SIZE - 1,
 		.flags = IORESOURCE_MEM,
 	},
+	[1] = {
+		.name  = "ipp buf",  //for rotate
+		.start = 0,
+		.end   = 0,//RK30_FB0_MEM_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[2] = {
+		.name  = "fb2 buf",
+		.start = 0,
+		.end   = 0,//RK30_FB0_MEM_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
 };
 
 static struct platform_device device_fb = {
@@ -387,6 +399,10 @@ static void __init rk30_reserve(void)
 #ifdef CONFIG_FB_ROCKCHIP
 	resource_fb[0].start = board_mem_reserve_add("fb0",RK30_FB0_MEM_SIZE);
 	resource_fb[0].end = resource_fb[0].start + RK30_FB0_MEM_SIZE - 1;
+	resource_fb[1].start = board_mem_reserve_add("ipp buf",RK30_FB0_MEM_SIZE);
+	resource_fb[1].end = resource_fb[1].start + RK30_FB0_MEM_SIZE - 1;
+	resource_fb[2].start = board_mem_reserve_add("fb2",RK30_FB0_MEM_SIZE);
+	resource_fb[2].end = resource_fb[2].start + RK30_FB0_MEM_SIZE - 1;	
 #endif
 	board_mem_reserved();
 }

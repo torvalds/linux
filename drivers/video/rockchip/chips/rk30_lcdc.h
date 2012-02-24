@@ -361,10 +361,11 @@ typedef volatile struct tagLCDC_REG
 #define v_VASP(x) ((x)<<16)
 
 
-
+//LCDC_WINx_VIR ,x is number of words of win0 virtual width
+#define v_ARGB888_VIRWIDTH(x) (x)
 #define v_RGB888_VIRWIDTH(x) (((x*3)>>2)+((x)%3))
-#define v_RGB565_VIRWIDTH(x) ((x)>>1)
-#define v_YUV_VIRWIDTH(x)    ((x)>>1)
+#define v_RGB565_VIRWIDTH(x) (((x)>>1) + ((x%2)?1:0))
+#define v_YUV_VIRWIDTH(x)    (((x)>>2) +((x%4)?1:0))
 
 #define m_ACTWIDTH       (0xffff<<0)
 #define m_ACTHEIGHT      (0xffff<<16)
@@ -444,7 +445,7 @@ typedef volatile struct tagLCDC_REG
 
 #define CalScale(x, y)	             (((u32)x*0x1000)/y)
 struct rk30_lcdc_device{
-	struct rk_fb_device_driver *driver;
+	struct rk_lcdc_device_driver *driver;
 	/* LCDC reg base address and backup reg */
     LCDC_REG *preg;
     LCDC_REG regbak;

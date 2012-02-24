@@ -73,10 +73,21 @@ static struct rk_fb_rgb def_rgb_16 = {
      transp: { offset: 0,  length: 0, },
 };
 
+int fb0_open(struct fb_info *info, int user)
+{
+  return 0; 
+}
+
+int fb0_release(struct fb_info *info, int user)
+{
+  
+    return 0;
+}
+
 static int fb0_blank(int blank_mode, struct fb_info *info)
 {
 	struct rk_fb_inf *fb_inf = platform_get_drvdata(g_fb_pdev);
-	struct rk_fb_device_driver *rk_fb_dev_drv = fb_inf->rk_lcdc_device[0];
+	struct rk_lcdc_device_driver *rk_fb_dev_drv = fb_inf->rk_lcdc_device[0];
 	 fb_inf->rk_lcdc_device[0]->blank(rk_fb_dev_drv,0,blank_mode);
 
     return 0;
@@ -137,7 +148,7 @@ static int fb0_set_par(struct fb_info *info)
 	struct rk_fb_inf *inf =  platform_get_drvdata(g_fb_pdev);
 	struct fb_var_screeninfo *var = &info->var;
 	struct fb_fix_screeninfo *fix = &info->fix;
-	struct rk_fb_device_driver *rk_fb_dev_drv = inf->rk_lcdc_device[0];
+	struct rk_lcdc_device_driver *rk_fb_dev_drv = inf->rk_lcdc_device[0];
 	struct layer_par *par = &rk_fb_dev_drv->layer_par[0];
 	rk_screen *screen = &rk_fb_dev_drv->screen;
 	
@@ -243,6 +254,86 @@ int fb1_release(struct fb_info *info, int user)
   
     return 0;
 }
+static int fb2_blank(int blank_mode, struct fb_info *info)
+{
+	struct rk_fb_inf *fb_inf = platform_get_drvdata(g_fb_pdev);
+   return 0;
+}
+
+static int fb2_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
+{
+    return 0;
+}
+
+static int fb2_set_par(struct fb_info *info)
+{
+ struct rk_fb_inf *fb_inf = platform_get_drvdata(g_fb_pdev);
+   return 0;
+    return 0;
+}
+
+static int fb2_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
+{
+	struct rk_fb_inf *fb_inf = platform_get_drvdata(g_fb_pdev);
+    return 0;
+}
+
+static int fb2_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
+{
+  struct rk_fb_inf *fb_inf = platform_get_drvdata(g_fb_pdev);
+    return 0;
+}
+int fb2_open(struct fb_info *info, int user)
+{
+  return 0; 
+}
+
+int fb2_release(struct fb_info *info, int user)
+{
+  
+    return 0;
+}
+
+static int fb3_blank(int blank_mode, struct fb_info *info)
+{
+	struct rk_fb_inf *fb_inf = platform_get_drvdata(g_fb_pdev);
+   return 0;
+}
+
+static int fb3_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
+{
+    return 0;
+}
+
+static int fb3_set_par(struct fb_info *info)
+{
+ struct rk_fb_inf *fb_inf = platform_get_drvdata(g_fb_pdev);
+   return 0;
+ 
+}
+
+static int fb3_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
+{
+	struct rk_fb_inf *fb_inf = platform_get_drvdata(g_fb_pdev);
+    return 0;
+}
+
+static int fb3_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
+{
+  struct rk_fb_inf *fb_inf = platform_get_drvdata(g_fb_pdev);
+    return 0;
+}
+int fb3_open(struct fb_info *info, int user)
+{
+  return 0; 
+}
+
+int fb3_release(struct fb_info *info, int user)
+{
+  
+    return 0;
+}
+
 
 static inline unsigned int chan_to_field(unsigned int chan,
 					 struct fb_bitfield *bf)
@@ -277,45 +368,153 @@ static int fb_setcolreg(unsigned regno,
 	return 0;
 }
 
-static struct fb_ops fb1_ops = {
-	.owner		= THIS_MODULE,
-	.fb_open    = fb1_open,
-	.fb_release = fb1_release,
-	.fb_check_var	= fb1_check_var,
-	.fb_set_par	= fb1_set_par,
-	.fb_blank	= fb1_blank,
-    .fb_pan_display = fb1_pan_display,
-    .fb_ioctl = fb1_ioctl,
-	.fb_setcolreg	= fb_setcolreg,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
+static struct fb_ops fb_ops[] = {
+	[0]={
+		.owner		= THIS_MODULE,
+		.fb_open    = fb0_open,
+		.fb_release = fb0_release,
+		.fb_check_var	= fb0_check_var,
+		.fb_set_par	= fb0_set_par,
+		.fb_blank	= fb0_blank,
+		.fb_pan_display = fb0_pan_display,
+		.fb_ioctl = fb0_ioctl,
+		.fb_setcolreg	= fb_setcolreg,
+		.fb_fillrect	= cfb_fillrect,
+		.fb_copyarea	= cfb_copyarea,
+		.fb_imageblit	= cfb_imageblit,
+	},
+	[1]={
+		.owner		= THIS_MODULE,
+		.fb_open    = fb1_open,
+		.fb_release = fb1_release,
+		.fb_check_var	= fb1_check_var,
+		.fb_set_par	= fb1_set_par,
+		.fb_blank	= fb1_blank,
+		.fb_pan_display = fb1_pan_display,
+		.fb_ioctl = fb1_ioctl,
+		.fb_setcolreg	= fb_setcolreg,
+		.fb_fillrect	= cfb_fillrect,
+		.fb_copyarea	= cfb_copyarea,
+		.fb_imageblit	= cfb_imageblit,	
+	},
+	[2]={
+		.owner		= THIS_MODULE,
+		.fb_open    = fb2_open,
+		.fb_release = fb2_release,
+		.fb_check_var	= fb2_check_var,
+		.fb_set_par	= fb2_set_par,
+		.fb_blank	= fb2_blank,
+		.fb_pan_display = fb2_pan_display,
+		.fb_ioctl = fb2_ioctl,
+		.fb_setcolreg	= fb_setcolreg,
+		.fb_fillrect	= cfb_fillrect,
+		.fb_copyarea	= cfb_copyarea,
+		.fb_imageblit	= cfb_imageblit,
+	},
+	[3]={
+		.owner		= THIS_MODULE,
+		.fb_open    = fb3_open,
+		.fb_release = fb3_release,
+		.fb_check_var	= fb3_check_var,
+		.fb_set_par	= fb3_set_par,
+		.fb_blank	= fb3_blank,
+		.fb_pan_display = fb3_pan_display,
+		.fb_ioctl = fb3_ioctl,
+		.fb_setcolreg	= fb_setcolreg,
+		.fb_fillrect	= cfb_fillrect,
+		.fb_copyarea	= cfb_copyarea,
+		.fb_imageblit	= cfb_imageblit,
+	}
 };
 
-static struct fb_ops fb0_ops = {
-	.owner		= THIS_MODULE,
-	.fb_check_var	= fb0_check_var,
-	.fb_set_par = fb0_set_par,
-	.fb_blank   = fb0_blank,
-	.fb_pan_display = fb0_pan_display,
-    .fb_ioctl = fb0_ioctl,
-	.fb_setcolreg	= fb_setcolreg,
-	.fb_fillrect    = cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
-	//.fb_cursor      = rk29_set_cursor,
+
+
+static struct fb_var_screeninfo def_var = {
+    .red    = {11,5,0},//def_rgb_16.red,
+    .green  = {5,6,0},//def_rgb_16.green,
+    .blue   = {0,5,0},
+    .transp = {0,0,0},	
+    .nonstd      = 0, //win1 format & ypos & xpos (ypos<<20 + xpos<<8 + format)
+    .grayscale   = 0,  //win1 transprent mode & value(mode<<8 + value)
+    .activate    = FB_ACTIVATE_NOW,
+    .accel_flags = 0,
+    .vmode       = FB_VMODE_NONINTERLACED,
 };
-int rk_fb_register(struct rk_fb_device_driver *fb_device_driver)
+
+static struct fb_fix_screeninfo def_fix = {
+	.type		 = FB_TYPE_PACKED_PIXELS,
+	.type_aux	 = 0,
+	.xpanstep	 = 1,
+	.ypanstep	 = 1,
+	.ywrapstep	 = 0,
+	.accel		 = FB_ACCEL_NONE,
+	.visual 	 = FB_VISUAL_TRUECOLOR,
+		
+};
+
+static int request_fb_buffer(struct fb_info *fbi,int fb_id)
+{
+	struct resource *res;
+	int ret = 0;
+	switch(fb_id)
+	{
+		case 0:
+			res = platform_get_resource_byname(g_fb_pdev, IORESOURCE_MEM, "fb0 buf");
+			if (res == NULL)
+			{
+        		dev_err(&g_fb_pdev->dev, "failed to get win0 memory \n");
+        		ret = -ENOENT;
+    		}
+    		fbi->fix.smem_start = res->start;
+    		fbi->fix.smem_len = res->end - res->start + 1;
+    		fbi->screen_base = ioremap(res->start, fbi->fix.smem_len);
+    		memset(fbi->screen_base, 0, fbi->fix.smem_len);
+			break;
+		#ifdef CONFIG_FB_WORK_IPP
+		case 1:
+       		/* alloc ipp buf for rotate */
+    		res = platform_get_resource_byname(g_fb_pdev, IORESOURCE_MEM, "ipp buf");
+			if (res == NULL)
+    		{
+        		dev_err(&g_fb_pdev->dev, "failed to get win1 ipp memory \n");
+        		ret = -ENOENT;
+        	}
+    		fbi->fix.mmio_start = res->start;
+    		fbi->fix.mmio_len = res->end - res->start + 1;
+			break;
+		#endif
+		case 2:
+			res = platform_get_resource_byname(g_fb_pdev, IORESOURCE_MEM, "fb2 buf");
+			if (res == NULL)
+			{
+        		dev_err(&g_fb_pdev->dev, "failed to get win0 memory \n");
+        		ret = -ENOENT;
+    		}
+    		fbi->fix.smem_start = res->start;
+    		fbi->fix.smem_len = res->end - res->start + 1;
+    		fbi->screen_base = ioremap(res->start, fbi->fix.smem_len);
+    		memset(fbi->screen_base, 0, fbi->fix.smem_len);
+		    break;
+		default:
+			break;
+			
+	}
+	return ret;
+}
+int rk_fb_register(struct rk_lcdc_device_driver *dev_drv)
 {
 	struct rk_fb_inf *fb_inf = platform_get_drvdata(g_fb_pdev);
-	int i=0;
-	if(NULL==fb_device_driver){
+	struct fb_info *fbi;
+	int i=0,ret = 0;
+	int lcdc_id = 0;
+	int win0_index = 0;
+	if(NULL==dev_drv){
 		printk("rk_fb_register lcdc register fail");
 		return -ENOENT;
-		}
+	}
 	for(i=0;i<RK30_MAX_LCDC_SUPPORT;i++){
 		if(NULL==fb_inf->rk_lcdc_device[i]){
-		fb_inf->rk_lcdc_device[i] = fb_device_driver;
+		fb_inf->rk_lcdc_device[i] = dev_drv;
 		fb_inf->rk_lcdc_device[i]->id = i;
 		fb_inf->num_lcdc++;
 		break;
@@ -325,101 +524,58 @@ int rk_fb_register(struct rk_fb_device_driver *fb_device_driver)
 		printk("rk_fb_register lcdc out of support %d",i);
 		return -ENOENT;
 	}
-	printk("%s>>>%s registered\n",__func__,fb_inf->rk_lcdc_device[i]->name);
-	/************fb0 set ***********/
-	fb_inf->fb0->fix.type        = FB_TYPE_PACKED_PIXELS;
-    fb_inf->fb0->fix.type_aux    = 0;
-    fb_inf->fb0->fix.xpanstep    = 1;
-    fb_inf->fb0->fix.ypanstep    = 1;
-    fb_inf->fb0->fix.ywrapstep   = 0;
-    fb_inf->fb0->fix.accel       = FB_ACCEL_NONE;
-    fb_inf->fb0->fix.visual      = FB_VISUAL_TRUECOLOR;
-
-    fb_inf->fb0->var.xres = fb_inf->rk_lcdc_device[0]->screen.x_res;
-    fb_inf->fb0->var.yres = fb_inf->rk_lcdc_device[0]->screen.y_res;
-    fb_inf->fb0->var.bits_per_pixel = 16;
-    //fb_inf->fb0_color_deepth = 0;
-    fb_inf->fb0->var.xres_virtual = fb_inf->rk_lcdc_device[0]->screen.x_res;
-    fb_inf->fb0->var.yres_virtual = fb_inf->rk_lcdc_device[0]->screen.y_res;
-    fb_inf->fb0->var.width = fb_inf->rk_lcdc_device[0]->screen.width;
-    fb_inf->fb0->var.height = fb_inf->rk_lcdc_device[0]->screen.height;
-    fb_inf->fb0->var.pixclock =fb_inf->rk_lcdc_device[0]->pixclock;
-    fb_inf->fb0->var.left_margin = fb_inf->rk_lcdc_device[0]->screen.left_margin;
-    fb_inf->fb0->var.right_margin = fb_inf->rk_lcdc_device[0]->screen.right_margin;
-    fb_inf->fb0->var.upper_margin = fb_inf->rk_lcdc_device[0]->screen.upper_margin;
-    fb_inf->fb0->var.lower_margin = fb_inf->rk_lcdc_device[0]->screen.lower_margin;
-    fb_inf->fb0->var.vsync_len = fb_inf->rk_lcdc_device[0]->screen.vsync_len;
-    fb_inf->fb0->var.hsync_len = fb_inf->rk_lcdc_device[0]->screen.hsync_len;
-    fb_inf->fb0->var.red    = def_rgb_16.red;
-    fb_inf->fb0->var.green  = def_rgb_16.green;
-    fb_inf->fb0->var.blue   = def_rgb_16.blue;
-    fb_inf->fb0->var.transp = def_rgb_16.transp;
-
-    fb_inf->fb0->var.nonstd      = 0;  //win1 format & ypos & xpos (ypos<<20 + xpos<<8 + format)
-    fb_inf->fb0->var.grayscale   = 0;  //win1 transprent mode & value(mode<<8 + value)
-    fb_inf->fb0->var.activate    = FB_ACTIVATE_NOW;
-    fb_inf->fb0->var.accel_flags = 0;
-    fb_inf->fb0->var.vmode       = FB_VMODE_NONINTERLACED;
-
-    fb_inf->fb0->fbops           = &fb0_ops;
-    fb_inf->fb0->flags           = FBINFO_FLAG_DEFAULT;
-    fb_inf->fb0->pseudo_palette  = fb_inf->rk_lcdc_device[0]->layer_par[0].pseudo_pal;
-
-
-	/************fb1 set ****************/
-	fb_inf->fb1->fix.type        = FB_TYPE_PACKED_PIXELS;
-    fb_inf->fb1->fix.type_aux    = 0;
-    fb_inf->fb1->fix.xpanstep    = 1;
-    fb_inf->fb1->fix.ypanstep    = 1;
-    fb_inf->fb1->fix.ywrapstep   = 0;
-    fb_inf->fb1->fix.accel       = FB_ACCEL_NONE;
-    fb_inf->fb1->fix.visual      = FB_VISUAL_TRUECOLOR;
-
-    fb_inf->fb1->var.xres = fb_inf->rk_lcdc_device[0]->screen.x_res;
-    fb_inf->fb1->var.yres = fb_inf->rk_lcdc_device[0]->screen.y_res;
-    fb_inf->fb1->var.bits_per_pixel = 16;
-    //fb_inf->fb1_color_deepth = 0;
-    fb_inf->fb1->var.xres_virtual = fb_inf->rk_lcdc_device[0]->screen.x_res;
-    fb_inf->fb1->var.yres_virtual = fb_inf->rk_lcdc_device[0]->screen.y_res;
-    fb_inf->fb1->var.width = fb_inf->rk_lcdc_device[0]->screen.width;
-    fb_inf->fb1->var.height = fb_inf->rk_lcdc_device[0]->screen.height;
-    //fb_inf->fb1->var.pixclock = div_u64(1000000000000llu, screen.pixclock);
-    fb_inf->fb1->var.left_margin = fb_inf->rk_lcdc_device[0]->screen.left_margin;
-    fb_inf->fb1->var.right_margin = fb_inf->rk_lcdc_device[0]->screen.right_margin;
-    fb_inf->fb1->var.upper_margin = fb_inf->rk_lcdc_device[0]->screen.upper_margin;
-    fb_inf->fb1->var.lower_margin = fb_inf->rk_lcdc_device[0]->screen.lower_margin;
-    fb_inf->fb1->var.vsync_len = fb_inf->rk_lcdc_device[0]->screen.vsync_len;
-    fb_inf->fb1->var.hsync_len = fb_inf->rk_lcdc_device[0]->screen.hsync_len;
-    fb_inf->fb1->var.red    = def_rgb_16.red;
-    fb_inf->fb1->var.green  = def_rgb_16.green;
-    fb_inf->fb1->var.blue   = def_rgb_16.blue;
-    fb_inf->fb1->var.transp = def_rgb_16.transp;
-
-    fb_inf->fb1->var.nonstd      = 0;  //win1 format & ypos & xpos (ypos<<20 + xpos<<8 + format)
-    fb_inf->fb1->var.grayscale   = 0;  //win1 transprent mode & value(mode<<8 + value)
-    fb_inf->fb1->var.activate    = FB_ACTIVATE_NOW;
-    fb_inf->fb1->var.accel_flags = 0;
-    fb_inf->fb1->var.vmode       = FB_VMODE_NONINTERLACED;
-
-    fb_inf->fb1->fbops           = &fb1_ops;
-    fb_inf->fb1->flags           = FBINFO_FLAG_DEFAULT;
-    fb_inf->fb1->pseudo_palette  = fb_inf->rk_lcdc_device[0]->layer_par[0].pseudo_pal;
-    fb_inf->fb1->screen_base     = 0;
-
+	lcdc_id = i;
+	
+	/************fb set,one layer one fb ***********/
+	for(i=0;i<dev_drv->num_layer;i++)
+	{
+		fbi= framebuffer_alloc(0, &g_fb_pdev->dev);
+		if(!fbi)
+		{
+			dev_err(&g_fb_pdev->dev,">> fb framebuffer_alloc fail!");
+			fbi = NULL;
+			ret = -ENOMEM;
+		}
+		fbi->var = def_var;
+		fbi->fix = def_fix;
+		sprintf(fbi->fix.id,"fb%d",fb_inf->num_fb);
+		fbi->var.xres = fb_inf->rk_lcdc_device[lcdc_id]->screen.x_res;
+		fbi->var.yres = fb_inf->rk_lcdc_device[lcdc_id]->screen.y_res;
+		fbi->var.bits_per_pixel = 16;
+		fbi->var.xres_virtual = fb_inf->rk_lcdc_device[lcdc_id]->screen.x_res;
+		fbi->var.yres_virtual = fb_inf->rk_lcdc_device[lcdc_id]->screen.y_res;
+		fbi->var.width = fb_inf->rk_lcdc_device[lcdc_id]->screen.width;
+		fbi->var.height = fb_inf->rk_lcdc_device[lcdc_id]->screen.height;
+		fbi->var.pixclock =fb_inf->rk_lcdc_device[lcdc_id]->pixclock;
+		fbi->var.left_margin = fb_inf->rk_lcdc_device[lcdc_id]->screen.left_margin;
+		fbi->var.right_margin = fb_inf->rk_lcdc_device[lcdc_id]->screen.right_margin;
+		fbi->var.upper_margin = fb_inf->rk_lcdc_device[lcdc_id]->screen.upper_margin;
+		fbi->var.lower_margin = fb_inf->rk_lcdc_device[lcdc_id]->screen.lower_margin;
+		fbi->var.vsync_len = fb_inf->rk_lcdc_device[lcdc_id]->screen.vsync_len;
+		fbi->var.hsync_len = fb_inf->rk_lcdc_device[lcdc_id]->screen.hsync_len;
+		fbi->fbops			 = &fb_ops[fb_inf->num_fb];
+		fbi->flags			 = FBINFO_FLAG_DEFAULT;
+		fbi->pseudo_palette  = fb_inf->rk_lcdc_device[lcdc_id]->layer_par[i].pseudo_pal;
+		request_fb_buffer(fbi,fb_inf->num_fb);
+		fb_inf->fb[fb_inf->num_fb] = fbi;
+		printk("%s>>>>>%s\n",__func__,fb_inf->fb[fb_inf->num_fb]->fix.id);
+		fb_inf->num_fb++;
+		
+	}
 #if !defined(CONFIG_FRAMEBUFFER_CONSOLE) && defined(CONFIG_LOGO)
-    fb0_set_par(fb_inf->fb0);
-    if (fb_prepare_logo(fb_inf->fb0, FB_ROTATE_UR)) {
+    fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_set_par(fb_inf->fb[fb_inf->num_fb-2]);
+    if(fb_prepare_logo(fb_inf->fb[fb_inf->num_fb-2], FB_ROTATE_UR)) {
         /* Start display and show logo on boot */
-        fb_set_cmap(&fb_inf->fb0->cmap, fb_inf->fb0);
-        fb_show_logo(fb_inf->fb0, FB_ROTATE_UR);
-        fb0_blank(FB_BLANK_UNBLANK, fb_inf->fb0);
+        fb_set_cmap(&fb_inf->fb[fb_inf->num_fb-2]->cmap, fb_inf->fb[fb_inf->num_fb-2]);
+        fb_show_logo(fb_inf->fb[fb_inf->num_fb-2], FB_ROTATE_UR);
+        fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_blank(FB_BLANK_UNBLANK, fb_inf->fb[fb_inf->num_fb-2]);
     }
 #endif
 	return 0;
 	
 	
 }
-int rk_fb_unregister(struct rk_fb_device_driver *fb_device_driver)
+int rk_fb_unregister(struct rk_lcdc_device_driver *fb_device_driver)
 {
 
 	struct rk_fb_inf *fb_inf = platform_get_drvdata(g_fb_pdev);
@@ -446,7 +602,6 @@ int rk_fb_unregister(struct rk_fb_device_driver *fb_device_driver)
 
 static int __devinit rk_fb_probe (struct platform_device *pdev)
 {
-	struct resource *res = NULL;
 	struct rk_fb_inf *fb_inf	= NULL;
 	int ret = 0;
 	g_fb_pdev=pdev;
@@ -459,30 +614,6 @@ static int __devinit rk_fb_probe (struct platform_device *pdev)
     }
     memset(fb_inf, 0, sizeof(struct rk_fb_inf));
 	platform_set_drvdata(pdev, fb_inf);
-	fb_inf->fb0 = framebuffer_alloc(0, &pdev->dev);
-	if(!fb_inf->fb0){
-		dev_err(&pdev->dev,">> fb0 framebuffer_alloc fail!");
-		fb_inf->fb1 = NULL;
-		ret = -ENOMEM;
-	}
-	strcpy(fb_inf->fb0->fix.id, "fb0");
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fb0 buf");
-    if (res == NULL)
-    {
-        dev_err(&pdev->dev, "failed to get win1 memory \n");
-        ret = -ENOENT;
-    }
-    fb_inf->fb0->fix.smem_start = res->start;
-    fb_inf->fb0->fix.smem_len = res->end - res->start + 1;
-    fb_inf->fb0->screen_base = ioremap(res->start, fb_inf->fb0->fix.smem_len);
-    memset(fb_inf->fb0->screen_base, 0, fb_inf->fb0->fix.smem_len);
-	fb_inf->fb1= framebuffer_alloc(0, &pdev->dev);
-	if(!fb_inf->fb1){
-		dev_err(&pdev->dev,">> fb1 framebuffer_alloc fail!");
-		fb_inf->fb1 = NULL;
-		ret = -ENOMEM;
-	}
-	strcpy(fb_inf->fb1->fix.id, "fb1");
 	printk("rk fb probe ok!\n");
     return 0;
 }
