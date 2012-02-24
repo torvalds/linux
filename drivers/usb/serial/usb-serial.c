@@ -1338,12 +1338,7 @@ static void fixup_generic(struct usb_serial_driver *device)
 	set_to_generic_if_null(device, prepare_write_buffer);
 }
 
-/*
- * The next two routines are mainly for internal use.
- * They are exported only for out-of-tree modules.
- * New drivers should call usb_serial_{de}register_drivers() instead.
- */
-int usb_serial_register(struct usb_serial_driver *driver)
+static int usb_serial_register(struct usb_serial_driver *driver)
 {
 	int retval;
 
@@ -1377,10 +1372,8 @@ int usb_serial_register(struct usb_serial_driver *driver)
 	mutex_unlock(&table_lock);
 	return retval;
 }
-EXPORT_SYMBOL_GPL(usb_serial_register);
 
-
-void usb_serial_deregister(struct usb_serial_driver *device)
+static void usb_serial_deregister(struct usb_serial_driver *device)
 {
 	printk(KERN_INFO "USB Serial deregistering driver %s\n",
 	       device->description);
@@ -1389,7 +1382,6 @@ void usb_serial_deregister(struct usb_serial_driver *device)
 	usb_serial_bus_deregister(device);
 	mutex_unlock(&table_lock);
 }
-EXPORT_SYMBOL_GPL(usb_serial_deregister);
 
 /**
  * usb_serial_register_drivers - register drivers for a usb-serial module
