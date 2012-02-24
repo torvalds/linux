@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2011 Nicira Networks.
+ * Copyright (c) 2007-2012 Nicira Networks.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -36,7 +36,6 @@
 #include <linux/rcupdate.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
-#include <linux/version.h>
 #include <linux/ethtool.h>
 #include <linux/wait.h>
 #include <asm/system.h>
@@ -1397,9 +1396,8 @@ static int ovs_dp_cmd_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	int i = 0;
 
 	list_for_each_entry(dp, &dps, list_node) {
-		if (i < skip)
-			continue;
-		if (ovs_dp_cmd_fill_info(dp, skb, NETLINK_CB(cb->skb).pid,
+		if (i >= skip &&
+		    ovs_dp_cmd_fill_info(dp, skb, NETLINK_CB(cb->skb).pid,
 					 cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					 OVS_DP_CMD_NEW) < 0)
 			break;

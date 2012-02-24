@@ -44,6 +44,8 @@
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
 #include <linux/input.h>
 #endif
+#include "pwc-dec1.h"
+#include "pwc-dec23.h"
 
 /* Version block */
 #define PWC_VERSION	"10.0.15"
@@ -131,9 +133,6 @@
 #define DEVICE_USE_CODEC2(x) ((x)>=675 && (x)<700)
 #define DEVICE_USE_CODEC3(x) ((x)>=700)
 #define DEVICE_USE_CODEC23(x) ((x)>=675)
-
-/* from pwc-dec.h */
-#define PWCX_FLAG_PLANAR        0x0001
 
 /* Request types: video */
 #define SET_LUM_CTL			0x01
@@ -248,8 +247,8 @@ struct pwc_device
 	char vmirror;		/* for ToUCaM series */
 	char power_save;	/* Do powersaving for this cam */
 
-	int cmd_len;
 	unsigned char cmd_buf[13];
+	unsigned char *ctrl_buf;
 
 	struct urb *urbs[MAX_ISO_BUFS];
 	char iso_init;
@@ -272,7 +271,10 @@ struct pwc_device
 	int frame_total_size;	/* including header & trailer */
 	int drop_frames;
 
-	void *decompress_data;	/* private data for decompression engine */
+	union {	/* private data for decompression engine */
+		struct pwc_dec1_private dec1;
+		struct pwc_dec23_private dec23;
+	};
 
 	/*
 	 * We have an 'image' and a 'view', where 'image' is the fixed-size img
@@ -364,7 +366,7 @@ void pwc_construct(struct pwc_device *pdev);
 /** Functions in pwc-ctrl.c */
 /* Request a certain video mode. Returns < 0 if not possible */
 extern int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
-			      int frames, int *compression);
+	int pixfmt, int frames, int *compression, int send_to_cam);
 extern unsigned int pwc_get_fps(struct pwc_device *pdev, unsigned int index, unsigned int size);
 extern int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value);
 extern int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor);

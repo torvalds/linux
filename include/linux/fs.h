@@ -396,6 +396,7 @@ struct inodes_stat_t {
 #include <linux/rculist_bl.h>
 #include <linux/atomic.h>
 #include <linux/shrinker.h>
+#include <linux/migrate_mode.h>
 
 #include <asm/byteorder.h>
 
@@ -526,7 +527,6 @@ enum positive_aop_returns {
 struct page;
 struct address_space;
 struct writeback_control;
-enum migrate_mode;
 
 struct iov_iter {
 	const struct iovec *iov;
@@ -2496,6 +2496,7 @@ extern void get_filesystem(struct file_system_type *fs);
 extern void put_filesystem(struct file_system_type *fs);
 extern struct file_system_type *get_fs_type(const char *name);
 extern struct super_block *get_super(struct block_device *);
+extern struct super_block *get_super_thawed(struct block_device *);
 extern struct super_block *get_active_super(struct block_device *bdev);
 extern void drop_super(struct super_block *sb);
 extern void iterate_supers(void (*)(struct super_block *, void *), void *);

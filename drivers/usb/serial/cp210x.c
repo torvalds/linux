@@ -39,6 +39,8 @@ static void cp210x_get_termios(struct tty_struct *,
 	struct usb_serial_port *port);
 static void cp210x_get_termios_port(struct usb_serial_port *port,
 	unsigned int *cflagp, unsigned int *baudp);
+static void cp210x_change_speed(struct tty_struct *, struct usb_serial_port *,
+							struct ktermios *);
 static void cp210x_set_termios(struct tty_struct *, struct usb_serial_port *,
 							struct ktermios*);
 static int cp210x_tiocmget(struct tty_struct *);
@@ -134,10 +136,13 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x16DC, 0x0011) }, /* W-IE-NE-R Plein & Baus GmbH RCM Remote Control for MARATON Power Supply */
 	{ USB_DEVICE(0x16DC, 0x0012) }, /* W-IE-NE-R Plein & Baus GmbH MPOD Multi Channel Power Supply */
 	{ USB_DEVICE(0x16DC, 0x0015) }, /* W-IE-NE-R Plein & Baus GmbH CML Control, Monitoring and Data Logger */
+	{ USB_DEVICE(0x17A8, 0x0001) }, /* Kamstrup Optical Eye/3-wire */
+	{ USB_DEVICE(0x17A8, 0x0005) }, /* Kamstrup M-Bus Master MultiPort 250D */
 	{ USB_DEVICE(0x17F4, 0xAAAA) }, /* Wavesense Jazz blood glucose meter */
 	{ USB_DEVICE(0x1843, 0x0200) }, /* Vaisala USB Instrument Cable */
 	{ USB_DEVICE(0x18EF, 0xE00F) }, /* ELV USB-I2C-Interface */
 	{ USB_DEVICE(0x1BE3, 0x07A6) }, /* WAGO 750-923 USB Service Cable */
+	{ USB_DEVICE(0x3195, 0xF190) }, /* Link Instruments MSO-19 */
 	{ USB_DEVICE(0x413C, 0x9500) }, /* DW700 GPS USB interface */
 	{ } /* Terminating Entry */
 };
@@ -201,6 +206,8 @@ static struct usb_serial_driver cp210x_device = {
 #define CP210X_EMBED_EVENTS	0x15
 #define CP210X_GET_EVENTSTATE	0x16
 #define CP210X_SET_CHARS	0x19
+#define CP210X_GET_BAUDRATE	0x1D
+#define CP210X_SET_BAUDRATE	0x1E
 
 /* CP210X_IFC_ENABLE */
 #define UART_ENABLE		0x0001
@@ -360,8 +367,8 @@ static inline int cp210x_set_config_single(struct usb_serial_port *port,
  * Quantises the baud rate as per AN205 Table 1
  */
 static unsigned int cp210x_quantise_baudrate(unsigned int baud) {
-	if      (baud <= 56)       baud = 0;
-	else if (baud <= 300)      baud = 300;
+	if (baud <= 300)
+		baud = 300;
 	else if (baud <= 600)      baud = 600;
 	else if (baud <= 1200)     baud = 1200;
 	else if (baud <= 1800)     baud = 1800;
@@ -389,10 +396,10 @@ static unsigned int cp210x_quantise_baudrate(unsigned int baud) {
 	else if (baud <= 491520)   baud = 460800;
 	else if (baud <= 567138)   baud = 500000;
 	else if (baud <= 670254)   baud = 576000;
-	else if (baud <= 1053257)  baud = 921600;
-	else if (baud <= 1474560)  baud = 1228800;
-	else if (baud <= 2457600)  baud = 1843200;
-	else                       baud = 3686400;
+	else if (baud < 1000000)
+		baud = 921600;
+	else if (baud > 2000000)
+		baud = 2000000;
 	return baud;
 }
 
@@ -409,13 +416,14 @@ static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port)
 		return result;
 	}
 
-	result = usb_serial_generic_open(tty, port);
-	if (result)
-		return result;
-
 	/* Configure the termios structure */
 	cp210x_get_termios(tty, port);
-	return 0;
+
+	/* The baud rate must be initialised on cp2104 */
+	if (tty)
+		cp210x_change_speed(tty, port, NULL);
+
+	return usb_serial_generic_open(tty, port);
 }
 
 static void cp210x_close(struct usb_serial_port *port)
@@ -467,10 +475,7 @@ static void cp210x_get_termios_port(struct usb_serial_port *port,
 
 	dbg("%s - port %d", __func__, port->number);
 
-	cp210x_get_config(port, CP210X_GET_BAUDDIV, &baud, 2);
-	/* Convert to baudrate */
-	if (baud)
-		baud = cp210x_quantise_baudrate((BAUD_RATE_GEN_FREQ + baud/2)/ baud);
+	cp210x_get_config(port, CP210X_GET_BAUDRATE, &baud, 4);
 
 	dbg("%s - baud rate = %d", __func__, baud);
 	*baudp = baud;
@@ -579,11 +584,64 @@ static void cp210x_get_termios_port(struct usb_serial_port *port,
 	*cflagp = cflag;
 }
 
+/*
+ * CP2101 supports the following baud rates:
+ *
+ *	300, 600, 1200, 1800, 2400, 4800, 7200, 9600, 14400, 19200, 28800,
+ *	38400, 56000, 57600, 115200, 128000, 230400, 460800, 921600
+ *
+ * CP2102 and CP2103 support the following additional rates:
+ *
+ *	4000, 16000, 51200, 64000, 76800, 153600, 250000, 256000, 500000,
+ *	576000
+ *
+ * The device will map a requested rate to a supported one, but the result
+ * of requests for rates greater than 1053257 is undefined (see AN205).
+ *
+ * CP2104, CP2105 and CP2110 support most rates up to 2M, 921k and 1M baud,
+ * respectively, with an error less than 1%. The actual rates are determined
+ * by
+ *
+ *	div = round(freq / (2 x prescale x request))
+ *	actual = freq / (2 x prescale x div)
+ *
+ * For CP2104 and CP2105 freq is 48Mhz and prescale is 4 for request <= 365bps
+ * or 1 otherwise.
+ * For CP2110 freq is 24Mhz and prescale is 4 for request <= 300bps or 1
+ * otherwise.
+ */
+static void cp210x_change_speed(struct tty_struct *tty,
+		struct usb_serial_port *port, struct ktermios *old_termios)
+{
+	u32 baud;
+
+	baud = tty->termios->c_ospeed;
+
+	/* This maps the requested rate to a rate valid on cp2102 or cp2103,
+	 * or to an arbitrary rate in [1M,2M].
+	 *
+	 * NOTE: B0 is not implemented.
+	 */
+	baud = cp210x_quantise_baudrate(baud);
+
+	dbg("%s - setting baud rate to %u", __func__, baud);
+	if (cp210x_set_config(port, CP210X_SET_BAUDRATE, &baud,
+							sizeof(baud))) {
+		dev_warn(&port->dev, "failed to set baud rate to %u\n", baud);
+		if (old_termios)
+			baud = old_termios->c_ospeed;
+		else
+			baud = 9600;
+	}
+
+	tty_encode_baud_rate(tty, baud, baud);
+}
+
 static void cp210x_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	unsigned int cflag, old_cflag;
-	unsigned int baud = 0, bits;
+	unsigned int bits;
 	unsigned int modem_ctl[4];
 
 	dbg("%s - port %d", __func__, port->number);
@@ -593,20 +651,9 @@ static void cp210x_set_termios(struct tty_struct *tty,
 
 	cflag = tty->termios->c_cflag;
 	old_cflag = old_termios->c_cflag;
-	baud = cp210x_quantise_baudrate(tty_get_baud_rate(tty));
 
-	/* If the baud rate is to be updated*/
-	if (baud != tty_termios_baud_rate(old_termios) && baud != 0) {
-		dbg("%s - Setting baud rate to %d baud", __func__,
-				baud);
-		if (cp210x_set_config_single(port, CP210X_SET_BAUDDIV,
-					((BAUD_RATE_GEN_FREQ + baud/2) / baud))) {
-			dbg("Baud rate requested not supported by device");
-			baud = tty_termios_baud_rate(old_termios);
-		}
-	}
-	/* Report back the resulting baud rate */
-	tty_encode_baud_rate(tty, baud, baud);
+	if (tty->termios->c_ospeed != old_termios->c_ospeed)
+		cp210x_change_speed(tty, port, old_termios);
 
 	/* If the number of data bits is to be updated */
 	if ((cflag & CSIZE) != (old_cflag & CSIZE)) {

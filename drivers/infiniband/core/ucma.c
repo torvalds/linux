@@ -808,9 +808,12 @@ static ssize_t ucma_accept(struct ucma_file *file, const char __user *inbuf,
 		return PTR_ERR(ctx);
 
 	if (cmd.conn_param.valid) {
-		ctx->uid = cmd.uid;
 		ucma_copy_conn_param(&conn_param, &cmd.conn_param);
+		mutex_lock(&file->mut);
 		ret = rdma_accept(ctx->cm_id, &conn_param);
+		if (!ret)
+			ctx->uid = cmd.uid;
+		mutex_unlock(&file->mut);
 	} else
 		ret = rdma_accept(ctx->cm_id, NULL);
 

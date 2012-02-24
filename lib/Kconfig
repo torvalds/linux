@@ -19,6 +19,9 @@ config RATIONAL
 config GENERIC_FIND_FIRST_BIT
 	bool
 
+config NO_GENERIC_PCI_IOPORT_MAP
+	bool
+
 config GENERIC_PCI_IOMAP
 	bool
 
@@ -279,6 +282,9 @@ config AVERAGE
 
 	  If unsure, say N.
 
+config CLZ_TAB
+	bool
+
 config CORDIC
 	tristate "CORDIC algorithm"
 	help
@@ -286,25 +292,25 @@ config CORDIC
 	  calculations are in fixed point. Module will be called cordic.
 
 config MPILIB
-	tristate "Multiprecision maths library"
+	tristate
+	select CLZ_TAB
 	help
 	  Multiprecision maths library from GnuPG.
 	  It is used to implement RSA digital signature verification,
 	  which is used by IMA/EVM digital signature extension.
 
 config MPILIB_EXTRA
-	bool "Multiprecision maths library - additional sources"
+	bool
 	depends on MPILIB
 	help
-	  Multiprecision maths library from GnuPG.
-	  It is used to implement RSA digital signature verification,
-	  which is used by IMA/EVM digital signature extension.
-	  This code in unnecessary for RSA digital signature verification,
-	  and can be compiled if needed.
+	  Additional sources of multiprecision maths library from GnuPG.
+	  This code is unnecessary for RSA digital signature verification,
+	  but can be compiled if needed.
 
-config DIGSIG
-	tristate "In-kernel signature checker"
-	depends on KEYS
+config SIGNATURE
+	tristate
+	depends on KEYS && CRYPTO
+	select CRYPTO_SHA1
 	select MPILIB
 	help
 	  Digital signature verification. Currently only RSA is supported.

@@ -102,7 +102,7 @@ static void atmel_ac97c_dma_capture_period_done(void *arg)
 
 static int atmel_ac97c_prepare_dma(struct atmel_ac97c *chip,
 		struct snd_pcm_substream *substream,
-		enum dma_data_direction direction)
+		enum dma_transfer_direction direction)
 {
 	struct dma_chan			*chan;
 	struct dw_cyclic_desc		*cdesc;
@@ -118,7 +118,7 @@ static int atmel_ac97c_prepare_dma(struct atmel_ac97c *chip,
 		return -EINVAL;
 	}
 
-	if (direction == DMA_TO_DEVICE)
+	if (direction == DMA_MEM_TO_DEV)
 		chan = chip->dma.tx_chan;
 	else
 		chan = chip->dma.rx_chan;
@@ -133,7 +133,7 @@ static int atmel_ac97c_prepare_dma(struct atmel_ac97c *chip,
 		return PTR_ERR(cdesc);
 	}
 
-	if (direction == DMA_TO_DEVICE) {
+	if (direction == DMA_MEM_TO_DEV) {
 		cdesc->period_callback = atmel_ac97c_dma_playback_period_done;
 		set_bit(DMA_TX_READY, &chip->flags);
 	} else {
@@ -393,7 +393,7 @@ static int atmel_ac97c_playback_prepare(struct snd_pcm_substream *substream)
 	if (cpu_is_at32ap7000()) {
 		if (!test_bit(DMA_TX_READY, &chip->flags))
 			retval = atmel_ac97c_prepare_dma(chip, substream,
-					DMA_TO_DEVICE);
+					DMA_MEM_TO_DEV);
 	} else {
 		/* Initialize and start the PDC */
 		writel(runtime->dma_addr, chip->regs + ATMEL_PDC_TPR);
@@ -484,7 +484,7 @@ static int atmel_ac97c_capture_prepare(struct snd_pcm_substream *substream)
 	if (cpu_is_at32ap7000()) {
 		if (!test_bit(DMA_RX_READY, &chip->flags))
 			retval = atmel_ac97c_prepare_dma(chip, substream,
-					DMA_FROM_DEVICE);
+					DMA_DEV_TO_MEM);
 	} else {
 		/* Initialize and start the PDC */
 		writel(runtime->dma_addr, chip->regs + ATMEL_PDC_RPR);

@@ -42,13 +42,11 @@
 #include <scsi/scsi_device.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_device.h>
-#include <target/target_core_tpg.h>
-#include <target/target_core_transport.h>
-#include <target/target_core_fabric_ops.h>
+#include <target/target_core_backend.h>
+#include <target/target_core_fabric.h>
 
+#include "target_core_internal.h"
 #include "target_core_alua.h"
-#include "target_core_hba.h"
 #include "target_core_pr.h"
 #include "target_core_ua.h"
 
@@ -322,11 +320,12 @@ int core_free_device_list_for_node(
 void core_dec_lacl_count(struct se_node_acl *se_nacl, struct se_cmd *se_cmd)
 {
 	struct se_dev_entry *deve;
+	unsigned long flags;
 
-	spin_lock_irq(&se_nacl->device_list_lock);
+	spin_lock_irqsave(&se_nacl->device_list_lock, flags);
 	deve = &se_nacl->device_list[se_cmd->orig_fe_lun];
 	deve->deve_cmds--;
-	spin_unlock_irq(&se_nacl->device_list_lock);
+	spin_unlock_irqrestore(&se_nacl->device_list_lock, flags);
 }
 
 void core_update_device_list_access(
@@ -658,7 +657,7 @@ int target_report_luns(struct se_task *se_task)
 	unsigned char *buf;
 	u32 cdb_offset = 0, lun_count = 0, offset = 8, i;
 
-	buf = transport_kmap_first_data_page(se_cmd);
+	buf = (unsigned char *) transport_kmap_data_sg(se_cmd);
 
 	/*
 	 * If no struct se_session pointer is present, this struct se_cmd is
@@ -696,7 +695,7 @@ int target_report_luns(struct se_task *se_task)
 	 * See SPC3 r07, page 159.
 	 */
 done:
-	transport_kunmap_first_data_page(se_cmd);
+	transport_kunmap_data_sg(se_cmd);
 	lun_count *= 8;
 	buf[0] = ((lun_count >> 24) & 0xff);
 	buf[1] = ((lun_count >> 16) & 0xff);
@@ -1134,8 +1133,6 @@ int se_dev_set_emulate_rest_reord(struct se_device *dev, int flag)
  */
 int se_dev_set_queue_depth(struct se_device *dev, u32 queue_depth)
 {
-	u32 orig_queue_depth = dev->queue_depth;
-
 	if (atomic_read(&dev->dev_export_obj.obj_access_count)) {
 		pr_err("dev[%p]: Unable to change SE Device TCQ while"
 			" dev_export_obj: %d count exists\n", dev,
@@ -1169,11 +1166,6 @@ int se_dev_set_queue_depth(struct se_device *dev, u32 queue_depth)
 	}
 
 	dev->se_sub_dev->se_dev_attrib.queue_depth = dev->queue_depth = queue_depth;
-	if (queue_depth > orig_queue_depth)
-		atomic_add(queue_depth - orig_queue_depth, &dev->depth_left);
-	else if (queue_depth < orig_queue_depth)
-		atomic_sub(orig_queue_depth - queue_depth, &dev->depth_left);
-
 	pr_debug("dev[%p]: SE Device TCQ Depth changed to: %u\n",
 			dev, queue_depth);
 	return 0;
@@ -1303,24 +1295,26 @@ struct se_lun *core_dev_add_lun(
 {
 	struct se_lun *lun_p;
 	u32 lun_access = 0;
+	int rc;
 
 	if (atomic_read(&dev->dev_access_obj.obj_access_count) != 0) {
 		pr_err("Unable to export struct se_device while dev_access_obj: %d\n",
 			atomic_read(&dev->dev_access_obj.obj_access_count));
-		return NULL;
+		return ERR_PTR(-EACCES);
 	}
 
 	lun_p = core_tpg_pre_addlun(tpg, lun);
-	if ((IS_ERR(lun_p)) || !lun_p)
-		return NULL;
+	if (IS_ERR(lun_p))
+		return lun_p;
 
 	if (dev->dev_flags & DF_READ_ONLY)
 		lun_access = TRANSPORT_LUNFLAGS_READ_ONLY;
 	else
 		lun_access = TRANSPORT_LUNFLAGS_READ_WRITE;
 
-	if (core_tpg_post_addlun(tpg, lun_p, lun_access, dev) < 0)
-		return NULL;
+	rc = core_tpg_post_addlun(tpg, lun_p, lun_access, dev);
+	if (rc < 0)
+		return ERR_PTR(rc);
 
 	pr_debug("%s_TPG[%u]_LUN[%u] - Activated %s Logical Unit from"
 		" CORE HBA: %u\n", tpg->se_tpg_tfo->get_fabric_name(),
@@ -1357,11 +1351,10 @@ int core_dev_del_lun(
 	u32 unpacked_lun)
 {
 	struct se_lun *lun;
-	int ret = 0;
 
-	lun = core_tpg_pre_dellun(tpg, unpacked_lun, &ret);
-	if (!lun)
-		return ret;
+	lun = core_tpg_pre_dellun(tpg, unpacked_lun);
+	if (IS_ERR(lun))
+		return PTR_ERR(lun);
 
 	core_tpg_post_dellun(tpg, lun);
 

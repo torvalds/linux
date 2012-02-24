@@ -631,7 +631,7 @@ static int audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type,
 	}
 
 	*ab = audit_log_start(NULL, GFP_KERNEL, msg_type);
-	audit_log_format(*ab, "user pid=%d uid=%u auid=%u ses=%u",
+	audit_log_format(*ab, "pid=%d uid=%u auid=%u ses=%u",
 			 pid, uid, auid, ses);
 	if (sid) {
 		rc = security_secid_to_secctx(sid, &ctx, &len);
@@ -1423,7 +1423,7 @@ void audit_log_d_path(struct audit_buffer *ab, const char *prefix,
 	char *p, *pathname;
 
 	if (prefix)
-		audit_log_format(ab, " %s", prefix);
+		audit_log_format(ab, "%s", prefix);
 
 	/* We will allow 11 spaces for ' (deleted)' to be appended */
 	pathname = kmalloc(PATH_MAX+11, ab->gfp_mask);

@@ -238,9 +238,11 @@ static void sta_unblock(struct work_struct *wk)
 	if (sta->dead)
 		return;
 
-	if (!test_sta_flag(sta, WLAN_STA_PS_STA))
+	if (!test_sta_flag(sta, WLAN_STA_PS_STA)) {
+		local_bh_disable();
 		ieee80211_sta_ps_deliver_wakeup(sta);
-	else if (test_and_clear_sta_flag(sta, WLAN_STA_PSPOLL)) {
+		local_bh_enable();
+	} else if (test_and_clear_sta_flag(sta, WLAN_STA_PSPOLL)) {
 		clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
 
 		local_bh_disable();

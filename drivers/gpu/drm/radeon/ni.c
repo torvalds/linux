@@ -1219,6 +1219,7 @@ int cayman_cp_resume(struct radeon_device *rdev)
 	RREG32(GRBM_SOFT_RESET);
 
 	WREG32(CP_SEM_WAIT_TIMER, 0x0);
+	WREG32(CP_SEM_INCOMPLETE_TIMER_CNTL, 0x0);
 
 	/* Set the write pointer delay */
 	WREG32(CP_RB_WPTR_DELAY, 0);
@@ -1546,6 +1547,7 @@ int cayman_resume(struct radeon_device *rdev)
 	r = cayman_startup(rdev);
 	if (r) {
 		DRM_ERROR("cayman startup failed on resume\n");
+		rdev->accel_working = false;
 		return r;
 	}
 	return r;

@@ -1079,7 +1079,7 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 	}
 	sg = dma->sg_rx_p;
 	desc_rx = dma->chan_rx->device->device_prep_slave_sg(dma->chan_rx, sg,
-					num, DMA_FROM_DEVICE,
+					num, DMA_DEV_TO_MEM,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc_rx) {
 		dev_err(&data->master->dev, "%s:device_prep_slave_sg Failed\n",
@@ -1124,7 +1124,7 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 	}
 	sg = dma->sg_tx_p;
 	desc_tx = dma->chan_tx->device->device_prep_slave_sg(dma->chan_tx,
-					sg, num, DMA_TO_DEVICE,
+					sg, num, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc_tx) {
 		dev_err(&data->master->dev, "%s:device_prep_slave_sg Failed\n",
@@ -1720,7 +1720,7 @@ static int pch_spi_resume(struct pci_dev *pdev)
 
 #endif
 
-static struct pci_driver pch_spi_pcidev = {
+static struct pci_driver pch_spi_pcidev_driver = {
 	.name = "pch_spi",
 	.id_table = pch_spi_pcidev_id,
 	.probe = pch_spi_probe,
@@ -1736,7 +1736,7 @@ static int __init pch_spi_init(void)
 	if (ret)
 		return ret;
 
-	ret = pci_register_driver(&pch_spi_pcidev);
+	ret = pci_register_driver(&pch_spi_pcidev_driver);
 	if (ret)
 		return ret;
 
@@ -1746,7 +1746,7 @@ module_init(pch_spi_init);
 
 static void __exit pch_spi_exit(void)
 {
-	pci_unregister_driver(&pch_spi_pcidev);
+	pci_unregister_driver(&pch_spi_pcidev_driver);
 	platform_driver_unregister(&pch_spi_pd_driver);
 }
 module_exit(pch_spi_exit);

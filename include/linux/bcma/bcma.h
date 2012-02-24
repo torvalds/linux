@@ -162,7 +162,7 @@ struct bcma_driver {
 
 	int (*probe)(struct bcma_device *dev);
 	void (*remove)(struct bcma_device *dev);
-	int (*suspend)(struct bcma_device *dev, pm_message_t state);
+	int (*suspend)(struct bcma_device *dev);
 	int (*resume)(struct bcma_device *dev);
 	void (*shutdown)(struct bcma_device *dev);
 

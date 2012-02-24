@@ -21,7 +21,6 @@
 #include <linux/init.h>
 #include <linux/kexec.h>
 #include <linux/of_fdt.h>
-#include <linux/crash_dump.h>
 #include <linux/root_dev.h>
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
@@ -160,7 +159,7 @@ static struct resource mem_res[] = {
 		.flags = IORESOURCE_MEM
 	},
 	{
-		.name = "Kernel text",
+		.name = "Kernel code",
 		.start = 0,
 		.end = 0,
 		.flags = IORESOURCE_MEM
@@ -425,6 +424,20 @@ void cpu_init(void)
 	      "I" (offsetof(struct stack, und[0])),
 	      PLC (PSR_F_BIT | PSR_I_BIT | SVC_MODE)
 	    : "r14");
+}
+
+int __cpu_logical_map[NR_CPUS];
+
+void __init smp_setup_processor_id(void)
+{
+	int i;
+	u32 cpu = is_smp() ? read_cpuid_mpidr() & 0xff : 0;
+
+	cpu_logical_map(0) = cpu;
+	for (i = 1; i < NR_CPUS; ++i)
+		cpu_logical_map(i) = i == cpu ? 0 : i;
+
+	printk(KERN_INFO "Booting Linux on physical CPU %d\n", cpu);
 }
 
 static void __init setup_processor(void)

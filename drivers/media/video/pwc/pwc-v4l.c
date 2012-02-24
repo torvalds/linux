@@ -493,16 +493,11 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 			(pixelformat>>24)&255);
 
 	ret = pwc_set_video_mode(pdev, f->fmt.pix.width, f->fmt.pix.height,
-				 pdev->vframes, &compression);
+				 pixelformat, 30, &compression, 0);
 
 	PWC_DEBUG_IOCTL("pwc_set_video_mode(), return=%d\n", ret);
 
-	if (ret == 0) {
-		pdev->pixfmt = pixelformat;
-		pwc_vidioc_fill_fmt(f, pdev->width, pdev->height,
-				    pdev->pixfmt);
-	}
-
+	pwc_vidioc_fill_fmt(f, pdev->width, pdev->height, pdev->pixfmt);
 leave:
 	mutex_unlock(&pdev->udevlock);
 	return ret;
@@ -777,33 +772,33 @@ static int pwc_set_autogain_expo(struct pwc_device *pdev)
 static int pwc_set_motor(struct pwc_device *pdev)
 {
 	int ret;
-	u8 buf[4];
 
-	buf[0] = 0;
+	pdev->ctrl_buf[0] = 0;
 	if (pdev->motor_pan_reset->is_new)
-		buf[0] |= 0x01;
+		pdev->ctrl_buf[0] |= 0x01;
 	if (pdev->motor_tilt_reset->is_new)
-		buf[0] |= 0x02;
+		pdev->ctrl_buf[0] |= 0x02;
 	if (pdev->motor_pan_reset->is_new || pdev->motor_tilt_reset->is_new) {
 		ret = send_control_msg(pdev, SET_MPT_CTL,
-				       PT_RESET_CONTROL_FORMATTER, buf, 1);
+				       PT_RESET_CONTROL_FORMATTER,
+				       pdev->ctrl_buf, 1);
 		if (ret < 0)
 			return ret;
 	}
 
-	memset(buf, 0, sizeof(buf));
+	memset(pdev->ctrl_buf, 0, 4);
 	if (pdev->motor_pan->is_new) {
-		buf[0] = pdev->motor_pan->val & 0xFF;
-		buf[1] = (pdev->motor_pan->val >> 8);
+		pdev->ctrl_buf[0] = pdev->motor_pan->val & 0xFF;
+		pdev->ctrl_buf[1] = (pdev->motor_pan->val >> 8);
 	}
 	if (pdev->motor_tilt->is_new) {
-		buf[2] = pdev->motor_tilt->val & 0xFF;
-		buf[3] = (pdev->motor_tilt->val >> 8);
+		pdev->ctrl_buf[2] = pdev->motor_tilt->val & 0xFF;
+		pdev->ctrl_buf[3] = (pdev->motor_tilt->val >> 8);
 	}
 	if (pdev->motor_pan->is_new || pdev->motor_tilt->is_new) {
 		ret = send_control_msg(pdev, SET_MPT_CTL,
 				       PT_RELATIVE_CONTROL_FORMATTER,
-				       buf, sizeof(buf));
+				       pdev->ctrl_buf, 4);
 		if (ret < 0)
 			return ret;
 	}
@@ -1094,6 +1089,63 @@ static int pwc_enum_frameintervals(struct file *file, void *fh,
 	return 0;
 }
 
+static int pwc_g_parm(struct file *file, void *fh,
+		      struct v4l2_streamparm *parm)
+{
+	struct pwc_device *pdev = video_drvdata(file);
+
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	memset(parm, 0, sizeof(*parm));
+
+	parm->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	parm->parm.capture.readbuffers = MIN_FRAMES;
+	parm->parm.capture.capability |= V4L2_CAP_TIMEPERFRAME;
+	parm->parm.capture.timeperframe.denominator = pdev->vframes;
+	parm->parm.capture.timeperframe.numerator = 1;
+
+	return 0;
+}
+
+static int pwc_s_parm(struct file *file, void *fh,
+		      struct v4l2_streamparm *parm)
+{
+	struct pwc_device *pdev = video_drvdata(file);
+	int compression = 0;
+	int ret, fps;
+
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+	    parm->parm.capture.timeperframe.numerator == 0)
+		return -EINVAL;
+
+	if (pwc_test_n_set_capt_file(pdev, file))
+		return -EBUSY;
+
+	fps = parm->parm.capture.timeperframe.denominator /
+	      parm->parm.capture.timeperframe.numerator;
+
+	mutex_lock(&pdev->udevlock);
+	if (!pdev->udev) {
+		ret = -ENODEV;
+		goto leave;
+	}
+
+	if (pdev->iso_init) {
+		ret = -EBUSY;
+		goto leave;
+	}
+
+	ret = pwc_set_video_mode(pdev, pdev->width, pdev->height, pdev->pixfmt,
+				 fps, &compression, 0);
+
+	pwc_g_parm(file, fh, parm);
+
+leave:
+	mutex_unlock(&pdev->udevlock);
+	return ret;
+}
+
 static int pwc_log_status(struct file *file, void *priv)
 {
 	struct pwc_device *pdev = video_drvdata(file);
@@ -1120,4 +1172,6 @@ const struct v4l2_ioctl_ops pwc_ioctl_ops = {
 	.vidioc_log_status		    = pwc_log_status,
 	.vidioc_enum_framesizes		    = pwc_enum_framesizes,
 	.vidioc_enum_frameintervals	    = pwc_enum_frameintervals,
+	.vidioc_g_parm			    = pwc_g_parm,
+	.vidioc_s_parm			    = pwc_s_parm,
 };

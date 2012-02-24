@@ -373,14 +373,13 @@ static void mem_cgroup_put(struct mem_cgroup *memcg);
 
 /* Writing them here to avoid exposing memcg's inner layout */
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-#ifdef CONFIG_INET
 #include <net/sock.h>
 #include <net/ip.h>
 
 static bool mem_cgroup_is_root(struct mem_cgroup *memcg);
 void sock_update_memcg(struct sock *sk)
 {
-	if (static_branch(&memcg_socket_limit_enabled)) {
+	if (mem_cgroup_sockets_enabled) {
 		struct mem_cgroup *memcg;
 
 		BUG_ON(!sk->sk_prot->proto_cgroup);
@@ -412,7 +411,7 @@ EXPORT_SYMBOL(sock_update_memcg);
 
 void sock_release_memcg(struct sock *sk)
 {
-	if (static_branch(&memcg_socket_limit_enabled) && sk->sk_cgrp) {
+	if (mem_cgroup_sockets_enabled && sk->sk_cgrp) {
 		struct mem_cgroup *memcg;
 		WARN_ON(!sk->sk_cgrp->memcg);
 		memcg = sk->sk_cgrp->memcg;
@@ -420,6 +419,7 @@ void sock_release_memcg(struct sock *sk)
 	}
 }
 
+#ifdef CONFIG_INET
 struct cg_proto *tcp_proto_cgroup(struct mem_cgroup *memcg)
 {
 	if (!memcg || mem_cgroup_is_root(memcg))
@@ -776,7 +776,8 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
 	/* threshold event is triggered in finer grain than soft limit */
 	if (unlikely(mem_cgroup_event_ratelimit(memcg,
 						MEM_CGROUP_TARGET_THRESH))) {
-		bool do_softlimit, do_numainfo;
+		bool do_softlimit;
+		bool do_numainfo __maybe_unused;
 
 		do_softlimit = mem_cgroup_event_ratelimit(memcg,
 						MEM_CGROUP_TARGET_SOFTLIMIT);
@@ -3247,7 +3248,7 @@ int mem_cgroup_prepare_migration(struct page *page,
 		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
 	else
 		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
-	__mem_cgroup_commit_charge(memcg, page, 1, pc, ctype);
+	__mem_cgroup_commit_charge(memcg, newpage, 1, pc, ctype);
 	return ret;
 }
 

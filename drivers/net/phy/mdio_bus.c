@@ -38,12 +38,11 @@
 
 /**
  * mdiobus_alloc_size - allocate a mii_bus structure
+ * @size: extra amount of memory to allocate for private storage.
+ * If non-zero, then bus->priv is points to that memory.
  *
  * Description: called by a bus driver to allocate an mii_bus
  * structure to fill in.
- *
- * 'size' is an an extra amount of memory to allocate for private storage.
- * If non-zero, then bus->priv is points to that memory.
  */
 struct mii_bus *mdiobus_alloc_size(size_t size)
 {

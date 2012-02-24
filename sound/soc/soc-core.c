@@ -567,6 +567,17 @@ int snd_soc_suspend(struct device *dev)
 		if (!codec->suspended && codec->driver->suspend) {
 			switch (codec->dapm.bias_level) {
 			case SND_SOC_BIAS_STANDBY:
+				/*
+				 * If the CODEC is capable of idle
+				 * bias off then being in STANDBY
+				 * means it's doing something,
+				 * otherwise fall through.
+				 */
+				if (codec->dapm.idle_bias_off) {
+					dev_dbg(codec->dev,
+						"idle_bias_off CODEC on over suspend\n");
+					break;
+				}
 			case SND_SOC_BIAS_OFF:
 				codec->driver->suspend(codec);
 				codec->suspended = 1;
@@ -907,6 +918,10 @@ static void soc_remove_dai_link(struct snd_soc_card *card, int num, int order)
 			if (err < 0)
 				printk(KERN_ERR "asoc: failed to remove %s\n", platform->name);
 		}
+
+		/* Make sure all DAPM widgets are freed */
+		snd_soc_dapm_free(&platform->dapm);
+
 		platform->probed = 0;
 		list_del(&platform->card_list);
 		module_put(platform->dev->driver->owner);

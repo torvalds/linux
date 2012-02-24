@@ -20,7 +20,6 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  */
-#define _GNU_SOURCE
 #include <sys/utsname.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -31,7 +30,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#undef _GNU_SOURCE
 #include "perf.h"
 #include "builtin.h"
 #include "util/util.h"

@@ -36,18 +36,14 @@
 #include <linux/configfs.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_device.h>
-#include <target/target_core_tpg.h>
-#include <target/target_core_transport.h>
-#include <target/target_core_fabric_ops.h>
+#include <target/target_core_fabric.h>
 #include <target/target_core_fabric_configfs.h>
 #include <target/target_core_configfs.h>
 #include <target/configfs_macros.h>
 
+#include "target_core_internal.h"
 #include "target_core_alua.h"
-#include "target_core_hba.h"
 #include "target_core_pr.h"
-#include "target_core_stat.h"
 
 #define TF_CIT_SETUP(_name, _item_ops, _group_ops, _attrs)		\
 static void target_fabric_setup_##_name##_cit(struct target_fabric_configfs *tf) \
@@ -770,9 +766,9 @@ static int target_fabric_port_link(
 
 	lun_p = core_dev_add_lun(se_tpg, dev->se_hba, dev,
 				lun->unpacked_lun);
-	if (IS_ERR(lun_p) || !lun_p) {
+	if (IS_ERR(lun_p)) {
 		pr_err("core_dev_add_lun() failed\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(lun_p);
 		goto out;
 	}
 

@@ -322,9 +322,6 @@ EXPORT_SYMBOL(clear_nlink);
 void set_nlink(struct inode *inode, unsigned int nlink)
 {
 	if (!nlink) {
-		printk_ratelimited(KERN_INFO
-			"set_nlink() clearing i_nlink on %s inode %li\n",
-			inode->i_sb->s_type->name, inode->i_ino);
 		clear_nlink(inode);
 	} else {
 		/* Yes, some filesystems do change nlink from zero to one */
@@ -1654,7 +1651,7 @@ __setup("ihash_entries=", set_ihash_entries);
  */
 void __init inode_init_early(void)
 {
-	int loop;
+	unsigned int loop;
 
 	/* If hashes are distributed across NUMA nodes, defer
 	 * hash allocation until vmalloc space is available.
@@ -1672,13 +1669,13 @@ void __init inode_init_early(void)
 					&i_hash_mask,
 					0);
 
-	for (loop = 0; loop < (1 << i_hash_shift); loop++)
+	for (loop = 0; loop < (1U << i_hash_shift); loop++)
 		INIT_HLIST_HEAD(&inode_hashtable[loop]);
 }
 
 void __init inode_init(void)
 {
-	int loop;
+	unsigned int loop;
 
 	/* inode slab cache */
 	inode_cachep = kmem_cache_create("inode_cache",
@@ -1702,7 +1699,7 @@ void __init inode_init(void)
 					&i_hash_mask,
 					0);
 
-	for (loop = 0; loop < (1 << i_hash_shift); loop++)
+	for (loop = 0; loop < (1U << i_hash_shift); loop++)
 		INIT_HLIST_HEAD(&inode_hashtable[loop]);
 }
 

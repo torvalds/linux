@@ -1871,6 +1871,7 @@ static long __video_do_ioctl(struct file *file,
 	case VIDIOC_S_FREQUENCY:
 	{
 		struct v4l2_frequency *p = arg;
+		enum v4l2_tuner_type type;
 
 		if (!ops->vidioc_s_frequency)
 			break;
@@ -1878,9 +1879,14 @@ static long __video_do_ioctl(struct file *file,
 			ret = ret_prio;
 			break;
 		}
+		type = (vfd->vfl_type == VFL_TYPE_RADIO) ?
+			V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
 		dbgarg(cmd, "tuner=%d, type=%d, frequency=%d\n",
 				p->tuner, p->type, p->frequency);
-		ret = ops->vidioc_s_frequency(file, fh, p);
+		if (p->type != type)
+			ret = -EINVAL;
+		else
+			ret = ops->vidioc_s_frequency(file, fh, p);
 		break;
 	}
 	case VIDIOC_G_SLICED_VBI_CAP:

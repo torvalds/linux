@@ -62,8 +62,8 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par)
 	int ret = 0;
 	u8 proto;
 
-	if (info->flags & ~(XT_CT_NOTRACK | XT_CT_USERSPACE_HELPER))
-		return -EOPNOTSUPP;
+	if (info->flags & ~XT_CT_NOTRACK)
+		return -EINVAL;
 
 	if (info->flags & XT_CT_NOTRACK) {
 		ct = nf_ct_untracked_get();
@@ -92,9 +92,7 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par)
 				  GFP_KERNEL))
 		goto err3;
 
-	if (info->flags & XT_CT_USERSPACE_HELPER) {
-		__set_bit(IPS_USERSPACE_HELPER_BIT, &ct->status);
-	} else if (info->helper[0]) {
+	if (info->helper[0]) {
 		ret = -ENOENT;
 		proto = xt_ct_find_proto(par);
 		if (!proto) {

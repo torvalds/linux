@@ -21,13 +21,10 @@
 
 #include <linux/configfs.h>
 #include <linux/export.h>
+#include <linux/inet.h>
 #include <target/target_core_base.h>
-#include <target/target_core_transport.h>
-#include <target/target_core_fabric_ops.h>
+#include <target/target_core_fabric.h>
 #include <target/target_core_fabric_configfs.h>
-#include <target/target_core_fabric_lib.h>
-#include <target/target_core_device.h>
-#include <target/target_core_tpg.h>
 #include <target/target_core_configfs.h>
 #include <target/configfs_macros.h>
 
@@ -56,8 +53,7 @@ struct iscsi_portal_group *lio_get_tpg_from_tpg_item(
 {
 	struct se_portal_group *se_tpg = container_of(to_config_group(item),
 					struct se_portal_group, tpg_group);
-	struct iscsi_portal_group *tpg =
-			(struct iscsi_portal_group *)se_tpg->se_tpg_fabric_ptr;
+	struct iscsi_portal_group *tpg = se_tpg->se_tpg_fabric_ptr;
 	int ret;
 
 	if (!tpg) {
@@ -1225,7 +1221,7 @@ struct se_portal_group *lio_target_tiqn_addtpg(
 
 	ret = core_tpg_register(
 			&lio_target_fabric_configfs->tf_ops,
-			wwn, &tpg->tpg_se_tpg, (void *)tpg,
+			wwn, &tpg->tpg_se_tpg, tpg,
 			TRANSPORT_TPG_TYPE_NORMAL);
 	if (ret < 0)
 		return NULL;

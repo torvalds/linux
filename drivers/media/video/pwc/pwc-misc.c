@@ -90,5 +90,4 @@ void pwc_construct(struct pwc_device *pdev)
 		pdev->frame_header_size = 0;
 		pdev->frame_trailer_size = 0;
 	}
-	pdev->pixfmt = V4L2_PIX_FMT_YUV420; /* default */
 }

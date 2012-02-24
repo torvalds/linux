@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) 82576 Virtual Function Linux driver
-  Copyright(c) 2009 - 2010 Intel Corporation.
+  Copyright(c) 2009 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -468,6 +468,5 @@ static const struct ethtool_ops igbvf_ethtool_ops = {
 
 void igbvf_set_ethtool_ops(struct net_device *netdev)
 {
-	/* have to "undeclare" const on this struct to remove warnings */
-	SET_ETHTOOL_OPS(netdev, (struct ethtool_ops *)&igbvf_ethtool_ops);
+	SET_ETHTOOL_OPS(netdev, &igbvf_ethtool_ops);
 }

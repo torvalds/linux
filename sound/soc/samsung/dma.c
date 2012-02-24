@@ -86,7 +86,7 @@ static void dma_enqueue(struct snd_pcm_substream *substream)
 	dma_info.cap = (samsung_dma_has_circular() ? DMA_CYCLIC : DMA_SLAVE);
 	dma_info.direction =
 		(substream->stream == SNDRV_PCM_STREAM_PLAYBACK
-		? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+		? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM);
 	dma_info.fp = audio_buffdone;
 	dma_info.fp_param = substream;
 	dma_info.period = prtd->dma_period;
@@ -171,7 +171,7 @@ static int dma_hw_params(struct snd_pcm_substream *substream,
 		dma_info.client = prtd->params->client;
 		dma_info.direction =
 			(substream->stream == SNDRV_PCM_STREAM_PLAYBACK
-			? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+			? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM);
 		dma_info.width = prtd->params->dma_size;
 		dma_info.fifo = prtd->params->dma_addr;
 		prtd->params->ch = prtd->params->ops->request(

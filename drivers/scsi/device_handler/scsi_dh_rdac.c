@@ -953,6 +953,8 @@ static int __init rdac_init(void)
 	if (!kmpath_rdacd) {
 		scsi_unregister_device_handler(&rdac_dh);
 		printk(KERN_ERR "kmpath_rdacd creation failed.\n");
+
+		r = -EINVAL;
 	}
 done:
 	return r;

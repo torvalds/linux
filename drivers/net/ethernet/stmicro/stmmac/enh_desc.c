@@ -201,7 +201,7 @@ static int enh_desc_get_rx_status(void *data, struct stmmac_extra_stats *x,
 
 	if (unlikely(p->des01.erx.dribbling)) {
 		CHIP_DBG(KERN_ERR "GMAC RX: dribbling error\n");
-		ret = discard_frame;
+		x->dribbling_bit++;
 	}
 	if (unlikely(p->des01.erx.sa_filter_fail)) {
 		CHIP_DBG(KERN_ERR "GMAC RX : Source Address filter fail\n");

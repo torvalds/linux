@@ -18,6 +18,35 @@
 
 #include <mach/cpu.h>
 
+#ifndef __ASSEMBLY__
+struct sam9_smc_config {
+	/* Setup register */
+	u8 ncs_read_setup;
+	u8 nrd_setup;
+	u8 ncs_write_setup;
+	u8 nwe_setup;
+
+	/* Pulse register */
+	u8 ncs_read_pulse;
+	u8 nrd_pulse;
+	u8 ncs_write_pulse;
+	u8 nwe_pulse;
+
+	/* Cycle register */
+	u16 read_cycle;
+	u16 write_cycle;
+
+	/* Mode register */
+	u32 mode;
+	u8 tdf_cycles:4;
+};
+
+extern void sam9_smc_configure(int id, int cs, struct sam9_smc_config *config);
+extern void sam9_smc_read(int id, int cs, struct sam9_smc_config *config);
+extern void sam9_smc_read_mode(int id, int cs, struct sam9_smc_config *config);
+extern void sam9_smc_write_mode(int id, int cs, struct sam9_smc_config *config);
+#endif
+
 #define AT91_SMC_SETUP		0x00				/* Setup Register for CS n */
 #define		AT91_SMC_NWESETUP	(0x3f << 0)			/* NWE Setup Length */
 #define			AT91_SMC_NWESETUP_(x)	((x) << 0)

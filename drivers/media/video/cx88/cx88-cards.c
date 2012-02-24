@@ -1573,8 +1573,8 @@ static const struct cx88_board cx88_boards[] = {
 		.name           = "Pinnacle Hybrid PCTV",
 		.tuner_type     = TUNER_XC2028,
 		.tuner_addr     = 0x61,
-		.radio_type     = TUNER_XC2028,
-		.radio_addr     = 0x61,
+		.radio_type     = UNSET,
+		.radio_addr     = ADDR_UNSET,
 		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
@@ -1611,8 +1611,8 @@ static const struct cx88_board cx88_boards[] = {
 		.name           = "Leadtek TV2000 XP Global",
 		.tuner_type     = TUNER_XC2028,
 		.tuner_addr     = 0x61,
-		.radio_type     = TUNER_XC2028,
-		.radio_addr     = 0x61,
+		.radio_type     = UNSET,
+		.radio_addr     = ADDR_UNSET,
 		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
@@ -2115,8 +2115,8 @@ static const struct cx88_board cx88_boards[] = {
 		.name           = "Terratec Cinergy HT PCI MKII",
 		.tuner_type     = TUNER_XC2028,
 		.tuner_addr     = 0x61,
-		.radio_type     = TUNER_XC2028,
-		.radio_addr     = 0x61,
+		.radio_type     = UNSET,
+		.radio_addr     = ADDR_UNSET,
 		.input          = { {
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
@@ -2154,9 +2154,9 @@ static const struct cx88_board cx88_boards[] = {
 	[CX88_BOARD_WINFAST_DTV1800H] = {
 		.name           = "Leadtek WinFast DTV1800 Hybrid",
 		.tuner_type     = TUNER_XC2028,
-		.radio_type     = TUNER_XC2028,
+		.radio_type     = UNSET,
 		.tuner_addr     = 0x61,
-		.radio_addr     = 0x61,
+		.radio_addr     = ADDR_UNSET,
 		/*
 		 * GPIO setting
 		 *
@@ -2195,9 +2195,9 @@ static const struct cx88_board cx88_boards[] = {
 	[CX88_BOARD_WINFAST_DTV1800H_XC4000] = {
 		.name		= "Leadtek WinFast DTV1800 H (XC4000)",
 		.tuner_type	= TUNER_XC4000,
-		.radio_type	= TUNER_XC4000,
+		.radio_type	= UNSET,
 		.tuner_addr	= 0x61,
-		.radio_addr	= 0x61,
+		.radio_addr	= ADDR_UNSET,
 		/*
 		 * GPIO setting
 		 *
@@ -2236,9 +2236,9 @@ static const struct cx88_board cx88_boards[] = {
 	[CX88_BOARD_WINFAST_DTV2000H_PLUS] = {
 		.name		= "Leadtek WinFast DTV2000 H PLUS",
 		.tuner_type	= TUNER_XC4000,
-		.radio_type	= TUNER_XC4000,
+		.radio_type	= UNSET,
 		.tuner_addr	= 0x61,
-		.radio_addr	= 0x61,
+		.radio_addr	= ADDR_UNSET,
 		/*
 		 * GPIO
 		 *   2: 1: mute audio

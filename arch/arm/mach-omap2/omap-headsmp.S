@@ -18,6 +18,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 
+	__CPUINIT
 /*
  * OMAP4 specific entry point for secondary CPU to jump from ROM
  * code.  This routine also provides a holding flag into which

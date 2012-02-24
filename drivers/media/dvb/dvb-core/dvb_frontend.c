@@ -904,8 +904,11 @@ static int dvb_frontend_clear_cache(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int i;
+	u32 delsys;
 
+	delsys = c->delivery_system;
 	memset(c, 0, sizeof(struct dtv_frontend_properties));
+	c->delivery_system = delsys;
 
 	c->state = DTV_CLEAR;
 
@@ -1008,25 +1011,6 @@ static struct dtv_cmds_h dtv_cmds[DTV_MAX_COMMAND + 1] = {
 	_DTV_CMD(DTV_ISDBT_LAYERC_MODULATION, 1, 0),
 	_DTV_CMD(DTV_ISDBT_LAYERC_SEGMENT_COUNT, 1, 0),
 	_DTV_CMD(DTV_ISDBT_LAYERC_TIME_INTERLEAVING, 1, 0),
-
-	_DTV_CMD(DTV_ISDBT_PARTIAL_RECEPTION, 0, 0),
-	_DTV_CMD(DTV_ISDBT_SOUND_BROADCASTING, 0, 0),
-	_DTV_CMD(DTV_ISDBT_SB_SUBCHANNEL_ID, 0, 0),
-	_DTV_CMD(DTV_ISDBT_SB_SEGMENT_IDX, 0, 0),
-	_DTV_CMD(DTV_ISDBT_SB_SEGMENT_COUNT, 0, 0),
-	_DTV_CMD(DTV_ISDBT_LAYER_ENABLED, 0, 0),
-	_DTV_CMD(DTV_ISDBT_LAYERA_FEC, 0, 0),
-	_DTV_CMD(DTV_ISDBT_LAYERA_MODULATION, 0, 0),
-	_DTV_CMD(DTV_ISDBT_LAYERA_SEGMENT_COUNT, 0, 0),
-	_DTV_CMD(DTV_ISDBT_LAYERA_TIME_INTERLEAVING, 0, 0),
-	_DTV_CMD(DTV_ISDBT_LAYERB_FEC, 0, 0),
-	_DTV_CMD(DTV_ISDBT_LAYERB_MODULATION, 0, 0),
-	_DTV_CMD(DTV_ISDBT_LAYERB_SEGMENT_COUNT, 0, 0),
-	_DTV_CMD(DTV_ISDBT_LAYERB_TIME_INTERLEAVING, 0, 0),
-	_DTV_CMD(DTV_ISDBT_LAYERC_FEC, 0, 0),
-	_DTV_CMD(DTV_ISDBT_LAYERC_MODULATION, 0, 0),
-	_DTV_CMD(DTV_ISDBT_LAYERC_SEGMENT_COUNT, 0, 0),
-	_DTV_CMD(DTV_ISDBT_LAYERC_TIME_INTERLEAVING, 0, 0),
 
 	_DTV_CMD(DTV_ISDBS_TS_ID, 1, 0),
 	_DTV_CMD(DTV_DVBT2_PLP_ID, 1, 0),
@@ -1413,6 +1397,15 @@ static int set_delivery_system(struct dvb_frontend *fe, u32 desired_system)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	enum dvbv3_emulation_type type;
 
+	/*
+	 * It was reported that some old DVBv5 applications were
+	 * filling delivery_system with SYS_UNDEFINED. If this happens,
+	 * assume that the application wants to use the first supported
+	 * delivery system.
+	 */
+	if (c->delivery_system == SYS_UNDEFINED)
+	        c->delivery_system = fe->ops.delsys[0];
+
 	if (desired_system == SYS_UNDEFINED) {
 		/*
 		 * A DVBv3 call doesn't know what's the desired system.
@@ -1732,6 +1725,7 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_frontend *fe = dvbdev->priv;
+	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int err = 0;
 
@@ -1798,9 +1792,14 @@ static int dvb_frontend_ioctl_properties(struct file *file,
 
 		/*
 		 * Fills the cache out struct with the cache contents, plus
-		 * the data retrieved from get_frontend.
+		 * the data retrieved from get_frontend, if the frontend
+		 * is not idle. Otherwise, returns the cached content
 		 */
-		dtv_get_frontend(fe, NULL);
+		if (fepriv->state != FESTATE_IDLE) {
+			err = dtv_get_frontend(fe, NULL);
+			if (err < 0)
+				goto out;
+		}
 		for (i = 0; i < tvps->num; i++) {
 			err = dtv_property_process_get(fe, c, tvp + i, file);
 			if (err < 0)

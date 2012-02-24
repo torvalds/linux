@@ -4740,12 +4740,14 @@ static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake)
 		e1000_setup_rctl(adapter);
 		e1000_set_rx_mode(netdev);
 
+		rctl = er32(RCTL);
+
 		/* turn on all-multi mode if wake on multicast is enabled */
-		if (wufc & E1000_WUFC_MC) {
-			rctl = er32(RCTL);
+		if (wufc & E1000_WUFC_MC)
 			rctl |= E1000_RCTL_MPE;
-			ew32(RCTL, rctl);
-		}
+
+		/* enable receives in the hardware */
+		ew32(RCTL, rctl | E1000_RCTL_EN);
 
 		if (hw->mac_type >= e1000_82540) {
 			ctrl = er32(CTRL);

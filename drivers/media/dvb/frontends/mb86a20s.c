@@ -402,7 +402,7 @@ static int mb86a20s_get_modulation(struct mb86a20s_state *state,
 		[2] = 0x8e,	/* Layer C */
 	};
 
-	if (layer > ARRAY_SIZE(reg))
+	if (layer >= ARRAY_SIZE(reg))
 		return -EINVAL;
 	rc = mb86a20s_writereg(state, 0x6d, reg[layer]);
 	if (rc < 0)
@@ -435,7 +435,7 @@ static int mb86a20s_get_fec(struct mb86a20s_state *state,
 		[2] = 0x8f,	/* Layer C */
 	};
 
-	if (layer > ARRAY_SIZE(reg))
+	if (layer >= ARRAY_SIZE(reg))
 		return -EINVAL;
 	rc = mb86a20s_writereg(state, 0x6d, reg[layer]);
 	if (rc < 0)
@@ -470,7 +470,7 @@ static int mb86a20s_get_interleaving(struct mb86a20s_state *state,
 		[2] = 0x90,	/* Layer C */
 	};
 
-	if (layer > ARRAY_SIZE(reg))
+	if (layer >= ARRAY_SIZE(reg))
 		return -EINVAL;
 	rc = mb86a20s_writereg(state, 0x6d, reg[layer]);
 	if (rc < 0)
@@ -494,7 +494,7 @@ static int mb86a20s_get_segment_count(struct mb86a20s_state *state,
 		[2] = 0x91,	/* Layer C */
 	};
 
-	if (layer > ARRAY_SIZE(reg))
+	if (layer >= ARRAY_SIZE(reg))
 		return -EINVAL;
 	rc = mb86a20s_writereg(state, 0x6d, reg[layer]);
 	if (rc < 0)
