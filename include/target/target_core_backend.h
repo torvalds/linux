@@ -59,7 +59,7 @@ int	transport_set_vpd_ident_type(struct t10_vpd *, unsigned char *);
 int	transport_set_vpd_ident(struct t10_vpd *, unsigned char *);
 
 /* core helpers also used by command snooping in pscsi */
-void	*transport_kmap_first_data_page(struct se_cmd *);
-void	transport_kunmap_first_data_page(struct se_cmd *);
+void	*transport_kmap_data_sg(struct se_cmd *);
+void	transport_kunmap_data_sg(struct se_cmd *);
 
 #endif /* TARGET_CORE_BACKEND_H */

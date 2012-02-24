@@ -169,10 +169,8 @@ int bcma_bus_register(struct bcma_bus *bus)
 	err = bcma_sprom_get(bus);
 	if (err == -ENOENT) {
 		pr_err("No SPROM available\n");
-	} else if (err) {
+	} else if (err)
 		pr_err("Failed to get SPROM: %d\n", err);
-		return -ENOENT;
-	}
 
 	/* Register found cores */
 	bcma_register_cores(bus);
