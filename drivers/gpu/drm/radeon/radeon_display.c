@@ -303,8 +303,17 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 	if (update_pending &&
 	    (DRM_SCANOUTPOS_VALID & radeon_get_crtc_scanoutpos(rdev->ddev, crtc_id,
 							       &vpos, &hpos)) &&
-	    (vpos >=0) &&
-	    (vpos < (99 * rdev->mode_info.crtcs[crtc_id]->base.hwmode.crtc_vdisplay)/100)) {
+	    ((vpos >= (99 * rdev->mode_info.crtcs[crtc_id]->base.hwmode.crtc_vdisplay)/100) ||
+	     (vpos < 0 && !ASIC_IS_AVIVO(rdev)))) {
+		/* crtc didn't flip in this target vblank interval,
+		 * but flip is pending in crtc. Based on the current
+		 * scanout position we know that the current frame is
+		 * (nearly) complete and the flip will (likely)
+		 * complete before the start of the next frame.
+		 */
+		update_pending = 0;
+	}
+	if (update_pending) {
 		/* crtc didn't flip in this target vblank interval,
 		 * but flip is pending in crtc. It will complete it
 		 * in next vblank interval, so complete the flip at
