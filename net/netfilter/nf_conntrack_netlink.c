@@ -1465,11 +1465,10 @@ ctnetlink_create_conntrack(struct net *net, u16 zone,
 	if (tstamp)
 		tstamp->start = ktime_to_ns(ktime_get_real());
 
-	add_timer(&ct->timeout);
-	spin_lock_bh(&nf_conntrack_lock);
-	nf_conntrack_hash_insert(ct);
-	nf_conntrack_get(&ct->ct_general);
-	spin_unlock_bh(&nf_conntrack_lock);
+	err = nf_conntrack_hash_check_insert(ct);
+	if (err < 0)
+		goto err2;
+
 	rcu_read_unlock();
 
 	return ct;
@@ -1511,12 +1510,10 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 			return err;
 	}
 
-	spin_lock_bh(&nf_conntrack_lock);
 	if (cda[CTA_TUPLE_ORIG])
 		h = nf_conntrack_find_get(net, zone, &otuple);
 	else if (cda[CTA_TUPLE_REPLY])
 		h = nf_conntrack_find_get(net, zone, &rtuple);
-	spin_unlock_bh(&nf_conntrack_lock);
 
 	if (h == NULL) {
 		err = -ENOENT;
