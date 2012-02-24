@@ -43,12 +43,10 @@ const char *const pci_mem_names[] = {
 
 const char pci_hae0_name[] = "HAE0";
 
-/* Indicate whether we respect the PCI setup left by console. */
 /*
- * Make this long-lived  so that we know when shutting down
- * whether we probed only or not.
+ * If PCI_PROBE_ONLY in pci_flags is set, we don't change any PCI resource
+ * assignments.
  */
-int pci_probe_only;
 
 /*
  * The PCI controller list.
@@ -215,7 +213,7 @@ pdev_save_srm_config(struct pci_dev *dev)
 	struct pdev_srm_saved_conf *tmp;
 	static int printed = 0;
 
-	if (!alpha_using_srm || pci_probe_only)
+	if (!alpha_using_srm || pci_has_flag(PCI_PROBE_ONLY))
 		return;
 
 	if (!printed) {
@@ -242,7 +240,7 @@ pci_restore_srm_config(void)
 	struct pdev_srm_saved_conf *tmp;
 
 	/* No need to restore if probed only. */
-	if (pci_probe_only)
+	if (pci_has_flag(PCI_PROBE_ONLY))
 		return;
 
 	/* Restore SRM config. */
@@ -283,7 +281,7 @@ pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev = bus->self;
 
-	if (pci_probe_only && dev &&
+	if (pci_has_flag(PCI_PROBE_ONLY) && dev &&
  		   (dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
  		pci_read_bridge_bases(bus);
  		pcibios_fixup_device_resources(dev, bus);
@@ -374,7 +372,8 @@ pcibios_claim_one_bus(struct pci_bus *b)
 
 			if (r->parent || !r->start || !r->flags)
 				continue;
-			if (pci_probe_only || (r->flags & IORESOURCE_PCI_FIXED))
+			if (pci_has_flag(PCI_PROBE_ONLY) ||
+			    (r->flags & IORESOURCE_PCI_FIXED))
 				pci_claim_resource(dev, i);
 		}
 	}
