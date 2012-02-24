@@ -3291,6 +3291,37 @@ static const struct v4l2_file_operations v4l2_fops = {
 	.mmap		= easycap_mmap,
 };
 
+static int easycap_register_video(struct easycap *peasycap)
+{
+	/*
+	 * FIXME: This is believed to be harmless,
+	 * but may well be unnecessary or wrong.
+	 */
+	peasycap->video_device.v4l2_dev = NULL;
+
+	strcpy(&peasycap->video_device.name[0], "easycapdc60");
+	peasycap->video_device.fops = &v4l2_fops;
+	peasycap->video_device.minor = -1;
+	peasycap->video_device.release = (void *)(&videodev_release);
+
+	video_set_drvdata(&(peasycap->video_device), (void *)peasycap);
+
+	if (0 != (video_register_device(&(peasycap->video_device),
+					VFL_TYPE_GRABBER, -1))) {
+		err("Not able to register with videodev");
+		videodev_release(&(peasycap->video_device));
+		return -ENODEV;
+	}
+
+	peasycap->registered_video++;
+
+	SAM("registered with videodev: %i=minor\n",
+	    peasycap->video_device.minor);
+	    peasycap->minor = peasycap->video_device.minor;
+
+	return 0;
+}
+
 /*
  * When the device is plugged, this function is called three times,
  * one for each interface.
@@ -3667,32 +3698,9 @@ static int easycap_usb_probe(struct usb_interface *intf,
 		JOM(4, "registered device instance: %s\n",
 			peasycap->v4l2_device.name);
 
-		/*
-		 * FIXME: This is believed to be harmless,
-		 * but may well be unnecessary or wrong.
-		 */
-		peasycap->video_device.v4l2_dev = NULL;
-
-
-		strcpy(&peasycap->video_device.name[0], "easycapdc60");
-		peasycap->video_device.fops = &v4l2_fops;
-		peasycap->video_device.minor = -1;
-		peasycap->video_device.release = (void *)(&videodev_release);
-
-		video_set_drvdata(&(peasycap->video_device), (void *)peasycap);
-
-		if (0 != (video_register_device(&(peasycap->video_device),
-							VFL_TYPE_GRABBER, -1))) {
-			err("Not able to register with videodev");
-			videodev_release(&(peasycap->video_device));
+		rc = easycap_register_video(peasycap);
+		if (rc < 0)
 			return -ENODEV;
-		}
-
-		peasycap->registered_video++;
-		SAM("registered with videodev: %i=minor\n",
-						peasycap->video_device.minor);
-		peasycap->minor = peasycap->video_device.minor;
-
 		break;
 	}
 	/* 1: Audio control */
