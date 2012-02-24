@@ -69,7 +69,7 @@ static int __init dove_pcie_setup(int nr, struct pci_sys_data *sys)
 	pp->res[0].flags = IORESOURCE_IO;
 	if (request_resource(&ioport_resource, &pp->res[0]))
 		panic("Request PCIe IO resource failed\n");
-	pci_add_resource(&sys->resources, &pp->res[0]);
+	pci_add_resource_offset(&sys->resources, &pp->res[0], sys->io_offset);
 
 	/*
 	 * IORESOURCE_MEM
@@ -88,7 +88,7 @@ static int __init dove_pcie_setup(int nr, struct pci_sys_data *sys)
 	pp->res[1].flags = IORESOURCE_MEM;
 	if (request_resource(&iomem_resource, &pp->res[1]))
 		panic("Request PCIe Memory resource failed\n");
-	pci_add_resource(&sys->resources, &pp->res[1]);
+	pci_add_resource_offset(&sys->resources, &pp->res[1], sys->mem_offset);
 
 	return 1;
 }

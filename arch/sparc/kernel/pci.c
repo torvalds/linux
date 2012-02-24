@@ -691,8 +691,10 @@ struct pci_bus * __devinit pci_scan_one_pbm(struct pci_pbm_info *pbm,
 
 	printk("PCI: Scanning PBM %s\n", node->full_name);
 
-	pci_add_resource(&resources, &pbm->io_space);
-	pci_add_resource(&resources, &pbm->mem_space);
+	pci_add_resource_offset(&resources, &pbm->io_space,
+				pbm->io_space.start);
+	pci_add_resource_offset(&resources, &pbm->mem_space,
+				pbm->mem_space.start);
 	bus = pci_create_root_bus(parent, pbm->pci_first_busno, pbm->pci_ops,
 				  pbm, &resources);
 	if (!bus) {
@@ -754,46 +756,6 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 	}
 	return 0;
 }
-
-void pcibios_resource_to_bus(struct pci_dev *pdev, struct pci_bus_region *region,
-			     struct resource *res)
-{
-	struct pci_pbm_info *pbm = pdev->bus->sysdata;
-	struct resource zero_res, *root;
-
-	zero_res.start = 0;
-	zero_res.end = 0;
-	zero_res.flags = res->flags;
-
-	if (res->flags & IORESOURCE_IO)
-		root = &pbm->io_space;
-	else
-		root = &pbm->mem_space;
-
-	pci_resource_adjust(&zero_res, root);
-
-	region->start = res->start - zero_res.start;
-	region->end = res->end - zero_res.start;
-}
-EXPORT_SYMBOL(pcibios_resource_to_bus);
-
-void pcibios_bus_to_resource(struct pci_dev *pdev, struct resource *res,
-			     struct pci_bus_region *region)
-{
-	struct pci_pbm_info *pbm = pdev->bus->sysdata;
-	struct resource *root;
-
-	res->start = region->start;
-	res->end = region->end;
-
-	if (res->flags & IORESOURCE_IO)
-		root = &pbm->io_space;
-	else
-		root = &pbm->mem_space;
-
-	pci_resource_adjust(res, root);
-}
-EXPORT_SYMBOL(pcibios_bus_to_resource);
 
 char * __devinit pcibios_setup(char *str)
 {

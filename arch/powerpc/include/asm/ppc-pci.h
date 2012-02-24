@@ -45,8 +45,6 @@ extern void init_pci_config_tokens (void);
 extern unsigned long get_phb_buid (struct device_node *);
 extern int rtas_setup_phb(struct pci_controller *phb);
 
-extern unsigned long pci_probe_only;
-
 /* ---- EEH internal-use-only related routines ---- */
 #ifdef CONFIG_EEH
 
