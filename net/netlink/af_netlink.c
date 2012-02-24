@@ -1750,6 +1750,7 @@ int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	cb->dump = control->dump;
 	cb->done = control->done;
 	cb->nlh = nlh;
+	cb->data = control->data;
 	cb->min_dump_alloc = control->min_dump_alloc;
 	atomic_inc(&skb->users);
 	cb->skb = skb;
