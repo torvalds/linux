@@ -1546,6 +1546,9 @@ i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 	inode = obj->base.filp->f_path.dentry->d_inode;
 	shmem_truncate_range(inode, 0, (loff_t)-1);
 
+	if (obj->base.map_list.map)
+		drm_gem_free_mmap_offset(&obj->base);
+
 	obj->madv = __I915_MADV_PURGED;
 }
 
