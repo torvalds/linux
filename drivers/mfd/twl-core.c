@@ -1305,11 +1305,10 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		twl_i2c_write_u8(TWL4030_MODULE_INTBR, temp, REG_GPPUPDCTR1);
 	}
 
-#ifdef CONFIG_OF_DEVICE
+	status = -ENODEV;
 	if (node)
 		status = of_platform_populate(node, NULL, NULL, &client->dev);
-	else
-#endif
+	if (status)
 		status = add_children(pdata, id->driver_data);
 
 fail:
