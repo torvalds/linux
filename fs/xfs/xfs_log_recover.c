@@ -1981,7 +1981,7 @@ xfs_qm_dqcheck(
 
 	if (!errs && ddq->d_id) {
 		if (ddq->d_blk_softlimit &&
-		    be64_to_cpu(ddq->d_bcount) >=
+		    be64_to_cpu(ddq->d_bcount) >
 				be64_to_cpu(ddq->d_blk_softlimit)) {
 			if (!ddq->d_btimer) {
 				if (flags & XFS_QMOPT_DOWARN)
@@ -1992,7 +1992,7 @@ xfs_qm_dqcheck(
 			}
 		}
 		if (ddq->d_ino_softlimit &&
-		    be64_to_cpu(ddq->d_icount) >=
+		    be64_to_cpu(ddq->d_icount) >
 				be64_to_cpu(ddq->d_ino_softlimit)) {
 			if (!ddq->d_itimer) {
 				if (flags & XFS_QMOPT_DOWARN)
@@ -2003,7 +2003,7 @@ xfs_qm_dqcheck(
 			}
 		}
 		if (ddq->d_rtb_softlimit &&
-		    be64_to_cpu(ddq->d_rtbcount) >=
+		    be64_to_cpu(ddq->d_rtbcount) >
 				be64_to_cpu(ddq->d_rtb_softlimit)) {
 			if (!ddq->d_rtbtimer) {
 				if (flags & XFS_QMOPT_DOWARN)

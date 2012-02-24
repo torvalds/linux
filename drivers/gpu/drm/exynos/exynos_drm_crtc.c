@@ -307,9 +307,6 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 		 */
 		event->pipe = exynos_crtc->pipe;
 
-		list_add_tail(&event->base.link,
-				&dev_priv->pageflip_event_list);
-
 		ret = drm_vblank_get(dev, exynos_crtc->pipe);
 		if (ret) {
 			DRM_DEBUG("failed to acquire vblank counter\n");
@@ -317,6 +314,9 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 
 			goto out;
 		}
+
+		list_add_tail(&event->base.link,
+				&dev_priv->pageflip_event_list);
 
 		crtc->fb = fb;
 		ret = exynos_drm_crtc_update(crtc);
