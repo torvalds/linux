@@ -55,8 +55,8 @@ extern void ctrl_alt_del(void);
 /*
  * Some laptops take the 789uiojklm,. keys as number pad when NumLock is on.
  * This seems a good reason to start with NumLock off. On HIL keyboards
- * of PARISC machines however there is no NumLock key and everyone expects the keypad
- * to be used for numbers.
+ * of PARISC machines however there is no NumLock key and everyone expects the
+ * keypad to be used for numbers.
  */
 
 #if defined(CONFIG_PARISC) && (defined(CONFIG_KEYBOARD_HIL) || defined(CONFIG_KEYBOARD_HIL_OLD))
@@ -1404,14 +1404,14 @@ static void kbd_start(struct input_handle *handle)
 
 static const struct input_device_id kbd_ids[] = {
 	{
-                .flags = INPUT_DEVICE_ID_MATCH_EVBIT,
-                .evbit = { BIT_MASK(EV_KEY) },
-        },
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT,
+		.evbit = { BIT_MASK(EV_KEY) },
+	},
 
 	{
-                .flags = INPUT_DEVICE_ID_MATCH_EVBIT,
-                .evbit = { BIT_MASK(EV_SND) },
-        },
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT,
+		.evbit = { BIT_MASK(EV_SND) },
+	},
 
 	{ },    /* Terminating entry */
 };
@@ -1433,7 +1433,7 @@ int __init kbd_init(void)
 	int i;
 	int error;
 
-        for (i = 0; i < MAX_NR_CONSOLES; i++) {
+	for (i = 0; i < MAX_NR_CONSOLES; i++) {
 		kbd_table[i].ledflagstate = KBD_DEFLEDS;
 		kbd_table[i].default_ledflagstate = KBD_DEFLEDS;
 		kbd_table[i].ledmode = LED_SHOW_FLAGS;
