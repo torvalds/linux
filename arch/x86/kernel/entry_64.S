@@ -1624,11 +1624,12 @@ first_nmi:
 	 * | pt_regs                 |
 	 * +-------------------------+
 	 *
-	 * The saved RIP is used to fix up the copied RIP that a nested
-	 * NMI may zero out. The original stack frame and the temp storage
+	 * The saved stack frame is used to fix up the copied stack frame
+	 * that a nested NMI may change to make the interrupted NMI iret jump
+	 * to the repeat_nmi. The original stack frame and the temp storage
 	 * is also used by nested NMIs and can not be trusted on exit.
 	 */
-	/* Do not pop rdx, nested NMIs will corrupt it */
+	/* Do not pop rdx, nested NMIs will corrupt that part of the stack */
 	movq (%rsp), %rdx
 	CFI_RESTORE rdx
 
@@ -1640,6 +1641,8 @@ first_nmi:
 	pushq_cfi 6*8(%rsp)
 	.endr
 	CFI_DEF_CFA_OFFSET SS+8-RIP
+
+	/* Everything up to here is safe from nested NMIs */
 
 	/*
 	 * If there was a nested NMI, the first NMI's iret will return
@@ -1667,9 +1670,8 @@ end_repeat_nmi:
 
 	/*
 	 * Everything below this point can be preempted by a nested
-	 * NMI if the first NMI took an exception. Repeated NMIs
-	 * caused by an exception and nested NMI will start here, and
-	 * can still be preempted by another NMI.
+	 * NMI if the first NMI took an exception and reset our iret stack
+	 * so that we repeat another NMI.
 	 */
 	pushq_cfi $-1		/* ORIG_RAX: no syscall to restart */
 	subq $ORIG_RAX-R15, %rsp
