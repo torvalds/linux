@@ -48,21 +48,6 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 	struct drm_i915_gem_object *obj;
 	int ret = 0;
 
-	i915_gem_retire_requests(dev);
-
-	/* Re-check for free space after retiring requests */
-	if (mappable) {
-		if (drm_mm_search_free_in_range(&dev_priv->mm.gtt_space,
-						min_size, alignment, 0,
-						dev_priv->mm.gtt_mappable_end,
-						0))
-			return 0;
-	} else {
-		if (drm_mm_search_free(&dev_priv->mm.gtt_space,
-				       min_size, alignment, 0))
-			return 0;
-	}
-
 	trace_i915_gem_evict(dev, min_size, alignment, mappable);
 
 	/*
