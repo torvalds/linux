@@ -172,7 +172,7 @@ static void twl4030_vibra_close(struct input_dev *input)
 }
 
 /*** Module ***/
-#if CONFIG_PM
+#if CONFIG_PM_SLEEP
 static int twl4030_vibra_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -189,10 +189,10 @@ static int twl4030_vibra_resume(struct device *dev)
 	vibra_disable_leds();
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(twl4030_vibra_pm_ops,
 			 twl4030_vibra_suspend, twl4030_vibra_resume);
-#endif
 
 static int __devinit twl4030_vibra_probe(struct platform_device *pdev)
 {
@@ -273,9 +273,7 @@ static struct platform_driver twl4030_vibra_driver = {
 	.driver		= {
 		.name	= "twl4030-vibra",
 		.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm	= &twl4030_vibra_pm_ops,
-#endif
 	},
 };
 module_platform_driver(twl4030_vibra_driver);
