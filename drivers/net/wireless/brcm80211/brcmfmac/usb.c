@@ -482,7 +482,7 @@ static void brcmf_usb_free_q(struct list_head *q, bool pending)
 	struct brcmf_usbreq *req, *next;
 	int i = 0;
 	list_for_each_entry_safe(req, next, q, list) {
-		if (!req || !req->urb) {
+		if (!req->urb) {
 			brcmf_dbg(ERROR, "bad req\n");
 			break;
 		}
@@ -712,11 +712,11 @@ static int brcmf_usb_up(struct device *dev)
 	struct brcmf_usbdev_info *devinfo = brcmf_usb_get_businfo(dev);
 	u16 ifnum;
 
-	if (devinfo->bus_pub.state == BCMFMAC_USB_STATE_UP)
-		return 0;
-
 	if (devinfo == NULL)
 		return -EINVAL;
+
+	if (devinfo->bus_pub.state == BCMFMAC_USB_STATE_UP)
+		return 0;
 
 	/* If the USB/HSIC bus in sleep state, wake it up */
 	if (devinfo->suspend_state == USBOS_SUSPEND_STATE_SUSPENDED) {
