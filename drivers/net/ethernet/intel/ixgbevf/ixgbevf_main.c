@@ -3462,13 +3462,7 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	ixgbevf_init_last_counter_stats(adapter);
 
 	/* print the MAC address */
-	hw_dbg(hw, "%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",
-	       netdev->dev_addr[0],
-	       netdev->dev_addr[1],
-	       netdev->dev_addr[2],
-	       netdev->dev_addr[3],
-	       netdev->dev_addr[4],
-	       netdev->dev_addr[5]);
+	hw_dbg(hw, "%pM\n", netdev->dev_addr);
 
 	hw_dbg(hw, "MAC: %d\n", hw->mac.type);
 
