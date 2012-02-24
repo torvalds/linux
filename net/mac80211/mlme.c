@@ -1684,7 +1684,7 @@ static void __ieee80211_connection_loss(struct ieee80211_sub_if_data *sdata)
 	printk(KERN_DEBUG "%s: Connection to AP %pM lost.\n",
 	       sdata->name, bssid);
 
-	ieee80211_set_disassoc(sdata, true, true);
+	ieee80211_set_disassoc(sdata, true, false);
 	mutex_unlock(&ifmgd->mtx);
 
 	/*
@@ -2699,7 +2699,7 @@ static void ieee80211_sta_connection_lost(struct ieee80211_sub_if_data *sdata,
 	ifmgd->flags &= ~(IEEE80211_STA_CONNECTION_POLL |
 			  IEEE80211_STA_BEACON_POLL);
 
-	ieee80211_set_disassoc(sdata, true, true);
+	ieee80211_set_disassoc(sdata, true, false);
 	mutex_unlock(&ifmgd->mtx);
 	/*
 	 * must be outside lock due to cfg80211,
@@ -3500,7 +3500,7 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 	       sdata->name, req->bss->bssid, req->reason_code);
 
 	memcpy(bssid, req->bss->bssid, ETH_ALEN);
-	ieee80211_set_disassoc(sdata, false, true);
+	ieee80211_set_disassoc(sdata, false, !req->local_state_change);
 
 	mutex_unlock(&ifmgd->mtx);
 
