@@ -264,7 +264,7 @@ static int rk30_i2c_resume_noirq(struct device *dev)
 	struct rk30_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c->suspended = 0;
-    i2c->i2c_init_hw(i2c);
+    i2c->i2c_init_hw(i2c, i2c->scl_rate);
 
 	return 0;
 }
