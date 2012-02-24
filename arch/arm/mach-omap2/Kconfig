@@ -21,16 +21,12 @@ config ARCH_OMAP2PLUS_TYPICAL
 	  Compile a kernel suitable for booting most boards
 
 config ARCH_OMAP2
-	bool "TI OMAP2"
-	depends on ARCH_OMAP2PLUS
-	default y
+	bool
 	select CPU_V6
 	select MULTI_IRQ_HANDLER
 
 config ARCH_OMAP3
-	bool "TI OMAP3"
-	depends on ARCH_OMAP2PLUS
-	default y
+	bool
 	select CPU_V7
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 	select ARCH_HAS_OPP
@@ -39,9 +35,7 @@ config ARCH_OMAP3
 	select MULTI_IRQ_HANDLER
 
 config ARCH_OMAP4
-	bool "TI OMAP4"
-	default y
-	depends on ARCH_OMAP2PLUS
+	bool
 	select CACHE_L2X0
 	select CPU_V7
 	select ARM_GIC
@@ -56,36 +50,58 @@ config ARCH_OMAP4
 	select ARM_CPU_SUSPEND if PM
 
 comment "OMAP Core Type"
-	depends on ARCH_OMAP2
+
+config SOC_OMAP
+	bool
 
 config SOC_OMAP2420
 	bool "OMAP2420 support"
-	depends on ARCH_OMAP2
 	default y
+	select SOC_OMAP
+	select ARCH_OMAP2
 	select OMAP_DM_TIMER
 	select ARCH_OMAP_OTG
 
 config SOC_OMAP2430
 	bool "OMAP2430 support"
-	depends on ARCH_OMAP2
 	default y
+	select SOC_OMAP
+	select ARCH_OMAP2
 	select ARCH_OMAP_OTG
 
 config SOC_OMAP3430
 	bool "OMAP3430 support"
-	depends on ARCH_OMAP3
 	default y
+	select SOC_OMAP
+	select ARCH_OMAP3
 	select ARCH_OMAP_OTG
 
 config SOC_OMAPTI81XX
 	bool "TI81XX support"
-	depends on ARCH_OMAP3
 	default y
+	select SOC_OMAP
+	select ARCH_OMAP3
 
 config SOC_OMAPAM33XX
 	bool "AM33XX support"
-	depends on ARCH_OMAP3
 	default y
+	select SOC_OMAP
+	select ARCH_OMAP3
+
+config SOC_OMAP44XX
+	bool "OMAP44XX support"
+	default y
+	select SOC_OMAP
+	select ARCH_OMAP4
+
+config SOC_OMAP_NOOP
+	bool
+	depends on !SOC_OMAP
+	default y
+	select ARCH_OMAP2
+	select ARCH_OMAP3
+	select ARCH_OMAP4
+	select MACH_OMAP_GENERIC
 
 config OMAP_PACKAGE_ZAF
        bool
@@ -112,16 +128,16 @@ config OMAP_PACKAGE_CBS
        bool
 
 comment "OMAP Board Type"
-	depends on ARCH_OMAP2PLUS
 
 config MACH_OMAP_GENERIC
 	bool "Generic OMAP2+ board"
-	depends on ARCH_OMAP2PLUS
 	select USE_OF
 	default y
 	help
 	  Support for generic TI OMAP2+ boards using Flattened Device Tree.
 	  More information at Documentation/devicetree
+
+if SOC_OMAP
 
 config MACH_OMAP2_TUSB6010
 	bool
@@ -343,6 +359,7 @@ config MACH_OMAP4_PANDA
 	select OMAP_PACKAGE_CBS
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
+endif
 config OMAP3_EMU
 	bool "OMAP3 debugging peripherals"
 	depends on ARCH_OMAP3
