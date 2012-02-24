@@ -1839,7 +1839,13 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /* <Pointer to the Adap
 				Adapter->PackInfo[uiSearchRuleIndex].bActive = TRUE;
 			}
 
-			if (psfLocalSet->bValid && (pstChangeIndication->u8CC == 0)) {
+			if (!psfLocalSet) {
+				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "No set is valid\n");
+				Adapter->PackInfo[uiSearchRuleIndex].bActive = FALSE;
+				Adapter->PackInfo[uiSearchRuleIndex].bValid = FALSE;
+				Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value = 0;
+				kfree(pstAddIndication);				
+			} else if (psfLocalSet->bValid && (pstChangeIndication->u8CC == 0)) {
 				Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value = ntohs(pstChangeIndication->u16VCID);
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "CC field is %d bvalid = %d\n",
 						pstChangeIndication->u8CC, psfLocalSet->bValid);
