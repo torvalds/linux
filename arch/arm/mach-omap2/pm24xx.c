@@ -260,26 +260,6 @@ static int omap2_pm_begin(suspend_state_t state)
 	return 0;
 }
 
-static int omap2_pm_suspend(void)
-{
-	u32 wken_wkup, mir1;
-
-	wken_wkup = omap2_prm_read_mod_reg(WKUP_MOD, PM_WKEN);
-	wken_wkup &= ~OMAP24XX_EN_GPT1_MASK;
-	omap2_prm_write_mod_reg(wken_wkup, WKUP_MOD, PM_WKEN);
-
-	/* Mask GPT1 */
-	mir1 = omap_readl(0x480fe0a4);
-	omap_writel(1 << 5, 0x480fe0ac);
-
-	omap2_enter_full_retention();
-
-	omap_writel(mir1, 0x480fe0a4);
-	omap2_prm_write_mod_reg(wken_wkup, WKUP_MOD, PM_WKEN);
-
-	return 0;
-}
-
 static int omap2_pm_enter(suspend_state_t state)
 {
 	int ret = 0;
@@ -287,7 +267,7 @@ static int omap2_pm_enter(suspend_state_t state)
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
 	case PM_SUSPEND_MEM:
-		ret = omap2_pm_suspend();
+		omap2_enter_full_retention();
 		break;
 	default:
 		ret = -EINVAL;
