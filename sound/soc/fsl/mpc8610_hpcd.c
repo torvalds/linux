@@ -245,7 +245,7 @@ static int get_parent_cell_index(struct device_node *np)
  * 'struct device'  It's ugly and hackish, but it works.
  *
  * The dev_name for such devices include the bus number and I2C address. For
- * example, "cs4270-codec.0-004f".
+ * example, "cs4270.0-004f".
  */
 static int codec_node_dev_name(struct device_node *np, char *buf, size_t len)
 {
@@ -267,7 +267,7 @@ static int codec_node_dev_name(struct device_node *np, char *buf, size_t len)
 	if (!i2c)
 		return -ENODEV;
 
-	snprintf(buf, len, "%s-codec.%u-%04x", temp, i2c->adapter->nr, addr);
+	snprintf(buf, len, "%s.%u-%04x", temp, i2c->adapter->nr, addr);
 
 	return 0;
 }
