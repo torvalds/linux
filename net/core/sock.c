@@ -1035,6 +1035,9 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 
 		v.val = sk->sk_peek_off;
 		break;
+	case SO_NOFCS:
+		v.val = !!sock_flag(sk, SOCK_NOFCS);
+		break;
 	default:
 		return -ENOPROTOOPT;
 	}
