@@ -411,6 +411,18 @@ unsigned int irq_create_of_mapping(struct device_node *controller,
 
 	domain = controller ? irq_find_host(controller) : irq_default_domain;
 	if (!domain) {
+#ifdef CONFIG_MIPS
+		/*
+		 * Workaround to avoid breaking interrupt controller drivers
+		 * that don't yet register an irq_domain.  This is temporary
+		 * code. ~~~gcl, Feb 24, 2012
+		 *
+		 * Scheduled for removal in Linux v3.6.  That should be enough
+		 * time.
+		 */
+		if (intsize > 0)
+			return intspec[0];
+#endif
 		printk(KERN_WARNING "irq: no irq domain found for %s !\n",
 		       controller->full_name);
 		return 0;
