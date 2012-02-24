@@ -198,18 +198,7 @@ struct nfsd4_session {
 	struct nfsd4_slot	*se_slots[];	/* forward channel slots */
 };
 
-static inline void
-nfsd4_put_session(struct nfsd4_session *ses)
-{
-	extern void free_session(struct kref *kref);
-	kref_put(&ses->se_ref, free_session);
-}
-
-static inline void
-nfsd4_get_session(struct nfsd4_session *ses)
-{
-	kref_get(&ses->se_ref);
-}
+extern void nfsd4_put_session(struct nfsd4_session *ses);
 
 /* formatted contents of nfs4_sessionid */
 struct nfsd4_sessionid {

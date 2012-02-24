@@ -95,6 +95,19 @@ nfs4_lock_state(void)
 	mutex_lock(&client_mutex);
 }
 
+static void free_session(struct kref *);
+
+/* Must be called under the client_lock */
+static void nfsd4_put_session_locked(struct nfsd4_session *ses)
+{
+	kref_put(&ses->se_ref, free_session);
+}
+
+static void nfsd4_get_session(struct nfsd4_session *ses)
+{
+	kref_get(&ses->se_ref);
+}
+
 void
 nfs4_unlock_state(void)
 {
@@ -836,11 +849,12 @@ static void nfsd4_del_conns(struct nfsd4_session *s)
 	spin_unlock(&clp->cl_lock);
 }
 
-void free_session(struct kref *kref)
+static void free_session(struct kref *kref)
 {
 	struct nfsd4_session *ses;
 	int mem;
 
+	BUG_ON(!spin_is_locked(&client_lock));
 	ses = container_of(kref, struct nfsd4_session, se_ref);
 	nfsd4_del_conns(ses);
 	spin_lock(&nfsd_drc_lock);
@@ -849,6 +863,13 @@ void free_session(struct kref *kref)
 	spin_unlock(&nfsd_drc_lock);
 	free_session_slots(ses);
 	kfree(ses);
+}
+
+void nfsd4_put_session(struct nfsd4_session *ses)
+{
+	spin_lock(&client_lock);
+	nfsd4_put_session_locked(ses);
+	spin_unlock(&client_lock);
 }
 
 static struct nfsd4_session *alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp, struct nfsd4_create_session *cses)
@@ -898,7 +919,9 @@ static struct nfsd4_session *alloc_init_session(struct svc_rqst *rqstp, struct n
 	status = nfsd4_new_conn_from_crses(rqstp, new);
 	/* whoops: benny points out, status is ignored! (err, or bogus) */
 	if (status) {
+		spin_lock(&client_lock);
 		free_session(&new->se_ref);
+		spin_unlock(&client_lock);
 		return NULL;
 	}
 	if (cses->flags & SESSION4_BACK_CHAN) {
@@ -1010,12 +1033,13 @@ static struct nfs4_client *alloc_client(struct xdr_netobj name)
 static inline void
 free_client(struct nfs4_client *clp)
 {
+	BUG_ON(!spin_is_locked(&client_lock));
 	while (!list_empty(&clp->cl_sessions)) {
 		struct nfsd4_session *ses;
 		ses = list_entry(clp->cl_sessions.next, struct nfsd4_session,
 				se_perclnt);
 		list_del(&ses->se_perclnt);
-		nfsd4_put_session(ses);
+		nfsd4_put_session_locked(ses);
 	}
 	if (clp->cl_cred.cr_group_info)
 		put_group_info(clp->cl_cred.cr_group_info);
@@ -1184,7 +1208,9 @@ static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir,
 	if (princ) {
 		clp->cl_principal = kstrdup(princ, GFP_KERNEL);
 		if (clp->cl_principal == NULL) {
+			spin_lock(&client_lock);
 			free_client(clp);
+			spin_unlock(&client_lock);
 			return NULL;
 		}
 	}
@@ -1812,9 +1838,10 @@ nfsd4_destroy_session(struct svc_rqst *r,
 	nfsd4_probe_callback_sync(ses->se_client);
 	nfs4_unlock_state();
 
+	spin_lock(&client_lock);
 	nfsd4_del_conns(ses);
-
-	nfsd4_put_session(ses);
+	nfsd4_put_session_locked(ses);
+	spin_unlock(&client_lock);
 	status = nfs_ok;
 out:
 	dprintk("%s returns %d\n", __func__, ntohl(status));
