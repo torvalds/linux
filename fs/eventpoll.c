@@ -827,6 +827,10 @@ static int ep_poll_callback(wait_queue_t *wait, unsigned mode, int sync, void *k
 	struct epitem *epi = ep_item_from_wait(wait);
 	struct eventpoll *ep = epi->ep;
 
+	/* the caller holds eppoll_entry->whead->lock */
+	if ((unsigned long)key & POLLFREE)
+		list_del_init(&wait->task_list);
+
 	spin_lock_irqsave(&ep->lock, flags);
 
 	/*

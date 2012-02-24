@@ -30,6 +30,17 @@
 #include <linux/signalfd.h>
 #include <linux/syscalls.h>
 
+void signalfd_cleanup(struct sighand_struct *sighand)
+{
+	wait_queue_head_t *wqh = &sighand->signalfd_wqh;
+
+	if (likely(!waitqueue_active(wqh)))
+		return;
+
+	/* wait_queue_t->func(POLLFREE) should do remove_wait_queue() */
+	wake_up_poll(wqh, POLLHUP | POLLFREE);
+}
+
 struct signalfd_ctx {
 	sigset_t sigmask;
 };
