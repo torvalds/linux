@@ -118,6 +118,22 @@ void pci_bus_to_resource(struct pci_dev *dev, struct resource *res,
 	res->end = region->end + offset;
 }
 
+#ifdef ARCH_HAS_GENERIC_PCI_OFFSETS
+void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
+			     struct resource *res)
+{
+	pci_resource_to_bus(dev, region, res);
+}
+EXPORT_SYMBOL(pcibios_resource_to_bus);
+
+void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
+			     struct pci_bus_region *region)
+{
+	pci_bus_to_resource(dev, res, region);
+}
+EXPORT_SYMBOL(pcibios_bus_to_resource);
+#endif
+
 /*
  * PCI Bus Class
  */
