@@ -62,24 +62,6 @@ int _name[] = { \
 	KEY(4, 6, KEY_Z), \
 	KEY(4, 7, KEY_X), \
 	KEY(4, 8, KEY_C), \
-	KEY(4, 0, KEY_L), \
-	KEY(4, 1, KEY_SEMICOLON), \
-	KEY(4, 2, KEY_APOSTROPHE), \
-	KEY(4, 3, KEY_GRAVE), \
-	KEY(4, 4, KEY_LEFTSHIFT), \
-	KEY(4, 5, KEY_BACKSLASH), \
-	KEY(4, 6, KEY_Z), \
-	KEY(4, 7, KEY_X), \
-	KEY(4, 8, KEY_C), \
-	KEY(4, 0, KEY_L), \
-	KEY(4, 1, KEY_SEMICOLON), \
-	KEY(4, 2, KEY_APOSTROPHE), \
-	KEY(4, 3, KEY_GRAVE), \
-	KEY(4, 4, KEY_LEFTSHIFT), \
-	KEY(4, 5, KEY_BACKSLASH), \
-	KEY(4, 6, KEY_Z), \
-	KEY(4, 7, KEY_X), \
-	KEY(4, 8, KEY_C), \
 	KEY(5, 0, KEY_V), \
 	KEY(5, 1, KEY_B), \
 	KEY(5, 2, KEY_N), \
