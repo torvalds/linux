@@ -13,6 +13,8 @@
 #include <plat/tc.h>
 #include <plat/flash.h>
 
+#include <mach/hardware.h>
+
 void omap1_set_vpp(struct platform_device *pdev, int enable)
 {
 	static int count;

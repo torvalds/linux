@@ -15,6 +15,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
@@ -26,6 +27,8 @@
 #include <plat/clkdev_omap.h>
 #include <plat/sram.h>	/* for omap_sram_reprogram_clock() */
 #include <plat/usb.h>   /* for OTG_BASE */
+
+#include <mach/hardware.h>
 
 #include "iomap.h"
 #include "clock.h"

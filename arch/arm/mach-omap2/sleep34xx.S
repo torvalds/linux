@@ -26,6 +26,7 @@
 
 #include <asm/assembler.h>
 
+#include <plat/hardware.h>
 #include <plat/sram.h>
 
 #include "iomap.h"

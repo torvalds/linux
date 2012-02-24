@@ -26,7 +26,6 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
-#include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/time.h>
 #include <linux/gpio.h>
@@ -42,7 +41,6 @@
 
 #include <mach/irqs.h>
 
-#include "iomap.h"
 #include "common.h"
 #include "prm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"
