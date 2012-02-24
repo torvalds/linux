@@ -320,7 +320,9 @@ sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
 				   prom_bussoft_ptr->bs_legacy_io,
 				   prom_bussoft_ptr->bs_legacy_mem);
 	for (i = 0; i < controller->windows; i++)
-		pci_add_resource(&resources, &controller->window[i].resource);
+		pci_add_resource_offset(&resources,
+					&controller->window[i].resource,
+					controller->window[i].offset);
 	bus = pci_scan_root_bus(NULL, busnum, &pci_root_ops, controller,
 				&resources);
  	if (bus == NULL)
