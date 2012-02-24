@@ -4369,18 +4369,13 @@ done:
 
 static inline int l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm, struct sk_buff *skb)
 {
-	struct sock *sk = NULL;
 	struct l2cap_chan *chan;
 
 	chan = l2cap_global_chan_by_psm(0, psm, conn->src);
 	if (!chan)
 		goto drop;
 
-	sk = chan->sk;
-
-	lock_sock(sk);
-
-	BT_DBG("sk %p, len %d", sk, skb->len);
+	BT_DBG("chan %p, len %d", chan, skb->len);
 
 	if (chan->state != BT_BOUND && chan->state != BT_CONNECTED)
 		goto drop;
@@ -4389,31 +4384,23 @@ static inline int l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm, str
 		goto drop;
 
 	if (!chan->ops->recv(chan->data, skb))
-		goto done;
+		return 0;
 
 drop:
 	kfree_skb(skb);
 
-done:
-	if (sk)
-		release_sock(sk);
 	return 0;
 }
 
 static inline int l2cap_att_channel(struct l2cap_conn *conn, __le16 cid, struct sk_buff *skb)
 {
-	struct sock *sk = NULL;
 	struct l2cap_chan *chan;
 
 	chan = l2cap_global_chan_by_scid(0, cid, conn->src);
 	if (!chan)
 		goto drop;
 
-	sk = chan->sk;
-
-	lock_sock(sk);
-
-	BT_DBG("sk %p, len %d", sk, skb->len);
+	BT_DBG("chan %p, len %d", chan, skb->len);
 
 	if (chan->state != BT_BOUND && chan->state != BT_CONNECTED)
 		goto drop;
@@ -4422,14 +4409,11 @@ static inline int l2cap_att_channel(struct l2cap_conn *conn, __le16 cid, struct 
 		goto drop;
 
 	if (!chan->ops->recv(chan->data, skb))
-		goto done;
+		return 0;
 
 drop:
 	kfree_skb(skb);
 
-done:
-	if (sk)
-		release_sock(sk);
 	return 0;
 }
 
