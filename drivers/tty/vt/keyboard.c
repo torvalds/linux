@@ -1452,3 +1452,165 @@ int __init kbd_init(void)
 
 	return 0;
 }
+
+/* Ioctl support code */
+
+/**
+ *	vt_do_diacrit		-	diacritical table updates
+ *	@cmd: ioctl request
+ *	@up: pointer to user data for ioctl
+ *	@perm: permissions check computed by caller
+ *
+ *	Update the diacritical tables atomically and safely. Lock them
+ *	against simultaneous keypresses
+ */
+int vt_do_diacrit(unsigned int cmd, void __user *up, int perm)
+{
+	struct kbdiacrs __user *a = up;
+	unsigned long flags;
+	int asize;
+	int ret = 0;
+
+	switch (cmd) {
+	case KDGKBDIACR:
+	{
+		struct kbdiacr *diacr;
+		int i;
+
+		diacr = kmalloc(MAX_DIACR * sizeof(struct kbdiacr),
+								GFP_KERNEL);
+		if (diacr == NULL)
+			return -ENOMEM;
+
+		/* Lock the diacriticals table, make a copy and then
+		   copy it after we unlock */
+		spin_lock_irqsave(&kbd_event_lock, flags);
+
+		asize = accent_table_size;
+		for (i = 0; i < asize; i++) {
+			diacr[i].diacr = conv_uni_to_8bit(
+						accent_table[i].diacr);
+			diacr[i].base = conv_uni_to_8bit(
+						accent_table[i].base);
+			diacr[i].result = conv_uni_to_8bit(
+						accent_table[i].result);
+		}
+		spin_unlock_irqrestore(&kbd_event_lock, flags);
+
+		if (put_user(asize, &a->kb_cnt))
+			ret = -EFAULT;
+		else  if (copy_to_user(a->kbdiacr, diacr,
+				asize * sizeof(struct kbdiacr)))
+			ret = -EFAULT;
+		kfree(diacr);
+		return ret;
+	}
+	case KDGKBDIACRUC:
+	{
+		struct kbdiacrsuc __user *a = up;
+		void *buf;
+
+		buf = kmalloc(MAX_DIACR * sizeof(struct kbdiacruc),
+								GFP_KERNEL);
+		if (buf == NULL)
+			return -ENOMEM;
+
+		/* Lock the diacriticals table, make a copy and then
+		   copy it after we unlock */
+		spin_lock_irqsave(&kbd_event_lock, flags);
+
+		asize = accent_table_size;
+		memcpy(buf, accent_table, asize * sizeof(struct kbdiacruc));
+
+		spin_unlock_irqrestore(&kbd_event_lock, flags);
+
+		if (put_user(asize, &a->kb_cnt))
+			ret = -EFAULT;
+		else if (copy_to_user(a->kbdiacruc, buf,
+				asize*sizeof(struct kbdiacruc)))
+			ret = -EFAULT;
+		kfree(buf);
+		return ret;
+	}
+
+	case KDSKBDIACR:
+	{
+		struct kbdiacrs __user *a = up;
+		struct kbdiacr *diacr = NULL;
+		unsigned int ct;
+		int i;
+
+		if (!perm)
+			return -EPERM;
+		if (get_user(ct, &a->kb_cnt))
+			return -EFAULT;
+		if (ct >= MAX_DIACR)
+			return -EINVAL;
+
+		if (ct) {
+			diacr = kmalloc(sizeof(struct kbdiacr) * ct,
+								GFP_KERNEL);
+			if (diacr == NULL)
+				return -ENOMEM;
+
+			if (copy_from_user(diacr, a->kbdiacr,
+					sizeof(struct kbdiacr) * ct)) {
+				kfree(diacr);
+				return -EFAULT;
+			}
+		}
+
+		spin_lock_irqsave(&kbd_event_lock, flags);
+		accent_table_size = ct;
+		for (i = 0; i < ct; i++) {
+			accent_table[i].diacr =
+					conv_8bit_to_uni(diacr[i].diacr);
+			accent_table[i].base =
+					conv_8bit_to_uni(diacr[i].base);
+			accent_table[i].result =
+					conv_8bit_to_uni(diacr[i].result);
+		}
+		spin_unlock_irqrestore(&kbd_event_lock, flags);
+		kfree(diacr);
+		return 0;
+	}
+
+	case KDSKBDIACRUC:
+	{
+		struct kbdiacrsuc __user *a = up;
+		unsigned int ct;
+		void *buf = NULL;
+
+		if (!perm)
+			return -EPERM;
+
+		if (get_user(ct, &a->kb_cnt))
+			return -EFAULT;
+
+		if (ct >= MAX_DIACR)
+			return -EINVAL;
+
+		if (ct) {
+			buf = kmalloc(ct * sizeof(struct kbdiacruc),
+								GFP_KERNEL);
+			if (buf == NULL)
+				return -ENOMEM;
+
+			if (copy_from_user(buf, a->kbdiacruc,
+					ct * sizeof(struct kbdiacruc))) {
+				kfree(buf);
+				return -EFAULT;
+			}
+		} 
+		spin_lock_irqsave(&kbd_event_lock, flags);
+		if (ct)
+			memcpy(accent_table, buf,
+					ct * sizeof(struct kbdiacruc));
+		accent_table_size = ct;
+		spin_unlock_irqrestore(&kbd_event_lock, flags);
+		kfree(buf);
+		return 0;
+	}
+	}
+	return ret;
+}

@@ -167,4 +167,7 @@ extern int unregister_vt_notifier(struct notifier_block *nb);
 
 extern void hide_boot_cursor(bool hide);
 
+/* keyboard  provided interfaces */
+extern int vt_do_diacrit(unsigned int cmd, void __user *up, int eperm);
+
 #endif /* _VT_KERN_H */

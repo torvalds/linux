@@ -753,89 +753,14 @@ int vt_ioctl(struct tty_struct *tty,
 		ret = do_kdgkb_ioctl(cmd, up, perm);
 		break;
 
+	/* Diacritical processing. Handled in keyboard.c as it has
+	   to operate on the keyboard locks and structures */
 	case KDGKBDIACR:
-	{
-		struct kbdiacrs __user *a = up;
-		struct kbdiacr diacr;
-		int i;
-
-		if (put_user(accent_table_size, &a->kb_cnt)) {
-			ret = -EFAULT;
-			break;
-		}
-		for (i = 0; i < accent_table_size; i++) {
-			diacr.diacr = conv_uni_to_8bit(accent_table[i].diacr);
-			diacr.base = conv_uni_to_8bit(accent_table[i].base);
-			diacr.result = conv_uni_to_8bit(accent_table[i].result);
-			if (copy_to_user(a->kbdiacr + i, &diacr, sizeof(struct kbdiacr))) {
-				ret = -EFAULT;
-				break;
-			}
-		}
-		break;
-	}
 	case KDGKBDIACRUC:
-	{
-		struct kbdiacrsuc __user *a = up;
-
-		if (put_user(accent_table_size, &a->kb_cnt))
-			ret = -EFAULT;
-		else if (copy_to_user(a->kbdiacruc, accent_table,
-				accent_table_size*sizeof(struct kbdiacruc)))
-			ret = -EFAULT;
-		break;
-	}
-
 	case KDSKBDIACR:
-	{
-		struct kbdiacrs __user *a = up;
-		struct kbdiacr diacr;
-		unsigned int ct;
-		int i;
-
-		if (!perm)
-			goto eperm;
-		if (get_user(ct,&a->kb_cnt)) {
-			ret = -EFAULT;
-			break;
-		}
-		if (ct >= MAX_DIACR) {
-			ret = -EINVAL;
-			break;
-		}
-		accent_table_size = ct;
-		for (i = 0; i < ct; i++) {
-			if (copy_from_user(&diacr, a->kbdiacr + i, sizeof(struct kbdiacr))) {
-				ret = -EFAULT;
-				break;
-			}
-			accent_table[i].diacr = conv_8bit_to_uni(diacr.diacr);
-			accent_table[i].base = conv_8bit_to_uni(diacr.base);
-			accent_table[i].result = conv_8bit_to_uni(diacr.result);
-		}
-		break;
-	}
-
 	case KDSKBDIACRUC:
-	{
-		struct kbdiacrsuc __user *a = up;
-		unsigned int ct;
-
-		if (!perm)
-			goto eperm;
-		if (get_user(ct,&a->kb_cnt)) {
-			ret = -EFAULT;
-			break;
-		}
-		if (ct >= MAX_DIACR) {
-			ret = -EINVAL;
-			break;
-		}
-		accent_table_size = ct;
-		if (copy_from_user(accent_table, a->kbdiacruc, ct*sizeof(struct kbdiacruc)))
-			ret = -EFAULT;
+		ret = vt_do_diacrit(cmd, up, perm);
 		break;
-	}
 
 	/* the ioctls below read/set the flags usually shown in the leds */
 	/* don't use them - they will go away without warning */
