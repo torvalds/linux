@@ -781,19 +781,19 @@ spi on the second function mapping:
 
 static const struct pinctrl_map __initdata mapping[] = {
 	{
+		.dev_name = "foo-spi.0",
 		.ctrl_dev_name = "pinctrl-foo",
 		.function = "spi0",
-		.dev_name = "foo-spi.0",
 	},
 	{
+		.dev_name = "foo-i2c.0",
 		.ctrl_dev_name = "pinctrl-foo",
 		.function = "i2c0",
-		.dev_name = "foo-i2c.0",
 	},
 	{
+		.dev_name = "foo-mmc.0",
 		.ctrl_dev_name = "pinctrl-foo",
 		.function = "mmc0",
-		.dev_name = "foo-mmc.0",
 	},
 };
 
@@ -826,18 +826,18 @@ As it is possible to map a function to different groups of pins an optional
 
 ...
 {
+	.dev_name = "foo-spi.0",
 	.name = "spi0-pos-A",
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "spi0",
 	.group = "spi0_0_grp",
-	.dev_name = "foo-spi.0",
 },
 {
+	.dev_name = "foo-spi.0",
 	.name = "spi0-pos-B",
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "spi0",
 	.group = "spi0_1_grp",
-	.dev_name = "foo-spi.0",
 },
 ...
 
@@ -852,45 +852,45 @@ case), we define a mapping like this:
 
 ...
 {
+	.dev_name = "foo-mmc.0",
 	.name = "2bit"
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_1_grp",
-	.dev_name = "foo-mmc.0",
 },
 {
+	.dev_name = "foo-mmc.0",
 	.name = "4bit"
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_1_grp",
-	.dev_name = "foo-mmc.0",
 },
 {
+	.dev_name = "foo-mmc.0",
 	.name = "4bit"
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_2_grp",
-	.dev_name = "foo-mmc.0",
 },
 {
+	.dev_name = "foo-mmc.0",
 	.name = "8bit"
 	.ctrl_dev_name = "pinctrl-foo",
 	.group = "mmc0_1_grp",
-	.dev_name = "foo-mmc.0",
 },
 {
+	.dev_name = "foo-mmc.0",
 	.name = "8bit"
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_2_grp",
-	.dev_name = "foo-mmc.0",
 },
 {
+	.dev_name = "foo-mmc.0",
 	.name = "8bit"
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_3_grp",
-	.dev_name = "foo-mmc.0",
 },
 ...
 
@@ -988,10 +988,10 @@ This is enabled by simply setting the .dev_name field in the map to the name
 of the pin controller itself, like this:
 
 {
+	.dev_name = "pinctrl-foo",
 	.name = "POWERMAP"
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "power_func",
-	.dev_name = "pinctrl-foo",
 },
 
 Since it may be common to request the core to hog a few always-applicable

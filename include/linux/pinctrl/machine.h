@@ -14,6 +14,10 @@
 
 /**
  * struct pinctrl_map - boards/machines shall provide this map for devices
+ * @dev_name: the name of the device using this specific mapping, the name
+ *	must be the same as in your struct device*. If this name is set to the
+ *	same name as the pin controllers own dev_name(), the map entry will be
+ *	hogged by the driver itself upon registration
  * @name: the name of this specific map entry for the particular machine.
  *	This is the second parameter passed to pinmux_get() when you want
  *	to have several mappings to the same device
@@ -25,17 +29,13 @@
  * @group: sometimes a function can map to different pin groups, so this
  *	selects a certain specific pin group to activate for the function, if
  *	left as NULL, the first applicable group will be used
- * @dev_name: the name of the device using this specific mapping, the name
- *	must be the same as in your struct device*. If this name is set to the
- *	same name as the pin controllers own dev_name(), the map entry will be
- *	hogged by the driver itself upon registration
  */
 struct pinctrl_map {
+	const char *dev_name;
 	const char *name;
 	const char *ctrl_dev_name;
 	const char *function;
 	const char *group;
-	const char *dev_name;
 };
 
 /*
