@@ -56,6 +56,7 @@ in[1-6]_min_alarm	Voltage low alarm. From VOLTAGE_UV_WARNING status.
 in[1-6]_max_alarm	Voltage high alarm. From VOLTAGE_OV_WARNING status.
 in[1-6]_lcrit_alarm	Voltage critical low alarm. From VOLTAGE_UV_FAULT status.
 in[1-6]_crit_alarm	Voltage critical high alarm. From VOLTAGE_OV_FAULT status.
+in[1-6]_lowest		Historical minimum voltage.
 in[1-6]_highest		Historical maximum voltage.
 in[1-6]_reset_history	Write any value to reset history.
 

@@ -30,6 +30,7 @@ enum chips { max34440, max34441 };
 #define MAX34440_MFR_VOUT_PEAK		0xd4
 #define MAX34440_MFR_IOUT_PEAK		0xd5
 #define MAX34440_MFR_TEMPERATURE_PEAK	0xd6
+#define MAX34440_MFR_VOUT_MIN		0xd7
 
 #define MAX34440_STATUS_OC_WARN		(1 << 0)
 #define MAX34440_STATUS_OC_FAULT	(1 << 1)
@@ -41,6 +42,10 @@ static int max34440_read_word_data(struct i2c_client *client, int page, int reg)
 	int ret;
 
 	switch (reg) {
+	case PMBUS_VIRT_READ_VOUT_MIN:
+		ret = pmbus_read_word_data(client, page,
+					   MAX34440_MFR_VOUT_MIN);
+		break;
 	case PMBUS_VIRT_READ_VOUT_MAX:
 		ret = pmbus_read_word_data(client, page,
 					   MAX34440_MFR_VOUT_PEAK);
@@ -72,6 +77,10 @@ static int max34440_write_word_data(struct i2c_client *client, int page,
 
 	switch (reg) {
 	case PMBUS_VIRT_RESET_VOUT_HISTORY:
+		ret = pmbus_write_word_data(client, page,
+					    MAX34440_MFR_VOUT_MIN, 0x7fff);
+		if (ret)
+			break;
 		ret = pmbus_write_word_data(client, page,
 					    MAX34440_MFR_VOUT_PEAK, 0);
 		break;
