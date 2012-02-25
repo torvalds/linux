@@ -1694,6 +1694,15 @@ void target_submit_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 }
 EXPORT_SYMBOL(target_submit_cmd);
 
+static void target_complete_tmr_failure(struct work_struct *work)
+{
+	struct se_cmd *se_cmd = container_of(work, struct se_cmd, work);
+
+	se_cmd->se_tmr_req->response = TMR_LUN_DOES_NOT_EXIST;
+	se_cmd->se_tfo->queue_tm_rsp(se_cmd);
+	transport_generic_free_cmd(se_cmd, 0);
+}
+
 /**
  * target_submit_tmr - lookup unpacked lun and submit uninitialized se_cmd
  *                     for TMR CDBs
@@ -1734,9 +1743,12 @@ int target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 
 	ret = transport_lookup_tmr_lun(se_cmd, unpacked_lun);
 	if (ret) {
-		se_cmd->se_tmr_req->response = TMR_LUN_DOES_NOT_EXIST;
-		se_cmd->se_tfo->queue_tm_rsp(se_cmd);
-		transport_generic_free_cmd(se_cmd, 0);
+		/*
+		 * For callback during failure handling, push this work off
+		 * to process context with TMR_LUN_DOES_NOT_EXIST status.
+		 */
+		INIT_WORK(&se_cmd->work, target_complete_tmr_failure);
+		schedule_work(&se_cmd->work);
 		return 0;
 	}
 	transport_generic_handle_tmr(se_cmd);
