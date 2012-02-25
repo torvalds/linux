@@ -145,28 +145,7 @@
 
 #endif /* DUMP_MSGS */
 
-
-
-
-
 /*-------------------------------------------------------------------------*/
-
-/* Bulk-only data structures */
-
-#define USB_BULK_CB_WRAP_LEN	31
-#define USB_BULK_CB_SIG		0x43425355	/* Spells out USBC */
-#define USB_BULK_IN_FLAG	0x80
-
-#define USB_BULK_CS_WRAP_LEN	13
-#define USB_BULK_CS_SIG		0x53425355	/* Spells out 'USBS' */
-#define USB_STATUS_PASS		0
-#define USB_STATUS_FAIL		1
-#define USB_STATUS_PHASE_ERROR	2
-
-/* Bulk-only class specific requests */
-#define USB_BULK_RESET_REQUEST		0xff
-#define USB_BULK_GET_MAX_LUN_REQUEST	0xfe
-
 
 /* CBI Interrupt data structure */
 struct interrupt_data {
