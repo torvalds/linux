@@ -601,8 +601,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct skb_frag_struct *frag;
 	struct mlx4_en_tx_info *tx_info;
 	struct ethhdr *ethh;
-	u64 mac;
-	u32 mac_l, mac_h;
 	int tx_ind = 0;
 	int nr_txbb;
 	int desc_size;
@@ -687,16 +685,9 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Copy dst mac address to wqe */
-	skb_reset_mac_header(skb);
-	ethh = eth_hdr(skb);
-	if (ethh && ethh->h_dest) {
-		mac = mlx4_en_mac_to_u64(ethh->h_dest);
-		mac_h = (u32) ((mac & 0xffff00000000ULL) >> 16);
-		mac_l = (u32) (mac & 0xffffffff);
-		tx_desc->ctrl.srcrb_flags |= cpu_to_be32(mac_h);
-		tx_desc->ctrl.imm = cpu_to_be32(mac_l);
-	}
-
+	ethh = (struct ethhdr *)skb->data;
+	tx_desc->ctrl.srcrb_flags16[0] = get_unaligned((u16 *)ethh->h_dest);
+	tx_desc->ctrl.imm = get_unaligned((u32 *)(ethh->h_dest + 2));
 	/* Handle LSO (TSO) packets */
 	if (lso_header_size) {
 		/* Mark opcode as LSO */
