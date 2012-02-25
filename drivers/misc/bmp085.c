@@ -87,7 +87,7 @@ struct bmp085_data {
 	u32 raw_temperature;
 	u32 raw_pressure;
 	unsigned char oversampling_setting;
-	u32 last_temp_measurement;
+	unsigned long last_temp_measurement;
 	s32 b6; /* calculated temperature correction coefficient */
 };
 
