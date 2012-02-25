@@ -1196,8 +1196,12 @@ out:
 static int dwc3_gadget_ep_set_wedge(struct usb_ep *ep)
 {
 	struct dwc3_ep			*dep = to_dwc3_ep(ep);
+	struct dwc3			*dwc = dep->dwc;
+	unsigned long			flags;
 
+	spin_lock_irqsave(&dwc->lock, flags);
 	dep->flags |= DWC3_EP_WEDGE;
+	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return dwc3_gadget_ep_set_halt(ep, 1);
 }
@@ -1323,8 +1327,11 @@ static int dwc3_gadget_set_selfpowered(struct usb_gadget *g,
 		int is_selfpowered)
 {
 	struct dwc3		*dwc = gadget_to_dwc(g);
+	unsigned long		flags;
 
+	spin_lock_irqsave(&dwc->lock, flags);
 	dwc->is_selfpowered = !!is_selfpowered;
+	spin_unlock_irqrestore(&dwc->lock, flags);
 
 	return 0;
 }
