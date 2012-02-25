@@ -3513,6 +3513,19 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
+void ieee80211_mgd_teardown(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	mutex_lock(&ifmgd->mtx);
+	if (ifmgd->assoc_data)
+		ieee80211_destroy_assoc_data(sdata, false);
+	if (ifmgd->auth_data)
+		ieee80211_destroy_auth_data(sdata, false);
+	del_timer_sync(&ifmgd->timer);
+	mutex_unlock(&ifmgd->mtx);
+}
+
 void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
 			       enum nl80211_cqm_rssi_threshold_event rssi_event,
 			       gfp_t gfp)

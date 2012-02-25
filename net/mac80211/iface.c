@@ -644,6 +644,8 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 
 	if (ieee80211_vif_is_mesh(&sdata->vif))
 		mesh_rmc_free(sdata);
+	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		ieee80211_mgd_teardown(sdata);
 
 	flushed = sta_info_flush(local, sdata);
 	WARN_ON(flushed);
