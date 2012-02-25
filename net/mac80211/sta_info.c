@@ -865,8 +865,10 @@ int sta_info_flush(struct ieee80211_local *local,
 
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
-		if (!sdata || sdata == sta->sdata)
+		if (!sdata || sdata == sta->sdata) {
 			WARN_ON(__sta_info_destroy(sta));
+			ret++;
+		}
 	}
 	mutex_unlock(&local->sta_mtx);
 
