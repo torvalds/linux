@@ -3097,12 +3097,16 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 		return ret;
 	}
 
+	ar->wiphy_registered = true;
+
 	return 0;
 }
 
 void ath6kl_cfg80211_cleanup(struct ath6kl *ar)
 {
 	wiphy_unregister(ar->wiphy);
+
+	ar->wiphy_registered = false;
 }
 
 struct ath6kl *ath6kl_cfg80211_create(void)

@@ -666,6 +666,8 @@ struct ath6kl {
 
 	bool p2p;
 
+	bool wiphy_registered;
+
 #ifdef CONFIG_ATH6KL_DEBUG
 	struct {
 		struct sk_buff_head fwlog_queue;

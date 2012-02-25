@@ -914,7 +914,7 @@ static void ath6kl_wmi_regdomain_event(struct wmi *wmi, u8 *datap, int len)
 				regpair->regDmnEnum);
 	}
 
-	if (country) {
+	if (country && wmi->parent_dev->wiphy_registered) {
 		alpha2[0] = country->isoName[0];
 		alpha2[1] = country->isoName[1];
 
