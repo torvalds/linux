@@ -1733,8 +1733,8 @@ void target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 
 	ret = transport_lookup_tmr_lun(se_cmd, unpacked_lun);
 	if (ret) {
-		transport_send_check_condition_and_sense(se_cmd,
-			se_cmd->scsi_sense_reason, 0);
+		se_cmd->se_tmr_req->response = TMR_LUN_DOES_NOT_EXIST;
+		se_cmd->se_tfo->queue_tm_rsp(se_cmd);
 		transport_generic_free_cmd(se_cmd, 0);
 		return;
 	}
