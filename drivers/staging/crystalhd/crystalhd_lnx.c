@@ -15,10 +15,11 @@
   along with this driver.  If not, see <http://www.gnu.org/licenses/>.
 ***************************************************************************/
 
+#include "crystalhd.h"
+
 #include <linux/mutex.h>
 #include <linux/slab.h>
 
-#include "crystalhd_lnx.h"
 
 static DEFINE_MUTEX(chd_dec_mutex);
 static struct class *crystalhd_class;

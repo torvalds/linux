@@ -22,10 +22,11 @@
  * along with this driver.  If not, see <http://www.gnu.org/licenses/>.
  **********************************************************************/
 
+#include "crystalhd.h"
+
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include "crystalhd_hw.h"
 
 /* Functions internal to this file */
 

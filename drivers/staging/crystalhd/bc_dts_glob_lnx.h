@@ -48,8 +48,7 @@
 
 #endif
 
-#include "bc_dts_defs.h"
-#include "bcm_70012_regs.h"	/* Link Register defs */
+#include "crystalhd.h"
 
 #define CRYSTALHD_API_NAME	"crystalhd"
 #define CRYSTALHD_API_DEV_NAME	"/dev/crystalhd"

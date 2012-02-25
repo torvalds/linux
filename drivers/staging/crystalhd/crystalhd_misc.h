@@ -28,6 +28,8 @@
 #ifndef _CRYSTALHD_MISC_H_
 #define _CRYSTALHD_MISC_H_
 
+#include "crystalhd.h"
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -35,8 +37,6 @@
 #include <linux/ioctl.h>
 #include <linux/dma-mapping.h>
 #include <linux/sched.h>
-#include <asm/system.h>
-#include "bc_dts_glob_lnx.h"
 
 /* Global log level variable defined in crystal_misc.c file */
 extern uint32_t g_linklog_level;
