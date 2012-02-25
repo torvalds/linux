@@ -1628,10 +1628,8 @@ static void dwc3_endpoint_transfer_complete(struct dwc3 *dwc,
 		status = -ECONNRESET;
 
 	clean_busy = dwc3_cleanup_done_reqs(dwc, dep, event, status);
-	if (clean_busy) {
+	if (clean_busy)
 		dep->flags &= ~DWC3_EP_BUSY;
-		dep->res_trans_idx = 0;
-	}
 
 	/*
 	 * WORKAROUND: This is the 2nd half of U1/U2 -> U0 workaround.
@@ -1736,6 +1734,8 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 
 	switch (event->endpoint_event) {
 	case DWC3_DEPEVT_XFERCOMPLETE:
+		dep->res_trans_idx = 0;
+
 		if (usb_endpoint_xfer_isoc(dep->desc)) {
 			dev_dbg(dwc->dev, "%s is an Isochronous endpoint\n",
 					dep->name);

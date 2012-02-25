@@ -617,6 +617,7 @@ static void dwc3_ep0_xfer_complete(struct dwc3 *dwc,
 	struct dwc3_ep		*dep = dwc->eps[event->endpoint_number];
 
 	dep->flags &= ~DWC3_EP_BUSY;
+	dep->res_trans_idx = 0;
 	dwc->setup_packet_pending = false;
 
 	switch (dwc->ep0state) {
