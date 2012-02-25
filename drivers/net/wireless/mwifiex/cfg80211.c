@@ -873,6 +873,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	priv->sec_info.wpa2_enabled = false;
 	priv->wep_key_curr_index = 0;
 	priv->sec_info.encryption_mode = 0;
+	priv->sec_info.is_authtype_auto = 0;
 	ret = mwifiex_set_encode(priv, NULL, 0, 0, 1);
 
 	if (mode == NL80211_IFTYPE_ADHOC) {
@@ -894,11 +895,12 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	}
 
 	/* Now handle infra mode. "sme" is valid for infra mode only */
-	if (sme->auth_type == NL80211_AUTHTYPE_AUTOMATIC
-			|| sme->auth_type == NL80211_AUTHTYPE_OPEN_SYSTEM)
+	if (sme->auth_type == NL80211_AUTHTYPE_AUTOMATIC) {
 		auth_type = NL80211_AUTHTYPE_OPEN_SYSTEM;
-	else if (sme->auth_type == NL80211_AUTHTYPE_SHARED_KEY)
-		auth_type = NL80211_AUTHTYPE_SHARED_KEY;
+		priv->sec_info.is_authtype_auto = 1;
+	} else {
+		auth_type = sme->auth_type;
+	}
 
 	if (sme->crypto.n_ciphers_pairwise) {
 		priv->sec_info.encryption_mode =

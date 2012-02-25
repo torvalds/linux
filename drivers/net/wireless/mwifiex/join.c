@@ -585,7 +585,7 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 		       le16_to_cpu(assoc_rsp->cap_info_bitmap),
 		       le16_to_cpu(assoc_rsp->a_id));
 
-		ret = -1;
+		ret = le16_to_cpu(assoc_rsp->status_code);
 		goto done;
 	}
 

@@ -249,6 +249,17 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		 * application retrieval */
 		priv->assoc_rsp_size = 0;
 		ret = mwifiex_associate(priv, bss_desc);
+
+		/* If auth type is auto and association fails using open mode,
+		 * try to connect using shared mode */
+		if (ret == WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG &&
+		    priv->sec_info.is_authtype_auto &&
+		    priv->sec_info.wep_enabled) {
+			priv->sec_info.authentication_mode =
+						NL80211_AUTHTYPE_SHARED_KEY;
+			ret = mwifiex_associate(priv, bss_desc);
+		}
+
 		if (bss)
 			cfg80211_put_bss(bss);
 	} else {

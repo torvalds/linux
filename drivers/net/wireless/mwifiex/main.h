@@ -219,6 +219,7 @@ struct mwifiex_802_11_security {
 	u8 wapi_key_on;
 	u8 wep_enabled;
 	u32 authentication_mode;
+	u8 is_authtype_auto;
 	u32 encryption_mode;
 };
 
