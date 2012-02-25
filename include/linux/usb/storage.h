@@ -71,7 +71,6 @@ struct bulk_cs_wrap {
 	__u32	Tag;		/* same as original command */
 	__le32	Residue;	/* amount not transferred */
 	__u8	Status;		/* see below */
-	__u8	Filler[18];
 };
 
 #define US_BULK_CS_WRAP_LEN	13
