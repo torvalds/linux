@@ -62,7 +62,7 @@ struct bulk_cb_wrap {
 
 #define US_BULK_CB_WRAP_LEN	31
 #define US_BULK_CB_SIGN		0x43425355	/*spells out USBC */
-#define US_BULK_FLAG_IN		1
+#define US_BULK_FLAG_IN		(1 << 7)
 #define US_BULK_FLAG_OUT	0
 
 /* command status wrapper */
