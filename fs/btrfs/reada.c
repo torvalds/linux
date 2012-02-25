@@ -326,6 +326,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
 	struct btrfs_bio *bbio = NULL;
 	struct btrfs_device *dev;
+	struct btrfs_device *prev_dev;
 	u32 blocksize;
 	u64 length;
 	int nzones = 0;
@@ -405,8 +406,20 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 		spin_unlock(&fs_info->reada_lock);
 		goto error;
 	}
+	prev_dev = NULL;
 	for (i = 0; i < nzones; ++i) {
 		dev = bbio->stripes[i].dev;
+		if (dev == prev_dev) {
+			/*
+			 * in case of DUP, just add the first zone. As both
+			 * are on the same device, there's nothing to gain
+			 * from adding both.
+			 * Also, it wouldn't work, as the tree is per device
+			 * and adding would fail with EEXIST
+			 */
+			continue;
+		}
+		prev_dev = dev;
 		ret = radix_tree_insert(&dev->reada_extents, index, re);
 		if (ret) {
 			while (--i >= 0) {
