@@ -8,6 +8,7 @@ config UX500_SOC_COMMON
 	select ARM_ERRATA_753970
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_764369
+	select CACHE_L2X0
 
 config UX500_SOC_DB5500
 	bool
