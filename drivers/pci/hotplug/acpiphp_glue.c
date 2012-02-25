@@ -910,7 +910,7 @@ static int disable_device(struct acpiphp_slot *slot)
 				disable_bridges(pdev->subordinate);
 				pci_disable_device(pdev);
 			}
-			pci_remove_bus_device(pdev);
+			pci_stop_and_remove_bus_device(pdev);
 			pci_dev_put(pdev);
 		}
 	}
@@ -1067,7 +1067,7 @@ static void acpiphp_sanitize_bus(struct pci_bus *bus)
 					res->end) {
 				/* Could not assign a required resources
 				 * for this device, remove it */
-				pci_remove_bus_device(dev);
+				pci_stop_and_remove_bus_device(dev);
 				break;
 			}
 		}

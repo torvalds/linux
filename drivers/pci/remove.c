@@ -79,7 +79,7 @@ EXPORT_SYMBOL(pci_remove_bus);
 
 static void __pci_remove_behind_bridge(struct pci_dev *dev);
 /**
- * pci_remove_bus_device - remove a PCI device and any children
+ * pci_stop_and_remove_bus_device - remove a PCI device and any children
  * @dev: the device to remove
  *
  * Remove a PCI device from the device lists, informing the drivers
@@ -102,7 +102,7 @@ static void __pci_remove_bus_device(struct pci_dev *dev)
 
 	pci_destroy_dev(dev);
 }
-void pci_remove_bus_device(struct pci_dev *dev)
+void pci_stop_and_remove_bus_device(struct pci_dev *dev)
 {
 	pci_stop_bus_device(dev);
 	__pci_remove_bus_device(dev);
@@ -145,7 +145,7 @@ static void pci_stop_bus_devices(struct pci_bus *bus)
 	struct list_head *l, *n;
 
 	/*
-	 * VFs could be removed by pci_remove_bus_device() in the
+	 * VFs could be removed by pci_stop_and_remove_bus_device() in the
 	 *  pci_stop_bus_devices() code path for PF.
 	 *  aka, bus->devices get updated in the process.
 	 * but VFs are inserted after PFs when SRIOV is enabled for PF,
@@ -174,6 +174,6 @@ void pci_stop_bus_device(struct pci_dev *dev)
 	pci_stop_dev(dev);
 }
 
-EXPORT_SYMBOL(pci_remove_bus_device);
+EXPORT_SYMBOL(pci_stop_and_remove_bus_device);
 EXPORT_SYMBOL(pci_remove_behind_bridge);
 EXPORT_SYMBOL_GPL(pci_stop_bus_device);

@@ -346,7 +346,7 @@ static int mpt_remove_dead_ioc_func(void *arg)
 	if ((pdev == NULL))
 		return -1;
 
-	pci_remove_bus_device(pdev);
+	pci_stop_and_remove_bus_device(pdev);
 	return 0;
 }
 

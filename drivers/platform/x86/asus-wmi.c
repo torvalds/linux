@@ -571,7 +571,7 @@ static void asus_rfkill_hotplug(struct asus_wmi *asus)
 		} else {
 			dev = pci_get_slot(bus, 0);
 			if (dev) {
-				pci_remove_bus_device(dev);
+				pci_stop_and_remove_bus_device(dev);
 				pci_dev_put(dev);
 			}
 		}

@@ -330,7 +330,7 @@ static void remove_callback(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 
 	mutex_lock(&pci_remove_rescan_mutex);
-	pci_remove_bus_device(pdev);
+	pci_stop_and_remove_bus_device(pdev);
 	mutex_unlock(&pci_remove_rescan_mutex);
 }
 
