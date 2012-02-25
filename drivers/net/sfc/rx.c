@@ -155,11 +155,10 @@ static int efx_init_rx_buffers_skb(struct efx_rx_queue *rx_queue)
 		if (unlikely(!skb))
 			return -ENOMEM;
 
-		/* Adjust the SKB for padding and checksum */
+		/* Adjust the SKB for padding */
 		skb_reserve(skb, NET_IP_ALIGN);
 		rx_buf->len = skb_len - NET_IP_ALIGN;
 		rx_buf->is_page = false;
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		rx_buf->dma_addr = pci_map_single(efx->pci_dev,
 						  skb->data, rx_buf->len,
@@ -498,6 +497,7 @@ static void efx_rx_packet_gro(struct efx_channel *channel,
 
 		EFX_BUG_ON_PARANOID(!checksummed);
 		rx_buf->u.skb = NULL;
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		gro_result = napi_gro_receive(napi, skb);
 	}
