@@ -4,6 +4,13 @@
 
 choice
 	prompt "ADC hardware drivers"
+
+config ADC_NULL
+	bool "NULL"
+	default y
+	help
+		null
+	
 config ADC_RK28
 	bool "RK28 adc interface"
 	help
@@ -14,3 +21,8 @@ config ADC_RK29
 	help
 		This supports the use of the ADC interface on rk29 processors.
 endchoice
+
+config TSADC_RK30
+	bool "RK30 tsadc interface"
+	help
+		This supports the use of the TSADC interface on rk30 processors.

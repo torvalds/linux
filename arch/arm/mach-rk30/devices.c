@@ -26,6 +26,29 @@
 #include <mach/iomux.h>
 static u64 dma_dmamask = DMA_BIT_MASK(32);
 
+#ifdef CONFIG_TSADC_RK30
+static struct resource rk30_tsadc_resource[] = {
+	{
+		.start	= IRQ_SARADC,
+		.end	= IRQ_SARADC,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK30_TSADC_PHYS,
+		.end	= RK30_TSADC_PHYS + RK30_TSADC_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device device_tsadc = {
+	.name		= "rk30-tsadc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(rk30_tsadc_resource),
+	.resource	= rk30_tsadc_resource,
+};
+#endif
+
+
 static struct resource resource_dmac1[] = {
 	[0] = {
 		.start  = RK30_DMACS1_PHYS,
@@ -799,6 +822,10 @@ static int __init rk30_init_devices(void)
 #ifdef CONFIG_LCDC_RK30
 	platform_device_register(&device_lcdc);
 #endif
+#ifdef CONFIG_TSADC_RK30
+	platform_device_register(&device_tsadc);
+#endif
+
         return 0;
 }
 arch_initcall(rk30_init_devices);
