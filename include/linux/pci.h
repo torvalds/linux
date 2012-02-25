@@ -946,7 +946,7 @@ int __must_check __pci_register_driver(struct pci_driver *, struct module *,
 	__pci_register_driver(driver, THIS_MODULE, KBUILD_MODNAME)
 
 void pci_unregister_driver(struct pci_driver *dev);
-void pci_remove_behind_bridge(struct pci_dev *dev);
+void pci_stop_and_remove_behind_bridge(struct pci_dev *dev);
 struct pci_driver *pci_dev_driver(const struct pci_dev *dev);
 int pci_add_dynid(struct pci_driver *drv,
 		  unsigned int vendor, unsigned int device,
