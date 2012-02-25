@@ -29,7 +29,7 @@
 
 /* Driver strings */
 #define UDC_MOD_DESCRIPTION		"AMD 5536 UDC - USB Device Controller"
-#define UDC_DRIVER_VERSION_STRING	"01.00.0206 - $Revision: #3 $"
+#define UDC_DRIVER_VERSION_STRING	"01.00.0206"
 
 /* system */
 #include <linux/module.h>
