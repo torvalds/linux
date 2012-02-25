@@ -90,7 +90,7 @@ static void __pci_remove_behind_bridge(struct pci_dev *dev);
  * device lists, remove the /proc entry, and notify userspace
  * (/sbin/hotplug).
  */
-static void __pci_remove_bus_device(struct pci_dev *dev)
+void __pci_remove_bus_device(struct pci_dev *dev)
 {
 	if (dev->subordinate) {
 		struct pci_bus *b = dev->subordinate;
@@ -102,6 +102,8 @@ static void __pci_remove_bus_device(struct pci_dev *dev)
 
 	pci_destroy_dev(dev);
 }
+EXPORT_SYMBOL(__pci_remove_bus_device);
+
 void pci_stop_and_remove_bus_device(struct pci_dev *dev)
 {
 	pci_stop_bus_device(dev);
