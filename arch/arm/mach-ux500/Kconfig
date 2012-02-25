@@ -18,6 +18,7 @@ config UX500_SOC_DB8500
 	bool
 	select MFD_DB8500_PRCMU
 	select REGULATOR_DB8500_PRCMU
+	select CPU_FREQ_TABLE if CPU_FREQ
 
 menu "Ux500 target platform (boards)"
 
