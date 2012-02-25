@@ -271,13 +271,12 @@ static void isci_unregister(struct isci_host *isci_host)
 	if (!isci_host)
 		return;
 
-	shost = isci_host->shost;
-
 	sas_unregister_ha(&isci_host->sas_ha);
 
-	sas_remove_host(isci_host->shost);
-	scsi_remove_host(isci_host->shost);
-	scsi_host_put(isci_host->shost);
+	shost = to_shost(isci_host);
+	sas_remove_host(shost);
+	scsi_remove_host(shost);
+	scsi_host_put(shost);
 }
 
 static int __devinit isci_pci_init(struct pci_dev *pdev)
@@ -578,7 +577,6 @@ static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 	shost = scsi_host_alloc(&isci_sht, sizeof(void *));
 	if (!shost)
 		return NULL;
-	ihost->shost = shost;
 
 	dev_info(&pdev->dev, "%sSCU controller %d: phy 3-0 cables: "
 		 "{%s, %s, %s, %s}\n",
@@ -690,11 +688,11 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 		pci_info->hosts[i] = h;
 
 		/* turn on DIF support */
-		scsi_host_set_prot(h->shost,
+		scsi_host_set_prot(to_shost(h),
 				   SHOST_DIF_TYPE1_PROTECTION |
 				   SHOST_DIF_TYPE2_PROTECTION |
 				   SHOST_DIF_TYPE3_PROTECTION);
-		scsi_host_set_guard(h->shost, SHOST_DIX_GUARD_CRC);
+		scsi_host_set_guard(to_shost(h), SHOST_DIX_GUARD_CRC);
 	}
 
 	err = isci_setup_interrupts(pdev);
@@ -702,7 +700,7 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 		goto err_host_alloc;
 
 	for_each_isci_host(i, isci_host, pdev)
-		scsi_scan_host(isci_host->shost);
+		scsi_scan_host(to_shost(isci_host));
 
 	return 0;
 

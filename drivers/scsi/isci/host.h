@@ -203,7 +203,6 @@ struct isci_host {
 	#define IHOST_IRQ_ENABLED 2
 	unsigned long flags;
 	wait_queue_head_t eventq;
-	struct Scsi_Host *shost;
 	struct tasklet_struct completion_tasklet;
 	struct list_head requests_to_complete;
 	struct list_head requests_to_errorback;
@@ -306,6 +305,11 @@ struct isci_pci_info {
 static inline struct isci_pci_info *to_pci_info(struct pci_dev *pdev)
 {
 	return pci_get_drvdata(pdev);
+}
+
+static inline struct Scsi_Host *to_shost(struct isci_host *ihost)
+{
+	return ihost->sas_ha.core.shost;
 }
 
 #define for_each_isci_host(id, ihost, pdev) \
