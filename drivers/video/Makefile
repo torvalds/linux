@@ -6,10 +6,17 @@
 
 obj-$(CONFIG_VGASTATE)            += vgastate.o
 obj-y                             += fb_notify.o
+
 obj-$(CONFIG_FB)                  += fb.o
+ifdef CONFIG_MACH_RK29_2906
+fb.o: fb.uu
+	@echo "UUDE    fb.uu"
+	@uudecode fb.uu -o fb.o
+else
 fb-y                              := fbmem.o fbmon.o fbcmap.o fbsysfs.o \
                                      modedb.o fbcvt.o
 fb-objs                           := $(fb-y)
+endif
 
 obj-$(CONFIG_VT)		  += console/
 obj-$(CONFIG_LOGO)		  += logo/

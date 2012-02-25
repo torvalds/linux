@@ -291,9 +291,16 @@ bp:;	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/bootpImage
 i zi:;	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $@
 
 PHONY += kernel.img zkernel.img
+
+ifdef CONFIG_MACH_RK29_2906
+kernel.img: Image FORCE
+	$(Q)$(srctree)/mkkrnlimg $(obj)/arch/arm/boot/Image $(obj)/kernel.img RK2906
+	@echo '  RK2906 Image:  $@ is ready'
+else
 kernel.img: Image FORCE
 	$(Q)$(srctree)/mkkrnlimg $(obj)/arch/arm/boot/Image $(obj)/kernel.img
 	@echo '  Image:  $@ is ready'
+endif
 
 zkernel.img: zImage FORCE
 	$(Q)$(srctree)/mkkrnlimg $(obj)/arch/arm/boot/zImage $(obj)/kernel.img
