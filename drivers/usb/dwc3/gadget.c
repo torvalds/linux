@@ -95,11 +95,11 @@ int dwc3_gadget_set_test_mode(struct dwc3 *dwc, int mode)
  * @state: the state to put link into
  *
  * Caller should take care of locking. This function will
- * return 0 on success or -EINVAL.
+ * return 0 on success or -ETIMEDOUT.
  */
 int dwc3_gadget_set_link_state(struct dwc3 *dwc, enum dwc3_link_state state)
 {
-	int		retries = 100;
+	int		retries = 10000;
 	u32		reg;
 
 	reg = dwc3_readl(dwc->regs, DWC3_DCTL);
@@ -113,11 +113,10 @@ int dwc3_gadget_set_link_state(struct dwc3 *dwc, enum dwc3_link_state state)
 	while (--retries) {
 		reg = dwc3_readl(dwc->regs, DWC3_DSTS);
 
-		/* in HS, means ON */
 		if (DWC3_DSTS_USBLNKST(reg) == state)
 			return 0;
 
-		udelay(500);
+		udelay(5);
 	}
 
 	dev_vdbg(dwc->dev, "link state change request timed out\n");
