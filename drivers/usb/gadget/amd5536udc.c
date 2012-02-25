@@ -3406,7 +3406,7 @@ static int udc_remote_wakeup(struct udc *dev)
 }
 
 /* PCI device parameters */
-static const struct pci_device_id pci_id[] = {
+static DEFINE_PCI_DEVICE_TABLE(pci_id) = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x2096),
 		.class =	(PCI_CLASS_SERIAL_USB << 8) | 0xfe,
