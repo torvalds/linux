@@ -81,8 +81,10 @@ static int __devinit dwc3_pci_probe(struct pci_dev *pci,
 	pci_set_master(pci);
 
 	devid = dwc3_get_device_id();
-	if (devid < 0)
+	if (devid < 0) {
+		ret = -ENOMEM;
 		goto err1;
+	}
 
 	dwc3 = platform_device_alloc("dwc3", devid);
 	if (!dwc3) {
