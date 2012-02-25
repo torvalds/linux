@@ -155,6 +155,10 @@ extern bool default_stop_ok(struct device *dev);
 extern struct dev_power_governor pm_domain_always_on_gov;
 #else
 
+static inline struct generic_pm_domain_data *dev_gpd_data(struct device *dev)
+{
+	return ERR_PTR(-ENOSYS);
+}
 static inline struct generic_pm_domain *dev_to_genpd(struct device *dev)
 {
 	return ERR_PTR(-ENOSYS);
@@ -195,7 +199,8 @@ static inline int __pm_genpd_remove_callbacks(struct device *dev, bool clear_td)
 {
 	return -ENOSYS;
 }
-static inline void pm_genpd_init(struct generic_pm_domain *genpd, bool is_off)
+static inline void pm_genpd_init(struct generic_pm_domain *genpd,
+				 struct dev_power_governor *gov, bool is_off)
 {
 }
 static inline int pm_genpd_poweron(struct generic_pm_domain *genpd)
@@ -206,11 +211,8 @@ static inline bool default_stop_ok(struct device *dev)
 {
 	return false;
 }
+#define simple_qos_governor NULL
 #define pm_domain_always_on_gov NULL
-static inline struct generic_pm_domain_data *dev_gpd_data(struct device *dev)
-{
-	return NULL;
-}
 #endif
 
 static inline int pm_genpd_remove_callbacks(struct device *dev)
