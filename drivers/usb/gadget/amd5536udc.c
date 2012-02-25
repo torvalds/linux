@@ -2409,9 +2409,9 @@ static irqreturn_t udc_data_in_isr(struct udc *dev, int ep_ix)
 				/* write fifo */
 				udc_txfifo_write(ep, &req->req);
 				len = req->req.length - req->req.actual;
-						if (len > ep->ep.maxpacket)
-							len = ep->ep.maxpacket;
-						req->req.actual += len;
+				if (len > ep->ep.maxpacket)
+					len = ep->ep.maxpacket;
+				req->req.actual += len;
 				if (req->req.actual == req->req.length
 					|| (len != ep->ep.maxpacket)) {
 					/* complete req */
