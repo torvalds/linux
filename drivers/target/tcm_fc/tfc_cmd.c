@@ -354,6 +354,7 @@ static void ft_send_resp_code_and_free(struct ft_cmd *cmd,
 static void ft_send_tm(struct ft_cmd *cmd)
 {
 	struct fcp_cmnd *fcp;
+	int rc;
 	u8 tm_func;
 
 	fcp = fc_frame_payload_get(cmd->req_frame, sizeof(*fcp));
@@ -384,9 +385,11 @@ static void ft_send_tm(struct ft_cmd *cmd)
 		return;
 	}
 
-	target_submit_tmr(&cmd->se_cmd, cmd->sess->se_sess,
+	rc = target_submit_tmr(&cmd->se_cmd, cmd->sess->se_sess,
 		&cmd->ft_sense_buffer[0], scsilun_to_int(&fcp->fc_lun),
 		cmd, tm_func, 0);
+	if (rc < 0)
+		ft_send_resp_code_and_free(cmd, FCP_TMF_FAILED);
 }
 
 /*
