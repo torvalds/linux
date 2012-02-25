@@ -350,7 +350,7 @@ static int __devinit dwc3_core_init(struct dwc3 *dwc)
 	dwc3_cache_hwparams(dwc);
 
 	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
-	reg &= ~DWC3_GCTL_SCALEDOWN(3);
+	reg &= ~DWC3_GCTL_SCALEDOWN_MASK;
 	reg &= ~DWC3_GCTL_DISSCRAMBLE;
 
 	switch (DWC3_GHWPARAMS1_EN_PWROPT(dwc->hwparams.hwparams1)) {
