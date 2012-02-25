@@ -2155,6 +2155,69 @@ static int ccdc_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 }
 
 /*
+ * Decide whether desired output pixel code can be obtained with
+ * the lane shifter by shifting the input pixel code.
+ * @in: input pixelcode to shifter
+ * @out: output pixelcode from shifter
+ * @additional_shift: # of bits the sensor's LSB is offset from CAMEXT[0]
+ *
+ * return true if the combination is possible
+ * return false otherwise
+ */
+static bool ccdc_is_shiftable(enum v4l2_mbus_pixelcode in,
+			      enum v4l2_mbus_pixelcode out,
+			      unsigned int additional_shift)
+{
+	const struct isp_format_info *in_info, *out_info;
+
+	if (in == out)
+		return true;
+
+	in_info = omap3isp_video_format_info(in);
+	out_info = omap3isp_video_format_info(out);
+
+	if ((in_info->flavor == 0) || (out_info->flavor == 0))
+		return false;
+
+	if (in_info->flavor != out_info->flavor)
+		return false;
+
+	return in_info->bpp - out_info->bpp + additional_shift <= 6;
+}
+
+static int ccdc_link_validate(struct v4l2_subdev *sd,
+			      struct media_link *link,
+			      struct v4l2_subdev_format *source_fmt,
+			      struct v4l2_subdev_format *sink_fmt)
+{
+	struct isp_ccdc_device *ccdc = v4l2_get_subdevdata(sd);
+	unsigned long parallel_shift;
+
+	/* Check if the two ends match */
+	if (source_fmt->format.width != sink_fmt->format.width ||
+	    source_fmt->format.height != sink_fmt->format.height)
+		return -EPIPE;
+
+	/* We've got a parallel sensor here. */
+	if (ccdc->input == CCDC_INPUT_PARALLEL) {
+		struct isp_parallel_platform_data *pdata =
+			&((struct isp_v4l2_subdevs_group *)
+			  media_entity_to_v4l2_subdev(link->source->entity)
+			  ->host_priv)->bus.parallel;
+		parallel_shift = pdata->data_lane_shift * 2;
+	} else {
+		parallel_shift = 0;
+	}
+
+	/* Lane shifter may be used to drop bits on CCDC sink pad */
+	if (!ccdc_is_shiftable(source_fmt->format.code,
+			       sink_fmt->format.code, parallel_shift))
+		return -EPIPE;
+
+	return 0;
+}
+
+/*
  * ccdc_init_formats - Initialize formats on all pads
  * @sd: ISP CCDC V4L2 subdevice
  * @fh: V4L2 subdev file handle
@@ -2198,6 +2261,7 @@ static const struct v4l2_subdev_pad_ops ccdc_v4l2_pad_ops = {
 	.set_fmt = ccdc_set_format,
 	.get_selection = ccdc_get_selection,
 	.set_selection = ccdc_set_selection,
+	.link_validate = ccdc_link_validate,
 };
 
 /* V4L2 subdev operations */
@@ -2307,6 +2371,7 @@ static int ccdc_link_setup(struct media_entity *entity,
 /* media operations */
 static const struct media_entity_operations ccdc_media_ops = {
 	.link_setup = ccdc_link_setup,
+	.link_validate = v4l2_subdev_link_validate,
 };
 
 void omap3isp_ccdc_unregister_entities(struct isp_ccdc_device *ccdc)

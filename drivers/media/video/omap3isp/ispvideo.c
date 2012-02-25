@@ -130,37 +130,6 @@ omap3isp_video_format_info(enum v4l2_mbus_pixelcode code)
 }
 
 /*
- * Decide whether desired output pixel code can be obtained with
- * the lane shifter by shifting the input pixel code.
- * @in: input pixelcode to shifter
- * @out: output pixelcode from shifter
- * @additional_shift: # of bits the sensor's LSB is offset from CAMEXT[0]
- *
- * return true if the combination is possible
- * return false otherwise
- */
-static bool isp_video_is_shiftable(enum v4l2_mbus_pixelcode in,
-		enum v4l2_mbus_pixelcode out,
-		unsigned int additional_shift)
-{
-	const struct isp_format_info *in_info, *out_info;
-
-	if (in == out)
-		return true;
-
-	in_info = omap3isp_video_format_info(in);
-	out_info = omap3isp_video_format_info(out);
-
-	if ((in_info->flavor == 0) || (out_info->flavor == 0))
-		return false;
-
-	if (in_info->flavor != out_info->flavor)
-		return false;
-
-	return in_info->bpp - out_info->bpp + additional_shift <= 6;
-}
-
-/*
  * isp_video_mbus_to_pix - Convert v4l2_mbus_framefmt to v4l2_pix_format
  * @video: ISP video instance
  * @mbus: v4l2_mbus_framefmt format (input)
@@ -315,50 +284,23 @@ static int isp_video_get_graph_data(struct isp_video *video,
 static int isp_video_validate_pipeline(struct isp_pipeline *pipe)
 {
 	struct isp_device *isp = pipe->output->isp;
-	struct v4l2_subdev_format fmt_source;
-	struct v4l2_subdev_format fmt_sink;
 	struct media_pad *pad;
 	struct v4l2_subdev *subdev;
-	int ret;
 
 	subdev = isp_video_remote_subdev(pipe->output, NULL);
 	if (subdev == NULL)
 		return -EPIPE;
 
 	while (1) {
-		unsigned int shifter_link;
-
 		/* Retrieve the sink format */
 		pad = &subdev->entity.pads[0];
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
 			break;
 
-		fmt_sink.pad = pad->index;
-		fmt_sink.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-		ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt_sink);
-		if (ret < 0 && ret != -ENOIOCTLCMD)
-			return -EPIPE;
-
 		/* Update the maximum frame rate */
 		if (subdev == &isp->isp_res.subdev)
 			omap3isp_resizer_max_rate(&isp->isp_res,
 						  &pipe->max_rate);
-
-		/* Check ccdc maximum data rate when data comes from sensor
-		 * TODO: Include ccdc rate in pipe->max_rate and compare the
-		 *       total pipe rate with the input data rate from sensor.
-		 */
-		if (subdev == &isp->isp_ccdc.subdev && pipe->input == NULL) {
-			unsigned int rate = UINT_MAX;
-
-			omap3isp_ccdc_max_rate(&isp->isp_ccdc, &rate);
-			if (pipe->external_rate > rate)
-				return -ENOSPC;
-		}
-
-		/* If sink pad is on CCDC, the link has the lane shifter
-		 * in the middle of it. */
-		shifter_link = subdev == &isp->isp_ccdc.subdev;
 
 		/* Retrieve the source format. Return an error if no source
 		 * entity can be found, and stop checking the pipeline if the
@@ -372,32 +314,6 @@ static int isp_video_validate_pipeline(struct isp_pipeline *pipe)
 			break;
 
 		subdev = media_entity_to_v4l2_subdev(pad->entity);
-
-		fmt_source.pad = pad->index;
-		fmt_source.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-		ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt_source);
-		if (ret < 0 && ret != -ENOIOCTLCMD)
-			return -EPIPE;
-
-		/* Check if the two ends match */
-		if (fmt_source.format.width != fmt_sink.format.width ||
-		    fmt_source.format.height != fmt_sink.format.height)
-			return -EPIPE;
-
-		if (shifter_link) {
-			unsigned int parallel_shift = 0;
-			if (isp->isp_ccdc.input == CCDC_INPUT_PARALLEL) {
-				struct isp_parallel_platform_data *pdata =
-					&((struct isp_v4l2_subdevs_group *)
-					      subdev->host_priv)->bus.parallel;
-				parallel_shift = pdata->data_lane_shift * 2;
-			}
-			if (!isp_video_is_shiftable(fmt_source.format.code,
-						fmt_sink.format.code,
-						parallel_shift))
-				return -EPIPE;
-		} else if (fmt_source.format.code != fmt_sink.format.code)
-			return -EPIPE;
 	}
 
 	return 0;
@@ -1023,6 +939,17 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
 	}
 
 	pipe->external_rate = ctrl.value64;
+
+	if (pipe->entities & (1 << isp->isp_ccdc.subdev.entity.id)) {
+		unsigned int rate = UINT_MAX;
+		/*
+		 * Check that maximum allowed CCDC pixel rate isn't
+		 * exceeded by the pixel rate.
+		 */
+		omap3isp_ccdc_max_rate(&isp->isp_ccdc, &rate);
+		if (pipe->external_rate > rate)
+			return -ENOSPC;
+	}
 
 	return 0;
 }
