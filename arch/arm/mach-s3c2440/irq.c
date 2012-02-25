@@ -92,7 +92,7 @@ static struct irq_chip s3c_irq_wdtac97 = {
 	.irq_ack	= s3c_irq_wdtac97_ack,
 };
 
-static int s3c2440_irq_add(struct device *dev)
+static int s3c2440_irq_add(struct device *dev, struct subsys_interface *sif)
 {
 	unsigned int irqno;
 

@@ -2354,11 +2354,6 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 	for (i = 0; i < data->pwm_num; i++)
 		data->pwm_enable_orig[i] = data->pwm_enable[i];
 
-	/* Read pwm data to save original values */
-	w83627ehf_update_pwm_common(dev, data);
-	for (i = 0; i < data->pwm_num; i++)
-		data->pwm_enable_orig[i] = data->pwm_enable[i];
-
 	/* Register sysfs hooks */
 	for (i = 0; i < ARRAY_SIZE(sda_sf3_arrays); i++) {
 		err = device_create_file(dev, &sda_sf3_arrays[i].dev_attr);

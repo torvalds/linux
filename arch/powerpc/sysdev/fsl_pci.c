@@ -385,26 +385,36 @@ static void __init setup_pci_cmd(struct pci_controller *hose)
 void fsl_pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
-	int i;
+	int i, is_pcie = 0, no_link;
 
-	if ((bus->parent == hose->bus) &&
-	    ((fsl_pcie_bus_fixup &&
-	      early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP)) ||
-	     (hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK)))
-	{
-		for (i = 0; i < 4; ++i) {
+	/* The root complex bridge comes up with bogus resources,
+	 * we copy the PHB ones in.
+	 *
+	 * With the current generic PCI code, the PHB bus no longer
+	 * has bus->resource[0..4] set, so things are a bit more
+	 * tricky.
+	 */
+
+	if (fsl_pcie_bus_fixup)
+		is_pcie = early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP);
+	no_link = !!(hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK);
+
+	if (bus->parent == hose->bus && (is_pcie || no_link)) {
+		for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; ++i) {
 			struct resource *res = bus->resource[i];
-			struct resource *par = bus->parent->resource[i];
-			if (res) {
-				res->start = 0;
-				res->end   = 0;
-				res->flags = 0;
-			}
-			if (res && par) {
-				res->start = par->start;
-				res->end   = par->end;
-				res->flags = par->flags;
-			}
+			struct resource *par;
+
+			if (!res)
+				continue;
+			if (i == 0)
+				par = &hose->io_resource;
+			else if (i < 4)
+				par = &hose->mem_resources[i-1];
+			else par = NULL;
+
+			res->start = par ? par->start : 0;
+			res->end   = par ? par->end   : 0;
+			res->flags = par ? par->flags : 0;
 		}
 	}
 }

@@ -130,7 +130,7 @@ config USB_FSL_MPH_DR_OF
 	tristate
 
 config USB_EHCI_FSL
-	bool "Support for Freescale on-chip EHCI USB controller"
+	bool "Support for Freescale PPC on-chip EHCI USB controller"
 	depends on USB_EHCI_HCD && FSL_SOC
 	select USB_EHCI_ROOT_HUB_TT
 	select USB_FSL_MPH_DR_OF if OF
@@ -138,7 +138,7 @@ config USB_EHCI_FSL
 	  Variation of ARC USB block used in some Freescale chips.
 
 config USB_EHCI_MXC
-	bool "Support for Freescale on-chip EHCI USB controller"
+	bool "Support for Freescale i.MX on-chip EHCI USB controller"
 	depends on USB_EHCI_HCD && ARCH_MXC
 	select USB_EHCI_ROOT_HUB_TT
 	---help---
@@ -546,7 +546,7 @@ config USB_RENESAS_USBHS_HCD
 config USB_WHCI_HCD
 	tristate "Wireless USB Host Controller Interface (WHCI) driver (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	depends on PCI && USB
+	depends on PCI && USB && UWB
 	select USB_WUSB
 	select UWB_WHCI
 	help
@@ -559,7 +559,7 @@ config USB_WHCI_HCD
 config USB_HWA_HCD
 	tristate "Host Wire Adapter (HWA) driver (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	depends on USB
+	depends on USB && UWB
 	select USB_WUSB
 	select UWB_HWA
 	help
