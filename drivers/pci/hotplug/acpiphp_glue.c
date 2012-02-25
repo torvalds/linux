@@ -910,7 +910,7 @@ static int disable_device(struct acpiphp_slot *slot)
 				disable_bridges(pdev->subordinate);
 				pci_disable_device(pdev);
 			}
-			pci_stop_and_remove_bus_device(pdev);
+			__pci_remove_bus_device(pdev);
 			pci_dev_put(pdev);
 		}
 	}
