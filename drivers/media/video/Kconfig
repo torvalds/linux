@@ -469,6 +469,9 @@ config VIDEO_AK881X
 
 comment "Camera sensor devices"
 
+config VIDEO_APTINA_PLL
+	tristate
+
 config VIDEO_OV7670
 	tristate "OmniVision OV7670 sensor support"
 	depends on I2C && VIDEO_V4L2
