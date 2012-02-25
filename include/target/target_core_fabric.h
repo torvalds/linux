@@ -118,7 +118,8 @@ void	target_submit_cmd(struct se_cmd *, struct se_session *, unsigned char *,
 		unsigned char *, u32, u32, int, int, int);
 int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 		unsigned char *sense, u32 unpacked_lun,
-		void *fabric_tmr_ptr, unsigned char tm_type, int flags);
+		void *fabric_tmr_ptr, unsigned char tm_type,
+		gfp_t, unsigned int, int);
 int	transport_handle_cdb_direct(struct se_cmd *);
 int	transport_generic_handle_cdb_map(struct se_cmd *);
 int	transport_generic_handle_data(struct se_cmd *);
