@@ -901,6 +901,7 @@ config ARCH_U300
 
 config ARCH_U8500
 	bool "ST-Ericsson U8500 Series"
+	depends on MMU
 	select CPU_V7
 	select ARM_AMBA
 	select GENERIC_CLOCKEVENTS
