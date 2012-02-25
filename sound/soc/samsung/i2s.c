@@ -761,15 +761,13 @@ static int i2s_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		local_irq_save(flags);
 
-		if (capture)
+		if (capture) {
 			i2s_rxctrl(i2s, 0);
-		else
-			i2s_txctrl(i2s, 0);
-
-		if (capture)
 			i2s_fifo(i2s, FIC_RXFLUSH);
-		else
+		} else {
+			i2s_txctrl(i2s, 0);
 			i2s_fifo(i2s, FIC_TXFLUSH);
+		}
 
 		local_irq_restore(flags);
 		break;
