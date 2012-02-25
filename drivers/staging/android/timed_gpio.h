@@ -20,13 +20,13 @@
 
 struct timed_gpio {
 	const char *name;
-	unsigned 	gpio;
+	unsigned	gpio;
 	int		max_timeout;
-	u8 		active_low;
+	u8		active_low;
 };
 
 struct timed_gpio_platform_data {
-	int 		num_gpios;
+	int		num_gpios;
 	struct timed_gpio *gpios;
 };
 
