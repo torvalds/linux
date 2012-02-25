@@ -846,6 +846,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	priv->sec_info.wpa_enabled = false;
 	priv->sec_info.wpa2_enabled = false;
 	priv->wep_key_curr_index = 0;
+	priv->sec_info.encryption_mode = 0;
 	ret = mwifiex_set_encode(priv, NULL, 0, 0, 1);
 
 	if (mode == NL80211_IFTYPE_ADHOC) {
