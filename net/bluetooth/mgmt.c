@@ -1075,7 +1075,7 @@ static int set_link_security(struct sock *sk, u16 index, void *data, u16 len)
 	struct mgmt_mode *cp = data;
 	struct pending_cmd *cmd;
 	struct hci_dev *hdev;
-	uint8_t val;
+	u8 val;
 	int err;
 
 	BT_DBG("request for hci%u", index);
@@ -1147,7 +1147,7 @@ static int set_ssp(struct sock *sk, u16 index, void *data, u16 len)
 	struct mgmt_mode *cp = data;
 	struct pending_cmd *cmd;
 	struct hci_dev *hdev;
-	uint8_t val;
+	u8 val;
 	int err;
 
 	BT_DBG("request for hci%u", index);
