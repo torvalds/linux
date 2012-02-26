@@ -329,19 +329,6 @@ void omap3isp_configure_bridge(struct isp_device *isp,
 	isp_reg_writel(isp, ispctrl_val, OMAP3_ISP_IOMEM_MAIN, ISP_CTRL);
 }
 
-/**
- * isp_set_pixel_clock - Configures the ISP pixel clock
- * @isp: OMAP3 ISP device
- * @pixelclk: Average pixel clock in Hz
- *
- * Set the average pixel clock required by the sensor. The ISP will use the
- * lowest possible memory bandwidth settings compatible with the clock.
- **/
-static void isp_set_pixel_clock(struct isp_device *isp, unsigned int pixelclk)
-{
-	isp->isp_ccdc.vpcfg.pixelclk = pixelclk;
-}
-
 void omap3isp_hist_dma_done(struct isp_device *isp)
 {
 	if (omap3isp_ccdc_busy(&isp->isp_ccdc) ||
@@ -2077,7 +2064,6 @@ static int __devinit isp_probe(struct platform_device *pdev)
 
 	isp->autoidle = autoidle;
 	isp->platform_cb.set_xclk = isp_set_xclk;
-	isp->platform_cb.set_pixel_clock = isp_set_pixel_clock;
 
 	mutex_init(&isp->isp_mutex);
 	spin_lock_init(&isp->stat_lock);

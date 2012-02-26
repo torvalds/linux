@@ -839,8 +839,8 @@ static void ccdc_config_vp(struct isp_ccdc_device *ccdc)
 
 	if (pipe->input)
 		div = DIV_ROUND_UP(l3_ick, pipe->max_rate);
-	else if (ccdc->vpcfg.pixelclk)
-		div = l3_ick / ccdc->vpcfg.pixelclk;
+	else if (pipe->external_rate)
+		div = l3_ick / pipe->external_rate;
 
 	div = clamp(div, 2U, max_div);
 	fmtcfg_vp |= (div - 2) << ISPCCDC_FMTCFG_VPIF_FRQ_SHIFT;
@@ -2432,8 +2432,6 @@ int omap3isp_ccdc_init(struct isp_device *isp)
 
 	ccdc->clamp.oblen = 0;
 	ccdc->clamp.dcsubval = 0;
-
-	ccdc->vpcfg.pixelclk = 0;
 
 	ccdc->update = OMAP3ISP_CCDC_BLCLAMP;
 	ccdc_apply_controls(ccdc);

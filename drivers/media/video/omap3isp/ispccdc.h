@@ -80,14 +80,6 @@ struct ispccdc_syncif {
 	u8 bt_r656_en;
 };
 
-/*
- * struct ispccdc_vp - Structure for Video Port parameters
- * @pixelclk: Input pixel clock in Hz
- */
-struct ispccdc_vp {
-	unsigned int pixelclk;
-};
-
 enum ispccdc_lsc_state {
 	LSC_STATE_STOPPED = 0,
 	LSC_STATE_STOPPING = 1,
@@ -162,7 +154,6 @@ struct ispccdc_lsc {
  * @update: Bitmask of controls to update during the next interrupt
  * @shadow_update: Controls update in progress by userspace
  * @syncif: Interface synchronization configuration
- * @vpcfg: Video port configuration
  * @underrun: A buffer underrun occurred and a new buffer has been queued
  * @state: Streaming state
  * @lock: Serializes shadow_update with interrupt handler
@@ -192,7 +183,6 @@ struct isp_ccdc_device {
 	unsigned int shadow_update;
 
 	struct ispccdc_syncif syncif;
-	struct ispccdc_vp vpcfg;
 
 	unsigned int underrun:1;
 	enum isp_pipeline_stream_state state;
