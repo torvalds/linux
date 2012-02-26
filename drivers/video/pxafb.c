@@ -54,6 +54,7 @@
 #include <linux/mutex.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/console.h>
 
 #include <mach/hardware.h>
 #include <asm/io.h>
@@ -730,9 +731,12 @@ static int overlayfb_open(struct fb_info *info, int user)
 	if (user == 0)
 		return -ENODEV;
 
-	if (ofb->usage++ == 0)
+	if (ofb->usage++ == 0) {
 		/* unblank the base framebuffer */
+		console_lock();
 		fb_blank(&ofb->fbi->fb, FB_BLANK_UNBLANK);
+		console_unlock();
+	}
 
 	return 0;
 }
