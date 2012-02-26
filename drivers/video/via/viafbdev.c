@@ -287,25 +287,21 @@ static int viafb_set_par(struct fb_info *info)
 			viafb_second_yres, viafb_bpp1, 1);
 	}
 
-	refresh = viafb_get_refresh(info->var.xres, info->var.yres,
-		get_var_refresh(&info->var));
-	if (viafb_get_best_mode(viafbinfo->var.xres, viafbinfo->var.yres,
-		refresh)) {
-		if (viafb_dual_fb && viapar->iga_path == IGA2) {
-			viafb_bpp1 = info->var.bits_per_pixel;
-			viafb_refresh1 = refresh;
-		} else {
-			viafb_bpp = info->var.bits_per_pixel;
-			viafb_refresh = refresh;
-		}
-
-		if (info->var.accel_flags & FB_ACCELF_TEXT)
-			info->flags &= ~FBINFO_HWACCEL_DISABLED;
-		else
-			info->flags |= FBINFO_HWACCEL_DISABLED;
-		viafb_setmode();
-		viafb_pan_display(&info->var, info);
+	refresh = get_var_refresh(&info->var);
+	if (viafb_dual_fb && viapar->iga_path == IGA2) {
+		viafb_bpp1 = info->var.bits_per_pixel;
+		viafb_refresh1 = refresh;
+	} else {
+		viafb_bpp = info->var.bits_per_pixel;
+		viafb_refresh = refresh;
 	}
+
+	if (info->var.accel_flags & FB_ACCELF_TEXT)
+		info->flags &= ~FBINFO_HWACCEL_DISABLED;
+	else
+		info->flags |= FBINFO_HWACCEL_DISABLED;
+	viafb_setmode();
+	viafb_pan_display(&info->var, info);
 
 	return 0;
 }
