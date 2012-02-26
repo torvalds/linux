@@ -3928,6 +3928,8 @@ static int r100_startup(struct radeon_device *rdev)
 
 int r100_resume(struct radeon_device *rdev)
 {
+	int r;
+
 	/* Make sur GART are not working */
 	if (rdev->flags & RADEON_IS_PCI)
 		r100_pci_gart_disable(rdev);
@@ -3947,7 +3949,11 @@ int r100_resume(struct radeon_device *rdev)
 	radeon_surface_init(rdev);
 
 	rdev->accel_working = true;
-	return r100_startup(rdev);
+	r = r100_startup(rdev);
+	if (r) {
+		rdev->accel_working = false;
+	}
+	return r;
 }
 
 int r100_suspend(struct radeon_device *rdev)
