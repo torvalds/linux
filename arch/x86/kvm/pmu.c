@@ -223,7 +223,7 @@ static void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 	event_select = eventsel & ARCH_PERFMON_EVENTSEL_EVENT;
 	unit_mask = (eventsel & ARCH_PERFMON_EVENTSEL_UMASK) >> 8;
 
-	if (!(event_select & (ARCH_PERFMON_EVENTSEL_EDGE |
+	if (!(eventsel & (ARCH_PERFMON_EVENTSEL_EDGE |
 				ARCH_PERFMON_EVENTSEL_INV |
 				ARCH_PERFMON_EVENTSEL_CMASK))) {
 		config = find_arch_event(&pmc->vcpu->arch.pmu, event_select,
