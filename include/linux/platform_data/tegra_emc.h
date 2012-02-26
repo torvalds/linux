@@ -3,6 +3,7 @@
  *
  * Author:
  *	Colin Cross <ccross@android.com>
+ *	Olof Johansson <olof@lixom.net>
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -15,10 +16,19 @@
  *
  */
 
-#ifndef __MACH_TEGRA_TEGRA2_EMC_H_
-#define __MACH_TEGRA_TEGRA2_EMC_H
+#ifndef __TEGRA_EMC_H_
+#define __TEGRA_EMC_H_
 
-int tegra_emc_set_rate(unsigned long rate);
-long tegra_emc_round_rate(unsigned long rate);
+#define TEGRA_EMC_NUM_REGS 46
+
+struct tegra_emc_table {
+	unsigned long rate;
+	u32 regs[TEGRA_EMC_NUM_REGS];
+};
+
+struct tegra_emc_pdata {
+	int num_tables;
+	struct tegra_emc_table *tables;
+};
 
 #endif

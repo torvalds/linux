@@ -1,10 +1,6 @@
 /*
- * arch/arm/mach-tegra/include/mach/gpio.h
- *
+ * Copyright (C) 2010 NVIDIA Corporation.
  * Copyright (C) 2010 Google, Inc.
- *
- * Author:
- *	Erik Gilling <konkers@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -17,21 +13,27 @@
  *
  */
 
-#ifndef __MACH_TEGRA_GPIO_TEGRA_H
-#define __MACH_TEGRA_GPIO_TEGRA_H
+#ifndef __MACH_TEGRA_APBIO_H
+#define __MACH_TEGRA_APBIO_H
 
-#include <linux/types.h>
-#include <mach/irqs.h>
+#ifdef CONFIG_TEGRA_SYSTEM_DMA
 
-#define TEGRA_NR_GPIOS		INT_GPIO_NR
+u32 tegra_apb_readl(unsigned long offset);
+void tegra_apb_writel(u32 value, unsigned long offset);
 
-struct tegra_gpio_table {
-	int	gpio;	/* GPIO number */
-	bool	enable;	/* Enable for GPIO at init? */
-};
+#else
+#include <asm/io.h>
+#include <mach/io.h>
 
-void tegra_gpio_config(struct tegra_gpio_table *table, int num);
-void tegra_gpio_enable(int gpio);
-void tegra_gpio_disable(int gpio);
+static inline u32 tegra_apb_readl(unsigned long offset)
+{
+        return readl(IO_TO_VIRT(offset));
+}
+
+static inline void tegra_apb_writel(u32 value, unsigned long offset)
+{
+        writel(value, IO_TO_VIRT(offset));
+}
+#endif
 
 #endif
