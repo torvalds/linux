@@ -362,7 +362,7 @@ void mei_host_start_message(struct mei_device *dev)
 	host_start_req =
 	    (struct hbm_host_version_request *) &dev->wr_msg_buf[1];
 	memset(host_start_req, 0, sizeof(struct hbm_host_version_request));
-	host_start_req->cmd.cmd = HOST_START_REQ_CMD;
+	host_start_req->hbm_cmd = HOST_START_REQ_CMD;
 	host_start_req->host_version.major_version = HBM_MAJOR_VERSION;
 	host_start_req->host_version.minor_version = HBM_MINOR_VERSION;
 	dev->recvd_msg = false;
@@ -398,7 +398,7 @@ void mei_host_enum_clients_message(struct mei_device *dev)
 
 	host_enum_req = (struct hbm_host_enum_request *) &dev->wr_msg_buf[1];
 	memset(host_enum_req, 0, sizeof(struct hbm_host_enum_request));
-	host_enum_req->cmd.cmd = HOST_ENUM_REQ_CMD;
+	host_enum_req->hbm_cmd = HOST_ENUM_REQ_CMD;
 	if (!mei_write_message(dev, mei_hdr, (unsigned char *)host_enum_req,
 				mei_hdr->length)) {
 		dev->mei_state = MEI_RESETING;
@@ -482,7 +482,7 @@ int mei_host_client_properties(struct mei_device *dev)
 
 		memset(host_cli_req, 0, sizeof(struct hbm_props_request));
 
-		host_cli_req->cmd.cmd = HOST_CLIENT_PROPERTIES_REQ_CMD;
+		host_cli_req->hbm_cmd = HOST_CLIENT_PROPERTIES_REQ_CMD;
 		host_cli_req->address = b;
 
 		if (!mei_write_message(dev, mei_header,

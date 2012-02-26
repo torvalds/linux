@@ -326,7 +326,7 @@ int mei_send_flow_control(struct mei_device *dev, struct mei_cl *cl)
 	memset(mei_flow_control, 0, sizeof(*mei_flow_control));
 	mei_flow_control->host_addr = cl->host_client_id;
 	mei_flow_control->me_addr = cl->me_client_id;
-	mei_flow_control->cmd.cmd = MEI_FLOW_CONTROL_CMD;
+	mei_flow_control->hbm_cmd = MEI_FLOW_CONTROL_CMD;
 	memset(mei_flow_control->reserved, 0,
 			sizeof(mei_flow_control->reserved));
 	dev_dbg(&dev->pdev->dev, "sending flow control host client = %d, ME client = %d\n",
@@ -390,7 +390,7 @@ int mei_disconnect(struct mei_device *dev, struct mei_cl *cl)
 	memset(mei_cli_disconnect, 0, sizeof(*mei_cli_disconnect));
 	mei_cli_disconnect->host_addr = cl->host_client_id;
 	mei_cli_disconnect->me_addr = cl->me_client_id;
-	mei_cli_disconnect->cmd.cmd = CLIENT_DISCONNECT_REQ_CMD;
+	mei_cli_disconnect->hbm_cmd = CLIENT_DISCONNECT_REQ_CMD;
 	mei_cli_disconnect->reserved[0] = 0;
 
 	if (!mei_write_message(dev, mei_hdr,
@@ -425,7 +425,7 @@ int mei_connect(struct mei_device *dev, struct mei_cl *cl)
 	    (struct hbm_client_connect_request *) &dev->wr_msg_buf[1];
 	mei_cli_connect->host_addr = cl->host_client_id;
 	mei_cli_connect->me_addr = cl->me_client_id;
-	mei_cli_connect->cmd.cmd = CLIENT_CONNECT_REQ_CMD;
+	mei_cli_connect->hbm_cmd = CLIENT_CONNECT_REQ_CMD;
 	mei_cli_connect->reserved = 0;
 
 	if (!mei_write_message(dev, mei_hdr,
