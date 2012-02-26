@@ -540,6 +540,9 @@ void set_personality_ia32(bool x32)
 		clear_thread_flag(TIF_IA32);
 		set_thread_flag(TIF_X32);
 		current->personality &= ~READ_IMPLIES_EXEC;
+		/* is_compat_task() uses the presence of the x32
+		   syscall bit flag to determine compat status */
+		current_thread_info()->status &= ~TS_COMPAT;
 	} else {
 		set_thread_flag(TIF_IA32);
 		clear_thread_flag(TIF_X32);
