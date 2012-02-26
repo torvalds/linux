@@ -286,11 +286,11 @@ static void ieee80211_tasklet_handler(unsigned long data)
 			/* Clear skb->pkt_type in order to not confuse kernel
 			 * netstack. */
 			skb->pkt_type = 0;
-			ieee80211_rx(local_to_hw(local), skb);
+			ieee80211_rx(&local->hw, skb);
 			break;
 		case IEEE80211_TX_STATUS_MSG:
 			skb->pkt_type = 0;
-			ieee80211_tx_status(local_to_hw(local), skb);
+			ieee80211_tx_status(&local->hw, skb);
 			break;
 		case IEEE80211_EOSP_MSG:
 			eosp_data = (void *)skb->cb;
@@ -668,7 +668,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	ieee80211_hw_roc_setup(local);
 
-	return local_to_hw(local);
+	return &local->hw;
 }
 EXPORT_SYMBOL(ieee80211_alloc_hw);
 

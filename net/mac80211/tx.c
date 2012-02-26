@@ -625,7 +625,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 			 tx->local->hw.wiphy->frag_threshold);
 
 	/* set up the tx rate control struct we give the RC algo */
-	txrc.hw = local_to_hw(tx->local);
+	txrc.hw = &tx->local->hw;
 	txrc.sband = sband;
 	txrc.bss_conf = &tx->sdata->vif.bss_conf;
 	txrc.skb = tx->skb;

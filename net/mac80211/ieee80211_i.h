@@ -1128,12 +1128,6 @@ static inline struct ieee80211_local *hw_to_local(
 	return container_of(hw, struct ieee80211_local, hw);
 }
 
-static inline struct ieee80211_hw *local_to_hw(
-	struct ieee80211_local *local)
-{
-	return &local->hw;
-}
-
 
 static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 {
