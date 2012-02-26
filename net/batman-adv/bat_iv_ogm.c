@@ -861,7 +861,8 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	seq_diff = batman_ogm_packet->seqno - orig_node->last_real_seqno;
 
 	/* signalize caller that the packet is to be dropped. */
-	if (window_protected(bat_priv, seq_diff,
+	if (!hlist_empty(&orig_node->neigh_list) &&
+	    window_protected(bat_priv, seq_diff,
 			     &orig_node->batman_seqno_reset))
 		goto out;
 
