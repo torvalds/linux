@@ -210,6 +210,9 @@ static void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 	unsigned config, type = PERF_TYPE_RAW;
 	u8 event_select, unit_mask;
 
+	if (eventsel & ARCH_PERFMON_EVENTSEL_PIN_CONTROL)
+		printk_once("kvm pmu: pin control bit is ignored\n");
+
 	pmc->eventsel = eventsel;
 
 	stop_counter(pmc);
