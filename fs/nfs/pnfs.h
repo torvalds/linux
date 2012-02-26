@@ -426,9 +426,6 @@ static inline int pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 	return 0;
 }
 
-static inline void nfs4_deviceid_purge_client(struct nfs_client *ncl)
-{
-}
 #endif /* CONFIG_NFS_V4_1 */
 
 #endif /* FS_NFS_PNFS_H */

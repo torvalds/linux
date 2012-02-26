@@ -204,8 +204,11 @@ error_0:
 #ifdef CONFIG_NFS_V4_1
 static void nfs4_shutdown_session(struct nfs_client *clp)
 {
-	if (nfs4_has_session(clp))
+	if (nfs4_has_session(clp)) {
+		nfs4_deviceid_purge_client(clp);
 		nfs4_destroy_session(clp->cl_session);
+	}
+
 }
 #else /* CONFIG_NFS_V4_1 */
 static void nfs4_shutdown_session(struct nfs_client *clp)
@@ -297,8 +300,6 @@ static void nfs_free_client(struct nfs_client *clp)
 
 	if (clp->cl_machine_cred != NULL)
 		put_rpccred(clp->cl_machine_cred);
-
-	nfs4_deviceid_purge_client(clp);
 
 	put_net(clp->net);
 	kfree(clp->cl_hostname);
