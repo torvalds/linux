@@ -33,10 +33,11 @@ static struct kvm_arch_event_perf_mapping {
 	[4] = { 0x2e, 0x41, PERF_COUNT_HW_CACHE_MISSES },
 	[5] = { 0xc4, 0x00, PERF_COUNT_HW_BRANCH_INSTRUCTIONS },
 	[6] = { 0xc5, 0x00, PERF_COUNT_HW_BRANCH_MISSES },
+	[7] = { 0x00, 0x30, PERF_COUNT_HW_REF_CPU_CYCLES },
 };
 
 /* mapping between fixed pmc index and arch_events array */
-int fixed_pmc_events[] = {1, 0, 2};
+int fixed_pmc_events[] = {1, 0, 7};
 
 static bool pmc_is_gp(struct kvm_pmc *pmc)
 {
