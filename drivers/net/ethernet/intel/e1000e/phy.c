@@ -1181,7 +1181,7 @@ s32 e1000e_setup_copper_link(struct e1000_hw *hw)
 
 	if (link) {
 		e_dbg("Valid link established!!!\n");
-		e1000e_config_collision_dist(hw);
+		hw->mac.ops.config_collision_dist(hw);
 		ret_val = e1000e_config_fc_after_link_up(hw);
 	} else {
 		e_dbg("Unable to establish link!!!\n");
@@ -1489,7 +1489,7 @@ void e1000e_phy_force_speed_duplex_setup(struct e1000_hw *hw, u16 *phy_ctrl)
 		e_dbg("Forcing 10mb\n");
 	}
 
-	e1000e_config_collision_dist(hw);
+	hw->mac.ops.config_collision_dist(hw);
 
 	ew32(CTRL, ctrl);
 }
@@ -2133,7 +2133,7 @@ s32 e1000e_phy_hw_reset_generic(struct e1000_hw *hw)
 	s32 ret_val;
 	u32 ctrl;
 
-	ret_val = e1000_check_reset_block(hw);
+	ret_val = phy->ops.check_reset_block(hw);
 	if (ret_val)
 		return 0;
 

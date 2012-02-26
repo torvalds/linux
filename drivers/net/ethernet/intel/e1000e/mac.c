@@ -263,8 +263,7 @@ void e1000e_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
  *  @mc_addr: pointer to a multicast address
  *
  *  Generates a multicast address hash value which is used to determine
- *  the multicast filter table array address and new table value.  See
- *  e1000_mta_set_generic()
+ *  the multicast filter table array address and new table value.
  **/
 static u32 e1000_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
 {
@@ -465,7 +464,7 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 	 * of MAC speed/duplex configuration.  So we only need to
 	 * configure Collision Distance in the MAC.
 	 */
-	e1000e_config_collision_dist(hw);
+	mac->ops.config_collision_dist(hw);
 
 	/*
 	 * Configure Flow Control now that Auto-Neg has completed.
@@ -693,7 +692,7 @@ static s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
 }
 
 /**
- *  e1000e_setup_link - Setup flow control and link settings
+ *  e1000e_setup_link_generic - Setup flow control and link settings
  *  @hw: pointer to the HW structure
  *
  *  Determines which flow control settings to use, then configures flow
@@ -702,16 +701,15 @@ static s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
  *  should be established.  Assumes the hardware has previously been reset
  *  and the transmitter and receiver are not enabled.
  **/
-s32 e1000e_setup_link(struct e1000_hw *hw)
+s32 e1000e_setup_link_generic(struct e1000_hw *hw)
 {
-	struct e1000_mac_info *mac = &hw->mac;
 	s32 ret_val;
 
 	/*
 	 * In the case of the phy reset being blocked, we already have a link.
 	 * We do not need to set it up again.
 	 */
-	if (e1000_check_reset_block(hw))
+	if (hw->phy.ops.check_reset_block(hw))
 		return 0;
 
 	/*
@@ -733,7 +731,7 @@ s32 e1000e_setup_link(struct e1000_hw *hw)
 	e_dbg("After fix-ups FlowControl is now = %x\n", hw->fc.current_mode);
 
 	/* Call the necessary media_type subroutine to configure the link. */
-	ret_val = mac->ops.setup_physical_interface(hw);
+	ret_val = hw->mac.ops.setup_physical_interface(hw);
 	if (ret_val)
 		return ret_val;
 
@@ -890,7 +888,7 @@ s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw)
 	/* Take the link out of reset */
 	ctrl &= ~E1000_CTRL_LRST;
 
-	e1000e_config_collision_dist(hw);
+	hw->mac.ops.config_collision_dist(hw);
 
 	ret_val = e1000_commit_fc_settings_generic(hw);
 	if (ret_val)
@@ -925,14 +923,13 @@ s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw)
 }
 
 /**
- *  e1000e_config_collision_dist - Configure collision distance
+ *  e1000e_config_collision_dist_generic - Configure collision distance
  *  @hw: pointer to the HW structure
  *
  *  Configures the collision distance to the default value and is used
- *  during link setup. Currently no func pointer exists and all
- *  implementations are handled in the generic version of this function.
+ *  during link setup.
  **/
-void e1000e_config_collision_dist(struct e1000_hw *hw)
+void e1000e_config_collision_dist_generic(struct e1000_hw *hw)
 {
 	u32 tctl;
 
@@ -971,7 +968,9 @@ s32 e1000e_set_fc_watermarks(struct e1000_hw *hw)
 		 * XON frames.
 		 */
 		fcrtl = hw->fc.low_water;
-		fcrtl |= E1000_FCRTL_XONE;
+		if (hw->fc.send_xon)
+			fcrtl |= E1000_FCRTL_XONE;
+
 		fcrth = hw->fc.high_water;
 	}
 	ew32(FCRTL, fcrtl);
@@ -1399,11 +1398,11 @@ s32 e1000e_valid_led_default(struct e1000_hw *hw, u16 *data)
 }
 
 /**
- *  e1000e_id_led_init -
+ *  e1000e_id_led_init_generic -
  *  @hw: pointer to the HW structure
  *
  **/
-s32 e1000e_id_led_init(struct e1000_hw *hw)
+s32 e1000e_id_led_init_generic(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 	s32 ret_val;

@@ -820,7 +820,7 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 	e1000_initialize_hw_bits_80003es2lan(hw);
 
 	/* Initialize identification LED */
-	ret_val = e1000e_id_led_init(hw);
+	ret_val = mac->ops.id_led_init(hw);
 	if (ret_val)
 		e_dbg("Error initializing identification LED\n");
 		/* This is not fatal and we should not stop init due to this */
@@ -838,7 +838,7 @@ static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, 0);
 
 	/* Setup link and flow control */
-	ret_val = e1000e_setup_link(hw);
+	ret_val = mac->ops.setup_link(hw);
 
 	/* Disable IBIST slave mode (far-end loopback) */
 	e1000_read_kmrn_reg_80003es2lan(hw, E1000_KMRNCTRLSTA_INBAND_PARAM,
@@ -1056,7 +1056,7 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 	 * firmware will have already initialized them.  We only initialize
 	 * them if the HW is not in IAMT mode.
 	 */
-	if (!e1000e_check_mng_mode(hw)) {
+	if (!hw->mac.ops.check_mng_mode(hw)) {
 		/* Enable Electrical Idle on the PHY */
 		data |= GG82563_PMCR_ENABLE_ELECTRICAL_IDLE;
 		ret_val = e1e_wphy(hw, GG82563_PHY_PWR_MGMT_CTRL, data);
@@ -1413,7 +1413,7 @@ static void e1000_clear_hw_cntrs_80003es2lan(struct e1000_hw *hw)
 
 static const struct e1000_mac_operations es2_mac_ops = {
 	.read_mac_addr		= e1000_read_mac_addr_80003es2lan,
-	.id_led_init		= e1000e_id_led_init,
+	.id_led_init		= e1000e_id_led_init_generic,
 	.blink_led		= e1000e_blink_led_generic,
 	.check_mng_mode		= e1000e_check_mng_mode_generic,
 	/* check_for_link dependent on media type */
@@ -1429,9 +1429,10 @@ static const struct e1000_mac_operations es2_mac_ops = {
 	.clear_vfta		= e1000_clear_vfta_generic,
 	.reset_hw		= e1000_reset_hw_80003es2lan,
 	.init_hw		= e1000_init_hw_80003es2lan,
-	.setup_link		= e1000e_setup_link,
+	.setup_link		= e1000e_setup_link_generic,
 	/* setup_physical_interface dependent on media type */
 	.setup_led		= e1000e_setup_led_generic,
+	.config_collision_dist	= e1000e_config_collision_dist_generic,
 };
 
 static const struct e1000_phy_operations es2_phy_ops = {
@@ -1456,6 +1457,7 @@ static const struct e1000_nvm_operations es2_nvm_ops = {
 	.acquire		= e1000_acquire_nvm_80003es2lan,
 	.read			= e1000e_read_nvm_eerd,
 	.release		= e1000_release_nvm_80003es2lan,
+	.reload			= e1000e_reload_nvm_generic,
 	.update			= e1000e_update_nvm_checksum_generic,
 	.valid_led_default	= e1000e_valid_led_default,
 	.validate		= e1000e_validate_nvm_checksum_generic,

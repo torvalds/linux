@@ -106,7 +106,7 @@ static s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
 }
 
 /**
- *  e1000e_check_mng_mode_generic - check management mode
+ *  e1000e_check_mng_mode_generic - Generic check management mode
  *  @hw: pointer to the HW structure
  *
  *  Reads the firmware semaphore register and returns true (>0) if
@@ -138,7 +138,7 @@ bool e1000e_enable_tx_pkt_filtering(struct e1000_hw *hw)
 	hw->mac.tx_pkt_filtering = true;
 
 	/* No manageability, no filtering */
-	if (!e1000e_check_mng_mode(hw)) {
+	if (!hw->mac.ops.check_mng_mode(hw)) {
 		hw->mac.tx_pkt_filtering = false;
 		return hw->mac.tx_pkt_filtering;
 	}

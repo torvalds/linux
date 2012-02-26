@@ -559,12 +559,12 @@ extern s32 e1000e_get_speed_and_duplex_copper(struct e1000_hw *hw, u16 *speed, u
 extern s32 e1000e_get_speed_and_duplex_fiber_serdes(struct e1000_hw *hw, u16 *speed, u16 *duplex);
 extern s32 e1000e_disable_pcie_master(struct e1000_hw *hw);
 extern s32 e1000e_get_auto_rd_done(struct e1000_hw *hw);
-extern s32 e1000e_id_led_init(struct e1000_hw *hw);
+extern s32 e1000e_id_led_init_generic(struct e1000_hw *hw);
 extern void e1000e_clear_hw_cntrs_base(struct e1000_hw *hw);
 extern s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw);
 extern s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw);
 extern s32 e1000e_copper_link_setup_igp(struct e1000_hw *hw);
-extern s32 e1000e_setup_link(struct e1000_hw *hw);
+extern s32 e1000e_setup_link_generic(struct e1000_hw *hw);
 extern void e1000_clear_vfta_generic(struct e1000_hw *hw);
 extern void e1000e_init_rx_addrs(struct e1000_hw *hw, u16 rar_count);
 extern void e1000e_update_mc_addr_list_generic(struct e1000_hw *hw,
@@ -575,7 +575,7 @@ extern s32 e1000e_set_fc_watermarks(struct e1000_hw *hw);
 extern void e1000e_set_pcie_no_snoop(struct e1000_hw *hw, u32 no_snoop);
 extern s32 e1000e_get_hw_semaphore(struct e1000_hw *hw);
 extern s32 e1000e_valid_led_default(struct e1000_hw *hw, u16 *data);
-extern void e1000e_config_collision_dist(struct e1000_hw *hw);
+extern void e1000e_config_collision_dist_generic(struct e1000_hw *hw);
 extern s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw);
 extern s32 e1000e_force_mac_fc(struct e1000_hw *hw);
 extern s32 e1000e_blink_led_generic(struct e1000_hw *hw);
@@ -662,11 +662,6 @@ static inline s32 e1000_phy_hw_reset(struct e1000_hw *hw)
 	return hw->phy.ops.reset(hw);
 }
 
-static inline s32 e1000_check_reset_block(struct e1000_hw *hw)
-{
-	return hw->phy.ops.check_reset_block(hw);
-}
-
 static inline s32 e1e_rphy(struct e1000_hw *hw, u32 offset, u16 *data)
 {
 	return hw->phy.ops.read_reg(hw, offset, data);
@@ -689,7 +684,7 @@ extern s32 e1000e_poll_eerd_eewr_done(struct e1000_hw *hw, int ee_reg);
 extern s32 e1000e_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
 extern s32 e1000e_validate_nvm_checksum_generic(struct e1000_hw *hw);
 extern void e1000e_release_nvm(struct e1000_hw *hw);
-extern void e1000e_reload_nvm(struct e1000_hw *hw);
+extern void e1000e_reload_nvm_generic(struct e1000_hw *hw);
 extern s32 e1000_read_mac_addr_generic(struct e1000_hw *hw);
 
 static inline s32 e1000e_read_mac_addr(struct e1000_hw *hw)
@@ -723,11 +718,6 @@ static inline s32 e1000_write_nvm(struct e1000_hw *hw, u16 offset, u16 words, u1
 static inline s32 e1000_get_phy_info(struct e1000_hw *hw)
 {
 	return hw->phy.ops.get_info(hw);
-}
-
-static inline s32 e1000e_check_mng_mode(struct e1000_hw *hw)
-{
-	return hw->mac.ops.check_mng_mode(hw);
 }
 
 extern bool e1000e_check_mng_mode_generic(struct e1000_hw *hw);

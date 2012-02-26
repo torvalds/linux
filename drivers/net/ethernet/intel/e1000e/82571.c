@@ -1118,7 +1118,7 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	e1000_initialize_hw_bits_82571(hw);
 
 	/* Initialize identification LED */
-	ret_val = e1000e_id_led_init(hw);
+	ret_val = mac->ops.id_led_init(hw);
 	if (ret_val)
 		e_dbg("Error initializing identification LED\n");
 		/* This is not fatal and we should not stop init due to this */
@@ -1143,7 +1143,7 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, 0);
 
 	/* Setup link and flow control */
-	ret_val = e1000_setup_link_82571(hw);
+	ret_val = mac->ops.setup_link(hw);
 
 	/* Set the transmit descriptor write-back policy */
 	reg_data = er32(TXDCTL(0));
@@ -1455,7 +1455,7 @@ static s32 e1000_setup_link_82571(struct e1000_hw *hw)
 		break;
 	}
 
-	return e1000e_setup_link(hw);
+	return e1000e_setup_link_generic(hw);
 }
 
 /**
@@ -1911,7 +1911,7 @@ static void e1000_clear_hw_cntrs_82571(struct e1000_hw *hw)
 static const struct e1000_mac_operations e82571_mac_ops = {
 	/* .check_mng_mode: mac type dependent */
 	/* .check_for_link: media type dependent */
-	.id_led_init		= e1000e_id_led_init,
+	.id_led_init		= e1000e_id_led_init_generic,
 	.cleanup_led		= e1000e_cleanup_led_generic,
 	.clear_hw_cntrs		= e1000_clear_hw_cntrs_82571,
 	.get_bus_info		= e1000e_get_bus_info_pcie,
@@ -1927,6 +1927,7 @@ static const struct e1000_mac_operations e82571_mac_ops = {
 	.setup_link		= e1000_setup_link_82571,
 	/* .setup_physical_interface: media type dependent */
 	.setup_led		= e1000e_setup_led_generic,
+	.config_collision_dist	= e1000e_config_collision_dist_generic,
 	.read_mac_addr		= e1000_read_mac_addr_82571,
 };
 
@@ -1988,6 +1989,7 @@ static const struct e1000_nvm_operations e82571_nvm_ops = {
 	.acquire		= e1000_acquire_nvm_82571,
 	.read			= e1000e_read_nvm_eerd,
 	.release		= e1000_release_nvm_82571,
+	.reload			= e1000e_reload_nvm_generic,
 	.update			= e1000_update_nvm_checksum_82571,
 	.valid_led_default	= e1000_valid_led_default_82571,
 	.validate		= e1000_validate_nvm_checksum_82571,

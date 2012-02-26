@@ -324,7 +324,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	phy->ops.power_down           = e1000_power_down_phy_copper_ich8lan;
 	phy->autoneg_mask             = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 
-	if (!e1000_check_reset_block(hw)) {
+	if (!hw->phy.ops.check_reset_block(hw)) {
 		u32 fwsm = er32(FWSM);
 
 		/*
@@ -580,7 +580,7 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 		/* check management mode */
 		mac->ops.check_mng_mode = e1000_check_mng_mode_ich8lan;
 		/* ID LED init */
-		mac->ops.id_led_init = e1000e_id_led_init;
+		mac->ops.id_led_init = e1000e_id_led_init_generic;
 		/* blink LED */
 		mac->ops.blink_led = e1000e_blink_led_generic;
 		/* setup LED */
@@ -746,7 +746,7 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	 * of MAC speed/duplex configuration.  So we only need to
 	 * configure Collision Distance in the MAC.
 	 */
-	e1000e_config_collision_dist(hw);
+	mac->ops.config_collision_dist(hw);
 
 	/*
 	 * Configure Flow Control now that Auto-Neg has completed.
@@ -1314,7 +1314,7 @@ static s32 e1000_oem_bits_config_ich8lan(struct e1000_hw *hw, bool d0_state)
 			oem_reg |= HV_OEM_BITS_LPLU;
 
 		/* Set Restart auto-neg to activate the bits */
-		if (!e1000_check_reset_block(hw))
+		if (!hw->phy.ops.check_reset_block(hw))
 			oem_reg |= HV_OEM_BITS_RESTART_AN;
 	} else {
 		if (mac_reg & (E1000_PHY_CTRL_GBE_DISABLE |
@@ -1788,7 +1788,7 @@ static s32 e1000_post_phy_reset_ich8lan(struct e1000_hw *hw)
 	s32 ret_val = 0;
 	u16 reg;
 
-	if (e1000_check_reset_block(hw))
+	if (hw->phy.ops.check_reset_block(hw))
 		return 0;
 
 	/* Allow time for h/w to get to quiescent state after reset */
@@ -1897,7 +1897,7 @@ static s32 e1000_set_lplu_state_pchlan(struct e1000_hw *hw, bool active)
 	else
 		oem_reg &= ~HV_OEM_BITS_LPLU;
 
-	if (!e1000_check_reset_block(hw))
+	if (!hw->phy.ops.check_reset_block(hw))
 		oem_reg |= HV_OEM_BITS_RESTART_AN;
 
 	return e1e_wphy(hw, HV_OEM_BITS, oem_reg);
@@ -2609,7 +2609,7 @@ release:
 	 * until after the next adapter reset.
 	 */
 	if (!ret_val) {
-		e1000e_reload_nvm(hw);
+		nvm->ops.reload(hw);
 		usleep_range(10000, 20000);
 	}
 
@@ -2962,7 +2962,7 @@ static s32 e1000_valid_led_default_ich8lan(struct e1000_hw *hw, u16 *data)
  *
  *  PCH also does not have an "always on" or "always off" mode which
  *  complicates the ID feature.  Instead of using the "on" mode to indicate
- *  in ledctl_mode2 the LEDs to use for ID (see e1000e_id_led_init()),
+ *  in ledctl_mode2 the LEDs to use for ID (see e1000e_id_led_init_generic()),
  *  use "link_up" mode.  The LEDs will still ID on request if there is no
  *  link based on logic in e1000_led_[on|off]_pchlan().
  **/
@@ -3109,7 +3109,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 
 	ctrl = er32(CTRL);
 
-	if (!e1000_check_reset_block(hw)) {
+	if (!hw->phy.ops.check_reset_block(hw)) {
 		/*
 		 * Full-chip reset requires MAC and PHY reset at the same
 		 * time to make sure the interface between MAC and the
@@ -3212,7 +3212,7 @@ static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 	}
 
 	/* Setup link and flow control */
-	ret_val = e1000_setup_link_ich8lan(hw);
+	ret_val = mac->ops.setup_link(hw);
 
 	/* Set the transmit descriptor write-back policy for both queues */
 	txdctl = er32(TXDCTL(0));
@@ -3327,7 +3327,7 @@ static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 {
 	s32 ret_val;
 
-	if (e1000_check_reset_block(hw))
+	if (hw->phy.ops.check_reset_block(hw))
 		return 0;
 
 	/*
@@ -3353,7 +3353,7 @@ static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 		hw->fc.current_mode);
 
 	/* Continue to configure the copper link. */
-	ret_val = e1000_setup_copper_link_ich8lan(hw);
+	ret_val = hw->mac.ops.setup_physical_interface(hw);
 	if (ret_val)
 		return ret_val;
 
@@ -3555,7 +3555,7 @@ static s32 e1000_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw)
 }
 
 /**
- *  e1000_set_kmrn_lock_loss_workaround_ich8lan - Set Kumeran workaround state
+ *  e1000e_set_kmrn_lock_loss_workaround_ich8lan - Set Kumeran workaround state
  *  @hw: pointer to the HW structure
  *  @state: boolean value used to set the current Kumeran workaround state
  *
@@ -3707,7 +3707,8 @@ void e1000_resume_workarounds_pchlan(struct e1000_hw *hw)
 	u16 phy_id1, phy_id2;
 	s32 ret_val;
 
-	if ((hw->mac.type != e1000_pch2lan) || e1000_check_reset_block(hw))
+	if ((hw->mac.type != e1000_pch2lan) ||
+	    hw->phy.ops.check_reset_block(hw))
 		return;
 
 	ret_val = hw->phy.ops.acquire(hw);
@@ -4006,7 +4007,6 @@ release:
 }
 
 static const struct e1000_mac_operations ich8_mac_ops = {
-	.id_led_init		= e1000e_id_led_init,
 	/* check_mng_mode dependent on mac type */
 	.check_for_link		= e1000_check_for_copper_link_ich8lan,
 	/* cleanup_led dependent on mac type */
@@ -4022,6 +4022,7 @@ static const struct e1000_mac_operations ich8_mac_ops = {
 	.setup_link		= e1000_setup_link_ich8lan,
 	.setup_physical_interface= e1000_setup_copper_link_ich8lan,
 	/* id_led_init dependent on mac type */
+	.config_collision_dist	= e1000e_config_collision_dist_generic,
 };
 
 static const struct e1000_phy_operations ich8_phy_ops = {
@@ -4042,6 +4043,7 @@ static const struct e1000_nvm_operations ich8_nvm_ops = {
 	.acquire		= e1000_acquire_nvm_ich8lan,
 	.read		 	= e1000_read_nvm_ich8lan,
 	.release		= e1000_release_nvm_ich8lan,
+	.reload			= e1000e_reload_nvm_generic,
 	.update			= e1000_update_nvm_checksum_ich8lan,
 	.valid_led_default	= e1000_valid_led_default_ich8lan,
 	.validate		= e1000_validate_nvm_checksum_ich8lan,
