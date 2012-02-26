@@ -1114,7 +1114,7 @@ static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 	 * generated when moving QP to RTS state.
 	 * A TERM message will be sent after QP has moved to RTS state
 	 */
-	if ((ep->mpa_attr.version == 2) &&
+	if ((ep->mpa_attr.version == 2) && peer2peer &&
 			(ep->mpa_attr.p2p_type != p2p_type)) {
 		ep->mpa_attr.p2p_type = FW_RI_INIT_P2PTYPE_DISABLED;
 		rtr_mismatch = 1;
