@@ -1578,6 +1578,9 @@ static int __devinit wm8753_spi_probe(struct spi_device *spi)
 		dev_err(&spi->dev, "Failed to register CODEC: %d\n", ret);
 		goto err_regmap;
 	}
+
+	return 0;
+
 err_regmap:
 	regmap_exit(wm8753->regmap);
 err:
@@ -1633,6 +1636,8 @@ static __devinit int wm8753_i2c_probe(struct i2c_client *i2c,
 		dev_err(&i2c->dev, "Failed to register CODEC: %d\n", ret);
 		goto err_regmap;
 	}
+
+	return 0;
 
 err_regmap:
 	regmap_exit(wm8753->regmap);
