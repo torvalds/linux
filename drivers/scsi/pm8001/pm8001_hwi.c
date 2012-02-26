@@ -3869,7 +3869,9 @@ static int process_oq(struct pm8001_hba_info *pm8001_ha)
 	void *pMsg1 = NULL;
 	u8 bc = 0;
 	u32 ret = MPI_IO_STATUS_FAIL;
+	unsigned long flags;
 
+	spin_lock_irqsave(&pm8001_ha->lock, flags);
 	circularQ = &pm8001_ha->outbnd_q_tbl[0];
 	do {
 		ret = mpi_msg_consume(pm8001_ha, circularQ, &pMsg1, &bc);
@@ -3890,6 +3892,7 @@ static int process_oq(struct pm8001_hba_info *pm8001_ha)
 				break;
 		}
 	} while (1);
+	spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 	return ret;
 }
 
@@ -4295,12 +4298,9 @@ static u32 pm8001_chip_is_our_interupt(struct pm8001_hba_info *pm8001_ha)
 static irqreturn_t
 pm8001_chip_isr(struct pm8001_hba_info *pm8001_ha)
 {
-	unsigned long flags;
-	spin_lock_irqsave(&pm8001_ha->lock, flags);
 	pm8001_chip_interrupt_disable(pm8001_ha);
 	process_oq(pm8001_ha);
 	pm8001_chip_interrupt_enable(pm8001_ha);
-	spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 	return IRQ_HANDLED;
 }
 
