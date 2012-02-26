@@ -814,9 +814,12 @@ S:	Maintained
 
 ARM/H4700 (HP IPAQ HX4700) MACHINE SUPPORT
 M:	Philipp Zabel <philipp.zabel@gmail.com>
+M:	Paul Parsons <lost.distance@yahoo.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-pxa/hx4700.c
 F:	arch/arm/mach-pxa/include/mach/hx4700.h
+F:	sound/soc/pxa/hx4700.c
 
 ARM/HP JORNADA 7XX MACHINE SUPPORT
 M:	Kristoffer Ericson <kristoffer.ericson@gmail.com>
