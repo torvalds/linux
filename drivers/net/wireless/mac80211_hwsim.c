@@ -1580,7 +1580,7 @@ static int hwsim_register_received_nl(struct sk_buff *skb_2,
 	wmediumd_pid = info->snd_pid;
 
 	printk(KERN_DEBUG "mac80211_hwsim: received a REGISTER, "
-	"switching to wmediumd mode with pid %d\n", info->snd_pid);
+	       "switching to wmediumd mode with pid %d\n", info->snd_pid);
 
 	return 0;
 out:
