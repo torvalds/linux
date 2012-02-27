@@ -83,6 +83,8 @@ static void qla4xxx_config_dma_addressing(struct scsi_qla_host *ha);
 /*
  * iSCSI template entry points
  */
+static int qla4xxx_session_get_param(struct iscsi_cls_session *cls_sess,
+				     enum iscsi_param param, char *buf);
 static int qla4xxx_conn_get_param(struct iscsi_cls_conn *conn,
 				  enum iscsi_param param, char *buf);
 static int qla4xxx_host_get_param(struct Scsi_Host *shost,
@@ -186,7 +188,7 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.destroy_conn           = qla4xxx_conn_destroy,
 	.set_param              = iscsi_set_param,
 	.get_conn_param		= qla4xxx_conn_get_param,
-	.get_session_param	= iscsi_session_get_param,
+	.get_session_param	= qla4xxx_session_get_param,
 	.get_ep_param           = qla4xxx_get_ep_param,
 	.ep_connect		= qla4xxx_ep_connect,
 	.ep_poll		= qla4xxx_ep_poll,
@@ -317,6 +319,12 @@ static umode_t ql4_attr_is_visible(int param_type, int param)
 		case ISCSI_PARAM_MAX_RECV_DLENGTH:
 		case ISCSI_PARAM_MAX_XMIT_DLENGTH:
 		case ISCSI_PARAM_IFACE_NAME:
+		case ISCSI_PARAM_CHAP_OUT_IDX:
+		case ISCSI_PARAM_CHAP_IN_IDX:
+		case ISCSI_PARAM_USERNAME:
+		case ISCSI_PARAM_PASSWORD:
+		case ISCSI_PARAM_USERNAME_IN:
+		case ISCSI_PARAM_PASSWORD_IN:
 			return S_IRUGO;
 		default:
 			return 0;
@@ -1286,6 +1294,41 @@ exit_init_fw_cb:
 			  init_fw_cb, init_fw_cb_dma);
 
 	return rval;
+}
+
+static int qla4xxx_session_get_param(struct iscsi_cls_session *cls_sess,
+				     enum iscsi_param param, char *buf)
+{
+	struct iscsi_session *sess = cls_sess->dd_data;
+	struct ddb_entry *ddb_entry = sess->dd_data;
+	struct scsi_qla_host *ha = ddb_entry->ha;
+	int rval, len;
+	uint16_t idx;
+
+	switch (param) {
+	case ISCSI_PARAM_CHAP_IN_IDX:
+		rval = qla4xxx_get_chap_index(ha, sess->username_in,
+					      sess->password_in, BIDI_CHAP,
+					      &idx);
+		if (rval)
+			return -EINVAL;
+
+		len = sprintf(buf, "%hu\n", idx);
+		break;
+	case ISCSI_PARAM_CHAP_OUT_IDX:
+		rval = qla4xxx_get_chap_index(ha, sess->username,
+					      sess->password, LOCAL_CHAP,
+					      &idx);
+		if (rval)
+			return -EINVAL;
+
+		len = sprintf(buf, "%hu\n", idx);
+		break;
+	default:
+		return iscsi_session_get_param(cls_sess, param, buf);
+	}
+
+	return len;
 }
 
 static int qla4xxx_conn_get_param(struct iscsi_cls_conn *cls_conn,

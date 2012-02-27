@@ -1426,8 +1426,8 @@ exit_set_chap:
  * match is found. If a match is not found then add the entry in FLASH and
  * return the index at which entry is written in the FLASH.
  **/
-static int qla4xxx_get_chap_index(struct scsi_qla_host *ha, char *username,
-			    char *password, int bidi, uint16_t *chap_index)
+int qla4xxx_get_chap_index(struct scsi_qla_host *ha, char *username,
+			   char *password, int bidi, uint16_t *chap_index)
 {
 	int i, rval;
 	int free_index = -1;
@@ -1443,6 +1443,11 @@ static int qla4xxx_get_chap_index(struct scsi_qla_host *ha, char *username,
 
 	if (!ha->chap_list) {
 		ql4_printk(KERN_ERR, ha, "Do not have CHAP table cache\n");
+		return QLA_ERROR;
+	}
+
+	if (!username || !password) {
+		ql4_printk(KERN_ERR, ha, "Do not have username and psw\n");
 		return QLA_ERROR;
 	}
 
