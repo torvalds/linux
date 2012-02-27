@@ -31,6 +31,26 @@ struct device_node;
 
 #ifdef CONFIG_EEH
 
+/*
+ * The struct is used to trace the registered EEH operation
+ * callback functions. Actually, those operation callback
+ * functions are heavily platform dependent. That means the
+ * platform should register its own EEH operation callback
+ * functions before any EEH further operations.
+ */
+struct eeh_ops {
+	char *name;
+	int (*init)(void);
+	int (*set_option)(struct device_node *dn, int option);
+	int (*get_pe_addr)(struct device_node *dn);
+	int (*get_state)(struct device_node *dn, int *state);
+	int (*reset)(struct device_node *dn, int option);
+	int (*wait_state)(struct device_node *dn, int max_wait);
+	int (*get_log)(struct device_node *dn, int severity, char *drv_log, unsigned long len);
+	int (*configure_bridge)(struct device_node *dn);
+};
+
+extern struct eeh_ops *eeh_ops;
 extern int eeh_subsystem_enabled;
 
 /* Values for eeh_mode bits in device_node */
@@ -47,6 +67,11 @@ extern int eeh_subsystem_enabled;
 #define EEH_MAX_ALLOWED_FREEZES 5
 
 void __init eeh_init(void);
+#ifdef CONFIG_PPC_PSERIES
+int __init eeh_pseries_init(void);
+#endif
+int __init eeh_ops_register(struct eeh_ops *ops);
+int __exit eeh_ops_unregister(const char *name);
 unsigned long eeh_check_failure(const volatile void __iomem *token,
 				unsigned long val);
 int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev);
@@ -72,6 +97,13 @@ void eeh_remove_bus_device(struct pci_dev *);
 
 #else /* !CONFIG_EEH */
 static inline void eeh_init(void) { }
+
+#ifdef CONFIG_PPC_PSERIES
+static inline int eeh_pseries_init(void)
+{
+	return 0;
+}
+#endif /* CONFIG_PPC_PSERIES */
 
 static inline unsigned long eeh_check_failure(const volatile void __iomem *token, unsigned long val)
 {

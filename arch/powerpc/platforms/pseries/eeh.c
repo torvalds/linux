@@ -97,6 +97,9 @@ static int ibm_get_config_addr_info2;
 static int ibm_configure_bridge;
 static int ibm_configure_pe;
 
+/* Platform dependent EEH operations */
+struct eeh_ops *eeh_ops = NULL;
+
 int eeh_subsystem_enabled;
 EXPORT_SYMBOL(eeh_subsystem_enabled);
 
@@ -1205,6 +1208,56 @@ static void *eeh_early_enable(struct device_node *dn, void *data)
 
 	eeh_save_bars(pdn);
 	return NULL;
+}
+
+/**
+ * eeh_ops_register - Register platform dependent EEH operations
+ * @ops: platform dependent EEH operations
+ *
+ * Register the platform dependent EEH operation callback
+ * functions. The platform should call this function before
+ * any other EEH operations.
+ */
+int __init eeh_ops_register(struct eeh_ops *ops)
+{
+	if (!ops->name) {
+		pr_warning("%s: Invalid EEH ops name for %p\n",
+			__func__, ops);
+		return -EINVAL;
+	}
+
+	if (eeh_ops && eeh_ops != ops) {
+		pr_warning("%s: EEH ops of platform %s already existing (%s)\n",
+			__func__, eeh_ops->name, ops->name);
+		return -EEXIST;
+	}
+
+	eeh_ops = ops;
+
+	return 0;
+}
+
+/**
+ * eeh_ops_unregister - Unreigster platform dependent EEH operations
+ * @name: name of EEH platform operations
+ *
+ * Unregister the platform dependent EEH operation callback
+ * functions.
+ */
+int __exit eeh_ops_unregister(const char *name)
+{
+	if (!name || !strlen(name)) {
+		pr_warning("%s: Invalid EEH ops name\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	if (eeh_ops && !strcmp(eeh_ops->name, name)) {
+		eeh_ops = NULL;
+		return 0;
+	}
+
+	return -EEXIST;
 }
 
 /**
