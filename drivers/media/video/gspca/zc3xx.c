@@ -34,7 +34,7 @@ MODULE_LICENSE("GPL");
 
 static int force_sensor = -1;
 
-#define QUANT_VAL 1		/* quantization table */
+#define REG08_DEF 3		/* default JPEG compression (70%) */
 #include "zc3xx-reg.h"
 
 /* controls */
@@ -57,10 +57,7 @@ struct sd {
 
 	struct gspca_ctrl ctrls[NCTRLS];
 
-	u8 quality;			/* image quality */
-#define QUALITY_MIN 50
-#define QUALITY_MAX 80
-#define QUALITY_DEF 70
+	u8 reg08;		/* webcam compression quality */
 
 	u8 bridge;
 	u8 sensor;		/* Type of image sensor chip */
@@ -228,6 +225,9 @@ static const struct v4l2_pix_format sif_mode[] = {
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 0},
 };
+
+/* bridge reg08 -> JPEG quality conversion table */
+static u8 jpeg_qual[] = {40, 50, 60, 70, /*80*/};
 
 /* usb exchanges */
 struct usb_action {
@@ -5925,32 +5925,17 @@ static void setexposure(struct gspca_dev *gspca_dev)
 static void setquality(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 frxt;
+	s8 reg07;
 
+	reg07 = 0;
 	switch (sd->sensor) {
-	case SENSOR_ADCM2700:
-	case SENSOR_GC0305:
-	case SENSOR_HV7131B:
-	case SENSOR_HV7131R:
 	case SENSOR_OV7620:
-	case SENSOR_PAS202B:
-	case SENSOR_PO2030:
-		return;
+		reg07 = 0x30;
+		break;
 	}
-/*fixme: is it really 0008 0007 0018 for all other sensors? */
-	reg_w(gspca_dev, QUANT_VAL, 0x0008);
-	frxt = 0x30;
-	reg_w(gspca_dev, frxt, 0x0007);
-#if QUANT_VAL == 0 || QUANT_VAL == 1 || QUANT_VAL == 2
-	frxt = 0xff;
-#elif QUANT_VAL == 3
-	frxt = 0xf0;
-#elif QUANT_VAL == 4
-	frxt = 0xe0;
-#else
-	frxt = 0x20;
-#endif
-	reg_w(gspca_dev, frxt, 0x0018);
+	reg_w(gspca_dev, sd->reg08, ZC3XX_R008_CLOCKSETTING);
+	if (reg07 != 0)
+		reg_w(gspca_dev, reg07, 0x0007);
 }
 
 /* Matches the sensor's internal frame rate to the lighting frequency.
@@ -6411,7 +6396,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->sensor = id->driver_info;
 
 	gspca_dev->cam.ctrls = sd->ctrls;
-	sd->quality = QUALITY_DEF;
+	sd->reg08 = REG08_DEF;
 
 	return 0;
 }
@@ -6463,6 +6448,27 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		[SENSOR_PB0330] =	1,
 		[SENSOR_PO2030] =	1,
 		[SENSOR_TAS5130C] =	1,
+	};
+	static const u8 reg08_tb[SENSOR_MAX] = {
+		[SENSOR_ADCM2700] =	1,
+		[SENSOR_CS2102] =	3,
+/*		[SENSOR_CS2102K] =	3, */
+		[SENSOR_GC0303] =	2,
+		[SENSOR_GC0305] =	3,
+		[SENSOR_HDCS2020] =	1,
+		[SENSOR_HV7131B] =	3,
+		[SENSOR_HV7131R] =	3,
+		[SENSOR_ICM105A] =	3,
+		[SENSOR_MC501CB] =	3,
+		[SENSOR_MT9V111_1] =	3,
+		[SENSOR_MT9V111_3] =	3,
+		[SENSOR_OV7620] =	1,
+		[SENSOR_OV7630C] =	3,
+		[SENSOR_PAS106] =	3,
+		[SENSOR_PAS202B] =	3,
+		[SENSOR_PB0330] =	3,
+		[SENSOR_PO2030] =	2,
+		[SENSOR_TAS5130C] =	3,
 	};
 
 	sensor = zcxx_probeSensor(gspca_dev);
@@ -6616,6 +6622,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	}
 
 	sd->ctrls[GAMMA].def = gamma[sd->sensor];
+	sd->reg08 = reg08_tb[sd->sensor];
 
 	switch (sd->sensor) {
 	case SENSOR_HV7131R:
@@ -6685,7 +6692,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	/* create the JPEG header */
 	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
 			0x21);		/* JPEG 422 */
-	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
 
 	mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
 	switch (sd->sensor) {
@@ -6761,10 +6767,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_r(gspca_dev, 0x0180);	/* from win */
 		reg_w(gspca_dev, 0x00, 0x0180);
 		break;
-	default:
-		setquality(gspca_dev);
-		break;
 	}
+	setquality(gspca_dev);
+	jpeg_set_qual(sd->jpeg_hdr, jpeg_qual[sd->reg08]);
 	setlightfreq(gspca_dev);
 
 	switch (sd->sensor) {
@@ -6802,13 +6807,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 
 	setautogain(gspca_dev);
-	switch (sd->sensor) {
-	case SENSOR_PO2030:
-		msleep(50);
-		reg_w(gspca_dev, 0x00, 0x0007);	/* (from win traces) */
-		reg_w(gspca_dev, 0x02, ZC3XX_R008_CLOCKSETTING);
-		break;
-	}
 	return gspca_dev->usb_err;
 }
 
@@ -6897,15 +6895,20 @@ static int sd_set_jcomp(struct gspca_dev *gspca_dev,
 			struct v4l2_jpegcompression *jcomp)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	int i;
 
-	if (jcomp->quality < QUALITY_MIN)
-		sd->quality = QUALITY_MIN;
-	else if (jcomp->quality > QUALITY_MAX)
-		sd->quality = QUALITY_MAX;
-	else
-		sd->quality = jcomp->quality;
+	for (i = 0; i < ARRAY_SIZE(jpeg_qual) - 1; i++) {
+		if (jcomp->quality <= jpeg_qual[i])
+			break;
+	}
+	if (i > 0
+	 && i == sd->reg08
+	 && jcomp->quality < jpeg_qual[sd->reg08])
+		i--;
+	sd->reg08 = i;
+	jcomp->quality = jpeg_qual[i];
 	if (gspca_dev->streaming)
-		jpeg_set_qual(sd->jpeg_hdr, sd->quality);
+		jpeg_set_qual(sd->jpeg_hdr, jcomp->quality);
 	return gspca_dev->usb_err;
 }
 
@@ -6915,7 +6918,7 @@ static int sd_get_jcomp(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	memset(jcomp, 0, sizeof *jcomp);
-	jcomp->quality = sd->quality;
+	jcomp->quality = jpeg_qual[sd->reg08];
 	jcomp->jpeg_markers = V4L2_JPEG_MARKER_DHT
 			| V4L2_JPEG_MARKER_DQT;
 	return 0;
