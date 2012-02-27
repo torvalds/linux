@@ -713,6 +713,7 @@ static int mv_hash_final(struct ahash_request *req)
 {
 	struct mv_req_hash_ctx *ctx = ahash_request_ctx(req);
 
+	ahash_request_set_crypt(req, NULL, req->result, 0);
 	mv_update_hash_req_ctx(ctx, 1, 0);
 	return mv_handle_req(&req->base);
 }
