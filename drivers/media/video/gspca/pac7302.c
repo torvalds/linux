@@ -1,8 +1,8 @@
 /*
- *		Pixart PAC7302 library
- *		Copyright (C) 2005 Thomas Kaiser thomas@kaiser-linux.li
+ * Pixart PAC7302 driver
  *
- * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
+ * Copyright (C) 2008-2012 Jean-Francois Moine <http://moinejf.free.fr>
+ * Copyright (C) 2005 Thomas Kaiser thomas@kaiser-linux.li
  *
  * Separated from Pixart PAC7311 library by Márton Németh
  * Camera button input handling by Márton Németh <nm127@freemail.hu>
@@ -63,13 +63,12 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#define MODULE_NAME "pac7302"
-
 #include <linux/input.h>
 #include <media/v4l2-chip-ident.h>
 #include "gspca.h"
 
-MODULE_AUTHOR("Thomas Kaiser thomas@kaiser-linux.li");
+MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, "
+		"Thomas Kaiser thomas@kaiser-linux.li");
 MODULE_DESCRIPTION("Pixart PAC7302");
 MODULE_LICENSE("GPL");
 
@@ -290,21 +289,21 @@ static const struct v4l2_pix_format vga_mode[] = {
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
-		.priv = 0},
+	},
 };
 
 #define LOAD_PAGE3		255
 #define END_OF_SEQUENCE		0
 
 /* pac 7302 */
-static const __u8 init_7302[] = {
+static const u8 init_7302[] = {
 /*	index,value */
 	0xff, 0x01,		/* page 1 */
 	0x78, 0x00,		/* deactivate */
 	0xff, 0x01,
 	0x78, 0x40,		/* led off */
 };
-static const __u8 start_7302[] = {
+static const u8 start_7302[] = {
 /*	index, len, [value]* */
 	0xff, 1,	0x00,		/* page 0 */
 	0x00, 12,	0x01, 0x40, 0x40, 0x40, 0x01, 0xe0, 0x02, 0x80,
@@ -319,7 +318,7 @@ static const __u8 start_7302[] = {
 	0x43, 11,	0x00, 0x0a, 0x18, 0x11, 0x01, 0x2c, 0x88, 0x11,
 			0x00, 0x54, 0x11,
 	0x55, 1,	0x00,
-	0x62, 4, 	0x10, 0x1e, 0x1e, 0x18,
+	0x62, 4,	0x10, 0x1e, 0x1e, 0x18,
 	0x6b, 1,	0x00,
 	0x6e, 3,	0x08, 0x06, 0x00,
 	0x72, 3,	0x00, 0xff, 0x00,
@@ -370,7 +369,7 @@ static const __u8 start_7302[] = {
 
 #define SKIP		0xaa
 /* page 3 - the value SKIP says skip the index - see reg_w_page() */
-static const __u8 page3_7302[] = {
+static const u8 page3_7302[] = {
 	0x90, 0x40, 0x03, 0x00, 0xc0, 0x01, 0x14, 0x16,
 	0x14, 0x12, 0x00, 0x00, 0x00, 0x02, 0x33, 0x00,
 	0x0f, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -394,7 +393,7 @@ static const __u8 page3_7302[] = {
 };
 
 static void reg_w_buf(struct gspca_dev *gspca_dev,
-		  __u8 index,
+		u8 index,
 		  const u8 *buffer, int len)
 {
 	int ret;
@@ -410,7 +409,7 @@ static void reg_w_buf(struct gspca_dev *gspca_dev,
 			index, gspca_dev->usb_buf, len,
 			500);
 	if (ret < 0) {
-		pr_err("reg_w_buf failed index 0x%02x, error %d\n",
+		pr_err("reg_w_buf failed i: %02x error %d\n",
 		       index, ret);
 		gspca_dev->usb_err = ret;
 	}
@@ -418,8 +417,8 @@ static void reg_w_buf(struct gspca_dev *gspca_dev,
 
 
 static void reg_w(struct gspca_dev *gspca_dev,
-		  __u8 index,
-		  __u8 value)
+		u8 index,
+		u8 value)
 {
 	int ret;
 
@@ -433,14 +432,14 @@ static void reg_w(struct gspca_dev *gspca_dev,
 			0, index, gspca_dev->usb_buf, 1,
 			500);
 	if (ret < 0) {
-		pr_err("reg_w() failed index 0x%02x, value 0x%02x, error %d\n",
+		pr_err("reg_w() failed i: %02x v: %02x error %d\n",
 		       index, value, ret);
 		gspca_dev->usb_err = ret;
 	}
 }
 
 static void reg_w_seq(struct gspca_dev *gspca_dev,
-		const __u8 *seq, int len)
+		const u8 *seq, int len)
 {
 	while (--len >= 0) {
 		reg_w(gspca_dev, seq[0], seq[1]);
@@ -450,7 +449,7 @@ static void reg_w_seq(struct gspca_dev *gspca_dev,
 
 /* load the beginning of a page */
 static void reg_w_page(struct gspca_dev *gspca_dev,
-			const __u8 *page, int len)
+			const u8 *page, int len)
 {
 	int index;
 	int ret = 0;
@@ -468,7 +467,7 @@ static void reg_w_page(struct gspca_dev *gspca_dev,
 				0, index, gspca_dev->usb_buf, 1,
 				500);
 		if (ret < 0) {
-			pr_err("reg_w_page() failed index 0x%02x, value 0x%02x, error %d\n",
+			pr_err("reg_w_page() failed i: %02x v: %02x error %d\n",
 			       index, page[index], ret);
 			gspca_dev->usb_err = ret;
 			break;
@@ -478,8 +477,8 @@ static void reg_w_page(struct gspca_dev *gspca_dev,
 
 /* output a variable sequence */
 static void reg_w_var(struct gspca_dev *gspca_dev,
-			const __u8 *seq,
-			const __u8 *page3, unsigned int page3_len)
+			const u8 *seq,
+			const u8 *page3, unsigned int page3_len)
 {
 	int index, len;
 
@@ -493,11 +492,13 @@ static void reg_w_var(struct gspca_dev *gspca_dev,
 			reg_w_page(gspca_dev, page3, page3_len);
 			break;
 		default:
+#ifdef GSPCA_DEBUG
 			if (len > USB_BUF_SZ) {
 				PDEBUG(D_ERR|D_STREAM,
 					"Incorrect variable sequence");
 				return;
 			}
+#endif
 			while (len > 0) {
 				if (len < 8) {
 					reg_w_buf(gspca_dev,
@@ -524,7 +525,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	cam = &gspca_dev->cam;
 
-	PDEBUG(D_CONF, "Find Sensor PAC7302");
 	cam->cam_mode = vga_mode;	/* only 640x480 */
 	cam->nmodes = ARRAY_SIZE(vga_mode);
 
@@ -548,10 +548,10 @@ static void setbrightcont(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i, v;
-	static const __u8 max[10] =
+	static const u8 max[10] =
 		{0x29, 0x33, 0x42, 0x5a, 0x6e, 0x80, 0x9f, 0xbb,
 		 0xd4, 0xec};
-	static const __u8 delta[10] =
+	static const u8 delta[10] =
 		{0x35, 0x33, 0x33, 0x2f, 0x2a, 0x25, 0x1e, 0x17,
 		 0x11, 0x0b};
 
@@ -589,7 +589,6 @@ static void setcolors(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x0f + 2 * i + 1, v);
 	}
 	reg_w(gspca_dev, 0xdc, 0x01);
-	PDEBUG(D_CONF|D_STREAM, "color: %i", sd->colors);
 }
 
 static void setwhitebalance(struct gspca_dev *gspca_dev)
@@ -600,7 +599,6 @@ static void setwhitebalance(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0xc6, sd->white_balance);
 
 	reg_w(gspca_dev, 0xdc, 0x01);
-	PDEBUG(D_CONF|D_STREAM, "white_balance: %i", sd->white_balance);
 }
 
 static void setredbalance(struct gspca_dev *gspca_dev)
@@ -611,7 +609,6 @@ static void setredbalance(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0xc5, sd->red_balance);
 
 	reg_w(gspca_dev, 0xdc, 0x01);
-	PDEBUG(D_CONF|D_STREAM, "red_balance: %i", sd->red_balance);
 }
 
 static void setbluebalance(struct gspca_dev *gspca_dev)
@@ -622,7 +619,6 @@ static void setbluebalance(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0xc7, sd->blue_balance);
 
 	reg_w(gspca_dev, 0xdc, 0x01);
-	PDEBUG(D_CONF|D_STREAM, "blue_balance: %i", sd->blue_balance);
 }
 
 static void setgain(struct gspca_dev *gspca_dev)
@@ -639,8 +635,8 @@ static void setgain(struct gspca_dev *gspca_dev)
 static void setexposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 clockdiv;
-	__u16 exposure;
+	u8 clockdiv;
+	u16 exposure;
 
 	/* register 2 of frame 3 contains the clock divider configuring the
 	   no fps according to the formula: 90 / reg. sd->exposure is the
@@ -707,8 +703,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->sof_read = 0;
 
 	reg_w_var(gspca_dev, start_7302,
 		page3_7302, sizeof(page3_7302));
@@ -827,7 +821,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 *image;
-	unsigned char *sof;
+	u8 *sof;
 
 	sof = pac_find_sof(&sd->sof_read, data, len);
 	if (sof) {
@@ -1090,8 +1084,8 @@ static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val)
 static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
 			struct v4l2_dbg_register *reg)
 {
-	__u8 index;
-	__u8 value;
+	u8 index;
+	u8 value;
 
 	/* reg->reg: bit0..15: reserved for register index (wIndex is 16bit
 			       long on the USB bus)
@@ -1103,8 +1097,8 @@ static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
 	) {
 		/* Currently writing to page 0 is only supported. */
 		/* reg_w() only supports 8bit index */
-		index = reg->reg & 0x000000ff;
-		value = reg->val & 0x000000ff;
+		index = reg->reg;
+		value = reg->val;
 
 		/* Note that there shall be no access to other page
 		   by any other function between the page swith and
@@ -1165,7 +1159,7 @@ static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 
 /* sub-driver description for pac7302 */
 static const struct sd_desc sd_desc = {
-	.name = MODULE_NAME,
+	.name = KBUILD_MODNAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
@@ -1212,7 +1206,7 @@ static int sd_probe(struct usb_interface *intf,
 }
 
 static struct usb_driver sd_driver = {
-	.name = MODULE_NAME,
+	.name = KBUILD_MODNAME,
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
