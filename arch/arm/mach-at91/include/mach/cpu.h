@@ -25,7 +25,6 @@
 #define ARCH_ID_AT91SAM9G45MRL	0x819b05a2	/* aka 9G45-ES2 & non ES lots */
 #define ARCH_ID_AT91SAM9G45ES	0x819b05a1	/* 9G45-ES (Engineering Sample) */
 #define ARCH_ID_AT91SAM9X5	0x819a05a0
-#define ARCH_ID_AT91CAP9	0x039A03A0
 
 #define ARCH_ID_AT91SAM9XE128	0x329973a0
 #define ARCH_ID_AT91SAM9XE256	0x329a93a0
@@ -51,10 +50,6 @@
 #define ARCH_FAMILY_AT91SAM9	0x01900000
 #define ARCH_FAMILY_AT91SAM9XE	0x02900000
 
-/* PMC revision */
-#define ARCH_REVISION_CAP9_B	0x399
-#define ARCH_REVISION_CAP9_C	0x601
-
 /* RM9200 type */
 #define ARCH_REVISON_9200_BGA	(0 << 0)
 #define ARCH_REVISON_9200_PQFP	(1 << 0)
@@ -62,9 +57,6 @@
 enum at91_soc_type {
 	/* 920T */
 	AT91_SOC_RM9200,
-
-	/* CAP */
-	AT91_SOC_CAP9,
 
 	/* SAM92xx */
 	AT91_SOC_SAM9260, AT91_SOC_SAM9261, AT91_SOC_SAM9263,
@@ -85,9 +77,6 @@ enum at91_soc_type {
 enum at91_soc_subtype {
 	/* RM9200 */
 	AT91_SOC_RM9200_BGA, AT91_SOC_RM9200_PQFP,
-
-	/* CAP9 */
-	AT91_SOC_CAP9_REV_B, AT91_SOC_CAP9_REV_C,
 
 	/* SAM9260 */
 	AT91_SOC_SAM9XE,
@@ -193,16 +182,6 @@ static inline int at91_soc_is_detected(void)
 #define cpu_is_at91sam9x35()	(0)
 #define cpu_is_at91sam9g25()	(0)
 #define cpu_is_at91sam9x25()	(0)
-#endif
-
-#ifdef CONFIG_ARCH_AT91CAP9
-#define cpu_is_at91cap9()	(at91_soc_initdata.type == AT91_SOC_CAP9)
-#define cpu_is_at91cap9_revB()	(at91_soc_initdata.subtype == AT91_SOC_CAP9_REV_B)
-#define cpu_is_at91cap9_revC()	(at91_soc_initdata.subtype == AT91_SOC_CAP9_REV_C)
-#else
-#define cpu_is_at91cap9()	(0)
-#define cpu_is_at91cap9_revB()	(0)
-#define cpu_is_at91cap9_revC()	(0)
 #endif
 
 /*
