@@ -1698,8 +1698,8 @@ static int lio_tpg_shutdown_session(struct se_session *se_sess)
 	atomic_set(&sess->session_reinstatement, 1);
 	spin_unlock(&sess->conn_lock);
 
-	iscsit_inc_session_usage_count(sess);
 	iscsit_stop_time2retain_timer(sess);
+	iscsit_stop_session(sess, 1, 1);
 
 	return 1;
 }
@@ -1715,8 +1715,6 @@ static void lio_tpg_close_session(struct se_session *se_sess)
 	 * If the iSCSI Session for the iSCSI Initiator Node exists,
 	 * forcefully shutdown the iSCSI NEXUS.
 	 */
-	iscsit_stop_session(sess, 1, 1);
-	iscsit_dec_session_usage_count(sess);
 	iscsit_close_session(sess);
 }
 
