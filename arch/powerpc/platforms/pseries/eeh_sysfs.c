@@ -28,7 +28,7 @@
 #include <asm/pci-bridge.h>
 
 /**
- * EEH_SHOW_ATTR -- create sysfs entry for eeh statistic
+ * EEH_SHOW_ATTR -- Create sysfs entry for eeh statistic
  * @_name: name of file in sysfs directory
  * @_memb: name of member in struct pci_dn to access
  * @_format: printf format for display

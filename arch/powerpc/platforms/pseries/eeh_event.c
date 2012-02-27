@@ -1,6 +1,4 @@
 /*
- * eeh_event.c
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -46,7 +44,7 @@ DECLARE_WORK(eeh_event_wq, eeh_thread_launcher);
 DEFINE_MUTEX(eeh_event_mutex);
 
 /**
- * eeh_event_handler - dispatch EEH events.
+ * eeh_event_handler - Dispatch EEH events.
  * @dummy - unused
  *
  * The detection of a frozen slot can occur inside an interrupt,
@@ -61,7 +59,7 @@ static int eeh_event_handler(void * dummy)
 	struct eeh_event	*event;
 	struct pci_dn *pdn;
 
-	daemonize ("eehd");
+	daemonize("eehd");
 	set_current_state(TASK_INTERRUPTIBLE);
 
 	spin_lock_irqsave(&eeh_eventlist_lock, flags);
@@ -93,7 +91,7 @@ static int eeh_event_handler(void * dummy)
 
 	/* If there are no new errors after an hour, clear the counter. */
 	if (pdn && pdn->eeh_freeze_count>0) {
-		msleep_interruptible (3600*1000);
+		msleep_interruptible(3600*1000);
 		if (pdn->eeh_freeze_count>0)
 			pdn->eeh_freeze_count--;
 	}
@@ -102,8 +100,11 @@ static int eeh_event_handler(void * dummy)
 }
 
 /**
- * eeh_thread_launcher
+ * eeh_thread_launcher - Start kernel thread to handle EEH events
  * @dummy - unused
+ *
+ * This routine is called to start the kernel thread for processing
+ * EEH event.
  */
 static void eeh_thread_launcher(struct work_struct *dummy)
 {
@@ -112,14 +113,14 @@ static void eeh_thread_launcher(struct work_struct *dummy)
 }
 
 /**
- * eeh_send_failure_event - generate a PCI error event
- * @dev pci device
+ * eeh_send_failure_event - Generate a PCI error event
+ * @dev: pci device
  *
  * This routine can be called within an interrupt context;
  * the actual event will be delivered in a normal context
  * (from a workqueue).
  */
-int eeh_send_failure_event (struct device_node *dn,
+int eeh_send_failure_event(struct device_node *dn,
                             struct pci_dev *dev)
 {
 	unsigned long flags;
@@ -135,7 +136,7 @@ int eeh_send_failure_event (struct device_node *dn,
 	}
 	event = kmalloc(sizeof(*event), GFP_ATOMIC);
 	if (event == NULL) {
-		printk (KERN_ERR "EEH: out of memory, event not handled\n");
+		printk(KERN_ERR "EEH: out of memory, event not handled\n");
 		return 1;
  	}
 
@@ -154,5 +155,3 @@ int eeh_send_failure_event (struct device_node *dn,
 
 	return 0;
 }
-
-/********************** END OF FILE ******************************/

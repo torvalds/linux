@@ -1,5 +1,4 @@
 /*
- * eeh_cache.c
  * PCI address cache; allows the lookup of PCI devices based on I/O address
  *
  * Copyright IBM Corporation 2004
@@ -47,8 +46,7 @@
  * than any hash algo I could think of for this problem, even
  * with the penalty of slow pointer chases for d-cache misses).
  */
-struct pci_io_addr_range
-{
+struct pci_io_addr_range {
 	struct rb_node rb_node;
 	unsigned long addr_lo;
 	unsigned long addr_hi;
@@ -56,8 +54,7 @@ struct pci_io_addr_range
 	unsigned int flags;
 };
 
-static struct pci_io_addr_cache
-{
+static struct pci_io_addr_cache {
 	struct rb_root rb_root;
 	spinlock_t piar_lock;
 } pci_io_addr_cache_root;
@@ -166,7 +163,7 @@ pci_addr_cache_insert(struct pci_dev *dev, unsigned long alo,
 
 #ifdef DEBUG
 	printk(KERN_DEBUG "PIAR: insert range=[%lx:%lx] dev=%s\n",
-	                  alo, ahi, pci_name (dev));
+	                  alo, ahi, pci_name(dev));
 #endif
 
 	rb_link_node(&piar->rb_node, parent, p);
