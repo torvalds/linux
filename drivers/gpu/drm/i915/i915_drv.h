@@ -35,6 +35,7 @@
 #include "intel_ringbuffer.h"
 #include <linux/io-mapping.h>
 #include <linux/i2c.h>
+#include <linux/i2c-algo-bit.h>
 #include <drm/intel-gtt.h>
 #include <linux/backlight.h>
 
@@ -303,6 +304,7 @@ struct intel_gmbus {
 	struct i2c_adapter *force_bit;
 	u32 reg0;
 	u32 gpio_reg;
+	struct i2c_algo_bit_data bit_algo;
 	struct drm_i915_private *dev_priv;
 };
 

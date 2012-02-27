@@ -154,29 +154,18 @@ intel_gpio_create(struct intel_gmbus *bus, u32 pin)
 		0,
 		GPIOF,
 	};
-	struct i2c_adapter *adapter;
 	struct i2c_algo_bit_data *algo;
 
 	if (pin >= ARRAY_SIZE(map_pin_to_reg) || !map_pin_to_reg[pin])
 		return NULL;
 
-	adapter = kzalloc(sizeof(struct i2c_adapter), GFP_KERNEL);
-	if (adapter == NULL)
-		return NULL;
-
-	algo = kzalloc(sizeof(struct i2c_algo_bit_data), GFP_KERNEL);
-	if (algo == NULL)
-		goto out_adap;
+	algo = &bus->bit_algo;
 
 	bus->gpio_reg = map_pin_to_reg[pin];
 	if (HAS_PCH_SPLIT(dev_priv->dev))
 		bus->gpio_reg += PCH_GPIOA - GPIOA;
 
-	snprintf(adapter->name, sizeof(adapter->name),
-		 "i915 GPIO%c", "?BACDE?F"[pin]);
-	adapter->owner = THIS_MODULE;
-	adapter->algo_data = algo;
-	adapter->dev.parent = &dev_priv->dev->pdev->dev;
+	bus->adapter.algo_data = algo;
 	algo->setsda = set_data;
 	algo->setscl = set_clock;
 	algo->getsda = get_data;
@@ -185,16 +174,7 @@ intel_gpio_create(struct intel_gmbus *bus, u32 pin)
 	algo->timeout = usecs_to_jiffies(2200);
 	algo->data = bus;
 
-	if (i2c_bit_add_bus(adapter))
-		goto out_algo;
-
-	return adapter;
-
-out_algo:
-	kfree(algo);
-out_adap:
-	kfree(adapter);
-	return NULL;
+	return &bus->adapter;
 }
 
 static int
@@ -213,7 +193,7 @@ intel_i2c_quirk_xfer(struct intel_gmbus *bus,
 	set_clock(bus, 1);
 	udelay(I2C_RISEFALL_TIME);
 
-	ret = adapter->algo->master_xfer(adapter, msgs, num);
+	ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
 
 	set_data(bus, 1);
 	set_clock(bus, 1);
@@ -353,7 +333,7 @@ static u32 gmbus_func(struct i2c_adapter *adapter)
 					       adapter);
 
 	if (bus->force_bit)
-		bus->force_bit->algo->functionality(bus->force_bit);
+		i2c_bit_algo.functionality(bus->force_bit);
 
 	return (I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL |
 		/* I2C_FUNC_10BIT_ADDR | */
@@ -449,9 +429,6 @@ void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
 		}
 	} else {
 		if (bus->force_bit) {
-			i2c_del_adapter(bus->force_bit);
-			kfree(bus->force_bit->algo);
-			kfree(bus->force_bit);
 			bus->force_bit = NULL;
 		}
 	}
@@ -467,11 +444,6 @@ void intel_teardown_gmbus(struct drm_device *dev)
 
 	for (i = 0; i < GMBUS_NUM_PORTS; i++) {
 		struct intel_gmbus *bus = &dev_priv->gmbus[i];
-		if (bus->force_bit) {
-			i2c_del_adapter(bus->force_bit);
-			kfree(bus->force_bit->algo);
-			kfree(bus->force_bit);
-		}
 		i2c_del_adapter(&bus->adapter);
 	}
 
