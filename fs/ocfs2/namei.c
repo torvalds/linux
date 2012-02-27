@@ -1053,7 +1053,7 @@ static int ocfs2_rename(struct inode *old_dir,
 	handle_t *handle = NULL;
 	struct buffer_head *old_dir_bh = NULL;
 	struct buffer_head *new_dir_bh = NULL;
-	nlink_t old_dir_nlink = old_dir->i_nlink;
+	u32 old_dir_nlink = old_dir->i_nlink;
 	struct ocfs2_dinode *old_di;
 	struct ocfs2_dir_lookup_result old_inode_dot_dot_res = { NULL, };
 	struct ocfs2_dir_lookup_result target_lookup_res = { NULL, };

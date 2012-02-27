@@ -4613,11 +4613,13 @@ static int __ipr_eh_host_reset(struct scsi_cmnd * scsi_cmd)
 	ENTER;
 	ioa_cfg = (struct ipr_ioa_cfg *) scsi_cmd->device->host->hostdata;
 
-	dev_err(&ioa_cfg->pdev->dev,
-		"Adapter being reset as a result of error recovery.\n");
+	if (!ioa_cfg->in_reset_reload) {
+		dev_err(&ioa_cfg->pdev->dev,
+			"Adapter being reset as a result of error recovery.\n");
 
-	if (WAIT_FOR_DUMP == ioa_cfg->sdt_state)
-		ioa_cfg->sdt_state = GET_DUMP;
+		if (WAIT_FOR_DUMP == ioa_cfg->sdt_state)
+			ioa_cfg->sdt_state = GET_DUMP;
+	}
 
 	rc = ipr_reset_reload(ioa_cfg, IPR_SHUTDOWN_ABBREV);
 
@@ -4907,7 +4909,7 @@ static int ipr_cancel_op(struct scsi_cmnd * scsi_cmd)
 	struct ipr_ioa_cfg *ioa_cfg;
 	struct ipr_resource_entry *res;
 	struct ipr_cmd_pkt *cmd_pkt;
-	u32 ioasc;
+	u32 ioasc, int_reg;
 	int op_found = 0;
 
 	ENTER;
@@ -4920,7 +4922,17 @@ static int ipr_cancel_op(struct scsi_cmnd * scsi_cmd)
 	 */
 	if (ioa_cfg->in_reset_reload || ioa_cfg->ioa_is_dead)
 		return FAILED;
-	if (!res || !ipr_is_gscsi(res))
+	if (!res)
+		return FAILED;
+
+	/*
+	 * If we are aborting a timed out op, chances are that the timeout was caused
+	 * by a still not detected EEH error. In such cases, reading a register will
+	 * trigger the EEH recovery infrastructure.
+	 */
+	int_reg = readl(ioa_cfg->regs.sense_interrupt_reg);
+
+	if (!ipr_is_gscsi(res))
 		return FAILED;
 
 	list_for_each_entry(ipr_cmd, &ioa_cfg->pending_q, queue) {

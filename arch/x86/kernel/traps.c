@@ -571,37 +571,6 @@ asmlinkage void __attribute__((weak)) smp_threshold_interrupt(void)
 }
 
 /*
- * This gets called with the process already owning the
- * FPU state, and with CR0.TS cleared. It just needs to
- * restore the FPU register state.
- */
-void __math_state_restore(struct task_struct *tsk)
-{
-	/* We need a safe address that is cheap to find and that is already
-	   in L1. We've just brought in "tsk->thread.has_fpu", so use that */
-#define safe_address (tsk->thread.has_fpu)
-
-	/* AMD K7/K8 CPUs don't save/restore FDP/FIP/FOP unless an exception
-	   is pending.  Clear the x87 state here by setting it to fixed
-	   values. safe_address is a random variable that should be in L1 */
-	alternative_input(
-		ASM_NOP8 ASM_NOP2,
-		"emms\n\t"	  	/* clear stack tags */
-		"fildl %P[addr]",	/* set F?P to defined value */
-		X86_FEATURE_FXSAVE_LEAK,
-		[addr] "m" (safe_address));
-
-	/*
-	 * Paranoid restore. send a SIGSEGV if we fail to restore the state.
-	 */
-	if (unlikely(restore_fpu_checking(tsk))) {
-		__thread_fpu_end(tsk);
-		force_sig(SIGSEGV, tsk);
-		return;
-	}
-}
-
-/*
  * 'math_state_restore()' saves the current math information in the
  * old math state array, and gets the new ones from the current task
  *
@@ -631,7 +600,14 @@ void math_state_restore(void)
 	}
 
 	__thread_fpu_begin(tsk);
-	__math_state_restore(tsk);
+	/*
+	 * Paranoid restore. send a SIGSEGV if we fail to restore the state.
+	 */
+	if (unlikely(restore_fpu_checking(tsk))) {
+		__thread_fpu_end(tsk);
+		force_sig(SIGSEGV, tsk);
+		return;
+	}
 
 	tsk->fpu_counter++;
 }

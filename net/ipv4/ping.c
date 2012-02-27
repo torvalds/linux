@@ -631,6 +631,7 @@ static int ping_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 	pr_debug("ping_recvmsg(sk=%p,sk->num=%u)\n", isk, isk->inet_num);
 
+	err = -EOPNOTSUPP;
 	if (flags & MSG_OOB)
 		goto out;
 

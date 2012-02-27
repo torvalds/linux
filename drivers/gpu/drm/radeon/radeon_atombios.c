@@ -3020,6 +3020,9 @@ radeon_atombios_encoder_dpms_scratch_regs(struct drm_encoder *encoder, bool on)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	uint32_t bios_2_scratch;
 
+	if (ASIC_IS_DCE4(rdev))
+		return;
+
 	if (rdev->family >= CHIP_R600)
 		bios_2_scratch = RREG32(R600_BIOS_2_SCRATCH);
 	else
