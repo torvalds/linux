@@ -459,23 +459,32 @@ out:
 
 int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 {
+	unsigned long flags;
 	u8 link = find_first_zero_bit(wl->links_map, WL12XX_MAX_LINKS);
 	if (link >= WL12XX_MAX_LINKS)
 		return -EBUSY;
 
+	/* these bits are used by op_tx */
+	spin_lock_irqsave(&wl->wl_lock, flags);
 	__set_bit(link, wl->links_map);
 	__set_bit(link, wlvif->links_map);
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
 	*hlid = link;
 	return 0;
 }
 
 void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 {
+	unsigned long flags;
+
 	if (*hlid == WL12XX_INVALID_LINK_ID)
 		return;
 
+	/* these bits are used by op_tx */
+	spin_lock_irqsave(&wl->wl_lock, flags);
 	__clear_bit(*hlid, wl->links_map);
 	__clear_bit(*hlid, wlvif->links_map);
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
 	*hlid = WL12XX_INVALID_LINK_ID;
 }
 
