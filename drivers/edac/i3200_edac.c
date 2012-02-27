@@ -445,7 +445,7 @@ static void __devexit i3200_remove_one(struct pci_dev *pdev)
 	edac_mc_free(mci);
 }
 
-static const struct pci_device_id i3200_pci_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(i3200_pci_tbl) = {
 	{
 		PCI_VEND_DEV(INTEL, 3200_HB), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		I3200},
