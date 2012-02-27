@@ -417,7 +417,7 @@ static const struct tv_mode tv_modes[] = {
 	{
 		.name		= "NTSC-M",
 		.clock		= 108000,
-		.refresh	= 29970,
+		.refresh	= 59940,
 		.oversample	= TV_OVERSAMPLE_8X,
 		.component_only = 0,
 		/* 525 Lines, 60 Fields, 15.734KHz line, Sub-Carrier 3.580MHz */
@@ -460,7 +460,7 @@ static const struct tv_mode tv_modes[] = {
 	{
 		.name		= "NTSC-443",
 		.clock		= 108000,
-		.refresh	= 29970,
+		.refresh	= 59940,
 		.oversample	= TV_OVERSAMPLE_8X,
 		.component_only = 0,
 		/* 525 Lines, 60 Fields, 15.734KHz line, Sub-Carrier 4.43MHz */
@@ -502,7 +502,7 @@ static const struct tv_mode tv_modes[] = {
 	{
 		.name		= "NTSC-J",
 		.clock		= 108000,
-		.refresh	= 29970,
+		.refresh	= 59940,
 		.oversample	= TV_OVERSAMPLE_8X,
 		.component_only = 0,
 
@@ -545,7 +545,7 @@ static const struct tv_mode tv_modes[] = {
 	{
 		.name		= "PAL-M",
 		.clock		= 108000,
-		.refresh	= 29970,
+		.refresh	= 59940,
 		.oversample	= TV_OVERSAMPLE_8X,
 		.component_only = 0,
 
@@ -589,7 +589,7 @@ static const struct tv_mode tv_modes[] = {
 		/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 4.434MHz */
 		.name	    = "PAL-N",
 		.clock		= 108000,
-		.refresh	= 25000,
+		.refresh	= 50000,
 		.oversample	= TV_OVERSAMPLE_8X,
 		.component_only = 0,
 
@@ -634,7 +634,7 @@ static const struct tv_mode tv_modes[] = {
 		/* 625 Lines, 50 Fields, 15.625KHz line, Sub-Carrier 4.434MHz */
 		.name	    = "PAL",
 		.clock		= 108000,
-		.refresh	= 25000,
+		.refresh	= 50000,
 		.oversample	= TV_OVERSAMPLE_8X,
 		.component_only = 0,
 
@@ -674,78 +674,6 @@ static const struct tv_mode tv_modes[] = {
 		.filter_table = filter_table,
 	},
 	{
-		.name       = "480p@59.94Hz",
-		.clock		= 107520,
-		.refresh	= 59940,
-		.oversample     = TV_OVERSAMPLE_4X,
-		.component_only = 1,
-
-		.hsync_end      = 64,               .hblank_end         = 122,
-		.hblank_start   = 842,              .htotal             = 857,
-
-		.progressive    = true,		    .trilevel_sync = false,
-
-		.vsync_start_f1 = 12,               .vsync_start_f2     = 12,
-		.vsync_len      = 12,
-
-		.veq_ena        = false,
-
-		.vi_end_f1      = 44,               .vi_end_f2          = 44,
-		.nbr_end        = 479,
-
-		.burst_ena      = false,
-
-		.filter_table = filter_table,
-	},
-	{
-		.name       = "480p@60Hz",
-		.clock		= 107520,
-		.refresh	= 60000,
-		.oversample     = TV_OVERSAMPLE_4X,
-		.component_only = 1,
-
-		.hsync_end      = 64,               .hblank_end         = 122,
-		.hblank_start   = 842,              .htotal             = 856,
-
-		.progressive    = true,		    .trilevel_sync = false,
-
-		.vsync_start_f1 = 12,               .vsync_start_f2     = 12,
-		.vsync_len      = 12,
-
-		.veq_ena        = false,
-
-		.vi_end_f1      = 44,               .vi_end_f2          = 44,
-		.nbr_end        = 479,
-
-		.burst_ena      = false,
-
-		.filter_table = filter_table,
-	},
-	{
-		.name       = "576p",
-		.clock		= 107520,
-		.refresh	= 50000,
-		.oversample     = TV_OVERSAMPLE_4X,
-		.component_only = 1,
-
-		.hsync_end      = 64,               .hblank_end         = 139,
-		.hblank_start   = 859,              .htotal             = 863,
-
-		.progressive    = true,		.trilevel_sync = false,
-
-		.vsync_start_f1 = 10,               .vsync_start_f2     = 10,
-		.vsync_len      = 10,
-
-		.veq_ena        = false,
-
-		.vi_end_f1      = 48,               .vi_end_f2          = 48,
-		.nbr_end        = 575,
-
-		.burst_ena      = false,
-
-		.filter_table = filter_table,
-	},
-	{
 		.name       = "720p@60Hz",
 		.clock		= 148800,
 		.refresh	= 60000,
@@ -754,30 +682,6 @@ static const struct tv_mode tv_modes[] = {
 
 		.hsync_end      = 80,               .hblank_end         = 300,
 		.hblank_start   = 1580,             .htotal             = 1649,
-
-		.progressive	= true,		    .trilevel_sync = true,
-
-		.vsync_start_f1 = 10,               .vsync_start_f2     = 10,
-		.vsync_len      = 10,
-
-		.veq_ena        = false,
-
-		.vi_end_f1      = 29,               .vi_end_f2          = 29,
-		.nbr_end        = 719,
-
-		.burst_ena      = false,
-
-		.filter_table = filter_table,
-	},
-	{
-		.name       = "720p@59.94Hz",
-		.clock		= 148800,
-		.refresh	= 59940,
-		.oversample     = TV_OVERSAMPLE_2X,
-		.component_only = 1,
-
-		.hsync_end      = 80,               .hblank_end         = 300,
-		.hblank_start   = 1580,             .htotal             = 1651,
 
 		.progressive	= true,		    .trilevel_sync = true,
 
@@ -821,7 +725,7 @@ static const struct tv_mode tv_modes[] = {
 	{
 		.name       = "1080i@50Hz",
 		.clock		= 148800,
-		.refresh	= 25000,
+		.refresh	= 50000,
 		.oversample     = TV_OVERSAMPLE_2X,
 		.component_only = 1,
 
@@ -847,7 +751,7 @@ static const struct tv_mode tv_modes[] = {
 	{
 		.name       = "1080i@60Hz",
 		.clock		= 148800,
-		.refresh	= 30000,
+		.refresh	= 60000,
 		.oversample     = TV_OVERSAMPLE_2X,
 		.component_only = 1,
 
@@ -864,32 +768,6 @@ static const struct tv_mode tv_modes[] = {
 
 
 		.vi_end_f1      = 21,               .vi_end_f2          = 22,
-		.nbr_end        = 539,
-
-		.burst_ena      = false,
-
-		.filter_table = filter_table,
-	},
-	{
-		.name       = "1080i@59.94Hz",
-		.clock		= 148800,
-		.refresh	= 29970,
-		.oversample     = TV_OVERSAMPLE_2X,
-		.component_only = 1,
-
-		.hsync_end      = 88,               .hblank_end         = 235,
-		.hblank_start   = 2155,             .htotal             = 2201,
-
-		.progressive	= false,	    .trilevel_sync = true,
-
-		.vsync_start_f1 = 4,            .vsync_start_f2    = 5,
-		.vsync_len      = 10,
-
-		.veq_ena	= true,		    .veq_start_f1	= 4,
-		.veq_start_f2	= 4,		.veq_len	  = 10,
-
-
-		.vi_end_f1	= 21,		.vi_end_f2	  = 22,
 		.nbr_end        = 539,
 
 		.burst_ena      = false,

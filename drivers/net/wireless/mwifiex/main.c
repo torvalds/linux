@@ -822,7 +822,9 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 			continue;
 
 		rtnl_lock();
-		mwifiex_del_virtual_intf(priv->wdev->wiphy, priv->netdev);
+		if (priv->wdev && priv->netdev)
+			mwifiex_del_virtual_intf(priv->wdev->wiphy,
+						 priv->netdev);
 		rtnl_unlock();
 	}
 
@@ -830,9 +832,11 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 	if (!priv)
 		goto exit_remove;
 
-	wiphy_unregister(priv->wdev->wiphy);
-	wiphy_free(priv->wdev->wiphy);
-	kfree(priv->wdev);
+	if (priv->wdev) {
+		wiphy_unregister(priv->wdev->wiphy);
+		wiphy_free(priv->wdev->wiphy);
+		kfree(priv->wdev);
+	}
 
 	mwifiex_terminate_workqueue(adapter);
 

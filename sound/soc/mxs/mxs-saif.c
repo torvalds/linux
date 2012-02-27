@@ -124,6 +124,8 @@ static int mxs_saif_set_clk(struct mxs_saif *saif,
 	 *
 	 * If MCLK is not used, we just set saif clk to 512*fs.
 	 */
+	clk_prepare_enable(master_saif->clk);
+
 	if (master_saif->mclk_in_use) {
 		if (mclk % 32 == 0) {
 			scr &= ~BM_SAIF_CTRL_BITCLK_BASE_RATE;
@@ -133,12 +135,15 @@ static int mxs_saif_set_clk(struct mxs_saif *saif,
 			ret = clk_set_rate(master_saif->clk, 384 * rate);
 		} else {
 			/* SAIF MCLK should be either 32x or 48x */
+			clk_disable_unprepare(master_saif->clk);
 			return -EINVAL;
 		}
 	} else {
 		ret = clk_set_rate(master_saif->clk, 512 * rate);
 		scr &= ~BM_SAIF_CTRL_BITCLK_BASE_RATE;
 	}
+
+	clk_disable_unprepare(master_saif->clk);
 
 	if (ret)
 		return ret;

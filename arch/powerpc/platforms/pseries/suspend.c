@@ -24,6 +24,7 @@
 #include <asm/machdep.h>
 #include <asm/mmu.h>
 #include <asm/rtas.h>
+#include <asm/topology.h>
 
 static u64 stream_id;
 static struct device suspend_dev;
@@ -138,8 +139,11 @@ static ssize_t store_hibernate(struct device *dev,
 			ssleep(1);
 	} while (rc == -EAGAIN);
 
-	if (!rc)
+	if (!rc) {
+		stop_topology_update();
 		rc = pm_suspend(PM_SUSPEND_MEM);
+		start_topology_update();
+	}
 
 	stream_id = 0;
 

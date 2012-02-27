@@ -2491,9 +2491,6 @@ static int velocity_close(struct net_device *dev)
 	if (dev->irq != 0)
 		free_irq(dev->irq, dev);
 
-	/* Power down the chip */
-	pci_set_power_state(vptr->pdev, PCI_D3hot);
-
 	velocity_free_rings(vptr);
 
 	vptr->flags &= (~VELOCITY_FLAGS_OPENED);

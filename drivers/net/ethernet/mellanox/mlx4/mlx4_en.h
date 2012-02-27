@@ -325,11 +325,11 @@ struct mlx4_en_port_profile {
 	u8 rx_ppp;
 	u8 tx_pause;
 	u8 tx_ppp;
+	int rss_rings;
 };
 
 struct mlx4_en_profile {
 	int rss_xor;
-	int tcp_rss;
 	int udp_rss;
 	u8 rss_mask;
 	u32 active_ports;
@@ -476,6 +476,7 @@ struct mlx4_en_priv {
 	struct mlx4_en_perf_stats pstats;
 	struct mlx4_en_pkt_stats pkstats;
 	struct mlx4_en_port_stats port_stats;
+	u64 stats_bitmap;
 	char *mc_addrs;
 	int mc_addrs_cnt;
 	struct mlx4_en_stat_out_mbox hw_stats;
@@ -527,7 +528,8 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_rx_ring *ring,
 			   u32 size, u16 stride);
 void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
-			     struct mlx4_en_rx_ring *ring);
+			     struct mlx4_en_rx_ring *ring,
+			     u32 size, u16 stride);
 int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv);
 void mlx4_en_deactivate_rx_ring(struct mlx4_en_priv *priv,
 				struct mlx4_en_rx_ring *ring);

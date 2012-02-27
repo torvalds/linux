@@ -952,7 +952,8 @@ struct cdrom_device_info {
     	char name[20];                  /* name of the device type */
 /* per-device flags */
         __u8 sanyo_slot		: 2;	/* Sanyo 3 CD changer support */
-        __u8 reserved		: 6;	/* not used yet */
+        __u8 keeplocked		: 1;	/* CDROM_LOCKDOOR status */
+        __u8 reserved		: 5;	/* not used yet */
 	int cdda_method;		/* see flags */
 	__u8 last_sense;
 	__u8 media_written;		/* dirty flag, DVD+RW bookkeeping */

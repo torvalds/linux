@@ -84,7 +84,7 @@ static int acpi_processor_remove(struct acpi_device *device, int type);
 static void acpi_processor_notify(struct acpi_device *device, u32 event);
 static acpi_status acpi_processor_hotadd_init(struct acpi_processor *pr);
 static int acpi_processor_handle_eject(struct acpi_processor *pr);
-
+static int acpi_processor_start(struct acpi_processor *pr);
 
 static const struct acpi_device_id processor_device_ids[] = {
 	{ACPI_PROCESSOR_OBJECT_HID, 0},
@@ -423,10 +423,29 @@ static int acpi_cpu_soft_notify(struct notifier_block *nfb,
 	struct acpi_processor *pr = per_cpu(processors, cpu);
 
 	if (action == CPU_ONLINE && pr) {
-		acpi_processor_ppc_has_changed(pr, 0);
-		acpi_processor_hotplug(pr);
-		acpi_processor_reevaluate_tstate(pr, action);
-		acpi_processor_tstate_has_changed(pr);
+		/* CPU got physically hotplugged and onlined the first time:
+		 * Initialize missing things
+		 */
+		if (pr->flags.need_hotplug_init) {
+			struct cpuidle_driver *idle_driver =
+				cpuidle_get_driver();
+
+			printk(KERN_INFO "Will online and init hotplugged "
+			       "CPU: %d\n", pr->id);
+			WARN(acpi_processor_start(pr), "Failed to start CPU:"
+				" %d\n", pr->id);
+			pr->flags.need_hotplug_init = 0;
+			if (idle_driver && !strcmp(idle_driver->name,
+						   "intel_idle")) {
+				intel_idle_cpu_init(pr->id);
+			}
+		/* Normal CPU soft online event */
+		} else {
+			acpi_processor_ppc_has_changed(pr, 0);
+			acpi_processor_cst_has_changed(pr);
+			acpi_processor_reevaluate_tstate(pr, action);
+			acpi_processor_tstate_has_changed(pr);
+		}
 	}
 	if (action == CPU_DEAD && pr) {
 		/* invalidate the flag.throttling after one CPU is offline */
@@ -440,6 +459,71 @@ static struct notifier_block acpi_cpu_notifier =
 	    .notifier_call = acpi_cpu_soft_notify,
 };
 
+/*
+ * acpi_processor_start() is called by the cpu_hotplug_notifier func:
+ * acpi_cpu_soft_notify(). Getting it __cpuinit{data} is difficult, the
+ * root cause seem to be that acpi_processor_uninstall_hotplug_notify()
+ * is in the module_exit (__exit) func. Allowing acpi_processor_start()
+ * to not be in __cpuinit section, but being called from __cpuinit funcs
+ * via __ref looks like the right thing to do here.
+ */
+static __ref int acpi_processor_start(struct acpi_processor *pr)
+{
+	struct acpi_device *device = per_cpu(processor_device_array, pr->id);
+	int result = 0;
+
+#ifdef CONFIG_CPU_FREQ
+	acpi_processor_ppc_has_changed(pr, 0);
+#endif
+	acpi_processor_get_throttling_info(pr);
+	acpi_processor_get_limit_info(pr);
+
+	if (!cpuidle_get_driver() || cpuidle_get_driver() == &acpi_idle_driver)
+		acpi_processor_power_init(pr, device);
+
+	pr->cdev = thermal_cooling_device_register("Processor", device,
+						   &processor_cooling_ops);
+	if (IS_ERR(pr->cdev)) {
+		result = PTR_ERR(pr->cdev);
+		goto err_power_exit;
+	}
+
+	dev_dbg(&device->dev, "registered as cooling_device%d\n",
+		pr->cdev->id);
+
+	result = sysfs_create_link(&device->dev.kobj,
+				   &pr->cdev->device.kobj,
+				   "thermal_cooling");
+	if (result) {
+		printk(KERN_ERR PREFIX "Create sysfs link\n");
+		goto err_thermal_unregister;
+	}
+	result = sysfs_create_link(&pr->cdev->device.kobj,
+				   &device->dev.kobj,
+				   "device");
+	if (result) {
+		printk(KERN_ERR PREFIX "Create sysfs link\n");
+		goto err_remove_sysfs_thermal;
+	}
+
+	return 0;
+
+err_remove_sysfs_thermal:
+	sysfs_remove_link(&device->dev.kobj, "thermal_cooling");
+err_thermal_unregister:
+	thermal_cooling_device_unregister(pr->cdev);
+err_power_exit:
+	acpi_processor_power_exit(pr, device);
+
+	return result;
+}
+
+/*
+ * Do not put anything in here which needs the core to be online.
+ * For example MSR access or setting up things which check for cpuinfo_x86
+ * (cpu_data(cpu)) values, like CPU feature flags, family, model, etc.
+ * Such things have to be put in and set up above in acpi_processor_start()
+ */
 static int __cpuinit acpi_processor_add(struct acpi_device *device)
 {
 	struct acpi_processor *pr = NULL;
@@ -495,48 +579,20 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 		goto err_free_cpumask;
 	}
 
-#ifdef CONFIG_CPU_FREQ
-	acpi_processor_ppc_has_changed(pr, 0);
-#endif
-	acpi_processor_get_throttling_info(pr);
-	acpi_processor_get_limit_info(pr);
+	/*
+	 * Do not start hotplugged CPUs now, but when they
+	 * are onlined the first time
+	 */
+	if (pr->flags.need_hotplug_init)
+		return 0;
 
-	if (!cpuidle_get_driver() || cpuidle_get_driver() == &acpi_idle_driver)
-		acpi_processor_power_init(pr, device);
-
-	pr->cdev = thermal_cooling_device_register("Processor", device,
-						&processor_cooling_ops);
-	if (IS_ERR(pr->cdev)) {
-		result = PTR_ERR(pr->cdev);
-		goto err_power_exit;
-	}
-
-	dev_dbg(&device->dev, "registered as cooling_device%d\n",
-		 pr->cdev->id);
-
-	result = sysfs_create_link(&device->dev.kobj,
-				   &pr->cdev->device.kobj,
-				   "thermal_cooling");
-	if (result) {
-		printk(KERN_ERR PREFIX "Create sysfs link\n");
-		goto err_thermal_unregister;
-	}
-	result = sysfs_create_link(&pr->cdev->device.kobj,
-				   &device->dev.kobj,
-				   "device");
-	if (result) {
-		printk(KERN_ERR PREFIX "Create sysfs link\n");
+	result = acpi_processor_start(pr);
+	if (result)
 		goto err_remove_sysfs;
-	}
 
 	return 0;
 
 err_remove_sysfs:
-	sysfs_remove_link(&device->dev.kobj, "thermal_cooling");
-err_thermal_unregister:
-	thermal_cooling_device_unregister(pr->cdev);
-err_power_exit:
-	acpi_processor_power_exit(pr, device);
 	sysfs_remove_link(&device->dev.kobj, "sysdev");
 err_free_cpumask:
 	free_cpumask_var(pr->throttling.shared_cpu_map);
@@ -734,6 +790,17 @@ static acpi_status acpi_processor_hotadd_init(struct acpi_processor *pr)
 		acpi_unmap_lsapic(pr->id);
 		return AE_ERROR;
 	}
+
+	/* CPU got hot-plugged, but cpu_data is not initialized yet
+	 * Set flag to delay cpu_idle/throttling initialization
+	 * in:
+	 * acpi_processor_add()
+	 *   acpi_processor_get_info()
+	 * and do it when the CPU gets online the first time
+	 * TBD: Cleanup above functions and try to do this more elegant.
+	 */
+	printk(KERN_INFO "CPU %d got hotplugged\n", pr->id);
+	pr->flags.need_hotplug_init = 1;
 
 	return AE_OK;
 }

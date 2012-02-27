@@ -20,70 +20,7 @@
 
 #include "mpi-internal.h"
 
-#define DIM(v) (sizeof(v)/sizeof((v)[0]))
 #define MAX_EXTERN_MPI_BITS 16384
-
-static uint8_t asn[15] =	/* Object ID is 1.3.14.3.2.26 */
-{ 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03,
-	0x02, 0x1a, 0x05, 0x00, 0x04, 0x14
-};
-
-MPI do_encode_md(const void *sha_buffer, unsigned nbits)
-{
-	int nframe = (nbits + 7) / 8;
-	uint8_t *frame, *fr_pt;
-	int i = 0, n;
-	size_t asnlen = DIM(asn);
-	MPI a = MPI_NULL;
-
-	if (SHA1_DIGEST_LENGTH + asnlen + 4 > nframe)
-		pr_info("MPI: can't encode a %d bit MD into a %d bits frame\n",
-		       (int)(SHA1_DIGEST_LENGTH * 8), (int)nbits);
-
-	/* We encode the MD in this way:
-	 *
-	 *       0  A PAD(n bytes)   0  ASN(asnlen bytes)  MD(len bytes)
-	 *
-	 * PAD consists of FF bytes.
-	 */
-	frame = kmalloc(nframe, GFP_KERNEL);
-	if (!frame)
-		return MPI_NULL;
-	n = 0;
-	frame[n++] = 0;
-	frame[n++] = 1;		/* block type */
-	i = nframe - SHA1_DIGEST_LENGTH - asnlen - 3;
-
-	if (i <= 1) {
-		pr_info("MPI: message digest encoding failed\n");
-		kfree(frame);
-		return a;
-	}
-
-	memset(frame + n, 0xff, i);
-	n += i;
-	frame[n++] = 0;
-	memcpy(frame + n, &asn, asnlen);
-	n += asnlen;
-	memcpy(frame + n, sha_buffer, SHA1_DIGEST_LENGTH);
-	n += SHA1_DIGEST_LENGTH;
-
-	i = nframe;
-	fr_pt = frame;
-
-	if (n != nframe) {
-		printk
-		    ("MPI: message digest encoding failed, frame length is wrong\n");
-		kfree(frame);
-		return a;
-	}
-
-	a = mpi_alloc((nframe + BYTES_PER_MPI_LIMB - 1) / BYTES_PER_MPI_LIMB);
-	mpi_set_buffer(a, frame, nframe, 0);
-	kfree(frame);
-
-	return a;
-}
 
 MPI mpi_read_from_buffer(const void *xbuffer, unsigned *ret_nread)
 {
@@ -91,7 +28,7 @@ MPI mpi_read_from_buffer(const void *xbuffer, unsigned *ret_nread)
 	int i, j;
 	unsigned nbits, nbytes, nlimbs, nread = 0;
 	mpi_limb_t a;
-	MPI val = MPI_NULL;
+	MPI val = NULL;
 
 	if (*ret_nread < 2)
 		goto leave;
@@ -108,7 +45,7 @@ MPI mpi_read_from_buffer(const void *xbuffer, unsigned *ret_nread)
 	nlimbs = (nbytes + BYTES_PER_MPI_LIMB - 1) / BYTES_PER_MPI_LIMB;
 	val = mpi_alloc(nlimbs);
 	if (!val)
-		return MPI_NULL;
+		return NULL;
 	i = BYTES_PER_MPI_LIMB - nbytes % BYTES_PER_MPI_LIMB;
 	i %= BYTES_PER_MPI_LIMB;
 	val->nbits = nbits;
@@ -210,30 +147,6 @@ int mpi_fromstr(MPI val, const char *str)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mpi_fromstr);
-
-/****************
- * Special function to get the low 8 bytes from an mpi.
- * This can be used as a keyid; KEYID is an 2 element array.
- * Return the low 4 bytes.
- */
-u32 mpi_get_keyid(const MPI a, u32 *keyid)
-{
-#if BYTES_PER_MPI_LIMB == 4
-	if (keyid) {
-		keyid[0] = a->nlimbs >= 2 ? a->d[1] : 0;
-		keyid[1] = a->nlimbs >= 1 ? a->d[0] : 0;
-	}
-	return a->nlimbs >= 1 ? a->d[0] : 0;
-#elif BYTES_PER_MPI_LIMB == 8
-	if (keyid) {
-		keyid[0] = a->nlimbs ? (u32) (a->d[0] >> 32) : 0;
-		keyid[1] = a->nlimbs ? (u32) (a->d[0] & 0xffffffff) : 0;
-	}
-	return a->nlimbs ? (u32) (a->d[0] & 0xffffffff) : 0;
-#else
-#error Make this function work with other LIMB sizes
-#endif
-}
 
 /****************
  * Return an allocated buffer with the MPI (msb first).

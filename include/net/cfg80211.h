@@ -1140,6 +1140,7 @@ struct cfg80211_disassoc_request {
  * @bssid: Fixed BSSID requested, maybe be %NULL, if set do not
  *	search for IBSSs with a different BSSID.
  * @channel: The channel to use if no IBSS can be found to join.
+ * @channel_type: channel type (HT mode)
  * @channel_fixed: The channel should be fixed -- do not search for
  *	IBSSs to join on other channels.
  * @ie: information element(s) to include in the beacon
@@ -1977,6 +1978,11 @@ struct wiphy_wowlan_support {
  * @available_antennas_rx: bitmap of antennas which are available to be
  *	configured as RX antennas. Antenna configuration commands will be
  *	rejected unless this or @available_antennas_tx is set.
+ *
+ * @probe_resp_offload:
+ *	 Bitmap of supported protocols for probe response offloading.
+ *	 See &enum nl80211_probe_resp_offload_support_attr. Only valid
+ *	 when the wiphy flag @WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD is set.
  *
  * @max_remain_on_channel_duration: Maximum time a remain-on-channel operation
  *	may request, if implemented.
