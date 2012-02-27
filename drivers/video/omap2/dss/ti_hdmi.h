@@ -126,6 +126,10 @@ struct hdmi_ip_data {
 	const struct ti_hdmi_ip_ops *ops;
 	struct hdmi_config cfg;
 	struct hdmi_pll_info pll_data;
+
+	/* ti_hdmi_4xxx_ip private data. These should be in a separate struct */
+	int hpd_gpio;
+	bool phy_tx_enabled;
 };
 int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_phy_disable(struct hdmi_ip_data *ip_data);

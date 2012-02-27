@@ -2142,14 +2142,14 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 
 	len = delim - payload;
 	if (len > MAX_USERNAME_SIZE || len <= 0) {
-		cFYI(1, "Bad value from username search (len=%ld)", len);
+		cFYI(1, "Bad value from username search (len=%zd)", len);
 		rc = -EINVAL;
 		goto out_key_put;
 	}
 
 	vol->username = kstrndup(payload, len, GFP_KERNEL);
 	if (!vol->username) {
-		cFYI(1, "Unable to allocate %ld bytes for username", len);
+		cFYI(1, "Unable to allocate %zd bytes for username", len);
 		rc = -ENOMEM;
 		goto out_key_put;
 	}
@@ -2157,7 +2157,7 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 
 	len = key->datalen - (len + 1);
 	if (len > MAX_PASSWORD_SIZE || len <= 0) {
-		cFYI(1, "Bad len for password search (len=%ld)", len);
+		cFYI(1, "Bad len for password search (len=%zd)", len);
 		rc = -EINVAL;
 		kfree(vol->username);
 		vol->username = NULL;
@@ -2167,7 +2167,7 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 	++delim;
 	vol->password = kstrndup(delim, len, GFP_KERNEL);
 	if (!vol->password) {
-		cFYI(1, "Unable to allocate %ld bytes for password", len);
+		cFYI(1, "Unable to allocate %zd bytes for password", len);
 		rc = -ENOMEM;
 		kfree(vol->username);
 		vol->username = NULL;
@@ -3857,10 +3857,8 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, uid_t fsuid)
 	struct smb_vol *vol_info;
 
 	vol_info = kzalloc(sizeof(*vol_info), GFP_KERNEL);
-	if (vol_info == NULL) {
-		tcon = ERR_PTR(-ENOMEM);
-		goto out;
-	}
+	if (vol_info == NULL)
+		return ERR_PTR(-ENOMEM);
 
 	vol_info->local_nls = cifs_sb->local_nls;
 	vol_info->linux_uid = fsuid;

@@ -19,6 +19,9 @@ config RATIONAL
 config GENERIC_FIND_FIRST_BIT
 	bool
 
+config NO_GENERIC_PCI_IOPORT_MAP
+	bool
+
 config GENERIC_PCI_IOMAP
 	bool
 
@@ -279,6 +282,9 @@ config AVERAGE
 
 	  If unsure, say N.
 
+config CLZ_TAB
+	bool
+
 config CORDIC
 	tristate "CORDIC algorithm"
 	help
@@ -287,6 +293,7 @@ config CORDIC
 
 config MPILIB
 	tristate
+	select CLZ_TAB
 	help
 	  Multiprecision maths library from GnuPG.
 	  It is used to implement RSA digital signature verification,

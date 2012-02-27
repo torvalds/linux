@@ -26,7 +26,6 @@
 #include <linux/cache.h>
 #include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
-#include <linux/cpu.h>
 #include <asm/cacheflush.h>
 #include <asm/entry.h>
 #include <asm/cpuinfo.h>
@@ -227,23 +226,5 @@ static int __init setup_bus_notifier(void)
 
 	return 0;
 }
+
 arch_initcall(setup_bus_notifier);
-
-static DEFINE_PER_CPU(struct cpu, cpu_devices);
-
-static int __init topology_init(void)
-{
-	int i, ret;
-
-	for_each_present_cpu(i) {
-		struct cpu *c = &per_cpu(cpu_devices, i);
-
-		ret = register_cpu(c, i);
-		if (ret)
-			printk(KERN_WARNING "topology_init: register_cpu %d "
-						"failed (%d)\n", i, ret);
-	}
-
-	return 0;
-}
-subsys_initcall(topology_init);

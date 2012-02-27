@@ -35,7 +35,6 @@
 #ifndef IB_SRPT_H
 #define IB_SRPT_H
 
-#include <linux/version.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/wait.h>
