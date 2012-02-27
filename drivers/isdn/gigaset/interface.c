@@ -679,10 +679,10 @@ void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
 	if (tty == NULL)
 		goto enomem;
 
-	tty->magic =		TTY_DRIVER_MAGIC,
-		tty->type =		TTY_DRIVER_TYPE_SERIAL,
-		tty->subtype =		SERIAL_TYPE_NORMAL,
-		tty->flags =		TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
+	tty->magic =		TTY_DRIVER_MAGIC;
+	tty->type =		TTY_DRIVER_TYPE_SERIAL;
+	tty->subtype =		SERIAL_TYPE_NORMAL;
+	tty->flags =		TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 
 	tty->driver_name =	procname;
 	tty->name =		devname;
