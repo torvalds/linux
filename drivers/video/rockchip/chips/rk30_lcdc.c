@@ -358,7 +358,8 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
     ypos = par->ypos+screen->upper_margin + screen->vsync_len;
  	addr = par->smem_start + par->y_offset;
 
-	
+	DBG("%s>>format:%d>>>xact:%d>>yact:%d>>xvir:%d>>yvir:%d>>ypos:%d>>xsize:%d>>ysize:%d>>y_addr:0x%x\n",
+		__func__,par->format,xact,yact,xvir,yvir,ypos,par->xsize,par->ysize,addr);
 	switch (par->format)
 	{
 		case RGB888:
@@ -392,26 +393,25 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
     LcdMskReg(lcdc_dev, WIN1_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR, v_COLORKEY_EN(1) | v_KEYCOLOR(0));
 	switch(par->format)
     {
-	case ARGB888:
-		LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO, v_ARGB888_VIRWIDTH(xvir));
-		break;
-	case RGB888:  //rgb888
-		LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO, v_RGB888_VIRWIDTH(xvir));
-		break;
-	case RGB565:  //rgb565
-		LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO, v_RGB565_VIRWIDTH(xvir));
-		break;
-	case YUV422:
-	case YUV420:   
-		LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO,v_YUV_VIRWIDTH(xvir));
-		break;
-	default:
-	     	LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO, v_RGB888_VIRWIDTH(xvir));
-	     	break;
+        case ARGB888:
+            LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO, v_ARGB888_VIRWIDTH(xvir));
+            break;
+        case RGB888:  //rgb888
+            LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO, v_RGB888_VIRWIDTH(xvir));
+            break;
+        case RGB565:  //rgb565
+            LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO, v_RGB565_VIRWIDTH(xvir));
+            break;
+        case YUV422:
+        case YUV420:   
+            LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO,v_YUV_VIRWIDTH(xvir));
+            break;
+        default:
+            LcdMskReg(lcdc_dev, WIN1_VIR, m_WORDLO, v_RGB888_VIRWIDTH(xvir));
+            break;
     }
     
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
-    
 
     return 0;
 }

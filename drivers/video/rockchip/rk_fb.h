@@ -21,8 +21,29 @@
 #define RK_MAX_FB_SUPPORT     4
 
 
+
+#define FB0_IOCTL_STOP_TIMER_FLUSH		0x6001
+#define FB0_IOCTL_SET_PANEL				0x6002
+
+#ifdef CONFIG_FB_WIMO
+#define FB_WIMO_FLAG
+#endif
+#ifdef FB_WIMO_FLAG
+#define FB0_IOCTL_SET_BUF					0x6017
+#define FB0_IOCTL_COPY_CURBUF				0x6018
+#define FB0_IOCTL_CLOSE_BUF				0x6019
+#endif
+
+#define FB1_IOCTL_GET_PANEL_SIZE		0x5001
+#define FB1_IOCTL_SET_YUV_ADDR			0x5002
+//#define FB1_TOCTL_SET_MCU_DIR			0x5003
+#define FB1_IOCTL_SET_ROTATE            0x5003
+#define FB1_IOCTL_SET_I2P_ODD_ADDR      0x5005
+#define FB1_IOCTL_SET_I2P_EVEN_ADDR     0x5006
+#define FB1_IOCTL_SET_WIN0_TOP          0x5018
+
 /********************************************************************
-**                          display output format                        *
+**              display output interface supported by rk lcdc                       *
 ********************************************************************/
 /* */
 #define OUT_P888            0
@@ -36,6 +57,8 @@
 #define OUT_D888_P666       0x21  //
 #define OUT_D888_P565       0x22  //
 
+
+//display data format
 enum data_format{
 	ARGB888 = 0,
 	RGB888,
@@ -44,6 +67,7 @@ enum data_format{
 	YUV420,
 	YUV444,
 };
+
 struct rk_fb_rgb {
 	struct fb_bitfield	red;
 	struct fb_bitfield	green;
@@ -63,23 +87,24 @@ typedef enum _TRSP_MODE
 } TRSP_MODE;
 
 struct layer_par {
-	u32	pseudo_pal[16];
-    u32 y_offset;
-    u32 c_offset;
+    const char *name;
+    int id;
+    u32	pseudo_pal[16];
+    u32 y_offset;       //yuv/rgb offset
+    u32 c_offset;     //cb cr offset
     u32 xpos;         //start point in panel
     u32 ypos;
-    u16 xsize;        //size of panel
-    u16 ysize;
-	u16 xact;        //act size
-	u16 yact;
-	u16 xres_virtual;
-	u16 yres_virtual;
-	unsigned long smem_start;
+    u16 xsize;        // display window width
+    u16 ysize;          //
+    u16 xact;        //origin display window size
+    u16 yact;
+    u16 xres_virtual;
+    u16 yres_virtual;
+    unsigned long smem_start;
     enum data_format format;
 	
-	bool support_3d;
-	const char *name;
-	int id;
+    bool support_3d;
+    
 };
 
 struct rk_lcdc_device_driver{
@@ -106,6 +131,8 @@ struct rk_fb_inf {
     
     struct rk_lcdc_device_driver *rk_lcdc_device[RK30_MAX_LCDC_SUPPORT];
     int num_lcdc;
+
+    int video_mode;  //when play video set it to 1
 };
 extern int rk_fb_register(struct rk_lcdc_device_driver *fb_device_driver);
 extern int rk_fb_unregister(struct rk_lcdc_device_driver *fb_device_driver);
