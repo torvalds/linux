@@ -1040,6 +1040,7 @@ void wl12xx_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 void wl1271_tx_flush(struct wl1271 *wl)
 {
 	unsigned long timeout;
+	int i;
 	timeout = jiffies + usecs_to_jiffies(WL1271_TX_FLUSH_TIMEOUT);
 
 	while (!time_after(jiffies, timeout)) {
@@ -1057,6 +1058,12 @@ void wl1271_tx_flush(struct wl1271 *wl)
 	}
 
 	wl1271_warning("Unable to flush all TX buffers, timed out.");
+
+	/* forcibly flush all Tx buffers on our queues */
+	mutex_lock(&wl->mutex);
+	for (i = 0; i < WL12XX_MAX_LINKS; i++)
+		wl1271_tx_reset_link_queues(wl, i);
+	mutex_unlock(&wl->mutex);
 }
 
 u32 wl1271_tx_min_rate_get(struct wl1271 *wl, u32 rate_set)
