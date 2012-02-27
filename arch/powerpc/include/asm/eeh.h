@@ -102,6 +102,8 @@ struct eeh_ops {
 	int (*wait_state)(struct device_node *dn, int max_wait);
 	int (*get_log)(struct device_node *dn, int severity, char *drv_log, unsigned long len);
 	int (*configure_bridge)(struct device_node *dn);
+	int (*read_config)(struct device_node *dn, int where, int size, u32 *val);
+	int (*write_config)(struct device_node *dn, int where, int size, u32 val);
 };
 
 extern struct eeh_ops *eeh_ops;

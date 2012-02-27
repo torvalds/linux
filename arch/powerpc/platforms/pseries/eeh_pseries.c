@@ -503,6 +503,42 @@ static int pseries_eeh_configure_bridge(struct device_node *dn)
 	return ret;
 }
 
+/**
+ * pseries_eeh_read_config - Read PCI config space
+ * @dn: device node
+ * @where: PCI address
+ * @size: size to read
+ * @val: return value
+ *
+ * Read config space from the speicifed device
+ */
+static int pseries_eeh_read_config(struct device_node *dn, int where, int size, u32 *val)
+{
+	struct pci_dn *pdn;
+
+	pdn = PCI_DN(dn);
+
+	return rtas_read_config(pdn, where, size, val);
+}
+
+/**
+ * pseries_eeh_write_config - Write PCI config space
+ * @dn: device node
+ * @where: PCI address
+ * @size: size to write
+ * @val: value to be written
+ *
+ * Write config space to the specified device
+ */
+static int pseries_eeh_write_config(struct device_node *dn, int where, int size, u32 val)
+{
+	struct pci_dn *pdn;
+
+	pdn = PCI_DN(dn);
+
+	return rtas_write_config(pdn, where, size, val);
+}
+
 static struct eeh_ops pseries_eeh_ops = {
 	.name			= "pseries",
 	.init			= pseries_eeh_init,
@@ -512,7 +548,9 @@ static struct eeh_ops pseries_eeh_ops = {
 	.reset			= pseries_eeh_reset,
 	.wait_state		= pseries_eeh_wait_state,
 	.get_log		= pseries_eeh_get_log,
-	.configure_bridge	= pseries_eeh_configure_bridge
+	.configure_bridge       = pseries_eeh_configure_bridge,
+	.read_config		= pseries_eeh_read_config,
+	.write_config		= pseries_eeh_write_config
 };
 
 /**

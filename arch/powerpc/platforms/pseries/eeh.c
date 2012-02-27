@@ -141,11 +141,11 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 	n += scnprintf(buf+n, len-n, "%s\n", dn->full_name);
 	printk(KERN_WARNING "EEH: of node=%s\n", dn->full_name);
 
-	rtas_read_config(PCI_DN(dn), PCI_VENDOR_ID, 4, &cfg);
+	eeh_ops->read_config(dn, PCI_VENDOR_ID, 4, &cfg);
 	n += scnprintf(buf+n, len-n, "dev/vend:%08x\n", cfg);
 	printk(KERN_WARNING "EEH: PCI device/vendor: %08x\n", cfg);
 
-	rtas_read_config(PCI_DN(dn), PCI_COMMAND, 4, &cfg);
+	eeh_ops->read_config(dn, PCI_COMMAND, 4, &cfg);
 	n += scnprintf(buf+n, len-n, "cmd/stat:%x\n", cfg);
 	printk(KERN_WARNING "EEH: PCI cmd/status register: %08x\n", cfg);
 
@@ -156,11 +156,11 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 
 	/* Gather bridge-specific registers */
 	if (dev->class >> 16 == PCI_BASE_CLASS_BRIDGE) {
-		rtas_read_config(PCI_DN(dn), PCI_SEC_STATUS, 2, &cfg);
+		eeh_ops->read_config(dn, PCI_SEC_STATUS, 2, &cfg);
 		n += scnprintf(buf+n, len-n, "sec stat:%x\n", cfg);
 		printk(KERN_WARNING "EEH: Bridge secondary status: %04x\n", cfg);
 
-		rtas_read_config(PCI_DN(dn), PCI_BRIDGE_CONTROL, 2, &cfg);
+		eeh_ops->read_config(dn, PCI_BRIDGE_CONTROL, 2, &cfg);
 		n += scnprintf(buf+n, len-n, "brdg ctl:%x\n", cfg);
 		printk(KERN_WARNING "EEH: Bridge control: %04x\n", cfg);
 	}
@@ -168,11 +168,11 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 	/* Dump out the PCI-X command and status regs */
 	cap = pci_find_capability(dev, PCI_CAP_ID_PCIX);
 	if (cap) {
-		rtas_read_config(PCI_DN(dn), cap, 4, &cfg);
+		eeh_ops->read_config(dn, cap, 4, &cfg);
 		n += scnprintf(buf+n, len-n, "pcix-cmd:%x\n", cfg);
 		printk(KERN_WARNING "EEH: PCI-X cmd: %08x\n", cfg);
 
-		rtas_read_config(PCI_DN(dn), cap+4, 4, &cfg);
+		eeh_ops->read_config(dn, cap+4, 4, &cfg);
 		n += scnprintf(buf+n, len-n, "pcix-stat:%x\n", cfg);
 		printk(KERN_WARNING "EEH: PCI-X status: %08x\n", cfg);
 	}
@@ -185,7 +185,7 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 		       "EEH: PCI-E capabilities and status follow:\n");
 
 		for (i=0; i<=8; i++) {
-			rtas_read_config(PCI_DN(dn), cap+4*i, 4, &cfg);
+			eeh_ops->read_config(dn, cap+4*i, 4, &cfg);
 			n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
 			printk(KERN_WARNING "EEH: PCI-E %02x: %08x\n", i, cfg);
 		}
@@ -197,7 +197,7 @@ static size_t eeh_gather_pci_data(struct eeh_dev *edev, char * buf, size_t len)
 			       "EEH: PCI-E AER capability register set follows:\n");
 
 			for (i=0; i<14; i++) {
-				rtas_read_config(PCI_DN(dn), cap+4*i, 4, &cfg);
+				eeh_ops->read_config(dn, cap+4*i, 4, &cfg);
 				n += scnprintf(buf+n, len-n, "%02x:%x\n", 4*i, cfg);
 				printk(KERN_WARNING "EEH: PCI-E AER %02x: %08x\n", i, cfg);
 			}
@@ -746,28 +746,28 @@ static inline void eeh_restore_one_device_bars(struct eeh_dev *edev)
 		return;
 
 	for (i=4; i<10; i++) {
-		rtas_write_config(PCI_DN(dn), i*4, 4, edev->config_space[i]);
+		eeh_ops->write_config(dn, i*4, 4, edev->config_space[i]);
 	}
 
 	/* 12 == Expansion ROM Address */
-	rtas_write_config(PCI_DN(dn), 12*4, 4, edev->config_space[12]);
+	eeh_ops->write_config(dn, 12*4, 4, edev->config_space[12]);
 
 #define BYTE_SWAP(OFF) (8*((OFF)/4)+3-(OFF))
 #define SAVED_BYTE(OFF) (((u8 *)(edev->config_space))[BYTE_SWAP(OFF)])
 
-	rtas_write_config(PCI_DN(dn), PCI_CACHE_LINE_SIZE, 1,
+	eeh_ops->write_config(dn, PCI_CACHE_LINE_SIZE, 1,
 	            SAVED_BYTE(PCI_CACHE_LINE_SIZE));
 
-	rtas_write_config(PCI_DN(dn), PCI_LATENCY_TIMER, 1,
+	eeh_ops->write_config(dn, PCI_LATENCY_TIMER, 1,
 	            SAVED_BYTE(PCI_LATENCY_TIMER));
 
 	/* max latency, min grant, interrupt pin and line */
-	rtas_write_config(PCI_DN(dn), 15*4, 4, edev->config_space[15]);
+	eeh_ops->write_config(dn, 15*4, 4, edev->config_space[15]);
 
 	/* Restore PERR & SERR bits, some devices require it,
 	 * don't touch the other command bits
 	 */
-	rtas_read_config(PCI_DN(dn), PCI_COMMAND, 4, &cmd);
+	eeh_ops->read_config(dn, PCI_COMMAND, 4, &cmd);
 	if (edev->config_space[1] & PCI_COMMAND_PARITY)
 		cmd |= PCI_COMMAND_PARITY;
 	else
@@ -776,7 +776,7 @@ static inline void eeh_restore_one_device_bars(struct eeh_dev *edev)
 		cmd |= PCI_COMMAND_SERR;
 	else
 		cmd &= ~PCI_COMMAND_SERR;
-	rtas_write_config(PCI_DN(dn), PCI_COMMAND, 4, cmd);
+	eeh_ops->write_config(dn, PCI_COMMAND, 4, cmd);
 }
 
 /**
@@ -818,7 +818,7 @@ static void eeh_save_bars(struct eeh_dev *edev)
 	dn = eeh_dev_to_of_node(edev);
 	
 	for (i = 0; i < 16; i++)
-		rtas_read_config(PCI_DN(dn), i * 4, 4, &edev->config_space[i]);
+		eeh_ops->read_config(dn, i * 4, 4, &edev->config_space[i]);
 }
 
 /**
