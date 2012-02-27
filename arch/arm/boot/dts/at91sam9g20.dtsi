@@ -57,6 +57,12 @@
 				reg = <0xfffff000 0x200>;
 			};
 
+			pit: timer@fffffd30 {
+				compatible = "atmel,at91sam9260-pit";
+				reg = <0xfffffd30 0xf>;
+				interrupts = <1 4>;
+			};
+
 			pioA: gpio@fffff400 {
 				compatible = "atmel,at91rm9200-gpio";
 				reg = <0xfffff400 0x100>;
