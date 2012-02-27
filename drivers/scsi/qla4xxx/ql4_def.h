@@ -272,7 +272,7 @@ struct ddb_entry {
 					   * retried */
 	uint32_t default_time2wait;	  /* Default Min time between
 					   * relogins (+aens) */
-
+	uint16_t chap_tbl_idx;
 };
 
 struct qla_ddb_index {
@@ -685,6 +685,7 @@ struct scsi_qla_host {
 	struct dma_pool *chap_dma_pool;
 	uint8_t *chap_list; /* CHAP table cache */
 	struct mutex  chap_sem;
+
 #define CHAP_DMA_BLOCK_SIZE    512
 	struct workqueue_struct *task_wq;
 	unsigned long ddb_idx_map[MAX_DDB_ENTRIES / BITS_PER_LONG];

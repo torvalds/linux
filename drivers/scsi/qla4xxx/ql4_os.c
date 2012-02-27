@@ -121,6 +121,9 @@ static void qla4xxx_conn_get_stats(struct iscsi_cls_conn *cls_conn,
 static int qla4xxx_send_ping(struct Scsi_Host *shost, uint32_t iface_num,
 			     uint32_t iface_type, uint32_t payload_size,
 			     uint32_t pid, struct sockaddr *dst_addr);
+static int qla4xxx_get_chap_list(struct Scsi_Host *shost, uint16_t chap_tbl_idx,
+				 uint32_t *num_entries, char *buf);
+static int qla4xxx_delete_chap(struct Scsi_Host *shost, uint16_t chap_tbl_idx);
 
 /*
  * SCSI host template entry points
@@ -199,6 +202,8 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.get_iface_param	= qla4xxx_get_iface_param,
 	.bsg_request		= qla4xxx_bsg_request,
 	.send_ping		= qla4xxx_send_ping,
+	.get_chap		= qla4xxx_get_chap_list,
+	.delete_chap		= qla4xxx_delete_chap,
 };
 
 static struct scsi_transport_template *qla4xxx_scsi_transport;
@@ -340,6 +345,189 @@ static umode_t ql4_attr_is_visible(int param_type, int param)
 	}
 
 	return 0;
+}
+
+static int qla4xxx_get_chap_list(struct Scsi_Host *shost, uint16_t chap_tbl_idx,
+				  uint32_t *num_entries, char *buf)
+{
+	struct scsi_qla_host *ha = to_qla_host(shost);
+	struct ql4_chap_table *chap_table;
+	struct iscsi_chap_rec *chap_rec;
+	int max_chap_entries = 0;
+	int valid_chap_entries = 0;
+	int ret = 0, i;
+
+	if (is_qla8022(ha))
+		max_chap_entries = (ha->hw.flt_chap_size / 2) /
+					sizeof(struct ql4_chap_table);
+	else
+		max_chap_entries = MAX_CHAP_ENTRIES_40XX;
+
+	ql4_printk(KERN_INFO, ha, "%s: num_entries = %d, CHAP idx = %d\n",
+			__func__, *num_entries, chap_tbl_idx);
+
+	if (!buf) {
+		ret = -ENOMEM;
+		goto exit_get_chap_list;
+	}
+
+	chap_rec = (struct iscsi_chap_rec *) buf;
+	mutex_lock(&ha->chap_sem);
+	for (i = chap_tbl_idx; i < max_chap_entries; i++) {
+		chap_table = (struct ql4_chap_table *)ha->chap_list + i;
+		if (chap_table->cookie !=
+		    __constant_cpu_to_le16(CHAP_VALID_COOKIE))
+			continue;
+
+		chap_rec->chap_tbl_idx = i;
+		strncpy(chap_rec->username, chap_table->name,
+			ISCSI_CHAP_AUTH_NAME_MAX_LEN);
+		strncpy(chap_rec->password, chap_table->secret,
+			QL4_CHAP_MAX_SECRET_LEN);
+		chap_rec->password_length = chap_table->secret_len;
+
+		if (chap_table->flags & BIT_7) /* local */
+			chap_rec->chap_type = CHAP_TYPE_OUT;
+
+		if (chap_table->flags & BIT_6) /* peer */
+			chap_rec->chap_type = CHAP_TYPE_IN;
+
+		chap_rec++;
+
+		valid_chap_entries++;
+		if (valid_chap_entries == *num_entries)
+			break;
+		else
+			continue;
+	}
+	mutex_unlock(&ha->chap_sem);
+
+exit_get_chap_list:
+	ql4_printk(KERN_INFO, ha, "%s: Valid CHAP Entries = %d\n",
+			__func__,  valid_chap_entries);
+	*num_entries = valid_chap_entries;
+	return ret;
+}
+
+static int __qla4xxx_is_chap_active(struct device *dev, void *data)
+{
+	int ret = 0;
+	uint16_t *chap_tbl_idx = (uint16_t *) data;
+	struct iscsi_cls_session *cls_session;
+	struct iscsi_session *sess;
+	struct ddb_entry *ddb_entry;
+
+	if (!iscsi_is_session_dev(dev))
+		goto exit_is_chap_active;
+
+	cls_session = iscsi_dev_to_session(dev);
+	sess = cls_session->dd_data;
+	ddb_entry = sess->dd_data;
+
+	if (iscsi_session_chkready(cls_session))
+		goto exit_is_chap_active;
+
+	if (ddb_entry->chap_tbl_idx == *chap_tbl_idx)
+		ret = 1;
+
+exit_is_chap_active:
+	return ret;
+}
+
+static int qla4xxx_is_chap_active(struct Scsi_Host *shost,
+				  uint16_t chap_tbl_idx)
+{
+	int ret = 0;
+
+	ret = device_for_each_child(&shost->shost_gendev, &chap_tbl_idx,
+				    __qla4xxx_is_chap_active);
+
+	return ret;
+}
+
+static int qla4xxx_delete_chap(struct Scsi_Host *shost, uint16_t chap_tbl_idx)
+{
+	struct scsi_qla_host *ha = to_qla_host(shost);
+	struct ql4_chap_table *chap_table;
+	dma_addr_t chap_dma;
+	int max_chap_entries = 0;
+	uint32_t offset = 0;
+	uint32_t chap_size;
+	int ret = 0;
+
+	chap_table = dma_pool_alloc(ha->chap_dma_pool, GFP_KERNEL, &chap_dma);
+	if (chap_table == NULL)
+		return -ENOMEM;
+
+	memset(chap_table, 0, sizeof(struct ql4_chap_table));
+
+	if (is_qla8022(ha))
+		max_chap_entries = (ha->hw.flt_chap_size / 2) /
+				   sizeof(struct ql4_chap_table);
+	else
+		max_chap_entries = MAX_CHAP_ENTRIES_40XX;
+
+	if (chap_tbl_idx > max_chap_entries) {
+		ret = -EINVAL;
+		goto exit_delete_chap;
+	}
+
+	/* Check if chap index is in use.
+	 * If chap is in use don't delet chap entry */
+	ret = qla4xxx_is_chap_active(shost, chap_tbl_idx);
+	if (ret) {
+		ql4_printk(KERN_INFO, ha, "CHAP entry %d is in use, cannot "
+			   "delete from flash\n", chap_tbl_idx);
+		ret = -EBUSY;
+		goto exit_delete_chap;
+	}
+
+	chap_size = sizeof(struct ql4_chap_table);
+	if (is_qla40XX(ha))
+		offset = FLASH_CHAP_OFFSET | (chap_tbl_idx * chap_size);
+	else {
+		offset = FLASH_RAW_ACCESS_ADDR + (ha->hw.flt_region_chap << 2);
+		/* flt_chap_size is CHAP table size for both ports
+		 * so divide it by 2 to calculate the offset for second port
+		 */
+		if (ha->port_num == 1)
+			offset += (ha->hw.flt_chap_size / 2);
+		offset += (chap_tbl_idx * chap_size);
+	}
+
+	ret = qla4xxx_get_flash(ha, chap_dma, offset, chap_size);
+	if (ret != QLA_SUCCESS) {
+		ret = -EINVAL;
+		goto exit_delete_chap;
+	}
+
+	DEBUG2(ql4_printk(KERN_INFO, ha, "Chap Cookie: x%x\n",
+			  __le16_to_cpu(chap_table->cookie)));
+
+	if (__le16_to_cpu(chap_table->cookie) != CHAP_VALID_COOKIE) {
+		ql4_printk(KERN_ERR, ha, "No valid chap entry found\n");
+		goto exit_delete_chap;
+	}
+
+	chap_table->cookie = __constant_cpu_to_le16(0xFFFF);
+
+	offset = FLASH_CHAP_OFFSET |
+			(chap_tbl_idx * sizeof(struct ql4_chap_table));
+	ret = qla4xxx_set_flash(ha, chap_dma, offset, chap_size,
+				FLASH_OPT_RMW_COMMIT);
+	if (ret == QLA_SUCCESS && ha->chap_list) {
+		mutex_lock(&ha->chap_sem);
+		/* Update ha chap_list cache */
+		memcpy((struct ql4_chap_table *)ha->chap_list + chap_tbl_idx,
+			chap_table, sizeof(struct ql4_chap_table));
+		mutex_unlock(&ha->chap_sem);
+	}
+	if (ret != QLA_SUCCESS)
+		ret =  -EINVAL;
+
+exit_delete_chap:
+	dma_pool_free(ha->chap_dma_pool, chap_table, chap_dma);
+	return ret;
 }
 
 static int qla4xxx_get_iface_param(struct iscsi_iface *iface,
@@ -1638,12 +1826,16 @@ static void qla4xxx_copy_fwddb_param(struct scsi_qla_host *ha,
 {
 	int buflen = 0;
 	struct iscsi_session *sess;
+	struct ddb_entry *ddb_entry;
 	struct iscsi_conn *conn;
 	char ip_addr[DDB_IPADDR_LEN];
 	uint16_t options = 0;
 
 	sess = cls_sess->dd_data;
+	ddb_entry = sess->dd_data;
 	conn = cls_conn->dd_data;
+
+	ddb_entry->chap_tbl_idx = le16_to_cpu(fw_ddb_entry->chap_tbl_idx);
 
 	conn->max_recv_dlength = BYTE_UNITS *
 			  le16_to_cpu(fw_ddb_entry->iscsi_max_rcv_data_seg_len);
@@ -1772,6 +1964,7 @@ void qla4xxx_update_session_conn_param(struct scsi_qla_host *ha,
 				le16_to_cpu(fw_ddb_entry->iscsi_def_time2wait);
 
 	/* Update params */
+	ddb_entry->chap_tbl_idx = le16_to_cpu(fw_ddb_entry->chap_tbl_idx);
 	conn->max_recv_dlength = BYTE_UNITS *
 			  le16_to_cpu(fw_ddb_entry->iscsi_max_rcv_data_seg_len);
 
