@@ -59,7 +59,7 @@ int mpi_powm(MPI res, MPI base, MPI exp, MPI mod)
 	ep = exp->d;
 
 	if (!msize)
-		msize = 1 / msize;	/* provoke a signal */
+		return -EINVAL;
 
 	if (!esize) {
 		/* Exponent is zero, result is 1 mod MOD, i.e., 1 or 0
