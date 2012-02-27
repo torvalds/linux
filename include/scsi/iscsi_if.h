@@ -450,6 +450,9 @@ enum iscsi_param {
 
 	ISCSI_PARAM_TGT_RESET_TMO,
 	ISCSI_PARAM_TARGET_ALIAS,
+
+	ISCSI_PARAM_CHAP_IN_IDX,
+	ISCSI_PARAM_CHAP_OUT_IDX,
 	/* must always be last */
 	ISCSI_PARAM_MAX,
 };

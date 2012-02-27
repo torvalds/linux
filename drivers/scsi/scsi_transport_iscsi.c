@@ -2475,6 +2475,8 @@ iscsi_session_attr(username, ISCSI_PARAM_USERNAME, 1);
 iscsi_session_attr(username_in, ISCSI_PARAM_USERNAME_IN, 1);
 iscsi_session_attr(password, ISCSI_PARAM_PASSWORD, 1);
 iscsi_session_attr(password_in, ISCSI_PARAM_PASSWORD_IN, 1);
+iscsi_session_attr(chap_out_idx, ISCSI_PARAM_CHAP_OUT_IDX, 1);
+iscsi_session_attr(chap_in_idx, ISCSI_PARAM_CHAP_IN_IDX, 1);
 iscsi_session_attr(fast_abort, ISCSI_PARAM_FAST_ABORT, 0);
 iscsi_session_attr(abort_tmo, ISCSI_PARAM_ABORT_TMO, 0);
 iscsi_session_attr(lu_reset_tmo, ISCSI_PARAM_LU_RESET_TMO, 0);
@@ -2571,6 +2573,8 @@ static struct attribute *iscsi_session_attrs[] = {
 	&dev_attr_priv_sess_recovery_tmo.attr,
 	&dev_attr_priv_sess_state.attr,
 	&dev_attr_priv_sess_creator.attr,
+	&dev_attr_sess_chap_out_idx.attr,
+	&dev_attr_sess_chap_in_idx.attr,
 	NULL,
 };
 
@@ -2602,6 +2606,10 @@ static umode_t iscsi_session_attr_is_visible(struct kobject *kobj,
 		param = ISCSI_PARAM_TARGET_NAME;
 	else if (attr == &dev_attr_sess_tpgt.attr)
 		param = ISCSI_PARAM_TPGT;
+	else if (attr == &dev_attr_sess_chap_in_idx.attr)
+		param = ISCSI_PARAM_CHAP_IN_IDX;
+	else if (attr == &dev_attr_sess_chap_out_idx.attr)
+		param = ISCSI_PARAM_CHAP_OUT_IDX;
 	else if (attr == &dev_attr_sess_password.attr)
 		param = ISCSI_PARAM_USERNAME;
 	else if (attr == &dev_attr_sess_password_in.attr)
