@@ -511,7 +511,7 @@ unsigned long eeh_check_failure(const volatile void __iomem *token, unsigned lon
 
 	/* Finding the phys addr + pci device; this is pretty quick. */
 	addr = eeh_token_to_phys((unsigned long __force) token);
-	dev = pci_get_device_by_addr(addr);
+	dev = pci_addr_cache_get_device(addr);
 	if (!dev) {
 		no_device++;
 		return val;

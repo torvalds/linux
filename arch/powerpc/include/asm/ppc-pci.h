@@ -49,10 +49,10 @@ extern unsigned long pci_probe_only;
 
 #ifdef CONFIG_EEH
 
+void pci_addr_cache_build(void);
 void pci_addr_cache_insert_device(struct pci_dev *dev);
 void pci_addr_cache_remove_device(struct pci_dev *dev);
-void pci_addr_cache_build(void);
-struct pci_dev *pci_get_device_by_addr(unsigned long addr);
+struct pci_dev *pci_addr_cache_get_device(unsigned long addr);
 void eeh_slot_error_detail (struct pci_dn *pdn, int severity);
 int eeh_pci_enable(struct pci_dn *pdn, int function);
 int eeh_reset_pe(struct pci_dn *);

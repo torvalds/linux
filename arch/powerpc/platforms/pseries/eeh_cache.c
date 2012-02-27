@@ -59,7 +59,7 @@ static struct pci_io_addr_cache {
 	spinlock_t piar_lock;
 } pci_io_addr_cache_root;
 
-static inline struct pci_dev *__pci_get_device_by_addr(unsigned long addr)
+static inline struct pci_dev *__pci_addr_cache_get_device(unsigned long addr)
 {
 	struct rb_node *n = pci_io_addr_cache_root.rb_root.rb_node;
 
@@ -83,7 +83,7 @@ static inline struct pci_dev *__pci_get_device_by_addr(unsigned long addr)
 }
 
 /**
- * pci_get_device_by_addr - Get device, given only address
+ * pci_addr_cache_get_device - Get device, given only address
  * @addr: mmio (PIO) phys address or i/o port number
  *
  * Given an mmio phys address, or a port number, find a pci device
@@ -92,13 +92,13 @@ static inline struct pci_dev *__pci_get_device_by_addr(unsigned long addr)
  * from zero (that is, they do *not* have pci_io_addr added in).
  * It is safe to call this function within an interrupt.
  */
-struct pci_dev *pci_get_device_by_addr(unsigned long addr)
+struct pci_dev *pci_addr_cache_get_device(unsigned long addr)
 {
 	struct pci_dev *dev;
 	unsigned long flags;
 
 	spin_lock_irqsave(&pci_io_addr_cache_root.piar_lock, flags);
-	dev = __pci_get_device_by_addr(addr);
+	dev = __pci_addr_cache_get_device(addr);
 	spin_unlock_irqrestore(&pci_io_addr_cache_root.piar_lock, flags);
 	return dev;
 }
