@@ -147,18 +147,18 @@ static void _set_gpio_dataout_mask(struct gpio_bank *bank, int gpio, int enable)
 	bank->context.dataout = l;
 }
 
-static int _get_gpio_datain(struct gpio_bank *bank, int gpio)
+static int _get_gpio_datain(struct gpio_bank *bank, int offset)
 {
 	void __iomem *reg = bank->base + bank->regs->datain;
 
-	return (__raw_readl(reg) & GPIO_BIT(bank, gpio)) != 0;
+	return (__raw_readl(reg) & (1 << offset)) != 0;
 }
 
-static int _get_gpio_dataout(struct gpio_bank *bank, int gpio)
+static int _get_gpio_dataout(struct gpio_bank *bank, int offset)
 {
 	void __iomem *reg = bank->base + bank->regs->dataout;
 
-	return (__raw_readl(reg) & GPIO_BIT(bank, gpio)) != 0;
+	return (__raw_readl(reg) & (1 << offset)) != 0;
 }
 
 static inline void _gpio_rmw(void __iomem *base, u32 reg, u32 mask, bool set)
@@ -865,19 +865,15 @@ static int gpio_is_input(struct gpio_bank *bank, int mask)
 static int gpio_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct gpio_bank *bank;
-	void __iomem *reg;
-	int gpio;
 	u32 mask;
 
-	gpio = chip->base + offset;
 	bank = container_of(chip, struct gpio_bank, chip);
-	reg = bank->base;
-	mask = GPIO_BIT(bank, gpio);
+	mask = (1 << offset);
 
 	if (gpio_is_input(bank, mask))
-		return _get_gpio_datain(bank, gpio);
+		return _get_gpio_datain(bank, offset);
 	else
-		return _get_gpio_dataout(bank, gpio);
+		return _get_gpio_dataout(bank, offset);
 }
 
 static int gpio_output(struct gpio_chip *chip, unsigned offset, int value)
