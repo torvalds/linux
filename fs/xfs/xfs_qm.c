@@ -50,7 +50,6 @@
  */
 struct mutex	xfs_Gqm_lock;
 struct xfs_qm	*xfs_Gqm;
-uint		ndquot;
 
 kmem_zone_t	*qm_dqzone;
 kmem_zone_t	*qm_dqtrxzone;
@@ -93,7 +92,6 @@ xfs_Gqm_init(void)
 		goto out_free_udqhash;
 
 	hsize /= sizeof(xfs_dqhash_t);
-	ndquot = hsize << 8;
 
 	xqm = kmem_zalloc(sizeof(xfs_qm_t), KM_SLEEP);
 	xqm->qm_dqhashmask = hsize - 1;
@@ -137,7 +135,6 @@ xfs_Gqm_init(void)
 		xqm->qm_dqtrxzone = qm_dqtrxzone;
 
 	atomic_set(&xqm->qm_totaldquots, 0);
-	xqm->qm_dqfree_ratio = XFS_QM_DQFREE_RATIO;
 	xqm->qm_nrefs = 0;
 	return xqm;
 
@@ -1600,215 +1597,149 @@ xfs_qm_init_quotainos(
 	return 0;
 }
 
-
-
-/*
- * Pop the least recently used dquot off the freelist and recycle it.
- */
-STATIC struct xfs_dquot *
-xfs_qm_dqreclaim_one(void)
+STATIC void
+xfs_qm_dqfree_one(
+	struct xfs_dquot	*dqp)
 {
-	struct xfs_dquot	*dqp;
-	int			restarts = 0;
+	struct xfs_mount	*mp = dqp->q_mount;
+	struct xfs_quotainfo	*qi = mp->m_quotainfo;
 
-	mutex_lock(&xfs_Gqm->qm_dqfrlist_lock);
-restart:
-	list_for_each_entry(dqp, &xfs_Gqm->qm_dqfrlist, q_freelist) {
-		struct xfs_mount *mp = dqp->q_mount;
+	mutex_lock(&dqp->q_hash->qh_lock);
+	list_del_init(&dqp->q_hashlist);
+	dqp->q_hash->qh_version++;
+	mutex_unlock(&dqp->q_hash->qh_lock);
 
-		if (!xfs_dqlock_nowait(dqp))
-			continue;
+	mutex_lock(&qi->qi_dqlist_lock);
+	list_del_init(&dqp->q_mplist);
+	qi->qi_dquots--;
+	qi->qi_dqreclaims++;
+	mutex_unlock(&qi->qi_dqlist_lock);
 
-		/*
-		 * This dquot has already been grabbed by dqlookup.
-		 * Remove it from the freelist and try again.
-		 */
-		if (dqp->q_nrefs) {
-			trace_xfs_dqreclaim_want(dqp);
-			XQM_STATS_INC(xqmstats.xs_qm_dqwants);
+	xfs_qm_dqdestroy(dqp);
+}
 
-			list_del_init(&dqp->q_freelist);
-			xfs_Gqm->qm_dqfrlist_cnt--;
-			restarts++;
-			goto dqunlock;
-		}
+STATIC void
+xfs_qm_dqreclaim_one(
+	struct xfs_dquot	*dqp,
+	struct list_head	*dispose_list)
+{
+	struct xfs_mount	*mp = dqp->q_mount;
+	int			error;
 
-		ASSERT(dqp->q_hash);
-		ASSERT(!list_empty(&dqp->q_mplist));
+	if (!xfs_dqlock_nowait(dqp))
+		goto out_busy;
 
-		/*
-		 * Try to grab the flush lock. If this dquot is in the process
-		 * of getting flushed to disk, we don't want to reclaim it.
-		 */
-		if (!xfs_dqflock_nowait(dqp))
-			goto dqunlock;
-
-		/*
-		 * We have the flush lock so we know that this is not in the
-		 * process of being flushed. So, if this is dirty, flush it
-		 * DELWRI so that we don't get a freelist infested with
-		 * dirty dquots.
-		 */
-		if (XFS_DQ_IS_DIRTY(dqp)) {
-			int	error;
-
-			trace_xfs_dqreclaim_dirty(dqp);
-
-			/*
-			 * We flush it delayed write, so don't bother
-			 * releasing the freelist lock.
-			 */
-			error = xfs_qm_dqflush(dqp, SYNC_TRYLOCK);
-			if (error) {
-				xfs_warn(mp, "%s: dquot %p flush failed",
-					__func__, dqp);
-			}
-			goto dqunlock;
-		}
-		xfs_dqfunlock(dqp);
-
-		/*
-		 * Prevent lookup now that we are going to reclaim the dquot.
-		 * Once XFS_DQ_FREEING is set lookup won't touch the dquot,
-		 * thus we can drop the lock now.
-		 */
-		dqp->dq_flags |= XFS_DQ_FREEING;
+	/*
+	 * This dquot has acquired a reference in the meantime remove it from
+	 * the freelist and try again.
+	 */
+	if (dqp->q_nrefs) {
 		xfs_dqunlock(dqp);
 
-		mutex_lock(&dqp->q_hash->qh_lock);
-		list_del_init(&dqp->q_hashlist);
-		dqp->q_hash->qh_version++;
-		mutex_unlock(&dqp->q_hash->qh_lock);
+		trace_xfs_dqreclaim_want(dqp);
+		XQM_STATS_INC(xqmstats.xs_qm_dqwants);
 
-		mutex_lock(&mp->m_quotainfo->qi_dqlist_lock);
-		list_del_init(&dqp->q_mplist);
-		mp->m_quotainfo->qi_dquots--;
-		mp->m_quotainfo->qi_dqreclaims++;
-		mutex_unlock(&mp->m_quotainfo->qi_dqlist_lock);
-
-		ASSERT(dqp->q_nrefs == 0);
 		list_del_init(&dqp->q_freelist);
 		xfs_Gqm->qm_dqfrlist_cnt--;
-
-		mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
-		return dqp;
-dqunlock:
-		xfs_dqunlock(dqp);
-		if (restarts >= XFS_QM_RECLAIM_MAX_RESTARTS)
-			break;
-		goto restart;
+		return;
 	}
 
-	mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
-	return NULL;
-}
+	ASSERT(dqp->q_hash);
+	ASSERT(!list_empty(&dqp->q_mplist));
 
-/*
- * Traverse the freelist of dquots and attempt to reclaim a maximum of
- * 'howmany' dquots. This operation races with dqlookup(), and attempts to
- * favor the lookup function ...
- */
-STATIC int
-xfs_qm_shake_freelist(
-	int	howmany)
-{
-	int		nreclaimed = 0;
-	xfs_dquot_t	*dqp;
+	/*
+	 * Try to grab the flush lock. If this dquot is in the process of
+	 * getting flushed to disk, we don't want to reclaim it.
+	 */
+	if (!xfs_dqflock_nowait(dqp))
+		goto out_busy;
 
-	if (howmany <= 0)
-		return 0;
+	/*
+	 * We have the flush lock so we know that this is not in the
+	 * process of being flushed. So, if this is dirty, flush it
+	 * DELWRI so that we don't get a freelist infested with
+	 * dirty dquots.
+	 */
+	if (XFS_DQ_IS_DIRTY(dqp)) {
+		trace_xfs_dqreclaim_dirty(dqp);
 
-	while (nreclaimed < howmany) {
-		dqp = xfs_qm_dqreclaim_one();
-		if (!dqp)
-			return nreclaimed;
-		xfs_qm_dqdestroy(dqp);
-		nreclaimed++;
+		/*
+		 * We flush it delayed write, so don't bother releasing the
+		 * freelist lock.
+		 */
+		error = xfs_qm_dqflush(dqp, 0);
+		if (error) {
+			xfs_warn(mp, "%s: dquot %p flush failed",
+				 __func__, dqp);
+		}
+
+		/*
+		 * Give the dquot another try on the freelist, as the
+		 * flushing will take some time.
+		 */
+		goto out_busy;
 	}
-	return nreclaimed;
+	xfs_dqfunlock(dqp);
+
+	/*
+	 * Prevent lookups now that we are past the point of no return.
+	 */
+	dqp->dq_flags |= XFS_DQ_FREEING;
+	xfs_dqunlock(dqp);
+
+	ASSERT(dqp->q_nrefs == 0);
+	list_move_tail(&dqp->q_freelist, dispose_list);
+	xfs_Gqm->qm_dqfrlist_cnt--;
+
+	trace_xfs_dqreclaim_done(dqp);
+	XQM_STATS_INC(xqmstats.xs_qm_dqreclaims);
+	return;
+
+out_busy:
+	xfs_dqunlock(dqp);
+
+	/*
+	 * Move the dquot to the tail of the list so that we don't spin on it.
+	 */
+	list_move_tail(&dqp->q_freelist, &xfs_Gqm->qm_dqfrlist);
+
+	trace_xfs_dqreclaim_busy(dqp);
+	XQM_STATS_INC(xqmstats.xs_qm_dqreclaim_misses);
 }
 
-/*
- * The kmem_shake interface is invoked when memory is running low.
- */
-/* ARGSUSED */
 STATIC int
 xfs_qm_shake(
-	struct shrinker	*shrink,
-	struct shrink_control *sc)
+	struct shrinker		*shrink,
+	struct shrink_control	*sc)
 {
-	int	ndqused, nfree, n;
-	gfp_t gfp_mask = sc->gfp_mask;
+	int			nr_to_scan = sc->nr_to_scan;
+	LIST_HEAD		(dispose_list);
+	struct xfs_dquot	*dqp;
 
-	if (!kmem_shake_allow(gfp_mask))
+	if ((sc->gfp_mask & (__GFP_FS|__GFP_WAIT)) != (__GFP_FS|__GFP_WAIT))
 		return 0;
-	if (!xfs_Gqm)
-		return 0;
+	if (!nr_to_scan)
+		goto out;
 
-	nfree = xfs_Gqm->qm_dqfrlist_cnt; /* free dquots */
-	/* incore dquots in all f/s's */
-	ndqused = atomic_read(&xfs_Gqm->qm_totaldquots) - nfree;
-
-	ASSERT(ndqused >= 0);
-
-	if (nfree <= ndqused && nfree < ndquot)
-		return 0;
-
-	ndqused *= xfs_Gqm->qm_dqfree_ratio;	/* target # of free dquots */
-	n = nfree - ndqused - ndquot;		/* # over target */
-
-	return xfs_qm_shake_freelist(MAX(nfree, n));
-}
-
-
-/*------------------------------------------------------------------*/
-
-/*
- * Return a new incore dquot. Depending on the number of
- * dquots in the system, we either allocate a new one on the kernel heap,
- * or reclaim a free one.
- * Return value is B_TRUE if we allocated a new dquot, B_FALSE if we managed
- * to reclaim an existing one from the freelist.
- */
-boolean_t
-xfs_qm_dqalloc_incore(
-	xfs_dquot_t **O_dqpp)
-{
-	xfs_dquot_t	*dqp;
-
-	/*
-	 * Check against high water mark to see if we want to pop
-	 * a nincompoop dquot off the freelist.
-	 */
-	if (atomic_read(&xfs_Gqm->qm_totaldquots) >= ndquot) {
-		/*
-		 * Try to recycle a dquot from the freelist.
-		 */
-		if ((dqp = xfs_qm_dqreclaim_one())) {
-			XQM_STATS_INC(xqmstats.xs_qm_dqreclaims);
-			/*
-			 * Just zero the core here. The rest will get
-			 * reinitialized by caller. XXX we shouldn't even
-			 * do this zero ...
-			 */
-			memset(&dqp->q_core, 0, sizeof(dqp->q_core));
-			*O_dqpp = dqp;
-			return B_FALSE;
-		}
-		XQM_STATS_INC(xqmstats.xs_qm_dqreclaim_misses);
+	mutex_lock(&xfs_Gqm->qm_dqfrlist_lock);
+	while (!list_empty(&xfs_Gqm->qm_dqfrlist)) {
+		if (nr_to_scan-- <= 0)
+			break;
+		dqp = list_first_entry(&xfs_Gqm->qm_dqfrlist, struct xfs_dquot,
+				       q_freelist);
+		xfs_qm_dqreclaim_one(dqp, &dispose_list);
 	}
+	mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
 
-	/*
-	 * Allocate a brand new dquot on the kernel heap and return it
-	 * to the caller to initialize.
-	 */
-	ASSERT(xfs_Gqm->qm_dqzone != NULL);
-	*O_dqpp = kmem_zone_zalloc(xfs_Gqm->qm_dqzone, KM_SLEEP);
-	atomic_inc(&xfs_Gqm->qm_totaldquots);
-
-	return B_TRUE;
+	while (!list_empty(&dispose_list)) {
+		dqp = list_first_entry(&dispose_list, struct xfs_dquot,
+				       q_freelist);
+		list_del_init(&dqp->q_freelist);
+		xfs_qm_dqfree_one(dqp);
+	}
+out:
+	return (xfs_Gqm->qm_dqfrlist_cnt / 100) * sysctl_vfs_cache_pressure;
 }
-
 
 /*
  * Start a transaction and write the incore superblock changes to

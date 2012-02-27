@@ -385,6 +385,7 @@ static int autofs_dev_ioctl_setpipefd(struct file *fp,
 		sbi->pipefd = pipefd;
 		sbi->pipe = pipe;
 		sbi->catatonic = 0;
+		sbi->compat_daemon = is_compat_task();
 	}
 out:
 	mutex_unlock(&sbi->wq_mutex);

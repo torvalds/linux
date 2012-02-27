@@ -551,9 +551,9 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 			printk (KERN_ERR "EEH: %d reads ignored for recovering device at "
 				"location=%s driver=%s pci addr=%s\n",
 				pdn->eeh_check_count, location,
-				dev->driver->name, eeh_pci_name(dev));
+				eeh_driver_name(dev), eeh_pci_name(dev));
 			printk (KERN_ERR "EEH: Might be infinite loop in %s driver\n",
-				dev->driver->name);
+				eeh_driver_name(dev));
 			dump_stack();
 		}
 		goto dn_unlock;
