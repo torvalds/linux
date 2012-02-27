@@ -305,8 +305,17 @@ static int lpc32xx_irq_wake(struct irq_data *d, unsigned int state)
 
 		if (state)
 			eventreg |= lpc32xx_events[d->irq].mask;
-		else
+		else {
 			eventreg &= ~lpc32xx_events[d->irq].mask;
+
+			/*
+			 * When disabling the wakeup, clear the latched
+			 * event
+			 */
+			__raw_writel(lpc32xx_events[d->irq].mask,
+				lpc32xx_events[d->irq].
+				event_group->rawstat_reg);
+		}
 
 		__raw_writel(eventreg,
 			lpc32xx_events[d->irq].event_group->enab_reg);
