@@ -36,7 +36,6 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/dm646x.h>
 #include <mach/common.h>
 #include <mach/serial.h>
 #include <mach/i2c.h>
@@ -45,6 +44,7 @@
 #include <mach/cdce949.h>
 #include <mach/aemif.h>
 
+#include "davinci.h"
 #include "clock.h"
 
 #define NAND_BLOCK_SIZE		SZ_128K
@@ -410,8 +410,6 @@ static struct davinci_i2c_platform_data i2c_pdata = {
 	.bus_delay      = 0 /* usec */,
 };
 
-#define VIDCLKCTL_OFFSET	(DAVINCI_SYSTEM_MODULE_BASE + 0x38)
-#define VSCLKDIS_OFFSET		(DAVINCI_SYSTEM_MODULE_BASE + 0x6c)
 #define VCH2CLK_MASK		(BIT_MASK(10) | BIT_MASK(9) | BIT_MASK(8))
 #define VCH2CLK_SYSCLK8		(BIT(9))
 #define VCH2CLK_AUXCLK		(BIT(9) | BIT(8))
@@ -429,8 +427,6 @@ static struct davinci_i2c_platform_data i2c_pdata = {
 #define TVP5147_CH0		"tvp514x-0"
 #define TVP5147_CH1		"tvp514x-1"
 
-static void __iomem *vpif_vidclkctl_reg;
-static void __iomem *vpif_vsclkdis_reg;
 /* spin lock for updating above registers */
 static spinlock_t vpif_reg_lock;
 
@@ -441,14 +437,14 @@ static int set_vpif_clock(int mux_mode, int hd)
 	int val = 0;
 	int err = 0;
 
-	if (!vpif_vidclkctl_reg || !vpif_vsclkdis_reg || !cpld_client)
+	if (!cpld_client)
 		return -ENXIO;
 
 	/* disable the clock */
 	spin_lock_irqsave(&vpif_reg_lock, flags);
-	value = __raw_readl(vpif_vsclkdis_reg);
+	value = __raw_readl(DAVINCI_SYSMOD_VIRT(SYSMOD_VSCLKDIS));
 	value |= (VIDCH3CLK | VIDCH2CLK);
-	__raw_writel(value, vpif_vsclkdis_reg);
+	__raw_writel(value, DAVINCI_SYSMOD_VIRT(SYSMOD_VSCLKDIS));
 	spin_unlock_irqrestore(&vpif_reg_lock, flags);
 
 	val = i2c_smbus_read_byte(cpld_client);
@@ -464,7 +460,7 @@ static int set_vpif_clock(int mux_mode, int hd)
 	if (err)
 		return err;
 
-	value = __raw_readl(vpif_vidclkctl_reg);
+	value = __raw_readl(DAVINCI_SYSMOD_VIRT(SYSMOD_VIDCLKCTL));
 	value &= ~(VCH2CLK_MASK);
 	value &= ~(VCH3CLK_MASK);
 
@@ -473,13 +469,13 @@ static int set_vpif_clock(int mux_mode, int hd)
 	else
 		value |= (VCH2CLK_AUXCLK | VCH3CLK_AUXCLK);
 
-	__raw_writel(value, vpif_vidclkctl_reg);
+	__raw_writel(value, DAVINCI_SYSMOD_VIRT(SYSMOD_VIDCLKCTL));
 
 	spin_lock_irqsave(&vpif_reg_lock, flags);
-	value = __raw_readl(vpif_vsclkdis_reg);
+	value = __raw_readl(DAVINCI_SYSMOD_VIRT(SYSMOD_VSCLKDIS));
 	/* enable the clock */
 	value &= ~(VIDCH3CLK | VIDCH2CLK);
-	__raw_writel(value, vpif_vsclkdis_reg);
+	__raw_writel(value, DAVINCI_SYSMOD_VIRT(SYSMOD_VSCLKDIS));
 	spin_unlock_irqrestore(&vpif_reg_lock, flags);
 
 	return 0;
@@ -564,7 +560,7 @@ static int setup_vpif_input_channel_mode(int mux_mode)
 	int val;
 	u32 value;
 
-	if (!vpif_vidclkctl_reg || !cpld_client)
+	if (!cpld_client)
 		return -ENXIO;
 
 	val = i2c_smbus_read_byte(cpld_client);
@@ -572,7 +568,7 @@ static int setup_vpif_input_channel_mode(int mux_mode)
 		return val;
 
 	spin_lock_irqsave(&vpif_reg_lock, flags);
-	value = __raw_readl(vpif_vidclkctl_reg);
+	value = __raw_readl(DAVINCI_SYSMOD_VIRT(SYSMOD_VIDCLKCTL));
 	if (mux_mode) {
 		val &= VPIF_INPUT_TWO_CHANNEL;
 		value |= VIDCH1CLK;
@@ -580,7 +576,7 @@ static int setup_vpif_input_channel_mode(int mux_mode)
 		val |= VPIF_INPUT_ONE_CHANNEL;
 		value &= ~VIDCH1CLK;
 	}
-	__raw_writel(value, vpif_vidclkctl_reg);
+	__raw_writel(value, DAVINCI_SYSMOD_VIRT(SYSMOD_VIDCLKCTL));
 	spin_unlock_irqrestore(&vpif_reg_lock, flags);
 
 	err = i2c_smbus_write_byte(cpld_client, val);
@@ -674,12 +670,6 @@ static struct vpif_capture_config dm646x_vpif_capture_cfg = {
 
 static void __init evm_init_video(void)
 {
-	vpif_vidclkctl_reg = ioremap(VIDCLKCTL_OFFSET, 4);
-	vpif_vsclkdis_reg = ioremap(VSCLKDIS_OFFSET, 4);
-	if (!vpif_vidclkctl_reg || !vpif_vsclkdis_reg) {
-		pr_err("Can't map VPIF VIDCLKCTL or VSCLKDIS registers\n");
-		return;
-	}
 	spin_lock_init(&vpif_reg_lock);
 
 	dm646x_setup_vpif(&dm646x_vpif_display_config,
