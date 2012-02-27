@@ -32,12 +32,14 @@
 			usdhc@02198000 { /* uSDHC3 */
 				cd-gpios = <&gpio7 0 0>;
 				wp-gpios = <&gpio7 1 0>;
+				vmmc-supply = <&reg_3p3v>;
 				status = "okay";
 			};
 
 			usdhc@0219c000 { /* uSDHC4 */
 				cd-gpios = <&gpio2 6 0>;
 				wp-gpios = <&gpio2 7 0>;
+				vmmc-supply = <&reg_3p3v>;
 				status = "okay";
 			};
 
