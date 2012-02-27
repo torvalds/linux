@@ -41,6 +41,7 @@
 #include <linux/reboot.h>
 #include <linux/notifier.h>
 #include <linux/jiffies.h>
+#include <linux/uaccess.h>
 
 #include <asm/irq_regs.h>
 
