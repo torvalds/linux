@@ -573,6 +573,13 @@ static const struct usb_device_id	products [] = {
 	.driver_info = 0,
 },
 
+/* Logitech Harmony 900 - uses the pseudo-MDLM (BLAN) driver */
+{
+	USB_DEVICE_AND_INTERFACE_INFO(0x046d, 0xc11f, USB_CLASS_COMM,
+			USB_CDC_SUBCLASS_MDLM, USB_CDC_PROTO_NONE),
+	.driver_info		= 0,
+},
+
 /*
  * WHITELIST!!!
  *

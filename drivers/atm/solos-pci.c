@@ -1206,9 +1206,9 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	
  out_unmap_both:
 	pci_set_drvdata(dev, NULL);
-	pci_iounmap(dev, card->config_regs);
- out_unmap_config:
 	pci_iounmap(dev, card->buffers);
+ out_unmap_config:
+	pci_iounmap(dev, card->config_regs);
  out_release_regions:
 	pci_release_regions(dev);
  out:
