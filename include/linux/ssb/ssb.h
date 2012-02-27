@@ -19,7 +19,7 @@ struct ssb_driver;
 struct ssb_sprom_core_pwr_info {
 	u8 itssi_2g, itssi_5g;
 	u8 maxpwr_2g, maxpwr_5gl, maxpwr_5g, maxpwr_5gh;
-	u16 pa_2g[3], pa_5gl[3], pa_5g[3], pa_5gh[3];
+	u16 pa_2g[4], pa_5gl[4], pa_5g[4], pa_5gh[4];
 };
 
 struct ssb_sprom {
