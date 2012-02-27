@@ -14242,12 +14242,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 		tg3_flag_set(tp, PCI_EXPRESS);
 
-		if (tp->pci_chip_rev_id == CHIPREV_ID_5719_A0) {
-			int readrq = pcie_get_readrq(tp->pdev);
-			if (readrq > 2048)
-				pcie_set_readrq(tp->pdev, 2048);
-		}
-
 		pci_read_config_word(tp->pdev,
 				     pci_pcie_cap(tp->pdev) + PCI_EXP_LNKCTL,
 				     &lnkctl);
