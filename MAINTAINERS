@@ -3780,7 +3780,7 @@ F:	Documentation/kdump/
 
 KERNEL AUTOMOUNTER v4 (AUTOFS4)
 M:	Ian Kent <raven@themaw.net>
-L:	autofs@linux.kernel.org
+L:	autofs@vger.kernel.org
 S:	Maintained
 F:	fs/autofs4/
 
