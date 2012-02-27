@@ -66,6 +66,8 @@
 #include <linux/input.h>
 #include <media/v4l2-chip-ident.h>
 #include "gspca.h"
+/* Include pac common sof detection functions */
+#include "pac_common.h"
 
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, "
 		"Thomas Kaiser thomas@kaiser-linux.li");
@@ -98,7 +100,7 @@ struct sd {
 #define FL_VFLIP 0x02		/* vertical flipped by default */
 
 	u8 sof_read;
-	u8 autogain_ignore_frames;
+	s8 autogain_ignore_frames;
 
 	atomic_t avg_lum;
 };
@@ -111,7 +113,7 @@ static void setredbalance(struct gspca_dev *gspca_dev);
 static void setbluebalance(struct gspca_dev *gspca_dev);
 static void setgain(struct gspca_dev *gspca_dev);
 static void setexposure(struct gspca_dev *gspca_dev);
-static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
+static void setautogain(struct gspca_dev *gspca_dev);
 static void sethvflip(struct gspca_dev *gspca_dev);
 
 static const struct ctrl sd_ctrls[] = {
@@ -229,7 +231,7 @@ static const struct ctrl sd_ctrls[] = {
 #define AUTOGAIN_DEF 1
 		.default_value = AUTOGAIN_DEF,
 	    },
-	    .set = sd_setautogain,
+	    .set_control = setautogain,
 	},
 [HFLIP] = {
 	    {
@@ -637,6 +639,26 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x11, 0x01);
 }
 
+static void setautogain(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	/* when switching to autogain set defaults to make sure
+	   we are on a valid point of the autogain gain /
+	   exposure knee graph, and give this change time to
+	   take effect before doing autogain. */
+	if (sd->ctrls[AUTOGAIN].val) {
+		sd->ctrls[EXPOSURE].val = EXPOSURE_DEF;
+		sd->ctrls[GAIN].val = GAIN_DEF;
+		sd->autogain_ignore_frames =
+				PAC_AUTOGAIN_IGNORE_FRAMES;
+	} else {
+		sd->autogain_ignore_frames = -1;
+	}
+	setexposure(gspca_dev);
+	setgain(gspca_dev);
+}
+
 static void sethvflip(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -675,15 +697,13 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	setwhitebalance(gspca_dev);
 	setredbalance(gspca_dev);
 	setbluebalance(gspca_dev);
-	setgain(gspca_dev);
-	setexposure(gspca_dev);
+	setautogain(gspca_dev);
 	sethvflip(gspca_dev);
 
 	/* only resolution 640x480 is supported for pac7302 */
 
 	sd->sof_read = 0;
-	sd->autogain_ignore_frames = 0;
-	atomic_set(&sd->avg_lum, -1);
+	atomic_set(&sd->avg_lum, 270 + sd->ctrls[BRIGHTNESS].val);
 
 	/* start stream */
 	reg_w(gspca_dev, 0xff, 0x01);
@@ -709,9 +729,6 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x78, 0x40);
 }
 
-/* Include pac common sof detection functions */
-#include "pac_common.h"
-
 /* !! coarse_grained_expo_autogain is not used !! */
 #define exp_too_low_cnt flags
 #define exp_too_high_cnt sof_read
@@ -724,16 +741,18 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	int desired_lum;
 	const int deadzone = 30;
 
-	if (avg_lum == -1)
+	if (sd->autogain_ignore_frames < 0)
 		return;
 
-	desired_lum = 270 + sd->ctrls[BRIGHTNESS].val;
-
-	if (sd->autogain_ignore_frames > 0)
+	if (sd->autogain_ignore_frames > 0) {
 		sd->autogain_ignore_frames--;
-	else if (auto_gain_n_exposure(gspca_dev, avg_lum, desired_lum,
-			deadzone, GAIN_KNEE, EXPOSURE_KNEE))
+	} else {
+		desired_lum = 270 + sd->ctrls[BRIGHTNESS].val;
+
+		auto_gain_n_exposure(gspca_dev, avg_lum, desired_lum,
+				deadzone, GAIN_KNEE, EXPOSURE_KNEE);
 		sd->autogain_ignore_frames = PAC_AUTOGAIN_IGNORE_FRAMES;
+	}
 }
 
 /* JPEG header */
@@ -804,8 +823,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 				n >= lum_offset)
 			atomic_set(&sd->avg_lum, data[-lum_offset] +
 						data[-lum_offset + 1]);
-		else
-			atomic_set(&sd->avg_lum, -1);
 
 		/* Start the new frame with the jpeg header */
 		/* The PAC7302 has the image rotated 90 degrees */
@@ -813,29 +830,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 				jpeg_header, sizeof jpeg_header);
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
-}
-
-static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->ctrls[AUTOGAIN].val = val;
-	/* when switching to autogain set defaults to make sure
-	   we are on a valid point of the autogain gain /
-	   exposure knee graph, and give this change time to
-	   take effect before doing autogain. */
-	if (sd->ctrls[AUTOGAIN].val) {
-		sd->ctrls[EXPOSURE].val = EXPOSURE_DEF;
-		sd->ctrls[GAIN].val = GAIN_DEF;
-		if (gspca_dev->streaming) {
-			sd->autogain_ignore_frames =
-				PAC_AUTOGAIN_IGNORE_FRAMES;
-			setexposure(gspca_dev);
-			setgain(gspca_dev);
-		}
-	}
-
-	return gspca_dev->usb_err;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
