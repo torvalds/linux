@@ -57,6 +57,9 @@ struct sd {
 
 	struct gspca_ctrl ctrls[NCTRLS];
 
+	struct work_struct work;
+	struct workqueue_struct *work_thread;
+
 	u8 reg08;		/* webcam compression quality */
 
 	u8 bridge;
@@ -5932,6 +5935,9 @@ static void setquality(struct gspca_dev *gspca_dev)
 	case SENSOR_OV7620:
 		reg07 = 0x30;
 		break;
+	case SENSOR_HV7131R:
+	case SENSOR_PAS202B:
+		return;			/* done by work queue */
 	}
 	reg_w(gspca_dev, sd->reg08, ZC3XX_R008_CLOCKSETTING);
 	if (reg07 != 0)
@@ -6067,6 +6073,114 @@ static void setautogain(struct gspca_dev *gspca_dev)
 	else
 		autoval = 0x02;
 	reg_w(gspca_dev, autoval, 0x0180);
+}
+
+/* update the transfer parameters */
+/* This function is executed from a work queue. */
+/* The exact use of the bridge registers 07 and 08 is not known.
+ * The following algorithm has been adapted from ms-win traces */
+static void transfer_update(struct work_struct *work)
+{
+	struct sd *sd = container_of(work, struct sd, work);
+	struct gspca_dev *gspca_dev = &sd->gspca_dev;
+	int change, good;
+	u8 reg07, reg11;
+
+	/* synchronize with the main driver and initialize the registers */
+	mutex_lock(&gspca_dev->usb_lock);
+	reg07 = 0;					/* max */
+	reg_w(gspca_dev, reg07, 0x0007);
+	reg_w(gspca_dev, sd->reg08, ZC3XX_R008_CLOCKSETTING);
+	mutex_unlock(&gspca_dev->usb_lock);
+
+	good = 0;
+	for (;;) {
+		msleep(100);
+
+		/* get the transfer status */
+		/* the bit 0 of the bridge register 11 indicates overflow */
+		mutex_lock(&gspca_dev->usb_lock);
+		if (!gspca_dev->present || !gspca_dev->streaming)
+			goto err;
+		reg11 = reg_r(gspca_dev, 0x0011);
+		if (gspca_dev->usb_err < 0
+		 || !gspca_dev->present || !gspca_dev->streaming)
+			goto err;
+
+		change = reg11 & 0x01;
+		if (change) {				/* overflow */
+			switch (reg07) {
+			case 0:				/* max */
+				reg07 = sd->sensor == SENSOR_HV7131R
+						? 0x30 : 0x32;
+				if (sd->reg08 != 0) {
+					change = 3;
+					sd->reg08--;
+				}
+				break;
+			case 0x32:
+				reg07 -= 4;
+				break;
+			default:
+				reg07 -= 2;
+				break;
+			case 2:
+				change = 0;		/* already min */
+				break;
+			}
+			good = 0;
+		} else {				/* no overflow */
+			if (reg07 != 0) {		/* if not max */
+				good++;
+				if (good >= 10) {
+					good = 0;
+					change = 1;
+					reg07 += 2;
+					switch (reg07) {
+					case 0x30:
+						if (sd->sensor == SENSOR_PAS202B)
+							reg07 += 2;
+						break;
+					case 0x32:
+					case 0x34:
+						reg07 = 0;
+						break;
+					}
+				}
+			} else {			/* reg07 max */
+				if (sd->reg08 < sizeof jpeg_qual - 1) {
+					good++;
+					if (good > 10) {
+						sd->reg08++;
+						change = 2;
+					}
+				}
+			}
+		}
+		if (change) {
+			if (change & 1) {
+				reg_w(gspca_dev, reg07, 0x0007);
+				if (gspca_dev->usb_err < 0
+				 || !gspca_dev->present
+				 || !gspca_dev->streaming)
+					goto err;
+			}
+			if (change & 2) {
+				reg_w(gspca_dev, sd->reg08,
+						ZC3XX_R008_CLOCKSETTING);
+				if (gspca_dev->usb_err < 0
+				 || !gspca_dev->present
+				 || !gspca_dev->streaming)
+					goto err;
+				jpeg_set_qual(sd->jpeg_hdr,
+						jpeg_qual[sd->reg08]);
+			}
+		}
+		mutex_unlock(&gspca_dev->usb_lock);
+	}
+	return;
+err:
+	mutex_unlock(&gspca_dev->usb_lock);
 }
 
 static void send_unknown(struct gspca_dev *gspca_dev, int sensor)
@@ -6397,6 +6511,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	gspca_dev->cam.ctrls = sd->ctrls;
 	sd->reg08 = REG08_DEF;
+
+	INIT_WORK(&sd->work, transfer_update);
 
 	return 0;
 }
@@ -6807,6 +6923,18 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 
 	setautogain(gspca_dev);
+
+	/* start the transfer update thread if needed */
+	if (gspca_dev->usb_err >= 0) {
+		switch (sd->sensor) {
+		case SENSOR_HV7131R:
+		case SENSOR_PAS202B:
+			sd->work_thread = create_singlethread_workqueue(MODULE_NAME);
+			queue_work(sd->work_thread, &sd->work);
+			break;
+		}
+	}
+
 	return gspca_dev->usb_err;
 }
 
@@ -6815,6 +6943,12 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	if (sd->work_thread != NULL) {
+		mutex_unlock(&gspca_dev->usb_lock);
+		destroy_workqueue(sd->work_thread);
+		mutex_lock(&gspca_dev->usb_lock);
+		sd->work_thread = NULL;
+	}
 	if (!gspca_dev->present)
 		return;
 	send_unknown(gspca_dev, sd->sensor);
