@@ -767,52 +767,29 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 		sd->autogain_ignore_frames = PAC_AUTOGAIN_IGNORE_FRAMES;
 }
 
-/* JPEG header, part 1 */
-static const unsigned char pac_jpeg_header1[] = {
-  0xff, 0xd8,		/* SOI: Start of Image */
+/* JPEG header */
+static const u8 jpeg_header[] = {
+	0xff, 0xd8,	/* SOI: Start of Image */
 
-  0xff, 0xc0,		/* SOF0: Start of Frame (Baseline DCT) */
-  0x00, 0x11,		/* length = 17 bytes (including this length field) */
-  0x08			/* Precision: 8 */
-  /* 2 bytes is placed here: number of image lines */
-  /* 2 bytes is placed here: samples per line */
+	0xff, 0xc0,	/* SOF0: Start of Frame (Baseline DCT) */
+	0x00, 0x11,	/* length = 17 bytes (including this length field) */
+	0x08,		/* Precision: 8 */
+	0x02, 0x80,	/* height = 640 (image rotated) */
+	0x01, 0xe0,	/* width = 480 */
+	0x03,		/* Number of image components: 3 */
+	0x01, 0x21, 0x00, /* ID=1, Subsampling 1x1, Quantization table: 0 */
+	0x02, 0x11, 0x01, /* ID=2, Subsampling 2x1, Quantization table: 1 */
+	0x03, 0x11, 0x01, /* ID=3, Subsampling 2x1, Quantization table: 1 */
+
+	0xff, 0xda,	/* SOS: Start Of Scan */
+	0x00, 0x0c,	/* length = 12 bytes (including this length field) */
+	0x03,		/* number of components: 3 */
+	0x01, 0x00,	/* selector 1, table 0x00 */
+	0x02, 0x11,	/* selector 2, table 0x11 */
+	0x03, 0x11,	/* selector 3, table 0x11 */
+	0x00, 0x3f,	/* Spectral selection: 0 .. 63 */
+	0x00		/* Successive approximation: 0 */
 };
-
-/* JPEG header, continued */
-static const unsigned char pac_jpeg_header2[] = {
-  0x03,			/* Number of image components: 3 */
-  0x01, 0x21, 0x00,	/* ID=1, Subsampling 1x1, Quantization table: 0 */
-  0x02, 0x11, 0x01,	/* ID=2, Subsampling 2x1, Quantization table: 1 */
-  0x03, 0x11, 0x01,	/* ID=3, Subsampling 2x1, Quantization table: 1 */
-
-  0xff, 0xda,		/* SOS: Start Of Scan */
-  0x00, 0x0c,		/* length = 12 bytes (including this length field) */
-  0x03,			/* number of components: 3 */
-  0x01, 0x00,		/* selector 1, table 0x00 */
-  0x02, 0x11,		/* selector 2, table 0x11 */
-  0x03, 0x11,		/* selector 3, table 0x11 */
-  0x00, 0x3f,		/* Spectral selection: 0 .. 63 */
-  0x00			/* Successive approximation: 0 */
-};
-
-static void pac_start_frame(struct gspca_dev *gspca_dev,
-		__u16 lines, __u16 samples_per_line)
-{
-	unsigned char tmpbuf[4];
-
-	gspca_frame_add(gspca_dev, FIRST_PACKET,
-		pac_jpeg_header1, sizeof(pac_jpeg_header1));
-
-	tmpbuf[0] = lines >> 8;
-	tmpbuf[1] = lines & 0xff;
-	tmpbuf[2] = samples_per_line >> 8;
-	tmpbuf[3] = samples_per_line & 0xff;
-
-	gspca_frame_add(gspca_dev, INTER_PACKET,
-		tmpbuf, sizeof(tmpbuf));
-	gspca_frame_add(gspca_dev, INTER_PACKET,
-		pac_jpeg_header2, sizeof(pac_jpeg_header2));
-}
 
 /* this function is run at interrupt level */
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -863,8 +840,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 		/* Start the new frame with the jpeg header */
 		/* The PAC7302 has the image rotated 90 degrees */
-		pac_start_frame(gspca_dev,
-			gspca_dev->width, gspca_dev->height);
+		gspca_frame_add(gspca_dev, FIRST_PACKET,
+				jpeg_header, sizeof jpeg_header);
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
