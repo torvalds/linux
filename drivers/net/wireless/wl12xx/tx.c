@@ -527,6 +527,7 @@ static struct sk_buff *wl12xx_lnk_skb_dequeue(struct wl1271 *wl,
 	if (skb) {
 		int q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 		spin_lock_irqsave(&wl->wl_lock, flags);
+		WARN_ON_ONCE(wl->tx_queue_count[q] <= 0);
 		wl->tx_queue_count[q]--;
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
 	}
@@ -602,6 +603,7 @@ static struct sk_buff *wl1271_skb_dequeue(struct wl1271 *wl)
 		skb = wl->dummy_packet;
 		q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 		spin_lock_irqsave(&wl->wl_lock, flags);
+		WARN_ON_ONCE(wl->tx_queue_count[q] <= 0);
 		wl->tx_queue_count[q]--;
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
 	}
@@ -959,7 +961,6 @@ void wl12xx_tx_reset_wlvif(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		else
 			wlvif->sta.ba_rx_bitmap = 0;
 
-		wl1271_tx_reset_link_queues(wl, i);
 		wl->links[i].allocated_pkts = 0;
 		wl->links[i].prev_freed_pkts = 0;
 	}
@@ -973,8 +974,14 @@ void wl12xx_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *info;
 
-	for (i = 0; i < NUM_TX_QUEUES; i++)
-		wl->tx_queue_count[i] = 0;
+	/* only reset the queues if something bad happened */
+	if (WARN_ON_ONCE(wl1271_tx_total_queue_count(wl) != 0)) {
+		for (i = 0; i < WL12XX_MAX_LINKS; i++)
+			wl1271_tx_reset_link_queues(wl, i);
+
+		for (i = 0; i < NUM_TX_QUEUES; i++)
+			wl->tx_queue_count[i] = 0;
+	}
 
 	wl->stopped_queues_map = 0;
 

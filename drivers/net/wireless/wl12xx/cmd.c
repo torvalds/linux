@@ -485,6 +485,13 @@ void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 	__clear_bit(*hlid, wl->links_map);
 	__clear_bit(*hlid, wlvif->links_map);
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+	/*
+	 * At this point op_tx() will not add more packets to the queues. We
+	 * can purge them.
+	 */
+	wl1271_tx_reset_link_queues(wl, *hlid);
+
 	*hlid = WL12XX_INVALID_LINK_ID;
 }
 
