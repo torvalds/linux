@@ -1,6 +1,6 @@
 /*
- * eeh.h
  * Copyright (C) 2001  Dave Engebretsen & Todd Inglett IBM Corporation.
+ * Copyright 2001-2012 IBM Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,8 +40,10 @@ extern int eeh_subsystem_enabled;
 #define EEH_MODE_RECOVERING    (1<<3)
 #define EEH_MODE_IRQ_DISABLED  (1<<4)
 
-/* Max number of EEH freezes allowed before we consider the device
- * to be permanently disabled. */
+/*
+ * Max number of EEH freezes allowed before we consider the device
+ * to be permanently disabled.
+ */
 #define EEH_MAX_ALLOWED_FREEZES 5
 
 void __init eeh_init(void);
@@ -49,26 +51,8 @@ unsigned long eeh_check_failure(const volatile void __iomem *token,
 				unsigned long val);
 int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev);
 void __init pci_addr_cache_build(void);
-
-/**
- * eeh_add_device_early
- * eeh_add_device_late
- *
- * Perform eeh initialization for devices added after boot.
- * Call eeh_add_device_early before doing any i/o to the
- * device (including config space i/o).  Call eeh_add_device_late
- * to finish the eeh setup for this device.
- */
 void eeh_add_device_tree_early(struct device_node *);
 void eeh_add_device_tree_late(struct pci_bus *);
-
-/**
- * eeh_remove_device_recursive - undo EEH for device & children.
- * @dev: pci device to be removed
- *
- * As above, this removes the device; it also removes child
- * pci devices as well.
- */
 void eeh_remove_bus_device(struct pci_dev *);
 
 /**
