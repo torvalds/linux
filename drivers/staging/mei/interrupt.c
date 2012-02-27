@@ -1280,7 +1280,7 @@ static int mei_irq_thread_write_handler(struct mei_io_list *cmpl_list,
 		}
 	}
 	if (dev->stop)
-		return ~ENODEV;
+		return -ENODEV;
 
 	/* complete control write list CB */
 	dev_dbg(&dev->pdev->dev, "complete control write list cb.\n");
