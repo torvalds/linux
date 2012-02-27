@@ -282,7 +282,7 @@ static int eeh_reset_device (struct pci_dn *pe_dn, struct pci_bus *bus)
 	/* Reset the pci controller. (Asserts RST#; resets config space).
 	 * Reconfigure bridges and devices. Don't try to bring the system
 	 * up if the reset failed for some reason. */
-	rc = rtas_set_slot_reset(pe_dn);
+	rc = eeh_reset_pe(pe_dn);
 	if (rc)
 		return rc;
 
@@ -295,7 +295,7 @@ static int eeh_reset_device (struct pci_dn *pe_dn, struct pci_bus *bus)
 		struct pci_dn *ppe = PCI_DN(dn);
 		/* On Power4, always true because eeh_pe_config_addr=0 */
 		if (pe_dn->eeh_pe_config_addr == ppe->eeh_pe_config_addr) {
-			rtas_configure_bridge(ppe);
+			eeh_configure_bridge(ppe);
 			eeh_restore_bars(ppe);
  		}
 		dn = dn->sibling;
@@ -330,7 +330,7 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	enum pci_ers_result result = PCI_ERS_RESULT_NONE;
 	const char *location, *pci_str, *drv_str, *bus_pci_str, *bus_drv_str;
 
-	frozen_dn = find_device_pe(event->dn);
+	frozen_dn = eeh_find_device_pe(event->dn);
 	if (!frozen_dn) {
 
 		location = of_get_property(event->dn, "ibm,loc-code", NULL);
@@ -422,7 +422,7 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 
 	/* If all devices reported they can proceed, then re-enable MMIO */
 	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
-		rc = rtas_pci_enable(frozen_pdn, EEH_THAW_MMIO);
+		rc = eeh_pci_enable(frozen_pdn, EEH_THAW_MMIO);
 
 		if (rc < 0)
 			goto hard_fail;
@@ -436,7 +436,7 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 
 	/* If all devices reported they can proceed, then re-enable DMA */
 	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
-		rc = rtas_pci_enable(frozen_pdn, EEH_THAW_DMA);
+		rc = eeh_pci_enable(frozen_pdn, EEH_THAW_DMA);
 
 		if (rc < 0)
 			goto hard_fail;

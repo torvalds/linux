@@ -58,16 +58,16 @@ struct pci_dev *pci_get_device_by_addr(unsigned long addr);
 void eeh_slot_error_detail (struct pci_dn *pdn, int severity);
 #define EEH_THAW_MMIO 2
 #define EEH_THAW_DMA  3
-int rtas_pci_enable(struct pci_dn *pdn, int function);
-int rtas_set_slot_reset (struct pci_dn *);
+int eeh_pci_enable(struct pci_dn *pdn, int function);
+int eeh_reset_pe(struct pci_dn *);
 int eeh_wait_for_slot_status(struct pci_dn *pdn, int max_wait_msecs);
 void eeh_restore_bars(struct pci_dn *);
-void rtas_configure_bridge(struct pci_dn *);
+void eeh_configure_bridge(struct pci_dn *);
 int rtas_write_config(struct pci_dn *, int where, int size, u32 val);
 int rtas_read_config(struct pci_dn *, int where, int size, u32 *val);
 void eeh_mark_slot(struct device_node *dn, int mode_flag);
 void eeh_clear_slot(struct device_node *dn, int mode_flag);
-struct device_node *find_device_pe(struct device_node *dn);
+struct device_node *eeh_find_device_pe(struct device_node *dn);
 
 void eeh_sysfs_add_device(struct pci_dev *pdev);
 void eeh_sysfs_remove_device(struct pci_dev *pdev);
