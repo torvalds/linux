@@ -1050,7 +1050,7 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	 * exchange. Also set EOSP to indicate this packet
 	 * ends the poll/service period.
 	 */
-	info->flags |= IEEE80211_TX_CTL_POLL_RESPONSE |
+	info->flags |= IEEE80211_TX_CTL_NO_PS_BUFFER |
 		       IEEE80211_TX_STATUS_EOSP |
 		       IEEE80211_TX_CTL_REQ_TX_STATUS;
 
@@ -1177,7 +1177,7 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 			 * STA may still remain is PS mode after this frame
 			 * exchange.
 			 */
-			info->flags |= IEEE80211_TX_CTL_POLL_RESPONSE;
+			info->flags |= IEEE80211_TX_CTL_NO_PS_BUFFER;
 
 			/*
 			 * Use MoreData flag to indicate whether there are

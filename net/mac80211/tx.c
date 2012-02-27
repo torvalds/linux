@@ -448,17 +448,22 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 	struct ieee80211_local *local = tx->local;
 
-	if (unlikely(!sta ||
-		     ieee80211_is_probe_resp(hdr->frame_control) ||
-		     ieee80211_is_auth(hdr->frame_control) ||
-		     ieee80211_is_assoc_resp(hdr->frame_control) ||
-		     ieee80211_is_reassoc_resp(hdr->frame_control)))
+	if (unlikely(!sta))
 		return TX_CONTINUE;
 
 	if (unlikely((test_sta_flag(sta, WLAN_STA_PS_STA) ||
 		      test_sta_flag(sta, WLAN_STA_PS_DRIVER)) &&
-		     !(info->flags & IEEE80211_TX_CTL_POLL_RESPONSE))) {
+		     !(info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER))) {
 		int ac = skb_get_queue_mapping(tx->skb);
+
+		/* only deauth, disassoc and action are bufferable MMPDUs */
+		if (ieee80211_is_mgmt(hdr->frame_control) &&
+		    !ieee80211_is_deauth(hdr->frame_control) &&
+		    !ieee80211_is_disassoc(hdr->frame_control) &&
+		    !ieee80211_is_action(hdr->frame_control)) {
+			info->flags |= IEEE80211_TX_CTL_NO_PS_BUFFER;
+			return TX_CONTINUE;
+		}
 
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "STA %pM aid %d: PS buffer for AC %d\n",

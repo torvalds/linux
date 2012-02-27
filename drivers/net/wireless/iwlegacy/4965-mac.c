@@ -1693,7 +1693,7 @@ il4965_tx_skb(struct il_priv *il, struct sk_buff *skb)
 		sta_priv = (void *)sta->drv_priv;
 
 	if (sta_priv && sta_priv->asleep &&
-	    (info->flags & IEEE80211_TX_CTL_POLL_RESPONSE)) {
+	    (info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER)) {
 		/*
 		 * This sends an asynchronous command to the device,
 		 * but we can rely on it being processed before the
