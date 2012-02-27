@@ -956,11 +956,6 @@ enum il4965_chain_noise_state {
 	IL_CHAIN_NOISE_DONE,
 };
 
-enum il4965_calib_enabled_state {
-	IL_CALIB_DISABLED = 0,	/* must be 0 */
-	IL_CALIB_ENABLED = 1,
-};
-
 enum ucode_type {
 	UCODE_NONE = 0,
 	UCODE_INIT,
