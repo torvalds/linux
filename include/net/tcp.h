@@ -1364,8 +1364,9 @@ static inline void tcp_push_pending_frames(struct sock *sk)
 	}
 }
 
-/* Start sequence of the highest skb with SACKed bit, valid only if
- * sacked > 0 or when the caller has ensured validity by itself.
+/* Start sequence of the skb just after the highest skb with SACKed
+ * bit, valid only if sacked_out > 0 or when the caller has ensured
+ * validity by itself.
  */
 static inline u32 tcp_highest_sack_seq(struct tcp_sock *tp)
 {
