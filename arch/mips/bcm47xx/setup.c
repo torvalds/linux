@@ -3,7 +3,7 @@
  *  Copyright (C) 2006 Felix Fietkau <nbd@openwrt.org>
  *  Copyright (C) 2006 Michael Buesch <m@bues.ch>
  *  Copyright (C) 2010 Waldemar Brodkorb <wbx@openadk.org>
- *  Copyright (C) 2010-2011 Hauke Mehrtens <hauke@hauke-m.de>
+ *  Copyright (C) 2010-2012 Hauke Mehrtens <hauke@hauke-m.de>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -85,7 +85,7 @@ static void bcm47xx_machine_halt(void)
 }
 
 #ifdef CONFIG_BCM47XX_SSB
-static int bcm47xx_get_sprom(struct ssb_bus *bus, struct ssb_sprom *out)
+static int bcm47xx_get_sprom_ssb(struct ssb_bus *bus, struct ssb_sprom *out)
 {
 	char prefix[10];
 
@@ -102,7 +102,7 @@ static int bcm47xx_get_sprom(struct ssb_bus *bus, struct ssb_sprom *out)
 }
 
 static int bcm47xx_get_invariants(struct ssb_bus *bus,
-				   struct ssb_init_invariants *iv)
+				  struct ssb_init_invariants *iv)
 {
 	char buf[20];
 
@@ -132,7 +132,7 @@ static void __init bcm47xx_register_ssb(void)
 	char buf[100];
 	struct ssb_mipscore *mcore;
 
-	err = ssb_arch_register_fallback_sprom(&bcm47xx_get_sprom);
+	err = ssb_arch_register_fallback_sprom(&bcm47xx_get_sprom_ssb);
 	if (err)
 		printk(KERN_WARNING "bcm47xx: someone else already registered"
 			" a ssb SPROM callback handler (err %d)\n", err);
@@ -159,9 +159,40 @@ static void __init bcm47xx_register_ssb(void)
 #endif
 
 #ifdef CONFIG_BCM47XX_BCMA
+static int bcm47xx_get_sprom_bcma(struct bcma_bus *bus, struct ssb_sprom *out)
+{
+	char prefix[10];
+	struct bcma_device *core;
+
+	switch (bus->hosttype) {
+	case BCMA_HOSTTYPE_PCI:
+		snprintf(prefix, sizeof(prefix), "pci/%u/%u/",
+			 bus->host_pci->bus->number + 1,
+			 PCI_SLOT(bus->host_pci->devfn));
+		bcm47xx_fill_sprom(out, prefix);
+		return 0;
+	case BCMA_HOSTTYPE_SOC:
+		bcm47xx_fill_sprom_ethernet(out, NULL);
+		core = bcma_find_core(bus, BCMA_CORE_80211);
+		if (core) {
+			snprintf(prefix, sizeof(prefix), "sb/%u/",
+				 core->core_index);
+			bcm47xx_fill_sprom(out, prefix);
+		}
+		return 0;
+	default:
+		pr_warn("bcm47xx: unable to fill SPROM for given bustype.\n");
+		return -EINVAL;
+	}
+}
+
 static void __init bcm47xx_register_bcma(void)
 {
 	int err;
+
+	err = bcma_arch_register_fallback_sprom(&bcm47xx_get_sprom_bcma);
+	if (err)
+		pr_warn("bcm47xx: someone else already registered a bcma SPROM callback handler (err %d)\n", err);
 
 	err = bcma_host_soc_register(&bcm47xx_bus.bcma);
 	if (err)
