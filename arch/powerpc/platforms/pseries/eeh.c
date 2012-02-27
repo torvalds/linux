@@ -87,7 +87,6 @@
 #define PCI_BUS_RESET_WAIT_MSEC (60*1000)
 
 /* RTAS tokens */
-static int ibm_set_eeh_option;
 static int ibm_set_slot_reset;
 static int ibm_read_slot_reset_state;
 static int ibm_read_slot_reset_state2;
@@ -283,7 +282,7 @@ void eeh_slot_error_detail(struct pci_dn *pdn, int severity)
 	size_t loglen = 0;
 	pci_regs_buf[0] = 0;
 
-	eeh_pci_enable(pdn, EEH_THAW_MMIO);
+	eeh_pci_enable(pdn, EEH_OPT_THAW_MMIO);
 	eeh_configure_bridge(pdn);
 	eeh_restore_bars(pdn);
 	loglen = eeh_gather_pci_data(pdn, pci_regs_buf, EEH_PCI_REGS_LOG_LEN);
@@ -698,26 +697,15 @@ EXPORT_SYMBOL(eeh_check_failure);
  */
 int eeh_pci_enable(struct pci_dn *pdn, int function)
 {
-	int config_addr;
 	int rc;
 
-	/* Use PE configuration address, if present */
-	config_addr = pdn->eeh_config_addr;
-	if (pdn->eeh_pe_config_addr)
-		config_addr = pdn->eeh_pe_config_addr;
-
-	rc = rtas_call(ibm_set_eeh_option, 4, 1, NULL,
-	               config_addr,
-	               BUID_HI(pdn->phb->buid),
-	               BUID_LO(pdn->phb->buid),
-		            function);
-
+	rc = eeh_ops->set_option(pdn->node, function);
 	if (rc)
 		printk(KERN_WARNING "EEH: Unexpected state change %d, err=%d dn=%s\n",
 		        function, rc, pdn->node->full_name);
 
 	rc = eeh_wait_for_slot_status(pdn, PCI_BUS_RESET_WAIT_MSEC);
-	if ((rc == 4) && (function == EEH_THAW_MMIO))
+	if ((rc == 4) && (function == EEH_OPT_THAW_MMIO))
 		return 0;
 
 	return rc;
@@ -1158,9 +1146,7 @@ static void *eeh_early_enable(struct device_node *dn, void *data)
 	if (regs) {
 		/* First register entry is addr (00BBSS00)  */
 		/* Try to enable eeh */
-		ret = rtas_call(ibm_set_eeh_option, 4, 1, NULL,
-		                regs[0], info->buid_hi, info->buid_lo,
-		                EEH_ENABLE);
+		ret = eeh_ops->set_option(dn, EEH_OPT_ENABLE);
 
 		enable = 0;
 		if (ret == 0) {
@@ -1299,7 +1285,6 @@ void __init eeh_init(void)
 	if (np == NULL)
 		return;
 
-	ibm_set_eeh_option = rtas_token("ibm,set-eeh-option");
 	ibm_set_slot_reset = rtas_token("ibm,set-slot-reset");
 	ibm_read_slot_reset_state2 = rtas_token("ibm,read-slot-reset-state2");
 	ibm_read_slot_reset_state = rtas_token("ibm,read-slot-reset-state");
@@ -1308,9 +1293,6 @@ void __init eeh_init(void)
 	ibm_get_config_addr_info2 = rtas_token("ibm,get-config-addr-info2");
 	ibm_configure_bridge = rtas_token("ibm,configure-bridge");
 	ibm_configure_pe = rtas_token("ibm,configure-pe");
-
-	if (ibm_set_eeh_option == RTAS_UNKNOWN_SERVICE)
-		return;
 
 	eeh_error_buf_size = rtas_token("rtas-error-log-max");
 	if (eeh_error_buf_size == RTAS_UNKNOWN_SERVICE) {

@@ -56,8 +56,6 @@ struct pci_dev *pci_get_device_by_addr(unsigned long addr);
 #define EEH_LOG_TEMP_FAILURE 1
 #define EEH_LOG_PERM_FAILURE 2
 void eeh_slot_error_detail (struct pci_dn *pdn, int severity);
-#define EEH_THAW_MMIO 2
-#define EEH_THAW_DMA  3
 int eeh_pci_enable(struct pci_dn *pdn, int function);
 int eeh_reset_pe(struct pci_dn *);
 int eeh_wait_for_slot_status(struct pci_dn *pdn, int max_wait_msecs);

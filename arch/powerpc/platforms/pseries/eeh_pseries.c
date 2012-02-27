@@ -121,7 +121,44 @@ static int pseries_eeh_init(void)
  */
 static int pseries_eeh_set_option(struct device_node *dn, int option)
 {
-	return 0;
+	int ret = 0;
+	struct pci_dn *pdn;
+	const u32 *reg;
+	int config_addr;
+
+	pdn = PCI_DN(dn);
+
+	/*
+	 * When we're enabling or disabling EEH functioality on
+	 * the particular PE, the PE config address is possibly
+	 * unavailable. Therefore, we have to figure it out from
+	 * the FDT node.
+	 */
+	switch (option) {
+	case EEH_OPT_DISABLE:
+	case EEH_OPT_ENABLE:
+		reg = of_get_property(dn, "reg", NULL);
+		config_addr = reg[0];
+		break;
+
+	case EEH_OPT_THAW_MMIO:
+	case EEH_OPT_THAW_DMA:
+		config_addr = pdn->eeh_config_addr;
+		if (pdn->eeh_pe_config_addr)
+			config_addr = pdn->eeh_pe_config_addr;
+		break;
+
+	default:
+		pr_err("%s: Invalid option %d\n",
+			__func__, option);
+		return -EINVAL;
+	}
+
+	ret = rtas_call(ibm_set_eeh_option, 4, 1, NULL,
+			config_addr, BUID_HI(pdn->phb->buid),
+			BUID_LO(pdn->phb->buid), option);
+
+	return ret;
 }
 
 /**

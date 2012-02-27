@@ -38,6 +38,10 @@ struct device_node;
  * platform should register its own EEH operation callback
  * functions before any EEH further operations.
  */
+#define EEH_OPT_DISABLE		0	/* EEH disable	*/
+#define EEH_OPT_ENABLE		1	/* EEH enable	*/
+#define EEH_OPT_THAW_MMIO	2	/* MMIO enable	*/
+#define EEH_OPT_THAW_DMA	3	/* DMA enable	*/
 struct eeh_ops {
 	char *name;
 	int (*init)(void);

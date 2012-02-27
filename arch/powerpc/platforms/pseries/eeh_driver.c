@@ -422,7 +422,7 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 
 	/* If all devices reported they can proceed, then re-enable MMIO */
 	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
-		rc = eeh_pci_enable(frozen_pdn, EEH_THAW_MMIO);
+		rc = eeh_pci_enable(frozen_pdn, EEH_OPT_THAW_MMIO);
 
 		if (rc < 0)
 			goto hard_fail;
@@ -436,7 +436,7 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 
 	/* If all devices reported they can proceed, then re-enable DMA */
 	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
-		rc = eeh_pci_enable(frozen_pdn, EEH_THAW_DMA);
+		rc = eeh_pci_enable(frozen_pdn, EEH_OPT_THAW_DMA);
 
 		if (rc < 0)
 			goto hard_fail;
