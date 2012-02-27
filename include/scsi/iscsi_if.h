@@ -61,6 +61,8 @@ enum iscsi_uevent_e {
 	ISCSI_UEVENT_PATH_UPDATE	= UEVENT_BASE + 20,
 	ISCSI_UEVENT_SET_IFACE_PARAMS	= UEVENT_BASE + 21,
 	ISCSI_UEVENT_PING		= UEVENT_BASE + 22,
+	ISCSI_UEVENT_GET_CHAP		= UEVENT_BASE + 23,
+	ISCSI_UEVENT_DELETE_CHAP	= UEVENT_BASE + 24,
 
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
@@ -196,6 +198,18 @@ struct iscsi_uevent {
 			uint32_t	pid;	/* unique ping id associated
 						   with each ping request */
 		} iscsi_ping;
+		struct msg_get_chap {
+			uint32_t	host_no;
+			uint32_t	num_entries; /* number of CHAP entries
+						      * on request, number of
+						      * valid CHAP entries on
+						      * response */
+			uint16_t	chap_tbl_idx;
+		} get_chap;
+		struct msg_delete_chap {
+		       uint32_t        host_no;
+		       uint16_t        chap_tbl_idx;
+		} delete_chap;
 	} u;
 	union {
 		/* messages k -> u */
@@ -547,5 +561,20 @@ struct iscsi_stats {
 	struct iscsi_stats_custom custom[0]
 		__attribute__ ((aligned (sizeof(uint64_t))));
 };
+
+enum chap_type_e {
+	CHAP_TYPE_OUT,
+	CHAP_TYPE_IN,
+};
+
+#define ISCSI_CHAP_AUTH_NAME_MAX_LEN	256
+#define ISCSI_CHAP_AUTH_SECRET_MAX_LEN	256
+struct iscsi_chap_rec {
+	uint16_t chap_tbl_idx;
+	enum chap_type_e chap_type;
+	char username[ISCSI_CHAP_AUTH_NAME_MAX_LEN];
+	uint8_t password[ISCSI_CHAP_AUTH_SECRET_MAX_LEN];
+	uint8_t password_length;
+} __packed;
 
 #endif

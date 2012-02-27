@@ -147,6 +147,9 @@ struct iscsi_transport {
 	int (*send_ping) (struct Scsi_Host *shost, uint32_t iface_num,
 			  uint32_t iface_type, uint32_t payload_size,
 			  uint32_t pid, struct sockaddr *dst_addr);
+	int (*get_chap) (struct Scsi_Host *shost, uint16_t chap_tbl_idx,
+			 uint32_t *num_entries, char *buf);
+	int (*delete_chap) (struct Scsi_Host *shost, uint16_t chap_tbl_idx);
 };
 
 /*
@@ -325,5 +328,6 @@ extern void iscsi_destroy_iface(struct iscsi_iface *iface);
 extern struct iscsi_iface *iscsi_lookup_iface(int handle);
 extern char *iscsi_get_port_speed_name(struct Scsi_Host *shost);
 extern char *iscsi_get_port_state_name(struct Scsi_Host *shost);
+extern int iscsi_is_session_dev(const struct device *dev);
 
 #endif
