@@ -275,6 +275,9 @@ void __init find_and_init_phbs(void)
 	of_node_put(root);
 	pci_devs_phb_init();
 
+	/* Create EEH devices for all PHBs */
+	eeh_dev_phb_init();
+
 	/*
 	 * pci_probe_only and pci_assign_all_buses can be set via properties
 	 * in chosen.

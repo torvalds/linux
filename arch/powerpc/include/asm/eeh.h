@@ -32,6 +32,43 @@ struct device_node;
 #ifdef CONFIG_EEH
 
 /*
+ * The struct is used to trace EEH state for the associated
+ * PCI device node or PCI device. In future, it might
+ * represent PE as well so that the EEH device to form
+ * another tree except the currently existing tree of PCI
+ * buses and PCI devices
+ */
+#define EEH_MODE_SUPPORTED	(1<<0)	/* EEH supported on the device	*/
+#define EEH_MODE_NOCHECK	(1<<1)	/* EEH check should be skipped	*/
+#define EEH_MODE_ISOLATED	(1<<2)	/* The device has been isolated	*/
+#define EEH_MODE_RECOVERING	(1<<3)	/* Recovering the device	*/
+#define EEH_MODE_IRQ_DISABLED	(1<<4)	/* Interrupt disabled		*/
+
+struct eeh_dev {
+	int mode;			/* EEH mode			*/
+	int class_code;			/* Class code of the device	*/
+	int config_addr;		/* Config address		*/
+	int pe_config_addr;		/* PE config address		*/
+	int check_count;		/* Times of ignored error	*/
+	int freeze_count;		/* Times of froze up		*/
+	int false_positives;		/* Times of reported #ff's	*/
+	u32 config_space[16];		/* Saved PCI config space	*/
+	struct pci_controller *phb;	/* Associated PHB		*/
+	struct device_node *dn;		/* Associated device node	*/
+	struct pci_dev *pdev;		/* Associated PCI device	*/
+};
+
+static inline struct device_node *eeh_dev_to_of_node(struct eeh_dev *edev)
+{
+	return edev->dn;
+}
+
+static inline struct pci_dev *eeh_dev_to_pci_dev(struct eeh_dev *edev)
+{
+	return edev->pdev;
+}
+
+/*
  * The struct is used to trace the registered EEH operation
  * callback functions. Actually, those operation callback
  * functions are heavily platform dependent. That means the
@@ -70,19 +107,15 @@ struct eeh_ops {
 extern struct eeh_ops *eeh_ops;
 extern int eeh_subsystem_enabled;
 
-/* Values for eeh_mode bits in device_node */
-#define EEH_MODE_SUPPORTED     (1<<0)
-#define EEH_MODE_NOCHECK       (1<<1)
-#define EEH_MODE_ISOLATED      (1<<2)
-#define EEH_MODE_RECOVERING    (1<<3)
-#define EEH_MODE_IRQ_DISABLED  (1<<4)
-
 /*
  * Max number of EEH freezes allowed before we consider the device
  * to be permanently disabled.
  */
 #define EEH_MAX_ALLOWED_FREEZES 5
 
+void * __devinit eeh_dev_init(struct device_node *dn, void *data);
+void __devinit eeh_dev_phb_init_dynamic(struct pci_controller *phb);
+void __init eeh_dev_phb_init(void);
 void __init eeh_init(void);
 #ifdef CONFIG_PPC_PSERIES
 int __init eeh_pseries_init(void);
@@ -113,6 +146,16 @@ void eeh_remove_bus_device(struct pci_dev *);
 #define EEH_IO_ERROR_VALUE(size)	(~0U >> ((4 - (size)) * 8))
 
 #else /* !CONFIG_EEH */
+
+static inline void *eeh_dev_init(struct device_node *dn, void *data)
+{
+	return NULL;
+}
+
+static inline void eeh_dev_phb_init_dynamic(struct pci_controller *phb) { }
+
+static inline void eeh_dev_phb_init(void) { }
+
 static inline void eeh_init(void) { }
 
 #ifdef CONFIG_PPC_PSERIES
