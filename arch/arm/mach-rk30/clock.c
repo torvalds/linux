@@ -98,3 +98,14 @@ unsigned long clk_get_rate(struct clk *clk)
 	return 24000000;
 }
 EXPORT_SYMBOL(clk_get_rate);
+
+int clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	int ret = -EINVAL;
+
+	if (clk == NULL || IS_ERR(clk))
+		return ret;
+
+	return ret;
+}
+EXPORT_SYMBOL(clk_set_rate);
