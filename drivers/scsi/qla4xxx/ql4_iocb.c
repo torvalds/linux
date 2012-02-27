@@ -458,8 +458,8 @@ static struct mrb *qla4xxx_get_new_mrb(struct scsi_qla_host *ha)
 	return mrb;
 }
 
-int qla4xxx_send_mbox_iocb(struct scsi_qla_host *ha, struct mrb *mrb,
-			   uint32_t *in_mbox)
+static int qla4xxx_send_mbox_iocb(struct scsi_qla_host *ha, struct mrb *mrb,
+				  uint32_t *in_mbox)
 {
 	int rval = QLA_SUCCESS;
 	uint32_t i;
