@@ -2175,7 +2175,7 @@ config IA32_AOUT
 	---help---
 	  Support old a.out binaries in the 32bit emulation.
 
-config X86_X32_ABI
+config X86_X32
 	bool "x32 ABI for 64-bit mode (EXPERIMENTAL)"
 	depends on X86_64 && IA32_EMULATION && EXPERIMENTAL
 	---help---
@@ -2190,7 +2190,7 @@ config X86_X32_ABI
 
 config COMPAT
 	def_bool y
-	depends on IA32_EMULATION || X86_X32_ABI
+	depends on IA32_EMULATION || X86_X32
 
 config COMPAT_FOR_U64_ALIGNMENT
 	def_bool COMPAT
