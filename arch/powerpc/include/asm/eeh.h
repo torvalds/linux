@@ -52,6 +52,8 @@ struct device_node;
 #define EEH_RESET_DEACTIVATE	0	/* Deactivate the PE reset	*/
 #define EEH_RESET_HOT		1	/* Hot reset			*/
 #define EEH_RESET_FUNDAMENTAL	3	/* Fundamental reset		*/
+#define EEH_LOG_TEMP		1	/* EEH temporary error log	*/
+#define EEH_LOG_PERM		2	/* EEH permanent error log	*/
 
 struct eeh_ops {
 	char *name;

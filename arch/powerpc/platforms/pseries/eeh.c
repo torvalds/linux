@@ -87,7 +87,6 @@
 #define PCI_BUS_RESET_WAIT_MSEC (60*1000)
 
 /* RTAS tokens */
-static int ibm_slot_error_detail;
 static int ibm_configure_bridge;
 static int ibm_configure_pe;
 
@@ -99,14 +98,6 @@ EXPORT_SYMBOL(eeh_subsystem_enabled);
 
 /* Lock to avoid races due to multiple reports of an error */
 static DEFINE_RAW_SPINLOCK(confirm_error_lock);
-
-/* Buffer for reporting slot-error-detail rtas calls. Its here
- * in BSS, and not dynamically alloced, so that it ends up in
- * RMO where RTAS can access it.
- */
-static unsigned char slot_errbuf[RTAS_ERROR_LOG_MAX];
-static DEFINE_SPINLOCK(slot_errbuf_lock);
-static int eeh_error_buf_size;
 
 /* Buffer for reporting pci register dumps. Its here in BSS, and
  * not dynamically alloced, so that it ends up in RMO where RTAS
@@ -125,46 +116,6 @@ static unsigned long false_positives;
 static unsigned long slot_resets;
 
 #define IS_BRIDGE(class_code) (((class_code)<<16) == PCI_BASE_CLASS_BRIDGE)
-
-/**
- * eeh_rtas_slot_error_detail - Retrieve error log through RTAS call
- * @pdn: device node
- * @severity: temporary or permanent error log
- * @driver_log: driver log to be combined with the retrieved error log
- * @loglen: length of driver log
- *
- * This routine should be called to retrieve error log through the dedicated
- * RTAS call.
- */
-static void eeh_rtas_slot_error_detail(struct pci_dn *pdn, int severity,
-                                   char *driver_log, size_t loglen)
-{
-	int config_addr;
-	unsigned long flags;
-	int rc;
-
-	/* Log the error with the rtas logger */
-	spin_lock_irqsave(&slot_errbuf_lock, flags);
-	memset(slot_errbuf, 0, eeh_error_buf_size);
-
-	/* Use PE configuration address, if present */
-	config_addr = pdn->eeh_config_addr;
-	if (pdn->eeh_pe_config_addr)
-		config_addr = pdn->eeh_pe_config_addr;
-
-	rc = rtas_call(ibm_slot_error_detail,
-	               8, 1, NULL, config_addr,
-	               BUID_HI(pdn->phb->buid),
-	               BUID_LO(pdn->phb->buid),
-	               virt_to_phys(driver_log), loglen,
-	               virt_to_phys(slot_errbuf),
-	               eeh_error_buf_size,
-	               severity);
-
-	if (rc == 0)
-		log_error(slot_errbuf, ERR_TYPE_RTAS_LOG, 0);
-	spin_unlock_irqrestore(&slot_errbuf_lock, flags);
-}
 
 /**
  * eeh_gather_pci_data - Copy assorted PCI config space registers to buff
@@ -282,7 +233,7 @@ void eeh_slot_error_detail(struct pci_dn *pdn, int severity)
 	eeh_restore_bars(pdn);
 	loglen = eeh_gather_pci_data(pdn, pci_regs_buf, EEH_PCI_REGS_LOG_LEN);
 
-	eeh_rtas_slot_error_detail(pdn, severity, pci_regs_buf, loglen);
+	eeh_ops->get_log(pdn->node, severity, pci_regs_buf, loglen);
 }
 
 /**
@@ -1071,25 +1022,13 @@ void __init eeh_init(void)
 	}
 
 	raw_spin_lock_init(&confirm_error_lock);
-	spin_lock_init(&slot_errbuf_lock);
 
 	np = of_find_node_by_path("/rtas");
 	if (np == NULL)
 		return;
 
-	ibm_slot_error_detail = rtas_token("ibm,slot-error-detail");
 	ibm_configure_bridge = rtas_token("ibm,configure-bridge");
 	ibm_configure_pe = rtas_token("ibm,configure-pe");
-
-	eeh_error_buf_size = rtas_token("rtas-error-log-max");
-	if (eeh_error_buf_size == RTAS_UNKNOWN_SERVICE) {
-		eeh_error_buf_size = 1024;
-	}
-	if (eeh_error_buf_size > RTAS_ERROR_LOG_MAX) {
-		printk(KERN_WARNING "EEH: rtas-error-log-max is bigger than allocated "
-		      "buffer ! (%d vs %d)", eeh_error_buf_size, RTAS_ERROR_LOG_MAX);
-		eeh_error_buf_size = RTAS_ERROR_LOG_MAX;
-	}
 
 	/* Enable EEH for all adapters.  Note that eeh requires buid's */
 	for (phb = of_find_node_by_name(NULL, "pci"); phb;

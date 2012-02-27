@@ -56,6 +56,15 @@ static int ibm_get_config_addr_info2;
 static int ibm_configure_bridge;
 static int ibm_configure_pe;
 
+/*
+ * Buffer for reporting slot-error-detail rtas calls. Its here
+ * in BSS, and not dynamically alloced, so that it ends up in
+ * RMO where RTAS can access it.
+ */
+static unsigned char slot_errbuf[RTAS_ERROR_LOG_MAX];
+static DEFINE_SPINLOCK(slot_errbuf_lock);
+static int eeh_error_buf_size;
+
 /**
  * pseries_eeh_init - EEH platform dependent initialization
  *
@@ -105,6 +114,19 @@ static int pseries_eeh_init(void)
 			"<ibm,configure-bridge> invalid\n",
 			__func__);
 		return -EINVAL;
+	}
+
+	/* Initialize error log lock and size */
+	spin_lock_init(&slot_errbuf_lock);
+	eeh_error_buf_size = rtas_token("rtas-error-log-max");
+	if (eeh_error_buf_size == RTAS_UNKNOWN_SERVICE) {
+		pr_warning("%s: unknown EEH error log size\n",
+			__func__);
+		eeh_error_buf_size = 1024;
+	} else if (eeh_error_buf_size > RTAS_ERROR_LOG_MAX) {
+		pr_warning("%s: EEH error log size %d exceeds the maximal %d\n",
+			__func__, eeh_error_buf_size, RTAS_ERROR_LOG_MAX);
+		eeh_error_buf_size = RTAS_ERROR_LOG_MAX;
 	}
 
 	return 0;
@@ -415,7 +437,30 @@ static int pseries_eeh_wait_state(struct device_node *dn, int max_wait)
  */
 static int pseries_eeh_get_log(struct device_node *dn, int severity, char *drv_log, unsigned long len)
 {
-	return 0;
+	struct pci_dn *pdn;
+	int config_addr;
+	unsigned long flags;
+	int ret;
+
+	pdn = PCI_DN(dn);
+	spin_lock_irqsave(&slot_errbuf_lock, flags);
+	memset(slot_errbuf, 0, eeh_error_buf_size);
+
+	/* Figure out the PE address */
+	config_addr = pdn->eeh_config_addr;
+	if (pdn->eeh_pe_config_addr)
+		config_addr = pdn->eeh_pe_config_addr;
+
+	ret = rtas_call(ibm_slot_error_detail, 8, 1, NULL, config_addr,
+			BUID_HI(pdn->phb->buid), BUID_LO(pdn->phb->buid),
+			virt_to_phys(drv_log), len,
+			virt_to_phys(slot_errbuf), eeh_error_buf_size,
+			severity);
+	if (!ret)
+		log_error(slot_errbuf, ERR_TYPE_RTAS_LOG, 0);
+	spin_unlock_irqrestore(&slot_errbuf_lock, flags);
+
+	return ret;
 }
 
 /**
