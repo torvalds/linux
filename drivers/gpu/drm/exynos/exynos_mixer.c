@@ -712,7 +712,12 @@ static void mixer_finish_pageflip(struct drm_device *drm_dev, int crtc)
 	}
 
 	if (is_checked)
-		drm_vblank_put(drm_dev, crtc);
+		/*
+		 * call drm_vblank_put only in case that drm_vblank_get was
+		 * called.
+		 */
+		if (atomic_read(&drm_dev->vblank_refcount[crtc]) > 0)
+			drm_vblank_put(drm_dev, crtc);
 
 	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
 }
@@ -779,15 +784,15 @@ static void mixer_win_reset(struct mixer_context *ctx)
 	mixer_reg_writemask(res, MXR_STATUS, MXR_STATUS_16_BURST,
 		MXR_STATUS_BURST_MASK);
 
-	/* setting default layer priority: layer1 > video > layer0
+	/* setting default layer priority: layer1 > layer0 > video
 	 * because typical usage scenario would be
+	 * layer1 - OSD
 	 * layer0 - framebuffer
 	 * video - video overlay
-	 * layer1 - OSD
 	 */
-	val  = MXR_LAYER_CFG_GRP0_VAL(1);
-	val |= MXR_LAYER_CFG_VP_VAL(2);
-	val |= MXR_LAYER_CFG_GRP1_VAL(3);
+	val = MXR_LAYER_CFG_GRP1_VAL(3);
+	val |= MXR_LAYER_CFG_GRP0_VAL(2);
+	val |= MXR_LAYER_CFG_VP_VAL(1);
 	mixer_reg_write(res, MXR_LAYER_CFG, val);
 
 	/* setting background color */
@@ -1044,7 +1049,7 @@ static int mixer_remove(struct platform_device *pdev)
 					platform_get_drvdata(pdev);
 	struct mixer_context *ctx = (struct mixer_context *)drm_hdmi_ctx->ctx;
 
-	dev_info(dev, "remove sucessful\n");
+	dev_info(dev, "remove successful\n");
 
 	mixer_resource_poweroff(ctx);
 	mixer_resources_cleanup(ctx);
