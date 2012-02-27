@@ -60,7 +60,7 @@ config IWL3945
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
 	  module will be called iwl3945.
 
-menu "Debugging Options"
+menu "iwl3945 / iwl4965 Debugging Options"
 	depends on IWLEGACY
 
 config IWLEGACY_DEBUG
