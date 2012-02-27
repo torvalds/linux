@@ -1,7 +1,7 @@
 /*
- * Z-Star/Vimicro zc301/zc302p/vc30x library
+ * Z-Star/Vimicro zc301/zc302p/vc30x driver
  *
- * Copyright (C) 2009-2011 Jean-Francois Moine <http://moinejf.free.fr>
+ * Copyright (C) 2009-2012 Jean-Francois Moine <http://moinejf.free.fr>
  * Copyright (C) 2004 2005 2006 Michel Xhaard mxhaard@magic.fr
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,8 +20,6 @@
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-#define MODULE_NAME "zc3xx"
 
 #include <linux/input.h>
 #include "gspca.h"
@@ -3897,7 +3895,6 @@ static const struct usb_action pas106b_Initial[] = {	/* 352x288 */
 /* Gains */
 	{0xa0, 0x20, ZC3XX_R1A9_DIGITALLIMITDIFF},
 	{0xa0, 0x26, ZC3XX_R1AA_DIGITALGAINSTEP},
-	{0xa0, 0xa0, ZC3XX_R11D_GLOBALGAIN},
 	{0xa0, 0x60, ZC3XX_R11D_GLOBALGAIN},
 /* Auto correction */
 	{0xa0, 0x40, ZC3XX_R180_AUTOCORRECTENABLE},
@@ -6628,7 +6625,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		case 0x0e:
 			PDEBUG(D_PROBE, "Find Sensor PAS202B");
 			sd->sensor = SENSOR_PAS202B;
-/*			sd->sharpness = 1; */
 			break;
 		case 0x0f:
 			PDEBUG(D_PROBE, "Find Sensor PAS106");
@@ -6907,7 +6903,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		switch (sd->sensor) {
 		case SENSOR_HV7131R:
 		case SENSOR_PAS202B:
-			sd->work_thread = create_singlethread_workqueue(MODULE_NAME);
+			sd->work_thread =
+				create_singlethread_workqueue(KBUILD_MODNAME);
 			queue_work(sd->work_thread, &sd->work);
 			break;
 		}
@@ -7053,7 +7050,7 @@ static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 #endif
 
 static const struct sd_desc sd_desc = {
-	.name = MODULE_NAME,
+	.name = KBUILD_MODNAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
@@ -7138,7 +7135,7 @@ static int sd_probe(struct usb_interface *intf,
 
 /* USB driver */
 static struct usb_driver sd_driver = {
-	.name = MODULE_NAME,
+	.name = KBUILD_MODNAME,
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
