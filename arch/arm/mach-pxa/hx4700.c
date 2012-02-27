@@ -704,10 +704,9 @@ static void hx4700_set_vpp(struct platform_device *pdev, int vpp)
 	gpio_set_value(GPIO91_HX4700_FLASH_VPEN, vpp);
 }
 
-static struct resource strataflash_resource = {
-	.start = PXA_CS0_PHYS,
-	.end   = PXA_CS0_PHYS + SZ_128M - 1,
-	.flags = IORESOURCE_MEM,
+static struct resource strataflash_resource[] = {
+	[0] = DEFINE_RES_MEM(PXA_CS0_PHYS, SZ_64M),
+	[1] = DEFINE_RES_MEM(PXA_CS0_PHYS + SZ_64M, SZ_64M),
 };
 
 static struct physmap_flash_data strataflash_data = {
@@ -718,8 +717,8 @@ static struct physmap_flash_data strataflash_data = {
 static struct platform_device strataflash = {
 	.name          = "physmap-flash",
 	.id            = -1,
-	.resource      = &strataflash_resource,
-	.num_resources = 1,
+	.resource      = strataflash_resource,
+	.num_resources = ARRAY_SIZE(strataflash_resource),
 	.dev = {
 		.platform_data = &strataflash_data,
 	},
