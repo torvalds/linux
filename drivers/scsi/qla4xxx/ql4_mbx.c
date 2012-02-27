@@ -1607,7 +1607,7 @@ int qla4xxx_set_param_ddbentry(struct scsi_qla_host *ha,
 	char *ip;
 	uint16_t iscsi_opts = 0;
 	uint32_t options = 0;
-	uint16_t idx;
+	uint16_t idx, *ptid;
 
 	fw_ddb_entry = dma_alloc_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
 					  &fw_ddb_entry_dma, GFP_KERNEL);
@@ -1632,6 +1632,14 @@ int qla4xxx_set_param_ddbentry(struct scsi_qla_host *ha,
 		rval = -EINVAL;
 		goto exit_set_param;
 	}
+
+	ptid = (uint16_t *)&fw_ddb_entry->isid[1];
+	*ptid = cpu_to_le16((uint16_t)ddb_entry->sess->target_id);
+
+	DEBUG2(ql4_printk(KERN_INFO, ha, "ISID [%02x%02x%02x%02x%02x%02x]\n",
+			  fw_ddb_entry->isid[5], fw_ddb_entry->isid[4],
+			  fw_ddb_entry->isid[3], fw_ddb_entry->isid[2],
+			  fw_ddb_entry->isid[1], fw_ddb_entry->isid[0]));
 
 	iscsi_opts = le16_to_cpu(fw_ddb_entry->iscsi_options);
 	memset(fw_ddb_entry->iscsi_alias, 0, sizeof(fw_ddb_entry->iscsi_alias));

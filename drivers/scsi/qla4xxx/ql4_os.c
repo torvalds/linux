@@ -4252,11 +4252,13 @@ static void qla4xxx_convert_param_ddb(struct dev_db_entry *fw_ddb_entry,
 		sprintf(tddb->ip_addr, "%pI4", fw_ddb_entry->ip_addr);
 
 	tddb->port = le16_to_cpu(fw_ddb_entry->port);
+	memcpy(&tddb->isid[0], &fw_ddb_entry->isid[0], sizeof(tddb->isid));
 }
 
 static int qla4xxx_compare_tuple_ddb(struct scsi_qla_host *ha,
 				     struct ql4_tuple_ddb *old_tddb,
-				     struct ql4_tuple_ddb *new_tddb)
+				     struct ql4_tuple_ddb *new_tddb,
+				     uint8_t is_isid_compare)
 {
 	if (strcmp(old_tddb->iscsi_name, new_tddb->iscsi_name))
 		return QLA_ERROR;
@@ -4266,6 +4268,26 @@ static int qla4xxx_compare_tuple_ddb(struct scsi_qla_host *ha,
 
 	if (old_tddb->port != new_tddb->port)
 		return QLA_ERROR;
+
+	/* For multi sessions, driver generates the ISID, so do not compare
+	 * ISID in reset path since it would be a comparision between the
+	 * driver generated ISID and firmware generated ISID. This could
+	 * lead to adding duplicated DDBs in the list as driver generated
+	 * ISID would not match firmware generated ISID.
+	 */
+	if (is_isid_compare) {
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: old ISID [%02x%02x%02x"
+			"%02x%02x%02x] New ISID [%02x%02x%02x%02x%02x%02x]\n",
+			__func__, old_tddb->isid[5], old_tddb->isid[4],
+			old_tddb->isid[3], old_tddb->isid[2], old_tddb->isid[1],
+			old_tddb->isid[0], new_tddb->isid[5], new_tddb->isid[4],
+			new_tddb->isid[3], new_tddb->isid[2], new_tddb->isid[1],
+			new_tddb->isid[0]));
+
+		if (memcmp(&old_tddb->isid[0], &new_tddb->isid[0],
+			   sizeof(old_tddb->isid)))
+			return QLA_ERROR;
+	}
 
 	DEBUG2(ql4_printk(KERN_INFO, ha,
 			  "Match Found, fw[%d,%d,%s,%s], [%d,%d,%s,%s]",
@@ -4309,7 +4331,7 @@ static int qla4xxx_is_session_exists(struct scsi_qla_host *ha,
 			continue;
 
 		qla4xxx_get_param_ddb(ddb_entry, tmp_tddb);
-		if (!qla4xxx_compare_tuple_ddb(ha, fw_tddb, tmp_tddb)) {
+		if (!qla4xxx_compare_tuple_ddb(ha, fw_tddb, tmp_tddb, false)) {
 			ret = QLA_SUCCESS; /* found */
 			goto exit_check;
 		}
@@ -4352,7 +4374,7 @@ static int qla4xxx_is_flash_ddb_exists(struct scsi_qla_host *ha,
 
 	list_for_each_entry_safe(nt_ddb_idx, nt_ddb_idx_tmp, list_nt, list) {
 		qla4xxx_convert_param_ddb(&nt_ddb_idx->fw_ddb, tmp_tddb);
-		if (!qla4xxx_compare_tuple_ddb(ha, fw_tddb, tmp_tddb)) {
+		if (!qla4xxx_compare_tuple_ddb(ha, fw_tddb, tmp_tddb, true)) {
 			ret = QLA_SUCCESS; /* found */
 			goto exit_check;
 		}

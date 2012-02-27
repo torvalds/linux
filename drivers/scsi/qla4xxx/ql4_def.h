@@ -291,6 +291,7 @@ struct ql4_tuple_ddb {
 	uint16_t options;
 #define DDB_OPT_IPV6 0x0e0e
 #define DDB_OPT_IPV4 0x0f0f
+	uint8_t isid[6];
 };
 
 /*
