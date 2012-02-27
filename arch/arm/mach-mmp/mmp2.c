@@ -223,6 +223,7 @@ struct resource mmp2_resource_gpio[] = {
 	}, {
 		.start	= IRQ_MMP2_GPIO,
 		.end	= IRQ_MMP2_GPIO,
+		.name	= "gpio_mux",
 		.flags	= IORESOURCE_IRQ,
 	},
 };
