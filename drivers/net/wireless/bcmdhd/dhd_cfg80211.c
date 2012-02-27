@@ -33,6 +33,12 @@
 extern struct wl_priv *wlcfg_drv_priv;
 static int dhd_dongle_up = FALSE;
 
+#include <dngl_stats.h>
+#include <dhd.h>
+#include <dhdioctl.h>
+#include <wlioctl.h>
+#include <dhd_cfg80211.h>
+
 static s32 wl_dongle_up(struct net_device *ndev, u32 up);
 
 /**
@@ -57,6 +63,22 @@ s32 dhd_cfg80211_down(struct wl_priv *wl)
 	return 0;
 }
 
+s32 dhd_cfg80211_set_p2p_info(struct wl_priv *wl, int val)
+{
+	dhd_pub_t *dhd =  (dhd_pub_t *)(wl->pub);
+	dhd->op_mode |= val;
+	WL_ERR(("Set : op_mode=%d\n", dhd->op_mode));
+	return 0;
+}
+
+s32 dhd_cfg80211_clean_p2p_info(struct wl_priv *wl)
+{
+	dhd_pub_t *dhd =  (dhd_pub_t *)(wl->pub);
+	dhd->op_mode &= ~CONCURENT_MASK;
+	WL_ERR(("Clean : op_mode=%d\n", dhd->op_mode));
+	return 0;
+}
+
 static s32 wl_dongle_up(struct net_device *ndev, u32 up)
 {
 	s32 err = 0;
@@ -67,6 +89,7 @@ static s32 wl_dongle_up(struct net_device *ndev, u32 up)
 	}
 	return err;
 }
+
 s32 dhd_config_dongle(struct wl_priv *wl, bool need_lock)
 {
 #ifndef DHD_SDALIGN

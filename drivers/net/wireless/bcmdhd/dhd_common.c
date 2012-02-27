@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c 307573 2012-01-12 00:04:39Z $
+ * $Id: dhd_common.c 316272 2012-02-21 22:35:51Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -134,7 +134,7 @@ enum {
 };
 
 const bcm_iovar_t dhd_iovars[] = {
-	{"version", 	IOV_VERSION,	0,	IOVT_BUFFER,	sizeof(dhd_version) },
+	{"version",	IOV_VERSION,	0,	IOVT_BUFFER,	sizeof(dhd_version) },
 #ifdef DHD_DEBUG
 	{"msglevel",	IOV_MSGLEVEL,	0,	IOVT_UINT32,	0 },
 #endif /* DHD_DEBUG */
@@ -1814,10 +1814,21 @@ exit:
 bool dhd_check_ap_wfd_mode_set(dhd_pub_t *dhd)
 {
 #ifdef  WL_CFG80211
+#ifndef ENABLE_P2P_INTERFACE
+	/* To be back compatble with ICS MR1 release where p2p interface disable but wlan0 used for p2p */
 	if (((dhd->op_mode & HOSTAPD_MASK) == HOSTAPD_MASK) ||
 		((dhd->op_mode & WFD_MASK) == WFD_MASK))
 		return TRUE;
 	else
+#else
+	/* concurent mode with p2p interface for wfd and wlan0 for sta */
+	if (((dhd->op_mode & P2P_GO_ENABLED) == P2P_GO_ENABLED) ||
+		((dhd->op_mode & P2P_GC_ENABLED) == P2P_GC_ENABLED)) {
+		DHD_ERROR(("%s P2P enabled for  mode=%d\n", __FUNCTION__, dhd->op_mode));
+		return TRUE;
+	}
+	else
+#endif
 #endif /* WL_CFG80211 */
 		return FALSE;
 }
@@ -2059,6 +2070,7 @@ int dhd_keep_alive_onoff(dhd_pub_t *dhd)
 	return res;
 }
 #endif /* defined(KEEP_ALIVE) */
+
 /* Android ComboSCAN support */
 
 /*

@@ -658,9 +658,5 @@ extern int wl_cfg80211_hang(struct net_device *dev, u16 reason);
 extern s32 wl_mode_to_nl80211_iftype(s32 mode);
 int wl_cfg80211_do_driver_init(struct net_device *net);
 void wl_cfg80211_enable_trace(int level);
-
-/* do scan abort */
-extern s32 wl_cfg80211_scan_abort(struct wl_priv *wl, struct net_device *ndev);
-
 extern s32 wl_cfg80211_if_is_group_owner(void);
 #endif				/* _wl_cfg80211_h_ */

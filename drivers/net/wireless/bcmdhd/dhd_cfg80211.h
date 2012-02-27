@@ -34,6 +34,8 @@
 s32 dhd_cfg80211_init(struct wl_priv *wl);
 s32 dhd_cfg80211_deinit(struct wl_priv *wl);
 s32 dhd_cfg80211_down(struct wl_priv *wl);
+s32 dhd_cfg80211_set_p2p_info(struct wl_priv *wl, int val);
+s32 dhd_cfg80211_clean_p2p_info(struct wl_priv *wl);
 s32 dhd_config_dongle(struct wl_priv *wl, bool need_lock);
 
 int wl_cfg80211_btcoex_init(struct wl_priv *wl);

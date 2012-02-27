@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 306879 2012-01-09 21:33:03Z $
+ * $Id: dhd.h 316856 2012-02-23 21:44:34Z $
  */
 
 /****************
@@ -76,9 +76,12 @@ enum dhd_bus_state {
 
 /* Firmware requested operation mode */
 #define STA_MASK			0x0001
-#define HOSTAPD_MASK			0x0002
+#define HOSTAPD_MASK		0x0002
 #define WFD_MASK			0x0004
-#define SOFTAP_FW_MASK			0x0008
+#define SOFTAP_FW_MASK	0x0008
+#define P2P_GO_ENABLED		0x0010
+#define P2P_GC_ENABLED		0x0020
+#define CONCURENT_MASK		0x00F0
 
 /* max sequential rxcntl timeouts to set HANG event */
 #define MAX_CNTL_TIMEOUT  2
@@ -204,6 +207,12 @@ typedef struct dhd_pub {
 	wl_country_t dhd_cspec;		/* Current Locale info */
 	char eventmask[WL_EVENTING_MASK_LEN];
 	int	op_mode;				/* STA, HostAPD, WFD, SoftAP */
+
+/* Set this to 1 to use a seperate interface (p2p0) for p2p operations.
+ *  For ICS MR1 releases it should be disable to be compatable with ICS MR1 Framework
+ *  see target dhd-cdc-sdmmc-panda-cfg80211-icsmr1-gpl-debug in Makefile
+ */
+/* #define ENABLE_P2P_INTERFACE	1 */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_HAS_WAKELOCK)
 	struct wake_lock 	wakelock[WAKE_LOCK_MAX];

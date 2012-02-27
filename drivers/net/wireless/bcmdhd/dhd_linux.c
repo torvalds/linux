@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c 314746 2012-02-14 03:45:02Z $
+ * $Id: dhd_linux.c 316856 2012-02-23 21:44:34Z $
  */
 
 #include <typedefs.h>
@@ -2922,7 +2922,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	uint power_mode = PM_FAST;
 	uint32 dongle_align = DHD_SDALIGN;
 	uint32 glom = 0;
-	uint bcn_timeout = 4;
+	uint bcn_timeout = 10;
 	uint retry_max = 3;
 #if defined(ARP_OFFLOAD_SUPPORT)
 	int arpoe = 1;
