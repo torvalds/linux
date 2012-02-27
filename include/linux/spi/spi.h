@@ -600,7 +600,7 @@ static inline struct spi_message *spi_message_alloc(unsigned ntrans, gfp_t flags
 			+ ntrans * sizeof(struct spi_transfer),
 			flags);
 	if (m) {
-		int i;
+		unsigned i;
 		struct spi_transfer *t = (struct spi_transfer *)(m + 1);
 
 		INIT_LIST_HEAD(&m->transfers);
