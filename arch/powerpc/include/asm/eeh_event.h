@@ -28,12 +28,11 @@
  */
 struct eeh_event {
 	struct list_head	list;	/* to form event queue	*/
-	struct device_node	*dn;	/* struct device node	*/
-	struct pci_dev		*dev;	/* affected device	*/
+	struct eeh_dev		*edev;	/* EEH device		*/
 };
 
-int eeh_send_failure_event(struct device_node *dn, struct pci_dev *dev);
-struct pci_dn *handle_eeh_events(struct eeh_event *);
+int eeh_send_failure_event(struct eeh_dev *edev);
+struct eeh_dev *handle_eeh_events(struct eeh_event *);
 
 #endif /* __KERNEL__ */
 #endif /* ASM_POWERPC_EEH_EVENT_H */

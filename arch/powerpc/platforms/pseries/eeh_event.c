@@ -56,8 +56,8 @@ DEFINE_MUTEX(eeh_event_mutex);
 static int eeh_event_handler(void * dummy)
 {
 	unsigned long flags;
-	struct eeh_event	*event;
-	struct pci_dn *pdn;
+	struct eeh_event *event;
+	struct eeh_dev *edev;
 
 	daemonize("eehd");
 	set_current_state(TASK_INTERRUPTIBLE);
@@ -77,23 +77,26 @@ static int eeh_event_handler(void * dummy)
 
 	/* Serialize processing of EEH events */
 	mutex_lock(&eeh_event_mutex);
-	eeh_mark_slot(event->dn, EEH_MODE_RECOVERING);
+	edev = event->edev;
+	eeh_mark_slot(eeh_dev_to_of_node(edev), EEH_MODE_RECOVERING);
 
 	printk(KERN_INFO "EEH: Detected PCI bus error on device %s\n",
-	       eeh_pci_name(event->dev));
+	       eeh_pci_name(edev->pdev));
 
-	pdn = handle_eeh_events(event);
+	edev = handle_eeh_events(event);
 
-	eeh_clear_slot(event->dn, EEH_MODE_RECOVERING);
-	pci_dev_put(event->dev);
+	eeh_clear_slot(eeh_dev_to_of_node(edev), EEH_MODE_RECOVERING);
+	pci_dev_put(edev->pdev);
+
 	kfree(event);
 	mutex_unlock(&eeh_event_mutex);
 
 	/* If there are no new errors after an hour, clear the counter. */
-	if (pdn && pdn->eeh_freeze_count>0) {
+	if (edev && edev->freeze_count>0) {
 		msleep_interruptible(3600*1000);
-		if (pdn->eeh_freeze_count>0)
-			pdn->eeh_freeze_count--;
+		if (edev->freeze_count>0)
+			edev->freeze_count--;
+
 	}
 
 	return 0;
@@ -114,17 +117,17 @@ static void eeh_thread_launcher(struct work_struct *dummy)
 
 /**
  * eeh_send_failure_event - Generate a PCI error event
- * @dev: pci device
+ * @edev: EEH device
  *
  * This routine can be called within an interrupt context;
  * the actual event will be delivered in a normal context
  * (from a workqueue).
  */
-int eeh_send_failure_event(struct device_node *dn,
-                            struct pci_dev *dev)
+int eeh_send_failure_event(struct eeh_dev *edev)
 {
 	unsigned long flags;
 	struct eeh_event *event;
+	struct device_node *dn = eeh_dev_to_of_node(edev);
 	const char *location;
 
 	if (!mem_init_done) {
@@ -140,11 +143,10 @@ int eeh_send_failure_event(struct device_node *dn,
 		return 1;
  	}
 
-	if (dev)
-		pci_dev_get(dev);
+	if (edev->pdev)
+		pci_dev_get(edev->pdev);
 
-	event->dn = dn;
-	event->dev = dev;
+	event->edev = edev;
 
 	/* We may or may not be called in an interrupt context */
 	spin_lock_irqsave(&eeh_eventlist_lock, flags);

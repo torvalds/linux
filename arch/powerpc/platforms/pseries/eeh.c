@@ -475,7 +475,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	eeh_mark_slot(dn, EEH_MODE_ISOLATED);
 	raw_spin_unlock_irqrestore(&confirm_error_lock, flags);
 
-	eeh_send_failure_event(edev->dn, edev->pdev);
+	eeh_send_failure_event(edev);
 
 	/* Most EEH events are due to device driver bugs.  Having
 	 * a stack trace will help the device-driver authors figure

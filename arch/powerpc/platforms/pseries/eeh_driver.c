@@ -40,7 +40,7 @@
  * This routine is used to retrieve the name of PCI device driver
  * if that's valid.
  */
-static inline const char *pcid_name(struct pci_dev *pdev)
+static inline const char *eeh_pcid_name(struct pci_dev *pdev)
 {
 	if (pdev && pdev->dev.driver)
 		return pdev->dev.driver->name;
@@ -81,7 +81,7 @@ static void print_device_node_tree(struct pci_dn *pdn, int dent)
  */
 static void eeh_disable_irq(struct pci_dev *dev)
 {
-	struct device_node *dn = pci_device_to_OF_node(dev);
+	struct eeh_dev *edev = pci_dev_to_eeh_dev(dev);
 
 	/* Don't disable MSI and MSI-X interrupts. They are
 	 * effectively disabled by the DMA Stopped state
@@ -93,7 +93,7 @@ static void eeh_disable_irq(struct pci_dev *dev)
 	if (!irq_has_action(dev->irq))
 		return;
 
-	PCI_DN(dn)->eeh_mode |= EEH_MODE_IRQ_DISABLED;
+	edev->mode |= EEH_MODE_IRQ_DISABLED;
 	disable_irq_nosync(dev->irq);
 }
 
@@ -106,10 +106,10 @@ static void eeh_disable_irq(struct pci_dev *dev)
  */
 static void eeh_enable_irq(struct pci_dev *dev)
 {
-	struct device_node *dn = pci_device_to_OF_node(dev);
+	struct eeh_dev *edev = pci_dev_to_eeh_dev(dev);
 
-	if ((PCI_DN(dn)->eeh_mode) & EEH_MODE_IRQ_DISABLED) {
-		PCI_DN(dn)->eeh_mode &= ~EEH_MODE_IRQ_DISABLED;
+	if ((edev->mode) & EEH_MODE_IRQ_DISABLED) {
+		edev->mode &= ~EEH_MODE_IRQ_DISABLED;
 		enable_irq(dev->irq);
 	}
 }
@@ -270,20 +270,20 @@ static int eeh_report_failure(struct pci_dev *dev, void *userdata)
 
 /**
  * eeh_reset_device - Perform actual reset of a pci slot
- * @pe_dn: PE associated device node
+ * @edev: PE associated EEH device
  * @bus: PCI bus corresponding to the isolcated slot
  *
  * This routine must be called to do reset on the indicated PE.
  * During the reset, udev might be invoked because those affected
  * PCI devices will be removed and then added.
  */
-static int eeh_reset_device(struct pci_dn *pe_dn, struct pci_bus *bus)
+static int eeh_reset_device(struct eeh_dev *edev, struct pci_bus *bus)
 {
 	struct device_node *dn;
 	int cnt, rc;
 
 	/* pcibios will clear the counter; save the value */
-	cnt = pe_dn->eeh_freeze_count;
+	cnt = edev->freeze_count;
 
 	if (bus)
 		pcibios_remove_pci_devices(bus);
@@ -292,21 +292,22 @@ static int eeh_reset_device(struct pci_dn *pe_dn, struct pci_bus *bus)
 	 * Reconfigure bridges and devices. Don't try to bring the system
 	 * up if the reset failed for some reason.
 	 */
-	rc = eeh_reset_pe(pe_dn);
+	rc = eeh_reset_pe(edev);
 	if (rc)
 		return rc;
 
 	/* Walk over all functions on this device. */
-	dn = pe_dn->node;
-	if (!pcibios_find_pci_bus(dn) && PCI_DN(dn->parent))
+	dn = eeh_dev_to_of_node(edev);
+	if (!pcibios_find_pci_bus(dn) && of_node_to_eeh_dev(dn->parent))
 		dn = dn->parent->child;
 
 	while (dn) {
-		struct pci_dn *ppe = PCI_DN(dn);
+		struct eeh_dev *pedev = of_node_to_eeh_dev(dn);
+
 		/* On Power4, always true because eeh_pe_config_addr=0 */
-		if (pe_dn->eeh_pe_config_addr == ppe->eeh_pe_config_addr) {
+		if (edev->pe_config_addr == pedev->pe_config_addr) {
 			eeh_ops->configure_bridge(dn);
-			eeh_restore_bars(ppe);
+			eeh_restore_bars(pedev);
  		}
 		dn = dn->sibling;
 	}
@@ -321,7 +322,7 @@ static int eeh_reset_device(struct pci_dn *pe_dn, struct pci_bus *bus)
 		ssleep(5);
 		pcibios_add_pci_devices(bus);
 	}
-	pe_dn->eeh_freeze_count = cnt;
+	edev->freeze_count = cnt;
 
 	return 0;
 }
@@ -348,23 +349,22 @@ static int eeh_reset_device(struct pci_dn *pe_dn, struct pci_bus *bus)
  * drivers (which cause a second set of hotplug events to go out to
  * userspace).
  */
-struct pci_dn *handle_eeh_events(struct eeh_event *event)
+struct eeh_dev *handle_eeh_events(struct eeh_event *event)
 {
 	struct device_node *frozen_dn;
-	struct pci_dn *frozen_pdn;
+	struct eeh_dev *frozen_edev;
 	struct pci_bus *frozen_bus;
 	int rc = 0;
 	enum pci_ers_result result = PCI_ERS_RESULT_NONE;
 	const char *location, *pci_str, *drv_str, *bus_pci_str, *bus_drv_str;
 
-	frozen_dn = eeh_find_device_pe(event->dn);
+	frozen_dn = eeh_find_device_pe(eeh_dev_to_of_node(event->edev));
 	if (!frozen_dn) {
-
-		location = of_get_property(event->dn, "ibm,loc-code", NULL);
+		location = of_get_property(eeh_dev_to_of_node(event->edev), "ibm,loc-code", NULL);
 		location = location ? location : "unknown";
 		printk(KERN_ERR "EEH: Error: Cannot find partition endpoint "
 		                "for location=%s pci addr=%s\n",
-		        location, eeh_pci_name(event->dev));
+			location, eeh_pci_name(eeh_dev_to_pci_dev(event->edev)));
 		return NULL;
 	}
 
@@ -389,22 +389,21 @@ struct pci_dn *handle_eeh_events(struct eeh_event *event)
 		return NULL;
 	}
 
-	frozen_pdn = PCI_DN(frozen_dn);
-	frozen_pdn->eeh_freeze_count++;
+	frozen_edev = of_node_to_eeh_dev(frozen_dn);
+	frozen_edev->freeze_count++;
+	pci_str = eeh_pci_name(eeh_dev_to_pci_dev(event->edev));
+	drv_str = eeh_pcid_name(eeh_dev_to_pci_dev(event->edev));
 
-	pci_str = eeh_pci_name(event->dev);
-	drv_str = pcid_name(event->dev);
-	
-	if (frozen_pdn->eeh_freeze_count > EEH_MAX_ALLOWED_FREEZES)
+	if (frozen_edev->freeze_count > EEH_MAX_ALLOWED_FREEZES)
 		goto excess_failures;
 
 	printk(KERN_WARNING
 	   "EEH: This PCI device has failed %d times in the last hour:\n",
-		frozen_pdn->eeh_freeze_count);
+		frozen_edev->freeze_count);
 
-	if (frozen_pdn->pcidev) {
-		bus_pci_str = pci_name(frozen_pdn->pcidev);
-		bus_drv_str = pcid_name(frozen_pdn->pcidev);
+	if (frozen_edev->pdev) {
+		bus_pci_str = pci_name(frozen_edev->pdev);
+		bus_drv_str = eeh_pcid_name(frozen_edev->pdev);
 		printk(KERN_WARNING
 			"EEH: Bus location=%s driver=%s pci addr=%s\n",
 			location, bus_drv_str, bus_pci_str);
@@ -425,7 +424,7 @@ struct pci_dn *handle_eeh_events(struct eeh_event *event)
 	/* Get the current PCI slot state. This can take a long time,
 	 * sometimes over 3 seconds for certain systems.
 	 */
-	rc = eeh_ops->wait_state(frozen_pdn->node, MAX_WAIT_FOR_RECOVERY*1000);
+	rc = eeh_ops->wait_state(eeh_dev_to_of_node(frozen_edev), MAX_WAIT_FOR_RECOVERY*1000);
 	if (rc < 0 || rc == EEH_STATE_NOT_SUPPORT) {
 		printk(KERN_WARNING "EEH: Permanent failure\n");
 		goto hard_fail;
@@ -435,14 +434,14 @@ struct pci_dn *handle_eeh_events(struct eeh_event *event)
 	 * don't post the error log until after all dev drivers
 	 * have been informed.
 	 */
-	eeh_slot_error_detail(frozen_pdn, EEH_LOG_TEMP);
+	eeh_slot_error_detail(frozen_edev, EEH_LOG_TEMP);
 
 	/* If all device drivers were EEH-unaware, then shut
 	 * down all of the device drivers, and hope they
 	 * go down willingly, without panicing the system.
 	 */
 	if (result == PCI_ERS_RESULT_NONE) {
-		rc = eeh_reset_device(frozen_pdn, frozen_bus);
+		rc = eeh_reset_device(frozen_edev, frozen_bus);
 		if (rc) {
 			printk(KERN_WARNING "EEH: Unable to reset, rc=%d\n", rc);
 			goto hard_fail;
@@ -451,7 +450,7 @@ struct pci_dn *handle_eeh_events(struct eeh_event *event)
 
 	/* If all devices reported they can proceed, then re-enable MMIO */
 	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
-		rc = eeh_pci_enable(frozen_pdn, EEH_OPT_THAW_MMIO);
+		rc = eeh_pci_enable(frozen_edev, EEH_OPT_THAW_MMIO);
 
 		if (rc < 0)
 			goto hard_fail;
@@ -465,7 +464,7 @@ struct pci_dn *handle_eeh_events(struct eeh_event *event)
 
 	/* If all devices reported they can proceed, then re-enable DMA */
 	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
-		rc = eeh_pci_enable(frozen_pdn, EEH_OPT_THAW_DMA);
+		rc = eeh_pci_enable(frozen_edev, EEH_OPT_THAW_DMA);
 
 		if (rc < 0)
 			goto hard_fail;
@@ -483,7 +482,7 @@ struct pci_dn *handle_eeh_events(struct eeh_event *event)
 
 	/* If any device called out for a reset, then reset the slot */
 	if (result == PCI_ERS_RESULT_NEED_RESET) {
-		rc = eeh_reset_device(frozen_pdn, NULL);
+		rc = eeh_reset_device(frozen_edev, NULL);
 		if (rc) {
 			printk(KERN_WARNING "EEH: Cannot reset, rc=%d\n", rc);
 			goto hard_fail;
@@ -502,7 +501,7 @@ struct pci_dn *handle_eeh_events(struct eeh_event *event)
 	/* Tell all device drivers that they can resume operations */
 	pci_walk_bus(frozen_bus, eeh_report_resume, NULL);
 
-	return frozen_pdn;
+	return frozen_edev;
 	
 excess_failures:
 	/*
@@ -515,7 +514,7 @@ excess_failures:
 		"has failed %d times in the last hour "
 		"and has been permanently disabled.\n"
 		"Please try reseating this device or replacing it.\n",
-		location, drv_str, pci_str, frozen_pdn->eeh_freeze_count);
+		location, drv_str, pci_str, frozen_edev->freeze_count);
 	goto perm_error;
 
 hard_fail:
@@ -526,7 +525,7 @@ hard_fail:
 		location, drv_str, pci_str);
 
 perm_error:
-	eeh_slot_error_detail(frozen_pdn, EEH_LOG_PERM);
+	eeh_slot_error_detail(frozen_edev, EEH_LOG_PERM);
 
 	/* Notify all devices that they're about to go down. */
 	pci_walk_bus(frozen_bus, eeh_report_failure, NULL);
