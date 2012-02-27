@@ -238,7 +238,75 @@ static int pseries_eeh_get_pe_addr(struct device_node *dn)
  */
 static int pseries_eeh_get_state(struct device_node *dn, int *state)
 {
-	return 0;
+	struct pci_dn *pdn;
+	int config_addr;
+	int ret;
+	int rets[4];
+	int result;
+
+	/* Figure out PE config address if possible */
+	pdn = PCI_DN(dn);
+	config_addr = pdn->eeh_config_addr;
+	if (pdn->eeh_pe_config_addr)
+		config_addr = pdn->eeh_pe_config_addr;
+
+	if (ibm_read_slot_reset_state2 != RTAS_UNKNOWN_SERVICE) {
+		ret = rtas_call(ibm_read_slot_reset_state2, 3, 4, rets,
+				config_addr, BUID_HI(pdn->phb->buid),
+				BUID_LO(pdn->phb->buid));
+	} else if (ibm_read_slot_reset_state != RTAS_UNKNOWN_SERVICE) {
+		/* Fake PE unavailable info */
+		rets[2] = 0;
+		ret = rtas_call(ibm_read_slot_reset_state, 3, 3, rets,
+				config_addr, BUID_HI(pdn->phb->buid),
+				BUID_LO(pdn->phb->buid));
+	} else {
+		return EEH_STATE_NOT_SUPPORT;
+	}
+
+	if (ret)
+		return ret;
+
+	/* Parse the result out */
+	result = 0;
+	if (rets[1]) {
+		switch(rets[0]) {
+		case 0:
+			result &= ~EEH_STATE_RESET_ACTIVE;
+			result |= EEH_STATE_MMIO_ACTIVE;
+			result |= EEH_STATE_DMA_ACTIVE;
+			break;
+		case 1:
+			result |= EEH_STATE_RESET_ACTIVE;
+			result |= EEH_STATE_MMIO_ACTIVE;
+			result |= EEH_STATE_DMA_ACTIVE;
+			break;
+		case 2:
+			result &= ~EEH_STATE_RESET_ACTIVE;
+			result &= ~EEH_STATE_MMIO_ACTIVE;
+			result &= ~EEH_STATE_DMA_ACTIVE;
+			break;
+		case 4:
+			result &= ~EEH_STATE_RESET_ACTIVE;
+			result &= ~EEH_STATE_MMIO_ACTIVE;
+			result &= ~EEH_STATE_DMA_ACTIVE;
+			result |= EEH_STATE_MMIO_ENABLED;
+			break;
+		case 5:
+			if (rets[2]) {
+				if (state) *state = rets[2];
+				result = EEH_STATE_UNAVAILABLE;
+			} else {
+				result = EEH_STATE_NOT_SUPPORT;
+			}
+		default:
+			result = EEH_STATE_NOT_SUPPORT;
+		}
+	} else {
+		result = EEH_STATE_NOT_SUPPORT;
+	}
+
+	return result;
 }
 
 /**

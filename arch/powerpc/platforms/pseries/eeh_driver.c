@@ -397,7 +397,7 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	/* Get the current PCI slot state. This can take a long time,
 	 * sometimes over 3 seconds for certain systems. */
 	rc = eeh_wait_for_slot_status (frozen_pdn, MAX_WAIT_FOR_RECOVERY*1000);
-	if (rc < 0) {
+	if (rc < 0 || rc == EEH_STATE_NOT_SUPPORT) {
 		printk(KERN_WARNING "EEH: Permanent failure\n");
 		goto hard_fail;
 	}

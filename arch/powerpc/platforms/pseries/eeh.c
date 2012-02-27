@@ -88,8 +88,6 @@
 
 /* RTAS tokens */
 static int ibm_set_slot_reset;
-static int ibm_read_slot_reset_state;
-static int ibm_read_slot_reset_state2;
 static int ibm_slot_error_detail;
 static int ibm_configure_bridge;
 static int ibm_configure_pe;
@@ -289,37 +287,6 @@ void eeh_slot_error_detail(struct pci_dn *pdn, int severity)
 }
 
 /**
- * eeh_read_slot_reset_state - Read the reset state of a device node's slot
- * @dn: device node to read
- * @rets: array to return results in
- *
- * Read the reset state of a device node's slot through platform dependent
- * function call.
- */
-static int eeh_read_slot_reset_state(struct pci_dn *pdn, int rets[])
-{
-	int token, outputs;
-	int config_addr;
-
-	if (ibm_read_slot_reset_state2 != RTAS_UNKNOWN_SERVICE) {
-		token = ibm_read_slot_reset_state2;
-		outputs = 4;
-	} else {
-		token = ibm_read_slot_reset_state;
-		rets[2] = 0; /* fake PE Unavailable info */
-		outputs = 3;
-	}
-
-	/* Use PE configuration address, if present */
-	config_addr = pdn->eeh_config_addr;
-	if (pdn->eeh_pe_config_addr)
-		config_addr = pdn->eeh_pe_config_addr;
-
-	return rtas_call(token, 3, outputs, rets, config_addr,
-			 BUID_HI(pdn->phb->buid), BUID_LO(pdn->phb->buid));
-}
-
-/**
  * eeh_wait_for_slot_status - Returns error status of slot
  * @pdn: pci device node
  * @max_wait_msecs: maximum number to millisecs to wait
@@ -335,21 +302,15 @@ static int eeh_read_slot_reset_state(struct pci_dn *pdn, int rets[])
 int eeh_wait_for_slot_status(struct pci_dn *pdn, int max_wait_msecs)
 {
 	int rc;
-	int rets[3];
 	int mwait;
 
 	while (1) {
-		rc = eeh_read_slot_reset_state(pdn, rets);
-		if (rc) return rc;
-		if (rets[1] == 0) return -1;  /* EEH is not supported */
-
-		if (rets[0] != 5) return rets[0]; /* return actual status */
-
-		if (rets[2] == 0) return -1; /* permanently unavailable */
+		rc = eeh_ops->get_state(pdn->node, &mwait);
+		if (rc != EEH_STATE_UNAVAILABLE)
+			return rc;
 
 		if (max_wait_msecs <= 0) break;
 
-		mwait = rets[2];
 		if (mwait <= 0) {
 			printk(KERN_WARNING "EEH: Firmware returned bad wait value=%d\n",
 				mwait);
@@ -522,7 +483,6 @@ void eeh_clear_slot(struct device_node *dn, int mode_flag)
 int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 {
 	int ret;
-	int rets[3];
 	unsigned long flags;
 	struct pci_dn *pdn;
 	int rc = 0;
@@ -584,40 +544,18 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	 * function zero of a multi-function device.
 	 * In any case they must share a common PHB.
 	 */
-	ret = eeh_read_slot_reset_state(pdn, rets);
-
-	/* If the call to firmware failed, punt */
-	if (ret != 0) {
-		printk(KERN_WARNING "EEH: eeh_read_slot_reset_state() failed; rc=%d dn=%s\n",
-		       ret, dn->full_name);
-		false_positives++;
-		pdn->eeh_false_positives ++;
-		rc = 0;
-		goto dn_unlock;
-	}
+	ret = eeh_ops->get_state(pdn->node, NULL);
 
 	/* Note that config-io to empty slots may fail;
 	 * they are empty when they don't have children.
+	 * We will punt with the following conditions: Failure to get
+	 * PE's state, EEH not support and Permanently unavailable
+	 * state, PE is in good state.
 	 */
-	if ((rets[0] == 5) && (rets[2] == 0) && (dn->child == NULL)) {
-		false_positives++;
-		pdn->eeh_false_positives ++;
-		rc = 0;
-		goto dn_unlock;
-	}
-
-	/* If EEH is not supported on this device, punt. */
-	if (rets[1] != 1) {
-		printk(KERN_WARNING "EEH: event on unsupported device, rc=%d dn=%s\n",
-		       ret, dn->full_name);
-		false_positives++;
-		pdn->eeh_false_positives ++;
-		rc = 0;
-		goto dn_unlock;
-	}
-
-	/* If not the kind of error we know about, punt. */
-	if (rets[0] != 1 && rets[0] != 2 && rets[0] != 4 && rets[0] != 5) {
+	if ((ret < 0) ||
+	    (ret == EEH_STATE_NOT_SUPPORT) ||
+	    (ret & (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) ==
+	    (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) {
 		false_positives++;
 		pdn->eeh_false_positives ++;
 		rc = 0;
@@ -703,7 +641,8 @@ int eeh_pci_enable(struct pci_dn *pdn, int function)
 		        function, rc, pdn->node->full_name);
 
 	rc = eeh_wait_for_slot_status(pdn, PCI_BUS_RESET_WAIT_MSEC);
-	if ((rc == 4) && (function == EEH_OPT_THAW_MMIO))
+	if (rc > 0 && (rc & EEH_STATE_MMIO_ENABLED) &&
+	   (function == EEH_OPT_THAW_MMIO))
 		return 0;
 
 	return rc;
@@ -900,7 +839,7 @@ int eeh_reset_pe(struct pci_dn *pdn)
 		eeh_reset_pe_once(pdn);
 
 		rc = eeh_wait_for_slot_status(pdn, PCI_BUS_RESET_WAIT_MSEC);
-		if (rc == 0)
+		if (rc == (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE))
 			return 0;
 
 		if (rc < 0) {
@@ -1057,7 +996,6 @@ void eeh_configure_bridge(struct pci_dn *pdn)
  */
 static void *eeh_early_enable(struct device_node *dn, void *data)
 {
-	unsigned int rets[3];
 	int ret;
 	const u32 *class_code = of_get_property(dn, "class-code", NULL);
 	const u32 *vendor_id = of_get_property(dn, "vendor-id", NULL);
@@ -1109,8 +1047,8 @@ static void *eeh_early_enable(struct device_node *dn, void *data)
 			 * where EEH is not supported. Verify support
 			 * explicitly.
 			 */
-			ret = eeh_read_slot_reset_state(pdn, rets);
-			if ((ret == 0) && (rets[1] == 1))
+			ret = eeh_ops->get_state(pdn->node, NULL);
+			if (ret > 0 && ret != EEH_STATE_NOT_SUPPORT)
 				enable = 1;
 		}
 
@@ -1232,8 +1170,6 @@ void __init eeh_init(void)
 		return;
 
 	ibm_set_slot_reset = rtas_token("ibm,set-slot-reset");
-	ibm_read_slot_reset_state2 = rtas_token("ibm,read-slot-reset-state2");
-	ibm_read_slot_reset_state = rtas_token("ibm,read-slot-reset-state");
 	ibm_slot_error_detail = rtas_token("ibm,slot-error-detail");
 	ibm_configure_bridge = rtas_token("ibm,configure-bridge");
 	ibm_configure_pe = rtas_token("ibm,configure-pe");

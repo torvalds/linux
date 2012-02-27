@@ -42,6 +42,14 @@ struct device_node;
 #define EEH_OPT_ENABLE		1	/* EEH enable	*/
 #define EEH_OPT_THAW_MMIO	2	/* MMIO enable	*/
 #define EEH_OPT_THAW_DMA	3	/* DMA enable	*/
+#define EEH_STATE_UNAVAILABLE	(1 << 0)	/* State unavailable	*/
+#define EEH_STATE_NOT_SUPPORT	(1 << 1)	/* EEH not supported	*/
+#define EEH_STATE_RESET_ACTIVE	(1 << 2)	/* Active reset		*/
+#define EEH_STATE_MMIO_ACTIVE	(1 << 3)	/* Active MMIO		*/
+#define EEH_STATE_DMA_ACTIVE	(1 << 4)	/* Active DMA		*/
+#define EEH_STATE_MMIO_ENABLED	(1 << 5)	/* MMIO enabled		*/
+#define EEH_STATE_DMA_ENABLED	(1 << 6)	/* DMA enabled		*/
+
 struct eeh_ops {
 	char *name;
 	int (*init)(void);
