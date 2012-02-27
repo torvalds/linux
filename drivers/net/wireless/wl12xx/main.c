@@ -1737,6 +1737,8 @@ static int wl1271_op_suspend(struct ieee80211_hw *hw,
 	wl1271_debug(DEBUG_MAC80211, "mac80211 suspend wow=%d", !!wow);
 	WARN_ON(!wow || !wow->any);
 
+	wl1271_tx_flush(wl);
+
 	wl->wow_enabled = true;
 	wl12xx_for_each_wlvif(wl, wlvif) {
 		ret = wl1271_configure_suspend(wl, wlvif);
@@ -4495,6 +4497,8 @@ static void wl12xx_op_channel_switch(struct ieee80211_hw *hw,
 	int ret;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 channel switch");
+
+	wl1271_tx_flush(wl);
 
 	mutex_lock(&wl->mutex);
 
