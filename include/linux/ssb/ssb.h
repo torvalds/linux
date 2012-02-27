@@ -33,8 +33,8 @@ struct ssb_sprom {
 	u8 et1mdcport;		/* MDIO for enet1 */
 	u16 board_rev;		/* Board revision number from SPROM. */
 	u8 country_code;	/* Country Code */
-	u16 leddc_on_time;	/* LED Powersave Duty Cycle On Count */
-	u16 leddc_off_time;	/* LED Powersave Duty Cycle Off Count */
+	u8 leddc_on_time;	/* LED Powersave Duty Cycle On Count */
+	u8 leddc_off_time;	/* LED Powersave Duty Cycle Off Count */
 	u8 ant_available_a;	/* 2GHz antenna available bits (up to 4) */
 	u8 ant_available_bg;	/* 5GHz antenna available bits (up to 4) */
 	u16 pa0b0;
@@ -53,10 +53,10 @@ struct ssb_sprom {
 	u8 gpio1;		/* GPIO pin 1 */
 	u8 gpio2;		/* GPIO pin 2 */
 	u8 gpio3;		/* GPIO pin 3 */
-	u16 maxpwr_bg;		/* 2.4GHz Amplifier Max Power (in dBm Q5.2) */
-	u16 maxpwr_al;		/* 5.2GHz Amplifier Max Power (in dBm Q5.2) */
-	u16 maxpwr_a;		/* 5.3GHz Amplifier Max Power (in dBm Q5.2) */
-	u16 maxpwr_ah;		/* 5.8GHz Amplifier Max Power (in dBm Q5.2) */
+	u8 maxpwr_bg;		/* 2.4GHz Amplifier Max Power (in dBm Q5.2) */
+	u8 maxpwr_al;		/* 5.2GHz Amplifier Max Power (in dBm Q5.2) */
+	u8 maxpwr_a;		/* 5.3GHz Amplifier Max Power (in dBm Q5.2) */
+	u8 maxpwr_ah;		/* 5.8GHz Amplifier Max Power (in dBm Q5.2) */
 	u8 itssi_a;		/* Idle TSSI Target for A-PHY */
 	u8 itssi_bg;		/* Idle TSSI Target for B/G-PHY */
 	u8 tri2g;		/* 2.4GHz TX isolation */
@@ -67,8 +67,8 @@ struct ssb_sprom {
 	u8 txpid5gl[4];		/* 4.9 - 5.1GHz TX power index */
 	u8 txpid5g[4];		/* 5.1 - 5.5GHz TX power index */
 	u8 txpid5gh[4];		/* 5.5 - ...GHz TX power index */
-	u8 rxpo2g;		/* 2GHz RX power offset */
-	u8 rxpo5g;		/* 5GHz RX power offset */
+	s8 rxpo2g;		/* 2GHz RX power offset */
+	s8 rxpo5g;		/* 5GHz RX power offset */
 	u8 rssisav2g;		/* 2GHz RSSI params */
 	u8 rssismc2g;
 	u8 rssismf2g;
