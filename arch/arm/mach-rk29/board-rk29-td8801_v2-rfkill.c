@@ -47,8 +47,8 @@ struct bt_ctrl
 #define IOMUX_BT_GPIO_POWER     rk29_mux_api_set(GPIO5D6_SDMMC1PWREN_NAME, GPIO5H_GPIO5D6);
 #define BT_GPIO_RESET          	RK29_PIN6_PC7
 #define BT_GPIO_WAKE_UP         RK29_PIN6_PD0
-#define BT_GPIO_WAKE_UP_HOST    RK29_PIN4_PD4
-#define IOMUX_BT_GPIO_WAKE_UP_HOST() rk29_mux_api_set(GPIO4D4_CPUTRACECLK_NAME,GPIO4H_GPIO4D4);
+#define BT_GPIO_WAKE_UP_HOST    RK29_PIN4_PA2
+//#define IOMUX_BT_GPIO_WAKE_UP_HOST() rk29_mux_api_set(GPIO4D4_CPUTRACECLK_NAME,GPIO4H_GPIO4D4);
 
 //bt cts paired to uart rts
 #define UART_RTS                RK29_PIN2_PA7
@@ -241,7 +241,7 @@ static int __devinit bcm4329_rfkill_probe(struct platform_device *pdev)
 		printk("%s:failed to request RAHO_BT_WAKE_UP_HOST\n",__FUNCTION__);
 	}
 
-	IOMUX_BT_GPIO_WAKE_UP_HOST();
+	//IOMUX_BT_GPIO_WAKE_UP_HOST();
 	gpio_pull_updown(BT_GPIO_WAKE_UP_HOST,GPIOPullUp);
 	rc = request_irq(gpio_to_irq(BT_GPIO_WAKE_UP_HOST),bcm4329_wake_host_irq,IRQF_TRIGGER_FALLING,NULL,NULL);
 	if(rc)
