@@ -5643,7 +5643,7 @@ static const struct usb_action gc0303_NoFlikerScale[] = {
 	{}
 };
 
-static u8 reg_r_i(struct gspca_dev *gspca_dev,
+static u8 reg_r(struct gspca_dev *gspca_dev,
 		u16 index)
 {
 	int ret;
@@ -5658,24 +5658,14 @@ static u8 reg_r_i(struct gspca_dev *gspca_dev,
 			index, gspca_dev->usb_buf, 1,
 			500);
 	if (ret < 0) {
-		pr_err("reg_r_i err %d\n", ret);
+		pr_err("reg_r err %d\n", ret);
 		gspca_dev->usb_err = ret;
 		return 0;
 	}
 	return gspca_dev->usb_buf[0];
 }
 
-static u8 reg_r(struct gspca_dev *gspca_dev,
-		u16 index)
-{
-	u8 ret;
-
-	ret = reg_r_i(gspca_dev, index);
-	PDEBUG(D_USBI, "reg r [%04x] -> %02x", index, ret);
-	return ret;
-}
-
-static void reg_w_i(struct gspca_dev *gspca_dev,
+static void reg_w(struct gspca_dev *gspca_dev,
 			u8 value,
 			u16 index)
 {
@@ -5695,14 +5685,6 @@ static void reg_w_i(struct gspca_dev *gspca_dev,
 	}
 }
 
-static void reg_w(struct gspca_dev *gspca_dev,
-			u8 value,
-			u16 index)
-{
-	PDEBUG(D_USBO, "reg w [%04x] = %02x", index, value);
-	reg_w_i(gspca_dev, value, index);
-}
-
 static u16 i2c_read(struct gspca_dev *gspca_dev,
 			u8 reg)
 {
@@ -5711,16 +5693,14 @@ static u16 i2c_read(struct gspca_dev *gspca_dev,
 
 	if (gspca_dev->usb_err < 0)
 		return 0;
-	reg_w_i(gspca_dev, reg, 0x0092);
-	reg_w_i(gspca_dev, 0x02, 0x0090);		/* <- read command */
+	reg_w(gspca_dev, reg, 0x0092);
+	reg_w(gspca_dev, 0x02, 0x0090);			/* <- read command */
 	msleep(20);
-	retbyte = reg_r_i(gspca_dev, 0x0091);		/* read status */
+	retbyte = reg_r(gspca_dev, 0x0091);		/* read status */
 	if (retbyte != 0x00)
 		pr_err("i2c_r status error %02x\n", retbyte);
-	retval = reg_r_i(gspca_dev, 0x0095);		/* read Lowbyte */
-	retval |= reg_r_i(gspca_dev, 0x0096) << 8;	/* read Hightbyte */
-	PDEBUG(D_USBI, "i2c r [%02x] -> %04x (%02x)",
-			reg, retval, retbyte);
+	retval = reg_r(gspca_dev, 0x0095);		/* read Lowbyte */
+	retval |= reg_r(gspca_dev, 0x0096) << 8;	/* read Hightbyte */
 	return retval;
 }
 
@@ -5733,16 +5713,14 @@ static u8 i2c_write(struct gspca_dev *gspca_dev,
 
 	if (gspca_dev->usb_err < 0)
 		return 0;
-	reg_w_i(gspca_dev, reg, 0x92);
-	reg_w_i(gspca_dev, valL, 0x93);
-	reg_w_i(gspca_dev, valH, 0x94);
-	reg_w_i(gspca_dev, 0x01, 0x90);		/* <- write command */
+	reg_w(gspca_dev, reg, 0x92);
+	reg_w(gspca_dev, valL, 0x93);
+	reg_w(gspca_dev, valH, 0x94);
+	reg_w(gspca_dev, 0x01, 0x90);		/* <- write command */
 	msleep(1);
-	retbyte = reg_r_i(gspca_dev, 0x0091);		/* read status */
+	retbyte = reg_r(gspca_dev, 0x0091);		/* read status */
 	if (retbyte != 0x00)
 		pr_err("i2c_w status error %02x\n", retbyte);
-	PDEBUG(D_USBO, "i2c w [%02x] = %02x%02x (%02x)",
-			reg, valH, valL, retbyte);
 	return retbyte;
 }
 
