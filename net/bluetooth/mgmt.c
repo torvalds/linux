@@ -1260,7 +1260,7 @@ static int set_le(struct sock *sk, u16 index, void *data, u16 len)
 	struct pending_cmd *cmd;
 	struct hci_dev *hdev;
 	int err;
-	u8 val;
+	u8 val, enabled;
 
 	BT_DBG("request for hci%u", index);
 
@@ -1280,8 +1280,9 @@ static int set_le(struct sock *sk, u16 index, void *data, u16 len)
 	}
 
 	val = !!cp->val;
+	enabled = !!(hdev->host_features[0] & LMP_HOST_LE);
 
-	if (!hdev_is_powered(hdev)) {
+	if (!hdev_is_powered(hdev) || val == enabled) {
 		bool changed = false;
 
 		if (val != test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
