@@ -42,6 +42,7 @@
 #include <linux/reboot.h>
 #include <linux/topology.h>
 #include <linux/ftrace.h>
+#include <linux/compat.h>
 
 #include <asm/ipl.h>
 #include <asm/uaccess.h>
@@ -55,7 +56,6 @@
 #include <asm/ptrace.h>
 #include <asm/sections.h>
 #include <asm/ebcdic.h>
-#include <asm/compat.h>
 #include <asm/kvm_virtio.h>
 
 long psw_kernel_bits	= (PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_PRIMARY |
