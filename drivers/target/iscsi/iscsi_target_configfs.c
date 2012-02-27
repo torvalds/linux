@@ -812,9 +812,6 @@ static struct se_node_acl *lio_target_make_nodeacl(
 	if (!se_nacl_new)
 		return ERR_PTR(-ENOMEM);
 
-	acl = container_of(se_nacl_new, struct iscsi_node_acl,
-				se_node_acl);
-
 	cmdsn_depth = ISCSI_TPG_ATTRIB(tpg)->default_cmdsn_depth;
 	/*
 	 * se_nacl_new may be released by core_tpg_add_initiator_node_acl()
@@ -825,7 +822,8 @@ static struct se_node_acl *lio_target_make_nodeacl(
 	if (IS_ERR(se_nacl))
 		return se_nacl;
 
-	stats_cg = &acl->se_node_acl.acl_fabric_stat_group;
+	acl = container_of(se_nacl, struct iscsi_node_acl, se_node_acl);
+	stats_cg = &se_nacl->acl_fabric_stat_group;
 
 	stats_cg->default_groups = kzalloc(sizeof(struct config_group) * 2,
 				GFP_KERNEL);
