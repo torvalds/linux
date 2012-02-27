@@ -5884,6 +5884,8 @@ static void getexposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	if (sd->sensor != SENSOR_HV7131R)
+		return;
 	sd->ctrls[EXPOSURE].val = (i2c_read(gspca_dev, 0x25) << 9)
 		| (i2c_read(gspca_dev, 0x26) << 1)
 		| (i2c_read(gspca_dev, 0x27) >> 7);
@@ -5894,6 +5896,8 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int val;
 
+	if (sd->sensor != SENSOR_HV7131R)
+		return;
 	val = sd->ctrls[EXPOSURE].val;
 	i2c_write(gspca_dev, 0x25, val >> 9, 0x00);
 	i2c_write(gspca_dev, 0x26, val >> 1, 0x00);
