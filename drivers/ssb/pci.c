@@ -331,7 +331,6 @@ static void sprom_extract_r123(struct ssb_sprom *out, const u16 *in)
 {
 	int i;
 	u16 v;
-	s8 gain;
 	u16 loc[3];
 
 	if (out->revision == 3)			/* rev 3 moved MAC */
@@ -390,20 +389,12 @@ static void sprom_extract_r123(struct ssb_sprom *out, const u16 *in)
 		SPEX(boardflags_hi, SSB_SPROM2_BFLHI, 0xFFFF, 0);
 
 	/* Extract the antenna gain values. */
-	gain = r123_extract_antgain(out->revision, in,
-				    SSB_SPROM1_AGAIN_BG,
-				    SSB_SPROM1_AGAIN_BG_SHIFT);
-	out->antenna_gain.ghz24.a0 = gain;
-	out->antenna_gain.ghz24.a1 = gain;
-	out->antenna_gain.ghz24.a2 = gain;
-	out->antenna_gain.ghz24.a3 = gain;
-	gain = r123_extract_antgain(out->revision, in,
-				    SSB_SPROM1_AGAIN_A,
-				    SSB_SPROM1_AGAIN_A_SHIFT);
-	out->antenna_gain.ghz5.a0 = gain;
-	out->antenna_gain.ghz5.a1 = gain;
-	out->antenna_gain.ghz5.a2 = gain;
-	out->antenna_gain.ghz5.a3 = gain;
+	out->antenna_gain.a0 = r123_extract_antgain(out->revision, in,
+						    SSB_SPROM1_AGAIN_BG,
+						    SSB_SPROM1_AGAIN_BG_SHIFT);
+	out->antenna_gain.a1 = r123_extract_antgain(out->revision, in,
+						    SSB_SPROM1_AGAIN_A,
+						    SSB_SPROM1_AGAIN_A_SHIFT);
 }
 
 /* Revs 4 5 and 8 have partially shared layout */
@@ -504,16 +495,14 @@ static void sprom_extract_r45(struct ssb_sprom *out, const u16 *in)
 	}
 
 	/* Extract the antenna gain values. */
-	SPEX(antenna_gain.ghz24.a0, SSB_SPROM4_AGAIN01,
+	SPEX(antenna_gain.a0, SSB_SPROM4_AGAIN01,
 	     SSB_SPROM4_AGAIN0, SSB_SPROM4_AGAIN0_SHIFT);
-	SPEX(antenna_gain.ghz24.a1, SSB_SPROM4_AGAIN01,
+	SPEX(antenna_gain.a1, SSB_SPROM4_AGAIN01,
 	     SSB_SPROM4_AGAIN1, SSB_SPROM4_AGAIN1_SHIFT);
-	SPEX(antenna_gain.ghz24.a2, SSB_SPROM4_AGAIN23,
+	SPEX(antenna_gain.a2, SSB_SPROM4_AGAIN23,
 	     SSB_SPROM4_AGAIN2, SSB_SPROM4_AGAIN2_SHIFT);
-	SPEX(antenna_gain.ghz24.a3, SSB_SPROM4_AGAIN23,
+	SPEX(antenna_gain.a3, SSB_SPROM4_AGAIN23,
 	     SSB_SPROM4_AGAIN3, SSB_SPROM4_AGAIN3_SHIFT);
-	memcpy(&out->antenna_gain.ghz5, &out->antenna_gain.ghz24,
-	       sizeof(out->antenna_gain.ghz5));
 
 	sprom_extract_r458(out, in);
 
@@ -602,16 +591,14 @@ static void sprom_extract_r8(struct ssb_sprom *out, const u16 *in)
 	SPEX32(ofdm5ghpo, SSB_SPROM8_OFDM5GHPO, 0xFFFFFFFF, 0);
 
 	/* Extract the antenna gain values. */
-	SPEX(antenna_gain.ghz24.a0, SSB_SPROM8_AGAIN01,
+	SPEX(antenna_gain.a0, SSB_SPROM8_AGAIN01,
 	     SSB_SPROM8_AGAIN0, SSB_SPROM8_AGAIN0_SHIFT);
-	SPEX(antenna_gain.ghz24.a1, SSB_SPROM8_AGAIN01,
+	SPEX(antenna_gain.a1, SSB_SPROM8_AGAIN01,
 	     SSB_SPROM8_AGAIN1, SSB_SPROM8_AGAIN1_SHIFT);
-	SPEX(antenna_gain.ghz24.a2, SSB_SPROM8_AGAIN23,
+	SPEX(antenna_gain.a2, SSB_SPROM8_AGAIN23,
 	     SSB_SPROM8_AGAIN2, SSB_SPROM8_AGAIN2_SHIFT);
-	SPEX(antenna_gain.ghz24.a3, SSB_SPROM8_AGAIN23,
+	SPEX(antenna_gain.a3, SSB_SPROM8_AGAIN23,
 	     SSB_SPROM8_AGAIN3, SSB_SPROM8_AGAIN3_SHIFT);
-	memcpy(&out->antenna_gain.ghz5, &out->antenna_gain.ghz24,
-	       sizeof(out->antenna_gain.ghz5));
 
 	/* Extract cores power info info */
 	for (i = 0; i < ARRAY_SIZE(pwr_info_offset); i++) {

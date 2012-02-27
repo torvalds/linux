@@ -94,12 +94,7 @@ struct ssb_sprom {
 	 * on each band. Values in dBm/4 (Q5.2). Negative gain means the
 	 * loss in the connectors is bigger than the gain. */
 	struct {
-		struct {
-			s8 a0, a1, a2, a3;
-		} ghz24;	/* 2.4GHz band */
-		struct {
-			s8 a0, a1, a2, a3;
-		} ghz5;		/* 5GHz band */
+		s8 a0, a1, a2, a3;
 	} antenna_gain;
 
 	struct {
