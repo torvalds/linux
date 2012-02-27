@@ -1187,6 +1187,7 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 	unsigned long flags;
 	struct iwl_addsta_cmd sta_cmd;
 	u8 sta_id = iwlagn_key_sta_id(priv, ctx->vif, sta);
+	__le16 key_flags;
 
 	/* if station isn't there, neither is the key */
 	if (sta_id == IWL_INVALID_STATION)
@@ -1212,7 +1213,14 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 		IWL_ERR(priv, "offset %d not used in uCode key table.\n",
 			keyconf->hw_key_idx);
 
-	sta_cmd.key.key_flags = STA_KEY_FLG_NO_ENC | STA_KEY_FLG_INVALID;
+	key_flags = cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
+	key_flags |= STA_KEY_FLG_MAP_KEY_MSK | STA_KEY_FLG_NO_ENC |
+		     STA_KEY_FLG_INVALID;
+
+	if (!(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE))
+		key_flags |= STA_KEY_MULTICAST_MSK;
+
+	sta_cmd.key.key_flags = key_flags;
 	sta_cmd.key.key_offset = WEP_INVALID_OFFSET;
 	sta_cmd.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	sta_cmd.mode = STA_CONTROL_MODIFY_MSK;
