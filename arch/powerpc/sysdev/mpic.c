@@ -965,13 +965,13 @@ static struct irq_chip mpic_irq_ht_chip = {
 #endif /* CONFIG_MPIC_U3_HT_IRQS */
 
 
-static int mpic_host_match(struct irq_host *h, struct device_node *node)
+static int mpic_host_match(struct irq_domain *h, struct device_node *node)
 {
 	/* Exact match, unless mpic node is NULL */
 	return h->of_node == NULL || h->of_node == node;
 }
 
-static int mpic_host_map(struct irq_host *h, unsigned int virq,
+static int mpic_host_map(struct irq_domain *h, unsigned int virq,
 			 irq_hw_number_t hw)
 {
 	struct mpic *mpic = h->host_data;
@@ -1041,7 +1041,7 @@ static int mpic_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static int mpic_host_xlate(struct irq_host *h, struct device_node *ct,
+static int mpic_host_xlate(struct irq_domain *h, struct device_node *ct,
 			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
@@ -1121,13 +1121,13 @@ static void mpic_cascade(unsigned int irq, struct irq_desc *desc)
 	BUG_ON(!(mpic->flags & MPIC_SECONDARY));
 
 	virq = mpic_get_one_irq(mpic);
-	if (virq != NO_IRQ)
+	if (virq)
 		generic_handle_irq(virq);
 
 	chip->irq_eoi(&desc->irq_data);
 }
 
-static struct irq_host_ops mpic_host_ops = {
+static struct irq_domain_ops mpic_host_ops = {
 	.match = mpic_host_match,
 	.map = mpic_host_map,
 	.xlate = mpic_host_xlate,
@@ -1345,10 +1345,9 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic->isu_shift = 1 + __ilog2(mpic->isu_size - 1);
 	mpic->isu_mask = (1 << mpic->isu_shift) - 1;
 
-	mpic->irqhost = irq_alloc_host(mpic->node, IRQ_HOST_MAP_LINEAR,
+	mpic->irqhost = irq_domain_add_linear(mpic->node,
 				       isu_size ? isu_size : mpic->num_sources,
-				       &mpic_host_ops,
-				       flags & MPIC_LARGE_VECTORS ? 2048 : 256);
+				       &mpic_host_ops, mpic);
 
 	/*
 	 * FIXME: The code leaks the MPIC object and mappings here; this
@@ -1356,8 +1355,6 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	 */
 	if (mpic->irqhost == NULL)
 		return NULL;
-
-	mpic->irqhost->host_data = mpic;
 
 	/* Display version */
 	switch (greg_feature & MPIC_GREG_FEATURE_VERSION_MASK) {

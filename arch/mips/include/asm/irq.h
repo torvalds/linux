@@ -11,14 +11,11 @@
 
 #include <linux/linkage.h>
 #include <linux/smp.h>
+#include <linux/irqdomain.h>
 
 #include <asm/mipsmtregs.h>
 
 #include <irq.h>
-
-static inline void irq_dispose_mapping(unsigned int virq)
-{
-}
 
 #ifdef CONFIG_I8259
 static inline int irq_canonicalize(int irq)

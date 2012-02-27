@@ -25,7 +25,7 @@
 
 struct ehv_pic {
 	/* The remapper for this EHV_PIC */
-	struct irq_host	*irqhost;
+	struct irq_domain	*irqhost;
 
 	/* The "linux" controller struct */
 	struct irq_chip	hc_irq;

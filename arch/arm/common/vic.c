@@ -56,7 +56,7 @@ struct vic_device {
 	u32		int_enable;
 	u32		soft_int;
 	u32		protect;
-	struct irq_domain domain;
+	struct irq_domain *domain;
 };
 
 /* we cannot allocate memory when VICs are initially registered */
@@ -192,14 +192,8 @@ static void __init vic_register(void __iomem *base, unsigned int irq,
 	v->resume_sources = resume_sources;
 	v->irq = irq;
 	vic_id++;
-
-	v->domain.irq_base = irq;
-	v->domain.nr_irq = 32;
-#ifdef CONFIG_OF_IRQ
-	v->domain.of_node = of_node_get(node);
-#endif /* CONFIG_OF */
-	v->domain.ops = &irq_domain_simple_ops;
-	irq_domain_add(&v->domain);
+	v->domain = irq_domain_add_legacy(node, 32, irq, 0,
+					  &irq_domain_simple_ops, v);
 }
 
 static void vic_ack_irq(struct irq_data *d)
@@ -348,7 +342,7 @@ static void __init vic_init_st(void __iomem *base, unsigned int irq_start,
 	vic_register(base, irq_start, 0, node);
 }
 
-static void __init __vic_init(void __iomem *base, unsigned int irq_start,
+void __init __vic_init(void __iomem *base, unsigned int irq_start,
 			      u32 vic_sources, u32 resume_sources,
 			      struct device_node *node)
 {
@@ -444,7 +438,7 @@ static int handle_one_vic(struct vic_device *vic, struct pt_regs *regs)
 	stat = readl_relaxed(vic->base + VIC_IRQ_STATUS);
 	while (stat) {
 		irq = ffs(stat) - 1;
-		handle_IRQ(irq_domain_to_irq(&vic->domain, irq), regs);
+		handle_IRQ(irq_find_mapping(vic->domain, irq), regs);
 		stat &= ~(1 << irq);
 		handled = 1;
 	}

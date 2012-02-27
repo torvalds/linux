@@ -68,7 +68,7 @@ void __init sirfsoc_of_irq_init(void)
 	if (!sirfsoc_intc_base)
 		panic("unable to map intc cpu registers\n");
 
-	irq_domain_add_simple(np, 0);
+	irq_domain_add_legacy(np, 32, 0, 0, &irq_domain_simple_ops, NULL);
 
 	of_node_put(np);
 
