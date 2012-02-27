@@ -6875,8 +6875,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x40, 0x0117);
 		break;
 	case SENSOR_HV7131R:
-		if (!sd->ctrls[AUTOGAIN].val)
-			setexposure(gspca_dev);
+		setexposure(gspca_dev);
 		reg_w(gspca_dev, 0x00, ZC3XX_R1A7_CALCGLOBALMEAN);
 		break;
 	case SENSOR_GC0305:
