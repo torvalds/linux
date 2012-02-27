@@ -486,7 +486,7 @@ static void setup_4430ohci_io_mux(const enum usbhs_omap_port_mode *port_mode)
 void __init usbhs_init(const struct usbhs_omap_board_data *pdata)
 {
 	struct omap_hwmod	*oh[2];
-	struct omap_device	*od;
+	struct platform_device	*pdev;
 	int			bus_id = -1;
 	int			i;
 
@@ -522,11 +522,11 @@ void __init usbhs_init(const struct usbhs_omap_board_data *pdata)
 		return;
 	}
 
-	od = omap_device_build_ss(OMAP_USBHS_DEVICE, bus_id, oh, 2,
+	pdev = omap_device_build_ss(OMAP_USBHS_DEVICE, bus_id, oh, 2,
 				(void *)&usbhs_data, sizeof(usbhs_data),
 				omap_uhhtll_latency,
 				ARRAY_SIZE(omap_uhhtll_latency), false);
-	if (IS_ERR(od)) {
+	if (IS_ERR(pdev)) {
 		pr_err("Could not build hwmod devices %s,%s\n",
 			USBHS_UHH_HWMODNAME, USBHS_TLL_HWMODNAME);
 		return;
