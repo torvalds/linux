@@ -176,7 +176,51 @@ static int pseries_eeh_set_option(struct device_node *dn, int option)
  */
 static int pseries_eeh_get_pe_addr(struct device_node *dn)
 {
-	return 0;
+	struct pci_dn *pdn;
+	int ret = 0;
+	int rets[3];
+
+	pdn = PCI_DN(dn);
+
+	if (ibm_get_config_addr_info2 != RTAS_UNKNOWN_SERVICE) {
+		/*
+		 * First of all, we need to make sure there has one PE
+		 * associated with the device. Otherwise, PE address is
+		 * meaningless.
+		 */
+		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
+				pdn->eeh_config_addr, BUID_HI(pdn->phb->buid),
+				BUID_LO(pdn->phb->buid), 1);
+		if (ret || (rets[0] == 0))
+			return 0;
+
+		/* Retrieve the associated PE config address */
+		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
+				pdn->eeh_config_addr, BUID_HI(pdn->phb->buid),
+				BUID_LO(pdn->phb->buid), 0);
+		if (ret) {
+			pr_warning("%s: Failed to get PE address for %s\n",
+				__func__, dn->full_name);
+			return 0;
+		}
+
+		return rets[0];
+	}
+
+	if (ibm_get_config_addr_info != RTAS_UNKNOWN_SERVICE) {
+		ret = rtas_call(ibm_get_config_addr_info, 4, 2, rets,
+				pdn->eeh_config_addr, BUID_HI(pdn->phb->buid),
+				BUID_LO(pdn->phb->buid), 0);
+		if (ret) {
+			pr_warning("%s: Failed to get PE address for %s\n",
+				__func__, dn->full_name);
+			return 0;
+		}
+
+		return rets[0];
+	}
+
+	return ret;
 }
 
 /**

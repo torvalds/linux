@@ -91,8 +91,6 @@ static int ibm_set_slot_reset;
 static int ibm_read_slot_reset_state;
 static int ibm_read_slot_reset_state2;
 static int ibm_slot_error_detail;
-static int ibm_get_config_addr_info;
-static int ibm_get_config_addr_info2;
 static int ibm_configure_bridge;
 static int ibm_configure_pe;
 
@@ -1048,56 +1046,6 @@ void eeh_configure_bridge(struct pci_dn *pdn)
 	}
 }
 
-#define EEH_ENABLE 1
-
-struct eeh_early_enable_info {
-	unsigned int buid_hi;
-	unsigned int buid_lo;
-};
-
-/**
- * eeh_get_pe_addr - Retrieve PE address with given BDF address
- * @config_addr: BDF address
- * @info: BUID of the associated PHB
- *
- * There're 2 kinds of addresses existing in EEH core components:
- * BDF address and PE address. Besides, there has dedicated platform
- * dependent function call to retrieve the PE address according to
- * the given BDF address. Further more, we prefer PE address on BDF
- * address in EEH core components.
- */
-static int eeh_get_pe_addr(int config_addr,
-                        struct eeh_early_enable_info *info)
-{
-	unsigned int rets[3];
-	int ret;
-
-	/* Use latest config-addr token on power6 */
-	if (ibm_get_config_addr_info2 != RTAS_UNKNOWN_SERVICE) {
-		/* Make sure we have a PE in hand */
-		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
-			config_addr, info->buid_hi, info->buid_lo, 1);
-		if (ret || (rets[0]==0))
-			return 0;
-
-		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
-			config_addr, info->buid_hi, info->buid_lo, 0);
-		if (ret)
-			return 0;
-		return rets[0];
-	}
-
-	/* Use older config-addr token on power5 */
-	if (ibm_get_config_addr_info != RTAS_UNKNOWN_SERVICE) {
-		ret = rtas_call(ibm_get_config_addr_info, 4, 2, rets,
-			config_addr, info->buid_hi, info->buid_lo, 0);
-		if (ret)
-			return 0;
-		return rets[0];
-	}
-	return 0;
-}
-
 /**
  * eeh_early_enable - Early enable EEH on the indicated device
  * @dn: device node
@@ -1110,7 +1058,6 @@ static int eeh_get_pe_addr(int config_addr,
 static void *eeh_early_enable(struct device_node *dn, void *data)
 {
 	unsigned int rets[3];
-	struct eeh_early_enable_info *info = data;
 	int ret;
 	const u32 *class_code = of_get_property(dn, "class-code", NULL);
 	const u32 *vendor_id = of_get_property(dn, "vendor-id", NULL);
@@ -1155,7 +1102,7 @@ static void *eeh_early_enable(struct device_node *dn, void *data)
 			/* If the newer, better, ibm,get-config-addr-info is supported, 
 			 * then use that instead.
 			 */
-			pdn->eeh_pe_config_addr = eeh_get_pe_addr(pdn->eeh_config_addr, info);
+			pdn->eeh_pe_config_addr = eeh_ops->get_pe_addr(dn);
 
 			/* Some older systems (Power4) allow the
 			 * ibm,set-eeh-option call to succeed even on nodes
@@ -1264,7 +1211,6 @@ int __exit eeh_ops_unregister(const char *name)
 void __init eeh_init(void)
 {
 	struct device_node *phb, *np;
-	struct eeh_early_enable_info info;
 	int ret;
 
 	/* call platform initialization function */
@@ -1289,8 +1235,6 @@ void __init eeh_init(void)
 	ibm_read_slot_reset_state2 = rtas_token("ibm,read-slot-reset-state2");
 	ibm_read_slot_reset_state = rtas_token("ibm,read-slot-reset-state");
 	ibm_slot_error_detail = rtas_token("ibm,slot-error-detail");
-	ibm_get_config_addr_info = rtas_token("ibm,get-config-addr-info");
-	ibm_get_config_addr_info2 = rtas_token("ibm,get-config-addr-info2");
 	ibm_configure_bridge = rtas_token("ibm,configure-bridge");
 	ibm_configure_pe = rtas_token("ibm,configure-pe");
 
@@ -1313,9 +1257,7 @@ void __init eeh_init(void)
 		if (buid == 0 || PCI_DN(phb) == NULL)
 			continue;
 
-		info.buid_lo = BUID_LO(buid);
-		info.buid_hi = BUID_HI(buid);
-		traverse_pci_devices(phb, eeh_early_enable, &info);
+		traverse_pci_devices(phb, eeh_early_enable, NULL);
 	}
 
 	if (eeh_subsystem_enabled)
@@ -1339,7 +1281,6 @@ void __init eeh_init(void)
 static void eeh_add_device_early(struct device_node *dn)
 {
 	struct pci_controller *phb;
-	struct eeh_early_enable_info info;
 
 	if (!dn || !PCI_DN(dn))
 		return;
@@ -1349,9 +1290,7 @@ static void eeh_add_device_early(struct device_node *dn)
 	if (NULL == phb || 0 == phb->buid)
 		return;
 
-	info.buid_hi = BUID_HI(phb->buid);
-	info.buid_lo = BUID_LO(phb->buid);
-	eeh_early_enable(dn, &info);
+	eeh_early_enable(dn, NULL);
 }
 
 /**
