@@ -45,6 +45,17 @@
 #include <asm/ppc-pci.h>
 #include <asm/rtas.h>
 
+/* RTAS tokens */
+static int ibm_set_eeh_option;
+static int ibm_set_slot_reset;
+static int ibm_read_slot_reset_state;
+static int ibm_read_slot_reset_state2;
+static int ibm_slot_error_detail;
+static int ibm_get_config_addr_info;
+static int ibm_get_config_addr_info2;
+static int ibm_configure_bridge;
+static int ibm_configure_pe;
+
 /**
  * pseries_eeh_init - EEH platform dependent initialization
  *
@@ -52,6 +63,50 @@
  */
 static int pseries_eeh_init(void)
 {
+	/* figure out EEH RTAS function call tokens */
+	ibm_set_eeh_option		= rtas_token("ibm,set-eeh-option");
+	ibm_set_slot_reset		= rtas_token("ibm,set-slot-reset");
+	ibm_read_slot_reset_state2	= rtas_token("ibm,read-slot-reset-state2");
+	ibm_read_slot_reset_state	= rtas_token("ibm,read-slot-reset-state");
+	ibm_slot_error_detail		= rtas_token("ibm,slot-error-detail");
+	ibm_get_config_addr_info2	= rtas_token("ibm,get-config-addr-info2");
+	ibm_get_config_addr_info	= rtas_token("ibm,get-config-addr-info");
+	ibm_configure_pe		= rtas_token("ibm,configure-pe");
+	ibm_configure_bridge		= rtas_token ("ibm,configure-bridge");
+
+	/* necessary sanity check */
+	if (ibm_set_eeh_option == RTAS_UNKNOWN_SERVICE) {
+		pr_warning("%s: RTAS service <ibm,set-eeh-option> invalid\n",
+			__func__);
+		return -EINVAL;
+	} else if (ibm_set_slot_reset == RTAS_UNKNOWN_SERVICE) {
+		pr_warning("%s: RTAS service <ibm, set-slot-reset> invalid\n",
+			__func__);
+		return -EINVAL;
+	} else if (ibm_read_slot_reset_state2 == RTAS_UNKNOWN_SERVICE &&
+		   ibm_read_slot_reset_state == RTAS_UNKNOWN_SERVICE) {
+		pr_warning("%s: RTAS service <ibm,read-slot-reset-state2> and "
+			"<ibm,read-slot-reset-state> invalid\n",
+			__func__);
+		return -EINVAL;
+	} else if (ibm_slot_error_detail == RTAS_UNKNOWN_SERVICE) {
+		pr_warning("%s: RTAS service <ibm,slot-error-detail> invalid\n",
+			__func__);
+		return -EINVAL;
+	} else if (ibm_get_config_addr_info2 == RTAS_UNKNOWN_SERVICE &&
+		   ibm_get_config_addr_info == RTAS_UNKNOWN_SERVICE) {
+		pr_warning("%s: RTAS service <ibm,get-config-addr-info2> and "
+			"<ibm,get-config-addr-info> invalid\n",
+			__func__);
+		return -EINVAL;
+	} else if (ibm_configure_pe == RTAS_UNKNOWN_SERVICE &&
+		   ibm_configure_bridge == RTAS_UNKNOWN_SERVICE) {
+		pr_warning("%s: RTAS service <ibm,configure-pe> and "
+			"<ibm,configure-bridge> invalid\n",
+			__func__);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 

@@ -1279,6 +1279,18 @@ void __init eeh_init(void)
 {
 	struct device_node *phb, *np;
 	struct eeh_early_enable_info info;
+	int ret;
+
+	/* call platform initialization function */
+	if (!eeh_ops) {
+		pr_warning("%s: Platform EEH operation not found\n",
+			__func__);
+		return;
+	} else if ((ret = eeh_ops->init())) {
+		pr_warning("%s: Failed to call platform init function (%d)\n",
+			__func__, ret);
+		return;
+	}
 
 	raw_spin_lock_init(&confirm_error_lock);
 	spin_lock_init(&slot_errbuf_lock);
