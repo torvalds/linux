@@ -40,12 +40,12 @@
 #include <linux/mmc/card.h>
 
 #include <mach/board.h>
-#include <mach/rk29_iomap.h>
+#include <mach/io.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 
 #include <asm/dma.h>
-#include <mach/rk29-dma-pl330.h>
+#include <mach/dma-pl330.h>
 #include <asm/scatterlist.h>
 
 #include "rk29_sdmmc.h"

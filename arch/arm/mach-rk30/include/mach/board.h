@@ -34,6 +34,8 @@ struct mma8452_platform_data {
 	void    (*exit_platform_hw)(void);
 };
 
+extern struct rk29_sdmmc_platform_data default_sdmmc0_data;
+extern struct rk29_sdmmc_platform_data default_sdmmc1_data;
 
 void __init rk30_map_common_io(void);
 void __init rk30_init_irq(void);

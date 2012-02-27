@@ -801,6 +801,66 @@ static struct platform_device device_keys = {
 };
 #endif
 
+#ifdef CONFIG_SDMMC0_RK29
+static struct resource resources_sdmmc0[] = {
+	{
+		.start 	= IRQ_SDMMC,
+		.end 	= IRQ_SDMMC,
+		.flags 	= IORESOURCE_IRQ,
+	},
+	{
+		.start 	= RK30_SDMMC0_PHYS,
+		.end 	= RK30_SDMMC0_PHYS + RK30_SDMMC0_SIZE -1,
+		.flags 	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device device_sdmmc0 = {
+	.name		= "rk29_sdmmc",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(resources_sdmmc0),
+	.resource	= resources_sdmmc0,
+	.dev 		= {
+		.platform_data = &default_sdmmc0_data,
+	},
+};
+#endif
+
+#ifdef CONFIG_SDMMC1_RK29
+static struct resource resources_sdmmc1[] = {
+	{
+		.start 	= IRQ_SDIO,
+		.end 	= IRQ_SDIO,
+		.flags 	= IORESOURCE_IRQ,
+	},
+	{
+		.start 	= RK30_SDIO_PHYS,
+		.end 	= RK30_SDIO_PHYS + RK30_SDIO_SIZE - 1,
+		.flags 	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device device_sdmmc1 = {
+	.name		= "rk29_sdmmc",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(resources_sdmmc1),
+	.resource	= resources_sdmmc1,
+	.dev 		= {
+		.platform_data = &default_sdmmc1_data,
+	},
+};
+#endif
+
+static void __init rk30_init_sdmmc(void)
+{
+#ifdef CONFIG_SDMMC0_RK29
+	platform_device_register(&device_sdmmc0);
+#endif
+#ifdef CONFIG_SDMMC1_RK29
+	platform_device_register(&device_sdmmc1);
+#endif
+}
+
 static int __init rk30_init_devices(void)
 {
 	rk30_init_dma();
@@ -825,6 +885,7 @@ static int __init rk30_init_devices(void)
 #ifdef CONFIG_TSADC_RK30
 	platform_device_register(&device_tsadc);
 #endif
+	rk30_init_sdmmc();
 
         return 0;
 }

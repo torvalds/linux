@@ -1,7 +1,9 @@
 #ifndef __PLAT_BOARD_H
 #define __PLAT_BOARD_H
+
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/device.h>
 
 /*spi*/
 struct spi_cs_gpio {
@@ -31,15 +33,6 @@ struct rk29_bl_info {
 	unsigned int delay_ms;	/* in milliseconds */
 };
 
-#define BOOT_MODE_NORMAL		0
-#define BOOT_MODE_FACTORY2		1
-#define BOOT_MODE_RECOVERY		2
-#define BOOT_MODE_CHARGE		3
-#define BOOT_MODE_POWER_TEST		4
-#define BOOT_MODE_OFFMODE_CHARGING	5
-#define BOOT_MODE_REBOOT		6
-#define BOOT_MODE_PANIC			7
-
 struct rk29lcd_info {
 	u32 lcd_id;
 	u32 txd_pin;
@@ -68,6 +61,29 @@ struct rk29fb_info {
 	int (*io_disable)(void);
 };
 
+struct rk29_sdmmc_platform_data {
+	unsigned int host_caps;
+	unsigned int host_ocr_avail;
+	unsigned int use_dma:1;
+	char dma_name[8];
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+	void (*set_iomux)(int device_id, unsigned int bus_width);//added by xbw at 2011-10-13
+	int (*status)(struct device *);
+	int (*register_status_notify)(void (*callback)(int card_present, void *dev_id), void *dev_id);
+	int detect_irq;
+	int enable_sd_wakeup;
+	int write_prt;
+};
+
+#define BOOT_MODE_NORMAL		0
+#define BOOT_MODE_FACTORY2		1
+#define BOOT_MODE_RECOVERY		2
+#define BOOT_MODE_CHARGE		3
+#define BOOT_MODE_POWER_TEST		4
+#define BOOT_MODE_OFFMODE_CHARGING	5
+#define BOOT_MODE_REBOOT		6
+#define BOOT_MODE_PANIC			7
 int board_boot_mode(void);
 
 /* for USB detection */

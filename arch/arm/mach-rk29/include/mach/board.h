@@ -97,20 +97,6 @@ struct wifi_platform_data {
 };
 #endif
 
-struct rk29_sdmmc_platform_data {
-	unsigned int host_caps;
-	unsigned int host_ocr_avail;
-	unsigned int use_dma:1;
-	char dma_name[8];
-	int (*io_init)(void);
-	int (*io_deinit)(void);
-	void (*set_iomux)(int device_id, unsigned int bus_width);//added by xbw at 2011-10-13
-	int (*status)(struct device *);
-	int (*register_status_notify)(void (*callback)(int card_present, void *dev_id), void *dev_id);
-        int detect_irq;
-		int enable_sd_wakeup;
-	int write_prt;
-};
 struct rk29_i2c_platform_data {
 	int     bus_num;        
 	unsigned int    flags;     
