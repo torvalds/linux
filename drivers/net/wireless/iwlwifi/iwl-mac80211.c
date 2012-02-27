@@ -136,7 +136,7 @@ iwlagn_iface_combinations_p2p[] = {
  * other mac80211 functions grouped here.
  */
 int iwlagn_mac_setup_register(struct iwl_priv *priv,
-				  struct iwlagn_ucode_capabilities *capa)
+				  struct iwl_ucode_capabilities *capa)
 {
 	int ret;
 	struct ieee80211_hw *hw = priv->hw;
@@ -195,7 +195,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 			    WIPHY_FLAG_DISABLE_BEACON_HINTS |
 			    WIPHY_FLAG_IBSS_RSN;
 
-	if (trans(priv)->ucode_wowlan.code.len &&
+	if (nic(priv)->fw.ucode_wowlan.code.len &&
 	    device_can_wakeup(trans(priv)->dev)) {
 		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
 					  WIPHY_WOWLAN_DISCONNECT |
@@ -296,7 +296,7 @@ static int __iwl_up(struct iwl_priv *priv)
 
  error:
 	set_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
-	__iwl_down(priv);
+	iwl_down(priv);
 	clear_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
 
 	IWL_ERR(priv, "Unable to initialize device.\n");
@@ -341,9 +341,13 @@ static void iwlagn_mac_stop(struct ieee80211_hw *hw)
 
 	priv->is_open = 0;
 
+	mutex_lock(&priv->shrd->mutex);
 	iwl_down(priv);
+	mutex_unlock(&priv->shrd->mutex);
 
-	flush_workqueue(priv->shrd->workqueue);
+	iwl_cancel_deferred_work(priv);
+
+	flush_workqueue(priv->workqueue);
 
 	/* User space software may expect getting rfkill changes
 	 * even if interface is down, trans->down will leave the RF
@@ -453,17 +457,17 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		if (ret == 0) {
-			struct iwl_trans *trans = trans(priv);
+			struct iwl_nic *nic = nic(priv);
 			if (!priv->wowlan_sram)
 				priv->wowlan_sram =
-					kzalloc(trans->ucode_wowlan.data.len,
+					kzalloc(nic->fw.ucode_wowlan.data.len,
 						GFP_KERNEL);
 
 			if (priv->wowlan_sram)
 				_iwl_read_targ_mem_words(
 					trans(priv), 0x800000,
 					priv->wowlan_sram,
-					trans->ucode_wowlan.data.len / 4);
+					nic->fw.ucode_wowlan.data.len / 4);
 		}
 #endif
 	}
@@ -1117,7 +1121,7 @@ static int iwlagn_mac_set_tim(struct ieee80211_hw *hw,
 {
 	struct iwl_priv *priv = hw->priv;
 
-	queue_work(priv->shrd->workqueue, &priv->beacon_update);
+	queue_work(priv->workqueue, &priv->beacon_update);
 
 	return 0;
 }

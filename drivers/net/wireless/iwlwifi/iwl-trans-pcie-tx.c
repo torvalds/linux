@@ -492,7 +492,7 @@ void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
 
 	ra_tid = BUILD_RAxTID(sta_id, tid);
 
-	spin_lock_irqsave(&trans->shrd->lock, flags);
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
 	/* Stop this Tx queue before configuring it */
 	iwlagn_tx_queue_stop_scheduler(trans, txq_id);
@@ -532,7 +532,7 @@ void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
 	trans_pcie->txq[txq_id].sta_id = sta_id;
 	trans_pcie->txq[txq_id].tid = tid;
 
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 }
 
 /*

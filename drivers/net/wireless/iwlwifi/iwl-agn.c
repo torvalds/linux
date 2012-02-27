@@ -618,7 +618,7 @@ static int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
 	  .valid = cpu_to_le32(valid_tx_ant),
 	};
 
-	if (IWL_UCODE_API(priv->ucode_ver) > 1) {
+	if (IWL_UCODE_API(nic(priv)->fw.ucode_ver) > 1) {
 		IWL_DEBUG_HC(priv, "select valid tx ant: %u\n", valid_tx_ant);
 		return iwl_trans_send_cmd_pdu(trans(priv),
 					TX_ANT_CONFIGURATION_CMD,
@@ -738,13 +738,13 @@ int iwl_alive_start(struct iwl_priv *priv)
 	return iwl_power_update_mode(priv, true);
 }
 
-static void iwl_cancel_deferred_work(struct iwl_priv *priv);
-
-void __iwl_down(struct iwl_priv *priv)
+void iwl_down(struct iwl_priv *priv)
 {
 	int exit_pending;
 
 	IWL_DEBUG_INFO(priv, DRV_NAME " is going down\n");
+
+	lockdep_assert_held(&priv->shrd->mutex);
 
 	iwl_scan_cancel_timeout(priv, 200);
 
@@ -801,15 +801,6 @@ void __iwl_down(struct iwl_priv *priv)
 
 	dev_kfree_skb(priv->beacon_skb);
 	priv->beacon_skb = NULL;
-}
-
-void iwl_down(struct iwl_priv *priv)
-{
-	mutex_lock(&priv->shrd->mutex);
-	__iwl_down(priv);
-	mutex_unlock(&priv->shrd->mutex);
-
-	iwl_cancel_deferred_work(priv);
 }
 
 /*****************************************************************************
@@ -869,7 +860,7 @@ void iwlagn_prepare_restart(struct iwl_priv *priv)
 	bt_status = priv->bt_status;
 	bt_is_sco = priv->bt_is_sco;
 
-	__iwl_down(priv);
+	iwl_down(priv);
 
 	priv->bt_full_concurrent = bt_full_concurrent;
 	priv->bt_ci_compliance = bt_ci_compliance;
@@ -939,7 +930,7 @@ static void iwlagn_disable_roc_work(struct work_struct *work)
 
 static void iwl_setup_deferred_work(struct iwl_priv *priv)
 {
-	priv->shrd->workqueue = create_singlethread_workqueue(DRV_NAME);
+	priv->workqueue = create_singlethread_workqueue(DRV_NAME);
 
 	init_waitqueue_head(&priv->shrd->wait_command_queue);
 
@@ -970,7 +961,7 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	priv->watchdog.function = iwl_bg_watchdog;
 }
 
-static void iwl_cancel_deferred_work(struct iwl_priv *priv)
+void iwl_cancel_deferred_work(struct iwl_priv *priv)
 {
 	if (cfg(priv)->lib->cancel_deferred_work)
 		cfg(priv)->lib->cancel_deferred_work(priv);
@@ -1091,7 +1082,7 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 #define IWL_RX_BUF_SIZE_4K (4 * 1024)
 #define IWL_RX_BUF_SIZE_8K (8 * 1024)
 
-static int iwl_set_hw_params(struct iwl_priv *priv)
+static void iwl_set_hw_params(struct iwl_priv *priv)
 {
 	if (iwlagn_mod_params.amsdu_size_8K)
 		hw_params(priv).rx_page_order =
@@ -1111,7 +1102,7 @@ static int iwl_set_hw_params(struct iwl_priv *priv)
 	hw_params(priv).wd_timeout = cfg(priv)->base_params->wd_timeout;
 
 	/* Device-specific setup */
-	return cfg(priv)->lib->set_hw_params(priv);
+	cfg(priv)->lib->set_hw_params(priv);
 }
 
 
@@ -1248,11 +1239,7 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	/************************
 	 * 5. Setup HW constants
 	 ************************/
-	if (iwl_set_hw_params(priv)) {
-		err = -ENOENT;
-		IWL_ERR(priv, "failed to set hw parameters\n");
-		goto out_free_eeprom;
-	}
+	iwl_set_hw_params(priv);
 
 	/*******************
 	 * 6. Setup priv
@@ -1273,17 +1260,17 @@ int iwl_probe(struct iwl_bus *bus, const struct iwl_trans_ops *trans_ops,
 	iwl_power_initialize(priv);
 	iwl_tt_initialize(priv);
 
-	init_completion(&priv->firmware_loading_complete);
+	init_completion(&nic(priv)->request_firmware_complete);
 
-	err = iwl_request_firmware(priv, true);
+	err = iwl_request_firmware(nic(priv), true);
 	if (err)
 		goto out_destroy_workqueue;
 
 	return 0;
 
 out_destroy_workqueue:
-	destroy_workqueue(priv->shrd->workqueue);
-	priv->shrd->workqueue = NULL;
+	destroy_workqueue(priv->workqueue);
+	priv->workqueue = NULL;
 	iwl_uninit_drv(priv);
 out_free_eeprom:
 	iwl_eeprom_free(priv->shrd);
@@ -1296,7 +1283,7 @@ out:
 
 void __devexit iwl_remove(struct iwl_priv * priv)
 {
-	wait_for_completion(&priv->firmware_loading_complete);
+	wait_for_completion(&nic(priv)->request_firmware_complete);
 
 	IWL_DEBUG_INFO(priv, "*** UNLOAD DRIVER ***\n");
 
@@ -1316,18 +1303,18 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	/*This will stop the queues, move the device to low power state */
 	iwl_trans_stop_device(trans(priv));
 
-	iwl_dealloc_ucode(trans(priv));
+	iwl_dealloc_ucode(nic(priv));
 
 	iwl_eeprom_free(priv->shrd);
 
 	/*netif_stop_queue(dev); */
-	flush_workqueue(priv->shrd->workqueue);
+	flush_workqueue(priv->workqueue);
 
 	/* ieee80211_unregister_hw calls iwlagn_mac_stop, which flushes
-	 * priv->shrd->workqueue... so we can't take down the workqueue
+	 * priv->workqueue... so we can't take down the workqueue
 	 * until now... */
-	destroy_workqueue(priv->shrd->workqueue);
-	priv->shrd->workqueue = NULL;
+	destroy_workqueue(priv->workqueue);
+	priv->workqueue = NULL;
 	iwl_free_traffic_mem(priv);
 
 	iwl_uninit_drv(priv);

@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,50 +58,70 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  *****************************************************************************/
 
-#ifndef __iwl_wifi_h__
-#define __iwl_wifi_h__
+#include <linux/interrupt.h>
+#include "iwl-debug.h"
 
-#include "iwl-shared.h"
-#include "iwl-ucode.h"
+#define __iwl_fn(fn)						\
+void __iwl_ ##fn(struct device *dev, const char *fmt, ...)	\
+{								\
+	struct va_format vaf = {				\
+		.fmt = fmt,					\
+	};							\
+	va_list args;						\
+								\
+	va_start(args, fmt);					\
+	vaf.va = &args;						\
+	dev_ ##fn(dev, "%pV", &vaf);				\
+	trace_iwlwifi_ ##fn(&vaf);				\
+	va_end(args);						\
+}
 
-/**
- * struct iwl_nic - nic common data
- * @fw: the iwl_fw structure
- * @shrd: pointer to common shared structure
- * @fw_index: firmware revision to try loading
- * @firmware_name: composite filename of ucode file to load
- * @init_evtlog_ptr: event log offset for init ucode.
- * @init_evtlog_size: event log size for init ucode.
- * @init_errlog_ptr: error log offfset for init ucode.
- * @inst_evtlog_ptr: event log offset for runtime ucode.
- * @inst_evtlog_size: event log size for runtime ucode.
- * @inst_errlog_ptr: error log offfset for runtime ucode.
- * @request_firmware_complete: the firmware has been obtained from user space
- */
-struct iwl_nic {
-	struct iwl_fw fw;
+__iwl_fn(warn)
+__iwl_fn(info)
+__iwl_fn(crit)
 
-	struct iwl_shared *shrd;
+void __iwl_err(struct device *dev, bool rfkill_prefix, bool trace_only,
+		const char *fmt, ...)
+{
+	struct va_format vaf = {
+		.fmt = fmt,
+	};
+	va_list args;
 
-	int fw_index;                   /* firmware we're trying to load */
-	char firmware_name[25];         /* name of firmware file to load */
+	va_start(args, fmt);
+	vaf.va = &args;
+	if (!trace_only) {
+		if (rfkill_prefix)
+			dev_err(dev, "(RFKILL) %pV", &vaf);
+		else
+			dev_err(dev, "%pV", &vaf);
+	}
+	trace_iwlwifi_err(&vaf);
+	va_end(args);
+}
 
-	u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
-	u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
+#if defined(CONFIG_IWLWIFI_DEBUG) || defined(CONFIG_IWLWIFI_DEVICE_TRACING)
+void __iwl_dbg(struct iwl_shared *shared, struct device *dev,
+	       u32 level, bool limit, const char *function,
+	       const char *fmt, ...)
+{
+	struct va_format vaf = {
+		.fmt = fmt,
+	};
+	va_list args;
 
-	struct completion request_firmware_complete;
-};
-
-
-int __must_check iwl_request_firmware(struct iwl_nic *nic, bool first);
-void iwl_dealloc_ucode(struct iwl_nic *nic);
-
-int iwl_send_bt_env(struct iwl_trans *trans, u8 action, u8 type);
-void iwl_send_prio_tbl(struct iwl_trans *trans);
-int iwl_init_alive_start(struct iwl_trans *trans);
-int iwl_run_init_ucode(struct iwl_trans *trans);
-int iwl_load_ucode_wait_alive(struct iwl_trans *trans,
-				 enum iwl_ucode_type ucode_type);
-#endif  /* __iwl_wifi_h__ */
+	va_start(args, fmt);
+	vaf.va = &args;
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (iwl_get_debug_level(shared) & level &&
+	    (!limit || net_ratelimit()))
+		dev_err(dev, "%c %s %pV", in_interrupt() ? 'I' : 'U',
+			function, &vaf);
+#endif
+	trace_iwlwifi_dbg(level, in_interrupt(), function, &vaf);
+	va_end(args);
+}
+#endif
