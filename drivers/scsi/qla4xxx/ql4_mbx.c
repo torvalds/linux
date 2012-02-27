@@ -622,7 +622,7 @@ int qla4xxx_get_firmware_status(struct scsi_qla_host * ha)
 		return QLA_ERROR;
 	}
 
-	ql4_printk(KERN_INFO, ha, "%ld firmare IOCBs available (%d).\n",
+	ql4_printk(KERN_INFO, ha, "%ld firmware IOCBs available (%d).\n",
 	    ha->host_no, mbox_sts[2]);
 
 	return QLA_SUCCESS;
