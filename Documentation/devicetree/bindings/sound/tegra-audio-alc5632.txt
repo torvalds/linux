@@ -25,12 +25,14 @@ Required properties:
   * MIC2_P
   * MIC2_N
   * MICBIAS1
+  * DMICDAT
 
   Board connectors:
 
   * Headset Stereophone
   * Int Spk
   * Headset Mic
+  * Digital Mic
 
 - nvidia,i2s-controller : The phandle of the Tegra I2S controller
 - nvidia,audio-codec : The phandle of the ALC5632 audio codec
