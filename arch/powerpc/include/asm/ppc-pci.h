@@ -58,7 +58,6 @@ struct pci_dev *pci_get_device_by_addr(unsigned long addr);
 void eeh_slot_error_detail (struct pci_dn *pdn, int severity);
 int eeh_pci_enable(struct pci_dn *pdn, int function);
 int eeh_reset_pe(struct pci_dn *);
-int eeh_wait_for_slot_status(struct pci_dn *pdn, int max_wait_msecs);
 void eeh_restore_bars(struct pci_dn *);
 void eeh_configure_bridge(struct pci_dn *);
 int rtas_write_config(struct pci_dn *, int where, int size, u32 val);

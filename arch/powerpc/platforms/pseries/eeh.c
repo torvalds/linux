@@ -287,48 +287,6 @@ void eeh_slot_error_detail(struct pci_dn *pdn, int severity)
 }
 
 /**
- * eeh_wait_for_slot_status - Returns error status of slot
- * @pdn: pci device node
- * @max_wait_msecs: maximum number to millisecs to wait
- *
- * Return negative value if a permanent error, else return
- * Partition Endpoint (PE) status value.
- *
- * If @max_wait_msecs is positive, then this routine will
- * sleep until a valid status can be obtained, or until
- * the max allowed wait time is exceeded, in which case
- * a -2 is returned.
- */
-int eeh_wait_for_slot_status(struct pci_dn *pdn, int max_wait_msecs)
-{
-	int rc;
-	int mwait;
-
-	while (1) {
-		rc = eeh_ops->get_state(pdn->node, &mwait);
-		if (rc != EEH_STATE_UNAVAILABLE)
-			return rc;
-
-		if (max_wait_msecs <= 0) break;
-
-		if (mwait <= 0) {
-			printk(KERN_WARNING "EEH: Firmware returned bad wait value=%d\n",
-				mwait);
-			mwait = 1000;
-		} else if (mwait > 300*1000) {
-			printk(KERN_WARNING "EEH: Firmware is taking too long, time=%d\n",
-				mwait);
-			mwait = 300*1000;
-		}
-		max_wait_msecs -= mwait;
-		msleep(mwait);
-	}
-
-	printk(KERN_WARNING "EEH: Timed out waiting for slot status\n");
-	return -2;
-}
-
-/**
  * eeh_token_to_phys - Convert EEH address token to phys address
  * @token: I/O token, should be address in the form 0xA....
  *
@@ -640,7 +598,7 @@ int eeh_pci_enable(struct pci_dn *pdn, int function)
 		printk(KERN_WARNING "EEH: Unexpected state change %d, err=%d dn=%s\n",
 		        function, rc, pdn->node->full_name);
 
-	rc = eeh_wait_for_slot_status(pdn, PCI_BUS_RESET_WAIT_MSEC);
+	rc = eeh_ops->wait_state(pdn->node, PCI_BUS_RESET_WAIT_MSEC);
 	if (rc > 0 && (rc & EEH_STATE_MMIO_ENABLED) &&
 	   (function == EEH_OPT_THAW_MMIO))
 		return 0;
@@ -838,7 +796,7 @@ int eeh_reset_pe(struct pci_dn *pdn)
 	for (i=0; i<3; i++) {
 		eeh_reset_pe_once(pdn);
 
-		rc = eeh_wait_for_slot_status(pdn, PCI_BUS_RESET_WAIT_MSEC);
+		rc = eeh_ops->wait_state(pdn->node, PCI_BUS_RESET_WAIT_MSEC);
 		if (rc == (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE))
 			return 0;
 

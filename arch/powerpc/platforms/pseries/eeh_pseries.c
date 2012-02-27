@@ -331,7 +331,52 @@ static int pseries_eeh_reset(struct device_node *dn, int option)
  */
 static int pseries_eeh_wait_state(struct device_node *dn, int max_wait)
 {
-	return 0;
+	int ret;
+	int mwait;
+
+	/*
+	 * According to PAPR, the state of PE might be temporarily
+	 * unavailable. Under the circumstance, we have to wait
+	 * for indicated time determined by firmware. The maximal
+	 * wait time is 5 minutes, which is acquired from the original
+	 * EEH implementation. Also, the original implementation
+	 * also defined the minimal wait time as 1 second.
+	 */
+#define EEH_STATE_MIN_WAIT_TIME	(1000)
+#define EEH_STATE_MAX_WAIT_TIME	(300 * 1000)
+
+	while (1) {
+		ret = pseries_eeh_get_state(dn, &mwait);
+
+		/*
+		 * If the PE's state is temporarily unavailable,
+		 * we have to wait for the specified time. Otherwise,
+		 * the PE's state will be returned immediately.
+		 */
+		if (ret != EEH_STATE_UNAVAILABLE)
+			return ret;
+
+		if (max_wait <= 0) {
+			pr_warning("%s: Timeout when getting PE's state (%d)\n",
+				__func__, max_wait);
+			return EEH_STATE_NOT_SUPPORT;
+		}
+
+		if (mwait <= 0) {
+			pr_warning("%s: Firmware returned bad wait value %d\n",
+				__func__, mwait);
+			mwait = EEH_STATE_MIN_WAIT_TIME;
+		} else if (mwait > EEH_STATE_MAX_WAIT_TIME) {
+			pr_warning("%s: Firmware returned too long wait value %d\n",
+				__func__, mwait);
+			mwait = EEH_STATE_MAX_WAIT_TIME;
+		}
+
+		max_wait -= mwait;
+		msleep(mwait);
+	}
+
+	return EEH_STATE_NOT_SUPPORT;
 }
 
 /**
