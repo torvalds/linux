@@ -89,7 +89,7 @@ static void snd_tea575x_write(struct snd_tea575x *tea, unsigned int val)
 		tea->ops->set_pins(tea, 0);
 }
 
-static unsigned int snd_tea575x_read(struct snd_tea575x *tea)
+static u32 snd_tea575x_read(struct snd_tea575x *tea)
 {
 	u16 l, rdata;
 	u32 data = 0;
@@ -118,6 +118,25 @@ static unsigned int snd_tea575x_read(struct snd_tea575x *tea)
 		tea->ops->set_pins(tea, TEA575X_WREN);
 
 	return data;
+}
+
+static u32 snd_tea575x_get_freq(struct snd_tea575x *tea)
+{
+	u32 freq = snd_tea575x_read(tea) & TEA575X_BIT_FREQ_MASK;
+
+	if (freq == 0)
+		return freq;
+
+	/* freq *= 12.5 */
+	freq *= 125;
+	freq /= 10;
+	/* crystal fixup */
+	if (tea->tea5759)
+		freq += TEA575X_FMIF;
+	else
+		freq -= TEA575X_FMIF;
+
+	return clamp(freq * 16, FREQ_LO, FREQ_HI); /* from kHz */
 }
 
 static void snd_tea575x_set_freq(struct snd_tea575x *tea)
@@ -225,38 +244,62 @@ static int vidioc_s_hw_freq_seek(struct file *file, void *fh,
 					struct v4l2_hw_freq_seek *a)
 {
 	struct snd_tea575x *tea = video_drvdata(file);
+	unsigned long timeout;
+	int i;
 
 	if (tea->cannot_read_data)
 		return -ENOTTY;
 	if (a->tuner || a->wrap_around)
 		return -EINVAL;
+
+	/* clear the frequency, HW will fill it in */
+	tea->val &= ~TEA575X_BIT_FREQ_MASK;
 	tea->val |= TEA575X_BIT_SEARCH;
-	tea->val &= ~TEA575X_BIT_UPDOWN;
 	if (a->seek_upward)
 		tea->val |= TEA575X_BIT_UPDOWN;
+	else
+		tea->val &= ~TEA575X_BIT_UPDOWN;
 	snd_tea575x_write(tea, tea->val);
+	timeout = jiffies + msecs_to_jiffies(10000);
 	for (;;) {
-		unsigned val = snd_tea575x_read(tea);
-
-		if (!(val & TEA575X_BIT_SEARCH)) {
-			/* Found a frequency */
-			val &= TEA575X_BIT_FREQ_MASK;
-			val = (val * 10) / 125;
-			if (tea->tea5759)
-				val += TEA575X_FMIF;
-			else
-				val -= TEA575X_FMIF;
-			tea->freq = clamp(val * 16, FREQ_LO, FREQ_HI);
-			return 0;
-		}
+		if (time_after(jiffies, timeout))
+			break;
 		if (schedule_timeout_interruptible(msecs_to_jiffies(10))) {
 			/* some signal arrived, stop search */
 			tea->val &= ~TEA575X_BIT_SEARCH;
-			snd_tea575x_write(tea, tea->val);
+			snd_tea575x_set_freq(tea);
 			return -ERESTARTSYS;
 		}
+		if (!(snd_tea575x_read(tea) & TEA575X_BIT_SEARCH)) {
+			u32 freq;
+
+			/* Found a frequency, wait until it can be read */
+			for (i = 0; i < 100; i++) {
+				msleep(10);
+				freq = snd_tea575x_get_freq(tea);
+				if (freq) /* available */
+					break;
+			}
+			if (freq == 0) /* shouldn't happen */
+				break;
+			/*
+			 * if we moved by less than 50 kHz, or in the wrong
+			 * direction, continue seeking
+			 */
+			if (abs(tea->freq - freq) < 16 * 50 ||
+					(a->seek_upward && freq < tea->freq) ||
+					(!a->seek_upward && freq > tea->freq)) {
+				snd_tea575x_write(tea, tea->val);
+				continue;
+			}
+			tea->freq = freq;
+			tea->val &= ~TEA575X_BIT_SEARCH;
+			return 0;
+		}
 	}
-	return 0;
+	tea->val &= ~TEA575X_BIT_SEARCH;
+	snd_tea575x_set_freq(tea);
+	return -EAGAIN;
 }
 
 static int tea575x_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -320,7 +363,7 @@ int snd_tea575x_init(struct snd_tea575x *tea)
 			return -ENODEV;
 	}
 
-	tea->val = TEA575X_BIT_BAND_FM | TEA575X_BIT_SEARCH_10_40;
+	tea->val = TEA575X_BIT_BAND_FM | TEA575X_BIT_SEARCH_5_28;
 	tea->freq = 90500 * 16;		/* 90.5Mhz default */
 	snd_tea575x_set_freq(tea);
 
