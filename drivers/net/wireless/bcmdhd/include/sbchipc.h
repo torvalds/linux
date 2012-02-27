@@ -5,7 +5,7 @@
  * JTAG, 0/1/2 UARTs, clock frequency control, a watchdog interrupt timer,
  * GPIO interface, extbus, and support for serial and parallel flashes.
  *
- * $Id: sbchipc.h 277737 2011-08-16 17:54:59Z $
+ * $Id: sbchipc.h 311371 2012-01-28 05:47:25Z $
  *
  * Copyright (C) 1999-2011, Broadcom Corporation
  * 
@@ -1658,6 +1658,9 @@ typedef volatile struct {
 #define CCTRL_4330_SDIO_HOST_WAKE	0x00000004    
 #define CCTRL_4330_JTAG_DISABLE	0x00000008    
 
+
+#define CCTRL_43239_GPIO_SEL		0x00000002    
+#define CCTRL_43239_SDIO_HOST_WAKE	0x00000004    
 
 #define	RES4313_BB_PU_RSRC		0
 #define	RES4313_ILP_REQ_RSRC		1

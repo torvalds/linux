@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 309234 2012-01-19 01:44:16Z $
+ * $Id: dhd_sdio.c 314732 2012-02-14 03:22:42Z $
  */
 
 #include <typedefs.h>

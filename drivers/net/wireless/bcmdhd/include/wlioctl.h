@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wlioctl.h 307468 2012-01-11 18:29:27Z $
+ * $Id: wlioctl.h 312596 2012-02-03 02:53:30Z $
  */
 
 
@@ -1213,7 +1213,7 @@ typedef struct {
 
 #define WL_AUTH_OPEN_SYSTEM     0   
 #define WL_AUTH_SHARED_KEY      1   
-#define WL_AUTH_OPEN_SHARED		3	
+#define WL_AUTH_OPEN_SHARED		2	
 
 
 #define WL_RADIO_SW_DISABLE     (1<<0)

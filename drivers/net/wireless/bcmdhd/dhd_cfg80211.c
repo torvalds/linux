@@ -467,7 +467,6 @@ void wl_cfg80211_btcoex_deinit(struct wl_priv *wl)
 	kfree(wl->btcoex_info);
 	wl->btcoex_info = NULL;
 }
-#endif 
 
 int wl_cfg80211_set_btcoex_dhcp(struct net_device *dev, char *command)
 {
@@ -591,3 +590,4 @@ int wl_cfg80211_set_btcoex_dhcp(struct net_device *dev, char *command)
 
 	return (strlen("OK"));
 }
+#endif 

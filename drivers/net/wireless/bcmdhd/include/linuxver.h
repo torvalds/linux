@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: linuxver.h 280266 2011-08-28 04:18:20Z $
+ * $Id: linuxver.h 312264 2012-02-02 00:49:43Z $
  */
 
 
@@ -524,6 +524,11 @@ typedef struct {
 	} while (0);
 #endif /* LINUX_VERSION_CODE  */
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
+#define BLOCKABLE()	(!in_atomic())
+#else
+#define BLOCKABLE()	(!in_interrupt())
+#endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31))
 #define KILL_PROC(nr, sig) \
