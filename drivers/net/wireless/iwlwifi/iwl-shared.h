@@ -94,7 +94,6 @@
  * This implementation is iwl-pci.c
  */
 
-struct iwl_bus;
 struct iwl_priv;
 struct iwl_trans;
 struct iwl_sensitivity_ranges;
@@ -385,7 +384,6 @@ struct iwl_shared {
 	bool wowlan;
 	u8 valid_contexts;
 
-	struct iwl_bus *bus;
 	struct iwl_cfg *cfg;
 	struct iwl_priv *priv;
 	struct iwl_trans *trans;
@@ -416,10 +414,9 @@ struct iwl_shared {
 
 };
 
-/*Whatever _m is (iwl_trans, iwl_priv, iwl_bus, these macros will work */
+/*Whatever _m is (iwl_trans, iwl_priv, these macros will work */
 #define priv(_m)	((_m)->shrd->priv)
 #define cfg(_m)		((_m)->shrd->cfg)
-#define bus(_m)		((_m)->shrd->bus)
 #define nic(_m)		((_m)->shrd->nic)
 #define trans(_m)	((_m)->shrd->trans)
 #define hw_params(_m)	((_m)->shrd->hw_params)

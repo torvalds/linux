@@ -29,7 +29,6 @@
 #ifndef __iwl_debug_h__
 #define __iwl_debug_h__
 
-#include "iwl-bus.h"
 #include "iwl-shared.h"
 #include "iwl-devtrace.h"
 

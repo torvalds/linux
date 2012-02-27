@@ -78,7 +78,6 @@
 #include "iwl-agn.h"
 #include "iwl-testmode.h"
 #include "iwl-trans.h"
-#include "iwl-bus.h"
 #include "iwl-fh.h"
 
 

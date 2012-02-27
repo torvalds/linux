@@ -51,7 +51,6 @@
 #include "iwl-agn-calib.h"
 #include "iwl-agn.h"
 #include "iwl-shared.h"
-#include "iwl-bus.h"
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
 

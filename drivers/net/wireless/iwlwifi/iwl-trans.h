@@ -563,6 +563,8 @@ extern const struct iwl_trans_ops trans_ops_pcie;
 struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
 				       struct pci_dev *pdev,
 				       const struct pci_device_id *ent);
+int __must_check iwl_pci_register_driver(void);
+void iwl_pci_unregister_driver(void);
 
 extern const struct iwl_trans_ops trans_ops_idi;
 struct iwl_trans *iwl_trans_idi_alloc(struct iwl_shared *shrd,
