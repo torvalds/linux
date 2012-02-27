@@ -572,6 +572,7 @@ static struct sk_buff *wl1271_skb_dequeue(struct wl1271 *wl)
 	struct wl12xx_vif *wlvif = wl->last_wlvif;
 	struct sk_buff *skb = NULL;
 
+	/* continue from last wlvif (round robin) */
 	if (wlvif) {
 		wl12xx_for_each_wlvif_continue(wl, wlvif) {
 			skb = wl12xx_vif_skb_dequeue(wl, wlvif);
@@ -582,7 +583,11 @@ static struct sk_buff *wl1271_skb_dequeue(struct wl1271 *wl)
 		}
 	}
 
-	/* do another pass */
+	/* dequeue from the system HLID before the restarting wlvif list */
+	if (!skb)
+		skb = wl12xx_lnk_skb_dequeue(wl, &wl->links[wl->system_hlid]);
+
+	/* do a new pass over the wlvif list */
 	if (!skb) {
 		wl12xx_for_each_wlvif(wl, wlvif) {
 			skb = wl12xx_vif_skb_dequeue(wl, wlvif);
@@ -590,11 +595,15 @@ static struct sk_buff *wl1271_skb_dequeue(struct wl1271 *wl)
 				wl->last_wlvif = wlvif;
 				break;
 			}
+
+			/*
+			 * No need to continue after last_wlvif. The previous
+			 * pass should have found it.
+			 */
+			if (wlvif == wl->last_wlvif)
+				break;
 		}
 	}
-
-	if (!skb)
-		skb = wl12xx_lnk_skb_dequeue(wl, &wl->links[wl->system_hlid]);
 
 	if (!skb &&
 	    test_and_clear_bit(WL1271_FLAG_DUMMY_PACKET_PENDING, &wl->flags)) {
