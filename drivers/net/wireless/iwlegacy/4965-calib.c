@@ -79,18 +79,6 @@ struct stats_general_data {
 	u32 beacon_energy_c;
 };
 
-void
-il4965_calib_free_results(struct il_priv *il)
-{
-	int i;
-
-	for (i = 0; i < IL_CALIB_MAX; i++) {
-		kfree(il->calib_results[i].buf);
-		il->calib_results[i].buf = NULL;
-		il->calib_results[i].buf_len = 0;
-	}
-}
-
 /*****************************************************************************
  * RUNTIME calibrations framework
  *****************************************************************************/

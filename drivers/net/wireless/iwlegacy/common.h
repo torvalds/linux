@@ -961,21 +961,6 @@ enum il4965_calib_enabled_state {
 	IL_CALIB_ENABLED = 1,
 };
 
-/*
- * enum il_calib
- * defines the order in which results of initial calibrations
- * should be sent to the runtime uCode
- */
-enum il_calib {
-	IL_CALIB_MAX,
-};
-
-/* Opaque calibration results */
-struct il_calib_result {
-	void *buf;
-	size_t buf_len;
-};
-
 enum ucode_type {
 	UCODE_NONE = 0,
 	UCODE_INIT,
@@ -1194,9 +1179,6 @@ struct il_priv {
 	/* thermal calibration */
 	s32 temperature;	/* degrees Kelvin */
 	s32 last_temperature;
-
-	/* init calibration results */
-	struct il_calib_result calib_results[IL_CALIB_MAX];
 
 	/* Scan related variables */
 	unsigned long scan_start;

@@ -6347,7 +6347,6 @@ err:
 static void
 il4965_uninit_drv(struct il_priv *il)
 {
-	il4965_calib_free_results(il);
 	il_free_geos(il);
 	il_free_channel_map(il);
 	kfree(il->scan_cmd);

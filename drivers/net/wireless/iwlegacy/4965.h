@@ -927,7 +927,6 @@ void il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp);
 void il4965_sensitivity_calibration(struct il_priv *il, void *resp);
 void il4965_init_sensitivity(struct il_priv *il);
 void il4965_reset_run_time_calib(struct il_priv *il);
-void il4965_calib_free_results(struct il_priv *il);
 
 /* Debug */
 #ifdef CONFIG_IWLEGACY_DEBUGFS
