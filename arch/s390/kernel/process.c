@@ -29,7 +29,6 @@
 #include <asm/irq.h>
 #include <asm/timer.h>
 #include <asm/nmi.h>
-#include <asm/compat.h>
 #include <asm/smp.h>
 #include "entry.h"
 
