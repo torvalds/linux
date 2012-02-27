@@ -2308,7 +2308,7 @@ static ssize_t target_core_alua_tg_pt_gp_store_attr_alua_access_state(
 
 	if (!(tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_IMPLICT_ALUA)) {
 		pr_err("Unable to process implict configfs ALUA"
-			" transition while TPGS_IMPLICT_ALUA is diabled\n");
+			" transition while TPGS_IMPLICT_ALUA is disabled\n");
 		return -EINVAL;
 	}
 
