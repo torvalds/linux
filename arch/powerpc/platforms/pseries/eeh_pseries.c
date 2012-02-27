@@ -473,7 +473,34 @@ static int pseries_eeh_get_log(struct device_node *dn, int severity, char *drv_l
  */
 static int pseries_eeh_configure_bridge(struct device_node *dn)
 {
-	return 0;
+	struct pci_dn *pdn;
+	int config_addr;
+	int ret;
+
+	/* Figure out the PE address */
+	pdn = PCI_DN(dn);
+	config_addr = pdn->eeh_config_addr;
+	if (pdn->eeh_pe_config_addr)
+		config_addr = pdn->eeh_pe_config_addr;
+
+	/* Use new configure-pe function, if supported */
+	if (ibm_configure_pe != RTAS_UNKNOWN_SERVICE) {
+		ret = rtas_call(ibm_configure_pe, 3, 1, NULL,
+				config_addr, BUID_HI(pdn->phb->buid),
+				BUID_LO(pdn->phb->buid));
+	} else if (ibm_configure_bridge != RTAS_UNKNOWN_SERVICE) {
+		ret = rtas_call(ibm_configure_bridge, 3, 1, NULL,
+				config_addr, BUID_HI(pdn->phb->buid),
+				BUID_LO(pdn->phb->buid));
+	} else {
+		return -EFAULT;
+	}
+
+	if (ret)
+		pr_warning("%s: Unable to configure bridge %d for %s\n",
+			__func__, ret, dn->full_name);
+
+	return ret;
 }
 
 static struct eeh_ops pseries_eeh_ops = {

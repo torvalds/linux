@@ -295,7 +295,7 @@ static int eeh_reset_device (struct pci_dn *pe_dn, struct pci_bus *bus)
 		struct pci_dn *ppe = PCI_DN(dn);
 		/* On Power4, always true because eeh_pe_config_addr=0 */
 		if (pe_dn->eeh_pe_config_addr == ppe->eeh_pe_config_addr) {
-			eeh_configure_bridge(ppe);
+			eeh_ops->configure_bridge(dn);
 			eeh_restore_bars(ppe);
  		}
 		dn = dn->sibling;

@@ -86,10 +86,6 @@
 /* Time to wait for a PCI slot to report status, in milliseconds */
 #define PCI_BUS_RESET_WAIT_MSEC (60*1000)
 
-/* RTAS tokens */
-static int ibm_configure_bridge;
-static int ibm_configure_pe;
-
 /* Platform dependent EEH operations */
 struct eeh_ops *eeh_ops = NULL;
 
@@ -229,7 +225,7 @@ void eeh_slot_error_detail(struct pci_dn *pdn, int severity)
 	pci_regs_buf[0] = 0;
 
 	eeh_pci_enable(pdn, EEH_OPT_THAW_MMIO);
-	eeh_configure_bridge(pdn);
+	eeh_ops->configure_bridge(pdn->node);
 	eeh_restore_bars(pdn);
 	loglen = eeh_gather_pci_data(pdn, pci_regs_buf, EEH_PCI_REGS_LOG_LEN);
 
@@ -810,41 +806,6 @@ static void eeh_save_bars(struct pci_dn *pdn)
 }
 
 /**
- * eeh_configure_bridge - Configure PCI bridges for the indicated PE
- * @pdn: PCI device node
- *
- * PCI bridges might be included in PE. In order to make the PE work
- * again. The included PCI bridges should be recovered after the PE
- * encounters frozen state.
- */
-void eeh_configure_bridge(struct pci_dn *pdn)
-{
-	int config_addr;
-	int rc;
-	int token;
-
-	/* Use PE configuration address, if present */
-	config_addr = pdn->eeh_config_addr;
-	if (pdn->eeh_pe_config_addr)
-		config_addr = pdn->eeh_pe_config_addr;
-
-	/* Use new configure-pe function, if supported */
-	if (ibm_configure_pe != RTAS_UNKNOWN_SERVICE)
-		token = ibm_configure_pe;
-	else
-		token = ibm_configure_bridge;
-
-	rc = rtas_call(token, 3, 1, NULL,
-	               config_addr,
-	               BUID_HI(pdn->phb->buid),
-	               BUID_LO(pdn->phb->buid));
-	if (rc) {
-		printk(KERN_WARNING "EEH: Unable to configure device bridge (%d) for %s\n",
-		        rc, pdn->node->full_name);
-	}
-}
-
-/**
  * eeh_early_enable - Early enable EEH on the indicated device
  * @dn: device node
  * @data: BUID
@@ -1026,9 +987,6 @@ void __init eeh_init(void)
 	np = of_find_node_by_path("/rtas");
 	if (np == NULL)
 		return;
-
-	ibm_configure_bridge = rtas_token("ibm,configure-bridge");
-	ibm_configure_pe = rtas_token("ibm,configure-pe");
 
 	/* Enable EEH for all adapters.  Note that eeh requires buid's */
 	for (phb = of_find_node_by_name(NULL, "pci"); phb;
