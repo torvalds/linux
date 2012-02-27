@@ -99,6 +99,7 @@ enum {
 	STAC_DELL_VOSTRO_3500,
 	STAC_92HD83XXX_HP_cNB11_INTQUAD,
 	STAC_HP_DV7_4000,
+	STAC_HP_ZEPHYR,
 	STAC_92HD83XXX_MODELS
 };
 
@@ -894,6 +895,13 @@ static const struct hda_verb stac92hd83xxx_core_init[] = {
 	{}
 };
 
+static const struct hda_verb stac92hd83xxx_hp_zephyr_init[] = {
+	{ 0x22, 0x785, 0x43 },
+	{ 0x22, 0x782, 0xe0 },
+	{ 0x22, 0x795, 0x00 },
+	{}
+};
+
 static const struct hda_verb stac92hd71bxx_core_init[] = {
 	/* set master volume and direct control */
 	{ 0x28, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
@@ -1621,6 +1629,12 @@ static const unsigned int hp_dv7_4000_pin_configs[10] = {
 	0x40f000f0, 0x40f000f0,
 };
 
+static const unsigned int hp_zephyr_pin_configs[10] = {
+	0x01813050, 0x0421201f, 0x04a1205e, 0x96130310,
+	0x96130310, 0x0101401f, 0x1111611f, 0xd5a30130,
+	0, 0,
+};
+
 static const unsigned int hp_cNB11_intquad_pin_configs[10] = {
 	0x40f000f0, 0x0221101f, 0x02a11020, 0x92170110,
 	0x40f000f0, 0x92170110, 0x40f000f0, 0xd5a30130,
@@ -1634,6 +1648,7 @@ static const unsigned int *stac92hd83xxx_brd_tbl[STAC_92HD83XXX_MODELS] = {
 	[STAC_DELL_VOSTRO_3500] = dell_vostro_3500_pin_configs,
 	[STAC_92HD83XXX_HP_cNB11_INTQUAD] = hp_cNB11_intquad_pin_configs,
 	[STAC_HP_DV7_4000] = hp_dv7_4000_pin_configs,
+	[STAC_HP_ZEPHYR] = hp_zephyr_pin_configs,
 };
 
 static const char * const stac92hd83xxx_models[STAC_92HD83XXX_MODELS] = {
@@ -1644,6 +1659,7 @@ static const char * const stac92hd83xxx_models[STAC_92HD83XXX_MODELS] = {
 	[STAC_DELL_VOSTRO_3500] = "dell-vostro-3500",
 	[STAC_92HD83XXX_HP_cNB11_INTQUAD] = "hp_cNB11_intquad",
 	[STAC_HP_DV7_4000] = "hp-dv7-4000",
+	[STAC_HP_ZEPHYR] = "hp-zephyr",
 };
 
 static const struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
@@ -1696,6 +1712,14 @@ static const struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
 			  "HP", STAC_92HD83XXX_HP_cNB11_INTQUAD),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3593,
 			  "HP", STAC_92HD83XXX_HP_cNB11_INTQUAD),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3561,
+			  "HP", STAC_HP_ZEPHYR),
+	{} /* terminator */
+};
+
+static const struct snd_pci_quirk stac92hd83xxx_codec_id_cfg_tbl[] = {
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3561,
+			  "HP", STAC_HP_ZEPHYR),
 	{} /* terminator */
 };
 
@@ -5565,6 +5589,12 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 							STAC_92HD83XXX_MODELS,
 							stac92hd83xxx_models,
 							stac92hd83xxx_cfg_tbl);
+	/* check codec subsystem id if not found */
+	if (spec->board_config < 0)
+		spec->board_config =
+			snd_hda_check_board_codec_sid_config(codec,
+				STAC_92HD83XXX_MODELS, stac92hd83xxx_models,
+				stac92hd83xxx_codec_id_cfg_tbl);
 again:
 	if (spec->board_config < 0)
 		snd_printdd(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
@@ -5574,6 +5604,12 @@ again:
 				stac92hd83xxx_brd_tbl[spec->board_config]);
 
 	codec->patch_ops = stac92xx_patch_ops;
+
+	switch (spec->board_config) {
+	case STAC_HP_ZEPHYR:
+		spec->init = stac92hd83xxx_hp_zephyr_init;
+		break;
+	}
 
 	if (find_mute_led_cfg(codec, -1/*no default cfg*/))
 		snd_printd("mute LED gpio %d polarity %d\n",
