@@ -246,6 +246,7 @@ struct se_session *transport_init_session(void)
 	INIT_LIST_HEAD(&se_sess->sess_cmd_list);
 	INIT_LIST_HEAD(&se_sess->sess_wait_list);
 	spin_lock_init(&se_sess->sess_cmd_lock);
+	kref_init(&se_sess->sess_kref);
 
 	return se_sess;
 }
@@ -312,6 +313,27 @@ void transport_register_session(
 	spin_unlock_irqrestore(&se_tpg->session_lock, flags);
 }
 EXPORT_SYMBOL(transport_register_session);
+
+static void target_release_session(struct kref *kref)
+{
+	struct se_session *se_sess = container_of(kref,
+			struct se_session, sess_kref);
+	struct se_portal_group *se_tpg = se_sess->se_tpg;
+
+	se_tpg->se_tpg_tfo->close_session(se_sess);
+}
+
+void target_get_session(struct se_session *se_sess)
+{
+	kref_get(&se_sess->sess_kref);
+}
+EXPORT_SYMBOL(target_get_session);
+
+int target_put_session(struct se_session *se_sess)
+{
+	return kref_put(&se_sess->sess_kref, target_release_session);
+}
+EXPORT_SYMBOL(target_put_session);
 
 void transport_deregister_session_configfs(struct se_session *se_sess)
 {

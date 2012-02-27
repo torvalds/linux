@@ -105,6 +105,8 @@ void	__transport_register_session(struct se_portal_group *,
 		struct se_node_acl *, struct se_session *, void *);
 void	transport_register_session(struct se_portal_group *,
 		struct se_node_acl *, struct se_session *, void *);
+void	target_get_session(struct se_session *);
+int	target_put_session(struct se_session *);
 void	transport_free_session(struct se_session *);
 void	transport_deregister_session_configfs(struct se_session *);
 void	transport_deregister_session(struct se_session *);
