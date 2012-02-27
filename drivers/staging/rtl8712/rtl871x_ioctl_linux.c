@@ -2380,13 +2380,7 @@ static struct iw_statistics *r871x_get_wireless_stats(struct net_device *dev)
 		tmp_qual = padapter->recvpriv.signal;
 		tmp_noise = padapter->recvpriv.noise;
 		piwstats->qual.level = tmp_level;
-		/*piwstats->qual.qual = tmp_qual;
-		 * The NetworkManager of Fedora 10, 13 will use the link
-		 * quality for its display.
-		 * So, use the fw_rssi on link quality variable because
-		 * fw_rssi will be updated per 2 seconds.
-		 */
-		piwstats->qual.qual = tmp_level;
+		piwstats->qual.qual = tmp_qual;
 		piwstats->qual.noise = tmp_noise;
 	}
 	piwstats->qual.updated = IW_QUAL_ALL_UPDATED;
