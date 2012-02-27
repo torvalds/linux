@@ -49,6 +49,9 @@ struct device_node;
 #define EEH_STATE_DMA_ACTIVE	(1 << 4)	/* Active DMA		*/
 #define EEH_STATE_MMIO_ENABLED	(1 << 5)	/* MMIO enabled		*/
 #define EEH_STATE_DMA_ENABLED	(1 << 6)	/* DMA enabled		*/
+#define EEH_RESET_DEACTIVATE	0	/* Deactivate the PE reset	*/
+#define EEH_RESET_HOT		1	/* Hot reset			*/
+#define EEH_RESET_FUNDAMENTAL	3	/* Fundamental reset		*/
 
 struct eeh_ops {
 	char *name;

@@ -87,7 +87,6 @@
 #define PCI_BUS_RESET_WAIT_MSEC (60*1000)
 
 /* RTAS tokens */
-static int ibm_set_slot_reset;
 static int ibm_slot_error_detail;
 static int ibm_configure_bridge;
 static int ibm_configure_pe;
@@ -607,54 +606,6 @@ int eeh_pci_enable(struct pci_dn *pdn, int function)
 }
 
 /**
- * eeh_slot_reset - Raises/Lowers the pci #RST line
- * @pdn: pci device node
- * @state: 1/0 to raise/lower the #RST
- *
- * Clear the EEH-frozen condition on a slot.  This routine
- * asserts the PCI #RST line if the 'state' argument is '1',
- * and drops the #RST line if 'state is '0'.  This routine is
- * safe to call in an interrupt context.
- */
-static void eeh_slot_reset(struct pci_dn *pdn, int state)
-{
-	int config_addr;
-	int rc;
-
-	BUG_ON(pdn==NULL);
-
-	if (!pdn->phb) {
-		printk(KERN_WARNING "EEH: in slot reset, device node %s has no phb\n",
-		        pdn->node->full_name);
-		return;
-	}
-
-	/* Use PE configuration address, if present */
-	config_addr = pdn->eeh_config_addr;
-	if (pdn->eeh_pe_config_addr)
-		config_addr = pdn->eeh_pe_config_addr;
-
-	rc = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
-	               config_addr,
-	               BUID_HI(pdn->phb->buid),
-	               BUID_LO(pdn->phb->buid),
-	               state);
-
-	/* Fundamental-reset not supported on this PE, try hot-reset */
-	if (rc == -8 && state == 3) {
-		rc = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
-			       config_addr,
-			       BUID_HI(pdn->phb->buid),
-			       BUID_LO(pdn->phb->buid), 1);
-		if (rc)
-			printk(KERN_WARNING
-				"EEH: Unable to reset the failed slot,"
-				" #RST=%d dn=%s\n",
-				rc, pdn->node->full_name);
-	}
-}
-
-/**
  * pcibios_set_pcie_slot_reset - Set PCI-E reset state
  * @dev: pci device struct
  * @state: reset state to enter
@@ -665,17 +616,16 @@ static void eeh_slot_reset(struct pci_dn *pdn, int state)
 int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state state)
 {
 	struct device_node *dn = pci_device_to_OF_node(dev);
-	struct pci_dn *pdn = PCI_DN(dn);
 
 	switch (state) {
 	case pcie_deassert_reset:
-		eeh_slot_reset(pdn, 0);
+		eeh_ops->reset(dn, EEH_RESET_DEACTIVATE);
 		break;
 	case pcie_hot_reset:
-		eeh_slot_reset(pdn, 1);
+		eeh_ops->reset(dn, EEH_RESET_HOT);
 		break;
 	case pcie_warm_reset:
-		eeh_slot_reset(pdn, 3);
+		eeh_ops->reset(dn, EEH_RESET_FUNDAMENTAL);
 		break;
 	default:
 		return -EINVAL;
@@ -754,9 +704,9 @@ static void eeh_reset_pe_once(struct pci_dn *pdn)
 	eeh_set_pe_freset(pdn->node, &freset);
 
 	if (freset)
-		eeh_slot_reset(pdn, 3);
+		eeh_ops->reset(pdn->node, EEH_RESET_FUNDAMENTAL);
 	else
-		eeh_slot_reset(pdn, 1);
+		eeh_ops->reset(pdn->node, EEH_RESET_HOT);
 
 	/* The PCI bus requires that the reset be held high for at least
 	 * a 100 milliseconds. We wait a bit longer 'just in case'.
@@ -770,7 +720,7 @@ static void eeh_reset_pe_once(struct pci_dn *pdn)
 	 */
 	eeh_clear_slot(pdn->node, EEH_MODE_ISOLATED);
 
-	eeh_slot_reset(pdn, 0);
+	eeh_ops->reset(pdn->node, EEH_RESET_DEACTIVATE);
 
 	/* After a PCI slot has been reset, the PCI Express spec requires
 	 * a 1.5 second idle time for the bus to stabilize, before starting
@@ -1127,7 +1077,6 @@ void __init eeh_init(void)
 	if (np == NULL)
 		return;
 
-	ibm_set_slot_reset = rtas_token("ibm,set-slot-reset");
 	ibm_slot_error_detail = rtas_token("ibm,slot-error-detail");
 	ibm_configure_bridge = rtas_token("ibm,configure-bridge");
 	ibm_configure_pe = rtas_token("ibm,configure-pe");

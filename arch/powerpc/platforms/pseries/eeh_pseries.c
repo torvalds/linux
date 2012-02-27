@@ -318,7 +318,30 @@ static int pseries_eeh_get_state(struct device_node *dn, int *state)
  */
 static int pseries_eeh_reset(struct device_node *dn, int option)
 {
-	return 0;
+	struct pci_dn *pdn;
+	int config_addr;
+	int ret;
+
+	/* Figure out PE address */
+	pdn = PCI_DN(dn);
+	config_addr = pdn->eeh_config_addr;
+	if (pdn->eeh_pe_config_addr)
+		config_addr = pdn->eeh_pe_config_addr;
+
+	/* Reset PE through RTAS call */
+	ret = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
+			config_addr, BUID_HI(pdn->phb->buid),
+			BUID_LO(pdn->phb->buid), option);
+
+	/* If fundamental-reset not supported, try hot-reset */
+	if (option == EEH_RESET_FUNDAMENTAL &&
+	    ret == -8) {
+		ret = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
+				config_addr, BUID_HI(pdn->phb->buid),
+				BUID_LO(pdn->phb->buid), EEH_RESET_HOT);
+	}
+
+	return ret;
 }
 
 /**
