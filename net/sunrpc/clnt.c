@@ -204,21 +204,37 @@ static int __rpc_pipefs_event(struct rpc_clnt *clnt, unsigned long event,
 	return err;
 }
 
+static struct rpc_clnt *rpc_get_client_for_event(struct net *net, int event)
+{
+	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
+	struct rpc_clnt *clnt;
+
+	spin_lock(&sn->rpc_client_lock);
+	list_for_each_entry(clnt, &sn->all_clients, cl_clients) {
+		if (((event == RPC_PIPEFS_MOUNT) && clnt->cl_dentry) ||
+		    ((event == RPC_PIPEFS_UMOUNT) && !clnt->cl_dentry))
+			continue;
+		atomic_inc(&clnt->cl_count);
+		spin_unlock(&sn->rpc_client_lock);
+		return clnt;
+	}
+	spin_unlock(&sn->rpc_client_lock);
+	return NULL;
+}
+
 static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
 			    void *ptr)
 {
 	struct super_block *sb = ptr;
 	struct rpc_clnt *clnt;
 	int error = 0;
-	struct sunrpc_net *sn = net_generic(sb->s_fs_info, sunrpc_net_id);
 
-	spin_lock(&sn->rpc_client_lock);
-	list_for_each_entry(clnt, &sn->all_clients, cl_clients) {
+	while ((clnt = rpc_get_client_for_event(sb->s_fs_info, event))) {
 		error = __rpc_pipefs_event(clnt, event, sb);
+		rpc_release_client(clnt);
 		if (error)
 			break;
 	}
-	spin_unlock(&sn->rpc_client_lock);
 	return error;
 }
 
