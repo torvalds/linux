@@ -175,7 +175,7 @@ pci_addr_cache_insert(struct pci_dev *dev, unsigned long alo,
 static void __pci_addr_cache_insert_device(struct pci_dev *dev)
 {
 	struct device_node *dn;
-	struct pci_dn *pdn;
+	struct eeh_dev *edev;
 	int i;
 
 	dn = pci_device_to_OF_node(dev);
@@ -184,13 +184,19 @@ static void __pci_addr_cache_insert_device(struct pci_dev *dev)
 		return;
 	}
 
+	edev = of_node_to_eeh_dev(dn);
+	if (!edev) {
+		pr_warning("PCI: no EEH dev found for dn=%s\n",
+			dn->full_name);
+		return;
+	}
+
 	/* Skip any devices for which EEH is not enabled. */
-	pdn = PCI_DN(dn);
-	if (!(pdn->eeh_mode & EEH_MODE_SUPPORTED) ||
-	    pdn->eeh_mode & EEH_MODE_NOCHECK) {
+	if (!(edev->mode & EEH_MODE_SUPPORTED) ||
+	    edev->mode & EEH_MODE_NOCHECK) {
 #ifdef DEBUG
-		printk(KERN_INFO "PCI: skip building address cache for=%s - %s\n",
-		       pci_name(dev), pdn->node->full_name);
+		pr_info("PCI: skip building address cache for=%s - %s\n",
+			pci_name(dev), dn->full_name);
 #endif
 		return;
 	}
@@ -281,6 +287,7 @@ void pci_addr_cache_remove_device(struct pci_dev *dev)
 void __init pci_addr_cache_build(void)
 {
 	struct device_node *dn;
+	struct eeh_dev *edev;
 	struct pci_dev *dev = NULL;
 
 	spin_lock_init(&pci_io_addr_cache_root.piar_lock);
@@ -291,8 +298,14 @@ void __init pci_addr_cache_build(void)
 		dn = pci_device_to_OF_node(dev);
 		if (!dn)
 			continue;
+
+		edev = of_node_to_eeh_dev(dn);
+		if (!edev)
+			continue;
+
 		pci_dev_get(dev);  /* matching put is in eeh_remove_device() */
-		PCI_DN(dn)->pcidev = dev;
+		dev->dev.archdata.edev = edev;
+		edev->pdev = dev;
 
 		eeh_sysfs_add_device(dev);
 	}
