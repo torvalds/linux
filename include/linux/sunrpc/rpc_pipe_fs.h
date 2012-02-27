@@ -28,7 +28,6 @@ struct rpc_pipe {
 	int pipelen;
 	int nreaders;
 	int nwriters;
-	wait_queue_head_t waitq;
 #define RPC_PIPE_WAIT_FOR_OPEN	1
 	int flags;
 	struct delayed_work queue_timeout;
@@ -41,6 +40,7 @@ struct rpc_inode {
 	struct inode vfs_inode;
 	void *private;
 	struct rpc_pipe *pipe;
+	wait_queue_head_t waitq;
 };
 
 static inline struct rpc_inode *
