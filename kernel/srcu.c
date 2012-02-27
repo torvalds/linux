@@ -73,10 +73,25 @@ EXPORT_SYMBOL_GPL(init_srcu_struct);
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
 /*
+ * Returns approximate total of the readers' ->seq[] values for the
+ * rank of per-CPU counters specified by idx.
+ */
+static unsigned long srcu_readers_seq_idx(struct srcu_struct *sp, int idx)
+{
+	int cpu;
+	unsigned long sum = 0;
+	unsigned long t;
+
+	for_each_possible_cpu(cpu) {
+		t = ACCESS_ONCE(per_cpu_ptr(sp->per_cpu_ref, cpu)->seq[idx]);
+		sum += t;
+	}
+	return sum;
+}
+
+/*
  * Returns approximate number of readers active on the specified rank
- * of per-CPU counters.  Also snapshots each counter's value in the
- * corresponding element of sp->snap[] for later use validating
- * the sum.
+ * of the per-CPU ->c[] counters.
  */
 static unsigned long srcu_readers_active_idx(struct srcu_struct *sp, int idx)
 {
@@ -87,26 +102,45 @@ static unsigned long srcu_readers_active_idx(struct srcu_struct *sp, int idx)
 	for_each_possible_cpu(cpu) {
 		t = ACCESS_ONCE(per_cpu_ptr(sp->per_cpu_ref, cpu)->c[idx]);
 		sum += t;
-		sp->snap[cpu] = t;
 	}
-	return sum & SRCU_REF_MASK;
+	return sum;
 }
 
 /*
- * To be called from the update side after an index flip.  Returns true
- * if the modulo sum of the counters is stably zero, false if there is
- * some possibility of non-zero.
+ * Return true if the number of pre-existing readers is determined to
+ * be stably zero.  An example unstable zero can occur if the call
+ * to srcu_readers_active_idx() misses an __srcu_read_lock() increment,
+ * but due to task migration, sees the corresponding __srcu_read_unlock()
+ * decrement.  This can happen because srcu_readers_active_idx() takes
+ * time to sum the array, and might in fact be interrupted or preempted
+ * partway through the summation.
  */
 static bool srcu_readers_active_idx_check(struct srcu_struct *sp, int idx)
 {
-	int cpu;
+	unsigned long seq;
+
+	seq = srcu_readers_seq_idx(sp, idx);
+
+	/*
+	 * The following smp_mb() A pairs with the smp_mb() B located in
+	 * __srcu_read_lock().  This pairing ensures that if an
+	 * __srcu_read_lock() increments its counter after the summation
+	 * in srcu_readers_active_idx(), then the corresponding SRCU read-side
+	 * critical section will see any changes made prior to the start
+	 * of the current SRCU grace period.
+	 *
+	 * Also, if the above call to srcu_readers_seq_idx() saw the
+	 * increment of ->seq[], then the call to srcu_readers_active_idx()
+	 * must see the increment of ->c[].
+	 */
+	smp_mb(); /* A */
 
 	/*
 	 * Note that srcu_readers_active_idx() can incorrectly return
 	 * zero even though there is a pre-existing reader throughout.
 	 * To see this, suppose that task A is in a very long SRCU
 	 * read-side critical section that started on CPU 0, and that
-	 * no other reader exists, so that the modulo sum of the counters
+	 * no other reader exists, so that the sum of the counters
 	 * is equal to one.  Then suppose that task B starts executing
 	 * srcu_readers_active_idx(), summing up to CPU 1, and then that
 	 * task C starts reading on CPU 0, so that its increment is not
@@ -122,53 +156,31 @@ static bool srcu_readers_active_idx_check(struct srcu_struct *sp, int idx)
 		return false;
 
 	/*
-	 * Since the caller recently flipped ->completed, we can see at
-	 * most one increment of each CPU's counter from this point
-	 * forward.  The reason for this is that the reader CPU must have
-	 * fetched the index before srcu_readers_active_idx checked
-	 * that CPU's counter, but not yet incremented its counter.
-	 * Its eventual counter increment will follow the read in
-	 * srcu_readers_active_idx(), and that increment is immediately
-	 * followed by smp_mb() B.  Because smp_mb() D is between
-	 * the ->completed flip and srcu_readers_active_idx()'s read,
-	 * that CPU's subsequent load of ->completed must see the new
-	 * value, and therefore increment the counter in the other rank.
+	 * The remainder of this function is the validation step.
+	 * The following smp_mb() D pairs with the smp_mb() C in
+	 * __srcu_read_unlock().  If the __srcu_read_unlock() was seen
+	 * by srcu_readers_active_idx() above, then any destructive
+	 * operation performed after the grace period will happen after
+	 * the corresponding SRCU read-side critical section.
+	 *
+	 * Note that there can be at most NR_CPUS worth of readers using
+	 * the old index, which is not enough to overflow even a 32-bit
+	 * integer.  (Yes, this does mean that systems having more than
+	 * a billion or so CPUs need to be 64-bit systems.)  Therefore,
+	 * the sum of the ->seq[] counters cannot possibly overflow.
+	 * Therefore, the only way that the return values of the two
+	 * calls to srcu_readers_seq_idx() can be equal is if there were
+	 * no increments of the corresponding rank of ->seq[] counts
+	 * in the interim.  But the missed-increment scenario laid out
+	 * above includes an increment of the ->seq[] counter by
+	 * the corresponding __srcu_read_lock().  Therefore, if this
+	 * scenario occurs, the return values from the two calls to
+	 * srcu_readers_seq_idx() will differ, and thus the validation
+	 * step below suffices.
 	 */
-	smp_mb(); /* A */
+	smp_mb(); /* D */
 
-	/*
-	 * Now, we check the ->snap array that srcu_readers_active_idx()
-	 * filled in from the per-CPU counter values. Since
-	 * __srcu_read_lock() increments the upper bits of the per-CPU
-	 * counter, an increment/decrement pair will change the value
-	 * of the counter.  Since there is only one possible increment,
-	 * the only way to wrap the counter is to have a huge number of
-	 * counter decrements, which requires a huge number of tasks and
-	 * huge SRCU read-side critical-section nesting levels, even on
-	 * 32-bit systems.
-	 *
-	 * All of the ways of confusing the readings require that the scan
-	 * in srcu_readers_active_idx() see the read-side task's decrement,
-	 * but not its increment.  However, between that decrement and
-	 * increment are smb_mb() B and C.  Either or both of these pair
-	 * with smp_mb() A above to ensure that the scan below will see
-	 * the read-side tasks's increment, thus noting a difference in
-	 * the counter values between the two passes.
-	 *
-	 * Therefore, if srcu_readers_active_idx() returned zero, and
-	 * none of the counters changed, we know that the zero was the
-	 * correct sum.
-	 *
-	 * Of course, it is possible that a task might be delayed
-	 * for a very long time in __srcu_read_lock() after fetching
-	 * the index but before incrementing its counter.  This
-	 * possibility will be dealt with in __synchronize_srcu().
-	 */
-	for_each_possible_cpu(cpu)
-		if (sp->snap[cpu] !=
-		    ACCESS_ONCE(per_cpu_ptr(sp->per_cpu_ref, cpu)->c[idx]))
-			return false;  /* False zero reading! */
-	return true;
+	return srcu_readers_seq_idx(sp, idx) == seq;
 }
 
 /**
@@ -216,9 +228,9 @@ int __srcu_read_lock(struct srcu_struct *sp)
 	preempt_disable();
 	idx = rcu_dereference_index_check(sp->completed,
 					  rcu_read_lock_sched_held()) & 0x1;
-	ACCESS_ONCE(this_cpu_ptr(sp->per_cpu_ref)->c[idx]) +=
-		SRCU_USAGE_COUNT + 1;
+	ACCESS_ONCE(this_cpu_ptr(sp->per_cpu_ref)->c[idx]) += 1;
 	smp_mb(); /* B */  /* Avoid leaking the critical section. */
+	ACCESS_ONCE(this_cpu_ptr(sp->per_cpu_ref)->seq[idx]) += 1;
 	preempt_enable();
 	return idx;
 }
@@ -258,17 +270,6 @@ static void wait_idx(struct srcu_struct *sp, int idx, bool expedited)
 	int trycount = 0;
 
 	/*
-	 * If a reader fetches the index before the ->completed increment,
-	 * but increments its counter after srcu_readers_active_idx_check()
-	 * sums it, then smp_mb() D will pair with __srcu_read_lock()'s
-	 * smp_mb() B to ensure that the SRCU read-side critical section
-	 * will see any updates that the current task performed before its
-	 * call to synchronize_srcu(), or to synchronize_srcu_expedited(),
-	 * as the case may be.
-	 */
-	smp_mb(); /* D */
-
-	/*
 	 * SRCU read-side critical sections are normally short, so wait
 	 * a small amount of time before possibly blocking.
 	 */
@@ -281,18 +282,6 @@ static void wait_idx(struct srcu_struct *sp, int idx, bool expedited)
 				schedule_timeout_interruptible(1);
 		}
 	}
-
-	/*
-	 * The following smp_mb() E pairs with srcu_read_unlock()'s
-	 * smp_mb C to ensure that if srcu_readers_active_idx_check()
-	 * sees srcu_read_unlock()'s counter decrement, then any
-	 * of the current task's subsequent code will happen after
-	 * that SRCU read-side critical section.
-	 *
-	 * It also ensures the order between the above waiting and
-	 * the next flipping.
-	 */
-	smp_mb(); /* E */
 }
 
 static void srcu_flip(struct srcu_struct *sp)
