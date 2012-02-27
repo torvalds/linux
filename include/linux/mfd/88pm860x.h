@@ -311,6 +311,7 @@ struct pm860x_chip {
 	int			core_irq;
 	unsigned char		chip_version;
 
+	unsigned int            wakeup_flag;
 };
 
 enum {
