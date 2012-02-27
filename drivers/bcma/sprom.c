@@ -2,6 +2,8 @@
  * Broadcom specific AMBA
  * SPROM reading
  *
+ * Copyright 2011, 2012, Hauke Mehrtens <hauke@hauke-m.de>
+ *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
@@ -13,6 +15,45 @@
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+
+static int(*get_fallback_sprom)(struct bcma_bus *dev, struct ssb_sprom *out);
+
+/**
+ * bcma_arch_register_fallback_sprom - Registers a method providing a
+ * fallback SPROM if no SPROM is found.
+ *
+ * @sprom_callback: The callback function.
+ *
+ * With this function the architecture implementation may register a
+ * callback handler which fills the SPROM data structure. The fallback is
+ * used for PCI based BCMA devices, where no valid SPROM can be found
+ * in the shadow registers and to provide the SPROM for SoCs where BCMA is
+ * to controll the system bus.
+ *
+ * This function is useful for weird architectures that have a half-assed
+ * BCMA device hardwired to their PCI bus.
+ *
+ * This function is available for architecture code, only. So it is not
+ * exported.
+ */
+int bcma_arch_register_fallback_sprom(int (*sprom_callback)(struct bcma_bus *bus,
+				     struct ssb_sprom *out))
+{
+	if (get_fallback_sprom)
+		return -EEXIST;
+	get_fallback_sprom = sprom_callback;
+
+	return 0;
+}
+
+static int bcma_fill_sprom_with_fallback(struct bcma_bus *bus,
+					 struct ssb_sprom *out)
+{
+	if (!get_fallback_sprom)
+		return -ENOENT;
+
+	return get_fallback_sprom(bus, out);
+}
 
 /**************************************************
  * R/W ops.
@@ -246,23 +287,43 @@ static void bcma_sprom_extract_r8(struct bcma_bus *bus, const u16 *sprom)
 	     SSB_SROM8_FEM_ANTSWLUT_SHIFT);
 }
 
+static bool bcma_is_sprom_available(struct bcma_bus *bus)
+{
+	u32 sromctrl;
+
+	if (!(bus->drv_cc.capabilities & BCMA_CC_CAP_SPROM))
+		return false;
+
+	if (bus->drv_cc.core->id.rev >= 32) {
+		sromctrl = bcma_read32(bus->drv_cc.core, BCMA_CC_SROM_CONTROL);
+		return sromctrl & BCMA_CC_SROM_CONTROL_PRESENT;
+	}
+	return true;
+}
+
 int bcma_sprom_get(struct bcma_bus *bus)
 {
 	u16 offset;
 	u16 *sprom;
-	u32 sromctrl;
 	int err = 0;
 
 	if (!bus->drv_cc.core)
 		return -EOPNOTSUPP;
 
-	if (!(bus->drv_cc.capabilities & BCMA_CC_CAP_SPROM))
-		return -ENOENT;
-
-	if (bus->drv_cc.core->id.rev >= 32) {
-		sromctrl = bcma_read32(bus->drv_cc.core, BCMA_CC_SROM_CONTROL);
-		if (!(sromctrl & BCMA_CC_SROM_CONTROL_PRESENT))
-			return -ENOENT;
+	if (!bcma_is_sprom_available(bus)) {
+		/*
+		 * Maybe there is no SPROM on the device?
+		 * Now we ask the arch code if there is some sprom
+		 * available for this device in some other storage.
+		 */
+		err = bcma_fill_sprom_with_fallback(bus, &bus->sprom);
+		if (err) {
+			pr_warn("Using fallback SPROM failed (err %d)\n", err);
+		} else {
+			pr_debug("Using SPROM revision %d provided by"
+				 " platform.\n", bus->sprom.revision);
+			return 0;
+		}
 	}
 
 	sprom = kcalloc(SSB_SPROMSIZE_WORDS_R4, sizeof(u16),
