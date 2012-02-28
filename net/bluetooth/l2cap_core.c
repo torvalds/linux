@@ -4284,7 +4284,7 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 	if (!chan) {
 		BT_DBG("unknown cid 0x%4.4x", cid);
 		/* Drop packet and return */
-		kfree(skb);
+		kfree_skb(skb);
 		return 0;
 	}
 
