@@ -215,16 +215,16 @@ static int ib_link_query_port(struct ib_device *ibdev, u8 port,
 
 		switch (ext_active_speed) {
 		case 1:
-			props->active_speed = 16; /* FDR */
+			props->active_speed = IB_SPEED_FDR;
 			break;
 		case 2:
-			props->active_speed = 32; /* EDR */
+			props->active_speed = IB_SPEED_EDR;
 			break;
 		}
 	}
 
 	/* If reported active speed is QDR, check if is FDR-10 */
-	if (props->active_speed == 4) {
+	if (props->active_speed == IB_SPEED_QDR) {
 		if (to_mdev(ibdev)->dev->caps.ext_port_cap[port] &
 		    MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO) {
 			init_query_mad(in_mad);
@@ -238,7 +238,7 @@ static int ib_link_query_port(struct ib_device *ibdev, u8 port,
 
 			/* Checking LinkSpeedActive for FDR-10 */
 			if (out_mad->data[15] & 0x1)
-				props->active_speed = 8;
+				props->active_speed = IB_SPEED_FDR10;
 		}
 	}
 
@@ -259,7 +259,7 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	enum ib_mtu tmp;
 
 	props->active_width	= IB_WIDTH_1X;
-	props->active_speed	= 4;
+	props->active_speed	= IB_SPEED_QDR;
 	props->port_cap_flags	= IB_PORT_CM_SUP;
 	props->gid_tbl_len	= to_mdev(ibdev)->dev->caps.gid_table_len[port];
 	props->max_msg_sz	= to_mdev(ibdev)->dev->caps.max_msg_sz;

@@ -239,6 +239,15 @@ static inline int ib_width_enum_to_int(enum ib_port_width width)
 	}
 }
 
+enum ib_port_speed {
+	IB_SPEED_SDR	= 1,
+	IB_SPEED_DDR	= 2,
+	IB_SPEED_QDR	= 4,
+	IB_SPEED_FDR10	= 8,
+	IB_SPEED_FDR	= 16,
+	IB_SPEED_EDR	= 32
+};
+
 struct ib_protocol_stats {
 	/* TBD... */
 };

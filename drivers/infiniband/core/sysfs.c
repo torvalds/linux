@@ -187,27 +187,26 @@ static ssize_t rate_show(struct ib_port *p, struct port_attribute *unused,
 		return ret;
 
 	switch (attr.active_speed) {
-	case 1:
-		/* SDR */
+	case IB_SPEED_SDR:
 		rate = 25;
 		break;
-	case 2:
+	case IB_SPEED_DDR:
 		speed = " DDR";
 		rate = 50;
 		break;
-	case 4:
+	case IB_SPEED_QDR:
 		speed = " QDR";
 		rate = 100;
 		break;
-	case 8:
+	case IB_SPEED_FDR10:
 		speed = " FDR10";
 		rate = 100;
 		break;
-	case 16:
+	case IB_SPEED_FDR:
 		speed = " FDR";
 		rate = 140;
 		break;
-	case 32:
+	case IB_SPEED_EDR:
 		speed = " EDR";
 		rate = 250;
 		break;
