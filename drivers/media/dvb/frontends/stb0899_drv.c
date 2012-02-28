@@ -1071,7 +1071,7 @@ static int stb0899_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			reg  = stb0899_read_reg(state, STB0899_VSTATUS);
 			if (STB0899_GETFIELD(VSTATUS_LOCKEDVIT, reg)) {
 				dprintk(state->verbose, FE_DEBUG, 1, "--------> FE_HAS_CARRIER | FE_HAS_LOCK");
-				*status |= FE_HAS_CARRIER | FE_HAS_LOCK;
+				*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_LOCK;
 
 				reg = stb0899_read_reg(state, STB0899_PLPARM);
 				if (STB0899_GETFIELD(VITCURPUN, reg)) {
