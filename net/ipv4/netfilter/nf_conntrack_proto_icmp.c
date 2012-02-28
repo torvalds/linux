@@ -75,25 +75,31 @@ static int icmp_print_tuple(struct seq_file *s,
 			  ntohs(tuple->src.u.icmp.id));
 }
 
+static unsigned int *icmp_get_timeouts(struct net *net)
+{
+	return &nf_ct_icmp_timeout;
+}
+
 /* Returns verdict for packet, or -1 for invalid. */
 static int icmp_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
 		       enum ip_conntrack_info ctinfo,
 		       u_int8_t pf,
-		       unsigned int hooknum)
+		       unsigned int hooknum,
+		       unsigned int *timeout)
 {
 	/* Do not immediately delete the connection after the first
 	   successful reply to avoid excessive conntrackd traffic
 	   and also to handle correctly ICMP echo reply duplicates. */
-	nf_ct_refresh_acct(ct, ctinfo, skb, nf_ct_icmp_timeout);
+	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
 
 	return NF_ACCEPT;
 }
 
 /* Called when a new connection for this protocol found. */
 static bool icmp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		     unsigned int dataoff)
+		     unsigned int dataoff, unsigned int *timeouts)
 {
 	static const u_int8_t valid_new[] = {
 		[ICMP_ECHO] = 1,
@@ -298,6 +304,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp __read_mostly =
 	.invert_tuple		= icmp_invert_tuple,
 	.print_tuple		= icmp_print_tuple,
 	.packet			= icmp_packet,
+	.get_timeouts		= icmp_get_timeouts,
 	.new			= icmp_new,
 	.error			= icmp_error,
 	.destroy		= NULL,

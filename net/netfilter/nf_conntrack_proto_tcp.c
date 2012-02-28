@@ -813,13 +813,19 @@ static int tcp_error(struct net *net, struct nf_conn *tmpl,
 	return NF_ACCEPT;
 }
 
+static unsigned int *tcp_get_timeouts(struct net *net)
+{
+	return tcp_timeouts;
+}
+
 /* Returns verdict for packet, or -1 for invalid. */
 static int tcp_packet(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
 		      u_int8_t pf,
-		      unsigned int hooknum)
+		      unsigned int hooknum,
+		      unsigned int *timeouts)
 {
 	struct net *net = nf_ct_net(ct);
 	struct nf_conntrack_tuple *tuple;
@@ -1014,14 +1020,14 @@ static int tcp_packet(struct nf_conn *ct,
 		ct->proto.tcp.seen[dir].flags |= IP_CT_TCP_FLAG_CLOSE_INIT;
 
 	if (ct->proto.tcp.retrans >= nf_ct_tcp_max_retrans &&
-	    tcp_timeouts[new_state] > tcp_timeouts[TCP_CONNTRACK_RETRANS])
-		timeout = tcp_timeouts[TCP_CONNTRACK_RETRANS];
+	    timeouts[new_state] > timeouts[TCP_CONNTRACK_RETRANS])
+		timeout = timeouts[TCP_CONNTRACK_RETRANS];
 	else if ((ct->proto.tcp.seen[0].flags | ct->proto.tcp.seen[1].flags) &
 		 IP_CT_TCP_FLAG_DATA_UNACKNOWLEDGED &&
-		 tcp_timeouts[new_state] > tcp_timeouts[TCP_CONNTRACK_UNACK])
-		timeout = tcp_timeouts[TCP_CONNTRACK_UNACK];
+		 timeouts[new_state] > timeouts[TCP_CONNTRACK_UNACK])
+		timeout = timeouts[TCP_CONNTRACK_UNACK];
 	else
-		timeout = tcp_timeouts[new_state];
+		timeout = timeouts[new_state];
 	spin_unlock_bh(&ct->lock);
 
 	if (new_state != old_state)
@@ -1053,7 +1059,7 @@ static int tcp_packet(struct nf_conn *ct,
 
 /* Called when a new connection for this protocol found. */
 static bool tcp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		    unsigned int dataoff)
+		    unsigned int dataoff, unsigned int *timeouts)
 {
 	enum tcp_conntrack new_state;
 	const struct tcphdr *th;
@@ -1444,6 +1450,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 __read_mostly =
 	.print_tuple 		= tcp_print_tuple,
 	.print_conntrack 	= tcp_print_conntrack,
 	.packet 		= tcp_packet,
+	.get_timeouts		= tcp_get_timeouts,
 	.new 			= tcp_new,
 	.error			= tcp_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -1476,6 +1483,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 __read_mostly =
 	.print_tuple 		= tcp_print_tuple,
 	.print_conntrack 	= tcp_print_conntrack,
 	.packet 		= tcp_packet,
+	.get_timeouts		= tcp_get_timeouts,
 	.new 			= tcp_new,
 	.error			= tcp_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)

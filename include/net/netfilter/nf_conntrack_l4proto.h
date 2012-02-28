@@ -39,12 +39,13 @@ struct nf_conntrack_l4proto {
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
 		      u_int8_t pf,
-		      unsigned int hooknum);
+		      unsigned int hooknum,
+		      unsigned int *timeouts);
 
 	/* Called when a new connection for this protocol found;
 	 * returns TRUE if it's OK.  If so, packet() called next. */
 	bool (*new)(struct nf_conn *ct, const struct sk_buff *skb,
-		    unsigned int dataoff);
+		    unsigned int dataoff, unsigned int *timeouts);
 
 	/* Called when a conntrack entry is destroyed */
 	void (*destroy)(struct nf_conn *ct);
@@ -59,6 +60,9 @@ struct nf_conntrack_l4proto {
 
 	/* Print out the private part of the conntrack. */
 	int (*print_conntrack)(struct seq_file *s, struct nf_conn *);
+
+	/* Return the array of timeouts for this protocol. */
+	unsigned int *(*get_timeouts)(struct net *net);
 
 	/* convert protoinfo to nfnetink attributes */
 	int (*to_nlattr)(struct sk_buff *skb, struct nlattr *nla,

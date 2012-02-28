@@ -279,13 +279,19 @@ static int sctp_new_state(enum ip_conntrack_dir dir,
 	return sctp_conntracks[dir][i][cur_state];
 }
 
+static unsigned int *sctp_get_timeouts(struct net *net)
+{
+	return sctp_timeouts;
+}
+
 /* Returns verdict for packet, or -NF_ACCEPT for invalid. */
 static int sctp_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
 		       enum ip_conntrack_info ctinfo,
 		       u_int8_t pf,
-		       unsigned int hooknum)
+		       unsigned int hooknum,
+		       unsigned int *timeouts)
 {
 	enum sctp_conntrack new_state, old_state;
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
@@ -370,7 +376,7 @@ static int sctp_packet(struct nf_conn *ct,
 	}
 	spin_unlock_bh(&ct->lock);
 
-	nf_ct_refresh_acct(ct, ctinfo, skb, sctp_timeouts[new_state]);
+	nf_ct_refresh_acct(ct, ctinfo, skb, timeouts[new_state]);
 
 	if (old_state == SCTP_CONNTRACK_COOKIE_ECHOED &&
 	    dir == IP_CT_DIR_REPLY &&
@@ -390,7 +396,7 @@ out:
 
 /* Called when a new connection for this protocol found. */
 static bool sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
-		     unsigned int dataoff)
+		     unsigned int dataoff, unsigned int *timeouts)
 {
 	enum sctp_conntrack new_state;
 	const struct sctphdr *sh;
@@ -664,6 +670,7 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 	.print_tuple 		= sctp_print_tuple,
 	.print_conntrack	= sctp_print_conntrack,
 	.packet 		= sctp_packet,
+	.get_timeouts		= sctp_get_timeouts,
 	.new 			= sctp_new,
 	.me 			= THIS_MODULE,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -694,6 +701,7 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 	.print_tuple 		= sctp_print_tuple,
 	.print_conntrack	= sctp_print_conntrack,
 	.packet 		= sctp_packet,
+	.get_timeouts		= sctp_get_timeouts,
 	.new 			= sctp_new,
 	.me 			= THIS_MODULE,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)

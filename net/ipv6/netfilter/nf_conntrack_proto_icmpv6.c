@@ -88,25 +88,31 @@ static int icmpv6_print_tuple(struct seq_file *s,
 			  ntohs(tuple->src.u.icmp.id));
 }
 
+static unsigned int *icmpv6_get_timeouts(struct net *net)
+{
+	return &nf_ct_icmpv6_timeout;
+}
+
 /* Returns verdict for packet, or -1 for invalid. */
 static int icmpv6_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
 		       enum ip_conntrack_info ctinfo,
 		       u_int8_t pf,
-		       unsigned int hooknum)
+		       unsigned int hooknum,
+		       unsigned int *timeout)
 {
 	/* Do not immediately delete the connection after the first
 	   successful reply to avoid excessive conntrackd traffic
 	   and also to handle correctly ICMP echo reply duplicates. */
-	nf_ct_refresh_acct(ct, ctinfo, skb, nf_ct_icmpv6_timeout);
+	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
 
 	return NF_ACCEPT;
 }
 
 /* Called when a new connection for this protocol found. */
 static bool icmpv6_new(struct nf_conn *ct, const struct sk_buff *skb,
-		       unsigned int dataoff)
+		       unsigned int dataoff, unsigned int *timeouts)
 {
 	static const u_int8_t valid_new[] = {
 		[ICMPV6_ECHO_REQUEST - 128] = 1,
@@ -293,6 +299,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmpv6 __read_mostly =
 	.invert_tuple		= icmpv6_invert_tuple,
 	.print_tuple		= icmpv6_print_tuple,
 	.packet			= icmpv6_packet,
+	.get_timeouts		= icmpv6_get_timeouts,
 	.new			= icmpv6_new,
 	.error			= icmpv6_error,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)

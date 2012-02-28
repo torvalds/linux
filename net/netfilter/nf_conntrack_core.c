@@ -763,7 +763,8 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	       struct nf_conntrack_l3proto *l3proto,
 	       struct nf_conntrack_l4proto *l4proto,
 	       struct sk_buff *skb,
-	       unsigned int dataoff, u32 hash)
+	       unsigned int dataoff, u32 hash,
+	       unsigned int *timeouts)
 {
 	struct nf_conn *ct;
 	struct nf_conn_help *help;
@@ -782,7 +783,7 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	if (IS_ERR(ct))
 		return (struct nf_conntrack_tuple_hash *)ct;
 
-	if (!l4proto->new(ct, skb, dataoff)) {
+	if (!l4proto->new(ct, skb, dataoff, timeouts)) {
 		nf_conntrack_free(ct);
 		pr_debug("init conntrack: can't track with proto module\n");
 		return NULL;
@@ -848,7 +849,8 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 		  struct nf_conntrack_l3proto *l3proto,
 		  struct nf_conntrack_l4proto *l4proto,
 		  int *set_reply,
-		  enum ip_conntrack_info *ctinfo)
+		  enum ip_conntrack_info *ctinfo,
+		  unsigned int *timeouts)
 {
 	struct nf_conntrack_tuple tuple;
 	struct nf_conntrack_tuple_hash *h;
@@ -868,7 +870,7 @@ resolve_normal_ct(struct net *net, struct nf_conn *tmpl,
 	h = __nf_conntrack_find_get(net, zone, &tuple, hash);
 	if (!h) {
 		h = init_conntrack(net, tmpl, &tuple, l3proto, l4proto,
-				   skb, dataoff, hash);
+				   skb, dataoff, hash, timeouts);
 		if (!h)
 			return NULL;
 		if (IS_ERR(h))
@@ -909,6 +911,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	enum ip_conntrack_info ctinfo;
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_l4proto *l4proto;
+	unsigned int *timeouts;
 	unsigned int dataoff;
 	u_int8_t protonum;
 	int set_reply = 0;
@@ -955,8 +958,11 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			goto out;
 	}
 
+	timeouts = l4proto->get_timeouts(net);
+
 	ct = resolve_normal_ct(net, tmpl, skb, dataoff, pf, protonum,
-			       l3proto, l4proto, &set_reply, &ctinfo);
+			       l3proto, l4proto, &set_reply, &ctinfo,
+			       timeouts);
 	if (!ct) {
 		/* Not valid part of a connection */
 		NF_CT_STAT_INC_ATOMIC(net, invalid);
@@ -973,7 +979,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 
 	NF_CT_ASSERT(skb->nfct);
 
-	ret = l4proto->packet(ct, skb, dataoff, ctinfo, pf, hooknum);
+	ret = l4proto->packet(ct, skb, dataoff, ctinfo, pf, hooknum, timeouts);
 	if (ret <= 0) {
 		/* Invalid: inverse of the return code tells
 		 * the netfilter core what to do */

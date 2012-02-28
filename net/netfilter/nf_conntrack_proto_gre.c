@@ -235,13 +235,19 @@ static int gre_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 			  (ct->proto.gre.stream_timeout / HZ));
 }
 
+static unsigned int *gre_get_timeouts(struct net *net)
+{
+	return gre_timeouts;
+}
+
 /* Returns verdict for packet, and may modify conntrack */
 static int gre_packet(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
 		      u_int8_t pf,
-		      unsigned int hooknum)
+		      unsigned int hooknum,
+		      unsigned int *timeouts)
 {
 	/* If we've seen traffic both ways, this is a GRE connection.
 	 * Extend timeout. */
@@ -260,15 +266,15 @@ static int gre_packet(struct nf_conn *ct,
 
 /* Called when a new connection for this protocol found. */
 static bool gre_new(struct nf_conn *ct, const struct sk_buff *skb,
-		    unsigned int dataoff)
+		    unsigned int dataoff, unsigned int *timeouts)
 {
 	pr_debug(": ");
 	nf_ct_dump_tuple(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 
 	/* initialize to sane value.  Ideally a conntrack helper
 	 * (e.g. in case of pptp) is increasing them */
-	ct->proto.gre.stream_timeout = gre_timeouts[GRE_CT_REPLIED];
-	ct->proto.gre.timeout = gre_timeouts[GRE_CT_UNREPLIED];
+	ct->proto.gre.stream_timeout = timeouts[GRE_CT_REPLIED];
+	ct->proto.gre.timeout = timeouts[GRE_CT_UNREPLIED];
 
 	return true;
 }
@@ -295,6 +301,7 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_gre4 __read_mostly = {
 	.invert_tuple	 = gre_invert_tuple,
 	.print_tuple	 = gre_print_tuple,
 	.print_conntrack = gre_print_conntrack,
+	.get_timeouts    = gre_get_timeouts,
 	.packet		 = gre_packet,
 	.new		 = gre_new,
 	.destroy	 = gre_destroy,

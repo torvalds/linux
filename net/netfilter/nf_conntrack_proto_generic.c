@@ -40,21 +40,27 @@ static int generic_print_tuple(struct seq_file *s,
 	return 0;
 }
 
-/* Returns verdict for packet, or -1 for invalid. */
-static int packet(struct nf_conn *ct,
-		  const struct sk_buff *skb,
-		  unsigned int dataoff,
-		  enum ip_conntrack_info ctinfo,
-		  u_int8_t pf,
-		  unsigned int hooknum)
+static unsigned int *generic_get_timeouts(struct net *net)
 {
-	nf_ct_refresh_acct(ct, ctinfo, skb, nf_ct_generic_timeout);
+	return &nf_ct_generic_timeout;
+}
+
+/* Returns verdict for packet, or -1 for invalid. */
+static int generic_packet(struct nf_conn *ct,
+			  const struct sk_buff *skb,
+			  unsigned int dataoff,
+			  enum ip_conntrack_info ctinfo,
+			  u_int8_t pf,
+			  unsigned int hooknum,
+			  unsigned int *timeout)
+{
+	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
 	return NF_ACCEPT;
 }
 
 /* Called when a new connection for this protocol found. */
-static bool new(struct nf_conn *ct, const struct sk_buff *skb,
-		unsigned int dataoff)
+static bool generic_new(struct nf_conn *ct, const struct sk_buff *skb,
+			unsigned int dataoff, unsigned int *timeouts)
 {
 	return true;
 }
@@ -93,8 +99,9 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_generic __read_mostly =
 	.pkt_to_tuple		= generic_pkt_to_tuple,
 	.invert_tuple		= generic_invert_tuple,
 	.print_tuple		= generic_print_tuple,
-	.packet			= packet,
-	.new			= new,
+	.packet			= generic_packet,
+	.get_timeouts		= generic_get_timeouts,
+	.new			= generic_new,
 #ifdef CONFIG_SYSCTL
 	.ctl_table_header	= &generic_sysctl_header,
 	.ctl_table		= generic_sysctl_table,

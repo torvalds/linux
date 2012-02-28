@@ -68,32 +68,38 @@ static int udplite_print_tuple(struct seq_file *s,
 			  ntohs(tuple->dst.u.udp.port));
 }
 
+static unsigned int *udplite_get_timeouts(struct net *net)
+{
+	return udplite_timeouts;
+}
+
 /* Returns verdict for packet, and may modify conntracktype */
 static int udplite_packet(struct nf_conn *ct,
 			  const struct sk_buff *skb,
 			  unsigned int dataoff,
 			  enum ip_conntrack_info ctinfo,
 			  u_int8_t pf,
-			  unsigned int hooknum)
+			  unsigned int hooknum,
+			  unsigned int *timeouts)
 {
 	/* If we've seen traffic both ways, this is some kind of UDP
 	   stream.  Extend timeout. */
 	if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
 		nf_ct_refresh_acct(ct, ctinfo, skb,
-				   udplite_timeouts[UDPLITE_CT_REPLIED]);
+				   timeouts[UDPLITE_CT_REPLIED]);
 		/* Also, more likely to be important, and not a probe */
 		if (!test_and_set_bit(IPS_ASSURED_BIT, &ct->status))
 			nf_conntrack_event_cache(IPCT_ASSURED, ct);
 	} else {
 		nf_ct_refresh_acct(ct, ctinfo, skb,
-				   udplite_timeouts[UDPLITE_CT_UNREPLIED]);
+				   timeouts[UDPLITE_CT_UNREPLIED]);
 	}
 	return NF_ACCEPT;
 }
 
 /* Called when a new connection for this protocol found. */
 static bool udplite_new(struct nf_conn *ct, const struct sk_buff *skb,
-			unsigned int dataoff)
+			unsigned int dataoff, unsigned int *timeouts)
 {
 	return true;
 }
@@ -181,6 +187,7 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 __read_mostly =
 	.invert_tuple		= udplite_invert_tuple,
 	.print_tuple		= udplite_print_tuple,
 	.packet			= udplite_packet,
+	.get_timeouts		= udplite_get_timeouts,
 	.new			= udplite_new,
 	.error			= udplite_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -205,6 +212,7 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 __read_mostly =
 	.invert_tuple		= udplite_invert_tuple,
 	.print_tuple		= udplite_print_tuple,
 	.packet			= udplite_packet,
+	.get_timeouts		= udplite_get_timeouts,
 	.new			= udplite_new,
 	.error			= udplite_error,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
