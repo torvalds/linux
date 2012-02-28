@@ -2203,28 +2203,8 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&moschip7720_2port_driver, NULL
 };
 
-static int __init moschip7720_init(void)
-{
-	int retval;
+module_usb_serial_driver(usb_driver, serial_drivers);
 
-	dbg("%s: Entering ..........", __func__);
-
-	retval = usb_serial_register_drivers(&usb_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
-}
-
-static void __exit moschip7720_exit(void)
-{
-	usb_serial_deregister_drivers(&usb_driver, serial_drivers);
-}
-
-module_init(moschip7720_init);
-module_exit(moschip7720_exit);
-
-/* Module information */
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
