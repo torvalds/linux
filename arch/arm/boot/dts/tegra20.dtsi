@@ -17,6 +17,12 @@
 		      < 0x50040100 0x0100 >;
 	};
 
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <0 56 0x04
+			      0 57 0x04>;
+	};
+
 	apbdma: dma@6000a000 {
 		compatible = "nvidia,tegra20-apbdma";
 		reg = <0x6000a000 0x1200>;
