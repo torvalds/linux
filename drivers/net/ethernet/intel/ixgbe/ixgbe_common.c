@@ -3336,7 +3336,7 @@ static u8 ixgbe_calculate_checksum(u8 *buffer, u32 length)
  *  @hw: pointer to the HW structure
  *  @buffer: contains the command to write and where the return status will
  *           be placed
- *  @lenght: lenght of buffer, must be multiple of 4 bytes
+ *  @length: length of buffer, must be multiple of 4 bytes
  *
  *  Communicates with the manageability block.  On success return 0
  *  else return IXGBE_ERR_HOST_INTERFACE_COMMAND.
