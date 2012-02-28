@@ -98,38 +98,6 @@ int ath6kl_core_init(struct ath6kl *ar)
 
 	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: got wmi @ 0x%p.\n", __func__, ar->wmi);
 
-	ret = ath6kl_cfg80211_init(ar);
-	if (ret)
-		goto err_node_cleanup;
-
-	ret = ath6kl_debug_init(ar);
-	if (ret) {
-		wiphy_unregister(ar->wiphy);
-		goto err_node_cleanup;
-	}
-
-	for (i = 0; i < ar->vif_max; i++)
-		ar->avail_idx_map |= BIT(i);
-
-	rtnl_lock();
-
-	/* Add an initial station interface */
-	ndev = ath6kl_interface_add(ar, "wlan%d", NL80211_IFTYPE_STATION, 0,
-				    INFRA_NETWORK);
-
-	rtnl_unlock();
-
-	if (!ndev) {
-		ath6kl_err("Failed to instantiate a network device\n");
-		ret = -ENOMEM;
-		wiphy_unregister(ar->wiphy);
-		goto err_debug_init;
-	}
-
-
-	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: name=%s dev=0x%p, ar=0x%p\n",
-			__func__, ndev->name, ndev, ar);
-
 	/* setup access class priority mappings */
 	ar->ac_stream_pri_map[WMM_AC_BK] = 0; /* lowest  */
 	ar->ac_stream_pri_map[WMM_AC_BE] = 1;
@@ -166,24 +134,44 @@ int ath6kl_core_init(struct ath6kl *ar)
 	ath6kl_rx_refill(ar->htc_target, ar->ctrl_ep);
 	ath6kl_rx_refill(ar->htc_target, ar->ac2ep_map[WMM_AC_BE]);
 
-	/*
-	 * Set mac address which is received in ready event
-	 * FIXME: Move to ath6kl_interface_add()
-	 */
-	memcpy(ndev->dev_addr, ar->mac_addr, ETH_ALEN);
+	ret = ath6kl_cfg80211_init(ar);
+	if (ret)
+		goto err_rxbuf_cleanup;
+
+	ret = ath6kl_debug_init(ar);
+	if (ret) {
+		wiphy_unregister(ar->wiphy);
+		goto err_rxbuf_cleanup;
+	}
+
+	for (i = 0; i < ar->vif_max; i++)
+		ar->avail_idx_map |= BIT(i);
+
+	rtnl_lock();
+
+	/* Add an initial station interface */
+	ndev = ath6kl_interface_add(ar, "wlan%d", NL80211_IFTYPE_STATION, 0,
+				    INFRA_NETWORK);
+
+	rtnl_unlock();
+
+	if (!ndev) {
+		ath6kl_err("Failed to instantiate a network device\n");
+		ret = -ENOMEM;
+		wiphy_unregister(ar->wiphy);
+		goto err_debug_init;
+	}
+
+	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: name=%s dev=0x%p, ar=0x%p\n",
+			__func__, ndev->name, ndev, ar);
 
 	return ret;
 
+err_debug_init:
+	ath6kl_debug_cleanup(ar);
 err_rxbuf_cleanup:
 	ath6kl_htc_flush_rx_buf(ar->htc_target);
 	ath6kl_cleanup_amsdu_rxbufs(ar);
-	rtnl_lock();
-	ath6kl_cfg80211_vif_cleanup(netdev_priv(ndev));
-	rtnl_unlock();
-	wiphy_unregister(ar->wiphy);
-err_debug_init:
-	ath6kl_debug_cleanup(ar);
-err_node_cleanup:
 	ath6kl_wmi_shutdown(ar->wmi);
 	clear_bit(WMI_ENABLED, &ar->flag);
 	ar->wmi = NULL;
