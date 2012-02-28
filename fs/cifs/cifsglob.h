@@ -164,6 +164,10 @@ struct smb_version_operations {
 
 struct smb_version_values {
 	char		*version_string;
+	__u32		large_lock_type;
+	__u32		exclusive_lock_type;
+	__u32		shared_lock_type;
+	__u32		unlock_lock_type;
 };
 
 struct smb_vol {

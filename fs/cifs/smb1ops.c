@@ -20,6 +20,7 @@
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
+#include "cifspdu.h"
 
 /*
  * An NT cancel request header looks just like the original request except:
@@ -65,4 +66,8 @@ struct smb_version_operations smb1_operations = {
 
 struct smb_version_values smb1_values = {
 	.version_string = SMB1_VERSION_STRING,
+	.large_lock_type = LOCKING_ANDX_LARGE_FILES,
+	.exclusive_lock_type = 0,
+	.shared_lock_type = LOCKING_ANDX_SHARED_LOCK,
+	.unlock_lock_type = 0,
 };
