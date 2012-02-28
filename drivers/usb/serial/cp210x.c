@@ -850,24 +850,7 @@ static int cp210x_startup(struct usb_serial *serial)
 	return 0;
 }
 
-static int __init cp210x_init(void)
-{
-	int retval;
-
-	retval = usb_serial_register_drivers(&cp210x_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
-}
-
-static void __exit cp210x_exit(void)
-{
-	usb_serial_deregister_drivers(&cp210x_driver, serial_drivers);
-}
-
-module_init(cp210x_init);
-module_exit(cp210x_exit);
+module_usb_serial_driver(cp210x_driver, serial_drivers);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
