@@ -84,7 +84,7 @@ module_param_array(model, charp, NULL, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
 module_param_array(position_fix, int, NULL, 0444);
 MODULE_PARM_DESC(position_fix, "DMA pointer read method."
-		 "(0 = auto, 1 = LPIB, 2 = POSBUF, 3 = VIACOMBO).");
+		 "(0 = auto, 1 = LPIB, 2 = POSBUF, 3 = VIACOMBO, 4 = COMBO).");
 module_param_array(bdl_pos_adj, int, NULL, 0644);
 MODULE_PARM_DESC(bdl_pos_adj, "BDL position adjustment offset.");
 module_param_array(probe_mask, int, NULL, 0444);
@@ -330,6 +330,7 @@ enum {
 	POS_FIX_LPIB,
 	POS_FIX_POSBUF,
 	POS_FIX_VIACOMBO,
+	POS_FIX_COMBO,
 };
 
 /* Defines for ATI HD Audio support in SB450 south bridge */
@@ -2520,6 +2521,7 @@ static int __devinit check_position_fix(struct azx *chip, int fix)
 	case POS_FIX_LPIB:
 	case POS_FIX_POSBUF:
 	case POS_FIX_VIACOMBO:
+	case POS_FIX_COMBO:
 		return fix;
 	}
 
@@ -2699,6 +2701,12 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 
 	chip->position_fix[0] = chip->position_fix[1] =
 		check_position_fix(chip, position_fix[dev]);
+	/* combo mode uses LPIB for playback */
+	if (chip->position_fix[0] == POS_FIX_COMBO) {
+		chip->position_fix[0] = POS_FIX_LPIB;
+		chip->position_fix[1] = POS_FIX_AUTO;
+	}
+
 	check_probe_mask(chip, dev);
 
 	chip->single_cmd = single_cmd;
