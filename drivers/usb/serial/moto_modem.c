@@ -51,16 +51,5 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&moto_device, NULL
 };
 
-static int __init moto_init(void)
-{
-	return usb_serial_register_drivers(&moto_driver, serial_drivers);
-}
-
-static void __exit moto_exit(void)
-{
-	usb_serial_deregister_drivers(&moto_driver, serial_drivers);
-}
-
-module_init(moto_init);
-module_exit(moto_exit);
+module_usb_serial_driver(moto_driver, serial_drivers);
 MODULE_LICENSE("GPL");
