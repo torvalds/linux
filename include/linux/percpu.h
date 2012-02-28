@@ -722,9 +722,9 @@ do {									\
 	__pcpu_size_call_return2(__this_cpu_add_return_, pcp, val)
 #endif
 
-#define __this_cpu_sub_return(pcp, val)	this_cpu_add_return(pcp, -(val))
-#define __this_cpu_inc_return(pcp)	this_cpu_add_return(pcp, 1)
-#define __this_cpu_dec_return(pcp)	this_cpu_add_return(pcp, -1)
+#define __this_cpu_sub_return(pcp, val)	__this_cpu_add_return(pcp, -(val))
+#define __this_cpu_inc_return(pcp)	__this_cpu_add_return(pcp, 1)
+#define __this_cpu_dec_return(pcp)	__this_cpu_add_return(pcp, -1)
 
 #define __this_cpu_generic_xchg(pcp, nval)				\
 ({	typeof(pcp) ret__;						\
