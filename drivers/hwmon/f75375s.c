@@ -795,7 +795,7 @@ static int f75375_probe(struct i2c_client *client,
 	if (err)
 		goto exit_free;
 
-	if (data->kind == f75375) {
+	if (data->kind != f75373) {
 		err = sysfs_chmod_file(&client->dev.kobj,
 			&sensor_dev_attr_pwm1_mode.dev_attr.attr,
 			S_IRUGO | S_IWUSR);
