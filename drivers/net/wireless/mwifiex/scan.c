@@ -737,7 +737,7 @@ mwifiex_scan_setup_scan_config(struct mwifiex_private *priv,
 	u16 scan_dur;
 	u8 channel;
 	u8 radio_type;
-	u32 ssid_idx;
+	int i;
 	u8 ssid_filter;
 	u8 rates[MWIFIEX_SUPPORTED_RATES];
 	u32 rates_size;
@@ -792,14 +792,8 @@ mwifiex_scan_setup_scan_config(struct mwifiex_private *priv,
 		       user_scan_in->specific_bssid,
 		       sizeof(scan_cfg_out->specific_bssid));
 
-		for (ssid_idx = 0;
-		     ((ssid_idx < ARRAY_SIZE(user_scan_in->ssid_list))
-		      && (*user_scan_in->ssid_list[ssid_idx].ssid
-			  || user_scan_in->ssid_list[ssid_idx].max_len));
-		     ssid_idx++) {
-
-			ssid_len = strlen(user_scan_in->ssid_list[ssid_idx].
-					  ssid) + 1;
+		for (i = 0; i < user_scan_in->num_ssids; i++) {
+			ssid_len = user_scan_in->ssid_list[i].ssid_len;
 
 			wildcard_ssid_tlv =
 				(struct mwifiex_ie_types_wildcard_ssid_params *)
@@ -810,19 +804,26 @@ mwifiex_scan_setup_scan_config(struct mwifiex_private *priv,
 				(u16) (ssid_len + sizeof(wildcard_ssid_tlv->
 							 max_ssid_length)));
 
-			/* max_ssid_length = 0 tells firmware to perform
-			   specific scan for the SSID filled */
-			wildcard_ssid_tlv->max_ssid_length = 0;
+			/*
+			 * max_ssid_length = 0 tells firmware to perform
+			 * specific scan for the SSID filled, whereas
+			 * max_ssid_length = IEEE80211_MAX_SSID_LEN is for
+			 * wildcard scan.
+			 */
+			if (ssid_len)
+				wildcard_ssid_tlv->max_ssid_length = 0;
+			else
+				wildcard_ssid_tlv->max_ssid_length =
+							IEEE80211_MAX_SSID_LEN;
 
 			memcpy(wildcard_ssid_tlv->ssid,
-			       user_scan_in->ssid_list[ssid_idx].ssid,
-			       ssid_len);
+			       user_scan_in->ssid_list[i].ssid, ssid_len);
 
 			tlv_pos += (sizeof(wildcard_ssid_tlv->header)
 				+ le16_to_cpu(wildcard_ssid_tlv->header.len));
 
-			dev_dbg(adapter->dev, "info: scan: ssid_list[%d]: %s, %d\n",
-				ssid_idx, wildcard_ssid_tlv->ssid,
+			dev_dbg(adapter->dev, "info: scan: ssid[%d]: %s, %d\n",
+				i, wildcard_ssid_tlv->ssid,
 				wildcard_ssid_tlv->max_ssid_length);
 
 			/* Empty wildcard ssid with a maxlen will match many or
@@ -831,7 +832,6 @@ mwifiex_scan_setup_scan_config(struct mwifiex_private *priv,
 			   filtered. */
 			if (!ssid_len && wildcard_ssid_tlv->max_ssid_length)
 				ssid_filter = false;
-
 		}
 
 		/*
@@ -840,7 +840,7 @@ mwifiex_scan_setup_scan_config(struct mwifiex_private *priv,
 		 *  truncate scan results.  That is not an issue with an SSID
 		 *  or BSSID filter applied to the scan results in the firmware.
 		 */
-		if ((ssid_idx && ssid_filter)
+		if ((i && ssid_filter)
 		    || memcmp(scan_cfg_out->specific_bssid, &zero_mac,
 			      sizeof(zero_mac)))
 			*filtered_scan = true;
@@ -1876,8 +1876,8 @@ static int mwifiex_scan_specific_ssid(struct mwifiex_private *priv,
 		return -ENOMEM;
 	}
 
-	memcpy(scan_cfg->ssid_list[0].ssid, req_ssid->ssid,
-	       req_ssid->ssid_len);
+	scan_cfg->ssid_list = req_ssid;
+	scan_cfg->num_ssids = 1;
 
 	ret = mwifiex_scan_networks(priv, scan_cfg);
 

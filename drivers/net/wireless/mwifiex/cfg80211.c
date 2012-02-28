@@ -1106,12 +1106,10 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy, struct net_device *dev,
 		dev_err(priv->adapter->dev, "failed to alloc scan_req\n");
 		return -ENOMEM;
 	}
-	for (i = 0; i < request->n_ssids; i++) {
-		memcpy(priv->user_scan_cfg->ssid_list[i].ssid,
-			request->ssids[i].ssid, request->ssids[i].ssid_len);
-		priv->user_scan_cfg->ssid_list[i].max_len =
-			request->ssids[i].ssid_len;
-	}
+
+	priv->user_scan_cfg->num_ssids = request->n_ssids;
+	priv->user_scan_cfg->ssid_list = request->ssids;
+
 	for (i = 0; i < request->n_channels; i++) {
 		chan = request->channels[i];
 		priv->user_scan_cfg->chan_list[i].chan_number = chan->hw_value;
