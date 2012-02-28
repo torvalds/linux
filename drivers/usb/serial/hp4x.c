@@ -56,24 +56,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&hp49gp_device, NULL
 };
 
-static int __init hp49gp_init(void)
-{
-	int retval;
-
-	retval = usb_serial_register_drivers(&hp49gp_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
-}
-
-static void __exit hp49gp_exit(void)
-{
-	usb_serial_deregister_drivers(&hp49gp_driver, serial_drivers);
-}
-
-module_init(hp49gp_init);
-module_exit(hp49gp_exit);
+module_usb_serial_driver(hp49gp_driver, serial_drivers);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
