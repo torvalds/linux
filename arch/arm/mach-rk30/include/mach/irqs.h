@@ -1,6 +1,8 @@
 #ifndef __MACH_IRQS_H
 #define __MACH_IRQS_H
 
+#define FIQ_START 			0
+
 #define IRQ_LOCALTIMER                  29
 
 #define RK30XX_IRQ(x)                   (x + 32)
@@ -81,6 +83,9 @@
 #define IRQ_VIO1_OBSRV_MAINFAULT        RK30XX_IRQ(73)
 #define IRQ_VIO0_OBSRV_MAINFAULT        RK30XX_IRQ(74)
 #define IRQ_DMAC_OBSRV_MAINFAULT        RK30XX_IRQ(75)
+
+//hhb@rock-chips.com this spi is used for fiq_debugger signal irq
+#define IRQ_UART_SIGNAL			RK30XX_IRQ(80)
 
 #define NR_GIC_IRQS                     (5 * 32)
 #define NR_GPIO_IRQS                    (6 * 32)

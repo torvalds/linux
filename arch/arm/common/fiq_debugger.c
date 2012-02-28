@@ -372,6 +372,7 @@ static void dump_irqs(struct fiq_debugger_state *state)
 		state->last_irqs[n] = kstat_irqs(n);
 	}
 
+#ifdef CONFIG_LOCAL_TIMERS
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
 
 		debug_printf(state, "LOC %d: %10u %11u\n", cpu,
@@ -381,6 +382,7 @@ static void dump_irqs(struct fiq_debugger_state *state)
 		state->last_local_timer_irqs[cpu] =
 			__IRQ_STAT(cpu, local_timer_irqs);
 	}
+#endif
 }
 
 struct stacktrace_state {

@@ -24,6 +24,8 @@
 #include <plat/dma-pl330.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
+#include <plat/rk_fiq_debugger.h>
+
 static u64 dma_dmamask = DMA_BIT_MASK(32);
 
 #ifdef CONFIG_TSADC_RK30
@@ -886,6 +888,9 @@ static int __init rk30_init_devices(void)
 	platform_device_register(&device_tsadc);
 #endif
 	rk30_init_sdmmc();
+#ifdef CONFIG_FIQ_DEBUGGER
+	rk_serial_debug_init(RK30_UART1_PHYS, IRQ_UART1, IRQ_UART_SIGNAL, -1);
+#endif
 
         return 0;
 }
