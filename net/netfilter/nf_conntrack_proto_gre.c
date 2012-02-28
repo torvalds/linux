@@ -41,8 +41,16 @@
 #include <linux/netfilter/nf_conntrack_proto_gre.h>
 #include <linux/netfilter/nf_conntrack_pptp.h>
 
-#define GRE_TIMEOUT		(30 * HZ)
-#define GRE_STREAM_TIMEOUT	(180 * HZ)
+enum grep_conntrack {
+	GRE_CT_UNREPLIED,
+	GRE_CT_REPLIED,
+	GRE_CT_MAX
+};
+
+static unsigned int gre_timeouts[GRE_CT_MAX] = {
+	[GRE_CT_UNREPLIED]	= 30*HZ,
+	[GRE_CT_REPLIED]	= 180*HZ,
+};
 
 static int proto_gre_net_id __read_mostly;
 struct netns_proto_gre {
@@ -259,8 +267,8 @@ static bool gre_new(struct nf_conn *ct, const struct sk_buff *skb,
 
 	/* initialize to sane value.  Ideally a conntrack helper
 	 * (e.g. in case of pptp) is increasing them */
-	ct->proto.gre.stream_timeout = GRE_STREAM_TIMEOUT;
-	ct->proto.gre.timeout = GRE_TIMEOUT;
+	ct->proto.gre.stream_timeout = gre_timeouts[GRE_CT_REPLIED];
+	ct->proto.gre.timeout = gre_timeouts[GRE_CT_UNREPLIED];
 
 	return true;
 }
