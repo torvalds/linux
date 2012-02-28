@@ -584,6 +584,7 @@ int db8500_prcmu_gic_decouple(void);
 int db8500_prcmu_gic_recouple(void);
 int db8500_prcmu_copy_gic_settings(void);
 bool db8500_prcmu_gic_pending_irq(void);
+bool db8500_prcmu_pending_irq(void);
 void db8500_prcmu_enable_wakeups(u32 wakeups);
 int db8500_prcmu_set_epod(u16 epod_id, u8 epod_state);
 int db8500_prcmu_request_clock(u8 clock, bool enable);

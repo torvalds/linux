@@ -884,6 +884,26 @@ bool db8500_prcmu_gic_pending_irq(void)
 }
 
 /*
+ * This function checks if there are pending interrupt on the
+ * prcmu which has been delegated to monitor the irqs with the
+ * db8500_prcmu_copy_gic_settings function.
+ */
+bool db8500_prcmu_pending_irq(void)
+{
+	u32 it, im;
+	int i;
+
+	for (i = 0; i < PRCMU_GIC_NUMBER_REGS - 1; i++) {
+		it = readl(PRCM_ARMITVAL31TO0 + i * 4);
+		im = readl(PRCM_ARMITMSK31TO0 + i * 4);
+		if (it & im)
+			return true; /* There is a pending interrupt */
+	}
+
+	return false;
+}
+
+/*
  * This function copies the gic SPI settings to the prcmu in order to
  * monitor them and abort/finish the retention/off sequence or state.
  */
