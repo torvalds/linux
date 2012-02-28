@@ -631,18 +631,8 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&opticon_device, NULL
 };
 
-static int __init opticon_init(void)
-{
-	return usb_serial_register_drivers(&opticon_driver, serial_drivers);
-}
+module_usb_serial_driver(opticon_driver, serial_drivers);
 
-static void __exit opticon_exit(void)
-{
-	usb_serial_deregister_drivers(&opticon_driver, serial_drivers);
-}
-
-module_init(opticon_init);
-module_exit(opticon_exit);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
