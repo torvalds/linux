@@ -869,7 +869,6 @@ config ARCH_SHARK
 	select PCI
 	select ARCH_USES_GETTIMEOFFSET
 	select NEED_MACH_MEMORY_H
-	select NEED_MACH_IO_H
 	help
 	  Support for the StrongARM based Digital DNARD machine, also known
 	  as "Shark" (<http://www.shark-linux.de/shark.html>).
