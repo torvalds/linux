@@ -7,6 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/version.h>
 
 #ifndef _ROCKCHIP_IIS_H
 #define _ROCKCHIP_IIS_H
@@ -22,10 +23,13 @@
 #define CHANNEL_2_EN            (1<<15)
 #define CHANNEL_3_EN            (2<<15)
 #define CHANNLE_4_EN            (3<<15)
-
+#ifdef ARCH_RK29
 #define TX_MODE_MASTER          (0<<13)
 #define TX_MODE_SLAVE           (1<<13)
-
+#else
+#define TX_MODE_MASTER          (0<<27)
+#define TX_MODE_SLAVE           (1<<27)
+#endif
 
 #define RESET_TX                (1<<17)
 #define RESET_RX                (1<<16)
@@ -94,11 +98,15 @@
 
 #define I2S_HWT_16BIT           (0<<14)
 #define I2S_HWT_32BIT           (1<<14)
-
+#ifdef ARCH_RK29
 #define I2S_MASTER_MODE         (0<<13)
 #define I2S_SLAVE_MODE          (1<<13)
 #define I2S_MODE_MASK           (1<<13)
-
+#else
+#define I2S_MASTER_MODE         (0<<27)
+#define I2S_SLAVE_MODE          (1<<27)
+#define I2S_MODE_MASK           (1<<27)
+#endif
 #define I2S_JUSTIFIED_RIGHT     (0<<12)
 #define I2S_JUSTIFIED_LEFT      (1<<12)
 
@@ -179,6 +187,7 @@
 #define I2S_TXR_BUFF            0x20
 #define I2S_RXR_BUFF            0x24
 
+#ifdef ARCH_RK29
 //I2S Registers
 typedef volatile struct tagIIS_STRUCT
 {
@@ -196,12 +205,28 @@ typedef volatile struct tagIIS_STRUCT
     unsigned int I2S_TXRST;
     unsigned int I2S_RXRST;
 }I2S_REG,*pI2S_REG;
+#else
+typedef volatile struct tagIIS_STRUCT
+{
+    unsigned int I2S_TXCR;//0xF  0
+    unsigned int I2S_RXCR;//0xF 4
+    unsigned int I2S_CKR;//0x3F 8
+    unsigned int I2S_FIFOLR;//c 
+    unsigned int I2S_DMACR;//0x001F0110 10
+    unsigned int I2S_INTCR;//0x01F00000 14
+    unsigned int I2S_INTSR;//0x00 18
+	unsigned int I2S_XFER;//0x00000003 1c
+	unsigned int I2S_CLR;//20
+    unsigned int I2S_TXDR;//24
+    unsigned int I2S_RXDR;
+}I2S_REG,*pI2S_REG;
+#endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
 extern struct snd_soc_dai_driver rk29_i2s_dai[];
 #else
 extern struct snd_soc_dai rk29_i2s_dai[];
 #endif
-//extern void rockchip_add_device_i2s(void);
+
 #endif /* _ROCKCHIP_IIS_H */
 

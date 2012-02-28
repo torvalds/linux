@@ -70,7 +70,7 @@
 #define GPIO0C_GPIO0C3				0 
 #define GPIO0C_I2S1_2CH_LRCK_TX			1 
 #define GPIO0C_GPIO0C2				0 
-#define GPIO0C_I2S_8CH_LRCK_RX			1 
+#define GPIO0C_I2S1_2CH_LRCK_RX			1 
 #define GPIO0C_GPIO0C1				0 
 #define GPIO0C_I2S1_2CH_SCLK			1 
 #define GPIO0C_GPIO0C0				0 
@@ -87,13 +87,13 @@
 #define GPIO0D_I2S2_2CH_SDO			1 
 #define GPIO0D_SMC_ADDR1			2 
 #define GPIO0D_GPIO0D4				0 
-#define GPIO0D_I2S1_2CH_SDI			1 
+#define GPIO0D_I2S2_2CH_SDI			1 
 #define GPIO0D_SMC_ADDR0			2 
 #define GPIO0D_GPIO0D3				0 
-#define GPIO0D_I2S1_2CH_LRCK_TX			1 
+#define GPIO0D_I2S2_2CH_LRCK_TX			1 
 #define GPIO0D_SMC_ADV_N			2 
 #define GPIO0D_GPIO0D2				0 
-#define GPIO0D_I2S1_2CH_LRCK_RX			1 
+#define GPIO0D_I2S2_2CH_LRCK_RX			1 
 #define GPIO0D_SMC_OE_N				2 
 #define GPIO0D_GPIO0D1				0 
 #define GPIO0D_I2S2_2CH_SCLK			1 
@@ -606,7 +606,7 @@
 #define	GPIO0C5_I2S12CHSDO_NAME				"gpio0c5_i2s12chsdo_name"
 #define	GPIO0C4_I2S12CHSDI_NAME				"gpio0c4_i2s12chsdi_name"
 #define	GPIO0C3_I2S12CHLRCKTX_NAME			"gpio0c3_i2s12chlrcktx_name"
-#define	GPIO0C2_I2S8CHLRCKRX_NAME			"gpio0c2_i2s8chlrckrx_name"
+#define	GPIO0C2_I2S12CHLRCKRX_NAME			"gpio0c2_i2s12chlrckrx_name"
 #define	GPIO0C1_I2S12CHSCLK_NAME			"gpio0c1_i2s12chsclk_name"
 #define	GPIO0C0_I2S12CHCLK_NAME				"gpio0c0_i2s12chclk_name"
 
@@ -615,9 +615,9 @@
 #define	GPIO0D7_PWM3_NAME				"gpio0d7_pwm3_name"
 #define	GPIO0D6_PWM2_NAME				"gpio0d6_pwm2_name"
 #define	GPIO0D5_I2S22CHSDO_SMCADDR1_NAME		"gpio0d5_i2s22chsdo_smcaddr1_name"
-#define	GPIO0D4_I2S12CHSDI_SMCADDR0_NAME		"gpio0d4_i2s12chsdi_smcaddr0_name"
-#define	GPIO0D3_I2S12CHLRCKTX_SMCADVN_NAME		"gpio0d3_i2s12chlrcktx_smcadvn_name"
-#define	GPIO0D2_I2S12CHLRCKRX_SMCOEN_NAME		"gpio0d2_i2s12chlrckrx_smcoen_name"
+#define	GPIO0D4_I2S22CHSDI_SMCADDR0_NAME		"gpio0d4_i2s22chsdi_smcaddr0_name"
+#define	GPIO0D3_I2S22CHLRCKTX_SMCADVN_NAME		"gpio0d3_i2s22chlrcktx_smcadvn_name"
+#define	GPIO0D2_I2S22CHLRCKRX_SMCOEN_NAME		"gpio0d2_i2s22chlrckrx_smcoen_name"
 #define	GPIO0D1_I2S22CHSCLK_SMCWEN_NAME			"gpio0d1_i2s22chsclk_smcwen_name"
 #define	GPIO0D0_I2S22CHCLK_SMCCSN0_NAME			"gpio0d0_i2s22chclk_smccsn0_name"
 

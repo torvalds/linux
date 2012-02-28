@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
+#include <linux/version.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -24,9 +25,14 @@
 
 #include <asm/dma.h>
 #include <mach/hardware.h>
+#ifdef ARCH_RK29
 #include <mach/dma.h>
-
+#else
+#include <plat/dma-pl330.h>
+#endif
 #include "rk29_pcm.h"
+
+#include <linux/delay.h>
 
 #if 0
 #define DBG(x...) printk(KERN_INFO x)
@@ -173,7 +179,7 @@ static int rockchip_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct rockchip_pcm_dma_params *dma = rtd->dai->cpu_dai->dma_data;
 #endif
 	unsigned long totbytes = params_buffer_bytes(params);
-	int ret = 0;
+//	int ret = 0;
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	/*by Vincent Hsiung for EQ Vol Change*/
@@ -278,7 +284,7 @@ static int rockchip_pcm_prepare(struct snd_pcm_substream *substream)
         }
         DBG("Enter::%s, %d, ret=%d, Channel=%d, Addr=0x%X\n", __FUNCTION__, __LINE__, ret, prtd->params->channel, prtd->params->dma_addr);
         ret = rk29_dma_config(prtd->params->channel, 
-                prtd->params->dma_size, 16);
+                prtd->params->dma_size, 1);
 
         DBG("Enter:%s, %d, ret = %d, Channel=%d, Size=%d\n", 
                 __FUNCTION__, __LINE__, ret, prtd->params->channel, 
@@ -509,9 +515,8 @@ static int rockchip_pcm_new(struct snd_card *card,
 	struct snd_soc_dai *dai, struct snd_pcm *pcm)
 {
 	int ret = 0;
-
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-
+	
 	if (!card->dev->dma_mask)
 		card->dev->dma_mask = &rockchip_pcm_dmamask;
 	if (!card->dev->coherent_dma_mask)
@@ -551,7 +556,7 @@ static struct snd_soc_platform_driver rockchip_pcm_platform = {
 
 static int __devinit rockchip_pcm_platform_probe(struct platform_device *pdev)
 {
-        DBG("Enter::%s, %d\n", __FUNCTION__, __LINE__);
+	DBG("Enter::%s, %d\n", __FUNCTION__, __LINE__);
 	return snd_soc_register_platform(&pdev->dev, &rockchip_pcm_platform);
 }
 
@@ -572,7 +577,7 @@ static struct platform_driver rockchip_pcm_driver = {
 
 static int __init snd_rockchip_pcm_init(void)
 {
-        DBG("Enter::%s, %d\n", __FUNCTION__, __LINE__);
+	DBG("Enter::%s, %d\n", __FUNCTION__, __LINE__);
 	return platform_driver_register(&rockchip_pcm_driver);
 }
 module_init(snd_rockchip_pcm_init);
@@ -593,7 +598,7 @@ EXPORT_SYMBOL_GPL(rk29_soc_platform);
 
 static int __init rockchip_soc_platform_init(void)
 {
-        DBG("Enter::%s, %d\n", __FUNCTION__, __LINE__);
+	DBG("Enter::%s, %d\n", __FUNCTION__, __LINE__);
 	return snd_soc_register_platform(&rk29_soc_platform);
 }
 module_init(rockchip_soc_platform_init);
@@ -609,4 +614,5 @@ module_exit(rockchip_soc_platform_exit);
 MODULE_AUTHOR("rockchip");
 MODULE_DESCRIPTION("ROCKCHIP PCM ASoC Interface");
 MODULE_LICENSE("GPL");
+
 

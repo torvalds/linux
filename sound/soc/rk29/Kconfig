@@ -1,6 +1,6 @@
 config SND_RK29_SOC
-	tristate "SoC Audio for the rockchip RK29 System-on-Chip"
-	depends on ARCH_RK29 && SND_SOC
+	tristate "SoC Audio for the rockchip RK29/RK30 System-on-Chip"
+	depends on (ARCH_RK29 || ARCH_RK30)&& SND_SOC
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the ROCKCHIP IIS interface. You will also need
@@ -9,21 +9,28 @@ config SND_RK29_SOC
 config SND_RK29_SOC_I2S
 	tristate 
 
-config SND_RK29_SOC_I2S_2CH
-        bool "Soc RK29 I2S 2 Channel support"
-        default n
-	depends on SND_RK29_SOC_I2S
-	help
-                This supports the use of the 2 Channel I2S interface on rk29 processors.
-
 config SND_RK29_SOC_I2S_8CH
-        bool "Soc RK29 I2S 8 Channel support"
+        bool "Soc RK29 I2S 8 Channel support(I2S0)"
         default y
 	depends on SND_RK29_SOC_I2S
 	help
                 This supports the use of the 8 Channel I2S interface on rk29 processors.
 				
-if 	SND_RK29_SOC_I2S_2CH || SND_RK29_SOC_I2S_8CH			
+config SND_RK29_SOC_I2S_2CH
+        bool "Soc RK29 I2S 2 Channel support(I2S1)"
+        default n
+	depends on SND_RK29_SOC_I2S
+	help
+                This supports the use of the 2 Channel I2S interface on rk29 processors.
+
+config SND_RK_SOC_I2S2_2CH
+	bool "Soc RK29 I2S 2 Channel support(I2S2)"
+	default n
+	depends on SND_RK29_SOC_I2S && ARCH_RK30
+	help
+		This supports the use of the 2 Channel I2S2 interface on rk30 processors.
+				
+if 	SND_RK29_SOC_I2S_2CH || SND_RK29_SOC_I2S_8CH || SND_RK_SOC_I2S2_2CH
 choice
   bool "Set i2s on DMA event mode"
   default SND_I2S_DMA_EVENT_STATIC
@@ -37,7 +44,7 @@ endif
 
 config SND_RK29_SOC_WM8988
 	tristate "SoC I2S Audio support for rockchip - WM8988"
-	depends on SND_RK29_SOC && I2C_RK29
+	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
 	select SND_RK29_SOC_I2S
 	select SND_SOC_WM8988
 	help
@@ -46,7 +53,7 @@ config SND_RK29_SOC_WM8988
 
 config SND_RK29_SOC_WM8900
 	tristate "SoC I2S Audio support for rockchip - WM8900"
-	depends on SND_RK29_SOC && I2C_RK29
+	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
 	select SND_RK29_SOC_I2S
 	select SND_SOC_WM8900
 	help
@@ -54,7 +61,7 @@ config SND_RK29_SOC_WM8900
 	  with the WM8900.
 config SND_RK29_SOC_RT5621
 	tristate "SoC I2S Audio support for rockchip - rt5621"
-	depends on SND_RK29_SOC && I2C_RK29
+	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
 	select SND_RK29_SOC_I2S
 	select SND_SOC_RT5621
 	help
@@ -62,7 +69,7 @@ config SND_RK29_SOC_RT5621
 	  with the rt5621.
 config SND_RK29_SOC_RT5631
 	tristate "SoC I2S Audio support for rockchip - RT5631"
-	depends on SND_RK29_SOC && I2C_RK29
+	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
 	select SND_RK29_SOC_I2S
 	select SND_SOC_RT5631
 	help
@@ -71,7 +78,7 @@ config SND_RK29_SOC_RT5631
 
 config SND_RK29_SOC_RT5625
 	tristate "SoC I2S Audio support for rockchip - RT5625"
-	depends on SND_RK29_SOC && I2C_RK29
+	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
 	select SND_RK29_SOC_I2S
 	select SND_SOC_RT5625
 	help
@@ -80,7 +87,7 @@ config SND_RK29_SOC_RT5625
 
 config SND_RK29_SOC_WM8994
 	tristate "SoC I2S Audio support for rockchip - WM8994"
-	depends on SND_RK29_SOC && I2C_RK29
+	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
 	select SND_RK29_SOC_I2S
 	select SND_SOC_WM8994
 	help
@@ -89,7 +96,7 @@ config SND_RK29_SOC_WM8994
 
 config SND_RK29_SOC_CS42L52
 	tristate "SoC I2S Audio support for rockchip - CS42L52"
-	depends on SND_RK29_SOC && I2C_RK29
+	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
 	select SND_RK29_SOC_I2S
 	select SND_SOC_CS42L52
 	help
@@ -98,7 +105,7 @@ config SND_RK29_SOC_CS42L52
 
 config SND_RK29_SOC_AIC3111
 	tristate "SoC I2S Audio support for rockchip - AIC3111"
-	depends on SND_RK29_SOC && I2C_RK29
+	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
 	select SND_RK29_SOC_I2S
 	select SND_SOC_TLV320AIC3111
 	help
@@ -107,7 +114,7 @@ config SND_RK29_SOC_AIC3111
   
 config SND_RK29_SOC_RK1000
 	tristate "SoC I2S Audio support for rockchip - RK1000"
-	depends on SND_RK29_SOC && RK1000_CONTROL && I2C_RK29
+	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
 	select SND_RK29_SOC_I2S
 	select SND_SOC_RK1000
 	help
@@ -116,7 +123,8 @@ config SND_RK29_SOC_RK1000
 	   
 if SND_RK29_SOC_WM8988 || SND_RK29_SOC_RK1000 || SND_RK29_SOC_WM8994 || SND_RK29_SOC_WM8900 || SND_RK29_SOC_RT5621 || SND_RK29_SOC_RT5631 || SND_RK29_SOC_RT5625 || SND_RK29_SOC_CS42L52 || SND_RK29_SOC_AIC3111
 choice
-  prompt "Set i2s type"
+  bool "Set i2s type"
+  default SND_RK29_CODEC_SOC_SLAVE
 	config SND_RK29_CODEC_SOC_MASTER
 		tristate  "Codec run in Master"
 

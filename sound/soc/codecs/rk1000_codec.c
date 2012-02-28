@@ -18,21 +18,32 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
+#include <linux/slab.h>
 #include <sound/core.h>
+#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
+#include <sound/tlv.h>
+#include <trace/events/asoc.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 
 #include "rk1000_codec.h"
-
+#define RK1000_CODEC_PROC
+#ifdef RK1000_CODEC_PROC
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+#include <linux/vmalloc.h>
+char debug_write_read = 0;
+#endif
 /*
  * Debug
  */
-#if 0
+#if 1
 #define	DBG(x...)	printk(KERN_INFO x)
 #else
 #define	DBG(x...)
@@ -45,7 +56,9 @@
 	
 #define OUT_CAPLESS  (0)   //是否为无电容输出，1:无电容输出，0:有电容输出	
 
-///static u32 gVolReg = 0x0f;  ///0x0f; //用于记录音量寄存器
+static struct snd_soc_codec *rk1000_codec_codec;
+
+//static u32 gVolReg = 0x0f;  ///0x0f; //用于记录音量寄存器
 //static u32 gCodecVol = 0x0f;
 static u8 gR0AReg = 0;  //用于记录R0A寄存器的值，用于改变采样率前通过R0A停止clk
 static u8 gR0BReg = 0;  //用于记录R0B寄存器的值，用于改变采样率前通过R0B停止interplate和decimation
@@ -60,16 +73,18 @@ static const u16 rk1000_codec_reg[] = {
 	0x0005, 0x0004, 0x00fd, 0x00f3,  /*  0 */
 	0x0003, 0x0000, 0x0000, 0x0000,  /*  4 */
 	0x0000, 0x0005, 0x0000, 0x0000,  /*  8 */
-	0x0097, 0x0097, 0x0097, 0x0097,  /* 12 */
-	0x0097, 0x0097, 0x00cc, 0x0000,  /* 16 */
-	0x0000, 0x00f1, 0x0090, 0x00ff,  /* 20 */
-	0x00ff, 0x00ff, 0x009c, 0x0000,  /* 24 */
-	0x0000, 0x00ff, 0x00ff, 0x00ff,  /* 28 */
+	0x0097, 0x0097, 0x0097, 0x0097,  /* 0x0a */
+	0x0097, 0x0097, 0x00cc, 0x0000,  /* 0x10 */
+	0x0000, 0x00f1, 0x0090, 0x00ff,  /* 0x14 */
+	0x00ff, 0x00ff, 0x009c, 0x0000,  /* 0x18 */
+	0x0000, 0x00ff, 0x00ff, 0x00ff,  /* 0x1a */
 };
-
 
 /* codec private data */
 struct rk1000_codec_priv {
+	enum snd_soc_control_type control_type;
+	void *control_data;
+	
 	unsigned int sysclk;
 	struct snd_soc_codec codec;
 	struct snd_pcm_hw_constraint_list *sysclk_constraints;
@@ -100,7 +115,7 @@ static unsigned int rk1000_codec_read(struct snd_soc_codec *codec, unsigned int 
 	xfer[0].flags = I2C_M_RD;
 	xfer[0].len = 1;
 	xfer[0].buf = &reg;
-
+	xfer[0].scl_rate = 100*1000;
 	ret = i2c_transfer(client->adapter, xfer, 1);
 	if (ret != 1) {
 		dev_err(&client->dev, "i2c_transfer() returned %d\n", ret);
@@ -109,6 +124,7 @@ static unsigned int rk1000_codec_read(struct snd_soc_codec *codec, unsigned int 
 
 	return reg;
 }
+
 /*
  * write rk1000 register cache
  */
@@ -126,16 +142,16 @@ static int rk1000_codec_write(struct snd_soc_codec *codec, unsigned int reg,
 {
 	u8 data[2];
 	struct i2c_client *i2c;
-	DBG("Enter::%s, %d, reg=0x%02X, value=0x%02X\n",__FUNCTION__,__LINE__, reg, value);
+	DBG("Enter-%s::reg=0x%02X, value=0x%02X\n",__FUNCTION__, reg, value);
 	data[0] = value & 0x00ff;
 	rk1000_codec_write_reg_cache (codec, reg, value);
 	i2c = (struct i2c_client *)codec->control_data;
 	i2c->addr = (i2c->addr & 0x60)|reg;
 	if (codec->hw_write(codec->control_data, data, 1) == 1){
-                DBG("================%s Run OK================\n",__FUNCTION__,__LINE__);
+//                DBG("================%s Run OK====%d============\n",__FUNCTION__,__LINE__);
 		return 0;
 	}else{
-	        DBG("================%s Run EIO================\n",__FUNCTION__,__LINE__);
+	        DBG("================%s Run EIO=======%d=========\n",__FUNCTION__,__LINE__);
 		return -EIO;
         }
 }
@@ -370,9 +386,9 @@ static int rk1000_codec_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct rk1000_codec_priv *rk1000_codec = codec->private_data;
+	struct rk1000_codec_priv *rk1000_codec = snd_soc_codec_get_drvdata(codec);
 	
-        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 		
 	switch (freq) {
 	case 11289600:
@@ -463,23 +479,25 @@ static int rk1000_codec_set_dai_fmt(struct snd_soc_dai *codec_dai,
 static int rk1000_codec_pcm_startup(struct snd_pcm_substream *substream,
 			      struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rk1000_codec_priv *rk1000_codec = codec->private_data;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_codec *codec = rtd->codec;
+	struct rk1000_codec_priv *rk1000_codec = snd_soc_codec_get_drvdata(codec);
 	
 	/* The set of sample rates that can be supported depends on the
 	 * MCLK supplied to the CODEC - enforce this.
 	 */
 	DBG("Enter::%s----%d  rk1000_codec->sysclk=%d\n",__FUNCTION__,__LINE__,rk1000_codec->sysclk); 
-	if (!rk1000_codec->sysclk) {
-		dev_err(codec->dev,
-			"No MCLK configured, call set_sysclk() on init\n");
-		return -EINVAL;
-	}
+//	if (!rk1000_codec->sysclk) {
+//		dev_err(codec->dev,
+//			"No MCLK configured, call set_sysclk() on init\n");
+//		return -EINVAL;
+//	}
 
-	snd_pcm_hw_constraint_list(substream->runtime, 0,
+#if 0
+    snd_pcm_hw_constraint_list(substream->runtime, 0,
 				   SNDRV_PCM_HW_PARAM_RATE,
 				   rk1000_codec->sysclk_constraints);
-
+#endif
 	return 0;
 }
 
@@ -488,13 +506,14 @@ static int rk1000_codec_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	struct rk1000_codec_priv *rk1000_codec = codec->private_data;
+	struct snd_soc_codec *codec = rtd->codec;
+	struct rk1000_codec_priv *rk1000_codec = snd_soc_codec_get_drvdata(codec);
+	
 	u16 iface = rk1000_codec_read_reg_cache(codec, ACCELCODEC_R09) & 0x1f3;
 	u16 srate = rk1000_codec_read_reg_cache(codec, ACCELCODEC_R00) & 0x180;
 	int coeff;
-	
+
+	rk1000_codec->sysclk = 12000000;
 	/*by Vincent Hsiung for EQ Vol Change*/
 	#define HW_PARAMS_FLAG_EQVOL_ON 0x21
 	#define HW_PARAMS_FLAG_EQVOL_OFF 0x22
@@ -546,64 +565,71 @@ static int rk1000_codec_pcm_hw_params(struct snd_pcm_substream *substream,
 	DBG("Enter::%s----%d  iface=%x srate =%x rate=%d\n",__FUNCTION__,__LINE__,iface,srate,params_rate(params));
 	
 	rk1000_codec_write(codec,ACCELCODEC_R0C, 0x17);  
-        rk1000_codec_write(codec,ACCELCODEC_R04, ASC_INT_MUTE_L|ASC_INT_MUTE_R|ASC_SIDETONE_L_OFF|ASC_SIDETONE_R_OFF);   //soft mute
-        //必须先将clk和EN_INT都disable掉，否则切换bclk分频值可能导致codec内部时序混乱掉，
-        //表现出来的现象是，以后的音乐都变成了噪音，而且就算把输入codec的I2S_DATAOUT断开也一样出噪音
-        rk1000_codec_write(codec,ACCELCODEC_R0B, ASC_DEC_DISABLE|ASC_INT_DISABLE);  //0x00
+	rk1000_codec_write(codec,ACCELCODEC_R04, ASC_INT_MUTE_L|ASC_INT_MUTE_R|ASC_SIDETONE_L_OFF|ASC_SIDETONE_R_OFF);   //soft mute
+	//必须先将clk和EN_INT都disable掉，否则切换bclk分频值可能导致codec内部时序混乱掉，
+	//表现出来的现象是，以后的音乐都变成了噪音，而且就算把输入codec的I2S_DATAOUT断开也一样出噪音
+	rk1000_codec_write(codec,ACCELCODEC_R0B, ASC_DEC_DISABLE|ASC_INT_DISABLE);  //0x00
 	
 	/* set iface & srate */
 	rk1000_codec_write(codec, ACCELCODEC_R09, iface);
-	if (coeff >= 0){
-		rk1000_codec_write(codec, ACCELCODEC_R0A, (coeff_div[coeff].sr << 1) | coeff_div[coeff].usb|ASC_CLKNODIV|ASC_CLK_ENABLE);
-	        rk1000_codec_write(codec, ACCELCODEC_R00, srate|coeff_div[coeff].bclk);
+	if (coeff >= 0)
+	{
+	//	rk1000_codec_write(codec, ACCELCODEC_R0A, (coeff_div[coeff].sr << 1) | coeff_div[coeff].usb|ASC_CLKNODIV|ASC_CLK_ENABLE);
+		rk1000_codec_write(codec, ACCELCODEC_R0A, 0xa0);
+	//	rk1000_codec_write(codec, ACCELCODEC_R00, srate|coeff_div[coeff].bclk);
 	}		
-        rk1000_codec_write(codec,ACCELCODEC_R0B, gR0BReg);
+	rk1000_codec_write(codec,ACCELCODEC_R0B, gR0BReg);
+	
 	return 0;
 }
 
 void PhaseOut(struct snd_soc_codec *codec,u32 nStep, u32 us)
 {
         DBG("%s[%d]\n",__FUNCTION__,__LINE__); 
-        rk1000_codec_write(codec,ACCELCODEC_R17, 0x0F|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL
-        rk1000_codec_write(codec,ACCELCODEC_R18, 0x0F|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOR
+        rk1000_codec_write(codec,ACCELCODEC_R17, 0x00|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL
+        rk1000_codec_write(codec,ACCELCODEC_R18, 0x00|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOR
         udelay(us);
 }
 
 void PhaseIn(struct snd_soc_codec *codec,u32 nStep, u32 us)
 {
         DBG("%s[%d]\n",__FUNCTION__,__LINE__); 
-        rk1000_codec_write(codec,ACCELCODEC_R17, 0x0f|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL gVolReg|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL
-        rk1000_codec_write(codec,ACCELCODEC_R18, 0x0f|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN); //gVolReg|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOR
+        rk1000_codec_write(codec,ACCELCODEC_R17, 0x00|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL gVolReg|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL
+        rk1000_codec_write(codec,ACCELCODEC_R18, 0x00|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN); //gVolReg|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOR
         udelay(us);
 }
 
 static int rk1000_codec_mute(struct snd_soc_dai *dai, int mute)
 {
-        struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_codec *codec = dai->codec;
 
-        DBG("Enter::%s----%d--mute=%d\n",__FUNCTION__,__LINE__,mute);
+	DBG("Enter::%s----%d--mute=%d\n",__FUNCTION__,__LINE__,mute);
     
-        if (mute){
-                PhaseOut(codec,1, 5000);
-                rk1000_codec_write(codec,ACCELCODEC_R19, 0xFF);  //AOM
-                rk1000_codec_write(codec,ACCELCODEC_R04, ASC_INT_MUTE_L|ASC_INT_MUTE_R|ASC_SIDETONE_L_OFF|ASC_SIDETONE_R_OFF);  //soft mute   
-        }else{		
-                rk1000_codec_write(codec,ACCELCODEC_R1D, 0x2a);  //setup Vmid and Vref, other module power down
-                rk1000_codec_write(codec,ACCELCODEC_R1E, 0x40);  ///|ASC_PDASDML_ENABLE);
-                rk1000_codec_write(codec,ACCELCODEC_R1F, 0x09|ASC_PDMIXM_ENABLE|ASC_PDPAM_ENABLE);  ///|ASC_PDMICB_ENABLE|ASC_PDMIXM_ENABLE);
-                PhaseIn(codec,1, 5000);
-                ///if(gCodecVol != 0){
-                rk1000_codec_write(codec,ACCELCODEC_R04, ASC_INT_ACTIVE_L|ASC_INT_ACTIVE_R|ASC_SIDETONE_L_OFF|ASC_SIDETONE_R_OFF);
-                //}
-                rk1000_codec_write(codec,ACCELCODEC_R19, 0x7F);  //AOM
-                #if 0
-                /*disable speaker */
-                rockchip_mux_api_set(SPK_IOMUX_PIN_NAME, SPK_IOMUX_PIN_DIR);
-                GPIOSetPinDirection(SPK_CTRL_PIN,GPIO_OUT);
-                GPIOSetPinLevel(SPK_CTRL_PIN,GPIO_HIGH);
-                #endif
+	if (mute)
+	{
+		PhaseOut(codec,1, 5000);
+		rk1000_codec_write(codec,ACCELCODEC_R19, 0xFF);  //AOM
+		rk1000_codec_write(codec,ACCELCODEC_R04, ASC_INT_MUTE_L|ASC_INT_MUTE_R|ASC_SIDETONE_L_OFF|ASC_SIDETONE_R_OFF);  //soft mute   
+	}
+	else
+	{		
+		rk1000_codec_write(codec,ACCELCODEC_R1D, 0x2a);  //setup Vmid and Vref, other module power down
+		rk1000_codec_write(codec,ACCELCODEC_R1E, 0x40);  ///|ASC_PDASDML_ENABLE);
+		rk1000_codec_write(codec,ACCELCODEC_R1F, 0x09|ASC_PDMIXM_ENABLE|ASC_PDPAM_ENABLE);  ///|ASC_PDMICB_ENABLE|ASC_PDMIXM_ENABLE);
+		PhaseIn(codec,1, 5000);
+	//	if(gCodecVol != 0)
+		{
+			rk1000_codec_write(codec,ACCELCODEC_R04, ASC_INT_ACTIVE_L|ASC_INT_ACTIVE_R|ASC_SIDETONE_L_OFF|ASC_SIDETONE_R_OFF);
         }
-        return 0;
+		rk1000_codec_write(codec,ACCELCODEC_R19, 0x7F);  //AOM
+		#if 0
+		/*disable speaker */
+		rockchip_mux_api_set(SPK_IOMUX_PIN_NAME, SPK_IOMUX_PIN_DIR);
+		GPIOSetPinDirection(SPK_CTRL_PIN,GPIO_OUT);
+		GPIOSetPinLevel(SPK_CTRL_PIN,GPIO_HIGH);
+		#endif
+	}
+	return 0;
 }
 
 static int rk1000_codec_set_bias_level(struct snd_soc_codec *codec,
@@ -621,7 +647,7 @@ static int rk1000_codec_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->bias_level == SND_SOC_BIAS_OFF) {
+		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			/* VREF, VMID=2x5k */
 			rk1000_codec_write(codec, ACCELCODEC_R1D, pwr_reg | 0x0080);
 
@@ -637,7 +663,7 @@ static int rk1000_codec_set_bias_level(struct snd_soc_codec *codec,
 		rk1000_codec_write(codec, ACCELCODEC_R1D, 0x0000);
 		break;
 	}
-	codec->bias_level = level;
+	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -654,40 +680,37 @@ static struct snd_soc_dai_ops rk1000_codec_ops = {
 	.digital_mute = rk1000_codec_mute,
 };
 
-struct snd_soc_dai rk1000_codec_dai = {
-	.name = "rk1000_codec",
-	.playback = {
-		.stream_name = "Playback",
-		.channels_min = 1,
-		.channels_max = 2,
-		.rates = RK1000_CODEC_RATES,
-		.formats = RK1000_CODEC_FORMATS,
-	},
-	.capture = {
-		.stream_name = "Capture",
-		.channels_min = 1,
-		.channels_max = 2,
-		.rates = RK1000_CODEC_RATES,
-		.formats = RK1000_CODEC_FORMATS,
-	 },
-	.ops = &rk1000_codec_ops,
-	.symmetric_rates = 1,
+static struct snd_soc_dai_driver rk1000_codec_dai[] = {
+	{
+		.name = "rk1000_codec",
+		.playback = {
+			.stream_name = "Playback",
+			.channels_min = 1,
+			.channels_max = 2,
+			.rates = RK1000_CODEC_RATES,
+			.formats = RK1000_CODEC_FORMATS,
+		},
+		.capture = {
+			.stream_name = "Capture",
+			.channels_min = 1,
+			.channels_max = 2,
+			.rates = RK1000_CODEC_RATES,
+			.formats = RK1000_CODEC_FORMATS,
+		 },
+		.ops = &rk1000_codec_ops,
+		.symmetric_rates = 1,
+	}
 };
-EXPORT_SYMBOL_GPL(rk1000_codec_dai);
 
-static int rk1000_codec_suspend(struct platform_device *pdev, pm_message_t state)
+static int rk1000_codec_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	rk1000_codec_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
-static int rk1000_codec_resume(struct platform_device *pdev)
+static int rk1000_codec_resume(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
 	int i;
 	u8 data[2];
 	struct i2c_client *i2c;
@@ -707,113 +730,8 @@ static int rk1000_codec_resume(struct platform_device *pdev)
 	return 0;
 }
 
-static struct snd_soc_codec *rk1000_codec_codec;
-
-static int rk1000_codec_probe(struct platform_device *pdev)
+static void rk1000_reg_init(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
-	int ret = 0;
-
-	if (rk1000_codec_codec == NULL) {
-		dev_err(&pdev->dev, "Codec device not registered\n");
-		return -ENODEV;
-	}
-
-	socdev->card->codec = rk1000_codec_codec;
-	codec = rk1000_codec_codec;
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to create pcms: %d\n", ret);
-		goto pcm_err;
-	}
-
-	snd_soc_add_controls(codec, rk1000_codec_snd_controls,
-				ARRAY_SIZE(rk1000_codec_snd_controls));
-	snd_soc_dapm_new_controls(codec, rk1000_codec_dapm_widgets,
-				  ARRAY_SIZE(rk1000_codec_dapm_widgets));
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
-	snd_soc_dapm_new_widgets(codec);
-
-	ret = snd_soc_init_card(socdev);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to register card: %d\n", ret);
-		goto card_err;
-	}
-
-	return ret;
-
-card_err:
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-pcm_err:
-	return ret;
-}
-
-static int rk1000_codec_remove(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-	return 0;
-}
-
-struct snd_soc_codec_device soc_codec_dev_rk1000_codec = {
-	.probe = 	rk1000_codec_probe,
-	.remove = 	rk1000_codec_remove,
-	.suspend = 	rk1000_codec_suspend,
-	.resume =	rk1000_codec_resume,
-};
-EXPORT_SYMBOL_GPL(soc_codec_dev_rk1000_codec);
-
-static int rk1000_codec_register(struct rk1000_codec_priv *rk1000_codec,
-			   enum snd_soc_control_type control)
-{
-	struct snd_soc_codec *codec = &rk1000_codec->codec;
-	int ret;
-
-	if (rk1000_codec_codec) {
-		dev_err(codec->dev, "Another rk1000 codec is registered\n");
-		ret = -EINVAL;
-		goto err;
-	}
-	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	codec->private_data = rk1000_codec;
-	codec->name = "RK1000_CODEC";
-	codec->owner = THIS_MODULE;
-	codec->dai = &rk1000_codec_dai;
-	codec->num_dai = 1;
-	codec->reg_cache_size = ARRAY_SIZE(rk1000_codec->reg_cache);
-	codec->reg_cache = &rk1000_codec->reg_cache;
-	codec->bias_level = SND_SOC_BIAS_OFF;
-	codec->set_bias_level = rk1000_codec_set_bias_level;
-
-	memcpy(codec->reg_cache, rk1000_codec_reg,
-	       sizeof(rk1000_codec_reg));
-	       
-	codec->write = rk1000_codec_write;
-	codec->read = rk1000_codec_read;
-	codec->hw_write = (hw_write_t)i2c_master_send;
-	
-	//ret = snd_soc_codec_set_cache_io(codec, 0, 8, control);
-	//if (ret < 0) {
-		//dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		//goto err;
-	//}
-
-#if 0   //fzf rk2818 is SPK_CTL
-	gpio_request(RK2818_PIN_PF7, "rk1000_codec");	
-	rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL_NAME, IOMUXA_GPIO1_A3B7);
-	gpio_direction_output(RK2818_PIN_PF7,GPIO_HIGH);
-		
-#endif
-#if 1
 	rk1000_codec_write(codec,ACCELCODEC_R1D, 0x00);
     rk1000_codec_write(codec,ACCELCODEC_R17, 0xFF);  //AOL
     rk1000_codec_write(codec,ACCELCODEC_R18, 0xFF);  //AOR
@@ -867,7 +785,7 @@ static int rk1000_codec_register(struct rk1000_codec_priv *rk1000_codec,
     rk1000_codec_write(codec,ACCELCODEC_R1B, 0x32);
     rk1000_codec_write(codec,ACCELCODEC_R1C, ASC_DEM_ENABLE);  ///0x00);  //use default value
     
-    ///dac mode
+    //dac mode
     rk1000_codec_write(codec,ACCELCODEC_R17, 0xBF);  //AOL  音量最低
     rk1000_codec_write(codec,ACCELCODEC_R18, 0xBF);  //AOR
         
@@ -892,87 +810,101 @@ static int rk1000_codec_register(struct rk1000_codec_priv *rk1000_codec,
     rk1000_codec_write(codec,ACCELCODEC_R14, 0x00);
     gR1314Reg = 0x00;
     rk1000_codec_write(codec,ACCELCODEC_R1C, ASC_DEM_ENABLE);  //0x00);  //use default value
-#endif
+}
 
-	rk1000_codec_set_bias_level(&rk1000_codec->codec, SND_SOC_BIAS_STANDBY);
+static int rk1000_codec_probe(struct snd_soc_codec *codec)
+{
+	struct rk1000_codec_priv *rk1000_codec_priv = snd_soc_codec_get_drvdata(codec);
 
-	rk1000_codec_dai.dev = codec->dev;
+	int ret = 0;
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
 	rk1000_codec_codec = codec;
-
-	ret = snd_soc_register_codec(codec);
+	
+	codec->control_data = rk1000_codec_priv->control_data;
+	
+	ret = snd_soc_codec_set_cache_io(codec, 8, 8, rk1000_codec_priv->control_type);
 	if (ret != 0) {
-		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
-		goto err;
+		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
+		return ret;
 	}
+	
+	codec->reg_cache = kmemdup(rk1000_codec_reg, sizeof(rk1000_codec_reg), GFP_KERNEL);
+	if (codec->reg_cache == NULL)
+		return -ENOMEM;
 
-	ret = snd_soc_register_dai(&rk1000_codec_dai);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-		snd_soc_unregister_codec(codec);
-		goto err_codec;
-	}
+	rk1000_reg_init(codec);
+//	snd_soc_add_controls(codec, rk1000_codec_snd_controls,
+//				ARRAY_SIZE(rk1000_codec_snd_controls));
+//	snd_soc_dapm_new_controls(codec, rk1000_codec_dapm_widgets,
+//				  ARRAY_SIZE(rk1000_codec_dapm_widgets));
+//	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
 
-	return 0;
 
-err_codec:
-	snd_soc_unregister_codec(codec);
-err:
-	kfree(rk1000_codec);
 	return ret;
 }
 
-static void rk1000_codec_unregister(struct rk1000_codec_priv *rk1000_codec)
+static int rk1000_codec_remove(struct snd_soc_codec *codec)
 {
-	rk1000_codec_set_bias_level(&rk1000_codec->codec, SND_SOC_BIAS_OFF);
-	snd_soc_unregister_dai(&rk1000_codec_dai);
-	snd_soc_unregister_codec(&rk1000_codec->codec);
-	kfree(rk1000_codec);
-	rk1000_codec_codec = NULL;
+	struct rk1000_codec_priv *rk1000_codec_priv = snd_soc_codec_get_drvdata(codec);
+
+	rk1000_codec_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	kfree(rk1000_codec_priv);
+	return 0;
 }
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static int rk1000_codec_i2c_probe(struct i2c_client *i2c,
+static struct snd_soc_codec_driver soc_codec_dev_rk1000_codec = {
+	.probe = 	rk1000_codec_probe,
+	.remove = 	rk1000_codec_remove,
+	.suspend = 	rk1000_codec_suspend,
+	.resume =	rk1000_codec_resume,
+	.set_bias_level = rk1000_codec_set_bias_level,
+	.read =		rk1000_codec_read,
+	.write =	rk1000_codec_write,
+//	.readable_register = rk1000_codec_read_reg_cache,
+//	.writable_register = rk1000_codec_write_reg_cache,
+//	.volatile_register = wm8994_volatile,	
+	.reg_cache_size = ARRAY_SIZE(rk1000_codec_reg),
+	.reg_word_size = sizeof(u8),
+	.reg_cache_default = rk1000_codec_reg,
+};
+
+#ifdef RK1000_CODEC_PROC	
+static int rk1000_codec_proc_init(void);
+#endif
+
+static __devinit int rk1000_codec_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct rk1000_codec_priv *rk1000_codec;
-	struct snd_soc_codec *codec;
-
+	int ret;
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 	rk1000_codec = kzalloc(sizeof(struct rk1000_codec_priv), GFP_KERNEL);
 	if (rk1000_codec == NULL)
 		return -ENOMEM;
 
-	codec = &rk1000_codec->codec;
-
 	i2c_set_clientdata(i2c, rk1000_codec);
-	codec->control_data = i2c;
+	rk1000_codec->control_type = SND_SOC_I2C;
+	rk1000_codec->control_data = i2c;
+	
+	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rk1000_codec,
+			rk1000_codec_dai, ARRAY_SIZE(rk1000_codec_dai));
+	if (ret < 0)
+		kfree(rk1000_codec);
+		
+#ifdef RK1000_CODEC_PROC	
+  rk1000_codec_proc_init();
+#endif
 
-	codec->dev = &i2c->dev;
-
-	return rk1000_codec_register(rk1000_codec, SND_SOC_I2C);
+	return ret;
 }
 
-static int rk1000_codec_i2c_remove(struct i2c_client *client)
+static __devexit int rk1000_codec_i2c_remove(struct i2c_client *client)
 {
-	struct rk1000_codec_priv *rk1000_codec = i2c_get_clientdata(client);
-	rk1000_codec_unregister(rk1000_codec);
+	snd_soc_unregister_codec(&client->dev);
+	kfree(i2c_get_clientdata(client));	
 	return 0;
 }
-
-#ifdef CONFIG_PM
-static int rk1000_codec_i2c_suspend(struct i2c_client *client, pm_message_t msg)
-{
-	return snd_soc_suspend_device(&client->dev);
-}
-
-static int rk1000_codec_i2c_resume(struct i2c_client *client)
-{
-	return snd_soc_resume_device(&client->dev);
-}
-#else
-#define rk1000_codec_i2c_suspend NULL
-#define rk1000_codec_i2c_resume NULL
-#endif
 
 static const struct i2c_device_id rk1000_codec_i2c_id[] = {
 	{ "rk1000_i2c_codec", 0 },
@@ -987,21 +919,15 @@ static struct i2c_driver rk1000_codec_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = rk1000_codec_i2c_probe,
-	.remove = rk1000_codec_i2c_remove,
-	.suspend = rk1000_codec_i2c_suspend,
-	.resume = rk1000_codec_i2c_resume,
+	.remove = __devexit_p(rk1000_codec_i2c_remove),
 	.id_table = rk1000_codec_i2c_id,
 };
-#endif
+
 
 static int __init rk1000_codec_modinit(void)
 {
-	int ret;
-
-	ret = i2c_add_driver(&rk1000_codec_i2c_driver);
-	if (ret != 0)
-		pr_err("rk1000 codec: Unable to register I2C driver: %d\n", ret);
-	return ret;
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+	return i2c_add_driver(&rk1000_codec_i2c_driver);
 }
 module_init(rk1000_codec_modinit);
 
@@ -1011,6 +937,229 @@ static void __exit rk1000_codec_exit(void)
 }
 module_exit(rk1000_codec_exit);
 
+#ifdef RK1000_CODEC_PROC
+void rk1000_codec_reg_read(void)
+{
+    struct snd_soc_codec *codec = rk1000_codec_codec;
+    int i;
+    unsigned int data;
+
+    for (i=0; i<=0x1f; i++){
+        data = rk1000_codec_read(codec, i);
+        printk("reg[0x%x]=0x%x\n",i,data);
+    }
+}
+
+static ssize_t rk1000_codec_proc_write(struct file *file, const char __user *buffer,
+			   unsigned long len, void *data)
+{
+	char *cookie_pot; 
+	char *p;
+	int reg;
+	int value;
+	
+	cookie_pot = (char *)vmalloc( len );
+	if (!cookie_pot) 
+	{
+		return -ENOMEM;
+	} 
+	else 
+	{
+		if (copy_from_user( cookie_pot, buffer, len )) 
+			return -EFAULT;
+	}
+
+	switch(cookie_pot[0])
+	{
+	case 'd':
+	case 'D':
+		debug_write_read ++;
+		debug_write_read %= 2;
+		if(debug_write_read != 0)
+			printk("Debug read and write reg on\n");
+		else	
+			printk("Debug read and write reg off\n");	
+		break;	
+	case 'r':
+	case 'R':
+		printk("Read reg debug\n");		
+		if(cookie_pot[1] ==':')
+		{
+			debug_write_read = 1;
+			strsep(&cookie_pot,":");
+			while((p=strsep(&cookie_pot,",")))
+			{
+				reg = simple_strtol(p,NULL,16);
+				value = rk1000_codec_read(rk1000_codec_codec,reg);
+				printk("rk1000_codec_read:0x%04x = 0x%04x",reg,value);
+			}
+			debug_write_read = 0;
+			printk("\n");
+		}
+		else
+		{
+			printk("Error Read reg debug.\n");
+			printk("For example: echo 'r:22,23,24,25'>wm8994_ts\n");
+		}
+		break;
+	case 'w':
+	case 'W':
+		printk("Write reg debug\n");		
+		if(cookie_pot[1] ==':')
+		{
+			debug_write_read = 1;
+			strsep(&cookie_pot,":");
+			while((p=strsep(&cookie_pot,"=")))
+			{
+				reg = simple_strtol(p,NULL,16);
+				p=strsep(&cookie_pot,",");
+				value = simple_strtol(p,NULL,16);
+				rk1000_codec_write(rk1000_codec_codec,reg,value);
+				printk("rk1000_codec_write:0x%04x = 0x%04x\n",reg,value);
+			}
+			debug_write_read = 0;
+			printk("\n");
+		}
+		else
+		{
+			printk("Error Write reg debug.\n");
+			printk("For example: w:22=0,23=0,24=0,25=0\n");
+		}
+		break;
+	case 'p'://enable pa
+		rk1000_codec_reg_read();
+		break;
+	default:
+		printk("Help for rk1000_codec_ts .\n-->The Cmd list: \n");
+		printk("-->'d&&D' Open or Off the debug\n");
+		printk("-->'r&&R' Read reg debug,Example: echo 'r:22,23,24,25'>rk1000_codec_ts\n");
+		printk("-->'w&&W' Write reg debug,Example: echo 'w:22=0,23=0,24=0,25=0'>rk1000_codec_ts\n");
+		break;
+	}
+
+	return len;
+}
+static const struct file_operations rk1000_codec_proc_fops = {
+	.owner		= THIS_MODULE,
+	//.open		= snd_mem_proc_open,
+	//.read		= seq_read,
+//#ifdef CONFIG_PCI
+//	.write		= rk1000_codec_proc_write,
+//#endif
+	//.llseek	= seq_lseek,
+	//.release	= single_release,
+};
+
+static int rk1000_codec_proc_init(void)
+{
+	struct proc_dir_entry *rk1000_codec_proc_entry;
+	rk1000_codec_proc_entry = create_proc_entry("driver/rk1000_codec", 0777, NULL);
+	if(rk1000_codec_proc_entry != NULL)
+	{
+		rk1000_codec_proc_entry->write_proc = rk1000_codec_proc_write;
+		return -1;
+	}
+	else
+	{
+		printk("create rk1000_codec proc error !\n");
+	}
+	return 0;
+}
+
+#endif
+
+#if 1
+int reg_send_data(struct i2c_client *client, const char start_reg,
+				const char *buf, int count, unsigned int scl_rate)
+{
+	int ret;
+	struct i2c_adapter *adap = client->adapter;
+	struct i2c_msg msg;
+	char tx_buf[count + 1];
+					    
+	tx_buf[0] = start_reg;
+	memcpy(tx_buf+1, buf, count); 
+  
+	msg.addr = client->addr;
+	msg.buf = tx_buf;
+	msg.len = count +1;
+	msg.flags = client->flags;   
+	msg.scl_rate = scl_rate;
+												    
+	ret = i2c_transfer(adap, &msg, 1);
+
+	return ret;    
+}
+
+static int rk1000_control_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
+	int ret;
+	char data[4] = {0x88, 0x0d, 0x22, 0x00};
+//	reg[0x00] = 0x88, --> ADC_CON
+//	reg[0x01] = 0x0d, --> CODEC_CON
+//	reg[0x02] = 0x22, --> I2C_CON
+//	reg[0x03] = 0x00, --> TVE_CON
+	#ifdef CONFIG_SND_SOC_RK1000
+    data[1] = 0x00;
+    #endif
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) 
+	{
+		dev_err(&client->dev, "i2c bus does not support the rk1000_control\n");
+		return -EIO;
+	}
+	
+	msleep(50);
+	ret = reg_send_data(client, 0x00, data, 4, 100 * 1000);
+#if 1
+    printk("i2c write ret = 0x%x\n",ret);
+	memset(data,0,sizeof(data));
+    ret = i2c_master_reg8_recv(client, 0, data, (int)4, 20*1000);
+    printk("i2c read reg    %x,   %x,   %x,  %x   ret=x%x\n",data[0],data[1],data[2],data[3],ret);
+#endif
+	
+	if (ret > 0)
+		ret = 0;
+
+	return ret;	
+}
+
+static int rk1000_control_remove(struct i2c_client *client)
+{
+	return 0;
+}
+
+static const struct i2c_device_id rk1000_control_id[] = {
+	{ "rk1000_control", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, rk1000_control_id);
+
+static struct i2c_driver rk1000_control_driver = {
+	.driver = {
+		.name = "rk1000_control",
+	},
+	.probe = rk1000_control_probe,
+	.remove = rk1000_control_remove,
+	.id_table = rk1000_control_id,
+};
+
+static int __init rk1000_control_init(void)
+{
+	return i2c_add_driver(&rk1000_control_driver);
+}
+
+static void __exit rk1000_control_exit(void)
+{
+	i2c_del_driver(&rk1000_control_driver);
+}
+
+module_init(rk1000_control_init);
+module_exit(rk1000_control_exit);
+
 MODULE_DESCRIPTION("ASoC RK1000 CODEC driver");
 MODULE_AUTHOR("lhh lhh@rock-chips.com");
 MODULE_LICENSE("GPL");
+#endif 

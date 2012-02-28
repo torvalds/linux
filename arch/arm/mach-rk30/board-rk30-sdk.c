@@ -329,6 +329,16 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_FB_ROCKCHIP
 	&device_fb,
 #endif
+#ifdef CONFIG_SND_RK29_SOC_I2S_8CH
+	&rk_device_iis0_8ch,
+#endif	
+#ifdef CONFIG_SND_RK29_SOC_I2S_2CH
+	&rk_device_iis1_2ch,
+#endif
+#ifdef CONFIG_SND_RK_SOC_I2S2_2CH
+	&rk_device_iis2_2ch,
+#endif
+
 };
 
 // i2c
@@ -343,7 +353,18 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 	      .platform_data  = &mma8452_info,
 	    },
 #endif
-
+#if defined (CONFIG_SND_SOC_RK1000)
+	{
+		.type    		= "rk1000_i2c_codec",
+		.addr           = 0x60,
+		.flags			= 0,
+	},
+	{
+		.type			= "rk1000_control",
+		.addr			= 0x40,
+		.flags			= 0,
+	},	
+#endif
 };
 #endif
 
