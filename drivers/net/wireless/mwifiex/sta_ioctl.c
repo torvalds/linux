@@ -192,7 +192,7 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
  * first.
  */
 int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
-		      struct mwifiex_802_11_ssid *req_ssid)
+		      struct cfg80211_ssid *req_ssid)
 {
 	int ret;
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -464,8 +464,7 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 
 	info->bss_mode = priv->bss_mode;
 
-	memcpy(&info->ssid, &bss_desc->ssid,
-	       sizeof(struct mwifiex_802_11_ssid));
+	memcpy(&info->ssid, &bss_desc->ssid, sizeof(struct cfg80211_ssid));
 
 	memcpy(&info->bssid, &bss_desc->mac_address, ETH_ALEN);
 

@@ -163,8 +163,7 @@ mwifiex_is_wpa_oui_present(struct mwifiex_bssdescriptor *bss_desc, u32 cipher)
  * This function compares two SSIDs and checks if they match.
  */
 s32
-mwifiex_ssid_cmp(struct mwifiex_802_11_ssid *ssid1,
-		 struct mwifiex_802_11_ssid *ssid2)
+mwifiex_ssid_cmp(struct cfg80211_ssid *ssid1, struct cfg80211_ssid *ssid2)
 {
 	if (!ssid1 || !ssid2 || (ssid1->ssid_len != ssid2->ssid_len))
 		return -1;
@@ -1851,7 +1850,7 @@ mwifiex_queue_scan_cmd(struct mwifiex_private *priv,
  * firmware, filtered on a specific SSID.
  */
 static int mwifiex_scan_specific_ssid(struct mwifiex_private *priv,
-				      struct mwifiex_802_11_ssid *req_ssid)
+				      struct cfg80211_ssid *req_ssid)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	int ret = 0;
@@ -1896,7 +1895,7 @@ static int mwifiex_scan_specific_ssid(struct mwifiex_private *priv,
  * scan, depending upon whether an SSID is provided or not.
  */
 int mwifiex_request_scan(struct mwifiex_private *priv,
-			 struct mwifiex_802_11_ssid *req_ssid)
+			 struct cfg80211_ssid *req_ssid)
 {
 	int ret;
 

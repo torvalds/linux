@@ -839,12 +839,12 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 		       u8 *bssid, int mode, struct ieee80211_channel *channel,
 		       struct cfg80211_connect_params *sme, bool privacy)
 {
-	struct mwifiex_802_11_ssid req_ssid;
+	struct cfg80211_ssid req_ssid;
 	int ret, auth_type = 0;
 	struct cfg80211_bss *bss = NULL;
 	u8 is_scanning_required = 0;
 
-	memset(&req_ssid, 0, sizeof(struct mwifiex_802_11_ssid));
+	memset(&req_ssid, 0, sizeof(struct cfg80211_ssid));
 
 	req_ssid.ssid_len = ssid_len;
 	if (ssid_len > IEEE80211_MAX_SSID_LEN) {

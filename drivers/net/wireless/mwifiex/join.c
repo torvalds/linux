@@ -714,7 +714,7 @@ done:
 int
 mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 				struct host_cmd_ds_command *cmd,
-				struct mwifiex_802_11_ssid *req_ssid)
+				struct cfg80211_ssid *req_ssid)
 {
 	int rsn_ie_len = 0;
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -1245,7 +1245,7 @@ int mwifiex_associate(struct mwifiex_private *priv,
  */
 int
 mwifiex_adhoc_start(struct mwifiex_private *priv,
-		    struct mwifiex_802_11_ssid *adhoc_ssid)
+		    struct cfg80211_ssid *adhoc_ssid)
 {
 	dev_dbg(priv->adapter->dev, "info: Adhoc Channel = %d\n",
 		priv->adhoc_channel);

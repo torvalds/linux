@@ -50,7 +50,7 @@ struct mwifiex_chan_freq {
 };
 
 struct mwifiex_ssid_bssid {
-	struct mwifiex_802_11_ssid ssid;
+	struct cfg80211_ssid ssid;
 	u8 bssid[ETH_ALEN];
 };
 
@@ -122,7 +122,7 @@ struct mwifiex_ver_ext {
 
 struct mwifiex_bss_info {
 	u32 bss_mode;
-	struct mwifiex_802_11_ssid ssid;
+	struct cfg80211_ssid ssid;
 	u32 bss_chan;
 	u32 region_code;
 	u32 media_connected;
