@@ -1580,26 +1580,7 @@ static int digi_read_oob_callback(struct urb *urb)
 
 }
 
-static int __init digi_init(void)
-{
-	int retval;
-
-	retval = usb_serial_register_drivers(&digi_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
-}
-
-static void __exit digi_exit (void)
-{
-	usb_serial_deregister_drivers(&digi_driver, serial_drivers);
-}
-
-
-module_init(digi_init);
-module_exit(digi_exit);
-
+module_usb_serial_driver(digi_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
