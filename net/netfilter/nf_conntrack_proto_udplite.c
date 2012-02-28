@@ -24,8 +24,16 @@
 #include <net/netfilter/nf_conntrack_ecache.h>
 #include <net/netfilter/nf_log.h>
 
-static unsigned int nf_ct_udplite_timeout __read_mostly = 30*HZ;
-static unsigned int nf_ct_udplite_timeout_stream __read_mostly = 180*HZ;
+enum udplite_conntrack {
+	UDPLITE_CT_UNREPLIED,
+	UDPLITE_CT_REPLIED,
+	UDPLITE_CT_MAX
+};
+
+static unsigned int udplite_timeouts[UDPLITE_CT_MAX] = {
+	[UDPLITE_CT_UNREPLIED]	= 30*HZ,
+	[UDPLITE_CT_REPLIED]	= 180*HZ,
+};
 
 static bool udplite_pkt_to_tuple(const struct sk_buff *skb,
 				 unsigned int dataoff,
@@ -72,13 +80,14 @@ static int udplite_packet(struct nf_conn *ct,
 	   stream.  Extend timeout. */
 	if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
 		nf_ct_refresh_acct(ct, ctinfo, skb,
-				   nf_ct_udplite_timeout_stream);
+				   udplite_timeouts[UDPLITE_CT_REPLIED]);
 		/* Also, more likely to be important, and not a probe */
 		if (!test_and_set_bit(IPS_ASSURED_BIT, &ct->status))
 			nf_conntrack_event_cache(IPCT_ASSURED, ct);
-	} else
-		nf_ct_refresh_acct(ct, ctinfo, skb, nf_ct_udplite_timeout);
-
+	} else {
+		nf_ct_refresh_acct(ct, ctinfo, skb,
+				   udplite_timeouts[UDPLITE_CT_UNREPLIED]);
+	}
 	return NF_ACCEPT;
 }
 
@@ -147,14 +156,14 @@ static struct ctl_table_header *udplite_sysctl_header;
 static struct ctl_table udplite_sysctl_table[] = {
 	{
 		.procname	= "nf_conntrack_udplite_timeout",
-		.data		= &nf_ct_udplite_timeout,
+		.data		= &udplite_timeouts[UDPLITE_CT_UNREPLIED],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "nf_conntrack_udplite_timeout_stream",
-		.data		= &nf_ct_udplite_timeout_stream,
+		.data		= &udplite_timeouts[UDPLITE_CT_REPLIED],
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
