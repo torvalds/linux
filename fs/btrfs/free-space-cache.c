@@ -777,6 +777,7 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 	spin_lock(&block_group->lock);
 	if (block_group->disk_cache_state != BTRFS_DC_WRITTEN) {
 		spin_unlock(&block_group->lock);
+		btrfs_free_path(path);
 		goto out;
 	}
 	spin_unlock(&block_group->lock);

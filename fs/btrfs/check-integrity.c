@@ -644,7 +644,7 @@ static struct btrfsic_dev_state *btrfsic_dev_state_hashtable_lookup(
 static int btrfsic_process_superblock(struct btrfsic_state *state,
 				      struct btrfs_fs_devices *fs_devices)
 {
-	int ret;
+	int ret = 0;
 	struct btrfs_super_block *selected_super;
 	struct list_head *dev_head = &fs_devices->devices;
 	struct btrfs_device *device;
