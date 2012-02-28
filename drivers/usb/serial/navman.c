@@ -132,18 +132,8 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&navman_device, NULL
 };
 
-static int __init navman_init(void)
-{
-	return usb_serial_register_drivers(&navman_driver, serial_drivers);
-}
+module_usb_serial_driver(navman_driver, serial_drivers);
 
-static void __exit navman_exit(void)
-{
-	usb_serial_deregister_drivers(&navman_driver, serial_drivers);
-}
-
-module_init(navman_init);
-module_exit(navman_exit);
 MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
