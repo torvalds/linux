@@ -834,21 +834,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	NULL
 };
 
-static int __init keyspan_pda_init(void)
-{
-	return usb_serial_register_drivers(&keyspan_pda_driver,
-					   serial_drivers);
-}
-
-static void __exit keyspan_pda_exit(void)
-{
-	usb_serial_deregister_drivers(&keyspan_pda_driver,
-				      serial_drivers);
-}
-
-
-module_init(keyspan_pda_init);
-module_exit(keyspan_pda_exit);
+module_usb_serial_driver(keyspan_pda_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -856,4 +842,3 @@ MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
-
