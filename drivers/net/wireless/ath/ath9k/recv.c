@@ -169,22 +169,17 @@ static void ath_rx_addbuffer_edma(struct ath_softc *sc,
 				  enum ath9k_rx_qtype qtype, int size)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	u32 nbuf = 0;
+	struct ath_buf *bf, *tbf;
 
 	if (list_empty(&sc->rx.rxbuf)) {
 		ath_dbg(common, QUEUE, "No free rx buf available\n");
 		return;
 	}
 
-	while (!list_empty(&sc->rx.rxbuf)) {
-		nbuf++;
-
+	list_for_each_entry_safe(bf, tbf, &sc->rx.rxbuf, list)
 		if (!ath_rx_edma_buf_link(sc, qtype))
 			break;
 
-		if (nbuf >= size)
-			break;
-	}
 }
 
 static void ath_rx_remove_buffer(struct ath_softc *sc,
