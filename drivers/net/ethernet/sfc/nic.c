@@ -1332,8 +1332,10 @@ void efx_nic_remove_eventq(struct efx_channel *channel)
 }
 
 
-void efx_nic_generate_test_event(struct efx_channel *channel)
+void efx_nic_event_test_start(struct efx_channel *channel)
 {
+	channel->last_irq_cpu = -1;
+	smp_wmb();
 	efx_magic_event(channel, EFX_CHANNEL_MAGIC_TEST(channel));
 }
 
@@ -1382,8 +1384,10 @@ void efx_nic_disable_interrupts(struct efx_nic *efx)
  * Interrupt must already have been enabled, otherwise nasty things
  * may happen.
  */
-void efx_nic_generate_interrupt(struct efx_nic *efx)
+void efx_nic_irq_test_start(struct efx_nic *efx)
 {
+	efx->last_irq_cpu = -1;
+	smp_wmb();
 	efx_nic_interrupts(efx, true, true);
 }
 

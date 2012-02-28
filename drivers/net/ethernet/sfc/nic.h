@@ -301,13 +301,22 @@ extern void falcon_update_stats_xmac(struct efx_nic *efx);
 /* Interrupts and test events */
 extern int efx_nic_init_interrupt(struct efx_nic *efx);
 extern void efx_nic_enable_interrupts(struct efx_nic *efx);
-extern void efx_nic_generate_test_event(struct efx_channel *channel);
-extern void efx_nic_generate_interrupt(struct efx_nic *efx);
+extern void efx_nic_event_test_start(struct efx_channel *channel);
+extern void efx_nic_irq_test_start(struct efx_nic *efx);
 extern void efx_nic_disable_interrupts(struct efx_nic *efx);
 extern void efx_nic_fini_interrupt(struct efx_nic *efx);
 extern irqreturn_t efx_nic_fatal_interrupt(struct efx_nic *efx);
 extern irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id);
 extern void falcon_irq_ack_a1(struct efx_nic *efx);
+
+static inline int efx_nic_event_test_irq_cpu(struct efx_channel *channel)
+{
+	return ACCESS_ONCE(channel->last_irq_cpu);
+}
+static inline int efx_nic_irq_test_irq_cpu(struct efx_nic *efx)
+{
+	return ACCESS_ONCE(efx->last_irq_cpu);
+}
 
 /* Global Resources */
 extern int efx_nic_flush_queues(struct efx_nic *efx);
