@@ -2869,9 +2869,9 @@ static inline void hci_remote_ext_features_evt(struct hci_dev *hdev, struct sk_b
 
 		ie = hci_inquiry_cache_lookup(hdev, &conn->dst);
 		if (ie)
-			ie->data.ssp_mode = (ev->features[0] & 0x01);
+			ie->data.ssp_mode = (ev->features[0] & LMP_HOST_SSP);
 
-		if (ev->features[0] & 0x01)
+		if (ev->features[0] & LMP_HOST_SSP)
 			set_bit(HCI_CONN_SSP_ENABLED, &conn->flags);
 	}
 
@@ -3224,7 +3224,7 @@ static inline void hci_remote_host_features_evt(struct hci_dev *hdev, struct sk_
 
 	ie = hci_inquiry_cache_lookup(hdev, &ev->bdaddr);
 	if (ie)
-		ie->data.ssp_mode = (ev->features[0] & 0x01);
+		ie->data.ssp_mode = (ev->features[0] & LMP_HOST_SSP);
 
 	hci_dev_unlock(hdev);
 }
