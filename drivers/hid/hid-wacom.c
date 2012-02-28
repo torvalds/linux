@@ -31,9 +31,11 @@
 
 #include "hid-ids.h"
 
+#define PAD_DEVICE_ID	0x0F
+
 struct wacom_data {
 	__u16 tool;
-	unsigned char butstate;
+	__u16 butstate;
 	__u8 features;
 	__u32 id;
 	__u32 serial;
@@ -316,6 +318,30 @@ static int wacom_gr_parse_report(struct hid_device *hdev,
 	return 1;
 }
 
+static void wacom_i4_parse_button_report(struct wacom_data *wdata,
+			struct input_dev *input, unsigned char *data)
+{
+	__u16 new_butstate;
+
+	new_butstate = (data[3] << 1) | (data[2] & 0x01);
+	if (new_butstate != wdata->butstate) {
+		wdata->butstate = new_butstate;
+		input_report_key(input, BTN_0, new_butstate & 0x001);
+		input_report_key(input, BTN_1, new_butstate & 0x002);
+		input_report_key(input, BTN_2, new_butstate & 0x004);
+		input_report_key(input, BTN_3, new_butstate & 0x008);
+		input_report_key(input, BTN_4, new_butstate & 0x010);
+		input_report_key(input, BTN_5, new_butstate & 0x020);
+		input_report_key(input, BTN_6, new_butstate & 0x040);
+		input_report_key(input, BTN_7, new_butstate & 0x080);
+		input_report_key(input, BTN_8, new_butstate & 0x100);
+		input_report_key(input, BTN_TOOL_FINGER, 1);
+		input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
+		input_event(input, EV_MSC, MSC_SERIAL, 0xffffffff);
+		input_sync(input);
+	}
+}
+
 static void wacom_i4_parse_pen_report(struct wacom_data *wdata,
 			struct input_dev *input, unsigned char *data)
 {
@@ -389,6 +415,7 @@ static void wacom_i4_parse_report(struct hid_device *hdev,
 		wdata->features = data[2];
 		break;
 	case 0x0C: /* Button report */
+		wacom_i4_parse_button_report(wdata, input, data);
 		break;
 	default:
 		hid_err(hdev, "Unknown report: %d,%d\n", data[0], data[1]);
@@ -484,6 +511,13 @@ static int wacom_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 		break;
 	case USB_DEVICE_ID_WACOM_INTUOS4_BLUETOOTH:
 		__set_bit(ABS_MISC, input->absbit);
+		__set_bit(BTN_2, input->keybit);
+		__set_bit(BTN_3, input->keybit);
+		__set_bit(BTN_4, input->keybit);
+		__set_bit(BTN_5, input->keybit);
+		__set_bit(BTN_6, input->keybit);
+		__set_bit(BTN_7, input->keybit);
+		__set_bit(BTN_8, input->keybit);
 		input_set_abs_params(input, ABS_X, 0, 40640, 4, 0);
 		input_set_abs_params(input, ABS_Y, 0, 25400, 4, 0);
 		input_set_abs_params(input, ABS_PRESSURE, 0, 2047, 0, 0);
