@@ -1289,25 +1289,7 @@ struct option_port_private {
 	unsigned long tx_start_time[N_OUT_URB];
 };
 
-/* Functions used by new usb-serial code. */
-static int __init option_init(void)
-{
-	int retval;
-
-	retval = usb_serial_register_drivers(&option_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
-}
-
-static void __exit option_exit(void)
-{
-	usb_serial_deregister_drivers(&option_driver, serial_drivers);
-}
-
-module_init(option_init);
-module_exit(option_exit);
+module_usb_serial_driver(option_driver, serial_drivers);
 
 static bool is_blacklisted(const u8 ifnum, enum option_blacklist_reason reason,
 			   const struct option_blacklist_info *blacklist)
