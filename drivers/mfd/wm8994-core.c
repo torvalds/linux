@@ -361,6 +361,7 @@ static const __devinitdata struct reg_default wm8958_reva_patch[] = {
 
 static const __devinitdata struct reg_default wm1811_reva_patch[] = {
 	{ 0x102, 0x3 },
+	{ 0x56, 0x7 },
 	{ 0x5d, 0x7e },
 	{ 0x5e, 0x0 },
 	{ 0x102, 0x0 },
@@ -524,6 +525,8 @@ static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		switch (wm8994->revision) {
 		case 0:
 		case 1:
+		case 2:
+		case 3:
 			regmap_patch = wm1811_reva_patch;
 			patch_regs = ARRAY_SIZE(wm1811_reva_patch);
 			break;
