@@ -2783,27 +2783,8 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&edgeport_1port_device, &edgeport_2port_device, NULL
 };
 
+module_usb_serial_driver(io_driver, serial_drivers);
 
-static int __init edgeport_init(void)
-{
-	int retval;
-
-	retval = usb_serial_register_drivers(&io_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
-}
-
-static void __exit edgeport_exit(void)
-{
-	usb_serial_deregister_drivers(&io_driver, serial_drivers);
-}
-
-module_init(edgeport_init);
-module_exit(edgeport_exit);
-
-/* Module information */
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
