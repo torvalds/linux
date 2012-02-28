@@ -513,8 +513,9 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 				    u8 *preq_elem, u32 metric)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	struct mesh_path *mpath;
+	struct mesh_path *mpath = NULL;
 	u8 *target_addr, *orig_addr;
+	const u8 *da;
 	u8 target_flags, ttl;
 	u32 orig_sn, target_sn, lifetime;
 	bool reply = false;
@@ -591,9 +592,11 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 		flags = PREQ_IE_FLAGS(preq_elem);
 		preq_id = PREQ_IE_PREQ_ID(preq_elem);
 		hopcount = PREQ_IE_HOPCOUNT(preq_elem) + 1;
+		da = (mpath && mpath->is_root) ?
+			mpath->rann_snd_addr : broadcast_addr;
 		mesh_path_sel_frame_tx(MPATH_PREQ, flags, orig_addr,
 				cpu_to_le32(orig_sn), target_flags, target_addr,
-				cpu_to_le32(target_sn), broadcast_addr,
+				cpu_to_le32(target_sn), da,
 				hopcount, ttl, cpu_to_le32(lifetime),
 				cpu_to_le32(metric), cpu_to_le32(preq_id),
 				sdata);
@@ -742,8 +745,8 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 	if (memcmp(orig_addr, sdata->vif.addr, ETH_ALEN) == 0)
 		return;
 
-	mhwmp_dbg("received RANN from %pM (is_gate=%d)", orig_addr,
-			root_is_gate);
+	mhwmp_dbg("received RANN from %pM via neighbour %pM (is_gate=%d)",
+			orig_addr, mgmt->sa, root_is_gate);
 
 	rcu_read_lock();
 	mpath = mesh_path_lookup(orig_addr, sdata);
@@ -774,6 +777,11 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 				       0, sdata);
 		mpath->sn = orig_sn;
 	}
+
+	/* Using individually addressed PREQ for root node */
+	memcpy(mpath->rann_snd_addr, mgmt->sa, ETH_ALEN);
+	mpath->is_root = true;
+
 	if (root_is_gate)
 		mesh_path_add_gate(mpath);
 
@@ -909,6 +917,7 @@ void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata)
 	struct mesh_preq_queue *preq_node;
 	struct mesh_path *mpath;
 	u8 ttl, target_flags;
+	const u8 *da;
 	u32 lifetime;
 
 	spin_lock_bh(&ifmsh->mesh_preq_queue_lock);
@@ -971,9 +980,10 @@ void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata)
 		target_flags = MP_F_RF;
 
 	spin_unlock_bh(&mpath->state_lock);
+	da = (mpath->is_root) ? mpath->rann_snd_addr : broadcast_addr;
 	mesh_path_sel_frame_tx(MPATH_PREQ, 0, sdata->vif.addr,
 			cpu_to_le32(ifmsh->sn), target_flags, mpath->dst,
-			cpu_to_le32(mpath->sn), broadcast_addr, 0,
+			cpu_to_le32(mpath->sn), da, 0,
 			ttl, cpu_to_le32(lifetime), 0,
 			cpu_to_le32(ifmsh->preq_id++), sdata);
 	mod_timer(&mpath->timer, jiffies + mpath->discovery_timeout);
