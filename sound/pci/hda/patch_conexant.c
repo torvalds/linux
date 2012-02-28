@@ -4355,6 +4355,7 @@ static const struct cxt_pincfg cxt_pincfg_lenovo_x200[] = {
 	{ 0x16, 0x042140ff }, /* HP (seq# overridden) */
 	{ 0x17, 0x21a11000 }, /* dock-mic */
 	{ 0x19, 0x2121103f }, /* dock-HP */
+	{ 0x1c, 0x21440100 }, /* dock SPDIF out */
 	{}
 };
 
