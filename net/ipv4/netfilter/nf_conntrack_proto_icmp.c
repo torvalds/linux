@@ -269,6 +269,44 @@ static int icmp_nlattr_tuple_size(void)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+
+#include <linux/netfilter/nfnetlink.h>
+#include <linux/netfilter/nfnetlink_cttimeout.h>
+
+static int icmp_timeout_nlattr_to_obj(struct nlattr *tb[], void *data)
+{
+	unsigned int *timeout = data;
+
+	if (tb[CTA_TIMEOUT_ICMP_TIMEOUT]) {
+		*timeout =
+			ntohl(nla_get_be32(tb[CTA_TIMEOUT_ICMP_TIMEOUT])) * HZ;
+	} else {
+		/* Set default ICMP timeout. */
+		*timeout = nf_ct_icmp_timeout;
+	}
+	return 0;
+}
+
+static int
+icmp_timeout_obj_to_nlattr(struct sk_buff *skb, const void *data)
+{
+	const unsigned int *timeout = data;
+
+	NLA_PUT_BE32(skb, CTA_TIMEOUT_ICMP_TIMEOUT, htonl(*timeout / HZ));
+
+	return 0;
+
+nla_put_failure:
+	return -ENOSPC;
+}
+
+static const struct nla_policy
+icmp_timeout_nla_policy[CTA_TIMEOUT_ICMP_MAX+1] = {
+	[CTA_TIMEOUT_ICMP_TIMEOUT]	= { .type = NLA_U32 },
+};
+#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+
 #ifdef CONFIG_SYSCTL
 static struct ctl_table_header *icmp_sysctl_header;
 static struct ctl_table icmp_sysctl_table[] = {
@@ -315,6 +353,15 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp __read_mostly =
 	.nlattr_to_tuple	= icmp_nlattr_to_tuple,
 	.nla_policy		= icmp_nla_policy,
 #endif
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+	.ctnl_timeout		= {
+		.nlattr_to_obj	= icmp_timeout_nlattr_to_obj,
+		.obj_to_nlattr	= icmp_timeout_obj_to_nlattr,
+		.nlattr_max	= CTA_TIMEOUT_ICMP_MAX,
+		.obj_size	= sizeof(unsigned int),
+		.nla_policy	= icmp_timeout_nla_policy,
+	},
+#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 #ifdef CONFIG_SYSCTL
 	.ctl_table_header	= &icmp_sysctl_header,
 	.ctl_table		= icmp_sysctl_table,

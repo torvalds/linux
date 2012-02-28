@@ -292,6 +292,52 @@ static void gre_destroy(struct nf_conn *ct)
 		nf_ct_gre_keymap_destroy(master);
 }
 
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+
+#include <linux/netfilter/nfnetlink.h>
+#include <linux/netfilter/nfnetlink_cttimeout.h>
+
+static int gre_timeout_nlattr_to_obj(struct nlattr *tb[], void *data)
+{
+	unsigned int *timeouts = data;
+
+	/* set default timeouts for GRE. */
+	timeouts[GRE_CT_UNREPLIED] = gre_timeouts[GRE_CT_UNREPLIED];
+	timeouts[GRE_CT_REPLIED] = gre_timeouts[GRE_CT_REPLIED];
+
+	if (tb[CTA_TIMEOUT_GRE_UNREPLIED]) {
+		timeouts[GRE_CT_UNREPLIED] =
+			ntohl(nla_get_be32(tb[CTA_TIMEOUT_GRE_UNREPLIED])) * HZ;
+	}
+	if (tb[CTA_TIMEOUT_GRE_REPLIED]) {
+		timeouts[GRE_CT_REPLIED] =
+			ntohl(nla_get_be32(tb[CTA_TIMEOUT_GRE_REPLIED])) * HZ;
+	}
+	return 0;
+}
+
+static int
+gre_timeout_obj_to_nlattr(struct sk_buff *skb, const void *data)
+{
+	const unsigned int *timeouts = data;
+
+	NLA_PUT_BE32(skb, CTA_TIMEOUT_GRE_UNREPLIED,
+			htonl(timeouts[GRE_CT_UNREPLIED] / HZ));
+	NLA_PUT_BE32(skb, CTA_TIMEOUT_GRE_REPLIED,
+			htonl(timeouts[GRE_CT_REPLIED] / HZ));
+	return 0;
+
+nla_put_failure:
+	return -ENOSPC;
+}
+
+static const struct nla_policy
+gre_timeout_nla_policy[CTA_TIMEOUT_GRE_MAX+1] = {
+	[CTA_TIMEOUT_GRE_UNREPLIED]	= { .type = NLA_U32 },
+	[CTA_TIMEOUT_GRE_REPLIED]	= { .type = NLA_U32 },
+};
+#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+
 /* protocol helper struct */
 static struct nf_conntrack_l4proto nf_conntrack_l4proto_gre4 __read_mostly = {
 	.l3proto	 = AF_INET,
@@ -312,6 +358,15 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_gre4 __read_mostly = {
 	.nlattr_to_tuple = nf_ct_port_nlattr_to_tuple,
 	.nla_policy	 = nf_ct_port_nla_policy,
 #endif
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+	.ctnl_timeout    = {
+		.nlattr_to_obj	= gre_timeout_nlattr_to_obj,
+		.obj_to_nlattr	= gre_timeout_obj_to_nlattr,
+		.nlattr_max	= CTA_TIMEOUT_GRE_MAX,
+		.obj_size	= sizeof(unsigned int) * GRE_CT_MAX,
+		.nla_policy	= gre_timeout_nla_policy,
+	},
+#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 };
 
 static int proto_gre_net_init(struct net *net)

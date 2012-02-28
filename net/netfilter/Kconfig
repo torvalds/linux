@@ -314,6 +314,17 @@ config NF_CT_NETLINK
 	help
 	  This option enables support for a netlink-based userspace interface
 
+config NF_CT_NETLINK_TIMEOUT
+	tristate  'Connection tracking timeout tuning via Netlink'
+	select NETFILTER_NETLINK
+	depends on NETFILTER_ADVANCED
+	help
+	  This option enables support for connection tracking timeout
+	  fine-grain tuning. This allows you to attach specific timeout
+	  policies to flows, instead of using the global timeout policy.
+
+	  If unsure, say `N'.
+
 endif # NF_CONNTRACK
 
 # transparent proxy support

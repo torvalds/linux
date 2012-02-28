@@ -549,6 +549,57 @@ static int sctp_nlattr_size(void)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+
+#include <linux/netfilter/nfnetlink.h>
+#include <linux/netfilter/nfnetlink_cttimeout.h>
+
+static int sctp_timeout_nlattr_to_obj(struct nlattr *tb[], void *data)
+{
+	unsigned int *timeouts = data;
+	int i;
+
+	/* set default SCTP timeouts. */
+	for (i=0; i<SCTP_CONNTRACK_MAX; i++)
+		timeouts[i] = sctp_timeouts[i];
+
+	/* there's a 1:1 mapping between attributes and protocol states. */
+	for (i=CTA_TIMEOUT_SCTP_UNSPEC+1; i<CTA_TIMEOUT_SCTP_MAX+1; i++) {
+		if (tb[i]) {
+			timeouts[i] = ntohl(nla_get_be32(tb[i])) * HZ;
+		}
+	}
+	return 0;
+}
+
+static int
+sctp_timeout_obj_to_nlattr(struct sk_buff *skb, const void *data)
+{
+        const unsigned int *timeouts = data;
+	int i;
+
+	for (i=CTA_TIMEOUT_SCTP_UNSPEC+1; i<CTA_TIMEOUT_SCTP_MAX+1; i++)
+	        NLA_PUT_BE32(skb, i, htonl(timeouts[i] / HZ));
+
+        return 0;
+
+nla_put_failure:
+        return -ENOSPC;
+}
+
+static const struct nla_policy
+sctp_timeout_nla_policy[CTA_TIMEOUT_SCTP_MAX+1] = {
+	[CTA_TIMEOUT_SCTP_CLOSED]		= { .type = NLA_U32 },
+	[CTA_TIMEOUT_SCTP_COOKIE_WAIT]		= { .type = NLA_U32 },
+	[CTA_TIMEOUT_SCTP_COOKIE_ECHOED]	= { .type = NLA_U32 },
+	[CTA_TIMEOUT_SCTP_ESTABLISHED]		= { .type = NLA_U32 },
+	[CTA_TIMEOUT_SCTP_SHUTDOWN_SENT]	= { .type = NLA_U32 },
+	[CTA_TIMEOUT_SCTP_SHUTDOWN_RECD]	= { .type = NLA_U32 },
+	[CTA_TIMEOUT_SCTP_SHUTDOWN_ACK_SENT]	= { .type = NLA_U32 },
+};
+#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+
+
 #ifdef CONFIG_SYSCTL
 static unsigned int sctp_sysctl_table_users;
 static struct ctl_table_header *sctp_sysctl_header;
@@ -682,6 +733,15 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp4 __read_mostly = {
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
 	.nla_policy		= nf_ct_port_nla_policy,
 #endif
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+	.ctnl_timeout		= {
+		.nlattr_to_obj	= sctp_timeout_nlattr_to_obj,
+		.obj_to_nlattr	= sctp_timeout_obj_to_nlattr,
+		.nlattr_max	= CTA_TIMEOUT_SCTP_MAX,
+		.obj_size	= sizeof(unsigned int) * SCTP_CONNTRACK_MAX,
+		.nla_policy	= sctp_timeout_nla_policy,
+	},
+#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 #ifdef CONFIG_SYSCTL
 	.ctl_table_users	= &sctp_sysctl_table_users,
 	.ctl_table_header	= &sctp_sysctl_header,
@@ -712,6 +772,15 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_sctp6 __read_mostly = {
 	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
 	.nla_policy		= nf_ct_port_nla_policy,
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+	.ctnl_timeout		= {
+		.nlattr_to_obj	= sctp_timeout_nlattr_to_obj,
+		.obj_to_nlattr	= sctp_timeout_obj_to_nlattr,
+		.nlattr_max	= CTA_TIMEOUT_SCTP_MAX,
+		.obj_size	= sizeof(unsigned int) * SCTP_CONNTRACK_MAX,
+		.nla_policy	= sctp_timeout_nla_policy,
+	},
+#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 #endif
 #ifdef CONFIG_SYSCTL
 	.ctl_table_users	= &sctp_sysctl_table_users,

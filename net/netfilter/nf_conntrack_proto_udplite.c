@@ -156,6 +156,52 @@ static int udplite_error(struct net *net, struct nf_conn *tmpl,
 	return NF_ACCEPT;
 }
 
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+
+#include <linux/netfilter/nfnetlink.h>
+#include <linux/netfilter/nfnetlink_cttimeout.h>
+
+static int udplite_timeout_nlattr_to_obj(struct nlattr *tb[], void *data)
+{
+	unsigned int *timeouts = data;
+
+	/* set default timeouts for UDPlite. */
+	timeouts[UDPLITE_CT_UNREPLIED] = udplite_timeouts[UDPLITE_CT_UNREPLIED];
+	timeouts[UDPLITE_CT_REPLIED] = udplite_timeouts[UDPLITE_CT_REPLIED];
+
+	if (tb[CTA_TIMEOUT_UDPLITE_UNREPLIED]) {
+		timeouts[UDPLITE_CT_UNREPLIED] =
+		  ntohl(nla_get_be32(tb[CTA_TIMEOUT_UDPLITE_UNREPLIED])) * HZ;
+	}
+	if (tb[CTA_TIMEOUT_UDPLITE_REPLIED]) {
+		timeouts[UDPLITE_CT_REPLIED] =
+		  ntohl(nla_get_be32(tb[CTA_TIMEOUT_UDPLITE_REPLIED])) * HZ;
+	}
+	return 0;
+}
+
+static int
+udplite_timeout_obj_to_nlattr(struct sk_buff *skb, const void *data)
+{
+	const unsigned int *timeouts = data;
+
+	NLA_PUT_BE32(skb, CTA_TIMEOUT_UDPLITE_UNREPLIED,
+			htonl(timeouts[UDPLITE_CT_UNREPLIED] / HZ));
+	NLA_PUT_BE32(skb, CTA_TIMEOUT_UDPLITE_REPLIED,
+			htonl(timeouts[UDPLITE_CT_REPLIED] / HZ));
+	return 0;
+
+nla_put_failure:
+	return -ENOSPC;
+}
+
+static const struct nla_policy
+udplite_timeout_nla_policy[CTA_TIMEOUT_UDPLITE_MAX+1] = {
+	[CTA_TIMEOUT_UDPLITE_UNREPLIED]	= { .type = NLA_U32 },
+	[CTA_TIMEOUT_UDPLITE_REPLIED]	= { .type = NLA_U32 },
+};
+#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+
 #ifdef CONFIG_SYSCTL
 static unsigned int udplite_sysctl_table_users;
 static struct ctl_table_header *udplite_sysctl_header;
@@ -196,6 +242,16 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 __read_mostly =
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
 	.nla_policy		= nf_ct_port_nla_policy,
 #endif
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+	.ctnl_timeout		= {
+		.nlattr_to_obj	= udplite_timeout_nlattr_to_obj,
+		.obj_to_nlattr	= udplite_timeout_obj_to_nlattr,
+		.nlattr_max	= CTA_TIMEOUT_UDPLITE_MAX,
+		.obj_size	= sizeof(unsigned int) *
+					CTA_TIMEOUT_UDPLITE_MAX,
+		.nla_policy	= udplite_timeout_nla_policy,
+	},
+#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 #ifdef CONFIG_SYSCTL
 	.ctl_table_users	= &udplite_sysctl_table_users,
 	.ctl_table_header	= &udplite_sysctl_header,
@@ -221,6 +277,16 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 __read_mostly =
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
 	.nla_policy		= nf_ct_port_nla_policy,
 #endif
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+	.ctnl_timeout		= {
+		.nlattr_to_obj	= udplite_timeout_nlattr_to_obj,
+		.obj_to_nlattr	= udplite_timeout_obj_to_nlattr,
+		.nlattr_max	= CTA_TIMEOUT_UDPLITE_MAX,
+		.obj_size	= sizeof(unsigned int) *
+					CTA_TIMEOUT_UDPLITE_MAX,
+		.nla_policy	= udplite_timeout_nla_policy,
+	},
+#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
 #ifdef CONFIG_SYSCTL
 	.ctl_table_users	= &udplite_sysctl_table_users,
 	.ctl_table_header	= &udplite_sysctl_header,

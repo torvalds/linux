@@ -83,6 +83,17 @@ struct nf_conntrack_l4proto {
 
 	size_t nla_size;
 
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+	struct {
+		size_t obj_size;
+		int (*nlattr_to_obj)(struct nlattr *tb[], void *data);
+		int (*obj_to_nlattr)(struct sk_buff *skb, const void *data);
+
+		unsigned int nlattr_max;
+		const struct nla_policy *nla_policy;
+	} ctnl_timeout;
+#endif
+
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	**ctl_table_header;
 	struct ctl_table	*ctl_table;
