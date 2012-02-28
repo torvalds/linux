@@ -58,9 +58,6 @@ struct target_core_fabric_ops {
 	 */
 	int (*shutdown_session)(struct se_session *);
 	void (*close_session)(struct se_session *);
-	void (*stop_session)(struct se_session *, int, int);
-	void (*fall_back_to_erl0)(struct se_session *);
-	int (*sess_logged_in)(struct se_session *);
 	u32 (*sess_get_index)(struct se_session *);
 	/*
 	 * Used only for SCSI fabrics that contain multi-value TransportIDs
@@ -78,7 +75,6 @@ struct target_core_fabric_ops {
 	int (*queue_tm_rsp)(struct se_cmd *);
 	u16 (*set_fabric_sense_len)(struct se_cmd *, u32);
 	u16 (*get_fabric_sense_len)(void);
-	int (*is_state_remove)(struct se_cmd *);
 	/*
 	 * fabric module calls for target_core_fabric_configfs.c
 	 */

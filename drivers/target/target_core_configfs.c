@@ -421,18 +421,6 @@ static int target_fabric_tf_ops_check(
 		pr_err("Missing tfo->close_session()\n");
 		return -EINVAL;
 	}
-	if (!tfo->stop_session) {
-		pr_err("Missing tfo->stop_session()\n");
-		return -EINVAL;
-	}
-	if (!tfo->fall_back_to_erl0) {
-		pr_err("Missing tfo->fall_back_to_erl0()\n");
-		return -EINVAL;
-	}
-	if (!tfo->sess_logged_in) {
-		pr_err("Missing tfo->sess_logged_in()\n");
-		return -EINVAL;
-	}
 	if (!tfo->sess_get_index) {
 		pr_err("Missing tfo->sess_get_index()\n");
 		return -EINVAL;
@@ -475,10 +463,6 @@ static int target_fabric_tf_ops_check(
 	}
 	if (!tfo->get_fabric_sense_len) {
 		pr_err("Missing tfo->get_fabric_sense_len()\n");
-		return -EINVAL;
-	}
-	if (!tfo->is_state_remove) {
-		pr_err("Missing tfo->is_state_remove()\n");
 		return -EINVAL;
 	}
 	/*

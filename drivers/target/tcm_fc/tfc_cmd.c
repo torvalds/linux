@@ -244,11 +244,6 @@ int ft_get_cmd_state(struct se_cmd *se_cmd)
 	return 0;
 }
 
-int ft_is_state_remove(struct se_cmd *se_cmd)
-{
-	return 0;	/* XXX TBD */
-}
-
 /*
  * FC sequence response handler for follow-on sequences (data) and aborts.
  */

@@ -3521,25 +3521,6 @@ static void srpt_close_session(struct se_session *se_sess)
 }
 
 /**
- * To do: Find out whether stop_session() has a meaning for transports
- * other than iSCSI.
- */
-static void srpt_stop_session(struct se_session *se_sess, int sess_sleep,
-			      int conn_sleep)
-{
-}
-
-static void srpt_reset_nexus(struct se_session *sess)
-{
-	printk(KERN_ERR "This is the SRP protocol, not iSCSI\n");
-}
-
-static int srpt_sess_logged_in(struct se_session *se_sess)
-{
-	return true;
-}
-
-/**
  * srpt_sess_get_index() - Return the value of scsiAttIntrPortIndex (SCSI-MIB).
  *
  * A quote from RFC 4455 (SCSI-MIB) about this MIB object:
@@ -3579,11 +3560,6 @@ static u16 srpt_set_fabric_sense_len(struct se_cmd *cmd, u32 sense_length)
 }
 
 static u16 srpt_get_fabric_sense_len(void)
-{
-	return 0;
-}
-
-static int srpt_is_state_remove(struct se_cmd *se_cmd)
 {
 	return 0;
 }
@@ -3957,9 +3933,6 @@ static struct target_core_fabric_ops srpt_template = {
 	.check_stop_free		= srpt_check_stop_free,
 	.shutdown_session		= srpt_shutdown_session,
 	.close_session			= srpt_close_session,
-	.stop_session			= srpt_stop_session,
-	.fall_back_to_erl0		= srpt_reset_nexus,
-	.sess_logged_in			= srpt_sess_logged_in,
 	.sess_get_index			= srpt_sess_get_index,
 	.sess_get_initiator_sid		= NULL,
 	.write_pending			= srpt_write_pending,
@@ -3972,7 +3945,6 @@ static struct target_core_fabric_ops srpt_template = {
 	.queue_tm_rsp			= srpt_queue_response,
 	.get_fabric_sense_len		= srpt_get_fabric_sense_len,
 	.set_fabric_sense_len		= srpt_set_fabric_sense_len,
-	.is_state_remove		= srpt_is_state_remove,
 	/*
 	 * Setup function pointers for generic logic in
 	 * target_core_fabric_configfs.c

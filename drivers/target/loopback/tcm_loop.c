@@ -736,22 +736,6 @@ static u32 tcm_loop_get_inst_index(struct se_portal_group *se_tpg)
 	return 1;
 }
 
-static int tcm_loop_is_state_remove(struct se_cmd *se_cmd)
-{
-	/*
-	 * Assume struct scsi_cmnd is not in remove state..
-	 */
-	return 0;
-}
-
-static int tcm_loop_sess_logged_in(struct se_session *se_sess)
-{
-	/*
-	 * Assume that TL Nexus is always active
-	 */
-	return 1;
-}
-
 static u32 tcm_loop_sess_get_index(struct se_session *se_sess)
 {
 	return 1;
@@ -784,19 +768,6 @@ static void tcm_loop_close_session(struct se_session *se_sess)
 {
 	return;
 };
-
-static void tcm_loop_stop_session(
-	struct se_session *se_sess,
-	int sess_sleep,
-	int conn_sleep)
-{
-	return;
-}
-
-static void tcm_loop_fall_back_to_erl0(struct se_session *se_sess)
-{
-	return;
-}
 
 static int tcm_loop_write_pending(struct se_cmd *se_cmd)
 {
@@ -1391,9 +1362,6 @@ static int tcm_loop_register_configfs(void)
 	fabric->tf_ops.release_cmd = &tcm_loop_release_cmd;
 	fabric->tf_ops.shutdown_session = &tcm_loop_shutdown_session;
 	fabric->tf_ops.close_session = &tcm_loop_close_session;
-	fabric->tf_ops.stop_session = &tcm_loop_stop_session;
-	fabric->tf_ops.fall_back_to_erl0 = &tcm_loop_fall_back_to_erl0;
-	fabric->tf_ops.sess_logged_in = &tcm_loop_sess_logged_in;
 	fabric->tf_ops.sess_get_index = &tcm_loop_sess_get_index;
 	fabric->tf_ops.sess_get_initiator_sid = NULL;
 	fabric->tf_ops.write_pending = &tcm_loop_write_pending;
@@ -1410,7 +1378,6 @@ static int tcm_loop_register_configfs(void)
 	fabric->tf_ops.queue_tm_rsp = &tcm_loop_queue_tm_rsp;
 	fabric->tf_ops.set_fabric_sense_len = &tcm_loop_set_fabric_sense_len;
 	fabric->tf_ops.get_fabric_sense_len = &tcm_loop_get_fabric_sense_len;
-	fabric->tf_ops.is_state_remove = &tcm_loop_is_state_remove;
 
 	tf_cg = &fabric->tf_group;
 	/*
