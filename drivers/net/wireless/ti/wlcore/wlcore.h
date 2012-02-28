@@ -387,6 +387,9 @@ struct wl1271 {
 
 	/* mutex for protecting the tx_flush function */
 	struct mutex flush_mutex;
+
+	/* sleep auth value currently configured to FW */
+	int sleep_auth;
 };
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);

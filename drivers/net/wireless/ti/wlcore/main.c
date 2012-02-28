@@ -1082,6 +1082,7 @@ int wl1271_plt_stop(struct wl1271 *wl)
 	mutex_lock(&wl->mutex);
 	wl1271_power_off(wl);
 	wl->flags = 0;
+	wl->sleep_auth = WL1271_PSM_CAM;
 	wl->state = WL1271_STATE_OFF;
 	wl->plt = false;
 	wl->rx_counter = 0;
@@ -1740,6 +1741,7 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	wl->ap_fw_ps_map = 0;
 	wl->ap_ps_map = 0;
 	wl->sched_scanning = false;
+	wl->sleep_auth = WL1271_PSM_CAM;
 	memset(wl->roles_map, 0, sizeof(wl->roles_map));
 	memset(wl->links_map, 0, sizeof(wl->links_map));
 	memset(wl->roc_map, 0, sizeof(wl->roc_map));
@@ -5174,6 +5176,7 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size)
 	wl->channel_type = NL80211_CHAN_NO_HT;
 	wl->flags = 0;
 	wl->sg_enabled = true;
+	wl->sleep_auth = WL1271_PSM_CAM;
 	wl->hw_pg_ver = -1;
 	wl->ap_ps_map = 0;
 	wl->ap_fw_ps_map = 0;

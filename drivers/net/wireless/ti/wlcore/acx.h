@@ -118,6 +118,8 @@ enum wl1271_psm_mode {
 
 	/* Extreme low power */
 	WL1271_PSM_ELP = 2,
+
+	WL1271_PSM_MAX = WL1271_PSM_ELP,
 };
 
 struct acx_sleep_auth {
