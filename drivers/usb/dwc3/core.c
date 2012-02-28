@@ -597,19 +597,9 @@ static struct platform_driver dwc3_driver = {
 	},
 };
 
+module_platform_driver(dwc3_driver);
+
 MODULE_ALIAS("platform:dwc3");
 MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("DesignWare USB3 DRD Controller Driver");
-
-static int __devinit dwc3_init(void)
-{
-	return platform_driver_register(&dwc3_driver);
-}
-module_init(dwc3_init);
-
-static void __exit dwc3_exit(void)
-{
-	platform_driver_unregister(&dwc3_driver);
-}
-module_exit(dwc3_exit);
