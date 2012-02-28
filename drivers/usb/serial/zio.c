@@ -42,16 +42,5 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&zio_device, NULL
 };
 
-static int __init zio_init(void)
-{
-	return usb_serial_register_drivers(&zio_driver, serial_drivers);
-}
-
-static void __exit zio_exit(void)
-{
-	usb_serial_deregister_drivers(&zio_driver, serial_drivers);
-}
-
-module_init(zio_init);
-module_exit(zio_exit);
+module_usb_serial_driver(zio_driver, serial_drivers);
 MODULE_LICENSE("GPL");
