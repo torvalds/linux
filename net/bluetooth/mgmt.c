@@ -610,8 +610,11 @@ static void service_cache_off(struct work_struct *work)
 	hci_dev_unlock(hdev);
 }
 
-static void mgmt_init_hdev(struct hci_dev *hdev)
+static void mgmt_init_hdev(struct sock *sk, struct hci_dev *hdev)
 {
+	if (!test_and_clear_bit(HCI_PI_MGMT_INIT, &hci_pi(sk)->flags))
+		return;
+
 	if (!test_and_set_bit(HCI_MGMT, &hdev->dev_flags)) {
 		INIT_DELAYED_WORK(&hdev->service_cache, service_cache_off);
 
@@ -631,9 +634,6 @@ static int read_controller_info(struct sock *sk, struct hci_dev *hdev)
 	BT_DBG("sock %p %s", sk, hdev->name);
 
 	hci_dev_lock(hdev);
-
-	if (test_and_clear_bit(HCI_PI_MGMT_INIT, &hci_pi(sk)->flags))
-		mgmt_init_hdev(hdev);
 
 	memset(&rp, 0, sizeof(rp));
 
@@ -2764,6 +2764,8 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 						MGMT_STATUS_INVALID_PARAMS);
 			goto done;
 		}
+
+		mgmt_init_hdev(sk, hdev);
 	}
 
 	cp = buf + sizeof(*hdr);
