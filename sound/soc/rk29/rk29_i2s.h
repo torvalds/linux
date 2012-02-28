@@ -23,7 +23,7 @@
 #define CHANNEL_2_EN            (1<<15)
 #define CHANNEL_3_EN            (2<<15)
 #define CHANNLE_4_EN            (3<<15)
-#ifdef ARCH_RK29
+#ifdef CONFIG_ARCH_RK29
 #define TX_MODE_MASTER          (0<<13)
 #define TX_MODE_SLAVE           (1<<13)
 #else
@@ -98,7 +98,7 @@
 
 #define I2S_HWT_16BIT           (0<<14)
 #define I2S_HWT_32BIT           (1<<14)
-#ifdef ARCH_RK29
+#ifdef CONFIG_ARCH_RK29
 #define I2S_MASTER_MODE         (0<<13)
 #define I2S_SLAVE_MODE          (1<<13)
 #define I2S_MODE_MASK           (1<<13)
@@ -187,7 +187,7 @@
 #define I2S_TXR_BUFF            0x20
 #define I2S_RXR_BUFF            0x24
 
-#ifdef ARCH_RK29
+#ifdef CONFIG_ARCH_RK29
 //I2S Registers
 typedef volatile struct tagIIS_STRUCT
 {

@@ -1,6 +1,6 @@
 config SND_RK29_SOC
 	tristate "SoC Audio for the rockchip RK29/RK30 System-on-Chip"
-	depends on (ARCH_RK29 || ARCH_RK30)&& SND_SOC
+	depends on PLAT_RK && SND_SOC
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the ROCKCHIP IIS interface. You will also need
@@ -44,7 +44,7 @@ endif
 
 config SND_RK29_SOC_WM8988
 	tristate "SoC I2S Audio support for rockchip - WM8988"
-	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
+	depends on SND_RK29_SOC
 	select SND_RK29_SOC_I2S
 	select SND_SOC_WM8988
 	help
@@ -53,7 +53,7 @@ config SND_RK29_SOC_WM8988
 
 config SND_RK29_SOC_WM8900
 	tristate "SoC I2S Audio support for rockchip - WM8900"
-	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
+	depends on SND_RK29_SOC
 	select SND_RK29_SOC_I2S
 	select SND_SOC_WM8900
 	help
@@ -61,7 +61,7 @@ config SND_RK29_SOC_WM8900
 	  with the WM8900.
 config SND_RK29_SOC_RT5621
 	tristate "SoC I2S Audio support for rockchip - rt5621"
-	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
+	depends on SND_RK29_SOC
 	select SND_RK29_SOC_I2S
 	select SND_SOC_RT5621
 	help
@@ -69,7 +69,7 @@ config SND_RK29_SOC_RT5621
 	  with the rt5621.
 config SND_RK29_SOC_RT5631
 	tristate "SoC I2S Audio support for rockchip - RT5631"
-	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
+	depends on SND_RK29_SOC
 	select SND_RK29_SOC_I2S
 	select SND_SOC_RT5631
 	help
@@ -78,7 +78,7 @@ config SND_RK29_SOC_RT5631
 
 config SND_RK29_SOC_RT5625
 	tristate "SoC I2S Audio support for rockchip - RT5625"
-	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
+	depends on SND_RK29_SOC
 	select SND_RK29_SOC_I2S
 	select SND_SOC_RT5625
 	help
@@ -87,7 +87,7 @@ config SND_RK29_SOC_RT5625
 
 config SND_RK29_SOC_WM8994
 	tristate "SoC I2S Audio support for rockchip - WM8994"
-	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
+	depends on SND_RK29_SOC
 	select SND_RK29_SOC_I2S
 	select SND_SOC_WM8994
 	help
@@ -96,7 +96,7 @@ config SND_RK29_SOC_WM8994
 
 config SND_RK29_SOC_CS42L52
 	tristate "SoC I2S Audio support for rockchip - CS42L52"
-	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
+	depends on SND_RK29_SOC
 	select SND_RK29_SOC_I2S
 	select SND_SOC_CS42L52
 	help
@@ -105,7 +105,7 @@ config SND_RK29_SOC_CS42L52
 
 config SND_RK29_SOC_AIC3111
 	tristate "SoC I2S Audio support for rockchip - AIC3111"
-	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
+	depends on SND_RK29_SOC
 	select SND_RK29_SOC_I2S
 	select SND_SOC_TLV320AIC3111
 	help
@@ -114,7 +114,7 @@ config SND_RK29_SOC_AIC3111
   
 config SND_RK29_SOC_RK1000
 	tristate "SoC I2S Audio support for rockchip - RK1000"
-	depends on SND_RK29_SOC && (I2C_RK29 || I2C_RK30)
+	depends on SND_RK29_SOC
 	select SND_RK29_SOC_I2S
 	select SND_SOC_RK1000
 	help
