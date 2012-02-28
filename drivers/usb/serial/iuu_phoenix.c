@@ -1294,24 +1294,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&iuu_device, NULL
 };
 
-static int __init iuu_init(void)
-{
-	int retval;
-
-	retval = usb_serial_register_drivers(&iuu_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
-}
-
-static void __exit iuu_exit(void)
-{
-	usb_serial_deregister_drivers(&iuu_driver, serial_drivers);
-}
-
-module_init(iuu_init);
-module_exit(iuu_exit);
+module_usb_serial_driver(iuu_driver, serial_drivers);
 
 MODULE_AUTHOR("Alain Degreffe eczema@ecze.com");
 
