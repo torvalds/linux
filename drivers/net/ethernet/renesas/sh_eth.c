@@ -38,6 +38,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/ethtool.h>
+#include <linux/if_vlan.h>
 #include <linux/sh_eth.h>
 
 #include "sh_eth.h"
@@ -817,7 +818,8 @@ static int sh_eth_dev_init(struct net_device *ndev)
 		sh_eth_write(ndev, 0, TRIMD);
 
 	/* Recv frame limit set register */
-	sh_eth_write(ndev, RFLR_VALUE, RFLR);
+	sh_eth_write(ndev, ndev->mtu + ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN,
+		     RFLR);
 
 	sh_eth_write(ndev, sh_eth_read(ndev, EESR), EESR);
 	sh_eth_write(ndev, mdp->cd->eesipr_value, EESIPR);

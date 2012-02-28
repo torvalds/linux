@@ -797,7 +797,7 @@ static int bcm_enet_open(struct net_device *dev)
 	if (priv->has_phy) {
 		/* connect to PHY */
 		snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT,
-			 priv->mac_id ? "1" : "0", priv->phy_id);
+			 priv->mii_bus->id, priv->phy_id);
 
 		phydev = phy_connect(dev, phy_id, bcm_enet_adjust_phy_link, 0,
 				     PHY_INTERFACE_MODE_MII);
