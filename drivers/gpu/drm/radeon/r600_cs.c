@@ -1304,6 +1304,7 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 	h0 = G_038004_TEX_HEIGHT(word1) + 1;
 	d0 = G_038004_TEX_DEPTH(word1);
 	nfaces = 1;
+	array = 0;
 	switch (G_038000_DIM(word0)) {
 	case V_038000_SQ_TEX_DIM_1D:
 	case V_038000_SQ_TEX_DIM_2D:
