@@ -257,10 +257,11 @@ static void __init visstrim_m10_board_init(void)
 	imx27_add_imx_ssi(0, &visstrim_m10_ssi_pdata);
 	imx27_add_imx_uart0(&uart_pdata);
 
-	i2c_register_board_info(0, visstrim_m10_i2c_devices,
-				ARRAY_SIZE(visstrim_m10_i2c_devices));
 	imx27_add_imx_i2c(0, &visstrim_m10_i2c_data);
 	imx27_add_imx_i2c(1, &visstrim_m10_i2c_data);
+	i2c_register_board_info(0, visstrim_m10_i2c_devices,
+				ARRAY_SIZE(visstrim_m10_i2c_devices));
+
 	imx27_add_mxc_mmc(0, &visstrim_m10_sdhc_pdata);
 	imx27_add_mxc_ehci_otg(&visstrim_m10_usbotg_pdata);
 	imx27_add_fec(NULL);
