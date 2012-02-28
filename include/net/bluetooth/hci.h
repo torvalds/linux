@@ -237,7 +237,9 @@ enum {
 #define LMP_EXTFEATURES	0x80
 
 /* Extended LMP features */
-#define LMP_HOST_LE	0x02
+#define LMP_HOST_SSP		0x01
+#define LMP_HOST_LE		0x02
+#define LMP_HOST_LE_BREDR	0x04
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
