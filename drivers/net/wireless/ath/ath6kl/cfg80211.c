@@ -885,19 +885,14 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 						  request->ssids[i].ssid);
 	}
 
-	/*
-	 * FIXME: we should clear the IE in fw if it's not set so just
-	 * remove the check altogether
-	 */
-	if (request->ie) {
-		ret = ath6kl_wmi_set_appie_cmd(ar->wmi, vif->fw_vif_idx,
-					       WMI_FRAME_PROBE_REQ,
-					       request->ie, request->ie_len);
-		if (ret) {
-			ath6kl_err("failed to set Probe Request appie for "
-				   "scan");
-			return ret;
-		}
+	/* this also clears IE in fw if it's not set */
+	ret = ath6kl_wmi_set_appie_cmd(ar->wmi, vif->fw_vif_idx,
+				       WMI_FRAME_PROBE_REQ,
+				       request->ie, request->ie_len);
+	if (ret) {
+		ath6kl_err("failed to set Probe Request appie for "
+			   "scan");
+		return ret;
 	}
 
 	/*
@@ -2301,28 +2296,27 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	if (vif->next_mode != AP_NETWORK)
 		return -EOPNOTSUPP;
 
-	if (info->beacon_ies) {
-		res = ath6kl_wmi_set_appie_cmd(ar->wmi, vif->fw_vif_idx,
-					       WMI_FRAME_BEACON,
-					       info->beacon_ies,
-					       info->beacon_ies_len);
-		if (res)
-			return res;
-	}
-	if (info->proberesp_ies) {
-		res = ath6kl_set_ap_probe_resp_ies(vif, info->proberesp_ies,
-						   info->proberesp_ies_len);
-		if (res)
-			return res;
-	}
-	if (info->assocresp_ies) {
-		res = ath6kl_wmi_set_appie_cmd(ar->wmi, vif->fw_vif_idx,
-					       WMI_FRAME_ASSOC_RESP,
-					       info->assocresp_ies,
-					       info->assocresp_ies_len);
-		if (res)
-			return res;
-	}
+	/* this also clears IE in fw if it's not set */
+	res = ath6kl_wmi_set_appie_cmd(ar->wmi, vif->fw_vif_idx,
+				       WMI_FRAME_BEACON,
+				       info->beacon_ies,
+				       info->beacon_ies_len);
+	if (res)
+		return res;
+
+	/* this also clears IE in fw if it's not set */
+	res = ath6kl_set_ap_probe_resp_ies(vif, info->proberesp_ies,
+					   info->proberesp_ies_len);
+	if (res)
+		return res;
+
+	/* this also clears IE in fw if it's not set */
+	res = ath6kl_wmi_set_appie_cmd(ar->wmi, vif->fw_vif_idx,
+				       WMI_FRAME_ASSOC_RESP,
+				       info->assocresp_ies,
+				       info->assocresp_ies_len);
+	if (res)
+		return res;
 
 	if (!add)
 		return 0;
