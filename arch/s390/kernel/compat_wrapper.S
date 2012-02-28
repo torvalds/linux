@@ -662,7 +662,7 @@ ENTRY(sys32_getresuid16_wrapper)
 ENTRY(sys32_poll_wrapper)
 	llgtr	%r2,%r2			# struct pollfd *
 	llgfr	%r3,%r3			# unsigned int
-	lgfr	%r4,%r4			# long
+	lgfr	%r4,%r4			# int
 	jg	sys_poll		# branch to system call
 
 ENTRY(sys32_setresgid16_wrapper)

@@ -190,7 +190,7 @@ static int __init sh_clk_init_parent(struct clk *clk)
 		return -EINVAL;
 	}
 
-	clk->parent = clk->parent_table[val];
+	clk_reparent(clk, clk->parent_table[val]);
 	if (!clk->parent) {
 		pr_err("sh_clk_init_parent: unable to set parent");
 		return -EINVAL;

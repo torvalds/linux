@@ -800,6 +800,11 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 		fs_err(sdp, "can't get quota file inode: %d\n", error);
 		goto fail_rindex;
 	}
+
+	error = gfs2_rindex_update(sdp);
+	if (error)
+		goto fail_qinode;
+
 	return 0;
 
 fail_qinode:
