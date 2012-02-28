@@ -747,27 +747,8 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&ark3116_device, NULL
 };
 
-static int __init ark3116_init(void)
-{
-	int retval;
+module_usb_serial_driver(ark3116_driver, serial_drivers);
 
-	retval = usb_serial_register_drivers(&ark3116_driver, serial_drivers);
-	if (retval == 0) {
-		printk(KERN_INFO "%s:"
-		       DRIVER_VERSION ":"
-		       DRIVER_DESC "\n",
-		       KBUILD_MODNAME);
-	}
-	return retval;
-}
-
-static void __exit ark3116_exit(void)
-{
-	usb_serial_deregister_drivers(&ark3116_driver, serial_drivers);
-}
-
-module_init(ark3116_init);
-module_exit(ark3116_exit);
 MODULE_LICENSE("GPL");
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
