@@ -34,6 +34,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <asm/boot.h>
+#include <tools/le_byteshift.h>
 
 typedef unsigned char  u8;
 typedef unsigned short u16;
@@ -41,6 +42,7 @@ typedef unsigned long  u32;
 
 #define DEFAULT_MAJOR_ROOT 0
 #define DEFAULT_MINOR_ROOT 0
+#define DEFAULT_ROOT_DEV (DEFAULT_MAJOR_ROOT << 8 | DEFAULT_MINOR_ROOT)
 
 /* Minimal number of setup sectors */
 #define SETUP_SECT_MIN 5
@@ -159,7 +161,7 @@ int main(int argc, char ** argv)
 		die("read-error on `setup'");
 	if (c < 1024)
 		die("The setup must be at least 1024 bytes");
-	if (buf[510] != 0x55 || buf[511] != 0xaa)
+	if (get_unaligned_le16(&buf[510]) != 0xAA55)
 		die("Boot block hasn't got boot flag (0xAA55)");
 	fclose(file);
 
@@ -171,8 +173,7 @@ int main(int argc, char ** argv)
 	memset(buf+c, 0, i-c);
 
 	/* Set the default root device */
-	buf[508] = DEFAULT_MINOR_ROOT;
-	buf[509] = DEFAULT_MAJOR_ROOT;
+	put_unaligned_le16(DEFAULT_ROOT_DEV, &buf[508]);
 
 	fprintf(stderr, "Setup is %d bytes (padded to %d bytes).\n", c, i);
 
@@ -192,44 +193,42 @@ int main(int argc, char ** argv)
 
 	/* Patch the setup code with the appropriate size parameters */
 	buf[0x1f1] = setup_sectors-1;
-	buf[0x1f4] = sys_size;
-	buf[0x1f5] = sys_size >> 8;
-	buf[0x1f6] = sys_size >> 16;
-	buf[0x1f7] = sys_size >> 24;
+	put_unaligned_le32(sys_size, &buf[0x1f4]);
 
 #ifdef CONFIG_EFI_STUB
 	file_sz = sz + i + ((sys_size * 16) - sz);
 
-	pe_header = *(unsigned int *)&buf[0x3c];
+	pe_header = get_unaligned_le32(&buf[0x3c]);
 
 	/* Size of code */
-	*(unsigned int *)&buf[pe_header + 0x1c] = file_sz;
+	put_unaligned_le32(file_sz, &buf[pe_header + 0x1c]);
 
 	/* Size of image */
-	*(unsigned int *)&buf[pe_header + 0x50] = file_sz;
+	put_unaligned_le32(file_sz, &buf[pe_header + 0x50]);
 
 #ifdef CONFIG_X86_32
 	/* Address of entry point */
-	*(unsigned int *)&buf[pe_header + 0x28] = i;
+	put_unaligned_le32(i, &buf[pe_header + 0x28]);
 
 	/* .text size */
-	*(unsigned int *)&buf[pe_header + 0xb0] = file_sz;
+	put_unaligned_le32(file_sz, &buf[pe_header + 0xb0]);
 
 	/* .text size of initialised data */
-	*(unsigned int *)&buf[pe_header + 0xb8] = file_sz;
+	put_unaligned_le32(file_sz, &buf[pe_header + 0xb8]);
 #else
 	/*
 	 * Address of entry point. startup_32 is at the beginning and
 	 * the 64-bit entry point (startup_64) is always 512 bytes
 	 * after.
 	 */
-	*(unsigned int *)&buf[pe_header + 0x28] = i + 512;
+	put_unaligned_le32(i + 512, &buf[pe_header + 0x28]);
 
 	/* .text size */
-	*(unsigned int *)&buf[pe_header + 0xc0] = file_sz;
+	put_unaligned_le32(file_sz, &buf[pe_header + 0xc0]);
 
 	/* .text size of initialised data */
-	*(unsigned int *)&buf[pe_header + 0xc8] = file_sz;
+	put_unaligned_le32(file_sz, &buf[pe_header + 0xc8]);
+
 #endif /* CONFIG_X86_32 */
 #endif /* CONFIG_EFI_STUB */
 
