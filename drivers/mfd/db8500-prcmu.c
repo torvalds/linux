@@ -904,6 +904,18 @@ bool db8500_prcmu_pending_irq(void)
 }
 
 /*
+ * This function checks if the specified cpu is in in WFI. It's usage
+ * makes sense only if the gic is decoupled with the db8500_prcmu_gic_decouple
+ * function. Of course passing smp_processor_id() to this function will
+ * always return false...
+ */
+bool db8500_prcmu_is_cpu_in_wfi(int cpu)
+{
+	return readl(PRCM_ARM_WFI_STANDBY) & cpu ? PRCM_ARM_WFI_STANDBY_WFI1 :
+		     PRCM_ARM_WFI_STANDBY_WFI0;
+}
+
+/*
  * This function copies the gic SPI settings to the prcmu in order to
  * monitor them and abort/finish the retention/off sequence or state.
  */

@@ -79,6 +79,8 @@
 
 /* ARM WFI Standby signal register */
 #define PRCM_ARM_WFI_STANDBY    (_PRCMU_BASE + 0x130)
+#define PRCM_ARM_WFI_STANDBY_WFI0               0x08
+#define PRCM_ARM_WFI_STANDBY_WFI1               0x10
 #define PRCM_IOCR		(_PRCMU_BASE + 0x310)
 #define PRCM_IOCR_IOFORCE			0x1
 
