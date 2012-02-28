@@ -130,25 +130,7 @@ struct keyspan_port_private {
 #include "keyspan_usa67msg.h"
 
 
-/* Functions used by new usb-serial code. */
-static int __init keyspan_init(void)
-{
-	int retval;
-
-	retval = usb_serial_register_drivers(&keyspan_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
-}
-
-static void __exit keyspan_exit(void)
-{
-	usb_serial_deregister_drivers(&keyspan_driver, serial_drivers);
-}
-
-module_init(keyspan_init);
-module_exit(keyspan_exit);
+module_usb_serial_driver(keyspan_driver, serial_drivers);
 
 static void keyspan_break_ctl(struct tty_struct *tty, int break_state)
 {
