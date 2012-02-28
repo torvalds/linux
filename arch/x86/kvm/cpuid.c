@@ -247,7 +247,8 @@ static int do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 
 	/* cpuid 7.0.ebx */
 	const u32 kvm_supported_word9_x86_features =
-		F(FSGSBASE) | F(BMI1) | F(AVX2) | F(SMEP) | F(BMI2) | F(ERMS);
+		F(FSGSBASE) | F(BMI1) | F(HLE) | F(AVX2) | F(SMEP) |
+		F(BMI2) | F(ERMS) | F(RTM);
 
 	/* all calls to cpuid_count() should be made on the same cpu */
 	get_cpu();
