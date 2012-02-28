@@ -111,7 +111,7 @@ void tcp_destroy_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss)
 	val = res_counter_read_u64(&tcp->tcp_memory_allocated, RES_LIMIT);
 
 	if (val != RESOURCE_MAX)
-		jump_label_dec(&memcg_socket_limit_enabled);
+		static_key_slow_dec(&memcg_socket_limit_enabled);
 }
 EXPORT_SYMBOL(tcp_destroy_cgroup);
 
@@ -143,9 +143,9 @@ static int tcp_update_limit(struct mem_cgroup *memcg, u64 val)
 					     net->ipv4.sysctl_tcp_mem[i]);
 
 	if (val == RESOURCE_MAX && old_lim != RESOURCE_MAX)
-		jump_label_dec(&memcg_socket_limit_enabled);
+		static_key_slow_dec(&memcg_socket_limit_enabled);
 	else if (old_lim == RESOURCE_MAX && val != RESOURCE_MAX)
-		jump_label_inc(&memcg_socket_limit_enabled);
+		static_key_slow_inc(&memcg_socket_limit_enabled);
 
 	return 0;
 }
