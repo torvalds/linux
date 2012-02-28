@@ -264,6 +264,21 @@ static inline u16 rpm_to_reg(int rpm)
 	return 1500000 / rpm;
 }
 
+static bool duty_mode_enabled(u8 pwm_enable)
+{
+	switch (pwm_enable) {
+	case 0: /* Manual, duty mode (full speed) */
+	case 1: /* Manual, duty mode */
+	case 4: /* Auto, duty mode */
+		return true;
+	case 2: /* Auto, speed mode */
+	case 3: /* Manual, speed mode */
+		return false;
+	default:
+		BUG();
+	}
+}
+
 static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
@@ -337,11 +352,15 @@ static int set_pwm_enable_direct(struct i2c_client *client, int nr, int val)
 	struct f75375_data *data = i2c_get_clientdata(client);
 	u8 fanmode;
 
-	if (val < 0 || val > 3)
+	if (val < 0 || val > 4)
 		return -EINVAL;
 
 	fanmode = f75375_read8(client, F75375_REG_FAN_TIMER);
 	if (data->kind == f75387) {
+		/* For now, deny dangerous toggling of duty mode */
+		if (duty_mode_enabled(data->pwm_enable[nr]) !=
+				duty_mode_enabled(val))
+			return -EOPNOTSUPP;
 		/* clear each fanX_mode bit before setting them properly */
 		fanmode &= ~(1 << F75387_FAN_DUTY_MODE(nr));
 		fanmode &= ~(1 << F75387_FAN_MANU_MODE(nr));
@@ -355,11 +374,13 @@ static int set_pwm_enable_direct(struct i2c_client *client, int nr, int val)
 			fanmode  |= (1 << F75387_FAN_MANU_MODE(nr));
 			fanmode  |= (1 << F75387_FAN_DUTY_MODE(nr));
 			break;
-		case 2: /* AUTOMATIC*/
-			fanmode  |=  (1 << F75387_FAN_DUTY_MODE(nr));
+		case 2: /* Automatic, speed mode */
 			break;
 		case 3: /* fan speed */
 			fanmode |= (1 << F75387_FAN_MANU_MODE(nr));
+			break;
+		case 4: /* Automatic, pwm */
+			fanmode |= (1 << F75387_FAN_DUTY_MODE(nr));
 			break;
 		}
 	} else {
@@ -378,6 +399,8 @@ static int set_pwm_enable_direct(struct i2c_client *client, int nr, int val)
 			break;
 		case 3: /* fan speed */
 			break;
+		case 4: /* Automatic pwm */
+			return -EINVAL;
 		}
 	}
 
@@ -735,14 +758,17 @@ static void f75375_init(struct i2c_client *client, struct f75375_data *data,
 
 				manu = ((mode >> F75387_FAN_MANU_MODE(nr)) & 1);
 				duty = ((mode >> F75387_FAN_DUTY_MODE(nr)) & 1);
-				if (manu && duty)
-					/* speed */
+				if (!manu && duty)
+					/* auto, pwm */
+					data->pwm_enable[nr] = 4;
+				else if (manu && !duty)
+					/* manual, speed */
 					data->pwm_enable[nr] = 3;
-				else if (!manu && duty)
-					/* automatic */
+				else if (!manu && !duty)
+					/* automatic, speed */
 					data->pwm_enable[nr] = 2;
 				else
-					/* manual */
+					/* manual, pwm */
 					data->pwm_enable[nr] = 1;
 			} else {
 				if (!(conf & (1 << F75375_FAN_CTRL_LINEAR(nr))))
