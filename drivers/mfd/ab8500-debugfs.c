@@ -1567,7 +1567,7 @@ static int ab8500_debug_probe(struct platform_device *plf)
 	ab8500 = dev_get_drvdata(plf->dev.parent);
 	num_irqs = ab8500->mask_size;
 
-	irq_count = kzalloc(sizeof(irq_count)*num_irqs, GFP_KERNEL);
+	irq_count = kzalloc(sizeof(*irq_count)*num_irqs, GFP_KERNEL);
 	if (!irq_count)
 		return -ENOMEM;
 
