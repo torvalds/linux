@@ -613,7 +613,6 @@ static struct ieee80211_rate mwifiex_rates[] = {
 	{.bitrate = 20, .hw_value = 4, },
 	{.bitrate = 55, .hw_value = 11, },
 	{.bitrate = 110, .hw_value = 22, },
-	{.bitrate = 220, .hw_value = 44, },
 	{.bitrate = 60, .hw_value = 12, },
 	{.bitrate = 90, .hw_value = 18, },
 	{.bitrate = 120, .hw_value = 24, },
@@ -622,7 +621,6 @@ static struct ieee80211_rate mwifiex_rates[] = {
 	{.bitrate = 360, .hw_value = 72, },
 	{.bitrate = 480, .hw_value = 96, },
 	{.bitrate = 540, .hw_value = 108, },
-	{.bitrate = 720, .hw_value = 144, },
 };
 
 /* Channel definitions to be advertised to cfg80211 */
@@ -688,8 +686,8 @@ static struct ieee80211_channel mwifiex_channels_5ghz[] = {
 static struct ieee80211_supported_band mwifiex_band_5ghz = {
 	.channels = mwifiex_channels_5ghz,
 	.n_channels = ARRAY_SIZE(mwifiex_channels_5ghz),
-	.bitrates = mwifiex_rates - 4,
-	.n_bitrates = ARRAY_SIZE(mwifiex_rates) + 4,
+	.bitrates = mwifiex_rates + 4,
+	.n_bitrates = ARRAY_SIZE(mwifiex_rates) - 4,
 };
 
 
