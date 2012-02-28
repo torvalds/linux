@@ -958,20 +958,7 @@ static void oti6858_write_bulk_callback(struct urb *urb)
 	}
 }
 
-/* module description and (de)initialization */
-
-static int __init oti6858_init(void)
-{
-	return usb_serial_register_drivers(&oti6858_driver, serial_drivers);
-}
-
-static void __exit oti6858_exit(void)
-{
-	usb_serial_deregister_drivers(&oti6858_driver, serial_drivers);
-}
-
-module_init(oti6858_init);
-module_exit(oti6858_exit);
+module_usb_serial_driver(oti6858_driver, serial_drivers);
 
 MODULE_DESCRIPTION(OTI6858_DESCRIPTION);
 MODULE_AUTHOR(OTI6858_AUTHOR);
