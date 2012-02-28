@@ -702,6 +702,8 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	enum reset_type reset_method = RESET_TYPE_INVISIBLE;
 	int rc_test = 0, rc_reset = 0, rc;
 
+	efx_selftest_async_cancel(efx);
+
 	/* Online (i.e. non-disruptive) testing
 	 * This checks interrupt generation, event delivery and PHY presence. */
 
@@ -794,3 +796,36 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	return rc_test;
 }
 
+void efx_selftest_async_start(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+
+	efx_for_each_channel(channel, efx)
+		efx_nic_event_test_start(channel);
+	schedule_delayed_work(&efx->selftest_work, IRQ_TIMEOUT);
+}
+
+void efx_selftest_async_cancel(struct efx_nic *efx)
+{
+	cancel_delayed_work_sync(&efx->selftest_work);
+}
+
+void efx_selftest_async_work(struct work_struct *data)
+{
+	struct efx_nic *efx = container_of(data, struct efx_nic,
+					   selftest_work.work);
+	struct efx_channel *channel;
+	int cpu;
+
+	efx_for_each_channel(channel, efx) {
+		cpu = efx_nic_event_test_irq_cpu(channel);
+		if (cpu < 0)
+			netif_err(efx, ifup, efx->net_dev,
+				  "channel %d failed to trigger an interrupt\n",
+				  channel->channel);
+		else
+			netif_dbg(efx, ifup, efx->net_dev,
+				  "channel %d triggered interrupt on CPU %d\n",
+				  channel->channel, cpu);
+	}
+}

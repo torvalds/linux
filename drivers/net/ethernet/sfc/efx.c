@@ -25,6 +25,7 @@
 #include "net_driver.h"
 #include "efx.h"
 #include "nic.h"
+#include "selftest.h"
 
 #include "mcdi.h"
 #include "workarounds.h"
@@ -1564,8 +1565,9 @@ static void efx_start_all(struct efx_nic *efx)
  * since we're holding the rtnl_lock at this point. */
 static void efx_flush_all(struct efx_nic *efx)
 {
-	/* Make sure the hardware monitor is stopped */
+	/* Make sure the hardware monitor and event self-test are stopped */
 	cancel_delayed_work_sync(&efx->monitor_work);
+	efx_selftest_async_cancel(efx);
 	/* Stop scheduled port reconfigurations */
 	cancel_work_sync(&efx->mac_work);
 }
@@ -1825,6 +1827,7 @@ static int efx_net_open(struct net_device *net_dev)
 	efx_link_status_changed(efx);
 
 	efx_start_all(efx);
+	efx_selftest_async_start(efx);
 	return 0;
 }
 
@@ -2375,6 +2378,7 @@ static int efx_init_struct(struct efx_nic *efx, const struct efx_nic_type *type,
 #endif
 	INIT_WORK(&efx->reset_work, efx_reset_work);
 	INIT_DELAYED_WORK(&efx->monitor_work, efx_monitor);
+	INIT_DELAYED_WORK(&efx->selftest_work, efx_selftest_async_work);
 	efx->pci_dev = pci_dev;
 	efx->msg_enable = debug;
 	efx->state = STATE_INIT;

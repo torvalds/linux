@@ -1083,7 +1083,7 @@ efx_handle_generated_event(struct efx_channel *channel, efx_qword_t *event)
 	code = _EFX_CHANNEL_MAGIC_CODE(magic);
 
 	if (magic == EFX_CHANNEL_MAGIC_TEST(channel)) {
-		/* ignore */
+		channel->event_test_cpu = raw_smp_processor_id();
 	} else if (rx_queue && magic == EFX_CHANNEL_MAGIC_FILL(rx_queue)) {
 		/* The queue must be empty, so we won't receive any rx
 		 * events, so efx_process_channel() won't refill the
@@ -1334,7 +1334,7 @@ void efx_nic_remove_eventq(struct efx_channel *channel)
 
 void efx_nic_event_test_start(struct efx_channel *channel)
 {
-	channel->last_irq_cpu = -1;
+	channel->event_test_cpu = -1;
 	smp_wmb();
 	efx_magic_event(channel, EFX_CHANNEL_MAGIC_TEST(channel));
 }
