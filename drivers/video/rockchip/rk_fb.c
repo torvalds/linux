@@ -303,7 +303,10 @@ static int rk_fb_set_par(struct fb_info *info)
                     par->y_offset = (yoffset*xvir + xoffset)*2;
                     break;
                 case 32:   // rgb888
-                    par->format = RGB888;
+                    if(var->transp.length)      //we need ditinguish ARGB888 and RGB888
+                        par->format = ARGB888;  //in some register,they have different configration
+                    else
+                        par->format = RGB888;
                     fix->line_length = 4 * xvir;
                     par->y_offset = (yoffset*xvir + xoffset)*4;
                     break;
@@ -425,6 +428,26 @@ static struct fb_fix_screeninfo def_fix = {
 	.visual 	 = FB_VISUAL_TRUECOLOR,
 		
 };
+
+
+/*****************************************************************
+this two function is for other module that in the kernel which
+need show image directly through fb
+fb_id:we have 4 fb here,default we use fb0 for ui display
+*******************************************************************/
+struct fb_info * rk_get_fb(int fb_id)
+{
+    struct rk_fb_inf *inf =  platform_get_drvdata(g_fb_pdev);
+    struct fb_info *fb = inf->fb[fb_id];
+    return fb;
+}
+EXPORT_SYMBOL(get_fb);
+
+void rk_direct_fb_show(struct fb_info * fbi)
+{
+    rk_fb_set_par(fbi);
+}
+EXPORT_SYMBOL(direct_fb_show);
 
 static int request_fb_buffer(struct fb_info *fbi,int fb_id)
 {
