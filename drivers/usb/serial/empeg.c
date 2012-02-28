@@ -138,25 +138,7 @@ static void empeg_init_termios(struct tty_struct *tty)
 	tty_encode_baud_rate(tty, 115200, 115200);
 }
 
-static int __init empeg_init(void)
-{
-	int retval;
-
-	retval = usb_serial_register_drivers(&empeg_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
-}
-
-static void __exit empeg_exit(void)
-{
-	usb_serial_deregister_drivers(&empeg_driver, serial_drivers);
-}
-
-
-module_init(empeg_init);
-module_exit(empeg_exit);
+module_usb_serial_driver(empeg_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
