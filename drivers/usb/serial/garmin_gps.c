@@ -1516,29 +1516,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&garmin_device, NULL
 };
 
-
-static int __init garmin_init(void)
-{
-	int retval;
-
-	retval = usb_serial_register_drivers(&garmin_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
-}
-
-
-static void __exit garmin_exit(void)
-{
-	usb_serial_deregister_drivers(&garmin_driver, serial_drivers);
-}
-
-
-
-
-module_init(garmin_init);
-module_exit(garmin_exit);
+module_usb_serial_driver(garmin_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -1548,4 +1526,3 @@ module_param(debug, bool, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
 module_param(initial_mode, int, S_IRUGO);
 MODULE_PARM_DESC(initial_mode, "Initial mode");
-
