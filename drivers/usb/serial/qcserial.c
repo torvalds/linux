@@ -285,18 +285,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&qcdevice, NULL
 };
 
-static int __init qcinit(void)
-{
-	return usb_serial_register_drivers(&qcdriver, serial_drivers);
-}
-
-static void __exit qcexit(void)
-{
-	usb_serial_deregister_drivers(&qcdriver, serial_drivers);
-}
-
-module_init(qcinit);
-module_exit(qcexit);
+module_usb_serial_driver(qcdriver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
