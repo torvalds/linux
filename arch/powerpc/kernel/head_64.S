@@ -32,7 +32,6 @@
 #include <asm/cputable.h>
 #include <asm/setup.h>
 #include <asm/hvcall.h>
-#include <asm/iseries/lpar_map.h>
 #include <asm/thread_info.h>
 #include <asm/firmware.h>
 #include <asm/page_64.h>
@@ -56,10 +55,6 @@
  *      with device-tree in gpr3. We also get OPAL base in r8 and
  *	entry in r9 for debugging purposes
  *   2. Secondary processors enter at 0x60 with PIR in gpr3
- *
- *  For iSeries:
- *   1. The MMU is on (as it always is for iSeries)
- *   2. The kernel is entered at system_reset_iSeries
  *
  *  For Book3E processors:
  *   1. The MMU is on running in AS0 in a state defined in ePAPR
@@ -92,15 +87,6 @@ __secondary_hold_spinloop:
 	.globl	__secondary_hold_acknowledge
 __secondary_hold_acknowledge:
 	.llong	0x0
-
-#ifdef CONFIG_PPC_ISERIES
-	/*
-	 * At offset 0x20, there is a pointer to iSeries LPAR data.
-	 * This is required by the hypervisor
-	 */
-	. = 0x20
-	.llong hvReleaseData-KERNELBASE
-#endif /* CONFIG_PPC_ISERIES */
 
 #ifdef CONFIG_RELOCATABLE
 	/* This flag is set to 1 by a loader if the kernel should run
@@ -582,7 +568,7 @@ _GLOBAL(pmac_secondary_start)
  *   1. Processor number
  *   2. Segment table pointer (virtual address)
  * On entry the following are set:
- *   r1	       = stack pointer.  vaddr for iSeries, raddr (temp stack) for pSeries
+ *   r1	       = stack pointer (real addr of temp stack)
  *   r24       = cpu# (in Linux terms)
  *   r13       = paca virtual address
  *   SPRG_PACA = paca virtual address
@@ -595,7 +581,7 @@ __secondary_start:
 	/* Set thread priority to MEDIUM */
 	HMT_MEDIUM
 
-	/* Initialize the kernel stack.  Just a repeat for iSeries.	 */
+	/* Initialize the kernel stack */
 	LOAD_REG_ADDR(r3, current_set)
 	sldi	r28,r24,3		/* get current_set[cpu#]	 */
 	ldx	r14,r3,r28
@@ -615,20 +601,13 @@ __secondary_start:
 	li	r7,0
 	mtlr	r7
 
+	/* Mark interrupts both hard and soft disabled */
+	stb	r7,PACAHARDIRQEN(r13)
+	stb	r7,PACASOFTIRQEN(r13)
+
 	/* enable MMU and jump to start_secondary */
 	LOAD_REG_ADDR(r3, .start_secondary_prolog)
 	LOAD_REG_IMMEDIATE(r4, MSR_KERNEL)
-#ifdef CONFIG_PPC_ISERIES
-BEGIN_FW_FTR_SECTION
-	ori	r4,r4,MSR_EE
-	li	r8,1
-	stb	r8,PACAHARDIRQEN(r13)
-END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
-#endif
-BEGIN_FW_FTR_SECTION
-	stb	r7,PACAHARDIRQEN(r13)
-END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
-	stb	r7,PACASOFTIRQEN(r13)
 
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
@@ -774,17 +753,8 @@ _INIT_GLOBAL(start_here_common)
 	bl	.setup_system
 
 	/* Load up the kernel context */
-5:
-	li	r5,0
+5:	li	r5,0
 	stb	r5,PACASOFTIRQEN(r13)	/* Soft Disabled */
-#ifdef CONFIG_PPC_ISERIES
-BEGIN_FW_FTR_SECTION
-	mfmsr	r5
-	ori	r5,r5,MSR_EE		/* Hard Enabled on iSeries*/
-	mtmsrd	r5
-	li	r5,1
-END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
-#endif
 	stb	r5,PACAHARDIRQEN(r13)	/* Hard Disabled on others */
 
 	bl	.start_kernel

@@ -19,7 +19,7 @@
  * We layout physical memory as follows:
  * 0x0000 - 0x00ff : Secondary processor spin code
  * 0x0100 - 0x2fff : pSeries Interrupt prologs
- * 0x3000 - 0x5fff : interrupt support, iSeries and common interrupt prologs
+ * 0x3000 - 0x5fff : interrupt support common interrupt prologs
  * 0x6000 - 0x6fff : Initial (CPU0) segment table
  * 0x7000 - 0x7fff : FWNMI data area
  * 0x8000 -        : Early init and support code
@@ -458,6 +458,7 @@ machine_check_common:
 	bl	.machine_check_exception
 	b	.ret_from_except
 
+	STD_EXCEPTION_COMMON_LITE(0x500, hardware_interrupt, do_IRQ)
 	STD_EXCEPTION_COMMON_LITE(0x900, decrementer, .timer_interrupt)
 	STD_EXCEPTION_COMMON(0xa00, trap_0a, .unknown_exception)
 	STD_EXCEPTION_COMMON(0xb00, trap_0b, .unknown_exception)
@@ -672,12 +673,6 @@ _GLOBAL(slb_miss_realmode)
 	ld	r10,PACA_EXSLB+EX_LR(r13)
 	ld	r3,PACA_EXSLB+EX_R3(r13)
 	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
-#ifdef CONFIG_PPC_ISERIES
-BEGIN_FW_FTR_SECTION
-	ld	r11,PACALPPACAPTR(r13)
-	ld	r11,LPPACASRR0(r11)		/* get SRR0 value */
-END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
-#endif /* CONFIG_PPC_ISERIES */
 
 	mtlr	r10
 
@@ -690,12 +685,6 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
 .machine	pop
 
-#ifdef CONFIG_PPC_ISERIES
-BEGIN_FW_FTR_SECTION
-	mtspr	SPRN_SRR0,r11
-	mtspr	SPRN_SRR1,r12
-END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
-#endif /* CONFIG_PPC_ISERIES */
 	ld	r9,PACA_EXSLB+EX_R9(r13)
 	ld	r10,PACA_EXSLB+EX_R10(r13)
 	ld	r11,PACA_EXSLB+EX_R11(r13)
@@ -704,13 +693,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 	rfid
 	b	.	/* prevent speculative execution */
 
-2:
-#ifdef CONFIG_PPC_ISERIES
-BEGIN_FW_FTR_SECTION
-	b	unrecov_slb
-END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
-#endif /* CONFIG_PPC_ISERIES */
-	mfspr	r11,SPRN_SRR0
+2:	mfspr	r11,SPRN_SRR0
 	ld	r10,PACAKBASE(r13)
 	LOAD_HANDLER(r10,unrecov_slb)
 	mtspr	SPRN_SRR0,r10
@@ -727,20 +710,6 @@ unrecov_slb:
 	bl	.unrecoverable_exception
 	b	1b
 
-	.align	7
-	.globl hardware_interrupt_common
-	.globl hardware_interrupt_entry
-hardware_interrupt_common:
-	EXCEPTION_PROLOG_COMMON(0x500, PACA_EXGEN)
-	FINISH_NAP
-hardware_interrupt_entry:
-	DISABLE_INTS
-BEGIN_FTR_SECTION
-	bl	.ppc64_runlatch_on
-END_FTR_SECTION_IFSET(CPU_FTR_CTRL)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.do_IRQ
-	b	.ret_from_except_lite
 
 #ifdef CONFIG_PPC_970_NAP
 power4_fixup_nap:
@@ -913,11 +882,7 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_SLB)
 	andis.	r0,r0,NMI_MASK@h	/* (i.e. an irq when soft-disabled) */
 	bne	77f			/* then don't call hash_page now */
 
-	/*
-	 * On iSeries, we soft-disable interrupts here, then
-	 * hard-enable interrupts so that the hash_page code can spin on
-	 * the hash_table_lock without problems on a shared processor.
-	 */
+	/* We run with interrupts both soft and hard disabled */
 	DISABLE_INTS
 
 	/*
@@ -956,25 +921,11 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_SLB)
 	bl	.hash_page		/* build HPTE if possible */
 	cmpdi	r3,0			/* see if hash_page succeeded */
 
-BEGIN_FW_FTR_SECTION
-	/*
-	 * If we had interrupts soft-enabled at the point where the
-	 * DSI/ISI occurred, and an interrupt came in during hash_page,
-	 * handle it now.
-	 * We jump to ret_from_except_lite rather than fast_exception_return
-	 * because ret_from_except_lite will check for and handle pending
-	 * interrupts if necessary.
-	 */
-	beq	13f
-END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
-
-BEGIN_FW_FTR_SECTION
 	/*
 	 * Here we have interrupts hard-disabled, so it is sufficient
 	 * to restore paca->{soft,hard}_enable and get out.
 	 */
 	beq	fast_exc_return_irq	/* Return from exception on success */
-END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
 
 	/* For a hash failure, we don't bother re-enabling interrupts */
 	ble-	12f
@@ -1141,51 +1092,19 @@ _GLOBAL(do_stab_bolted)
 	.= 0x7000
 	.globl fwnmi_data_area
 fwnmi_data_area:
-#endif /* defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV) */
 
-	/* iSeries does not use the FWNMI stuff, so it is safe to put
-	 * this here, even if we later allow kernels that will boot on
-	 * both pSeries and iSeries */
-#ifdef CONFIG_PPC_ISERIES
-        . = LPARMAP_PHYS
-	.globl xLparMap
-xLparMap:
-	.quad	HvEsidsToMap		/* xNumberEsids */
-	.quad	HvRangesToMap		/* xNumberRanges */
-	.quad	STAB0_PAGE		/* xSegmentTableOffs */
-	.zero	40			/* xRsvd */
-	/* xEsids (HvEsidsToMap entries of 2 quads) */
-	.quad	PAGE_OFFSET_ESID	/* xKernelEsid */
-	.quad	PAGE_OFFSET_VSID	/* xKernelVsid */
-	.quad	VMALLOC_START_ESID	/* xKernelEsid */
-	.quad	VMALLOC_START_VSID	/* xKernelVsid */
-	/* xRanges (HvRangesToMap entries of 3 quads) */
-	.quad	HvPagesToMap		/* xPages */
-	.quad	0			/* xOffset */
-	.quad	PAGE_OFFSET_VSID << (SID_SHIFT - HW_PAGE_SHIFT)	/* xVPN */
-
-#endif /* CONFIG_PPC_ISERIES */
-
-#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
 	/* pseries and powernv need to keep the whole page from
 	 * 0x7000 to 0x8000 free for use by the firmware
 	 */
         . = 0x8000
 #endif /* defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV) */
 
-/*
- * Space for CPU0's segment table.
- *
- * On iSeries, the hypervisor must fill in at least one entry before
- * we get control (with relocate on).  The address is given to the hv
- * as a page number (see xLparMap above), so this must be at a
- * fixed address (the linker can't compute (u64)&initial_stab >>
- * PAGE_SHIFT).
- */
-	. = STAB0_OFFSET	/* 0x8000 */
+/* Space for CPU0's segment table */
+	.balign 4096
 	.globl initial_stab
 initial_stab:
 	.space	4096
+
 #ifdef CONFIG_PPC_POWERNV
 _GLOBAL(opal_mc_secondary_handler)
 	HMT_MEDIUM

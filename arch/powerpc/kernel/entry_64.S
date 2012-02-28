@@ -127,17 +127,6 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 	stb	r10,PACASOFTIRQEN(r13)
 	stb	r10,PACAHARDIRQEN(r13)
 	std	r10,SOFTE(r1)
-#ifdef CONFIG_PPC_ISERIES
-BEGIN_FW_FTR_SECTION
-	/* Hack for handling interrupts when soft-enabling on iSeries */
-	cmpdi	cr1,r0,0x5555		/* syscall 0x5555 */
-	andi.	r10,r12,MSR_PR		/* from kernel */
-	crand	4*cr0+eq,4*cr1+eq,4*cr0+eq
-	bne	2f
-	b	hardware_interrupt_entry
-2:
-END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
-#endif /* CONFIG_PPC_ISERIES */
 
 	/* Hard enable interrupts */
 #ifdef CONFIG_PPC_BOOK3E
@@ -591,15 +580,10 @@ _GLOBAL(ret_from_except_lite)
 	ld	r4,TI_FLAGS(r9)
 	andi.	r0,r4,_TIF_USER_WORK_MASK
 	bne	do_work
-#endif
+#endif /* !CONFIG_PREEMPT */
 
 restore:
-BEGIN_FW_FTR_SECTION
 	ld	r5,SOFTE(r1)
-FW_FTR_SECTION_ELSE
-	b	.Liseries_check_pending_irqs
-ALT_FW_FTR_SECTION_END_IFCLR(FW_FEATURE_ISERIES)
-2:
 	TRACE_AND_RESTORE_IRQ(r5);
 
 	/* extract EE bit and use it to restore paca->hard_enabled */
@@ -668,30 +652,6 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	b	.	/* prevent speculative execution */
 
 #endif /* CONFIG_PPC_BOOK3E */
-
-.Liseries_check_pending_irqs:
-#ifdef CONFIG_PPC_ISERIES
-	ld	r5,SOFTE(r1)
-	cmpdi	0,r5,0
-	beq	2b
-	/* Check for pending interrupts (iSeries) */
-	ld	r3,PACALPPACAPTR(r13)
-	ld	r3,LPPACAANYINT(r3)
-	cmpdi	r3,0
-	beq+	2b			/* skip do_IRQ if no interrupts */
-
-	li	r3,0
-	stb	r3,PACASOFTIRQEN(r13)	/* ensure we are soft-disabled */
-#ifdef CONFIG_TRACE_IRQFLAGS
-	bl	.trace_hardirqs_off
-	mfmsr	r10
-#endif
-	ori	r10,r10,MSR_EE
-	mtmsrd	r10			/* hard-enable again */
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.do_IRQ
-	b	.ret_from_except_lite		/* loop back and handle more */
-#endif
 
 do_work:
 #ifdef CONFIG_PREEMPT
