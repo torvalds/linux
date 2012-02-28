@@ -110,10 +110,7 @@ static int xfrm4_beet_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb_push(skb, sizeof(*iph));
 	skb_reset_network_header(skb);
-
-	memmove(skb->data - skb->mac_len, skb_mac_header(skb),
-		skb->mac_len);
-	skb_set_mac_header(skb, -skb->mac_len);
+	skb_mac_header_rebuild(skb);
 
 	xfrm4_beet_make_header(skb);
 

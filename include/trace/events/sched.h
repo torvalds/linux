@@ -370,56 +370,6 @@ TRACE_EVENT(sched_stat_runtime,
 			(unsigned long long)__entry->vruntime)
 );
 
-#ifdef CREATE_TRACE_POINTS
-static inline u64 trace_get_sleeptime(struct task_struct *tsk)
-{
-#ifdef CONFIG_SCHEDSTATS
-	u64 block, sleep;
-
-	block = tsk->se.statistics.block_start;
-	sleep = tsk->se.statistics.sleep_start;
-	tsk->se.statistics.block_start = 0;
-	tsk->se.statistics.sleep_start = 0;
-
-	return block ? block : sleep ? sleep : 0;
-#else
-	return 0;
-#endif
-}
-#endif
-
-/*
- * Tracepoint for accounting sleeptime (time the task is sleeping
- * or waiting for I/O).
- */
-TRACE_EVENT(sched_stat_sleeptime,
-
-	TP_PROTO(struct task_struct *tsk, u64 now),
-
-	TP_ARGS(tsk, now),
-
-	TP_STRUCT__entry(
-		__array( char,	comm,	TASK_COMM_LEN	)
-		__field( pid_t,	pid			)
-		__field( u64,	sleeptime		)
-	),
-
-	TP_fast_assign(
-		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
-		__entry->pid		= tsk->pid;
-		__entry->sleeptime = trace_get_sleeptime(tsk);
-		__entry->sleeptime = __entry->sleeptime ?
-				now - __entry->sleeptime : 0;
-	)
-	TP_perf_assign(
-		__perf_count(__entry->sleeptime);
-	),
-
-	TP_printk("comm=%s pid=%d sleeptime=%Lu [ns]",
-			__entry->comm, __entry->pid,
-			(unsigned long long)__entry->sleeptime)
-);
-
 /*
  * Tracepoint for showing priority inheritance modifying a tasks
  * priority.
