@@ -44,18 +44,8 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&funsoft_device, NULL
 };
 
-static int __init funsoft_init(void)
-{
-	return usb_serial_register_drivers(&funsoft_driver, serial_drivers);
-}
+module_usb_serial_driver(funsoft_driver, serial_drivers);
 
-static void __exit funsoft_exit(void)
-{
-	usb_serial_deregister_drivers(&funsoft_driver, serial_drivers);
-}
-
-module_init(funsoft_init);
-module_exit(funsoft_exit);
 MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
