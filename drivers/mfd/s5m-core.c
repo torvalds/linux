@@ -62,7 +62,7 @@ EXPORT_SYMBOL_GPL(s5m_reg_read);
 
 int s5m_bulk_read(struct s5m87xx_dev *s5m87xx, u8 reg, int count, u8 *buf)
 {
-	return regmap_bulk_read(s5m87xx->regmap, reg, buf, count);;
+	return regmap_bulk_read(s5m87xx->regmap, reg, buf, count);
 }
 EXPORT_SYMBOL_GPL(s5m_bulk_read);
 
@@ -94,8 +94,7 @@ static int s5m87xx_i2c_probe(struct i2c_client *i2c,
 {
 	struct s5m_platform_data *pdata = i2c->dev.platform_data;
 	struct s5m87xx_dev *s5m87xx;
-	int ret = 0;
-	int error;
+	int ret;
 
 	s5m87xx = devm_kzalloc(&i2c->dev, sizeof(struct s5m87xx_dev),
 				GFP_KERNEL);
@@ -117,9 +116,9 @@ static int s5m87xx_i2c_probe(struct i2c_client *i2c,
 
 	s5m87xx->regmap = regmap_init_i2c(i2c, &s5m_regmap_config);
 	if (IS_ERR(s5m87xx->regmap)) {
-		error = PTR_ERR(s5m87xx->regmap);
+		ret = PTR_ERR(s5m87xx->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
-			error);
+			ret);
 		goto err;
 	}
 
