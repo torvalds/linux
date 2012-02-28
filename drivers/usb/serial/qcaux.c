@@ -97,16 +97,5 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&qcaux_device, NULL
 };
 
-static int __init qcaux_init(void)
-{
-	return usb_serial_register_drivers(&qcaux_driver, serial_drivers);
-}
-
-static void __exit qcaux_exit(void)
-{
-	usb_serial_deregister_drivers(&qcaux_driver, serial_drivers);
-}
-
-module_init(qcaux_init);
-module_exit(qcaux_exit);
+module_usb_serial_driver(qcaux_driver, serial_drivers);
 MODULE_LICENSE("GPL");
