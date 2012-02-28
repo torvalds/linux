@@ -156,8 +156,6 @@ int ath6kl_core_init(struct ath6kl *ar)
 
 	set_bit(FIRST_BOOT, &ar->flag);
 
-	ndev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
-
 	ret = ath6kl_init_hw_start(ar);
 	if (ret) {
 		ath6kl_err("Failed to start hardware: %d\n", ret);
