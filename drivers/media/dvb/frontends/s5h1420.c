@@ -472,15 +472,15 @@ static void s5h1420_reset(struct s5h1420_state* state)
 }
 
 static void s5h1420_setsymbolrate(struct s5h1420_state* state,
-				  struct dvb_frontend_parameters *p)
+				  struct dtv_frontend_properties *p)
 {
 	u8 v;
 	u64 val;
 
 	dprintk("enter %s\n", __func__);
 
-	val = ((u64) p->u.qpsk.symbol_rate / 1000ULL) * (1ULL<<24);
-	if (p->u.qpsk.symbol_rate < 29000000)
+	val = ((u64) p->symbol_rate / 1000ULL) * (1ULL<<24);
+	if (p->symbol_rate < 29000000)
 		val *= 2;
 	do_div(val, (state->fclk / 1000));
 
@@ -543,7 +543,7 @@ static int s5h1420_getfreqoffset(struct s5h1420_state* state)
 }
 
 static void s5h1420_setfec_inversion(struct s5h1420_state* state,
-				     struct dvb_frontend_parameters *p)
+				     struct dtv_frontend_properties *p)
 {
 	u8 inversion = 0;
 	u8 vit08, vit09;
@@ -555,11 +555,11 @@ static void s5h1420_setfec_inversion(struct s5h1420_state* state,
 	else if (p->inversion == INVERSION_ON)
 		inversion = state->config->invert ? 0 : 0x08;
 
-	if ((p->u.qpsk.fec_inner == FEC_AUTO) || (p->inversion == INVERSION_AUTO)) {
+	if ((p->fec_inner == FEC_AUTO) || (p->inversion == INVERSION_AUTO)) {
 		vit08 = 0x3f;
 		vit09 = 0;
 	} else {
-		switch(p->u.qpsk.fec_inner) {
+		switch (p->fec_inner) {
 		case FEC_1_2:
 			vit08 = 0x01; vit09 = 0x10;
 			break;
@@ -628,9 +628,9 @@ static fe_spectral_inversion_t s5h1420_getinversion(struct s5h1420_state* state)
 	return INVERSION_OFF;
 }
 
-static int s5h1420_set_frontend(struct dvb_frontend* fe,
-				struct dvb_frontend_parameters *p)
+static int s5h1420_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct s5h1420_state* state = fe->demodulator_priv;
 	int frequency_delta;
 	struct dvb_frontend_tune_settings fesettings;
@@ -639,17 +639,16 @@ static int s5h1420_set_frontend(struct dvb_frontend* fe,
 	dprintk("enter %s\n", __func__);
 
 	/* check if we should do a fast-tune */
-	memcpy(&fesettings.parameters, p, sizeof(struct dvb_frontend_parameters));
 	s5h1420_get_tune_settings(fe, &fesettings);
 	frequency_delta = p->frequency - state->tunedfreq;
 	if ((frequency_delta > -fesettings.max_drift) &&
 			(frequency_delta < fesettings.max_drift) &&
 			(frequency_delta != 0) &&
-			(state->fec_inner == p->u.qpsk.fec_inner) &&
-			(state->symbol_rate == p->u.qpsk.symbol_rate)) {
+			(state->fec_inner == p->fec_inner) &&
+			(state->symbol_rate == p->symbol_rate)) {
 
 		if (fe->ops.tuner_ops.set_params) {
-			fe->ops.tuner_ops.set_params(fe, p);
+			fe->ops.tuner_ops.set_params(fe);
 			if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 		}
 		if (fe->ops.tuner_ops.get_frequency) {
@@ -669,13 +668,13 @@ static int s5h1420_set_frontend(struct dvb_frontend* fe,
 	s5h1420_reset(state);
 
 	/* set s5h1420 fclk PLL according to desired symbol rate */
-	if (p->u.qpsk.symbol_rate > 33000000)
+	if (p->symbol_rate > 33000000)
 		state->fclk = 80000000;
-	else if (p->u.qpsk.symbol_rate > 28500000)
+	else if (p->symbol_rate > 28500000)
 		state->fclk = 59000000;
-	else if (p->u.qpsk.symbol_rate > 25000000)
+	else if (p->symbol_rate > 25000000)
 		state->fclk = 86000000;
-	else if (p->u.qpsk.symbol_rate > 1900000)
+	else if (p->symbol_rate > 1900000)
 		state->fclk = 88000000;
 	else
 		state->fclk = 44000000;
@@ -705,7 +704,7 @@ static int s5h1420_set_frontend(struct dvb_frontend* fe,
 	s5h1420_writereg(state, DiS01, (state->fclk + (TONE_FREQ * 32) - 1) / (TONE_FREQ * 32));
 
 	/* TODO DC offset removal, config parameter ? */
-	if (p->u.qpsk.symbol_rate > 29000000)
+	if (p->symbol_rate > 29000000)
 		s5h1420_writereg(state, QPSK01, 0xae | 0x10);
 	else
 		s5h1420_writereg(state, QPSK01, 0xac | 0x10);
@@ -718,15 +717,15 @@ static int s5h1420_set_frontend(struct dvb_frontend* fe,
 	s5h1420_writereg(state, Loop01, 0xF0);
 	s5h1420_writereg(state, Loop02, 0x2a); /* e7 for s5h1420 */
 	s5h1420_writereg(state, Loop03, 0x79); /* 78 for s5h1420 */
-	if (p->u.qpsk.symbol_rate > 20000000)
+	if (p->symbol_rate > 20000000)
 		s5h1420_writereg(state, Loop04, 0x79);
 	else
 		s5h1420_writereg(state, Loop04, 0x58);
 	s5h1420_writereg(state, Loop05, 0x6b);
 
-	if (p->u.qpsk.symbol_rate >= 8000000)
+	if (p->symbol_rate >= 8000000)
 		s5h1420_writereg(state, Post01, (0 << 6) | 0x10);
-	else if (p->u.qpsk.symbol_rate >= 4000000)
+	else if (p->symbol_rate >= 4000000)
 		s5h1420_writereg(state, Post01, (1 << 6) | 0x10);
 	else
 		s5h1420_writereg(state, Post01, (3 << 6) | 0x10);
@@ -744,7 +743,7 @@ static int s5h1420_set_frontend(struct dvb_frontend* fe,
 
 	/* set tuner PLL */
 	if (fe->ops.tuner_ops.set_params) {
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 		s5h1420_setfreqoffset(state, 0);
@@ -757,8 +756,8 @@ static int s5h1420_set_frontend(struct dvb_frontend* fe,
 	/* start QPSK */
 	s5h1420_writereg(state, QPSK01, s5h1420_readreg(state, QPSK01) | 1);
 
-	state->fec_inner = p->u.qpsk.fec_inner;
-	state->symbol_rate = p->u.qpsk.symbol_rate;
+	state->fec_inner = p->fec_inner;
+	state->symbol_rate = p->symbol_rate;
 	state->postlocked = 0;
 	state->tunedfreq = p->frequency;
 
@@ -766,15 +765,15 @@ static int s5h1420_set_frontend(struct dvb_frontend* fe,
 	return 0;
 }
 
-static int s5h1420_get_frontend(struct dvb_frontend* fe,
-				struct dvb_frontend_parameters *p)
+static int s5h1420_get_frontend(struct dvb_frontend* fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct s5h1420_state* state = fe->demodulator_priv;
 
 	p->frequency = state->tunedfreq + s5h1420_getfreqoffset(state);
 	p->inversion = s5h1420_getinversion(state);
-	p->u.qpsk.symbol_rate = s5h1420_getsymbolrate(state);
-	p->u.qpsk.fec_inner = s5h1420_getfec(state);
+	p->symbol_rate = s5h1420_getsymbolrate(state);
+	p->fec_inner = s5h1420_getfec(state);
 
 	return 0;
 }
@@ -782,29 +781,30 @@ static int s5h1420_get_frontend(struct dvb_frontend* fe,
 static int s5h1420_get_tune_settings(struct dvb_frontend* fe,
 				     struct dvb_frontend_tune_settings* fesettings)
 {
-	if (fesettings->parameters.u.qpsk.symbol_rate > 20000000) {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	if (p->symbol_rate > 20000000) {
 		fesettings->min_delay_ms = 50;
 		fesettings->step_size = 2000;
 		fesettings->max_drift = 8000;
-	} else if (fesettings->parameters.u.qpsk.symbol_rate > 12000000) {
+	} else if (p->symbol_rate > 12000000) {
 		fesettings->min_delay_ms = 100;
 		fesettings->step_size = 1500;
 		fesettings->max_drift = 9000;
-	} else if (fesettings->parameters.u.qpsk.symbol_rate > 8000000) {
+	} else if (p->symbol_rate > 8000000) {
 		fesettings->min_delay_ms = 100;
 		fesettings->step_size = 1000;
 		fesettings->max_drift = 8000;
-	} else if (fesettings->parameters.u.qpsk.symbol_rate > 4000000) {
+	} else if (p->symbol_rate > 4000000) {
 		fesettings->min_delay_ms = 100;
 		fesettings->step_size = 500;
 		fesettings->max_drift = 7000;
-	} else if (fesettings->parameters.u.qpsk.symbol_rate > 2000000) {
+	} else if (p->symbol_rate > 2000000) {
 		fesettings->min_delay_ms = 200;
-		fesettings->step_size = (fesettings->parameters.u.qpsk.symbol_rate / 8000);
+		fesettings->step_size = (p->symbol_rate / 8000);
 		fesettings->max_drift = 14 * fesettings->step_size;
 	} else {
 		fesettings->min_delay_ms = 200;
-		fesettings->step_size = (fesettings->parameters.u.qpsk.symbol_rate / 8000);
+		fesettings->step_size = (p->symbol_rate / 8000);
 		fesettings->max_drift = 18 * fesettings->step_size;
 	}
 
@@ -937,10 +937,9 @@ error:
 EXPORT_SYMBOL(s5h1420_attach);
 
 static struct dvb_frontend_ops s5h1420_ops = {
-
+	.delsys = { SYS_DVBS },
 	.info = {
 		.name     = "Samsung S5H1420/PnpNetwork PN1010 DVB-S",
-		.type     = FE_QPSK,
 		.frequency_min    = 950000,
 		.frequency_max    = 2150000,
 		.frequency_stepsize = 125,     /* kHz for QPSK frontends */

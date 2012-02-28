@@ -2817,7 +2817,7 @@ static const struct block_device_operations pktcdvd_ops = {
 	.check_events =		pkt_check_events,
 };
 
-static char *pktcdvd_devnode(struct gendisk *gd, mode_t *mode)
+static char *pktcdvd_devnode(struct gendisk *gd, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "pktcdvd/%s", gd->disk_name);
 }

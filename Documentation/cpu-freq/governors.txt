@@ -127,7 +127,7 @@ in the bash (as said, 1000 is default), do:
 echo `$(($(cat cpuinfo_transition_latency) * 750 / 1000)) \
     >ondemand/sampling_rate
 
-show_sampling_rate_min:
+sampling_rate_min:
 The sampling rate is limited by the HW transition latency:
 transition_latency * 100
 Or by kernel restrictions:
@@ -139,8 +139,6 @@ HZ=250:  min=80000us  (80ms)
 HZ=100:  min=200000us (200ms)
 The highest value of kernel and HW latency restrictions is shown and
 used as the minimum sampling rate.
-
-show_sampling_rate_max: THIS INTERFACE IS DEPRECATED, DON'T USE IT.
 
 up_threshold: defines what the average CPU usage between the samplings
 of 'sampling_rate' needs to be for the kernel to make a decision on

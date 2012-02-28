@@ -1117,6 +1117,13 @@ static int piix_broken_suspend(void)
 			},
 		},
 		{
+			.ident = "Satellite Pro A120",
+			.matches = {
+				DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+				DMI_MATCH(DMI_PRODUCT_NAME, "Satellite Pro A120"),
+			},
+		},
+		{
 			.ident = "Portege M500",
 			.matches = {
 				DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),

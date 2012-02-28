@@ -28,7 +28,7 @@ struct buffer_head *omfs_bread(struct super_block *sb, sector_t block)
 	return sb_bread(sb, clus_to_blk(sbi, block));
 }
 
-struct inode *omfs_new_inode(struct inode *dir, int mode)
+struct inode *omfs_new_inode(struct inode *dir, umode_t mode)
 {
 	struct inode *inode;
 	u64 new_block;

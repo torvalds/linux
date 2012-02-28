@@ -1550,7 +1550,7 @@ static int zoran_enum_fmt(struct zoran *zr, struct v4l2_fmtdesc *fmt, int flag)
 		if (zoran_formats[i].flags & flag && num++ == fmt->index) {
 			strncpy(fmt->description, zoran_formats[i].name,
 				sizeof(fmt->description) - 1);
-			/* fmt struct pre-zeroed, so adding '\0' not neeed */
+			/* fmt struct pre-zeroed, so adding '\0' not needed */
 			fmt->pixelformat = zoran_formats[i].fourcc;
 			if (zoran_formats[i].flags & ZORAN_FORMAT_COMPRESSED)
 				fmt->flags |= V4L2_FMT_FLAG_COMPRESSED;
@@ -1958,7 +1958,6 @@ static int zoran_g_fbuf(struct file *file, void *__fh,
 	mutex_unlock(&zr->resource_lock);
 	fb->fmt.colorspace = V4L2_COLORSPACE_SRGB;
 	fb->fmt.field = V4L2_FIELD_INTERLACED;
-	fb->flags = V4L2_FBUF_FLAG_OVERLAY;
 	fb->capability = V4L2_FBUF_CAP_LIST_CLIPPING;
 
 	return 0;

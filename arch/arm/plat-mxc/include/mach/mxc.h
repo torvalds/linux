@@ -168,7 +168,7 @@ struct cpu_op {
 	u32 cpu_rate;
 };
 
-int tzic_enable_wake(int is_idle);
+int tzic_enable_wake(void);
 
 extern struct cpu_op *(*get_cpu_op)(int *op);
 #endif

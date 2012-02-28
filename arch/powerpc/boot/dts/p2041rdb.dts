@@ -32,7 +32,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/include/ "p2041si.dtsi"
+/include/ "fsl/p2041si-pre.dtsi"
 
 / {
 	model = "fsl,P2041RDB";
@@ -50,6 +50,8 @@
 	};
 
 	soc: soc@ffe000000 {
+		ranges = <0x00000000 0xf 0xfe000000 0x1000000>;
+		reg = <0xf 0xfe000000 0 0x00001000>;
 		spi@110000 {
 			flash@0 {
 				#address-cells = <1>;
@@ -106,7 +108,18 @@
 		};
 	};
 
-	localbus@ffe124000 {
+	rio: rapidio@ffe0c0000 {
+		reg = <0xf 0xfe0c0000 0 0x11000>;
+
+		port1 {
+			ranges = <0 0 0xc 0x20000000 0 0x10000000>;
+		};
+		port2 {
+			ranges = <0 0 0xc 0x30000000 0 0x10000000>;
+		};
+	};
+
+	lbc: localbus@ffe124000 {
 		reg = <0xf 0xfe124000 0 0x1000>;
 		ranges = <0 0 0xf 0xe8000000 0x08000000>;
 
@@ -122,6 +135,7 @@
 		reg = <0xf 0xfe200000 0 0x1000>;
 		ranges = <0x02000000 0 0xe0000000 0xc 0x00000000 0x0 0x20000000
 			  0x01000000 0 0x00000000 0xf 0xf8000000 0x0 0x00010000>;
+		fsl,msi = <&msi0>;
 		pcie@0 {
 			ranges = <0x02000000 0 0xe0000000
 				  0x02000000 0 0xe0000000
@@ -137,6 +151,7 @@
 		reg = <0xf 0xfe201000 0 0x1000>;
 		ranges = <0x02000000 0x0 0xe0000000 0xc 0x20000000 0x0 0x20000000
 			  0x01000000 0x0 0x00000000 0xf 0xf8010000 0x0 0x00010000>;
+		fsl,msi = <&msi1>;
 		pcie@0 {
 			ranges = <0x02000000 0 0xe0000000
 				  0x02000000 0 0xe0000000
@@ -152,6 +167,7 @@
 		reg = <0xf 0xfe202000 0 0x1000>;
 		ranges = <0x02000000 0 0xe0000000 0xc 0x40000000 0 0x20000000
 			  0x01000000 0 0x00000000 0xf 0xf8020000 0 0x00010000>;
+		fsl,msi = <&msi2>;
 		pcie@0 {
 			ranges = <0x02000000 0 0xe0000000
 				  0x02000000 0 0xe0000000
@@ -163,3 +179,5 @@
 		};
 	};
 };
+
+/include/ "fsl/p2041si-post.dtsi"

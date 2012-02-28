@@ -23,7 +23,15 @@ LDFLAGS_vmlinux := -T
 
 hostprogs-y	:= mkpiggy
 
-$(obj)/vmlinux: $(obj)/vmlinux.lds $(obj)/head_$(BITS).o $(obj)/misc.o $(obj)/string.o $(obj)/cmdline.o $(obj)/early_serial_console.o $(obj)/piggy.o FORCE
+VMLINUX_OBJS = $(obj)/vmlinux.lds $(obj)/head_$(BITS).o $(obj)/misc.o \
+	$(obj)/string.o $(obj)/cmdline.o $(obj)/early_serial_console.o \
+	$(obj)/piggy.o
+
+ifeq ($(CONFIG_EFI_STUB), y)
+	VMLINUX_OBJS += $(obj)/eboot.o $(obj)/efi_stub_$(BITS).o
+endif
+
+$(obj)/vmlinux: $(VMLINUX_OBJS) FORCE
 	$(call if_changed,ld)
 	@:
 

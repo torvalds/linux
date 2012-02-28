@@ -1,6 +1,7 @@
 #include <linux/types.h>
 #include <linux/delay.h> /* udelay */
 #include <linux/pci.h>
+#include <linux/vmalloc.h>
 
 #include "vgatypes.h"
 #include "XGIfb.h"
@@ -10,7 +11,6 @@
 #include "vb_util.h"
 #include "vb_setmode.h"
 #include "vb_init.h"
-#include "vb_ext.h"
 
 
 #include <linux/io.h>
@@ -34,6 +34,8 @@ static const unsigned short XGINew_DDRDRAM_TYPE20[12][5] = {
 	{ 2, 13,  8,  8, 0x41},
 	{ 2, 12,  9,  8, 0x35},
 	{ 2, 12,  8,  4, 0x31} };
+
+#define XGIFB_ROM_SIZE	65536
 
 static unsigned char
 XGINew_GetXG20DRAMType(struct xgi_hw_device_info *HwDeviceExtension,
@@ -1068,20 +1070,20 @@ static int XGINew_DDRSizing340(struct xgi_hw_device_info *HwDeviceExtension,
 	return 0;
 }
 
-static void XGINew_SetDRAMSize_340(struct xgi_hw_device_info *HwDeviceExtension,
+static void XGINew_SetDRAMSize_340(struct xgifb_video_info *xgifb_info,
+		struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
 	unsigned short data;
 
-	pVBInfo->ROMAddr = HwDeviceExtension->pjVirtualRomBase;
 	pVBInfo->FBAddr = HwDeviceExtension->pjVideoMemoryAddress;
 
-	XGISetModeNew(HwDeviceExtension, 0x2e);
+	XGISetModeNew(xgifb_info, HwDeviceExtension, 0x2e);
 
 	data = xgifb_reg_get(pVBInfo->P3c4, 0x21);
 	/* disable read cache */
 	xgifb_reg_set(pVBInfo->P3c4, 0x21, (unsigned short) (data & 0xDF));
-	XGI_DisplayOff(HwDeviceExtension, pVBInfo);
+	XGI_DisplayOff(xgifb_info, HwDeviceExtension, pVBInfo);
 
 	/* data = xgifb_reg_get(pVBInfo->P3c4, 0x1); */
 	/* data |= 0x20 ; */
@@ -1092,118 +1094,100 @@ static void XGINew_SetDRAMSize_340(struct xgi_hw_device_info *HwDeviceExtension,
 	xgifb_reg_set(pVBInfo->P3c4, 0x21, (unsigned short) (data | 0x20));
 }
 
-static void ReadVBIOSTablData(unsigned char ChipType,
+static u8 *xgifb_copy_rom(struct pci_dev *dev, size_t *rom_size)
+{
+	void __iomem *rom_address;
+	u8 *rom_copy;
+
+	rom_address = pci_map_rom(dev, rom_size);
+	if (rom_address == NULL)
+		return NULL;
+
+	rom_copy = vzalloc(XGIFB_ROM_SIZE);
+	if (rom_copy == NULL)
+		goto done;
+
+	*rom_size = min_t(size_t, *rom_size, XGIFB_ROM_SIZE);
+	memcpy_fromio(rom_copy, rom_address, *rom_size);
+
+done:
+	pci_unmap_rom(dev, rom_address);
+	return rom_copy;
+}
+
+static void xgifb_read_vbios(struct pci_dev *pdev,
 			      struct vb_device_info *pVBInfo)
 {
-	volatile unsigned char *pVideoMemory =
-		(unsigned char *) pVBInfo->ROMAddr;
+	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
+	u8 *vbios;
 	unsigned long i;
-	unsigned char j, k;
-	/* Volari customize data area end */
+	unsigned char j;
+	struct XGI21_LVDSCapStruct *lvds;
+	size_t vbios_size;
+	int entry;
 
-	if (ChipType == XG21) {
-		pVBInfo->IF_DEF_LVDS = 0;
-		if (pVideoMemory[0x65] & 0x1) {
-			pVBInfo->IF_DEF_LVDS = 1;
-			i = pVideoMemory[0x316] | (pVideoMemory[0x317] << 8);
-			j = pVideoMemory[i - 1];
-			if (j != 0xff) {
-				k = 0;
-				do {
-					pVBInfo->XG21_LVDSCapList[k].
-						 LVDS_Capability
-						= pVideoMemory[i] |
-						 (pVideoMemory[i + 1] << 8);
-					pVBInfo->XG21_LVDSCapList[k].LVDSHT
-						= pVideoMemory[i + 2] |
-						  (pVideoMemory[i + 3] << 8);
-					pVBInfo->XG21_LVDSCapList[k].LVDSVT
-						= pVideoMemory[i + 4] |
-						  (pVideoMemory[i + 5] << 8);
-					pVBInfo->XG21_LVDSCapList[k].LVDSHDE
-						= pVideoMemory[i + 6] |
-						  (pVideoMemory[i + 7] << 8);
-					pVBInfo->XG21_LVDSCapList[k].LVDSVDE
-						= pVideoMemory[i + 8] |
-						  (pVideoMemory[i + 9] << 8);
-					pVBInfo->XG21_LVDSCapList[k].LVDSHFP
-						= pVideoMemory[i + 10] |
-						  (pVideoMemory[i + 11] << 8);
-					pVBInfo->XG21_LVDSCapList[k].LVDSVFP
-						= pVideoMemory[i + 12] |
-						  (pVideoMemory[i + 13] << 8);
-					pVBInfo->XG21_LVDSCapList[k].LVDSHSYNC
-						= pVideoMemory[i + 14] |
-						  (pVideoMemory[i + 15] << 8);
-					pVBInfo->XG21_LVDSCapList[k].LVDSVSYNC
-						= pVideoMemory[i + 16] |
-						  (pVideoMemory[i + 17] << 8);
-					pVBInfo->XG21_LVDSCapList[k].VCLKData1
-						= pVideoMemory[i + 18];
-					pVBInfo->XG21_LVDSCapList[k].VCLKData2
-						= pVideoMemory[i + 19];
-					pVBInfo->XG21_LVDSCapList[k].PSC_S1
-						= pVideoMemory[i + 20];
-					pVBInfo->XG21_LVDSCapList[k].PSC_S2
-						= pVideoMemory[i + 21];
-					pVBInfo->XG21_LVDSCapList[k].PSC_S3
-						= pVideoMemory[i + 22];
-					pVBInfo->XG21_LVDSCapList[k].PSC_S4
-						= pVideoMemory[i + 23];
-					pVBInfo->XG21_LVDSCapList[k].PSC_S5
-						= pVideoMemory[i + 24];
-					i += 25;
-					j--;
-					k++;
-				} while ((j > 0) &&
-					 (k < (sizeof(XGI21_LCDCapList) /
-					       sizeof(struct
-							XGI21_LVDSCapStruct))));
-			} else {
-				pVBInfo->XG21_LVDSCapList[0].LVDS_Capability
-						= pVideoMemory[i] |
-						  (pVideoMemory[i + 1] << 8);
-				pVBInfo->XG21_LVDSCapList[0].LVDSHT
-						= pVideoMemory[i + 2] |
-						  (pVideoMemory[i + 3] << 8);
-				pVBInfo->XG21_LVDSCapList[0].LVDSVT
-						= pVideoMemory[i + 4] |
-						  (pVideoMemory[i + 5] << 8);
-				pVBInfo->XG21_LVDSCapList[0].LVDSHDE
-						= pVideoMemory[i + 6] |
-						  (pVideoMemory[i + 7] << 8);
-				pVBInfo->XG21_LVDSCapList[0].LVDSVDE
-						= pVideoMemory[i + 8] |
-						  (pVideoMemory[i + 9] << 8);
-				pVBInfo->XG21_LVDSCapList[0].LVDSHFP
-						= pVideoMemory[i + 10] |
-						  (pVideoMemory[i + 11] << 8);
-				pVBInfo->XG21_LVDSCapList[0].LVDSVFP
-						= pVideoMemory[i + 12] |
-						  (pVideoMemory[i + 13] << 8);
-				pVBInfo->XG21_LVDSCapList[0].LVDSHSYNC
-						= pVideoMemory[i + 14] |
-						  (pVideoMemory[i + 15] << 8);
-				pVBInfo->XG21_LVDSCapList[0].LVDSVSYNC
-						= pVideoMemory[i + 16] |
-						  (pVideoMemory[i + 17] << 8);
-				pVBInfo->XG21_LVDSCapList[0].VCLKData1
-						= pVideoMemory[i + 18];
-				pVBInfo->XG21_LVDSCapList[0].VCLKData2
-						= pVideoMemory[i + 19];
-				pVBInfo->XG21_LVDSCapList[0].PSC_S1
-						= pVideoMemory[i + 20];
-				pVBInfo->XG21_LVDSCapList[0].PSC_S2
-						= pVideoMemory[i + 21];
-				pVBInfo->XG21_LVDSCapList[0].PSC_S3
-						= pVideoMemory[i + 22];
-				pVBInfo->XG21_LVDSCapList[0].PSC_S4
-						= pVideoMemory[i + 23];
-				pVBInfo->XG21_LVDSCapList[0].PSC_S5
-						= pVideoMemory[i + 24];
-			}
-		}
+	if (xgifb_info->chip != XG21)
+		return;
+	pVBInfo->IF_DEF_LVDS = 0;
+	vbios = xgifb_copy_rom(pdev, &vbios_size);
+	if (vbios == NULL) {
+		dev_err(&pdev->dev, "video BIOS not available\n");
+		return;
 	}
+	if (vbios_size <= 0x65)
+		goto error;
+	/*
+	 * The user can ignore the LVDS bit in the BIOS and force the display
+	 * type.
+	 */
+	if (!(vbios[0x65] & 0x1) &&
+	    (!xgifb_info->display2_force ||
+	     xgifb_info->display2 != XGIFB_DISP_LCD)) {
+		vfree(vbios);
+		return;
+	}
+	if (vbios_size <= 0x317)
+		goto error;
+	i = vbios[0x316] | (vbios[0x317] << 8);
+	if (vbios_size <= i - 1)
+		goto error;
+	j = vbios[i - 1];
+	if (j == 0)
+		goto error;
+	if (j == 0xff)
+		j = 1;
+	/*
+	 * Read the LVDS table index scratch register set by the BIOS.
+	 */
+	entry = xgifb_reg_get(xgifb_info->dev_info.P3d4, 0x36);
+	if (entry >= j)
+		entry = 0;
+	i += entry * 25;
+	lvds = &xgifb_info->lvds_data;
+	if (vbios_size <= i + 24)
+		goto error;
+	lvds->LVDS_Capability	= vbios[i]	| (vbios[i + 1] << 8);
+	lvds->LVDSHT		= vbios[i + 2]	| (vbios[i + 3] << 8);
+	lvds->LVDSVT		= vbios[i + 4]	| (vbios[i + 5] << 8);
+	lvds->LVDSHDE		= vbios[i + 6]	| (vbios[i + 7] << 8);
+	lvds->LVDSVDE		= vbios[i + 8]	| (vbios[i + 9] << 8);
+	lvds->LVDSHFP		= vbios[i + 10]	| (vbios[i + 11] << 8);
+	lvds->LVDSVFP		= vbios[i + 12]	| (vbios[i + 13] << 8);
+	lvds->LVDSHSYNC		= vbios[i + 14]	| (vbios[i + 15] << 8);
+	lvds->LVDSVSYNC		= vbios[i + 16]	| (vbios[i + 17] << 8);
+	lvds->VCLKData1		= vbios[i + 18];
+	lvds->VCLKData2		= vbios[i + 19];
+	lvds->PSC_S1		= vbios[i + 20];
+	lvds->PSC_S2		= vbios[i + 21];
+	lvds->PSC_S3		= vbios[i + 22];
+	lvds->PSC_S4		= vbios[i + 23];
+	lvds->PSC_S5		= vbios[i + 24];
+	vfree(vbios);
+	pVBInfo->IF_DEF_LVDS = 1;
+	return;
+error:
+	dev_err(&pdev->dev, "video BIOS corrupted\n");
+	vfree(vbios);
 }
 
 static void XGINew_ChkSenseStatus(struct xgi_hw_device_info *HwDeviceExtension,
@@ -1336,18 +1320,57 @@ static void XGINew_SetModeScratch(struct xgi_hw_device_info *HwDeviceExtension,
 
 }
 
+static unsigned short XGINew_SenseLCD(struct xgi_hw_device_info
+							*HwDeviceExtension,
+				      struct vb_device_info *pVBInfo)
+{
+	unsigned short temp;
+
+	/* add lcd sense */
+	if (HwDeviceExtension->ulCRT2LCDType == LCD_UNKNOWN) {
+		return 0;
+	} else {
+		temp = (unsigned short) HwDeviceExtension->ulCRT2LCDType;
+		switch (HwDeviceExtension->ulCRT2LCDType) {
+		case LCD_INVALID:
+		case LCD_800x600:
+		case LCD_1024x768:
+		case LCD_1280x1024:
+			break;
+
+		case LCD_640x480:
+		case LCD_1024x600:
+		case LCD_1152x864:
+		case LCD_1280x960:
+		case LCD_1152x768:
+			temp = 0;
+			break;
+
+		case LCD_1400x1050:
+		case LCD_1280x768:
+		case LCD_1600x1200:
+			break;
+
+		case LCD_1920x1440:
+		case LCD_2048x1536:
+			temp = 0;
+			break;
+
+		default:
+			break;
+		}
+		xgifb_reg_and_or(pVBInfo->P3d4, 0x36, 0xF0, temp);
+		return 1;
+	}
+}
+
 static void XGINew_GetXG21Sense(struct xgi_hw_device_info *HwDeviceExtension,
 		struct vb_device_info *pVBInfo)
 {
 	unsigned char Temp;
-	volatile unsigned char *pVideoMemory =
-			(unsigned char *) pVBInfo->ROMAddr;
-
-	pVBInfo->IF_DEF_LVDS = 0;
 
 #if 1
-	if ((pVideoMemory[0x65] & 0x01)) { /* For XG21 LVDS */
-		pVBInfo->IF_DEF_LVDS = 1;
+	if (pVBInfo->IF_DEF_LVDS) { /* For XG21 LVDS */
 		xgifb_reg_or(pVBInfo->P3d4, 0x32, LCDSense);
 		/* LVDS on chip */
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0xC0);
@@ -1393,7 +1416,6 @@ static void XGINew_GetXG27Sense(struct xgi_hw_device_info *HwDeviceExtension,
 	xgifb_reg_set(pVBInfo->P3d4, 0x4A, bCR4A);
 
 	if (Temp <= 0x02) {
-		pVBInfo->IF_DEF_LVDS = 1;
 		/* LVDS setting */
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0xC0);
 		xgifb_reg_set(pVBInfo->P3d4, 0x30, 0x21);
@@ -1451,23 +1473,14 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 	struct vb_device_info *pVBInfo = &VBINF;
 	unsigned char i, temp = 0, temp1;
 	/* VBIOSVersion[5]; */
-	volatile unsigned char *pVideoMemory;
 
 	/* unsigned long j, k; */
-
-	pVBInfo->ROMAddr = HwDeviceExtension->pjVirtualRomBase;
 
 	pVBInfo->FBAddr = HwDeviceExtension->pjVideoMemoryAddress;
 
 	pVBInfo->BaseAddr = (unsigned long) HwDeviceExtension->pjIOAddress;
 
-	pVideoMemory = (unsigned char *) pVBInfo->ROMAddr;
-
 	/* Newdebugcode(0x99); */
-
-
-	/* if (pVBInfo->ROMAddr == 0) */
-	/* return(0); */
 
 	if (pVBInfo->FBAddr == NULL) {
 		printk("\n pVBInfo->FBAddr == 0 ");
@@ -1516,8 +1529,7 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 
 	InitTo330Pointer(HwDeviceExtension->jChipType, pVBInfo);
 
-	/* ReadVBIOSData */
-	ReadVBIOSTablData(HwDeviceExtension->jChipType, pVBInfo);
+	xgifb_read_vbios(pdev, pVBInfo);
 
 	/* 1.Openkey */
 	xgifb_reg_set(pVBInfo->P3c4, 0x05, 0x86);
@@ -1774,7 +1786,7 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 					 pVBInfo);
 
 	printk("20");
-	XGINew_SetDRAMSize_340(HwDeviceExtension, pVBInfo);
+	XGINew_SetDRAMSize_340(xgifb_info, HwDeviceExtension, pVBInfo);
 	printk("21");
 
 	printk("22");

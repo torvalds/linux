@@ -34,7 +34,9 @@ config AMD_IOMMU
 	bool "AMD IOMMU support"
 	select SWIOTLB
 	select PCI_MSI
-	select PCI_IOV
+	select PCI_ATS
+	select PCI_PRI
+	select PCI_PASID
 	select IOMMU_API
 	depends on X86_64 && PCI && ACPI
 	---help---
@@ -57,6 +59,15 @@ config AMD_IOMMU_STATS
 	  statistics about whats happening in the driver and exports that
 	  information to userspace via debugfs.
 	  If unsure, say N.
+
+config AMD_IOMMU_V2
+	tristate "AMD IOMMU Version 2 driver (EXPERIMENTAL)"
+	depends on AMD_IOMMU && PROFILING && EXPERIMENTAL
+	select MMU_NOTIFIER
+	---help---
+	  This option enables support for the AMD IOMMUv2 features of the IOMMU
+	  hardware. Select this option if you want to use devices that support
+	  the the PCI PRI and PASID interface.
 
 # Intel IOMMU support
 config DMAR_TABLE

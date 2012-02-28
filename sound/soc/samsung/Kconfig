@@ -193,8 +193,22 @@ config SND_SOC_SPEYSIDE
 	select SND_SOC_WM9081
 	select SND_SOC_WM1250_EV1
 
-config SND_SOC_SPEYSIDE_WM8962
-	tristate "Audio support for Wolfson Speyside with WM8962"
+config SND_SOC_TOBERMORY
+	tristate "Audio support for Wolfson Tobermory"
 	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM8962
+
+config SND_SOC_LOWLAND
+	tristate "Audio support for Wolfson Lowland"
+	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410
+	select SND_SAMSUNG_I2S
+	select SND_SOC_WM5100
+	select SND_SOC_WM9081
+
+config SND_SOC_LITTLEMILL
+	tristate "Audio support for Wolfson Littlemill"
+	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410
+	select SND_SAMSUNG_I2S
+	select MFD_WM8994
+	select SND_SOC_WM8994

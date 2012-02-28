@@ -19,7 +19,7 @@
 #define dbgu_readl(dbgu, field) \
 	__raw_readl(AT91_VA_BASE_SYS + dbgu + AT91_DBGU_ ## field)
 
-#ifdef AT91_DBGU
+#if !defined(CONFIG_ARCH_AT91X40)
 #define AT91_DBGU_CR		(0x00)	/* Control Register */
 #define AT91_DBGU_MR		(0x04)	/* Mode Register */
 #define AT91_DBGU_IER		(0x08)	/* Interrupt Enable Register */

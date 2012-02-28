@@ -1,3 +1,5 @@
+menu "Microsoft Hyper-V guest support"
+
 config HYPERV
 	tristate "Microsoft Hyper-V client drivers"
 	depends on X86 && ACPI && PCI
@@ -11,4 +13,4 @@ config HYPERV_UTILS
 	help
 	  Select this option to enable the Hyper-V Utilities.
 
-
+endmenu

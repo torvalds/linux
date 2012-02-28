@@ -18,7 +18,7 @@
 
 #include <libelf.h>
 
-static char const *input_name = "perf.data";
+static const char *input_name;
 static bool force;
 static bool show_kernel;
 static bool with_hits;
@@ -38,24 +38,6 @@ static const struct option options[] = {
 		    "be more verbose"),
 	OPT_END()
 };
-
-static int perf_session__list_build_ids(void)
-{
-	struct perf_session *session;
-
-	session = perf_session__new(input_name, O_RDONLY, force, false,
-				    &build_id__mark_dso_hit_ops);
-	if (session == NULL)
-		return -1;
-
-	if (with_hits)
-		perf_session__process_events(session, &build_id__mark_dso_hit_ops);
-
-	perf_session__fprintf_dsos_buildid(session, stdout, with_hits);
-
-	perf_session__delete(session);
-	return 0;
-}
 
 static int sysfs__fprintf_build_id(FILE *fp)
 {
@@ -85,17 +67,36 @@ static int filename__fprintf_build_id(const char *name, FILE *fp)
 	return fprintf(fp, "%s\n", sbuild_id);
 }
 
+static int perf_session__list_build_ids(void)
+{
+	struct perf_session *session;
+
+	elf_version(EV_CURRENT);
+
+	session = perf_session__new(input_name, O_RDONLY, force, false,
+				    &build_id__mark_dso_hit_ops);
+	if (session == NULL)
+		return -1;
+
+	/*
+	 * See if this is an ELF file first:
+	 */
+	if (filename__fprintf_build_id(session->filename, stdout))
+		goto out;
+
+	if (with_hits)
+		perf_session__process_events(session, &build_id__mark_dso_hit_ops);
+
+	perf_session__fprintf_dsos_buildid(session, stdout, with_hits);
+out:
+	perf_session__delete(session);
+	return 0;
+}
+
 static int __cmd_buildid_list(void)
 {
 	if (show_kernel)
 		return sysfs__fprintf_build_id(stdout);
-
-	elf_version(EV_CURRENT);
-	/*
- 	 * See if this is an ELF file first:
- 	 */
-	if (filename__fprintf_build_id(input_name, stdout))
-		return 0;
 
 	return perf_session__list_build_ids();
 }

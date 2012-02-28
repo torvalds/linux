@@ -35,14 +35,17 @@
 #include <asm/errno.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-fh.h>
+#include <media/v4l2-event.h>
 #include <media/videobuf2-vmalloc.h>
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
 #include <linux/input.h>
 #endif
-
-#include <media/pwc-ioctl.h>
+#include "pwc-dec1.h"
+#include "pwc-dec23.h"
 
 /* Version block */
 #define PWC_VERSION	"10.0.15"
@@ -106,6 +109,9 @@
 #define FEATURE_CODEC1			0x0002
 #define FEATURE_CODEC2			0x0004
 
+#define MAX_WIDTH		640
+#define MAX_HEIGHT		480
+
 /* Ignore errors in the first N frames, to allow for startup delays */
 #define FRAME_LOWMARK 5
 
@@ -127,9 +133,6 @@
 #define DEVICE_USE_CODEC2(x) ((x)>=675 && (x)<700)
 #define DEVICE_USE_CODEC3(x) ((x)>=700)
 #define DEVICE_USE_CODEC23(x) ((x)>=675)
-
-/* from pwc-dec.h */
-#define PWCX_FLAG_PLANAR        0x0001
 
 /* Request types: video */
 #define SET_LUM_CTL			0x01
@@ -186,6 +189,24 @@
 #define PT_RESET_CONTROL_FORMATTER		0x02
 #define PT_STATUS_FORMATTER			0x03
 
+/* Enumeration of image sizes */
+#define PSZ_SQCIF	0x00
+#define PSZ_QSIF	0x01
+#define PSZ_QCIF	0x02
+#define PSZ_SIF		0x03
+#define PSZ_CIF		0x04
+#define PSZ_VGA		0x05
+#define PSZ_MAX		6
+
+struct pwc_raw_frame {
+	__le16 type;		/* type of the webcam */
+	__le16 vbandlength;	/* Size of 4 lines compressed (used by the
+				   decompressor) */
+	__u8   cmd[4];		/* the four byte of the command (in case of
+				   nala, only the first 3 bytes is filled) */
+	__u8   rawframe[0];	/* frame_size = H / 4 * vbandlength */
+} __packed;
+
 /* intermediate buffers with raw data from the USB cam */
 struct pwc_frame_buf
 {
@@ -198,39 +219,36 @@ struct pwc_frame_buf
 struct pwc_device
 {
 	struct video_device vdev;
-	struct mutex modlock;
+	struct v4l2_device v4l2_dev;
 
 	/* Pointer to our usb_device, may be NULL after unplug */
 	struct usb_device *udev;
-	/* Protects the setting of udev to NULL by our disconnect handler */
 	struct mutex udevlock;
 
 	/* type of cam (645, 646, 675, 680, 690, 720, 730, 740, 750) */
 	int type;
 	int release;		/* release number */
 	int features;		/* feature bits */
-	char serial[30];	/* serial number (string) */
 
 	/*** Video data ***/
 	struct file *capt_file;	/* file doing video capture */
+	struct mutex capt_file_lock;
 	int vendpoint;		/* video isoc endpoint */
 	int vcinterface;	/* video control interface */
 	int valternate;		/* alternate interface needed */
-	int vframes, vsize;	/* frames-per-second & size (see PSZ_*) */
+	int vframes;		/* frames-per-second */
 	int pixfmt;		/* pixelformat: V4L2_PIX_FMT_YUV420 or _PWCX */
 	int vframe_count;	/* received frames */
 	int vmax_packet_size;	/* USB maxpacket size */
 	int vlast_packet_size;	/* for frame synchronisation */
 	int visoc_errors;	/* number of contiguous ISOC errors */
-	int vcompression;	/* desired compression factor */
 	int vbandlength;	/* compressed band length; 0 is uncompressed */
-	char vsnapshot;		/* snapshot mode */
 	char vsync;		/* used by isoc handler */
 	char vmirror;		/* for ToUCaM series */
 	char power_save;	/* Do powersaving for this cam */
 
-	int cmd_len;
 	unsigned char cmd_buf[13];
+	unsigned char *ctrl_buf;
 
 	struct urb *urbs[MAX_ISO_BUFS];
 	char iso_init;
@@ -253,7 +271,10 @@ struct pwc_device
 	int frame_total_size;	/* including header & trailer */
 	int drop_frames;
 
-	void *decompress_data;	/* private data for decompression engine */
+	union {	/* private data for decompression engine */
+		struct pwc_dec1_private dec1;
+		struct pwc_dec23_private dec23;
+	};
 
 	/*
 	 * We have an 'image' and a 'view', where 'image' is the fixed-size img
@@ -262,21 +283,8 @@ struct pwc_device
 	 * a gray or black border. view_min <= image <= view <= view_max;
 	 */
 	int image_mask;				/* supported sizes */
-	struct pwc_coord view_min, view_max;	/* minimum and maximum view */
-	struct pwc_coord abs_max;		/* maximum supported size */
-	struct pwc_coord image, view;		/* image and viewport size */
-	struct pwc_coord offset;		/* offset of the viewport */
+	int width, height;			/* current resolution */
 
-	/*** motorized pan/tilt feature */
-	struct pwc_mpt_range angle_range;
-	int pan_angle;			/* in degrees * 100 */
-	int tilt_angle;			/* absolute angle; 0,0 is home */
-
-	/*
-	 * Set to 1 when the user push the button, reset to 0
-	 * when this value is read from sysfs.
-	 */
-	int snapshot_button_status;
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
 	struct input_dev *button_dev;	/* webcam snapshot button input */
 	char button_phys[64];
@@ -328,6 +336,8 @@ struct pwc_device
 	struct v4l2_ctrl		*save_user;
 	struct v4l2_ctrl		*restore_user;
 	struct v4l2_ctrl		*restore_factory;
+	struct v4l2_ctrl		*awb_speed;
+	struct v4l2_ctrl		*awb_delay;
 	struct {
 		/* motor control cluster */
 		struct v4l2_ctrl	*motor_pan;
@@ -344,19 +354,20 @@ struct pwc_device
 extern int pwc_trace;
 #endif
 
+int pwc_test_n_set_capt_file(struct pwc_device *pdev, struct file *file);
+
 /** Functions in pwc-misc.c */
 /* sizes in pixels */
-extern const struct pwc_coord pwc_image_sizes[PSZ_MAX];
+extern const int pwc_image_sizes[PSZ_MAX][2];
 
-int pwc_decode_size(struct pwc_device *pdev, int width, int height);
+int pwc_get_size(struct pwc_device *pdev, int width, int height);
 void pwc_construct(struct pwc_device *pdev);
 
 /** Functions in pwc-ctrl.c */
 /* Request a certain video mode. Returns < 0 if not possible */
-extern int pwc_set_video_mode(struct pwc_device *pdev, int width, int height, int frames, int compression, int snapshot);
+extern int pwc_set_video_mode(struct pwc_device *pdev, int width, int height,
+	int pixfmt, int frames, int *compression, int send_to_cam);
 extern unsigned int pwc_get_fps(struct pwc_device *pdev, unsigned int index, unsigned int size);
-extern int pwc_mpt_reset(struct pwc_device *pdev, int flags);
-extern int pwc_mpt_set_angle(struct pwc_device *pdev, int pan, int tilt);
 extern int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value);
 extern int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor);
 extern int send_control_msg(struct pwc_device *pdev,
@@ -374,9 +385,6 @@ int pwc_init_controls(struct pwc_device *pdev);
 
 /* Power down or up the camera; not supported by all models */
 extern void pwc_camera_power(struct pwc_device *pdev, int power);
-
-/* Private ioctl()s; see pwc-ioctl.h */
-extern long pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg);
 
 extern const struct v4l2_ioctl_ops pwc_ioctl_ops;
 

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -144,6 +144,9 @@ acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 			 * since there are no alignment or endian issues
 			 */
 		case ACPI_RSC_MOVE8:
+		case ACPI_RSC_MOVE_GPIO_RES:
+		case ACPI_RSC_MOVE_SERIAL_VEN:
+		case ACPI_RSC_MOVE_SERIAL_RES:
 			ACPI_MEMCPY(destination, source, item_count);
 			return;
 
@@ -153,6 +156,7 @@ acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 			 * misaligned memory transfers
 			 */
 		case ACPI_RSC_MOVE16:
+		case ACPI_RSC_MOVE_GPIO_PIN:
 			ACPI_MOVE_16_TO_16(&ACPI_CAST_PTR(u16, destination)[i],
 					   &ACPI_CAST_PTR(u16, source)[i]);
 			break;
@@ -587,6 +591,56 @@ acpi_rs_get_prs_method_data(struct acpi_namespace_node *node,
 	return_ACPI_STATUS(status);
 }
 #endif				/*  ACPI_FUTURE_USAGE  */
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_rs_get_aei_method_data
+ *
+ * PARAMETERS:  Node            - Device node
+ *              ret_buffer      - Pointer to a buffer structure for the
+ *                                results
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: This function is called to get the _AEI value of an object
+ *              contained in an object specified by the handle passed in
+ *
+ *              If the function fails an appropriate status will be returned
+ *              and the contents of the callers buffer is undefined.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_rs_get_aei_method_data(struct acpi_namespace_node *node,
+			    struct acpi_buffer *ret_buffer)
+{
+	union acpi_operand_object *obj_desc;
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(rs_get_aei_method_data);
+
+	/* Parameters guaranteed valid by caller */
+
+	/* Execute the method, no parameters */
+
+	status = acpi_ut_evaluate_object(node, METHOD_NAME__AEI,
+					 ACPI_BTYPE_BUFFER, &obj_desc);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/*
+	 * Make the call to create a resource linked list from the
+	 * byte stream buffer that comes back from the _CRS method
+	 * execution.
+	 */
+	status = acpi_rs_create_resource_list(obj_desc, ret_buffer);
+
+	/* On exit, we must delete the object returned by evaluate_object */
+
+	acpi_ut_remove_reference(obj_desc);
+	return_ACPI_STATUS(status);
+}
 
 /*******************************************************************************
  *

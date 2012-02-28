@@ -104,5 +104,6 @@ MACHINE_START(GATEWAY7001, "Gateway 7001 AP")
 #if defined(CONFIG_PCI)
 	.dma_zone_size	= SZ_64M,
 #endif
+	.restart	= ixp4xx_restart,
 MACHINE_END
 #endif

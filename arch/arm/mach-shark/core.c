@@ -26,10 +26,9 @@
 #define ROMCARD_SIZE            0x08000000
 #define ROMCARD_START           0x10000000
 
-void arch_reset(char mode, const char *cmd)
+static void shark_restart(char mode, const char *cmd)
 {
         short temp;
-        local_irq_disable();
         /* Reset the Machine via pc[3] of the sequoia chipset */
         outw(0x09,0x24);
         temp=inw(0x26);
@@ -157,4 +156,5 @@ MACHINE_START(SHARK, "Shark")
 	.init_irq	= shark_init_irq,
 	.timer		= &shark_timer,
 	.dma_zone_size	= SZ_4M,
+	.restart	= shark_restart,
 MACHINE_END

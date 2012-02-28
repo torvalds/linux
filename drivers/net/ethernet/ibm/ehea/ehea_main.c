@@ -94,8 +94,8 @@ static int port_name_cnt;
 static LIST_HEAD(adapter_list);
 static unsigned long ehea_driver_flags;
 static DEFINE_MUTEX(dlpar_mem_lock);
-struct ehea_fw_handle_array ehea_fw_handles;
-struct ehea_bcmc_reg_array ehea_bcmc_regs;
+static struct ehea_fw_handle_array ehea_fw_handles;
+static struct ehea_bcmc_reg_array ehea_bcmc_regs;
 
 
 static int __devinit ehea_probe_adapter(struct platform_device *dev,
@@ -133,7 +133,7 @@ void ehea_dump(void *adr, int len, char *msg)
 	}
 }
 
-void ehea_schedule_port_reset(struct ehea_port *port)
+static void ehea_schedule_port_reset(struct ehea_port *port)
 {
 	if (!test_bit(__EHEA_DISABLE_PORT_RESET, &port->flags))
 		schedule_work(&port->reset_task);
@@ -1404,7 +1404,7 @@ out:
 	return ret;
 }
 
-int ehea_gen_smrs(struct ehea_port_res *pr)
+static int ehea_gen_smrs(struct ehea_port_res *pr)
 {
 	int ret;
 	struct ehea_adapter *adapter = pr->port->adapter;
@@ -1426,7 +1426,7 @@ out:
 	return -EIO;
 }
 
-int ehea_rem_smrs(struct ehea_port_res *pr)
+static int ehea_rem_smrs(struct ehea_port_res *pr)
 {
 	if ((ehea_rem_mr(&pr->send_mr)) ||
 	    (ehea_rem_mr(&pr->recv_mr)))
@@ -2114,17 +2114,19 @@ static int ehea_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static void ehea_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int ehea_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct ehea_port *port = netdev_priv(dev);
 	struct ehea_adapter *adapter = port->adapter;
 	struct hcp_ehea_port_cb1 *cb1;
 	int index;
 	u64 hret;
+	int err = 0;
 
 	cb1 = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!cb1) {
 		pr_err("no mem for cb1\n");
+		err = -ENOMEM;
 		goto out;
 	}
 
@@ -2132,6 +2134,7 @@ static void ehea_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 				      H_PORT_CB1, H_PORT_CB1_ALL, cb1);
 	if (hret != H_SUCCESS) {
 		pr_err("query_ehea_port failed\n");
+		err = -EINVAL;
 		goto out;
 	}
 
@@ -2140,24 +2143,28 @@ static void ehea_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 
 	hret = ehea_h_modify_ehea_port(adapter->handle, port->logical_port_id,
 				       H_PORT_CB1, H_PORT_CB1_ALL, cb1);
-	if (hret != H_SUCCESS)
+	if (hret != H_SUCCESS) {
 		pr_err("modify_ehea_port failed\n");
+		err = -EINVAL;
+	}
 out:
 	free_page((unsigned long)cb1);
-	return;
+	return err;
 }
 
-static void ehea_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int ehea_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct ehea_port *port = netdev_priv(dev);
 	struct ehea_adapter *adapter = port->adapter;
 	struct hcp_ehea_port_cb1 *cb1;
 	int index;
 	u64 hret;
+	int err = 0;
 
 	cb1 = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!cb1) {
 		pr_err("no mem for cb1\n");
+		err = -ENOMEM;
 		goto out;
 	}
 
@@ -2165,6 +2172,7 @@ static void ehea_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 				      H_PORT_CB1, H_PORT_CB1_ALL, cb1);
 	if (hret != H_SUCCESS) {
 		pr_err("query_ehea_port failed\n");
+		err = -EINVAL;
 		goto out;
 	}
 
@@ -2173,13 +2181,16 @@ static void ehea_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 
 	hret = ehea_h_modify_ehea_port(adapter->handle, port->logical_port_id,
 				       H_PORT_CB1, H_PORT_CB1_ALL, cb1);
-	if (hret != H_SUCCESS)
+	if (hret != H_SUCCESS) {
 		pr_err("modify_ehea_port failed\n");
+		err = -EINVAL;
+	}
 out:
 	free_page((unsigned long)cb1);
+	return err;
 }
 
-int ehea_activate_qp(struct ehea_adapter *adapter, struct ehea_qp *qp)
+static int ehea_activate_qp(struct ehea_adapter *adapter, struct ehea_qp *qp)
 {
 	int ret = -EIO;
 	u64 hret;
@@ -2520,7 +2531,7 @@ static void ehea_flush_sq(struct ehea_port *port)
 	}
 }
 
-int ehea_stop_qps(struct net_device *dev)
+static int ehea_stop_qps(struct net_device *dev)
 {
 	struct ehea_port *port = netdev_priv(dev);
 	struct ehea_adapter *adapter = port->adapter;
@@ -2589,7 +2600,7 @@ out:
 	return ret;
 }
 
-void ehea_update_rqs(struct ehea_qp *orig_qp, struct ehea_port_res *pr)
+static void ehea_update_rqs(struct ehea_qp *orig_qp, struct ehea_port_res *pr)
 {
 	struct ehea_qp qp = *orig_qp;
 	struct ehea_qp_init_attr *init_attr = &qp.init_attr;
@@ -2622,7 +2633,7 @@ void ehea_update_rqs(struct ehea_qp *orig_qp, struct ehea_port_res *pr)
 	}
 }
 
-int ehea_restart_qps(struct net_device *dev)
+static int ehea_restart_qps(struct net_device *dev)
 {
 	struct ehea_port *port = netdev_priv(dev);
 	struct ehea_adapter *adapter = port->adapter;
@@ -2813,7 +2824,7 @@ static void ehea_tx_watchdog(struct net_device *dev)
 		ehea_schedule_port_reset(port);
 }
 
-int ehea_sense_adapter_attr(struct ehea_adapter *adapter)
+static int ehea_sense_adapter_attr(struct ehea_adapter *adapter)
 {
 	struct hcp_query_ehea *cb;
 	u64 hret;
@@ -2841,7 +2852,7 @@ out:
 	return ret;
 }
 
-int ehea_get_jumboframe_status(struct ehea_port *port, int *jumbo)
+static int ehea_get_jumboframe_status(struct ehea_port *port, int *jumbo)
 {
 	struct hcp_ehea_port_cb4 *cb4;
 	u64 hret;
@@ -2955,7 +2966,7 @@ static const struct net_device_ops ehea_netdev_ops = {
 	.ndo_tx_timeout		= ehea_tx_watchdog,
 };
 
-struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
+static struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 					 u32 logical_port_id,
 					 struct device_node *dn)
 {
@@ -3226,7 +3237,7 @@ static ssize_t ehea_remove_port(struct device *dev,
 static DEVICE_ATTR(probe_port, S_IWUSR, NULL, ehea_probe_port);
 static DEVICE_ATTR(remove_port, S_IWUSR, NULL, ehea_remove_port);
 
-int ehea_create_device_sysfs(struct platform_device *dev)
+static int ehea_create_device_sysfs(struct platform_device *dev)
 {
 	int ret = device_create_file(&dev->dev, &dev_attr_probe_port);
 	if (ret)
@@ -3237,7 +3248,7 @@ out:
 	return ret;
 }
 
-void ehea_remove_device_sysfs(struct platform_device *dev)
+static void ehea_remove_device_sysfs(struct platform_device *dev)
 {
 	device_remove_file(&dev->dev, &dev_attr_probe_port);
 	device_remove_file(&dev->dev, &dev_attr_remove_port);
@@ -3368,7 +3379,7 @@ static int __devexit ehea_remove(struct platform_device *dev)
 	return 0;
 }
 
-void ehea_crash_handler(void)
+static void ehea_crash_handler(void)
 {
 	int i;
 
@@ -3480,7 +3491,7 @@ static ssize_t ehea_show_capabilities(struct device_driver *drv,
 static DRIVER_ATTR(capabilities, S_IRUSR | S_IRGRP | S_IROTH,
 		   ehea_show_capabilities, NULL);
 
-int __init ehea_module_init(void)
+static int __init ehea_module_init(void)
 {
 	int ret;
 

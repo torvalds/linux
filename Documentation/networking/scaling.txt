@@ -208,7 +208,7 @@ The counter in rps_dev_flow_table values records the length of the current
 CPU's backlog when a packet in this flow was last enqueued. Each backlog
 queue has a head counter that is incremented on dequeue. A tail counter
 is computed as head counter + queue length. In other words, the counter
-in rps_dev_flow_table[i] records the last element in flow i that has
+in rps_dev_flow[i] records the last element in flow i that has
 been enqueued onto the currently designated CPU for flow i (of course,
 entry i is actually selected by hash and multiple flows may hash to the
 same entry i).
@@ -224,7 +224,7 @@ following is true:
 
 - The current CPU's queue head counter >= the recorded tail counter
   value in rps_dev_flow[i]
-- The current CPU is unset (equal to NR_CPUS)
+- The current CPU is unset (equal to RPS_NO_CPU)
 - The current CPU is offline
 
 After this check, the packet is sent to the (possibly updated) current
@@ -235,7 +235,7 @@ CPU.
 
 ==== RFS Configuration
 
-RFS is only available if the kconfig symbol CONFIG_RFS is enabled (on
+RFS is only available if the kconfig symbol CONFIG_RPS is enabled (on
 by default for SMP). The functionality remains disabled until explicitly
 configured. The number of entries in the global flow table is set through:
 
@@ -258,7 +258,7 @@ For a single queue device, the rps_flow_cnt value for the single queue
 would normally be configured to the same value as rps_sock_flow_entries.
 For a multi-queue device, the rps_flow_cnt for each queue might be
 configured as rps_sock_flow_entries / N, where N is the number of
-queues. So for instance, if rps_flow_entries is set to 32768 and there
+queues. So for instance, if rps_sock_flow_entries is set to 32768 and there
 are 16 configured receive queues, rps_flow_cnt for each queue might be
 configured as 2048.
 

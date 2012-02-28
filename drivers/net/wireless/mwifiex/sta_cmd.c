@@ -748,7 +748,7 @@ static int mwifiex_cmd_802_11_rf_channel(struct mwifiex_private *priv,
 				cpu_to_le16(HostCmd_SCAN_RADIO_TYPE_A);
 
 		rf_type = le16_to_cpu(rf_chan->rf_type);
-		SET_SECONDARYCHAN(rf_type, priv->adapter->chan_offset);
+		SET_SECONDARYCHAN(rf_type, priv->adapter->sec_chan_offset);
 		rf_chan->current_channel = cpu_to_le16(*channel);
 	}
 	rf_chan->action = cpu_to_le16(cmd_action);

@@ -11,6 +11,7 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 #include <mach/generic.h>
@@ -46,6 +47,8 @@ MACHINE_START(SPEAR600, "ST-SPEAR600-EVB")
 	.atag_offset	=	0x100,
 	.map_io		=	spear6xx_map_io,
 	.init_irq	=	spear6xx_init_irq,
+	.handle_irq	=	vic_handle_irq,
 	.timer		=	&spear6xx_timer,
 	.init_machine	=	spear600_evb_init,
+	.restart	=	spear_restart,
 MACHINE_END

@@ -78,7 +78,7 @@ config TIDSPBRIDGE_NTFY_PWRERR
 	bool "Notify power errors"
 	depends on TIDSPBRIDGE
 	help
-	  Enable notifications to registered clients on the event of power errror
+	  Enable notifications to registered clients on the event of power error
 	  trying to suspend bridge driver. Say Y, to signal this event as a fatal
 	  error, this will require a bridge restart to recover.
 

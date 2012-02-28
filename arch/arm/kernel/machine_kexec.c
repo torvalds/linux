@@ -12,11 +12,10 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 #include <asm/mach-types.h>
+#include <asm/system.h>
 
 extern const unsigned char relocate_new_kernel[];
 extern const unsigned int relocate_new_kernel_size;
-
-extern void setup_mm_for_reboot(char mode);
 
 extern unsigned long kexec_start_address;
 extern unsigned long kexec_indirection_page;
@@ -111,14 +110,6 @@ void machine_kexec(struct kimage *image)
 
 	if (kexec_reinit)
 		kexec_reinit();
-	local_irq_disable();
-	local_fiq_disable();
-	setup_mm_for_reboot(0); /* mode is not used, so just pass 0*/
-	flush_cache_all();
-	outer_flush_all();
-	outer_disable();
-	cpu_proc_fin();
-	outer_inv_all();
-	flush_cache_all();
-	cpu_reset(reboot_code_buffer_phys);
+
+	soft_restart(reboot_code_buffer_phys);
 }

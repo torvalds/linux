@@ -97,9 +97,6 @@ void __init davinci_common_init(struct davinci_soc_info *soc_info)
 	local_flush_tlb_all();
 	flush_cache_all();
 
-	if (!davinci_soc_info.reset)
-		davinci_soc_info.reset = davinci_watchdog_reset;
-
 	/*
 	 * We want to check CPU revision early for cpu_is_xxxx() macros.
 	 * IO space mapping must be initialized before we can do that.

@@ -351,4 +351,5 @@ MACHINE_START(MX27ADS, "Freescale i.MX27ADS")
 	.handle_irq = imx27_handle_irq,
 	.timer = &mx27ads_timer,
 	.init_machine = mx27ads_board_init,
+	.restart	= mxc_restart,
 MACHINE_END

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2011 Intel Corporation.  All rights reserved.
  * Copyright (c) 2005 Open Grid Computing, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -96,7 +96,7 @@ unsigned int wqm_quanta = 0x10000;
 module_param(wqm_quanta, int, 0644);
 MODULE_PARM_DESC(wqm_quanta, "WQM quanta");
 
-static unsigned int limit_maxrdreqsz;
+static bool limit_maxrdreqsz;
 module_param(limit_maxrdreqsz, bool, 0644);
 MODULE_PARM_DESC(limit_maxrdreqsz, "Limit max read request size to 256 Bytes");
 

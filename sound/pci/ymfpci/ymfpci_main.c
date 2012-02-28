@@ -1614,6 +1614,14 @@ static int snd_ymfpci_put_dup4ch(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return change;
 }
 
+static struct snd_kcontrol_new snd_ymfpci_dup4ch __devinitdata = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "4ch Duplication",
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.info = snd_ymfpci_info_dup4ch,
+	.get = snd_ymfpci_get_dup4ch,
+	.put = snd_ymfpci_put_dup4ch,
+};
 
 static struct snd_kcontrol_new snd_ymfpci_controls[] __devinitdata = {
 {
@@ -1642,13 +1650,6 @@ YMFPCI_DOUBLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,VOLUME), 1, YDSXGR_SPDIFLOOPVOL),
 YMFPCI_SINGLE(SNDRV_CTL_NAME_IEC958("",PLAYBACK,SWITCH), 0, YDSXGR_SPDIFOUTCTRL, 0),
 YMFPCI_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), 0, YDSXGR_SPDIFINCTRL, 0),
 YMFPCI_SINGLE(SNDRV_CTL_NAME_IEC958("Loop",NONE,NONE), 0, YDSXGR_SPDIFINCTRL, 4),
-{
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "4ch Duplication",
-	.info = snd_ymfpci_info_dup4ch,
-	.get = snd_ymfpci_get_dup4ch,
-	.put = snd_ymfpci_put_dup4ch,
-},
 };
 
 
@@ -1836,6 +1837,12 @@ int __devinit snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch)
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_ymfpci_controls); idx++) {
 		if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_ymfpci_controls[idx], chip))) < 0)
+			return err;
+	}
+	if (chip->ac97->ext_id & AC97_EI_SDAC) {
+		kctl = snd_ctl_new1(&snd_ymfpci_dup4ch, chip);
+		err = snd_ctl_add(chip->card, kctl);
+		if (err < 0)
 			return err;
 	}
 

@@ -267,4 +267,5 @@ MACHINE_START(WRT350N_V2, "Linksys WRT350N v2")
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,
+	.restart	= orion5x_restart,
 MACHINE_END

@@ -121,8 +121,7 @@ static bool ath9k_hw_def_fill_eeprom(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (!ath9k_hw_use_flash(ah)) {
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"Reading from EEPROM, not flash\n");
+		ath_dbg(common, EEPROM, "Reading from EEPROM, not flash\n");
 	}
 
 	if (common->bus_ops->ath_bus_type == ATH_USB)
@@ -279,8 +278,7 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 	}
 
 	if (!ath9k_hw_use_flash(ah)) {
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"Read Magic = 0x%04X\n", magic);
+		ath_dbg(common, EEPROM, "Read Magic = 0x%04X\n", magic);
 
 		if (magic != AR5416_EEPROM_MAGIC) {
 			magic2 = swab16(magic);
@@ -303,7 +301,7 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 		}
 	}
 
-	ath_dbg(common, ATH_DBG_EEPROM, "need_swap = %s.\n",
+	ath_dbg(common, EEPROM, "need_swap = %s\n",
 		need_swap ? "True" : "False");
 
 	if (need_swap)
@@ -325,7 +323,7 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 		u32 integer, j;
 		u16 word;
 
-		ath_dbg(common, ATH_DBG_EEPROM,
+		ath_dbg(common, EEPROM,
 			"EEPROM Endianness is not native.. Changing.\n");
 
 		word = swab16(eep->baseEepHeader.length);
@@ -385,7 +383,7 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 	if ((ah->hw_version.devid == AR9280_DEVID_PCI) &&
 	    ((eep->baseEepHeader.version & 0xff) > 0x0a) &&
 	    (eep->baseEepHeader.pwdclkind == 0))
-		ah->need_an_top2_fixup = 1;
+		ah->need_an_top2_fixup = true;
 
 	if ((common->bus_ops->ath_bus_type == ATH_USB) &&
 	    (AR_SREV_9280(ah)))
@@ -965,15 +963,12 @@ static void ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 				reg32 = get_unaligned_le32(&pdadcValues[4 * j]);
 				REG_WRITE(ah, regOffset, reg32);
 
-				ath_dbg(common, ATH_DBG_EEPROM,
+				ath_dbg(common, EEPROM,
 					"PDADC (%d,%4x): %4.4x %8.8x\n",
 					i, regChainOffset, regOffset,
 					reg32);
-				ath_dbg(common, ATH_DBG_EEPROM,
-					"PDADC: Chain %d | PDADC %3d "
-					"Value %3d | PDADC %3d Value %3d | "
-					"PDADC %3d Value %3d | PDADC %3d "
-					"Value %3d |\n",
+				ath_dbg(common, EEPROM,
+					"PDADC: Chain %d | PDADC %3d Value %3d | PDADC %3d Value %3d | PDADC %3d Value %3d | PDADC %3d Value %3d |\n",
 					i, 4 * j, pdadcValues[4 * j],
 					4 * j + 1, pdadcValues[4 * j + 1],
 					4 * j + 2, pdadcValues[4 * j + 2],
@@ -1000,7 +995,7 @@ static void ath9k_hw_set_def_power_per_rate_table(struct ath_hw *ah,
 #define REDUCE_SCALED_POWER_BY_THREE_CHAIN   9 /* 10*log10(3)*2 */
 
 	struct ar5416_eeprom_def *pEepData = &ah->eeprom.def;
-	u16 twiceMaxEdgePower = MAX_RATE_POWER;
+	u16 twiceMaxEdgePower;
 	int i;
 	struct cal_ctl_data *rep;
 	struct cal_target_power_leg targetPowerOfdm, targetPowerCck = {
@@ -1121,9 +1116,7 @@ static void ath9k_hw_set_def_power_per_rate_table(struct ath_hw *ah,
 		else
 			freq = centers.ctl_center;
 
-		if (ah->eep_ops->get_eeprom_ver(ah) == 14 &&
-		    ah->eep_ops->get_eeprom_rev(ah) <= 2)
-			twiceMaxEdgePower = MAX_RATE_POWER;
+		twiceMaxEdgePower = MAX_RATE_POWER;
 
 		for (i = 0; (i < AR5416_NUM_CTLS) && pEepData->ctlIndex[i]; i++) {
 			if ((((cfgCtl & ~CTL_MODE_M) |
@@ -1280,7 +1273,7 @@ static void ath9k_hw_def_set_txpower(struct ath_hw *ah,
 		regulatory->max_power_level += INCREASE_MAXPOW_BY_THREE_CHAIN;
 		break;
 	default:
-		ath_dbg(ath9k_hw_common(ah), ATH_DBG_EEPROM,
+		ath_dbg(ath9k_hw_common(ah), EEPROM,
 			"Invalid chainmask configuration\n");
 		break;
 	}
@@ -1398,8 +1391,7 @@ static u16 ath9k_hw_def_get_spur_channel(struct ath_hw *ah, u16 i, bool is2GHz)
 
 	u16 spur_val = AR_NO_SPUR;
 
-	ath_dbg(common, ATH_DBG_ANI,
-		"Getting spur idx:%d is2Ghz:%d val:%x\n",
+	ath_dbg(common, ANI, "Getting spur idx:%d is2Ghz:%d val:%x\n",
 		i, is2GHz, ah->config.spurchans[i][is2GHz]);
 
 	switch (ah->config.spurmode) {
@@ -1407,8 +1399,8 @@ static u16 ath9k_hw_def_get_spur_channel(struct ath_hw *ah, u16 i, bool is2GHz)
 		break;
 	case SPUR_ENABLE_IOCTL:
 		spur_val = ah->config.spurchans[i][is2GHz];
-		ath_dbg(common, ATH_DBG_ANI,
-			"Getting spur val from new loc. %d\n", spur_val);
+		ath_dbg(common, ANI, "Getting spur val from new loc. %d\n",
+			spur_val);
 		break;
 	case SPUR_ENABLE_EEPROM:
 		spur_val = EEP_DEF_SPURCHAN;

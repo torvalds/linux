@@ -203,7 +203,6 @@ static int spear_ohci_hcd_drv_suspend(struct platform_device *dev,
 	ohci->next_statechange = jiffies;
 
 	spear_stop_ohci(ohci_p);
-	ohci_to_hcd(ohci)->state = HC_STATE_SUSPENDED;
 	return 0;
 }
 

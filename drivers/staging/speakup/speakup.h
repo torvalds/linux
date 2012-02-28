@@ -116,7 +116,7 @@ extern int bleep_time, bell_pos;
 extern int spell_delay, key_echo;
 extern short punc_mask;
 extern short pitch_shift, synth_flags;
-extern int quiet_boot;
+extern bool quiet_boot;
 extern char *synth_name;
 extern struct bleep unprocessed_sound;
 

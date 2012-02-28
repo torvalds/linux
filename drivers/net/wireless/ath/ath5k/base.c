@@ -68,17 +68,22 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-int ath5k_modparam_nohwcrypt;
+bool ath5k_modparam_nohwcrypt;
 module_param_named(nohwcrypt, ath5k_modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
-static int modparam_all_channels;
+static bool modparam_all_channels;
 module_param_named(all_channels, modparam_all_channels, bool, S_IRUGO);
 MODULE_PARM_DESC(all_channels, "Expose all channels the device can use.");
 
-static int modparam_fastchanswitch;
+static bool modparam_fastchanswitch;
 module_param_named(fastchanswitch, modparam_fastchanswitch, bool, S_IRUGO);
 MODULE_PARM_DESC(fastchanswitch, "Enable fast channel switching for AR2413/AR5413 radios.");
+
+static int ath5k_modparam_no_hw_rfkill_switch;
+module_param_named(no_hw_rfkill_switch, ath5k_modparam_no_hw_rfkill_switch,
+								bool, S_IRUGO);
+MODULE_PARM_DESC(no_hw_rfkill_switch, "Ignore the GPIO RFKill switch state");
 
 
 /* Module info */
@@ -183,7 +188,6 @@ static const struct ieee80211_rate ath5k_rates[] = {
 	{ .bitrate = 540,
 	  .hw_value = ATH5K_RATE_CODE_54M,
 	  .flags = 0 },
-	/* XR missing */
 };
 
 static inline u64 ath5k_extend_tsf(struct ath5k_hw *ah, u32 rstamp)
@@ -721,21 +725,24 @@ ath5k_txbuf_setup(struct ath5k_hw *ah, struct ath5k_buf *bf,
 	if (ret)
 		goto err_unmap;
 
-	memset(mrr_rate, 0, sizeof(mrr_rate));
-	memset(mrr_tries, 0, sizeof(mrr_tries));
-	for (i = 0; i < 3; i++) {
-		rate = ieee80211_get_alt_retry_rate(ah->hw, info, i);
-		if (!rate)
-			break;
+	/* Set up MRR descriptor */
+	if (ah->ah_capabilities.cap_has_mrr_support) {
+		memset(mrr_rate, 0, sizeof(mrr_rate));
+		memset(mrr_tries, 0, sizeof(mrr_tries));
+		for (i = 0; i < 3; i++) {
+			rate = ieee80211_get_alt_retry_rate(ah->hw, info, i);
+			if (!rate)
+				break;
 
-		mrr_rate[i] = rate->hw_value;
-		mrr_tries[i] = info->control.rates[i + 1].count;
+			mrr_rate[i] = rate->hw_value;
+			mrr_tries[i] = info->control.rates[i + 1].count;
+		}
+
+		ath5k_hw_setup_mrr_tx_desc(ah, ds,
+			mrr_rate[0], mrr_tries[0],
+			mrr_rate[1], mrr_tries[1],
+			mrr_rate[2], mrr_tries[2]);
 	}
-
-	ath5k_hw_setup_mrr_tx_desc(ah, ds,
-		mrr_rate[0], mrr_tries[0],
-		mrr_rate[1], mrr_tries[1],
-		mrr_rate[2], mrr_tries[2]);
 
 	ds->ds_link = 0;
 	ds->ds_data = bf->skbaddr;
@@ -1689,7 +1696,7 @@ ath5k_tasklet_tx(unsigned long data)
 	struct ath5k_hw *ah = (void *)data;
 
 	for (i = 0; i < AR5K_NUM_TX_QUEUES; i++)
-		if (ah->txqs[i].setup && (ah->ah_txq_isr & BIT(i)))
+		if (ah->txqs[i].setup && (ah->ah_txq_isr_txok_all & BIT(i)))
 			ath5k_tx_processq(ah, &ah->txqs[i]);
 
 	ah->tx_pending = false;
@@ -2005,7 +2012,7 @@ ath5k_beacon_update_timers(struct ath5k_hw *ah, u64 bc_tsf)
 	ah->nexttbtt = nexttbtt;
 
 	intval |= AR5K_BEACON_ENA;
-	ath5k_hw_init_beacon(ah, nexttbtt, intval);
+	ath5k_hw_init_beacon_timers(ah, nexttbtt, intval);
 
 	/*
 	 * debugging output last in order to preserve the time critical aspect
@@ -2112,16 +2119,29 @@ static void
 ath5k_intr_calibration_poll(struct ath5k_hw *ah)
 {
 	if (time_is_before_eq_jiffies(ah->ah_cal_next_ani) &&
-	    !(ah->ah_cal_mask & AR5K_CALIBRATION_FULL)) {
-		/* run ANI only when full calibration is not active */
+	   !(ah->ah_cal_mask & AR5K_CALIBRATION_FULL) &&
+	   !(ah->ah_cal_mask & AR5K_CALIBRATION_SHORT)) {
+
+		/* Run ANI only when calibration is not active */
+
 		ah->ah_cal_next_ani = jiffies +
 			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_ANI);
 		tasklet_schedule(&ah->ani_tasklet);
 
-	} else if (time_is_before_eq_jiffies(ah->ah_cal_next_full)) {
-		ah->ah_cal_next_full = jiffies +
-			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_FULL);
-		tasklet_schedule(&ah->calib);
+	} else if (time_is_before_eq_jiffies(ah->ah_cal_next_short) &&
+		!(ah->ah_cal_mask & AR5K_CALIBRATION_FULL) &&
+		!(ah->ah_cal_mask & AR5K_CALIBRATION_SHORT)) {
+
+		/* Run calibration only when another calibration
+		 * is not running.
+		 *
+		 * Note: This is for both full/short calibration,
+		 * if it's time for a full one, ath5k_calibrate_work will deal
+		 * with it. */
+
+		ah->ah_cal_next_short = jiffies +
+			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_SHORT);
+		ieee80211_queue_work(ah->hw, &ah->calib_work);
 	}
 	/* we could use SWI to generate enough interrupts to meet our
 	 * calibration interval requirements, if necessary:
@@ -2149,69 +2169,110 @@ ath5k_intr(int irq, void *dev_id)
 	enum ath5k_int status;
 	unsigned int counter = 1000;
 
+
+	/*
+	 * If hw is not ready (or detached) and we get an
+	 * interrupt, or if we have no interrupts pending
+	 * (that means it's not for us) skip it.
+	 *
+	 * NOTE: Group 0/1 PCI interface registers are not
+	 * supported on WiSOCs, so we can't check for pending
+	 * interrupts (ISR belongs to another register group
+	 * so we are ok).
+	 */
 	if (unlikely(test_bit(ATH_STAT_INVALID, ah->status) ||
-		((ath5k_get_bus_type(ah) != ATH_AHB) &&
-				!ath5k_hw_is_intr_pending(ah))))
+			((ath5k_get_bus_type(ah) != ATH_AHB) &&
+			!ath5k_hw_is_intr_pending(ah))))
 		return IRQ_NONE;
 
+	/** Main loop **/
 	do {
-		ath5k_hw_get_isr(ah, &status);		/* NB: clears IRQ too */
+		ath5k_hw_get_isr(ah, &status);	/* NB: clears IRQ too */
+
 		ATH5K_DBG(ah, ATH5K_DEBUG_INTR, "status 0x%x/0x%x\n",
 				status, ah->imask);
+
+		/*
+		 * Fatal hw error -> Log and reset
+		 *
+		 * Fatal errors are unrecoverable so we have to
+		 * reset the card. These errors include bus and
+		 * dma errors.
+		 */
 		if (unlikely(status & AR5K_INT_FATAL)) {
-			/*
-			 * Fatal errors are unrecoverable.
-			 * Typically these are caused by DMA errors.
-			 */
+
 			ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
 				  "fatal int, resetting\n");
 			ieee80211_queue_work(ah->hw, &ah->reset_work);
+
+		/*
+		 * RX Overrun -> Count and reset if needed
+		 *
+		 * Receive buffers are full. Either the bus is busy or
+		 * the CPU is not fast enough to process all received
+		 * frames.
+		 */
 		} else if (unlikely(status & AR5K_INT_RXORN)) {
+
 			/*
-			 * Receive buffers are full. Either the bus is busy or
-			 * the CPU is not fast enough to process all received
-			 * frames.
 			 * Older chipsets need a reset to come out of this
 			 * condition, but we treat it as RX for newer chips.
-			 * We don't know exactly which versions need a reset -
+			 * We don't know exactly which versions need a reset
 			 * this guess is copied from the HAL.
 			 */
 			ah->stats.rxorn_intr++;
+
 			if (ah->ah_mac_srev < AR5K_SREV_AR5212) {
 				ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
 					  "rx overrun, resetting\n");
 				ieee80211_queue_work(ah->hw, &ah->reset_work);
 			} else
 				ath5k_schedule_rx(ah);
+
 		} else {
+
+			/* Software Beacon Alert -> Schedule beacon tasklet */
 			if (status & AR5K_INT_SWBA)
 				tasklet_hi_schedule(&ah->beacontq);
 
-			if (status & AR5K_INT_RXEOL) {
-				/*
-				* NB: the hardware should re-read the link when
-				*     RXE bit is written, but it doesn't work at
-				*     least on older hardware revs.
-				*/
+			/*
+			 * No more RX descriptors -> Just count
+			 *
+			 * NB: the hardware should re-read the link when
+			 *     RXE bit is written, but it doesn't work at
+			 *     least on older hardware revs.
+			 */
+			if (status & AR5K_INT_RXEOL)
 				ah->stats.rxeol_intr++;
-			}
-			if (status & AR5K_INT_TXURN) {
-				/* bump tx trigger level */
+
+
+			/* TX Underrun -> Bump tx trigger level */
+			if (status & AR5K_INT_TXURN)
 				ath5k_hw_update_tx_triglevel(ah, true);
-			}
+
+			/* RX -> Schedule rx tasklet */
 			if (status & (AR5K_INT_RXOK | AR5K_INT_RXERR))
 				ath5k_schedule_rx(ah);
-			if (status & (AR5K_INT_TXOK | AR5K_INT_TXDESC
-					| AR5K_INT_TXERR | AR5K_INT_TXEOL))
+
+			/* TX -> Schedule tx tasklet */
+			if (status & (AR5K_INT_TXOK
+					| AR5K_INT_TXDESC
+					| AR5K_INT_TXERR
+					| AR5K_INT_TXEOL))
 				ath5k_schedule_tx(ah);
-			if (status & AR5K_INT_BMISS) {
-				/* TODO */
-			}
+
+			/* Missed beacon -> TODO
+			if (status & AR5K_INT_BMISS)
+			*/
+
+			/* MIB event -> Update counters and notify ANI */
 			if (status & AR5K_INT_MIB) {
 				ah->stats.mib_intr++;
 				ath5k_hw_update_mib_counters(ah);
 				ath5k_ani_mib_intr(ah);
 			}
+
+			/* GPIO -> Notify RFKill layer */
 			if (status & AR5K_INT_GPIO)
 				tasklet_schedule(&ah->rf_kill.toggleq);
 
@@ -2222,12 +2283,19 @@ ath5k_intr(int irq, void *dev_id)
 
 	} while (ath5k_hw_is_intr_pending(ah) && --counter > 0);
 
+	/*
+	 * Until we handle rx/tx interrupts mask them on IMR
+	 *
+	 * NOTE: ah->(rx/tx)_pending are set when scheduling the tasklets
+	 * and unset after we 've handled the interrupts.
+	 */
 	if (ah->rx_pending || ah->tx_pending)
 		ath5k_set_current_imask(ah);
 
 	if (unlikely(!counter))
 		ATH5K_WARN(ah, "too many interrupts, giving up for now\n");
 
+	/* Fire up calibration poll */
 	ath5k_intr_calibration_poll(ah);
 
 	return IRQ_HANDLED;
@@ -2238,41 +2306,58 @@ ath5k_intr(int irq, void *dev_id)
  * for temperature/environment changes.
  */
 static void
-ath5k_tasklet_calibrate(unsigned long data)
+ath5k_calibrate_work(struct work_struct *work)
 {
-	struct ath5k_hw *ah = (void *)data;
+	struct ath5k_hw *ah = container_of(work, struct ath5k_hw,
+		calib_work);
 
-	/* Only full calibration for now */
-	ah->ah_cal_mask |= AR5K_CALIBRATION_FULL;
+	/* Should we run a full calibration ? */
+	if (time_is_before_eq_jiffies(ah->ah_cal_next_full)) {
+
+		ah->ah_cal_next_full = jiffies +
+			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_FULL);
+		ah->ah_cal_mask |= AR5K_CALIBRATION_FULL;
+
+		ATH5K_DBG(ah, ATH5K_DEBUG_CALIBRATE,
+				"running full calibration\n");
+
+		if (ath5k_hw_gainf_calibrate(ah) == AR5K_RFGAIN_NEED_CHANGE) {
+			/*
+			 * Rfgain is out of bounds, reset the chip
+			 * to load new gain values.
+			 */
+			ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
+					"got new rfgain, resetting\n");
+			ieee80211_queue_work(ah->hw, &ah->reset_work);
+		}
+
+		/* TODO: On full calibration we should stop TX here,
+		 * so that it doesn't interfere (mostly due to gain_f
+		 * calibration that messes with tx packets -see phy.c).
+		 *
+		 * NOTE: Stopping the queues from above is not enough
+		 * to stop TX but saves us from disconecting (at least
+		 * we don't lose packets). */
+		ieee80211_stop_queues(ah->hw);
+	} else
+		ah->ah_cal_mask |= AR5K_CALIBRATION_SHORT;
+
 
 	ATH5K_DBG(ah, ATH5K_DEBUG_CALIBRATE, "channel %u/%x\n",
 		ieee80211_frequency_to_channel(ah->curchan->center_freq),
 		ah->curchan->hw_value);
 
-	if (ath5k_hw_gainf_calibrate(ah) == AR5K_RFGAIN_NEED_CHANGE) {
-		/*
-		 * Rfgain is out of bounds, reset the chip
-		 * to load new gain values.
-		 */
-		ATH5K_DBG(ah, ATH5K_DEBUG_RESET, "calibration, resetting\n");
-		ieee80211_queue_work(ah->hw, &ah->reset_work);
-	}
 	if (ath5k_hw_phy_calibrate(ah, ah->curchan))
 		ATH5K_ERR(ah, "calibration of channel %u failed\n",
 			ieee80211_frequency_to_channel(
 				ah->curchan->center_freq));
 
-	/* Noise floor calibration interrupts rx/tx path while I/Q calibration
-	 * doesn't.
-	 * TODO: We should stop TX here, so that it doesn't interfere.
-	 * Note that stopping the queues is not enough to stop TX! */
-	if (time_is_before_eq_jiffies(ah->ah_cal_next_nf)) {
-		ah->ah_cal_next_nf = jiffies +
-			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_NF);
-		ath5k_hw_update_noise_floor(ah);
-	}
-
-	ah->ah_cal_mask &= ~AR5K_CALIBRATION_FULL;
+	/* Clear calibration flags */
+	if (ah->ah_cal_mask & AR5K_CALIBRATION_FULL) {
+		ieee80211_wake_queues(ah->hw);
+		ah->ah_cal_mask &= ~AR5K_CALIBRATION_FULL;
+	} else if (ah->ah_cal_mask & AR5K_CALIBRATION_SHORT)
+		ah->ah_cal_mask &= ~AR5K_CALIBRATION_SHORT;
 }
 
 
@@ -2407,8 +2492,8 @@ ath5k_init_ah(struct ath5k_hw *ah, const struct ath_bus_ops *bus_ops)
 	if (ret)
 		goto err_irq;
 
-	/* set up multi-rate retry capabilities */
-	if (ah->ah_version == AR5K_AR5212) {
+	/* Set up multi-rate retry capabilities */
+	if (ah->ah_capabilities.cap_has_mrr_support) {
 		hw->max_rates = 4;
 		hw->max_rate_tries = max(AR5K_INIT_RETRY_SHORT,
 					 AR5K_INIT_RETRY_LONG);
@@ -2544,15 +2629,22 @@ int ath5k_start(struct ieee80211_hw *hw)
 	 * and then setup of the interrupt mask.
 	 */
 	ah->curchan = ah->hw->conf.channel;
-	ah->imask = AR5K_INT_RXOK | AR5K_INT_RXERR | AR5K_INT_RXEOL |
-		AR5K_INT_RXORN | AR5K_INT_TXDESC | AR5K_INT_TXEOL |
-		AR5K_INT_FATAL | AR5K_INT_GLOBAL | AR5K_INT_MIB;
+	ah->imask = AR5K_INT_RXOK
+		| AR5K_INT_RXERR
+		| AR5K_INT_RXEOL
+		| AR5K_INT_RXORN
+		| AR5K_INT_TXDESC
+		| AR5K_INT_TXEOL
+		| AR5K_INT_FATAL
+		| AR5K_INT_GLOBAL
+		| AR5K_INT_MIB;
 
 	ret = ath5k_reset(ah, NULL, false);
 	if (ret)
 		goto done;
 
-	ath5k_rfkill_hw_start(ah);
+	if (!ath5k_modparam_no_hw_rfkill_switch)
+		ath5k_rfkill_hw_start(ah);
 
 	/*
 	 * Reset the key cache since some parts do not reset the
@@ -2585,7 +2677,6 @@ static void ath5k_stop_tasklets(struct ath5k_hw *ah)
 	ah->tx_pending = false;
 	tasklet_kill(&ah->rxtq);
 	tasklet_kill(&ah->txtq);
-	tasklet_kill(&ah->calib);
 	tasklet_kill(&ah->beacontq);
 	tasklet_kill(&ah->ani_tasklet);
 }
@@ -2637,7 +2728,8 @@ void ath5k_stop(struct ieee80211_hw *hw)
 
 	cancel_delayed_work_sync(&ah->tx_complete_work);
 
-	ath5k_rfkill_hw_stop(ah);
+	if (!ath5k_modparam_no_hw_rfkill_switch)
+		ath5k_rfkill_hw_stop(ah);
 }
 
 /*
@@ -2689,9 +2781,24 @@ ath5k_reset(struct ath5k_hw *ah, struct ieee80211_channel *chan,
 
 	ath5k_ani_init(ah, ani_mode);
 
-	ah->ah_cal_next_full = jiffies + msecs_to_jiffies(100);
-	ah->ah_cal_next_ani = jiffies;
-	ah->ah_cal_next_nf = jiffies;
+	/*
+	 * Set calibration intervals
+	 *
+	 * Note: We don't need to run calibration imediately
+	 * since some initial calibration is done on reset
+	 * even for fast channel switching. Also on scanning
+	 * this will get set again and again and it won't get
+	 * executed unless we connect somewhere and spend some
+	 * time on the channel (that's what calibration needs
+	 * anyway to be accurate).
+	 */
+	ah->ah_cal_next_full = jiffies +
+		msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_FULL);
+	ah->ah_cal_next_ani = jiffies +
+		msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_ANI);
+	ah->ah_cal_next_short = jiffies +
+		msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_SHORT);
+
 	ewma_init(&ah->ah_beacon_rssi_avg, 1024, 8);
 
 	/* clear survey data and cycle counters */
@@ -2743,20 +2850,6 @@ ath5k_init(struct ieee80211_hw *hw)
 	u8 mac[ETH_ALEN] = {};
 	int ret;
 
-
-	/*
-	 * Check if the MAC has multi-rate retry support.
-	 * We do this by trying to setup a fake extended
-	 * descriptor.  MACs that don't have support will
-	 * return false w/o doing anything.  MACs that do
-	 * support it will return true w/o doing anything.
-	 */
-	ret = ath5k_hw_setup_mrr_tx_desc(ah, NULL, 0, 0, 0, 0, 0, 0);
-
-	if (ret < 0)
-		goto err;
-	if (ret > 0)
-		__set_bit(ATH_STAT_MRRETRY, ah->status);
 
 	/*
 	 * Collect the channel list.  The 802.11 layer
@@ -2841,11 +2934,11 @@ ath5k_init(struct ieee80211_hw *hw)
 
 	tasklet_init(&ah->rxtq, ath5k_tasklet_rx, (unsigned long)ah);
 	tasklet_init(&ah->txtq, ath5k_tasklet_tx, (unsigned long)ah);
-	tasklet_init(&ah->calib, ath5k_tasklet_calibrate, (unsigned long)ah);
 	tasklet_init(&ah->beacontq, ath5k_tasklet_beacon, (unsigned long)ah);
 	tasklet_init(&ah->ani_tasklet, ath5k_tasklet_ani, (unsigned long)ah);
 
 	INIT_WORK(&ah->reset_work, ath5k_reset_work);
+	INIT_WORK(&ah->calib_work, ath5k_calibrate_work);
 	INIT_DELAYED_WORK(&ah->tx_complete_work, ath5k_tx_complete_poll_work);
 
 	ret = ath5k_hw_common(ah)->bus_ops->eeprom_read_mac(ah, mac);

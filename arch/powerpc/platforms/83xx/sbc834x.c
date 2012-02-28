@@ -48,52 +48,13 @@
  */
 static void __init sbc834x_setup_arch(void)
 {
-#ifdef CONFIG_PCI
-	struct device_node *np;
-#endif
-
 	if (ppc_md.progress)
 		ppc_md.progress("sbc834x_setup_arch()", 0);
 
-#ifdef CONFIG_PCI
-	for_each_compatible_node(np, "pci", "fsl,mpc8349-pci")
-		mpc83xx_add_bridge(np);
-#endif
-
+	mpc83xx_setup_pci();
 }
 
-static void __init sbc834x_init_IRQ(void)
-{
-	struct device_node *np;
-
-	np = of_find_node_by_type(NULL, "ipic");
-	if (!np)
-		return;
-
-	ipic_init(np, 0);
-
-	/* Initialize the default interrupt mapping priorities,
-	 * in case the boot rom changed something on us.
-	 */
-	ipic_set_default_priority();
-
-	of_node_put(np);
-}
-
-static struct __initdata of_device_id sbc834x_ids[] = {
-	{ .type = "soc", },
-	{ .compatible = "soc", },
-	{ .compatible = "simple-bus", },
-	{ .compatible = "gianfar", },
-	{},
-};
-
-static int __init sbc834x_declare_of_platform_devices(void)
-{
-	of_platform_bus_probe(NULL, sbc834x_ids, NULL);
-	return 0;
-}
-machine_device_initcall(sbc834x, sbc834x_declare_of_platform_devices);
+machine_device_initcall(sbc834x, mpc83xx_declare_of_platform_devices);
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
@@ -102,14 +63,14 @@ static int __init sbc834x_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
-	return of_flat_dt_is_compatible(root, "SBC834x");
+	return of_flat_dt_is_compatible(root, "SBC834xE");
 }
 
 define_machine(sbc834x) {
-	.name			= "SBC834x",
+	.name			= "SBC834xE",
 	.probe			= sbc834x_probe,
 	.setup_arch		= sbc834x_setup_arch,
-	.init_IRQ		= sbc834x_init_IRQ,
+	.init_IRQ		= mpc83xx_ipic_init_IRQ,
 	.get_irq		= ipic_get_irq,
 	.restart		= mpc83xx_restart,
 	.time_init		= mpc83xx_time_init,

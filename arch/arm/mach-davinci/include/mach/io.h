@@ -21,12 +21,4 @@
 #define __mem_pci(a)		(a)
 #define __mem_isa(a)		(a)
 
-#ifndef __ASSEMBLER__
-#define __arch_ioremap		davinci_ioremap
-#define __arch_iounmap		davinci_iounmap
-
-void __iomem *davinci_ioremap(unsigned long phys, size_t size,
-			      unsigned int type);
-void davinci_iounmap(volatile void __iomem *addr);
-#endif
 #endif /* __ASM_ARCH_IO_H */

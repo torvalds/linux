@@ -94,9 +94,9 @@
  * This implementation is iwl-pci.c
  */
 
-struct iwl_cfg;
 struct iwl_bus;
 struct iwl_priv;
+struct iwl_trans;
 struct iwl_sensitivity_ranges;
 struct iwl_trans_ops;
 
@@ -107,6 +107,10 @@ struct iwl_trans_ops;
 
 extern struct iwl_mod_params iwlagn_mod_params;
 
+#define IWL_DISABLE_HT_ALL	BIT(0)
+#define IWL_DISABLE_HT_TXAGG	BIT(1)
+#define IWL_DISABLE_HT_RXAGG	BIT(2)
+
 /**
  * struct iwl_mod_params
  *
@@ -114,7 +118,8 @@ extern struct iwl_mod_params iwlagn_mod_params;
  *
  * @sw_crypto: using hardware encryption, default = 0
  * @num_of_queues: number of tx queue, HW dependent
- * @disable_11n: 11n capabilities enabled, default = 0
+ * @disable_11n: disable 11n capabilities, default = 0,
+ *	use IWL_DISABLE_HT_* constants
  * @amsdu_size_8K: enable 8K amsdu size, default = 1
  * @antenna: both antennas (use diversity), default = 0
  * @restart_fw: restart firmware, default = 1
@@ -135,7 +140,7 @@ extern struct iwl_mod_params iwlagn_mod_params;
 struct iwl_mod_params {
 	int sw_crypto;
 	int num_of_queues;
-	int disable_11n;
+	unsigned int disable_11n;
 	int amsdu_size_8K;
 	int antenna;
 	int restart_fw;
@@ -174,8 +179,6 @@ struct iwl_mod_params {
  * @ct_kill_exit_threshold: when to reeable the device - in hw dependent unit
  *	relevant for 1000, 6000 and up
  * @wd_timeout: TX queues watchdog timeout
- * @calib_init_cfg: setup initial calibrations for the hw
- * @calib_rt_cfg: setup runtime calibrations for the hw
  * @struct iwl_sensitivity_ranges: range of sensitivity values
  */
 struct iwl_hw_params {
@@ -195,67 +198,148 @@ struct iwl_hw_params {
 	u32 ct_kill_exit_threshold;
 	unsigned int wd_timeout;
 
-	u32 calib_init_cfg;
-	u32 calib_rt_cfg;
 	const struct iwl_sensitivity_ranges *sens;
 };
 
 /**
- * enum iwl_agg_state
+ * enum iwl_ucode_type
  *
- * The state machine of the BA agreement establishment / tear down.
- * These states relate to a specific RA / TID.
+ * The type of ucode currently loaded on the hardware.
  *
- * @IWL_AGG_OFF: aggregation is not used
- * @IWL_AGG_ON: aggregation session is up
- * @IWL_EMPTYING_HW_QUEUE_ADDBA: establishing a BA session - waiting for the
- *	HW queue to be empty from packets for this RA /TID.
- * @IWL_EMPTYING_HW_QUEUE_DELBA: tearing down a BA session - waiting for the
- *	HW queue to be empty from packets for this RA /TID.
+ * @IWL_UCODE_NONE: No ucode loaded
+ * @IWL_UCODE_REGULAR: Normal runtime ucode
+ * @IWL_UCODE_INIT: Initial ucode
+ * @IWL_UCODE_WOWLAN: Wake on Wireless enabled ucode
  */
-enum iwl_agg_state {
-	IWL_AGG_OFF = 0,
-	IWL_AGG_ON,
-	IWL_EMPTYING_HW_QUEUE_ADDBA,
-	IWL_EMPTYING_HW_QUEUE_DELBA,
+enum iwl_ucode_type {
+	IWL_UCODE_NONE,
+	IWL_UCODE_REGULAR,
+	IWL_UCODE_INIT,
+	IWL_UCODE_WOWLAN,
 };
 
 /**
- * struct iwl_ht_agg - aggregation state machine
-
- * This structs holds the states for the BA agreement establishment and tear
- * down. It also holds the state during the BA session itself. This struct is
- * duplicated for each RA / TID.
-
- * @rate_n_flags: Rate at which Tx was attempted. Holds the data between the
- *	Tx response (REPLY_TX), and the block ack notification
- *	(REPLY_COMPRESSED_BA).
- * @state: state of the BA agreement establishment / tear down.
- * @txq_id: Tx queue used by the BA session - used by the transport layer.
- *	Needed by the upper layer for debugfs only.
- * @wait_for_ba: Expect block-ack before next Tx reply
+ * struct iwl_notification_wait - notification wait entry
+ * @list: list head for global list
+ * @fn: function called with the notification
+ * @cmd: command ID
+ *
+ * This structure is not used directly, to wait for a
+ * notification declare it on the stack, and call
+ * iwlagn_init_notification_wait() with appropriate
+ * parameters. Then do whatever will cause the ucode
+ * to notify the driver, and to wait for that then
+ * call iwlagn_wait_notification().
+ *
+ * Each notification is one-shot. If at some point we
+ * need to support multi-shot notifications (which
+ * can't be allocated on the stack) we need to modify
+ * the code for them.
  */
-struct iwl_ht_agg {
-	u32 rate_n_flags;
-	enum iwl_agg_state state;
-	u16 txq_id;
-	bool wait_for_ba;
+struct iwl_notification_wait {
+	struct list_head list;
+
+	void (*fn)(struct iwl_trans *trans, struct iwl_rx_packet *pkt,
+		   void *data);
+	void *fn_data;
+
+	u8 cmd;
+	bool triggered, aborted;
 };
 
 /**
- * struct iwl_tid_data - one for each RA / TID
-
- * This structs holds the states for each RA / TID.
-
- * @seq_number: the next WiFi sequence number to use
- * @tfds_in_queue: number of packets sent to the HW queues.
- *	Exported for debugfs only
- * @agg: aggregation state machine
+ * enum iwl_pa_type - Power Amplifier type
+ * @IWL_PA_SYSTEM:  based on uCode configuration
+ * @IWL_PA_INTERNAL: use Internal only
  */
-struct iwl_tid_data {
-	u16 seq_number;
-	u16 tfds_in_queue;
-	struct iwl_ht_agg agg;
+enum iwl_pa_type {
+	IWL_PA_SYSTEM = 0,
+	IWL_PA_INTERNAL = 1,
+};
+
+/*
+ * LED mode
+ *    IWL_LED_DEFAULT:  use device default
+ *    IWL_LED_RF_STATE: turn LED on/off based on RF state
+ *			LED ON  = RF ON
+ *			LED OFF = RF OFF
+ *    IWL_LED_BLINK:    adjust led blink rate based on blink table
+ */
+enum iwl_led_mode {
+	IWL_LED_DEFAULT,
+	IWL_LED_RF_STATE,
+	IWL_LED_BLINK,
+};
+
+/**
+ * struct iwl_cfg
+ * @name: Offical name of the device
+ * @fw_name_pre: Firmware filename prefix. The api version and extension
+ *	(.ucode) will be added to filename before loading from disk. The
+ *	filename is constructed as fw_name_pre<api>.ucode.
+ * @ucode_api_max: Highest version of uCode API supported by driver.
+ * @ucode_api_ok: oldest version of the uCode API that is OK to load
+ *	without a warning, for use in transitions
+ * @ucode_api_min: Lowest version of uCode API supported by driver.
+ * @valid_tx_ant: valid transmit antenna
+ * @valid_rx_ant: valid receive antenna
+ * @sku: sku information from EEPROM
+ * @eeprom_ver: EEPROM version
+ * @eeprom_calib_ver: EEPROM calibration version
+ * @lib: pointer to the lib ops
+ * @additional_nic_config: additional nic configuration
+ * @base_params: pointer to basic parameters
+ * @ht_params: point to ht patameters
+ * @bt_params: pointer to bt parameters
+ * @pa_type: used by 6000 series only to identify the type of Power Amplifier
+ * @need_temp_offset_calib: need to perform temperature offset calibration
+ * @no_xtal_calib: some devices do not need crystal calibration data,
+ *	don't send it to those
+ * @scan_rx_antennas: available antenna for scan operation
+ * @led_mode: 0=blinking, 1=On(RF On)/Off(RF Off)
+ * @adv_pm: advance power management
+ * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
+ * @internal_wimax_coex: internal wifi/wimax combo device
+ * @iq_invert: I/Q inversion
+ * @temp_offset_v2: support v2 of temperature offset calibration
+ *
+ * We enable the driver to be backward compatible wrt API version. The
+ * driver specifies which APIs it supports (with @ucode_api_max being the
+ * highest and @ucode_api_min the lowest). Firmware will only be loaded if
+ * it has a supported API version.
+ *
+ * The ideal usage of this infrastructure is to treat a new ucode API
+ * release as a new hardware revision.
+ */
+struct iwl_cfg {
+	/* params specific to an individual device within a device family */
+	const char *name;
+	const char *fw_name_pre;
+	const unsigned int ucode_api_max;
+	const unsigned int ucode_api_ok;
+	const unsigned int ucode_api_min;
+	u8   valid_tx_ant;
+	u8   valid_rx_ant;
+	u16  sku;
+	u16  eeprom_ver;
+	u16  eeprom_calib_ver;
+	const struct iwl_lib_ops *lib;
+	void (*additional_nic_config)(struct iwl_priv *priv);
+	/* params not likely to change within a device family */
+	struct iwl_base_params *base_params;
+	/* params likely to change within a device family */
+	struct iwl_ht_params *ht_params;
+	struct iwl_bt_params *bt_params;
+	enum iwl_pa_type pa_type;	  /* if used set to IWL_PA_SYSTEM */
+	const bool need_temp_offset_calib; /* if used set to true */
+	const bool no_xtal_calib;
+	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
+	enum iwl_led_mode led_mode;
+	const bool adv_pm;
+	const bool rx_with_siso_diversity;
+	const bool internal_wimax_coex;
+	const bool iq_invert;
+	const bool temp_offset_v2;
 };
 
 /**
@@ -266,15 +350,25 @@ struct iwl_tid_data {
  * @ucode_owner: IWL_OWNERSHIP_*
  * @cmd_queue: command queue number
  * @status: STATUS_*
+ * @wowlan: are we running wowlan uCode
  * @valid_contexts: microcode/device supports multiple contexts
  * @bus: pointer to the bus layer data
+ * @cfg: see struct iwl_cfg
  * @priv: pointer to the upper layer data
+ * @trans: pointer to the transport layer data
  * @hw_params: see struct iwl_hw_params
  * @workqueue: the workqueue used by all the layers of the driver
  * @lock: protect general shared data
  * @sta_lock: protects the station table.
  *	If lock and sta_lock are needed, lock must be acquired first.
  * @mutex:
+ * @wait_command_queue: the wait_queue for SYNC host command nad uCode load
+ * @eeprom: pointer to the eeprom/OTP image
+ * @ucode_type: indicator of loaded ucode image
+ * @notif_waits: things waiting for notification
+ * @notif_wait_lock: lock protecting notification
+ * @notif_waitq: head of notification wait queue
+ * @device_pointers: pointers to ucode event tables
  */
 struct iwl_shared {
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -290,6 +384,7 @@ struct iwl_shared {
 	u8 valid_contexts;
 
 	struct iwl_bus *bus;
+	struct iwl_cfg *cfg;
 	struct iwl_priv *priv;
 	struct iwl_trans *trans;
 	struct iwl_hw_params hw_params;
@@ -299,13 +394,29 @@ struct iwl_shared {
 	spinlock_t sta_lock;
 	struct mutex mutex;
 
-	struct iwl_tid_data tid_data[IWLAGN_STATION_COUNT][IWL_MAX_TID_COUNT];
-
 	wait_queue_head_t wait_command_queue;
+
+	/* eeprom -- this is in the card's little endian byte order */
+	u8 *eeprom;
+
+	/* ucode related variables */
+	enum iwl_ucode_type ucode_type;
+
+	/* notification wait support */
+	struct list_head notif_waits;
+	spinlock_t notif_wait_lock;
+	wait_queue_head_t notif_waitq;
+
+	struct {
+		u32 error_event_table;
+		u32 log_event_table;
+	} device_pointers;
+
 };
 
 /*Whatever _m is (iwl_trans, iwl_priv, iwl_bus, these macros will work */
 #define priv(_m)	((_m)->shrd->priv)
+#define cfg(_m)		((_m)->shrd->cfg)
 #define bus(_m)		((_m)->shrd->bus)
 #define trans(_m)	((_m)->shrd->trans)
 #define hw_params(_m)	((_m)->shrd->hw_params)
@@ -427,12 +538,6 @@ int __must_check iwl_rx_dispatch(struct iwl_priv *priv,
 				 struct iwl_device_cmd *cmd);
 
 int iwlagn_hw_valid_rtc_data_addr(u32 addr);
-void iwl_start_tx_ba_trans_ready(struct iwl_priv *priv,
-				 enum iwl_rxon_context_id ctx,
-				 u8 sta_id, u8 tid);
-void iwl_stop_tx_ba_trans_ready(struct iwl_priv *priv,
-				enum iwl_rxon_context_id ctx,
-				u8 sta_id, u8 tid);
 void iwl_set_hw_rfkill_state(struct iwl_priv *priv, bool state);
 void iwl_nic_config(struct iwl_priv *priv);
 void iwl_free_skb(struct iwl_priv *priv, struct sk_buff *skb);
@@ -444,6 +549,24 @@ bool iwl_check_for_ct_kill(struct iwl_priv *priv);
 
 void iwl_stop_sw_queue(struct iwl_priv *priv, u8 ac);
 void iwl_wake_sw_queue(struct iwl_priv *priv, u8 ac);
+
+/* notification wait support */
+void iwl_abort_notification_waits(struct iwl_shared *shrd);
+void __acquires(wait_entry)
+iwl_init_notification_wait(struct iwl_shared *shrd,
+			      struct iwl_notification_wait *wait_entry,
+			      u8 cmd,
+			      void (*fn)(struct iwl_trans *trans,
+					 struct iwl_rx_packet *pkt,
+					 void *data),
+			      void *fn_data);
+int __must_check __releases(wait_entry)
+iwl_wait_notification(struct iwl_shared *shrd,
+			 struct iwl_notification_wait *wait_entry,
+			 unsigned long timeout);
+void __releases(wait_entry)
+iwl_remove_notification(struct iwl_shared *shrd,
+			   struct iwl_notification_wait *wait_entry);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 void iwl_reset_traffic_log(struct iwl_priv *priv);

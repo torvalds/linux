@@ -22,7 +22,11 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
+#include <linux/etherdevice.h>
 #include <linux/netdevice.h>
+#include <linux/phy.h>
+#include <linux/module.h>
+#include <linux/init.h>
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 #define STMMAC_VLAN_TAG_USED
 #include <linux/if_vlan.h>
@@ -63,6 +67,7 @@ struct stmmac_extra_stats {
 	unsigned long ipc_csum_error;
 	unsigned long rx_collision;
 	unsigned long rx_crc;
+	unsigned long dribbling_bit;
 	unsigned long rx_length;
 	unsigned long rx_mii;
 	unsigned long rx_multicast;
@@ -315,5 +320,8 @@ extern void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
 				unsigned int high, unsigned int low);
 extern void stmmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
 				unsigned int high, unsigned int low);
+
+extern void stmmac_set_mac(void __iomem *ioaddr, bool enable);
+
 extern void dwmac_dma_flush_tx_fifo(void __iomem *ioaddr);
 extern const struct stmmac_ring_mode_ops ring_mode_ops;

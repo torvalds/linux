@@ -60,8 +60,6 @@ extern void core_scsi3_free_pr_reg_from_nacl(struct se_device *,
 					     struct se_node_acl *);
 extern void core_scsi3_free_all_registrations(struct se_device *);
 extern unsigned char *core_scsi3_pr_dump_type(int);
-extern int core_scsi3_check_cdb_abort_and_preempt(struct list_head *,
-						  struct se_cmd *);
 
 extern int target_scsi3_emulate_pr_in(struct se_task *task);
 extern int target_scsi3_emulate_pr_out(struct se_task *task);

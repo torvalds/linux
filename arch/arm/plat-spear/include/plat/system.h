@@ -14,10 +14,6 @@
 #ifndef __PLAT_SYSTEM_H
 #define __PLAT_SYSTEM_H
 
-#include <linux/io.h>
-#include <asm/hardware/sp810.h>
-#include <mach/hardware.h>
-
 static inline void arch_idle(void)
 {
 	/*
@@ -25,17 +21,6 @@ static inline void arch_idle(void)
 	 * and wait for interrupt tricks
 	 */
 	cpu_do_idle();
-}
-
-static inline void arch_reset(char mode, const char *cmd)
-{
-	if (mode == 's') {
-		/* software reset, Jump into ROM at address 0 */
-		cpu_reset(0);
-	} else {
-		/* hardware reset, Use on-chip reset capability */
-		sysctl_soft_reset((void __iomem *)VA_SPEAR_SYS_CTRL_BASE);
-	}
 }
 
 #endif /* __PLAT_SYSTEM_H */

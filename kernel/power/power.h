@@ -50,6 +50,8 @@ static inline char *check_image_kernel(struct swsusp_info *info)
 #define SPARE_PAGES	((1024 * 1024) >> PAGE_SHIFT)
 
 /* kernel/power/hibernate.c */
+extern bool freezer_test_done;
+
 extern int hibernation_snapshot(int platform_mode);
 extern int hibernation_restore(int platform_mode);
 extern int hibernation_platform_enter(void);
@@ -229,8 +231,28 @@ extern int pm_test_level;
 #ifdef CONFIG_SUSPEND_FREEZER
 static inline int suspend_freeze_processes(void)
 {
-	int error = freeze_processes();
-	return error ? : freeze_kernel_threads();
+	int error;
+
+	error = freeze_processes();
+
+	/*
+	 * freeze_processes() automatically thaws every task if freezing
+	 * fails. So we need not do anything extra upon error.
+	 */
+	if (error)
+		goto Finish;
+
+	error = freeze_kernel_threads();
+
+	/*
+	 * freeze_kernel_threads() thaws only kernel threads upon freezing
+	 * failure. So we have to thaw the userspace tasks ourselves.
+	 */
+	if (error)
+		thaw_processes();
+
+ Finish:
+	return error;
 }
 
 static inline void suspend_thaw_processes(void)

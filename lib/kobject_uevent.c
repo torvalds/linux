@@ -259,6 +259,9 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 		struct sk_buff *skb;
 		size_t len;
 
+		if (!netlink_has_listeners(uevent_sock, 1))
+			continue;
+
 		/* allocate message with the maximum possible size */
 		len = strlen(action_string) + strlen(devpath) + 2;
 		skb = alloc_skb(len + env->buflen, GFP_KERNEL);

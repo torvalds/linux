@@ -22,8 +22,8 @@ static int __init cpuidle_sysfs_setup(char *unused)
 }
 __setup("cpuidle_sysfs_switch", cpuidle_sysfs_setup);
 
-static ssize_t show_available_governors(struct sysdev_class *class,
-					struct sysdev_class_attribute *attr,
+static ssize_t show_available_governors(struct device *dev,
+					struct device_attribute *attr,
 					char *buf)
 {
 	ssize_t i = 0;
@@ -42,8 +42,8 @@ out:
 	return i;
 }
 
-static ssize_t show_current_driver(struct sysdev_class *class,
-				   struct sysdev_class_attribute *attr,
+static ssize_t show_current_driver(struct device *dev,
+				   struct device_attribute *attr,
 				   char *buf)
 {
 	ssize_t ret;
@@ -59,8 +59,8 @@ static ssize_t show_current_driver(struct sysdev_class *class,
 	return ret;
 }
 
-static ssize_t show_current_governor(struct sysdev_class *class,
-				     struct sysdev_class_attribute *attr,
+static ssize_t show_current_governor(struct device *dev,
+				     struct device_attribute *attr,
 				     char *buf)
 {
 	ssize_t ret;
@@ -75,8 +75,8 @@ static ssize_t show_current_governor(struct sysdev_class *class,
 	return ret;
 }
 
-static ssize_t store_current_governor(struct sysdev_class *class,
-				      struct sysdev_class_attribute *attr,
+static ssize_t store_current_governor(struct device *dev,
+				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
 	char gov_name[CPUIDLE_NAME_LEN];
@@ -109,50 +109,48 @@ static ssize_t store_current_governor(struct sysdev_class *class,
 		return count;
 }
 
-static SYSDEV_CLASS_ATTR(current_driver, 0444, show_current_driver, NULL);
-static SYSDEV_CLASS_ATTR(current_governor_ro, 0444, show_current_governor,
-			 NULL);
+static DEVICE_ATTR(current_driver, 0444, show_current_driver, NULL);
+static DEVICE_ATTR(current_governor_ro, 0444, show_current_governor, NULL);
 
-static struct attribute *cpuclass_default_attrs[] = {
-	&attr_current_driver.attr,
-	&attr_current_governor_ro.attr,
+static struct attribute *cpuidle_default_attrs[] = {
+	&dev_attr_current_driver.attr,
+	&dev_attr_current_governor_ro.attr,
 	NULL
 };
 
-static SYSDEV_CLASS_ATTR(available_governors, 0444, show_available_governors,
-			 NULL);
-static SYSDEV_CLASS_ATTR(current_governor, 0644, show_current_governor,
-			 store_current_governor);
+static DEVICE_ATTR(available_governors, 0444, show_available_governors, NULL);
+static DEVICE_ATTR(current_governor, 0644, show_current_governor,
+		   store_current_governor);
 
-static struct attribute *cpuclass_switch_attrs[] = {
-	&attr_available_governors.attr,
-	&attr_current_driver.attr,
-	&attr_current_governor.attr,
+static struct attribute *cpuidle_switch_attrs[] = {
+	&dev_attr_available_governors.attr,
+	&dev_attr_current_driver.attr,
+	&dev_attr_current_governor.attr,
 	NULL
 };
 
-static struct attribute_group cpuclass_attr_group = {
-	.attrs = cpuclass_default_attrs,
+static struct attribute_group cpuidle_attr_group = {
+	.attrs = cpuidle_default_attrs,
 	.name = "cpuidle",
 };
 
 /**
- * cpuidle_add_class_sysfs - add CPU global sysfs attributes
+ * cpuidle_add_interface - add CPU global sysfs attributes
  */
-int cpuidle_add_class_sysfs(struct sysdev_class *cls)
+int cpuidle_add_interface(struct device *dev)
 {
 	if (sysfs_switch)
-		cpuclass_attr_group.attrs = cpuclass_switch_attrs;
+		cpuidle_attr_group.attrs = cpuidle_switch_attrs;
 
-	return sysfs_create_group(&cls->kset.kobj, &cpuclass_attr_group);
+	return sysfs_create_group(&dev->kobj, &cpuidle_attr_group);
 }
 
 /**
- * cpuidle_remove_class_sysfs - remove CPU global sysfs attributes
+ * cpuidle_remove_interface - remove CPU global sysfs attributes
  */
-void cpuidle_remove_class_sysfs(struct sysdev_class *cls)
+void cpuidle_remove_interface(struct device *dev)
 {
-	sysfs_remove_group(&cls->kset.kobj, &cpuclass_attr_group);
+	sysfs_remove_group(&dev->kobj, &cpuidle_attr_group);
 }
 
 struct cpuidle_attr {
@@ -365,16 +363,16 @@ void cpuidle_remove_state_sysfs(struct cpuidle_device *device)
 
 /**
  * cpuidle_add_sysfs - creates a sysfs instance for the target device
- * @sysdev: the target device
+ * @dev: the target device
  */
-int cpuidle_add_sysfs(struct sys_device *sysdev)
+int cpuidle_add_sysfs(struct device *cpu_dev)
 {
-	int cpu = sysdev->id;
+	int cpu = cpu_dev->id;
 	struct cpuidle_device *dev;
 	int error;
 
 	dev = per_cpu(cpuidle_devices, cpu);
-	error = kobject_init_and_add(&dev->kobj, &ktype_cpuidle, &sysdev->kobj,
+	error = kobject_init_and_add(&dev->kobj, &ktype_cpuidle, &cpu_dev->kobj,
 				     "cpuidle");
 	if (!error)
 		kobject_uevent(&dev->kobj, KOBJ_ADD);
@@ -383,11 +381,11 @@ int cpuidle_add_sysfs(struct sys_device *sysdev)
 
 /**
  * cpuidle_remove_sysfs - deletes a sysfs instance on the target device
- * @sysdev: the target device
+ * @dev: the target device
  */
-void cpuidle_remove_sysfs(struct sys_device *sysdev)
+void cpuidle_remove_sysfs(struct device *cpu_dev)
 {
-	int cpu = sysdev->id;
+	int cpu = cpu_dev->id;
 	struct cpuidle_device *dev;
 
 	dev = per_cpu(cpuidle_devices, cpu);

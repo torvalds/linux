@@ -115,8 +115,8 @@ static struct resource colibri_asix_resource[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start = gpio_to_irq(COLIBRI_ETH_IRQ_GPIO),
-		.end   = gpio_to_irq(COLIBRI_ETH_IRQ_GPIO),
+		.start = PXA_GPIO_TO_IRQ(COLIBRI_ETH_IRQ_GPIO),
+		.end   = PXA_GPIO_TO_IRQ(COLIBRI_ETH_IRQ_GPIO),
 		.flags = IORESOURCE_IRQ | IRQF_TRIGGER_FALLING,
 	}
 };
@@ -259,5 +259,6 @@ MACHINE_START(COLIBRI320, "Toradex Colibri PXA320")
 	.init_irq	= pxa3xx_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,
 	.timer		= &pxa_timer,
+	.restart	= pxa_restart,
 MACHINE_END
 

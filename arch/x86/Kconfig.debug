@@ -43,9 +43,9 @@ config EARLY_PRINTK
 	  with klogd/syslogd or the X server. You should normally N here,
 	  unless you want to debug such a crash.
 
-config EARLY_PRINTK_MRST
-	bool "Early printk for MRST platform support"
-	depends on EARLY_PRINTK && X86_MRST
+config EARLY_PRINTK_INTEL_MID
+	bool "Early printk for Intel MID platform support"
+	depends on EARLY_PRINTK && X86_INTEL_MID
 
 config EARLY_PRINTK_DBGP
 	bool "Early printk via EHCI debug port"
@@ -63,8 +63,11 @@ config DEBUG_STACKOVERFLOW
 	bool "Check for stack overflows"
 	depends on DEBUG_KERNEL
 	---help---
-	  This option will cause messages to be printed if free stack space
-	  drops below a certain limit.
+	  Say Y here if you want to check the overflows of kernel, IRQ
+	  and exception stacks. This option will cause messages of the
+	  stacks in detail when free stack space drops below a certain
+	  limit.
+	  If in doubt, say "N".
 
 config X86_PTDUMP
 	bool "Export kernel pagetable layout to userspace via debugfs"
@@ -283,5 +286,17 @@ config DEBUG_STRICT_USER_COPY_CHECKS
 	  within bounds.
 
 	  If unsure, or if you run an older (pre 4.4) gcc, say N.
+
+config DEBUG_NMI_SELFTEST
+	bool "NMI Selftest"
+	depends on DEBUG_KERNEL && X86_LOCAL_APIC
+	---help---
+	  Enabling this option turns on a quick NMI selftest to verify
+	  that the NMI behaves correctly.
+
+	  This might help diagnose strange hangs that rely on NMI to
+	  function properly.
+
+	  If unsure, say N.
 
 endmenu

@@ -195,7 +195,7 @@ static int __init es_probe1(struct net_device *dev, int ioaddr)
 		goto out;
 	}
 
-	for (i = 0; i < ETHER_ADDR_LEN ; i++)
+	for (i = 0; i < ETH_ALEN ; i++)
 		dev->dev_addr[i] = inb(ioaddr + ES_SA_PROM + i);
 
 /*	Check the Racal vendor ID as well. */

@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/mm.h>
+#include <linux/pm.h>
 
 #include <asm/mach/map.h>
 
@@ -15,6 +16,7 @@
 #include <mach/cpu.h>
 #include <mach/at91_dbgu.h>
 #include <mach/at91_pmc.h>
+#include <mach/at91_shdwc.h>
 
 #include "soc.h"
 #include "generic.h"
@@ -27,9 +29,12 @@ EXPORT_SYMBOL(at91_soc_initdata);
 void __init at91rm9200_set_type(int type)
 {
 	if (type == ARCH_REVISON_9200_PQFP)
-		at91_soc_initdata.subtype = AT91_SOC_RM9200_BGA;
-	else
 		at91_soc_initdata.subtype = AT91_SOC_RM9200_PQFP;
+	else
+		at91_soc_initdata.subtype = AT91_SOC_RM9200_BGA;
+
+	pr_info("AT91: filled in soc subtype: %s\n",
+		at91_get_soc_subtype(&at91_soc_initdata));
 }
 
 void __init at91_init_irq_default(void)
@@ -72,27 +77,6 @@ static struct map_desc at91_io_desc __initdata = {
 	.length		= SZ_16K,
 	.type		= MT_DEVICE,
 };
-
-void __iomem *at91_ioremap(unsigned long p, size_t size, unsigned int type)
-{
-	if (p >= AT91_BASE_SYS && p <= (AT91_BASE_SYS + SZ_16K - 1))
-		return (void __iomem *)AT91_IO_P2V(p);
-
-	return __arm_ioremap_caller(p, size, type, __builtin_return_address(0));
-}
-EXPORT_SYMBOL(at91_ioremap);
-
-void at91_iounmap(volatile void __iomem *addr)
-{
-	unsigned long virt = (unsigned long)addr;
-
-	if (virt >= VMALLOC_START && virt < VMALLOC_END)
-		__iounmap(addr);
-}
-EXPORT_SYMBOL(at91_iounmap);
-
-#define AT91_DBGU0	0xfffff200
-#define AT91_DBGU1	0xffffee00
 
 static void __init soc_detect(u32 dbgu_base)
 {
@@ -266,9 +250,9 @@ void __init at91_map_io(void)
 	at91_soc_initdata.type = AT91_SOC_NONE;
 	at91_soc_initdata.subtype = AT91_SOC_SUBTYPE_NONE;
 
-	soc_detect(AT91_DBGU0);
+	soc_detect(AT91_BASE_DBGU0);
 	if (!at91_soc_is_detected())
-		soc_detect(AT91_DBGU1);
+		soc_detect(AT91_BASE_DBGU1);
 
 	if (!at91_soc_is_detected())
 		panic("AT91: Impossible to detect the SOC type");
@@ -285,8 +269,34 @@ void __init at91_map_io(void)
 		at91_boot_soc.map_io();
 }
 
+void __iomem *at91_shdwc_base = NULL;
+
+static void at91sam9_poweroff(void)
+{
+	at91_shdwc_write(AT91_SHDW_CR, AT91_SHDW_KEY | AT91_SHDW_SHDW);
+}
+
+void __init at91_ioremap_shdwc(u32 base_addr)
+{
+	at91_shdwc_base = ioremap(base_addr, 16);
+	if (!at91_shdwc_base)
+		panic("Impossible to ioremap at91_shdwc_base\n");
+	pm_power_off = at91sam9_poweroff;
+}
+
+void __iomem *at91_rstc_base;
+
+void __init at91_ioremap_rstc(u32 base_addr)
+{
+	at91_rstc_base = ioremap(base_addr, 16);
+	if (!at91_rstc_base)
+		panic("Impossible to ioremap at91_rstc_base\n");
+}
+
 void __init at91_initialize(unsigned long main_clock)
 {
+	at91_boot_soc.ioremap_registers();
+
 	/* Init clock subsystem */
 	at91_clock_init(main_clock);
 

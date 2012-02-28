@@ -156,11 +156,10 @@ static int efx_init_rx_buffers_skb(struct efx_rx_queue *rx_queue)
 		if (unlikely(!skb))
 			return -ENOMEM;
 
-		/* Adjust the SKB for padding and checksum */
+		/* Adjust the SKB for padding */
 		skb_reserve(skb, NET_IP_ALIGN);
 		rx_buf->len = skb_len - NET_IP_ALIGN;
 		rx_buf->is_page = false;
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		rx_buf->dma_addr = pci_map_single(efx->pci_dev,
 						  skb->data, rx_buf->len,
@@ -479,11 +478,8 @@ static void efx_rx_packet_gro(struct efx_channel *channel,
 		if (efx->net_dev->features & NETIF_F_RXHASH)
 			skb->rxhash = efx_rx_buf_hash(eh);
 
-		skb_frag_set_page(skb, 0, page);
-		skb_shinfo(skb)->frags[0].page_offset =
-			efx_rx_buf_offset(efx, rx_buf);
-		skb_frag_size_set(&skb_shinfo(skb)->frags[0], rx_buf->len);
-		skb_shinfo(skb)->nr_frags = 1;
+		skb_fill_page_desc(skb, 0, page,
+				   efx_rx_buf_offset(efx, rx_buf), rx_buf->len);
 
 		skb->len = rx_buf->len;
 		skb->data_len = rx_buf->len;
@@ -499,6 +495,7 @@ static void efx_rx_packet_gro(struct efx_channel *channel,
 
 		EFX_BUG_ON_PARANOID(!checksummed);
 		rx_buf->u.skb = NULL;
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		gro_result = napi_gro_receive(napi, skb);
 	}
@@ -669,7 +666,7 @@ int efx_probe_rx_queue(struct efx_rx_queue *rx_queue)
 		  rx_queue->ptr_mask);
 
 	/* Allocate RX buffers */
-	rx_queue->buffer = kzalloc(entries * sizeof(*rx_queue->buffer),
+	rx_queue->buffer = kcalloc(entries, sizeof(*rx_queue->buffer),
 				   GFP_KERNEL);
 	if (!rx_queue->buffer)
 		return -ENOMEM;

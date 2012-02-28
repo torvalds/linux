@@ -3659,7 +3659,7 @@ static struct kobj_type cm_port_obj_type = {
 	.release = cm_release_port_obj
 };
 
-static char *cm_devnode(struct device *dev, mode_t *mode)
+static char *cm_devnode(struct device *dev, umode_t *mode)
 {
 	if (mode)
 		*mode = 0666;

@@ -322,19 +322,7 @@ static struct platform_driver keypad_driver = {
 	.driver.name	= "tnetv107x-keypad",
 	.driver.owner	= THIS_MODULE,
 };
-
-static int __init keypad_init(void)
-{
-	return platform_driver_register(&keypad_driver);
-}
-
-static void __exit keypad_exit(void)
-{
-	platform_driver_unregister(&keypad_driver);
-}
-
-module_init(keypad_init);
-module_exit(keypad_exit);
+module_platform_driver(keypad_driver);
 
 MODULE_AUTHOR("Cyril Chemparathy");
 MODULE_DESCRIPTION("TNETV107X Keypad Driver");

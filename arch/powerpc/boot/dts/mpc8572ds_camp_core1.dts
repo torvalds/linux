@@ -15,169 +15,74 @@
  * option) any later version.
  */
 
-/dts-v1/;
+/include/ "mpc8572ds.dts"
+
 / {
 	model = "fsl,MPC8572DS";
 	compatible = "fsl,MPC8572DS", "fsl,MPC8572DS-CAMP";
-	#address-cells = <1>;
-	#size-cells = <1>;
-
-	aliases {
-		ethernet2 = &enet2;
-		ethernet3 = &enet3;
-		serial0 = &serial0;
-		pci2 = &pci2;
-	};
 
 	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
+		PowerPC,8572@0 {
+			status = "disabled";
+		};
 		PowerPC,8572@1 {
-			device_type = "cpu";
-			reg = <0x1>;
-			d-cache-line-size = <32>;	// 32 bytes
-			i-cache-line-size = <32>;	// 32 bytes
-			d-cache-size = <0x8000>;		// L1, 32K
-			i-cache-size = <0x8000>;		// L1, 32K
-			timebase-frequency = <0>;
-			bus-frequency = <0>;
-			clock-frequency = <0>;
-			next-level-cache = <&L2>;
 		};
 	};
 
-	memory {
-		device_type = "memory";
-		reg = <0x0 0x0>;	// Filled by U-Boot
+	localbus@ffe05000 {
+		status = "disabled";
 	};
 
 	soc8572@ffe00000 {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		device_type = "soc";
-		compatible = "simple-bus";
-		ranges = <0x0 0xffe00000 0x100000>;
-		bus-frequency = <0>;		// Filled out by uboot.
-
-		L2: l2-cache-controller@20000 {
-			compatible = "fsl,mpc8572-l2-cache-controller";
-			reg = <0x20000 0x1000>;
-			cache-line-size = <32>; // 32 bytes
-			cache-size = <0x80000>; // L2, 512K
-			interrupt-parent = <&mpic>;
+		ecm-law@0 {
+			status = "disabled";
 		};
-
-		dma@c300 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "fsl,mpc8572-dma", "fsl,eloplus-dma";
-			reg = <0xc300 0x4>;
-			ranges = <0x0 0xc100 0x200>;
-			cell-index = <0>;
-			dma-channel@0 {
-				compatible = "fsl,mpc8572-dma-channel",
-						"fsl,eloplus-dma-channel";
-				reg = <0x0 0x80>;
-				cell-index = <0>;
-				interrupt-parent = <&mpic>;
-				interrupts = <76 2>;
-			};
-			dma-channel@80 {
-				compatible = "fsl,mpc8572-dma-channel",
-						"fsl,eloplus-dma-channel";
-				reg = <0x80 0x80>;
-				cell-index = <1>;
-				interrupt-parent = <&mpic>;
-				interrupts = <77 2>;
-			};
-			dma-channel@100 {
-				compatible = "fsl,mpc8572-dma-channel",
-						"fsl,eloplus-dma-channel";
-				reg = <0x100 0x80>;
-				cell-index = <2>;
-				interrupt-parent = <&mpic>;
-				interrupts = <78 2>;
-			};
-			dma-channel@180 {
-				compatible = "fsl,mpc8572-dma-channel",
-						"fsl,eloplus-dma-channel";
-				reg = <0x180 0x80>;
-				cell-index = <3>;
-				interrupt-parent = <&mpic>;
-				interrupts = <79 2>;
-			};
+		ecm@1000 {
+			status = "disabled";
 		};
-
+		memory-controller@2000 {
+			status = "disabled";
+		};
+		memory-controller@6000 {
+			status = "disabled";
+		};
+		i2c@3000 {
+			status = "disabled";
+		};
+		i2c@3100 {
+			status = "disabled";
+		};
+		serial@4500 {
+			status = "disabled";
+		};
+		gpio-controller@f000 {
+			status = "disabled";
+		};
+		l2-cache-controller@20000 {
+			cache-size = <0x80000>;	// L2, 512K
+		};
+		dma@21300 {
+			status = "disabled";
+		};
+		ethernet@24000 {
+			status = "disabled";
+		};
 		mdio@24520 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "fsl,gianfar-mdio";
-			reg = <0x24520 0x20>;
-
-			phy2: ethernet-phy@2 {
-				interrupt-parent = <&mpic>;
-				reg = <0x2>;
-			};
-			phy3: ethernet-phy@3 {
-				interrupt-parent = <&mpic>;
-				reg = <0x3>;
-			};
+			status = "disabled";
 		};
-
-		enet2: ethernet@26000 {
-			cell-index = <2>;
-			device_type = "network";
-			model = "eTSEC";
-			compatible = "gianfar";
-			reg = <0x26000 0x1000>;
-			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <31 2 32 2 33 2>;
-			interrupt-parent = <&mpic>;
-			phy-handle = <&phy2>;
-			phy-connection-type = "rgmii-id";
+		ptp_clock@24e00 {
+			status = "disabled";
 		};
-
-		enet3: ethernet@27000 {
-			cell-index = <3>;
-			device_type = "network";
-			model = "eTSEC";
-			compatible = "gianfar";
-			reg = <0x27000 0x1000>;
-			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <37 2 38 2 39 2>;
-			interrupt-parent = <&mpic>;
-			phy-handle = <&phy3>;
-			phy-connection-type = "rgmii-id";
+		ethernet@25000 {
+			status = "disabled";
 		};
-
-		msi@41600 {
-			compatible = "fsl,mpc8572-msi", "fsl,mpic-msi";
-			reg = <0x41600 0x80>;
-			msi-available-ranges = <0x80 0x80>;
-			interrupts = <
-				0xe4 0
-				0xe5 0
-				0xe6 0
-				0xe7 0>;
-			interrupt-parent = <&mpic>;
+		mdio@25520 {
+			status = "disabled";
 		};
-
-		serial0: serial@4600 {
-			cell-index = <1>;
-			device_type = "serial";
-			compatible = "ns16550";
-			reg = <0x4600 0x100>;
-			clock-frequency = <0>;
+		crypto@30000 {
+			status = "disabled";
 		};
-
-		mpic: pic@40000 {
-			interrupt-controller;
-			#address-cells = <0>;
-			#interrupt-cells = <2>;
-			reg = <0x40000 0x40000>;
-			compatible = "chrp,open-pic";
-			device_type = "open-pic";
+		pic@40000 {
 			protected-sources = <
 			18 16 10 42 45 58	/* MEM L2 mdio serial crypto */
 			29 30 34 35 36 40	/* enet0 enet1 */
@@ -189,41 +94,25 @@
 			0xe0 0xe1 0xe2 0xe3	/* msi */
 			>;
 		};
-	};
-
-	pci2: pcie@ffe0a000 {
-		compatible = "fsl,mpc8548-pcie";
-		device_type = "pci";
-		#interrupt-cells = <1>;
-		#size-cells = <2>;
-		#address-cells = <3>;
-		reg = <0xffe0a000 0x1000>;
-		bus-range = <0 255>;
-		ranges = <0x2000000 0x0 0xc0000000 0xc0000000 0x0 0x20000000
-			  0x1000000 0x0 0x0 0xffc20000 0x0 0x10000>;
-		clock-frequency = <33333333>;
-		interrupt-parent = <&mpic>;
-		interrupts = <26 2>;
-		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
-		interrupt-map = <
-			/* IDSEL 0x0 */
-			0000 0x0 0x0 0x1 &mpic 0x0 0x1
-			0000 0x0 0x0 0x2 &mpic 0x1 0x1
-			0000 0x0 0x0 0x3 &mpic 0x2 0x1
-			0000 0x0 0x0 0x4 &mpic 0x3 0x1
-			>;
-		pcie@0 {
-			reg = <0x0 0x0 0x0 0x0 0x0>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			device_type = "pci";
-			ranges = <0x2000000 0x0 0xc0000000
-				  0x2000000 0x0 0xc0000000
-				  0x0 0x20000000
-
-				  0x1000000 0x0 0x0
-				  0x1000000 0x0 0x0
-				  0x0 0x10000>;
+		timer@41100 {
+			status = "disabled";
 		};
+		msi@41600 {
+			msi-available-ranges = <0x80 0x80>;
+			interrupts = <
+				0xe4 0
+				0xe5 0
+				0xe6 0
+				0xe7 0>;
+		};
+		global-utilities@e0000 {
+			status = "disabled";
+		};
+	};
+	pcie@ffe08000 {
+		status = "disabled";
+	};
+	pcie@ffe09000 {
+		status = "disabled";
 	};
 };

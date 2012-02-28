@@ -69,9 +69,6 @@
    The RTL chips use a 64 element hash table based on the Ethernet CRC. */
 static const int multicast_filter_limit = 32;
 
-/* MAC address length */
-#define MAC_ADDR_LEN	6
-
 #define MAX_READ_REQUEST_SHIFT	12
 #define TX_DMA_BURST	6	/* Maximum PCI burst, '6' is 1024 */
 #define SafeMtu		0x1c20	/* ... actually life sucks beyond ~7k */
@@ -1406,12 +1403,13 @@ static void rtl8169_get_drvinfo(struct net_device *dev,
 	struct rtl8169_private *tp = netdev_priv(dev);
 	struct rtl_fw *rtl_fw = tp->rtl_fw;
 
-	strcpy(info->driver, MODULENAME);
-	strcpy(info->version, RTL8169_VERSION);
-	strcpy(info->bus_info, pci_name(tp->pci_dev));
+	strlcpy(info->driver, MODULENAME, sizeof(info->driver));
+	strlcpy(info->version, RTL8169_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(tp->pci_dev), sizeof(info->bus_info));
 	BUILD_BUG_ON(sizeof(info->fw_version) < sizeof(rtl_fw->version));
-	strcpy(info->fw_version, IS_ERR_OR_NULL(rtl_fw) ? "N/A" :
-	       rtl_fw->version);
+	if (!IS_ERR_OR_NULL(rtl_fw))
+		strlcpy(info->fw_version, rtl_fw->version,
+			sizeof(info->fw_version));
 }
 
 static int rtl8169_get_regs_len(struct net_device *dev)
@@ -1555,7 +1553,8 @@ static int rtl8169_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	return ret;
 }
 
-static u32 rtl8169_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t rtl8169_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 
@@ -1569,7 +1568,8 @@ static u32 rtl8169_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static int rtl8169_set_features(struct net_device *dev, u32 features)
+static int rtl8169_set_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
@@ -4101,7 +4101,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	spin_lock_init(&tp->lock);
 
 	/* Get MAC address */
-	for (i = 0; i < MAC_ADDR_LEN; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		dev->dev_addr[i] = RTL_R8(MAC0 + i);
 	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 

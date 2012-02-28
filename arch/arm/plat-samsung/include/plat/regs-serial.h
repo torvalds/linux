@@ -71,6 +71,7 @@
 #define S3C2410_LCON_IRM          (1<<6)
 
 #define S3C2440_UCON_CLKMASK	  (3<<10)
+#define S3C2440_UCON_CLKSHIFT	  (10)
 #define S3C2440_UCON_PCLK	  (0<<10)
 #define S3C2440_UCON_UCLK	  (1<<10)
 #define S3C2440_UCON_PCLK2	  (2<<10)
@@ -78,6 +79,7 @@
 #define S3C2443_UCON_EPLL	  (3<<10)
 
 #define S3C6400_UCON_CLKMASK	(3<<10)
+#define S3C6400_UCON_CLKSHIFT	(10)
 #define S3C6400_UCON_PCLK	(0<<10)
 #define S3C6400_UCON_PCLK2	(2<<10)
 #define S3C6400_UCON_UCLK0	(1<<10)
@@ -90,11 +92,14 @@
 #define S3C2440_UCON_DIVSHIFT	  (12)
 
 #define S3C2412_UCON_CLKMASK	(3<<10)
+#define S3C2412_UCON_CLKSHIFT	(10)
 #define S3C2412_UCON_UCLK	(1<<10)
 #define S3C2412_UCON_USYSCLK	(3<<10)
 #define S3C2412_UCON_PCLK	(0<<10)
 #define S3C2412_UCON_PCLK2	(2<<10)
 
+#define S3C2410_UCON_CLKMASK	(1 << 10)
+#define S3C2410_UCON_CLKSHIFT	(10)
 #define S3C2410_UCON_UCLK	  (1<<10)
 #define S3C2410_UCON_SBREAK	  (1<<4)
 
@@ -193,6 +198,7 @@
 
 /* Following are specific to S5PV210 */
 #define S5PV210_UCON_CLKMASK	(1<<10)
+#define S5PV210_UCON_CLKSHIFT	(10)
 #define S5PV210_UCON_PCLK	(0<<10)
 #define S5PV210_UCON_UCLK	(1<<10)
 
@@ -221,29 +227,24 @@
 #define S5PV210_UFSTAT_RXMASK	(255<<0)
 #define S5PV210_UFSTAT_RXSHIFT	(0)
 
-#define NO_NEED_CHECK_CLKSRC	1
+#define S3C2410_UCON_CLKSEL0	(1 << 0)
+#define S3C2410_UCON_CLKSEL1	(1 << 1)
+#define S3C2410_UCON_CLKSEL2	(1 << 2)
+#define S3C2410_UCON_CLKSEL3	(1 << 3)
+
+/* Default values for s5pv210 UCON and UFCON uart registers */
+#define S5PV210_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
+				 S3C2410_UCON_RXILEVEL |	\
+				 S3C2410_UCON_TXIRQMODE |	\
+				 S3C2410_UCON_RXIRQMODE |	\
+				 S3C2410_UCON_RXFIFO_TOI |	\
+				 S3C2443_UCON_RXERR_IRQEN)
+
+#define S5PV210_UFCON_DEFAULT	(S3C2410_UFCON_FIFOMODE |	\
+				 S5PV210_UFCON_TXTRIG4 |	\
+				 S5PV210_UFCON_RXTRIG4)
 
 #ifndef __ASSEMBLY__
-
-/* struct s3c24xx_uart_clksrc
- *
- * this structure defines a named clock source that can be used for the
- * uart, so that the best clock can be selected for the requested baud
- * rate.
- *
- * min_baud and max_baud define the range of baud-rates this clock is
- * acceptable for, if they are both zero, it is assumed any baud rate that
- * can be generated from this clock will be used.
- *
- * divisor gives the divisor from the clock to the one seen by the uart
-*/
-
-struct s3c24xx_uart_clksrc {
-	const char	*name;
-	unsigned int	 divisor;
-	unsigned int	 min_baud;
-	unsigned int	 max_baud;
-};
 
 /* configuration structure for per-machine configurations for the
  * serial port
@@ -257,15 +258,13 @@ struct s3c2410_uartcfg {
 	unsigned char	   unused;
 	unsigned short	   flags;
 	upf_t		   uart_flags;	 /* default uart flags */
+	unsigned int	   clk_sel;
 
 	unsigned int	   has_fracval;
 
 	unsigned long	   ucon;	 /* value of ucon for port */
 	unsigned long	   ulcon;	 /* value of ulcon for port */
 	unsigned long	   ufcon;	 /* value of ufcon for port */
-
-	struct s3c24xx_uart_clksrc *clocks;
-	unsigned int		    clocks_size;
 };
 
 /* s3c24xx_uart_devs

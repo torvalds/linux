@@ -346,7 +346,7 @@ static void do_i2c_scan(char *name, struct i2c_client *c)
 	}
 }
 
-/* init + register i2c algo-bit adapter */
+/* init + register i2c adapter */
 int __devinit init_bttv_i2c(struct bttv *btv)
 {
 	strlcpy(btv->i2c_client.name, "bttv internal", I2C_NAME_SIZE);

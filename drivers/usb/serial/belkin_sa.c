@@ -20,50 +20,7 @@
  * TODO:
  * -- Add true modem contol line query capability.  Currently we track the
  *    states reported by the interrupt and the states we request.
- * -- Add error reporting back to application for UART error conditions.
- *    Just point me at how to implement this and I'll do it. I've put the
- *    framework in, but haven't analyzed the "tty_flip" interface yet.
  * -- Add support for flush commands
- * -- Add everything that is missing :)
- *
- * 27-Nov-2001 gkh
- * 	compressed all the differnent device entries into 1.
- *
- * 30-May-2001 gkh
- *	switched from using spinlock to a semaphore, which fixes lots of
- *	problems.
- *
- * 08-Apr-2001 gb
- *	- Identify version on module load.
- *
- * 12-Mar-2001 gkh
- *	- Added support for the GoHubs GO-COM232 device which is the same as the
- *	  Peracom device.
- *
- * 06-Nov-2000 gkh
- *	- Added support for the old Belkin and Peracom devices.
- *	- Made the port able to be opened multiple times.
- *	- Added some defaults incase the line settings are things these devices
- *	  can't support.
- *
- * 18-Oct-2000 William Greathouse
- *    Released into the wild (linux-usb-devel)
- *
- * 17-Oct-2000 William Greathouse
- *    Add code to recognize firmware version and set hardware flow control
- *    appropriately.  Belkin states that firmware prior to 3.05 does not
- *    operate correctly in hardware handshake mode.  I have verified this
- *    on firmware 2.05 -- for both RTS and DTR input flow control, the control
- *    line is not reset.  The test performed by the Belkin Win* driver is
- *    to enable hardware flow control for firmware 2.06 or greater and
- *    for 1.00 or prior.  I am only enabling for 2.06 or greater.
- *
- * 12-Oct-2000 William Greathouse
- *    First cut at supporting Belkin USB Serial Adapter F5U103
- *    I did not have a copy of the original work to support this
- *    adapter, so pardon any stupid mistakes.  All of the information
- *    I am using to write this driver was acquired by using a modified
- *    UsbSnoop on Windows2000 and from examining the other USB drivers.
  */
 
 #include <linux/kernel.h>
@@ -80,7 +37,7 @@
 #include <linux/usb/serial.h>
 #include "belkin_sa.h"
 
-static int debug;
+static bool debug;
 
 /*
  * Version Information

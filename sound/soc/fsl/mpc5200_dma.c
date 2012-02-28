@@ -526,17 +526,7 @@ static struct platform_driver mpc5200_hpcd_of_driver = {
 	}
 };
 
-static int __init mpc5200_hpcd_init(void)
-{
-	return platform_driver_register(&mpc5200_hpcd_of_driver);
-}
-module_init(mpc5200_hpcd_init);
-
-static void __exit mpc5200_hpcd_exit(void)
-{
-	platform_driver_unregister(&mpc5200_hpcd_of_driver);
-}
-module_exit(mpc5200_hpcd_exit);
+module_platform_driver(mpc5200_hpcd_of_driver);
 
 MODULE_AUTHOR("Grant Likely <grant.likely@secretlab.ca>");
 MODULE_DESCRIPTION("Freescale MPC5200 PSC in DMA mode ASoC Driver");

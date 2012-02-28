@@ -25,6 +25,7 @@
 #include <asm/dma.h>
 #include <asm/macints.h>
 #include <asm/macintosh.h>
+#include <asm/mac_via.h>
 
 #include <scsi/scsi_host.h>
 
@@ -149,7 +150,7 @@ static inline int mac_esp_wait_for_dreq(struct esp *esp)
 
 	do {
 		if (mep->pdma_regs == NULL) {
-			if (mac_irq_pending(IRQ_MAC_SCSIDRQ))
+			if (via2_scsi_drq_pending())
 				return 0;
 		} else {
 			if (nubus_readl(mep->pdma_regs) & 0x200)
@@ -564,8 +565,7 @@ static int __devinit esp_mac_probe(struct platform_device *dev)
 	esp_chips[dev->id] = esp;
 	mb();
 	if (esp_chips[!dev->id] == NULL) {
-		err = request_irq(host->irq, mac_scsi_esp_intr, 0,
-		                  "Mac ESP", NULL);
+		err = request_irq(host->irq, mac_scsi_esp_intr, 0, "ESP", NULL);
 		if (err < 0) {
 			esp_chips[dev->id] = NULL;
 			goto fail_free_priv;

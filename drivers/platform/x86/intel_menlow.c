@@ -389,7 +389,7 @@ static ssize_t bios_enabled_show(struct device *dev,
 	return sprintf(buf, "%s\n", bios_enabled ? "enabled" : "disabled");
 }
 
-static int intel_menlow_add_one_attribute(char *name, int mode, void *show,
+static int intel_menlow_add_one_attribute(char *name, umode_t mode, void *show,
 					  void *store, struct device *dev,
 					  acpi_handle handle)
 {

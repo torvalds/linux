@@ -12,7 +12,7 @@
 #include <linux/mutex.h>
 #include <linux/exportfs.h>
 #include <linux/writeback.h>
-#include <linux/buffer_head.h>
+#include <linux/buffer_head.h> /* sync_mapping_buffers */
 
 #include <asm/uaccess.h>
 

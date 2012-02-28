@@ -19,7 +19,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 
-#include <plat/common.h>
+#include "common.h"
 
 #include "prm44xx.h"
 #include "prm-regbits-44xx.h"

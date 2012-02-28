@@ -1997,7 +1997,8 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 	/* Get slow-path event queue information */
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"Slow-path EQ information:\n");
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+	if (phba->sli4_hba.sp_eq) {
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"\tEQID[%02d], "
 			"QE-COUNT[%04d], QE-SIZE[%04d], "
 			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n\n",
@@ -2006,12 +2007,17 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 			phba->sli4_hba.sp_eq->entry_size,
 			phba->sli4_hba.sp_eq->host_index,
 			phba->sli4_hba.sp_eq->hba_index);
+	}
 
 	/* Get fast-path event queue information */
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"Fast-path EQ information:\n");
-	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count; fcp_qidx++) {
-		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+	if (phba->sli4_hba.fp_eq) {
+		for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count;
+		     fcp_qidx++) {
+			if (phba->sli4_hba.fp_eq[fcp_qidx]) {
+				len += snprintf(pbuffer+len,
+					LPFC_QUE_INFO_GET_BUF_SIZE-len,
 				"\tEQID[%02d], "
 				"QE-COUNT[%04d], QE-SIZE[%04d], "
 				"HOST-INDEX[%04d], PORT-INDEX[%04d]\n",
@@ -2020,16 +2026,19 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 				phba->sli4_hba.fp_eq[fcp_qidx]->entry_size,
 				phba->sli4_hba.fp_eq[fcp_qidx]->host_index,
 				phba->sli4_hba.fp_eq[fcp_qidx]->hba_index);
+			}
+		}
 	}
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
 
 	/* Get mailbox complete queue information */
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"Slow-path MBX CQ information:\n");
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+	if (phba->sli4_hba.mbx_cq) {
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"Associated EQID[%02d]:\n",
 			phba->sli4_hba.mbx_cq->assoc_qid);
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"\tCQID[%02d], "
 			"QE-COUNT[%04d], QE-SIZE[%04d], "
 			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n\n",
@@ -2038,14 +2047,16 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 			phba->sli4_hba.mbx_cq->entry_size,
 			phba->sli4_hba.mbx_cq->host_index,
 			phba->sli4_hba.mbx_cq->hba_index);
+	}
 
 	/* Get slow-path complete queue information */
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"Slow-path ELS CQ information:\n");
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+	if (phba->sli4_hba.els_cq) {
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"Associated EQID[%02d]:\n",
 			phba->sli4_hba.els_cq->assoc_qid);
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"\tCQID [%02d], "
 			"QE-COUNT[%04d], QE-SIZE[%04d], "
 			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n\n",
@@ -2054,16 +2065,21 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 			phba->sli4_hba.els_cq->entry_size,
 			phba->sli4_hba.els_cq->host_index,
 			phba->sli4_hba.els_cq->hba_index);
+	}
 
 	/* Get fast-path complete queue information */
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"Fast-path FCP CQ information:\n");
 	fcp_qidx = 0;
-	do {
-		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+	if (phba->sli4_hba.fcp_cq) {
+		do {
+			if (phba->sli4_hba.fcp_cq[fcp_qidx]) {
+				len += snprintf(pbuffer+len,
+					LPFC_QUE_INFO_GET_BUF_SIZE-len,
 				"Associated EQID[%02d]:\n",
 				phba->sli4_hba.fcp_cq[fcp_qidx]->assoc_qid);
-		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+				len += snprintf(pbuffer+len,
+					LPFC_QUE_INFO_GET_BUF_SIZE-len,
 				"\tCQID[%02d], "
 				"QE-COUNT[%04d], QE-SIZE[%04d], "
 				"HOST-INDEX[%04d], PORT-INDEX[%04d]\n",
@@ -2072,16 +2088,20 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 				phba->sli4_hba.fcp_cq[fcp_qidx]->entry_size,
 				phba->sli4_hba.fcp_cq[fcp_qidx]->host_index,
 				phba->sli4_hba.fcp_cq[fcp_qidx]->hba_index);
-	} while (++fcp_qidx < phba->cfg_fcp_eq_count);
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
+			}
+		} while (++fcp_qidx < phba->cfg_fcp_eq_count);
+		len += snprintf(pbuffer+len,
+				LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
+	}
 
 	/* Get mailbox queue information */
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"Slow-path MBX MQ information:\n");
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+	if (phba->sli4_hba.mbx_wq) {
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"Associated CQID[%02d]:\n",
 			phba->sli4_hba.mbx_wq->assoc_qid);
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"\tWQID[%02d], "
 			"QE-COUNT[%04d], QE-SIZE[%04d], "
 			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n\n",
@@ -2090,14 +2110,16 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 			phba->sli4_hba.mbx_wq->entry_size,
 			phba->sli4_hba.mbx_wq->host_index,
 			phba->sli4_hba.mbx_wq->hba_index);
+	}
 
 	/* Get slow-path work queue information */
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"Slow-path ELS WQ information:\n");
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+	if (phba->sli4_hba.els_wq) {
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"Associated CQID[%02d]:\n",
 			phba->sli4_hba.els_wq->assoc_qid);
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"\tWQID[%02d], "
 			"QE-COUNT[%04d], QE-SIZE[%04d], "
 			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n\n",
@@ -2106,15 +2128,22 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 			phba->sli4_hba.els_wq->entry_size,
 			phba->sli4_hba.els_wq->host_index,
 			phba->sli4_hba.els_wq->hba_index);
+	}
 
 	/* Get fast-path work queue information */
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"Fast-path FCP WQ information:\n");
-	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_wq_count; fcp_qidx++) {
-		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+	if (phba->sli4_hba.fcp_wq) {
+		for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_wq_count;
+		     fcp_qidx++) {
+			if (!phba->sli4_hba.fcp_wq[fcp_qidx])
+				continue;
+			len += snprintf(pbuffer+len,
+					LPFC_QUE_INFO_GET_BUF_SIZE-len,
 				"Associated CQID[%02d]:\n",
 				phba->sli4_hba.fcp_wq[fcp_qidx]->assoc_qid);
-		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+			len += snprintf(pbuffer+len,
+					LPFC_QUE_INFO_GET_BUF_SIZE-len,
 				"\tWQID[%02d], "
 				"QE-COUNT[%04d], WQE-SIZE[%04d], "
 				"HOST-INDEX[%04d], PORT-INDEX[%04d]\n",
@@ -2123,16 +2152,19 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 				phba->sli4_hba.fcp_wq[fcp_qidx]->entry_size,
 				phba->sli4_hba.fcp_wq[fcp_qidx]->host_index,
 				phba->sli4_hba.fcp_wq[fcp_qidx]->hba_index);
+		}
+		len += snprintf(pbuffer+len,
+				LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
 	}
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
 
 	/* Get receive queue information */
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"Slow-path RQ information:\n");
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+	if (phba->sli4_hba.hdr_rq && phba->sli4_hba.dat_rq) {
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"Associated CQID[%02d]:\n",
 			phba->sli4_hba.hdr_rq->assoc_qid);
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"\tHQID[%02d], "
 			"QE-COUNT[%04d], QE-SIZE[%04d], "
 			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n",
@@ -2141,7 +2173,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 			phba->sli4_hba.hdr_rq->entry_size,
 			phba->sli4_hba.hdr_rq->host_index,
 			phba->sli4_hba.hdr_rq->hba_index);
-	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
+		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"\tDQID[%02d], "
 			"QE-COUNT[%04d], QE-SIZE[%04d], "
 			"HOST-INDEX[%04d], PORT-INDEX[%04d]\n",
@@ -2150,7 +2182,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 			phba->sli4_hba.dat_rq->entry_size,
 			phba->sli4_hba.dat_rq->host_index,
 			phba->sli4_hba.dat_rq->hba_index);
-
+	}
 	return simple_read_from_buffer(buf, nbytes, ppos, pbuffer, len);
 }
 
@@ -2360,7 +2392,8 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 	switch (quetp) {
 	case LPFC_IDIAG_EQ:
 		/* Slow-path event queue */
-		if (phba->sli4_hba.sp_eq->queue_id == queid) {
+		if (phba->sli4_hba.sp_eq &&
+		    phba->sli4_hba.sp_eq->queue_id == queid) {
 			/* Sanity check */
 			rc = lpfc_idiag_que_param_check(
 					phba->sli4_hba.sp_eq, index, count);
@@ -2370,23 +2403,29 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			goto pass_check;
 		}
 		/* Fast-path event queue */
-		for (qidx = 0; qidx < phba->cfg_fcp_eq_count; qidx++) {
-			if (phba->sli4_hba.fp_eq[qidx]->queue_id == queid) {
-				/* Sanity check */
-				rc = lpfc_idiag_que_param_check(
+		if (phba->sli4_hba.fp_eq) {
+			for (qidx = 0; qidx < phba->cfg_fcp_eq_count; qidx++) {
+				if (phba->sli4_hba.fp_eq[qidx] &&
+				    phba->sli4_hba.fp_eq[qidx]->queue_id ==
+				    queid) {
+					/* Sanity check */
+					rc = lpfc_idiag_que_param_check(
 						phba->sli4_hba.fp_eq[qidx],
 						index, count);
-				if (rc)
-					goto error_out;
-				idiag.ptr_private = phba->sli4_hba.fp_eq[qidx];
-				goto pass_check;
+					if (rc)
+						goto error_out;
+					idiag.ptr_private =
+						phba->sli4_hba.fp_eq[qidx];
+					goto pass_check;
+				}
 			}
 		}
 		goto error_out;
 		break;
 	case LPFC_IDIAG_CQ:
 		/* MBX complete queue */
-		if (phba->sli4_hba.mbx_cq->queue_id == queid) {
+		if (phba->sli4_hba.mbx_cq &&
+		    phba->sli4_hba.mbx_cq->queue_id == queid) {
 			/* Sanity check */
 			rc = lpfc_idiag_que_param_check(
 					phba->sli4_hba.mbx_cq, index, count);
@@ -2396,7 +2435,8 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			goto pass_check;
 		}
 		/* ELS complete queue */
-		if (phba->sli4_hba.els_cq->queue_id == queid) {
+		if (phba->sli4_hba.els_cq &&
+		    phba->sli4_hba.els_cq->queue_id == queid) {
 			/* Sanity check */
 			rc = lpfc_idiag_que_param_check(
 					phba->sli4_hba.els_cq, index, count);
@@ -2406,25 +2446,30 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			goto pass_check;
 		}
 		/* FCP complete queue */
-		qidx = 0;
-		do {
-			if (phba->sli4_hba.fcp_cq[qidx]->queue_id == queid) {
-				/* Sanity check */
-				rc = lpfc_idiag_que_param_check(
+		if (phba->sli4_hba.fcp_cq) {
+			qidx = 0;
+			do {
+				if (phba->sli4_hba.fcp_cq[qidx] &&
+				    phba->sli4_hba.fcp_cq[qidx]->queue_id ==
+				    queid) {
+					/* Sanity check */
+					rc = lpfc_idiag_que_param_check(
 						phba->sli4_hba.fcp_cq[qidx],
 						index, count);
-				if (rc)
-					goto error_out;
-				idiag.ptr_private =
+					if (rc)
+						goto error_out;
+					idiag.ptr_private =
 						phba->sli4_hba.fcp_cq[qidx];
-				goto pass_check;
-			}
-		} while (++qidx < phba->cfg_fcp_eq_count);
+					goto pass_check;
+				}
+			} while (++qidx < phba->cfg_fcp_eq_count);
+		}
 		goto error_out;
 		break;
 	case LPFC_IDIAG_MQ:
 		/* MBX work queue */
-		if (phba->sli4_hba.mbx_wq->queue_id == queid) {
+		if (phba->sli4_hba.mbx_wq &&
+		    phba->sli4_hba.mbx_wq->queue_id == queid) {
 			/* Sanity check */
 			rc = lpfc_idiag_que_param_check(
 					phba->sli4_hba.mbx_wq, index, count);
@@ -2433,10 +2478,12 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			idiag.ptr_private = phba->sli4_hba.mbx_wq;
 			goto pass_check;
 		}
+		goto error_out;
 		break;
 	case LPFC_IDIAG_WQ:
 		/* ELS work queue */
-		if (phba->sli4_hba.els_wq->queue_id == queid) {
+		if (phba->sli4_hba.els_wq &&
+		    phba->sli4_hba.els_wq->queue_id == queid) {
 			/* Sanity check */
 			rc = lpfc_idiag_que_param_check(
 					phba->sli4_hba.els_wq, index, count);
@@ -2446,24 +2493,30 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			goto pass_check;
 		}
 		/* FCP work queue */
-		for (qidx = 0; qidx < phba->cfg_fcp_wq_count; qidx++) {
-			if (phba->sli4_hba.fcp_wq[qidx]->queue_id == queid) {
-				/* Sanity check */
-				rc = lpfc_idiag_que_param_check(
+		if (phba->sli4_hba.fcp_wq) {
+			for (qidx = 0; qidx < phba->cfg_fcp_wq_count; qidx++) {
+				if (!phba->sli4_hba.fcp_wq[qidx])
+					continue;
+				if (phba->sli4_hba.fcp_wq[qidx]->queue_id ==
+				    queid) {
+					/* Sanity check */
+					rc = lpfc_idiag_que_param_check(
 						phba->sli4_hba.fcp_wq[qidx],
 						index, count);
-				if (rc)
-					goto error_out;
-				idiag.ptr_private =
-					phba->sli4_hba.fcp_wq[qidx];
-				goto pass_check;
+					if (rc)
+						goto error_out;
+					idiag.ptr_private =
+						phba->sli4_hba.fcp_wq[qidx];
+					goto pass_check;
+				}
 			}
 		}
 		goto error_out;
 		break;
 	case LPFC_IDIAG_RQ:
 		/* HDR queue */
-		if (phba->sli4_hba.hdr_rq->queue_id == queid) {
+		if (phba->sli4_hba.hdr_rq &&
+		    phba->sli4_hba.hdr_rq->queue_id == queid) {
 			/* Sanity check */
 			rc = lpfc_idiag_que_param_check(
 					phba->sli4_hba.hdr_rq, index, count);
@@ -2473,7 +2526,8 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			goto pass_check;
 		}
 		/* DAT queue */
-		if (phba->sli4_hba.dat_rq->queue_id == queid) {
+		if (phba->sli4_hba.dat_rq &&
+		    phba->sli4_hba.dat_rq->queue_id == queid) {
 			/* Sanity check */
 			rc = lpfc_idiag_que_param_check(
 					phba->sli4_hba.dat_rq, index, count);

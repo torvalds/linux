@@ -26,8 +26,6 @@ extern unsigned int __nongpreldata pci_probe;
 
 /* pci-frv.c */
 
-extern unsigned int pcibios_max_latency;
-
 void pcibios_resource_survey(void);
 
 /* pci-vdk.c */

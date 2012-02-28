@@ -22,7 +22,6 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/of_address.h>
@@ -141,11 +140,6 @@ static struct map_desc versatile_io_desc[] __initdata = {
 	},
 #ifdef CONFIG_MACH_VERSATILE_AB
  	{
-		.virtual	=  IO_ADDRESS(VERSATILE_GPIO0_BASE),
-		.pfn		= __phys_to_pfn(VERSATILE_GPIO0_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
 		.virtual	=  IO_ADDRESS(VERSATILE_IB2_BASE),
 		.pfn		= __phys_to_pfn(VERSATILE_IB2_BASE),
 		.length		= SZ_64M,
@@ -744,6 +738,19 @@ static void versatile_leds_event(led_event_t ledevt)
 	local_irq_restore(flags);
 }
 #endif	/* CONFIG_LEDS */
+
+void versatile_restart(char mode, const char *cmd)
+{
+	void __iomem *sys = __io_address(VERSATILE_SYS_BASE);
+	u32 val;
+
+	val = __raw_readl(sys + VERSATILE_SYS_RESETCTL_OFFSET);
+	val |= 0x105;
+
+	__raw_writel(0xa05f, sys + VERSATILE_SYS_LOCK_OFFSET);
+	__raw_writel(val, sys + VERSATILE_SYS_RESETCTL_OFFSET);
+	__raw_writel(0, sys + VERSATILE_SYS_LOCK_OFFSET);
+}
 
 /* Early initializations */
 void __init versatile_init_early(void)

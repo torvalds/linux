@@ -53,15 +53,13 @@ static LIST_HEAD(cmtp_session_list);
 static struct cmtp_session *__cmtp_get_session(bdaddr_t *bdaddr)
 {
 	struct cmtp_session *session;
-	struct list_head *p;
 
 	BT_DBG("");
 
-	list_for_each(p, &cmtp_session_list) {
-		session = list_entry(p, struct cmtp_session, list);
+	list_for_each_entry(session, &cmtp_session_list, list)
 		if (!bacmp(bdaddr, &session->bdaddr))
 			return session;
-	}
+
 	return NULL;
 }
 
@@ -432,18 +430,15 @@ int cmtp_del_connection(struct cmtp_conndel_req *req)
 
 int cmtp_get_connlist(struct cmtp_connlist_req *req)
 {
-	struct list_head *p;
+	struct cmtp_session *session;
 	int err = 0, n = 0;
 
 	BT_DBG("");
 
 	down_read(&cmtp_session_sem);
 
-	list_for_each(p, &cmtp_session_list) {
-		struct cmtp_session *session;
+	list_for_each_entry(session, &cmtp_session_list, list) {
 		struct cmtp_conninfo ci;
-
-		session = list_entry(p, struct cmtp_session, list);
 
 		__cmtp_copy_session(session, &ci);
 

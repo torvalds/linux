@@ -199,7 +199,8 @@ static int __devinit wm831x_wdt_probe(struct platform_device *pdev)
 	if (reg & WM831X_WDOG_DEBUG)
 		dev_warn(wm831x->dev, "Watchdog is paused\n");
 
-	driver_data = kzalloc(sizeof(*driver_data), GFP_KERNEL);
+	driver_data = devm_kzalloc(&pdev->dev, sizeof(*driver_data),
+				   GFP_KERNEL);
 	if (!driver_data) {
 		dev_err(wm831x->dev, "Unable to alloacate watchdog device\n");
 		ret = -ENOMEM;
@@ -213,10 +214,8 @@ static int __devinit wm831x_wdt_probe(struct platform_device *pdev)
 
 	wm831x_wdt->info = &wm831x_wdt_info;
 	wm831x_wdt->ops = &wm831x_wdt_ops;
+	watchdog_set_nowayout(wm831x_wdt, nowayout);
 	watchdog_set_drvdata(wm831x_wdt, driver_data);
-
-	if (nowayout)
-		wm831x_wdt->status |= WDOG_NO_WAY_OUT;
 
 	reg = wm831x_reg_read(wm831x, WM831X_WATCHDOG);
 	reg &= WM831X_WDOG_TO_MASK;
@@ -252,7 +251,7 @@ static int __devinit wm831x_wdt_probe(struct platform_device *pdev)
 				dev_err(wm831x->dev,
 					"Failed to request update GPIO: %d\n",
 					ret);
-				goto err_alloc;
+				goto err;
 			}
 
 			ret = gpio_direction_output(pdata->update_gpio, 0);
@@ -294,8 +293,6 @@ static int __devinit wm831x_wdt_probe(struct platform_device *pdev)
 err_gpio:
 	if (driver_data->update_gpio)
 		gpio_free(driver_data->update_gpio);
-err_alloc:
-	kfree(driver_data);
 err:
 	return ret;
 }
@@ -320,17 +317,7 @@ static struct platform_driver wm831x_wdt_driver = {
 	},
 };
 
-static int __init wm831x_wdt_init(void)
-{
-	return platform_driver_register(&wm831x_wdt_driver);
-}
-module_init(wm831x_wdt_init);
-
-static void __exit wm831x_wdt_exit(void)
-{
-	platform_driver_unregister(&wm831x_wdt_driver);
-}
-module_exit(wm831x_wdt_exit);
+module_platform_driver(wm831x_wdt_driver);
 
 MODULE_AUTHOR("Mark Brown");
 MODULE_DESCRIPTION("WM831x Watchdog");

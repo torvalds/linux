@@ -238,11 +238,11 @@ int caif_shmdrv_rx_cb(u32 mbx_msg, void *priv)
 		if ((avail_emptybuff > HIGH_WATERMARK) &&
 					(!pshm_drv->tx_empty_available)) {
 			pshm_drv->tx_empty_available = 1;
+			spin_unlock_irqrestore(&pshm_drv->lock, flags);
 			pshm_drv->cfdev.flowctrl
 					(pshm_drv->pshm_dev->pshm_netdev,
 								CAIF_FLOW_ON);
 
-			spin_unlock_irqrestore(&pshm_drv->lock, flags);
 
 			/* Schedule the work queue. if required */
 			if (!work_pending(&pshm_drv->shm_tx_work))
@@ -285,6 +285,7 @@ static void shm_rx_work_func(struct work_struct *rx_work)
 			list_entry(pshm_drv->rx_full_list.next, struct buf_list,
 					list);
 		list_del_init(&pbuf->list);
+		spin_unlock_irqrestore(&pshm_drv->lock, flags);
 
 		/* Retrieve pointer to start of the packet descriptor area. */
 		pck_desc = (struct shm_pck_desc *) pbuf->desc_vptr;
@@ -336,7 +337,11 @@ static void shm_rx_work_func(struct work_struct *rx_work)
 			/* Get a suitable CAIF packet and copy in data. */
 			skb = netdev_alloc_skb(pshm_drv->pshm_dev->pshm_netdev,
 							frm_pck_len + 1);
-			BUG_ON(skb == NULL);
+
+			if (skb == NULL) {
+				pr_info("OOM: Try next frame in descriptor\n");
+				break;
+			}
 
 			p = skb_put(skb, frm_pck_len);
 			memcpy(p, pbuf->desc_vptr + frm_pck_ofs, frm_pck_len);
@@ -360,6 +365,7 @@ static void shm_rx_work_func(struct work_struct *rx_work)
 			pck_desc++;
 		}
 
+		spin_lock_irqsave(&pshm_drv->lock, flags);
 		list_add_tail(&pbuf->list, &pshm_drv->rx_pend_list);
 
 		spin_unlock_irqrestore(&pshm_drv->lock, flags);
@@ -412,7 +418,6 @@ static void shm_tx_work_func(struct work_struct *tx_work)
 
 		if (skb == NULL)
 			goto send_msg;
-
 		/* Check the available no. of buffers in the empty list */
 		list_for_each(pos, &pshm_drv->tx_empty_list)
 			avail_emptybuff++;
@@ -421,9 +426,11 @@ static void shm_tx_work_func(struct work_struct *tx_work)
 					pshm_drv->tx_empty_available) {
 			/* Update blocking condition. */
 			pshm_drv->tx_empty_available = 0;
+			spin_unlock_irqrestore(&pshm_drv->lock, flags);
 			pshm_drv->cfdev.flowctrl
 					(pshm_drv->pshm_dev->pshm_netdev,
 					CAIF_FLOW_OFF);
+			spin_lock_irqsave(&pshm_drv->lock, flags);
 		}
 		/*
 		 * We simply return back to the caller if we do not have space
@@ -469,6 +476,8 @@ static void shm_tx_work_func(struct work_struct *tx_work)
 			}
 
 			skb = skb_dequeue(&pshm_drv->sk_qhead);
+			if (skb == NULL)
+				break;
 			/* Copy in CAIF frame. */
 			skb_copy_bits(skb, 0, pbuf->desc_vptr +
 					pbuf->frm_ofs + SHM_HDR_LEN +
@@ -477,7 +486,7 @@ static void shm_tx_work_func(struct work_struct *tx_work)
 			pshm_drv->pshm_dev->pshm_netdev->stats.tx_packets++;
 			pshm_drv->pshm_dev->pshm_netdev->stats.tx_bytes +=
 									frmlen;
-			dev_kfree_skb(skb);
+			dev_kfree_skb_irq(skb);
 
 			/* Fill in the shared memory packet descriptor area. */
 			pck_desc = (struct shm_pck_desc *) (pbuf->desc_vptr);
@@ -512,15 +521,10 @@ send_msg:
 static int shm_netdev_tx(struct sk_buff *skb, struct net_device *shm_netdev)
 {
 	struct shmdrv_layer *pshm_drv;
-	unsigned long flags = 0;
 
 	pshm_drv = netdev_priv(shm_netdev);
 
-	spin_lock_irqsave(&pshm_drv->lock, flags);
-
 	skb_queue_tail(&pshm_drv->sk_qhead, skb);
-
-	spin_unlock_irqrestore(&pshm_drv->lock, flags);
 
 	/* Schedule Tx work queue. for deferred processing of skbs*/
 	if (!work_pending(&pshm_drv->shm_tx_work))
@@ -606,6 +610,7 @@ int caif_shmcore_probe(struct shmdev_layer *pshm_dev)
 		pshm_drv->shm_rx_addr = pshm_dev->shm_base_addr +
 						(NR_TX_BUF * TX_BUF_SZ);
 
+	spin_lock_init(&pshm_drv->lock);
 	INIT_LIST_HEAD(&pshm_drv->tx_empty_list);
 	INIT_LIST_HEAD(&pshm_drv->tx_pend_list);
 	INIT_LIST_HEAD(&pshm_drv->tx_full_list);
@@ -640,7 +645,7 @@ int caif_shmcore_probe(struct shmdev_layer *pshm_dev)
 		tx_buf->frm_ofs = SHM_CAIF_FRM_OFS;
 
 		if (pshm_dev->shm_loopback)
-			tx_buf->desc_vptr = (char *)tx_buf->phy_addr;
+			tx_buf->desc_vptr = (unsigned char *)tx_buf->phy_addr;
 		else
 			tx_buf->desc_vptr =
 					ioremap(tx_buf->phy_addr, TX_BUF_SZ);
@@ -664,7 +669,7 @@ int caif_shmcore_probe(struct shmdev_layer *pshm_dev)
 		rx_buf->len = RX_BUF_SZ;
 
 		if (pshm_dev->shm_loopback)
-			rx_buf->desc_vptr = (char *)rx_buf->phy_addr;
+			rx_buf->desc_vptr = (unsigned char *)rx_buf->phy_addr;
 		else
 			rx_buf->desc_vptr =
 					ioremap(rx_buf->phy_addr, RX_BUF_SZ);

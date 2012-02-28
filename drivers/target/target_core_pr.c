@@ -33,14 +33,11 @@
 #include <asm/unaligned.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_device.h>
-#include <target/target_core_tmr.h>
-#include <target/target_core_tpg.h>
-#include <target/target_core_transport.h>
-#include <target/target_core_fabric_ops.h>
+#include <target/target_core_backend.h>
+#include <target/target_core_fabric.h>
 #include <target/target_core_configfs.h>
 
-#include "target_core_hba.h"
+#include "target_core_internal.h"
 #include "target_core_pr.h"
 #include "target_core_ua.h"
 
@@ -481,6 +478,7 @@ static int core_scsi3_pr_seq_non_holder(
 	case READ_MEDIA_SERIAL_NUMBER:
 	case REPORT_LUNS:
 	case REQUEST_SENSE:
+	case PERSISTENT_RESERVE_IN:
 		ret = 0; /*/ Allowed CDBs */
 		break;
 	default:
@@ -1537,7 +1535,7 @@ static int core_scsi3_decode_spec_i_port(
 	tidh_new->dest_local_nexus = 1;
 	list_add_tail(&tidh_new->dest_list, &tid_dest_list);
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 	/*
 	 * For a PERSISTENT RESERVE OUT specify initiator ports payload,
 	 * first extract TransportID Parameter Data Length, and make sure
@@ -1788,7 +1786,7 @@ static int core_scsi3_decode_spec_i_port(
 
 	}
 
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 
 	/*
 	 * Go ahead and create a registrations from tid_dest_list for the
@@ -1836,7 +1834,7 @@ static int core_scsi3_decode_spec_i_port(
 
 	return 0;
 out:
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 	/*
 	 * For the failure case, release everything from tid_dest_list
 	 * including *dest_pr_reg and the configfs dependances..
@@ -2984,21 +2982,6 @@ static void core_scsi3_release_preempt_and_abort(
 	}
 }
 
-int core_scsi3_check_cdb_abort_and_preempt(
-	struct list_head *preempt_and_abort_list,
-	struct se_cmd *cmd)
-{
-	struct t10_pr_registration *pr_reg, *pr_reg_tmp;
-
-	list_for_each_entry_safe(pr_reg, pr_reg_tmp, preempt_and_abort_list,
-				pr_reg_abort_list) {
-		if (pr_reg->pr_res_key == cmd->pr_res_key)
-			return 0;
-	}
-
-	return 1;
-}
-
 static int core_scsi3_pro_preempt(
 	struct se_cmd *cmd,
 	int type,
@@ -3138,7 +3121,7 @@ static int core_scsi3_pro_preempt(
 			if (!calling_it_nexus)
 				core_scsi3_ua_allocate(pr_reg_nacl,
 					pr_res_mapped_lun, 0x2A,
-					ASCQ_2AH_RESERVATIONS_PREEMPTED);
+					ASCQ_2AH_REGISTRATIONS_PREEMPTED);
 		}
 		spin_unlock(&pr_tmpl->registration_lock);
 		/*
@@ -3251,7 +3234,7 @@ static int core_scsi3_pro_preempt(
 		 *    additional sense code set to REGISTRATIONS PREEMPTED;
 		 */
 		core_scsi3_ua_allocate(pr_reg_nacl, pr_res_mapped_lun, 0x2A,
-				ASCQ_2AH_RESERVATIONS_PREEMPTED);
+				ASCQ_2AH_REGISTRATIONS_PREEMPTED);
 	}
 	spin_unlock(&pr_tmpl->registration_lock);
 	/*
@@ -3428,14 +3411,14 @@ static int core_scsi3_emulate_pro_register_and_move(
 	 * will be moved to for the TransportID containing SCSI initiator WWN
 	 * information.
 	 */
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 	rtpi = (buf[18] & 0xff) << 8;
 	rtpi |= buf[19] & 0xff;
 	tid_len = (buf[20] & 0xff) << 24;
 	tid_len |= (buf[21] & 0xff) << 16;
 	tid_len |= (buf[22] & 0xff) << 8;
 	tid_len |= buf[23] & 0xff;
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 	buf = NULL;
 
 	if ((tid_len + 24) != cmd->data_length) {
@@ -3487,7 +3470,7 @@ static int core_scsi3_emulate_pro_register_and_move(
 		return -EINVAL;
 	}
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 	proto_ident = (buf[24] & 0x0f);
 #if 0
 	pr_debug("SPC-3 PR REGISTER_AND_MOVE: Extracted Protocol Identifier:"
@@ -3521,7 +3504,7 @@ static int core_scsi3_emulate_pro_register_and_move(
 		goto out;
 	}
 
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 	buf = NULL;
 
 	pr_debug("SPC-3 PR [%s] Extracted initiator %s identifier: %s"
@@ -3786,13 +3769,13 @@ after_iport_check:
 					" REGISTER_AND_MOVE\n");
 	}
 
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 
 	core_scsi3_put_pr_reg(dest_pr_reg);
 	return 0;
 out:
 	if (buf)
-		transport_kunmap_first_data_page(cmd);
+		transport_kunmap_data_sg(cmd);
 	if (dest_se_deve)
 		core_scsi3_lunacl_undepend_item(dest_se_deve);
 	if (dest_node_acl)
@@ -3866,7 +3849,7 @@ int target_scsi3_emulate_pr_out(struct se_task *task)
 	scope = (cdb[2] & 0xf0);
 	type = (cdb[2] & 0x0f);
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 	/*
 	 * From PERSISTENT_RESERVE_OUT parameter list (payload)
 	 */
@@ -3884,7 +3867,7 @@ int target_scsi3_emulate_pr_out(struct se_task *task)
 		aptpl = (buf[17] & 0x01);
 		unreg = (buf[17] & 0x02);
 	}
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 	buf = NULL;
 
 	/*
@@ -3984,7 +3967,7 @@ static int core_scsi3_pri_read_keys(struct se_cmd *cmd)
 		return -EINVAL;
 	}
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 	buf[0] = ((su_dev->t10_pr.pr_generation >> 24) & 0xff);
 	buf[1] = ((su_dev->t10_pr.pr_generation >> 16) & 0xff);
 	buf[2] = ((su_dev->t10_pr.pr_generation >> 8) & 0xff);
@@ -4018,7 +4001,7 @@ static int core_scsi3_pri_read_keys(struct se_cmd *cmd)
 	buf[6] = ((add_len >> 8) & 0xff);
 	buf[7] = (add_len & 0xff);
 
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 
 	return 0;
 }
@@ -4044,7 +4027,7 @@ static int core_scsi3_pri_read_reservation(struct se_cmd *cmd)
 		return -EINVAL;
 	}
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 	buf[0] = ((su_dev->t10_pr.pr_generation >> 24) & 0xff);
 	buf[1] = ((su_dev->t10_pr.pr_generation >> 16) & 0xff);
 	buf[2] = ((su_dev->t10_pr.pr_generation >> 8) & 0xff);
@@ -4103,7 +4086,7 @@ static int core_scsi3_pri_read_reservation(struct se_cmd *cmd)
 
 err:
 	spin_unlock(&se_dev->dev_reservation_lock);
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 
 	return 0;
 }
@@ -4127,7 +4110,7 @@ static int core_scsi3_pri_report_capabilities(struct se_cmd *cmd)
 		return -EINVAL;
 	}
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 
 	buf[0] = ((add_len << 8) & 0xff);
 	buf[1] = (add_len & 0xff);
@@ -4159,7 +4142,7 @@ static int core_scsi3_pri_report_capabilities(struct se_cmd *cmd)
 	buf[4] |= 0x02; /* PR_TYPE_WRITE_EXCLUSIVE */
 	buf[5] |= 0x01; /* PR_TYPE_EXCLUSIVE_ACCESS_ALLREG */
 
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 
 	return 0;
 }
@@ -4189,7 +4172,7 @@ static int core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 		return -EINVAL;
 	}
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 
 	buf[0] = ((su_dev->t10_pr.pr_generation >> 24) & 0xff);
 	buf[1] = ((su_dev->t10_pr.pr_generation >> 16) & 0xff);
@@ -4310,7 +4293,7 @@ static int core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 	buf[6] = ((add_len >> 8) & 0xff);
 	buf[7] = (add_len & 0xff);
 
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 
 	return 0;
 }

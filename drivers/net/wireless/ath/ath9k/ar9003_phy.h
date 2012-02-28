@@ -389,6 +389,8 @@
 #define AR_PHY_DAG_CTRLCCK_RSSI_THR_S   10
 
 #define AR_PHY_RIFS_INIT_DELAY         0x3ff0000
+#define AR_PHY_AGC_QUICK_DROP       0x03c00000
+#define AR_PHY_AGC_QUICK_DROP_S     22
 #define AR_PHY_AGC_COARSE_LOW       0x00007F80
 #define AR_PHY_AGC_COARSE_LOW_S     7
 #define AR_PHY_AGC_COARSE_HIGH      0x003F8000
@@ -488,6 +490,8 @@
 #define AR_PHY_TEST_CTL_TSTADC_EN_S       8
 #define AR_PHY_TEST_CTL_RX_OBS_SEL        0x3C00
 #define AR_PHY_TEST_CTL_RX_OBS_SEL_S      10
+#define AR_PHY_TEST_CTL_DEBUGPORT_SEL	  0xe0000000
+#define AR_PHY_TEST_CTL_DEBUGPORT_SEL_S	  29
 
 
 #define AR_PHY_TSTDAC            (AR_SM_BASE + 0x168)
@@ -999,6 +1003,7 @@
 
 /* GLB Registers */
 #define AR_GLB_BASE	0x20000
+#define AR_GLB_GPIO_CONTROL	(AR_GLB_BASE)
 #define AR_PHY_GLB_CONTROL	(AR_GLB_BASE + 0x44)
 #define AR_GLB_SCRATCH(_ah)	(AR_GLB_BASE + \
 					(AR_SREV_9462_20(_ah) ? 0x4c : 0x50))

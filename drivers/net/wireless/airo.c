@@ -1418,7 +1418,7 @@ static int encapsulate(struct airo_info *ai ,etherHead *frame, MICBuffer *mic, i
 	emmh32_update(&context->seed,frame->da,ETH_ALEN * 2); // DA,SA
 	emmh32_update(&context->seed,(u8*)&mic->typelen,10); // Type/Length and Snap
 	emmh32_update(&context->seed,(u8*)&mic->seq,sizeof(mic->seq)); //SEQ
-	emmh32_update(&context->seed,frame->da + ETH_ALEN * 2,payLen); //payload
+	emmh32_update(&context->seed,(u8*)(frame + 1),payLen); //payload
 	emmh32_final(&context->seed, (u8*)&mic->mic);
 
 	/*    New Type/length ?????????? */
@@ -1506,7 +1506,7 @@ static int decapsulate(struct airo_info *ai, MICBuffer *mic, etherHead *eth, u16
 		emmh32_update(&context->seed, eth->da, ETH_ALEN*2); 
 		emmh32_update(&context->seed, (u8 *)&mic->typelen, sizeof(mic->typelen)+sizeof(mic->u.snap)); 
 		emmh32_update(&context->seed, (u8 *)&mic->seq,sizeof(mic->seq));	
-		emmh32_update(&context->seed, eth->da + ETH_ALEN*2,payLen);	
+		emmh32_update(&context->seed, (u8 *)(eth + 1),payLen);	
 		//Calculate MIC
 		emmh32_final(&context->seed, digest);
 	

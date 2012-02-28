@@ -3,5 +3,19 @@ config INTEGRITY
 	def_bool y
 	depends on IMA || EVM
 
+config INTEGRITY_SIGNATURE
+	boolean "Digital signature verification using multiple keyrings"
+	depends on INTEGRITY && KEYS
+	default n
+	select SIGNATURE
+	help
+	  This option enables digital signature verification support
+	  using multiple keyrings. It defines separate keyrings for each
+	  of the different use cases - evm, ima, and modules.
+	  Different keyrings improves search performance, but also allow
+	  to "lock" certain keyring to prevent adding new keys.
+	  This is useful for evm and module keyrings, when keys are
+	  usually only added from initramfs.
+
 source security/integrity/ima/Kconfig
 source security/integrity/evm/Kconfig

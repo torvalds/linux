@@ -66,7 +66,7 @@ __be32		do_nfsd_create(struct svc_rqst *, struct svc_fh *,
 __be32		nfsd_commit(struct svc_rqst *, struct svc_fh *,
 				loff_t, unsigned long);
 #endif /* CONFIG_NFSD_V3 */
-__be32		nfsd_open(struct svc_rqst *, struct svc_fh *, int,
+__be32		nfsd_open(struct svc_rqst *, struct svc_fh *, umode_t,
 				int, struct file **);
 void		nfsd_close(struct file *);
 __be32 		nfsd_read(struct svc_rqst *, struct svc_fh *,
@@ -105,5 +105,15 @@ int		nfsd_sync_dir(struct dentry *dp);
 struct posix_acl *nfsd_get_posix_acl(struct svc_fh *, int);
 int nfsd_set_posix_acl(struct svc_fh *, int, struct posix_acl *);
 #endif
+
+static inline int fh_want_write(struct svc_fh *fh)
+{
+	return mnt_want_write(fh->fh_export->ex_path.mnt);
+}
+
+static inline void fh_drop_write(struct svc_fh *fh)
+{
+	mnt_drop_write(fh->fh_export->ex_path.mnt);
+}
 
 #endif /* LINUX_NFSD_VFS_H */

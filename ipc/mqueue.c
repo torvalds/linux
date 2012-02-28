@@ -32,6 +32,7 @@
 #include <linux/nsproxy.h>
 #include <linux/pid.h>
 #include <linux/ipc_namespace.h>
+#include <linux/user_namespace.h>
 #include <linux/slab.h>
 
 #include <net/sock.h>
@@ -108,7 +109,7 @@ static struct ipc_namespace *get_ns_from_inode(struct inode *inode)
 }
 
 static struct inode *mqueue_get_inode(struct super_block *sb,
-		struct ipc_namespace *ipc_ns, int mode,
+		struct ipc_namespace *ipc_ns, umode_t mode,
 		struct mq_attr *attr)
 {
 	struct user_struct *u = current_user();
@@ -127,7 +128,6 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 
 	if (S_ISREG(mode)) {
 		struct mqueue_inode_info *info;
-		struct task_struct *p = current;
 		unsigned long mq_bytes, mq_msg_tblsz;
 
 		inode->i_fop = &mqueue_file_operations;
@@ -158,7 +158,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 
 		spin_lock(&mq_lock);
 		if (u->mq_bytes + mq_bytes < u->mq_bytes ||
-		    u->mq_bytes + mq_bytes > task_rlimit(p, RLIMIT_MSGQUEUE)) {
+		    u->mq_bytes + mq_bytes > rlimit(RLIMIT_MSGQUEUE)) {
 			spin_unlock(&mq_lock);
 			/* mqueue_evict_inode() releases info->messages */
 			ret = -EMFILE;
@@ -243,7 +243,6 @@ static struct inode *mqueue_alloc_inode(struct super_block *sb)
 static void mqueue_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(mqueue_inode_cachep, MQUEUE_I(inode));
 }
 
@@ -296,7 +295,7 @@ static void mqueue_evict_inode(struct inode *inode)
 }
 
 static int mqueue_create(struct inode *dir, struct dentry *dentry,
-				int mode, struct nameidata *nd)
+				umode_t mode, struct nameidata *nd)
 {
 	struct inode *inode;
 	struct mq_attr *attr = dentry->d_fsdata;
@@ -543,9 +542,13 @@ static void __do_notify(struct mqueue_inode_info *info)
 			sig_i.si_errno = 0;
 			sig_i.si_code = SI_MESGQ;
 			sig_i.si_value = info->notify.sigev_value;
+			/* map current pid/uid into info->owner's namespaces */
+			rcu_read_lock();
 			sig_i.si_pid = task_tgid_nr_ns(current,
 						ns_of_pid(info->notify_owner));
-			sig_i.si_uid = current_uid();
+			sig_i.si_uid = user_ns_map_uid(info->user->user_ns,
+						current_cred(), current_uid());
+			rcu_read_unlock();
 
 			kill_pid_info(info->notify.sigev_signo,
 				      &sig_i, info->notify_owner);
@@ -611,7 +614,7 @@ static int mq_attr_ok(struct ipc_namespace *ipc_ns, struct mq_attr *attr)
  * Invoked when creating a new queue via sys_mq_open
  */
 static struct file *do_create(struct ipc_namespace *ipc_ns, struct dentry *dir,
-			struct dentry *dentry, int oflag, mode_t mode,
+			struct dentry *dentry, int oflag, umode_t mode,
 			struct mq_attr *attr)
 {
 	const struct cred *cred = current_cred();
@@ -680,7 +683,7 @@ err:
 	return ERR_PTR(ret);
 }
 
-SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, mode_t, mode,
+SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, umode_t, mode,
 		struct mq_attr __user *, u_attr)
 {
 	struct dentry *dentry;

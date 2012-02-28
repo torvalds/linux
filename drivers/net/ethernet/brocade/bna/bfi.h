@@ -83,6 +83,14 @@ union bfi_addr_u {
 	} a32;
 };
 
+/**
+ * Generic DMA addr-len pair.
+ */
+struct bfi_alen {
+	union bfi_addr_u	al_addr;	/* DMA addr of buffer	*/
+	u32			al_len;		/* length of buffer */
+};
+
 /*
  * Large Message structure - 128 Bytes size Msgs
  */
@@ -249,6 +257,8 @@ struct bfi_ioc_getattr_reply {
  */
 #define BFI_IOC_TRC_OFF		(0x4b00)
 #define BFI_IOC_TRC_ENTS	256
+#define BFI_IOC_TRC_ENT_SZ	16
+#define BFI_IOC_TRC_HDR_SZ	32
 
 #define BFI_IOC_FW_SIGNATURE	(0xbfadbfad)
 #define BFI_IOC_MD5SUM_SZ	4
@@ -474,6 +484,93 @@ struct bfi_msgq_i2h_cmdq_copy_req {
 	struct bfi_mhdr mh;
 	u16     offset;
 	u16     len;
+};
+
+/*
+ *      FLASH module specific
+ */
+enum bfi_flash_h2i_msgs {
+	BFI_FLASH_H2I_QUERY_REQ = 1,
+	BFI_FLASH_H2I_ERASE_REQ = 2,
+	BFI_FLASH_H2I_WRITE_REQ = 3,
+	BFI_FLASH_H2I_READ_REQ = 4,
+	BFI_FLASH_H2I_BOOT_VER_REQ = 5,
+};
+
+enum bfi_flash_i2h_msgs {
+	BFI_FLASH_I2H_QUERY_RSP = BFA_I2HM(1),
+	BFI_FLASH_I2H_ERASE_RSP = BFA_I2HM(2),
+	BFI_FLASH_I2H_WRITE_RSP = BFA_I2HM(3),
+	BFI_FLASH_I2H_READ_RSP = BFA_I2HM(4),
+	BFI_FLASH_I2H_BOOT_VER_RSP = BFA_I2HM(5),
+	BFI_FLASH_I2H_EVENT = BFA_I2HM(127),
+};
+
+/*
+ * Flash query request
+ */
+struct bfi_flash_query_req {
+	struct bfi_mhdr mh;   /* Common msg header */
+	struct bfi_alen alen;
+};
+
+/*
+ * Flash write request
+ */
+struct bfi_flash_write_req {
+	struct bfi_mhdr mh;	/* Common msg header */
+	struct bfi_alen alen;
+	u32	type;   /* partition type */
+	u8	instance; /* partition instance */
+	u8	last;
+	u8	rsv[2];
+	u32	offset;
+	u32	length;
+};
+
+/*
+ * Flash read request
+ */
+struct bfi_flash_read_req {
+	struct bfi_mhdr mh;	/* Common msg header */
+	u32	type;		/* partition type */
+	u8	instance;	/* partition instance */
+	u8	rsv[3];
+	u32	offset;
+	u32	length;
+	struct bfi_alen alen;
+};
+
+/*
+ * Flash query response
+ */
+struct bfi_flash_query_rsp {
+	struct bfi_mhdr mh;	/* Common msg header */
+	u32	status;
+};
+
+/*
+ * Flash read response
+ */
+struct bfi_flash_read_rsp {
+	struct bfi_mhdr mh;	/* Common msg header */
+	u32	type;		/* partition type */
+	u8	instance;	/* partition instance */
+	u8	rsv[3];
+	u32	status;
+	u32	length;
+};
+
+/*
+ * Flash write response
+ */
+struct bfi_flash_write_rsp {
+	struct bfi_mhdr mh;	/* Common msg header */
+	u32	type;		/* partition type */
+	u8	instance;	/* partition instance */
+	u8	rsv[3];
+	u32	status;
+	u32	length;
 };
 
 #pragma pack()

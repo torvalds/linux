@@ -49,6 +49,7 @@ struct clk {
 
 	void __iomem		*enable_reg;
 	unsigned int		enable_bit;
+	void __iomem		*mapped_reg;
 
 	unsigned long		arch_flags;
 	void			*priv;
@@ -131,10 +132,9 @@ int sh_clk_div4_enable_register(struct clk *clks, int nr,
 int sh_clk_div4_reparent_register(struct clk *clks, int nr,
 			 struct clk_div4_table *table);
 
-#define SH_CLK_DIV6_EXT(_parent, _reg, _flags, _parents,	\
+#define SH_CLK_DIV6_EXT(_reg, _flags, _parents,			\
 			_num_parents, _src_shift, _src_width)	\
 {								\
-	.parent = _parent,					\
 	.enable_reg = (void __iomem *)_reg,			\
 	.flags = _flags,					\
 	.parent_table = _parents,				\
@@ -144,7 +144,11 @@ int sh_clk_div4_reparent_register(struct clk *clks, int nr,
 }
 
 #define SH_CLK_DIV6(_parent, _reg, _flags)			\
-	SH_CLK_DIV6_EXT(_parent, _reg, _flags, NULL, 0, 0, 0)
+{								\
+	.parent		= _parent,				\
+	.enable_reg	= (void __iomem *)_reg,			\
+	.flags		= _flags,				\
+}
 
 int sh_clk_div6_register(struct clk *clks, int nr);
 int sh_clk_div6_reparent_register(struct clk *clks, int nr);

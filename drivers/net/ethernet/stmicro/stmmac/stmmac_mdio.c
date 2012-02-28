@@ -109,6 +109,7 @@ static int stmmac_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
  */
 static int stmmac_mdio_reset(struct mii_bus *bus)
 {
+#if defined(CONFIG_STMMAC_PLATFORM)
 	struct net_device *ndev = bus->priv;
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	unsigned int mii_address = priv->hw->mii.addr;
@@ -123,7 +124,7 @@ static int stmmac_mdio_reset(struct mii_bus *bus)
 	 * on MDC, so perform a dummy mdio read.
 	 */
 	writel(0, priv->ioaddr + mii_address);
-
+#endif
 	return 0;
 }
 
@@ -153,11 +154,12 @@ int stmmac_mdio_register(struct net_device *ndev)
 	else
 		irqlist = priv->mii_irq;
 
-	new_bus->name = "STMMAC MII Bus";
+	new_bus->name = "stmmac";
 	new_bus->read = &stmmac_mdio_read;
 	new_bus->write = &stmmac_mdio_write;
 	new_bus->reset = &stmmac_mdio_reset;
-	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", mdio_bus_data->bus_id);
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%x",
+		new_bus->name, mdio_bus_data->bus_id);
 	new_bus->priv = ndev;
 	new_bus->irq = irqlist;
 	new_bus->phy_mask = mdio_bus_data->phy_mask;

@@ -40,7 +40,7 @@ struct dib3000mc_state {
 
 	u32 timf;
 
-	fe_bandwidth_t current_bandwidth;
+	u32 current_bandwidth;
 
 	u16 dev_id;
 
@@ -438,11 +438,14 @@ static void dib3000mc_set_adp_cfg(struct dib3000mc_state *state, s16 qam)
 		dib3000mc_write_word(state, reg, cfg[reg - 129]);
 }
 
-static void dib3000mc_set_channel_cfg(struct dib3000mc_state *state, struct dvb_frontend_parameters *ch, u16 seq)
+static void dib3000mc_set_channel_cfg(struct dib3000mc_state *state,
+				      struct dtv_frontend_properties *ch, u16 seq)
 {
 	u16 value;
-    dib3000mc_set_bandwidth(state, BANDWIDTH_TO_KHZ(ch->u.ofdm.bandwidth));
-	dib3000mc_set_timing(state, ch->u.ofdm.transmission_mode, BANDWIDTH_TO_KHZ(ch->u.ofdm.bandwidth), 0);
+	u32 bw = BANDWIDTH_TO_KHZ(ch->bandwidth_hz);
+
+	dib3000mc_set_bandwidth(state, bw);
+	dib3000mc_set_timing(state, ch->transmission_mode, bw, 0);
 
 //	if (boost)
 //		dib3000mc_write_word(state, 100, (11 << 6) + 6);
@@ -471,22 +474,22 @@ static void dib3000mc_set_channel_cfg(struct dib3000mc_state *state, struct dvb_
 	dib3000mc_write_word(state, 97,0);
 	dib3000mc_write_word(state, 98,0);
 
-	dib3000mc_set_impulse_noise(state, 0, ch->u.ofdm.transmission_mode);
+	dib3000mc_set_impulse_noise(state, 0, ch->transmission_mode);
 
 	value = 0;
-	switch (ch->u.ofdm.transmission_mode) {
+	switch (ch->transmission_mode) {
 		case TRANSMISSION_MODE_2K: value |= (0 << 7); break;
 		default:
 		case TRANSMISSION_MODE_8K: value |= (1 << 7); break;
 	}
-	switch (ch->u.ofdm.guard_interval) {
+	switch (ch->guard_interval) {
 		case GUARD_INTERVAL_1_32: value |= (0 << 5); break;
 		case GUARD_INTERVAL_1_16: value |= (1 << 5); break;
 		case GUARD_INTERVAL_1_4:  value |= (3 << 5); break;
 		default:
 		case GUARD_INTERVAL_1_8:  value |= (2 << 5); break;
 	}
-	switch (ch->u.ofdm.constellation) {
+	switch (ch->modulation) {
 		case QPSK:  value |= (0 << 3); break;
 		case QAM_16: value |= (1 << 3); break;
 		default:
@@ -502,11 +505,11 @@ static void dib3000mc_set_channel_cfg(struct dib3000mc_state *state, struct dvb_
 	dib3000mc_write_word(state, 5, (1 << 8) | ((seq & 0xf) << 4));
 
 	value = 0;
-	if (ch->u.ofdm.hierarchy_information == 1)
+	if (ch->hierarchy == 1)
 		value |= (1 << 4);
 	if (1 == 1)
 		value |= 1;
-	switch ((ch->u.ofdm.hierarchy_information == 0 || 1 == 1) ? ch->u.ofdm.code_rate_HP : ch->u.ofdm.code_rate_LP) {
+	switch ((ch->hierarchy == 0 || 1 == 1) ? ch->code_rate_HP : ch->code_rate_LP) {
 		case FEC_2_3: value |= (2 << 1); break;
 		case FEC_3_4: value |= (3 << 1); break;
 		case FEC_5_6: value |= (5 << 1); break;
@@ -517,12 +520,12 @@ static void dib3000mc_set_channel_cfg(struct dib3000mc_state *state, struct dvb_
 	dib3000mc_write_word(state, 181, value);
 
 	// diversity synchro delay add 50% SFN margin
-	switch (ch->u.ofdm.transmission_mode) {
+	switch (ch->transmission_mode) {
 		case TRANSMISSION_MODE_8K: value = 256; break;
 		case TRANSMISSION_MODE_2K:
 		default: value = 64; break;
 	}
-	switch (ch->u.ofdm.guard_interval) {
+	switch (ch->guard_interval) {
 		case GUARD_INTERVAL_1_16: value *= 2; break;
 		case GUARD_INTERVAL_1_8:  value *= 4; break;
 		case GUARD_INTERVAL_1_4:  value *= 8; break;
@@ -540,27 +543,28 @@ static void dib3000mc_set_channel_cfg(struct dib3000mc_state *state, struct dvb_
 
 	msleep(30);
 
-	dib3000mc_set_impulse_noise(state, state->cfg->impulse_noise_mode, ch->u.ofdm.transmission_mode);
+	dib3000mc_set_impulse_noise(state, state->cfg->impulse_noise_mode, ch->transmission_mode);
 }
 
-static int dib3000mc_autosearch_start(struct dvb_frontend *demod, struct dvb_frontend_parameters *chan)
+static int dib3000mc_autosearch_start(struct dvb_frontend *demod)
 {
+	struct dtv_frontend_properties *chan = &demod->dtv_property_cache;
 	struct dib3000mc_state *state = demod->demodulator_priv;
 	u16 reg;
 //	u32 val;
-	struct dvb_frontend_parameters schan;
+	struct dtv_frontend_properties schan;
 
 	schan = *chan;
 
 	/* TODO what is that ? */
 
 	/* a channel for autosearch */
-	schan.u.ofdm.transmission_mode = TRANSMISSION_MODE_8K;
-	schan.u.ofdm.guard_interval = GUARD_INTERVAL_1_32;
-	schan.u.ofdm.constellation = QAM_64;
-	schan.u.ofdm.code_rate_HP = FEC_2_3;
-	schan.u.ofdm.code_rate_LP = FEC_2_3;
-	schan.u.ofdm.hierarchy_information = 0;
+	schan.transmission_mode = TRANSMISSION_MODE_8K;
+	schan.guard_interval = GUARD_INTERVAL_1_32;
+	schan.modulation = QAM_64;
+	schan.code_rate_HP = FEC_2_3;
+	schan.code_rate_LP = FEC_2_3;
+	schan.hierarchy = 0;
 
 	dib3000mc_set_channel_cfg(state, &schan, 11);
 
@@ -586,8 +590,9 @@ static int dib3000mc_autosearch_is_irq(struct dvb_frontend *demod)
 	return 0; // still pending
 }
 
-static int dib3000mc_tune(struct dvb_frontend *demod, struct dvb_frontend_parameters *ch)
+static int dib3000mc_tune(struct dvb_frontend *demod)
 {
+	struct dtv_frontend_properties *ch = &demod->dtv_property_cache;
 	struct dib3000mc_state *state = demod->demodulator_priv;
 
 	// ** configure demod **
@@ -603,8 +608,8 @@ static int dib3000mc_tune(struct dvb_frontend *demod, struct dvb_frontend_parame
 		dib3000mc_write_word(state, 108, 0x0000); // P_pha3_force_pha_shift
 	}
 
-	dib3000mc_set_adp_cfg(state, (u8)ch->u.ofdm.constellation);
-	if (ch->u.ofdm.transmission_mode == TRANSMISSION_MODE_8K) {
+	dib3000mc_set_adp_cfg(state, (u8)ch->modulation);
+	if (ch->transmission_mode == TRANSMISSION_MODE_8K) {
 		dib3000mc_write_word(state, 26, 38528);
 		dib3000mc_write_word(state, 33, 8);
 	} else {
@@ -613,7 +618,8 @@ static int dib3000mc_tune(struct dvb_frontend *demod, struct dvb_frontend_parame
 	}
 
 	if (dib3000mc_read_word(state, 509) & 0x80)
-		dib3000mc_set_timing(state, ch->u.ofdm.transmission_mode, BANDWIDTH_TO_KHZ(ch->u.ofdm.bandwidth), 1);
+		dib3000mc_set_timing(state, ch->transmission_mode,
+				     BANDWIDTH_TO_KHZ(ch->bandwidth_hz), 1);
 
 	return 0;
 }
@@ -626,87 +632,87 @@ struct i2c_adapter * dib3000mc_get_tuner_i2c_master(struct dvb_frontend *demod, 
 
 EXPORT_SYMBOL(dib3000mc_get_tuner_i2c_master);
 
-static int dib3000mc_get_frontend(struct dvb_frontend* fe,
-				struct dvb_frontend_parameters *fep)
+static int dib3000mc_get_frontend(struct dvb_frontend* fe)
 {
+	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct dib3000mc_state *state = fe->demodulator_priv;
 	u16 tps = dib3000mc_read_word(state,458);
 
 	fep->inversion = INVERSION_AUTO;
 
-	fep->u.ofdm.bandwidth = state->current_bandwidth;
+	fep->bandwidth_hz = state->current_bandwidth;
 
 	switch ((tps >> 8) & 0x1) {
-		case 0: fep->u.ofdm.transmission_mode = TRANSMISSION_MODE_2K; break;
-		case 1: fep->u.ofdm.transmission_mode = TRANSMISSION_MODE_8K; break;
+		case 0: fep->transmission_mode = TRANSMISSION_MODE_2K; break;
+		case 1: fep->transmission_mode = TRANSMISSION_MODE_8K; break;
 	}
 
 	switch (tps & 0x3) {
-		case 0: fep->u.ofdm.guard_interval = GUARD_INTERVAL_1_32; break;
-		case 1: fep->u.ofdm.guard_interval = GUARD_INTERVAL_1_16; break;
-		case 2: fep->u.ofdm.guard_interval = GUARD_INTERVAL_1_8; break;
-		case 3: fep->u.ofdm.guard_interval = GUARD_INTERVAL_1_4; break;
+		case 0: fep->guard_interval = GUARD_INTERVAL_1_32; break;
+		case 1: fep->guard_interval = GUARD_INTERVAL_1_16; break;
+		case 2: fep->guard_interval = GUARD_INTERVAL_1_8; break;
+		case 3: fep->guard_interval = GUARD_INTERVAL_1_4; break;
 	}
 
 	switch ((tps >> 13) & 0x3) {
-		case 0: fep->u.ofdm.constellation = QPSK; break;
-		case 1: fep->u.ofdm.constellation = QAM_16; break;
+		case 0: fep->modulation = QPSK; break;
+		case 1: fep->modulation = QAM_16; break;
 		case 2:
-		default: fep->u.ofdm.constellation = QAM_64; break;
+		default: fep->modulation = QAM_64; break;
 	}
 
 	/* as long as the frontend_param structure is fixed for hierarchical transmission I refuse to use it */
 	/* (tps >> 12) & 0x1 == hrch is used, (tps >> 9) & 0x7 == alpha */
 
-	fep->u.ofdm.hierarchy_information = HIERARCHY_NONE;
+	fep->hierarchy = HIERARCHY_NONE;
 	switch ((tps >> 5) & 0x7) {
-		case 1: fep->u.ofdm.code_rate_HP = FEC_1_2; break;
-		case 2: fep->u.ofdm.code_rate_HP = FEC_2_3; break;
-		case 3: fep->u.ofdm.code_rate_HP = FEC_3_4; break;
-		case 5: fep->u.ofdm.code_rate_HP = FEC_5_6; break;
+		case 1: fep->code_rate_HP = FEC_1_2; break;
+		case 2: fep->code_rate_HP = FEC_2_3; break;
+		case 3: fep->code_rate_HP = FEC_3_4; break;
+		case 5: fep->code_rate_HP = FEC_5_6; break;
 		case 7:
-		default: fep->u.ofdm.code_rate_HP = FEC_7_8; break;
+		default: fep->code_rate_HP = FEC_7_8; break;
 
 	}
 
 	switch ((tps >> 2) & 0x7) {
-		case 1: fep->u.ofdm.code_rate_LP = FEC_1_2; break;
-		case 2: fep->u.ofdm.code_rate_LP = FEC_2_3; break;
-		case 3: fep->u.ofdm.code_rate_LP = FEC_3_4; break;
-		case 5: fep->u.ofdm.code_rate_LP = FEC_5_6; break;
+		case 1: fep->code_rate_LP = FEC_1_2; break;
+		case 2: fep->code_rate_LP = FEC_2_3; break;
+		case 3: fep->code_rate_LP = FEC_3_4; break;
+		case 5: fep->code_rate_LP = FEC_5_6; break;
 		case 7:
-		default: fep->u.ofdm.code_rate_LP = FEC_7_8; break;
+		default: fep->code_rate_LP = FEC_7_8; break;
 	}
 
 	return 0;
 }
 
-static int dib3000mc_set_frontend(struct dvb_frontend* fe,
-				struct dvb_frontend_parameters *fep)
+static int dib3000mc_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct dib3000mc_state *state = fe->demodulator_priv;
-    int ret;
+	int ret;
 
 	dib3000mc_set_output_mode(state, OUTMODE_HIGH_Z);
 
-	state->current_bandwidth = fep->u.ofdm.bandwidth;
-	dib3000mc_set_bandwidth(state, BANDWIDTH_TO_KHZ(fep->u.ofdm.bandwidth));
+	state->current_bandwidth = fep->bandwidth_hz;
+	dib3000mc_set_bandwidth(state, BANDWIDTH_TO_KHZ(fep->bandwidth_hz));
 
 	/* maybe the parameter has been changed */
 	state->sfn_workaround_active = buggy_sfn_workaround;
 
 	if (fe->ops.tuner_ops.set_params) {
-		fe->ops.tuner_ops.set_params(fe, fep);
+		fe->ops.tuner_ops.set_params(fe);
 		msleep(100);
 	}
 
-	if (fep->u.ofdm.transmission_mode == TRANSMISSION_MODE_AUTO ||
-		fep->u.ofdm.guard_interval    == GUARD_INTERVAL_AUTO ||
-		fep->u.ofdm.constellation     == QAM_AUTO ||
-		fep->u.ofdm.code_rate_HP      == FEC_AUTO) {
+	if (fep->transmission_mode  == TRANSMISSION_MODE_AUTO ||
+	    fep->guard_interval == GUARD_INTERVAL_AUTO ||
+	    fep->modulation     == QAM_AUTO ||
+	    fep->code_rate_HP   == FEC_AUTO) {
 		int i = 1000, found;
 
-		dib3000mc_autosearch_start(fe, fep);
+		dib3000mc_autosearch_start(fe);
 		do {
 			msleep(1);
 			found = dib3000mc_autosearch_is_irq(fe);
@@ -716,14 +722,14 @@ static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 		if (found == 0 || found == 1)
 			return 0; // no channel found
 
-		dib3000mc_get_frontend(fe, fep);
+		dib3000mc_get_frontend(fe);
 	}
 
-    ret = dib3000mc_tune(fe, fep);
+	ret = dib3000mc_tune(fe);
 
 	/* make this a config parameter */
 	dib3000mc_set_output_mode(state, OUTMODE_MPEG2_FIFO);
-    return ret;
+	return ret;
 }
 
 static int dib3000mc_read_status(struct dvb_frontend *fe, fe_status_t *stat)
@@ -897,9 +903,9 @@ error:
 EXPORT_SYMBOL(dib3000mc_attach);
 
 static struct dvb_frontend_ops dib3000mc_ops = {
+	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "DiBcom 3000MC/P",
-		.type = FE_OFDM,
 		.frequency_min      = 44250000,
 		.frequency_max      = 867250000,
 		.frequency_stepsize = 62500,

@@ -84,7 +84,7 @@ struct usb_hub {
 
 static inline int hub_is_superspeed(struct usb_device *hdev)
 {
-	return (hdev->descriptor.bDeviceProtocol == 3);
+	return (hdev->descriptor.bDeviceProtocol == USB_HUB_PR_SS);
 }
 
 /* Protect struct usb_device->state and ->children members
@@ -102,7 +102,7 @@ static DECLARE_WAIT_QUEUE_HEAD(khubd_wait);
 static struct task_struct *khubd_task;
 
 /* cycle leds on hubs that aren't blinking for attention */
-static int blinkenlights = 0;
+static bool blinkenlights = 0;
 module_param (blinkenlights, bool, S_IRUGO);
 MODULE_PARM_DESC (blinkenlights, "true to cycle leds on hubs");
 
@@ -131,12 +131,12 @@ MODULE_PARM_DESC(initial_descriptor_timeout,
  * otherwise the new scheme is used.  If that fails and "use_both_schemes"
  * is set, then the driver will make another attempt, using the other scheme.
  */
-static int old_scheme_first = 0;
+static bool old_scheme_first = 0;
 module_param(old_scheme_first, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(old_scheme_first,
 		 "start with the old device initialization scheme");
 
-static int use_both_schemes = 1;
+static bool use_both_schemes = 1;
 module_param(use_both_schemes, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(use_both_schemes,
 		"try the other device initialization scheme if the "
@@ -705,10 +705,26 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 	if (type == HUB_INIT3)
 		goto init3;
 
-	/* After a resume, port power should still be on.
+	/* The superspeed hub except for root hub has to use Hub Depth
+	 * value as an offset into the route string to locate the bits
+	 * it uses to determine the downstream port number. So hub driver
+	 * should send a set hub depth request to superspeed hub after
+	 * the superspeed hub is set configuration in initialization or
+	 * reset procedure.
+	 *
+	 * After a resume, port power should still be on.
 	 * For any other type of activation, turn it on.
 	 */
 	if (type != HUB_RESUME) {
+		if (hdev->parent && hub_is_superspeed(hdev)) {
+			ret = usb_control_msg(hdev, usb_sndctrlpipe(hdev, 0),
+					HUB_SET_DEPTH, USB_RT_HUB,
+					hdev->level - 1, 0, NULL, 0,
+					USB_CTRL_SET_TIMEOUT);
+			if (ret < 0)
+				dev_err(hub->intfdev,
+						"set hub depth failed\n");
+		}
 
 		/* Speed up system boot by using a delayed_work for the
 		 * hub's initial power-up delays.  This is pretty awkward
@@ -987,18 +1003,6 @@ static int hub_configure(struct usb_hub *hub,
 		goto fail;
 	}
 
-	if (hub_is_superspeed(hdev) && (hdev->parent != NULL)) {
-		ret = usb_control_msg(hdev, usb_sndctrlpipe(hdev, 0),
-				HUB_SET_DEPTH, USB_RT_HUB,
-				hdev->level - 1, 0, NULL, 0,
-				USB_CTRL_SET_TIMEOUT);
-
-		if (ret < 0) {
-			message = "can't set hub depth";
-			goto fail;
-		}
-	}
-
 	/* Request the entire hub descriptor.
 	 * hub->descriptor can handle USB_MAXCHILDREN ports,
 	 * but the hub can/will return fewer bytes here.
@@ -1041,58 +1045,58 @@ static int hub_configure(struct usb_hub *hub,
 		dev_dbg(hub_dev, "standalone hub\n");
 
 	switch (wHubCharacteristics & HUB_CHAR_LPSM) {
-		case 0x00:
-			dev_dbg(hub_dev, "ganged power switching\n");
-			break;
-		case 0x01:
-			dev_dbg(hub_dev, "individual port power switching\n");
-			break;
-		case 0x02:
-		case 0x03:
-			dev_dbg(hub_dev, "no power switching (usb 1.0)\n");
-			break;
+	case HUB_CHAR_COMMON_LPSM:
+		dev_dbg(hub_dev, "ganged power switching\n");
+		break;
+	case HUB_CHAR_INDV_PORT_LPSM:
+		dev_dbg(hub_dev, "individual port power switching\n");
+		break;
+	case HUB_CHAR_NO_LPSM:
+	case HUB_CHAR_LPSM:
+		dev_dbg(hub_dev, "no power switching (usb 1.0)\n");
+		break;
 	}
 
 	switch (wHubCharacteristics & HUB_CHAR_OCPM) {
-		case 0x00:
-			dev_dbg(hub_dev, "global over-current protection\n");
-			break;
-		case 0x08:
-			dev_dbg(hub_dev, "individual port over-current protection\n");
-			break;
-		case 0x10:
-		case 0x18:
-			dev_dbg(hub_dev, "no over-current protection\n");
-                        break;
+	case HUB_CHAR_COMMON_OCPM:
+		dev_dbg(hub_dev, "global over-current protection\n");
+		break;
+	case HUB_CHAR_INDV_PORT_OCPM:
+		dev_dbg(hub_dev, "individual port over-current protection\n");
+		break;
+	case HUB_CHAR_NO_OCPM:
+	case HUB_CHAR_OCPM:
+		dev_dbg(hub_dev, "no over-current protection\n");
+		break;
 	}
 
 	spin_lock_init (&hub->tt.lock);
 	INIT_LIST_HEAD (&hub->tt.clear_list);
 	INIT_WORK(&hub->tt.clear_work, hub_tt_work);
 	switch (hdev->descriptor.bDeviceProtocol) {
-		case 0:
-			break;
-		case 1:
-			dev_dbg(hub_dev, "Single TT\n");
-			hub->tt.hub = hdev;
-			break;
-		case 2:
-			ret = usb_set_interface(hdev, 0, 1);
-			if (ret == 0) {
-				dev_dbg(hub_dev, "TT per port\n");
-				hub->tt.multi = 1;
-			} else
-				dev_err(hub_dev, "Using single TT (err %d)\n",
-					ret);
-			hub->tt.hub = hdev;
-			break;
-		case 3:
-			/* USB 3.0 hubs don't have a TT */
-			break;
-		default:
-			dev_dbg(hub_dev, "Unrecognized hub protocol %d\n",
-				hdev->descriptor.bDeviceProtocol);
-			break;
+	case USB_HUB_PR_FS:
+		break;
+	case USB_HUB_PR_HS_SINGLE_TT:
+		dev_dbg(hub_dev, "Single TT\n");
+		hub->tt.hub = hdev;
+		break;
+	case USB_HUB_PR_HS_MULTI_TT:
+		ret = usb_set_interface(hdev, 0, 1);
+		if (ret == 0) {
+			dev_dbg(hub_dev, "TT per port\n");
+			hub->tt.multi = 1;
+		} else
+			dev_err(hub_dev, "Using single TT (err %d)\n",
+				ret);
+		hub->tt.hub = hdev;
+		break;
+	case USB_HUB_PR_SS:
+		/* USB 3.0 hubs don't have a TT */
+		break;
+	default:
+		dev_dbg(hub_dev, "Unrecognized hub protocol %d\n",
+			hdev->descriptor.bDeviceProtocol);
+		break;
 	}
 
 	/* Note 8 FS bit times == (8 bits / 12000000 bps) ~= 666ns */
@@ -1360,7 +1364,6 @@ descriptor_error:
 	return -ENODEV;
 }
 
-/* No BKL needed */
 static int
 hub_ioctl(struct usb_interface *intf, unsigned int code, void *user_data)
 {
@@ -2027,7 +2030,7 @@ static unsigned hub_is_wusb(struct usb_hub *hub)
 #define SET_ADDRESS_TRIES	2
 #define GET_DESCRIPTOR_TRIES	2
 #define SET_CONFIG_TRIES	(2 * (use_both_schemes + 1))
-#define USE_NEW_SCHEME(i)	((i) / 2 == old_scheme_first)
+#define USE_NEW_SCHEME(i)	((i) / 2 == (int)old_scheme_first)
 
 #define HUB_ROOT_RESET_TIME	50	/* times are in msec */
 #define HUB_SHORT_RESET_TIME	10

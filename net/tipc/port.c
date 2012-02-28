@@ -80,7 +80,7 @@ int tipc_multicast(u32 ref, struct tipc_name_seq const *seq,
 	struct tipc_msg *hdr;
 	struct sk_buff *buf;
 	struct sk_buff *ibuf = NULL;
-	struct port_list dports = {0, NULL, };
+	struct tipc_port_list dports = {0, NULL, };
 	struct tipc_port *oport = tipc_port_deref(ref);
 	int ext_targets;
 	int res;
@@ -142,11 +142,11 @@ int tipc_multicast(u32 ref, struct tipc_name_seq const *seq,
  * If there is no port list, perform a lookup to create one
  */
 
-void tipc_port_recv_mcast(struct sk_buff *buf, struct port_list *dp)
+void tipc_port_recv_mcast(struct sk_buff *buf, struct tipc_port_list *dp)
 {
 	struct tipc_msg *msg;
-	struct port_list dports = {0, NULL, };
-	struct port_list *item = dp;
+	struct tipc_port_list dports = {0, NULL, };
+	struct tipc_port_list *item = dp;
 	int cnt = 0;
 
 	msg = buf_msg(buf);

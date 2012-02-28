@@ -137,11 +137,11 @@ static int iwl_led_cmd(struct iwl_priv *priv,
 	}
 
 	IWL_DEBUG_LED(priv, "Led blink time compensation=%u\n",
-			priv->cfg->base_params->led_compensation);
+			cfg(priv)->base_params->led_compensation);
 	led_cmd.on = iwl_blink_compensation(priv, on,
-				priv->cfg->base_params->led_compensation);
+				cfg(priv)->base_params->led_compensation);
 	led_cmd.off = iwl_blink_compensation(priv, off,
-				priv->cfg->base_params->led_compensation);
+				cfg(priv)->base_params->led_compensation);
 
 	ret = iwl_send_led_cmd(priv, &led_cmd);
 	if (!ret) {
@@ -178,7 +178,7 @@ void iwl_leds_init(struct iwl_priv *priv)
 	int ret;
 
 	if (mode == IWL_LED_DEFAULT)
-		mode = priv->cfg->led_mode;
+		mode = cfg(priv)->led_mode;
 
 	priv->led.name = kasprintf(GFP_KERNEL, "%s-led",
 				   wiphy_name(priv->hw->wiphy));

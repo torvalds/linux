@@ -6,7 +6,11 @@ menuconfig BT
 	tristate "Bluetooth subsystem support"
 	depends on NET && !S390
 	depends on RFKILL || !RFKILL
+	select CRC16
 	select CRYPTO
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_AES
+	select CRYPTO_ECB
 	help
 	  Bluetooth is low-cost, low-power, short-range wireless technology.
 	  It was designed as a replacement for cables and other short-range
@@ -15,10 +19,12 @@ menuconfig BT
 	  Bluetooth can be found at <http://www.bluetooth.com/>.
 
 	  Linux Bluetooth subsystem consist of several layers:
-	     Bluetooth Core (HCI device and connection manager, scheduler)
+	     Bluetooth Core
+		HCI device and connection manager, scheduler
+		SCO audio links
+		L2CAP (Logical Link Control and Adaptation Protocol)
+		SMP (Security Manager Protocol) on LE (Low Energy) links
 	     HCI Device drivers (Interface to the hardware)
-	     SCO Module (SCO audio links)
-	     L2CAP Module (Logical Link Control and Adaptation Protocol)
 	     RFCOMM Module (RFCOMM Protocol)  
 	     BNEP Module (Bluetooth Network Encapsulation Protocol)
 	     CMTP Module (CAPI Message Transport Protocol)
@@ -32,31 +38,6 @@ menuconfig BT
 	  utilities like hciconfig and bluetoothd.  These utilities and updates
 	  to Bluetooth kernel modules are provided in the BlueZ packages.  For
 	  more information, see <http://www.bluez.org/>.
-
-if BT != n
-
-config BT_L2CAP
-	bool "L2CAP protocol support"
-	select CRC16
-	select CRYPTO
-	select CRYPTO_BLKCIPHER
-	select CRYPTO_AES
-	select CRYPTO_ECB
-	help
-	  L2CAP (Logical Link Control and Adaptation Protocol) provides
-	  connection oriented and connection-less data transport.  L2CAP
-	  support is required for most Bluetooth applications.
-
-	  Also included is support for SMP (Security Manager Protocol) which
-	  is the security layer on top of LE (Low Energy) links.
-
-config BT_SCO
-	bool "SCO links support"
-	help
-	  SCO link provides voice transport over Bluetooth.  SCO support is
-	  required for voice applications like Headset and Audio.
-
-endif
 
 source "net/bluetooth/rfcomm/Kconfig"
 

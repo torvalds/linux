@@ -39,49 +39,6 @@
 #define SET_PORT_PROMISC_SHIFT	31
 #define SET_PORT_MC_PROMISC_SHIFT	30
 
-enum {
-	MLX4_CMD_SET_VLAN_FLTR  = 0x47,
-	MLX4_CMD_SET_MCAST_FLTR = 0x48,
-	MLX4_CMD_DUMP_ETH_STATS = 0x49,
-};
-
-enum {
-	MCAST_DIRECT_ONLY       = 0,
-	MCAST_DIRECT            = 1,
-	MCAST_DEFAULT           = 2
-};
-
-struct mlx4_set_port_general_context {
-	u8 reserved[3];
-	u8 flags;
-	u16 reserved2;
-	__be16 mtu;
-	u8 pptx;
-	u8 pfctx;
-	u16 reserved3;
-	u8 pprx;
-	u8 pfcrx;
-	u16 reserved4;
-};
-
-struct mlx4_set_port_rqp_calc_context {
-	__be32 base_qpn;
-	u8 rererved;
-	u8 n_mac;
-	u8 n_vlan;
-	u8 n_prio;
-	u8 reserved2[3];
-	u8 mac_miss;
-	u8 intra_no_vlan;
-	u8 no_vlan;
-	u8 intra_vlan_miss;
-	u8 vlan_miss;
-	u8 reserved3[3];
-	u8 no_vlan_prio;
-	__be32 promisc;
-	__be32 mcast;
-};
-
 #define VLAN_FLTR_SIZE	128
 struct mlx4_set_vlan_fltr_mbox {
 	__be32 entry[VLAN_FLTR_SIZE];

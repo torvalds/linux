@@ -551,7 +551,7 @@ void r8712_survey_event_callback(struct _adapter *adapter, u8 *pbuf)
 			ibss_wlan = r8712_find_network(
 						&pmlmepriv->scanned_queue,
 						pnetwork->MacAddress);
-			if (!ibss_wlan) {
+			if (ibss_wlan) {
 				memcpy(ibss_wlan->network.IEs,
 					pnetwork->IEs, 8);
 				goto exit;

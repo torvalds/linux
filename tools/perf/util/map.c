@@ -562,6 +562,10 @@ int machine__init(struct machine *self, const char *root_dir, pid_t pid)
 	INIT_LIST_HEAD(&self->user_dsos);
 	INIT_LIST_HEAD(&self->kernel_dsos);
 
+	self->threads = RB_ROOT;
+	INIT_LIST_HEAD(&self->dead_threads);
+	self->last_match = NULL;
+
 	self->kmaps.machine = self;
 	self->pid	    = pid;
 	self->root_dir      = strdup(root_dir);

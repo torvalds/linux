@@ -98,7 +98,8 @@ struct blkfront_info
 	unsigned long shadow_free;
 	unsigned int feature_flush;
 	unsigned int flush_op;
-	unsigned int feature_discard;
+	unsigned int feature_discard:1;
+	unsigned int feature_secdiscard:1;
 	unsigned int discard_granularity;
 	unsigned int discard_alignment;
 	int is_ready;
@@ -135,15 +136,15 @@ static int get_id_from_freelist(struct blkfront_info *info)
 {
 	unsigned long free = info->shadow_free;
 	BUG_ON(free >= BLK_RING_SIZE);
-	info->shadow_free = info->shadow[free].req.id;
-	info->shadow[free].req.id = 0x0fffffee; /* debug */
+	info->shadow_free = info->shadow[free].req.u.rw.id;
+	info->shadow[free].req.u.rw.id = 0x0fffffee; /* debug */
 	return free;
 }
 
 static void add_id_to_freelist(struct blkfront_info *info,
 			       unsigned long id)
 {
-	info->shadow[id].req.id  = info->shadow_free;
+	info->shadow[id].req.u.rw.id  = info->shadow_free;
 	info->shadow[id].request = NULL;
 	info->shadow_free = id;
 }
@@ -156,7 +157,7 @@ static int xlbd_reserve_minors(unsigned int minor, unsigned int nr)
 	if (end > nr_minors) {
 		unsigned long *bitmap, *old;
 
-		bitmap = kzalloc(BITS_TO_LONGS(end) * sizeof(*bitmap),
+		bitmap = kcalloc(BITS_TO_LONGS(end), sizeof(*bitmap),
 				 GFP_KERNEL);
 		if (bitmap == NULL)
 			return -ENOMEM;
@@ -287,9 +288,9 @@ static int blkif_queue_request(struct request *req)
 	id = get_id_from_freelist(info);
 	info->shadow[id].request = req;
 
-	ring_req->id = id;
+	ring_req->u.rw.id = id;
 	ring_req->u.rw.sector_number = (blkif_sector_t)blk_rq_pos(req);
-	ring_req->handle = info->handle;
+	ring_req->u.rw.handle = info->handle;
 
 	ring_req->operation = rq_data_dir(req) ?
 		BLKIF_OP_WRITE : BLKIF_OP_READ;
@@ -305,16 +306,21 @@ static int blkif_queue_request(struct request *req)
 		ring_req->operation = info->flush_op;
 	}
 
-	if (unlikely(req->cmd_flags & REQ_DISCARD)) {
+	if (unlikely(req->cmd_flags & (REQ_DISCARD | REQ_SECURE))) {
 		/* id, sector_number and handle are set above. */
 		ring_req->operation = BLKIF_OP_DISCARD;
-		ring_req->nr_segments = 0;
 		ring_req->u.discard.nr_sectors = blk_rq_sectors(req);
+		if ((req->cmd_flags & REQ_SECURE) && info->feature_secdiscard)
+			ring_req->u.discard.flag = BLKIF_DISCARD_SECURE;
+		else
+			ring_req->u.discard.flag = 0;
 	} else {
-		ring_req->nr_segments = blk_rq_map_sg(req->q, req, info->sg);
-		BUG_ON(ring_req->nr_segments > BLKIF_MAX_SEGMENTS_PER_REQUEST);
+		ring_req->u.rw.nr_segments = blk_rq_map_sg(req->q, req,
+							   info->sg);
+		BUG_ON(ring_req->u.rw.nr_segments >
+		       BLKIF_MAX_SEGMENTS_PER_REQUEST);
 
-		for_each_sg(info->sg, sg, ring_req->nr_segments, i) {
+		for_each_sg(info->sg, sg, ring_req->u.rw.nr_segments, i) {
 			buffer_mfn = pfn_to_mfn(page_to_pfn(sg_page(sg)));
 			fsect = sg->offset >> 9;
 			lsect = fsect + (sg->length >> 9) - 1;
@@ -424,6 +430,8 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 		blk_queue_max_discard_sectors(rq, get_capacity(gd));
 		rq->limits.discard_granularity = info->discard_granularity;
 		rq->limits.discard_alignment = info->discard_alignment;
+		if (info->feature_secdiscard)
+			queue_flag_set_unlocked(QUEUE_FLAG_SECDISCARD, rq);
 	}
 
 	/* Hard sector size and max sectors impersonate the equiv. hardware. */
@@ -705,7 +713,9 @@ static void blkif_free(struct blkfront_info *info, int suspend)
 static void blkif_completion(struct blk_shadow *s)
 {
 	int i;
-	for (i = 0; i < s->req.nr_segments; i++)
+	/* Do not let BLKIF_OP_DISCARD as nr_segment is in the same place
+	 * flag. */
+	for (i = 0; i < s->req.u.rw.nr_segments; i++)
 		gnttab_end_foreign_access(s->req.u.rw.seg[i].gref, 0, 0UL);
 }
 
@@ -736,7 +746,8 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 		id   = bret->id;
 		req  = info->shadow[id].request;
 
-		blkif_completion(&info->shadow[id]);
+		if (bret->operation != BLKIF_OP_DISCARD)
+			blkif_completion(&info->shadow[id]);
 
 		add_id_to_freelist(info, id);
 
@@ -749,7 +760,9 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 					   info->gd->disk_name);
 				error = -EOPNOTSUPP;
 				info->feature_discard = 0;
+				info->feature_secdiscard = 0;
 				queue_flag_clear(QUEUE_FLAG_DISCARD, rq);
+				queue_flag_clear(QUEUE_FLAG_SECDISCARD, rq);
 			}
 			__blk_end_request_all(req, error);
 			break;
@@ -763,7 +776,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 				error = -EOPNOTSUPP;
 			}
 			if (unlikely(bret->status == BLKIF_RSP_ERROR &&
-				     info->shadow[id].req.nr_segments == 0)) {
+				     info->shadow[id].req.u.rw.nr_segments == 0)) {
 				printk(KERN_WARNING "blkfront: %s: empty write %s op failed\n",
 				       info->flush_op == BLKIF_OP_WRITE_BARRIER ?
 				       "barrier" :  "flush disk cache",
@@ -984,8 +997,8 @@ static int blkfront_probe(struct xenbus_device *dev,
 	INIT_WORK(&info->work, blkif_restart_queue);
 
 	for (i = 0; i < BLK_RING_SIZE; i++)
-		info->shadow[i].req.id = i+1;
-	info->shadow[BLK_RING_SIZE-1].req.id = 0x0fffffff;
+		info->shadow[i].req.u.rw.id = i+1;
+	info->shadow[BLK_RING_SIZE-1].req.u.rw.id = 0x0fffffff;
 
 	/* Front end dir is a number, which is used as the id. */
 	info->handle = simple_strtoul(strrchr(dev->nodename, '/')+1, NULL, 0);
@@ -1019,9 +1032,9 @@ static int blkif_recover(struct blkfront_info *info)
 	/* Stage 2: Set up free list. */
 	memset(&info->shadow, 0, sizeof(info->shadow));
 	for (i = 0; i < BLK_RING_SIZE; i++)
-		info->shadow[i].req.id = i+1;
+		info->shadow[i].req.u.rw.id = i+1;
 	info->shadow_free = info->ring.req_prod_pvt;
-	info->shadow[BLK_RING_SIZE-1].req.id = 0x0fffffff;
+	info->shadow[BLK_RING_SIZE-1].req.u.rw.id = 0x0fffffff;
 
 	/* Stage 3: Find pending requests and requeue them. */
 	for (i = 0; i < BLK_RING_SIZE; i++) {
@@ -1034,17 +1047,19 @@ static int blkif_recover(struct blkfront_info *info)
 		*req = copy[i].req;
 
 		/* We get a new request id, and must reset the shadow state. */
-		req->id = get_id_from_freelist(info);
-		memcpy(&info->shadow[req->id], &copy[i], sizeof(copy[i]));
+		req->u.rw.id = get_id_from_freelist(info);
+		memcpy(&info->shadow[req->u.rw.id], &copy[i], sizeof(copy[i]));
 
+		if (req->operation != BLKIF_OP_DISCARD) {
 		/* Rewrite any grant references invalidated by susp/resume. */
-		for (j = 0; j < req->nr_segments; j++)
-			gnttab_grant_foreign_access_ref(
-				req->u.rw.seg[j].gref,
-				info->xbdev->otherend_id,
-				pfn_to_mfn(info->shadow[req->id].frame[j]),
-				rq_data_dir(info->shadow[req->id].request));
-		info->shadow[req->id].req = *req;
+			for (j = 0; j < req->u.rw.nr_segments; j++)
+				gnttab_grant_foreign_access_ref(
+					req->u.rw.seg[j].gref,
+					info->xbdev->otherend_id,
+					pfn_to_mfn(info->shadow[req->u.rw.id].frame[j]),
+					rq_data_dir(info->shadow[req->u.rw.id].request));
+		}
+		info->shadow[req->u.rw.id].req = *req;
 
 		info->ring.req_prod_pvt++;
 	}
@@ -1135,11 +1150,13 @@ static void blkfront_setup_discard(struct blkfront_info *info)
 	char *type;
 	unsigned int discard_granularity;
 	unsigned int discard_alignment;
+	unsigned int discard_secure;
 
 	type = xenbus_read(XBT_NIL, info->xbdev->otherend, "type", NULL);
 	if (IS_ERR(type))
 		return;
 
+	info->feature_secdiscard = 0;
 	if (strncmp(type, "phy", 3) == 0) {
 		err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
 			"discard-granularity", "%u", &discard_granularity,
@@ -1150,6 +1167,12 @@ static void blkfront_setup_discard(struct blkfront_info *info)
 			info->discard_granularity = discard_granularity;
 			info->discard_alignment = discard_alignment;
 		}
+		err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
+			    "discard-secure", "%d", &discard_secure,
+			    NULL);
+		if (!err)
+			info->feature_secdiscard = discard_secure;
+
 	} else if (strncmp(type, "file", 4) == 0)
 		info->feature_discard = 1;
 
@@ -1437,16 +1460,13 @@ static const struct xenbus_device_id blkfront_ids[] = {
 	{ "" }
 };
 
-static struct xenbus_driver blkfront = {
-	.name = "vbd",
-	.owner = THIS_MODULE,
-	.ids = blkfront_ids,
+static DEFINE_XENBUS_DRIVER(blkfront, ,
 	.probe = blkfront_probe,
 	.remove = blkfront_remove,
 	.resume = blkfront_resume,
 	.otherend_changed = blkback_changed,
 	.is_ready = blkfront_is_ready,
-};
+);
 
 static int __init xlblk_init(void)
 {
@@ -1461,7 +1481,7 @@ static int __init xlblk_init(void)
 		return -ENODEV;
 	}
 
-	ret = xenbus_register_frontend(&blkfront);
+	ret = xenbus_register_frontend(&blkfront_driver);
 	if (ret) {
 		unregister_blkdev(XENVBD_MAJOR, DEV_NAME);
 		return ret;
@@ -1474,7 +1494,7 @@ module_init(xlblk_init);
 
 static void __exit xlblk_exit(void)
 {
-	return xenbus_unregister_driver(&blkfront);
+	return xenbus_unregister_driver(&blkfront_driver);
 }
 module_exit(xlblk_exit);
 

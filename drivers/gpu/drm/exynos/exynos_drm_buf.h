@@ -30,9 +30,6 @@
 struct exynos_drm_gem_buf *exynos_drm_buf_create(struct drm_device *dev,
 		unsigned int size);
 
-/* get memory information of a drm framebuffer. */
-struct exynos_drm_gem_buf *exynos_drm_fb_get_buf(struct drm_framebuffer *fb);
-
 /* remove allocated physical memory. */
 void exynos_drm_buf_destroy(struct drm_device *dev,
 		struct exynos_drm_gem_buf *buffer);

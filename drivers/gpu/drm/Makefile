@@ -9,7 +9,7 @@ drm-y       :=	drm_auth.o drm_buffer.o drm_bufs.o drm_cache.o \
 		drm_drv.o drm_fops.o drm_gem.o drm_ioctl.o drm_irq.o \
 		drm_lock.o drm_memory.o drm_proc.o drm_stub.o drm_vm.o \
 		drm_agpsupport.o drm_scatter.o ati_pcigart.o drm_pci.o \
-		drm_platform.o drm_sysfs.o drm_hashtab.o drm_sman.o drm_mm.o \
+		drm_platform.o drm_sysfs.o drm_hashtab.o drm_mm.o \
 		drm_crtc.o drm_modes.o drm_edid.o \
 		drm_info.o drm_debugfs.o drm_encoder_slave.o \
 		drm_trace_points.o drm_global.o drm_usb.o
@@ -36,4 +36,5 @@ obj-$(CONFIG_DRM_VMWGFX)+= vmwgfx/
 obj-$(CONFIG_DRM_VIA)	+=via/
 obj-$(CONFIG_DRM_NOUVEAU) +=nouveau/
 obj-$(CONFIG_DRM_EXYNOS) +=exynos/
+obj-$(CONFIG_DRM_GMA500) += gma500/
 obj-y			+= i2c/

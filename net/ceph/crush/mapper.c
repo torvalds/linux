@@ -510,10 +510,15 @@ int crush_do_rule(struct crush_map *map,
 		switch (rule->steps[step].op) {
 		case CRUSH_RULE_TAKE:
 			w[0] = rule->steps[step].arg1;
-			if (force_pos >= 0) {
-				BUG_ON(force_context[force_pos] != w[0]);
+
+			/* find position in force_context/hierarchy */
+			while (force_pos >= 0 &&
+			       force_context[force_pos] != w[0])
 				force_pos--;
-			}
+			/* and move past it */
+			if (force_pos >= 0)
+				force_pos--;
+
 			wsize = 1;
 			break;
 

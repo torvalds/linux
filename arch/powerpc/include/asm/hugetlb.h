@@ -5,7 +5,6 @@
 #include <asm/page.h>
 
 extern struct kmem_cache *hugepte_cache;
-extern void __init reserve_hugetlb_gpages(void);
 
 static inline pte_t *hugepd_page(hugepd_t hpd)
 {
@@ -22,14 +21,14 @@ static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr,
 				    unsigned pdshift)
 {
 	/*
-	 * On 32-bit, we have multiple higher-level table entries that point to
-	 * the same hugepte.  Just use the first one since they're all
+	 * On FSL BookE, we have multiple higher-level table entries that
+	 * point to the same hugepte.  Just use the first one since they're all
 	 * identical.  So for that case, idx=0.
 	 */
 	unsigned long idx = 0;
 
 	pte_t *dir = hugepd_page(*hpdp);
-#ifdef CONFIG_PPC64
+#ifndef CONFIG_PPC_FSL_BOOK3E
 	idx = (addr & ((1UL << pdshift) - 1)) >> hugepd_shift(*hpdp);
 #endif
 
@@ -53,7 +52,8 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
 }
 #endif
 
-void book3e_hugetlb_preload(struct mm_struct *mm, unsigned long ea, pte_t pte);
+void book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea,
+			    pte_t pte);
 void flush_hugetlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
 
 void hugetlb_free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
@@ -124,7 +124,17 @@ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 					     unsigned long addr, pte_t *ptep,
 					     pte_t pte, int dirty)
 {
+#ifdef HUGETLB_NEED_PRELOAD
+	/*
+	 * The "return 1" forces a call of update_mmu_cache, which will write a
+	 * TLB entry.  Without this, platforms that don't do a write of the TLB
+	 * entry in the TLB miss handler asm will fault ad infinitum.
+	 */
+	ptep_set_access_flags(vma, addr, ptep, pte, dirty);
+	return 1;
+#else
 	return ptep_set_access_flags(vma, addr, ptep, pte, dirty);
+#endif
 }
 
 static inline pte_t huge_ptep_get(pte_t *ptep)
@@ -142,12 +152,22 @@ static inline void arch_release_hugepage(struct page *page)
 }
 
 #else /* ! CONFIG_HUGETLB_PAGE */
-static inline void reserve_hugetlb_gpages(void)
-{
-	pr_err("Cannot reserve gpages without hugetlb enabled\n");
-}
 static inline void flush_hugetlb_page(struct vm_area_struct *vma,
 				      unsigned long vmaddr)
+{
+}
+#endif /* CONFIG_HUGETLB_PAGE */
+
+
+/*
+ * FSL Book3E platforms require special gpage handling - the gpages
+ * are reserved early in the boot process by memblock instead of via
+ * the .dts as on IBM platforms.
+ */
+#if defined(CONFIG_HUGETLB_PAGE) && defined(CONFIG_PPC_FSL_BOOK3E)
+extern void __init reserve_hugetlb_gpages(void);
+#else
+static inline void reserve_hugetlb_gpages(void)
 {
 }
 #endif

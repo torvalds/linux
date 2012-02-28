@@ -110,12 +110,14 @@ struct autofs_sb_info {
 	int sub_version;
 	int min_proto;
 	int max_proto;
+	int compat_daemon;
 	unsigned long exp_timeout;
 	unsigned int type;
 	int reghost_enabled;
 	int needs_reghost;
 	struct super_block *sb;
 	struct mutex wq_mutex;
+	struct mutex pipe_mutex;
 	spinlock_t fs_lock;
 	struct autofs_wait_queue *queues; /* Wait queue pointer */
 	spinlock_t lookup_lock;
@@ -155,7 +157,7 @@ static inline int autofs4_ispending(struct dentry *dentry)
 	return 0;
 }
 
-struct inode *autofs4_get_inode(struct super_block *, mode_t);
+struct inode *autofs4_get_inode(struct super_block *, umode_t);
 void autofs4_free_ino(struct autofs_info *);
 
 /* Expiration */

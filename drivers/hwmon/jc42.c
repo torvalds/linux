@@ -309,7 +309,7 @@ static ssize_t set_##value(struct device *dev,				\
 	struct jc42_data *data = i2c_get_clientdata(client);		\
 	int err, ret = count;						\
 	long val;							\
-	if (strict_strtol(buf, 10, &val) < 0)				\
+	if (kstrtol(buf, 10, &val) < 0)				\
 		return -EINVAL;						\
 	mutex_lock(&data->update_lock);					\
 	data->value = jc42_temp_to_reg(val, data->extended);		\
@@ -337,7 +337,7 @@ static ssize_t set_temp_crit_hyst(struct device *dev,
 	int err;
 	int ret = count;
 
-	if (strict_strtoul(buf, 10, &val) < 0)
+	if (kstrtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
 	diff = jc42_temp_from_reg(data->temp_crit) - val;
@@ -413,7 +413,7 @@ static struct attribute *jc42_attributes[] = {
 	NULL
 };
 
-static mode_t jc42_attribute_mode(struct kobject *kobj,
+static umode_t jc42_attribute_mode(struct kobject *kobj,
 				  struct attribute *attr, int index)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);

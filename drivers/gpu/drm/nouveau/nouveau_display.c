@@ -32,6 +32,8 @@
 #include "nouveau_hw.h"
 #include "nouveau_crtc.h"
 #include "nouveau_dma.h"
+#include "nouveau_connector.h"
+#include "nouveau_gpio.h"
 #include "nv50_display.h"
 
 static void
@@ -64,7 +66,7 @@ static const struct drm_framebuffer_funcs nouveau_framebuffer_funcs = {
 int
 nouveau_framebuffer_init(struct drm_device *dev,
 			 struct nouveau_framebuffer *nv_fb,
-			 struct drm_mode_fb_cmd *mode_cmd,
+			 struct drm_mode_fb_cmd2 *mode_cmd,
 			 struct nouveau_bo *nvbo)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -107,14 +109,14 @@ nouveau_framebuffer_init(struct drm_device *dev,
 
 		if (!tile_flags) {
 			if (dev_priv->card_type < NV_D0)
-				nv_fb->r_pitch = 0x00100000 | fb->pitch;
+				nv_fb->r_pitch = 0x00100000 | fb->pitches[0];
 			else
-				nv_fb->r_pitch = 0x01000000 | fb->pitch;
+				nv_fb->r_pitch = 0x01000000 | fb->pitches[0];
 		} else {
 			u32 mode = nvbo->tile_mode;
 			if (dev_priv->card_type >= NV_C0)
 				mode >>= 4;
-			nv_fb->r_pitch = ((fb->pitch / 4) << 4) | mode;
+			nv_fb->r_pitch = ((fb->pitches[0] / 4) << 4) | mode;
 		}
 	}
 
@@ -124,13 +126,13 @@ nouveau_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *
 nouveau_user_framebuffer_create(struct drm_device *dev,
 				struct drm_file *file_priv,
-				struct drm_mode_fb_cmd *mode_cmd)
+				struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct nouveau_framebuffer *nouveau_fb;
 	struct drm_gem_object *gem;
 	int ret;
 
-	gem = drm_gem_object_lookup(dev, file_priv, mode_cmd->handle);
+	gem = drm_gem_object_lookup(dev, file_priv, mode_cmd->handles[0]);
 	if (!gem)
 		return ERR_PTR(-ENOENT);
 
@@ -147,10 +149,195 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 	return &nouveau_fb->base;
 }
 
-const struct drm_mode_config_funcs nouveau_mode_config_funcs = {
+static const struct drm_mode_config_funcs nouveau_mode_config_funcs = {
 	.fb_create = nouveau_user_framebuffer_create,
 	.output_poll_changed = nouveau_fbcon_output_poll_changed,
 };
+
+
+struct drm_prop_enum_list {
+	u8 gen_mask;
+	int type;
+	char *name;
+};
+
+static struct drm_prop_enum_list underscan[] = {
+	{ 6, UNDERSCAN_AUTO, "auto" },
+	{ 6, UNDERSCAN_OFF, "off" },
+	{ 6, UNDERSCAN_ON, "on" },
+	{}
+};
+
+static struct drm_prop_enum_list dither_mode[] = {
+	{ 7, DITHERING_MODE_AUTO, "auto" },
+	{ 7, DITHERING_MODE_OFF, "off" },
+	{ 1, DITHERING_MODE_ON, "on" },
+	{ 6, DITHERING_MODE_STATIC2X2, "static 2x2" },
+	{ 6, DITHERING_MODE_DYNAMIC2X2, "dynamic 2x2" },
+	{ 4, DITHERING_MODE_TEMPORAL, "temporal" },
+	{}
+};
+
+static struct drm_prop_enum_list dither_depth[] = {
+	{ 6, DITHERING_DEPTH_AUTO, "auto" },
+	{ 6, DITHERING_DEPTH_6BPC, "6 bpc" },
+	{ 6, DITHERING_DEPTH_8BPC, "8 bpc" },
+	{}
+};
+
+#define PROP_ENUM(p,gen,n,list) do {                                           \
+	struct drm_prop_enum_list *l = (list);                                 \
+	int c = 0;                                                             \
+	while (l->gen_mask) {                                                  \
+		if (l->gen_mask & (1 << (gen)))                                \
+			c++;                                                   \
+		l++;                                                           \
+	}                                                                      \
+	if (c) {                                                               \
+		p = drm_property_create(dev, DRM_MODE_PROP_ENUM, n, c);        \
+		l = (list);                                                    \
+		c = 0;                                                         \
+		while (p && l->gen_mask) {                                     \
+			if (l->gen_mask & (1 << (gen))) {                      \
+				drm_property_add_enum(p, c, l->type, l->name); \
+				c++;                                           \
+			}                                                      \
+			l++;                                                   \
+		}                                                              \
+	}                                                                      \
+} while(0)
+
+int
+nouveau_display_init(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_display_engine *disp = &dev_priv->engine.display;
+	struct drm_connector *connector;
+	int ret;
+
+	ret = disp->init(dev);
+	if (ret)
+		return ret;
+
+	/* power on internal panel if it's not already.  the init tables of
+	 * some vbios default this to off for some reason, causing the
+	 * panel to not work after resume
+	 */
+	if (nouveau_gpio_func_get(dev, DCB_GPIO_PANEL_POWER) == 0) {
+		nouveau_gpio_func_set(dev, DCB_GPIO_PANEL_POWER, true);
+		msleep(300);
+	}
+
+	/* enable polling for external displays */
+	drm_kms_helper_poll_enable(dev);
+
+	/* enable hotplug interrupts */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		struct nouveau_connector *conn = nouveau_connector(connector);
+		nouveau_gpio_irq(dev, 0, conn->hpd, 0xff, true);
+	}
+
+	return ret;
+}
+
+void
+nouveau_display_fini(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_display_engine *disp = &dev_priv->engine.display;
+	struct drm_connector *connector;
+
+	/* disable hotplug interrupts */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		struct nouveau_connector *conn = nouveau_connector(connector);
+		nouveau_gpio_irq(dev, 0, conn->hpd, 0xff, false);
+	}
+
+	drm_kms_helper_poll_disable(dev);
+	disp->fini(dev);
+}
+
+int
+nouveau_display_create(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_display_engine *disp = &dev_priv->engine.display;
+	int ret, gen;
+
+	drm_mode_config_init(dev);
+	drm_mode_create_scaling_mode_property(dev);
+	drm_mode_create_dvi_i_properties(dev);
+
+	if (dev_priv->card_type < NV_50)
+		gen = 0;
+	else
+	if (dev_priv->card_type < NV_D0)
+		gen = 1;
+	else
+		gen = 2;
+
+	PROP_ENUM(disp->dithering_mode, gen, "dithering mode", dither_mode);
+	PROP_ENUM(disp->dithering_depth, gen, "dithering depth", dither_depth);
+	PROP_ENUM(disp->underscan_property, gen, "underscan", underscan);
+
+	disp->underscan_hborder_property =
+		drm_property_create(dev, DRM_MODE_PROP_RANGE,
+				    "underscan hborder", 2);
+	disp->underscan_hborder_property->values[0] = 0;
+	disp->underscan_hborder_property->values[1] = 128;
+
+	disp->underscan_vborder_property =
+		drm_property_create(dev, DRM_MODE_PROP_RANGE,
+				    "underscan vborder", 2);
+	disp->underscan_vborder_property->values[0] = 0;
+	disp->underscan_vborder_property->values[1] = 128;
+
+	dev->mode_config.funcs = (void *)&nouveau_mode_config_funcs;
+	dev->mode_config.fb_base = pci_resource_start(dev->pdev, 1);
+
+	dev->mode_config.min_width = 0;
+	dev->mode_config.min_height = 0;
+	if (dev_priv->card_type < NV_10) {
+		dev->mode_config.max_width = 2048;
+		dev->mode_config.max_height = 2048;
+	} else
+	if (dev_priv->card_type < NV_50) {
+		dev->mode_config.max_width = 4096;
+		dev->mode_config.max_height = 4096;
+	} else {
+		dev->mode_config.max_width = 8192;
+		dev->mode_config.max_height = 8192;
+	}
+
+	drm_kms_helper_poll_init(dev);
+	drm_kms_helper_poll_disable(dev);
+
+	ret = disp->create(dev);
+	if (ret)
+		return ret;
+
+	if (dev->mode_config.num_crtc) {
+		ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+void
+nouveau_display_destroy(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_display_engine *disp = &dev_priv->engine.display;
+
+	drm_vblank_cleanup(dev);
+
+	disp->destroy(dev);
+
+	drm_kms_helper_poll_fini(dev);
+	drm_mode_config_cleanup(dev);
+}
 
 int
 nouveau_vblank_enable(struct drm_device *dev, int crtc)
@@ -294,7 +481,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	/* Initialize a page flip struct */
 	*s = (struct nouveau_page_flip_state)
 		{ { }, event, nouveau_crtc(crtc)->index,
-		  fb->bits_per_pixel, fb->pitch, crtc->x, crtc->y,
+		  fb->bits_per_pixel, fb->pitches[0], crtc->x, crtc->y,
 		  new_bo->bo.offset };
 
 	/* Choose the channel the flip will be handled in */
@@ -305,7 +492,10 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	/* Emit a page flip */
 	if (dev_priv->card_type >= NV_50) {
-		ret = nv50_display_flip_next(crtc, fb, chan);
+		if (dev_priv->card_type >= NV_D0)
+			ret = nvd0_display_flip_next(crtc, fb, chan, 0);
+		else
+			ret = nv50_display_flip_next(crtc, fb, chan);
 		if (ret) {
 			nouveau_channel_put(&chan);
 			goto fail_unreserve;

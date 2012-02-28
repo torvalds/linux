@@ -63,6 +63,9 @@ struct ethtool_rx_list {
 /* Length for FCB */
 #define GMAC_FCB_LEN 8
 
+/* Length for TxPAL */
+#define GMAC_TXPAL_LEN 16
+
 /* Default padding amount */
 #define DEFAULT_PADDING 2
 
@@ -73,9 +76,6 @@ struct ethtool_rx_list {
  * allocating data buffers.  ie-for any given MTU, the data buffer
  * will be the next highest multiple of 512 bytes. */
 #define INCREMENTAL_BUFFER_SIZE 512
-
-
-#define MAC_ADDR_LEN 6
 
 #define PHY_INIT_TIMEOUT 100000
 #define GFAR_PHY_CHANGE_TIME 2
@@ -1179,9 +1179,9 @@ extern void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev,
 extern void gfar_configure_coalescing(struct gfar_private *priv,
 		unsigned long tx_mask, unsigned long rx_mask);
 void gfar_init_sysfs(struct net_device *dev);
-int gfar_set_features(struct net_device *dev, u32 features);
+int gfar_set_features(struct net_device *dev, netdev_features_t features);
 extern void gfar_check_rx_parser_mode(struct gfar_private *priv);
-extern void gfar_vlan_mode(struct net_device *dev, u32 features);
+extern void gfar_vlan_mode(struct net_device *dev, netdev_features_t features);
 
 extern const struct ethtool_ops gfar_ethtool_ops;
 

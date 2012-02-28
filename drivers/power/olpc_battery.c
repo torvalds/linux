@@ -519,28 +519,34 @@ static struct device_attribute olpc_bat_error = {
  *		Initialisation
  *********************************************************************/
 
-static struct platform_device *bat_pdev;
-
 static struct power_supply olpc_bat = {
+	.name = "olpc-battery",
 	.get_property = olpc_bat_get_property,
 	.use_for_apm = 1,
 };
 
-void olpc_battery_trigger_uevent(unsigned long cause)
+static int olpc_battery_suspend(struct platform_device *pdev,
+				pm_message_t state)
 {
-	if (cause & EC_SCI_SRC_ACPWR)
-		kobject_uevent(&olpc_ac.dev->kobj, KOBJ_CHANGE);
-	if (cause & (EC_SCI_SRC_BATERR|EC_SCI_SRC_BATSOC|EC_SCI_SRC_BATTERY))
-		kobject_uevent(&olpc_bat.dev->kobj, KOBJ_CHANGE);
+	if (device_may_wakeup(olpc_ac.dev))
+		olpc_ec_wakeup_set(EC_SCI_SRC_ACPWR);
+	else
+		olpc_ec_wakeup_clear(EC_SCI_SRC_ACPWR);
+
+	if (device_may_wakeup(olpc_bat.dev))
+		olpc_ec_wakeup_set(EC_SCI_SRC_BATTERY | EC_SCI_SRC_BATSOC
+				   | EC_SCI_SRC_BATERR);
+	else
+		olpc_ec_wakeup_clear(EC_SCI_SRC_BATTERY | EC_SCI_SRC_BATSOC
+				     | EC_SCI_SRC_BATERR);
+
+	return 0;
 }
 
-static int __init olpc_bat_init(void)
+static int __devinit olpc_battery_probe(struct platform_device *pdev)
 {
-	int ret = 0;
+	int ret;
 	uint8_t status;
-
-	if (!olpc_platform_info.ecver)
-		return -ENXIO;
 
 	/*
 	 * We've seen a number of EC protocol changes; this driver requires
@@ -558,15 +564,10 @@ static int __init olpc_bat_init(void)
 
 	/* Ignore the status. It doesn't actually matter */
 
-	bat_pdev = platform_device_register_simple("olpc-battery", 0, NULL, 0);
-	if (IS_ERR(bat_pdev))
-		return PTR_ERR(bat_pdev);
-
-	ret = power_supply_register(&bat_pdev->dev, &olpc_ac);
+	ret = power_supply_register(&pdev->dev, &olpc_ac);
 	if (ret)
-		goto ac_failed;
+		return ret;
 
-	olpc_bat.name = bat_pdev->name;
 	if (olpc_board_at_least(olpc_board_pre(0xd0))) { /* XO-1.5 */
 		olpc_bat.properties = olpc_xo15_bat_props;
 		olpc_bat.num_properties = ARRAY_SIZE(olpc_xo15_bat_props);
@@ -575,7 +576,7 @@ static int __init olpc_bat_init(void)
 		olpc_bat.num_properties = ARRAY_SIZE(olpc_xo1_bat_props);
 	}
 
-	ret = power_supply_register(&bat_pdev->dev, &olpc_bat);
+	ret = power_supply_register(&pdev->dev, &olpc_bat);
 	if (ret)
 		goto battery_failed;
 
@@ -587,7 +588,12 @@ static int __init olpc_bat_init(void)
 	if (ret)
 		goto error_failed;
 
-	goto success;
+	if (olpc_ec_wakeup_available()) {
+		device_set_wakeup_capable(olpc_ac.dev, true);
+		device_set_wakeup_capable(olpc_bat.dev, true);
+	}
+
+	return 0;
 
 error_failed:
 	device_remove_bin_file(olpc_bat.dev, &olpc_bat_eeprom);
@@ -595,23 +601,36 @@ eeprom_failed:
 	power_supply_unregister(&olpc_bat);
 battery_failed:
 	power_supply_unregister(&olpc_ac);
-ac_failed:
-	platform_device_unregister(bat_pdev);
-success:
 	return ret;
 }
 
-static void __exit olpc_bat_exit(void)
+static int __devexit olpc_battery_remove(struct platform_device *pdev)
 {
 	device_remove_file(olpc_bat.dev, &olpc_bat_error);
 	device_remove_bin_file(olpc_bat.dev, &olpc_bat_eeprom);
 	power_supply_unregister(&olpc_bat);
 	power_supply_unregister(&olpc_ac);
-	platform_device_unregister(bat_pdev);
+	return 0;
 }
 
-module_init(olpc_bat_init);
-module_exit(olpc_bat_exit);
+static const struct of_device_id olpc_battery_ids[] __devinitconst = {
+	{ .compatible = "olpc,xo1-battery" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, olpc_battery_ids);
+
+static struct platform_driver olpc_battery_driver = {
+	.driver = {
+		.name = "olpc-battery",
+		.owner = THIS_MODULE,
+		.of_match_table = olpc_battery_ids,
+	},
+	.probe = olpc_battery_probe,
+	.remove = __devexit_p(olpc_battery_remove),
+	.suspend = olpc_battery_suspend,
+};
+
+module_platform_driver(olpc_battery_driver);
 
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");
 MODULE_LICENSE("GPL");

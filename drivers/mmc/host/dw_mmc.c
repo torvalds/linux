@@ -22,7 +22,6 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/scatterlist.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
@@ -502,8 +501,14 @@ static void dw_mci_submit_data(struct dw_mci *host, struct mmc_data *data)
 		host->dir_status = DW_MCI_SEND_STATUS;
 
 	if (dw_mci_submit_data_dma(host, data)) {
+		int flags = SG_MITER_ATOMIC;
+		if (host->data->flags & MMC_DATA_READ)
+			flags |= SG_MITER_TO_SG;
+		else
+			flags |= SG_MITER_FROM_SG;
+
+		sg_miter_start(&host->sg_miter, data->sg, data->sg_len, flags);
 		host->sg = data->sg;
-		host->pio_offset = 0;
 		host->part_buf_start = 0;
 		host->part_buf_count = 0;
 
@@ -588,11 +593,11 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot)
 	mci_writel(host, CTYPE, (slot->ctype << slot->id));
 }
 
-static void dw_mci_start_request(struct dw_mci *host,
-				 struct dw_mci_slot *slot)
+static void __dw_mci_start_request(struct dw_mci *host,
+				   struct dw_mci_slot *slot,
+				   struct mmc_command *cmd)
 {
 	struct mmc_request *mrq;
-	struct mmc_command *cmd;
 	struct mmc_data	*data;
 	u32 cmdflags;
 
@@ -610,14 +615,13 @@ static void dw_mci_start_request(struct dw_mci *host,
 	host->completed_events = 0;
 	host->data_status = 0;
 
-	data = mrq->data;
+	data = cmd->data;
 	if (data) {
 		dw_mci_set_timeout(host);
 		mci_writel(host, BYTCNT, data->blksz*data->blocks);
 		mci_writel(host, BLKSIZ, data->blksz);
 	}
 
-	cmd = mrq->cmd;
 	cmdflags = dw_mci_prepare_command(slot->mmc, cmd);
 
 	/* this is the first command, send the initialization clock */
@@ -633,6 +637,16 @@ static void dw_mci_start_request(struct dw_mci *host,
 
 	if (mrq->stop)
 		host->stop_cmdr = dw_mci_prepare_command(slot->mmc, mrq->stop);
+}
+
+static void dw_mci_start_request(struct dw_mci *host,
+				 struct dw_mci_slot *slot)
+{
+	struct mmc_request *mrq = slot->mrq;
+	struct mmc_command *cmd;
+
+	cmd = mrq->sbc ? mrq->sbc : mrq->cmd;
+	__dw_mci_start_request(host, slot, cmd);
 }
 
 /* must be called with host->lock held */
@@ -698,12 +712,15 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		break;
 	}
 
+	regs = mci_readl(slot->host, UHS_REG);
+
 	/* DDR mode set */
-	if (ios->timing == MMC_TIMING_UHS_DDR50) {
-		regs = mci_readl(slot->host, UHS_REG);
+	if (ios->timing == MMC_TIMING_UHS_DDR50)
 		regs |= (0x1 << slot->id) << 16;
-		mci_writel(slot->host, UHS_REG, regs);
-	}
+	else
+		regs &= ~(0x1 << slot->id) << 16;
+
+	mci_writel(slot->host, UHS_REG, regs);
 
 	if (ios->clock) {
 		/*
@@ -889,7 +906,14 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			cmd = host->cmd;
 			host->cmd = NULL;
 			set_bit(EVENT_CMD_COMPLETE, &host->completed_events);
-			dw_mci_command_complete(host, host->mrq->cmd);
+			dw_mci_command_complete(host, cmd);
+			if (cmd == host->mrq->sbc && !cmd->error) {
+				prev_state = state = STATE_SENDING_CMD;
+				__dw_mci_start_request(host, host->cur_slot,
+						       host->mrq->cmd);
+				goto unlock;
+			}
+
 			if (!host->mrq->data || cmd->error) {
 				dw_mci_request_end(host, host->mrq);
 				goto unlock;
@@ -953,6 +977,7 @@ static void dw_mci_tasklet_func(unsigned long priv)
 				 * generates a block interrupt, hence setting
 				 * the scatter-gather pointer to NULL.
 				 */
+				sg_miter_stop(&host->sg_miter);
 				host->sg = NULL;
 				ctrl = mci_readl(host, CTRL);
 				ctrl |= SDMMC_CTRL_FIFO_RESET;
@@ -963,6 +988,12 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			}
 
 			if (!data->stop) {
+				dw_mci_request_end(host, host->mrq);
+				goto unlock;
+			}
+
+			if (host->mrq->sbc && !data->error) {
+				data->stop->error = 0;
 				dw_mci_request_end(host, host->mrq);
 				goto unlock;
 			}
@@ -1286,54 +1317,44 @@ static void dw_mci_pull_data(struct dw_mci *host, void *buf, int cnt)
 
 static void dw_mci_read_data_pio(struct dw_mci *host)
 {
-	struct scatterlist *sg = host->sg;
-	void *buf = sg_virt(sg);
-	unsigned int offset = host->pio_offset;
+	struct sg_mapping_iter *sg_miter = &host->sg_miter;
+	void *buf;
+	unsigned int offset;
 	struct mmc_data	*data = host->data;
 	int shift = host->data_shift;
 	u32 status;
 	unsigned int nbytes = 0, len;
+	unsigned int remain, fcnt;
 
 	do {
-		len = host->part_buf_count +
-			(SDMMC_GET_FCNT(mci_readl(host, STATUS)) << shift);
-		if (offset + len <= sg->length) {
-			dw_mci_pull_data(host, (void *)(buf + offset), len);
+		if (!sg_miter_next(sg_miter))
+			goto done;
 
+		host->sg = sg_miter->__sg;
+		buf = sg_miter->addr;
+		remain = sg_miter->length;
+		offset = 0;
+
+		do {
+			fcnt = (SDMMC_GET_FCNT(mci_readl(host, STATUS))
+					<< shift) + host->part_buf_count;
+			len = min(remain, fcnt);
+			if (!len)
+				break;
+			dw_mci_pull_data(host, (void *)(buf + offset), len);
 			offset += len;
 			nbytes += len;
-
-			if (offset == sg->length) {
-				flush_dcache_page(sg_page(sg));
-				host->sg = sg = sg_next(sg);
-				if (!sg)
-					goto done;
-
-				offset = 0;
-				buf = sg_virt(sg);
-			}
-		} else {
-			unsigned int remaining = sg->length - offset;
-			dw_mci_pull_data(host, (void *)(buf + offset),
-					 remaining);
-			nbytes += remaining;
-
-			flush_dcache_page(sg_page(sg));
-			host->sg = sg = sg_next(sg);
-			if (!sg)
-				goto done;
-
-			offset = len - remaining;
-			buf = sg_virt(sg);
-			dw_mci_pull_data(host, buf, offset);
-			nbytes += offset;
-		}
+			remain -= len;
+		} while (remain);
+		sg_miter->consumed = offset;
 
 		status = mci_readl(host, MINTSTS);
 		mci_writel(host, RINTSTS, SDMMC_INT_RXDR);
 		if (status & DW_MCI_DATA_ERROR_FLAGS) {
 			host->data_status = status;
 			data->bytes_xfered += nbytes;
+			sg_miter_stop(sg_miter);
+			host->sg = NULL;
 			smp_wmb();
 
 			set_bit(EVENT_DATA_ERROR, &host->pending_events);
@@ -1342,65 +1363,66 @@ static void dw_mci_read_data_pio(struct dw_mci *host)
 			return;
 		}
 	} while (status & SDMMC_INT_RXDR); /*if the RXDR is ready read again*/
-	host->pio_offset = offset;
 	data->bytes_xfered += nbytes;
+
+	if (!remain) {
+		if (!sg_miter_next(sg_miter))
+			goto done;
+		sg_miter->consumed = 0;
+	}
+	sg_miter_stop(sg_miter);
 	return;
 
 done:
 	data->bytes_xfered += nbytes;
+	sg_miter_stop(sg_miter);
+	host->sg = NULL;
 	smp_wmb();
 	set_bit(EVENT_XFER_COMPLETE, &host->pending_events);
 }
 
 static void dw_mci_write_data_pio(struct dw_mci *host)
 {
-	struct scatterlist *sg = host->sg;
-	void *buf = sg_virt(sg);
-	unsigned int offset = host->pio_offset;
+	struct sg_mapping_iter *sg_miter = &host->sg_miter;
+	void *buf;
+	unsigned int offset;
 	struct mmc_data	*data = host->data;
 	int shift = host->data_shift;
 	u32 status;
 	unsigned int nbytes = 0, len;
+	unsigned int fifo_depth = host->fifo_depth;
+	unsigned int remain, fcnt;
 
 	do {
-		len = ((host->fifo_depth -
-			SDMMC_GET_FCNT(mci_readl(host, STATUS))) << shift)
-			- host->part_buf_count;
-		if (offset + len <= sg->length) {
-			host->push_data(host, (void *)(buf + offset), len);
+		if (!sg_miter_next(sg_miter))
+			goto done;
 
+		host->sg = sg_miter->__sg;
+		buf = sg_miter->addr;
+		remain = sg_miter->length;
+		offset = 0;
+
+		do {
+			fcnt = ((fifo_depth -
+				 SDMMC_GET_FCNT(mci_readl(host, STATUS)))
+					<< shift) - host->part_buf_count;
+			len = min(remain, fcnt);
+			if (!len)
+				break;
+			host->push_data(host, (void *)(buf + offset), len);
 			offset += len;
 			nbytes += len;
-			if (offset == sg->length) {
-				host->sg = sg = sg_next(sg);
-				if (!sg)
-					goto done;
-
-				offset = 0;
-				buf = sg_virt(sg);
-			}
-		} else {
-			unsigned int remaining = sg->length - offset;
-
-			host->push_data(host, (void *)(buf + offset),
-					remaining);
-			nbytes += remaining;
-
-			host->sg = sg = sg_next(sg);
-			if (!sg)
-				goto done;
-
-			offset = len - remaining;
-			buf = sg_virt(sg);
-			host->push_data(host, (void *)buf, offset);
-			nbytes += offset;
-		}
+			remain -= len;
+		} while (remain);
+		sg_miter->consumed = offset;
 
 		status = mci_readl(host, MINTSTS);
 		mci_writel(host, RINTSTS, SDMMC_INT_TXDR);
 		if (status & DW_MCI_DATA_ERROR_FLAGS) {
 			host->data_status = status;
 			data->bytes_xfered += nbytes;
+			sg_miter_stop(sg_miter);
+			host->sg = NULL;
 
 			smp_wmb();
 
@@ -1410,12 +1432,20 @@ static void dw_mci_write_data_pio(struct dw_mci *host)
 			return;
 		}
 	} while (status & SDMMC_INT_TXDR); /* if TXDR write again */
-	host->pio_offset = offset;
 	data->bytes_xfered += nbytes;
+
+	if (!remain) {
+		if (!sg_miter_next(sg_miter))
+			goto done;
+		sg_miter->consumed = 0;
+	}
+	sg_miter_stop(sg_miter);
 	return;
 
 done:
 	data->bytes_xfered += nbytes;
+	sg_miter_stop(sg_miter);
+	host->sg = NULL;
 	smp_wmb();
 	set_bit(EVENT_XFER_COMPLETE, &host->pending_events);
 }
@@ -1618,6 +1648,7 @@ static void dw_mci_work_routine_card(struct work_struct *work)
 				 * block interrupt, hence setting the
 				 * scatter-gather pointer to NULL.
 				 */
+				sg_miter_stop(&host->sg_miter);
 				host->sg = NULL;
 
 				ctrl = mci_readl(host, CTRL);
@@ -1678,8 +1709,9 @@ static int __init dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 
 	if (host->pdata->caps)
 		mmc->caps = host->pdata->caps;
-	else
-		mmc->caps = 0;
+
+	if (host->pdata->caps2)
+		mmc->caps2 = host->pdata->caps2;
 
 	if (host->pdata->get_bus_wd)
 		if (host->pdata->get_bus_wd(slot->id) >= 4)
@@ -1923,7 +1955,7 @@ static int dw_mci_probe(struct platform_device *pdev)
 		 * should put it in the platform data.
 		 */
 		fifo_size = mci_readl(host, FIFOTH);
-		fifo_size = 1 + ((fifo_size >> 16) & 0x7ff);
+		fifo_size = 1 + ((fifo_size >> 16) & 0xfff);
 	} else {
 		fifo_size = host->pdata->fifo_depth;
 	}
@@ -2062,14 +2094,14 @@ static int __exit dw_mci_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*
  * TODO: we should probably disable the clock to the card in the suspend path.
  */
-static int dw_mci_suspend(struct platform_device *pdev, pm_message_t mesg)
+static int dw_mci_suspend(struct device *dev)
 {
 	int i, ret;
-	struct dw_mci *host = platform_get_drvdata(pdev);
+	struct dw_mci *host = dev_get_drvdata(dev);
 
 	for (i = 0; i < host->num_slots; i++) {
 		struct dw_mci_slot *slot = host->slot[i];
@@ -2092,10 +2124,10 @@ static int dw_mci_suspend(struct platform_device *pdev, pm_message_t mesg)
 	return 0;
 }
 
-static int dw_mci_resume(struct platform_device *pdev)
+static int dw_mci_resume(struct device *dev)
 {
 	int i, ret;
-	struct dw_mci *host = platform_get_drvdata(pdev);
+	struct dw_mci *host = dev_get_drvdata(dev);
 
 	if (host->vmmc)
 		regulator_enable(host->vmmc);
@@ -2103,7 +2135,7 @@ static int dw_mci_resume(struct platform_device *pdev)
 	if (host->dma_ops->init)
 		host->dma_ops->init(host);
 
-	if (!mci_wait_reset(&pdev->dev, host)) {
+	if (!mci_wait_reset(dev, host)) {
 		ret = -ENODEV;
 		return ret;
 	}
@@ -2131,14 +2163,15 @@ static int dw_mci_resume(struct platform_device *pdev)
 #else
 #define dw_mci_suspend	NULL
 #define dw_mci_resume	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
+
+static SIMPLE_DEV_PM_OPS(dw_mci_pmops, dw_mci_suspend, dw_mci_resume);
 
 static struct platform_driver dw_mci_driver = {
 	.remove		= __exit_p(dw_mci_remove),
-	.suspend	= dw_mci_suspend,
-	.resume		= dw_mci_resume,
 	.driver		= {
 		.name		= "dw_mmc",
+		.pm		= &dw_mci_pmops,
 	},
 };
 

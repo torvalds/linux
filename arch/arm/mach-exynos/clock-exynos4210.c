@@ -23,7 +23,6 @@
 #include <plat/pll.h>
 #include <plat/s5p-clock.h>
 #include <plat/clock-clksrc.h>
-#include <plat/exynos4.h>
 #include <plat/pm.h>
 
 #include <mach/hardware.h>
@@ -31,6 +30,9 @@
 #include <mach/regs-clock.h>
 #include <mach/exynos4-clock.h>
 
+#include "common.h"
+
+#ifdef CONFIG_PM_SLEEP
 static struct sleep_save exynos4210_clock_save[] = {
 	SAVE_ITEM(S5P_CLKSRC_IMAGE),
 	SAVE_ITEM(S5P_CLKSRC_LCD1),
@@ -41,6 +43,7 @@ static struct sleep_save exynos4210_clock_save[] = {
 	SAVE_ITEM(S5P_CLKGATE_IP_LCD1),
 	SAVE_ITEM(S5P_CLKGATE_IP_PERIR_4210),
 };
+#endif
 
 static struct clksrc_clk *sysclks[] = {
 	/* nothing here yet */

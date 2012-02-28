@@ -25,6 +25,7 @@ config ARCH_OMAP2
 	depends on ARCH_OMAP2PLUS
 	default y
 	select CPU_V6
+	select MULTI_IRQ_HANDLER
 
 config ARCH_OMAP3
 	bool "TI OMAP3"
@@ -32,17 +33,19 @@ config ARCH_OMAP3
 	default y
 	select CPU_V7
 	select USB_ARCH_HAS_EHCI
-	select ARM_L1_CACHE_SHIFT_6 if !ARCH_OMAP4
 	select ARCH_HAS_OPP
 	select PM_OPP if PM
 	select ARM_CPU_SUSPEND if PM
+	select MULTI_IRQ_HANDLER
 
 config ARCH_OMAP4
 	bool "TI OMAP4"
 	default y
 	depends on ARCH_OMAP2PLUS
+	select CACHE_L2X0
 	select CPU_V7
 	select ARM_GIC
+	select HAVE_SMP
 	select LOCAL_TIMERS if SMP
 	select PL310_ERRATA_588369
 	select PL310_ERRATA_727915
@@ -74,8 +77,13 @@ config SOC_OMAP3430
 	default y
 	select ARCH_OMAP_OTG
 
-config SOC_OMAPTI816X
-	bool "TI816X support"
+config SOC_OMAPTI81XX
+	bool "TI81XX support"
+	depends on ARCH_OMAP3
+	default y
+
+config SOC_OMAPAM33XX
+	bool "AM33XX support"
 	depends on ARCH_OMAP3
 	default y
 
@@ -205,13 +213,12 @@ config MACH_OMAP3_PANDORA
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
-	select REGULATOR_FIXED_VOLTAGE
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_OMAP3_TOUCHBOOK
 	bool "OMAP3 Touch Book"
 	depends on ARCH_OMAP3
 	default y
-	select BACKLIGHT_CLASS_DEVICE
 
 config MACH_OMAP_3430SDP
 	bool "OMAP 3430 SDP board"
@@ -257,7 +264,7 @@ config MACH_OMAP_ZOOM2
 	select SERIAL_8250
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_8250_CONSOLE
-	select REGULATOR_FIXED_VOLTAGE
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_OMAP_ZOOM3
 	bool "OMAP3630 Zoom3 board"
@@ -267,7 +274,7 @@ config MACH_OMAP_ZOOM3
 	select SERIAL_8250
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_8250_CONSOLE
-	select REGULATOR_FIXED_VOLTAGE
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_CM_T35
 	bool "CompuLab CM-T35/CM-T3730 modules"
@@ -312,7 +319,12 @@ config MACH_OMAP_3630SDP
 
 config MACH_TI8168EVM
 	bool "TI8168 Evaluation Module"
-	depends on SOC_OMAPTI816X
+	depends on SOC_OMAPTI81XX
+	default y
+
+config MACH_TI8148EVM
+	bool "TI8148 Evaluation Module"
+	depends on SOC_OMAPTI81XX
 	default y
 
 config MACH_OMAP_4430SDP
@@ -321,7 +333,7 @@ config MACH_OMAP_4430SDP
 	depends on ARCH_OMAP4
 	select OMAP_PACKAGE_CBL
 	select OMAP_PACKAGE_CBS
-	select REGULATOR_FIXED_VOLTAGE
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config MACH_OMAP4_PANDA
 	bool "OMAP4 Panda Board"
@@ -329,7 +341,7 @@ config MACH_OMAP4_PANDA
 	depends on ARCH_OMAP4
 	select OMAP_PACKAGE_CBL
 	select OMAP_PACKAGE_CBS
-	select REGULATOR_FIXED_VOLTAGE
+	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 
 config OMAP3_EMU
 	bool "OMAP3 debugging peripherals"
@@ -351,6 +363,27 @@ config OMAP3_SDRC_AC_TIMING
 	  wish to say no.  Selecting yes without understanding what is
 	  going on could result in system crashes;
 
+config OMAP4_ERRATA_I688
+	bool "OMAP4 errata: Async Bridge Corruption (BROKEN)"
+	depends on ARCH_OMAP4 && BROKEN
+	select ARCH_HAS_BARRIERS
+	help
+	  If a data is stalled inside asynchronous bridge because of back
+	  pressure, it may be accepted multiple times, creating pointer
+	  misalignment that will corrupt next transfers on that data path
+	  until next reset of the system (No recovery procedure once the
+	  issue is hit, the path remains consistently broken). Async bridge
+	  can be found on path between MPU to EMIF and MPU to L3 interconnect.
+	  This situation can happen only when the idle is initiated by a
+	  Master Request Disconnection (which is trigged by software when
+	  executing WFI on CPU).
+	  The work-around for this errata needs all the initiators connected
+	  through async bridge must ensure that data path is properly drained
+	  before issuing WFI. This condition will be met if one Strongly ordered
+	  access is performed to the target right before executing the WFI.
+	  In MPU case, L3 T2ASYNC FIFO and DDR T2ASYNC FIFO needs to be drained.
+	  IO barrier ensure that there is no synchronisation loss on initiators
+	  operating on both interconnect port simultaneously.
 endmenu
 
 endif

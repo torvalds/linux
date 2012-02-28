@@ -386,7 +386,7 @@ fl_create(struct net *net, struct sock *sk, struct in6_flowlabel_req *freq,
 		err = -EINVAL;
 		goto done;
 	}
-	ipv6_addr_copy(&fl->dst, &freq->flr_dst);
+	fl->dst = freq->flr_dst;
 	atomic_set(&fl->users, 1);
 	switch (fl->share) {
 	case IPV6_FL_S_EXCL:

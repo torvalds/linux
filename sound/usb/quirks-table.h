@@ -269,6 +269,32 @@ YAMAHA_DEVICE(0x105a, NULL),
 YAMAHA_DEVICE(0x105b, NULL),
 YAMAHA_DEVICE(0x105c, NULL),
 YAMAHA_DEVICE(0x105d, NULL),
+{
+	USB_DEVICE(0x0499, 0x1503),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		/* .vendor_name = "Yamaha", */
+		/* .product_name = "MOX6/MOX8", */
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 2,
+				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+			},
+			{
+				.ifnum = 3,
+				.type = QUIRK_MIDI_YAMAHA
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
 YAMAHA_DEVICE(0x2000, "DGP-7"),
 YAMAHA_DEVICE(0x2001, "DGP-5"),
 YAMAHA_DEVICE(0x2002, NULL),
@@ -1592,6 +1618,14 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* Edirol UM-3G */
+	USB_DEVICE_VENDOR_SPEC(0x0582, 0x0108),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.ifnum = 0,
+		.type = QUIRK_MIDI_STANDARD_INTERFACE
+	}
+},
+{
 	/* Boss JS-8 Jam Station  */
 	USB_DEVICE(0x0582, 0x0109),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
@@ -2331,6 +2365,16 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
 		.vendor_name = "KORG, Inc.",
 		/* .product_name = "PANDORA PX5D", */
+		.ifnum = 3,
+		.type = QUIRK_MIDI_STANDARD_INTERFACE,
+	}
+},
+
+{
+	USB_DEVICE_VENDOR_SPEC(0x0944, 0x0201),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "KORG, Inc.",
+		/* .product_name = "ToneLab ST", */
 		.ifnum = 3,
 		.type = QUIRK_MIDI_STANDARD_INTERFACE,
 	}

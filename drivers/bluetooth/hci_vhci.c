@@ -41,6 +41,8 @@
 
 #define VERSION "1.3"
 
+static bool amp;
+
 struct vhci_data {
 	struct hci_dev *hdev;
 
@@ -239,6 +241,9 @@ static int vhci_open(struct inode *inode, struct file *file)
 	hdev->bus = HCI_VIRTUAL;
 	hdev->driver_data = data;
 
+	if (amp)
+		hdev->dev_type = HCI_AMP;
+
 	hdev->open     = vhci_open_dev;
 	hdev->close    = vhci_close_dev;
 	hdev->flush    = vhci_flush;
@@ -264,10 +269,7 @@ static int vhci_release(struct inode *inode, struct file *file)
 	struct vhci_data *data = file->private_data;
 	struct hci_dev *hdev = data->hdev;
 
-	if (hci_unregister_dev(hdev) < 0) {
-		BT_ERR("Can't unregister HCI device %s", hdev->name);
-	}
-
+	hci_unregister_dev(hdev);
 	hci_free_dev(hdev);
 
 	file->private_data = NULL;
@@ -305,6 +307,9 @@ static void __exit vhci_exit(void)
 
 module_init(vhci_init);
 module_exit(vhci_exit);
+
+module_param(amp, bool, 0644);
+MODULE_PARM_DESC(amp, "Create AMP controller device");
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth virtual HCI driver ver " VERSION);

@@ -769,12 +769,10 @@ static struct bsg_device *bsg_add_device(struct inode *inode,
 					 struct file *file)
 {
 	struct bsg_device *bd;
-	int ret;
 #ifdef BSG_DEBUG
 	unsigned char buf[32];
 #endif
-	ret = blk_get_queue(rq);
-	if (ret)
+	if (!blk_get_queue(rq))
 		return ERR_PTR(-ENXIO);
 
 	bd = bsg_alloc_device();
@@ -985,7 +983,8 @@ void bsg_unregister_queue(struct request_queue *q)
 
 	mutex_lock(&bsg_mutex);
 	idr_remove(&bsg_minor_idr, bcd->minor);
-	sysfs_remove_link(&q->kobj, "bsg");
+	if (q->kobj.sd)
+		sysfs_remove_link(&q->kobj, "bsg");
 	device_unregister(bcd->class_dev);
 	bcd->class_dev = NULL;
 	kref_put(&bcd->ref, bsg_kref_release_function);
@@ -1070,7 +1069,7 @@ EXPORT_SYMBOL_GPL(bsg_register_queue);
 
 static struct cdev bsg_cdev;
 
-static char *bsg_devnode(struct device *dev, mode_t *mode)
+static char *bsg_devnode(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "bsg/%s", dev_name(dev));
 }

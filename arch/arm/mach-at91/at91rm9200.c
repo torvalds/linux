@@ -23,6 +23,7 @@
 #include "soc.h"
 #include "generic.h"
 #include "clock.h"
+#include "sam9_smc.h"
 
 static struct map_desc at91rm9200_io_desc[] __initdata = {
 	{
@@ -195,6 +196,10 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("pclk", "ssc.2", &ssc2_clk),
 	/* fake hclk clock */
 	CLKDEV_CON_DEV_ID("hclk", "at91_ohci", &ohci_clk),
+	CLKDEV_CON_ID("pioA", &pioA_clk),
+	CLKDEV_CON_ID("pioB", &pioB_clk),
+	CLKDEV_CON_ID("pioC", &pioC_clk),
+	CLKDEV_CON_ID("pioD", &pioD_clk),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {
@@ -268,27 +273,23 @@ void __init at91rm9200_set_console_clock(int id)
  *  GPIO
  * -------------------------------------------------------------------- */
 
-static struct at91_gpio_bank at91rm9200_gpio[] = {
+static struct at91_gpio_bank at91rm9200_gpio[] __initdata = {
 	{
 		.id		= AT91RM9200_ID_PIOA,
-		.offset		= AT91_PIOA,
-		.clock		= &pioA_clk,
+		.regbase	= AT91RM9200_BASE_PIOA,
 	}, {
 		.id		= AT91RM9200_ID_PIOB,
-		.offset		= AT91_PIOB,
-		.clock		= &pioB_clk,
+		.regbase	= AT91RM9200_BASE_PIOB,
 	}, {
 		.id		= AT91RM9200_ID_PIOC,
-		.offset		= AT91_PIOC,
-		.clock		= &pioC_clk,
+		.regbase	= AT91RM9200_BASE_PIOC,
 	}, {
 		.id		= AT91RM9200_ID_PIOD,
-		.offset		= AT91_PIOD,
-		.clock		= &pioD_clk,
+		.regbase	= AT91RM9200_BASE_PIOD,
 	}
 };
 
-static void at91rm9200_reset(void)
+static void at91rm9200_restart(char mode, const char *cmd)
 {
 	/*
 	 * Perform a hardware reset with the use of the Watchdog timer.
@@ -307,9 +308,13 @@ static void __init at91rm9200_map_io(void)
 	iotable_init(at91rm9200_io_desc, ARRAY_SIZE(at91rm9200_io_desc));
 }
 
+static void __init at91rm9200_ioremap_registers(void)
+{
+}
+
 static void __init at91rm9200_initialize(void)
 {
-	at91_arch_reset = at91rm9200_reset;
+	arm_pm_restart = at91rm9200_restart;
 	at91_extern_irq = (1 << AT91RM9200_ID_IRQ0) | (1 << AT91RM9200_ID_IRQ1)
 			| (1 << AT91RM9200_ID_IRQ2) | (1 << AT91RM9200_ID_IRQ3)
 			| (1 << AT91RM9200_ID_IRQ4) | (1 << AT91RM9200_ID_IRQ5)
@@ -366,6 +371,7 @@ static unsigned int at91rm9200_default_irq_priority[NR_AIC_IRQS] __initdata = {
 struct at91_init_soc __initdata at91rm9200_soc = {
 	.map_io = at91rm9200_map_io,
 	.default_irq_priority = at91rm9200_default_irq_priority,
+	.ioremap_registers = at91rm9200_ioremap_registers,
 	.register_clocks = at91rm9200_register_clocks,
 	.init = at91rm9200_initialize,
 };

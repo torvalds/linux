@@ -170,18 +170,22 @@ static int mxr_querycap(struct file *file, void *priv,
 	return 0;
 }
 
-/* Geometry handling */
-static void mxr_layer_geo_fix(struct mxr_layer *layer)
+static void mxr_geometry_dump(struct mxr_device *mdev, struct mxr_geometry *geo)
 {
-	struct mxr_device *mdev = layer->mdev;
-	struct v4l2_mbus_framefmt mbus_fmt;
-
-	/* TODO: add some dirty flag to avoid unnecessary adjustments */
-	mxr_get_mbus_fmt(mdev, &mbus_fmt);
-	layer->geo.dst.full_width = mbus_fmt.width;
-	layer->geo.dst.full_height = mbus_fmt.height;
-	layer->geo.dst.field = mbus_fmt.field;
-	layer->ops.fix_geometry(layer);
+	mxr_dbg(mdev, "src.full_size = (%u, %u)\n",
+		geo->src.full_width, geo->src.full_height);
+	mxr_dbg(mdev, "src.size = (%u, %u)\n",
+		geo->src.width, geo->src.height);
+	mxr_dbg(mdev, "src.offset = (%u, %u)\n",
+		geo->src.x_offset, geo->src.y_offset);
+	mxr_dbg(mdev, "dst.full_size = (%u, %u)\n",
+		geo->dst.full_width, geo->dst.full_height);
+	mxr_dbg(mdev, "dst.size = (%u, %u)\n",
+		geo->dst.width, geo->dst.height);
+	mxr_dbg(mdev, "dst.offset = (%u, %u)\n",
+		geo->dst.x_offset, geo->dst.y_offset);
+	mxr_dbg(mdev, "ratio = (%u, %u)\n",
+		geo->x_ratio, geo->y_ratio);
 }
 
 static void mxr_layer_default_geo(struct mxr_layer *layer)
@@ -204,27 +208,29 @@ static void mxr_layer_default_geo(struct mxr_layer *layer)
 	layer->geo.src.width = layer->geo.src.full_width;
 	layer->geo.src.height = layer->geo.src.full_height;
 
-	layer->ops.fix_geometry(layer);
+	mxr_geometry_dump(mdev, &layer->geo);
+	layer->ops.fix_geometry(layer, MXR_GEOMETRY_SINK, 0);
+	mxr_geometry_dump(mdev, &layer->geo);
 }
 
-static void mxr_geometry_dump(struct mxr_device *mdev, struct mxr_geometry *geo)
+static void mxr_layer_update_output(struct mxr_layer *layer)
 {
-	mxr_dbg(mdev, "src.full_size = (%u, %u)\n",
-		geo->src.full_width, geo->src.full_height);
-	mxr_dbg(mdev, "src.size = (%u, %u)\n",
-		geo->src.width, geo->src.height);
-	mxr_dbg(mdev, "src.offset = (%u, %u)\n",
-		geo->src.x_offset, geo->src.y_offset);
-	mxr_dbg(mdev, "dst.full_size = (%u, %u)\n",
-		geo->dst.full_width, geo->dst.full_height);
-	mxr_dbg(mdev, "dst.size = (%u, %u)\n",
-		geo->dst.width, geo->dst.height);
-	mxr_dbg(mdev, "dst.offset = (%u, %u)\n",
-		geo->dst.x_offset, geo->dst.y_offset);
-	mxr_dbg(mdev, "ratio = (%u, %u)\n",
-		geo->x_ratio, geo->y_ratio);
-}
+	struct mxr_device *mdev = layer->mdev;
+	struct v4l2_mbus_framefmt mbus_fmt;
 
+	mxr_get_mbus_fmt(mdev, &mbus_fmt);
+	/* checking if update is needed */
+	if (layer->geo.dst.full_width == mbus_fmt.width &&
+		layer->geo.dst.full_height == mbus_fmt.width)
+		return;
+
+	layer->geo.dst.full_width = mbus_fmt.width;
+	layer->geo.dst.full_height = mbus_fmt.height;
+	layer->geo.dst.field = mbus_fmt.field;
+	layer->ops.fix_geometry(layer, MXR_GEOMETRY_SINK, 0);
+
+	mxr_geometry_dump(mdev, &layer->geo);
+}
 
 static const struct mxr_format *find_format_by_fourcc(
 	struct mxr_layer *layer, unsigned long fourcc);
@@ -249,37 +255,6 @@ static int mxr_enum_fmt(struct file *file, void  *priv,
 	return 0;
 }
 
-static int mxr_s_fmt(struct file *file, void *priv,
-	struct v4l2_format *f)
-{
-	struct mxr_layer *layer = video_drvdata(file);
-	const struct mxr_format *fmt;
-	struct v4l2_pix_format_mplane *pix;
-	struct mxr_device *mdev = layer->mdev;
-	struct mxr_geometry *geo = &layer->geo;
-
-	mxr_dbg(mdev, "%s:%d\n", __func__, __LINE__);
-
-	pix = &f->fmt.pix_mp;
-	fmt = find_format_by_fourcc(layer, pix->pixelformat);
-	if (fmt == NULL) {
-		mxr_warn(mdev, "not recognized fourcc: %08x\n",
-			pix->pixelformat);
-		return -EINVAL;
-	}
-	layer->fmt = fmt;
-	geo->src.full_width = pix->width;
-	geo->src.width = pix->width;
-	geo->src.full_height = pix->height;
-	geo->src.height = pix->height;
-	/* assure consistency of geometry */
-	mxr_layer_geo_fix(layer);
-	mxr_dbg(mdev, "width=%u height=%u span=%u\n",
-		geo->src.width, geo->src.height, geo->src.full_width);
-
-	return 0;
-}
-
 static unsigned int divup(unsigned int divident, unsigned int divisor)
 {
 	return (divident + divisor - 1) / divisor;
@@ -298,6 +273,10 @@ static void mxr_mplane_fill(struct v4l2_plane_pix_format *planes,
 	const struct mxr_format *fmt, u32 width, u32 height)
 {
 	int i;
+
+	/* checking if nothing to fill */
+	if (!planes)
+		return;
 
 	memset(planes, 0, sizeof(*planes) * fmt->num_subframes);
 	for (i = 0; i < fmt->num_planes; ++i) {
@@ -332,73 +311,194 @@ static int mxr_g_fmt(struct file *file, void *priv,
 	return 0;
 }
 
-static inline struct mxr_crop *choose_crop_by_type(struct mxr_geometry *geo,
-	enum v4l2_buf_type type)
+static int mxr_s_fmt(struct file *file, void *priv,
+	struct v4l2_format *f)
 {
-	switch (type) {
-	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
-		return &geo->dst;
-	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-		return &geo->src;
-	default:
-		return NULL;
+	struct mxr_layer *layer = video_drvdata(file);
+	const struct mxr_format *fmt;
+	struct v4l2_pix_format_mplane *pix;
+	struct mxr_device *mdev = layer->mdev;
+	struct mxr_geometry *geo = &layer->geo;
+
+	mxr_dbg(mdev, "%s:%d\n", __func__, __LINE__);
+
+	pix = &f->fmt.pix_mp;
+	fmt = find_format_by_fourcc(layer, pix->pixelformat);
+	if (fmt == NULL) {
+		mxr_warn(mdev, "not recognized fourcc: %08x\n",
+			pix->pixelformat);
+		return -EINVAL;
 	}
-}
+	layer->fmt = fmt;
+	/* set source size to highest accepted value */
+	geo->src.full_width = max(geo->dst.full_width, pix->width);
+	geo->src.full_height = max(geo->dst.full_height, pix->height);
+	layer->ops.fix_geometry(layer, MXR_GEOMETRY_SOURCE, 0);
+	mxr_geometry_dump(mdev, &layer->geo);
+	/* set cropping to total visible screen */
+	geo->src.width = pix->width;
+	geo->src.height = pix->height;
+	geo->src.x_offset = 0;
+	geo->src.y_offset = 0;
+	/* assure consistency of geometry */
+	layer->ops.fix_geometry(layer, MXR_GEOMETRY_CROP, MXR_NO_OFFSET);
+	mxr_geometry_dump(mdev, &layer->geo);
+	/* set full size to lowest possible value */
+	geo->src.full_width = 0;
+	geo->src.full_height = 0;
+	layer->ops.fix_geometry(layer, MXR_GEOMETRY_SOURCE, 0);
+	mxr_geometry_dump(mdev, &layer->geo);
 
-static int mxr_g_crop(struct file *file, void *fh, struct v4l2_crop *a)
-{
-	struct mxr_layer *layer = video_drvdata(file);
-	struct mxr_crop *crop;
+	/* returning results */
+	mxr_g_fmt(file, priv, f);
 
-	mxr_dbg(layer->mdev, "%s:%d\n", __func__, __LINE__);
-	crop = choose_crop_by_type(&layer->geo, a->type);
-	if (crop == NULL)
-		return -EINVAL;
-	mxr_layer_geo_fix(layer);
-	a->c.left = crop->x_offset;
-	a->c.top = crop->y_offset;
-	a->c.width = crop->width;
-	a->c.height = crop->height;
 	return 0;
 }
 
-static int mxr_s_crop(struct file *file, void *fh, struct v4l2_crop *a)
+static int mxr_g_selection(struct file *file, void *fh,
+	struct v4l2_selection *s)
 {
 	struct mxr_layer *layer = video_drvdata(file);
-	struct mxr_crop *crop;
+	struct mxr_geometry *geo = &layer->geo;
 
 	mxr_dbg(layer->mdev, "%s:%d\n", __func__, __LINE__);
-	crop = choose_crop_by_type(&layer->geo, a->type);
-	if (crop == NULL)
+
+	if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT &&
+		s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		return -EINVAL;
-	crop->x_offset = a->c.left;
-	crop->y_offset = a->c.top;
-	crop->width = a->c.width;
-	crop->height = a->c.height;
-	mxr_layer_geo_fix(layer);
+
+	switch (s->target) {
+	case V4L2_SEL_TGT_CROP_ACTIVE:
+		s->r.left = geo->src.x_offset;
+		s->r.top = geo->src.y_offset;
+		s->r.width = geo->src.width;
+		s->r.height = geo->src.height;
+		break;
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		s->r.left = 0;
+		s->r.top = 0;
+		s->r.width = geo->src.full_width;
+		s->r.height = geo->src.full_height;
+		break;
+	case V4L2_SEL_TGT_COMPOSE_ACTIVE:
+	case V4L2_SEL_TGT_COMPOSE_PADDED:
+		s->r.left = geo->dst.x_offset;
+		s->r.top = geo->dst.y_offset;
+		s->r.width = geo->dst.width;
+		s->r.height = geo->dst.height;
+		break;
+	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
+		s->r.left = 0;
+		s->r.top = 0;
+		s->r.width = geo->dst.full_width;
+		s->r.height = geo->dst.full_height;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
-static int mxr_cropcap(struct file *file, void *fh, struct v4l2_cropcap *a)
+/* returns 1 if rectangle 'a' is inside 'b' */
+static int mxr_is_rect_inside(struct v4l2_rect *a, struct v4l2_rect *b)
+{
+	if (a->left < b->left)
+		return 0;
+	if (a->top < b->top)
+		return 0;
+	if (a->left + a->width > b->left + b->width)
+		return 0;
+	if (a->top + a->height > b->top + b->height)
+		return 0;
+	return 1;
+}
+
+static int mxr_s_selection(struct file *file, void *fh,
+	struct v4l2_selection *s)
 {
 	struct mxr_layer *layer = video_drvdata(file);
-	struct mxr_crop *crop;
+	struct mxr_geometry *geo = &layer->geo;
+	struct mxr_crop *target = NULL;
+	enum mxr_geometry_stage stage;
+	struct mxr_geometry tmp;
+	struct v4l2_rect res;
 
-	mxr_dbg(layer->mdev, "%s:%d\n", __func__, __LINE__);
-	crop = choose_crop_by_type(&layer->geo, a->type);
-	if (crop == NULL)
+	memset(&res, 0, sizeof res);
+
+	mxr_dbg(layer->mdev, "%s: rect: %dx%d@%d,%d\n", __func__,
+		s->r.width, s->r.height, s->r.left, s->r.top);
+
+	if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT &&
+		s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 		return -EINVAL;
-	mxr_layer_geo_fix(layer);
-	a->bounds.left = 0;
-	a->bounds.top = 0;
-	a->bounds.width = crop->full_width;
-	a->bounds.top = crop->full_height;
-	a->defrect = a->bounds;
-	/* setting pixel aspect to 1/1 */
-	a->pixelaspect.numerator = 1;
-	a->pixelaspect.denominator = 1;
+
+	switch (s->target) {
+	/* ignore read-only targets */
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		res.width = geo->src.full_width;
+		res.height = geo->src.full_height;
+		break;
+
+	/* ignore read-only targets */
+	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
+		res.width = geo->dst.full_width;
+		res.height = geo->dst.full_height;
+		break;
+
+	case V4L2_SEL_TGT_CROP_ACTIVE:
+		target = &geo->src;
+		stage = MXR_GEOMETRY_CROP;
+		break;
+	case V4L2_SEL_TGT_COMPOSE_ACTIVE:
+	case V4L2_SEL_TGT_COMPOSE_PADDED:
+		target = &geo->dst;
+		stage = MXR_GEOMETRY_COMPOSE;
+		break;
+	default:
+		return -EINVAL;
+	}
+	/* apply change and update geometry if needed */
+	if (target) {
+		/* backup current geometry if setup fails */
+		memcpy(&tmp, geo, sizeof tmp);
+
+		/* apply requested selection */
+		target->x_offset = s->r.left;
+		target->y_offset = s->r.top;
+		target->width = s->r.width;
+		target->height = s->r.height;
+
+		layer->ops.fix_geometry(layer, stage, s->flags);
+
+		/* retrieve update selection rectangle */
+		res.left = target->x_offset;
+		res.top = target->y_offset;
+		res.width = target->width;
+		res.height = target->height;
+
+		mxr_geometry_dump(layer->mdev, &layer->geo);
+	}
+
+	/* checking if the rectangle satisfies constraints */
+	if ((s->flags & V4L2_SEL_FLAG_LE) && !mxr_is_rect_inside(&res, &s->r))
+		goto fail;
+	if ((s->flags & V4L2_SEL_FLAG_GE) && !mxr_is_rect_inside(&s->r, &res))
+		goto fail;
+
+	/* return result rectangle */
+	s->r = res;
+
 	return 0;
+fail:
+	/* restore old geometry, which is not touched if target is NULL */
+	if (target)
+		memcpy(geo, &tmp, sizeof tmp);
+	return -ERANGE;
 }
 
 static int mxr_enum_dv_presets(struct file *file, void *fh,
@@ -437,6 +537,8 @@ static int mxr_s_dv_preset(struct file *file, void *fh,
 	ret = v4l2_subdev_call(to_outsd(mdev), video, s_dv_preset, preset);
 
 	mutex_unlock(&mdev->mutex);
+
+	mxr_layer_update_output(layer);
 
 	/* any failure should return EINVAL according to V4L2 doc */
 	return ret ? -EINVAL : 0;
@@ -477,6 +579,8 @@ static int mxr_s_std(struct file *file, void *fh, v4l2_std_id *norm)
 	ret = v4l2_subdev_call(to_outsd(mdev), video, s_std_output, *norm);
 
 	mutex_unlock(&mdev->mutex);
+
+	mxr_layer_update_output(layer);
 
 	return ret ? -EINVAL : 0;
 }
@@ -526,25 +630,27 @@ static int mxr_s_output(struct file *file, void *fh, unsigned int i)
 	struct video_device *vfd = video_devdata(file);
 	struct mxr_layer *layer = video_drvdata(file);
 	struct mxr_device *mdev = layer->mdev;
-	int ret = 0;
 
 	if (i >= mdev->output_cnt || mdev->output[i] == NULL)
 		return -EINVAL;
 
 	mutex_lock(&mdev->mutex);
 	if (mdev->n_output > 0) {
-		ret = -EBUSY;
-		goto done;
+		mutex_unlock(&mdev->mutex);
+		return -EBUSY;
 	}
 	mdev->current_output = i;
 	vfd->tvnorms = 0;
 	v4l2_subdev_call(to_outsd(mdev), video, g_tvnorms_output,
 		&vfd->tvnorms);
+	mutex_unlock(&mdev->mutex);
+
+	/* update layers geometry */
+	mxr_layer_update_output(layer);
+
 	mxr_dbg(mdev, "tvnorms = %08llx\n", vfd->tvnorms);
 
-done:
-	mutex_unlock(&mdev->mutex);
-	return ret;
+	return 0;
 }
 
 static int mxr_g_output(struct file *file, void *fh, unsigned int *p)
@@ -633,10 +739,9 @@ static const struct v4l2_ioctl_ops mxr_ioctl_ops = {
 	.vidioc_enum_output = mxr_enum_output,
 	.vidioc_s_output = mxr_s_output,
 	.vidioc_g_output = mxr_g_output,
-	/* Crop ioctls */
-	.vidioc_g_crop = mxr_g_crop,
-	.vidioc_s_crop = mxr_s_crop,
-	.vidioc_cropcap = mxr_cropcap,
+	/* selection ioctls */
+	.vidioc_g_selection = mxr_g_selection,
+	.vidioc_s_selection = mxr_s_selection,
 };
 
 static int mxr_video_open(struct file *file)
@@ -805,10 +910,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	/* block any changes in output configuration */
 	mxr_output_get(mdev);
 
-	/* update layers geometry */
-	mxr_layer_geo_fix(layer);
-	mxr_geometry_dump(mdev, &layer->geo);
-
+	mxr_layer_update_output(layer);
 	layer->ops.format_set(layer);
 	/* enabling layer in hardware */
 	spin_lock_irqsave(&layer->enq_slock, flags);

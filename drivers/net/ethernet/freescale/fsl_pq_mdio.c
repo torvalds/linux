@@ -360,11 +360,10 @@ static int fsl_pq_mdio_probe(struct platform_device *ofdev)
 
 	if (tbiaddr == -1) {
 		err = -EBUSY;
-
 		goto err_free_irqs;
+	} else {
+		out_be32(tbipa, tbiaddr);
 	}
-
-	out_be32(tbipa, tbiaddr);
 
 	err = of_mdiobus_register(new_bus, np);
 	if (err) {
@@ -443,15 +442,6 @@ static struct platform_driver fsl_pq_mdio_driver = {
 	.remove = fsl_pq_mdio_remove,
 };
 
-int __init fsl_pq_mdio_init(void)
-{
-	return platform_driver_register(&fsl_pq_mdio_driver);
-}
-module_init(fsl_pq_mdio_init);
+module_platform_driver(fsl_pq_mdio_driver);
 
-void fsl_pq_mdio_exit(void)
-{
-	platform_driver_unregister(&fsl_pq_mdio_driver);
-}
-module_exit(fsl_pq_mdio_exit);
 MODULE_LICENSE("GPL");

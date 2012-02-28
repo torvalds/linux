@@ -589,7 +589,7 @@ static inline int usb_endpoint_is_isoc_out(
  */
 static inline int usb_endpoint_maxp(const struct usb_endpoint_descriptor *epd)
 {
-	return le16_to_cpu(epd->wMaxPacketSize);
+	return __le16_to_cpu(epd->wMaxPacketSize);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -605,8 +605,26 @@ struct usb_ss_ep_comp_descriptor {
 } __attribute__ ((packed));
 
 #define USB_DT_SS_EP_COMP_SIZE		6
+
 /* Bits 4:0 of bmAttributes if this is a bulk endpoint */
-#define USB_SS_MAX_STREAMS(p)		(1 << ((p) & 0x1f))
+static inline int
+usb_ss_max_streams(const struct usb_ss_ep_comp_descriptor *comp)
+{
+	int		max_streams;
+
+	if (!comp)
+		return 0;
+
+	max_streams = comp->bmAttributes & 0x1f;
+
+	if (!max_streams)
+		return 0;
+
+	max_streams = 1 << max_streams;
+
+	return max_streams;
+}
+
 /* Bits 1:0 of bmAttributes if this is an isoc endpoint */
 #define USB_SS_MULT(p)			(1 + ((p) & 0x3))
 

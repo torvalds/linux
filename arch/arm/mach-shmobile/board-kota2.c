@@ -143,11 +143,10 @@ static struct gpio_keys_button gpio_buttons[] = {
 static struct gpio_keys_platform_data gpio_key_info = {
 	.buttons        = gpio_buttons,
 	.nbuttons       = ARRAY_SIZE(gpio_buttons),
-	.poll_interval  = 250, /* polled for now */
 };
 
 static struct platform_device gpio_keys_device = {
-	.name   = "gpio-keys-polled", /* polled for now */
+	.name   = "gpio-keys",
 	.id     = -1,
 	.dev    = {
 		.platform_data  = &gpio_key_info,
@@ -551,7 +550,7 @@ MACHINE_START(KOTA2, "kota2")
 	.map_io		= kota2_map_io,
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= sh73a0_init_irq,
-	.handle_irq	= shmobile_handle_irq_gic,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= kota2_init,
 	.timer		= &kota2_timer,
 MACHINE_END

@@ -1034,6 +1034,18 @@ dma_addr_t omap_get_dma_src_pos(int lch)
 	if (IS_DMA_ERRATA(DMA_ERRATA_3_3) && offset == 0)
 		offset = p->dma_read(CSAC, lch);
 
+	if (!cpu_is_omap15xx()) {
+		/*
+		 * CDAC == 0 indicates that the DMA transfer on the channel has
+		 * not been started (no data has been transferred so far).
+		 * Return the programmed source start address in this case.
+		 */
+		if (likely(p->dma_read(CDAC, lch)))
+			offset = p->dma_read(CSAC, lch);
+		else
+			offset = p->dma_read(CSSA, lch);
+	}
+
 	if (cpu_class_is_omap1())
 		offset |= (p->dma_read(CSSA, lch) & 0xFFFF0000);
 
@@ -1062,8 +1074,16 @@ dma_addr_t omap_get_dma_dst_pos(int lch)
 	 * omap 3.2/3.3 erratum: sometimes 0 is returned if CSAC/CDAC is
 	 * read before the DMA controller finished disabling the channel.
 	 */
-	if (!cpu_is_omap15xx() && offset == 0)
+	if (!cpu_is_omap15xx() && offset == 0) {
 		offset = p->dma_read(CDAC, lch);
+		/*
+		 * CDAC == 0 indicates that the DMA transfer on the channel has
+		 * not been started (no data has been transferred so far).
+		 * Return the programmed destination start address in this case.
+		 */
+		if (unlikely(!offset))
+			offset = p->dma_read(CDSA, lch);
+	}
 
 	if (cpu_class_is_omap1())
 		offset |= (p->dma_read(CDSA, lch) & 0xFFFF0000);

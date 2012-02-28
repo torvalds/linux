@@ -417,7 +417,7 @@ static int __init qd_probe(int base)
 	return rc;
 }
 
-static int probe_qd65xx;
+static bool probe_qd65xx;
 
 module_param_named(probe, probe_qd65xx, bool, 0);
 MODULE_PARM_DESC(probe, "probe for QD65xx chipsets");

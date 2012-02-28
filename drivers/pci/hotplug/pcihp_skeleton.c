@@ -59,7 +59,7 @@ static LIST_HEAD(slot_list);
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format "\n", MY_NAME , ## arg)
 
 /* local variables */
-static int debug;
+static bool debug;
 static int num_slots;
 
 #define DRIVER_VERSION	"0.3"

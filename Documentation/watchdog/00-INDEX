@@ -1,5 +1,7 @@
 00-INDEX
 	- this file.
+convert_drivers_to_kernel_api.txt
+	- how-to for converting old watchdog drivers to the new kernel API.
 hpwdt.txt
 	- information on the HP iLO2 NMI watchdog
 pcwd-watchdog.txt

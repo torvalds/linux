@@ -57,10 +57,8 @@ Configuration Options:
 #define PCI_DEVICE_ID_PCI8164 0x8164
 
 static DEFINE_PCI_DEVICE_TABLE(adl_pci8164_pci_table) = {
-	{
-	PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI8164, PCI_ANY_ID,
-		    PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI8164) },
+	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, adl_pci8164_pci_table);

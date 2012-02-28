@@ -353,8 +353,7 @@ void __init efi_memblock_x86_reserve_range(void)
 		boot_params.efi_info.efi_memdesc_size;
 	memmap.desc_version = boot_params.efi_info.efi_memdesc_version;
 	memmap.desc_size = boot_params.efi_info.efi_memdesc_size;
-	memblock_x86_reserve_range(pmap, pmap + memmap.nr_map * memmap.desc_size,
-		      "EFI memmap");
+	memblock_reserve(pmap, memmap.nr_map * memmap.desc_size);
 }
 
 #if EFI_DEBUG
@@ -398,16 +397,14 @@ void __init efi_reserve_boot_services(void)
 		if ((start+size >= virt_to_phys(_text)
 				&& start <= virt_to_phys(_end)) ||
 			!e820_all_mapped(start, start+size, E820_RAM) ||
-			memblock_x86_check_reserved_size(&start, &size,
-							1<<EFI_PAGE_SHIFT)) {
+			memblock_is_region_reserved(start, size)) {
 			/* Could not reserve, skip it */
 			md->num_pages = 0;
 			memblock_dbg(PFX "Could not reserve boot range "
 					"[0x%010llx-0x%010llx]\n",
 						start, start+size-1);
 		} else
-			memblock_x86_reserve_range(start, start+size,
-							"EFI Boot");
+			memblock_reserve(start, size);
 	}
 }
 

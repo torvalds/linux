@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2011 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -233,6 +233,7 @@ static int send_mpa_reject(struct nes_cm_node *cm_node)
 	u8 *start_ptr = &start_addr;
 	u8 **start_buff = &start_ptr;
 	u16 buff_len = 0;
+	struct ietf_mpa_v1 *mpa_frame;
 
 	skb = dev_alloc_skb(MAX_CM_BUFFER);
 	if (!skb) {
@@ -242,6 +243,8 @@ static int send_mpa_reject(struct nes_cm_node *cm_node)
 
 	/* send an MPA reject frame */
 	cm_build_mpa_frame(cm_node, start_buff, &buff_len, NULL, MPA_KEY_REPLY);
+	mpa_frame = (struct ietf_mpa_v1 *)*start_buff;
+	mpa_frame->flags |= IETF_MPA_FLAGS_REJECT;
 	form_cm_frame(skb, cm_node, NULL, 0, *start_buff, buff_len, SET_ACK | SET_FIN);
 
 	cm_node->state = NES_CM_STATE_FIN_WAIT1;
@@ -1348,7 +1351,8 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 	else
 		netdev = nesvnic->netdev;
 
-	neigh = neigh_lookup(&arp_tbl, &rt->rt_gateway, netdev);
+	rcu_read_lock();
+	neigh = dst_get_neighbour_noref(&rt->dst);
 	if (neigh) {
 		if (neigh->nud_state & NUD_VALID) {
 			nes_debug(NES_DBG_CM, "Neighbor MAC address for 0x%08X"
@@ -1359,9 +1363,7 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 				if (!memcmp(nesadapter->arp_table[arpindex].mac_addr,
 					    neigh->ha, ETH_ALEN)) {
 					/* Mac address same as in nes_arp_table */
-					neigh_release(neigh);
-					ip_rt_put(rt);
-					return rc;
+					goto out;
 				}
 
 				nes_manage_arp_cache(nesvnic->netdev,
@@ -1373,15 +1375,13 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip, int arpi
 					     dst_ip, NES_ARP_ADD);
 			rc = nes_arp_table(nesvnic->nesdev, dst_ip, NULL,
 					   NES_ARP_RESOLVE);
+		} else {
+			neigh_event_send(neigh, NULL);
 		}
-		neigh_release(neigh);
 	}
 
-	if ((neigh == NULL) || (!(neigh->nud_state & NUD_VALID))) {
-		rcu_read_lock();
-		neigh_event_send(dst_get_neighbour(&rt->dst), NULL);
-		rcu_read_unlock();
-	}
+out:
+	rcu_read_unlock();
 	ip_rt_put(rt);
 	return rc;
 }
@@ -2838,6 +2838,7 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 		issue_disconn = 1;
 		issue_close = 1;
 		nesqp->cm_id = NULL;
+		del_timer(&nesqp->terminate_timer);
 		if (nesqp->flush_issued == 0) {
 			nesqp->flush_issued = 1;
 			issue_flush = 1;

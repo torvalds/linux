@@ -170,7 +170,7 @@ static int ak4104_hw_params(struct snd_pcm_substream *substream,
 	return ak4104_spi_write(codec, AK4104_REG_CHN_STATUS(3), val);
 }
 
-static struct snd_soc_dai_ops ak4101_dai_ops = {
+static const struct snd_soc_dai_ops ak4101_dai_ops = {
 	.hw_params = ak4104_hw_params,
 	.set_fmt = ak4104_set_dai_fmt,
 };
@@ -261,7 +261,8 @@ static int ak4104_spi_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	ak4104 = kzalloc(sizeof(struct ak4104_private), GFP_KERNEL);
+	ak4104 = devm_kzalloc(&spi->dev, sizeof(struct ak4104_private),
+			      GFP_KERNEL);
 	if (ak4104 == NULL)
 		return -ENOMEM;
 
@@ -271,15 +272,12 @@ static int ak4104_spi_probe(struct spi_device *spi)
 
 	ret = snd_soc_register_codec(&spi->dev,
 			&soc_codec_device_ak4104, &ak4104_dai, 1);
-	if (ret < 0)
-		kfree(ak4104);
 	return ret;
 }
 
 static int __devexit ak4104_spi_remove(struct spi_device *spi)
 {
 	snd_soc_unregister_codec(&spi->dev);
-	kfree(spi_get_drvdata(spi));
 	return 0;
 }
 

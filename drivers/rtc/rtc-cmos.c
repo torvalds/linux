@@ -164,7 +164,7 @@ static inline unsigned char cmos_read_bank2(unsigned char addr)
 static inline void cmos_write_bank2(unsigned char val, unsigned char addr)
 {
 	outb(addr, RTC_PORT(2));
-	outb(val, RTC_PORT(2));
+	outb(val, RTC_PORT(3));
 }
 
 #else

@@ -80,8 +80,6 @@ enum {
 	XFS_QLOCK_NESTED,
 };
 
-#define XFS_DQHOLD(dqp)		((dqp)->q_nrefs++)
-
 /*
  * Manage the q_flush completion queue embedded in the dquot.  This completion
  * queue synchronizes processes attempting to flush the in-core dquot back to
@@ -102,6 +100,21 @@ static inline void xfs_dqfunlock(xfs_dquot_t *dqp)
 	complete(&dqp->q_flush);
 }
 
+static inline int xfs_dqlock_nowait(struct xfs_dquot *dqp)
+{
+	return mutex_trylock(&dqp->q_qlock);
+}
+
+static inline void xfs_dqlock(struct xfs_dquot *dqp)
+{
+	mutex_lock(&dqp->q_qlock);
+}
+
+static inline void xfs_dqunlock_nonotify(struct xfs_dquot *dqp)
+{
+	mutex_unlock(&dqp->q_qlock);
+}
+
 #define XFS_DQ_IS_LOCKED(dqp)	(mutex_is_locked(&((dqp)->q_qlock)))
 #define XFS_DQ_IS_DIRTY(dqp)	((dqp)->dq_flags & XFS_DQ_DIRTY)
 #define XFS_QM_ISUDQ(dqp)	((dqp)->dq_flags & XFS_DQ_USER)
@@ -116,12 +129,12 @@ static inline void xfs_dqfunlock(xfs_dquot_t *dqp)
 				     (XFS_IS_UQUOTA_ON((d)->q_mount)) : \
 				     (XFS_IS_OQUOTA_ON((d)->q_mount))))
 
+extern int		xfs_qm_dqread(struct xfs_mount *, xfs_dqid_t, uint,
+					uint, struct xfs_dquot	**);
 extern void		xfs_qm_dqdestroy(xfs_dquot_t *);
 extern int		xfs_qm_dqflush(xfs_dquot_t *, uint);
-extern int		xfs_qm_dqpurge(xfs_dquot_t *);
+extern void		xfs_qm_dqpurge(xfs_dquot_t *);
 extern void		xfs_qm_dqunpin_wait(xfs_dquot_t *);
-extern int		xfs_qm_dqlock_nowait(xfs_dquot_t *);
-extern void		xfs_qm_dqflock_pushbuf_wait(xfs_dquot_t *dqp);
 extern void		xfs_qm_adjust_dqtimers(xfs_mount_t *,
 					xfs_disk_dquot_t *);
 extern void		xfs_qm_adjust_dqlimits(xfs_mount_t *,
@@ -129,9 +142,17 @@ extern void		xfs_qm_adjust_dqlimits(xfs_mount_t *,
 extern int		xfs_qm_dqget(xfs_mount_t *, xfs_inode_t *,
 					xfs_dqid_t, uint, uint, xfs_dquot_t **);
 extern void		xfs_qm_dqput(xfs_dquot_t *);
-extern void		xfs_dqlock(xfs_dquot_t *);
-extern void		xfs_dqlock2(xfs_dquot_t *, xfs_dquot_t *);
-extern void		xfs_dqunlock(xfs_dquot_t *);
-extern void		xfs_dqunlock_nonotify(xfs_dquot_t *);
+
+extern void		xfs_dqlock2(struct xfs_dquot *, struct xfs_dquot *);
+extern void		xfs_dqunlock(struct xfs_dquot *);
+extern void		xfs_dqflock_pushbuf_wait(struct xfs_dquot *dqp);
+
+static inline struct xfs_dquot *xfs_qm_dqhold(struct xfs_dquot *dqp)
+{
+	xfs_dqlock(dqp);
+	dqp->q_nrefs++;
+	xfs_dqunlock(dqp);
+	return dqp;
+}
 
 #endif /* __XFS_DQUOT_H__ */

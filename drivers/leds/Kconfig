@@ -347,7 +347,8 @@ config LEDS_MC13783
 config LEDS_NS2
 	tristate "LED support for Network Space v2 GPIO LEDs"
 	depends on LEDS_CLASS
-	depends on MACH_NETSPACE_V2 || MACH_INETSPACE_V2 || MACH_NETSPACE_MAX_V2 || D2NET_V2
+	depends on MACH_NETSPACE_V2 || MACH_INETSPACE_V2 || \
+		   MACH_NETSPACE_MAX_V2 || MACH_D2NET_V2
 	default y
 	help
 	  This option enable support for the dual-GPIO LED found on the
@@ -386,6 +387,28 @@ config LEDS_RENESAS_TPU
 	  a pin that can be driven in both GPIO mode and using TPU
 	  pin function. The latter to support brightness control.
 	  Brightness control is supported but hardware blinking is not.
+
+config LEDS_TCA6507
+	tristate "LED Support for TCA6507 I2C chip"
+	depends on LEDS_CLASS && I2C
+	help
+	  This option enables support for LEDs connected to TC6507
+	  LED driver chips accessed via the I2C bus.
+	  Driver support brightness control and hardware-assisted blinking.
+
+config LEDS_MAX8997
+	tristate "LED support for MAX8997 PMIC"
+	depends on LEDS_CLASS && MFD_MAX8997
+	help
+	  This option enables support for on-chip LED drivers on
+	  MAXIM MAX8997 PMIC.
+
+config LEDS_OT200
+	tristate "LED support for the Bachmann OT200"
+	depends on LEDS_CLASS && HAS_IOMEM
+	help
+	  This option enables support for the LEDs on the Bachmann OT200.
+	  Say Y to enable LEDs on the Bachmann OT200.
 
 config LEDS_TRIGGERS
 	bool "LED Trigger support"

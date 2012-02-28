@@ -329,7 +329,7 @@ static struct device_attribute srom_dev_attrs[] = {
 	__ATTR_NULL
 };
 
-static char *srom_devnode(struct device *dev, mode_t *mode)
+static char *srom_devnode(struct device *dev, umode_t *mode)
 {
 	*mode = S_IRUGO | S_IWUSR;
 	return kasprintf(GFP_KERNEL, "srom/%s", dev_name(dev));

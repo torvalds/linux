@@ -85,6 +85,7 @@ ENTRY(cpu_arm920_proc_fin)
  * loc: location to jump to for soft reset
  */
 	.align	5
+	.pushsection	.idmap.text, "ax"
 ENTRY(cpu_arm920_reset)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I,D caches
@@ -97,6 +98,8 @@ ENTRY(cpu_arm920_reset)
 	bic	ip, ip, #0x1100			@ ...i...s........
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
 	mov	pc, r0
+ENDPROC(cpu_arm920_reset)
+	.popsection
 
 /*
  * cpu_arm920_do_idle()

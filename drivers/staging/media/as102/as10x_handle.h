@@ -17,41 +17,37 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #ifdef __KERNEL__
-struct as102_bus_adapter_t;
+struct as10x_bus_adapter_t;
 struct as102_dev_t;
 
-#define as10x_handle_t struct as102_bus_adapter_t
 #include "as10x_cmd.h"
 
 /* values for "mode" field */
-#define REGMODE8         8
-#define REGMODE16        16
-#define REGMODE32        32
+#define REGMODE8	8
+#define REGMODE16	16
+#define REGMODE32	32
 
 struct as102_priv_ops_t {
-	int (*upload_fw_pkt) (struct as102_bus_adapter_t *bus_adap,
+	int (*upload_fw_pkt) (struct as10x_bus_adapter_t *bus_adap,
 			      unsigned char *buf, int buflen, int swap32);
 
-	int (*send_cmd) (struct as102_bus_adapter_t *bus_adap,
+	int (*send_cmd) (struct as10x_bus_adapter_t *bus_adap,
 			 unsigned char *buf, int buflen);
 
-	int (*xfer_cmd) (struct as102_bus_adapter_t *bus_adap,
+	int (*xfer_cmd) (struct as10x_bus_adapter_t *bus_adap,
 			 unsigned char *send_buf, int send_buf_len,
 			 unsigned char *recv_buf, int recv_buf_len);
-/*
-	int (*pid_filter) (struct as102_bus_adapter_t *bus_adap,
-			   int index, u16 pid, int onoff);
-*/
+
 	int (*start_stream) (struct as102_dev_t *dev);
 	void (*stop_stream) (struct as102_dev_t *dev);
 
-	int (*reset_target) (struct as102_bus_adapter_t *bus_adap);
+	int (*reset_target) (struct as10x_bus_adapter_t *bus_adap);
 
-	int (*read_write)(struct as102_bus_adapter_t *bus_adap, uint8_t mode,
+	int (*read_write)(struct as10x_bus_adapter_t *bus_adap, uint8_t mode,
 			  uint32_t rd_addr, uint16_t rd_len,
 			  uint32_t wr_addr, uint16_t wr_len);
 
-	int (*as102_read_ep2) (struct as102_bus_adapter_t *bus_adap,
+	int (*as102_read_ep2) (struct as10x_bus_adapter_t *bus_adap,
 			       unsigned char *recv_buf,
 			       int recv_buf_len);
 };

@@ -71,14 +71,47 @@ void jump_label_inc(struct jump_label_key *key)
 	atomic_inc(&key->enabled);
 	jump_label_unlock();
 }
+EXPORT_SYMBOL_GPL(jump_label_inc);
 
-void jump_label_dec(struct jump_label_key *key)
+static void __jump_label_dec(struct jump_label_key *key,
+		unsigned long rate_limit, struct delayed_work *work)
 {
 	if (!atomic_dec_and_mutex_lock(&key->enabled, &jump_label_mutex))
 		return;
 
-	jump_label_update(key, JUMP_LABEL_DISABLE);
+	if (rate_limit) {
+		atomic_inc(&key->enabled);
+		schedule_delayed_work(work, rate_limit);
+	} else
+		jump_label_update(key, JUMP_LABEL_DISABLE);
+
 	jump_label_unlock();
+}
+EXPORT_SYMBOL_GPL(jump_label_dec);
+
+static void jump_label_update_timeout(struct work_struct *work)
+{
+	struct jump_label_key_deferred *key =
+		container_of(work, struct jump_label_key_deferred, work.work);
+	__jump_label_dec(&key->key, 0, NULL);
+}
+
+void jump_label_dec(struct jump_label_key *key)
+{
+	__jump_label_dec(key, 0, NULL);
+}
+
+void jump_label_dec_deferred(struct jump_label_key_deferred *key)
+{
+	__jump_label_dec(&key->key, key->timeout, &key->work);
+}
+
+
+void jump_label_rate_limit(struct jump_label_key_deferred *key,
+		unsigned long rl)
+{
+	key->timeout = rl;
+	INIT_DELAYED_WORK(&key->work, jump_label_update_timeout);
 }
 
 static int addr_conflict(struct jump_entry *entry, void *start, void *end)
@@ -111,7 +144,7 @@ static int __jump_label_text_reserved(struct jump_entry *iter_start,
  * running code can override this to make the non-live update case
  * cheaper.
  */
-void __weak arch_jump_label_transform_static(struct jump_entry *entry,
+void __weak __init_or_module arch_jump_label_transform_static(struct jump_entry *entry,
 					    enum jump_label_type type)
 {
 	arch_jump_label_transform(entry, type);	
@@ -217,8 +250,13 @@ void jump_label_apply_nops(struct module *mod)
 	if (iter_start == iter_stop)
 		return;
 
-	for (iter = iter_start; iter < iter_stop; iter++)
-		arch_jump_label_transform_static(iter, JUMP_LABEL_DISABLE);
+	for (iter = iter_start; iter < iter_stop; iter++) {
+		struct jump_label_key *iterk;
+
+		iterk = (struct jump_label_key *)(unsigned long)iter->key;
+		arch_jump_label_transform_static(iter, jump_label_enabled(iterk) ?
+				JUMP_LABEL_ENABLE : JUMP_LABEL_DISABLE);
+	}
 }
 
 static int jump_label_add_module(struct module *mod)
@@ -258,8 +296,7 @@ static int jump_label_add_module(struct module *mod)
 		key->next = jlm;
 
 		if (jump_label_enabled(key))
-			__jump_label_update(key, iter, iter_stop,
-					    JUMP_LABEL_ENABLE);
+			__jump_label_update(key, iter, iter_stop, JUMP_LABEL_ENABLE);
 	}
 
 	return 0;

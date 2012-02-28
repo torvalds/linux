@@ -52,13 +52,42 @@
 #include "plpar_wrappers.h"
 
 
+static void tce_invalidate_pSeries_sw(struct iommu_table *tbl,
+				      u64 *startp, u64 *endp)
+{
+	u64 __iomem *invalidate = (u64 __iomem *)tbl->it_index;
+	unsigned long start, end, inc;
+
+	start = __pa(startp);
+	end = __pa(endp);
+	inc = L1_CACHE_BYTES; /* invalidate a cacheline of TCEs at a time */
+
+	/* If this is non-zero, change the format.  We shift the
+	 * address and or in the magic from the device tree. */
+	if (tbl->it_busno) {
+		start <<= 12;
+		end <<= 12;
+		inc <<= 12;
+		start |= tbl->it_busno;
+		end |= tbl->it_busno;
+	}
+
+	end |= inc - 1; /* round up end to be different than start */
+
+	mb(); /* Make sure TCEs in memory are written */
+	while (start <= end) {
+		out_be64(invalidate, start);
+		start += inc;
+	}
+}
+
 static int tce_build_pSeries(struct iommu_table *tbl, long index,
 			      long npages, unsigned long uaddr,
 			      enum dma_data_direction direction,
 			      struct dma_attrs *attrs)
 {
 	u64 proto_tce;
-	u64 *tcep;
+	u64 *tcep, *tces;
 	u64 rpn;
 
 	proto_tce = TCE_PCI_READ; // Read allowed
@@ -66,7 +95,7 @@ static int tce_build_pSeries(struct iommu_table *tbl, long index,
 	if (direction != DMA_TO_DEVICE)
 		proto_tce |= TCE_PCI_WRITE;
 
-	tcep = ((u64 *)tbl->it_base) + index;
+	tces = tcep = ((u64 *)tbl->it_base) + index;
 
 	while (npages--) {
 		/* can't move this out since we might cross MEMBLOCK boundary */
@@ -76,18 +105,24 @@ static int tce_build_pSeries(struct iommu_table *tbl, long index,
 		uaddr += TCE_PAGE_SIZE;
 		tcep++;
 	}
+
+	if (tbl->it_type == TCE_PCI_SWINV_CREATE)
+		tce_invalidate_pSeries_sw(tbl, tces, tcep - 1);
 	return 0;
 }
 
 
 static void tce_free_pSeries(struct iommu_table *tbl, long index, long npages)
 {
-	u64 *tcep;
+	u64 *tcep, *tces;
 
-	tcep = ((u64 *)tbl->it_base) + index;
+	tces = tcep = ((u64 *)tbl->it_base) + index;
 
 	while (npages--)
 		*(tcep++) = 0;
+
+	if (tbl->it_type == TCE_PCI_SWINV_FREE)
+		tce_invalidate_pSeries_sw(tbl, tces, tcep - 1);
 }
 
 static unsigned long tce_get_pseries(struct iommu_table *tbl, long index)
@@ -425,7 +460,7 @@ static void iommu_table_setparms(struct pci_controller *phb,
 				 struct iommu_table *tbl)
 {
 	struct device_node *node;
-	const unsigned long *basep;
+	const unsigned long *basep, *sw_inval;
 	const u32 *sizep;
 
 	node = phb->dn;
@@ -462,6 +497,22 @@ static void iommu_table_setparms(struct pci_controller *phb,
 	tbl->it_index = 0;
 	tbl->it_blocksize = 16;
 	tbl->it_type = TCE_PCI;
+
+	sw_inval = of_get_property(node, "linux,tce-sw-invalidate-info", NULL);
+	if (sw_inval) {
+		/*
+		 * This property contains information on how to
+		 * invalidate the TCE entry.  The first property is
+		 * the base MMIO address used to invalidate entries.
+		 * The second property tells us the format of the TCE
+		 * invalidate (whether it needs to be shifted) and
+		 * some magic routing info to add to our invalidate
+		 * command.
+		 */
+		tbl->it_index = (unsigned long) ioremap(sw_inval[0], 8);
+		tbl->it_busno = sw_inval[1]; /* overload this with magic */
+		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE;
+	}
 }
 
 /*

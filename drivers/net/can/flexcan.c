@@ -118,6 +118,9 @@
 	(FLEXCAN_ESR_TWRN_INT | FLEXCAN_ESR_RWRN_INT | FLEXCAN_ESR_BOFF_INT)
 #define FLEXCAN_ESR_ERR_ALL \
 	(FLEXCAN_ESR_ERR_BUS | FLEXCAN_ESR_ERR_STATE)
+#define FLEXCAN_ESR_ALL_INT \
+	(FLEXCAN_ESR_TWRN_INT | FLEXCAN_ESR_RWRN_INT | \
+	 FLEXCAN_ESR_BOFF_INT | FLEXCAN_ESR_ERR_INT)
 
 /* FLEXCAN interrupt flag register (IFLAG) bits */
 #define FLEXCAN_TX_BUF_ID		8
@@ -577,7 +580,9 @@ static irqreturn_t flexcan_irq(int irq, void *dev_id)
 
 	reg_iflag1 = flexcan_read(&regs->iflag1);
 	reg_esr = flexcan_read(&regs->esr);
-	flexcan_write(FLEXCAN_ESR_ERR_INT, &regs->esr);	/* ACK err IRQ */
+	/* ACK all bus error and state change IRQ sources */
+	if (reg_esr & FLEXCAN_ESR_ALL_INT)
+		flexcan_write(reg_esr & FLEXCAN_ESR_ALL_INT, &regs->esr);
 
 	/*
 	 * schedule NAPI in case of:
@@ -802,7 +807,7 @@ static int flexcan_open(struct net_device *dev)
 	struct flexcan_priv *priv = netdev_priv(dev);
 	int err;
 
-	clk_enable(priv->clk);
+	clk_prepare_enable(priv->clk);
 
 	err = open_candev(dev);
 	if (err)
@@ -824,7 +829,7 @@ static int flexcan_open(struct net_device *dev)
  out_close:
 	close_candev(dev);
  out:
-	clk_disable(priv->clk);
+	clk_disable_unprepare(priv->clk);
 
 	return err;
 }
@@ -838,7 +843,7 @@ static int flexcan_close(struct net_device *dev)
 	flexcan_chip_stop(dev);
 
 	free_irq(dev->irq, dev);
-	clk_disable(priv->clk);
+	clk_disable_unprepare(priv->clk);
 
 	close_candev(dev);
 
@@ -877,7 +882,7 @@ static int __devinit register_flexcandev(struct net_device *dev)
 	struct flexcan_regs __iomem *regs = priv->base;
 	u32 reg, err;
 
-	clk_enable(priv->clk);
+	clk_prepare_enable(priv->clk);
 
 	/* select "bus clock", chip must be disabled */
 	flexcan_chip_disable(priv);
@@ -911,7 +916,7 @@ static int __devinit register_flexcandev(struct net_device *dev)
  out:
 	/* disable core and turn off clocks */
 	flexcan_chip_disable(priv);
-	clk_disable(priv->clk);
+	clk_disable_unprepare(priv->clk);
 
 	return err;
 }
@@ -1060,20 +1065,7 @@ static struct platform_driver flexcan_driver = {
 	.remove = __devexit_p(flexcan_remove),
 };
 
-static int __init flexcan_init(void)
-{
-	pr_info("%s netdevice driver\n", DRV_NAME);
-	return platform_driver_register(&flexcan_driver);
-}
-
-static void __exit flexcan_exit(void)
-{
-	platform_driver_unregister(&flexcan_driver);
-	pr_info("%s: driver removed\n", DRV_NAME);
-}
-
-module_init(flexcan_init);
-module_exit(flexcan_exit);
+module_platform_driver(flexcan_driver);
 
 MODULE_AUTHOR("Sascha Hauer <kernel@pengutronix.de>, "
 	      "Marc Kleine-Budde <kernel@pengutronix.de>");

@@ -19,12 +19,13 @@
 #include <linux/of.h>
 
 #include <mach/pinmux.h>
+#include <mach/pinmux-tegra20.h>
 
 #include "gpio-names.h"
+#include "board-pinmux.h"
 #include "board-trimslice.h"
-#include "devices.h"
 
-static __initdata struct tegra_pingroup_config trimslice_pinmux[] = {
+static struct tegra_pingroup_config trimslice_pinmux[] = {
 	{TEGRA_PINGROUP_ATA,   TEGRA_MUX_IDE,           TEGRA_PUPD_NORMAL,	TEGRA_TRI_TRISTATE},
 	{TEGRA_PINGROUP_ATB,   TEGRA_MUX_SDIO4,         TEGRA_PUPD_NORMAL,	TEGRA_TRI_NORMAL},
 	{TEGRA_PINGROUP_ATC,   TEGRA_MUX_NAND,          TEGRA_PUPD_NORMAL,	TEGRA_TRI_TRISTATE},
@@ -105,7 +106,7 @@ static __initdata struct tegra_pingroup_config trimslice_pinmux[] = {
 	{TEGRA_PINGROUP_LVS,   TEGRA_MUX_DISPLAYA,      TEGRA_PUPD_PULL_UP,     TEGRA_TRI_NORMAL},
 	{TEGRA_PINGROUP_OWC,   TEGRA_MUX_RSVD2,         TEGRA_PUPD_PULL_UP,     TEGRA_TRI_TRISTATE},
 	{TEGRA_PINGROUP_PMC,   TEGRA_MUX_PWR_ON,        TEGRA_PUPD_NORMAL,      TEGRA_TRI_TRISTATE},
-	{TEGRA_PINGROUP_PTA,   TEGRA_MUX_RSVD3,         TEGRA_PUPD_NORMAL,      TEGRA_TRI_TRISTATE},
+	{TEGRA_PINGROUP_PTA,   TEGRA_MUX_GMI,           TEGRA_PUPD_NORMAL,      TEGRA_TRI_TRISTATE},
 	{TEGRA_PINGROUP_RM,    TEGRA_MUX_I2C,           TEGRA_PUPD_PULL_UP,     TEGRA_TRI_NORMAL},
 	{TEGRA_PINGROUP_SDB,   TEGRA_MUX_PWM,           TEGRA_PUPD_NORMAL,      TEGRA_TRI_NORMAL},
 	{TEGRA_PINGROUP_SDC,   TEGRA_MUX_PWM,           TEGRA_PUPD_PULL_UP,     TEGRA_TRI_NORMAL},
@@ -143,11 +144,6 @@ static __initdata struct tegra_pingroup_config trimslice_pinmux[] = {
 	{TEGRA_PINGROUP_XM2D,  TEGRA_MUX_NONE,          TEGRA_PUPD_NORMAL,      TEGRA_TRI_NORMAL},
 };
 
-static struct platform_device *pinmux_devices[] = {
-	&tegra_gpio_device,
-	&tegra_pinmux_device,
-};
-
 static struct tegra_gpio_table gpio_table[] = {
 	{ .gpio = TRIMSLICE_GPIO_SD4_CD, .enable = true	}, /* mmc4 cd */
 	{ .gpio = TRIMSLICE_GPIO_SD4_WP, .enable = true	}, /* mmc4 wp */
@@ -156,11 +152,14 @@ static struct tegra_gpio_table gpio_table[] = {
 	{ .gpio = TRIMSLICE_GPIO_USB2_RST,  .enable = true }, /* USB2 PHY rst */
 };
 
-void __init trimslice_pinmux_init(void)
+static struct tegra_board_pinmux_conf conf = {
+	.pgs = trimslice_pinmux,
+	.pg_count = ARRAY_SIZE(trimslice_pinmux),
+	.gpios = gpio_table,
+	.gpio_count = ARRAY_SIZE(gpio_table),
+};
+
+void trimslice_pinmux_init(void)
 {
-	if (!of_machine_is_compatible("nvidia,tegra20"))
-		platform_add_devices(pinmux_devices,
-					ARRAY_SIZE(pinmux_devices));
-	tegra_pinmux_config_table(trimslice_pinmux, ARRAY_SIZE(trimslice_pinmux));
-	tegra_gpio_config(gpio_table, ARRAY_SIZE(gpio_table));
+	tegra_board_pinmux_init(&conf, NULL);
 }

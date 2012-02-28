@@ -108,18 +108,9 @@ static void gpt_irq_acknowledge(void)
 
 static void __iomem *sched_clock_reg;
 
-static DEFINE_CLOCK_DATA(cd);
-unsigned long long notrace sched_clock(void)
+static u32 notrace mxc_read_sched_clock(void)
 {
-	cycle_t cyc = sched_clock_reg ? __raw_readl(sched_clock_reg) : 0;
-
-	return cyc_to_sched_clock(&cd, cyc, (u32)~0);
-}
-
-static void notrace mxc_update_sched_clock(void)
-{
-	cycle_t cyc = sched_clock_reg ? __raw_readl(sched_clock_reg) : 0;
-	update_sched_clock(&cd, cyc, (u32)~0);
+	return sched_clock_reg ? __raw_readl(sched_clock_reg) : 0;
 }
 
 static int __init mxc_clocksource_init(struct clk *timer_clk)
@@ -129,7 +120,7 @@ static int __init mxc_clocksource_init(struct clk *timer_clk)
 
 	sched_clock_reg = reg;
 
-	init_sched_clock(&cd, mxc_update_sched_clock, 32, c);
+	setup_sched_clock(mxc_read_sched_clock, 32, c);
 	return clocksource_mmio_init(reg, "mxc_timer1", c, 200, 32,
 			clocksource_mmio_readl_up);
 }

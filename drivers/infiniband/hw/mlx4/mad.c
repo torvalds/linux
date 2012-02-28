@@ -109,7 +109,8 @@ int mlx4_MAD_IFC(struct mlx4_ib_dev *dev, int ignore_mkey, int ignore_bkey,
 
 	err = mlx4_cmd_box(dev->dev, inmailbox->dma, outmailbox->dma,
 			   in_modifier, op_modifier,
-			   MLX4_CMD_MAD_IFC, MLX4_CMD_TIME_CLASS_C);
+			   MLX4_CMD_MAD_IFC, MLX4_CMD_TIME_CLASS_C,
+			   MLX4_CMD_NATIVE);
 
 	if (!err)
 		memcpy(response_mad, outmailbox->buf, 256);
@@ -256,12 +257,9 @@ static int ib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 			return IB_MAD_RESULT_SUCCESS;
 
 		/*
-		 * Don't process SMInfo queries or vendor-specific
-		 * MADs -- the SMA can't handle them.
+		 * Don't process SMInfo queries -- the SMA can't handle them.
 		 */
-		if (in_mad->mad_hdr.attr_id == IB_SMP_ATTR_SM_INFO ||
-		    ((in_mad->mad_hdr.attr_id & IB_SMP_ATTR_VENDOR_MASK) ==
-		     IB_SMP_ATTR_VENDOR_MASK))
+		if (in_mad->mad_hdr.attr_id == IB_SMP_ATTR_SM_INFO)
 			return IB_MAD_RESULT_SUCCESS;
 	} else if (in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_PERF_MGMT ||
 		   in_mad->mad_hdr.mgmt_class == MLX4_IB_VENDOR_CLASS1   ||
@@ -330,7 +328,8 @@ static int iboe_process_mad(struct ib_device *ibdev, int mad_flags, u8 port_num,
 		return IB_MAD_RESULT_FAILURE;
 
 	err = mlx4_cmd_box(dev->dev, 0, mailbox->dma, inmod, 0,
-			   MLX4_CMD_QUERY_IF_STAT, MLX4_CMD_TIME_CLASS_C);
+			   MLX4_CMD_QUERY_IF_STAT, MLX4_CMD_TIME_CLASS_C,
+			   MLX4_CMD_WRAPPED);
 	if (err)
 		err = IB_MAD_RESULT_FAILURE;
 	else {

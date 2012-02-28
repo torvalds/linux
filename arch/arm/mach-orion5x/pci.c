@@ -18,6 +18,7 @@
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
+#include <plat/addr-map.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -145,7 +146,7 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	/*
 	 * Generic PCIe unit setup.
 	 */
-	orion_pcie_setup(PCIE_BASE, &orion5x_mbus_dram_info);
+	orion_pcie_setup(PCIE_BASE);
 
 	/*
 	 * Check whether to apply Orion-1/Orion-NAS PCIe config
@@ -176,7 +177,7 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	res[0].end = res[0].start + ORION5X_PCIE_IO_SIZE - 1;
 	if (request_resource(&ioport_resource, &res[0]))
 		panic("Request PCIe IO resource failed\n");
-	sys->resource[0] = &res[0];
+	pci_add_resource(&sys->resources, &res[0]);
 
 	/*
 	 * IORESOURCE_MEM
@@ -187,9 +188,8 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 	res[1].end = res[1].start + ORION5X_PCIE_MEM_SIZE - 1;
 	if (request_resource(&iomem_resource, &res[1]))
 		panic("Request PCIe Memory resource failed\n");
-	sys->resource[1] = &res[1];
+	pci_add_resource(&sys->resources, &res[1]);
 
-	sys->resource[2] = NULL;
 	sys->io_offset = 0;
 
 	return 1;
@@ -477,7 +477,7 @@ static int __init pci_setup(struct pci_sys_data *sys)
 	/*
 	 * Point PCI unit MBUS decode windows to DRAM space.
 	 */
-	orion5x_setup_pci_wins(&orion5x_mbus_dram_info);
+	orion5x_setup_pci_wins(&orion_mbus_dram_info);
 
 	/*
 	 * Master + Slave enable
@@ -505,7 +505,7 @@ static int __init pci_setup(struct pci_sys_data *sys)
 	res[0].end = res[0].start + ORION5X_PCI_IO_SIZE - 1;
 	if (request_resource(&ioport_resource, &res[0]))
 		panic("Request PCI IO resource failed\n");
-	sys->resource[0] = &res[0];
+	pci_add_resource(&sys->resources, &res[0]);
 
 	/*
 	 * IORESOURCE_MEM
@@ -516,9 +516,8 @@ static int __init pci_setup(struct pci_sys_data *sys)
 	res[1].end = res[1].start + ORION5X_PCI_MEM_SIZE - 1;
 	if (request_resource(&iomem_resource, &res[1]))
 		panic("Request PCI Memory resource failed\n");
-	sys->resource[1] = &res[1];
+	pci_add_resource(&sys->resources, &res[1]);
 
-	sys->resource[2] = NULL;
 	sys->io_offset = 0;
 
 	return 1;
@@ -579,9 +578,11 @@ struct pci_bus __init *orion5x_pci_sys_scan_bus(int nr, struct pci_sys_data *sys
 	struct pci_bus *bus;
 
 	if (nr == 0) {
-		bus = pci_scan_bus(sys->busnr, &pcie_ops, sys);
+		bus = pci_scan_root_bus(NULL, sys->busnr, &pcie_ops, sys,
+					&sys->resources);
 	} else if (nr == 1 && !orion5x_pci_disabled) {
-		bus = pci_scan_bus(sys->busnr, &pci_ops, sys);
+		bus = pci_scan_root_bus(NULL, sys->busnr, &pci_ops, sys,
+					&sys->resources);
 	} else {
 		bus = NULL;
 		BUG();

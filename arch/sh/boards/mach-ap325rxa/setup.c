@@ -22,6 +22,7 @@
 #include <linux/i2c.h>
 #include <linux/smsc911x.h>
 #include <linux/gpio.h>
+#include <linux/videodev2.h>
 #include <media/ov772x.h>
 #include <media/soc_camera.h>
 #include <media/soc_camera_platform.h>
@@ -207,7 +208,7 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 	.clock_source = LCDC_CLK_EXTERNAL,
 	.ch[0] = {
 		.chan = LCDC_CHAN_MAINLCD,
-		.bpp = 16,
+		.fourcc = V4L2_PIX_FMT_RGB565,
 		.interface_type = RGB18,
 		.clock_divider = 1,
 		.lcd_cfg = ap325rxa_lcdc_modes,
@@ -248,9 +249,6 @@ static struct platform_device lcdc_device = {
 	.resource	= lcdc_resources,
 	.dev		= {
 		.platform_data	= &lcdc_info,
-	},
-	.archdata = {
-		.hwblk_id = HWBLK_LCDC,
 	},
 };
 
@@ -424,9 +422,6 @@ static struct platform_device ceu_device = {
 	.dev		= {
 		.platform_data	= &sh_mobile_ceu_info,
 	},
-	.archdata = {
-		.hwblk_id = HWBLK_CEU,
-	},
 };
 
 static struct resource sdhi0_cn3_resources[] = {
@@ -454,9 +449,6 @@ static struct platform_device sdhi0_cn3_device = {
 	.dev = {
 		.platform_data = &sdhi0_cn3_data,
 	},
-	.archdata = {
-		.hwblk_id = HWBLK_SDHI0,
-	},
 };
 
 static struct resource sdhi1_cn7_resources[] = {
@@ -483,9 +475,6 @@ static struct platform_device sdhi1_cn7_device = {
 	.resource	= sdhi1_cn7_resources,
 	.dev = {
 		.platform_data = &sdhi1_cn7_data,
-	},
-	.archdata = {
-		.hwblk_id = HWBLK_SDHI1,
 	},
 };
 

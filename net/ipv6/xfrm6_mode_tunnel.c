@@ -55,15 +55,14 @@ static int xfrm6_mode_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 		dsfield &= ~INET_ECN_MASK;
 	ipv6_change_dsfield(top_iph, 0, dsfield);
 	top_iph->hop_limit = ip6_dst_hoplimit(dst->child);
-	ipv6_addr_copy(&top_iph->saddr, (const struct in6_addr *)&x->props.saddr);
-	ipv6_addr_copy(&top_iph->daddr, (const struct in6_addr *)&x->id.daddr);
+	top_iph->saddr = *(struct in6_addr *)&x->props.saddr;
+	top_iph->daddr = *(struct in6_addr *)&x->id.daddr;
 	return 0;
 }
 
 static int xfrm6_mode_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err = -EINVAL;
-	const unsigned char *old_mac;
 
 	if (XFRM_MODE_SKB_CB(skb)->protocol != IPPROTO_IPV6)
 		goto out;
@@ -80,10 +79,9 @@ static int xfrm6_mode_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 	if (!(x->props.flags & XFRM_STATE_NOECN))
 		ipip6_ecn_decapsulate(skb);
 
-	old_mac = skb_mac_header(skb);
-	skb_set_mac_header(skb, -skb->mac_len);
-	memmove(skb_mac_header(skb), old_mac, skb->mac_len);
 	skb_reset_network_header(skb);
+	skb_mac_header_rebuild(skb);
+
 	err = 0;
 
 out:

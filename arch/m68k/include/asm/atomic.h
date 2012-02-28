@@ -55,6 +55,16 @@ static inline int atomic_dec_and_test(atomic_t *v)
 	return c != 0;
 }
 
+static inline int atomic_dec_and_test_lt(atomic_t *v)
+{
+	char c;
+	__asm__ __volatile__(
+		"subql #1,%1; slt %0"
+		: "=d" (c), "=m" (*v)
+		: "m" (*v));
+	return c != 0;
+}
+
 static inline int atomic_inc_and_test(atomic_t *v)
 {
 	char c;

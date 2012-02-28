@@ -59,7 +59,7 @@
 #define DRIVER_DESC "USB Universal Host Controller Interface driver"
 
 /* for flakey hardware, ignore overcurrent indicators */
-static int ignore_oc;
+static bool ignore_oc;
 module_param(ignore_oc, bool, S_IRUGO);
 MODULE_PARM_DESC(ignore_oc, "ignore hardware overcurrent indications");
 

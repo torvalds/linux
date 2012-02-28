@@ -44,12 +44,13 @@ const char *_parse_integer_fixup_radix(const char *s, unsigned int *base)
  *
  * Don't you dare use this function.
  */
-unsigned int _parse_integer(const char *s, unsigned int base, unsigned long long *res)
+unsigned int _parse_integer(const char *s, unsigned int base, unsigned long long *p)
 {
+	unsigned long long res;
 	unsigned int rv;
 	int overflow;
 
-	*res = 0;
+	res = 0;
 	rv = 0;
 	overflow = 0;
 	while (*s) {
@@ -64,12 +65,19 @@ unsigned int _parse_integer(const char *s, unsigned int base, unsigned long long
 
 		if (val >= base)
 			break;
-		if (*res > div_u64(ULLONG_MAX - val, base))
-			overflow = 1;
-		*res = *res * base + val;
+		/*
+		 * Check for overflow only if we are within range of
+		 * it in the max base we support (16)
+		 */
+		if (unlikely(res & (~0ull << 60))) {
+			if (res > div_u64(ULLONG_MAX - val, base))
+				overflow = 1;
+		}
+		res = res * base + val;
 		rv++;
 		s++;
 	}
+	*p = res;
 	if (overflow)
 		rv |= KSTRTOX_OVERFLOW;
 	return rv;

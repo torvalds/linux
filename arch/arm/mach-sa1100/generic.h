@@ -10,6 +10,7 @@ extern struct sys_timer sa1100_timer;
 extern void __init sa1100_map_io(void);
 extern void __init sa1100_init_irq(void);
 extern void __init sa1100_init_gpio(void);
+extern void sa11x0_restart(char, const char *);
 
 #define SET_BANK(__nr,__start,__size) \
 	mi->bank[__nr].start = (__start), \

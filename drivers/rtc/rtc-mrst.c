@@ -537,18 +537,7 @@ static struct platform_driver vrtc_mrst_platform_driver = {
 	}
 };
 
-static int __init vrtc_mrst_init(void)
-{
-	return platform_driver_register(&vrtc_mrst_platform_driver);
-}
-
-static void __exit vrtc_mrst_exit(void)
-{
-	platform_driver_unregister(&vrtc_mrst_platform_driver);
-}
-
-module_init(vrtc_mrst_init);
-module_exit(vrtc_mrst_exit);
+module_platform_driver(vrtc_mrst_platform_driver);
 
 MODULE_AUTHOR("Jacob Pan; Feng Tang");
 MODULE_DESCRIPTION("Driver for Moorestown virtual RTC");

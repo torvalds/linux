@@ -901,7 +901,6 @@ static int max3100_resume(struct spi_device *spi)
 static struct spi_driver max3100_driver = {
 	.driver = {
 		.name		= "max3100",
-		.bus		= &spi_bus_type,
 		.owner		= THIS_MODULE,
 	},
 

@@ -176,7 +176,7 @@ static void hdmi_runtime_put(void)
 
 	DSSDBG("hdmi_runtime_put\n");
 
-	r = pm_runtime_put(&hdmi.pdev->dev);
+	r = pm_runtime_put_sync(&hdmi.pdev->dev);
 	WARN_ON(r < 0);
 }
 
@@ -333,7 +333,7 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	if (r)
 		return r;
 
-	dispc_mgr_enable(OMAP_DSS_CHANNEL_DIGIT, 0);
+	dss_mgr_disable(dssdev->manager);
 
 	p = &dssdev->panel.timings;
 
@@ -387,9 +387,16 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 
 	hdmi.ip_data.ops->video_enable(&hdmi.ip_data, 1);
 
-	dispc_mgr_enable(OMAP_DSS_CHANNEL_DIGIT, 1);
+	r = dss_mgr_enable(dssdev->manager);
+	if (r)
+		goto err_mgr_enable;
 
 	return 0;
+
+err_mgr_enable:
+	hdmi.ip_data.ops->video_enable(&hdmi.ip_data, 0);
+	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
+	hdmi.ip_data.ops->pll_disable(&hdmi.ip_data);
 err:
 	hdmi_runtime_put();
 	return -EIO;
@@ -397,7 +404,7 @@ err:
 
 static void hdmi_power_off(struct omap_dss_device *dssdev)
 {
-	dispc_mgr_enable(OMAP_DSS_CHANNEL_DIGIT, 0);
+	dss_mgr_disable(dssdev->manager);
 
 	hdmi.ip_data.ops->video_enable(&hdmi.ip_data, 0);
 	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
@@ -490,6 +497,7 @@ bool omapdss_hdmi_detect(void)
 
 int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev)
 {
+	struct omap_dss_hdmi_data *priv = dssdev->data;
 	int r = 0;
 
 	DSSDBG("ENTER hdmi_display_enable\n");
@@ -501,6 +509,8 @@ int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev)
 		r = -ENODEV;
 		goto err0;
 	}
+
+	hdmi.ip_data.hpd_gpio = priv->hpd_gpio;
 
 	r = omap_dss_start_device(dssdev);
 	if (r) {
@@ -554,11 +564,44 @@ void omapdss_hdmi_display_disable(struct omap_dss_device *dssdev)
 #if defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI) || \
 	defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI_MODULE)
 
-static int hdmi_audio_hw_params(struct hdmi_ip_data *ip_data,
-					struct snd_pcm_substream *substream,
+static int hdmi_audio_trigger(struct snd_pcm_substream *substream, int cmd,
+				struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_codec *codec = rtd->codec;
+	struct platform_device *pdev = to_platform_device(codec->dev);
+	struct hdmi_ip_data *ip_data = snd_soc_codec_get_drvdata(codec);
+	int err = 0;
+
+	if (!(ip_data->ops) && !(ip_data->ops->audio_enable)) {
+		dev_err(&pdev->dev, "Cannot enable/disable audio\n");
+		return -ENODEV;
+	}
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		ip_data->ops->audio_enable(ip_data, true);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		ip_data->ops->audio_enable(ip_data, false);
+		break;
+	default:
+		err = -EINVAL;
+	}
+	return err;
+}
+
+static int hdmi_audio_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params,
 				    struct snd_soc_dai *dai)
 {
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_codec *codec = rtd->codec;
+	struct hdmi_ip_data *ip_data = snd_soc_codec_get_drvdata(codec);
 	struct hdmi_audio_format audio_format;
 	struct hdmi_audio_dma audio_dma;
 	struct hdmi_core_audio_config core_cfg;
@@ -698,7 +741,16 @@ static int hdmi_audio_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int hdmi_audio_codec_probe(struct snd_soc_codec *codec)
+{
+	struct hdmi_ip_data *priv = &hdmi.ip_data;
+
+	snd_soc_codec_set_drvdata(codec, priv);
+	return 0;
+}
+
 static struct snd_soc_codec_driver hdmi_audio_codec_drv = {
+	.probe = hdmi_audio_codec_probe,
 };
 
 static struct snd_soc_dai_ops hdmi_audio_codec_ops = {

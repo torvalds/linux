@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/slab.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sdhci-spear.h>
@@ -271,26 +272,54 @@ static int __devexit sdhci_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int sdhci_suspend(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct spear_sdhci *sdhci = dev_get_platdata(dev);
+	int ret;
+
+	ret = sdhci_suspend_host(host);
+	if (!ret)
+		clk_disable(sdhci->clk);
+
+	return ret;
+}
+
+static int sdhci_resume(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct spear_sdhci *sdhci = dev_get_platdata(dev);
+	int ret;
+
+	ret = clk_enable(sdhci->clk);
+	if (ret) {
+		dev_dbg(dev, "Resume: Error enabling clock\n");
+		return ret;
+	}
+
+	return sdhci_resume_host(host);
+}
+
+const struct dev_pm_ops sdhci_pm_ops = {
+	.suspend	= sdhci_suspend,
+	.resume		= sdhci_resume,
+};
+#endif
+
 static struct platform_driver sdhci_driver = {
 	.driver = {
 		.name	= "sdhci",
 		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &sdhci_pm_ops,
+#endif
 	},
 	.probe		= sdhci_probe,
 	.remove		= __devexit_p(sdhci_remove),
 };
 
-static int __init sdhci_init(void)
-{
-	return platform_driver_register(&sdhci_driver);
-}
-module_init(sdhci_init);
-
-static void __exit sdhci_exit(void)
-{
-	platform_driver_unregister(&sdhci_driver);
-}
-module_exit(sdhci_exit);
+module_platform_driver(sdhci_driver);
 
 MODULE_DESCRIPTION("SPEAr Secure Digital Host Controller Interface driver");
 MODULE_AUTHOR("Viresh Kumar <viresh.kumar@st.com>");

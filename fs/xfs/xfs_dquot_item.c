@@ -73,7 +73,6 @@ xfs_qm_dquot_logitem_format(
 	logvec->i_len  = sizeof(xfs_disk_dquot_t);
 	logvec->i_type = XLOG_REG_TYPE_DQUOT;
 
-	ASSERT(2 == lip->li_desc->lid_size);
 	qlip->qli_format.qlf_size = 2;
 
 }
@@ -134,7 +133,7 @@ xfs_qm_dquot_logitem_push(
 	 * lock without sleeping, then there must not have been
 	 * anyone in the process of flushing the dquot.
 	 */
-	error = xfs_qm_dqflush(dqp, 0);
+	error = xfs_qm_dqflush(dqp, SYNC_TRYLOCK);
 	if (error)
 		xfs_warn(dqp->q_mount, "%s: push error %d on dqp %p",
 			__func__, error, dqp);
@@ -237,7 +236,7 @@ xfs_qm_dquot_logitem_trylock(
 	if (atomic_read(&dqp->q_pincount) > 0)
 		return XFS_ITEM_PINNED;
 
-	if (!xfs_qm_dqlock_nowait(dqp))
+	if (!xfs_dqlock_nowait(dqp))
 		return XFS_ITEM_LOCKED;
 
 	if (!xfs_dqflock_nowait(dqp)) {

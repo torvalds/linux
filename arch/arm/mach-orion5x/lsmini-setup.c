@@ -186,7 +186,7 @@ static struct mv_sata_platform_data lsmini_sata_data = {
 
 static void lsmini_power_off(void)
 {
-	arm_machine_restart('h', NULL);
+	orion5x_restart('h', NULL);
 }
 
 
@@ -274,5 +274,6 @@ MACHINE_START(LINKSTATION_MINI, "Buffalo Linkstation Mini")
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,
+	.restart	= orion5x_restart,
 MACHINE_END
 #endif

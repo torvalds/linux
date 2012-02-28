@@ -25,8 +25,8 @@
 #include "iio.h"
 #include "iio_core.h"
 #include "iio_core_trigger.h"
-#include "chrdev.h"
 #include "sysfs.h"
+#include "events.h"
 
 /* IDA to assign each registered device a unique id*/
 static DEFINE_IDA(iio_ida);
@@ -77,16 +77,28 @@ static const char * const iio_modifier_names[] = {
 
 /* relies on pairs of these shared then separate */
 static const char * const iio_chan_info_postfix[] = {
-	[IIO_CHAN_INFO_SCALE_SHARED/2] = "scale",
-	[IIO_CHAN_INFO_OFFSET_SHARED/2] = "offset",
-	[IIO_CHAN_INFO_CALIBSCALE_SHARED/2] = "calibscale",
-	[IIO_CHAN_INFO_CALIBBIAS_SHARED/2] = "calibbias",
-	[IIO_CHAN_INFO_PEAK_SHARED/2] = "peak_raw",
-	[IIO_CHAN_INFO_PEAK_SCALE_SHARED/2] = "peak_scale",
-	[IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SHARED/2]
-	= "quadrature_correction_raw",
-	[IIO_CHAN_INFO_AVERAGE_RAW_SHARED/2] = "mean_raw",
+	[IIO_CHAN_INFO_SCALE] = "scale",
+	[IIO_CHAN_INFO_OFFSET] = "offset",
+	[IIO_CHAN_INFO_CALIBSCALE] = "calibscale",
+	[IIO_CHAN_INFO_CALIBBIAS] = "calibbias",
+	[IIO_CHAN_INFO_PEAK] = "peak_raw",
+	[IIO_CHAN_INFO_PEAK_SCALE] = "peak_scale",
+	[IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW] = "quadrature_correction_raw",
+	[IIO_CHAN_INFO_AVERAGE_RAW] = "mean_raw",
+	[IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY]
+	= "filter_low_pass_3db_frequency",
 };
+
+const struct iio_chan_spec
+*iio_find_channel_from_si(struct iio_dev *indio_dev, int si)
+{
+	int i;
+
+	for (i = 0; i < indio_dev->num_channels; i++)
+		if (indio_dev->channels[i].scan_index == si)
+			return &indio_dev->channels[i];
+	return NULL;
+}
 
 /**
  * struct iio_detected_event_list - list element for events that have occurred
@@ -169,8 +181,11 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 {
 	struct iio_event_interface *ev_int = filep->private_data;
 	struct iio_detected_event_list *el;
+	size_t len = sizeof(el->ev);
 	int ret;
-	size_t len;
+
+	if (count < len)
+		return -EINVAL;
 
 	mutex_lock(&ev_int->event_list_lock);
 	if (list_empty(&ev_int->det_events)) {
@@ -192,7 +207,6 @@ static ssize_t iio_event_chrdev_read(struct file *filep,
 	el = list_first_entry(&ev_int->det_events,
 			      struct iio_detected_event_list,
 			      list);
-	len = sizeof el->ev;
 	if (copy_to_user(buf, &(el->ev), len)) {
 		ret = -EFAULT;
 		goto error_mutex_unlock;
@@ -415,7 +429,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	sysfs_attr_init(&dev_attr->attr);
 
 	/* Build up postfix of <extend_name>_<modifier>_postfix */
-	if (chan->modified) {
+	if (chan->modified && !generic) {
 		if (chan->extend_name)
 			full_postfix = kasprintf(GFP_KERNEL, "%s_%s_%s",
 						 iio_modifier_names[chan
@@ -600,7 +614,7 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 					     chan,
 					     &iio_read_channel_info,
 					     &iio_write_channel_info,
-					     (1 << i),
+					     i/2,
 					     !(i%2),
 					     &indio_dev->dev,
 					     &indio_dev->channel_attr_list);
@@ -665,10 +679,9 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 	if (indio_dev->name)
 		attrcount++;
 
-	indio_dev->chan_attr_group.attrs
-		= kzalloc(sizeof(indio_dev->chan_attr_group.attrs[0])*
-			  (attrcount + 1),
-			  GFP_KERNEL);
+	indio_dev->chan_attr_group.attrs = kcalloc(attrcount + 1,
+						   sizeof(indio_dev->chan_attr_group.attrs[0]),
+						   GFP_KERNEL);
 	if (indio_dev->chan_attr_group.attrs == NULL) {
 		ret = -ENOMEM;
 		goto error_clear_attrs;
@@ -787,6 +800,9 @@ static ssize_t iio_ev_value_store(struct device *dev,
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	unsigned long val;
 	int ret;
+
+	if (!indio_dev->info->write_event_value)
+		return -EINVAL;
 
 	ret = strict_strtoul(buf, 10, &val);
 	if (ret)
@@ -958,10 +974,9 @@ static int iio_device_register_eventset(struct iio_dev *indio_dev)
 	}
 
 	indio_dev->event_interface->group.name = iio_event_group_name;
-	indio_dev->event_interface->group.attrs =
-		kzalloc(sizeof(indio_dev->event_interface->group.attrs[0])
-			*(attrcount + 1),
-			GFP_KERNEL);
+	indio_dev->event_interface->group.attrs = kcalloc(attrcount + 1,
+							  sizeof(indio_dev->event_interface->group.attrs[0]),
+							  GFP_KERNEL);
 	if (indio_dev->event_interface->group.attrs == NULL) {
 		ret = -ENOMEM;
 		goto error_free_setup_event_lines;
@@ -1068,9 +1083,13 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
 {
 	struct iio_dev *indio_dev = container_of(inode->i_cdev,
 						struct iio_dev, chrdev);
+
+	if (test_and_set_bit(IIO_BUSY_BIT_POS, &indio_dev->flags))
+		return -EBUSY;
+
 	filp->private_data = indio_dev;
 
-	return iio_chrdev_buffer_open(indio_dev);
+	return 0;
 }
 
 /**
@@ -1078,8 +1097,9 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
  **/
 static int iio_chrdev_release(struct inode *inode, struct file *filp)
 {
-	iio_chrdev_buffer_release(container_of(inode->i_cdev,
-					     struct iio_dev, chrdev));
+	struct iio_dev *indio_dev = container_of(inode->i_cdev,
+						struct iio_dev, chrdev);
+	clear_bit(IIO_BUSY_BIT_POS, &indio_dev->flags);
 	return 0;
 }
 

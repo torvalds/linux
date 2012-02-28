@@ -26,6 +26,7 @@
 #include <linux/mtd/partitions.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
+#include <asm/hardware/gic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -201,5 +202,7 @@ MACHINE_START(CNS3420VB, "Cavium Networks CNS3420 Validation Board")
 	.map_io		= cns3420_map_io,
 	.init_irq	= cns3xxx_init_irq,
 	.timer		= &cns3xxx_timer,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= cns3420_init,
+	.restart	= cns3xxx_restart,
 MACHINE_END

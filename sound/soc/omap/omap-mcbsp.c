@@ -258,7 +258,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	default:
 		return -EINVAL;
 	}
-	if (cpu_is_omap34xx()) {
+	if (cpu_is_omap34xx() || cpu_is_omap44xx()) {
 		dma_data->set_threshold = omap_mcbsp_set_threshold;
 		/* TODO: Currently, MODE_ELEMENT == MODE_FRAME */
 		if (omap_mcbsp_get_dma_op_mode(bus_id) ==
@@ -599,7 +599,7 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	return err;
 }
 
-static struct snd_soc_dai_ops mcbsp_dai_ops = {
+static const struct snd_soc_dai_ops mcbsp_dai_ops = {
 	.startup	= omap_mcbsp_dai_startup,
 	.shutdown	= omap_mcbsp_dai_shutdown,
 	.trigger	= omap_mcbsp_dai_trigger,
@@ -785,17 +785,7 @@ static struct platform_driver asoc_mcbsp_driver = {
 	.remove = __devexit_p(asoc_mcbsp_remove),
 };
 
-static int __init snd_omap_mcbsp_init(void)
-{
-	return platform_driver_register(&asoc_mcbsp_driver);
-}
-module_init(snd_omap_mcbsp_init);
-
-static void __exit snd_omap_mcbsp_exit(void)
-{
-	platform_driver_unregister(&asoc_mcbsp_driver);
-}
-module_exit(snd_omap_mcbsp_exit);
+module_platform_driver(asoc_mcbsp_driver);
 
 MODULE_AUTHOR("Jarkko Nikula <jarkko.nikula@bitmer.com>");
 MODULE_DESCRIPTION("OMAP I2S SoC Interface");

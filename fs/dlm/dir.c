@@ -290,7 +290,6 @@ int dlm_recover_directory(struct dlm_ls *ls)
 
  out_status:
 	error = 0;
-	dlm_set_recover_status(ls, DLM_RS_DIR);
 	log_debug(ls, "dlm_recover_directory %d entries", count);
  out_free:
 	kfree(last_name);

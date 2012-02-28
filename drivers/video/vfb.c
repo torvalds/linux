@@ -110,7 +110,7 @@ static struct fb_fix_screeninfo vfb_fix __devinitdata = {
 	.accel =	FB_ACCEL_NONE,
 };
 
-static int vfb_enable __initdata = 0;	/* disabled by default */
+static bool vfb_enable __initdata = 0;	/* disabled by default */
 module_param(vfb_enable, bool, 0);
 
 static int vfb_check_var(struct fb_var_screeninfo *var,

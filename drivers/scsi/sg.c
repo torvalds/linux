@@ -2325,16 +2325,15 @@ static struct sg_proc_leaf sg_proc_leaf_arr[] = {
 static int
 sg_proc_init(void)
 {
-	int k, mask;
 	int num_leaves = ARRAY_SIZE(sg_proc_leaf_arr);
-	struct sg_proc_leaf * leaf;
+	int k;
 
 	sg_proc_sgp = proc_mkdir(sg_proc_sg_dirname, NULL);
 	if (!sg_proc_sgp)
 		return 1;
 	for (k = 0; k < num_leaves; ++k) {
-		leaf = &sg_proc_leaf_arr[k];
-		mask = leaf->fops->write ? S_IRUGO | S_IWUSR : S_IRUGO;
+		struct sg_proc_leaf *leaf = &sg_proc_leaf_arr[k];
+		umode_t mask = leaf->fops->write ? S_IRUGO | S_IWUSR : S_IRUGO;
 		proc_create(leaf->name, mask, sg_proc_sgp, leaf->fops);
 	}
 	return 0;
@@ -2369,16 +2368,15 @@ static ssize_t
 sg_proc_write_adio(struct file *filp, const char __user *buffer,
 		   size_t count, loff_t *off)
 {
-	int num;
-	char buff[11];
+	int err;
+	unsigned long num;
 
 	if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
 		return -EACCES;
-	num = (count < 10) ? count : 10;
-	if (copy_from_user(buff, buffer, num))
-		return -EFAULT;
-	buff[num] = '\0';
-	sg_allow_dio = simple_strtoul(buff, NULL, 10) ? 1 : 0;
+	err = kstrtoul_from_user(buffer, count, 0, &num);
+	if (err)
+		return err;
+	sg_allow_dio = num ? 1 : 0;
 	return count;
 }
 
@@ -2391,17 +2389,15 @@ static ssize_t
 sg_proc_write_dressz(struct file *filp, const char __user *buffer,
 		     size_t count, loff_t *off)
 {
-	int num;
+	int err;
 	unsigned long k = ULONG_MAX;
-	char buff[11];
 
 	if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
 		return -EACCES;
-	num = (count < 10) ? count : 10;
-	if (copy_from_user(buff, buffer, num))
-		return -EFAULT;
-	buff[num] = '\0';
-	k = simple_strtoul(buff, NULL, 10);
+
+	err = kstrtoul_from_user(buffer, count, 0, &k);
+	if (err)
+		return err;
 	if (k <= 1048576) {	/* limit "big buff" to 1 MB */
 		sg_big_buff = k;
 		return count;

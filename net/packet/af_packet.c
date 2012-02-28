@@ -1499,10 +1499,11 @@ retry:
 
 	if (!skb) {
 		size_t reserved = LL_RESERVED_SPACE(dev);
+		int tlen = dev->needed_tailroom;
 		unsigned int hhlen = dev->header_ops ? dev->hard_header_len : 0;
 
 		rcu_read_unlock();
-		skb = sock_wmalloc(sk, len + reserved, 0, GFP_KERNEL);
+		skb = sock_wmalloc(sk, len + reserved + tlen, 0, GFP_KERNEL);
 		if (skb == NULL)
 			return -ENOBUFS;
 		/* FIXME: Save some space for broken drivers that write a hard
@@ -1942,7 +1943,7 @@ static void tpacket_destruct_skb(struct sk_buff *skb)
 
 static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 		void *frame, struct net_device *dev, int size_max,
-		__be16 proto, unsigned char *addr)
+		__be16 proto, unsigned char *addr, int hlen)
 {
 	union {
 		struct tpacket_hdr *h1;
@@ -1976,7 +1977,7 @@ static int tpacket_fill_skb(struct packet_sock *po, struct sk_buff *skb,
 		return -EMSGSIZE;
 	}
 
-	skb_reserve(skb, LL_RESERVED_SPACE(dev));
+	skb_reserve(skb, hlen);
 	skb_reset_network_header(skb);
 
 	data = ph.raw + po->tp_hdrlen - sizeof(struct sockaddr_ll);
@@ -2051,6 +2052,7 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	unsigned char *addr;
 	int len_sum = 0;
 	int status = 0;
+	int hlen, tlen;
 
 	mutex_lock(&po->pg_vec_lock);
 
@@ -2099,16 +2101,17 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 		}
 
 		status = TP_STATUS_SEND_REQUEST;
+		hlen = LL_RESERVED_SPACE(dev);
+		tlen = dev->needed_tailroom;
 		skb = sock_alloc_send_skb(&po->sk,
-				LL_ALLOCATED_SPACE(dev)
-				+ sizeof(struct sockaddr_ll),
+				hlen + tlen + sizeof(struct sockaddr_ll),
 				0, &err);
 
 		if (unlikely(skb == NULL))
 			goto out_status;
 
 		tp_len = tpacket_fill_skb(po, skb, ph, dev, size_max, proto,
-				addr);
+				addr, hlen);
 
 		if (unlikely(tp_len < 0)) {
 			if (po->tp_loss) {
@@ -2205,6 +2208,7 @@ static int packet_snd(struct socket *sock,
 	int vnet_hdr_len;
 	struct packet_sock *po = pkt_sk(sk);
 	unsigned short gso_type = 0;
+	int hlen, tlen;
 
 	/*
 	 *	Get and verify the address.
@@ -2289,8 +2293,9 @@ static int packet_snd(struct socket *sock,
 		goto out_unlock;
 
 	err = -ENOBUFS;
-	skb = packet_alloc_skb(sk, LL_ALLOCATED_SPACE(dev),
-			       LL_RESERVED_SPACE(dev), len, vnet_hdr.hdr_len,
+	hlen = LL_RESERVED_SPACE(dev);
+	tlen = dev->needed_tailroom;
+	skb = packet_alloc_skb(sk, hlen + tlen, hlen, len, vnet_hdr.hdr_len,
 			       msg->msg_flags & MSG_DONTWAIT, &err);
 	if (skb == NULL)
 		goto out_unlock;
@@ -2448,8 +2453,12 @@ static int packet_do_bind(struct sock *sk, struct net_device *dev, __be16 protoc
 {
 	struct packet_sock *po = pkt_sk(sk);
 
-	if (po->fanout)
+	if (po->fanout) {
+		if (dev)
+			dev_put(dev);
+
 		return -EINVAL;
+	}
 
 	lock_sock(sk);
 

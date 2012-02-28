@@ -433,11 +433,11 @@ static int __init ibft_check_device(void)
  * Helper routiners to check to determine if the entry is valid
  * in the proper iBFT structure.
  */
-static mode_t ibft_check_nic_for(void *data, int type)
+static umode_t ibft_check_nic_for(void *data, int type)
 {
 	struct ibft_kobject *entry = data;
 	struct ibft_nic *nic = entry->nic;
-	mode_t rc = 0;
+	umode_t rc = 0;
 
 	switch (type) {
 	case ISCSI_BOOT_ETH_INDEX:
@@ -488,11 +488,11 @@ static mode_t ibft_check_nic_for(void *data, int type)
 	return rc;
 }
 
-static mode_t __init ibft_check_tgt_for(void *data, int type)
+static umode_t __init ibft_check_tgt_for(void *data, int type)
 {
 	struct ibft_kobject *entry = data;
 	struct ibft_tgt *tgt = entry->tgt;
-	mode_t rc = 0;
+	umode_t rc = 0;
 
 	switch (type) {
 	case ISCSI_BOOT_TGT_INDEX:
@@ -524,11 +524,11 @@ static mode_t __init ibft_check_tgt_for(void *data, int type)
 	return rc;
 }
 
-static mode_t __init ibft_check_initiator_for(void *data, int type)
+static umode_t __init ibft_check_initiator_for(void *data, int type)
 {
 	struct ibft_kobject *entry = data;
 	struct ibft_initiator *init = entry->initiator;
-	mode_t rc = 0;
+	umode_t rc = 0;
 
 	switch (type) {
 	case ISCSI_BOOT_INI_INDEX:

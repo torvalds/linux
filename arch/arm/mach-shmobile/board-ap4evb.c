@@ -295,15 +295,6 @@ static struct resource sh_mmcif_resources[] = {
 	},
 };
 
-static struct sh_mmcif_dma sh_mmcif_dma = {
-	.chan_priv_rx	= {
-		.slave_id	= SHDMA_SLAVE_MMCIF_RX,
-	},
-	.chan_priv_tx	= {
-		.slave_id	= SHDMA_SLAVE_MMCIF_TX,
-	},
-};
-
 static struct sh_mmcif_plat_data sh_mmcif_plat = {
 	.sup_pclk	= 0,
 	.ocr		= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
@@ -311,7 +302,8 @@ static struct sh_mmcif_plat_data sh_mmcif_plat = {
 			  MMC_CAP_8_BIT_DATA |
 			  MMC_CAP_NEEDS_POLL,
 	.get_cd		= slot_cn7_get_cd,
-	.dma		= &sh_mmcif_dma,
+	.slave_id_tx	= SHDMA_SLAVE_MMCIF_TX,
+	.slave_id_rx	= SHDMA_SLAVE_MMCIF_RX,
 };
 
 static struct platform_device sh_mmcif_device = {
@@ -491,7 +483,7 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 	.meram_dev = &meram_info,
 	.ch[0] = {
 		.chan = LCDC_CHAN_MAINLCD,
-		.bpp = 16,
+		.fourcc = V4L2_PIX_FMT_RGB565,
 		.lcd_cfg = ap4evb_lcdc_modes,
 		.num_cfg = ARRAY_SIZE(ap4evb_lcdc_modes),
 		.meram_cfg = &lcd_meram_cfg,
@@ -564,6 +556,30 @@ static struct platform_device keysc_device = {
 };
 
 /* MIPI-DSI */
+#define PHYCTRL		0x0070
+static int sh_mipi_set_dot_clock(struct platform_device *pdev,
+				 void __iomem *base,
+				 int enable)
+{
+	struct clk *pck = clk_get(&pdev->dev, "dsip_clk");
+	void __iomem *phy =  base + PHYCTRL;
+
+	if (IS_ERR(pck))
+		return PTR_ERR(pck);
+
+	if (enable) {
+		clk_set_rate(pck, clk_round_rate(pck, 24000000));
+		iowrite32(ioread32(phy) | (0xb << 8), phy);
+		clk_enable(pck);
+	} else {
+		clk_disable(pck);
+	}
+
+	clk_put(pck);
+
+	return 0;
+}
+
 static struct resource mipidsi0_resources[] = {
 	[0] = {
 		.start  = 0xffc60000,
@@ -580,7 +596,11 @@ static struct resource mipidsi0_resources[] = {
 static struct sh_mipi_dsi_info mipidsi0_info = {
 	.data_format	= MIPI_RGB888,
 	.lcd_chan	= &lcdc_info.ch[0],
+	.lane		= 2,
 	.vsynw_offset	= 17,
+	.flags		= SH_MIPI_DSI_SYNC_PULSES_MODE |
+			  SH_MIPI_DSI_HSbyteCLK,
+	.set_dot_clock	= sh_mipi_set_dot_clock,
 };
 
 static struct platform_device mipidsi0_device = {
@@ -762,9 +782,22 @@ static struct platform_device fsi_device = {
 	},
 };
 
-static struct platform_device fsi_ak4643_device = {
-	.name		= "sh_fsi2_a_ak4643",
+static struct fsi_ak4642_info fsi2_ak4643_info = {
+	.name		= "AK4643",
+	.card		= "FSI2A-AK4643",
+	.cpu_dai	= "fsia-dai",
+	.codec		= "ak4642-codec.0-0013",
+	.platform	= "sh_fsi2",
+	.id		= FSI_PORT_A,
 };
+
+static struct platform_device fsi_ak4643_device = {
+	.name	= "fsi-ak4642-audio",
+	.dev	= {
+		.platform_data	= &fsi_info,
+	},
+};
+
 static struct sh_mobile_meram_cfg hdmi_meram_cfg = {
 	.icb[0] = {
 		.marker_icb     = 30,
@@ -785,7 +818,7 @@ static struct sh_mobile_lcdc_info sh_mobile_lcdc1_info = {
 	.meram_dev = &meram_info,
 	.ch[0] = {
 		.chan = LCDC_CHAN_MAINLCD,
-		.bpp = 16,
+		.fourcc = V4L2_PIX_FMT_RGB565,
 		.interface_type = RGB24,
 		.clock_divider = 1,
 		.flags = LCDC_FLAGS_DWPOL,
@@ -1172,8 +1205,6 @@ static struct map_desc ap4evb_io_desc[] __initdata = {
 static void __init ap4evb_map_io(void)
 {
 	iotable_init(ap4evb_io_desc, ARRAY_SIZE(ap4evb_io_desc));
-	/* DMA memory at 0xf6000000 - 0xffdfffff */
-	init_consistent_dma_size(158 << 20);
 
 	/* setup early devices and console here as well */
 	sh7372_add_early_devices();

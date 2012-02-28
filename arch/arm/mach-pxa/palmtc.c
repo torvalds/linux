@@ -542,5 +542,6 @@ MACHINE_START(PALMTC, "Palm Tungsten|C")
 	.init_irq	= pxa25x_init_irq,
 	.handle_irq	= pxa25x_handle_irq,
 	.timer		= &pxa_timer,
-	.init_machine	= palmtc_init
+	.init_machine	= palmtc_init,
+	.restart	= pxa_restart,
 MACHINE_END

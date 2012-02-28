@@ -448,9 +448,7 @@ static struct elevator_type iosched_deadline = {
 
 static int __init deadline_init(void)
 {
-	elv_register(&iosched_deadline);
-
-	return 0;
+	return elv_register(&iosched_deadline);
 }
 
 static void __exit deadline_exit(void)
