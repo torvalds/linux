@@ -196,23 +196,12 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&aircable_device, NULL
 };
 
-static int __init aircable_init(void)
-{
-	return usb_serial_register_drivers(&aircable_driver, serial_drivers);
-}
-
-static void __exit aircable_exit(void)
-{
-	usb_serial_deregister_drivers(&aircable_driver, serial_drivers);
-}
+module_usb_serial_driver(aircable_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-module_init(aircable_init);
-module_exit(aircable_exit);
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
