@@ -1028,9 +1028,9 @@ void vc_deallocate(unsigned int currcons)
  *	VT102 emulator
  */
 
-#define set_kbd(vc, x)	set_vc_kbd_mode(kbd_table + (vc)->vc_num, (x))
-#define clr_kbd(vc, x)	clr_vc_kbd_mode(kbd_table + (vc)->vc_num, (x))
-#define is_kbd(vc, x)	vc_kbd_mode(kbd_table + (vc)->vc_num, (x))
+#define set_kbd(vc, x)	vt_set_kbd_mode_bit((vc)->vc_num, (x))
+#define clr_kbd(vc, x)	vt_clr_kbd_mode_bit((vc)->vc_num, (x))
+#define is_kbd(vc, x)	vt_get_kbd_mode_bit((vc)->vc_num, (x))
 
 #define decarm		VC_REPEAT
 #define decckm		VC_CKMODE
@@ -1652,16 +1652,7 @@ static void reset_terminal(struct vc_data *vc, int do_clear)
 	vc->vc_deccm		= global_cursor_default;
 	vc->vc_decim		= 0;
 
-	set_kbd(vc, decarm);
-	clr_kbd(vc, decckm);
-	clr_kbd(vc, kbdapplic);
-	clr_kbd(vc, lnm);
-	kbd_table[vc->vc_num].lockstate = 0;
-	kbd_table[vc->vc_num].slockstate = 0;
-	kbd_table[vc->vc_num].ledmode = LED_SHOW_FLAGS;
-	kbd_table[vc->vc_num].ledflagstate = kbd_table[vc->vc_num].default_ledflagstate;
-	/* do not do set_leds here because this causes an endless tasklet loop
-	   when the keyboard hasn't been initialized yet */
+	vt_reset_keyboard(vc->vc_num);
 
 	vc->vc_cursor_type = cur_default;
 	vc->vc_complement_mask = vc->vc_s_complement_mask;
@@ -1979,7 +1970,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		case 'q': /* DECLL - but only 3 leds */
 			/* map 0,1,2,3 to 0,1,2,4 */
 			if (vc->vc_par[0] < 4)
-				setledstate(kbd_table + vc->vc_num,
+				vt_set_led_state(vc->vc_num,
 					    (vc->vc_par[0] < 3) ? vc->vc_par[0] : 4);
 			return;
 		case 'r':
@@ -2642,7 +2633,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 	 * kernel-internal variable; programs not closely
 	 * related to the kernel should not use this.
 	 */
-	 		data = shift_state;
+			data = vt_get_shift_state();
 			ret = __put_user(data, p);
 			break;
 		case TIOCL_GETMOUSEREPORTING:
@@ -2753,8 +2744,7 @@ static void con_stop(struct tty_struct *tty)
 	console_num = tty->index;
 	if (!vc_cons_allocated(console_num))
 		return;
-	set_vc_kbd_led(kbd_table + console_num, VC_SCROLLOCK);
-	set_leds();
+	vt_kbd_con_stop(console_num);
 }
 
 /*
@@ -2768,8 +2758,7 @@ static void con_start(struct tty_struct *tty)
 	console_num = tty->index;
 	if (!vc_cons_allocated(console_num))
 		return;
-	clr_vc_kbd_led(kbd_table + console_num, VC_SCROLLOCK);
-	set_leds();
+	vt_kbd_con_start(console_num);
 }
 
 static void con_flush_chars(struct tty_struct *tty)

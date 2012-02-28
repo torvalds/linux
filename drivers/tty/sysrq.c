@@ -110,11 +110,9 @@ static struct sysrq_key_op sysrq_SAK_op = {
 #ifdef CONFIG_VT
 static void sysrq_handle_unraw(int key)
 {
-	struct kbd_struct *kbd = &kbd_table[fg_console];
-
-	if (kbd)
-		kbd->kbdmode = default_utf8 ? VC_UNICODE : VC_XLATE;
+	vt_reset_unicode(fg_console);
 }
+
 static struct sysrq_key_op sysrq_unraw_op = {
 	.handler	= sysrq_handle_unraw,
 	.help_msg	= "unRaw",

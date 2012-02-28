@@ -30,6 +30,7 @@
 
 extern void poke_blanked_console(void);
 
+/* FIXME: all this needs locking */
 /* Variables for selection control. */
 /* Use a dynamic buffer, instead of static (Dec 1994) */
 struct vc_data *sel_cons;		/* must not be deallocated */
@@ -138,7 +139,7 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 	char *bp, *obp;
 	int i, ps, pe, multiplier;
 	u16 c;
-	struct kbd_struct *kbd = kbd_table + fg_console;
+	int mode;
 
 	poke_blanked_console();
 
@@ -182,7 +183,11 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 		clear_selection();
 		sel_cons = vc_cons[fg_console].d;
 	}
-	use_unicode = kbd && kbd->kbdmode == VC_UNICODE;
+	mode = vt_do_kdgkbmode(fg_console);
+	if (mode == K_UNICODE)
+		use_unicode = 1;
+	else
+		use_unicode = 0;
 
 	switch (sel_mode)
 	{

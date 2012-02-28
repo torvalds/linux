@@ -195,232 +195,7 @@ int vt_waitactive(int n)
 #define GPLAST 0x3df
 #define GPNUM (GPLAST - GPFIRST + 1)
 
-#define i (tmp.kb_index)
-#define s (tmp.kb_table)
-#define v (tmp.kb_value)
-static inline int
-do_kdsk_ioctl(int cmd, struct kbentry __user *user_kbe, int perm, struct kbd_struct *kbd)
-{
-	struct kbentry tmp;
-	ushort *key_map, val, ov;
 
-	if (copy_from_user(&tmp, user_kbe, sizeof(struct kbentry)))
-		return -EFAULT;
-
-	if (!capable(CAP_SYS_TTY_CONFIG))
-		perm = 0;
-
-	switch (cmd) {
-	case KDGKBENT:
-		key_map = key_maps[s];
-		if (key_map) {
-		    val = U(key_map[i]);
-		    if (kbd->kbdmode != VC_UNICODE && KTYP(val) >= NR_TYPES)
-			val = K_HOLE;
-		} else
-		    val = (i ? K_HOLE : K_NOSUCHMAP);
-		return put_user(val, &user_kbe->kb_value);
-	case KDSKBENT:
-		if (!perm)
-			return -EPERM;
-		if (!i && v == K_NOSUCHMAP) {
-			/* deallocate map */
-			key_map = key_maps[s];
-			if (s && key_map) {
-			    key_maps[s] = NULL;
-			    if (key_map[0] == U(K_ALLOCATED)) {
-					kfree(key_map);
-					keymap_count--;
-			    }
-			}
-			break;
-		}
-
-		if (KTYP(v) < NR_TYPES) {
-		    if (KVAL(v) > max_vals[KTYP(v)])
-				return -EINVAL;
-		} else
-		    if (kbd->kbdmode != VC_UNICODE)
-				return -EINVAL;
-
-		/* ++Geert: non-PC keyboards may generate keycode zero */
-#if !defined(__mc68000__) && !defined(__powerpc__)
-		/* assignment to entry 0 only tests validity of args */
-		if (!i)
-			break;
-#endif
-
-		if (!(key_map = key_maps[s])) {
-			int j;
-
-			if (keymap_count >= MAX_NR_OF_USER_KEYMAPS &&
-			    !capable(CAP_SYS_RESOURCE))
-				return -EPERM;
-
-			key_map = kmalloc(sizeof(plain_map),
-						     GFP_KERNEL);
-			if (!key_map)
-				return -ENOMEM;
-			key_maps[s] = key_map;
-			key_map[0] = U(K_ALLOCATED);
-			for (j = 1; j < NR_KEYS; j++)
-				key_map[j] = U(K_HOLE);
-			keymap_count++;
-		}
-		ov = U(key_map[i]);
-		if (v == ov)
-			break;	/* nothing to do */
-		/*
-		 * Attention Key.
-		 */
-		if (((ov == K_SAK) || (v == K_SAK)) && !capable(CAP_SYS_ADMIN))
-			return -EPERM;
-		key_map[i] = U(v);
-		if (!s && (KTYP(ov) == KT_SHIFT || KTYP(v) == KT_SHIFT))
-			compute_shiftstate();
-		break;
-	}
-	return 0;
-}
-#undef i
-#undef s
-#undef v
-
-static inline int 
-do_kbkeycode_ioctl(int cmd, struct kbkeycode __user *user_kbkc, int perm)
-{
-	struct kbkeycode tmp;
-	int kc = 0;
-
-	if (copy_from_user(&tmp, user_kbkc, sizeof(struct kbkeycode)))
-		return -EFAULT;
-	switch (cmd) {
-	case KDGETKEYCODE:
-		kc = getkeycode(tmp.scancode);
-		if (kc >= 0)
-			kc = put_user(kc, &user_kbkc->keycode);
-		break;
-	case KDSETKEYCODE:
-		if (!perm)
-			return -EPERM;
-		kc = setkeycode(tmp.scancode, tmp.keycode);
-		break;
-	}
-	return kc;
-}
-
-static inline int
-do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
-{
-	struct kbsentry *kbs;
-	char *p;
-	u_char *q;
-	u_char __user *up;
-	int sz;
-	int delta;
-	char *first_free, *fj, *fnw;
-	int i, j, k;
-	int ret;
-
-	if (!capable(CAP_SYS_TTY_CONFIG))
-		perm = 0;
-
-	kbs = kmalloc(sizeof(*kbs), GFP_KERNEL);
-	if (!kbs) {
-		ret = -ENOMEM;
-		goto reterr;
-	}
-
-	/* we mostly copy too much here (512bytes), but who cares ;) */
-	if (copy_from_user(kbs, user_kdgkb, sizeof(struct kbsentry))) {
-		ret = -EFAULT;
-		goto reterr;
-	}
-	kbs->kb_string[sizeof(kbs->kb_string)-1] = '\0';
-	i = kbs->kb_func;
-
-	switch (cmd) {
-	case KDGKBSENT:
-		sz = sizeof(kbs->kb_string) - 1; /* sz should have been
-						  a struct member */
-		up = user_kdgkb->kb_string;
-		p = func_table[i];
-		if(p)
-			for ( ; *p && sz; p++, sz--)
-				if (put_user(*p, up++)) {
-					ret = -EFAULT;
-					goto reterr;
-				}
-		if (put_user('\0', up)) {
-			ret = -EFAULT;
-			goto reterr;
-		}
-		kfree(kbs);
-		return ((p && *p) ? -EOVERFLOW : 0);
-	case KDSKBSENT:
-		if (!perm) {
-			ret = -EPERM;
-			goto reterr;
-		}
-
-		q = func_table[i];
-		first_free = funcbufptr + (funcbufsize - funcbufleft);
-		for (j = i+1; j < MAX_NR_FUNC && !func_table[j]; j++) 
-			;
-		if (j < MAX_NR_FUNC)
-			fj = func_table[j];
-		else
-			fj = first_free;
-
-		delta = (q ? -strlen(q) : 1) + strlen(kbs->kb_string);
-		if (delta <= funcbufleft) { 	/* it fits in current buf */
-		    if (j < MAX_NR_FUNC) {
-			memmove(fj + delta, fj, first_free - fj);
-			for (k = j; k < MAX_NR_FUNC; k++)
-			    if (func_table[k])
-				func_table[k] += delta;
-		    }
-		    if (!q)
-		      func_table[i] = fj;
-		    funcbufleft -= delta;
-		} else {			/* allocate a larger buffer */
-		    sz = 256;
-		    while (sz < funcbufsize - funcbufleft + delta)
-		      sz <<= 1;
-		    fnw = kmalloc(sz, GFP_KERNEL);
-		    if(!fnw) {
-		      ret = -ENOMEM;
-		      goto reterr;
-		    }
-
-		    if (!q)
-		      func_table[i] = fj;
-		    if (fj > funcbufptr)
-			memmove(fnw, funcbufptr, fj - funcbufptr);
-		    for (k = 0; k < j; k++)
-		      if (func_table[k])
-			func_table[k] = fnw + (func_table[k] - funcbufptr);
-
-		    if (first_free > fj) {
-			memmove(fnw + (fj - funcbufptr) + delta, fj, first_free - fj);
-			for (k = j; k < MAX_NR_FUNC; k++)
-			  if (func_table[k])
-			    func_table[k] = fnw + (func_table[k] - funcbufptr) + delta;
-		    }
-		    if (funcbufptr != func_buf)
-		      kfree(funcbufptr);
-		    funcbufptr = fnw;
-		    funcbufleft = funcbufleft - delta + sz - funcbufsize;
-		    funcbufsize = sz;
-		}
-		strcpy(func_table[i], kbs->kb_string);
-		break;
-	}
-	ret = 0;
-reterr:
-	kfree(kbs);
-	return ret;
-}
 
 static inline int 
 do_fontx_ioctl(int cmd, struct consolefontdesc __user *user_cfd, int perm, struct console_font_op *op)
@@ -497,7 +272,6 @@ int vt_ioctl(struct tty_struct *tty,
 {
 	struct vc_data *vc = tty->driver_data;
 	struct console_font_op op;	/* used in multiple places here */
-	struct kbd_struct * kbd;
 	unsigned int console;
 	unsigned char ucval;
 	unsigned int uival;
@@ -523,7 +297,6 @@ int vt_ioctl(struct tty_struct *tty,
 	if (current->signal->tty == tty || capable(CAP_SYS_TTY_CONFIG))
 		perm = 1;
  
-	kbd = kbd_table + console;
 	switch (cmd) {
 	case TIOCLINUX:
 		ret = tioclinux(tty, arg);
@@ -565,7 +338,8 @@ int vt_ioctl(struct tty_struct *tty,
 		 * this is naive.
 		 */
 		ucval = KB_101;
-		goto setchar;
+		ret = put_user(ucval, (char __user *)arg);
+		break;
 
 		/*
 		 * These cannot be implemented on any machine that implements
@@ -670,68 +444,25 @@ int vt_ioctl(struct tty_struct *tty,
 	case KDSKBMODE:
 		if (!perm)
 			goto eperm;
-		switch(arg) {
-		  case K_RAW:
-			kbd->kbdmode = VC_RAW;
-			break;
-		  case K_MEDIUMRAW:
-			kbd->kbdmode = VC_MEDIUMRAW;
-			break;
-		  case K_XLATE:
-			kbd->kbdmode = VC_XLATE;
-			compute_shiftstate();
-			break;
-		  case K_UNICODE:
-			kbd->kbdmode = VC_UNICODE;
-			compute_shiftstate();
-			break;
-		  case K_OFF:
-			kbd->kbdmode = VC_OFF;
-			break;
-		  default:
-			ret = -EINVAL;
-			goto out;
-		}
-		tty_ldisc_flush(tty);
+		ret = vt_do_kdskbmode(console, arg);
+		if (ret == 0)
+			tty_ldisc_flush(tty);
 		break;
 
 	case KDGKBMODE:
-		switch (kbd->kbdmode) {
-		case VC_RAW:
-			uival = K_RAW;
-			break;
-		case VC_MEDIUMRAW:
-			uival = K_MEDIUMRAW;
-			break;
-		case VC_UNICODE:
-			uival = K_UNICODE;
-			break;
-		case VC_OFF:
-			uival = K_OFF;
-			break;
-		default:
-			uival = K_XLATE;
-			break;
-		}
-		goto setint;
+		uival = vt_do_kdgkbmode(console);
+		ret = put_user(uival, (int __user *)arg);
+		break;
 
 	/* this could be folded into KDSKBMODE, but for compatibility
 	   reasons it is not so easy to fold KDGKBMETA into KDGKBMODE */
 	case KDSKBMETA:
-		switch(arg) {
-		  case K_METABIT:
-			clr_vc_kbd_mode(kbd, VC_META);
-			break;
-		  case K_ESCPREFIX:
-			set_vc_kbd_mode(kbd, VC_META);
-			break;
-		  default:
-			ret = -EINVAL;
-		}
+		ret = vt_do_kdskbmeta(console, arg);
 		break;
 
 	case KDGKBMETA:
-		uival = (vc_kbd_mode(kbd, VC_META) ? K_ESCPREFIX : K_METABIT);
+		/* FIXME: should review whether this is worth locking */
+		uival = vt_do_kdgkbmeta(console);
 	setint:
 		ret = put_user(uival, (int __user *)arg);
 		break;
@@ -740,17 +471,17 @@ int vt_ioctl(struct tty_struct *tty,
 	case KDSETKEYCODE:
 		if(!capable(CAP_SYS_TTY_CONFIG))
 			perm = 0;
-		ret = do_kbkeycode_ioctl(cmd, up, perm);
+		ret = vt_do_kbkeycode_ioctl(cmd, up, perm);
 		break;
 
 	case KDGKBENT:
 	case KDSKBENT:
-		ret = do_kdsk_ioctl(cmd, up, perm, kbd);
+		ret = vt_do_kdsk_ioctl(cmd, up, perm, console);
 		break;
 
 	case KDGKBSENT:
 	case KDSKBSENT:
-		ret = do_kdgkb_ioctl(cmd, up, perm);
+		ret = vt_do_kdgkb_ioctl(cmd, up, perm);
 		break;
 
 	/* Diacritical processing. Handled in keyboard.c as it has
@@ -765,33 +496,10 @@ int vt_ioctl(struct tty_struct *tty,
 	/* the ioctls below read/set the flags usually shown in the leds */
 	/* don't use them - they will go away without warning */
 	case KDGKBLED:
-		ucval = kbd->ledflagstate | (kbd->default_ledflagstate << 4);
-		goto setchar;
-
 	case KDSKBLED:
-		if (!perm)
-			goto eperm;
-		if (arg & ~0x77) {
-			ret = -EINVAL;
-			break;
-		}
-		kbd->ledflagstate = (arg & 7);
-		kbd->default_ledflagstate = ((arg >> 4) & 7);
-		set_leds();
-		break;
-
-	/* the ioctls below only set the lights, not the functions */
-	/* for those, see KDGKBLED and KDSKBLED above */
 	case KDGETLED:
-		ucval = getledstate();
-	setchar:
-		ret = put_user(ucval, (char __user *)arg);
-		break;
-
 	case KDSETLED:
-		if (!perm)
-			goto eperm;
-		setledstate(kbd, arg);
+		ret = vt_do_kdskled(console, cmd, arg, perm);
 		break;
 
 	/*
@@ -1286,7 +994,7 @@ eperm:
 void reset_vc(struct vc_data *vc)
 {
 	vc->vc_mode = KD_TEXT;
-	kbd_table[vc->vc_num].kbdmode = default_utf8 ? VC_UNICODE : VC_XLATE;
+	vt_reset_unicode(vc->vc_num);
 	vc->vt_mode.mode = VT_AUTO;
 	vc->vt_mode.waitv = 0;
 	vc->vt_mode.relsig = 0;
@@ -1309,6 +1017,7 @@ void vc_SAK(struct work_struct *work)
 	console_lock();
 	vc = vc_con->d;
 	if (vc) {
+		/* FIXME: review tty ref counting */
 		tty = vc->port.tty;
 		/*
 		 * SAK should also work in all raw modes and reset
