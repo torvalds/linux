@@ -216,6 +216,9 @@ static struct i2c_board_info visstrim_m10_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("tlv320aic32x4", 0x18),
 		.platform_data = &visstrim_m10_aic32x4_pdata,
+	},
+	{
+		 I2C_BOARD_INFO("m41t00", 0x68),
 	}
 };
 
