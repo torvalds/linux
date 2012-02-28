@@ -983,7 +983,7 @@ static int stb0899_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 		break;
 	case SYS_DVBS2:
 		if (internal->lock) {
-			reg = STB0899_READ_S2REG(STB0899_DEMOD, IF_AGC_GAIN);
+			reg = STB0899_READ_S2REG(STB0899_S2DEMOD, IF_AGC_GAIN);
 			val = STB0899_GETFIELD(IF_AGC_GAIN, reg);
 
 			*strength = stb0899_table_lookup(stb0899_dvbs2rf_tab, ARRAY_SIZE(stb0899_dvbs2rf_tab) - 1, val);
