@@ -2676,43 +2676,8 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&moschip7840_4port_device, NULL
 };
 
-/****************************************************************************
- * moschip7840_init
- *	This is called by the module subsystem, or on startup to initialize us
- ****************************************************************************/
-static int __init moschip7840_init(void)
-{
-	int retval;
+module_usb_serial_driver(io_driver, serial_drivers);
 
-	dbg("%s", " mos7840_init :entering..........");
-
-	retval = usb_serial_register_drivers(&io_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-
-	dbg("%s", "Leaving...");
-	return retval;
-}
-
-/****************************************************************************
- * moschip7840_exit
- *	Called when the driver is about to be unloaded.
- ****************************************************************************/
-static void __exit moschip7840_exit(void)
-{
-
-	dbg("%s", " mos7840_exit :entering..........");
-
-	usb_serial_deregister_drivers(&io_driver, serial_drivers);
-
-	dbg("%s", "Entering...");
-}
-
-module_init(moschip7840_init);
-module_exit(moschip7840_exit);
-
-/* Module information */
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
