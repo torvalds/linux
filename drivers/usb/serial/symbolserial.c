@@ -309,18 +309,8 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&symbol_device, NULL
 };
 
-static int __init symbol_init(void)
-{
-	return usb_serial_register_drivers(&symbol_driver, serial_drivers);
-}
+module_usb_serial_driver(symbol_driver, serial_drivers);
 
-static void __exit symbol_exit(void)
-{
-	usb_serial_deregister_drivers(&symbol_driver, serial_drivers);
-}
-
-module_init(symbol_init);
-module_exit(symbol_exit);
 MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
