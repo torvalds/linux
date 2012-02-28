@@ -172,6 +172,7 @@ struct m5mols_version {
  * @zoom: zoom control
  * @wdr: wide dynamic range control
  * @stabilization: image stabilization control
+ * @jpeg_quality: JPEG compression quality control
  * @ver: information of the version
  * @cap: the capture mode attributes
  * @power: current sensor's power status
@@ -213,6 +214,7 @@ struct m5mols_info {
 	struct v4l2_ctrl *zoom;
 	struct v4l2_ctrl *wdr;
 	struct v4l2_ctrl *stabilization;
+	struct v4l2_ctrl *jpeg_quality;
 
 	struct m5mols_version ver;
 	struct m5mols_capture cap;

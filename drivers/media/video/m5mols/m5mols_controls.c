@@ -492,6 +492,10 @@ static int m5mols_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_IMAGE_STABILIZATION:
 		ret = m5mols_set_stabilization(info, ctrl->val);
 		break;
+
+	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
+		ret = m5mols_write(sd, CAPP_JPEG_RATIO, ctrl->val);
+		break;
 	}
 
 	if (ret == 0 && info->mode != last_mode)
@@ -530,8 +534,7 @@ int m5mols_init_controls(struct v4l2_subdev *sd)
 		return ret;
 
 	zoom_step = is_manufacturer(info, REG_SAMSUNG_OPTICS) ? 31 : 1;
-
-	v4l2_ctrl_handler_init(&info->handle, 6);
+	v4l2_ctrl_handler_init(&info->handle, 20);
 
 	info->auto_wb = v4l2_ctrl_new_std_menu(&info->handle,
 			&m5mols_ctrl_ops, V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE,
@@ -578,6 +581,9 @@ int m5mols_init_controls(struct v4l2_subdev *sd)
 
 	info->stabilization = v4l2_ctrl_new_std(&info->handle, &m5mols_ctrl_ops,
 			V4L2_CID_IMAGE_STABILIZATION, 0, 1, 1, 0);
+
+	info->jpeg_quality = v4l2_ctrl_new_std(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_JPEG_COMPRESSION_QUALITY, 1, 100, 1, 80);
 
 	if (info->handle.error) {
 		int ret = info->handle.error;
