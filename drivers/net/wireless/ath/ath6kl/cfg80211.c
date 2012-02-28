@@ -2282,6 +2282,7 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
 	struct ieee80211_mgmt *mgmt;
+	bool hidden = false;
 	u8 *ies;
 	int ies_len;
 	struct wmi_connect_cmd p;
@@ -2341,7 +2342,11 @@ static int ath6kl_ap_beacon(struct wiphy *wiphy, struct net_device *dev,
 	memcpy(vif->ssid, info->ssid, info->ssid_len);
 	vif->ssid_len = info->ssid_len;
 	if (info->hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE)
-		return -EOPNOTSUPP; /* TODO */
+		hidden = true;
+
+	res = ath6kl_wmi_ap_hidden_ssid(ar->wmi, vif->fw_vif_idx, hidden);
+	if (res)
+		return res;
 
 	ret = ath6kl_set_auth_type(vif, info->auth_type);
 	if (ret)

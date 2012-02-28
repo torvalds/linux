@@ -2129,6 +2129,10 @@ struct wmi_rx_frame_format_cmd {
 	u8 reserved[1];
 } __packed;
 
+struct wmi_ap_hidden_ssid_cmd {
+	u8 hidden_ssid;
+} __packed;
+
 /* AP mode events */
 struct wmi_ap_set_apsd_cmd {
 	u8 enable;
@@ -2485,6 +2489,7 @@ u8 ath6kl_wmi_get_traffic_class(u8 user_priority);
 
 u8 ath6kl_wmi_determine_user_priority(u8 *pkt, u32 layer2_pri);
 /* AP mode */
+int ath6kl_wmi_ap_hidden_ssid(struct wmi *wmi, u8 if_idx, bool enable);
 int ath6kl_wmi_ap_profile_commit(struct wmi *wmip, u8 if_idx,
 				 struct wmi_connect_cmd *p);
 
