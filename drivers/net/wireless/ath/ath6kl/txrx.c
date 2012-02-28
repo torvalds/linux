@@ -1298,7 +1298,15 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	skb_put(skb, packet->act_len + HTC_HDR_LENGTH);
 	skb_pull(skb, HTC_HDR_LENGTH);
 
+	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, __func__, "rx ",
+			skb->data, skb->len);
+
 	if (ept == ar->ctrl_ep) {
+		if (test_bit(WMI_ENABLED, &ar->flag)) {
+			ath6kl_check_wow_status(ar);
+			ath6kl_wmi_control_rx(ar->wmi, skb);
+			return;
+		}
 		if_idx =
 		wmi_cmd_hdr_get_if_idx((struct wmi_cmd_hdr *) skb->data);
 	} else {
@@ -1323,10 +1331,6 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 
 	spin_unlock_bh(&vif->if_lock);
 
-
-	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, __func__, "rx ",
-			skb->data, skb->len);
-
 	skb->dev = vif->ndev;
 
 	if (!test_bit(WMI_ENABLED, &ar->flag)) {
@@ -1337,11 +1341,6 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	}
 
 	ath6kl_check_wow_status(ar);
-
-	if (ept == ar->ctrl_ep) {
-		ath6kl_wmi_control_rx(ar->wmi, skb);
-		return;
-	}
 
 	min_hdr_len = sizeof(struct ethhdr) + sizeof(struct wmi_data_hdr) +
 		      sizeof(struct ath6kl_llc_snap_hdr);
