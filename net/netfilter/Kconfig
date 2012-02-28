@@ -103,6 +103,16 @@ config NF_CONNTRACK_EVENTS
 
 	  If unsure, say `N'.
 
+config NF_CONNTRACK_TIMEOUT
+	bool  'Connection tracking timeout'
+	depends on NETFILTER_ADVANCED
+	help
+	  This option enables support for connection tracking timeout
+	  extension. This allows you to attach timeout policies to flow
+	  via the CT target.
+
+	  If unsure, say `N'.
+
 config NF_CONNTRACK_TIMESTAMP
 	bool  'Connection tracking timestamping'
 	depends on NETFILTER_ADVANCED

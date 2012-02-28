@@ -44,6 +44,7 @@
 #include <net/netfilter/nf_conntrack_ecache.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_conntrack_timestamp.h>
+#include <net/netfilter/nf_conntrack_timeout.h>
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_core.h>
 
@@ -1333,6 +1334,7 @@ static void nf_conntrack_cleanup_net(struct net *net)
 	}
 
 	nf_ct_free_hashtable(net->ct.hash, net->ct.htable_size);
+	nf_conntrack_timeout_fini(net);
 	nf_conntrack_ecache_fini(net);
 	nf_conntrack_tstamp_fini(net);
 	nf_conntrack_acct_fini(net);
@@ -1564,9 +1566,14 @@ static int nf_conntrack_init_net(struct net *net)
 	ret = nf_conntrack_ecache_init(net);
 	if (ret < 0)
 		goto err_ecache;
+	ret = nf_conntrack_timeout_init(net);
+	if (ret < 0)
+		goto err_timeout;
 
 	return 0;
 
+err_timeout:
+	nf_conntrack_timeout_fini(net);
 err_ecache:
 	nf_conntrack_tstamp_fini(net);
 err_tstamp:

@@ -37,16 +37,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
 MODULE_DESCRIPTION("cttimeout: Extended Netfilter Connection Tracking timeout tuning");
 
-struct ctnl_timeout {
-	struct list_head	head;
-	struct rcu_head		rcu_head;
-	atomic_t		refcnt;
-	char			name[CTNL_TIMEOUT_NAME_MAX];
-	__u16			l3num;
-	__u8			l4num;
-	char			data[0];
-};
-
 static LIST_HEAD(cttimeout_list);
 
 static const struct nla_policy cttimeout_nla_policy[CTA_TIMEOUT_MAX+1] = {
