@@ -371,7 +371,7 @@ checks:
 				((!list_empty(&queue->mainqueue)) || (!(queue->flags & UVC_QUEUE_STREAMING))));
 			mutex_lock(&queue->mutex);
 
-			if (ret)
+			if (ret || (!(queue->flags & UVC_QUEUE_STREAMING)))
 				goto done;
 
 			goto checks;
