@@ -798,7 +798,8 @@ static void rpmsg_recv_done(struct virtqueue *rvq)
 	else
 		dev_warn(dev, "msg received with no recepient\n");
 
-	sg_init_one(&sg, msg, sizeof(*msg) + len);
+	/* publish the real size of the buffer */
+	sg_init_one(&sg, msg, RPMSG_BUF_SIZE);
 
 	/* add the buffer back to the remote processor's virtqueue */
 	err = virtqueue_add_buf(vrp->rvq, &sg, 0, 1, msg, GFP_KERNEL);
