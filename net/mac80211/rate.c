@@ -336,7 +336,7 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 	int i;
 	u32 mask;
 
-	if (sta) {
+	if (sta && test_sta_flag(sta, WLAN_STA_RATE_CONTROL)) {
 		ista = &sta->sta;
 		priv_sta = sta->rate_ctrl_priv;
 	}
