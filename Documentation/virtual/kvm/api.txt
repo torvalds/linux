@@ -1169,6 +1169,14 @@ following flags are specified:
 
 /* Depends on KVM_CAP_IOMMU */
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
+/* The following two depend on KVM_CAP_PCI_2_3 */
+#define KVM_DEV_ASSIGN_PCI_2_3		(1 << 1)
+#define KVM_DEV_ASSIGN_MASK_INTX	(1 << 2)
+
+If KVM_DEV_ASSIGN_PCI_2_3 is set, the kernel will manage legacy INTx interrupts
+via the PCI-2.3-compliant device-level mask, thus enable IRQ sharing with other
+assigned devices or host devices. KVM_DEV_ASSIGN_MASK_INTX specifies the
+guest's view on the INTx mask, see KVM_ASSIGN_SET_INTX_MASK for details.
 
 The KVM_DEV_ASSIGN_ENABLE_IOMMU flag is a mandatory option to ensure
 isolation of the device.  Usages not specifying this flag are deprecated.
@@ -1440,6 +1448,39 @@ This avoids any complications with differing word sizes.
 The "num_dirty" field is a performance hint for KVM to determine whether it
 should skip processing the bitmap and just invalidate everything.  It must
 be set to the number of set bits in the bitmap.
+
+4.60 KVM_ASSIGN_SET_INTX_MASK
+
+Capability: KVM_CAP_PCI_2_3
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_assigned_pci_dev (in)
+Returns: 0 on success, -1 on error
+
+Allows userspace to mask PCI INTx interrupts from the assigned device.  The
+kernel will not deliver INTx interrupts to the guest between setting and
+clearing of KVM_ASSIGN_SET_INTX_MASK via this interface.  This enables use of
+and emulation of PCI 2.3 INTx disable command register behavior.
+
+This may be used for both PCI 2.3 devices supporting INTx disable natively and
+older devices lacking this support. Userspace is responsible for emulating the
+read value of the INTx disable bit in the guest visible PCI command register.
+When modifying the INTx disable state, userspace should precede updating the
+physical device command register by calling this ioctl to inform the kernel of
+the new intended INTx mask state.
+
+Note that the kernel uses the device INTx disable bit to internally manage the
+device interrupt state for PCI 2.3 devices.  Reads of this register may
+therefore not match the expected value.  Writes should always use the guest
+intended INTx disable value rather than attempting to read-copy-update the
+current physical device state.  Races between user and kernel updates to the
+INTx disable bit are handled lazily in the kernel.  It's possible the device
+may generate unintended interrupts, but they will not be injected into the
+guest.
+
+See KVM_ASSIGN_DEV_IRQ for the data structure.  The target device is specified
+by assigned_dev_id.  In the flags field, only KVM_DEV_ASSIGN_MASK_INTX is
+evaluated.
 
 4.62 KVM_CREATE_SPAPR_TCE
 

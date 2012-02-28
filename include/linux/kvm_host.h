@@ -546,6 +546,7 @@ struct kvm_assigned_dev_kernel {
 	unsigned int entries_nr;
 	int host_irq;
 	bool host_irq_disabled;
+	bool pci_2_3;
 	struct msix_entry *host_msix_entries;
 	int guest_irq;
 	struct msix_entry *guest_msix_entries;
@@ -555,6 +556,7 @@ struct kvm_assigned_dev_kernel {
 	struct pci_dev *dev;
 	struct kvm *kvm;
 	spinlock_t intx_lock;
+	struct mutex intx_mask_lock;
 	char irq_name[32];
 	struct pci_saved_state *pci_saved_state;
 };
