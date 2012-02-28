@@ -860,6 +860,15 @@ out:
 	return;
 }
 
+static void __devinit device_8606_init(struct pm860x_chip *chip,
+				       struct i2c_client *i2c,
+				       struct pm860x_platform_data *pdata)
+{
+	device_osc_init(i2c);
+	device_bk_init(chip, pdata);
+	device_led_init(chip, pdata);
+}
+
 int __devinit pm860x_device_init(struct pm860x_chip *chip,
 		       struct pm860x_platform_data *pdata)
 {
@@ -867,9 +876,7 @@ int __devinit pm860x_device_init(struct pm860x_chip *chip,
 
 	switch (chip->id) {
 	case CHIP_PM8606:
-		device_osc_init(chip->client);
-		device_bk_init(chip, pdata);
-		device_led_init(chip, pdata);
+		device_8606_init(chip, chip->client, pdata);
 		break;
 	case CHIP_PM8607:
 		device_8607_init(chip, chip->client, pdata);
@@ -879,9 +886,7 @@ int __devinit pm860x_device_init(struct pm860x_chip *chip,
 	if (chip->companion) {
 		switch (chip->id) {
 		case CHIP_PM8607:
-			device_osc_init(chip->companion);
-			device_bk_init(chip, pdata);
-			device_led_init(chip, pdata);
+			device_8606_init(chip, chip->companion, pdata);
 			break;
 		case CHIP_PM8606:
 			device_8607_init(chip, chip->companion, pdata);
