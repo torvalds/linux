@@ -652,21 +652,9 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&ch341_device, NULL
 };
 
-static int __init ch341_init(void)
-{
-	return usb_serial_register_drivers(&ch341_driver, serial_drivers);
-}
+module_usb_serial_driver(ch341_driver, serial_drivers);
 
-static void __exit ch341_exit(void)
-{
-	usb_serial_deregister_drivers(&ch341_driver, serial_drivers);
-}
-
-module_init(ch341_init);
-module_exit(ch341_exit);
 MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
-
-/* EOF ch341.c */
