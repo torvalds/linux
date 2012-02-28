@@ -701,7 +701,6 @@ static struct zv_hdr *zv_create(struct zs_pool *pool, uint32_t pool_id,
 	u32 size = clen + sizeof(struct zv_hdr);
 	int chunks = (size + (CHUNK_SIZE - 1)) >> CHUNK_SHIFT;
 	void *handle = NULL;
-	char *buf;
 
 	BUG_ON(!irqs_disabled());
 	BUG_ON(chunks >= NCHUNKS);
@@ -710,14 +709,13 @@ static struct zv_hdr *zv_create(struct zs_pool *pool, uint32_t pool_id,
 		goto out;
 	atomic_inc(&zv_curr_dist_counts[chunks]);
 	atomic_inc(&zv_cumul_dist_counts[chunks]);
-	zv = (struct zv_hdr *)((char *)cdata - sizeof(*zv));
+	zv = zs_map_object(pool, handle);
 	zv->index = index;
 	zv->oid = *oid;
 	zv->pool_id = pool_id;
 	zv->size = clen;
 	SET_SENTINEL(zv, ZVH);
-	buf = zs_map_object(pool, handle);
-	memcpy(buf, zv, clen + sizeof(*zv));
+	memcpy((char *)zv + sizeof(struct zv_hdr), cdata, clen);
 	zs_unmap_object(pool, handle);
 out:
 	return handle;
