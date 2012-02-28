@@ -793,102 +793,115 @@ static struct platform_device device_ipp = {
 #endif
 
 #ifdef CONFIG_SND_RK29_SOC_I2S
-static struct resource rk_iis0_8ch_resource[] = {
-        [0] = {
-                .start = RK30_I2S0_8CH_PHYS,
-                .end   = RK30_I2S0_8CH_PHYS + RK30_I2S0_8CH_SIZE - 1,
-                .flags = IORESOURCE_MEM,
-        },
-        [1] = {
-                .start = DMACH_I2S0_8CH_TX,
-                .end   = DMACH_I2S0_8CH_TX,
-                .flags = IORESOURCE_DMA,
-        },
-        [2] = {
-                .start = DMACH_I2S0_8CH_RX,
-                .end   = DMACH_I2S0_8CH_RX,
-                .flags = IORESOURCE_DMA,
-        },
-        [3] = {
-                .start = IRQ_I2S0_8CH,
-                .end   = IRQ_I2S0_8CH,
-                .flags = IORESOURCE_IRQ,        
-        },
+static struct resource resource_iis0_8ch[] = {
+	[0] = {
+		.start	= RK30_I2S0_8CH_PHYS,
+		.end	= RK30_I2S0_8CH_PHYS + RK30_I2S0_8CH_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= DMACH_I2S0_8CH_TX,
+		.end	= DMACH_I2S0_8CH_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	[2] = {
+		.start	= DMACH_I2S0_8CH_RX,
+		.end	= DMACH_I2S0_8CH_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		.start	= IRQ_I2S0_8CH,
+		.end	= IRQ_I2S0_8CH,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
-struct platform_device rk_device_iis0_8ch = {
-        .name           = "rk29_i2s",
-        .id             = 0,
-        .num_resources  = ARRAY_SIZE(rk_iis0_8ch_resource),
-        .resource       = rk_iis0_8ch_resource,
+static struct platform_device device_iis0_8ch = {
+	.name		= "rk29_i2s",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(resource_iis0_8ch),
+	.resource	= resource_iis0_8ch,
 };
 
-static struct resource rk_iis1_2ch_resource[] = {
-        [0] = {
-                .start = RK30_I2S1_2CH_PHYS,
-                .end   = RK30_I2S1_2CH_PHYS + RK30_I2S1_2CH_SIZE -1,
-                .flags = IORESOURCE_MEM,
-        },
-        [1] = {
-                .start = DMACH_I2S1_2CH_TX,
-                .end   = DMACH_I2S1_2CH_TX,
-                .flags = IORESOURCE_DMA,
-        },
-        [2] = {
-                .start = DMACH_I2S1_2CH_RX,
-                .end   = DMACH_I2S1_2CH_RX,
-                .flags = IORESOURCE_DMA,
-        },
-        [3] = {
-                .start = IRQ_I2S1_2CH,
-                .end   = IRQ_I2S1_2CH,
-                .flags = IORESOURCE_IRQ,        
-        },
+static struct resource resource_iis1_2ch[] = {
+	[0] = {
+		.start	= RK30_I2S1_2CH_PHYS,
+		.end	= RK30_I2S1_2CH_PHYS + RK30_I2S1_2CH_SIZE -1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= DMACH_I2S1_2CH_TX,
+		.end	= DMACH_I2S1_2CH_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	[2] = {
+		.start	= DMACH_I2S1_2CH_RX,
+		.end	= DMACH_I2S1_2CH_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		.start	= IRQ_I2S1_2CH,
+		.end	= IRQ_I2S1_2CH,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
-struct platform_device rk_device_iis1_2ch = {
-        .name           = "rk29_i2s",
-        .id             = 1,
-        .num_resources  = ARRAY_SIZE(rk_iis1_2ch_resource),
-        .resource       = rk_iis1_2ch_resource,
+static struct platform_device device_iis1_2ch = {
+	.name		= "rk29_i2s",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(resource_iis1_2ch),
+	.resource	= resource_iis1_2ch,
 };
 
-static struct resource rk_iis2_2ch_resource[] = {
-        [0] = {
-                .start = RK30_I2S2_2CH_PHYS,
-                .end   = RK30_I2S2_2CH_PHYS + RK30_I2S2_2CH_SIZE -1,
-                .flags = IORESOURCE_MEM,
-        },
-        [1] = {
-                .start = DMACH_I2S2_2CH_TX,
-                .end   = DMACH_I2S2_2CH_TX,
-                .flags = IORESOURCE_DMA,
-        },
-        [2] = {
-                .start = DMACH_I2S2_2CH_RX,
-                .end   = DMACH_I2S2_2CH_RX,
-                .flags = IORESOURCE_DMA,
-        },
-        [3] = {
-                .start = IRQ_I2S2_2CH,
-                .end   = IRQ_I2S2_2CH,
-                .flags = IORESOURCE_IRQ,        
-        },
+static struct resource resource_iis2_2ch[] = {
+	[0] = {
+		.start	= RK30_I2S2_2CH_PHYS,
+		.end	= RK30_I2S2_2CH_PHYS + RK30_I2S2_2CH_SIZE -1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= DMACH_I2S2_2CH_TX,
+		.end	= DMACH_I2S2_2CH_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	[2] = {
+		.start	= DMACH_I2S2_2CH_RX,
+		.end	= DMACH_I2S2_2CH_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		.start	= IRQ_I2S2_2CH,
+		.end	= IRQ_I2S2_2CH,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
-struct platform_device rk_device_iis2_2ch = {
-        .name           = "rk29_i2s",
-        .id             = 2,
-        .num_resources  = ARRAY_SIZE(rk_iis2_2ch_resource),
-        .resource       = rk_iis2_2ch_resource,
+static struct platform_device device_iis2_2ch = {
+	.name		= "rk29_i2s",
+	.id		= 2,
+	.num_resources	= ARRAY_SIZE(resource_iis2_2ch),
+	.resource	= resource_iis2_2ch,
 };
-
 #endif
 
-static struct platform_device rk29_device_pcm = {
+static struct platform_device device_pcm = {
 	.name = "rockchip-audio",
 	.id = -1,
 };
+
+static void __init rk30_init_i2s(void)
+{
+#ifdef CONFIG_SND_RK29_SOC_I2S_8CH
+	platform_device_register(&device_iis0_8ch);
+#endif
+#ifdef CONFIG_SND_RK29_SOC_I2S_2CH
+	platform_device_register(&device_iis1_2ch);
+#endif
+#ifdef CONFIG_SND_RK_SOC_I2S2_2CH
+	platform_device_register(&device_iis2_2ch);
+#endif
+	platform_device_register(&device_pcm);
+}
 
 #ifdef CONFIG_KEYS_RK29
 extern struct rk29_keys_platform_data rk29_keys_pdata;
@@ -989,7 +1002,7 @@ static int __init rk30_init_devices(void)
 #ifdef CONFIG_FIQ_DEBUGGER
 	rk_serial_debug_init(RK30_UART1_PHYS, IRQ_UART1, IRQ_UART_SIGNAL, -1);
 #endif
-	platform_device_register(&rk29_device_pcm);
+	rk30_init_i2s();
 
         return 0;
 }

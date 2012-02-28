@@ -329,16 +329,6 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_FB_ROCKCHIP
 	&device_fb,
 #endif
-#ifdef CONFIG_SND_RK29_SOC_I2S_8CH
-	&rk_device_iis0_8ch,
-#endif	
-#ifdef CONFIG_SND_RK29_SOC_I2S_2CH
-	&rk_device_iis1_2ch,
-#endif
-#ifdef CONFIG_SND_RK_SOC_I2S2_2CH
-	&rk_device_iis2_2ch,
-#endif
-
 };
 
 // i2c

@@ -46,9 +46,4 @@ void __init rk30_clock_init(void);
 
 extern struct sys_timer rk30_timer;
 
-
-extern struct platform_device rk_device_iis2_2ch;
-extern struct platform_device rk_device_iis1_2ch;
-extern struct platform_device rk_device_iis0_8ch;
-
 #endif
