@@ -22,6 +22,12 @@ Supported chips:
 	http://www.lineagepower.com/oem/pdf/PDT006A0X.pdf
 	http://www.lineagepower.com/oem/pdf/PDT012A0X.pdf
 	http://www.lineagepower.com/oem/pdf/UDT020A0X.pdf
+  * Texas Instruments TPS40400, TPS40422
+    Prefixes: 'tps40400', 'tps40422'
+    Addresses scanned: -
+    Datasheets:
+	http://www.ti.com/lit/gpn/tps40400
+	http://www.ti.com/lit/gpn/tps40422
   * Generic PMBus devices
     Prefix: 'pmbus'
     Addresses scanned: -
