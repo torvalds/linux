@@ -333,25 +333,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&ipw_device, NULL
 };
 
-
-static int __init usb_ipw_init(void)
-{
-	int retval;
-
-	retval = usb_serial_register_drivers(&usb_ipw_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
-}
-
-static void __exit usb_ipw_exit(void)
-{
-	usb_serial_deregister_drivers(&usb_ipw_driver, serial_drivers);
-}
-
-module_init(usb_ipw_init);
-module_exit(usb_ipw_exit);
+module_usb_serial_driver(usb_ipw_driver, serial_drivers);
 
 /* Module information */
 MODULE_AUTHOR(DRIVER_AUTHOR);
