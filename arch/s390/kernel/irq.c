@@ -165,13 +165,6 @@ static inline int ext_hash(u16 code)
 	return (code + (code >> 9)) & 0xff;
 }
 
-static void ext_int_hash_update(struct rcu_head *head)
-{
-	struct ext_int_info *p = container_of(head, struct ext_int_info, rcu);
-
-	kfree(p);
-}
-
 int register_external_interrupt(u16 code, ext_int_handler_t handler)
 {
 	struct ext_int_info *p;
@@ -202,7 +195,7 @@ int unregister_external_interrupt(u16 code, ext_int_handler_t handler)
 	list_for_each_entry_rcu(p, &ext_int_hash[index], entry)
 		if (p->code == code && p->handler == handler) {
 			list_del_rcu(&p->entry);
-			call_rcu(&p->rcu, ext_int_hash_update);
+			kfree_rcu(p, rcu);
 		}
 	spin_unlock_irqrestore(&ext_int_hash_lock, flags);
 	return 0;
