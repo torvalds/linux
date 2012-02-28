@@ -200,11 +200,14 @@ config HID_KEYTOUCH
 		- Keytouch IEC 60945
 
 config HID_KYE
-	tristate "Kye/Genius Ergo Mouse" if EXPERT
+	tristate "KYE/Genius devices"
 	depends on USB_HID
-	default !EXPERT
 	---help---
-	Support for Kye/Genius Ergo Mouse.
+	Support for KYE/Genius devices not fully compliant with HID standard:
+	- Ergo Mouse
+	- EasyPen i405X tablet
+	- MousePen i608X tablet
+	- EasyPen M610X tablet
 
 config HID_UCLOGIC
 	tristate "UC-Logic"
