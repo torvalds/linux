@@ -19,11 +19,14 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <mach/irqs.h>
 #include <plat/dma.h>
 #include <plat/mux.h>
 #include <plat/cpu.h>
 #include <plat/mcbsp.h>
+
+#include <mach/irqs.h>
+
+#include "iomap.h"
 
 #define DPS_RSTCT2_PER_EN	(1 << 0)
 #define DSP_RSTCT2_WD_PER_EN	(1 << 1)
