@@ -4680,8 +4680,17 @@ sandybridge_compute_sprite_srwm(struct drm_device *dev, int plane,
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
 	clock = crtc->mode.clock;
+	if (!clock) {
+		*sprite_wm = 0;
+		return false;
+	}
 
 	line_time_us = (sprite_width * 1000) / clock;
+	if (!line_time_us) {
+		*sprite_wm = 0;
+		return false;
+	}
+
 	line_count = (latency_ns / line_time_us + 1000) / 1000;
 	line_size = sprite_width * pixel_size;
 
@@ -6175,7 +6184,7 @@ void intel_crtc_load_lut(struct drm_crtc *crtc)
 	int i;
 
 	/* The clocks have to be on to load the palette. */
-	if (!crtc->enabled)
+	if (!crtc->enabled || !intel_crtc->active)
 		return;
 
 	/* use legacy palette for Ironlake */
@@ -6561,7 +6570,7 @@ intel_framebuffer_create_for_mode(struct drm_device *dev,
 	mode_cmd.height = mode->vdisplay;
 	mode_cmd.pitches[0] = intel_framebuffer_pitch_for_width(mode_cmd.width,
 								bpp);
-	mode_cmd.pixel_format = 0;
+	mode_cmd.pixel_format = drm_mode_legacy_fb_format(bpp, depth);
 
 	return intel_framebuffer_create(dev, &mode_cmd, obj);
 }
@@ -8185,7 +8194,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 
 	if (intel_enable_rc6(dev_priv->dev))
 		rc6_mask = GEN6_RC_CTL_RC6_ENABLE |
-			(IS_GEN7(dev_priv->dev)) ? GEN6_RC_CTL_RC6p_ENABLE : 0;
+			((IS_GEN7(dev_priv->dev)) ? GEN6_RC_CTL_RC6p_ENABLE : 0);
 
 	I915_WRITE(GEN6_RC_CONTROL,
 		   rc6_mask |
