@@ -627,16 +627,19 @@ DECLARE_EVENT_CLASS(xfs_namespace_class,
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_ino_t, dp_ino)
+		__field(int, namelen)
 		__dynamic_array(char, name, name->len)
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(dp)->i_sb->s_dev;
 		__entry->dp_ino = dp->i_ino;
+		__entry->namelen = name->len;
 		memcpy(__get_str(name), name->name, name->len);
 	),
-	TP_printk("dev %d:%d dp ino 0x%llx name %s",
+	TP_printk("dev %d:%d dp ino 0x%llx name %.*s",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->dp_ino,
+		  __entry->namelen,
 		  __get_str(name))
 )
 
@@ -658,6 +661,8 @@ TRACE_EVENT(xfs_rename,
 		__field(dev_t, dev)
 		__field(xfs_ino_t, src_dp_ino)
 		__field(xfs_ino_t, target_dp_ino)
+		__field(int, src_namelen)
+		__field(int, target_namelen)
 		__dynamic_array(char, src_name, src_name->len)
 		__dynamic_array(char, target_name, target_name->len)
 	),
@@ -665,15 +670,20 @@ TRACE_EVENT(xfs_rename,
 		__entry->dev = VFS_I(src_dp)->i_sb->s_dev;
 		__entry->src_dp_ino = src_dp->i_ino;
 		__entry->target_dp_ino = target_dp->i_ino;
+		__entry->src_namelen = src_name->len;
+		__entry->target_namelen = target_name->len;
 		memcpy(__get_str(src_name), src_name->name, src_name->len);
-		memcpy(__get_str(target_name), target_name->name, target_name->len);
+		memcpy(__get_str(target_name), target_name->name,
+			target_name->len);
 	),
 	TP_printk("dev %d:%d src dp ino 0x%llx target dp ino 0x%llx"
-		  " src name %s target name %s",
+		  " src name %.*s target name %.*s",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->src_dp_ino,
 		  __entry->target_dp_ino,
+		  __entry->src_namelen,
 		  __get_str(src_name),
+		  __entry->target_namelen,
 		  __get_str(target_name))
 )
 
