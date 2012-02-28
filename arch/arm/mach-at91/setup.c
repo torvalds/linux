@@ -9,6 +9,7 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/pm.h>
+#include <linux/of_address.h>
 
 #include <asm/mach/map.h>
 
@@ -284,6 +285,23 @@ void __init at91_ioremap_matrix(u32 base_addr)
 	if (!at91_matrix_base)
 		panic("Impossible to ioremap at91_matrix_base\n");
 }
+
+#if defined(CONFIG_OF)
+void __init at91_dt_initialize(void)
+{
+	/* temporary until have the ramc binding*/
+	at91_boot_soc.ioremap_registers();
+
+	/* temporary until have the pmc binding */
+	/* Init clock subsystem */
+	at91_clock_init(12000000);
+
+	/* Register the processor-specific clocks */
+	at91_boot_soc.register_clocks();
+
+	at91_boot_soc.init();
+}
+#endif
 
 void __init at91_initialize(unsigned long main_clock)
 {
