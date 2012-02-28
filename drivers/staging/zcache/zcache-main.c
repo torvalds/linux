@@ -1170,14 +1170,14 @@ static atomic_t zcache_curr_pers_pampd_count = ATOMIC_INIT(0);
 static unsigned long zcache_curr_pers_pampd_count_max;
 
 /* forward reference */
-static int zcache_compress(struct page *from, void **out_va, size_t *out_len);
+static int zcache_compress(struct page *from, void **out_va, unsigned *out_len);
 
 static void *zcache_pampd_create(char *data, size_t size, bool raw, int eph,
 				struct tmem_pool *pool, struct tmem_oid *oid,
 				 uint32_t index)
 {
 	void *pampd = NULL, *cdata;
-	size_t clen;
+	unsigned clen;
 	int ret;
 	unsigned long count;
 	struct page *page = (struct page *)(data);
@@ -1326,7 +1326,7 @@ static struct tmem_pamops zcache_pamops = {
 static DEFINE_PER_CPU(unsigned char *, zcache_dstmem);
 #define ZCACHE_DSTMEM_ORDER 1
 
-static int zcache_compress(struct page *from, void **out_va, size_t *out_len)
+static int zcache_compress(struct page *from, void **out_va, unsigned *out_len)
 {
 	int ret = 0;
 	unsigned char *dmem = __get_cpu_var(zcache_dstmem);
@@ -1339,7 +1339,7 @@ static int zcache_compress(struct page *from, void **out_va, size_t *out_len)
 	from_va = kmap_atomic(from, KM_USER0);
 	mb();
 	ret = zcache_comp_op(ZCACHE_COMPOP_COMPRESS, from_va, PAGE_SIZE, dmem,
-				(unsigned int *)out_len);
+				out_len);
 	BUG_ON(ret);
 	*out_va = dmem;
 	kunmap_atomic(from_va, KM_USER0);
