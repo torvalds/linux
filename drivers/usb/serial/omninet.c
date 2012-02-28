@@ -321,27 +321,7 @@ static void omninet_release(struct usb_serial *serial)
 	kfree(usb_get_serial_port_data(port));
 }
 
-
-static int __init omninet_init(void)
-{
-	int retval;
-
-	retval = usb_serial_register_drivers(&omninet_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
-}
-
-
-static void __exit omninet_exit(void)
-{
-	usb_serial_deregister_drivers(&omninet_driver, serial_drivers);
-}
-
-
-module_init(omninet_init);
-module_exit(omninet_exit);
+module_usb_serial_driver(omninet_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
