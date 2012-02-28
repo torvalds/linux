@@ -72,7 +72,7 @@ static void _update_route(struct bat_priv *bat_priv,
 		bat_dbg(DBG_ROUTES, bat_priv, "Deleting route towards: %pM\n",
 			orig_node->orig);
 		tt_global_del_orig(bat_priv, orig_node,
-				    "Deleted route towards originator");
+				   "Deleted route towards originator");
 
 	/* route added */
 	} else if ((!curr_router) && (neigh_node)) {
@@ -229,8 +229,8 @@ void bonding_save_primary(const struct orig_node *orig_node,
 int window_protected(struct bat_priv *bat_priv, int32_t seq_num_diff,
 		     unsigned long *last_reset)
 {
-	if ((seq_num_diff <= -TQ_LOCAL_WINDOW_SIZE)
-		|| (seq_num_diff >= EXPECTED_SEQNO_RANGE)) {
+	if ((seq_num_diff <= -TQ_LOCAL_WINDOW_SIZE) ||
+	    (seq_num_diff >= EXPECTED_SEQNO_RANGE)) {
 		if (has_timed_out(*last_reset, RESET_PROTECTION_MS)) {
 
 			*last_reset = jiffies;
@@ -429,7 +429,7 @@ int recv_icmp_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	if ((hdr_size == sizeof(struct icmp_packet_rr)) &&
 	    (icmp_packet->rr_cur < BAT_RR_LEN)) {
 		memcpy(&(icmp_packet->rr[icmp_packet->rr_cur]),
-			ethhdr->h_dest, ETH_ALEN);
+		       ethhdr->h_dest, ETH_ALEN);
 		icmp_packet->rr_cur++;
 	}
 

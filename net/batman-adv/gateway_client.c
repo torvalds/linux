@@ -629,7 +629,7 @@ bool gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
 
 	/* check for bootp port */
 	if ((ntohs(ethhdr->h_proto) == ETH_P_IP) &&
-	     (ntohs(udphdr->dest) != 67))
+	    (ntohs(udphdr->dest) != 67))
 		return false;
 
 	if ((ntohs(ethhdr->h_proto) == ETH_P_IPV6) &&

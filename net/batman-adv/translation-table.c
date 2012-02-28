@@ -261,7 +261,7 @@ int tt_changes_fill_buffer(struct bat_priv *bat_priv,
 	atomic_set(&bat_priv->tt_local_changes, 0);
 
 	list_for_each_entry_safe(entry, safe, &bat_priv->tt_changes_list,
-			list) {
+				 list) {
 		if (count < tot_changes) {
 			memcpy(buff + tt_len(count),
 			       &entry->change, sizeof(struct tt_change));
@@ -333,17 +333,17 @@ int tt_local_seq_print_text(struct seq_file *seq, void *offset)
 		hlist_for_each_entry_rcu(tt_common_entry, node,
 					 head, hash_entry) {
 			seq_printf(seq, " * %pM [%c%c%c%c%c]\n",
-					tt_common_entry->addr,
-					(tt_common_entry->flags &
-					 TT_CLIENT_ROAM ? 'R' : '.'),
-					(tt_common_entry->flags &
-					 TT_CLIENT_NOPURGE ? 'P' : '.'),
-					(tt_common_entry->flags &
-					 TT_CLIENT_NEW ? 'N' : '.'),
-					(tt_common_entry->flags &
-					 TT_CLIENT_PENDING ? 'X' : '.'),
-					(tt_common_entry->flags &
-					 TT_CLIENT_WIFI ? 'W' : '.'));
+				   tt_common_entry->addr,
+				   (tt_common_entry->flags &
+				    TT_CLIENT_ROAM ? 'R' : '.'),
+				   (tt_common_entry->flags &
+				    TT_CLIENT_NOPURGE ? 'P' : '.'),
+				   (tt_common_entry->flags &
+				    TT_CLIENT_NEW ? 'N' : '.'),
+				   (tt_common_entry->flags &
+				    TT_CLIENT_PENDING ? 'X' : '.'),
+				   (tt_common_entry->flags &
+				    TT_CLIENT_WIFI ? 'W' : '.'));
 		}
 		rcu_read_unlock();
 	}
@@ -704,7 +704,7 @@ void tt_global_del_orig(struct bat_priv *bat_priv,
 
 		spin_lock_bh(list_lock);
 		hlist_for_each_entry_safe(tt_common_entry, node, safe,
-					 head, hash_entry) {
+					  head, hash_entry) {
 			tt_global_entry = container_of(tt_common_entry,
 						       struct tt_global_entry,
 						       common);

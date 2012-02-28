@@ -143,7 +143,7 @@ static void orig_node_free_rcu(struct rcu_head *rcu)
 
 	frag_list_free(&orig_node->frag_list);
 	tt_global_del_orig(orig_node->bat_priv, orig_node,
-			    "originator timed out");
+			   "originator timed out");
 
 	kfree(orig_node->tt_buff);
 	kfree(orig_node->bcast_own);
@@ -333,9 +333,8 @@ static bool purge_orig_node(struct bat_priv *bat_priv,
 		return true;
 	} else {
 		if (purge_orig_neighbors(bat_priv, orig_node,
-							&best_neigh_node)) {
+					 &best_neigh_node))
 			update_route(bat_priv, orig_node, best_neigh_node);
-		}
 	}
 
 	return false;

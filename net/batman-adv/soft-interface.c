@@ -397,7 +397,7 @@ void softif_neigh_purge(struct bat_priv *bat_priv)
 					  &softif_neigh_vid->softif_neigh_list,
 					  list) {
 			if ((!has_timed_out(softif_neigh->last_seen,
-					   SOFTIF_NEIGH_TIMEOUT)) &&
+					    SOFTIF_NEIGH_TIMEOUT)) &&
 			    (atomic_read(&bat_priv->mesh_state) == MESH_ACTIVE))
 				continue;
 
