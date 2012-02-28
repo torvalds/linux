@@ -441,13 +441,13 @@ struct fb_info * rk_get_fb(int fb_id)
     struct fb_info *fb = inf->fb[fb_id];
     return fb;
 }
-EXPORT_SYMBOL(get_fb);
+EXPORT_SYMBOL(rk_get_fb);
 
 void rk_direct_fb_show(struct fb_info * fbi)
 {
     rk_fb_set_par(fbi);
 }
-EXPORT_SYMBOL(direct_fb_show);
+EXPORT_SYMBOL(rk_direct_fb_show);
 
 static int request_fb_buffer(struct fb_info *fbi,int fb_id)
 {
