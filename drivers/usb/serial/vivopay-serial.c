@@ -45,25 +45,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&vivopay_serial_device, NULL
 };
 
-static int __init vivopay_serial_init(void)
-{
-	int retval;
-
-	retval = usb_serial_register_drivers(&vivopay_serial_driver,
-			serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-				DRIVER_DESC "\n");
-	return retval;
-}
-
-static void __exit vivopay_serial_exit(void)
-{
-	usb_serial_deregister_drivers(&vivopay_serial_driver, serial_drivers);
-}
-
-module_init(vivopay_serial_init);
-module_exit(vivopay_serial_exit);
+module_usb_serial_driver(vivopay_serial_driver, serial_drivers);
 
 MODULE_AUTHOR("Forest Bond <forest.bond@outpostembedded.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);
