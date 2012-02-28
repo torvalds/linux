@@ -60,8 +60,15 @@ send_nt_cancel(struct TCP_Server_Info *server, void *buf,
 	return rc;
 }
 
+static bool
+cifs_compare_fids(struct cifsFileInfo *ob1, struct cifsFileInfo *ob2)
+{
+	return ob1->netfid == ob2->netfid;
+}
+
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,
+	.compare_fids = cifs_compare_fids,
 };
 
 struct smb_version_values smb1_values = {
