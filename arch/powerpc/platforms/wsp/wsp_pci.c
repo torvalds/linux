@@ -468,15 +468,15 @@ static void __init wsp_pcie_configure_hw(struct pci_controller *hose)
 #define DUMP_REG(x) \
 	pr_debug("%-30s : 0x%016llx\n", #x, in_be64(hose->cfg_data + x))
 
-#ifdef CONFIG_WSP_DD1_WORKAROUND_BAD_PCIE_CLASS
-	/* WSP DD1 has a bogus class code by default in the PCI-E
-	 * root complex's built-in P2P bridge */
+	/*
+	 * Some WSP variants  has a bogus class code by default in the PCI-E
+	 * root complex's built-in P2P bridge
+	 */
 	val = in_be64(hose->cfg_data + PCIE_REG_SYS_CFG1);
 	pr_debug("PCI-E SYS_CFG1 : 0x%llx\n", val);
 	out_be64(hose->cfg_data + PCIE_REG_SYS_CFG1,
 		 (val & ~PCIE_REG_SYS_CFG1_CLASS_CODE) | (PCI_CLASS_BRIDGE_PCI << 8));
 	pr_debug("PCI-E SYS_CFG1 : 0x%llx\n", in_be64(hose->cfg_data + PCIE_REG_SYS_CFG1));
-#endif /* CONFIG_WSP_DD1_WORKAROUND_BAD_PCIE_CLASS */
 
 #ifdef CONFIG_WSP_DD1_WORKAROUND_DD1_TCE_BUGS
 	/* XXX Disable TCE caching, it doesn't work on DD1 */

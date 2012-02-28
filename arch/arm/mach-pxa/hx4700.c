@@ -244,6 +244,21 @@ static u16 asic3_gpio_config[] = {
 	ASIC3_GPIOD15_nPIOW,
 };
 
+static struct asic3_led asic3_leds[ASIC3_NUM_LEDS] = {
+	[0] = {
+		.name = "hx4700:amber",
+		.default_trigger = "ds2760-battery.0-charging-blink-full-solid",
+	},
+	[1] = {
+		.name = "hx4700:green",
+		.default_trigger = "unused",
+	},
+	[2] = {
+		.name = "hx4700:blue",
+		.default_trigger = "hx4700-radio",
+	},
+};
+
 static struct resource asic3_resources[] = {
 	/* GPIO part */
 	[0] = {
@@ -274,6 +289,7 @@ static struct asic3_platform_data asic3_platform_data = {
 	.gpio_config_num = ARRAY_SIZE(asic3_gpio_config),
 	.irq_base        = IRQ_BOARD_START,
 	.gpio_base       = HX4700_ASIC3_GPIO_BASE,
+	.leds            = asic3_leds,
 };
 
 static struct platform_device asic3 = {
@@ -704,10 +720,9 @@ static void hx4700_set_vpp(struct platform_device *pdev, int vpp)
 	gpio_set_value(GPIO91_HX4700_FLASH_VPEN, vpp);
 }
 
-static struct resource strataflash_resource = {
-	.start = PXA_CS0_PHYS,
-	.end   = PXA_CS0_PHYS + SZ_128M - 1,
-	.flags = IORESOURCE_MEM,
+static struct resource strataflash_resource[] = {
+	[0] = DEFINE_RES_MEM(PXA_CS0_PHYS, SZ_64M),
+	[1] = DEFINE_RES_MEM(PXA_CS0_PHYS + SZ_64M, SZ_64M),
 };
 
 static struct physmap_flash_data strataflash_data = {
@@ -718,8 +733,8 @@ static struct physmap_flash_data strataflash_data = {
 static struct platform_device strataflash = {
 	.name          = "physmap-flash",
 	.id            = -1,
-	.resource      = &strataflash_resource,
-	.num_resources = 1,
+	.resource      = strataflash_resource,
+	.num_resources = ARRAY_SIZE(strataflash_resource),
 	.dev = {
 		.platform_data = &strataflash_data,
 	},
