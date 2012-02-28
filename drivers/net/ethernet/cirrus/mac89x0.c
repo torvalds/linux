@@ -591,13 +591,13 @@ static void set_multicast_list(struct net_device *dev)
 
 static int set_mac_address(struct net_device *dev, void *addr)
 {
-	int i;
 	struct sockaddr *saddr = addr;
+	int i;
 
-	if (!is_valid_ether_addr(addr->sa_data))
+	if (!is_valid_ether_addr(saddr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	memcpy(dev->dev_addr, saddr->sa_data, ETH_ALEN);
 	printk("%s: Setting MAC address to %pM\n", dev->name, dev->dev_addr);
 
 	/* set the Ethernet address */
