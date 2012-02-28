@@ -100,12 +100,12 @@ notrace static noinline int do_realtime(struct timespec *ts)
 	int mode;
 
 	do {
-		seq = read_seqbegin(&gtod->lock);
+		seq = read_seqcount_begin(&gtod->seq);
 		mode = gtod->clock.vclock_mode;
 		ts->tv_sec = gtod->wall_time_sec;
 		ts->tv_nsec = gtod->wall_time_nsec;
 		ns = vgetns();
-	} while (unlikely(read_seqretry(&gtod->lock, seq)));
+	} while (unlikely(read_seqcount_retry(&gtod->seq, seq)));
 
 	timespec_add_ns(ts, ns);
 	return mode;
@@ -117,13 +117,13 @@ notrace static noinline int do_monotonic(struct timespec *ts)
 	int mode;
 
 	do {
-		seq = read_seqbegin(&gtod->lock);
+		seq = read_seqcount_begin(&gtod->seq);
 		mode = gtod->clock.vclock_mode;
 		secs = gtod->wall_time_sec;
 		ns = gtod->wall_time_nsec + vgetns();
 		secs += gtod->wall_to_monotonic.tv_sec;
 		ns += gtod->wall_to_monotonic.tv_nsec;
-	} while (unlikely(read_seqretry(&gtod->lock, seq)));
+	} while (unlikely(read_seqcount_retry(&gtod->seq, seq)));
 
 	/* wall_time_nsec, vgetns(), and wall_to_monotonic.tv_nsec
 	 * are all guaranteed to be nonnegative.
@@ -142,10 +142,10 @@ notrace static noinline int do_realtime_coarse(struct timespec *ts)
 {
 	unsigned long seq;
 	do {
-		seq = read_seqbegin(&gtod->lock);
+		seq = read_seqcount_begin(&gtod->seq);
 		ts->tv_sec = gtod->wall_time_coarse.tv_sec;
 		ts->tv_nsec = gtod->wall_time_coarse.tv_nsec;
-	} while (unlikely(read_seqretry(&gtod->lock, seq)));
+	} while (unlikely(read_seqcount_retry(&gtod->seq, seq)));
 	return 0;
 }
 
@@ -153,12 +153,12 @@ notrace static noinline int do_monotonic_coarse(struct timespec *ts)
 {
 	unsigned long seq, ns, secs;
 	do {
-		seq = read_seqbegin(&gtod->lock);
+		seq = read_seqcount_begin(&gtod->seq);
 		secs = gtod->wall_time_coarse.tv_sec;
 		ns = gtod->wall_time_coarse.tv_nsec;
 		secs += gtod->wall_to_monotonic.tv_sec;
 		ns += gtod->wall_to_monotonic.tv_nsec;
-	} while (unlikely(read_seqretry(&gtod->lock, seq)));
+	} while (unlikely(read_seqcount_retry(&gtod->seq, seq)));
 
 	/* wall_time_nsec and wall_to_monotonic.tv_nsec are
 	 * guaranteed to be between 0 and NSEC_PER_SEC.

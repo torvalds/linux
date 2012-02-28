@@ -5,7 +5,7 @@
 #include <linux/clocksource.h>
 
 struct vsyscall_gtod_data {
-	seqlock_t	lock;
+	seqcount_t	seq;
 
 	/* open coded 'struct timespec' */
 	time_t		wall_time_sec;
