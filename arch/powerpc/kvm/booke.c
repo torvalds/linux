@@ -464,7 +464,7 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
  *
  * returns !0 if a signal is pending and check_signal is true
  */
-static int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu, bool check_signal)
+static int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 {
 	int r = 0;
 
@@ -477,7 +477,7 @@ static int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu, bool check_signal)
 			continue;
 		}
 
-		if (check_signal && signal_pending(current)) {
+		if (signal_pending(current)) {
 			r = 1;
 			break;
 		}
@@ -509,7 +509,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	}
 
 	local_irq_disable();
-	if (kvmppc_prepare_to_enter(vcpu, true)) {
+	if (kvmppc_prepare_to_enter(vcpu)) {
 		kvm_run->exit_reason = KVM_EXIT_INTR;
 		ret = -EINTR;
 		goto out;
@@ -946,11 +946,13 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 * To avoid clobbering exit_reason, only check for signals if we
 	 * aren't already exiting to userspace for some other reason.
 	 */
-	local_irq_disable();
-	if (kvmppc_prepare_to_enter(vcpu, !(r & RESUME_HOST))) {
-		run->exit_reason = KVM_EXIT_INTR;
-		r = (-EINTR << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
-		kvmppc_account_exit(vcpu, SIGNAL_EXITS);
+	if (!(r & RESUME_HOST)) {
+		local_irq_disable();
+		if (kvmppc_prepare_to_enter(vcpu)) {
+			run->exit_reason = KVM_EXIT_INTR;
+			r = (-EINTR << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
+			kvmppc_account_exit(vcpu, SIGNAL_EXITS);
+		}
 	}
 
 	return r;
