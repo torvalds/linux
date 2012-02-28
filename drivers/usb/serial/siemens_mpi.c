@@ -49,26 +49,8 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&siemens_usb_mpi_device, NULL
 };
 
-static int __init siemens_usb_mpi_init(void)
-{
-	int retval;
+module_usb_serial_driver(siemens_usb_mpi_driver, serial_drivers);
 
-	retval = usb_serial_register_drivers(&siemens_usb_mpi_driver,
-			serial_drivers);
-	if (retval == 0) {
-		printk(KERN_INFO DRIVER_DESC "\n");
-		printk(KERN_INFO DRIVER_VERSION " " DRIVER_AUTHOR "\n");
-	}
-	return retval;
-}
-
-static void __exit siemens_usb_mpi_exit(void)
-{
-	usb_serial_deregister_drivers(&siemens_usb_mpi_driver, serial_drivers);
-}
-
-module_init(siemens_usb_mpi_init);
-module_exit(siemens_usb_mpi_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
