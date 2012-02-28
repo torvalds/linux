@@ -12,8 +12,6 @@
 #include <mach/iomux.h>
 #include <mach/fiq.h>
 
-extern void __init rk29_setup_early_printk(void);
-
 void __init rk30_init_irq(void)
 {
 	gic_init(0, IRQ_LOCALTIMER, RK30_GICD_BASE, RK30_GICC_BASE);

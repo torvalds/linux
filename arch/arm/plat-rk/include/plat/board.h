@@ -93,6 +93,12 @@ int board_usb_detect_init(unsigned gpio);
 static int inline board_usb_detect_init(unsigned gpio) { return 0; }
 #endif
 
+#ifdef CONFIG_RK_EARLY_PRINTK
+void __init rk29_setup_early_printk(void);
+#else
+static void inline rk29_setup_early_printk(void) {}
+#endif
+
 /* for wakeup Android */
 void rk28_send_wakeup_key(void);
 

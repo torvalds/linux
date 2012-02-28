@@ -106,4 +106,12 @@ config RK29_LAST_LOG
 	help
 	  It is only intended for debugging.
 
+config RK_EARLY_PRINTK
+	bool "Early printk"
+	depends on PRINTK && !DEBUG_LL
+	default y
+	help
+	  Say Y here if you want to have an early console using the
+	  kernel low-level debugging functions.
+
 endif
