@@ -80,12 +80,7 @@ early_param("vsyscall", vsyscall_setup);
 
 void update_vsyscall_tz(void)
 {
-	unsigned long flags;
-
-	write_seqlock_irqsave(&vsyscall_gtod_data.lock, flags);
-	/* sys_tz has changed */
 	vsyscall_gtod_data.sys_tz = sys_tz;
-	write_sequnlock_irqrestore(&vsyscall_gtod_data.lock, flags);
 }
 
 void update_vsyscall(struct timespec *wall_time, struct timespec *wtm,
