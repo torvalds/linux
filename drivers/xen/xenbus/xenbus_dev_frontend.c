@@ -369,6 +369,10 @@ static int xenbus_write_watch(unsigned msg_type, struct xenbus_file_priv *u)
 		goto out;
 	}
 	token++;
+	if (memchr(token, 0, u->u.msg.len - (token - path)) == NULL) {
+		rc = -EILSEQ;
+		goto out;
+	}
 
 	if (msg_type == XS_WATCH) {
 		watch = alloc_watch_adapter(path, token);

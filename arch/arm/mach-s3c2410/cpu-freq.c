@@ -115,7 +115,8 @@ static struct s3c_cpufreq_info s3c2410_cpufreq_info = {
 	.debug_io_show	= s3c_cpufreq_debugfs_call(s3c2410_iotiming_debugfs),
 };
 
-static int s3c2410_cpufreq_add(struct device *dev)
+static int s3c2410_cpufreq_add(struct device *dev,
+			       struct subsys_interface *sif)
 {
 	return s3c_cpufreq_register(&s3c2410_cpufreq_info);
 }
@@ -133,7 +134,8 @@ static int __init s3c2410_cpufreq_init(void)
 
 arch_initcall(s3c2410_cpufreq_init);
 
-static int s3c2410a_cpufreq_add(struct device *dev)
+static int s3c2410a_cpufreq_add(struct device *dev,
+				struct subsys_interface *sif)
 {
 	/* alter the maximum freq settings for S3C2410A. If a board knows
 	 * it only has a maximum of 200, then it should register its own
@@ -144,7 +146,7 @@ static int s3c2410a_cpufreq_add(struct device *dev)
 	s3c2410_cpufreq_info.max.pclk =  66500000;
 	s3c2410_cpufreq_info.name = "s3c2410a";
 
-	return s3c2410_cpufreq_add(dev);
+	return s3c2410_cpufreq_add(dev, sif);
 }
 
 static struct subsys_interface s3c2410a_cpufreq_interface = {

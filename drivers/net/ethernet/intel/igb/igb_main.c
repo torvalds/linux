@@ -5012,7 +5012,8 @@ static int igb_find_enabled_vfs(struct igb_adapter *adapter)
 	vf_devfn = pdev->devfn + 0x80;
 	pvfdev = pci_get_device(hw->vendor_id, device_id, NULL);
 	while (pvfdev) {
-		if (pvfdev->devfn == vf_devfn)
+		if (pvfdev->devfn == vf_devfn &&
+		    (pvfdev->bus->number >= pdev->bus->number))
 			vfs_found++;
 		vf_devfn += vf_stride;
 		pvfdev = pci_get_device(hw->vendor_id,

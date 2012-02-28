@@ -861,6 +861,7 @@ static int cluster_pages_for_defrag(struct inode *inode,
 	int i_done;
 	struct btrfs_ordered_extent *ordered;
 	struct extent_state *cached_state = NULL;
+	struct extent_io_tree *tree;
 	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
 
 	if (isize == 0)
@@ -871,17 +872,33 @@ static int cluster_pages_for_defrag(struct inode *inode,
 					   num_pages << PAGE_CACHE_SHIFT);
 	if (ret)
 		return ret;
-again:
-	ret = 0;
 	i_done = 0;
+	tree = &BTRFS_I(inode)->io_tree;
 
 	/* step one, lock all the pages */
 	for (i = 0; i < num_pages; i++) {
 		struct page *page;
+again:
 		page = find_or_create_page(inode->i_mapping,
-					    start_index + i, mask);
+					   start_index + i, mask);
 		if (!page)
 			break;
+
+		page_start = page_offset(page);
+		page_end = page_start + PAGE_CACHE_SIZE - 1;
+		while (1) {
+			lock_extent(tree, page_start, page_end, GFP_NOFS);
+			ordered = btrfs_lookup_ordered_extent(inode,
+							      page_start);
+			unlock_extent(tree, page_start, page_end, GFP_NOFS);
+			if (!ordered)
+				break;
+
+			unlock_page(page);
+			btrfs_start_ordered_extent(inode, ordered, 1);
+			btrfs_put_ordered_extent(ordered);
+			lock_page(page);
+		}
 
 		if (!PageUptodate(page)) {
 			btrfs_readpage(NULL, page);
@@ -893,15 +910,22 @@ again:
 				break;
 			}
 		}
+
 		isize = i_size_read(inode);
 		file_end = (isize - 1) >> PAGE_CACHE_SHIFT;
-		if (!isize || page->index > file_end ||
-		    page->mapping != inode->i_mapping) {
+		if (!isize || page->index > file_end) {
 			/* whoops, we blew past eof, skip this page */
 			unlock_page(page);
 			page_cache_release(page);
 			break;
 		}
+
+		if (page->mapping != inode->i_mapping) {
+			unlock_page(page);
+			page_cache_release(page);
+			goto again;
+		}
+
 		pages[i] = page;
 		i_done++;
 	}
@@ -924,25 +948,6 @@ again:
 	lock_extent_bits(&BTRFS_I(inode)->io_tree,
 			 page_start, page_end - 1, 0, &cached_state,
 			 GFP_NOFS);
-	ordered = btrfs_lookup_first_ordered_extent(inode, page_end - 1);
-	if (ordered &&
-	    ordered->file_offset + ordered->len > page_start &&
-	    ordered->file_offset < page_end) {
-		btrfs_put_ordered_extent(ordered);
-		unlock_extent_cached(&BTRFS_I(inode)->io_tree,
-				     page_start, page_end - 1,
-				     &cached_state, GFP_NOFS);
-		for (i = 0; i < i_done; i++) {
-			unlock_page(pages[i]);
-			page_cache_release(pages[i]);
-		}
-		btrfs_wait_ordered_range(inode, page_start,
-					 page_end - page_start);
-		goto again;
-	}
-	if (ordered)
-		btrfs_put_ordered_extent(ordered);
-
 	clear_extent_bit(&BTRFS_I(inode)->io_tree, page_start,
 			  page_end - 1, EXTENT_DIRTY | EXTENT_DELALLOC |
 			  EXTENT_DO_ACCOUNTING, 0, 0, &cached_state,
@@ -1324,6 +1329,12 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 	namelen = strlen(name);
 	if (strchr(name, '/')) {
 		ret = -EINVAL;
+		goto out;
+	}
+
+	if (name[0] == '.' &&
+	   (namelen == 1 || (name[1] == '.' && namelen == 2))) {
+		ret = -EEXIST;
 		goto out;
 	}
 

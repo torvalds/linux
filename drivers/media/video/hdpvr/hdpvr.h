@@ -113,6 +113,7 @@ struct hdpvr_device {
 	/* usb control transfer buffer and lock */
 	struct mutex		usbc_mutex;
 	u8			*usbc_buf;
+	u8			fw_ver;
 };
 
 static inline struct hdpvr_device *to_hdpvr_dev(struct v4l2_device *v4l2_dev)
