@@ -1346,35 +1346,7 @@ static void cypress_write_int_callback(struct urb *urb)
 	cypress_send(port);
 }
 
-
-/*****************************************************************************
- * Module functions
- *****************************************************************************/
-
-static int __init cypress_init(void)
-{
-	int retval;
-
-	dbg("%s", __func__);
-
-	retval = usb_serial_register_drivers(&cypress_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
-}
-
-
-static void __exit cypress_exit(void)
-{
-	dbg("%s", __func__);
-
-	usb_serial_deregister_drivers(&cypress_driver, serial_drivers);
-}
-
-
-module_init(cypress_init);
-module_exit(cypress_exit);
+module_usb_serial_driver(cypress_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
