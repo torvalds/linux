@@ -892,6 +892,8 @@ static char *iref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 		if (eb != eb_in)
 			free_extent_buffer(eb);
 		ret = inode_ref_info(parent, 0, fs_root, path, &found_key);
+		if (ret > 0)
+			ret = -ENOENT;
 		if (ret)
 			break;
 		next_inum = found_key.offset;

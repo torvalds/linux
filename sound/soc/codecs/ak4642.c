@@ -146,13 +146,10 @@ static const struct snd_kcontrol_new ak4642_snd_controls[] = {
 
 	SOC_DOUBLE_R_TLV("Digital Playback Volume", L_DVC, R_DVC,
 			 0, 0xFF, 1, out_tlv),
-
-	SOC_SINGLE("Headphone Switch", PW_MGMT2, 6, 1, 0),
 };
 
-static const struct snd_kcontrol_new ak4642_hpout_mixer_controls[] = {
-	SOC_DAPM_SINGLE("DACH", MD_CTL4, 0, 1, 0),
-};
+static const struct snd_kcontrol_new ak4642_headphone_control =
+	SOC_DAPM_SINGLE("Switch", PW_MGMT2, 6, 1, 0);
 
 static const struct snd_kcontrol_new ak4642_lout_mixer_controls[] = {
 	SOC_DAPM_SINGLE("DACL", SG_SL1, 4, 1, 0),
@@ -165,13 +162,12 @@ static const struct snd_soc_dapm_widget ak4642_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("HPOUTR"),
 	SND_SOC_DAPM_OUTPUT("LINEOUT"),
 
-	SND_SOC_DAPM_MIXER("HPOUTL Mixer", PW_MGMT2, 5, 0,
-			   &ak4642_hpout_mixer_controls[0],
-			   ARRAY_SIZE(ak4642_hpout_mixer_controls)),
+	SND_SOC_DAPM_PGA("HPL Out", PW_MGMT2, 5, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("HPR Out", PW_MGMT2, 4, 0, NULL, 0),
+	SND_SOC_DAPM_SWITCH("Headphone Enable", SND_SOC_NOPM, 0, 0,
+			    &ak4642_headphone_control),
 
-	SND_SOC_DAPM_MIXER("HPOUTR Mixer", PW_MGMT2, 4, 0,
-			   &ak4642_hpout_mixer_controls[0],
-			   ARRAY_SIZE(ak4642_hpout_mixer_controls)),
+	SND_SOC_DAPM_PGA("DACH", MD_CTL4, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_MIXER("LINEOUT Mixer", PW_MGMT1, 3, 0,
 			   &ak4642_lout_mixer_controls[0],
@@ -184,12 +180,17 @@ static const struct snd_soc_dapm_widget ak4642_dapm_widgets[] = {
 static const struct snd_soc_dapm_route ak4642_intercon[] = {
 
 	/* Outputs */
-	{"HPOUTL", NULL, "HPOUTL Mixer"},
-	{"HPOUTR", NULL, "HPOUTR Mixer"},
+	{"HPOUTL", NULL, "HPL Out"},
+	{"HPOUTR", NULL, "HPR Out"},
 	{"LINEOUT", NULL, "LINEOUT Mixer"},
 
-	{"HPOUTL Mixer", "DACH", "DAC"},
-	{"HPOUTR Mixer", "DACH", "DAC"},
+	{"HPL Out", NULL, "Headphone Enable"},
+	{"HPR Out", NULL, "Headphone Enable"},
+
+	{"Headphone Enable", "Switch", "DACH"},
+
+	{"DACH", NULL, "DAC"},
+
 	{"LINEOUT Mixer", "DACL", "DAC"},
 };
 
