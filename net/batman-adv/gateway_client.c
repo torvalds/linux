@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2009-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -396,7 +396,7 @@ void gw_node_purge(struct bat_priv *bat_priv)
 {
 	struct gw_node *gw_node, *curr_gw;
 	struct hlist_node *node, *node_tmp;
-	unsigned long timeout = 2 * PURGE_TIMEOUT * HZ;
+	unsigned long timeout = msecs_to_jiffies(2 * PURGE_TIMEOUT);
 	int do_deselect = 0;
 
 	curr_gw = gw_get_selected_gw_node(bat_priv);
@@ -629,7 +629,7 @@ bool gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
 
 	/* check for bootp port */
 	if ((ntohs(ethhdr->h_proto) == ETH_P_IP) &&
-	     (ntohs(udphdr->dest) != 67))
+	    (ntohs(udphdr->dest) != 67))
 		return false;
 
 	if ((ntohs(ethhdr->h_proto) == ETH_P_IPV6) &&

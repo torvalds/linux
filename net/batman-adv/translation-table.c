@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -210,6 +210,11 @@ void tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 	if (compare_eth(addr, soft_iface->dev_addr))
 		tt_local_entry->common.flags |= TT_CLIENT_NOPURGE;
 
+	/* The local entry has to be marked as NEW to avoid to send it in
+	 * a full table response going out before the next ttvn increment
+	 * (consistency check) */
+	tt_local_entry->common.flags |= TT_CLIENT_NEW;
+
 	hash_added = hash_add(bat_priv->tt_local_hash, compare_tt, choose_orig,
 			 &tt_local_entry->common,
 			 &tt_local_entry->common.hash_entry);
@@ -221,11 +226,6 @@ void tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 	}
 
 	tt_local_event(bat_priv, addr, tt_local_entry->common.flags);
-
-	/* The local entry has to be marked as NEW to avoid to send it in
-	 * a full table response going out before the next ttvn increment
-	 * (consistency check) */
-	tt_local_entry->common.flags |= TT_CLIENT_NEW;
 
 	/* remove address from global hash if present */
 	tt_global_entry = tt_global_hash_find(bat_priv, addr);
@@ -261,7 +261,7 @@ int tt_changes_fill_buffer(struct bat_priv *bat_priv,
 	atomic_set(&bat_priv->tt_local_changes, 0);
 
 	list_for_each_entry_safe(entry, safe, &bat_priv->tt_changes_list,
-			list) {
+				 list) {
 		if (count < tot_changes) {
 			memcpy(buff + tt_len(count),
 			       &entry->change, sizeof(struct tt_change));
@@ -333,17 +333,17 @@ int tt_local_seq_print_text(struct seq_file *seq, void *offset)
 		hlist_for_each_entry_rcu(tt_common_entry, node,
 					 head, hash_entry) {
 			seq_printf(seq, " * %pM [%c%c%c%c%c]\n",
-					tt_common_entry->addr,
-					(tt_common_entry->flags &
-					 TT_CLIENT_ROAM ? 'R' : '.'),
-					(tt_common_entry->flags &
-					 TT_CLIENT_NOPURGE ? 'P' : '.'),
-					(tt_common_entry->flags &
-					 TT_CLIENT_NEW ? 'N' : '.'),
-					(tt_common_entry->flags &
-					 TT_CLIENT_PENDING ? 'X' : '.'),
-					(tt_common_entry->flags &
-					 TT_CLIENT_WIFI ? 'W' : '.'));
+				   tt_common_entry->addr,
+				   (tt_common_entry->flags &
+				    TT_CLIENT_ROAM ? 'R' : '.'),
+				   (tt_common_entry->flags &
+				    TT_CLIENT_NOPURGE ? 'P' : '.'),
+				   (tt_common_entry->flags &
+				    TT_CLIENT_NEW ? 'N' : '.'),
+				   (tt_common_entry->flags &
+				    TT_CLIENT_PENDING ? 'X' : '.'),
+				   (tt_common_entry->flags &
+				    TT_CLIENT_WIFI ? 'W' : '.'));
 		}
 		rcu_read_unlock();
 	}
@@ -355,7 +355,7 @@ out:
 
 static void tt_local_set_pending(struct bat_priv *bat_priv,
 				 struct tt_local_entry *tt_local_entry,
-				 uint16_t flags)
+				 uint16_t flags, const char *message)
 {
 	tt_local_event(bat_priv, tt_local_entry->common.addr,
 		       tt_local_entry->common.flags | flags);
@@ -364,6 +364,9 @@ static void tt_local_set_pending(struct bat_priv *bat_priv,
 	 * to be kept in the table in order to send it in a full table
 	 * response issued before the net ttvn increment (consistency check) */
 	tt_local_entry->common.flags |= TT_CLIENT_PENDING;
+
+	bat_dbg(DBG_TT, bat_priv, "Local tt entry (%pM) pending to be removed: "
+		"%s\n", tt_local_entry->common.addr, message);
 }
 
 void tt_local_remove(struct bat_priv *bat_priv, const uint8_t *addr,
@@ -376,10 +379,7 @@ void tt_local_remove(struct bat_priv *bat_priv, const uint8_t *addr,
 		goto out;
 
 	tt_local_set_pending(bat_priv, tt_local_entry, TT_CLIENT_DEL |
-			     (roaming ? TT_CLIENT_ROAM : NO_FLAGS));
-
-	bat_dbg(DBG_TT, bat_priv, "Local tt entry (%pM) pending to be removed: "
-		"%s\n", tt_local_entry->common.addr, message);
+			     (roaming ? TT_CLIENT_ROAM : NO_FLAGS), message);
 out:
 	if (tt_local_entry)
 		tt_local_entry_free_ref(tt_local_entry);
@@ -413,14 +413,11 @@ static void tt_local_purge(struct bat_priv *bat_priv)
 				continue;
 
 			if (!has_timed_out(tt_local_entry->last_seen,
-					   TT_LOCAL_TIMEOUT * 1000))
+					   TT_LOCAL_TIMEOUT))
 				continue;
 
 			tt_local_set_pending(bat_priv, tt_local_entry,
-					     TT_CLIENT_DEL);
-			bat_dbg(DBG_TT, bat_priv, "Local tt entry (%pM) "
-				"pending to be removed: timed out\n",
-				tt_local_entry->common.addr);
+					     TT_CLIENT_DEL, "timed out");
 		}
 		spin_unlock_bh(list_lock);
 	}
@@ -606,7 +603,7 @@ int tt_global_seq_print_text(struct seq_file *seq, void *offset)
 						       struct tt_global_entry,
 						       common);
 			seq_printf(seq, " * %pM  (%3u) via %pM     (%3u)   "
-					"[%c%c%c]\n",
+					"[%c%c]\n",
 					tt_global_entry->common.addr,
 					tt_global_entry->ttvn,
 					tt_global_entry->orig_node->orig,
@@ -615,8 +612,6 @@ int tt_global_seq_print_text(struct seq_file *seq, void *offset)
 						last_ttvn),
 					(tt_global_entry->common.flags &
 					 TT_CLIENT_ROAM ? 'R' : '.'),
-					(tt_global_entry->common.flags &
-					 TT_CLIENT_PENDING ? 'X' : '.'),
 					(tt_global_entry->common.flags &
 					 TT_CLIENT_WIFI ? 'W' : '.'));
 		}
@@ -657,29 +652,31 @@ void tt_global_del(struct bat_priv *bat_priv,
 	struct tt_local_entry *tt_local_entry = NULL;
 
 	tt_global_entry = tt_global_hash_find(bat_priv, addr);
-	if (!tt_global_entry)
+	if (!tt_global_entry || tt_global_entry->orig_node != orig_node)
 		goto out;
 
-	if (tt_global_entry->orig_node == orig_node) {
-		if (roaming) {
-			/* if we are deleting a global entry due to a roam
-			 * event, there are two possibilities:
-			 * 1) the client roamed from node A to node B => we mark
-			 *    it with TT_CLIENT_ROAM, we start a timer and we
-			 *    wait for node B to claim it. In case of timeout
-			 *    the entry is purged.
-			 * 2) the client roamed to us => we can directly delete
-			 *    the global entry, since it is useless now. */
-			tt_local_entry = tt_local_hash_find(bat_priv,
-							    tt_global_entry->common.addr);
-			if (!tt_local_entry) {
-				tt_global_entry->common.flags |= TT_CLIENT_ROAM;
-				tt_global_entry->roam_at = jiffies;
-				goto out;
-			}
-		}
-		_tt_global_del(bat_priv, tt_global_entry, message);
+	if (!roaming)
+		goto out_del;
+
+	/* if we are deleting a global entry due to a roam
+	 * event, there are two possibilities:
+	 * 1) the client roamed from node A to node B => we mark
+	 *    it with TT_CLIENT_ROAM, we start a timer and we
+	 *    wait for node B to claim it. In case of timeout
+	 *    the entry is purged.
+	 * 2) the client roamed to us => we can directly delete
+	 *    the global entry, since it is useless now. */
+	tt_local_entry = tt_local_hash_find(bat_priv,
+					    tt_global_entry->common.addr);
+	if (!tt_local_entry) {
+		tt_global_entry->common.flags |= TT_CLIENT_ROAM;
+		tt_global_entry->roam_at = jiffies;
+		goto out;
 	}
+
+out_del:
+	_tt_global_del(bat_priv, tt_global_entry, message);
+
 out:
 	if (tt_global_entry)
 		tt_global_entry_free_ref(tt_global_entry);
@@ -707,7 +704,7 @@ void tt_global_del_orig(struct bat_priv *bat_priv,
 
 		spin_lock_bh(list_lock);
 		hlist_for_each_entry_safe(tt_common_entry, node, safe,
-					 head, hash_entry) {
+					  head, hash_entry) {
 			tt_global_entry = container_of(tt_common_entry,
 						       struct tt_global_entry,
 						       common);
@@ -751,7 +748,7 @@ static void tt_global_roam_purge(struct bat_priv *bat_priv)
 			if (!(tt_global_entry->common.flags & TT_CLIENT_ROAM))
 				continue;
 			if (!has_timed_out(tt_global_entry->roam_at,
-					   TT_CLIENT_ROAM_TIMEOUT * 1000))
+					   TT_CLIENT_ROAM_TIMEOUT))
 				continue;
 
 			bat_dbg(DBG_TT, bat_priv, "Deleting global "
@@ -837,11 +834,6 @@ struct orig_node *transtable_search(struct bat_priv *bat_priv,
 		goto out;
 
 	if (!atomic_inc_not_zero(&tt_global_entry->orig_node->refcount))
-		goto out;
-
-	/* A global client marked as PENDING has already moved from that
-	 * originator */
-	if (tt_global_entry->common.flags & TT_CLIENT_PENDING)
 		goto out;
 
 	orig_node = tt_global_entry->orig_node;
@@ -970,8 +962,7 @@ static void tt_req_purge(struct bat_priv *bat_priv)
 
 	spin_lock_bh(&bat_priv->tt_req_list_lock);
 	list_for_each_entry_safe(node, safe, &bat_priv->tt_req_list, list) {
-		if (has_timed_out(node->issued_at,
-				  TT_REQUEST_TIMEOUT * 1000)) {
+		if (has_timed_out(node->issued_at, TT_REQUEST_TIMEOUT)) {
 			list_del(&node->list);
 			kfree(node);
 		}
@@ -990,7 +981,7 @@ static struct tt_req_node *new_tt_req_node(struct bat_priv *bat_priv,
 	list_for_each_entry(tt_req_node_tmp, &bat_priv->tt_req_list, list) {
 		if (compare_eth(tt_req_node_tmp, orig_node) &&
 		    !has_timed_out(tt_req_node_tmp->issued_at,
-				   TT_REQUEST_TIMEOUT * 1000))
+				   TT_REQUEST_TIMEOUT))
 			goto unlock;
 	}
 
@@ -1583,8 +1574,7 @@ static void tt_roam_purge(struct bat_priv *bat_priv)
 
 	spin_lock_bh(&bat_priv->tt_roam_list_lock);
 	list_for_each_entry_safe(node, safe, &bat_priv->tt_roam_list, list) {
-		if (!has_timed_out(node->first_time,
-				   ROAMING_MAX_TIME * 1000))
+		if (!has_timed_out(node->first_time, ROAMING_MAX_TIME))
 			continue;
 
 		list_del(&node->list);
@@ -1611,8 +1601,7 @@ static bool tt_check_roam_count(struct bat_priv *bat_priv,
 		if (!compare_eth(tt_roam_node->addr, client))
 			continue;
 
-		if (has_timed_out(tt_roam_node->first_time,
-				  ROAMING_MAX_TIME * 1000))
+		if (has_timed_out(tt_roam_node->first_time, ROAMING_MAX_TIME))
 			continue;
 
 		if (!atomic_dec_not_zero(&tt_roam_node->counter))

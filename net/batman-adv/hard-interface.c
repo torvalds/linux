@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -341,23 +341,23 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 	if (atomic_read(&bat_priv->fragmentation) && hard_iface->net_dev->mtu <
 		ETH_DATA_LEN + BAT_HEADER_LEN)
 		bat_info(hard_iface->soft_iface,
-			"The MTU of interface %s is too small (%i) to handle "
-			"the transport of batman-adv packets. Packets going "
-			"over this interface will be fragmented on layer2 "
-			"which could impact the performance. Setting the MTU "
-			"to %zi would solve the problem.\n",
-			hard_iface->net_dev->name, hard_iface->net_dev->mtu,
-			ETH_DATA_LEN + BAT_HEADER_LEN);
+			 "The MTU of interface %s is too small (%i) to handle "
+			 "the transport of batman-adv packets. Packets going "
+			 "over this interface will be fragmented on layer2 "
+			 "which could impact the performance. Setting the MTU "
+			 "to %zi would solve the problem.\n",
+			 hard_iface->net_dev->name, hard_iface->net_dev->mtu,
+			 ETH_DATA_LEN + BAT_HEADER_LEN);
 
 	if (!atomic_read(&bat_priv->fragmentation) && hard_iface->net_dev->mtu <
 		ETH_DATA_LEN + BAT_HEADER_LEN)
 		bat_info(hard_iface->soft_iface,
-			"The MTU of interface %s is too small (%i) to handle "
-			"the transport of batman-adv packets. If you experience"
-			" problems getting traffic through try increasing the "
-			"MTU to %zi.\n",
-			hard_iface->net_dev->name, hard_iface->net_dev->mtu,
-			ETH_DATA_LEN + BAT_HEADER_LEN);
+			 "The MTU of interface %s is too small (%i) to handle "
+			 "the transport of batman-adv packets. If you "
+			 "experience problems getting traffic through try "
+			 "increasing the MTU to %zi.\n",
+			 hard_iface->net_dev->name, hard_iface->net_dev->mtu,
+			 ETH_DATA_LEN + BAT_HEADER_LEN);
 
 	if (hardif_is_iface_up(hard_iface))
 		hardif_activate_interface(hard_iface);
@@ -580,8 +580,8 @@ static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		goto err_free;
 
 	/* expect a valid ethernet header here. */
-	if (unlikely(skb->mac_len != sizeof(struct ethhdr)
-				|| !skb_mac_header(skb)))
+	if (unlikely(skb->mac_len != sizeof(struct ethhdr) ||
+		     !skb_mac_header(skb)))
 		goto err_free;
 
 	if (!hard_iface->soft_iface)

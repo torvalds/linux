@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2009-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -93,7 +93,7 @@ static bool parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 			multi = 1024;
 
 		if ((strnicmp(tmp_ptr, "kbit", 4) == 0) ||
-			(multi > 1))
+		    (multi > 1))
 			*tmp_ptr = '\0';
 	}
 
@@ -118,7 +118,7 @@ static bool parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 				multi = 1024;
 
 			if ((strnicmp(tmp_ptr, "kbit", 4) == 0) ||
-				(multi > 1))
+			    (multi > 1))
 				*tmp_ptr = '\0';
 		}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -396,8 +396,8 @@ void softif_neigh_purge(struct bat_priv *bat_priv)
 		hlist_for_each_entry_safe(softif_neigh, node_tmp, node_tmp2,
 					  &softif_neigh_vid->softif_neigh_list,
 					  list) {
-			if ((!time_after(jiffies, softif_neigh->last_seen +
-				msecs_to_jiffies(SOFTIF_NEIGH_TIMEOUT))) &&
+			if ((!has_timed_out(softif_neigh->last_seen,
+					    SOFTIF_NEIGH_TIMEOUT)) &&
 			    (atomic_read(&bat_priv->mesh_state) == MESH_ACTIVE))
 				continue;
 
