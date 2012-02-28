@@ -149,7 +149,7 @@
 
 #define TWL_MODULE_LAST TWL4030_MODULE_LAST
 
-#define TWL4030_NR_IRQS    8
+#define TWL4030_NR_IRQS    34 /* core:8, power:8, gpio: 18 */
 #define TWL6030_NR_IRQS    20
 
 /* Base Address defns for twl4030_map[] */
@@ -262,8 +262,6 @@ struct twl_client {
 };
 
 static struct twl_client twl_modules[TWL_NUM_SLAVES];
-
-static struct irq_domain domain;
 
 /* mapping the module id to slave id and base address */
 struct twl_mapping {
@@ -1225,14 +1223,8 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	pdata->irq_base = status;
 	pdata->irq_end = pdata->irq_base + nr_irqs;
-
-	domain.irq_base = pdata->irq_base;
-	domain.nr_irq = nr_irqs;
-#ifdef CONFIG_OF_IRQ
-	domain.of_node = of_node_get(node);
-	domain.ops = &irq_domain_simple_ops;
-#endif
-	irq_domain_add(&domain);
+	irq_domain_add_legacy(node, nr_irqs, pdata->irq_base, 0,
+			      &irq_domain_simple_ops, NULL);
 
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C) == 0) {
 		dev_dbg(&client->dev, "can't talk I2C?\n");
@@ -1313,11 +1305,10 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		twl_i2c_write_u8(TWL4030_MODULE_INTBR, temp, REG_GPPUPDCTR1);
 	}
 
-#ifdef CONFIG_OF_DEVICE
+	status = -ENODEV;
 	if (node)
 		status = of_platform_populate(node, NULL, NULL, &client->dev);
-	else
-#endif
+	if (status)
 		status = add_children(pdata, id->driver_data);
 
 fail:

@@ -159,7 +159,7 @@ S:	Maintained
 F:	drivers/net/ethernet/realtek/r8169.c
 
 8250/16?50 (AND CLONE UARTS) SERIAL DRIVER
-M:	Greg Kroah-Hartman <gregkh@suse.de>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	linux-serial@vger.kernel.org
 W:	http://serial.sourceforge.net
 S:	Maintained
@@ -788,12 +788,6 @@ T:	git git://git.pengutronix.de/git/imx/linux-2.6.git
 F:	arch/arm/mach-mx*/
 F:	arch/arm/mach-imx/
 F:	arch/arm/plat-mxc/
-
-ARM/FREESCALE IMX51
-M:	Amit Kucheria <amit.kucheria@canonical.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-mx5/
 
 ARM/FREESCALE IMX6
 M:	Shawn Guo <shawn.guo@linaro.org>
@@ -1783,9 +1777,9 @@ X:	net/wireless/wext*
 
 CHAR and MISC DRIVERS
 M:	Arnd Bergmann <arnd@arndb.de>
-M:	Greg Kroah-Hartman <greg@kroah.com>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/char-misc.git
-S:	Maintained
+S:	Supported
 F:	drivers/char/*
 F:	drivers/misc/*
 
@@ -2287,7 +2281,7 @@ F:	drivers/acpi/dock.c
 DOCUMENTATION
 M:	Randy Dunlap <rdunlap@xenotime.net>
 L:	linux-doc@vger.kernel.org
-T:	quilt http://userweb.kernel.org/~rdunlap/kernel-doc-patches/current/
+T:	quilt http://xenotime.net/kernel-doc-patches/current/
 S:	Maintained
 F:	Documentation/
 
@@ -2320,7 +2314,7 @@ F:	lib/lru_cache.c
 F:	Documentation/blockdev/drbd/
 
 DRIVER CORE, KOBJECTS, DEBUGFS AND SYSFS
-M:	Greg Kroah-Hartman <gregkh@suse.de>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core-2.6.git
 S:	Supported
 F:	Documentation/kobject.txt
@@ -3324,6 +3318,12 @@ S:	Maintained
 F:	net/ieee802154/
 F:	drivers/ieee802154/
 
+IIO SUBSYSTEM AND DRIVERS
+M:	Jonathan Cameron <jic23@cam.ac.uk>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/iio/
+
 IKANOS/ADI EAGLE ADSL USB DRIVER
 M:	Matthieu Castet <castet.matthieu@free.fr>
 M:	Stanislaw Gruszka <stf_xl@wp.pl>
@@ -3639,6 +3639,15 @@ M:	Thomas Gleixner <tglx@linutronix.de>
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git irq/core
 F:	kernel/irq/
+
+IRQ DOMAINS (IRQ NUMBER MAPPING LIBRARY)
+M:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
+M:	Grant Likely <grant.likely@secretlab.ca>
+T:	git git://git.secretlab.ca/git/linux-2.6.git irqdomain/next
+S:	Maintained
+F:	Documentation/IRQ-domain.txt
+F:	include/linux/irqdomain.h
+F:	kernel/irq/irqdomain.c
 
 ISAPNP
 M:	Jaroslav Kysela <perex@perex.cz>
@@ -3992,11 +4001,11 @@ M:	Rusty Russell <rusty@rustcorp.com.au>
 L:	lguest@lists.ozlabs.org
 W:	http://lguest.ozlabs.org/
 S:	Odd Fixes
-F:	Documentation/virtual/lguest/
+F:	arch/x86/include/asm/lguest*.h
 F:	arch/x86/lguest/
 F:	drivers/lguest/
 F:	include/linux/lguest*.h
-F:	arch/x86/include/asm/lguest*.h
+F:	tools/lguest/
 
 LINUX FOR IBM pSERIES (RS/6000)
 M:	Paul Mackerras <paulus@au.ibm.com>
@@ -4136,7 +4145,7 @@ L:	linux-ntfs-dev@lists.sourceforge.net
 W:	http://www.linux-ntfs.org/content/view/19/37/
 S:	Maintained
 F:	Documentation/ldm.txt
-F:	fs/partitions/ldm.*
+F:	block/partitions/ldm.*
 
 LogFS
 M:	Joern Engel <joern@logfs.org>
@@ -5633,7 +5642,7 @@ W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
 F:	arch/s390/
 F:	drivers/s390/
-F:	fs/partitions/ibm.c
+F:	block/partitions/ibm.c
 F:	Documentation/s390/
 F:	Documentation/DocBook/s390*
 
@@ -6276,15 +6285,15 @@ S:	Maintained
 F:	arch/alpha/kernel/srm_env.c
 
 STABLE BRANCH
-M:	Greg Kroah-Hartman <greg@kroah.com>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	stable@vger.kernel.org
-S:	Maintained
+S:	Supported
 
 STAGING SUBSYSTEM
-M:	Greg Kroah-Hartman <gregkh@suse.de>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging.git
 L:	devel@driverdev.osuosl.org
-S:	Maintained
+S:	Supported
 F:	drivers/staging/
 
 STAGING - AGERE HERMES II and II.5 WIRELESS DRIVERS
@@ -6395,11 +6404,6 @@ STAGING - TI DSP BRIDGE DRIVERS
 M:	Omar Ramirez Luna <omar.ramirez@ti.com>
 S:	Odd Fixes
 F:	drivers/staging/tidspbridge/
-
-STAGING - TRIDENT TVMASTER TMxxxx USB VIDEO CAPTURE DRIVERS
-L:	linux-media@vger.kernel.org
-S:	Odd Fixes
-F:	drivers/staging/tm6000/
 
 STAGING - USB ENE SM/MS CARD READER DRIVER
 M:	Al Cho <acho@novell.com>
@@ -6669,8 +6673,8 @@ S:	Maintained
 K:	^Subject:.*(?i)trivial
 
 TTY LAYER
-M:	Greg Kroah-Hartman <gregkh@suse.de>
-S:	Maintained
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/tty-2.6.git
 F:	drivers/tty/
 F:	drivers/tty/serial/serial_core.c
@@ -6958,7 +6962,7 @@ S:	Maintained
 F:	drivers/usb/serial/digi_acceleport.c
 
 USB SERIAL DRIVER
-M:	Greg Kroah-Hartman <gregkh@suse.de>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	linux-usb@vger.kernel.org
 S:	Supported
 F:	Documentation/usb/usb-serial.txt
@@ -6973,9 +6977,8 @@ S:	Maintained
 F:	drivers/usb/serial/empeg.c
 
 USB SERIAL KEYSPAN DRIVER
-M:	Greg Kroah-Hartman <greg@kroah.com>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	linux-usb@vger.kernel.org
-W:	http://www.kroah.com/linux/
 S:	Maintained
 F:	drivers/usb/serial/*keyspan*
 
@@ -7003,7 +7006,7 @@ F:	Documentation/video4linux/sn9c102.txt
 F:	drivers/media/video/sn9c102/
 
 USB SUBSYSTEM
-M:	Greg Kroah-Hartman <gregkh@suse.de>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	linux-usb@vger.kernel.org
 W:	http://www.linux-usb.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/usb-2.6.git
@@ -7090,7 +7093,7 @@ F:	fs/hppfs/
 
 USERSPACE I/O (UIO)
 M:	"Hans J. Koch" <hjk@hansjkoch.de>
-M:	Greg Kroah-Hartman <gregkh@suse.de>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 S:	Maintained
 F:	Documentation/DocBook/uio-howto.tmpl
 F:	drivers/uio/

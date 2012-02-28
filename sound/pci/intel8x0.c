@@ -2102,6 +2102,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	},
 	{
 		.subvendor = 0x161f,
+		.subdevice = 0x202f,
+		.name = "Gateway M520",
+		.type = AC97_TUNE_INV_EAPD
+	},
+	{
+		.subvendor = 0x161f,
 		.subdevice = 0x203a,
 		.name = "Gateway 4525GZ",		/* AD1981B */
 		.type = AC97_TUNE_INV_EAPD
