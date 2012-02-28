@@ -1115,25 +1115,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&sierra_device, NULL
 };
 
-/* Functions used by new usb-serial code. */
-static int __init sierra_init(void)
-{
-	int retval;
-
-	retval = usb_serial_register_drivers(&sierra_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
-}
-
-static void __exit sierra_exit(void)
-{
-	usb_serial_deregister_drivers(&sierra_driver, serial_drivers);
-}
-
-module_init(sierra_init);
-module_exit(sierra_exit);
+module_usb_serial_driver(sierra_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
