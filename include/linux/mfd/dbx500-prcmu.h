@@ -305,6 +305,14 @@ static inline bool prcmu_gic_pending_irq(void)
 		return db8500_prcmu_gic_pending_irq();
 }
 
+static inline int prcmu_copy_gic_settings(void)
+{
+	if (cpu_is_u5500())
+		return -EINVAL;
+	else
+		return db8500_prcmu_copy_gic_settings();
+}
+
 static inline int prcmu_set_epod(u16 epod_id, u8 epod_state)
 {
 	if (cpu_is_u5500())

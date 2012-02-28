@@ -883,6 +883,26 @@ bool db8500_prcmu_gic_pending_irq(void)
 	return false;
 }
 
+/*
+ * This function copies the gic SPI settings to the prcmu in order to
+ * monitor them and abort/finish the retention/off sequence or state.
+ */
+int db8500_prcmu_copy_gic_settings(void)
+{
+	u32 er; /* Enable register */
+	void __iomem *dist_base = __io_address(U8500_GIC_DIST_BASE);
+	int i;
+
+        /* We skip the STI and PPI */
+	for (i = 0; i < PRCMU_GIC_NUMBER_REGS - 1; i++) {
+		er = readl_relaxed(dist_base +
+				   GIC_DIST_ENABLE_SET + (i + 1) * 4);
+		writel(er, PRCM_ARMITMSK31TO0 + i * 4);
+	}
+
+	return 0;
+}
+
 /* This function should only be called while mb0_transfer.lock is held. */
 static void config_wakeups(void)
 {
