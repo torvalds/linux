@@ -376,6 +376,14 @@ config MACH_IMX27IPCAM
 	  Include support for IMX27 IPCAM platform. This includes specific
 	  configurations for the board and its peripherals.
 
+config MACH_IMX27_DT
+	bool "Support i.MX27 platforms from device tree"
+	select SOC_IMX27
+	select USE_OF
+	help
+	  Include support for Freescale i.MX27 based platforms
+	  using the device tree for discovery
+
 endif
 
 if ARCH_IMX_V6_V7
