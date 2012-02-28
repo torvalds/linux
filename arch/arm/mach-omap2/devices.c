@@ -654,9 +654,7 @@ void __init omap242x_init_mmc(struct omap_mmc_platform_data **mmc_data)
 /*-------------------------------------------------------------------------*/
 
 #if defined(CONFIG_HDQ_MASTER_OMAP) || defined(CONFIG_HDQ_MASTER_OMAP_MODULE)
-#if defined(CONFIG_SOC_OMAP2430) || defined(CONFIG_SOC_OMAP3430)
 #define OMAP_HDQ_BASE	0x480B2000
-#endif
 static struct resource omap_hdq_resources[] = {
 	{
 		.start		= OMAP_HDQ_BASE,
@@ -679,7 +677,10 @@ static struct platform_device omap_hdq_dev = {
 };
 static inline void omap_hdq_init(void)
 {
-	(void) platform_device_register(&omap_hdq_dev);
+	if (cpu_is_omap2420())
+		return;
+
+	platform_device_register(&omap_hdq_dev);
 }
 #else
 static inline void omap_hdq_init(void) {}
