@@ -30,6 +30,7 @@
 #include <linux/mfd/dbx500-prcmu.h>
 #include <linux/regulator/db8500-prcmu.h>
 #include <linux/regulator/machine.h>
+#include <asm/hardware/gic.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/db8500-regs.h>
@@ -848,6 +849,38 @@ int db8500_prcmu_gic_recouple(void)
 	writel(val & ~PRCM_A9_MASK_REQ_PRCM_A9_MASK_REQ, PRCM_A9_MASK_REQ);
 
 	return 0;
+}
+
+#define PRCMU_GIC_NUMBER_REGS 5
+
+/*
+ * This function checks if there are pending irq on the gic. It only
+ * makes sense if the gic has been decoupled before with the
+ * db8500_prcmu_gic_decouple function. Disabling an interrupt only
+ * disables the forwarding of the interrupt to any CPU interface. It
+ * does not prevent the interrupt from changing state, for example
+ * becoming pending, or active and pending if it is already
+ * active. Hence, we have to check the interrupt is pending *and* is
+ * active.
+ */
+bool db8500_prcmu_gic_pending_irq(void)
+{
+	u32 pr; /* Pending register */
+	u32 er; /* Enable register */
+	void __iomem *dist_base = __io_address(U8500_GIC_DIST_BASE);
+	int i;
+
+        /* 5 registers. STI & PPI not skipped */
+	for (i = 0; i < PRCMU_GIC_NUMBER_REGS; i++) {
+
+		pr = readl_relaxed(dist_base + GIC_DIST_PENDING_SET + i * 4);
+		er = readl_relaxed(dist_base + GIC_DIST_ENABLE_SET + i * 4);
+
+		if (pr & er)
+			return true; /* There is a pending interrupt */
+	}
+
+	return false;
 }
 
 /* This function should only be called while mb0_transfer.lock is held. */
