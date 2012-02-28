@@ -196,7 +196,7 @@
 		};
 
 		tbi-phy@3 {
-			device-type = "tbi-phy";
+			device_type = "tbi-phy";
 			reg = <0x3>;
 		};
 	};
