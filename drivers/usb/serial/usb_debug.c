@@ -83,16 +83,5 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&debug_device, NULL
 };
 
-static int __init debug_init(void)
-{
-	return usb_serial_register_drivers(&debug_driver, serial_drivers);
-}
-
-static void __exit debug_exit(void)
-{
-	usb_serial_deregister_drivers(&debug_driver, serial_drivers);
-}
-
-module_init(debug_init);
-module_exit(debug_exit);
+module_usb_serial_driver(debug_driver, serial_drivers);
 MODULE_LICENSE("GPL");
