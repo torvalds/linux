@@ -61,10 +61,12 @@
 		ranges;
 		ti,hwmods = "l3_main";
 
-		intc: interrupt-controller@1 {
-			compatible = "ti,omap3-intc";
+		intc: interrupt-controller@48200000 {
+			compatible = "ti,omap2-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
+			ti,intc-size = <96>;
+			reg = <0x48200000 0x1000>;
 		};
 
 		uart1: serial@4806a000 {
