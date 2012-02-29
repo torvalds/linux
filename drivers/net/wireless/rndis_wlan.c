@@ -1790,9 +1790,8 @@ static struct ndis_80211_pmkid *remove_pmkid(struct usbnet *usbdev,
 						struct cfg80211_pmksa *pmksa,
 						int max_pmkids)
 {
-	int i, len, count, newlen, err;
+	int i, count, newlen, err;
 
-	len = le32_to_cpu(pmkids->length);
 	count = le32_to_cpu(pmkids->bssid_info_count);
 
 	if (count > max_pmkids)
@@ -1831,9 +1830,8 @@ static struct ndis_80211_pmkid *update_pmkid(struct usbnet *usbdev,
 						struct cfg80211_pmksa *pmksa,
 						int max_pmkids)
 {
-	int i, err, len, count, newlen;
+	int i, err, count, newlen;
 
-	len = le32_to_cpu(pmkids->length);
 	count = le32_to_cpu(pmkids->bssid_info_count);
 
 	if (count > max_pmkids)
