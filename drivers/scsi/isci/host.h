@@ -109,6 +109,8 @@ struct sci_port_configuration_agent;
 typedef void (*port_config_fn)(struct isci_host *,
 			       struct sci_port_configuration_agent *,
 			       struct isci_port *, struct isci_phy *);
+bool is_port_config_apc(struct isci_host *ihost);
+bool is_controller_start_complete(struct isci_host *ihost);
 
 struct sci_port_configuration_agent {
 	u16 phy_configured_mask;
@@ -473,6 +475,7 @@ void isci_host_completion_routine(unsigned long data);
 void isci_host_deinit(struct isci_host *);
 void sci_controller_disable_interrupts(struct isci_host *ihost);
 bool sci_controller_has_remote_devices_stopping(struct isci_host *ihost);
+void sci_controller_transition_to_ready(struct isci_host *ihost, enum sci_status status);
 
 enum sci_status sci_controller_start_io(
 	struct isci_host *ihost,

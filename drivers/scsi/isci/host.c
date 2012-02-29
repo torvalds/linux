@@ -816,7 +816,7 @@ static void sci_controller_initialize_unsolicited_frame_queue(struct isci_host *
 	       &ihost->scu_registers->sdma.unsolicited_frame_put_pointer);
 }
 
-static void sci_controller_transition_to_ready(struct isci_host *ihost, enum sci_status status)
+void sci_controller_transition_to_ready(struct isci_host *ihost, enum sci_status status)
 {
 	if (ihost->sm.current_state_id == SCIC_STARTING) {
 		/*
@@ -843,12 +843,46 @@ static bool is_phy_starting(struct isci_phy *iphy)
 	case SCI_PHY_SUB_AWAIT_SATA_POWER:
 	case SCI_PHY_SUB_AWAIT_SATA_PHY_EN:
 	case SCI_PHY_SUB_AWAIT_SATA_SPEED_EN:
+	case SCI_PHY_SUB_AWAIT_OSSP_EN:
 	case SCI_PHY_SUB_AWAIT_SIG_FIS_UF:
 	case SCI_PHY_SUB_FINAL:
 		return true;
 	default:
 		return false;
 	}
+}
+
+bool is_controller_start_complete(struct isci_host *ihost)
+{
+	int i;
+
+	for (i = 0; i < SCI_MAX_PHYS; i++) {
+		struct isci_phy *iphy = &ihost->phys[i];
+		u32 state = iphy->sm.current_state_id;
+
+		/* in apc mode we need to check every phy, in
+		 * mpc mode we only need to check phys that have
+		 * been configured into a port
+		 */
+		if (is_port_config_apc(ihost))
+			/* pass */;
+		else if (!phy_get_non_dummy_port(iphy))
+			continue;
+
+		/* The controller start operation is complete iff:
+		 * - all links have been given an opportunity to start
+		 * - have no indication of a connected device
+		 * - have an indication of a connected device and it has
+		 *   finished the link training process.
+		 */
+		if ((iphy->is_in_link_training == false && state == SCI_PHY_INITIAL) ||
+		    (iphy->is_in_link_training == false && state == SCI_PHY_STOPPED) ||
+		    (iphy->is_in_link_training == true && is_phy_starting(iphy)) ||
+		    (ihost->port_agent.phy_ready_mask != ihost->port_agent.phy_configured_mask))
+			return false;
+	}
+
+	return true;
 }
 
 /**
@@ -871,36 +905,7 @@ static enum sci_status sci_controller_start_next_phy(struct isci_host *ihost)
 		return status;
 
 	if (ihost->next_phy_to_start >= SCI_MAX_PHYS) {
-		bool is_controller_start_complete = true;
-		u32 state;
-		u8 index;
-
-		for (index = 0; index < SCI_MAX_PHYS; index++) {
-			iphy = &ihost->phys[index];
-			state = iphy->sm.current_state_id;
-
-			if (!phy_get_non_dummy_port(iphy))
-				continue;
-
-			/* The controller start operation is complete iff:
-			 * - all links have been given an opportunity to start
-			 * - have no indication of a connected device
-			 * - have an indication of a connected device and it has
-			 *   finished the link training process.
-			 */
-			if ((iphy->is_in_link_training == false && state == SCI_PHY_INITIAL) ||
-			    (iphy->is_in_link_training == false && state == SCI_PHY_STOPPED) ||
-			    (iphy->is_in_link_training == true && is_phy_starting(iphy)) ||
-			    (ihost->port_agent.phy_ready_mask != ihost->port_agent.phy_configured_mask)) {
-				is_controller_start_complete = false;
-				break;
-			}
-		}
-
-		/*
-		 * The controller has successfully finished the start process.
-		 * Inform the SCI Core user and transition to the READY state. */
-		if (is_controller_start_complete == true) {
+		if (is_controller_start_complete(ihost)) {
 			sci_controller_transition_to_ready(ihost, SCI_SUCCESS);
 			sci_del_timer(&ihost->phy_timer);
 			ihost->phy_startup_timer_pending = false;
