@@ -23,6 +23,7 @@
 
 #include <linux/io.h>
 #include <linux/atmel_serial.h>
+#include <mach/hardware.h>
 
 #if defined(CONFIG_AT91_EARLY_DBGU0)
 #define UART_OFFSET AT91_BASE_DBGU0
