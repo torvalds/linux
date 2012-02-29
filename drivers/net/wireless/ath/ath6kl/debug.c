@@ -277,7 +277,7 @@ void ath6kl_debug_fwlog_event(struct ath6kl *ar, const void *buf, size_t len)
 	if (WARN_ON(len > ATH6KL_FWLOG_PAYLOAD_SIZE))
 		return;
 
-	slot_len = sizeof(*slot) + len;
+	slot_len = sizeof(*slot) + ATH6KL_FWLOG_PAYLOAD_SIZE;
 
 	skb = alloc_skb(slot_len, GFP_KERNEL);
 	if (!skb)
@@ -287,6 +287,9 @@ void ath6kl_debug_fwlog_event(struct ath6kl *ar, const void *buf, size_t len)
 	slot->timestamp = cpu_to_le32(jiffies);
 	slot->length = cpu_to_le32(len);
 	memcpy(slot->payload, buf, len);
+
+	/* Need to pad each record to fixed length ATH6KL_FWLOG_PAYLOAD_SIZE */
+	memset(slot->payload + len, 0, ATH6KL_FWLOG_PAYLOAD_SIZE - len);
 
 	spin_lock(&ar->debug.fwlog_queue.lock);
 
