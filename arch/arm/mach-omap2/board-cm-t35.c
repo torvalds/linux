@@ -280,7 +280,6 @@ static struct omap_dss_board_info cm_t35_dss_data = {
 
 static struct omap2_mcspi_device_config tdo24m_mcspi_config = {
 	.turbo_mode	= 0,
-	.single_channel	= 1,	/* 0: slave, 1: master */
 };
 
 static struct tdo24m_platform_data tdo24m_config = {

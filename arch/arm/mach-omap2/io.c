@@ -24,26 +24,23 @@
 #include <linux/omapfb.h>
 
 #include <asm/tlb.h>
-
 #include <asm/mach/map.h>
 
 #include <plat/sram.h>
 #include <plat/sdrc.h>
 #include <plat/serial.h>
+#include <plat/omap-pm.h>
+#include <plat/omap_hwmod.h>
+#include <plat/multi.h>
 
+#include "iomap.h"
+#include "voltage.h"
+#include "powerdomain.h"
+#include "clockdomain.h"
+#include "common.h"
 #include "clock2xxx.h"
 #include "clock3xxx.h"
 #include "clock44xx.h"
-
-#include "common.h"
-#include <plat/omap-pm.h>
-#include "voltage.h"
-#include "powerdomain.h"
-
-#include "clockdomain.h"
-#include <plat/omap_hwmod.h>
-#include <plat/multi.h>
-#include "common.h"
 
 /*
  * The machine specific code may provide the extra mapping besides the
@@ -490,43 +487,3 @@ void __init omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 		_omap2_init_reprogram_sdrc();
 	}
 }
-
-/*
- * NOTE: Please use ioremap + __raw_read/write where possible instead of these
- */
-
-u8 omap_readb(u32 pa)
-{
-	return __raw_readb(OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_readb);
-
-u16 omap_readw(u32 pa)
-{
-	return __raw_readw(OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_readw);
-
-u32 omap_readl(u32 pa)
-{
-	return __raw_readl(OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_readl);
-
-void omap_writeb(u8 v, u32 pa)
-{
-	__raw_writeb(v, OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_writeb);
-
-void omap_writew(u16 v, u32 pa)
-{
-	__raw_writew(v, OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_writew);
-
-void omap_writel(u32 v, u32 pa)
-{
-	__raw_writel(v, OMAP2_L4_IO_ADDRESS(pa));
-}
-EXPORT_SYMBOL(omap_writel);

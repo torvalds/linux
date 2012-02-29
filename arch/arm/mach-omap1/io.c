@@ -15,9 +15,12 @@
 
 #include <asm/tlb.h>
 #include <asm/mach/map.h>
+
 #include <plat/mux.h>
 #include <plat/tc.h>
 
+#include "iomap.h"
+#include "common.h"
 #include "clock.h"
 
 extern void omap_check_revision(void);

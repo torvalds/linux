@@ -1,13 +1,5 @@
 /*
- * arch/arm/plat-omap/include/mach/io.h
- *
- * IO definitions for TI OMAP processors and boards
- *
- * Copied from arch/arm/mach-sa1100/include/mach/io.h
- * Copyright (C) 1997-1999 Russell King
- *
- * Copyright (C) 2009 Texas Instruments
- * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
+ * IO mappings for OMAP2+
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -25,33 +17,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * You should have received a copy of the  GNU General Public License along
+ * with this program; if not, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * Modifications:
- *  06-12-1997	RMK	Created.
- *  07-04-1999	RMK	Major cleanup
- */
-
-#ifndef __ASM_ARM_ARCH_IO_H
-#define __ASM_ARM_ARCH_IO_H
-
-#include <mach/hardware.h>
-
-#define IO_SPACE_LIMIT 0xffffffff
-
-/*
- * We don't actually have real ISA nor PCI buses, but there is so many
- * drivers out there that might just work if we fake them...
- */
-#define __io(a)		__typesafe_io(a)
-#define __mem_pci(a)	(a)
-
-/*
- * ----------------------------------------------------------------------------
- * I/O mapping
- * ----------------------------------------------------------------------------
  */
 
 #ifdef __ASSEMBLER__
@@ -60,12 +28,8 @@
 #define IOMEM(x)		((void __force __iomem *)(x))
 #endif
 
-#define OMAP1_IO_OFFSET		0x01000000	/* Virtual IO = 0xfefb0000 */
-#define OMAP1_IO_ADDRESS(pa)	IOMEM((pa) - OMAP1_IO_OFFSET)
-
 #define OMAP2_L3_IO_OFFSET	0x90000000
 #define OMAP2_L3_IO_ADDRESS(pa)	IOMEM((pa) + OMAP2_L3_IO_OFFSET) /* L3 */
-
 
 #define OMAP2_L4_IO_OFFSET	0xb2000000
 #define OMAP2_L4_IO_ADDRESS(pa)	IOMEM((pa) + OMAP2_L4_IO_OFFSET) /* L4 */
@@ -84,16 +48,6 @@
 
 #define OMAP2_EMU_IO_OFFSET		0xaa800000	/* Emulation */
 #define OMAP2_EMU_IO_ADDRESS(pa)	IOMEM((pa) + OMAP2_EMU_IO_OFFSET)
-
-/*
- * ----------------------------------------------------------------------------
- * Omap1 specific IO mapping
- * ----------------------------------------------------------------------------
- */
-
-#define OMAP1_IO_PHYS		0xFFFB0000
-#define OMAP1_IO_SIZE		0x40000
-#define OMAP1_IO_VIRT		(OMAP1_IO_PHYS - OMAP1_IO_OFFSET)
 
 /*
  * ----------------------------------------------------------------------------
@@ -247,31 +201,3 @@
 						/* 0x4e000000 --> 0xfd300000 */
 #define OMAP44XX_DMM_SIZE	SZ_1M
 #define OMAP44XX_DMM_VIRT	(OMAP44XX_EMIF2_VIRT + OMAP44XX_EMIF2_SIZE)
-/*
- * ----------------------------------------------------------------------------
- * Omap specific register access
- * ----------------------------------------------------------------------------
- */
-
-#ifndef __ASSEMBLER__
-
-/*
- * NOTE: Please use ioremap + __raw_read/write where possible instead of these
- */
-
-extern u8 omap_readb(u32 pa);
-extern u16 omap_readw(u32 pa);
-extern u32 omap_readl(u32 pa);
-extern void omap_writeb(u8 v, u32 pa);
-extern void omap_writew(u16 v, u32 pa);
-extern void omap_writel(u32 v, u32 pa);
-
-struct omap_sdrc_params;
-extern void omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
-				      struct omap_sdrc_params *sdrc_cs1);
-
-extern void __init omap_init_consistent_dma_size(void);
-
-#endif
-
-#endif

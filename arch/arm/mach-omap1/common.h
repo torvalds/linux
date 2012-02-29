@@ -58,5 +58,6 @@ void omap1_restart(char, const char *);
 
 extern struct sys_timer omap1_timer;
 extern bool omap_32k_timer_init(void);
+extern void __init omap_init_consistent_dma_size(void);
 
 #endif /* __ARCH_ARM_MACH_OMAP1_COMMON_H */
