@@ -14,6 +14,7 @@
 #include <linux/io.h>
 #include <asm/mach/arch.h>
 #include <asm/setup.h>
+#include <mach/dove.h>
 #include <plat/addr-map.h>
 #include "common.h"
 
