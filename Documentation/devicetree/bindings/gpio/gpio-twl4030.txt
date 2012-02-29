@@ -1,0 +1,23 @@
+twl4030 GPIO controller bindings
+
+Required properties:
+- compatible:
+  - "ti,twl4030-gpio" for twl4030 GPIO controller
+- #gpio-cells : Should be two.
+  - first cell is the pin number
+  - second cell is used to specify optional parameters (unused)
+- gpio-controller : Marks the device node as a GPIO controller.
+- #interrupt-cells : Should be 2.
+- interrupt-controller: Mark the device node as an interrupt controller
+  The first cell is the GPIO number.
+  The second cell is not used.
+
+Example:
+
+twl_gpio: gpio {
+    compatible = "ti,twl4030-gpio";
+    #gpio-cells = <2>;
+    gpio-controller;
+    #interrupt-cells = <2>;
+    interrupt-controller;
+};
