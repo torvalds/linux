@@ -33,6 +33,7 @@
 #include <linux/ioport.h>	/* request_region		  */
 #include <linux/videodev2.h>	/* kernel radio structs           */
 #include <linux/io.h>		/* outb, outb_p                   */
+#include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include "radio-isa.h"
