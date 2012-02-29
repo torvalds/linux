@@ -1350,7 +1350,7 @@ static int set_channel(struct usbnet *usbdev, int channel)
 }
 
 static struct ieee80211_channel *get_current_channel(struct usbnet *usbdev,
-						     u16 *beacon_interval)
+						     u32 *beacon_period)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	struct ieee80211_channel *channel;
@@ -1370,8 +1370,8 @@ static struct ieee80211_channel *get_current_channel(struct usbnet *usbdev,
 	if (!channel)
 		return NULL;
 
-	if (beacon_interval)
-		*beacon_interval = le16_to_cpu(config.beacon_period);
+	if (beacon_period)
+		*beacon_period = le32_to_cpu(config.beacon_period);
 	return channel;
 }
 
@@ -2683,7 +2683,7 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 	s32 signal;
 	u64 timestamp;
 	u16 capability;
-	u16 beacon_interval = 0;
+	u32 beacon_period = 0;
 	__le32 rssi;
 	u8 ie_buf[34];
 	int len, ret, ie_len;
@@ -2708,7 +2708,7 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 	}
 
 	/* Get channel and beacon interval */
-	channel = get_current_channel(usbdev, &beacon_interval);
+	channel = get_current_channel(usbdev, &beacon_period);
 	if (!channel) {
 		netdev_warn(usbdev->net, "%s(): could not get channel.\n",
 					__func__);
@@ -2738,11 +2738,11 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 	netdev_dbg(usbdev->net, "%s(): channel:%d(freq), bssid:[%pM], tsf:%d, "
 		"capa:%x, beacon int:%d, resp_ie(len:%d, essid:'%.32s'), "
 		"signal:%d\n", __func__, (channel ? channel->center_freq : -1),
-		bssid, (u32)timestamp, capability, beacon_interval, ie_len,
+		bssid, (u32)timestamp, capability, beacon_period, ie_len,
 		ssid.essid, signal);
 
 	bss = cfg80211_inform_bss(priv->wdev.wiphy, channel, bssid,
-		timestamp, capability, beacon_interval, ie_buf, ie_len,
+		timestamp, capability, beacon_period, ie_buf, ie_len,
 		signal, GFP_KERNEL);
 	cfg80211_put_bss(bss);
 }
