@@ -21,6 +21,8 @@
 #include <linux/io.h>
 #include <mach/hardware.h>
 
+#include "pci.h"
+
 void * __iomem __iop13xx_io(unsigned long io_addr)
 {
 	void __iomem * io_virt;

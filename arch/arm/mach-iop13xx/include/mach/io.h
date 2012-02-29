@@ -26,9 +26,5 @@
 #define __mem_isa(a) (a)
 
 extern void __iomem * __iop13xx_io(unsigned long io_addr);
-extern u32 iop13xx_atue_mem_base;
-extern u32 iop13xx_atux_mem_base;
-extern size_t iop13xx_atue_mem_size;
-extern size_t iop13xx_atux_mem_size;
 
 #endif
