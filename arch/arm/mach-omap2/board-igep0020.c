@@ -175,7 +175,7 @@ static void __init igep_flash_init(void)
 		pr_info("IGEP: initializing NAND memory device\n");
 		board_nand_init(igep_flash_partitions,
 				ARRAY_SIZE(igep_flash_partitions),
-				0, NAND_BUSWIDTH_16);
+				0, NAND_BUSWIDTH_16, nand_default_timings);
 	} else if (mux == IGEP_SYSBOOT_ONENAND) {
 		pr_info("IGEP: initializing OneNAND memory device\n");
 		board_onenand_init(igep_flash_partitions,
