@@ -1396,15 +1396,12 @@ static int __init sdma_probe(struct platform_device *pdev)
 		 */
 		ret = of_property_read_string(np, "fsl,sdma-ram-script-name",
 					      &fw_name);
-		if (ret) {
+		if (ret)
 			dev_err(&pdev->dev, "failed to get firmware name\n");
-			goto err_init;
-		}
-
-		ret = sdma_get_firmware(sdma, fw_name);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to get firmware\n");
-			goto err_init;
+		else {
+			ret = sdma_get_firmware(sdma, fw_name);
+			if (ret)
+				dev_err(&pdev->dev, "failed to get firmware\n");
 		}
 	}
 
