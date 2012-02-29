@@ -55,7 +55,7 @@ static ssize_t wifi_channel_write(struct class *cls, const char *_buf, size_t _c
 */
 
 static struct class *rkwifi_class = NULL;
-static CLASS_ATTR(chip, 0666, wifi_chip_read, NULL);
+static CLASS_ATTR(chip, 0664, wifi_chip_read, NULL);
 
 int rkwifi_sysif_init(void)
 {

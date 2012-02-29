@@ -248,9 +248,9 @@ static ssize_t hdmi_restore_init_attrs(struct device *dev,
 }
 #endif
 static struct device_attribute hdmi_attrs[] = {
-	__ATTR(state, 0777, hdmi_show_state_attrs, hdmi_restore_state_attrs),
-	__ATTR(enable, 0777, hdmi_show_switch_attrs, hdmi_restore_switch_attrs),
-	__ATTR(debug, 0777, hdmi_show_debug_attrs, hdmi_restore_debug_attrs),
+	__ATTR(state, 0774, hdmi_show_state_attrs, hdmi_restore_state_attrs),
+	__ATTR(enable, 0774, hdmi_show_switch_attrs, hdmi_restore_switch_attrs),
+	__ATTR(debug, 0774, hdmi_show_debug_attrs, hdmi_restore_debug_attrs),
 	//__ATTR(init, 0777, NULL, hdmi_restore_init_attrs),
 };
 int hdmi_create_attrs(struct hdmi *hdmi)

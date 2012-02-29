@@ -57,7 +57,7 @@ static ssize_t memcpy_dma_write(struct device *device, struct device_attribute *
     return 0;
 }
 
-static DEVICE_ATTR(dmamemcpy,  S_IRUGO|S_IALLUGO, memcpy_dma_read, memcpy_dma_write);
+static DEVICE_ATTR(dmamemcpy,  S_IRUGO|S_IXUGO, memcpy_dma_read, memcpy_dma_write);
 
 
 static int __devinit dma_memcpy_probe(struct platform_device *pdev)

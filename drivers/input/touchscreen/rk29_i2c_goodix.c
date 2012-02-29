@@ -1629,7 +1629,7 @@ static ssize_t dbg_mode_store(struct class *cls,struct class_attribute *attr, co
       
     return _count;
 }
-static CLASS_ATTR(debug, 0666, dbg_mode_show, dbg_mode_store);
+static CLASS_ATTR(debug, 0664, dbg_mode_show, dbg_mode_store);
 
 static int dbg_sys_init(void)
 {
