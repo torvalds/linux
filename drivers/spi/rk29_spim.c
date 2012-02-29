@@ -1988,8 +1988,6 @@ err_diable_hw:
 	free_irq(dws->irq, dws);
 err_free_master:
 	spi_master_put(master);
-	dma_free_coherent(&pdev->dev, DMA_BUFFER_SIZE, dws->buffer_tx_dma, dws->tx_dma);	
-	dma_free_coherent(&pdev->dev, DMA_BUFFER_SIZE, dws->buffer_rx_dma, dws->rx_dma);
 	iounmap(dws->regs);
 exit:
 	return ret;
@@ -2006,8 +2004,9 @@ static void __exit rk29xx_spim_remove(struct platform_device *pdev)
 	rk29xx_spim_cpufreq_deregister(dws);
 	mrst_spi_debugfs_remove(dws);
 
-	
-	dma_free_coherent(&pdev->dev, DMA_BUFFER_SIZE, dws->buffer_tx_dma, dws->tx_dma);	
+	if(dws->buffer_tx_dma)
+	dma_free_coherent(&pdev->dev, DMA_BUFFER_SIZE, dws->buffer_tx_dma, dws->tx_dma);
+	if(dws->buffer_rx_dma)
 	dma_free_coherent(&pdev->dev, DMA_BUFFER_SIZE, dws->buffer_rx_dma, dws->rx_dma);
 	release_dma(dws);
 
