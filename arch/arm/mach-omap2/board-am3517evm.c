@@ -504,7 +504,7 @@ static void __init am3517_evm_init(void)
 	am3517_evm_musb_init();
 
 	/* MMC init function */
-	omap2_hsmmc_init(mmc);
+	omap_hsmmc_init(mmc);
 }
 
 MACHINE_START(OMAP3517EVM, "OMAP3517/AM3517 EVM")
