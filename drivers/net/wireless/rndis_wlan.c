@@ -518,7 +518,7 @@ struct rndis_wlan_private {
 	__le32 current_command_oid;
 
 	/* encryption stuff */
-	int  encr_tx_key_index;
+	u8 encr_tx_key_index;
 	struct rndis_wlan_encr_key encr_keys[RNDIS_WLAN_NUM_KEYS];
 	int  wpa_version;
 
@@ -634,7 +634,7 @@ static u32 get_bcm4320_power_dbm(struct rndis_wlan_private *priv)
 	}
 }
 
-static bool is_wpa_key(struct rndis_wlan_private *priv, int idx)
+static bool is_wpa_key(struct rndis_wlan_private *priv, u8 idx)
 {
 	int cipher = priv->encr_keys[idx].cipher;
 
@@ -1377,7 +1377,7 @@ static struct ieee80211_channel *get_current_channel(struct usbnet *usbdev,
 
 /* index must be 0 - N, as per NDIS  */
 static int add_wep_key(struct usbnet *usbdev, const u8 *key, int key_len,
-								int index)
+								u8 index)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	struct ndis_80211_wep_key ndis_key;
@@ -1387,7 +1387,7 @@ static int add_wep_key(struct usbnet *usbdev, const u8 *key, int key_len,
 	netdev_dbg(usbdev->net, "%s(idx: %d, len: %d)\n",
 		   __func__, index, key_len);
 
-	if (index < 0 || index >= RNDIS_WLAN_NUM_KEYS)
+	if (index >= RNDIS_WLAN_NUM_KEYS)
 		return -EINVAL;
 
 	if (key_len == 5)
@@ -1430,7 +1430,7 @@ static int add_wep_key(struct usbnet *usbdev, const u8 *key, int key_len,
 }
 
 static int add_wpa_key(struct usbnet *usbdev, const u8 *key, int key_len,
-			int index, const u8 *addr, const u8 *rx_seq,
+			u8 index, const u8 *addr, const u8 *rx_seq,
 			int seq_len, u32 cipher, __le32 flags)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
@@ -1438,7 +1438,7 @@ static int add_wpa_key(struct usbnet *usbdev, const u8 *key, int key_len,
 	bool is_addr_ok;
 	int ret;
 
-	if (index < 0 || index >= RNDIS_WLAN_NUM_KEYS) {
+	if (index >= RNDIS_WLAN_NUM_KEYS) {
 		netdev_dbg(usbdev->net, "%s(): index out of range (%i)\n",
 			   __func__, index);
 		return -EINVAL;
@@ -1526,7 +1526,7 @@ static int add_wpa_key(struct usbnet *usbdev, const u8 *key, int key_len,
 	return 0;
 }
 
-static int restore_key(struct usbnet *usbdev, int key_idx)
+static int restore_key(struct usbnet *usbdev, u8 key_idx)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	struct rndis_wlan_encr_key key;
@@ -1552,13 +1552,13 @@ static void restore_keys(struct usbnet *usbdev)
 		restore_key(usbdev, i);
 }
 
-static void clear_key(struct rndis_wlan_private *priv, int idx)
+static void clear_key(struct rndis_wlan_private *priv, u8 idx)
 {
 	memset(&priv->encr_keys[idx], 0, sizeof(priv->encr_keys[idx]));
 }
 
 /* remove_key is for both wep and wpa */
-static int remove_key(struct usbnet *usbdev, int index, const u8 *bssid)
+static int remove_key(struct usbnet *usbdev, u8 index, const u8 *bssid)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	struct ndis_80211_remove_key remove_key;
