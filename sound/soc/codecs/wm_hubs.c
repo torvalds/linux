@@ -172,7 +172,7 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 		break;
 	default:
 		WARN(1, "Unknown DCS readback method\n");
-		break;
+		return;
 	}
 
 	dev_dbg(codec->dev, "DCS input: %x %x\n", reg_l, reg_r);
