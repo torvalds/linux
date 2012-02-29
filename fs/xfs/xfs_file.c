@@ -197,8 +197,11 @@ xfs_file_fsync(
 	 * to flush the log up to the latest LSN that touched the inode.
 	 */
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	if (xfs_ipincount(ip))
-		lsn = ip->i_itemp->ili_last_lsn;
+	if (xfs_ipincount(ip)) {
+		if (!datasync ||
+		    (ip->i_itemp->ili_fields & ~XFS_ILOG_TIMESTAMP))
+			lsn = ip->i_itemp->ili_last_lsn;
+	}
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
 	if (lsn)

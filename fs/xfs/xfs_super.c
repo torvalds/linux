@@ -907,7 +907,7 @@ xfs_fs_dirty_inode(
 	ip->i_d.di_mtime.t_nsec = (__int32_t)inode->i_mtime.tv_nsec;
 
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_TIMESTAMP);
 	error = xfs_trans_commit(tp, 0);
 	if (error)
 		goto trouble;

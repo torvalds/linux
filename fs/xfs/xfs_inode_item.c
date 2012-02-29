@@ -438,7 +438,8 @@ out:
 	 * games in recovery easier, which isn't a big deal as just about any
 	 * transaction would dirty it anyway.
 	 */
-	iip->ili_format.ilf_fields = XFS_ILOG_CORE | iip->ili_fields;
+	iip->ili_format.ilf_fields = XFS_ILOG_CORE |
+		(iip->ili_fields & ~XFS_ILOG_TIMESTAMP);
 	iip->ili_format.ilf_size = nvecs;
 }
 
