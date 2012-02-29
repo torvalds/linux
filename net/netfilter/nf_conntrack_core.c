@@ -912,6 +912,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	enum ip_conntrack_info ctinfo;
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_l4proto *l4proto;
+	struct nf_conn_timeout *timeout_ext;
 	unsigned int *timeouts;
 	unsigned int dataoff;
 	u_int8_t protonum;
@@ -959,7 +960,15 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			goto out;
 	}
 
-	timeouts = l4proto->get_timeouts(net);
+	/* Decide what timeout policy we want to apply to this flow. */
+	if (tmpl) {
+	        timeout_ext = nf_ct_timeout_find(tmpl);
+		if (timeout_ext)
+			timeouts = NF_CT_TIMEOUT_EXT_DATA(timeout_ext);
+		else
+			timeouts = l4proto->get_timeouts(net);
+	} else
+		timeouts = l4proto->get_timeouts(net);
 
 	ct = resolve_normal_ct(net, tmpl, skb, dataoff, pf, protonum,
 			       l3proto, l4proto, &set_reply, &ctinfo,

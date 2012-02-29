@@ -29,6 +29,7 @@
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
+#include <net/netfilter/nf_conntrack_timeout.h>
 
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_cttimeout.h>
@@ -331,6 +332,38 @@ cttimeout_del_timeout(struct sock *ctnl, struct sk_buff *skb,
 	return ret;
 }
 
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
+static struct ctnl_timeout *ctnl_timeout_find_get(const char *name)
+{
+	struct ctnl_timeout *timeout, *matching = NULL;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(timeout, &cttimeout_list, head) {
+		if (strncmp(timeout->name, name, CTNL_TIMEOUT_NAME_MAX) != 0)
+			continue;
+
+		if (!try_module_get(THIS_MODULE))
+			goto err;
+
+		if (!atomic_inc_not_zero(&timeout->refcnt)) {
+			module_put(THIS_MODULE);
+			goto err;
+		}
+		matching = timeout;
+		break;
+	}
+err:
+	rcu_read_unlock();
+	return matching;
+}
+
+static void ctnl_timeout_put(struct ctnl_timeout *timeout)
+{
+	atomic_dec(&timeout->refcnt);
+	module_put(THIS_MODULE);
+}
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
+
 static const struct nfnl_callback cttimeout_cb[IPCTNL_MSG_TIMEOUT_MAX] = {
 	[IPCTNL_MSG_TIMEOUT_NEW]	= { .call = cttimeout_new_timeout,
 					    .attr_count = CTA_TIMEOUT_MAX,
@@ -362,6 +395,10 @@ static int __init cttimeout_init(void)
 			"nfnetlink.\n");
 		goto err_out;
 	}
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
+	RCU_INIT_POINTER(nf_ct_timeout_find_get_hook, ctnl_timeout_find_get);
+	RCU_INIT_POINTER(nf_ct_timeout_put_hook, ctnl_timeout_put);
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 	return 0;
 
 err_out:
@@ -382,6 +419,10 @@ static void __exit cttimeout_exit(void)
 		 */
 		kfree_rcu(cur, rcu_head);
 	}
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
+	RCU_INIT_POINTER(nf_ct_timeout_find_get_hook, NULL);
+	RCU_INIT_POINTER(nf_ct_timeout_put_hook, NULL);
+#endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 }
 
 module_init(cttimeout_init);
