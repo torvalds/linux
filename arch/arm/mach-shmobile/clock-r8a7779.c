@@ -107,7 +107,7 @@ static unsigned long mul4_recalc(struct clk *clk)
 	return clk->parent->rate * 4;
 }
 
-static struct clk_ops mul4_clk_ops = {
+static struct sh_clk_ops mul4_clk_ops = {
 	.recalc		= mul4_recalc,
 };
 
