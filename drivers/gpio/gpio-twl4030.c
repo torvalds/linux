@@ -404,7 +404,8 @@ static int __devinit gpio_twl4030_probe(struct platform_device *pdev)
 				"can't dispatch IRQs from modules\n");
 			goto no_irqs;
 		}
-		ret = twl4030_sih_setup(TWL4030_MODULE_GPIO);
+		ret = twl4030_sih_setup(&pdev->dev, TWL4030_MODULE_GPIO,
+					pdata->irq_base);
 		if (ret < 0)
 			return ret;
 		WARN_ON(ret != pdata->irq_base);
