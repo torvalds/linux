@@ -179,13 +179,14 @@ xfs_end_io(
 			ioend->io_error = -error;
 			goto done;
 		}
+	} else {
+		/*
+		 * We might have to update the on-disk file size after
+		 * extending writes.
+		 */
+		xfs_setfilesize(ioend);
 	}
 
-	/*
-	 * We might have to update the on-disk file size after extending
-	 * writes.
-	 */
-	xfs_setfilesize(ioend);
 done:
 	xfs_destroy_ioend(ioend);
 }
