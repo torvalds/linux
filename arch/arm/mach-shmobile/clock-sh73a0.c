@@ -620,7 +620,7 @@ void __init sh73a0_clock_init(void)
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	if (!ret)
-		clk_init();
+		shmobile_clk_init();
 	else
 		panic("failed to setup sh73a0 clocks\n");
 }

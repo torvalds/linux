@@ -170,7 +170,7 @@ void __init r8a7779_clock_init(void)
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	if (!ret)
-		clk_init();
+		shmobile_clk_init();
 	else
 		panic("failed to setup r8a7779 clocks\n");
 }

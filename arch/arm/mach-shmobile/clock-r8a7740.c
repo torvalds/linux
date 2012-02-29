@@ -376,7 +376,7 @@ void __init r8a7740_clock_init(u8 md_ck)
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	if (!ret)
-		clk_init();
+		shmobile_clk_init();
 	else
 		panic("failed to setup r8a7740 clocks\n");
 }

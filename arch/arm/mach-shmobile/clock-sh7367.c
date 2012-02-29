@@ -349,7 +349,7 @@ void __init sh7367_clock_init(void)
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	if (!ret)
-		clk_init();
+		shmobile_clk_init();
 	else
 		panic("failed to setup sh7367 clocks\n");
 }

@@ -6,7 +6,7 @@ extern void shmobile_setup_console(void);
 extern void shmobile_secondary_vector(void);
 extern int shmobile_platform_cpu_kill(unsigned int cpu);
 struct clk;
-extern int clk_init(void);
+extern int shmobile_clk_init(void);
 extern void shmobile_handle_irq_intc(struct pt_regs *);
 extern struct platform_suspend_ops shmobile_suspend_ops;
 struct cpuidle_driver;
