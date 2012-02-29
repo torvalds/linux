@@ -62,7 +62,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Effect        1
 #define CONFIG_SENSOR_Scene         1
 #define CONFIG_SENSOR_DigitalZoom   0
-#define CONFIG_SENSOR_Exposure      0
+#define CONFIG_SENSOR_Exposure      1
 #define CONFIG_SENSOR_Flash         1
 #define CONFIG_SENSOR_Mirror        0
 #define CONFIG_SENSOR_Flip          0
@@ -961,31 +961,73 @@ static struct reginfo *sensor_EffectSeqe[] = {sensor_Effect_Normal, sensor_Effec
 #if CONFIG_SENSOR_Exposure
 static  struct reginfo sensor_Exposure0[]=
 {
+	{0x3a0f, 0x10},
+	{0x3a10, 0x08},
+	{0x3a1b, 0x10},
+	{0x3a1e, 0x08},
+	{0x3a11, 0x20},
+	{0x3a1f, 0x10},
 	{SEQUENCE_END, 0x00}
 };
 static  struct reginfo sensor_Exposure1[]=
 {
+	{0x3a0f, 0x20},
+	{0x3a10, 0x18},
+	{0x3a11, 0x41},
+	{0x3a1b, 0x20},
+	{0x3a1e, 0x18},
+	{0x3a1f, 0x10},
 	{SEQUENCE_END, 0x00}
 };
 static  struct reginfo sensor_Exposure2[]=
 {
+	{0x3a0f, 0x30},
+	{0x3a10, 0x28},
+	{0x3a11, 0x61},
+	{0x3a1b, 0x30},
+	{0x3a1e, 0x28},
+	{0x3a1f, 0x10},
 	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_Exposure3[]=
 {
+	{0x3a0f, 0x38},
+	{0x3a10, 0x30},
+	{0x3a11, 0x61},
+	{0x3a1b, 0x38},
+	{0x3a1e, 0x30},
+	{0x3a1f, 0x10},
 	{SEQUENCE_END, 0x00}
 };
 static  struct reginfo sensor_Exposure4[]=
 {
+	{0x3a0f, 0x40},
+	{0x3a10, 0x38},
+	{0x3a11, 0x71},
+	{0x3a1b, 0x40},
+	{0x3a1e, 0x38},
+	{0x3a1f, 0x10},
 	{SEQUENCE_END, 0x00}
 };
 static  struct reginfo sensor_Exposure5[]=
 {
+	{0x3a0f, 0x50},
+	{0x3a10, 0x48},
+	{0x3a11, 0x90},
+	{0x3a1b, 0x50},
+	{0x3a1e, 0x48},
+	{0x3a1f, 0x20},
 	{SEQUENCE_END, 0x00}
 };
 static  struct reginfo sensor_Exposure6[]=
 {
+	{0x3a0f, 0x60},
+	{0x3a10, 0x58},
+	{0x3a11, 0xa0},
+	{0x3a1b, 0x60},
+	{0x3a1e, 0x58},
+	{0x3a1f, 0x20},
 	{SEQUENCE_END, 0x00}
 };
 static struct reginfo *sensor_ExposureSeqe[] = {sensor_Exposure0, sensor_Exposure1, sensor_Exposure2, sensor_Exposure3,
@@ -1193,8 +1235,8 @@ static const struct v4l2_queryctrl sensor_controls[] =
         .id		= V4L2_CID_EXPOSURE,
         .type		= V4L2_CTRL_TYPE_INTEGER,
         .name		= "Exposure Control",
-        .minimum	= 0,
-        .maximum	= 6,
+        .minimum	= -3,
+        .maximum	= 3,
         .step		= 1,
         .default_value = 0,
     },
