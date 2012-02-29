@@ -527,10 +527,13 @@ EXPORT_SYMBOL_GPL(usb_submit_urb);
  * a driver's I/O routines to insure that all URB-related activity has
  * completed before it returns.
  *
- * This request is always asynchronous.  Success is indicated by
- * returning -EINPROGRESS, at which time the URB will probably not yet
- * have been given back to the device driver.  When it is eventually
- * called, the completion function will see @urb->status == -ECONNRESET.
+ * This request is asynchronous, however the HCD might call the ->complete()
+ * callback during unlink. Therefore when drivers call usb_unlink_urb(), they
+ * must not hold any locks that may be taken by the completion function.
+ * Success is indicated by returning -EINPROGRESS, at which time the URB will
+ * probably not yet have been given back to the device driver. When it is
+ * eventually called, the completion function will see @urb->status ==
+ * -ECONNRESET.
  * Failure is indicated by usb_unlink_urb() returning any other value.
  * Unlinking will fail when @urb is not currently "linked" (i.e., it was
  * never submitted, or it was unlinked before, or the hardware is already
