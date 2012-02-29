@@ -31,6 +31,7 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/leds.h>
 #include <linux/memblock.h>
 #include <media/soc_camera.h>
 #include <sound/tlv320aic32x4.h>
@@ -232,6 +233,35 @@ static const struct gpio_keys_platform_data
 	.nbuttons	= ARRAY_SIZE(visstrim_gpio_keys),
 };
 
+/* led */
+static const struct gpio_led visstrim_m10_leds[] __initconst = {
+	{
+		.name = "visstrim:ld0",
+		.default_trigger = "nand-disk",
+		.gpio = (GPIO_PORTC + 29),
+	},
+	{
+		.name = "visstrim:ld1",
+		.default_trigger = "nand-disk",
+		.gpio = (GPIO_PORTC + 24),
+	},
+	{
+		.name = "visstrim:ld2",
+		.default_trigger = "nand-disk",
+		.gpio = (GPIO_PORTC + 28),
+	},
+	{
+		.name = "visstrim:ld3",
+		.default_trigger = "nand-disk",
+		.gpio = (GPIO_PORTC + 25),
+	},
+};
+
+static const struct gpio_led_platform_data visstrim_m10_led_data __initconst = {
+	.leds = visstrim_m10_leds,
+	.num_leds = ARRAY_SIZE(visstrim_m10_leds),
+};
+
 /* Visstrim_SM10 has a microSD slot connected to sdhc1 */
 static int visstrim_m10_sdhc1_init(struct device *dev,
 		irq_handler_t detect_irq, void *data)
@@ -365,6 +395,7 @@ static void __init visstrim_m10_board_init(void)
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 	platform_device_register_resndata(NULL, "soc-camera-pdrv", 0, NULL, 0,
 				      &iclink_tvp5150, sizeof(iclink_tvp5150));
+	gpio_led_register_device(0, &visstrim_m10_led_data);
 	visstrim_camera_init();
 }
 
