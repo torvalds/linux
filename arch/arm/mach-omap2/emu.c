@@ -21,6 +21,8 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 
+#include <mach/hardware.h>
+
 #include "iomap.h"
 
 MODULE_LICENSE("GPL");
