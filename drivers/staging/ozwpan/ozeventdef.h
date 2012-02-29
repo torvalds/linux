@@ -37,7 +37,7 @@ struct oz_event {
 	unsigned ctx4;
 };
 
-#define OZ_EVT_LIST_SZ	256
+#define OZ_EVT_LIST_SZ	64
 struct oz_evtlist {
 	int count;
 	int missed;
