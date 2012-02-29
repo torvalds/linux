@@ -27,6 +27,7 @@
 #include <linux/bcd.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/export.h>
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
