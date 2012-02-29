@@ -1387,7 +1387,9 @@ static int __init sdma_probe(struct platform_device *pdev)
 		sdma_add_scripts(sdma, pdata->script_addrs);
 
 	if (pdata) {
-		sdma_get_firmware(sdma, pdata->fw_name);
+		ret = sdma_get_firmware(sdma, pdata->fw_name);
+		if (ret)
+			dev_err(&pdev->dev, "failed to get firmware from platform data\n");
 	} else {
 		/*
 		 * Because that device tree does not encode ROM script address,
@@ -1401,7 +1403,7 @@ static int __init sdma_probe(struct platform_device *pdev)
 		else {
 			ret = sdma_get_firmware(sdma, fw_name);
 			if (ret)
-				dev_err(&pdev->dev, "failed to get firmware\n");
+				dev_err(&pdev->dev, "failed to get firmware from device tree\n");
 		}
 	}
 
