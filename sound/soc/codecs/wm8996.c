@@ -3054,12 +3054,6 @@ static int wm8996_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int wm8996_soc_volatile_register(struct snd_soc_codec *codec,
-					unsigned int reg)
-{
-	return true;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8996 = {
 	.probe =	wm8996_probe,
 	.remove =	wm8996_remove,
@@ -3073,8 +3067,6 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8996 = {
 	.dapm_routes = wm8996_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(wm8996_dapm_routes),
 	.set_pll = wm8996_set_fll,
-	.reg_cache_size = WM8996_MAX_REGISTER,
-	.volatile_register = wm8996_soc_volatile_register,
 };
 
 #define WM8996_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
