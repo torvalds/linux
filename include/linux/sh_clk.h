@@ -18,6 +18,8 @@ struct clk_mapping {
 	struct kref		ref;
 };
 
+#define sh_clk_ops clk_ops
+
 struct clk_ops {
 #ifdef CONFIG_SH_CLK_CPG_LEGACY
 	void (*init)(struct clk *clk);
