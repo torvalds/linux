@@ -3935,20 +3935,12 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int wm8994_soc_volatile(struct snd_soc_codec *codec,
-			       unsigned int reg)
-{
-	return true;
-}
-
 static struct snd_soc_codec_driver soc_codec_dev_wm8994 = {
 	.probe =	wm8994_codec_probe,
 	.remove =	wm8994_codec_remove,
 	.suspend =	wm8994_suspend,
 	.resume =	wm8994_resume,
 	.set_bias_level = wm8994_set_bias_level,
-	.reg_cache_size	= WM8994_MAX_REGISTER,
-	.volatile_register = wm8994_soc_volatile,
 };
 
 static int __devinit wm8994_probe(struct platform_device *pdev)
