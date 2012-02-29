@@ -135,6 +135,7 @@ static int ath6kl_hif_proc_dbg_intr(struct ath6kl_device *dev)
 		ath6kl_warn("Failed to clear debug interrupt: %d\n", ret);
 
 	ath6kl_hif_dump_fw_crash(dev->ar);
+	ath6kl_read_fwlogs(dev->ar);
 
 	return ret;
 }
