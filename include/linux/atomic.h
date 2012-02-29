@@ -24,7 +24,9 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
  * Atomically increments @v by 1, so long as @v is non-zero.
  * Returns non-zero if @v was non-zero, and zero otherwise.
  */
+#ifndef atomic_inc_not_zero
 #define atomic_inc_not_zero(v)		atomic_add_unless((v), 1, 0)
+#endif
 
 /**
  * atomic_inc_not_zero_hint - increment if not null
