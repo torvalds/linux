@@ -57,77 +57,28 @@ xfs_inode_item_size(
 	struct xfs_inode	*ip = iip->ili_inode;
 	uint			nvecs = 2;
 
-	/*
-	 * Only log the data/extents/b-tree root if there is something
-	 * left to log.
-	 */
-	iip->ili_format.ilf_fields |= XFS_ILOG_CORE;
-
 	switch (ip->i_d.di_format) {
 	case XFS_DINODE_FMT_EXTENTS:
-		iip->ili_format.ilf_fields &=
-			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT |
-			  XFS_ILOG_DEV | XFS_ILOG_UUID);
 		if ((iip->ili_format.ilf_fields & XFS_ILOG_DEXT) &&
-		    (ip->i_d.di_nextents > 0) &&
-		    (ip->i_df.if_bytes > 0)) {
-			ASSERT(ip->i_df.if_u1.if_extents != NULL);
+		    ip->i_d.di_nextents > 0 &&
+		    ip->i_df.if_bytes > 0)
 			nvecs++;
-		} else {
-			iip->ili_format.ilf_fields &= ~XFS_ILOG_DEXT;
-		}
 		break;
 
 	case XFS_DINODE_FMT_BTREE:
-		iip->ili_format.ilf_fields &=
-			~(XFS_ILOG_DDATA | XFS_ILOG_DEXT |
-			  XFS_ILOG_DEV | XFS_ILOG_UUID);
 		if ((iip->ili_format.ilf_fields & XFS_ILOG_DBROOT) &&
-		    (ip->i_df.if_broot_bytes > 0)) {
-			ASSERT(ip->i_df.if_broot != NULL);
+		    ip->i_df.if_broot_bytes > 0)
 			nvecs++;
-		} else {
-			ASSERT(!(iip->ili_format.ilf_fields &
-				 XFS_ILOG_DBROOT));
-#ifdef XFS_TRANS_DEBUG
-			if (iip->ili_root_size > 0) {
-				ASSERT(iip->ili_root_size ==
-				       ip->i_df.if_broot_bytes);
-				ASSERT(memcmp(iip->ili_orig_root,
-					    ip->i_df.if_broot,
-					    iip->ili_root_size) == 0);
-			} else {
-				ASSERT(ip->i_df.if_broot_bytes == 0);
-			}
-#endif
-			iip->ili_format.ilf_fields &= ~XFS_ILOG_DBROOT;
-		}
 		break;
 
 	case XFS_DINODE_FMT_LOCAL:
-		iip->ili_format.ilf_fields &=
-			~(XFS_ILOG_DEXT | XFS_ILOG_DBROOT |
-			  XFS_ILOG_DEV | XFS_ILOG_UUID);
 		if ((iip->ili_format.ilf_fields & XFS_ILOG_DDATA) &&
-		    (ip->i_df.if_bytes > 0)) {
-			ASSERT(ip->i_df.if_u1.if_data != NULL);
-			ASSERT(ip->i_d.di_size > 0);
+		    ip->i_df.if_bytes > 0)
 			nvecs++;
-		} else {
-			iip->ili_format.ilf_fields &= ~XFS_ILOG_DDATA;
-		}
 		break;
 
 	case XFS_DINODE_FMT_DEV:
-		iip->ili_format.ilf_fields &=
-			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT |
-			  XFS_ILOG_DEXT | XFS_ILOG_UUID);
-		break;
-
 	case XFS_DINODE_FMT_UUID:
-		iip->ili_format.ilf_fields &=
-			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT |
-			  XFS_ILOG_DEXT | XFS_ILOG_DEV);
 		break;
 
 	default:
@@ -135,56 +86,31 @@ xfs_inode_item_size(
 		break;
 	}
 
-	/*
-	 * If there are no attributes associated with this file,
-	 * then there cannot be anything more to log.
-	 * Clear all attribute-related log flags.
-	 */
-	if (!XFS_IFORK_Q(ip)) {
-		iip->ili_format.ilf_fields &=
-			~(XFS_ILOG_ADATA | XFS_ILOG_ABROOT | XFS_ILOG_AEXT);
+	if (!XFS_IFORK_Q(ip))
 		return nvecs;
-	}
+
 
 	/*
 	 * Log any necessary attribute data.
 	 */
 	switch (ip->i_d.di_aformat) {
 	case XFS_DINODE_FMT_EXTENTS:
-		iip->ili_format.ilf_fields &=
-			~(XFS_ILOG_ADATA | XFS_ILOG_ABROOT);
 		if ((iip->ili_format.ilf_fields & XFS_ILOG_AEXT) &&
-		    (ip->i_d.di_anextents > 0) &&
-		    (ip->i_afp->if_bytes > 0)) {
-			ASSERT(ip->i_afp->if_u1.if_extents != NULL);
+		    ip->i_d.di_anextents > 0 &&
+		    ip->i_afp->if_bytes > 0)
 			nvecs++;
-		} else {
-			iip->ili_format.ilf_fields &= ~XFS_ILOG_AEXT;
-		}
 		break;
 
 	case XFS_DINODE_FMT_BTREE:
-		iip->ili_format.ilf_fields &=
-			~(XFS_ILOG_ADATA | XFS_ILOG_AEXT);
 		if ((iip->ili_format.ilf_fields & XFS_ILOG_ABROOT) &&
-		    (ip->i_afp->if_broot_bytes > 0)) {
-			ASSERT(ip->i_afp->if_broot != NULL);
+		    ip->i_afp->if_broot_bytes > 0)
 			nvecs++;
-		} else {
-			iip->ili_format.ilf_fields &= ~XFS_ILOG_ABROOT;
-		}
 		break;
 
 	case XFS_DINODE_FMT_LOCAL:
-		iip->ili_format.ilf_fields &=
-			~(XFS_ILOG_AEXT | XFS_ILOG_ABROOT);
 		if ((iip->ili_format.ilf_fields & XFS_ILOG_ADATA) &&
-		    (ip->i_afp->if_bytes > 0)) {
-			ASSERT(ip->i_afp->if_u1.if_data != NULL);
+		    ip->i_afp->if_bytes > 0)
 			nvecs++;
-		} else {
-			iip->ili_format.ilf_fields &= ~XFS_ILOG_ADATA;
-		}
 		break;
 
 	default:
@@ -292,16 +218,17 @@ xfs_inode_item_format(
 
 	switch (ip->i_d.di_format) {
 	case XFS_DINODE_FMT_EXTENTS:
-		ASSERT(!(iip->ili_format.ilf_fields &
-			 (XFS_ILOG_DDATA | XFS_ILOG_DBROOT |
-			  XFS_ILOG_DEV | XFS_ILOG_UUID)));
-		if (iip->ili_format.ilf_fields & XFS_ILOG_DEXT) {
-			ASSERT(ip->i_df.if_bytes > 0);
+		iip->ili_format.ilf_fields &=
+			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT |
+			  XFS_ILOG_DEV | XFS_ILOG_UUID);
+
+		if ((iip->ili_format.ilf_fields & XFS_ILOG_DEXT) &&
+		    ip->i_d.di_nextents > 0 &&
+		    ip->i_df.if_bytes > 0) {
 			ASSERT(ip->i_df.if_u1.if_extents != NULL);
-			ASSERT(ip->i_d.di_nextents > 0);
+			ASSERT(ip->i_df.if_bytes / sizeof(xfs_bmbt_rec_t) > 0);
 			ASSERT(iip->ili_extents_buf == NULL);
-			ASSERT((ip->i_df.if_bytes /
-				(uint)sizeof(xfs_bmbt_rec_t)) > 0);
+
 #ifdef XFS_NATIVE_HOST
                        if (ip->i_d.di_nextents == ip->i_df.if_bytes /
                                                (uint)sizeof(xfs_bmbt_rec_t)) {
@@ -323,15 +250,18 @@ xfs_inode_item_format(
 			iip->ili_format.ilf_dsize = vecp->i_len;
 			vecp++;
 			nvecs++;
+		} else {
+			iip->ili_format.ilf_fields &= ~XFS_ILOG_DEXT;
 		}
 		break;
 
 	case XFS_DINODE_FMT_BTREE:
-		ASSERT(!(iip->ili_format.ilf_fields &
-			 (XFS_ILOG_DDATA | XFS_ILOG_DEXT |
-			  XFS_ILOG_DEV | XFS_ILOG_UUID)));
-		if (iip->ili_format.ilf_fields & XFS_ILOG_DBROOT) {
-			ASSERT(ip->i_df.if_broot_bytes > 0);
+		iip->ili_format.ilf_fields &=
+			~(XFS_ILOG_DDATA | XFS_ILOG_DEXT |
+			  XFS_ILOG_DEV | XFS_ILOG_UUID);
+
+		if ((iip->ili_format.ilf_fields & XFS_ILOG_DBROOT) &&
+		    ip->i_df.if_broot_bytes > 0) {
 			ASSERT(ip->i_df.if_broot != NULL);
 			vecp->i_addr = ip->i_df.if_broot;
 			vecp->i_len = ip->i_df.if_broot_bytes;
@@ -339,15 +269,30 @@ xfs_inode_item_format(
 			vecp++;
 			nvecs++;
 			iip->ili_format.ilf_dsize = ip->i_df.if_broot_bytes;
+		} else {
+			ASSERT(!(iip->ili_format.ilf_fields &
+				 XFS_ILOG_DBROOT));
+#ifdef XFS_TRANS_DEBUG
+			if (iip->ili_root_size > 0) {
+				ASSERT(iip->ili_root_size ==
+				       ip->i_df.if_broot_bytes);
+				ASSERT(memcmp(iip->ili_orig_root,
+					    ip->i_df.if_broot,
+					    iip->ili_root_size) == 0);
+			} else {
+				ASSERT(ip->i_df.if_broot_bytes == 0);
+			}
+#endif
+			iip->ili_format.ilf_fields &= ~XFS_ILOG_DBROOT;
 		}
 		break;
 
 	case XFS_DINODE_FMT_LOCAL:
-		ASSERT(!(iip->ili_format.ilf_fields &
-			 (XFS_ILOG_DBROOT | XFS_ILOG_DEXT |
-			  XFS_ILOG_DEV | XFS_ILOG_UUID)));
-		if (iip->ili_format.ilf_fields & XFS_ILOG_DDATA) {
-			ASSERT(ip->i_df.if_bytes > 0);
+		iip->ili_format.ilf_fields &=
+			~(XFS_ILOG_DEXT | XFS_ILOG_DBROOT |
+			  XFS_ILOG_DEV | XFS_ILOG_UUID);
+		if ((iip->ili_format.ilf_fields & XFS_ILOG_DDATA) &&
+		    ip->i_df.if_bytes > 0) {
 			ASSERT(ip->i_df.if_u1.if_data != NULL);
 			ASSERT(ip->i_d.di_size > 0);
 
@@ -365,13 +310,15 @@ xfs_inode_item_format(
 			vecp++;
 			nvecs++;
 			iip->ili_format.ilf_dsize = (unsigned)data_bytes;
+		} else {
+			iip->ili_format.ilf_fields &= ~XFS_ILOG_DDATA;
 		}
 		break;
 
 	case XFS_DINODE_FMT_DEV:
-		ASSERT(!(iip->ili_format.ilf_fields &
-			 (XFS_ILOG_DBROOT | XFS_ILOG_DEXT |
-			  XFS_ILOG_DDATA | XFS_ILOG_UUID)));
+		iip->ili_format.ilf_fields &=
+			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT |
+			  XFS_ILOG_DEXT | XFS_ILOG_UUID);
 		if (iip->ili_format.ilf_fields & XFS_ILOG_DEV) {
 			iip->ili_format.ilf_u.ilfu_rdev =
 				ip->i_df.if_u2.if_rdev;
@@ -379,9 +326,9 @@ xfs_inode_item_format(
 		break;
 
 	case XFS_DINODE_FMT_UUID:
-		ASSERT(!(iip->ili_format.ilf_fields &
-			 (XFS_ILOG_DBROOT | XFS_ILOG_DEXT |
-			  XFS_ILOG_DDATA | XFS_ILOG_DEV)));
+		iip->ili_format.ilf_fields &=
+			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT |
+			  XFS_ILOG_DEXT | XFS_ILOG_DEV);
 		if (iip->ili_format.ilf_fields & XFS_ILOG_UUID) {
 			iip->ili_format.ilf_u.ilfu_uuid =
 				ip->i_df.if_u2.if_uuid;
@@ -394,31 +341,26 @@ xfs_inode_item_format(
 	}
 
 	/*
-	 * If there are no attributes associated with the file,
-	 * then we're done.
-	 * Assert that no attribute-related log flags are set.
+	 * If there are no attributes associated with the file, then we're done.
 	 */
 	if (!XFS_IFORK_Q(ip)) {
 		iip->ili_format.ilf_size = nvecs;
-		ASSERT(!(iip->ili_format.ilf_fields &
-			 (XFS_ILOG_ADATA | XFS_ILOG_ABROOT | XFS_ILOG_AEXT)));
+		iip->ili_format.ilf_fields &=
+			~(XFS_ILOG_ADATA | XFS_ILOG_ABROOT | XFS_ILOG_AEXT);
 		return;
 	}
 
 	switch (ip->i_d.di_aformat) {
 	case XFS_DINODE_FMT_EXTENTS:
-		ASSERT(!(iip->ili_format.ilf_fields &
-			 (XFS_ILOG_ADATA | XFS_ILOG_ABROOT)));
-		if (iip->ili_format.ilf_fields & XFS_ILOG_AEXT) {
-#ifdef DEBUG
-			int nrecs = ip->i_afp->if_bytes /
-				(uint)sizeof(xfs_bmbt_rec_t);
-			ASSERT(nrecs > 0);
-			ASSERT(nrecs == ip->i_d.di_anextents);
-			ASSERT(ip->i_afp->if_bytes > 0);
+		iip->ili_format.ilf_fields &=
+			~(XFS_ILOG_ADATA | XFS_ILOG_ABROOT);
+
+		if ((iip->ili_format.ilf_fields & XFS_ILOG_AEXT) &&
+		    ip->i_d.di_anextents > 0 &&
+		    ip->i_afp->if_bytes > 0) {
+			ASSERT(ip->i_afp->if_bytes / sizeof(xfs_bmbt_rec_t) ==
+				ip->i_d.di_anextents);
 			ASSERT(ip->i_afp->if_u1.if_extents != NULL);
-			ASSERT(ip->i_d.di_anextents > 0);
-#endif
 #ifdef XFS_NATIVE_HOST
 			/*
 			 * There are not delayed allocation extents
@@ -435,29 +377,36 @@ xfs_inode_item_format(
 			iip->ili_format.ilf_asize = vecp->i_len;
 			vecp++;
 			nvecs++;
+		} else {
+			iip->ili_format.ilf_fields &= ~XFS_ILOG_AEXT;
 		}
 		break;
 
 	case XFS_DINODE_FMT_BTREE:
-		ASSERT(!(iip->ili_format.ilf_fields &
-			 (XFS_ILOG_ADATA | XFS_ILOG_AEXT)));
-		if (iip->ili_format.ilf_fields & XFS_ILOG_ABROOT) {
-			ASSERT(ip->i_afp->if_broot_bytes > 0);
+		iip->ili_format.ilf_fields &=
+			~(XFS_ILOG_ADATA | XFS_ILOG_AEXT);
+
+		if ((iip->ili_format.ilf_fields & XFS_ILOG_ABROOT) &&
+		    ip->i_afp->if_broot_bytes > 0) {
 			ASSERT(ip->i_afp->if_broot != NULL);
+
 			vecp->i_addr = ip->i_afp->if_broot;
 			vecp->i_len = ip->i_afp->if_broot_bytes;
 			vecp->i_type = XLOG_REG_TYPE_IATTR_BROOT;
 			vecp++;
 			nvecs++;
 			iip->ili_format.ilf_asize = ip->i_afp->if_broot_bytes;
+		} else {
+			iip->ili_format.ilf_fields &= ~XFS_ILOG_ABROOT;
 		}
 		break;
 
 	case XFS_DINODE_FMT_LOCAL:
-		ASSERT(!(iip->ili_format.ilf_fields &
-			 (XFS_ILOG_ABROOT | XFS_ILOG_AEXT)));
-		if (iip->ili_format.ilf_fields & XFS_ILOG_ADATA) {
-			ASSERT(ip->i_afp->if_bytes > 0);
+		iip->ili_format.ilf_fields &=
+			~(XFS_ILOG_AEXT | XFS_ILOG_ABROOT);
+
+		if ((iip->ili_format.ilf_fields & XFS_ILOG_ADATA) &&
+		    ip->i_afp->if_bytes > 0) {
 			ASSERT(ip->i_afp->if_u1.if_data != NULL);
 
 			vecp->i_addr = ip->i_afp->if_u1.if_data;
@@ -474,6 +423,8 @@ xfs_inode_item_format(
 			vecp++;
 			nvecs++;
 			iip->ili_format.ilf_asize = (unsigned)data_bytes;
+		} else {
+			iip->ili_format.ilf_fields &= ~XFS_ILOG_ADATA;
 		}
 		break;
 
