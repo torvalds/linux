@@ -24,7 +24,7 @@
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
 
-static int omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
+static int __init omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 {
 	struct platform_device *pdev;
 	struct omap_gpio_platform_data *pdata;

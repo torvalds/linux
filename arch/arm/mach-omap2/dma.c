@@ -227,7 +227,7 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 
 	dma_stride		= OMAP2_DMA_STRIDE;
 	dma_common_ch_start	= CSDP;
-	if (cpu_is_omap3630() || cpu_is_omap4430())
+	if (cpu_is_omap3630() || cpu_is_omap44xx())
 		dma_common_ch_end = CCDN;
 	else
 		dma_common_ch_end = CCFN;

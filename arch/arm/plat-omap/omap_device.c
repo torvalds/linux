@@ -1,3 +1,4 @@
+
 /*
  * omap_device implementation
  *
@@ -97,14 +98,7 @@
 #define USE_WAKEUP_LAT			0
 #define IGNORE_WAKEUP_LAT		1
 
-static int omap_device_register(struct platform_device *pdev);
 static int omap_early_device_register(struct platform_device *pdev);
-static struct omap_device *omap_device_alloc(struct platform_device *pdev,
-				      struct omap_hwmod **ohs, int oh_cnt,
-				      struct omap_device_pm_latency *pm_lats,
-				      int pm_lats_cnt);
-static void omap_device_delete(struct omap_device *od);
-
 
 static struct omap_device_pm_latency omap_default_latency[] = {
 	{
@@ -509,7 +503,7 @@ static int omap_device_fill_resources(struct omap_device *od,
  *
  * Returns an struct omap_device pointer or ERR_PTR() on error;
  */
-static struct omap_device *omap_device_alloc(struct platform_device *pdev,
+struct omap_device *omap_device_alloc(struct platform_device *pdev,
 					struct omap_hwmod **ohs, int oh_cnt,
 					struct omap_device_pm_latency *pm_lats,
 					int pm_lats_cnt)
@@ -591,7 +585,7 @@ oda_exit1:
 	return ERR_PTR(ret);
 }
 
-static void omap_device_delete(struct omap_device *od)
+void omap_device_delete(struct omap_device *od)
 {
 	if (!od)
 		return;
@@ -619,7 +613,7 @@ static void omap_device_delete(struct omap_device *od)
  * information.  Returns ERR_PTR(-EINVAL) if @oh is NULL; otherwise,
  * passes along the return value of omap_device_build_ss().
  */
-struct platform_device *omap_device_build(const char *pdev_name, int pdev_id,
+struct platform_device __init *omap_device_build(const char *pdev_name, int pdev_id,
 				      struct omap_hwmod *oh, void *pdata,
 				      int pdata_len,
 				      struct omap_device_pm_latency *pm_lats,
@@ -652,7 +646,7 @@ struct platform_device *omap_device_build(const char *pdev_name, int pdev_id,
  * platform_device record.  Returns an ERR_PTR() on error, or passes
  * along the return value of omap_device_register().
  */
-struct platform_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
+struct platform_device __init *omap_device_build_ss(const char *pdev_name, int pdev_id,
 					 struct omap_hwmod **ohs, int oh_cnt,
 					 void *pdata, int pdata_len,
 					 struct omap_device_pm_latency *pm_lats,
@@ -717,7 +711,7 @@ odbs_exit:
  * platform_early_add_device() on the underlying platform_device.
  * Returns 0 by default.
  */
-static int omap_early_device_register(struct platform_device *pdev)
+static int __init omap_early_device_register(struct platform_device *pdev)
 {
 	struct platform_device *devices[1];
 
@@ -817,7 +811,7 @@ static struct dev_pm_domain omap_device_pm_domain = {
  * platform_device_register() on the underlying platform_device.
  * Returns the return value of platform_device_register().
  */
-static int omap_device_register(struct platform_device *pdev)
+int omap_device_register(struct platform_device *pdev)
 {
 	pr_debug("omap_device: %s: registering\n", pdev->name);
 
