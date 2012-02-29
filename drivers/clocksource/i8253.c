@@ -35,7 +35,7 @@ static cycle_t i8253_read(struct clocksource *cs)
 
 	raw_spin_lock_irqsave(&i8253_lock, flags);
 	/*
-	 * Although our caller may have the read side of xtime_lock,
+	 * Although our caller may have the read side of jiffies_lock,
 	 * this is now a seqlock, and we are cheating in this routine
 	 * by having side effects on state that we cannot undo if
 	 * there is a collision on the seqlock and our caller has to
