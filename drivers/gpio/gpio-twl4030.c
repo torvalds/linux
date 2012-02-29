@@ -395,22 +395,25 @@ static int gpio_twl4030_remove(struct platform_device *pdev);
 static int __devinit gpio_twl4030_probe(struct platform_device *pdev)
 {
 	struct twl4030_gpio_platform_data *pdata = pdev->dev.platform_data;
-	int ret;
+	int ret, irq_base;
 
 	/* maybe setup IRQs */
-	if (pdata->irq_base) {
-		if (is_module()) {
-			dev_err(&pdev->dev,
-				"can't dispatch IRQs from modules\n");
-			goto no_irqs;
-		}
-		ret = twl4030_sih_setup(&pdev->dev, TWL4030_MODULE_GPIO,
-					pdata->irq_base);
-		if (ret < 0)
-			return ret;
-		WARN_ON(ret != pdata->irq_base);
-		twl4030_gpio_irq_base = ret;
+	if (is_module()) {
+		dev_err(&pdev->dev, "can't dispatch IRQs from modules\n");
+		goto no_irqs;
 	}
+
+	irq_base = irq_alloc_descs(-1, 0, TWL4030_GPIO_MAX, 0);
+	if (irq_base < 0) {
+		dev_err(&pdev->dev, "Failed to alloc irq_descs\n");
+		return irq_base;
+	}
+
+	ret = twl4030_sih_setup(&pdev->dev, TWL4030_MODULE_GPIO, irq_base);
+	if (ret < 0)
+		return ret;
+
+	twl4030_gpio_irq_base = irq_base;
 
 no_irqs:
 	/*
@@ -443,9 +446,7 @@ no_irqs:
 
 	ret = gpiochip_add(&twl_gpiochip);
 	if (ret < 0) {
-		dev_err(&pdev->dev,
-				"could not register gpiochip, %d\n",
-				ret);
+		dev_err(&pdev->dev, "could not register gpiochip, %d\n", ret);
 		twl_gpiochip.ngpio = 0;
 		gpio_twl4030_remove(pdev);
 	} else if (pdata->setup) {
