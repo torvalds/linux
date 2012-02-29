@@ -121,15 +121,17 @@ static unsigned long ftrace_call_replace(unsigned long pc, unsigned long addr)
 }
 
 static int ftrace_modify_code(unsigned long pc, unsigned long old,
-			      unsigned long new)
+			      unsigned long new, bool validate)
 {
 	unsigned long replaced;
 
-	if (probe_kernel_read(&replaced, (void *)pc, MCOUNT_INSN_SIZE))
-		return -EFAULT;
+	if (validate) {
+		if (probe_kernel_read(&replaced, (void *)pc, MCOUNT_INSN_SIZE))
+			return -EFAULT;
 
-	if (replaced != old)
-		return -EINVAL;
+		if (replaced != old)
+			return -EINVAL;
+	}
 
 	if (probe_kernel_write((void *)pc, &new, MCOUNT_INSN_SIZE))
 		return -EPERM;
@@ -141,23 +143,21 @@ static int ftrace_modify_code(unsigned long pc, unsigned long old,
 
 int ftrace_update_ftrace_func(ftrace_func_t func)
 {
-	unsigned long pc, old;
+	unsigned long pc;
 	unsigned long new;
 	int ret;
 
 	pc = (unsigned long)&ftrace_call;
-	memcpy(&old, &ftrace_call, MCOUNT_INSN_SIZE);
 	new = ftrace_call_replace(pc, (unsigned long)func);
 
-	ret = ftrace_modify_code(pc, old, new);
+	ret = ftrace_modify_code(pc, 0, new, false);
 
 #ifdef CONFIG_OLD_MCOUNT
 	if (!ret) {
 		pc = (unsigned long)&ftrace_call_old;
-		memcpy(&old, &ftrace_call_old, MCOUNT_INSN_SIZE);
 		new = ftrace_call_replace(pc, (unsigned long)func);
 
-		ret = ftrace_modify_code(pc, old, new);
+		ret = ftrace_modify_code(pc, 0, new, false);
 	}
 #endif
 
@@ -172,7 +172,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	old = ftrace_nop_replace(rec);
 	new = ftrace_call_replace(ip, adjust_address(rec, addr));
 
-	return ftrace_modify_code(rec->ip, old, new);
+	return ftrace_modify_code(rec->ip, old, new, true);
 }
 
 int ftrace_make_nop(struct module *mod,
@@ -185,7 +185,7 @@ int ftrace_make_nop(struct module *mod,
 
 	old = ftrace_call_replace(ip, adjust_address(rec, addr));
 	new = ftrace_nop_replace(rec);
-	ret = ftrace_modify_code(ip, old, new);
+	ret = ftrace_modify_code(ip, old, new, true);
 
 #ifdef CONFIG_OLD_MCOUNT
 	if (ret == -EINVAL && addr == MCOUNT_ADDR) {
@@ -193,7 +193,7 @@ int ftrace_make_nop(struct module *mod,
 
 		old = ftrace_call_replace(ip, adjust_address(rec, addr));
 		new = ftrace_nop_replace(rec);
-		ret = ftrace_modify_code(ip, old, new);
+		ret = ftrace_modify_code(ip, old, new, true);
 	}
 #endif
 
@@ -254,7 +254,7 @@ static int __ftrace_modify_caller(unsigned long *callsite,
 	unsigned long old = enable ? nop : branch;
 	unsigned long new = enable ? branch : nop;
 
-	return ftrace_modify_code(pc, old, new);
+	return ftrace_modify_code(pc, old, new, true);
 }
 
 static int ftrace_modify_graph_caller(bool enable)
