@@ -22,21 +22,24 @@ config UX500_SOC_DB8500
 
 menu "Ux500 target platform (boards)"
 
-config MACH_U8500
-	bool "U8500 Development platform"
+config MACH_MOP500
+	bool "U8500 Development platform, MOP500 versions"
 	select UX500_SOC_DB8500
+	select I2C
+	select I2C_NOMADIK
 	help
-	  Include support for the mop500 development platform.
+	  Include support for the MOP500 development platform.
 
 config MACH_HREFV60
-       bool "U85000 Development platform, HREFv60 version"
-       select UX500_SOC_DB8500
-       help
-         Include support for the HREFv60 new development platform.
+	bool "U8500 Development platform, HREFv60 version"
+	select MACH_MOP500
+	help
+	  Include support for the HREFv60 new development platform.
+	  Includes HREFv70, v71 etc.
 
 config MACH_SNOWBALL
 	bool "U8500 Snowball platform"
-	select MACH_U8500
+	select MACH_MOP500
 	help
 	  Include support for the snowball development platform.
 
@@ -49,11 +52,11 @@ config MACH_U5500
 config UX500_AUTO_PLATFORM
 	def_bool y
 	depends on !MACH_U5500
-	select MACH_U8500
+	select MACH_MOP500
 	help
 	  At least one platform needs to be selected in order to build
 	  a working kernel. If everything else is disabled, this
-	  automatically enables MACH_U8500.
+	  automatically enables MACH_MOP500.
 endmenu
 
 config UX500_DEBUG_UART
