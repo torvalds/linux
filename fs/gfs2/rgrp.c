@@ -699,13 +699,14 @@ int gfs2_rindex_update(struct gfs2_sbd *sdp)
 		if (!gfs2_glock_is_locked_by_me(gl)) {
 			error = gfs2_glock_nq_init(gl, LM_ST_SHARED, 0, &ri_gh);
 			if (error)
-				return error;
+				goto out_unlock;
 			unlock_required = 1;
 		}
 		if (!sdp->sd_rindex_uptodate)
 			error = gfs2_ri_update(ip);
 		if (unlock_required)
 			gfs2_glock_dq_uninit(&ri_gh);
+out_unlock:
 		mutex_unlock(&sdp->sd_rindex_mutex);
 	}
 
