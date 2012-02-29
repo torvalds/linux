@@ -511,6 +511,7 @@ static int _set_gpio_wakeup(struct gpio_bank *bank, int gpio, int enable)
 	else
 		bank->suspend_wakeup &= ~gpio_bit;
 
+	__raw_writel(bank->suspend_wakeup, bank->base + bank->regs->wkup_en);
 	spin_unlock_irqrestore(&bank->lock, flags);
 
 	return 0;
