@@ -44,6 +44,7 @@ extern struct clk sh7372_extal1_clk;
 extern struct clk sh7372_extal2_clk;
 
 extern void sh73a0_init_irq(void);
+extern void sh73a0_map_io(void);
 extern void sh73a0_add_early_devices(void);
 extern void sh73a0_add_standard_devices(void);
 extern void sh73a0_clock_init(void);

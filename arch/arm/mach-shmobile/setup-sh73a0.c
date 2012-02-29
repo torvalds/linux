@@ -32,8 +32,27 @@
 #include <linux/sh_timer.h>
 #include <mach/hardware.h>
 #include <mach/sh73a0.h>
+#include <mach/common.h>
 #include <asm/mach-types.h>
+#include <asm/mach/map.h>
 #include <asm/mach/arch.h>
+
+static struct map_desc sh73a0_io_desc[] __initdata = {
+	/* create a 1:1 entity map for 0xe6xxxxxx
+	 * used by CPGA, INTC and PFC.
+	 */
+	{
+		.virtual	= 0xe6000000,
+		.pfn		= __phys_to_pfn(0xe6000000),
+		.length		= 256 << 20,
+		.type		= MT_DEVICE_NONSHARED
+	},
+};
+
+void __init sh73a0_map_io(void)
+{
+	iotable_init(sh73a0_io_desc, ARRAY_SIZE(sh73a0_io_desc));
+}
 
 static struct plat_sci_port scif0_platform_data = {
 	.mapbase	= 0xe6c40000,
@@ -671,4 +690,7 @@ void __init sh73a0_add_early_devices(void)
 {
 	early_platform_add_devices(sh73a0_early_devices,
 				   ARRAY_SIZE(sh73a0_early_devices));
+
+	/* setup early console here as well */
+	shmobile_setup_console();
 }
