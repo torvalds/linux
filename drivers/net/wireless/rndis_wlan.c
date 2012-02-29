@@ -1387,13 +1387,15 @@ static int add_wep_key(struct usbnet *usbdev, const u8 *key, int key_len,
 	netdev_dbg(usbdev->net, "%s(idx: %d, len: %d)\n",
 		   __func__, index, key_len);
 
-	if ((key_len != 5 && key_len != 13) || index < 0 || index > 3)
+	if (index < 0 || index >= RNDIS_WLAN_NUM_KEYS)
 		return -EINVAL;
 
 	if (key_len == 5)
 		cipher = WLAN_CIPHER_SUITE_WEP40;
-	else
+	else if (key_len == 13)
 		cipher = WLAN_CIPHER_SUITE_WEP104;
+	else
+		return -EINVAL;
 
 	memset(&ndis_key, 0, sizeof(ndis_key));
 
@@ -1436,7 +1438,7 @@ static int add_wpa_key(struct usbnet *usbdev, const u8 *key, int key_len,
 	bool is_addr_ok;
 	int ret;
 
-	if (index < 0 || index >= 4) {
+	if (index < 0 || index >= RNDIS_WLAN_NUM_KEYS) {
 		netdev_dbg(usbdev->net, "%s(): index out of range (%i)\n",
 			   __func__, index);
 		return -EINVAL;
