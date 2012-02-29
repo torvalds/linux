@@ -1987,7 +1987,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		musb->xceiv->otg->default_a = 1;
 		musb->xceiv->state = OTG_STATE_A_IDLE;
 
-		status = usb_add_hcd(musb_to_hcd(musb), -1, 0);
+		status = usb_add_hcd(musb_to_hcd(musb), 0, 0);
 
 		hcd->self.uses_pio_for_control = 1;
 		dev_dbg(musb->controller, "%s mode, status %d, devctl %02x %c\n",

@@ -1957,7 +1957,7 @@ static int musb_gadget_start(struct usb_gadget *g,
 		 * handles power budgeting ... this way also
 		 * ensures HdrcStart is indirectly called.
 		 */
-		retval = usb_add_hcd(musb_to_hcd(musb), -1, 0);
+		retval = usb_add_hcd(musb_to_hcd(musb), 0, 0);
 		if (retval < 0) {
 			dev_dbg(musb->controller, "add_hcd failed, %d\n", retval);
 			goto err2;

@@ -224,13 +224,13 @@ static void xhci_free_irq(struct xhci_hcd *xhci)
 	int ret;
 
 	/* return if using legacy interrupt */
-	if (xhci_to_hcd(xhci)->irq >= 0)
+	if (xhci_to_hcd(xhci)->irq > 0)
 		return;
 
 	ret = xhci_free_msi(xhci);
 	if (!ret)
 		return;
-	if (pdev->irq >= 0)
+	if (pdev->irq > 0)
 		free_irq(pdev->irq, xhci_to_hcd(xhci));
 
 	return;
@@ -341,7 +341,7 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 	/* unregister the legacy interrupt */
 	if (hcd->irq)
 		free_irq(hcd->irq, hcd);
-	hcd->irq = -1;
+	hcd->irq = 0;
 
 	ret = xhci_setup_msix(xhci);
 	if (ret)
@@ -349,7 +349,7 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 		ret = xhci_setup_msi(xhci);
 
 	if (!ret)
-		/* hcd->irq is -1, we have MSI */
+		/* hcd->irq is 0, we have MSI */
 		return 0;
 
 	if (!pdev->irq) {
