@@ -37,7 +37,6 @@
 #include "hw.h"
 #include "mei.h"
 #include "interface.h"
-#include "mei_version.h"
 
 
 

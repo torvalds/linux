@@ -38,7 +38,6 @@
 #include "mei_dev.h"
 #include "mei.h"
 #include "interface.h"
-#include "mei_version.h"
 
 
 #define MEI_READ_TIMEOUT 45
@@ -50,7 +49,6 @@
  */
 static char mei_driver_name[] = MEI_DRIVER_NAME;
 static const char mei_driver_string[] = "Intel(R) Management Engine Interface";
-static const char mei_driver_version[] = MEI_DRIVER_VERSION;
 
 /* The device pointer */
 /* Currently this driver works as long as there is only a single AMT device. */
@@ -1206,8 +1204,7 @@ static int __init mei_init_module(void)
 {
 	int ret;
 
-	pr_debug("mei: %s - version %s\n",
-		mei_driver_string, mei_driver_version);
+	pr_debug("mei: %s\n", mei_driver_string);
 	/* init pci module */
 	ret = pci_register_driver(&mei_driver);
 	if (ret < 0)
@@ -1238,4 +1235,3 @@ module_exit(mei_exit_module);
 MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("Intel(R) Management Engine Interface");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(MEI_DRIVER_VERSION);
