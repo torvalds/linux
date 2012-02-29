@@ -1276,6 +1276,9 @@ int dss_ovl_enable(struct omap_overlay *ovl)
 
 	spin_unlock_irqrestore(&data_lock, flags);
 
+	/* wait for overlay to be enabled */
+	wait_pending_extra_info_updates();
+
 	mutex_unlock(&apply_lock);
 
 	return 0;
@@ -1312,6 +1315,9 @@ int dss_ovl_disable(struct omap_overlay *ovl)
 	dss_set_go_bits();
 
 	spin_unlock_irqrestore(&data_lock, flags);
+
+	/* wait for the overlay to be disabled */
+	wait_pending_extra_info_updates();
 
 	mutex_unlock(&apply_lock);
 
