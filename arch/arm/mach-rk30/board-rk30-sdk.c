@@ -291,6 +291,38 @@ static struct mma8452_platform_data mma8452_info = {
 	.orientation = { -1, 0, 0, 0, 0, 1, 0, -1, 0},
 };
 #endif
+#if defined(CONFIG_GYRO_L3G4200D)
+
+#include <linux/l3g4200d.h>
+#define L3G4200D_INT_PIN  RK30_PIN4_PC3
+
+static int l3g4200d_init_platform_hw(void)
+{
+	if (gpio_request(L3G4200D_INT_PIN, NULL) != 0) {
+		gpio_free(L3G4200D_INT_PIN);
+		printk("%s: request l3g4200d int pin error\n", __func__);
+		return -EIO;
+	}
+	gpio_pull_updown(L3G4200D_INT_PIN, 1);
+	return 0;
+}
+
+static struct l3g4200d_platform_data l3g4200d_info = {
+	.fs_range = 1,
+
+	.axis_map_x = 0,
+	.axis_map_y = 1,
+	.axis_map_z = 2,
+
+	.negate_x = 1,
+	.negate_y = 1,
+	.negate_z = 0,
+
+	.init = l3g4200d_init_platform_hw,
+};
+
+#endif
+
 
 #ifdef CONFIG_FB_ROCKCHIP
 static struct resource resource_fb[] = {
@@ -343,6 +375,16 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 	      .platform_data  = &mma8452_info,
 	    },
 #endif
+#if defined (CONFIG_GYRO_L3G4200D)
+	{
+		.type           = "l3g4200d_gryo",
+		.addr           = 0x69,
+		.flags          = 0,
+		.irq            = L3G4200D_INT_PIN,
+		.platform_data  = &l3g4200d_info,
+	},
+#endif
+
 #if defined (CONFIG_SND_SOC_RK1000)
 	{
 		.type    		= "rk1000_i2c_codec",

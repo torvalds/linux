@@ -43,12 +43,13 @@
 /** This define controls compilation of the master device interface */
 /*#define L3G4200D_MASTER_DEVICE*/
 
-#define L3G4200D_IOCTL_BASE 'g'
-/* The following define the IOCTL command values via the ioctl macros */
-#define L3G4200D_SET_RANGE		_IOW(L3G4200D_IOCTL_BASE, 1, int)
-#define L3G4200D_SET_MODE		_IOW(L3G4200D_IOCTL_BASE, 2, int)
-#define L3G4200D_SET_BANDWIDTH		_IOW(L3G4200D_IOCTL_BASE, 3, int)
-#define L3G4200D_READ_GYRO_VALUES	_IOW(L3G4200D_IOCTL_BASE, 4, int)
+#define L3G4200D_IOCTL_BASE 77
+
+#define L3G4200D_IOCTL_SET_DELAY _IOW(L3G4200D_IOCTL_BASE, 0, int)
+#define L3G4200D_IOCTL_GET_DELAY _IOR(L3G4200D_IOCTL_BASE, 1, int)
+#define L3G4200D_IOCTL_SET_ENABLE _IOW(L3G4200D_IOCTL_BASE, 2, int)
+#define L3G4200D_IOCTL_GET_ENABLE _IOR(L3G4200D_IOCTL_BASE, 3, int)
+
 
 #define L3G4200D_FS_250DPS	0x00
 #define L3G4200D_FS_500DPS	0x10
