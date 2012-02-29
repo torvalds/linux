@@ -14,6 +14,7 @@ extern void (*shmobile_cpuidle_modes[])(void);
 extern void (*shmobile_cpuidle_setup)(struct cpuidle_driver *drv);
 
 extern void sh7367_init_irq(void);
+extern void sh7367_map_io(void);
 extern void sh7367_add_early_devices(void);
 extern void sh7367_add_standard_devices(void);
 extern void sh7367_clock_init(void);
