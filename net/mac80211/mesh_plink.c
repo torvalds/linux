@@ -31,6 +31,11 @@
 #define dot11MeshHoldingTimeout(s) (s->u.mesh.mshcfg.dot11MeshHoldingTimeout)
 #define dot11MeshMaxPeerLinks(s) (s->u.mesh.mshcfg.dot11MeshMaxPeerLinks)
 
+#define sta_meets_rssi_threshold(sta, sdata) \
+		(sdata->u.mesh.mshcfg.rssi_threshold == 0 ||\
+		(s8) -ewma_read(&sta->avg_signal) > \
+		sdata->u.mesh.mshcfg.rssi_threshold)
+
 enum plink_event {
 	PLINK_UNDEFINED,
 	OPN_ACPT,
@@ -301,7 +306,8 @@ void mesh_neighbour_update(u8 *hw_addr, u32 rates,
 	if (mesh_peer_accepts_plinks(elems) &&
 			sta->plink_state == NL80211_PLINK_LISTEN &&
 			sdata->u.mesh.accepting_plinks &&
-			sdata->u.mesh.mshcfg.auto_open_plinks)
+			sdata->u.mesh.mshcfg.auto_open_plinks &&
+			sta_meets_rssi_threshold(sta, sdata))
 		mesh_plink_open(sta);
 
 	rcu_read_unlock();
@@ -527,6 +533,14 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 	sta = sta_info_get(sdata, mgmt->sa);
 	if (!sta && ftype != WLAN_SP_MESH_PEERING_OPEN) {
 		mpl_dbg("Mesh plink: cls or cnf from unknown peer\n");
+		rcu_read_unlock();
+		return;
+	}
+
+	if (ftype == WLAN_SP_MESH_PEERING_OPEN &&
+	    !sta_meets_rssi_threshold(sta, sdata)) {
+		mpl_dbg("Mesh plink: %pM does not meet rssi threshold\n",
+			sta->sta.addr);
 		rcu_read_unlock();
 		return;
 	}

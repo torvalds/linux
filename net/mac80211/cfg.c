@@ -1314,6 +1314,14 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 	}
 	if (_chg_mesh_attr(NL80211_MESHCONF_FORWARDING, mask))
 		conf->dot11MeshForwarding = nconf->dot11MeshForwarding;
+	if (_chg_mesh_attr(NL80211_MESHCONF_RSSI_THRESHOLD, mask)) {
+		/* our RSSI threshold implementation is supported only for
+		 * devices that report signal in dBm.
+		 */
+		if (!(sdata->local->hw.flags & IEEE80211_HW_SIGNAL_DBM))
+			return -ENOTSUPP;
+		conf->rssi_threshold = nconf->rssi_threshold;
+	}
 	return 0;
 }
 
