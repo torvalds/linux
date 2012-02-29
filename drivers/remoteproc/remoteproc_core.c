@@ -298,14 +298,15 @@ __rproc_handle_vring(struct rproc_vdev *rvdev, struct fw_rsc_vdev *rsc, int i)
 		return -EINVAL;
 	}
 
-	/* the firmware must provide the expected queue size */
-	if (!vring->num) {
-		dev_err(dev, "invalid qsz (%d)\n", vring->num);
+	/* verify queue size and vring alignment are sane */
+	if (!vring->num || !vring->align) {
+		dev_err(dev, "invalid qsz (%d) or alignment (%d)\n",
+						vring->num, vring->align);
 		return -EINVAL;
 	}
 
 	/* actual size of vring (in bytes) */
-	size = PAGE_ALIGN(vring_size(vring->num, AMP_VRING_ALIGN));
+	size = PAGE_ALIGN(vring_size(vring->num, vring->align));
 
 	if (!idr_pre_get(&rproc->notifyids, GFP_KERNEL)) {
 		dev_err(dev, "idr_pre_get failed\n");
@@ -340,6 +341,7 @@ __rproc_handle_vring(struct rproc_vdev *rvdev, struct fw_rsc_vdev *rsc, int i)
 					dma, size, notifyid);
 
 	rvdev->vring[i].len = vring->num;
+	rvdev->vring[i].align = vring->align;
 	rvdev->vring[i].va = va;
 	rvdev->vring[i].dma = dma;
 	rvdev->vring[i].notifyid = notifyid;
@@ -354,7 +356,7 @@ static void __rproc_free_vrings(struct rproc_vdev *rvdev, int i)
 
 	for (i--; i > 0; i--) {
 		struct rproc_vring *rvring = &rvdev->vring[i];
-		int size = PAGE_ALIGN(vring_size(rvring->len, AMP_VRING_ALIGN));
+		int size = PAGE_ALIGN(vring_size(rvring->len, rvring->align));
 
 		dma_free_coherent(rproc->dev, size, rvring->va, rvring->dma);
 		idr_remove(&rproc->notifyids, rvring->notifyid);

@@ -43,13 +43,6 @@
 #include <linux/completion.h>
 #include <linux/idr.h>
 
-/*
- * The alignment between the consumer and producer parts of the vring.
- * Note: this is part of the "wire" protocol. If you change this, you need
- * to update your peers too.
- */
-#define AMP_VRING_ALIGN	(4096)
-
 /**
  * struct resource_table - firmware resource table header
  * @ver: version number
@@ -423,6 +416,7 @@ struct rproc {
  * @dma: dma address
  * @len: length, in bytes
  * @da: device address
+ * @align: vring alignment
  * @notifyid: rproc-specific unique vring index
  * @rvdev: remote vdev
  * @vq: the virtqueue of this vring
@@ -432,6 +426,7 @@ struct rproc_vring {
 	dma_addr_t dma;
 	int len;
 	u32 da;
+	u32 align;
 	int notifyid;
 	struct rproc_vdev *rvdev;
 	struct virtqueue *vq;
