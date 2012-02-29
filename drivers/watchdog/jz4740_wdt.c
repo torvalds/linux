@@ -109,6 +109,7 @@ static int jz4740_wdt_set_timeout(struct watchdog_device *wdt_dev,
 
 	writeb(0x1, drvdata->base + JZ_REG_WDT_COUNTER_ENABLE);
 
+	wdt_dev->timeout = new_timeout;
 	return 0;
 }
 

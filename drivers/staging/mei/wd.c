@@ -323,6 +323,7 @@ static int mei_wd_ops_set_timeout(struct watchdog_device *wd_dev, unsigned int t
 	mutex_lock(&dev->device_lock);
 
 	dev->wd_timeout = timeout;
+	wd_dev->timeout = timeout;
 	mei_wd_set_start_timeout(dev, dev->wd_timeout);
 
 	mutex_unlock(&dev->device_lock);

@@ -163,6 +163,8 @@ static int wm831x_wdt_set_timeout(struct watchdog_device *wdt_dev,
 			ret);
 	}
 
+	wdt_dev->timeout = timeout;
+
 	return ret;
 }
 

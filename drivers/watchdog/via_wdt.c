@@ -101,7 +101,7 @@ static void wdt_timer_tick(unsigned long data)
 static int wdt_ping(struct watchdog_device *wdd)
 {
 	/* calculate when the next userspace timeout will be */
-	next_heartbeat = jiffies + timeout * HZ;
+	next_heartbeat = jiffies + wdd->timeout * HZ;
 	return 0;
 }
 
@@ -109,7 +109,7 @@ static int wdt_start(struct watchdog_device *wdd)
 {
 	unsigned int ctl = readl(wdt_mem);
 
-	writel(timeout, wdt_mem + VIA_WDT_COUNT);
+	writel(wdd->timeout, wdt_mem + VIA_WDT_COUNT);
 	writel(ctl | VIA_WDT_RUNNING | VIA_WDT_TRIGGER, wdt_mem);
 	wdt_ping(wdd);
 	mod_timer(&timer, jiffies + WDT_HEARTBEAT);
@@ -128,7 +128,7 @@ static int wdt_set_timeout(struct watchdog_device *wdd,
 			   unsigned int new_timeout)
 {
 	writel(new_timeout, wdt_mem + VIA_WDT_COUNT);
-	timeout = new_timeout;
+	wdd->timeout = new_timeout;
 	return 0;
 }
 

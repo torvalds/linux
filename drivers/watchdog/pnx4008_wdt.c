@@ -121,6 +121,7 @@ static int pnx4008_wdt_stop(struct watchdog_device *wdd)
 static int pnx4008_wdt_set_timeout(struct watchdog_device *wdd,
 				    unsigned int new_timeout)
 {
+	wdd->timeout = new_timeout;
 	return 0;
 }
 

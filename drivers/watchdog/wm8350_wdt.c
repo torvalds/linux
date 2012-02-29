@@ -60,6 +60,7 @@ static int wm8350_wdt_set_timeout(struct watchdog_device *wdt_dev,
 	wm8350_reg_lock(wm8350);
 	mutex_unlock(&wdt_mutex);
 
+	wdt_dev->timeout = timeout;
 	return ret;
 }
 
