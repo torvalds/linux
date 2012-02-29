@@ -143,16 +143,22 @@ static void ceph_write_space(struct sock *sk)
 	struct ceph_connection *con =
 		(struct ceph_connection *)sk->sk_user_data;
 
-	/* only queue to workqueue if there is data we want to write. */
+	/* only queue to workqueue if there is data we want to write,
+	 * and there is sufficient space in the socket buffer to accept
+	 * more data.  clear SOCK_NOSPACE so that ceph_write_space()
+	 * doesn't get called again until try_write() fills the socket
+	 * buffer. See net/ipv4/tcp_input.c:tcp_check_space()
+	 * and net/core/stream.c:sk_stream_write_space().
+	 */
 	if (test_bit(WRITE_PENDING, &con->state)) {
-		dout("ceph_write_space %p queueing write work\n", con);
-		queue_con(con);
+		if (sk_stream_wspace(sk) >= sk_stream_min_wspace(sk)) {
+			dout("ceph_write_space %p queueing write work\n", con);
+			clear_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+			queue_con(con);
+		}
 	} else {
 		dout("ceph_write_space %p nothing to write\n", con);
 	}
-
-	/* since we have our own write_space, clear the SOCK_NOSPACE flag */
-	clear_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
 }
 
 /* socket's state has changed */
