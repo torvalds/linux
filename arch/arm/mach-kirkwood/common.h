@@ -51,6 +51,14 @@ void kirkwood_nand_init_rnb(struct mtd_partition *parts, int nr_parts, int (*dev
 void kirkwood_audio_init(void);
 void kirkwood_restart(char, const char *);
 
+char *kirkwood_id(void);
+void kirkwood_l2_init(void);
+void kirkwood_rtc_init(void);
+void kirkwood_wdt_init(void);
+void kirkwood_xor0_init(void);
+void kirkwood_xor1_init(void);
+void kirkwood_crypto_init(void);
+
 extern int kirkwood_tclk;
 extern struct sys_timer kirkwood_timer;
 

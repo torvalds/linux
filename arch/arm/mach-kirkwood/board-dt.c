@@ -29,7 +29,9 @@
 #include <linux/spi/orion_spi.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/map.h>
 #include <mach/kirkwood.h>
+#include <mach/bridge-regs.h>
 #include <plat/mvsdio.h>
 #include "common.h"
 #include "mpp.h"
@@ -155,7 +157,32 @@ static void __init dreamplug_init(void)
 
 static void __init kirkwood_dt_init(void)
 {
-	kirkwood_init();
+	pr_info("Kirkwood: %s, TCLK=%d.\n", kirkwood_id(), kirkwood_tclk);
+
+	/*
+	 * Disable propagation of mbus errors to the CPU local bus,
+	 * as this causes mbus errors (which can occur for example
+	 * for PCI aborts) to throw CPU aborts, which we're not set
+	 * up to deal with.
+	 */
+	writel(readl(CPU_CONFIG) & ~CPU_CONFIG_ERROR_PROP, CPU_CONFIG);
+
+	kirkwood_setup_cpu_mbus();
+
+#ifdef CONFIG_CACHE_FEROCEON_L2
+	kirkwood_l2_init();
+#endif
+
+	/* internal devices that every board has */
+	kirkwood_rtc_init();
+	kirkwood_wdt_init();
+	kirkwood_xor0_init();
+	kirkwood_xor1_init();
+	kirkwood_crypto_init();
+
+#ifdef CONFIG_KEXEC
+	kexec_reinit = kirkwood_enable_pcie;
+#endif
 
 	if (of_machine_is_compatible("globalscale,dreamplug"))
 		dreamplug_init();
