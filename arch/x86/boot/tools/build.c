@@ -36,7 +36,7 @@
 
 typedef unsigned char  u8;
 typedef unsigned short u16;
-typedef unsigned long  u32;
+typedef unsigned int   u32;
 
 #define DEFAULT_MAJOR_ROOT 0
 #define DEFAULT_MINOR_ROOT 0
@@ -247,8 +247,9 @@ int main(int argc, char ** argv)
 	}
 
 	/* Write the CRC */
-	fprintf(stderr, "CRC %lx\n", crc);
-	if (fwrite(&crc, 1, 4, stdout) != 4)
+	fprintf(stderr, "CRC %x\n", crc);
+	put_unaligned_le32(crc, buf);
+	if (fwrite(buf, 1, 4, stdout) != 4)
 		die("Writing CRC failed");
 
 	close(fd);
