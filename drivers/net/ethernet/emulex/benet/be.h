@@ -442,10 +442,6 @@ extern const struct ethtool_ops be_ethtool_ops;
 		((u32)((((size_t)(_address) & (PAGE_SIZE_4K - 1)) + 	\
 			(size) + (PAGE_SIZE_4K - 1)) >> PAGE_SHIFT_4K))
 
-/* Byte offset into the page corresponding to given address */
-#define OFFSET_IN_PAGE(addr)						\
-		 ((size_t)(addr) & (PAGE_SIZE_4K-1))
-
 /* Returns bit offset within a DWORD of a bitfield */
 #define AMAP_BIT_OFFSET(_struct, field)  				\
 		(((size_t)&(((_struct *)0)->field))%32)
