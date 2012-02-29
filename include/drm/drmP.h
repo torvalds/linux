@@ -1264,11 +1264,6 @@ extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
 
 				/* Memory management support (drm_memory.h) */
 #include "drm_memory.h"
-extern void drm_mem_init(void);
-extern int drm_mem_info(char *buf, char **start, off_t offset,
-			int request, int *eof, void *data);
-extern void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area);
-
 extern void drm_free_agp(DRM_AGP_MEM * handle, int pages);
 extern int drm_bind_agp(DRM_AGP_MEM * handle, unsigned int start);
 extern DRM_AGP_MEM *drm_agp_bind_pages(struct drm_device *dev,
@@ -1383,12 +1378,8 @@ extern void drm_core_reclaim_buffers(struct drm_device *dev,
 				/* IRQ support (drm_irq.h) */
 extern int drm_control(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
-extern irqreturn_t drm_irq_handler(DRM_IRQ_ARGS);
 extern int drm_irq_install(struct drm_device *dev);
 extern int drm_irq_uninstall(struct drm_device *dev);
-extern void drm_driver_irq_preinstall(struct drm_device *dev);
-extern void drm_driver_irq_postinstall(struct drm_device *dev);
-extern void drm_driver_irq_uninstall(struct drm_device *dev);
 
 extern int drm_vblank_init(struct drm_device *dev, int num_crtcs);
 extern int drm_wait_vblank(struct drm_device *dev, void *data,

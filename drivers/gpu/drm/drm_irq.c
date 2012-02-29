@@ -305,7 +305,7 @@ static void drm_irq_vgaarb_nokms(void *cookie, bool state)
  * \param dev DRM device.
  *
  * Initializes the IRQ related data. Installs the handler, calling the driver
- * \c drm_driver_irq_preinstall() and \c drm_driver_irq_postinstall() functions
+ * \c irq_preinstall() and \c irq_postinstall() functions
  * before and after the installation.
  */
 int drm_irq_install(struct drm_device *dev)
@@ -385,7 +385,7 @@ EXPORT_SYMBOL(drm_irq_install);
  *
  * \param dev DRM device.
  *
- * Calls the driver's \c drm_driver_irq_uninstall() function, and stops the irq.
+ * Calls the driver's \c irq_uninstall() function, and stops the irq.
  */
 int drm_irq_uninstall(struct drm_device *dev)
 {
