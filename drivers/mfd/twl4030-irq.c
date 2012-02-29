@@ -28,10 +28,13 @@
  */
 
 #include <linux/init.h>
+#include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
 
+#include <linux/of.h>
+#include <linux/irqdomain.h>
 #include <linux/i2c/twl.h>
 
 #include "twl-core.h"
@@ -53,6 +56,8 @@
  *	base + 8  .. base + 15	SIH for PWR_INT
  *	base + 16 .. base + 33	SIH for GPIO
  */
+#define TWL4030_CORE_NR_IRQS	8
+#define TWL4030_PWR_NR_IRQS	8
 
 /* PIH register offsets */
 #define REG_PIH_ISR_P1			0x01
@@ -695,12 +700,32 @@ int twl4030_sih_setup(int module)
 /* FIXME pass in which interrupt line we'll use ... */
 #define twl_irq_line	0
 
-int twl4030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
+int twl4030_init_irq(struct device *dev, int irq_num)
 {
 	static struct irq_chip	twl4030_irq_chip;
+	int			irq_base, irq_end, nr_irqs;
+	struct			device_node *node = dev->of_node;
 
 	int			status;
 	int			i;
+
+	/*
+	 * TWL core and pwr interrupts must be contiguous because
+	 * the hwirqs numbers are defined contiguously from 1 to 15.
+	 * Create only one domain for both.
+	 */
+	nr_irqs = TWL4030_PWR_NR_IRQS + TWL4030_CORE_NR_IRQS;
+
+	irq_base = irq_alloc_descs(-1, 0, nr_irqs, 0);
+	if (IS_ERR_VALUE(irq_base)) {
+		dev_err(dev, "Fail to allocate IRQ descs\n");
+		return irq_base;
+	}
+
+	irq_domain_add_legacy(node, nr_irqs, irq_base, 0,
+			      &irq_domain_simple_ops, NULL);
+
+	irq_end = irq_base + TWL4030_CORE_NR_IRQS;
 
 	/*
 	 * Mask and clear all TWL4030 interrupts since initially we do
@@ -747,7 +772,7 @@ int twl4030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 		goto fail_rqirq;
 	}
 
-	return status;
+	return irq_base;
 fail_rqirq:
 	/* clean up twl4030_sih_setup */
 fail:

@@ -147,9 +147,6 @@
 
 #define TWL_MODULE_LAST TWL4030_MODULE_LAST
 
-#define TWL4030_NR_IRQS    8
-#define TWL6030_NR_IRQS    20
-
 /* Base Address defns for twl4030_map[] */
 
 /* subchip/slave 0 - USB ID */
@@ -1186,17 +1183,12 @@ static int __devinit
 twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int				irq_base;
-	int				irq_end;
 	int				status;
 	unsigned			i;
 	struct twl4030_platform_data	*pdata = client->dev.platform_data;
 	struct device_node		*node = client->dev.of_node;
 	u8 temp;
 	int ret = 0;
-	int nr_irqs = TWL4030_NR_IRQS;
-
-	if ((id->driver_data) & TWL6030_CLASS)
-		nr_irqs = TWL6030_NR_IRQS;
 
 	if (node && !pdata) {
 		/*
@@ -1214,17 +1206,6 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		dev_dbg(&client->dev, "no platform data?\n");
 		return -EINVAL;
 	}
-
-	status = irq_alloc_descs(-1, 0, nr_irqs, 0);
-	if (IS_ERR_VALUE(status)) {
-		dev_err(&client->dev, "Fail to allocate IRQ descs\n");
-		return status;
-	}
-
-	irq_base = status;
-	irq_end = irq_base + nr_irqs;
-	irq_domain_add_legacy(node, nr_irqs, irq_base, 0,
-			      &irq_domain_simple_ops, NULL);
 
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C) == 0) {
 		dev_dbg(&client->dev, "can't talk I2C?\n");
@@ -1280,15 +1261,15 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (client->irq) {
 		if (twl_class_is_4030()) {
 			twl4030_init_chip_irq(id->name);
-			status = twl4030_init_irq(client->irq, irq_base,
-			irq_end);
+			irq_base = twl4030_init_irq(&client->dev, client->irq);
 		} else {
-			status = twl6030_init_irq(client->irq, irq_base,
-			irq_end);
+			irq_base = twl6030_init_irq(&client->dev, client->irq);
 		}
 
-		if (status < 0)
+		if (irq_base < 0) {
+			status = irq_base;
 			goto fail;
+		}
 	}
 
 	/* Disable TWL4030/TWL5030 I2C Pull-up on I2C1 and I2C4(SR) interface.

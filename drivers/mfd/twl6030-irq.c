@@ -39,6 +39,8 @@
 #include <linux/i2c/twl.h>
 #include <linux/platform_device.h>
 #include <linux/suspend.h>
+#include <linux/of.h>
+#include <linux/irqdomain.h>
 
 #include "twl-core.h"
 
@@ -53,6 +55,7 @@
  * specifies mapping between interrupt number and the associated module.
  *
  */
+#define TWL6030_NR_IRQS    20
 
 static int twl6030_interrupt_mapping[24] = {
 	PWR_INTR_OFFSET,	/* Bit 0	PWRON			*/
@@ -246,11 +249,6 @@ static int twl6030_irq_set_wake(struct irq_data *d, unsigned int on)
 	return 0;
 }
 
-/*----------------------------------------------------------------------*/
-
-static unsigned twl6030_irq_next;
-
-/*----------------------------------------------------------------------*/
 int twl6030_interrupt_unmask(u8 bit_mask, u8 offset)
 {
 	int ret;
@@ -350,8 +348,10 @@ int twl6030_mmc_card_detect(struct device *dev, int slot)
 }
 EXPORT_SYMBOL(twl6030_mmc_card_detect);
 
-int twl6030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
+int twl6030_init_irq(struct device *dev, int irq_num)
 {
+	struct			device_node *node = dev->of_node;
+	int			nr_irqs, irq_base, irq_end;
 
 	int	status = 0;
 	int	i;
@@ -360,6 +360,20 @@ int twl6030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 	u8 mask[4];
 
 	static struct irq_chip	twl6030_irq_chip;
+
+	nr_irqs = TWL6030_NR_IRQS;
+
+	irq_base = irq_alloc_descs(-1, 0, nr_irqs, 0);
+	if (IS_ERR_VALUE(irq_base)) {
+		dev_err(dev, "Fail to allocate IRQ descs\n");
+		return irq_base;
+	}
+
+	irq_domain_add_legacy(node, nr_irqs, irq_base, 0,
+			      &irq_domain_simple_ops, NULL);
+
+	irq_end = irq_base + nr_irqs;
+
 	mask[1] = 0xFF;
 	mask[2] = 0xFF;
 	mask[3] = 0xFF;
@@ -387,9 +401,8 @@ int twl6030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 		activate_irq(i);
 	}
 
-	twl6030_irq_next = i;
 	pr_info("twl6030: %s (irq %d) chaining IRQs %d..%d\n", "PIH",
-			irq_num, irq_base, twl6030_irq_next - 1);
+			irq_num, irq_base, irq_end);
 
 	/* install an irq handler to demultiplex the TWL6030 interrupt */
 	init_completion(&irq_event);
@@ -410,7 +423,7 @@ int twl6030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 
 	twl_irq = irq_num;
 	register_pm_notifier(&twl6030_irq_pm_notifier_block);
-	return status;
+	return irq_base;
 
 fail_kthread:
 	free_irq(irq_num, &irq_event);
