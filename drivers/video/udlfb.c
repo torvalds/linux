@@ -1432,19 +1432,22 @@ static ssize_t edid_store(
 	struct device *fbdev = container_of(kobj, struct device, kobj);
 	struct fb_info *fb_info = dev_get_drvdata(fbdev);
 	struct dlfb_data *dev = fb_info->par;
+	int ret;
 
 	/* We only support write of entire EDID at once, no offset*/
 	if ((src_size != EDID_LENGTH) || (src_off != 0))
-		return 0;
+		return -EINVAL;
 
-	dlfb_setup_modes(dev, fb_info, src, src_size);
+	ret = dlfb_setup_modes(dev, fb_info, src, src_size);
+	if (ret)
+		return ret;
 
-	if (dev->edid && (memcmp(src, dev->edid, src_size) == 0)) {
-		pr_info("sysfs written EDID is new default\n");
-		dlfb_ops_set_par(fb_info);
-		return src_size;
-	} else
-		return 0;
+	if (!dev->edid || memcmp(src, dev->edid, src_size))
+		return -EINVAL;
+
+	pr_info("sysfs written EDID is new default\n");
+	dlfb_ops_set_par(fb_info);
+	return src_size;
 }
 
 static ssize_t metrics_reset_store(struct device *fbdev,
