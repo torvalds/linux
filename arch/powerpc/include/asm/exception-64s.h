@@ -297,21 +297,10 @@ label##_common:						\
 
 /*
  * Like STD_EXCEPTION_COMMON, but for exceptions that can occur
- * in the idle task and therefore need the special idle handling.
+ * in the idle task and therefore need the special idle handling
+ * (finish nap and runlatch)
  */
-#define STD_EXCEPTION_COMMON_IDLE(trap, label, hdlr)	\
-	.align	7;					\
-	.globl label##_common;				\
-label##_common:						\
-	EXCEPTION_PROLOG_COMMON(trap, PACA_EXGEN);	\
-	FINISH_NAP;					\
-	DISABLE_INTS;					\
-	bl	.save_nvgprs;				\
-	addi	r3,r1,STACK_FRAME_OVERHEAD;		\
-	bl	hdlr;					\
-	b	.ret_from_except
-
-#define STD_EXCEPTION_COMMON_LITE(trap, label, hdlr)	\
+#define STD_EXCEPTION_COMMON_ASYNC(trap, label, hdlr)	\
 	.align	7;					\
 	.globl label##_common;				\
 label##_common:						\
