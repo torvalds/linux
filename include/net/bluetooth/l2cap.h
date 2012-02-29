@@ -522,6 +522,7 @@ struct l2cap_conn {
 	unsigned int	mtu;
 
 	__u32		feat_mask;
+	__u8		fixed_chan_mask;
 
 	__u8		info_state;
 	__u8		info_ident;

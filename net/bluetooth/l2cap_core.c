@@ -3209,7 +3209,8 @@ static inline int l2cap_information_rsp(struct l2cap_conn *conn, struct l2cap_cm
 		return 0;
 	}
 
-	if (type == L2CAP_IT_FEAT_MASK) {
+	switch (type) {
+	case L2CAP_IT_FEAT_MASK:
 		conn->feat_mask = get_unaligned_le32(rsp->data);
 
 		if (conn->feat_mask & L2CAP_FEAT_FIXED_CHAN) {
@@ -3226,11 +3227,15 @@ static inline int l2cap_information_rsp(struct l2cap_conn *conn, struct l2cap_cm
 
 			l2cap_conn_start(conn);
 		}
-	} else if (type == L2CAP_IT_FIXED_CHAN) {
+		break;
+
+	case L2CAP_IT_FIXED_CHAN:
+		conn->fixed_chan_mask = rsp->data[0];
 		conn->info_state |= L2CAP_INFO_FEAT_MASK_REQ_DONE;
 		conn->info_ident = 0;
 
 		l2cap_conn_start(conn);
+		break;
 	}
 
 	return 0;
