@@ -134,6 +134,7 @@ typedef struct xfs_inode_log_item {
 	unsigned short		ili_lock_flags;	   /* lock flags */
 	unsigned short		ili_logged;	   /* flushed logged data */
 	unsigned int		ili_last_fields;   /* fields when flushed */
+	unsigned int		ili_fields;	   /* fields to be logged */
 	struct xfs_bmbt_rec	*ili_extents_buf;  /* array of logged
 						      data exts */
 	struct xfs_bmbt_rec	*ili_aextents_buf; /* array of logged
@@ -148,8 +149,7 @@ typedef struct xfs_inode_log_item {
 
 static inline int xfs_inode_clean(xfs_inode_t *ip)
 {
-	return !ip->i_itemp ||
-		!(ip->i_itemp->ili_format.ilf_fields & XFS_ILOG_ALL);
+	return !ip->i_itemp || !(ip->i_itemp->ili_fields & XFS_ILOG_ALL);
 }
 
 extern void xfs_inode_item_init(struct xfs_inode *, struct xfs_mount *);

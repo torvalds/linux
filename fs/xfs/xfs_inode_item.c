@@ -59,20 +59,20 @@ xfs_inode_item_size(
 
 	switch (ip->i_d.di_format) {
 	case XFS_DINODE_FMT_EXTENTS:
-		if ((iip->ili_format.ilf_fields & XFS_ILOG_DEXT) &&
+		if ((iip->ili_fields & XFS_ILOG_DEXT) &&
 		    ip->i_d.di_nextents > 0 &&
 		    ip->i_df.if_bytes > 0)
 			nvecs++;
 		break;
 
 	case XFS_DINODE_FMT_BTREE:
-		if ((iip->ili_format.ilf_fields & XFS_ILOG_DBROOT) &&
+		if ((iip->ili_fields & XFS_ILOG_DBROOT) &&
 		    ip->i_df.if_broot_bytes > 0)
 			nvecs++;
 		break;
 
 	case XFS_DINODE_FMT_LOCAL:
-		if ((iip->ili_format.ilf_fields & XFS_ILOG_DDATA) &&
+		if ((iip->ili_fields & XFS_ILOG_DDATA) &&
 		    ip->i_df.if_bytes > 0)
 			nvecs++;
 		break;
@@ -95,20 +95,20 @@ xfs_inode_item_size(
 	 */
 	switch (ip->i_d.di_aformat) {
 	case XFS_DINODE_FMT_EXTENTS:
-		if ((iip->ili_format.ilf_fields & XFS_ILOG_AEXT) &&
+		if ((iip->ili_fields & XFS_ILOG_AEXT) &&
 		    ip->i_d.di_anextents > 0 &&
 		    ip->i_afp->if_bytes > 0)
 			nvecs++;
 		break;
 
 	case XFS_DINODE_FMT_BTREE:
-		if ((iip->ili_format.ilf_fields & XFS_ILOG_ABROOT) &&
+		if ((iip->ili_fields & XFS_ILOG_ABROOT) &&
 		    ip->i_afp->if_broot_bytes > 0)
 			nvecs++;
 		break;
 
 	case XFS_DINODE_FMT_LOCAL:
-		if ((iip->ili_format.ilf_fields & XFS_ILOG_ADATA) &&
+		if ((iip->ili_fields & XFS_ILOG_ADATA) &&
 		    ip->i_afp->if_bytes > 0)
 			nvecs++;
 		break;
@@ -185,7 +185,6 @@ xfs_inode_item_format(
 	vecp->i_type = XLOG_REG_TYPE_ICORE;
 	vecp++;
 	nvecs++;
-	iip->ili_format.ilf_fields |= XFS_ILOG_CORE;
 
 	/*
 	 * If this is really an old format inode, then we need to
@@ -218,11 +217,11 @@ xfs_inode_item_format(
 
 	switch (ip->i_d.di_format) {
 	case XFS_DINODE_FMT_EXTENTS:
-		iip->ili_format.ilf_fields &=
+		iip->ili_fields &=
 			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT |
 			  XFS_ILOG_DEV | XFS_ILOG_UUID);
 
-		if ((iip->ili_format.ilf_fields & XFS_ILOG_DEXT) &&
+		if ((iip->ili_fields & XFS_ILOG_DEXT) &&
 		    ip->i_d.di_nextents > 0 &&
 		    ip->i_df.if_bytes > 0) {
 			ASSERT(ip->i_df.if_u1.if_extents != NULL);
@@ -251,16 +250,16 @@ xfs_inode_item_format(
 			vecp++;
 			nvecs++;
 		} else {
-			iip->ili_format.ilf_fields &= ~XFS_ILOG_DEXT;
+			iip->ili_fields &= ~XFS_ILOG_DEXT;
 		}
 		break;
 
 	case XFS_DINODE_FMT_BTREE:
-		iip->ili_format.ilf_fields &=
+		iip->ili_fields &=
 			~(XFS_ILOG_DDATA | XFS_ILOG_DEXT |
 			  XFS_ILOG_DEV | XFS_ILOG_UUID);
 
-		if ((iip->ili_format.ilf_fields & XFS_ILOG_DBROOT) &&
+		if ((iip->ili_fields & XFS_ILOG_DBROOT) &&
 		    ip->i_df.if_broot_bytes > 0) {
 			ASSERT(ip->i_df.if_broot != NULL);
 			vecp->i_addr = ip->i_df.if_broot;
@@ -270,7 +269,7 @@ xfs_inode_item_format(
 			nvecs++;
 			iip->ili_format.ilf_dsize = ip->i_df.if_broot_bytes;
 		} else {
-			ASSERT(!(iip->ili_format.ilf_fields &
+			ASSERT(!(iip->ili_fields &
 				 XFS_ILOG_DBROOT));
 #ifdef XFS_TRANS_DEBUG
 			if (iip->ili_root_size > 0) {
@@ -283,15 +282,15 @@ xfs_inode_item_format(
 				ASSERT(ip->i_df.if_broot_bytes == 0);
 			}
 #endif
-			iip->ili_format.ilf_fields &= ~XFS_ILOG_DBROOT;
+			iip->ili_fields &= ~XFS_ILOG_DBROOT;
 		}
 		break;
 
 	case XFS_DINODE_FMT_LOCAL:
-		iip->ili_format.ilf_fields &=
+		iip->ili_fields &=
 			~(XFS_ILOG_DEXT | XFS_ILOG_DBROOT |
 			  XFS_ILOG_DEV | XFS_ILOG_UUID);
-		if ((iip->ili_format.ilf_fields & XFS_ILOG_DDATA) &&
+		if ((iip->ili_fields & XFS_ILOG_DDATA) &&
 		    ip->i_df.if_bytes > 0) {
 			ASSERT(ip->i_df.if_u1.if_data != NULL);
 			ASSERT(ip->i_d.di_size > 0);
@@ -311,25 +310,25 @@ xfs_inode_item_format(
 			nvecs++;
 			iip->ili_format.ilf_dsize = (unsigned)data_bytes;
 		} else {
-			iip->ili_format.ilf_fields &= ~XFS_ILOG_DDATA;
+			iip->ili_fields &= ~XFS_ILOG_DDATA;
 		}
 		break;
 
 	case XFS_DINODE_FMT_DEV:
-		iip->ili_format.ilf_fields &=
+		iip->ili_fields &=
 			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT |
 			  XFS_ILOG_DEXT | XFS_ILOG_UUID);
-		if (iip->ili_format.ilf_fields & XFS_ILOG_DEV) {
+		if (iip->ili_fields & XFS_ILOG_DEV) {
 			iip->ili_format.ilf_u.ilfu_rdev =
 				ip->i_df.if_u2.if_rdev;
 		}
 		break;
 
 	case XFS_DINODE_FMT_UUID:
-		iip->ili_format.ilf_fields &=
+		iip->ili_fields &=
 			~(XFS_ILOG_DDATA | XFS_ILOG_DBROOT |
 			  XFS_ILOG_DEXT | XFS_ILOG_DEV);
-		if (iip->ili_format.ilf_fields & XFS_ILOG_UUID) {
+		if (iip->ili_fields & XFS_ILOG_UUID) {
 			iip->ili_format.ilf_u.ilfu_uuid =
 				ip->i_df.if_u2.if_uuid;
 		}
@@ -344,18 +343,17 @@ xfs_inode_item_format(
 	 * If there are no attributes associated with the file, then we're done.
 	 */
 	if (!XFS_IFORK_Q(ip)) {
-		iip->ili_format.ilf_size = nvecs;
-		iip->ili_format.ilf_fields &=
+		iip->ili_fields &=
 			~(XFS_ILOG_ADATA | XFS_ILOG_ABROOT | XFS_ILOG_AEXT);
-		return;
+		goto out;
 	}
 
 	switch (ip->i_d.di_aformat) {
 	case XFS_DINODE_FMT_EXTENTS:
-		iip->ili_format.ilf_fields &=
+		iip->ili_fields &=
 			~(XFS_ILOG_ADATA | XFS_ILOG_ABROOT);
 
-		if ((iip->ili_format.ilf_fields & XFS_ILOG_AEXT) &&
+		if ((iip->ili_fields & XFS_ILOG_AEXT) &&
 		    ip->i_d.di_anextents > 0 &&
 		    ip->i_afp->if_bytes > 0) {
 			ASSERT(ip->i_afp->if_bytes / sizeof(xfs_bmbt_rec_t) ==
@@ -378,15 +376,15 @@ xfs_inode_item_format(
 			vecp++;
 			nvecs++;
 		} else {
-			iip->ili_format.ilf_fields &= ~XFS_ILOG_AEXT;
+			iip->ili_fields &= ~XFS_ILOG_AEXT;
 		}
 		break;
 
 	case XFS_DINODE_FMT_BTREE:
-		iip->ili_format.ilf_fields &=
+		iip->ili_fields &=
 			~(XFS_ILOG_ADATA | XFS_ILOG_AEXT);
 
-		if ((iip->ili_format.ilf_fields & XFS_ILOG_ABROOT) &&
+		if ((iip->ili_fields & XFS_ILOG_ABROOT) &&
 		    ip->i_afp->if_broot_bytes > 0) {
 			ASSERT(ip->i_afp->if_broot != NULL);
 
@@ -397,15 +395,15 @@ xfs_inode_item_format(
 			nvecs++;
 			iip->ili_format.ilf_asize = ip->i_afp->if_broot_bytes;
 		} else {
-			iip->ili_format.ilf_fields &= ~XFS_ILOG_ABROOT;
+			iip->ili_fields &= ~XFS_ILOG_ABROOT;
 		}
 		break;
 
 	case XFS_DINODE_FMT_LOCAL:
-		iip->ili_format.ilf_fields &=
+		iip->ili_fields &=
 			~(XFS_ILOG_AEXT | XFS_ILOG_ABROOT);
 
-		if ((iip->ili_format.ilf_fields & XFS_ILOG_ADATA) &&
+		if ((iip->ili_fields & XFS_ILOG_ADATA) &&
 		    ip->i_afp->if_bytes > 0) {
 			ASSERT(ip->i_afp->if_u1.if_data != NULL);
 
@@ -424,7 +422,7 @@ xfs_inode_item_format(
 			nvecs++;
 			iip->ili_format.ilf_asize = (unsigned)data_bytes;
 		} else {
-			iip->ili_format.ilf_fields &= ~XFS_ILOG_ADATA;
+			iip->ili_fields &= ~XFS_ILOG_ADATA;
 		}
 		break;
 
@@ -433,6 +431,14 @@ xfs_inode_item_format(
 		break;
 	}
 
+out:
+	/*
+	 * Now update the log format that goes out to disk from the in-core
+	 * values.  We always write the inode core to make the arithmetic
+	 * games in recovery easier, which isn't a big deal as just about any
+	 * transaction would dirty it anyway.
+	 */
+	iip->ili_format.ilf_fields = XFS_ILOG_CORE | iip->ili_fields;
 	iip->ili_format.ilf_size = nvecs;
 }
 
@@ -517,7 +523,7 @@ xfs_inode_item_trylock(
 
 #ifdef DEBUG
 	if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-		ASSERT(iip->ili_format.ilf_fields != 0);
+		ASSERT(iip->ili_fields != 0);
 		ASSERT(iip->ili_logged == 0);
 		ASSERT(lip->li_flags & XFS_LI_IN_AIL);
 	}
@@ -549,7 +555,7 @@ xfs_inode_item_unlock(
 	if (iip->ili_extents_buf != NULL) {
 		ASSERT(ip->i_d.di_format == XFS_DINODE_FMT_EXTENTS);
 		ASSERT(ip->i_d.di_nextents > 0);
-		ASSERT(iip->ili_format.ilf_fields & XFS_ILOG_DEXT);
+		ASSERT(iip->ili_fields & XFS_ILOG_DEXT);
 		ASSERT(ip->i_df.if_bytes > 0);
 		kmem_free(iip->ili_extents_buf);
 		iip->ili_extents_buf = NULL;
@@ -557,7 +563,7 @@ xfs_inode_item_unlock(
 	if (iip->ili_aextents_buf != NULL) {
 		ASSERT(ip->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS);
 		ASSERT(ip->i_d.di_anextents > 0);
-		ASSERT(iip->ili_format.ilf_fields & XFS_ILOG_AEXT);
+		ASSERT(iip->ili_fields & XFS_ILOG_AEXT);
 		ASSERT(ip->i_afp->if_bytes > 0);
 		kmem_free(iip->ili_aextents_buf);
 		iip->ili_aextents_buf = NULL;
@@ -672,8 +678,7 @@ xfs_inode_item_push(
 	 * lock without sleeping, then there must not have been
 	 * anyone in the process of flushing the inode.
 	 */
-	ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) ||
-	       iip->ili_format.ilf_fields != 0);
+	ASSERT(XFS_FORCED_SHUTDOWN(ip->i_mount) || iip->ili_fields != 0);
 
 	/*
 	 * Push the inode to it's backing buffer. This will not remove the
@@ -896,7 +901,7 @@ xfs_iflush_abort(
 		 * Clear the inode logging fields so no more flushes are
 		 * attempted.
 		 */
-		iip->ili_format.ilf_fields = 0;
+		iip->ili_fields = 0;
 	}
 	/*
 	 * Release the inode's flush lock since we're done with it.

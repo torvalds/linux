@@ -130,12 +130,12 @@ xfs_trans_log_inode(
 	/*
 	 * Always OR in the bits from the ili_last_fields field.
 	 * This is to coordinate with the xfs_iflush() and xfs_iflush_done()
-	 * routines in the eventual clearing of the ilf_fields bits.
+	 * routines in the eventual clearing of the ili_fields bits.
 	 * See the big comment in xfs_iflush() for an explanation of
 	 * this coordination mechanism.
 	 */
 	flags |= ip->i_itemp->ili_last_fields;
-	ip->i_itemp->ili_format.ilf_fields |= flags;
+	ip->i_itemp->ili_fields |= flags;
 }
 
 #ifdef XFS_TRANS_DEBUG

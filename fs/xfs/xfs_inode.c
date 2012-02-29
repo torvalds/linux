@@ -1661,8 +1661,8 @@ retry:
 				continue;
 			}
 
-			iip->ili_last_fields = iip->ili_format.ilf_fields;
-			iip->ili_format.ilf_fields = 0;
+			iip->ili_last_fields = iip->ili_fields;
+			iip->ili_fields = 0;
 			iip->ili_logged = 1;
 			xfs_trans_ail_copy_lsn(mp->m_ail, &iip->ili_flush_lsn,
 						&iip->ili_item.li_lsn);
@@ -2176,7 +2176,7 @@ xfs_iflush_fork(
 	mp = ip->i_mount;
 	switch (XFS_IFORK_FORMAT(ip, whichfork)) {
 	case XFS_DINODE_FMT_LOCAL:
-		if ((iip->ili_format.ilf_fields & dataflag[whichfork]) &&
+		if ((iip->ili_fields & dataflag[whichfork]) &&
 		    (ifp->if_bytes > 0)) {
 			ASSERT(ifp->if_u1.if_data != NULL);
 			ASSERT(ifp->if_bytes <= XFS_IFORK_SIZE(ip, whichfork));
@@ -2186,8 +2186,8 @@ xfs_iflush_fork(
 
 	case XFS_DINODE_FMT_EXTENTS:
 		ASSERT((ifp->if_flags & XFS_IFEXTENTS) ||
-		       !(iip->ili_format.ilf_fields & extflag[whichfork]));
-		if ((iip->ili_format.ilf_fields & extflag[whichfork]) &&
+		       !(iip->ili_fields & extflag[whichfork]));
+		if ((iip->ili_fields & extflag[whichfork]) &&
 		    (ifp->if_bytes > 0)) {
 			ASSERT(xfs_iext_get_ext(ifp, 0));
 			ASSERT(XFS_IFORK_NEXTENTS(ip, whichfork) > 0);
@@ -2197,7 +2197,7 @@ xfs_iflush_fork(
 		break;
 
 	case XFS_DINODE_FMT_BTREE:
-		if ((iip->ili_format.ilf_fields & brootflag[whichfork]) &&
+		if ((iip->ili_fields & brootflag[whichfork]) &&
 		    (ifp->if_broot_bytes > 0)) {
 			ASSERT(ifp->if_broot != NULL);
 			ASSERT(ifp->if_broot_bytes <=
@@ -2210,14 +2210,14 @@ xfs_iflush_fork(
 		break;
 
 	case XFS_DINODE_FMT_DEV:
-		if (iip->ili_format.ilf_fields & XFS_ILOG_DEV) {
+		if (iip->ili_fields & XFS_ILOG_DEV) {
 			ASSERT(whichfork == XFS_DATA_FORK);
 			xfs_dinode_put_rdev(dip, ip->i_df.if_u2.if_rdev);
 		}
 		break;
 
 	case XFS_DINODE_FMT_UUID:
-		if (iip->ili_format.ilf_fields & XFS_ILOG_UUID) {
+		if (iip->ili_fields & XFS_ILOG_UUID) {
 			ASSERT(whichfork == XFS_DATA_FORK);
 			memcpy(XFS_DFORK_DPTR(dip),
 			       &ip->i_df.if_u2.if_uuid,
@@ -2451,7 +2451,7 @@ xfs_iflush(
 	 */
 	if (XFS_FORCED_SHUTDOWN(mp)) {
 		if (iip)
-			iip->ili_format.ilf_fields = 0;
+			iip->ili_fields = 0;
 		xfs_ifunlock(ip);
 		return XFS_ERROR(EIO);
 	}
@@ -2641,36 +2641,33 @@ xfs_iflush_int(
 	xfs_inobp_check(mp, bp);
 
 	/*
-	 * We've recorded everything logged in the inode, so we'd
-	 * like to clear the ilf_fields bits so we don't log and
-	 * flush things unnecessarily.  However, we can't stop
-	 * logging all this information until the data we've copied
-	 * into the disk buffer is written to disk.  If we did we might
-	 * overwrite the copy of the inode in the log with all the
-	 * data after re-logging only part of it, and in the face of
-	 * a crash we wouldn't have all the data we need to recover.
+	 * We've recorded everything logged in the inode, so we'd like to clear
+	 * the ili_fields bits so we don't log and flush things unnecessarily.
+	 * However, we can't stop logging all this information until the data
+	 * we've copied into the disk buffer is written to disk.  If we did we
+	 * might overwrite the copy of the inode in the log with all the data
+	 * after re-logging only part of it, and in the face of a crash we
+	 * wouldn't have all the data we need to recover.
 	 *
-	 * What we do is move the bits to the ili_last_fields field.
-	 * When logging the inode, these bits are moved back to the
-	 * ilf_fields field.  In the xfs_iflush_done() routine we
-	 * clear ili_last_fields, since we know that the information
-	 * those bits represent is permanently on disk.  As long as
-	 * the flush completes before the inode is logged again, then
-	 * both ilf_fields and ili_last_fields will be cleared.
+	 * What we do is move the bits to the ili_last_fields field.  When
+	 * logging the inode, these bits are moved back to the ili_fields field.
+	 * In the xfs_iflush_done() routine we clear ili_last_fields, since we
+	 * know that the information those bits represent is permanently on
+	 * disk.  As long as the flush completes before the inode is logged
+	 * again, then both ili_fields and ili_last_fields will be cleared.
 	 *
-	 * We can play with the ilf_fields bits here, because the inode
-	 * lock must be held exclusively in order to set bits there
-	 * and the flush lock protects the ili_last_fields bits.
-	 * Set ili_logged so the flush done
-	 * routine can tell whether or not to look in the AIL.
-	 * Also, store the current LSN of the inode so that we can tell
-	 * whether the item has moved in the AIL from xfs_iflush_done().
-	 * In order to read the lsn we need the AIL lock, because
-	 * it is a 64 bit value that cannot be read atomically.
+	 * We can play with the ili_fields bits here, because the inode lock
+	 * must be held exclusively in order to set bits there and the flush
+	 * lock protects the ili_last_fields bits.  Set ili_logged so the flush
+	 * done routine can tell whether or not to look in the AIL.  Also, store
+	 * the current LSN of the inode so that we can tell whether the item has
+	 * moved in the AIL from xfs_iflush_done().  In order to read the lsn we
+	 * need the AIL lock, because it is a 64 bit value that cannot be read
+	 * atomically.
 	 */
-	if (iip != NULL && iip->ili_format.ilf_fields != 0) {
-		iip->ili_last_fields = iip->ili_format.ilf_fields;
-		iip->ili_format.ilf_fields = 0;
+	if (iip != NULL && iip->ili_fields != 0) {
+		iip->ili_last_fields = iip->ili_fields;
+		iip->ili_fields = 0;
 		iip->ili_logged = 1;
 
 		xfs_trans_ail_copy_lsn(mp->m_ail, &iip->ili_flush_lsn,
