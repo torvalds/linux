@@ -29,11 +29,9 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/sysmacros.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
-#include <asm/boot.h>
 #include <tools/le_byteshift.h>
 
 typedef unsigned char  u8;
