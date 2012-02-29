@@ -177,6 +177,9 @@ void __init imx31_soc_init(void)
 	}
 
 	imx_add_imx_sdma("imx31-sdma", MX31_SDMA_BASE_ADDR, MX31_INT_SDMA, &imx31_sdma_pdata);
+
+	imx_set_aips(MX31_IO_ADDRESS(MX31_AIPS1_BASE_ADDR));
+	imx_set_aips(MX31_IO_ADDRESS(MX31_AIPS2_BASE_ADDR));
 }
 #endif /* ifdef CONFIG_SOC_IMX31 */
 

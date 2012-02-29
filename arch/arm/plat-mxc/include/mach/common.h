@@ -75,6 +75,7 @@ extern void mxc_restart(char, const char *);
 extern void mxc_arch_reset_init(void __iomem *);
 extern int mx53_revision(void);
 extern int mx53_display_revision(void);
+extern void imx_set_aips(void __iomem *);
 
 enum mxc_cpu_pwr_mode {
 	WAIT_CLOCKED,		/* wfi only */
