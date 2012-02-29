@@ -102,14 +102,22 @@ static DEFINE_RAW_SPINLOCK(confirm_error_lock);
 #define EEH_PCI_REGS_LOG_LEN 4096
 static unsigned char pci_regs_buf[EEH_PCI_REGS_LOG_LEN];
 
-/* System monitoring statistics */
-static unsigned long no_device;
-static unsigned long no_dn;
-static unsigned long no_cfg_addr;
-static unsigned long ignored_check;
-static unsigned long total_mmio_ffs;
-static unsigned long false_positives;
-static unsigned long slot_resets;
+/*
+ * The struct is used to maintain the EEH global statistic
+ * information. Besides, the EEH global statistics will be
+ * exported to user space through procfs
+ */
+struct eeh_stats {
+	u64 no_device;		/* PCI device not found		*/
+	u64 no_dn;		/* OF node not found		*/
+	u64 no_cfg_addr;	/* Config address not found	*/
+	u64 ignored_check;	/* EEH check skipped		*/
+	u64 total_mmio_ffs;	/* Total EEH checks		*/
+	u64 false_positives;	/* Unnecessary EEH checks	*/
+	u64 slot_resets;	/* PE reset			*/
+};
+
+static struct eeh_stats eeh_stats;
 
 #define IS_BRIDGE(class_code) (((class_code)<<16) == PCI_BASE_CLASS_BRIDGE)
 
@@ -392,13 +400,13 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	int rc = 0;
 	const char *location;
 
-	total_mmio_ffs++;
+	eeh_stats.total_mmio_ffs++;
 
 	if (!eeh_subsystem_enabled)
 		return 0;
 
 	if (!dn) {
-		no_dn++;
+		eeh_stats.no_dn++;
 		return 0;
 	}
 	dn = eeh_find_device_pe(dn);
@@ -407,14 +415,14 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	/* Access to IO BARs might get this far and still not want checking. */
 	if (!(edev->mode & EEH_MODE_SUPPORTED) ||
 	    edev->mode & EEH_MODE_NOCHECK) {
-		ignored_check++;
+		eeh_stats.ignored_check++;
 		pr_debug("EEH: Ignored check (%x) for %s %s\n",
 			edev->mode, eeh_pci_name(dev), dn->full_name);
 		return 0;
 	}
 
 	if (!edev->config_addr && !edev->pe_config_addr) {
-		no_cfg_addr++;
+		eeh_stats.no_cfg_addr++;
 		return 0;
 	}
 
@@ -460,13 +468,13 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	    (ret == EEH_STATE_NOT_SUPPORT) ||
 	    (ret & (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) ==
 	    (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) {
-		false_positives++;
+		eeh_stats.false_positives++;
 		edev->false_positives ++;
 		rc = 0;
 		goto dn_unlock;
 	}
 
-	slot_resets++;
+	eeh_stats.slot_resets++;
  
 	/* Avoid repeated reports of this failure, including problems
 	 * with other functions on this device, and functions under
@@ -513,7 +521,7 @@ unsigned long eeh_check_failure(const volatile void __iomem *token, unsigned lon
 	addr = eeh_token_to_phys((unsigned long __force) token);
 	dev = pci_addr_cache_get_device(addr);
 	if (!dev) {
-		no_device++;
+		eeh_stats.no_device++;
 		return val;
 	}
 
@@ -1174,21 +1182,24 @@ static int proc_eeh_show(struct seq_file *m, void *v)
 {
 	if (0 == eeh_subsystem_enabled) {
 		seq_printf(m, "EEH Subsystem is globally disabled\n");
-		seq_printf(m, "eeh_total_mmio_ffs=%ld\n", total_mmio_ffs);
+		seq_printf(m, "eeh_total_mmio_ffs=%llu\n", eeh_stats.total_mmio_ffs);
 	} else {
 		seq_printf(m, "EEH Subsystem is enabled\n");
 		seq_printf(m,
-				"no device=%ld\n"
-				"no device node=%ld\n"
-				"no config address=%ld\n"
-				"check not wanted=%ld\n"
-				"eeh_total_mmio_ffs=%ld\n"
-				"eeh_false_positives=%ld\n"
-				"eeh_slot_resets=%ld\n",
-				no_device, no_dn, no_cfg_addr, 
-				ignored_check, total_mmio_ffs, 
-				false_positives,
-				slot_resets);
+				"no device=%llu\n"
+				"no device node=%llu\n"
+				"no config address=%llu\n"
+				"check not wanted=%llu\n"
+				"eeh_total_mmio_ffs=%llu\n"
+				"eeh_false_positives=%llu\n"
+				"eeh_slot_resets=%llu\n",
+				eeh_stats.no_device,
+				eeh_stats.no_dn,
+				eeh_stats.no_cfg_addr,
+				eeh_stats.ignored_check,
+				eeh_stats.total_mmio_ffs,
+				eeh_stats.false_positives,
+				eeh_stats.slot_resets);
 	}
 
 	return 0;
