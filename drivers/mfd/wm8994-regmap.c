@@ -806,6 +806,7 @@ static bool wm1811_readable_register(struct device *dev, unsigned int reg)
 	case WM8994_DC_SERVO_2:
 	case WM8994_DC_SERVO_READBACK:
 	case WM8994_DC_SERVO_4:
+	case WM8994_DC_SERVO_4E:
 	case WM8994_ANALOGUE_HP_1:
 	case WM8958_MIC_DETECT_1:
 	case WM8958_MIC_DETECT_2:
