@@ -30,6 +30,7 @@ struct wm_hubs_data {
 	int series_startup;
 	int no_series_update;
 
+	bool no_cache_class_w;
 	bool class_w;
 	u16 class_w_dcs;
 

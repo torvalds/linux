@@ -207,7 +207,7 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 
 	/* Save the callibrated offset if we're in class W mode and
 	 * therefore don't have any analogue signal mixed in. */
-	if (hubs->class_w)
+	if (hubs->class_w && !hubs->no_cache_class_w)
 		hubs->class_w_dcs = dcs_cfg;
 }
 

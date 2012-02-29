@@ -3535,6 +3535,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		wm8994->hubs.dcs_readback_mode = 2;
 		wm8994->hubs.no_series_update = 1;
 		wm8994->hubs.hp_startup_mode = 1;
+		wm8994->hubs.no_cache_class_w = true;
 
 		switch (wm8994->revision) {
 		case 0:
