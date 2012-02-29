@@ -148,9 +148,8 @@ typedef struct xfs_inode_log_item {
 
 static inline int xfs_inode_clean(xfs_inode_t *ip)
 {
-	return (!ip->i_itemp ||
-		!(ip->i_itemp->ili_format.ilf_fields & XFS_ILOG_ALL)) &&
-	       !ip->i_update_core;
+	return !ip->i_itemp ||
+		!(ip->i_itemp->ili_format.ilf_fields & XFS_ILOG_ALL);
 }
 
 extern void xfs_inode_item_init(struct xfs_inode *, struct xfs_mount *);

@@ -254,42 +254,6 @@ xfs_inode_item_format(
 	vecp++;
 	nvecs	     = 1;
 
-	/*
-	 * Clear i_update_core if the timestamps (or any other
-	 * non-transactional modification) need flushing/logging
-	 * and we're about to log them with the rest of the core.
-	 *
-	 * This is the same logic as xfs_iflush() but this code can't
-	 * run at the same time as xfs_iflush because we're in commit
-	 * processing here and so we have the inode lock held in
-	 * exclusive mode.  Although it doesn't really matter
-	 * for the timestamps if both routines were to grab the
-	 * timestamps or not.  That would be ok.
-	 *
-	 * We clear i_update_core before copying out the data.
-	 * This is for coordination with our timestamp updates
-	 * that don't hold the inode lock. They will always
-	 * update the timestamps BEFORE setting i_update_core,
-	 * so if we clear i_update_core after they set it we
-	 * are guaranteed to see their updates to the timestamps
-	 * either here.  Likewise, if they set it after we clear it
-	 * here, we'll see it either on the next commit of this
-	 * inode or the next time the inode gets flushed via
-	 * xfs_iflush().  This depends on strongly ordered memory
-	 * semantics, but we have that.  We use the SYNCHRONIZE
-	 * macro to make sure that the compiler does not reorder
-	 * the i_update_core access below the data copy below.
-	 */
-	if (ip->i_update_core)  {
-		ip->i_update_core = 0;
-		SYNCHRONIZE();
-	}
-
-	/*
-	 * Make sure to get the latest timestamps from the Linux inode.
-	 */
-	xfs_synchronize_times(ip);
-
 	vecp->i_addr = &ip->i_d;
 	vecp->i_len  = sizeof(struct xfs_icdinode);
 	vecp->i_type = XLOG_REG_TYPE_ICORE;

@@ -95,10 +95,14 @@ xfs_trans_ichgtime(
 	if ((flags & XFS_ICHGTIME_MOD) &&
 	    !timespec_equal(&inode->i_mtime, &tv)) {
 		inode->i_mtime = tv;
+		ip->i_d.di_mtime.t_sec = tv.tv_sec;
+		ip->i_d.di_mtime.t_nsec = tv.tv_nsec;
 	}
 	if ((flags & XFS_ICHGTIME_CHG) &&
 	    !timespec_equal(&inode->i_ctime, &tv)) {
 		inode->i_ctime = tv;
+		ip->i_d.di_ctime.t_sec = tv.tv_sec;
+		ip->i_d.di_ctime.t_nsec = tv.tv_nsec;
 	}
 }
 

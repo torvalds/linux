@@ -1656,7 +1656,6 @@ retry:
 			iip = ip->i_itemp;
 			if (!iip || xfs_inode_clean(ip)) {
 				ASSERT(ip != free_ip);
-				ip->i_update_core = 0;
 				xfs_ifunlock(ip);
 				xfs_iunlock(ip, XFS_ILOCK_EXCL);
 				continue;
@@ -2451,7 +2450,6 @@ xfs_iflush(
 	 * to disk, because the log record didn't make it to disk!
 	 */
 	if (XFS_FORCED_SHUTDOWN(mp)) {
-		ip->i_update_core = 0;
 		if (iip)
 			iip->ili_format.ilf_fields = 0;
 		xfs_ifunlock(ip);
@@ -2532,26 +2530,6 @@ xfs_iflush_int(
 
 	/* set *dip = inode's place in the buffer */
 	dip = (xfs_dinode_t *)xfs_buf_offset(bp, ip->i_imap.im_boffset);
-
-	/*
-	 * Clear i_update_core before copying out the data.
-	 * This is for coordination with our timestamp updates
-	 * that don't hold the inode lock. They will always
-	 * update the timestamps BEFORE setting i_update_core,
-	 * so if we clear i_update_core after they set it we
-	 * are guaranteed to see their updates to the timestamps.
-	 * I believe that this depends on strongly ordered memory
-	 * semantics, but we have that.  We use the SYNCHRONIZE
-	 * macro to make sure that the compiler does not reorder
-	 * the i_update_core access below the data copy below.
-	 */
-	ip->i_update_core = 0;
-	SYNCHRONIZE();
-
-	/*
-	 * Make sure to get the latest timestamps from the Linux inode.
-	 */
-	xfs_synchronize_times(ip);
 
 	if (XFS_TEST_ERROR(dip->di_magic != cpu_to_be16(XFS_DINODE_MAGIC),
 			       mp, XFS_ERRTAG_IFLUSH_1, XFS_RANDOM_IFLUSH_1)) {
@@ -2711,8 +2689,7 @@ xfs_iflush_int(
 	} else {
 		/*
 		 * We're flushing an inode which is not in the AIL and has
-		 * not been logged but has i_update_core set.  For this
-		 * case we can use a B_DELWRI flush and immediately drop
+		 * not been logged.  For this case we can immediately drop
 		 * the inode flush lock because we can avoid the whole
 		 * AIL state thing.  It's OK to drop the flush lock now,
 		 * because we've already locked the buffer and to do anything
