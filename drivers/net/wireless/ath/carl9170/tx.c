@@ -1247,7 +1247,7 @@ static bool carl9170_tx_ps_drop(struct ar9170 *ar, struct sk_buff *skb)
 	tx_info = IEEE80211_SKB_CB(skb);
 
 	if (unlikely(sta_info->sleeping) &&
-	    !(tx_info->flags & (IEEE80211_TX_CTL_POLL_RESPONSE |
+	    !(tx_info->flags & (IEEE80211_TX_CTL_NO_PS_BUFFER |
 				IEEE80211_TX_CTL_CLEAR_PS_FILT))) {
 		rcu_read_unlock();
 
