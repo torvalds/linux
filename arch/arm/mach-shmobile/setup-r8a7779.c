@@ -33,6 +33,29 @@
 #include <mach/common.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/map.h>
+
+static struct map_desc r8a7779_io_desc[] __initdata = {
+	/* 2M entity map for 0xf0000000 (MPCORE) */
+	{
+		.virtual	= 0xf0000000,
+		.pfn		= __phys_to_pfn(0xf0000000),
+		.length		= SZ_2M,
+		.type		= MT_DEVICE_NONSHARED
+	},
+	/* 16M entity map for 0xfexxxxxx (DMAC-S/HPBREG/INTC2/LRAM/DBSC) */
+	{
+		.virtual	= 0xfe000000,
+		.pfn		= __phys_to_pfn(0xfe000000),
+		.length		= SZ_16M,
+		.type		= MT_DEVICE_NONSHARED
+	},
+};
+
+void __init r8a7779_map_io(void)
+{
+	iotable_init(r8a7779_io_desc, ARRAY_SIZE(r8a7779_io_desc));
+}
 
 static struct plat_sci_port scif0_platform_data = {
 	.mapbase	= 0xffe40000,
@@ -236,4 +259,20 @@ void __init r8a7779_add_early_devices(void)
 {
 	early_platform_add_devices(r8a7779_early_devices,
 				   ARRAY_SIZE(r8a7779_early_devices));
+
+	/* Early serial console setup is not included here due to
+	 * memory map collisions. The SCIF serial ports in r8a7779
+	 * are difficult to entity map 1:1 due to collision with the
+	 * virtual memory range used by the coherent DMA code on ARM.
+	 *
+	 * Anyone wanting to debug early can remove UPF_IOREMAP from
+	 * the sh-sci serial console platform data, adjust mapbase
+	 * to a static M:N virt:phys mapping that needs to be added to
+	 * the mappings passed with iotable_init() above.
+	 *
+	 * Then add a call to shmobile_setup_console() from this function.
+	 *
+	 * As a final step pass earlyprint=sh-sci.2,115200 on the kernel
+	 * command line in case of the marzen board.
+	 */
 }
