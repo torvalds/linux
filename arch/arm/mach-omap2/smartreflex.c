@@ -74,10 +74,6 @@ static inline void sr_modify_reg(struct omap_sr *sr, unsigned offset, u32 mask,
 					u32 value)
 {
 	u32 reg_val;
-	u32 errconfig_offs = 0, errconfig_mask = 0;
-
-	reg_val = __raw_readl(sr->base + offset);
-	reg_val &= ~mask;
 
 	/*
 	 * Smartreflex error config register is special as it contains
@@ -88,16 +84,15 @@ static inline void sr_modify_reg(struct omap_sr *sr, unsigned offset, u32 mask,
 	 * if they are currently set, but does allow the caller to write
 	 * those bits.
 	 */
-	if (sr->ip_type == SR_TYPE_V1) {
-		errconfig_offs = ERRCONFIG_V1;
-		errconfig_mask = ERRCONFIG_STATUS_V1_MASK;
-	} else if (sr->ip_type == SR_TYPE_V2) {
-		errconfig_offs = ERRCONFIG_V2;
-		errconfig_mask = ERRCONFIG_VPBOUNDINTST_V2;
-	}
+	if (sr->ip_type == SR_TYPE_V1 && offset == ERRCONFIG_V1)
+		mask |= ERRCONFIG_STATUS_V1_MASK;
+	else if (sr->ip_type == SR_TYPE_V2 && offset == ERRCONFIG_V2)
+		mask |= ERRCONFIG_VPBOUNDINTST_V2;
 
-	if (offset == errconfig_offs)
-		reg_val &= ~errconfig_mask;
+	reg_val = __raw_readl(sr->base + offset);
+	reg_val &= ~mask;
+
+	value &= mask;
 
 	reg_val |= value;
 
