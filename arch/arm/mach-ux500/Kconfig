@@ -25,7 +25,6 @@ menu "Ux500 target platform (boards)"
 config MACH_U8500
 	bool "U8500 Development platform"
 	select UX500_SOC_DB8500
-	select TPS6105X
 	help
 	  Include support for the mop500 development platform.
 
