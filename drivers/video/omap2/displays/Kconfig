@@ -12,7 +12,7 @@ config PANEL_GENERIC_DPI
 
 config PANEL_DVI
 	tristate "DVI output"
-	depends on OMAP2_DSS_DPI
+	depends on OMAP2_DSS_DPI && I2C
 	help
 	  Driver for external monitors, connected via DVI. The driver uses i2c
 	  to read EDID information from the monitor.
