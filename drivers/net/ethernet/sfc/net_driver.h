@@ -324,7 +324,6 @@ enum efx_rx_alloc_method {
  * @eventq: Event queue buffer
  * @eventq_mask: Event queue pointer mask
  * @eventq_read_ptr: Event queue read pointer
- * @last_eventq_read_ptr: Last event queue read pointer value.
  * @event_test_cpu: Last CPU to handle interrupt or test event for this channel
  * @irq_count: Number of IRQs since last adaptive moderation decision
  * @irq_mod_score: IRQ moderation score
@@ -355,7 +354,6 @@ struct efx_channel {
 	struct efx_special_buffer eventq;
 	unsigned int eventq_mask;
 	unsigned int eventq_read_ptr;
-	unsigned int last_eventq_read_ptr;
 	int event_test_cpu;
 
 	unsigned int irq_count;
