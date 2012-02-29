@@ -21,6 +21,7 @@
 
 #include <asm/sched_clock.h>
 
+#include <plat/hardware.h>
 #include <plat/common.h>
 #include <plat/board.h>
 
