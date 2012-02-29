@@ -94,6 +94,9 @@ u8 pci_cache_line_size;
  */
 unsigned int pcibios_max_latency = 255;
 
+/* If set, the PCIe ARI capability will not be used. */
+static bool pcie_ari_disabled;
+
 /**
  * pci_bus_max_busnr - returns maximum PCI bus number of given bus' children
  * @bus: pointer to PCI bus structure to search
@@ -1955,7 +1958,7 @@ void pci_enable_ari(struct pci_dev *dev)
 	u16 flags, ctrl;
 	struct pci_dev *bridge;
 
-	if (!pci_is_pcie(dev) || dev->devfn)
+	if (pcie_ari_disabled || !pci_is_pcie(dev) || dev->devfn)
 		return;
 
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ARI);
@@ -3840,6 +3843,8 @@ static int __init pci_setup(char *str)
 				pci_realloc_get_opt("on");
 			} else if (!strcmp(str, "nodomains")) {
 				pci_no_domains();
+			} else if (!strncmp(str, "noari", 5)) {
+				pcie_ari_disabled = true;
 			} else if (!strncmp(str, "cbiosize=", 9)) {
 				pci_cardbus_io_size = memparse(str + 9, &str);
 			} else if (!strncmp(str, "cbmemsize=", 10)) {

@@ -2116,6 +2116,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				off: Turn realloc off
 				on: Turn realloc on
 		realloc		same as realloc=on
+		noari		do not use PCIe ARI.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.
