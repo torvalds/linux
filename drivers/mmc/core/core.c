@@ -605,105 +605,6 @@ unsigned int mmc_align_data_size(struct mmc_card *card, unsigned int sz)
 EXPORT_SYMBOL(mmc_align_data_size);
 
 /**
- *	mmc_host_enable - enable a host.
- *	@host: mmc host to enable
- *
- *	Hosts that support power saving can use the 'enable' and 'disable'
- *	methods to exit and enter power saving states. For more information
- *	see comments for struct mmc_host_ops.
- */
-int mmc_host_enable(struct mmc_host *host)
-{
-	if (!(host->caps & MMC_CAP_DISABLE))
-		return 0;
-
-	if (host->en_dis_recurs)
-		return 0;
-
-	if (host->nesting_cnt++)
-		return 0;
-
-	cancel_delayed_work_sync(&host->disable);
-
-	if (host->enabled)
-		return 0;
-
-	if (host->ops->enable) {
-		int err;
-
-		host->en_dis_recurs = 1;
-		mmc_host_clk_hold(host);
-		err = host->ops->enable(host);
-		mmc_host_clk_release(host);
-		host->en_dis_recurs = 0;
-
-		if (err) {
-			pr_debug("%s: enable error %d\n",
-				 mmc_hostname(host), err);
-			return err;
-		}
-	}
-	host->enabled = 1;
-	return 0;
-}
-EXPORT_SYMBOL(mmc_host_enable);
-
-static int mmc_host_do_disable(struct mmc_host *host, int lazy)
-{
-	if (host->ops->disable) {
-		int err;
-
-		host->en_dis_recurs = 1;
-		mmc_host_clk_hold(host);
-		err = host->ops->disable(host, lazy);
-		mmc_host_clk_release(host);
-		host->en_dis_recurs = 0;
-
-		if (err < 0) {
-			pr_debug("%s: disable error %d\n",
-				 mmc_hostname(host), err);
-			return err;
-		}
-		if (err > 0) {
-			unsigned long delay = msecs_to_jiffies(err);
-
-			mmc_schedule_delayed_work(&host->disable, delay);
-		}
-	}
-	host->enabled = 0;
-	return 0;
-}
-
-/**
- *	mmc_host_disable - disable a host.
- *	@host: mmc host to disable
- *
- *	Hosts that support power saving can use the 'enable' and 'disable'
- *	methods to exit and enter power saving states. For more information
- *	see comments for struct mmc_host_ops.
- */
-int mmc_host_disable(struct mmc_host *host)
-{
-	int err;
-
-	if (!(host->caps & MMC_CAP_DISABLE))
-		return 0;
-
-	if (host->en_dis_recurs)
-		return 0;
-
-	if (--host->nesting_cnt)
-		return 0;
-
-	if (!host->enabled)
-		return 0;
-
-	err = mmc_host_do_disable(host, 0);
-	return err;
-}
-EXPORT_SYMBOL(mmc_host_disable);
-
-/**
  *	__mmc_claim_host - exclusively claim a host
  *	@host: mmc host to claim
  *	@abort: whether or not the operation should be aborted
@@ -741,8 +642,8 @@ int __mmc_claim_host(struct mmc_host *host, atomic_t *abort)
 		wake_up(&host->wq);
 	spin_unlock_irqrestore(&host->lock, flags);
 	remove_wait_queue(&host->wq, &wait);
-	if (!stop)
-		mmc_host_enable(host);
+	if (host->ops->enable && !stop && host->claim_cnt == 1)
+		host->ops->enable(host);
 	return stop;
 }
 
@@ -767,20 +668,27 @@ int mmc_try_claim_host(struct mmc_host *host)
 		claimed_host = 1;
 	}
 	spin_unlock_irqrestore(&host->lock, flags);
+	if (host->ops->enable && claimed_host && host->claim_cnt == 1)
+		host->ops->enable(host);
 	return claimed_host;
 }
 EXPORT_SYMBOL(mmc_try_claim_host);
 
 /**
- *	mmc_do_release_host - release a claimed host
+ *	mmc_release_host - release a host
  *	@host: mmc host to release
  *
- *	If you successfully claimed a host, this function will
- *	release it again.
+ *	Release a MMC host, allowing others to claim the host
+ *	for their operations.
  */
-void mmc_do_release_host(struct mmc_host *host)
+void mmc_release_host(struct mmc_host *host)
 {
 	unsigned long flags;
+
+	WARN_ON(!host->claimed);
+
+	if (host->ops->disable && host->claim_cnt == 1)
+		host->ops->disable(host);
 
 	spin_lock_irqsave(&host->lock, flags);
 	if (--host->claim_cnt) {
@@ -793,67 +701,6 @@ void mmc_do_release_host(struct mmc_host *host)
 		wake_up(&host->wq);
 	}
 }
-EXPORT_SYMBOL(mmc_do_release_host);
-
-void mmc_host_deeper_disable(struct work_struct *work)
-{
-	struct mmc_host *host =
-		container_of(work, struct mmc_host, disable.work);
-
-	/* If the host is claimed then we do not want to disable it anymore */
-	if (!mmc_try_claim_host(host))
-		return;
-	mmc_host_do_disable(host, 1);
-	mmc_do_release_host(host);
-}
-
-/**
- *	mmc_host_lazy_disable - lazily disable a host.
- *	@host: mmc host to disable
- *
- *	Hosts that support power saving can use the 'enable' and 'disable'
- *	methods to exit and enter power saving states. For more information
- *	see comments for struct mmc_host_ops.
- */
-int mmc_host_lazy_disable(struct mmc_host *host)
-{
-	if (!(host->caps & MMC_CAP_DISABLE))
-		return 0;
-
-	if (host->en_dis_recurs)
-		return 0;
-
-	if (--host->nesting_cnt)
-		return 0;
-
-	if (!host->enabled)
-		return 0;
-
-	if (host->disable_delay) {
-		mmc_schedule_delayed_work(&host->disable,
-				msecs_to_jiffies(host->disable_delay));
-		return 0;
-	} else
-		return mmc_host_do_disable(host, 1);
-}
-EXPORT_SYMBOL(mmc_host_lazy_disable);
-
-/**
- *	mmc_release_host - release a host
- *	@host: mmc host to release
- *
- *	Release a MMC host, allowing others to claim the host
- *	for their operations.
- */
-void mmc_release_host(struct mmc_host *host)
-{
-	WARN_ON(!host->claimed);
-
-	mmc_host_lazy_disable(host);
-
-	mmc_do_release_host(host);
-}
-
 EXPORT_SYMBOL(mmc_release_host);
 
 /*
@@ -2227,8 +2074,6 @@ void mmc_stop_host(struct mmc_host *host)
 	spin_unlock_irqrestore(&host->lock, flags);
 #endif
 
-	if (host->caps & MMC_CAP_DISABLE)
-		cancel_delayed_work(&host->disable);
 	cancel_delayed_work_sync(&host->detect);
 	mmc_flush_scheduled_work();
 
@@ -2423,13 +2268,11 @@ int mmc_suspend_host(struct mmc_host *host)
 {
 	int err = 0;
 
-	if (host->caps & MMC_CAP_DISABLE)
-		cancel_delayed_work(&host->disable);
 	cancel_delayed_work(&host->detect);
 	mmc_flush_scheduled_work();
 	if (mmc_try_claim_host(host)) {
 		err = mmc_cache_ctrl(host, 0);
-		mmc_do_release_host(host);
+		mmc_release_host(host);
 	} else {
 		err = -EBUSY;
 	}
@@ -2450,7 +2293,7 @@ int mmc_suspend_host(struct mmc_host *host)
 			if (host->bus_ops->suspend) {
 				err = host->bus_ops->suspend(host);
 			}
-			mmc_do_release_host(host);
+			mmc_release_host(host);
 
 			if (err == -ENOSYS || !host->bus_ops->resume) {
 				/*
