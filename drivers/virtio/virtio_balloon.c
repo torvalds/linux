@@ -367,10 +367,16 @@ static void __devexit virtballoon_remove(struct virtio_device *vdev)
 #ifdef CONFIG_PM
 static int virtballoon_freeze(struct virtio_device *vdev)
 {
+	struct virtio_balloon *vb = vdev->priv;
+
 	/*
 	 * The kthread is already frozen by the PM core before this
 	 * function is called.
 	 */
+
+	while (vb->num_pages)
+		leak_balloon(vb, vb->num_pages);
+	update_balloon_size(vb);
 
 	/* Ensure we don't get any more requests from the host */
 	vdev->config->reset(vdev);
@@ -378,18 +384,28 @@ static int virtballoon_freeze(struct virtio_device *vdev)
 	return 0;
 }
 
+static int restore_common(struct virtio_device *vdev)
+{
+	struct virtio_balloon *vb = vdev->priv;
+	int ret;
+
+	ret = init_vqs(vdev->priv);
+	if (ret)
+		return ret;
+
+	fill_balloon(vb, towards_target(vb));
+	update_balloon_size(vb);
+	return 0;
+}
+
 static int virtballoon_thaw(struct virtio_device *vdev)
 {
-	return init_vqs(vdev->priv);
+	return restore_common(vdev);
 }
 
 static int virtballoon_restore(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb = vdev->priv;
-	struct page *page, *page2;
-
-	/* We're starting from a clean slate */
-	vb->num_pages = 0;
 
 	/*
 	 * If a request wasn't complete at the time of freezing, this
@@ -397,12 +413,7 @@ static int virtballoon_restore(struct virtio_device *vdev)
 	 */
 	vb->need_stats_update = 0;
 
-	/* We don't have these pages in the balloon anymore! */
-	list_for_each_entry_safe(page, page2, &vb->pages, lru) {
-		list_del(&page->lru);
-		totalram_pages++;
-	}
-	return init_vqs(vdev->priv);
+	return restore_common(vdev);
 }
 #endif
 
