@@ -469,6 +469,20 @@ static int acquire_dma(struct rk29xx_spi *dws)
 		return 0;
 	}
 
+	dws->buffer_tx_dma = dma_alloc_coherent(&dws->pdev->dev, DMA_BUFFER_SIZE, &dws->tx_dma, GFP_KERNEL | GFP_DMA);
+	if (!dws->buffer_tx_dma)
+	{
+		dev_err(&dws->pdev->dev, "fail to dma tx buffer alloc\n");
+		return -1;
+	}
+
+	dws->buffer_rx_dma = dma_alloc_coherent(&dws->pdev->dev, DMA_BUFFER_SIZE, &dws->rx_dma, GFP_KERNEL | GFP_DMA);
+	if (!dws->buffer_rx_dma)
+	{
+		dev_err(&dws->pdev->dev, "fail to dma rx buffer alloc\n");
+		return -1;
+	}
+
 	if(rk29_dma_request(dws->rx_dmach, 
 		&rk29_spi_dma_client, NULL) < 0) {
 		dev_err(&dws->master->dev, "dws->rx_dmach : %d, cannot get RxDMA\n", dws->rx_dmach);
@@ -1895,21 +1909,6 @@ static int __init rk29xx_spim_probe(struct platform_device *pdev)
 	if (IS_ERR(dws->clock_spim)) {
 		dev_err(&pdev->dev, "clk_get for spi fail(%p)\n", dws->clock_spim);
 		return PTR_ERR(dws->clock_spim);
-	}
-
-	
-	dws->buffer_tx_dma = dma_alloc_coherent(&pdev->dev, DMA_BUFFER_SIZE, &dws->tx_dma, GFP_KERNEL | GFP_DMA);
-	if (!dws->buffer_tx_dma)
-	{
-		dev_err(&pdev->dev, "fail to dma tx buffer alloc\n");
-		goto exit;
-	}
-
-	dws->buffer_rx_dma = dma_alloc_coherent(&pdev->dev, DMA_BUFFER_SIZE, &dws->rx_dma, GFP_KERNEL | GFP_DMA);
-	if (!dws->buffer_rx_dma)
-	{
-		dev_err(&pdev->dev, "fail to dma rx buffer alloc\n");
-		goto exit;
 	}
 	
 	mutex_init(&dws->dma_lock);
