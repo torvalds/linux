@@ -127,25 +127,74 @@ static void btrfs_handle_error(struct btrfs_fs_info *fs_info)
  * invokes the approciate error response.
  */
 void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
-		     unsigned int line, int errno)
+		       unsigned int line, int errno, const char *fmt, ...)
 {
 	struct super_block *sb = fs_info->sb;
 	char nbuf[16];
 	const char *errstr;
+	va_list args;
+	va_start(args, fmt);
 
 	/*
 	 * Special case: if the error is EROFS, and we're already
 	 * under MS_RDONLY, then it is safe here.
 	 */
 	if (errno == -EROFS && (sb->s_flags & MS_RDONLY))
-		return;
+  		return;
 
-	errstr = btrfs_decode_error(fs_info, errno, nbuf);
-	printk(KERN_CRIT "BTRFS error (device %s) in %s:%d: %s\n",
-		sb->s_id, function, line, errstr);
-	save_error_info(fs_info);
+  	errstr = btrfs_decode_error(fs_info, errno, nbuf);
+	if (fmt) {
+		struct va_format vaf = {
+			.fmt = fmt,
+			.va = &args,
+		};
 
-	btrfs_handle_error(fs_info);
+		printk(KERN_CRIT "BTRFS error (device %s) in %s:%d: %s (%pV)\n",
+			sb->s_id, function, line, errstr, &vaf);
+	} else {
+		printk(KERN_CRIT "BTRFS error (device %s) in %s:%d: %s\n",
+			sb->s_id, function, line, errstr);
+	}
+
+	/* Don't go through full error handling during mount */
+	if (sb->s_flags & MS_BORN) {
+		save_error_info(fs_info);
+		btrfs_handle_error(fs_info);
+	}
+	va_end(args);
+}
+
+const char *logtypes[] = {
+	"emergency",
+	"alert",
+	"critical",
+	"error",
+	"warning",
+	"notice",
+	"info",
+	"debug",
+};
+
+void btrfs_printk(struct btrfs_fs_info *fs_info, const char *fmt, ...)
+{
+	struct super_block *sb = fs_info->sb;
+	char lvl[4];
+	struct va_format vaf;
+	va_list args;
+	const char *type = logtypes[4];
+
+	va_start(args, fmt);
+
+	if (fmt[0] == '<' && isdigit(fmt[1]) && fmt[2] == '>') {
+		strncpy(lvl, fmt, 3);
+		fmt += 3;
+		type = logtypes[fmt[1] - '0'];
+	} else
+		*lvl = '\0';
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	printk("%sBTRFS %s (device %s): %pV", lvl, type, sb->s_id, &vaf);
 }
 
 /*
