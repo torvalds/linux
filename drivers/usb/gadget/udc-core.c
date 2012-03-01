@@ -351,7 +351,15 @@ static int udc_bind_to_driver(struct usb_udc *udc, struct usb_gadget_driver *dri
 		driver->unbind(udc->gadget);
 		goto err1;
 	}
-	usb_gadget_connect(udc->gadget);
+	/*
+	 * HACK: The Android gadget driver disconnects the gadget
+	 * on bind and expects the gadget to stay disconnected until
+	 * it calls usb_gadget_connect when userspace is ready. Remove
+	 * the call to usb_gadget_connect bellow to avoid enabling the
+	 * pullup before userspace is ready.
+	 *
+	 * usb_gadget_connect(udc->gadget);
+	 */
 
 	kobject_uevent(&udc->dev.kobj, KOBJ_CHANGE);
 	return 0;
