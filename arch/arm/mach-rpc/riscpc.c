@@ -134,12 +134,19 @@ static struct platform_device iomd_device = {
 	.resource		= iomd_resources,
 };
 
+static struct resource iomd_kart_resources[] = {
+	DEFINE_RES_IRQ(IRQ_KEYBOARDRX),
+	DEFINE_RES_IRQ(IRQ_KEYBOARDTX),
+};
+
 static struct platform_device kbd_device = {
 	.name			= "kart",
 	.id			= -1,
 	.dev			= {
 		.parent 	= &iomd_device.dev,
 	},
+	.num_resources		= ARRAY_SIZE(iomd_kart_resources),
+	.resource		= iomd_kart_resources,
 };
 
 static struct plat_serial8250_port serial_platform_data[] = {
