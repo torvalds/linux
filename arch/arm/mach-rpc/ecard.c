@@ -42,6 +42,7 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/kthread.h>
+#include <linux/irq.h>
 #include <linux/io.h>
 
 #include <asm/dma.h>
@@ -977,8 +978,7 @@ EXPORT_SYMBOL(ecardm_iomap);
  * If bit 1 of the first byte of the card is set, then the
  * card does not exist.
  */
-static int __init
-ecard_probe(int slot, card_type_t type)
+static int __init ecard_probe(int slot, unsigned irq, card_type_t type)
 {
 	ecard_t **ecp;
 	ecard_t *ec;
@@ -1032,19 +1032,18 @@ ecard_probe(int slot, card_type_t type)
 			break;
 		}
 
+	ec->irq = irq;
+
 	/*
 	 * hook the interrupt handlers
 	 */
 	if (slot < 8) {
-		ec->irq = 32 + slot;
 		irq_set_chip_and_handler(ec->irq, &ecard_chip,
 					 handle_level_irq);
 		irq_set_chip_data(ec->irq, ec);
 		set_irq_flags(ec->irq, IRQF_VALID);
 	}
 
-	if (slot == 8)
-		ec->irq = 11;
 #ifdef CONFIG_ARCH_RPC
 	/* On RiscPC, only first two slots have DMA capability */
 	if (slot < 2)
@@ -1074,23 +1073,28 @@ ecard_probe(int slot, card_type_t type)
 static int __init ecard_init(void)
 {
 	struct task_struct *task;
-	int slot, irqhw;
+	int slot, irqhw, irqbase;
+
+	irqbase = irq_alloc_descs(-1, 0, 8, -1);
+	if (irqbase < 0)
+		return irqbase;
 
 	task = kthread_run(ecard_task, NULL, "kecardd");
 	if (IS_ERR(task)) {
 		printk(KERN_ERR "Ecard: unable to create kernel thread: %ld\n",
 		       PTR_ERR(task));
+		irq_free_descs(irqbase, 8);
 		return PTR_ERR(task);
 	}
 
 	printk("Probing expansion cards\n");
 
 	for (slot = 0; slot < 8; slot ++) {
-		if (ecard_probe(slot, ECARD_EASI) == -ENODEV)
-			ecard_probe(slot, ECARD_IOC);
+		if (ecard_probe(slot, irqbase + slot, ECARD_EASI) == -ENODEV)
+			ecard_probe(slot, irqbase + slot, ECARD_IOC);
 	}
 
-	ecard_probe(8, ECARD_IOC);
+	ecard_probe(8, 11, ECARD_IOC);
 
 	irqhw = ecard_probeirqhw();
 
