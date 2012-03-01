@@ -303,6 +303,7 @@ static void set_cmd_regs(struct mtd_info *mtd, uint32_t cmd, uint32_t flcmcdr_va
 		break;
 	case NAND_CMD_READ0:
 	case NAND_CMD_READOOB:
+	case NAND_CMD_RNDOUT:
 		addr_len_bytes = flctl->rw_ADRCNT;
 		flcmdcr_val |= CDSRC_E;
 		if (flctl->chip.options & NAND_BUSWIDTH_16)
@@ -556,6 +557,21 @@ static void flctl_cmdfunc(struct mtd_info *mtd, unsigned int command,
 			set_addr(mtd, 0, page_addr);
 		}
 		flctl->read_bytes = mtd->oobsize;
+		goto read_normal_exit;
+
+	case NAND_CMD_RNDOUT:
+		if (flctl->hwecc)
+			break;
+
+		if (flctl->page_size)
+			set_cmd_regs(mtd, command, (NAND_CMD_RNDOUTSTART << 8)
+				| command);
+		else
+			set_cmd_regs(mtd, command, command);
+
+		set_addr(mtd, column, 0);
+
+		flctl->read_bytes = mtd->writesize + mtd->oobsize - column;
 		goto read_normal_exit;
 
 	case NAND_CMD_READID:
