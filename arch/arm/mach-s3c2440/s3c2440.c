@@ -35,7 +35,6 @@
 #include <plat/cpu.h>
 #include <plat/s3c244x.h>
 #include <plat/pm.h>
-#include <plat/watchdog-reset.h>
 
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
@@ -73,16 +72,4 @@ void __init s3c2440_map_io(void)
 
 	s3c24xx_gpiocfg_default.set_pull = s3c24xx_gpio_setpull_1up;
 	s3c24xx_gpiocfg_default.get_pull = s3c24xx_gpio_getpull_1up;
-}
-
-void s3c2440_restart(char mode, const char *cmd)
-{
-	if (mode == 's') {
-		soft_restart(0);
-	}
-
-	arch_wdt_reset();
-
-	/* we'll take a jump through zero as a poor second */
-	soft_restart(0);
 }

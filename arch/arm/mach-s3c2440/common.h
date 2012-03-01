@@ -12,6 +12,6 @@
 #ifndef __ARCH_ARM_MACH_S3C2440_COMMON_H
 #define __ARCH_ARM_MACH_S3C2440_COMMON_H
 
-void s3c2440_restart(char mode, const char *cmd);
+void s3c244x_restart(char mode, const char *cmd);
 
 #endif /* __ARCH_ARM_MACH_S3C2440_COMMON_H */
