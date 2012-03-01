@@ -55,10 +55,6 @@
 
 #include "ecard.h"
 
-#ifndef CONFIG_ARCH_RPC
-#define HAVE_EXPMASK
-#endif
-
 struct ecard_request {
 	void		(*fn)(struct ecard_request *);
 	ecard_t		*ec;
@@ -78,9 +74,6 @@ struct expcard_blacklist {
 static ecard_t *cards;
 static ecard_t *slot_to_expcard[MAX_ECARDS];
 static unsigned int ectcr;
-#ifdef HAS_EXPMASK
-static unsigned int have_expmask;
-#endif
 
 /* List of descriptions of cards which don't have an extended
  * identification, or chunk directories containing a description.
@@ -391,22 +384,10 @@ int ecard_readchunk(struct in_chunk_dir *cd, ecard_t *ec, int id, int num)
 
 static void ecard_def_irq_enable(ecard_t *ec, int irqnr)
 {
-#ifdef HAS_EXPMASK
-	if (irqnr < 4 && have_expmask) {
-		have_expmask |= 1 << irqnr;
-		__raw_writeb(have_expmask, EXPMASK_ENABLE);
-	}
-#endif
 }
 
 static void ecard_def_irq_disable(ecard_t *ec, int irqnr)
 {
-#ifdef HAS_EXPMASK
-	if (irqnr < 4 && have_expmask) {
-		have_expmask &= ~(1 << irqnr);
-		__raw_writeb(have_expmask, EXPMASK_ENABLE);
-	}
-#endif
 }
 
 static int ecard_def_irq_pending(ecard_t *ec)
@@ -597,83 +578,6 @@ ecard_irq_handler(unsigned int irq, struct irq_desc *desc)
 	if (called == 0)
 		ecard_check_lockup(desc);
 }
-
-#ifdef HAS_EXPMASK
-static unsigned char priority_masks[] =
-{
-	0xf0, 0xf1, 0xf3, 0xf7, 0xff, 0xff, 0xff, 0xff
-};
-
-static unsigned char first_set[] =
-{
-	0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
-	0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00
-};
-
-static void
-ecard_irqexp_handler(unsigned int irq, struct irq_desc *desc)
-{
-	const unsigned int statusmask = 15;
-	unsigned int status;
-
-	status = __raw_readb(EXPMASK_STATUS) & statusmask;
-	if (status) {
-		unsigned int slot = first_set[status];
-		ecard_t *ec = slot_to_ecard(slot);
-
-		if (ec->claimed) {
-			/*
-			 * this ugly code is so that we can operate a
-			 * prioritorising system:
-			 *
-			 * Card 0 	highest priority
-			 * Card 1
-			 * Card 2
-			 * Card 3	lowest priority
-			 *
-			 * Serial cards should go in 0/1, ethernet/scsi in 2/3
-			 * otherwise you will lose serial data at high speeds!
-			 */
-			generic_handle_irq(ec->irq);
-		} else {
-			printk(KERN_WARNING "card%d: interrupt from unclaimed "
-			       "card???\n", slot);
-			have_expmask &= ~(1 << slot);
-			__raw_writeb(have_expmask, EXPMASK_ENABLE);
-		}
-	} else
-		printk(KERN_WARNING "Wild interrupt from backplane (masks)\n");
-}
-
-static int __init ecard_probeirqhw(void)
-{
-	ecard_t *ec;
-	int found;
-
-	__raw_writeb(0x00, EXPMASK_ENABLE);
-	__raw_writeb(0xff, EXPMASK_STATUS);
-	found = (__raw_readb(EXPMASK_STATUS) & 15) == 0;
-	__raw_writeb(0xff, EXPMASK_ENABLE);
-
-	if (found) {
-		printk(KERN_DEBUG "Expansion card interrupt "
-		       "management hardware found\n");
-
-		/* for each card present, set a bit to '1' */
-		have_expmask = 0x80000000;
-
-		for (ec = cards; ec; ec = ec->next)
-			have_expmask |= 1 << ec->slot_no;
-
-		__raw_writeb(have_expmask, EXPMASK_ENABLE);
-	}
-
-	return found;
-}
-#else
-#define ecard_irqexp_handler NULL
-#define ecard_probeirqhw() (0)
-#endif
 
 static void __iomem *__ecard_address(ecard_t *ec, card_type_t type, card_speed_t speed)
 {
@@ -1073,7 +977,7 @@ static int __init ecard_probe(int slot, unsigned irq, card_type_t type)
 static int __init ecard_init(void)
 {
 	struct task_struct *task;
-	int slot, irqhw, irqbase;
+	int slot, irqbase;
 
 	irqbase = irq_alloc_descs(-1, 0, 8, -1);
 	if (irqbase < 0)
@@ -1096,10 +1000,7 @@ static int __init ecard_init(void)
 
 	ecard_probe(8, 11, ECARD_IOC);
 
-	irqhw = ecard_probeirqhw();
-
-	irq_set_chained_handler(IRQ_EXPANSIONCARD,
-				irqhw ? ecard_irqexp_handler : ecard_irq_handler);
+	irq_set_chained_handler(IRQ_EXPANSIONCARD, ecard_irq_handler);
 
 	ecard_proc_init();
 
