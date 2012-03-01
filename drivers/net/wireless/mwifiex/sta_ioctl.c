@@ -609,7 +609,7 @@ static int mwifiex_bss_ioctl_ibss_channel(struct mwifiex_private *priv,
  *          - Start/Join the IBSS
  */
 int
-mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
+mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, u16 channel)
 {
 	int ret;
 	struct mwifiex_bss_info bss_info;
@@ -646,7 +646,7 @@ mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
 	ret = mwifiex_deauthenticate(priv, ssid_bssid.bssid);
 
 	ret = mwifiex_bss_ioctl_ibss_channel(priv, HostCmd_ACT_GEN_SET,
-					     (u16 *) &channel);
+					     &channel);
 
 	/* Do specific SSID scanning */
 	if (mwifiex_request_scan(priv, &bss_info.ssid)) {
