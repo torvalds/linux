@@ -216,12 +216,14 @@ static void dump_ipv4_packet(struct sbuff *m,
 				    ntohs(ih->frag_off) & IP_OFFSET,
 				    iphoff+ih->ihl*4, logflags))
 			return;
+		break;
 	case IPPROTO_UDP:
 	case IPPROTO_UDPLITE:
 		if (dump_udp_header(m, skb, ih->protocol,
 				    ntohs(ih->frag_off) & IP_OFFSET,
 				    iphoff+ih->ihl*4))
 			return;
+		break;
 	case IPPROTO_ICMP: {
 		struct icmphdr _icmph;
 		const struct icmphdr *ich;
@@ -649,10 +651,12 @@ static void dump_ipv6_packet(struct sbuff *m,
 		if (dump_tcp_header(m, skb, currenthdr, fragment, ptr,
 		    logflags))
 			return;
+		break;
 	case IPPROTO_UDP:
 	case IPPROTO_UDPLITE:
 		if (dump_udp_header(m, skb, currenthdr, fragment, ptr))
 			return;
+		break;
 	case IPPROTO_ICMPV6: {
 		struct icmp6hdr _icmp6h;
 		const struct icmp6hdr *ic;
