@@ -286,6 +286,9 @@ struct iio_info {
 				struct iio_trigger *trig);
 	int (*update_scan_mode)(struct iio_dev *indio_dev,
 				const unsigned long *scan_mask);
+	int (*debugfs_reg_access)(struct iio_dev *indio_dev,
+				  unsigned reg, unsigned writeval,
+				  unsigned *readval);
 };
 
 /**
@@ -332,7 +335,9 @@ struct iio_buffer_setup_ops {
  * @groups:		[INTERN] attribute groups
  * @groupcounter:	[INTERN] index of next attribute group
  * @flags:		[INTERN] file ops related flags including busy flag.
- **/
+ * @debugfs_dentry:	[INTERN] device specific debugfs dentry.
+ * @cached_reg_addr:	[INTERN] cached register address for debugfs reads.
+ */
 struct iio_dev {
 	int				id;
 
@@ -366,6 +371,10 @@ struct iio_dev {
 	int				groupcounter;
 
 	unsigned long			flags;
+#if defined(CONFIG_DEBUG_FS)
+	struct dentry			*debugfs_dentry;
+	unsigned			cached_reg_addr;
+#endif
 };
 
 /**
@@ -442,5 +451,21 @@ static inline bool iio_buffer_enabled(struct iio_dev *indio_dev)
 	return indio_dev->currentmode
 		& (INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE);
 };
+
+/**
+ * iio_get_debugfs_dentry() - helper function to get the debugfs_dentry
+ * @indio_dev:		IIO device info structure for device
+ **/
+#if defined(CONFIG_DEBUG_FS)
+static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
+{
+	return indio_dev->debugfs_dentry;
+};
+#else
+static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
+{
+	return NULL;
+};
+#endif
 
 #endif /* _INDUSTRIAL_IO_H_ */
