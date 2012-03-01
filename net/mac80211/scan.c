@@ -13,6 +13,7 @@
  */
 
 #include <linux/if_arp.h>
+#include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/pm_qos.h>
 #include <net/sch_generic.h>
@@ -176,7 +177,7 @@ ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 	presp = ieee80211_is_probe_resp(fc);
 	if (presp) {
 		/* ignore ProbeResp to foreign address */
-		if (memcmp(mgmt->da, sdata->vif.addr, ETH_ALEN))
+		if (compare_ether_addr(mgmt->da, sdata->vif.addr))
 			return RX_DROP_MONITOR;
 
 		presp = true;

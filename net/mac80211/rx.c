@@ -489,12 +489,12 @@ ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 			if (ieee80211_has_tods(hdr->frame_control) ||
 				!ieee80211_has_fromds(hdr->frame_control))
 				return RX_DROP_MONITOR;
-			if (memcmp(hdr->addr3, dev_addr, ETH_ALEN) == 0)
+			if (compare_ether_addr(hdr->addr3, dev_addr) == 0)
 				return RX_DROP_MONITOR;
 		} else {
 			if (!ieee80211_has_a4(hdr->frame_control))
 				return RX_DROP_MONITOR;
-			if (memcmp(hdr->addr4, dev_addr, ETH_ALEN) == 0)
+			if (compare_ether_addr(hdr->addr4, dev_addr) == 0)
 				return RX_DROP_MONITOR;
 		}
 	}
@@ -2336,7 +2336,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
 				break;
 
-			if (memcmp(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN))
+			if (compare_ether_addr(mgmt->bssid, sdata->u.mgd.bssid))
 				break;
 
 			goto queue;

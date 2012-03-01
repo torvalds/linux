@@ -14,6 +14,7 @@
 #include <linux/if_ether.h>
 #include <linux/workqueue.h>
 #include <linux/average.h>
+#include <linux/etherdevice.h>
 #include "key.h"
 
 /**
@@ -489,7 +490,7 @@ void for_each_sta_info_type_check(struct ieee80211_local *local,
 		nxt = _sta ? rcu_dereference(_sta->hnext) : NULL	\
 	     )								\
 	/* compare address and run code only if it matches */		\
-	if (memcmp(_sta->sta.addr, (_addr), ETH_ALEN) == 0)
+	if (compare_ether_addr(_sta->sta.addr, (_addr)) == 0)
 
 /*
  * Get STA info by index, BROKEN!

@@ -8,6 +8,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/etherdevice.h>
 #include <asm/unaligned.h>
 #include "wme.h"
 #include "mesh.h"
@@ -419,7 +420,7 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 		new_metric = MAX_METRIC;
 	exp_time = TU_TO_EXP_TIME(orig_lifetime);
 
-	if (memcmp(orig_addr, sdata->vif.addr, ETH_ALEN) == 0) {
+	if (compare_ether_addr(orig_addr, sdata->vif.addr) == 0) {
 		/* This MP is the originator, we are not interested in this
 		 * frame, except for updating transmitter's path info.
 		 */
@@ -469,7 +470,7 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 
 	/* Update and check transmitter routing info */
 	ta = mgmt->sa;
-	if (memcmp(orig_addr, ta, ETH_ALEN) == 0)
+	if (compare_ether_addr(orig_addr, ta) == 0)
 		fresh_info = false;
 	else {
 		fresh_info = true;
@@ -530,7 +531,7 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 
 	mhwmp_dbg("received PREQ from %pM", orig_addr);
 
-	if (memcmp(target_addr, sdata->vif.addr, ETH_ALEN) == 0) {
+	if (compare_ether_addr(target_addr, sdata->vif.addr) == 0) {
 		mhwmp_dbg("PREQ is for us");
 		forward = false;
 		reply = true;
@@ -627,7 +628,7 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 	mhwmp_dbg("received PREP from %pM", PREP_IE_ORIG_ADDR(prep_elem));
 
 	orig_addr = PREP_IE_ORIG_ADDR(prep_elem);
-	if (memcmp(orig_addr, sdata->vif.addr, ETH_ALEN) == 0)
+	if (compare_ether_addr(orig_addr, sdata->vif.addr) == 0)
 		/* destination, no forwarding required */
 		return;
 
@@ -697,10 +698,12 @@ static void hwmp_perr_frame_process(struct ieee80211_sub_if_data *sdata,
 	rcu_read_lock();
 	mpath = mesh_path_lookup(target_addr, sdata);
 	if (mpath) {
+		struct sta_info *sta;
+
 		spin_lock_bh(&mpath->state_lock);
+		sta = next_hop_deref_protected(mpath);
 		if (mpath->flags & MESH_PATH_ACTIVE &&
-		    memcmp(ta, next_hop_deref_protected(mpath)->sta.addr,
-							ETH_ALEN) == 0 &&
+		    compare_ether_addr(ta, sta->sta.addr) == 0 &&
 		    (!(mpath->flags & MESH_PATH_SN_VALID) ||
 		    SN_GT(target_sn, mpath->sn))) {
 			mpath->flags &= ~MESH_PATH_ACTIVE;
@@ -742,7 +745,7 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 	metric = rann->rann_metric;
 
 	/*  Ignore our own RANNs */
-	if (memcmp(orig_addr, sdata->vif.addr, ETH_ALEN) == 0)
+	if (compare_ether_addr(orig_addr, sdata->vif.addr) == 0)
 		return;
 
 	mhwmp_dbg("received RANN from %pM via neighbour %pM (is_gate=%d)",
@@ -1074,7 +1077,7 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 	if (time_after(jiffies,
 		       mpath->exp_time -
 		       msecs_to_jiffies(sdata->u.mesh.mshcfg.path_refresh_time)) &&
-	    !memcmp(sdata->vif.addr, hdr->addr4, ETH_ALEN) &&
+	    !compare_ether_addr(sdata->vif.addr, hdr->addr4) &&
 	    !(mpath->flags & MESH_PATH_RESOLVING) &&
 	    !(mpath->flags & MESH_PATH_FIXED))
 		mesh_queue_preq(mpath, PREQ_Q_F_START | PREQ_Q_F_REFRESH);
