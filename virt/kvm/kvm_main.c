@@ -522,12 +522,11 @@ static void kvm_destroy_dirty_bitmap(struct kvm_memory_slot *memslot)
 		return;
 
 	if (2 * kvm_dirty_bitmap_bytes(memslot) > PAGE_SIZE)
-		vfree(memslot->dirty_bitmap_head);
+		vfree(memslot->dirty_bitmap);
 	else
-		kfree(memslot->dirty_bitmap_head);
+		kfree(memslot->dirty_bitmap);
 
 	memslot->dirty_bitmap = NULL;
-	memslot->dirty_bitmap_head = NULL;
 }
 
 /*
@@ -611,8 +610,7 @@ static int kvm_vm_release(struct inode *inode, struct file *filp)
 
 /*
  * Allocation size is twice as large as the actual dirty bitmap size.
- * This makes it possible to do double buffering: see x86's
- * kvm_vm_ioctl_get_dirty_log().
+ * See x86's kvm_vm_ioctl_get_dirty_log() why this is needed.
  */
 static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 {
@@ -627,8 +625,6 @@ static int kvm_create_dirty_bitmap(struct kvm_memory_slot *memslot)
 	if (!memslot->dirty_bitmap)
 		return -ENOMEM;
 
-	memslot->dirty_bitmap_head = memslot->dirty_bitmap;
-	memslot->nr_dirty_pages = 0;
 #endif /* !CONFIG_S390 */
 	return 0;
 }
@@ -1476,8 +1472,8 @@ void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	if (memslot && memslot->dirty_bitmap) {
 		unsigned long rel_gfn = gfn - memslot->base_gfn;
 
-		if (!test_and_set_bit_le(rel_gfn, memslot->dirty_bitmap))
-			memslot->nr_dirty_pages++;
+		/* TODO: introduce set_bit_le() and use it */
+		test_and_set_bit_le(rel_gfn, memslot->dirty_bitmap);
 	}
 }
 

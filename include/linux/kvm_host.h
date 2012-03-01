@@ -179,8 +179,6 @@ struct kvm_memory_slot {
 	unsigned long flags;
 	unsigned long *rmap;
 	unsigned long *dirty_bitmap;
-	unsigned long *dirty_bitmap_head;
-	unsigned long nr_dirty_pages;
 	struct kvm_arch_memory_slot arch;
 	unsigned long userspace_addr;
 	int user_alloc;
