@@ -2230,9 +2230,11 @@ static const struct snd_soc_dapm_route wm8962_intercon[] = {
 
 	{ "STL", "Left", "ADCL" },
 	{ "STL", "Right", "ADCR" },
+	{ "STL", NULL, "Class G" },
 
 	{ "STR", "Left", "ADCL" },
 	{ "STR", "Right", "ADCR" },
+	{ "STR", NULL, "Class G" },
 
 	{ "DACL", NULL, "SYSCLK" },
 	{ "DACL", NULL, "TOCLK" },
