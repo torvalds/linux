@@ -34,6 +34,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/hardware/cache-l2x0.h>
 
 static struct map_desc r8a7779_io_desc[] __initdata = {
 	/* 2M entity map for 0xf0000000 (MPCORE) */
@@ -242,6 +243,10 @@ static struct platform_device *r8a7779_late_devices[] __initdata = {
 
 void __init r8a7779_add_standard_devices(void)
 {
+#ifdef CONFIG_CACHE_L2X0
+	/* Early BRESP enable, Shared attribute override enable, 64K*16way */
+	l2x0_init(__io(0xf0100000), 0x40470000, 0x82000fff);
+#endif
 	r8a7779_pm_init();
 
 	r8a7779_init_pm_domain(&r8a7779_sh4a);
