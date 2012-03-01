@@ -836,10 +836,8 @@ static int btrfs_batch_insert_items(struct btrfs_trans_handle *trans,
 	btrfs_clear_path_blocking(path, NULL, 0);
 
 	/* insert the keys of the items */
-	ret = setup_items_for_insert(trans, root, path, keys, data_size,
-				     total_data_size, total_size, nitems);
-	if (ret)
-		goto error;
+	setup_items_for_insert(trans, root, path, keys, data_size,
+			       total_data_size, total_size, nitems);
 
 	/* insert the dir index items */
 	slot = path->slots[0];

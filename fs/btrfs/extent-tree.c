@@ -1010,7 +1010,7 @@ static int convert_extent_item_v0(struct btrfs_trans_handle *trans,
 		return ret;
 	BUG_ON(ret);
 
-	ret = btrfs_extend_item(trans, root, path, new_size);
+	btrfs_extend_item(trans, root, path, new_size);
 
 	leaf = path->nodes[0];
 	item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_extent_item);
@@ -1592,13 +1592,13 @@ out:
  * helper to add new inline back ref
  */
 static noinline_for_stack
-int setup_inline_extent_backref(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root,
-				struct btrfs_path *path,
-				struct btrfs_extent_inline_ref *iref,
-				u64 parent, u64 root_objectid,
-				u64 owner, u64 offset, int refs_to_add,
-				struct btrfs_delayed_extent_op *extent_op)
+void setup_inline_extent_backref(struct btrfs_trans_handle *trans,
+				 struct btrfs_root *root,
+				 struct btrfs_path *path,
+				 struct btrfs_extent_inline_ref *iref,
+				 u64 parent, u64 root_objectid,
+				 u64 owner, u64 offset, int refs_to_add,
+				 struct btrfs_delayed_extent_op *extent_op)
 {
 	struct extent_buffer *leaf;
 	struct btrfs_extent_item *ei;
@@ -1608,7 +1608,6 @@ int setup_inline_extent_backref(struct btrfs_trans_handle *trans,
 	u64 refs;
 	int size;
 	int type;
-	int ret;
 
 	leaf = path->nodes[0];
 	ei = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_extent_item);
@@ -1617,7 +1616,7 @@ int setup_inline_extent_backref(struct btrfs_trans_handle *trans,
 	type = extent_ref_type(parent, owner);
 	size = btrfs_extent_inline_ref_size(type);
 
-	ret = btrfs_extend_item(trans, root, path, size);
+	btrfs_extend_item(trans, root, path, size);
 
 	ei = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_extent_item);
 	refs = btrfs_extent_refs(leaf, ei);
@@ -1652,7 +1651,6 @@ int setup_inline_extent_backref(struct btrfs_trans_handle *trans,
 		btrfs_set_extent_inline_ref_offset(leaf, iref, root_objectid);
 	}
 	btrfs_mark_buffer_dirty(leaf);
-	return 0;
 }
 
 static int lookup_extent_backref(struct btrfs_trans_handle *trans,
@@ -1687,12 +1685,12 @@ static int lookup_extent_backref(struct btrfs_trans_handle *trans,
  * helper to update/remove inline back ref
  */
 static noinline_for_stack
-int update_inline_extent_backref(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *root,
-				 struct btrfs_path *path,
-				 struct btrfs_extent_inline_ref *iref,
-				 int refs_to_mod,
-				 struct btrfs_delayed_extent_op *extent_op)
+void update_inline_extent_backref(struct btrfs_trans_handle *trans,
+				  struct btrfs_root *root,
+				  struct btrfs_path *path,
+				  struct btrfs_extent_inline_ref *iref,
+				  int refs_to_mod,
+				  struct btrfs_delayed_extent_op *extent_op)
 {
 	struct extent_buffer *leaf;
 	struct btrfs_extent_item *ei;
@@ -1703,7 +1701,6 @@ int update_inline_extent_backref(struct btrfs_trans_handle *trans,
 	u32 item_size;
 	int size;
 	int type;
-	int ret;
 	u64 refs;
 
 	leaf = path->nodes[0];
@@ -1745,10 +1742,9 @@ int update_inline_extent_backref(struct btrfs_trans_handle *trans,
 			memmove_extent_buffer(leaf, ptr, ptr + size,
 					      end - ptr - size);
 		item_size -= size;
-		ret = btrfs_truncate_item(trans, root, path, item_size, 1);
+		btrfs_truncate_item(trans, root, path, item_size, 1);
 	}
 	btrfs_mark_buffer_dirty(leaf);
-	return 0;
 }
 
 static noinline_for_stack
@@ -1768,13 +1764,13 @@ int insert_inline_extent_backref(struct btrfs_trans_handle *trans,
 					   root_objectid, owner, offset, 1);
 	if (ret == 0) {
 		BUG_ON(owner < BTRFS_FIRST_FREE_OBJECTID);
-		ret = update_inline_extent_backref(trans, root, path, iref,
-						   refs_to_add, extent_op);
+		update_inline_extent_backref(trans, root, path, iref,
+					     refs_to_add, extent_op);
 	} else if (ret == -ENOENT) {
-		ret = setup_inline_extent_backref(trans, root, path, iref,
-						  parent, root_objectid,
-						  owner, offset, refs_to_add,
-						  extent_op);
+		setup_inline_extent_backref(trans, root, path, iref, parent,
+					    root_objectid, owner, offset,
+					    refs_to_add, extent_op);
+		ret = 0;
 	}
 	return ret;
 }
@@ -1804,12 +1800,12 @@ static int remove_extent_backref(struct btrfs_trans_handle *trans,
 				 struct btrfs_extent_inline_ref *iref,
 				 int refs_to_drop, int is_data)
 {
-	int ret;
+	int ret = 0;
 
 	BUG_ON(!is_data && refs_to_drop != 1);
 	if (iref) {
-		ret = update_inline_extent_backref(trans, root, path, iref,
-						   -refs_to_drop, NULL);
+		update_inline_extent_backref(trans, root, path, iref,
+					     -refs_to_drop, NULL);
 	} else if (is_data) {
 		ret = remove_extent_data_ref(trans, root, path, refs_to_drop);
 	} else {
@@ -4734,7 +4730,7 @@ static int btrfs_update_reserved_bytes(struct btrfs_block_group_cache *cache,
 	return ret;
 }
 
-int btrfs_prepare_extent_commit(struct btrfs_trans_handle *trans,
+void btrfs_prepare_extent_commit(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -4764,7 +4760,6 @@ int btrfs_prepare_extent_commit(struct btrfs_trans_handle *trans,
 	up_write(&fs_info->extent_commit_sem);
 
 	update_global_block_rsv(fs_info);
-	return 0;
 }
 
 static int unpin_extent_range(struct btrfs_root *root, u64 start, u64 end)
@@ -7189,7 +7184,7 @@ u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo)
 	return free_bytes;
 }
 
-int btrfs_set_block_group_rw(struct btrfs_root *root,
+void btrfs_set_block_group_rw(struct btrfs_root *root,
 			      struct btrfs_block_group_cache *cache)
 {
 	struct btrfs_space_info *sinfo = cache->space_info;
@@ -7205,7 +7200,6 @@ int btrfs_set_block_group_rw(struct btrfs_root *root,
 	cache->ro = 0;
 	spin_unlock(&cache->lock);
 	spin_unlock(&sinfo->lock);
-	return 0;
 }
 
 /*

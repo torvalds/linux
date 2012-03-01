@@ -3164,8 +3164,8 @@ search_again:
 				}
 				size =
 				    btrfs_file_extent_calc_inline_size(size);
-				ret = btrfs_truncate_item(trans, root, path,
-							  size, 1);
+				btrfs_truncate_item(trans, root, path,
+						    size, 1);
 			} else if (root->ref_cows) {
 				inode_sub_bytes(inode, item_end + 1 -
 						found_key.offset);
@@ -3782,7 +3782,7 @@ static void inode_tree_del(struct inode *inode)
 	}
 }
 
-int btrfs_invalidate_inodes(struct btrfs_root *root)
+void btrfs_invalidate_inodes(struct btrfs_root *root)
 {
 	struct rb_node *node;
 	struct rb_node *prev;
@@ -3842,7 +3842,6 @@ again:
 		node = rb_next(node);
 	}
 	spin_unlock(&root->inode_lock);
-	return 0;
 }
 
 static int btrfs_init_locked_inode(struct inode *inode, void *p)

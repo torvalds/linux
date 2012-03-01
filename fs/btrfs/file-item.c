@@ -483,18 +483,17 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
  * This calls btrfs_truncate_item with the correct args based on the
  * overlap, and fixes up the key as required.
  */
-static noinline int truncate_one_csum(struct btrfs_trans_handle *trans,
-				      struct btrfs_root *root,
-				      struct btrfs_path *path,
-				      struct btrfs_key *key,
-				      u64 bytenr, u64 len)
+static noinline void truncate_one_csum(struct btrfs_trans_handle *trans,
+				       struct btrfs_root *root,
+				       struct btrfs_path *path,
+				       struct btrfs_key *key,
+				       u64 bytenr, u64 len)
 {
 	struct extent_buffer *leaf;
 	u16 csum_size = btrfs_super_csum_size(root->fs_info->super_copy);
 	u64 csum_end;
 	u64 end_byte = bytenr + len;
 	u32 blocksize_bits = root->fs_info->sb->s_blocksize_bits;
-	int ret;
 
 	leaf = path->nodes[0];
 	csum_end = btrfs_item_size_nr(leaf, path->slots[0]) / csum_size;
@@ -510,7 +509,7 @@ static noinline int truncate_one_csum(struct btrfs_trans_handle *trans,
 		 */
 		u32 new_size = (bytenr - key->offset) >> blocksize_bits;
 		new_size *= csum_size;
-		ret = btrfs_truncate_item(trans, root, path, new_size, 1);
+		btrfs_truncate_item(trans, root, path, new_size, 1);
 	} else if (key->offset >= bytenr && csum_end > end_byte &&
 		   end_byte > key->offset) {
 		/*
@@ -522,15 +521,13 @@ static noinline int truncate_one_csum(struct btrfs_trans_handle *trans,
 		u32 new_size = (csum_end - end_byte) >> blocksize_bits;
 		new_size *= csum_size;
 
-		ret = btrfs_truncate_item(trans, root, path, new_size, 0);
+		btrfs_truncate_item(trans, root, path, new_size, 0);
 
 		key->offset = end_byte;
-		ret = btrfs_set_item_key_safe(trans, root, path, key);
-		BUG_ON(ret);
+		btrfs_set_item_key_safe(trans, root, path, key);
 	} else {
 		BUG();
 	}
-	return 0;
 }
 
 /*
@@ -639,9 +636,7 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 
 			key.offset = end_byte - 1;
 		} else {
-			ret = truncate_one_csum(trans, root, path,
-						&key, bytenr, len);
-			BUG_ON(ret);
+			truncate_one_csum(trans, root, path, &key, bytenr, len);
 			if (key.offset < bytenr)
 				break;
 		}
@@ -772,7 +767,7 @@ again:
 		if (diff != csum_size)
 			goto insert;
 
-		ret = btrfs_extend_item(trans, root, path, diff);
+		btrfs_extend_item(trans, root, path, diff);
 		goto csum;
 	}
 

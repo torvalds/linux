@@ -948,12 +948,12 @@ static int scrub_checksum_super(struct scrub_bio *sbio, void *buffer)
 	return fail;
 }
 
-static int scrub_submit(struct scrub_dev *sdev)
+static void scrub_submit(struct scrub_dev *sdev)
 {
 	struct scrub_bio *sbio;
 
 	if (sdev->curr == -1)
-		return 0;
+		return;
 
 	sbio = sdev->bios[sdev->curr];
 	sbio->err = 0;
@@ -961,8 +961,6 @@ static int scrub_submit(struct scrub_dev *sdev)
 	atomic_inc(&sdev->in_flight);
 
 	btrfsic_submit_bio(READ, sbio->bio);
-
-	return 0;
 }
 
 static int scrub_page(struct scrub_dev *sdev, u64 logical, u64 len,
@@ -1008,9 +1006,7 @@ again:
 		sbio->bio = bio;
 	} else if (sbio->physical + sbio->count * PAGE_SIZE != physical ||
 		   sbio->logical + sbio->count * PAGE_SIZE != logical) {
-		ret = scrub_submit(sdev);
-		if (ret)
-			return ret;
+		scrub_submit(sdev);
 		goto again;
 	}
 	sbio->spag[sbio->count].flags = flags;
@@ -1025,9 +1021,7 @@ again:
 	ret = bio_add_page(sbio->bio, page, PAGE_SIZE, 0);
 	if (!ret) {
 		__free_page(page);
-		ret = scrub_submit(sdev);
-		if (ret)
-			return ret;
+		scrub_submit(sdev);
 		goto again;
 	}
 
@@ -1036,13 +1030,8 @@ again:
 		memcpy(sbio->spag[sbio->count].csum, csum, sdev->csum_size);
 	}
 	++sbio->count;
-	if (sbio->count == SCRUB_PAGES_PER_BIO || force) {
-		int ret;
-
-		ret = scrub_submit(sdev);
-		if (ret)
-			return ret;
-	}
+	if (sbio->count == SCRUB_PAGES_PER_BIO || force)
+		scrub_submit(sdev);
 
 	return 0;
 }
@@ -1656,7 +1645,7 @@ int btrfs_scrub_dev(struct btrfs_root *root, u64 devid, u64 start, u64 end,
 	return ret;
 }
 
-int btrfs_scrub_pause(struct btrfs_root *root)
+void btrfs_scrub_pause(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
@@ -1671,29 +1660,24 @@ int btrfs_scrub_pause(struct btrfs_root *root)
 		mutex_lock(&fs_info->scrub_lock);
 	}
 	mutex_unlock(&fs_info->scrub_lock);
-
-	return 0;
 }
 
-int btrfs_scrub_continue(struct btrfs_root *root)
+void btrfs_scrub_continue(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
 	atomic_dec(&fs_info->scrub_pause_req);
 	wake_up(&fs_info->scrub_pause_wait);
-	return 0;
 }
 
-int btrfs_scrub_pause_super(struct btrfs_root *root)
+void btrfs_scrub_pause_super(struct btrfs_root *root)
 {
 	down_write(&root->fs_info->scrub_super_lock);
-	return 0;
 }
 
-int btrfs_scrub_continue_super(struct btrfs_root *root)
+void btrfs_scrub_continue_super(struct btrfs_root *root)
 {
 	up_write(&root->fs_info->scrub_super_lock);
-	return 0;
 }
 
 int btrfs_scrub_cancel(struct btrfs_root *root)
