@@ -3095,13 +3095,11 @@ static void write_protect_slot(struct kvm *kvm,
 
 	/* Not many dirty pages compared to # of shadow pages. */
 	if (nr_dirty_pages < kvm->arch.n_used_mmu_pages) {
-		unsigned long gfn_offset;
+		gfn_t offset;
 
-		for_each_set_bit(gfn_offset, dirty_bitmap, memslot->npages) {
-			unsigned long gfn = memslot->base_gfn + gfn_offset;
+		for_each_set_bit(offset, dirty_bitmap, memslot->npages)
+			kvm_mmu_write_protect_pt_masked(kvm, memslot, offset, 1);
 
-			kvm_mmu_rmap_write_protect(kvm, gfn, memslot);
-		}
 		kvm_flush_remote_tlbs(kvm);
 	} else
 		kvm_mmu_slot_remove_write_access(kvm, memslot->id);

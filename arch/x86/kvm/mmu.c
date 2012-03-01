@@ -1037,11 +1037,39 @@ static int __rmap_write_protect(struct kvm *kvm, unsigned long *rmapp, int level
 	return write_protected;
 }
 
-int kvm_mmu_rmap_write_protect(struct kvm *kvm, u64 gfn,
-			       struct kvm_memory_slot *slot)
+/**
+ * kvm_mmu_write_protect_pt_masked - write protect selected PT level pages
+ * @kvm: kvm instance
+ * @slot: slot to protect
+ * @gfn_offset: start of the BITS_PER_LONG pages we care about
+ * @mask: indicates which pages we should protect
+ *
+ * Used when we do not need to care about huge page mappings: e.g. during dirty
+ * logging we do not have any such mappings.
+ */
+void kvm_mmu_write_protect_pt_masked(struct kvm *kvm,
+				     struct kvm_memory_slot *slot,
+				     gfn_t gfn_offset, unsigned long mask)
 {
 	unsigned long *rmapp;
-	int i, write_protected = 0;
+
+	while (mask) {
+		rmapp = &slot->rmap[gfn_offset + __ffs(mask)];
+		__rmap_write_protect(kvm, rmapp, PT_PAGE_TABLE_LEVEL);
+
+		/* clear the first set bit */
+		mask &= mask - 1;
+	}
+}
+
+static int rmap_write_protect(struct kvm *kvm, u64 gfn)
+{
+	struct kvm_memory_slot *slot;
+	unsigned long *rmapp;
+	int i;
+	int write_protected = 0;
+
+	slot = gfn_to_memslot(kvm, gfn);
 
 	for (i = PT_PAGE_TABLE_LEVEL;
 	     i < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++i) {
@@ -1050,14 +1078,6 @@ int kvm_mmu_rmap_write_protect(struct kvm *kvm, u64 gfn,
 	}
 
 	return write_protected;
-}
-
-static int rmap_write_protect(struct kvm *kvm, u64 gfn)
-{
-	struct kvm_memory_slot *slot;
-
-	slot = gfn_to_memslot(kvm, gfn);
-	return kvm_mmu_rmap_write_protect(kvm, gfn, slot);
 }
 
 static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
