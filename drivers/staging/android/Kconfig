@@ -27,6 +27,7 @@ config ANDROID_LOGGER
 
 config ANDROID_RAM_CONSOLE
 	bool "Android RAM buffer console"
+	depends on !S390 && !UML
 	default n
 
 config ANDROID_RAM_CONSOLE_ENABLE_VERBOSE
@@ -98,10 +99,6 @@ config ANDROID_LOW_MEMORY_KILLER
 	default N
 	---help---
 	  Register processes to be killed when memory is low
-
-config ANDROID_PMEM
-	bool "Android pmem allocator"
-	depends on ARM
 
 source "drivers/staging/android/switch/Kconfig"
 

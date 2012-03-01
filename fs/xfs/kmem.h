@@ -110,10 +110,4 @@ kmem_zone_destroy(kmem_zone_t *zone)
 extern void *kmem_zone_alloc(kmem_zone_t *, unsigned int __nocast);
 extern void *kmem_zone_zalloc(kmem_zone_t *, unsigned int __nocast);
 
-static inline int
-kmem_shake_allow(gfp_t gfp_mask)
-{
-	return ((gfp_mask & __GFP_WAIT) && (gfp_mask & __GFP_FS));
-}
-
 #endif /* __XFS_SUPPORT_KMEM_H__ */

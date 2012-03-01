@@ -399,15 +399,18 @@ int bcma_bus_scan(struct bcma_bus *bus)
 		core->bus = bus;
 
 		err = bcma_get_next_core(bus, &eromptr, NULL, core_num, core);
-		if (err == -ENODEV) {
-			core_num++;
-			continue;
-		} else if (err == -ENXIO)
-			continue;
-		else if (err == -ESPIPE)
-			break;
-		else if (err < 0)
+		if (err < 0) {
+			kfree(core);
+			if (err == -ENODEV) {
+				core_num++;
+				continue;
+			} else if (err == -ENXIO) {
+				continue;
+			} else if (err == -ESPIPE) {
+				break;
+			}
 			return err;
+		}
 
 		core->core_index = core_num++;
 		bus->nr_cores++;
