@@ -962,7 +962,7 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 	/* storing subdev for call that have only access to struct device */
 	dev_set_drvdata(dev, sd);
 
-	dev_info(dev, "probe successful\n");
+	dev_info(dev, "probe sucessful\n");
 
 	return 0;
 
@@ -1000,7 +1000,7 @@ static int __devexit hdmi_remove(struct platform_device *pdev)
 	iounmap(hdmi_dev->regs);
 	hdmi_resources_cleanup(hdmi_dev);
 	kfree(hdmi_dev);
-	dev_info(dev, "remove successful\n");
+	dev_info(dev, "remove sucessful\n");
 
 	return 0;
 }
