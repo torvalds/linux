@@ -69,17 +69,15 @@ extern unsigned long get_iop_tick_rate(void);
  * 0x8000.0000 + 928M	0x2.8000.0000   (ioremap)	PCIE outbound memory window
  *
  * IO MAP
- * 0x1000 + 64K	0x0.fffb.1000	0xfec6.1000	PCIX outbound i/o window
+ * 0x1000 + 64K	0x0.fffb.1000	0xfed6.1000	PCIX outbound i/o window
  * 0x1000 + 64K	0x0.fffd.1000	0xfed7.1000	PCIE outbound i/o window
  */
 #define IOP13XX_PCIX_IO_WINDOW_SIZE   0x10000UL
 #define IOP13XX_PCIX_LOWER_IO_PA      0xfffb0000UL
-#define IOP13XX_PCIX_LOWER_IO_VA      0xfec60000UL
+#define IOP13XX_PCIX_LOWER_IO_VA      0xfed60000UL
 #define IOP13XX_PCIX_LOWER_IO_BA      0x0UL /* OIOTVR */
 #define IOP13XX_PCIX_IO_BUS_OFFSET    0x1000UL
-#define IOP13XX_PCIX_UPPER_IO_PA      (IOP13XX_PCIX_LOWER_IO_PA +\
-				       IOP13XX_PCIX_IO_WINDOW_SIZE - 1)
-#define IOP13XX_PCIX_UPPER_IO_VA      (IOP13XX_PCIX_LOWER_IO_VA +\
+#define IOP13XX_PCIX_UPPER_IO_BA      (IOP13XX_PCIX_LOWER_IO_BA +\
 				       IOP13XX_PCIX_IO_WINDOW_SIZE - 1)
 #define IOP13XX_PCIX_IO_PHYS_TO_VIRT(addr) (u32) ((u32) addr -\
 					   (IOP13XX_PCIX_LOWER_IO_PA\
@@ -108,10 +106,6 @@ extern unsigned long get_iop_tick_rate(void);
 #define IOP13XX_PCIE_LOWER_IO_VA      	 0xfed70000UL
 #define IOP13XX_PCIE_LOWER_IO_BA      	 0x0UL  /* OIOTVR */
 #define IOP13XX_PCIE_IO_BUS_OFFSET	 0x1000UL
-#define IOP13XX_PCIE_UPPER_IO_PA      	 (IOP13XX_PCIE_LOWER_IO_PA +\
-					 IOP13XX_PCIE_IO_WINDOW_SIZE - 1)
-#define IOP13XX_PCIE_UPPER_IO_VA      	 (IOP13XX_PCIE_LOWER_IO_VA +\
-					 IOP13XX_PCIE_IO_WINDOW_SIZE - 1)
 #define IOP13XX_PCIE_UPPER_IO_BA      	 (IOP13XX_PCIE_LOWER_IO_BA +\
 					 IOP13XX_PCIE_IO_WINDOW_SIZE - 1)
 #define IOP13XX_PCIE_IO_PHYS_TO_VIRT(addr) (u32) ((u32) addr -\
