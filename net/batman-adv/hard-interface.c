@@ -32,12 +32,6 @@
 
 #include <linux/if_arp.h>
 
-
-static int batman_skb_recv(struct sk_buff *skb,
-			   struct net_device *dev,
-			   struct packet_type *ptype,
-			   struct net_device *orig_dev);
-
 void hardif_free_rcu(struct rcu_head *rcu)
 {
 	struct hard_iface *hard_iface;
@@ -549,113 +543,6 @@ out:
 	if (primary_if)
 		hardif_free_ref(primary_if);
 	return NOTIFY_DONE;
-}
-
-/* incoming packets with the batman ethertype received on any active hard
- * interface */
-static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
-			   struct packet_type *ptype,
-			   struct net_device *orig_dev)
-{
-	struct bat_priv *bat_priv;
-	struct batman_ogm_packet *batman_ogm_packet;
-	struct hard_iface *hard_iface;
-	int ret;
-
-	hard_iface = container_of(ptype, struct hard_iface, batman_adv_ptype);
-	skb = skb_share_check(skb, GFP_ATOMIC);
-
-	/* skb was released by skb_share_check() */
-	if (!skb)
-		goto err_out;
-
-	/* packet should hold at least type and version */
-	if (unlikely(!pskb_may_pull(skb, 2)))
-		goto err_free;
-
-	/* expect a valid ethernet header here. */
-	if (unlikely(skb->mac_len != ETH_HLEN || !skb_mac_header(skb)))
-		goto err_free;
-
-	if (!hard_iface->soft_iface)
-		goto err_free;
-
-	bat_priv = netdev_priv(hard_iface->soft_iface);
-
-	if (atomic_read(&bat_priv->mesh_state) != MESH_ACTIVE)
-		goto err_free;
-
-	/* discard frames on not active interfaces */
-	if (hard_iface->if_status != IF_ACTIVE)
-		goto err_free;
-
-	batman_ogm_packet = (struct batman_ogm_packet *)skb->data;
-
-	if (batman_ogm_packet->header.version != COMPAT_VERSION) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Drop packet: incompatible batman version (%i)\n",
-			batman_ogm_packet->header.version);
-		goto err_free;
-	}
-
-	/* all receive handlers return whether they received or reused
-	 * the supplied skb. if not, we have to free the skb. */
-
-	switch (batman_ogm_packet->header.packet_type) {
-		/* batman originator packet */
-	case BAT_IV_OGM:
-		ret = recv_bat_ogm_packet(skb, hard_iface);
-		break;
-
-		/* batman icmp packet */
-	case BAT_ICMP:
-		ret = recv_icmp_packet(skb, hard_iface);
-		break;
-
-		/* unicast packet */
-	case BAT_UNICAST:
-		ret = recv_unicast_packet(skb, hard_iface);
-		break;
-
-		/* fragmented unicast packet */
-	case BAT_UNICAST_FRAG:
-		ret = recv_ucast_frag_packet(skb, hard_iface);
-		break;
-
-		/* broadcast packet */
-	case BAT_BCAST:
-		ret = recv_bcast_packet(skb, hard_iface);
-		break;
-
-		/* vis packet */
-	case BAT_VIS:
-		ret = recv_vis_packet(skb, hard_iface);
-		break;
-		/* Translation table query (request or response) */
-	case BAT_TT_QUERY:
-		ret = recv_tt_query(skb, hard_iface);
-		break;
-		/* Roaming advertisement */
-	case BAT_ROAM_ADV:
-		ret = recv_roam_adv(skb, hard_iface);
-		break;
-	default:
-		ret = NET_RX_DROP;
-	}
-
-	if (ret == NET_RX_DROP)
-		kfree_skb(skb);
-
-	/* return NET_RX_SUCCESS in any case as we
-	 * most probably dropped the packet for
-	 * routing-logical reasons. */
-
-	return NET_RX_SUCCESS;
-
-err_free:
-	kfree_skb(skb);
-err_out:
-	return NET_RX_DROP;
 }
 
 /* This function returns true if the interface represented by ifindex is a
