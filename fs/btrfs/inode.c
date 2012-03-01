@@ -6233,7 +6233,7 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 	if (writing) {
 		write_bits = EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING;
 		ret = set_extent_bit(&BTRFS_I(inode)->io_tree, lockstart, lockend,
-				     EXTENT_DELALLOC, 0, NULL, &cached_state,
+				     EXTENT_DELALLOC, NULL, &cached_state,
 				     GFP_NOFS);
 		if (ret) {
 			clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart,
