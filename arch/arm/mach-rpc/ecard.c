@@ -445,7 +445,7 @@ static expansioncard_ops_t ecard_default_ops = {
  */
 static void ecard_irq_unmask(struct irq_data *d)
 {
-	ecard_t *ec = slot_to_ecard(d->irq - 32);
+	ecard_t *ec = irq_data_get_irq_chip_data(d);
 
 	if (ec) {
 		if (!ec->ops)
@@ -461,7 +461,7 @@ static void ecard_irq_unmask(struct irq_data *d)
 
 static void ecard_irq_mask(struct irq_data *d)
 {
-	ecard_t *ec = slot_to_ecard(d->irq - 32);
+	ecard_t *ec = irq_data_get_irq_chip_data(d);
 
 	if (ec) {
 		if (!ec->ops)
@@ -1039,6 +1039,7 @@ ecard_probe(int slot, card_type_t type)
 		ec->irq = 32 + slot;
 		irq_set_chip_and_handler(ec->irq, &ecard_chip,
 					 handle_level_irq);
+		irq_set_chip_data(ec->irq, ec);
 		set_irq_flags(ec->irq, IRQF_VALID);
 	}
 
