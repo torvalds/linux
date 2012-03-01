@@ -854,6 +854,8 @@ static const struct file_operations iio_buffer_fileops = {
 	.compat_ioctl = iio_ioctl,
 };
 
+static const struct iio_buffer_setup_ops noop_ring_setup_ops;
+
 int iio_device_register(struct iio_dev *indio_dev)
 {
 	int ret;
@@ -881,6 +883,10 @@ int iio_device_register(struct iio_dev *indio_dev)
 	}
 	if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
 		iio_device_register_trigger_consumer(indio_dev);
+
+	if ((indio_dev->modes & INDIO_ALL_BUFFER_MODES) &&
+		indio_dev->setup_ops == NULL)
+		indio_dev->setup_ops = &noop_ring_setup_ops;
 
 	ret = device_add(&indio_dev->dev);
 	if (ret < 0)
