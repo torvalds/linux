@@ -799,7 +799,7 @@ err_unlink_pipe_1:
 static void gss_pipes_dentries_destroy_net(struct rpc_clnt *clnt,
 					   struct rpc_auth *auth)
 {
-	struct net *net = clnt->cl_xprt->xprt_net;
+	struct net *net = rpc_net_ns(clnt);
 	struct super_block *sb;
 
 	sb = rpc_get_sb_net(net);
@@ -813,7 +813,7 @@ static void gss_pipes_dentries_destroy_net(struct rpc_clnt *clnt,
 static int gss_pipes_dentries_create_net(struct rpc_clnt *clnt,
 					 struct rpc_auth *auth)
 {
-	struct net *net = clnt->cl_xprt->xprt_net;
+	struct net *net = rpc_net_ns(clnt);
 	struct super_block *sb;
 	int err = 0;
 

@@ -53,6 +53,7 @@
 #include <linux/magic.h>
 #include <linux/parser.h>
 #include <linux/nsproxy.h>
+#include <linux/rcupdate.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -701,8 +702,10 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 		else
 			seq_puts(m, nfs_infop->nostr);
 	}
+	rcu_read_lock();
 	seq_printf(m, ",proto=%s",
 		   rpc_peeraddr2str(nfss->client, RPC_DISPLAY_NETID));
+	rcu_read_unlock();
 	if (version == 4) {
 		if (nfss->port != NFS_PORT)
 			seq_printf(m, ",port=%u", nfss->port);
@@ -751,9 +754,11 @@ static int nfs_show_options(struct seq_file *m, struct dentry *root)
 
 	nfs_show_mount_options(m, nfss, 0);
 
+	rcu_read_lock();
 	seq_printf(m, ",addr=%s",
 			rpc_peeraddr2str(nfss->nfs_client->cl_rpcclient,
 							RPC_DISPLAY_ADDR));
+	rcu_read_unlock();
 
 	return 0;
 }

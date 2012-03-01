@@ -96,8 +96,8 @@ static int nfs4_validate_fspath(struct dentry *dentry,
 static size_t nfs_parse_server_name(char *string, size_t len,
 		struct sockaddr *sa, size_t salen, struct nfs_server *server)
 {
+	struct net *net = rpc_net_ns(server->client);
 	ssize_t ret;
-	struct net *net = server->client->cl_xprt->xprt_net;
 
 	ret = rpc_pton(net, string, len, sa, salen);
 	if (ret == 0) {

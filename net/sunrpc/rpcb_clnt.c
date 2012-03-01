@@ -620,9 +620,10 @@ static struct rpc_task *rpcb_call_async(struct rpc_clnt *rpcb_clnt, struct rpcbi
 static struct rpc_clnt *rpcb_find_transport_owner(struct rpc_clnt *clnt)
 {
 	struct rpc_clnt *parent = clnt->cl_parent;
+	struct rpc_xprt *xprt = rcu_dereference(clnt->cl_xprt);
 
 	while (parent != clnt) {
-		if (parent->cl_xprt != clnt->cl_xprt)
+		if (rcu_dereference(parent->cl_xprt) != xprt)
 			break;
 		if (clnt->cl_autobind)
 			break;
@@ -653,8 +654,12 @@ void rpcb_getport_async(struct rpc_task *task)
 	size_t salen;
 	int status;
 
-	clnt = rpcb_find_transport_owner(task->tk_client);
-	xprt = clnt->cl_xprt;
+	rcu_read_lock();
+	do {
+		clnt = rpcb_find_transport_owner(task->tk_client);
+		xprt = xprt_get(rcu_dereference(clnt->cl_xprt));
+	} while (xprt == NULL);
+	rcu_read_unlock();
 
 	dprintk("RPC: %5u %s(%s, %u, %u, %d)\n",
 		task->tk_pid, __func__,
@@ -667,6 +672,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	if (xprt_test_and_set_binding(xprt)) {
 		dprintk("RPC: %5u %s: waiting for another binder\n",
 			task->tk_pid, __func__);
+		xprt_put(xprt);
 		return;
 	}
 
@@ -734,7 +740,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	switch (bind_version) {
 	case RPCBVERS_4:
 	case RPCBVERS_3:
-		map->r_netid = rpc_peeraddr2str(clnt, RPC_DISPLAY_NETID);
+		map->r_netid = xprt->address_strings[RPC_DISPLAY_NETID];
 		map->r_addr = rpc_sockaddr2uaddr(sap, GFP_ATOMIC);
 		map->r_owner = "";
 		break;
@@ -763,6 +769,7 @@ bailout_release_client:
 bailout_nofree:
 	rpcb_wake_rpcbind_waiters(xprt, status);
 	task->tk_status = status;
+	xprt_put(xprt);
 }
 EXPORT_SYMBOL_GPL(rpcb_getport_async);
 

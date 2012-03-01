@@ -3833,6 +3833,7 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 	*p = htonl((u32)clp->cl_boot_time.tv_nsec);
 
 	for(;;) {
+		rcu_read_lock();
 		setclientid.sc_name_len = scnprintf(setclientid.sc_name,
 				sizeof(setclientid.sc_name), "%s/%s %s %s %u",
 				clp->cl_ipaddr,
@@ -3849,6 +3850,7 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 		setclientid.sc_uaddr_len = scnprintf(setclientid.sc_uaddr,
 				sizeof(setclientid.sc_uaddr), "%s.%u.%u",
 				clp->cl_ipaddr, port >> 8, port & 255);
+		rcu_read_unlock();
 
 		status = rpc_call_sync(clp->cl_rpcclient, &msg, RPC_TASK_TIMEOUT);
 		if (status != -NFS4ERR_CLID_INUSE)
@@ -5244,11 +5246,16 @@ struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp)
 
 void nfs4_destroy_session(struct nfs4_session *session)
 {
+	struct rpc_xprt *xprt;
+
 	nfs4_proc_destroy_session(session);
+
+	rcu_read_lock();
+	xprt = rcu_dereference(session->clp->cl_rpcclient->cl_xprt);
+	rcu_read_unlock();
 	dprintk("%s Destroy backchannel for xprt %p\n",
-		__func__, session->clp->cl_rpcclient->cl_xprt);
-	xprt_destroy_backchannel(session->clp->cl_rpcclient->cl_xprt,
-				NFS41_BC_MIN_CALLBACKS);
+		__func__, xprt);
+	xprt_destroy_backchannel(xprt, NFS41_BC_MIN_CALLBACKS);
 	nfs4_destroy_slot_tables(session);
 	kfree(session);
 }
