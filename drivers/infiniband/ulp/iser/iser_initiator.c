@@ -220,18 +220,6 @@ void iser_free_rx_descriptors(struct iser_conn *ib_conn)
 	struct iser_rx_desc *rx_desc;
 	struct iser_device *device = ib_conn->device;
 
-	if (ib_conn->login_buf) {
-		if (ib_conn->login_req_dma)
-			ib_dma_unmap_single(device->ib_device,
-				ib_conn->login_req_dma,
-				ISCSI_DEF_MAX_RECV_SEG_LEN, DMA_TO_DEVICE);
-		if (ib_conn->login_resp_dma)
-			ib_dma_unmap_single(device->ib_device,
-				ib_conn->login_resp_dma,
-				ISER_RX_LOGIN_SIZE, DMA_FROM_DEVICE);
-		kfree(ib_conn->login_buf);
-	}
-
 	if (!ib_conn->rx_descs)
 		return;
 
