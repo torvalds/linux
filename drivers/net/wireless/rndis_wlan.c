@@ -2755,9 +2755,10 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	struct ndis_80211_assoc_info *info = NULL;
 	u8 bssid[ETH_ALEN];
-	int resp_ie_len, req_ie_len;
+	unsigned int resp_ie_len, req_ie_len;
+	unsigned int offset;
 	u8 *req_ie, *resp_ie;
-	int ret, offset;
+	int ret;
 	bool roamed = false;
 	bool match_bss;
 
@@ -2785,7 +2786,9 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 		ret = get_association_info(usbdev, info, CONTROL_BUFFER_SIZE);
 		if (!ret) {
 			req_ie_len = le32_to_cpu(info->req_ie_length);
-			if (req_ie_len > 0) {
+			if (req_ie_len > CONTROL_BUFFER_SIZE)
+				req_ie_len = CONTROL_BUFFER_SIZE;
+			if (req_ie_len != 0) {
 				offset = le32_to_cpu(info->offset_req_ies);
 
 				if (offset > CONTROL_BUFFER_SIZE)
@@ -2799,7 +2802,9 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 			}
 
 			resp_ie_len = le32_to_cpu(info->resp_ie_length);
-			if (resp_ie_len > 0) {
+			if (resp_ie_len > CONTROL_BUFFER_SIZE)
+				resp_ie_len = CONTROL_BUFFER_SIZE;
+			if (resp_ie_len != 0) {
 				offset = le32_to_cpu(info->offset_resp_ies);
 
 				if (offset > CONTROL_BUFFER_SIZE)
