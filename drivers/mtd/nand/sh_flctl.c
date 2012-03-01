@@ -320,6 +320,7 @@ static void set_cmd_regs(struct mtd_info *mtd, uint32_t cmd, uint32_t flcmcdr_va
 		break;
 	case NAND_CMD_READID:
 		flcmncr_val &= ~SNAND_E;
+		flcmdcr_val |= CDSRC_E;
 		addr_len_bytes = ADRCNT_1;
 		break;
 	case NAND_CMD_STATUS:
@@ -559,13 +560,18 @@ static void flctl_cmdfunc(struct mtd_info *mtd, unsigned int command,
 
 	case NAND_CMD_READID:
 		set_cmd_regs(mtd, command, command);
-		set_addr(mtd, 0, 0);
 
-		flctl->read_bytes = 4;
+		/* READID is always performed using an 8-bit bus */
+		if (flctl->chip.options & NAND_BUSWIDTH_16)
+			column <<= 1;
+		set_addr(mtd, column, 0);
+
+		flctl->read_bytes = 8;
 		writel(flctl->read_bytes, FLDTCNTR(flctl)); /* set read size */
 		empty_fifo(flctl);
 		start_translation(flctl);
-		read_datareg(flctl, 0);	/* read and end */
+		read_fiforeg(flctl, flctl->read_bytes, 0);
+		wait_completion(flctl);
 		break;
 
 	case NAND_CMD_ERASE1:
