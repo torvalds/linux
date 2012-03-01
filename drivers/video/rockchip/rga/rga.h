@@ -10,11 +10,21 @@
 #define RGA_BLIT_SYNC	0x5017
 #define RGA_BLIT_ASYNC  0x5018
 #define RGA_FLUSH       0x5019
+#define RGA_GET_RESULT  0x501a
 
 
 #define RGA_REG_CTRL_LEN    0x8    /* 8  */
 #define RGA_REG_CMD_LEN     0x1c   /* 28 */
 #define RGA_CMD_BUF_SIZE    0x700  /* 16*28*4 */
+
+#define RGA_OUT_OF_RESOURCES    -10
+#define RGA_MALLOC_ERROR        -11
+
+
+#define rgaIS_ERROR(status)			(status < 0)
+#define rgaNO_ERROR(status)			(status >= 0)
+#define rgaIS_SUCCESS(status)		(status == 0)
+
 
 
 /* RGA process mode enum */
@@ -280,10 +290,10 @@ struct rga_req {
                                     
     MMU mmu_info;           /* mmu information */
 
-    uint8_t  alpha_rop_mode;     /* ([0~1] alpha mode)       */
-                            /* ([2~3] rop   mode)       */
-                            /* ([4]   zero  mode en)    */
-                            /* ([5]   dst   alpha mode) */
+    uint8_t  alpha_rop_mode;    /* ([0~1] alpha mode)       */
+                                /* ([2~3] rop   mode)       */
+                                /* ([4]   zero  mode en)    */
+                                /* ([5]   dst   alpha mode) */
 
     uint8_t  src_trans_mode;
 
@@ -339,10 +349,11 @@ typedef struct rga_session {
 	/* a linked list of register data in processing */
 	struct list_head    running;
 	/* all coommand this thread done */
-    uint32_t            done;
+    atomic_t            done;
 	wait_queue_head_t   wait;
 	pid_t           pid;
 	atomic_t        task_running;
+    atomic_t        num_done;
 } rga_session;
 
 struct rga_reg {
@@ -365,13 +376,15 @@ typedef struct rga_service_info {
     struct list_head	done;			/* link to link_reg in struct vpu_reg */
     struct list_head	session;		/* link to list_session in struct vpu_session */
     atomic_t		total_running;
-    bool			enabled;
+    
     struct rga_reg        *reg;
     uint32_t            cmd_buff[28*16];/* cmd_buff for rga */
     uint32_t            *pre_scale_buf;
     atomic_t            int_disable;     /* 0 int enable 1 int disable  */
+    atomic_t            cmd_num;
+    //uint32_t            mmu_buf[4];
+    bool			    enabled;
 } rga_service_info;
-
 
 
 

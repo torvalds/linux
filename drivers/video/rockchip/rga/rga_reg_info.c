@@ -99,7 +99,9 @@ dst_ctrl_cal(const struct rga_req *msg, TILE_INFO *tile)
         xmin = MAX(MIN(MIN(MIN(pos[0], pos[2]), pos[4]), pos[6]), msg->clip.xmin);
         
         ymax = MIN(MAX(MAX(MAX(pos[1], pos[3]), pos[5]), pos[7]), msg->clip.ymax);
-        ymin = MAX(MIN(MIN(MIN(pos[1], pos[3]), pos[5]), pos[7]), msg->clip.ymin); 
+        ymin = MAX(MIN(MIN(MIN(pos[1], pos[3]), pos[5]), pos[7]), msg->clip.ymin);
+
+        printk("xmax = %d, xmin = %d, ymin = %d, ymax = %d\n", xmax, xmin, ymin, ymax);
     }
     else if(msg->rotate_mode == 1)
     {
@@ -227,6 +229,8 @@ dst_ctrl_cal(const struct rga_req *msg, TILE_INFO *tile)
     tile->dst_ctrl.h = (ymax - ymin);
     tile->dst_ctrl.x_off = xmin;
     tile->dst_ctrl.y_off = ymin;
+
+    printk("tile->dst_ctrl.w = %x, tile->dst_ctrl.h = %x\n", tile->dst_ctrl.w, tile->dst_ctrl.h);
 
     tile->tile_x_num = (xmax - xmin + 1 + 7)>>3;
     tile->tile_y_num = (ymax - ymin + 1 + 7)>>3;
@@ -931,10 +935,10 @@ RGA_set_bitblt_reg_info(u8 *base, const struct rga_req * msg, TILE_INFO *tile)
     bRGA_DST_CTR_INFO = (u32 *)(base + RGA_DST_CTR_INFO_OFFSET);
 
     /* Matrix reg fill */   
-    m0 = (s32)(tile->matrix[0]*(1<<14));
-    m1 = (s32)(tile->matrix[1]*(1<<14));
-    m2 = (s32)(tile->matrix[2]*(1<<14));
-    m3 = (s32)(tile->matrix[3]*(1<<14));
+    m0 = (s32)(tile->matrix[0] >> 18);
+    m1 = (s32)(tile->matrix[1] >> 18);
+    m2 = (s32)(tile->matrix[2] >> 18);
+    m3 = (s32)(tile->matrix[3] >> 18);
 
     *bRGA_SRC_X_PARA = (m0 & 0xffff) | (m2 << 16);
     *bRGA_SRC_Y_PARA = (m1 & 0xffff) | (m3 << 16);
@@ -1451,7 +1455,7 @@ RGA_gen_reg_info(const struct rga_req *msg, unsigned char *base)
             matrix_cal(msg, &tile);
             dst_ctrl_cal(msg, &tile);
             src_tile_info_cal(msg, &tile);
-            RGA_set_bitblt_reg_info(base, msg, &tile);                       
+            RGA_set_bitblt_reg_info(base, msg, &tile); 
             break;
         case color_palette_mode :
             RGA_set_src(base, msg);

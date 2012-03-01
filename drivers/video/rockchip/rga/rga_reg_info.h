@@ -451,7 +451,7 @@
 #define RGA_PRESCL_CR_MST_OFFSET        (RGA_PRESCL_CR_MST-0x100)  //repeat
 
 #define RGA_FADING_CON_OFFSET           (RGA_FADING_CON-0x100)
-#define RGA_MMU_TLB_OFFSET             (RGA_MMU_CTRL-0x100)
+#define RGA_MMU_TLB_OFFSET             (RGA_MMU_TBL-0x100)
 
 
 void matrix_cal(const struct rga_req *msg, TILE_INFO *tile);

@@ -17,7 +17,6 @@
 
 #include "rga_mmu_info.h"
 
-
 extern rga_service_info rga_service;
 
 #define KERNEL_SPACE_VALID    0xc0000000
@@ -217,46 +216,142 @@ static int rga_MapUserMemory(struct page **pages,
 {
     int32_t result;
     uint32_t i;
-    
-    down_read(&current->mm->mmap_sem);
-    result = get_user_pages(current,
-            current->mm,
-            Memory << PAGE_SHIFT,
-            pageCount,
-            1,
-            0,
-            pages,
-            NULL
-            );
-    up_read(&current->mm->mmap_sem);
-    
-    if(result <= 0 || result < pageCount) 
-    {
-        return -EINVAL;                
-    }
+    uint32_t status;
 
-    for (i = 0; i < pageCount; i++)
-    {
-        /* Flush the data cache. */
+    do
+    {    
+        down_read(&current->mm->mmap_sem);
+        result = get_user_pages(current,
+                current->mm,
+                Memory << PAGE_SHIFT,
+                pageCount,
+                1,
+                0,
+                pages,
+                NULL
+                );
+        up_read(&current->mm->mmap_sem);
+        
+        if(result <= 0 || result < pageCount) 
+        {
+            struct vm_area_struct *vma;
+
+            vma = find_vma(current->mm, Memory);
+
+            if (vma && (vma->vm_flags & VM_PFNMAP) )
+            {
+                do
+                {
+                    pte_t       * pte;
+                    spinlock_t  * ptl;
+                    unsigned long pfn;
+
+                    pgd_t * pgd = pgd_offset(current->mm, Memory);
+                    pud_t * pud = pud_offset(pgd, Memory);
+                    if (pud)
+                    {
+                        pmd_t * pmd = pmd_offset(pud, Memory);
+                        if (pmd)
+                        {
+                            pte = pte_offset_map_lock(current->mm, pmd, Memory, &ptl);
+                            if (!pte)
+                            {
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
+
+                    pfn      = pte_pfn(*pte);
+                    
+                    pte_unmap_unlock(pte, ptl);
+
+                    /* Free the page table. */
+                    if (pages != NULL)
+                    {
+                        /* Release the pages if any. */
+                        if (result > 0)
+                        {
+                            for (i = 0; i < result; i++)
+                            {
+                                if (pages[i] == NULL)
+                                {
+                                    break;
+                                }
+
+                                page_cache_release(pages[i]);
+                            }
+                        }
+                    }
+
+                    return 0;
+                }
+                while (0);
+
+                status = RGA_OUT_OF_RESOURCES;
+                break;
+            }
+            else
+            {
+                status = RGA_OUT_OF_RESOURCES;
+                break;
+            }                
+        }
+
+        for (i = 0; i < pageCount; i++)
+        {
+            /* Flush the data cache. */
 #ifdef ANDROID
-        dma_sync_single_for_device(
-                    gcvNULL,
-                    page_to_phys(pages[i]),
-                    PAGE_SIZE,
-                    DMA_TO_DEVICE);
+            dma_sync_single_for_device(
+                        NULL,
+                        page_to_phys(pages[i]),
+                        PAGE_SIZE,
+                        DMA_TO_DEVICE);
 #else
-        flush_dcache_page(pages[i]);
+            flush_dcache_page(pages[i]);
 #endif
+        }
+
+        /* Fill the page table. */
+        for(i=0; i<pageCount; i++) {
+
+            /* Get the physical address from page struct. */
+            pageTable[i * (PAGE_SIZE/4096)] = page_to_phys(pages[i]);
+        }    
+    }
+    while(0);
+
+    if (rgaIS_ERROR(status))
+    {
+        /* Release page array. */
+        if (result > 0 && pages != NULL)
+        {
+            for (i = 0; i < result; i++)
+            {
+                if (pages[i] == NULL)
+                {
+                    break;
+                }
+#ifdef ANDROID
+                dma_sync_single_for_device(
+                            NULL,
+                            page_to_phys(pages[i]),
+                            PAGE_SIZE,
+                            DMA_FROM_DEVICE);
+#endif
+                page_cache_release(pages[i]);
+            }
+        }
     }
 
-    /* Fill the page table. */
-    for(i=0; i<pageCount; i++) {
-
-        /* Get the physical address from page struct. */
-        pageTable[i * (PAGE_SIZE/4096)] = page_to_phys(pages[i]);
-    }    
-
-    return 0;
+    return status;
 }
 
 static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
@@ -267,106 +362,135 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
     uint32_t AllSize;
     uint32_t *MMU_Base, *MMU_p;
     int ret;
+    int status;
 
     struct page **pages = NULL;
 
-    /* cal src buf mmu info */                     
-    SrcMemSize = rga_buf_size_cal(req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr,
-                                    req->src.format, req->src.vir_w, req->src.vir_h,
-                                    &SrcStart);
-    if(SrcMemSize == 0) {
-        return -EINVAL;                
-    }
+    MMU_Base = NULL;
 
-    /* cal dst buf mmu info */    
-    DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
-                                    req->dst.format, req->dst.vir_w, req->dst.vir_h,
-                                    &DstStart);
-    if(DstMemSize == 0) {
-        return -EINVAL; 
-    }
-
-    /* cal cmd buf mmu info */
-    CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
-    if(CMDMemSize == 0) {
-        return -EINVAL; 
-    }
-
-    AllSize = SrcMemSize + DstMemSize + CMDMemSize;
-               
-    pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
-    if(pages == NULL) {
-        pr_err("RGA MMU malloc pages mem failed");
-        return -EINVAL;                
-    }
-    
-    MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
-    if(pages == NULL) {
-        pr_err("RGA MMU malloc MMU_Base point failed");
-        return -EINVAL;                
-    }
-
-    for(i=0; i<CMDMemSize; i++) {
-        MMU_Base[i] = (uint32_t)virt_to_phys((uint32_t *)((CMDStart + i)<< PAGE_SHIFT));
-    }
-
-    if(req->src.yrgb_addr < KERNEL_SPACE_VALID)
+    do
     {
-        ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], SrcStart, SrcMemSize);
-        if (ret < 0) {
-            pr_err("rga map src memory failed");
-            return -EINVAL;
+        /* cal src buf mmu info */                     
+        SrcMemSize = rga_buf_size_cal(req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr,
+                                        req->src.format, req->src.vir_w, req->src.vir_h,
+                                        &SrcStart);
+        if(SrcMemSize == 0) {
+            return -EINVAL;                
         }
-    }
-    else
-    {
-        MMU_p = MMU_Base + CMDMemSize;
+
+        /* cal dst buf mmu info */    
+        DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
+                                        req->dst.format, req->dst.vir_w, req->dst.vir_h,
+                                        &DstStart);
+        if(DstMemSize == 0) {
+            return -EINVAL; 
+        }
+
+        /* cal cmd buf mmu info */
+        CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
+        if(CMDMemSize == 0) {
+            return -EINVAL; 
+        }
+
+        AllSize = SrcMemSize + DstMemSize + CMDMemSize;
+                   
+        pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
+        if(pages == NULL) {
+            pr_err("RGA MMU malloc pages mem failed");
+            status = RGA_MALLOC_ERROR;
+            break;                
+        }
         
-        for(i=0; i<SrcMemSize; i++)
+        MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
+        if(MMU_Base == NULL) {
+            pr_err("RGA MMU malloc MMU_Base point failed");
+            status = RGA_MALLOC_ERROR;
+            break;                
+        }
+
+        for(i=0; i<CMDMemSize; i++) {
+            MMU_Base[i] = (uint32_t)virt_to_phys((uint32_t *)((CMDStart + i) << PAGE_SHIFT));            
+        }
+
+        if(req->src.yrgb_addr < KERNEL_SPACE_VALID)
         {
-            MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((SrcStart + i) << PAGE_SHIFT));
+            ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], SrcStart, SrcMemSize);
+            if (ret < 0) {
+                pr_err("rga map src memory failed");
+                status = ret;
+                break;
+            }
         }
-    }
-    
-    if(req->dst.yrgb_addr < KERNEL_SPACE_VALID)
-    {
-        ret = rga_MapUserMemory(&pages[CMDMemSize + SrcMemSize], &MMU_Base[CMDMemSize + SrcMemSize], DstStart, DstMemSize);
-        if (ret < 0) {
-            pr_err("rga map dst memory failed");
-            return -EINVAL;
+        else
+        {
+            MMU_p = MMU_Base + CMDMemSize;
+            
+            for(i=0; i<SrcMemSize; i++)
+            {
+                MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((SrcStart + i) << PAGE_SHIFT));
+            }
         }
-    }
-    else
-    {
-        MMU_p = MMU_Base + CMDMemSize + SrcMemSize;
         
-        for(i=0; i<DstMemSize; i++)
+        if (req->dst.yrgb_addr < KERNEL_SPACE_VALID)
         {
-            MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((DstStart + i) << PAGE_SHIFT));
-        }       
+            ret = rga_MapUserMemory(&pages[CMDMemSize + SrcMemSize], &MMU_Base[CMDMemSize + SrcMemSize], DstStart, DstMemSize);
+            if (ret < 0) {
+                pr_err("rga map dst memory failed");
+                status = ret;
+                break;
+            }
+        }
+        else
+        {
+            MMU_p = MMU_Base + CMDMemSize + SrcMemSize;
+            
+            for(i=0; i<DstMemSize; i++)
+            {
+                MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((DstStart + i) << PAGE_SHIFT));
+            }       
+        }
+
+        /* zsq 
+         * change the buf address in req struct
+         * for the reason of lie to MMU          
+         */
+        
+        req->mmu_info.base_addr = (virt_to_phys(MMU_Base)>>2);        
+
+        req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
+        req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
+        req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
+
+        req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize) << PAGE_SHIFT);
+        
+        /*record the malloc buf for the cmd end to release*/
+        reg->MMU_base = MMU_Base;
+
+        dmac_flush_range(MMU_Base, (MMU_Base + AllSize));
+
+        status = 0;
+
+        /* Free the page table */        
+        if (pages != NULL) {
+            kfree(pages);
+        }
+
+        return status;
     }
+    while(0);
 
-    /* zsq 
-     * change the buf address in req struct
-     * for the reason of lie to MMU 
-     */
-    req->mmu_info.base_addr = virt_to_phys(MMU_Base);
     
-    req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
-    req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
-    req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
-
-    req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize) << PAGE_SHIFT);
-    
-    /*record the malloc buf for the cmd end to release*/
-    reg->MMU_base = MMU_Base;
-
+    /* Free the page table */        
     if (pages != NULL) {
-        /* Free the page table */
         kfree(pages);
-    }        
+    }
 
-    return 0;
+    /* Free MMU table */
+    if(MMU_Base != NULL) {
+        kfree(MMU_Base);
+    }
+
+    return status;
 }
 
 static int rga_mmu_info_color_palette_mode(struct rga_reg *reg, struct rga_req *req)
@@ -376,8 +500,9 @@ static int rga_mmu_info_color_palette_mode(struct rga_reg *reg, struct rga_req *
     struct page **pages = NULL;
     uint32_t i;
     uint32_t AllSize;
-    uint32_t *MMU_Base;
-    int ret;
+    uint32_t *MMU_Base = NULL;
+    uint32_t *MMU_p;
+    int ret, status;
     uint32_t stride;
 
     uint8_t shift;
@@ -387,70 +512,121 @@ static int rga_mmu_info_color_palette_mode(struct rga_reg *reg, struct rga_req *
     sw = req->src.vir_w;
     byte_num = sw >> shift;
     stride = (byte_num + 3) & (~3);
+
+    do
+    {
                          
-    SrcMemSize = rga_mem_size_cal(req->src.yrgb_addr, stride, &SrcStart);
-    if(SrcMemSize == 0) {
-        return -EINVAL;                
-    }
+        SrcMemSize = rga_mem_size_cal(req->src.yrgb_addr, stride, &SrcStart);
+        if(SrcMemSize == 0) {
+            return -EINVAL;                
+        }
 
-    DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
-                                    req->dst.format, req->dst.vir_w, req->dst.vir_h,
-                                    &DstStart);
-    if(DstMemSize == 0) {
-        return -EINVAL; 
-    }
+        DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
+                                        req->dst.format, req->dst.vir_w, req->dst.vir_h,
+                                        &DstStart);
+        if(DstMemSize == 0) {
+            return -EINVAL; 
+        }
 
-    CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
-    if(CMDMemSize == 0) {
-        return -EINVAL; 
-    }
+        CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
+        if(CMDMemSize == 0) {
+            return -EINVAL; 
+        }
 
-    AllSize = SrcMemSize + DstMemSize + CMDMemSize;
-               
-    pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
-    if(pages == NULL) {
-        pr_err("RGA MMU malloc pages mem failed");
-        return -EINVAL;                
-    }
-    
-    MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
-    if(pages == NULL) {
-        pr_err("RGA MMU malloc MMU_Base point failed");
-        return -EINVAL;                
-    }
+        AllSize = SrcMemSize + DstMemSize + CMDMemSize;
+                   
+        pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
+        if(pages == NULL) {
+            pr_err("RGA MMU malloc pages mem failed");
+            return -EINVAL;                
+        }
 
-    for(i=0; i<CMDMemSize; i++) {
-        MMU_Base[i] = virt_to_phys((uint32_t *)((CMDStart + i)<<PAGE_SHIFT));
-    }
-                
-    ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], SrcStart, SrcMemSize);
-    if (ret < 0) {
-        pr_err("rga map src memory failed");
-        return -EINVAL;
-    }
+        MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
+        if(MMU_Base == NULL) {
+            pr_err("RGA MMU malloc MMU_Base point failed");
+            break;            
+        }
 
-    ret = rga_MapUserMemory(&pages[CMDMemSize + SrcMemSize], &MMU_Base[CMDMemSize + SrcMemSize], DstStart, DstMemSize);
-    if (ret < 0) {
-        pr_err("rga map dst memory failed");
-        return -EINVAL;
-    }
+        /* map CMD addr */
+        for(i=0; i<CMDMemSize; i++) 
+        {
+            MMU_Base[i] = virt_to_phys((uint32_t *)((CMDStart + i)<<PAGE_SHIFT));
+        }
 
-    /* zsq 
-     * change the buf address in req struct
-     * for the reason of lie to MMU 
-     */
-    req->mmu_info.base_addr = virt_to_phys(MMU_Base);    
-    req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
-    req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize) << PAGE_SHIFT);
+        /* map src addr */
+        if (req->src.yrgb_addr < KERNEL_SPACE_VALID) 
+        {            
+            ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], SrcStart, SrcMemSize);
+            if (ret < 0) 
+            {
+                pr_err("rga map src memory failed");
+                status = ret;
+                break;            
+            }
+        }
+        else
+        {
+            MMU_p = MMU_Base + CMDMemSize;
+            
+            for(i=0; i<SrcMemSize; i++)
+            {
+                MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((SrcStart + i) << PAGE_SHIFT));
+            }
+        }
 
-    
-    /*record the malloc buf for the cmd end to release*/
-    reg->MMU_base = MMU_Base;
+        /* map dst addr */
+        if (req->src.yrgb_addr < KERNEL_SPACE_VALID) 
+        {
+            ret = rga_MapUserMemory(&pages[CMDMemSize + SrcMemSize], &MMU_Base[CMDMemSize + SrcMemSize], DstStart, DstMemSize);
+            if (ret < 0) 
+            {
+                pr_err("rga map dst memory failed");
+                status = ret;
+                break;
+            }
+        }
+        else
+        {
+            MMU_p = MMU_Base + CMDMemSize + SrcMemSize;
+            
+            for(i=0; i<DstMemSize; i++)
+            {
+                MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((DstStart + i) << PAGE_SHIFT));
+            }
+        }
+        
 
-    if (pages != NULL) {
+        /* zsq 
+         * change the buf address in req struct
+         * for the reason of lie to MMU 
+         */
+        req->mmu_info.base_addr = virt_to_phys(MMU_Base);    
+        req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
+        req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize) << PAGE_SHIFT);
+
+
+        /*record the malloc buf for the cmd end to release*/
+        reg->MMU_base = MMU_Base;
+
         /* Free the page table */
+        if (pages != NULL) {            
+            kfree(pages);
+        }
+
+        return status;
+
+    }
+    while(0);
+
+    /* Free the page table */
+    if (pages != NULL) {            
         kfree(pages);
-    }        
+    }
+
+    /* Free mmu table */
+    if (MMU_Base != NULL) {
+        kfree(MMU_Base);
+    }
 
     return 0;
 }
@@ -462,62 +638,92 @@ static int rga_mmu_info_color_fill_mode(struct rga_reg *reg, struct rga_req *req
     struct page **pages = NULL;
     uint32_t i;
     uint32_t AllSize;
-    uint32_t *MMU_Base;
+    uint32_t *MMU_Base, *MMU_p;
     int ret;
-                         
-    DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
-                                    req->dst.format, req->dst.vir_w, req->dst.vir_h,
-                                    &DstStart);
-    if(DstMemSize == 0) {
-        return -EINVAL; 
-    }
+    int status;
 
-    CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
-    if(CMDMemSize == 0) {
-        return -EINVAL; 
-    }
+    MMU_Base = NULL;
 
-    AllSize = DstMemSize + CMDMemSize;
-               
-    pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
-    if(pages == NULL) {
-        pr_err("RGA MMU malloc pages mem failed");
-        return -EINVAL;                
-    }
-    
-    MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
-    if(pages == NULL) {
-        pr_err("RGA MMU malloc MMU_Base point failed");
-        return -EINVAL;                
-    }
+    do
+    {                         
+        DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
+                                        req->dst.format, req->dst.vir_w, req->dst.vir_h,
+                                        &DstStart);
+        if(DstMemSize == 0) {
+            return -EINVAL; 
+        }
 
-    for(i=0; i<CMDMemSize; i++) {
-        MMU_Base[i] = virt_to_phys((uint32_t *)((CMDStart+i)<<PAGE_SHIFT));
-    }
-                
-    ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], DstStart, DstMemSize);
-    if (ret < 0) {
-        pr_err("rga map dst memory failed");
-        return -EINVAL;
-    }
+        CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
+        if(CMDMemSize == 0) {
+            return -EINVAL; 
+        }
 
-    /* zsq 
-     * change the buf address in req struct
-     * for the reason of lie to MMU 
-     */
-    req->mmu_info.base_addr = virt_to_phys(MMU_Base);    
-    req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize) << PAGE_SHIFT);
-   
-    
-    /*record the malloc buf for the cmd end to release*/
-    reg->MMU_base = MMU_Base;
+        AllSize = DstMemSize + CMDMemSize;
+                   
+        pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
+        if(pages == NULL) {
+            pr_err("RGA MMU malloc pages mem failed");
+            status = RGA_MALLOC_ERROR; 
+            break;
+        }
+        
+        MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
+        if(pages == NULL) {
+            pr_err("RGA MMU malloc MMU_Base point failed");
+            status = RGA_MALLOC_ERROR;
+            break;                
+        }
 
-    if (pages != NULL) {
+        for(i=0; i<CMDMemSize; i++) {
+            MMU_Base[i] = virt_to_phys((uint32_t *)((CMDStart+i)<<PAGE_SHIFT));
+        }
+
+        if (req->dst.yrgb_addr < KERNEL_SPACE_VALID) 
+        {
+            ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], DstStart, DstMemSize);
+            if (ret < 0) {
+                pr_err("rga map dst memory failed");
+                status = ret;
+                break;
+            }
+        }
+        else
+        {
+            MMU_p = MMU_Base + CMDMemSize;
+            
+            for(i=0; i<DstMemSize; i++)
+            {
+                MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((DstStart + i) << PAGE_SHIFT));
+            }
+        }
+        
+                            
+        /* zsq 
+         * change the buf address in req struct
+         * for the reason of lie to MMU 
+         */
+        req->mmu_info.base_addr = virt_to_phys(MMU_Base);    
+        req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize) << PAGE_SHIFT);
+       
+        
+        /*record the malloc buf for the cmd end to release*/
+        reg->MMU_base = MMU_Base;
+
         /* Free the page table */
-        kfree(pages);
-    }       
+        if (pages != NULL)             
+            kfree(pages);
 
-    return 0;
+        return 0;
+    }
+    while(0);
+
+    if (pages != NULL)    
+        kfree(pages);
+
+    if (MMU_Base != NULL)
+        kfree(MMU_Base);
+    
+    return status;
 }
 
 
@@ -528,63 +734,93 @@ static int rga_mmu_info_line_point_drawing_mode(struct rga_reg *reg, struct rga_
     struct page **pages = NULL;
     uint32_t i;
     uint32_t AllSize;
-    uint32_t *MMU_Base;
-    int ret;
+    uint32_t *MMU_Base, *MMU_p;
+    int ret, status;
 
-    /* cal dst buf mmu info */                     
-    DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
-                                    req->dst.format, req->dst.vir_w, req->dst.vir_h,
-                                    &DstStart);
-    if(DstMemSize == 0) {
-        return -EINVAL; 
-    }
+    MMU_Base = NULL;
 
-    CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
-    if(CMDMemSize == 0) {
-        return -EINVAL; 
-    }
+    do
+    {    
+        /* cal dst buf mmu info */                     
+        DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
+                                        req->dst.format, req->dst.vir_w, req->dst.vir_h,
+                                        &DstStart);
+        if(DstMemSize == 0) {
+            return -EINVAL; 
+        }
 
-    AllSize = DstMemSize + CMDMemSize;
-               
-    pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
-    if(pages == NULL) {
-        pr_err("RGA MMU malloc pages mem failed");
-        return -EINVAL;                
-    }
-    
-    MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
-    if(pages == NULL) {
-        pr_err("RGA MMU malloc MMU_Base point failed");
-        return -EINVAL;                
-    }
+        CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
+        if(CMDMemSize == 0) {
+            return -EINVAL; 
+        }
 
-    for(i=0; i<CMDMemSize; i++) {
-        MMU_Base[i] = virt_to_phys((uint32_t *)((CMDStart+i)<<PAGE_SHIFT));
-    }
-                
-    ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], DstStart, DstMemSize);
-    if (ret < 0) {
-        pr_err("rga map dst memory failed");
-        return -EINVAL;
-    }
+        AllSize = DstMemSize + CMDMemSize;
+                   
+        pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
+        if(pages == NULL) {
+            pr_err("RGA MMU malloc pages mem failed");
+            status = RGA_MALLOC_ERROR;
+            break;
+        }
+        
+        MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
+        if(pages == NULL) {
+            pr_err("RGA MMU malloc MMU_Base point failed");
+            status = RGA_MALLOC_ERROR;
+            break;
+        }
 
-    /* zsq 
-     * change the buf address in req struct
-     * for the reason of lie to MMU 
-     */
-    req->mmu_info.base_addr = virt_to_phys(MMU_Base);    
-    req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize) << PAGE_SHIFT);
-   
-    
-    /*record the malloc buf for the cmd end to release*/
-    reg->MMU_base = MMU_Base;
+        for(i=0; i<CMDMemSize; i++) {
+            MMU_Base[i] = virt_to_phys((uint32_t *)((CMDStart+i)<<PAGE_SHIFT));
+        }
 
-    if (pages != NULL) {
+        if (req->dst.yrgb_addr < KERNEL_SPACE_VALID)
+        {
+            ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], DstStart, DstMemSize);
+            if (ret < 0) {
+                pr_err("rga map dst memory failed");
+                status = ret;
+                break;
+            }
+        }
+        else
+        {
+            MMU_p = MMU_Base + CMDMemSize;
+            
+            for(i=0; i<DstMemSize; i++)
+            {
+                MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((DstStart + i) << PAGE_SHIFT));
+            }
+        }
+
+        /* zsq 
+         * change the buf address in req struct
+         * for the reason of lie to MMU 
+         */
+        req->mmu_info.base_addr = virt_to_phys(MMU_Base);    
+        req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize) << PAGE_SHIFT);
+       
+        
+        /*record the malloc buf for the cmd end to release*/
+        reg->MMU_base = MMU_Base;
+
         /* Free the page table */
-        kfree(pages);
-    } 
+        if (pages != NULL) {            
+            kfree(pages);
+        } 
 
-    return 0;
+        return 0;
+
+    }
+    while(0);
+
+    if (pages != NULL)
+        kfree(pages);
+
+    if (MMU_Base != NULL)
+        kfree(MMU_Base);
+
+    return status;
 }
 
 static int rga_mmu_info_blur_sharp_filter_mode(struct rga_reg *reg, struct rga_req *req)
@@ -594,82 +830,127 @@ static int rga_mmu_info_blur_sharp_filter_mode(struct rga_reg *reg, struct rga_r
     struct page **pages = NULL;
     uint32_t i;
     uint32_t AllSize;
-    uint32_t *MMU_Base;
-    int ret;
+    uint32_t *MMU_Base, *MMU_p;
+    int ret, status;
 
-    /* cal src buf mmu info */                     
-    SrcMemSize = rga_buf_size_cal(req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr,
-                                    req->src.format, req->src.vir_w, req->src.vir_h,
-                                    &SrcStart);
-    if(SrcMemSize == 0) {
-        return -EINVAL;                
-    }
-
-    /* cal dst buf mmu info */    
-    DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
-                                    req->dst.format, req->dst.vir_w, req->dst.vir_h,
-                                    &DstStart);
-    if(DstMemSize == 0) {
-        return -EINVAL; 
-    }
-
-    /* cal cmd buf mmu info */
-    CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
-    if(CMDMemSize == 0) {
-        return -EINVAL; 
-    }
-
-    AllSize = SrcMemSize + DstMemSize + CMDMemSize;
-               
-    pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
-    if(pages == NULL) {
-        pr_err("RGA MMU malloc pages mem failed");
-        return -EINVAL;                
-    }
+    MMU_Base = NULL;
     
-    MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
-    if(pages == NULL) {
-        pr_err("RGA MMU malloc MMU_Base point failed");
-        return -EINVAL;                
-    }
+    do
+    {
+        /* cal src buf mmu info */                     
+        SrcMemSize = rga_buf_size_cal(req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr,
+                                        req->src.format, req->src.vir_w, req->src.vir_h,
+                                        &SrcStart);
+        if(SrcMemSize == 0) {
+            return -EINVAL;                
+        }
 
-    for(i=0; i<CMDMemSize; i++) {
-        MMU_Base[i] = virt_to_phys((uint32_t *)((CMDStart + i)<< PAGE_SHIFT));
-    }
-                
-    ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], SrcStart, SrcMemSize);
-    if (ret < 0) {
-        pr_err("rga map src memory failed");
-        return -EINVAL;
-    }
+        /* cal dst buf mmu info */    
+        DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
+                                        req->dst.format, req->dst.vir_w, req->dst.vir_h,
+                                        &DstStart);
+        if(DstMemSize == 0) {
+            return -EINVAL; 
+        }
 
-    ret = rga_MapUserMemory(&pages[CMDMemSize + SrcMemSize], &MMU_Base[CMDMemSize + SrcMemSize], DstStart, DstMemSize);
-    if (ret < 0) {
-        pr_err("rga map dst memory failed");
-        return -EINVAL;
-    }
+        /* cal cmd buf mmu info */
+        CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
+        if(CMDMemSize == 0) {
+            return -EINVAL; 
+        }
 
-    /* zsq 
-     * change the buf address in req struct
-     * for the reason of lie to MMU 
-     */
-    req->mmu_info.base_addr = virt_to_phys(MMU_Base);
-    
-    req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
-    req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
-    req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
+        AllSize = SrcMemSize + DstMemSize + CMDMemSize;
+                   
+        pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
+        if(pages == NULL) {
+            pr_err("RGA MMU malloc pages mem failed");
+            status = RGA_MALLOC_ERROR;
+            break;    
+        }
+        
+        MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
+        if(pages == NULL) {
+            pr_err("RGA MMU malloc MMU_Base point failed");
+            status = RGA_MALLOC_ERROR;
+            break;   
+        }
 
-    req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize) << PAGE_SHIFT);
-    
-    /*record the malloc buf for the cmd end to release*/
-    reg->MMU_base = MMU_Base;
+        for(i=0; i<CMDMemSize; i++) {
+            MMU_Base[i] = virt_to_phys((uint32_t *)((CMDStart + i)<< PAGE_SHIFT));
+        }
 
-    if (pages != NULL) {
+        if (req->src.yrgb_addr < KERNEL_SPACE_VALID)
+        {
+            ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], SrcStart, SrcMemSize);
+            if (ret < 0) 
+            {
+                pr_err("rga map src memory failed");
+                status = ret;
+                break;
+            }
+        }
+        else
+        {
+            MMU_p = MMU_Base + CMDMemSize;
+            
+            for(i=0; i<SrcMemSize; i++)
+            {
+                MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((SrcStart + i) << PAGE_SHIFT));
+            }            
+        }
+
+        
+        if (req->dst.yrgb_addr < KERNEL_SPACE_VALID)
+        {
+            ret = rga_MapUserMemory(&pages[CMDMemSize + SrcMemSize], &MMU_Base[CMDMemSize + SrcMemSize], DstStart, DstMemSize);
+            if (ret < 0) 
+            {
+                pr_err("rga map dst memory failed");
+                status = ret;
+                break;
+            }
+        }
+        else
+        {
+            MMU_p = MMU_Base + CMDMemSize + SrcMemSize;
+            
+            for(i=0; i<DstMemSize; i++)
+            {
+                MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((DstStart + i) << PAGE_SHIFT));
+            }
+        }
+
+        /* zsq 
+         * change the buf address in req struct
+         * for the reason of lie to MMU 
+         */
+        req->mmu_info.base_addr = virt_to_phys(MMU_Base);
+        
+        req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
+        req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
+        req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
+
+        req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize) << PAGE_SHIFT);
+        
+        /*record the malloc buf for the cmd end to release*/
+        reg->MMU_base = MMU_Base;
+
         /* Free the page table */
-        kfree(pages);
-    }  
+        if (pages != NULL) {        
+            kfree(pages);
+        }  
 
-    return 0;
+        return 0;
+    }
+    while(0);
+
+    if (pages != NULL)
+        kfree(pages);
+
+    if (MMU_Base != NULL)
+        kfree(MMU_Base);
+
+    return status;
 }
 
 
@@ -683,101 +964,144 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
     uint32_t AllSize;
     uint32_t *MMU_Base, *MMU_p;
     int ret;
+    int status;
 
-    /* cal src buf mmu info */                     
-    SrcMemSize = rga_buf_size_cal(req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr,
-                                    req->src.format, req->src.vir_w, req->src.vir_h,
-                                    &SrcStart);
-    if(SrcMemSize == 0) {
-        return -EINVAL;                
-    }
+    MMU_Base = NULL;
 
-    /* cal dst buf mmu info */    
-    DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
-                                    req->dst.format, req->dst.vir_w, req->dst.vir_h,
-                                    &DstStart);
-    if(DstMemSize == 0) {
-        return -EINVAL; 
-    }
-
-    /* cal cmd buf mmu info */
-    CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
-    if(CMDMemSize == 0) {
-        return -EINVAL; 
-    }
-
-    AllSize = SrcMemSize + DstMemSize + CMDMemSize;
-               
-    pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
-    if(pages == NULL) {
-        pr_err("RGA MMU malloc pages mem failed");
-        return -EINVAL;                
-    }
-
-    /* 
-     * Allocate MMU Index mem
-     * This mem release in run_to_done fun 
-     */
-    MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
-    if(pages == NULL) {
-        pr_err("RGA MMU malloc MMU_Base point failed");
-        return -EINVAL;                
-    }
-
-    for(i=0; i<CMDMemSize; i++) {
-        MMU_Base[i] = virt_to_phys((uint32_t *)((CMDStart + i) << PAGE_SHIFT));
-    }
-
-
-    /* map src pages */
-    ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], SrcStart, SrcMemSize);
-    if (ret < 0) {
-        pr_err("rga map src memory failed");
-        return -EINVAL;
-    }
-
-    
-    if(req->dst.yrgb_addr >= 0xc0000000) 
-    {   
-        /* kernel space */
-        MMU_p = MMU_Base + CMDMemSize + SrcMemSize;
-        for(i=0; i<DstMemSize; i++) 
-        {
-            MMU_p[i] = virt_to_phys((uint32_t *)((DstStart + i)<< PAGE_SHIFT));        
-        }
-    }
-    else 
+    do
     {
-        /* user space */
-        ret = rga_MapUserMemory(&pages[CMDMemSize + SrcMemSize], &MMU_Base[CMDMemSize + SrcMemSize], DstStart, DstMemSize);
-        if (ret < 0) 
+        /* cal src buf mmu info */                     
+        SrcMemSize = rga_buf_size_cal(req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr,
+                                        req->src.format, req->src.vir_w, req->src.vir_h,
+                                        &SrcStart);
+        if(SrcMemSize == 0) {
+            return -EINVAL;                
+        }
+
+        /* cal dst buf mmu info */    
+        DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
+                                        req->dst.format, req->dst.vir_w, req->dst.vir_h,
+                                        &DstStart);
+        if(DstMemSize == 0) {
+            return -EINVAL; 
+        }
+
+        /* cal cmd buf mmu info */
+        CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
+        if(CMDMemSize == 0) {
+            return -EINVAL; 
+        }
+
+        AllSize = SrcMemSize + DstMemSize + CMDMemSize;
+                   
+        pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
+        if(pages == NULL) 
         {
-            pr_err("rga map dst memory failed");
-            return -EINVAL;
-        }        
-    }
+            pr_err("RGA MMU malloc pages mem failed");
+            status = RGA_MALLOC_ERROR;
+            break;                
+        }
 
-    /* zsq 
-     * change the buf address in req struct
-     * for the reason of lie to MMU 
-     */
-    req->mmu_info.base_addr = virt_to_phys(MMU_Base);
-    
-    req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
-    req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
-    req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
+        /* 
+         * Allocate MMU Index mem
+         * This mem release in run_to_done fun 
+         */
+        MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
+        if(pages == NULL) {
+            pr_err("RGA MMU malloc MMU_Base point failed");
+            status = RGA_MALLOC_ERROR;            
+            break;                
+        }
 
-    req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize) << PAGE_SHIFT);
-    
-    /*record the malloc buf for the cmd end to release*/
-    reg->MMU_base = MMU_Base;
+        for(i=0; i<CMDMemSize; i++) {
+            MMU_Base[i] = virt_to_phys((uint32_t *)((CMDStart + i) << PAGE_SHIFT));
+        }
 
-    if (pages != NULL) {
+
+        /* map src pages */
+        if (req->src.yrgb_addr < KERNEL_SPACE_VALID)
+        {
+            ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], SrcStart, SrcMemSize);
+            if (ret < 0) {
+                pr_err("rga map src memory failed");
+                status = ret;
+                break;
+            }
+        }
+        else
+        {
+            MMU_p = MMU_Base + CMDMemSize;
+            
+            for(i=0; i<SrcMemSize; i++)
+            {
+                MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((SrcStart + i) << PAGE_SHIFT));
+            } 
+        }
+
+        
+        if(req->dst.yrgb_addr >= KERNEL_SPACE_VALID) 
+        {   
+            /* kernel space */
+            MMU_p = MMU_Base + CMDMemSize + SrcMemSize;
+            for(i=0; i<DstMemSize; i++) 
+            {
+                MMU_p[i] = virt_to_phys((uint32_t *)((DstStart + i)<< PAGE_SHIFT));        
+            }
+        }
+        else 
+        {
+            /* user space */
+            ret = rga_MapUserMemory(&pages[CMDMemSize + SrcMemSize], &MMU_Base[CMDMemSize + SrcMemSize], DstStart, DstMemSize);
+            if (ret < 0) 
+            {
+                pr_err("rga map dst memory failed");
+                status = ret;
+                break;
+            }        
+        }
+
+        /* zsq 
+         * change the buf address in req struct
+         * for the reason of lie to MMU 
+         */
+        req->mmu_info.base_addr = virt_to_phys(MMU_Base)>>2;
+
+        #if 0
+        req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
+        req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
+        req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
+
+        req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize) << PAGE_SHIFT);
+        #else
+
+        req->src.yrgb_addr &= 0xffffff;
+        req->src.uv_addr &= 0xfffffff;
+        req->src.v_addr &= 0xfffffff;
+
+        req->dst.yrgb_addr &= 0xfffffff;
+        
+        #endif
+        
+        /*record the malloc buf for the cmd end to release*/
+        reg->MMU_base = MMU_Base;
+
         /* Free the page table */
-        kfree(pages);
-    }  
+        if (pages != NULL) 
+        {            
+            kfree(pages);
+        }  
 
-    return 0;
+        return 0;
+    }
+    while(0);
+
+    if (pages != NULL)
+        kfree(pages);
+
+    if (MMU_Base != NULL)
+        kfree(MMU_Base);
+
+    return status;
 }
 
 
@@ -788,62 +1112,90 @@ static int rga_mmu_info_update_palette_table_mode(struct rga_reg *reg, struct rg
     struct page **pages = NULL;
     uint32_t i;
     uint32_t AllSize;
-    uint32_t *MMU_Base;
-    int ret;
+    uint32_t *MMU_Base, *MMU_p;
+    int ret, status;
 
-    /* cal src buf mmu info */                     
-    SrcMemSize = rga_mem_size_cal(req->src.yrgb_addr, req->src.vir_w * req->src.vir_h, &SrcStart);
-    if(SrcMemSize == 0) {
-        return -EINVAL;                
-    }
+    MMU_Base = NULL;
 
-    /* cal cmd buf mmu info */
-    CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
-    if(CMDMemSize == 0) {
-        return -EINVAL; 
-    }
+    do
+    {    
+        /* cal src buf mmu info */                     
+        SrcMemSize = rga_mem_size_cal(req->src.yrgb_addr, req->src.vir_w * req->src.vir_h, &SrcStart);
+        if(SrcMemSize == 0) {
+            return -EINVAL;                
+        }
 
-    AllSize = SrcMemSize + DstMemSize + CMDMemSize;
-               
-    pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
-    if(pages == NULL) {
-        pr_err("RGA MMU malloc pages mem failed");
-        return -EINVAL;                
-    }
-    
-    MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
-    if(pages == NULL) {
-        pr_err("RGA MMU malloc MMU_Base point failed");
-        return -EINVAL;                
-    }
+        /* cal cmd buf mmu info */
+        CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
+        if(CMDMemSize == 0) {
+            return -EINVAL; 
+        }
 
-    for(i=0; i<CMDMemSize; i++) {
-        MMU_Base[i] = virt_to_phys((uint32_t *)((CMDStart + i) << PAGE_SHIFT));
-    }
+        AllSize = SrcMemSize + DstMemSize + CMDMemSize;
+                   
+        pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
+        if(pages == NULL) {
+            pr_err("RGA MMU malloc pages mem failed");
+            status = RGA_MALLOC_ERROR;
+            break;    
+        }
+        
+        MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
+        if(pages == NULL) {
+            pr_err("RGA MMU malloc MMU_Base point failed");
+            status = RGA_MALLOC_ERROR;
+            break;                
+        }
+
+        for(i=0; i<CMDMemSize; i++) {
+            MMU_Base[i] = virt_to_phys((uint32_t *)((CMDStart + i) << PAGE_SHIFT));
+        }
+
+        if (req->src.yrgb_addr < KERNEL_SPACE_VALID)
+        {
+            ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], SrcStart, SrcMemSize);
+            if (ret < 0) {
+                pr_err("rga map src memory failed");
+                return -EINVAL;
+            }
+        }
+        else
+        {
+            MMU_p = MMU_Base + CMDMemSize;
                 
-    ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], SrcStart, SrcMemSize);
-    if (ret < 0) {
-        pr_err("rga map src memory failed");
-        return -EINVAL;
+                for(i=0; i<SrcMemSize; i++)
+                {
+                    MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((SrcStart + i) << PAGE_SHIFT));
+                } 
+        }
+
+        /* zsq 
+         * change the buf address in req struct
+         * for the reason of lie to MMU 
+         */
+        req->mmu_info.base_addr = virt_to_phys(MMU_Base);
+        
+        req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);    
+        
+        /*record the malloc buf for the cmd end to release*/
+        reg->MMU_base = MMU_Base;
+
+        if (pages != NULL) {
+            /* Free the page table */
+            kfree(pages);
+        }  
+
+        return 0;
     }
+    while(0);
 
-    /* zsq 
-     * change the buf address in req struct
-     * for the reason of lie to MMU 
-     */
-    req->mmu_info.base_addr = virt_to_phys(MMU_Base);
-    
-    req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);    
-    
-    /*record the malloc buf for the cmd end to release*/
-    reg->MMU_base = MMU_Base;
-
-    if (pages != NULL) {
-        /* Free the page table */
+    if (pages != NULL)
         kfree(pages);
-    }  
 
-    return 0;
+    if (MMU_Base != NULL)
+        kfree(MMU_Base);
+
+    return status;
 }
 
 static int rga_mmu_info_update_patten_buff_mode(struct rga_reg *reg, struct rga_req *req)
@@ -853,62 +1205,91 @@ static int rga_mmu_info_update_patten_buff_mode(struct rga_reg *reg, struct rga_
     struct page **pages = NULL;
     uint32_t i;
     uint32_t AllSize;
-    uint32_t *MMU_Base;
-    int ret;
+    uint32_t *MMU_Base, *MMU_p;
+    int ret, status;
 
-    /* cal src buf mmu info */                     
-    SrcMemSize = rga_mem_size_cal(req->pat.yrgb_addr, req->pat.vir_w * req->pat.vir_h * 4, &SrcStart);
-    if(SrcMemSize == 0) {
-        return -EINVAL;                
-    }
+    do
+    {
 
-    /* cal cmd buf mmu info */
-    CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
-    if(CMDMemSize == 0) {
-        return -EINVAL; 
-    }
+        /* cal src buf mmu info */                     
+        SrcMemSize = rga_mem_size_cal(req->pat.yrgb_addr, req->pat.vir_w * req->pat.vir_h * 4, &SrcStart);
+        if(SrcMemSize == 0) {
+            return -EINVAL;                
+        }
 
-    AllSize = SrcMemSize + DstMemSize + CMDMemSize;
-               
-    pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
-    if(pages == NULL) {
-        pr_err("RGA MMU malloc pages mem failed");
-        return -EINVAL;                
-    }
-    
-    MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
-    if(pages == NULL) {
-        pr_err("RGA MMU malloc MMU_Base point failed");
-        return -EINVAL;                
-    }
+        /* cal cmd buf mmu info */
+        CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
+        if(CMDMemSize == 0) {
+            return -EINVAL; 
+        }
 
-    for(i=0; i<CMDMemSize; i++) {
-        MMU_Base[i] = virt_to_phys((uint32_t *)((CMDStart + i) << PAGE_SHIFT));
-    }
+        AllSize = SrcMemSize + DstMemSize + CMDMemSize;
+                   
+        pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
+        if(pages == NULL) {
+            pr_err("RGA MMU malloc pages mem failed");
+            status = RGA_MALLOC_ERROR;
+            break;                
+        }
+        
+        MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
+        if(pages == NULL) {
+            pr_err("RGA MMU malloc MMU_Base point failed");
+            status = RGA_MALLOC_ERROR;
+            break;                
+        }
+
+        for(i=0; i<CMDMemSize; i++) {
+            MMU_Base[i] = virt_to_phys((uint32_t *)((CMDStart + i) << PAGE_SHIFT));
+        }
+
+        if (req->src.yrgb_addr < KERNEL_SPACE_VALID)
+        {
+            ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], SrcStart, SrcMemSize);
+            if (ret < 0) {
+                pr_err("rga map src memory failed");
+                status = ret;
+                break;
+            }
+        }
+        else
+        {
+            MMU_p = MMU_Base + CMDMemSize;
                 
-    ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], SrcStart, SrcMemSize);
-    if (ret < 0) {
-        pr_err("rga map src memory failed");
-        return -EINVAL;
+            for(i=0; i<SrcMemSize; i++)
+            {
+                MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((SrcStart + i) << PAGE_SHIFT));
+            } 
+        }
+
+        /* zsq 
+         * change the buf address in req struct
+         * for the reason of lie to MMU 
+         */
+        req->mmu_info.base_addr = virt_to_phys(MMU_Base);
+        
+        req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);    
+        
+        /*record the malloc buf for the cmd end to release*/
+        reg->MMU_base = MMU_Base;
+
+        if (pages != NULL) {
+            /* Free the page table */
+            kfree(pages);
+        }
+
+        return 0;
+
     }
+    while(0);
 
-    /* zsq 
-     * change the buf address in req struct
-     * for the reason of lie to MMU 
-     */
-    req->mmu_info.base_addr = virt_to_phys(MMU_Base);
-    
-    req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);    
-    
-    /*record the malloc buf for the cmd end to release*/
-    reg->MMU_base = MMU_Base;
-
-    if (pages != NULL) {
-        /* Free the page table */
+    if (pages != NULL)
         kfree(pages);
-    }
 
-    return 0;
+    if (MMU_Base != NULL)
+        kfree(MMU_Base);
+
+    return status;
 }
 
 int rga_set_mmu_info(struct rga_reg *reg, struct rga_req *req)
