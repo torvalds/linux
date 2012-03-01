@@ -1437,7 +1437,8 @@ static void excprint(struct pt_regs *fp)
 
 	printf("  current = 0x%lx\n", current);
 #ifdef CONFIG_PPC64
-	printf("  paca    = 0x%lx\n", get_paca());
+	printf("  paca    = 0x%lx\t softe: %d\t harde: %d\n",
+	       local_paca, local_paca->soft_enabled, local_paca->hard_enabled);
 #endif
 	if (current) {
 		printf("    pid   = %ld, comm = %s\n",
@@ -1641,7 +1642,7 @@ static void super_regs(void)
 
 			/* Dump out relevant Paca data areas. */
 			printf("Paca: \n");
-			ptrPaca = get_paca();
+			ptrPaca = local_paca;
 
 			printf("  Local Processor Control Area (LpPaca): \n");
 			ptrLpPaca = ptrPaca->lppaca_ptr;
@@ -2644,7 +2645,7 @@ static void dump_slb(void)
 static void dump_stab(void)
 {
 	int i;
-	unsigned long *tmp = (unsigned long *)get_paca()->stab_addr;
+	unsigned long *tmp = (unsigned long *)local_paca->stab_addr;
 
 	printf("Segment table contents of cpu %x\n", smp_processor_id());
 
