@@ -1273,10 +1273,12 @@ static int set_le(struct sock *sk, u16 index, void *data, u16 len)
 		return cmd_status(sk, index, MGMT_OP_SET_LE,
 						MGMT_STATUS_INVALID_PARAMS);
 
+	hci_dev_lock(hdev);
+
 	if (!enable_le || !(hdev->features[4] & LMP_LE)) {
 		err = cmd_status(sk, index, MGMT_OP_SET_LE,
 						MGMT_STATUS_NOT_SUPPORTED);
-		goto failed;
+		goto unlock;
 	}
 
 	val = !!cp->val;
@@ -1292,23 +1294,23 @@ static int set_le(struct sock *sk, u16 index, void *data, u16 len)
 
 		err = send_settings_rsp(sk, MGMT_OP_SET_LE, hdev);
 		if (err < 0)
-			goto failed;
+			goto unlock;
 
 		if (changed)
 			err = new_settings(hdev, sk);
 
-		goto failed;
+		goto unlock;
 	}
 
 	if (mgmt_pending_find(MGMT_OP_SET_LE, hdev)) {
 		err = cmd_status(sk, index, MGMT_OP_SET_LE, MGMT_STATUS_BUSY);
-		goto failed;
+		goto unlock;
 	}
 
 	cmd = mgmt_pending_add(sk, MGMT_OP_SET_LE, hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
-		goto failed;
+		goto unlock;
 	}
 
 	memset(&hci_cp, 0, sizeof(hci_cp));
@@ -1322,10 +1324,11 @@ static int set_le(struct sock *sk, u16 index, void *data, u16 len)
 						sizeof(hci_cp), &hci_cp);
 	if (err < 0) {
 		mgmt_pending_remove(cmd);
-		goto failed;
+		goto unlock;
 	}
 
-failed:
+unlock:
+	hci_dev_unlock(hdev);
 	hci_dev_put(hdev);
 	return err;
 }
