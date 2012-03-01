@@ -82,8 +82,28 @@ void hci_req_complete(struct hci_dev *hdev, __u16 cmd, int result)
 	/* If this is the init phase check if the completed command matches
 	 * the last init command, and if not just return.
 	 */
-	if (test_bit(HCI_INIT, &hdev->flags) && hdev->init_last_cmd != cmd)
+	if (test_bit(HCI_INIT, &hdev->flags) && hdev->init_last_cmd != cmd) {
+		struct hci_command_hdr *sent = (void *) hdev->sent_cmd->data;
+		struct sk_buff *skb;
+
+		/* Some CSR based controllers generate a spontaneous
+		 * reset complete event during init and any pending
+		 * command will never be completed. In such a case we
+		 * need to resend whatever was the last sent
+		 * command.
+		 */
+
+		if (cmd != HCI_OP_RESET || sent->opcode == HCI_OP_RESET)
+			return;
+
+		skb = skb_clone(hdev->sent_cmd, GFP_ATOMIC);
+		if (skb) {
+			skb_queue_head(&hdev->cmd_q, skb);
+			queue_work(hdev->workqueue, &hdev->cmd_work);
+		}
+
 		return;
+	}
 
 	if (hdev->req_status == HCI_REQ_PEND) {
 		hdev->req_result = result;
