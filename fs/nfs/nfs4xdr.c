@@ -3555,16 +3555,17 @@ static int decode_pathname(struct xdr_stream *xdr, struct nfs4_pathname *path)
 	n = be32_to_cpup(p);
 	if (n == 0)
 		goto root_path;
-	dprintk("path ");
+	dprintk("pathname4: ");
 	path->ncomponents = 0;
 	while (path->ncomponents < n) {
 		struct nfs4_string *component = &path->components[path->ncomponents];
 		status = decode_opaque_inline(xdr, &component->len, &component->data);
 		if (unlikely(status != 0))
 			goto out_eio;
-		if (path->ncomponents != n)
-			dprintk("/");
-		dprintk("%s", component->data);
+		if (unlikely(nfs_debug & NFSDBG_XDR))
+			pr_cont("%s%.*s ",
+				(path->ncomponents != n ? "/ " : ""),
+				component->len, component->data);
 		if (path->ncomponents < NFS4_PATHNAME_MAXCOMPONENTS)
 			path->ncomponents++;
 		else {
@@ -3573,14 +3574,13 @@ static int decode_pathname(struct xdr_stream *xdr, struct nfs4_pathname *path)
 		}
 	}
 out:
-	dprintk("\n");
 	return status;
 root_path:
 /* a root pathname is sent as a zero component4 */
 	path->ncomponents = 1;
 	path->components[0].len=0;
 	path->components[0].data=NULL;
-	dprintk("path /\n");
+	dprintk("pathname4: /\n");
 	goto out;
 out_eio:
 	dprintk(" status %d", status);
@@ -3606,7 +3606,7 @@ static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, st
 	/* Ignore borken servers that return unrequested attrs */
 	if (unlikely(res == NULL))
 		goto out;
-	dprintk("%s: fsroot ", __func__);
+	dprintk("%s: fsroot:\n", __func__);
 	status = decode_pathname(xdr, &res->fs_path);
 	if (unlikely(status != 0))
 		goto out;
@@ -3627,7 +3627,7 @@ static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, st
 		m = be32_to_cpup(p);
 
 		loc->nservers = 0;
-		dprintk("%s: servers ", __func__);
+		dprintk("%s: servers:\n", __func__);
 		while (loc->nservers < m) {
 			struct nfs4_string *server = &loc->servers[loc->nservers];
 			status = decode_opaque_inline(xdr, &server->len, &server->data);
