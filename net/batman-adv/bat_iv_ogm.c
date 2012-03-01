@@ -651,7 +651,7 @@ static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
 	rcu_read_unlock();
 
 	orig_node->flags = batman_ogm_packet->flags;
-	neigh_node->last_valid = jiffies;
+	neigh_node->last_seen = jiffies;
 
 	spin_lock_bh(&neigh_node->tq_lock);
 	ring_buffer_set(neigh_node->tq_recv,
@@ -772,11 +772,11 @@ static int bat_iv_ogm_calc_tq(struct orig_node *orig_node,
 	if (!neigh_node)
 		goto out;
 
-	/* if orig_node is direct neighbor update neigh_node last_valid */
+	/* if orig_node is direct neighbor update neigh_node last_seen */
 	if (orig_node == orig_neigh_node)
-		neigh_node->last_valid = jiffies;
+		neigh_node->last_seen = jiffies;
 
-	orig_node->last_valid = jiffies;
+	orig_node->last_seen = jiffies;
 
 	/* find packet count of corresponding one hop neighbor */
 	spin_lock_bh(&orig_node->ogm_cnt_lock);

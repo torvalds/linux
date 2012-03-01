@@ -283,7 +283,7 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 	hlist_for_each_entry_safe(neigh_node, node, node_tmp,
 				  &orig_node->neigh_list, list) {
 
-		if ((has_timed_out(neigh_node->last_valid, PURGE_TIMEOUT)) ||
+		if ((has_timed_out(neigh_node->last_seen, PURGE_TIMEOUT)) ||
 		    (neigh_node->if_incoming->if_status == IF_INACTIVE) ||
 		    (neigh_node->if_incoming->if_status == IF_NOT_IN_USE) ||
 		    (neigh_node->if_incoming->if_status == IF_TO_BE_REMOVED)) {
@@ -300,9 +300,9 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 					neigh_node->if_incoming->net_dev->name);
 			else
 				bat_dbg(DBG_BATMAN, bat_priv,
-					"neighbor timeout: originator %pM, neighbor: %pM, last_valid: %lu\n",
+					"neighbor timeout: originator %pM, neighbor: %pM, last_seen: %lu\n",
 					orig_node->orig, neigh_node->addr,
-					(neigh_node->last_valid / HZ));
+					(neigh_node->last_seen / HZ));
 
 			neigh_purged = true;
 
@@ -325,10 +325,10 @@ static bool purge_orig_node(struct bat_priv *bat_priv,
 {
 	struct neigh_node *best_neigh_node;
 
-	if (has_timed_out(orig_node->last_valid, 2 * PURGE_TIMEOUT)) {
+	if (has_timed_out(orig_node->last_seen, 2 * PURGE_TIMEOUT)) {
 		bat_dbg(DBG_BATMAN, bat_priv,
-			"Originator timeout: originator %pM, last_valid %lu\n",
-			orig_node->orig, (orig_node->last_valid / HZ));
+			"Originator timeout: originator %pM, last_seen %lu\n",
+			orig_node->orig, (orig_node->last_seen / HZ));
 		return true;
 	} else {
 		if (purge_orig_neighbors(bat_priv, orig_node,
@@ -446,9 +446,9 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 				goto next;
 
 			last_seen_secs = jiffies_to_msecs(jiffies -
-						orig_node->last_valid) / 1000;
+						orig_node->last_seen) / 1000;
 			last_seen_msecs = jiffies_to_msecs(jiffies -
-						orig_node->last_valid) % 1000;
+						orig_node->last_seen) % 1000;
 
 			seq_printf(seq, "%pM %4i.%03is   (%3i) %pM [%10s]:",
 				   orig_node->orig, last_seen_secs,
