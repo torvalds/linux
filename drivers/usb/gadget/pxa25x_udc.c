@@ -283,6 +283,7 @@ static int pxa25x_ep_disable (struct usb_ep *_ep)
 	pxa25x_ep_fifo_flush (_ep);
 
 	ep->desc = NULL;
+	ep->ep.desc = NULL;
 	ep->stopped = 1;
 
 	local_irq_restore(flags);
@@ -1192,6 +1193,7 @@ static void udc_reinit(struct pxa25x_udc *dev)
 			list_add_tail (&ep->ep.ep_list, &dev->gadget.ep_list);
 
 		ep->desc = NULL;
+		ep->ep.desc = NULL;
 		ep->stopped = 0;
 		INIT_LIST_HEAD (&ep->queue);
 		ep->pio_irqs = 0;

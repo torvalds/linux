@@ -608,6 +608,7 @@ static int  mv_ep_disable(struct usb_ep *_ep)
 	nuke(ep, -ESHUTDOWN);
 
 	ep->desc = NULL;
+	ep->ep.desc = NULL;
 	ep->stopped = 1;
 
 	spin_unlock_irqrestore(&udc->lock, flags);
@@ -771,8 +772,7 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 		udc->ep0_state = DATA_STATE_XMIT;
 
 	/* irq handler advances the queue */
-	if (req != NULL)
-		list_add_tail(&req->queue, &ep->queue);
+	list_add_tail(&req->queue, &ep->queue);
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	return 0;

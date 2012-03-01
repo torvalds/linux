@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2003-2008 Alan Stern
  * Copyright (C) 2009 Samsung Electronics
- *                    Author: Michal Nazarewicz <m.nazarewicz@samsung.com>
+ *                    Author: Michal Nazarewicz <mina86@mina86.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -304,7 +304,6 @@
 
 static const char fsg_string_interface[] = "Mass Storage";
 
-#define FSG_NO_INTR_EP 1
 #define FSG_NO_DEVICE_STRINGS    1
 #define FSG_NO_OTG               1
 #define FSG_NO_INTR_EP           1

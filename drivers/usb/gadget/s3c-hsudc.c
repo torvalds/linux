@@ -30,6 +30,7 @@
 #include <linux/prefetch.h>
 #include <linux/platform_data/s3c-hsudc.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pm_runtime.h>
 
 #include <mach/regs-s3c2443-clock.h>
 
@@ -759,7 +760,7 @@ static int s3c_hsudc_ep_enable(struct usb_ep *_ep,
 	unsigned long flags;
 	u32 ecr = 0;
 
-	hsep = container_of(_ep, struct s3c_hsudc_ep, ep);
+	hsep = our_ep(_ep);
 	if (!_ep || !desc || hsep->desc || _ep->name == ep0name
 		|| desc->bDescriptorType != USB_DT_ENDPOINT
 		|| hsep->bEndpointAddress != desc->bEndpointAddress
@@ -816,6 +817,7 @@ static int s3c_hsudc_ep_disable(struct usb_ep *_ep)
 	s3c_hsudc_nuke_ep(hsep, -ESHUTDOWN);
 
 	hsep->desc = 0;
+	hsep->ep.desc = NULL;
 	hsep->stopped = 1;
 
 	spin_unlock_irqrestore(&hsudc->lock, flags);
@@ -853,7 +855,7 @@ static void s3c_hsudc_free_request(struct usb_ep *ep, struct usb_request *_req)
 {
 	struct s3c_hsudc_req *hsreq;
 
-	hsreq = container_of(_req, struct s3c_hsudc_req, req);
+	hsreq = our_req(_req);
 	WARN_ON(!list_empty(&hsreq->queue));
 	kfree(hsreq);
 }
@@ -876,12 +878,12 @@ static int s3c_hsudc_queue(struct usb_ep *_ep, struct usb_request *_req,
 	u32 offset;
 	u32 csr;
 
-	hsreq = container_of(_req, struct s3c_hsudc_req, req);
+	hsreq = our_req(_req);
 	if ((!_req || !_req->complete || !_req->buf ||
 		!list_empty(&hsreq->queue)))
 		return -EINVAL;
 
-	hsep = container_of(_ep, struct s3c_hsudc_ep, ep);
+	hsep = our_ep(_ep);
 	hsudc = hsep->dev;
 	if (!hsudc->driver || hsudc->gadget.speed == USB_SPEED_UNKNOWN)
 		return -ESHUTDOWN;
@@ -935,7 +937,7 @@ static int s3c_hsudc_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	struct s3c_hsudc_req *hsreq;
 	unsigned long flags;
 
-	hsep = container_of(_ep, struct s3c_hsudc_ep, ep);
+	hsep = our_ep(_ep);
 	if (!_ep || hsep->ep.name == ep0name)
 		return -EINVAL;
 
@@ -1005,6 +1007,7 @@ static void s3c_hsudc_initep(struct s3c_hsudc *hsudc,
 	hsep->ep.ops = &s3c_hsudc_ep_ops;
 	hsep->fifo = hsudc->regs + S3C_BR(epnum);
 	hsep->desc = 0;
+	hsep->ep.desc = NULL;
 	hsep->stopped = 0;
 	hsep->wedge = 0;
 
@@ -1179,6 +1182,9 @@ static int s3c_hsudc_start(struct usb_gadget *gadget,
 	dev_info(hsudc->dev, "bound driver %s\n", driver->driver.name);
 
 	s3c_hsudc_reconfig(hsudc);
+
+	pm_runtime_get_sync(hsudc->dev);
+
 	s3c_hsudc_init_phy();
 	if (hsudc->pd->gpio_init)
 		hsudc->pd->gpio_init();
@@ -1209,6 +1215,9 @@ static int s3c_hsudc_stop(struct usb_gadget *gadget,
 	hsudc->gadget.dev.driver = NULL;
 	hsudc->gadget.speed = USB_SPEED_UNKNOWN;
 	s3c_hsudc_uninit_phy();
+
+	pm_runtime_put(hsudc->dev);
+
 	if (hsudc->pd->gpio_uninit)
 		hsudc->pd->gpio_uninit();
 	s3c_hsudc_stop_activity(hsudc);
@@ -1362,6 +1371,8 @@ static int __devinit s3c_hsudc_probe(struct platform_device *pdev)
 	ret = usb_add_gadget_udc(&pdev->dev, &hsudc->gadget);
 	if (ret)
 		goto err_add_udc;
+
+	pm_runtime_enable(dev);
 
 	return 0;
 err_add_udc:
