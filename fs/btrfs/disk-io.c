@@ -1109,8 +1109,8 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 
 }
 
-int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		     struct extent_buffer *buf)
+void clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
+		      struct extent_buffer *buf)
 {
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	if (btrfs_header_generation(buf) ==
@@ -1121,8 +1121,14 @@ int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			spin_lock(&root->fs_info->delalloc_lock);
 			if (root->fs_info->dirty_metadata_bytes >= buf->len)
 				root->fs_info->dirty_metadata_bytes -= buf->len;
-			else
-				WARN_ON(1);
+			else {
+				spin_unlock(&root->fs_info->delalloc_lock);
+				btrfs_panic(root->fs_info, -EOVERFLOW,
+					  "Can't clear %lu bytes from "
+					  " dirty_mdatadata_bytes (%lu)",
+					  buf->len,
+					  root->fs_info->dirty_metadata_bytes);
+			}
 			spin_unlock(&root->fs_info->delalloc_lock);
 		}
 
@@ -1131,7 +1137,6 @@ int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		clear_extent_buffer_dirty(&BTRFS_I(btree_inode)->io_tree,
 					  buf);
 	}
-	return 0;
 }
 
 static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
