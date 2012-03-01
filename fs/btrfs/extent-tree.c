@@ -5838,7 +5838,8 @@ again:
 			printk(KERN_ERR "btrfs allocation failed flags %llu, "
 			       "wanted %llu\n", (unsigned long long)data,
 			       (unsigned long long)num_bytes);
-			dump_space_info(sinfo, num_bytes, 1);
+			if (sinfo)
+				dump_space_info(sinfo, num_bytes, 1);
 		}
 	}
 
