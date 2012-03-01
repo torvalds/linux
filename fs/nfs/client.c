@@ -1346,6 +1346,7 @@ int nfs4_init_client(struct nfs_client *clp,
 		     rpc_authflavor_t authflavour,
 		     int noresvport)
 {
+	char buf[INET6_ADDRSTRLEN + 1];
 	int error;
 
 	if (clp->cl_cons_state == NFS_CS_READY) {
@@ -1361,6 +1362,20 @@ int nfs4_init_client(struct nfs_client *clp,
 				      1, noresvport);
 	if (error < 0)
 		goto error;
+
+	/* If no clientaddr= option was specified, find a usable cb address */
+	if (ip_addr == NULL) {
+		struct sockaddr_storage cb_addr;
+		struct sockaddr *sap = (struct sockaddr *)&cb_addr;
+
+		error = rpc_localaddr(clp->cl_rpcclient, sap, sizeof(cb_addr));
+		if (error < 0)
+			goto error;
+		error = rpc_ntop(sap, buf, sizeof(buf));
+		if (error < 0)
+			goto error;
+		ip_addr = (const char *)buf;
+	}
 	strlcpy(clp->cl_ipaddr, ip_addr, sizeof(clp->cl_ipaddr));
 
 	error = nfs_idmap_new(clp);

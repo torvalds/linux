@@ -2557,12 +2557,6 @@ static int nfs4_validate_text_mount_data(void *options,
 		return -EINVAL;
 	}
 
-	if (args->client_address == NULL) {
-		dfprintk(MOUNT,
-			 "NFS4: mount program didn't pass callback address\n");
-		return -EINVAL;
-	}
-
 	return nfs_parse_devname(dev_name,
 				   &args->nfs_server.hostname,
 				   NFS4_MAXNAMLEN,
