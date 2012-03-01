@@ -1220,34 +1220,32 @@ void dump_stack(void)
 EXPORT_SYMBOL(dump_stack);
 
 #ifdef CONFIG_PPC64
-void ppc64_runlatch_on(void)
+/* Called with hard IRQs off */
+void __ppc64_runlatch_on(void)
 {
+	struct thread_info *ti = current_thread_info();
 	unsigned long ctrl;
 
-	if (cpu_has_feature(CPU_FTR_CTRL) && !test_thread_flag(TIF_RUNLATCH)) {
-		HMT_medium();
+	ctrl = mfspr(SPRN_CTRLF);
+	ctrl |= CTRL_RUNLATCH;
+	mtspr(SPRN_CTRLT, ctrl);
 
-		ctrl = mfspr(SPRN_CTRLF);
-		ctrl |= CTRL_RUNLATCH;
-		mtspr(SPRN_CTRLT, ctrl);
-
-		set_thread_flag(TIF_RUNLATCH);
-	}
+	ti->local_flags |= TLF_RUNLATCH;
 }
 
+/* Called with hard IRQs off */
 void __ppc64_runlatch_off(void)
 {
+	struct thread_info *ti = current_thread_info();
 	unsigned long ctrl;
 
-	HMT_medium();
-
-	clear_thread_flag(TIF_RUNLATCH);
+	ti->local_flags &= ~TLF_RUNLATCH;
 
 	ctrl = mfspr(SPRN_CTRLF);
 	ctrl &= ~CTRL_RUNLATCH;
 	mtspr(SPRN_CTRLT, ctrl);
 }
-#endif
+#endif /* CONFIG_PPC64 */
 
 #if THREAD_SHIFT < PAGE_SHIFT
 

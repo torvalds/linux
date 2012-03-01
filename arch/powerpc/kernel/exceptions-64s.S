@@ -483,6 +483,9 @@ machine_check_common:
 system_call_entry:
 	b	system_call_common
 
+ppc64_runlatch_on_trampoline:
+	b	.__ppc64_runlatch_on
+
 /*
  * Here we have detected that the kernel stack pointer is bad.
  * R9 contains the saved CR, r13 points to the paca,
