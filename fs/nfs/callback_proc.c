@@ -233,17 +233,13 @@ static u32 initiate_bulk_draining(struct nfs_client *clp,
 static u32 do_callback_layoutrecall(struct nfs_client *clp,
 				    struct cb_layoutrecallargs *args)
 {
-	u32 res = NFS4ERR_DELAY;
+	u32 res;
 
 	dprintk("%s enter, type=%i\n", __func__, args->cbl_recall_type);
-	if (test_and_set_bit(NFS4CLNT_LAYOUTRECALL, &clp->cl_state))
-		goto out;
 	if (args->cbl_recall_type == RETURN_FILE)
 		res = initiate_file_draining(clp, args);
 	else
 		res = initiate_bulk_draining(clp, args);
-	clear_bit(NFS4CLNT_LAYOUTRECALL, &clp->cl_state);
-out:
 	dprintk("%s returning %i\n", __func__, res);
 	return res;
 
