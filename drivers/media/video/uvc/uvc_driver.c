@@ -23,6 +23,7 @@
  * codec can't handle MJPEG data.
  */
 
+#include <linux/atomic.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -32,7 +33,6 @@
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
 #include <linux/version.h>
-#include <asm/atomic.h>
 #include <asm/unaligned.h>
 
 #include <media/v4l2-common.h>
