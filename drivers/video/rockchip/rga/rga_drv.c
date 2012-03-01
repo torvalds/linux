@@ -58,13 +58,33 @@
 #define RGA_POWER_OFF_DELAY	4*HZ /* 4s */
 #define RGA_TIMEOUT_DELAY	2*HZ /* 2s */
 
+struct rga_drvdata {
+  	struct miscdevice miscdev;
+  	struct device dev;
+	void *rga_base;
+	int irq0;
+
+	struct clk *pd_display;
+	struct clk *aclk_lcdc;
+	struct clk *hclk_lcdc;
+	struct clk *aclk_ddr_lcdc;
+	struct clk *hclk_cpu_display;
+	struct clk *aclk_disp_matrix;
+	struct clk *hclk_disp_matrix;
+	struct clk *axi_clk;
+	struct clk *ahb_clk;
+	
+	struct mutex	mutex;	// mutex
+	
+	struct delayed_work power_off_work;
+	bool enable;        						//clk enable or disable
+	void (*rga_irq_callback)(int rga_retval);   //callback function used by aync call
+};
+
 
 static struct rga_drvdata *drvdata = NULL;
 rga_service_info rga_service;
 
-#if 1//def RGA_TEST
-//uint32_t dst_buf[800*480*4];
-#endif
 
 
 static int rga_blit_async(rga_session *session, struct rga_req *req);

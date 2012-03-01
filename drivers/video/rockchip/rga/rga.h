@@ -1,11 +1,6 @@
 #ifndef _RGA_DRIVER_H_
 #define _RGA_DRIVER_H_
 
-#include "rga_type.h"
-#include <linux/types.h>
-#include <linux/miscdevice.h>
-#include <linux/platform_device.h>
-
 
 #define RGA_BLIT_SYNC	0x5017
 #define RGA_BLIT_ASYNC  0x5018
@@ -118,31 +113,31 @@ enum
     
 typedef struct rga_img_info_t
 {
-    uint32 yrgb_addr;      /* yrgb    mem addr         */
-    uint32 uv_addr;        /* cb/cr   mem addr         */
-    uint32 v_addr;         /* cr      mem addr         */
-    uint32 format;         //definition by RK_FORMAT
+    unsigned int yrgb_addr;      /* yrgb    mem addr         */
+    unsigned int uv_addr;        /* cb/cr   mem addr         */
+    unsigned int v_addr;         /* cr      mem addr         */
+    unsigned int format;         //definition by RK_FORMAT
     
-    UWORD16 act_w;
-    UWORD16 act_h;
-    UWORD16 x_offset;
-    UWORD16 y_offset;
+    unsigned short act_w;
+    unsigned short act_h;
+    unsigned short x_offset;
+    unsigned short y_offset;
     
-    UWORD16 vir_w;
-    UWORD16 vir_h;
+    unsigned short vir_w;
+    unsigned short vir_h;
     
-    UWORD16 endian_mode; //for BPP
-    UWORD16 alpha_swap;
+    unsigned short endian_mode; //for BPP
+    unsigned short alpha_swap;
 }
 rga_img_info_t;
 
 
 typedef struct mdp_img_act
 {
-    UWORD16 w;         // width
-    UWORD16 h;         // height
-    WORD16 x_off;     // x offset for the vir
-    WORD16 y_off;     // y offset for the vir
+    unsigned short w;         // width
+    unsigned short h;         // height
+    short x_off;     // x offset for the vir
+    short y_off;     // y offset for the vir
 }
 mdp_img_act;
 
@@ -150,24 +145,24 @@ mdp_img_act;
 
 typedef struct RANGE
 {
-    UWORD16 min;
-    UWORD16 max;
+    unsigned short min;
+    unsigned short max;
 }
 RANGE;
 
 typedef struct POINT
 {
-    UWORD16 x;
-    UWORD16 y;
+    unsigned short x;
+    unsigned short y;
 }
 POINT;
 
 typedef struct RECT
 {
-    WORD16 xmin;
-    WORD16 xmax; // width - 1
-    WORD16 ymin; 
-    WORD16 ymax; // height - 1 
+    unsigned short xmin;
+    unsigned short xmax; // width - 1
+    unsigned short ymin; 
+    unsigned short ymax; // height - 1 
 } RECT;
 
 typedef struct RGB
@@ -182,8 +177,8 @@ typedef struct RGB
 typedef struct MMU
 {
     unsigned char mmu_en;
-    uint32 base_addr;
-    uint32 mmu_flag;     /* [0] mmu enable [1] src_flush [2] dst_flush [3] CMD_flush [4~5] page size*/
+    uint32_t base_addr;
+    uint32_t mmu_flag;     /* [0] mmu enable [1] src_flush [2] dst_flush [3] CMD_flush [4~5] page size*/
 } MMU;
 
 
@@ -206,94 +201,94 @@ COLOR_FILL;
 
 typedef struct FADING
 {
-    UBYTE b;
-    UBYTE g;
-    UBYTE r;
-    UBYTE res;
+    uint8_t b;
+    uint8_t g;
+    uint8_t r;
+    uint8_t res;
 }
 FADING;
 
 
 typedef struct line_draw_t
 {
-    POINT start_point;            /* LineDraw_start_point                */
-    POINT end_point;              /* LineDraw_end_point                  */
-    uint32   color;                  /* LineDraw_color                      */
-    uint32   flag;                   /* (enum) LineDrawing mode sel         */
-    uint32   line_width;             /* range 1~16 */
+    POINT start_point;              /* LineDraw_start_point                */
+    POINT end_point;                /* LineDraw_end_point                  */
+    uint32_t   color;               /* LineDraw_color                      */
+    uint32_t   flag;                /* (enum) LineDrawing mode sel         */
+    uint32_t   line_width;          /* range 1~16 */
 }
 line_draw_t;
 
 
 
 struct rga_req {
-    UBYTE render_mode;         /* (enum) process mode sel */
+    uint8_t render_mode;            /* (enum) process mode sel */
     
-    rga_img_info_t src;     /* src image info */
-    rga_img_info_t dst;     /* dst image info */
-    rga_img_info_t pat;     /* patten image info */
+    rga_img_info_t src;             /* src image info */
+    rga_img_info_t dst;             /* dst image info */
+    rga_img_info_t pat;             /* patten image info */
 
-    uint32 rop_mask_addr;      /* rop4 mask addr */
-    uint32 LUT_addr;           /* LUT addr */
+    uint32_t rop_mask_addr;         /* rop4 mask addr */
+    uint32_t LUT_addr;              /* LUT addr */
     
-    RECT clip;              /* dst clip window default value is dst_vir */
-                            /* value from [0, w-1] / [0, h-1]*/
+    RECT clip;                      /* dst clip window default value is dst_vir */
+                                    /* value from [0, w-1] / [0, h-1]*/
         
-    int32_t sina;               /* dst angle  default value 0  16.16 scan from table */
-    int32_t cosa;               /* dst angle  default value 0  16.16 scan from table */        
+    int32_t sina;                   /* dst angle  default value 0  16.16 scan from table */
+    int32_t cosa;                   /* dst angle  default value 0  16.16 scan from table */        
 
-    uint16_t alpha_rop_flag;     /* alpha rop process flag           */
-                            /* ([0] = 1 alpha_rop_enable)       */
-                            /* ([1] = 1 rop enable)             */                                                                                                                
-                            /* ([2] = 1 fading_enable)          */
-                            /* ([3] = 1 PD_enable)              */
-                            /* ([4] = 1 alpha cal_mode_sel)     */
-                            /* ([5] = 1 dither_enable)          */
-                            /* ([6] = 1 gradient fill mode sel) */
-                            /* ([7] = 1 AA_enable)              */
+    uint16_t alpha_rop_flag;        /* alpha rop process flag           */
+                                    /* ([0] = 1 alpha_rop_enable)       */
+                                    /* ([1] = 1 rop enable)             */                                                                                                                
+                                    /* ([2] = 1 fading_enable)          */
+                                    /* ([3] = 1 PD_enable)              */
+                                    /* ([4] = 1 alpha cal_mode_sel)     */
+                                    /* ([5] = 1 dither_enable)          */
+                                    /* ([6] = 1 gradient fill mode sel) */
+                                    /* ([7] = 1 AA_enable)              */
 
-    uint8_t  scale_mode;         /* 0 nearst / 1 bilnear / 2 bicubic */                             
+    uint8_t  scale_mode;            /* 0 nearst / 1 bilnear / 2 bicubic */                             
                             
-    uint32 color_key_max;      /* color key max */
-    uint32 color_key_min;      /* color key min */     
+    uint32_t color_key_max;         /* color key max */
+    uint32_t color_key_min;         /* color key min */     
 
-    uint32 fg_color;           /* foreground color */
-    uint32 bg_color;           /* background color */
+    uint32_t fg_color;              /* foreground color */
+    uint32_t bg_color;              /* background color */
 
-    COLOR_FILL gr_color;    /* color fill use gradient */
+    COLOR_FILL gr_color;            /* color fill use gradient */
     
     line_draw_t line_draw_info;
     
     FADING fading;
                               
-    uint8_t PD_mode;             /* porter duff alpha mode sel */
+    uint8_t PD_mode;                /* porter duff alpha mode sel */
     
-    uint8_t alpha_global_value;  /* global alpha value */
+    uint8_t alpha_global_value;     /* global alpha value */
      
-    uint16_t rop_code;           /* rop2/3/4 code  scan from rop code table*/
+    uint16_t rop_code;              /* rop2/3/4 code  scan from rop code table*/
     
-    uint8_t bsfilter_flag;       /* [2] 0 blur 1 sharp / [1:0] filter_type*/
+    uint8_t bsfilter_flag;          /* [2] 0 blur 1 sharp / [1:0] filter_type*/
     
-    uint8_t palette_mode;        /* (enum) color palatte  0/1bpp, 1/2bpp 2/4bpp 3/8bpp*/
+    uint8_t palette_mode;           /* (enum) color palatte  0/1bpp, 1/2bpp 2/4bpp 3/8bpp*/
 
-    uint8_t yuv2rgb_mode;        /* (enum) BT.601 MPEG / BT.601 JPEG / BT.709  */ 
+    uint8_t yuv2rgb_mode;           /* (enum) BT.601 MPEG / BT.601 JPEG / BT.709  */ 
     
-    uint8_t endian_mode;         /* 0/big endian 1/little endian*/
+    uint8_t endian_mode;            /* 0/big endian 1/little endian*/
 
-    uint8_t rotate_mode;         /* (enum) rotate mode  */
-                            /* 0x0,     no rotate  */
-                            /* 0x1,     rotate     */
-                            /* 0x2,     x_mirror   */
-                            /* 0x3,     y_mirror   */
+    uint8_t rotate_mode;            /* (enum) rotate mode  */
+                                    /* 0x0,     no rotate  */
+                                    /* 0x1,     rotate     */
+                                    /* 0x2,     x_mirror   */
+                                    /* 0x3,     y_mirror   */
 
-    uint8_t color_fill_mode;     /* 0 solid color / 1 patten color */
+    uint8_t color_fill_mode;        /* 0 solid color / 1 patten color */
                                     
-    MMU mmu_info;           /* mmu information */
+    MMU mmu_info;                   /* mmu information */
 
-    uint8_t  alpha_rop_mode;    /* ([0~1] alpha mode)       */
-                                /* ([2~3] rop   mode)       */
-                                /* ([4]   zero  mode en)    */
-                                /* ([5]   dst   alpha mode) */
+    uint8_t  alpha_rop_mode;        /* ([0~1] alpha mode)       */
+                                    /* ([2~3] rop   mode)       */
+                                    /* ([4]   zero  mode en)    */
+                                    /* ([5]   dst   alpha mode) */
 
     uint8_t  src_trans_mode;
 
@@ -385,33 +380,6 @@ typedef struct rga_service_info {
     //uint32_t            mmu_buf[4];
     bool			    enabled;
 } rga_service_info;
-
-
-
-struct rga_drvdata {
-  	struct miscdevice miscdev;
-  	struct device dev;
-	void *rga_base;
-	int irq0;
-
-	struct clk *pd_display;
-	struct clk *aclk_lcdc;
-	struct clk *hclk_lcdc;
-	struct clk *aclk_ddr_lcdc;
-	struct clk *hclk_cpu_display;
-	struct clk *aclk_disp_matrix;
-	struct clk *hclk_disp_matrix;
-	struct clk *axi_clk;
-	struct clk *ahb_clk;
-	
-	struct mutex	mutex;	// mutex
-	
-	struct delayed_work power_off_work;
-	bool enable;        						//clk enable or disable
-	void (*rga_irq_callback)(int rga_retval);   //callback function used by aync call
-};
-
-
 
 
 

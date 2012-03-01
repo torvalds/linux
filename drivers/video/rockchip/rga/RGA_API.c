@@ -83,10 +83,10 @@ matrix_cal(const struct rga_req *msg, TILE_INFO *tile)
 u32
 RGA_dst_act_addr_temp(const struct rga_req *msg)
 {
-    u32 pw;
-    u32 x_off, y_off;
-    u32 stride;
-    u32 p;
+    uint32_t pw;
+    uint32_t x_off, y_off;
+    uint32_t stride;
+    uint32_t p;
     
     pw = RGA_pixel_width_init(msg->dst.format);
     stride = (msg->dst.vir_w * pw + 3) & (~3);    
@@ -100,11 +100,10 @@ RGA_dst_act_addr_temp(const struct rga_req *msg)
 }
 
 void
-RGA_set_cmd_info(u8 cmd_mode, u32 cmd_addr)
+RGA_set_cmd_info(uint8_t cmd_mode, uint32_t cmd_addr)
 {
-    u32 reg = 0;
+    uint32_t reg = 0;
     
-    //reg = rRGA_SYS_CTRL;
     reg |= ((cmd_mode & 1) << 1);
     rRGA_SYS_CTRL = reg; 
     rRGA_CMD_ADDR = cmd_addr;
@@ -113,8 +112,8 @@ RGA_set_cmd_info(u8 cmd_mode, u32 cmd_addr)
 void
 RGA_start(void) 
 {
-    u32 reg = 0;
-    u8  cmd_mode;
+    uint32_t reg = 0;
+    uint8_t  cmd_mode;
     
     reg = rRGA_SYS_CTRL;
     cmd_mode = (reg >> 2) & 1;
@@ -138,7 +137,7 @@ RGA_start(void)
 void
 RGA_soft_reset(void)
 {
-    u32 reg = 0;
+    uint32_t reg = 0;
 
     reg = rRGA_SYS_CTRL;
     reg |= 1;
@@ -185,7 +184,7 @@ void rga_check_int_all_cmd_finish(RGA_INFO *p_rga_info)
 }
 #endif
 
-void rga_start_cmd_AXI(u8 *base, u32 num)
+void rga_start_cmd_AXI(uint8_t *base, uint32_t num)
 {
     rRGA_SYS_CTRL = 0x4;
     rRGA_INT = s_RGA_INT_ALL_CMD_DONE_INT_EN(ENABLE)| s_RGA_INT_MMU_INT_EN(ENABLE)| s_RGA_INT_ERROR_INT_EN(ENABLE);
@@ -196,8 +195,8 @@ void rga_start_cmd_AXI(u8 *base, u32 num)
 
 void rga_check_cmd_finish(void)
 {
-	u8 int_flag;
-    u8 error_flag;
+	uint8_t int_flag;
+    uint8_t error_flag;
 	
 	int_flag = 0;
     error_flag = 0;
@@ -222,9 +221,9 @@ void rga_check_cmd_finish(void)
 
 
 
-void rga_start_cmd_AHB(u8 *base)
+void rga_start_cmd_AHB(uint8_t *base)
 {
-    u32 *base_p32;
+    uint32_t *base_p32;
     
     base_p32 = (u32 *)base;
     *base_p32 = (*base_p32 | (1<<29));
@@ -237,7 +236,7 @@ void rga_start_cmd_AHB(u8 *base)
 
 void rga_check_cmd_AHB_finish(void)
 {
-	u8 int_flag;
+	uint8_t int_flag;
 	
 	int_flag = 0;
 	while(!int_flag)
@@ -253,11 +252,11 @@ uint32_t RGA_gen_two_pro(struct rga_req *msg, struct rga_req *msg1)
 {
     
     struct rga_req *mp;
-    u32 w_ratio, h_ratio;
-    u32 stride;
+    uint32_t w_ratio, h_ratio;
+    uint32_t stride;
 
-    u32 daw, dah;
-    u32 pl;
+    uint32_t daw, dah;
+    uint32_t pl;
 
     daw = dah = 0;
             
