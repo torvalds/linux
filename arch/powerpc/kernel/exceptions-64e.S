@@ -354,9 +354,9 @@ interrupt_end_book3e:
 	/* we can probably do a shorter exception entry for that one... */
 	EXCEPTION_COMMON(0x800, PACA_EXGEN, INTS_KEEP)
 	bne	1f			/* if from user, just load it up */
+	INTS_DISABLE_ALL
 	bl	.save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	INTS_RESTORE_HARD
 	bl	.kernel_fp_unavailable_exception
 	BUG_OPCODE
 1:	ld	r12,_MSR(r1)
@@ -391,10 +391,9 @@ interrupt_end_book3e:
 /* Auxiliary Processor Unavailable Interrupt */
 	START_EXCEPTION(ap_unavailable);
 	NORMAL_EXCEPTION_PROLOG(0xf20, PROLOG_ADDITION_NONE)
-	EXCEPTION_COMMON(0xf20, PACA_EXGEN, INTS_KEEP)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
+	EXCEPTION_COMMON(0xf20, PACA_EXGEN, INTS_DISABLE_ALL)
 	bl	.save_nvgprs
-	INTS_RESTORE_HARD
+	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.unknown_exception
 	b	.ret_from_except
 

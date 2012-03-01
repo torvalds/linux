@@ -247,6 +247,9 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 				   addr, regs->nip, regs->link, code);
 	}
 
+	if (!arch_irq_disabled_regs(regs))
+		local_irq_enable();
+
 	memset(&info, 0, sizeof(info));
 	info.si_signo = signr;
 	info.si_code = code;
