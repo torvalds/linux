@@ -2,6 +2,16 @@ if ARCH_MMP
 
 menu "Marvell PXA168/910/MMP2 Implmentations"
 
+config MACH_MMP_DT
+	bool "Support MMP2 platforms from device tree"
+	select CPU_PXA168
+	select CPU_PXA910
+	select USE_OF
+	help
+	  Include support for Marvell MMP2 based platforms using
+	  the device tree. Needn't select any other machine while
+	  MACH_MMP_DT is enabled.
+
 config MACH_ASPENITE
 	bool "Marvell's PXA168 Aspenite Development Board"
 	select CPU_PXA168
