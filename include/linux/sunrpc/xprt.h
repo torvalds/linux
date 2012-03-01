@@ -229,6 +229,7 @@ struct rpc_xprt {
 	} stat;
 
 	struct net		*xprt_net;
+	const char		*servername;
 	const char		*address_strings[RPC_DISPLAY_MAX];
 };
 
@@ -258,6 +259,7 @@ struct xprt_create {
 	struct sockaddr *	srcaddr;	/* optional local address */
 	struct sockaddr *	dstaddr;	/* remote peer address */
 	size_t			addrlen;
+	const char		*servername;
 	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
 };
 

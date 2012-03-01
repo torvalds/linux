@@ -265,15 +265,8 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 	struct rpc_clnt		*clnt = NULL;
 	struct rpc_auth		*auth;
 	int err;
-	size_t len;
 
 	/* sanity check the name before trying to print it */
-	err = -EINVAL;
-	len = strlen(args->servername);
-	if (len > RPC_MAXNETNAMELEN)
-		goto out_no_rpciod;
-	len++;
-
 	dprintk("RPC:       creating %s client for %s (xprt %p)\n",
 			program->name, args->servername, xprt);
 
@@ -295,10 +288,6 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 	if (!clnt)
 		goto out_err;
 	clnt->cl_parent = clnt;
-
-	clnt->cl_server = kstrdup(args->servername, GFP_KERNEL);
-	if (clnt->cl_server == NULL)
-		goto out_no_server;
 
 	rcu_assign_pointer(clnt->cl_xprt, xprt);
 	clnt->cl_procinfo = version->procs;
@@ -363,8 +352,6 @@ out_no_path:
 out_no_principal:
 	rpc_free_iostats(clnt->cl_metrics);
 out_no_stats:
-	kfree(clnt->cl_server);
-out_no_server:
 	kfree(clnt);
 out_err:
 	xprt_put(xprt);
@@ -394,6 +381,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 		.srcaddr = args->saddress,
 		.dstaddr = args->address,
 		.addrlen = args->addrsize,
+		.servername = args->servername,
 		.bc_xprt = args->bc_xprt,
 	};
 	char servername[48];
@@ -402,7 +390,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	 * If the caller chooses not to specify a hostname, whip
 	 * up a string representation of the passed-in address.
 	 */
-	if (args->servername == NULL) {
+	if (xprtargs.servername == NULL) {
 		struct sockaddr_un *sun =
 				(struct sockaddr_un *)args->address;
 		struct sockaddr_in *sin =
@@ -429,7 +417,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 			 * address family isn't recognized. */
 			return ERR_PTR(-EINVAL);
 		}
-		args->servername = servername;
+		xprtargs.servername = servername;
 	}
 
 	xprt = xprt_create_transport(&xprtargs);
@@ -488,9 +476,6 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	new = kmemdup(clnt, sizeof(*new), GFP_KERNEL);
 	if (!new)
 		goto out_no_clnt;
-	new->cl_server = kstrdup(clnt->cl_server, GFP_KERNEL);
-	if (new->cl_server == NULL)
-		goto out_no_server;
 	new->cl_parent = clnt;
 	/* Turn off autobind on clones */
 	new->cl_autobind = 0;
@@ -528,8 +513,6 @@ out_no_transport:
 out_no_principal:
 	rpc_free_iostats(new->cl_metrics);
 out_no_stats:
-	kfree(new->cl_server);
-out_no_server:
 	kfree(new);
 out_no_clnt:
 	dprintk("RPC:       %s: returned error %d\n", __func__, err);
@@ -574,8 +557,9 @@ EXPORT_SYMBOL_GPL(rpc_killall_tasks);
  */
 void rpc_shutdown_client(struct rpc_clnt *clnt)
 {
-	dprintk("RPC:       shutting down %s client for %s\n",
-			clnt->cl_protname, clnt->cl_server);
+	dprintk_rcu("RPC:       shutting down %s client for %s\n",
+			clnt->cl_protname,
+			rcu_dereference(clnt->cl_xprt)->servername);
 
 	while (!list_empty(&clnt->cl_tasks)) {
 		rpc_killall_tasks(clnt);
@@ -593,11 +577,11 @@ EXPORT_SYMBOL_GPL(rpc_shutdown_client);
 static void
 rpc_free_client(struct rpc_clnt *clnt)
 {
-	dprintk("RPC:       destroying %s client for %s\n",
-			clnt->cl_protname, clnt->cl_server);
+	dprintk_rcu("RPC:       destroying %s client for %s\n",
+			clnt->cl_protname,
+			rcu_dereference(clnt->cl_xprt)->servername);
 	if (clnt->cl_parent != clnt)
 		rpc_release_client(clnt->cl_parent);
-	kfree(clnt->cl_server);
 	rpc_unregister_client(clnt);
 	rpc_clnt_remove_pipedir(clnt);
 	rpc_free_iostats(clnt->cl_metrics);
@@ -1685,8 +1669,11 @@ call_timeout(struct rpc_task *task)
 	}
 	if (RPC_IS_SOFT(task)) {
 		if (clnt->cl_chatty)
+			rcu_read_lock();
 			printk(KERN_NOTICE "%s: server %s not responding, timed out\n",
-				clnt->cl_protname, clnt->cl_server);
+				clnt->cl_protname,
+				rcu_dereference(clnt->cl_xprt)->servername);
+			rcu_read_unlock();
 		if (task->tk_flags & RPC_TASK_TIMEOUT)
 			rpc_exit(task, -ETIMEDOUT);
 		else
@@ -1696,9 +1683,13 @@ call_timeout(struct rpc_task *task)
 
 	if (!(task->tk_flags & RPC_CALL_MAJORSEEN)) {
 		task->tk_flags |= RPC_CALL_MAJORSEEN;
-		if (clnt->cl_chatty)
+		if (clnt->cl_chatty) {
+			rcu_read_lock();
 			printk(KERN_NOTICE "%s: server %s not responding, still trying\n",
-			clnt->cl_protname, clnt->cl_server);
+			clnt->cl_protname,
+			rcu_dereference(clnt->cl_xprt)->servername);
+			rcu_read_unlock();
+		}
 	}
 	rpc_force_rebind(clnt);
 	/*
@@ -1727,9 +1718,13 @@ call_decode(struct rpc_task *task)
 	dprint_status(task);
 
 	if (task->tk_flags & RPC_CALL_MAJORSEEN) {
-		if (clnt->cl_chatty)
+		if (clnt->cl_chatty) {
+			rcu_read_lock();
 			printk(KERN_NOTICE "%s: server %s OK\n",
-				clnt->cl_protname, clnt->cl_server);
+				clnt->cl_protname,
+				rcu_dereference(clnt->cl_xprt)->servername);
+			rcu_read_unlock();
+		}
 		task->tk_flags &= ~RPC_CALL_MAJORSEEN;
 	}
 
@@ -1807,6 +1802,7 @@ rpc_encode_header(struct rpc_task *task)
 static __be32 *
 rpc_verify_header(struct rpc_task *task)
 {
+	struct rpc_clnt *clnt = task->tk_client;
 	struct kvec *iov = &task->tk_rqstp->rq_rcv_buf.head[0];
 	int len = task->tk_rqstp->rq_rcv_buf.len >> 2;
 	__be32	*p = iov->iov_base;
@@ -1879,8 +1875,11 @@ rpc_verify_header(struct rpc_task *task)
 			task->tk_action = call_bind;
 			goto out_retry;
 		case RPC_AUTH_TOOWEAK:
+			rcu_read_lock();
 			printk(KERN_NOTICE "RPC: server %s requires stronger "
-			       "authentication.\n", task->tk_client->cl_server);
+			       "authentication.\n",
+			       rcu_dereference(clnt->cl_xprt)->servername);
+			rcu_read_unlock();
 			break;
 		default:
 			dprintk("RPC: %5u %s: unknown auth error: %x\n",
@@ -1903,28 +1902,27 @@ rpc_verify_header(struct rpc_task *task)
 	case RPC_SUCCESS:
 		return p;
 	case RPC_PROG_UNAVAIL:
-		dprintk("RPC: %5u %s: program %u is unsupported by server %s\n",
-				task->tk_pid, __func__,
-				(unsigned int)task->tk_client->cl_prog,
-				task->tk_client->cl_server);
+		dprintk_rcu("RPC: %5u %s: program %u is unsupported "
+				"by server %s\n", task->tk_pid, __func__,
+				(unsigned int)clnt->cl_prog,
+				rcu_dereference(clnt->cl_xprt)->servername);
 		error = -EPFNOSUPPORT;
 		goto out_err;
 	case RPC_PROG_MISMATCH:
-		dprintk("RPC: %5u %s: program %u, version %u unsupported by "
-				"server %s\n", task->tk_pid, __func__,
-				(unsigned int)task->tk_client->cl_prog,
-				(unsigned int)task->tk_client->cl_vers,
-				task->tk_client->cl_server);
+		dprintk_rcu("RPC: %5u %s: program %u, version %u unsupported "
+				"by server %s\n", task->tk_pid, __func__,
+				(unsigned int)clnt->cl_prog,
+				(unsigned int)clnt->cl_vers,
+				rcu_dereference(clnt->cl_xprt)->servername);
 		error = -EPROTONOSUPPORT;
 		goto out_err;
 	case RPC_PROC_UNAVAIL:
-		dprintk("RPC: %5u %s: proc %s unsupported by program %u, "
+		dprintk_rcu("RPC: %5u %s: proc %s unsupported by program %u, "
 				"version %u on server %s\n",
 				task->tk_pid, __func__,
 				rpc_proc_name(task),
-				task->tk_client->cl_prog,
-				task->tk_client->cl_vers,
-				task->tk_client->cl_server);
+				clnt->cl_prog, clnt->cl_vers,
+				rcu_dereference(clnt->cl_xprt)->servername);
 		error = -EOPNOTSUPP;
 		goto out_err;
 	case RPC_GARBAGE_ARGS:
@@ -1938,7 +1936,7 @@ rpc_verify_header(struct rpc_task *task)
 	}
 
 out_garbage:
-	task->tk_client->cl_stats->rpcgarbage++;
+	clnt->cl_stats->rpcgarbage++;
 	if (task->tk_garb_retry) {
 		task->tk_garb_retry--;
 		dprintk("RPC: %5u %s: retrying\n",

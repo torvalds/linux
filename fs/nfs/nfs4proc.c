@@ -1100,6 +1100,7 @@ static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data
 	if (state == NULL)
 		goto err_put_inode;
 	if (data->o_res.delegation_type != 0) {
+		struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
 		int delegation_flags = 0;
 
 		rcu_read_lock();
@@ -1111,7 +1112,7 @@ static struct nfs4_state *nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data
 			pr_err_ratelimited("NFS: Broken NFSv4 server %s is "
 					"returning a delegation for "
 					"OPEN(CLAIM_DELEGATE_CUR)\n",
-					NFS_CLIENT(inode)->cl_server);
+					clp->cl_hostname);
 		} else if ((delegation_flags & 1UL<<NFS_DELEGATION_NEED_RECLAIM) == 0)
 			nfs_inode_set_delegation(state->inode,
 					data->owner->so_cred,

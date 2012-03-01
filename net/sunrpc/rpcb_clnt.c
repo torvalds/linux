@@ -663,7 +663,7 @@ void rpcb_getport_async(struct rpc_task *task)
 
 	dprintk("RPC: %5u %s(%s, %u, %u, %d)\n",
 		task->tk_pid, __func__,
-		clnt->cl_server, clnt->cl_prog, clnt->cl_vers, xprt->prot);
+		xprt->servername, clnt->cl_prog, clnt->cl_vers, xprt->prot);
 
 	/* Put self on the wait queue to ensure we get notified if
 	 * some other task is already attempting to bind the port */
@@ -714,7 +714,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	dprintk("RPC: %5u %s: trying rpcbind version %u\n",
 		task->tk_pid, __func__, bind_version);
 
-	rpcb_clnt = rpcb_create(xprt->xprt_net, clnt->cl_server, sap, salen,
+	rpcb_clnt = rpcb_create(xprt->xprt_net, xprt->servername, sap, salen,
 				xprt->prot, bind_version);
 	if (IS_ERR(rpcb_clnt)) {
 		status = PTR_ERR(rpcb_clnt);

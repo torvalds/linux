@@ -332,7 +332,6 @@ void nfs_callback_down(int minorversion)
 int
 check_gss_callback_principal(struct nfs_client *clp, struct svc_rqst *rqstp)
 {
-	struct rpc_clnt *r = clp->cl_rpcclient;
 	char *p = svc_gss_principal(rqstp);
 
 	if (rqstp->rq_authop->flavour != RPC_AUTH_GSS)
@@ -353,7 +352,7 @@ check_gss_callback_principal(struct nfs_client *clp, struct svc_rqst *rqstp)
 	if (memcmp(p, "nfs@", 4) != 0)
 		return 0;
 	p += 4;
-	if (strcmp(p, r->cl_server) != 0)
+	if (strcmp(p, clp->cl_hostname) != 0)
 		return 0;
 	return 1;
 }

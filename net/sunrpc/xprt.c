@@ -66,6 +66,7 @@ static void	 xprt_init(struct rpc_xprt *xprt, struct net *net);
 static void	xprt_request_init(struct rpc_task *, struct rpc_xprt *);
 static void	xprt_connect_status(struct rpc_task *task);
 static int      __xprt_get_cong(struct rpc_xprt *, struct rpc_task *);
+static void	 xprt_destroy(struct rpc_xprt *xprt);
 
 static DEFINE_SPINLOCK(xprt_list_lock);
 static LIST_HEAD(xprt_list);
@@ -751,7 +752,7 @@ static void xprt_connect_status(struct rpc_task *task)
 	default:
 		dprintk("RPC: %5u xprt_connect_status: error %d connecting to "
 				"server %s\n", task->tk_pid, -task->tk_status,
-				task->tk_client->cl_server);
+				xprt->servername);
 		xprt_release_write(xprt, task);
 		task->tk_status = -EIO;
 	}
@@ -1229,6 +1230,17 @@ found:
 			    (unsigned long)xprt);
 	else
 		init_timer(&xprt->timer);
+
+	if (strlen(args->servername) > RPC_MAXNETNAMELEN) {
+		xprt_destroy(xprt);
+		return ERR_PTR(-EINVAL);
+	}
+	xprt->servername = kstrdup(args->servername, GFP_KERNEL);
+	if (xprt->servername == NULL) {
+		xprt_destroy(xprt);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	dprintk("RPC:       created transport %p with %u slots\n", xprt,
 			xprt->max_reqs);
 out:
@@ -1251,6 +1263,7 @@ static void xprt_destroy(struct rpc_xprt *xprt)
 	rpc_destroy_wait_queue(&xprt->sending);
 	rpc_destroy_wait_queue(&xprt->backlog);
 	cancel_work_sync(&xprt->task_cleanup);
+	kfree(xprt->servername);
 	/*
 	 * Tear down transport state and free the rpc_xprt
 	 */
