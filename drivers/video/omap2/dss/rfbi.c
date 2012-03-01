@@ -930,10 +930,11 @@ int rfbi_init_display(struct omap_dss_device *dssdev)
 /* RFBI HW IP initialisation */
 static int __init omap_rfbihw_probe(struct platform_device *pdev)
 {
+	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	u32 rev;
 	struct resource *rfbi_mem;
 	struct clk *clk;
-	int r;
+	int r, i;
 
 	rfbi.pdev = pdev;
 
@@ -978,6 +979,18 @@ static int __init omap_rfbihw_probe(struct platform_device *pdev)
 
 	dss_debugfs_create_file("rfbi", rfbi_dump_regs);
 
+	for (i = 0; i < pdata->num_devices; ++i) {
+		struct omap_dss_device *dssdev = pdata->devices[i];
+
+		if (dssdev->type != OMAP_DISPLAY_TYPE_DBI)
+			continue;
+
+		r = omap_dss_register_device(dssdev, &pdev->dev, i);
+		if (r)
+			DSSERR("device %s register failed: %d\n",
+				dssdev->name, r);
+	}
+
 	return 0;
 
 err_runtime_get:
@@ -987,6 +1000,7 @@ err_runtime_get:
 
 static int __exit omap_rfbihw_remove(struct platform_device *pdev)
 {
+	omap_dss_unregister_child_devices(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	return 0;
 }

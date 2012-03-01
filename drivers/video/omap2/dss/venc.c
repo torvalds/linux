@@ -832,9 +832,10 @@ static void venc_put_clocks(void)
 /* VENC HW IP initialisation */
 static int __init omap_venchw_probe(struct platform_device *pdev)
 {
+	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	u8 rev_id;
 	struct resource *venc_mem;
-	int r;
+	int r, i;
 
 	venc.pdev = pdev;
 
@@ -876,6 +877,18 @@ static int __init omap_venchw_probe(struct platform_device *pdev)
 
 	dss_debugfs_create_file("venc", venc_dump_regs);
 
+	for (i = 0; i < pdata->num_devices; ++i) {
+		struct omap_dss_device *dssdev = pdata->devices[i];
+
+		if (dssdev->type != OMAP_DISPLAY_TYPE_VENC)
+			continue;
+
+		r = omap_dss_register_device(dssdev, &pdev->dev, i);
+		if (r)
+			DSSERR("device %s register failed: %d\n",
+					dssdev->name, r);
+	}
+
 	return 0;
 
 err_reg_panel_driver:
@@ -887,10 +900,13 @@ err_runtime_get:
 
 static int __exit omap_venchw_remove(struct platform_device *pdev)
 {
+	omap_dss_unregister_child_devices(&pdev->dev);
+
 	if (venc.vdda_dac_reg != NULL) {
 		regulator_put(venc.vdda_dac_reg);
 		venc.vdda_dac_reg = NULL;
 	}
+
 	omap_dss_unregister_driver(&venc_driver);
 
 	pm_runtime_disable(&pdev->dev);

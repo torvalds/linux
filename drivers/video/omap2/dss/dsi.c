@@ -4614,6 +4614,7 @@ static int __init omap_dsihw_probe(struct platform_device *dsidev)
 	int r, i, dsi_module = dsi_get_dsidev_id(dsidev);
 	struct resource *dsi_mem;
 	struct dsi_data *dsi;
+	struct omap_dss_board_info *pdata = dsidev->dev.platform_data;
 
 	dsi = devm_kzalloc(&dsidev->dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
@@ -4700,6 +4701,21 @@ static int __init omap_dsihw_probe(struct platform_device *dsidev)
 	else
 		dsi->num_lanes_supported = 3;
 
+	for (i = 0; i < pdata->num_devices; ++i) {
+		struct omap_dss_device *dssdev = pdata->devices[i];
+
+		if (dssdev->type != OMAP_DISPLAY_TYPE_DSI)
+			continue;
+
+		if (dssdev->phy.dsi.module != dsi_module)
+			continue;
+
+		r = omap_dss_register_device(dssdev, &dsidev->dev, i);
+		if (r)
+			DSSERR("device %s register failed: %d\n",
+				dssdev->name, r);
+	}
+
 	dsi_runtime_put(dsidev);
 
 	if (dsi_module == 0)
@@ -4726,6 +4742,8 @@ static int __exit omap_dsihw_remove(struct platform_device *dsidev)
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
 	WARN_ON(dsi->scp_clk_refcount > 0);
+
+	omap_dss_unregister_child_devices(&dsidev->dev);
 
 	pm_runtime_disable(&dsidev->dev);
 

@@ -56,9 +56,6 @@ bool dss_debug;
 module_param_named(debug, dss_debug, bool, 0644);
 #endif
 
-static int omap_dss_register_device(struct omap_dss_device *);
-static void omap_dss_unregister_device(struct omap_dss_device *);
-
 /* REGULATORS */
 
 struct regulator *dss_get_vdds_dsi(void)
@@ -209,7 +206,6 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	int r;
-	int i;
 
 	core.pdev = pdev;
 
@@ -229,25 +225,8 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 	else if (pdata->default_device)
 		core.default_display_name = pdata->default_device->name;
 
-	for (i = 0; i < pdata->num_devices; ++i) {
-		struct omap_dss_device *dssdev = pdata->devices[i];
-
-		r = omap_dss_register_device(dssdev);
-		if (r) {
-			DSSERR("device %d %s register failed %d\n", i,
-				dssdev->name ?: "unnamed", r);
-
-			while (--i >= 0)
-				omap_dss_unregister_device(pdata->devices[i]);
-
-			goto err_register;
-		}
-	}
-
 	return 0;
 
-err_register:
-	dss_uninitialize_debugfs();
 err_debugfs:
 
 	return r;
@@ -255,16 +234,10 @@ err_debugfs:
 
 static int omap_dss_remove(struct platform_device *pdev)
 {
-	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
-	int i;
-
 	dss_uninitialize_debugfs();
 
 	dss_uninit_overlays(pdev);
 	dss_uninit_overlay_managers(pdev);
-
-	for (i = 0; i < pdata->num_devices; ++i)
-		omap_dss_unregister_device(pdata->devices[i]);
 
 	return 0;
 }
@@ -467,23 +440,34 @@ static void omap_dss_dev_release(struct device *dev)
 	reset_device(dev, 0);
 }
 
-static int omap_dss_register_device(struct omap_dss_device *dssdev)
+int omap_dss_register_device(struct omap_dss_device *dssdev,
+		struct device *parent, int disp_num)
 {
-	static int dev_num;
-
 	WARN_ON(!dssdev->driver_name);
 
 	reset_device(&dssdev->dev, 1);
 	dssdev->dev.bus = &dss_bus_type;
-	dssdev->dev.parent = &dss_bus;
+	dssdev->dev.parent = parent;
 	dssdev->dev.release = omap_dss_dev_release;
-	dev_set_name(&dssdev->dev, "display%d", dev_num++);
+	dev_set_name(&dssdev->dev, "display%d", disp_num);
 	return device_register(&dssdev->dev);
 }
 
-static void omap_dss_unregister_device(struct omap_dss_device *dssdev)
+void omap_dss_unregister_device(struct omap_dss_device *dssdev)
 {
 	device_unregister(&dssdev->dev);
+}
+
+static int dss_unregister_dss_dev(struct device *dev, void *data)
+{
+	struct omap_dss_device *dssdev = to_dss_device(dev);
+	omap_dss_unregister_device(dssdev);
+	return 0;
+}
+
+void omap_dss_unregister_child_devices(struct device *parent)
+{
+	device_for_each_child(parent, NULL, dss_unregister_dss_dev);
 }
 
 /* BUS */

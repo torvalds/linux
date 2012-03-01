@@ -327,7 +327,7 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 	dss_pdev = create_dss_pdev(curr_dss_hwmod[0].dev_name,
 			curr_dss_hwmod[0].id,
 			curr_dss_hwmod[0].oh_name,
-			NULL, 0,
+			board_data, sizeof(*board_data),
 			NULL);
 
 	if (IS_ERR(dss_pdev)) {
@@ -341,7 +341,7 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 		pdev = create_dss_pdev(curr_dss_hwmod[i].dev_name,
 				curr_dss_hwmod[i].id,
 				curr_dss_hwmod[i].oh_name,
-				NULL, 0,
+				board_data, sizeof(*board_data),
 				dss_pdev);
 
 		if (IS_ERR(pdev)) {
@@ -354,15 +354,16 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 
 	/* Create devices for DPI and SDI */
 
-	pdev = create_simple_dss_pdev("omapdss_dpi", -1, NULL, 0, dss_pdev);
+	pdev = create_simple_dss_pdev("omapdss_dpi", -1,
+			board_data, sizeof(*board_data), dss_pdev);
 	if (IS_ERR(pdev)) {
 		pr_err("Could not build platform_device for omapdss_dpi\n");
 		return PTR_ERR(pdev);
 	}
 
 	if (cpu_is_omap34xx()) {
-		pdev = create_simple_dss_pdev("omapdss_sdi", -1, NULL, 0,
-				dss_pdev);
+		pdev = create_simple_dss_pdev("omapdss_sdi", -1,
+				board_data, sizeof(*board_data), dss_pdev);
 		if (IS_ERR(pdev)) {
 			pr_err("Could not build platform_device for omapdss_sdi\n");
 			return PTR_ERR(pdev);
