@@ -30,6 +30,32 @@
 #include "send.h"
 #include "bat_algo.h"
 
+static struct neigh_node *bat_iv_ogm_neigh_new(struct hard_iface *hard_iface,
+					       const uint8_t *neigh_addr,
+					       struct orig_node *orig_node,
+					       struct orig_node *orig_neigh,
+					       uint32_t seqno)
+{
+	struct neigh_node *neigh_node;
+
+	neigh_node = batadv_neigh_node_new(hard_iface, neigh_addr, seqno);
+	if (!neigh_node)
+		goto out;
+
+	INIT_LIST_HEAD(&neigh_node->bonding_list);
+	spin_lock_init(&neigh_node->tq_lock);
+
+	neigh_node->orig_node = orig_neigh;
+	neigh_node->if_incoming = hard_iface;
+
+	spin_lock_bh(&orig_node->neigh_list_lock);
+	hlist_add_head_rcu(&neigh_node->list, &orig_node->neigh_list);
+	spin_unlock_bh(&orig_node->neigh_list_lock);
+
+out:
+	return neigh_node;
+}
+
 static int bat_iv_ogm_iface_enable(struct hard_iface *hard_iface)
 {
 	struct batman_ogm_packet *batman_ogm_packet;
@@ -638,8 +664,9 @@ static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
 		if (!orig_tmp)
 			goto unlock;
 
-		neigh_node = create_neighbor(orig_node, orig_tmp,
-					     ethhdr->h_source, if_incoming);
+		neigh_node = bat_iv_ogm_neigh_new(if_incoming, ethhdr->h_source,
+						  orig_node, orig_tmp,
+						  batman_ogm_packet->seqno);
 
 		orig_node_free_ref(orig_tmp);
 		if (!neigh_node)
@@ -764,10 +791,11 @@ static int bat_iv_ogm_calc_tq(struct orig_node *orig_node,
 	rcu_read_unlock();
 
 	if (!neigh_node)
-		neigh_node = create_neighbor(orig_neigh_node,
-					     orig_neigh_node,
-					     orig_neigh_node->orig,
-					     if_incoming);
+		neigh_node = bat_iv_ogm_neigh_new(if_incoming,
+						  orig_neigh_node->orig,
+						  orig_neigh_node,
+						  orig_neigh_node,
+						  batman_ogm_packet->seqno);
 
 	if (!neigh_node)
 		goto out;

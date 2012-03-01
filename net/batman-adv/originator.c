@@ -85,35 +85,29 @@ struct neigh_node *orig_node_get_router(struct orig_node *orig_node)
 	return router;
 }
 
-struct neigh_node *create_neighbor(struct orig_node *orig_node,
-				   struct orig_node *orig_neigh_node,
-				   const uint8_t *neigh,
-				   struct hard_iface *if_incoming)
+struct neigh_node *batadv_neigh_node_new(struct hard_iface *hard_iface,
+					 const uint8_t *neigh_addr,
+					 uint32_t seqno)
 {
-	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
+	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct neigh_node *neigh_node;
-
-	bat_dbg(DBG_BATMAN, bat_priv,
-		"Creating new last-hop neighbor of originator\n");
 
 	neigh_node = kzalloc(sizeof(*neigh_node), GFP_ATOMIC);
 	if (!neigh_node)
-		return NULL;
+		goto out;
 
 	INIT_HLIST_NODE(&neigh_node->list);
-	INIT_LIST_HEAD(&neigh_node->bonding_list);
-	spin_lock_init(&neigh_node->tq_lock);
 
-	memcpy(neigh_node->addr, neigh, ETH_ALEN);
-	neigh_node->orig_node = orig_neigh_node;
-	neigh_node->if_incoming = if_incoming;
+	memcpy(neigh_node->addr, neigh_addr, ETH_ALEN);
 
 	/* extra reference for return */
 	atomic_set(&neigh_node->refcount, 2);
 
-	spin_lock_bh(&orig_node->neigh_list_lock);
-	hlist_add_head_rcu(&neigh_node->list, &orig_node->neigh_list);
-	spin_unlock_bh(&orig_node->neigh_list_lock);
+	bat_dbg(DBG_BATMAN, bat_priv,
+		"Creating new neighbor %pM, initial seqno %d\n",
+		neigh_addr, seqno);
+
+out:
 	return neigh_node;
 }
 
