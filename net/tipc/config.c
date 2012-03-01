@@ -179,7 +179,7 @@ static struct sk_buff *cfg_set_own_addr(void)
 	if (!tipc_addr_node_valid(addr))
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (node address)");
-	if (tipc_mode == TIPC_NET_MODE)
+	if (tipc_own_addr)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 						   " (cannot change node address once assigned)");
 
@@ -218,7 +218,7 @@ static struct sk_buff *cfg_set_max_publications(void)
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
 	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (value != delimit(value, 1, 65535))
+	if (value < 1 || value > 65535)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (max publications must be 1-65535)");
 	tipc_max_publications = value;
@@ -233,7 +233,7 @@ static struct sk_buff *cfg_set_max_subscriptions(void)
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
 
 	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
-	if (value != delimit(value, 1, 65535))
+	if (value < 1 || value > 65535)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (max subscriptions must be 1-65535");
 	tipc_max_subscriptions = value;
@@ -249,14 +249,11 @@ static struct sk_buff *cfg_set_max_ports(void)
 	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
 	if (value == tipc_max_ports)
 		return tipc_cfg_reply_none();
-	if (value != delimit(value, 127, 65535))
+	if (value < 127 || value > 65535)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (max ports must be 127-65535)");
-	if (tipc_mode != TIPC_NOT_RUNNING)
-		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
-			" (cannot change max ports while TIPC is active)");
-	tipc_max_ports = value;
-	return tipc_cfg_reply_none();
+	return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
+		" (cannot change max ports while TIPC is active)");
 }
 
 static struct sk_buff *cfg_set_netid(void)
@@ -268,10 +265,10 @@ static struct sk_buff *cfg_set_netid(void)
 	value = ntohl(*(__be32 *)TLV_DATA(req_tlv_area));
 	if (value == tipc_net_id)
 		return tipc_cfg_reply_none();
-	if (value != delimit(value, 1, 9999))
+	if (value < 1 || value > 9999)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (network id must be 1-9999)");
-	if (tipc_mode == TIPC_NET_MODE)
+	if (tipc_own_addr)
 		return tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
 			" (cannot change network id once TIPC has joined a network)");
 	tipc_net_id = value;
@@ -481,7 +478,7 @@ int tipc_cfg_init(void)
 
 	seq.type = TIPC_CFG_SRV;
 	seq.lower = seq.upper = tipc_own_addr;
-	res = tipc_nametbl_publish_rsv(config_port_ref, TIPC_ZONE_SCOPE, &seq);
+	res = tipc_publish(config_port_ref, TIPC_ZONE_SCOPE, &seq);
 	if (res)
 		goto failed;
 

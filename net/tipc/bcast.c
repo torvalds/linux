@@ -256,7 +256,7 @@ void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked)
 		if (bcbuf_acks(crs) == 0) {
 			bcl->first_out = next;
 			bcl->out_queue_size--;
-			buf_discard(crs);
+			kfree_skb(crs);
 			released = 1;
 		}
 		crs = next;
@@ -330,7 +330,7 @@ void tipc_bclink_update_link_state(struct tipc_node *n_ptr, u32 last_sent)
 		tipc_bearer_send(&bcbearer->bearer, buf, NULL);
 		bcl->stats.sent_nacks++;
 		spin_unlock_bh(&bc_lock);
-		buf_discard(buf);
+		kfree_skb(buf);
 
 		n_ptr->bclink.oos_state++;
 	}
@@ -374,7 +374,7 @@ int tipc_bclink_send_msg(struct sk_buff *buf)
 
 	if (!bclink->bcast_nodes.count) {
 		res = msg_data_sz(buf_msg(buf));
-		buf_discard(buf);
+		kfree_skb(buf);
 		goto exit;
 	}
 
@@ -480,7 +480,7 @@ receive:
 			if (likely(msg_mcast(msg)))
 				tipc_port_recv_mcast(buf, NULL);
 			else
-				buf_discard(buf);
+				kfree_skb(buf);
 		} else if (msg_user(msg) == MSG_BUNDLER) {
 			spin_lock_bh(&bc_lock);
 			bclink_accept_pkt(node, seqno);
@@ -513,7 +513,7 @@ receive:
 			bclink_accept_pkt(node, seqno);
 			spin_unlock_bh(&bc_lock);
 			tipc_node_unlock(node);
-			buf_discard(buf);
+			kfree_skb(buf);
 		}
 		buf = NULL;
 
@@ -569,7 +569,7 @@ receive:
 unlock:
 	tipc_node_unlock(node);
 exit:
-	buf_discard(buf);
+	kfree_skb(buf);
 }
 
 u32 tipc_bclink_acks_missing(struct tipc_node *n_ptr)

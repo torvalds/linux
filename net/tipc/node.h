@@ -42,6 +42,11 @@
 #include "net.h"
 #include "bearer.h"
 
+/*
+ * Out-of-range value for node signature
+ */
+#define INVALID_NODE_SIG 0x10000
+
 /* Flags used to block (re)establishment of contact with a neighboring node */
 
 #define WAIT_PEER_DOWN	0x0001	/* wait to see that peer's links are down */
@@ -61,6 +66,7 @@
  * @block_setup: bit mask of conditions preventing link establishment to node
  * @link_cnt: number of links to node
  * @permit_changeover: non-zero if node has redundant links to this system
+ * @signature: node instance identifier
  * @bclink: broadcast-related info
  *    @supportable: non-zero if node supports TIPC b'cast link capability
  *    @supported: non-zero if node supports TIPC b'cast capability
@@ -86,6 +92,7 @@ struct tipc_node {
 	int working_links;
 	int block_setup;
 	int permit_changeover;
+	u32 signature;
 	struct {
 		u8 supportable;
 		u8 supported;
@@ -100,19 +107,7 @@ struct tipc_node {
 	} bclink;
 };
 
-#define NODE_HTABLE_SIZE 512
 extern struct list_head tipc_node_list;
-
-/*
- * A trivial power-of-two bitmask technique is used for speed, since this
- * operation is done for every incoming TIPC packet. The number of hash table
- * entries has been chosen so that no hash chain exceeds 8 nodes and will
- * usually be much smaller (typically only a single node).
- */
-static inline unsigned int tipc_hashfn(u32 addr)
-{
-	return addr & (NODE_HTABLE_SIZE - 1);
-}
 
 struct tipc_node *tipc_node_find(u32 addr);
 struct tipc_node *tipc_node_create(u32 addr);

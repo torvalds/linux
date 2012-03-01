@@ -120,7 +120,7 @@ static void named_cluster_distribute(struct sk_buff *buf)
 		}
 	}
 
-	buf_discard(buf);
+	kfree_skb(buf);
 }
 
 /**
@@ -312,7 +312,7 @@ void tipc_named_recv(struct sk_buff *buf)
 		item++;
 	}
 	write_unlock_bh(&tipc_nametbl_lock);
-	buf_discard(buf);
+	kfree_skb(buf);
 }
 
 /**

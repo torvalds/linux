@@ -39,6 +39,8 @@
 #include "node.h"
 #include "name_distr.h"
 
+#define NODE_HTABLE_SIZE 512
+
 static void node_lost_contact(struct tipc_node *n_ptr);
 static void node_established_contact(struct tipc_node *n_ptr);
 
@@ -49,6 +51,17 @@ LIST_HEAD(tipc_node_list);
 static u32 tipc_num_nodes;
 
 static atomic_t tipc_num_links = ATOMIC_INIT(0);
+
+/*
+ * A trivial power-of-two bitmask technique is used for speed, since this
+ * operation is done for every incoming TIPC packet. The number of hash table
+ * entries has been chosen so that no hash chain exceeds 8 nodes and will
+ * usually be much smaller (typically only a single node).
+ */
+static inline unsigned int tipc_hashfn(u32 addr)
+{
+	return addr & (NODE_HTABLE_SIZE - 1);
+}
 
 /*
  * tipc_node_find - locate specified node object, if it exists
@@ -112,6 +125,7 @@ struct tipc_node *tipc_node_create(u32 addr)
 	}
 	list_add_tail(&n_ptr->list, &temp_node->list);
 	n_ptr->block_setup = WAIT_PEER_DOWN;
+	n_ptr->signature = INVALID_NODE_SIG;
 
 	tipc_num_nodes++;
 
@@ -252,60 +266,12 @@ void tipc_node_detach_link(struct tipc_node *n_ptr, struct tipc_link *l_ptr)
 	n_ptr->link_cnt--;
 }
 
-/*
- * Routing table management - five cases to handle:
- *
- * 1: A link towards a zone/cluster external node comes up.
- *    => Send a multicast message updating routing tables of all
- *    system nodes within own cluster that the new destination
- *    can be reached via this node.
- *    (node.establishedContact()=>cluster.multicastNewRoute())
- *
- * 2: A link towards a slave node comes up.
- *    => Send a multicast message updating routing tables of all
- *    system nodes within own cluster that the new destination
- *    can be reached via this node.
- *    (node.establishedContact()=>cluster.multicastNewRoute())
- *    => Send a  message to the slave node about existence
- *    of all system nodes within cluster:
- *    (node.establishedContact()=>cluster.sendLocalRoutes())
- *
- * 3: A new cluster local system node becomes available.
- *    => Send message(s) to this particular node containing
- *    information about all cluster external and slave
- *     nodes which can be reached via this node.
- *    (node.establishedContact()==>network.sendExternalRoutes())
- *    (node.establishedContact()==>network.sendSlaveRoutes())
- *    => Send messages to all directly connected slave nodes
- *    containing information about the existence of the new node
- *    (node.establishedContact()=>cluster.multicastNewRoute())
- *
- * 4: The link towards a zone/cluster external node or slave
- *    node goes down.
- *    => Send a multcast message updating routing tables of all
- *    nodes within cluster that the new destination can not any
- *    longer be reached via this node.
- *    (node.lostAllLinks()=>cluster.bcastLostRoute())
- *
- * 5: A cluster local system node becomes unavailable.
- *    => Remove all references to this node from the local
- *    routing tables. Note: This is a completely node
- *    local operation.
- *    (node.lostAllLinks()=>network.removeAsRouter())
- *    => Send messages to all directly connected slave nodes
- *    containing information about loss of the node
- *    (node.establishedContact()=>cluster.multicastLostRoute())
- *
- */
-
 static void node_established_contact(struct tipc_node *n_ptr)
 {
 	tipc_k_signal((Handler)tipc_named_node_up, n_ptr->addr);
 
-	/* Syncronize broadcast acks */
-	n_ptr->bclink.acked = tipc_bclink_get_last_sent();
-
 	if (n_ptr->bclink.supportable) {
+		n_ptr->bclink.acked = tipc_bclink_get_last_sent();
 		tipc_bclink_add_node(n_ptr->addr);
 		n_ptr->bclink.supported = 1;
 	}
@@ -339,12 +305,12 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		while (n_ptr->bclink.deferred_head) {
 			struct sk_buff *buf = n_ptr->bclink.deferred_head;
 			n_ptr->bclink.deferred_head = buf->next;
-			buf_discard(buf);
+			kfree_skb(buf);
 		}
 		n_ptr->bclink.deferred_size = 0;
 
 		if (n_ptr->bclink.defragm) {
-			buf_discard(n_ptr->bclink.defragm);
+			kfree_skb(n_ptr->bclink.defragm);
 			n_ptr->bclink.defragm = NULL;
 		}
 
@@ -440,7 +406,7 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 		return tipc_cfg_reply_error_string(TIPC_CFG_INVALID_VALUE
 						   " (network address)");
 
-	if (tipc_mode != TIPC_NET_MODE)
+	if (!tipc_own_addr)
 		return tipc_cfg_reply_none();
 
 	read_lock_bh(&tipc_net_lock);
