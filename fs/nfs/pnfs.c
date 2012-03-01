@@ -966,8 +966,7 @@ pnfs_update_layout(struct inode *ino,
 	}
 
 	/* Do we even need to bother with this? */
-	if (test_bit(NFS4CLNT_LAYOUTRECALL, &clp->cl_state) ||
-	    test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags)) {
+	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags)) {
 		dprintk("%s matches recall, use MDS\n", __func__);
 		goto out_unlock;
 	}
@@ -1032,7 +1031,6 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 	struct nfs4_layoutget_res *res = &lgp->res;
 	struct pnfs_layout_segment *lseg;
 	struct inode *ino = lo->plh_inode;
-	struct nfs_client *clp = NFS_SERVER(ino)->nfs_client;
 	int status = 0;
 
 	/* Inject layout blob into I/O device driver */
@@ -1048,8 +1046,7 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 	}
 
 	spin_lock(&ino->i_lock);
-	if (test_bit(NFS4CLNT_LAYOUTRECALL, &clp->cl_state) ||
-	    test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags)) {
+	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags)) {
 		dprintk("%s forget reply due to recall\n", __func__);
 		goto out_forget_reply;
 	}
