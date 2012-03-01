@@ -920,7 +920,7 @@ void omapdss_rfbi_display_disable(struct omap_dss_device *dssdev)
 }
 EXPORT_SYMBOL(omapdss_rfbi_display_disable);
 
-int rfbi_init_display(struct omap_dss_device *dssdev)
+static int __init rfbi_init_display(struct omap_dss_device *dssdev)
 {
 	rfbi.dssdev[dssdev->phy.rfbi.channel] = dssdev;
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
@@ -984,6 +984,12 @@ static int __init omap_rfbihw_probe(struct platform_device *pdev)
 
 		if (dssdev->type != OMAP_DISPLAY_TYPE_DBI)
 			continue;
+
+		r = rfbi_init_display(dssdev);
+		if (r) {
+			DSSERR("device %s init failed: %d\n", dssdev->name, r);
+			continue;
+		}
 
 		r = omap_dss_register_device(dssdev, &pdev->dev, i);
 		if (r)

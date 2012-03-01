@@ -725,7 +725,7 @@ static struct omap_dss_driver venc_driver = {
 };
 /* driver end */
 
-int venc_init_display(struct omap_dss_device *dssdev)
+static int __init venc_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
 
@@ -882,6 +882,12 @@ static int __init omap_venchw_probe(struct platform_device *pdev)
 
 		if (dssdev->type != OMAP_DISPLAY_TYPE_VENC)
 			continue;
+
+		r = venc_init_display(dssdev);
+		if (r) {
+			DSSERR("device %s init failed: %d\n", dssdev->name, r);
+			continue;
+		}
 
 		r = omap_dss_register_device(dssdev, &pdev->dev, i);
 		if (r)

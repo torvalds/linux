@@ -339,7 +339,7 @@ int dpi_check_timings(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(dpi_check_timings);
 
-int dpi_init_display(struct omap_dss_device *dssdev)
+static int __init dpi_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
 
@@ -375,6 +375,12 @@ static int __init omap_dpi_probe(struct platform_device *pdev)
 
 		if (dssdev->type != OMAP_DISPLAY_TYPE_DPI)
 			continue;
+
+		r = dpi_init_display(dssdev);
+		if (r) {
+			DSSERR("device %s init failed: %d\n", dssdev->name, r);
+			continue;
+		}
 
 		r = omap_dss_register_device(dssdev, &pdev->dev, i);
 		if (r)

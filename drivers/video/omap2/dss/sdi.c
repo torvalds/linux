@@ -156,7 +156,7 @@ void omapdss_sdi_display_disable(struct omap_dss_device *dssdev)
 }
 EXPORT_SYMBOL(omapdss_sdi_display_disable);
 
-int sdi_init_display(struct omap_dss_device *dssdev)
+static int __init sdi_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("SDI init\n");
 
@@ -186,6 +186,12 @@ static int __init omap_sdi_probe(struct platform_device *pdev)
 
 		if (dssdev->type != OMAP_DISPLAY_TYPE_SDI)
 			continue;
+
+		r = sdi_init_display(dssdev);
+		if (r) {
+			DSSERR("device %s init failed: %d\n", dssdev->name, r);
+			continue;
+		}
 
 		r = omap_dss_register_device(dssdev, &pdev->dev, i);
 		if (r)

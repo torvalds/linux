@@ -275,7 +275,6 @@ int dss_calc_clock_div(bool is_tft, unsigned long req_pck,
 /* SDI */
 int sdi_init_platform_driver(void) __init;
 void sdi_uninit_platform_driver(void) __exit;
-int sdi_init_display(struct omap_dss_device *display);
 
 /* DSI */
 #ifdef CONFIG_OMAP2_DSS_DSI
@@ -291,7 +290,6 @@ void dsi_runtime_put(struct platform_device *dsidev);
 
 void dsi_dump_clocks(struct seq_file *s);
 
-int dsi_init_display(struct omap_dss_device *display);
 void dsi_irq_handler(void);
 u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt);
 
@@ -366,7 +364,6 @@ static inline struct platform_device *dsi_get_dsidev_from_id(int module)
 /* DPI */
 int dpi_init_platform_driver(void) __init;
 void dpi_uninit_platform_driver(void) __exit;
-int dpi_init_display(struct omap_dss_device *dssdev);
 
 /* DISPC */
 int dispc_init_platform_driver(void) __init;
@@ -437,7 +434,6 @@ void dispc_mgr_setup(enum omap_channel channel,
 #ifdef CONFIG_OMAP2_DSS_VENC
 int venc_init_platform_driver(void) __init;
 void venc_uninit_platform_driver(void) __exit;
-int venc_init_display(struct omap_dss_device *display);
 unsigned long venc_get_pixel_clock(void);
 #else
 static inline unsigned long venc_get_pixel_clock(void)
@@ -451,13 +447,8 @@ static inline unsigned long venc_get_pixel_clock(void)
 #ifdef CONFIG_OMAP4_DSS_HDMI
 int hdmi_init_platform_driver(void) __init;
 void hdmi_uninit_platform_driver(void) __exit;
-int hdmi_init_display(struct omap_dss_device *dssdev);
 unsigned long hdmi_get_pixel_clock(void);
 #else
-static inline int hdmi_init_display(struct omap_dss_device *dssdev)
-{
-	return 0;
-}
 static inline unsigned long hdmi_get_pixel_clock(void)
 {
 	WARN("%s: HDMI not compiled in, returning pclk as 0\n", __func__);
@@ -477,7 +468,6 @@ void hdmi_panel_exit(void);
 /* RFBI */
 int rfbi_init_platform_driver(void) __init;
 void rfbi_uninit_platform_driver(void) __exit;
-int rfbi_init_display(struct omap_dss_device *display);
 
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS

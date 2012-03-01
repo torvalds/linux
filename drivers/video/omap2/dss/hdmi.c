@@ -147,7 +147,7 @@ static void hdmi_runtime_put(void)
 	WARN_ON(r < 0);
 }
 
-int hdmi_init_display(struct omap_dss_device *dssdev)
+static int __init hdmi_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
 
@@ -818,6 +818,12 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 
 		if (dssdev->type != OMAP_DISPLAY_TYPE_HDMI)
 			continue;
+
+		r = hdmi_init_display(dssdev);
+		if (r) {
+			DSSERR("device %s init failed: %d\n", dssdev->name, r);
+			continue;
+		}
 
 		r = omap_dss_register_device(dssdev, &pdev->dev, i);
 		if (r)

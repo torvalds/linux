@@ -4454,7 +4454,7 @@ int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable)
 }
 EXPORT_SYMBOL(omapdss_dsi_enable_te);
 
-int dsi_init_display(struct omap_dss_device *dssdev)
+static int __init dsi_init_display(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -4709,6 +4709,12 @@ static int __init omap_dsihw_probe(struct platform_device *dsidev)
 
 		if (dssdev->phy.dsi.module != dsi_module)
 			continue;
+
+		r = dsi_init_display(dssdev);
+		if (r) {
+			DSSERR("device %s init failed: %d\n", dssdev->name, r);
+			continue;
+		}
 
 		r = omap_dss_register_device(dssdev, &dsidev->dev, i);
 		if (r)
