@@ -26,72 +26,72 @@
 //RGA register map
 
 //General Registers
-#define rRGA_SYS_CTRL             (*(volatile uint32 *)(RGA_BASE + RGA_SYS_CTRL))
-#define rRGA_CMD_CTRL             (*(volatile uint32 *)(RGA_BASE + RGA_CMD_CTRL))
-#define rRGA_CMD_ADDR             (*(volatile uint32 *)(RGA_BASE + RGA_CMD_ADDR))
-#define rRGA_STATUS               (*(volatile uint32 *)(RGA_BASE + RGA_STATUS))
-#define rRGA_INT                  (*(volatile uint32 *)(RGA_BASE + RGA_INT))
-#define rRGA_AXI_ID               (*(volatile uint32 *)(RGA_BASE + RGA_AXI_ID))
-#define rRGA_MMU_STA_CTRL         (*(volatile uint32 *)(RGA_BASE + RGA_MMU_STA_CTRL))
-#define rRGA_MMU_STA              (*(volatile uint32 *)(RGA_BASE + RGA_MMU_STA))
+#define rRGA_SYS_CTRL             (*(volatile uint32_t *)(RGA_BASE + RGA_SYS_CTRL))
+#define rRGA_CMD_CTRL             (*(volatile uint32_t *)(RGA_BASE + RGA_CMD_CTRL))
+#define rRGA_CMD_ADDR             (*(volatile uint32_t *)(RGA_BASE + RGA_CMD_ADDR))
+#define rRGA_STATUS               (*(volatile uint32_t *)(RGA_BASE + RGA_STATUS))
+#define rRGA_INT                  (*(volatile uint32_t *)(RGA_BASE + RGA_INT))
+#define rRGA_AXI_ID               (*(volatile uint32_t *)(RGA_BASE + RGA_AXI_ID))
+#define rRGA_MMU_STA_CTRL         (*(volatile uint32_t *)(RGA_BASE + RGA_MMU_STA_CTRL))
+#define rRGA_MMU_STA              (*(volatile uint32_t *)(RGA_BASE + RGA_MMU_STA))
 
 //Command code start
-#define rRGA_MODE_CTRL            (*(volatile uint32 *)(RGA_BASE + RGA_MODE_CTRL))
+#define rRGA_MODE_CTRL            (*(volatile uint32_t *)(RGA_BASE + RGA_MODE_CTRL))
 
 //Source Image Registers
-#define rRGA_SRC_Y_MST            (*(volatile uint32 *)(RGA_BASE + RGA_SRC_Y_MST))
-#define rRGA_SRC_CB_MST           (*(volatile uint32 *)(RGA_BASE + RGA_SRC_CB_MST))
-#define rRGA_MASK_READ_MST        (*(volatile uint32 *)(RGA_BASE + RGA_MASK_READ_MST))  //repeat
-#define rRGA_SRC_CR_MST           (*(volatile uint32 *)(RGA_BASE + RGA_SRC_CR_MST))
-#define rRGA_SRC_VIR_INFO         (*(volatile uint32 *)(RGA_BASE + RGA_SRC_VIR_INFO))
-#define rRGA_SRC_ACT_INFO         (*(volatile uint32 *)(RGA_BASE + RGA_SRC_ACT_INFO))
-#define rRGA_SRC_X_PARA           (*(volatile uint32 *)(RGA_BASE + RGA_SRC_X_PARA))
-#define rRGA_SRC_Y_PARA           (*(volatile uint32 *)(RGA_BASE + RGA_SRC_Y_PARA))
-#define rRGA_SRC_TILE_XINFO       (*(volatile uint32 *)(RGA_BASE + RGA_SRC_TILE_XINFO))
-#define rRGA_SRC_TILE_YINFO       (*(volatile uint32 *)(RGA_BASE + RGA_SRC_TILE_YINFO))
-#define rRGA_SRC_TILE_H_INCR      (*(volatile uint32 *)(RGA_BASE + RGA_SRC_TILE_H_INCR))
-#define rRGA_SRC_TILE_V_INCR      (*(volatile uint32 *)(RGA_BASE + RGA_SRC_TILE_V_INCR))
-#define rRGA_SRC_TILE_OFFSETX     (*(volatile uint32 *)(RGA_BASE + RGA_SRC_TILE_OFFSETX))
-#define rRGA_SRC_TILE_OFFSETY     (*(volatile uint32 *)(RGA_BASE + RGA_SRC_TILE_OFFSETY))
-#define rRGA_SRC_BG_COLOR         (*(volatile uint32 *)(RGA_BASE + RGA_SRC_BG_COLOR))
-#define rRGA_SRC_FG_COLOR         (*(volatile uint32 *)(RGA_BASE + RGA_SRC_FG_COLOR))
-#define rRGA_LINE_DRAWING_COLOR   (*(volatile uint32 *)(RGA_BASE + RGA_LINE_DRAWING_COLOR))  //repeat
-#define rRGA_SRC_TR_COLOR0        (*(volatile uint32 *)(RGA_BASE + RGA_SRC_TR_COLOR0))
-#define rRGA_CP_GR_A              (*(volatile uint32 *)(RGA_BASE + RGA_CP_GR_A))  //repeat
-#define rRGA_SRC_TR_COLOR1        (*(volatile uint32 *)(RGA_BASE + RGA_SRC_TR_COLOR1))
-#define rRGA_CP_GR_B              (*(volatile uint32 *)(RGA_BASE + RGA_CP_GR_B))  //repeat
+#define rRGA_SRC_Y_MST            (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_Y_MST))
+#define rRGA_SRC_CB_MST           (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_CB_MST))
+#define rRGA_MASK_READ_MST        (*(volatile uint32_t *)(RGA_BASE + RGA_MASK_READ_MST))  //repeat
+#define rRGA_SRC_CR_MST           (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_CR_MST))
+#define rRGA_SRC_VIR_INFO         (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_VIR_INFO))
+#define rRGA_SRC_ACT_INFO         (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_ACT_INFO))
+#define rRGA_SRC_X_PARA           (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_X_PARA))
+#define rRGA_SRC_Y_PARA           (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_Y_PARA))
+#define rRGA_SRC_TILE_XINFO       (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_TILE_XINFO))
+#define rRGA_SRC_TILE_YINFO       (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_TILE_YINFO))
+#define rRGA_SRC_TILE_H_INCR      (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_TILE_H_INCR))
+#define rRGA_SRC_TILE_V_INCR      (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_TILE_V_INCR))
+#define rRGA_SRC_TILE_OFFSETX     (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_TILE_OFFSETX))
+#define rRGA_SRC_TILE_OFFSETY     (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_TILE_OFFSETY))
+#define rRGA_SRC_BG_COLOR         (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_BG_COLOR))
+#define rRGA_SRC_FG_COLOR         (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_FG_COLOR))
+#define rRGA_LINE_DRAWING_COLOR   (*(volatile uint32_t *)(RGA_BASE + RGA_LINE_DRAWING_COLOR))  //repeat
+#define rRGA_SRC_TR_COLOR0        (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_TR_COLOR0))
+#define rRGA_CP_GR_A              (*(volatile uint32_t *)(RGA_BASE + RGA_CP_GR_A))  //repeat
+#define rRGA_SRC_TR_COLOR1        (*(volatile uint32_t *)(RGA_BASE + RGA_SRC_TR_COLOR1))
+#define rRGA_CP_GR_B              (*(volatile uint32_t *)(RGA_BASE + RGA_CP_GR_B))  //repeat
 
-#define rRGA_LINE_DRAW            (*(volatile uint32 *)(RGA_BASE + RGA_LINE_DRAW))
-#define rRGA_PAT_START_POINT      (*(volatile uint32 *)(RGA_BASE + RGA_PAT_START_POINT))  //repeat
+#define rRGA_LINE_DRAW            (*(volatile uint32_t *)(RGA_BASE + RGA_LINE_DRAW))
+#define rRGA_PAT_START_POINT      (*(volatile uint32_t *)(RGA_BASE + RGA_PAT_START_POINT))  //repeat
 
 //Destination Image Registers
-#define rRGA_DST_MST              (*(volatile uint32 *)(RGA_BASE + RGA_DST_MST))
-#define rRGA_LUT_MST              (*(volatile uint32 *)(RGA_BASE + RGA_LUT_MST))  //repeat
-#define rRGA_PAT_MST              (*(volatile uint32 *)(RGA_BASE + RGA_PAT_MST))  //repeat
-#define rRGA_LINE_DRAWING_MST     (*(volatile uint32 *)(RGA_BASE + RGA_LINE_DRAWING_MST))  //repeat
+#define rRGA_DST_MST              (*(volatile uint32_t *)(RGA_BASE + RGA_DST_MST))
+#define rRGA_LUT_MST              (*(volatile uint32_t *)(RGA_BASE + RGA_LUT_MST))  //repeat
+#define rRGA_PAT_MST              (*(volatile uint32_t *)(RGA_BASE + RGA_PAT_MST))  //repeat
+#define rRGA_LINE_DRAWING_MST     (*(volatile uint32_t *)(RGA_BASE + RGA_LINE_DRAWING_MST))  //repeat
 
-#define rRGA_DST_VIR_INFO         (*(volatile uint32 *)(RGA_BASE + RGA_DST_VIR_INFO))
+#define rRGA_DST_VIR_INFO         (*(volatile uint32_t *)(RGA_BASE + RGA_DST_VIR_INFO))
 
-#define rRGA_DST_CTR_INFO         (*(volatile uint32 *)(RGA_BASE + RGA_DST_CTR_INFO))
-#define rRGA_LINE_DRAW_XY_INFO    (*(volatile uint32 *)(RGA_BASE + RGA_LINE_DRAW_XY_INFO))  //repeat 
+#define rRGA_DST_CTR_INFO         (*(volatile uint32_t *)(RGA_BASE + RGA_DST_CTR_INFO))
+#define rRGA_LINE_DRAW_XY_INFO    (*(volatile uint32_t *)(RGA_BASE + RGA_LINE_DRAW_XY_INFO))  //repeat 
 
 //Alpha/ROP Registers
-#define rRGA_ALPHA_CON            (*(volatile uint32 *)(RGA_BASE + RGA_ALPHA_CON))
-#define rRGA_FADING_CON           (*(volatile uint32 *)(RGA_BASE + RGA_FADING_CON))
+#define rRGA_ALPHA_CON            (*(volatile uint32_t *)(RGA_BASE + RGA_ALPHA_CON))
+#define rRGA_FADING_CON           (*(volatile uint32_t *)(RGA_BASE + RGA_FADING_CON))
 
-#define rRGA_PAT_CON              (*(volatile uint32 *)(RGA_BASE + RGA_PAT_CON))
-#define rRGA_DST_VIR_WIDTH_PIX    (*(volatile uint32 *)(RGA_BASE + RGA_DST_VIR_WIDTH_PIX))  //repeat
+#define rRGA_PAT_CON              (*(volatile uint32_t *)(RGA_BASE + RGA_PAT_CON))
+#define rRGA_DST_VIR_WIDTH_PIX    (*(volatile uint32_t *)(RGA_BASE + RGA_DST_VIR_WIDTH_PIX))  //repeat
 
-#define rRGA_ROP_CON0             (*(volatile uint32 *)(RGA_BASE + RGA_ROP_CON0))
-#define rRGA_CP_GR_G              (*(volatile uint32 *)(RGA_BASE + RGA_CP_GR_G))  //repeat
-#define rRGA_PRESCL_CB_MST        (*(volatile uint32 *)(RGA_BASE + RGA_PRESCL_CB_MST))  //repeat
+#define rRGA_ROP_CON0             (*(volatile uint32_t *)(RGA_BASE + RGA_ROP_CON0))
+#define rRGA_CP_GR_G              (*(volatile uint32_t *)(RGA_BASE + RGA_CP_GR_G))  //repeat
+#define rRGA_PRESCL_CB_MST        (*(volatile uint32_t *)(RGA_BASE + RGA_PRESCL_CB_MST))  //repeat
 
-#define rRGA_ROP_CON1             (*(volatile uint32 *)(RGA_BASE + RGA_ROP_CON1))
-#define rRGA_CP_GR_R              (*(volatile uint32 *)(RGA_BASE + RGA_CP_GR_R))  //repeat
-#define rRGA_PRESCL_CR_MST        (*(volatile uint32 *)(RGA_BASE + RGA_PRESCL_CR_MST))  //repeat
+#define rRGA_ROP_CON1             (*(volatile uint32_t *)(RGA_BASE + RGA_ROP_CON1))
+#define rRGA_CP_GR_R              (*(volatile uint32_t *)(RGA_BASE + RGA_CP_GR_R))  //repeat
+#define rRGA_PRESCL_CR_MST        (*(volatile uint32_t *)(RGA_BASE + RGA_PRESCL_CR_MST))  //repeat
 
 //MMU Register
-#define rRGA_MMU_CTRL             (*(volatile uint32 *)(RGA_BASE + RGA_MMU_CTRL))
+#define rRGA_MMU_CTRL             (*(volatile uint32_t *)(RGA_BASE + RGA_MMU_CTRL))
 
 
 
