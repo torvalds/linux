@@ -376,7 +376,7 @@ struct ohci_hcd {
 	 * OTG controllers and transceivers need software interaction;
 	 * other external transceivers should be software-transparent
 	 */
-	struct otg_transceiver	*transceiver;
+	struct usb_phy	*transceiver;
 	void (*start_hnp)(struct ohci_hcd *ohci);
 
 	/*

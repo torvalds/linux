@@ -37,7 +37,7 @@ struct ux500_glue {
 
 static int ux500_musb_init(struct musb *musb)
 {
-	musb->xceiv = otg_get_transceiver();
+	musb->xceiv = usb_get_transceiver();
 	if (!musb->xceiv) {
 		pr_err("HS USB OTG: no transceiver configured\n");
 		return -ENODEV;
@@ -48,7 +48,7 @@ static int ux500_musb_init(struct musb *musb)
 
 static int ux500_musb_exit(struct musb *musb)
 {
-	otg_put_transceiver(musb->xceiv);
+	usb_put_transceiver(musb->xceiv);
 
 	return 0;
 }
@@ -160,7 +160,7 @@ static int ux500_suspend(struct device *dev)
 	struct ux500_glue	*glue = dev_get_drvdata(dev);
 	struct musb		*musb = glue_to_musb(glue);
 
-	otg_set_suspend(musb->xceiv, 1);
+	usb_phy_set_suspend(musb->xceiv, 1);
 	clk_disable(glue->clk);
 
 	return 0;
@@ -178,7 +178,7 @@ static int ux500_resume(struct device *dev)
 		return ret;
 	}
 
-	otg_set_suspend(musb->xceiv, 0);
+	usb_phy_set_suspend(musb->xceiv, 0);
 
 	return 0;
 }

@@ -1666,7 +1666,7 @@ static int pxa_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 
 	udc = to_gadget_udc(_gadget);
 	if (udc->transceiver)
-		return otg_set_power(udc->transceiver, mA);
+		return usb_phy_set_power(udc->transceiver, mA);
 	return -EOPNOTSUPP;
 }
 
@@ -1835,7 +1835,8 @@ static int pxa27x_udc_start(struct usb_gadget_driver *driver,
 		driver->driver.name);
 
 	if (udc->transceiver) {
-		retval = otg_set_peripheral(udc->transceiver, &udc->gadget);
+		retval = otg_set_peripheral(udc->transceiver->otg,
+						&udc->gadget);
 		if (retval) {
 			dev_err(udc->dev, "can't bind to transceiver\n");
 			goto transceiver_fail;
@@ -1908,7 +1909,7 @@ static int pxa27x_udc_stop(struct usb_gadget_driver *driver)
 		 driver->driver.name);
 
 	if (udc->transceiver)
-		return otg_set_peripheral(udc->transceiver, NULL);
+		return otg_set_peripheral(udc->transceiver->otg, NULL);
 	return 0;
 }
 
@@ -2463,7 +2464,7 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 
 	udc->dev = &pdev->dev;
 	udc->mach = pdev->dev.platform_data;
-	udc->transceiver = otg_get_transceiver();
+	udc->transceiver = usb_get_transceiver();
 
 	gpio = udc->mach->gpio_pullup;
 	if (gpio_is_valid(gpio)) {
@@ -2542,7 +2543,7 @@ static int __exit pxa_udc_remove(struct platform_device *_dev)
 	if (gpio_is_valid(gpio))
 		gpio_free(gpio);
 
-	otg_put_transceiver(udc->transceiver);
+	usb_put_transceiver(udc->transceiver);
 
 	udc->transceiver = NULL;
 	platform_set_drvdata(_dev, NULL);

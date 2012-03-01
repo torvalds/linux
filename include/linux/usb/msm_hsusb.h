@@ -160,7 +160,7 @@ struct msm_otg_platform_data {
  *               detection process.
  */
 struct msm_otg {
-	struct otg_transceiver otg;
+	struct usb_phy phy;
 	struct msm_otg_platform_data *pdata;
 	int irq;
 	struct clk *clk;

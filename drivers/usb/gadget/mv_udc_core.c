@@ -1384,7 +1384,8 @@ static int mv_udc_start(struct usb_gadget_driver *driver,
 	}
 
 	if (udc->transceiver) {
-		retval = otg_set_peripheral(udc->transceiver, &udc->gadget);
+		retval = otg_set_peripheral(udc->transceiver->otg,
+					&udc->gadget);
 		if (retval) {
 			dev_err(&udc->dev->dev,
 				"unable to register peripheral to otg\n");
@@ -2181,7 +2182,7 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 
 #ifdef CONFIG_USB_OTG_UTILS
 	if (pdata->mode == MV_USB_MODE_OTG)
-		udc->transceiver = otg_get_transceiver();
+		udc->transceiver = usb_get_transceiver();
 #endif
 
 	udc->clknum = pdata->clknum;

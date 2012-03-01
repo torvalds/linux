@@ -372,7 +372,7 @@ struct musb {
 	u16			int_rx;
 	u16			int_tx;
 
-	struct otg_transceiver	*xceiv;
+	struct usb_phy		*xceiv;
 	u8			xceiv_event;
 
 	int nIrq;

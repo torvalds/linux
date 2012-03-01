@@ -131,9 +131,9 @@ static inline struct musb *dev_to_musb(struct device *dev)
 /*-------------------------------------------------------------------------*/
 
 #ifndef CONFIG_BLACKFIN
-static int musb_ulpi_read(struct otg_transceiver *otg, u32 offset)
+static int musb_ulpi_read(struct usb_phy *phy, u32 offset)
 {
-	void __iomem *addr = otg->io_priv;
+	void __iomem *addr = phy->io_priv;
 	int	i = 0;
 	u8	r;
 	u8	power;
@@ -165,10 +165,9 @@ static int musb_ulpi_read(struct otg_transceiver *otg, u32 offset)
 	return musb_readb(addr, MUSB_ULPI_REG_DATA);
 }
 
-static int musb_ulpi_write(struct otg_transceiver *otg,
-		u32 offset, u32 data)
+static int musb_ulpi_write(struct usb_phy *phy, u32 offset, u32 data)
 {
-	void __iomem *addr = otg->io_priv;
+	void __iomem *addr = phy->io_priv;
 	int	i = 0;
 	u8	r = 0;
 	u8	power;
@@ -200,7 +199,7 @@ static int musb_ulpi_write(struct otg_transceiver *otg,
 #define musb_ulpi_write		NULL
 #endif
 
-static struct otg_io_access_ops musb_ulpi_access = {
+static struct usb_phy_io_ops musb_ulpi_access = {
 	.read = musb_ulpi_read,
 	.write = musb_ulpi_write,
 };
@@ -414,6 +413,7 @@ void musb_hnp_stop(struct musb *musb)
 static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 				u8 devctl, u8 power)
 {
+	struct usb_otg *otg = musb->xceiv->otg;
 	irqreturn_t handled = IRQ_NONE;
 
 	dev_dbg(musb->controller, "<== Power=%02x, DevCtl=%02x, int_usb=0x%x\n", power, devctl,
@@ -626,7 +626,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		case OTG_STATE_B_PERIPHERAL:
 			musb_g_suspend(musb);
 			musb->is_active = is_otg_enabled(musb)
-					&& musb->xceiv->gadget->b_hnp_enable;
+					&& otg->gadget->b_hnp_enable;
 			if (musb->is_active) {
 				musb->xceiv->state = OTG_STATE_B_WAIT_ACON;
 				dev_dbg(musb->controller, "HNP: Setting timer for b_ase0_brst\n");
@@ -643,7 +643,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		case OTG_STATE_A_HOST:
 			musb->xceiv->state = OTG_STATE_A_SUSPEND;
 			musb->is_active = is_otg_enabled(musb)
-					&& musb->xceiv->host->b_hnp_enable;
+					&& otg->host->b_hnp_enable;
 			break;
 		case OTG_STATE_B_HOST:
 			/* Transition to B_PERIPHERAL, see 6.8.2.6 p 44 */
@@ -1961,11 +1961,11 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	if (is_host_enabled(musb)) {
 		struct usb_hcd	*hcd = musb_to_hcd(musb);
 
-		otg_set_host(musb->xceiv, &hcd->self);
+		otg_set_host(musb->xceiv->otg, &hcd->self);
 
 		if (is_otg_enabled(musb))
 			hcd->self.otg_port = 1;
-		musb->xceiv->host = &hcd->self;
+		musb->xceiv->otg->host = &hcd->self;
 		hcd->power_budget = 2 * (plat->power ? : 250);
 
 		/* program PHY to use external vBus if required */
@@ -1984,7 +1984,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 		struct usb_hcd	*hcd = musb_to_hcd(musb);
 
 		MUSB_HST_MODE(musb);
-		musb->xceiv->default_a = 1;
+		musb->xceiv->otg->default_a = 1;
 		musb->xceiv->state = OTG_STATE_A_IDLE;
 
 		status = usb_add_hcd(musb_to_hcd(musb), -1, 0);
@@ -1999,7 +1999,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 	} else /* peripheral is enabled */ {
 		MUSB_DEV_MODE(musb);
-		musb->xceiv->default_a = 0;
+		musb->xceiv->otg->default_a = 0;
 		musb->xceiv->state = OTG_STATE_B_IDLE;
 
 		status = musb_gadget_setup(musb);

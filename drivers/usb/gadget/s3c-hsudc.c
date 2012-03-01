@@ -145,7 +145,7 @@ struct s3c_hsudc {
 	struct usb_gadget_driver *driver;
 	struct device *dev;
 	struct s3c24xx_hsudc_platdata *pd;
-	struct otg_transceiver *transceiver;
+	struct usb_phy *transceiver;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(s3c_hsudc_supply_names)];
 	spinlock_t lock;
 	void __iomem *regs;
@@ -1166,7 +1166,8 @@ static int s3c_hsudc_start(struct usb_gadget *gadget,
 
 	/* connect to bus through transceiver */
 	if (hsudc->transceiver) {
-		ret = otg_set_peripheral(hsudc->transceiver, &hsudc->gadget);
+		ret = otg_set_peripheral(hsudc->transceiver->otg,
+					&hsudc->gadget);
 		if (ret) {
 			dev_err(hsudc->dev, "%s: can't bind to transceiver\n",
 					hsudc->gadget.name);
@@ -1214,7 +1215,7 @@ static int s3c_hsudc_stop(struct usb_gadget *gadget,
 	spin_unlock_irqrestore(&hsudc->lock, flags);
 
 	if (hsudc->transceiver)
-		(void) otg_set_peripheral(hsudc->transceiver, NULL);
+		(void) otg_set_peripheral(hsudc->transceiver->otg, NULL);
 
 	disable_irq(hsudc->irq);
 
@@ -1243,7 +1244,7 @@ static int s3c_hsudc_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 		return -ENODEV;
 
 	if (hsudc->transceiver)
-		return otg_set_power(hsudc->transceiver, mA);
+		return usb_phy_set_power(hsudc->transceiver, mA);
 
 	return -EOPNOTSUPP;
 }
@@ -1275,7 +1276,7 @@ static int __devinit s3c_hsudc_probe(struct platform_device *pdev)
 	hsudc->dev = dev;
 	hsudc->pd = pdev->dev.platform_data;
 
-	hsudc->transceiver = otg_get_transceiver();
+	hsudc->transceiver = usb_get_transceiver();
 
 	for (i = 0; i < ARRAY_SIZE(hsudc->supplies); i++)
 		hsudc->supplies[i].supply = s3c_hsudc_supply_names[i];
@@ -1377,7 +1378,7 @@ err_remap:
 	release_mem_region(res->start, resource_size(res));
 err_res:
 	if (hsudc->transceiver)
-		otg_put_transceiver(hsudc->transceiver);
+		usb_put_transceiver(hsudc->transceiver);
 
 	regulator_bulk_free(ARRAY_SIZE(hsudc->supplies), hsudc->supplies);
 err_supplies:
