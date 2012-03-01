@@ -1046,6 +1046,51 @@ struct nfs_fh *nfs_alloc_fhandle(void)
 }
 
 /**
+ * _nfs_display_fhandle - display an NFS file handle on the console
+ *
+ * @fh: file handle to display
+ * @caption: display caption
+ *
+ * For debugging only.
+ */
+#ifdef RPC_DEBUG
+void _nfs_display_fhandle(const struct nfs_fh *fh, const char *caption)
+{
+	unsigned short i;
+
+	if (fh->size == 0 || fh == NULL) {
+		printk(KERN_DEFAULT "%s at %p is empty\n", caption, fh);
+		return;
+	}
+
+	printk(KERN_DEFAULT "%s at %p is %u bytes:\n", caption, fh, fh->size);
+	for (i = 0; i < fh->size; i += 16) {
+		__be32 *pos = (__be32 *)&fh->data[i];
+
+		switch ((fh->size - i - 1) >> 2) {
+		case 0:
+			printk(KERN_DEFAULT " %08x\n",
+				be32_to_cpup(pos));
+			break;
+		case 1:
+			printk(KERN_DEFAULT " %08x %08x\n",
+				be32_to_cpup(pos), be32_to_cpup(pos + 1));
+			break;
+		case 2:
+			printk(KERN_DEFAULT " %08x %08x %08x\n",
+				be32_to_cpup(pos), be32_to_cpup(pos + 1),
+				be32_to_cpup(pos + 2));
+			break;
+		default:
+			printk(KERN_DEFAULT " %08x %08x %08x %08x\n",
+				be32_to_cpup(pos), be32_to_cpup(pos + 1),
+				be32_to_cpup(pos + 2), be32_to_cpup(pos + 3));
+		}
+	}
+}
+#endif
+
+/**
  * nfs_inode_attrs_need_update - check if the inode attributes need updating
  * @inode - pointer to inode
  * @fattr - attributes
