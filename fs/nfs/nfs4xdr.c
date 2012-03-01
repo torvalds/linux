@@ -1637,13 +1637,14 @@ static void encode_rename(struct xdr_stream *xdr, const struct qstr *oldname, co
 	hdr->replen += decode_rename_maxsz;
 }
 
-static void encode_renew(struct xdr_stream *xdr, const struct nfs_client *client_stateid, struct compound_hdr *hdr)
+static void encode_renew(struct xdr_stream *xdr, clientid4 clid,
+			 struct compound_hdr *hdr)
 {
 	__be32 *p;
 
 	p = reserve_space(xdr, 12);
 	*p++ = cpu_to_be32(OP_RENEW);
-	xdr_encode_hyper(p, client_stateid->cl_clientid);
+	xdr_encode_hyper(p, clid);
 	hdr->nops++;
 	hdr->replen += decode_renew_maxsz;
 }
@@ -2692,7 +2693,7 @@ static void nfs4_xdr_enc_renew(struct rpc_rqst *req, struct xdr_stream *xdr,
 	};
 
 	encode_compound_hdr(xdr, req, &hdr);
-	encode_renew(xdr, clp, &hdr);
+	encode_renew(xdr, clp->cl_clientid, &hdr);
 	encode_nops(&hdr);
 }
 
