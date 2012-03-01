@@ -619,6 +619,7 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_mgmt *mgmt,
 				    u8 *prep_elem, u32 metric)
 {
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_path *mpath;
 	u8 *target_addr, *orig_addr;
 	u8 ttl, hopcount, flags;
@@ -630,6 +631,9 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 	orig_addr = PREP_IE_ORIG_ADDR(prep_elem);
 	if (compare_ether_addr(orig_addr, sdata->vif.addr) == 0)
 		/* destination, no forwarding required */
+		return;
+
+	if (!ifmsh->mshcfg.dot11MeshForwarding)
 		return;
 
 	ttl = PREP_IE_TTL(prep_elem);
@@ -709,12 +713,15 @@ static void hwmp_perr_frame_process(struct ieee80211_sub_if_data *sdata,
 			mpath->flags &= ~MESH_PATH_ACTIVE;
 			mpath->sn = target_sn;
 			spin_unlock_bh(&mpath->state_lock);
+			if (!ifmsh->mshcfg.dot11MeshForwarding)
+				goto endperr;
 			mesh_path_error_tx(ttl, target_addr, cpu_to_le32(target_sn),
 					   cpu_to_le16(target_rcode),
 					   broadcast_addr, sdata);
 		} else
 			spin_unlock_bh(&mpath->state_lock);
 	}
+endperr:
 	rcu_read_unlock();
 }
 
@@ -771,7 +778,7 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 		mesh_queue_preq(mpath, PREQ_Q_F_START | PREQ_Q_F_REFRESH);
 	}
 
-	if (mpath->sn < orig_sn) {
+	if (mpath->sn < orig_sn && ifmsh->mshcfg.dot11MeshForwarding) {
 		mesh_path_sel_frame_tx(MPATH_RANN, flags, orig_addr,
 				       cpu_to_le32(orig_sn),
 				       0, NULL, 0, broadcast_addr,
