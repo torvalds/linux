@@ -1926,8 +1926,7 @@ static int pin_code_reply(struct sock *sk, u16 index, void *data, u16 len)
 		goto failed;
 	}
 
-	cmd = mgmt_pending_add(sk, MGMT_OP_PIN_CODE_REPLY, hdev, data,
-									len);
+	cmd = mgmt_pending_add(sk, MGMT_OP_PIN_CODE_REPLY, hdev, data, len);
 	if (!cmd) {
 		err = -ENOMEM;
 		goto failed;

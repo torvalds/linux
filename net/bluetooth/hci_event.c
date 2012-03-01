@@ -1344,7 +1344,8 @@ static int hci_outgoing_auth_needed(struct hci_dev *hdev,
 	return 1;
 }
 
-static inline int hci_resolve_name(struct hci_dev *hdev, struct inquiry_entry *e)
+static inline int hci_resolve_name(struct hci_dev *hdev,
+						struct inquiry_entry *e)
 {
 	struct hci_cp_remote_name_req cp;
 
