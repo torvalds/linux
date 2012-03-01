@@ -116,7 +116,7 @@ static const u16 mgmt_events[] = {
 #define INQUIRY_LEN_BREDR		0x08	/* TGAP(100) */
 #define INQUIRY_LEN_BREDR_LE		0x04	/* TGAP(100)/2 */
 
-#define SERVICE_CACHE_TIMEOUT (5 * 1000)
+#define CACHE_TIMEOUT	msecs_to_jiffies(2 * 1000)
 
 #define hdev_is_powered(hdev) (test_bit(HCI_UP, &hdev->flags) && \
 				!test_bit(HCI_AUTO_OFF, &hdev->dev_flags))
@@ -1298,8 +1298,7 @@ static bool enable_service_cache(struct hci_dev *hdev)
 		return false;
 
 	if (!test_and_set_bit(HCI_SERVICE_CACHE, &hdev->dev_flags)) {
-		schedule_delayed_work(&hdev->service_cache,
-				msecs_to_jiffies(SERVICE_CACHE_TIMEOUT));
+		schedule_delayed_work(&hdev->service_cache, CACHE_TIMEOUT);
 		return true;
 	}
 
