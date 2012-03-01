@@ -248,11 +248,7 @@ static int ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 	struct usb_hcd *hcd = ehci_to_hcd(ehci);
 	struct fsl_usb2_platform_data *pdata;
 	void __iomem *non_ehci = hcd->regs;
-	u32 temp, chip, rev, svr;
-
-	svr = mfspr(SPRN_SVR);
-	chip = svr >> 16;
-	rev = (svr >> 4) & 0xf;
+	u32 temp;
 
 	pdata = hcd->self.controller->platform_data;
 
@@ -278,6 +274,12 @@ static int ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 		ehci_fsl_setup_phy(ehci, pdata->phy_mode, 0);
 
 	if (pdata->operating_mode == FSL_USB2_MPH_HOST) {
+		unsigned int chip, rev, svr;
+
+		svr = mfspr(SPRN_SVR);
+		chip = svr >> 16;
+		rev = (svr >> 4) & 0xf;
+
 		/* Deal with USB Erratum #14 on MPC834x Rev 1.0 & 1.1 chips */
 		if ((rev == 1) && (chip >= 0x8050) && (chip <= 0x8055))
 			ehci->has_fsl_port_bug = 1;
@@ -299,15 +301,9 @@ static int ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 		out_be32(non_ehci + FSL_SOC_USB_SICTRL, 0x00000001);
 	}
 
-	/* There is no CTRL_PHY_CLK_VALID bit on some platforms, e.g. P1022 */
-#define SVR_P1022_N_ID 0x80E6
-#define SVR_P1022_S_ID 0x80EE
-	if (chip != SVR_P1022_N_ID && chip != SVR_P1022_S_ID) {
-		if (!(in_be32(non_ehci + FSL_SOC_USB_CTRL) &
-					CTRL_PHY_CLK_VALID)) {
-			printk(KERN_WARNING "fsl-ehci: USB PHY clock invalid\n");
-			return -ENODEV;
-		}
+	if (!(in_be32(non_ehci + FSL_SOC_USB_CTRL) & CTRL_PHY_CLK_VALID)) {
+		printk(KERN_WARNING "fsl-ehci: USB PHY clock invalid\n");
+		return -ENODEV;
 	}
 	return 0;
 }
