@@ -413,7 +413,6 @@ static void inquiry_cache_flush(struct hci_dev *hdev)
 
 	INIT_LIST_HEAD(&cache->unknown);
 	INIT_LIST_HEAD(&cache->resolve);
-	cache->state = DISCOVERY_STOPPED;
 }
 
 struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr)
