@@ -272,15 +272,34 @@ label##_hv:								\
 	_MASKABLE_EXCEPTION_PSERIES(vec, label,				\
 				    EXC_HV, SOFTEN_TEST_HV)
 
+/*
+ * Our exception common code can be passed various "additions"
+ * to specify the behaviour of interrupts, whether to kick the
+ * runlatch, etc...
+ */
+
+/* Exception addition: Hard disable interrupts */
+#ifdef CONFIG_TRACE_IRQFLAGS
+#define DISABLE_INTS				\
+	lbz	r10,PACASOFTIRQEN(r13);		\
+	li	r11,0;				\
+	cmpwi	cr0,r10,0;			\
+	stb	r11,PACAHARDIRQEN(r13);		\
+	beq	44f;				\
+	stb	r11,PACASOFTIRQEN(r13);		\
+	TRACE_DISABLE_INTS;			\
+44:
+#else
 #define DISABLE_INTS				\
 	li	r11,0;				\
 	stb	r11,PACASOFTIRQEN(r13);		\
-	stb	r11,PACAHARDIRQEN(r13);		\
-	TRACE_DISABLE_INTS
+	stb	r11,PACAHARDIRQEN(r13)
+#endif /* CONFIG_TRACE_IRQFLAGS */
 
+/* Exception addition: Keep interrupt state */
 #define ENABLE_INTS				\
-	ld	r12,_MSR(r1);			\
 	mfmsr	r11;				\
+	ld	r12,_MSR(r1);			\
 	rlwimi	r11,r12,0,MSR_EE;		\
 	mtmsrd	r11,1
 
