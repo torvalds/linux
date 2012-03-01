@@ -2231,6 +2231,15 @@ F:	Documentation/filesystems/quota.txt
 F:	fs/quota/
 F:	include/linux/quota*.h
 
+DISPLAYLINK USB 2.0 FRAMEBUFFER DRIVER (UDLFB)
+M:	Bernie Thompson <bernie@plugable.com>
+L:	linux-fbdev@vger.kernel.org
+S:	Maintained
+W:	http://plugable.com/category/projects/udlfb/
+F:	drivers/video/udlfb.c
+F:	include/video/udlfb.h
+F:	Documentation/fb/udlfb.txt
+
 DISTRIBUTED LOCK MANAGER (DLM)
 M:	Christine Caulfield <ccaulfie@redhat.com>
 M:	David Teigland <teigland@redhat.com>
