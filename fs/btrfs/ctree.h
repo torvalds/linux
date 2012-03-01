@@ -2968,6 +2968,16 @@ void btrfs_printk(struct btrfs_fs_info *fs_info, const char *fmt, ...);
 void __btrfs_std_error(struct btrfs_fs_info *fs_info, const char *function,
 		     unsigned int line, int errno, const char *fmt, ...);
 
+void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root, const char *function,
+			       unsigned int line, int errno);
+
+#define btrfs_abort_transaction(trans, root, errno)		\
+do {								\
+	__btrfs_abort_transaction(trans, root, __func__,	\
+				  __LINE__, errno);		\
+} while (0)
+
 #define btrfs_std_error(fs_info, errno)				\
 do {								\
 	if ((errno))						\
@@ -3024,7 +3034,7 @@ void btrfs_reloc_cow_block(struct btrfs_trans_handle *trans,
 void btrfs_reloc_pre_snapshot(struct btrfs_trans_handle *trans,
 			      struct btrfs_pending_snapshot *pending,
 			      u64 *bytes_to_reserve);
-void btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
+int btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
 			      struct btrfs_pending_snapshot *pending);
 
 /* scrub.c */
@@ -3034,6 +3044,7 @@ void btrfs_scrub_pause(struct btrfs_root *root);
 void btrfs_scrub_pause_super(struct btrfs_root *root);
 void btrfs_scrub_continue(struct btrfs_root *root);
 void btrfs_scrub_continue_super(struct btrfs_root *root);
+int __btrfs_scrub_cancel(struct btrfs_fs_info *info);
 int btrfs_scrub_cancel(struct btrfs_root *root);
 int btrfs_scrub_cancel_dev(struct btrfs_root *root, struct btrfs_device *dev);
 int btrfs_scrub_cancel_devid(struct btrfs_root *root, u64 devid);

@@ -61,7 +61,6 @@ static int btrfs_destroy_marked_extents(struct btrfs_root *root,
 					int mark);
 static int btrfs_destroy_pinned_extent(struct btrfs_root *root,
 				       struct extent_io_tree *pinned_extents);
-static int btrfs_cleanup_transaction(struct btrfs_root *root);
 
 /*
  * end_io_wq structs are used to do processing in task context when an IO is
@@ -2896,6 +2895,19 @@ int write_ctree_super(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+/* Kill all outstanding I/O */
+void btrfs_abort_devices(struct btrfs_root *root)
+{
+	struct list_head *head;
+	struct btrfs_device *dev;
+	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
+	head = &root->fs_info->fs_devices->devices;
+	list_for_each_entry_rcu(dev, head, dev_list) {
+		blk_abort_queue(dev->bdev->bd_disk->queue);
+	}
+	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
+}
+
 void btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 {
 	spin_lock(&fs_info->fs_roots_radix_lock);
@@ -3536,12 +3548,42 @@ static int btrfs_destroy_pinned_extent(struct btrfs_root *root,
 	return 0;
 }
 
-static int btrfs_cleanup_transaction(struct btrfs_root *root)
+void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
+				   struct btrfs_root *root)
+{
+	btrfs_destroy_delayed_refs(cur_trans, root);
+	btrfs_block_rsv_release(root, &root->fs_info->trans_block_rsv,
+				cur_trans->dirty_pages.dirty_bytes);
+
+	/* FIXME: cleanup wait for commit */
+	cur_trans->in_commit = 1;
+	cur_trans->blocked = 1;
+	if (waitqueue_active(&root->fs_info->transaction_blocked_wait))
+		wake_up(&root->fs_info->transaction_blocked_wait);
+
+	cur_trans->blocked = 0;
+	if (waitqueue_active(&root->fs_info->transaction_wait))
+		wake_up(&root->fs_info->transaction_wait);
+
+	cur_trans->commit_done = 1;
+	if (waitqueue_active(&cur_trans->commit_wait))
+		wake_up(&cur_trans->commit_wait);
+
+	btrfs_destroy_pending_snapshots(cur_trans);
+
+	btrfs_destroy_marked_extents(root, &cur_trans->dirty_pages,
+				     EXTENT_DIRTY);
+
+	/*
+	memset(cur_trans, 0, sizeof(*cur_trans));
+	kmem_cache_free(btrfs_transaction_cachep, cur_trans);
+	*/
+}
+
+int btrfs_cleanup_transaction(struct btrfs_root *root)
 {
 	struct btrfs_transaction *t;
 	LIST_HEAD(list);
-
-	WARN_ON(1);
 
 	mutex_lock(&root->fs_info->transaction_kthread_mutex);
 

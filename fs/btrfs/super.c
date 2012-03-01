@@ -119,6 +119,8 @@ static void btrfs_handle_error(struct btrfs_fs_info *fs_info)
 	if (fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
 		sb->s_flags |= MS_RDONLY;
 		printk(KERN_INFO "btrfs is forced readonly\n");
+		__btrfs_scrub_cancel(fs_info);
+//		WARN_ON(1);
 	}
 }
 
@@ -197,6 +199,34 @@ void btrfs_printk(struct btrfs_fs_info *fs_info, const char *fmt, ...)
 	printk("%sBTRFS %s (device %s): %pV", lvl, type, sb->s_id, &vaf);
 }
 
+/*
+ * We only mark the transaction aborted and then set the file system read-only.
+ * This will prevent new transactions from starting or trying to join this
+ * one.
+ *
+ * This means that error recovery at the call site is limited to freeing
+ * any local memory allocations and passing the error code up without
+ * further cleanup. The transaction should complete as it normally would
+ * in the call path but will return -EIO.
+ *
+ * We'll complete the cleanup in btrfs_end_transaction and
+ * btrfs_commit_transaction.
+ */
+void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root, const char *function,
+			       unsigned int line, int errno)
+{
+	WARN_ON_ONCE(1);
+	trans->aborted = errno;
+	/* Nothing used. The other threads that have joined this
+	 * transaction may be able to continue. */
+	if (!trans->blocks_used) {
+		btrfs_printk(root->fs_info, "Aborting unused transaction.\n");
+		return;
+	}
+	trans->transaction->aborted = errno;
+	__btrfs_std_error(root->fs_info, function, line, errno, NULL);
+}
 /*
  * __btrfs_panic decodes unexpected, fatal errors from the caller,
  * issues an alert, and either panics or BUGs, depending on mount options.
@@ -295,6 +325,7 @@ static match_table_t tokens = {
 /*
  * Regular mount options parser.  Everything that is needed only when
  * reading in a new superblock is parsed here.
+ * XXX JDM: This needs to be cleaned up for remount.
  */
 int btrfs_parse_options(struct btrfs_root *root, char *options)
 {
@@ -1096,11 +1127,20 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
 	struct btrfs_root *root = fs_info->tree_root;
+	unsigned old_flags = sb->s_flags;
+	unsigned long old_opts = fs_info->mount_opt;
+	unsigned long old_compress_type = fs_info->compress_type;
+	u64 old_max_inline = fs_info->max_inline;
+	u64 old_alloc_start = fs_info->alloc_start;
+	int old_thread_pool_size = fs_info->thread_pool_size;
+	unsigned int old_metadata_ratio = fs_info->metadata_ratio;
 	int ret;
 
 	ret = btrfs_parse_options(root, data);
-	if (ret)
-		return -EINVAL;
+	if (ret) {
+		ret = -EINVAL;
+		goto restore;
+	}
 
 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
 		return 0;
@@ -1108,26 +1148,44 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	if (*flags & MS_RDONLY) {
 		sb->s_flags |= MS_RDONLY;
 
-		ret =  btrfs_commit_super(root);
-		WARN_ON(ret);
+		ret = btrfs_commit_super(root);
+		if (ret)
+			goto restore;
 	} else {
 		if (fs_info->fs_devices->rw_devices == 0)
-			return -EACCES;
+			ret = -EACCES;
+			goto restore;
 
 		if (btrfs_super_log_root(fs_info->super_copy) != 0)
-			return -EINVAL;
+			ret = -EINVAL;
+			goto restore;
 
 		ret = btrfs_cleanup_fs_roots(fs_info);
-		WARN_ON(ret);
+		if (ret)
+			goto restore;
 
 		/* recover relocation */
 		ret = btrfs_recover_relocation(root);
-		WARN_ON(ret);
+		if (ret)
+			goto restore;
 
 		sb->s_flags &= ~MS_RDONLY;
 	}
 
 	return 0;
+
+restore:
+	/* We've hit an error - don't reset MS_RDONLY */
+	if (sb->s_flags & MS_RDONLY)
+		old_flags |= MS_RDONLY;
+	sb->s_flags = old_flags;
+	fs_info->mount_opt = old_opts;
+	fs_info->compress_type = old_compress_type;
+	fs_info->max_inline = old_max_inline;
+	fs_info->alloc_start = old_alloc_start;
+	fs_info->thread_pool_size = old_thread_pool_size;
+	fs_info->metadata_ratio = old_metadata_ratio;
+	return ret;
 }
 
 /* Used to sort the devices by max_avail(descending sort) */

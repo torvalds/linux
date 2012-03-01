@@ -1680,9 +1680,8 @@ void btrfs_scrub_continue_super(struct btrfs_root *root)
 	up_write(&root->fs_info->scrub_super_lock);
 }
 
-int btrfs_scrub_cancel(struct btrfs_root *root)
+int __btrfs_scrub_cancel(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 
 	mutex_lock(&fs_info->scrub_lock);
 	if (!atomic_read(&fs_info->scrubs_running)) {
@@ -1701,6 +1700,11 @@ int btrfs_scrub_cancel(struct btrfs_root *root)
 	mutex_unlock(&fs_info->scrub_lock);
 
 	return 0;
+}
+
+int btrfs_scrub_cancel(struct btrfs_root *root)
+{
+	return __btrfs_scrub_cancel(root->fs_info);
 }
 
 int btrfs_scrub_cancel_dev(struct btrfs_root *root, struct btrfs_device *dev)

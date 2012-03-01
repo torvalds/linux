@@ -4410,7 +4410,7 @@ void btrfs_reloc_pre_snapshot(struct btrfs_trans_handle *trans,
  * called after snapshot is created. migrate block reservation
  * and create reloc root for the newly created snapshot
  */
-void btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
+int btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
 			       struct btrfs_pending_snapshot *pending)
 {
 	struct btrfs_root *root = pending->root;
@@ -4420,7 +4420,7 @@ void btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
 	int ret;
 
 	if (!root->reloc_root)
-		return;
+		return 0;
 
 	rc = root->fs_info->reloc_ctl;
 	rc->merging_rsv_size += rc->nodes_relocated;
@@ -4429,19 +4429,21 @@ void btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
 		ret = btrfs_block_rsv_migrate(&pending->block_rsv,
 					      rc->block_rsv,
 					      rc->nodes_relocated);
-		BUG_ON(ret);
+		if (ret)
+			return ret;
 	}
 
 	new_root = pending->snap;
 	reloc_root = create_reloc_root(trans, root->reloc_root,
 				       new_root->root_key.objectid);
+	if (IS_ERR(reloc_root))
+		return PTR_ERR(reloc_root);
 
 	ret = __add_reloc_root(reloc_root);
 	BUG_ON(ret < 0);
 	new_root->reloc_root = reloc_root;
 
-	if (rc->create_reloc_tree) {
+	if (rc->create_reloc_tree)
 		ret = clone_backref_node(trans, rc, root, reloc_root);
-		BUG_ON(ret);
-	}
+	return ret;
 }
