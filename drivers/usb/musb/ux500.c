@@ -58,7 +58,7 @@ static const struct musb_platform_ops ux500_ops = {
 	.exit		= ux500_musb_exit,
 };
 
-static int __init ux500_probe(struct platform_device *pdev)
+static int __devinit ux500_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;
@@ -141,7 +141,7 @@ err0:
 	return ret;
 }
 
-static int __exit ux500_remove(struct platform_device *pdev)
+static int __devexit ux500_remove(struct platform_device *pdev)
 {
 	struct ux500_glue	*glue = platform_get_drvdata(pdev);
 
@@ -194,7 +194,8 @@ static const struct dev_pm_ops ux500_pm_ops = {
 #endif
 
 static struct platform_driver ux500_driver = {
-	.remove		= __exit_p(ux500_remove),
+	.probe		= ux500_probe,
+	.remove		= __devexit_p(ux500_remove),
 	.driver		= {
 		.name	= "musb-ux500",
 		.pm	= DEV_PM_OPS,
@@ -207,9 +208,9 @@ MODULE_LICENSE("GPL v2");
 
 static int __init ux500_init(void)
 {
-	return platform_driver_probe(&ux500_driver, ux500_probe);
+	return platform_driver_register(&ux500_driver);
 }
-subsys_initcall(ux500_init);
+module_init(ux500_init);
 
 static void __exit ux500_exit(void)
 {

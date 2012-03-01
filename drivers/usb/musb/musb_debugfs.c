@@ -235,29 +235,29 @@ static const struct file_operations musb_test_mode_fops = {
 	.release		= single_release,
 };
 
-int __init musb_init_debugfs(struct musb *musb)
+int __devinit musb_init_debugfs(struct musb *musb)
 {
 	struct dentry		*root;
 	struct dentry		*file;
 	int			ret;
 
 	root = debugfs_create_dir("musb", NULL);
-	if (IS_ERR(root)) {
-		ret = PTR_ERR(root);
+	if (!root) {
+		ret = -ENOMEM;
 		goto err0;
 	}
 
 	file = debugfs_create_file("regdump", S_IRUGO, root, musb,
 			&musb_regdump_fops);
-	if (IS_ERR(file)) {
-		ret = PTR_ERR(file);
+	if (!file) {
+		ret = -ENOMEM;
 		goto err1;
 	}
 
 	file = debugfs_create_file("testmode", S_IRUGO | S_IWUSR,
 			root, musb, &musb_test_mode_fops);
-	if (IS_ERR(file)) {
-		ret = PTR_ERR(file);
+	if (!file) {
+		ret = -ENOMEM;
 		goto err1;
 	}
 

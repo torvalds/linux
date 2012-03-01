@@ -1165,7 +1165,7 @@ static const struct musb_platform_ops tusb_ops = {
 
 static u64 tusb_dmamask = DMA_BIT_MASK(32);
 
-static int __init tusb_probe(struct platform_device *pdev)
+static int __devinit tusb_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;
@@ -1227,7 +1227,7 @@ err0:
 	return ret;
 }
 
-static int __exit tusb_remove(struct platform_device *pdev)
+static int __devexit tusb_remove(struct platform_device *pdev)
 {
 	struct tusb6010_glue		*glue = platform_get_drvdata(pdev);
 
@@ -1239,7 +1239,8 @@ static int __exit tusb_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver tusb_driver = {
-	.remove		= __exit_p(tusb_remove),
+	.probe		= tusb_probe,
+	.remove		= __devexit_p(tusb_remove),
 	.driver		= {
 		.name	= "musb-tusb",
 	},
@@ -1251,9 +1252,9 @@ MODULE_LICENSE("GPL v2");
 
 static int __init tusb_init(void)
 {
-	return platform_driver_probe(&tusb_driver, tusb_probe);
+	return platform_driver_register(&tusb_driver);
 }
-subsys_initcall(tusb_init);
+module_init(tusb_init);
 
 static void __exit tusb_exit(void)
 {

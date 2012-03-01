@@ -511,7 +511,7 @@ static const struct musb_platform_ops davinci_ops = {
 
 static u64 davinci_dmamask = DMA_BIT_MASK(32);
 
-static int __init davinci_probe(struct platform_device *pdev)
+static int __devinit davinci_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;
@@ -594,7 +594,7 @@ err0:
 	return ret;
 }
 
-static int __exit davinci_remove(struct platform_device *pdev)
+static int __devexit davinci_remove(struct platform_device *pdev)
 {
 	struct davinci_glue		*glue = platform_get_drvdata(pdev);
 
@@ -608,7 +608,8 @@ static int __exit davinci_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver davinci_driver = {
-	.remove		= __exit_p(davinci_remove),
+	.probe		= davinci_probe,
+	.remove		= __devexit_p(davinci_remove),
 	.driver		= {
 		.name	= "musb-davinci",
 	},
@@ -620,9 +621,9 @@ MODULE_LICENSE("GPL v2");
 
 static int __init davinci_init(void)
 {
-	return platform_driver_probe(&davinci_driver, davinci_probe);
+	return platform_driver_register(&davinci_driver);
 }
-subsys_initcall(davinci_init);
+module_init(davinci_init);
 
 static void __exit davinci_exit(void)
 {

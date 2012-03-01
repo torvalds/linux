@@ -408,7 +408,7 @@ static const struct musb_platform_ops omap2430_ops = {
 
 static u64 omap2430_dmamask = DMA_BIT_MASK(32);
 
-static int __init omap2430_probe(struct platform_device *pdev)
+static int __devinit omap2430_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;
@@ -471,7 +471,7 @@ err0:
 	return ret;
 }
 
-static int __exit omap2430_remove(struct platform_device *pdev)
+static int __devexit omap2430_remove(struct platform_device *pdev)
 {
 	struct omap2430_glue		*glue = platform_get_drvdata(pdev);
 
@@ -524,7 +524,8 @@ static struct dev_pm_ops omap2430_pm_ops = {
 #endif
 
 static struct platform_driver omap2430_driver = {
-	.remove		= __exit_p(omap2430_remove),
+	.probe		= omap2430_probe,
+	.remove		= __devexit_p(omap2430_remove),
 	.driver		= {
 		.name	= "musb-omap2430",
 		.pm	= DEV_PM_OPS,
@@ -537,9 +538,9 @@ MODULE_LICENSE("GPL v2");
 
 static int __init omap2430_init(void)
 {
-	return platform_driver_probe(&omap2430_driver, omap2430_probe);
+	return platform_driver_register(&omap2430_driver);
 }
-subsys_initcall(omap2430_init);
+module_init(omap2430_init);
 
 static void __exit omap2430_exit(void)
 {
