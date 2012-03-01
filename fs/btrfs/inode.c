@@ -597,7 +597,7 @@ retry:
 
 			lock_extent(io_tree, async_extent->start,
 					 async_extent->start +
-					 async_extent->ram_size - 1, GFP_NOFS);
+					 async_extent->ram_size - 1);
 
 			/* allocate blocks */
 			ret = cow_file_range(inode, async_cow->locked_page,
@@ -625,8 +625,7 @@ retry:
 		}
 
 		lock_extent(io_tree, async_extent->start,
-			    async_extent->start + async_extent->ram_size - 1,
-			    GFP_NOFS);
+			    async_extent->start + async_extent->ram_size - 1);
 
 		trans = btrfs_join_transaction(root);
 		BUG_ON(IS_ERR(trans));
@@ -649,7 +648,7 @@ retry:
 			async_extent->pages = NULL;
 			unlock_extent(io_tree, async_extent->start,
 				      async_extent->start +
-				      async_extent->ram_size - 1, GFP_NOFS);
+				      async_extent->ram_size - 1);
 			goto retry;
 		}
 
@@ -1574,7 +1573,7 @@ again:
 	page_end = page_offset(page) + PAGE_CACHE_SIZE - 1;
 
 	lock_extent_bits(&BTRFS_I(inode)->io_tree, page_start, page_end, 0,
-			 &cached_state, GFP_NOFS);
+			 &cached_state);
 
 	/* already ordered? We're done */
 	if (PagePrivate2(page))
@@ -1765,7 +1764,7 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 
 	lock_extent_bits(io_tree, ordered_extent->file_offset,
 			 ordered_extent->file_offset + ordered_extent->len - 1,
-			 0, &cached_state, GFP_NOFS);
+			 0, &cached_state);
 
 	if (nolock)
 		trans = btrfs_join_transaction_nolock(root);
@@ -3285,8 +3284,7 @@ again:
 	}
 	wait_on_page_writeback(page);
 
-	lock_extent_bits(io_tree, page_start, page_end, 0, &cached_state,
-			 GFP_NOFS);
+	lock_extent_bits(io_tree, page_start, page_end, 0, &cached_state);
 	set_page_extent_mapped(page);
 
 	ordered = btrfs_lookup_ordered_extent(inode, page_start);
@@ -3362,7 +3360,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t oldsize, loff_t size)
 		btrfs_wait_ordered_range(inode, hole_start,
 					 block_end - hole_start);
 		lock_extent_bits(io_tree, hole_start, block_end - 1, 0,
-				 &cached_state, GFP_NOFS);
+				 &cached_state);
 		ordered = btrfs_lookup_ordered_extent(inode, hole_start);
 		if (!ordered)
 			break;
@@ -5604,7 +5602,7 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 		free_extent_map(em);
 		/* DIO will do one hole at a time, so just unlock a sector */
 		unlock_extent(&BTRFS_I(inode)->io_tree, start,
-			      start + root->sectorsize - 1, GFP_NOFS);
+			      start + root->sectorsize - 1);
 		return 0;
 	}
 
@@ -5745,7 +5743,7 @@ static void btrfs_endio_direct_read(struct bio *bio, int err)
 	} while (bvec <= bvec_end);
 
 	unlock_extent(&BTRFS_I(inode)->io_tree, dip->logical_offset,
-		      dip->logical_offset + dip->bytes - 1, GFP_NOFS);
+		      dip->logical_offset + dip->bytes - 1);
 	bio->bi_private = dip->private;
 
 	kfree(dip->csums);
@@ -5796,7 +5794,7 @@ again:
 
 	lock_extent_bits(&BTRFS_I(inode)->io_tree, ordered->file_offset,
 			 ordered->file_offset + ordered->len - 1, 0,
-			 &cached_state, GFP_NOFS);
+			 &cached_state);
 
 	if (test_bit(BTRFS_ORDERED_PREALLOC, &ordered->flags)) {
 		ret = btrfs_mark_extent_written(trans, inode,
@@ -6211,7 +6209,7 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 
 	while (1) {
 		lock_extent_bits(&BTRFS_I(inode)->io_tree, lockstart, lockend,
-				 0, &cached_state, GFP_NOFS);
+				 0, &cached_state);
 		/*
 		 * We're concerned with the entire range that we're going to be
 		 * doing DIO to, so we need to make sure theres no ordered
@@ -6365,8 +6363,7 @@ static void btrfs_invalidatepage(struct page *page, unsigned long offset)
 		btrfs_releasepage(page, GFP_NOFS);
 		return;
 	}
-	lock_extent_bits(tree, page_start, page_end, 0, &cached_state,
-			 GFP_NOFS);
+	lock_extent_bits(tree, page_start, page_end, 0, &cached_state);
 	ordered = btrfs_lookup_ordered_extent(page->mapping->host,
 					   page_offset(page));
 	if (ordered) {
@@ -6388,8 +6385,7 @@ static void btrfs_invalidatepage(struct page *page, unsigned long offset)
 		}
 		btrfs_put_ordered_extent(ordered);
 		cached_state = NULL;
-		lock_extent_bits(tree, page_start, page_end, 0, &cached_state,
-				 GFP_NOFS);
+		lock_extent_bits(tree, page_start, page_end, 0, &cached_state);
 	}
 	clear_extent_bit(tree, page_start, page_end,
 		 EXTENT_LOCKED | EXTENT_DIRTY | EXTENT_DELALLOC |
@@ -6464,8 +6460,7 @@ again:
 	}
 	wait_on_page_writeback(page);
 
-	lock_extent_bits(io_tree, page_start, page_end, 0, &cached_state,
-			 GFP_NOFS);
+	lock_extent_bits(io_tree, page_start, page_end, 0, &cached_state);
 	set_page_extent_mapped(page);
 
 	/*

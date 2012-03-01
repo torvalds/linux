@@ -496,7 +496,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		 * sure they map to this compressed extent on disk.
 		 */
 		set_page_extent_mapped(page);
-		lock_extent(tree, last_offset, end, GFP_NOFS);
+		lock_extent(tree, last_offset, end);
 		read_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, last_offset,
 					   PAGE_CACHE_SIZE);
@@ -506,7 +506,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		    (last_offset + PAGE_CACHE_SIZE > extent_map_end(em)) ||
 		    (em->block_start >> 9) != cb->orig_bio->bi_sector) {
 			free_extent_map(em);
-			unlock_extent(tree, last_offset, end, GFP_NOFS);
+			unlock_extent(tree, last_offset, end);
 			unlock_page(page);
 			page_cache_release(page);
 			break;
@@ -534,7 +534,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 			nr_pages++;
 			page_cache_release(page);
 		} else {
-			unlock_extent(tree, last_offset, end, GFP_NOFS);
+			unlock_extent(tree, last_offset, end);
 			unlock_page(page);
 			page_cache_release(page);
 			break;

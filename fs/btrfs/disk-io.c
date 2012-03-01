@@ -332,7 +332,7 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 		return 0;
 
 	lock_extent_bits(io_tree, eb->start, eb->start + eb->len - 1,
-			 0, &cached_state, GFP_NOFS);
+			 0, &cached_state);
 	if (extent_buffer_uptodate(io_tree, eb, cached_state) &&
 	    btrfs_header_generation(eb) == parent_transid) {
 		ret = 0;

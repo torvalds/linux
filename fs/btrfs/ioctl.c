@@ -797,9 +797,9 @@ static int should_defrag_range(struct inode *inode, u64 start, u64 len,
 
 	if (!em) {
 		/* get the big lock and read metadata off disk */
-		lock_extent(io_tree, start, start + len - 1, GFP_NOFS);
+		lock_extent(io_tree, start, start + len - 1);
 		em = btrfs_get_extent(inode, NULL, 0, start, len, 0);
-		unlock_extent(io_tree, start, start + len - 1, GFP_NOFS);
+		unlock_extent(io_tree, start, start + len - 1);
 
 		if (IS_ERR(em))
 			return 0;
@@ -887,10 +887,10 @@ again:
 		page_start = page_offset(page);
 		page_end = page_start + PAGE_CACHE_SIZE - 1;
 		while (1) {
-			lock_extent(tree, page_start, page_end, GFP_NOFS);
+			lock_extent(tree, page_start, page_end);
 			ordered = btrfs_lookup_ordered_extent(inode,
 							      page_start);
-			unlock_extent(tree, page_start, page_end, GFP_NOFS);
+			unlock_extent(tree, page_start, page_end);
 			if (!ordered)
 				break;
 
@@ -946,8 +946,7 @@ again:
 	page_end = page_offset(pages[i_done - 1]) + PAGE_CACHE_SIZE;
 
 	lock_extent_bits(&BTRFS_I(inode)->io_tree,
-			 page_start, page_end - 1, 0, &cached_state,
-			 GFP_NOFS);
+			 page_start, page_end - 1, 0, &cached_state);
 	clear_extent_bit(&BTRFS_I(inode)->io_tree, page_start,
 			  page_end - 1, EXTENT_DIRTY | EXTENT_DELALLOC |
 			  EXTENT_DO_ACCOUNTING, 0, 0, &cached_state,
@@ -2326,13 +2325,13 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	   another, and lock file content */
 	while (1) {
 		struct btrfs_ordered_extent *ordered;
-		lock_extent(&BTRFS_I(src)->io_tree, off, off+len, GFP_NOFS);
+		lock_extent(&BTRFS_I(src)->io_tree, off, off+len);
 		ordered = btrfs_lookup_first_ordered_extent(src, off+len);
 		if (!ordered &&
 		    !test_range_bit(&BTRFS_I(src)->io_tree, off, off+len,
 				   EXTENT_DELALLOC, 0, NULL))
 			break;
-		unlock_extent(&BTRFS_I(src)->io_tree, off, off+len, GFP_NOFS);
+		unlock_extent(&BTRFS_I(src)->io_tree, off, off+len);
 		if (ordered)
 			btrfs_put_ordered_extent(ordered);
 		btrfs_wait_ordered_range(src, off, len);
@@ -2551,7 +2550,7 @@ next:
 	ret = 0;
 out:
 	btrfs_release_path(path);
-	unlock_extent(&BTRFS_I(src)->io_tree, off, off+len, GFP_NOFS);
+	unlock_extent(&BTRFS_I(src)->io_tree, off, off+len);
 out_unlock:
 	mutex_unlock(&src->i_mutex);
 	mutex_unlock(&inode->i_mutex);

@@ -1105,8 +1105,7 @@ again:
 	if (start_pos < inode->i_size) {
 		struct btrfs_ordered_extent *ordered;
 		lock_extent_bits(&BTRFS_I(inode)->io_tree,
-				 start_pos, last_pos - 1, 0, &cached_state,
-				 GFP_NOFS);
+				 start_pos, last_pos - 1, 0, &cached_state);
 		ordered = btrfs_lookup_first_ordered_extent(inode,
 							    last_pos - 1);
 		if (ordered &&
@@ -1638,7 +1637,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 		 * transaction
 		 */
 		lock_extent_bits(&BTRFS_I(inode)->io_tree, alloc_start,
-				 locked_end, 0, &cached_state, GFP_NOFS);
+				 locked_end, 0, &cached_state);
 		ordered = btrfs_lookup_first_ordered_extent(inode,
 							    alloc_end - 1);
 		if (ordered &&
@@ -1737,7 +1736,7 @@ static int find_desired_extent(struct inode *inode, loff_t *offset, int origin)
 		return -ENXIO;
 
 	lock_extent_bits(&BTRFS_I(inode)->io_tree, lockstart, lockend, 0,
-			 &cached_state, GFP_NOFS);
+			 &cached_state);
 
 	/*
 	 * Delalloc is such a pain.  If we have a hole and we have pending

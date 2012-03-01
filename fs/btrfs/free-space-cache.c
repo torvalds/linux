@@ -869,7 +869,7 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	io_ctl_prepare_pages(&io_ctl, inode, 0);
 
 	lock_extent_bits(&BTRFS_I(inode)->io_tree, 0, i_size_read(inode) - 1,
-			 0, &cached_state, GFP_NOFS);
+			 0, &cached_state);
 
 	node = rb_first(&ctl->free_space_offset);
 	if (!node && cluster) {
