@@ -1010,42 +1010,43 @@ static void drop_spte(struct kvm *kvm, u64 *sptep)
 		rmap_remove(kvm, sptep);
 }
 
+static int __rmap_write_protect(struct kvm *kvm, unsigned long *rmapp, int level)
+{
+	u64 *spte = NULL;
+	int write_protected = 0;
+
+	while ((spte = rmap_next(rmapp, spte))) {
+		BUG_ON(!(*spte & PT_PRESENT_MASK));
+		rmap_printk("rmap_write_protect: spte %p %llx\n", spte, *spte);
+
+		if (!is_writable_pte(*spte))
+			continue;
+
+		if (level == PT_PAGE_TABLE_LEVEL) {
+			mmu_spte_update(spte, *spte & ~PT_WRITABLE_MASK);
+		} else {
+			BUG_ON(!is_large_pte(*spte));
+			drop_spte(kvm, spte);
+			--kvm->stat.lpages;
+			spte = NULL;
+		}
+
+		write_protected = 1;
+	}
+
+	return write_protected;
+}
+
 int kvm_mmu_rmap_write_protect(struct kvm *kvm, u64 gfn,
 			       struct kvm_memory_slot *slot)
 {
 	unsigned long *rmapp;
-	u64 *spte;
 	int i, write_protected = 0;
 
-	rmapp = __gfn_to_rmap(gfn, PT_PAGE_TABLE_LEVEL, slot);
-	spte = rmap_next(rmapp, NULL);
-	while (spte) {
-		BUG_ON(!(*spte & PT_PRESENT_MASK));
-		rmap_printk("rmap_write_protect: spte %p %llx\n", spte, *spte);
-		if (is_writable_pte(*spte)) {
-			mmu_spte_update(spte, *spte & ~PT_WRITABLE_MASK);
-			write_protected = 1;
-		}
-		spte = rmap_next(rmapp, spte);
-	}
-
-	/* check for huge page mappings */
-	for (i = PT_DIRECTORY_LEVEL;
+	for (i = PT_PAGE_TABLE_LEVEL;
 	     i < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++i) {
 		rmapp = __gfn_to_rmap(gfn, i, slot);
-		spte = rmap_next(rmapp, NULL);
-		while (spte) {
-			BUG_ON(!(*spte & PT_PRESENT_MASK));
-			BUG_ON(!is_large_pte(*spte));
-			pgprintk("rmap_write_protect(large): spte %p %llx %lld\n", spte, *spte, gfn);
-			if (is_writable_pte(*spte)) {
-				drop_spte(kvm, spte);
-				--kvm->stat.lpages;
-				spte = NULL;
-				write_protected = 1;
-			}
-			spte = rmap_next(rmapp, spte);
-		}
+		write_protected |= __rmap_write_protect(kvm, rmapp, i);
 	}
 
 	return write_protected;
