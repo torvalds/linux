@@ -65,7 +65,7 @@
    it is infeasible task. The most general solutions would be
    to keep skb->encapsulation counter (sort of local ttl),
    and silently drop packet when it expires. It is a good
-   solution, but it supposes maintaing new variable in ALL
+   solution, but it supposes maintaining new variable in ALL
    skb, even if no tunneling is used.
 
    Current solution: xmit_recursion breaks dead loops. This is a percpu
@@ -91,14 +91,14 @@
 
    One of them is to parse packet trying to detect inner encapsulation
    made by our node. It is difficult or even impossible, especially,
-   taking into account fragmentation. TO be short, tt is not solution at all.
+   taking into account fragmentation. TO be short, ttl is not solution at all.
 
    Current solution: The solution was UNEXPECTEDLY SIMPLE.
    We force DF flag on tunnels with preconfigured hop limit,
    that is ALL. :-) Well, it does not remove the problem completely,
    but exponential growth of network traffic is changed to linear
    (branches, that exceed pmtu are pruned) and tunnel mtu
-   fastly degrades to value <68, where looping stops.
+   rapidly degrades to value <68, where looping stops.
    Yes, it is not good if there exists a router in the loop,
    which does not force DF, even when encapsulating packets have DF set.
    But it is not our problem! Nobody could accuse us, we made
@@ -422,6 +422,10 @@ static struct ip_tunnel *ipgre_tunnel_locate(struct net *net,
 	if (register_netdevice(dev) < 0)
 		goto failed_free;
 
+	/* Can use a lockless transmit, unless we generate output sequences */
+	if (!(nt->parms.o_flags & GRE_SEQ))
+		dev->features |= NETIF_F_LLTX;
+
 	dev_hold(dev);
 	ipgre_tunnel_link(ign, nt);
 	return nt;
@@ -453,8 +457,8 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
    GRE tunnels with enabled checksum. Tell them "thank you".
 
    Well, I wonder, rfc1812 was written by Cisco employee,
-   what the hell these idiots break standrads established
-   by themself???
+   what the hell these idiots break standards established
+   by themselves???
  */
 
 	const struct iphdr *iph = (const struct iphdr *)skb->data;

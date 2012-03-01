@@ -410,6 +410,9 @@ static int __devexit omap34_xx_bridge_remove(struct platform_device *pdev)
 		DBC_ASSERT(ret == true);
 	}
 
+	kfree(drv_datap);
+	dev_set_drvdata(bridge, NULL);
+
 func_cont:
 	mem_ext_phys_pool_release();
 
@@ -500,35 +503,42 @@ static int bridge_open(struct inode *ip, struct file *filp)
 	}
 #endif
 	pr_ctxt = kzalloc(sizeof(struct process_context), GFP_KERNEL);
-	if (pr_ctxt) {
-		pr_ctxt->res_state = PROC_RES_ALLOCATED;
-		spin_lock_init(&pr_ctxt->dmm_map_lock);
-		INIT_LIST_HEAD(&pr_ctxt->dmm_map_list);
-		spin_lock_init(&pr_ctxt->dmm_rsv_lock);
-		INIT_LIST_HEAD(&pr_ctxt->dmm_rsv_list);
+	if (!pr_ctxt)
+		return -ENOMEM;
 
-		pr_ctxt->node_id = kzalloc(sizeof(struct idr), GFP_KERNEL);
-		if (pr_ctxt->node_id) {
-			idr_init(pr_ctxt->node_id);
-		} else {
-			status = -ENOMEM;
-			goto err;
-		}
+	pr_ctxt->res_state = PROC_RES_ALLOCATED;
+	spin_lock_init(&pr_ctxt->dmm_map_lock);
+	INIT_LIST_HEAD(&pr_ctxt->dmm_map_list);
+	spin_lock_init(&pr_ctxt->dmm_rsv_lock);
+	INIT_LIST_HEAD(&pr_ctxt->dmm_rsv_list);
 
-		pr_ctxt->stream_id = kzalloc(sizeof(struct idr), GFP_KERNEL);
-		if (pr_ctxt->stream_id)
-			idr_init(pr_ctxt->stream_id);
-		else
-			status = -ENOMEM;
-	} else {
+	pr_ctxt->node_id = kzalloc(sizeof(struct idr), GFP_KERNEL);
+	if (!pr_ctxt->node_id) {
 		status = -ENOMEM;
+		goto err1;
 	}
-err:
+
+	idr_init(pr_ctxt->node_id);
+
+	pr_ctxt->stream_id = kzalloc(sizeof(struct idr), GFP_KERNEL);
+	if (!pr_ctxt->stream_id) {
+		status = -ENOMEM;
+		goto err2;
+	}
+
+	idr_init(pr_ctxt->stream_id);
+
 	filp->private_data = pr_ctxt;
+
 #ifdef CONFIG_TIDSPBRIDGE_RECOVERY
-	if (!status)
-		atomic_inc(&bridge_cref);
+	atomic_inc(&bridge_cref);
 #endif
+	return 0;
+
+err2:
+	kfree(pr_ctxt->node_id);
+err1:
+	kfree(pr_ctxt);
 	return status;
 }
 
@@ -550,6 +560,8 @@ static int bridge_release(struct inode *ip, struct file *filp)
 	flush_signals(current);
 	drv_remove_all_resources(pr_ctxt);
 	proc_detach(pr_ctxt);
+	kfree(pr_ctxt->node_id);
+	kfree(pr_ctxt->stream_id);
 	kfree(pr_ctxt);
 
 	filp->private_data = NULL;

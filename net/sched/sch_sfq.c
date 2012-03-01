@@ -166,9 +166,8 @@ struct sfq_skb_cb {
 
 static inline struct sfq_skb_cb *sfq_skb_cb(const struct sk_buff *skb)
 {
-       BUILD_BUG_ON(sizeof(skb->cb) <
-               sizeof(struct qdisc_skb_cb) + sizeof(struct sfq_skb_cb));
-       return (struct sfq_skb_cb *)qdisc_skb_cb(skb)->data;
+	qdisc_cb_private_validate(skb, sizeof(struct sfq_skb_cb));
+	return (struct sfq_skb_cb *)qdisc_skb_cb(skb)->data;
 }
 
 static unsigned int sfq_hash(const struct sfq_sched_data *q,

@@ -46,11 +46,37 @@ struct devtable {
 	void *function;
 };
 
+#define ___cat(a,b) a ## b
+#define __cat(a,b) ___cat(a,b)
+
+/* we need some special handling for this host tool running eventually on
+ * Darwin. The Mach-O section handling is a bit different than ELF section
+ * handling. The differnces in detail are:
+ *  a) we have segments which have sections
+ *  b) we need a API call to get the respective section symbols */
+#if defined(__MACH__)
+#include <mach-o/getsect.h>
+
+#define INIT_SECTION(name)  do {					\
+		unsigned long name ## _len;				\
+		char *__cat(pstart_,name) = getsectdata("__TEXT",	\
+			#name, &__cat(name,_len));			\
+		char *__cat(pstop_,name) = __cat(pstart_,name) +	\
+			__cat(name, _len);				\
+		__cat(__start_,name) = (void *)__cat(pstart_,name);	\
+		__cat(__stop_,name) = (void *)__cat(pstop_,name);	\
+	} while (0)
+#define SECTION(name)   __attribute__((section("__TEXT, " #name)))
+
+struct devtable **__start___devtable, **__stop___devtable;
+#else
+#define INIT_SECTION(name) /* no-op for ELF */
+#define SECTION(name)   __attribute__((section(#name)))
+
 /* We construct a table of pointers in an ELF section (pointers generally
  * go unpadded by gcc).  ld creates boundary syms for us. */
 extern struct devtable *__start___devtable[], *__stop___devtable[];
-#define ___cat(a,b) a ## b
-#define __cat(a,b) ___cat(a,b)
+#endif /* __MACH__ */
 
 #if __GNUC__ == 3 && __GNUC_MINOR__ < 3
 # define __used			__attribute__((__unused__))
@@ -65,8 +91,8 @@ extern struct devtable *__start___devtable[], *__stop___devtable[];
 						(type *)NULL,		\
 						(char *)NULL)),		\
 		sizeof(type), (function) };				\
-	static struct devtable *__attribute__((section("__devtable"))) \
-		__used __cat(devtable_ptr,__LINE__) = &__cat(devtable,__LINE__)
+	static struct devtable *SECTION(__devtable) __used \
+		__cat(devtable_ptr,__LINE__) = &__cat(devtable,__LINE__)
 
 #define ADD(str, sep, cond, field)                              \
 do {                                                            \
@@ -823,16 +849,6 @@ static int do_spi_entry(const char *filename, struct spi_device_id *id,
 }
 ADD_TO_DEVTABLE("spi", struct spi_device_id, do_spi_entry);
 
-/* Looks like: mcp:S */
-static int do_mcp_entry(const char *filename, struct mcp_device_id *id,
-			char *alias)
-{
-	sprintf(alias, MCP_MODULE_PREFIX "%s", id->name);
-
-	return 1;
-}
-ADD_TO_DEVTABLE("mcp", struct mcp_device_id, do_mcp_entry); 
-
 static const struct dmifield {
 	const char *prefix;
 	int field;
@@ -942,7 +958,7 @@ static int do_isapnp_entry(const char *filename,
 		(id->function >> 12) & 0x0f, (id->function >> 8) & 0x0f);
 	return 1;
 }
-ADD_TO_DEVTABLE("isa", struct isapnp_device_id, do_isapnp_entry);
+ADD_TO_DEVTABLE("isapnp", struct isapnp_device_id, do_isapnp_entry);
 
 /*
  * Append a match expression for a single masked hex digit.
@@ -1090,6 +1106,7 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_pnp_card_entries(symval, sym->st_size, mod);
 	else {
 		struct devtable **p;
+		INIT_SECTION(__devtable);
 
 		for (p = __start___devtable; p < __stop___devtable; p++) {
 			if (sym_is(name, namelen, (*p)->device_id)) {

@@ -694,7 +694,7 @@ static u8 ath_rc_get_highest_rix(struct ath_softc *sc,
 		return rate;
 
 	/* This should not happen */
-	WARN_ON(1);
+	WARN_ON_ONCE(1);
 
 	rate = ath_rc_priv->valid_rate_index[0];
 
@@ -1346,7 +1346,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	fc = hdr->frame_control;
 	for (i = 0; i < sc->hw->max_rates; i++) {
 		struct ieee80211_tx_rate *rate = &tx_info->status.rates[i];
-		if (!rate->count)
+		if (rate->idx < 0 || !rate->count)
 			break;
 
 		final_ts_idx = i;

@@ -391,10 +391,6 @@ static int alloc_dinode(struct gfs2_inode *dip, u64 *no_addr, u64 *generation)
 	int error;
 	int dblocks = 1;
 
-	error = gfs2_rindex_update(sdp);
-	if (error)
-		fs_warn(sdp, "rindex update returns %d\n", error);
-
 	error = gfs2_inplace_reserve(dip, RES_DINODE);
 	if (error)
 		goto out;
@@ -1043,6 +1039,7 @@ static int gfs2_unlink(struct inode *dir, struct dentry *dentry)
 	rgd = gfs2_blk2rgrpd(sdp, ip->i_no_addr);
 	if (!rgd)
 		goto out_inodes;
+
 	gfs2_holder_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0, ghs + 2);
 
 

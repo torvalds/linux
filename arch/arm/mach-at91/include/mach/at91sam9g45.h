@@ -90,7 +90,6 @@
 #define AT91_DDRSDRC0	(0xffffe600 - AT91_BASE_SYS)
 #define AT91_MATRIX	(0xffffea00 - AT91_BASE_SYS)
 #define AT91_PMC	(0xfffffc00 - AT91_BASE_SYS)
-#define AT91_RSTC	(0xfffffd00 - AT91_BASE_SYS)
 #define AT91_GPBR	(0xfffffd60 - AT91_BASE_SYS)
 
 #define AT91SAM9G45_BASE_ECC	0xffffe200
@@ -102,6 +101,7 @@
 #define AT91SAM9G45_BASE_PIOC	0xfffff600
 #define AT91SAM9G45_BASE_PIOD	0xfffff800
 #define AT91SAM9G45_BASE_PIOE	0xfffffa00
+#define AT91SAM9G45_BASE_RSTC	0xfffffd00
 #define AT91SAM9G45_BASE_SHDWC	0xfffffd10
 #define AT91SAM9G45_BASE_RTT	0xfffffd20
 #define AT91SAM9G45_BASE_PIT	0xfffffd30

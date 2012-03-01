@@ -531,7 +531,6 @@ static int wacom_probe(struct hid_device *hdev,
 	wdata->battery.type = POWER_SUPPLY_TYPE_BATTERY;
 	wdata->battery.use_for_apm = 0;
 
-	power_supply_powers(&wdata->battery, &hdev->dev);
 
 	ret = power_supply_register(&hdev->dev, &wdata->battery);
 	if (ret) {
@@ -540,6 +539,8 @@ static int wacom_probe(struct hid_device *hdev,
 		goto err_battery;
 	}
 
+	power_supply_powers(&wdata->battery, &hdev->dev);
+
 	wdata->ac.properties = wacom_ac_props;
 	wdata->ac.num_properties = ARRAY_SIZE(wacom_ac_props);
 	wdata->ac.get_property = wacom_ac_get_property;
@@ -547,14 +548,14 @@ static int wacom_probe(struct hid_device *hdev,
 	wdata->ac.type = POWER_SUPPLY_TYPE_MAINS;
 	wdata->ac.use_for_apm = 0;
 
-	power_supply_powers(&wdata->battery, &hdev->dev);
-
 	ret = power_supply_register(&hdev->dev, &wdata->ac);
 	if (ret) {
 		hid_warn(hdev,
 			 "can't create ac battery attribute, err: %d\n", ret);
 		goto err_ac;
 	}
+
+	power_supply_powers(&wdata->ac, &hdev->dev);
 #endif
 	return 0;
 

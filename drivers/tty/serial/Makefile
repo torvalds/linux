@@ -14,22 +14,9 @@ obj-$(CONFIG_SERIAL_SUNZILOG) += sunzilog.o
 obj-$(CONFIG_SERIAL_SUNSU) += sunsu.o
 obj-$(CONFIG_SERIAL_SUNSAB) += sunsab.o
 
-obj-$(CONFIG_SERIAL_8250) += 8250.o
-obj-$(CONFIG_SERIAL_8250_PNP) += 8250_pnp.o
-obj-$(CONFIG_SERIAL_8250_GSC) += 8250_gsc.o
-obj-$(CONFIG_SERIAL_8250_PCI) += 8250_pci.o
-obj-$(CONFIG_SERIAL_8250_HP300) += 8250_hp300.o
-obj-$(CONFIG_SERIAL_8250_CS) += serial_cs.o
-obj-$(CONFIG_SERIAL_8250_ACORN) += 8250_acorn.o
-obj-$(CONFIG_SERIAL_8250_CONSOLE) += 8250_early.o
-obj-$(CONFIG_SERIAL_8250_FOURPORT) += 8250_fourport.o
-obj-$(CONFIG_SERIAL_8250_ACCENT) += 8250_accent.o
-obj-$(CONFIG_SERIAL_8250_BOCA) += 8250_boca.o
-obj-$(CONFIG_SERIAL_8250_EXAR_ST16C554) += 8250_exar_st16c554.o
-obj-$(CONFIG_SERIAL_8250_HUB6) += 8250_hub6.o
-obj-$(CONFIG_SERIAL_8250_MCA) += 8250_mca.o
-obj-$(CONFIG_SERIAL_8250_FSL) += 8250_fsl.o
-obj-$(CONFIG_SERIAL_8250_DW) += 8250_dw.o
+# Now bring in any enabled 8250/16450/16550 type drivers.
+obj-$(CONFIG_SERIAL_8250) += 8250/
+
 obj-$(CONFIG_SERIAL_AMBA_PL010) += amba-pl010.o
 obj-$(CONFIG_SERIAL_AMBA_PL011) += amba-pl011.o
 obj-$(CONFIG_SERIAL_CLPS711X) += clps711x.o
@@ -42,7 +29,6 @@ obj-$(CONFIG_SERIAL_BFIN_SPORT) += bfin_sport_uart.o
 obj-$(CONFIG_SERIAL_SAMSUNG) += samsung.o
 obj-$(CONFIG_SERIAL_MAX3100) += max3100.o
 obj-$(CONFIG_SERIAL_MAX3107) += max3107.o
-obj-$(CONFIG_SERIAL_MAX3107_AAVA) += max3107-aava.o
 obj-$(CONFIG_SERIAL_IP22_ZILOG) += ip22zilog.o
 obj-$(CONFIG_SERIAL_MUX) += mux.o
 obj-$(CONFIG_SERIAL_68328) += 68328serial.o

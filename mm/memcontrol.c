@@ -776,7 +776,8 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
 	/* threshold event is triggered in finer grain than soft limit */
 	if (unlikely(mem_cgroup_event_ratelimit(memcg,
 						MEM_CGROUP_TARGET_THRESH))) {
-		bool do_softlimit, do_numainfo;
+		bool do_softlimit;
+		bool do_numainfo __maybe_unused;
 
 		do_softlimit = mem_cgroup_event_ratelimit(memcg,
 						MEM_CGROUP_TARGET_SOFTLIMIT);
@@ -4413,6 +4414,9 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
 	 */
 	BUG_ON(!thresholds);
 
+	if (!thresholds->primary)
+		goto unlock;
+
 	usage = mem_cgroup_usage(memcg, type == _MEMSWAP);
 
 	/* Check if a threshold crossed before removing */
@@ -4461,7 +4465,7 @@ swap_buffers:
 
 	/* To be sure that nobody uses thresholds */
 	synchronize_rcu();
-
+unlock:
 	mutex_unlock(&memcg->thresholds_lock);
 }
 

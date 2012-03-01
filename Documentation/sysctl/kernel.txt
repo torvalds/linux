@@ -601,6 +601,8 @@ can be ORed together:
         instead of using the one provided by the hardware.
  512 - A kernel warning has occurred.
 1024 - A module from drivers/staging was loaded.
+2048 - The system is working around a severe firmware bug.
+4096 - An out-of-tree module has been loaded.
 
 ==============================================================
 

@@ -2105,7 +2105,7 @@ extern struct task_struct *idle_task(int cpu);
  * is_idle_task - is the specified task an idle task?
  * @p: the task in question.
  */
-static inline bool is_idle_task(struct task_struct *p)
+static inline bool is_idle_task(const struct task_struct *p)
 {
 	return p->pid == 0;
 }
@@ -2274,6 +2274,12 @@ static inline void mmdrop(struct mm_struct * mm)
 extern void mmput(struct mm_struct *);
 /* Grab a reference to a task's mm, if it is not already going away */
 extern struct mm_struct *get_task_mm(struct task_struct *task);
+/*
+ * Grab a reference to a task's mm, if it is not already going away
+ * and ptrace_may_access with the mode parameter passed to it
+ * succeeds.
+ */
+extern struct mm_struct *mm_access(struct task_struct *task, unsigned int mode);
 /* Remove the current tasks stale references to the old mm_struct */
 extern void mm_release(struct task_struct *, struct mm_struct *);
 /* Allocate a new mm structure and copy contents from tsk->mm */

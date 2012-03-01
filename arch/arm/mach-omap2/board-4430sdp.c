@@ -52,8 +52,9 @@
 #define ETH_KS8851_QUART		138
 #define OMAP4_SFH7741_SENSOR_OUTPUT_GPIO	184
 #define OMAP4_SFH7741_ENABLE_GPIO		188
-#define HDMI_GPIO_HPD 60 /* Hot plug pin for HDMI */
+#define HDMI_GPIO_CT_CP_HPD 60 /* HPD mode enable/disable */
 #define HDMI_GPIO_LS_OE 41 /* Level shifter for HDMI */
+#define HDMI_GPIO_HPD  63 /* Hotplug detect */
 #define DISPLAY_SEL_GPIO	59	/* LCD2/PicoDLP switch */
 #define DLP_POWER_ON_GPIO	40
 
@@ -603,8 +604,9 @@ static void __init omap_sfh7741prox_init(void)
 }
 
 static struct gpio sdp4430_hdmi_gpios[] = {
-	{ HDMI_GPIO_HPD,	GPIOF_OUT_INIT_HIGH,	"hdmi_gpio_hpd"   },
+	{ HDMI_GPIO_CT_CP_HPD, GPIOF_OUT_INIT_HIGH, "hdmi_gpio_ct_cp_hpd" },
 	{ HDMI_GPIO_LS_OE,	GPIOF_OUT_INIT_HIGH,	"hdmi_gpio_ls_oe" },
+	{ HDMI_GPIO_HPD, GPIOF_DIR_IN, "hdmi_gpio_hpd" },
 };
 
 static int sdp4430_panel_enable_hdmi(struct omap_dss_device *dssdev)
@@ -621,8 +623,7 @@ static int sdp4430_panel_enable_hdmi(struct omap_dss_device *dssdev)
 
 static void sdp4430_panel_disable_hdmi(struct omap_dss_device *dssdev)
 {
-	gpio_free(HDMI_GPIO_LS_OE);
-	gpio_free(HDMI_GPIO_HPD);
+	gpio_free_array(sdp4430_hdmi_gpios, ARRAY_SIZE(sdp4430_hdmi_gpios));
 }
 
 static struct nokia_dsi_panel_data dsi1_panel = {
@@ -738,6 +739,10 @@ static void sdp4430_lcd_init(void)
 		pr_err("%s: Could not get lcd2_reset_gpio\n", __func__);
 }
 
+static struct omap_dss_hdmi_data sdp4430_hdmi_data = {
+	.hpd_gpio = HDMI_GPIO_HPD,
+};
+
 static struct omap_dss_device sdp4430_hdmi_device = {
 	.name = "hdmi",
 	.driver_name = "hdmi_panel",
@@ -745,6 +750,7 @@ static struct omap_dss_device sdp4430_hdmi_device = {
 	.platform_enable = sdp4430_panel_enable_hdmi,
 	.platform_disable = sdp4430_panel_disable_hdmi,
 	.channel = OMAP_DSS_CHANNEL_DIGIT,
+	.data = &sdp4430_hdmi_data,
 };
 
 static struct picodlp_panel_data sdp4430_picodlp_pdata = {
@@ -808,7 +814,7 @@ static struct omap_dss_board_info sdp4430_dss_data = {
 	.default_device	= &sdp4430_lcd_device,
 };
 
-static void omap_4430sdp_display_init(void)
+static void __init omap_4430sdp_display_init(void)
 {
 	int r;
 
@@ -829,6 +835,10 @@ static void omap_4430sdp_display_init(void)
 		omap_hdmi_init(OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP);
 	else
 		omap_hdmi_init(0);
+
+	omap_mux_init_gpio(HDMI_GPIO_LS_OE, OMAP_PIN_OUTPUT);
+	omap_mux_init_gpio(HDMI_GPIO_CT_CP_HPD, OMAP_PIN_OUTPUT);
+	omap_mux_init_gpio(HDMI_GPIO_HPD, OMAP_PIN_INPUT_PULLDOWN);
 }
 
 #ifdef CONFIG_OMAP_MUX
@@ -841,7 +851,7 @@ static struct omap_board_mux board_mux[] __initdata = {
 #define board_mux	NULL
  #endif
 
-static void omap4_sdp4430_wifi_mux_init(void)
+static void __init omap4_sdp4430_wifi_mux_init(void)
 {
 	omap_mux_init_gpio(GPIO_WIFI_IRQ, OMAP_PIN_INPUT |
 				OMAP_PIN_OFF_WAKEUPENABLE);
@@ -868,12 +878,17 @@ static struct wl12xx_platform_data omap4_sdp4430_wlan_data __initdata = {
 	.board_tcxo_clock = WL12XX_TCXOCLOCK_26,
 };
 
-static void omap4_sdp4430_wifi_init(void)
+static void __init omap4_sdp4430_wifi_init(void)
 {
+	int ret;
+
 	omap4_sdp4430_wifi_mux_init();
-	if (wl12xx_set_platform_data(&omap4_sdp4430_wlan_data))
-		pr_err("Error setting wl12xx data\n");
-	platform_device_register(&omap_vwlan_device);
+	ret = wl12xx_set_platform_data(&omap4_sdp4430_wlan_data);
+	if (ret)
+		pr_err("Error setting wl12xx data: %d\n", ret);
+	ret = platform_device_register(&omap_vwlan_device);
+	if (ret)
+		pr_err("Error registering wl12xx device: %d\n", ret);
 }
 
 static void __init omap_4430sdp_init(void)

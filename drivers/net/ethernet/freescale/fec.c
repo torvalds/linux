@@ -986,11 +986,11 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 		printk(KERN_INFO
 			"%s: no PHY, assuming direct connection to switch\n",
 			ndev->name);
-		strncpy(mdio_bus_id, "0", MII_BUS_ID_SIZE);
+		strncpy(mdio_bus_id, "fixed-0", MII_BUS_ID_SIZE);
 		phy_id = 0;
 	}
 
-	snprintf(phy_name, MII_BUS_ID_SIZE, PHY_ID_FMT, mdio_bus_id, phy_id);
+	snprintf(phy_name, sizeof(phy_name), PHY_ID_FMT, mdio_bus_id, phy_id);
 	phy_dev = phy_connect(ndev, phy_name, &fec_enet_adjust_link, 0,
 			      fep->phy_interface);
 	if (IS_ERR(phy_dev)) {

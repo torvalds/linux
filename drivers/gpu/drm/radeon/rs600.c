@@ -684,9 +684,7 @@ int rs600_irq_process(struct radeon_device *rdev)
 			WREG32(RADEON_BUS_CNTL, msi_rearm | RS600_MSI_REARM);
 			break;
 		default:
-			msi_rearm = RREG32(RADEON_MSI_REARM_EN) & ~RV370_MSI_REARM_EN;
-			WREG32(RADEON_MSI_REARM_EN, msi_rearm);
-			WREG32(RADEON_MSI_REARM_EN, msi_rearm | RV370_MSI_REARM_EN);
+			WREG32(RADEON_MSI_REARM_EN, RV370_MSI_REARM_EN);
 			break;
 		}
 	}
@@ -878,6 +876,8 @@ static int rs600_startup(struct radeon_device *rdev)
 
 int rs600_resume(struct radeon_device *rdev)
 {
+	int r;
+
 	/* Make sur GART are not working */
 	rs600_gart_disable(rdev);
 	/* Resume clock before doing reset */
@@ -896,7 +896,11 @@ int rs600_resume(struct radeon_device *rdev)
 	radeon_surface_init(rdev);
 
 	rdev->accel_working = true;
-	return rs600_startup(rdev);
+	r = rs600_startup(rdev);
+	if (r) {
+		rdev->accel_working = false;
+	}
+	return r;
 }
 
 int rs600_suspend(struct radeon_device *rdev)
