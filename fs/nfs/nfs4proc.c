@@ -1983,6 +1983,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 	struct nfs4_state *state = calldata->state;
 	struct nfs_server *server = NFS_SERVER(calldata->inode);
 
+	dprintk("%s: begin!\n", __func__);
 	if (!nfs4_sequence_done(task, &calldata->res.seq_res))
 		return;
         /* hmm. we are done with the inode, and in the process of freeing
@@ -2010,6 +2011,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 	}
 	nfs_release_seqid(calldata->arg.seqid);
 	nfs_refresh_inode(calldata->inode, calldata->res.fattr);
+	dprintk("%s: done, ret = %d!\n", __func__, task->tk_status);
 }
 
 static void nfs4_close_prepare(struct rpc_task *task, void *data)
@@ -2018,6 +2020,7 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	struct nfs4_state *state = calldata->state;
 	int call_close = 0;
 
+	dprintk("%s: begin!\n", __func__);
 	if (nfs_wait_on_sequence(calldata->arg.seqid, task) != 0)
 		return;
 
@@ -2042,7 +2045,7 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	if (!call_close) {
 		/* Note: exit _without_ calling nfs4_close_done */
 		task->tk_action = NULL;
-		return;
+		goto out;
 	}
 
 	if (calldata->arg.fmode == 0) {
@@ -2051,7 +2054,7 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 		    pnfs_roc_drain(calldata->inode, &calldata->roc_barrier)) {
 			rpc_sleep_on(&NFS_SERVER(calldata->inode)->roc_rpcwaitq,
 				     task, NULL);
-			return;
+			goto out;
 		}
 	}
 
@@ -2061,8 +2064,10 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 				&calldata->arg.seq_args,
 				&calldata->res.seq_res,
 				task))
-		return;
+		goto out;
 	rpc_call_start(task);
+out:
+	dprintk("%s: done!\n", __func__);
 }
 
 static const struct rpc_call_ops nfs4_close_ops = {
