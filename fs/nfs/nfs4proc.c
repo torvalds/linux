@@ -79,6 +79,7 @@ static int _nfs4_proc_open(struct nfs4_opendata *data);
 static int _nfs4_recover_proc_open(struct nfs4_opendata *data);
 static int nfs4_do_fsinfo(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *);
 static int nfs4_async_handle_error(struct rpc_task *, const struct nfs_server *, struct nfs4_state *);
+static void nfs_fixup_referral_attributes(struct nfs_fattr *fattr);
 static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle, struct nfs_fattr *fattr);
 static int nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 			    struct nfs_fattr *fattr, struct iattr *sattr,
@@ -2340,7 +2341,6 @@ static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 	return nfs4_map_errors(status);
 }
 
-static void nfs_fixup_referral_attributes(struct nfs_fattr *fattr);
 /*
  * Get locations and (maybe) other attributes of a referral.
  * Note that we'll actually follow the referral later when
@@ -4797,11 +4797,11 @@ static void nfs_fixup_referral_attributes(struct nfs_fattr *fattr)
 	if (!(((fattr->valid & NFS_ATTR_FATTR_MOUNTED_ON_FILEID) ||
 	       (fattr->valid & NFS_ATTR_FATTR_FILEID)) &&
 	      (fattr->valid & NFS_ATTR_FATTR_FSID) &&
-	      (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)))
+	      (fattr->valid & NFS_ATTR_FATTR_V4_LOCATIONS)))
 		return;
 
 	fattr->valid |= NFS_ATTR_FATTR_TYPE | NFS_ATTR_FATTR_MODE |
-		NFS_ATTR_FATTR_NLINK;
+		NFS_ATTR_FATTR_NLINK | NFS_ATTR_FATTR_V4_REFERRAL;
 	fattr->mode = S_IFDIR | S_IRUGO | S_IXUGO;
 	fattr->nlink = 2;
 }
