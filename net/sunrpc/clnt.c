@@ -914,6 +914,155 @@ const char *rpc_peeraddr2str(struct rpc_clnt *clnt,
 }
 EXPORT_SYMBOL_GPL(rpc_peeraddr2str);
 
+static const struct sockaddr_in rpc_inaddr_loopback = {
+	.sin_family		= AF_INET,
+	.sin_addr.s_addr	= htonl(INADDR_ANY),
+};
+
+static const struct sockaddr_in6 rpc_in6addr_loopback = {
+	.sin6_family		= AF_INET6,
+	.sin6_addr		= IN6ADDR_ANY_INIT,
+};
+
+/*
+ * Try a getsockname() on a connected datagram socket.  Using a
+ * connected datagram socket prevents leaving a socket in TIME_WAIT.
+ * This conserves the ephemeral port number space.
+ *
+ * Returns zero and fills in "buf" if successful; otherwise, a
+ * negative errno is returned.
+ */
+static int rpc_sockname(struct net *net, struct sockaddr *sap, size_t salen,
+			struct sockaddr *buf, int buflen)
+{
+	struct socket *sock;
+	int err;
+
+	err = __sock_create(net, sap->sa_family,
+				SOCK_DGRAM, IPPROTO_UDP, &sock, 1);
+	if (err < 0) {
+		dprintk("RPC:       can't create UDP socket (%d)\n", err);
+		goto out;
+	}
+
+	switch (sap->sa_family) {
+	case AF_INET:
+		err = kernel_bind(sock,
+				(struct sockaddr *)&rpc_inaddr_loopback,
+				sizeof(rpc_inaddr_loopback));
+		break;
+	case AF_INET6:
+		err = kernel_bind(sock,
+				(struct sockaddr *)&rpc_in6addr_loopback,
+				sizeof(rpc_in6addr_loopback));
+		break;
+	default:
+		err = -EAFNOSUPPORT;
+		goto out;
+	}
+	if (err < 0) {
+		dprintk("RPC:       can't bind UDP socket (%d)\n", err);
+		goto out_release;
+	}
+
+	err = kernel_connect(sock, sap, salen, 0);
+	if (err < 0) {
+		dprintk("RPC:       can't connect UDP socket (%d)\n", err);
+		goto out_release;
+	}
+
+	err = kernel_getsockname(sock, buf, &buflen);
+	if (err < 0) {
+		dprintk("RPC:       getsockname failed (%d)\n", err);
+		goto out_release;
+	}
+
+	err = 0;
+	if (buf->sa_family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)buf;
+		sin6->sin6_scope_id = 0;
+	}
+	dprintk("RPC:       %s succeeded\n", __func__);
+
+out_release:
+	sock_release(sock);
+out:
+	return err;
+}
+
+/*
+ * Scraping a connected socket failed, so we don't have a useable
+ * local address.  Fallback: generate an address that will prevent
+ * the server from calling us back.
+ *
+ * Returns zero and fills in "buf" if successful; otherwise, a
+ * negative errno is returned.
+ */
+static int rpc_anyaddr(int family, struct sockaddr *buf, size_t buflen)
+{
+	switch (family) {
+	case AF_INET:
+		if (buflen < sizeof(rpc_inaddr_loopback))
+			return -EINVAL;
+		memcpy(buf, &rpc_inaddr_loopback,
+				sizeof(rpc_inaddr_loopback));
+		break;
+	case AF_INET6:
+		if (buflen < sizeof(rpc_in6addr_loopback))
+			return -EINVAL;
+		memcpy(buf, &rpc_in6addr_loopback,
+				sizeof(rpc_in6addr_loopback));
+	default:
+		dprintk("RPC:       %s: address family not supported\n",
+			__func__);
+		return -EAFNOSUPPORT;
+	}
+	dprintk("RPC:       %s: succeeded\n", __func__);
+	return 0;
+}
+
+/**
+ * rpc_localaddr - discover local endpoint address for an RPC client
+ * @clnt: RPC client structure
+ * @buf: target buffer
+ * @buflen: size of target buffer, in bytes
+ *
+ * Returns zero and fills in "buf" and "buflen" if successful;
+ * otherwise, a negative errno is returned.
+ *
+ * This works even if the underlying transport is not currently connected,
+ * or if the upper layer never previously provided a source address.
+ *
+ * The result of this function call is transient: multiple calls in
+ * succession may give different results, depending on how local
+ * networking configuration changes over time.
+ */
+int rpc_localaddr(struct rpc_clnt *clnt, struct sockaddr *buf, size_t buflen)
+{
+	struct sockaddr_storage address;
+	struct sockaddr *sap = (struct sockaddr *)&address;
+	struct rpc_xprt *xprt;
+	struct net *net;
+	size_t salen;
+	int err;
+
+	rcu_read_lock();
+	xprt = rcu_dereference(clnt->cl_xprt);
+	salen = xprt->addrlen;
+	memcpy(sap, &xprt->addr, salen);
+	net = get_net(xprt->xprt_net);
+	rcu_read_unlock();
+
+	rpc_set_port(sap, 0);
+	err = rpc_sockname(net, sap, salen, buf, buflen);
+	put_net(net);
+	if (err != 0)
+		/* Couldn't discover local address, return ANYADDR */
+		return rpc_anyaddr(sap->sa_family, buf, buflen);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rpc_localaddr);
+
 void
 rpc_setbufsize(struct rpc_clnt *clnt, unsigned int sndsize, unsigned int rcvsize)
 {
