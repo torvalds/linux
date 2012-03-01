@@ -208,8 +208,6 @@ static struct reg_default wm8962_reg[] = {
 	{ 126, 0x000D },   /* R126   - Analogue Clocking3 */
 	{ 127, 0x0000 },   /* R127   - PLL Software Reset */
 
-	{ 129, 0x0000 },   /* R129   - PLL2 */
-
 	{ 131, 0x0000 },   /* R131   - PLL 4 */
 
 	{ 136, 0x0067 },   /* R136   - PLL 9 */
