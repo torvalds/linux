@@ -5118,7 +5118,7 @@ static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
 	const char *pfx = "", *sfx = "";
 
 	/* handle as a speaker if it's a fixed line-out */
-	if (!strcmp(name, "Line-Out") && attr == INPUT_PIN_ATTR_INT)
+	if (!strcmp(name, "Line Out") && attr == INPUT_PIN_ATTR_INT)
 		name = "Speaker";
 	/* check the location */
 	switch (attr) {
@@ -5177,7 +5177,7 @@ int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
 
 	switch (get_defcfg_device(def_conf)) {
 	case AC_JACK_LINE_OUT:
-		return fill_audio_out_name(codec, nid, cfg, "Line-Out",
+		return fill_audio_out_name(codec, nid, cfg, "Line Out",
 					   label, maxlen, indexp);
 	case AC_JACK_SPEAKER:
 		return fill_audio_out_name(codec, nid, cfg, "Speaker",

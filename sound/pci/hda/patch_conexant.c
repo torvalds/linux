@@ -3482,7 +3482,7 @@ static int cx_automute_mode_info(struct snd_kcontrol *kcontrol,
 		"Disabled", "Enabled"
 	};
 	static const char * const texts3[] = {
-		"Disabled", "Speaker Only", "Line-Out+Speaker"
+		"Disabled", "Speaker Only", "Line Out+Speaker"
 	};
 	const char * const *texts;
 
