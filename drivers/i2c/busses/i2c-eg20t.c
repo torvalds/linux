@@ -784,8 +784,6 @@ static s32 pch_i2c_xfer(struct i2c_adapter *i2c_adap,
 	struct i2c_msg *pmsg;
 	u32 i = 0;
 	u32 status;
-	u32 msglen;
-	u32 subaddrlen;
 	s32 ret;
 
 	struct i2c_algo_pch_data *adap = i2c_adap->algo_data;
@@ -810,12 +808,6 @@ static s32 pch_i2c_xfer(struct i2c_adapter *i2c_adap,
 		status = pmsg->flags;
 		pch_dbg(adap,
 			"After invoking I2C_MODE_SEL :flag= 0x%x\n", status);
-		/* calculate sub address length and message length */
-		/* these are applicable only for buffer mode */
-		subaddrlen = pmsg->buf[0];
-		/* calculate actual message length excluding
-		 * the sub address fields */
-		msglen = (pmsg->len) - (subaddrlen + 1);
 
 		if ((status & (I2C_M_RD)) != false) {
 			ret = pch_i2c_readbytes(i2c_adap, pmsg, (i + 1 == num),
