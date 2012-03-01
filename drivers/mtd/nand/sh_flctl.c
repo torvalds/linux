@@ -283,7 +283,7 @@ static void write_fiforeg(struct sh_flctl *flctl, int rlen, int offset)
 static void set_cmd_regs(struct mtd_info *mtd, uint32_t cmd, uint32_t flcmcdr_val)
 {
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
-	uint32_t flcmncr_val = readl(FLCMNCR(flctl)) & ~SEL_16BIT;
+	uint32_t flcmncr_val = flctl->flcmncr_base & ~SEL_16BIT;
 	uint32_t flcmdcr_val, addr_len_bytes = 0;
 
 	/* Set SNAND bit if page size is 2048byte */
@@ -684,16 +684,15 @@ read_normal_exit:
 static void flctl_select_chip(struct mtd_info *mtd, int chipnr)
 {
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
-	uint32_t flcmncr_val = readl(FLCMNCR(flctl));
 
 	switch (chipnr) {
 	case -1:
-		flcmncr_val &= ~CE0_ENABLE;
-		writel(flcmncr_val, FLCMNCR(flctl));
+		flctl->flcmncr_base &= ~CE0_ENABLE;
+		writel(flctl->flcmncr_base, FLCMNCR(flctl));
 		break;
 	case 0:
-		flcmncr_val |= CE0_ENABLE;
-		writel(flcmncr_val, FLCMNCR(flctl));
+		flctl->flcmncr_base |= CE0_ENABLE;
+		writel(flctl->flcmncr_base, FLCMNCR(flctl));
 		break;
 	default:
 		BUG();
@@ -751,11 +750,6 @@ static int flctl_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
 	return 0;
 }
 
-static void flctl_register_init(struct sh_flctl *flctl, unsigned long val)
-{
-	writel(val, FLCMNCR(flctl));
-}
-
 static int flctl_chip_init_tail(struct mtd_info *mtd)
 {
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
@@ -807,8 +801,7 @@ static int flctl_chip_init_tail(struct mtd_info *mtd)
 		chip->ecc.mode = NAND_ECC_HW;
 
 		/* 4 symbols ECC enabled */
-		writel(readl(FLCMNCR(flctl)) | _4ECCEN | ECCPOS2 | ECCPOS_02,
-				FLCMNCR(flctl));
+		flctl->flcmncr_base |= _4ECCEN | ECCPOS2 | ECCPOS_02;
 	} else {
 		chip->ecc.mode = NAND_ECC_SOFT;
 	}
@@ -854,9 +847,8 @@ static int __devinit flctl_probe(struct platform_device *pdev)
 	nand = &flctl->chip;
 	flctl_mtd->priv = nand;
 	flctl->pdev = pdev;
+	flctl->flcmncr_base = pdata->flcmncr_val;
 	flctl->hwecc = pdata->has_hwecc;
-
-	flctl_register_init(flctl, pdata->flcmncr_val);
 
 	nand->options = NAND_NO_AUTOINCR;
 

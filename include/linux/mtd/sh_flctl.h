@@ -132,6 +132,7 @@ struct sh_flctl {
 	int	erase1_page_addr;	/* page_addr in ERASE1 cmd */
 	uint32_t erase_ADRCNT;		/* bits of FLCMDCR in ERASE1 cmd */
 	uint32_t rw_ADRCNT;	/* bits of FLCMDCR in READ WRITE cmd */
+	uint32_t flcmncr_base;	/* base value of FLCMNCR */
 
 	int	hwecc_cant_correct[4];
 
