@@ -525,7 +525,6 @@ static void flctl_cmdfunc(struct mtd_info *mtd, unsigned int command,
 			execmd_read_page_sector(mtd, page_addr);
 			break;
 		}
-		empty_fifo(flctl);
 		if (flctl->page_size)
 			set_cmd_regs(mtd, command, (NAND_CMD_READSTART << 8)
 				| command);
@@ -547,7 +546,6 @@ static void flctl_cmdfunc(struct mtd_info *mtd, unsigned int command,
 			break;
 		}
 
-		empty_fifo(flctl);
 		if (flctl->page_size) {
 			set_cmd_regs(mtd, command, (NAND_CMD_READSTART << 8)
 				| NAND_CMD_READ0);
@@ -560,12 +558,12 @@ static void flctl_cmdfunc(struct mtd_info *mtd, unsigned int command,
 		goto read_normal_exit;
 
 	case NAND_CMD_READID:
-		empty_fifo(flctl);
 		set_cmd_regs(mtd, command, command);
 		set_addr(mtd, 0, 0);
 
 		flctl->read_bytes = 4;
 		writel(flctl->read_bytes, FLDTCNTR(flctl)); /* set read size */
+		empty_fifo(flctl);
 		start_translation(flctl);
 		read_datareg(flctl, 0);	/* read and end */
 		break;
@@ -654,6 +652,7 @@ static void flctl_cmdfunc(struct mtd_info *mtd, unsigned int command,
 
 read_normal_exit:
 	writel(flctl->read_bytes, FLDTCNTR(flctl));	/* set read size */
+	empty_fifo(flctl);
 	start_translation(flctl);
 	read_fiforeg(flctl, flctl->read_bytes, 0);
 	wait_completion(flctl);
