@@ -693,6 +693,8 @@ static void flctl_select_chip(struct mtd_info *mtd, int chipnr)
 	case 0:
 		flctl->flcmncr_base |= CE0_ENABLE;
 		writel(flctl->flcmncr_base, FLCMNCR(flctl));
+		if (flctl->holden)
+			writel(HOLDEN, FLHOLDCR(flctl));
 		break;
 	default:
 		BUG();
@@ -849,6 +851,7 @@ static int __devinit flctl_probe(struct platform_device *pdev)
 	flctl->pdev = pdev;
 	flctl->flcmncr_base = pdata->flcmncr_val;
 	flctl->hwecc = pdata->has_hwecc;
+	flctl->holden = pdata->use_holden;
 
 	nand->options = NAND_NO_AUTOINCR;
 

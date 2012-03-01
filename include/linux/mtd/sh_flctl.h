@@ -38,6 +38,7 @@
 #define FLDTFIFO(f)		(f->reg + 0x24)
 #define FLECFIFO(f)		(f->reg + 0x28)
 #define FLTRCR(f)		(f->reg + 0x2C)
+#define FLHOLDCR(f)		(f->reg + 0x38)
 #define	FL4ECCRESULT0(f)	(f->reg + 0x80)
 #define	FL4ECCRESULT1(f)	(f->reg + 0x84)
 #define	FL4ECCRESULT2(f)	(f->reg + 0x88)
@@ -109,6 +110,15 @@
 #define TRSTRT		(0x1 << 0)	/* translation start */
 #define TREND		(0x1 << 1)	/* translation end */
 
+/*
+ * FLHOLDCR control bits
+ *
+ * HOLDEN: Bus Occupancy Enable (inverted)
+ * Enable this bit when the external bus might be used in between transfers.
+ * If not set and the bus gets used by other modules, a deadlock occurs.
+ */
+#define HOLDEN		(0x1 << 0)
+
 /* FL4ECCCR control bits */
 #define	_4ECCFA		(0x1 << 2)	/* 4 symbols correct fault */
 #define	_4ECCEND	(0x1 << 1)	/* 4 symbols end */
@@ -138,6 +148,7 @@ struct sh_flctl {
 
 	unsigned page_size:1;	/* NAND page size (0 = 512, 1 = 2048) */
 	unsigned hwecc:1;	/* Hardware ECC (0 = disabled, 1 = enabled) */
+	unsigned holden:1;	/* Hardware has FLHOLDCR and HOLDEN is set */
 };
 
 struct sh_flctl_platform_data {
@@ -146,6 +157,7 @@ struct sh_flctl_platform_data {
 	unsigned long		flcmncr_val;
 
 	unsigned has_hwecc:1;
+	unsigned use_holden:1;
 };
 
 static inline struct sh_flctl *mtd_to_flctl(struct mtd_info *mtdinfo)
