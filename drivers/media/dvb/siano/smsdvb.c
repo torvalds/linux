@@ -872,11 +872,11 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	switch (smscore_get_device_mode(coredev)) {
 	case DEVICE_MODE_DVBT:
 	case DEVICE_MODE_DVBT_BDA:
-		smsdvb_fe_ops.delsys[0] = SYS_DVBT;
+		client->frontend.ops.delsys[0] = SYS_DVBT;
 		break;
 	case DEVICE_MODE_ISDBT:
 	case DEVICE_MODE_ISDBT_BDA:
-		smsdvb_fe_ops.delsys[0] = SYS_ISDBT;
+		client->frontend.ops.delsys[0] = SYS_ISDBT;
 		break;
 	}
 
