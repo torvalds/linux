@@ -11,6 +11,7 @@
 #ifndef __ASM_MACH_PCI_H
 #define __ASM_MACH_PCI_H
 
+
 struct pci_sys_data;
 struct pci_ops;
 struct pci_bus;
@@ -53,6 +54,15 @@ struct pci_sys_data {
  * Call this with your hw_pci struct to initialise the PCI system.
  */
 void pci_common_init(struct hw_pci *);
+
+/*
+ * Setup early fixed I/O mapping.
+ */
+#if defined(CONFIG_PCI)
+extern void pci_map_io_early(unsigned long pfn);
+#else
+static inline void pci_map_io_early(unsigned long pfn) {}
+#endif
 
 /*
  * PCI controllers

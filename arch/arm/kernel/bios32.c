@@ -13,6 +13,7 @@
 #include <linux/io.h>
 
 #include <asm/mach-types.h>
+#include <asm/mach/map.h>
 #include <asm/mach/pci.h>
 
 static int debug_pci;
@@ -626,4 +627,16 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		return -EAGAIN;
 
 	return 0;
+}
+
+void __init pci_map_io_early(unsigned long pfn)
+{
+	struct map_desc pci_io_desc = {
+		.virtual	= PCI_IO_VIRT_BASE,
+		.type		= MT_DEVICE,
+		.length		= SZ_64K,
+	};
+
+	pci_io_desc.pfn = pfn;
+	iotable_init(&pci_io_desc, 1);
 }
