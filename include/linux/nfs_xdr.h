@@ -977,6 +977,7 @@ struct nfs4_server_caps_res {
 	u32				acl_bitmask;
 	u32				has_links;
 	u32				has_symlinks;
+	u32				fh_expire_type;
 	struct nfs4_sequence_res	seq_res;
 };
 
