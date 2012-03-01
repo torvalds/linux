@@ -154,7 +154,7 @@ static struct omap_lcd_config ams_delta_lcd_config = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_usb_config ams_delta_usb_config __initdata = {
+static struct omap_usb_config ams_delta_usb_config = {
 	.register_host	= 1,
 	.hmc_mode	= 16,
 	.pins[0]	= 2,
@@ -300,7 +300,7 @@ static const struct matrix_keymap_data ams_delta_keymap_data = {
 	.keymap_size	= ARRAY_SIZE(ams_delta_keymap),
 };
 
-static struct omap_kp_platform_data ams_delta_kp_data __initdata = {
+static struct omap_kp_platform_data ams_delta_kp_data = {
 	.rows		= 8,
 	.cols		= 8,
 	.keymap_data	= &ams_delta_keymap_data,
