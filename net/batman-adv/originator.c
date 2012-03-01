@@ -35,7 +35,8 @@ static void purge_orig(struct work_struct *work);
 static void start_purge_timer(struct bat_priv *bat_priv)
 {
 	INIT_DELAYED_WORK(&bat_priv->orig_work, purge_orig);
-	queue_delayed_work(bat_event_workqueue, &bat_priv->orig_work, 1 * HZ);
+	queue_delayed_work(bat_event_workqueue,
+			   &bat_priv->orig_work, msecs_to_jiffies(1000));
 }
 
 /* returns 1 if they are the same originator */
@@ -274,6 +275,7 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 	struct hlist_node *node, *node_tmp;
 	struct neigh_node *neigh_node;
 	bool neigh_purged = false;
+	unsigned long last_seen;
 
 	*best_neigh_node = NULL;
 
@@ -288,6 +290,8 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 		    (neigh_node->if_incoming->if_status == IF_NOT_IN_USE) ||
 		    (neigh_node->if_incoming->if_status == IF_TO_BE_REMOVED)) {
 
+			last_seen = neigh_node->last_seen;
+
 			if ((neigh_node->if_incoming->if_status ==
 								IF_INACTIVE) ||
 			    (neigh_node->if_incoming->if_status ==
@@ -300,9 +304,9 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 					neigh_node->if_incoming->net_dev->name);
 			else
 				bat_dbg(DBG_BATMAN, bat_priv,
-					"neighbor timeout: originator %pM, neighbor: %pM, last_seen: %lu\n",
+					"neighbor timeout: originator %pM, neighbor: %pM, last_seen: %u\n",
 					orig_node->orig, neigh_node->addr,
-					(neigh_node->last_seen / HZ));
+					jiffies_to_msecs(last_seen));
 
 			neigh_purged = true;
 
@@ -327,8 +331,9 @@ static bool purge_orig_node(struct bat_priv *bat_priv,
 
 	if (has_timed_out(orig_node->last_seen, 2 * PURGE_TIMEOUT)) {
 		bat_dbg(DBG_BATMAN, bat_priv,
-			"Originator timeout: originator %pM, last_seen %lu\n",
-			orig_node->orig, (orig_node->last_seen / HZ));
+			"Originator timeout: originator %pM, last_seen %u\n",
+			orig_node->orig,
+			jiffies_to_msecs(orig_node->last_seen));
 		return true;
 	} else {
 		if (purge_orig_neighbors(bat_priv, orig_node,
