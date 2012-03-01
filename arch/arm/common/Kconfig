@@ -35,9 +35,6 @@ config DMABOUNCE
 	bool
 	select ZONE_DMA
 
-config TIMER_ACORN
-	bool
-
 config SHARP_LOCOMO
 	bool
 
