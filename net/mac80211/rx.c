@@ -177,7 +177,8 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	pos += 2;
 
 	/* IEEE80211_RADIOTAP_DBM_ANTSIGNAL */
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM) {
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM &&
+	    !(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
 		*pos = status->signal;
 		rthdr->it_present |=
 			cpu_to_le32(1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL);
@@ -1309,8 +1310,10 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 
 	sta->rx_fragments++;
 	sta->rx_bytes += rx->skb->len;
-	sta->last_signal = status->signal;
-	ewma_add(&sta->avg_signal, -status->signal);
+	if (!(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
+		sta->last_signal = status->signal;
+		ewma_add(&sta->avg_signal, -status->signal);
+	}
 
 	/*
 	 * Change STA power saving mode only at the end of a frame
