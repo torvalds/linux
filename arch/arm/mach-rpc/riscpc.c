@@ -152,7 +152,7 @@ static struct platform_device kbd_device = {
 static struct plat_serial8250_port serial_platform_data[] = {
 	{
 		.mapbase	= 0x03010fe0,
-		.irq		= 10,
+		.irq		= IRQ_SERIALPORT,
 		.uartclk	= 1843200,
 		.regshift	= 2,
 		.iotype		= UPIO_MEM,
