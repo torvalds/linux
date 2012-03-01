@@ -371,6 +371,17 @@ struct rcu_state {
 
 	raw_spinlock_t onofflock;		/* exclude on/offline and */
 						/*  starting new GP. */
+	struct rcu_head *orphan_nxtlist;	/* Orphaned callbacks that */
+						/*  need a grace period. */
+	struct rcu_head **orphan_nxttail;	/* Tail of above. */
+	struct rcu_head *orphan_donelist;	/* Orphaned callbacks that */
+						/*  are ready to invoke. */
+	struct rcu_head **orphan_donetail;	/* Tail of above. */
+	long qlen_lazy;				/* Number of lazy callbacks. */
+	long qlen;				/* Total number of callbacks. */
+	struct task_struct *rcu_barrier_in_progress;
+						/* Task doing rcu_barrier(), */
+						/*  or NULL if no barrier. */
 	raw_spinlock_t fqslock;			/* Only one task forcing */
 						/*  quiescent states. */
 	unsigned long jiffies_force_qs;		/* Time at which to invoke */
