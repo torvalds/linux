@@ -45,11 +45,11 @@
 #define L2CAP_DEFAULT_SDU_ITIME		0xFFFFFFFF
 #define L2CAP_DEFAULT_ACC_LAT		0xFFFFFFFF
 
-#define L2CAP_DISC_TIMEOUT             (100)
-#define L2CAP_DISC_REJ_TIMEOUT         (5000)  /*  5 seconds */
-#define L2CAP_ENC_TIMEOUT              (5000)  /*  5 seconds */
-#define L2CAP_CONN_TIMEOUT             (40000) /* 40 seconds */
-#define L2CAP_INFO_TIMEOUT             (4000)  /*  4 seconds */
+#define L2CAP_DISC_TIMEOUT		msecs_to_jiffies(100)
+#define L2CAP_DISC_REJ_TIMEOUT		msecs_to_jiffies(5000)
+#define L2CAP_ENC_TIMEOUT		msecs_to_jiffies(5000)
+#define L2CAP_CONN_TIMEOUT		msecs_to_jiffies(40000)
+#define L2CAP_INFO_TIMEOUT		msecs_to_jiffies(4000)
 
 /* L2CAP socket address */
 struct sockaddr_l2 {
