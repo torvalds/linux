@@ -415,7 +415,7 @@ config MFD_MAX8997
 	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_CORE
 	help
-	  Say yes here to support for Maxim Semiconductor MAX8998/8966.
+	  Say yes here to support for Maxim Semiconductor MAX8997/8966.
 	  This is a Power Management IC with RTC, Flash, Fuel Gauge, Haptic,
 	  MUIC controls on chip.
 	  This driver provides common support for accessing the device;
