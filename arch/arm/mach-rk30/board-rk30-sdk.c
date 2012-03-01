@@ -291,6 +291,40 @@ static struct mma8452_platform_data mma8452_info = {
 	.orientation = { -1, 0, 0, 0, 0, 1, 0, -1, 0},
 };
 #endif
+#if defined (CONFIG_COMPASS_AK8975)
+static struct akm8975_platform_data akm8975_info =
+{
+	.m_layout = 
+	{
+		{
+			{1, 0, 0 },
+			{0, -1, 0 },
+			{0,	0, -1 },
+		},
+
+		{
+			{1, 0, 0 },
+			{0, 1, 0 },
+			{0,	0, 1 },
+		},
+
+		{
+			{1, 0, 0 },
+			{0, 1, 0 },
+			{0,	0, 1 },
+		},
+
+		{
+			{1, 0, 0 },
+			{0, 1, 0 },
+			{0,	0, 1 },
+		},
+	}
+
+};
+
+#endif
+
 #if defined(CONFIG_GYRO_L3G4200D)
 
 #include <linux/l3g4200d.h>
@@ -374,6 +408,15 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 	      .irq	      = MMA8452_INT_PIN,
 	      .platform_data  = &mma8452_info,
 	    },
+#endif
+#if defined (CONFIG_COMPASS_AK8975)
+	{
+		.type    	= "ak8975",
+		.addr           = 0x0d,
+		.flags		= 0,
+		.irq		= RK30_PIN4_PC1,
+		.platform_data  = &akm8975_info,
+	},
 #endif
 #if defined (CONFIG_GYRO_L3G4200D)
 	{
