@@ -255,6 +255,11 @@ parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 	int index;
 
 	index = i915_vbt_sdvo_panel_type;
+	if (index == -2) {
+		DRM_DEBUG_KMS("Ignore SDVO panel mode from BIOS VBT tables.\n");
+		return;
+	}
+
 	if (index == -1) {
 		struct bdb_sdvo_lvds_options *sdvo_lvds_options;
 

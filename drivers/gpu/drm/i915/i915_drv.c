@@ -89,8 +89,8 @@ MODULE_PARM_DESC(lvds_use_ssc,
 int i915_vbt_sdvo_panel_type __read_mostly = -1;
 module_param_named(vbt_sdvo_panel_type, i915_vbt_sdvo_panel_type, int, 0600);
 MODULE_PARM_DESC(vbt_sdvo_panel_type,
-		"Override selection of SDVO panel mode in the VBT "
-		"(default: auto)");
+		"Override/Ignore selection of SDVO panel mode in the VBT "
+		"(-2=ignore, -1=auto [default], index in VBT BIOS table)");
 
 static bool i915_try_reset __read_mostly = true;
 module_param_named(reset, i915_try_reset, bool, 0600);
