@@ -341,7 +341,7 @@ static struct iio_chan_spec max1361_channels[] =
 static struct iio_chan_spec max1363_channels[] =
 	MAX1363_4X_CHANS(12, MAX1363_EV_M);
 
-/* Appies to max1236, max1237 */
+/* Applies to max1236, max1237 */
 static const enum max1363_modes max1236_mode_list[] = {
 	_s0, _s1, _s2, _s3,
 	s0to1, s0to2, s0to3,

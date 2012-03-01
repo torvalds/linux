@@ -362,7 +362,7 @@
 #define IIO_EVENT_ATTR_CYCEND(_evlist, _show, _store, _mask) \
 	IIO_EVENT_ATTR_SH(cycend, _evlist, _show, _store, _mask)
 
-/* on the rising and falling edge of the the voltage waveform */
+/* on the rising and falling edge of the voltage waveform */
 #define IIO_EVENT_ATTR_ZERO_CROSS(_evlist, _show, _store, _mask) \
 	IIO_EVENT_ATTR_SH(zero_cross, _evlist, _show, _store, _mask)
 

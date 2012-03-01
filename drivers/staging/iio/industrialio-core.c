@@ -313,7 +313,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 		goto error_ret;
 	}
 
-	if (chan->differential) { /* Differential  can not have modifier */
+	if (chan->differential) { /* Differential can not have modifier */
 		if (generic)
 			name_format
 				= kasprintf(GFP_KERNEL, "%s_%s-%s_%s",
@@ -547,7 +547,7 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 	attrcount = attrcount_orig;
 	/*
 	 * New channel registration method - relies on the fact a group does
-	 *  not need to be initialized if it is name is NULL.
+	 * not need to be initialized if it is name is NULL.
 	 */
 	INIT_LIST_HEAD(&indio_dev->channel_attr_list);
 	if (indio_dev->channels)

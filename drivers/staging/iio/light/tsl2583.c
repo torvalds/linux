@@ -113,7 +113,7 @@ struct taos_lux {
 
 /* This structure is intentionally large to accommodate updates via sysfs. */
 /* Sized to 11 = max 10 segments + 1 termination segment */
-/* Assumption is is one and only one type of glass used  */
+/* Assumption is one and only one type of glass used  */
 static struct taos_lux taos_device_lux[11] = {
 	{  9830,  8520, 15729 },
 	{ 12452, 10807, 23344 },

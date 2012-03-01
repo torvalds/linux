@@ -86,7 +86,7 @@
 #define	RATE_NOT_USED				0x07
 
 /*
- * Device Configutration
+ * Device Configuration
  */
 #define	CONF_NORMAL				0x00
 #define	CONF_POSITIVE_BIAS			0x01
@@ -142,7 +142,7 @@ static s32 hmc5843_configure(struct i2c_client *client,
 					(operating_mode & 0x03));
 }
 
-/* Return the measurement value from the  specified channel */
+/* Return the measurement value from the specified channel */
 static int hmc5843_read_measurement(struct iio_dev *indio_dev,
 				    int address,
 				    int *val)
@@ -169,7 +169,7 @@ static int hmc5843_read_measurement(struct iio_dev *indio_dev,
 /*
  * From the datasheet
  * 0 - Continuous-Conversion Mode: In continuous-conversion mode, the
- * device continuously performs conversions an places the result in the
+ * device continuously performs conversions and places the result in the
  * data register.
  *
  * 1 - Single-Conversion Mode : device performs a single measurement,

@@ -147,7 +147,7 @@ static int iio_read_first_n_sw_rb(struct iio_buffer *r,
 	size_t data_available, buffer_size;
 
 	/* A userspace program has probably made an error if it tries to
-	 *  read something that is not a whole number of bpds.
+	 * read something that is not a whole number of bpds.
 	 * Return an error.
 	 */
 	if (n % ring->buf.bytes_per_datum) {
@@ -229,7 +229,7 @@ static int iio_read_first_n_sw_rb(struct iio_buffer *r,
 
 	/* setup the next read position */
 	/* Beware, this may fail due to concurrency fun and games.
-	 *  Possible that sufficient fill commands have run to push the read
+	 * Possible that sufficient fill commands have run to push the read
 	 * pointer past where we would be after the rip. If this occurs, leave
 	 * it be.
 	 */

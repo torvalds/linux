@@ -334,7 +334,7 @@ static int __devinit ad5446_probe(struct spi_device *spi)
 	st->reg = reg;
 	st->spi = spi;
 
-	/* Estabilish that the iio_dev is a child of the spi device */
+	/* Establish that the iio_dev is a child of the spi device */
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	if (st->chip_info->store_pwr_down)

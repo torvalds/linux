@@ -26,7 +26,7 @@
 /**
  * ad799x_ring_preenable() setup the parameters of the ring before enabling
  *
- * The complex nature of the setting of the nuber of bytes per datum is due
+ * The complex nature of the setting of the number of bytes per datum is due
  * to this driver currently ensuring that the timestamp is stored at an 8
  * byte boundary.
  **/

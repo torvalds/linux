@@ -26,7 +26,7 @@ enum iio_data_type {
 
 /* Could add the raw attributes as well - allowing buffer only devices */
 enum iio_chan_info_enum {
-	/* 0 is reserverd for raw attributes */
+	/* 0 is reserved for raw attributes */
 	IIO_CHAN_INFO_SCALE = 1,
 	IIO_CHAN_INFO_OFFSET,
 	IIO_CHAN_INFO_CALIBSCALE,
@@ -110,7 +110,7 @@ struct iio_chan_spec_ext_info {
 /**
  * struct iio_chan_spec - specification of a single channel
  * @type:		What type of measurement is the channel making.
- * @channel:		What number or name do we wish to asign the channel.
+ * @channel:		What number or name do we wish to assign the channel.
  * @channel2:		If there is a second number for a differential
  *			channel then this is it. If modified is set then the
  *			value here specifies the modifier.
@@ -133,7 +133,7 @@ struct iio_chan_spec_ext_info {
  *			informative name. Note this has no effect codes etc,
  *			unlike modifiers.
  * @datasheet_name:	A name used in in kernel mapping of channels. It should
- *			corrspond to the first name that the channel is referred
+ *			correspond to the first name that the channel is referred
  *			to by in the datasheet (e.g. IND), or the nearest
  *			possible compound name (e.g. IND-INC).
  * @processed_val:	Flag to specify the data access attribute should be
@@ -243,7 +243,7 @@ struct iio_dev;
  * @write_event_config:	set if the event is enabled.
  * @read_event_value:	read a value associated with the event. Meaning
  *			is event dependant. event_code specifies which event.
- * @write_event_value:	write the value associate with the event.
+ * @write_event_value:	write the value associated with the event.
  *			Meaning is event dependent.
  * @validate_trigger:	function to validate the trigger when the
  *			current trigger gets changed.
