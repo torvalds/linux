@@ -836,13 +836,15 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	p->o_arg.dir_bitmask = server->cache_consistency_bitmask;
 	p->o_arg.claim = NFS4_OPEN_CLAIM_NULL;
 	if (attrs != NULL && attrs->ia_valid != 0) {
-		u32 *s;
+		__be32 verf[2];
 
 		p->o_arg.u.attrs = &p->attrs;
 		memcpy(&p->attrs, attrs, sizeof(p->attrs));
-		s = (u32 *) p->o_arg.u.verifier.data;
-		s[0] = jiffies;
-		s[1] = current->pid;
+
+		verf[0] = jiffies;
+		verf[1] = current->pid;
+		memcpy(p->o_arg.u.verifier.data, verf,
+				sizeof(p->o_arg.u.verifier.data));
 	}
 	p->c_arg.fh = &p->o_res.fh;
 	p->c_arg.stateid = &p->o_res.stateid;
@@ -3819,6 +3821,16 @@ wait_on_recovery:
 	return -EAGAIN;
 }
 
+static void nfs4_construct_boot_verifier(struct nfs_client *clp,
+					 nfs4_verifier *bootverf)
+{
+	__be32 verf[2];
+
+	verf[0] = htonl((u32)clp->cl_boot_time.tv_sec);
+	verf[1] = htonl((u32)clp->cl_boot_time.tv_nsec);
+	memcpy(bootverf->data, verf, sizeof(bootverf->data));
+}
+
 int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 		unsigned short port, struct rpc_cred *cred,
 		struct nfs4_setclientid_res *res)
@@ -3835,13 +3847,10 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 		.rpc_resp = res,
 		.rpc_cred = cred,
 	};
-	__be32 *p;
 	int loop = 0;
 	int status;
 
-	p = (__be32*)sc_verifier.data;
-	*p++ = htonl((u32)clp->cl_boot_time.tv_sec);
-	*p = htonl((u32)clp->cl_boot_time.tv_nsec);
+	nfs4_construct_boot_verifier(clp, &sc_verifier);
 
 	for(;;) {
 		rcu_read_lock();
@@ -4933,6 +4942,7 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 {
 	nfs4_verifier verifier;
 	struct nfs41_exchange_id_args args = {
+		.verifier = &verifier,
 		.client = clp,
 		.flags = EXCHGID4_FLAG_SUPP_MOVED_REFER,
 	};
@@ -4946,15 +4956,11 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 		.rpc_resp = &res,
 		.rpc_cred = cred,
 	};
-	__be32 *p;
 
 	dprintk("--> %s\n", __func__);
 	BUG_ON(clp == NULL);
 
-	p = (u32 *)verifier.data;
-	*p++ = htonl((u32)clp->cl_boot_time.tv_sec);
-	*p = htonl((u32)clp->cl_boot_time.tv_nsec);
-	args.verifier = &verifier;
+	nfs4_construct_boot_verifier(clp, &verifier);
 
 	args.id_len = scnprintf(args.id, sizeof(args.id),
 				"%s/%s.%s/%u",
