@@ -640,7 +640,6 @@ static void nfs_show_nfsv4_options(struct seq_file *m, struct nfs_server *nfss,
 	struct nfs_client *clp = nfss->nfs_client;
 
 	seq_printf(m, ",clientaddr=%s", clp->cl_ipaddr);
-	seq_printf(m, ",minorversion=%u", clp->cl_minorversion);
 }
 #else
 static void nfs_show_nfsv4_options(struct seq_file *m, struct nfs_server *nfss,
@@ -648,6 +647,15 @@ static void nfs_show_nfsv4_options(struct seq_file *m, struct nfs_server *nfss,
 {
 }
 #endif
+
+static void nfs_show_nfs_version(struct seq_file *m,
+		unsigned int version,
+		unsigned int minorversion)
+{
+	seq_printf(m, ",vers=%u", version);
+	if (version == 4)
+		seq_printf(m, ".%u", minorversion);
+}
 
 /*
  * Describe the mount options in force on this server representation
@@ -676,7 +684,7 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	u32 version = clp->rpc_ops->version;
 	int local_flock, local_fcntl;
 
-	seq_printf(m, ",vers=%u", version);
+	nfs_show_nfs_version(m, version, clp->cl_minorversion);
 	seq_printf(m, ",rsize=%u", nfss->rsize);
 	seq_printf(m, ",wsize=%u", nfss->wsize);
 	if (nfss->bsize != 0)
