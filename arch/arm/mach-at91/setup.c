@@ -287,8 +287,38 @@ void __init at91_ioremap_matrix(u32 base_addr)
 }
 
 #if defined(CONFIG_OF)
+static struct of_device_id rstc_ids[] = {
+	{ .compatible = "atmel,at91sam9260-rstc", .data = at91sam9_alt_restart },
+	{ .compatible = "atmel,at91sam9g45-rstc", .data = at91sam9g45_restart },
+	{ /*sentinel*/ }
+};
+
+static void at91_dt_rstc(void)
+{
+	struct device_node *np;
+	const struct of_device_id *of_id;
+
+	np = of_find_matching_node(NULL, rstc_ids);
+	if (!np)
+		panic("unable to find compatible rstc node in dtb\n");
+
+	at91_rstc_base = of_iomap(np, 0);
+	if (!at91_rstc_base)
+		panic("unable to map rstc cpu registers\n");
+
+	of_id = of_match_node(rstc_ids, np);
+	if (!of_id)
+		panic("AT91: rtsc no restart function availlable\n");
+
+	arm_pm_restart = of_id->data;
+
+	of_node_put(np);
+}
+
 void __init at91_dt_initialize(void)
 {
+	at91_dt_rstc();
+
 	/* temporary until have the ramc binding*/
 	at91_boot_soc.ioremap_registers();
 

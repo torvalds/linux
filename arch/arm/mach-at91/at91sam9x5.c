@@ -306,7 +306,6 @@ static void __init at91sam9x5_ioremap_registers(void)
 
 void __init at91sam9x5_initialize(void)
 {
-	arm_pm_restart = at91sam9g45_restart;
 	at91_extern_irq = (1 << AT91SAM9X5_ID_IRQ0);
 
 	/* Register GPIO subsystem (using DT) */
