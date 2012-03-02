@@ -98,10 +98,10 @@ enum {
 	Opt_namelen,
 	Opt_mountport,
 	Opt_mountvers,
-	Opt_nfsvers,
 	Opt_minorversion,
 
 	/* Mount options that take string arguments */
+	Opt_nfsvers,
 	Opt_sec, Opt_proto, Opt_mountproto, Opt_mounthost,
 	Opt_addr, Opt_mountaddr, Opt_clientaddr,
 	Opt_lookupcache,
@@ -166,9 +166,10 @@ static const match_table_t nfs_mount_option_tokens = {
 	{ Opt_namelen, "namlen=%s" },
 	{ Opt_mountport, "mountport=%s" },
 	{ Opt_mountvers, "mountvers=%s" },
+	{ Opt_minorversion, "minorversion=%s" },
+
 	{ Opt_nfsvers, "nfsvers=%s" },
 	{ Opt_nfsvers, "vers=%s" },
-	{ Opt_minorversion, "minorversion=%s" },
 
 	{ Opt_sec, "sec=%s" },
 	{ Opt_proto, "proto=%s" },
@@ -262,6 +263,22 @@ static match_table_t nfs_local_lock_tokens = {
 	{ Opt_local_lock_err, NULL }
 };
 
+enum {
+	Opt_vers_2, Opt_vers_3, Opt_vers_4, Opt_vers_4_0,
+	Opt_vers_4_1,
+
+	Opt_vers_err
+};
+
+static match_table_t nfs_vers_tokens = {
+	{ Opt_vers_2, "2" },
+	{ Opt_vers_3, "3" },
+	{ Opt_vers_4, "4" },
+	{ Opt_vers_4_0, "4.0" },
+	{ Opt_vers_4_1, "4.1" },
+
+	{ Opt_vers_err, NULL }
+};
 
 static void nfs_umount_begin(struct super_block *);
 static int  nfs_statfs(struct dentry *, struct kstatfs *);
@@ -1064,6 +1081,40 @@ static int nfs_parse_security_flavors(char *value,
 	return 1;
 }
 
+static int nfs_parse_version_string(char *string,
+		struct nfs_parsed_mount_data *mnt,
+		substring_t *args)
+{
+	mnt->flags &= ~NFS_MOUNT_VER3;
+	switch (match_token(string, nfs_vers_tokens, args)) {
+	case Opt_vers_2:
+		mnt->version = 2;
+		break;
+	case Opt_vers_3:
+		mnt->flags |= NFS_MOUNT_VER3;
+		mnt->version = 3;
+		break;
+	case Opt_vers_4:
+		/* Backward compatibility option. In future,
+		 * the mount program should always supply
+		 * a NFSv4 minor version number.
+		 */
+		mnt->version = 4;
+		break;
+	case Opt_vers_4_0:
+		mnt->version = 4;
+		mnt->minorversion = 0;
+		break;
+	case Opt_vers_4_1:
+		mnt->version = 4;
+		mnt->minorversion = 1;
+		break;
+	default:
+		return 0;
+	}
+	return 1;
+}
+
 static int nfs_get_option_str(substring_t args[], char **option)
 {
 	kfree(*option);
@@ -1317,26 +1368,6 @@ static int nfs_parse_mount_options(char *raw,
 				goto out_invalid_value;
 			mnt->mount_server.version = option;
 			break;
-		case Opt_nfsvers:
-			if (nfs_get_option_ul(args, &option))
-				goto out_invalid_value;
-			switch (option) {
-			case NFS2_VERSION:
-				mnt->flags &= ~NFS_MOUNT_VER3;
-				mnt->version = 2;
-				break;
-			case NFS3_VERSION:
-				mnt->flags |= NFS_MOUNT_VER3;
-				mnt->version = 3;
-				break;
-			case NFS4_VERSION:
-				mnt->flags &= ~NFS_MOUNT_VER3;
-				mnt->version = 4;
-				break;
-			default:
-				goto out_invalid_value;
-			}
-			break;
 		case Opt_minorversion:
 			if (nfs_get_option_ul(args, &option))
 				goto out_invalid_value;
@@ -1348,6 +1379,15 @@ static int nfs_parse_mount_options(char *raw,
 		/*
 		 * options that take text values
 		 */
+		case Opt_nfsvers:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+			rc = nfs_parse_version_string(string, mnt, args);
+			kfree(string);
+			if (!rc)
+				goto out_invalid_value;
+			break;
 		case Opt_sec:
 			string = match_strdup(args);
 			if (string == NULL)
