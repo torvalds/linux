@@ -32,7 +32,6 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
-
 #include <linux/of.h>
 #include <linux/irqdomain.h>
 #include <linux/i2c/twl.h>
@@ -639,14 +638,14 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base)
 	int			status = -EINVAL;
 
 	/* only support modules with standard clear-on-read for now */
-	for (sih_mod = 0, sih = sih_modules;
-			sih_mod < nr_sih_modules;
+	for (sih_mod = 0, sih = sih_modules; sih_mod < nr_sih_modules;
 			sih_mod++, sih++) {
 		if (sih->module == module && sih->set_cor) {
 			status = 0;
 			break;
 		}
 	}
+
 	if (status < 0)
 		return status;
 
@@ -676,7 +675,7 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base)
 	status = request_threaded_irq(irq, NULL, handle_twl4030_sih, 0,
 				      agent->irq_name ?: sih->name, NULL);
 
-	pr_info("twl4030: %s (irq %d) chaining IRQs %d..%d\n", sih->name,
+	dev_info(dev, "%s (irq %d) chaining IRQs %d..%d\n", sih->name,
 			irq, irq_base, irq_base + i - 1);
 
 	return status < 0 ? status : irq_base;
@@ -692,11 +691,9 @@ int twl4030_sih_setup(struct device *dev, int module, int irq_base)
 int twl4030_init_irq(struct device *dev, int irq_num)
 {
 	static struct irq_chip	twl4030_irq_chip;
+	int			status, i;
 	int			irq_base, irq_end, nr_irqs;
 	struct			device_node *node = dev->of_node;
-
-	int			status;
-	int			i;
 
 	/*
 	 * TWL core and pwr interrupts must be contiguous because
@@ -727,7 +724,7 @@ int twl4030_init_irq(struct device *dev, int irq_num)
 	twl4030_irq_base = irq_base;
 
 	/*
-	 * install an irq handler for each of the SIH modules;
+	 * Install an irq handler for each of the SIH modules;
 	 * clone dummy irq_chip since PIH can't *do* anything
 	 */
 	twl4030_irq_chip = dummy_irq_chip;
@@ -742,13 +739,13 @@ int twl4030_init_irq(struct device *dev, int irq_num)
 		activate_irq(i);
 	}
 
-	pr_info("twl4030: %s (irq %d) chaining IRQs %d..%d\n", "PIH",
+	dev_info(dev, "%s (irq %d) chaining IRQs %d..%d\n", "PIH",
 			irq_num, irq_base, irq_end);
 
 	/* ... and the PWR_INT module ... */
 	status = twl4030_sih_setup(dev, TWL4030_MODULE_INT, irq_end);
 	if (status < 0) {
-		pr_err("twl4030: sih_setup PWR INT --> %d\n", status);
+		dev_err(dev, "sih_setup PWR INT --> %d\n", status);
 		goto fail;
 	}
 
@@ -757,7 +754,7 @@ int twl4030_init_irq(struct device *dev, int irq_num)
 				      IRQF_ONESHOT,
 				      "TWL4030-PIH", NULL);
 	if (status < 0) {
-		pr_err("twl4030: could not claim irq%d: %d\n", irq_num, status);
+		dev_err(dev, "could not claim irq%d: %d\n", irq_num, status);
 		goto fail_rqirq;
 	}
 

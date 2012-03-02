@@ -53,7 +53,6 @@
  *
  * We set up IRQs starting at a platform-specified base. An interrupt map table,
  * specifies mapping between interrupt number and the associated module.
- *
  */
 #define TWL6030_NR_IRQS    20
 
@@ -352,14 +351,11 @@ int twl6030_init_irq(struct device *dev, int irq_num)
 {
 	struct			device_node *node = dev->of_node;
 	int			nr_irqs, irq_base, irq_end;
-
-	int	status = 0;
-	int	i;
 	struct task_struct	*task;
-	int ret;
-	u8 mask[4];
-
-	static struct irq_chip	twl6030_irq_chip;
+	static struct irq_chip  twl6030_irq_chip;
+	int			status = 0;
+	int			i;
+	u8			mask[4];
 
 	nr_irqs = TWL6030_NR_IRQS;
 
@@ -377,16 +373,18 @@ int twl6030_init_irq(struct device *dev, int irq_num)
 	mask[1] = 0xFF;
 	mask[2] = 0xFF;
 	mask[3] = 0xFF;
-	ret = twl_i2c_write(TWL_MODULE_PIH, &mask[0],
-			REG_INT_MSK_LINE_A, 3); /* MASK ALL INT LINES */
-	ret = twl_i2c_write(TWL_MODULE_PIH, &mask[0],
-			REG_INT_MSK_STS_A, 3); /* MASK ALL INT STS */
-	ret = twl_i2c_write(TWL_MODULE_PIH, &mask[0],
-			REG_INT_STS_A, 3); /* clear INT_STS_A,B,C */
+
+	/* mask all int lines */
+	twl_i2c_write(TWL_MODULE_PIH, &mask[0], REG_INT_MSK_LINE_A, 3);
+	/* mask all int sts */
+	twl_i2c_write(TWL_MODULE_PIH, &mask[0], REG_INT_MSK_STS_A, 3);
+	/* clear INT_STS_A,B,C */
+	twl_i2c_write(TWL_MODULE_PIH, &mask[0], REG_INT_STS_A, 3);
 
 	twl6030_irq_base = irq_base;
 
-	/* install an irq handler for each of the modules;
+	/*
+	 * install an irq handler for each of the modules;
 	 * clone dummy irq_chip since PIH can't *do* anything
 	 */
 	twl6030_irq_chip = dummy_irq_chip;
@@ -401,22 +399,22 @@ int twl6030_init_irq(struct device *dev, int irq_num)
 		activate_irq(i);
 	}
 
-	pr_info("twl6030: %s (irq %d) chaining IRQs %d..%d\n", "PIH",
+	dev_info(dev, "PIH (irq %d) chaining IRQs %d..%d\n",
 			irq_num, irq_base, irq_end);
 
 	/* install an irq handler to demultiplex the TWL6030 interrupt */
 	init_completion(&irq_event);
 
-	status = request_irq(irq_num, handle_twl6030_pih, 0,
-				"TWL6030-PIH", &irq_event);
+	status = request_irq(irq_num, handle_twl6030_pih, 0, "TWL6030-PIH",
+			     &irq_event);
 	if (status < 0) {
-		pr_err("twl6030: could not claim irq%d: %d\n", irq_num, status);
+		dev_err(dev, "could not claim irq %d: %d\n", irq_num, status);
 		goto fail_irq;
 	}
 
 	task = kthread_run(twl6030_irq_thread, (void *)irq_num, "twl6030-irq");
 	if (IS_ERR(task)) {
-		pr_err("twl6030: could not create irq %d thread!\n", irq_num);
+		dev_err(dev, "could not create irq %d thread!\n", irq_num);
 		status = PTR_ERR(task);
 		goto fail_kthread;
 	}
@@ -431,6 +429,7 @@ fail_kthread:
 fail_irq:
 	for (i = irq_base; i < irq_end; i++)
 		irq_set_chip_and_handler(i, NULL, NULL);
+
 	return status;
 }
 
