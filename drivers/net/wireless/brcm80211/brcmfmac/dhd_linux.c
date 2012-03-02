@@ -1181,7 +1181,7 @@ exit:
 }
 #endif				/* DEBUG */
 
-static int __init brcmfmac_init(void)
+static void brcmf_driver_init(struct work_struct *work)
 {
 #ifdef CONFIG_BRCMFMAC_SDIO
 	brcmf_sdio_init();
@@ -1189,11 +1189,21 @@ static int __init brcmfmac_init(void)
 #ifdef CONFIG_BRCMFMAC_USB
 	brcmf_usb_init();
 #endif
+}
+static DECLARE_WORK(brcmf_driver_work, brcmf_driver_init);
+
+static int __init brcmfmac_module_init(void)
+{
+	if (!schedule_work(&brcmf_driver_work))
+		return -EBUSY;
+
 	return 0;
 }
 
-static void __exit brcmfmac_exit(void)
+static void __exit brcmfmac_module_exit(void)
 {
+	cancel_work_sync(&brcmf_driver_work);
+
 #ifdef CONFIG_BRCMFMAC_SDIO
 	brcmf_sdio_exit();
 #endif
@@ -1202,5 +1212,5 @@ static void __exit brcmfmac_exit(void)
 #endif
 }
 
-module_init(brcmfmac_init);
-module_exit(brcmfmac_exit);
+module_init(brcmfmac_module_init);
+module_exit(brcmfmac_module_exit);
