@@ -659,7 +659,6 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_le
 			goto done;
 		}
 
-		set_bit(HCI_PI_MGMT_INIT, &hci_pi(sk)->flags);
 		break;
 
 	case HCI_CHANNEL_MONITOR:
