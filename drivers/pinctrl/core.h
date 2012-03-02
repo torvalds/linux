@@ -76,9 +76,7 @@ struct pinctrl {
  *	datasheet or such
  * @dynamic_name: if the name of this pin was dynamically allocated
  * @lock: a lock to protect the descriptor structure
- * @mux_requested: whether the pin is already requested by pinmux or not
- * @mux_function: a named muxing function for the pin that will be passed to
- *	subdrivers and shown in debugfs etc
+ * @owner: the device holding this pin or NULL of no device has claimed it
  */
 struct pin_desc {
 	struct pinctrl_dev *pctldev;
