@@ -4187,15 +4187,6 @@ lpfc_queuecommand_lck(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 		cmnd->result = err;
 		goto out_fail_command;
 	}
-	/*
-	 * Do not let the mid-layer retry I/O too fast. If an I/O is retried
-	 * without waiting a bit then indicate that the device is busy.
-	 */
-	if (cmnd->retries &&
-	    time_before(jiffies, (cmnd->jiffies_at_alloc +
-				  msecs_to_jiffies(LPFC_RETRY_PAUSE *
-						   cmnd->retries))))
-		return SCSI_MLQUEUE_DEVICE_BUSY;
 	ndlp = rdata->pnode;
 
 	if ((scsi_get_prot_op(cmnd) != SCSI_PROT_NORMAL) &&
