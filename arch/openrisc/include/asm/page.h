@@ -94,8 +94,7 @@ extern unsigned long memory_end;
 
 #define pfn_valid(pfn)          ((pfn) < max_mapnr)
 
-#define virt_addr_valid(kaddr)  (((void *)(kaddr) >= (void *)PAGE_OFFSET) && \
-				((void *)(kaddr) < (void *)memory_end))
+#define virt_addr_valid(kaddr)	(pfn_valid(virt_to_pfn(kaddr)))
 
 #endif /* __ASSEMBLY__ */
 
