@@ -69,17 +69,6 @@ static inline void delay_300us(void)
 		sram_printch('\r');
 }
 
- void __sramfunc sram_printascii(const char *s)
-{
-	while (*s) {
-		if (*s == '\n')
-		{
-		    sram_printch('\r');
-		}
-	    sram_printch(*s);
-	    s++;
-	}
-}
 void print(const char *s)
 {
     sram_printascii(s);
@@ -123,17 +112,6 @@ void print_Dec_3(uint32_t value)
     print_Dec(value);
 }
 
-static void /* inline*/ __sramfunc printhex(unsigned int hex)
-{
-	int i = 8;
-	sram_printch('0');
-	sram_printch('x');
-	while (i--) {
-		unsigned char c = (hex & 0xF0000000) >> 28;
-		sram_printch(c < 0xa ? c + '0' : c - 0xa + 'a');
-		hex <<= 4;
-	}
-}
 #else
 static void inline sram_printch(char byte) {}
 static void inline sram_printascii(const char *s) {}
@@ -164,9 +142,9 @@ void __sramfunc ddr_testmode(void)
             if(nMHz < 100)
                 nMHz = 100;
             nMHz = ddr_change_freq(nMHz);
-	        printhex(nMHz);
+	        sram_printhex(nMHz);
 	        sram_printch(' ');
-	        printhex(n++);
+	        sram_printhex(n++);
 	        sram_printch(' ');
             g_crc2 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
             if (g_crc1!=g_crc2)
@@ -191,9 +169,9 @@ void __sramfunc ddr_testmode(void)
             ddr_suspend();
             delayus(nMHz);
             ddr_resume();
-	        printhex(nMHz);
+	        sram_printhex(nMHz);
 	        sram_printch(' ');
-	        printhex(n++);
+	        sram_printhex(n++);
             g_crc2 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
             if (g_crc1!=g_crc2)
             {
@@ -301,7 +279,7 @@ do { \
 	u32 en = readl(RK29_GPIO##ID##_BASE + GPIO_INTEN); \
 	if (en) { \
 		sram_printascii("GPIO" #ID "_INTEN: "); \
-		printhex(en); \
+		sram_printhex(en); \
 		sram_printch('\n'); \
 	} \
 } while (0)
@@ -323,7 +301,7 @@ static void dump_inten(void)
 do { \
 	u32 state = readl(RK29_GRF_BASE + GRF_GPIO0_PULL + (ID<<2)); \
 	sram_printascii("GPIO" #ID "_PULL: "); \
-	printhex(state); \
+	sram_printhex(state); \
 	sram_printch('\n'); \
 } while (0)
 

@@ -12,7 +12,7 @@
 /* Tag function inside SRAM called from inside SRAM  with this */
 #define __sramlocalfunc __section(.sram.text)
 
-void __init rk29_sram_init(void);
+int __init rk29_sram_init(void);
 
 static inline unsigned long ddr_save_sp(unsigned long new_sp)
 {
@@ -26,6 +26,10 @@ static inline unsigned long ddr_save_sp(unsigned long new_sp)
 // save_sp 必须定义为全局变量
 #define DDR_SAVE_SP(save_sp)		do { save_sp = ddr_save_sp((SRAM_DATA_END&(~7))); } while (0)
 #define DDR_RESTORE_SP(save_sp)		do { ddr_save_sp(save_sp); } while (0)
+
+extern void __sramfunc sram_printch(char byte);
+extern void __sramfunc sram_printascii(const char *s);
+extern void __sramfunc sram_printhex(unsigned int hex);
 
 #endif /* CONFIG_PLAT_RK */
 #endif

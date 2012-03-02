@@ -14,6 +14,7 @@
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <mach/memory.h>
+#include <plat/sram.h>
 
 
 /* SRAM section definitions from the linker */
@@ -66,4 +67,24 @@ int __init rk29_sram_init(void)
 	printk("CPU SRAM: copied sram data from %p to %p - %p\n", ram,start, end);
 
 	return 0;
+}
+
+void __sramfunc sram_printascii(const char *s)
+{
+	while (*s) {
+		sram_printch(*s);
+		s++;
+	}
+}
+
+void __sramfunc sram_printhex(unsigned int hex)
+{
+	int i = 8;
+	sram_printch('0');
+	sram_printch('x');
+	while (i--) {
+		unsigned char c = (hex & 0xF0000000) >> 28;
+		sram_printch(c < 0xa ? c + '0' : c - 0xa + 'a');
+		hex <<= 4;
+	}
 }
