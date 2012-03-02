@@ -2786,9 +2786,13 @@ lpfc_scsi_buf_update(struct lpfc_hba *phba)
 
 	spin_lock_irq(&phba->hbalock);
 	spin_lock(&phba->scsi_buf_list_lock);
-	list_for_each_entry_safe(sb, sb_next, &phba->lpfc_scsi_buf_list, list)
+	list_for_each_entry_safe(sb, sb_next, &phba->lpfc_scsi_buf_list, list) {
 		sb->cur_iocbq.sli4_xritag =
 			phba->sli4_hba.xri_ids[sb->cur_iocbq.sli4_lxritag];
+		set_bit(sb->cur_iocbq.sli4_lxritag, phba->sli4_hba.xri_bmask);
+		phba->sli4_hba.max_cfg_param.xri_used++;
+		phba->sli4_hba.xri_count++;
+	}
 	spin_unlock(&phba->scsi_buf_list_lock);
 	spin_unlock_irq(&phba->hbalock);
 	return 0;

@@ -5613,6 +5613,8 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 			rc = -ENOMEM;
 			goto free_vpi_ids;
 		}
+		phba->sli4_hba.max_cfg_param.xri_used = 0;
+		phba->sli4_hba.xri_count = 0;
 		phba->sli4_hba.xri_ids = kzalloc(count *
 						 sizeof(uint16_t),
 						 GFP_KERNEL);
