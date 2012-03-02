@@ -489,14 +489,20 @@ nfsd4_access(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			   &access->ac_supported);
 }
 
+static void gen_boot_verifier(nfs4_verifier *verifier)
+{
+	__be32 verf[2];
+
+	verf[0] = (__be32)nfssvc_boot.tv_sec;
+	verf[1] = (__be32)nfssvc_boot.tv_usec;
+	memcpy(verifier->data, verf, sizeof(verifier->data));
+}
+
 static __be32
 nfsd4_commit(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	     struct nfsd4_commit *commit)
 {
-	u32 *p = (u32 *)commit->co_verf.data;
-	*p++ = nfssvc_boot.tv_sec;
-	*p++ = nfssvc_boot.tv_usec;
-
+	gen_boot_verifier(&commit->co_verf);
 	return nfsd_commit(rqstp, &cstate->current_fh, commit->co_offset,
 			     commit->co_count);
 }
@@ -873,7 +879,6 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 {
 	stateid_t *stateid = &write->wr_stateid;
 	struct file *filp = NULL;
-	u32 *p;
 	__be32 status = nfs_ok;
 	unsigned long cnt;
 
@@ -895,9 +900,7 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	cnt = write->wr_buflen;
 	write->wr_how_written = write->wr_stable_how;
-	p = (u32 *)write->wr_verifier.data;
-	*p++ = nfssvc_boot.tv_sec;
-	*p++ = nfssvc_boot.tv_usec;
+	gen_boot_verifier(&write->wr_verifier);
 
 	status =  nfsd_write(rqstp, &cstate->current_fh, filp,
 			     write->wr_offset, rqstp->rq_vec, write->wr_vlen,

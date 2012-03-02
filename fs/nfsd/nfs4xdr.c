@@ -749,14 +749,14 @@ nfsd4_decode_open(struct nfsd4_compoundargs *argp, struct nfsd4_open *open)
 				goto out;
 			break;
 		case NFS4_CREATE_EXCLUSIVE:
-			READ_BUF(8);
-			COPYMEM(open->op_verf.data, 8);
+			READ_BUF(NFS4_VERIFIER_SIZE);
+			COPYMEM(open->op_verf.data, NFS4_VERIFIER_SIZE);
 			break;
 		case NFS4_CREATE_EXCLUSIVE4_1:
 			if (argp->minorversion < 1)
 				goto xdr_error;
-			READ_BUF(8);
-			COPYMEM(open->op_verf.data, 8);
+			READ_BUF(NFS4_VERIFIER_SIZE);
+			COPYMEM(open->op_verf.data, NFS4_VERIFIER_SIZE);
 			status = nfsd4_decode_fattr(argp, open->op_bmval,
 				&open->op_iattr, &open->op_acl);
 			if (status)
@@ -989,8 +989,8 @@ nfsd4_decode_setclientid(struct nfsd4_compoundargs *argp, struct nfsd4_setclient
 {
 	DECODE_HEAD;
 
-	READ_BUF(8);
-	COPYMEM(setclientid->se_verf.data, 8);
+	READ_BUF(NFS4_VERIFIER_SIZE);
+	COPYMEM(setclientid->se_verf.data, NFS4_VERIFIER_SIZE);
 
 	status = nfsd4_decode_opaque(argp, &setclientid->se_name);
 	if (status)
@@ -1015,9 +1015,9 @@ nfsd4_decode_setclientid_confirm(struct nfsd4_compoundargs *argp, struct nfsd4_s
 {
 	DECODE_HEAD;
 
-	READ_BUF(8 + sizeof(nfs4_verifier));
+	READ_BUF(8 + NFS4_VERIFIER_SIZE);
 	COPYMEM(&scd_c->sc_clientid, 8);
-	COPYMEM(&scd_c->sc_confirm, sizeof(nfs4_verifier));
+	COPYMEM(&scd_c->sc_confirm, NFS4_VERIFIER_SIZE);
 
 	DECODE_TAIL;
 }
@@ -2659,8 +2659,8 @@ nfsd4_encode_commit(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_
 	__be32 *p;
 
 	if (!nfserr) {
-		RESERVE_SPACE(8);
-		WRITEMEM(commit->co_verf.data, 8);
+		RESERVE_SPACE(NFS4_VERIFIER_SIZE);
+		WRITEMEM(commit->co_verf.data, NFS4_VERIFIER_SIZE);
 		ADJUST_ARGS();
 	}
 	return nfserr;
@@ -3020,7 +3020,7 @@ nfsd4_encode_readdir(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 	if (resp->xbuf->page_len)
 		return nfserr_resource;
 
-	RESERVE_SPACE(8);  /* verifier */
+	RESERVE_SPACE(NFS4_VERIFIER_SIZE);
 	savep = p;
 
 	/* XXX: Following NFSv3, we ignore the READDIR verifier for now. */
@@ -3221,9 +3221,9 @@ nfsd4_encode_setclientid(struct nfsd4_compoundres *resp, __be32 nfserr, struct n
 	__be32 *p;
 
 	if (!nfserr) {
-		RESERVE_SPACE(8 + sizeof(nfs4_verifier));
+		RESERVE_SPACE(8 + NFS4_VERIFIER_SIZE);
 		WRITEMEM(&scd->se_clientid, 8);
-		WRITEMEM(&scd->se_confirm, sizeof(nfs4_verifier));
+		WRITEMEM(&scd->se_confirm, NFS4_VERIFIER_SIZE);
 		ADJUST_ARGS();
 	}
 	else if (nfserr == nfserr_clid_inuse) {
@@ -3244,7 +3244,7 @@ nfsd4_encode_write(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_w
 		RESERVE_SPACE(16);
 		WRITE32(write->wr_bytes_written);
 		WRITE32(write->wr_how_written);
-		WRITEMEM(write->wr_verifier.data, 8);
+		WRITEMEM(write->wr_verifier.data, NFS4_VERIFIER_SIZE);
 		ADJUST_ARGS();
 	}
 	return nfserr;

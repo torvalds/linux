@@ -1174,12 +1174,12 @@ static void gen_clid(struct nfs4_client *clp)
 
 static void gen_confirm(struct nfs4_client *clp)
 {
+	__be32 verf[2];
 	static u32 i;
-	u32 *p;
 
-	p = (u32 *)clp->cl_confirm.data;
-	*p++ = get_seconds();
-	*p++ = i++;
+	verf[0] = (__be32)get_seconds();
+	verf[1] = (__be32)i++;
+	memcpy(clp->cl_confirm.data, verf, sizeof(clp->cl_confirm.data));
 }
 
 static struct nfs4_stid *find_stateid(struct nfs4_client *cl, stateid_t *t)
