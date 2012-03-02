@@ -3781,12 +3781,20 @@ static void rtl8169_init_ring_indexes(struct rtl8169_private *tp)
 
 static void rtl_hw_jumbo_enable(struct rtl8169_private *tp)
 {
+	void __iomem *ioaddr = tp->mmio_addr;
+
+	RTL_W8(Cfg9346, Cfg9346_Unlock);
 	rtl_generic_op(tp, tp->jumbo_ops.enable);
+	RTL_W8(Cfg9346, Cfg9346_Lock);
 }
 
 static void rtl_hw_jumbo_disable(struct rtl8169_private *tp)
 {
+	void __iomem *ioaddr = tp->mmio_addr;
+
+	RTL_W8(Cfg9346, Cfg9346_Unlock);
 	rtl_generic_op(tp, tp->jumbo_ops.disable);
+	RTL_W8(Cfg9346, Cfg9346_Lock);
 }
 
 static void r8168c_hw_jumbo_enable(struct rtl8169_private *tp)
