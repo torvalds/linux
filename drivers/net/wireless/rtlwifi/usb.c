@@ -362,7 +362,7 @@ static int _rtl_usb_init(struct ieee80211_hw *hw)
 	return err;
 }
 
-static int _rtl_usb_init_sw(struct ieee80211_hw *hw)
+static void rtl_usb_init_sw(struct ieee80211_hw *hw)
 {
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
@@ -397,7 +397,6 @@ static int _rtl_usb_init_sw(struct ieee80211_hw *hw)
 	/* HIMR_EX - turn all on */
 	rtlusb->irq_mask[1] = 0xFFFFFFFF;
 	rtlusb->disableHWSM =  true;
-	return 0;
 }
 
 #define __RADIO_TAP_SIZE_RSV	32
@@ -983,7 +982,7 @@ int __devinit rtl_usb_probe(struct usb_interface *intf,
 	err = _rtl_usb_init(hw);
 	if (err)
 		goto error_out;
-	err = _rtl_usb_init_sw(hw);
+	rtl_usb_init_sw(hw);
 	/* Init mac80211 sw */
 	err = rtl_init_core(hw);
 	if (err) {
