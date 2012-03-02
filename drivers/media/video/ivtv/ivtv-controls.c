@@ -129,7 +129,7 @@ int ivtv_g_pts_frame(struct ivtv *itv, s64 *pts, s64 *frame)
 
 static int ivtv_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct ivtv *itv = container_of(ctrl->handler, struct ivtv, hdl_out);
+	struct ivtv *itv = container_of(ctrl->handler, struct ivtv, cxhdl.hdl);
 
 	switch (ctrl->id) {
 	/* V4L2_CID_MPEG_VIDEO_DEC_PTS and V4L2_CID_MPEG_VIDEO_DEC_FRAME
@@ -143,7 +143,7 @@ static int ivtv_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 
 static int ivtv_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct ivtv *itv = container_of(ctrl->handler, struct ivtv, hdl_out);
+	struct ivtv *itv = container_of(ctrl->handler, struct ivtv, cxhdl.hdl);
 
 	switch (ctrl->id) {
 	/* V4L2_CID_MPEG_AUDIO_DEC_PLAYBACK and MULTILINGUAL_PLAYBACK

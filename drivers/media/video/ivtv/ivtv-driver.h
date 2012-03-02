@@ -641,7 +641,6 @@ struct ivtv {
 		struct v4l2_ctrl *ctrl_audio_playback;
 		struct v4l2_ctrl *ctrl_audio_multilingual_playback;
 	};
-	struct v4l2_ctrl_handler hdl_out;
 	struct v4l2_ctrl_handler hdl_gpio;
 	struct v4l2_subdev sd_gpio;	/* GPIO sub-device */
 	u16 instance;
