@@ -163,6 +163,7 @@ int dss_get_ctx_loss_count(struct device *dev);
 int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask);
 void dss_dsi_disable_pads(int dsi_id, unsigned lane_mask);
 int dss_set_min_bus_tput(struct device *dev, unsigned long tput);
+int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *));
 
 /* apply */
 void dss_apply_init(void);
@@ -238,7 +239,6 @@ enum dss_hdmi_venc_clk_source_select dss_get_hdmi_venc_clk_source(void);
 const char *dss_get_generic_clk_source_name(enum omap_dss_clk_source clk_src);
 void dss_dump_clocks(struct seq_file *s);
 
-void dss_dump_regs(struct seq_file *s);
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT)
 void dss_debug_dump_clocks(struct seq_file *s);
 #endif
@@ -285,10 +285,6 @@ int dsi_runtime_get(struct platform_device *dsidev);
 void dsi_runtime_put(struct platform_device *dsidev);
 
 void dsi_dump_clocks(struct seq_file *s);
-void dsi_create_debugfs_files_irq(struct dentry *debugfs_dir,
-		const struct file_operations *debug_fops);
-void dsi_create_debugfs_files_reg(struct dentry *debugfs_dir,
-		const struct file_operations *debug_fops);
 
 int dsi_init_display(struct omap_dss_device *display);
 void dsi_irq_handler(void);
@@ -371,8 +367,6 @@ int dpi_init_display(struct omap_dss_device *dssdev);
 int dispc_init_platform_driver(void);
 void dispc_uninit_platform_driver(void);
 void dispc_dump_clocks(struct seq_file *s);
-void dispc_dump_irqs(struct seq_file *s);
-void dispc_dump_regs(struct seq_file *s);
 void dispc_irq_handler(void);
 
 int dispc_runtime_get(void);
@@ -438,7 +432,6 @@ void dispc_mgr_setup(enum omap_channel channel,
 #ifdef CONFIG_OMAP2_DSS_VENC
 int venc_init_platform_driver(void);
 void venc_uninit_platform_driver(void);
-void venc_dump_regs(struct seq_file *s);
 int venc_init_display(struct omap_dss_device *display);
 unsigned long venc_get_pixel_clock(void);
 #else
@@ -455,7 +448,6 @@ int hdmi_init_platform_driver(void);
 void hdmi_uninit_platform_driver(void);
 int hdmi_init_display(struct omap_dss_device *dssdev);
 unsigned long hdmi_get_pixel_clock(void);
-void hdmi_dump_regs(struct seq_file *s);
 #else
 static inline int hdmi_init_display(struct omap_dss_device *dssdev)
 {
@@ -480,7 +472,6 @@ void hdmi_panel_exit(void);
 /* RFBI */
 int rfbi_init_platform_driver(void);
 void rfbi_uninit_platform_driver(void);
-void rfbi_dump_regs(struct seq_file *s);
 int rfbi_init_display(struct omap_dss_device *display);
 
 

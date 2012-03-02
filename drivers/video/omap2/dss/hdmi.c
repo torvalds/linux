@@ -420,7 +420,7 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev)
 	}
 }
 
-void hdmi_dump_regs(struct seq_file *s)
+static void hdmi_dump_regs(struct seq_file *s)
 {
 	mutex_lock(&hdmi.lock);
 
@@ -809,6 +809,8 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 	hdmi.ip_data.phy_offset = HDMI_PHY;
 
 	hdmi_panel_init();
+
+	dss_debugfs_create_file("hdmi", hdmi_dump_regs);
 
 #if defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI) || \
 	defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI_MODULE)

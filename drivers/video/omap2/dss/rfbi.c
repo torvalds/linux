@@ -819,7 +819,7 @@ int omap_rfbi_update(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(omap_rfbi_update);
 
-void rfbi_dump_regs(struct seq_file *s)
+static void rfbi_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, rfbi_read_reg(r))
 
@@ -975,6 +975,8 @@ static int omap_rfbihw_probe(struct platform_device *pdev)
 	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
 
 	rfbi_runtime_put();
+
+	dss_debugfs_create_file("rfbi", rfbi_dump_regs);
 
 	return 0;
 

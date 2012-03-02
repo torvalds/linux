@@ -1852,22 +1852,6 @@ static void dsi2_dump_irqs(struct seq_file *s)
 
 	dsi_dump_dsidev_irqs(dsidev, s);
 }
-
-void dsi_create_debugfs_files_irq(struct dentry *debugfs_dir,
-		const struct file_operations *debug_fops)
-{
-	struct platform_device *dsidev;
-
-	dsidev = dsi_get_dsidev_from_id(0);
-	if (dsidev)
-		debugfs_create_file("dsi1_irqs", S_IRUGO, debugfs_dir,
-			&dsi1_dump_irqs, debug_fops);
-
-	dsidev = dsi_get_dsidev_from_id(1);
-	if (dsidev)
-		debugfs_create_file("dsi2_irqs", S_IRUGO, debugfs_dir,
-			&dsi2_dump_irqs, debug_fops);
-}
 #endif
 
 static void dsi_dump_dsidev_regs(struct platform_device *dsidev,
@@ -1968,21 +1952,6 @@ static void dsi2_dump_regs(struct seq_file *s)
 	dsi_dump_dsidev_regs(dsidev, s);
 }
 
-void dsi_create_debugfs_files_reg(struct dentry *debugfs_dir,
-		const struct file_operations *debug_fops)
-{
-	struct platform_device *dsidev;
-
-	dsidev = dsi_get_dsidev_from_id(0);
-	if (dsidev)
-		debugfs_create_file("dsi1_regs", S_IRUGO, debugfs_dir,
-			&dsi1_dump_regs, debug_fops);
-
-	dsidev = dsi_get_dsidev_from_id(1);
-	if (dsidev)
-		debugfs_create_file("dsi2_regs", S_IRUGO, debugfs_dir,
-			&dsi2_dump_regs, debug_fops);
-}
 enum dsi_cio_power_state {
 	DSI_COMPLEXIO_POWER_OFF		= 0x0,
 	DSI_COMPLEXIO_POWER_ON		= 0x1,
@@ -4733,6 +4702,17 @@ static int omap_dsihw_probe(struct platform_device *dsidev)
 
 	dsi_runtime_put(dsidev);
 
+	if (dsi_module == 0)
+		dss_debugfs_create_file("dsi1_regs", dsi1_dump_regs);
+	else if (dsi_module == 1)
+		dss_debugfs_create_file("dsi2_regs", dsi2_dump_regs);
+
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+	if (dsi_module == 0)
+		dss_debugfs_create_file("dsi1_irqs", dsi1_dump_irqs);
+	else if (dsi_module == 1)
+		dss_debugfs_create_file("dsi2_irqs", dsi2_dump_irqs);
+#endif
 	return 0;
 
 err_runtime_get:

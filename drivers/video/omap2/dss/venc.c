@@ -745,7 +745,7 @@ int venc_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-void venc_dump_regs(struct seq_file *s)
+static void venc_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, venc_read_reg(r))
 
@@ -873,6 +873,8 @@ static int omap_venchw_probe(struct platform_device *pdev)
 	r = omap_dss_register_driver(&venc_driver);
 	if (r)
 		goto err_reg_panel_driver;
+
+	dss_debugfs_create_file("venc", venc_dump_regs);
 
 	return 0;
 

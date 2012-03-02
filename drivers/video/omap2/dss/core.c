@@ -166,34 +166,6 @@ static int dss_initialize_debugfs(void)
 	debugfs_create_file("clk", S_IRUGO, dss_debugfs_dir,
 			&dss_debug_dump_clocks, &dss_debug_fops);
 
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-	debugfs_create_file("dispc_irq", S_IRUGO, dss_debugfs_dir,
-			&dispc_dump_irqs, &dss_debug_fops);
-#endif
-
-#if defined(CONFIG_OMAP2_DSS_DSI) && defined(CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS)
-	dsi_create_debugfs_files_irq(dss_debugfs_dir, &dss_debug_fops);
-#endif
-
-	debugfs_create_file("dss", S_IRUGO, dss_debugfs_dir,
-			&dss_dump_regs, &dss_debug_fops);
-	debugfs_create_file("dispc", S_IRUGO, dss_debugfs_dir,
-			&dispc_dump_regs, &dss_debug_fops);
-#ifdef CONFIG_OMAP2_DSS_RFBI
-	debugfs_create_file("rfbi", S_IRUGO, dss_debugfs_dir,
-			&rfbi_dump_regs, &dss_debug_fops);
-#endif
-#ifdef CONFIG_OMAP2_DSS_DSI
-	dsi_create_debugfs_files_reg(dss_debugfs_dir, &dss_debug_fops);
-#endif
-#ifdef CONFIG_OMAP2_DSS_VENC
-	debugfs_create_file("venc", S_IRUGO, dss_debugfs_dir,
-			&venc_dump_regs, &dss_debug_fops);
-#endif
-#ifdef CONFIG_OMAP4_DSS_HDMI
-	debugfs_create_file("hdmi", S_IRUGO, dss_debugfs_dir,
-			&hdmi_dump_regs, &dss_debug_fops);
-#endif
 	return 0;
 }
 
@@ -202,6 +174,19 @@ static void dss_uninitialize_debugfs(void)
 	if (dss_debugfs_dir)
 		debugfs_remove_recursive(dss_debugfs_dir);
 }
+
+int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))
+{
+	struct dentry *d;
+
+	d = debugfs_create_file(name, S_IRUGO, dss_debugfs_dir,
+			write, &dss_debug_fops);
+
+	if (IS_ERR(d))
+		return PTR_ERR(d);
+
+	return 0;
+}
 #else /* CONFIG_DEBUG_FS && CONFIG_OMAP2_DSS_DEBUG_SUPPORT */
 static inline int dss_initialize_debugfs(void)
 {
@@ -209,6 +194,11 @@ static inline int dss_initialize_debugfs(void)
 }
 static inline void dss_uninitialize_debugfs(void)
 {
+}
+static inline int dss_debugfs_create_file(const char *name,
+		void (*write)(struct seq_file *))
+{
+	return 0;
 }
 #endif /* CONFIG_DEBUG_FS && CONFIG_OMAP2_DSS_DEBUG_SUPPORT */
 

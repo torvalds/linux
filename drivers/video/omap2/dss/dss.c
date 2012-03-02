@@ -280,7 +280,7 @@ void dss_dump_clocks(struct seq_file *s)
 	dss_runtime_put();
 }
 
-void dss_dump_regs(struct seq_file *s)
+static void dss_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, dss_read_reg(r))
 
@@ -794,6 +794,8 @@ static int omap_dsshw_probe(struct platform_device *pdev)
 			FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
 
 	dss_runtime_put();
+
+	dss_debugfs_create_file("dss", dss_dump_regs);
 
 	return 0;
 
