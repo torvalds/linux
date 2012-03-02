@@ -806,7 +806,7 @@ void oz_apps_term(void)
 void oz_handle_app_elt(struct oz_pd *pd, u8 app_id, struct oz_elt *elt)
 {
 	struct oz_app_if *ai;
-	if (app_id > OZ_APPID_MAX)
+	if (app_id == 0 || app_id > OZ_APPID_MAX)
 		return;
 	ai = &g_app_if[app_id-1];
 	ai->rx(pd, elt);
