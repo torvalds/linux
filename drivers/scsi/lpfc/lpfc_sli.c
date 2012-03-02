@@ -13286,7 +13286,7 @@ lpfc_sli4_post_els_sgl_list_ext(struct lpfc_hba *phba)
 	LPFC_MBOXQ_t *mbox;
 	uint32_t reqlen, alloclen, index;
 	uint32_t mbox_tmo;
-	uint16_t rsrc_start, rsrc_size, els_xri_cnt;
+	uint16_t rsrc_start, rsrc_size, els_xri_cnt, post_els_xri_cnt;
 	uint16_t xritag_start = 0, lxri = 0;
 	struct lpfc_rsrc_blks *rsrc_blk;
 	int cnt, ttl_cnt, rc = 0;
@@ -13308,6 +13308,7 @@ lpfc_sli4_post_els_sgl_list_ext(struct lpfc_hba *phba)
 
 	cnt = 0;
 	ttl_cnt = 0;
+	post_els_xri_cnt = els_xri_cnt;
 	list_for_each_entry(rsrc_blk, &phba->sli4_hba.lpfc_xri_blk_list,
 			    list) {
 		rsrc_start = rsrc_blk->rsrc_start;
@@ -13317,11 +13318,12 @@ lpfc_sli4_post_els_sgl_list_ext(struct lpfc_hba *phba)
 				"3014 Working ELS Extent start %d, cnt %d\n",
 				rsrc_start, rsrc_size);
 
-		loop_cnt = min(els_xri_cnt, rsrc_size);
-		if (ttl_cnt + loop_cnt >= els_xri_cnt) {
-			loop_cnt = els_xri_cnt - ttl_cnt;
-			ttl_cnt = els_xri_cnt;
-		}
+		loop_cnt = min(post_els_xri_cnt, rsrc_size);
+		if (loop_cnt < post_els_xri_cnt) {
+			post_els_xri_cnt -= loop_cnt;
+			ttl_cnt += loop_cnt;
+		} else
+			ttl_cnt += post_els_xri_cnt;
 
 		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 		if (!mbox)
