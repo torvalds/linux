@@ -5230,8 +5230,7 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	 * rpi is normalized to a zero base because the physical rpi is
 	 * port based.
 	 */
-	curr_rpi_range = phba->sli4_hba.next_rpi -
-		phba->sli4_hba.max_cfg_param.rpi_base;
+	curr_rpi_range = phba->sli4_hba.next_rpi;
 	spin_unlock_irq(&phba->hbalock);
 
 	/*
@@ -6146,7 +6145,6 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		phba->sli4_hba.next_xri = phba->sli4_hba.max_cfg_param.xri_base;
 		phba->vpi_base = phba->sli4_hba.max_cfg_param.vpi_base;
 		phba->vfi_base = phba->sli4_hba.max_cfg_param.vfi_base;
-		phba->sli4_hba.next_rpi = phba->sli4_hba.max_cfg_param.rpi_base;
 		phba->max_vpi = (phba->sli4_hba.max_cfg_param.max_vpi > 0) ?
 				(phba->sli4_hba.max_cfg_param.max_vpi - 1) : 0;
 		phba->max_vports = phba->max_vpi;

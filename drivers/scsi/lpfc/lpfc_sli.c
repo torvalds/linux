@@ -5578,8 +5578,6 @@ lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *phba)
 		for (i = 0; i < count; i++)
 			phba->sli4_hba.rpi_ids[i] = base + i;
 
-		lpfc_sli4_node_prep(phba);
-
 		/* VPIs. */
 		count = phba->sli4_hba.max_cfg_param.max_vpi;
 		base = phba->sli4_hba.max_cfg_param.vpi_base;
@@ -6149,6 +6147,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		rc = -ENODEV;
 		goto out_free_mbox;
 	}
+	lpfc_sli4_node_prep(phba);
 
 	/* Create all the SLI4 queues */
 	rc = lpfc_sli4_queue_create(phba);
