@@ -1177,7 +1177,8 @@ static bool DAC960_V1_EnableMemoryMailboxInterface(DAC960_Controller_T
   int TimeoutCounter;
   int i;
 
-  
+  memset(&CommandMailbox, 0, sizeof(DAC960_V1_CommandMailbox_T));
+
   if (pci_set_dma_mask(Controller->PCIDevice, DMA_BIT_MASK(32)))
 	return DAC960_Failure(Controller, "DMA mask out of range");
   Controller->BounceBufferLimit = DMA_BIT_MASK(32);
