@@ -2704,16 +2704,14 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 				}
 				spin_lock_irq(shost->host_lock);
 				ndlp->nlp_flag &= ~NLP_NPR_ADISC;
-
+				spin_unlock_irq(shost->host_lock);
 				/*
 				 * Whenever an SLI4 port goes offline, free the
-				 * RPI.  A new RPI when the adapter port comes
-				 * back online.
+				 * RPI. Get a new RPI when the adapter port
+				 * comes back online.
 				 */
 				if (phba->sli_rev == LPFC_SLI_REV4)
 					lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
-
-				spin_unlock_irq(shost->host_lock);
 				lpfc_unreg_rpi(vports[i], ndlp);
 			}
 		}
