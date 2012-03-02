@@ -2843,7 +2843,14 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct lpfc_vport *vport = mboxq->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
-	if (mboxq->u.mb.mbxStatus) {
+	/*
+	 * VFI not supported for interface type 0, so ignore any mailbox
+	 * error (except VFI in use) and continue with the discovery.
+	 */
+	if (mboxq->u.mb.mbxStatus &&
+	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+			LPFC_SLI_INTF_IF_TYPE_0) &&
+	    mboxq->u.mb.mbxStatus != MBX_VFI_IN_USE) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
 			 "2018 REG_VFI mbxStatus error x%x "
 			 "HBA state x%x\n",
