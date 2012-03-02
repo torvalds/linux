@@ -150,6 +150,16 @@ struct lpfc_scsi_buf {
 	struct lpfc_iocbq cur_iocbq;
 	wait_queue_head_t *waitq;
 	unsigned long start_time;
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	/* Used to restore any changes to protection data for error injection */
+	void *prot_data_segment;
+	uint32_t prot_data;
+	uint32_t prot_data_type;
+#define	LPFC_INJERR_REFTAG	1
+#define	LPFC_INJERR_APPTAG	2
+#define	LPFC_INJERR_GUARD	3
+#endif
 };
 
 #define LPFC_SCSI_DMA_EXT_SIZE 264
