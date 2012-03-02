@@ -107,11 +107,13 @@ void tegra_gpio_enable(int gpio)
 {
 	tegra_gpio_mask_write(GPIO_MSK_CNF(gpio), gpio, 1);
 }
+EXPORT_SYMBOL_GPL(tegra_gpio_enable);
 
 void tegra_gpio_disable(int gpio)
 {
 	tegra_gpio_mask_write(GPIO_MSK_CNF(gpio), gpio, 0);
 }
+EXPORT_SYMBOL_GPL(tegra_gpio_disable);
 
 static void tegra_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
