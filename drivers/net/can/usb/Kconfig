@@ -13,4 +13,10 @@ config CAN_ESD_USB2
           This driver supports the CAN-USB/2 interface
           from esd electronic system design gmbh (http://www.esd.eu).
 
+config CAN_PEAK_USB
+	tristate "PEAK PCAN-USB/USB Pro interfaces"
+	---help---
+	  This driver supports the PCAN-USB and PCAN-USB Pro adapters
+	  from PEAK-System Technik (http://www.peak-system.com).
+
 endmenu
