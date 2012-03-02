@@ -68,8 +68,8 @@ static int rk30_gpiolib_to_irq(struct gpio_chip *chip,unsigned offset);
 			.pull_updown      = rk30_gpiolib_pull_updown,	\
 			.dbg_show         = rk30_gpiolib_dbg_show,	\
 			.to_irq           = rk30_gpiolib_to_irq,	\
-			.base             = PIN_BASE + ID*NUM_GROUP,	\
-			.ngpio            = NUM_GROUP,			\
+			.base             = ID < 6 ? PIN_BASE + ID*NUM_GROUP : PIN_BASE + 5*NUM_GROUP,	\
+			.ngpio            = ID < 6 ? NUM_GROUP : 16,	\
 		},							\
 		.id = ID, \
 		.irq = IRQ_GPIO##ID, \
@@ -403,7 +403,7 @@ void __init rk30_gpio_init(void)
 	bank = rk30_gpio_banks;
 	pin = PIN_BASE;
 
-	for (i = 0; i < ARRAY_SIZE(rk30_gpio_banks); i++, bank++, pin += 32) {
+	for (i = 0; i < ARRAY_SIZE(rk30_gpio_banks); i++, bank++) {
 		spin_lock_init(&bank->lock);
 		bank->clk = clk_get(NULL, bank->chip.label);
 		clk_enable(bank->clk);
@@ -411,11 +411,14 @@ void __init rk30_gpio_init(void)
 
 		__raw_writel(0, bank->regbase + GPIO_INTEN);
 		for (j = 0; j < 32; j++) {
-			unsigned int irq = gpio_to_irq(pin + j);
+			unsigned int irq = gpio_to_irq(pin);
+			if (pin > MAX_PIN)
+				break;
 			irq_set_lockdep_class(irq, &gpio_lock_class);
 			irq_set_chip_data(irq, bank);
 			irq_set_chip_and_handler(irq, &rk30_gpio_irq_chip, handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID);
+			pin++;
 		}
 
 		irq_set_handler_data(bank->irq, bank);
