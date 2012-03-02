@@ -9,6 +9,8 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#include <linux/mutex.h>
+#include <linux/radix-tree.h>
 #include <linux/pinctrl/pinconf.h>
 
 struct pinctrl_gpio_range;
@@ -22,7 +24,6 @@ struct pinctrl_gpio_range;
  *	this radix tree
  * @gpio_ranges: a list of GPIO ranges that is handled by this pin controller,
  *	ranges are added to this list at runtime
- * @gpio_ranges_lock: lock for the GPIO ranges list
  * @dev: the device entry for this pin controller
  * @owner: module providing the pin controller, used for refcounting
  * @driver_data: driver data for drivers registering to the pin controller
@@ -35,7 +36,6 @@ struct pinctrl_dev {
 	struct pinctrl_desc *desc;
 	struct radix_tree_root pin_desc_tree;
 	struct list_head gpio_ranges;
-	struct mutex gpio_ranges_lock;
 	struct device *dev;
 	struct module *owner;
 	void *driver_data;
@@ -52,7 +52,6 @@ struct pinctrl_dev {
  * @usecount: the number of active users of this pin controller setting, used
  *	to keep track of nested use cases
  * @pctldev: pin control device handling this pin control handle
- * @mutex: a lock for the pin control state holder
  * @groups: the group selectors for the pinmux device and
  *	selector combination handling this pinmux, this is a list that
  *	will be traversed on all pinmux operations such as
@@ -63,7 +62,6 @@ struct pinctrl {
 	struct device *dev;
 	unsigned usecount;
 	struct pinctrl_dev *pctldev;
-	struct mutex mutex;
 #ifdef CONFIG_PINMUX
 	struct list_head groups;
 #endif
@@ -75,14 +73,12 @@ struct pinctrl {
  * @name: a name for the pin, e.g. the name of the pin/pad/finger on a
  *	datasheet or such
  * @dynamic_name: if the name of this pin was dynamically allocated
- * @lock: a lock to protect the descriptor structure
  * @owner: the device holding this pin or NULL of no device has claimed it
  */
 struct pin_desc {
 	struct pinctrl_dev *pctldev;
 	const char *name;
 	bool dynamic_name;
-	spinlock_t lock;
 	/* These fields only added when supporting pinmux drivers */
 #ifdef CONFIG_PINMUX
 	const char *owner;
@@ -99,3 +95,5 @@ static inline struct pin_desc *pin_desc_get(struct pinctrl_dev *pctldev,
 {
 	return radix_tree_lookup(&pctldev->pin_desc_tree, pin);
 }
+
+extern struct mutex pinctrl_mutex;

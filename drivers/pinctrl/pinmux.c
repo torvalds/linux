@@ -19,8 +19,6 @@
 #include <linux/radix-tree.h>
 #include <linux/err.h>
 #include <linux/list.h>
-#include <linux/mutex.h>
-#include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>
 #include <linux/debugfs.h>
@@ -96,15 +94,12 @@ static int pin_request(struct pinctrl_dev *pctldev,
 		goto out;
 	}
 
-	spin_lock(&desc->lock);
 	if (desc->owner && strcmp(desc->owner, owner)) {
-		spin_unlock(&desc->lock);
 		dev_err(pctldev->dev,
 			"pin already requested\n");
 		goto out;
 	}
 	desc->owner = owner;
-	spin_unlock(&desc->lock);
 
 	/* Let each pin increase references to this module */
 	if (!try_module_get(pctldev->owner)) {
@@ -131,11 +126,8 @@ static int pin_request(struct pinctrl_dev *pctldev,
 		dev_err(pctldev->dev, "->request on device %s failed for pin %d\n",
 		       pctldev->desc->name, pin);
 out_free_pin:
-	if (status) {
-		spin_lock(&desc->lock);
+	if (status)
 		desc->owner = NULL;
-		spin_unlock(&desc->lock);
-	}
 out:
 	if (status)
 		dev_err(pctldev->dev, "pin-%d (%s) status %d\n",
@@ -178,10 +170,8 @@ static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
 	else if (ops->free)
 		ops->free(pctldev, pin);
 
-	spin_lock(&desc->lock);
 	owner = desc->owner;
 	desc->owner = NULL;
-	spin_unlock(&desc->lock);
 	module_put(pctldev->owner);
 
 	return owner;
@@ -580,6 +570,8 @@ static int pinmux_functions_show(struct seq_file *s, void *what)
 	const struct pinmux_ops *pmxops = pctldev->desc->pmxops;
 	unsigned func_selector = 0;
 
+	mutex_lock(&pinctrl_mutex);
+
 	while (pmxops->list_functions(pctldev, func_selector) >= 0) {
 		const char *func = pmxops->get_function_name(pctldev,
 							  func_selector);
@@ -600,8 +592,9 @@ static int pinmux_functions_show(struct seq_file *s, void *what)
 		seq_puts(s, "]\n");
 
 		func_selector++;
-
 	}
+
+	mutex_unlock(&pinctrl_mutex);
 
 	return 0;
 }
@@ -613,6 +606,8 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 
 	seq_puts(s, "Pinmux settings per pin\n");
 	seq_puts(s, "Format: pin (name): owner\n");
+
+	mutex_lock(&pinctrl_mutex);
 
 	/* The pin number can be retrived from the pin controller descriptor */
 	for (i = 0; i < pctldev->desc->npins; i++) {
@@ -634,6 +629,8 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 			   desc->owner ? desc->owner : "UNCLAIMED",
 			   is_hog ? " (HOG)" : "");
 	}
+
+	mutex_unlock(&pinctrl_mutex);
 
 	return 0;
 }

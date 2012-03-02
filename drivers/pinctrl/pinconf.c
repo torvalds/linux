@@ -64,15 +64,23 @@ int pin_config_get(const char *dev_name, const char *name,
 	struct pinctrl_dev *pctldev;
 	int pin;
 
+	mutex_lock(&pinctrl_mutex);
+
 	pctldev = get_pinctrl_dev_from_devname(dev_name);
-	if (!pctldev)
-		return -EINVAL;
+	if (!pctldev) {
+		pin = -EINVAL;
+		goto unlock;
+	}
 
 	pin = pin_get_from_name(pctldev, name);
 	if (pin < 0)
-		return pin;
+		goto unlock;
 
-	return pin_config_get_for_pin(pctldev, pin, config);
+	pin = pin_config_get_for_pin(pctldev, pin, config);
+
+unlock:
+	mutex_unlock(&pinctrl_mutex);
+	return pin;
 }
 EXPORT_SYMBOL(pin_config_get);
 
@@ -110,17 +118,27 @@ int pin_config_set(const char *dev_name, const char *name,
 		   unsigned long config)
 {
 	struct pinctrl_dev *pctldev;
-	int pin;
+	int pin, ret;
+
+	mutex_lock(&pinctrl_mutex);
 
 	pctldev = get_pinctrl_dev_from_devname(dev_name);
-	if (!pctldev)
-		return -EINVAL;
+	if (!pctldev) {
+		ret = -EINVAL;
+		goto unlock;
+	}
 
 	pin = pin_get_from_name(pctldev, name);
-	if (pin < 0)
-		return pin;
+	if (pin < 0) {
+		ret = pin;
+		goto unlock;
+	}
 
-	return pin_config_set_for_pin(pctldev, pin, config);
+	ret = pin_config_set_for_pin(pctldev, pin, config);
+
+unlock:
+	mutex_unlock(&pinctrl_mutex);
+	return ret;
 }
 EXPORT_SYMBOL(pin_config_set);
 
@@ -129,25 +147,36 @@ int pin_config_group_get(const char *dev_name, const char *pin_group,
 {
 	struct pinctrl_dev *pctldev;
 	const struct pinconf_ops *ops;
-	int selector;
+	int selector, ret;
+
+	mutex_lock(&pinctrl_mutex);
 
 	pctldev = get_pinctrl_dev_from_devname(dev_name);
-	if (!pctldev)
-		return -EINVAL;
+	if (!pctldev) {
+		ret = -EINVAL;
+		goto unlock;
+	}
 	ops = pctldev->desc->confops;
 
 	if (!ops || !ops->pin_config_group_get) {
 		dev_err(pctldev->dev, "cannot get configuration for pin "
 			"group, missing group config get function in "
 			"driver\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto unlock;
 	}
 
 	selector = pinctrl_get_group_selector(pctldev, pin_group);
-	if (selector < 0)
-		return selector;
+	if (selector < 0) {
+		ret = selector;
+		goto unlock;
+	}
 
-	return ops->pin_config_group_get(pctldev, selector, config);
+	ret = ops->pin_config_group_get(pctldev, selector, config);
+
+unlock:
+	mutex_unlock(&pinctrl_mutex);
+	return ret;
 }
 EXPORT_SYMBOL(pin_config_group_get);
 
@@ -163,27 +192,34 @@ int pin_config_group_set(const char *dev_name, const char *pin_group,
 	int ret;
 	int i;
 
+	mutex_lock(&pinctrl_mutex);
+
 	pctldev = get_pinctrl_dev_from_devname(dev_name);
-	if (!pctldev)
-		return -EINVAL;
+	if (!pctldev) {
+		ret = -EINVAL;
+		goto unlock;
+	}
 	ops = pctldev->desc->confops;
 	pctlops = pctldev->desc->pctlops;
 
 	if (!ops || (!ops->pin_config_group_set && !ops->pin_config_set)) {
 		dev_err(pctldev->dev, "cannot configure pin group, missing "
 			"config function in driver\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto unlock;
 	}
 
 	selector = pinctrl_get_group_selector(pctldev, pin_group);
-	if (selector < 0)
-		return selector;
+	if (selector < 0) {
+		ret = selector;
+		goto unlock;
+	}
 
 	ret = pctlops->get_group_pins(pctldev, selector, &pins, &num_pins);
 	if (ret) {
 		dev_err(pctldev->dev, "cannot configure pin group, error "
 			"getting pins\n");
-		return ret;
+		goto unlock;
 	}
 
 	/*
@@ -197,23 +233,30 @@ int pin_config_group_set(const char *dev_name, const char *pin_group,
 		 * pin-by-pin as well, it returns -EAGAIN.
 		 */
 		if (ret != -EAGAIN)
-			return ret;
+			goto unlock;
 	}
 
 	/*
 	 * If the controller cannot handle entire groups, we configure each pin
 	 * individually.
 	 */
-	if (!ops->pin_config_set)
-		return 0;
+	if (!ops->pin_config_set) {
+		ret = 0;
+		goto unlock;
+	}
 
 	for (i = 0; i < num_pins; i++) {
 		ret = ops->pin_config_set(pctldev, pins[i], config);
 		if (ret < 0)
-			return ret;
+			goto unlock;
 	}
 
-	return 0;
+	ret = 0;
+
+unlock:
+	mutex_unlock(&pinctrl_mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL(pin_config_group_set);
 
@@ -236,6 +279,8 @@ static int pinconf_pins_show(struct seq_file *s, void *what)
 	seq_puts(s, "Pin config settings per pin\n");
 	seq_puts(s, "Format: pin (name): pinmux setting array\n");
 
+	mutex_lock(&pinctrl_mutex);
+
 	/* The pin number can be retrived from the pin controller descriptor */
 	for (i = 0; i < pctldev->desc->npins; i++) {
 		struct pin_desc *desc;
@@ -253,6 +298,8 @@ static int pinconf_pins_show(struct seq_file *s, void *what)
 
 		seq_printf(s, "\n");
 	}
+
+	mutex_unlock(&pinctrl_mutex);
 
 	return 0;
 }
@@ -280,6 +327,8 @@ static int pinconf_groups_show(struct seq_file *s, void *what)
 	seq_puts(s, "Pin config settings per pin group\n");
 	seq_puts(s, "Format: group (name): pinmux setting array\n");
 
+	mutex_lock(&pinctrl_mutex);
+
 	while (pctlops->list_groups(pctldev, selector) >= 0) {
 		const char *gname = pctlops->get_group_name(pctldev, selector);
 
@@ -289,6 +338,8 @@ static int pinconf_groups_show(struct seq_file *s, void *what)
 
 		selector++;
 	}
+
+	mutex_unlock(&pinctrl_mutex);
 
 	return 0;
 }
