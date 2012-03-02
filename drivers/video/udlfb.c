@@ -1012,7 +1012,8 @@ static int dlfb_is_valid_mode(struct fb_videomode *mode,
 		return 0;
 	}
 
-	pr_info("%dx%d valid mode\n", mode->xres, mode->yres);
+	pr_info("%dx%d @ %d Hz valid mode\n", mode->xres, mode->yres,
+		mode->refresh);
 
 	return 1;
 }
