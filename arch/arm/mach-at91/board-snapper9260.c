@@ -145,11 +145,11 @@ static struct i2c_board_info __initdata snapper9260_i2c_devices[] = {
 		/* Audio codec */
 		I2C_BOARD_INFO("tlv320aic23", 0x1a),
 	},
-	{
+};
+
+static struct i2c_board_info __initdata snapper9260_i2c_isl1208 = {
 		/* RTC */
 		I2C_BOARD_INFO("isl1208", 0x6f),
-		.irq = gpio_to_irq(AT91_PIN_PA31),
-	},
 };
 
 static void __init snapper9260_add_device_nand(void)
@@ -163,6 +163,10 @@ static void __init snapper9260_board_init(void)
 {
 	at91_add_device_i2c(snapper9260_i2c_devices,
 			    ARRAY_SIZE(snapper9260_i2c_devices));
+
+	snapper9260_i2c_isl1208.irq = gpio_to_irq(AT91_PIN_PA31);
+	i2c_register_board_info(0, &snapper9260_i2c_isl1208, 1);
+
 	at91_add_device_serial();
 	at91_add_device_usbh(&snapper9260_usbh_data);
 	at91_add_device_udc(&snapper9260_udc_data);

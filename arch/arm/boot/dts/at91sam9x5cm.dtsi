@@ -11,4 +11,19 @@
 	memory@20000000 {
 		reg = <0x20000000 0x8000000>;
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		pb18 {
+			label = "pb18";
+			gpios = <&pioB 18 1>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		pd21 {
+			label = "pd21";
+			gpios = <&pioD 21 0>;
+		};
+	};
 };
