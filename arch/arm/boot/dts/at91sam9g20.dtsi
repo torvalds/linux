@@ -59,6 +59,11 @@
 				reg = <0xfffff000 0x200>;
 			};
 
+			ramc0: ramc@ffffea00 {
+				compatible = "atmel,at91sam9260-sdramc";
+				reg = <0xffffea00 0x200>;
+			};
+
 			pmc: pmc@fffffc00 {
 				compatible = "atmel,at91rm9200-pmc";
 				reg = <0xfffffc00 0x100>;
