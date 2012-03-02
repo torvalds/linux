@@ -320,7 +320,8 @@ int twl6030_mmc_card_detect_config(void)
 									ret);
 		return ret;
 	}
-	return 0;
+
+	return twl6030_irq_base + MMCDETECT_INTR_OFFSET;
 }
 EXPORT_SYMBOL(twl6030_mmc_card_detect_config);
 
