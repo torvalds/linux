@@ -834,7 +834,7 @@ static enum blk_eh_timer_return qla4xxx_eh_cmd_timed_out(struct scsi_cmnd *sc)
 static void qla4xxx_set_port_speed(struct Scsi_Host *shost)
 {
 	struct scsi_qla_host *ha = to_qla_host(shost);
-	struct iscsi_cls_host *ihost = shost_priv(shost);
+	struct iscsi_cls_host *ihost = shost->shost_data;
 	uint32_t speed = ISCSI_PORT_SPEED_UNKNOWN;
 
 	qla4xxx_get_firmware_state(ha);
@@ -859,7 +859,7 @@ static void qla4xxx_set_port_speed(struct Scsi_Host *shost)
 static void qla4xxx_set_port_state(struct Scsi_Host *shost)
 {
 	struct scsi_qla_host *ha = to_qla_host(shost);
-	struct iscsi_cls_host *ihost = shost_priv(shost);
+	struct iscsi_cls_host *ihost = shost->shost_data;
 	uint32_t state = ISCSI_PORT_STATE_DOWN;
 
 	if (test_bit(AF_LINK_UP, &ha->flags))
