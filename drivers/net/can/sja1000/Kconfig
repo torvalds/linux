@@ -43,6 +43,15 @@ config CAN_EMS_PCI
 	  CPC-PCIe and CPC-104P cards from EMS Dr. Thomas Wuensche
 	  (http://www.ems-wuensche.de).
 
+config CAN_PEAK_PCMCIA
+	tristate "PEAK PCAN-PC Card"
+	depends on PCMCIA
+	---help---
+	  This driver is for the PCAN-PC Card PCMCIA adapter (1 or 2 channels)
+	  from PEAK-System (http://www.peak-system.com). To compile this
+	  driver as a module, choose M here: the module will be called
+	  peak_pcmcia.
+
 config CAN_PEAK_PCI
 	tristate "PEAK PCAN-PCI/PCIe/miniPCI Cards"
 	depends on PCI
