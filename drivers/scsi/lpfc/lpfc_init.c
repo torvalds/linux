@@ -5821,10 +5821,9 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 					readl(phba->sli4_hba.u.if_type2.
 					      ERR2regaddr);
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2888 Port Error Detected "
-					"during POST: "
-					"port status reg 0x%x, "
-					"port_smphr reg 0x%x, "
+					"2888 Unrecoverable port error "
+					"following POST: port status reg "
+					"0x%x, port_smphr reg 0x%x, "
 					"error 1=0x%x, error 2=0x%x\n",
 					reg_data.word0,
 					portsmphr_reg.word0,
@@ -7279,7 +7278,8 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			       LPFC_SLIPORT_INIT_PORT);
 			writel(reg_data.word0, phba->sli4_hba.u.if_type2.
 			       CTRLregaddr);
-
+			/* flush */
+			readl(phba->sli4_hba.u.if_type2.STATUSregaddr);
 			/*
 			 * Poll the Port Status Register and wait for RDY for
 			 * up to 10 seconds.  If the port doesn't respond, treat
@@ -7317,11 +7317,10 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 				phba->work_status[1] = readl(
 					phba->sli4_hba.u.if_type2.ERR2regaddr);
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2890 Port Error Detected "
-					"during Port Reset: "
-					"port status reg 0x%x, "
+					"2890 Port error detected during port "
+					"reset(%d): port status reg 0x%x, "
 					"error 1=0x%x, error 2=0x%x\n",
-					reg_data.word0,
+					num_resets, reg_data.word0,
 					phba->work_status[0],
 					phba->work_status[1]);
 				rc = -ENODEV;
