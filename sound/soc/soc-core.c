@@ -1112,6 +1112,7 @@ static int soc_probe_platform(struct snd_soc_card *card,
 	return 0;
 
 err_probe:
+	soc_cleanup_platform_debugfs(platform);
 	module_put(platform->dev->driver->owner);
 
 	return ret;
