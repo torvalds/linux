@@ -1183,21 +1183,13 @@ exit:
 
 static int __init brcmfmac_init(void)
 {
-	int ret = 0;
-
 #ifdef CONFIG_BRCMFMAC_SDIO
-	ret = brcmf_sdio_init();
-	if (ret)
-		goto fail;
+	brcmf_sdio_init();
 #endif
 #ifdef CONFIG_BRCMFMAC_USB
-	ret = brcmf_usb_init();
-	if (ret)
-		goto fail;
+	brcmf_usb_init();
 #endif
-
-fail:
-	return ret;
+	return 0;
 }
 
 static void __exit brcmfmac_exit(void)

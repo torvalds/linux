@@ -1615,7 +1615,7 @@ void brcmf_usb_exit(void)
 	g_image.len = 0;
 }
 
-int brcmf_usb_init(void)
+void brcmf_usb_init(void)
 {
-	return usb_register(&brcmf_usbdrvr);
+	usb_register(&brcmf_usbdrvr);
 }

@@ -108,11 +108,11 @@ extern int brcmf_add_if(struct device *dev, int ifidx,
 
 #ifdef CONFIG_BRCMFMAC_SDIO
 extern void brcmf_sdio_exit(void);
-extern int brcmf_sdio_init(void);
+extern void brcmf_sdio_init(void);
 #endif
 #ifdef CONFIG_BRCMFMAC_USB
 extern void brcmf_usb_exit(void);
-extern int brcmf_usb_init(void);
+extern void brcmf_usb_init(void);
 #endif
 
 #endif				/* _BRCMF_BUS_H_ */
