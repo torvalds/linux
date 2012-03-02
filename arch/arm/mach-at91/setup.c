@@ -292,9 +292,8 @@ void __init at91_dt_initialize(void)
 	/* temporary until have the ramc binding*/
 	at91_boot_soc.ioremap_registers();
 
-	/* temporary until have the pmc binding */
 	/* Init clock subsystem */
-	at91_clock_init(12000000);
+	at91_dt_clock_init();
 
 	/* Register the processor-specific clocks */
 	at91_boot_soc.register_clocks();
