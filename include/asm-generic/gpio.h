@@ -142,9 +142,9 @@ extern int __must_check gpiochip_reserve(int start, int ngpio);
 /* add/remove chips */
 extern int gpiochip_add(struct gpio_chip *chip);
 extern int __must_check gpiochip_remove(struct gpio_chip *chip);
-extern struct gpio_chip *gpiochip_find(void *data,
+extern struct gpio_chip *gpiochip_find(const void *data,
 					int (*match)(struct gpio_chip *chip,
-						     void *data));
+						     const void *data));
 
 
 /* Always use the library code for GPIO management calls,

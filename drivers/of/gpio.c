@@ -229,7 +229,7 @@ void of_gpiochip_remove(struct gpio_chip *chip)
 }
 
 /* Private function for resolving node pointer to gpio_chip */
-static int of_gpiochip_is_match(struct gpio_chip *chip, void *data)
+static int of_gpiochip_is_match(struct gpio_chip *chip, const void *data)
 {
 	return chip->of_node == data;
 }
