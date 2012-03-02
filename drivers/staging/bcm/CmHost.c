@@ -1399,12 +1399,16 @@ ULONG StoreCmControlResponseMessage(PMINI_ADAPTER Adapter, PVOID pvBuffer, UINT 
 	/* AUTHORIZED SET */
 	pstAddIndication->psfAuthorizedSet = (stServiceFlowParamSI *)
 			GetNextTargetBufferLocation(Adapter, pstAddIndicationAlt->u16TID);
-	if (!pstAddIndication->psfAuthorizedSet)
+	if (!pstAddIndication->psfAuthorizedSet) {
+		kfree(pstAddIndication);
 		return 0;
+	}
 
 	if (StoreSFParam(Adapter, (PUCHAR)&pstAddIndicationAlt->sfAuthorizedSet,
-				(ULONG)pstAddIndication->psfAuthorizedSet) != 1)
+				(ULONG)pstAddIndication->psfAuthorizedSet) != 1) {
+		kfree(pstAddIndication);
 		return 0;
+	}
 
 	/* this can't possibly be right */
 	pstAddIndication->psfAuthorizedSet = (stServiceFlowParamSI *)ntohl((ULONG)pstAddIndication->psfAuthorizedSet);
@@ -1420,6 +1424,7 @@ ULONG StoreCmControlResponseMessage(PMINI_ADAPTER Adapter, PVOID pvBuffer, UINT 
 		AddRequest.psfParameterSet = pstAddIndication->psfAuthorizedSet;
 		(*puBufferLength) = sizeof(stLocalSFAddRequest);
 		memcpy(pvBuffer, &AddRequest, sizeof(stLocalSFAddRequest));
+		kfree(pstAddIndication);
 		return 1;
 	}
 
@@ -1436,20 +1441,28 @@ ULONG StoreCmControlResponseMessage(PMINI_ADAPTER Adapter, PVOID pvBuffer, UINT 
 	/* ADMITTED SET */
 	pstAddIndication->psfAdmittedSet = (stServiceFlowParamSI *)
 		GetNextTargetBufferLocation(Adapter, pstAddIndicationAlt->u16TID);
-	if (!pstAddIndication->psfAdmittedSet)
+	if (!pstAddIndication->psfAdmittedSet) {
+		kfree(pstAddIndication);
 		return 0;
-	if (StoreSFParam(Adapter, (PUCHAR)&pstAddIndicationAlt->sfAdmittedSet, (ULONG)pstAddIndication->psfAdmittedSet) != 1)
+	}
+	if (StoreSFParam(Adapter, (PUCHAR)&pstAddIndicationAlt->sfAdmittedSet, (ULONG)pstAddIndication->psfAdmittedSet) != 1) {
+		kfree(pstAddIndication);
 		return 0;
+	}
 
 	pstAddIndication->psfAdmittedSet = (stServiceFlowParamSI *)ntohl((ULONG)pstAddIndication->psfAdmittedSet);
 
 	/* ACTIVE SET */
 	pstAddIndication->psfActiveSet = (stServiceFlowParamSI *)
 		GetNextTargetBufferLocation(Adapter, pstAddIndicationAlt->u16TID);
-	if (!pstAddIndication->psfActiveSet)
+	if (!pstAddIndication->psfActiveSet) {
+		kfree(pstAddIndication);
 		return 0;
-	if (StoreSFParam(Adapter, (PUCHAR)&pstAddIndicationAlt->sfActiveSet, (ULONG)pstAddIndication->psfActiveSet) != 1)
+	}
+	if (StoreSFParam(Adapter, (PUCHAR)&pstAddIndicationAlt->sfActiveSet, (ULONG)pstAddIndication->psfActiveSet) != 1) {
+		kfree(pstAddIndication);
 		return 0;
+	}
 
 	pstAddIndication->psfActiveSet = (stServiceFlowParamSI *)ntohl((ULONG)pstAddIndication->psfActiveSet);
 
@@ -1844,7 +1857,7 @@ BOOLEAN CmControlResponseMessage(PMINI_ADAPTER Adapter,  /* <Pointer to the Adap
 				Adapter->PackInfo[uiSearchRuleIndex].bActive = FALSE;
 				Adapter->PackInfo[uiSearchRuleIndex].bValid = FALSE;
 				Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value = 0;
-				kfree(pstAddIndication);				
+				kfree(pstAddIndication);
 			} else if (psfLocalSet->bValid && (pstChangeIndication->u8CC == 0)) {
 				Adapter->PackInfo[uiSearchRuleIndex].usVCID_Value = ntohs(pstChangeIndication->u16VCID);
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "CC field is %d bvalid = %d\n",
