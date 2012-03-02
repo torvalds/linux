@@ -26,6 +26,7 @@
 
 #include <mach/board.h>
 #include <mach/at91rm9200_mc.h>
+#include <mach/at91_ramc.h>
 #include <mach/cpu.h>
 
 #include "generic.h"
@@ -110,7 +111,7 @@ static void __init eco920_board_init(void)
 	at91_add_device_mmc(0, &eco920_mmc_data);
 	platform_device_register(&eco920_flash);
 
-	at91_sys_write(AT91_SMC_CSR(7),	AT91_SMC_RWHOLD_(1)
+	at91_ramc_write(0, AT91_SMC_CSR(7),	AT91_SMC_RWHOLD_(1)
 				| AT91_SMC_RWSETUP_(1)
 				| AT91_SMC_DBW_8
 				| AT91_SMC_WSEN
@@ -122,7 +123,7 @@ static void __init eco920_board_init(void)
 	at91_set_deglitch(AT91_PIN_PA23, 1);
 
 /* Initialization of the Static Memory Controller for Chip Select 3 */
-	at91_sys_write(AT91_SMC_CSR(3),
+	at91_ramc_write(0, AT91_SMC_CSR(3),
 		AT91_SMC_DBW_16  |	/* 16 bit */
 		AT91_SMC_WSEN    |
 		AT91_SMC_NWS_(5) |	/* wait states */

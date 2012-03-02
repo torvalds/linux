@@ -86,20 +86,6 @@ static void __init soc_detect(u32 dbgu_base)
 	socid = cidr & ~AT91_CIDR_VERSION;
 
 	switch (socid) {
-	case ARCH_ID_AT91CAP9: {
-#ifdef CONFIG_AT91_PMC_UNIT
-		u32 pmc_ver = at91_sys_read(AT91_PMC_VER);
-
-		if (pmc_ver == ARCH_REVISION_CAP9_B)
-			at91_soc_initdata.subtype = AT91_SOC_CAP9_REV_B;
-		else if (pmc_ver == ARCH_REVISION_CAP9_C)
-			at91_soc_initdata.subtype = AT91_SOC_CAP9_REV_C;
-#endif
-		at91_soc_initdata.type = AT91_SOC_CAP9;
-		at91_boot_soc = at91cap9_soc;
-		break;
-	}
-
 	case ARCH_ID_AT91RM9200:
 		at91_soc_initdata.type = AT91_SOC_RM9200;
 		at91_boot_soc = at91rm9200_soc;
@@ -200,7 +186,6 @@ static void __init soc_detect(u32 dbgu_base)
 
 static const char *soc_name[] = {
 	[AT91_SOC_RM9200]	= "at91rm9200",
-	[AT91_SOC_CAP9]		= "at91cap9",
 	[AT91_SOC_SAM9260]	= "at91sam9260",
 	[AT91_SOC_SAM9261]	= "at91sam9261",
 	[AT91_SOC_SAM9263]	= "at91sam9263",
@@ -221,8 +206,6 @@ EXPORT_SYMBOL(at91_get_soc_type);
 static const char *soc_subtype_name[] = {
 	[AT91_SOC_RM9200_BGA]	= "at91rm9200 BGA",
 	[AT91_SOC_RM9200_PQFP]	= "at91rm9200 PQFP",
-	[AT91_SOC_CAP9_REV_B]	= "at91cap9 revB",
-	[AT91_SOC_CAP9_REV_C]	= "at91cap9 revC",
 	[AT91_SOC_SAM9XE]	= "at91sam9xe",
 	[AT91_SOC_SAM9G45ES]	= "at91sam9g45es",
 	[AT91_SOC_SAM9M10]	= "at91sam9m10",
@@ -291,6 +274,15 @@ void __init at91_ioremap_rstc(u32 base_addr)
 	at91_rstc_base = ioremap(base_addr, 16);
 	if (!at91_rstc_base)
 		panic("Impossible to ioremap at91_rstc_base\n");
+}
+
+void __iomem *at91_matrix_base;
+
+void __init at91_ioremap_matrix(u32 base_addr)
+{
+	at91_matrix_base = ioremap(base_addr, 512);
+	if (!at91_matrix_base)
+		panic("Impossible to ioremap at91_matrix_base\n");
 }
 
 void __init at91_initialize(unsigned long main_clock)

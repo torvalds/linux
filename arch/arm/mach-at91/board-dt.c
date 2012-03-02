@@ -38,12 +38,6 @@ static void __init ek_init_early(void)
 {
 	/* Initialize processor: 12.000 MHz crystal */
 	at91_initialize(12000000);
-
-	/* DGBU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 /* det_pin is not connected */
@@ -109,6 +103,7 @@ static void __init at91_dt_device_init(void)
 
 static const char *at91_dt_board_compat[] __initdata = {
 	"atmel,at91sam9m10g45ek",
+	"atmel,at91sam9x5ek",
 	"calao,usb-a9g20",
 	NULL
 };

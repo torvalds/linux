@@ -39,20 +39,15 @@ static int at91_enter_idle(struct cpuidle_device *dev,
 {
 	struct timeval before, after;
 	int idle_time;
-	u32 saved_lpr;
 
 	local_irq_disable();
 	do_gettimeofday(&before);
 	if (index == 0)
 		/* Wait for interrupt state */
 		cpu_do_idle();
-	else if (index == 1) {
-		asm("b 1f; .align 5; 1:");
-		asm("mcr p15, 0, r0, c7, c10, 4");	/* drain write buffer */
-		saved_lpr = sdram_selfrefresh_enable();
-		cpu_do_idle();
-		sdram_selfrefresh_disable(saved_lpr);
-	}
+	else if (index == 1)
+		at91_standby();
+
 	do_gettimeofday(&after);
 	local_irq_enable();
 	idle_time = (after.tv_sec - before.tv_sec) * USEC_PER_SEC +
