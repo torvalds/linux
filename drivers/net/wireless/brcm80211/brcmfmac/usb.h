@@ -33,21 +33,10 @@ enum brcmf_usb_pnp_state {
 };
 
 struct brcmf_stats {
-	u32 tx_errors;
-	u32 tx_packets;
-	u32 tx_multicast;
 	u32 tx_ctlpkts;
 	u32 tx_ctlerrs;
-	u32 tx_dropped;
-	u32 tx_flushed;
-	u32 rx_errors;
-	u32 rx_packets;
-	u32 rx_multicast;
 	u32 rx_ctlpkts;
 	u32 rx_ctlerrs;
-	u32 rx_dropped;
-	u32 rx_flushed;
-
 };
 
 struct brcmf_usbdev {

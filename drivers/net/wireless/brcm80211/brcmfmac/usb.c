@@ -514,9 +514,9 @@ static void brcmf_usb_tx_complete(struct urb *urb)
 
 	brcmf_usb_del_fromq(devinfo, req);
 	if (urb->status == 0)
-		devinfo->bus_pub.stats.tx_packets++;
+		devinfo->bus_pub.bus->dstats.tx_packets++;
 	else
-		devinfo->bus_pub.stats.tx_errors++;
+		devinfo->bus_pub.bus->dstats.tx_errors++;
 
 	dev_kfree_skb(req->skb);
 	req->skb = NULL;
@@ -536,9 +536,9 @@ static void brcmf_usb_rx_complete(struct urb *urb)
 	req->skb = NULL;
 
 	if (urb->status == 0) {
-		devinfo->bus_pub.stats.rx_packets++;
+		devinfo->bus_pub.bus->dstats.rx_packets++;
 	} else {
-		devinfo->bus_pub.stats.rx_errors++;
+		devinfo->bus_pub.bus->dstats.rx_errors++;
 		dev_kfree_skb(skb);
 		brcmf_usb_enq(devinfo, &devinfo->rx_freeq, req);
 		return;
