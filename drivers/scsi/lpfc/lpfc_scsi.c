@@ -1314,6 +1314,8 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	struct scatterlist *sgde; /* s/g data entry */
 	struct lpfc_scsi_buf *lpfc_cmd = NULL;
 	struct scsi_dif_tuple *src = NULL;
+	struct lpfc_nodelist *ndlp;
+	struct lpfc_rport_data *rdata;
 	uint32_t op = scsi_get_prot_op(sc);
 	uint32_t blksize;
 	uint32_t numblks;
@@ -1326,8 +1328,9 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 
 	sgpe = scsi_prot_sglist(sc);
 	sgde = scsi_sglist(sc);
-
 	lba = scsi_get_lba(sc);
+
+	/* First check if we need to match the LBA */
 	if (phba->lpfc_injerr_lba != LPFC_INJERR_LBA_OFF) {
 		blksize = lpfc_cmd_blksize(sc);
 		numblks = (scsi_bufflen(sc) + blksize - 1) / blksize;
@@ -1342,10 +1345,34 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				sizeof(struct scsi_dif_tuple);
 			if (numblks < blockoff)
 				blockoff = numblks;
-			src = (struct scsi_dif_tuple *)sg_virt(sgpe);
-			src += blockoff;
-			lpfc_cmd = (struct lpfc_scsi_buf *)sc->host_scribble;
 		}
+	}
+
+	/* Next check if we need to match the remote NPortID or WWPN */
+	rdata = sc->device->hostdata;
+	if (rdata && rdata->pnode) {
+		ndlp = rdata->pnode;
+
+		/* Make sure we have the right NPortID if one is specified */
+		if (phba->lpfc_injerr_nportid  &&
+			(phba->lpfc_injerr_nportid != ndlp->nlp_DID))
+			return 0;
+
+		/*
+		 * Make sure we have the right WWPN if one is specified.
+		 * wwn[0] should be a non-zero NAA in a good WWPN.
+		 */
+		if (phba->lpfc_injerr_wwpn.u.wwn[0]  &&
+			(memcmp(&ndlp->nlp_portname, &phba->lpfc_injerr_wwpn,
+				sizeof(struct lpfc_name)) != 0))
+			return 0;
+	}
+
+	/* Setup a ptr to the protection data if the SCSI host provides it */
+	if (sgpe) {
+		src = (struct scsi_dif_tuple *)sg_virt(sgpe);
+		src += blockoff;
+		lpfc_cmd = (struct lpfc_scsi_buf *)sc->host_scribble;
 	}
 
 	/* Should we change the Reference Tag */
@@ -1382,8 +1409,13 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 					}
 					src->ref_tag = cpu_to_be32(0xDEADBEEF);
 					phba->lpfc_injerr_wref_cnt--;
-					phba->lpfc_injerr_lba =
-						LPFC_INJERR_LBA_OFF;
+					if (phba->lpfc_injerr_wref_cnt == 0) {
+						phba->lpfc_injerr_nportid = 0;
+						phba->lpfc_injerr_lba =
+							LPFC_INJERR_LBA_OFF;
+						memset(&phba->lpfc_injerr_wwpn,
+						  0, sizeof(struct lpfc_name));
+					}
 					rc = BG_ERR_TGT | BG_ERR_CHECK;
 
 					break;
@@ -1398,7 +1430,13 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				/* DEADBEEF will be the reftag on the wire */
 				*reftag = 0xDEADBEEF;
 				phba->lpfc_injerr_wref_cnt--;
-				phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
+				if (phba->lpfc_injerr_wref_cnt == 0) {
+					phba->lpfc_injerr_nportid = 0;
+					phba->lpfc_injerr_lba =
+					LPFC_INJERR_LBA_OFF;
+					memset(&phba->lpfc_injerr_wwpn,
+						0, sizeof(struct lpfc_name));
+				}
 				rc = BG_ERR_TGT | BG_ERR_CHECK;
 
 				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
@@ -1413,7 +1451,13 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				 */
 				*reftag = 0xDEADBEEF;
 				phba->lpfc_injerr_wref_cnt--;
-				phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
+				if (phba->lpfc_injerr_wref_cnt == 0) {
+					phba->lpfc_injerr_nportid = 0;
+					phba->lpfc_injerr_lba =
+						LPFC_INJERR_LBA_OFF;
+					memset(&phba->lpfc_injerr_wwpn,
+						0, sizeof(struct lpfc_name));
+				}
 				rc = BG_ERR_INIT;
 
 				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
@@ -1425,11 +1469,6 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		if (phba->lpfc_injerr_rref_cnt) {
 			switch (op) {
 			case SCSI_PROT_READ_INSERT:
-				/*
-				 * For READ_INSERT, it doesn't make sense
-				 * to change the reftag.
-				 */
-				break;
 			case SCSI_PROT_READ_STRIP:
 			case SCSI_PROT_READ_PASS:
 				/*
@@ -1439,7 +1478,13 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				 */
 				*reftag = 0xDEADBEEF;
 				phba->lpfc_injerr_rref_cnt--;
-				phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
+				if (phba->lpfc_injerr_rref_cnt == 0) {
+					phba->lpfc_injerr_nportid = 0;
+					phba->lpfc_injerr_lba =
+						LPFC_INJERR_LBA_OFF;
+					memset(&phba->lpfc_injerr_wwpn,
+						0, sizeof(struct lpfc_name));
+				}
 				rc = BG_ERR_INIT;
 
 				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
@@ -1455,7 +1500,7 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		if (phba->lpfc_injerr_wapp_cnt) {
 			switch (op) {
 			case SCSI_PROT_WRITE_PASS:
-				if (blockoff && src) {
+				if (src) {
 					/*
 					 * For WRITE_PASS, force the error
 					 * to be sent on the wire. It should
@@ -1463,7 +1508,6 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 					 * If blockoff != 0 error will be
 					 * inserted in middle of the IO.
 					 */
-
 
 					lpfc_printf_log(phba, KERN_ERR, LOG_BG,
 					"9080 BLKGRD: Injecting apptag error: "
@@ -1485,8 +1529,13 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 					}
 					src->app_tag = cpu_to_be16(0xDEAD);
 					phba->lpfc_injerr_wapp_cnt--;
-					phba->lpfc_injerr_lba =
-						LPFC_INJERR_LBA_OFF;
+					if (phba->lpfc_injerr_wapp_cnt == 0) {
+						phba->lpfc_injerr_nportid = 0;
+						phba->lpfc_injerr_lba =
+							LPFC_INJERR_LBA_OFF;
+						memset(&phba->lpfc_injerr_wwpn,
+						  0, sizeof(struct lpfc_name));
+					}
 					rc = BG_ERR_TGT | BG_ERR_CHECK;
 					break;
 				}
@@ -1500,8 +1549,13 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				/* DEAD will be the apptag on the wire */
 				*apptag = 0xDEAD;
 				phba->lpfc_injerr_wapp_cnt--;
-				phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
-				rc = BG_ERR_TGT;
+				if (phba->lpfc_injerr_wapp_cnt == 0) {
+					phba->lpfc_injerr_nportid = 0;
+					phba->lpfc_injerr_lba =
+						LPFC_INJERR_LBA_OFF;
+					memset(&phba->lpfc_injerr_wwpn,
+						0, sizeof(struct lpfc_name));
+				}
 				rc = BG_ERR_TGT | BG_ERR_CHECK;
 
 				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
@@ -1516,7 +1570,13 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				 */
 				*apptag = 0xDEAD;
 				phba->lpfc_injerr_wapp_cnt--;
-				phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
+				if (phba->lpfc_injerr_wapp_cnt == 0) {
+					phba->lpfc_injerr_nportid = 0;
+					phba->lpfc_injerr_lba =
+						LPFC_INJERR_LBA_OFF;
+					memset(&phba->lpfc_injerr_wwpn,
+						0, sizeof(struct lpfc_name));
+				}
 				rc = BG_ERR_INIT;
 
 				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
@@ -1528,11 +1588,6 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		if (phba->lpfc_injerr_rapp_cnt) {
 			switch (op) {
 			case SCSI_PROT_READ_INSERT:
-				/*
-				 * For READ_INSERT, it doesn't make sense
-				 * to change the apptag.
-				 */
-				break;
 			case SCSI_PROT_READ_STRIP:
 			case SCSI_PROT_READ_PASS:
 				/*
@@ -1542,7 +1597,13 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				 */
 				*apptag = 0xDEAD;
 				phba->lpfc_injerr_rapp_cnt--;
-				phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
+				if (phba->lpfc_injerr_rapp_cnt == 0) {
+					phba->lpfc_injerr_nportid = 0;
+					phba->lpfc_injerr_lba =
+						LPFC_INJERR_LBA_OFF;
+					memset(&phba->lpfc_injerr_wwpn,
+						0, sizeof(struct lpfc_name));
+				}
 				rc = BG_ERR_INIT;
 
 				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
@@ -1569,7 +1630,13 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				 * detected by the Target.
 				 */
 				phba->lpfc_injerr_wgrd_cnt--;
-				phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
+				if (phba->lpfc_injerr_wgrd_cnt == 0) {
+					phba->lpfc_injerr_nportid = 0;
+					phba->lpfc_injerr_lba =
+						LPFC_INJERR_LBA_OFF;
+					memset(&phba->lpfc_injerr_wwpn,
+						0, sizeof(struct lpfc_name));
+				}
 
 				rc |= BG_ERR_TGT | BG_ERR_SWAP;
 				/* Signals the caller to swap CRC->CSUM */
@@ -1585,7 +1652,13 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				 * being copied from SLI-Host to SLI-Port.
 				 */
 				phba->lpfc_injerr_wgrd_cnt--;
-				phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
+				if (phba->lpfc_injerr_wgrd_cnt == 0) {
+					phba->lpfc_injerr_nportid = 0;
+					phba->lpfc_injerr_lba =
+						LPFC_INJERR_LBA_OFF;
+					memset(&phba->lpfc_injerr_wwpn,
+						0, sizeof(struct lpfc_name));
+				}
 
 				rc = BG_ERR_INIT | BG_ERR_SWAP;
 				/* Signals the caller to swap CRC->CSUM */
@@ -1599,11 +1672,6 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		if (phba->lpfc_injerr_rgrd_cnt) {
 			switch (op) {
 			case SCSI_PROT_READ_INSERT:
-				/*
-				 * For READ_INSERT, it doesn't make sense
-				 * to change the guard tag.
-				 */
-				break;
 			case SCSI_PROT_READ_STRIP:
 			case SCSI_PROT_READ_PASS:
 				/*
@@ -1612,7 +1680,13 @@ lpfc_bg_err_inject(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				 * should force an IO error to the driver.
 				 */
 				phba->lpfc_injerr_rgrd_cnt--;
-				phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
+				if (phba->lpfc_injerr_rgrd_cnt == 0) {
+					phba->lpfc_injerr_nportid = 0;
+					phba->lpfc_injerr_lba =
+						LPFC_INJERR_LBA_OFF;
+					memset(&phba->lpfc_injerr_wwpn,
+						0, sizeof(struct lpfc_name));
+				}
 
 				rc = BG_ERR_INIT | BG_ERR_SWAP;
 				/* Signals the caller to swap CRC->CSUM */
@@ -1650,20 +1724,20 @@ lpfc_sc_to_bg_opcodes(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		switch (scsi_get_prot_op(sc)) {
 		case SCSI_PROT_READ_INSERT:
 		case SCSI_PROT_WRITE_STRIP:
-			*txop = BG_OP_IN_CSUM_OUT_NODIF;
 			*rxop = BG_OP_IN_NODIF_OUT_CSUM;
+			*txop = BG_OP_IN_CSUM_OUT_NODIF;
 			break;
 
 		case SCSI_PROT_READ_STRIP:
 		case SCSI_PROT_WRITE_INSERT:
-			*txop = BG_OP_IN_NODIF_OUT_CRC;
 			*rxop = BG_OP_IN_CRC_OUT_NODIF;
+			*txop = BG_OP_IN_NODIF_OUT_CRC;
 			break;
 
 		case SCSI_PROT_READ_PASS:
 		case SCSI_PROT_WRITE_PASS:
-			*txop = BG_OP_IN_CSUM_OUT_CRC;
 			*rxop = BG_OP_IN_CRC_OUT_CSUM;
+			*txop = BG_OP_IN_CSUM_OUT_CRC;
 			break;
 
 		case SCSI_PROT_NORMAL:
@@ -1679,20 +1753,20 @@ lpfc_sc_to_bg_opcodes(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		switch (scsi_get_prot_op(sc)) {
 		case SCSI_PROT_READ_STRIP:
 		case SCSI_PROT_WRITE_INSERT:
-			*txop = BG_OP_IN_NODIF_OUT_CRC;
 			*rxop = BG_OP_IN_CRC_OUT_NODIF;
+			*txop = BG_OP_IN_NODIF_OUT_CRC;
 			break;
 
 		case SCSI_PROT_READ_PASS:
 		case SCSI_PROT_WRITE_PASS:
-			*txop = BG_OP_IN_CRC_OUT_CRC;
 			*rxop = BG_OP_IN_CRC_OUT_CRC;
+			*txop = BG_OP_IN_CRC_OUT_CRC;
 			break;
 
 		case SCSI_PROT_READ_INSERT:
 		case SCSI_PROT_WRITE_STRIP:
-			*txop = BG_OP_IN_CRC_OUT_NODIF;
 			*rxop = BG_OP_IN_NODIF_OUT_CRC;
+			*txop = BG_OP_IN_CRC_OUT_NODIF;
 			break;
 
 		case SCSI_PROT_NORMAL:
@@ -1731,20 +1805,20 @@ lpfc_bg_err_opcodes(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		switch (scsi_get_prot_op(sc)) {
 		case SCSI_PROT_READ_INSERT:
 		case SCSI_PROT_WRITE_STRIP:
-			*txop = BG_OP_IN_CRC_OUT_NODIF;
 			*rxop = BG_OP_IN_NODIF_OUT_CRC;
+			*txop = BG_OP_IN_CRC_OUT_NODIF;
 			break;
 
 		case SCSI_PROT_READ_STRIP:
 		case SCSI_PROT_WRITE_INSERT:
-			*txop = BG_OP_IN_NODIF_OUT_CSUM;
 			*rxop = BG_OP_IN_CSUM_OUT_NODIF;
+			*txop = BG_OP_IN_NODIF_OUT_CSUM;
 			break;
 
 		case SCSI_PROT_READ_PASS:
 		case SCSI_PROT_WRITE_PASS:
+			*rxop = BG_OP_IN_CSUM_OUT_CRC;
 			*txop = BG_OP_IN_CRC_OUT_CSUM;
-			*rxop = BG_OP_IN_CRC_OUT_CRC;
 			break;
 
 		case SCSI_PROT_NORMAL:
@@ -1756,20 +1830,20 @@ lpfc_bg_err_opcodes(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		switch (scsi_get_prot_op(sc)) {
 		case SCSI_PROT_READ_STRIP:
 		case SCSI_PROT_WRITE_INSERT:
-			*txop = BG_OP_IN_NODIF_OUT_CSUM;
 			*rxop = BG_OP_IN_CSUM_OUT_NODIF;
+			*txop = BG_OP_IN_NODIF_OUT_CSUM;
 			break;
 
 		case SCSI_PROT_READ_PASS:
 		case SCSI_PROT_WRITE_PASS:
+			*rxop = BG_OP_IN_CSUM_OUT_CSUM;
 			*txop = BG_OP_IN_CSUM_OUT_CSUM;
-			*rxop = BG_OP_IN_CRC_OUT_CSUM;
 			break;
 
 		case SCSI_PROT_READ_INSERT:
 		case SCSI_PROT_WRITE_STRIP:
-			*txop = BG_OP_IN_CSUM_OUT_NODIF;
 			*rxop = BG_OP_IN_NODIF_OUT_CSUM;
+			*txop = BG_OP_IN_CSUM_OUT_NODIF;
 			break;
 
 		case SCSI_PROT_NORMAL:
@@ -1838,7 +1912,7 @@ lpfc_bg_setup_bpl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	reftag = (uint32_t)scsi_get_lba(sc); /* Truncate LBA */
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	rc = lpfc_bg_err_inject(phba, sc, &reftag, 0, 1);
+	rc = lpfc_bg_err_inject(phba, sc, &reftag, NULL, 1);
 	if (rc) {
 		if (rc & BG_ERR_SWAP)
 			lpfc_bg_err_opcodes(phba, sc, &txop, &rxop);
@@ -1985,7 +2059,7 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	reftag = (uint32_t)scsi_get_lba(sc); /* Truncate LBA */
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	rc = lpfc_bg_err_inject(phba, sc, &reftag, 0, 1);
+	rc = lpfc_bg_err_inject(phba, sc, &reftag, NULL, 1);
 	if (rc) {
 		if (rc & BG_ERR_SWAP)
 			lpfc_bg_err_opcodes(phba, sc, &txop, &rxop);
@@ -2193,7 +2267,7 @@ lpfc_bg_setup_sgl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	reftag = (uint32_t)scsi_get_lba(sc); /* Truncate LBA */
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	rc = lpfc_bg_err_inject(phba, sc, &reftag, 0, 1);
+	rc = lpfc_bg_err_inject(phba, sc, &reftag, NULL, 1);
 	if (rc) {
 		if (rc & BG_ERR_SWAP)
 			lpfc_bg_err_opcodes(phba, sc, &txop, &rxop);
@@ -2333,7 +2407,7 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	reftag = (uint32_t)scsi_get_lba(sc); /* Truncate LBA */
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	rc = lpfc_bg_err_inject(phba, sc, &reftag, 0, 1);
+	rc = lpfc_bg_err_inject(phba, sc, &reftag, NULL, 1);
 	if (rc) {
 		if (rc & BG_ERR_SWAP)
 			lpfc_bg_err_opcodes(phba, sc, &txop, &rxop);
@@ -2809,7 +2883,7 @@ lpfc_parse_bg_err(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd,
 		/* No error was reported - problem in FW? */
 		cmd->result = ScsiResult(DID_ERROR, 0);
 		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-			"9057 BLKGRD: no errors reported!\n");
+			"9057 BLKGRD: Unknown error reported!\n");
 	}
 
 out:

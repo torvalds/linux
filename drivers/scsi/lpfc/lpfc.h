@@ -840,6 +840,8 @@ struct lpfc_hba {
 	struct dentry *debug_dumpData;   /* BlockGuard BPL */
 	struct dentry *debug_dumpDif;    /* BlockGuard BPL */
 	struct dentry *debug_InjErrLBA;  /* LBA to inject errors at */
+	struct dentry *debug_InjErrNPortID;  /* NPortID to inject errors at */
+	struct dentry *debug_InjErrWWPN;  /* WWPN to inject errors at */
 	struct dentry *debug_writeGuard; /* inject write guard_tag errors */
 	struct dentry *debug_writeApp;   /* inject write app_tag errors */
 	struct dentry *debug_writeRef;   /* inject write ref_tag errors */
@@ -854,6 +856,8 @@ struct lpfc_hba {
 	uint32_t lpfc_injerr_rgrd_cnt;
 	uint32_t lpfc_injerr_rapp_cnt;
 	uint32_t lpfc_injerr_rref_cnt;
+	uint32_t lpfc_injerr_nportid;
+	struct lpfc_name lpfc_injerr_wwpn;
 	sector_t lpfc_injerr_lba;
 #define LPFC_INJERR_LBA_OFF	(sector_t)(-1)
 

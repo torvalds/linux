@@ -1011,6 +1011,7 @@ lpfc_debugfs_dif_err_read(struct file *file, char __user *buf,
 	struct dentry *dent = file->f_dentry;
 	struct lpfc_hba *phba = file->private_data;
 	char cbuf[32];
+	uint64_t tmp = 0;
 	int cnt = 0;
 
 	if (dent == phba->debug_writeGuard)
@@ -1025,12 +1026,18 @@ lpfc_debugfs_dif_err_read(struct file *file, char __user *buf,
 		cnt = snprintf(cbuf, 32, "%u\n", phba->lpfc_injerr_rapp_cnt);
 	else if (dent == phba->debug_readRef)
 		cnt = snprintf(cbuf, 32, "%u\n", phba->lpfc_injerr_rref_cnt);
-	else if (dent == phba->debug_InjErrLBA) {
-		if (phba->lpfc_injerr_lba == (unsigned long)(-1))
+	else if (dent == phba->debug_InjErrNPortID)
+		cnt = snprintf(cbuf, 32, "0x%06x\n", phba->lpfc_injerr_nportid);
+	else if (dent == phba->debug_InjErrWWPN) {
+		memcpy(&tmp, &phba->lpfc_injerr_wwpn, sizeof(struct lpfc_name));
+		tmp = cpu_to_be64(tmp);
+		cnt = snprintf(cbuf, 32, "0x%016llx\n", tmp);
+	} else if (dent == phba->debug_InjErrLBA) {
+		if (phba->lpfc_injerr_lba == (sector_t)(-1))
 			cnt = snprintf(cbuf, 32, "off\n");
 		else
-			cnt = snprintf(cbuf, 32, "0x%lx\n",
-				 (unsigned long) phba->lpfc_injerr_lba);
+			cnt = snprintf(cbuf, 32, "0x%llx\n",
+				 (uint64_t) phba->lpfc_injerr_lba);
 	} else
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			 "0547 Unknown debugfs error injection entry\n");
@@ -1045,7 +1052,7 @@ lpfc_debugfs_dif_err_write(struct file *file, const char __user *buf,
 	struct dentry *dent = file->f_dentry;
 	struct lpfc_hba *phba = file->private_data;
 	char dstbuf[32];
-	unsigned long tmp = 0;
+	uint64_t tmp = 0;
 	int size;
 
 	memset(dstbuf, 0, 32);
@@ -1055,10 +1062,10 @@ lpfc_debugfs_dif_err_write(struct file *file, const char __user *buf,
 
 	if (dent == phba->debug_InjErrLBA) {
 		if ((buf[0] == 'o') && (buf[1] == 'f') && (buf[2] == 'f'))
-			tmp = (unsigned long)(-1);
+			tmp = (uint64_t)(-1);
 	}
 
-	if ((tmp == 0) && (kstrtoul(dstbuf, 0, &tmp)))
+	if ((tmp == 0) && (kstrtoull(dstbuf, 0, &tmp)))
 		return 0;
 
 	if (dent == phba->debug_writeGuard)
@@ -1075,7 +1082,12 @@ lpfc_debugfs_dif_err_write(struct file *file, const char __user *buf,
 		phba->lpfc_injerr_rref_cnt = (uint32_t)tmp;
 	else if (dent == phba->debug_InjErrLBA)
 		phba->lpfc_injerr_lba = (sector_t)tmp;
-	else
+	else if (dent == phba->debug_InjErrNPortID)
+		phba->lpfc_injerr_nportid = (uint32_t)(tmp & Mask_DID);
+	else if (dent == phba->debug_InjErrWWPN) {
+		tmp = cpu_to_be64(tmp);
+		memcpy(&phba->lpfc_injerr_wwpn, &tmp, sizeof(struct lpfc_name));
+	} else
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			 "0548 Unknown debugfs error injection entry\n");
 
@@ -3957,6 +3969,28 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 		}
 		phba->lpfc_injerr_lba = LPFC_INJERR_LBA_OFF;
 
+		snprintf(name, sizeof(name), "InjErrNPortID");
+		phba->debug_InjErrNPortID =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_debugfs_root,
+			phba, &lpfc_debugfs_op_dif_err);
+		if (!phba->debug_InjErrNPortID) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				"0809 Cannot create debugfs InjErrNPortID\n");
+			goto debug_failed;
+		}
+
+		snprintf(name, sizeof(name), "InjErrWWPN");
+		phba->debug_InjErrWWPN =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_debugfs_root,
+			phba, &lpfc_debugfs_op_dif_err);
+		if (!phba->debug_InjErrWWPN) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				"0810 Cannot create debugfs InjErrWWPN\n");
+			goto debug_failed;
+		}
+
 		snprintf(name, sizeof(name), "writeGuardInjErr");
 		phba->debug_writeGuard =
 			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
@@ -4328,6 +4362,14 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 		if (phba->debug_InjErrLBA) {
 			debugfs_remove(phba->debug_InjErrLBA); /* InjErrLBA */
 			phba->debug_InjErrLBA = NULL;
+		}
+		if (phba->debug_InjErrNPortID) {	 /* InjErrNPortID */
+			debugfs_remove(phba->debug_InjErrNPortID);
+			phba->debug_InjErrNPortID = NULL;
+		}
+		if (phba->debug_InjErrWWPN) {
+			debugfs_remove(phba->debug_InjErrWWPN); /* InjErrWWPN */
+			phba->debug_InjErrWWPN = NULL;
 		}
 		if (phba->debug_writeGuard) {
 			debugfs_remove(phba->debug_writeGuard); /* writeGuard */
