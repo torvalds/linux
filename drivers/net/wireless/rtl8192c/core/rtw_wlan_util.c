@@ -1611,6 +1611,8 @@ void process_addba_req(_adapter *padapter, u8 *paddba_req, u8 *addr)
 		DBG_871X("DBG_RX_SEQ %s:%d IndicateSeq: %d, start_seq: %d\n", __FUNCTION__, __LINE__,
 			preorder_ctrl->indicate_seq, start_seq);
 		#endif
+		#else
+		preorder_ctrl->indicate_seq = 0xffff;
 		#endif
 		
 		preorder_ctrl->enable =(pmlmeinfo->bAcceptAddbaReq == _TRUE)? _TRUE :_FALSE;
