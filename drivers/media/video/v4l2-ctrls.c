@@ -1517,7 +1517,7 @@ EXPORT_SYMBOL(v4l2_ctrl_add_ctrl);
 int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 			  struct v4l2_ctrl_handler *add)
 {
-	struct v4l2_ctrl *ctrl;
+	struct v4l2_ctrl_ref *ref;
 	int ret = 0;
 
 	/* Do nothing if either handler is NULL or if they are the same */
@@ -1526,7 +1526,9 @@ int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 	if (hdl->error)
 		return hdl->error;
 	mutex_lock(&add->lock);
-	list_for_each_entry(ctrl, &add->ctrls, node) {
+	list_for_each_entry(ref, &add->ctrl_refs, node) {
+		struct v4l2_ctrl *ctrl = ref->ctrl;
+
 		/* Skip handler-private controls. */
 		if (ctrl->is_private)
 			continue;
