@@ -1352,7 +1352,7 @@ top:
 			len = dummy_perform_transfer(urb, req, len);
 
 			ep->last_io = jiffies;
-			if (len < 0) {
+			if ((int)len < 0) {
 				req->req.status = len;
 			} else {
 				limit -= len;
