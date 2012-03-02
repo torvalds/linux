@@ -181,8 +181,6 @@ static int lme2510_usb_talk(struct dvb_usb_device *d,
 
 	ret |= lme2510_bulk_write(d->udev, buff, wlen , 0x01);
 
-	msleep(10);
-
 	ret |= usb_clear_halt(d->udev, usb_rcvbulkpipe(d->udev, 0x01));
 
 	ret |= lme2510_bulk_read(d->udev, buff, (rlen < 64) ?
@@ -455,8 +453,6 @@ static int lme2510_msg(struct dvb_usb_device *d,
 						st->i2c_talk_onoff = 0;
 					}
 				}
-				if ((wbuf[3] != 0x6) & (wbuf[3] != 0x5))
-					msleep(5);
 			}
 			break;
 		case TUNER_S0194:
@@ -1294,5 +1290,5 @@ module_usb_driver(lme2510_driver);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("LME2510(C) DVB-S USB2.0");
-MODULE_VERSION("1.96");
+MODULE_VERSION("1.97");
 MODULE_LICENSE("GPL");
