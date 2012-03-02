@@ -82,7 +82,14 @@ struct pinctrl_setting {
  * @name: a name for the pin, e.g. the name of the pin/pad/finger on a
  *	datasheet or such
  * @dynamic_name: if the name of this pin was dynamically allocated
- * @owner: the device holding this pin or NULL of no device has claimed it
+ * @usecount: If zero, the pin is not claimed, and @owner should be NULL.
+ *	If non-zero, this pin is claimed by @owner. This field is an integer
+ *	rather than a boolean, since pinctrl_get() might process multiple
+ *	mapping table entries that refer to, and hence claim, the same group
+ *	or pin, and each of these will increment the @usecount.
+ * @owner: The name of the entity owning the pin. Typically, this is the name
+ *	of the device that called pinctrl_get(). Alternatively, it may be the
+ *	name of the GPIO passed to pinctrl_request_gpio().
  */
 struct pin_desc {
 	struct pinctrl_dev *pctldev;
@@ -90,6 +97,7 @@ struct pin_desc {
 	bool dynamic_name;
 	/* These fields only added when supporting pinmux drivers */
 #ifdef CONFIG_PINMUX
+	unsigned usecount;
 	const char *owner;
 #endif
 };

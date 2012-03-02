@@ -83,11 +83,16 @@ static int pin_request(struct pinctrl_dev *pctldev,
 		goto out;
 	}
 
-	if (desc->owner && strcmp(desc->owner, owner)) {
+	if (desc->usecount && strcmp(desc->owner, owner)) {
 		dev_err(pctldev->dev,
 			"pin already requested\n");
 		goto out;
 	}
+
+	desc->usecount++;
+	if (desc->usecount > 1)
+		return 0;
+
 	desc->owner = owner;
 
 	/* Let each pin increase references to this module */
@@ -111,12 +116,18 @@ static int pin_request(struct pinctrl_dev *pctldev,
 	else
 		status = 0;
 
-	if (status)
+	if (status) {
 		dev_err(pctldev->dev, "->request on device %s failed for pin %d\n",
 		       pctldev->desc->name, pin);
+		module_put(pctldev->owner);
+	}
+
 out_free_pin:
-	if (status)
-		desc->owner = NULL;
+	if (status) {
+		desc->usecount--;
+		if (!desc->usecount)
+			desc->owner = NULL;
+	}
 out:
 	if (status)
 		dev_err(pctldev->dev, "pin-%d (%s) status %d\n",
@@ -149,6 +160,10 @@ static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
 			"pin is not registered so it cannot be freed\n");
 		return NULL;
 	}
+
+	desc->usecount--;
+	if (desc->usecount)
+		return NULL;
 
 	/*
 	 * If there is no kind of request function for the pin we just assume
