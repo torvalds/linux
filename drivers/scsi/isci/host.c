@@ -192,22 +192,27 @@ static bool sci_controller_completion_queue_has_entries(struct isci_host *ihost)
 
 static bool sci_controller_isr(struct isci_host *ihost)
 {
-	if (sci_controller_completion_queue_has_entries(ihost)) {
+	if (sci_controller_completion_queue_has_entries(ihost))
 		return true;
-	} else {
-		/*
-		 * we have a spurious interrupt it could be that we have already
-		 * emptied the completion queue from a previous interrupt */
-		writel(SMU_ISR_COMPLETION, &ihost->smu_registers->interrupt_status);
 
-		/*
-		 * There is a race in the hardware that could cause us not to be notified
-		 * of an interrupt completion if we do not take this step.  We will mask
-		 * then unmask the interrupts so if there is another interrupt pending
-		 * the clearing of the interrupt source we get the next interrupt message. */
+	/* we have a spurious interrupt it could be that we have already
+	 * emptied the completion queue from a previous interrupt
+	 * FIXME: really!?
+	 */
+	writel(SMU_ISR_COMPLETION, &ihost->smu_registers->interrupt_status);
+
+	/* There is a race in the hardware that could cause us not to be
+	 * notified of an interrupt completion if we do not take this
+	 * step.  We will mask then unmask the interrupts so if there is
+	 * another interrupt pending the clearing of the interrupt
+	 * source we get the next interrupt message.
+	 */
+	spin_lock(&ihost->scic_lock);
+	if (test_bit(IHOST_IRQ_ENABLED, &ihost->flags)) {
 		writel(0xFF000000, &ihost->smu_registers->interrupt_mask);
 		writel(0, &ihost->smu_registers->interrupt_mask);
 	}
+	spin_unlock(&ihost->scic_lock);
 
 	return false;
 }
@@ -698,14 +703,15 @@ static u32 sci_controller_get_suggested_start_timeout(struct isci_host *ihost)
 
 static void sci_controller_enable_interrupts(struct isci_host *ihost)
 {
-	BUG_ON(ihost->smu_registers == NULL);
+	set_bit(IHOST_IRQ_ENABLED, &ihost->flags);
 	writel(0, &ihost->smu_registers->interrupt_mask);
 }
 
 void sci_controller_disable_interrupts(struct isci_host *ihost)
 {
-	BUG_ON(ihost->smu_registers == NULL);
+	clear_bit(IHOST_IRQ_ENABLED, &ihost->flags);
 	writel(0xffffffff, &ihost->smu_registers->interrupt_mask);
+	readl(&ihost->smu_registers->interrupt_mask); /* flush */
 }
 
 static void sci_controller_enable_port_task_scheduler(struct isci_host *ihost)
@@ -1318,7 +1324,9 @@ void isci_host_deinit(struct isci_host *ihost)
 	 */
 	writel(0, &ihost->scu_registers->peg0.sgpio.interface_control);
 
+	spin_lock_irq(&ihost->scic_lock);
 	sci_controller_reset(ihost);
+	spin_unlock_irq(&ihost->scic_lock);
 
 	/* Cancel any/all outstanding port timers */
 	for (i = 0; i < ihost->logical_port_entries; i++) {
@@ -1605,6 +1613,9 @@ static void sci_controller_reset_hardware(struct isci_host *ihost)
 
 	/* The write to the UFQGP clears the UFQPR */
 	writel(0, &ihost->scu_registers->sdma.unsolicited_frame_get_pointer);
+
+	/* clear all interrupts */
+	writel(~SMU_INTERRUPT_STATUS_RESERVED_MASK, &ihost->smu_registers->interrupt_status);
 }
 
 static void sci_controller_resetting_state_enter(struct sci_base_state_machine *sm)
@@ -2391,7 +2402,9 @@ int isci_host_init(struct isci_host *ihost)
 	int i, err;
 	enum sci_status status;
 
+	spin_lock_irq(&ihost->scic_lock);
 	status = sci_controller_construct(ihost, scu_base(ihost), smu_base(ihost));
+	spin_unlock_irq(&ihost->scic_lock);
 	if (status != SCI_SUCCESS) {
 		dev_err(&ihost->pdev->dev,
 			"%s: sci_controller_construct failed - status = %x\n",

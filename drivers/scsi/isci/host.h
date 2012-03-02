@@ -200,6 +200,7 @@ struct isci_host {
 	struct pci_dev *pdev;
 	#define IHOST_START_PENDING 0
 	#define IHOST_STOP_PENDING 1
+	#define IHOST_IRQ_ENABLED 2
 	unsigned long flags;
 	wait_queue_head_t eventq;
 	struct Scsi_Host *shost;
