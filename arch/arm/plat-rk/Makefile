@@ -6,3 +6,4 @@ obj-$(CONFIG_FIQ_DEBUGGER) += rk_fiq_debugger.o
 obj-$(CONFIG_RK_EARLY_PRINTK) += early_printk.o ../kernel/debug.o
 obj-y += mem_reserve.o
 obj-y += sram.o
+obj-$(CONFIG_DDR_TEST) += memtester.o

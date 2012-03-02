@@ -89,6 +89,12 @@ config DDR_SDRAM_FREQ
 config DDR_FREQ
 	bool "Enable DDR frequency scaling"
 
+config DDR_TEST
+	bool "DDR Test"
+	depends on !ARCH_RK29
+	select CRC32
+	default y
+
 config WIFI_CONTROL_FUNC
         bool "Enable WiFi control function abstraction"
         help
