@@ -83,6 +83,11 @@
 			};
 
 
+			shdwc@fffffd10 {
+				compatible = "atmel,at91sam9rl-shdwc";
+				reg = <0xfffffd10 0x10>;
+			};
+
 			tcb0: timer@fff7c000 {
 				compatible = "atmel,at91rm9200-tcb";
 				reg = <0xfff7c000 0x100>;

@@ -61,3 +61,32 @@ Examples:
 		reg = <0xffffe400 0x200
 		       0xffffe600 0x200>;
 	};
+
+SHDWC Shutdown Controller
+
+required properties:
+- compatible: Should be "atmel,<chip>-shdwc".
+  <chip> can be "at91sam9260", "at91sam9rl" or "at91sam9x5".
+- reg: Should contain registers location and length
+
+optional properties:
+- atmel,wakeup-mode: String, operation mode of the wakeup mode.
+  Supported values are: "none", "high", "low", "any".
+- atmel,wakeup-counter: Counter on Wake-up 0 (between 0x0 and 0xf).
+
+optional at91sam9260 properties:
+- atmel,wakeup-rtt-timer: boolean to enable Real-time Timer Wake-up.
+
+optional at91sam9rl properties:
+- atmel,wakeup-rtc-timer: boolean to enable Real-time Clock Wake-up.
+- atmel,wakeup-rtt-timer: boolean to enable Real-time Timer Wake-up.
+
+optional at91sam9x5 properties:
+- atmel,wakeup-rtc-timer: boolean to enable Real-time Clock Wake-up.
+
+Example:
+
+	rstc@fffffd00 {
+		compatible = "atmel,at91sam9260-rstc";
+		reg = <0xfffffd00 0x10>;
+	};

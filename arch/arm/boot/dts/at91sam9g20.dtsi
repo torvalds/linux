@@ -74,6 +74,11 @@
 				reg = <0xfffffd00 0x10>;
 			};
 
+			shdwc@fffffd10 {
+				compatible = "atmel,at91sam9260-shdwc";
+				reg = <0xfffffd10 0x10>;
+			};
+
 			pit: timer@fffffd30 {
 				compatible = "atmel,at91sam9260-pit";
 				reg = <0xfffffd30 0xf>;
