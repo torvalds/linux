@@ -2104,11 +2104,19 @@ static int user_passkey_neg_reply(struct sock *sk, struct hci_dev *hdev,
 					HCI_OP_USER_PASSKEY_NEG_REPLY, 0);
 }
 
+static int update_name(struct hci_dev *hdev, const char *name)
+{
+	struct hci_cp_write_local_name cp;
+
+	memcpy(cp.name, name, sizeof(cp.name));
+
+	return hci_send_cmd(hdev, HCI_OP_WRITE_LOCAL_NAME, sizeof(cp), &cp);
+}
+
 static int set_local_name(struct sock *sk, struct hci_dev *hdev, void *data,
 								u16 len)
 {
-	struct mgmt_cp_set_local_name *mgmt_cp = data;
-	struct hci_cp_write_local_name hci_cp;
+	struct mgmt_cp_set_local_name *cp = data;
 	struct pending_cmd *cmd;
 	int err;
 
@@ -2116,11 +2124,10 @@ static int set_local_name(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	hci_dev_lock(hdev);
 
-	memcpy(hdev->short_name, mgmt_cp->short_name,
-						sizeof(hdev->short_name));
+	memcpy(hdev->short_name, cp->short_name, sizeof(hdev->short_name));
 
 	if (!hdev_is_powered(hdev)) {
-		memcpy(hdev->dev_name, mgmt_cp->name, sizeof(hdev->dev_name));
+		memcpy(hdev->dev_name, cp->name, sizeof(hdev->dev_name));
 
 		err = cmd_complete(sk, hdev->id, MGMT_OP_SET_LOCAL_NAME, 0,
 								data, len);
@@ -2139,9 +2146,7 @@ static int set_local_name(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	memcpy(hci_cp.name, mgmt_cp->name, sizeof(hci_cp.name));
-	err = hci_send_cmd(hdev, HCI_OP_WRITE_LOCAL_NAME, sizeof(hci_cp),
-								&hci_cp);
+	err = update_name(hdev, cp->name);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
 
@@ -2794,6 +2799,7 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 			hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
 
 		update_class(hdev);
+		update_name(hdev, hdev->dev_name);
 		update_eir(hdev);
 	} else {
 		u8 status = MGMT_STATUS_NOT_POWERED;
