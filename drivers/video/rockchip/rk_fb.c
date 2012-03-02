@@ -84,7 +84,28 @@ defautl:we alloc three buffer,one for fb0 and fb2 display ui,one for ipp rotate
         fb1 and fb3 are used for video play,the buffer is alloc by android,and
         pass the phy addr to fix.smem_start by ioctl
 ****************************************************************************/
+static int rk_fb_open(struct fb_info *info,int user)
+{
+    struct rk_fb_inf *inf = dev_get_drvdata(info->device);
+    struct fb_fix_screeninfo *fix = &info->fix;
+    if(!strcmp(fix->id,"fb1")){
+        inf->video_mode = 1;
+    }
 
+    return 0;
+    
+}
+
+static int rk_fb_release(struct fb_info *info,int user)
+{
+    struct rk_fb_inf *inf = dev_get_drvdata(info->device);
+    struct fb_fix_screeninfo *fix = &info->fix;
+    if(!strcmp(fix->id,"fb1")){
+        inf->video_mode = 0;
+    }
+
+    return 0;
+}
 static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			unsigned long arg)
 {
@@ -394,6 +415,8 @@ static int fb_setcolreg(unsigned regno,
 
 static struct fb_ops fb_ops = {
     .owner          = THIS_MODULE,
+    .fb_open        = rk_fb_open,
+    .fb_release     = rk_fb_release,
     .fb_check_var   = rk_fb_check_var,
     .fb_set_par     = rk_fb_set_par,
     .fb_blank       = rk_fb_blank,
