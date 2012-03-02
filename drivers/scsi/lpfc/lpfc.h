@@ -908,6 +908,8 @@ struct lpfc_hba {
 	atomic_t fast_event_count;
 	uint32_t fcoe_eventtag;
 	uint32_t fcoe_eventtag_at_fcf_scan;
+	uint32_t fcoe_cvl_eventtag;
+	uint32_t fcoe_cvl_eventtag_attn;
 	struct lpfc_fcf fcf;
 	uint8_t fc_map[3];
 	uint8_t valid_vlan;

@@ -5673,14 +5673,13 @@ lpfc_fcf_inuse(struct lpfc_hba *phba)
 				ret = 1;
 				spin_unlock_irq(shost->host_lock);
 				goto out;
-			} else {
+			} else if (ndlp->nlp_flag & NLP_RPI_REGISTERED) {
+				ret = 1;
 				lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-					"2624 RPI %x DID %x flg %x still "
-					"logged in\n",
-					ndlp->nlp_rpi, ndlp->nlp_DID,
-					ndlp->nlp_flag);
-				if (ndlp->nlp_flag & NLP_RPI_REGISTERED)
-					ret = 1;
+						"2624 RPI %x DID %x flag %x "
+						"still logged in\n",
+						ndlp->nlp_rpi, ndlp->nlp_DID,
+						ndlp->nlp_flag);
 			}
 		}
 		spin_unlock_irq(shost->host_lock);

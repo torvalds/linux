@@ -3725,6 +3725,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		break;
 
 	case LPFC_FIP_EVENT_TYPE_FCF_DEAD:
+		phba->fcoe_cvl_eventtag = acqe_fip->event_tag;
 		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
 			"2549 FCF (x%x) disconnected from network, "
 			"tag:x%x\n", acqe_fip->index, acqe_fip->event_tag);
@@ -3786,6 +3787,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		}
 		break;
 	case LPFC_FIP_EVENT_TYPE_CVL:
+		phba->fcoe_cvl_eventtag = acqe_fip->event_tag;
 		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
 			"2718 Clear Virtual Link Received for VPI 0x%x"
 			" tag 0x%x\n", acqe_fip->index, acqe_fip->event_tag);
