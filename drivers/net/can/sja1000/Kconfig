@@ -44,11 +44,23 @@ config CAN_EMS_PCI
 	  (http://www.ems-wuensche.de).
 
 config CAN_PEAK_PCI
-	tristate "PEAK PCAN PCI/PCIe Cards"
+	tristate "PEAK PCAN-PCI/PCIe/miniPCI Cards"
 	depends on PCI
 	---help---
-	  This driver is for the PCAN PCI/PCIe cards (1, 2, 3 or 4 channels)
-	  from PEAK Systems (http://www.peak-system.com).
+	  This driver is for the PCAN-PCI/PCIe/miniPCI cards
+	  (1, 2, 3 or 4 channels) from PEAK-System Technik
+	  (http://www.peak-system.com).
+
+config CAN_PEAK_PCIEC
+	bool "PEAK PCAN-ExpressCard Cards"
+	depends on CAN_PEAK_PCI
+	select I2C
+	select I2C_ALGOBIT
+	default y
+	---help---
+	  Say Y here if you want to use a PCAN-ExpressCard from PEAK-System
+	  Technik. This will also automatically select I2C and I2C_ALGO
+	  configuration options.
 
 config CAN_KVASER_PCI
 	tristate "Kvaser PCIcanx and Kvaser PCIcan PCI Cards"
