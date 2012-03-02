@@ -13,6 +13,7 @@
 #ifdef CONFIG_PINMUX
 
 int pinmux_check_ops(struct pinctrl_dev *pctldev);
+
 int pinmux_request_gpio(struct pinctrl_dev *pctldev,
 			struct pinctrl_gpio_range *range,
 			unsigned pin, unsigned gpio);
@@ -21,21 +22,16 @@ void pinmux_free_gpio(struct pinctrl_dev *pctldev, unsigned pin,
 int pinmux_gpio_direction(struct pinctrl_dev *pctldev,
 			  struct pinctrl_gpio_range *range,
 			  unsigned pin, bool input);
-static inline void pinmux_init_pinctrl_handle(struct pinctrl *p)
-{
-	INIT_LIST_HEAD(&p->groups);
-}
-int pinmux_apply_muxmap(struct pinctrl_dev *pctldev,
-			struct pinctrl *p,
-			struct device *dev,
-			const char *devname,
-			struct pinctrl_map const *map);
-void pinmux_put(struct pinctrl *p);
-int pinmux_enable(struct pinctrl *p);
-void pinmux_disable(struct pinctrl *p);
+
+int pinmux_map_to_setting(struct pinctrl_map const *map,
+			  struct pinctrl_setting *setting);
+void pinmux_free_setting(struct pinctrl_setting const *setting);
+int pinmux_enable_setting(struct pinctrl_setting const *setting);
+void pinmux_disable_setting(struct pinctrl_setting const *setting);
+
+void pinmux_dbg_show(struct seq_file *s, struct pinctrl_setting const *setting);
 void pinmux_init_device_debugfs(struct dentry *devroot,
 				struct pinctrl_dev *pctldev);
-void pinmux_dbg_show(struct seq_file *s, struct pinctrl *p);
 
 #else
 
@@ -64,28 +60,23 @@ static inline int pinmux_gpio_direction(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static inline void pinmux_init_pinctrl_handle(struct pinctrl *p)
-{
-}
-
-static inline int pinmux_apply_muxmap(struct pinctrl_dev *pctldev,
-				      struct pinctrl *p,
-				      struct device *dev,
-				      const char *devname,
-				      struct pinctrl_map const *map)
+static inline int pinmux_map_to_setting(struct pinctrl_map const *map,
+			  struct pinctrl_setting *setting)
 {
 	return 0;
 }
 
-static inline void pinmux_put(struct pinctrl *p)
+static inline void pinmux_free_setting(struct pinctrl_setting const *setting)
 {
 }
 
-static inline int pinmux_enable(struct pinctrl *p)
+static inline int pinmux_enable_setting(struct pinctrl_setting const *setting)
 {
+	return 0;
 }
 
-static inline void pinmux_disable(struct pinctrl *p)
+static inline void pinmux_disable_setting(
+			struct pinctrl_setting const *setting)
 {
 }
 

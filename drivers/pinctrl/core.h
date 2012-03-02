@@ -49,22 +49,31 @@ struct pinctrl_dev {
  * struct pinctrl - per-device pin control state holder
  * @node: global list node
  * @dev: the device using this pin control handle
+ * @state: the state name passed to pinctrl_get()
  * @usecount: the number of active users of this pin controller setting, used
  *	to keep track of nested use cases
- * @pctldev: pin control device handling this pin control handle
- * @groups: the group selectors for the pinmux device and
- *	selector combination handling this pinmux, this is a list that
- *	will be traversed on all pinmux operations such as
- *	get/put/enable/disable
+ * @settings: a list of settings for this device/state
  */
 struct pinctrl {
 	struct list_head node;
 	struct device *dev;
+	const char *state;
 	unsigned usecount;
+	struct list_head settings;
+};
+
+/**
+ * struct pinctrl_setting - an individual mux setting
+ * @node: list node for struct pinctrl's @settings field
+ * @pctldev: pin control device handling to be programmed
+ * @group_selector: the group selector to program
+ * @func_selector: the function selector to program
+ */
+struct pinctrl_setting {
+	struct list_head node;
 	struct pinctrl_dev *pctldev;
-#ifdef CONFIG_PINMUX
-	struct list_head groups;
-#endif
+	unsigned group_selector;
+	unsigned func_selector;
 };
 
 /**
