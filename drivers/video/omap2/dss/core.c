@@ -515,10 +515,54 @@ static int omap_dss_bus_register(void)
 }
 
 /* INIT */
+static int (*dss_output_drv_reg_funcs[])(void) __initdata = {
+#ifdef CONFIG_OMAP2_DSS_DPI
+	dpi_init_platform_driver,
+#endif
+#ifdef CONFIG_OMAP2_DSS_SDI
+	sdi_init_platform_driver,
+#endif
+#ifdef CONFIG_OMAP2_DSS_RFBI
+	rfbi_init_platform_driver,
+#endif
+#ifdef CONFIG_OMAP2_DSS_VENC
+	venc_init_platform_driver,
+#endif
+#ifdef CONFIG_OMAP2_DSS_DSI
+	dsi_init_platform_driver,
+#endif
+#ifdef CONFIG_OMAP4_DSS_HDMI
+	hdmi_init_platform_driver,
+#endif
+};
+
+static void (*dss_output_drv_unreg_funcs[])(void) __exitdata = {
+#ifdef CONFIG_OMAP2_DSS_DPI
+	dpi_uninit_platform_driver,
+#endif
+#ifdef CONFIG_OMAP2_DSS_SDI
+	sdi_uninit_platform_driver,
+#endif
+#ifdef CONFIG_OMAP2_DSS_RFBI
+	rfbi_uninit_platform_driver,
+#endif
+#ifdef CONFIG_OMAP2_DSS_VENC
+	venc_uninit_platform_driver,
+#endif
+#ifdef CONFIG_OMAP2_DSS_DSI
+	dsi_uninit_platform_driver,
+#endif
+#ifdef CONFIG_OMAP4_DSS_HDMI
+	hdmi_uninit_platform_driver,
+#endif
+};
+
+static bool dss_output_drv_loaded[ARRAY_SIZE(dss_output_drv_reg_funcs)];
 
 static int __init omap_dss_register_drivers(void)
 {
 	int r;
+	int i;
 
 	r = platform_driver_probe(&omap_dss_driver, omap_dss_probe);
 	if (r)
@@ -536,56 +580,18 @@ static int __init omap_dss_register_drivers(void)
 		goto err_dispc;
 	}
 
-	r = dpi_init_platform_driver();
-	if (r) {
-		DSSERR("Failed to initialize dpi platform driver\n");
-		goto err_dpi;
-	}
-
-	r = sdi_init_platform_driver();
-	if (r) {
-		DSSERR("Failed to initialize sdi platform driver\n");
-		goto err_sdi;
-	}
-
-	r = rfbi_init_platform_driver();
-	if (r) {
-		DSSERR("Failed to initialize rfbi platform driver\n");
-		goto err_rfbi;
-	}
-
-	r = venc_init_platform_driver();
-	if (r) {
-		DSSERR("Failed to initialize venc platform driver\n");
-		goto err_venc;
-	}
-
-	r = dsi_init_platform_driver();
-	if (r) {
-		DSSERR("Failed to initialize DSI platform driver\n");
-		goto err_dsi;
-	}
-
-	r = hdmi_init_platform_driver();
-	if (r) {
-		DSSERR("Failed to initialize hdmi\n");
-		goto err_hdmi;
+	/*
+	 * It's ok if the output-driver register fails. It happens, for example,
+	 * when there is no output-device (e.g. SDI for OMAP4).
+	 */
+	for (i = 0; i < ARRAY_SIZE(dss_output_drv_reg_funcs); ++i) {
+		r = dss_output_drv_reg_funcs[i]();
+		if (r == 0)
+			dss_output_drv_loaded[i] = true;
 	}
 
 	return 0;
 
-err_hdmi:
-	dsi_uninit_platform_driver();
-err_dsi:
-	venc_uninit_platform_driver();
-err_venc:
-	rfbi_uninit_platform_driver();
-err_rfbi:
-	sdi_uninit_platform_driver();
-err_sdi:
-	dpi_uninit_platform_driver();
-err_dpi:
-	dispc_uninit_platform_driver();
 err_dispc:
 	dss_uninit_platform_driver();
 err_dss:
@@ -596,12 +602,13 @@ err_dss:
 
 static void __exit omap_dss_unregister_drivers(void)
 {
-	hdmi_uninit_platform_driver();
-	dsi_uninit_platform_driver();
-	venc_uninit_platform_driver();
-	rfbi_uninit_platform_driver();
-	sdi_uninit_platform_driver();
-	dpi_uninit_platform_driver();
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dss_output_drv_unreg_funcs); ++i) {
+		if (dss_output_drv_loaded[i])
+			dss_output_drv_unreg_funcs[i]();
+	}
+
 	dispc_uninit_platform_driver();
 	dss_uninit_platform_driver();
 

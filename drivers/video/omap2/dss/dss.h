@@ -268,14 +268,9 @@ int dss_calc_clock_div(bool is_tft, unsigned long req_pck,
 		struct dispc_clock_info *dispc_cinfo);
 
 /* SDI */
-#ifdef CONFIG_OMAP2_DSS_SDI
 int sdi_init_platform_driver(void);
 void sdi_uninit_platform_driver(void);
 int sdi_init_display(struct omap_dss_device *display);
-#else
-static inline int sdi_init_platform_driver(void) { return 0; }
-static inline void sdi_uninit_platform_driver(void) { }
-#endif
 
 /* DSI */
 #ifdef CONFIG_OMAP2_DSS_DSI
@@ -312,13 +307,6 @@ void dsi_wait_pll_hsdiv_dispc_active(struct platform_device *dsidev);
 void dsi_wait_pll_hsdiv_dsi_active(struct platform_device *dsidev);
 struct platform_device *dsi_get_dsidev_from_id(int module);
 #else
-static inline int dsi_init_platform_driver(void)
-{
-	return 0;
-}
-static inline void dsi_uninit_platform_driver(void)
-{
-}
 static inline int dsi_runtime_get(struct platform_device *dsidev)
 {
 	return 0;
@@ -375,14 +363,9 @@ static inline struct platform_device *dsi_get_dsidev_from_id(int module)
 #endif
 
 /* DPI */
-#ifdef CONFIG_OMAP2_DSS_DPI
 int dpi_init_platform_driver(void);
 void dpi_uninit_platform_driver(void);
 int dpi_init_display(struct omap_dss_device *dssdev);
-#else
-static inline int dpi_init_platform_driver(void) { return 0; }
-static inline void dpi_uninit_platform_driver(void) { }
-#endif
 
 /* DISPC */
 int dispc_init_platform_driver(void);
@@ -459,13 +442,6 @@ void venc_dump_regs(struct seq_file *s);
 int venc_init_display(struct omap_dss_device *display);
 unsigned long venc_get_pixel_clock(void);
 #else
-static inline int venc_init_platform_driver(void)
-{
-	return 0;
-}
-static inline void venc_uninit_platform_driver(void)
-{
-}
 static inline unsigned long venc_get_pixel_clock(void)
 {
 	WARN("%s: VENC not compiled in, returning pclk as 0\n", __func__);
@@ -485,13 +461,6 @@ static inline int hdmi_init_display(struct omap_dss_device *dssdev)
 {
 	return 0;
 }
-static inline int hdmi_init_platform_driver(void)
-{
-	return 0;
-}
-static inline void hdmi_uninit_platform_driver(void)
-{
-}
 static inline unsigned long hdmi_get_pixel_clock(void)
 {
 	WARN("%s: HDMI not compiled in, returning pclk as 0\n", __func__);
@@ -509,20 +478,10 @@ int hdmi_panel_init(void);
 void hdmi_panel_exit(void);
 
 /* RFBI */
-#ifdef CONFIG_OMAP2_DSS_RFBI
 int rfbi_init_platform_driver(void);
 void rfbi_uninit_platform_driver(void);
 void rfbi_dump_regs(struct seq_file *s);
 int rfbi_init_display(struct omap_dss_device *display);
-#else
-static inline int rfbi_init_platform_driver(void)
-{
-	return 0;
-}
-static inline void rfbi_uninit_platform_driver(void)
-{
-}
-#endif
 
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
