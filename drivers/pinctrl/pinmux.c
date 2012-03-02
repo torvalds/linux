@@ -187,6 +187,7 @@ static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
 
 	owner = desc->owner;
 	desc->owner = NULL;
+	desc->mux_setting = NULL;
 	module_put(pctldev->owner);
 
 	return owner;
@@ -378,7 +379,34 @@ void pinmux_free_setting(struct pinctrl_setting const *setting)
 int pinmux_enable_setting(struct pinctrl_setting const *setting)
 {
 	struct pinctrl_dev *pctldev = setting->pctldev;
+	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
 	const struct pinmux_ops *ops = pctldev->desc->pmxops;
+	int ret;
+	const unsigned *pins;
+	unsigned num_pins;
+	int i;
+	struct pin_desc *desc;
+
+	ret = pctlops->get_group_pins(pctldev, setting->data.mux.group,
+				      &pins, &num_pins);
+	if (ret) {
+		/* errors only affect debug data, so just warn */
+		dev_warn(pctldev->dev,
+			 "could not get pins for group selector %d\n",
+			 setting->data.mux.group);
+		num_pins = 0;
+	}
+
+	for (i = 0; i < num_pins; i++) {
+		desc = pin_desc_get(pctldev, pins[i]);
+		if (desc == NULL) {
+			dev_warn(pctldev->dev,
+				 "could not get pin desc for pin %d\n",
+				 pins[i]);
+			continue;
+		}
+		desc->mux_setting = &(setting->data.mux);
+	}
 
 	return ops->enable(pctldev, setting->data.mux.func,
 			   setting->data.mux.group);
@@ -387,7 +415,34 @@ int pinmux_enable_setting(struct pinctrl_setting const *setting)
 void pinmux_disable_setting(struct pinctrl_setting const *setting)
 {
 	struct pinctrl_dev *pctldev = setting->pctldev;
+	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
 	const struct pinmux_ops *ops = pctldev->desc->pmxops;
+	int ret;
+	const unsigned *pins;
+	unsigned num_pins;
+	int i;
+	struct pin_desc *desc;
+
+	ret = pctlops->get_group_pins(pctldev, setting->data.mux.group,
+				      &pins, &num_pins);
+	if (ret) {
+		/* errors only affect debug data, so just warn */
+		dev_warn(pctldev->dev,
+			 "could not get pins for group selector %d\n",
+			 setting->data.mux.group);
+		num_pins = 0;
+	}
+
+	for (i = 0; i < num_pins; i++) {
+		desc = pin_desc_get(pctldev, pins[i]);
+		if (desc == NULL) {
+			dev_warn(pctldev->dev,
+				 "could not get pin desc for pin %d\n",
+				 pins[i]);
+			continue;
+		}
+		desc->mux_setting = NULL;
+	}
 
 	ops->disable(pctldev, setting->data.mux.func, setting->data.mux.group);
 }
@@ -433,6 +488,8 @@ static int pinmux_functions_show(struct seq_file *s, void *what)
 static int pinmux_pins_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev = s->private;
+	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
+	const struct pinmux_ops *pmxops = pctldev->desc->pmxops;
 	unsigned i, pin;
 
 	seq_puts(s, "Pinmux settings per pin\n");
@@ -455,10 +512,19 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 		    !strcmp(desc->owner, pinctrl_dev_get_name(pctldev)))
 			is_hog = true;
 
-		seq_printf(s, "pin %d (%s): %s%s\n", pin,
+		seq_printf(s, "pin %d (%s): %s%s", pin,
 			   desc->name ? desc->name : "unnamed",
 			   desc->owner ? desc->owner : "UNCLAIMED",
 			   is_hog ? " (HOG)" : "");
+
+		if (desc->mux_setting)
+			seq_printf(s, " function %s group %s\n",
+				   pmxops->get_function_name(pctldev,
+					desc->mux_setting->func),
+				   pctlops->get_group_name(pctldev,
+					desc->mux_setting->group));
+		else
+			seq_printf(s, "\n");
 	}
 
 	mutex_unlock(&pinctrl_mutex);

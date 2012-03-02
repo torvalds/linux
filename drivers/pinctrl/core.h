@@ -126,6 +126,7 @@ struct pinctrl_setting {
  * @owner: The name of the entity owning the pin. Typically, this is the name
  *	of the device that called pinctrl_get(). Alternatively, it may be the
  *	name of the GPIO passed to pinctrl_request_gpio().
+ * @mux_setting: The most recent selected mux setting for this pin, if any.
  */
 struct pin_desc {
 	struct pinctrl_dev *pctldev;
@@ -135,6 +136,7 @@ struct pin_desc {
 #ifdef CONFIG_PINMUX
 	unsigned usecount;
 	const char *owner;
+	const struct pinctrl_setting_mux *mux_setting;
 #endif
 };
 
