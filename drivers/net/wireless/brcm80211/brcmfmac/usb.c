@@ -712,9 +712,6 @@ static int brcmf_usb_up(struct device *dev)
 	struct brcmf_usbdev_info *devinfo = brcmf_usb_get_businfo(dev);
 	u16 ifnum;
 
-	if (devinfo == NULL)
-		return -EINVAL;
-
 	if (devinfo->bus_pub.state == BCMFMAC_USB_STATE_UP)
 		return 0;
 
