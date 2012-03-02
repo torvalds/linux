@@ -71,9 +71,6 @@ typedef struct page *pgtable_t;
 #define __pgd(x)	((pgd_t) { (x) })
 #define __pgprot(x)	((pgprot_t) { (x) })
 
-extern unsigned long memory_start;
-extern unsigned long memory_end;
-
 #endif /* !__ASSEMBLY__ */
 
 
