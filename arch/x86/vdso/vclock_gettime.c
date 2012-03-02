@@ -70,14 +70,26 @@ notrace static long vdso_fallback_gettime(long clock, struct timespec *ts)
 	return ret;
 }
 
+notrace static long vdso_fallback_gtod(struct timeval *tv, struct timezone *tz)
+{
+	long ret;
+
+	asm("syscall" : "=a" (ret) :
+	    "0" (__NR_gettimeofday), "D" (tv), "S" (tz) : "memory");
+	return ret;
+}
+
+
 notrace static inline long vgetns(void)
 {
 	long v;
 	cycles_t cycles;
 	if (gtod->clock.vclock_mode == VCLOCK_TSC)
 		cycles = vread_tsc();
-	else
+	else if (gtod->clock.vclock_mode == VCLOCK_HPET)
 		cycles = vread_hpet();
+	else
+		return 0;
 	v = (cycles - gtod->clock.cycle_last) & gtod->clock.mask;
 	return (v * gtod->clock.mult) >> gtod->clock.shift;
 }
@@ -85,21 +97,28 @@ notrace static inline long vgetns(void)
 notrace static noinline int do_realtime(struct timespec *ts)
 {
 	unsigned long seq, ns;
+	int mode;
+
 	do {
 		seq = read_seqbegin(&gtod->lock);
+		mode = gtod->clock.vclock_mode;
 		ts->tv_sec = gtod->wall_time_sec;
 		ts->tv_nsec = gtod->wall_time_nsec;
 		ns = vgetns();
 	} while (unlikely(read_seqretry(&gtod->lock, seq)));
+
 	timespec_add_ns(ts, ns);
-	return 0;
+	return mode;
 }
 
 notrace static noinline int do_monotonic(struct timespec *ts)
 {
 	unsigned long seq, ns, secs;
+	int mode;
+
 	do {
 		seq = read_seqbegin(&gtod->lock);
+		mode = gtod->clock.vclock_mode;
 		secs = gtod->wall_time_sec;
 		ns = gtod->wall_time_nsec + vgetns();
 		secs += gtod->wall_to_monotonic.tv_sec;
@@ -116,7 +135,7 @@ notrace static noinline int do_monotonic(struct timespec *ts)
 	ts->tv_sec = secs;
 	ts->tv_nsec = ns;
 
-	return 0;
+	return mode;
 }
 
 notrace static noinline int do_realtime_coarse(struct timespec *ts)
@@ -156,14 +175,14 @@ notrace static noinline int do_monotonic_coarse(struct timespec *ts)
 
 notrace int __vdso_clock_gettime(clockid_t clock, struct timespec *ts)
 {
+	int ret = VCLOCK_NONE;
+
 	switch (clock) {
 	case CLOCK_REALTIME:
-		if (likely(gtod->clock.vclock_mode != VCLOCK_NONE))
-			return do_realtime(ts);
+		ret = do_realtime(ts);
 		break;
 	case CLOCK_MONOTONIC:
-		if (likely(gtod->clock.vclock_mode != VCLOCK_NONE))
-			return do_monotonic(ts);
+		ret = do_monotonic(ts);
 		break;
 	case CLOCK_REALTIME_COARSE:
 		return do_realtime_coarse(ts);
@@ -171,32 +190,33 @@ notrace int __vdso_clock_gettime(clockid_t clock, struct timespec *ts)
 		return do_monotonic_coarse(ts);
 	}
 
-	return vdso_fallback_gettime(clock, ts);
+	if (ret == VCLOCK_NONE)
+		return vdso_fallback_gettime(clock, ts);
+	return 0;
 }
 int clock_gettime(clockid_t, struct timespec *)
 	__attribute__((weak, alias("__vdso_clock_gettime")));
 
 notrace int __vdso_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
-	long ret;
-	if (likely(gtod->clock.vclock_mode != VCLOCK_NONE)) {
-		if (likely(tv != NULL)) {
-			BUILD_BUG_ON(offsetof(struct timeval, tv_usec) !=
-				     offsetof(struct timespec, tv_nsec) ||
-				     sizeof(*tv) != sizeof(struct timespec));
-			do_realtime((struct timespec *)tv);
-			tv->tv_usec /= 1000;
-		}
-		if (unlikely(tz != NULL)) {
-			/* Avoid memcpy. Some old compilers fail to inline it */
-			tz->tz_minuteswest = gtod->sys_tz.tz_minuteswest;
-			tz->tz_dsttime = gtod->sys_tz.tz_dsttime;
-		}
-		return 0;
+	long ret = VCLOCK_NONE;
+
+	if (likely(tv != NULL)) {
+		BUILD_BUG_ON(offsetof(struct timeval, tv_usec) !=
+			     offsetof(struct timespec, tv_nsec) ||
+			     sizeof(*tv) != sizeof(struct timespec));
+		ret = do_realtime((struct timespec *)tv);
+		tv->tv_usec /= 1000;
 	}
-	asm("syscall" : "=a" (ret) :
-	    "0" (__NR_gettimeofday), "D" (tv), "S" (tz) : "memory");
-	return ret;
+	if (unlikely(tz != NULL)) {
+		/* Avoid memcpy. Some old compilers fail to inline it */
+		tz->tz_minuteswest = gtod->sys_tz.tz_minuteswest;
+		tz->tz_dsttime = gtod->sys_tz.tz_dsttime;
+	}
+
+	if (ret == VCLOCK_NONE)
+		return vdso_fallback_gtod(tv, tz);
+	return 0;
 }
 int gettimeofday(struct timeval *, struct timezone *)
 	__attribute__((weak, alias("__vdso_gettimeofday")));
