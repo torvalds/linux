@@ -405,7 +405,10 @@ static int ath6kl_sdio_read_write_sync(struct ath6kl *ar, u32 addr, u8 *buf,
 			return -ENOMEM;
 		mutex_lock(&ar_sdio->dma_buffer_mutex);
 		tbuf = ar_sdio->dma_buffer;
-		memcpy(tbuf, buf, len);
+
+		if (request & HIF_WRITE)
+			memcpy(tbuf, buf, len);
+
 		bounced = true;
 	} else
 		tbuf = buf;
