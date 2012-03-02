@@ -1,4 +1,4 @@
-/******************************************************************r
+/*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
