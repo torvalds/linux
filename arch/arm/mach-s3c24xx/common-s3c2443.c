@@ -1,9 +1,18 @@
-/* linux/arch/arm/plat-s3c24xx/s3c2443-clock.c
+/*
+ * Common code for SoCs starting with the S3C2443
  *
  * Copyright (c) 2007, 2010 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * S3C2443 Clock control suport - common code
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/init.h>
@@ -12,7 +21,6 @@
 
 #include <mach/regs-s3c2443-clock.h>
 
-#include <plat/s3c2443.h>
 #include <plat/clock.h>
 #include <plat/clock-clksrc.h>
 #include <plat/cpu.h>
@@ -553,7 +561,7 @@ void __init_or_cpufreq s3c2443_common_setup_clocks(pll_fn get_mpll)
 	s3c24xx_setup_clocks(fclk, hclk, pclk);
 
 	printk("CPU: MPLL %s %ld.%03ld MHz, cpu %ld.%03ld MHz, mem %ld.%03ld MHz, pclk %ld.%03ld MHz\n",
-	       (mpllcon & S3C2443_PLLCON_OFF) ? "off":"on",
+	       (mpllcon & S3C2443_PLLCON_OFF) ? "off" : "on",
 	       print_mhz(pll), print_mhz(fclk),
 	       print_mhz(hclk), print_mhz(pclk));
 
@@ -568,7 +576,7 @@ void __init_or_cpufreq s3c2443_common_setup_clocks(pll_fn get_mpll)
 	}
 
 	printk("CPU: EPLL %s %ld.%03ld MHz, usb-bus %ld.%03ld MHz\n",
-	       (epllcon & S3C2443_PLLCON_OFF) ? "off":"on",
+	       (epllcon & S3C2443_PLLCON_OFF) ? "off" : "on",
 	       print_mhz(clk_get_rate(&clk_epll)),
 	       print_mhz(clk_get_rate(&clk_usb_bus)));
 }
