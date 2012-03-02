@@ -41,6 +41,7 @@ struct dlfb_data {
 	char *backing_buffer;
 	int fb_count;
 	bool virtualized; /* true when physical usb device not present */
+	struct delayed_work init_framebuffer_work;
 	struct delayed_work free_framebuffer_work;
 	atomic_t usb_active; /* 0 = update virtual buffer, but no usb traffic */
 	atomic_t lost_pixels; /* 1 = a render op failed. Need screen refresh */
