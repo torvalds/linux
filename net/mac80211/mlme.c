@@ -1277,7 +1277,6 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 
 	/* enable WMM or activate new settings */
 	sdata->vif.bss_conf.qos = true;
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_QOS);
 }
 
 static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
@@ -1455,8 +1454,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	changed |= BSS_CHANGED_ASSOC;
 	sdata->vif.bss_conf.assoc = false;
 
-	ieee80211_set_wmm_default(sdata);
-
 	/* channel(_type) changes are handled by ieee80211_hw_config */
 	WARN_ON(!ieee80211_set_channel_type(local, sdata, NL80211_CHAN_NO_HT));
 
@@ -1484,9 +1481,15 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 		changed |= BSS_CHANGED_ARP_FILTER;
 	}
 
+	sdata->vif.bss_conf.qos = false;
+	changed |= BSS_CHANGED_QOS;
+
 	/* The BSSID (not really interesting) and HT changed */
 	changed |= BSS_CHANGED_BSSID | BSS_CHANGED_HT;
 	ieee80211_bss_info_change_notify(sdata, changed);
+
+	/* disassociated - set to defaults now */
+	ieee80211_set_wmm_default(sdata, false);
 
 	del_timer_sync(&sdata->u.mgd.conn_mon_timer);
 	del_timer_sync(&sdata->u.mgd.bcn_mon_timer);
@@ -2155,7 +2158,8 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		ieee80211_sta_wmm_params(local, sdata, elems.wmm_param,
 					 elems.wmm_param_len);
 	else
-		ieee80211_set_wmm_default(sdata);
+		ieee80211_set_wmm_default(sdata, false);
+	changed |= BSS_CHANGED_QOS;
 
 	if (elems.ht_info_elem && elems.wmm_param &&
 	    (sdata->local->hw.queues >= 4) &&

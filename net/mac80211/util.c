@@ -737,7 +737,8 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 	ieee802_11_parse_elems_crc(start, len, elems, 0, 0);
 }
 
-void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
+void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
+			       bool bss_notify)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_tx_queue_params qparam;
@@ -807,7 +808,9 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 	if (sdata->vif.type != NL80211_IFTYPE_MONITOR) {
 		sdata->vif.bss_conf.qos =
 			sdata->vif.type != NL80211_IFTYPE_STATION;
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_QOS);
+		if (bss_notify)
+			ieee80211_bss_info_change_notify(sdata,
+							 BSS_CHANGED_QOS);
 	}
 }
 
@@ -829,7 +832,7 @@ void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 	else
 		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
 
-	ieee80211_set_wmm_default(sdata);
+	ieee80211_set_wmm_default(sdata, true);
 }
 
 u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
