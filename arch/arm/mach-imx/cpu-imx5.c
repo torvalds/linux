@@ -149,39 +149,3 @@ int mx50_revision(void)
 	return mx5_cpu_rev;
 }
 EXPORT_SYMBOL(mx50_revision);
-
-static int __init post_cpu_init(void)
-{
-	unsigned int reg;
-	void __iomem *base;
-
-	if (cpu_is_mx51() || cpu_is_mx53()) {
-		if (cpu_is_mx51())
-			base = MX51_IO_ADDRESS(MX51_AIPS1_BASE_ADDR);
-		else
-			base = MX53_IO_ADDRESS(MX53_AIPS1_BASE_ADDR);
-
-		__raw_writel(0x0, base + 0x40);
-		__raw_writel(0x0, base + 0x44);
-		__raw_writel(0x0, base + 0x48);
-		__raw_writel(0x0, base + 0x4C);
-		reg = __raw_readl(base + 0x50) & 0x00FFFFFF;
-		__raw_writel(reg, base + 0x50);
-
-		if (cpu_is_mx51())
-			base = MX51_IO_ADDRESS(MX51_AIPS2_BASE_ADDR);
-		else
-			base = MX53_IO_ADDRESS(MX53_AIPS2_BASE_ADDR);
-
-		__raw_writel(0x0, base + 0x40);
-		__raw_writel(0x0, base + 0x44);
-		__raw_writel(0x0, base + 0x48);
-		__raw_writel(0x0, base + 0x4C);
-		reg = __raw_readl(base + 0x50) & 0x00FFFFFF;
-		__raw_writel(reg, base + 0x50);
-	}
-
-	return 0;
-}
-
-postcore_initcall(post_cpu_init);
