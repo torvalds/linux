@@ -489,7 +489,7 @@ static int __devinit ab8500_usb_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	otg = kzalloc(sizeof *otg, GFP_KERNEL);
-	if (!ab->phy.otg) {
+	if (!otg) {
 		kfree(ab);
 		return -ENOMEM;
 	}
