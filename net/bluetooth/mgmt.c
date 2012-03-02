@@ -2745,7 +2745,7 @@ int mgmt_index_added(struct hci_dev *hdev)
 
 int mgmt_index_removed(struct hci_dev *hdev)
 {
-	u8 status = ENODEV;
+	u8 status = MGMT_STATUS_INVALID_PARAMS;
 
 	mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status);
 
@@ -2798,7 +2798,7 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 		update_class(hdev);
 		update_eir(hdev);
 	} else {
-		u8 status = ENETDOWN;
+		u8 status = MGMT_STATUS_NOT_POWERED;
 		mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status);
 	}
 
