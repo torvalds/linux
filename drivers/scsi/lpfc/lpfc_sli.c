@@ -8388,6 +8388,7 @@ lpfc_sli4_abts_err_handler(struct lpfc_hba *phba,
 			   struct sli4_wcqe_xri_aborted *axri)
 {
 	struct lpfc_vport *vport;
+	uint32_t ext_status = 0;
 
 	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
@@ -8399,12 +8400,20 @@ lpfc_sli4_abts_err_handler(struct lpfc_hba *phba,
 	vport = ndlp->vport;
 	lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
 			"3116 Port generated FCP XRI ABORT event on "
-			"vpi %d rpi %d xri x%x status 0x%x\n",
+			"vpi %d rpi %d xri x%x status 0x%x parameter x%x\n",
 			ndlp->vport->vpi, ndlp->nlp_rpi,
 			bf_get(lpfc_wcqe_xa_xri, axri),
-			bf_get(lpfc_wcqe_xa_status, axri));
+			bf_get(lpfc_wcqe_xa_status, axri),
+			axri->parameter);
 
-	if (bf_get(lpfc_wcqe_xa_status, axri) == IOSTAT_LOCAL_REJECT)
+	/*
+	 * Catch the ABTS protocol failure case.  Older OCe FW releases returned
+	 * LOCAL_REJECT and 0 for a failed ABTS exchange and later OCe and
+	 * LPe FW releases returned LOCAL_REJECT and SEQUENCE_TIMEOUT.
+	 */
+	ext_status = axri->parameter & WCQE_PARAM_MASK;
+	if ((bf_get(lpfc_wcqe_xa_status, axri) == IOSTAT_LOCAL_REJECT) &&
+	    ((ext_status == IOERR_SEQUENCE_TIMEOUT) || (ext_status == 0)))
 		lpfc_sli_abts_recover_port(vport, ndlp);
 }
 

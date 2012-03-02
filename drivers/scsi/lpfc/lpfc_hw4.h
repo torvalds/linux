@@ -338,6 +338,12 @@ struct lpfc_cqe {
 #define CQE_CODE_XRI_ABORTED		0x5
 #define CQE_CODE_RECEIVE_V1		0x9
 
+/*
+ * Define mask value for xri_aborted and wcqe completed CQE extended status.
+ * Currently, extended status is limited to 9 bits (0x0 -> 0x103) .
+ */
+#define WCQE_PARAM_MASK		0x1FF;
+
 /* completion queue entry for wqe completions */
 struct lpfc_wcqe_complete {
 	uint32_t word0;
