@@ -33,10 +33,13 @@
 /**
  * struct pinmux_group - group list item for pinmux groups
  * @node: pinmux group list node
+ * @func_selector: the function selector for the pinmux device handling
+ *	this pinmux
  * @group_selector: the group selector for this group
  */
 struct pinmux_group {
 	struct list_head node;
+	unsigned func_selector;
 	unsigned group_selector;
 };
 
@@ -476,24 +479,11 @@ static int pinmux_enable_muxmap(struct pinctrl_dev *pctldev,
 	if (ret < 0)
 		return ret;
 
-	/*
-	 * If the function selector is already set, it needs to be identical,
-	 * we support several groups with one function but not several
-	 * functions with one or several groups in the same pinmux.
-	 */
-	if (p->func_selector != UINT_MAX &&
-	    p->func_selector != func_selector) {
-		dev_err(pctldev->dev,
-			"dual function defines in the map for device %s\n",
-		       devname);
-		return -EINVAL;
-	}
-	p->func_selector = func_selector;
-
 	/* Now add this group selector, we may have many of them */
 	grp = kmalloc(sizeof(*grp), GFP_KERNEL);
 	if (!grp)
 		return -ENOMEM;
+	grp->func_selector = func_selector;
 	grp->group_selector = group_selector;
 	ret = acquire_pins(pctldev, devname, group_selector);
 	if (ret) {
@@ -554,7 +544,7 @@ int pinmux_enable(struct pinctrl *p)
 	int ret;
 
 	list_for_each_entry(grp, &p->groups, node) {
-		ret = ops->enable(pctldev, p->func_selector,
+		ret = ops->enable(pctldev, grp->func_selector,
 				  grp->group_selector);
 		if (ret)
 			/*
@@ -576,7 +566,7 @@ void pinmux_disable(struct pinctrl *p)
 	struct pinmux_group *grp;
 
 	list_for_each_entry(grp, &p->groups, node) {
-		ops->disable(pctldev, p->func_selector,
+		ops->disable(pctldev, grp->func_selector,
 			     grp->group_selector);
 	}
 }
@@ -654,21 +644,22 @@ void pinmux_dbg_show(struct seq_file *s, struct pinctrl *p)
 	const struct pinmux_ops *pmxops;
 	const struct pinctrl_ops *pctlops;
 	struct pinmux_group *grp;
+	const char *sep = "";
 
 	pmxops = pctldev->desc->pmxops;
 	pctlops = pctldev->desc->pctlops;
 
-	seq_printf(s, " function: %s (%u),",
-		   pmxops->get_function_name(pctldev,
-					     p->func_selector),
-		   p->func_selector);
-
 	seq_printf(s, " groups: [");
 	list_for_each_entry(grp, &p->groups, node) {
-		seq_printf(s, " %s (%u)",
+		seq_printf(s, "%s%s (%u)=%s (%u)",
+			   sep,
 			   pctlops->get_group_name(pctldev,
 						   grp->group_selector),
-			   grp->group_selector);
+			   grp->group_selector,
+			   pmxops->get_function_name(pctldev,
+						     grp->func_selector),
+			   grp->func_selector);
+		sep = ", ";
 	}
 	seq_printf(s, " ]");
 }

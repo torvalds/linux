@@ -53,8 +53,6 @@ struct pinctrl_dev {
  *	to keep track of nested use cases
  * @pctldev: pin control device handling this pin control handle
  * @mutex: a lock for the pin control state holder
- * @func_selector: the function selector for the pinmux device handling
- *	this pinmux
  * @groups: the group selectors for the pinmux device and
  *	selector combination handling this pinmux, this is a list that
  *	will be traversed on all pinmux operations such as
@@ -67,7 +65,6 @@ struct pinctrl {
 	struct pinctrl_dev *pctldev;
 	struct mutex mutex;
 #ifdef CONFIG_PINMUX
-	unsigned func_selector;
 	struct list_head groups;
 #endif
 };

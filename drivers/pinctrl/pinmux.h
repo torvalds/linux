@@ -23,7 +23,6 @@ int pinmux_gpio_direction(struct pinctrl_dev *pctldev,
 			  unsigned pin, bool input);
 static inline void pinmux_init_pinctrl_handle(struct pinctrl *p)
 {
-	p->func_selector = UINT_MAX;
 	INIT_LIST_HEAD(&p->groups);
 }
 int pinmux_apply_muxmap(struct pinctrl_dev *pctldev,
