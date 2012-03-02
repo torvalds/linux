@@ -1759,7 +1759,11 @@ static void put_vol_mute(struct hda_codec *codec, struct hda_amp_info *info,
 	parm = ch ? AC_AMP_SET_RIGHT : AC_AMP_SET_LEFT;
 	parm |= direction == HDA_OUTPUT ? AC_AMP_SET_OUTPUT : AC_AMP_SET_INPUT;
 	parm |= index << AC_AMP_SET_INDEX_SHIFT;
-	parm |= val;
+	if ((val & HDA_AMP_MUTE) && !(info->amp_caps & AC_AMPCAP_MUTE) &&
+	    (info->amp_caps & AC_AMPCAP_MIN_MUTE))
+		; /* set the zero value as a fake mute */
+	else
+		parm |= val;
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE, parm);
 	info->vol[ch] = val;
 }
@@ -2026,7 +2030,7 @@ int snd_hda_mixer_amp_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	val1 = -((caps & AC_AMPCAP_OFFSET) >> AC_AMPCAP_OFFSET_SHIFT);
 	val1 += ofs;
 	val1 = ((int)val1) * ((int)val2);
-	if (min_mute)
+	if (min_mute || (caps & AC_AMPCAP_MIN_MUTE))
 		val2 |= TLV_DB_SCALE_MUTE;
 	if (put_user(SNDRV_CTL_TLVT_DB_SCALE, _tlv))
 		return -EFAULT;
@@ -5114,7 +5118,7 @@ static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
 	const char *pfx = "", *sfx = "";
 
 	/* handle as a speaker if it's a fixed line-out */
-	if (!strcmp(name, "Line-Out") && attr == INPUT_PIN_ATTR_INT)
+	if (!strcmp(name, "Line Out") && attr == INPUT_PIN_ATTR_INT)
 		name = "Speaker";
 	/* check the location */
 	switch (attr) {
@@ -5173,7 +5177,7 @@ int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
 
 	switch (get_defcfg_device(def_conf)) {
 	case AC_JACK_LINE_OUT:
-		return fill_audio_out_name(codec, nid, cfg, "Line-Out",
+		return fill_audio_out_name(codec, nid, cfg, "Line Out",
 					   label, maxlen, indexp);
 	case AC_JACK_SPEAKER:
 		return fill_audio_out_name(codec, nid, cfg, "Speaker",
