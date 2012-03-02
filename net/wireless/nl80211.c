@@ -204,6 +204,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 		.len = NL80211_HT_CAPABILITY_LEN
 	},
 	[NL80211_ATTR_NOACK_MAP] = { .type = NLA_U16 },
+	[NL80211_ATTR_INACTIVITY_TIMEOUT] = { .type = NLA_U16 },
 };
 
 /* policy for the key attributes */
@@ -2213,6 +2214,13 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 				      NL80211_MAX_NR_CIPHER_SUITES);
 	if (err)
 		return err;
+
+	if (info->attrs[NL80211_ATTR_INACTIVITY_TIMEOUT]) {
+		if (!(rdev->wiphy.features & NL80211_FEATURE_INACTIVITY_TIMER))
+			return -EOPNOTSUPP;
+		params.inactivity_timeout = nla_get_u16(
+			info->attrs[NL80211_ATTR_INACTIVITY_TIMEOUT]);
+	}
 
 	err = rdev->ops->start_ap(&rdev->wiphy, dev, &params);
 	if (!err)

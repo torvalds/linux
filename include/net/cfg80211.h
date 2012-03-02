@@ -413,6 +413,7 @@ struct cfg80211_beacon_data {
  * @crypto: crypto settings
  * @privacy: the BSS uses privacy
  * @auth_type: Authentication type (algorithm)
+ * @inactivity_timeout: time in seconds to determine station's inactivity.
  */
 struct cfg80211_ap_settings {
 	struct cfg80211_beacon_data beacon;
@@ -424,6 +425,7 @@ struct cfg80211_ap_settings {
 	struct cfg80211_crypto_settings crypto;
 	bool privacy;
 	enum nl80211_auth_type auth_type;
+	int inactivity_timeout;
 };
 
 /**
