@@ -72,17 +72,44 @@ struct pinctrl_state {
 };
 
 /**
+ * struct pinctrl_setting_mux - setting data for MAP_TYPE_MUX_GROUP
+ * @group: the group selector to program
+ * @func: the function selector to program
+ */
+struct pinctrl_setting_mux {
+	unsigned group;
+	unsigned func;
+};
+
+/**
+ * struct pinctrl_setting_configs - setting data for MAP_TYPE_CONFIGS_*
+ * @group_or_pin: the group selector or pin ID to program
+ * @configs: a pointer to an array of config parameters/values to program into
+ *	hardware. Each individual pin controller defines the format and meaning
+ *	of config parameters.
+ * @num_configs: the number of entries in array @configs
+ */
+struct pinctrl_setting_configs {
+	unsigned group_or_pin;
+	unsigned long *configs;
+	unsigned num_configs;
+};
+
+/**
  * struct pinctrl_setting - an individual mux setting
  * @node: list node for struct pinctrl_settings's @settings field
+ * @type: the type of setting
  * @pctldev: pin control device handling to be programmed
- * @group_selector: the group selector to program
- * @func_selector: the function selector to program
+ * @data: Data specific to the setting type
  */
 struct pinctrl_setting {
 	struct list_head node;
+	enum pinctrl_map_type type;
 	struct pinctrl_dev *pctldev;
-	unsigned group_selector;
-	unsigned func_selector;
+	union {
+		struct pinctrl_setting_mux mux;
+		struct pinctrl_setting_configs configs;
+	} data;
 };
 
 /**

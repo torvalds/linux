@@ -502,12 +502,17 @@ static int add_setting(struct pinctrl *p, struct pinctrl_map const *map)
 	if (IS_ERR(state))
 		return PTR_ERR(state);
 
+	if (map->type == PIN_MAP_TYPE_DUMMY_STATE)
+		return 0;
+
 	setting = kzalloc(sizeof(*setting), GFP_KERNEL);
 	if (setting == NULL) {
 		dev_err(p->dev,
 			"failed to alloc struct pinctrl_setting\n");
 		return -ENOMEM;
 	}
+
+	setting->type = map->type;
 
 	setting->pctldev = get_pinctrl_dev_from_devname(map->ctrl_dev_name);
 	if (setting->pctldev == NULL) {
@@ -518,7 +523,18 @@ static int add_setting(struct pinctrl *p, struct pinctrl_map const *map)
 		return -ENODEV;
 	}
 
-	ret = pinmux_map_to_setting(map, setting);
+	switch (map->type) {
+	case PIN_MAP_TYPE_MUX_GROUP:
+		ret = pinmux_map_to_setting(map, setting);
+		break;
+	case PIN_MAP_TYPE_CONFIGS_PIN:
+	case PIN_MAP_TYPE_CONFIGS_GROUP:
+		ret = pinconf_map_to_setting(map, setting);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
 	if (ret < 0) {
 		kfree(setting);
 		return ret;
@@ -533,7 +549,7 @@ static struct pinctrl *find_pinctrl(struct device *dev)
 {
 	struct pinctrl *p;
 
-	list_for_each_entry(p, &pinctrldev_list, node)
+	list_for_each_entry(p, &pinctrl_list, node)
 		if (p->dev == dev)
 			return p;
 
@@ -626,9 +642,19 @@ static void pinctrl_put_locked(struct pinctrl *p, bool inlist)
 
 	list_for_each_entry_safe(state, n1, &p->states, node) {
 		list_for_each_entry_safe(setting, n2, &state->settings, node) {
-			if (state == p->state)
-				pinmux_disable_setting(setting);
-			pinmux_free_setting(setting);
+			switch (setting->type) {
+			case PIN_MAP_TYPE_MUX_GROUP:
+				if (state == p->state)
+					pinmux_disable_setting(setting);
+				pinmux_free_setting(setting);
+				break;
+			case PIN_MAP_TYPE_CONFIGS_PIN:
+			case PIN_MAP_TYPE_CONFIGS_GROUP:
+				pinconf_free_setting(setting);
+				break;
+			default:
+				break;
+			}
 			list_del(&setting->node);
 			kfree(setting);
 		}
@@ -703,9 +729,13 @@ static int pinctrl_select_state_locked(struct pinctrl *p,
 		 */
 		list_for_each_entry(setting, &p->state->settings, node) {
 			bool found = false;
+			if (setting->type != PIN_MAP_TYPE_MUX_GROUP)
+				continue;
 			list_for_each_entry(setting2, &state->settings, node) {
-				if (setting2->group_selector ==
-						setting->group_selector) {
+				if (setting2->type != PIN_MAP_TYPE_MUX_GROUP)
+					continue;
+				if (setting2->data.mux.group ==
+						setting->data.mux.group) {
 					found = true;
 					break;
 				}
@@ -719,7 +749,18 @@ static int pinctrl_select_state_locked(struct pinctrl *p,
 
 	/* Apply all the settings for the new state */
 	list_for_each_entry(setting, &state->settings, node) {
-		ret = pinmux_enable_setting(setting);
+		switch (setting->type) {
+		case PIN_MAP_TYPE_MUX_GROUP:
+			ret = pinmux_enable_setting(setting);
+			break;
+		case PIN_MAP_TYPE_CONFIGS_PIN:
+		case PIN_MAP_TYPE_CONFIGS_GROUP:
+			ret = pinconf_apply_setting(setting);
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+		}
 		if (ret < 0) {
 			/* FIXME: Difficult to return to prev state */
 			return ret;
@@ -756,33 +797,48 @@ EXPORT_SYMBOL_GPL(pinctrl_select_state);
 int pinctrl_register_mappings(struct pinctrl_map const *maps,
 			      unsigned num_maps)
 {
-	int i;
+	int i, ret;
 	struct pinctrl_maps *maps_node;
 
 	pr_debug("add %d pinmux maps\n", num_maps);
 
 	/* First sanity check the new mapping */
 	for (i = 0; i < num_maps; i++) {
+		if (!maps[i].dev_name) {
+			pr_err("failed to register map %s (%d): no device given\n",
+			       maps[i].name, i);
+			return -EINVAL;
+		}
+
 		if (!maps[i].name) {
 			pr_err("failed to register map %d: no map name given\n",
 			       i);
 			return -EINVAL;
 		}
 
-		if (!maps[i].ctrl_dev_name) {
+		if (maps[i].type != PIN_MAP_TYPE_DUMMY_STATE &&
+				!maps[i].ctrl_dev_name) {
 			pr_err("failed to register map %s (%d): no pin control device given\n",
 			       maps[i].name, i);
 			return -EINVAL;
 		}
 
-		if (!maps[i].function) {
-			pr_err("failed to register map %s (%d): no function ID given\n",
-			       maps[i].name, i);
-			return -EINVAL;
-		}
-
-		if (!maps[i].dev_name) {
-			pr_err("failed to register map %s (%d): no device given\n",
+		switch (maps[i].type) {
+		case PIN_MAP_TYPE_DUMMY_STATE:
+			break;
+		case PIN_MAP_TYPE_MUX_GROUP:
+			ret = pinmux_validate_map(&maps[i], i);
+			if (ret < 0)
+				return 0;
+			break;
+		case PIN_MAP_TYPE_CONFIGS_PIN:
+		case PIN_MAP_TYPE_CONFIGS_GROUP:
+			ret = pinconf_validate_map(&maps[i], i);
+			if (ret < 0)
+				return 0;
+			break;
+		default:
+			pr_err("failed to register map %s (%d): invalid type given\n",
 			       maps[i].name, i);
 			return -EINVAL;
 		}
@@ -934,6 +990,22 @@ static int pinctrl_devices_show(struct seq_file *s, void *what)
 	return 0;
 }
 
+static inline const char *map_type(enum pinctrl_map_type type)
+{
+	static const char * const names[] = {
+		"INVALID",
+		"DUMMY_STATE",
+		"MUX_GROUP",
+		"CONFIGS_PIN",
+		"CONFIGS_GROUP",
+	};
+
+	if (type >= ARRAY_SIZE(names))
+		return "UNKNOWN";
+
+	return names[type];
+}
+
 static int pinctrl_maps_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_maps *maps_node;
@@ -945,12 +1017,27 @@ static int pinctrl_maps_show(struct seq_file *s, void *what)
 	mutex_lock(&pinctrl_mutex);
 
 	for_each_maps(maps_node, i, map) {
-		seq_printf(s, "%s:\n", map->name);
-		seq_printf(s, "  device: %s\n", map->dev_name);
-		seq_printf(s, "  controlling device %s\n", map->ctrl_dev_name);
-		seq_printf(s, "  function: %s\n", map->function);
-		seq_printf(s, "  group: %s\n", map->group ? map->group :
-			   "(default)");
+		seq_printf(s, "device %s\nstate %s\ntype %s (%d)\n",
+			   map->dev_name, map->name, map_type(map->type),
+			   map->type);
+
+		if (map->type != PIN_MAP_TYPE_DUMMY_STATE)
+			seq_printf(s, "controlling device %s\n",
+				   map->ctrl_dev_name);
+
+		switch (map->type) {
+		case PIN_MAP_TYPE_MUX_GROUP:
+			pinmux_show_map(s, map);
+			break;
+		case PIN_MAP_TYPE_CONFIGS_PIN:
+		case PIN_MAP_TYPE_CONFIGS_GROUP:
+			pinconf_show_map(s, map);
+			break;
+		default:
+			break;
+		}
+
+		seq_printf(s, "\n");
 	}
 
 	mutex_unlock(&pinctrl_mutex);
@@ -977,8 +1064,23 @@ static int pinctrl_show(struct seq_file *s, void *what)
 			seq_printf(s, "  state: %s\n", state->name);
 
 			list_for_each_entry(setting, &state->settings, node) {
-				seq_printf(s, "    ");
-				pinmux_dbg_show(s, setting);
+				struct pinctrl_dev *pctldev = setting->pctldev;
+
+				seq_printf(s, "    type: %s controller %s ",
+					   map_type(setting->type),
+					   pinctrl_dev_get_name(pctldev));
+
+				switch (setting->type) {
+				case PIN_MAP_TYPE_MUX_GROUP:
+					pinmux_show_setting(s, setting);
+					break;
+				case PIN_MAP_TYPE_CONFIGS_PIN:
+				case PIN_MAP_TYPE_CONFIGS_GROUP:
+					pinconf_show_setting(s, setting);
+					break;
+				default:
+					break;
+				}
 			}
 		}
 	}

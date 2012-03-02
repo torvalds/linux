@@ -58,6 +58,17 @@ int pinmux_check_ops(struct pinctrl_dev *pctldev)
 	return 0;
 }
 
+int pinmux_validate_map(struct pinctrl_map const *map, int i)
+{
+	if (!map->data.mux.function) {
+		pr_err("failed to register map %s (%d): no function given\n",
+		       map->name, i);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /**
  * pin_request() - request a single pin to be muxed in, typically for GPIO
  * @pin: the pin number in the global pin space
@@ -284,21 +295,21 @@ int pinmux_map_to_setting(struct pinctrl_map const *map,
 	const unsigned *pins;
 	unsigned num_pins;
 
-	setting->func_selector =
-		pinmux_func_name_to_selector(pctldev, map->function);
-	if (setting->func_selector < 0)
-		return setting->func_selector;
+	setting->data.mux.func =
+		pinmux_func_name_to_selector(pctldev, map->data.mux.function);
+	if (setting->data.mux.func < 0)
+		return setting->data.mux.func;
 
-	ret = pmxops->get_function_groups(pctldev, setting->func_selector,
+	ret = pmxops->get_function_groups(pctldev, setting->data.mux.func,
 					  &groups, &num_groups);
 	if (ret < 0)
 		return ret;
 	if (!num_groups)
 		return -EINVAL;
 
-	if (map->group) {
+	if (map->data.mux.group) {
 		bool found = false;
-		group = map->group;
+		group = map->data.mux.group;
 		for (i = 0; i < num_groups; i++) {
 			if (!strcmp(group, groups[i])) {
 				found = true;
@@ -311,17 +322,16 @@ int pinmux_map_to_setting(struct pinctrl_map const *map,
 		group = groups[0];
 	}
 
-	setting->group_selector =
-		pinctrl_get_group_selector(pctldev, group);
-	if (setting->group_selector < 0)
-		return setting->group_selector;
+	setting->data.mux.group = pinctrl_get_group_selector(pctldev, group);
+	if (setting->data.mux.group < 0)
+		return setting->data.mux.group;
 
-	ret = pctlops->get_group_pins(pctldev, setting->group_selector,
-				      &pins, &num_pins);
+	ret = pctlops->get_group_pins(pctldev, setting->data.mux.group, &pins,
+				      &num_pins);
 	if (ret) {
 		dev_err(pctldev->dev,
 			"could not get pins for device %s group selector %d\n",
-			pinctrl_dev_get_name(pctldev), setting->group_selector);
+			pinctrl_dev_get_name(pctldev), setting->data.mux.group);
 			return -ENODEV;
 	}
 
@@ -352,12 +362,12 @@ void pinmux_free_setting(struct pinctrl_setting const *setting)
 	int ret;
 	int i;
 
-	ret = pctlops->get_group_pins(pctldev, setting->group_selector,
+	ret = pctlops->get_group_pins(pctldev, setting->data.mux.group,
 				      &pins, &num_pins);
 	if (ret) {
 		dev_err(pctldev->dev,
 			"could not get pins for device %s group selector %d\n",
-			pinctrl_dev_get_name(pctldev), setting->group_selector);
+			pinctrl_dev_get_name(pctldev), setting->data.mux.group);
 		return;
 	}
 
@@ -370,8 +380,8 @@ int pinmux_enable_setting(struct pinctrl_setting const *setting)
 	struct pinctrl_dev *pctldev = setting->pctldev;
 	const struct pinmux_ops *ops = pctldev->desc->pmxops;
 
-	return ops->enable(pctldev, setting->func_selector,
-			   setting->group_selector);
+	return ops->enable(pctldev, setting->data.mux.func,
+			   setting->data.mux.group);
 }
 
 void pinmux_disable_setting(struct pinctrl_setting const *setting)
@@ -379,7 +389,7 @@ void pinmux_disable_setting(struct pinctrl_setting const *setting)
 	struct pinctrl_dev *pctldev = setting->pctldev;
 	const struct pinmux_ops *ops = pctldev->desc->pmxops;
 
-	ops->disable(pctldev, setting->func_selector, setting->group_selector);
+	ops->disable(pctldev, setting->data.mux.func, setting->data.mux.group);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -456,18 +466,25 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 	return 0;
 }
 
-void pinmux_dbg_show(struct seq_file *s, struct pinctrl_setting const *setting)
+void pinmux_show_map(struct seq_file *s, struct pinctrl_map const *map)
+{
+	seq_printf(s, "group %s\nfunction %s\n",
+		map->data.mux.group ? map->data.mux.group : "(default)",
+		map->data.mux.function);
+}
+
+void pinmux_show_setting(struct seq_file *s,
+			 struct pinctrl_setting const *setting)
 {
 	struct pinctrl_dev *pctldev = setting->pctldev;
 	const struct pinmux_ops *pmxops = pctldev->desc->pmxops;
 	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
 
-	seq_printf(s, "controller: %s group: %s (%u) function: %s (%u)\n",
-		   pinctrl_dev_get_name(pctldev),
-		   pctlops->get_group_name(pctldev, setting->group_selector),
-		   setting->group_selector,
-		   pmxops->get_function_name(pctldev, setting->func_selector),
-		   setting->func_selector);
+	seq_printf(s, "group: %s (%u) function: %s (%u)\n",
+		   pctlops->get_group_name(pctldev, setting->data.mux.group),
+		   setting->data.mux.group,
+		   pmxops->get_function_name(pctldev, setting->data.mux.func),
+		   setting->data.mux.func);
 }
 
 static int pinmux_functions_open(struct inode *inode, struct file *file)

@@ -206,14 +206,21 @@ using a certain resistor value - pull up and pull down - so that the pin has a
 stable value when nothing is driving the rail it is connected to, or when it's
 unconnected.
 
-For example, a platform may do this:
+Pin configuration can be programmed either using the explicit APIs described
+immediately below, or by adding configuration entries into the mapping table;
+see section "Board/machine configuration" below.
+
+For example, a platform may do the following to pull up a pin to VDD:
 
 #include <linux/pinctrl/consumer.h>
 
 ret = pin_config_set("foo-dev", "FOO_GPIO_PIN", PLATFORM_X_PULL_UP);
 
-To pull up a pin to VDD. The pin configuration driver implements callbacks for
-changing pin configuration in the pin controller ops like this:
+The format and meaning of the configuration parameter, PLATFORM_X_PULL_UP
+above, is entirely defined by the pin controller driver.
+
+The pin configuration driver implements callbacks for changing pin
+configuration in the pin controller ops like this:
 
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf.h>
@@ -765,7 +772,7 @@ obtain the function "gpioN" where "N" is the global GPIO pin number if no
 special GPIO-handler is registered.
 
 
-Pinmux board/machine configuration
+Board/machine configuration
 ==================================
 
 Boards and machines define how a certain complete running system is put
@@ -773,9 +780,9 @@ together, including how GPIOs and devices are muxed, how regulators are
 constrained and how the clock tree looks. Of course pinmux settings are also
 part of this.
 
-A pinmux config for a machine looks pretty much like a simple regulator
-configuration, so for the example array above we want to enable i2c and
-spi on the second function mapping:
+A pin controller configuration for a machine looks pretty much like a simple
+regulator configuration, so for the example array above we want to enable i2c
+and spi on the second function mapping:
 
 #include <linux/pinctrl/machine.h>
 
@@ -783,20 +790,23 @@ static const struct pinctrl_map __initdata mapping[] = {
 	{
 		.dev_name = "foo-spi.0",
 		.name = PINCTRL_STATE_DEFAULT,
+		.type = PIN_MAP_TYPE_MUX_GROUP,
 		.ctrl_dev_name = "pinctrl-foo",
-		.function = "spi0",
+		.data.mux.function = "spi0",
 	},
 	{
 		.dev_name = "foo-i2c.0",
 		.name = PINCTRL_STATE_DEFAULT,
+		.type = PIN_MAP_TYPE_MUX_GROUP,
 		.ctrl_dev_name = "pinctrl-foo",
-		.function = "i2c0",
+		.data.mux.function = "i2c0",
 	},
 	{
 		.dev_name = "foo-mmc.0",
 		.name = PINCTRL_STATE_DEFAULT,
+		.type = PIN_MAP_TYPE_MUX_GROUP,
 		.ctrl_dev_name = "pinctrl-foo",
-		.function = "mmc0",
+		.data.mux.function = "mmc0",
 	},
 };
 
@@ -817,7 +827,40 @@ it even more compact which assumes you want to use pinctrl-foo and position
 0 for mapping, for example:
 
 static struct pinctrl_map __initdata mapping[] = {
-	PIN_MAP(PINCTRL_STATE_DEFAULT, "pinctrl-foo", "i2c0", "foo-i2c.0"),
+	PIN_MAP_MUX_GROUP("foo-i2c.o", PINCTRL_STATE_DEFAULT, "pinctrl-foo", NULL, "i2c0"),
+};
+
+The mapping table may also contain pin configuration entries. It's common for
+each pin/group to have a number of configuration entries that affect it, so
+the table entries for configuration reference an array of config parameters
+and values. An example using the convenience macros is shown below:
+
+static unsigned long i2c_grp_configs[] = {
+	FOO_PIN_DRIVEN,
+	FOO_PIN_PULLUP,
+};
+
+static unsigned long i2c_pin_configs[] = {
+	FOO_OPEN_COLLECTOR,
+	FOO_SLEW_RATE_SLOW,
+};
+
+static struct pinctrl_map __initdata mapping[] = {
+	PIN_MAP_MUX_GROUP("foo-i2c.0", PINCTRL_STATE_DEFAULT, "pinctrl-foo", "i2c0", "i2c0"),
+	PIN_MAP_MUX_CONFIGS_GROUP("foo-i2c.0", PINCTRL_STATE_DEFAULT, "pinctrl-foo", "i2c0", i2c_grp_configs),
+	PIN_MAP_MUX_CONFIGS_PIN("foo-i2c.0", PINCTRL_STATE_DEFAULT, "pinctrl-foo", "i2c0scl", i2c_pin_configs),
+	PIN_MAP_MUX_CONFIGS_PIN("foo-i2c.0", PINCTRL_STATE_DEFAULT, "pinctrl-foo", "i2c0sda", i2c_pin_configs),
+};
+
+Finally, some devices expect the mapping table to contain certain specific
+named states. When running on hardware that doesn't need any pin controller
+configuration, the mapping table must still contain those named states, in
+order to explicitly indicate that the states were provided and intended to
+be empty. Table entry macro PIN_MAP_DUMMY_STATE serves the purpose of defining
+a named state without causing any pin controller to be programmed:
+
+static struct pinctrl_map __initdata mapping[] = {
+	PIN_MAP_DUMMY_STATE("foo-i2c.0", PINCTRL_STATE_DEFAULT),
 };
 
 
@@ -831,6 +874,7 @@ As it is possible to map a function to different groups of pins an optional
 {
 	.dev_name = "foo-spi.0",
 	.name = "spi0-pos-A",
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "spi0",
 	.group = "spi0_0_grp",
@@ -838,6 +882,7 @@ As it is possible to map a function to different groups of pins an optional
 {
 	.dev_name = "foo-spi.0",
 	.name = "spi0-pos-B",
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "spi0",
 	.group = "spi0_1_grp",
@@ -857,6 +902,7 @@ case), we define a mapping like this:
 {
 	.dev_name = "foo-mmc.0",
 	.name = "2bit"
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_1_grp",
@@ -864,6 +910,7 @@ case), we define a mapping like this:
 {
 	.dev_name = "foo-mmc.0",
 	.name = "4bit"
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_1_grp",
@@ -871,6 +918,7 @@ case), we define a mapping like this:
 {
 	.dev_name = "foo-mmc.0",
 	.name = "4bit"
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_2_grp",
@@ -878,6 +926,7 @@ case), we define a mapping like this:
 {
 	.dev_name = "foo-mmc.0",
 	.name = "8bit"
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_1_grp",
@@ -885,6 +934,7 @@ case), we define a mapping like this:
 {
 	.dev_name = "foo-mmc.0",
 	.name = "8bit"
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_2_grp",
@@ -892,6 +942,7 @@ case), we define a mapping like this:
 {
 	.dev_name = "foo-mmc.0",
 	.name = "8bit"
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_3_grp",
@@ -1014,6 +1065,7 @@ to the pin controller device name, and the state name is PINCTRL_STATE_DEFAULT.
 {
 	.dev_name = "pinctrl-foo",
 	.name = PINCTRL_STATE_DEFAULT,
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "power_func",
 },
@@ -1022,7 +1074,7 @@ Since it may be common to request the core to hog a few always-applicable
 mux settings on the primary pin controller, there is a convenience macro for
 this:
 
-PIN_MAP_SYS_HOG("pinctrl-foo", "power_func")
+PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-foo", NULL /* group */, "power_func")
 
 This gives the exact same result as the above construction.
 

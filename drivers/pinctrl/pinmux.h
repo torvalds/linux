@@ -14,6 +14,8 @@
 
 int pinmux_check_ops(struct pinctrl_dev *pctldev);
 
+int pinmux_validate_map(struct pinctrl_map const *map, int i);
+
 int pinmux_request_gpio(struct pinctrl_dev *pctldev,
 			struct pinctrl_gpio_range *range,
 			unsigned pin, unsigned gpio);
@@ -29,13 +31,20 @@ void pinmux_free_setting(struct pinctrl_setting const *setting);
 int pinmux_enable_setting(struct pinctrl_setting const *setting);
 void pinmux_disable_setting(struct pinctrl_setting const *setting);
 
-void pinmux_dbg_show(struct seq_file *s, struct pinctrl_setting const *setting);
+void pinmux_show_map(struct seq_file *s, struct pinctrl_map const *map);
+void pinmux_show_setting(struct seq_file *s,
+			 struct pinctrl_setting const *setting);
 void pinmux_init_device_debugfs(struct dentry *devroot,
 				struct pinctrl_dev *pctldev);
 
 #else
 
 static inline int pinmux_check_ops(struct pinctrl_dev *pctldev)
+{
+	return 0;
+}
+
+static inline int pinmux_validate_map(struct pinctrl_map const *map, int i)
 {
 	return 0;
 }
@@ -80,12 +89,18 @@ static inline void pinmux_disable_setting(
 {
 }
 
-static inline void pinmux_init_device_debugfs(struct dentry *devroot,
-					      struct pinctrl_dev *pctldev)
+static inline void pinmux_show_map(struct seq_file *s,
+				   struct pinctrl_map const *map)
 {
 }
 
-static inline void pinmux_dbg_show(struct seq_file *s, struct pinctrl *p)
+static inline void pinmux_show_setting(struct seq_file *s,
+				       struct pinctrl_setting const *setting)
+{
+}
+
+static inline void pinmux_init_device_debugfs(struct dentry *devroot,
+					      struct pinctrl_dev *pctldev)
 {
 }
 

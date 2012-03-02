@@ -36,6 +36,24 @@ int pinconf_check_ops(struct pinctrl_dev *pctldev)
 	return 0;
 }
 
+int pinconf_validate_map(struct pinctrl_map const *map, int i)
+{
+	if (!map->data.configs.group_or_pin) {
+		pr_err("failed to register map %s (%d): no group/pin given\n",
+		       map->name, i);
+		return -EINVAL;
+	}
+
+	if (map->data.configs.num_configs &&
+			!map->data.configs.configs) {
+		pr_err("failed to register map %s (%d): no configs ptr given\n",
+		       map->name, i);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int pin_config_get_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
 			   unsigned long *config)
 {
@@ -260,7 +278,154 @@ unlock:
 }
 EXPORT_SYMBOL(pin_config_group_set);
 
+int pinconf_map_to_setting(struct pinctrl_map const *map,
+			  struct pinctrl_setting *setting)
+{
+	struct pinctrl_dev *pctldev = setting->pctldev;
+
+	switch (setting->type) {
+	case PIN_MAP_TYPE_CONFIGS_PIN:
+		setting->data.configs.group_or_pin =
+			pin_get_from_name(pctldev,
+					  map->data.configs.group_or_pin);
+		if (setting->data.configs.group_or_pin < 0)
+			return setting->data.configs.group_or_pin;
+		break;
+	case PIN_MAP_TYPE_CONFIGS_GROUP:
+		setting->data.configs.group_or_pin =
+			pinctrl_get_group_selector(pctldev,
+					map->data.configs.group_or_pin);
+		if (setting->data.configs.group_or_pin < 0)
+			return setting->data.configs.group_or_pin;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	setting->data.configs.num_configs = map->data.configs.num_configs;
+	setting->data.configs.configs = map->data.configs.configs;
+
+	return 0;
+}
+
+void pinconf_free_setting(struct pinctrl_setting const *setting)
+{
+}
+
+int pinconf_apply_setting(struct pinctrl_setting const *setting)
+{
+	struct pinctrl_dev *pctldev = setting->pctldev;
+	const struct pinconf_ops *ops = pctldev->desc->confops;
+	int i, ret;
+
+	if (!ops) {
+		dev_err(pctldev->dev, "missing confops\n");
+		return -EINVAL;
+	}
+
+	switch (setting->type) {
+	case PIN_MAP_TYPE_CONFIGS_PIN:
+		if (!ops->pin_config_set) {
+			dev_err(pctldev->dev, "missing pin_config_set op\n");
+			return -EINVAL;
+		}
+		for (i = 0; i < setting->data.configs.num_configs; i++) {
+			ret = ops->pin_config_set(pctldev,
+					setting->data.configs.group_or_pin,
+					setting->data.configs.configs[i]);
+			if (ret < 0) {
+				dev_err(pctldev->dev,
+					"pin_config_set op failed for pin %d config %08lx\n",
+					setting->data.configs.group_or_pin,
+					setting->data.configs.configs[i]);
+				return ret;
+			}
+		}
+		break;
+	case PIN_MAP_TYPE_CONFIGS_GROUP:
+		if (!ops->pin_config_group_set) {
+			dev_err(pctldev->dev,
+				"missing pin_config_group_set op\n");
+			return -EINVAL;
+		}
+		for (i = 0; i < setting->data.configs.num_configs; i++) {
+			ret = ops->pin_config_group_set(pctldev,
+					setting->data.configs.group_or_pin,
+					setting->data.configs.configs[i]);
+			if (ret < 0) {
+				dev_err(pctldev->dev,
+					"pin_config_group_set op failed for group %d config %08lx\n",
+					setting->data.configs.group_or_pin,
+					setting->data.configs.configs[i]);
+				return ret;
+			}
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_DEBUG_FS
+
+void pinconf_show_map(struct seq_file *s, struct pinctrl_map const *map)
+{
+	int i;
+
+	switch (map->type) {
+	case PIN_MAP_TYPE_CONFIGS_PIN:
+		seq_printf(s, "pin ");
+		break;
+	case PIN_MAP_TYPE_CONFIGS_GROUP:
+		seq_printf(s, "group ");
+		break;
+	default:
+		break;
+	}
+
+	seq_printf(s, "%s\n", map->data.configs.group_or_pin);
+
+	for (i = 0; i < map->data.configs.num_configs; i++)
+		seq_printf(s, "config %08lx\n", map->data.configs.configs[i]);
+}
+
+void pinconf_show_setting(struct seq_file *s,
+			  struct pinctrl_setting const *setting)
+{
+	struct pinctrl_dev *pctldev = setting->pctldev;
+	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
+	struct pin_desc *desc;
+	int i;
+
+	switch (setting->type) {
+	case PIN_MAP_TYPE_CONFIGS_PIN:
+		desc = pin_desc_get(setting->pctldev,
+				    setting->data.configs.group_or_pin);
+		seq_printf(s, "pin %s (%d)",
+			   desc->name ? desc->name : "unnamed",
+			   setting->data.configs.group_or_pin);
+		break;
+	case PIN_MAP_TYPE_CONFIGS_GROUP:
+		seq_printf(s, "group %s (%d)",
+			   pctlops->get_group_name(pctldev,
+					setting->data.configs.group_or_pin),
+			   setting->data.configs.group_or_pin);
+		break;
+	default:
+		break;
+	}
+
+	/*
+	 * FIXME: We should really get the pin controler to dump the config
+	 * values, so they can be decoded to something meaningful.
+	 */
+	for (i = 0; i < setting->data.configs.num_configs; i++)
+		seq_printf(s, " %08lx", setting->data.configs.configs[i]);
+
+	seq_printf(s, "\n");
+}
 
 static void pinconf_dump_pin(struct pinctrl_dev *pctldev,
 			     struct seq_file *s, int pin)
