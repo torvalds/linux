@@ -50,6 +50,12 @@ config MACH_U5500
 	depends on UX500_SOC_DB5500
 	help
 	  Include support for the U5500 development platform.
+
+config MACH_UX500_DT
+	bool "Generic U8500 support using device tree"
+	depends on MACH_U8500
+	select USE_OF
+
 endmenu
 
 config UX500_DEBUG_UART
