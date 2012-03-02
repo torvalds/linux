@@ -1125,7 +1125,7 @@ static int ext4_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",journal_async_commit");
 	else if (test_opt(sb, JOURNAL_CHECKSUM))
 		seq_puts(seq, ",journal_checksum");
-	if (test_opt(sb, I_VERSION))
+	if (sb->s_flags & MS_I_VERSION)
 		seq_puts(seq, ",i_version");
 	if (!test_opt(sb, DELALLOC) &&
 	    !(def_mount_opts & EXT4_DEFM_NODELALLOC))
@@ -1793,7 +1793,6 @@ set_qf_format:
 				 "Ignoring deprecated bh option");
 			break;
 		case Opt_i_version:
-			set_opt(sb, I_VERSION);
 			sb->s_flags |= MS_I_VERSION;
 			break;
 		case Opt_nodelalloc:
