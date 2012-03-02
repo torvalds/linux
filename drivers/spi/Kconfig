@@ -330,6 +330,12 @@ config SPI_SH_SCI
 	help
 	  SPI driver for SuperH SCI blocks.
 
+config SPI_SH_HSPI
+	tristate "SuperH HSPI controller"
+	depends on ARCH_SHMOBILE
+	help
+	  SPI driver for SuperH HSPI blocks.
+
 config SPI_STMP3XXX
 	tristate "Freescale STMP37xx/378x SPI/SSP controller"
 	depends on ARCH_STMP3XXX && SPI_MASTER
