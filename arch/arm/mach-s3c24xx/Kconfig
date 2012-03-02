@@ -41,7 +41,7 @@ config CPU_S3C2416
 	select CPU_ARM926T
 	select CPU_LLSERIAL_S3C2440
 	select SAMSUNG_CLKSRC
-	select S3C2443_CLOCK
+	select S3C2443_COMMON
 	select S3C2416_DMA if S3C24XX_DMA
 	select S3C2416_PM if PM
 	help
@@ -76,7 +76,7 @@ config CPU_S3C2443
 	select CPU_ARM920T
 	select CPU_LLSERIAL_S3C2440
 	select SAMSUNG_CLKSRC
-	select S3C2443_CLOCK
+	select S3C2443_COMMON
 	select S3C2443_DMA if S3C24XX_DMA
 	help
 	  Support for the S3C2443 SoC from the S3C24XX line
@@ -470,6 +470,16 @@ config SMDK2440_CPU2442
 	bool "SMDM2440 with S3C2442 CPU module"
 
 endif	# CPU_S3C2440
+
+if CPU_S3C2443 || CPU_S3C2416
+
+config S3C2443_COMMON
+	bool
+	help
+	  Common code for the S3C2443 and similar processors, which includes
+	  the S3C2416 and S3C2450.
+
+endif	# CPU_S3C2443 || CPU_S3C2416
 
 if CPU_S3C2443
 

@@ -44,12 +44,6 @@ config S3C2410_CLOCK
 	  Clock code for the S3C2410, and similar processors which
 	  is currently includes the S3C2410, S3C2440, S3C2442.
 
-config S3C2443_CLOCK
-	bool
-	help
-	  Clock code for the S3C2443 and similar processors, which includes
-	  the S3C2416 and S3C2450.
-
 config S3C24XX_DCLK
 	bool
 	help
