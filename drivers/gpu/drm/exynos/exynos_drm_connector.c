@@ -28,6 +28,7 @@
 #include "drmP.h"
 #include "drm_crtc_helper.h"
 
+#include <drm/exynos_drm.h>
 #include "exynos_drm_drv.h"
 #include "exynos_drm_encoder.h"
 
@@ -44,8 +45,9 @@ struct exynos_drm_connector {
 /* convert exynos_video_timings to drm_display_mode */
 static inline void
 convert_to_display_mode(struct drm_display_mode *mode,
-			struct fb_videomode *timing)
+			struct exynos_drm_panel_info *panel)
 {
+	struct fb_videomode *timing = &panel->timing;
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	mode->clock = timing->pixclock / 1000;
@@ -60,6 +62,8 @@ convert_to_display_mode(struct drm_display_mode *mode,
 	mode->vsync_start = mode->vdisplay + timing->upper_margin;
 	mode->vsync_end = mode->vsync_start + timing->vsync_len;
 	mode->vtotal = mode->vsync_end + timing->lower_margin;
+	mode->width_mm = panel->width_mm;
+	mode->height_mm = panel->height_mm;
 
 	if (timing->vmode & FB_VMODE_INTERLACED)
 		mode->flags |= DRM_MODE_FLAG_INTERLACE;
@@ -148,16 +152,18 @@ static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 		connector->display_info.raw_edid = edid;
 	} else {
 		struct drm_display_mode *mode = drm_mode_create(connector->dev);
-		struct fb_videomode *timing;
+		struct exynos_drm_panel_info *panel;
 
-		if (display_ops->get_timing)
-			timing = display_ops->get_timing(manager->dev);
+		if (display_ops->get_panel)
+			panel = display_ops->get_panel(manager->dev);
 		else {
 			drm_mode_destroy(connector->dev, mode);
 			return 0;
 		}
 
-		convert_to_display_mode(mode, timing);
+		convert_to_display_mode(mode, panel);
+		connector->display_info.width_mm = mode->width_mm;
+		connector->display_info.height_mm = mode->height_mm;
 
 		mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 		drm_mode_set_name(mode);
