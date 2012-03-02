@@ -12,6 +12,8 @@
 #ifndef __LINUX_PINCTRL_MACHINE_H
 #define __LINUX_PINCTRL_MACHINE_H
 
+#include "pinctrl.h"
+
 /**
  * struct pinctrl_map - boards/machines shall provide this map for devices
  * @dev_name: the name of the device using this specific mapping, the name
@@ -49,17 +51,18 @@ struct pinctrl_map {
  * Convenience macro to map a system function onto a certain pinctrl device,
  * to be hogged by the pin control core until the system shuts down.
  */
-#define PIN_MAP_SYS_HOG(a, b, c) \
-	{ .name = a, .ctrl_dev_name = b, .dev_name = b, .function = c, }
+#define PIN_MAP_SYS_HOG(a, b) \
+	{ .name = PINCTRL_STATE_DEFAULT, .ctrl_dev_name = a, .dev_name = a, \
+	  .function = b, }
 
 /*
  * Convenience macro to map a system function onto a certain pinctrl device
  * using a specified group, to be hogged by the pin control core until the
  * system shuts down.
  */
-#define PIN_MAP_SYS_HOG_GROUP(a, b, c, d)		\
-	{ .name = a, .ctrl_dev_name = b, .dev_name = b, .function = c, \
-	  .group = d, }
+#define PIN_MAP_SYS_HOG_GROUP(a, b, c) \
+	{ .name = PINCTRL_STATE_DEFAULT, .ctrl_dev_name = a, .dev_name = a, \
+	  .function = b, .group = c, }
 
 #ifdef CONFIG_PINMUX
 

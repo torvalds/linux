@@ -814,7 +814,7 @@ it even more compact which assumes you want to use pinctrl-foo and position
 0 for mapping, for example:
 
 static struct pinctrl_map __initdata mapping[] = {
-       PIN_MAP("I2CMAP", "pinctrl-foo", "i2c0", "foo-i2c.0"),
+	PIN_MAP(PINCTRL_STATE_DEFAULT, "pinctrl-foo", "i2c0", "foo-i2c.0"),
 };
 
 
@@ -930,7 +930,7 @@ foo_probe()
 	/* Allocate a state holder named "state" etc */
 	struct pinctrl p;
 
-	p = pinctrl_get(&device, NULL);
+	p = pinctrl_get(&device, PINCTRL_STATE_DEFAULT);
 	if IS_ERR(p)
 		return PTR_ERR(p);
 	pinctrl_enable(p);
@@ -989,7 +989,7 @@ of the pin controller itself, like this:
 
 {
 	.dev_name = "pinctrl-foo",
-	.name = "POWERMAP"
+	.name = PINCTRL_STATE_DEFAULT,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "power_func",
 },
@@ -998,7 +998,7 @@ Since it may be common to request the core to hog a few always-applicable
 mux settings on the primary pin controller, there is a convenience macro for
 this:
 
-PIN_MAP_PRIMARY_SYS_HOG("POWERMAP", "pinctrl-foo", "power_func")
+PIN_MAP_SYS_HOG("pinctrl-foo", "power_func")
 
 This gives the exact same result as the above construction.
 

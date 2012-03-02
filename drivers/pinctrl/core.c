@@ -44,18 +44,6 @@ struct pinctrl_maps {
 	unsigned num_maps;
 };
 
-/**
- * struct pinctrl_hog - a list item to stash control hogs
- * @node: pin control hog list node
- * @map: map entry responsible for this hogging
- * @pmx: the pin control hogged by this item
- */
-struct pinctrl_hog {
-	struct list_head node;
-	struct pinctrl_map const *map;
-	struct pinctrl *p;
-};
-
 /* Global list of pin control devices */
 static DEFINE_MUTEX(pinctrldev_list_mutex);
 static LIST_HEAD(pinctrldev_list);
@@ -702,103 +690,6 @@ int pinctrl_register_mappings(struct pinctrl_map const *maps,
 	return 0;
 }
 
-/* Hog a single map entry and add to the hoglist */
-static int pinctrl_hog_map(struct pinctrl_dev *pctldev,
-			   struct pinctrl_map const *map)
-{
-	struct pinctrl_hog *hog;
-	struct pinctrl *p;
-	int ret;
-
-	hog = kzalloc(sizeof(*hog), GFP_KERNEL);
-	if (!hog) {
-		dev_err(pctldev->dev, "failed to alloc struct pinctrl_hog\n");
-		return -ENOMEM;
-	}
-
-	p = pinctrl_get_locked(pctldev->dev, map->name);
-	if (IS_ERR(p)) {
-		kfree(hog);
-		dev_err(pctldev->dev,
-			"could not get the %s pin control mapping for hogging\n",
-			map->name);
-		return PTR_ERR(p);
-	}
-
-	ret = pinctrl_enable(p);
-	if (ret) {
-		pinctrl_put(p);
-		kfree(hog);
-		dev_err(pctldev->dev,
-			"could not enable the %s pin control mapping for hogging\n",
-			map->name);
-		return ret;
-	}
-
-	hog->map = map;
-	hog->p = p;
-
-	dev_info(pctldev->dev, "hogged map %s, function %s\n", map->name,
-		 map->function);
-	list_add_tail(&hog->node, &pctldev->pinctrl_hogs);
-
-	return 0;
-}
-
-/**
- * pinctrl_hog_maps() - hog specific map entries on controller device
- * @pctldev: the pin control device to hog entries on
- *
- * When the pin controllers are registered, there may be some specific pinmux
- * map entries that need to be hogged, i.e. get+enabled until the system shuts
- * down.
- */
-static int pinctrl_hog_maps(struct pinctrl_dev *pctldev)
-{
-	struct device *dev = pctldev->dev;
-	const char *devname = dev_name(dev);
-	int ret;
-	struct pinctrl_maps *maps_node;
-	int i;
-	struct pinctrl_map const *map;
-
-	INIT_LIST_HEAD(&pctldev->pinctrl_hogs);
-
-	mutex_lock(&pinctrl_maps_mutex);
-	for_each_maps(maps_node, i, map) {
-		if (!strcmp(map->ctrl_dev_name, devname) &&
-		    !strcmp(map->dev_name, devname)) {
-			/* OK time to hog! */
-			ret = pinctrl_hog_map(pctldev, map);
-			if (ret) {
-				mutex_unlock(&pinctrl_maps_mutex);
-				return ret;
-			}
-		}
-	}
-	mutex_unlock(&pinctrl_maps_mutex);
-
-	return 0;
-}
-
-/**
- * pinctrl_unhog_maps() - unhog specific map entries on controller device
- * @pctldev: the pin control device to unhog entries on
- */
-static void pinctrl_unhog_maps(struct pinctrl_dev *pctldev)
-{
-	struct list_head *node, *tmp;
-
-	list_for_each_safe(node, tmp, &pctldev->pinctrl_hogs) {
-		struct pinctrl_hog *hog =
-			list_entry(node, struct pinctrl_hog, node);
-		pinctrl_disable(hog->p);
-		pinctrl_put(hog->p);
-		list_del(node);
-		kfree(hog);
-	}
-}
-
 #ifdef CONFIG_DEBUG_FS
 
 static int pinctrl_pins_show(struct seq_file *s, void *what)
@@ -889,19 +780,6 @@ static int pinctrl_gpioranges_show(struct seq_file *s, void *what)
 	return 0;
 }
 
-static int pinmux_hogs_show(struct seq_file *s, void *what)
-{
-	struct pinctrl_dev *pctldev = s->private;
-	struct pinctrl_hog *hog;
-
-	seq_puts(s, "Pin control map hogs held by device\n");
-
-	list_for_each_entry(hog, &pctldev->pinctrl_hogs, node)
-		seq_printf(s, "%s\n", hog->map->name);
-
-	return 0;
-}
-
 static int pinctrl_devices_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev;
@@ -988,11 +866,6 @@ static int pinctrl_gpioranges_open(struct inode *inode, struct file *file)
 	return single_open(file, pinctrl_gpioranges_show, inode->i_private);
 }
 
-static int pinmux_hogs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pinmux_hogs_show, inode->i_private);
-}
-
 static int pinctrl_devices_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, pinctrl_devices_show, NULL);
@@ -1024,13 +897,6 @@ static const struct file_operations pinctrl_groups_ops = {
 
 static const struct file_operations pinctrl_gpioranges_ops = {
 	.open		= pinctrl_gpioranges_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static const struct file_operations pinmux_hogs_ops = {
-	.open		= pinmux_hogs_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
@@ -1078,8 +944,6 @@ static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
 			    device_root, pctldev, &pinctrl_groups_ops);
 	debugfs_create_file("gpio-ranges", S_IFREG | S_IRUGO,
 			    device_root, pctldev, &pinctrl_gpioranges_ops);
-	debugfs_create_file("pinmux-hogs", S_IFREG | S_IRUGO,
-			    device_root, pctldev, &pinmux_hogs_ops);
 	pinmux_init_device_debugfs(device_root, pctldev);
 	pinconf_init_device_debugfs(device_root, pctldev);
 }
@@ -1188,7 +1052,9 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	mutex_lock(&pinctrldev_list_mutex);
 	list_add_tail(&pctldev->node, &pinctrldev_list);
 	mutex_unlock(&pinctrldev_list_mutex);
-	pinctrl_hog_maps(pctldev);
+	pctldev->p = pinctrl_get(pctldev->dev, PINCTRL_STATE_DEFAULT);
+	if (!IS_ERR(pctldev->p))
+		pinctrl_enable(pctldev->p);
 	pinctrl_init_device_debugfs(pctldev);
 
 	return pctldev;
@@ -1211,7 +1077,10 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 		return;
 
 	pinctrl_remove_device_debugfs(pctldev);
-	pinctrl_unhog_maps(pctldev);
+	if (!IS_ERR(pctldev->p)) {
+		pinctrl_disable(pctldev->p);
+		pinctrl_put(pctldev->p);
+	}
 	/* TODO: check that no pinmuxes are still active? */
 	mutex_lock(&pinctrldev_list_mutex);
 	list_del(&pctldev->node);

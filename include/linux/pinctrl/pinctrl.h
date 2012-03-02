@@ -19,6 +19,8 @@
 #include <linux/list.h>
 #include <linux/seq_file.h>
 
+#define PINCTRL_STATE_DEFAULT "default"
+
 struct pinctrl_dev;
 struct pinmux_ops;
 struct pinconf_ops;

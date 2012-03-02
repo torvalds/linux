@@ -27,7 +27,7 @@ struct pinctrl_gpio_range;
  * @owner: module providing the pin controller, used for refcounting
  * @driver_data: driver data for drivers registering to the pin controller
  *	subsystem
- * @pinctrl_hogs: list of pin control maps hogged by this device
+ * @p: result of pinctrl_get() for this device
  * @device_root: debugfs root for this device
  */
 struct pinctrl_dev {
@@ -39,7 +39,7 @@ struct pinctrl_dev {
 	struct device *dev;
 	struct module *owner;
 	void *driver_data;
-	struct list_head pinctrl_hogs;
+	struct pinctrl *p;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *device_root;
 #endif

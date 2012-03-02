@@ -1608,9 +1608,9 @@ static struct platform_device dma_device = {
 /* Pinmux settings */
 static struct pinctrl_map __initdata u300_pinmux_map[] = {
 	/* anonymous maps for chip power and EMIFs */
-	PIN_MAP_SYS_HOG("POWER", "pinctrl-u300", "power"),
-	PIN_MAP_SYS_HOG("EMIF0", "pinctrl-u300", "emif0"),
-	PIN_MAP_SYS_HOG("EMIF1", "pinctrl-u300", "emif1"),
+	PIN_MAP_SYS_HOG("pinctrl-u300", "power"),
+	PIN_MAP_SYS_HOG("pinctrl-u300", "emif0"),
+	PIN_MAP_SYS_HOG("pinctrl-u300", "emif1"),
 	/* per-device maps for MMC/SD, SPI and UART */
 	PIN_MAP("MMCSD", "pinctrl-u300", "mmc0", "mmci"),
 	PIN_MAP("SPI", "pinctrl-u300", "spi0", "pl022"),
