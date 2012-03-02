@@ -228,7 +228,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 {
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(origskb);
 	struct ieee80211_sub_if_data *sdata;
-	int needed_headroom = 0;
+	int needed_headroom;
 	struct sk_buff *skb, *skb2;
 	struct net_device *prev_dev = NULL;
 	int present_fcs_len = 0;
@@ -2544,16 +2544,10 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_local *local = rx->local;
-	struct ieee80211_rtap_hdr {
-		struct ieee80211_radiotap_header hdr;
-		u8 flags;
-		u8 rate_or_pad;
-		__le16 chan_freq;
-		__le16 chan_flags;
-	} __packed *rthdr;
 	struct sk_buff *skb = rx->skb, *skb2;
 	struct net_device *prev_dev = NULL;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+	int needed_headroom;
 
 	/*
 	 * If cooked monitor has been processed already, then
@@ -2567,30 +2561,15 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 	if (!local->cooked_mntrs)
 		goto out_free_skb;
 
-	if (skb_headroom(skb) < sizeof(*rthdr) &&
-	    pskb_expand_head(skb, sizeof(*rthdr), 0, GFP_ATOMIC))
+	/* room for the radiotap header based on driver features */
+	needed_headroom = ieee80211_rx_radiotap_len(local, status);
+
+	if (skb_headroom(skb) < needed_headroom &&
+	    pskb_expand_head(skb, needed_headroom, 0, GFP_ATOMIC))
 		goto out_free_skb;
 
-	rthdr = (void *)skb_push(skb, sizeof(*rthdr));
-	memset(rthdr, 0, sizeof(*rthdr));
-	rthdr->hdr.it_len = cpu_to_le16(sizeof(*rthdr));
-	rthdr->hdr.it_present =
-		cpu_to_le32((1 << IEEE80211_RADIOTAP_FLAGS) |
-			    (1 << IEEE80211_RADIOTAP_CHANNEL));
-
-	if (rate) {
-		rthdr->rate_or_pad = rate->bitrate / 5;
-		rthdr->hdr.it_present |=
-			cpu_to_le32(1 << IEEE80211_RADIOTAP_RATE);
-	}
-	rthdr->chan_freq = cpu_to_le16(status->freq);
-
-	if (status->band == IEEE80211_BAND_5GHZ)
-		rthdr->chan_flags = cpu_to_le16(IEEE80211_CHAN_OFDM |
-						IEEE80211_CHAN_5GHZ);
-	else
-		rthdr->chan_flags = cpu_to_le16(IEEE80211_CHAN_DYN |
-						IEEE80211_CHAN_2GHZ);
+	/* prepend radiotap information */
+	ieee80211_add_rx_radiotap_header(local, skb, rate, needed_headroom);
 
 	skb_set_mac_header(skb, 0);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
