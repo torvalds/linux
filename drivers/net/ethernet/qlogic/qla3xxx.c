@@ -2836,7 +2836,7 @@ static int ql_create_send_free_list(struct ql3_adapter *qdev)
 		req_q_curr++;
 		tx_cb->oal = kmalloc(512, GFP_KERNEL);
 		if (tx_cb->oal == NULL)
-			return -1;
+			return -ENOMEM;
 	}
 	return 0;
 }
