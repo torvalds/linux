@@ -30,6 +30,14 @@ Supported chips:
     Prefix: 'it8728'
     Addresses scanned: from Super I/O config space (8 I/O ports)
     Datasheet: Not publicly available
+  * IT8782F
+    Prefix: 'it8782'
+    Addresses scanned: from Super I/O config space (8 I/O ports)
+    Datasheet: Not publicly available
+  * IT8783E/F
+    Prefix: 'it8783'
+    Addresses scanned: from Super I/O config space (8 I/O ports)
+    Datasheet: Not publicly available
   * SiS950   [clone of IT8705F]
     Prefix: 'it87'
     Addresses scanned: from Super I/O config space (8 I/O ports)
@@ -75,7 +83,8 @@ Description
 -----------
 
 This driver implements support for the IT8705F, IT8712F, IT8716F,
-IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8758E and SiS950 chips.
+IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8758E, IT8781F, IT8782F,
+IT8783E/F, and SiS950 chips.
 
 These chips are 'Super I/O chips', supporting floppy disks, infrared ports,
 joysticks and other miscellaneous stuff. For hardware monitoring, they
@@ -99,11 +108,11 @@ The IT8716F, IT8718F, IT8720F, IT8721F/IT8758E and later IT8712F revisions
 have support for 2 additional fans. The additional fans are supported by the
 driver.
 
-The IT8716F, IT8718F, IT8720F and IT8721F/IT8758E, and late IT8712F and
-IT8705F also have optional 16-bit tachometer counters for fans 1 to 3. This
-is better (no more fan clock divider mess) but not compatible with the older
-chips and revisions. The 16-bit tachometer mode is enabled by the driver when
-one of the above chips is detected.
+The IT8716F, IT8718F, IT8720F, IT8721F/IT8758E, IT8782F, IT8783E/F, and late
+IT8712F and IT8705F also have optional 16-bit tachometer counters for fans 1 to
+3. This is better (no more fan clock divider mess) but not compatible with the
+older chips and revisions. The 16-bit tachometer mode is enabled by the driver
+when one of the above chips is detected.
 
 The IT8726F is just bit enhanced IT8716F with additional hardware
 for AMD power sequencing. Therefore the chip will appear as IT8716F
@@ -131,9 +140,10 @@ inputs can measure voltages between 0 and 4.08 volts, with a resolution of
 0.016 volt (except IT8721F/IT8758E and IT8728F: 0.012 volt.) The battery
 voltage in8 does not have limit registers.
 
-On the IT8721F/IT8758E, some voltage inputs are internal and scaled inside
-the chip (in7, in8 and optionally in3). The driver handles this transparently
-so user-space doesn't have to care.
+On the IT8721F/IT8758E, IT8782F, and IT8783E/F, some voltage inputs are
+internal and scaled inside the chip (in7 (optional for IT8782F and IT8783E/F),
+in8 and optionally in3). The driver handles this transparently so user-space
+doesn't have to care.
 
 The VID lines (IT8712F/IT8716F/IT8718F/IT8720F) encode the core voltage value:
 the voltage level your processor should work with. This is hardcoded by
