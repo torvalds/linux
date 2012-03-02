@@ -50,19 +50,6 @@ struct brcmf_stats {
 
 };
 
-struct brcmf_usb_attrib {
-	int bustype;
-	int vid;
-	int pid;
-	int devid;
-	int chiprev; /* chip revsion number */
-	int mtu;
-	int nchan; /* Data Channels */
-	int has_2nd_bulk_in_ep;
-};
-
-struct brcmf_usbdev_info;
-
 struct brcmf_usbdev {
 	struct brcmf_bus *bus;
 	struct brcmf_usbdev_info *devinfo;
@@ -70,7 +57,8 @@ struct brcmf_usbdev {
 	struct brcmf_stats stats;
 	int ntxq, nrxq, rxsize;
 	u32 bus_mtu;
-	struct brcmf_usb_attrib attrib;
+	int devid;
+	int chiprev; /* chip revsion number */
 };
 
 /* IO Request Block (IRB) */
