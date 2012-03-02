@@ -305,7 +305,7 @@ void do_signal(struct pt_regs *regs)
 	 * below mean that the syscall executed to completion and no
 	 * restart is necessary.
 	 */
-	if (regs->syscallno) {
+	if (regs->orig_gpr11) {
 		int restart = 0;
 
 		switch (regs->gpr[11]) {
