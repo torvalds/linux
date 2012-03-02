@@ -673,7 +673,7 @@ int sirfsoc_uart_probe(struct platform_device *pdev)
 	port->irq = res->start;
 
 	if (sirfport->hw_flow_ctrl) {
-		sirfport->p = pinctrl_get(&pdev->dev, NULL);
+		sirfport->p = pinctrl_get(&pdev->dev, PINCTRL_STATE_DEFAULT);
 		ret = IS_ERR(sirfport->p);
 		if (ret)
 			goto pin_err;

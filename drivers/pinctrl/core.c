@@ -461,8 +461,8 @@ static struct pinctrl *pinctrl_get_locked(struct device *dev, const char *name)
 	int i;
 	struct pinctrl_map const *map;
 
-	/* We must have a dev name */
-	if (WARN_ON(!dev))
+	/* We must have both a dev and state name */
+	if (WARN_ON(!dev || !name))
 		return ERR_PTR(-EINVAL);
 
 	devname = dev_name(dev);
@@ -504,16 +504,9 @@ static struct pinctrl *pinctrl_get_locked(struct device *dev, const char *name)
 		if (strcmp(map->dev_name, devname))
 			continue;
 
-		/*
-		 * If we're looking for a specific named map, this must match,
-		 * else we loop and look for the next.
-		 */
-		if (name != NULL) {
-			if (map->name == NULL)
-				continue;
-			if (strcmp(map->name, name))
-				continue;
-		}
+		/* State name must be the one we're looking for */
+		if (strcmp(map->name, name))
+			continue;
 
 		ret = pinmux_apply_muxmap(pctldev, p, dev, devname, map);
 		if (ret) {

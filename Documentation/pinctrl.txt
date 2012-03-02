@@ -782,16 +782,19 @@ spi on the second function mapping:
 static const struct pinctrl_map __initdata mapping[] = {
 	{
 		.dev_name = "foo-spi.0",
+		.name = PINCTRL_STATE_DEFAULT,
 		.ctrl_dev_name = "pinctrl-foo",
 		.function = "spi0",
 	},
 	{
 		.dev_name = "foo-i2c.0",
+		.name = PINCTRL_STATE_DEFAULT,
 		.ctrl_dev_name = "pinctrl-foo",
 		.function = "i2c0",
 	},
 	{
 		.dev_name = "foo-mmc.0",
+		.name = PINCTRL_STATE_DEFAULT,
 		.ctrl_dev_name = "pinctrl-foo",
 		.function = "mmc0",
 	},
@@ -943,10 +946,6 @@ foo_remove()
 	pinctrl_disable(state->p);
 	pinctrl_put(state->p);
 }
-
-If you want to grab a specific control mapping and not just the first one
-found for this device you can specify a specific mapping name, for example in
-the above example the second i2c0 setting: pinctrl_get(&device, "spi0-pos-B");
 
 This get/enable/disable/put sequence can just as well be handled by bus drivers
 if you don't want each and every driver to handle it and you know the

@@ -1612,9 +1612,9 @@ static struct pinctrl_map __initdata u300_pinmux_map[] = {
 	PIN_MAP_SYS_HOG("pinctrl-u300", "emif0"),
 	PIN_MAP_SYS_HOG("pinctrl-u300", "emif1"),
 	/* per-device maps for MMC/SD, SPI and UART */
-	PIN_MAP("MMCSD", "pinctrl-u300", "mmc0", "mmci"),
-	PIN_MAP("SPI", "pinctrl-u300", "spi0", "pl022"),
-	PIN_MAP("UART0", "pinctrl-u300", "uart0", "uart0"),
+	PIN_MAP(PINCTRL_STATE_DEFAULT, "pinctrl-u300", "mmc0", "mmci"),
+	PIN_MAP(PINCTRL_STATE_DEFAULT, "pinctrl-u300", "spi0", "pl022"),
+	PIN_MAP(PINCTRL_STATE_DEFAULT, "pinctrl-u300", "uart0", "uart0"),
 };
 
 struct u300_mux_hog {
@@ -1646,7 +1646,7 @@ static int __init u300_pinctrl_fetch(void)
 		struct pinctrl *p;
 		int ret;
 
-		p = pinctrl_get(u300_mux_hogs[i].dev, NULL);
+		p = pinctrl_get(u300_mux_hogs[i].dev, PINCTRL_STATE_DEFAULT);
 		if (IS_ERR(p)) {
 			pr_err("u300: could not get pinmux hog %s\n",
 			       u300_mux_hogs[i].name);
