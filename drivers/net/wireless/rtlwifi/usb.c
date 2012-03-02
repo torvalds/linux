@@ -346,9 +346,14 @@ static int _rtl_usb_init(struct ieee80211_hw *hw)
 			 pep_desc->bEndpointAddress, pep_desc->wMaxPacketSize,
 			 pep_desc->bInterval);
 	}
-	if (rtlusb->in_ep_nums <  rtlpriv->cfg->usb_interface_cfg->in_ep_num)
-		return -EINVAL ;
-
+	if (rtlusb->in_ep_nums <  rtlpriv->cfg->usb_interface_cfg->in_ep_num) {
+		pr_err("Too few input end points found\n");
+		return -EINVAL;
+	}
+	if (rtlusb->out_ep_nums == 0) {
+		pr_err("No output end points found\n");
+		return -EINVAL;
+	}
 	/* usb endpoint mapping */
 	err = rtlpriv->cfg->usb_interface_cfg->usb_endpoint_mapping(hw);
 	rtlusb->usb_mq_to_hwq =  rtlpriv->cfg->usb_interface_cfg->usb_mq_to_hwq;
@@ -976,6 +981,8 @@ int __devinit rtl_usb_probe(struct usb_interface *intf,
 	}
 	rtlpriv->cfg->ops->init_sw_leds(hw);
 	err = _rtl_usb_init(hw);
+	if (err)
+		goto error_out;
 	err = _rtl_usb_init_sw(hw);
 	/* Init mac80211 sw */
 	err = rtl_init_core(hw);
