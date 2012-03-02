@@ -21,23 +21,22 @@
  *	same name as the pin controllers own dev_name(), the map entry will be
  *	hogged by the driver itself upon registration
  * @name: the name of this specific map entry for the particular machine.
- *	This is the second parameter passed to pinmux_get() when you want
- *	to have several mappings to the same device
+ *	This is the parameter passed to pinmux_lookup_state()
  * @ctrl_dev_name: the name of the device controlling this specific mapping,
  *	the name must be the same as in your struct device*
- * @function: a function in the driver to use for this mapping, the driver
- *	will lookup the function referenced by this ID on the specified
- *	pin control device
  * @group: sometimes a function can map to different pin groups, so this
  *	selects a certain specific pin group to activate for the function, if
  *	left as NULL, the first applicable group will be used
+ * @function: a function in the driver to use for this mapping, the driver
+ *	will lookup the function referenced by this ID on the specified
+ *	pin control device
  */
 struct pinctrl_map {
 	const char *dev_name;
 	const char *name;
 	const char *ctrl_dev_name;
-	const char *function;
 	const char *group;
+	const char *function;
 };
 
 /*

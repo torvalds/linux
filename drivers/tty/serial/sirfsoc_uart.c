@@ -673,12 +673,10 @@ int sirfsoc_uart_probe(struct platform_device *pdev)
 	port->irq = res->start;
 
 	if (sirfport->hw_flow_ctrl) {
-		sirfport->p = pinctrl_get(&pdev->dev, PINCTRL_STATE_DEFAULT);
+		sirfport->p = pinctrl_get_select_default(&pdev->dev);
 		ret = IS_ERR(sirfport->p);
 		if (ret)
 			goto pin_err;
-
-		pinctrl_enable(sirfport->p);
 	}
 
 	port->ops = &sirfsoc_uart_ops;
@@ -695,10 +693,8 @@ int sirfsoc_uart_probe(struct platform_device *pdev)
 
 port_err:
 	platform_set_drvdata(pdev, NULL);
-	if (sirfport->hw_flow_ctrl) {
-		pinctrl_disable(sirfport->p);
+	if (sirfport->hw_flow_ctrl)
 		pinctrl_put(sirfport->p);
-	}
 pin_err:
 irq_err:
 	devm_iounmap(&pdev->dev, port->membase);
@@ -711,10 +707,8 @@ static int sirfsoc_uart_remove(struct platform_device *pdev)
 	struct sirfsoc_uart_port *sirfport = platform_get_drvdata(pdev);
 	struct uart_port *port = &sirfport->port;
 	platform_set_drvdata(pdev, NULL);
-	if (sirfport->hw_flow_ctrl) {
-		pinctrl_disable(sirfport->p);
+	if (sirfport->hw_flow_ctrl)
 		pinctrl_put(sirfport->p);
-	}
 	devm_iounmap(&pdev->dev, port->membase);
 	uart_remove_one_port(&sirfsoc_uart_drv, port);
 	return 0;

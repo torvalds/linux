@@ -458,25 +458,98 @@ int pinctrl_gpio_direction_output(unsigned gpio)
 }
 EXPORT_SYMBOL_GPL(pinctrl_gpio_direction_output);
 
-static struct pinctrl *pinctrl_get_locked(struct device *dev, const char *name)
+static struct pinctrl_state *find_state(struct pinctrl *p,
+					const char *name)
 {
-	struct pinctrl_dev *pctldev;
-	const char *devname;
-	struct pinctrl *p;
-	unsigned num_maps = 0;
+	struct pinctrl_state *state;
+
+	list_for_each_entry(state, &p->states, node)
+		if (!strcmp(state->name, name))
+			return state;
+
+	return NULL;
+}
+
+static struct pinctrl_state *create_state(struct pinctrl *p,
+					  const char *name)
+{
+	struct pinctrl_state *state;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (state == NULL) {
+		dev_err(p->dev,
+			"failed to alloc struct pinctrl_state\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	state->name = name;
+	INIT_LIST_HEAD(&state->settings);
+
+	list_add_tail(&state->node, &p->states);
+
+	return state;
+}
+
+static int add_setting(struct pinctrl *p, struct pinctrl_map const *map)
+{
+	struct pinctrl_state *state;
+	struct pinctrl_setting *setting;
 	int ret;
+
+	state = find_state(p, map->name);
+	if (!state)
+		state = create_state(p, map->name);
+	if (IS_ERR(state))
+		return PTR_ERR(state);
+
+	setting = kzalloc(sizeof(*setting), GFP_KERNEL);
+	if (setting == NULL) {
+		dev_err(p->dev,
+			"failed to alloc struct pinctrl_setting\n");
+		return -ENOMEM;
+	}
+
+	setting->pctldev = get_pinctrl_dev_from_devname(map->ctrl_dev_name);
+	if (setting->pctldev == NULL) {
+		dev_err(p->dev, "unknown pinctrl device %s in map entry",
+			map->ctrl_dev_name);
+		kfree(setting);
+		/* Eventually, this should trigger deferred probe */
+		return -ENODEV;
+	}
+
+	ret = pinmux_map_to_setting(map, setting);
+	if (ret < 0) {
+		kfree(setting);
+		return ret;
+	}
+
+	list_add_tail(&setting->node, &state->settings);
+
+	return 0;
+}
+
+static struct pinctrl *find_pinctrl(struct device *dev)
+{
+	struct pinctrl *p;
+
+	list_for_each_entry(p, &pinctrldev_list, node)
+		if (p->dev == dev)
+			return p;
+
+	return NULL;
+}
+
+static void pinctrl_put_locked(struct pinctrl *p, bool inlist);
+
+static struct pinctrl *create_pinctrl(struct device *dev)
+{
+	struct pinctrl *p;
+	const char *devname;
 	struct pinctrl_maps *maps_node;
 	int i;
 	struct pinctrl_map const *map;
-	struct pinctrl_setting *setting;
-
-	/* We must have both a dev and state name */
-	if (WARN_ON(!dev || !name))
-		return ERR_PTR(-EINVAL);
-
-	devname = dev_name(dev);
-
-	dev_dbg(dev, "pinctrl_get() for device %s state %s\n", devname, name);
+	int ret;
 
 	/*
 	 * create the state cookie holder struct pinctrl for each
@@ -489,8 +562,9 @@ static struct pinctrl *pinctrl_get_locked(struct device *dev, const char *name)
 		return ERR_PTR(-ENOMEM);
 	}
 	p->dev = dev;
-	p->state = name;
-	INIT_LIST_HEAD(&p->settings);
+	INIT_LIST_HEAD(&p->states);
+
+	devname = dev_name(dev);
 
 	/* Iterate over the pin control maps to locate the right ones */
 	for_each_maps(maps_node, i, map) {
@@ -498,139 +572,157 @@ static struct pinctrl *pinctrl_get_locked(struct device *dev, const char *name)
 		if (strcmp(map->dev_name, devname))
 			continue;
 
-		/* State name must be the one we're looking for */
-		if (strcmp(map->name, name))
-			continue;
-
-		/*
-		 * Try to find the pctldev given in the map
-		 */
-		pctldev = get_pinctrl_dev_from_devname(map->ctrl_dev_name);
-		if (!pctldev) {
-			dev_err(dev, "unknown pinctrl device %s in map entry",
-				map->ctrl_dev_name);
-			/* Eventually, this should trigger deferred probe */
-			ret = -ENODEV;
-			goto error;
+		ret = add_setting(p, map);
+		if (ret < 0) {
+			pinctrl_put_locked(p, false);
+			return ERR_PTR(ret);
 		}
-
-		dev_dbg(dev, "in map, found pctldev %s to handle function %s",
-			dev_name(pctldev->dev), map->function);
-
-		setting = kzalloc(sizeof(*setting), GFP_KERNEL);
-		if (setting == NULL) {
-			dev_err(dev,
-				"failed to alloc struct pinctrl_setting\n");
-			ret = -ENOMEM;
-			goto error;
-		}
-
-		setting->pctldev = pctldev;
-		ret = pinmux_map_to_setting(map, setting);
-		if (ret < 0)
-			goto error;
-
-		list_add_tail(&setting->node, &p->settings);
-
-		num_maps++;
 	}
-
-	/*
-	 * This may be perfectly legitimate. An IP block may get re-used
-	 * across SoCs. Not all of those SoCs may need pinmux settings for the
-	 * IP block, e.g. if one SoC dedicates pins to that function but
-	 * another doesn't. The driver won't know this, and will always
-	 * attempt to set up the pinmux. The mapping table defines whether any
-	 * HW programming is actually needed.
-	 */
-	if (!num_maps)
-		dev_info(dev, "zero maps found for mapping %s\n", name);
-
-	dev_dbg(dev, "found %u maps for device %s state %s\n",
-		num_maps, devname, name ? name : "(undefined)");
 
 	/* Add the pinmux to the global list */
 	list_add_tail(&p->node, &pinctrl_list);
 
 	return p;
+}
 
-error:
-	list_for_each_entry(setting, &p->settings, node)
-		pinmux_free_setting(setting);
+static struct pinctrl *pinctrl_get_locked(struct device *dev)
+{
+	struct pinctrl *p;
 
-	kfree(p);
+	if (WARN_ON(!dev))
+		return ERR_PTR(-EINVAL);
 
-	return ERR_PTR(ret);
+	p = find_pinctrl(dev);
+	if (p != NULL)
+		return ERR_PTR(-EBUSY);
+
+	p = create_pinctrl(dev);
+	if (IS_ERR(p))
+		return p;
+
+	return p;
 }
 
 /**
- * pinctrl_get() - retrieves the pin controller handle for a certain device
- * @dev: the device to get the pin controller handle for
- * @name: an optional specific control mapping name or NULL, the name is only
- *	needed if you want to have more than one mapping per device, or if you
- *	need an anonymous pin control (not tied to any specific device)
+ * pinctrl_get() - retrieves the pinctrl handle for a device
+ * @dev: the device to obtain the handle for
  */
-struct pinctrl *pinctrl_get(struct device *dev, const char *name)
+struct pinctrl *pinctrl_get(struct device *dev)
 {
 	struct pinctrl *p;
 
 	mutex_lock(&pinctrl_mutex);
-	p = pinctrl_get_locked(dev, name);
+	p = pinctrl_get_locked(dev);
 	mutex_unlock(&pinctrl_mutex);
 
 	return p;
 }
 EXPORT_SYMBOL_GPL(pinctrl_get);
 
-static void pinctrl_put_locked(struct pinctrl *p)
+static void pinctrl_put_locked(struct pinctrl *p, bool inlist)
 {
-	struct pinctrl_setting *setting, *n;
+	struct pinctrl_state *state, *n1;
+	struct pinctrl_setting *setting, *n2;
 
-	if (p == NULL)
-		return;
-
-	if (p->usecount)
-		pr_warn("releasing pin control handle with active users!\n");
-	list_for_each_entry_safe(setting, n, &p->settings, node) {
-		pinmux_free_setting(setting);
-		list_del(&setting->node);
-		kfree(setting);
+	list_for_each_entry_safe(state, n1, &p->states, node) {
+		list_for_each_entry_safe(setting, n2, &state->settings, node) {
+			if (state == p->state)
+				pinmux_disable_setting(setting);
+			pinmux_free_setting(setting);
+			list_del(&setting->node);
+			kfree(setting);
+		}
+		list_del(&state->node);
+		kfree(state);
 	}
 
-	/* Remove from list */
-	list_del(&p->node);
-
+	if (inlist)
+		list_del(&p->node);
 	kfree(p);
 }
 
 /**
- * pinctrl_put() - release a previously claimed pin control handle
- * @p: a pin control handle previously claimed by pinctrl_get()
+ * pinctrl_put() - release a previously claimed pinctrl handle
+ * @p: the pinctrl handle to release
  */
 void pinctrl_put(struct pinctrl *p)
 {
 	mutex_lock(&pinctrl_mutex);
-	pinctrl_put(p);
+	pinctrl_put_locked(p, true);
 	mutex_unlock(&pinctrl_mutex);
 }
 EXPORT_SYMBOL_GPL(pinctrl_put);
 
-static int pinctrl_enable_locked(struct pinctrl *p)
+static struct pinctrl_state *pinctrl_lookup_state_locked(struct pinctrl *p,
+							 const char *name)
 {
-	struct pinctrl_setting *setting;
+	struct pinctrl_state *state;
+
+	state = find_state(p, name);
+	if (!state)
+		return ERR_PTR(-ENODEV);
+
+	return state;
+}
+
+/**
+ * pinctrl_lookup_state() - retrieves a state handle from a pinctrl handle
+ * @p: the pinctrl handle to retrieve the state from
+ * @name: the state name to retrieve
+ */
+struct pinctrl_state *pinctrl_lookup_state(struct pinctrl *p, const char *name)
+{
+	struct pinctrl_state *s;
+
+	mutex_lock(&pinctrl_mutex);
+	s = pinctrl_lookup_state_locked(p, name);
+	mutex_unlock(&pinctrl_mutex);
+
+	return s;
+}
+EXPORT_SYMBOL_GPL(pinctrl_lookup_state);
+
+static int pinctrl_select_state_locked(struct pinctrl *p,
+				       struct pinctrl_state *state)
+{
+	struct pinctrl_setting *setting, *setting2;
 	int ret;
 
-	if (p == NULL)
-		return -EINVAL;
+	if (p->state == state)
+		return 0;
 
-	if (p->usecount++ == 0) {
-		list_for_each_entry(setting, &p->settings, node) {
-			ret = pinmux_enable_setting(setting);
-			if (ret < 0) {
-				/* FIXME: Difficult to return to prev state */
-				p->usecount--;
-				return ret;
+	if (p->state) {
+		/*
+		 * The set of groups with a mux configuration in the old state
+		 * may not be identical to the set of groups with a mux setting
+		 * in the new state. While this might be unusual, it's entirely
+		 * possible for the "user"-supplied mapping table to be written
+		 * that way. For each group that was configured in the old state
+		 * but not in the new state, this code puts that group into a
+		 * safe/disabled state.
+		 */
+		list_for_each_entry(setting, &p->state->settings, node) {
+			bool found = false;
+			list_for_each_entry(setting2, &state->settings, node) {
+				if (setting2->group_selector ==
+						setting->group_selector) {
+					found = true;
+					break;
+				}
 			}
+			if (!found)
+				pinmux_disable_setting(setting);
+		}
+	}
+
+	p->state = state;
+
+	/* Apply all the settings for the new state */
+	list_for_each_entry(setting, &state->settings, node) {
+		ret = pinmux_enable_setting(setting);
+		if (ret < 0) {
+			/* FIXME: Difficult to return to prev state */
+			return ret;
 		}
 	}
 
@@ -638,43 +730,21 @@ static int pinctrl_enable_locked(struct pinctrl *p)
 }
 
 /**
- * pinctrl_enable() - enable a certain pin controller setting
- * @p: the pin control handle to enable, previously claimed by pinctrl_get()
+ * pinctrl_select() - select/activate/program a pinctrl state to HW
+ * @p: the pinctrl handle for the device that requests configuratio
+ * @state: the state handle to select/activate/program
  */
-int pinctrl_enable(struct pinctrl *p)
+int pinctrl_select_state(struct pinctrl *p, struct pinctrl_state *state)
 {
 	int ret;
+
 	mutex_lock(&pinctrl_mutex);
-	ret = pinctrl_enable_locked(p);
+	ret = pinctrl_select_state_locked(p, state);
 	mutex_unlock(&pinctrl_mutex);
+
 	return ret;
 }
-EXPORT_SYMBOL_GPL(pinctrl_enable);
-
-static void pinctrl_disable_locked(struct pinctrl *p)
-{
-	struct pinctrl_setting *setting;
-
-	if (p == NULL)
-		return;
-
-	if (--p->usecount == 0) {
-		list_for_each_entry(setting, &p->settings, node)
-			pinmux_disable_setting(setting);
-	}
-}
-
-/**
- * pinctrl_disable() - disable a certain pin control setting
- * @p: the pin control handle to disable, previously claimed by pinctrl_get()
- */
-void pinctrl_disable(struct pinctrl *p)
-{
-	mutex_lock(&pinctrl_mutex);
-	pinctrl_disable_locked(p);
-	mutex_unlock(&pinctrl_mutex);
-}
-EXPORT_SYMBOL_GPL(pinctrl_disable);
+EXPORT_SYMBOL_GPL(pinctrl_select_state);
 
 /**
  * pinctrl_register_mappings() - register a set of pin controller mappings
@@ -891,6 +961,7 @@ static int pinctrl_maps_show(struct seq_file *s, void *what)
 static int pinctrl_show(struct seq_file *s, void *what)
 {
 	struct pinctrl *p;
+	struct pinctrl_state *state;
 	struct pinctrl_setting *setting;
 
 	seq_puts(s, "Requested pin control handlers their pinmux maps:\n");
@@ -898,12 +969,17 @@ static int pinctrl_show(struct seq_file *s, void *what)
 	mutex_lock(&pinctrl_mutex);
 
 	list_for_each_entry(p, &pinctrl_list, node) {
-		seq_printf(s, "device: %s state: %s users: %u\n",
-			   dev_name(p->dev), p->state, p->usecount);
+		seq_printf(s, "device: %s current state: %s\n",
+			   dev_name(p->dev),
+			   p->state ? p->state->name : "none");
 
-		list_for_each_entry(setting, &p->settings, node) {
-			seq_printf(s, "  ");
-			pinmux_dbg_show(s, setting);
+		list_for_each_entry(state, &p->states, node) {
+			seq_printf(s, "  state: %s\n", state->name);
+
+			list_for_each_entry(setting, &state->settings, node) {
+				seq_printf(s, "    ");
+				pinmux_dbg_show(s, setting);
+			}
 		}
 	}
 
@@ -1113,9 +1189,14 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 
 	list_add_tail(&pctldev->node, &pinctrldev_list);
 
-	pctldev->p = pinctrl_get_locked(pctldev->dev, PINCTRL_STATE_DEFAULT);
-	if (!IS_ERR(pctldev->p))
-		pinctrl_enable_locked(pctldev->p);
+	pctldev->p = pinctrl_get_locked(pctldev->dev);
+	if (!IS_ERR(pctldev->p)) {
+		struct pinctrl_state *s =
+			pinctrl_lookup_state_locked(pctldev->p,
+						    PINCTRL_STATE_DEFAULT);
+		if (!IS_ERR(s))
+			pinctrl_select_state_locked(pctldev->p, s);
+	}
 
 	mutex_unlock(&pinctrl_mutex);
 
@@ -1144,10 +1225,8 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 
 	mutex_lock(&pinctrl_mutex);
 
-	if (!IS_ERR(pctldev->p)) {
-		pinctrl_disable_locked(pctldev->p);
-		pinctrl_put_locked(pctldev->p);
-	}
+	if (!IS_ERR(pctldev->p))
+		pinctrl_put_locked(pctldev->p, true);
 
 	/* TODO: check that no pinmuxes are still active? */
 	list_del(&pctldev->node);

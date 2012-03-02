@@ -847,8 +847,8 @@ As it is possible to map a function to different groups of pins an optional
 This example mapping is used to switch between two positions for spi0 at
 runtime, as described further below under the heading "Runtime pinmuxing".
 
-Further it is possible to match several groups of pins to the same function
-for a single device, say for example in the mmc0 example above, where you can
+Further it is possible for one named state to affect the muxing of several
+groups of pins, say for example in the mmc0 example above, where you can
 additively expand the mmc0 bus from 2 to 4 to 8 pins. If we want to use all
 three groups for a total of 2+2+4 = 8 pins (for an 8-bit MMC bus as is the
 case), we define a mapping like this:
@@ -879,6 +879,7 @@ case), we define a mapping like this:
 	.dev_name = "foo-mmc.0",
 	.name = "8bit"
 	.ctrl_dev_name = "pinctrl-foo",
+	.function = "mmc0",
 	.group = "mmc0_1_grp",
 },
 {
@@ -900,10 +901,16 @@ case), we define a mapping like this:
 The result of grabbing this mapping from the device with something like
 this (see next paragraph):
 
-	p = pinctrl_get(&device, "8bit");
+	p = pinctrl_get(dev);
+	s = pinctrl_lookup_state(p, "8bit");
+	ret = pinctrl_select_state(p, s);
+
+or more simply:
+
+	p = pinctrl_get_select(dev, "8bit");
 
 Will be that you activate all the three bottom records in the mapping at
-once. Since they share the same name, pin controller device, funcion and
+once. Since they share the same name, pin controller device, function and
 device, and since we allow multiple groups to match to a single device, they
 all get selected, and they all get enabled and disable simultaneously by the
 pinmux core.
@@ -925,45 +932,63 @@ default state like this:
 
 struct foo_state {
        struct pinctrl *p;
+       struct pinctrl_state *s;
        ...
 };
 
 foo_probe()
 {
-	/* Allocate a state holder named "state" etc */
-	struct pinctrl p;
+	/* Allocate a state holder named "foo" etc */
+	struct foo_state *foo = ...;
 
-	p = pinctrl_get(&device, PINCTRL_STATE_DEFAULT);
-	if IS_ERR(p)
-		return PTR_ERR(p);
-	pinctrl_enable(p);
+	foo->p = pinctrl_get(&device);
+	if (IS_ERR(foo->p)) {
+		/* FIXME: clean up "foo" here */
+		return PTR_ERR(foo->p);
+	}
 
-	state->p = p;
+	foo->s = pinctrl_lookup_state(foo->p, PINCTRL_STATE_DEFAULT);
+	if (IS_ERR(foo->s)) {
+		pinctrl_put(foo->p);
+		/* FIXME: clean up "foo" here */
+		return PTR_ERR(s);
+	}
+
+	ret = pinctrl_select_state(foo->s);
+	if (ret < 0) {
+		pinctrl_put(foo->p);
+		/* FIXME: clean up "foo" here */
+		return ret;
+	}
 }
 
 foo_remove()
 {
-	pinctrl_disable(state->p);
 	pinctrl_put(state->p);
 }
 
-This get/enable/disable/put sequence can just as well be handled by bus drivers
+This get/lookup/select/put sequence can just as well be handled by bus drivers
 if you don't want each and every driver to handle it and you know the
 arrangement on your bus.
 
-The semantics of the get/enable respective disable/put is as follows:
+The semantics of the pinctrl APIs are:
 
-- pinctrl_get() is called in process context to reserve the pins affected with
-  a certain mapping and set up the pinmux core and the driver. It will allocate
-  a struct from the kernel memory to hold the pinmux state.
+- pinctrl_get() is called in process context to obtain a handle to all pinctrl
+  information for a given client device. It will allocate a struct from the
+  kernel memory to hold the pinmux state. All mapping table parsing or similar
+  slow operations take place within this API.
 
-- pinctrl_enable()/pinctrl_disable() is quick and can be called from fastpath
-  (irq context) when you quickly want to set up/tear down the hardware muxing
-  when running a device driver. Usually it will just poke some values into a
-  register.
+- pinctrl_lookup_state() is called in process context to obtain a handle to a
+  specific state for a the client device. This operation may be slow too.
 
-- pinctrl_disable() is called in process context to tear down the pin requests
-  and release the state holder struct for the mux setting etc.
+- pinctrl_select_state() programs pin controller hardware according to the
+  definition of the state as given by the mapping table. In theory this is a
+  fast-path operation, since it only involved blasting some register settings
+  into hardware. However, note that some pin controllers may have their
+  registers on a slow/IRQ-based bus, so client devices should not assume they
+  can call pinctrl_select_state() from non-blocking contexts.
+
+- pinctrl_put() frees all information associated with a pinctrl handle.
 
 Usually the pin control core handled the get/put pair and call out to the
 device drivers bookkeeping operations, like checking available functions and
@@ -979,12 +1004,12 @@ System pin control hogging
 ==========================
 
 Pin control map entries can be hogged by the core when the pin controller
-is registered. This means that the core will attempt to call pinctrl_get() and
-pinctrl_enable() on it immediately after the pin control device has been
-registered.
+is registered. This means that the core will attempt to call pinctrl_get(),
+lookup_state() and select_state() on it immediately after the pin control
+device has been registered.
 
-This is enabled by simply setting the .dev_name field in the map to the name
-of the pin controller itself, like this:
+This occurs for mapping table entries where the client device name is equal
+to the pin controller device name, and the state name is PINCTRL_STATE_DEFAULT.
 
 {
 	.dev_name = "pinctrl-foo",
@@ -1009,8 +1034,8 @@ It is possible to mux a certain function in and out at runtime, say to move
 an SPI port from one set of pins to another set of pins. Say for example for
 spi0 in the example above, we expose two different groups of pins for the same
 function, but with different named in the mapping as described under
-"Advanced mapping" above. So we have two mappings named "spi0-pos-A" and
-"spi0-pos-B".
+"Advanced mapping" above. So that for an SPI device, we have two states named
+"pos-A" and "pos-B".
 
 This snippet first muxes the function in the pins defined by group A, enables
 it, disables and releases it, and muxes it in on the pins defined by group B:
@@ -1020,23 +1045,36 @@ it, disables and releases it, and muxes it in on the pins defined by group B:
 foo_switch()
 {
 	struct pinctrl *p;
+	struct pinctrl_state *s1, *s2;
+
+	/* Setup */
+	p = pinctrl_get(&device);
+	if (IS_ERR(p))
+		...
+
+	s1 = pinctrl_lookup_state(foo->p, "pos-A");
+	if (IS_ERR(s1))
+		...
+
+	s2 = pinctrl_lookup_state(foo->p, "pos-B");
+	if (IS_ERR(s2))
+		...
 
 	/* Enable on position A */
-	p = pinctrl_get(&device, "spi0-pos-A");
-	if IS_ERR(p)
-		return PTR_ERR(p);
-	pinctrl_enable(p);
+	ret = pinctrl_select_state(s1);
+	if (ret < 0)
+	    ...
 
-	/* This releases the pins again */
-	pinctrl_disable(p);
-	pinctrl_put(p);
+	...
 
 	/* Enable on position B */
-	p = pinctrl_get(&device, "spi0-pos-B");
-	if IS_ERR(p)
-		return PTR_ERR(p);
-	pinctrl_enable(p);
+	ret = pinctrl_select_state(s2);
+	if (ret < 0)
+	    ...
+
 	...
+
+	pinctrl_put(p);
 }
 
 The above has to be done from process context.

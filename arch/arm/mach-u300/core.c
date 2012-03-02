@@ -1618,22 +1618,18 @@ static struct pinctrl_map __initdata u300_pinmux_map[] = {
 };
 
 struct u300_mux_hog {
-	const char *name;
 	struct device *dev;
 	struct pinctrl *p;
 };
 
 static struct u300_mux_hog u300_mux_hogs[] = {
 	{
-		.name = "uart0",
 		.dev = &uart0_device.dev,
 	},
 	{
-		.name = "spi0",
 		.dev = &pl022_device.dev,
 	},
 	{
-		.name = "mmc0",
 		.dev = &mmcsd_device.dev,
 	},
 };
@@ -1646,16 +1642,10 @@ static int __init u300_pinctrl_fetch(void)
 		struct pinctrl *p;
 		int ret;
 
-		p = pinctrl_get(u300_mux_hogs[i].dev, PINCTRL_STATE_DEFAULT);
+		p = pinctrl_get_select_default(u300_mux_hogs[i].dev);
 		if (IS_ERR(p)) {
-			pr_err("u300: could not get pinmux hog %s\n",
-			       u300_mux_hogs[i].name);
-			continue;
-		}
-		ret = pinctrl_enable(p);
-		if (ret) {
-			pr_err("u300: could enable pinmux hog %s\n",
-			       u300_mux_hogs[i].name);
+			pr_err("u300: could not get pinmux hog for dev %s\n",
+			       dev_name(u300_mux_hogs[i].dev));
 			continue;
 		}
 		u300_mux_hogs[i].p = p;
