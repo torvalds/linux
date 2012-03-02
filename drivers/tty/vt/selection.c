@@ -62,10 +62,14 @@ sel_pos(int n)
 				use_unicode);
 }
 
-/* remove the current selection highlight, if any,
-   from the console holding the selection. */
-void
-clear_selection(void) {
+/**
+ *	clear_selection		-	remove current selection
+ *
+ *	Remove the current selection highlight, if any from the console
+ *	holding the selection. The caller must hold the console lock.
+ */
+void clear_selection(void)
+{
 	highlight_pointer(-1); /* hide the pointer */
 	if (sel_start != -1) {
 		highlight(sel_start, sel_end);
@@ -75,7 +79,7 @@ clear_selection(void) {
 
 /*
  * User settable table: what characters are to be considered alphabetic?
- * 256 bits. FIXME: Needs a locking model.
+ * 256 bits. Locked by the console lock.
  */
 static u32 inwordLut[8]={
   0x00000000, /* control chars     */
@@ -92,10 +96,20 @@ static inline int inword(const u16 c) {
 	return c > 0xff || (( inwordLut[c>>5] >> (c & 0x1F) ) & 1);
 }
 
-/* set inwordLut contents. Invoked by ioctl(). */
+/**
+ *	set loadlut		-	load the LUT table
+ *	@p: user table
+ *
+ *	Load the LUT table from user space. The caller must hold the console
+ *	lock. Make a temporary copy so a partial update doesn't make a mess.
+ */
 int sel_loadlut(char __user *p)
 {
-	return copy_from_user(inwordLut, (u32 __user *)(p+4), 32) ? -EFAULT : 0;
+	u32 tmplut[8];
+	if (copy_from_user(tmplut, (u32 __user *)(p+4), 32))
+		return -EFAULT;
+	memcpy(inwordLut, tmplut, 32);
+	return 0;
 }
 
 /* does screen address p correspond to character at LH/RH edge of screen? */
@@ -131,7 +145,16 @@ static int store_utf8(u16 c, char *p)
     	}
 }
 
-/* set the current selection. Invoked by ioctl() or by kernel code. */
+/**
+ *	set_selection		- 	set the current selection.
+ *	@sel: user selection info
+ *	@tty: the console tty
+ *
+ *	Invoked by the ioctl handle for the vt layer.
+ *
+ *	The entire selection process is managed under the console_lock. It's
+ *	 a lot under the lock but its hardly a performance path
+ */
 int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *tty)
 {
 	struct vc_data *vc = vc_cons[fg_console].d;

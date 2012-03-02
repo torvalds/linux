@@ -2623,7 +2623,9 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			console_unlock();
 			break;
 		case TIOCL_SELLOADLUT:
+			console_lock();
 			ret = sel_loadlut(p);
+			console_unlock();
 			break;
 		case TIOCL_GETSHIFTSTATE:
 
