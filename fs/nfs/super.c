@@ -80,7 +80,6 @@ enum {
 	Opt_cto, Opt_nocto,
 	Opt_ac, Opt_noac,
 	Opt_lock, Opt_nolock,
-	Opt_v2, Opt_v3, Opt_v4, Opt_v4_0, Opt_v4_1,
 	Opt_udp, Opt_tcp, Opt_rdma,
 	Opt_acl, Opt_noacl,
 	Opt_rdirplus, Opt_nordirplus,
@@ -133,11 +132,6 @@ static const match_table_t nfs_mount_option_tokens = {
 	{ Opt_noac, "noac" },
 	{ Opt_lock, "lock" },
 	{ Opt_nolock, "nolock" },
-	{ Opt_v2, "v2" },
-	{ Opt_v3, "v3" },
-	{ Opt_v4, "v4" },
-	{ Opt_v4_0, "v4.0" },
-	{ Opt_v4_1, "v4.1" },
 	{ Opt_udp, "udp" },
 	{ Opt_tcp, "tcp" },
 	{ Opt_rdma, "rdma" },
@@ -182,6 +176,9 @@ static const match_table_t nfs_mount_option_tokens = {
 	{ Opt_lookupcache, "lookupcache=%s" },
 	{ Opt_fscache_uniq, "fsc=%s" },
 	{ Opt_local_lock, "local_lock=%s" },
+
+	/* The following needs to be listed after all other options */
+	{ Opt_nfsvers, "v%s" },
 
 	{ Opt_err, NULL }
 };
@@ -1227,28 +1224,6 @@ static int nfs_parse_mount_options(char *raw,
 			mnt->flags |= NFS_MOUNT_NONLM;
 			mnt->flags |= (NFS_MOUNT_LOCAL_FLOCK |
 				       NFS_MOUNT_LOCAL_FCNTL);
-			break;
-		case Opt_v2:
-			mnt->flags &= ~NFS_MOUNT_VER3;
-			mnt->version = 2;
-			break;
-		case Opt_v3:
-			mnt->flags |= NFS_MOUNT_VER3;
-			mnt->version = 3;
-			break;
-		case Opt_v4:
-			mnt->flags &= ~NFS_MOUNT_VER3;
-			mnt->version = 4;
-			break;
-		case Opt_v4_0:
-			mnt->flags &= ~NFS_MOUNT_VER3;
-			mnt->version = 4;
-			mnt->minorversion = 0;
-			break;
-		case Opt_v4_1:
-			mnt->flags &= ~NFS_MOUNT_VER3;
-			mnt->version = 4;
-			mnt->minorversion = 1;
 			break;
 		case Opt_udp:
 			mnt->flags &= ~NFS_MOUNT_TCP;
