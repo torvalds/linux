@@ -298,7 +298,7 @@ label##_hv:								\
 
 /* Exception addition: Keep interrupt state */
 #define ENABLE_INTS				\
-	mfmsr	r11;				\
+	ld	r11,PACAKMSR(r13);		\
 	ld	r12,_MSR(r1);			\
 	rlwimi	r11,r12,0,MSR_EE;		\
 	mtmsrd	r11,1

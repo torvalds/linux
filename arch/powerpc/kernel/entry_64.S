@@ -557,10 +557,8 @@ _GLOBAL(ret_from_except_lite)
 #ifdef CONFIG_PPC_BOOK3E
 	wrteei	0
 #else
-	mfmsr	r10		/* Get current interrupt state */
-	rldicl	r9,r10,48,1	/* clear MSR_EE */
-	rotldi	r9,r9,16
-	mtmsrd	r9,1		/* Update machine state */
+	ld	r10,PACAKMSR(r13) /* Get kernel MSR without EE */
+	mtmsrd	r10,1		  /* Update machine state */
 #endif /* CONFIG_PPC_BOOK3E */
 
 #ifdef CONFIG_PREEMPT
@@ -625,8 +623,8 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	 * userspace and we take an exception after restoring r13,
 	 * we end up corrupting the userspace r13 value.
 	 */
-	mfmsr	r4
-	andc	r4,r4,r0	/* r0 contains MSR_RI here */
+	ld	r4,PACAKMSR(r13) /* Get kernel MSR without EE */
+	andc	r4,r4,r0	 /* r0 contains MSR_RI here */
 	mtmsrd	r4,1
 
 	/*
@@ -686,9 +684,7 @@ do_work:
 #ifdef CONFIG_PPC_BOOK3E
 	wrteei	0
 #else
-	mfmsr	r10
-	rldicl	r10,r10,48,1
-	rotldi	r10,r10,16
+	ld	r10,PACAKMSR(r13) /* Get kernel MSR without EE */
 	mtmsrd	r10,1
 #endif /* CONFIG_PPC_BOOK3E */
 	li	r0,0

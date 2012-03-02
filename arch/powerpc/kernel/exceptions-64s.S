@@ -848,9 +848,8 @@ fast_exception_return:
 	REST_GPR(0, r1)
 	REST_8GPRS(2, r1)
 
-	mfmsr	r10
-	rldicl	r10,r10,48,1		/* clear EE */
-	rldicr	r10,r10,16,61		/* clear RI (LE is 0 already) */
+	ld	r10,PACAKMSR(r13)
+	clrrdi	r10,r10,2		/* clear RI */
 	mtmsrd	r10,1
 
 	mtspr	SPRN_SRR1,r12
