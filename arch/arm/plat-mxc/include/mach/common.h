@@ -75,6 +75,7 @@ extern void mxc_restart(char, const char *);
 extern void mxc_arch_reset_init(void __iomem *);
 extern int mx53_revision(void);
 extern int mx53_display_revision(void);
+extern void imx_set_aips(void __iomem *);
 
 enum mxc_cpu_pwr_mode {
 	WAIT_CLOCKED,		/* wfi only */
@@ -84,6 +85,14 @@ enum mxc_cpu_pwr_mode {
 	STOP_POWER_OFF,		/* STOP + SRPG */
 };
 
+enum mx3_cpu_pwr_mode {
+	MX3_RUN,
+	MX3_WAIT,
+	MX3_DOZE,
+	MX3_SLEEP,
+};
+
+extern void mx3_cpu_lp_set(enum mx3_cpu_pwr_mode mode);
 extern void mx5_cpu_lp_set(enum mxc_cpu_pwr_mode mode);
 extern void imx_print_silicon_rev(const char *cpu, int srev);
 

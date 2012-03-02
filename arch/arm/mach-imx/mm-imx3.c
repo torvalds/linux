@@ -34,6 +34,8 @@ static void imx3_idle(void)
 {
 	unsigned long reg = 0;
 
+	mx3_cpu_lp_set(MX3_WAIT);
+
 	__asm__ __volatile__(
 		/* disable I and D cache */
 		"mrc p15, 0, %0, c1, c0, 0\n"
@@ -173,6 +175,9 @@ void __init imx31_soc_init(void)
 	}
 
 	imx_add_imx_sdma("imx31-sdma", MX31_SDMA_BASE_ADDR, MX31_INT_SDMA, &imx31_sdma_pdata);
+
+	imx_set_aips(MX31_IO_ADDRESS(MX31_AIPS1_BASE_ADDR));
+	imx_set_aips(MX31_IO_ADDRESS(MX31_AIPS2_BASE_ADDR));
 }
 #endif /* ifdef CONFIG_SOC_IMX31 */
 
