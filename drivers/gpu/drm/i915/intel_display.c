@@ -2537,7 +2537,7 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	u32 reg, temp, i;
+	u32 reg, temp, i, retry;
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
@@ -2589,15 +2589,19 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 		POSTING_READ(reg);
 		udelay(500);
 
-		reg = FDI_RX_IIR(pipe);
-		temp = I915_READ(reg);
-		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
-
-		if (temp & FDI_RX_BIT_LOCK) {
-			I915_WRITE(reg, temp | FDI_RX_BIT_LOCK);
-			DRM_DEBUG_KMS("FDI train 1 done.\n");
-			break;
+		for (retry = 0; retry < 5; retry++) {
+			reg = FDI_RX_IIR(pipe);
+			temp = I915_READ(reg);
+			DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
+			if (temp & FDI_RX_BIT_LOCK) {
+				I915_WRITE(reg, temp | FDI_RX_BIT_LOCK);
+				DRM_DEBUG_KMS("FDI train 1 done.\n");
+				break;
+			}
+			udelay(50);
 		}
+		if (retry < 5)
+			break;
 	}
 	if (i == 4)
 		DRM_ERROR("FDI train 1 fail!\n");
@@ -2638,15 +2642,19 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 		POSTING_READ(reg);
 		udelay(500);
 
-		reg = FDI_RX_IIR(pipe);
-		temp = I915_READ(reg);
-		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
-
-		if (temp & FDI_RX_SYMBOL_LOCK) {
-			I915_WRITE(reg, temp | FDI_RX_SYMBOL_LOCK);
-			DRM_DEBUG_KMS("FDI train 2 done.\n");
-			break;
+		for (retry = 0; retry < 5; retry++) {
+			reg = FDI_RX_IIR(pipe);
+			temp = I915_READ(reg);
+			DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
+			if (temp & FDI_RX_SYMBOL_LOCK) {
+				I915_WRITE(reg, temp | FDI_RX_SYMBOL_LOCK);
+				DRM_DEBUG_KMS("FDI train 2 done.\n");
+				break;
+			}
+			udelay(50);
 		}
+		if (retry < 5)
+			break;
 	}
 	if (i == 4)
 		DRM_ERROR("FDI train 2 fail!\n");
