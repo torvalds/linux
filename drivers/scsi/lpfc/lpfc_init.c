@@ -7232,6 +7232,7 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 	uint32_t rdy_chk, num_resets = 0, reset_again = 0;
 	union lpfc_sli4_cfg_shdr *shdr;
 	struct lpfc_register reg_data;
+	uint16_t devid;
 
 	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
 	switch (if_type) {
@@ -7279,7 +7280,8 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			writel(reg_data.word0, phba->sli4_hba.u.if_type2.
 			       CTRLregaddr);
 			/* flush */
-			readl(phba->sli4_hba.u.if_type2.STATUSregaddr);
+			pci_read_config_word(phba->pcidev,
+					     PCI_DEVICE_ID, &devid);
 			/*
 			 * Poll the Port Status Register and wait for RDY for
 			 * up to 10 seconds.  If the port doesn't respond, treat
