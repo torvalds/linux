@@ -259,5 +259,9 @@ void __init imx35_soc_init(void)
 	}
 
 	imx_add_imx_sdma("imx35-sdma", MX35_SDMA_BASE_ADDR, MX35_INT_SDMA, &imx35_sdma_pdata);
+
+	/* Setup AIPS registers */
+	imx_set_aips(MX35_IO_ADDRESS(MX35_AIPS1_BASE_ADDR));
+	imx_set_aips(MX35_IO_ADDRESS(MX35_AIPS2_BASE_ADDR));
 }
 #endif /* ifdef CONFIG_SOC_IMX35 */
