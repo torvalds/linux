@@ -2575,7 +2575,7 @@ LPFC_VPORT_ATTR_HEX_RW(log_verbose, 0x0, 0x0, 0xffffffff,
 # lpfc_enable_da_id: This turns on the DA_ID CT command that deregisters
 # objects that have been registered with the nameserver after login.
 */
-LPFC_VPORT_ATTR_R(enable_da_id, 0, 0, 1,
+LPFC_VPORT_ATTR_R(enable_da_id, 1, 0, 1,
 		  "Deregister nameserver objects before LOGO");
 
 /*
