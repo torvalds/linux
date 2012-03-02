@@ -298,9 +298,7 @@ int vt_ioctl(struct tty_struct *tty,
  
 	switch (cmd) {
 	case TIOCLINUX:
-		tty_lock();
 		ret = tioclinux(tty, arg);
-		tty_unlock();
 		break;
 	case KIOCSOUND:
 		if (!perm)

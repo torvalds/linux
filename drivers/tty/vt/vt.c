@@ -2637,11 +2637,15 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			ret = __put_user(data, p);
 			break;
 		case TIOCL_GETMOUSEREPORTING:
+			console_lock();	/* May be overkill */
 			data = mouse_reporting();
+			console_unlock();
 			ret = __put_user(data, p);
 			break;
 		case TIOCL_SETVESABLANK:
+			console_lock();
 			ret = set_vesa_blanking(p);
+			console_unlock();
 			break;
 		case TIOCL_GETKMSGREDIRECT:
 			data = vt_get_kmsg_redirect();
@@ -2658,13 +2662,21 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 			}
 			break;
 		case TIOCL_GETFGCONSOLE:
+			/* No locking needed as this is a transiently
+			   correct return anyway if the caller hasn't
+			   disabled switching */
 			ret = fg_console;
 			break;
 		case TIOCL_SCROLLCONSOLE:
 			if (get_user(lines, (s32 __user *)(p+4))) {
 				ret = -EFAULT;
 			} else {
+				/* Need the console lock here. Note that lots
+				   of other calls need fixing before the lock
+				   is actually useful ! */
+				console_lock();
 				scrollfront(vc_cons[fg_console].d, lines);
+				console_unlock();
 				ret = 0;
 			}
 			break;
