@@ -120,10 +120,13 @@ static void _set_gpio_dataout_reg(struct gpio_bank *bank, int gpio, int enable)
 	void __iomem *reg = bank->base;
 	u32 l = GPIO_BIT(bank, gpio);
 
-	if (enable)
+	if (enable) {
 		reg += bank->regs->set_dataout;
-	else
+		bank->context.dataout |= l;
+	} else {
 		reg += bank->regs->clr_dataout;
+		bank->context.dataout &= ~l;
+	}
 
 	__raw_writel(l, reg);
 }
