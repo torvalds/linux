@@ -227,7 +227,6 @@ static void ath_rx_edma_cleanup(struct ath_softc *sc)
 static void ath_rx_edma_init_queue(struct ath_rx_edma *rx_edma, int size)
 {
 	skb_queue_head_init(&rx_edma->rx_fifo);
-	skb_queue_head_init(&rx_edma->rx_buffers);
 	rx_edma->rx_fifo_hwsize = size;
 }
 
@@ -653,7 +652,9 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb, bool mybeacon)
 }
 
 static bool ath_edma_get_buffers(struct ath_softc *sc,
-				 enum ath9k_rx_qtype qtype)
+				 enum ath9k_rx_qtype qtype,
+				 struct ath_rx_status *rs,
+				 struct ath_buf **dest)
 {
 	struct ath_rx_edma *rx_edma = &sc->rx.rx_edma[qtype];
 	struct ath_hw *ah = sc->sc_ah;
@@ -672,7 +673,7 @@ static bool ath_edma_get_buffers(struct ath_softc *sc,
 	dma_sync_single_for_cpu(sc->dev, bf->bf_buf_addr,
 				common->rx_bufsize, DMA_FROM_DEVICE);
 
-	ret = ath9k_hw_process_rxdesc_edma(ah, NULL, skb->data);
+	ret = ath9k_hw_process_rxdesc_edma(ah, rs, skb->data);
 	if (ret == -EINPROGRESS) {
 		/*let device gain the buffer again*/
 		dma_sync_single_for_device(sc->dev, bf->bf_buf_addr,
@@ -685,20 +686,21 @@ static bool ath_edma_get_buffers(struct ath_softc *sc,
 		/* corrupt descriptor, skip this one and the following one */
 		list_add_tail(&bf->list, &sc->rx.rxbuf);
 		ath_rx_edma_buf_link(sc, qtype);
+
 		skb = skb_peek(&rx_edma->rx_fifo);
-		if (!skb)
-			return true;
+		if (skb) {
+			bf = SKB_CB_ATHBUF(skb);
+			BUG_ON(!bf);
 
-		bf = SKB_CB_ATHBUF(skb);
-		BUG_ON(!bf);
-
-		__skb_unlink(skb, &rx_edma->rx_fifo);
-		list_add_tail(&bf->list, &sc->rx.rxbuf);
-		ath_rx_edma_buf_link(sc, qtype);
-		return true;
+			__skb_unlink(skb, &rx_edma->rx_fifo);
+			list_add_tail(&bf->list, &sc->rx.rxbuf);
+			ath_rx_edma_buf_link(sc, qtype);
+		} else {
+			bf = NULL;
+		}
 	}
-	skb_queue_tail(&rx_edma->rx_buffers, skb);
 
+	*dest = bf;
 	return true;
 }
 
@@ -706,18 +708,15 @@ static struct ath_buf *ath_edma_get_next_rx_buf(struct ath_softc *sc,
 						struct ath_rx_status *rs,
 						enum ath9k_rx_qtype qtype)
 {
-	struct ath_rx_edma *rx_edma = &sc->rx.rx_edma[qtype];
-	struct sk_buff *skb;
-	struct ath_buf *bf;
+	struct ath_buf *bf = NULL;
 
-	while (ath_edma_get_buffers(sc, qtype));
-	skb = __skb_dequeue(&rx_edma->rx_buffers);
-	if (!skb)
-		return NULL;
+	while (ath_edma_get_buffers(sc, qtype, rs, &bf)) {
+		if (!bf)
+			continue;
 
-	bf = SKB_CB_ATHBUF(skb);
-	ath9k_hw_process_rxdesc_edma(sc->sc_ah, rs, skb->data);
-	return bf;
+		return bf;
+	}
+	return NULL;
 }
 
 static struct ath_buf *ath_get_next_rx_buf(struct ath_softc *sc,
