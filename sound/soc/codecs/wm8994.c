@@ -3472,23 +3472,16 @@ static irqreturn_t wm8994_temp_shut(int irq, void *data)
 static int wm8994_codec_probe(struct snd_soc_codec *codec)
 {
 	struct wm8994 *control = dev_get_drvdata(codec->dev->parent);
-	struct wm8994_priv *wm8994;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
 	unsigned int reg;
 	int ret, i;
 
+	wm8994->codec = codec;
 	codec->control_data = control->regmap;
-
-	wm8994 = devm_kzalloc(codec->dev, sizeof(struct wm8994_priv),
-			      GFP_KERNEL);
-	if (wm8994 == NULL)
-		return -ENOMEM;
-	snd_soc_codec_set_drvdata(codec, wm8994);
 
 	snd_soc_codec_set_cache_io(codec, 16, 16, SND_SOC_REGMAP);
 
-	wm8994->wm8994 = dev_get_drvdata(codec->dev->parent);
-	wm8994->pdata = dev_get_platdata(codec->dev->parent);
 	wm8994->codec = codec;
 
 	mutex_init(&wm8994->accdet_lock);
@@ -3953,6 +3946,17 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8994 = {
 
 static int __devinit wm8994_probe(struct platform_device *pdev)
 {
+	struct wm8994_priv *wm8994;
+
+	wm8994 = devm_kzalloc(&pdev->dev, sizeof(struct wm8994_priv),
+			      GFP_KERNEL);
+	if (wm8994 == NULL)
+		return -ENOMEM;
+	platform_set_drvdata(pdev, wm8994);
+
+	wm8994->wm8994 = dev_get_drvdata(pdev->dev.parent);
+	wm8994->pdata = dev_get_platdata(pdev->dev.parent);
+
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm8994,
 			wm8994_dai, ARRAY_SIZE(wm8994_dai));
 }
