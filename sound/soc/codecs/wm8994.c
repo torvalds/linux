@@ -3376,6 +3376,7 @@ int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 	} else {
 		snd_soc_update_bits(codec, WM8958_MIC_DETECT_1,
 				    WM8958_MICD_ENA, 0);
+		wm1811_jackdet_set_mode(codec, WM1811_JACKDET_MODE_NONE);
 		snd_soc_dapm_disable_pin(&codec->dapm, "CLK_SYS");
 		snd_soc_dapm_sync(&codec->dapm);
 	}
