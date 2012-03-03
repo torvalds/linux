@@ -1565,18 +1565,15 @@ static int parse_options(char *options, struct super_block *sb,
 			/* *sb_block = match_int(&args[0]); */
 			break;
 		case Opt_err_panic:
-			clear_opt(sb, ERRORS_CONT);
-			clear_opt(sb, ERRORS_RO);
+			clear_opt(sb, ERRORS_MASK);
 			set_opt(sb, ERRORS_PANIC);
 			break;
 		case Opt_err_ro:
-			clear_opt(sb, ERRORS_CONT);
-			clear_opt(sb, ERRORS_PANIC);
+			clear_opt(sb, ERRORS_MASK);
 			set_opt(sb, ERRORS_RO);
 			break;
 		case Opt_err_cont:
-			clear_opt(sb, ERRORS_RO);
-			clear_opt(sb, ERRORS_PANIC);
+			clear_opt(sb, ERRORS_MASK);
 			set_opt(sb, ERRORS_CONT);
 			break;
 		case Opt_nouid32:
