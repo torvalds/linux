@@ -2819,6 +2819,7 @@ static int wm8994_codec_resume(struct snd_soc_codec *codec)
 					    WM1811_JACKDET_MODE_JACK);
 			break;
 		}
+		break;
 	case WM8958:
 		if (wm8994->jack_cb)
 			snd_soc_update_bits(codec, WM8958_MIC_DETECT_1,
