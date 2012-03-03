@@ -754,14 +754,12 @@ static int _od_suspend_noirq(struct device *dev)
 	struct omap_device *od = to_omap_device(pdev);
 	int ret;
 
-	if (od->flags & OMAP_DEVICE_NO_IDLE_ON_SUSPEND)
-		return pm_generic_suspend_noirq(dev);
-
 	ret = pm_generic_suspend_noirq(dev);
 
 	if (!ret && !pm_runtime_status_suspended(dev)) {
 		if (pm_generic_runtime_suspend(dev) == 0) {
-			omap_device_idle(pdev);
+			if (!(od->flags & OMAP_DEVICE_NO_IDLE_ON_SUSPEND))
+				omap_device_idle(pdev);
 			od->flags |= OMAP_DEVICE_SUSPENDED;
 		}
 	}
@@ -774,13 +772,11 @@ static int _od_resume_noirq(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
 
-	if (od->flags & OMAP_DEVICE_NO_IDLE_ON_SUSPEND)
-		return pm_generic_resume_noirq(dev);
-
 	if ((od->flags & OMAP_DEVICE_SUSPENDED) &&
 	    !pm_runtime_status_suspended(dev)) {
 		od->flags &= ~OMAP_DEVICE_SUSPENDED;
-		omap_device_enable(pdev);
+		if (!(od->flags & OMAP_DEVICE_NO_IDLE_ON_SUSPEND))
+			omap_device_enable(pdev);
 		pm_generic_runtime_resume(dev);
 	}
 
