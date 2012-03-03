@@ -685,6 +685,8 @@ SOC_SINGLE_TLV("MIXINL IN1RP Boost Volume", WM8994_INPUT_MIXER_1, 8, 1, 0,
 static void wm1811_jackdet_set_mode(struct snd_soc_codec *codec, u16 mode)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	u16 old = snd_soc_read(codec, WM8994_ANTIPOP_2)
+		& WM1811_JACKDET_MODE_MASK;
 
 	if (!wm8994->jackdet || !wm8994->jack_cb)
 		return;
@@ -692,11 +694,28 @@ static void wm1811_jackdet_set_mode(struct snd_soc_codec *codec, u16 mode)
 	if (wm8994->active_refcount)
 		mode = WM1811_JACKDET_MODE_AUDIO;
 
+	if (mode == old)
+		return;
+
 	snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
 			    WM1811_JACKDET_MODE_MASK, mode);
 
-	if (mode == WM1811_JACKDET_MODE_MIC)
-		msleep(2);
+	switch (mode) {
+	case WM1811_JACKDET_MODE_MIC:
+	case WM1811_JACKDET_MODE_AUDIO:
+		switch (old) {
+		case WM1811_JACKDET_MODE_MIC:
+		case WM1811_JACKDET_MODE_AUDIO:
+			break;
+		default:
+			msleep(2);
+			break;
+		}
+
+	default:
+		break;
+	}
+
 }
 
 static void active_reference(struct snd_soc_codec *codec)
@@ -710,15 +729,8 @@ static void active_reference(struct snd_soc_codec *codec)
 	dev_dbg(codec->dev, "Active refcount incremented, now %d\n",
 		wm8994->active_refcount);
 
-	if (wm8994->active_refcount == 1) {
-		/* If we're using jack detection go into audio mode */
-		if (wm8994->jackdet && wm8994->jack_cb) {
-			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
-					    WM1811_JACKDET_MODE_MASK,
-					    WM1811_JACKDET_MODE_AUDIO);
-			msleep(2);
-		}
-	}
+	/* If we're using jack detection go into audio mode */
+	wm1811_jackdet_set_mode(codec, WM1811_JACKDET_MODE_AUDIO);
 
 	mutex_unlock(&wm8994->accdet_lock);
 }
@@ -737,16 +749,12 @@ static void active_dereference(struct snd_soc_codec *codec)
 
 	if (wm8994->active_refcount == 0) {
 		/* Go into appropriate detection only mode */
-		if (wm8994->jackdet && wm8994->jack_cb) {
-			if (wm8994->jack_mic || wm8994->mic_detecting)
-				mode = WM1811_JACKDET_MODE_MIC;
-			else
-				mode = WM1811_JACKDET_MODE_JACK;
+		if (wm8994->jack_mic || wm8994->mic_detecting)
+			mode = WM1811_JACKDET_MODE_MIC;
+		else
+			mode = WM1811_JACKDET_MODE_JACK;
 
-			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
-					    WM1811_JACKDET_MODE_MASK,
-					    mode);
-		}
+		wm1811_jackdet_set_mode(codec, mode);
 	}
 
 	mutex_unlock(&wm8994->accdet_lock);
