@@ -489,7 +489,7 @@ static inline int mtd_has_oob(const struct mtd_info *mtd)
 
 static inline int mtd_can_have_bb(const struct mtd_info *mtd)
 {
-	return 0;
+	return !!mtd->block_isbad;
 }
 
 	/* Kernel-side ioctl definitions */
