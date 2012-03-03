@@ -10,6 +10,7 @@
 #ifndef __LINUX_MDIO_H__
 #define __LINUX_MDIO_H__
 
+#include <linux/types.h>
 #include <linux/mii.h>
 
 /* MDIO Manageable Devices (MMDs). */
