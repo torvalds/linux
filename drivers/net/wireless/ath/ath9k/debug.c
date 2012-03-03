@@ -944,27 +944,6 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	PHY_ERR("HT-RATE ERR", ATH9K_PHYERR_HT_RATE_ILLEGAL);
 
 	len += snprintf(buf + len, size - len,
-			"%22s : %10d\n", "RSSI-CTL0",
-			sc->debug.stats.rxstats.rs_rssi_ctl0);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10d\n", "RSSI-CTL1",
-			sc->debug.stats.rxstats.rs_rssi_ctl1);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10d\n", "RSSI-CTL2",
-			sc->debug.stats.rxstats.rs_rssi_ctl2);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10d\n", "RSSI-EXT0",
-			sc->debug.stats.rxstats.rs_rssi_ext0);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10d\n", "RSSI-EXT1",
-			sc->debug.stats.rxstats.rs_rssi_ext1);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10d\n", "RSSI-EXT2",
-			sc->debug.stats.rxstats.rs_rssi_ext2);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10d\n", "Rx Antenna",
-			sc->debug.stats.rxstats.rs_antenna);
-	len += snprintf(buf + len, size - len,
 			"%22s : %10u\n", "RX-Pkts-All",
 			sc->debug.stats.rxstats.rx_pkts_all);
 	len += snprintf(buf + len, size - len,
@@ -1010,16 +989,6 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 		if (rs->rs_phyerr < ATH9K_PHYERR_MAX)
 			RX_PHY_ERR_INC(rs->rs_phyerr);
 	}
-
-	sc->debug.stats.rxstats.rs_rssi_ctl0 = rs->rs_rssi_ctl0;
-	sc->debug.stats.rxstats.rs_rssi_ctl1 = rs->rs_rssi_ctl1;
-	sc->debug.stats.rxstats.rs_rssi_ctl2 = rs->rs_rssi_ctl2;
-
-	sc->debug.stats.rxstats.rs_rssi_ext0 = rs->rs_rssi_ext0;
-	sc->debug.stats.rxstats.rs_rssi_ext1 = rs->rs_rssi_ext1;
-	sc->debug.stats.rxstats.rs_rssi_ext2 = rs->rs_rssi_ext2;
-
-	sc->debug.stats.rxstats.rs_antenna = rs->rs_antenna;
 
 #ifdef CONFIG_ATH9K_MAC_DEBUG
 	spin_lock(&sc->debug.samp_lock);
