@@ -44,8 +44,9 @@
 #define BTRFS_SETGET_FUNCS(name, type, member, bits)			\
 u##bits btrfs_##name(struct extent_buffer *eb, type *s);		\
 void btrfs_set_##name(struct extent_buffer *eb, type *s, u##bits val);	\
-u##bits btrfs_##name(struct extent_buffer *eb,				\
-				   type *s)				\
+void btrfs_set_token_##name(struct extent_buffer *eb, type *s, u##bits val, struct btrfs_map_token *token);	\
+u##bits btrfs_token_##name(struct extent_buffer *eb,				\
+			   type *s, struct btrfs_map_token *token)	\
 {									\
 	unsigned long part_offset = (unsigned long)s;			\
 	unsigned long offset = part_offset + offsetof(type, member);	\
@@ -54,9 +55,18 @@ u##bits btrfs_##name(struct extent_buffer *eb,				\
 	char *kaddr;						\
 	unsigned long map_start;				\
 	unsigned long map_len;					\
+	unsigned long mem_len = sizeof(((type *)0)->member);	\
 	u##bits res;						\
+	if (token && token->kaddr && token->offset <= offset &&	\
+	    token->eb == eb &&					\
+	   (token->offset + PAGE_CACHE_SIZE >= offset + mem_len)) { \
+		kaddr = token->kaddr;				\
+		p = (type *)(kaddr + part_offset - token->offset);  \
+		res = le##bits##_to_cpu(p->member);		\
+		return res;					\
+	}							\
 	err = map_private_extent_buffer(eb, offset,		\
-			sizeof(((type *)0)->member),		\
+			mem_len,				\
 			&kaddr, &map_start, &map_len);		\
 	if (err) {						\
 		__le##bits leres;				\
@@ -65,10 +75,15 @@ u##bits btrfs_##name(struct extent_buffer *eb,				\
 	}							\
 	p = (type *)(kaddr + part_offset - map_start);		\
 	res = le##bits##_to_cpu(p->member);			\
+	if (token) {						\
+		token->kaddr = kaddr;				\
+		token->offset = map_start;			\
+		token->eb = eb;					\
+	}							\
 	return res;						\
 }									\
-void btrfs_set_##name(struct extent_buffer *eb,				\
-				    type *s, u##bits val)		\
+void btrfs_set_token_##name(struct extent_buffer *eb,				\
+			    type *s, u##bits val, struct btrfs_map_token *token)		\
 {									\
 	unsigned long part_offset = (unsigned long)s;			\
 	unsigned long offset = part_offset + offsetof(type, member);	\
@@ -77,8 +92,17 @@ void btrfs_set_##name(struct extent_buffer *eb,				\
 	char *kaddr;						\
 	unsigned long map_start;				\
 	unsigned long map_len;					\
+	unsigned long mem_len = sizeof(((type *)0)->member);	\
+	if (token && token->kaddr && token->offset <= offset &&	\
+	    token->eb == eb &&					\
+	   (token->offset + PAGE_CACHE_SIZE >= offset + mem_len)) { \
+		kaddr = token->kaddr;				\
+		p = (type *)(kaddr + part_offset - token->offset);  \
+		p->member = cpu_to_le##bits(val);		\
+		return;						\
+	}							\
 	err = map_private_extent_buffer(eb, offset,		\
-			sizeof(((type *)0)->member),		\
+			mem_len,				\
 			&kaddr, &map_start, &map_len);		\
 	if (err) {						\
 		__le##bits val2;				\
@@ -88,7 +112,22 @@ void btrfs_set_##name(struct extent_buffer *eb,				\
 	}							\
 	p = (type *)(kaddr + part_offset - map_start);		\
 	p->member = cpu_to_le##bits(val);			\
-}
+	if (token) {						\
+		token->kaddr = kaddr;				\
+		token->offset = map_start;			\
+		token->eb = eb;					\
+	}							\
+}								\
+void btrfs_set_##name(struct extent_buffer *eb,			\
+		      type *s, u##bits val)			\
+{								\
+	btrfs_set_token_##name(eb, s, val, NULL);		\
+}								\
+u##bits btrfs_##name(struct extent_buffer *eb,			\
+		      type *s)					\
+{								\
+	return btrfs_token_##name(eb, s, NULL);			\
+}								\
 
 #include "ctree.h"
 

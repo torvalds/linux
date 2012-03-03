@@ -1546,6 +1546,17 @@ struct btrfs_ioctl_defrag_range_args {
 
 #define BTRFS_INODE_ROOT_ITEM_INIT	(1 << 31)
 
+struct btrfs_map_token {
+	struct extent_buffer *eb;
+	char *kaddr;
+	unsigned long offset;
+};
+
+static inline void btrfs_init_map_token (struct btrfs_map_token *token)
+{
+	memset(token, 0, sizeof(*token));
+}
+
 /* some macros to generate set/get funcs for the struct fields.  This
  * assumes there is a lefoo_to_cpu for every type, so lets make a simple
  * one for u8:
@@ -1569,6 +1580,8 @@ struct btrfs_ioctl_defrag_range_args {
 #ifndef BTRFS_SETGET_FUNCS
 #define BTRFS_SETGET_FUNCS(name, type, member, bits)			\
 u##bits btrfs_##name(struct extent_buffer *eb, type *s);		\
+u##bits btrfs_token_##name(struct extent_buffer *eb, type *s, struct btrfs_map_token *token);		\
+void btrfs_set_token_##name(struct extent_buffer *eb, type *s, u##bits val, struct btrfs_map_token *token);\
 void btrfs_set_##name(struct extent_buffer *eb, type *s, u##bits val);
 #endif
 
