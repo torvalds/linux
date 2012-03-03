@@ -238,7 +238,7 @@ static void *einj_get_parameter_address(void)
 			return v5param;
 		}
 	}
-	if (paddrv4) {
+	if (param_extension && paddrv4) {
 		struct einj_parameter *v4param;
 
 		v4param = acpi_os_map_memory(paddrv4, sizeof(*v4param));
