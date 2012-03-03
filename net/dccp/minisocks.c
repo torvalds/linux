@@ -127,9 +127,11 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 		 *    activation below, as these windows all depend on the local
 		 *    and remote Sequence Window feature values (7.5.2).
 		 */
-		newdp->dccps_gss = newdp->dccps_iss = dreq->dreq_iss;
+		newdp->dccps_iss = dreq->dreq_iss;
+		newdp->dccps_gss = dreq->dreq_gss;
 		newdp->dccps_gar = newdp->dccps_iss;
-		newdp->dccps_gsr = newdp->dccps_isr = dreq->dreq_isr;
+		newdp->dccps_isr = dreq->dreq_isr;
+		newdp->dccps_gsr = dreq->dreq_gsr;
 
 		/*
 		 * Activate features: initialise CCIDs, sequence windows etc.
@@ -164,9 +166,9 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 	/* Check for retransmitted REQUEST */
 	if (dccp_hdr(skb)->dccph_type == DCCP_PKT_REQUEST) {
 
-		if (after48(DCCP_SKB_CB(skb)->dccpd_seq, dreq->dreq_isr)) {
+		if (after48(DCCP_SKB_CB(skb)->dccpd_seq, dreq->dreq_gsr)) {
 			dccp_pr_debug("Retransmitted REQUEST\n");
-			dreq->dreq_isr = DCCP_SKB_CB(skb)->dccpd_seq;
+			dreq->dreq_gsr = DCCP_SKB_CB(skb)->dccpd_seq;
 			/*
 			 * Send another RESPONSE packet
 			 * To protect against Request floods, increment retrans
@@ -186,12 +188,14 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 		goto drop;
 
 	/* Invalid ACK */
-	if (DCCP_SKB_CB(skb)->dccpd_ack_seq != dreq->dreq_iss) {
+	if (!between48(DCCP_SKB_CB(skb)->dccpd_ack_seq,
+				dreq->dreq_iss, dreq->dreq_gss)) {
 		dccp_pr_debug("Invalid ACK number: ack_seq=%llu, "
-			      "dreq_iss=%llu\n",
+			      "dreq_iss=%llu, dreq_gss=%llu\n",
 			      (unsigned long long)
 			      DCCP_SKB_CB(skb)->dccpd_ack_seq,
-			      (unsigned long long) dreq->dreq_iss);
+			      (unsigned long long) dreq->dreq_iss,
+			      (unsigned long long) dreq->dreq_gss);
 		goto drop;
 	}
 
