@@ -34,7 +34,6 @@
 #include "ozconfig.h"
 #include "ozusbif.h"
 #include "oztrace.h"
-#include "ozalloc.h"
 #include "ozurbparanoia.h"
 #include "ozevent.h"
 /*------------------------------------------------------------------------------
@@ -259,7 +258,7 @@ static struct oz_urb_link *oz_alloc_urb_link(void)
 	}
 	spin_unlock_irqrestore(&g_link_lock, irq_state);
 	if (urbl == 0)
-		urbl = oz_alloc(sizeof(struct oz_urb_link), GFP_ATOMIC);
+		urbl = kmalloc(sizeof(struct oz_urb_link), GFP_ATOMIC);
 	return urbl;
 }
 /*------------------------------------------------------------------------------
@@ -280,7 +279,7 @@ static void oz_free_urb_link(struct oz_urb_link *urbl)
 		}
 		spin_unlock_irqrestore(&g_link_lock, irq_state);
 		if (urbl)
-			oz_free(urbl);
+			kfree(urbl);
 	}
 }
 /*------------------------------------------------------------------------------
@@ -300,7 +299,7 @@ static void oz_empty_link_pool(void)
 		struct oz_urb_link *urbl =
 			container_of(e, struct oz_urb_link, link);
 		e = e->next;
-		oz_free(urbl);
+		kfree(urbl);
 	}
 }
 /*------------------------------------------------------------------------------
@@ -311,9 +310,8 @@ static void oz_empty_link_pool(void)
 static struct oz_endpoint *oz_ep_alloc(gfp_t mem_flags, int buffer_size)
 {
 	struct oz_endpoint *ep =
-		oz_alloc(sizeof(struct oz_endpoint)+buffer_size, mem_flags);
+		kzalloc(sizeof(struct oz_endpoint)+buffer_size, mem_flags);
 	if (ep) {
-		memset(ep, 0, sizeof(*ep));
 		INIT_LIST_HEAD(&ep->urb_list);
 		INIT_LIST_HEAD(&ep->link);
 		ep->credit = -1;
@@ -414,7 +412,7 @@ static void oz_ep_free(struct oz_port *port, struct oz_endpoint *ep)
 		spin_unlock_bh(&ozhcd->hcd_lock);
 	}
 	oz_trace("Freeing endpoint memory\n");
-	oz_free(ep);
+	kfree(ep);
 }
 /*------------------------------------------------------------------------------
  * Context: softirq
@@ -1280,8 +1278,9 @@ static int oz_build_endpoints_for_config(struct usb_hcd *hcd,
 	int i;
 	int num_iface = config->desc.bNumInterfaces;
 	if (num_iface) {
-		struct oz_interface *iface = (struct oz_interface *)
-			oz_alloc(num_iface*sizeof(struct oz_interface),
+		struct oz_interface *iface;
+
+		iface = kmalloc(num_iface*sizeof(struct oz_interface),
 				mem_flags | __GFP_ZERO);
 		if (!iface)
 			return -ENOMEM;
@@ -1316,7 +1315,7 @@ static void oz_clean_endpoints_for_config(struct usb_hcd *hcd,
 	spin_lock_bh(&ozhcd->hcd_lock);
 	if (port->iface) {
 		oz_trace("Freeing interfaces object.\n");
-		oz_free(port->iface);
+		kfree(port->iface);
 		port->iface = 0;
 	}
 	port->num_iface = 0;

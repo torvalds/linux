@@ -11,7 +11,6 @@
 #include "ozeltbuf.h"
 #include "ozpd.h"
 #include "oztrace.h"
-#include "ozalloc.h"
 /*------------------------------------------------------------------------------
  */
 #define OZ_ELT_INFO_MAGIC_USED	0x35791057
@@ -48,7 +47,7 @@ void oz_elt_buf_term(struct oz_elt_buf *buf)
 			struct oz_elt_info *ei =
 				container_of(e, struct oz_elt_info, link_order);
 			e = e->next;
-			oz_free(ei);
+			kfree(ei);
 		}
 	}
 	/* Free any elelment in the pool. */
@@ -56,7 +55,7 @@ void oz_elt_buf_term(struct oz_elt_buf *buf)
 		struct oz_elt_info *ei =
 			container_of(buf->elt_pool, struct oz_elt_info, link);
 		buf->elt_pool = buf->elt_pool->next;
-		oz_free(ei);
+		kfree(ei);
 	}
 	buf->free_elts = 0;
 }
@@ -78,7 +77,7 @@ struct oz_elt_info *oz_elt_info_alloc(struct oz_elt_buf *buf)
 		}
 	} else {
 		spin_unlock_bh(&buf->lock);
-		ei = oz_alloc(sizeof(struct oz_elt_info), GFP_ATOMIC);
+		ei = kmalloc(sizeof(struct oz_elt_info), GFP_ATOMIC);
 	}
 	if (ei) {
 		ei->flags = 0;
@@ -131,12 +130,13 @@ void oz_elt_info_free_chain(struct oz_elt_buf *buf, struct list_head *list)
  */
 int oz_elt_stream_create(struct oz_elt_buf *buf, u8 id, int max_buf_count)
 {
-	struct oz_elt_stream *st =
-		oz_alloc(sizeof(struct oz_elt_stream), GFP_ATOMIC | __GFP_ZERO);
+	struct oz_elt_stream *st;
+
 	oz_trace("oz_elt_stream_create(0x%x)\n", id);
+
+	st = kzalloc(sizeof(struct oz_elt_stream), GFP_ATOMIC | __GFP_ZERO);
 	if (st == 0)
-		return -1;
-	memset(st, 0, sizeof(struct oz_elt_stream));
+		return -ENOMEM;
 	atomic_set(&st->ref_count, 1);
 	st->id = id;
 	st->max_buf_count = max_buf_count;
@@ -197,7 +197,7 @@ void oz_elt_stream_put(struct oz_elt_stream *st)
 {
 	if (atomic_dec_and_test(&st->ref_count)) {
 		oz_trace("Stream destroyed\n");
-		oz_free(st);
+		kfree(st);
 	}
 }
 /*------------------------------------------------------------------------------
@@ -334,6 +334,6 @@ void oz_trim_elt_pool(struct oz_elt_buf *buf)
 		struct oz_elt_info *ei =
 			container_of(free, struct oz_elt_info, link);
 		free = free->next;
-		oz_free(ei);
+		kfree(ei);
 	}
 }

@@ -17,7 +17,6 @@
 #include "ozeltbuf.h"
 #include "ozpd.h"
 #include "ozproto.h"
-#include "ozalloc.h"
 #include "ozevent.h"
 /*------------------------------------------------------------------------------
  */
@@ -66,7 +65,7 @@ static void oz_cdev_release_ctx(struct oz_serial_ctx *ctx)
 {
 	if (atomic_dec_and_test(&ctx->ref_count)) {
 		oz_trace("Dealloc serial context.\n");
-		oz_free(ctx);
+		kfree(ctx);
 	}
 }
 /*------------------------------------------------------------------------------
@@ -400,18 +399,16 @@ int oz_cdev_start(struct oz_pd *pd, int resume)
 		oz_trace("Serial service resumed.\n");
 		return 0;
 	}
-	ctx = (struct oz_serial_ctx *)
-		oz_alloc(sizeof(struct oz_serial_ctx), GFP_ATOMIC);
+	ctx = kzalloc(sizeof(struct oz_serial_ctx), GFP_ATOMIC);
 	if (ctx == 0)
-		return -1;
-	memset(ctx, 0, sizeof(struct oz_serial_ctx));
+		return -ENOMEM;
 	atomic_set(&ctx->ref_count, 1);
 	ctx->tx_seq_num = 1;
 	spin_lock_bh(&pd->app_lock[OZ_APPID_SERIAL-1]);
 	old_ctx = pd->app_ctx[OZ_APPID_SERIAL-1];
 	if (old_ctx) {
 		spin_unlock_bh(&pd->app_lock[OZ_APPID_SERIAL-1]);
-		oz_free(ctx);
+		kfree(ctx);
 	} else {
 		pd->app_ctx[OZ_APPID_SERIAL-1] = ctx;
 		spin_unlock_bh(&pd->app_lock[OZ_APPID_SERIAL-1]);

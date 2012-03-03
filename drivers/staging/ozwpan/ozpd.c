@@ -15,7 +15,6 @@
 #include "ozpd.h"
 #include "ozproto.h"
 #include "oztrace.h"
-#include "ozalloc.h"
 #include "ozevent.h"
 #include "ozcdev.h"
 #include "ozusbsvc.h"
@@ -162,10 +161,9 @@ void oz_pd_put(struct oz_pd *pd)
  */
 struct oz_pd *oz_pd_alloc(u8 *mac_addr)
 {
-	struct oz_pd *pd = oz_alloc(sizeof(struct oz_pd), GFP_ATOMIC);
+	struct oz_pd *pd = kzalloc(sizeof(struct oz_pd), GFP_ATOMIC);
 	if (pd) {
 		int i;
-		memset(pd, 0, sizeof(struct oz_pd));
 		atomic_set(&pd->ref_count, 2);
 		for (i = 0; i < OZ_APPID_MAX; i++)
 			spin_lock_init(&pd->app_lock[i]);
@@ -174,7 +172,7 @@ struct oz_pd *oz_pd_alloc(u8 *mac_addr)
 		pd->max_tx_size = OZ_MAX_TX_SIZE;
 		memcpy(pd->mac_addr, mac_addr, ETH_ALEN);
 		if (0 != oz_elt_buf_init(&pd->elt_buff)) {
-			oz_free(pd);
+			kfree(pd);
 			pd = 0;
 		}
 		spin_lock_init(&pd->tx_frame_lock);
@@ -219,18 +217,18 @@ void oz_pd_destroy(struct oz_pd *pd)
 	while (e != &pd->farewell_list) {
 		fwell = container_of(e, struct oz_farewell, link);
 		e = e->next;
-		oz_free(fwell);
+		kfree(fwell);
 	}
 	/* Deallocate all frames in tx pool.
 	 */
 	while (pd->tx_pool) {
 		e = pd->tx_pool;
 		pd->tx_pool = e->next;
-		oz_free(container_of(e, struct oz_tx_frame, link));
+		kfree(container_of(e, struct oz_tx_frame, link));
 	}
 	if (pd->net_dev)
 		dev_put(pd->net_dev);
-	oz_free(pd);
+	kfree(pd);
 }
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
@@ -366,7 +364,7 @@ static struct oz_tx_frame *oz_tx_frame_alloc(struct oz_pd *pd)
 	}
 	spin_unlock_bh(&pd->tx_frame_lock);
 	if (f == 0)
-		f = oz_alloc(sizeof(struct oz_tx_frame), GFP_ATOMIC);
+		f = kmalloc(sizeof(struct oz_tx_frame), GFP_ATOMIC);
 	if (f) {
 		f->total_size = sizeof(struct oz_hdr);
 		INIT_LIST_HEAD(&f->link);
@@ -386,11 +384,11 @@ static void oz_tx_frame_free(struct oz_pd *pd, struct oz_tx_frame *f)
 		pd->tx_pool_count++;
 		f = 0;
 	} else {
-		oz_free(f);
+		kfree(f);
 	}
 	spin_unlock_bh(&pd->tx_frame_lock);
 	if (f)
-		oz_free(f);
+		kfree(f);
 }
 /*------------------------------------------------------------------------------
  * Context: softirq
@@ -649,10 +647,9 @@ static struct oz_isoc_stream *pd_stream_find(struct oz_pd *pd, u8 ep_num)
 int oz_isoc_stream_create(struct oz_pd *pd, u8 ep_num)
 {
 	struct oz_isoc_stream *st =
-		oz_alloc(sizeof(struct oz_isoc_stream), GFP_ATOMIC);
+		kzalloc(sizeof(struct oz_isoc_stream), GFP_ATOMIC);
 	if (!st)
-		return -1;
-	memset(st, 0, sizeof(struct oz_isoc_stream));
+		return -ENOMEM;
 	st->ep_num = ep_num;
 	spin_lock_bh(&pd->stream_lock);
 	if (!pd_stream_find(pd, ep_num)) {
@@ -661,7 +658,7 @@ int oz_isoc_stream_create(struct oz_pd *pd, u8 ep_num)
 	}
 	spin_unlock_bh(&pd->stream_lock);
 	if (st)
-		oz_free(st);
+		kfree(st);
 	return 0;
 }
 /*------------------------------------------------------------------------------
@@ -671,7 +668,7 @@ static void oz_isoc_stream_free(struct oz_isoc_stream *st)
 {
 	if (st->skb)
 		kfree_skb(st->skb);
-	oz_free(st);
+	kfree(st);
 }
 /*------------------------------------------------------------------------------
  * Context: softirq
@@ -830,6 +827,6 @@ void oz_pd_indicate_farewells(struct oz_pd *pd)
 		oz_polling_unlock_bh();
 		if (ai->farewell)
 			ai->farewell(pd, f->ep_num, f->report, f->len);
-		oz_free(f);
+		kfree(f);
 	}
 }

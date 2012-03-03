@@ -26,7 +26,6 @@
 #include "ozusbif.h"
 #include "ozhcd.h"
 #include "oztrace.h"
-#include "ozalloc.h"
 #include "ozusbsvc.h"
 #include "ozevent.h"
 /*------------------------------------------------------------------------------
@@ -65,11 +64,9 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 	/* Create a USB context in case we need one. If we find the PD already
 	 * has a USB context then we will destroy it.
 	 */
-	usb_ctx = (struct oz_usb_ctx *)
-		oz_alloc(sizeof(struct oz_usb_ctx), GFP_ATOMIC);
+	usb_ctx = kzalloc(sizeof(struct oz_usb_ctx), GFP_ATOMIC);
 	if (usb_ctx == 0)
-		return -1;
-	memset(usb_ctx, 0, sizeof(struct oz_usb_ctx));
+		return -ENOMEM;
 	atomic_set(&usb_ctx->ref_count, 1);
 	usb_ctx->pd = pd;
 	usb_ctx->stopped = 0;
@@ -85,7 +82,7 @@ int oz_usb_start(struct oz_pd *pd, int resume)
 	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
 	if (old_ctx) {
 		oz_trace("Already have USB context.\n");
-		oz_free(usb_ctx);
+		kfree(usb_ctx);
 		usb_ctx = old_ctx;
 	} else if (usb_ctx) {
 		/* Take a reference to the PD. This will be released when
@@ -170,7 +167,7 @@ void oz_usb_put(void *hpd)
 	if (atomic_dec_and_test(&usb_ctx->ref_count)) {
 		oz_trace("Dealloc USB context.\n");
 		oz_pd_put(usb_ctx->pd);
-		oz_free(usb_ctx);
+		kfree(usb_ctx);
 	}
 }
 /*------------------------------------------------------------------------------

@@ -5,7 +5,6 @@
 #ifndef _OZCONFIG_H
 #define _OZCONFIG_H
 
-/* #define WANT_DEBUG_KMALLOC */
 /* #define WANT_TRACE */
 #ifdef WANT_TRACE
 #define WANT_VERBOSE_TRACE

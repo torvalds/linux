@@ -19,7 +19,6 @@
 #include "oztrace.h"
 #include "ozappif.h"
 #include "ozevent.h"
-#include "ozalloc.h"
 #include <asm/unaligned.h>
 #include <linux/uaccess.h>
 #include <net/psnap.h>
@@ -300,7 +299,7 @@ static void oz_add_farewell(struct oz_pd *pd, u8 ep_num, u8 index,
 	struct oz_farewell *f;
 	struct oz_farewell *f2;
 	int found = 0;
-	f = oz_alloc(sizeof(struct oz_farewell) + len - 1, GFP_ATOMIC);
+	f = kmalloc(sizeof(struct oz_farewell) + len - 1, GFP_ATOMIC);
 	if (!f)
 		return;
 	f->ep_num = ep_num;
@@ -318,7 +317,7 @@ static void oz_add_farewell(struct oz_pd *pd, u8 ep_num, u8 index,
 	list_add_tail(&f->link, &pd->farewell_list);
 	spin_unlock(&g_polling_lock);
 	if (found)
-		oz_free(f2);
+		kfree(f2);
 }
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
@@ -458,7 +457,7 @@ void oz_protocol_term(void)
 		dev_remove_pack(&b->ptype);
 		if (b->ptype.dev)
 			dev_put(b->ptype.dev);
-		oz_free(b);
+		kfree(b);
 		spin_lock_bh(&g_binding_lock);
 	}
 	spin_unlock_bh(&g_binding_lock);
@@ -482,7 +481,7 @@ void oz_protocol_term(void)
 	while (chain) {
 		struct oz_timer *t = container_of(chain, struct oz_timer, link);
 		chain = chain->next;
-		oz_free(t);
+		kfree(t);
 	}
 	oz_trace("Protocol stopped\n");
 }
@@ -557,7 +556,7 @@ static void oz_protocol_timer(unsigned long arg)
 		spin_unlock_bh(&g_polling_lock);
 		oz_pd_put(pd);
 		if (t)
-			oz_free(t);
+			kfree(t);
 		t = t2;
 	} while (t);
 	g_timer_state = OZ_TIMER_IDLE;
@@ -623,7 +622,7 @@ void oz_timer_add(struct oz_pd *pd, int type, unsigned long due_time,
 			g_timer_pool = g_timer_pool->next;
 			g_timer_pool_count--;
 		} else {
-			t = oz_alloc(sizeof(struct oz_timer), GFP_ATOMIC);
+			t = kmalloc(sizeof(struct oz_timer), GFP_ATOMIC);
 		}
 		if (t) {
 			t->pd = pd;
@@ -699,7 +698,7 @@ void oz_timer_delete(struct oz_pd *pd, int type)
 	while (chain) {
 		t = container_of(chain, struct oz_timer, link);
 		chain = chain->next;
-		oz_free(t);
+		kfree(t);
 	}
 }
 /*------------------------------------------------------------------------------
@@ -796,7 +795,8 @@ static int oz_pkt_recv(struct sk_buff *skb, struct net_device *dev,
 void oz_binding_add(char *net_dev)
 {
 	struct oz_binding *binding;
-	binding = oz_alloc(sizeof(struct oz_binding), GFP_ATOMIC);
+
+	binding = kmalloc(sizeof(struct oz_binding), GFP_ATOMIC);
 	if (binding) {
 		binding->ptype.type = __constant_htons(OZ_ETHERTYPE);
 		binding->ptype.func = oz_pkt_recv;
@@ -807,7 +807,7 @@ void oz_binding_add(char *net_dev)
 				dev_get_by_name(&init_net, net_dev);
 			if (binding->ptype.dev == 0) {
 				oz_trace("Netdev %s not found\n", net_dev);
-				oz_free(binding);
+				kfree(binding);
 				binding = 0;
 			}
 		} else {
@@ -889,7 +889,7 @@ void oz_binding_remove(char *net_dev)
 			dev_put(binding->ptype.dev);
 			pd_stop_all_for_device(binding->ptype.dev);
 		}
-		oz_free(binding);
+		kfree(binding);
 	}
 }
 /*------------------------------------------------------------------------------

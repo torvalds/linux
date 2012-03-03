@@ -14,7 +14,6 @@
 #include "ozpd.h"
 #include "ozproto.h"
 #include "ozcdev.h"
-#include "ozalloc.h"
 #include "oztrace.h"
 #include "ozevent.h"
 /*------------------------------------------------------------------------------
@@ -44,7 +43,6 @@ static void __exit ozwpan_exit(void)
 	oz_protocol_term();
 	oz_apps_term();
 	oz_cdev_deregister();
-	oz_trace_leaks();
 	oz_event_term();
 }
 /*------------------------------------------------------------------------------

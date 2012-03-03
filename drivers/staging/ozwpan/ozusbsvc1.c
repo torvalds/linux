@@ -21,7 +21,6 @@
 #include "ozusbif.h"
 #include "ozhcd.h"
 #include "oztrace.h"
-#include "ozalloc.h"
 #include "ozusbsvc.h"
 #include "ozevent.h"
 /*------------------------------------------------------------------------------

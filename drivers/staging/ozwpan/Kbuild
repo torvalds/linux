@@ -12,7 +12,6 @@ ozwpan-y := \
 	ozeltbuf.o \
 	ozproto.o \
 	ozcdev.o \
-	ozalloc.o \
 	ozurbparanoia.o \
 	oztrace.o \
 	ozevent.o
