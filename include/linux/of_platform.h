@@ -94,7 +94,12 @@ extern int of_platform_populate(struct device_node *root,
 				const struct of_device_id *matches,
 				const struct of_dev_auxdata *lookup,
 				struct device *parent);
-#else
+#endif /* CONFIG_OF_ADDRESS */
+
+#endif /* CONFIG_OF_DEVICE */
+
+#if !defined(CONFIG_OF_ADDRESS)
+struct of_dev_auxdata;
 static inline int of_platform_populate(struct device_node *root,
 					const struct of_device_id *matches,
 					const struct of_dev_auxdata *lookup,
@@ -103,7 +108,5 @@ static inline int of_platform_populate(struct device_node *root,
 	return -ENODEV;
 }
 #endif /* !CONFIG_OF_ADDRESS */
-
-#endif /* CONFIG_OF_DEVICE */
 
 #endif	/* _LINUX_OF_PLATFORM_H */
