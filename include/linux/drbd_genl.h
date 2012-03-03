@@ -211,6 +211,16 @@ GENL_struct(DRBD_NLA_STATE_INFO, 8, state_info,
 	/* for pre and post notifications of helper execution */
 	__str_field(13, DRBD_GENLA_F_MANDATORY,	helper, 32)
 	__u32_field(14, DRBD_GENLA_F_MANDATORY,	helper_exit_code)
+
+	__u64_field(15,                      0, send_cnt)
+	__u64_field(16,                      0, recv_cnt)
+	__u64_field(17,                      0, read_cnt)
+	__u64_field(18,                      0, writ_cnt)
+	__u64_field(19,                      0, al_writ_cnt)
+	__u64_field(20,                      0, bm_writ_cnt)
+	__u32_field(21,                      0, ap_bio_cnt)
+	__u32_field(22,                      0, ap_pending_cnt)
+	__u32_field(23,                      0, rs_pending_cnt)
 )
 
 GENL_struct(DRBD_NLA_START_OV_PARMS, 9, start_ov_parms,

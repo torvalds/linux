@@ -2666,7 +2666,16 @@ int nla_put_status_info(struct sk_buff *skb, struct drbd_conf *mdev,
 	if (nla_put_u32(skb, T_sib_reason, sib ? sib->sib_reason : SIB_GET_STATUS_REPLY) ||
 	    nla_put_u32(skb, T_current_state, mdev->state.i) ||
 	    nla_put_u64(skb, T_ed_uuid, mdev->ed_uuid) ||
-	    nla_put_u64(skb, T_capacity, drbd_get_capacity(mdev->this_bdev)))
+	    nla_put_u64(skb, T_capacity, drbd_get_capacity(mdev->this_bdev)) ||
+	    nla_put_u64(skb, T_send_cnt, mdev->send_cnt) ||
+	    nla_put_u64(skb, T_recv_cnt, mdev->recv_cnt) ||
+	    nla_put_u64(skb, T_read_cnt, mdev->read_cnt) ||
+	    nla_put_u64(skb, T_writ_cnt, mdev->writ_cnt) ||
+	    nla_put_u64(skb, T_al_writ_cnt, mdev->al_writ_cnt) ||
+	    nla_put_u64(skb, T_bm_writ_cnt, mdev->bm_writ_cnt) ||
+	    nla_put_u32(skb, T_ap_bio_cnt, atomic_read(&mdev->ap_bio_cnt)) ||
+	    nla_put_u32(skb, T_ap_pending_cnt, atomic_read(&mdev->ap_pending_cnt)) ||
+	    nla_put_u32(skb, T_rs_pending_cnt, atomic_read(&mdev->rs_pending_cnt)))
 		goto nla_put_failure;
 
 	if (got_ldev) {
