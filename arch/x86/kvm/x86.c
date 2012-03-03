@@ -3067,55 +3067,32 @@ static int kvm_vm_ioctl_reinject(struct kvm *kvm,
 }
 
 /**
- * write_protect_slot - write protect a slot for dirty logging
- * @kvm: the kvm instance
- * @memslot: the slot we protect
- * @dirty_bitmap: the bitmap indicating which pages are dirty
- * @nr_dirty_pages: the number of dirty pages
+ * kvm_vm_ioctl_get_dirty_log - get and clear the log of dirty pages in a slot
+ * @kvm: kvm instance
+ * @log: slot id and address to which we copy the log
  *
- * We have two ways to find all sptes to protect:
- * 1. Use kvm_mmu_slot_remove_write_access() which walks all shadow pages and
- *    checks ones that have a spte mapping a page in the slot.
- * 2. Use kvm_mmu_rmap_write_protect() for each gfn found in the bitmap.
+ * We need to keep it in mind that VCPU threads can write to the bitmap
+ * concurrently.  So, to avoid losing data, we keep the following order for
+ * each bit:
  *
- * Generally speaking, if there are not so many dirty pages compared to the
- * number of shadow pages, we should use the latter.
+ *   1. Take a snapshot of the bit and clear it if needed.
+ *   2. Write protect the corresponding page.
+ *   3. Flush TLB's if needed.
+ *   4. Copy the snapshot to the userspace.
  *
- * Note that letting others write into a page marked dirty in the old bitmap
- * by using the remaining tlb entry is not a problem.  That page will become
- * write protected again when we flush the tlb and then be reported dirty to
- * the user space by copying the old bitmap.
+ * Between 2 and 3, the guest may write to the page using the remaining TLB
+ * entry.  This is not a problem because the page will be reported dirty at
+ * step 4 using the snapshot taken before and step 3 ensures that successive
+ * writes will be logged for the next call.
  */
-static void write_protect_slot(struct kvm *kvm,
-			       struct kvm_memory_slot *memslot,
-			       unsigned long *dirty_bitmap,
-			       unsigned long nr_dirty_pages)
-{
-	spin_lock(&kvm->mmu_lock);
-
-	/* Not many dirty pages compared to # of shadow pages. */
-	if (nr_dirty_pages < kvm->arch.n_used_mmu_pages) {
-		gfn_t offset;
-
-		for_each_set_bit(offset, dirty_bitmap, memslot->npages)
-			kvm_mmu_write_protect_pt_masked(kvm, memslot, offset, 1);
-
-		kvm_flush_remote_tlbs(kvm);
-	} else
-		kvm_mmu_slot_remove_write_access(kvm, memslot->id);
-
-	spin_unlock(&kvm->mmu_lock);
-}
-
-/*
- * Get (and clear) the dirty memory log for a memory slot.
- */
-int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
-				      struct kvm_dirty_log *log)
+int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 {
 	int r;
 	struct kvm_memory_slot *memslot;
-	unsigned long n, nr_dirty_pages;
+	unsigned long n, i;
+	unsigned long *dirty_bitmap;
+	unsigned long *dirty_bitmap_buffer;
+	bool is_dirty = false;
 
 	mutex_lock(&kvm->slots_lock);
 
@@ -3124,49 +3101,42 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 		goto out;
 
 	memslot = id_to_memslot(kvm->memslots, log->slot);
+
+	dirty_bitmap = memslot->dirty_bitmap;
 	r = -ENOENT;
-	if (!memslot->dirty_bitmap)
+	if (!dirty_bitmap)
 		goto out;
 
 	n = kvm_dirty_bitmap_bytes(memslot);
-	nr_dirty_pages = memslot->nr_dirty_pages;
 
-	/* If nothing is dirty, don't bother messing with page tables. */
-	if (nr_dirty_pages) {
-		struct kvm_memslots *slots, *old_slots;
-		unsigned long *dirty_bitmap, *dirty_bitmap_head;
+	dirty_bitmap_buffer = dirty_bitmap + n / sizeof(long);
+	memset(dirty_bitmap_buffer, 0, n);
 
-		dirty_bitmap = memslot->dirty_bitmap;
-		dirty_bitmap_head = memslot->dirty_bitmap_head;
-		if (dirty_bitmap == dirty_bitmap_head)
-			dirty_bitmap_head += n / sizeof(long);
-		memset(dirty_bitmap_head, 0, n);
+	spin_lock(&kvm->mmu_lock);
 
-		r = -ENOMEM;
-		slots = kmemdup(kvm->memslots, sizeof(*kvm->memslots), GFP_KERNEL);
-		if (!slots)
-			goto out;
+	for (i = 0; i < n / sizeof(long); i++) {
+		unsigned long mask;
+		gfn_t offset;
 
-		memslot = id_to_memslot(slots, log->slot);
-		memslot->nr_dirty_pages = 0;
-		memslot->dirty_bitmap = dirty_bitmap_head;
-		update_memslots(slots, NULL);
+		if (!dirty_bitmap[i])
+			continue;
 
-		old_slots = kvm->memslots;
-		rcu_assign_pointer(kvm->memslots, slots);
-		synchronize_srcu_expedited(&kvm->srcu);
-		kfree(old_slots);
+		is_dirty = true;
 
-		write_protect_slot(kvm, memslot, dirty_bitmap, nr_dirty_pages);
+		mask = xchg(&dirty_bitmap[i], 0);
+		dirty_bitmap_buffer[i] = mask;
 
-		r = -EFAULT;
-		if (copy_to_user(log->dirty_bitmap, dirty_bitmap, n))
-			goto out;
-	} else {
-		r = -EFAULT;
-		if (clear_user(log->dirty_bitmap, n))
-			goto out;
+		offset = i * BITS_PER_LONG;
+		kvm_mmu_write_protect_pt_masked(kvm, memslot, offset, mask);
 	}
+	if (is_dirty)
+		kvm_flush_remote_tlbs(kvm);
+
+	spin_unlock(&kvm->mmu_lock);
+
+	r = -EFAULT;
+	if (copy_to_user(log->dirty_bitmap, dirty_bitmap_buffer, n))
+		goto out;
 
 	r = 0;
 out:
