@@ -226,6 +226,10 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		wl->tx_blocks_available -= total_blocks;
 		wl->tx_allocated_blocks += total_blocks;
 
+		/* If the FW was empty before, arm the Tx watchdog */
+		if (wl->tx_allocated_blocks == total_blocks)
+			wl12xx_rearm_tx_watchdog_locked(wl);
+
 		ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 		wl->tx_allocated_pkts[ac]++;
 
