@@ -303,7 +303,6 @@ config X86_GENERIC
 config X86_INTERNODE_CACHE_SHIFT
 	int
 	default "12" if X86_VSMP
-	default "7" if NUMA
 	default X86_L1_CACHE_SHIFT
 
 config X86_CMPXCHG
