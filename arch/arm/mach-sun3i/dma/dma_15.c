@@ -113,7 +113,7 @@ static int __init sw_dma_add(struct sys_device *sysdev)
 	return sw_dma_init_map(&sw_dma_sel);
 }
 
-static struct sysdev_driver sw_dma_driver = {
+static struct sysdev_driver __initdata sw_dma_driver = {
 	.add	= sw_dma_add,
 };
 
