@@ -20,6 +20,9 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/pm.h>
 
 #include <linux/mmc/host.h>
 
@@ -658,8 +661,7 @@ static int __devexit sdhci_s3c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-
+#ifdef CONFIG_PM_SLEEP
 static int sdhci_s3c_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
@@ -673,10 +675,11 @@ static int sdhci_s3c_resume(struct device *dev)
 
 	return sdhci_resume_host(host);
 }
+#endif
 
+#ifdef CONFIG_PM
 static const struct dev_pm_ops sdhci_s3c_pmops = {
-	.suspend	= sdhci_s3c_suspend,
-	.resume		= sdhci_s3c_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(sdhci_s3c_suspend, sdhci_s3c_resume)
 };
 
 #define SDHCI_S3C_PMOPS (&sdhci_s3c_pmops)
