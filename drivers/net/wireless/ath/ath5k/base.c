@@ -1867,7 +1867,8 @@ ath5k_beacon_send(struct ath5k_hw *ah)
 		ah->bmisscount = 0;
 	}
 
-	if ((ah->opmode == NL80211_IFTYPE_AP && ah->num_ap_vifs > 1) ||
+	if ((ah->opmode == NL80211_IFTYPE_AP && ah->num_ap_vifs +
+			ah->num_mesh_vifs > 1) ||
 			ah->opmode == NL80211_IFTYPE_MESH_POINT) {
 		u64 tsf = ath5k_hw_get_tsf64(ah);
 		u32 tsftu = TSF_TO_TU(tsf);
@@ -1952,7 +1953,8 @@ ath5k_beacon_update_timers(struct ath5k_hw *ah, u64 bc_tsf)
 	u64 hw_tsf;
 
 	intval = ah->bintval & AR5K_BEACON_PERIOD;
-	if (ah->opmode == NL80211_IFTYPE_AP && ah->num_ap_vifs > 1) {
+	if (ah->opmode == NL80211_IFTYPE_AP && ah->num_ap_vifs
+		+ ah->num_mesh_vifs > 1) {
 		intval /= ATH_BCBUF;	/* staggered multi-bss beacons */
 		if (intval < 15)
 			ATH5K_WARN(ah, "intval %u is too low, min 15\n",

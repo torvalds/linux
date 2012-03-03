@@ -1320,6 +1320,7 @@ struct ath5k_hw {
 	struct ieee80211_vif	*bslot[ATH_BCBUF];
 	u16			num_ap_vifs;
 	u16			num_adhoc_vifs;
+	u16			num_mesh_vifs;
 	unsigned int		bhalq,		/* SW q for outgoing beacons */
 				bmisscount,	/* missed beacon transmits */
 				bintval,	/* beacon interval in TU */
