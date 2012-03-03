@@ -24,6 +24,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
+#include <plat/hardware.h>
 #include <plat/clock.h>
 #include <plat/sram.h>
 #include <plat/sdrc.h>
