@@ -1804,7 +1804,7 @@ static void __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
 
 	switch (chip_id) {
 	case DOC_CHIPID_G3:
-		mtd->name = kasprintf(GFP_KERNEL, "DiskOnChip G3 floor %d",
+		mtd->name = kasprintf(GFP_KERNEL, "docg3.%d",
 				      docg3->device_id);
 		docg3->max_block = 2047;
 		break;
