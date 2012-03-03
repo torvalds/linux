@@ -72,12 +72,6 @@
 
 /* Supported Rx Buffer Sizes */
 #define IXGBE_RXBUFFER_512   512    /* Used for packet split */
-#define IXGBE_RXBUFFER_2K   2048
-#define IXGBE_RXBUFFER_3K   3072
-#define IXGBE_RXBUFFER_4K   4096
-#define IXGBE_RXBUFFER_7K   7168
-#define IXGBE_RXBUFFER_8K   8192
-#define IXGBE_RXBUFFER_15K  15360
 #define IXGBE_MAX_RXBUFFER  16384  /* largest size for a single descriptor */
 
 /*
@@ -168,7 +162,6 @@ struct ixgbe_rx_buffer {
 	struct sk_buff *skb;
 	dma_addr_t dma;
 	struct page *page;
-	dma_addr_t page_dma;
 	unsigned int page_offset;
 };
 
@@ -193,21 +186,15 @@ struct ixgbe_rx_queue_stats {
 	u64 csum_err;
 };
 
-enum ixbge_ring_state_t {
+enum ixgbe_ring_state_t {
 	__IXGBE_TX_FDIR_INIT_DONE,
 	__IXGBE_TX_DETECT_HANG,
 	__IXGBE_HANG_CHECK_ARMED,
-	__IXGBE_RX_PS_ENABLED,
 	__IXGBE_RX_RSC_ENABLED,
 	__IXGBE_RX_CSUM_UDP_ZERO_ERR,
+	__IXGBE_RX_FCOE_BUFSZ,
 };
 
-#define ring_is_ps_enabled(ring) \
-	test_bit(__IXGBE_RX_PS_ENABLED, &(ring)->state)
-#define set_ring_ps_enabled(ring) \
-	set_bit(__IXGBE_RX_PS_ENABLED, &(ring)->state)
-#define clear_ring_ps_enabled(ring) \
-	clear_bit(__IXGBE_RX_PS_ENABLED, &(ring)->state)
 #define check_for_tx_hang(ring) \
 	test_bit(__IXGBE_TX_DETECT_HANG, &(ring)->state)
 #define set_check_for_tx_hang(ring) \
@@ -233,7 +220,6 @@ struct ixgbe_ring {
 	u8 __iomem *tail;
 
 	u16 count;			/* amount of descriptors */
-	u16 rx_buf_len;
 
 	u8 queue_index; /* needed for multiqueue queue management */
 	u8 reg_idx;			/* holds the special value that gets
@@ -241,8 +227,13 @@ struct ixgbe_ring {
 					 * associated with this ring, which is
 					 * different for DCB and RSS modes
 					 */
-	u8 atr_sample_rate;
-	u8 atr_count;
+	union {
+		struct {
+			u8 atr_sample_rate;
+			u8 atr_count;
+		};
+		u16 next_to_alloc;
+	};
 
 	u16 next_to_use;
 	u16 next_to_clean;
@@ -286,6 +277,22 @@ struct ixgbe_ring_feature {
 	int indices;
 	int mask;
 } ____cacheline_internodealigned_in_smp;
+
+/*
+ * FCoE requires that all Rx buffers be over 2200 bytes in length.  Since
+ * this is twice the size of a half page we need to double the page order
+ * for FCoE enabled Rx queues.
+ */
+#if defined(IXGBE_FCOE) && (PAGE_SIZE < 8192)
+static inline unsigned int ixgbe_rx_pg_order(struct ixgbe_ring *ring)
+{
+	return test_bit(__IXGBE_RX_FCOE_BUFSZ, &ring->state) ? 1 : 0;
+}
+#else
+#define ixgbe_rx_pg_order(_ring) 0
+#endif
+#define ixgbe_rx_pg_size(_ring) (PAGE_SIZE << ixgbe_rx_pg_order(_ring))
+#define ixgbe_rx_bufsz(_ring) ((PAGE_SIZE / 2) << ixgbe_rx_pg_order(_ring))
 
 struct ixgbe_ring_container {
 	struct ixgbe_ring *ring;	/* pointer to linked list of rings */
@@ -554,7 +561,7 @@ struct ixgbe_cb {
 	};
 	dma_addr_t dma;
 	u16 append_cnt;
-	bool delay_unmap;
+	bool page_released;
 };
 #define IXGBE_CB(skb) ((struct ixgbe_cb *)(skb)->cb)
 
