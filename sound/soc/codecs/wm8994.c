@@ -1918,7 +1918,8 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 			    WM8994_FLL1_OUTDIV_MASK |
 			    WM8994_FLL1_FRATIO_MASK, reg);
 
-	snd_soc_write(codec, WM8994_FLL1_CONTROL_3 + reg_offset, fll.k);
+	snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_3 + reg_offset,
+			    WM8994_FLL1_K_MASK, fll.k);
 
 	snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_4 + reg_offset,
 			    WM8994_FLL1_N_MASK,
