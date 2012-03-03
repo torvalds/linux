@@ -1332,9 +1332,9 @@ static const struct export_operations ext4_export_ops = {
 enum {
 	Opt_bsd_df, Opt_minix_df, Opt_grpid, Opt_nogrpid,
 	Opt_resgid, Opt_resuid, Opt_sb, Opt_err_cont, Opt_err_panic, Opt_err_ro,
-	Opt_nouid32, Opt_debug, Opt_oldalloc, Opt_orlov,
+	Opt_nouid32, Opt_debug, Opt_removed,
 	Opt_user_xattr, Opt_nouser_xattr, Opt_acl, Opt_noacl,
-	Opt_auto_da_alloc, Opt_noauto_da_alloc, Opt_noload, Opt_nobh, Opt_bh,
+	Opt_auto_da_alloc, Opt_noauto_da_alloc, Opt_noload,
 	Opt_commit, Opt_min_batch_time, Opt_max_batch_time,
 	Opt_journal_dev, Opt_journal_checksum, Opt_journal_async_commit,
 	Opt_abort, Opt_data_journal, Opt_data_ordered, Opt_data_writeback,
@@ -1365,16 +1365,16 @@ static const match_table_t tokens = {
 	{Opt_err_ro, "errors=remount-ro"},
 	{Opt_nouid32, "nouid32"},
 	{Opt_debug, "debug"},
-	{Opt_oldalloc, "oldalloc"},
-	{Opt_orlov, "orlov"},
+	{Opt_removed, "oldalloc"},
+	{Opt_removed, "orlov"},
 	{Opt_user_xattr, "user_xattr"},
 	{Opt_nouser_xattr, "nouser_xattr"},
 	{Opt_acl, "acl"},
 	{Opt_noacl, "noacl"},
 	{Opt_noload, "noload"},
 	{Opt_noload, "norecovery"},
-	{Opt_nobh, "nobh"},
-	{Opt_bh, "bh"},
+	{Opt_removed, "nobh"},
+	{Opt_removed, "bh"},
 	{Opt_commit, "commit=%u"},
 	{Opt_min_batch_time, "min_batch_time=%u"},
 	{Opt_max_batch_time, "max_batch_time=%u"},
@@ -1582,13 +1582,9 @@ static int parse_options(char *options, struct super_block *sb,
 		case Opt_debug:
 			set_opt(sb, DEBUG);
 			break;
-		case Opt_oldalloc:
+		case Opt_removed:
 			ext4_msg(sb, KERN_WARNING,
-				 "Ignoring deprecated oldalloc option");
-			break;
-		case Opt_orlov:
-			ext4_msg(sb, KERN_WARNING,
-				 "Ignoring deprecated orlov option");
+				 "Ignoring deprecated %s option", p);
 			break;
 #ifdef CONFIG_EXT4_FS_XATTR
 		case Opt_user_xattr:
@@ -1780,14 +1776,6 @@ set_qf_format:
 				set_opt(sb, BARRIER);
 			else
 				clear_opt(sb, BARRIER);
-			break;
-		case Opt_nobh:
-			ext4_msg(sb, KERN_WARNING,
-				 "Ignoring deprecated nobh option");
-			break;
-		case Opt_bh:
-			ext4_msg(sb, KERN_WARNING,
-				 "Ignoring deprecated bh option");
 			break;
 		case Opt_i_version:
 			sb->s_flags |= MS_I_VERSION;
