@@ -1381,6 +1381,7 @@ unsigned int full_name_hash(const unsigned char *name, unsigned int len)
 		hash = partial_name_hash(*name++, hash);
 	return end_name_hash(hash);
 }
+EXPORT_SYMBOL(full_name_hash);
 
 /*
  * We know there's a real path component here of at least
