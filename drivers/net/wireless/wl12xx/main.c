@@ -2336,7 +2336,7 @@ static int wl12xx_op_change_interface(struct ieee80211_hw *hw,
 	set_bit(WL1271_FLAG_VIF_CHANGE_IN_PROGRESS, &wl->flags);
 	wl1271_op_remove_interface(hw, vif);
 
-	vif->type = ieee80211_iftype_p2p(new_type, p2p);
+	vif->type = new_type;
 	vif->p2p = p2p;
 	ret = wl1271_op_add_interface(hw, vif);
 
