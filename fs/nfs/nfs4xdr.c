@@ -930,7 +930,7 @@ static void encode_nops(struct compound_hdr *hdr)
 
 static void encode_nfs4_stateid(struct xdr_stream *xdr, const nfs4_stateid *stateid)
 {
-	encode_opaque_fixed(xdr, stateid->data, NFS4_STATEID_SIZE);
+	encode_opaque_fixed(xdr, stateid, NFS4_STATEID_SIZE);
 }
 
 static void encode_nfs4_verifier(struct xdr_stream *xdr, const nfs4_verifier *verf)
@@ -1548,7 +1548,7 @@ static void encode_open_stateid(struct xdr_stream *xdr, const struct nfs_open_co
 	if (ctx->state != NULL) {
 		nfs4_select_rw_stateid(&stateid, ctx->state, l_ctx->lockowner, l_ctx->pid);
 		if (zero_seqid)
-			stateid.stateid.seqid = 0;
+			stateid.seqid = 0;
 		encode_nfs4_stateid(xdr, &stateid);
 	} else
 		encode_nfs4_stateid(xdr, &zero_stateid);
@@ -4237,7 +4237,7 @@ static int decode_opaque_fixed(struct xdr_stream *xdr, void *buf, size_t len)
 
 static int decode_stateid(struct xdr_stream *xdr, nfs4_stateid *stateid)
 {
-	return decode_opaque_fixed(xdr, stateid->data, NFS4_STATEID_SIZE);
+	return decode_opaque_fixed(xdr, stateid, NFS4_STATEID_SIZE);
 }
 
 static int decode_close(struct xdr_stream *xdr, struct nfs_closeres *res)

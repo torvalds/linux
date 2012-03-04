@@ -351,12 +351,12 @@ extern struct svc_version nfs4_callback_version4;
 
 static inline void nfs4_stateid_copy(nfs4_stateid *dst, const nfs4_stateid *src)
 {
-	memcpy(dst->data, src->data, sizeof(dst->data));
+	memcpy(dst, src, sizeof(*dst));
 }
 
 static inline bool nfs4_stateid_match(const nfs4_stateid *dst, const nfs4_stateid *src)
 {
-	return memcmp(dst->data, src->data, sizeof(dst->data)) == 0;
+	return memcmp(dst, src, sizeof(*dst)) == 0;
 }
 
 #else

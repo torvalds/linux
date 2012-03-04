@@ -496,12 +496,12 @@ pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo, const nfs4_stateid *new,
 {
 	u32 oldseq, newseq;
 
-	oldseq = be32_to_cpu(lo->plh_stateid.stateid.seqid);
-	newseq = be32_to_cpu(new->stateid.seqid);
+	oldseq = be32_to_cpu(lo->plh_stateid.seqid);
+	newseq = be32_to_cpu(new->seqid);
 	if ((int)(newseq - oldseq) > 0) {
 		nfs4_stateid_copy(&lo->plh_stateid, new);
 		if (update_barrier) {
-			u32 new_barrier = be32_to_cpu(new->stateid.seqid);
+			u32 new_barrier = be32_to_cpu(new->seqid);
 
 			if ((int)(new_barrier - lo->plh_barrier))
 				lo->plh_barrier = new_barrier;
@@ -525,7 +525,7 @@ pnfs_layoutgets_blocked(struct pnfs_layout_hdr *lo, nfs4_stateid *stateid,
 			int lget)
 {
 	if ((stateid) &&
-	    (int)(lo->plh_barrier - be32_to_cpu(stateid->stateid.seqid)) >= 0)
+	    (int)(lo->plh_barrier - be32_to_cpu(stateid->seqid)) >= 0)
 		return true;
 	return lo->plh_block_lgets ||
 		test_bit(NFS_LAYOUT_DESTROYED, &lo->plh_flags) ||
@@ -759,7 +759,7 @@ bool pnfs_roc_drain(struct inode *ino, u32 *barrier)
 		}
 	if (!found) {
 		struct pnfs_layout_hdr *lo = nfsi->layout;
-		u32 current_seqid = be32_to_cpu(lo->plh_stateid.stateid.seqid);
+		u32 current_seqid = be32_to_cpu(lo->plh_stateid.seqid);
 
 		/* Since close does not return a layout stateid for use as
 		 * a barrier, we choose the worst-case barrier.
