@@ -87,8 +87,7 @@ __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy,
 		res = 0;
 		break;
 	case -ENOENT:
-		if (res != 0)
-			res = htonl(NFS4ERR_BAD_STATEID);
+		res = htonl(NFS4ERR_BAD_STATEID);
 		break;
 	default:
 		res = htonl(NFS4ERR_RESOURCE);
@@ -325,10 +324,11 @@ int nfs41_validate_delegation_stateid(struct nfs_delegation *delegation, const n
 	if (delegation == NULL)
 		return 0;
 
-	if (stateid->stateid.seqid != 0)
+	if (stateid->stateid.seqid != 0 &&
+	    stateid->stateid.seqid != delegation->stateid.stateid.seqid)
 		return 0;
-	if (memcmp(&delegation->stateid.stateid.other,
-		   &stateid->stateid.other,
+	if (memcmp(delegation->stateid.stateid.other,
+		   stateid->stateid.other,
 		   NFS4_STATEID_OTHER_SIZE))
 		return 0;
 

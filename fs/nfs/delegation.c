@@ -542,7 +542,7 @@ void nfs_expire_unreferenced_delegations(struct nfs_client *clp)
 /**
  * nfs_async_inode_return_delegation - asynchronously return a delegation
  * @inode: inode to process
- * @stateid: state ID information from CB_RECALL arguments
+ * @stateid: state ID information
  *
  * Returns zero on success, or a negative errno value.
  */
