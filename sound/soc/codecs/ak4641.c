@@ -641,23 +641,7 @@ static struct i2c_driver ak4641_i2c_driver = {
 	.id_table = ak4641_i2c_id,
 };
 
-static int __init ak4641_modinit(void)
-{
-	int ret;
-
-	ret = i2c_add_driver(&ak4641_i2c_driver);
-	if (ret != 0)
-		pr_err("Failed to register AK4641 I2C driver: %d\n", ret);
-
-	return ret;
-}
-module_init(ak4641_modinit);
-
-static void __exit ak4641_exit(void)
-{
-	i2c_del_driver(&ak4641_i2c_driver);
-}
-module_exit(ak4641_exit);
+module_i2c_driver(ak4641_i2c_driver);
 
 MODULE_DESCRIPTION("SoC AK4641 driver");
 MODULE_AUTHOR("Harald Welte <laforge@gnufiish.org>");
