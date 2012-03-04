@@ -2748,13 +2748,9 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 	enum exec_status status = SAS_ABORTED_TASK;
 
 	dev_dbg(&ihost->pdev->dev,
-		"%s: request = %p, task = %p,\n"
+		"%s: request = %p, task = %p, "
 		"task->data_dir = %d completion_status = 0x%x\n",
-		__func__,
-		request,
-		task,
-		task->data_dir,
-		completion_status);
+		__func__, request, task, task->data_dir, completion_status);
 
 	/* The request is done from an SCU HW perspective. */
 
@@ -2955,9 +2951,6 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 	}
 	spin_unlock_irqrestore(&task->task_state_lock, task_flags);
 
-	/* Add to the completed list. */
-	list_add(&request->completed_node, &ihost->requests_to_complete);
-
 	/* complete the io request to the core. */
 	sci_controller_complete_io(ihost, request->target_device, request);
 
@@ -2966,6 +2959,8 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 	 * task to recognize the already completed case.
 	 */
 	set_bit(IREQ_TERMINATED, &request->flags);
+
+	ireq_done(ihost, request, task);
 }
 
 static void sci_request_started_state_enter(struct sci_base_state_machine *sm)
@@ -3416,7 +3411,6 @@ static struct isci_request *isci_request_from_tag(struct isci_host *ihost, u16 t
 	ireq->io_request_completion = NULL;
 	ireq->flags = 0;
 	ireq->num_sg_entries = 0;
-	INIT_LIST_HEAD(&ireq->completed_node);
 
 	return ireq;
 }

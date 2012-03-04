@@ -204,7 +204,6 @@ struct isci_host {
 	unsigned long flags;
 	wait_queue_head_t eventq;
 	struct tasklet_struct completion_tasklet;
-	struct list_head requests_to_complete;
 	spinlock_t scic_lock;
 	struct isci_request *reqs[SCI_MAX_IO_REQUESTS];
 	struct isci_remote_device devices[SCI_MAX_REMOTE_DEVICES];
@@ -473,6 +472,7 @@ void isci_host_scan_start(struct Scsi_Host *);
 u16 isci_alloc_tag(struct isci_host *ihost);
 enum sci_status isci_free_tag(struct isci_host *ihost, u16 io_tag);
 void isci_tci_free(struct isci_host *ihost, u16 tci);
+void ireq_done(struct isci_host *ihost, struct isci_request *ireq, struct sas_task *task);
 
 int isci_host_init(struct isci_host *);
 void isci_host_completion_routine(unsigned long data);

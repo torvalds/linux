@@ -555,7 +555,6 @@ static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 		return NULL;
 	}
 
-	INIT_LIST_HEAD(&ihost->requests_to_complete);
 	for (i = 0; i < SCI_MAX_PORTS; i++) {
 		struct isci_port *iport = &ihost->ports[i];
 
