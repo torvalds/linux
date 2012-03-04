@@ -122,6 +122,7 @@ struct wm8994_priv {
 	bool jack_mic;
 	int btn_mask;
 	bool jackdet;
+	int jackdet_mode;
 
 	wm8958_micdet_cb jack_cb;
 	void *jack_cb_data;
