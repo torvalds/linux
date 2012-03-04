@@ -44,7 +44,6 @@
 #include <asm/proc-fns.h>
 #include <asm/irq.h>
 
-#include <mach/idle.h>
 #include <mach/regs-s3c2443-clock.h>
 
 #include <plat/gpio-core.h>
@@ -87,8 +86,6 @@ void s3c2416_restart(char mode, const char *cmd)
 int __init s3c2416_init(void)
 {
 	printk(KERN_INFO "S3C2416: Initializing architecture\n");
-
-	/* s3c24xx_idle = s3c2416_idle;	*/
 
 	/* change WDT IRQ number */
 	s3c_device_wdt.resource[1].start = IRQ_S3C2443_WDT;

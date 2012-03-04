@@ -28,21 +28,11 @@
 #include <asm/setup.h>
 #include <asm/leds.h>
 
-#define AMBA_DEVICE(name,busid,base,plat)			\
-static struct amba_device name##_device = {			\
-	.dev		= {					\
-		.coherent_dma_mask = ~0,			\
-		.init_name = busid,				\
-		.platform_data = plat,				\
-	},							\
-	.res		= {					\
-		.start	= REALVIEW_##base##_BASE,		\
-		.end	= (REALVIEW_##base##_BASE) + SZ_4K - 1,	\
-		.flags	= IORESOURCE_MEM,			\
-	},							\
-	.dma_mask	= ~0,					\
-	.irq		= base##_IRQ,				\
-}
+#define APB_DEVICE(name, busid, base, plat)			\
+static AMBA_APB_DEVICE(name, busid, 0, REALVIEW_##base##_BASE, base##_IRQ, plat)
+
+#define AHB_DEVICE(name, busid, base, plat)			\
+static AMBA_AHB_DEVICE(name, busid, 0, REALVIEW_##base##_BASE, base##_IRQ, plat)
 
 struct machine_desc;
 

@@ -253,7 +253,7 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 	if (!of_device_is_available(node))
 		return NULL;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = amba_device_alloc(NULL, 0, 0);
 	if (!dev)
 		return NULL;
 
@@ -283,14 +283,14 @@ static struct amba_device *of_amba_device_create(struct device_node *node,
 	if (ret)
 		goto err_free;
 
-	ret = amba_device_register(dev, &iomem_resource);
+	ret = amba_device_add(dev, &iomem_resource);
 	if (ret)
 		goto err_free;
 
 	return dev;
 
 err_free:
-	kfree(dev);
+	amba_device_put(dev);
 	return NULL;
 }
 #else /* CONFIG_ARM_AMBA */

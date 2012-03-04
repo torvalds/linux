@@ -34,31 +34,29 @@ static void imx3_idle(void)
 {
 	unsigned long reg = 0;
 
-	if (!need_resched())
-		__asm__ __volatile__(
-			/* disable I and D cache */
-			"mrc p15, 0, %0, c1, c0, 0\n"
-			"bic %0, %0, #0x00001000\n"
-			"bic %0, %0, #0x00000004\n"
-			"mcr p15, 0, %0, c1, c0, 0\n"
-			/* invalidate I cache */
-			"mov %0, #0\n"
-			"mcr p15, 0, %0, c7, c5, 0\n"
-			/* clear and invalidate D cache */
-			"mov %0, #0\n"
-			"mcr p15, 0, %0, c7, c14, 0\n"
-			/* WFI */
-			"mov %0, #0\n"
-			"mcr p15, 0, %0, c7, c0, 4\n"
-			"nop\n" "nop\n" "nop\n" "nop\n"
-			"nop\n" "nop\n" "nop\n"
-			/* enable I and D cache */
-			"mrc p15, 0, %0, c1, c0, 0\n"
-			"orr %0, %0, #0x00001000\n"
-			"orr %0, %0, #0x00000004\n"
-			"mcr p15, 0, %0, c1, c0, 0\n"
-			: "=r" (reg));
-	local_irq_enable();
+	__asm__ __volatile__(
+		/* disable I and D cache */
+		"mrc p15, 0, %0, c1, c0, 0\n"
+		"bic %0, %0, #0x00001000\n"
+		"bic %0, %0, #0x00000004\n"
+		"mcr p15, 0, %0, c1, c0, 0\n"
+		/* invalidate I cache */
+		"mov %0, #0\n"
+		"mcr p15, 0, %0, c7, c5, 0\n"
+		/* clear and invalidate D cache */
+		"mov %0, #0\n"
+		"mcr p15, 0, %0, c7, c14, 0\n"
+		/* WFI */
+		"mov %0, #0\n"
+		"mcr p15, 0, %0, c7, c0, 4\n"
+		"nop\n" "nop\n" "nop\n" "nop\n"
+		"nop\n" "nop\n" "nop\n"
+		/* enable I and D cache */
+		"mrc p15, 0, %0, c1, c0, 0\n"
+		"orr %0, %0, #0x00001000\n"
+		"orr %0, %0, #0x00000004\n"
+		"mcr p15, 0, %0, c1, c0, 0\n"
+		: "=r" (reg));
 }
 
 static void __iomem *imx3_ioremap(unsigned long phys_addr, size_t size,
@@ -134,8 +132,8 @@ void __init imx31_init_early(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX31);
 	mxc_arch_reset_init(MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
-	pm_idle = imx3_idle;
 	imx_ioremap = imx3_ioremap;
+	arm_pm_idle = imx3_idle;
 }
 
 void __init mx31_init_irq(void)
@@ -197,7 +195,7 @@ void __init imx35_init_early(void)
 	mxc_set_cpu_type(MXC_CPU_MX35);
 	mxc_iomux_v3_init(MX35_IO_ADDRESS(MX35_IOMUXC_BASE_ADDR));
 	mxc_arch_reset_init(MX35_IO_ADDRESS(MX35_WDOG_BASE_ADDR));
-	pm_idle = imx3_idle;
+	arm_pm_idle = imx3_idle;
 	imx_ioremap = imx3_ioremap;
 }
 

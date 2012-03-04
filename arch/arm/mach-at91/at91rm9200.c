@@ -289,6 +289,15 @@ static struct at91_gpio_bank at91rm9200_gpio[] __initdata = {
 	}
 };
 
+static void at91rm9200_idle(void)
+{
+	/*
+	 * Disable the processor clock.  The processor will be automatically
+	 * re-enabled by an interrupt or by a reset.
+	 */
+	at91_sys_write(AT91_PMC_SCDR, AT91_PMC_PCK);
+}
+
 static void at91rm9200_restart(char mode, const char *cmd)
 {
 	/*
@@ -314,6 +323,7 @@ static void __init at91rm9200_ioremap_registers(void)
 
 static void __init at91rm9200_initialize(void)
 {
+	arm_pm_idle = at91rm9200_idle;
 	arm_pm_restart = at91rm9200_restart;
 	at91_extern_irq = (1 << AT91RM9200_ID_IRQ0) | (1 << AT91RM9200_ID_IRQ1)
 			| (1 << AT91RM9200_ID_IRQ2) | (1 << AT91RM9200_ID_IRQ3)

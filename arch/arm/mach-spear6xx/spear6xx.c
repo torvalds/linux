@@ -34,7 +34,7 @@ struct amba_device uart_device[] = {
 			.end = SPEAR6XX_ICM1_UART0_BASE + SZ_4K - 1,
 			.flags = IORESOURCE_MEM,
 		},
-		.irq = {IRQ_UART_0, NO_IRQ},
+		.irq = {IRQ_UART_0},
 	}, {
 		.dev = {
 			.init_name = "uart1",
@@ -44,7 +44,7 @@ struct amba_device uart_device[] = {
 			.end = SPEAR6XX_ICM1_UART1_BASE + SZ_4K - 1,
 			.flags = IORESOURCE_MEM,
 		},
-		.irq = {IRQ_UART_1, NO_IRQ},
+		.irq = {IRQ_UART_1},
 	}
 };
 
@@ -73,7 +73,7 @@ struct amba_device gpio_device[] = {
 			.end = SPEAR6XX_CPU_GPIO_BASE + SZ_4K - 1,
 			.flags = IORESOURCE_MEM,
 		},
-		.irq = {IRQ_LOCAL_GPIO, NO_IRQ},
+		.irq = {IRQ_LOCAL_GPIO},
 	}, {
 		.dev = {
 			.init_name = "gpio1",
@@ -84,7 +84,7 @@ struct amba_device gpio_device[] = {
 			.end = SPEAR6XX_ICM3_GPIO_BASE + SZ_4K - 1,
 			.flags = IORESOURCE_MEM,
 		},
-		.irq = {IRQ_BASIC_GPIO, NO_IRQ},
+		.irq = {IRQ_BASIC_GPIO},
 	}, {
 		.dev = {
 			.init_name = "gpio2",
@@ -95,7 +95,7 @@ struct amba_device gpio_device[] = {
 			.end = SPEAR6XX_ICM2_GPIO_BASE + SZ_4K - 1,
 			.flags = IORESOURCE_MEM,
 		},
-		.irq = {IRQ_APPL_GPIO, NO_IRQ},
+		.irq = {IRQ_APPL_GPIO},
 	}
 };
 
