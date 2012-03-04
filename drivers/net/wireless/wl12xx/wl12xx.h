@@ -265,6 +265,7 @@ enum wl12xx_flags {
 enum wl12xx_vif_flags {
 	WLVIF_FLAG_INITIALIZED,
 	WLVIF_FLAG_STA_ASSOCIATED,
+	WLVIF_FLAG_STA_AUTHORIZED,
 	WLVIF_FLAG_IBSS_JOINED,
 	WLVIF_FLAG_AP_STARTED,
 	WLVIF_FLAG_IN_PS,
@@ -451,8 +452,6 @@ struct wl1271 {
 	bool sg_enabled;
 
 	bool enable_11a;
-
-	struct list_head list;
 
 	/* Most recently reported noise in dBm */
 	s8 noise;

@@ -392,15 +392,15 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 static void wl1271_op_stop(struct ieee80211_hw *hw);
 static void wl1271_free_ap_keys(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 
-static DEFINE_MUTEX(wl_list_mutex);
-static LIST_HEAD(wl_list);
-
-static int wl1271_check_operstate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
-				  unsigned char operstate)
+static int wl12xx_set_authorized(struct wl1271 *wl,
+				 struct wl12xx_vif *wlvif)
 {
 	int ret;
 
-	if (operstate != IF_OPER_UP)
+	if (WARN_ON(wlvif->bss_type != BSS_TYPE_STA_BSS))
+		return -EINVAL;
+
+	if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
 		return 0;
 
 	if (test_and_set_bit(WLVIF_FLAG_STA_STATE_SENT, &wlvif->flags))
@@ -414,76 +414,6 @@ static int wl1271_check_operstate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	wl1271_info("Association completed.");
 	return 0;
-}
-static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
-			     void *arg)
-{
-	struct net_device *dev = arg;
-	struct wireless_dev *wdev;
-	struct wiphy *wiphy;
-	struct ieee80211_hw *hw;
-	struct wl1271 *wl;
-	struct wl1271 *wl_temp;
-	struct wl12xx_vif *wlvif;
-	int ret = 0;
-
-	/* Check that this notification is for us. */
-	if (what != NETDEV_CHANGE)
-		return NOTIFY_DONE;
-
-	wdev = dev->ieee80211_ptr;
-	if (wdev == NULL)
-		return NOTIFY_DONE;
-
-	wiphy = wdev->wiphy;
-	if (wiphy == NULL)
-		return NOTIFY_DONE;
-
-	hw = wiphy_priv(wiphy);
-	if (hw == NULL)
-		return NOTIFY_DONE;
-
-	wl_temp = hw->priv;
-	mutex_lock(&wl_list_mutex);
-	list_for_each_entry(wl, &wl_list, list) {
-		if (wl == wl_temp)
-			break;
-	}
-	mutex_unlock(&wl_list_mutex);
-	if (wl != wl_temp)
-		return NOTIFY_DONE;
-
-	mutex_lock(&wl->mutex);
-
-	if (wl->state == WL1271_STATE_OFF)
-		goto out;
-
-	if (dev->operstate != IF_OPER_UP)
-		goto out;
-	/*
-	 * The correct behavior should be just getting the appropriate wlvif
-	 * from the given dev, but currently we don't have a mac80211
-	 * interface for it.
-	 */
-	wl12xx_for_each_wlvif_sta(wl, wlvif) {
-		struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
-
-		if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
-			continue;
-
-		ret = wl1271_ps_elp_wakeup(wl);
-		if (ret < 0)
-			goto out;
-
-		wl1271_check_operstate(wl, wlvif,
-				       ieee80211_get_operstate(vif));
-
-		wl1271_ps_elp_sleep(wl);
-	}
-out:
-	mutex_unlock(&wl->mutex);
-
-	return NOTIFY_OK;
 }
 
 static int wl1271_reg_notify(struct wiphy *wiphy,
@@ -1626,10 +1556,6 @@ static struct sk_buff *wl12xx_alloc_dummy_packet(struct wl1271 *wl)
 }
 
 
-static struct notifier_block wl1271_dev_notifier = {
-	.notifier_call = wl1271_dev_notify,
-};
-
 #ifdef CONFIG_PM
 static int wl1271_configure_suspend_sta(struct wl1271 *wl,
 					struct wl12xx_vif *wlvif)
@@ -1855,10 +1781,6 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	 */
 	wl->state = WL1271_STATE_OFF;
 	mutex_unlock(&wl->mutex);
-
-	mutex_lock(&wl_list_mutex);
-	list_del(&wl->list);
-	mutex_unlock(&wl_list_mutex);
 
 	wl1271_flush_deferred_work(wl);
 	cancel_delayed_work_sync(&wl->scan_complete_work);
@@ -2269,11 +2191,6 @@ out:
 	wl1271_ps_elp_sleep(wl);
 out_unlock:
 	mutex_unlock(&wl->mutex);
-
-	mutex_lock(&wl_list_mutex);
-	if (!ret)
-		list_add(&wl->list, &wl_list);
-	mutex_unlock(&wl_list_mutex);
 
 	return ret;
 }
@@ -3967,8 +3884,8 @@ sta_not_found:
 			if (ret < 0)
 				goto out;
 
-			wl1271_check_operstate(wl, wlvif,
-					       ieee80211_get_operstate(vif));
+			if (test_bit(WLVIF_FLAG_STA_AUTHORIZED, &wlvif->flags))
+				wl12xx_set_authorized(wl, wlvif);
 		}
 		/*
 		 * stop device role if started (we might already be in
@@ -4319,6 +4236,20 @@ static int wl12xx_update_sta_state(struct wl1271 *wl,
 		ret = wl1271_acx_set_ht_capabilities(wl, &sta->ht_cap, true,
 						     hlid);
 		return ret;
+	}
+
+	/* Authorize station */
+	if (is_sta &&
+	    new_state == IEEE80211_STA_AUTHORIZED) {
+		set_bit(WLVIF_FLAG_STA_AUTHORIZED, &wlvif->flags);
+		return wl12xx_set_authorized(wl, wlvif);
+	}
+
+	if (is_sta &&
+	    old_state == IEEE80211_STA_AUTHORIZED &&
+	    new_state == IEEE80211_STA_ASSOC) {
+		clear_bit(WLVIF_FLAG_STA_AUTHORIZED, &wlvif->flags);
+		return 0;
 	}
 
 	return 0;
@@ -5144,8 +5075,6 @@ static int wl1271_register_hw(struct wl1271 *wl)
 
 	wl1271_debugfs_init(wl);
 
-	register_netdevice_notifier(&wl1271_dev_notifier);
-
 	wl1271_notice("loaded");
 
 out:
@@ -5157,7 +5086,6 @@ static void wl1271_unregister_hw(struct wl1271 *wl)
 	if (wl->plt)
 		wl1271_plt_stop(wl);
 
-	unregister_netdevice_notifier(&wl1271_dev_notifier);
 	ieee80211_unregister_hw(wl->hw);
 	wl->mac80211_registered = false;
 
@@ -5278,7 +5206,6 @@ static struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl = hw->priv;
 	memset(wl, 0, sizeof(*wl));
 
-	INIT_LIST_HEAD(&wl->list);
 	INIT_LIST_HEAD(&wl->wlvif_list);
 
 	wl->hw = hw;
