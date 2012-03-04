@@ -424,7 +424,8 @@ static int atmel_wm97xx_resume(struct platform_device *pdev)
 static struct platform_driver atmel_wm97xx_driver = {
 	.remove		= __exit_p(atmel_wm97xx_remove),
 	.driver		= {
-		.name = "wm97xx-touch",
+		.name	= "wm97xx-touch",
+		.owner	= THIS_MODULE,
 	},
 	.suspend	= atmel_wm97xx_suspend,
 	.resume		= atmel_wm97xx_resume,
