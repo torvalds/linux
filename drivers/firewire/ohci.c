@@ -2076,8 +2076,7 @@ static irqreturn_t irq_handler(int irq, void *data)
 	}
 
 	if (unlikely(event & OHCI1394_regAccessFail))
-		dev_err(ohci->card.device,
-			"register access failure - please notify linux1394-devel@lists.sf.net\n");
+		dev_err(ohci->card.device, "register access failure\n");
 
 	if (unlikely(event & OHCI1394_postedWriteErr)) {
 		reg_read(ohci, OHCI1394_PostedWriteAddressHi);

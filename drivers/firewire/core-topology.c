@@ -530,7 +530,6 @@ void fw_core_handle_bus_reset(struct fw_card *card, int node_id, int generation,
 	 */
 	if (!is_next_generation(generation, card->generation) &&
 	    card->local_node != NULL) {
-		fw_notice(card, "skipped bus generations, destroying all nodes\n");
 		fw_destroy_nodes(card);
 		card->bm_retries = 0;
 	}
