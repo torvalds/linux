@@ -249,16 +249,10 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 		}
 		pm_restore_gfp_mask();
 		error = hibernation_snapshot(data->platform_support);
-		if (error) {
-			thaw_kernel_threads();
-		} else {
+		if (!error) {
 			error = put_user(in_suspend, (int __user *)arg);
-			if (!error && !freezer_test_done)
-				data->ready = 1;
-			if (freezer_test_done) {
-				freezer_test_done = false;
-				thaw_kernel_threads();
-			}
+			data->ready = !freezer_test_done && !error;
+			freezer_test_done = false;
 		}
 		break;
 
