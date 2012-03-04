@@ -619,6 +619,7 @@ config TOUCHSCREEN_USB_COMPOSITE
 	  - JASTEC USB Touch Controller/DigiTech DTR-02U
 	  - Zytronic controllers
 	  - Elo TouchSystems 2700 IntelliTouch
+	  - EasyTouch USB Touch Controller from Data Modul
 
 	  Have a look at <http://linux.chapter7.ch/touchkit/> for
 	  a usage description and the required user-space stuff.
@@ -722,6 +723,14 @@ config TOUCHSCREEN_USB_NEXIO
 	default y
 	bool "NEXIO/iNexio device support" if EXPERT
 	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_EASYTOUCH
+	default y
+	bool "EasyTouch USB Touch controller device support" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+	help
+	  Say Y here if you have a EasyTouch USB Touch controller device support.
+	  If unsure, say N.
 
 config TOUCHSCREEN_TOUCHIT213
 	tristate "Sahara TouchIT-213 touchscreen"
