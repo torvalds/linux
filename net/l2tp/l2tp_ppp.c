@@ -82,7 +82,7 @@
 #include <net/sock.h>
 #include <linux/ppp_channel.h>
 #include <linux/ppp_defs.h>
-#include <linux/if_ppp.h>
+#include <linux/ppp-ioctl.h>
 #include <linux/file.h>
 #include <linux/hash.h>
 #include <linux/sort.h>
