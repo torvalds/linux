@@ -3057,8 +3057,6 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 			     struct cfg80211_scan_request *req)
 {
 	struct wl1271 *wl = hw->priv;
-	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
-
 	int ret;
 	u8 *ssid = NULL;
 	size_t len = 0;
@@ -3086,8 +3084,8 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	if (test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags) &&
-	    test_bit(wlvif->role_id, wl->roc_map)) {
+	/* fail if there is any role in ROC */
+	if (find_first_bit(wl->roc_map, WL12XX_MAX_ROLES) < WL12XX_MAX_ROLES) {
 		/* don't allow scanning right now */
 		ret = -EBUSY;
 		goto out_sleep;
