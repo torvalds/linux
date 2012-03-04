@@ -308,7 +308,7 @@ min_batch_time=usec	This parameter sets the commit time (as
 			fast disks, at the cost of increasing latency.
 
 journal_ioprio=prio	The I/O priority (from 0 to 7, where 0 is the
-			highest priorty) which should be used for I/O
+			highest priority) which should be used for I/O
 			operations submitted by kjournald2 during a
 			commit operation.  This defaults to 3, which is
 			a slightly higher priority than the default I/O
@@ -343,7 +343,7 @@ noinit_itable		Do not initialize any uninitialized inode table
 init_itable=n		The lazy itable init code will wait n times the
 			number of milliseconds it took to zero out the
 			previous block group's inode table.  This
-			minimizes the impact on the systme performance
+			minimizes the impact on the system performance
 			while file system's inode table is being initialized.
 
 discard			Controls whether ext4 should issue discard/TRIM

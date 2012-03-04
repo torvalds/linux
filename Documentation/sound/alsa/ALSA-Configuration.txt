@@ -1588,7 +1588,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module supports autoprobe a chip.
 
-    Note: the driver may have problems regarding endianess.
+    Note: the driver may have problems regarding endianness.
 
     The power-management is supported.
 

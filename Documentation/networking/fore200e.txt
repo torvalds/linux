@@ -44,7 +44,7 @@ the 'software updates' pages. The firmware binaries are part of
 the various ForeThought software distributions.
 
 Notice that different versions of the PCA-200E firmware exist, depending
-on the endianess of the host architecture. The driver is shipped with
+on the endianness of the host architecture. The driver is shipped with
 both little and big endian PCA firmware images.
 
 Name and location of the new firmware images can be set at kernel

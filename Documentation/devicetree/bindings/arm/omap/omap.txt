@@ -5,7 +5,7 @@ IPs present in the SoC.
 On top of that an omap_device is created to extend the platform_device
 capabilities and to allow binding with one or several hwmods.
 The hwmods will contain all the information to build the device:
-adresse range, irq lines, dma lines, interconnect, PRCM register,
+address range, irq lines, dma lines, interconnect, PRCM register,
 clock domain, input clocks.
 For the moment just point to the existing hwmod, the next step will be
 to move data from hwmod to device-tree representation.

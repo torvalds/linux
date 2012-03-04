@@ -108,7 +108,7 @@ in1_label		"vin"
 in1_input		Measured input voltage.
 in1_min			Minimum input voltage.
 in1_max			Maximum input voltage.
-in1_lcrit		Critical minumum input voltage.
+in1_lcrit		Critical minimum input voltage.
 in1_crit		Critical maximum input voltage.
 in1_min_alarm		Input voltage low alarm.
 in1_max_alarm		Input voltage high alarm.
@@ -117,7 +117,7 @@ in1_crit_alarm		Input voltage critical high alarm.
 
 in2_label		"vout1"
 in2_input		Measured output voltage.
-in2_lcrit		Critical minumum output Voltage.
+in2_lcrit		Critical minimum output Voltage.
 in2_crit		Critical maximum output voltage.
 in2_lcrit_alarm		Critical output voltage critical low alarm.
 in2_crit_alarm		Critical output voltage critical high alarm.

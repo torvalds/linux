@@ -619,7 +619,7 @@ all PTEs from the page.  For this purpose, the unevictable/mlock infrastructure
 introduced a variant of try_to_unmap() called try_to_munlock().
 
 try_to_munlock() calls the same functions as try_to_unmap() for anonymous and
-mapped file pages with an additional argument specifing unlock versus unmap
+mapped file pages with an additional argument specifying unlock versus unmap
 processing.  Again, these functions walk the respective reverse maps looking
 for VM_LOCKED VMAs.  When such a VMA is found for anonymous pages and file
 pages mapped in linear VMAs, as in the try_to_unmap() case, the functions

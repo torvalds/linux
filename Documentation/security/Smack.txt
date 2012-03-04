@@ -536,6 +536,6 @@ writing a single character to the /smack/logging file :
 3 : log denied & accepted
 
 Events are logged as 'key=value' pairs, for each event you at least will get
-the subjet, the object, the rights requested, the action, the kernel function
+the subject, the object, the rights requested, the action, the kernel function
 that triggered the event, plus other pairs depending on the type of event
 audited.
