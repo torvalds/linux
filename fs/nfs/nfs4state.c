@@ -888,7 +888,7 @@ int nfs4_set_lock_state(struct nfs4_state *state, struct file_lock *fl)
  * Byte-range lock aware utility to initialize the stateid of read/write
  * requests.
  */
-void nfs4_copy_stateid(nfs4_stateid *dst, struct nfs4_state *state, fl_owner_t fl_owner, pid_t fl_pid)
+void nfs4_select_rw_stateid(nfs4_stateid *dst, struct nfs4_state *state, fl_owner_t fl_owner, pid_t fl_pid)
 {
 	struct nfs4_lock_state *lsp;
 	int seq;
