@@ -353,15 +353,16 @@ interrupt_end_book3e:
 	NORMAL_EXCEPTION_PROLOG(0x800, PROLOG_ADDITION_NONE)
 	/* we can probably do a shorter exception entry for that one... */
 	EXCEPTION_COMMON(0x800, PACA_EXGEN, INTS_KEEP)
-	bne	1f			/* if from user, just load it up */
-	INTS_DISABLE_ALL
+	ld	r12,_MSR(r1)
+	andi.	r0,r12,MSR_PR;
+	beq-	1f
+	bl	.load_up_fpu
+	b	fast_exception_return
+1:	INTS_DISABLE_ALL
 	bl	.save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.kernel_fp_unavailable_exception
-	BUG_OPCODE
-1:	ld	r12,_MSR(r1)
-	bl	.load_up_fpu
-	b	fast_exception_return
+	b	.ret_from_except
 
 /* Decrementer Interrupt */
 	MASKABLE_EXCEPTION(0x900, decrementer, .timer_interrupt, ACK_DEC)
