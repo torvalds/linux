@@ -499,7 +499,7 @@ pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo, const nfs4_stateid *new,
 	oldseq = be32_to_cpu(lo->plh_stateid.stateid.seqid);
 	newseq = be32_to_cpu(new->stateid.seqid);
 	if ((int)(newseq - oldseq) > 0) {
-		memcpy(&lo->plh_stateid, &new->stateid, sizeof(new->stateid));
+		nfs4_stateid_copy(&lo->plh_stateid, new);
 		if (update_barrier) {
 			u32 new_barrier = be32_to_cpu(new->stateid.seqid);
 
@@ -549,11 +549,10 @@ pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
 
 		do {
 			seq = read_seqbegin(&open_state->seqlock);
-			memcpy(dst->data, open_state->stateid.data,
-			       sizeof(open_state->stateid.data));
+			nfs4_stateid_copy(dst, &open_state->stateid);
 		} while (read_seqretry(&open_state->seqlock, seq));
 	} else
-		memcpy(dst->data, lo->plh_stateid.data, sizeof(lo->plh_stateid.data));
+		nfs4_stateid_copy(dst, &lo->plh_stateid);
 	spin_unlock(&lo->plh_inode->i_lock);
 	dprintk("<-- %s\n", __func__);
 	return status;
@@ -1527,8 +1526,7 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 	end_pos = nfsi->layout->plh_lwb;
 	nfsi->layout->plh_lwb = 0;
 
-	memcpy(&data->args.stateid.data, nfsi->layout->plh_stateid.data,
-		sizeof(nfsi->layout->plh_stateid.data));
+	nfs4_stateid_copy(&data->args.stateid, &nfsi->layout->plh_stateid);
 	spin_unlock(&inode->i_lock);
 
 	data->args.inode = inode;

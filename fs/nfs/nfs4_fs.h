@@ -349,6 +349,16 @@ struct nfs4_mount_data;
 extern struct svc_version nfs4_callback_version1;
 extern struct svc_version nfs4_callback_version4;
 
+static inline void nfs4_stateid_copy(nfs4_stateid *dst, const nfs4_stateid *src)
+{
+	memcpy(dst->data, src->data, sizeof(dst->data));
+}
+
+static inline bool nfs4_stateid_match(const nfs4_stateid *dst, const nfs4_stateid *src)
+{
+	return memcmp(dst->data, src->data, sizeof(dst->data)) == 0;
+}
+
 #else
 
 #define nfs4_close_state(a, b) do { } while (0)

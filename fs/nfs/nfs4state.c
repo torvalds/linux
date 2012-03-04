@@ -895,7 +895,7 @@ void nfs4_select_rw_stateid(nfs4_stateid *dst, struct nfs4_state *state, fl_owne
 
 	do {
 		seq = read_seqbegin(&state->seqlock);
-		memcpy(dst, &state->stateid, sizeof(*dst));
+		nfs4_stateid_copy(dst, &state->stateid);
 	} while (read_seqretry(&state->seqlock, seq));
 	if (test_bit(LK_STATE_IN_USE, &state->flags) == 0)
 		return;
@@ -903,7 +903,7 @@ void nfs4_select_rw_stateid(nfs4_stateid *dst, struct nfs4_state *state, fl_owne
 	spin_lock(&state->state_lock);
 	lsp = __nfs4_find_lock_state(state, fl_owner, fl_pid, NFS4_ANY_LOCK_TYPE);
 	if (lsp != NULL && (lsp->ls_flags & NFS_LOCK_INITIALIZED) != 0)
-		memcpy(dst, &lsp->ls_stateid, sizeof(*dst));
+		nfs4_stateid_copy(dst, &lsp->ls_stateid);
 	spin_unlock(&state->state_lock);
 	nfs4_put_lock_state(lsp);
 }
@@ -1126,7 +1126,7 @@ void nfs_inode_find_state_and_recover(struct inode *inode,
 			continue;
 		if (!test_bit(NFS_DELEGATED_STATE, &state->flags))
 			continue;
-		if (memcmp(state->stateid.data, stateid->data, sizeof(state->stateid.data)) != 0)
+		if (!nfs4_stateid_match(&state->stateid, stateid))
 			continue;
 		nfs4_state_mark_reclaim_nograce(clp, state);
 		found = true;
