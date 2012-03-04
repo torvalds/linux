@@ -209,7 +209,7 @@ SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
 			} while_each_pid_thread(pgrp, PIDTYPE_PGID, p);
 			break;
 		case PRIO_USER:
-			user = (struct user_struct *) cred->user;
+			user = cred->user;
 			if (!who)
 				who = cred->uid;
 			else if ((who != cred->uid) &&
@@ -274,7 +274,7 @@ SYSCALL_DEFINE2(getpriority, int, which, int, who)
 			} while_each_pid_thread(pgrp, PIDTYPE_PGID, p);
 			break;
 		case PRIO_USER:
-			user = (struct user_struct *) cred->user;
+			user = cred->user;
 			if (!who)
 				who = cred->uid;
 			else if ((who != cred->uid) &&
