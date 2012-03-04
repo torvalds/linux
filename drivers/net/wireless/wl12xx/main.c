@@ -1459,7 +1459,8 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		goto out;
 	}
 
-	wl1271_debug(DEBUG_TX, "queue skb hlid %d q %d", hlid, q);
+	wl1271_debug(DEBUG_TX, "queue skb hlid %d q %d len %d",
+		     hlid, q, skb->len);
 	skb_queue_tail(&wl->links[hlid].tx_queue[q], skb);
 
 	wl->tx_queue_count[q]++;
