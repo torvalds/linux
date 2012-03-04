@@ -1155,13 +1155,18 @@ out:
 	orig_node_free_ref(orig_node);
 }
 
-static void bat_iv_ogm_receive(struct hard_iface *if_incoming,
-			       struct sk_buff *skb)
+static int bat_iv_ogm_receive(struct sk_buff *skb,
+			      struct hard_iface *if_incoming)
 {
 	struct batman_ogm_packet *batman_ogm_packet;
 	struct ethhdr *ethhdr;
 	int buff_pos = 0, packet_len;
 	unsigned char *tt_buff, *packet_buff;
+	bool ret;
+
+	ret = check_management_packet(skb, if_incoming, BATMAN_OGM_HLEN);
+	if (!ret)
+		return NET_RX_DROP;
 
 	packet_len = skb_headlen(skb);
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
@@ -1187,6 +1192,9 @@ static void bat_iv_ogm_receive(struct hard_iface *if_incoming,
 						(packet_buff + buff_pos);
 	} while (bat_iv_ogm_aggr_packet(buff_pos, packet_len,
 					batman_ogm_packet->tt_num_changes));
+
+	kfree_skb(skb);
+	return NET_RX_SUCCESS;
 }
 
 static struct bat_algo_ops batman_iv __read_mostly = {
@@ -1197,10 +1205,25 @@ static struct bat_algo_ops batman_iv __read_mostly = {
 	.bat_ogm_update_mac = bat_iv_ogm_update_mac,
 	.bat_ogm_schedule = bat_iv_ogm_schedule,
 	.bat_ogm_emit = bat_iv_ogm_emit,
-	.bat_ogm_receive = bat_iv_ogm_receive,
 };
 
 int __init bat_iv_init(void)
 {
-	return bat_algo_register(&batman_iv);
+	int ret;
+
+	/* batman originator packet */
+	ret = recv_handler_register(BAT_IV_OGM, bat_iv_ogm_receive);
+	if (ret < 0)
+		goto out;
+
+	ret = bat_algo_register(&batman_iv);
+	if (ret < 0)
+		goto handler_unregister;
+
+	goto out;
+
+handler_unregister:
+	recv_handler_unregister(BAT_IV_OGM);
+out:
+	return ret;
 }

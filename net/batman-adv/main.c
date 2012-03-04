@@ -266,8 +266,6 @@ static void recv_handler_init(void)
 	for (i = 0; i < ARRAY_SIZE(recv_packet_handler); i++)
 		recv_packet_handler[i] = recv_unhandled_packet;
 
-	/* batman originator packet */
-	recv_packet_handler[BAT_IV_OGM] = recv_bat_ogm_packet;
 	/* batman icmp packet */
 	recv_packet_handler[BAT_ICMP] = recv_icmp_packet;
 	/* unicast packet */
@@ -334,8 +332,7 @@ int bat_algo_register(struct bat_algo_ops *bat_algo_ops)
 	    !bat_algo_ops->bat_primary_iface_set ||
 	    !bat_algo_ops->bat_ogm_update_mac ||
 	    !bat_algo_ops->bat_ogm_schedule ||
-	    !bat_algo_ops->bat_ogm_emit ||
-	    !bat_algo_ops->bat_ogm_receive) {
+	    !bat_algo_ops->bat_ogm_emit) {
 		pr_info("Routing algo '%s' does not implement required ops\n",
 			bat_algo_ops->name);
 		goto out;
