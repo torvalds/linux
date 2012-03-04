@@ -3746,10 +3746,8 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 			ibss_joined = true;
 		} else {
 			if (test_and_clear_bit(WLVIF_FLAG_IBSS_JOINED,
-					       &wlvif->flags)) {
+					       &wlvif->flags))
 				wl1271_unjoin(wl, wlvif);
-				wl12xx_start_dev(wl, wlvif);
-			}
 		}
 	}
 
@@ -3767,7 +3765,7 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 		do_join = true;
 	}
 
-	if (changed & BSS_CHANGED_IDLE) {
+	if (changed & BSS_CHANGED_IDLE && !is_ibss) {
 		ret = wl1271_sta_handle_idle(wl, wlvif, bss_conf->idle);
 		if (ret < 0)
 			wl1271_warning("idle mode change failed %d", ret);
