@@ -11727,6 +11727,10 @@ static int tg3_run_loopback(struct tg3 *tp, u32 pktsz, bool tso_loopback)
 	} else {
 		num_pkts = 1;
 		data_off = ETH_HLEN;
+
+		if (tg3_flag(tp, USE_JUMBO_BDFLAG) &&
+		    tx_len > VLAN_ETH_FRAME_LEN)
+			base_flags |= TXD_FLAG_JMB_PKT;
 	}
 
 	for (i = data_off; i < tx_len; i++)
@@ -11857,6 +11861,10 @@ static int tg3_test_loopback(struct tg3 *tp, u64 *data, bool do_extlpbk)
 {
 	int err = -EIO;
 	u32 eee_cap;
+	u32 jmb_pkt_sz = 9000;
+
+	if (tp->dma_limit)
+		jmb_pkt_sz = tp->dma_limit - ETH_HLEN;
 
 	eee_cap = tp->phy_flags & TG3_PHYFLG_EEE_CAP;
 	tp->phy_flags &= ~TG3_PHYFLG_EEE_CAP;
@@ -11900,7 +11908,7 @@ static int tg3_test_loopback(struct tg3 *tp, u64 *data, bool do_extlpbk)
 			data[0] |= TG3_STD_LOOPBACK_FAILED;
 
 		if (tg3_flag(tp, JUMBO_RING_ENABLE) &&
-		    tg3_run_loopback(tp, 9000 + ETH_HLEN, false))
+		    tg3_run_loopback(tp, jmb_pkt_sz + ETH_HLEN, false))
 			data[0] |= TG3_JMB_LOOPBACK_FAILED;
 
 		tg3_mac_loopback(tp, false);
@@ -11925,7 +11933,7 @@ static int tg3_test_loopback(struct tg3 *tp, u64 *data, bool do_extlpbk)
 		    tg3_run_loopback(tp, ETH_FRAME_LEN, true))
 			data[1] |= TG3_TSO_LOOPBACK_FAILED;
 		if (tg3_flag(tp, JUMBO_RING_ENABLE) &&
-		    tg3_run_loopback(tp, 9000 + ETH_HLEN, false))
+		    tg3_run_loopback(tp, jmb_pkt_sz + ETH_HLEN, false))
 			data[1] |= TG3_JMB_LOOPBACK_FAILED;
 
 		if (do_extlpbk) {
@@ -11943,7 +11951,7 @@ static int tg3_test_loopback(struct tg3 *tp, u64 *data, bool do_extlpbk)
 			    tg3_run_loopback(tp, ETH_FRAME_LEN, true))
 				data[2] |= TG3_TSO_LOOPBACK_FAILED;
 			if (tg3_flag(tp, JUMBO_RING_ENABLE) &&
-			    tg3_run_loopback(tp, 9000 + ETH_HLEN, false))
+			    tg3_run_loopback(tp, jmb_pkt_sz + ETH_HLEN, false))
 				data[2] |= TG3_JMB_LOOPBACK_FAILED;
 		}
 
