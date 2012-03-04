@@ -2515,35 +2515,22 @@ static int wl12xx_config_vif(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 				wl1271_warning("rate policy for channel "
 					       "failed %d", ret);
 
-			if (test_bit(WLVIF_FLAG_STA_ASSOCIATED,
-				     &wlvif->flags)) {
-				if (wl12xx_dev_role_started(wlvif)) {
-					/* roaming */
-					ret = wl12xx_croc(wl,
-							  wlvif->dev_role_id);
-					if (ret < 0)
-						return ret;
-				}
-				ret = wl1271_join(wl, wlvif, false);
+			/*
+			 * change the ROC channel. do it only if we are
+			 * not idle. otherwise, CROC will be called
+			 * anyway.
+			 */
+			if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED,
+				      &wlvif->flags) &&
+			    wl12xx_dev_role_started(wlvif) &&
+			    !(conf->flags & IEEE80211_CONF_IDLE)) {
+				ret = wl12xx_stop_dev(wl, wlvif);
 				if (ret < 0)
-					wl1271_warning("cmd join on channel "
-						       "failed %d", ret);
-			} else {
-				/*
-				 * change the ROC channel. do it only if we are
-				 * not idle. otherwise, CROC will be called
-				 * anyway.
-				 */
-				if (wl12xx_dev_role_started(wlvif) &&
-				    !(conf->flags & IEEE80211_CONF_IDLE)) {
-					ret = wl12xx_stop_dev(wl, wlvif);
-					if (ret < 0)
-						return ret;
+					return ret;
 
-					ret = wl12xx_start_dev(wl, wlvif);
-					if (ret < 0)
-						return ret;
-				}
+				ret = wl12xx_start_dev(wl, wlvif);
+				if (ret < 0)
+					return ret;
 			}
 		}
 	}
