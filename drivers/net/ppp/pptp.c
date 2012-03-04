@@ -23,7 +23,7 @@
 #include <linux/ppp_channel.h>
 #include <linux/ppp_defs.h>
 #include <linux/if_pppox.h>
-#include <linux/if_ppp.h>
+#include <linux/ppp-ioctl.h>
 #include <linux/notifier.h>
 #include <linux/file.h>
 #include <linux/in.h>
@@ -481,7 +481,7 @@ static int pptp_connect(struct socket *sock, struct sockaddr *uservaddr,
 
 	po->chan.mtu = dst_mtu(&rt->dst);
 	if (!po->chan.mtu)
-		po->chan.mtu = PPP_MTU;
+		po->chan.mtu = PPP_MRU;
 	ip_rt_put(rt);
 	po->chan.mtu -= PPTP_HEADER_OVERHEAD;
 
