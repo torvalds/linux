@@ -3723,6 +3723,7 @@ sta_not_found:
 			u32 rates;
 			int ieoffset;
 			wlvif->aid = bss_conf->aid;
+			wlvif->beacon_int = bss_conf->beacon_int;
 			set_assoc = true;
 
 			/*
