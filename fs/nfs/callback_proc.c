@@ -98,14 +98,6 @@ out:
 	return res;
 }
 
-int nfs4_validate_delegation_stateid(struct nfs_delegation *delegation, const nfs4_stateid *stateid)
-{
-	if (delegation == NULL || memcmp(delegation->stateid.data, stateid->data,
-					 sizeof(delegation->stateid.data)) != 0)
-		return 0;
-	return 1;
-}
-
 #if defined(CONFIG_NFS_V4_1)
 
 /*
@@ -317,22 +309,6 @@ out:
 	dprintk("%s: exit with status = %u\n",
 		__func__, be32_to_cpu(res));
 	return res;
-}
-
-int nfs41_validate_delegation_stateid(struct nfs_delegation *delegation, const nfs4_stateid *stateid)
-{
-	if (delegation == NULL)
-		return 0;
-
-	if (stateid->stateid.seqid != 0 &&
-	    stateid->stateid.seqid != delegation->stateid.stateid.seqid)
-		return 0;
-	if (memcmp(delegation->stateid.stateid.other,
-		   stateid->stateid.other,
-		   NFS4_STATEID_OTHER_SIZE))
-		return 0;
-
-	return 1;
 }
 
 /*
