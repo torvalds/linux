@@ -112,6 +112,7 @@ void __init kirkwood_clk_init(void)
 	orion_clkdev_add(NULL, "orion_spi.1", runit);
 	orion_clkdev_add(NULL, MV643XX_ETH_NAME ".0", ge0);
 	orion_clkdev_add(NULL, MV643XX_ETH_NAME ".1", ge1);
+	orion_clkdev_add(NULL, "orion_wdt", tclk);
 }
 
 /*****************************************************************************
@@ -351,7 +352,7 @@ void __init kirkwood_xor1_init(void)
  ****************************************************************************/
 void __init kirkwood_wdt_init(void)
 {
-	orion_wdt_init(kirkwood_tclk);
+	orion_wdt_init();
 }
 
 

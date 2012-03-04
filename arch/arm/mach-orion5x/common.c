@@ -193,7 +193,7 @@ static void __init orion5x_crypto_init(void)
  ****************************************************************************/
 void __init orion5x_wdt_init(void)
 {
-	orion_wdt_init(orion5x_tclk);
+	orion_wdt_init();
 }
 
 

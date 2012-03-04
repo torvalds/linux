@@ -19,7 +19,6 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/mv643xx_i2c.h>
 #include <net/dsa.h>
-#include <plat/orion_wdt.h>
 #include <plat/mv_xor.h>
 #include <plat/ehci-orion.h>
 #include <mach/bridge-regs.h>
@@ -47,6 +46,7 @@ void __init orion_clkdev_init(struct clk *tclk)
 	orion_clkdev_add(NULL, MV643XX_ETH_NAME ".1", tclk);
 	orion_clkdev_add(NULL, MV643XX_ETH_NAME ".2", tclk);
 	orion_clkdev_add(NULL, MV643XX_ETH_NAME ".3", tclk);
+	orion_clkdev_add(NULL, "orion_wdt", tclk);
 }
 
 /* Fill in the resources structure and link it into the platform
@@ -575,24 +575,18 @@ void __init orion_spi_1_init(unsigned long mapbase)
 /*****************************************************************************
  * Watchdog
  ****************************************************************************/
-static struct orion_wdt_platform_data orion_wdt_data;
-
 static struct resource orion_wdt_resource =
 		DEFINE_RES_MEM(TIMER_VIRT_BASE, 0x28);
 
 static struct platform_device orion_wdt_device = {
 	.name		= "orion_wdt",
 	.id		= -1,
-	.dev		= {
-		.platform_data	= &orion_wdt_data,
-	},
-	.resource	= &orion_wdt_resource,
 	.num_resources	= 1,
+	.resource	= &orion_wdt_resource,
 };
 
-void __init orion_wdt_init(unsigned long tclk)
+void __init orion_wdt_init(void)
 {
-	orion_wdt_data.tclk = tclk;
 	platform_device_register(&orion_wdt_device);
 }
 
