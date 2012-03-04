@@ -1548,7 +1548,7 @@ nvd0_display_bh(unsigned long data)
 {
 	struct drm_device *dev = (struct drm_device *)data;
 	struct nvd0_display *disp = nvd0_display(dev);
-	u32 mask, crtc;
+	u32 mask = 0, crtc = ~0;
 	int i;
 
 	if (drm_debug & (DRM_UT_DRIVER | DRM_UT_KMS)) {
@@ -1564,12 +1564,8 @@ nvd0_display_bh(unsigned long data)
 		}
 	}
 
-	mask = nv_rd32(dev, 0x6101d4);
-	crtc = 0;
-	if (!mask) {
-		mask = nv_rd32(dev, 0x6109d4);
-		crtc = 1;
-	}
+	while (!mask && ++crtc < dev->mode_config.num_crtc)
+		mask = nv_rd32(dev, 0x6101d4 + (crtc * 0x800));
 
 	if (disp->modeset & 0x00000001)
 		nvd0_display_unk1_handler(dev, crtc, mask);
@@ -1584,6 +1580,7 @@ nvd0_display_intr(struct drm_device *dev)
 {
 	struct nvd0_display *disp = nvd0_display(dev);
 	u32 intr = nv_rd32(dev, 0x610088);
+	int i;
 
 	if (intr & 0x00000001) {
 		u32 stat = nv_rd32(dev, 0x61008c);
@@ -1628,16 +1625,13 @@ nvd0_display_intr(struct drm_device *dev)
 		intr &= ~0x00100000;
 	}
 
-	if (intr & 0x01000000) {
-		u32 stat = nv_rd32(dev, 0x6100bc);
-		nv_wr32(dev, 0x6100bc, stat);
-		intr &= ~0x01000000;
-	}
-
-	if (intr & 0x02000000) {
-		u32 stat = nv_rd32(dev, 0x6108bc);
-		nv_wr32(dev, 0x6108bc, stat);
-		intr &= ~0x02000000;
+	for (i = 0; i < dev->mode_config.num_crtc; i++) {
+		u32 mask = 0x01000000 << i;
+		if (intr & mask) {
+			u32 stat = nv_rd32(dev, 0x6100bc + (i * 0x800));
+			nv_wr32(dev, 0x6100bc + (i * 0x800), stat);
+			intr &= ~mask;
+		}
 	}
 
 	if (intr)
@@ -1774,7 +1768,7 @@ nvd0_display_create(struct drm_device *dev)
 	struct pci_dev *pdev = dev->pdev;
 	struct nvd0_display *disp;
 	struct dcb_entry *dcbe;
-	int ret, i;
+	int crtcs, ret, i;
 
 	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
 	if (!disp)
@@ -1782,7 +1776,8 @@ nvd0_display_create(struct drm_device *dev)
 	dev_priv->engine.display.priv = disp;
 
 	/* create crtc objects to represent the hw heads */
-	for (i = 0; i < 2; i++) {
+	crtcs = nv_rd32(dev, 0x022448);
+	for (i = 0; i < crtcs; i++) {
 		ret = nvd0_crtc_create(dev, i);
 		if (ret)
 			goto out;
