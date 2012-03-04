@@ -3901,7 +3901,6 @@ sta_not_found:
 
 			/* restore the bssid filter and go to dummy bssid */
 			if (was_assoc) {
-				u32 conf_flags = wl->hw->conf.flags;
 				/*
 				 * we might have to disable roc, if there was
 				 * no IF_OPER_UP notification.
@@ -3924,7 +3923,7 @@ sta_not_found:
 				}
 
 				wl1271_unjoin(wl, wlvif);
-				if (!(conf_flags & IEEE80211_CONF_IDLE))
+				if (!bss_conf->idle)
 					wl12xx_start_dev(wl, wlvif);
 			}
 		}
