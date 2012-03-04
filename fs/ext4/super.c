@@ -1509,6 +1509,244 @@ static int clear_qf_name(struct super_block *sb, int qtype)
 }
 #endif
 
+#define MOPT_SET	0x0001
+#define MOPT_CLEAR	0x0002
+#define MOPT_NOSUPPORT	0x0004
+#define MOPT_EXPLICIT	0x0008
+#define MOPT_CLEAR_ERR	0x0010
+#define MOPT_GTE0	0x0020
+#ifdef CONFIG_QUOTA
+#define MOPT_Q		0
+#define MOPT_QFMT	0x0040
+#else
+#define MOPT_Q		MOPT_NOSUPPORT
+#define MOPT_QFMT	MOPT_NOSUPPORT
+#endif
+#define MOPT_DATAJ	0x0080
+
+static const struct mount_opts {
+	int	token;
+	int	mount_opt;
+	int	flags;
+} ext4_mount_opts[] = {
+	{Opt_minix_df, EXT4_MOUNT_MINIX_DF, MOPT_SET},
+	{Opt_bsd_df, EXT4_MOUNT_MINIX_DF, MOPT_CLEAR},
+	{Opt_grpid, EXT4_MOUNT_GRPID, MOPT_SET},
+	{Opt_nogrpid, EXT4_MOUNT_GRPID, MOPT_CLEAR},
+	{Opt_mblk_io_submit, EXT4_MOUNT_MBLK_IO_SUBMIT, MOPT_SET},
+	{Opt_nomblk_io_submit, EXT4_MOUNT_MBLK_IO_SUBMIT, MOPT_CLEAR},
+	{Opt_block_validity, EXT4_MOUNT_BLOCK_VALIDITY, MOPT_SET},
+	{Opt_noblock_validity, EXT4_MOUNT_BLOCK_VALIDITY, MOPT_CLEAR},
+	{Opt_dioread_nolock, EXT4_MOUNT_DIOREAD_NOLOCK, MOPT_SET},
+	{Opt_dioread_lock, EXT4_MOUNT_DIOREAD_NOLOCK, MOPT_CLEAR},
+	{Opt_discard, EXT4_MOUNT_DISCARD, MOPT_SET},
+	{Opt_nodiscard, EXT4_MOUNT_DISCARD, MOPT_CLEAR},
+	{Opt_delalloc, EXT4_MOUNT_DELALLOC, MOPT_SET | MOPT_EXPLICIT},
+	{Opt_nodelalloc, EXT4_MOUNT_DELALLOC, MOPT_CLEAR | MOPT_EXPLICIT},
+	{Opt_journal_checksum, EXT4_MOUNT_JOURNAL_CHECKSUM, MOPT_SET},
+	{Opt_journal_async_commit, (EXT4_MOUNT_JOURNAL_ASYNC_COMMIT |
+				    EXT4_MOUNT_JOURNAL_CHECKSUM), MOPT_SET},
+	{Opt_noload, EXT4_MOUNT_NOLOAD, MOPT_SET},
+	{Opt_err_panic, EXT4_MOUNT_ERRORS_PANIC, MOPT_SET | MOPT_CLEAR_ERR},
+	{Opt_err_ro, EXT4_MOUNT_ERRORS_RO, MOPT_SET | MOPT_CLEAR_ERR},
+	{Opt_err_cont, EXT4_MOUNT_ERRORS_CONT, MOPT_SET | MOPT_CLEAR_ERR},
+	{Opt_data_err_abort, EXT4_MOUNT_DATA_ERR_ABORT, MOPT_SET},
+	{Opt_data_err_ignore, EXT4_MOUNT_DATA_ERR_ABORT, MOPT_CLEAR},
+	{Opt_barrier, EXT4_MOUNT_BARRIER, MOPT_SET},
+	{Opt_nobarrier, EXT4_MOUNT_BARRIER, MOPT_CLEAR},
+	{Opt_noauto_da_alloc, EXT4_MOUNT_NO_AUTO_DA_ALLOC, MOPT_SET},
+	{Opt_auto_da_alloc, EXT4_MOUNT_NO_AUTO_DA_ALLOC, MOPT_CLEAR},
+	{Opt_noinit_itable, EXT4_MOUNT_INIT_INODE_TABLE, MOPT_CLEAR},
+	{Opt_commit, 0, MOPT_GTE0},
+	{Opt_max_batch_time, 0, MOPT_GTE0},
+	{Opt_min_batch_time, 0, MOPT_GTE0},
+	{Opt_inode_readahead_blks, 0, MOPT_GTE0},
+	{Opt_init_itable, 0, MOPT_GTE0},
+	{Opt_stripe, 0, MOPT_GTE0},
+	{Opt_data_journal, EXT4_MOUNT_JOURNAL_DATA, MOPT_DATAJ},
+	{Opt_data_ordered, EXT4_MOUNT_ORDERED_DATA, MOPT_DATAJ},
+	{Opt_data_writeback, EXT4_MOUNT_WRITEBACK_DATA, MOPT_DATAJ},
+#ifdef CONFIG_EXT4_FS_XATTR
+	{Opt_user_xattr, EXT4_MOUNT_XATTR_USER, MOPT_SET},
+	{Opt_nouser_xattr, EXT4_MOUNT_XATTR_USER, MOPT_CLEAR},
+#else
+	{Opt_user_xattr, 0, MOPT_NOSUPPORT},
+	{Opt_nouser_xattr, 0, MOPT_NOSUPPORT},
+#endif
+#ifdef CONFIG_EXT4_FS_POSIX_ACL
+	{Opt_acl, EXT4_MOUNT_POSIX_ACL, MOPT_SET},
+	{Opt_noacl, EXT4_MOUNT_POSIX_ACL, MOPT_CLEAR},
+#else
+	{Opt_acl, 0, MOPT_NOSUPPORT},
+	{Opt_noacl, 0, MOPT_NOSUPPORT},
+#endif
+	{Opt_nouid32, EXT4_MOUNT_NO_UID32, MOPT_SET},
+	{Opt_debug, EXT4_MOUNT_DEBUG, MOPT_SET},
+	{Opt_quota, EXT4_MOUNT_QUOTA | EXT4_MOUNT_USRQUOTA, MOPT_SET | MOPT_Q},
+	{Opt_usrquota, EXT4_MOUNT_QUOTA | EXT4_MOUNT_USRQUOTA,
+							MOPT_SET | MOPT_Q},
+	{Opt_grpquota, EXT4_MOUNT_QUOTA | EXT4_MOUNT_GRPQUOTA,
+							MOPT_SET | MOPT_Q},
+	{Opt_noquota, (EXT4_MOUNT_QUOTA | EXT4_MOUNT_USRQUOTA |
+		       EXT4_MOUNT_GRPQUOTA), MOPT_CLEAR | MOPT_Q},
+	{Opt_usrjquota, 0, MOPT_Q},
+	{Opt_grpjquota, 0, MOPT_Q},
+	{Opt_offusrjquota, 0, MOPT_Q},
+	{Opt_offgrpjquota, 0, MOPT_Q},
+	{Opt_jqfmt_vfsold, QFMT_VFS_OLD, MOPT_QFMT},
+	{Opt_jqfmt_vfsv0, QFMT_VFS_V0, MOPT_QFMT},
+	{Opt_jqfmt_vfsv1, QFMT_VFS_V1, MOPT_QFMT},
+	{Opt_err, 0, 0}
+};
+
+static int handle_mount_opt(struct super_block *sb, char *opt, int token,
+			    substring_t *args, unsigned long *journal_devnum,
+			    unsigned int *journal_ioprio, int is_remount)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	const struct mount_opts *m;
+	int arg = 0;
+
+	if (args->from && match_int(args, &arg))
+		return -1;
+	switch (token) {
+	case Opt_sb:
+		return 1;	/* handled by get_sb_block() */
+	case Opt_removed:
+		ext4_msg(sb, KERN_WARNING,
+			 "Ignoring removed %s option", opt);
+		return 1;
+	case Opt_resuid:
+		sbi->s_resuid = arg;
+		return 1;
+	case Opt_resgid:
+		sbi->s_resgid = arg;
+		return 1;
+	case Opt_abort:
+		sbi->s_mount_flags |= EXT4_MF_FS_ABORTED;
+		return 1;
+	case Opt_i_version:
+		sb->s_flags |= MS_I_VERSION;
+		return 1;
+	case Opt_journal_dev:
+		if (is_remount) {
+			ext4_msg(sb, KERN_ERR,
+				 "Cannot specify journal on remount");
+			return -1;
+		}
+		*journal_devnum = arg;
+		return 1;
+	case Opt_journal_ioprio:
+		if (arg < 0 || arg > 7)
+			return -1;
+		*journal_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, arg);
+		return 1;
+	}
+
+	for (m = ext4_mount_opts; m->token != Opt_err; m++) {
+		if (token != m->token)
+			continue;
+		if (args->from && (m->flags & MOPT_GTE0) && (arg < 0))
+			return -1;
+		if (m->flags & MOPT_EXPLICIT)
+			set_opt2(sb, EXPLICIT_DELALLOC);
+		if (m->flags & MOPT_CLEAR_ERR)
+			clear_opt(sb, ERRORS_MASK);
+		if (token == Opt_noquota && sb_any_quota_loaded(sb)) {
+			ext4_msg(sb, KERN_ERR, "Cannot change quota "
+				 "options when quota turned on");
+			return -1;
+		}
+
+		if (m->flags & MOPT_NOSUPPORT) {
+			ext4_msg(sb, KERN_ERR, "%s option not supported", opt);
+		} else if (token == Opt_commit) {
+			if (arg == 0)
+				arg = JBD2_DEFAULT_MAX_COMMIT_AGE;
+			sbi->s_commit_interval = HZ * arg;
+		} else if (token == Opt_max_batch_time) {
+			if (arg == 0)
+				arg = EXT4_DEF_MAX_BATCH_TIME;
+			sbi->s_max_batch_time = arg;
+		} else if (token == Opt_min_batch_time) {
+			sbi->s_min_batch_time = arg;
+		} else if (token == Opt_inode_readahead_blks) {
+			if (arg > (1 << 30))
+				return -1;
+			if (arg && !is_power_of_2(arg)) {
+				ext4_msg(sb, KERN_ERR,
+					 "EXT4-fs: inode_readahead_blks"
+					 " must be a power of 2");
+				return -1;
+			}
+			sbi->s_inode_readahead_blks = arg;
+		} else if (token == Opt_init_itable) {
+			set_opt(sb, INIT_INODE_TABLE);
+			if (!args->from)
+				arg = EXT4_DEF_LI_WAIT_MULT;
+			sbi->s_li_wait_mult = arg;
+		} else if (token == Opt_stripe) {
+			sbi->s_stripe = arg;
+		} else if (m->flags & MOPT_DATAJ) {
+			if (is_remount) {
+				if (!sbi->s_journal)
+					ext4_msg(sb, KERN_WARNING, "Remounting file system with no journal so ignoring journalled data option");
+				else if (test_opt(sb, DATA_FLAGS) !=
+					 m->mount_opt) {
+					ext4_msg(sb, KERN_ERR,
+					 "Cannot change data mode on remount");
+					return -1;
+				}
+			} else {
+				clear_opt(sb, DATA_FLAGS);
+				sbi->s_mount_opt |= m->mount_opt;
+			}
+#ifdef CONFIG_QUOTA
+		} else if (token == Opt_usrjquota) {
+			if (!set_qf_name(sb, USRQUOTA, &args[0]))
+				return -1;
+		} else if (token == Opt_grpjquota) {
+			if (!set_qf_name(sb, GRPQUOTA, &args[0]))
+				return -1;
+		} else if (token == Opt_offusrjquota) {
+			if (!clear_qf_name(sb, USRQUOTA))
+				return -1;
+		} else if (token == Opt_offgrpjquota) {
+			if (!clear_qf_name(sb, GRPQUOTA))
+				return -1;
+		} else if (m->flags & MOPT_QFMT) {
+			if (sb_any_quota_loaded(sb) &&
+			    sbi->s_jquota_fmt != m->mount_opt) {
+				ext4_msg(sb, KERN_ERR, "Cannot "
+					 "change journaled quota options "
+					 "when quota turned on");
+				return -1;
+			}
+			sbi->s_jquota_fmt = m->mount_opt;
+#endif
+		} else {
+			if (!args->from)
+				arg = 1;
+			if (m->flags & MOPT_CLEAR)
+				arg = !arg;
+			else if (unlikely(!(m->flags & MOPT_SET))) {
+				ext4_msg(sb, KERN_WARNING,
+					 "buggy handling of option %s", opt);
+				WARN_ON(1);
+				return -1;
+			}
+			if (arg != 0)
+				sbi->s_mount_opt |= m->mount_opt;
+			else
+				sbi->s_mount_opt &= ~m->mount_opt;
+		}
+		return 1;
+	}
+	ext4_msg(sb, KERN_ERR, "Unrecognized mount option \"%s\" "
+		 "or missing value", opt);
+	return -1;
+}
+
 static int parse_options(char *options, struct super_block *sb,
 			 unsigned long *journal_devnum,
 			 unsigned int *journal_ioprio,
@@ -1517,363 +1755,23 @@ static int parse_options(char *options, struct super_block *sb,
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
-	int data_opt = 0;
-	int option;
-#ifdef CONFIG_QUOTA
-	int qfmt;
-#endif
+	int token;
 
 	if (!options)
 		return 1;
 
 	while ((p = strsep(&options, ",")) != NULL) {
-		int token;
 		if (!*p)
 			continue;
-
 		/*
 		 * Initialize args struct so we know whether arg was
 		 * found; some options take optional arguments.
 		 */
-		args[0].to = args[0].from = NULL;
+		args[0].to = args[0].from = 0;
 		token = match_token(p, tokens, args);
-		switch (token) {
-		case Opt_bsd_df:
-			clear_opt(sb, MINIX_DF);
-			break;
-		case Opt_minix_df:
-			set_opt(sb, MINIX_DF);
-			break;
-		case Opt_grpid:
-			set_opt(sb, GRPID);
-			break;
-		case Opt_nogrpid:
-			clear_opt(sb, GRPID);
-			break;
-		case Opt_resuid:
-			if (match_int(&args[0], &option))
-				return 0;
-			sbi->s_resuid = option;
-			break;
-		case Opt_resgid:
-			if (match_int(&args[0], &option))
-				return 0;
-			sbi->s_resgid = option;
-			break;
-		case Opt_sb:
-			/* handled by get_sb_block() instead of here */
-			/* *sb_block = match_int(&args[0]); */
-			break;
-		case Opt_err_panic:
-			clear_opt(sb, ERRORS_MASK);
-			set_opt(sb, ERRORS_PANIC);
-			break;
-		case Opt_err_ro:
-			clear_opt(sb, ERRORS_MASK);
-			set_opt(sb, ERRORS_RO);
-			break;
-		case Opt_err_cont:
-			clear_opt(sb, ERRORS_MASK);
-			set_opt(sb, ERRORS_CONT);
-			break;
-		case Opt_nouid32:
-			set_opt(sb, NO_UID32);
-			break;
-		case Opt_debug:
-			set_opt(sb, DEBUG);
-			break;
-		case Opt_removed:
-			ext4_msg(sb, KERN_WARNING,
-				 "Ignoring deprecated %s option", p);
-			break;
-#ifdef CONFIG_EXT4_FS_XATTR
-		case Opt_user_xattr:
-			set_opt(sb, XATTR_USER);
-			break;
-		case Opt_nouser_xattr:
-			clear_opt(sb, XATTR_USER);
-			break;
-#else
-		case Opt_user_xattr:
-		case Opt_nouser_xattr:
-			ext4_msg(sb, KERN_ERR, "(no)user_xattr options not supported");
-			break;
-#endif
-#ifdef CONFIG_EXT4_FS_POSIX_ACL
-		case Opt_acl:
-			set_opt(sb, POSIX_ACL);
-			break;
-		case Opt_noacl:
-			clear_opt(sb, POSIX_ACL);
-			break;
-#else
-		case Opt_acl:
-		case Opt_noacl:
-			ext4_msg(sb, KERN_ERR, "(no)acl options not supported");
-			break;
-#endif
-		case Opt_journal_dev:
-			if (is_remount) {
-				ext4_msg(sb, KERN_ERR,
-					"Cannot specify journal on remount");
-				return 0;
-			}
-			if (match_int(&args[0], &option))
-				return 0;
-			*journal_devnum = option;
-			break;
-		case Opt_journal_checksum:
-			set_opt(sb, JOURNAL_CHECKSUM);
-			break;
-		case Opt_journal_async_commit:
-			set_opt(sb, JOURNAL_ASYNC_COMMIT);
-			set_opt(sb, JOURNAL_CHECKSUM);
-			break;
-		case Opt_noload:
-			set_opt(sb, NOLOAD);
-			break;
-		case Opt_commit:
-			if (match_int(&args[0], &option))
-				return 0;
-			if (option < 0)
-				return 0;
-			if (option == 0)
-				option = JBD2_DEFAULT_MAX_COMMIT_AGE;
-			sbi->s_commit_interval = HZ * option;
-			break;
-		case Opt_max_batch_time:
-			if (match_int(&args[0], &option))
-				return 0;
-			if (option < 0)
-				return 0;
-			if (option == 0)
-				option = EXT4_DEF_MAX_BATCH_TIME;
-			sbi->s_max_batch_time = option;
-			break;
-		case Opt_min_batch_time:
-			if (match_int(&args[0], &option))
-				return 0;
-			if (option < 0)
-				return 0;
-			sbi->s_min_batch_time = option;
-			break;
-		case Opt_data_journal:
-			data_opt = EXT4_MOUNT_JOURNAL_DATA;
-			goto datacheck;
-		case Opt_data_ordered:
-			data_opt = EXT4_MOUNT_ORDERED_DATA;
-			goto datacheck;
-		case Opt_data_writeback:
-			data_opt = EXT4_MOUNT_WRITEBACK_DATA;
-		datacheck:
-			if (is_remount) {
-				if (!sbi->s_journal)
-					ext4_msg(sb, KERN_WARNING, "Remounting file system with no journal so ignoring journalled data option");
-				else if (test_opt(sb, DATA_FLAGS) != data_opt) {
-					ext4_msg(sb, KERN_ERR,
-						"Cannot change data mode on remount");
-					return 0;
-				}
-			} else {
-				clear_opt(sb, DATA_FLAGS);
-				sbi->s_mount_opt |= data_opt;
-			}
-			break;
-		case Opt_data_err_abort:
-			set_opt(sb, DATA_ERR_ABORT);
-			break;
-		case Opt_data_err_ignore:
-			clear_opt(sb, DATA_ERR_ABORT);
-			break;
-#ifdef CONFIG_QUOTA
-		case Opt_usrjquota:
-			if (!set_qf_name(sb, USRQUOTA, &args[0]))
-				return 0;
-			break;
-		case Opt_grpjquota:
-			if (!set_qf_name(sb, GRPQUOTA, &args[0]))
-				return 0;
-			break;
-		case Opt_offusrjquota:
-			if (!clear_qf_name(sb, USRQUOTA))
-				return 0;
-			break;
-		case Opt_offgrpjquota:
-			if (!clear_qf_name(sb, GRPQUOTA))
-				return 0;
-			break;
-
-		case Opt_jqfmt_vfsold:
-			qfmt = QFMT_VFS_OLD;
-			goto set_qf_format;
-		case Opt_jqfmt_vfsv0:
-			qfmt = QFMT_VFS_V0;
-			goto set_qf_format;
-		case Opt_jqfmt_vfsv1:
-			qfmt = QFMT_VFS_V1;
-set_qf_format:
-			if (sb_any_quota_loaded(sb) &&
-			    sbi->s_jquota_fmt != qfmt) {
-				ext4_msg(sb, KERN_ERR, "Cannot change "
-					"journaled quota options when "
-					"quota turned on");
-				return 0;
-			}
-			sbi->s_jquota_fmt = qfmt;
-			break;
-		case Opt_quota:
-		case Opt_usrquota:
-			set_opt(sb, QUOTA);
-			set_opt(sb, USRQUOTA);
-			break;
-		case Opt_grpquota:
-			set_opt(sb, QUOTA);
-			set_opt(sb, GRPQUOTA);
-			break;
-		case Opt_noquota:
-			if (sb_any_quota_loaded(sb)) {
-				ext4_msg(sb, KERN_ERR, "Cannot change quota "
-					"options when quota turned on");
-				return 0;
-			}
-			clear_opt(sb, QUOTA);
-			clear_opt(sb, USRQUOTA);
-			clear_opt(sb, GRPQUOTA);
-			break;
-#else
-		case Opt_quota:
-		case Opt_usrquota:
-		case Opt_grpquota:
-			ext4_msg(sb, KERN_ERR,
-				"quota options not supported");
-			break;
-		case Opt_usrjquota:
-		case Opt_grpjquota:
-		case Opt_offusrjquota:
-		case Opt_offgrpjquota:
-		case Opt_jqfmt_vfsold:
-		case Opt_jqfmt_vfsv0:
-		case Opt_jqfmt_vfsv1:
-			ext4_msg(sb, KERN_ERR,
-				"journaled quota options not supported");
-			break;
-		case Opt_noquota:
-			break;
-#endif
-		case Opt_abort:
-			sbi->s_mount_flags |= EXT4_MF_FS_ABORTED;
-			break;
-		case Opt_nobarrier:
-			clear_opt(sb, BARRIER);
-			break;
-		case Opt_barrier:
-			if (args[0].from) {
-				if (match_int(&args[0], &option))
-					return 0;
-			} else
-				option = 1;	/* No argument, default to 1 */
-			if (option)
-				set_opt(sb, BARRIER);
-			else
-				clear_opt(sb, BARRIER);
-			break;
-		case Opt_i_version:
-			sb->s_flags |= MS_I_VERSION;
-			break;
-		case Opt_nodelalloc:
-			clear_opt(sb, DELALLOC);
-			clear_opt2(sb, EXPLICIT_DELALLOC);
-			break;
-		case Opt_mblk_io_submit:
-			set_opt(sb, MBLK_IO_SUBMIT);
-			break;
-		case Opt_nomblk_io_submit:
-			clear_opt(sb, MBLK_IO_SUBMIT);
-			break;
-		case Opt_stripe:
-			if (match_int(&args[0], &option))
-				return 0;
-			if (option < 0)
-				return 0;
-			sbi->s_stripe = option;
-			break;
-		case Opt_delalloc:
-			set_opt(sb, DELALLOC);
-			set_opt2(sb, EXPLICIT_DELALLOC);
-			break;
-		case Opt_block_validity:
-			set_opt(sb, BLOCK_VALIDITY);
-			break;
-		case Opt_noblock_validity:
-			clear_opt(sb, BLOCK_VALIDITY);
-			break;
-		case Opt_inode_readahead_blks:
-			if (match_int(&args[0], &option))
-				return 0;
-			if (option < 0 || option > (1 << 30))
-				return 0;
-			if (option && !is_power_of_2(option)) {
-				ext4_msg(sb, KERN_ERR,
-					 "EXT4-fs: inode_readahead_blks"
-					 " must be a power of 2");
-				return 0;
-			}
-			sbi->s_inode_readahead_blks = option;
-			break;
-		case Opt_journal_ioprio:
-			if (match_int(&args[0], &option))
-				return 0;
-			if (option < 0 || option > 7)
-				break;
-			*journal_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE,
-							    option);
-			break;
-		case Opt_noauto_da_alloc:
-			set_opt(sb, NO_AUTO_DA_ALLOC);
-			break;
-		case Opt_auto_da_alloc:
-			if (args[0].from) {
-				if (match_int(&args[0], &option))
-					return 0;
-			} else
-				option = 1;	/* No argument, default to 1 */
-			if (option)
-				clear_opt(sb, NO_AUTO_DA_ALLOC);
-			else
-				set_opt(sb,NO_AUTO_DA_ALLOC);
-			break;
-		case Opt_discard:
-			set_opt(sb, DISCARD);
-			break;
-		case Opt_nodiscard:
-			clear_opt(sb, DISCARD);
-			break;
-		case Opt_dioread_nolock:
-			set_opt(sb, DIOREAD_NOLOCK);
-			break;
-		case Opt_dioread_lock:
-			clear_opt(sb, DIOREAD_NOLOCK);
-			break;
-		case Opt_init_itable:
-			set_opt(sb, INIT_INODE_TABLE);
-			if (args[0].from) {
-				if (match_int(&args[0], &option))
-					return 0;
-			} else
-				option = EXT4_DEF_LI_WAIT_MULT;
-			if (option < 0)
-				return 0;
-			sbi->s_li_wait_mult = option;
-			break;
-		case Opt_noinit_itable:
-			clear_opt(sb, INIT_INODE_TABLE);
-			break;
-		default:
-			ext4_msg(sb, KERN_ERR,
-			       "Unrecognized mount option \"%s\" "
-			       "or missing value", p);
+		if (handle_mount_opt(sb, p, token, args, journal_devnum,
+				     journal_ioprio, is_remount) < 0)
 			return 0;
-		}
 	}
 #ifdef CONFIG_QUOTA
 	if (sbi->s_qf_names[USRQUOTA] || sbi->s_qf_names[GRPQUOTA]) {
