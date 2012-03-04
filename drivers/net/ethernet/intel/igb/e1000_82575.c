@@ -52,6 +52,8 @@ static s32  igb_write_phy_reg_82580(struct e1000_hw *, u32, u16);
 static s32  igb_reset_hw_82575(struct e1000_hw *);
 static s32  igb_reset_hw_82580(struct e1000_hw *);
 static s32  igb_set_d0_lplu_state_82575(struct e1000_hw *, bool);
+static s32  igb_set_d0_lplu_state_82580(struct e1000_hw *, bool);
+static s32  igb_set_d3_lplu_state_82580(struct e1000_hw *, bool);
 static s32  igb_setup_copper_link_82575(struct e1000_hw *);
 static s32  igb_setup_serdes_link_82575(struct e1000_hw *);
 static s32  igb_write_phy_reg_sgmii_82575(struct e1000_hw *, u32, u16);
@@ -359,6 +361,8 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		phy->ops.force_speed_duplex = igb_phy_force_speed_duplex_82580;
 		phy->ops.get_cable_length   = igb_get_cable_length_82580;
 		phy->ops.get_phy_info       = igb_get_phy_info_82580;
+		phy->ops.set_d0_lplu_state  = igb_set_d0_lplu_state_82580;
+		phy->ops.set_d3_lplu_state  = igb_set_d3_lplu_state_82580;
 		break;
 	default:
 		return -E1000_ERR_PHY;
@@ -670,6 +674,96 @@ static s32 igb_set_d0_lplu_state_82575(struct e1000_hw *hw, bool active)
 	}
 
 out:
+	return ret_val;
+}
+
+/**
+ *  igb_set_d0_lplu_state_82580 - Set Low Power Linkup D0 state
+ *  @hw: pointer to the HW structure
+ *  @active: true to enable LPLU, false to disable
+ *
+ *  Sets the LPLU D0 state according to the active flag.  When
+ *  activating LPLU this function also disables smart speed
+ *  and vice versa.  LPLU will not be activated unless the
+ *  device autonegotiation advertisement meets standards of
+ *  either 10 or 10/100 or 10/100/1000 at all duplexes.
+ *  This is a function pointer entry point only called by
+ *  PHY setup routines.
+ **/
+static s32 igb_set_d0_lplu_state_82580(struct e1000_hw *hw, bool active)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val = 0;
+	u16 data;
+
+	data = rd32(E1000_82580_PHY_POWER_MGMT);
+
+	if (active) {
+		data |= E1000_82580_PM_D0_LPLU;
+
+		/* When LPLU is enabled, we should disable SmartSpeed */
+		data &= ~E1000_82580_PM_SPD;
+	} else {
+		data &= ~E1000_82580_PM_D0_LPLU;
+
+		/*
+		 * LPLU and SmartSpeed are mutually exclusive.  LPLU is used
+		 * during Dx states where the power conservation is most
+		 * important.  During driver activity we should enable
+		 * SmartSpeed, so performance is maintained.
+		 */
+		if (phy->smart_speed == e1000_smart_speed_on)
+			data |= E1000_82580_PM_SPD;
+		else if (phy->smart_speed == e1000_smart_speed_off)
+			data &= ~E1000_82580_PM_SPD; }
+
+	wr32(E1000_82580_PHY_POWER_MGMT, data);
+	return ret_val;
+}
+
+/**
+ *  igb_set_d3_lplu_state_82580 - Sets low power link up state for D3
+ *  @hw: pointer to the HW structure
+ *  @active: boolean used to enable/disable lplu
+ *
+ *  Success returns 0, Failure returns 1
+ *
+ *  The low power link up (lplu) state is set to the power management level D3
+ *  and SmartSpeed is disabled when active is true, else clear lplu for D3
+ *  and enable Smartspeed.  LPLU and Smartspeed are mutually exclusive.  LPLU
+ *  is used during Dx states where the power conservation is most important.
+ *  During driver activity, SmartSpeed should be enabled so performance is
+ *  maintained.
+ **/
+s32 igb_set_d3_lplu_state_82580(struct e1000_hw *hw, bool active)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val = 0;
+	u16 data;
+
+	data = rd32(E1000_82580_PHY_POWER_MGMT);
+
+	if (!active) {
+		data &= ~E1000_82580_PM_D3_LPLU;
+		/*
+		 * LPLU and SmartSpeed are mutually exclusive.  LPLU is used
+		 * during Dx states where the power conservation is most
+		 * important.  During driver activity we should enable
+		 * SmartSpeed, so performance is maintained.
+		 */
+		if (phy->smart_speed == e1000_smart_speed_on)
+			data |= E1000_82580_PM_SPD;
+		else if (phy->smart_speed == e1000_smart_speed_off)
+			data &= ~E1000_82580_PM_SPD;
+	} else if ((phy->autoneg_advertised == E1000_ALL_SPEED_DUPLEX) ||
+		   (phy->autoneg_advertised == E1000_ALL_NOT_GIG) ||
+		   (phy->autoneg_advertised == E1000_ALL_10_SPEED)) {
+		data |= E1000_82580_PM_D3_LPLU;
+		/* When LPLU is enabled, we should disable SmartSpeed */
+		data &= ~E1000_82580_PM_SPD;
+	}
+
+	wr32(E1000_82580_PHY_POWER_MGMT, data);
 	return ret_val;
 }
 

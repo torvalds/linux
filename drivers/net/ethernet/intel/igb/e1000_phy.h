@@ -114,6 +114,13 @@ s32  igb_get_cable_length_82580(struct e1000_hw *hw);
 /* I82580 PHY Diagnostics Status */
 #define I82580_DSTATUS_CABLE_LENGTH       0x03FC
 #define I82580_DSTATUS_CABLE_LENGTH_SHIFT 2
+
+/* 82580 PHY Power Management */
+#define E1000_82580_PHY_POWER_MGMT	0xE14
+#define E1000_82580_PM_SPD		0x0001 /* Smart Power Down */
+#define E1000_82580_PM_D0_LPLU		0x0002 /* For D0a states */
+#define E1000_82580_PM_D3_LPLU		0x0004 /* For all other states */
+
 /* Enable flexible speed on link-up */
 #define IGP02E1000_PM_D0_LPLU             0x0002 /* For D0a states */
 #define IGP02E1000_PM_D3_LPLU             0x0004 /* For all other states */
