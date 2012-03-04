@@ -501,12 +501,82 @@ static ssize_t show_central_polling(struct device *dev,
 		       !to_devfreq(dev)->governor->no_central_polling);
 }
 
+static ssize_t store_min_freq(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct devfreq *df = to_devfreq(dev);
+	unsigned long value;
+	int ret;
+	unsigned long max;
+
+	ret = sscanf(buf, "%lu", &value);
+	if (ret != 1)
+		goto out;
+
+	mutex_lock(&df->lock);
+	max = df->max_freq;
+	if (value && max && value > max) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	df->min_freq = value;
+	update_devfreq(df);
+	ret = count;
+unlock:
+	mutex_unlock(&df->lock);
+out:
+	return ret;
+}
+
+static ssize_t show_min_freq(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	return sprintf(buf, "%lu\n", to_devfreq(dev)->min_freq);
+}
+
+static ssize_t store_max_freq(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct devfreq *df = to_devfreq(dev);
+	unsigned long value;
+	int ret;
+	unsigned long min;
+
+	ret = sscanf(buf, "%lu", &value);
+	if (ret != 1)
+		goto out;
+
+	mutex_lock(&df->lock);
+	min = df->min_freq;
+	if (value && min && value < min) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	df->max_freq = value;
+	update_devfreq(df);
+	ret = count;
+unlock:
+	mutex_unlock(&df->lock);
+out:
+	return ret;
+}
+
+static ssize_t show_max_freq(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	return sprintf(buf, "%lu\n", to_devfreq(dev)->max_freq);
+}
+
 static struct device_attribute devfreq_attrs[] = {
 	__ATTR(governor, S_IRUGO, show_governor, NULL),
 	__ATTR(cur_freq, S_IRUGO, show_freq, NULL),
 	__ATTR(central_polling, S_IRUGO, show_central_polling, NULL),
 	__ATTR(polling_interval, S_IRUGO | S_IWUSR, show_polling_interval,
 	       store_polling_interval),
+	__ATTR(min_freq, S_IRUGO | S_IWUSR, show_min_freq, store_min_freq),
+	__ATTR(max_freq, S_IRUGO | S_IWUSR, show_max_freq, store_max_freq),
 	{ },
 };
 
