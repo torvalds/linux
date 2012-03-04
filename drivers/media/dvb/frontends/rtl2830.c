@@ -244,7 +244,7 @@ static int rtl2830_init(struct dvb_frontend *fe)
 
 	num = priv->cfg.if_dvbt % priv->cfg.xtal;
 	num *= 0x400000;
-	num /= priv->cfg.xtal;
+	num = div_u64(num, priv->cfg.xtal);
 	num = -num;
 	if_ctl = num & 0x3fffff;
 	dbg("%s: if_ctl=%08x", __func__, if_ctl);
