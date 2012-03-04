@@ -523,7 +523,7 @@ struct cyttsp *cyttsp_probe(const struct cyttsp_bus_ops *bus_ops,
 	struct input_dev *input_dev;
 	int error;
 
-	if (!dev || !bus_ops || !pdata || !pdata->name || irq <= 0) {
+	if (!pdata || !pdata->name || irq <= 0) {
 		error = -EINVAL;
 		goto err_out;
 	}
