@@ -13,7 +13,7 @@ obj-y += linked_dtb.o
 endif
 
 $(obj)/%.dtb: $(src)/dts/%.dts FORCE
-	$(call cmd,dtc)
+	$(call if_changed_dep,dtc)
 
 quiet_cmd_cp = CP      $< $@$2
 	cmd_cp = cat $< >$@$2 || (rm -f $@ && echo false)

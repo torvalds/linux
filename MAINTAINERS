@@ -269,7 +269,6 @@ S:	Orphan
 F:	drivers/platform/x86/wmi.c
 
 AD1889 ALSA SOUND DRIVER
-M:	Kyle McMartin <kyle@mcmartin.ca>
 M:	Thibaut Varene <T-Bone@parisc-linux.org>
 W:	http://wiki.parisc-linux.org/AD1889
 L:	linux-parisc@vger.kernel.org
@@ -3047,7 +3046,6 @@ F:	drivers/hwspinlock/hwspinlock_*
 F:	include/linux/hwspinlock.h
 
 HARMONY SOUND DRIVER
-M:	Kyle McMartin <kyle@mcmartin.ca>
 L:	linux-parisc@vger.kernel.org
 S:	Maintained
 F:	sound/parisc/harmony.*
@@ -3317,6 +3315,12 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lowpan/lowpan.git
 S:	Maintained
 F:	net/ieee802154/
 F:	drivers/ieee802154/
+
+IIO SUBSYSTEM AND DRIVERS
+M:	Jonathan Cameron <jic23@cam.ac.uk>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/iio/
 
 IKANOS/ADI EAGLE ADSL USB DRIVER
 M:	Matthieu Castet <castet.matthieu@free.fr>
@@ -4994,9 +4998,8 @@ F:	Documentation/blockdev/paride.txt
 F:	drivers/block/paride/
 
 PARISC ARCHITECTURE
-M:	Kyle McMartin <kyle@mcmartin.ca>
-M:	Helge Deller <deller@gmx.de>
 M:	"James E.J. Bottomley" <jejb@parisc-linux.org>
+M:	Helge Deller <deller@gmx.de>
 L:	linux-parisc@vger.kernel.org
 W:	http://www.parisc-linux.org/
 Q:	http://patchwork.kernel.org/project/linux-parisc/list/
@@ -5855,7 +5858,7 @@ S:	Maintained
 F:	drivers/mmc/host/sdhci-spear.c
 
 SECURITY SUBSYSTEM
-M:	James Morris <jmorris@namei.org>
+M:	James Morris <james.l.morris@oracle.com>
 L:	linux-security-module@vger.kernel.org (suggested Cc:)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jmorris/linux-security.git
 W:	http://security.wiki.kernel.org/
@@ -5868,7 +5871,7 @@ S:	Supported
 
 SELINUX SECURITY MODULE
 M:	Stephen Smalley <sds@tycho.nsa.gov>
-M:	James Morris <jmorris@namei.org>
+M:	James Morris <james.l.morris@oracle.com>
 M:	Eric Paris <eparis@parisplace.org>
 L:	selinux@tycho.nsa.gov (subscribers-only, general discussion)
 W:	http://selinuxproject.org

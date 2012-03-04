@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -60,7 +60,7 @@ static const char ixgbevf_driver_string[] =
 #define DRV_VERSION "2.2.0-k"
 const char ixgbevf_driver_version[] = DRV_VERSION;
 static char ixgbevf_copyright[] =
-	"Copyright (c) 2009 - 2010 Intel Corporation.";
+	"Copyright (c) 2009 - 2012 Intel Corporation.";
 
 static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
 	[board_82599_vf] = &ixgbevf_82599_vf_info,
@@ -935,7 +935,11 @@ static irqreturn_t ixgbevf_msix_mbx(int irq, void *data)
 		if (msg & IXGBE_VT_MSGTYPE_NACK)
 			pr_warn("Last Request of type %2.2x to PF Nacked\n",
 				msg & 0xFF);
-		goto out;
+		/*
+		 * Restore the PFSTS bit in case someone is polling for a
+		 * return message from the PF
+		 */
+		hw->mbx.v2p_mailbox |= IXGBE_VFMAILBOX_PFSTS;
 	}
 
 	/*
@@ -945,7 +949,7 @@ static irqreturn_t ixgbevf_msix_mbx(int irq, void *data)
 	 */
 	if (got_ack)
 		hw->mbx.v2p_mailbox |= IXGBE_VFMAILBOX_PFACK;
-out:
+
 	return IRQ_HANDLED;
 }
 

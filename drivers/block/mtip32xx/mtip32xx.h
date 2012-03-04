@@ -104,9 +104,6 @@
 /* BAR number used to access the HBA registers. */
 #define MTIP_ABAR		5
 
-/* Forced Unit Access Bit */
-#define FUA_BIT			0x80
-
 #ifdef DEBUG
  #define dbg_printk(format, arg...)	\
 	printk(pr_fmt(format), ##arg);
@@ -414,8 +411,6 @@ struct driver_data {
 	unsigned int ftlrebuildflag; /* FTL rebuild flag */
 
 	atomic_t resumeflag; /* Atomic variable to track suspend/resume */
-
-	atomic_t eh_active; /* Flag for error handling tracking */
 
 	struct task_struct *mtip_svc_handler; /* task_struct of svc thd */
 };
