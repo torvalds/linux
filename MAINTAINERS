@@ -2110,6 +2110,13 @@ W:	http://www.cyclades.com/
 S:	Orphan
 F:	drivers/net/wan/pc300*
 
+CYTTSP TOUCHSCREEN DRIVER
+M:      Javier Martinez Canillas <javier@dowhile0.org>
+L:      linux-input@vger.kernel.org
+S:      Maintained
+F:      drivers/input/touchscreen/cyttsp*
+F:      include/linux/input/cyttsp.h
+
 DAMA SLAVE for AX.25
 M:	Joerg Reuter <jreuter@yaina.de>
 W:	http://yaina.de/jreuter/
