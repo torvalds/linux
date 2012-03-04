@@ -204,8 +204,8 @@ struct methods {
 static struct methods shadow_methods[] = {
 	{ "PRAMIN", load_vbios_pramin, true },
 	{ "PROM", load_vbios_prom, false },
-	{ "PCIROM", load_vbios_pci, true },
 	{ "ACPI", load_vbios_acpi, true },
+	{ "PCIROM", load_vbios_pci, true },
 };
 #define NUM_SHADOW_METHODS ARRAY_SIZE(shadow_methods)
 
