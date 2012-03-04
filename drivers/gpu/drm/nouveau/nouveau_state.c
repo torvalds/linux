@@ -479,6 +479,47 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
 		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
 		break;
+	case 0xe0:
+		engine->instmem.init		= nvc0_instmem_init;
+		engine->instmem.takedown	= nvc0_instmem_takedown;
+		engine->instmem.suspend		= nvc0_instmem_suspend;
+		engine->instmem.resume		= nvc0_instmem_resume;
+		engine->instmem.get		= nv50_instmem_get;
+		engine->instmem.put		= nv50_instmem_put;
+		engine->instmem.map		= nv50_instmem_map;
+		engine->instmem.unmap		= nv50_instmem_unmap;
+		engine->instmem.flush		= nv84_instmem_flush;
+		engine->mc.init			= nv50_mc_init;
+		engine->mc.takedown		= nv50_mc_takedown;
+		engine->timer.init		= nv04_timer_init;
+		engine->timer.read		= nv04_timer_read;
+		engine->timer.takedown		= nv04_timer_takedown;
+		engine->fb.init			= nvc0_fb_init;
+		engine->fb.takedown		= nvc0_fb_takedown;
+		engine->fifo.channels		= 0;
+		engine->fifo.init		= nouveau_stub_init;
+		engine->fifo.takedown		= nouveau_stub_takedown;
+		engine->fifo.disable		= nvc0_fifo_disable;
+		engine->fifo.enable		= nvc0_fifo_enable;
+		engine->fifo.reassign		= nvc0_fifo_reassign;
+		engine->fifo.unload_context	= nouveau_stub_init;
+		engine->display.early_init	= nouveau_stub_init;
+		engine->display.late_takedown	= nouveau_stub_takedown;
+		engine->display.create		= nvd0_display_create;
+		engine->display.destroy		= nvd0_display_destroy;
+		engine->display.init		= nvd0_display_init;
+		engine->display.fini		= nvd0_display_fini;
+		engine->gpio.init		= nv50_gpio_init;
+		engine->gpio.fini		= nv50_gpio_fini;
+		engine->gpio.drive		= nvd0_gpio_drive;
+		engine->gpio.sense		= nvd0_gpio_sense;
+		engine->gpio.irq_enable		= nv50_gpio_irq_enable;
+		engine->vram.init		= nvc0_vram_init;
+		engine->vram.takedown		= nv50_vram_fini;
+		engine->vram.get		= nvc0_vram_new;
+		engine->vram.put		= nv50_vram_del;
+		engine->vram.flags_valid	= nvc0_vram_flags_valid;
+		break;
 	default:
 		NV_ERROR(dev, "NV%02x unsupported\n", dev_priv->chipset);
 		return 1;
@@ -1056,8 +1097,8 @@ static int nouveau_remove_conflicting_drivers(struct drm_device *dev)
 int nouveau_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_nouveau_private *dev_priv;
+	unsigned long long offset, length;
 	uint32_t reg0 = ~0, strap;
-	resource_size_t mmio_start_offs;
 	int ret;
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
@@ -1111,6 +1152,9 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 			case 0xd0:
 				dev_priv->card_type = NV_D0;
 				break;
+			case 0xe0:
+				dev_priv->card_type = NV_E0;
+				break;
 			default:
 				break;
 			}
@@ -1135,17 +1179,20 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	NV_INFO(dev, "Detected an NV%2x generation card (0x%08x)\n",
 		     dev_priv->card_type, reg0);
 
-	/* map the mmio regs */
-	mmio_start_offs = pci_resource_start(dev->pdev, 0);
-	dev_priv->mmio = ioremap(mmio_start_offs, 0x00800000);
+	/* map the mmio regs, limiting the amount to preserve vmap space */
+	offset = pci_resource_start(dev->pdev, 0);
+	length = pci_resource_len(dev->pdev, 0);
+	if (dev_priv->card_type < NV_E0)
+		length = min(length, (unsigned long long)0x00800000);
+
+	dev_priv->mmio = ioremap(offset, length);
 	if (!dev_priv->mmio) {
 		NV_ERROR(dev, "Unable to initialize the mmio mapping. "
 			 "Please report your setup to " DRIVER_EMAIL "\n");
 		ret = -EINVAL;
 		goto err_priv;
 	}
-	NV_DEBUG(dev, "regs mapped ok at 0x%llx\n",
-					(unsigned long long)mmio_start_offs);
+	NV_DEBUG(dev, "regs mapped ok at 0x%llx\n", offset);
 
 	/* determine frequency of timing crystal */
 	strap = nv_rd32(dev, 0x101000);
@@ -1203,7 +1250,7 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 		}
 	} else {
 		dev_priv->ramin_size = 1 * 1024 * 1024;
-		dev_priv->ramin = ioremap(mmio_start_offs + NV_RAMIN,
+		dev_priv->ramin = ioremap(offset + NV_RAMIN,
 					  dev_priv->ramin_size);
 		if (!dev_priv->ramin) {
 			NV_ERROR(dev, "Failed to map BAR0 PRAMIN.\n");

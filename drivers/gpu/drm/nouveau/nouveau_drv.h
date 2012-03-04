@@ -701,6 +701,7 @@ enum nouveau_card_type {
 	NV_50      = 0x50,
 	NV_C0      = 0xc0,
 	NV_D0      = 0xd0,
+	NV_E0      = 0xe0,
 };
 
 struct drm_nouveau_private {
