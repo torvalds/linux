@@ -131,11 +131,7 @@ static void __init tegra_dt_init(void)
 }
 
 static const char *tegra20_dt_board_compat[] = {
-	"compulab,trimslice",
-	"nvidia,harmony",
-	"compal,paz00",
-	"nvidia,seaboard",
-	"nvidia,ventana",
+	"nvidia,tegra20",
 	NULL
 };
 

@@ -36,13 +36,14 @@ static struct regulator_consumer_supply tps658621_ldo0_supply[] = {
 
 static struct regulator_init_data ldo0_data = {
 	.constraints = {
-		.min_uV = 1250 * 1000,
+		.min_uV = 3300 * 1000,
 		.max_uV = 3300 * 1000,
 		.valid_modes_mask = (REGULATOR_MODE_NORMAL |
 				     REGULATOR_MODE_STANDBY),
 		.valid_ops_mask = (REGULATOR_CHANGE_MODE |
 				   REGULATOR_CHANGE_STATUS |
 				   REGULATOR_CHANGE_VOLTAGE),
+		.apply_uV = 1,
 	},
 	.num_consumer_supplies = ARRAY_SIZE(tps658621_ldo0_supply),
 	.consumer_supplies = tps658621_ldo0_supply,
