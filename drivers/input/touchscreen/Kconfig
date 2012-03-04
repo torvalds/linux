@@ -460,6 +460,18 @@ config TOUCHSCREEN_TOUCHWIN
 	  To compile this driver as a module, choose M here: the
 	  module will be called touchwin.
 
+config TOUCHSCREEN_TI_TSCADC
+	tristate "TI Touchscreen Interface"
+	depends on ARCH_OMAP2PLUS
+	help
+	  Say Y here if you have 4/5/8 wire touchscreen controller
+	  to be connected to the ADC controller on your TI AM335x SoC.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ti_tscadc.
+
 config TOUCHSCREEN_ATMEL_TSADCC
 	tristate "Atmel Touchscreen Interface"
 	depends on ARCH_AT91SAM9RL || ARCH_AT91SAM9G45
