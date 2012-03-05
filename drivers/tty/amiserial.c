@@ -473,7 +473,6 @@ static irqreturn_t ser_rx_int(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	receive_chars(info);
-	info->last_active = jiffies;
 #ifdef SERIAL_DEBUG_INTR
 	printk("end.\n");
 #endif
@@ -494,7 +493,6 @@ static irqreturn_t ser_tx_int(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	  transmit_chars(info);
-	  info->last_active = jiffies;
 #ifdef SERIAL_DEBUG_INTR
 	  printk("end.\n");
 #endif
@@ -828,7 +826,6 @@ static void change_speed(struct async_struct *info,
 	mb();
 	}
 
-	info->LCR = cval;				/* Save LCR */
 	local_irq_restore(flags);
 }
 
@@ -1743,7 +1740,6 @@ static int get_async_struct(int line, struct async_struct **ret_info)
 	init_waitqueue_head(&info->close_wait);
 	init_waitqueue_head(&info->delta_msr_wait);
 #endif
-	info->magic = SERIAL_MAGIC;
 	info->port = sstate->port;
 	info->flags = sstate->flags;
 	info->xmit_fifo_size = sstate->xmit_fifo_size;
@@ -1840,7 +1836,6 @@ static inline void line_info(struct seq_file *m, struct serial_state *state)
 	if (!info) {
 		info = &scr_info;	/* This is just for serial_{in,out} */
 
-		info->magic = SERIAL_MAGIC;
 		info->flags = state->flags;
 		info->quot = 0;
 		info->tty = NULL;
@@ -1987,7 +1982,6 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 		goto fail_put_tty_driver;
 
 	state = rs_table;
-	state->magic = SSTATE_MAGIC;
 	state->port = (int)&custom.serdatr; /* Just to give it a value */
 	state->line = 0;
 	state->custom_divisor = 0;

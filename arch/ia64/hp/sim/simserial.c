@@ -72,7 +72,7 @@ static char *serial_version = "0.6";
  */
 static struct serial_state rs_table[NR_PORTS]={
   /* UART CLK   PORT IRQ     FLAGS        */
-  { 0, BASE_BAUD, 0x3F8, 0, STD_COM_FLAGS,0,PORT_16550 }  /* ttyS0 */
+  { BASE_BAUD, 0x3F8, 0, STD_COM_FLAGS, PORT_16550 }  /* ttyS0 */
 };
 
 /*
@@ -193,11 +193,6 @@ static irqreturn_t rs_interrupt_single(int irq, void *dev_id)
  * Here ends the serial interrupt routines.
  * -------------------------------------------------------------------
  */
-
-static void do_softint(struct work_struct *private_)
-{
-	printk(KERN_ERR "simserial: do_softint called\n");
-}
 
 static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 {
@@ -641,13 +636,10 @@ static int get_async_struct(int line, struct async_struct **ret_info)
 	}
 	init_waitqueue_head(&info->open_wait);
 	init_waitqueue_head(&info->close_wait);
-	init_waitqueue_head(&info->delta_msr_wait);
-	info->magic = SERIAL_MAGIC;
 	info->port = sstate->port;
 	info->flags = sstate->flags;
 	info->xmit_fifo_size = sstate->xmit_fifo_size;
 	info->line = line;
-	INIT_WORK(&info->work, do_softint);
 	info->state = sstate;
 	if (sstate->info) {
 		kfree(info);
