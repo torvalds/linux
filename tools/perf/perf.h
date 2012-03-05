@@ -88,6 +88,12 @@ void get_term_dimensions(struct winsize *ws);
 #define CPUINFO_PROC	"Processor"
 #endif
 
+#ifdef __aarch64__
+#include "../../arch/arm64/include/asm/unistd.h"
+#define rmb()		asm volatile("dmb ld" ::: "memory")
+#define cpu_relax()	asm volatile("yield" ::: "memory")
+#endif
+
 #ifdef __mips__
 #include "../../arch/mips/include/asm/unistd.h"
 #define rmb()		asm volatile(					\
