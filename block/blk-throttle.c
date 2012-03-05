@@ -1252,7 +1252,6 @@ void blk_throtl_drain(struct request_queue *q)
 int blk_throtl_init(struct request_queue *q)
 {
 	struct throtl_data *td;
-	struct throtl_grp *tg;
 
 	td = kzalloc_node(sizeof(*td), GFP_KERNEL, q->node);
 	if (!td)
@@ -1265,18 +1264,19 @@ int blk_throtl_init(struct request_queue *q)
 
 	/* alloc and Init root group. */
 	td->queue = q;
-	tg = throtl_alloc_tg(td);
 
-	if (!tg) {
+	rcu_read_lock();
+	spin_lock_irq(q->queue_lock);
+
+	td->root_tg = throtl_get_tg(td, &blkio_root_cgroup);
+
+	spin_unlock_irq(q->queue_lock);
+	rcu_read_unlock();
+
+	if (!td->root_tg) {
 		kfree(td);
 		return -ENOMEM;
 	}
-
-	td->root_tg = tg;
-
-	rcu_read_lock();
-	throtl_init_add_tg_lists(td, tg, &blkio_root_cgroup);
-	rcu_read_unlock();
 
 	/* Attach throtl data to request queue */
 	q->td = td;
