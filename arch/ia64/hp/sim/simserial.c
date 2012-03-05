@@ -448,7 +448,7 @@ static void shutdown(struct tty_struct *tty, struct serial_state *info)
 {
 	unsigned long	flags;
 
-	if (!(info->flags & ASYNC_INITIALIZED))
+	if (!(info->tport.flags & ASYNC_INITIALIZED))
 		return;
 
 #ifdef SIMSERIAL_DEBUG
@@ -468,7 +468,7 @@ static void shutdown(struct tty_struct *tty, struct serial_state *info)
 
 		set_bit(TTY_IO_ERROR, &tty->flags);
 
-		info->flags &= ~ASYNC_INITIALIZED;
+		info->tport.flags &= ~ASYNC_INITIALIZED;
 	}
 	local_irq_restore(flags);
 }
@@ -523,7 +523,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 		local_irq_restore(flags);
 		return;
 	}
-	info->flags |= ASYNC_CLOSING;
+	info->tport.flags |= ASYNC_CLOSING;
 	local_irq_restore(flags);
 
 	/*
@@ -539,7 +539,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 			schedule_timeout_interruptible(info->tport.close_delay);
 		wake_up_interruptible(&info->tport.open_wait);
 	}
-	info->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
+	info->tport.flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
 	wake_up_interruptible(&info->tport.close_wait);
 }
 
@@ -563,12 +563,12 @@ static void rs_hangup(struct tty_struct *tty)
 #endif
 
 	rs_flush_buffer(tty);
-	if (info->flags & ASYNC_CLOSING)
+	if (info->tport.flags & ASYNC_CLOSING)
 		return;
 	shutdown(tty, info);
 
 	info->tport.count = 0;
-	info->flags &= ~ASYNC_NORMAL_ACTIVE;
+	info->tport.flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->tport.tty = NULL;
 	wake_up_interruptible(&info->tport.open_wait);
 }
@@ -576,6 +576,7 @@ static void rs_hangup(struct tty_struct *tty)
 
 static int startup(struct tty_struct *tty, struct serial_state *state)
 {
+	struct tty_port *port = &state->tport;
 	unsigned long flags;
 	int	retval=0;
 	unsigned long page;
@@ -586,7 +587,7 @@ static int startup(struct tty_struct *tty, struct serial_state *state)
 
 	local_irq_save(flags);
 
-	if (state->flags & ASYNC_INITIALIZED) {
+	if (port->flags & ASYNC_INITIALIZED) {
 		free_page(page);
 		goto errout;
 	}
@@ -630,16 +631,16 @@ static int startup(struct tty_struct *tty, struct serial_state *state)
 	/*
 	 * Set up the tty->alt_speed kludge
 	 */
-	if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
+	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
 		tty->alt_speed = 57600;
-	if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
+	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
 		tty->alt_speed = 115200;
-	if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
+	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
 		tty->alt_speed = 230400;
-	if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
+	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
 		tty->alt_speed = 460800;
 
-	state->flags |= ASYNC_INITIALIZED;
+	port->flags |= ASYNC_INITIALIZED;
 	local_irq_restore(flags);
 	return 0;
 
@@ -669,7 +670,7 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 #ifdef SIMSERIAL_DEBUG
 	printk("rs_open %s, count = %d\n", tty->name, info->tport.count);
 #endif
-	tty->low_latency = (info->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	tty->low_latency = (info->tport.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	if (!tmp_buf) {
 		page = get_zeroed_page(GFP_KERNEL);
@@ -684,11 +685,11 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	/*
 	 * If the port is the middle of closing, bail out now
 	 */
-	if (tty_hung_up_p(filp) || (info->flags & ASYNC_CLOSING)) {
-		if (info->flags & ASYNC_CLOSING)
+	if (tty_hung_up_p(filp) || (info->tport.flags & ASYNC_CLOSING)) {
+		if (info->tport.flags & ASYNC_CLOSING)
 			interruptible_sleep_on(&info->tport.close_wait);
 #ifdef SERIAL_DO_RESTART
-		return ((info->flags & ASYNC_HUP_NOTIFY) ?
+		return ((info->tport.flags & ASYNC_HUP_NOTIFY) ?
 			-EAGAIN : -ERESTARTSYS);
 #else
 		return -EAGAIN;

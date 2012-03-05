@@ -30,7 +30,6 @@ struct serial_state {
 	int	baud_base;
 	unsigned long	port;
 	int	irq;
-	int	flags;
 	int	type;
 	int	line;
 	int	xmit_fifo_size;
