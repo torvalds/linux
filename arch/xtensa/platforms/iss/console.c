@@ -19,7 +19,6 @@
 #include <linux/param.h>
 #include <linux/seq_file.h>
 #include <linux/serial.h>
-#include <linux/serialP.h>
 
 #include <asm/uaccess.h>
 #include <asm/irq.h>

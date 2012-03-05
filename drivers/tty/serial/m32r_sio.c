@@ -38,7 +38,6 @@
 #include <linux/console.h>
 #include <linux/sysrq.h>
 #include <linux/serial.h>
-#include <linux/serialP.h>
 #include <linux/delay.h>
 
 #include <asm/m32r.h>
