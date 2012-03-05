@@ -363,10 +363,12 @@ nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 static int
 nvd0_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 {
+	struct drm_nouveau_private *dev_priv = nv_crtc->base.dev->dev_private;
 	struct drm_device *dev = nv_crtc->base.dev;
 	struct nouveau_connector *nv_connector;
 	struct drm_connector *connector;
 	u32 *push, mode = 0x00;
+	u32 mthd;
 
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
 	connector = &nv_connector->base;
@@ -384,9 +386,14 @@ nvd0_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 		mode |= nv_connector->dithering_depth;
 	}
 
+	if (dev_priv->card_type < NV_E0)
+		mthd = 0x0490 + (nv_crtc->index * 0x0300);
+	else
+		mthd = 0x04a0 + (nv_crtc->index * 0x0300);
+
 	push = evo_wait(dev, EVO_MASTER, 4);
 	if (push) {
-		evo_mthd(push, 0x0490 + (nv_crtc->index * 0x300), 1);
+		evo_mthd(push, mthd, 1);
 		evo_data(push, mode);
 		if (update) {
 			evo_mthd(push, 0x0080, 1);
