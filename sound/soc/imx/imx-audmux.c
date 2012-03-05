@@ -22,6 +22,8 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -197,6 +199,13 @@ static struct platform_device_id imx_audmux_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, imx_audmux_ids);
 
+static const struct of_device_id imx_audmux_dt_ids[] = {
+	{ .compatible = "fsl,imx21-audmux", .data = &imx_audmux_ids[0], },
+	{ .compatible = "fsl,imx31-audmux", .data = &imx_audmux_ids[1], },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, imx_audmux_dt_ids);
+
 static const uint8_t port_mapping[] = {
 	0x0, 0x4, 0x8, 0x10, 0x14, 0x1c,
 };
@@ -243,6 +252,8 @@ EXPORT_SYMBOL_GPL(imx_audmux_v2_configure_port);
 static int __init imx_audmux_probe(struct platform_device *pdev)
 {
 	struct resource *res;
+	const struct of_device_id *of_id =
+			of_match_device(imx_audmux_dt_ids, &pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	audmux_base = devm_request_and_ioremap(&pdev->dev, res);
@@ -256,6 +267,8 @@ static int __init imx_audmux_probe(struct platform_device *pdev)
 		audmux_clk = NULL;
 	}
 
+	if (of_id)
+		pdev->id_entry = of_id->data;
 	audmux_type = pdev->id_entry->driver_data;
 	if (audmux_type == IMX31_AUDMUX)
 		audmux_debugfs_init();
@@ -279,6 +292,7 @@ static struct platform_driver imx_audmux_driver = {
 	.driver	= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = imx_audmux_dt_ids,
 	}
 };
 
