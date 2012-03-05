@@ -25,6 +25,13 @@
 #include "common.h"
 #include "common-board-devices.h"
 
+#if !(defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3))
+#define omap_intc_of_init	NULL
+#endif
+#ifndef CONFIG_ARCH_OMAP4
+#define gic_of_init		NULL
+#endif
+
 static struct of_device_id irq_match[] __initdata = {
 	{ .compatible = "ti,omap2-intc", .data = omap_intc_of_init, },
 	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
