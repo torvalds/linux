@@ -66,8 +66,6 @@
 #include "iwl-shared.h"
 #include "iwl-ucode.h"
 
-#define UCODE_EXPERIMENTAL_INDEX	100
-
 /**
  * struct iwl_nic - nic common data
  * @fw: the iwl_fw structure
@@ -98,9 +96,6 @@ struct iwl_nic {
 	struct completion request_firmware_complete;
 };
 
-
-int __must_check iwl_request_firmware(struct iwl_nic *nic, bool first);
-void iwl_dealloc_ucode(struct iwl_nic *nic);
 
 int iwl_send_bt_env(struct iwl_trans *trans, u8 action, u8 type);
 void iwl_send_prio_tbl(struct iwl_trans *trans);
