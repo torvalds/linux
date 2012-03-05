@@ -48,6 +48,7 @@ static const struct nla_policy nfc_genl_policy[NFC_ATTR_MAX + 1] = {
 	[NFC_ATTR_PROTOCOLS] = { .type = NLA_U32 },
 	[NFC_ATTR_COMM_MODE] = { .type = NLA_U8 },
 	[NFC_ATTR_RF_MODE] = { .type = NLA_U8 },
+	[NFC_ATTR_DEVICE_POWERED] = { .type = NLA_U8 },
 };
 
 static int nfc_genl_send_target(struct sk_buff *msg, struct nfc_target *target,
@@ -200,6 +201,7 @@ int nfc_genl_device_added(struct nfc_dev *dev)
 	NLA_PUT_STRING(msg, NFC_ATTR_DEVICE_NAME, nfc_device_name(dev));
 	NLA_PUT_U32(msg, NFC_ATTR_DEVICE_INDEX, dev->idx);
 	NLA_PUT_U32(msg, NFC_ATTR_PROTOCOLS, dev->supported_protocols);
+	NLA_PUT_U8(msg, NFC_ATTR_DEVICE_POWERED, dev->dev_up);
 
 	genlmsg_end(msg, hdr);
 
@@ -261,6 +263,7 @@ static int nfc_genl_send_device(struct sk_buff *msg, struct nfc_dev *dev,
 	NLA_PUT_STRING(msg, NFC_ATTR_DEVICE_NAME, nfc_device_name(dev));
 	NLA_PUT_U32(msg, NFC_ATTR_DEVICE_INDEX, dev->idx);
 	NLA_PUT_U32(msg, NFC_ATTR_PROTOCOLS, dev->supported_protocols);
+	NLA_PUT_U8(msg, NFC_ATTR_DEVICE_POWERED, dev->dev_up);
 
 	return genlmsg_end(msg, hdr);
 
