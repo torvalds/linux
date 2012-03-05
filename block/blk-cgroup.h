@@ -24,13 +24,7 @@ enum blkio_policy_id {
 /* Max limits for throttle policy */
 #define THROTL_IOPS_MAX		UINT_MAX
 
-#if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)
-
-#ifndef CONFIG_BLK_CGROUP
-/* When blk-cgroup is a module, its subsys_id isn't a compile-time constant */
-extern struct cgroup_subsys blkio_subsys;
-#define blkio_subsys_id blkio_subsys.subsys_id
-#endif
+#ifdef CONFIG_BLK_CGROUP
 
 enum stat_type {
 	/* Total time spent (in ns) between request dispatch to the driver and
@@ -303,7 +297,7 @@ static inline void blkiocg_update_idle_time_stats(struct blkio_group *blkg) {}
 static inline void blkiocg_set_start_empty_time(struct blkio_group *blkg) {}
 #endif
 
-#if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)
+#ifdef CONFIG_BLK_CGROUP
 extern struct blkio_cgroup blkio_root_cgroup;
 extern struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup);
 extern struct blkio_cgroup *task_blkio_cgroup(struct task_struct *tsk);
