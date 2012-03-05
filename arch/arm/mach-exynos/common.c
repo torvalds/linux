@@ -394,7 +394,7 @@ void __init exynos4_init_irq(void)
 	gic_bank_offset = soc_is_exynos4412() ? 0x4000 : 0x8000;
 
 	if (!of_have_populated_dt())
-		gic_init_bases(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU, gic_bank_offset);
+		gic_init_bases(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU, gic_bank_offset, NULL);
 #ifdef CONFIG_OF
 	else
 		of_irq_init(exynos4_dt_irq_match);
