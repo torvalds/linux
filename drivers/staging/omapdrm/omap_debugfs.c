@@ -112,12 +112,10 @@ int omap_debugfs_init(struct drm_minor *minor)
 		return ret;
 	}
 
-	/* TODO: only do this if has_dmm.. but this fxn gets called before
-	 * dev_load() so we don't know this yet..
-	 */
-	ret = drm_debugfs_create_files(omap_dmm_debugfs_list,
-			ARRAY_SIZE(omap_dmm_debugfs_list),
-			minor->debugfs_root, minor);
+	if (dmm_is_available())
+		ret = drm_debugfs_create_files(omap_dmm_debugfs_list,
+				ARRAY_SIZE(omap_dmm_debugfs_list),
+				minor->debugfs_root, minor);
 
 	if (ret) {
 		dev_err(dev->dev, "could not install omap_dmm_debugfs_list\n");
@@ -131,8 +129,9 @@ void omap_debugfs_cleanup(struct drm_minor *minor)
 {
 	drm_debugfs_remove_files(omap_debugfs_list,
 			ARRAY_SIZE(omap_debugfs_list), minor);
-	drm_debugfs_remove_files(omap_dmm_debugfs_list,
-			ARRAY_SIZE(omap_dmm_debugfs_list), minor);
+	if (dmm_is_available())
+		drm_debugfs_remove_files(omap_dmm_debugfs_list,
+				ARRAY_SIZE(omap_dmm_debugfs_list), minor);
 }
 
 #endif

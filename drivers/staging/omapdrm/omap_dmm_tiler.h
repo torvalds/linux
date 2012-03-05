@@ -16,6 +16,7 @@
 #ifndef OMAP_DMM_TILER_H
 #define OMAP_DMM_TILER_H
 
+#include <plat/cpu.h>
 #include "omap_drv.h"
 #include "tcm.h"
 
@@ -131,5 +132,10 @@ struct omap_dmm_platform_data {
 	void __iomem *base;
 	int irq;
 };
+
+static inline int dmm_is_available(void)
+{
+	return cpu_is_omap44xx();
+}
 
 #endif
