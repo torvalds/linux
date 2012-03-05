@@ -208,10 +208,9 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 }
 
 static void iwlagn_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
-				      struct ieee80211_tx_info *info,
-				      struct iwl_tx_cmd *tx_cmd,
-				      struct sk_buff *skb_frag,
-				      int sta_id)
+					 struct ieee80211_tx_info *info,
+					 struct iwl_tx_cmd *tx_cmd,
+					 struct sk_buff *skb_frag)
 {
 	struct ieee80211_key_conf *keyconf = info->control.hw_key;
 
@@ -358,7 +357,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	tx_cmd->len = cpu_to_le16(len);
 
 	if (info->control.hw_key)
-		iwlagn_tx_cmd_build_hwcrypto(priv, info, tx_cmd, skb, sta_id);
+		iwlagn_tx_cmd_build_hwcrypto(priv, info, tx_cmd, skb);
 
 	/* TODO need this for burst mode later on */
 	iwlagn_tx_cmd_build_basic(priv, skb, tx_cmd, info, hdr, sta_id);
