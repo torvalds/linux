@@ -166,7 +166,7 @@ struct nfc_llcp_sock {
 
 struct nfc_llcp_local *nfc_llcp_find_local(struct nfc_dev *dev);
 u8 nfc_llcp_get_sdp_ssap(struct nfc_llcp_local *local,
-				struct nfc_llcp_sock *sock);
+			 struct nfc_llcp_sock *sock);
 u8 nfc_llcp_get_local_ssap(struct nfc_llcp_local *local);
 void nfc_llcp_put_ssap(struct nfc_llcp_local *local, u8 ssap);
 int nfc_llcp_queue_i_frames(struct nfc_llcp_sock *sock);
@@ -180,7 +180,7 @@ struct sock *nfc_llcp_accept_dequeue(struct sock *sk, struct socket *newsock);
 
 /* TLV API */
 int nfc_llcp_parse_tlv(struct nfc_llcp_local *local,
-			u8 *tlv_array, u16 tlv_array_len);
+		       u8 *tlv_array, u16 tlv_array_len);
 
 /* Commands API */
 void nfc_llcp_recv(void *data, struct sk_buff *skb, int err);
@@ -193,7 +193,7 @@ int nfc_llcp_send_cc(struct nfc_llcp_sock *sock);
 int nfc_llcp_send_dm(struct nfc_llcp_local *local, u8 ssap, u8 dsap, u8 reason);
 int nfc_llcp_send_disconnect(struct nfc_llcp_sock *sock);
 int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
-				struct msghdr *msg, size_t len);
+			  struct msghdr *msg, size_t len);
 int nfc_llcp_send_rr(struct nfc_llcp_sock *sock);
 
 /* Socket API */

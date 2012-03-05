@@ -118,7 +118,7 @@ u8 *nfc_llcp_build_tlv(u8 type, u8 *value, u8 value_length, u8 *tlv_length)
 }
 
 int nfc_llcp_parse_tlv(struct nfc_llcp_local *local,
-			u8 *tlv_array, u16 tlv_array_len)
+		       u8 *tlv_array, u16 tlv_array_len)
 {
 	u8 *tlv = tlv_array, type, length, offset = 0;
 
@@ -164,15 +164,15 @@ int nfc_llcp_parse_tlv(struct nfc_llcp_local *local,
 	}
 
 	pr_debug("version 0x%x miu %d lto %d opt 0x%x wks 0x%x rw %d\n",
-		local->remote_version, local->remote_miu,
-		local->remote_lto, local->remote_opt,
-		local->remote_wks, local->remote_rw);
+		 local->remote_version, local->remote_miu,
+		 local->remote_lto, local->remote_opt,
+		 local->remote_wks, local->remote_rw);
 
 	return 0;
 }
 
 static struct sk_buff *llcp_add_header(struct sk_buff *pdu,
-					u8 dsap, u8 ssap, u8 ptype)
+				       u8 dsap, u8 ssap, u8 ptype)
 {
 	u8 header[2];
 
@@ -188,7 +188,8 @@ static struct sk_buff *llcp_add_header(struct sk_buff *pdu,
 	return pdu;
 }
 
-static struct sk_buff *llcp_add_tlv(struct sk_buff *pdu, u8 *tlv, u8 tlv_length)
+static struct sk_buff *llcp_add_tlv(struct sk_buff *pdu, u8 *tlv,
+				    u8 tlv_length)
 {
 	/* XXX Add an skb length check */
 
@@ -201,7 +202,7 @@ static struct sk_buff *llcp_add_tlv(struct sk_buff *pdu, u8 *tlv, u8 tlv_length)
 }
 
 static struct sk_buff *llcp_allocate_pdu(struct nfc_llcp_sock *sock,
-							u8 cmd, u16 size)
+					 u8 cmd, u16 size)
 {
 	struct sk_buff *skb;
 	int err;
@@ -210,7 +211,7 @@ static struct sk_buff *llcp_allocate_pdu(struct nfc_llcp_sock *sock,
 		return NULL;
 
 	skb = nfc_alloc_send_skb(sock->dev, &sock->sk, MSG_DONTWAIT,
-					size + LLCP_HEADER_SIZE, &err);
+				 size + LLCP_HEADER_SIZE, &err);
 	if (skb == NULL) {
 		pr_err("Could not allocate PDU\n");
 		return NULL;
@@ -278,7 +279,7 @@ int nfc_llcp_send_symm(struct nfc_dev *dev)
 	skb = llcp_add_header(skb, 0, 0, LLCP_PDU_SYMM);
 
 	return nfc_data_exchange(dev, local->target_idx, skb,
-					nfc_llcp_recv, local);
+				 nfc_llcp_recv, local);
 }
 
 int nfc_llcp_send_connect(struct nfc_llcp_sock *sock)
@@ -300,14 +301,15 @@ int nfc_llcp_send_connect(struct nfc_llcp_sock *sock)
 
 	if (sock->service_name != NULL) {
 		service_name_tlv = nfc_llcp_build_tlv(LLCP_TLV_SN,
-					sock->service_name,
-					sock->service_name_len,
-					&service_name_tlv_length);
+						      sock->service_name,
+						      sock->service_name_len,
+						      &service_name_tlv_length);
 		size += service_name_tlv_length;
 	}
 
 	miux = cpu_to_be16(LLCP_MAX_MIUX);
-	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&miux, 0, &miux_tlv_length);
+	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&miux, 0,
+				      &miux_tlv_length);
 	size += miux_tlv_length;
 
 	rw = LLCP_MAX_RW;
@@ -324,7 +326,7 @@ int nfc_llcp_send_connect(struct nfc_llcp_sock *sock)
 
 	if (service_name_tlv != NULL)
 		skb = llcp_add_tlv(skb, service_name_tlv,
-					service_name_tlv_length);
+				   service_name_tlv_length);
 
 	skb = llcp_add_tlv(skb, miux_tlv, miux_tlv_length);
 	skb = llcp_add_tlv(skb, rw_tlv, rw_tlv_length);
@@ -360,7 +362,8 @@ int nfc_llcp_send_cc(struct nfc_llcp_sock *sock)
 		return -ENODEV;
 
 	miux = cpu_to_be16(LLCP_MAX_MIUX);
-	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&miux, 0, &miux_tlv_length);
+	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&miux, 0,
+				      &miux_tlv_length);
 	size += miux_tlv_length;
 
 	rw = LLCP_MAX_RW;
@@ -443,7 +446,7 @@ int nfc_llcp_send_disconnect(struct nfc_llcp_sock *sock)
 }
 
 int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
-				struct msghdr *msg, size_t len)
+			  struct msghdr *msg, size_t len)
 {
 	struct sk_buff *pdu;
 	struct sock *sk = &sock->sk;
@@ -462,8 +465,8 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 		return -ENOMEM;
 
 	if (memcpy_fromiovec(msg_data, msg->msg_iov, len)) {
-			kfree(msg_data);
-			return -EFAULT;
+		kfree(msg_data);
+		return -EFAULT;
 	}
 
 	remaining_len = len;
