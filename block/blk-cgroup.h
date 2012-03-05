@@ -164,6 +164,13 @@ struct blkg_policy_data {
 	/* the blkg this per-policy data belongs to */
 	struct blkio_group *blkg;
 
+	/* Configuration */
+	struct blkio_group_conf conf;
+
+	struct blkio_group_stats stats;
+	/* Per cpu stats pointer */
+	struct blkio_group_stats_cpu __percpu *stats_cpu;
+
 	/* pol->pdata_size bytes of private data used by policy impl */
 	char pdata[] __aligned(__alignof__(unsigned long long));
 };
@@ -180,16 +187,9 @@ struct blkio_group {
 	/* reference count */
 	int refcnt;
 
-	/* Configuration */
-	struct blkio_group_conf conf;
-
 	/* Need to serialize the stats in the case of reset/update */
 	spinlock_t stats_lock;
-	struct blkio_group_stats stats;
-	/* Per cpu stats pointer */
-	struct blkio_group_stats_cpu __percpu *stats_cpu;
-
-	struct blkg_policy_data *pd;
+	struct blkg_policy_data *pd[BLKIO_NR_POLICIES];
 
 	struct rcu_head rcu_head;
 };
@@ -249,7 +249,7 @@ extern void blkg_destroy_all(struct request_queue *q);
 static inline void *blkg_to_pdata(struct blkio_group *blkg,
 			      struct blkio_policy_type *pol)
 {
-	return blkg ? blkg->pd->pdata : NULL;
+	return blkg ? blkg->pd[pol->plid]->pdata : NULL;
 }
 
 /**
