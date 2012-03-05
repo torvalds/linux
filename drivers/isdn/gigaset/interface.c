@@ -146,7 +146,6 @@ static const struct tty_operations if_ops = {
 static int if_open(struct tty_struct *tty, struct file *filp)
 {
 	struct cardstate *cs;
-	unsigned long flags;
 
 	gig_dbg(DEBUG_IF, "%d+%d: %s()",
 		tty->driver->minor_start, tty->index, __func__);
@@ -161,12 +160,10 @@ static int if_open(struct tty_struct *tty, struct file *filp)
 	}
 	tty->driver_data = cs;
 
-	++cs->open_count;
+	++cs->port.count;
 
-	if (cs->open_count == 1) {
-		spin_lock_irqsave(&cs->lock, flags);
-		cs->tty = tty;
-		spin_unlock_irqrestore(&cs->lock, flags);
+	if (cs->port.count == 1) {
+		tty_port_tty_set(&cs->port, tty);
 		tty->low_latency = 1;
 	}
 
@@ -177,7 +174,6 @@ static int if_open(struct tty_struct *tty, struct file *filp)
 static void if_close(struct tty_struct *tty, struct file *filp)
 {
 	struct cardstate *cs = tty->driver_data;
-	unsigned long flags;
 
 	if (!cs) { /* happens if we didn't find cs in open */
 		printk(KERN_DEBUG "%s: no cardstate\n", __func__);
@@ -190,15 +186,10 @@ static void if_close(struct tty_struct *tty, struct file *filp)
 
 	if (!cs->connected)
 		gig_dbg(DEBUG_IF, "not connected");	/* nothing to do */
-	else if (!cs->open_count)
+	else if (!cs->port.count)
 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
-	else {
-		if (!--cs->open_count) {
-			spin_lock_irqsave(&cs->lock, flags);
-			cs->tty = NULL;
-			spin_unlock_irqrestore(&cs->lock, flags);
-		}
-	}
+	else if (!--cs->port.count)
+		tty_port_tty_set(&cs->port, NULL);
 
 	mutex_unlock(&cs->mutex);
 
@@ -511,10 +502,13 @@ out:
 /* wakeup tasklet for the write operation */
 static void if_wake(unsigned long data)
 {
-	struct cardstate *cs = (struct cardstate *) data;
+	struct cardstate *cs = (struct cardstate *)data;
+	struct tty_struct *tty = tty_port_tty_get(&cs->port);
 
-	if (cs->tty)
-		tty_wakeup(cs->tty);
+	if (tty) {
+		tty_wakeup(tty);
+		tty_kref_put(tty);
+	}
 }
 
 /*** interface to common ***/
@@ -567,18 +561,16 @@ void gigaset_if_free(struct cardstate *cs)
 void gigaset_if_receive(struct cardstate *cs,
 			unsigned char *buffer, size_t len)
 {
-	unsigned long flags;
-	struct tty_struct *tty;
+	struct tty_struct *tty = tty_port_tty_get(&cs->port);
 
-	spin_lock_irqsave(&cs->lock, flags);
-	tty = cs->tty;
-	if (tty == NULL)
+	if (tty == NULL) {
 		gig_dbg(DEBUG_IF, "receive on closed device");
-	else {
-		tty_insert_flip_string(tty, buffer, len);
-		tty_flip_buffer_push(tty);
+		return;
 	}
-	spin_unlock_irqrestore(&cs->lock, flags);
+
+	tty_insert_flip_string(tty, buffer, len);
+	tty_flip_buffer_push(tty);
+	tty_kref_put(tty);
 }
 EXPORT_SYMBOL_GPL(gigaset_if_receive);
 
