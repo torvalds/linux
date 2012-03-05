@@ -313,7 +313,8 @@ requeue_req:
 	/* wait for a request to complete */
 	ret = wait_event_interruptible(dev->read_wq, dev->rx_done);
 	if (ret < 0) {
-		dev->error = 1;
+		if (ret != -ERESTARTSYS)
+			dev->error = 1;
 		r = ret;
 		usb_ep_dequeue(dev->ep_out, req);
 		goto done;
