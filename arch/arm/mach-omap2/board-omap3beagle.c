@@ -189,7 +189,7 @@ static struct mtd_partition omap3beagle_nand_partitions[] = {
 
 /* DSS */
 
-static struct panel_dvi_platform_data dvi_panel = {
+static struct tfp410_platform_data dvi_panel = {
 	.i2c_bus_num = 3,
 	.power_down_gpio = -1,
 };
@@ -197,7 +197,7 @@ static struct panel_dvi_platform_data dvi_panel = {
 static struct omap_dss_device beagle_dvi_device = {
 	.type = OMAP_DISPLAY_TYPE_DPI,
 	.name = "dvi",
-	.driver_name = "dvi",
+	.driver_name = "tfp410",
 	.data = &dvi_panel,
 	.phy.dpi.data_lines = 24,
 };

@@ -421,7 +421,7 @@ static struct omap_board_mux board_mux[] __initdata = {
 #define PANDA_DVI_TFP410_POWER_DOWN_GPIO	0
 
 /* Using generic display panel */
-static struct panel_dvi_platform_data omap4_dvi_panel = {
+static struct tfp410_platform_data omap4_dvi_panel = {
 	.i2c_bus_num		= 3,
 	.power_down_gpio	= PANDA_DVI_TFP410_POWER_DOWN_GPIO,
 };
@@ -429,7 +429,7 @@ static struct panel_dvi_platform_data omap4_dvi_panel = {
 struct omap_dss_device omap4_panda_dvi_device = {
 	.type			= OMAP_DISPLAY_TYPE_DPI,
 	.name			= "dvi",
-	.driver_name		= "dvi",
+	.driver_name		= "tfp410",
 	.data			= &omap4_dvi_panel,
 	.phy.dpi.data_lines	= 24,
 	.reset_gpio		= PANDA_DVI_TFP410_POWER_DOWN_GPIO,

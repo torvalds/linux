@@ -167,7 +167,7 @@ static void __init overo_display_init(void)
 	gpio_export(OVERO_GPIO_LCD_BL, 0);
 }
 
-static struct panel_dvi_platform_data dvi_panel = {
+static struct tfp410_platform_data dvi_panel = {
 	.i2c_bus_num		= 3,
 	.power_down_gpio	= -1,
 };
@@ -175,7 +175,7 @@ static struct panel_dvi_platform_data dvi_panel = {
 static struct omap_dss_device overo_dvi_device = {
 	.name			= "dvi",
 	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.driver_name		= "dvi",
+	.driver_name		= "tfp410",
 	.data			= &dvi_panel,
 	.phy.dpi.data_lines	= 24,
 };
