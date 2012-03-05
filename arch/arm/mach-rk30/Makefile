@@ -3,9 +3,12 @@ obj-y += common.o
 obj-y += devices.o
 obj-y += io.o
 obj-y += iomux.o
+obj-y += pmu.o
 obj-y += reset.o
 obj-y += timer.o
 obj-$(CONFIG_FIQ) += fiq.o
+obj-$(CONFIG_SMP) += platsmp.o headsmp.o
+obj-$(CONFIG_HOTPLUG_CPU) += hotplug.o
 obj-$(CONFIG_LOCAL_TIMERS) += localtimer.o
 obj-$(CONFIG_PM) += pm.o
 

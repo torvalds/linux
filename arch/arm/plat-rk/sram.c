@@ -23,7 +23,7 @@ extern char __sram_data_start, __ssram_data, __esram_data;
 
 static struct map_desc sram_code_iomap[] __initdata = {
 	{
-		.virtual	= SRAM_CODE_OFFSET & PAGE_MASK,
+		.virtual	= (unsigned long)SRAM_CODE_OFFSET & PAGE_MASK,
 		.pfn		= __phys_to_pfn(0x0),
 		.length		=  1024*1024,
 		.type		=  MT_MEMORY

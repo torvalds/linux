@@ -3,6 +3,8 @@
 
 #ifdef CONFIG_PLAT_RK
 
+#include <linux/init.h>
+
 /* Tag variables with this */
 #define __sramdata __section(.sram.data)
 /* Tag constants with this */
@@ -24,7 +26,7 @@ static inline unsigned long ddr_save_sp(unsigned long new_sp)
 }
 
 // save_sp 必须定义为全局变量
-#define DDR_SAVE_SP(save_sp)		do { save_sp = ddr_save_sp((SRAM_DATA_END&(~7))); } while (0)
+#define DDR_SAVE_SP(save_sp)		do { save_sp = ddr_save_sp(((unsigned long)SRAM_DATA_END & (~7))); } while (0)
 #define DDR_RESTORE_SP(save_sp)		do { ddr_save_sp(save_sp); } while (0)
 
 extern void __sramfunc sram_printch(char byte);

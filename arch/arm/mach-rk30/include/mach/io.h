@@ -33,6 +33,7 @@
 #define RK30_L2MEM_PHYS         0x10000000
 #define RK30_L2MEM_SIZE         SZ_512K
 #define RK30_IMEM_PHYS          0x10080000
+#define RK30_IMEM_BASE          IOMEM(0xFEF00000)
 #define RK30_IMEM_SIZE          SZ_64K
 #define RK30_GPU_PHYS           0x10090000
 #define RK30_GPU_SIZE           SZ_64K
