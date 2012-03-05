@@ -114,7 +114,12 @@ static inline void __iomem *__typesafe_io(unsigned long addr)
 /*
  * Now, pick up the machine-defined IO definitions
  */
+#ifdef CONFIG_NEED_MACH_IO_H
 #include <mach/io.h>
+#else
+#define __io(a)		({ (void)(a); __typesafe_io(0); })
+#define __mem_pci(a)	(a)
+#endif
 
 /*
  * This is the limit of PC card/PCI/ISA IO space, which is by default
