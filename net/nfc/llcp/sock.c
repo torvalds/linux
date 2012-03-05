@@ -482,6 +482,34 @@ error:
 	return ret;
 }
 
+static int llcp_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
+				struct msghdr *msg, size_t len)
+{
+	struct sock *sk = sock->sk;
+	struct nfc_llcp_sock *llcp_sock = nfc_llcp_sock(sk);
+	int ret;
+
+	pr_debug("sock %p sk %p", sock, sk);
+
+	ret = sock_error(sk);
+	if (ret)
+		return ret;
+
+	if (msg->msg_flags & MSG_OOB)
+		return -EOPNOTSUPP;
+
+	lock_sock(sk);
+
+	if (sk->sk_state != LLCP_CONNECTED) {
+		release_sock(sk);
+		return -ENOTCONN;
+	}
+
+	release_sock(sk);
+
+	return nfc_llcp_send_i_frame(llcp_sock, msg, len);
+}
+
 static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 			     struct msghdr *msg, size_t len, int flags)
 {
@@ -567,7 +595,7 @@ static const struct proto_ops llcp_sock_ops = {
 	.shutdown       = sock_no_shutdown,
 	.setsockopt     = sock_no_setsockopt,
 	.getsockopt     = sock_no_getsockopt,
-	.sendmsg        = sock_no_sendmsg,
+	.sendmsg        = llcp_sock_sendmsg,
 	.recvmsg        = llcp_sock_recvmsg,
 	.mmap           = sock_no_mmap,
 };

@@ -397,3 +397,34 @@ int nfc_llcp_send_disconnect(struct nfc_llcp_sock *sock)
 
 	return 0;
 }
+
+int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
+				struct msghdr *msg, size_t len)
+{
+	struct sk_buff *pdu;
+	struct sock *sk;
+
+	pr_debug("Send I frame\n");
+
+	pdu = llcp_allocate_pdu(sock, LLCP_PDU_I, len + LLCP_SEQUENCE_SIZE);
+	if (pdu == NULL)
+		return -ENOMEM;
+
+	skb_put(pdu, LLCP_SEQUENCE_SIZE);
+
+	if (memcpy_fromiovec(skb_put(pdu, len), msg->msg_iov, len)) {
+		kfree_skb(pdu);
+		return -EFAULT;
+	}
+
+	skb_queue_head(&sock->tx_queue, pdu);
+
+	sk = &sock->sk;
+	lock_sock(sk);
+
+	nfc_llcp_queue_i_frames(sock);
+
+	release_sock(sk);
+
+	return 0;
+}
