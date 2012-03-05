@@ -3049,7 +3049,7 @@ void tty_unregister_device(struct tty_driver *driver, unsigned index)
 }
 EXPORT_SYMBOL(tty_unregister_device);
 
-struct tty_driver *alloc_tty_driver(int lines)
+struct tty_driver *__alloc_tty_driver(int lines, struct module *owner)
 {
 	struct tty_driver *driver;
 
@@ -3058,11 +3058,12 @@ struct tty_driver *alloc_tty_driver(int lines)
 		kref_init(&driver->kref);
 		driver->magic = TTY_DRIVER_MAGIC;
 		driver->num = lines;
+		driver->owner = owner;
 		/* later we'll move allocation of tables here */
 	}
 	return driver;
 }
-EXPORT_SYMBOL(alloc_tty_driver);
+EXPORT_SYMBOL(__alloc_tty_driver);
 
 static void destruct_tty_driver(struct kref *kref)
 {
