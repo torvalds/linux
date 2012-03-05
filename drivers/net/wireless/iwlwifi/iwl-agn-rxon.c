@@ -422,9 +422,6 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 	lockdep_assert_held(&priv->shrd->mutex);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
-		return -EINVAL;
-
 	if (!iwl_is_alive(priv->shrd))
 		return -EBUSY;
 
@@ -559,9 +556,6 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	IWL_DEBUG_MAC80211(priv, "enter: changed %#x", changed);
 
 	mutex_lock(&priv->shrd->mutex);
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
-		goto out;
 
 	if (unlikely(test_bit(STATUS_SCANNING, &priv->shrd->status))) {
 		IWL_DEBUG_MAC80211(priv, "leave - scanning\n");

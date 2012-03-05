@@ -1378,12 +1378,6 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 
 	iwl_dbgfs_unregister(priv);
 
-	/* ieee80211_unregister_hw call wil cause iwlagn_mac_stop to
-	 * to be called and iwl_down since we are removing the device
-	 * we need to set STATUS_EXIT_PENDING bit.
-	 */
-	set_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
-
 	iwl_testmode_cleanup(priv);
 	iwlagn_mac_unregister(priv);
 

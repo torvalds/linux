@@ -914,9 +914,6 @@ static int iwl_send_cmd_async(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		return -EINVAL;
 
 
-	if (test_bit(STATUS_EXIT_PENDING, &trans->shrd->status))
-		return -EBUSY;
-
 	ret = iwl_enqueue_hcmd(trans, cmd);
 	if (ret < 0) {
 		IWL_DEBUG_QUIET_RFKILL(trans,
@@ -937,10 +934,6 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n",
 			get_cmd_string(cmd->id));
-
-	if (test_bit(STATUS_EXIT_PENDING, &trans->shrd->status))
-		return -EBUSY;
-
 
 	if (test_bit(STATUS_RF_KILL_HW, &trans->shrd->status)) {
 		IWL_ERR(trans, "Command %s aborted: RF KILL Switch\n",

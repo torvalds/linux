@@ -69,8 +69,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	if (!test_bit(STATUS_READY, &priv->shrd->status) ||
 	    !test_bit(STATUS_GEO_CONFIGURED, &priv->shrd->status) ||
 	    !test_bit(STATUS_SCAN_HW, &priv->shrd->status) ||
-	    test_bit(STATUS_FW_ERROR, &priv->shrd->status) ||
-	    test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	    test_bit(STATUS_FW_ERROR, &priv->shrd->status))
 		return -EIO;
 
 	ret = iwl_trans_send_cmd(trans(priv), &cmd);

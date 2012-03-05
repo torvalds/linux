@@ -649,8 +649,6 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_RX_STOP:
 		IWL_DEBUG_HT(priv, "stop Rx\n");
 		ret = iwl_sta_rx_agg_stop(priv, sta, tid);
-		if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
-			ret = 0;
 		break;
 	case IEEE80211_AMPDU_TX_START:
 		if (iwlagn_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
@@ -666,8 +664,6 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 			IWL_DEBUG_HT(priv, "priv->agg_tids_count = %u\n",
 				     priv->agg_tids_count);
 		}
-		if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
-			ret = 0;
 		if (!priv->agg_tids_count && cfg(priv)->ht_params &&
 		    cfg(priv)->ht_params->use_rts_for_aggregation) {
 			/*
