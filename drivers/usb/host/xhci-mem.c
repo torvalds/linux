@@ -642,7 +642,7 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
 	 */
 	for (cur_stream = 1; cur_stream < num_streams; cur_stream++) {
 		stream_info->stream_rings[cur_stream] =
-			xhci_ring_alloc(xhci, 1, 1, TYPE_STREAM, mem_flags);
+			xhci_ring_alloc(xhci, 2, 1, TYPE_STREAM, mem_flags);
 		cur_ring = stream_info->stream_rings[cur_stream];
 		if (!cur_ring)
 			goto cleanup_rings;
@@ -976,7 +976,7 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 	}
 
 	/* Allocate endpoint 0 ring */
-	dev->eps[0].ring = xhci_ring_alloc(xhci, 1, 1, TYPE_CTRL, flags);
+	dev->eps[0].ring = xhci_ring_alloc(xhci, 2, 1, TYPE_CTRL, flags);
 	if (!dev->eps[0].ring)
 		goto fail;
 
@@ -1423,7 +1423,7 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	type = usb_endpoint_type(&ep->desc);
 	/* Set up the endpoint ring */
 	virt_dev->eps[ep_index].new_ring =
-		xhci_ring_alloc(xhci, 1, 1, type, mem_flags);
+		xhci_ring_alloc(xhci, 2, 1, type, mem_flags);
 	if (!virt_dev->eps[ep_index].new_ring) {
 		/* Attempt to use the ring cache */
 		if (virt_dev->num_rings_cached == 0)
