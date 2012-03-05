@@ -107,7 +107,7 @@ static void receive_chars(struct tty_struct *tty)
 static irqreturn_t rs_interrupt_single(int irq, void *dev_id)
 {
 	struct serial_state *info = dev_id;
-	struct tty_struct *tty = info->port.tty;
+	struct tty_struct *tty = tty_port_tty_get(&info->port);
 
 	if (!tty) {
 		printk(KERN_INFO "simrs_interrupt_single: info|tty=0 info=%p problem\n", info);
@@ -118,6 +118,7 @@ static irqreturn_t rs_interrupt_single(int irq, void *dev_id)
 	 * on inbound traffic
 	 */
 	receive_chars(tty);
+	tty_kref_put(tty);
 	return IRQ_HANDLED;
 }
 
@@ -443,9 +444,9 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	 */
 	shutdown(tty, info);
 	rs_flush_buffer(tty);
-	port->tty = NULL;
 
 	tty_port_close_end(port, tty);
+	tty_port_tty_set(port, NULL);
 }
 
 /*
@@ -467,7 +468,7 @@ static void rs_hangup(struct tty_struct *tty)
 
 	port->count = 0;
 	port->flags &= ~ASYNC_NORMAL_ACTIVE;
-	port->tty = NULL;
+	tty_port_tty_set(port, NULL);
 	wake_up_interruptible(&port->open_wait);
 }
 
@@ -556,7 +557,7 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	int retval;
 
 	port->count++;
-	port->tty = tty;
+	tty_port_tty_set(port, tty);
 	tty->driver_data = info;
 	tty->port = port;
 
