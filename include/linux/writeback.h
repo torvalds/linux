@@ -64,7 +64,7 @@ struct writeback_control {
 	long pages_skipped;		/* Pages which were not written */
 
 	/*
-	 * For a_ops->writepages(): is start or end are non-zero then this is
+	 * For a_ops->writepages(): if start or end are non-zero then this is
 	 * a hint that the filesystem need only write out the pages inside that
 	 * byterange.  The byte at `end' is included in the writeout request.
 	 */
