@@ -110,15 +110,16 @@ ctnetlink_dump_tuples(struct sk_buff *skb,
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_l4proto *l4proto;
 
+	rcu_read_lock();
 	l3proto = __nf_ct_l3proto_find(tuple->src.l3num);
 	ret = ctnetlink_dump_tuples_ip(skb, tuple, l3proto);
 
-	if (unlikely(ret < 0))
-		return ret;
-
-	l4proto = __nf_ct_l4proto_find(tuple->src.l3num, tuple->dst.protonum);
-	ret = ctnetlink_dump_tuples_proto(skb, tuple, l4proto);
-
+	if (ret >= 0) {
+		l4proto = __nf_ct_l4proto_find(tuple->src.l3num,
+					       tuple->dst.protonum);
+		ret = ctnetlink_dump_tuples_proto(skb, tuple, l4proto);
+	}
+	rcu_read_unlock();
 	return ret;
 }
 
@@ -712,9 +713,11 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	struct hlist_nulls_node *n;
 	struct nfgenmsg *nfmsg = nlmsg_data(cb->nlh);
 	u_int8_t l3proto = nfmsg->nfgen_family;
+	int res;
 #ifdef CONFIG_NF_CONNTRACK_MARK
 	const struct ctnetlink_dump_filter *filter = cb->data;
 #endif
+
 	spin_lock_bh(&nf_conntrack_lock);
 	last = (struct nf_conn *)cb->args[1];
 	for (; cb->args[0] < net->ct.htable_size; cb->args[0]++) {
@@ -740,11 +743,14 @@ restart:
 				continue;
 			}
 #endif
-			if (ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).pid,
-						cb->nlh->nlmsg_seq,
-						NFNL_MSG_TYPE(
-							cb->nlh->nlmsg_type),
-						ct) < 0) {
+			rcu_read_lock();
+			res =
+			ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).pid,
+					    cb->nlh->nlmsg_seq,
+					    NFNL_MSG_TYPE(cb->nlh->nlmsg_type),
+					    ct);
+			rcu_read_unlock();
+			if (res < 0) {
 				nf_conntrack_get(&ct->ct_general);
 				cb->args[1] = (unsigned long)ct;
 				goto out;
@@ -1649,14 +1655,16 @@ ctnetlink_exp_dump_mask(struct sk_buff *skb,
 	if (!nest_parms)
 		goto nla_put_failure;
 
+	rcu_read_lock();
 	l3proto = __nf_ct_l3proto_find(tuple->src.l3num);
 	ret = ctnetlink_dump_tuples_ip(skb, &m, l3proto);
-
-	if (unlikely(ret < 0))
-		goto nla_put_failure;
-
-	l4proto = __nf_ct_l4proto_find(tuple->src.l3num, tuple->dst.protonum);
+	if (ret >= 0) {
+		l4proto = __nf_ct_l4proto_find(tuple->src.l3num,
+					       tuple->dst.protonum);
 	ret = ctnetlink_dump_tuples_proto(skb, &m, l4proto);
+	}
+	rcu_read_unlock();
+
 	if (unlikely(ret < 0))
 		goto nla_put_failure;
 
