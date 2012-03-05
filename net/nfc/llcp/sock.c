@@ -327,20 +327,10 @@ static int llcp_sock_release(struct socket *sock)
 
 	mutex_lock(&local->socket_lock);
 
-	if (llcp_sock == local->sockets[llcp_sock->ssap]) {
+	if (llcp_sock == local->sockets[llcp_sock->ssap])
 		local->sockets[llcp_sock->ssap] = NULL;
-	} else {
-		struct nfc_llcp_sock *parent, *s, *n;
-
-		parent = local->sockets[llcp_sock->ssap];
-
-		list_for_each_entry_safe(s, n, &parent->list, list)
-			if (llcp_sock == s) {
-				list_del(&s->list);
-				break;
-			}
-
-	}
+	else
+		list_del(&llcp_sock->list);
 
 	mutex_unlock(&local->socket_lock);
 
