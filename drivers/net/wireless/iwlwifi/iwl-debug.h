@@ -47,12 +47,12 @@ void __iwl_crit(struct device *dev, const char *fmt, ...);
 #define IWL_CRIT(m, f, a...) __iwl_crit(trans(m)->dev, f, ## a)
 
 #if defined(CONFIG_IWLWIFI_DEBUG) || defined(CONFIG_IWLWIFI_DEVICE_TRACING)
-void __iwl_dbg(struct iwl_shared *shared, struct device *dev,
+void __iwl_dbg(struct device *dev,
 	       u32 level, bool limit, const char *function,
 	       const char *fmt, ...);
 #else
 static inline void
-__iwl_dbg(struct iwl_shared *shared, struct device *dev,
+__iwl_dbg(struct device *dev,
 	  u32 level, bool limit, const char *function,
 	  const char *fmt, ...)
 {}
@@ -65,14 +65,14 @@ do {									\
 } while (0)
 
 #define IWL_DEBUG(m, level, fmt, args...)				\
-	__iwl_dbg((m)->shrd, trans(m)->dev, level, false, __func__, fmt, ##args)
+	__iwl_dbg(trans(m)->dev, level, false, __func__, fmt, ##args)
 #define IWL_DEBUG_LIMIT(m, level, fmt, args...)				\
-	__iwl_dbg((m)->shrd, trans(m)->dev, level, true, __func__, fmt, ##args)
+	__iwl_dbg(trans(m)->dev, level, true, __func__, fmt, ##args)
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 #define iwl_print_hex_dump(m, level, p, len)				\
 do {                                            			\
-	if (iwl_get_debug_level((m)->shrd) & level)			\
+	if (iwl_have_debug_level(level))				\
 		print_hex_dump(KERN_DEBUG, "iwl data: ",		\
 			       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);	\
 } while (0)
@@ -82,7 +82,7 @@ do {									\
 		IWL_ERR(m, fmt, ##args);				\
 	else								\
 		__iwl_err(trans(m)->dev, true,				\
-			  !(iwl_get_debug_level((m)->shrd) & IWL_DL_RADIO),\
+			  !iwl_have_debug_level(IWL_DL_RADIO),		\
 			  fmt, ##args);					\
 } while (0)
 #else

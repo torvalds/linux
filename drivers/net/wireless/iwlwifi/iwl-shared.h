@@ -346,8 +346,6 @@ struct iwl_cfg {
 /**
  * struct iwl_shared - shared fields for all the layers of the driver
  *
- * @dbg_level_dev: dbg level set per device. Prevails on
- *	iwlagn_mod_params.debug_level if set (!= 0)
  * @ucode_owner: IWL_OWNERSHIP_*
  * @cmd_queue: command queue number
  * @status: STATUS_*
@@ -370,10 +368,6 @@ struct iwl_cfg {
  * @device_pointers: pointers to ucode event tables
  */
 struct iwl_shared {
-#ifdef CONFIG_IWLWIFI_DEBUG
-	u32 dbg_level_dev;
-#endif /* CONFIG_IWLWIFI_DEBUG */
-
 #define IWL_OWNERSHIP_DRIVER	0
 #define IWL_OWNERSHIP_TM	1
 	u8 ucode_owner;
@@ -417,27 +411,10 @@ struct iwl_shared {
 #define trans(_m)	((_m)->shrd->trans)
 #define hw_params(_m)	((_m)->shrd->hw_params)
 
-#ifdef CONFIG_IWLWIFI_DEBUG
-/*
- * iwl_get_debug_level: Return active debug level for device
- *
- * Using sysfs it is possible to set per device debug level. This debug
- * level will be used if set, otherwise the global debug level which can be
- * set via module parameter is used.
- */
-static inline u32 iwl_get_debug_level(struct iwl_shared *shrd)
+static inline bool iwl_have_debug_level(u32 level)
 {
-	if (shrd->dbg_level_dev)
-		return shrd->dbg_level_dev;
-	else
-		return iwlagn_mod_params.debug_level;
+	return iwlagn_mod_params.debug_level & level;
 }
-#else
-static inline u32 iwl_get_debug_level(struct iwl_shared *shrd)
-{
-	return iwlagn_mod_params.debug_level;
-}
-#endif
 
 static inline void iwl_free_pages(struct iwl_shared *shrd, unsigned long page)
 {

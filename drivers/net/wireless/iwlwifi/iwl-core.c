@@ -836,7 +836,7 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	unsigned long reload_jiffies;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_get_debug_level(priv->shrd) & IWL_DL_FW_ERRORS)
+	if (iwl_have_debug_level(IWL_DL_FW_ERRORS))
 		iwl_print_rx_config_cmd(priv, IWL_RXON_CTX_BSS);
 #endif
 
@@ -1004,7 +1004,7 @@ int iwl_alloc_traffic_mem(struct iwl_priv *priv)
 {
 	u32 traffic_size = IWL_TRAFFIC_DUMP_SIZE;
 
-	if (iwl_get_debug_level(priv->shrd) & IWL_DL_TX) {
+	if (iwl_have_debug_level(IWL_DL_TX)) {
 		if (!priv->tx_traffic) {
 			priv->tx_traffic =
 				kzalloc(traffic_size, GFP_KERNEL);
@@ -1012,7 +1012,7 @@ int iwl_alloc_traffic_mem(struct iwl_priv *priv)
 				return -ENOMEM;
 		}
 	}
-	if (iwl_get_debug_level(priv->shrd) & IWL_DL_RX) {
+	if (iwl_have_debug_level(IWL_DL_RX)) {
 		if (!priv->rx_traffic) {
 			priv->rx_traffic =
 				kzalloc(traffic_size, GFP_KERNEL);
@@ -1039,7 +1039,7 @@ void iwl_dbg_log_tx_data_frame(struct iwl_priv *priv,
 	__le16 fc;
 	u16 len;
 
-	if (likely(!(iwl_get_debug_level(priv->shrd) & IWL_DL_TX)))
+	if (likely(!iwl_have_debug_level(IWL_DL_TX)))
 		return;
 
 	if (!priv->tx_traffic)
@@ -1063,7 +1063,7 @@ void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
 	__le16 fc;
 	u16 len;
 
-	if (likely(!(iwl_get_debug_level(priv->shrd) & IWL_DL_RX)))
+	if (likely(!iwl_have_debug_level(IWL_DL_RX)))
 		return;
 
 	if (!priv->rx_traffic)
