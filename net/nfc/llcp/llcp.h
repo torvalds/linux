@@ -165,6 +165,7 @@ u8 nfc_llcp_get_sdp_ssap(struct nfc_llcp_local *local,
 				struct nfc_llcp_sock *sock);
 u8 nfc_llcp_get_local_ssap(struct nfc_llcp_local *local);
 void nfc_llcp_put_ssap(struct nfc_llcp_local *local, u8 ssap);
+void nfc_llcp_queue_i_frames(struct nfc_llcp_sock *sock);
 
 /* Sock API */
 struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp);

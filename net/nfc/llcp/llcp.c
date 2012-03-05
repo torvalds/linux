@@ -616,6 +616,33 @@ fail:
 
 }
 
+void nfc_llcp_queue_i_frames(struct nfc_llcp_sock *sock)
+{
+	struct nfc_llcp_local *local = sock->local;
+
+	pr_debug("Remote ready %d tx queue len %d remote rw %d",
+		sock->remote_ready, skb_queue_len(&sock->tx_pending_queue),
+		local->remote_rw);
+
+	/* Try to queue some I frames for transmission */
+	while (sock->remote_ready &&
+		skb_queue_len(&sock->tx_pending_queue) < local->remote_rw) {
+		struct sk_buff *pdu, *pending_pdu;
+
+		pdu = skb_dequeue(&sock->tx_queue);
+		if (pdu == NULL)
+			break;
+
+		/* Update N(S)/N(R) */
+		nfc_llcp_set_nrns(sock, pdu);
+
+		pending_pdu = skb_clone(pdu, GFP_KERNEL);
+
+		skb_queue_tail(&local->tx_queue, pdu);
+		skb_queue_tail(&sock->tx_pending_queue, pending_pdu);
+	}
+}
+
 static void nfc_llcp_recv_hdlc(struct nfc_llcp_local *local,
 				struct sk_buff *skb)
 {
@@ -673,23 +700,7 @@ static void nfc_llcp_recv_hdlc(struct nfc_llcp_local *local,
 			}
 	}
 
-	/* Queue some I frames for transmission */
-	while (llcp_sock->remote_ready &&
-		skb_queue_len(&llcp_sock->tx_pending_queue) <= local->remote_rw) {
-		struct sk_buff *pdu, *pending_pdu;
-
-		pdu = skb_dequeue(&llcp_sock->tx_queue);
-		if (pdu == NULL)
-			break;
-
-		/* Update N(S)/N(R) */
-		nfc_llcp_set_nrns(llcp_sock, pdu);
-
-		pending_pdu = skb_clone(pdu, GFP_KERNEL);
-
-		skb_queue_tail(&local->tx_queue, pdu);
-		skb_queue_tail(&llcp_sock->tx_pending_queue, pending_pdu);
-	}
+	nfc_llcp_queue_i_frames(llcp_sock);
 
 	release_sock(sk);
 	nfc_llcp_sock_put(llcp_sock);
