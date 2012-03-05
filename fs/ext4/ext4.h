@@ -194,18 +194,25 @@ struct ext4_io_page {
 
 #define MAX_IO_PAGES 128
 
+/*
+ * For converting uninitialized extents on a work queue.
+ *
+ * 'page' is only used from the writepage() path; 'pages' is only used for
+ * buffered writes; they are used to keep page references until conversion
+ * takes place.  For AIO/DIO, neither field is filled in.
+ */
 typedef struct ext4_io_end {
 	struct list_head	list;		/* per-file finished IO list */
 	struct inode		*inode;		/* file being written to */
 	unsigned int		flag;		/* unwritten or not */
-	struct page		*page;		/* page struct for buffer write */
+	struct page		*page;		/* for writepage() path */
 	loff_t			offset;		/* offset in the file */
 	ssize_t			size;		/* size of the extent */
 	struct work_struct	work;		/* data work queue */
 	struct kiocb		*iocb;		/* iocb struct for AIO */
 	int			result;		/* error value for AIO */
-	int			num_io_pages;
-	struct ext4_io_page	*pages[MAX_IO_PAGES];
+	int			num_io_pages;   /* for writepages() */
+	struct ext4_io_page	*pages[MAX_IO_PAGES]; /* for writepages() */
 } ext4_io_end_t;
 
 struct ext4_io_submit {
