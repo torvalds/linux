@@ -904,6 +904,8 @@ static int pn533_target_found(struct pn533 *dev,
 	if (resp->tg != 1)
 		return -EPROTO;
 
+	memset(&nfc_tgt, 0, sizeof(struct nfc_target));
+
 	target_data_len = resp_len - sizeof(struct pn533_poll_response);
 
 	switch (dev->poll_mod_curr) {
