@@ -99,5 +99,7 @@ void iwl_drv_stop(struct iwl_shared *shrd)
 	if (shrd->nic->op_mode)
 		iwl_op_mode_stop(shrd->nic->op_mode);
 
+	iwl_dealloc_ucode(shrd->nic);
+
 	kfree(shrd->nic);
 }

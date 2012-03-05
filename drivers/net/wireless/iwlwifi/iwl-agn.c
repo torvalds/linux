@@ -1385,8 +1385,6 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 	/*This will stop the queues, move the device to low power state */
 	iwl_trans_stop_device(trans(priv));
 
-	iwl_dealloc_ucode(nic(priv));
-
 	iwl_eeprom_free(priv->shrd);
 
 	/*netif_stop_queue(dev); */
