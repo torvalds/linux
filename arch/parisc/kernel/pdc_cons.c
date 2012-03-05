@@ -160,9 +160,7 @@ static void pdc_console_poll(unsigned long unused)
 
 static int __init pdc_console_tty_driver_init(void)
 {
-
 	int err;
-	struct tty_driver *drv;
 
 	/* Check if the console driver is still registered.
 	 * It is unregistered if the pdc console was not selected as the
@@ -184,27 +182,26 @@ static int __init pdc_console_tty_driver_init(void)
 	printk(KERN_INFO "The PDC console driver is still registered, removing CON_BOOT flag\n");
 	pdc_cons.flags &= ~CON_BOOT;
 
-	drv = alloc_tty_driver(1);
+	pdc_console_tty_driver = alloc_tty_driver(1);
 
-	if (!drv)
+	if (!pdc_console_tty_driver)
 		return -ENOMEM;
 
-	drv->driver_name = "pdc_cons";
-	drv->name = "ttyB";
-	drv->major = MUX_MAJOR;
-	drv->minor_start = 0;
-	drv->type = TTY_DRIVER_TYPE_SYSTEM;
-	drv->init_termios = tty_std_termios;
-	drv->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_RESET_TERMIOS;
-	tty_set_operations(drv, &pdc_console_tty_ops);
+	pdc_console_tty_driver->driver_name = "pdc_cons";
+	pdc_console_tty_driver->name = "ttyB";
+	pdc_console_tty_driver->major = MUX_MAJOR;
+	pdc_console_tty_driver->minor_start = 0;
+	pdc_console_tty_driver->type = TTY_DRIVER_TYPE_SYSTEM;
+	pdc_console_tty_driver->init_termios = tty_std_termios;
+	pdc_console_tty_driver->flags = TTY_DRIVER_REAL_RAW |
+		TTY_DRIVER_RESET_TERMIOS;
+	tty_set_operations(pdc_console_tty_driver, &pdc_console_tty_ops);
 
-	err = tty_register_driver(drv);
+	err = tty_register_driver(pdc_console_tty_driver);
 	if (err) {
 		printk(KERN_ERR "Unable to register the PDC console TTY driver\n");
 		return err;
 	}
-
-	pdc_console_tty_driver = drv;
 
 	return 0;
 }
