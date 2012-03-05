@@ -1007,6 +1007,8 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 	if (is_agg)
 		iwl_rx_reply_tx_agg(priv, tx_resp);
 
+	__skb_queue_head_init(&skbs);
+
 	if (tx_resp->frame_count == 1) {
 		u16 next_reclaimed = le16_to_cpu(tx_resp->seq_ctl);
 		next_reclaimed = SEQ_TO_SN(next_reclaimed + 0x10);
@@ -1026,8 +1028,6 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 			next_reclaimed = ssn;
 		}
 
-		__skb_queue_head_init(&skbs);
-
 		if (tid != IWL_TID_NON_QOS) {
 			priv->tid_data[sta_id][tid].next_reclaimed =
 				next_reclaimed;
@@ -1040,8 +1040,9 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 				  ssn, status, &skbs));
 		iwlagn_check_ratid_empty(priv, sta_id, tid);
 		freed = 0;
-		while (!skb_queue_empty(&skbs)) {
-			skb = __skb_dequeue(&skbs);
+
+		/* process frames */
+		skb_queue_walk(&skbs, skb) {
 			hdr = (struct ieee80211_hdr *)skb->data;
 
 			if (!ieee80211_is_data_qos(hdr->frame_control))
@@ -1083,8 +1084,6 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 			if (!is_agg)
 				iwlagn_non_agg_tx_status(priv, ctx, hdr->addr1);
 
-			ieee80211_tx_status_irqsafe(priv->hw, skb);
-
 			freed++;
 		}
 
@@ -1093,6 +1092,12 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 
 	iwl_check_abort_status(priv, tx_resp->frame_count, status);
 	spin_unlock(&priv->sta_lock);
+
+	while (!skb_queue_empty(&skbs)) {
+		skb = __skb_dequeue(&skbs);
+		ieee80211_tx_status(priv->hw, skb);
+	}
+
 	return 0;
 }
 
@@ -1186,9 +1191,8 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 
 	iwlagn_check_ratid_empty(priv, sta_id, tid);
 	freed = 0;
-	while (!skb_queue_empty(&reclaimed_skbs)) {
 
-		skb = __skb_dequeue(&reclaimed_skbs);
+	skb_queue_walk(&reclaimed_skbs, skb) {
 		hdr = (struct ieee80211_hdr *)skb->data;
 
 		if (ieee80211_is_data_qos(hdr->frame_control))
@@ -1211,10 +1215,14 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 			iwlagn_hwrate_to_tx_control(priv, agg->rate_n_flags,
 						    info);
 		}
-
-		ieee80211_tx_status_irqsafe(priv->hw, skb);
 	}
 
 	spin_unlock(&priv->sta_lock);
+
+	while (!skb_queue_empty(&reclaimed_skbs)) {
+		skb = __skb_dequeue(&reclaimed_skbs);
+		ieee80211_tx_status(priv->hw, skb);
+	}
+
 	return 0;
 }
