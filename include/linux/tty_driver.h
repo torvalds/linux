@@ -299,7 +299,6 @@ struct tty_driver {
 	int	name_base;	/* offset of printed name */
 	int	major;		/* major device number */
 	int	minor_start;	/* start of minor device number */
-	int	minor_num;	/* number of *possible* devices */
 	int	num;		/* number of devices allocated */
 	short	type;		/* type of tty driver */
 	short	subtype;	/* subtype of tty driver */

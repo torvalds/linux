@@ -920,7 +920,6 @@ static int __init pti_init(void)
 	pti_tty_driver->name			= TTYNAME;
 	pti_tty_driver->major			= 0;
 	pti_tty_driver->minor_start		= PTITTY_MINOR_START;
-	pti_tty_driver->minor_num		= PTITTY_MINOR_NUM;
 	pti_tty_driver->num			= PTITTY_MINOR_NUM;
 	pti_tty_driver->type			= TTY_DRIVER_TYPE_SYSTEM;
 	pti_tty_driver->subtype			= SYSTEM_TYPE_SYSCONS;
