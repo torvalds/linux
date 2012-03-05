@@ -15,6 +15,16 @@ endif
 
 # Define V to have a more verbose compile.
 #
+# Define O to save output files in a separate directory.
+#
+# Define ARCH as name of target architecture if you want cross-builds.
+#
+# Define CROSS_COMPILE as prefix name of compiler if you want cross-builds.
+#
+# Define NO_LIBPERL to disable perl script extension.
+#
+# Define NO_LIBPYTHON to disable python script extension.
+#
 # Define PYTHON to point to the python binary if the default
 # `python' is not correct; for example: PYTHON=python2
 #
@@ -32,6 +42,10 @@ endif
 # Define NO_DWARF if you do not want debug-info analysis feature at all.
 #
 # Define WERROR=0 to disable treating any warnings as errors.
+#
+# Define NO_NEWT if you do not want TUI support.
+#
+# Define NO_DEMANGLE if you do not want C++ symbol demangling.
 
 $(OUTPUT)PERF-VERSION-FILE: .FORCE-PERF-VERSION-FILE
 	@$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
