@@ -928,7 +928,6 @@ simrs_init (void)
 
 	/* Initialize the tty_driver structure */
 
-	hp_simserial_driver->owner = THIS_MODULE;
 	hp_simserial_driver->driver_name = "simserial";
 	hp_simserial_driver->name = "ttyS";
 	hp_simserial_driver->major = TTY_MAJOR;

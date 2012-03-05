@@ -1287,7 +1287,6 @@ static int __init capinc_tty_init(void)
 		kfree(capiminors);
 		return -ENOMEM;
 	}
-	drv->owner = THIS_MODULE;
 	drv->driver_name = "capi_nc";
 	drv->name = "capi";
 	drv->major = 0;

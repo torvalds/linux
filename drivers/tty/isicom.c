@@ -1678,7 +1678,6 @@ static int __init isicom_init(void)
 		goto error;
 	}
 
-	isicom_normal->owner			= THIS_MODULE;
 	isicom_normal->name 			= "ttyM";
 	isicom_normal->major			= ISICOM_NMAJOR;
 	isicom_normal->minor_start		= 0;

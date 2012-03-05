@@ -1157,7 +1157,6 @@ int __init rfcomm_init_ttys(void)
 	if (!rfcomm_tty_driver)
 		return -ENOMEM;
 
-	rfcomm_tty_driver->owner	= THIS_MODULE;
 	rfcomm_tty_driver->driver_name	= "rfcomm";
 	rfcomm_tty_driver->name		= "rfcomm";
 	rfcomm_tty_driver->major	= RFCOMM_TTY_MAJOR;

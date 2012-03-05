@@ -122,7 +122,6 @@ static int __init ircomm_tty_init(void)
 		return -ENOMEM;
 	}
 
-	driver->owner		= THIS_MODULE;
 	driver->driver_name     = "ircomm";
 	driver->name            = "ircomm";
 	driver->major           = IRCOMM_TTY_MAJOR;

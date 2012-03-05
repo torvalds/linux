@@ -3977,7 +3977,6 @@ static int __init synclinkmp_init(void)
 
 	/* Initialize the tty_driver structure */
 
-	serial_driver->owner = THIS_MODULE;
 	serial_driver->driver_name = "synclinkmp";
 	serial_driver->name = "ttySLM";
 	serial_driver->major = ttymajor;

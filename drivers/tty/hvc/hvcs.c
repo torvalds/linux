@@ -1499,8 +1499,6 @@ static int __devinit hvcs_initialize(void)
 		goto index_fail;
 	}
 
-	hvcs_tty_driver->owner = THIS_MODULE;
-
 	hvcs_tty_driver->driver_name = hvcs_driver_name;
 	hvcs_tty_driver->name = hvcs_device_node;
 

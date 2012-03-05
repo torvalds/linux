@@ -1235,7 +1235,6 @@ static int __init usb_serial_init(void)
 		goto exit_bus;
 	}
 
-	usb_serial_tty_driver->owner = THIS_MODULE;
 	usb_serial_tty_driver->driver_name = "usbserial";
 	usb_serial_tty_driver->name = "ttyUSB";
 	usb_serial_tty_driver->major = SERIAL_TTY_MAJOR;

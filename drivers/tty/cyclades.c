@@ -4090,7 +4090,6 @@ static int __init cy_init(void)
 
 	/* Initialize the tty_driver structure */
 
-	cy_serial_driver->owner = THIS_MODULE;
 	cy_serial_driver->driver_name = "cyclades";
 	cy_serial_driver->name = "ttyC";
 	cy_serial_driver->major = CYCLADES_MAJOR;

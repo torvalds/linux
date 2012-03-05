@@ -907,20 +907,17 @@ static int __init pti_init(void)
 
 	/* First register module as tty device */
 
-	pti_tty_driver = alloc_tty_driver(1);
+	pti_tty_driver = alloc_tty_driver(PTITTY_MINOR_NUM);
 	if (pti_tty_driver == NULL) {
 		pr_err("%s(%d): Memory allocation failed for ptiTTY driver\n",
 			__func__, __LINE__);
 		return -ENOMEM;
 	}
 
-	pti_tty_driver->owner			= THIS_MODULE;
-	pti_tty_driver->magic			= TTY_DRIVER_MAGIC;
 	pti_tty_driver->driver_name		= DRIVERNAME;
 	pti_tty_driver->name			= TTYNAME;
 	pti_tty_driver->major			= 0;
 	pti_tty_driver->minor_start		= PTITTY_MINOR_START;
-	pti_tty_driver->num			= PTITTY_MINOR_NUM;
 	pti_tty_driver->type			= TTY_DRIVER_TYPE_SYSTEM;
 	pti_tty_driver->subtype			= SYSTEM_TYPE_SYSCONS;
 	pti_tty_driver->flags			= TTY_DRIVER_REAL_RAW |

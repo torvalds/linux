@@ -216,7 +216,6 @@ int __init rs_init(void)
 
 	/* Initialize the tty_driver structure */
 
-	serial_driver->owner = THIS_MODULE;
 	serial_driver->driver_name = "iss_serial";
 	serial_driver->name = "ttyS";
 	serial_driver->major = TTY_MAJOR;

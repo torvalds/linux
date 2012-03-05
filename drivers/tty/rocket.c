@@ -2277,7 +2277,6 @@ static int __init rp_init(void)
 	 * driver with the tty layer.
 	 */
 
-	rocket_driver->owner = THIS_MODULE;
 	rocket_driver->flags = TTY_DRIVER_DYNAMIC_DEV;
 	rocket_driver->name = "ttyR";
 	rocket_driver->driver_name = "Comtrol RocketPort";

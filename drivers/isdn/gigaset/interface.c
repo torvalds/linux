@@ -669,17 +669,15 @@ EXPORT_SYMBOL_GPL(gigaset_if_receive);
 void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
 			   const char *devname)
 {
-	unsigned minors = drv->minors;
 	int ret;
 	struct tty_driver *tty;
 
 	drv->have_tty = 0;
 
-	drv->tty = tty = alloc_tty_driver(minors);
+	drv->tty = tty = alloc_tty_driver(drv->minors);
 	if (tty == NULL)
 		goto enomem;
 
-	tty->magic =		TTY_DRIVER_MAGIC,
 	tty->type =		TTY_DRIVER_TYPE_SERIAL,
 	tty->subtype =		SERIAL_TYPE_NORMAL,
 	tty->flags =		TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
@@ -687,9 +685,6 @@ void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
 	tty->driver_name =	procname;
 	tty->name =		devname;
 	tty->minor_start =	drv->minor;
-	tty->num =		drv->minors;
-
-	tty->owner =		THIS_MODULE;
 
 	tty->init_termios          = tty_std_termios;
 	tty->init_termios.c_cflag  = B9600 | CS8 | CREAD | HUPCL | CLOCAL;

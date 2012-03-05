@@ -1175,7 +1175,6 @@ static int __init sdio_uart_init(void)
 	if (!tty_drv)
 		return -ENOMEM;
 
-	tty_drv->owner = THIS_MODULE;
 	tty_drv->driver_name = "sdio_uart";
 	tty_drv->name =   "ttySDIO";
 	tty_drv->major = 0;  /* dynamically allocated */

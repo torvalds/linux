@@ -1088,7 +1088,6 @@ static int __init hvsi_init(void)
 	if (!hvsi_driver)
 		return -ENOMEM;
 
-	hvsi_driver->owner = THIS_MODULE;
 	hvsi_driver->driver_name = "hvsi";
 	hvsi_driver->name = "hvsi";
 	hvsi_driver->major = HVSI_MAJOR;

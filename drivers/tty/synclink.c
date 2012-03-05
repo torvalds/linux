@@ -4333,7 +4333,6 @@ static int mgsl_init_tty(void)
 	if (!serial_driver)
 		return -ENOMEM;
 	
-	serial_driver->owner = THIS_MODULE;
 	serial_driver->driver_name = "synclink";
 	serial_driver->name = "ttySL";
 	serial_driver->major = ttymajor;
