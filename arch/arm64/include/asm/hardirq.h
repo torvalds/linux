@@ -20,8 +20,13 @@
 #include <linux/threads.h>
 #include <asm/irq.h>
 
+#define NR_IPI	4
+
 typedef struct {
 	unsigned int __softirq_pending;
+#ifdef CONFIG_SMP
+	unsigned int ipi_irqs[NR_IPI];
+#endif
 } ____cacheline_aligned irq_cpustat_t;
 
 #include <linux/irq_cpustat.h>	/* Standard mappings for irq_cpustat_t above */
