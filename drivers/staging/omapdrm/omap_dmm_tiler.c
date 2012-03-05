@@ -766,9 +766,17 @@ int tiler_map_show(struct seq_file *s, void *arg)
 	const char *a2d = special;
 	const char *m2dp = m2d, *a2dp = a2d;
 	char nice[128];
-	int h_adj = omap_dmm->lut_height / ydiv;
-	int w_adj = omap_dmm->lut_width / xdiv;
+	int h_adj;
+	int w_adj;
 	unsigned long flags;
+
+	if (!omap_dmm) {
+		/* early return if dmm/tiler device is not initialized */
+		return 0;
+	}
+
+	h_adj = omap_dmm->lut_height / ydiv;
+	w_adj = omap_dmm->lut_width / xdiv;
 
 	map = kzalloc(h_adj * sizeof(*map), GFP_KERNEL);
 	global_map = kzalloc((w_adj + 1) * h_adj, GFP_KERNEL);
