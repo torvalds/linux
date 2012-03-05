@@ -47,9 +47,6 @@ struct serial_state {
 	int x_char;
 };
 
-static char *serial_name = "SimSerial driver";
-static char *serial_version = "0.6";
-
 static struct serial_state rs_table[NR_PORTS];
 
 struct tty_driver *hp_simserial_driver;
@@ -99,7 +96,7 @@ static irqreturn_t rs_interrupt_single(int irq, void *dev_id)
 	struct tty_struct *tty = tty_port_tty_get(&info->port);
 
 	if (!tty) {
-		printk(KERN_INFO "simrs_interrupt_single: info|tty=0 info=%p problem\n", info);
+		printk(KERN_INFO "%s: tty=0 problem\n", __func__);
 		return IRQ_NONE;
 	}
 	/*
@@ -122,7 +119,7 @@ static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
 
-	if (!tty || !info->xmit.buf)
+	if (!info->xmit.buf)
 		return 0;
 
 	local_irq_save(flags);
@@ -199,7 +196,6 @@ static void rs_flush_chars(struct tty_struct *tty)
 	transmit_chars(tty, info, NULL);
 }
 
-
 static int rs_write(struct tty_struct * tty,
 		    const unsigned char *buf, int count)
 {
@@ -207,7 +203,7 @@ static int rs_write(struct tty_struct * tty,
 	int	c, ret = 0;
 	unsigned long flags;
 
-	if (!tty || !info->xmit.buf)
+	if (!info->xmit.buf)
 		return 0;
 
 	local_irq_save(flags);
@@ -308,7 +304,6 @@ static void rs_unthrottle(struct tty_struct * tty)
 	}
 	printk(KERN_INFO "simrs_unthrottle called\n");
 }
-
 
 static int rs_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 {
@@ -462,7 +457,7 @@ static int rs_proc_show(struct seq_file *m, void *v)
 {
 	int i;
 
-	seq_printf(m, "simserinfo:1.0 driver:%s\n", serial_version);
+	seq_printf(m, "simserinfo:1.0\n");
 	for (i = 0; i < NR_PORTS; i++)
 		seq_printf(m, "%d: uart:16550 port:3F8 irq:%d\n",
 		       i, rs_table[i].irq);
@@ -481,12 +476,6 @@ static const struct file_operations rs_proc_fops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
-
-static inline void show_serial_version(void)
-{
-	printk(KERN_INFO "%s version %s with", serial_name, serial_version);
-	printk(KERN_INFO " no serial options enabled\n");
-}
 
 static const struct tty_operations hp_ops = {
 	.open = rs_open,
@@ -523,7 +512,7 @@ static int __init simrs_init(void)
 	if (!hp_simserial_driver)
 		return -ENOMEM;
 
-	show_serial_version();
+	printk(KERN_INFO "SimSerial driver with no serial options enabled\n");
 
 	/* Initialize the tty_driver structure */
 
