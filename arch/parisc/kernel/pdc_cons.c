@@ -92,10 +92,11 @@ static int pdc_console_setup(struct console *co, char *options)
 
 static void pdc_console_poll(unsigned long unused);
 static DEFINE_TIMER(pdc_console_timer, pdc_console_poll, 0, 0);
+static struct tty_port tty_port;
 
 static int pdc_console_tty_open(struct tty_struct *tty, struct file *filp)
 {
-
+	tty_port_tty_set(&tty_port, tty);
 	mod_timer(&pdc_console_timer, jiffies + PDC_CONS_POLL_DELAY);
 
 	return 0;
@@ -103,8 +104,10 @@ static int pdc_console_tty_open(struct tty_struct *tty, struct file *filp)
 
 static void pdc_console_tty_close(struct tty_struct *tty, struct file *filp)
 {
-	if (!tty->count)
+	if (!tty->count) {
 		del_timer_sync(&pdc_console_timer);
+		tty_port_tty_set(&tty_port, NULL);
+	}
 }
 
 static int pdc_console_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
@@ -123,8 +126,6 @@ static int pdc_console_tty_chars_in_buffer(struct tty_struct *tty)
 	return 0; /* no buffer */
 }
 
-static struct tty_driver *pdc_console_tty_driver;
-
 static const struct tty_operations pdc_console_tty_ops = {
 	.open = pdc_console_tty_open,
 	.close = pdc_console_tty_close,
@@ -135,10 +136,8 @@ static const struct tty_operations pdc_console_tty_ops = {
 
 static void pdc_console_poll(unsigned long unused)
 {
-
 	int data, count = 0;
-
-	struct tty_struct *tty = pdc_console_tty_driver->ttys[0];
+	struct tty_struct *tty = tty_port_tty_get(&tty_port);
 
 	if (!tty)
 		return;
@@ -154,9 +153,13 @@ static void pdc_console_poll(unsigned long unused)
 	if (count)
 		tty_flip_buffer_push(tty);
 
+	tty_kref_put(tty);
+
 	if (pdc_cons.flags & CON_ENABLED)
 		mod_timer(&pdc_console_timer, jiffies + PDC_CONS_POLL_DELAY);
 }
+
+static struct tty_driver *pdc_console_tty_driver;
 
 static int __init pdc_console_tty_driver_init(void)
 {
@@ -181,6 +184,8 @@ static int __init pdc_console_tty_driver_init(void)
 
 	printk(KERN_INFO "The PDC console driver is still registered, removing CON_BOOT flag\n");
 	pdc_cons.flags &= ~CON_BOOT;
+
+	tty_port_init(&tty_port);
 
 	pdc_console_tty_driver = alloc_tty_driver(1);
 
