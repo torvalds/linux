@@ -1042,6 +1042,19 @@ struct lruvec *mem_cgroup_lru_add_list(struct zone *zone, struct page *page,
 
 	pc = lookup_page_cgroup(page);
 	memcg = pc->mem_cgroup;
+
+	/*
+	 * Surreptitiously switch any uncharged page to root:
+	 * an uncharged page off lru does nothing to secure
+	 * its former mem_cgroup from sudden removal.
+	 *
+	 * Our caller holds lru_lock, and PageCgroupUsed is updated
+	 * under page_cgroup lock: between them, they make all uses
+	 * of pc->mem_cgroup safe.
+	 */
+	if (!PageCgroupUsed(pc) && memcg != root_mem_cgroup)
+		pc->mem_cgroup = memcg = root_mem_cgroup;
+
 	mz = page_cgroup_zoneinfo(memcg, page);
 	/* compound_order() is stabilized through lru_lock */
 	MEM_CGROUP_ZSTAT(mz, lru) += 1 << compound_order(page);
@@ -3027,23 +3040,6 @@ void mem_cgroup_uncharge_end(void)
 	memcg_oom_recover(batch->memcg);
 	/* forget this pointer (for sanity check) */
 	batch->memcg = NULL;
-}
-
-/*
- * A function for resetting pc->mem_cgroup for newly allocated pages.
- * This function should be called if the newpage will be added to LRU
- * before start accounting.
- */
-void mem_cgroup_reset_owner(struct page *newpage)
-{
-	struct page_cgroup *pc;
-
-	if (mem_cgroup_disabled())
-		return;
-
-	pc = lookup_page_cgroup(newpage);
-	VM_BUG_ON(PageCgroupUsed(pc));
-	pc->mem_cgroup = root_mem_cgroup;
 }
 
 #ifdef CONFIG_SWAP
