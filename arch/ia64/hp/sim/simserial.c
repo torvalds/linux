@@ -388,17 +388,11 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
  * This routine will shutdown a serial port; interrupts are disabled, and
  * DTR is dropped if the hangup on close termio flag is on.
  */
-static void shutdown(struct tty_struct *tty, struct serial_state *info)
+static void shutdown(struct tty_port *port)
 {
-	unsigned long	flags;
-
-	if (!(info->port.flags & ASYNC_INITIALIZED))
-		return;
-
-#ifdef SIMSERIAL_DEBUG
-	printk("Shutting down serial port %d (irq %d)...\n", info->line,
-	       info->irq);
-#endif
+	struct serial_state *info = container_of(port, struct serial_state,
+			port);
+	unsigned long flags;
 
 	local_irq_save(flags);
 	{
@@ -409,69 +403,24 @@ static void shutdown(struct tty_struct *tty, struct serial_state *info)
 			free_page((unsigned long) info->xmit.buf);
 			info->xmit.buf = NULL;
 		}
-
-		set_bit(TTY_IO_ERROR, &tty->flags);
-
-		info->port.flags &= ~ASYNC_INITIALIZED;
 	}
 	local_irq_restore(flags);
 }
 
-/*
- * ------------------------------------------------------------
- * rs_close()
- *
- * This routine is called when the serial port gets closed.  First, we
- * wait for the last remaining data to be sent.  Then, we unlink its
- * async structure from the interrupt chain if necessary, and we free
- * that IRQ if nothing is left in the chain.
- * ------------------------------------------------------------
- */
 static void rs_close(struct tty_struct *tty, struct file * filp)
 {
 	struct serial_state *info = tty->driver_data;
-	struct tty_port *port = &info->port;
 
-	if (!info)
-		return;
-
-	if (tty_port_close_start(port, tty, filp) == 0)
-		return;
-
-	/*
-	 * Now we wait for the transmit buffer to clear; and we notify
-	 * the line discipline to only process XON/XOFF characters.
-	 */
-	shutdown(tty, info);
-	rs_flush_buffer(tty);
-
-	tty_port_close_end(port, tty);
-	tty_port_tty_set(port, NULL);
+	tty_port_close(&info->port, tty, filp);
 }
 
-/*
- * rs_hangup() --- called by tty_hangup() when a hangup is signaled.
- */
 static void rs_hangup(struct tty_struct *tty)
 {
 	struct serial_state *info = tty->driver_data;
-	struct tty_port *port = &info->port;
-
-#ifdef SIMSERIAL_DEBUG
-	printk("rs_hangup: called\n");
-#endif
 
 	rs_flush_buffer(tty);
-	if (port->flags & ASYNC_CLOSING)
-		return;
-	shutdown(tty, info);
-
-	port->count = 0;
-	port->flags &= ~ASYNC_NORMAL_ACTIVE;
-	tty_port_tty_set(port, NULL);
-	wake_up_interruptible(&port->open_wait);
+	tty_port_hangup(&info->port);
 }
-
 
 static int activate(struct tty_port *port, struct tty_struct *tty)
 {
@@ -615,6 +564,7 @@ static const struct tty_operations hp_ops = {
 
 static const struct tty_port_operations hp_port_ops = {
 	.activate = activate,
+	.shutdown = shutdown,
 };
 
 /*
