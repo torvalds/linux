@@ -1133,6 +1133,10 @@ static void cfq_put_cfqg(struct cfq_group *cfqg)
 	cfqg->ref--;
 	if (cfqg->ref)
 		return;
+
+	/* release the extra blkcg reference this blkg has been holding */
+	css_put(&cfqg->blkg.blkcg->css);
+
 	for_each_cfqg_st(cfqg, i, j, st)
 		BUG_ON(!RB_EMPTY_ROOT(&st->rb));
 	free_percpu(cfqg->blkg.stats_cpu);

@@ -169,6 +169,9 @@ static void throtl_put_tg(struct throtl_grp *tg)
 	if (!atomic_dec_and_test(&tg->ref))
 		return;
 
+	/* release the extra blkcg reference this blkg has been holding */
+	css_put(&tg->blkg.blkcg->css);
+
 	/*
 	 * A group is freed in rcu manner. But having an rcu lock does not
 	 * mean that one can access all the fields of blkg and assume these

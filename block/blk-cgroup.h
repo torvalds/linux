@@ -163,7 +163,7 @@ struct blkio_group {
 	/* Pointer to the associated request_queue, RCU protected */
 	struct request_queue __rcu *q;
 	struct hlist_node blkcg_node;
-	unsigned short blkcg_id;
+	struct blkio_cgroup *blkcg;
 	/* Store cgroup path */
 	char path[128];
 	/* policy which owns this blk group */
