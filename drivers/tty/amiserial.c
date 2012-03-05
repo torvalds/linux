@@ -231,17 +231,6 @@ static void rs_start(struct tty_struct *tty)
  * -----------------------------------------------------------------------
  */
 
-/*
- * This routine is used by the interrupt handler to schedule
- * processing in the software interrupt portion of the driver.
- */
-static void rs_sched_event(struct async_struct *info,
-			   int event)
-{
-	info->event |= 1 << event;
-	tasklet_schedule(&info->tlet);
-}
-
 static void receive_chars(struct async_struct *info)
 {
         int status;
@@ -359,7 +348,7 @@ static void transmit_chars(struct async_struct *info)
 	if (CIRC_CNT(info->xmit.head,
 		     info->xmit.tail,
 		     SERIAL_XMIT_SIZE) < WAKEUP_CHARS)
-		rs_sched_event(info, RS_EVENT_WRITE_WAKEUP);
+		tty_wakeup(info->tty);
 
 #ifdef SERIAL_DEBUG_INTR
 	printk("THRE...");
@@ -427,7 +416,7 @@ static void check_modem_status(struct async_struct *info)
 				/* set a pending Tx Interrupt, transmitter should restart now */
 				custom.intreq = IF_SETCLR | IF_TBE;
 				mb();
-				rs_sched_event(info, RS_EVENT_WRITE_WAKEUP);
+				tty_wakeup(info->tty);
 				return;
 			}
 		} else {
@@ -505,29 +494,6 @@ static irqreturn_t ser_tx_int(int irq, void *dev_id)
  * Here ends the serial interrupt routines.
  * -------------------------------------------------------------------
  */
-
-/*
- * This routine is used to handle the "bottom half" processing for the
- * serial driver, known also the "software interrupt" processing.
- * This processing is done at the kernel interrupt level, after the
- * rs_interrupt() has returned, BUT WITH INTERRUPTS TURNED ON.  This
- * is where time-consuming activities which can not be done in the
- * interrupt driver proper are done; the interrupt driver schedules
- * them using rs_sched_event(), and they get done here.
- */
-
-static void do_softint(unsigned long private_)
-{
-	struct async_struct	*info = (struct async_struct *) private_;
-	struct tty_struct	*tty;
-
-	tty = info->tty;
-	if (!tty)
-		return;
-
-	if (test_and_clear_bit(RS_EVENT_WRITE_WAKEUP, &info->event))
-		tty_wakeup(tty);
-}
 
 /*
  * ---------------------------------------------------------------
@@ -1506,7 +1472,6 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 		
 	tty_ldisc_flush(tty);
 	tty->closing = 0;
-	info->event = 0;
 	info->tty = NULL;
 	if (info->blocked_open) {
 		if (info->close_delay) {
@@ -1597,7 +1562,6 @@ static void rs_hangup(struct tty_struct *tty)
 
 	rs_flush_buffer(tty);
 	shutdown(info);
-	info->event = 0;
 	state->count = 0;
 	info->flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->tty = NULL;
@@ -1744,7 +1708,6 @@ static int get_async_struct(int line, struct async_struct **ret_info)
 	info->flags = sstate->flags;
 	info->xmit_fifo_size = sstate->xmit_fifo_size;
 	info->line = line;
-	tasklet_init(&info->tlet, do_softint, (unsigned long)info);
 	info->state = sstate;
 	if (sstate->info) {
 		kfree(info);
@@ -2050,7 +2013,6 @@ static int __exit amiga_serial_remove(struct platform_device *pdev)
 	struct async_struct *info = state->info;
 
 	/* printk("Unloading %s: version %s\n", serial_name, serial_version); */
-	tasklet_kill(&info->tlet);
 	if ((error = tty_unregister_driver(serial_driver)))
 		printk("SERIAL: failed to unregister serial driver (%d)\n",
 		       error);

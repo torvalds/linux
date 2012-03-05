@@ -572,7 +572,6 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	shutdown(info);
 	rs_flush_buffer(tty);
 	tty_ldisc_flush(tty);
-	info->event = 0;
 	info->tty = NULL;
 	if (info->blocked_open) {
 		if (info->close_delay)
@@ -610,7 +609,6 @@ static void rs_hangup(struct tty_struct *tty)
 		return;
 	shutdown(info);
 
-	info->event = 0;
 	state->count = 0;
 	info->flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->tty = NULL;

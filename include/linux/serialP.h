@@ -56,22 +56,14 @@ struct async_struct {
 	unsigned short		closing_wait;
 	int			IER; 	/* Interrupt Enable Register */
 	int			MCR; 	/* Modem control register */
-	unsigned long		event;
 	int			line;
 	int			blocked_open; /* # of blocked opens */
  	struct circ_buf		xmit;
-	struct tasklet_struct	tlet;
 	wait_queue_head_t	open_wait;
 	wait_queue_head_t	close_wait;
 	wait_queue_head_t	delta_msr_wait;
 	struct async_struct	*next_port; /* For the linked list */
 	struct async_struct	*prev_port;
 };
-
-/*
- * Events are used to schedule things to happen at timer-interrupt
- * time, instead of at rs interrupt time.
- */
-#define RS_EVENT_WRITE_WAKEUP	0
 
 #endif /* _LINUX_SERIAL_H */
