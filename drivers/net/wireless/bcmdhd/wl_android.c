@@ -795,7 +795,7 @@ static int wifi_remove(struct platform_device *pdev)
 static int wifi_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	DHD_TRACE(("##> %s\n", __FUNCTION__));
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 39)) && defined(OOB_INTR_ONLY)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 39)) && defined(OOB_INTR_ONLY)
 	bcmsdh_oob_intr_set(0);
 #endif
 	return 0;
@@ -804,7 +804,7 @@ static int wifi_suspend(struct platform_device *pdev, pm_message_t state)
 static int wifi_resume(struct platform_device *pdev)
 {
 	DHD_TRACE(("##> %s\n", __FUNCTION__));
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 39)) && defined(OOB_INTR_ONLY)
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 39)) && defined(OOB_INTR_ONLY)
 	if (dhd_os_check_if_up(bcmsdh_get_drvdata()))
 		bcmsdh_oob_intr_set(1);
 #endif
