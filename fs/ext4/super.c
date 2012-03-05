@@ -1443,6 +1443,10 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 	if (args->from && match_int(args, &arg))
 		return -1;
 	switch (token) {
+	case Opt_noacl:
+	case Opt_nouser_xattr:
+		ext4_msg(sb, KERN_WARNING, deprecated_msg, opt, "3.5");
+		break;
 	case Opt_sb:
 		return 1;	/* handled by get_sb_block() */
 	case Opt_removed:
