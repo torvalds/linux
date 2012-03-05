@@ -1389,53 +1389,13 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 {
 	struct serial_state *state = tty->driver_data;
 	struct tty_port *port = &state->tport;
-	unsigned long flags;
 
-	if (!state || serial_paranoia_check(state, tty->name, "rs_close"))
+	if (serial_paranoia_check(state, tty->name, "rs_close"))
 		return;
 
-	local_irq_save(flags);
-
-	if (tty_hung_up_p(filp)) {
-		DBG_CNT("before DEC-hung");
-		local_irq_restore(flags);
+	if (tty_port_close_start(port, tty, filp) == 0)
 		return;
-	}
 
-#ifdef SERIAL_DEBUG_OPEN
-	printk("rs_close ttys%d, count = %d\n", state->line, port->count);
-#endif
-	if ((tty->count == 1) && (port->count != 1)) {
-		/*
-		 * Uh, oh.  tty->count is 1, which means that the tty
-		 * structure will be freed.  port->count should always
-		 * be one in these conditions.  If it's greater than
-		 * one, we've got real problems, since it means the
-		 * serial port won't be shutdown.
-		 */
-		printk("rs_close: bad serial port count; tty->count is 1, "
-		       "port->count is %d\n", state->tport.count);
-		port->count = 1;
-	}
-	if (--port->count < 0) {
-		printk("rs_close: bad serial port count for ttys%d: %d\n",
-		       tty->index, port->count);
-		port->count = 0;
-	}
-	if (port->count) {
-		DBG_CNT("before DEC-2");
-		local_irq_restore(flags);
-		return;
-	}
-	port->flags |= ASYNC_CLOSING;
-	/*
-	 * Now we wait for the transmit buffer to clear; and we notify 
-	 * the line discipline to only process XON/XOFF characters.
-	 */
-	tty->closing = 1;
-	local_irq_restore(flags);
-	if (port->closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, port->closing_wait);
 	/*
 	 * At this point we stop accepting input.  To do this, we
 	 * disable the receive line status interrupts, and tell the
