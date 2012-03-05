@@ -3449,7 +3449,6 @@ static void cfq_exit_queue(struct elevator_queue *e)
 {
 	struct cfq_data *cfqd = e->elevator_data;
 	struct request_queue *q = cfqd->queue;
-	bool wait = false;
 
 	cfq_shutdown_timer_wq(cfqd);
 
@@ -3462,30 +3461,7 @@ static void cfq_exit_queue(struct elevator_queue *e)
 
 	spin_unlock_irq(q->queue_lock);
 
-#ifdef CONFIG_BLK_CGROUP
-	/*
-	 * If there are groups which we could not unlink from blkcg list,
-	 * wait for a rcu period for them to be freed.
-	 */
-	spin_lock_irq(q->queue_lock);
-	wait = q->nr_blkgs;
-	spin_unlock_irq(q->queue_lock);
-#endif
 	cfq_shutdown_timer_wq(cfqd);
-
-	/*
-	 * Wait for cfqg->blkg->key accessors to exit their grace periods.
-	 * Do this wait only if there are other unlinked groups out
-	 * there. This can happen if cgroup deletion path claimed the
-	 * responsibility of cleaning up a group before queue cleanup code
-	 * get to the group.
-	 *
-	 * Do not call synchronize_rcu() unconditionally as there are drivers
-	 * which create/delete request queue hundreds of times during scan/boot
-	 * and synchronize_rcu() can take significant time and slow down boot.
-	 */
-	if (wait)
-		synchronize_rcu();
 
 #ifndef CONFIG_CFQ_GROUP_IOSCHED
 	kfree(cfqd->root_group);

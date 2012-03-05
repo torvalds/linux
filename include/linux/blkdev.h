@@ -365,7 +365,6 @@ struct request_queue {
 #ifdef CONFIG_BLK_CGROUP
 	/* XXX: array size hardcoded to avoid include dependency (temporary) */
 	struct list_head	blkg_list;
-	int			nr_blkgs;
 #endif
 
 	struct queue_limits	limits;

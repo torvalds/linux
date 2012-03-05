@@ -176,8 +176,8 @@ struct blkg_policy_data {
 };
 
 struct blkio_group {
-	/* Pointer to the associated request_queue, RCU protected */
-	struct request_queue __rcu *q;
+	/* Pointer to the associated request_queue */
+	struct request_queue *q;
 	struct list_head q_node;
 	struct hlist_node blkcg_node;
 	struct blkio_cgroup *blkcg;

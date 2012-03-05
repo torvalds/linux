@@ -1046,39 +1046,8 @@ int blk_throtl_init(struct request_queue *q)
 
 void blk_throtl_exit(struct request_queue *q)
 {
-	struct throtl_data *td = q->td;
-	bool wait;
-
-	BUG_ON(!td);
-
+	BUG_ON(!q->td);
 	throtl_shutdown_wq(q);
-
-	/* If there are other groups */
-	spin_lock_irq(q->queue_lock);
-	wait = q->nr_blkgs;
-	spin_unlock_irq(q->queue_lock);
-
-	/*
-	 * Wait for tg_to_blkg(tg)->q accessors to exit their grace periods.
-	 * Do this wait only if there are other undestroyed groups out
-	 * there (other than root group). This can happen if cgroup deletion
-	 * path claimed the responsibility of cleaning up a group before
-	 * queue cleanup code get to the group.
-	 *
-	 * Do not call synchronize_rcu() unconditionally as there are drivers
-	 * which create/delete request queue hundreds of times during scan/boot
-	 * and synchronize_rcu() can take significant time and slow down boot.
-	 */
-	if (wait)
-		synchronize_rcu();
-
-	/*
-	 * Just being safe to make sure after previous flush if some body did
-	 * update limits through cgroup and another work got queued, cancel
-	 * it.
-	 */
-	throtl_shutdown_wq(q);
-
 	kfree(q->td);
 }
 

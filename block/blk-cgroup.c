@@ -500,7 +500,7 @@ static struct blkio_group *blkg_alloc(struct blkio_cgroup *blkcg,
 		return NULL;
 
 	spin_lock_init(&blkg->stats_lock);
-	rcu_assign_pointer(blkg->q, q);
+	blkg->q = q;
 	INIT_LIST_HEAD(&blkg->q_node);
 	blkg->blkcg = blkcg;
 	blkg->refcnt = 1;
@@ -611,7 +611,6 @@ struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
 
 	hlist_add_head_rcu(&blkg->blkcg_node, &blkcg->blkg_list);
 	list_add(&blkg->q_node, &q->blkg_list);
-	q->nr_blkgs++;
 
 	spin_unlock(&blkcg->lock);
 out:
@@ -647,9 +646,6 @@ static void blkg_destroy(struct blkio_group *blkg)
 	WARN_ON_ONCE(hlist_unhashed(&blkg->blkcg_node));
 	list_del_init(&blkg->q_node);
 	hlist_del_init_rcu(&blkg->blkcg_node);
-
-	WARN_ON_ONCE(q->nr_blkgs <= 0);
-	q->nr_blkgs--;
 
 	/*
 	 * Put the reference taken at the time of creation so that when all
@@ -1232,8 +1228,9 @@ static int blkio_read_blkg_stats(struct blkio_cgroup *blkcg,
 	struct hlist_node *n;
 	uint64_t cgroup_total = 0;
 
-	rcu_read_lock();
-	hlist_for_each_entry_rcu(blkg, n, &blkcg->blkg_list, blkcg_node) {
+	spin_lock_irq(&blkcg->lock);
+
+	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node) {
 		const char *dname = blkg_dev_name(blkg);
 		int plid = BLKIOFILE_POLICY(cft->private);
 
@@ -1243,15 +1240,16 @@ static int blkio_read_blkg_stats(struct blkio_cgroup *blkcg,
 			cgroup_total += blkio_get_stat_cpu(blkg, plid,
 							   cb, dname, type);
 		} else {
-			spin_lock_irq(&blkg->stats_lock);
+			spin_lock(&blkg->stats_lock);
 			cgroup_total += blkio_get_stat(blkg, plid,
 						       cb, dname, type);
-			spin_unlock_irq(&blkg->stats_lock);
+			spin_unlock(&blkg->stats_lock);
 		}
 	}
 	if (show_total)
 		cb->fill(cb, "Total", cgroup_total);
-	rcu_read_unlock();
+
+	spin_unlock_irq(&blkcg->lock);
 	return 0;
 }
 
@@ -1583,28 +1581,24 @@ static int blkiocg_pre_destroy(struct cgroup_subsys *subsys,
 {
 	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgroup);
 
-	rcu_read_lock();
 	spin_lock_irq(&blkcg->lock);
 
 	while (!hlist_empty(&blkcg->blkg_list)) {
 		struct blkio_group *blkg = hlist_entry(blkcg->blkg_list.first,
 						struct blkio_group, blkcg_node);
-		struct request_queue *q = rcu_dereference(blkg->q);
+		struct request_queue *q = blkg->q;
 
 		if (spin_trylock(q->queue_lock)) {
 			blkg_destroy(blkg);
 			spin_unlock(q->queue_lock);
 		} else {
 			spin_unlock_irq(&blkcg->lock);
-			rcu_read_unlock();
 			cpu_relax();
-			rcu_read_lock();
 			spin_lock(&blkcg->lock);
 		}
 	}
 
 	spin_unlock_irq(&blkcg->lock);
-	rcu_read_unlock();
 	return 0;
 }
 
