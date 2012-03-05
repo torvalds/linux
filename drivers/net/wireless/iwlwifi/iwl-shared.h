@@ -413,11 +413,6 @@ static inline bool iwl_have_debug_level(u32 level)
 	return iwlagn_mod_params.debug_level & level;
 }
 
-static inline void iwl_free_pages(struct iwl_shared *shrd, unsigned long page)
-{
-	free_pages(page, shrd->hw_params.rx_page_order);
-}
-
 /**
  * iwl_queue_inc_wrap - increment queue index, wrap back to beginning
  * @index -- current index

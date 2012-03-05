@@ -879,9 +879,13 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb,
 
 	/* Input error checking is done when commands are added to queue. */
 	if (meta->flags & CMD_WANT_SKB) {
-		meta->source->reply_page = (unsigned long)rxb_addr(rxb);
-		meta->source->handler_status = handler_status;
+		struct page *p = rxb->page;
+
 		rxb->page = NULL;
+		meta->source->resp_pkt = pkt;
+		meta->source->_rx_page_addr = (unsigned long)page_address(p);
+		meta->source->_rx_page_order = hw_params(trans).rx_page_order;
+		meta->source->handler_status = handler_status;
 	}
 
 	iwl_hcmd_queue_reclaim(trans, txq_id, index);
@@ -985,7 +989,7 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		}
 	}
 
-	if ((cmd->flags & CMD_WANT_SKB) && !cmd->reply_page) {
+	if ((cmd->flags & CMD_WANT_SKB) && !cmd->resp_pkt) {
 		IWL_ERR(trans, "Error: Response NULL in '%s'\n",
 			  get_cmd_string(cmd->id));
 		ret = -EIO;
@@ -1006,9 +1010,9 @@ cancel:
 							~CMD_WANT_SKB;
 	}
 
-	if (cmd->reply_page) {
-		iwl_free_pages(trans->shrd, cmd->reply_page);
-		cmd->reply_page = 0;
+	if (cmd->resp_pkt) {
+		iwl_free_resp(cmd);
+		cmd->resp_pkt = NULL;
 	}
 
 	return ret;

@@ -292,7 +292,7 @@ static int iwl_testmode_ucode(struct ieee80211_hw *hw, struct nlattr **tb)
 		return ret;
 
 	/* Handling return of SKB to the user */
-	pkt = (struct iwl_rx_packet *)cmd.reply_page;
+	pkt = cmd.resp_pkt;
 	if (!pkt) {
 		IWL_ERR(priv, "HCMD received a null response packet\n");
 		return ret;
@@ -309,7 +309,7 @@ static int iwl_testmode_ucode(struct ieee80211_hw *hw, struct nlattr **tb)
 
 	/* The reply is in a page, that we cannot send to user space. */
 	memcpy(reply_buf, &(pkt->hdr), reply_len);
-	iwl_free_pages(priv->shrd, cmd.reply_page);
+	iwl_free_resp(&cmd);
 
 	NLA_PUT_U32(skb, IWL_TM_ATTR_COMMAND, IWL_TM_CMD_DEV2APP_UCODE_RX_PKT);
 	NLA_PUT(skb, IWL_TM_ATTR_UCODE_RX_PKT, reply_len, reply_buf);

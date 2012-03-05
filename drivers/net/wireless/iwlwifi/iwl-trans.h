@@ -173,7 +173,9 @@ enum iwl_hcmd_dataflag {
  * struct iwl_host_cmd - Host command to the uCode
  *
  * @data: array of chunks that composes the data of the host command
- * @reply_page: pointer to the page that holds the response to the host command
+ * @resp_pkt: response packet, if %CMD_WANT_SKB was set
+ * @_rx_page_order: (internally used to free response packet)
+ * @_rx_page_addr: (internally used to free response packet)
  * @handler_status: return value of the handler of the command
  *	(put in setup_rx_handlers) - valid for SYNC mode only
  * @flags: can be CMD_*
@@ -183,7 +185,9 @@ enum iwl_hcmd_dataflag {
  */
 struct iwl_host_cmd {
 	const void *data[IWL_MAX_CMD_TFDS];
-	unsigned long reply_page;
+	struct iwl_rx_packet *resp_pkt;
+	unsigned long _rx_page_addr;
+	u32 _rx_page_order;
 	int handler_status;
 
 	u32 flags;
@@ -191,6 +195,11 @@ struct iwl_host_cmd {
 	u8 dataflags[IWL_MAX_CMD_TFDS];
 	u8 id;
 };
+
+static inline void iwl_free_resp(struct iwl_host_cmd *cmd)
+{
+	free_pages(cmd->_rx_page_addr, cmd->_rx_page_order);
+}
 
 /**
  * struct iwl_trans_ops - transport specific operations

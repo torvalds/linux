@@ -76,7 +76,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	if (ret)
 		return ret;
 
-	pkt = (struct iwl_rx_packet *)cmd.reply_page;
+	pkt = cmd.resp_pkt;
 	if (pkt->u.status != CAN_ABORT_STATUS) {
 		/* The scan abort will return 1 for success or
 		 * 2 for "failure".  A failure condition can be
@@ -88,7 +88,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 		ret = -EIO;
 	}
 
-	iwl_free_pages(priv->shrd, cmd.reply_page);
+	iwl_free_resp(&cmd);
 	return ret;
 }
 

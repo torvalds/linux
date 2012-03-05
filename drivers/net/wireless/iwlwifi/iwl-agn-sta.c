@@ -160,7 +160,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 	/*else the command was successfully sent in SYNC mode, need to free
 	 * the reply page */
 
-	iwl_free_pages(priv->shrd, cmd.reply_page);
+	iwl_free_resp(&cmd);
 
 	if (cmd.handler_status)
 		IWL_ERR(priv, "%s - error in the CMD response %d", __func__,
@@ -415,7 +415,7 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 	if (ret)
 		return ret;
 
-	pkt = (struct iwl_rx_packet *)cmd.reply_page;
+	pkt = cmd.resp_pkt;
 	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERR(priv, "Bad return from REPLY_REMOVE_STA (0x%08X)\n",
 			  pkt->hdr.flags);
@@ -438,7 +438,7 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 			break;
 		}
 	}
-	iwl_free_pages(priv->shrd, cmd.reply_page);
+	iwl_free_resp(&cmd);
 
 	return ret;
 }
