@@ -255,8 +255,8 @@ isp_video_remote_subdev(struct isp_video *video, u32 *pad)
 }
 
 /* Return a pointer to the ISP video instance at the far end of the pipeline. */
-static struct isp_video *
-isp_video_far_end(struct isp_video *video)
+static int isp_video_get_graph_data(struct isp_video *video,
+				    struct isp_pipeline *pipe)
 {
 	struct media_entity_graph graph;
 	struct media_entity *entity = &video->video.entity;
@@ -267,21 +267,38 @@ isp_video_far_end(struct isp_video *video)
 	media_entity_graph_walk_start(&graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(&graph))) {
+		struct isp_video *__video;
+
+		pipe->entities |= 1 << entity->id;
+
+		if (far_end != NULL)
+			continue;
+
 		if (entity == &video->video.entity)
 			continue;
 
 		if (media_entity_type(entity) != MEDIA_ENT_T_DEVNODE)
 			continue;
 
-		far_end = to_isp_video(media_entity_to_video_device(entity));
-		if (far_end->type != video->type)
-			break;
-
-		far_end = NULL;
+		__video = to_isp_video(media_entity_to_video_device(entity));
+		if (__video->type != video->type)
+			far_end = __video;
 	}
 
 	mutex_unlock(&mdev->graph_mutex);
-	return far_end;
+
+	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		pipe->input = far_end;
+		pipe->output = video;
+	} else {
+		if (far_end == NULL)
+			return -EPIPE;
+
+		pipe->input = video;
+		pipe->output = far_end;
+	}
+
+	return 0;
 }
 
 /*
@@ -304,16 +321,12 @@ static int isp_video_validate_pipeline(struct isp_pipeline *pipe)
 	struct v4l2_subdev *subdev;
 	int ret;
 
-	pipe->entities = 0;
-
 	subdev = isp_video_remote_subdev(pipe->output, NULL);
 	if (subdev == NULL)
 		return -EPIPE;
 
 	while (1) {
 		unsigned int shifter_link;
-
-		pipe->entities |= 1U << subdev->entity.id;
 
 		/* Retrieve the sink format */
 		pad = &subdev->entity.pads[0];
@@ -977,7 +990,6 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	struct isp_video *video = video_drvdata(file);
 	enum isp_pipeline_state state;
 	struct isp_pipeline *pipe;
-	struct isp_video *far_end;
 	unsigned long flags;
 	int ret;
 
@@ -996,6 +1008,8 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	 */
 	pipe = video->video.entity.pipe
 	     ? to_isp_pipeline(&video->video.entity) : &video->pipe;
+
+	pipe->entities = 0;
 
 	if (video->isp->pdata->set_constraints)
 		video->isp->pdata->set_constraints(video->isp, true);
@@ -1016,25 +1030,14 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	video->bpl_padding = ret;
 	video->bpl_value = vfh->format.fmt.pix.bytesperline;
 
-	/* Find the ISP video node connected at the far end of the pipeline and
-	 * update the pipeline.
-	 */
-	far_end = isp_video_far_end(video);
+	ret = isp_video_get_graph_data(video, pipe);
+	if (ret < 0)
+		goto err_check_format;
 
-	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		state = ISP_PIPELINE_STREAM_OUTPUT | ISP_PIPELINE_IDLE_OUTPUT;
-		pipe->input = far_end;
-		pipe->output = video;
-	} else {
-		if (far_end == NULL) {
-			ret = -EPIPE;
-			goto err_check_format;
-		}
-
+	else
 		state = ISP_PIPELINE_STREAM_INPUT | ISP_PIPELINE_IDLE_INPUT;
-		pipe->input = video;
-		pipe->output = far_end;
-	}
 
 	/* Validate the pipeline and update its state. */
 	ret = isp_video_validate_pipeline(pipe);
