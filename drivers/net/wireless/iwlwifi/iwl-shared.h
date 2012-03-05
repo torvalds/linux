@@ -433,13 +433,21 @@ static inline int iwl_queue_dec_wrap(int index, int n_bd)
 	return --index & (n_bd - 1);
 }
 
-struct iwl_rx_mem_buffer {
-	dma_addr_t page_dma;
-	struct page *page;
-	struct list_head list;
+struct iwl_rx_cmd_buffer {
+	struct page *_page;
 };
 
-#define rxb_addr(r) page_address(r->page)
+static inline void *rxb_addr(struct iwl_rx_cmd_buffer *r)
+{
+	return page_address(r->_page);
+}
+
+static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
+{
+	struct page *p = r->_page;
+	r->_page = NULL;
+	return p;
+}
 
 /*
  * mac80211 queues, ACs, hardware queues, FIFOs.

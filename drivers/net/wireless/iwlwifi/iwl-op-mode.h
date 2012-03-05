@@ -67,7 +67,7 @@ struct iwl_op_mode;
 struct iwl_trans;
 struct sk_buff;
 struct iwl_device_cmd;
-struct iwl_rx_mem_buffer;
+struct iwl_rx_cmd_buffer;
 
 /**
  * DOC: Operational mode - what is it ?
@@ -125,7 +125,7 @@ struct iwl_rx_mem_buffer;
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans);
 	void (*stop)(struct iwl_op_mode *op_mode);
-	int (*rx)(struct iwl_op_mode *op_mode, struct iwl_rx_mem_buffer *rxb,
+	int (*rx)(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,
 		  struct iwl_device_cmd *cmd);
 	void (*queue_full)(struct iwl_op_mode *op_mode, u8 ac);
 	void (*queue_not_full)(struct iwl_op_mode *op_mode, u8 ac);
@@ -156,7 +156,7 @@ static inline void iwl_op_mode_stop(struct iwl_op_mode *op_mode)
 }
 
 static inline int iwl_op_mode_rx(struct iwl_op_mode *op_mode,
-				  struct iwl_rx_mem_buffer *rxb,
+				  struct iwl_rx_cmd_buffer *rxb,
 				  struct iwl_device_cmd *cmd)
 {
 	return op_mode->ops->rx(op_mode, rxb, cmd);

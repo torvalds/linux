@@ -841,7 +841,7 @@ static void iwl_hcmd_queue_reclaim(struct iwl_trans *trans, int txq_id,
  * will be executed.  The attached skb (if present) will only be freed
  * if the callback returns 1
  */
-void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb,
+void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_cmd_buffer *rxb,
 			 int handler_status)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
@@ -879,9 +879,8 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb,
 
 	/* Input error checking is done when commands are added to queue. */
 	if (meta->flags & CMD_WANT_SKB) {
-		struct page *p = rxb->page;
+		struct page *p = rxb_steal_page(rxb);
 
-		rxb->page = NULL;
 		meta->source->resp_pkt = pkt;
 		meta->source->_rx_page_addr = (unsigned long)page_address(p);
 		meta->source->_rx_page_order = hw_params(trans).rx_page_order;

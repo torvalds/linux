@@ -367,8 +367,6 @@ void iwl_bg_rx_replenish(struct work_struct *data)
  */
 static void iwl_rx_handle(struct iwl_trans *trans)
 {
-	struct iwl_rx_mem_buffer *rxb;
-	struct iwl_rx_packet *pkt;
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
@@ -402,6 +400,9 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 	while (i != r) {
 		int len, err;
 		u16 sequence;
+		struct iwl_rx_mem_buffer *rxb;
+		struct iwl_rx_cmd_buffer rxcb;
+		struct iwl_rx_packet *pkt;
 
 		rxb = rxq->queue[i];
 
@@ -418,7 +419,9 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 		dma_unmap_page(trans->dev, rxb->page_dma,
 			       PAGE_SIZE << hw_params(trans).rx_page_order,
 			       DMA_FROM_DEVICE);
-		pkt = rxb_addr(rxb);
+
+		rxcb._page = rxb->page;
+		pkt = rxb_addr(&rxcb);
 
 		IWL_DEBUG_RX(trans, "r = %d, i = %d, %s, 0x%02x\n", r,
 			i, get_cmd_string(pkt->hdr.cmd), pkt->hdr.cmd);
@@ -461,10 +464,10 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 		     "reclaim is false, SEQ_RX_FRAME unset: %s\n",
 		     get_cmd_string(pkt->hdr.cmd));
 
-		err = iwl_op_mode_rx(trans->op_mode, rxb, cmd);
+		err = iwl_op_mode_rx(trans->op_mode, &rxcb, cmd);
 
 		/*
-		 * XXX: After here, we should always check rxb->page
+		 * XXX: After here, we should always check rxcb._page
 		 * against NULL before touching it or its virtual
 		 * memory (pkt). Because some rx_handler might have
 		 * already taken or freed the pages.
@@ -475,11 +478,15 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 			 * and fire off the (possibly) blocking
 			 * iwl_trans_send_cmd()
 			 * as we reclaim the driver command queue */
-			if (rxb->page)
-				iwl_tx_cmd_complete(trans, rxb, err);
+			if (rxcb._page)
+				iwl_tx_cmd_complete(trans, &rxcb, err);
 			else
 				IWL_WARN(trans, "Claim null rxb?\n");
 		}
+
+		/* page was stolen from us */
+		if (rxcb._page == NULL)
+			rxb->page = NULL;
 
 		/* Reuse the page if possible. For notification packets and
 		 * SKBs that fail to Rx correctly, add them back into the

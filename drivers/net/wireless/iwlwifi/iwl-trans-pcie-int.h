@@ -49,6 +49,12 @@ struct iwl_host_cmd;
 /*This file includes the declaration that are internal to the
  * trans_pcie layer */
 
+struct iwl_rx_mem_buffer {
+	dma_addr_t page_dma;
+	struct page *page;
+	struct list_head list;
+};
+
 /**
  * struct isr_statistics - interrupt statistics
  *
@@ -287,7 +293,7 @@ int iwlagn_txq_attach_buf_to_tfd(struct iwl_trans *trans,
 int iwl_queue_init(struct iwl_queue *q, int count, int slots_num, u32 id);
 int iwl_trans_pcie_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 void iwl_tx_cmd_complete(struct iwl_trans *trans,
-			 struct iwl_rx_mem_buffer *rxb, int handler_status);
+			 struct iwl_rx_cmd_buffer *rxb, int handler_status);
 void iwl_trans_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 					   struct iwl_tx_queue *txq,
 					   u16 byte_cnt);
