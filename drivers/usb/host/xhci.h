@@ -1262,6 +1262,7 @@ enum xhci_ring_type {
 
 struct xhci_ring {
 	struct xhci_segment	*first_seg;
+	struct xhci_segment	*last_seg;
 	union  xhci_trb		*enqueue;
 	struct xhci_segment	*enq_seg;
 	unsigned int		enq_updates;
@@ -1276,6 +1277,7 @@ struct xhci_ring {
 	 */
 	u32			cycle_state;
 	unsigned int		stream_id;
+	unsigned int		num_segs;
 	enum xhci_ring_type	type;
 	bool			last_td_was_short;
 };
