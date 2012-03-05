@@ -67,7 +67,6 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/gfp.h>
-#include <linux/mm.h> /* for page_address */
 #include <net/mac80211.h>
 
 #include "iwl-commands.h"
@@ -411,22 +410,6 @@ struct iwl_shared {
 static inline bool iwl_have_debug_level(u32 level)
 {
 	return iwlagn_mod_params.debug_level & level;
-}
-
-struct iwl_rx_cmd_buffer {
-	struct page *_page;
-};
-
-static inline void *rxb_addr(struct iwl_rx_cmd_buffer *r)
-{
-	return page_address(r->_page);
-}
-
-static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
-{
-	struct page *p = r->_page;
-	r->_page = NULL;
-	return p;
 }
 
 /*

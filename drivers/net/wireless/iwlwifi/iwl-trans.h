@@ -64,6 +64,7 @@
 #define __iwl_trans_h__
 
 #include <linux/ieee80211.h>
+#include <linux/mm.h> /* for page_address */
 
 #include "iwl-shared.h"
 #include "iwl-debug.h"
@@ -199,6 +200,22 @@ struct iwl_host_cmd {
 static inline void iwl_free_resp(struct iwl_host_cmd *cmd)
 {
 	free_pages(cmd->_rx_page_addr, cmd->_rx_page_order);
+}
+
+struct iwl_rx_cmd_buffer {
+	struct page *_page;
+};
+
+static inline void *rxb_addr(struct iwl_rx_cmd_buffer *r)
+{
+	return page_address(r->_page);
+}
+
+static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
+{
+	struct page *p = r->_page;
+	r->_page = NULL;
+	return p;
 }
 
 /**
