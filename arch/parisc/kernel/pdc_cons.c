@@ -103,7 +103,7 @@ static int pdc_console_tty_open(struct tty_struct *tty, struct file *filp)
 static void pdc_console_tty_close(struct tty_struct *tty, struct file *filp)
 {
 	if (!tty->count)
-		del_timer(&pdc_console_timer);
+		del_timer_sync(&pdc_console_timer);
 }
 
 static int pdc_console_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
@@ -153,7 +153,7 @@ static void pdc_console_poll(unsigned long unused)
 	if (count)
 		tty_flip_buffer_push(tty);
 
-	if (tty->count && (pdc_cons.flags & CON_ENABLED))
+	if (pdc_cons.flags & CON_ENABLED)
 		mod_timer(&pdc_console_timer, jiffies + PDC_CONS_POLL_DELAY);
 }
 
