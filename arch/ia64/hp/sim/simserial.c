@@ -24,14 +24,13 @@
 #include <linux/capability.h>
 #include <linux/circ_buf.h>
 #include <linux/console.h>
+#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/serial.h>
 #include <linux/sysrq.h>
+#include <linux/uaccess.h>
 
-#include <asm/irq.h>
 #include <asm/hpsim.h>
-#include <asm/hw_irq.h>
-#include <asm/uaccess.h>
 
 #include "hpsim_ssc.h"
 
@@ -56,8 +55,6 @@ static struct serial_state rs_table[NR_PORTS];
 struct tty_driver *hp_simserial_driver;
 
 static struct console *console;
-
-extern struct console *console_drivers; /* from kernel/printk.c */
 
 static void receive_chars(struct tty_struct *tty)
 {
