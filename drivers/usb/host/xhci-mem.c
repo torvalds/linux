@@ -65,6 +65,20 @@ static void xhci_segment_free(struct xhci_hcd *xhci, struct xhci_segment *seg)
 	kfree(seg);
 }
 
+static void xhci_free_segments_for_ring(struct xhci_hcd *xhci,
+				struct xhci_segment *first)
+{
+	struct xhci_segment *seg;
+
+	seg = first->next;
+	while (seg != first) {
+		struct xhci_segment *next = seg->next;
+		xhci_segment_free(xhci, seg);
+		seg = next;
+	}
+	xhci_segment_free(xhci, first);
+}
+
 /*
  * Make the prev segment point to the next segment.
  *
@@ -101,22 +115,12 @@ static void xhci_link_segments(struct xhci_hcd *xhci, struct xhci_segment *prev,
 /* XXX: Do we need the hcd structure in all these functions? */
 void xhci_ring_free(struct xhci_hcd *xhci, struct xhci_ring *ring)
 {
-	struct xhci_segment *seg;
-	struct xhci_segment *first_seg;
-
 	if (!ring)
 		return;
-	if (ring->first_seg) {
-		first_seg = ring->first_seg;
-		seg = first_seg->next;
-		while (seg != first_seg) {
-			struct xhci_segment *next = seg->next;
-			xhci_segment_free(xhci, seg);
-			seg = next;
-		}
-		xhci_segment_free(xhci, first_seg);
-		ring->first_seg = NULL;
-	}
+
+	if (ring->first_seg)
+		xhci_free_segments_for_ring(xhci, ring->first_seg);
+
 	kfree(ring);
 }
 
@@ -143,6 +147,38 @@ static void xhci_initialize_ring_info(struct xhci_ring *ring)
 	ring->num_trbs_free = ring->num_segs * (TRBS_PER_SEGMENT - 1) - 1;
 }
 
+/* Allocate segments and link them for a ring */
+static int xhci_alloc_segments_for_ring(struct xhci_hcd *xhci,
+		struct xhci_segment **first, struct xhci_segment **last,
+		unsigned int num_segs, enum xhci_ring_type type, gfp_t flags)
+{
+	struct xhci_segment *prev;
+
+	prev = xhci_segment_alloc(xhci, flags);
+	if (!prev)
+		return -ENOMEM;
+	num_segs--;
+
+	*first = prev;
+	while (num_segs > 0) {
+		struct xhci_segment	*next;
+
+		next = xhci_segment_alloc(xhci, flags);
+		if (!next) {
+			xhci_free_segments_for_ring(xhci, *first);
+			return -ENOMEM;
+		}
+		xhci_link_segments(xhci, prev, next, type);
+
+		prev = next;
+		num_segs--;
+	}
+	xhci_link_segments(xhci, prev, *first, type);
+	*last = prev;
+
+	return 0;
+}
+
 /**
  * Create a new ring with zero or more segments.
  *
@@ -154,7 +190,7 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 		unsigned int num_segs, enum xhci_ring_type type, gfp_t flags)
 {
 	struct xhci_ring	*ring;
-	struct xhci_segment	*prev;
+	int ret;
 
 	ring = kzalloc(sizeof *(ring), flags);
 	if (!ring)
@@ -166,30 +202,15 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 	if (num_segs == 0)
 		return ring;
 
-	ring->first_seg = xhci_segment_alloc(xhci, flags);
-	if (!ring->first_seg)
+	ret = xhci_alloc_segments_for_ring(xhci, &ring->first_seg,
+			&ring->last_seg, num_segs, type, flags);
+	if (ret)
 		goto fail;
-	num_segs--;
-
-	prev = ring->first_seg;
-	while (num_segs > 0) {
-		struct xhci_segment	*next;
-
-		next = xhci_segment_alloc(xhci, flags);
-		if (!next)
-			goto fail;
-		xhci_link_segments(xhci, prev, next, type);
-
-		prev = next;
-		num_segs--;
-	}
-	xhci_link_segments(xhci, prev, ring->first_seg, type);
-	ring->last_seg = prev;
 
 	/* Only event ring does not use link TRB */
 	if (type != TYPE_EVENT) {
 		/* See section 4.9.2.1 and 6.4.4.1 */
-		prev->trbs[TRBS_PER_SEGMENT-1].link.control |=
+		ring->last_seg->trbs[TRBS_PER_SEGMENT - 1].link.control |=
 			cpu_to_le32(LINK_TOGGLE);
 	}
 	xhci_initialize_ring_info(ring);
