@@ -121,11 +121,10 @@ static struct elevator_type *elevator_get(const char *name)
 	return e;
 }
 
-static int elevator_init_queue(struct request_queue *q,
-			       struct elevator_queue *eq)
+static int elevator_init_queue(struct request_queue *q)
 {
-	eq->elevator_data = eq->type->ops.elevator_init_fn(q);
-	if (eq->elevator_data)
+	q->elevator->elevator_data = q->elevator->type->ops.elevator_init_fn(q);
+	if (q->elevator->elevator_data)
 		return 0;
 	return -ENOMEM;
 }
@@ -188,7 +187,6 @@ static void elevator_release(struct kobject *kobj)
 int elevator_init(struct request_queue *q, char *name)
 {
 	struct elevator_type *e = NULL;
-	struct elevator_queue *eq;
 	int err;
 
 	if (unlikely(q->elevator))
@@ -222,17 +220,16 @@ int elevator_init(struct request_queue *q, char *name)
 		}
 	}
 
-	eq = elevator_alloc(q, e);
-	if (!eq)
+	q->elevator = elevator_alloc(q, e);
+	if (!q->elevator)
 		return -ENOMEM;
 
-	err = elevator_init_queue(q, eq);
+	err = elevator_init_queue(q);
 	if (err) {
-		kobject_put(&eq->kobj);
+		kobject_put(&q->elevator->kobj);
 		return err;
 	}
 
-	q->elevator = eq;
 	return 0;
 }
 EXPORT_SYMBOL(elevator_init);
@@ -801,8 +798,9 @@ static struct kobj_type elv_ktype = {
 	.release	= elevator_release,
 };
 
-int __elv_register_queue(struct request_queue *q, struct elevator_queue *e)
+int elv_register_queue(struct request_queue *q)
 {
+	struct elevator_queue *e = q->elevator;
 	int error;
 
 	error = kobject_add(&e->kobj, &q->kobj, "%s", "iosched");
@@ -819,11 +817,6 @@ int __elv_register_queue(struct request_queue *q, struct elevator_queue *e)
 		e->registered = 1;
 	}
 	return error;
-}
-
-int elv_register_queue(struct request_queue *q)
-{
-	return __elv_register_queue(q, q->elevator);
 }
 EXPORT_SYMBOL(elv_register_queue);
 
@@ -907,51 +900,58 @@ EXPORT_SYMBOL_GPL(elv_unregister);
  */
 static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 {
-	struct elevator_queue *old_elevator, *e;
+	struct elevator_queue *old = q->elevator;
+	bool registered = old->registered;
 	int err;
 
-	/* allocate new elevator */
-	e = elevator_alloc(q, new_e);
-	if (!e)
-		return -ENOMEM;
-
-	err = elevator_init_queue(q, e);
-	if (err) {
-		kobject_put(&e->kobj);
-		return err;
-	}
-
-	/* turn on BYPASS and drain all requests w/ elevator private data */
+	/*
+	 * Turn on BYPASS and drain all requests w/ elevator private data.
+	 * Block layer doesn't call into a quiesced elevator - all requests
+	 * are directly put on the dispatch list without elevator data
+	 * using INSERT_BACK.  All requests have SOFTBARRIER set and no
+	 * merge happens either.
+	 */
 	elv_quiesce_start(q);
 
-	/* unregister old queue, register new one and kill old elevator */
-	if (q->elevator->registered) {
+	/* unregister and clear all auxiliary data of the old elevator */
+	if (registered)
 		elv_unregister_queue(q);
-		err = __elv_register_queue(q, e);
+
+	spin_lock_irq(q->queue_lock);
+	ioc_clear_queue(q);
+	spin_unlock_irq(q->queue_lock);
+
+	/* allocate, init and register new elevator */
+	err = -ENOMEM;
+	q->elevator = elevator_alloc(q, new_e);
+	if (!q->elevator)
+		goto fail_init;
+
+	err = elevator_init_queue(q);
+	if (err) {
+		kobject_put(&q->elevator->kobj);
+		goto fail_init;
+	}
+
+	if (registered) {
+		err = elv_register_queue(q);
 		if (err)
 			goto fail_register;
 	}
 
-	/* done, clear io_cq's, switch elevators and turn off BYPASS */
-	spin_lock_irq(q->queue_lock);
-	ioc_clear_queue(q);
-	old_elevator = q->elevator;
-	q->elevator = e;
-	spin_unlock_irq(q->queue_lock);
-
-	elevator_exit(old_elevator);
+	/* done, kill the old one and finish */
+	elevator_exit(old);
 	elv_quiesce_end(q);
 
-	blk_add_trace_msg(q, "elv switch: %s", e->type->elevator_name);
+	blk_add_trace_msg(q, "elv switch: %s", new_e->elevator_name);
 
 	return 0;
 
 fail_register:
-	/*
-	 * switch failed, exit the new io scheduler and reattach the old
-	 * one again (along with re-adding the sysfs dir)
-	 */
-	elevator_exit(e);
+	elevator_exit(q->elevator);
+fail_init:
+	/* switch failed, restore and re-register old elevator */
+	q->elevator = old;
 	elv_register_queue(q);
 	elv_quiesce_end(q);
 
