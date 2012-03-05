@@ -430,45 +430,12 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 {
 	struct serial_state *info = tty->driver_data;
 	struct tty_port *port = &info->port;
-	unsigned long flags;
 
 	if (!info)
 		return;
 
-	local_irq_save(flags);
-	if (tty_hung_up_p(filp)) {
-#ifdef SIMSERIAL_DEBUG
-		printk("rs_close: hung_up\n");
-#endif
-		local_irq_restore(flags);
+	if (tty_port_close_start(port, tty, filp) == 0)
 		return;
-	}
-#ifdef SIMSERIAL_DEBUG
-	printk("rs_close ttys%d, count = %d\n", info->line, port->count);
-#endif
-	if ((tty->count == 1) && (port->count != 1)) {
-		/*
-		 * Uh, oh.  tty->count is 1, which means that the tty
-		 * structure will be freed.  port->count should always
-		 * be one in these conditions.  If it's greater than
-		 * one, we've got real problems, since it means the
-		 * serial port won't be shutdown.
-		 */
-		printk(KERN_ERR "rs_close: bad serial port count; tty->count is 1, "
-		       "port->count is %d\n", port->count);
-		port->count = 1;
-	}
-	if (--port->count < 0) {
-		printk(KERN_ERR "rs_close: bad serial port count for ttys%d: %d\n",
-		       tty->index, port->count);
-		port->count = 0;
-	}
-	if (port->count) {
-		local_irq_restore(flags);
-		return;
-	}
-	port->flags |= ASYNC_CLOSING;
-	local_irq_restore(flags);
 
 	/*
 	 * Now we wait for the transmit buffer to clear; and we notify
@@ -476,7 +443,6 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	 */
 	shutdown(tty, info);
 	rs_flush_buffer(tty);
-	tty_ldisc_flush(tty);
 	port->tty = NULL;
 
 	tty_port_close_end(port, tty);
