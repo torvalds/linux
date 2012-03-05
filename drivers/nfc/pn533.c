@@ -1316,6 +1316,8 @@ static int pn533_in_dep_link_up_complete(struct pn533 *dev, void *arg,
 		nfc_dev_dbg(&dev->interface->dev, "Creating new target");
 
 		nfc_target.supported_protocols = NFC_PROTO_NFC_DEP_MASK;
+		nfc_target.nfcid1_len = 10;
+		memcpy(nfc_target.nfcid1, resp->nfcid3t, nfc_target.nfcid1_len);
 		rc = nfc_targets_found(dev->nfc_dev, &nfc_target, 1);
 		if (rc)
 			return 0;
