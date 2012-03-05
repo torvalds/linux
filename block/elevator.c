@@ -121,14 +121,6 @@ static struct elevator_type *elevator_get(const char *name)
 	return e;
 }
 
-static int elevator_init_queue(struct request_queue *q)
-{
-	q->elevator->elevator_data = q->elevator->type->ops.elevator_init_fn(q);
-	if (q->elevator->elevator_data)
-		return 0;
-	return -ENOMEM;
-}
-
 static char chosen_elevator[ELV_NAME_MAX];
 
 static int __init elevator_setup(char *str)
@@ -224,7 +216,7 @@ int elevator_init(struct request_queue *q, char *name)
 	if (!q->elevator)
 		return -ENOMEM;
 
-	err = elevator_init_queue(q);
+	err = e->ops.elevator_init_fn(q);
 	if (err) {
 		kobject_put(&q->elevator->kobj);
 		return err;
@@ -927,7 +919,7 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	if (!q->elevator)
 		goto fail_init;
 
-	err = elevator_init_queue(q);
+	err = new_e->ops.elevator_init_fn(q);
 	if (err) {
 		kobject_put(&q->elevator->kobj);
 		goto fail_init;
