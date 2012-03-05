@@ -909,6 +909,14 @@ static void encode_uint32(struct xdr_stream *xdr, u32 n)
 	*p = cpu_to_be32(n);
 }
 
+static void encode_uint64(struct xdr_stream *xdr, u64 n)
+{
+	__be32 *p;
+
+	p = reserve_space(xdr, 8);
+	xdr_encode_hyper(p, n);
+}
+
 static void encode_nfs4_seqid(struct xdr_stream *xdr,
 		const struct nfs_seqid *seqid)
 {
@@ -1532,8 +1540,7 @@ static void encode_readdir(struct xdr_stream *xdr, const struct nfs4_readdir_arg
 		attrs[0] |= FATTR4_WORD0_FILEID;
 
 	encode_op_hdr(xdr, OP_READDIR, decode_readdir_maxsz, hdr);
-	p = reserve_space(xdr, 8);
-	p = xdr_encode_hyper(p, readdir->cookie);
+	encode_uint64(xdr, readdir->cookie);
 	encode_nfs4_verifier(xdr, &readdir->verifier);
 	p = reserve_space(xdr, 20);
 	*p++ = cpu_to_be32(dircount);
@@ -1572,11 +1579,8 @@ static void encode_rename(struct xdr_stream *xdr, const struct qstr *oldname, co
 static void encode_renew(struct xdr_stream *xdr, clientid4 clid,
 			 struct compound_hdr *hdr)
 {
-	__be32 *p;
-
 	encode_op_hdr(xdr, OP_RENEW, decode_renew_maxsz, hdr);
-	p = reserve_space(xdr, 8);
-	xdr_encode_hyper(p, clid);
+	encode_uint64(xdr, clid);
 }
 
 static void
@@ -1632,12 +1636,9 @@ static void encode_setclientid(struct xdr_stream *xdr, const struct nfs4_setclie
 
 static void encode_setclientid_confirm(struct xdr_stream *xdr, const struct nfs4_setclientid_res *arg, struct compound_hdr *hdr)
 {
-	__be32 *p;
-
 	encode_op_hdr(xdr, OP_SETCLIENTID_CONFIRM,
 			decode_setclientid_confirm_maxsz, hdr);
-	p = reserve_space(xdr, 8);
-	p = xdr_encode_hyper(p, arg->clientid);
+	encode_uint64(xdr, arg->clientid);
 	encode_nfs4_verifier(xdr, &arg->confirm);
 }
 
