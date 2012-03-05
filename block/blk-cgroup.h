@@ -154,6 +154,12 @@ struct blkio_group_stats_cpu {
 	struct u64_stats_sync syncp;
 };
 
+struct blkio_group_conf {
+	unsigned int weight;
+	unsigned int iops[2];
+	u64 bps[2];
+};
+
 struct blkio_group {
 	/* Pointer to the associated request_queue, RCU protected */
 	struct request_queue __rcu *q;
@@ -165,6 +171,9 @@ struct blkio_group {
 	dev_t dev;
 	/* policy which owns this blk group */
 	enum blkio_policy_id plid;
+
+	/* Configuration */
+	struct blkio_group_conf conf;
 
 	/* Need to serialize the stats in the case of reset/update */
 	spinlock_t stats_lock;

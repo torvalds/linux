@@ -855,9 +855,12 @@ static uint64_t blkio_get_stat(struct blkio_group *blkg,
 }
 
 static int blkio_policy_parse_and_set(char *buf,
-	struct blkio_policy_node *newpn, enum blkio_policy_id plid, int fileid)
+				      struct blkio_policy_node *newpn,
+				      enum blkio_policy_id plid, int fileid,
+				      struct blkio_cgroup *blkcg)
 {
 	struct gendisk *disk = NULL;
+	struct blkio_group *blkg = NULL;
 	char *s[4], *p, *major_s = NULL, *minor_s = NULL;
 	unsigned long major, minor;
 	int i = 0, ret = -EINVAL;
@@ -903,11 +906,25 @@ static int blkio_policy_parse_and_set(char *buf,
 		goto out;
 
 	/* For rule removal, do not check for device presence. */
-	if (temp) {
-		disk = get_gendisk(dev, &part);
-		if (!disk || part) {
-			ret = -ENODEV;
-			goto out;
+	disk = get_gendisk(dev, &part);
+
+	if ((!disk || part) && temp) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	rcu_read_lock();
+
+	if (disk && !part) {
+		spin_lock_irq(disk->queue->queue_lock);
+		blkg = blkg_lookup_create(blkcg, disk->queue, plid, false);
+		spin_unlock_irq(disk->queue->queue_lock);
+
+		if (IS_ERR(blkg)) {
+			ret = PTR_ERR(blkg);
+			if (ret == -EBUSY)
+				goto out_unlock;
+			blkg = NULL;
 		}
 	}
 
@@ -917,25 +934,46 @@ static int blkio_policy_parse_and_set(char *buf,
 	case BLKIO_POLICY_PROP:
 		if ((temp < BLKIO_WEIGHT_MIN && temp > 0) ||
 		     temp > BLKIO_WEIGHT_MAX)
-			goto out;
+			goto out_unlock;
 
 		newpn->plid = plid;
 		newpn->fileid = fileid;
 		newpn->val.weight = temp;
+		if (blkg)
+			blkg->conf.weight = temp;
 		break;
 	case BLKIO_POLICY_THROTL:
 		switch(fileid) {
 		case BLKIO_THROTL_read_bps_device:
+			if (blkg)
+				blkg->conf.bps[READ] = temp;
+			newpn->plid = plid;
+			newpn->fileid = fileid;
+			newpn->val.bps = temp;
+			break;
 		case BLKIO_THROTL_write_bps_device:
+			if (blkg)
+				blkg->conf.bps[WRITE] = temp;
 			newpn->plid = plid;
 			newpn->fileid = fileid;
 			newpn->val.bps = temp;
 			break;
 		case BLKIO_THROTL_read_iops_device:
+			if (temp > THROTL_IOPS_MAX)
+				goto out_unlock;
+
+			if (blkg)
+				blkg->conf.iops[READ] = temp;
+			newpn->plid = plid;
+			newpn->fileid = fileid;
+			newpn->val.iops = (unsigned int)temp;
+			break;
 		case BLKIO_THROTL_write_iops_device:
 			if (temp > THROTL_IOPS_MAX)
-				goto out;
+				goto out_unlock;
 
+			if (blkg)
+				blkg->conf.iops[WRITE] = temp;
 			newpn->plid = plid;
 			newpn->fileid = fileid;
 			newpn->val.iops = (unsigned int)temp;
@@ -946,8 +984,21 @@ static int blkio_policy_parse_and_set(char *buf,
 		BUG();
 	}
 	ret = 0;
+out_unlock:
+	rcu_read_unlock();
 out:
 	put_disk(disk);
+
+	/*
+	 * If queue was bypassing, we should retry.  Do so after a short
+	 * msleep().  It isn't strictly necessary but queue can be
+	 * bypassing for some time and it's always nice to avoid busy
+	 * looping.
+	 */
+	if (ret == -EBUSY) {
+		msleep(10);
+		return restart_syscall();
+	}
 	return ret;
 }
 
@@ -1095,26 +1146,29 @@ static void blkio_update_policy_rule(struct blkio_policy_node *oldpn,
 static void blkio_update_blkg_policy(struct blkio_cgroup *blkcg,
 		struct blkio_group *blkg, struct blkio_policy_node *pn)
 {
-	unsigned int weight, iops;
-	u64 bps;
+	struct blkio_group_conf *conf = &blkg->conf;
 
 	switch(pn->plid) {
 	case BLKIO_POLICY_PROP:
-		weight = pn->val.weight ? pn->val.weight :
-				blkcg->weight;
-		blkio_update_group_weight(blkg, weight);
+		blkio_update_group_weight(blkg, conf->weight ?: blkcg->weight);
 		break;
 	case BLKIO_POLICY_THROTL:
 		switch(pn->fileid) {
 		case BLKIO_THROTL_read_bps_device:
+			blkio_update_group_bps(blkg, conf->bps[READ] ?: -1,
+					       pn->fileid);
+			break;
 		case BLKIO_THROTL_write_bps_device:
-			bps = pn->val.bps ? pn->val.bps : (-1);
-			blkio_update_group_bps(blkg, bps, pn->fileid);
+			blkio_update_group_bps(blkg, conf->bps[WRITE] ?: -1,
+					       pn->fileid);
 			break;
 		case BLKIO_THROTL_read_iops_device:
+			blkio_update_group_iops(blkg, conf->iops[READ] ?: -1,
+						pn->fileid);
+			break;
 		case BLKIO_THROTL_write_iops_device:
-			iops = pn->val.iops ? pn->val.iops : (-1);
-			blkio_update_group_iops(blkg, iops, pn->fileid);
+			blkio_update_group_iops(blkg, conf->iops[WRITE] ?: -1,
+						pn->fileid);
 			break;
 		}
 		break;
@@ -1152,7 +1206,7 @@ static int blkiocg_file_write(struct cgroup *cgrp, struct cftype *cft,
 	int ret = 0;
 	char *buf;
 	struct blkio_policy_node *newpn, *pn;
-	struct blkio_cgroup *blkcg;
+	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
 	int keep_newpn = 0;
 	enum blkio_policy_id plid = BLKIOFILE_POLICY(cft->private);
 	int fileid = BLKIOFILE_ATTR(cft->private);
@@ -1167,11 +1221,9 @@ static int blkiocg_file_write(struct cgroup *cgrp, struct cftype *cft,
 		goto free_buf;
 	}
 
-	ret = blkio_policy_parse_and_set(buf, newpn, plid, fileid);
+	ret = blkio_policy_parse_and_set(buf, newpn, plid, fileid, blkcg);
 	if (ret)
 		goto free_newpn;
-
-	blkcg = cgroup_to_blkio_cgroup(cgrp);
 
 	spin_lock_irq(&blkcg->lock);
 

@@ -1083,7 +1083,7 @@ static struct blkio_group *cfq_alloc_blkio_group(struct request_queue *q,
 		return NULL;
 
 	cfq_init_cfqg_base(cfqg);
-	cfqg->weight = blkcg_get_weight(blkcg, cfqg->blkg.dev);
+	cfqg->weight = blkcg->weight;
 
 	/*
 	 * Take the initial reference that will be released on destroy

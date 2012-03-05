@@ -196,10 +196,10 @@ static struct blkio_group *throtl_alloc_blkio_group(struct request_queue *q,
 	bio_list_init(&tg->bio_lists[1]);
 	tg->limits_changed = false;
 
-	tg->bps[READ] = blkcg_get_read_bps(blkcg, tg->blkg.dev);
-	tg->bps[WRITE] = blkcg_get_write_bps(blkcg, tg->blkg.dev);
-	tg->iops[READ] = blkcg_get_read_iops(blkcg, tg->blkg.dev);
-	tg->iops[WRITE] = blkcg_get_write_iops(blkcg, tg->blkg.dev);
+	tg->bps[READ] = -1;
+	tg->bps[WRITE] = -1;
+	tg->iops[READ] = -1;
+	tg->iops[WRITE] = -1;
 
 	/*
 	 * Take the initial reference that will be released on destroy
