@@ -1644,8 +1644,7 @@ static void encode_setclientid(struct xdr_stream *xdr, const struct nfs4_setclie
 {
 	__be32 *p;
 
-	p = reserve_space(xdr, 4);
-	*p = cpu_to_be32(OP_SETCLIENTID);
+	encode_op_hdr(xdr, OP_SETCLIENTID, decode_setclientid_maxsz, hdr);
 	encode_nfs4_verifier(xdr, setclientid->sc_verifier);
 
 	encode_string(xdr, setclientid->sc_name_len, setclientid->sc_name);
@@ -1655,8 +1654,6 @@ static void encode_setclientid(struct xdr_stream *xdr, const struct nfs4_setclie
 	encode_string(xdr, setclientid->sc_uaddr_len, setclientid->sc_uaddr);
 	p = reserve_space(xdr, 4);
 	*p = cpu_to_be32(setclientid->sc_cb_ident);
-	hdr->nops++;
-	hdr->replen += decode_setclientid_maxsz;
 }
 
 static void encode_setclientid_confirm(struct xdr_stream *xdr, const struct nfs4_setclientid_res *arg, struct compound_hdr *hdr)
@@ -1709,8 +1706,7 @@ static void encode_exchange_id(struct xdr_stream *xdr,
 	char impl_name[NFS4_OPAQUE_LIMIT];
 	int len = 0;
 
-	p = reserve_space(xdr, 4);
-	*p = cpu_to_be32(OP_EXCHANGE_ID);
+	encode_op_hdr(xdr, OP_EXCHANGE_ID, decode_exchange_id_maxsz, hdr);
 	encode_nfs4_verifier(xdr, args->verifier);
 
 	encode_string(xdr, args->id_len, args->id);
@@ -1740,9 +1736,6 @@ static void encode_exchange_id(struct xdr_stream *xdr,
 		*p = cpu_to_be32(0);
 	} else
 		*p = cpu_to_be32(0);	/* implementation id array length=0 */
-
-	hdr->nops++;
-	hdr->replen += decode_exchange_id_maxsz;
 }
 
 static void encode_create_session(struct xdr_stream *xdr,
