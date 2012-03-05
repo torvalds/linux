@@ -1143,6 +1143,7 @@ struct ext4_sb_info {
 	unsigned int s_mount_opt;
 	unsigned int s_mount_opt2;
 	unsigned int s_mount_flags;
+	unsigned int s_def_mount_opt;
 	ext4_fsblk_t s_sb_block;
 	uid_t s_resuid;
 	gid_t s_resgid;
