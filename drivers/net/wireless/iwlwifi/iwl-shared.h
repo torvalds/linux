@@ -371,7 +371,6 @@ struct iwl_shared {
 	u8 ucode_owner;
 	u8 cmd_queue;
 	unsigned long status;
-	bool wowlan;
 	u8 valid_contexts;
 
 	const struct iwl_cfg *cfg;

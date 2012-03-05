@@ -126,7 +126,7 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 	u8 data_retry_limit;
 	u8 rate_plcp;
 
-	if (priv->shrd->wowlan) {
+	if (priv->wowlan) {
 		rts_retry_limit = IWLAGN_LOW_RETRY_LIMIT;
 		data_retry_limit = IWLAGN_LOW_RETRY_LIMIT;
 	} else {

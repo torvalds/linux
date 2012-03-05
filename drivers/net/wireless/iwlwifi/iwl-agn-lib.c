@@ -1193,7 +1193,7 @@ int iwlagn_suspend(struct iwl_priv *priv,
 
 	iwl_trans_stop_device(trans(priv));
 
-	priv->shrd->wowlan = true;
+	priv->wowlan = true;
 
 	ret = iwl_load_ucode_wait_alive(trans(priv), IWL_UCODE_WOWLAN);
 	if (ret)

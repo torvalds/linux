@@ -586,7 +586,7 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			       sizeof(struct iwl_addsta_cmd));
 			send_lq = false;
 			if (priv->stations[i].lq) {
-				if (priv->shrd->wowlan)
+				if (priv->wowlan)
 					iwl_sta_fill_lq(priv, ctx, i, &lq);
 				else
 					memcpy(&lq, priv->stations[i].lq,

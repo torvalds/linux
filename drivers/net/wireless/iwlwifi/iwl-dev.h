@@ -787,6 +787,8 @@ struct iwl_priv {
 
 	bool new_scan_threshold_behaviour;
 
+	bool wowlan;
+
 	/* EEPROM MAC addresses */
 	struct mac_address addresses[2];
 

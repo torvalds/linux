@@ -418,7 +418,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	goto out;
 
  error:
-	priv->shrd->wowlan = false;
+	priv->wowlan = false;
 	iwlagn_prepare_restart(priv);
 	ieee80211_restart_hw(priv->hw);
  out:
@@ -474,7 +474,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	/* we'll clear ctx->vif during iwlagn_prepare_restart() */
 	vif = ctx->vif;
 
-	priv->shrd->wowlan = false;
+	priv->wowlan = false;
 
 	device_set_wakeup_enable(trans(priv)->dev, false);
 
