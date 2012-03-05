@@ -262,8 +262,9 @@ static unsigned int mpc5200b_psc_set_baudrate(struct uart_port *port,
 				  port->uartclk / 4);
 	divisor = (port->uartclk + 2 * baud) / (4 * baud);
 
-	/* select the proper prescaler and set the divisor */
-	if (divisor > 0xffff) {
+	/* select the proper prescaler and set the divisor
+	 * prefer high prescaler for more tolerance on low baudrates */
+	if (divisor > 0xffff || baud <= 115200) {
 		divisor = (divisor + 4) / 8;
 		prescaler = 0xdd00; /* /32 */
 	} else
