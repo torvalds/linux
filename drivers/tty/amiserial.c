@@ -1042,21 +1042,19 @@ static int set_serial_info(struct serial_state *state,
 			   struct serial_struct __user * new_info)
 {
 	struct serial_struct new_serial;
-	struct serial_state old_state;
-	unsigned int		change_irq,change_port;
+	bool change_spd;
 	int 			retval = 0;
 
 	if (copy_from_user(&new_serial,new_info,sizeof(new_serial)))
 		return -EFAULT;
 
 	tty_lock();
-	old_state = *state;
-  
-	change_irq = new_serial.irq != state->irq;
-	change_port = (new_serial.port != state->port);
-	if(change_irq || change_port || (new_serial.xmit_fifo_size != state->xmit_fifo_size)) {
-	  tty_unlock();
-	  return -EINVAL;
+	change_spd = ((new_serial.flags ^ state->flags) & ASYNC_SPD_MASK) ||
+		new_serial.custom_divisor != state->custom_divisor;
+	if (new_serial.irq != state->irq || new_serial.port != state->port ||
+			new_serial.xmit_fifo_size != state->xmit_fifo_size) {
+		tty_unlock();
+		return -EINVAL;
 	}
   
 	if (!serial_isroot()) {
@@ -1092,9 +1090,7 @@ static int set_serial_info(struct serial_state *state,
 
 check_and_exit:
 	if (state->flags & ASYNC_INITIALIZED) {
-		if (((old_state.flags & ASYNC_SPD_MASK) !=
-		     (state->flags & ASYNC_SPD_MASK)) ||
-		    (old_state.custom_divisor != state->custom_divisor)) {
+		if (change_spd) {
 			if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
 				state->tty->alt_speed = 57600;
 			if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
