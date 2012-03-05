@@ -327,7 +327,7 @@ config ARCH_AT91
 	select CLKDEV_LOOKUP
 	help
 	  This enables support for systems based on the Atmel AT91RM9200,
-	  AT91SAM9 and AT91CAP9 processors.
+	  AT91SAM9 processors.
 
 config ARCH_BCMRING
 	bool "Broadcom BCMRING"

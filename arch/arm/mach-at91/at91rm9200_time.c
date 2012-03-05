@@ -43,9 +43,9 @@ static inline unsigned long read_CRTR(void)
 {
 	unsigned long x1, x2;
 
-	x1 = at91_sys_read(AT91_ST_CRTR);
+	x1 = at91_st_read(AT91_ST_CRTR);
 	do {
-		x2 = at91_sys_read(AT91_ST_CRTR);
+		x2 = at91_st_read(AT91_ST_CRTR);
 		if (x1 == x2)
 			break;
 		x1 = x2;
@@ -58,7 +58,7 @@ static inline unsigned long read_CRTR(void)
  */
 static irqreturn_t at91rm9200_timer_interrupt(int irq, void *dev_id)
 {
-	u32	sr = at91_sys_read(AT91_ST_SR) & irqmask;
+	u32	sr = at91_st_read(AT91_ST_SR) & irqmask;
 
 	/*
 	 * irqs should be disabled here, but as the irq is shared they are only
@@ -110,22 +110,22 @@ static void
 clkevt32k_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 {
 	/* Disable and flush pending timer interrupts */
-	at91_sys_write(AT91_ST_IDR, AT91_ST_PITS | AT91_ST_ALMS);
-	(void) at91_sys_read(AT91_ST_SR);
+	at91_st_write(AT91_ST_IDR, AT91_ST_PITS | AT91_ST_ALMS);
+	at91_st_read(AT91_ST_SR);
 
 	last_crtr = read_CRTR();
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 		/* PIT for periodic irqs; fixed rate of 1/HZ */
 		irqmask = AT91_ST_PITS;
-		at91_sys_write(AT91_ST_PIMR, RM9200_TIMER_LATCH);
+		at91_st_write(AT91_ST_PIMR, RM9200_TIMER_LATCH);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		/* ALM for oneshot irqs, set by next_event()
 		 * before 32 seconds have passed
 		 */
 		irqmask = AT91_ST_ALMS;
-		at91_sys_write(AT91_ST_RTAR, last_crtr);
+		at91_st_write(AT91_ST_RTAR, last_crtr);
 		break;
 	case CLOCK_EVT_MODE_SHUTDOWN:
 	case CLOCK_EVT_MODE_UNUSED:
@@ -133,7 +133,7 @@ clkevt32k_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 		irqmask = 0;
 		break;
 	}
-	at91_sys_write(AT91_ST_IER, irqmask);
+	at91_st_write(AT91_ST_IER, irqmask);
 }
 
 static int
@@ -156,12 +156,12 @@ clkevt32k_next_event(unsigned long delta, struct clock_event_device *dev)
 	alm = read_CRTR();
 
 	/* Cancel any pending alarm; flush any pending IRQ */
-	at91_sys_write(AT91_ST_RTAR, alm);
-	(void) at91_sys_read(AT91_ST_SR);
+	at91_st_write(AT91_ST_RTAR, alm);
+	at91_st_read(AT91_ST_SR);
 
 	/* Schedule alarm by writing RTAR. */
 	alm += delta;
-	at91_sys_write(AT91_ST_RTAR, alm);
+	at91_st_write(AT91_ST_RTAR, alm);
 
 	return status;
 }
@@ -175,15 +175,24 @@ static struct clock_event_device clkevt = {
 	.set_mode	= clkevt32k_mode,
 };
 
+void __iomem *at91_st_base;
+
+void __init at91rm9200_ioremap_st(u32 addr)
+{
+	at91_st_base = ioremap(addr, 256);
+	if (!at91_st_base)
+		panic("Impossible to ioremap ST\n");
+}
+
 /*
  * ST (system timer) module supports both clockevents and clocksource.
  */
 void __init at91rm9200_timer_init(void)
 {
 	/* Disable all timer interrupts, and clear any pending ones */
-	at91_sys_write(AT91_ST_IDR,
+	at91_st_write(AT91_ST_IDR,
 		AT91_ST_PITS | AT91_ST_WDOVF | AT91_ST_RTTINC | AT91_ST_ALMS);
-	(void) at91_sys_read(AT91_ST_SR);
+	at91_st_read(AT91_ST_SR);
 
 	/* Make IRQs happen for the system timer */
 	setup_irq(AT91_ID_SYS, &at91rm9200_timer_irq);
@@ -192,7 +201,7 @@ void __init at91rm9200_timer_init(void)
 	 * directly for the clocksource and all clockevents, after adjusting
 	 * its prescaler from the 1 Hz default.
 	 */
-	at91_sys_write(AT91_ST_RTMR, 1);
+	at91_st_write(AT91_ST_RTMR, 1);
 
 	/* Setup timer clockevent, with minimum of two ticks (important!!) */
 	clkevt.mult = div_sc(AT91_SLOW_CLOCK, NSEC_PER_SEC, clkevt.shift);

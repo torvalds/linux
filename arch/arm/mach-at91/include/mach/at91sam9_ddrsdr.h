@@ -59,7 +59,6 @@
 #define		AT91_DDRSDRC_TRP	(0xf << 16)		/* Row precharge delay */
 #define		AT91_DDRSDRC_TRRD	(0xf << 20)		/* Active BankA to BankB */
 #define		AT91_DDRSDRC_TWTR	(0x7 << 24)		/* Internal Write to Read delay */
-#define		AT91CAP9_DDRSDRC_TWTR	(1   << 24)		/* Internal Write to Read delay */
 #define		AT91_DDRSDRC_RED_WRRD	(0x1 << 27)		/* Reduce Write to Read Delay [SAM9 Only] */
 #define		AT91_DDRSDRC_TMRD	(0xf << 28)		/* Load mode to active/refresh delay */
 
@@ -76,7 +75,6 @@
 #define		AT91_DDRSDRC_TRTP	(0x7  << 12)		/* Read to Precharge delay */
 
 #define AT91_DDRSDRC_LPR	0x1C	/* Low Power Register */
-#define AT91CAP9_DDRSDRC_LPR	0x18	/* Low Power Register */
 #define		AT91_DDRSDRC_LPCB	(3 << 0)		/* Low-power Configurations */
 #define			AT91_DDRSDRC_LPCB_DISABLE		0
 #define			AT91_DDRSDRC_LPCB_SELF_REFRESH		1
@@ -94,11 +92,9 @@
 #define		AT91_DDRSDRC_UPD_MR	(3 << 20)	 /* Update load mode register and extended mode register */
 
 #define AT91_DDRSDRC_MDR	0x20	/* Memory Device Register */
-#define AT91CAP9_DDRSDRC_MDR	0x1C	/* Memory Device Register */
 #define		AT91_DDRSDRC_MD		(3 << 0)		/* Memory Device Type */
 #define			AT91_DDRSDRC_MD_SDR		0
 #define			AT91_DDRSDRC_MD_LOW_POWER_SDR	1
-#define			AT91CAP9_DDRSDRC_MD_DDR		2
 #define			AT91_DDRSDRC_MD_LOW_POWER_DDR	3
 #define			AT91_DDRSDRC_MD_DDR2		6	/* [SAM9 Only] */
 #define		AT91_DDRSDRC_DBW	(1 << 4)		/* Data Bus Width */
@@ -106,16 +102,10 @@
 #define			AT91_DDRSDRC_DBW_16BITS		(1 <<  4)
 
 #define AT91_DDRSDRC_DLL	0x24	/* DLL Information Register */
-#define AT91CAP9_DDRSDRC_DLL	0x20	/* DLL Information Register */
 #define		AT91_DDRSDRC_MDINC	(1 << 0)		/* Master Delay increment */
 #define		AT91_DDRSDRC_MDDEC	(1 << 1)		/* Master Delay decrement */
 #define		AT91_DDRSDRC_MDOVF	(1 << 2)		/* Master Delay Overflow */
-#define		AT91CAP9_DDRSDRC_SDCOVF	(1 << 3)		/* Slave Delay Correction Overflow */
-#define		AT91CAP9_DDRSDRC_SDCUDF	(1 << 4)		/* Slave Delay Correction Underflow */
-#define		AT91CAP9_DDRSDRC_SDERF	(1 << 5)		/* Slave Delay Correction error */
 #define		AT91_DDRSDRC_MDVAL	(0xff <<  8)		/* Master Delay value */
-#define		AT91CAP9_DDRSDRC_SDVAL	(0xff << 16)		/* Slave Delay value */
-#define		AT91CAP9_DDRSDRC_SDCVAL	(0xff << 24)		/* Slave Delay Correction value */
 
 #define AT91_DDRSDRC_HS		0x2C	/* High Speed Register [SAM9 Only] */
 #define		AT91_DDRSDRC_DIS_ATCP_RD	(1 << 2)	/* Anticip read access is disabled */
@@ -130,11 +120,5 @@
 #define AT91_DDRSDRC_WPSR	0xE8	/* Write Protect Status Register [SAM9 Only] */
 #define		AT91_DDRSDRC_WPVS	(1 << 0)		/* Write protect violation status */
 #define		AT91_DDRSDRC_WPVSRC	(0xffff << 8)		/* Write protect violation source */
-
-/* Register access macros */
-#define at91_ramc_read(num, reg) \
-	at91_sys_read(AT91_DDRSDRC##num + reg)
-#define at91_ramc_write(num, reg, value) \
-	at91_sys_write(AT91_DDRSDRC##num + reg, value)
 
 #endif

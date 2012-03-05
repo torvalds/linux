@@ -86,7 +86,6 @@ static inline int at91mci_is_mci1rev2xx(void)
 {
 	return (   cpu_is_at91sam9260()
 		|| cpu_is_at91sam9263()
-		|| cpu_is_at91cap9()
 		|| cpu_is_at91sam9rl()
 		|| cpu_is_at91sam9g10()
 		|| cpu_is_at91sam9g20()
