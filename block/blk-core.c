@@ -826,7 +826,7 @@ static bool blk_rq_should_init_elevator(struct bio *bio)
 static struct request *get_request(struct request_queue *q, int rw_flags,
 				   struct bio *bio, gfp_t gfp_mask)
 {
-	struct request *rq = NULL;
+	struct request *rq;
 	struct request_list *rl = &q->rq;
 	struct elevator_type *et;
 	struct io_context *ioc;
@@ -878,7 +878,7 @@ retry:
 					 * process is not a "batcher", and not
 					 * exempted by the IO scheduler
 					 */
-					goto out;
+					return NULL;
 				}
 			}
 		}
@@ -891,7 +891,7 @@ retry:
 	 * allocated with any setting of ->nr_requests
 	 */
 	if (rl->count[is_sync] >= (3 * q->nr_requests / 2))
-		goto out;
+		return NULL;
 
 	rl->count[is_sync]++;
 	rl->starved[is_sync] = 0;
@@ -921,36 +921,12 @@ retry:
 	if ((rw_flags & REQ_ELVPRIV) && unlikely(et->icq_cache && !icq)) {
 		icq = ioc_create_icq(q, gfp_mask);
 		if (!icq)
-			goto fail_icq;
+			goto fail_alloc;
 	}
 
 	rq = blk_alloc_request(q, icq, rw_flags, gfp_mask);
-
-fail_icq:
-	if (unlikely(!rq)) {
-		/*
-		 * Allocation failed presumably due to memory. Undo anything
-		 * we might have messed up.
-		 *
-		 * Allocating task should really be put onto the front of the
-		 * wait queue, but this is pretty rare.
-		 */
-		spin_lock_irq(q->queue_lock);
-		freed_request(q, rw_flags);
-
-		/*
-		 * in the very unlikely event that allocation failed and no
-		 * requests for this direction was pending, mark us starved
-		 * so that freeing of a request in the other direction will
-		 * notice us. another possible fix would be to split the
-		 * rq mempool into READ and WRITE
-		 */
-rq_starved:
-		if (unlikely(rl->count[is_sync] == 0))
-			rl->starved[is_sync] = 1;
-
-		goto out;
-	}
+	if (unlikely(!rq))
+		goto fail_alloc;
 
 	/*
 	 * ioc may be NULL here, and ioc_batching will be false. That's
@@ -962,8 +938,30 @@ rq_starved:
 		ioc->nr_batch_requests--;
 
 	trace_block_getrq(q, bio, rw_flags & 1);
-out:
 	return rq;
+
+fail_alloc:
+	/*
+	 * Allocation failed presumably due to memory. Undo anything we
+	 * might have messed up.
+	 *
+	 * Allocating task should really be put onto the front of the wait
+	 * queue, but this is pretty rare.
+	 */
+	spin_lock_irq(q->queue_lock);
+	freed_request(q, rw_flags);
+
+	/*
+	 * in the very unlikely event that allocation failed and no
+	 * requests for this direction was pending, mark us starved so that
+	 * freeing of a request in the other direction will notice
+	 * us. another possible fix would be to split the rq mempool into
+	 * READ and WRITE
+	 */
+rq_starved:
+	if (unlikely(rl->count[is_sync] == 0))
+		rl->starved[is_sync] = 1;
+	return NULL;
 }
 
 /**
