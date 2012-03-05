@@ -229,7 +229,7 @@ static inline void iwl_free_resp(struct iwl_host_cmd *cmd)
  * @reclaim: free packet until ssn. Returns a list of freed packets.
  *	Must be atomic
  * @tx_agg_alloc: allocate resources for a TX BA session
- *	May sleep
+ *	Must be atomic
  * @tx_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
  *	ready and a successful ADDBA response has been received.
  *	May sleep
@@ -474,8 +474,6 @@ static inline int iwl_trans_tx_agg_disable(struct iwl_trans *trans,
 static inline int iwl_trans_tx_agg_alloc(struct iwl_trans *trans,
 					 int sta_id, int tid)
 {
-	might_sleep();
-
 	if (trans->state != IWL_TRANS_FW_ALIVE)
 		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
 
