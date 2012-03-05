@@ -40,7 +40,7 @@
 /* Handle NCI Notification packets */
 
 static void nci_core_conn_credits_ntf_packet(struct nci_dev *ndev,
-						struct sk_buff *skb)
+					     struct sk_buff *skb)
 {
 	struct nci_core_conn_credit_ntf *ntf = (void *) skb->data;
 	int i;
@@ -62,7 +62,7 @@ static void nci_core_conn_credits_ntf_packet(struct nci_dev *ndev,
 		if (ntf->conn_entries[i].conn_id == NCI_STATIC_RF_CONN_ID) {
 			/* found static rf connection */
 			atomic_add(ntf->conn_entries[i].credits,
-				&ndev->credits_cnt);
+				   &ndev->credits_cnt);
 		}
 	}
 
@@ -72,7 +72,7 @@ static void nci_core_conn_credits_ntf_packet(struct nci_dev *ndev,
 }
 
 static void nci_core_generic_error_ntf_packet(struct nci_dev *ndev,
-						struct sk_buff *skb)
+					      struct sk_buff *skb)
 {
 	__u8 status = skb->data[0];
 
@@ -80,7 +80,7 @@ static void nci_core_generic_error_ntf_packet(struct nci_dev *ndev,
 
 	if (atomic_read(&ndev->state) == NCI_W4_HOST_SELECT) {
 		/* Activation failed, so complete the request
-		(the state remains the same) */
+		   (the state remains the same) */
 		nci_req_complete(ndev, status);
 	}
 }
@@ -101,7 +101,7 @@ static void nci_core_conn_intf_error_ntf_packet(struct nci_dev *ndev,
 
 static __u8 *nci_extract_rf_params_nfca_passive_poll(struct nci_dev *ndev,
 			struct rf_tech_specific_params_nfca_poll *nfca_poll,
-			__u8 *data)
+						     __u8 *data)
 {
 	nfca_poll->sens_res = __le16_to_cpu(*((__u16 *)data));
 	data += 2;
@@ -128,7 +128,7 @@ static __u8 *nci_extract_rf_params_nfca_passive_poll(struct nci_dev *ndev,
 
 static __u8 *nci_extract_rf_params_nfcb_passive_poll(struct nci_dev *ndev,
 			struct rf_tech_specific_params_nfcb_poll *nfcb_poll,
-			__u8 *data)
+						     __u8 *data)
 {
 	nfcb_poll->sensb_res_len = *data++;
 
@@ -142,13 +142,13 @@ static __u8 *nci_extract_rf_params_nfcb_passive_poll(struct nci_dev *ndev,
 
 static __u8 *nci_extract_rf_params_nfcf_passive_poll(struct nci_dev *ndev,
 			struct rf_tech_specific_params_nfcf_poll *nfcf_poll,
-			__u8 *data)
+						     __u8 *data)
 {
 	nfcf_poll->bit_rate = *data++;
 	nfcf_poll->sensf_res_len = *data++;
 
 	pr_debug("bit_rate %d, sensf_res_len %d\n",
-		nfcf_poll->bit_rate, nfcf_poll->sensf_res_len);
+		 nfcf_poll->bit_rate, nfcf_poll->sensf_res_len);
 
 	memcpy(nfcf_poll->sensf_res, data, nfcf_poll->sensf_res_len);
 	data += nfcf_poll->sensf_res_len;
@@ -189,7 +189,7 @@ static int nci_add_new_protocol(struct nci_dev *ndev,
 		target->nfcid1_len = nfca_poll->nfcid1_len;
 		if (target->nfcid1_len > 0) {
 			memcpy(target->nfcid1, nfca_poll->nfcid1,
-				target->nfcid1_len);
+			       target->nfcid1_len);
 		}
 	} else if (rf_tech_and_mode == NCI_NFC_B_PASSIVE_POLL_MODE) {
 		nfcb_poll = (struct rf_tech_specific_params_nfcb_poll *)params;
@@ -197,7 +197,7 @@ static int nci_add_new_protocol(struct nci_dev *ndev,
 		target->sensb_res_len = nfcb_poll->sensb_res_len;
 		if (target->sensb_res_len > 0) {
 			memcpy(target->sensb_res, nfcb_poll->sensb_res,
-				target->sensb_res_len);
+			       target->sensb_res_len);
 		}
 	} else if (rf_tech_and_mode == NCI_NFC_F_PASSIVE_POLL_MODE) {
 		nfcf_poll = (struct rf_tech_specific_params_nfcf_poll *)params;
@@ -205,7 +205,7 @@ static int nci_add_new_protocol(struct nci_dev *ndev,
 		target->sensf_res_len = nfcf_poll->sensf_res_len;
 		if (target->sensf_res_len > 0) {
 			memcpy(target->sensf_res, nfcf_poll->sensf_res,
-				target->sensf_res_len);
+			       target->sensf_res_len);
 		}
 	} else {
 		pr_err("unsupported rf_tech_and_mode 0x%x\n", rf_tech_and_mode);
@@ -220,7 +220,7 @@ static int nci_add_new_protocol(struct nci_dev *ndev,
 }
 
 static void nci_add_new_target(struct nci_dev *ndev,
-				struct nci_rf_discover_ntf *ntf)
+			       struct nci_rf_discover_ntf *ntf)
 {
 	struct nfc_target *target;
 	int i, rc;
@@ -230,8 +230,8 @@ static void nci_add_new_target(struct nci_dev *ndev,
 		if (target->idx == ntf->rf_discovery_id) {
 			/* This target already exists, add the new protocol */
 			nci_add_new_protocol(ndev, target, ntf->rf_protocol,
-						ntf->rf_tech_and_mode,
-						&ntf->rf_tech_specific_params);
+					     ntf->rf_tech_and_mode,
+					     &ntf->rf_tech_specific_params);
 			return;
 		}
 	}
@@ -245,27 +245,27 @@ static void nci_add_new_target(struct nci_dev *ndev,
 	target = &ndev->targets[ndev->n_targets];
 
 	rc = nci_add_new_protocol(ndev, target, ntf->rf_protocol,
-					ntf->rf_tech_and_mode,
-					&ntf->rf_tech_specific_params);
+				  ntf->rf_tech_and_mode,
+				  &ntf->rf_tech_specific_params);
 	if (!rc) {
 		target->idx = ntf->rf_discovery_id;
 		ndev->n_targets++;
 
 		pr_debug("target_idx %d, n_targets %d\n", target->idx,
-				ndev->n_targets);
+			 ndev->n_targets);
 	}
 }
 
 void nci_clear_target_list(struct nci_dev *ndev)
 {
 	memset(ndev->targets, 0,
-		(sizeof(struct nfc_target)*NCI_MAX_DISCOVERED_TARGETS));
+	       (sizeof(struct nfc_target)*NCI_MAX_DISCOVERED_TARGETS));
 
 	ndev->n_targets = 0;
 }
 
 static void nci_rf_discover_ntf_packet(struct nci_dev *ndev,
-					struct sk_buff *skb)
+				       struct sk_buff *skb)
 {
 	struct nci_rf_discover_ntf ntf;
 	__u8 *data = skb->data;
@@ -280,7 +280,7 @@ static void nci_rf_discover_ntf_packet(struct nci_dev *ndev,
 	pr_debug("rf_protocol 0x%x\n", ntf.rf_protocol);
 	pr_debug("rf_tech_and_mode 0x%x\n", ntf.rf_tech_and_mode);
 	pr_debug("rf_tech_specific_params_len %d\n",
-			ntf.rf_tech_specific_params_len);
+		 ntf.rf_tech_specific_params_len);
 
 	if (ntf.rf_tech_specific_params_len > 0) {
 		switch (ntf.rf_tech_and_mode) {
@@ -318,7 +318,7 @@ static void nci_rf_discover_ntf_packet(struct nci_dev *ndev,
 	} else {
 		atomic_set(&ndev->state, NCI_W4_HOST_SELECT);
 		nfc_targets_found(ndev->nfc_dev, ndev->targets,
-					ndev->n_targets);
+				  ndev->n_targets);
 	}
 }
 
@@ -335,20 +335,17 @@ static int nci_extract_activation_params_iso_dep(struct nci_dev *ndev,
 		pr_debug("rats_res_len %d\n", nfca_poll->rats_res_len);
 		if (nfca_poll->rats_res_len > 0) {
 			memcpy(nfca_poll->rats_res,
-				data,
-				nfca_poll->rats_res_len);
+			       data, nfca_poll->rats_res_len);
 		}
 		break;
 
 	case NCI_NFC_B_PASSIVE_POLL_MODE:
 		nfcb_poll = &ntf->activation_params.nfcb_poll_iso_dep;
 		nfcb_poll->attrib_res_len = *data++;
-		pr_debug("attrib_res_len %d\n",
-			nfcb_poll->attrib_res_len);
+		pr_debug("attrib_res_len %d\n", nfcb_poll->attrib_res_len);
 		if (nfcb_poll->attrib_res_len > 0) {
 			memcpy(nfcb_poll->attrib_res,
-				data,
-				nfcb_poll->attrib_res_len);
+			       data, nfcb_poll->attrib_res_len);
 		}
 		break;
 
@@ -362,7 +359,7 @@ static int nci_extract_activation_params_iso_dep(struct nci_dev *ndev,
 }
 
 static void nci_target_auto_activated(struct nci_dev *ndev,
-					struct nci_rf_intf_activated_ntf *ntf)
+				      struct nci_rf_intf_activated_ntf *ntf)
 {
 	struct nfc_target *target;
 	int rc;
@@ -370,8 +367,8 @@ static void nci_target_auto_activated(struct nci_dev *ndev,
 	target = &ndev->targets[ndev->n_targets];
 
 	rc = nci_add_new_protocol(ndev, target, ntf->rf_protocol,
-					ntf->activation_rf_tech_and_mode,
-					&ntf->rf_tech_specific_params);
+				  ntf->activation_rf_tech_and_mode,
+				  &ntf->rf_tech_specific_params);
 	if (rc)
 		return;
 
@@ -384,7 +381,7 @@ static void nci_target_auto_activated(struct nci_dev *ndev,
 }
 
 static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
-						struct sk_buff *skb)
+					     struct sk_buff *skb)
 {
 	struct nci_rf_intf_activated_ntf ntf;
 	__u8 *data = skb->data;
@@ -405,7 +402,8 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 		 ntf.activation_rf_tech_and_mode);
 	pr_debug("max_data_pkt_payload_size 0x%x\n",
 		 ntf.max_data_pkt_payload_size);
-	pr_debug("initial_num_credits 0x%x\n", ntf.initial_num_credits);
+	pr_debug("initial_num_credits 0x%x\n",
+		 ntf.initial_num_credits);
 	pr_debug("rf_tech_specific_params_len %d\n",
 		 ntf.rf_tech_specific_params_len);
 
@@ -441,18 +439,15 @@ static void nci_rf_intf_activated_ntf_packet(struct nci_dev *ndev,
 
 	pr_debug("data_exch_rf_tech_and_mode 0x%x\n",
 		 ntf.data_exch_rf_tech_and_mode);
-	pr_debug("data_exch_tx_bit_rate 0x%x\n",
-		 ntf.data_exch_tx_bit_rate);
-	pr_debug("data_exch_rx_bit_rate 0x%x\n",
-		 ntf.data_exch_rx_bit_rate);
-	pr_debug("activation_params_len %d\n",
-		 ntf.activation_params_len);
+	pr_debug("data_exch_tx_bit_rate 0x%x\n", ntf.data_exch_tx_bit_rate);
+	pr_debug("data_exch_rx_bit_rate 0x%x\n", ntf.data_exch_rx_bit_rate);
+	pr_debug("activation_params_len %d\n", ntf.activation_params_len);
 
 	if (ntf.activation_params_len > 0) {
 		switch (ntf.rf_interface) {
 		case NCI_RF_INTERFACE_ISO_DEP:
 			err = nci_extract_activation_params_iso_dep(ndev,
-				&ntf, data);
+								    &ntf, data);
 			break;
 
 		case NCI_RF_INTERFACE_FRAME:
@@ -489,7 +484,7 @@ exit:
 }
 
 static void nci_rf_deactivate_ntf_packet(struct nci_dev *ndev,
-					struct sk_buff *skb)
+					 struct sk_buff *skb)
 {
 	struct nci_rf_deactivate_ntf *ntf = (void *) skb->data;
 

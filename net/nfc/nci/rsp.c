@@ -67,19 +67,18 @@ static void nci_core_init_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 	ndev->num_supported_rf_interfaces = rsp_1->num_supported_rf_interfaces;
 
 	if (ndev->num_supported_rf_interfaces >
-			NCI_MAX_SUPPORTED_RF_INTERFACES) {
+	    NCI_MAX_SUPPORTED_RF_INTERFACES) {
 		ndev->num_supported_rf_interfaces =
 			NCI_MAX_SUPPORTED_RF_INTERFACES;
 	}
 
 	memcpy(ndev->supported_rf_interfaces,
-		rsp_1->supported_rf_interfaces,
-		ndev->num_supported_rf_interfaces);
+	       rsp_1->supported_rf_interfaces,
+	       ndev->num_supported_rf_interfaces);
 
 	rsp_2 = (void *) (skb->data + 6 + rsp_1->num_supported_rf_interfaces);
 
-	ndev->max_logical_connections =
-		rsp_2->max_logical_connections;
+	ndev->max_logical_connections = rsp_2->max_logical_connections;
 	ndev->max_routing_table_size =
 		__le16_to_cpu(rsp_2->max_routing_table_size);
 	ndev->max_ctrl_pkt_payload_len =
@@ -121,7 +120,7 @@ exit:
 }
 
 static void nci_rf_disc_map_rsp_packet(struct nci_dev *ndev,
-					struct sk_buff *skb)
+				       struct sk_buff *skb)
 {
 	__u8 status = skb->data[0];
 
@@ -143,7 +142,7 @@ static void nci_rf_disc_rsp_packet(struct nci_dev *ndev, struct sk_buff *skb)
 }
 
 static void nci_rf_disc_select_rsp_packet(struct nci_dev *ndev,
-						struct sk_buff *skb)
+					  struct sk_buff *skb)
 {
 	__u8 status = skb->data[0];
 
@@ -155,7 +154,7 @@ static void nci_rf_disc_select_rsp_packet(struct nci_dev *ndev,
 }
 
 static void nci_rf_deactivate_rsp_packet(struct nci_dev *ndev,
-					struct sk_buff *skb)
+					 struct sk_buff *skb)
 {
 	__u8 status = skb->data[0];
 
@@ -163,7 +162,7 @@ static void nci_rf_deactivate_rsp_packet(struct nci_dev *ndev,
 
 	/* If target was active, complete the request only in deactivate_ntf */
 	if ((status != NCI_STATUS_OK) ||
-		(atomic_read(&ndev->state) != NCI_POLL_ACTIVE)) {
+	    (atomic_read(&ndev->state) != NCI_POLL_ACTIVE)) {
 		nci_clear_target_list(ndev);
 		atomic_set(&ndev->state, NCI_IDLE);
 		nci_req_complete(ndev, status);

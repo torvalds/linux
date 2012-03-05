@@ -141,17 +141,17 @@ struct nci_dev {
 
 /* ----- NCI Devices ----- */
 struct nci_dev *nci_allocate_device(struct nci_ops *ops,
-				__u32 supported_protocols,
-				int tx_headroom,
-				int tx_tailroom);
+				    __u32 supported_protocols,
+				    int tx_headroom,
+				    int tx_tailroom);
 void nci_free_device(struct nci_dev *ndev);
 int nci_register_device(struct nci_dev *ndev);
 void nci_unregister_device(struct nci_dev *ndev);
 int nci_recv_frame(struct sk_buff *skb);
 
 static inline struct sk_buff *nci_skb_alloc(struct nci_dev *ndev,
-						unsigned int len,
-						gfp_t how)
+					    unsigned int len,
+					    gfp_t how)
 {
 	struct sk_buff *skb;
 
