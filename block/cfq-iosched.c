@@ -208,9 +208,7 @@ struct cfq_group {
 	unsigned long saved_workload_slice;
 	enum wl_type_t saved_workload;
 	enum wl_prio_t saved_serving_prio;
-#ifdef CONFIG_CFQ_GROUP_IOSCHED
-	struct hlist_node cfqd_node;
-#endif
+
 	/* number of requests that are on the dispatch list or inside driver */
 	int dispatched;
 	struct cfq_ttime ttime;
@@ -302,12 +300,6 @@ struct cfq_data {
 	struct cfq_queue oom_cfqq;
 
 	unsigned long last_delayed_sync;
-
-	/* List of cfq groups being managed on this device*/
-	struct hlist_head cfqg_list;
-
-	/* Number of groups which are on blkcg->blkg_list */
-	unsigned int nr_blkcg_linked_grps;
 };
 
 static inline struct cfq_group *blkg_to_cfqg(struct blkio_group *blkg)
@@ -1056,13 +1048,9 @@ static void cfq_update_blkio_group_weight(struct request_queue *q,
 static void cfq_link_blkio_group(struct request_queue *q,
 				 struct blkio_group *blkg)
 {
-	struct cfq_data *cfqd = q->elevator->elevator_data;
-	struct cfq_group *cfqg = blkg_to_cfqg(blkg);
-
-	cfqd->nr_blkcg_linked_grps++;
-
-	/* Add group on cfqd list */
-	hlist_add_head(&cfqg->cfqd_node, &cfqd->cfqg_list);
+	list_add(&blkg->q_node[BLKIO_POLICY_PROP],
+		 &q->blkg_list[BLKIO_POLICY_PROP]);
+	q->nr_blkgs[BLKIO_POLICY_PROP]++;
 }
 
 static void cfq_init_blkio_group(struct blkio_group *blkg)
@@ -1110,13 +1098,15 @@ static void cfq_link_cfqq_cfqg(struct cfq_queue *cfqq, struct cfq_group *cfqg)
 
 static void cfq_destroy_cfqg(struct cfq_data *cfqd, struct cfq_group *cfqg)
 {
+	struct blkio_group *blkg = cfqg_to_blkg(cfqg);
+
 	/* Something wrong if we are trying to remove same group twice */
-	BUG_ON(hlist_unhashed(&cfqg->cfqd_node));
+	BUG_ON(list_empty(&blkg->q_node[BLKIO_POLICY_PROP]));
 
-	hlist_del_init(&cfqg->cfqd_node);
+	list_del_init(&blkg->q_node[BLKIO_POLICY_PROP]);
 
-	BUG_ON(cfqd->nr_blkcg_linked_grps <= 0);
-	cfqd->nr_blkcg_linked_grps--;
+	BUG_ON(cfqd->queue->nr_blkgs[BLKIO_POLICY_PROP] <= 0);
+	cfqd->queue->nr_blkgs[BLKIO_POLICY_PROP]--;
 
 	/*
 	 * Put the reference taken at the time of creation so that when all
@@ -1127,18 +1117,19 @@ static void cfq_destroy_cfqg(struct cfq_data *cfqd, struct cfq_group *cfqg)
 
 static bool cfq_release_cfq_groups(struct cfq_data *cfqd)
 {
-	struct hlist_node *pos, *n;
-	struct cfq_group *cfqg;
+	struct request_queue *q = cfqd->queue;
+	struct blkio_group *blkg, *n;
 	bool empty = true;
 
-	hlist_for_each_entry_safe(cfqg, pos, n, &cfqd->cfqg_list, cfqd_node) {
+	list_for_each_entry_safe(blkg, n, &q->blkg_list[BLKIO_POLICY_PROP],
+				 q_node[BLKIO_POLICY_PROP]) {
 		/*
 		 * If cgroup removal path got to blk_group first and removed
 		 * it from cgroup list, then it will take care of destroying
 		 * cfqg also.
 		 */
-		if (!cfq_blkiocg_del_blkio_group(cfqg_to_blkg(cfqg)))
-			cfq_destroy_cfqg(cfqd, cfqg);
+		if (!cfq_blkiocg_del_blkio_group(blkg))
+			cfq_destroy_cfqg(cfqd, blkg_to_cfqg(blkg));
 		else
 			empty = false;
 	}
@@ -3558,13 +3549,13 @@ static void cfq_exit_queue(struct elevator_queue *e)
 	cfq_put_async_queues(cfqd);
 	cfq_release_cfq_groups(cfqd);
 
+#ifdef CONFIG_BLK_CGROUP
 	/*
 	 * If there are groups which we could not unlink from blkcg list,
 	 * wait for a rcu period for them to be freed.
 	 */
-	if (cfqd->nr_blkcg_linked_grps)
-		wait = true;
-
+	wait = q->nr_blkgs[BLKIO_POLICY_PROP];
+#endif
 	spin_unlock_irq(q->queue_lock);
 
 	cfq_shutdown_timer_wq(cfqd);

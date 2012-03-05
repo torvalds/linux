@@ -499,6 +499,8 @@ static struct blkio_group *blkg_alloc(struct blkio_cgroup *blkcg,
 
 	spin_lock_init(&blkg->stats_lock);
 	rcu_assign_pointer(blkg->q, q);
+	INIT_LIST_HEAD(&blkg->q_node[0]);
+	INIT_LIST_HEAD(&blkg->q_node[1]);
 	blkg->blkcg = blkcg;
 	blkg->plid = pol->plid;
 	blkg->refcnt = 1;

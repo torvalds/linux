@@ -41,9 +41,6 @@ struct throtl_rb_root {
 #define rb_entry_tg(node)	rb_entry((node), struct throtl_grp, rb_node)
 
 struct throtl_grp {
-	/* List of throtl groups on the request queue*/
-	struct hlist_node tg_node;
-
 	/* active throtl group service_tree member */
 	struct rb_node rb_node;
 
@@ -83,9 +80,6 @@ struct throtl_grp {
 
 struct throtl_data
 {
-	/* List of throtl groups */
-	struct hlist_head tg_list;
-
 	/* service tree for active throtl groups */
 	struct throtl_rb_root tg_service_tree;
 
@@ -152,7 +146,6 @@ static void throtl_init_blkio_group(struct blkio_group *blkg)
 {
 	struct throtl_grp *tg = blkg_to_tg(blkg);
 
-	INIT_HLIST_NODE(&tg->tg_node);
 	RB_CLEAR_NODE(&tg->rb_node);
 	bio_list_init(&tg->bio_lists[0]);
 	bio_list_init(&tg->bio_lists[1]);
@@ -167,11 +160,9 @@ static void throtl_init_blkio_group(struct blkio_group *blkg)
 static void throtl_link_blkio_group(struct request_queue *q,
 				    struct blkio_group *blkg)
 {
-	struct throtl_data *td = q->td;
-	struct throtl_grp *tg = blkg_to_tg(blkg);
-
-	hlist_add_head(&tg->tg_node, &td->tg_list);
-	td->nr_undestroyed_grps++;
+	list_add(&blkg->q_node[BLKIO_POLICY_THROTL],
+		 &q->blkg_list[BLKIO_POLICY_THROTL]);
+	q->nr_blkgs[BLKIO_POLICY_THROTL]++;
 }
 
 static struct
@@ -711,8 +702,8 @@ static int throtl_select_dispatch(struct throtl_data *td, struct bio_list *bl)
 
 static void throtl_process_limit_change(struct throtl_data *td)
 {
-	struct throtl_grp *tg;
-	struct hlist_node *pos, *n;
+	struct request_queue *q = td->queue;
+	struct blkio_group *blkg, *n;
 
 	if (!td->limits_changed)
 		return;
@@ -721,7 +712,10 @@ static void throtl_process_limit_change(struct throtl_data *td)
 
 	throtl_log(td, "limits changed");
 
-	hlist_for_each_entry_safe(tg, pos, n, &td->tg_list, tg_node) {
+	list_for_each_entry_safe(blkg, n, &q->blkg_list[BLKIO_POLICY_THROTL],
+				 q_node[BLKIO_POLICY_THROTL]) {
+		struct throtl_grp *tg = blkg_to_tg(blkg);
+
 		if (!tg->limits_changed)
 			continue;
 
@@ -822,26 +816,31 @@ throtl_schedule_delayed_work(struct throtl_data *td, unsigned long delay)
 static void
 throtl_destroy_tg(struct throtl_data *td, struct throtl_grp *tg)
 {
-	/* Something wrong if we are trying to remove same group twice */
-	BUG_ON(hlist_unhashed(&tg->tg_node));
+	struct blkio_group *blkg = tg_to_blkg(tg);
 
-	hlist_del_init(&tg->tg_node);
+	/* Something wrong if we are trying to remove same group twice */
+	WARN_ON_ONCE(list_empty(&blkg->q_node[BLKIO_POLICY_THROTL]));
+
+	list_del_init(&blkg->q_node[BLKIO_POLICY_THROTL]);
 
 	/*
 	 * Put the reference taken at the time of creation so that when all
 	 * queues are gone, group can be destroyed.
 	 */
 	blkg_put(tg_to_blkg(tg));
-	td->nr_undestroyed_grps--;
+	td->queue->nr_blkgs[BLKIO_POLICY_THROTL]--;
 }
 
 static bool throtl_release_tgs(struct throtl_data *td, bool release_root)
 {
-	struct hlist_node *pos, *n;
-	struct throtl_grp *tg;
+	struct request_queue *q = td->queue;
+	struct blkio_group *blkg, *n;
 	bool empty = true;
 
-	hlist_for_each_entry_safe(tg, pos, n, &td->tg_list, tg_node) {
+	list_for_each_entry_safe(blkg, n, &q->blkg_list[BLKIO_POLICY_THROTL],
+				 q_node[BLKIO_POLICY_THROTL]) {
+		struct throtl_grp *tg = blkg_to_tg(blkg);
+
 		/* skip root? */
 		if (!release_root && tg == td->root_tg)
 			continue;
@@ -851,7 +850,7 @@ static bool throtl_release_tgs(struct throtl_data *td, bool release_root)
 		 * it from cgroup list, then it will take care of destroying
 		 * cfqg also.
 		 */
-		if (!blkiocg_del_blkio_group(tg_to_blkg(tg)))
+		if (!blkiocg_del_blkio_group(blkg))
 			throtl_destroy_tg(td, tg);
 		else
 			empty = false;
@@ -1114,7 +1113,6 @@ int blk_throtl_init(struct request_queue *q)
 	if (!td)
 		return -ENOMEM;
 
-	INIT_HLIST_HEAD(&td->tg_list);
 	td->tg_service_tree = THROTL_RB_ROOT;
 	td->limits_changed = false;
 	INIT_DELAYED_WORK(&td->throtl_work, blk_throtl_work);
@@ -1144,7 +1142,7 @@ int blk_throtl_init(struct request_queue *q)
 void blk_throtl_exit(struct request_queue *q)
 {
 	struct throtl_data *td = q->td;
-	bool wait = false;
+	bool wait;
 
 	BUG_ON(!td);
 
@@ -1154,8 +1152,7 @@ void blk_throtl_exit(struct request_queue *q)
 	throtl_release_tgs(td, true);
 
 	/* If there are other groups */
-	if (td->nr_undestroyed_grps > 0)
-		wait = true;
+	wait = q->nr_blkgs[BLKIO_POLICY_THROTL];
 
 	spin_unlock_irq(q->queue_lock);
 

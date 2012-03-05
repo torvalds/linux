@@ -362,6 +362,11 @@ struct request_queue {
 	struct list_head	timeout_list;
 
 	struct list_head	icq_list;
+#ifdef CONFIG_BLK_CGROUP
+	/* XXX: array size hardcoded to avoid include dependency (temporary) */
+	struct list_head	blkg_list[2];
+	int			nr_blkgs[2];
+#endif
 
 	struct queue_limits	limits;
 
