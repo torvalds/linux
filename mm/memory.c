@@ -1386,7 +1386,7 @@ unsigned long unmap_vmas(struct mmu_gather *tlb,
  * @size: number of bytes to zap
  * @details: details of nonlinear truncation or shared cache invalidation
  */
-unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
+void zap_page_range(struct vm_area_struct *vma, unsigned long address,
 		unsigned long size, struct zap_details *details)
 {
 	struct mm_struct *mm = vma->vm_mm;
@@ -1397,9 +1397,8 @@ unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
 	lru_add_drain();
 	tlb_gather_mmu(&tlb, mm, 0);
 	update_hiwater_rss(mm);
-	end = unmap_vmas(&tlb, vma, address, end, &nr_accounted, details);
+	unmap_vmas(&tlb, vma, address, end, &nr_accounted, details);
 	tlb_finish_mmu(&tlb, address, end);
-	return end;
 }
 
 /**
