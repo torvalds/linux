@@ -23,7 +23,8 @@ void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 			struct bio *bio);
 int blk_rq_append_bio(struct request_queue *q, struct request *rq,
 		      struct bio *bio);
-void blk_drain_queue(struct request_queue *q, bool drain_all);
+void blk_queue_bypass_start(struct request_queue *q);
+void blk_queue_bypass_end(struct request_queue *q);
 void blk_dequeue_request(struct request *rq);
 void __blk_queue_free_tags(struct request_queue *q);
 bool __blk_end_bidi_request(struct request *rq, int error,
@@ -143,9 +144,6 @@ int blk_try_merge(struct request *rq, struct bio *bio);
 void blk_queue_congestion_threshold(struct request_queue *q);
 
 int blk_dev_init(void);
-
-void elv_quiesce_start(struct request_queue *q);
-void elv_quiesce_end(struct request_queue *q);
 
 
 /*

@@ -553,25 +553,6 @@ void elv_drain_elevator(struct request_queue *q)
 	}
 }
 
-void elv_quiesce_start(struct request_queue *q)
-{
-	if (!q->elevator)
-		return;
-
-	spin_lock_irq(q->queue_lock);
-	queue_flag_set(QUEUE_FLAG_ELVSWITCH, q);
-	spin_unlock_irq(q->queue_lock);
-
-	blk_drain_queue(q, false);
-}
-
-void elv_quiesce_end(struct request_queue *q)
-{
-	spin_lock_irq(q->queue_lock);
-	queue_flag_clear(QUEUE_FLAG_ELVSWITCH, q);
-	spin_unlock_irq(q->queue_lock);
-}
-
 void __elv_add_request(struct request_queue *q, struct request *rq, int where)
 {
 	trace_block_rq_insert(q, rq);
@@ -903,7 +884,7 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	 * using INSERT_BACK.  All requests have SOFTBARRIER set and no
 	 * merge happens either.
 	 */
-	elv_quiesce_start(q);
+	blk_queue_bypass_start(q);
 
 	/* unregister and clear all auxiliary data of the old elevator */
 	if (registered)
@@ -933,7 +914,7 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 
 	/* done, kill the old one and finish */
 	elevator_exit(old);
-	elv_quiesce_end(q);
+	blk_queue_bypass_end(q);
 
 	blk_add_trace_msg(q, "elv switch: %s", new_e->elevator_name);
 
@@ -945,7 +926,7 @@ fail_init:
 	/* switch failed, restore and re-register old elevator */
 	q->elevator = old;
 	elv_register_queue(q);
-	elv_quiesce_end(q);
+	blk_queue_bypass_end(q);
 
 	return err;
 }
