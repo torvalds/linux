@@ -153,8 +153,8 @@ struct blkio_group_stats_cpu {
 };
 
 struct blkio_group {
-	/* An rcu protected unique identifier for the group */
-	void *key;
+	/* Pointer to the associated request_queue, RCU protected */
+	struct request_queue __rcu *q;
 	struct hlist_node blkcg_node;
 	unsigned short blkcg_id;
 	/* Store cgroup path */
@@ -202,17 +202,18 @@ extern unsigned int blkcg_get_read_iops(struct blkio_cgroup *blkcg,
 extern unsigned int blkcg_get_write_iops(struct blkio_cgroup *blkcg,
 				     dev_t dev);
 
-typedef void (blkio_unlink_group_fn) (void *key, struct blkio_group *blkg);
+typedef void (blkio_unlink_group_fn)(struct request_queue *q,
+			struct blkio_group *blkg);
 typedef bool (blkio_clear_queue_fn)(struct request_queue *q);
-typedef void (blkio_update_group_weight_fn) (void *key,
+typedef void (blkio_update_group_weight_fn)(struct request_queue *q,
 			struct blkio_group *blkg, unsigned int weight);
-typedef void (blkio_update_group_read_bps_fn) (void * key,
+typedef void (blkio_update_group_read_bps_fn)(struct request_queue *q,
 			struct blkio_group *blkg, u64 read_bps);
-typedef void (blkio_update_group_write_bps_fn) (void *key,
+typedef void (blkio_update_group_write_bps_fn)(struct request_queue *q,
 			struct blkio_group *blkg, u64 write_bps);
-typedef void (blkio_update_group_read_iops_fn) (void *key,
+typedef void (blkio_update_group_read_iops_fn)(struct request_queue *q,
 			struct blkio_group *blkg, unsigned int read_iops);
-typedef void (blkio_update_group_write_iops_fn) (void *key,
+typedef void (blkio_update_group_write_iops_fn)(struct request_queue *q,
 			struct blkio_group *blkg, unsigned int write_iops);
 
 struct blkio_policy_ops {
@@ -305,12 +306,13 @@ extern struct blkio_cgroup blkio_root_cgroup;
 extern struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup);
 extern struct blkio_cgroup *task_blkio_cgroup(struct task_struct *tsk);
 extern void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
-	struct blkio_group *blkg, void *key, dev_t dev,
+	struct blkio_group *blkg, struct request_queue *q, dev_t dev,
 	enum blkio_policy_id plid);
 extern int blkio_alloc_blkg_stats(struct blkio_group *blkg);
 extern int blkiocg_del_blkio_group(struct blkio_group *blkg);
 extern struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg,
-						void *key);
+						struct request_queue *q,
+						enum blkio_policy_id plid);
 void blkiocg_update_timeslice_used(struct blkio_group *blkg,
 					unsigned long time,
 					unsigned long unaccounted_time);

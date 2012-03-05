@@ -252,7 +252,7 @@ static void throtl_init_add_tg_lists(struct throtl_data *td,
 	__throtl_tg_fill_dev_details(td, tg);
 
 	/* Add group onto cgroup list */
-	blkiocg_add_blkio_group(blkcg, &tg->blkg, (void *)td,
+	blkiocg_add_blkio_group(blkcg, &tg->blkg, td->queue,
 				tg->blkg.dev, BLKIO_POLICY_THROTL);
 
 	tg->bps[READ] = blkcg_get_read_bps(blkcg, tg->blkg.dev);
@@ -288,7 +288,6 @@ static struct
 throtl_grp *throtl_find_tg(struct throtl_data *td, struct blkio_cgroup *blkcg)
 {
 	struct throtl_grp *tg = NULL;
-	void *key = td;
 
 	/*
 	 * This is the common case when there are no blkio cgroups.
@@ -297,7 +296,8 @@ throtl_grp *throtl_find_tg(struct throtl_data *td, struct blkio_cgroup *blkcg)
 	if (blkcg == &blkio_root_cgroup)
 		tg = td->root_tg;
 	else
-		tg = tg_of_blkg(blkiocg_lookup_group(blkcg, key));
+		tg = tg_of_blkg(blkiocg_lookup_group(blkcg, td->queue,
+						     BLKIO_POLICY_THROTL));
 
 	__throtl_tg_fill_dev_details(td, tg);
 	return tg;
@@ -1012,22 +1012,22 @@ static bool throtl_release_tgs(struct throtl_data *td, bool release_root)
  * no new IO will come in this group. So get rid of this group as soon as
  * any pending IO in the group is finished.
  *
- * This function is called under rcu_read_lock(). key is the rcu protected
- * pointer. That means "key" is a valid throtl_data pointer as long as we are
- * rcu read lock.
+ * This function is called under rcu_read_lock(). @q is the rcu protected
+ * pointer. That means @q is a valid request_queue pointer as long as we
+ * are rcu read lock.
  *
- * "key" was fetched from blkio_group under blkio_cgroup->lock. That means
+ * @q was fetched from blkio_group under blkio_cgroup->lock. That means
  * it should not be NULL as even if queue was going away, cgroup deltion
  * path got to it first.
  */
-void throtl_unlink_blkio_group(void *key, struct blkio_group *blkg)
+void throtl_unlink_blkio_group(struct request_queue *q,
+			       struct blkio_group *blkg)
 {
 	unsigned long flags;
-	struct throtl_data *td = key;
 
-	spin_lock_irqsave(td->queue->queue_lock, flags);
-	throtl_destroy_tg(td, tg_of_blkg(blkg));
-	spin_unlock_irqrestore(td->queue->queue_lock, flags);
+	spin_lock_irqsave(q->queue_lock, flags);
+	throtl_destroy_tg(q->td, tg_of_blkg(blkg));
+	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
 static bool throtl_clear_queue(struct request_queue *q)
@@ -1054,52 +1054,48 @@ static void throtl_update_blkio_group_common(struct throtl_data *td,
 }
 
 /*
- * For all update functions, key should be a valid pointer because these
+ * For all update functions, @q should be a valid pointer because these
  * update functions are called under blkcg_lock, that means, blkg is
- * valid and in turn key is valid. queue exit path can not race because
+ * valid and in turn @q is valid. queue exit path can not race because
  * of blkcg_lock
  *
  * Can not take queue lock in update functions as queue lock under blkcg_lock
  * is not allowed. Under other paths we take blkcg_lock under queue_lock.
  */
-static void throtl_update_blkio_group_read_bps(void *key,
+static void throtl_update_blkio_group_read_bps(struct request_queue *q,
 				struct blkio_group *blkg, u64 read_bps)
 {
-	struct throtl_data *td = key;
 	struct throtl_grp *tg = tg_of_blkg(blkg);
 
 	tg->bps[READ] = read_bps;
-	throtl_update_blkio_group_common(td, tg);
+	throtl_update_blkio_group_common(q->td, tg);
 }
 
-static void throtl_update_blkio_group_write_bps(void *key,
+static void throtl_update_blkio_group_write_bps(struct request_queue *q,
 				struct blkio_group *blkg, u64 write_bps)
 {
-	struct throtl_data *td = key;
 	struct throtl_grp *tg = tg_of_blkg(blkg);
 
 	tg->bps[WRITE] = write_bps;
-	throtl_update_blkio_group_common(td, tg);
+	throtl_update_blkio_group_common(q->td, tg);
 }
 
-static void throtl_update_blkio_group_read_iops(void *key,
+static void throtl_update_blkio_group_read_iops(struct request_queue *q,
 			struct blkio_group *blkg, unsigned int read_iops)
 {
-	struct throtl_data *td = key;
 	struct throtl_grp *tg = tg_of_blkg(blkg);
 
 	tg->iops[READ] = read_iops;
-	throtl_update_blkio_group_common(td, tg);
+	throtl_update_blkio_group_common(q->td, tg);
 }
 
-static void throtl_update_blkio_group_write_iops(void *key,
+static void throtl_update_blkio_group_write_iops(struct request_queue *q,
 			struct blkio_group *blkg, unsigned int write_iops)
 {
-	struct throtl_data *td = key;
 	struct throtl_grp *tg = tg_of_blkg(blkg);
 
 	tg->iops[WRITE] = write_iops;
-	throtl_update_blkio_group_common(td, tg);
+	throtl_update_blkio_group_common(q->td, tg);
 }
 
 static void throtl_shutdown_wq(struct request_queue *q)
@@ -1306,7 +1302,7 @@ void blk_throtl_exit(struct request_queue *q)
 	spin_unlock_irq(q->queue_lock);
 
 	/*
-	 * Wait for tg->blkg->key accessors to exit their grace periods.
+	 * Wait for tg->blkg->q accessors to exit their grace periods.
 	 * Do this wait only if there are other undestroyed groups out
 	 * there (other than root group). This can happen if cgroup deletion
 	 * path claimed the responsibility of cleaning up a group before
