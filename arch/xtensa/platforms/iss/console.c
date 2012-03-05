@@ -37,6 +37,7 @@
 #define SERIAL_TIMER_VALUE (20 * HZ)
 
 static struct tty_driver *serial_driver;
+static struct tty_port serial_port;
 static struct timer_list serial_timer;
 
 static DEFINE_SPINLOCK(timer_lock);
@@ -68,6 +69,7 @@ static void rs_poll(unsigned long);
 
 static int rs_open(struct tty_struct *tty, struct file * filp)
 {
+	tty->port = &serial_port;
 	spin_lock(&timer_lock);
 	if (tty->count == 1) {
 		setup_timer(&serial_timer, rs_poll, (unsigned long)tty);
@@ -202,6 +204,8 @@ static const struct tty_operations serial_ops = {
 
 int __init rs_init(void)
 {
+	tty_port_init(&serial_port);
+
 	serial_driver = alloc_tty_driver(SERIAL_MAX_NUM_LINES);
 
 	printk ("%s %s\n", serial_name, serial_version);
