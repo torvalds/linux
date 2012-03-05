@@ -350,48 +350,46 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 	struct layer_par *par )
 
 {
-	u32 xact, yact, xvir, yvir, xpos, ypos,xres_virtual;
-    u32 ScaleYrgbX,ScaleYrgbY, ScaleCbrX, ScaleCbrY;
-    u32 addr;
-    xact = par->xact;			    /* visible resolution		*/
-    yact = par->yact;
-    xvir = par->xres_virtual;		/* virtual resolution		*/
-    yvir = par->yres_virtual;
-    xpos = par->xpos+screen->left_margin + screen->hsync_len;
-    ypos = par->ypos+screen->upper_margin + screen->vsync_len;
- 	addr = par->smem_start + par->y_offset;
-
-	DBG("%s>>format:%d>>>xact:%d>>yact:%d>>xvir:%d>>yvir:%d>>ypos:%d>>xsize:%d>>ysize:%d>>y_addr:0x%x\n",
-		__func__,par->format,xact,yact,xvir,yvir,ypos,par->xsize,par->ysize,addr);
-    switch (par->format)
-    {
-        case ARGB888:
-        case RGB888:
-        case RGB565:
-            ScaleYrgbX = CalScale(xact, par->xsize);
-            ScaleYrgbY = CalScale(yact, par->ysize);
-            break;
-        case YUV422:// yuv422
-            ScaleCbrX=	CalScale((xact/2), par->xsize);
-            ScaleCbrY = CalScale(yact, par->ysize);
-            break;
-        case YUV420: // yuv420
-            ScaleCbrX= CalScale(xact/2, par->xsize);
-            ScaleCbrY =	CalScale(yact/2, par->ysize);
-            break;
-        case YUV444:// yuv444
-            ScaleCbrX= CalScale(xact, par->xsize);
-            ScaleCbrY = CalScale(yact, par->ysize);
-            break;
-        default:
-            printk("%s>>un support format!\n",__func__);
-            break;
+	u32 xact, yact, xvir, yvir, xpos, ypos;
+	u32 ScaleYrgbX,ScaleYrgbY, ScaleCbrX, ScaleCbrY;
+	u32 y_addr,uv_addr;
+	xact = par->xact;			    /* visible resolution		*/
+	yact = par->yact;
+	xvir = par->xres_virtual;		/* virtual resolution		*/
+	yvir = par->yres_virtual;
+	xpos = par->xpos+screen->left_margin + screen->hsync_len;
+	ypos = par->ypos+screen->upper_margin + screen->vsync_len;
+	y_addr = par->smem_start + par->y_offset;
+	uv_addr = par->cbr_start + par->c_offset;
+	
+	ScaleYrgbX = CalScale(xact, par->xsize);
+	ScaleYrgbY = CalScale(yact, par->ysize);
+	DBG("%s>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>ypos:%d>>y_addr:0x%x>>uv_addr:0x%x\n",
+		__func__,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,ypos,y_addr,uv_addr);
+	switch (par->format)
+ 	{
+		case YUV422:// yuv422
+			ScaleCbrX =	CalScale((xact/2), par->xsize);
+			ScaleCbrY = CalScale(yact, par->ysize);
+			break;
+		case YUV420: // yuv420
+			ScaleCbrX = CalScale(xact/2, par->xsize);
+			ScaleCbrY =	CalScale(yact/2, par->ysize);
+			break;
+		case YUV444:// yuv444
+			ScaleCbrX = CalScale(xact, par->xsize);
+			ScaleCbrY = CalScale(yact, par->ysize);
+			break;
+		default:
+			printk("%s>>un support format!\n",__func__);
+			break;
 	}
 
     LcdWrReg(lcdc_dev, WIN1_SCL_FACTOR_YRGB, v_X_SCL_FACTOR(ScaleYrgbX) | v_Y_SCL_FACTOR(ScaleYrgbY));
     LcdWrReg(lcdc_dev, WIN1_SCL_FACTOR_CBR,  v_X_SCL_FACTOR(ScaleCbrX) | v_Y_SCL_FACTOR(ScaleCbrY));
     LcdMskReg(lcdc_dev, SYS_CTRL1, m_W1_EN|m_W1_FORMAT, v_W1_EN(1)|v_W1_FORMAT(par->format));
-    LcdWrReg(lcdc_dev, WIN1_YRGB_MST, addr);
+    LcdWrReg(lcdc_dev, WIN1_YRGB_MST, y_addr);
+    LcdWrReg(lcdc_dev,WIN1_CBR_MST,uv_addr);
     LcdWrReg(lcdc_dev, WIN1_ACT_INFO,v_ACT_WIDTH(xact) | v_ACT_HEIGHT(yact));
     LcdWrReg(lcdc_dev, WIN1_DSP_ST,v_DSP_STX(xpos) | v_DSP_STY(ypos));
     LcdWrReg(lcdc_dev, WIN1_DSP_INFO,v_DSP_WIDTH(par->xsize) | v_DSP_HEIGHT(par->ysize));
