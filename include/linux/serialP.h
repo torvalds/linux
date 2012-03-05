@@ -29,9 +29,6 @@
 struct serial_state {
 	int	baud_base;
 	unsigned long	port;
-	int	irq;
-	int	type;
-	int	line;
 	int	xmit_fifo_size;
 	int	custom_divisor;
 	struct async_icount	icount;	

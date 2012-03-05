@@ -1008,7 +1008,7 @@ static void rs_unthrottle(struct tty_struct * tty)
  * ------------------------------------------------------------
  */
 
-static int get_serial_info(struct serial_state *state,
+static int get_serial_info(struct tty_struct *tty, struct serial_state *state,
 			   struct serial_struct __user * retinfo)
 {
 	struct serial_struct tmp;
@@ -1017,10 +1017,8 @@ static int get_serial_info(struct serial_state *state,
 		return -EFAULT;
 	memset(&tmp, 0, sizeof(tmp));
 	tty_lock();
-	tmp.type = state->type;
-	tmp.line = state->line;
+	tmp.line = tty->index;
 	tmp.port = state->port;
-	tmp.irq = state->irq;
 	tmp.flags = state->tport.flags;
 	tmp.xmit_fifo_size = state->xmit_fifo_size;
 	tmp.baud_base = state->baud_base;
@@ -1047,7 +1045,7 @@ static int set_serial_info(struct tty_struct *tty, struct serial_state *state,
 	tty_lock();
 	change_spd = ((new_serial.flags ^ port->flags) & ASYNC_SPD_MASK) ||
 		new_serial.custom_divisor != state->custom_divisor;
-	if (new_serial.irq != state->irq || new_serial.port != state->port ||
+	if (new_serial.irq || new_serial.port != state->port ||
 			new_serial.xmit_fifo_size != state->xmit_fifo_size) {
 		tty_unlock();
 		return -EINVAL;
@@ -1250,7 +1248,7 @@ static int rs_ioctl(struct tty_struct *tty,
 
 	switch (cmd) {
 		case TIOCGSERIAL:
-			return get_serial_info(info, argp);
+			return get_serial_info(tty, info, argp);
 		case TIOCSSERIAL:
 			return set_serial_info(tty, info, argp);
 		case TIOCSERCONFIG:
@@ -1403,7 +1401,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	}
 	if (--port->count < 0) {
 		printk("rs_close: bad serial port count for ttys%d: %d\n",
-		       state->line, port->count);
+		       tty->index, port->count);
 		port->count = 0;
 	}
 	if (port->count) {
@@ -1720,12 +1718,13 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
  * /proc fs routines....
  */
 
-static inline void line_info(struct seq_file *m, struct serial_state *state)
+static inline void line_info(struct seq_file *m, int line,
+		struct serial_state *state)
 {
 	char	stat_buf[30], control, status;
 	unsigned long flags;
 
-	seq_printf(m, "%d: uart:amiga_builtin",state->line);
+	seq_printf(m, "%d: uart:amiga_builtin", line);
 
 	local_irq_save(flags);
 	status = ciab.pra;
@@ -1771,7 +1770,7 @@ static inline void line_info(struct seq_file *m, struct serial_state *state)
 static int rs_proc_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "serinfo:1.0 driver:%s\n", serial_version);
-	line_info(m, &rs_table[0]);
+	line_info(m, 0, &rs_table[0]);
 	return 0;
 }
 
@@ -1867,7 +1866,6 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 
 	state = rs_table;
 	state->port = (int)&custom.serdatr; /* Just to give it a value */
-	state->line = 0;
 	state->custom_divisor = 0;
 	state->icount.cts = state->icount.dsr = 
 	  state->icount.rng = state->icount.dcd = 0;
@@ -1876,8 +1874,7 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 	state->icount.overrun = state->icount.brk = 0;
 	tty_port_init(&state->tport);
 
-	printk(KERN_INFO "ttyS%d is the amiga builtin serial port\n",
-		       state->line);
+	printk(KERN_INFO "ttyS0 is the amiga builtin serial port\n");
 
 	/* Hardware set up */
 
