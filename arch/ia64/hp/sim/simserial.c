@@ -202,7 +202,8 @@ static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 	return 1;
 }
 
-static void transmit_chars(struct serial_state *info, int *intr_done)
+static void transmit_chars(struct tty_struct *tty, struct serial_state *info,
+		int *intr_done)
 {
 	int count;
 	unsigned long flags;
@@ -220,10 +221,11 @@ static void transmit_chars(struct serial_state *info, int *intr_done)
 		goto out;
 	}
 
-	if (info->xmit.head == info->xmit.tail || info->tty->stopped || info->tty->hw_stopped) {
+	if (info->xmit.head == info->xmit.tail || tty->stopped ||
+			tty->hw_stopped) {
 #ifdef SIMSERIAL_DEBUG
 		printk("transmit_chars: head=%d, tail=%d, stopped=%d\n",
-		       info->xmit.head, info->xmit.tail, info->tty->stopped);
+		       info->xmit.head, info->xmit.tail, tty->stopped);
 #endif
 		goto out;
 	}
@@ -261,7 +263,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 	    !info->xmit.buf)
 		return;
 
-	transmit_chars(info, NULL);
+	transmit_chars(tty, info, NULL);
 }
 
 
@@ -295,7 +297,7 @@ static int rs_write(struct tty_struct * tty,
 	 */
 	if (CIRC_CNT(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE)
 	    && !tty->stopped && !tty->hw_stopped) {
-		transmit_chars(info, NULL);
+		transmit_chars(tty, info, NULL);
 	}
 	return ret;
 }
@@ -340,7 +342,7 @@ static void rs_send_xchar(struct tty_struct *tty, char ch)
 		 * I guess we could call console->write() directly but
 		 * let's do that for now.
 		 */
-		transmit_chars(info, NULL);
+		transmit_chars(tty, info, NULL);
 	}
 }
 
@@ -442,7 +444,7 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
  * This routine will shutdown a serial port; interrupts are disabled, and
  * DTR is dropped if the hangup on close termio flag is on.
  */
-static void shutdown(struct serial_state *info)
+static void shutdown(struct tty_struct *tty, struct serial_state *info)
 {
 	unsigned long	flags;
 
@@ -464,7 +466,7 @@ static void shutdown(struct serial_state *info)
 			info->xmit.buf = NULL;
 		}
 
-		if (info->tty) set_bit(TTY_IO_ERROR, &info->tty->flags);
+		set_bit(TTY_IO_ERROR, &tty->flags);
 
 		info->flags &= ~ASYNC_INITIALIZED;
 	}
@@ -528,7 +530,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	 * Now we wait for the transmit buffer to clear; and we notify
 	 * the line discipline to only process XON/XOFF characters.
 	 */
-	shutdown(info);
+	shutdown(tty, info);
 	rs_flush_buffer(tty);
 	tty_ldisc_flush(tty);
 	info->tty = NULL;
@@ -563,7 +565,7 @@ static void rs_hangup(struct tty_struct *tty)
 	rs_flush_buffer(tty);
 	if (info->flags & ASYNC_CLOSING)
 		return;
-	shutdown(info);
+	shutdown(tty, info);
 
 	info->count = 0;
 	info->flags &= ~ASYNC_NORMAL_ACTIVE;
@@ -572,7 +574,7 @@ static void rs_hangup(struct tty_struct *tty)
 }
 
 
-static int startup(struct serial_state *state)
+static int startup(struct tty_struct *tty, struct serial_state *state)
 {
 	unsigned long flags;
 	int	retval=0;
@@ -590,8 +592,7 @@ static int startup(struct serial_state *state)
 	}
 
 	if (!state->port || !state->type) {
-		if (state->tty)
-			set_bit(TTY_IO_ERROR, &state->tty->flags);
+		set_bit(TTY_IO_ERROR, &tty->flags);
 		free_page(page);
 		goto errout;
 	}
@@ -614,8 +615,7 @@ static int startup(struct serial_state *state)
 			goto errout;
 	}
 
-	if (state->tty)
-		clear_bit(TTY_IO_ERROR, &state->tty->flags);
+	clear_bit(TTY_IO_ERROR, &tty->flags);
 
 	state->xmit.head = state->xmit.tail = 0;
 
@@ -630,16 +630,14 @@ static int startup(struct serial_state *state)
 	/*
 	 * Set up the tty->alt_speed kludge
 	 */
-	if (state->tty) {
-		if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
-			state->tty->alt_speed = 57600;
-		if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
-			state->tty->alt_speed = 115200;
-		if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
-			state->tty->alt_speed = 230400;
-		if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
-			state->tty->alt_speed = 460800;
-	}
+	if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
+		tty->alt_speed = 57600;
+	if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
+		tty->alt_speed = 115200;
+	if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
+		tty->alt_speed = 230400;
+	if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
+		tty->alt_speed = 460800;
 
 	state->flags |= ASYNC_INITIALIZED;
 	local_irq_restore(flags);
@@ -699,7 +697,7 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	/*
 	 * Start up serial port
 	 */
-	retval = startup(info);
+	retval = startup(tty, info);
 	if (retval) {
 		return retval;
 	}
