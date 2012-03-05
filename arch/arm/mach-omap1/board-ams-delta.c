@@ -526,6 +526,16 @@ static void __init ams_delta_init(void)
 	omap_writew(omap_readw(ARM_RSTCT1) | 0x0004, ARM_RSTCT1);
 }
 
+static void modem_pm(struct uart_port *port, unsigned int state, unsigned old)
+{
+	struct modem_private_data *priv = port->private_data;
+
+	if (state == old)
+		return;
+
+	regulator_toggle(priv, state == 0);
+}
+
 static struct plat_serial8250_port ams_delta_modem_ports[] = {
 	{
 		.membase	= IOMEM(MODEM_VIRT),
@@ -536,6 +546,8 @@ static struct plat_serial8250_port ams_delta_modem_ports[] = {
 		.iotype		= UPIO_MEM,
 		.regshift	= 1,
 		.uartclk	= BASE_BAUD * 16,
+		.pm		= modem_pm,
+		.private_data	= &modem_priv,
 	},
 	{ },
 };
@@ -584,9 +596,8 @@ static int __init late_init(void)
 	mutex_init(&modem_priv.consumer.lock);
 	modem_priv.regulator = ERR_PTR(-ENODEV);
 
-	ams_delta_latch2_write(
-		AMS_DELTA_LATCH2_MODEM_NRESET | AMS_DELTA_LATCH2_MODEM_CODEC,
-		AMS_DELTA_LATCH2_MODEM_NRESET | AMS_DELTA_LATCH2_MODEM_CODEC);
+	ams_delta_latch2_write(AMS_DELTA_LATCH2_MODEM_CODEC,
+			AMS_DELTA_LATCH2_MODEM_CODEC);
 
 	err = platform_device_register(&ams_delta_modem_device);
 	if (err)
@@ -595,8 +606,9 @@ static int __init late_init(void)
 	/*
 	 * Once the modem device is registered, the modem_nreset
 	 * regulator can be requested on behalf of that device.
-	 * The regulator is used via ams_delta_latch_write()
-	 * by the modem and ASoC drivers until updated.
+	 * In addition to the modem .pm callback, that regulator
+	 * is still used via the ams_delta_latch_write() wrapper
+	 * by the ASoC driver until updated.
 	 */
 	modem_priv.regulator = regulator_get(&ams_delta_modem_device.dev,
 			"RESET#");
