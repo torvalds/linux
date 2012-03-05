@@ -33,7 +33,7 @@ struct srmcons_private {
 	struct tty_struct *tty;
 	struct timer_list timer;
 	spinlock_t lock;
-};
+} srmcons_singleton;
 
 typedef union _srmcons_result {
 	struct {
@@ -154,43 +154,10 @@ srmcons_chars_in_buffer(struct tty_struct *tty)
 }
 
 static int
-srmcons_get_private_struct(struct srmcons_private **ps)
-{
-	static struct srmcons_private *srmconsp = NULL;
-	static DEFINE_SPINLOCK(srmconsp_lock);
-	unsigned long flags;
-	int retval = 0;
-
-	if (srmconsp == NULL) {
-		srmconsp = kmalloc(sizeof(*srmconsp), GFP_KERNEL);
-		spin_lock_irqsave(&srmconsp_lock, flags);
-
-		if (srmconsp == NULL)
-			retval = -ENOMEM;
-		else {
-			srmconsp->tty = NULL;
-			spin_lock_init(&srmconsp->lock);
-			setup_timer(&srmconsp->timer, srmcons_receive_chars,
-					(unsigned long)srmconsp);
-		}
-
-		spin_unlock_irqrestore(&srmconsp_lock, flags);
-	}
-
-	*ps = srmconsp;
-	return retval;
-}
-
-static int
 srmcons_open(struct tty_struct *tty, struct file *filp)
 {
-	struct srmcons_private *srmconsp;
+	struct srmcons_private *srmconsp = &srmcons_singleton;
 	unsigned long flags;
-	int retval;
-
-	retval = srmcons_get_private_struct(&srmconsp);
-	if (retval)
-		return retval;
 
 	spin_lock_irqsave(&srmconsp->lock, flags);
 
@@ -236,6 +203,9 @@ static const struct tty_operations srmcons_ops = {
 static int __init
 srmcons_init(void)
 {
+	spin_lock_init(&srmcons_singleton.lock);
+	setup_timer(&srmcons_singleton.timer, srmcons_receive_chars,
+			(unsigned long)&srmcons_singleton);
 	if (srm_is_registered_console) {
 		struct tty_driver *driver;
 		int err;
