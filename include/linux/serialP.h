@@ -42,8 +42,6 @@ struct serial_state {
 };
 
 struct async_struct {
-	unsigned long		port;
-	int			xmit_fifo_size;
 	struct serial_state	*state;
 	struct tty_struct 	*tty;
 	int			read_status_mask;
@@ -51,11 +49,8 @@ struct async_struct {
 	int			timeout;
 	int			quot;
 	int			x_char;	/* xon/xoff character */
-	int			close_delay;
-	unsigned short		closing_wait;
 	int			IER; 	/* Interrupt Enable Register */
 	int			MCR; 	/* Modem control register */
-	int			line;
 	int			blocked_open; /* # of blocked opens */
  	struct circ_buf		xmit;
 	wait_queue_head_t	open_wait;

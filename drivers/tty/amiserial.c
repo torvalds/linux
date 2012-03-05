@@ -723,7 +723,7 @@ static void change_speed(struct async_struct *info,
 	if (!quot)
 		quot = baud_base / 9600;
 	info->quot = quot;
-	info->timeout = ((info->xmit_fifo_size*HZ*bits*quot) / baud_base);
+	info->timeout = ((info->state->xmit_fifo_size*HZ*bits*quot) / baud_base);
 	info->timeout += HZ/50;		/* Add .02 seconds of slop */
 
 	/* CTS flow control flag and modem status interrupts */
@@ -1425,7 +1425,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	}
 	if (--state->count < 0) {
 		printk("rs_close: bad serial port count for ttys%d: %d\n",
-		       info->line, state->count);
+		       state->line, state->count);
 		state->count = 0;
 	}
 	if (state->count) {
@@ -1439,8 +1439,8 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	 * the line discipline to only process XON/XOFF characters.
 	 */
 	tty->closing = 1;
-	if (info->closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, info->closing_wait);
+	if (state->closing_wait != ASYNC_CLOSING_WAIT_NONE)
+		tty_wait_until_sent(tty, state->closing_wait);
 	/*
 	 * At this point we stop accepting input.  To do this, we
 	 * disable the receive line status interrupts, and tell the
@@ -1470,8 +1470,8 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	tty->closing = 0;
 	info->tty = NULL;
 	if (info->blocked_open) {
-		if (info->close_delay) {
-			msleep_interruptible(jiffies_to_msecs(info->close_delay));
+		if (state->close_delay) {
+			msleep_interruptible(jiffies_to_msecs(state->close_delay));
 		}
 		wake_up_interruptible(&info->open_wait);
 	}
@@ -1492,7 +1492,7 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 	if (serial_paranoia_check(info, tty->name, "rs_wait_until_sent"))
 		return;
 
-	if (info->xmit_fifo_size == 0)
+	if (info->state->xmit_fifo_size == 0)
 		return; /* Just in case.... */
 
 	orig_jiffies = jiffies;
@@ -1505,7 +1505,7 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 	 * Note: we have to use pretty tight timings here to satisfy
 	 * the NIST-PCTS.
 	 */
-	char_time = (info->timeout - HZ/50) / info->xmit_fifo_size;
+	char_time = (info->timeout - HZ/50) / info->state->xmit_fifo_size;
 	char_time = char_time / 5;
 	if (char_time == 0)
 		char_time = 1;
@@ -1700,9 +1700,6 @@ static int get_async_struct(int line, struct async_struct **ret_info)
 	init_waitqueue_head(&info->close_wait);
 	init_waitqueue_head(&info->delta_msr_wait);
 #endif
-	info->port = sstate->port;
-	info->xmit_fifo_size = sstate->xmit_fifo_size;
-	info->line = line;
 	info->state = sstate;
 	if (sstate->info) {
 		kfree(info);

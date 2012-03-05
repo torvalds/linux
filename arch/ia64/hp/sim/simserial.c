@@ -553,7 +553,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	}
 	if (--state->count < 0) {
 		printk(KERN_ERR "rs_close: bad serial port count for ttys%d: %d\n",
-		       info->line, state->count);
+		       state->line, state->count);
 		state->count = 0;
 	}
 	if (state->count) {
@@ -572,8 +572,8 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	tty_ldisc_flush(tty);
 	info->tty = NULL;
 	if (info->blocked_open) {
-		if (info->close_delay)
-			schedule_timeout_interruptible(info->close_delay);
+		if (state->close_delay)
+			schedule_timeout_interruptible(state->close_delay);
 		wake_up_interruptible(&info->open_wait);
 	}
 	state->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
@@ -630,9 +630,6 @@ static int get_async_struct(int line, struct async_struct **ret_info)
 	}
 	init_waitqueue_head(&info->open_wait);
 	init_waitqueue_head(&info->close_wait);
-	info->port = sstate->port;
-	info->xmit_fifo_size = sstate->xmit_fifo_size;
-	info->line = line;
 	info->state = sstate;
 	if (sstate->info) {
 		kfree(info);
