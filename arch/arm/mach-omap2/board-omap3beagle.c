@@ -253,6 +253,7 @@ static struct omap2_hsmmc_info mmc[] = {
 		.mmc		= 1,
 		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
 		.gpio_wp	= -EINVAL,
+		.deferred	= true,
 	},
 	{}	/* Terminator */
 };
@@ -272,12 +273,10 @@ static int beagle_twl_gpio_setup(struct device *dev,
 {
 	int r;
 
-	if (beagle_config.mmc1_gpio_wp != -EINVAL)
-		omap_mux_init_gpio(beagle_config.mmc1_gpio_wp, OMAP_PIN_INPUT);
 	mmc[0].gpio_wp = beagle_config.mmc1_gpio_wp;
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
-	omap2_hsmmc_init(mmc);
+	omap_hsmmc_late_init(mmc);
 
 	/*
 	 * TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR (out, XM active
@@ -521,6 +520,11 @@ static void __init omap3_beagle_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap3_beagle_init_rev();
+
+	if (beagle_config.mmc1_gpio_wp != -EINVAL)
+		omap_mux_init_gpio(beagle_config.mmc1_gpio_wp, OMAP_PIN_INPUT);
+	omap_hsmmc_init(mmc);
+
 	omap3_beagle_i2c_init();
 
 	gpio_buttons[0].gpio = beagle_config.usr_button_gpio;

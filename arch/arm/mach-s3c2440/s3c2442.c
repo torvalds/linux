@@ -122,7 +122,7 @@ static struct clk s3c2442_clk_cam_upll = {
 	},
 };
 
-static int s3c2442_clk_add(struct device *dev)
+static int s3c2442_clk_add(struct device *dev, struct subsys_interface *sif)
 {
 	struct clk *clock_upll;
 	struct clk *clock_h;

@@ -932,7 +932,7 @@ static int do_isapnp_entry(const char *filename,
 		(id->function >> 12) & 0x0f, (id->function >> 8) & 0x0f);
 	return 1;
 }
-ADD_TO_DEVTABLE("isa", struct isapnp_device_id, do_isapnp_entry);
+ADD_TO_DEVTABLE("isapnp", struct isapnp_device_id, do_isapnp_entry);
 
 /*
  * Append a match expression for a single masked hex digit.

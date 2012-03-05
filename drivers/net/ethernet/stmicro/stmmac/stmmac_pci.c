@@ -96,13 +96,11 @@ static int __devinit stmmac_pci_probe(struct pci_dev *pdev,
 
 	stmmac_default_data();
 
-	priv = stmmac_dvr_probe(&(pdev->dev), &plat_dat);
+	priv = stmmac_dvr_probe(&(pdev->dev), &plat_dat, addr);
 	if (!priv) {
-		pr_err("%s: main drivr probe failed", __func__);
+		pr_err("%s: main driver probe failed", __func__);
 		goto err_out;
 	}
-	priv->ioaddr = addr;
-	priv->dev->base_addr = (unsigned long)addr;
 	priv->dev->irq = pdev->irq;
 	priv->wol_irq = pdev->irq;
 

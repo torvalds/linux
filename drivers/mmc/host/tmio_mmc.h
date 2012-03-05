@@ -20,8 +20,8 @@
 #include <linux/mmc/tmio.h>
 #include <linux/mutex.h>
 #include <linux/pagemap.h>
-#include <linux/spinlock.h>
 #include <linux/scatterlist.h>
+#include <linux/spinlock.h>
 
 /* Definitions for values the CTRL_SDIO_STATUS register can take. */
 #define TMIO_SDIO_STAT_IOIRQ	0x0001
@@ -120,6 +120,7 @@ void tmio_mmc_start_dma(struct tmio_mmc_host *host, struct mmc_data *data);
 void tmio_mmc_enable_dma(struct tmio_mmc_host *host, bool enable);
 void tmio_mmc_request_dma(struct tmio_mmc_host *host, struct tmio_mmc_data *pdata);
 void tmio_mmc_release_dma(struct tmio_mmc_host *host);
+void tmio_mmc_abort_dma(struct tmio_mmc_host *host);
 #else
 static inline void tmio_mmc_start_dma(struct tmio_mmc_host *host,
 			       struct mmc_data *data)
@@ -138,6 +139,10 @@ static inline void tmio_mmc_request_dma(struct tmio_mmc_host *host,
 }
 
 static inline void tmio_mmc_release_dma(struct tmio_mmc_host *host)
+{
+}
+
+static inline void tmio_mmc_abort_dma(struct tmio_mmc_host *host)
 {
 }
 #endif

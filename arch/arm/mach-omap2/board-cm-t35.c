@@ -412,7 +412,7 @@ static struct omap2_hsmmc_info mmc[] = {
 		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
-
+		.deferred	= true,
 	},
 	{
 		.mmc		= 2,
@@ -436,7 +436,7 @@ static struct usbhs_omap_board_data usbhs_bdata __initdata = {
 	.reset_gpio_port[2]  = -EINVAL
 };
 
-static void cm_t35_init_usbh(void)
+static void  __init cm_t35_init_usbh(void)
 {
 	int err;
 
@@ -470,7 +470,7 @@ static int cm_t35_twl_gpio_setup(struct device *dev, unsigned gpio,
 
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
-	omap2_hsmmc_init(mmc);
+	omap_hsmmc_late_init(mmc);
 
 	return 0;
 }
@@ -638,6 +638,7 @@ static void __init cm_t3x_common_init(void)
 	omap_serial_init();
 	omap_sdrc_init(mt46h32m32lf6_sdrc_params,
 			     mt46h32m32lf6_sdrc_params);
+	omap_hsmmc_init(mmc);
 	cm_t35_init_i2c();
 	omap_ads7846_init(1, CM_T35_GPIO_PENDOWN, 0, NULL);
 	cm_t35_init_ethernet();

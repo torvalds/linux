@@ -276,7 +276,7 @@ int __init omap4_keyboard_init(struct omap4_keypad_platform_data
 }
 
 #if defined(CONFIG_OMAP_MBOX_FWK) || defined(CONFIG_OMAP_MBOX_FWK_MODULE)
-static inline void omap_init_mbox(void)
+static inline void __init omap_init_mbox(void)
 {
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;
@@ -337,7 +337,7 @@ static inline void omap_init_audio(void) {}
 #if defined(CONFIG_SND_OMAP_SOC_MCPDM) || \
 		defined(CONFIG_SND_OMAP_SOC_MCPDM_MODULE)
 
-static void omap_init_mcpdm(void)
+static void __init omap_init_mcpdm(void)
 {
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;
@@ -358,7 +358,7 @@ static inline void omap_init_mcpdm(void) {}
 #if defined(CONFIG_SND_OMAP_SOC_DMIC) || \
 		defined(CONFIG_SND_OMAP_SOC_DMIC_MODULE)
 
-static void omap_init_dmic(void)
+static void __init omap_init_dmic(void)
 {
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;
@@ -380,7 +380,7 @@ static inline void omap_init_dmic(void) {}
 
 #include <plat/mcspi.h>
 
-static int omap_mcspi_init(struct omap_hwmod *oh, void *unused)
+static int __init omap_mcspi_init(struct omap_hwmod *oh, void *unused)
 {
 	struct platform_device *pdev;
 	char *name = "omap2_mcspi";

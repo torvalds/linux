@@ -358,8 +358,8 @@ static struct zbud_hdr *zbud_create(uint16_t client_id, uint16_t pool_id,
 	if (unlikely(zbpg == NULL))
 		goto out;
 	/* ok, have a page, now compress the data before taking locks */
-	spin_lock(&zbpg->lock);
 	spin_lock(&zbud_budlists_spinlock);
+	spin_lock(&zbpg->lock);
 	list_add_tail(&zbpg->bud_list, &zbud_unbuddied[nchunks].list);
 	zbud_unbuddied[nchunks].count++;
 	zh = &zbpg->buddy[0];
@@ -389,12 +389,11 @@ init_zh:
 	zh->oid = *oid;
 	zh->pool_id = pool_id;
 	zh->client_id = client_id;
-	/* can wait to copy the data until the list locks are dropped */
-	spin_unlock(&zbud_budlists_spinlock);
-
 	to = zbud_data(zh, size);
 	memcpy(to, cdata, size);
 	spin_unlock(&zbpg->lock);
+	spin_unlock(&zbud_budlists_spinlock);
+
 	zbud_cumul_chunk_counts[nchunks]++;
 	atomic_inc(&zcache_zbud_curr_zpages);
 	zcache_zbud_cumul_zpages++;
@@ -655,8 +654,8 @@ static unsigned int zv_max_zsize = (PAGE_SIZE / 8) * 7;
  */
 static unsigned int zv_max_mean_zsize = (PAGE_SIZE / 8) * 5;
 
-static unsigned long zv_curr_dist_counts[NCHUNKS];
-static unsigned long zv_cumul_dist_counts[NCHUNKS];
+static atomic_t zv_curr_dist_counts[NCHUNKS];
+static atomic_t zv_cumul_dist_counts[NCHUNKS];
 
 static struct zv_hdr *zv_create(struct xv_pool *xvpool, uint32_t pool_id,
 				struct tmem_oid *oid, uint32_t index,
@@ -675,8 +674,8 @@ static struct zv_hdr *zv_create(struct xv_pool *xvpool, uint32_t pool_id,
 			&page, &offset, ZCACHE_GFP_MASK);
 	if (unlikely(ret))
 		goto out;
-	zv_curr_dist_counts[chunks]++;
-	zv_cumul_dist_counts[chunks]++;
+	atomic_inc(&zv_curr_dist_counts[chunks]);
+	atomic_inc(&zv_cumul_dist_counts[chunks]);
 	zv = kmap_atomic(page, KM_USER0) + offset;
 	zv->index = index;
 	zv->oid = *oid;
@@ -698,7 +697,7 @@ static void zv_free(struct xv_pool *xvpool, struct zv_hdr *zv)
 
 	ASSERT_SENTINEL(zv, ZVH);
 	BUG_ON(chunks >= NCHUNKS);
-	zv_curr_dist_counts[chunks]--;
+	atomic_dec(&zv_curr_dist_counts[chunks]);
 	size -= sizeof(*zv);
 	BUG_ON(size == 0);
 	INVERT_SENTINEL(zv, ZVH);
@@ -738,7 +737,7 @@ static int zv_curr_dist_counts_show(char *buf)
 	char *p = buf;
 
 	for (i = 0; i < NCHUNKS; i++) {
-		n = zv_curr_dist_counts[i];
+		n = atomic_read(&zv_curr_dist_counts[i]);
 		p += sprintf(p, "%lu ", n);
 		chunks += n;
 		sum_total_chunks += i * n;
@@ -754,7 +753,7 @@ static int zv_cumul_dist_counts_show(char *buf)
 	char *p = buf;
 
 	for (i = 0; i < NCHUNKS; i++) {
-		n = zv_cumul_dist_counts[i];
+		n = atomic_read(&zv_cumul_dist_counts[i]);
 		p += sprintf(p, "%lu ", n);
 		chunks += n;
 		sum_total_chunks += i * n;
@@ -1782,9 +1781,9 @@ static int zcache_frontswap_poolid = -1;
  * Swizzling increases objects per swaptype, increasing tmem concurrency
  * for heavy swaploads.  Later, larger nr_cpus -> larger SWIZ_BITS
  * Setting SWIZ_BITS to 27 basically reconstructs the swap entry from
- * frontswap_get_page()
+ * frontswap_get_page(), but has side-effects. Hence using 8.
  */
-#define SWIZ_BITS		27
+#define SWIZ_BITS		8
 #define SWIZ_MASK		((1 << SWIZ_BITS) - 1)
 #define _oswiz(_type, _ind)	((_type << SWIZ_BITS) | (_ind & SWIZ_MASK))
 #define iswiz(_ind)		(_ind >> SWIZ_BITS)

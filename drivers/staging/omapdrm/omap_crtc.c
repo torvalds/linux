@@ -27,196 +27,95 @@
 
 struct omap_crtc {
 	struct drm_crtc base;
-	struct omap_overlay *ovl;
-	struct omap_overlay_info info;
+	struct drm_plane *plane;
+	const char *name;
 	int id;
 
-	/* if there is a pending flip, this will be non-null: */
+	/* if there is a pending flip, these will be non-null: */
 	struct drm_pending_vblank_event *event;
+	struct drm_framebuffer *old_fb;
 };
-
-/* push changes down to dss2 */
-static int commit(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	struct omap_overlay *ovl = omap_crtc->ovl;
-	struct omap_overlay_info *info = &omap_crtc->info;
-	int ret;
-
-	DBG("%s", omap_crtc->ovl->name);
-	DBG("%dx%d -> %dx%d (%d)", info->width, info->height, info->out_width,
-			info->out_height, info->screen_width);
-	DBG("%d,%d %08x", info->pos_x, info->pos_y, info->paddr);
-
-	/* NOTE: do we want to do this at all here, or just wait
-	 * for dpms(ON) since other CRTC's may not have their mode
-	 * set yet, so fb dimensions may still change..
-	 */
-	ret = ovl->set_overlay_info(ovl, info);
-	if (ret) {
-		dev_err(dev->dev, "could not set overlay info\n");
-		return ret;
-	}
-
-	/* our encoder doesn't necessarily get a commit() after this, in
-	 * particular in the dpms() and mode_set_base() cases, so force the
-	 * manager to update:
-	 *
-	 * could this be in the encoder somehow?
-	 */
-	if (ovl->manager) {
-		ret = ovl->manager->apply(ovl->manager);
-		if (ret) {
-			dev_err(dev->dev, "could not apply settings\n");
-			return ret;
-		}
-	}
-
-	if (info->enabled) {
-		omap_framebuffer_flush(crtc->fb, crtc->x, crtc->y,
-				crtc->fb->width, crtc->fb->height);
-	}
-
-	return 0;
-}
-
-/* update parameters that are dependent on the framebuffer dimensions and
- * position within the fb that this crtc scans out from. This is called
- * when framebuffer dimensions or x,y base may have changed, either due
- * to our mode, or a change in another crtc that is scanning out of the
- * same fb.
- */
-static void update_scanout(struct drm_crtc *crtc)
-{
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	dma_addr_t paddr;
-	unsigned int screen_width;
-
-	omap_framebuffer_get_buffer(crtc->fb, crtc->x, crtc->y,
-			NULL, &paddr, &screen_width);
-
-	DBG("%s: %d,%d: %08x (%d)", omap_crtc->ovl->name,
-			crtc->x, crtc->y, (u32)paddr, screen_width);
-
-	omap_crtc->info.paddr = paddr;
-	omap_crtc->info.screen_width = screen_width;
-}
 
 static void omap_crtc_gamma_set(struct drm_crtc *crtc,
 		u16 *red, u16 *green, u16 *blue, uint32_t start, uint32_t size)
 {
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	DBG("%s", omap_crtc->ovl->name);
+	/* not supported.. at least not yet */
 }
 
 static void omap_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	DBG("%s", omap_crtc->ovl->name);
+	omap_crtc->plane->funcs->destroy(omap_crtc->plane);
 	drm_crtc_cleanup(crtc);
 	kfree(omap_crtc);
 }
 
 static void omap_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
+	struct omap_drm_private *priv = crtc->dev->dev_private;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	int i;
 
-	DBG("%s: %d", omap_crtc->ovl->name, mode);
+	WARN_ON(omap_plane_dpms(omap_crtc->plane, mode));
 
-	if (mode == DRM_MODE_DPMS_ON) {
-		update_scanout(crtc);
-		omap_crtc->info.enabled = true;
-	} else {
-		omap_crtc->info.enabled = false;
+	for (i = 0; i < priv->num_planes; i++) {
+		struct drm_plane *plane = priv->planes[i];
+		if (plane->crtc == crtc)
+			WARN_ON(omap_plane_dpms(plane, mode));
 	}
-
-	WARN_ON(commit(crtc));
 }
 
 static bool omap_crtc_mode_fixup(struct drm_crtc *crtc,
-				  struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
+		struct drm_display_mode *mode,
+		struct drm_display_mode *adjusted_mode)
 {
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	DBG("%s", omap_crtc->ovl->name);
 	return true;
 }
 
 static int omap_crtc_mode_set(struct drm_crtc *crtc,
-			       struct drm_display_mode *mode,
-			       struct drm_display_mode *adjusted_mode,
-			       int x, int y,
-			       struct drm_framebuffer *old_fb)
+		struct drm_display_mode *mode,
+		struct drm_display_mode *adjusted_mode,
+		int x, int y,
+		struct drm_framebuffer *old_fb)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct drm_plane *plane = omap_crtc->plane;
 
-	DBG("%s: %d,%d: %dx%d", omap_crtc->ovl->name, x, y,
-			mode->hdisplay, mode->vdisplay);
-
-	/* just use adjusted mode */
-	mode = adjusted_mode;
-
-	omap_crtc->info.width = mode->hdisplay;
-	omap_crtc->info.height = mode->vdisplay;
-	omap_crtc->info.out_width = mode->hdisplay;
-	omap_crtc->info.out_height = mode->vdisplay;
-	omap_crtc->info.color_mode = OMAP_DSS_COLOR_RGB24U;
-	omap_crtc->info.rotation_type = OMAP_DSS_ROT_DMA;
-	omap_crtc->info.rotation = OMAP_DSS_ROT_0;
-	omap_crtc->info.global_alpha = 0xff;
-	omap_crtc->info.mirror = 0;
-	omap_crtc->info.mirror = 0;
-	omap_crtc->info.pos_x = 0;
-	omap_crtc->info.pos_y = 0;
-#if 0 /* re-enable when these are available in DSS2 driver */
-	omap_crtc->info.zorder = 3;        /* GUI in the front, video behind */
-	omap_crtc->info.min_x_decim = 1;
-	omap_crtc->info.max_x_decim = 1;
-	omap_crtc->info.min_y_decim = 1;
-	omap_crtc->info.max_y_decim = 1;
-#endif
-
-	update_scanout(crtc);
-
-	return 0;
+	return omap_plane_mode_set(plane, crtc, crtc->fb,
+			0, 0, mode->hdisplay, mode->vdisplay,
+			x << 16, y << 16,
+			mode->hdisplay << 16, mode->vdisplay << 16);
 }
 
 static void omap_crtc_prepare(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	struct omap_overlay *ovl = omap_crtc->ovl;
-
-	DBG("%s", omap_crtc->ovl->name);
-
-	ovl->get_overlay_info(ovl, &omap_crtc->info);
-
+	DBG("%s", omap_crtc->name);
 	omap_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 }
 
 static void omap_crtc_commit(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	DBG("%s", omap_crtc->ovl->name);
+	DBG("%s", omap_crtc->name);
 	omap_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
 
 static int omap_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
-		    struct drm_framebuffer *old_fb)
+		struct drm_framebuffer *old_fb)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct drm_plane *plane = omap_crtc->plane;
+	struct drm_display_mode *mode = &crtc->mode;
 
-	DBG("%s %d,%d: fb=%p", omap_crtc->ovl->name, x, y, old_fb);
-
-	update_scanout(crtc);
-
-	return commit(crtc);
+	return plane->funcs->update_plane(plane, crtc, crtc->fb,
+			0, 0, mode->hdisplay, mode->vdisplay,
+			x << 16, y << 16,
+			mode->hdisplay << 16, mode->vdisplay << 16);
 }
 
 static void omap_crtc_load_lut(struct drm_crtc *crtc)
 {
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	DBG("%s", omap_crtc->ovl->name);
 }
 
 static void page_flip_cb(void *arg)
@@ -225,15 +124,16 @@ static void page_flip_cb(void *arg)
 	struct drm_device *dev = crtc->dev;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	struct drm_pending_vblank_event *event = omap_crtc->event;
+	struct drm_framebuffer *old_fb = omap_crtc->old_fb;
 	struct timeval now;
 	unsigned long flags;
 
 	WARN_ON(!event);
 
 	omap_crtc->event = NULL;
+	omap_crtc->old_fb = NULL;
 
-	update_scanout(crtc);
-	WARN_ON(commit(crtc));
+	omap_crtc_mode_set_base(crtc, crtc->x, crtc->y, old_fb);
 
 	/* wakeup userspace */
 	/* TODO: this should happen *after* flip in vsync IRQ handler */
@@ -264,10 +164,11 @@ static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	crtc->fb = fb;
+	omap_crtc->old_fb = crtc->fb;
 	omap_crtc->event = event;
+	crtc->fb = fb;
 
-	omap_gem_op_async(omap_framebuffer_bo(fb), OMAP_GEM_READ,
+	omap_gem_op_async(omap_framebuffer_bo(fb, 0), OMAP_GEM_READ,
 			page_flip_cb, crtc);
 
 	return 0;
@@ -290,12 +191,6 @@ static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {
 	.load_lut = omap_crtc_load_lut,
 };
 
-struct omap_overlay *omap_crtc_get_overlay(struct drm_crtc *crtc)
-{
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	return omap_crtc->ovl;
-}
-
 /* initialize crtc */
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 		struct omap_overlay *ovl, int id)
@@ -310,9 +205,13 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 		goto fail;
 	}
 
-	omap_crtc->ovl = ovl;
-	omap_crtc->id = id;
 	crtc = &omap_crtc->base;
+
+	omap_crtc->plane = omap_plane_init(dev, ovl, (1 << id), true);
+	omap_crtc->plane->crtc = crtc;
+	omap_crtc->name = ovl->name;
+	omap_crtc->id = id;
+
 	drm_crtc_init(dev, crtc, &omap_crtc_funcs);
 	drm_crtc_helper_add(crtc, &omap_crtc_helper_funcs);
 

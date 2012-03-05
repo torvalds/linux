@@ -815,6 +815,7 @@ struct iwl_qosparam_cmd {
 
 #define	IWL_INVALID_STATION 	255
 #define IWL_MAX_TID_COUNT	8
+#define IWL_TID_NON_QOS IWL_MAX_TID_COUNT
 
 #define STA_FLG_TX_RATE_MSK		cpu_to_le32(1 << 2)
 #define STA_FLG_PWR_SAVE_MSK		cpu_to_le32(1 << 8)

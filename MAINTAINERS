@@ -3318,6 +3318,12 @@ S:	Maintained
 F:	net/ieee802154/
 F:	drivers/ieee802154/
 
+IIO SUBSYSTEM AND DRIVERS
+M:	Jonathan Cameron <jic23@cam.ac.uk>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/iio/
+
 IKANOS/ADI EAGLE ADSL USB DRIVER
 M:	Matthieu Castet <castet.matthieu@free.fr>
 M:	Stanislaw Gruszka <stf_xl@wp.pl>

@@ -1517,8 +1517,8 @@ static int _enable(struct omap_hwmod *oh)
 	if (oh->_state != _HWMOD_STATE_INITIALIZED &&
 	    oh->_state != _HWMOD_STATE_IDLE &&
 	    oh->_state != _HWMOD_STATE_DISABLED) {
-		WARN(1, "omap_hwmod: %s: enabled state can only be entered "
-		     "from initialized, idle, or disabled state\n", oh->name);
+		WARN(1, "omap_hwmod: %s: enabled state can only be entered from initialized, idle, or disabled state\n",
+			oh->name);
 		return -EINVAL;
 	}
 
@@ -1600,8 +1600,8 @@ static int _idle(struct omap_hwmod *oh)
 	pr_debug("omap_hwmod: %s: idling\n", oh->name);
 
 	if (oh->_state != _HWMOD_STATE_ENABLED) {
-		WARN(1, "omap_hwmod: %s: idle state can only be entered from "
-		     "enabled state\n", oh->name);
+		WARN(1, "omap_hwmod: %s: idle state can only be entered from enabled state\n",
+			oh->name);
 		return -EINVAL;
 	}
 
@@ -1682,8 +1682,8 @@ static int _shutdown(struct omap_hwmod *oh)
 
 	if (oh->_state != _HWMOD_STATE_IDLE &&
 	    oh->_state != _HWMOD_STATE_ENABLED) {
-		WARN(1, "omap_hwmod: %s: disabled state can only be entered "
-		     "from idle, or enabled state\n", oh->name);
+		WARN(1, "omap_hwmod: %s: disabled state can only be entered from idle, or enabled state\n",
+			oh->name);
 		return -EINVAL;
 	}
 
@@ -2240,8 +2240,8 @@ void omap_hwmod_ocp_barrier(struct omap_hwmod *oh)
 	BUG_ON(!oh);
 
 	if (!oh->class->sysc || !oh->class->sysc->sysc_flags) {
-		WARN(1, "omap_device: %s: OCP barrier impossible due to "
-		      "device configuration\n", oh->name);
+		WARN(1, "omap_device: %s: OCP barrier impossible due to device configuration\n",
+			oh->name);
 		return;
 	}
 

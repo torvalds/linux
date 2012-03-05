@@ -1600,8 +1600,9 @@ static int emac_dev_open(struct net_device *ndev)
 		if (IS_ERR(priv->phydev)) {
 			dev_err(emac_dev, "could not connect to phy %s\n",
 				priv->phy_id);
+			ret = PTR_ERR(priv->phydev);
 			priv->phydev = NULL;
-			return PTR_ERR(priv->phydev);
+			return ret;
 		}
 
 		priv->link = 0;

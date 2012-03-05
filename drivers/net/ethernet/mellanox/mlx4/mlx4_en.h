@@ -528,7 +528,8 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_rx_ring *ring,
 			   u32 size, u16 stride);
 void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
-			     struct mlx4_en_rx_ring *ring);
+			     struct mlx4_en_rx_ring *ring,
+			     u32 size, u16 stride);
 int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv);
 void mlx4_en_deactivate_rx_ring(struct mlx4_en_priv *priv,
 				struct mlx4_en_rx_ring *ring);

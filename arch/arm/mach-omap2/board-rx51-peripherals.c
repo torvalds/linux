@@ -1142,7 +1142,7 @@ void __init rx51_peripherals_init(void)
 
 	partition = omap_mux_get("core");
 	if (partition)
-		omap2_hsmmc_init(mmc);
+		omap_hsmmc_init(mmc);
 
 	rx51_charger_init();
 }

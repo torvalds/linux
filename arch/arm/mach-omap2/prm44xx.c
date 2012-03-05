@@ -18,6 +18,7 @@
 #include <linux/io.h>
 
 #include <plat/cpu.h>
+#include <plat/irqs.h>
 #include <plat/prcm.h>
 
 #include "iomap.h"

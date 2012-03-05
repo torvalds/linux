@@ -136,7 +136,7 @@ static int new_steering_entry(struct mlx4_dev *dev, u8 port,
 	u32 prot;
 	int err;
 
-	s_steer = &mlx4_priv(dev)->steer[0];
+	s_steer = &mlx4_priv(dev)->steer[port - 1];
 	new_entry = kzalloc(sizeof *new_entry, GFP_KERNEL);
 	if (!new_entry)
 		return -ENOMEM;
@@ -220,7 +220,7 @@ static int existing_steering_entry(struct mlx4_dev *dev, u8 port,
 	struct mlx4_promisc_qp *pqp;
 	struct mlx4_promisc_qp *dqp;
 
-	s_steer = &mlx4_priv(dev)->steer[0];
+	s_steer = &mlx4_priv(dev)->steer[port - 1];
 
 	pqp = get_promisc_qp(dev, 0, steer, qpn);
 	if (!pqp)
@@ -265,7 +265,7 @@ static bool check_duplicate_entry(struct mlx4_dev *dev, u8 port,
 	struct mlx4_steer_index *tmp_entry, *entry = NULL;
 	struct mlx4_promisc_qp *dqp, *tmp_dqp;
 
-	s_steer = &mlx4_priv(dev)->steer[0];
+	s_steer = &mlx4_priv(dev)->steer[port - 1];
 
 	/* if qp is not promisc, it cannot be duplicated */
 	if (!get_promisc_qp(dev, 0, steer, qpn))
@@ -306,7 +306,7 @@ static bool can_remove_steering_entry(struct mlx4_dev *dev, u8 port,
 	bool ret = false;
 	int i;
 
-	s_steer = &mlx4_priv(dev)->steer[0];
+	s_steer = &mlx4_priv(dev)->steer[port - 1];
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
@@ -361,7 +361,7 @@ static int add_promisc_qp(struct mlx4_dev *dev, u8 port,
 	int err;
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
-	s_steer = &mlx4_priv(dev)->steer[0];
+	s_steer = &mlx4_priv(dev)->steer[port - 1];
 
 	mutex_lock(&priv->mcg_table.mutex);
 
@@ -466,7 +466,7 @@ static int remove_promisc_qp(struct mlx4_dev *dev, u8 port,
 	int loc, i;
 	int err;
 
-	s_steer = &mlx4_priv(dev)->steer[0];
+	s_steer = &mlx4_priv(dev)->steer[port - 1];
 	mutex_lock(&priv->mcg_table.mutex);
 
 	pqp = get_promisc_qp(dev, 0, steer, qpn);
@@ -1004,7 +1004,7 @@ EXPORT_SYMBOL_GPL(mlx4_multicast_promisc_remove);
 
 int mlx4_unicast_promisc_add(struct mlx4_dev *dev, u32 qpn, u8 port)
 {
-	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER))
+	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER))
 		return 0;
 
 	if (mlx4_is_mfunc(dev))
@@ -1016,7 +1016,7 @@ EXPORT_SYMBOL_GPL(mlx4_unicast_promisc_add);
 
 int mlx4_unicast_promisc_remove(struct mlx4_dev *dev, u32 qpn, u8 port)
 {
-	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER))
+	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER))
 		return 0;
 
 	if (mlx4_is_mfunc(dev))

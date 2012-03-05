@@ -220,14 +220,14 @@ static struct s3c_fb_pd_win nuri_fb_win0 = {
 		.lower_margin	= 1,
 		.hsync_len	= 48,
 		.vsync_len	= 3,
-		.xres		= 1280,
-		.yres		= 800,
+		.xres		= 1024,
+		.yres		= 600,
 		.refresh	= 60,
 	},
 	.max_bpp	= 24,
 	.default_bpp	= 16,
-	.virtual_x	= 1280,
-	.virtual_y	= 800,
+	.virtual_x	= 1024,
+	.virtual_y	= 2 * 600,
 };
 
 static struct s3c_fb_platdata nuri_fb_pdata __initdata = {

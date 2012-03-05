@@ -273,6 +273,7 @@ static struct omap2_hsmmc_info omap3pandora_mmc[] = {
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= 126,
 		.ext_clock	= 0,
+		.deferred	= true,
 	},
 	{
 		.mmc		= 2,
@@ -281,6 +282,7 @@ static struct omap2_hsmmc_info omap3pandora_mmc[] = {
 		.gpio_wp	= 127,
 		.ext_clock	= 1,
 		.transceiver	= true,
+		.deferred	= true,
 	},
 	{
 		.mmc		= 3,
@@ -300,7 +302,7 @@ static int omap3pandora_twl_gpio_setup(struct device *dev,
 	/* gpio + {0,1} is "mmc{0,1}_cd" (input/IRQ) */
 	omap3pandora_mmc[0].gpio_cd = gpio + 0;
 	omap3pandora_mmc[1].gpio_cd = gpio + 1;
-	omap2_hsmmc_init(omap3pandora_mmc);
+	omap_hsmmc_late_init(omap3pandora_mmc);
 
 	/* gpio + 13 drives 32kHz buffer for wifi module */
 	gpio_32khz = gpio + 13;
@@ -580,6 +582,7 @@ static struct omap_board_mux board_mux[] __initdata = {
 static void __init omap3pandora_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+	omap_hsmmc_init(omap3pandora_mmc);
 	omap3pandora_i2c_init();
 	pandora_wl1251_init();
 	platform_add_devices(omap3pandora_devices,

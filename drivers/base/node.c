@@ -456,7 +456,15 @@ static int link_mem_sections(int nid)
 		if (!present_section_nr(section_nr))
 			continue;
 		mem_sect = __nr_to_section(section_nr);
+
+		/* same memblock ? */
+		if (mem_blk)
+			if ((section_nr >= mem_blk->start_section_nr) &&
+			    (section_nr <= mem_blk->end_section_nr))
+				continue;
+
 		mem_blk = find_memory_block_hinted(mem_sect, mem_blk);
+
 		ret = register_mem_sect_under_node(mem_blk, nid);
 		if (!err)
 			err = ret;
