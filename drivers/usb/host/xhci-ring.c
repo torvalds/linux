@@ -249,16 +249,24 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
 }
 
 /*
- * Check to see if there's room to enqueue num_trbs on the ring.  See rules
- * above.
+ * Check to see if there's room to enqueue num_trbs on the ring and make sure
+ * enqueue pointer will not advance into dequeue segment. See rules above.
  */
 static inline int room_on_ring(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		unsigned int num_trbs)
 {
-	if (ring->num_trbs_free >= num_trbs)
-		return 1;
+	int num_trbs_in_deq_seg;
 
-	return 0;
+	if (ring->num_trbs_free < num_trbs)
+		return 0;
+
+	if (ring->type != TYPE_COMMAND && ring->type != TYPE_EVENT) {
+		num_trbs_in_deq_seg = ring->dequeue - ring->deq_seg->trbs;
+		if (ring->num_trbs_free < num_trbs + num_trbs_in_deq_seg)
+			return 0;
+	}
+
+	return 1;
 }
 
 /* Ring the host controller doorbell after placing a command on the ring */
@@ -2526,13 +2534,6 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 
 		if (ep_ring == xhci->cmd_ring) {
 			xhci_err(xhci, "Do not support expand command ring\n");
-			return -ENOMEM;
-		}
-
-		if (ep_ring->enq_seg == ep_ring->deq_seg &&
-				ep_ring->dequeue > ep_ring->enqueue) {
-			xhci_err(xhci, "Can not expand the ring while dequeue "
-				"pointer has not passed the link TRB\n");
 			return -ENOMEM;
 		}
 
