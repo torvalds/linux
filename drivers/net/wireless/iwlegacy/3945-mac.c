@@ -573,7 +573,6 @@ il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	len = (u16) skb->len;
 	tx_cmd->len = cpu_to_le16(len);
 
-	il_dbg_log_tx_data_frame(il, len, hdr);
 	il_update_stats(il, true, fc, len);
 	tx_cmd->tx_flags &= ~TX_CMD_FLG_ANT_A_MSK;
 	tx_cmd->tx_flags &= ~TX_CMD_FLG_ANT_B_MSK;
@@ -616,7 +615,7 @@ il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 
 	/* Add buffer containing Tx command and MAC(!) header to TFD's
 	 * first entry */
-	il->ops->lib->txq_attach_buf_to_tfd(il, txq, txcmd_phys, len, 1, 0);
+	il->ops->txq_attach_buf_to_tfd(il, txq, txcmd_phys, len, 1, 0);
 
 	/* Set up TFD's 2nd entry to point directly to remainder of skb,
 	 * if any (802.11 null frames have no payload). */
@@ -625,8 +624,8 @@ il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 		phys_addr =
 		    pci_map_single(il->pci_dev, skb->data + hdr_len, len,
 				   PCI_DMA_TODEVICE);
-		il->ops->lib->txq_attach_buf_to_tfd(il, txq, phys_addr, len, 0,
-						    U32_PAD(len));
+		il->ops->txq_attach_buf_to_tfd(il, txq, phys_addr, len, 0,
+					       U32_PAD(len));
 	}
 
 	/* Tell device the write idx *just past* this latest filled TFD */
@@ -810,16 +809,16 @@ il3945_hdl_card_state(struct il_priv *il, struct il_rx_buf *rxb)
 	_il_wr(il, CSR_UCODE_DRV_GP1_SET, CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 
 	if (flags & HW_CARD_DISABLED)
-		set_bit(S_RF_KILL_HW, &il->status);
+		set_bit(S_RFKILL, &il->status);
 	else
-		clear_bit(S_RF_KILL_HW, &il->status);
+		clear_bit(S_RFKILL, &il->status);
 
 	il_scan_cancel(il);
 
-	if ((test_bit(S_RF_KILL_HW, &status) !=
-	     test_bit(S_RF_KILL_HW, &il->status)))
+	if ((test_bit(S_RFKILL, &status) !=
+	     test_bit(S_RFKILL, &il->status)))
 		wiphy_rfkill_set_hw_state(il->hw->wiphy,
-					  test_bit(S_RF_KILL_HW, &il->status));
+					  test_bit(S_RFKILL, &il->status));
 	else
 		wake_up(&il->wait_command_queue);
 }
@@ -2167,7 +2166,7 @@ il3945_alive_start(struct il_priv *il)
 	D_INFO("RFKILL status: 0x%x\n", rfkill);
 
 	if (rfkill & 0x1) {
-		clear_bit(S_RF_KILL_HW, &il->status);
+		clear_bit(S_RFKILL, &il->status);
 		/* if RFKILL is not on, then wait for thermal
 		 * sensor in adapter to kick in */
 		while (il3945_hw_get_temperature(il) == 0) {
@@ -2179,7 +2178,7 @@ il3945_alive_start(struct il_priv *il)
 			D_INFO("Thermal calibration took %dus\n",
 			       thermal_spin * 10);
 	} else
-		set_bit(S_RF_KILL_HW, &il->status);
+		set_bit(S_RFKILL, &il->status);
 
 	/* After the ALIVE response, we can send commands to 3945 uCode */
 	set_bit(S_ALIVE, &il->status);
@@ -2273,12 +2272,8 @@ __il3945_down(struct il_priv *il)
 	 * clear all bits but the RF Kill bits and return */
 	if (!il_is_init(il)) {
 		il->status =
-		    test_bit(S_RF_KILL_HW,
-			     &il->
-			     status) << S_RF_KILL_HW |
-		    test_bit(S_GEO_CONFIGURED,
-			     &il->
-			     status) << S_GEO_CONFIGURED |
+		    test_bit(S_RFKILL, &il->status) << S_RFKILL |
+		    test_bit(S_GEO_CONFIGURED, &il->status) << S_GEO_CONFIGURED |
 		    test_bit(S_EXIT_PENDING, &il->status) << S_EXIT_PENDING;
 		goto exit;
 	}
@@ -2286,25 +2281,30 @@ __il3945_down(struct il_priv *il)
 	/* ...otherwise clear out all the status bits but the RF Kill
 	 * bit and continue taking the NIC down. */
 	il->status &=
-	    test_bit(S_RF_KILL_HW,
-		     &il->status) << S_RF_KILL_HW | test_bit(S_GEO_CONFIGURED,
-							     &il->
-							     status) <<
-	    S_GEO_CONFIGURED | test_bit(S_FW_ERROR,
-					&il->
-					status) << S_FW_ERROR |
+	    test_bit(S_RFKILL, &il->status) << S_RFKILL |
+	    test_bit(S_GEO_CONFIGURED, &il->status) << S_GEO_CONFIGURED |
+	    test_bit(S_FW_ERROR, &il->status) << S_FW_ERROR |
 	    test_bit(S_EXIT_PENDING, &il->status) << S_EXIT_PENDING;
+
+	/*
+	 * We disabled and synchronized interrupt, and priv->mutex is taken, so
+	 * here is the only thread which will program device registers, but
+	 * still have lockdep assertions, so we are taking reg_lock.
+	 */
+	spin_lock_irq(&il->reg_lock);
+	/* FIXME: il_grab_nic_access if rfkill is off ? */
 
 	il3945_hw_txq_ctx_stop(il);
 	il3945_hw_rxq_stop(il);
-
 	/* Power-down device's busmaster DMA clocks */
-	il_wr_prph(il, APMG_CLK_DIS_REG, APMG_CLK_VAL_DMA_CLK_RQT);
+	_il_wr_prph(il, APMG_CLK_DIS_REG, APMG_CLK_VAL_DMA_CLK_RQT);
 	udelay(5);
-
 	/* Stop the device, and put it in low power state */
-	il_apm_stop(il);
+	_il_apm_stop(il);
 
+	spin_unlock_irq(&il->reg_lock);
+
+	il3945_hw_txq_ctx_free(il);
 exit:
 	memset(&il->card_alive, 0, sizeof(struct il_alive_resp));
 
@@ -2371,9 +2371,9 @@ __il3945_up(struct il_priv *il)
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
 	if (_il_rd(il, CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
-		clear_bit(S_RF_KILL_HW, &il->status);
+		clear_bit(S_RFKILL, &il->status);
 	else {
-		set_bit(S_RF_KILL_HW, &il->status);
+		set_bit(S_RFKILL, &il->status);
 		IL_WARN("Radio disabled by HW RF Kill switch\n");
 		return -ENODEV;
 	}
@@ -2405,7 +2405,7 @@ __il3945_up(struct il_priv *il)
 	       il->ucode_data.len);
 
 	/* We return success when we resume from suspend and rf_kill is on. */
-	if (test_bit(S_RF_KILL_HW, &il->status))
+	if (test_bit(S_RFKILL, &il->status))
 		return 0;
 
 	for (i = 0; i < MAX_HW_RESTARTS; i++) {
@@ -2413,7 +2413,7 @@ __il3945_up(struct il_priv *il)
 		/* load bootstrap state machine,
 		 * load bootstrap program into processor's memory,
 		 * prepare to load the "initialize" uCode */
-		rc = il->ops->lib->load_ucode(il);
+		rc = il->ops->load_ucode(il);
 
 		if (rc) {
 			IL_ERR("Unable to set up bootstrap uCode: %d\n", rc);
@@ -2485,15 +2485,15 @@ il3945_rfkill_poll(struct work_struct *data)
 {
 	struct il_priv *il =
 	    container_of(data, struct il_priv, _3945.rfkill_poll.work);
-	bool old_rfkill = test_bit(S_RF_KILL_HW, &il->status);
+	bool old_rfkill = test_bit(S_RFKILL, &il->status);
 	bool new_rfkill =
 	    !(_il_rd(il, CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
 
 	if (new_rfkill != old_rfkill) {
 		if (new_rfkill)
-			set_bit(S_RF_KILL_HW, &il->status);
+			set_bit(S_RFKILL, &il->status);
 		else
-			clear_bit(S_RF_KILL_HW, &il->status);
+			clear_bit(S_RFKILL, &il->status);
 
 		wiphy_rfkill_set_hw_state(il->hw->wiphy, new_rfkill);
 
@@ -2782,10 +2782,9 @@ il3945_mac_start(struct ieee80211_hw *hw)
 	struct il_priv *il = hw->priv;
 	int ret;
 
-	D_MAC80211("enter\n");
-
 	/* we should be verifying the device is ready to be opened */
 	mutex_lock(&il->mutex);
+	D_MAC80211("enter\n");
 
 	/* fetch ucode file from disk, alloc and copy to bus-master buffers ...
 	 * ucode filename and max sizes are card-specific. */
@@ -2941,15 +2940,19 @@ il3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	 * hardware will then not attempt to decrypt the frames.
 	 */
 	if (vif->type == NL80211_IFTYPE_ADHOC &&
-	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
+	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
+		D_MAC80211("leave - IBSS RSN\n");
 		return -EOPNOTSUPP;
+	}
 
 	static_key = !il_is_associated(il);
 
 	if (!static_key) {
 		sta_id = il_sta_id_or_broadcast(il, sta);
-		if (sta_id == IL_INVALID_STATION)
+		if (sta_id == IL_INVALID_STATION) {
+			D_MAC80211("leave - station not found\n");
 			return -EINVAL;
+		}
 	}
 
 	mutex_lock(&il->mutex);
@@ -2974,8 +2977,8 @@ il3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		ret = -EINVAL;
 	}
 
+	D_MAC80211("leave ret %d\n", ret);
 	mutex_unlock(&il->mutex);
-	D_MAC80211("leave\n");
 
 	return ret;
 }
@@ -2990,9 +2993,8 @@ il3945_mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	bool is_ap = vif->type == NL80211_IFTYPE_STATION;
 	u8 sta_id;
 
-	D_INFO("received request to add station %pM\n", sta->addr);
 	mutex_lock(&il->mutex);
-	D_INFO("proceeding to add station %pM\n", sta->addr);
+	D_INFO("station %pM\n", sta->addr);
 	sta_priv->common.sta_id = IL_INVALID_STATION;
 
 	ret = il_add_station_common(il, sta->addr, is_ap, sta, &sta_id);
@@ -3098,11 +3100,9 @@ il3945_store_debug_level(struct device *d, struct device_attribute *attr,
 	ret = strict_strtoul(buf, 0, &val);
 	if (ret)
 		IL_INFO("%s is not in hex or decimal form.\n", buf);
-	else {
+	else
 		il->debug_level = val;
-		if (il_alloc_traffic_mem(il))
-			IL_ERR("Not enough memory to generate traffic log\n");
-	}
+
 	return strnlen(buf, count);
 }
 
@@ -3619,11 +3619,11 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	D_INFO("*** LOAD DRIVER ***\n");
 	il->cfg = cfg;
 	il->ops = &il3945_ops;
+#ifdef CONFIG_IWLEGACY_DEBUGFS
+	il->debugfs_ops = &il3945_debugfs_ops;
+#endif
 	il->pci_dev = pdev;
 	il->inta_mask = CSR_INI_SET_MASK;
-
-	if (il_alloc_traffic_mem(il))
-		IL_ERR("Not enough memory to generate traffic log\n");
 
 	/***************************
 	 * 2. Initializing PCI bus
@@ -3655,7 +3655,7 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/***********************
 	 * 3. Read REV Register
 	 * ********************/
-	il->hw_base = pci_iomap(pdev, 0, 0);
+	il->hw_base = pci_ioremap_bar(pdev, 0);
 	if (!il->hw_base) {
 		err = -ENODEV;
 		goto out_pci_release_regions;
@@ -3669,7 +3669,7 @@ il3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * PCI Tx retries from interfering with C3 CPU state */
 	pci_write_config_byte(pdev, 0x41, 0x00);
 
-	/* these spin locks will be used in apm_ops.init and EEPROM access
+	/* these spin locks will be used in apm_init and EEPROM access
 	 * we should init now
 	 */
 	spin_lock_init(&il->reg_lock);
@@ -3780,14 +3780,13 @@ out_unset_hw_params:
 out_eeprom_free:
 	il_eeprom_free(il);
 out_iounmap:
-	pci_iounmap(pdev, il->hw_base);
+	iounmap(il->hw_base);
 out_pci_release_regions:
 	pci_release_regions(pdev);
 out_pci_disable_device:
 	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 out_ieee80211_free_hw:
-	il_free_traffic_mem(il);
 	ieee80211_free_hw(il->hw);
 out:
 	return err;
@@ -3855,12 +3854,11 @@ il3945_pci_remove(struct pci_dev *pdev)
 	 * until now... */
 	destroy_workqueue(il->workqueue);
 	il->workqueue = NULL;
-	il_free_traffic_mem(il);
 
 	free_irq(pdev->irq, il);
 	pci_disable_msi(pdev);
 
-	pci_iounmap(pdev, il->hw_base);
+	iounmap(il->hw_base);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);

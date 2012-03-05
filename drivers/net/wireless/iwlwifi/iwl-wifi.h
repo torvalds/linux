@@ -64,6 +64,43 @@
 #define __iwl_wifi_h__
 
 #include "iwl-shared.h"
+#include "iwl-ucode.h"
+
+#define UCODE_EXPERIMENTAL_INDEX	100
+
+/**
+ * struct iwl_nic - nic common data
+ * @fw: the iwl_fw structure
+ * @shrd: pointer to common shared structure
+ * @op_mode: the running op_mode
+ * @fw_index: firmware revision to try loading
+ * @firmware_name: composite filename of ucode file to load
+ * @init_evtlog_ptr: event log offset for init ucode.
+ * @init_evtlog_size: event log size for init ucode.
+ * @init_errlog_ptr: error log offfset for init ucode.
+ * @inst_evtlog_ptr: event log offset for runtime ucode.
+ * @inst_evtlog_size: event log size for runtime ucode.
+ * @inst_errlog_ptr: error log offfset for runtime ucode.
+ * @request_firmware_complete: the firmware has been obtained from user space
+ */
+struct iwl_nic {
+	struct iwl_fw fw;
+
+	struct iwl_shared *shrd;
+	struct iwl_op_mode *op_mode;
+
+	int fw_index;                   /* firmware we're trying to load */
+	char firmware_name[25];         /* name of firmware file to load */
+
+	u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
+	u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
+
+	struct completion request_firmware_complete;
+};
+
+
+int __must_check iwl_request_firmware(struct iwl_nic *nic, bool first);
+void iwl_dealloc_ucode(struct iwl_nic *nic);
 
 int iwl_send_bt_env(struct iwl_trans *trans, u8 action, u8 type);
 void iwl_send_prio_tbl(struct iwl_trans *trans);

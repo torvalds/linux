@@ -1136,8 +1136,8 @@ static int brcms_suspend(struct bcma_device *pdev)
 	hw = bcma_get_drvdata(pdev);
 	wl = hw->priv;
 	if (!wl) {
-		wiphy_err(wl->wiphy,
-			  "brcms_suspend: bcma_get_drvdata failed\n");
+		pr_err("%s: %s: no driver private struct!\n", KBUILD_MODNAME,
+		       __func__);
 		return -ENODEV;
 	}
 

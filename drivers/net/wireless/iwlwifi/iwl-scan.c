@@ -218,7 +218,7 @@ static void iwl_do_scan_abort(struct iwl_priv *priv)
 int iwl_scan_cancel(struct iwl_priv *priv)
 {
 	IWL_DEBUG_SCAN(priv, "Queuing abort scan\n");
-	queue_work(priv->shrd->workqueue, &priv->abort_scan);
+	queue_work(priv->workqueue, &priv->abort_scan);
 	return 0;
 }
 
@@ -354,7 +354,7 @@ static int iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 	 */
 	set_bit(STATUS_SCAN_COMPLETE, &priv->shrd->status);
 	clear_bit(STATUS_SCAN_HW, &priv->shrd->status);
-	queue_work(priv->shrd->workqueue, &priv->scan_completed);
+	queue_work(priv->workqueue, &priv->scan_completed);
 
 	if (priv->iw_mode != NL80211_IFTYPE_ADHOC &&
 	    iwl_advanced_bt_coexist(priv) &&
@@ -374,7 +374,7 @@ static int iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 				IWL_BT_COEX_TRAFFIC_LOAD_NONE;
 		}
 		priv->bt_status = scan_notif->bt_status;
-		queue_work(priv->shrd->workqueue,
+		queue_work(priv->workqueue,
 			   &priv->bt_traffic_change_work);
 	}
 	return 0;
@@ -950,7 +950,7 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 		return ret;
 	}
 
-	queue_delayed_work(priv->shrd->workqueue, &priv->scan_check,
+	queue_delayed_work(priv->workqueue, &priv->scan_check,
 			   IWL_SCAN_CHECK_WATCHDOG);
 
 	return 0;
@@ -963,7 +963,7 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
  */
 void iwl_internal_short_hw_scan(struct iwl_priv *priv)
 {
-	queue_work(priv->shrd->workqueue, &priv->start_internal_scan);
+	queue_work(priv->workqueue, &priv->start_internal_scan);
 }
 
 static void iwl_bg_start_internal_scan(struct work_struct *work)

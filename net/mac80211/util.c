@@ -753,7 +753,7 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 	use_11b = (local->hw.conf.channel->band == IEEE80211_BAND_2GHZ) &&
 		 !(sdata->flags & IEEE80211_SDATA_OPERATING_GMODE);
 
-	for (queue = 0; queue < local_to_hw(local)->queues; queue++) {
+	for (queue = 0; queue < local->hw.queues; queue++) {
 		/* Set defaults according to 802.11-2007 Table 7-37 */
 		aCWmax = 1023;
 		if (use_11b)

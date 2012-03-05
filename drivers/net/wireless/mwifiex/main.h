@@ -217,7 +217,7 @@ struct mwifiex_802_11_security {
 	u8 wpa2_enabled;
 	u8 wapi_enabled;
 	u8 wapi_key_on;
-	enum MWIFIEX_802_11_WEP_STATUS wep_status;
+	u8 wep_enabled;
 	u32 authentication_mode;
 	u32 encryption_mode;
 };

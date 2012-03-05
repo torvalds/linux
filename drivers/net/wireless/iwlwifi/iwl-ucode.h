@@ -63,6 +63,8 @@
 #ifndef __iwl_ucode_h__
 #define __iwl_ucode_h__
 
+#include <linux/netdevice.h>
+
 /* v1/v2 uCode file layout */
 struct iwl_ucode_header {
 	__le32 ver;	/* major/minor/API/serial */
@@ -171,8 +173,48 @@ struct iwl_tlv_ucode_header {
 	u8 data[0];
 };
 
-struct iwl_priv;
+struct iwl_ucode_capabilities {
+	u32 max_probe_length;
+	u32 standard_phy_calibration_size;
+	u32 flags;
+};
 
-int __must_check iwl_request_firmware(struct iwl_priv *priv, bool first);
+/* one for each uCode image (inst/data, boot/init/runtime) */
+struct fw_desc {
+	dma_addr_t p_addr;	/* hardware address */
+	void *v_addr;		/* software address */
+	u32 len;		/* size in bytes */
+};
+
+struct fw_img {
+	struct fw_desc code;	/* firmware code image */
+	struct fw_desc data;	/* firmware data image */
+};
+
+/**
+ * struct iwl_fw - variables associated with the firmware
+ *
+ * @ucode_ver: ucode version from the ucode file
+ * @fw_version: firmware version string
+ * @ucode_rt: run time ucode image
+ * @ucode_init: init ucode image
+ * @ucode_wowlan: wake on wireless ucode image (optional)
+ * @ucode_capa: capabilities parsed from the ucode file.
+ * @enhance_sensitivity_table: device can do enhanced sensitivity.
+ */
+struct iwl_fw {
+
+	u32 ucode_ver;
+
+	char fw_version[ETHTOOL_BUSINFO_LEN];
+
+	/* ucode images */
+	struct fw_img ucode_rt;
+	struct fw_img ucode_init;
+	struct fw_img ucode_wowlan;
+
+	struct iwl_ucode_capabilities ucode_capa;
+	bool enhance_sensitivity_table;
+};
 
 #endif  /* __iwl_ucode_h__ */

@@ -581,7 +581,7 @@ static int iwlagn_rx_statistics(struct iwl_priv *priv,
 	if (unlikely(!test_bit(STATUS_SCANNING, &priv->shrd->status)) &&
 	    (pkt->hdr.cmd == STATISTICS_NOTIFICATION)) {
 		iwlagn_rx_calc_noise(priv);
-		queue_work(priv->shrd->workqueue, &priv->run_time_calib_work);
+		queue_work(priv->workqueue, &priv->run_time_calib_work);
 	}
 	if (cfg(priv)->lib->temperature && change)
 		cfg(priv)->lib->temperature(priv);
@@ -1141,10 +1141,11 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 
 }
 
-int iwl_rx_dispatch(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
+int iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct iwl_rx_mem_buffer *rxb,
 		     struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 	int err = 0;
 
 	/*

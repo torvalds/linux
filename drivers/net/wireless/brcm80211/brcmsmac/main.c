@@ -2901,7 +2901,6 @@ brcms_b_read_objmem(struct brcms_hardware *wlc_hw, uint offset, u32 sel)
 		objoff += 2;
 
 	return bcma_read16(core, objoff);
-;
 }
 
 static void

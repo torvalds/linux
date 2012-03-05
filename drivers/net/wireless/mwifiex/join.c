@@ -417,7 +417,7 @@ int mwifiex_cmd_802_11_associate(struct mwifiex_private *priv,
 	auth_tlv = (struct mwifiex_ie_types_auth_type *) pos;
 	auth_tlv->header.type = cpu_to_le16(TLV_TYPE_AUTH_TYPE);
 	auth_tlv->header.len = cpu_to_le16(sizeof(auth_tlv->auth_type));
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_ENABLED)
+	if (priv->sec_info.wep_enabled)
 		auth_tlv->auth_type = cpu_to_le16(
 				(u16) priv->sec_info.authentication_mode);
 	else
@@ -1069,8 +1069,7 @@ mwifiex_cmd_802_11_ad_hoc_join(struct mwifiex_private *priv,
 	priv->curr_bss_params.bss_descriptor.channel = bss_desc->channel;
 	priv->curr_bss_params.band = (u8) bss_desc->bss_band;
 
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_ENABLED
-	    || priv->sec_info.wpa_enabled)
+	if (priv->sec_info.wep_enabled || priv->sec_info.wpa_enabled)
 		tmp_cap |= WLAN_CAPABILITY_PRIVACY;
 
 	if (IS_SUPPORT_MULTI_BANDS(priv->adapter)) {

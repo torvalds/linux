@@ -40,6 +40,7 @@
 #include "iwl-trans.h"
 #include "iwl-debug.h"
 #include "iwl-io.h"
+#include "iwl-op-mode.h"
 
 struct iwl_tx_queue;
 struct iwl_queue;
@@ -230,6 +231,7 @@ struct iwl_trans_pcie {
 	struct tasklet_struct irq_tasklet;
 	struct isr_statistics isr_stats;
 
+	spinlock_t irq_lock;
 	u32 inta_mask;
 	u32 scd_base_addr;
 	struct iwl_dma_ptr scd_bc_tbls;
@@ -373,7 +375,7 @@ static inline void iwl_wake_queue(struct iwl_trans *trans,
 
 	if (test_and_clear_bit(hwq, trans_pcie->queue_stopped)) {
 		if (atomic_dec_return(&trans_pcie->queue_stop_count[ac]) <= 0) {
-			iwl_wake_sw_queue(priv(trans), ac);
+			iwl_op_mode_queue_not_full(trans->op_mode, ac);
 			IWL_DEBUG_TX_QUEUES(trans, "Wake hwq %d ac %d. %s",
 					    hwq, ac, msg);
 		} else {
@@ -396,7 +398,7 @@ static inline void iwl_stop_queue(struct iwl_trans *trans,
 
 	if (!test_and_set_bit(hwq, trans_pcie->queue_stopped)) {
 		if (atomic_inc_return(&trans_pcie->queue_stop_count[ac]) > 0) {
-			iwl_stop_sw_queue(priv(trans), ac);
+			iwl_op_mode_queue_full(trans->op_mode, ac);
 			IWL_DEBUG_TX_QUEUES(trans, "Stop hwq %d ac %d"
 					    " stop count %d. %s",
 					    hwq, ac, atomic_read(&trans_pcie->

@@ -957,12 +957,8 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 	mod_timer(&priv->tx.cleanup_timer,
 		  jiffies + msecs_to_jiffies(ATH9K_HTC_TX_CLEANUP_INTERVAL));
 
-	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE) {
-		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
-					   AR_STOMP_LOW_WLAN_WGHT);
-		ath9k_hw_btcoex_enable(ah);
-		ath_htc_resume_btcoex_work(priv);
-	}
+	ath9k_htc_start_btcoex(priv);
+
 	mutex_unlock(&priv->mutex);
 
 	return ret;
@@ -1009,12 +1005,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&priv->mutex);
 
-	if (ah->btcoex_hw.enabled &&
-	    ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) {
-		ath9k_hw_btcoex_disable(ah);
-		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
-			ath_htc_cancel_btcoex_work(priv);
-	}
+	ath9k_htc_stop_btcoex(priv);
 
 	/* Remove a monitor interface if it's present. */
 	if (priv->ah->is_monitoring)

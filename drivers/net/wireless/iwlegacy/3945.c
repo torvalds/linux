@@ -57,10 +57,6 @@ il3945_send_led_cmd(struct il_priv *il, struct il_led_cmd *led_cmd)
 	return il_send_cmd(il, &cmd);
 }
 
-const struct il_led_ops il3945_led_ops = {
-	.cmd = il3945_send_led_cmd,
-};
-
 #define IL_DECLARE_RATE_INFO(r, ip, in, rp, rn, pp, np)    \
 	[RATE_##r##M_IDX] = { RATE_##r##M_PLCP,   \
 				    RATE_##r##M_IEEE,   \
@@ -303,7 +299,7 @@ il3945_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx)
 		skb = txq->skbs[txq->q.read_ptr];
 		ieee80211_tx_status_irqsafe(il->hw, skb);
 		txq->skbs[txq->q.read_ptr] = NULL;
-		il->ops->lib->txq_free_tfd(il, txq);
+		il->ops->txq_free_tfd(il, txq);
 	}
 
 	if (il_queue_space(q) > q->low_mark && txq_id >= 0 &&
@@ -577,8 +573,6 @@ il3945_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 		network_packet ? '*' : ' ', le16_to_cpu(rx_hdr->channel),
 		rx_status.signal, rx_status.signal, rx_status.rate_idx);
 
-	il_dbg_log_rx_data_frame(il, le16_to_cpu(rx_hdr->len), header);
-
 	if (network_packet) {
 		il->_3945.last_beacon_time =
 		    le32_to_cpu(rx_end->beacon_timestamp);
@@ -796,7 +790,6 @@ il3945_rx_init(struct il_priv *il, struct il_rx_queue *rxq)
 static int
 il3945_tx_reset(struct il_priv *il)
 {
-
 	/* bypass mode */
 	il_wr_prph(il, ALM_SCD_MODE_REG, 0x2);
 
@@ -833,8 +826,7 @@ il3945_tx_reset(struct il_priv *il)
 static int
 il3945_txq_ctx_reset(struct il_priv *il)
 {
-	int rc;
-	int txq_id, slots_num;
+	int rc, txq_id;
 
 	il3945_hw_txq_ctx_free(il);
 
@@ -850,10 +842,7 @@ il3945_txq_ctx_reset(struct il_priv *il)
 
 	/* Tx queue(s) */
 	for (txq_id = 0; txq_id < il->hw_params.max_txq_num; txq_id++) {
-		slots_num =
-		    (txq_id ==
-		     IL39_CMD_QUEUE_NUM) ? TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
-		rc = il_tx_queue_init(il, &il->txq[txq_id], slots_num, txq_id);
+		rc = il_tx_queue_init(il, txq_id);
 		if (rc) {
 			IL_ERR("Tx %d queue init failed\n", txq_id);
 			goto error;
@@ -958,12 +947,11 @@ il3945_hw_nic_init(struct il_priv *il)
 	struct il_rx_queue *rxq = &il->rxq;
 
 	spin_lock_irqsave(&il->lock, flags);
-	il->ops->lib->apm_ops.init(il);
+	il3945_apm_init(il);
 	spin_unlock_irqrestore(&il->lock, flags);
 
 	il3945_set_pwr_vmain(il);
-
-	il->ops->lib->apm_ops.config(il);
+	il3945_nic_config(il);
 
 	/* Allocate the RX queue, or reset if it is already allocated */
 	if (!rxq->bd) {
@@ -1014,7 +1002,7 @@ il3945_hw_txq_ctx_free(struct il_priv *il)
 				il_tx_queue_free(il, txq_id);
 
 	/* free tx queue structure */
-	il_txq_mem(il);
+	il_free_txq_mem(il);
 }
 
 void
@@ -1023,18 +1011,17 @@ il3945_hw_txq_ctx_stop(struct il_priv *il)
 	int txq_id;
 
 	/* stop SCD */
-	il_wr_prph(il, ALM_SCD_MODE_REG, 0);
-	il_wr_prph(il, ALM_SCD_TXFACT_REG, 0);
+	_il_wr_prph(il, ALM_SCD_MODE_REG, 0);
+	_il_wr_prph(il, ALM_SCD_TXFACT_REG, 0);
 
 	/* reset TFD queues */
 	for (txq_id = 0; txq_id < il->hw_params.max_txq_num; txq_id++) {
-		il_wr(il, FH39_TCSR_CONFIG(txq_id), 0x0);
-		il_poll_bit(il, FH39_TSSR_TX_STATUS,
-			    FH39_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(txq_id),
-			    1000);
+		_il_wr(il, FH39_TCSR_CONFIG(txq_id), 0x0);
+		_il_poll_bit(il, FH39_TSSR_TX_STATUS,
+			     FH39_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(txq_id),
+			     FH39_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(txq_id),
+			     1000);
 	}
-
-	il3945_hw_txq_ctx_free(il);
 }
 
 /**
@@ -1613,7 +1600,7 @@ il3945_hw_reg_comp_txpower_temp(struct il_priv *il)
 	}
 
 	/* send Txpower command for current channel to ucode */
-	return il->ops->lib->send_tx_power(il);
+	return il->ops->send_tx_power(il);
 }
 
 int
@@ -2183,12 +2170,14 @@ il3945_txpower_set_from_eeprom(struct il_priv *il)
 int
 il3945_hw_rxq_stop(struct il_priv *il)
 {
-	int rc;
+	int ret;
 
-	il_wr(il, FH39_RCSR_CONFIG(0), 0);
-	rc = il_poll_bit(il, FH39_RSSR_STATUS,
-			 FH39_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
-	if (rc < 0)
+	_il_wr(il, FH39_RCSR_CONFIG(0), 0);
+	ret = _il_poll_bit(il, FH39_RSSR_STATUS,
+			   FH39_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
+			   FH39_RSSR_CHNL0_RX_STATUS_CHNL_IDLE,
+			   1000);
+	if (ret < 0)
 		IL_ERR("Can't stop Rx DMA.\n");
 
 	return 0;
@@ -2630,65 +2619,31 @@ il3945_load_bsm(struct il_priv *il)
 	return 0;
 }
 
-static struct il_hcmd_ops il3945_hcmd = {
-	.rxon_assoc = il3945_send_rxon_assoc,
-	.commit_rxon = il3945_commit_rxon,
-};
-
-static struct il_lib_ops il3945_lib = {
+const struct il_ops il3945_ops = {
 	.txq_attach_buf_to_tfd = il3945_hw_txq_attach_buf_to_tfd,
 	.txq_free_tfd = il3945_hw_txq_free_tfd,
 	.txq_init = il3945_hw_tx_queue_init,
 	.load_ucode = il3945_load_bsm,
 	.dump_nic_error_log = il3945_dump_nic_error_log,
-	.apm_ops = {
-		    .init = il3945_apm_init,
-		    .config = il3945_nic_config,
-		    },
-	.eeprom_ops = {
-		       .regulatory_bands = {
-					    EEPROM_REGULATORY_BAND_1_CHANNELS,
-					    EEPROM_REGULATORY_BAND_2_CHANNELS,
-					    EEPROM_REGULATORY_BAND_3_CHANNELS,
-					    EEPROM_REGULATORY_BAND_4_CHANNELS,
-					    EEPROM_REGULATORY_BAND_5_CHANNELS,
-					    EEPROM_REGULATORY_BAND_NO_HT40,
-					    EEPROM_REGULATORY_BAND_NO_HT40,
-					    },
-		       .acquire_semaphore = il3945_eeprom_acquire_semaphore,
-		       .release_semaphore = il3945_eeprom_release_semaphore,
-		       },
+	.apm_init = il3945_apm_init,
 	.send_tx_power = il3945_send_tx_power,
 	.is_valid_rtc_data_addr = il3945_hw_valid_rtc_data_addr,
+	.eeprom_acquire_semaphore = il3945_eeprom_acquire_semaphore,
+	.eeprom_release_semaphore = il3945_eeprom_release_semaphore,
 
-#ifdef CONFIG_IWLEGACY_DEBUGFS
-	.debugfs_ops = {
-			.rx_stats_read = il3945_ucode_rx_stats_read,
-			.tx_stats_read = il3945_ucode_tx_stats_read,
-			.general_stats_read = il3945_ucode_general_stats_read,
-			},
-#endif
-};
+	.rxon_assoc = il3945_send_rxon_assoc,
+	.commit_rxon = il3945_commit_rxon,
 
-static const struct il_legacy_ops il3945_legacy_ops = {
-	.post_associate = il3945_post_associate,
-	.config_ap = il3945_config_ap,
-	.manage_ibss_station = il3945_manage_ibss_station,
-};
-
-static struct il_hcmd_utils_ops il3945_hcmd_utils = {
 	.get_hcmd_size = il3945_get_hcmd_size,
 	.build_addsta_hcmd = il3945_build_addsta_hcmd,
 	.request_scan = il3945_request_scan,
 	.post_scan = il3945_post_scan,
-};
 
-const struct il_ops il3945_ops = {
-	.lib = &il3945_lib,
-	.hcmd = &il3945_hcmd,
-	.utils = &il3945_hcmd_utils,
-	.led = &il3945_led_ops,
-	.legacy = &il3945_legacy_ops,
+	.post_associate = il3945_post_associate,
+	.config_ap = il3945_config_ap,
+	.manage_ibss_station = il3945_manage_ibss_station,
+
+	.send_led_cmd = il3945_send_led_cmd,
 };
 
 static struct il_cfg il3945_bg_cfg = {
@@ -2707,7 +2662,17 @@ static struct il_cfg il3945_bg_cfg = {
 	.set_l0s = false,
 	.use_bsm = true,
 	.led_compensation = 64,
-	.wd_timeout = IL_DEF_WD_TIMEOUT
+	.wd_timeout = IL_DEF_WD_TIMEOUT,
+
+	.regulatory_bands = {
+		EEPROM_REGULATORY_BAND_1_CHANNELS,
+		EEPROM_REGULATORY_BAND_2_CHANNELS,
+		EEPROM_REGULATORY_BAND_3_CHANNELS,
+		EEPROM_REGULATORY_BAND_4_CHANNELS,
+		EEPROM_REGULATORY_BAND_5_CHANNELS,
+		EEPROM_REGULATORY_BAND_NO_HT40,
+		EEPROM_REGULATORY_BAND_NO_HT40,
+	},
 };
 
 static struct il_cfg il3945_abg_cfg = {
@@ -2726,7 +2691,17 @@ static struct il_cfg il3945_abg_cfg = {
 	.set_l0s = false,
 	.use_bsm = true,
 	.led_compensation = 64,
-	.wd_timeout = IL_DEF_WD_TIMEOUT
+	.wd_timeout = IL_DEF_WD_TIMEOUT,
+
+	.regulatory_bands = {
+		EEPROM_REGULATORY_BAND_1_CHANNELS,
+		EEPROM_REGULATORY_BAND_2_CHANNELS,
+		EEPROM_REGULATORY_BAND_3_CHANNELS,
+		EEPROM_REGULATORY_BAND_4_CHANNELS,
+		EEPROM_REGULATORY_BAND_5_CHANNELS,
+		EEPROM_REGULATORY_BAND_NO_HT40,
+		EEPROM_REGULATORY_BAND_NO_HT40,
+	},
 };
 
 DEFINE_PCI_DEVICE_TABLE(il3945_hw_card_ids) = {

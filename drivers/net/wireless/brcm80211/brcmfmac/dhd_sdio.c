@@ -309,10 +309,10 @@ struct rte_console {
 /* Flags for SDH calls */
 #define F2SYNC	(SDIO_REQ_4BYTE | SDIO_REQ_FIXED)
 
-#define BRCMFMAC_FW_NAME	"brcm/brcmfmac.bin"
-#define BRCMFMAC_NV_NAME	"brcm/brcmfmac.txt"
-MODULE_FIRMWARE(BRCMFMAC_FW_NAME);
-MODULE_FIRMWARE(BRCMFMAC_NV_NAME);
+#define BRCMF_SDIO_FW_NAME	"brcm/brcmfmac-sdio.bin"
+#define BRCMF_SDIO_NV_NAME	"brcm/brcmfmac-sdio.txt"
+MODULE_FIRMWARE(BRCMF_SDIO_FW_NAME);
+MODULE_FIRMWARE(BRCMF_SDIO_NV_NAME);
 
 #define BRCMF_IDLE_IMMEDIATE	(-1)	/* Enter idle immediately */
 #define BRCMF_IDLE_ACTIVE	0	/* Do not request any SD clock change
@@ -2276,7 +2276,7 @@ static void brcmf_sdbrcm_bus_stop(struct device *dev)
 	uint retries;
 	int err;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv;
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 	struct brcmf_sdio *bus = sdiodev->bus;
 
 	brcmf_dbg(TRACE, "Enter\n");
@@ -2626,7 +2626,7 @@ static int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *pkt)
 	int ret = -EBADE;
 	uint datalen, prec;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv;
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 	struct brcmf_sdio *bus = sdiodev->bus;
 
 	brcmf_dbg(TRACE, "Enter\n");
@@ -2867,7 +2867,7 @@ brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 	u8 doff = 0;
 	int ret = -1;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv;
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 	struct brcmf_sdio *bus = sdiodev->bus;
 
 	brcmf_dbg(TRACE, "Enter\n");
@@ -2976,7 +2976,7 @@ brcmf_sdbrcm_bus_rxctl(struct device *dev, unsigned char *msg, uint msglen)
 	uint rxlen = 0;
 	bool pending;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv;
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 	struct brcmf_sdio *bus = sdiodev->bus;
 
 	brcmf_dbg(TRACE, "Enter\n");
@@ -3200,7 +3200,7 @@ static int brcmf_sdbrcm_download_code_file(struct brcmf_sdio *bus)
 
 	brcmf_dbg(INFO, "Enter\n");
 
-	ret = request_firmware(&bus->firmware, BRCMFMAC_FW_NAME,
+	ret = request_firmware(&bus->firmware, BRCMF_SDIO_FW_NAME,
 			       &bus->sdiodev->func[2]->dev);
 	if (ret) {
 		brcmf_dbg(ERROR, "Fail to request firmware %d\n", ret);
@@ -3297,7 +3297,7 @@ static int brcmf_sdbrcm_download_nvram(struct brcmf_sdio *bus)
 	char *bufp;
 	int ret;
 
-	ret = request_firmware(&bus->firmware, BRCMFMAC_NV_NAME,
+	ret = request_firmware(&bus->firmware, BRCMF_SDIO_NV_NAME,
 			       &bus->sdiodev->func[2]->dev);
 	if (ret) {
 		brcmf_dbg(ERROR, "Fail to request nvram %d\n", ret);
@@ -3387,7 +3387,7 @@ brcmf_sdbrcm_download_firmware(struct brcmf_sdio *bus)
 static int brcmf_sdbrcm_bus_init(struct device *dev)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv;
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 	struct brcmf_sdio *bus = sdiodev->bus;
 	unsigned long timeout;
 	uint retries = 0;
@@ -3462,16 +3462,12 @@ static int brcmf_sdbrcm_bus_init(struct device *dev)
 
 		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
 				       SBSDIO_WATERMARK, 8, &err);
-
-		/* Set bus state according to enable result */
-		bus_if->state = BRCMF_BUS_DATA;
-	}
-
-	else {
+	} else {
 		/* Disable F2 again */
 		enable = SDIO_FUNC_ENABLE_1;
 		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_0,
 				       SDIO_CCCR_IOEx, enable, NULL);
+		ret = -ENODEV;
 	}
 
 	/* Restore previous clock setting */
@@ -3479,7 +3475,7 @@ static int brcmf_sdbrcm_bus_init(struct device *dev)
 			       SBSDIO_FUNC1_CHIPCLKCSR, saveclk, &err);
 
 	/* If we didn't come up, turn off backplane clock */
-	if (bus_if->state != BRCMF_BUS_DATA)
+	if (!ret)
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
 
 exit:

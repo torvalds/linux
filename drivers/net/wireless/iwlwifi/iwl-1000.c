@@ -120,7 +120,7 @@ static struct iwl_sensitivity_ranges iwl1000_sensitivity = {
 	.nrg_th_cca = 62,
 };
 
-static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
+static void iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
@@ -128,8 +128,6 @@ static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	hw_params(priv).max_txq_num = cfg(priv)->base_params->num_of_queues;
-	hw_params(priv).max_data_size = IWLAGN_RTC_DATA_SIZE;
-	hw_params(priv).max_inst_size = IWLAGN_RTC_INST_SIZE;
 
 	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ);
 
@@ -146,8 +144,6 @@ static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 
 	/* Set initial sensitivity parameters */
 	hw_params(priv).sens = &iwl1000_sensitivity;
-
-	return 0;
 }
 
 static struct iwl_lib_ops iwl1000_lib = {
@@ -193,6 +189,8 @@ static struct iwl_ht_params iwl1000_ht_params = {
 	.ucode_api_max = IWL1000_UCODE_API_MAX,			\
 	.ucode_api_ok = IWL1000_UCODE_API_OK,			\
 	.ucode_api_min = IWL1000_UCODE_API_MIN,			\
+	.max_inst_size = IWLAGN_RTC_INST_SIZE,			\
+	.max_data_size = IWLAGN_RTC_DATA_SIZE,			\
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
 	.lib = &iwl1000_lib,					\
@@ -215,6 +213,8 @@ struct iwl_cfg iwl1000_bg_cfg = {
 	.ucode_api_max = IWL100_UCODE_API_MAX,			\
 	.ucode_api_ok = IWL100_UCODE_API_OK,			\
 	.ucode_api_min = IWL100_UCODE_API_MIN,			\
+	.max_inst_size = IWLAGN_RTC_INST_SIZE,			\
+	.max_data_size = IWLAGN_RTC_DATA_SIZE,			\
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
 	.lib = &iwl1000_lib,					\

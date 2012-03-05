@@ -455,7 +455,7 @@ int __cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 		return 0;
 	}
 
-	return rdev->ops->deauth(&rdev->wiphy, dev, &req, wdev);
+	return rdev->ops->deauth(&rdev->wiphy, dev, &req);
 }
 
 int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
@@ -500,7 +500,7 @@ static int __cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
 	else
 		return -ENOTCONN;
 
-	return rdev->ops->disassoc(&rdev->wiphy, dev, &req, wdev);
+	return rdev->ops->disassoc(&rdev->wiphy, dev, &req);
 }
 
 int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
@@ -541,7 +541,7 @@ void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
 
 	memcpy(bssid, wdev->current_bss->pub.bssid, ETH_ALEN);
 	req.bssid = bssid;
-	rdev->ops->deauth(&rdev->wiphy, dev, &req, wdev);
+	rdev->ops->deauth(&rdev->wiphy, dev, &req);
 
 	if (wdev->current_bss) {
 		cfg80211_unhold_bss(wdev->current_bss);

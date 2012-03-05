@@ -1656,12 +1656,12 @@ static inline void __iomem *ath5k_ahb_reg(struct ath5k_hw *ah, u16 reg)
 
 static inline u32 ath5k_hw_reg_read(struct ath5k_hw *ah, u16 reg)
 {
-	return __raw_readl(ath5k_ahb_reg(ah, reg));
+	return ioread32(ath5k_ahb_reg(ah, reg));
 }
 
 static inline void ath5k_hw_reg_write(struct ath5k_hw *ah, u32 val, u16 reg)
 {
-	__raw_writel(val, ath5k_ahb_reg(ah, reg));
+	iowrite32(val, ath5k_ahb_reg(ah, reg));
 }
 
 #else
