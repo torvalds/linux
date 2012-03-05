@@ -176,7 +176,7 @@ u8 nfc_llcp_get_sdp_ssap(struct nfc_llcp_local *local,
 				return LLCP_SAP_MAX;
 			}
 
-			set_bit(BIT(ssap), &local->local_wks);
+			set_bit(ssap, &local->local_wks);
 			mutex_unlock(&local->sdp_lock);
 
 			return ssap;
@@ -195,25 +195,25 @@ u8 nfc_llcp_get_sdp_ssap(struct nfc_llcp_local *local,
 
 		pr_debug("SDP ssap %d\n", LLCP_WKS_NUM_SAP + ssap);
 
-		set_bit(BIT(ssap), &local->local_sdp);
+		set_bit(ssap, &local->local_sdp);
 		mutex_unlock(&local->sdp_lock);
 
 		return LLCP_WKS_NUM_SAP + ssap;
 
 	} else if (sock->ssap != 0) {
 		if (sock->ssap < LLCP_WKS_NUM_SAP) {
-			if (!(local->local_wks & BIT(sock->ssap))) {
-				set_bit(BIT(sock->ssap), &local->local_wks);
+			if (!test_bit(sock->ssap, &local->local_wks)) {
+				set_bit(sock->ssap, &local->local_wks);
 				mutex_unlock(&local->sdp_lock);
 
 				return sock->ssap;
 			}
 
 		} else if (sock->ssap < LLCP_SDP_NUM_SAP) {
-			if (!(local->local_sdp &
-				BIT(sock->ssap - LLCP_WKS_NUM_SAP))) {
-				set_bit(BIT(sock->ssap - LLCP_WKS_NUM_SAP),
-							&local->local_sdp);
+			if (!test_bit(sock->ssap - LLCP_WKS_NUM_SAP,
+				      &local->local_sdp)) {
+				set_bit(sock->ssap - LLCP_WKS_NUM_SAP,
+					&local->local_sdp);
 				mutex_unlock(&local->sdp_lock);
 
 				return sock->ssap;
@@ -238,7 +238,7 @@ u8 nfc_llcp_get_local_ssap(struct nfc_llcp_local *local)
 		return LLCP_SAP_MAX;
 	}
 
-	set_bit(BIT(local_ssap), &local->local_sap);
+	set_bit(local_ssap, &local->local_sap);
 
 	mutex_unlock(&local->sdp_lock);
 
@@ -265,7 +265,7 @@ void nfc_llcp_put_ssap(struct nfc_llcp_local *local, u8 ssap)
 
 	mutex_lock(&local->sdp_lock);
 
-	clear_bit(1 << local_ssap, sdp);
+	clear_bit(local_ssap, sdp);
 
 	mutex_unlock(&local->sdp_lock);
 }
