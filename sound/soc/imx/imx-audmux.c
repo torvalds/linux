@@ -24,7 +24,8 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <mach/audmux.h>
+
+#include "imx-audmux.h"
 
 #define DRIVER_NAME "imx-audmux"
 

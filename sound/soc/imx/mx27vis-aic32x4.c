@@ -32,11 +32,11 @@
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
 #include <asm/mach-types.h>
-#include <mach/audmux.h>
 #include <mach/iomux-mx27.h>
 
 #include "../codecs/tlv320aic32x4.h"
 #include "imx-ssi.h"
+#include "imx-audmux.h"
 
 #define MX27VIS_AMP_GAIN	0
 #define MX27VIS_AMP_MUTE	1

@@ -23,10 +23,10 @@
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <asm/mach-types.h>
-#include <mach/audmux.h>
 
 #include "../codecs/tlv320aic23.h"
 #include "imx-ssi.h"
+#include "imx-audmux.h"
 
 #define CODEC_CLOCK 12000000
 

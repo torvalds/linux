@@ -1,5 +1,5 @@
-#ifndef __MACH_AUDMUX_H
-#define __MACH_AUDMUX_H
+#ifndef __IMX_AUDMUX_H
+#define __IMX_AUDMUX_H
 
 #define MX27_AUDMUX_HPCR1_SSI0		0
 #define MX27_AUDMUX_HPCR2_SSI1		1
@@ -57,4 +57,4 @@ int mxc_audmux_v1_configure_port(unsigned int port, unsigned int pcr);
 int mxc_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
 		unsigned int pdcr);
 
-#endif /* __MACH_AUDMUX_H */
+#endif /* __IMX_AUDMUX_H */

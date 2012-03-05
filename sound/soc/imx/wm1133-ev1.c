@@ -21,10 +21,9 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
-#include <mach/audmux.h>
-
 #include "imx-ssi.h"
 #include "../codecs/wm8350.h"
+#include "imx-audmux.h"
 
 /* There is a silicon mic on the board optionally connected via a solder pad
  * SP1.  Define this to enable it.
