@@ -50,6 +50,8 @@
  *	Note that tty_shutdown() is not called if ops->shutdown is defined.
  *	This means one is responsible to take care of calling ops->remove (e.g.
  *	via tty_driver_remove_tty) and releasing tty->termios.
+ *	Note that this hook may be called from *all* the contexts where one
+ *	uses tty refcounting (e.g. tty_port_tty_get).
  *
  *
  * void (*cleanup)(struct tty_struct * tty);
