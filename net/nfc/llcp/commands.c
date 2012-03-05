@@ -152,6 +152,8 @@ int nfc_llcp_parse_tlv(struct nfc_llcp_local *local,
 		case LLCP_TLV_RW:
 			local->remote_rw = llcp_tlv_rw(tlv);
 			break;
+		case LLCP_TLV_SN:
+			break;
 		default:
 			pr_err("Invalid gt tlv value 0x%x\n", type);
 			break;
