@@ -157,14 +157,6 @@ static void throtl_init_blkio_group(struct blkio_group *blkg)
 	tg->iops[WRITE] = -1;
 }
 
-static void throtl_link_blkio_group(struct request_queue *q,
-				    struct blkio_group *blkg)
-{
-	list_add(&blkg->q_node[BLKIO_POLICY_THROTL],
-		 &q->blkg_list[BLKIO_POLICY_THROTL]);
-	q->nr_blkgs[BLKIO_POLICY_THROTL]++;
-}
-
 static struct
 throtl_grp *throtl_lookup_tg(struct throtl_data *td, struct blkio_cgroup *blkcg)
 {
@@ -813,89 +805,6 @@ throtl_schedule_delayed_work(struct throtl_data *td, unsigned long delay)
 	}
 }
 
-static void
-throtl_destroy_tg(struct throtl_data *td, struct throtl_grp *tg)
-{
-	struct blkio_group *blkg = tg_to_blkg(tg);
-
-	/* Something wrong if we are trying to remove same group twice */
-	WARN_ON_ONCE(list_empty(&blkg->q_node[BLKIO_POLICY_THROTL]));
-
-	list_del_init(&blkg->q_node[BLKIO_POLICY_THROTL]);
-
-	/*
-	 * Put the reference taken at the time of creation so that when all
-	 * queues are gone, group can be destroyed.
-	 */
-	blkg_put(tg_to_blkg(tg));
-	td->queue->nr_blkgs[BLKIO_POLICY_THROTL]--;
-}
-
-static bool throtl_release_tgs(struct throtl_data *td, bool release_root)
-{
-	struct request_queue *q = td->queue;
-	struct blkio_group *blkg, *n;
-	bool empty = true;
-
-	list_for_each_entry_safe(blkg, n, &q->blkg_list[BLKIO_POLICY_THROTL],
-				 q_node[BLKIO_POLICY_THROTL]) {
-		struct throtl_grp *tg = blkg_to_tg(blkg);
-
-		/* skip root? */
-		if (!release_root && tg == td->root_tg)
-			continue;
-
-		/*
-		 * If cgroup removal path got to blk_group first and removed
-		 * it from cgroup list, then it will take care of destroying
-		 * cfqg also.
-		 */
-		if (!blkiocg_del_blkio_group(blkg))
-			throtl_destroy_tg(td, tg);
-		else
-			empty = false;
-	}
-	return empty;
-}
-
-/*
- * Blk cgroup controller notification saying that blkio_group object is being
- * delinked as associated cgroup object is going away. That also means that
- * no new IO will come in this group. So get rid of this group as soon as
- * any pending IO in the group is finished.
- *
- * This function is called under rcu_read_lock(). @q is the rcu protected
- * pointer. That means @q is a valid request_queue pointer as long as we
- * are rcu read lock.
- *
- * @q was fetched from blkio_group under blkio_cgroup->lock. That means
- * it should not be NULL as even if queue was going away, cgroup deltion
- * path got to it first.
- */
-void throtl_unlink_blkio_group(struct request_queue *q,
-			       struct blkio_group *blkg)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	throtl_destroy_tg(q->td, blkg_to_tg(blkg));
-	spin_unlock_irqrestore(q->queue_lock, flags);
-}
-
-static bool throtl_clear_queue(struct request_queue *q)
-{
-	lockdep_assert_held(q->queue_lock);
-
-	/*
-	 * Clear tgs but leave the root one alone.  This is necessary
-	 * because root_tg is expected to be persistent and safe because
-	 * blk-throtl can never be disabled while @q is alive.  This is a
-	 * kludge to prepare for unified blkg.  This whole function will be
-	 * removed soon.
-	 */
-	return throtl_release_tgs(q->td, false);
-}
-
 static void throtl_update_blkio_group_common(struct throtl_data *td,
 				struct throtl_grp *tg)
 {
@@ -960,9 +869,6 @@ static void throtl_shutdown_wq(struct request_queue *q)
 static struct blkio_policy_type blkio_policy_throtl = {
 	.ops = {
 		.blkio_init_group_fn = throtl_init_blkio_group,
-		.blkio_link_group_fn = throtl_link_blkio_group,
-		.blkio_unlink_group_fn = throtl_unlink_blkio_group,
-		.blkio_clear_queue_fn = throtl_clear_queue,
 		.blkio_update_group_read_bps_fn =
 					throtl_update_blkio_group_read_bps,
 		.blkio_update_group_write_bps_fn =
@@ -1148,12 +1054,11 @@ void blk_throtl_exit(struct request_queue *q)
 
 	throtl_shutdown_wq(q);
 
-	spin_lock_irq(q->queue_lock);
-	throtl_release_tgs(td, true);
+	blkg_destroy_all(q, BLKIO_POLICY_THROTL, true);
 
 	/* If there are other groups */
+	spin_lock_irq(q->queue_lock);
 	wait = q->nr_blkgs[BLKIO_POLICY_THROTL];
-
 	spin_unlock_irq(q->queue_lock);
 
 	/*

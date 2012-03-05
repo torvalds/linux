@@ -196,11 +196,6 @@ struct blkio_group {
 };
 
 typedef void (blkio_init_group_fn)(struct blkio_group *blkg);
-typedef void (blkio_link_group_fn)(struct request_queue *q,
-			struct blkio_group *blkg);
-typedef void (blkio_unlink_group_fn)(struct request_queue *q,
-			struct blkio_group *blkg);
-typedef bool (blkio_clear_queue_fn)(struct request_queue *q);
 typedef void (blkio_update_group_weight_fn)(struct request_queue *q,
 			struct blkio_group *blkg, unsigned int weight);
 typedef void (blkio_update_group_read_bps_fn)(struct request_queue *q,
@@ -214,9 +209,6 @@ typedef void (blkio_update_group_write_iops_fn)(struct request_queue *q,
 
 struct blkio_policy_ops {
 	blkio_init_group_fn *blkio_init_group_fn;
-	blkio_link_group_fn *blkio_link_group_fn;
-	blkio_unlink_group_fn *blkio_unlink_group_fn;
-	blkio_clear_queue_fn *blkio_clear_queue_fn;
 	blkio_update_group_weight_fn *blkio_update_group_weight_fn;
 	blkio_update_group_read_bps_fn *blkio_update_group_read_bps_fn;
 	blkio_update_group_write_bps_fn *blkio_update_group_write_bps_fn;
@@ -238,7 +230,8 @@ extern void blkcg_exit_queue(struct request_queue *q);
 /* Blkio controller policy registration */
 extern void blkio_policy_register(struct blkio_policy_type *);
 extern void blkio_policy_unregister(struct blkio_policy_type *);
-extern void blkg_destroy_all(struct request_queue *q);
+extern void blkg_destroy_all(struct request_queue *q,
+			     enum blkio_policy_id plid, bool destroy_root);
 
 /**
  * blkg_to_pdata - get policy private data
@@ -319,7 +312,9 @@ static inline void blkcg_drain_queue(struct request_queue *q) { }
 static inline void blkcg_exit_queue(struct request_queue *q) { }
 static inline void blkio_policy_register(struct blkio_policy_type *blkiop) { }
 static inline void blkio_policy_unregister(struct blkio_policy_type *blkiop) { }
-static inline void blkg_destroy_all(struct request_queue *q) { }
+static inline void blkg_destroy_all(struct request_queue *q,
+				    enum blkio_policy_id plid,
+				    bool destory_root) { }
 
 static inline void *blkg_to_pdata(struct blkio_group *blkg,
 				struct blkio_policy_type *pol) { return NULL; }

@@ -1045,14 +1045,6 @@ static void cfq_update_blkio_group_weight(struct request_queue *q,
 	cfqg->needs_update = true;
 }
 
-static void cfq_link_blkio_group(struct request_queue *q,
-				 struct blkio_group *blkg)
-{
-	list_add(&blkg->q_node[BLKIO_POLICY_PROP],
-		 &q->blkg_list[BLKIO_POLICY_PROP]);
-	q->nr_blkgs[BLKIO_POLICY_PROP]++;
-}
-
 static void cfq_init_blkio_group(struct blkio_group *blkg)
 {
 	struct cfq_group *cfqg = blkg_to_cfqg(blkg);
@@ -1096,84 +1088,6 @@ static void cfq_link_cfqq_cfqg(struct cfq_queue *cfqq, struct cfq_group *cfqg)
 	blkg_get(cfqg_to_blkg(cfqg));
 }
 
-static void cfq_destroy_cfqg(struct cfq_data *cfqd, struct cfq_group *cfqg)
-{
-	struct blkio_group *blkg = cfqg_to_blkg(cfqg);
-
-	/* Something wrong if we are trying to remove same group twice */
-	BUG_ON(list_empty(&blkg->q_node[BLKIO_POLICY_PROP]));
-
-	list_del_init(&blkg->q_node[BLKIO_POLICY_PROP]);
-
-	BUG_ON(cfqd->queue->nr_blkgs[BLKIO_POLICY_PROP] <= 0);
-	cfqd->queue->nr_blkgs[BLKIO_POLICY_PROP]--;
-
-	/*
-	 * Put the reference taken at the time of creation so that when all
-	 * queues are gone, group can be destroyed.
-	 */
-	blkg_put(cfqg_to_blkg(cfqg));
-}
-
-static bool cfq_release_cfq_groups(struct cfq_data *cfqd)
-{
-	struct request_queue *q = cfqd->queue;
-	struct blkio_group *blkg, *n;
-	bool empty = true;
-
-	list_for_each_entry_safe(blkg, n, &q->blkg_list[BLKIO_POLICY_PROP],
-				 q_node[BLKIO_POLICY_PROP]) {
-		/*
-		 * If cgroup removal path got to blk_group first and removed
-		 * it from cgroup list, then it will take care of destroying
-		 * cfqg also.
-		 */
-		if (!cfq_blkiocg_del_blkio_group(blkg))
-			cfq_destroy_cfqg(cfqd, blkg_to_cfqg(blkg));
-		else
-			empty = false;
-	}
-	return empty;
-}
-
-/*
- * Blk cgroup controller notification saying that blkio_group object is being
- * delinked as associated cgroup object is going away. That also means that
- * no new IO will come in this group. So get rid of this group as soon as
- * any pending IO in the group is finished.
- *
- * This function is called under rcu_read_lock(). key is the rcu protected
- * pointer. That means @q is a valid request_queue pointer as long as we
- * are rcu read lock.
- *
- * @q was fetched from blkio_group under blkio_cgroup->lock. That means
- * it should not be NULL as even if elevator was exiting, cgroup deltion
- * path got to it first.
- */
-static void cfq_unlink_blkio_group(struct request_queue *q,
-				   struct blkio_group *blkg)
-{
-	struct cfq_data *cfqd = q->elevator->elevator_data;
-	unsigned long flags;
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	cfq_destroy_cfqg(cfqd, blkg_to_cfqg(blkg));
-	spin_unlock_irqrestore(q->queue_lock, flags);
-}
-
-static struct elevator_type iosched_cfq;
-
-static bool cfq_clear_queue(struct request_queue *q)
-{
-	lockdep_assert_held(q->queue_lock);
-
-	/* shoot down blkgs iff the current elevator is cfq */
-	if (!q->elevator || q->elevator->type != &iosched_cfq)
-		return true;
-
-	return cfq_release_cfq_groups(q->elevator->elevator_data);
-}
-
 #else /* GROUP_IOSCHED */
 static struct cfq_group *cfq_lookup_create_cfqg(struct cfq_data *cfqd,
 						struct blkio_cgroup *blkcg)
@@ -1185,8 +1099,6 @@ static inline void
 cfq_link_cfqq_cfqg(struct cfq_queue *cfqq, struct cfq_group *cfqg) {
 	cfqq->cfqg = cfqg;
 }
-
-static void cfq_release_cfq_groups(struct cfq_data *cfqd) {}
 
 #endif /* GROUP_IOSCHED */
 
@@ -3547,17 +3459,20 @@ static void cfq_exit_queue(struct elevator_queue *e)
 		__cfq_slice_expired(cfqd, cfqd->active_queue, 0);
 
 	cfq_put_async_queues(cfqd);
-	cfq_release_cfq_groups(cfqd);
+
+	spin_unlock_irq(q->queue_lock);
+
+	blkg_destroy_all(q, BLKIO_POLICY_PROP, true);
 
 #ifdef CONFIG_BLK_CGROUP
 	/*
 	 * If there are groups which we could not unlink from blkcg list,
 	 * wait for a rcu period for them to be freed.
 	 */
+	spin_lock_irq(q->queue_lock);
 	wait = q->nr_blkgs[BLKIO_POLICY_PROP];
-#endif
 	spin_unlock_irq(q->queue_lock);
-
+#endif
 	cfq_shutdown_timer_wq(cfqd);
 
 	/*
@@ -3794,9 +3709,6 @@ static struct elevator_type iosched_cfq = {
 static struct blkio_policy_type blkio_policy_cfq = {
 	.ops = {
 		.blkio_init_group_fn =		cfq_init_blkio_group,
-		.blkio_link_group_fn =		cfq_link_blkio_group,
-		.blkio_unlink_group_fn =	cfq_unlink_blkio_group,
-		.blkio_clear_queue_fn = cfq_clear_queue,
 		.blkio_update_group_weight_fn =	cfq_update_blkio_group_weight,
 	},
 	.plid = BLKIO_POLICY_PROP,

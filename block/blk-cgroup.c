@@ -596,8 +596,11 @@ struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
 	/* insert */
 	spin_lock(&blkcg->lock);
 	swap(blkg, new_blkg);
+
 	hlist_add_head_rcu(&blkg->blkcg_node, &blkcg->blkg_list);
-	pol->ops.blkio_link_group_fn(q, blkg);
+	list_add(&blkg->q_node[plid], &q->blkg_list[plid]);
+	q->nr_blkgs[plid]++;
+
 	spin_unlock(&blkcg->lock);
 out:
 	blkg_free(new_blkg);
@@ -646,36 +649,69 @@ struct blkio_group *blkg_lookup(struct blkio_cgroup *blkcg,
 }
 EXPORT_SYMBOL_GPL(blkg_lookup);
 
-void blkg_destroy_all(struct request_queue *q)
+static void blkg_destroy(struct blkio_group *blkg, enum blkio_policy_id plid)
 {
-	struct blkio_policy_type *pol;
+	struct request_queue *q = blkg->q;
+
+	lockdep_assert_held(q->queue_lock);
+
+	/* Something wrong if we are trying to remove same group twice */
+	WARN_ON_ONCE(list_empty(&blkg->q_node[plid]));
+	list_del_init(&blkg->q_node[plid]);
+
+	WARN_ON_ONCE(q->nr_blkgs[plid] <= 0);
+	q->nr_blkgs[plid]--;
+
+	/*
+	 * Put the reference taken at the time of creation so that when all
+	 * queues are gone, group can be destroyed.
+	 */
+	blkg_put(blkg);
+}
+
+void blkg_destroy_all(struct request_queue *q, enum blkio_policy_id plid,
+		      bool destroy_root)
+{
+	struct blkio_group *blkg, *n;
 
 	while (true) {
 		bool done = true;
 
-		spin_lock(&blkio_list_lock);
 		spin_lock_irq(q->queue_lock);
 
-		/*
-		 * clear_queue_fn() might return with non-empty group list
-		 * if it raced cgroup removal and lost.  cgroup removal is
-		 * guaranteed to make forward progress and retrying after a
-		 * while is enough.  This ugliness is scheduled to be
-		 * removed after locking update.
-		 */
-		list_for_each_entry(pol, &blkio_list, list)
-			if (!pol->ops.blkio_clear_queue_fn(q))
+		list_for_each_entry_safe(blkg, n, &q->blkg_list[plid],
+					 q_node[plid]) {
+			/* skip root? */
+			if (!destroy_root && blkg->blkcg == &blkio_root_cgroup)
+				continue;
+
+			/*
+			 * If cgroup removal path got to blk_group first
+			 * and removed it from cgroup list, then it will
+			 * take care of destroying cfqg also.
+			 */
+			if (!blkiocg_del_blkio_group(blkg))
+				blkg_destroy(blkg, plid);
+			else
 				done = false;
+		}
 
 		spin_unlock_irq(q->queue_lock);
-		spin_unlock(&blkio_list_lock);
 
+		/*
+		 * Group list may not be empty if we raced cgroup removal
+		 * and lost.  cgroup removal is guaranteed to make forward
+		 * progress and retrying after a while is enough.  This
+		 * ugliness is scheduled to be removed after locking
+		 * update.
+		 */
 		if (done)
 			break;
 
 		msleep(10);	/* just some random duration I like */
 	}
 }
+EXPORT_SYMBOL_GPL(blkg_destroy_all);
 
 static void blkg_rcu_free(struct rcu_head *rcu_head)
 {
@@ -1549,11 +1585,13 @@ static int blkiocg_pre_destroy(struct cgroup_subsys *subsys,
 		 * this event.
 		 */
 		spin_lock(&blkio_list_lock);
+		spin_lock_irqsave(q->queue_lock, flags);
 		list_for_each_entry(blkiop, &blkio_list, list) {
 			if (blkiop->plid != blkg->plid)
 				continue;
-			blkiop->ops.blkio_unlink_group_fn(q, blkg);
+			blkg_destroy(blkg, blkiop->plid);
 		}
+		spin_unlock_irqrestore(q->queue_lock, flags);
 		spin_unlock(&blkio_list_lock);
 	} while (1);
 
@@ -1695,12 +1733,14 @@ static void blkcg_bypass_start(void)
 	__acquires(&all_q_mutex)
 {
 	struct request_queue *q;
+	int i;
 
 	mutex_lock(&all_q_mutex);
 
 	list_for_each_entry(q, &all_q_list, all_q_node) {
 		blk_queue_bypass_start(q);
-		blkg_destroy_all(q);
+		for (i = 0; i < BLKIO_NR_POLICIES; i++)
+			blkg_destroy_all(q, i, false);
 	}
 }
 
