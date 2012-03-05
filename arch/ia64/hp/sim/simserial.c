@@ -46,8 +46,6 @@
 
 #define NR_PORTS	1	/* only one port for now */
 
-#define IRQ_T(state) ((state->flags & ASYNC_SHARE_IRQ) ? IRQF_SHARED : IRQF_DISABLED)
-
 static char *serial_name = "SimSerial driver";
 static char *serial_version = "0.6";
 
@@ -644,8 +642,8 @@ startup(struct async_struct *info)
 	 * Allocate the IRQ if necessary
 	 */
 	if (state->irq) {
-		retval = request_irq(state->irq, rs_interrupt_single,
-				IRQ_T(state), "simserial", info);
+		retval = request_irq(state->irq, rs_interrupt_single, 0,
+				"simserial", info);
 		if (retval)
 			goto errout;
 	}
