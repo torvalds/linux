@@ -1124,13 +1124,12 @@ static void iwl_set_hw_params(struct iwl_priv *priv)
 			get_order(IWL_RX_BUF_SIZE_4K);
 
 	if (iwlagn_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
-		cfg(priv)->sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
+		hw_params(priv).sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
 
 	hw_params(priv).num_ampdu_queues =
 		cfg(priv)->base_params->num_of_ampdu_queues;
 	hw_params(priv).shadow_reg_enable =
 		cfg(priv)->base_params->shadow_reg_enable;
-	hw_params(priv).sku = cfg(priv)->sku;
 	hw_params(priv).wd_timeout = cfg(priv)->base_params->wd_timeout;
 
 	/* Device-specific setup */
@@ -1257,7 +1256,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans)
 	if (err)
 		goto out_free_eeprom;
 
-	err = iwl_eeprom_check_sku(priv);
+	err = iwl_eeprom_init_hw_params(priv);
 	if (err)
 		goto out_free_eeprom;
 

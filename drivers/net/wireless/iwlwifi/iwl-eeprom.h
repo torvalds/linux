@@ -309,7 +309,7 @@ struct iwl_eeprom_ops {
 int iwl_eeprom_init(struct iwl_trans *trans, u32 hw_rev);
 void iwl_eeprom_free(struct iwl_shared *shrd);
 int  iwl_eeprom_check_version(struct iwl_priv *priv);
-int  iwl_eeprom_check_sku(struct iwl_priv *priv);
+int iwl_eeprom_init_hw_params(struct iwl_priv *priv);
 const u8 *iwl_eeprom_query_addr(const struct iwl_shared *shrd, size_t offset);
 u16 iwl_eeprom_query16(const struct iwl_shared *shrd, size_t offset);
 int iwl_init_channel_map(struct iwl_priv *priv);

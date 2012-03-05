@@ -252,26 +252,24 @@ err:
 
 }
 
-int iwl_eeprom_check_sku(struct iwl_priv *priv)
+int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 {
 	struct iwl_shared *shrd = priv->shrd;
 	u16 radio_cfg;
 
-	if (!cfg(priv)->sku) {
-		/* not using sku overwrite */
-		cfg(priv)->sku = iwl_eeprom_query16(shrd, EEPROM_SKU_CAP);
-		if (cfg(priv)->sku & EEPROM_SKU_CAP_11N_ENABLE &&
-		    !cfg(priv)->ht_params) {
-			IWL_ERR(priv, "Invalid 11n configuration\n");
-			return -EINVAL;
-		}
+	hw_params(priv).sku = iwl_eeprom_query16(shrd, EEPROM_SKU_CAP);
+	if (hw_params(priv).sku & EEPROM_SKU_CAP_11N_ENABLE &&
+	    !cfg(priv)->ht_params) {
+		IWL_ERR(priv, "Invalid 11n configuration\n");
+		return -EINVAL;
 	}
-	if (!cfg(priv)->sku) {
+
+	if (!hw_params(priv).sku) {
 		IWL_ERR(priv, "Invalid device sku\n");
 		return -EINVAL;
 	}
 
-	IWL_INFO(priv, "Device SKU: 0x%X\n", cfg(priv)->sku);
+	IWL_INFO(priv, "Device SKU: 0x%X\n", hw_params(priv).sku);
 
 	if (!cfg(priv)->valid_tx_ant && !cfg(priv)->valid_rx_ant) {
 		/* not using .cfg overwrite */

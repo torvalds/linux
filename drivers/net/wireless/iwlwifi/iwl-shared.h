@@ -282,7 +282,6 @@ enum iwl_led_mode {
  * @max_data_size: The maximal length of the fw data section
  * @valid_tx_ant: valid transmit antenna
  * @valid_rx_ant: valid receive antenna
- * @sku: sku information from EEPROM
  * @eeprom_ver: EEPROM version
  * @eeprom_calib_ver: EEPROM calibration version
  * @lib: pointer to the lib ops
@@ -321,7 +320,6 @@ struct iwl_cfg {
 	const u32 max_inst_size;
 	u8   valid_tx_ant;
 	u8   valid_rx_ant;
-	u16  sku;
 	u16  eeprom_ver;
 	u16  eeprom_calib_ver;
 	const struct iwl_lib_ops *lib;
