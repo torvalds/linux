@@ -299,7 +299,6 @@ void cpc_tty_init(pc300dev_t * dev);
 void cpc_tty_unregister_service(pc300dev_t * pc300dev);
 void cpc_tty_receive(pc300dev_t * pc300dev);
 void cpc_tty_trigger_poll(pc300dev_t * pc300dev);
-void cpc_tty_reset_var(void);
 #endif
 
 /************************/
@@ -3421,9 +3420,6 @@ cpc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (first_time) {
 		first_time = 0;
 		show_version();
-#ifdef CONFIG_PC300_MLPPP
-		cpc_tty_reset_var();
-#endif
 	}
 
 	if ((err = pci_enable_device(pdev)) < 0)
