@@ -341,9 +341,9 @@ struct ieee80211_bss_conf {
  *	used to indicate that a frame was already retried due to PS
  * @IEEE80211_TX_INTFL_DONT_ENCRYPT: completely internal to mac80211,
  *	used to indicate frame should not be encrypted
- * @IEEE80211_TX_CTL_POLL_RESPONSE: This frame is a response to a poll
- *	frame (PS-Poll or uAPSD) and should be sent although the station
- *	is in powersave mode.
+ * @IEEE80211_TX_CTL_NO_PS_BUFFER: This frame is a response to a poll
+ *	frame (PS-Poll or uAPSD) or a non-bufferable MMPDU and must
+ *	be sent although the station is in powersave mode.
  * @IEEE80211_TX_CTL_MORE_FRAMES: More frames will be passed to the
  *	transmit function after the current frame, this can be used
  *	by drivers to kick the DMA queue only if unset or when the
@@ -399,7 +399,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTFL_NEED_TXPROCESSING	= BIT(14),
 	IEEE80211_TX_INTFL_RETRIED		= BIT(15),
 	IEEE80211_TX_INTFL_DONT_ENCRYPT		= BIT(16),
-	IEEE80211_TX_CTL_POLL_RESPONSE		= BIT(17),
+	IEEE80211_TX_CTL_NO_PS_BUFFER		= BIT(17),
 	IEEE80211_TX_CTL_MORE_FRAMES		= BIT(18),
 	IEEE80211_TX_INTFL_RETRANSMISSION	= BIT(19),
 	/* hole at 20, use later */
@@ -425,7 +425,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_SEND_AFTER_DTIM | IEEE80211_TX_CTL_AMPDU |	      \
 	IEEE80211_TX_STAT_TX_FILTERED |	IEEE80211_TX_STAT_ACK |		      \
 	IEEE80211_TX_STAT_AMPDU | IEEE80211_TX_STAT_AMPDU_NO_BACK |	      \
-	IEEE80211_TX_CTL_RATE_CTRL_PROBE | IEEE80211_TX_CTL_POLL_RESPONSE |   \
+	IEEE80211_TX_CTL_RATE_CTRL_PROBE | IEEE80211_TX_CTL_NO_PS_BUFFER |    \
 	IEEE80211_TX_CTL_MORE_FRAMES | IEEE80211_TX_CTL_LDPC |		      \
 	IEEE80211_TX_CTL_STBC | IEEE80211_TX_STATUS_EOSP)
 
@@ -1634,13 +1634,16 @@ void ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb);
  * the station sends a PS-Poll or a uAPSD trigger frame, mac80211
  * will inform the driver of this with the @allow_buffered_frames
  * callback; this callback is optional. mac80211 will then transmit
- * the frames as usual and set the %IEEE80211_TX_CTL_POLL_RESPONSE
+ * the frames as usual and set the %IEEE80211_TX_CTL_NO_PS_BUFFER
  * on each frame. The last frame in the service period (or the only
  * response to a PS-Poll) also has %IEEE80211_TX_STATUS_EOSP set to
  * indicate that it ends the service period; as this frame must have
  * TX status report it also sets %IEEE80211_TX_CTL_REQ_TX_STATUS.
  * When TX status is reported for this frame, the service period is
  * marked has having ended and a new one can be started by the peer.
+ *
+ * Additionally, non-bufferable MMPDUs can also be transmitted by
+ * mac80211 with the %IEEE80211_TX_CTL_NO_PS_BUFFER set in them.
  *
  * Another race condition can happen on some devices like iwlwifi
  * when there are frames queued for the station and it wakes up
@@ -2140,7 +2143,7 @@ enum ieee80211_frame_release_type {
  * @allow_buffered_frames: Prepare device to allow the given number of frames
  *	to go out to the given station. The frames will be sent by mac80211
  *	via the usual TX path after this call. The TX information for frames
- *	released will also have the %IEEE80211_TX_CTL_POLL_RESPONSE flag set
+ *	released will also have the %IEEE80211_TX_CTL_NO_PS_BUFFER flag set
  *	and the last one will also have %IEEE80211_TX_STATUS_EOSP set. In case
  *	frames from multiple TIDs are released and the driver might reorder
  *	them between the TIDs, it must set the %IEEE80211_TX_STATUS_EOSP flag

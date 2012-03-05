@@ -137,7 +137,7 @@ static struct iwl_sensitivity_ranges iwl6000_sensitivity = {
 	.nrg_th_cca = 62,
 };
 
-static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
+static void iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
@@ -145,8 +145,6 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	hw_params(priv).max_txq_num = cfg(priv)->base_params->num_of_queues;
-	hw_params(priv).max_data_size = IWL60_RTC_DATA_SIZE;
-	hw_params(priv).max_inst_size = IWL60_RTC_INST_SIZE;
 
 	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
@@ -165,7 +163,6 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 	/* Set initial sensitivity parameters */
 	hw_params(priv).sens = &iwl6000_sensitivity;
 
-	return 0;
 }
 
 static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
@@ -349,6 +346,8 @@ static struct iwl_bt_params iwl6000_bt_params = {
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,		\
 	.ucode_api_ok = IWL6000G2_UCODE_API_OK,			\
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,		\
+	.max_inst_size = IWL60_RTC_INST_SIZE,			\
+	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.eeprom_ver = EEPROM_6005_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6005_TX_POWER_VERSION,	\
 	.lib = &iwl6000_lib,					\
@@ -384,11 +383,24 @@ struct iwl_cfg iwl6005_2agn_d_cfg = {
 	.ht_params = &iwl6000_ht_params,
 };
 
+struct iwl_cfg iwl6005_2agn_mow1_cfg = {
+	.name = "Intel(R) Centrino(R) Advanced-N 6206 AGN",
+	IWL_DEVICE_6005,
+	.ht_params = &iwl6000_ht_params,
+};
+struct iwl_cfg iwl6005_2agn_mow2_cfg = {
+	.name = "Intel(R) Centrino(R) Advanced-N 6207 AGN",
+	IWL_DEVICE_6005,
+	.ht_params = &iwl6000_ht_params,
+};
+
 #define IWL_DEVICE_6030						\
 	.fw_name_pre = IWL6030_FW_PRE,				\
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,		\
 	.ucode_api_ok = IWL6000G2_UCODE_API_OK,			\
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,		\
+	.max_inst_size = IWL60_RTC_INST_SIZE,			\
+	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.eeprom_ver = EEPROM_6030_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6030_TX_POWER_VERSION,	\
 	.lib = &iwl6030_lib,					\
@@ -458,6 +470,8 @@ struct iwl_cfg iwl130_bg_cfg = {
 	.ucode_api_max = IWL6000_UCODE_API_MAX,			\
 	.ucode_api_ok = IWL6000_UCODE_API_OK,			\
 	.ucode_api_min = IWL6000_UCODE_API_MIN,			\
+	.max_inst_size = IWL60_RTC_INST_SIZE,			\
+	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.valid_tx_ant = ANT_BC,		/* .cfg overwrite */	\
 	.valid_rx_ant = ANT_BC,		/* .cfg overwrite */	\
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,		\
@@ -487,6 +501,8 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 	.fw_name_pre = IWL6050_FW_PRE,				\
 	.ucode_api_max = IWL6050_UCODE_API_MAX,			\
 	.ucode_api_min = IWL6050_UCODE_API_MIN,			\
+	.max_inst_size = IWL60_RTC_INST_SIZE,			\
+	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.valid_tx_ant = ANT_AB,		/* .cfg overwrite */	\
 	.valid_rx_ant = ANT_AB,		/* .cfg overwrite */	\
 	.lib = &iwl6000_lib,					\
@@ -512,6 +528,8 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.fw_name_pre = IWL6050_FW_PRE,				\
 	.ucode_api_max = IWL6050_UCODE_API_MAX,			\
 	.ucode_api_min = IWL6050_UCODE_API_MIN,			\
+	.max_inst_size = IWL60_RTC_INST_SIZE,			\
+	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.lib = &iwl6000_lib,					\
 	.additional_nic_config = iwl6150_additional_nic_config,	\
 	.eeprom_ver = EEPROM_6150_EEPROM_VERSION,		\
@@ -537,6 +555,8 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_ok = IWL6000_UCODE_API_OK,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
+	.max_inst_size = IWL60_RTC_INST_SIZE,
+	.max_data_size = IWL60_RTC_DATA_SIZE,
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
 	.lib = &iwl6000_lib,

@@ -677,30 +677,28 @@ static void _rtl92s_store_pwrindex_diffrate_offset(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
+	int index;
 
 	if (reg_addr == RTXAGC_RATE18_06)
-		rtlphy->mcs_txpwrlevel_origoffset[rtlphy->pwrgroup_cnt][0] =
-									 data;
-	if (reg_addr == RTXAGC_RATE54_24)
-		rtlphy->mcs_txpwrlevel_origoffset[rtlphy->pwrgroup_cnt][1] =
-									 data;
-	if (reg_addr == RTXAGC_CCK_MCS32)
-		rtlphy->mcs_txpwrlevel_origoffset[rtlphy->pwrgroup_cnt][6] =
-									 data;
-	if (reg_addr == RTXAGC_MCS03_MCS00)
-		rtlphy->mcs_txpwrlevel_origoffset[rtlphy->pwrgroup_cnt][2] =
-									 data;
-	if (reg_addr == RTXAGC_MCS07_MCS04)
-		rtlphy->mcs_txpwrlevel_origoffset[rtlphy->pwrgroup_cnt][3] =
-									 data;
-	if (reg_addr == RTXAGC_MCS11_MCS08)
-		rtlphy->mcs_txpwrlevel_origoffset[rtlphy->pwrgroup_cnt][4] =
-									 data;
-	if (reg_addr == RTXAGC_MCS15_MCS12) {
-		rtlphy->mcs_txpwrlevel_origoffset[rtlphy->pwrgroup_cnt][5] =
-									 data;
+		index = 0;
+	else if (reg_addr == RTXAGC_RATE54_24)
+		index = 1;
+	else if (reg_addr == RTXAGC_CCK_MCS32)
+		index = 6;
+	else if (reg_addr == RTXAGC_MCS03_MCS00)
+		index = 2;
+	else if (reg_addr == RTXAGC_MCS07_MCS04)
+		index = 3;
+	else if (reg_addr == RTXAGC_MCS11_MCS08)
+		index = 4;
+	else if (reg_addr == RTXAGC_MCS15_MCS12)
+		index = 5;
+	else
+		return;
+
+	rtlphy->mcs_txpwrlevel_origoffset[rtlphy->pwrgroup_cnt][index] = data;
+	if (index == 5)
 		rtlphy->pwrgroup_cnt++;
-	}
 }
 
 static void _rtl92s_phy_init_register_definition(struct ieee80211_hw *hw)

@@ -38,10 +38,10 @@
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-power.h"
-#include "iwl-agn.h"
 #include "iwl-shared.h"
 #include "iwl-agn.h"
 #include "iwl-trans.h"
+#include "iwl-wifi.h"
 
 const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
@@ -643,7 +643,7 @@ u8 iwl_get_single_channel_number(struct iwl_priv *priv,
  * NOTE:  Does not commit to the hardware; it sets appropriate bit fields
  * in the staging RXON flag structure based on the ch->band
  */
-int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
+void iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 			 struct iwl_rxon_context *ctx)
 {
 	enum ieee80211_band band = ch->band;
@@ -651,7 +651,7 @@ int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 
 	if ((le16_to_cpu(ctx->staging.channel) == channel) &&
 	    (priv->band == band))
-		return 0;
+		return;
 
 	ctx->staging.channel = cpu_to_le16(channel);
 	if (band == IEEE80211_BAND_5GHZ)
@@ -663,7 +663,6 @@ int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 
 	IWL_DEBUG_INFO(priv, "Staging channel set to %d [%d]\n", channel, band);
 
-	return 0;
 }
 
 void iwl_set_flags_for_band(struct iwl_priv *priv,
@@ -831,10 +830,15 @@ void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 }
 #endif
 
-void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
+static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 {
 	unsigned int reload_msec;
 	unsigned long reload_jiffies;
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (iwl_get_debug_level(priv->shrd) & IWL_DL_FW_ERRORS)
+		iwl_print_rx_config_cmd(priv, IWL_RXON_CTX_BSS);
+#endif
 
 	/* Set the FW error flag -- cleared on iwl_down */
 	set_bit(STATUS_FW_ERROR, &priv->shrd->status);
@@ -875,7 +879,7 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 		if (iwlagn_mod_params.restart_fw) {
 			IWL_DEBUG_FW_ERRORS(priv,
 				  "Restarting adapter due to uCode error.\n");
-			queue_work(priv->shrd->workqueue, &priv->restart);
+			queue_work(priv->workqueue, &priv->restart);
 		} else
 			IWL_DEBUG_FW_ERRORS(priv,
 				  "Detected FW error, but not restarting\n");
@@ -1456,8 +1460,17 @@ __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 	return cpu_to_le32(res);
 }
 
-void iwl_set_hw_rfkill_state(struct iwl_priv *priv, bool state)
+void iwl_nic_error(struct iwl_op_mode *op_mode)
 {
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
+	iwlagn_fw_error(priv, false);
+}
+
+void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
+{
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
 	wiphy_rfkill_set_hw_state(priv->hw->wiphy, state);
 }
 
@@ -1466,8 +1479,9 @@ void iwl_nic_config(struct iwl_priv *priv)
 	cfg(priv)->lib->nic_config(priv);
 }
 
-void iwl_free_skb(struct iwl_priv *priv, struct sk_buff *skb)
+void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
 {
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 	struct ieee80211_tx_info *info;
 
 	info = IEEE80211_SKB_CB(skb);
@@ -1475,12 +1489,16 @@ void iwl_free_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	dev_kfree_skb_any(skb);
 }
 
-void iwl_stop_sw_queue(struct iwl_priv *priv, u8 ac)
+void iwl_stop_sw_queue(struct iwl_op_mode *op_mode, u8 ac)
 {
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
 	ieee80211_stop_queue(priv->hw, ac);
 }
 
-void iwl_wake_sw_queue(struct iwl_priv *priv, u8 ac)
+void iwl_wake_sw_queue(struct iwl_op_mode *op_mode, u8 ac)
 {
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
 	ieee80211_wake_queue(priv->hw, ac);
 }

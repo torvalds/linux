@@ -309,13 +309,6 @@ static const long ipw2100_frequencies[] = {
 
 #define FREQ_COUNT	ARRAY_SIZE(ipw2100_frequencies)
 
-static const long ipw2100_rates_11b[] = {
-	1000000,
-	2000000,
-	5500000,
-	11000000
-};
-
 static struct ieee80211_rate ipw2100_bg_rates[] = {
 	{ .bitrate = 10 },
 	{ .bitrate = 20, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
@@ -323,7 +316,7 @@ static struct ieee80211_rate ipw2100_bg_rates[] = {
 	{ .bitrate = 110, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
 };
 
-#define RATE_COUNT ARRAY_SIZE(ipw2100_rates_11b)
+#define RATE_COUNT ARRAY_SIZE(ipw2100_bg_rates)
 
 /* Pre-decl until we get the code solid and then we can clean it up */
 static void ipw2100_tx_send_commands(struct ipw2100_priv *priv);
@@ -6893,7 +6886,7 @@ static int ipw2100_wx_get_range(struct net_device *dev,
 	range->num_bitrates = RATE_COUNT;
 
 	for (i = 0; i < RATE_COUNT && i < IW_MAX_BITRATES; i++) {
-		range->bitrate[i] = ipw2100_rates_11b[i];
+		range->bitrate[i] = ipw2100_bg_rates[i].bitrate * 100 * 1000;
 	}
 
 	range->min_rts = MIN_RTS_THRESHOLD;
@@ -8105,61 +8098,41 @@ static int ipw2100_wx_get_crc_check(struct net_device *dev,
 #endif				/* CONFIG_IPW2100_MONITOR */
 
 static iw_handler ipw2100_wx_handlers[] = {
-	NULL,			/* SIOCSIWCOMMIT */
-	ipw2100_wx_get_name,	/* SIOCGIWNAME */
-	NULL,			/* SIOCSIWNWID */
-	NULL,			/* SIOCGIWNWID */
-	ipw2100_wx_set_freq,	/* SIOCSIWFREQ */
-	ipw2100_wx_get_freq,	/* SIOCGIWFREQ */
-	ipw2100_wx_set_mode,	/* SIOCSIWMODE */
-	ipw2100_wx_get_mode,	/* SIOCGIWMODE */
-	NULL,			/* SIOCSIWSENS */
-	NULL,			/* SIOCGIWSENS */
-	NULL,			/* SIOCSIWRANGE */
-	ipw2100_wx_get_range,	/* SIOCGIWRANGE */
-	NULL,			/* SIOCSIWPRIV */
-	NULL,			/* SIOCGIWPRIV */
-	NULL,			/* SIOCSIWSTATS */
-	NULL,			/* SIOCGIWSTATS */
-	NULL,			/* SIOCSIWSPY */
-	NULL,			/* SIOCGIWSPY */
-	NULL,			/* SIOCGIWTHRSPY */
-	NULL,			/* SIOCWIWTHRSPY */
-	ipw2100_wx_set_wap,	/* SIOCSIWAP */
-	ipw2100_wx_get_wap,	/* SIOCGIWAP */
-	ipw2100_wx_set_mlme,	/* SIOCSIWMLME */
-	NULL,			/* SIOCGIWAPLIST -- deprecated */
-	ipw2100_wx_set_scan,	/* SIOCSIWSCAN */
-	ipw2100_wx_get_scan,	/* SIOCGIWSCAN */
-	ipw2100_wx_set_essid,	/* SIOCSIWESSID */
-	ipw2100_wx_get_essid,	/* SIOCGIWESSID */
-	ipw2100_wx_set_nick,	/* SIOCSIWNICKN */
-	ipw2100_wx_get_nick,	/* SIOCGIWNICKN */
-	NULL,			/* -- hole -- */
-	NULL,			/* -- hole -- */
-	ipw2100_wx_set_rate,	/* SIOCSIWRATE */
-	ipw2100_wx_get_rate,	/* SIOCGIWRATE */
-	ipw2100_wx_set_rts,	/* SIOCSIWRTS */
-	ipw2100_wx_get_rts,	/* SIOCGIWRTS */
-	ipw2100_wx_set_frag,	/* SIOCSIWFRAG */
-	ipw2100_wx_get_frag,	/* SIOCGIWFRAG */
-	ipw2100_wx_set_txpow,	/* SIOCSIWTXPOW */
-	ipw2100_wx_get_txpow,	/* SIOCGIWTXPOW */
-	ipw2100_wx_set_retry,	/* SIOCSIWRETRY */
-	ipw2100_wx_get_retry,	/* SIOCGIWRETRY */
-	ipw2100_wx_set_encode,	/* SIOCSIWENCODE */
-	ipw2100_wx_get_encode,	/* SIOCGIWENCODE */
-	ipw2100_wx_set_power,	/* SIOCSIWPOWER */
-	ipw2100_wx_get_power,	/* SIOCGIWPOWER */
-	NULL,			/* -- hole -- */
-	NULL,			/* -- hole -- */
-	ipw2100_wx_set_genie,	/* SIOCSIWGENIE */
-	ipw2100_wx_get_genie,	/* SIOCGIWGENIE */
-	ipw2100_wx_set_auth,	/* SIOCSIWAUTH */
-	ipw2100_wx_get_auth,	/* SIOCGIWAUTH */
-	ipw2100_wx_set_encodeext,	/* SIOCSIWENCODEEXT */
-	ipw2100_wx_get_encodeext,	/* SIOCGIWENCODEEXT */
-	NULL,			/* SIOCSIWPMKSA */
+	IW_HANDLER(SIOCGIWNAME, ipw2100_wx_get_name),
+	IW_HANDLER(SIOCSIWFREQ, ipw2100_wx_set_freq),
+	IW_HANDLER(SIOCGIWFREQ, ipw2100_wx_get_freq),
+	IW_HANDLER(SIOCSIWMODE, ipw2100_wx_set_mode),
+	IW_HANDLER(SIOCGIWMODE, ipw2100_wx_get_mode),
+	IW_HANDLER(SIOCGIWRANGE, ipw2100_wx_get_range),
+	IW_HANDLER(SIOCSIWAP, ipw2100_wx_set_wap),
+	IW_HANDLER(SIOCGIWAP, ipw2100_wx_get_wap),
+	IW_HANDLER(SIOCSIWMLME, ipw2100_wx_set_mlme),
+	IW_HANDLER(SIOCSIWSCAN, ipw2100_wx_set_scan),
+	IW_HANDLER(SIOCGIWSCAN, ipw2100_wx_get_scan),
+	IW_HANDLER(SIOCSIWESSID, ipw2100_wx_set_essid),
+	IW_HANDLER(SIOCGIWESSID, ipw2100_wx_get_essid),
+	IW_HANDLER(SIOCSIWNICKN, ipw2100_wx_set_nick),
+	IW_HANDLER(SIOCGIWNICKN, ipw2100_wx_get_nick),
+	IW_HANDLER(SIOCSIWRATE, ipw2100_wx_set_rate),
+	IW_HANDLER(SIOCGIWRATE, ipw2100_wx_get_rate),
+	IW_HANDLER(SIOCSIWRTS, ipw2100_wx_set_rts),
+	IW_HANDLER(SIOCGIWRTS, ipw2100_wx_get_rts),
+	IW_HANDLER(SIOCSIWFRAG, ipw2100_wx_set_frag),
+	IW_HANDLER(SIOCGIWFRAG, ipw2100_wx_get_frag),
+	IW_HANDLER(SIOCSIWTXPOW, ipw2100_wx_set_txpow),
+	IW_HANDLER(SIOCGIWTXPOW, ipw2100_wx_get_txpow),
+	IW_HANDLER(SIOCSIWRETRY, ipw2100_wx_set_retry),
+	IW_HANDLER(SIOCGIWRETRY, ipw2100_wx_get_retry),
+	IW_HANDLER(SIOCSIWENCODE, ipw2100_wx_set_encode),
+	IW_HANDLER(SIOCGIWENCODE, ipw2100_wx_get_encode),
+	IW_HANDLER(SIOCSIWPOWER, ipw2100_wx_set_power),
+	IW_HANDLER(SIOCGIWPOWER, ipw2100_wx_get_power),
+	IW_HANDLER(SIOCSIWGENIE, ipw2100_wx_set_genie),
+	IW_HANDLER(SIOCGIWGENIE, ipw2100_wx_get_genie),
+	IW_HANDLER(SIOCSIWAUTH, ipw2100_wx_set_auth),
+	IW_HANDLER(SIOCGIWAUTH, ipw2100_wx_get_auth),
+	IW_HANDLER(SIOCSIWENCODEEXT, ipw2100_wx_set_encodeext),
+	IW_HANDLER(SIOCGIWENCODEEXT, ipw2100_wx_get_encodeext),
 };
 
 #define IPW2100_PRIV_SET_MONITOR	SIOCIWFIRSTPRIV

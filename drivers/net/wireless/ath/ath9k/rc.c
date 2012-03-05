@@ -567,10 +567,8 @@ static u8 ath_rc_setvalid_rates(struct ath_rate_priv *ath_rc_priv,
 
 static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv,
 				  const struct ath_rate_table *rate_table,
-				  u8 *mcs_set, u32 capflag)
+				  struct ath_rateset *rateset, u32 capflag)
 {
-	struct ath_rateset *rateset = (struct ath_rateset *)mcs_set;
-
 	u8 i, j, hi = 0;
 
 	/* Use intersection of working rates and valid rates */
@@ -1212,7 +1210,7 @@ static void ath_rc_init(struct ath_softc *sc,
 {
 	struct ath_rateset *rateset = &ath_rc_priv->neg_rates;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	u8 *ht_mcs = (u8 *)&ath_rc_priv->neg_ht_rates;
+	struct ath_rateset *ht_mcs = &ath_rc_priv->neg_ht_rates;
 	u8 i, j, k, hi = 0, hthi = 0;
 
 	/* Initial rate table size. Will change depending

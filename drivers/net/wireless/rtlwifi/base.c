@@ -39,10 +39,10 @@
 #include <linux/module.h>
 
 /*
- *NOTICE!!!: This file will be very big, we hsould
- *keep it clear under follwing roles:
+ *NOTICE!!!: This file will be very big, we should
+ *keep it clear under following roles:
  *
- *This file include follwing part, so, if you add new
+ *This file include following parts, so, if you add new
  *functions into this file, please check which part it
  *should includes. or check if you should add new part
  *for this file:

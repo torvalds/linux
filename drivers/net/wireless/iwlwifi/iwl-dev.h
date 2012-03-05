@@ -47,9 +47,9 @@
 #include "iwl-power.h"
 #include "iwl-agn-rs.h"
 #include "iwl-agn-tt.h"
-#include "iwl-bus.h"
 #include "iwl-trans.h"
 #include "iwl-shared.h"
+#include "iwl-op-mode.h"
 
 struct iwl_tx_queue;
 
@@ -442,9 +442,6 @@ struct iwl_chain_noise_data {
 	u8 state;
 };
 
-#define	EEPROM_SEM_TIMEOUT 10		/* milliseconds */
-#define EEPROM_SEM_RETRY_LIMIT 1000	/* number of attempts (not time) */
-
 enum {
 	MEASUREMENT_READY = (1 << 0),
 	MEASUREMENT_ACTIVE = (1 << 1),
@@ -696,11 +693,11 @@ struct iwl_testmode_trace {
 	dma_addr_t dma_addr;
 	bool trace_enabled;
 };
-struct iwl_testmode_sram {
+struct iwl_testmode_mem {
 	u32 buff_size;
 	u32 num_chunks;
 	u8 *buff_addr;
-	bool sram_readed;
+	bool read_in_progress;
 };
 #endif
 
@@ -709,6 +706,13 @@ struct iwl_wipan_noa_data {
 	u32 length;
 	u8 data[];
 };
+
+#define IWL_OP_MODE_GET_DVM(_iwl_op_mode) \
+	((struct iwl_priv *) ((_iwl_op_mode)->op_mode_specific))
+
+#define IWL_MAC80211_GET_DVM(_hw) \
+	((struct iwl_priv *) ((struct iwl_op_mode *) \
+	(_hw)->priv)->op_mode_specific)
 
 struct iwl_priv {
 
@@ -720,6 +724,8 @@ struct iwl_priv {
 	struct ieee80211_channel *ieee_channels;
 	struct ieee80211_rate *ieee_rates;
 	struct kmem_cache *tx_cmd_pool;
+
+	struct workqueue_struct *workqueue;
 
 	enum ieee80211_band band;
 
@@ -785,13 +791,6 @@ struct iwl_priv {
 	/* EEPROM MAC addresses */
 	struct mac_address addresses[2];
 
-	/* uCode images, save to reload in case of failure */
-	int fw_index;			/* firmware we're trying to load */
-	u32 ucode_ver;			/* version of ucode, copy of
-					   iwl_ucode.ver */
-
-	char firmware_name[25];
-
 	struct iwl_rxon_context contexts[NUM_IWL_RXON_CTX];
 
 	__le16 switch_channel;
@@ -801,7 +800,6 @@ struct iwl_priv {
 	u8 start_calib;
 	struct iwl_sensitivity_data sensitivity_data;
 	struct iwl_chain_noise_data chain_noise_data;
-	bool enhance_sensitivity_table;
 	__le16 sensitivity_tbl[HD_TABLE_SIZE];
 	__le16 enhance_sensitivity_tbl[ENHANCE_HD_TABLE_ENTRIES];
 
@@ -868,11 +866,6 @@ struct iwl_priv {
 
 	struct iwl_rx_phy_res last_phy_res;
 	bool last_phy_res_valid;
-
-	struct completion firmware_loading_complete;
-
-	u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
-	u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
 
 	/*
 	 * chain noise reset and gain commands are the
@@ -964,7 +957,7 @@ struct iwl_priv {
 	bool led_registered;
 #ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 	struct iwl_testmode_trace testmode_trace;
-	struct iwl_testmode_sram testmode_sram;
+	struct iwl_testmode_mem testmode_mem;
 	u32 tm_fixed_rate;
 #endif
 

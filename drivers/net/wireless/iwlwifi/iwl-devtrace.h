@@ -34,6 +34,11 @@
 #undef TRACE_EVENT
 #define TRACE_EVENT(name, proto, ...) \
 static inline void trace_ ## name(proto) {}
+#undef DECLARE_EVENT_CLASS
+#define DECLARE_EVENT_CLASS(...)
+#undef DEFINE_EVENT
+#define DEFINE_EVENT(evt_class, name, proto, ...) \
+static inline void trace_ ## name(proto) {}
 #endif
 
 #define PRIV_ENTRY	__field(void *, priv)
@@ -161,6 +166,66 @@ TRACE_EVENT(iwlwifi_dev_ucode_wrap_event,
 	TP_printk("[%p] wraps=#%02d n=0x%X p=0x%X",
 		  __entry->priv, __entry->wraps, __entry->n_entry,
 		  __entry->p_entry)
+);
+
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM iwlwifi_msg
+
+#define MAX_MSG_LEN	100
+
+DECLARE_EVENT_CLASS(iwlwifi_msg_event,
+	TP_PROTO(struct va_format *vaf),
+	TP_ARGS(vaf),
+	TP_STRUCT__entry(
+		__dynamic_array(char, msg, MAX_MSG_LEN)
+	),
+	TP_fast_assign(
+		WARN_ON_ONCE(vsnprintf(__get_dynamic_array(msg),
+				       MAX_MSG_LEN, vaf->fmt,
+				       *vaf->va) >= MAX_MSG_LEN);
+	),
+	TP_printk("%s", (char *)__get_dynamic_array(msg))
+);
+
+DEFINE_EVENT(iwlwifi_msg_event, iwlwifi_err,
+	TP_PROTO(struct va_format *vaf),
+	TP_ARGS(vaf)
+);
+
+DEFINE_EVENT(iwlwifi_msg_event, iwlwifi_warn,
+	TP_PROTO(struct va_format *vaf),
+	TP_ARGS(vaf)
+);
+
+DEFINE_EVENT(iwlwifi_msg_event, iwlwifi_info,
+	TP_PROTO(struct va_format *vaf),
+	TP_ARGS(vaf)
+);
+
+DEFINE_EVENT(iwlwifi_msg_event, iwlwifi_crit,
+	TP_PROTO(struct va_format *vaf),
+	TP_ARGS(vaf)
+);
+
+TRACE_EVENT(iwlwifi_dbg,
+	TP_PROTO(u32 level, bool in_interrupt, const char *function,
+		 struct va_format *vaf),
+	TP_ARGS(level, in_interrupt, function, vaf),
+	TP_STRUCT__entry(
+		__field(u32, level)
+		__field(u8, in_interrupt)
+		__string(function, function)
+		__dynamic_array(char, msg, MAX_MSG_LEN)
+	),
+	TP_fast_assign(
+		__entry->level = level;
+		__entry->in_interrupt = in_interrupt;
+		__assign_str(function, function);
+		WARN_ON_ONCE(vsnprintf(__get_dynamic_array(msg),
+				       MAX_MSG_LEN, vaf->fmt,
+				       *vaf->va) >= MAX_MSG_LEN);
+	),
+	TP_printk("%s", (char *)__get_dynamic_array(msg))
 );
 
 #undef TRACE_SYSTEM

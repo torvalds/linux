@@ -31,6 +31,101 @@
 
 #include "common.h"
 
+void
+il_clear_traffic_stats(struct il_priv *il)
+{
+	memset(&il->tx_stats, 0, sizeof(struct traffic_stats));
+	memset(&il->rx_stats, 0, sizeof(struct traffic_stats));
+}
+
+/*
+ * il_update_stats function record all the MGMT, CTRL and DATA pkt for
+ * both TX and Rx . Use debugfs to display the rx/rx_stats
+ */
+void
+il_update_stats(struct il_priv *il, bool is_tx, __le16 fc, u16 len)
+{
+	struct traffic_stats *stats;
+
+	if (is_tx)
+		stats = &il->tx_stats;
+	else
+		stats = &il->rx_stats;
+
+	if (ieee80211_is_mgmt(fc)) {
+		switch (fc & cpu_to_le16(IEEE80211_FCTL_STYPE)) {
+		case cpu_to_le16(IEEE80211_STYPE_ASSOC_REQ):
+			stats->mgmt[MANAGEMENT_ASSOC_REQ]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_ASSOC_RESP):
+			stats->mgmt[MANAGEMENT_ASSOC_RESP]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_REASSOC_REQ):
+			stats->mgmt[MANAGEMENT_REASSOC_REQ]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_REASSOC_RESP):
+			stats->mgmt[MANAGEMENT_REASSOC_RESP]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_PROBE_REQ):
+			stats->mgmt[MANAGEMENT_PROBE_REQ]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_PROBE_RESP):
+			stats->mgmt[MANAGEMENT_PROBE_RESP]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_BEACON):
+			stats->mgmt[MANAGEMENT_BEACON]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_ATIM):
+			stats->mgmt[MANAGEMENT_ATIM]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_DISASSOC):
+			stats->mgmt[MANAGEMENT_DISASSOC]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_AUTH):
+			stats->mgmt[MANAGEMENT_AUTH]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_DEAUTH):
+			stats->mgmt[MANAGEMENT_DEAUTH]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_ACTION):
+			stats->mgmt[MANAGEMENT_ACTION]++;
+			break;
+		}
+	} else if (ieee80211_is_ctl(fc)) {
+		switch (fc & cpu_to_le16(IEEE80211_FCTL_STYPE)) {
+		case cpu_to_le16(IEEE80211_STYPE_BACK_REQ):
+			stats->ctrl[CONTROL_BACK_REQ]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_BACK):
+			stats->ctrl[CONTROL_BACK]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_PSPOLL):
+			stats->ctrl[CONTROL_PSPOLL]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_RTS):
+			stats->ctrl[CONTROL_RTS]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_CTS):
+			stats->ctrl[CONTROL_CTS]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_ACK):
+			stats->ctrl[CONTROL_ACK]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_CFEND):
+			stats->ctrl[CONTROL_CFEND]++;
+			break;
+		case cpu_to_le16(IEEE80211_STYPE_CFENDACK):
+			stats->ctrl[CONTROL_CFENDACK]++;
+			break;
+		}
+	} else {
+		/* data */
+		stats->data_cnt++;
+		stats->data_bytes += len;
+	}
+}
+EXPORT_SYMBOL(il_update_stats);
+
 /* create and remove of files */
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
 	if (!debugfs_create_file(#name, mode, parent, il,		\
@@ -97,6 +192,46 @@ static const struct file_operations il_dbgfs_##name##_ops = {	\
 	.open = il_dbgfs_open_file_generic,			\
 	.llseek = generic_file_llseek,				\
 };
+
+static const char *
+il_get_mgmt_string(int cmd)
+{
+	switch (cmd) {
+	IL_CMD(MANAGEMENT_ASSOC_REQ);
+	IL_CMD(MANAGEMENT_ASSOC_RESP);
+	IL_CMD(MANAGEMENT_REASSOC_REQ);
+	IL_CMD(MANAGEMENT_REASSOC_RESP);
+	IL_CMD(MANAGEMENT_PROBE_REQ);
+	IL_CMD(MANAGEMENT_PROBE_RESP);
+	IL_CMD(MANAGEMENT_BEACON);
+	IL_CMD(MANAGEMENT_ATIM);
+	IL_CMD(MANAGEMENT_DISASSOC);
+	IL_CMD(MANAGEMENT_AUTH);
+	IL_CMD(MANAGEMENT_DEAUTH);
+	IL_CMD(MANAGEMENT_ACTION);
+	default:
+		return "UNKNOWN";
+
+	}
+}
+
+static const char *
+il_get_ctrl_string(int cmd)
+{
+	switch (cmd) {
+	IL_CMD(CONTROL_BACK_REQ);
+	IL_CMD(CONTROL_BACK);
+	IL_CMD(CONTROL_PSPOLL);
+	IL_CMD(CONTROL_RTS);
+	IL_CMD(CONTROL_CTS);
+	IL_CMD(CONTROL_ACK);
+	IL_CMD(CONTROL_CFEND);
+	IL_CMD(CONTROL_CFENDACK);
+	default:
+		return "UNKNOWN";
+
+	}
+}
 
 static ssize_t
 il_dbgfs_tx_stats_read(struct file *file, char __user *user_buf, size_t count,
@@ -495,8 +630,8 @@ il_dbgfs_status_read(struct file *file, char __user *user_buf, size_t count,
 	    scnprintf(buf + pos, bufsz - pos, "S_INT_ENABLED:\t %d\n",
 		      test_bit(S_INT_ENABLED, &il->status));
 	pos +=
-	    scnprintf(buf + pos, bufsz - pos, "S_RF_KILL_HW:\t %d\n",
-		      test_bit(S_RF_KILL_HW, &il->status));
+	    scnprintf(buf + pos, bufsz - pos, "S_RFKILL:\t %d\n",
+		      test_bit(S_RFKILL, &il->status));
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos, "S_CT_KILL:\t\t %d\n",
 		      test_bit(S_CT_KILL, &il->status));
@@ -715,112 +850,6 @@ DEBUGFS_READ_FILE_OPS(qos);
 DEBUGFS_READ_WRITE_FILE_OPS(disable_ht40);
 
 static ssize_t
-il_dbgfs_traffic_log_read(struct file *file, char __user *user_buf,
-			  size_t count, loff_t *ppos)
-{
-	struct il_priv *il = file->private_data;
-	int pos = 0, ofs = 0;
-	int cnt = 0, entry;
-	struct il_tx_queue *txq;
-	struct il_queue *q;
-	struct il_rx_queue *rxq = &il->rxq;
-	char *buf;
-	int bufsz =
-	    ((IL_TRAFFIC_ENTRIES * IL_TRAFFIC_ENTRY_SIZE * 64) * 2) +
-	    (il->cfg->num_of_queues * 32 * 8) + 400;
-	const u8 *ptr;
-	ssize_t ret;
-
-	if (!il->txq) {
-		IL_ERR("txq not ready\n");
-		return -EAGAIN;
-	}
-	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IL_ERR("Can not allocate buffer\n");
-		return -ENOMEM;
-	}
-	pos += scnprintf(buf + pos, bufsz - pos, "Tx Queue\n");
-	for (cnt = 0; cnt < il->hw_params.max_txq_num; cnt++) {
-		txq = &il->txq[cnt];
-		q = &txq->q;
-		pos +=
-		    scnprintf(buf + pos, bufsz - pos,
-			      "q[%d]: read_ptr: %u, write_ptr: %u\n", cnt,
-			      q->read_ptr, q->write_ptr);
-	}
-	if (il->tx_traffic && (il_debug_level & IL_DL_TX)) {
-		ptr = il->tx_traffic;
-		pos +=
-		    scnprintf(buf + pos, bufsz - pos, "Tx Traffic idx: %u\n",
-			      il->tx_traffic_idx);
-		for (cnt = 0, ofs = 0; cnt < IL_TRAFFIC_ENTRIES; cnt++) {
-			for (entry = 0; entry < IL_TRAFFIC_ENTRY_SIZE / 16;
-			     entry++, ofs += 16) {
-				pos +=
-				    scnprintf(buf + pos, bufsz - pos, "0x%.4x ",
-					      ofs);
-				hex_dump_to_buffer(ptr + ofs, 16, 16, 2,
-						   buf + pos, bufsz - pos, 0);
-				pos += strlen(buf + pos);
-				if (bufsz - pos > 0)
-					buf[pos++] = '\n';
-			}
-		}
-	}
-
-	pos += scnprintf(buf + pos, bufsz - pos, "Rx Queue\n");
-	pos +=
-	    scnprintf(buf + pos, bufsz - pos, "read: %u, write: %u\n",
-		      rxq->read, rxq->write);
-
-	if (il->rx_traffic && (il_debug_level & IL_DL_RX)) {
-		ptr = il->rx_traffic;
-		pos +=
-		    scnprintf(buf + pos, bufsz - pos, "Rx Traffic idx: %u\n",
-			      il->rx_traffic_idx);
-		for (cnt = 0, ofs = 0; cnt < IL_TRAFFIC_ENTRIES; cnt++) {
-			for (entry = 0; entry < IL_TRAFFIC_ENTRY_SIZE / 16;
-			     entry++, ofs += 16) {
-				pos +=
-				    scnprintf(buf + pos, bufsz - pos, "0x%.4x ",
-					      ofs);
-				hex_dump_to_buffer(ptr + ofs, 16, 16, 2,
-						   buf + pos, bufsz - pos, 0);
-				pos += strlen(buf + pos);
-				if (bufsz - pos > 0)
-					buf[pos++] = '\n';
-			}
-		}
-	}
-
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	kfree(buf);
-	return ret;
-}
-
-static ssize_t
-il_dbgfs_traffic_log_write(struct file *file, const char __user *user_buf,
-			   size_t count, loff_t *ppos)
-{
-	struct il_priv *il = file->private_data;
-	char buf[8];
-	int buf_size;
-	int traffic_log;
-
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%d", &traffic_log) != 1)
-		return -EFAULT;
-	if (traffic_log == 0)
-		il_reset_traffic_log(il);
-
-	return count;
-}
-
-static ssize_t
 il_dbgfs_tx_queue_read(struct file *file, char __user *user_buf, size_t count,
 		       loff_t *ppos)
 {
@@ -901,7 +930,8 @@ il_dbgfs_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	struct il_priv *il = file->private_data;
-	return il->ops->lib->debugfs_ops.rx_stats_read(file, user_buf, count, ppos);
+
+	return il->debugfs_ops->rx_stats_read(file, user_buf, count, ppos);
 }
 
 static ssize_t
@@ -909,7 +939,8 @@ il_dbgfs_ucode_tx_stats_read(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	struct il_priv *il = file->private_data;
-	return il->ops->lib->debugfs_ops.tx_stats_read(file, user_buf, count, ppos);
+
+	return il->debugfs_ops->tx_stats_read(file, user_buf, count, ppos);
 }
 
 static ssize_t
@@ -917,7 +948,8 @@ il_dbgfs_ucode_general_stats_read(struct file *file, char __user *user_buf,
 				  size_t count, loff_t *ppos)
 {
 	struct il_priv *il = file->private_data;
-	return il->ops->lib->debugfs_ops.general_stats_read(file, user_buf, count, ppos);
+
+	return il->debugfs_ops->general_stats_read(file, user_buf, count, ppos);
 }
 
 static ssize_t
@@ -1175,8 +1207,8 @@ il_dbgfs_fh_reg_read(struct file *file, char __user *user_buf, size_t count,
 	int pos = 0;
 	ssize_t ret = -EFAULT;
 
-	if (il->ops->lib->dump_fh) {
-		ret = pos = il->ops->lib->dump_fh(il, &buf, true);
+	if (il->ops->dump_fh) {
+		ret = pos = il->ops->dump_fh(il, &buf, true);
 		if (buf) {
 			ret =
 			    simple_read_from_buffer(user_buf, count, ppos, buf,
@@ -1300,7 +1332,6 @@ il_dbgfs_wd_timeout_write(struct file *file, const char __user *user_buf,
 
 DEBUGFS_READ_FILE_OPS(rx_stats);
 DEBUGFS_READ_FILE_OPS(tx_stats);
-DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
 DEBUGFS_READ_FILE_OPS(rx_queue);
 DEBUGFS_READ_FILE_OPS(tx_queue);
 DEBUGFS_READ_FILE_OPS(ucode_rx_stats);
@@ -1354,7 +1385,6 @@ il_dbgfs_register(struct il_priv *il, const char *name)
 	DEBUGFS_ADD_FILE(disable_ht40, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(rx_stats, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(tx_stats, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(traffic_log, dir_debug, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(rx_queue, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(tx_queue, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(power_save_status, dir_debug, S_IRUSR);

@@ -796,18 +796,19 @@ static int brcmf_netdev_open(struct net_device *ndev)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
+	struct brcmf_bus *bus_if = drvr->bus_if;
 	u32 toe_ol;
 	s32 ret = 0;
 
 	brcmf_dbg(TRACE, "ifidx %d\n", ifp->idx);
 
 	if (ifp->idx == 0) {	/* do it only for primary eth0 */
-		/* try to bring up bus */
-		ret = brcmf_bus_start(drvr->dev);
-		if (ret != 0) {
-			brcmf_dbg(ERROR, "failed with code %d\n", ret);
-			return -1;
+		/* If bus is not ready, can't continue */
+		if (bus_if->state != BRCMF_BUS_DATA) {
+			brcmf_dbg(ERROR, "failed bus is not ready\n");
+			return -EAGAIN;
 		}
+
 		atomic_set(&drvr->pend_8021x_cnt, 0);
 
 		memcpy(ndev->dev_addr, drvr->mac, ETH_ALEN);
@@ -979,12 +980,6 @@ int brcmf_bus_start(struct device *dev)
 		return ret;
 	}
 
-	/* If bus is not ready, can't come up */
-	if (bus_if->state != BRCMF_BUS_DATA) {
-		brcmf_dbg(ERROR, "failed bus is not ready\n");
-		return -ENODEV;
-	}
-
 	brcmf_c_mkiovar("event_msgs", drvr->eventmask, BRCMF_EVENTING_MASK_LEN,
 		      iovbuf, sizeof(iovbuf));
 	brcmf_proto_cdc_query_dcmd(drvr, 0, BRCMF_C_GET_VAR, iovbuf,
@@ -1021,6 +1016,8 @@ int brcmf_bus_start(struct device *dev)
 	if (ret < 0)
 		return ret;
 
+	/* signal bus ready */
+	bus_if->state = BRCMF_BUS_DATA;
 	return 0;
 }
 
@@ -1109,13 +1106,13 @@ void brcmf_detach(struct device *dev)
 		if (drvr->iflist[i])
 			brcmf_del_if(drvr, i);
 
-	cancel_work_sync(&drvr->setmacaddr_work);
-	cancel_work_sync(&drvr->multicast_work);
-
 	brcmf_bus_detach(drvr);
 
-	if (drvr->prot)
+	if (drvr->prot) {
+		cancel_work_sync(&drvr->setmacaddr_work);
+		cancel_work_sync(&drvr->multicast_work);
 		brcmf_proto_detach(drvr);
+	}
 
 	bus_if->drvr = NULL;
 	kfree(drvr);
@@ -1183,3 +1180,35 @@ exit:
 	return ret;
 }
 #endif				/* DEBUG */
+
+static int __init brcmfmac_init(void)
+{
+	int ret = 0;
+
+#ifdef CONFIG_BRCMFMAC_SDIO
+	ret = brcmf_sdio_init();
+	if (ret)
+		goto fail;
+#endif
+#ifdef CONFIG_BRCMFMAC_USB
+	ret = brcmf_usb_init();
+	if (ret)
+		goto fail;
+#endif
+
+fail:
+	return ret;
+}
+
+static void __exit brcmfmac_exit(void)
+{
+#ifdef CONFIG_BRCMFMAC_SDIO
+	brcmf_sdio_exit();
+#endif
+#ifdef CONFIG_BRCMFMAC_USB
+	brcmf_usb_exit();
+#endif
+}
+
+module_init(brcmfmac_init);
+module_exit(brcmfmac_exit);

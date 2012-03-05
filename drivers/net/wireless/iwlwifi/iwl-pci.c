@@ -64,12 +64,13 @@
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
 
-#include "iwl-bus.h"
 #include "iwl-io.h"
 #include "iwl-shared.h"
 #include "iwl-trans.h"
 #include "iwl-csr.h"
 #include "iwl-cfg.h"
+#include "iwl-drv.h"
+#include "iwl-trans.h"
 
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \
 	.vendor = PCI_VENDOR_ID_INTEL,  .device = (dev), \
@@ -157,9 +158,9 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x0085, 0x1316, iwl6005_2abg_cfg)},
 	{IWL_PCI_DEVICE(0x0082, 0xC020, iwl6005_2agn_sff_cfg)},
 	{IWL_PCI_DEVICE(0x0085, 0xC220, iwl6005_2agn_sff_cfg)},
-	{IWL_PCI_DEVICE(0x0082, 0x1341, iwl6005_2agn_d_cfg)},
-	{IWL_PCI_DEVICE(0x0082, 0x1304, iwl6005_2agn_cfg)},/* low 5GHz active */
-	{IWL_PCI_DEVICE(0x0082, 0x1305, iwl6005_2agn_cfg)},/* high 5GHz active */
+	{IWL_PCI_DEVICE(0x0082, 0x4820, iwl6005_2agn_d_cfg)},
+	{IWL_PCI_DEVICE(0x0082, 0x1304, iwl6005_2agn_mow1_cfg)},/* low 5GHz active */
+	{IWL_PCI_DEVICE(0x0082, 0x1305, iwl6005_2agn_mow2_cfg)},/* high 5GHz active */
 
 /* 6x30 Series */
 	{IWL_PCI_DEVICE(0x008A, 0x5305, iwl1030_bgn_cfg)},
@@ -240,6 +241,7 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x088E, 0x4060, iwl6035_2agn_cfg)},
 	{IWL_PCI_DEVICE(0x088F, 0x4260, iwl6035_2agn_cfg)},
 	{IWL_PCI_DEVICE(0x088E, 0x4460, iwl6035_2agn_cfg)},
+	{IWL_PCI_DEVICE(0x088E, 0x4860, iwl6035_2agn_cfg)},
 
 /* 105 Series */
 	{IWL_PCI_DEVICE(0x0894, 0x0022, iwl105_bgn_cfg)},
@@ -262,44 +264,40 @@ MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
-	struct iwl_bus *bus;
+	struct iwl_shared *shrd;
+	struct iwl_trans *iwl_trans;
 	int err;
 
-	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
-	if (!bus) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "Couldn't allocate iwl_pci_bus");
-		return -ENOMEM;
-	}
-
-	bus->shrd = kzalloc(sizeof(*bus->shrd), GFP_KERNEL);
-	if (!bus->shrd) {
+	shrd = kzalloc(sizeof(*iwl_trans->shrd), GFP_KERNEL);
+	if (!shrd) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			   "Couldn't allocate iwl_shared");
 		err = -ENOMEM;
 		goto out_free_bus;
 	}
 
-	bus->shrd->bus = bus;
-
-	pci_set_drvdata(pdev, bus);
-
 #ifdef CONFIG_IWLWIFI_IDI
-	trans(bus) = iwl_trans_idi_alloc(bus->shrd, pdev, ent);
-	if (trans(bus) == NULL) {
+	iwl_trans = iwl_trans_idi_alloc(shrd, pdev, ent);
+	if (iwl_trans == NULL) {
 		err = -ENOMEM;
 		goto out_free_bus;
 	}
 
-	err = iwl_probe(bus, &trans_ops_idi, cfg);
+	shrd->trans = iwl_trans;
+	pci_set_drvdata(pdev, iwl_trans);
+
+	err = iwl_drv_start(shrd, iwl_trans, cfg);
 #else
-	trans(bus) = iwl_trans_pcie_alloc(bus->shrd, pdev, ent);
-	if (trans(bus) == NULL) {
+	iwl_trans = iwl_trans_pcie_alloc(shrd, pdev, ent);
+	if (iwl_trans == NULL) {
 		err = -ENOMEM;
 		goto out_free_bus;
 	}
 
-	err = iwl_probe(bus, &trans_ops_pcie, cfg);
+	shrd->trans = iwl_trans;
+	pci_set_drvdata(pdev, iwl_trans);
+
+	err = iwl_drv_start(shrd, iwl_trans, cfg);
 #endif
 	if (err)
 		goto out_free_trans;
@@ -307,26 +305,24 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 out_free_trans:
-	iwl_trans_free(trans(bus));
+	iwl_trans_free(iwl_trans);
 	pci_set_drvdata(pdev, NULL);
 out_free_bus:
-	kfree(bus->shrd);
-	kfree(bus);
+	kfree(shrd);
 	return err;
 }
 
 static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 {
-	struct iwl_bus *bus = pci_get_drvdata(pdev);
-	struct iwl_shared *shrd = bus->shrd;
+	struct iwl_trans *iwl_trans = pci_get_drvdata(pdev);
+	struct iwl_shared *shrd = iwl_trans->shrd;
 
-	iwl_remove(shrd->priv);
+	iwl_drv_stop(shrd);
 	iwl_trans_free(shrd->trans);
 
 	pci_set_drvdata(pdev, NULL);
 
-	kfree(bus->shrd);
-	kfree(bus);
+	kfree(shrd);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -334,22 +330,20 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 static int iwl_pci_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
-	struct iwl_bus *bus = pci_get_drvdata(pdev);
-	struct iwl_shared *shrd = bus->shrd;
+	struct iwl_trans *iwl_trans = pci_get_drvdata(pdev);
 
 	/* Before you put code here, think about WoWLAN. You cannot check here
 	 * whether WoWLAN is enabled or not, and your code will run even if
 	 * WoWLAN is enabled - don't kill the NIC, someone may need it in Sx.
 	 */
 
-	return iwl_trans_suspend(shrd->trans);
+	return iwl_trans_suspend(iwl_trans);
 }
 
 static int iwl_pci_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
-	struct iwl_bus *bus = pci_get_drvdata(pdev);
-	struct iwl_shared *shrd = bus->shrd;
+	struct iwl_trans *iwl_trans = pci_get_drvdata(pdev);
 
 	/* Before you put code here, think about WoWLAN. You cannot check here
 	 * whether WoWLAN is enabled or not, and your code will run even if
@@ -362,7 +356,7 @@ static int iwl_pci_resume(struct device *device)
 	 */
 	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
 
-	return iwl_trans_resume(shrd->trans);
+	return iwl_trans_resume(iwl_trans);
 }
 
 static SIMPLE_DEV_PM_OPS(iwl_dev_pm_ops, iwl_pci_suspend, iwl_pci_resume);

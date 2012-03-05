@@ -162,7 +162,7 @@ static void iwl5000_set_ct_threshold(struct iwl_priv *priv)
 	hw_params(priv).ct_kill_threshold = CT_KILL_THRESHOLD_LEGACY;
 }
 
-static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
+static void iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
@@ -170,8 +170,6 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	hw_params(priv).max_txq_num = cfg(priv)->base_params->num_of_queues;
-	hw_params(priv).max_data_size = IWLAGN_RTC_DATA_SIZE;
-	hw_params(priv).max_inst_size = IWLAGN_RTC_INST_SIZE;
 
 	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
@@ -185,11 +183,9 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 
 	/* Set initial sensitivity parameters */
 	hw_params(priv).sens = &iwl5000_sensitivity;
-
-	return 0;
 }
 
-static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
+static void iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
@@ -197,8 +193,6 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	hw_params(priv).max_txq_num = cfg(priv)->base_params->num_of_queues;
-	hw_params(priv).max_data_size = IWLAGN_RTC_DATA_SIZE;
-	hw_params(priv).max_inst_size = IWLAGN_RTC_INST_SIZE;
 
 	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
@@ -212,8 +206,6 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 
 	/* Set initial sensitivity parameters */
 	hw_params(priv).sens = &iwl5150_sensitivity;
-
-	return 0;
 }
 
 static void iwl5150_temperature(struct iwl_priv *priv)
@@ -356,6 +348,8 @@ static struct iwl_ht_params iwl5000_ht_params = {
 	.fw_name_pre = IWL5000_FW_PRE,				\
 	.ucode_api_max = IWL5000_UCODE_API_MAX,			\
 	.ucode_api_min = IWL5000_UCODE_API_MIN,			\
+	.max_inst_size = IWLAGN_RTC_INST_SIZE,			\
+	.max_data_size = IWLAGN_RTC_DATA_SIZE,			\
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,	\
 	.lib = &iwl5000_lib,					\
@@ -399,6 +393,8 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.fw_name_pre = IWL5000_FW_PRE,
 	.ucode_api_max = IWL5000_UCODE_API_MAX,
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
+	.max_inst_size = IWLAGN_RTC_INST_SIZE,
+	.max_data_size = IWLAGN_RTC_DATA_SIZE,
 	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
 	.lib = &iwl5000_lib,
@@ -412,6 +408,8 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.fw_name_pre = IWL5150_FW_PRE,				\
 	.ucode_api_max = IWL5150_UCODE_API_MAX,			\
 	.ucode_api_min = IWL5150_UCODE_API_MIN,			\
+	.max_inst_size = IWLAGN_RTC_INST_SIZE,			\
+	.max_data_size = IWLAGN_RTC_DATA_SIZE,			\
 	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,	\
 	.lib = &iwl5150_lib,					\

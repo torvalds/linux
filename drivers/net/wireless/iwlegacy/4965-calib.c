@@ -79,18 +79,6 @@ struct stats_general_data {
 	u32 beacon_energy_c;
 };
 
-void
-il4965_calib_free_results(struct il_priv *il)
-{
-	int i;
-
-	for (i = 0; i < IL_CALIB_MAX; i++) {
-		kfree(il->calib_results[i].buf);
-		il->calib_results[i].buf = NULL;
-		il->calib_results[i].buf_len = 0;
-	}
-}
-
 /*****************************************************************************
  * RUNTIME calibrations framework
  *****************************************************************************/
@@ -923,8 +911,8 @@ il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp)
 	/* Some power changes may have been made during the calibration.
 	 * Update and commit the RXON
 	 */
-	if (il->ops->lib->update_chain_flags)
-		il->ops->lib->update_chain_flags(il);
+	if (il->ops->update_chain_flags)
+		il->ops->update_chain_flags(il);
 
 	data->state = IL_CHAIN_NOISE_DONE;
 	il_power_update_mode(il, false);

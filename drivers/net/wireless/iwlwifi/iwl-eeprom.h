@@ -67,6 +67,7 @@
 
 struct iwl_priv;
 struct iwl_shared;
+struct iwl_trans;
 
 /*
  * EEPROM access time values:
@@ -305,7 +306,7 @@ struct iwl_eeprom_ops {
 };
 
 
-int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev);
+int iwl_eeprom_init(struct iwl_trans *trans, u32 hw_rev);
 void iwl_eeprom_free(struct iwl_shared *shrd);
 int  iwl_eeprom_check_version(struct iwl_priv *priv);
 int  iwl_eeprom_check_sku(struct iwl_priv *priv);

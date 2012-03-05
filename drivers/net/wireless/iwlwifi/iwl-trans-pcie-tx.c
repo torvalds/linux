@@ -35,6 +35,7 @@
 #include "iwl-prph.h"
 #include "iwl-io.h"
 #include "iwl-agn-hw.h"
+#include "iwl-op-mode.h"
 #include "iwl-trans-pcie-int.h"
 
 #define IWL_TX_CRC_SIZE 4
@@ -229,7 +230,7 @@ void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 		 * freed and that the queue is not empty - free the skb
 		 */
 		if (skb) {
-			iwl_free_skb(priv(trans), skb);
+			iwl_op_mode_free_skb(trans->op_mode, skb);
 			txq->skbs[index] = NULL;
 		}
 	}
@@ -492,7 +493,7 @@ void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
 
 	ra_tid = BUILD_RAxTID(sta_id, tid);
 
-	spin_lock_irqsave(&trans->shrd->lock, flags);
+	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
 	/* Stop this Tx queue before configuring it */
 	iwlagn_tx_queue_stop_scheduler(trans, txq_id);
@@ -532,7 +533,7 @@ void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
 	trans_pcie->txq[txq_id].sta_id = sta_id;
 	trans_pcie->txq[txq_id].tid = tid;
 
-	spin_unlock_irqrestore(&trans->shrd->lock, flags);
+	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 }
 
 /*
@@ -688,7 +689,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		is_ct_kill = iwl_check_for_ct_kill(priv(trans));
 		if (!is_ct_kill) {
 			IWL_ERR(trans, "Restarting adapter queue is full\n");
-			iwlagn_fw_error(priv(trans), false);
+			iwl_op_mode_nic_error(trans->op_mode);
 		}
 		return -ENOSPC;
 	}
@@ -821,7 +822,7 @@ static void iwl_hcmd_queue_reclaim(struct iwl_trans *trans, int txq_id,
 		if (nfreed++ > 0) {
 			IWL_ERR(trans, "HCMD skipped: index (%d) %d %d\n", idx,
 					q->write_ptr, q->read_ptr);
-			iwlagn_fw_error(priv(trans), false);
+			iwl_op_mode_nic_error(trans->op_mode);
 		}
 
 	}

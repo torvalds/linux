@@ -68,6 +68,7 @@
 #define RF3322				0x000c
 #define RF3053				0x000d
 #define RF5370				0x5370
+#define RF5372				0x5372
 #define RF5390				0x5390
 
 /*
@@ -965,6 +966,7 @@
  * TX_PIN_CFG:
  */
 #define TX_PIN_CFG			0x1328
+#define TX_PIN_CFG_PA_PE_DISABLE	0xfcfffff0
 #define TX_PIN_CFG_PA_PE_A0_EN		FIELD32(0x00000001)
 #define TX_PIN_CFG_PA_PE_G0_EN		FIELD32(0x00000002)
 #define TX_PIN_CFG_PA_PE_A1_EN		FIELD32(0x00000004)
@@ -985,6 +987,14 @@
 #define TX_PIN_CFG_RFTR_POL		FIELD32(0x00020000)
 #define TX_PIN_CFG_TRSW_EN		FIELD32(0x00040000)
 #define TX_PIN_CFG_TRSW_POL		FIELD32(0x00080000)
+#define TX_PIN_CFG_PA_PE_A2_EN		FIELD32(0x01000000)
+#define TX_PIN_CFG_PA_PE_G2_EN		FIELD32(0x02000000)
+#define TX_PIN_CFG_PA_PE_A2_POL		FIELD32(0x04000000)
+#define TX_PIN_CFG_PA_PE_G2_POL		FIELD32(0x08000000)
+#define TX_PIN_CFG_LNA_PE_A2_EN		FIELD32(0x10000000)
+#define TX_PIN_CFG_LNA_PE_G2_EN		FIELD32(0x20000000)
+#define TX_PIN_CFG_LNA_PE_A2_POL	FIELD32(0x40000000)
+#define TX_PIN_CFG_LNA_PE_G2_POL	FIELD32(0x80000000)
 
 /*
  * TX_BAND_CFG: 0x1 use upper 20MHz, 0x0 use lower 20MHz
@@ -1627,6 +1637,7 @@ struct mac_iveiv_entry {
 
 /*
  * H2M_MAILBOX_CSR: Host-to-MCU Mailbox.
+ * CMD_TOKEN: Command id, 0xff disable status reporting.
  */
 #define H2M_MAILBOX_CSR			0x7010
 #define H2M_MAILBOX_CSR_ARG0		FIELD32(0x000000ff)
@@ -1636,6 +1647,8 @@ struct mac_iveiv_entry {
 
 /*
  * H2M_MAILBOX_CID:
+ * Free slots contain 0xff. MCU will store command's token to lowest free slot.
+ * If all slots are occupied status will be dropped.
  */
 #define H2M_MAILBOX_CID			0x7014
 #define H2M_MAILBOX_CID_CMD0		FIELD32(0x000000ff)
@@ -1645,6 +1658,7 @@ struct mac_iveiv_entry {
 
 /*
  * H2M_MAILBOX_STATUS:
+ * Command status will be saved to same slot as command id.
  */
 #define H2M_MAILBOX_STATUS		0x701c
 
@@ -2288,6 +2302,12 @@ struct mac_iveiv_entry {
 
 /*
  * MCU mailbox commands.
+ * MCU_SLEEP - go to power-save mode.
+ *             arg1: 1: save as much power as possible, 0: save less power.
+ *             status: 1: success, 2: already asleep,
+ *                     3: maybe MAC is busy so can't finish this task.
+ * MCU_RADIO_OFF
+ *             arg0: 0: do power-saving, NOT turn off radio.
  */
 #define MCU_SLEEP			0x30
 #define MCU_WAKEUP			0x31
@@ -2308,7 +2328,10 @@ struct mac_iveiv_entry {
 /*
  * MCU mailbox tokens
  */
-#define TOKEN_WAKUP			3
+#define TOKEN_SLEEP			1
+#define TOKEN_RADIO_OFF			2
+#define TOKEN_WAKEUP			3
+
 
 /*
  * DMA descriptor defines.

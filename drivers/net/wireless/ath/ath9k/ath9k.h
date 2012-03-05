@@ -454,9 +454,39 @@ struct ath_btcoex {
 	struct ath_mci_profile mci;
 };
 
-int ath_init_btcoex_timer(struct ath_softc *sc);
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+int ath9k_init_btcoex(struct ath_softc *sc);
+void ath9k_deinit_btcoex(struct ath_softc *sc);
+void ath9k_start_btcoex(struct ath_softc *sc);
+void ath9k_stop_btcoex(struct ath_softc *sc);
 void ath9k_btcoex_timer_resume(struct ath_softc *sc);
 void ath9k_btcoex_timer_pause(struct ath_softc *sc);
+void ath9k_btcoex_handle_interrupt(struct ath_softc *sc, u32 status);
+u16 ath9k_btcoex_aggr_limit(struct ath_softc *sc, u32 max_4ms_framelen);
+#else
+static inline int ath9k_init_btcoex(struct ath_softc *sc)
+{
+	return 0;
+}
+static inline void ath9k_deinit_btcoex(struct ath_softc *sc)
+{
+}
+static inline void ath9k_start_btcoex(struct ath_softc *sc)
+{
+}
+static inline void ath9k_stop_btcoex(struct ath_softc *sc)
+{
+}
+static inline void ath9k_btcoex_handle_interrupt(struct ath_softc *sc,
+						 u32 status)
+{
+}
+static inline u16 ath9k_btcoex_aggr_limit(struct ath_softc *sc,
+					  u32 max_4ms_framelen)
+{
+	return 0;
+}
+#endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 
 /********************/
 /*   LED Control    */
@@ -650,8 +680,11 @@ struct ath_softc {
 	struct ath_beacon_config cur_beacon_conf;
 	struct delayed_work tx_complete_work;
 	struct delayed_work hw_pll_work;
+
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	struct ath_btcoex btcoex;
 	struct ath_mci_coex mci_coex;
+#endif
 
 	struct ath_descdma txsdma;
 
