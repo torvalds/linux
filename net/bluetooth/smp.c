@@ -589,6 +589,8 @@ static u8 smp_cmd_pairing_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	if (req->auth_req & SMP_AUTH_BONDING)
 		auth = req->auth_req;
 
+	conn->hcon->pending_sec_level = authreq_to_seclevel(auth);
+
 	build_pairing_cmd(conn, req, &rsp, auth);
 
 	key_size = min(req->max_key_size, rsp.max_key_size);
