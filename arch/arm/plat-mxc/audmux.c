@@ -1,4 +1,6 @@
 /*
+ * Copyright 2012 Freescale Semiconductor, Inc.
+ * Copyright 2012 Linaro Ltd.
  * Copyright 2009 Pengutronix, Sascha Hauer <s.hauer@pengutronix.de>
  *
  * Initial development of this code was funded by
@@ -15,14 +17,16 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
-#include <linux/err.h>
-#include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/debugfs.h>
+#include <linux/err.h>
+#include <linux/io.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <mach/audmux.h>
-#include <mach/hardware.h>
+
+#define DRIVER_NAME "imx-audmux"
 
 static struct clk *audmux_clk;
 static void __iomem *audmux_base;
@@ -140,7 +144,7 @@ static const struct file_operations audmux_debugfs_fops = {
 	.llseek = default_llseek,
 };
 
-static void audmux_debugfs_init(void)
+static void __init audmux_debugfs_init(void)
 {
 	int i;
 	char buf[20];
@@ -159,11 +163,38 @@ static void audmux_debugfs_init(void)
 				   i);
 	}
 }
+
+static void __exit audmux_debugfs_remove(void)
+{
+	debugfs_remove_recursive(audmux_debugfs_root);
+}
 #else
 static inline void audmux_debugfs_init(void)
 {
 }
+
+static inline void audmux_debugfs_remove(void)
+{
+}
 #endif
+
+enum imx_audmux_type {
+	IMX21_AUDMUX,
+	IMX31_AUDMUX,
+} audmux_type;
+
+static struct platform_device_id imx_audmux_ids[] = {
+	{
+		.name = "imx21-audmux",
+		.driver_data = IMX21_AUDMUX,
+	}, {
+		.name = "imx31-audmux",
+		.driver_data = IMX31_AUDMUX,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(platform, imx_audmux_ids);
 
 static const uint8_t port_mapping[] = {
 	0x0, 0x4, 0x8, 0x10, 0x14, 0x1c,
@@ -171,6 +202,9 @@ static const uint8_t port_mapping[] = {
 
 int mxc_audmux_v1_configure_port(unsigned int port, unsigned int pcr)
 {
+	if (audmux_type != IMX21_AUDMUX)
+		return -EINVAL;
+
 	if (!audmux_base)
 		return -ENOSYS;
 
@@ -186,6 +220,9 @@ EXPORT_SYMBOL_GPL(mxc_audmux_v1_configure_port);
 int mxc_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
 		unsigned int pdcr)
 {
+	if (audmux_type != IMX31_AUDMUX)
+		return -EINVAL;
+
 	if (!audmux_base)
 		return -ENOSYS;
 
@@ -202,41 +239,61 @@ int mxc_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
 }
 EXPORT_SYMBOL_GPL(mxc_audmux_v2_configure_port);
 
-static int mxc_audmux_init(void)
+static int __init imx_audmux_probe(struct platform_device *pdev)
 {
-	int ret;
-	if (cpu_is_mx51()) {
-		audmux_base = MX51_IO_ADDRESS(MX51_AUDMUX_BASE_ADDR);
-	} else if (cpu_is_mx31()) {
-		audmux_base = MX31_IO_ADDRESS(MX31_AUDMUX_BASE_ADDR);
-	} else if (cpu_is_mx35()) {
-		audmux_clk = clk_get(NULL, "audmux");
-		if (IS_ERR(audmux_clk)) {
-			ret = PTR_ERR(audmux_clk);
-			printk(KERN_ERR "%s: cannot get clock: %d\n", __func__,
-					ret);
-			return ret;
-		}
-		audmux_base = MX35_IO_ADDRESS(MX35_AUDMUX_BASE_ADDR);
-	} else if (cpu_is_mx25()) {
-		audmux_clk = clk_get(NULL, "audmux");
-		if (IS_ERR(audmux_clk)) {
-			ret = PTR_ERR(audmux_clk);
-			printk(KERN_ERR "%s: cannot get clock: %d\n", __func__,
-					ret);
-			return ret;
-		}
-		audmux_base = MX25_IO_ADDRESS(MX25_AUDMUX_BASE_ADDR);
-	} else if (cpu_is_mx27()) {
-		audmux_base = MX27_IO_ADDRESS(MX27_AUDMUX_BASE_ADDR);
-	} else if (cpu_is_mx21()) {
-		audmux_base = MX21_IO_ADDRESS(MX21_AUDMUX_BASE_ADDR);
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	audmux_base = devm_request_and_ioremap(&pdev->dev, res);
+	if (!audmux_base)
+		return -EADDRNOTAVAIL;
+
+	audmux_clk = clk_get(&pdev->dev, "audmux");
+	if (IS_ERR(audmux_clk)) {
+		dev_dbg(&pdev->dev, "cannot get clock: %ld\n",
+				PTR_ERR(audmux_clk));
+		audmux_clk = NULL;
 	}
 
-	if (!cpu_is_mx2())
+	audmux_type = pdev->id_entry->driver_data;
+	if (audmux_type == IMX31_AUDMUX)
 		audmux_debugfs_init();
 
 	return 0;
 }
 
-postcore_initcall(mxc_audmux_init);
+static int __exit imx_audmux_remove(struct platform_device *pdev)
+{
+	if (audmux_type == IMX31_AUDMUX)
+		audmux_debugfs_remove();
+	clk_put(audmux_clk);
+
+	return 0;
+}
+
+static struct platform_driver imx_audmux_driver = {
+	.probe		= imx_audmux_probe,
+	.remove		= __exit_p(imx_audmux_remove),
+	.id_table	= imx_audmux_ids,
+	.driver	= {
+		.name	= DRIVER_NAME,
+		.owner	= THIS_MODULE,
+	}
+};
+
+static int __init imx_audmux_init(void)
+{
+	return platform_driver_register(&imx_audmux_driver);
+}
+subsys_initcall(imx_audmux_init);
+
+static void __exit imx_audmux_exit(void)
+{
+	platform_driver_unregister(&imx_audmux_driver);
+}
+module_exit(imx_audmux_exit);
+
+MODULE_DESCRIPTION("Freescale i.MX AUDMUX driver");
+MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
+MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:" DRIVER_NAME);
