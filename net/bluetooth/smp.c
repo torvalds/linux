@@ -310,7 +310,7 @@ static int tk_request(struct l2cap_conn *conn, u8 remote_oob, u8 auth,
 			remote_io > SMP_IO_KEYBOARD_DISPLAY)
 		method = JUST_WORKS;
 	else
-		method = gen_method[local_io][remote_io];
+		method = gen_method[remote_io][local_io];
 
 	/* If not bonding, don't ask user to confirm a Zero TK */
 	if (!(auth & SMP_AUTH_BONDING) && method == JUST_CFM)
