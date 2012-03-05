@@ -1238,12 +1238,11 @@ void omap_gem_init(struct drm_device *dev)
 	const enum tiler_fmt fmts[] = {
 			TILFMT_8BIT, TILFMT_16BIT, TILFMT_32BIT
 	};
-	int i, j, ret;
+	int i, j;
 
-	ret = omap_dmm_init(dev);
-	if (ret) {
+	if (!dmm_is_initialized()) {
 		/* DMM only supported on OMAP4 and later, so this isn't fatal */
-		dev_warn(dev->dev, "omap_dmm_init failed, disabling DMM\n");
+		dev_warn(dev->dev, "DMM not available, disable DMM support\n");
 		return;
 	}
 
@@ -1293,6 +1292,5 @@ void omap_gem_deinit(struct drm_device *dev)
 	/* I believe we can rely on there being no more outstanding GEM
 	 * objects which could depend on usergart/dmm at this point.
 	 */
-	omap_dmm_remove();
 	kfree(usergart);
 }
