@@ -55,8 +55,6 @@ struct tty_driver *hp_simserial_driver;
 
 static struct console *console;
 
-static unsigned char *tmp_buf;
-
 extern struct console *console_drivers; /* from kernel/printk.c */
 
 /*
@@ -237,7 +235,8 @@ static int rs_write(struct tty_struct * tty,
 	int	c, ret = 0;
 	unsigned long flags;
 
-	if (!tty || !info->xmit.buf || !tmp_buf) return 0;
+	if (!tty || !info->xmit.buf)
+		return 0;
 
 	local_irq_save(flags);
 	while (1) {
@@ -618,7 +617,6 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 {
 	struct serial_state *info = rs_table + tty->index;
 	int			retval;
-	unsigned long		page;
 
 	info->tport.count++;
 	info->tport.tty = tty;
@@ -629,16 +627,6 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	printk("rs_open %s, count = %d\n", tty->name, info->tport.count);
 #endif
 	tty->low_latency = (info->tport.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
-
-	if (!tmp_buf) {
-		page = get_zeroed_page(GFP_KERNEL);
-		if (!page)
-			return -ENOMEM;
-		if (tmp_buf)
-			free_page(page);
-		else
-			tmp_buf = (unsigned char *) page;
-	}
 
 	/*
 	 * If the port is the middle of closing, bail out now
