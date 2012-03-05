@@ -43,7 +43,6 @@ struct serial_state {
 
 struct async_struct {
 	unsigned long		port;
-	int			flags;
 	int			xmit_fifo_size;
 	struct serial_state	*state;
 	struct tty_struct 	*tty;
