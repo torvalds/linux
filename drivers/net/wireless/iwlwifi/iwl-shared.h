@@ -445,9 +445,6 @@ iwl_remove_notification(struct iwl_shared *shrd,
 
 #define IWL_CMD(x) case x: return #x
 
-#define IWL_TRAFFIC_ENTRIES	(256)
-#define IWL_TRAFFIC_ENTRY_SIZE  (64)
-
 /*****************************************************
 * DRIVER STATUS FUNCTIONS
 ******************************************************/

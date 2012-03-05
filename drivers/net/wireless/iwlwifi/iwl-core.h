@@ -265,6 +265,10 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 
 #define IWL_SCAN_CHECK_WATCHDOG		(HZ * 7)
 
+/* traffic log definitions */
+#define IWL_TRAFFIC_ENTRIES	(256)
+#define IWL_TRAFFIC_ENTRY_SIZE  (64)
+
 /*****************************************************
  *   S e n d i n g     H o s t     C o m m a n d s   *
  *****************************************************/
