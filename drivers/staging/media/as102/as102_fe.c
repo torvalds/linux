@@ -337,7 +337,7 @@ int as102_dvb_register_fe(struct as102_dev_t *as102_dev,
 	strncpy(dvb_fe->ops.info.name, as102_dev->name,
 		sizeof(dvb_fe->ops.info.name));
 
-	/* register dbvb frontend */
+	/* register dvb frontend */
 	errno = dvb_register_frontend(dvb_adap, dvb_fe);
 	if (errno == 0)
 		dvb_fe->tuner_priv = as102_dev;
@@ -349,7 +349,7 @@ static void as10x_fe_copy_tps_parameters(struct dtv_frontend_properties *fe_tps,
 					 struct as10x_tps *as10x_tps)
 {
 
-	/* extract consteallation */
+	/* extract constellation */
 	switch (as10x_tps->modulation) {
 	case CONST_QPSK:
 		fe_tps->modulation = QPSK;
