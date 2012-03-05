@@ -44,10 +44,8 @@ struct serial_state {
 	int			quot;
 	int			IER; 	/* Interrupt Enable Register */
 	int			MCR; 	/* Modem control register */
-	/* simserial */
 	int			x_char;	/* xon/xoff character */
  	struct circ_buf		xmit;
-	/* /simserial */
 	/* /amiserial */
 };
 

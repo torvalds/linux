@@ -27,10 +27,10 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/capability.h>
+#include <linux/circ_buf.h>
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/serial.h>
-#include <linux/serialP.h>
 #include <linux/sysrq.h>
 
 #include <asm/irq.h>
@@ -45,6 +45,13 @@
 #define KEYBOARD_INTR	3	/* must match with simulator! */
 
 #define NR_PORTS	1	/* only one port for now */
+
+struct serial_state {
+	struct tty_port tport;
+	struct circ_buf xmit;
+	int irq;
+	int x_char;
+};
 
 static char *serial_name = "SimSerial driver";
 static char *serial_version = "0.6";
