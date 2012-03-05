@@ -588,7 +588,8 @@ static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
 	tg->bytes_disp[rw] += bio->bi_size;
 	tg->io_disp[rw]++;
 
-	blkiocg_update_dispatch_stats(tg_to_blkg(tg), bio->bi_size, rw, sync);
+	blkiocg_update_dispatch_stats(tg_to_blkg(tg), &blkio_policy_throtl,
+				      bio->bi_size, rw, sync);
 }
 
 static void throtl_add_bio_tg(struct throtl_data *td, struct throtl_grp *tg,
@@ -1000,6 +1001,7 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 	if (tg) {
 		if (tg_no_rule_group(tg, rw)) {
 			blkiocg_update_dispatch_stats(tg_to_blkg(tg),
+						      &blkio_policy_throtl,
 						      bio->bi_size, rw,
 						      rw_is_sync(bio->bi_rw));
 			goto out_unlock_rcu;
