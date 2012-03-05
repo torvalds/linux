@@ -75,7 +75,7 @@ static DEFINE_SPINLOCK(shwdt_lock);
 
 #define WATCHDOG_HEARTBEAT 30			/* 30 sec default heartbeat */
 static int heartbeat = WATCHDOG_HEARTBEAT;	/* in seconds */
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 static unsigned long next_heartbeat;
 
 struct sh_wdt {
@@ -484,7 +484,7 @@ MODULE_PARM_DESC(heartbeat,
 	"Watchdog heartbeat in seconds. (1 <= heartbeat <= 3600, default="
 				__MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 	"Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");

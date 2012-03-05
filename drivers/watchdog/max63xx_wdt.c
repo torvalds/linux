@@ -34,7 +34,7 @@
 #define MAX_HEARTBEAT     60
 
 static int heartbeat = DEFAULT_HEARTBEAT;
-static int nowayout  = WATCHDOG_NOWAYOUT;
+static bool nowayout  = WATCHDOG_NOWAYOUT;
 
 /*
  * Memory mapping: a single byte, 3 first lower bits to select bit 3
@@ -375,7 +375,7 @@ MODULE_PARM_DESC(heartbeat,
 		 __MODULE_STRING(MAX_HEARTBEAT) ", default "
 		 __MODULE_STRING(DEFAULT_HEARTBEAT));
 
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 

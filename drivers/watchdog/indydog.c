@@ -33,8 +33,8 @@ static DEFINE_SPINLOCK(indydog_lock);
 
 #define WATCHDOG_TIMEOUT 30		/* 30 sec default timeout */
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 		"Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");

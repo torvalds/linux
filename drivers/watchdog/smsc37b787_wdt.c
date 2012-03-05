@@ -86,7 +86,7 @@ static char expect_close;       /* is the close expected? */
 
 static DEFINE_SPINLOCK(io_lock);/* to guard the watchdog from io races */
 
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 
 /* -- Low level function ----------------------------------------*/
 
@@ -615,7 +615,7 @@ MODULE_PARM_DESC(unit,
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "range is 1-255 units, default is 60");
 
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 		"Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");

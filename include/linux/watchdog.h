@@ -127,7 +127,7 @@ struct watchdog_device {
 #endif
 
 /* Use the following function to set the nowayout feature */
-static inline void watchdog_set_nowayout(struct watchdog_device *wdd, int nowayout)
+static inline void watchdog_set_nowayout(struct watchdog_device *wdd, bool nowayout)
 {
 	if (nowayout)
 		set_bit(WDOG_NO_WAY_OUT, &wdd->status);

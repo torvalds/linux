@@ -60,7 +60,7 @@ enum {
 #define SPRUCE_ASR_TOGGLE_MASK	0x02	/* bit 0: 0, then 1, then 0 */
 
 
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 
 static unsigned long asr_is_open;
 static char asr_expect_close;
@@ -411,7 +411,7 @@ static void __exit ibmasr_exit(void)
 module_init(ibmasr_init);
 module_exit(ibmasr_exit);
 
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 	"Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");

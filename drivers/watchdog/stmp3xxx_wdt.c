@@ -35,7 +35,7 @@
 
 static DEFINE_SPINLOCK(stmp3xxx_wdt_io_lock);
 static unsigned long wdt_status;
-static const int nowayout = WATCHDOG_NOWAYOUT;
+static const bool nowayout = WATCHDOG_NOWAYOUT;
 static int heartbeat = DEFAULT_HEARTBEAT;
 static unsigned long boot_status;
 

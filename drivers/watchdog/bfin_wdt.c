@@ -49,7 +49,7 @@
 #define WATCHDOG_TIMEOUT 20
 
 static unsigned int timeout = WATCHDOG_TIMEOUT;
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 static const struct watchdog_info bfin_wdt_info;
 static unsigned long open_check;
 static char expect_close;
@@ -472,7 +472,7 @@ MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. (1<=timeout<=((2^32)/SCLK), default="
 		__MODULE_STRING(WATCHDOG_TIMEOUT) ")");
 
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 	"Watchdog cannot be stopped once started (default="
 		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");

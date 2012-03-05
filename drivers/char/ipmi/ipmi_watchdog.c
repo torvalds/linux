@@ -153,7 +153,7 @@
 #endif
 
 static DEFINE_MUTEX(ipmi_watchdog_mutex);
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 
 static ipmi_user_t watchdog_user;
 static int watchdog_ifnum;
@@ -320,7 +320,7 @@ module_param(start_now, int, 0444);
 MODULE_PARM_DESC(start_now, "Set to 1 to start the watchdog as"
 		 "soon as the driver is loaded.");
 
-module_param(nowayout, int, 0644);
+module_param(nowayout, bool, 0644);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
 		 "(default=CONFIG_WATCHDOG_NOWAYOUT)");
 

@@ -36,7 +36,7 @@
 #include <linux/uaccess.h>
 #include <mach/hardware.h>
 
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 static unsigned long wdt_status;
 static unsigned long boot_status;
 static DEFINE_SPINLOCK(wdt_lock);
@@ -253,7 +253,7 @@ static void __exit iop_wdt_exit(void)
 module_init(iop_wdt_init);
 module_exit(iop_wdt_exit);
 
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
 
 MODULE_AUTHOR("Curt E Bruns <curt.e.bruns@intel.com>");

@@ -47,8 +47,8 @@ MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds. (1<=timeout<="
 		 __MODULE_STRING(SBC7240_MAX_TIMEOUT) ", default="
 		 __MODULE_STRING(SBC7240_TIMEOUT) ")");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Disable watchdog when closing device file");
 
 #define SBC7240_OPEN_STATUS_BIT		0

@@ -39,7 +39,7 @@
 /* default timeout (secs) */
 #define WDT_TIMEOUT 30
 
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 static int timeout = WDT_TIMEOUT;
 
 static struct timer_list timer;
@@ -237,7 +237,7 @@ static void __exit ep93xx_wdt_exit(void)
 module_init(ep93xx_wdt_init);
 module_exit(ep93xx_wdt_exit);
 
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
 
 module_param(timeout, int, 0);

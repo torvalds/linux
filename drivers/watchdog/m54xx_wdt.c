@@ -34,7 +34,7 @@
 #include <asm/m54xxsim.h>
 #include <asm/m54xxgpt.h>
 
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 static unsigned int heartbeat = 30;	/* (secs) Default is 0.5 minute */
 static unsigned long wdt_status;
 
@@ -220,7 +220,7 @@ MODULE_DESCRIPTION("Coldfire M54xx Watchdog");
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds (default 30s)");
 
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
 
 MODULE_LICENSE("GPL");

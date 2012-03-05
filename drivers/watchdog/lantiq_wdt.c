@@ -40,7 +40,7 @@
 #define LTQ_WDT_DIVIDER		0x40000
 #define LTQ_MAX_TIMEOUT		((1 << 16) - 1)	/* the reload field is 16 bit */
 
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 
 static void __iomem *ltq_wdt_membase;
 static unsigned long ltq_io_region_clk_rate;
@@ -251,7 +251,7 @@ exit_ltq_wdt(void)
 module_init(init_ltq_wdt);
 module_exit(exit_ltq_wdt);
 
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
 
 MODULE_AUTHOR("John Crispin <blogic@openwrt.org>");

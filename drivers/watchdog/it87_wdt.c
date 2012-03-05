@@ -143,7 +143,7 @@ static	int nogameport = DEFAULT_NOGAMEPORT;
 static	int exclusive  = DEFAULT_EXCLUSIVE;
 static	int timeout    = DEFAULT_TIMEOUT;
 static	int testmode   = DEFAULT_TESTMODE;
-static	int nowayout   = DEFAULT_NOWAYOUT;
+static	bool nowayout   = DEFAULT_NOWAYOUT;
 
 module_param(nogameport, int, 0);
 MODULE_PARM_DESC(nogameport, "Forbid the activation of game port, default="
@@ -157,7 +157,7 @@ MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds, default="
 module_param(testmode, int, 0);
 MODULE_PARM_DESC(testmode, "Watchdog test mode (1 = no reboot), default="
 		__MODULE_STRING(DEFAULT_TESTMODE));
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started, default="
 		__MODULE_STRING(WATCHDOG_NOWAYOUT));
 
