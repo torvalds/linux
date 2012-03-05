@@ -1,9 +1,6 @@
 menuconfig SND_IMX_SOC
 	tristate "SoC Audio for Freescale i.MX CPUs"
 	depends on ARCH_MXC
-	select SND_PCM
-	select FIQ
-	select SND_SOC_AC97_BUS
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the i.MX SSI interface.
@@ -12,9 +9,11 @@ menuconfig SND_IMX_SOC
 if SND_IMX_SOC
 
 config SND_MXC_SOC_FIQ
+	select FIQ
 	tristate
 
 config SND_MXC_SOC_MX2
+	select SND_SOC_DMAENGINE_PCM
 	tristate
 
 config SND_MXC_SOC_WM1133_EV1
@@ -38,6 +37,7 @@ config SND_SOC_MX27VIS_AIC32X4
 config SND_SOC_PHYCORE_AC97
 	tristate "SoC Audio support for Phytec phyCORE (and phyCARD) boards"
 	depends on MACH_PCM043 || MACH_PCA100
+	select SND_SOC_AC97_BUS
 	select SND_SOC_WM9712
 	select SND_MXC_SOC_FIQ
 	help

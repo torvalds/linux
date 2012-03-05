@@ -101,7 +101,7 @@ void dwc3_unmap_buffer_from_dma(struct dwc3_request *req)
 	if (req->request.num_mapped_sgs) {
 		req->request.dma = DMA_ADDR_INVALID;
 		dma_unmap_sg(dwc->dev, req->request.sg,
-				req->request.num_sgs,
+				req->request.num_mapped_sgs,
 				req->direction ? DMA_TO_DEVICE
 				: DMA_FROM_DEVICE);
 

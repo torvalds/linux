@@ -284,6 +284,9 @@ int regmap_reinit_cache(struct regmap *map, const struct regmap_config *config)
 	map->precious_reg = config->precious_reg;
 	map->cache_type = config->cache_type;
 
+	map->cache_bypass = false;
+	map->cache_only = false;
+
 	ret = regcache_init(map, config);
 
 	mutex_unlock(&map->lock);
@@ -726,6 +729,21 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regmap_register_patch);
+
+/*
+ * regmap_get_val_bytes(): Report the size of a register value
+ *
+ * Report the size of a register value, mainly intended to for use by
+ * generic infrastructure built on top of regmap.
+ */
+int regmap_get_val_bytes(struct regmap *map)
+{
+	if (map->format.format_write)
+		return -EINVAL;
+
+	return map->format.val_bytes;
+}
+EXPORT_SYMBOL_GPL(regmap_get_val_bytes);
 
 static int __init regmap_initcall(void)
 {

@@ -16,6 +16,7 @@
 #include <linux/io.h>
 
 #include <asm/cacheflush.h>
+#include <asm/smp_plat.h>
 
 #include <mach/regs-pmu.h>
 

@@ -527,7 +527,7 @@ int intel_idle_cpu_init(int cpu)
 
 	return 0;
 }
-
+EXPORT_SYMBOL_GPL(intel_idle_cpu_init);
 
 static int __init intel_idle_init(void)
 {

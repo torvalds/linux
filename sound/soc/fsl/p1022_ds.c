@@ -276,7 +276,7 @@ static int codec_node_dev_name(struct device_node *np, char *buf, size_t len)
 }
 
 static int get_dma_channel(struct device_node *ssi_np,
-			   const char *compatible,
+			   const char *name,
 			   struct snd_soc_dai_link *dai,
 			   unsigned int *dma_channel_id,
 			   unsigned int *dma_id)
@@ -286,7 +286,7 @@ static int get_dma_channel(struct device_node *ssi_np,
 	const u32 *iprop;
 	int ret;
 
-	dma_channel_np = get_node_by_phandle_name(ssi_np, compatible,
+	dma_channel_np = get_node_by_phandle_name(ssi_np, name,
 						  "fsl,ssi-dma-channel");
 	if (!dma_channel_np)
 		return -EINVAL;

@@ -235,7 +235,7 @@ static int mfld_init(struct snd_soc_pcm_runtime *runtime)
 	snd_soc_dapm_enable_pin(dapm, "Headphones");
 	snd_soc_dapm_enable_pin(dapm, "Mic");
 
-	ret_val = snd_soc_add_controls(codec, mfld_snd_controls,
+	ret_val = snd_soc_add_codec_controls(codec, mfld_snd_controls,
 				ARRAY_SIZE(mfld_snd_controls));
 	if (ret_val) {
 		pr_err("soc_add_controls failed %d", ret_val);

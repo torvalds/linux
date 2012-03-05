@@ -733,8 +733,9 @@ static int __devinit wm2000_i2c_probe(struct i2c_client *i2c,
 	struct wm2000_priv *wm2000;
 	struct wm2000_platform_data *pdata;
 	const char *filename;
-	const struct firmware *fw;
-	int reg, ret;
+	const struct firmware *fw = NULL;
+	int ret;
+	int reg;
 	u16 id;
 
 	wm2000 = devm_kzalloc(&i2c->dev, sizeof(struct wm2000_priv),
@@ -751,7 +752,7 @@ static int __devinit wm2000_i2c_probe(struct i2c_client *i2c,
 		ret = PTR_ERR(wm2000->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
 			ret);
-		goto err;
+		goto out;
 	}
 
 	/* Verify that this is a WM2000 */
@@ -763,7 +764,7 @@ static int __devinit wm2000_i2c_probe(struct i2c_client *i2c,
 	if (id != 0x2000) {
 		dev_err(&i2c->dev, "Device is not a WM2000 - ID %x\n", id);
 		ret = -ENODEV;
-		goto err_regmap;
+		goto out_regmap_exit;
 	}
 
 	reg = wm2000_read(i2c, WM2000_REG_REVISON);
@@ -782,7 +783,7 @@ static int __devinit wm2000_i2c_probe(struct i2c_client *i2c,
 	ret = request_firmware(&fw, filename, &i2c->dev);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to acquire ANC data: %d\n", ret);
-		goto err_regmap;
+		goto out_regmap_exit;
 	}
 
 	/* Pre-cook the concatenation of the register address onto the image */
@@ -793,14 +794,12 @@ static int __devinit wm2000_i2c_probe(struct i2c_client *i2c,
 	if (wm2000->anc_download == NULL) {
 		dev_err(&i2c->dev, "Out of memory\n");
 		ret = -ENOMEM;
-		goto err_fw;
+		goto out_regmap_exit;
 	}
 
 	wm2000->anc_download[0] = 0x80;
 	wm2000->anc_download[1] = 0x00;
 	memcpy(wm2000->anc_download + 2, fw->data, fw->size);
-
-	release_firmware(fw);
 
 	wm2000->anc_eng_ena = 1;
 	wm2000->anc_active = 1;
@@ -809,18 +808,14 @@ static int __devinit wm2000_i2c_probe(struct i2c_client *i2c,
 
 	wm2000_reset(wm2000);
 
-	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_wm2000,
-				     NULL, 0);
-	if (ret != 0)
-		goto err_fw;
+	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_wm2000, NULL, 0);
+	if (!ret)
+		goto out;
 
-	return 0;
-
-err_fw:
-	release_firmware(fw);
-err_regmap:
+out_regmap_exit:
 	regmap_exit(wm2000->regmap);
-err:
+out:
+	release_firmware(fw);
 	return ret;
 }
 

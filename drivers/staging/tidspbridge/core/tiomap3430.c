@@ -1046,8 +1046,6 @@ static int bridge_dev_destroy(struct bridge_dev_context *dev_ctxt)
 
 	/* Free the driver's device context: */
 	kfree(drv_datap->base_img);
-	kfree(drv_datap);
-	dev_set_drvdata(bridge, NULL);
 	kfree((void *)dev_ctxt);
 	return status;
 }

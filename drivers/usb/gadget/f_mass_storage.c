@@ -3123,15 +3123,15 @@ fsg_add(struct usb_composite_dev *cdev, struct usb_configuration *c,
 
 struct fsg_module_parameters {
 	char		*file[FSG_MAX_LUNS];
-	int		ro[FSG_MAX_LUNS];
-	int		removable[FSG_MAX_LUNS];
-	int		cdrom[FSG_MAX_LUNS];
-	int		nofua[FSG_MAX_LUNS];
+	bool		ro[FSG_MAX_LUNS];
+	bool		removable[FSG_MAX_LUNS];
+	bool		cdrom[FSG_MAX_LUNS];
+	bool		nofua[FSG_MAX_LUNS];
 
 	unsigned int	file_count, ro_count, removable_count, cdrom_count;
 	unsigned int	nofua_count;
 	unsigned int	luns;	/* nluns */
-	int		stall;	/* can_stall */
+	bool		stall;	/* can_stall */
 };
 
 #define _FSG_MODULE_PARAM_ARRAY(prefix, params, name, type, desc)	\

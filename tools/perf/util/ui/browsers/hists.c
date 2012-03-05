@@ -1,6 +1,4 @@
-#define _GNU_SOURCE
 #include <stdio.h>
-#undef _GNU_SOURCE
 #include "../libslang.h"
 #include <stdlib.h>
 #include <string.h>

@@ -1262,7 +1262,8 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&shdev->common.channels);
 
-	dma_cap_set(DMA_MEMCPY, shdev->common.cap_mask);
+	if (!pdata->slave_only)
+		dma_cap_set(DMA_MEMCPY, shdev->common.cap_mask);
 	if (pdata->slave && pdata->slave_num)
 		dma_cap_set(DMA_SLAVE, shdev->common.cap_mask);
 

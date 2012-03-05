@@ -717,7 +717,7 @@ static int wm8940_probe(struct snd_soc_codec *codec)
 			return ret;
 	}
 
-	ret = snd_soc_add_controls(codec, wm8940_snd_controls,
+	ret = snd_soc_add_codec_controls(codec, wm8940_snd_controls,
 			     ARRAY_SIZE(wm8940_snd_controls));
 	if (ret)
 		return ret;

@@ -925,22 +925,22 @@ static int alc5623_probe(struct snd_soc_codec *codec)
 
 	switch (alc5623->id) {
 	case 0x21:
-		snd_soc_add_controls(codec, alc5621_vol_snd_controls,
+		snd_soc_add_codec_controls(codec, alc5621_vol_snd_controls,
 			ARRAY_SIZE(alc5621_vol_snd_controls));
 		break;
 	case 0x22:
-		snd_soc_add_controls(codec, alc5622_vol_snd_controls,
+		snd_soc_add_codec_controls(codec, alc5622_vol_snd_controls,
 			ARRAY_SIZE(alc5622_vol_snd_controls));
 		break;
 	case 0x23:
-		snd_soc_add_controls(codec, alc5623_vol_snd_controls,
+		snd_soc_add_codec_controls(codec, alc5623_vol_snd_controls,
 			ARRAY_SIZE(alc5623_vol_snd_controls));
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	snd_soc_add_controls(codec, alc5623_snd_controls,
+	snd_soc_add_codec_controls(codec, alc5623_snd_controls,
 			ARRAY_SIZE(alc5623_snd_controls));
 
 	snd_soc_dapm_new_controls(dapm, alc5623_dapm_widgets,

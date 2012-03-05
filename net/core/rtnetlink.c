@@ -1509,6 +1509,9 @@ errout:
 
 	if (send_addr_notify)
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
+	min_ifinfo_dump_size = max_t(u16, if_nlmsg_size(dev),
+				     min_ifinfo_dump_size);
+
 	return err;
 }
 

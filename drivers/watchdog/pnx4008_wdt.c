@@ -226,7 +226,7 @@ static long pnx4008_wdt_ioctl(struct file *file, unsigned int cmd,
 static int pnx4008_wdt_release(struct inode *inode, struct file *file)
 {
 	if (!test_bit(WDT_OK_TO_CLOSE, &wdt_status))
-		printk(KERN_WARNING "WATCHDOG: Device closed unexpectdly\n");
+		printk(KERN_WARNING "WATCHDOG: Device closed unexpectedly\n");
 
 	wdt_disable();
 	clk_disable(wdt_clk);

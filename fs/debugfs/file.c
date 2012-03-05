@@ -540,7 +540,7 @@ EXPORT_SYMBOL_GPL(debugfs_create_blob);
  * debugfs_print_regs32 - use seq_print to describe a set of registers
  * @s: the seq_file structure being used to generate output
  * @regs: an array if struct debugfs_reg32 structures
- * @mregs: the length of the above array
+ * @nregs: the length of the above array
  * @base: the base address to be used in reading the registers
  * @prefix: a string to be prefixed to every output line
  *

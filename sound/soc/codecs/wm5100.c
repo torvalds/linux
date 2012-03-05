@@ -18,6 +18,7 @@
 #include <linux/gcd.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
+#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/fixed.h>
 #include <linux/slab.h>
@@ -55,9 +56,6 @@ struct wm5100_priv {
 	struct snd_soc_codec *codec;
 
 	struct regulator_bulk_data core_supplies[WM5100_NUM_CORE_SUPPLIES];
-	struct regulator *cpvdd;
-	struct regulator *dbvdd2;
-	struct regulator *dbvdd3;
 
 	int rev;
 
@@ -74,6 +72,7 @@ struct wm5100_priv {
 	bool jack_detecting;
 	bool jack_mic;
 	int jack_mode;
+	int jack_flips;
 
 	struct wm5100_fll fll[2];
 
@@ -710,6 +709,8 @@ WM5100_MIXER_CONTROLS("EQ4", WM5100_EQ4MIX_INPUT_1_SOURCE),
 
 WM5100_MIXER_CONTROLS("DRC1L", WM5100_DRC1LMIX_INPUT_1_SOURCE),
 WM5100_MIXER_CONTROLS("DRC1R", WM5100_DRC1RMIX_INPUT_1_SOURCE),
+SND_SOC_BYTES_MASK("DRC", WM5100_DRC1_CTRL1, 5,
+		   WM5100_DRCL_ENA | WM5100_DRCR_ENA),
 
 WM5100_MIXER_CONTROLS("LHPF1", WM5100_HPLP1MIX_INPUT_1_SOURCE),
 WM5100_MIXER_CONTROLS("LHPF2", WM5100_HPLP2MIX_INPUT_1_SOURCE),
@@ -775,85 +776,6 @@ static int wm5100_out_ev(struct snd_soc_dapm_widget *w,
 	}
 
 	return 0;
-}
-
-static int wm5100_cp_ev(struct snd_soc_dapm_widget *w,
-			struct snd_kcontrol *kcontrol,
-			int event)
-{
-	struct snd_soc_codec *codec = w->codec;
-	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		ret = regulator_enable(wm5100->cpvdd);
-		if (ret != 0) {
-			dev_err(codec->dev, "Failed to enable CPVDD: %d\n",
-				ret);
-			return ret;
-		}
-		return ret;
-
-	case SND_SOC_DAPM_POST_PMD:
-		ret = regulator_disable_deferred(wm5100->cpvdd, 20);
-		if (ret != 0) {
-			dev_err(codec->dev, "Failed to disable CPVDD: %d\n",
-				ret);
-			return ret;
-		}
-		return ret;
-
-	default:
-		BUG();
-		return 0;
-	}
-}
-
-static int wm5100_dbvdd_ev(struct snd_soc_dapm_widget *w,
-			   struct snd_kcontrol *kcontrol,
-			   int event)
-{
-	struct snd_soc_codec *codec = w->codec;
-	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
-	struct regulator *regulator;
-	int ret;
-
-	switch (w->shift) {
-	case 2:
-		regulator = wm5100->dbvdd2;
-		break;
-	case 3:
-		regulator = wm5100->dbvdd3;
-		break;
-	default:
-		BUG();
-		return 0;
-	}
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		ret = regulator_enable(regulator);
-		if (ret != 0) {
-			dev_err(codec->dev, "Failed to enable DBVDD%d: %d\n",
-				w->shift, ret);
-			return ret;
-		}
-		return ret;
-
-	case SND_SOC_DAPM_POST_PMD:
-		ret = regulator_disable(regulator);
-		if (ret != 0) {
-			dev_err(codec->dev, "Failed to enable DBVDD%d: %d\n",
-				w->shift, ret);
-			return ret;
-		}
-		return ret;
-
-	default:
-		BUG();
-		return 0;
-	}
 }
 
 static void wm5100_log_status3(struct wm5100_priv *wm5100, int val)
@@ -926,18 +848,16 @@ SND_SOC_DAPM_SUPPLY("SYSCLK", WM5100_CLOCKING_3, WM5100_SYSCLK_ENA_SHIFT, 0,
 SND_SOC_DAPM_SUPPLY("ASYNCCLK", WM5100_CLOCKING_6, WM5100_ASYNC_CLK_ENA_SHIFT,
 		    0, NULL, 0),
 
+SND_SOC_DAPM_REGULATOR_SUPPLY("CPVDD", 20),
+SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD2", 0),
+SND_SOC_DAPM_REGULATOR_SUPPLY("DBVDD3", 0),
+
 SND_SOC_DAPM_SUPPLY("CP1", WM5100_HP_CHARGE_PUMP_1, WM5100_CP1_ENA_SHIFT, 0,
-		    wm5100_cp_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+		    NULL, 0),
 SND_SOC_DAPM_SUPPLY("CP2", WM5100_MIC_CHARGE_PUMP_1, WM5100_CP2_ENA_SHIFT, 0,
 		    NULL, 0),
 SND_SOC_DAPM_SUPPLY("CP2 Active", WM5100_MIC_CHARGE_PUMP_1,
-		    WM5100_CP2_BYPASS_SHIFT, 1, wm5100_cp_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("DBVDD2", SND_SOC_NOPM, 2, 0, wm5100_dbvdd_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-SND_SOC_DAPM_SUPPLY("DBVDD3", SND_SOC_NOPM, 3, 0, wm5100_dbvdd_ev,
-		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+		    WM5100_CP2_BYPASS_SHIFT, 1, NULL, 0),
 
 SND_SOC_DAPM_SUPPLY("MICBIAS1", WM5100_MIC_BIAS_CTRL_1, WM5100_MICB1_ENA_SHIFT,
 		    0, NULL, 0),
@@ -1148,6 +1068,9 @@ SND_SOC_DAPM_POST("Post", wm5100_post_ev),
 };
 
 static const struct snd_soc_dapm_route wm5100_dapm_routes[] = {
+	{ "CP1", NULL, "CPVDD" },
+	{ "CP2 Active", NULL, "CPVDD" },
+
 	{ "IN1L", NULL, "SYSCLK" },
 	{ "IN1R", NULL, "SYSCLK" },
 	{ "IN2L", NULL, "SYSCLK" },
@@ -1341,54 +1264,6 @@ static const __devinitdata struct reg_default wm5100_reva_patches[] = {
 	{ WM5100_AUDIO_IF_3_18, 0 },
 	{ WM5100_AUDIO_IF_3_19, 1 },
 };
-
-static int wm5100_set_bias_level(struct snd_soc_codec *codec,
-				 enum snd_soc_bias_level level)
-{
-	struct wm5100_priv *wm5100 = snd_soc_codec_get_drvdata(codec);
-	int ret;
-
-	switch (level) {
-	case SND_SOC_BIAS_ON:
-		break;
-
-	case SND_SOC_BIAS_PREPARE:
-		break;
-
-	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
-			ret = regulator_bulk_enable(ARRAY_SIZE(wm5100->core_supplies),
-						    wm5100->core_supplies);
-			if (ret != 0) {
-				dev_err(codec->dev,
-					"Failed to enable supplies: %d\n",
-					ret);
-				return ret;
-			}
-
-			if (wm5100->pdata.ldo_ena) {
-				gpio_set_value_cansleep(wm5100->pdata.ldo_ena,
-							1);
-				msleep(2);
-			}
-
-			regcache_cache_only(wm5100->regmap, false);
-			regcache_sync(wm5100->regmap);
-		}
-		break;
-
-	case SND_SOC_BIAS_OFF:
-		regcache_cache_only(wm5100->regmap, true);
-		if (wm5100->pdata.ldo_ena)
-			gpio_set_value_cansleep(wm5100->pdata.ldo_ena, 0);
-		regulator_bulk_disable(ARRAY_SIZE(wm5100->core_supplies),
-				       wm5100->core_supplies);
-		break;
-	}
-	codec->dapm.bias_level = level;
-
-	return 0;
-}
 
 static int wm5100_dai_to_base(struct snd_soc_dai *dai)
 {
@@ -1917,6 +1792,8 @@ static int wm5100_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 
 	if (!Fout) {
 		dev_dbg(codec->dev, "FLL%d disabled", fll_id);
+		if (fll->fout)
+			pm_runtime_put(codec->dev);
 		fll->fout = 0;
 		snd_soc_update_bits(codec, base + 1, WM5100_FLL1_ENA, 0);
 		return 0;
@@ -1961,6 +1838,8 @@ static int wm5100_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	/* Clear any pending completions */
 	try_wait_for_completion(&fll->lock);
 
+	pm_runtime_get_sync(codec->dev);
+
 	snd_soc_update_bits(codec, base + 1, WM5100_FLL1_ENA, WM5100_FLL1_ENA);
 
 	if (i2c->irq)
@@ -1995,6 +1874,7 @@ static int wm5100_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	}
 	if (i == timeout) {
 		dev_err(codec->dev, "FLL%d lock timed out\n", fll_id);
+		pm_runtime_put(codec->dev);
 		return -ETIMEDOUT;
 	}
 
@@ -2119,6 +1999,19 @@ static void wm5100_set_detect_mode(struct wm5100_priv *wm5100, int the_mode)
 		wm5100->jack_mode);
 }
 
+static void wm5100_report_headphone(struct wm5100_priv *wm5100)
+{
+	dev_dbg(wm5100->dev, "Headphone detected\n");
+	wm5100->jack_detecting = false;
+	snd_soc_jack_report(wm5100->jack, SND_JACK_HEADPHONE,
+			    SND_JACK_HEADPHONE);
+
+	/* Increase the detection rate a bit for responsiveness. */
+	regmap_update_bits(wm5100->regmap, WM5100_MIC_DETECT_1,
+			   WM5100_ACCDET_RATE_MASK,
+			   7 << WM5100_ACCDET_RATE_SHIFT);
+}
+
 static void wm5100_micd_irq(struct wm5100_priv *wm5100)
 {
 	unsigned int val;
@@ -2143,6 +2036,7 @@ static void wm5100_micd_irq(struct wm5100_priv *wm5100)
 		dev_dbg(wm5100->dev, "Jack removal detected\n");
 		wm5100->jack_mic = false;
 		wm5100->jack_detecting = true;
+		wm5100->jack_flips = 0;
 		snd_soc_jack_report(wm5100->jack, 0,
 				    SND_JACK_LINEOUT | SND_JACK_HEADSET |
 				    SND_JACK_BTN_0);
@@ -2161,6 +2055,7 @@ static void wm5100_micd_irq(struct wm5100_priv *wm5100)
 		if (wm5100->jack_detecting) {
 			dev_dbg(wm5100->dev, "Microphone detected\n");
 			wm5100->jack_mic = true;
+			wm5100->jack_detecting = false;
 			snd_soc_jack_report(wm5100->jack,
 					    SND_JACK_HEADSET,
 					    SND_JACK_HEADSET | SND_JACK_BTN_0);
@@ -2181,10 +2076,16 @@ static void wm5100_micd_irq(struct wm5100_priv *wm5100)
 	/* If we detected a lower impedence during initial startup
 	 * then we probably have the wrong polarity, flip it.  Don't
 	 * do this for the lowest impedences to speed up detection of
-	 * plain headphones.
+	 * plain headphones and give up if neither polarity looks
+	 * sensible.
 	 */
 	if (wm5100->jack_detecting && (val & 0x3f8)) {
-		wm5100_set_detect_mode(wm5100, !wm5100->jack_mode);
+		wm5100->jack_flips++;
+
+		if (wm5100->jack_flips > 1)
+			wm5100_report_headphone(wm5100);
+		else
+			wm5100_set_detect_mode(wm5100, !wm5100->jack_mode);
 
 		return;
 	}
@@ -2198,16 +2099,7 @@ static void wm5100_micd_irq(struct wm5100_priv *wm5100)
 			snd_soc_jack_report(wm5100->jack, SND_JACK_BTN_0,
 					    SND_JACK_BTN_0);
 		} else if (wm5100->jack_detecting) {
-			dev_dbg(wm5100->dev, "Headphone detected\n");
-			snd_soc_jack_report(wm5100->jack, SND_JACK_HEADPHONE,
-					    SND_JACK_HEADPHONE);
-
-			/* Increase the detection rate a bit for
-			 * responsiveness.
-			 */
-			regmap_update_bits(wm5100->regmap, WM5100_MIC_DETECT_1,
-					   WM5100_ACCDET_RATE_MASK,
-					   7 << WM5100_ACCDET_RATE_SHIFT);
+			wm5100_report_headphone(wm5100);
 		}
 	}
 }
@@ -2219,6 +2111,7 @@ int wm5100_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 	if (jack) {
 		wm5100->jack = jack;
 		wm5100->jack_detecting = true;
+		wm5100->jack_flips = 0;
 
 		wm5100_set_detect_mode(wm5100, 0);
 
@@ -2458,9 +2351,6 @@ static int wm5100_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	regcache_cache_only(wm5100->regmap, true);
-
-
 	for (i = 0; i < ARRAY_SIZE(wm5100_dig_vu); i++)
 		snd_soc_update_bits(codec, wm5100_dig_vu[i], WM5100_OUT_VU,
 				    WM5100_OUT_VU);
@@ -2485,14 +2375,6 @@ static int wm5100_probe(struct snd_soc_codec *codec)
 			goto err_gpio;
 		}
 	}
-
-	/* We'll get woken up again when the system has something useful
-	 * for us to do.
-	 */
-	if (wm5100->pdata.ldo_ena)
-		gpio_set_value_cansleep(wm5100->pdata.ldo_ena, 0);
-	regulator_bulk_disable(ARRAY_SIZE(wm5100->core_supplies),
-			       wm5100->core_supplies);
 
 	return 0;
 
@@ -2525,7 +2407,6 @@ static struct snd_soc_codec_driver soc_codec_dev_wm5100 = {
 
 	.set_sysclk = wm5100_set_sysclk,
 	.set_pll = wm5100_set_fll,
-	.set_bias_level = wm5100_set_bias_level,
 	.idle_bias_off = 1,
 	.reg_cache_size = WM5100_MAX_REGISTER,
 	.volatile_register = wm5100_soc_volatile,
@@ -2549,6 +2430,13 @@ static const struct regmap_config wm5100_regmap = {
 	.volatile_reg = wm5100_volatile_register,
 	.readable_reg = wm5100_readable_register,
 	.cache_type = REGCACHE_RBTREE,
+};
+
+static const unsigned int wm5100_mic_ctrl_reg[] = {
+	WM5100_IN1L_CONTROL,
+	WM5100_IN2L_CONTROL,
+	WM5100_IN3L_CONTROL,
+	WM5100_IN4L_CONTROL,
 };
 
 static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
@@ -2585,33 +2473,13 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 	for (i = 0; i < ARRAY_SIZE(wm5100->core_supplies); i++)
 		wm5100->core_supplies[i].supply = wm5100_core_supply_names[i];
 
-	ret = regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm5100->core_supplies),
-				 wm5100->core_supplies);
+	ret = devm_regulator_bulk_get(&i2c->dev,
+				      ARRAY_SIZE(wm5100->core_supplies),
+				      wm5100->core_supplies);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to request core supplies: %d\n",
 			ret);
 		goto err_regmap;
-	}
-
-	wm5100->cpvdd = regulator_get(&i2c->dev, "CPVDD");
-	if (IS_ERR(wm5100->cpvdd)) {
-		ret = PTR_ERR(wm5100->cpvdd);
-		dev_err(&i2c->dev, "Failed to get CPVDD: %d\n", ret);
-		goto err_core;
-	}
-
-	wm5100->dbvdd2 = regulator_get(&i2c->dev, "DBVDD2");
-	if (IS_ERR(wm5100->dbvdd2)) {
-		ret = PTR_ERR(wm5100->dbvdd2);
-		dev_err(&i2c->dev, "Failed to get DBVDD2: %d\n", ret);
-		goto err_cpvdd;
-	}
-
-	wm5100->dbvdd3 = regulator_get(&i2c->dev, "DBVDD3");
-	if (IS_ERR(wm5100->dbvdd3)) {
-		ret = PTR_ERR(wm5100->dbvdd3);
-		dev_err(&i2c->dev, "Failed to get DBVDD2: %d\n", ret);
-		goto err_dbvdd2;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm5100->core_supplies),
@@ -2619,7 +2487,7 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to enable core supplies: %d\n",
 			ret);
-		goto err_dbvdd3;
+		goto err_regmap;
 	}
 
 	if (wm5100->pdata.ldo_ena) {
@@ -2701,7 +2569,7 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wm5100->pdata.in_mode); i++) {
-		regmap_update_bits(wm5100->regmap, WM5100_IN1L_CONTROL,
+		regmap_update_bits(wm5100->regmap, wm5100_mic_ctrl_reg[i],
 				   WM5100_IN1_MODE_MASK |
 				   WM5100_IN1_DMIC_SUP_MASK,
 				   (wm5100->pdata.in_mode[i] <<
@@ -2762,6 +2630,10 @@ static __devinit int wm5100_i2c_probe(struct i2c_client *i2c,
 		}
 	}
 
+	pm_runtime_set_active(&i2c->dev);
+	pm_runtime_enable(&i2c->dev);
+	pm_request_idle(&i2c->dev);
+
 	ret = snd_soc_register_codec(&i2c->dev,
 				     &soc_codec_dev_wm5100, wm5100_dai,
 				     ARRAY_SIZE(wm5100_dai));
@@ -2788,15 +2660,6 @@ err_ldo:
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm5100->core_supplies),
 			       wm5100->core_supplies);
-err_dbvdd3:
-	regulator_put(wm5100->dbvdd3);
-err_dbvdd2:
-	regulator_put(wm5100->dbvdd2);
-err_cpvdd:
-	regulator_put(wm5100->cpvdd);
-err_core:
-	regulator_bulk_free(ARRAY_SIZE(wm5100->core_supplies),
-			    wm5100->core_supplies);
 err_regmap:
 	regmap_exit(wm5100->regmap);
 err:
@@ -2819,15 +2682,55 @@ static __devexit int wm5100_i2c_remove(struct i2c_client *i2c)
 		gpio_set_value_cansleep(wm5100->pdata.ldo_ena, 0);
 		gpio_free(wm5100->pdata.ldo_ena);
 	}
-	regulator_put(wm5100->dbvdd3);
-	regulator_put(wm5100->dbvdd2);
-	regulator_put(wm5100->cpvdd);
-	regulator_bulk_free(ARRAY_SIZE(wm5100->core_supplies),
-			    wm5100->core_supplies);
 	regmap_exit(wm5100->regmap);
 
 	return 0;
 }
+
+#ifdef CONFIG_PM_RUNTIME
+static int wm5100_runtime_suspend(struct device *dev)
+{
+	struct wm5100_priv *wm5100 = dev_get_drvdata(dev);
+
+	regcache_cache_only(wm5100->regmap, true);
+	regcache_mark_dirty(wm5100->regmap);
+	if (wm5100->pdata.ldo_ena)
+		gpio_set_value_cansleep(wm5100->pdata.ldo_ena, 0);
+	regulator_bulk_disable(ARRAY_SIZE(wm5100->core_supplies),
+			       wm5100->core_supplies);
+
+	return 0;
+}
+
+static int wm5100_runtime_resume(struct device *dev)
+{
+	struct wm5100_priv *wm5100 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(wm5100->core_supplies),
+				    wm5100->core_supplies);
+	if (ret != 0) {
+		dev_err(dev, "Failed to enable supplies: %d\n",
+			ret);
+		return ret;
+	}
+
+	if (wm5100->pdata.ldo_ena) {
+		gpio_set_value_cansleep(wm5100->pdata.ldo_ena, 1);
+		msleep(2);
+	}
+
+	regcache_cache_only(wm5100->regmap, false);
+	regcache_sync(wm5100->regmap);
+
+	return 0;
+}
+#endif
+
+static struct dev_pm_ops wm5100_pm = {
+	SET_RUNTIME_PM_OPS(wm5100_runtime_suspend, wm5100_runtime_resume,
+			   NULL)
+};
 
 static const struct i2c_device_id wm5100_i2c_id[] = {
 	{ "wm5100", 0 },
@@ -2839,6 +2742,7 @@ static struct i2c_driver wm5100_i2c_driver = {
 	.driver = {
 		.name = "wm5100",
 		.owner = THIS_MODULE,
+		.pm = &wm5100_pm,
 	},
 	.probe =    wm5100_i2c_probe,
 	.remove =   __devexit_p(wm5100_i2c_remove),

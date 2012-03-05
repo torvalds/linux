@@ -41,8 +41,8 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/scatterlist.h>
-#include <linux/workqueue.h>
 #include <linux/spinlock.h>
+#include <linux/workqueue.h>
 
 #include "tmio_mmc.h"
 
@@ -246,6 +246,7 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 	/* Ready for new calls */
 	host->mrq = NULL;
 
+	tmio_mmc_abort_dma(host);
 	mmc_request_done(host->mmc, mrq);
 }
 
@@ -271,6 +272,9 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 
 	host->mrq = NULL;
 	spin_unlock_irqrestore(&host->lock, flags);
+
+	if (mrq->cmd->error || (mrq->data && mrq->data->error))
+		tmio_mmc_abort_dma(host);
 
 	mmc_request_done(host->mmc, mrq);
 }

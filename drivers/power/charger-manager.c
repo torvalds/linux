@@ -974,10 +974,11 @@ static int __devexit charger_manager_remove(struct platform_device *pdev)
 	return 0;
 }
 
-const struct platform_device_id charger_manager_id[] = {
+static const struct platform_device_id charger_manager_id[] = {
 	{ "charger-manager", 0 },
 	{ },
 };
+MODULE_DEVICE_TABLE(platform, charger_manager_id);
 
 static int cm_suspend_prepare(struct device *dev)
 {
@@ -1069,4 +1070,3 @@ module_exit(charger_manager_cleanup);
 MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
 MODULE_DESCRIPTION("Charger Manager");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("charger-manager");

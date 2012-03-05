@@ -152,9 +152,6 @@ static struct page *logfs_mtd_find_first_sb(struct super_block *sb, u64 *ofs)
 	filler_t *filler = logfs_mtd_readpage;
 	struct mtd_info *mtd = super->s_mtd;
 
-	if (!mtd_can_have_bb(mtd))
-		return NULL;
-
 	*ofs = 0;
 	while (mtd_block_isbad(mtd, *ofs)) {
 		*ofs += mtd->erasesize;
@@ -171,9 +168,6 @@ static struct page *logfs_mtd_find_last_sb(struct super_block *sb, u64 *ofs)
 	struct address_space *mapping = super->s_mapping_inode->i_mapping;
 	filler_t *filler = logfs_mtd_readpage;
 	struct mtd_info *mtd = super->s_mtd;
-
-	if (!mtd_can_have_bb(mtd))
-		return NULL;
 
 	*ofs = mtd->size - mtd->erasesize;
 	while (mtd_block_isbad(mtd, *ofs)) {

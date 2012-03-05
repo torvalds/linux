@@ -49,7 +49,6 @@ static int bf5xx_ssm2602_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int clk = 0;
 	int ret = 0;
 
@@ -75,21 +74,6 @@ static int bf5xx_ssm2602_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	/*
-	 * CODEC is master for BCLK and LRC in this configuration.
-	 */
-
-	/* set codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
-	/* set cpu DAI configuration */
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
-
 	ret = snd_soc_dai_set_sysclk(codec_dai, SSM2602_SYSCLK, clk,
 		SND_SOC_CLOCK_IN);
 	if (ret < 0)
@@ -101,6 +85,10 @@ static int bf5xx_ssm2602_hw_params(struct snd_pcm_substream *substream,
 static struct snd_soc_ops bf5xx_ssm2602_ops = {
 	.hw_params = bf5xx_ssm2602_hw_params,
 };
+
+/* CODEC is master for BCLK and LRC in this configuration. */
+#define BF5XX_SSM2602_DAIFMT (SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | \
+				SND_SOC_DAIFMT_CBM_CFM)
 
 static struct snd_soc_dai_link bf5xx_ssm2602_dai[] = {
 	{

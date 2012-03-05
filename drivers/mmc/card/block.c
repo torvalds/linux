@@ -1694,6 +1694,7 @@ static int mmc_add_disk(struct mmc_blk_data *md)
 
 		md->power_ro_lock.show = power_ro_lock_show;
 		md->power_ro_lock.store = power_ro_lock_store;
+		sysfs_attr_init(&md->power_ro_lock.attr);
 		md->power_ro_lock.attr.mode = mode;
 		md->power_ro_lock.attr.name =
 					"ro_lock_until_next_power_on";

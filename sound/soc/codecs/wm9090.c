@@ -433,7 +433,7 @@ static int wm9090_add_controls(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 
-	snd_soc_add_controls(codec, wm9090_controls,
+	snd_soc_add_codec_controls(codec, wm9090_controls,
 			     ARRAY_SIZE(wm9090_controls));
 
 	if (wm9090->pdata.lin1_diff) {
@@ -442,7 +442,7 @@ static int wm9090_add_controls(struct snd_soc_codec *codec)
 	} else {
 		snd_soc_dapm_add_routes(dapm, audio_map_in1_se,
 					ARRAY_SIZE(audio_map_in1_se));
-		snd_soc_add_controls(codec, wm9090_in1_se_controls,
+		snd_soc_add_codec_controls(codec, wm9090_in1_se_controls,
 				     ARRAY_SIZE(wm9090_in1_se_controls));
 	}
 
@@ -452,7 +452,7 @@ static int wm9090_add_controls(struct snd_soc_codec *codec)
 	} else {
 		snd_soc_dapm_add_routes(dapm, audio_map_in2_se,
 					ARRAY_SIZE(audio_map_in2_se));
-		snd_soc_add_controls(codec, wm9090_in2_se_controls,
+		snd_soc_add_codec_controls(codec, wm9090_in2_se_controls,
 				     ARRAY_SIZE(wm9090_in2_se_controls));
 	}
 
@@ -639,7 +639,7 @@ static int wm9090_i2c_probe(struct i2c_client *i2c,
 	if (ret < 0)
 		goto err;
 	if (reg != 0x9093) {
-		dev_err(&i2c->dev, "Device is not a WM9090, ID=%x\n", ret);
+		dev_err(&i2c->dev, "Device is not a WM9090, ID=%x\n", reg);
 		ret = -ENODEV;
 		goto err;
 	}

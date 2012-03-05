@@ -1738,7 +1738,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	struct bnx2x_fp_txdata *txdata = &fp_tx->txdata[0];
 	u16 tx_start_idx, tx_idx;
 	u16 rx_start_idx, rx_idx;
-	u16 pkt_prod, bd_prod, rx_comp_cons;
+	u16 pkt_prod, bd_prod;
 	struct sw_tx_bd *tx_buf;
 	struct eth_tx_start_bd *tx_start_bd;
 	struct eth_tx_parse_bd_e1x  *pbd_e1x = NULL;
@@ -1873,8 +1873,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	if (rx_idx != rx_start_idx + num_pkts)
 		goto test_loopback_exit;
 
-	rx_comp_cons = le16_to_cpu(fp_rx->rx_comp_cons);
-	cqe = &fp_rx->rx_comp_ring[RCQ_BD(rx_comp_cons)];
+	cqe = &fp_rx->rx_comp_ring[RCQ_BD(fp_rx->rx_comp_cons)];
 	cqe_fp_flags = cqe->fast_path_cqe.type_error_flags;
 	cqe_fp_type = cqe_fp_flags & ETH_FAST_PATH_RX_CQE_TYPE;
 	if (!CQE_TYPE_FAST(cqe_fp_type) || (cqe_fp_flags & ETH_RX_ERROR_FALGS))
@@ -2121,18 +2120,16 @@ static int bnx2x_get_sset_count(struct net_device *dev, int stringset)
 	case ETH_SS_STATS:
 		if (is_multi(bp)) {
 			num_stats = bnx2x_num_stat_queues(bp) *
-				BNX2X_NUM_Q_STATS;
-			if (!IS_MF_MODE_STAT(bp))
-				num_stats += BNX2X_NUM_STATS;
-		} else {
-			if (IS_MF_MODE_STAT(bp)) {
-				num_stats = 0;
-				for (i = 0; i < BNX2X_NUM_STATS; i++)
-					if (IS_FUNC_STAT(i))
-						num_stats++;
-			} else
-				num_stats = BNX2X_NUM_STATS;
-		}
+						BNX2X_NUM_Q_STATS;
+		} else
+			num_stats = 0;
+		if (IS_MF_MODE_STAT(bp)) {
+			for (i = 0; i < BNX2X_NUM_STATS; i++)
+				if (IS_FUNC_STAT(i))
+					num_stats++;
+		} else
+			num_stats += BNX2X_NUM_STATS;
+
 		return num_stats;
 
 	case ETH_SS_TEST:
@@ -2151,8 +2148,8 @@ static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 
 	switch (stringset) {
 	case ETH_SS_STATS:
+		k = 0;
 		if (is_multi(bp)) {
-			k = 0;
 			for_each_eth_queue(bp, i) {
 				memset(queue_name, 0, sizeof(queue_name));
 				sprintf(queue_name, "%d", i);
@@ -2163,20 +2160,17 @@ static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 						queue_name);
 				k += BNX2X_NUM_Q_STATS;
 			}
-			if (IS_MF_MODE_STAT(bp))
-				break;
-			for (j = 0; j < BNX2X_NUM_STATS; j++)
-				strcpy(buf + (k + j)*ETH_GSTRING_LEN,
-				       bnx2x_stats_arr[j].string);
-		} else {
-			for (i = 0, j = 0; i < BNX2X_NUM_STATS; i++) {
-				if (IS_MF_MODE_STAT(bp) && IS_PORT_STAT(i))
-					continue;
-				strcpy(buf + j*ETH_GSTRING_LEN,
-				       bnx2x_stats_arr[i].string);
-				j++;
-			}
 		}
+
+
+		for (i = 0, j = 0; i < BNX2X_NUM_STATS; i++) {
+			if (IS_MF_MODE_STAT(bp) && IS_PORT_STAT(i))
+				continue;
+			strcpy(buf + (k + j)*ETH_GSTRING_LEN,
+				   bnx2x_stats_arr[i].string);
+			j++;
+		}
+
 		break;
 
 	case ETH_SS_TEST:
@@ -2190,10 +2184,9 @@ static void bnx2x_get_ethtool_stats(struct net_device *dev,
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u32 *hw_stats, *offset;
-	int i, j, k;
+	int i, j, k = 0;
 
 	if (is_multi(bp)) {
-		k = 0;
 		for_each_eth_queue(bp, i) {
 			hw_stats = (u32 *)&bp->fp[i].eth_q_stats;
 			for (j = 0; j < BNX2X_NUM_Q_STATS; j++) {
@@ -2214,46 +2207,28 @@ static void bnx2x_get_ethtool_stats(struct net_device *dev,
 			}
 			k += BNX2X_NUM_Q_STATS;
 		}
-		if (IS_MF_MODE_STAT(bp))
-			return;
-		hw_stats = (u32 *)&bp->eth_stats;
-		for (j = 0; j < BNX2X_NUM_STATS; j++) {
-			if (bnx2x_stats_arr[j].size == 0) {
-				/* skip this counter */
-				buf[k + j] = 0;
-				continue;
-			}
-			offset = (hw_stats + bnx2x_stats_arr[j].offset);
-			if (bnx2x_stats_arr[j].size == 4) {
-				/* 4-byte counter */
-				buf[k + j] = (u64) *offset;
-				continue;
-			}
-			/* 8-byte counter */
-			buf[k + j] = HILO_U64(*offset, *(offset + 1));
-		}
-	} else {
-		hw_stats = (u32 *)&bp->eth_stats;
-		for (i = 0, j = 0; i < BNX2X_NUM_STATS; i++) {
-			if (IS_MF_MODE_STAT(bp) && IS_PORT_STAT(i))
-				continue;
-			if (bnx2x_stats_arr[i].size == 0) {
-				/* skip this counter */
-				buf[j] = 0;
-				j++;
-				continue;
-			}
-			offset = (hw_stats + bnx2x_stats_arr[i].offset);
-			if (bnx2x_stats_arr[i].size == 4) {
-				/* 4-byte counter */
-				buf[j] = (u64) *offset;
-				j++;
-				continue;
-			}
-			/* 8-byte counter */
-			buf[j] = HILO_U64(*offset, *(offset + 1));
+	}
+
+	hw_stats = (u32 *)&bp->eth_stats;
+	for (i = 0, j = 0; i < BNX2X_NUM_STATS; i++) {
+		if (IS_MF_MODE_STAT(bp) && IS_PORT_STAT(i))
+			continue;
+		if (bnx2x_stats_arr[i].size == 0) {
+			/* skip this counter */
+			buf[k + j] = 0;
 			j++;
+			continue;
 		}
+		offset = (hw_stats + bnx2x_stats_arr[i].offset);
+		if (bnx2x_stats_arr[i].size == 4) {
+			/* 4-byte counter */
+			buf[k + j] = (u64) *offset;
+			j++;
+			continue;
+		}
+		/* 8-byte counter */
+		buf[k + j] = HILO_U64(*offset, *(offset + 1));
+		j++;
 	}
 }
 
