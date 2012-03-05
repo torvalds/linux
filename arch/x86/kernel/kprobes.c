@@ -361,19 +361,15 @@ static int __kprobes is_IF_modifier(kprobe_opcode_t *insn)
  * If not, return null.
  * Only applicable to 64-bit x86.
  */
-static int __kprobes __copy_instruction(u8 *dest, u8 *src, int recover)
+static int __kprobes __copy_instruction(u8 *dest, u8 *src)
 {
 	struct insn insn;
 	kprobe_opcode_t buf[MAX_INSN_SIZE];
-	u8 *orig_src = src;	/* Back up original src for RIP calculation */
 
-	if (recover)
-		src = (u8 *)recover_probed_instruction(buf, (unsigned long)src);
-
-	kernel_insn_init(&insn, src);
+	kernel_insn_init(&insn, (void *)recover_probed_instruction(buf, (unsigned long)src));
 	insn_get_length(&insn);
 	/* Another subsystem puts a breakpoint, failed to recover */
-	if (recover && insn.opcode.bytes[0] == BREAKPOINT_INSTRUCTION)
+	if (insn.opcode.bytes[0] == BREAKPOINT_INSTRUCTION)
 		return 0;
 	memcpy(dest, insn.kaddr, insn.length);
 
@@ -395,7 +391,7 @@ static int __kprobes __copy_instruction(u8 *dest, u8 *src, int recover)
 		 * extension of the original signed 32-bit displacement would
 		 * have given.
 		 */
-		newdisp = (u8 *) orig_src + (s64) insn.displacement.value - (u8 *) dest;
+		newdisp = (u8 *) src + (s64) insn.displacement.value - (u8 *) dest;
 		BUG_ON((s64) (s32) newdisp != newdisp); /* Sanity check.  */
 		disp = (u8 *) dest + insn_offset_displacement(&insn);
 		*(s32 *) disp = (s32) newdisp;
@@ -406,18 +402,20 @@ static int __kprobes __copy_instruction(u8 *dest, u8 *src, int recover)
 
 static void __kprobes arch_copy_kprobe(struct kprobe *p)
 {
-	/*
-	 * Copy an instruction without recovering int3, because it will be
-	 * put by another subsystem.
-	 */
-	__copy_instruction(p->ainsn.insn, p->addr, 0);
+	/* Copy an instruction with recovering if other optprobe modifies it.*/
+	__copy_instruction(p->ainsn.insn, p->addr);
 
-	if (can_boost(p->addr))
+	/*
+	 * __copy_instruction can modify the displacement of the instruction,
+	 * but it doesn't affect boostable check.
+	 */
+	if (can_boost(p->ainsn.insn))
 		p->ainsn.boostable = 0;
 	else
 		p->ainsn.boostable = -1;
 
-	p->opcode = *p->addr;
+	/* Also, displacement change doesn't affect the first byte */
+	p->opcode = p->ainsn.insn[0];
 }
 
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
@@ -1276,7 +1274,7 @@ static int __kprobes copy_optimized_instructions(u8 *dest, u8 *src)
 	int len = 0, ret;
 
 	while (len < RELATIVEJUMP_SIZE) {
-		ret = __copy_instruction(dest + len, src + len, 1);
+		ret = __copy_instruction(dest + len, src + len);
 		if (!ret || !can_boost(dest + len))
 			return -EINVAL;
 		len += ret;
@@ -1328,7 +1326,7 @@ static int insn_jump_into_range(struct insn *insn, unsigned long start, int len)
 /* Decode whole function to ensure any instructions don't jump into target */
 static int __kprobes can_optimize(unsigned long paddr)
 {
-	unsigned long addr, __addr, size = 0, offset = 0;
+	unsigned long addr, size = 0, offset = 0;
 	struct insn insn;
 	kprobe_opcode_t buf[MAX_INSN_SIZE];
 
@@ -1357,8 +1355,7 @@ static int __kprobes can_optimize(unsigned long paddr)
 			 * we can't optimize kprobe in this function.
 			 */
 			return 0;
-		__addr = recover_probed_instruction(buf, addr);
-		kernel_insn_init(&insn, (void *)__addr);
+		kernel_insn_init(&insn, (void *)recover_probed_instruction(buf, addr));
 		insn_get_length(&insn);
 		/* Another subsystem puts a breakpoint */
 		if (insn.opcode.bytes[0] == BREAKPOINT_INSTRUCTION)
