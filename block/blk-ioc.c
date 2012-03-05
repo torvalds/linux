@@ -212,15 +212,14 @@ void ioc_clear_queue(struct request_queue *q)
 	}
 }
 
-void create_io_context_slowpath(struct task_struct *task, gfp_t gfp_flags,
-				int node)
+int create_task_io_context(struct task_struct *task, gfp_t gfp_flags, int node)
 {
 	struct io_context *ioc;
 
 	ioc = kmem_cache_alloc_node(iocontext_cachep, gfp_flags | __GFP_ZERO,
 				    node);
 	if (unlikely(!ioc))
-		return;
+		return -ENOMEM;
 
 	/* initialize */
 	atomic_long_set(&ioc->refcount, 1);
@@ -244,6 +243,8 @@ void create_io_context_slowpath(struct task_struct *task, gfp_t gfp_flags,
 	else
 		kmem_cache_free(iocontext_cachep, ioc);
 	task_unlock(task);
+
+	return 0;
 }
 
 /**
@@ -275,7 +276,7 @@ struct io_context *get_task_io_context(struct task_struct *task,
 			return ioc;
 		}
 		task_unlock(task);
-	} while (create_io_context(task, gfp_flags, node));
+	} while (!create_task_io_context(task, gfp_flags, node));
 
 	return NULL;
 }
@@ -319,26 +320,23 @@ EXPORT_SYMBOL(ioc_lookup_icq);
 
 /**
  * ioc_create_icq - create and link io_cq
+ * @ioc: io_context of interest
  * @q: request_queue of interest
  * @gfp_mask: allocation mask
  *
- * Make sure io_cq linking %current->io_context and @q exists.  If either
- * io_context and/or icq don't exist, they will be created using @gfp_mask.
+ * Make sure io_cq linking @ioc and @q exists.  If icq doesn't exist, they
+ * will be created using @gfp_mask.
  *
  * The caller is responsible for ensuring @ioc won't go away and @q is
  * alive and will stay alive until this function returns.
  */
-struct io_cq *ioc_create_icq(struct request_queue *q, gfp_t gfp_mask)
+struct io_cq *ioc_create_icq(struct io_context *ioc, struct request_queue *q,
+			     gfp_t gfp_mask)
 {
 	struct elevator_type *et = q->elevator->type;
-	struct io_context *ioc;
 	struct io_cq *icq;
 
 	/* allocate stuff */
-	ioc = create_io_context(current, gfp_mask, q->node);
-	if (!ioc)
-		return NULL;
-
 	icq = kmem_cache_alloc_node(et->icq_cache, gfp_mask | __GFP_ZERO,
 				    q->node);
 	if (!icq)
