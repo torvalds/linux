@@ -113,6 +113,12 @@ static const unsigned short normal_i2c[] = {
 #define STTS424E_DEVID		0x0000
 #define STTS424E_DEVID_MASK	0xfffe
 
+#define STTS2002_DEVID		0x0300
+#define STTS2002_DEVID_MASK	0xffff
+
+#define STTS3000_DEVID		0x0200
+#define STTS3000_DEVID_MASK	0xffff
+
 static u16 jc42_hysteresis[] = { 0, 1500, 3000, 6000 };
 
 struct jc42_chips {
@@ -133,6 +139,8 @@ static struct jc42_chips jc42_chips[] = {
 	{ NXP_MANID, SE98_DEVID, SE98_DEVID_MASK },
 	{ STM_MANID, STTS424_DEVID, STTS424_DEVID_MASK },
 	{ STM_MANID, STTS424E_DEVID, STTS424E_DEVID_MASK },
+	{ STM_MANID, STTS2002_DEVID, STTS2002_DEVID_MASK },
+	{ STM_MANID, STTS3000_DEVID, STTS3000_DEVID_MASK },
 };
 
 /* Each client has this additional data */
@@ -171,6 +179,8 @@ static const struct i2c_device_id jc42_id[] = {
 	{ "se97b", 0 },
 	{ "se98", 0 },
 	{ "stts424", 0 },
+	{ "stts2002", 0 },
+	{ "stts3000", 0 },
 	{ "tse2002b3", 0 },
 	{ "ts3000b3", 0 },
 	{ }
