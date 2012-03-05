@@ -590,8 +590,6 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		unsigned long flags;
-
 		ch_info = iwl_get_channel_info(priv, channel->band,
 					       channel->hw_value);
 		if (!is_channel_valid(ch_info)) {
@@ -599,8 +597,6 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 			ret = -EINVAL;
 			goto out;
 		}
-
-		spin_lock_irqsave(&priv->shrd->lock, flags);
 
 		for_each_context(priv, ctx) {
 			/* Configure HT40 channels */
@@ -635,8 +631,6 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 			iwl_set_flags_for_band(priv, ctx, channel->band,
 					       ctx->vif);
 		}
-
-		spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 		iwl_update_bcast_stations(priv);
 

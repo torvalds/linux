@@ -552,13 +552,11 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 {
 	struct iwl_ct_kill_config cmd;
 	struct iwl_ct_kill_throttling_config adv_cmd;
-	unsigned long flags;
 	int ret = 0;
 
-	spin_lock_irqsave(&priv->shrd->lock, flags);
 	iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_CLR,
 		    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
+
 	priv->thermal_throttle.ct_kill_toggle = false;
 
 	if (cfg(priv)->base_params->support_ct_kill_exit) {
@@ -1232,7 +1230,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans)
 	 * we should init now
 	 */
 	spin_lock_init(&trans(priv)->reg_lock);
-	spin_lock_init(&priv->shrd->lock);
 	spin_lock_init(&priv->statistics.lock);
 
 	/***********************

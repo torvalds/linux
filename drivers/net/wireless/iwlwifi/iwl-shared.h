@@ -388,7 +388,6 @@ struct iwl_shared {
 	struct iwl_nic *nic;
 	struct iwl_hw_params hw_params;
 
-	spinlock_t lock;
 	struct mutex mutex;
 
 	wait_queue_head_t wait_command_queue;

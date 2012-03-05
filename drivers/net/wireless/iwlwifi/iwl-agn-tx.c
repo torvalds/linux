@@ -259,18 +259,15 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwl_device_cmd *dev_cmd = NULL;
 	struct iwl_tx_cmd *tx_cmd;
-
 	__le16 fc;
 	u8 hdr_len;
 	u16 len, seq_number = 0;
 	u8 sta_id, tid = IWL_MAX_TID_COUNT;
-	unsigned long flags;
 	bool is_agg = false;
 
 	if (info->control.vif)
 		ctx = iwl_rxon_ctx_from_vif(info->control.vif);
 
-	spin_lock_irqsave(&priv->shrd->lock, flags);
 	if (iwl_is_rfkill(priv->shrd)) {
 		IWL_DEBUG_DROP(priv, "Dropping - RF KILL\n");
 		goto drop_unlock_priv;
@@ -369,7 +366,6 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	info->driver_data[0] = ctx;
 	info->driver_data[1] = dev_cmd;
 
-	/* irqs already disabled/saved above when locking priv->shrd->lock */
 	spin_lock(&priv->sta_lock);
 
 	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc)) {
@@ -418,7 +414,6 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		priv->tid_data[sta_id][tid].seq_number = seq_number;
 
 	spin_unlock(&priv->sta_lock);
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	/*
 	 * Avoid atomic ops if it isn't an associated client.
@@ -437,7 +432,6 @@ drop_unlock_sta:
 		kmem_cache_free(priv->tx_cmd_pool, dev_cmd);
 	spin_unlock(&priv->sta_lock);
 drop_unlock_priv:
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 	return -1;
 }
 
@@ -445,7 +439,6 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid)
 {
 	struct iwl_tid_data *tid_data;
-	unsigned long flags;
 	int sta_id;
 
 	sta_id = iwl_sta_id(sta);
@@ -500,9 +493,7 @@ turn_off:
 
 	spin_unlock_bh(&priv->sta_lock);
 
-	spin_lock_irqsave(&priv->shrd->lock, flags);
 	iwl_trans_tx_agg_disable(trans(priv), sta_id, tid);
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 

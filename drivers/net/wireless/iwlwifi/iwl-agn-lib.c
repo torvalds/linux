@@ -710,7 +710,6 @@ int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 				  struct iwl_rx_mem_buffer *rxb,
 				  struct iwl_device_cmd *cmd)
 {
-	unsigned long flags;
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_bt_coex_profile_notif *coex = &pkt->u.bt_coex_profile_notif;
 	struct iwl_bt_uart_msg *uart_msg = &coex->last_bt_uart_msg;
@@ -756,9 +755,7 @@ int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 
 	/* FIXME: based on notification, adjust the prio_boost */
 
-	spin_lock_irqsave(&priv->shrd->lock, flags);
 	priv->bt_ci_compliance = coex->bt_ci_compliance;
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 	return 0;
 }
 

@@ -779,8 +779,6 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	spin_lock_irq(&priv->shrd->lock);
-
 	priv->current_ht_config.smps = conf->smps_mode;
 
 	/* Configure HT40 channels */
@@ -796,8 +794,6 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	iwl_set_rxon_channel(priv, channel, ctx);
 	iwl_set_rxon_ht(priv, ht_conf);
 	iwl_set_flags_for_band(priv, ctx, channel->band, ctx->vif);
-
-	spin_unlock_irq(&priv->shrd->lock);
 
 	iwl_set_rate(priv);
 	/*
@@ -1133,7 +1129,6 @@ static int iwlagn_mac_conf_tx(struct ieee80211_hw *hw,
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 	struct iwl_rxon_context *ctx = vif_priv->ctx;
-	unsigned long flags;
 	int q;
 
 	if (WARN_ON(!ctx))
@@ -1153,7 +1148,7 @@ static int iwlagn_mac_conf_tx(struct ieee80211_hw *hw,
 
 	q = AC_NUM - 1 - queue;
 
-	spin_lock_irqsave(&priv->shrd->lock, flags);
+	mutex_lock(&priv->shrd->mutex);
 
 	ctx->qos_data.def_qos_parm.ac[q].cw_min =
 		cpu_to_le16(params->cw_min);
@@ -1165,7 +1160,7 @@ static int iwlagn_mac_conf_tx(struct ieee80211_hw *hw,
 
 	ctx->qos_data.def_qos_parm.ac[q].reserved1 = 0;
 
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
+	mutex_unlock(&priv->shrd->mutex);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 	return 0;
