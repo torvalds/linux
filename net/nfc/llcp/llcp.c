@@ -671,14 +671,14 @@ static void nfc_llcp_recv_hdlc(struct nfc_llcp_local *local,
 		nfc_llcp_sock_put(llcp_sock);
 	}
 
-	if (ns == llcp_sock->recv_n)
-		llcp_sock->recv_n = (llcp_sock->recv_n + 1) % 16;
-	else
-		pr_err("Received out of sequence I PDU\n");
-
 	/* Pass the payload upstream */
 	if (ptype == LLCP_PDU_I) {
 		pr_debug("I frame, queueing on %p\n", &llcp_sock->sk);
+
+		if (ns == llcp_sock->recv_n)
+			llcp_sock->recv_n = (llcp_sock->recv_n + 1) % 16;
+		else
+			pr_err("Received out of sequence I PDU\n");
 
 		skb_pull(skb, LLCP_HEADER_SIZE + LLCP_SEQUENCE_SIZE);
 		if (sock_queue_rcv_skb(&llcp_sock->sk, skb)) {
@@ -699,6 +699,11 @@ static void nfc_llcp_recv_hdlc(struct nfc_llcp_local *local,
 				kfree_skb(s);
 			}
 	}
+
+	if (ptype == LLCP_PDU_RR)
+		llcp_sock->remote_ready = true;
+        else if (ptype == LLCP_PDU_RNR)
+		llcp_sock->remote_ready = false;
 
 	nfc_llcp_queue_i_frames(llcp_sock);
 
@@ -813,6 +818,7 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 
 	case LLCP_PDU_I:
 	case LLCP_PDU_RR:
+	case LLCP_PDU_RNR:
 		pr_debug("I frame\n");
 		nfc_llcp_recv_hdlc(local, skb);
 		break;
