@@ -91,11 +91,10 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
  */
 static void rs_close(struct tty_struct *tty, struct file * filp)
 {
-	spin_lock(&timer_lock);
+	spin_lock_bh(&timer_lock);
 	if (tty->count == 1)
-		/* this will cause a deadlock if the timer ticks right now */
 		del_timer_sync(&serial_timer);
-	spin_unlock(&timer_lock);
+	spin_unlock_bh(&timer_lock);
 }
 
 
