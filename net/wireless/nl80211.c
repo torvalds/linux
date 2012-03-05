@@ -7686,7 +7686,8 @@ bool nl80211_unexpected_4addr_frame(struct net_device *dev,
 
 int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
 		      struct net_device *netdev, u32 nlpid,
-		      int freq, const u8 *buf, size_t len, gfp_t gfp)
+		      int freq, int sig_dbm,
+		      const u8 *buf, size_t len, gfp_t gfp)
 {
 	struct sk_buff *msg;
 	void *hdr;
@@ -7704,6 +7705,8 @@ int nl80211_send_mgmt(struct cfg80211_registered_device *rdev,
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx);
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex);
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, freq);
+	if (sig_dbm)
+		NLA_PUT_U32(msg, NL80211_ATTR_RX_SIGNAL_DBM, sig_dbm);
 	NLA_PUT(msg, NL80211_ATTR_FRAME, len, buf);
 
 	genlmsg_end(msg, hdr);
@@ -7965,7 +7968,7 @@ EXPORT_SYMBOL(cfg80211_probe_status);
 
 void cfg80211_report_obss_beacon(struct wiphy *wiphy,
 				 const u8 *frame, size_t len,
-				 int freq, gfp_t gfp)
+				 int freq, int sig_dbm, gfp_t gfp)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 	struct sk_buff *msg;
@@ -7988,6 +7991,8 @@ void cfg80211_report_obss_beacon(struct wiphy *wiphy,
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx);
 	if (freq)
 		NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ, freq);
+	if (sig_dbm)
+		NLA_PUT_U32(msg, NL80211_ATTR_RX_SIGNAL_DBM, sig_dbm);
 	NLA_PUT(msg, NL80211_ATTR_FRAME, len, frame);
 
 	genlmsg_end(msg, hdr);

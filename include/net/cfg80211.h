@@ -3189,6 +3189,7 @@ void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp);
  * cfg80211_rx_mgmt - notification of received, unprocessed management frame
  * @dev: network device
  * @freq: Frequency on which the frame was received in MHz
+ * @sig_dbm: signal strength in mBm, or 0 if unknown
  * @buf: Management frame (header + body)
  * @len: length of the frame data
  * @gfp: context flags
@@ -3201,8 +3202,8 @@ void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp);
  * This function is called whenever an Action frame is received for a station
  * mode interface, but is not processed in kernel.
  */
-bool cfg80211_rx_mgmt(struct net_device *dev, int freq, const u8 *buf,
-		      size_t len, gfp_t gfp);
+bool cfg80211_rx_mgmt(struct net_device *dev, int freq, int sig_dbm,
+		      const u8 *buf, size_t len, gfp_t gfp);
 
 /**
  * cfg80211_mgmt_tx_status - notification of TX status for management frame
@@ -3315,6 +3316,7 @@ void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
  * @frame: the frame
  * @len: length of the frame
  * @freq: frequency the frame was received on
+ * @sig_dbm: signal strength in mBm, or 0 if unknown
  * @gfp: allocation flags
  *
  * Use this function to report to userspace when a beacon was
@@ -3323,7 +3325,7 @@ void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
  */
 void cfg80211_report_obss_beacon(struct wiphy *wiphy,
 				 const u8 *frame, size_t len,
-				 int freq, gfp_t gfp);
+				 int freq, int sig_dbm, gfp_t gfp);
 
 /*
  * cfg80211_can_beacon_sec_chan - test if ht40 on extension channel can be used
