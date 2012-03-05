@@ -271,25 +271,27 @@ int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 
 	IWL_INFO(priv, "Device SKU: 0x%X\n", hw_params(priv).sku);
 
-	if (!cfg(priv)->valid_tx_ant && !cfg(priv)->valid_rx_ant) {
-		/* not using .cfg overwrite */
-		radio_cfg = iwl_eeprom_query16(shrd, EEPROM_RADIO_CONFIG);
-		cfg(priv)->valid_tx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
-		cfg(priv)->valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(radio_cfg);
-		if (!cfg(priv)->valid_tx_ant || !cfg(priv)->valid_rx_ant) {
-			IWL_ERR(priv, "Invalid chain (0x%X, 0x%X)\n",
-				cfg(priv)->valid_tx_ant,
-				cfg(priv)->valid_rx_ant);
-			return -EINVAL;
-		}
-		IWL_INFO(priv, "Valid Tx ant: 0x%X, Valid Rx ant: 0x%X\n",
-			 cfg(priv)->valid_tx_ant, cfg(priv)->valid_rx_ant);
+	radio_cfg = iwl_eeprom_query16(shrd, EEPROM_RADIO_CONFIG);
+
+	hw_params(priv).valid_tx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
+	hw_params(priv).valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(radio_cfg);
+
+	/* check overrides (some devices have wrong EEPROM) */
+	if (cfg(priv)->valid_tx_ant)
+		hw_params(priv).valid_tx_ant = cfg(priv)->valid_tx_ant;
+	if (cfg(priv)->valid_rx_ant)
+		hw_params(priv).valid_rx_ant = cfg(priv)->valid_rx_ant;
+
+	if (!hw_params(priv).valid_tx_ant || !hw_params(priv).valid_rx_ant) {
+		IWL_ERR(priv, "Invalid chain (0x%X, 0x%X)\n",
+			hw_params(priv).valid_tx_ant,
+			hw_params(priv).valid_rx_ant);
+		return -EINVAL;
 	}
-	/*
-	 * for some special cases,
-	 * EEPROM did not reflect the correct antenna setting
-	 * so overwrite the valid tx/rx antenna from .cfg
-	 */
+
+	IWL_INFO(priv, "Valid Tx ant: 0x%X, Valid Rx ant: 0x%X\n",
+		 hw_params(priv).valid_tx_ant, hw_params(priv).valid_rx_ant);
+
 	return 0;
 }
 

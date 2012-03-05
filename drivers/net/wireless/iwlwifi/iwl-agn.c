@@ -699,7 +699,7 @@ int iwl_alive_start(struct iwl_priv *priv)
 	priv->active_rate = IWL_RATES_MASK;
 
 	/* Configure Tx antenna selection based on H/W config */
-	iwlagn_send_tx_ant_config(priv, cfg(priv)->valid_tx_ant);
+	iwlagn_send_tx_ant_config(priv, hw_params(priv).valid_tx_ant);
 
 	if (iwl_is_associated_ctx(ctx) && !priv->shrd->wowlan) {
 		struct iwl_rxon_cmd *active_rxon =

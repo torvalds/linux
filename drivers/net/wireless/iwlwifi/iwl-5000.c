@@ -167,10 +167,10 @@ static void iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
 
-	hw_params(priv).tx_chains_num = num_of_ant(cfg(priv)->valid_tx_ant);
-	hw_params(priv).rx_chains_num = num_of_ant(cfg(priv)->valid_rx_ant);
-	hw_params(priv).valid_tx_ant = cfg(priv)->valid_tx_ant;
-	hw_params(priv).valid_rx_ant = cfg(priv)->valid_rx_ant;
+	hw_params(priv).tx_chains_num =
+		num_of_ant(hw_params(priv).valid_tx_ant);
+	hw_params(priv).rx_chains_num =
+		num_of_ant(hw_params(priv).valid_rx_ant);
 
 	iwl5000_set_ct_threshold(priv);
 
@@ -190,10 +190,10 @@ static void iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
 
-	hw_params(priv).tx_chains_num = num_of_ant(cfg(priv)->valid_tx_ant);
-	hw_params(priv).rx_chains_num = num_of_ant(cfg(priv)->valid_rx_ant);
-	hw_params(priv).valid_tx_ant = cfg(priv)->valid_tx_ant;
-	hw_params(priv).valid_rx_ant = cfg(priv)->valid_rx_ant;
+	hw_params(priv).tx_chains_num =
+		num_of_ant(hw_params(priv).valid_tx_ant);
+	hw_params(priv).rx_chains_num =
+		num_of_ant(hw_params(priv).valid_rx_ant);
 
 	iwl5150_set_ct_threshold(priv);
 

@@ -1546,15 +1546,18 @@ static ssize_t iwl_dbgfs_ucode_tx_stats_read(struct file *file,
 	if (tx->tx_power.ant_a || tx->tx_power.ant_b || tx->tx_power.ant_c) {
 		pos += scnprintf(buf + pos, bufsz - pos,
 			"tx power: (1/2 dB step)\n");
-		if ((cfg(priv)->valid_tx_ant & ANT_A) && tx->tx_power.ant_a)
+		if ((hw_params(priv).valid_tx_ant & ANT_A) &&
+		    tx->tx_power.ant_a)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					fmt_hex, "antenna A:",
 					tx->tx_power.ant_a);
-		if ((cfg(priv)->valid_tx_ant & ANT_B) && tx->tx_power.ant_b)
+		if ((hw_params(priv).valid_tx_ant & ANT_B) &&
+		    tx->tx_power.ant_b)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					fmt_hex, "antenna B:",
 					tx->tx_power.ant_b);
-		if ((cfg(priv)->valid_tx_ant & ANT_C) && tx->tx_power.ant_c)
+		if ((hw_params(priv).valid_tx_ant & ANT_C) &&
+		    tx->tx_power.ant_c)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					fmt_hex, "antenna C:",
 					tx->tx_power.ant_c);
