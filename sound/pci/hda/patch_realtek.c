@@ -686,7 +686,7 @@ static void alc_sku_unsol_event(struct hda_codec *codec, unsigned int res)
 	else
 		res >>= 26;
 	action = snd_hda_jack_get_action(codec, res);
-	if (res == ALC_DCVOL_EVENT) {
+	if (action == ALC_DCVOL_EVENT) {
 		/* Execute the dc-vol event here as it requires the NID
 		 * but we don't pass NID to alc_exec_unsol_event().
 		 * Once when we convert all static quirks to the auto-parser,
