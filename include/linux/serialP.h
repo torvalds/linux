@@ -38,24 +38,24 @@ struct serial_state {
 	unsigned short	close_delay;
 	unsigned short	closing_wait; /* time to wait before closing */
 	struct async_icount	icount;	
-	struct async_struct *info;
-};
 
-struct async_struct {
-	struct serial_state	*state;
-	struct tty_struct 	*tty;
+	/* amiserial */
 	int			read_status_mask;
 	int			ignore_status_mask;
 	int			timeout;
 	int			quot;
-	int			x_char;	/* xon/xoff character */
 	int			IER; 	/* Interrupt Enable Register */
 	int			MCR; 	/* Modem control register */
+	wait_queue_head_t	delta_msr_wait;
+	/* simserial */
+	int			x_char;	/* xon/xoff character */
 	int			blocked_open; /* # of blocked opens */
  	struct circ_buf		xmit;
 	wait_queue_head_t	open_wait;
 	wait_queue_head_t	close_wait;
-	wait_queue_head_t	delta_msr_wait;
+	struct tty_struct 	*tty;
+	/* /simserial */
+	/* /amiserial */
 };
 
 #endif /* _LINUX_SERIAL_H */

@@ -163,7 +163,7 @@ static  void receive_chars(struct tty_struct *tty)
  */
 static irqreturn_t rs_interrupt_single(int irq, void *dev_id)
 {
-	struct async_struct *info = dev_id;
+	struct serial_state *info = dev_id;
 
 	if (!info->tty) {
 		printk(KERN_INFO "simrs_interrupt_single: info|tty=0 info=%p problem\n", info);
@@ -185,7 +185,7 @@ static irqreturn_t rs_interrupt_single(int irq, void *dev_id)
 
 static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
 
 	if (!tty || !info->xmit.buf)
@@ -202,11 +202,10 @@ static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 	return 1;
 }
 
-static void transmit_chars(struct async_struct *info, int *intr_done)
+static void transmit_chars(struct serial_state *info, int *intr_done)
 {
 	int count;
 	unsigned long flags;
-
 
 	local_irq_save(flags);
 
@@ -215,7 +214,7 @@ static void transmit_chars(struct async_struct *info, int *intr_done)
 
 		console->write(console, &c, 1);
 
-		info->state->icount.tx++;
+		info->icount.tx++;
 		info->x_char = 0;
 
 		goto out;
@@ -256,7 +255,7 @@ out:
 
 static void rs_flush_chars(struct tty_struct *tty)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct serial_state *info = tty->driver_data;
 
 	if (info->xmit.head == info->xmit.tail || tty->stopped || tty->hw_stopped ||
 	    !info->xmit.buf)
@@ -269,8 +268,8 @@ static void rs_flush_chars(struct tty_struct *tty)
 static int rs_write(struct tty_struct * tty,
 		    const unsigned char *buf, int count)
 {
+	struct serial_state *info = tty->driver_data;
 	int	c, ret = 0;
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
 	unsigned long flags;
 
 	if (!tty || !info->xmit.buf || !tmp_buf) return 0;
@@ -303,21 +302,21 @@ static int rs_write(struct tty_struct * tty,
 
 static int rs_write_room(struct tty_struct *tty)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct serial_state *info = tty->driver_data;
 
 	return CIRC_SPACE(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE);
 }
 
 static int rs_chars_in_buffer(struct tty_struct *tty)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct serial_state *info = tty->driver_data;
 
 	return CIRC_CNT(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE);
 }
 
 static void rs_flush_buffer(struct tty_struct *tty)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
 
 	local_irq_save(flags);
@@ -333,7 +332,7 @@ static void rs_flush_buffer(struct tty_struct *tty)
  */
 static void rs_send_xchar(struct tty_struct *tty, char ch)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct serial_state *info = tty->driver_data;
 
 	info->x_char = ch;
 	if (ch) {
@@ -362,7 +361,7 @@ static void rs_throttle(struct tty_struct * tty)
 
 static void rs_unthrottle(struct tty_struct * tty)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct serial_state *info = tty->driver_data;
 
 	if (I_IXOFF(tty)) {
 		if (info->x_char)
@@ -443,23 +442,22 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
  * This routine will shutdown a serial port; interrupts are disabled, and
  * DTR is dropped if the hangup on close termio flag is on.
  */
-static void shutdown(struct async_struct * info)
+static void shutdown(struct serial_state *info)
 {
 	unsigned long	flags;
-	struct serial_state *state = info->state;
 
-	if (!(state->flags & ASYNC_INITIALIZED))
+	if (!(info->flags & ASYNC_INITIALIZED))
 		return;
 
 #ifdef SIMSERIAL_DEBUG
-	printk("Shutting down serial port %d (irq %d)....", info->line,
-	       state->irq);
+	printk("Shutting down serial port %d (irq %d)...\n", info->line,
+	       info->irq);
 #endif
 
 	local_irq_save(flags);
 	{
-		if (state->irq)
-			free_irq(state->irq, info);
+		if (info->irq)
+			free_irq(info->irq, info);
 
 		if (info->xmit.buf) {
 			free_page((unsigned long) info->xmit.buf);
@@ -468,7 +466,7 @@ static void shutdown(struct async_struct * info)
 
 		if (info->tty) set_bit(TTY_IO_ERROR, &info->tty->flags);
 
-		state->flags &= ~ASYNC_INITIALIZED;
+		info->flags &= ~ASYNC_INITIALIZED;
 	}
 	local_irq_restore(flags);
 }
@@ -485,13 +483,11 @@ static void shutdown(struct async_struct * info)
  */
 static void rs_close(struct tty_struct *tty, struct file * filp)
 {
-	struct async_struct * info = (struct async_struct *)tty->driver_data;
-	struct serial_state *state;
+	struct serial_state *info = tty->driver_data;
 	unsigned long flags;
 
-	if (!info ) return;
-
-	state = info->state;
+	if (!info)
+		return;
 
 	local_irq_save(flags);
 	if (tty_hung_up_p(filp)) {
@@ -502,30 +498,30 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 		return;
 	}
 #ifdef SIMSERIAL_DEBUG
-	printk("rs_close ttys%d, count = %d\n", info->line, state->count);
+	printk("rs_close ttys%d, count = %d\n", info->line, info->count);
 #endif
-	if ((tty->count == 1) && (state->count != 1)) {
+	if ((tty->count == 1) && (info->count != 1)) {
 		/*
 		 * Uh, oh.  tty->count is 1, which means that the tty
-		 * structure will be freed.  state->count should always
+		 * structure will be freed.  info->count should always
 		 * be one in these conditions.  If it's greater than
 		 * one, we've got real problems, since it means the
 		 * serial port won't be shutdown.
 		 */
 		printk(KERN_ERR "rs_close: bad serial port count; tty->count is 1, "
-		       "state->count is %d\n", state->count);
-		state->count = 1;
+		       "info->count is %d\n", info->count);
+		info->count = 1;
 	}
-	if (--state->count < 0) {
+	if (--info->count < 0) {
 		printk(KERN_ERR "rs_close: bad serial port count for ttys%d: %d\n",
-		       state->line, state->count);
-		state->count = 0;
+		       info->line, info->count);
+		info->count = 0;
 	}
-	if (state->count) {
+	if (info->count) {
 		local_irq_restore(flags);
 		return;
 	}
-	state->flags |= ASYNC_CLOSING;
+	info->flags |= ASYNC_CLOSING;
 	local_irq_restore(flags);
 
 	/*
@@ -537,11 +533,11 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	tty_ldisc_flush(tty);
 	info->tty = NULL;
 	if (info->blocked_open) {
-		if (state->close_delay)
-			schedule_timeout_interruptible(state->close_delay);
+		if (info->close_delay)
+			schedule_timeout_interruptible(info->close_delay);
 		wake_up_interruptible(&info->open_wait);
 	}
-	state->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
+	info->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
 	wake_up_interruptible(&info->close_wait);
 }
 
@@ -558,59 +554,28 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
  */
 static void rs_hangup(struct tty_struct *tty)
 {
-	struct async_struct * info = (struct async_struct *)tty->driver_data;
-	struct serial_state *state = info->state;
+	struct serial_state *info = tty->driver_data;
 
 #ifdef SIMSERIAL_DEBUG
 	printk("rs_hangup: called\n");
 #endif
 
 	rs_flush_buffer(tty);
-	if (state->flags & ASYNC_CLOSING)
+	if (info->flags & ASYNC_CLOSING)
 		return;
 	shutdown(info);
 
-	state->count = 0;
-	state->flags &= ~ASYNC_NORMAL_ACTIVE;
+	info->count = 0;
+	info->flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->tty = NULL;
 	wake_up_interruptible(&info->open_wait);
 }
 
 
-static int get_async_struct(int line, struct async_struct **ret_info)
-{
-	struct async_struct *info;
-	struct serial_state *sstate;
-
-	sstate = rs_table + line;
-	sstate->count++;
-	if (sstate->info) {
-		*ret_info = sstate->info;
-		return 0;
-	}
-	info = kzalloc(sizeof(struct async_struct), GFP_KERNEL);
-	if (!info) {
-		sstate->count--;
-		return -ENOMEM;
-	}
-	init_waitqueue_head(&info->open_wait);
-	init_waitqueue_head(&info->close_wait);
-	info->state = sstate;
-	if (sstate->info) {
-		kfree(info);
-		*ret_info = sstate->info;
-		return 0;
-	}
-	*ret_info = sstate->info = info;
-	return 0;
-}
-
-static int
-startup(struct async_struct *info)
+static int startup(struct serial_state *state)
 {
 	unsigned long flags;
 	int	retval=0;
-	struct serial_state *state= info->state;
 	unsigned long page;
 
 	page = get_zeroed_page(GFP_KERNEL);
@@ -625,17 +590,18 @@ startup(struct async_struct *info)
 	}
 
 	if (!state->port || !state->type) {
-		if (info->tty) set_bit(TTY_IO_ERROR, &info->tty->flags);
+		if (state->tty)
+			set_bit(TTY_IO_ERROR, &state->tty->flags);
 		free_page(page);
 		goto errout;
 	}
-	if (info->xmit.buf)
+	if (state->xmit.buf)
 		free_page(page);
 	else
-		info->xmit.buf = (unsigned char *) page;
+		state->xmit.buf = (unsigned char *) page;
 
 #ifdef SIMSERIAL_DEBUG
-	printk("startup: ttys%d (irq %d)...", info->line, state->irq);
+	printk("startup: ttys%d (irq %d)...", state->line, state->irq);
 #endif
 
 	/*
@@ -643,14 +609,15 @@ startup(struct async_struct *info)
 	 */
 	if (state->irq) {
 		retval = request_irq(state->irq, rs_interrupt_single, 0,
-				"simserial", info);
+				"simserial", state);
 		if (retval)
 			goto errout;
 	}
 
-	if (info->tty) clear_bit(TTY_IO_ERROR, &info->tty->flags);
+	if (state->tty)
+		clear_bit(TTY_IO_ERROR, &state->tty->flags);
 
-	info->xmit.head = info->xmit.tail = 0;
+	state->xmit.head = state->xmit.tail = 0;
 
 #if 0
 	/*
@@ -663,15 +630,15 @@ startup(struct async_struct *info)
 	/*
 	 * Set up the tty->alt_speed kludge
 	 */
-	if (info->tty) {
+	if (state->tty) {
 		if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
-			info->tty->alt_speed = 57600;
+			state->tty->alt_speed = 57600;
 		if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
-			info->tty->alt_speed = 115200;
+			state->tty->alt_speed = 115200;
 		if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
-			info->tty->alt_speed = 230400;
+			state->tty->alt_speed = 230400;
 		if ((state->flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
-			info->tty->alt_speed = 460800;
+			state->tty->alt_speed = 460800;
 	}
 
 	state->flags |= ASYNC_INITIALIZED;
@@ -692,20 +659,18 @@ errout:
  */
 static int rs_open(struct tty_struct *tty, struct file * filp)
 {
-	struct async_struct	*info;
+	struct serial_state *info = rs_table + tty->index;
 	int			retval;
 	unsigned long		page;
 
-	retval = get_async_struct(tty->index, &info);
-	if (retval)
-		return retval;
-	tty->driver_data = info;
+	info->count++;
 	info->tty = tty;
+	tty->driver_data = info;
 
 #ifdef SIMSERIAL_DEBUG
-	printk("rs_open %s, count = %d\n", tty->name, info->state->count);
+	printk("rs_open %s, count = %d\n", tty->name, info->count);
 #endif
-	info->tty->low_latency = (info->state->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
+	tty->low_latency = (info->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	if (!tmp_buf) {
 		page = get_zeroed_page(GFP_KERNEL);
@@ -720,12 +685,11 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	/*
 	 * If the port is the middle of closing, bail out now
 	 */
-	if (tty_hung_up_p(filp) ||
-	    (info->state->flags & ASYNC_CLOSING)) {
-		if (info->state->flags & ASYNC_CLOSING)
+	if (tty_hung_up_p(filp) || (info->flags & ASYNC_CLOSING)) {
+		if (info->flags & ASYNC_CLOSING)
 			interruptible_sleep_on(&info->close_wait);
 #ifdef SERIAL_DO_RESTART
-		return ((info->state->flags & ASYNC_HUP_NOTIFY) ?
+		return ((info->flags & ASYNC_HUP_NOTIFY) ?
 			-EAGAIN : -ERESTARTSYS);
 #else
 		return -EAGAIN;
@@ -865,6 +829,8 @@ simrs_init (void)
 	 * Let's have a little bit of fun !
 	 */
 	for (i = 0, state = rs_table; i < NR_PORTS; i++,state++) {
+		init_waitqueue_head(&state->open_wait);
+		init_waitqueue_head(&state->close_wait);
 
 		if (state->type == PORT_UNKNOWN) continue;
 
