@@ -106,7 +106,7 @@
 97	common	getrlimit		sys_getrlimit
 98	common	getrusage		sys_getrusage
 99	common	sysinfo			sys_sysinfo
-100	64	times			sys_times
+100	common	times			sys_times
 101	common	ptrace			sys_ptrace
 102	common	getuid			sys_getuid
 103	common	syslog			sys_syslog
@@ -331,7 +331,7 @@
 518	x32	sendmsg			compat_sys_sendmsg
 519	x32	recvmsg			compat_sys_recvmsg
 520	x32	execve			stub_x32_execve
-521	x32	times			compat_sys_times
+# 521 available
 522	x32	rt_sigpending		sys32_rt_sigpending
 523	x32	rt_sigtimedwait		compat_sys_rt_sigtimedwait
 524	x32	rt_sigqueueinfo		sys32_rt_sigqueueinfo

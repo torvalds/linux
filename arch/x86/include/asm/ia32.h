@@ -125,6 +125,15 @@ typedef struct compat_siginfo {
 			compat_clock_t _stime;
 		} _sigchld;
 
+		/* SIGCHLD (x32 version) */
+		struct {
+			unsigned int _pid;	/* which child */
+			unsigned int _uid;	/* sender's uid */
+			int _status;		/* exit code */
+			s64 _utime;
+			s64 _stime;
+		} _sigchld_x32;
+
 		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
 		struct {
 			unsigned int _addr;	/* faulting insn/memory ref. */
