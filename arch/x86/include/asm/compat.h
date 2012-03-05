@@ -235,17 +235,27 @@ static inline void __user *arch_compat_alloc_user_space(long len)
 	return (void __user *)round_down(sp - len, 16);
 }
 
-static inline bool is_compat_task(void)
+static inline bool is_ia32_task(void)
 {
 #ifdef CONFIG_IA32_EMULATION
 	if (current_thread_info()->status & TS_COMPAT)
 		return true;
 #endif
+	return false;
+}
+
+static inline bool is_x32_task(void)
+{
 #ifdef CONFIG_X86_X32_ABI
 	if (task_pt_regs(current)->orig_ax & __X32_SYSCALL_BIT)
 		return true;
 #endif
 	return false;
+}
+
+static inline bool is_compat_task(void)
+{
+	return is_ia32_task() || is_x32_task();
 }
 
 #endif /* _ASM_X86_COMPAT_H */
