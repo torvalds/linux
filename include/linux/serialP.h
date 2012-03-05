@@ -56,8 +56,6 @@ struct async_struct {
 	wait_queue_head_t	open_wait;
 	wait_queue_head_t	close_wait;
 	wait_queue_head_t	delta_msr_wait;
-	struct async_struct	*next_port; /* For the linked list */
-	struct async_struct	*prev_port;
 };
 
 #endif /* _LINUX_SERIAL_H */
