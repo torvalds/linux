@@ -92,6 +92,8 @@ void omap_connector_mode_set(struct drm_connector *connector,
 void omap_connector_flush(struct drm_connector *connector,
 		int x, int y, int w, int h);
 
+uint32_t omap_framebuffer_get_formats(uint32_t *pixel_formats,
+		uint32_t max_formats, enum omap_color_mode supported_modes);
 struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 		struct drm_file *file, struct drm_mode_fb_cmd2 *mode_cmd);
 struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,

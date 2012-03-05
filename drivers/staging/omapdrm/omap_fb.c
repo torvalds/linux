@@ -59,6 +59,20 @@ static const struct format formats[] = {
 	{ OMAP_DSS_COLOR_UYVY,        DRM_FORMAT_UYVY,     {{2, 1}}, true },
 };
 
+/* convert from overlay's pixel formats bitmask to an array of fourcc's */
+uint32_t omap_framebuffer_get_formats(uint32_t *pixel_formats,
+		uint32_t max_formats, enum omap_color_mode supported_modes)
+{
+	uint32_t nformats = 0;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(formats) && nformats < max_formats; i++)
+		if (formats[i].dss_format & supported_modes)
+			pixel_formats[nformats++] = formats[i].pixel_format;
+
+	return nformats;
+}
+
 /* per-plane info for the fb: */
 struct plane {
 	struct drm_gem_object *bo;

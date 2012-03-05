@@ -43,8 +43,10 @@ struct omap_plane {
 
 	/* last fb that we pinned: */
 	struct drm_framebuffer *pinned_fb;
-};
 
+	uint32_t nformats;
+	uint32_t formats[32];
+};
 
 /* push changes down to dss2 */
 static int commit(struct drm_plane *plane)
@@ -271,24 +273,6 @@ static const struct drm_plane_funcs omap_plane_funcs = {
 		.destroy = omap_plane_destroy,
 };
 
-static const uint32_t formats[] = {
-		DRM_FORMAT_RGB565,
-		DRM_FORMAT_RGBX4444,
-		DRM_FORMAT_XRGB4444,
-		DRM_FORMAT_RGBA4444,
-		DRM_FORMAT_ABGR4444,
-		DRM_FORMAT_XRGB1555,
-		DRM_FORMAT_ARGB1555,
-		DRM_FORMAT_RGB888,
-		DRM_FORMAT_RGBX8888,
-		DRM_FORMAT_XRGB8888,
-		DRM_FORMAT_RGBA8888,
-		DRM_FORMAT_ARGB8888,
-		DRM_FORMAT_NV12,
-		DRM_FORMAT_YUYV,
-		DRM_FORMAT_UYVY,
-};
-
 /* initialize plane */
 struct drm_plane *omap_plane_init(struct drm_device *dev,
 		struct omap_overlay *ovl, unsigned int possible_crtcs,
@@ -306,11 +290,14 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 		goto fail;
 	}
 
+	omap_plane->nformats = omap_framebuffer_get_formats(
+			omap_plane->formats, ARRAY_SIZE(omap_plane->formats),
+			ovl->supported_modes);
 	omap_plane->ovl = ovl;
 	plane = &omap_plane->base;
 
 	drm_plane_init(dev, plane, possible_crtcs, &omap_plane_funcs,
-			formats, ARRAY_SIZE(formats), priv);
+			omap_plane->formats, omap_plane->nformats, priv);
 
 	/* get our starting configuration, set defaults for parameters
 	 * we don't currently use, etc:
