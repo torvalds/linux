@@ -139,22 +139,19 @@ out:
  */
 int vfsub_name_hash(const char *name, struct qstr *this, int len)
 {
-	unsigned long hash;
 	unsigned int c;
 
 	this->name = name;
 	this->len = len;
+	this->hash = full_name_hash(name, len);
 	if (!len)
 		return -EACCES;
 
-	hash = init_name_hash();
 	while (len--) {
 		c = *(const unsigned char *)name++;
 		if (c == '/' || c == '\0')
 			return -EACCES;
-		hash = partial_name_hash(c, hash);
 	}
-	this->hash = end_name_hash(hash);
 	return 0;
 }
 
