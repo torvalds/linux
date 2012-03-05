@@ -48,6 +48,12 @@ Supported chips:
     Datasheets:
 	http://www.st.com/stonline/products/literature/ds/13447/stts424.pdf
 	http://www.st.com/stonline/products/literature/ds/13448/stts424e02.pdf
+  * ST Microelectronics STTS2002, STTS3000
+    Prefix: 'stts2002', 'stts3000'
+    Addresses scanned: I2C 0x18 - 0x1f
+    Datasheets:
+	http://www.st.com/internet/com/TECHNICAL_RESOURCES/TECHNICAL_LITERATURE/DATASHEET/CD00225278.pdf
+	http://www.st.com/internet/com/TECHNICAL_RESOURCES/TECHNICAL_LITERATURE/DATA_BRIEF/CD00270920.pdf
   * JEDEC JC 42.4 compliant temperature sensor chips
     Prefix: 'jc42'
     Addresses scanned: I2C 0x18 - 0x1f
