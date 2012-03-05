@@ -374,7 +374,7 @@ struct iwl_shared {
 	bool wowlan;
 	u8 valid_contexts;
 
-	struct iwl_cfg *cfg;
+	const struct iwl_cfg *cfg;
 	struct iwl_priv *priv;
 	struct iwl_trans *trans;
 	struct iwl_nic *nic;

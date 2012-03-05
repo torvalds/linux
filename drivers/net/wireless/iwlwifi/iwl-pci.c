@@ -263,7 +263,7 @@ MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
+	const struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
 	struct iwl_shared *shrd;
 	struct iwl_trans *iwl_trans;
 	int err;

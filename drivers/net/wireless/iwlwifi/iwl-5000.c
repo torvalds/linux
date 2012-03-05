@@ -349,7 +349,7 @@ static struct iwl_ht_params iwl5000_ht_params = {
 	.base_params = &iwl5000_base_params,			\
 	.led_mode = IWL_LED_BLINK
 
-struct iwl_cfg iwl5300_agn_cfg = {
+const struct iwl_cfg iwl5300_agn_cfg = {
 	.name = "Intel(R) Ultimate N WiFi Link 5300 AGN",
 	IWL_DEVICE_5000,
 	/* at least EEPROM 0x11A has wrong info */
@@ -358,7 +358,7 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.ht_params = &iwl5000_ht_params,
 };
 
-struct iwl_cfg iwl5100_bgn_cfg = {
+const struct iwl_cfg iwl5100_bgn_cfg = {
 	.name = "Intel(R) WiFi Link 5100 BGN",
 	IWL_DEVICE_5000,
 	.valid_tx_ant = ANT_B,		/* .cfg overwrite */
@@ -366,14 +366,14 @@ struct iwl_cfg iwl5100_bgn_cfg = {
 	.ht_params = &iwl5000_ht_params,
 };
 
-struct iwl_cfg iwl5100_abg_cfg = {
+const struct iwl_cfg iwl5100_abg_cfg = {
 	.name = "Intel(R) WiFi Link 5100 ABG",
 	IWL_DEVICE_5000,
 	.valid_tx_ant = ANT_B,		/* .cfg overwrite */
 	.valid_rx_ant = ANT_AB,		/* .cfg overwrite */
 };
 
-struct iwl_cfg iwl5100_agn_cfg = {
+const struct iwl_cfg iwl5100_agn_cfg = {
 	.name = "Intel(R) WiFi Link 5100 AGN",
 	IWL_DEVICE_5000,
 	.valid_tx_ant = ANT_B,		/* .cfg overwrite */
@@ -381,7 +381,7 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.ht_params = &iwl5000_ht_params,
 };
 
-struct iwl_cfg iwl5350_agn_cfg = {
+const struct iwl_cfg iwl5350_agn_cfg = {
 	.name = "Intel(R) WiMAX/WiFi Link 5350 AGN",
 	.fw_name_pre = IWL5000_FW_PRE,
 	.ucode_api_max = IWL5000_UCODE_API_MAX,
@@ -411,14 +411,14 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.led_mode = IWL_LED_BLINK,				\
 	.internal_wimax_coex = true
 
-struct iwl_cfg iwl5150_agn_cfg = {
+const struct iwl_cfg iwl5150_agn_cfg = {
 	.name = "Intel(R) WiMAX/WiFi Link 5150 AGN",
 	IWL_DEVICE_5150,
 	.ht_params = &iwl5000_ht_params,
 
 };
 
-struct iwl_cfg iwl5150_abg_cfg = {
+const struct iwl_cfg iwl5150_abg_cfg = {
 	.name = "Intel(R) WiMAX/WiFi Link 5150 ABG",
 	IWL_DEVICE_5150,
 };

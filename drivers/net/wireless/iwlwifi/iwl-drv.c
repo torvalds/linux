@@ -68,7 +68,7 @@
 #include "iwl-op-mode.h"
 
 int iwl_drv_start(struct iwl_shared *shrd,
-		  struct iwl_trans *trans, struct iwl_cfg *cfg)
+		  struct iwl_trans *trans, const struct iwl_cfg *cfg)
 {
 	int ret;
 

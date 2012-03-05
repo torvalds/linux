@@ -692,7 +692,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context);
 
 int __must_check iwl_request_firmware(struct iwl_nic *nic, bool first)
 {
-	struct iwl_cfg *cfg = cfg(nic);
+	const struct iwl_cfg *cfg = cfg(nic);
 	const char *name_pre = cfg->fw_name_pre;
 	char tag[8];
 
@@ -1045,7 +1045,7 @@ static int iwl_parse_tlv_firmware(struct iwl_nic *nic,
 static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 {
 	struct iwl_nic *nic = context;
-	struct iwl_cfg *cfg = cfg(nic);
+	const struct iwl_cfg *cfg = cfg(nic);
 	struct iwl_fw *fw = &nic->fw;
 	struct iwl_ucode_header *ucode;
 	int err;
