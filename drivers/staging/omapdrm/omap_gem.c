@@ -45,6 +45,8 @@ int _drm_gem_create_mmap_offset_size(struct drm_gem_object *obj, size_t size);
 struct omap_gem_object {
 	struct drm_gem_object base;
 
+	struct list_head mm_list;
+
 	uint32_t flags;
 
 	/** width/height for tiled formats (rounded up to slot boundaries) */
@@ -254,13 +256,17 @@ static void omap_gem_detach_pages(struct drm_gem_object *obj)
 /** get mmap offset */
 static uint64_t mmap_offset(struct drm_gem_object *obj)
 {
+	struct drm_device *dev = obj->dev;
+
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
 	if (!obj->map_list.map) {
 		/* Make it mmapable */
 		size_t size = omap_gem_mmap_size(obj);
 		int ret = _drm_gem_create_mmap_offset_size(obj, size);
 
 		if (ret) {
-			dev_err(obj->dev->dev, "could not allocate mmap offset");
+			dev_err(dev->dev, "could not allocate mmap offset\n");
 			return 0;
 		}
 	}
@@ -764,6 +770,56 @@ void *omap_gem_vaddr(struct drm_gem_object *obj)
 	return omap_obj->vaddr;
 }
 
+#ifdef CONFIG_DEBUG_FS
+void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
+{
+	struct drm_device *dev = obj->dev;
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	uint64_t off = 0;
+
+	WARN_ON(! mutex_is_locked(&dev->struct_mutex));
+
+	if (obj->map_list.map)
+		off = (uint64_t)obj->map_list.hash.key;
+
+	seq_printf(m, "%08x: %2d (%2d) %08llx %08Zx (%2d) %p %4d",
+			omap_obj->flags, obj->name, obj->refcount.refcount.counter,
+			off, omap_obj->paddr, omap_obj->paddr_cnt,
+			omap_obj->vaddr, omap_obj->roll);
+
+	if (omap_obj->flags & OMAP_BO_TILED) {
+		seq_printf(m, " %dx%d", omap_obj->width, omap_obj->height);
+		if (omap_obj->block) {
+			struct tcm_area *area = &omap_obj->block->area;
+			seq_printf(m, " (%dx%d, %dx%d)",
+					area->p0.x, area->p0.y,
+					area->p1.x, area->p1.y);
+		}
+	} else {
+		seq_printf(m, " %d", obj->size);
+	}
+
+	seq_printf(m, "\n");
+}
+
+void omap_gem_describe_objects(struct list_head *list, struct seq_file *m)
+{
+	struct omap_gem_object *omap_obj;
+	int count = 0;
+	size_t size = 0;
+
+	list_for_each_entry(omap_obj, list, mm_list) {
+		struct drm_gem_object *obj = &omap_obj->base;
+		seq_printf(m, "   ");
+		omap_gem_describe(obj, m);
+		count++;
+		size += obj->size;
+	}
+
+	seq_printf(m, "Total %d objects, %zu bytes\n", count, size);
+}
+#endif
+
 /* Buffer Synchronization:
  */
 
@@ -1030,6 +1086,10 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 
 	evict(obj);
 
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
+	list_del(&omap_obj->mm_list);
+
 	if (obj->map_list.map) {
 		drm_gem_free_mmap_offset(obj);
 	}
@@ -1129,6 +1189,8 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		dev_err(dev->dev, "could not allocate GEM object\n");
 		goto fail;
 	}
+
+	list_add(&omap_obj->mm_list, &priv->obj_list);
 
 	obj = &omap_obj->base;
 

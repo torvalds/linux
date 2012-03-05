@@ -42,10 +42,13 @@
 struct omap_drm_private {
 	unsigned int num_crtcs;
 	struct drm_crtc *crtcs[8];
+
 	unsigned int num_planes;
 	struct drm_plane *planes[8];
+
 	unsigned int num_encoders;
 	struct drm_encoder *encoders[8];
+
 	unsigned int num_connectors;
 	struct drm_connector *connectors[8];
 
@@ -53,12 +56,17 @@ struct omap_drm_private {
 
 	struct workqueue_struct *wq;
 
+	struct list_head obj_list;
+
 	bool has_dmm;
 };
 
 #ifdef CONFIG_DEBUG_FS
 int omap_debugfs_init(struct drm_minor *minor);
 void omap_debugfs_cleanup(struct drm_minor *minor);
+void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m);
+void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m);
+void omap_gem_describe_objects(struct list_head *list, struct seq_file *m);
 #endif
 
 struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev);

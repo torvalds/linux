@@ -277,6 +277,24 @@ void omap_framebuffer_flush(struct drm_framebuffer *fb,
 	}
 }
 
+#ifdef CONFIG_DEBUG_FS
+void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
+{
+	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
+	int i, n = drm_format_num_planes(fb->pixel_format);
+
+	seq_printf(m, "fb: %dx%d@%4.4s\n", fb->width, fb->height,
+			(char *)&fb->pixel_format);
+
+	for (i = 0; i < n; i++) {
+		struct plane *plane = &omap_fb->planes[i];
+		seq_printf(m, "   %d: offset=%d pitch=%d, obj: ",
+				i, plane->offset, plane->pitch);
+		omap_gem_describe(plane->bo, m);
+	}
+}
+#endif
+
 struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 		struct drm_file *file, struct drm_mode_fb_cmd2 *mode_cmd)
 {
