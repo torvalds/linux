@@ -508,16 +508,11 @@ static int acm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 	if (!acm)
 		return -ENODEV;
 
-	retval = tty_init_termios(tty);
+	retval = tty_standard_install(driver, tty);
 	if (retval)
 		goto error_init_termios;
 
 	tty->driver_data = acm;
-
-	/* Final install (we use the default method) */
-	tty_driver_kref_get(driver);
-	tty->count++;
-	driver->ttys[tty->index] = tty;
 
 	return 0;
 
