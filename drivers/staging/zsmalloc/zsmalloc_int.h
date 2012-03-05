@@ -26,6 +26,13 @@
 #define ZS_ALIGN		8
 
 /*
+ * A single 'zspage' is composed of up to 2^N discontiguous 0-order (single)
+ * pages. ZS_MAX_ZSPAGE_ORDER defines upper limit on N.
+ */
+#define ZS_MAX_ZSPAGE_ORDER 2
+#define ZS_MAX_PAGES_PER_ZSPAGE (_AC(1, UL) << ZS_MAX_ZSPAGE_ORDER)
+
+/*
  * Object location (<PFN>, <obj_idx>) is encoded as
  * as single (void *) handle value.
  *
@@ -57,12 +64,6 @@
 #define ZS_SIZE_CLASS_DELTA	16
 #define ZS_SIZE_CLASSES		((ZS_MAX_ALLOC_SIZE - ZS_MIN_ALLOC_SIZE) / \
 					ZS_SIZE_CLASS_DELTA + 1)
-
-/*
- * A single 'zspage' is composed of N discontiguous 0-order (single) pages.
- * This defines upper limit on N.
- */
-static const int max_zspage_order = 4;
 
 /*
  * We do not maintain any list for completely empty or full pages
