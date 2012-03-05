@@ -548,6 +548,16 @@ void omap_mcbsp_free(struct omap_mcbsp *mcbsp)
 
 	reg_cache = mcbsp->reg_cache;
 
+	/*
+	 * Select CLKS source from internal source unconditionally before
+	 * marking the McBSP port as free.
+	 * If the external clock source via MCBSP_CLKS pin has been selected the
+	 * system will refuse to enter idle if the CLKS pin source is not reset
+	 * back to internal source.
+	 */
+	if (!cpu_class_is_omap1())
+		omap2_mcbsp_set_clks_src(mcbsp, MCBSP_CLKS_PRCM_SRC);
+
 	spin_lock(&mcbsp->lock);
 	if (mcbsp->free)
 		dev_err(mcbsp->dev, "McBSP%d was not reserved\n", mcbsp->id);
