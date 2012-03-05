@@ -708,7 +708,6 @@ static int __devinit tsl2563_probe(struct i2c_client *client,
 	struct tsl2563_chip *chip;
 	struct tsl2563_platform_data *pdata = client->dev.platform_data;
 	int err = 0;
-	int ret;
 	u8 id = 0;
 
 	indio_dev = iio_allocate_device(sizeof(*chip));
@@ -722,13 +721,15 @@ static int __devinit tsl2563_probe(struct i2c_client *client,
 
 	err = tsl2563_detect(chip);
 	if (err) {
-		dev_err(&client->dev, "device not found, error %d\n", -err);
+		dev_err(&client->dev, "detect error %d\n", -err);
 		goto fail1;
 	}
 
 	err = tsl2563_read_id(chip, &id);
-	if (err)
+	if (err) {
+		dev_err(&client->dev, "read id error %d\n", -err);
 		goto fail1;
+	}
 
 	mutex_init(&chip->lock);
 
@@ -751,40 +752,52 @@ static int __devinit tsl2563_probe(struct i2c_client *client,
 	indio_dev->num_channels = ARRAY_SIZE(tsl2563_channels);
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
+
 	if (client->irq)
 		indio_dev->info = &tsl2563_info;
 	else
 		indio_dev->info = &tsl2563_info_no_irq;
+
 	if (client->irq) {
-		ret = request_threaded_irq(client->irq,
+		err = request_threaded_irq(client->irq,
 					   NULL,
 					   &tsl2563_event_handler,
 					   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					   "tsl2563_event",
 					   indio_dev);
-		if (ret)
-			goto fail2;
+		if (err) {
+			dev_err(&client->dev, "irq request error %d\n", -err);
+			goto fail1;
+		}
 	}
+
 	err = tsl2563_configure(chip);
-	if (err)
-		goto fail3;
+	if (err) {
+		dev_err(&client->dev, "configure error %d\n", -err);
+		goto fail2;
+	}
 
 	INIT_DELAYED_WORK(&chip->poweroff_work, tsl2563_poweroff_work);
+
 	/* The interrupt cannot yet be enabled so this is fine without lock */
 	schedule_delayed_work(&chip->poweroff_work, 5 * HZ);
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
+	err = iio_device_register(indio_dev);
+	if (err) {
+		dev_err(&client->dev, "iio registration error %d\n", -err);
 		goto fail3;
+	}
 
 	return 0;
+
 fail3:
+	cancel_delayed_work(&chip->poweroff_work);
+	flush_scheduled_work();
+fail2:
 	if (client->irq)
 		free_irq(client->irq, indio_dev);
-fail2:
-	iio_free_device(indio_dev);
 fail1:
-	kfree(chip);
+	iio_free_device(indio_dev);
 	return err;
 }
 
