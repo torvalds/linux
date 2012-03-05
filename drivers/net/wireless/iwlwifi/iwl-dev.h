@@ -671,9 +671,6 @@ struct iwl_rxon_context {
 		u8 extension_chan_offset;
 	} ht;
 
-	u8 bssid[ETH_ALEN];
-	bool preauth_bssid;
-
 	bool last_tx_rejected;
 };
 

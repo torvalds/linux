@@ -692,12 +692,9 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 	bool is_ap = vif->type == NL80211_IFTYPE_STATION;
-	int ret = 0;
+	int ret;
 	u8 sta_id;
 
-	IWL_DEBUG_MAC80211(priv, "received request to add station %pM\n",
-			sta->addr);
-	mutex_lock(&priv->shrd->mutex);
 	IWL_DEBUG_INFO(priv, "proceeding to add station %pM\n",
 			sta->addr);
 	sta_priv->sta_id = IWL_INVALID_STATION;
@@ -712,16 +709,98 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 		IWL_ERR(priv, "Unable to add station %pM (%d)\n",
 			sta->addr, ret);
 		/* Should we return success if return code is EEXIST ? */
-		goto out;
+		return ret;
 	}
 
 	sta_priv->sta_id = sta_id;
 
-	/* Initialize rate scaling */
-	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM\n",
-		       sta->addr);
-	iwl_rs_rate_init(priv, sta, sta_id);
- out:
+	return 0;
+}
+
+static int iwlagn_mac_sta_remove(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta)
+{
+	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
+	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
+	int ret;
+
+	IWL_DEBUG_INFO(priv, "proceeding to remove station %pM\n",
+			sta->addr);
+	ret = iwl_remove_station(priv, sta_priv->sta_id, sta->addr);
+	if (ret)
+		IWL_DEBUG_QUIET_RFKILL(priv, "Error removing station %pM\n",
+			sta->addr);
+	return ret;
+}
+
+static int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_sta *sta,
+				enum ieee80211_sta_state old_state,
+				enum ieee80211_sta_state new_state)
+{
+	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
+	enum {
+		NONE, ADD, REMOVE, RATE_INIT, ADD_RATE_INIT,
+	} op = NONE;
+	int ret;
+
+	IWL_DEBUG_MAC80211(priv, "station %pM state change %d->%d\n",
+			   sta->addr, old_state, new_state);
+
+	mutex_lock(&priv->shrd->mutex);
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		if (old_state == IEEE80211_STA_NOTEXIST &&
+		    new_state == IEEE80211_STA_NONE)
+			op = ADD;
+		else if (old_state == IEEE80211_STA_NONE &&
+			 new_state == IEEE80211_STA_NOTEXIST)
+			op = REMOVE;
+		else if (old_state == IEEE80211_STA_AUTH &&
+			 new_state == IEEE80211_STA_ASSOC)
+			op = RATE_INIT;
+	} else {
+		if (old_state == IEEE80211_STA_AUTH &&
+		    new_state == IEEE80211_STA_ASSOC)
+			op = ADD_RATE_INIT;
+		else if (old_state == IEEE80211_STA_ASSOC &&
+			 new_state == IEEE80211_STA_AUTH)
+			op = REMOVE;
+	}
+
+	switch (op) {
+	case ADD:
+		ret = iwlagn_mac_sta_add(hw, vif, sta);
+		break;
+	case REMOVE:
+		ret = iwlagn_mac_sta_remove(hw, vif, sta);
+		break;
+	case ADD_RATE_INIT:
+		ret = iwlagn_mac_sta_add(hw, vif, sta);
+		if (ret)
+			break;
+		/* fall through */
+	case RATE_INIT:
+		/* Initialize rate scaling */
+		IWL_DEBUG_INFO(priv,
+			       "Initializing rate scaling for station %pM\n",
+			       sta->addr);
+		iwl_rs_rate_init(priv, sta, iwl_sta_id(sta));
+		ret = 0;
+		break;
+	default:
+		ret = 0;
+		break;
+	}
+
+	/*
+	 * mac80211 might WARN if we fail, but due the way we
+	 * (badly) handle hard rfkill, we might fail here
+	 */
+	if (iwl_is_rfkill(priv->shrd))
+		ret = 0;
+
 	mutex_unlock(&priv->shrd->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
@@ -1001,86 +1080,6 @@ static int iwlagn_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
 	return 0;
-}
-
-static int iwlagn_mac_tx_sync(struct ieee80211_hw *hw,
-			      struct ieee80211_vif *vif,
-			      const u8 *bssid,
-			      enum ieee80211_tx_sync_type type)
-{
-	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
-	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
-	struct iwl_rxon_context *ctx = vif_priv->ctx;
-	int ret;
-	u8 sta_id;
-
-	if (ctx->ctxid != IWL_RXON_CTX_PAN)
-		return 0;
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-	mutex_lock(&priv->shrd->mutex);
-
-	if (iwl_is_associated_ctx(ctx)) {
-		ret = 0;
-		goto out;
-	}
-
-	if (ctx->preauth_bssid || test_bit(STATUS_SCAN_HW,
-	    &priv->shrd->status)) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	ret = iwl_add_station_common(priv, ctx, bssid, true, NULL, &sta_id);
-	if (ret)
-		goto out;
-
-	if (WARN_ON(sta_id != ctx->ap_sta_id)) {
-		ret = -EIO;
-		goto out_remove_sta;
-	}
-
-	memcpy(ctx->bssid, bssid, ETH_ALEN);
-	ctx->preauth_bssid = true;
-
-	ret = iwlagn_commit_rxon(priv, ctx);
-
-	if (ret == 0)
-		goto out;
-
- out_remove_sta:
-	iwl_remove_station(priv, sta_id, bssid);
- out:
-	mutex_unlock(&priv->shrd->mutex);
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-	return ret;
-}
-
-static void iwlagn_mac_finish_tx_sync(struct ieee80211_hw *hw,
-				   struct ieee80211_vif *vif,
-				   const u8 *bssid,
-				   enum ieee80211_tx_sync_type type)
-{
-	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
-	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
-	struct iwl_rxon_context *ctx = vif_priv->ctx;
-
-	if (ctx->ctxid != IWL_RXON_CTX_PAN)
-		return;
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-	mutex_lock(&priv->shrd->mutex);
-
-	if (iwl_is_associated_ctx(ctx))
-		goto out;
-
-	iwl_remove_station(priv, ctx->ap_sta_id, bssid);
-	ctx->preauth_bssid = false;
-	/* no need to commit */
- out:
-	mutex_unlock(&priv->shrd->mutex);
-	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
 static void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
@@ -1471,29 +1470,6 @@ static int iwlagn_mac_hw_scan(struct ieee80211_hw *hw,
 	return ret;
 }
 
-static int iwlagn_mac_sta_remove(struct ieee80211_hw *hw,
-		       struct ieee80211_vif *vif,
-		       struct ieee80211_sta *sta)
-{
-	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
-	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
-	int ret;
-
-	IWL_DEBUG_MAC80211(priv, "enter: received request to remove "
-			   "station %pM\n", sta->addr);
-	mutex_lock(&priv->shrd->mutex);
-	IWL_DEBUG_INFO(priv, "proceeding to remove station %pM\n",
-			sta->addr);
-	ret = iwl_remove_station(priv, sta_priv->sta_id, sta->addr);
-	if (ret)
-		IWL_DEBUG_QUIET_RFKILL(priv, "Error removing station %pM\n",
-			sta->addr);
-	mutex_unlock(&priv->shrd->mutex);
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-	return ret;
-}
-
 static void iwl_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id)
 {
 	struct iwl_addsta_cmd cmd = {
@@ -1559,8 +1535,7 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.ampdu_action = iwlagn_mac_ampdu_action,
 	.hw_scan = iwlagn_mac_hw_scan,
 	.sta_notify = iwlagn_mac_sta_notify,
-	.sta_add = iwlagn_mac_sta_add,
-	.sta_remove = iwlagn_mac_sta_remove,
+	.sta_state = iwlagn_mac_sta_state,
 	.channel_switch = iwlagn_mac_channel_switch,
 	.flush = iwlagn_mac_flush,
 	.tx_last_beacon = iwlagn_mac_tx_last_beacon,
@@ -1569,8 +1544,6 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.rssi_callback = iwlagn_mac_rssi_callback,
 	CFG80211_TESTMODE_CMD(iwlagn_mac_testmode_cmd)
 	CFG80211_TESTMODE_DUMP(iwlagn_mac_testmode_dump)
-	.tx_sync = iwlagn_mac_tx_sync,
-	.finish_tx_sync = iwlagn_mac_finish_tx_sync,
 	.set_tim = iwlagn_mac_set_tim,
 };
 
