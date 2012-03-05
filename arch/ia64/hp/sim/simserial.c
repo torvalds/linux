@@ -176,7 +176,6 @@ static void transmit_chars(struct tty_struct *tty, struct serial_state *info,
 
 		console->write(console, &c, 1);
 
-		info->icount.tx++;
 		info->x_char = 0;
 
 		goto out;
@@ -478,7 +477,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	}
 	if (--info->tport.count < 0) {
 		printk(KERN_ERR "rs_close: bad serial port count for ttys%d: %d\n",
-		       info->line, info->tport.count);
+		       tty->index, info->tport.count);
 		info->tport.count = 0;
 	}
 	if (info->tport.count) {
@@ -669,19 +668,14 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
  * /proc fs routines....
  */
 
-static inline void line_info(struct seq_file *m, struct serial_state *state)
-{
-	seq_printf(m, "%d: uart:16550 port:3F8 irq:%d\n",
-		       state->line, state->irq);
-}
-
 static int rs_proc_show(struct seq_file *m, void *v)
 {
 	int i;
 
 	seq_printf(m, "simserinfo:1.0 driver:%s\n", serial_version);
 	for (i = 0; i < NR_PORTS; i++)
-		line_info(m, &rs_table[i]);
+		seq_printf(m, "%d: uart:16550 port:3F8 irq:%d\n",
+		       i, rs_table[i].irq);
 	return 0;
 }
 
@@ -786,8 +780,7 @@ static int __init simrs_init(void)
 	state->irq = retval;
 
 	/* the port is imaginary */
-	printk(KERN_INFO "ttyS%d at 0x03f8 (irq = %d) is a 16550\n",
-			state->line, state->irq);
+	printk(KERN_INFO "ttyS0 at 0x03f8 (irq = %d) is a 16550\n", state->irq);
 
 	retval = tty_register_driver(hp_simserial_driver);
 	if (retval) {
