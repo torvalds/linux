@@ -570,6 +570,9 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = priv;
 
+	priv->wq = alloc_workqueue("omapdrm",
+			WQ_UNBOUND | WQ_NON_REENTRANT, 1);
+
 	omap_gem_init(dev);
 
 	ret = omap_modeset_init(dev);
@@ -598,6 +601,8 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 
 static int dev_unload(struct drm_device *dev)
 {
+	struct omap_drm_private *priv = dev->dev_private;
+
 	DBG("unload: dev=%p", dev);
 
 	drm_vblank_cleanup(dev);
@@ -606,6 +611,9 @@ static int dev_unload(struct drm_device *dev)
 	omap_fbdev_free(dev);
 	omap_modeset_free(dev);
 	omap_gem_deinit(dev);
+
+	flush_workqueue(priv->wq);
+	destroy_workqueue(priv->wq);
 
 	kfree(dev->dev_private);
 	dev->dev_private = NULL;

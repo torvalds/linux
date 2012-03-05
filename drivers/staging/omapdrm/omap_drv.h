@@ -51,6 +51,8 @@ struct omap_drm_private {
 
 	struct drm_fb_helper *fbdev;
 
+	struct workqueue_struct *wq;
+
 	bool has_dmm;
 };
 
