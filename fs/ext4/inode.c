@@ -2941,7 +2941,7 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 					 ext4_get_block_write,
 					 ext4_end_io_dio,
 					 NULL,
-					 DIO_LOCKING | DIO_SKIP_HOLES);
+					 DIO_LOCKING);
 		if (iocb->private)
 			EXT4_I(inode)->cur_aio_dio = NULL;
 		/*
