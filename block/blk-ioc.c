@@ -149,20 +149,20 @@ void put_io_context(struct io_context *ioc)
 }
 EXPORT_SYMBOL(put_io_context);
 
-/* Called by the exiting task */
-void exit_io_context(struct task_struct *task)
+/**
+ * put_io_context_active - put active reference on ioc
+ * @ioc: ioc of interest
+ *
+ * Undo get_io_context_active().  If active reference reaches zero after
+ * put, @ioc can never issue further IOs and ioscheds are notified.
+ */
+void put_io_context_active(struct io_context *ioc)
 {
-	struct io_context *ioc;
-	struct io_cq *icq;
 	struct hlist_node *n;
 	unsigned long flags;
+	struct io_cq *icq;
 
-	task_lock(task);
-	ioc = task->io_context;
-	task->io_context = NULL;
-	task_unlock(task);
-
-	if (!atomic_dec_and_test(&ioc->nr_tasks)) {
+	if (!atomic_dec_and_test(&ioc->active_ref)) {
 		put_io_context(ioc);
 		return;
 	}
@@ -189,6 +189,20 @@ retry:
 	spin_unlock_irqrestore(&ioc->lock, flags);
 
 	put_io_context(ioc);
+}
+
+/* Called by the exiting task */
+void exit_io_context(struct task_struct *task)
+{
+	struct io_context *ioc;
+
+	task_lock(task);
+	ioc = task->io_context;
+	task->io_context = NULL;
+	task_unlock(task);
+
+	atomic_dec(&ioc->nr_tasks);
+	put_io_context_active(ioc);
 }
 
 /**
@@ -223,7 +237,7 @@ int create_task_io_context(struct task_struct *task, gfp_t gfp_flags, int node)
 
 	/* initialize */
 	atomic_long_set(&ioc->refcount, 1);
-	atomic_set(&ioc->nr_tasks, 1);
+	atomic_set(&ioc->active_ref, 1);
 	spin_lock_init(&ioc->lock);
 	INIT_RADIX_TREE(&ioc->icq_tree, GFP_ATOMIC | __GFP_HIGH);
 	INIT_HLIST_HEAD(&ioc->icq_list);
