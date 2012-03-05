@@ -101,7 +101,7 @@ static int omap_framebuffer_create_handle(struct drm_framebuffer *fb,
 static void omap_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
-	int i, n = drm_format_num_planes(omap_fb->format->pixel_format);
+	int i, n = drm_format_num_planes(fb->pixel_format);
 
 	DBG("destroy: FB ID: %d (%p)", fb->base.id, fb);
 
@@ -204,7 +204,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb, int x, int y,
 struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb, int p)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
-	if (p >= drm_format_num_planes(omap_fb->format->pixel_format))
+	if (p >= drm_format_num_planes(fb->pixel_format))
 		return NULL;
 	return omap_fb->planes[p].bo;
 }
@@ -351,8 +351,8 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 
 		plane->bo     = bos[i];
 		plane->offset = mode_cmd->offsets[i];
-		plane->pitch  = mode_cmd->pitches[i];
-		plane->paddr  = pitch;
+		plane->pitch  = pitch;
+		plane->paddr  = 0;
 	}
 
 	drm_helper_mode_fill_fb_struct(fb, mode_cmd);
