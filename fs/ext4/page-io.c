@@ -129,12 +129,18 @@ static void ext4_end_io_work(struct work_struct *work)
 	unsigned long		flags;
 
 	spin_lock_irqsave(&ei->i_completed_io_lock, flags);
+	if (io->flag & EXT4_IO_END_IN_FSYNC)
+		goto requeue;
 	if (list_empty(&io->list)) {
 		spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 		goto free;
 	}
 
 	if (!mutex_trylock(&inode->i_mutex)) {
+		bool was_queued;
+requeue:
+		was_queued = !!(io->flag & EXT4_IO_END_QUEUED);
+		io->flag |= EXT4_IO_END_QUEUED;
 		spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 		/*
 		 * Requeue the work instead of waiting so that the work
@@ -147,9 +153,8 @@ static void ext4_end_io_work(struct work_struct *work)
 		 * yield the cpu if it sees an end_io request that has already
 		 * been requeued.
 		 */
-		if (io->flag & EXT4_IO_END_QUEUED)
+		if (was_queued)
 			yield();
-		io->flag |= EXT4_IO_END_QUEUED;
 		return;
 	}
 	list_del_init(&io->list);
