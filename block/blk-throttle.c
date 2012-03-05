@@ -313,25 +313,23 @@ static struct throtl_grp * throtl_get_tg(struct throtl_data *td)
 	if (unlikely(blk_queue_bypass(q)))
 		return NULL;
 
-	rcu_read_lock();
 	blkcg = task_blkio_cgroup(current);
 	tg = throtl_find_tg(td, blkcg);
-	if (tg) {
-		rcu_read_unlock();
+	if (tg)
 		return tg;
-	}
 
 	/*
 	 * Need to allocate a group. Allocation of group also needs allocation
 	 * of per cpu stats which in-turn takes a mutex() and can block. Hence
 	 * we need to drop rcu lock and queue_lock before we call alloc.
 	 */
-	rcu_read_unlock();
 	spin_unlock_irq(q->queue_lock);
+	rcu_read_unlock();
 
 	tg = throtl_alloc_tg(td);
 
 	/* Group allocated and queue is still alive. take the lock */
+	rcu_read_lock();
 	spin_lock_irq(q->queue_lock);
 
 	/* Make sure @q is still alive */
@@ -343,7 +341,6 @@ static struct throtl_grp * throtl_get_tg(struct throtl_data *td)
 	/*
 	 * Initialize the new group. After sleeping, read the blkcg again.
 	 */
-	rcu_read_lock();
 	blkcg = task_blkio_cgroup(current);
 
 	/*
@@ -354,7 +351,6 @@ static struct throtl_grp * throtl_get_tg(struct throtl_data *td)
 
 	if (__tg) {
 		kfree(tg);
-		rcu_read_unlock();
 		return __tg;
 	}
 
@@ -365,7 +361,6 @@ static struct throtl_grp * throtl_get_tg(struct throtl_data *td)
 	}
 
 	throtl_init_add_tg_lists(td, tg, blkcg);
-	rcu_read_unlock();
 	return tg;
 }
 
@@ -1150,7 +1145,6 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 	 * basic fields like stats and io rates. If a group has no rules,
 	 * just update the dispatch stats in lockless manner and return.
 	 */
-
 	rcu_read_lock();
 	blkcg = task_blkio_cgroup(current);
 	tg = throtl_find_tg(td, blkcg);
@@ -1160,11 +1154,9 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 		if (tg_no_rule_group(tg, rw)) {
 			blkiocg_update_dispatch_stats(&tg->blkg, bio->bi_size,
 					rw, rw_is_sync(bio->bi_rw));
-			rcu_read_unlock();
-			goto out;
+			goto out_unlock_rcu;
 		}
 	}
-	rcu_read_unlock();
 
 	/*
 	 * Either group has not been allocated yet or it is not an unlimited
@@ -1222,6 +1214,8 @@ queue_bio:
 
 out_unlock:
 	spin_unlock_irq(q->queue_lock);
+out_unlock_rcu:
+	rcu_read_unlock();
 out:
 	return throttled;
 }

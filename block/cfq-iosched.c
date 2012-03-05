@@ -1128,13 +1128,10 @@ static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd)
 	struct cfq_group *cfqg = NULL, *__cfqg = NULL;
 	struct request_queue *q = cfqd->queue;
 
-	rcu_read_lock();
 	blkcg = task_blkio_cgroup(current);
 	cfqg = cfq_find_cfqg(cfqd, blkcg);
-	if (cfqg) {
-		rcu_read_unlock();
+	if (cfqg)
 		return cfqg;
-	}
 
 	/*
 	 * Need to allocate a group. Allocation of group also needs allocation
@@ -1164,7 +1161,6 @@ static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd)
 
 	if (__cfqg) {
 		kfree(cfqg);
-		rcu_read_unlock();
 		return __cfqg;
 	}
 
@@ -1172,7 +1168,6 @@ static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd)
 		cfqg = &cfqd->root_group;
 
 	cfq_init_add_cfqg_lists(cfqd, cfqg, blkcg);
-	rcu_read_unlock();
 	return cfqg;
 }
 
@@ -2870,6 +2865,8 @@ cfq_find_alloc_queue(struct cfq_data *cfqd, bool is_sync,
 	struct cfq_group *cfqg;
 
 retry:
+	rcu_read_lock();
+
 	cfqg = cfq_get_cfqg(cfqd);
 	cic = cfq_cic_lookup(cfqd, ioc);
 	/* cic always exists here */
@@ -2885,6 +2882,7 @@ retry:
 			cfqq = new_cfqq;
 			new_cfqq = NULL;
 		} else if (gfp_mask & __GFP_WAIT) {
+			rcu_read_unlock();
 			spin_unlock_irq(cfqd->queue->queue_lock);
 			new_cfqq = kmem_cache_alloc_node(cfq_pool,
 					gfp_mask | __GFP_ZERO,
@@ -2910,6 +2908,7 @@ retry:
 	if (new_cfqq)
 		kmem_cache_free(cfq_pool, new_cfqq);
 
+	rcu_read_unlock();
 	return cfqq;
 }
 
