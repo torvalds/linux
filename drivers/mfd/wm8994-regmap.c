@@ -59,7 +59,7 @@ static struct reg_default wm1811_defaults[] = {
 	{ 0x0036, 0x0000 },    /* R54   - Speaker Mixer */
 	{ 0x0037, 0x0000 },    /* R55   - Additional Control */
 	{ 0x0038, 0x0000 },    /* R56   - AntiPOP (1) */
-	{ 0x0039, 0x0180 },    /* R57   - AntiPOP (2) */
+	{ 0x0039, 0x0000 },    /* R57   - AntiPOP (2) */
 	{ 0x003B, 0x000D },    /* R59   - LDO 1 */
 	{ 0x003C, 0x0003 },    /* R60   - LDO 2 */
 	{ 0x003D, 0x0039 },    /* R61   - MICBIAS1 */
