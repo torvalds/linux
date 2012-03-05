@@ -1249,6 +1249,11 @@ static const match_table_t tokens = {
 	{Opt_init_itable, "init_itable=%u"},
 	{Opt_init_itable, "init_itable"},
 	{Opt_noinit_itable, "noinit_itable"},
+	{Opt_removed, "check=none"},	/* mount option from ext2/3 */
+	{Opt_removed, "nocheck"},	/* mount option from ext2/3 */
+	{Opt_removed, "reservation"},	/* mount option from ext2/3 */
+	{Opt_removed, "noreservation"}, /* mount option from ext2/3 */
+	{Opt_removed, "journal=%u"},	/* mount option from ext2/3 */
 	{Opt_err, NULL},
 };
 
