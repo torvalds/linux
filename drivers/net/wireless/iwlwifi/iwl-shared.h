@@ -360,8 +360,6 @@ struct iwl_cfg {
  * @nic: pointer to the nic data
  * @hw_params: see struct iwl_hw_params
  * @lock: protect general shared data
- * @sta_lock: protects the station table.
- *	If lock and sta_lock are needed, lock must be acquired first.
  * @mutex:
  * @wait_command_queue: the wait_queue for SYNC host command nad uCode load
  * @eeprom: pointer to the eeprom/OTP image
@@ -391,7 +389,6 @@ struct iwl_shared {
 	struct iwl_hw_params hw_params;
 
 	spinlock_t lock;
-	spinlock_t sta_lock;
 	struct mutex mutex;
 
 	wait_queue_head_t wait_command_queue;

@@ -749,10 +749,9 @@ int iwl_alive_start(struct iwl_priv *priv)
  */
 static void iwl_clear_driver_stations(struct iwl_priv *priv)
 {
-	unsigned long flags;
 	struct iwl_rxon_context *ctx;
 
-	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
+	spin_lock_bh(&priv->sta_lock);
 	memset(priv->stations, 0, sizeof(priv->stations));
 	priv->num_stations = 0;
 
@@ -770,7 +769,7 @@ static void iwl_clear_driver_stations(struct iwl_priv *priv)
 		ctx->key_mapping_keys = 0;
 	}
 
-	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+	spin_unlock_bh(&priv->sta_lock);
 }
 
 void iwl_down(struct iwl_priv *priv)
@@ -1039,7 +1038,7 @@ static int iwl_init_drv(struct iwl_priv *priv)
 {
 	int ret;
 
-	spin_lock_init(&priv->shrd->sta_lock);
+	spin_lock_init(&priv->sta_lock);
 
 	mutex_init(&priv->shrd->mutex);
 

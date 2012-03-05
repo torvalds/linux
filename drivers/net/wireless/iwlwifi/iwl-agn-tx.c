@@ -370,7 +370,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	info->driver_data[1] = dev_cmd;
 
 	/* irqs already disabled/saved above when locking priv->shrd->lock */
-	spin_lock(&priv->shrd->sta_lock);
+	spin_lock(&priv->sta_lock);
 
 	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc)) {
 		u8 *qc = NULL;
@@ -417,7 +417,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	    !ieee80211_has_morefrags(fc))
 		priv->tid_data[sta_id][tid].seq_number = seq_number;
 
-	spin_unlock(&priv->shrd->sta_lock);
+	spin_unlock(&priv->sta_lock);
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	/*
@@ -435,7 +435,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 drop_unlock_sta:
 	if (dev_cmd)
 		kmem_cache_free(priv->tx_cmd_pool, dev_cmd);
-	spin_unlock(&priv->shrd->sta_lock);
+	spin_unlock(&priv->sta_lock);
 drop_unlock_priv:
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 	return -1;
@@ -455,7 +455,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		return -ENXIO;
 	}
 
-	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
+	spin_lock_bh(&priv->sta_lock);
 
 	tid_data = &priv->tid_data[sta_id][tid];
 
@@ -475,7 +475,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		IWL_WARN(priv, "Stopping AGG while state not ON "
 			 "or starting for %d on %d (%d)\n", sta_id, tid,
 			 priv->tid_data[sta_id][tid].agg.state);
-		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+		spin_unlock_bh(&priv->sta_lock);
 		return 0;
 	}
 
@@ -489,7 +489,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 				    tid_data->next_reclaimed);
 		priv->tid_data[sta_id][tid].agg.state =
 			IWL_EMPTYING_HW_QUEUE_DELBA;
-		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+		spin_unlock_bh(&priv->sta_lock);
 		return 0;
 	}
 
@@ -498,12 +498,10 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 turn_off:
 	priv->tid_data[sta_id][tid].agg.state = IWL_AGG_OFF;
 
-	/* do not restore/save irqs */
-	spin_unlock(&priv->shrd->sta_lock);
-	spin_lock(&priv->shrd->lock);
+	spin_unlock_bh(&priv->sta_lock);
 
+	spin_lock_irqsave(&priv->shrd->lock, flags);
 	iwl_trans_tx_agg_disable(trans(priv), sta_id, tid);
-
 	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 
 	ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
@@ -515,7 +513,6 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
 	struct iwl_tid_data *tid_data;
-	unsigned long flags;
 	int sta_id;
 	int ret;
 
@@ -539,7 +536,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
+	spin_lock_bh(&priv->sta_lock);
 
 	tid_data = &priv->tid_data[sta_id][tid];
 	tid_data->agg.ssn = SEQ_TO_SN(tid_data->seq_number);
@@ -548,7 +545,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 
 	ret = iwl_trans_tx_agg_alloc(trans(priv), sta_id, tid);
 	if (ret) {
-		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+		spin_unlock_bh(&priv->sta_lock);
 		return ret;
 	}
 
@@ -565,7 +562,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_ADDBA;
 	}
 
-	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+	spin_unlock_bh(&priv->sta_lock);
 
 	return ret;
 }
@@ -575,14 +572,13 @@ int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
 {
 	struct iwl_station_priv *sta_priv = (void *) sta->drv_priv;
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
-	unsigned long flags;
 	u16 ssn;
 
 	buf_size = min_t(int, buf_size, LINK_QUAL_AGG_FRAME_LIMIT_DEF);
 
-	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
+	spin_lock_bh(&priv->sta_lock);
 	ssn = priv->tid_data[sta_priv->sta_id][tid].agg.ssn;
-	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+	spin_unlock_bh(&priv->sta_lock);
 
 	iwl_trans_tx_agg_setup(trans(priv), ctx->ctxid, sta_priv->sta_id, tid,
 			       buf_size, ssn);
@@ -638,7 +634,7 @@ static void iwlagn_check_ratid_empty(struct iwl_priv *priv, int sta_id, u8 tid)
 	struct ieee80211_vif *vif;
 	u8 *addr;
 
-	lockdep_assert_held(&priv->shrd->sta_lock);
+	lockdep_assert_held(&priv->sta_lock);
 
 	addr = priv->stations[sta_id].sta.sta.addr;
 	ctx = priv->stations[sta_id].ctxid;
@@ -1005,7 +1001,6 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 	int sta_id;
 	int freed;
 	struct ieee80211_tx_info *info;
-	unsigned long flags;
 	struct sk_buff_head skbs;
 	struct sk_buff *skb;
 	struct iwl_rxon_context *ctx;
@@ -1016,7 +1011,7 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 	sta_id = (tx_resp->ra_tid & IWLAGN_TX_RES_RA_MSK) >>
 		IWLAGN_TX_RES_RA_POS;
 
-	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
+	spin_lock(&priv->sta_lock);
 
 	if (is_agg)
 		iwl_rx_reply_tx_agg(priv, tx_resp);
@@ -1106,7 +1101,7 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 	}
 
 	iwl_check_abort_status(priv, tx_resp->frame_count, status);
-	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+	spin_unlock(&priv->sta_lock);
 	return 0;
 }
 
@@ -1127,7 +1122,6 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	struct ieee80211_tx_info *info;
 	struct ieee80211_hdr *hdr;
 	struct sk_buff *skb;
-	unsigned long flags;
 	int sta_id;
 	int tid;
 	int freed;
@@ -1149,12 +1143,12 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	tid = ba_resp->tid;
 	agg = &priv->tid_data[sta_id][tid].agg;
 
-	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
+	spin_lock(&priv->sta_lock);
 
 	if (unlikely(!agg->wait_for_ba)) {
 		if (unlikely(ba_resp->bitmap))
 			IWL_ERR(priv, "Received BA when not expected\n");
-		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+		spin_unlock(&priv->sta_lock);
 		return 0;
 	}
 
@@ -1165,7 +1159,7 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	 * transmitted ... if not, it's too late anyway). */
 	if (iwl_trans_reclaim(trans(priv), sta_id, tid, scd_flow,
 			      ba_resp_scd_ssn, 0, &reclaimed_skbs)) {
-		spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+		spin_unlock(&priv->sta_lock);
 		return 0;
 	}
 
@@ -1230,6 +1224,6 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 		ieee80211_tx_status_irqsafe(priv->hw, skb);
 	}
 
-	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
+	spin_unlock(&priv->sta_lock);
 	return 0;
 }

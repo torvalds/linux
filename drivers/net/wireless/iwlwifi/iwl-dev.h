@@ -719,6 +719,12 @@ struct iwl_priv {
 	/*data shared among all the driver's layers */
 	struct iwl_shared *shrd;
 
+	/*
+	 * protects the station table, if shrd->lock and sta_lock are
+	 * needed, shrd->lock must be acquired first
+	 */
+	spinlock_t sta_lock;
+
 	/* ieee device used by generic ieee processing code */
 	struct ieee80211_hw *hw;
 	struct ieee80211_channel *ieee_channels;
