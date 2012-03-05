@@ -79,10 +79,8 @@ srmcons_receive_chars(unsigned long data)
 	} 
 
 	spin_lock(&srmconsp->lock);
-	if (srmconsp->tty) {
-		srmconsp->timer.expires = jiffies + incr;
-		add_timer(&srmconsp->timer);
-	}
+	if (srmconsp->tty)
+		mod_timer(&srmconsp->timer, jiffies + incr);
 	spin_unlock(&srmconsp->lock);
 
 	local_irq_restore(flags);
@@ -172,7 +170,8 @@ srmcons_get_private_struct(struct srmcons_private **ps)
 		else {
 			srmconsp->tty = NULL;
 			spin_lock_init(&srmconsp->lock);
-			init_timer(&srmconsp->timer);
+			setup_timer(&srmconsp->timer, srmcons_receive_chars,
+					(unsigned long)srmconsp);
 		}
 
 		spin_unlock_irqrestore(&srmconsp_lock, flags);
@@ -199,10 +198,7 @@ srmcons_open(struct tty_struct *tty, struct file *filp)
 		tty->driver_data = srmconsp;
 
 		srmconsp->tty = tty;
-		srmconsp->timer.function = srmcons_receive_chars;
-		srmconsp->timer.data = (unsigned long)srmconsp;
-		srmconsp->timer.expires = jiffies + 10;
-		add_timer(&srmconsp->timer);
+		mod_timer(&srmconsp->timer, jiffies + 10);
 	}
 
 	spin_unlock_irqrestore(&srmconsp->lock, flags);
