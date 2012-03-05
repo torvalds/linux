@@ -229,6 +229,8 @@ int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		    struct iwl_link_quality_cmd *lq, u8 flags, bool init);
 int iwl_add_sta_callback(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 			       struct iwl_device_cmd *cmd);
+int iwl_sta_update_ht(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
+		      struct ieee80211_sta *sta);
 
 
 static inline int iwl_sta_id(struct ieee80211_sta *sta)

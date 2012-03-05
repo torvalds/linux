@@ -740,8 +740,9 @@ static int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
 				enum ieee80211_sta_state new_state)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
+	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 	enum {
-		NONE, ADD, REMOVE, RATE_INIT, ADD_RATE_INIT,
+		NONE, ADD, REMOVE, HT_RATE_INIT, ADD_RATE_INIT,
 	} op = NONE;
 	int ret;
 
@@ -758,7 +759,7 @@ static int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
 			op = REMOVE;
 		else if (old_state == IEEE80211_STA_AUTH &&
 			 new_state == IEEE80211_STA_ASSOC)
-			op = RATE_INIT;
+			op = HT_RATE_INIT;
 	} else {
 		if (old_state == IEEE80211_STA_AUTH &&
 		    new_state == IEEE80211_STA_ASSOC)
@@ -779,9 +780,18 @@ static int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
 		ret = iwlagn_mac_sta_add(hw, vif, sta);
 		if (ret)
 			break;
-		/* fall through */
-	case RATE_INIT:
 		/* Initialize rate scaling */
+		IWL_DEBUG_INFO(priv,
+			       "Initializing rate scaling for station %pM\n",
+			       sta->addr);
+		iwl_rs_rate_init(priv, sta, iwl_sta_id(sta));
+		ret = 0;
+		break;
+	case HT_RATE_INIT:
+		/* Initialize rate scaling */
+		ret = iwl_sta_update_ht(priv, vif_priv->ctx, sta);
+		if (ret)
+			break;
 		IWL_DEBUG_INFO(priv,
 			       "Initializing rate scaling for station %pM\n",
 			       sta->addr);
