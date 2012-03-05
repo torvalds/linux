@@ -336,6 +336,20 @@ static void rate_idx_to_bitrate(struct rate_info *rate, struct sta_info *sta, in
 		rate->mcs = idx;
 }
 
+void sta_set_rate_info_tx(struct sta_info *sta,
+			  const struct ieee80211_tx_rate *rate,
+			  struct rate_info *rinfo)
+{
+	rinfo->flags = 0;
+	if (rate->flags & IEEE80211_TX_RC_MCS)
+		rinfo->flags |= RATE_INFO_FLAGS_MCS;
+	if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+		rinfo->flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+	if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
+		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
+	rate_idx_to_bitrate(rinfo, sta, rate->idx);
+}
+
 static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -378,14 +392,7 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		sinfo->signal_avg = (s8) -ewma_read(&sta->avg_signal);
 	}
 
-	sinfo->txrate.flags = 0;
-	if (sta->last_tx_rate.flags & IEEE80211_TX_RC_MCS)
-		sinfo->txrate.flags |= RATE_INFO_FLAGS_MCS;
-	if (sta->last_tx_rate.flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-		sinfo->txrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
-	if (sta->last_tx_rate.flags & IEEE80211_TX_RC_SHORT_GI)
-		sinfo->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
-	rate_idx_to_bitrate(&sinfo->txrate, sta, sta->last_tx_rate.idx);
+	sta_set_rate_info_tx(sta, &sta->last_tx_rate, &sinfo->txrate);
 
 	sinfo->rxrate.flags = 0;
 	if (sta->last_rx_rate_flag & RX_FLAG_HT)
