@@ -654,6 +654,24 @@ config CRYPTO_CAMELLIA
 	  See also:
 	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
 
+config CRYPTO_CAMELLIA_X86_64
+	tristate "Camellia cipher algorithm (x86_64)"
+	depends on (X86 || UML_X86) && 64BIT
+	depends on CRYPTO
+	select CRYPTO_ALGAPI
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Camellia cipher algorithm module (x86_64).
+
+	  Camellia is a symmetric key block cipher developed jointly
+	  at NTT and Mitsubishi Electric Corporation.
+
+	  The Camellia specifies three key sizes: 128, 192 and 256 bits.
+
+	  See also:
+	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
+
 config CRYPTO_CAST5
 	tristate "CAST5 (CAST-128) cipher algorithm"
 	select CRYPTO_ALGAPI
