@@ -1307,6 +1307,47 @@ static void unmap_page_range(struct mmu_gather *tlb,
 	mem_cgroup_uncharge_end();
 }
 
+
+static void unmap_single_vma(struct mmu_gather *tlb,
+		struct vm_area_struct *vma, unsigned long start_addr,
+		unsigned long end_addr, unsigned long *nr_accounted,
+		struct zap_details *details)
+{
+	unsigned long start = max(vma->vm_start, start_addr);
+	unsigned long end;
+
+	if (start >= vma->vm_end)
+		return;
+	end = min(vma->vm_end, end_addr);
+	if (end <= vma->vm_start)
+		return;
+
+	if (vma->vm_flags & VM_ACCOUNT)
+		*nr_accounted += (end - start) >> PAGE_SHIFT;
+
+	if (unlikely(is_pfn_mapping(vma)))
+		untrack_pfn_vma(vma, 0, 0);
+
+	if (start != end) {
+		if (unlikely(is_vm_hugetlb_page(vma))) {
+			/*
+			 * It is undesirable to test vma->vm_file as it
+			 * should be non-null for valid hugetlb area.
+			 * However, vm_file will be NULL in the error
+			 * cleanup path of do_mmap_pgoff. When
+			 * hugetlbfs ->mmap method fails,
+			 * do_mmap_pgoff() nullifies vma->vm_file
+			 * before calling this function to clean up.
+			 * Since no pte has actually been setup, it is
+			 * safe to do nothing in this case.
+			 */
+			if (vma->vm_file)
+				unmap_hugepage_range(vma, start, end, NULL);
+		} else
+			unmap_page_range(tlb, vma, start, end, details);
+	}
+}
+
 /**
  * unmap_vmas - unmap a range of memory covered by a list of vma's
  * @tlb: address of the caller's struct mmu_gather
@@ -1332,46 +1373,12 @@ void unmap_vmas(struct mmu_gather *tlb,
 		unsigned long end_addr, unsigned long *nr_accounted,
 		struct zap_details *details)
 {
-	unsigned long start = start_addr;
 	struct mm_struct *mm = vma->vm_mm;
 
 	mmu_notifier_invalidate_range_start(mm, start_addr, end_addr);
-	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next) {
-		unsigned long end;
-
-		start = max(vma->vm_start, start_addr);
-		if (start >= vma->vm_end)
-			continue;
-		end = min(vma->vm_end, end_addr);
-		if (end <= vma->vm_start)
-			continue;
-
-		if (vma->vm_flags & VM_ACCOUNT)
-			*nr_accounted += (end - start) >> PAGE_SHIFT;
-
-		if (unlikely(is_pfn_mapping(vma)))
-			untrack_pfn_vma(vma, 0, 0);
-
-		if (start != end) {
-			if (unlikely(is_vm_hugetlb_page(vma))) {
-				/*
-				 * It is undesirable to test vma->vm_file as it
-				 * should be non-null for valid hugetlb area.
-				 * However, vm_file will be NULL in the error
-				 * cleanup path of do_mmap_pgoff. When
-				 * hugetlbfs ->mmap method fails,
-				 * do_mmap_pgoff() nullifies vma->vm_file
-				 * before calling this function to clean up.
-				 * Since no pte has actually been setup, it is
-				 * safe to do nothing in this case.
-				 */
-				if (vma->vm_file)
-					unmap_hugepage_range(vma, start, end, NULL);
-			} else
-				unmap_page_range(tlb, vma, start, end, details);
-		}
-	}
-
+	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next)
+		unmap_single_vma(tlb, vma, start_addr, end_addr, nr_accounted,
+				 details);
 	mmu_notifier_invalidate_range_end(mm, start_addr, end_addr);
 }
 
@@ -1381,6 +1388,8 @@ void unmap_vmas(struct mmu_gather *tlb,
  * @address: starting address of pages to zap
  * @size: number of bytes to zap
  * @details: details of nonlinear truncation or shared cache invalidation
+ *
+ * Caller must protect the VMA list
  */
 void zap_page_range(struct vm_area_struct *vma, unsigned long address,
 		unsigned long size, struct zap_details *details)
@@ -1394,6 +1403,32 @@ void zap_page_range(struct vm_area_struct *vma, unsigned long address,
 	tlb_gather_mmu(&tlb, mm, 0);
 	update_hiwater_rss(mm);
 	unmap_vmas(&tlb, vma, address, end, &nr_accounted, details);
+	tlb_finish_mmu(&tlb, address, end);
+}
+
+/**
+ * zap_page_range_single - remove user pages in a given range
+ * @vma: vm_area_struct holding the applicable pages
+ * @address: starting address of pages to zap
+ * @size: number of bytes to zap
+ * @details: details of nonlinear truncation or shared cache invalidation
+ *
+ * The range must fit into one VMA.
+ */
+static void zap_page_range_single(struct vm_area_struct *vma, unsigned long address,
+		unsigned long size, struct zap_details *details)
+{
+	struct mm_struct *mm = vma->vm_mm;
+	struct mmu_gather tlb;
+	unsigned long end = address + size;
+	unsigned long nr_accounted = 0;
+
+	lru_add_drain();
+	tlb_gather_mmu(&tlb, mm, 0);
+	update_hiwater_rss(mm);
+	mmu_notifier_invalidate_range_start(mm, address, end);
+	unmap_single_vma(&tlb, vma, address, end, &nr_accounted, details);
+	mmu_notifier_invalidate_range_end(mm, address, end);
 	tlb_finish_mmu(&tlb, address, end);
 }
 
@@ -1415,7 +1450,7 @@ int zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
 	if (address < vma->vm_start || address + size > vma->vm_end ||
 	    		!(vma->vm_flags & VM_PFNMAP))
 		return -1;
-	zap_page_range(vma, address, size, NULL);
+	zap_page_range_single(vma, address, size, NULL);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(zap_vma_ptes);
@@ -2762,7 +2797,7 @@ static void unmap_mapping_range_vma(struct vm_area_struct *vma,
 		unsigned long start_addr, unsigned long end_addr,
 		struct zap_details *details)
 {
-	zap_page_range(vma, start_addr, end_addr - start_addr, details);
+	zap_page_range_single(vma, start_addr, end_addr - start_addr, details);
 }
 
 static inline void unmap_mapping_range_tree(struct prio_tree_root *root,
