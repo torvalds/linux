@@ -4,16 +4,11 @@
  * This driver is mostly used for bringup purposes and will go away.
  * It has a strong dependency on the system console. All outputs
  * are rerouted to the same facility as the one used by printk which, in our
- * case means sys_sim.c console (goes via the simulator). The code hereafter
- * is completely leveraged from the serial.c driver.
+ * case means sys_sim.c console (goes via the simulator).
  *
  * Copyright (C) 1999-2000, 2002-2003 Hewlett-Packard Co
  *	Stephane Eranian <eranian@hpl.hp.com>
  *	David Mosberger-Tang <davidm@hpl.hp.com>
- *
- * 02/04/00 D. Mosberger	Merged in serial.c bug fixes in rs_close().
- * 02/25/00 D. Mosberger	Synced up with 2.3.99pre-5 version of serial.c.
- * 07/30/02 D. Mosberger	Replace sti()/cli() with explicit spinlocks & local irq masking
  */
 
 #include <linux/init.h>
@@ -441,9 +436,6 @@ static int activate(struct tty_port *port, struct tty_struct *tty)
 	else
 		state->xmit.buf = (unsigned char *) page;
 
-	/*
-	 * Allocate the IRQ if necessary
-	 */
 	if (state->irq) {
 		retval = request_irq(state->irq, rs_interrupt_single, 0,
 				"simserial", state);
@@ -525,19 +517,6 @@ static const struct file_operations rs_proc_fops = {
 	.release	= single_release,
 };
 
-/*
- * ---------------------------------------------------------------------
- * rs_init() and friends
- *
- * rs_init() is called at boot-time to initialize the serial driver.
- * ---------------------------------------------------------------------
- */
-
-/*
- * This routine prints out the appropriate serial driver version
- * number, and identifies which options were configured into this
- * driver.
- */
 static inline void show_serial_version(void)
 {
 	printk(KERN_INFO "%s version %s with", serial_name, serial_version);
@@ -567,9 +546,6 @@ static const struct tty_port_operations hp_port_ops = {
 	.shutdown = shutdown,
 };
 
-/*
- * The serial driver boot-time initialization code!
- */
 static int __init simrs_init(void)
 {
 	struct serial_state *state;
@@ -598,9 +574,6 @@ static int __init simrs_init(void)
 	hp_simserial_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(hp_simserial_driver, &hp_ops);
 
-	/*
-	 * Let's have a little bit of fun !
-	 */
 	state = rs_table;
 	tty_port_init(&state->port);
 	state->port.ops = &hp_port_ops;
