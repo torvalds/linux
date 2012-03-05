@@ -3260,7 +3260,6 @@ static int run(struct mddev *mddev)
 			disk->rdev = rdev;
 		}
 
-		disk->rdev = rdev;
 		disk_stack_limits(mddev->gendisk, rdev->bdev,
 				  rdev->data_offset << 9);
 		/* as we don't honour merge_bvec_fn, we must never risk
