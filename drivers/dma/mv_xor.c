@@ -826,7 +826,6 @@ static enum dma_status mv_xor_status(struct dma_chan *chan,
 
 	last_used = chan->cookie;
 	last_complete = mv_chan->completed_cookie;
-	mv_chan->is_complete_cookie = cookie;
 	dma_set_tx_state(txstate, last_complete, last_used, 0);
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);

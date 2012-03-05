@@ -109,7 +109,6 @@ struct mv_xor_chan {
 #ifdef USE_TIMER
 	unsigned long		cleanup_time;
 	u32			current_on_last_cleanup;
-	dma_cookie_t		is_complete_cookie;
 #endif
 };
 
