@@ -1505,17 +1505,13 @@ static int iwlagn_mac_sta_remove(struct ieee80211_hw *hw,
 
 static void iwl_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id)
 {
-	unsigned long flags;
+	struct iwl_addsta_cmd cmd = {
+		.mode = STA_CONTROL_MODIFY_MSK,
+		.station_flags_msk = STA_FLG_PWR_SAVE_MSK,
+		.sta.sta_id = sta_id,
+	};
 
-	spin_lock_irqsave(&priv->shrd->sta_lock, flags);
-	priv->stations[sta_id].sta.station_flags &= ~STA_FLG_PWR_SAVE_MSK;
-	priv->stations[sta_id].sta.station_flags_msk = STA_FLG_PWR_SAVE_MSK;
-	priv->stations[sta_id].sta.sta.modify_mask = 0;
-	priv->stations[sta_id].sta.sleep_tx_count = 0;
-	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
-	iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
-	spin_unlock_irqrestore(&priv->shrd->sta_lock, flags);
-
+	iwl_send_add_sta(priv, &cmd, CMD_ASYNC);
 }
 
 static void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
