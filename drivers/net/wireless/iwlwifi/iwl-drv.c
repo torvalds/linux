@@ -720,6 +720,8 @@ int iwl_drv_start(struct iwl_shared *shrd,
 
 void iwl_drv_stop(struct iwl_shared *shrd)
 {
+	wait_for_completion(&shrd->nic->request_firmware_complete);
+
 	/* op_mode can be NULL if its start failed */
 	if (shrd->nic->op_mode)
 		iwl_op_mode_stop(shrd->nic->op_mode);
