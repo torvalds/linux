@@ -69,8 +69,6 @@ enum {
 /**
  * struct falcon_board_type - board operations and type information
  * @id: Board type id, as found in NVRAM
- * @ref_model: Model number of Solarflare reference design
- * @gen_type: Generic board type description
  * @init: Allocate resources and initialise peripheral hardware
  * @init_phy: Do board-specific PHY initialisation
  * @fini: Shut down hardware and free resources
@@ -79,8 +77,6 @@ enum {
  */
 struct falcon_board_type {
 	u8 id;
-	const char *ref_model;
-	const char *gen_type;
 	int (*init) (struct efx_nic *nic);
 	void (*init_phy) (struct efx_nic *efx);
 	void (*fini) (struct efx_nic *nic);
