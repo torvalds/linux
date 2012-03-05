@@ -1623,10 +1623,8 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	local_irq_restore(flags);
 	port->blocked_open++;
 	while (1) {
-		local_irq_save(flags);
 		if (tty->termios->c_cflag & CBAUD)
-		        rtsdtr_ctrl(SER_DTR|SER_RTS);
-		local_irq_restore(flags);
+			tty_port_raise_dtr_rts(port);
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (tty_hung_up_p(filp) ||
 		    !(port->flags & ASYNC_INITIALIZED)) {
@@ -1641,7 +1639,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 			break;
 		}
 		if (!(port->flags & ASYNC_CLOSING) &&
-		    (do_clocal || (!(ciab.pra & SER_DCD)) ))
+		    (do_clocal || tty_port_carrier_raised(port)))
 			break;
 		if (signal_pending(current)) {
 			retval = -ERESTARTSYS;
@@ -1849,6 +1847,32 @@ static const struct tty_operations serial_ops = {
 	.proc_fops = &rs_proc_fops,
 };
 
+static int amiga_carrier_raised(struct tty_port *port)
+{
+	return !(ciab.pra & SER_DCD);
+}
+
+static void amiga_dtr_rts(struct tty_port *port, int raise)
+{
+	struct serial_state *info = container_of(port, struct serial_state,
+			tport);
+	unsigned long flags;
+
+	if (raise)
+		info->MCR |= SER_DTR|SER_RTS;
+	else
+		info->MCR &= ~(SER_DTR|SER_RTS);
+
+	local_irq_save(flags);
+	rtsdtr_ctrl(info->MCR);
+	local_irq_restore(flags);
+}
+
+static const struct tty_port_operations amiga_port_ops = {
+	.carrier_raised = amiga_carrier_raised,
+	.dtr_rts = amiga_dtr_rts,
+};
+
 /*
  * The serial driver boot-time initialization code!
  */
@@ -1891,6 +1915,7 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 	state->icount.frame = state->icount.parity = 0;
 	state->icount.overrun = state->icount.brk = 0;
 	tty_port_init(&state->tport);
+	state->tport.ops = &amiga_port_ops;
 
 	printk(KERN_INFO "ttyS0 is the amiga builtin serial port\n");
 
