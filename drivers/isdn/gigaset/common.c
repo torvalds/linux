@@ -1051,8 +1051,6 @@ static struct cardstate *gigaset_get_cs_by_minor(unsigned minor)
 
 struct cardstate *gigaset_get_cs_by_tty(struct tty_struct *tty)
 {
-	if (tty->index < 0 || tty->index >= tty->driver->num)
-		return NULL;
 	return gigaset_get_cs_by_minor(tty->index + tty->driver->minor_start);
 }
 

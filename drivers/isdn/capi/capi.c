@@ -1013,8 +1013,7 @@ static const struct file_operations capi_fops =
 static int
 capinc_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 {
-	int idx = tty->index;
-	struct capiminor *mp = capiminor_get(idx);
+	struct capiminor *mp = capiminor_get(tty->index);
 	int ret = tty_standard_install(driver, tty);
 
 	if (ret == 0)

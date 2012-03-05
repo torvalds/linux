@@ -1768,13 +1768,9 @@ static int get_async_struct(int line, struct async_struct **ret_info)
 static int rs_open(struct tty_struct *tty, struct file * filp)
 {
 	struct async_struct	*info;
-	int 			retval, line;
+	int retval;
 
-	line = tty->index;
-	if ((line < 0) || (line >= NR_PORTS)) {
-		return -ENODEV;
-	}
-	retval = get_async_struct(line, &info);
+	retval = get_async_struct(tty->index, &info);
 	if (retval) {
 		return retval;
 	}
@@ -1964,7 +1960,7 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 	struct serial_state * state;
 	int error;
 
-	serial_driver = alloc_tty_driver(1);
+	serial_driver = alloc_tty_driver(NR_PORTS);
 	if (!serial_driver)
 		return -ENOMEM;
 

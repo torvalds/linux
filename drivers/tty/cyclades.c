@@ -1515,12 +1515,8 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 static int cy_open(struct tty_struct *tty, struct file *filp)
 {
 	struct cyclades_port *info;
-	unsigned int i, line;
+	unsigned int i, line = tty->index;
 	int retval;
-
-	line = tty->index;
-	if (tty->index < 0 || NR_PORTS <= line)
-		return -ENODEV;
 
 	for (i = 0; i < NR_CARDS; i++)
 		if (line < cy_card[i].first_line + cy_card[i].nports &&

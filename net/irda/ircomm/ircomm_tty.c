@@ -365,15 +365,11 @@ static int ircomm_tty_block_til_ready(struct ircomm_tty_cb *self,
 static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 {
 	struct ircomm_tty_cb *self;
-	unsigned int line;
+	unsigned int line = tty->index;
 	unsigned long	flags;
 	int ret;
 
 	IRDA_DEBUG(2, "%s()\n", __func__ );
-
-	line = tty->index;
-	if (line >= IRCOMM_TTY_PORTS)
-		return -ENODEV;
 
 	/* Check if instance already exists */
 	self = hashbin_lock_find(ircomm_tty, line, NULL);

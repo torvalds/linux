@@ -68,11 +68,6 @@ static void rs_poll(unsigned long);
 
 static int rs_open(struct tty_struct *tty, struct file * filp)
 {
-	int line = tty->index;
-
-	if ((line < 0) || (line >= SERIAL_MAX_NUM_LINES))
-		return -ENODEV;
-
 	spin_lock(&timer_lock);
 
 	if (tty->count == 1) {
@@ -101,6 +96,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 {
 	spin_lock(&timer_lock);
 	if (tty->count == 1)
+		/* this will cause a deadlock if the timer ticks right now */
 		del_timer_sync(&serial_timer);
 	spin_unlock(&timer_lock);
 }
@@ -210,7 +206,7 @@ static const struct tty_operations serial_ops = {
 
 int __init rs_init(void)
 {
-	serial_driver = alloc_tty_driver(1);
+	serial_driver = alloc_tty_driver(SERIAL_MAX_NUM_LINES);
 
 	printk ("%s %s\n", serial_name, serial_version);
 

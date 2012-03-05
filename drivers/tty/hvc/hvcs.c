@@ -1090,27 +1090,23 @@ static int hvcs_enable_device(struct hvcs_struct *hvcsd, uint32_t unit_address,
  */
 static struct hvcs_struct *hvcs_get_by_index(int index)
 {
-	struct hvcs_struct *hvcsd = NULL;
+	struct hvcs_struct *hvcsd;
 	unsigned long flags;
 
 	spin_lock(&hvcs_structs_lock);
-	/* We can immediately discard OOB requests */
-	if (index >= 0 && index < HVCS_MAX_SERVER_ADAPTERS) {
-		list_for_each_entry(hvcsd, &hvcs_structs, next) {
-			spin_lock_irqsave(&hvcsd->lock, flags);
-			if (hvcsd->index == index) {
-				kref_get(&hvcsd->kref);
-				spin_unlock_irqrestore(&hvcsd->lock, flags);
-				spin_unlock(&hvcs_structs_lock);
-				return hvcsd;
-			}
+	list_for_each_entry(hvcsd, &hvcs_structs, next) {
+		spin_lock_irqsave(&hvcsd->lock, flags);
+		if (hvcsd->index == index) {
+			kref_get(&hvcsd->kref);
 			spin_unlock_irqrestore(&hvcsd->lock, flags);
+			spin_unlock(&hvcs_structs_lock);
+			return hvcsd;
 		}
-		hvcsd = NULL;
+		spin_unlock_irqrestore(&hvcsd->lock, flags);
 	}
-
 	spin_unlock(&hvcs_structs_lock);
-	return hvcsd;
+
+	return NULL;
 }
 
 /*

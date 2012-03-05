@@ -3381,7 +3381,7 @@ static int mgsl_open(struct tty_struct *tty, struct file * filp)
 
 	/* verify range of specified line number */	
 	line = tty->index;
-	if ((line < 0) || (line >= mgsl_device_count)) {
+	if (line >= mgsl_device_count) {
 		printk("%s(%d):mgsl_open with invalid line #%d.\n",
 			__FILE__,__LINE__,line);
 		return -ENODEV;

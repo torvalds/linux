@@ -892,12 +892,12 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 {
 	struct r_port *info;
 	struct tty_port *port;
-	int line = 0, retval;
+	int retval;
 	CHANNEL_t *cp;
 	unsigned long page;
 
-	line = tty->index;
-	if (line < 0 || line >= MAX_RP_PORTS || ((info = rp_table[line]) == NULL))
+	info = rp_table[tty->index];
+	if (info == NULL)
 		return -ENXIO;
 	port = &info->port;
 	

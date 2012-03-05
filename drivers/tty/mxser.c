@@ -1010,8 +1010,6 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 	line = tty->index;
 	if (line == MXSER_PORTS)
 		return 0;
-	if (line < 0 || line > MXSER_PORTS)
-		return -ENODEV;
 	info = &mxser_boards[line / MXSER_PORTS_PER_BOARD].ports[line % MXSER_PORTS_PER_BOARD];
 	if (!info->ioaddr)
 		return -ENODEV;

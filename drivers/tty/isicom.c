@@ -849,8 +849,6 @@ static struct tty_port *isicom_find_port(struct tty_struct *tty)
 	unsigned int board;
 	int line = tty->index;
 
-	if (line < 0 || line > PORT_COUNT-1)
-		return NULL;
 	board = BOARD(line);
 	card = &isi_card[board];
 

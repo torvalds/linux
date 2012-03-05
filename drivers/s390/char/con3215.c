@@ -926,13 +926,9 @@ console_initcall(con3215_init);
 static int tty3215_open(struct tty_struct *tty, struct file * filp)
 {
 	struct raw3215_info *raw;
-	int retval, line;
+	int retval;
 
-	line = tty->index;
-	if ((line < 0) || (line >= NR_3215))
-		return -ENODEV;
-
-	raw = raw3215[line];
+	raw = raw3215[tty->index];
 	if (raw == NULL)
 		return -ENODEV;
 

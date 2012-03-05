@@ -737,14 +737,11 @@ static int hvsi_open(struct tty_struct *tty, struct file *filp)
 {
 	struct hvsi_struct *hp;
 	unsigned long flags;
-	int line = tty->index;
 	int ret;
 
 	pr_debug("%s\n", __func__);
 
-	if (line < 0 || line >= hvsi_count)
-		return -ENODEV;
-	hp = &hvsi_ports[line];
+	hp = &hvsi_ports[tty->index];
 
 	tty->driver_data = hp;
 

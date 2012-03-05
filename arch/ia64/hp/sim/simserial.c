@@ -769,13 +769,10 @@ errout:
 static int rs_open(struct tty_struct *tty, struct file * filp)
 {
 	struct async_struct	*info;
-	int			retval, line;
+	int			retval;
 	unsigned long		page;
 
-	line = tty->index;
-	if ((line < 0) || (line >= NR_PORTS))
-		return -ENODEV;
-	retval = get_async_struct(line, &info);
+	retval = get_async_struct(tty->index, &info);
 	if (retval)
 		return retval;
 	tty->driver_data = info;
@@ -920,7 +917,7 @@ simrs_init (void)
 	if (!ia64_platform_is("hpsim"))
 		return -ENODEV;
 
-	hp_simserial_driver = alloc_tty_driver(1);
+	hp_simserial_driver = alloc_tty_driver(NR_PORTS);
 	if (!hp_simserial_driver)
 		return -ENOMEM;
 

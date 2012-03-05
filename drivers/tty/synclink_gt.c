@@ -654,7 +654,7 @@ static int open(struct tty_struct *tty, struct file *filp)
 	unsigned long flags;
 
 	line = tty->index;
-	if ((line < 0) || (line >= slgt_device_count)) {
+	if (line >= slgt_device_count) {
 		DBGERR(("%s: open with invalid line #%d.\n", driver_name, line));
 		return -ENODEV;
 	}
