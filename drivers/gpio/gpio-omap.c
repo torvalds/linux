@@ -973,7 +973,7 @@ static void omap_gpio_mod_init(struct gpio_bank *bank)
 		_gpio_rmw(base, bank->regs->ctrl, 0, 1);
 }
 
-static __init void
+static __devinit void
 omap_mpuio_alloc_gc(struct gpio_bank *bank, unsigned int irq_start,
 		    unsigned int num)
 {
