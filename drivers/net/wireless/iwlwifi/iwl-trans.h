@@ -309,7 +309,6 @@ enum iwl_trans_state {
  * @ops - pointer to iwl_trans_ops
  * @op_mode - pointer to the op_mode
  * @shrd - pointer to iwl_shared which holds shared data from the upper layer
- * @hcmd_lock: protects HCMD
  * @reg_lock - protect hw register access
  * @dev - pointer to struct device * that represents the device
  * @irq - the irq number for the device
@@ -326,7 +325,6 @@ struct iwl_trans {
 	struct iwl_op_mode *op_mode;
 	struct iwl_shared *shrd;
 	enum iwl_trans_state state;
-	spinlock_t hcmd_lock;
 	spinlock_t reg_lock;
 
 	struct device *dev;

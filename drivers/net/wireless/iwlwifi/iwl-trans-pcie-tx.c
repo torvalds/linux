@@ -217,6 +217,8 @@ void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 {
 	struct iwl_tfd *tfd_tmp = txq->tfds;
 
+	lockdep_assert_held(&txq->lock);
+
 	iwlagn_unmap_tfd(trans, &txq->meta[index], &tfd_tmp[index], dma_dir);
 
 	/* free SKB */
@@ -621,7 +623,6 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	struct iwl_device_cmd *out_cmd;
 	struct iwl_cmd_meta *out_meta;
 	dma_addr_t phys_addr;
-	unsigned long flags;
 	u32 idx;
 	u16 copy_size, cmd_size;
 	bool is_ct_kill = false;
@@ -680,10 +681,10 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		return -EIO;
 	}
 
-	spin_lock_irqsave(&trans->hcmd_lock, flags);
+	spin_lock_bh(&txq->lock);
 
 	if (iwl_queue_space(q) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
-		spin_unlock_irqrestore(&trans->hcmd_lock, flags);
+		spin_unlock_bh(&txq->lock);
 
 		IWL_ERR(trans, "No space in command queue\n");
 		is_ct_kill = iwl_check_for_ct_kill(priv(trans));
@@ -790,7 +791,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	iwl_txq_update_write_ptr(trans, txq);
 
  out:
-	spin_unlock_irqrestore(&trans->hcmd_lock, flags);
+	spin_unlock_bh(&txq->lock);
 	return idx;
 }
 
@@ -808,6 +809,8 @@ static void iwl_hcmd_queue_reclaim(struct iwl_trans *trans, int txq_id,
 	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
 	int nfreed = 0;
+
+	lockdep_assert_held(&txq->lock);
 
 	if ((idx >= q->n_bd) || (iwl_queue_used(q, idx) == 0)) {
 		IWL_ERR(trans, "%s: Read index for DMA queue txq id (%d), "
@@ -850,7 +853,6 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb,
 	struct iwl_cmd_meta *meta;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tx_queue *txq = &trans_pcie->txq[trans->shrd->cmd_queue];
-	unsigned long flags;
 
 	/* If a Tx command is being handled and it isn't in the actual
 	 * command queue then there a command routing bug has been introduced
@@ -863,6 +865,8 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb,
 		iwl_print_hex_error(trans, pkt, 32);
 		return;
 	}
+
+	spin_lock(&txq->lock);
 
 	cmd_index = get_cmd_index(&txq->q, index);
 	cmd = txq->cmd[cmd_index];
@@ -880,8 +884,6 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb,
 		rxb->page = NULL;
 	}
 
-	spin_lock_irqsave(&trans->hcmd_lock, flags);
-
 	iwl_hcmd_queue_reclaim(trans, txq_id, index);
 
 	if (!(meta->flags & CMD_ASYNC)) {
@@ -898,7 +900,7 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_mem_buffer *rxb,
 
 	meta->flags = 0;
 
-	spin_unlock_irqrestore(&trans->hcmd_lock, flags);
+	spin_unlock(&txq->lock);
 }
 
 #define HOST_COMPLETE_TIMEOUT (2 * HZ)
@@ -1040,6 +1042,8 @@ int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 	/* This function is not meant to release cmd queue*/
 	if (WARN_ON(txq_id == trans->shrd->cmd_queue))
 		return 0;
+
+	lockdep_assert_held(&txq->lock);
 
 	/*Since we free until index _not_ inclusive, the one before index is
 	 * the last we will free. This one must be used */

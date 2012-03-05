@@ -169,6 +169,7 @@ struct iwl_queue {
  * @meta: array of meta data for each command/tx buffer
  * @dma_addr_cmd: physical address of cmd/tx buffer array
  * @txb: array of per-TFD driver data
+ * lock: queue lock
  * @time_stamp: time (in jiffies) of last read_ptr change
  * @need_update: indicates need to update read/write index
  * @sched_retry: indicates queue is high-throughput aggregation (HT AGG) enabled
@@ -187,6 +188,7 @@ struct iwl_tx_queue {
 	struct iwl_device_cmd **cmd;
 	struct iwl_cmd_meta *meta;
 	struct sk_buff **skbs;
+	spinlock_t lock;
 	unsigned long time_stamp;
 	u8 need_update;
 	u8 sched_retry;
