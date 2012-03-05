@@ -226,7 +226,7 @@ static int da9052_regulator_set_voltage_int(struct regulator_dev *rdev,
 	if (min_uV < info->min_uV)
 		min_uV = info->min_uV;
 
-	*selector = (min_uV - info->min_uV) / info->step_uV;
+	*selector = DIV_ROUND_UP(min_uV - info->min_uV, info->step_uV);
 
 	ret = da9052_list_voltage(rdev, *selector);
 	if (ret < 0)
@@ -318,10 +318,10 @@ static int da9052_set_buckperi_voltage(struct regulator_dev *rdev, int min_uV,
 	if ((regulator->da9052->chip_id == DA9052) &&
 	    (min_uV >= DA9052_CONST_3uV))
 		*selector = DA9052_BUCK_PERI_REG_MAP_UPTO_3uV +
-			    ((min_uV - DA9052_CONST_3uV) /
-			    (DA9052_BUCK_PERI_3uV_STEP));
+			    DIV_ROUND_UP(min_uV - DA9052_CONST_3uV,
+					 DA9052_BUCK_PERI_3uV_STEP);
 	else
-		*selector = (min_uV - info->min_uV) / info->step_uV;
+		*selector = DIV_ROUND_UP(min_uV - info->min_uV, info->step_uV);
 
 	ret = da9052_list_buckperi_voltage(rdev, *selector);
 	if (ret < 0)
