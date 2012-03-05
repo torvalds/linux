@@ -58,7 +58,6 @@
 
 #include <linux/types.h>
 #include <linux/serial.h>
-#include <linux/serialP.h>
 #include <linux/serial_reg.h>
 static char *serial_version = "4.30";
 
@@ -70,6 +69,7 @@ static char *serial_version = "4.30";
 #include <linux/interrupt.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
+#include <linux/circ_buf.h>
 #include <linux/console.h>
 #include <linux/major.h>
 #include <linux/string.h>
@@ -91,6 +91,24 @@ static char *serial_version = "4.30";
 
 #include <asm/amigahw.h>
 #include <asm/amigaints.h>
+
+struct serial_state {
+	struct tty_port		tport;
+	struct circ_buf		xmit;
+	struct async_icount	icount;
+
+	unsigned long		port;
+	int			baud_base;
+	int			xmit_fifo_size;
+	int			custom_divisor;
+	int			read_status_mask;
+	int			ignore_status_mask;
+	int			timeout;
+	int			quot;
+	int			IER; 	/* Interrupt Enable Register */
+	int			MCR; 	/* Modem control register */
+	int			x_char;	/* xon/xoff character */
+};
 
 #define custom amiga_custom
 static char *serial_name = "Amiga-builtin serial driver";
