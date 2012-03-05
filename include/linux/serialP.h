@@ -35,7 +35,6 @@ struct serial_state {
 	int	line;
 	int	xmit_fifo_size;
 	int	custom_divisor;
-	int	count;
 	struct async_icount	icount;	
 	struct tty_port tport;
 

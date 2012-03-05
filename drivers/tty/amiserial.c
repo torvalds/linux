@@ -1383,26 +1383,26 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	}
 
 #ifdef SERIAL_DEBUG_OPEN
-	printk("rs_close ttys%d, count = %d\n", state->line, state->count);
+	printk("rs_close ttys%d, count = %d\n", state->line, state->tport.count);
 #endif
-	if ((tty->count == 1) && (state->count != 1)) {
+	if ((tty->count == 1) && (state->tport.count != 1)) {
 		/*
 		 * Uh, oh.  tty->count is 1, which means that the tty
-		 * structure will be freed.  state->count should always
+		 * structure will be freed.  state->tport.count should always
 		 * be one in these conditions.  If it's greater than
 		 * one, we've got real problems, since it means the
 		 * serial port won't be shutdown.
 		 */
 		printk("rs_close: bad serial port count; tty->count is 1, "
-		       "state->count is %d\n", state->count);
-		state->count = 1;
+		       "state->tport.count is %d\n", state->tport.count);
+		state->tport.count = 1;
 	}
-	if (--state->count < 0) {
+	if (--state->tport.count < 0) {
 		printk("rs_close: bad serial port count for ttys%d: %d\n",
-		       state->line, state->count);
-		state->count = 0;
+		       state->line, state->tport.count);
+		state->tport.count = 0;
 	}
-	if (state->count) {
+	if (state->tport.count) {
 		DBG_CNT("before DEC-2");
 		local_irq_restore(flags);
 		return;
@@ -1529,7 +1529,7 @@ static void rs_hangup(struct tty_struct *tty)
 
 	rs_flush_buffer(tty);
 	shutdown(tty, info);
-	info->count = 0;
+	info->tport.count = 0;
 	info->flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->tport.tty = NULL;
 	wake_up_interruptible(&info->tport.open_wait);
@@ -1584,7 +1584,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	/*
 	 * Block waiting for the carrier detect and the line to become
 	 * free (i.e., not in use by the callout).  While we are in
-	 * this loop, info->count is dropped by one, so that
+	 * this loop, info->tport.count is dropped by one, so that
 	 * rs_close() knows when to free things.  We restore it upon
 	 * exit, either normal or abnormal.
 	 */
@@ -1592,12 +1592,12 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	add_wait_queue(&info->tport.open_wait, &wait);
 #ifdef SERIAL_DEBUG_OPEN
 	printk("block_til_ready before block: ttys%d, count = %d\n",
-	       info->line, info->count);
+	       info->line, info->tport.count);
 #endif
 	local_irq_save(flags);
 	if (!tty_hung_up_p(filp)) {
 		extra_count = 1;
-		info->count--;
+		info->tport.count--;
 	}
 	local_irq_restore(flags);
 	info->tport.blocked_open++;
@@ -1628,7 +1628,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 		}
 #ifdef SERIAL_DEBUG_OPEN
 		printk("block_til_ready blocking: ttys%d, count = %d\n",
-		       info->line, info->count);
+		       info->line, info->tport.count);
 #endif
 		tty_unlock();
 		schedule();
@@ -1637,11 +1637,11 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&info->tport.open_wait, &wait);
 	if (extra_count)
-		info->count++;
+		info->tport.count++;
 	info->tport.blocked_open--;
 #ifdef SERIAL_DEBUG_OPEN
 	printk("block_til_ready after blocking: ttys%d, count = %d\n",
-	       info->line, info->count);
+	       info->line, info->tport.count);
 #endif
 	if (retval)
 		return retval;
@@ -1660,7 +1660,7 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	struct serial_state *info = rs_table + tty->index;
 	int retval;
 
-	info->count++;
+	info->tport.count++;
 	info->tport.tty = tty;
 	tty->driver_data = info;
 	tty->port = &info->tport;

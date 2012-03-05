@@ -500,26 +500,26 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 		return;
 	}
 #ifdef SIMSERIAL_DEBUG
-	printk("rs_close ttys%d, count = %d\n", info->line, info->count);
+	printk("rs_close ttys%d, count = %d\n", info->line, info->tport.count);
 #endif
-	if ((tty->count == 1) && (info->count != 1)) {
+	if ((tty->count == 1) && (info->tport.count != 1)) {
 		/*
 		 * Uh, oh.  tty->count is 1, which means that the tty
-		 * structure will be freed.  info->count should always
+		 * structure will be freed.  info->tport.count should always
 		 * be one in these conditions.  If it's greater than
 		 * one, we've got real problems, since it means the
 		 * serial port won't be shutdown.
 		 */
 		printk(KERN_ERR "rs_close: bad serial port count; tty->count is 1, "
-		       "info->count is %d\n", info->count);
-		info->count = 1;
+		       "info->tport.count is %d\n", info->tport.count);
+		info->tport.count = 1;
 	}
-	if (--info->count < 0) {
+	if (--info->tport.count < 0) {
 		printk(KERN_ERR "rs_close: bad serial port count for ttys%d: %d\n",
-		       info->line, info->count);
-		info->count = 0;
+		       info->line, info->tport.count);
+		info->tport.count = 0;
 	}
-	if (info->count) {
+	if (info->tport.count) {
 		local_irq_restore(flags);
 		return;
 	}
@@ -567,7 +567,7 @@ static void rs_hangup(struct tty_struct *tty)
 		return;
 	shutdown(tty, info);
 
-	info->count = 0;
+	info->tport.count = 0;
 	info->flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->tport.tty = NULL;
 	wake_up_interruptible(&info->tport.open_wait);
@@ -661,13 +661,13 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	int			retval;
 	unsigned long		page;
 
-	info->count++;
+	info->tport.count++;
 	info->tport.tty = tty;
 	tty->driver_data = info;
 	tty->port = &info->tport;
 
 #ifdef SIMSERIAL_DEBUG
-	printk("rs_open %s, count = %d\n", tty->name, info->count);
+	printk("rs_open %s, count = %d\n", tty->name, info->tport.count);
 #endif
 	tty->low_latency = (info->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
