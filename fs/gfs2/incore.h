@@ -644,7 +644,6 @@ struct gfs2_sbd {
 
 	int sd_rindex_uptodate;
 	spinlock_t sd_rindex_spin;
-	struct mutex sd_rindex_mutex;
 	struct rb_root sd_rindex_tree;
 	unsigned int sd_rgrps;
 	unsigned int sd_max_rg_data;
