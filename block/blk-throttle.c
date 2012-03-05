@@ -900,7 +900,7 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 	 * just update the dispatch stats in lockless manner and return.
 	 */
 	rcu_read_lock();
-	blkcg = task_blkio_cgroup(current);
+	blkcg = bio_blkio_cgroup(bio);
 	tg = throtl_lookup_tg(td, blkcg);
 	if (tg) {
 		if (tg_no_rule_group(tg, rw)) {

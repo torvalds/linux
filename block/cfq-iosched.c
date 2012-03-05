@@ -467,8 +467,9 @@ static inline int cfqg_busy_async_queues(struct cfq_data *cfqd,
 }
 
 static void cfq_dispatch_insert(struct request_queue *, struct request *);
-static struct cfq_queue *cfq_get_queue(struct cfq_data *, bool,
-				       struct io_context *, gfp_t);
+static struct cfq_queue *cfq_get_queue(struct cfq_data *cfqd, bool is_sync,
+				       struct io_context *ioc, struct bio *bio,
+				       gfp_t gfp_mask);
 
 static inline struct cfq_io_cq *icq_to_cic(struct io_cq *icq)
 {
@@ -2601,7 +2602,7 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq, struct io_context *ioc)
 	cfq_clear_cfqq_prio_changed(cfqq);
 }
 
-static void changed_ioprio(struct cfq_io_cq *cic)
+static void changed_ioprio(struct cfq_io_cq *cic, struct bio *bio)
 {
 	struct cfq_data *cfqd = cic_to_cfqd(cic);
 	struct cfq_queue *cfqq;
@@ -2613,7 +2614,7 @@ static void changed_ioprio(struct cfq_io_cq *cic)
 	if (cfqq) {
 		struct cfq_queue *new_cfqq;
 		new_cfqq = cfq_get_queue(cfqd, BLK_RW_ASYNC, cic->icq.ioc,
-						GFP_ATOMIC);
+					 bio, GFP_ATOMIC);
 		if (new_cfqq) {
 			cic->cfqq[BLK_RW_ASYNC] = new_cfqq;
 			cfq_put_queue(cfqq);
@@ -2671,7 +2672,7 @@ static void changed_cgroup(struct cfq_io_cq *cic)
 
 static struct cfq_queue *
 cfq_find_alloc_queue(struct cfq_data *cfqd, bool is_sync,
-		     struct io_context *ioc, gfp_t gfp_mask)
+		     struct io_context *ioc, struct bio *bio, gfp_t gfp_mask)
 {
 	struct blkio_cgroup *blkcg;
 	struct cfq_queue *cfqq, *new_cfqq = NULL;
@@ -2681,7 +2682,7 @@ cfq_find_alloc_queue(struct cfq_data *cfqd, bool is_sync,
 retry:
 	rcu_read_lock();
 
-	blkcg = task_blkio_cgroup(current);
+	blkcg = bio_blkio_cgroup(bio);
 
 	cfqg = cfq_lookup_create_cfqg(cfqd, blkcg);
 
@@ -2746,7 +2747,7 @@ cfq_async_queue_prio(struct cfq_data *cfqd, int ioprio_class, int ioprio)
 
 static struct cfq_queue *
 cfq_get_queue(struct cfq_data *cfqd, bool is_sync, struct io_context *ioc,
-	      gfp_t gfp_mask)
+	      struct bio *bio, gfp_t gfp_mask)
 {
 	const int ioprio = task_ioprio(ioc);
 	const int ioprio_class = task_ioprio_class(ioc);
@@ -2759,7 +2760,7 @@ cfq_get_queue(struct cfq_data *cfqd, bool is_sync, struct io_context *ioc,
 	}
 
 	if (!cfqq)
-		cfqq = cfq_find_alloc_queue(cfqd, is_sync, ioc, gfp_mask);
+		cfqq = cfq_find_alloc_queue(cfqd, is_sync, ioc, bio, gfp_mask);
 
 	/*
 	 * pin the queue now that it's allocated, scheduler exit will prune it
@@ -3316,7 +3317,7 @@ cfq_set_request(struct request_queue *q, struct request *rq, struct bio *bio,
 	/* handle changed notifications */
 	changed = icq_get_changed(&cic->icq);
 	if (unlikely(changed & ICQ_IOPRIO_CHANGED))
-		changed_ioprio(cic);
+		changed_ioprio(cic, bio);
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
 	if (unlikely(changed & ICQ_CGROUP_CHANGED))
 		changed_cgroup(cic);
@@ -3325,7 +3326,7 @@ cfq_set_request(struct request_queue *q, struct request *rq, struct bio *bio,
 new_queue:
 	cfqq = cic_to_cfqq(cic, is_sync);
 	if (!cfqq || cfqq == &cfqd->oom_cfqq) {
-		cfqq = cfq_get_queue(cfqd, is_sync, cic->icq.ioc, gfp_mask);
+		cfqq = cfq_get_queue(cfqd, is_sync, cic->icq.ioc, bio, gfp_mask);
 		cic_set_cfqq(cic, cfqq, is_sync);
 	} else {
 		/*
