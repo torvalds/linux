@@ -36,8 +36,6 @@ struct serial_state {
 	int	xmit_fifo_size;
 	int	custom_divisor;
 	int	count;
-	unsigned short	close_delay;
-	unsigned short	closing_wait; /* time to wait before closing */
 	struct async_icount	icount;	
 	struct tty_port tport;
 

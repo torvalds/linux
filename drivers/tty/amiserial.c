@@ -1022,8 +1022,8 @@ static int get_serial_info(struct serial_state *state,
 	tmp.flags = state->flags;
 	tmp.xmit_fifo_size = state->xmit_fifo_size;
 	tmp.baud_base = state->baud_base;
-	tmp.close_delay = state->close_delay;
-	tmp.closing_wait = state->closing_wait;
+	tmp.close_delay = state->tport.close_delay;
+	tmp.closing_wait = state->tport.closing_wait;
 	tmp.custom_divisor = state->custom_divisor;
 	tty_unlock();
 	if (copy_to_user(retinfo,&tmp,sizeof(*retinfo)))
@@ -1052,7 +1052,7 @@ static int set_serial_info(struct tty_struct *tty, struct serial_state *state,
   
 	if (!serial_isroot()) {
 		if ((new_serial.baud_base != state->baud_base) ||
-		    (new_serial.close_delay != state->close_delay) ||
+		    (new_serial.close_delay != state->tport.close_delay) ||
 		    (new_serial.xmit_fifo_size != state->xmit_fifo_size) ||
 		    ((new_serial.flags & ~ASYNC_USR_MASK) !=
 		     (state->flags & ~ASYNC_USR_MASK)))
@@ -1077,8 +1077,8 @@ static int set_serial_info(struct tty_struct *tty, struct serial_state *state,
 	state->flags = ((state->flags & ~ASYNC_FLAGS) |
 			(new_serial.flags & ASYNC_FLAGS));
 	state->custom_divisor = new_serial.custom_divisor;
-	state->close_delay = new_serial.close_delay * HZ/100;
-	state->closing_wait = new_serial.closing_wait * HZ/100;
+	state->tport.close_delay = new_serial.close_delay * HZ/100;
+	state->tport.closing_wait = new_serial.closing_wait * HZ/100;
 	tty->low_latency = (state->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 check_and_exit:
@@ -1413,8 +1413,8 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	 * the line discipline to only process XON/XOFF characters.
 	 */
 	tty->closing = 1;
-	if (state->closing_wait != ASYNC_CLOSING_WAIT_NONE)
-		tty_wait_until_sent(tty, state->closing_wait);
+	if (state->tport.closing_wait != ASYNC_CLOSING_WAIT_NONE)
+		tty_wait_until_sent(tty, state->tport.closing_wait);
 	/*
 	 * At this point we stop accepting input.  To do this, we
 	 * disable the receive line status interrupts, and tell the
@@ -1444,8 +1444,8 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	tty->closing = 0;
 	state->tport.tty = NULL;
 	if (state->tport.blocked_open) {
-		if (state->close_delay) {
-			msleep_interruptible(jiffies_to_msecs(state->close_delay));
+		if (state->tport.close_delay) {
+			msleep_interruptible(jiffies_to_msecs(state->tport.close_delay));
 		}
 		wake_up_interruptible(&state->tport.open_wait);
 	}
@@ -1863,8 +1863,6 @@ static int __init amiga_serial_probe(struct platform_device *pdev)
 	state->port = (int)&custom.serdatr; /* Just to give it a value */
 	state->line = 0;
 	state->custom_divisor = 0;
-	state->close_delay = 5*HZ/10;
-	state->closing_wait = 30*HZ;
 	state->icount.cts = state->icount.dsr = 
 	  state->icount.rng = state->icount.dcd = 0;
 	state->icount.rx = state->icount.tx = 0;

@@ -535,8 +535,8 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	tty_ldisc_flush(tty);
 	info->tport.tty = NULL;
 	if (info->tport.blocked_open) {
-		if (info->close_delay)
-			schedule_timeout_interruptible(info->close_delay);
+		if (info->tport.close_delay)
+			schedule_timeout_interruptible(info->tport.close_delay);
 		wake_up_interruptible(&info->tport.open_wait);
 	}
 	info->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
@@ -829,6 +829,7 @@ simrs_init (void)
 	 */
 	for (i = 0, state = rs_table; i < NR_PORTS; i++,state++) {
 		tty_port_init(&state->tport);
+		state->tport.close_delay = 0; /* XXX really 0? */
 
 		if (state->type == PORT_UNKNOWN) continue;
 
