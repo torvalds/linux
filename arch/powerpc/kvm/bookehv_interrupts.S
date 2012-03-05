@@ -49,7 +49,8 @@
  * kernel with the -ffixed-r2 gcc option.
  */
 #define HOST_R2         (3 * LONGBYTES)
-#define HOST_NV_GPRS    (4 * LONGBYTES)
+#define HOST_CR         (4 * LONGBYTES)
+#define HOST_NV_GPRS    (5 * LONGBYTES)
 #define HOST_NV_GPR(n)  (HOST_NV_GPRS + ((n - 14) * LONGBYTES))
 #define HOST_MIN_STACK_SIZE (HOST_NV_GPR(31) + LONGBYTES)
 #define HOST_STACK_SIZE ((HOST_MIN_STACK_SIZE + 15) & ~15) /* Align. */
@@ -396,6 +397,7 @@ skip_nv_load:
 heavyweight_exit:
 	/* Not returning to guest. */
 	PPC_LL	r5, HOST_STACK_LR(r1)
+	lwz	r6, HOST_CR(r1)
 
 	/*
 	 * We already saved guest volatile register state; now save the
@@ -442,6 +444,7 @@ heavyweight_exit:
 
 	/* Return to kvm_vcpu_run(). */
 	mtlr	r5
+	mtcr	r6
 	addi	r1, r1, HOST_STACK_SIZE
 	/* r3 still contains the return code from kvmppc_handle_exit(). */
 	blr
@@ -457,7 +460,10 @@ _GLOBAL(__kvmppc_vcpu_run)
 	/* Save host state to stack. */
 	PPC_STL	r3, HOST_RUN(r1)
 	mflr	r3
+	mfcr	r5
 	PPC_STL	r3, HOST_STACK_LR(r1)
+
+	stw	r5, HOST_CR(r1)
 
 	/* Save host non-volatile register state to stack. */
 	PPC_STL	r14, HOST_NV_GPR(r14)(r1)
