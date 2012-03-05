@@ -166,8 +166,6 @@ struct blkio_group {
 	unsigned short blkcg_id;
 	/* Store cgroup path */
 	char path[128];
-	/* The device MKDEV(major, minor), this group has been created for */
-	dev_t dev;
 	/* policy which owns this blk group */
 	enum blkio_policy_id plid;
 

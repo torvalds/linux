@@ -1052,20 +1052,7 @@ static void cfq_link_blkio_group(struct request_queue *q,
 				 struct blkio_group *blkg)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
-	struct backing_dev_info *bdi = &q->backing_dev_info;
 	struct cfq_group *cfqg = cfqg_of_blkg(blkg);
-	unsigned int major, minor;
-
-	/*
-	 * Add group onto cgroup list. It might happen that bdi->dev is
-	 * not initialized yet. Initialize this new group without major
-	 * and minor info and this info will be filled in once a new thread
-	 * comes for IO.
-	 */
-	if (bdi->dev) {
-		sscanf(dev_name(bdi->dev), "%u:%u", &major, &minor);
-		blkg->dev = MKDEV(major, minor);
-	}
 
 	cfqd->nr_blkcg_linked_grps++;
 
@@ -1104,7 +1091,6 @@ static struct cfq_group *cfq_lookup_create_cfqg(struct cfq_data *cfqd,
 						struct blkio_cgroup *blkcg)
 {
 	struct request_queue *q = cfqd->queue;
-	struct backing_dev_info *bdi = &q->backing_dev_info;
 	struct cfq_group *cfqg = NULL;
 
 	/* avoid lookup for the common case where there's no blkio cgroup */
@@ -1116,13 +1102,6 @@ static struct cfq_group *cfq_lookup_create_cfqg(struct cfq_data *cfqd,
 		blkg = blkg_lookup_create(blkcg, q, BLKIO_POLICY_PROP, false);
 		if (!IS_ERR(blkg))
 			cfqg = cfqg_of_blkg(blkg);
-	}
-
-	if (cfqg && !cfqg->blkg.dev && bdi->dev && dev_name(bdi->dev)) {
-		unsigned int major, minor;
-
-		sscanf(dev_name(bdi->dev), "%u:%u", &major, &minor);
-		cfqg->blkg.dev = MKDEV(major, minor);
 	}
 
 	return cfqg;

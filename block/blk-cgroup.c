@@ -662,10 +662,10 @@ blkiocg_reset_stats(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 	return 0;
 }
 
-static void blkio_get_key_name(enum stat_sub_type type, dev_t dev, char *str,
-				int chars_left, bool diskname_only)
+static void blkio_get_key_name(enum stat_sub_type type, const char *dname,
+			       char *str, int chars_left, bool diskname_only)
 {
-	snprintf(str, chars_left, "%d:%d", MAJOR(dev), MINOR(dev));
+	snprintf(str, chars_left, "%s", dname);
 	chars_left -= strlen(str);
 	if (chars_left <= 0) {
 		printk(KERN_WARNING
@@ -696,9 +696,9 @@ static void blkio_get_key_name(enum stat_sub_type type, dev_t dev, char *str,
 }
 
 static uint64_t blkio_fill_stat(char *str, int chars_left, uint64_t val,
-				struct cgroup_map_cb *cb, dev_t dev)
+				struct cgroup_map_cb *cb, const char *dname)
 {
-	blkio_get_key_name(0, dev, str, chars_left, true);
+	blkio_get_key_name(0, dname, str, chars_left, true);
 	cb->fill(cb, str, val);
 	return val;
 }
@@ -730,7 +730,8 @@ static uint64_t blkio_read_stat_cpu(struct blkio_group *blkg,
 }
 
 static uint64_t blkio_get_stat_cpu(struct blkio_group *blkg,
-		struct cgroup_map_cb *cb, dev_t dev, enum stat_type_cpu type)
+				   struct cgroup_map_cb *cb, const char *dname,
+				   enum stat_type_cpu type)
 {
 	uint64_t disk_total, val;
 	char key_str[MAX_KEY_LEN];
@@ -738,12 +739,14 @@ static uint64_t blkio_get_stat_cpu(struct blkio_group *blkg,
 
 	if (type == BLKIO_STAT_CPU_SECTORS) {
 		val = blkio_read_stat_cpu(blkg, type, 0);
-		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1, val, cb, dev);
+		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1, val, cb,
+				       dname);
 	}
 
 	for (sub_type = BLKIO_STAT_READ; sub_type < BLKIO_STAT_TOTAL;
 			sub_type++) {
-		blkio_get_key_name(sub_type, dev, key_str, MAX_KEY_LEN, false);
+		blkio_get_key_name(sub_type, dname, key_str, MAX_KEY_LEN,
+				   false);
 		val = blkio_read_stat_cpu(blkg, type, sub_type);
 		cb->fill(cb, key_str, val);
 	}
@@ -751,14 +754,16 @@ static uint64_t blkio_get_stat_cpu(struct blkio_group *blkg,
 	disk_total = blkio_read_stat_cpu(blkg, type, BLKIO_STAT_READ) +
 			blkio_read_stat_cpu(blkg, type, BLKIO_STAT_WRITE);
 
-	blkio_get_key_name(BLKIO_STAT_TOTAL, dev, key_str, MAX_KEY_LEN, false);
+	blkio_get_key_name(BLKIO_STAT_TOTAL, dname, key_str, MAX_KEY_LEN,
+			   false);
 	cb->fill(cb, key_str, disk_total);
 	return disk_total;
 }
 
 /* This should be called with blkg->stats_lock held */
 static uint64_t blkio_get_stat(struct blkio_group *blkg,
-		struct cgroup_map_cb *cb, dev_t dev, enum stat_type type)
+			       struct cgroup_map_cb *cb, const char *dname,
+			       enum stat_type type)
 {
 	uint64_t disk_total;
 	char key_str[MAX_KEY_LEN];
@@ -766,11 +771,11 @@ static uint64_t blkio_get_stat(struct blkio_group *blkg,
 
 	if (type == BLKIO_STAT_TIME)
 		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
-					blkg->stats.time, cb, dev);
+					blkg->stats.time, cb, dname);
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 	if (type == BLKIO_STAT_UNACCOUNTED_TIME)
 		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
-					blkg->stats.unaccounted_time, cb, dev);
+				       blkg->stats.unaccounted_time, cb, dname);
 	if (type == BLKIO_STAT_AVG_QUEUE_SIZE) {
 		uint64_t sum = blkg->stats.avg_queue_size_sum;
 		uint64_t samples = blkg->stats.avg_queue_size_samples;
@@ -778,30 +783,33 @@ static uint64_t blkio_get_stat(struct blkio_group *blkg,
 			do_div(sum, samples);
 		else
 			sum = 0;
-		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1, sum, cb, dev);
+		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
+				       sum, cb, dname);
 	}
 	if (type == BLKIO_STAT_GROUP_WAIT_TIME)
 		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
-					blkg->stats.group_wait_time, cb, dev);
+				       blkg->stats.group_wait_time, cb, dname);
 	if (type == BLKIO_STAT_IDLE_TIME)
 		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
-					blkg->stats.idle_time, cb, dev);
+				       blkg->stats.idle_time, cb, dname);
 	if (type == BLKIO_STAT_EMPTY_TIME)
 		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
-					blkg->stats.empty_time, cb, dev);
+				       blkg->stats.empty_time, cb, dname);
 	if (type == BLKIO_STAT_DEQUEUE)
 		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
-					blkg->stats.dequeue, cb, dev);
+				       blkg->stats.dequeue, cb, dname);
 #endif
 
 	for (sub_type = BLKIO_STAT_READ; sub_type < BLKIO_STAT_TOTAL;
 			sub_type++) {
-		blkio_get_key_name(sub_type, dev, key_str, MAX_KEY_LEN, false);
+		blkio_get_key_name(sub_type, dname, key_str, MAX_KEY_LEN,
+				   false);
 		cb->fill(cb, key_str, blkg->stats.stat_arr[type][sub_type]);
 	}
 	disk_total = blkg->stats.stat_arr[type][BLKIO_STAT_READ] +
 			blkg->stats.stat_arr[type][BLKIO_STAT_WRITE];
-	blkio_get_key_name(BLKIO_STAT_TOTAL, dev, key_str, MAX_KEY_LEN, false);
+	blkio_get_key_name(BLKIO_STAT_TOTAL, dname, key_str, MAX_KEY_LEN,
+			   false);
 	cb->fill(cb, key_str, disk_total);
 	return disk_total;
 }
@@ -946,14 +954,15 @@ static int blkiocg_file_write(struct cgroup *cgrp, struct cftype *cft,
 static void blkio_print_group_conf(struct cftype *cft, struct blkio_group *blkg,
 				   struct seq_file *m)
 {
+	const char *dname = dev_name(blkg->q->backing_dev_info.dev);
 	int fileid = BLKIOFILE_ATTR(cft->private);
 	int rw = WRITE;
 
 	switch (blkg->plid) {
 		case BLKIO_POLICY_PROP:
 			if (blkg->conf.weight)
-				seq_printf(m, "%u:%u\t%u\n", MAJOR(blkg->dev),
-					MINOR(blkg->dev), blkg->conf.weight);
+				seq_printf(m, "%s\t%u\n",
+					   dname, blkg->conf.weight);
 			break;
 		case BLKIO_POLICY_THROTL:
 			switch (fileid) {
@@ -961,19 +970,15 @@ static void blkio_print_group_conf(struct cftype *cft, struct blkio_group *blkg,
 				rw = READ;
 			case BLKIO_THROTL_write_bps_device:
 				if (blkg->conf.bps[rw])
-					seq_printf(m, "%u:%u\t%llu\n",
-						   MAJOR(blkg->dev),
-						   MINOR(blkg->dev),
-						   blkg->conf.bps[rw]);
+					seq_printf(m, "%s\t%llu\n",
+						   dname, blkg->conf.bps[rw]);
 				break;
 			case BLKIO_THROTL_read_iops_device:
 				rw = READ;
 			case BLKIO_THROTL_write_iops_device:
 				if (blkg->conf.iops[rw])
-					seq_printf(m, "%u:%u\t%u\n",
-						   MAJOR(blkg->dev),
-						   MINOR(blkg->dev),
-						   blkg->conf.iops[rw]);
+					seq_printf(m, "%s\t%u\n",
+						   dname, blkg->conf.iops[rw]);
 				break;
 			}
 			break;
@@ -1044,18 +1049,17 @@ static int blkio_read_blkg_stats(struct blkio_cgroup *blkcg,
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(blkg, n, &blkcg->blkg_list, blkcg_node) {
-		if (blkg->dev) {
-			if (BLKIOFILE_POLICY(cft->private) != blkg->plid)
-				continue;
-			if (pcpu)
-				cgroup_total += blkio_get_stat_cpu(blkg, cb,
-						blkg->dev, type);
-			else {
-				spin_lock_irq(&blkg->stats_lock);
-				cgroup_total += blkio_get_stat(blkg, cb,
-						blkg->dev, type);
-				spin_unlock_irq(&blkg->stats_lock);
-			}
+		const char *dname = dev_name(blkg->q->backing_dev_info.dev);
+
+		if (BLKIOFILE_POLICY(cft->private) != blkg->plid)
+			continue;
+		if (pcpu)
+			cgroup_total += blkio_get_stat_cpu(blkg, cb, dname,
+							   type);
+		else {
+			spin_lock_irq(&blkg->stats_lock);
+			cgroup_total += blkio_get_stat(blkg, cb, dname, type);
+			spin_unlock_irq(&blkg->stats_lock);
 		}
 	}
 	if (show_total)

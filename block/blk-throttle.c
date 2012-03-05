@@ -212,49 +212,11 @@ static struct blkio_group *throtl_alloc_blkio_group(struct request_queue *q,
 	return &tg->blkg;
 }
 
-static void
-__throtl_tg_fill_dev_details(struct throtl_data *td, struct throtl_grp *tg)
-{
-	struct backing_dev_info *bdi = &td->queue->backing_dev_info;
-	unsigned int major, minor;
-
-	if (!tg || tg->blkg.dev)
-		return;
-
-	/*
-	 * Fill in device details for a group which might not have been
-	 * filled at group creation time as queue was being instantiated
-	 * and driver had not attached a device yet
-	 */
-	if (bdi->dev && dev_name(bdi->dev)) {
-		sscanf(dev_name(bdi->dev), "%u:%u", &major, &minor);
-		tg->blkg.dev = MKDEV(major, minor);
-	}
-}
-
-/*
- * Should be called with without queue lock held. Here queue lock will be
- * taken rarely. It will be taken only once during life time of a group
- * if need be
- */
-static void
-throtl_tg_fill_dev_details(struct throtl_data *td, struct throtl_grp *tg)
-{
-	if (!tg || tg->blkg.dev)
-		return;
-
-	spin_lock_irq(td->queue->queue_lock);
-	__throtl_tg_fill_dev_details(td, tg);
-	spin_unlock_irq(td->queue->queue_lock);
-}
-
 static void throtl_link_blkio_group(struct request_queue *q,
 				    struct blkio_group *blkg)
 {
 	struct throtl_data *td = q->td;
 	struct throtl_grp *tg = tg_of_blkg(blkg);
-
-	__throtl_tg_fill_dev_details(td, tg);
 
 	hlist_add_head(&tg->tg_node, &td->tg_list);
 	td->nr_undestroyed_grps++;
@@ -263,20 +225,14 @@ static void throtl_link_blkio_group(struct request_queue *q,
 static struct
 throtl_grp *throtl_lookup_tg(struct throtl_data *td, struct blkio_cgroup *blkcg)
 {
-	struct throtl_grp *tg = NULL;
-
 	/*
 	 * This is the common case when there are no blkio cgroups.
 	 * Avoid lookup in this case
 	 */
 	if (blkcg == &blkio_root_cgroup)
-		tg = td->root_tg;
-	else
-		tg = tg_of_blkg(blkg_lookup(blkcg, td->queue,
-					    BLKIO_POLICY_THROTL));
+		return td->root_tg;
 
-	__throtl_tg_fill_dev_details(td, tg);
-	return tg;
+	return tg_of_blkg(blkg_lookup(blkcg, td->queue, BLKIO_POLICY_THROTL));
 }
 
 static struct throtl_grp *throtl_lookup_create_tg(struct throtl_data *td,
@@ -303,7 +259,6 @@ static struct throtl_grp *throtl_lookup_create_tg(struct throtl_data *td,
 			tg = td->root_tg;
 	}
 
-	__throtl_tg_fill_dev_details(td, tg);
 	return tg;
 }
 
@@ -1090,8 +1045,6 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 	blkcg = task_blkio_cgroup(current);
 	tg = throtl_lookup_tg(td, blkcg);
 	if (tg) {
-		throtl_tg_fill_dev_details(td, tg);
-
 		if (tg_no_rule_group(tg, rw)) {
 			blkiocg_update_dispatch_stats(&tg->blkg, bio->bi_size,
 					rw, rw_is_sync(bio->bi_rw));
