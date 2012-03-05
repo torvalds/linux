@@ -97,6 +97,17 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local)
 	mutex_unlock(&local->socket_lock);
 }
 
+static void nfc_llcp_clear_sdp(struct nfc_llcp_local *local)
+{
+	mutex_lock(&local->sdp_lock);
+
+	local->local_wks = 0;
+	local->local_sdp = 0;
+	local->local_sap = 0;
+
+	mutex_unlock(&local->sdp_lock);
+}
+
 static void nfc_llcp_timeout_work(struct work_struct *work)
 {
 	struct nfc_llcp_local *local = container_of(work, struct nfc_llcp_local,
@@ -856,6 +867,8 @@ void nfc_llcp_mac_is_down(struct nfc_dev *dev)
 	local = nfc_llcp_find_local(dev);
 	if (local == NULL)
 		return;
+
+	nfc_llcp_clear_sdp(local);
 
 	/* Close and purge all existing sockets */
 	nfc_llcp_socket_release(local);
