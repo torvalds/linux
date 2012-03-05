@@ -285,14 +285,12 @@ static  int win0_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
     xpos = par->xpos+screen->left_margin + screen->hsync_len;
     ypos = par->ypos+screen->upper_margin + screen->vsync_len;
     y_addr = par->smem_start + par->y_offset;
+    uv_addr = par->cbr_start + par->c_offset;
+	
+    ScaleYrgbX = CalScale(xact, par->xsize); //both RGB and yuv need this two factor
+    ScaleYrgbY = CalScale(yact, par->ysize);
     switch (par->format)
     {
-       case ARGB888:
-       case RGB888:
-       case RGB565:
-            ScaleYrgbX = CalScale(xact, par->xsize);
-    	    ScaleYrgbY = CalScale(yact, par->ysize);
-            break;
        case YUV422:// yuv422
             ScaleCbrX=  CalScale((xact/2), par->xsize);
             ScaleCbrY = CalScale(yact, par->ysize);
@@ -310,9 +308,10 @@ static  int win0_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
            break;
     }
 
-	DBG("%s>>format:%d>>>xact:%d>>yact:%d>>xvir:%d>>yvir:%d>>ypos:%d>>y_addr:0x%x\n",
-		__func__,par->format,xact,yact,xvir,yvir,ypos,y_addr);
+	DBG("%s>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>ypos:%d>>y_addr:0x%x>>uv_addr:0x%x\n",
+		__func__,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,ypos,y_addr,uv_addr);
     LcdWrReg(lcdc_dev, WIN0_YRGB_MST0, y_addr);
+    LcdWrReg(lcdc_dev,WIN0_CBR_MST0,uv_addr);
     LcdMskReg(lcdc_dev,SYS_CTRL1,  m_W0_FORMAT , v_W0_FORMAT(par->format));		//(inf->video_mode==0)
     LcdWrReg(lcdc_dev, WIN0_ACT_INFO,v_ACT_WIDTH(xact) | v_ACT_HEIGHT(yact));
     LcdWrReg(lcdc_dev, WIN0_DSP_ST, v_DSP_STX(xpos) | v_DSP_STY(ypos));

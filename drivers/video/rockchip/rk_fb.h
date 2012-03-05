@@ -63,8 +63,8 @@ enum data_format{
 	ARGB888 = 0,
 	RGB888,
 	RGB565,
+	YUV420 = 4,
 	YUV422,
-	YUV420,
 	YUV444,
 };
 
@@ -101,6 +101,7 @@ struct layer_par {
     u16 xres_virtual;
     u16 yres_virtual;
     unsigned long smem_start;
+    unsigned long cbr_start;  // Cbr memory start address
     enum data_format format;
 	
     bool support_3d;

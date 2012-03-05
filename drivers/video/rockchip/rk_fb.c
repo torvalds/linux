@@ -87,10 +87,17 @@ defautl:we alloc three buffer,one for fb0 and fb2 display ui,one for ipp rotate
 static int rk_fb_open(struct fb_info *info,int user)
 {
     struct rk_fb_inf *inf = dev_get_drvdata(info->device);
+    struct rk_lcdc_device_driver *dev_drv = NULL;
     struct fb_fix_screeninfo *fix = &info->fix;
+    int layer_id;
     if(!strcmp(fix->id,"fb1")){
+        dev_drv = inf->rk_lcdc_device[0];
+        layer_id = 0;
+        dev_drv->blank(dev_drv,1,FB_BLANK_NORMAL);  //when open fb1,defautl close fb0 layer win1
+        dev_drv->blank(dev_drv,layer_id,FB_BLANK_UNBLANK); //open fb1 layer win0
         inf->video_mode = 1;
     }
+    
 
     return 0;
     
@@ -109,41 +116,40 @@ static int rk_fb_release(struct fb_info *info,int user)
 static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			unsigned long arg)
 {
-    struct rk_fb_inf *inf = dev_get_drvdata(info->device);
-    u32 yuv_phy[2];
-    fbprintk(">>>>>> %s : cmd:0x%x \n",__FUNCTION__,cmd);
-
+ 	struct rk_fb_inf *inf = dev_get_drvdata(info->device);
+	struct fb_fix_screeninfo *fix = &info->fix;
+	u32 yuv_phy[2];
+	fbprintk(">>>>>> %s : cmd:0x%x \n",__FUNCTION__,cmd);
 	CHK_SUSPEND(inf);
-
-    switch(cmd)
-    {
-        case FB0_IOCTL_STOP_TIMER_FLUSH:    //stop timer flush mcu panel after android is runing
-            break;
-        case FBIOPUT_16OR32:
-	        break;
-        case FBIOGET_16OR32:
-            break;
-        case FBIOGET_IDLEFBUff_16OR32:
-        case FBIOSET_COMPOSE_LAYER_COUNTS:
-            break;
-        case FBIOGET_COMPOSE_LAYER_COUNTS:
-	    case FBIOPUT_FBPHYADD:
-            return info->fix.smem_start;
-        case FB1_IOCTL_SET_YUV_ADDR:
-            if (copy_from_user(yuv_phy, arg, 8))
-			    return -EFAULT;
-            info->fix.smem_start = yuv_phy[0];
-            info->fix.mmio_start = yuv_phy[1];
-            break;
-        case FBIOGET_OVERLAY_STATE:
-            return inf->video_mode;
-        case FBIOGET_SCREEN_STATE:
-        case FBIOPUT_SET_CURSOR_EN:
-        case FBIOPUT_SET_CURSOR_POS:
-        case FBIOPUT_SET_CURSOR_IMG:
-        case FBIOPUT_SET_CURSOR_CMAP:
-        case FBIOPUT_GET_CURSOR_RESOLUTION:
-        case FBIOPUT_GET_CURSOR_EN:
+	
+	switch(cmd)
+	{
+ 		case FBIOPUT_FBPHYADD:
+			return info->fix.smem_start;
+		case FB1_IOCTL_SET_YUV_ADDR:   //when in video mode, buff alloc by android
+			if((!strcmp(fix->id,"fb1"))||(!strcmp(fix->id,"fb3")))
+			{
+				if (copy_from_user(yuv_phy, arg, 8))
+					return -EFAULT;
+				info->fix.smem_start = yuv_phy[0];  //four y
+				info->fix.mmio_start = yuv_phy[1];  //four uv
+			}
+			break;
+		case FBIOGET_OVERLAY_STATE:
+			return inf->video_mode;
+		case FBIOGET_SCREEN_STATE:
+		case FBIOPUT_SET_CURSOR_EN:
+		case FBIOPUT_SET_CURSOR_POS:
+		case FBIOPUT_SET_CURSOR_IMG:
+		case FBIOPUT_SET_CURSOR_CMAP:
+		case FBIOPUT_GET_CURSOR_RESOLUTION:
+		case FBIOPUT_GET_CURSOR_EN:
+		case FB0_IOCTL_STOP_TIMER_FLUSH:    //stop timer flush mcu panel after android is runing
+		case FBIOPUT_16OR32:
+		case FBIOGET_16OR32:
+		case FBIOGET_IDLEFBUff_16OR32:
+		case FBIOSET_COMPOSE_LAYER_COUNTS:
+		case FBIOGET_COMPOSE_LAYER_COUNTS:
         default:
             break;
     }
@@ -300,7 +306,7 @@ static int rk_fb_set_par(struct fb_info *info)
         layer_id = 0;
     }
     screen = &dev_drv->screen;
-
+//	printk("%s>>>>>>>%s\n",__func__,fix->id);
     if((!strcmp(fix->id,"fb0"))||(!strcmp(fix->id,"fb2")))  //four ui
     {
         xsize = screen->x_res;
@@ -342,7 +348,7 @@ static int rk_fb_set_par(struct fb_info *info)
             par->y_offset = yoffset*xvir + xoffset;
             par->c_offset = par->y_offset;
             break;
-        case 2: // yuv4200
+        case 2: // YUV420
             par->format = YUV420;
             fix->line_length = xvir;
             cblen = crlen = (xvir*yvir)>>2;
@@ -371,6 +377,7 @@ static int rk_fb_set_par(struct fb_info *info)
     par->ysize = ysize;
     
     par->smem_start =fix->smem_start;
+    par->cbr_start = fix->mmio_start;
     par->xact = var->xres;
     par->yact = var->yres;
     par->xres_virtual = xvir;		// virtuail resolution	
