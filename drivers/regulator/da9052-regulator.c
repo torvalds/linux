@@ -400,6 +400,7 @@ static struct regulator_ops da9052_ldo_ops = {
 		.ops = &da9052_ldo5_6_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = _id,\
+		.n_voltages = (max - min) / step + 1, \
 		.owner = THIS_MODULE,\
 	},\
 	.min_uV = (min) * 1000,\
@@ -417,6 +418,7 @@ static struct regulator_ops da9052_ldo_ops = {
 		.ops = &da9052_ldo_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = _id,\
+		.n_voltages = (max - min) / step + 1, \
 		.owner = THIS_MODULE,\
 	},\
 	.min_uV = (min) * 1000,\
@@ -434,6 +436,7 @@ static struct regulator_ops da9052_ldo_ops = {
 		.ops = &da9052_dcdc_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = _id,\
+		.n_voltages = (max - min) / step + 1, \
 		.owner = THIS_MODULE,\
 	},\
 	.min_uV = (min) * 1000,\
@@ -451,6 +454,7 @@ static struct regulator_ops da9052_ldo_ops = {
 		.ops = &da9052_buckperi_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = _id,\
+		.n_voltages = (max - min) / step + 1, \
 		.owner = THIS_MODULE,\
 	},\
 	.min_uV = (min) * 1000,\
