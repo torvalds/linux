@@ -951,12 +951,23 @@ static int blkiocg_file_write(struct cgroup *cgrp, struct cftype *cft,
 	return ret;
 }
 
+static const char *blkg_dev_name(struct blkio_group *blkg)
+{
+	/* some drivers (floppy) instantiate a queue w/o disk registered */
+	if (blkg->q->backing_dev_info.dev)
+		return dev_name(blkg->q->backing_dev_info.dev);
+	return NULL;
+}
+
 static void blkio_print_group_conf(struct cftype *cft, struct blkio_group *blkg,
 				   struct seq_file *m)
 {
-	const char *dname = dev_name(blkg->q->backing_dev_info.dev);
+	const char *dname = blkg_dev_name(blkg);
 	int fileid = BLKIOFILE_ATTR(cft->private);
 	int rw = WRITE;
+
+	if (!dname)
+		return;
 
 	switch (blkg->plid) {
 		case BLKIO_POLICY_PROP:
@@ -1049,9 +1060,9 @@ static int blkio_read_blkg_stats(struct blkio_cgroup *blkcg,
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(blkg, n, &blkcg->blkg_list, blkcg_node) {
-		const char *dname = dev_name(blkg->q->backing_dev_info.dev);
+		const char *dname = blkg_dev_name(blkg);
 
-		if (BLKIOFILE_POLICY(cft->private) != blkg->plid)
+		if (!dname || BLKIOFILE_POLICY(cft->private) != blkg->plid)
 			continue;
 		if (pcpu)
 			cgroup_total += blkio_get_stat_cpu(blkg, cb, dname,
