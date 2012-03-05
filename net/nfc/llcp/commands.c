@@ -444,29 +444,58 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 				struct msghdr *msg, size_t len)
 {
 	struct sk_buff *pdu;
-	struct sock *sk;
+	struct sock *sk = &sock->sk;
+	struct nfc_llcp_local *local;
+	size_t frag_len = 0, remaining_len;
+	u8 *msg_data, *msg_ptr;
 
-	pr_debug("Send I frame\n");
+	pr_debug("Send I frame len %zd\n", len);
 
-	pdu = llcp_allocate_pdu(sock, LLCP_PDU_I, len + LLCP_SEQUENCE_SIZE);
-	if (pdu == NULL)
+	local = sock->local;
+	if (local == NULL)
+		return -ENODEV;
+
+	msg_data = kzalloc(len, GFP_KERNEL);
+	if (msg_data == NULL)
 		return -ENOMEM;
 
-	skb_put(pdu, LLCP_SEQUENCE_SIZE);
-
-	if (memcpy_fromiovec(skb_put(pdu, len), msg->msg_iov, len)) {
-		kfree_skb(pdu);
-		return -EFAULT;
+	if (memcpy_fromiovec(msg_data, msg->msg_iov, len)) {
+			kfree(msg_data);
+			return -EFAULT;
 	}
 
-	skb_queue_head(&sock->tx_queue, pdu);
+	remaining_len = len;
+	msg_ptr = msg_data;
 
-	sk = &sock->sk;
-	lock_sock(sk);
+	while (remaining_len > 0) {
 
-	nfc_llcp_queue_i_frames(sock);
+		frag_len = min_t(u16, local->remote_miu, remaining_len);
 
-	release_sock(sk);
+		pr_debug("Fragment %zd bytes remaining %zd",
+			 frag_len, remaining_len);
+
+		pdu = llcp_allocate_pdu(sock, LLCP_PDU_I,
+					frag_len + LLCP_SEQUENCE_SIZE);
+		if (pdu == NULL)
+			return -ENOMEM;
+
+		skb_put(pdu, LLCP_SEQUENCE_SIZE);
+
+		memcpy(skb_put(pdu, frag_len), msg_ptr, frag_len);
+
+		skb_queue_head(&sock->tx_queue, pdu);
+
+		lock_sock(sk);
+
+		nfc_llcp_queue_i_frames(sock);
+
+		release_sock(sk);
+
+		remaining_len -= frag_len;
+		msg_ptr += len;
+	}
+
+	kfree(msg_data);
 
 	return 0;
 }
