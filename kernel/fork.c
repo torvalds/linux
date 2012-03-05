@@ -901,9 +901,8 @@ static int copy_io(unsigned long clone_flags, struct task_struct *tsk)
 	 * Share io context with parent, if CLONE_IO is set
 	 */
 	if (clone_flags & CLONE_IO) {
-		tsk->io_context = ioc_task_link(ioc);
-		if (unlikely(!tsk->io_context))
-			return -ENOMEM;
+		ioc_task_link(ioc);
+		tsk->io_context = ioc;
 	} else if (ioprio_valid(ioc->ioprio)) {
 		new_ioc = get_task_io_context(tsk, GFP_KERNEL, NUMA_NO_NODE);
 		if (unlikely(!new_ioc))
