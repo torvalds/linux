@@ -88,10 +88,7 @@ config IMX_HAVE_IOMUX_V1
 config ARCH_MXC_IOMUX_V3
 	bool
 
-config ARCH_MXC_AUDMUX_V1
-	bool
-
-config ARCH_MXC_AUDMUX_V2
+config ARCH_MXC_AUDMUX
 	bool
 
 config IRAM_ALLOC

@@ -165,6 +165,24 @@ static inline void audmux_debugfs_init(void)
 }
 #endif
 
+static const uint8_t port_mapping[] = {
+	0x0, 0x4, 0x8, 0x10, 0x14, 0x1c,
+};
+
+int mxc_audmux_v1_configure_port(unsigned int port, unsigned int pcr)
+{
+	if (!audmux_base)
+		return -ENOSYS;
+
+	if (port >= ARRAY_SIZE(port_mapping))
+		return -EINVAL;
+
+	writel(pcr, audmux_base + port_mapping[port]);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mxc_audmux_v1_configure_port);
+
 int mxc_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
 		unsigned int pdcr)
 {
@@ -184,7 +202,7 @@ int mxc_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
 }
 EXPORT_SYMBOL_GPL(mxc_audmux_v2_configure_port);
 
-static int mxc_audmux_v2_init(void)
+static int mxc_audmux_init(void)
 {
 	int ret;
 	if (cpu_is_mx51()) {
@@ -209,11 +227,16 @@ static int mxc_audmux_v2_init(void)
 			return ret;
 		}
 		audmux_base = MX25_IO_ADDRESS(MX25_AUDMUX_BASE_ADDR);
+	} else if (cpu_is_mx27()) {
+		audmux_base = MX27_IO_ADDRESS(MX27_AUDMUX_BASE_ADDR);
+	} else if (cpu_is_mx21()) {
+		audmux_base = MX21_IO_ADDRESS(MX21_AUDMUX_BASE_ADDR);
 	}
 
-	audmux_debugfs_init();
+	if (!cpu_is_mx2())
+		audmux_debugfs_init();
 
 	return 0;
 }
 
-postcore_initcall(mxc_audmux_v2_init);
+postcore_initcall(mxc_audmux_init);
