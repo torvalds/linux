@@ -2413,7 +2413,7 @@ static int get_lsr_info(struct cyclades_port *info, unsigned int __user *value)
 		/* Not supported yet */
 		return -EINVAL;
 	}
-	return put_user(result, (unsigned long __user *)value);
+	return put_user(result, value);
 }
 
 static int cy_tiocmget(struct tty_struct *tty)
