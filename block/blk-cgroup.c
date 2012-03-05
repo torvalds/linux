@@ -465,38 +465,93 @@ void blkiocg_update_io_merged_stats(struct blkio_group *blkg, bool direction,
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_io_merged_stats);
 
-/*
- * This function allocates the per cpu stats for blkio_group. Should be called
- * from sleepable context as alloc_per_cpu() requires that.
- */
-int blkio_alloc_blkg_stats(struct blkio_group *blkg)
+struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
+				       struct request_queue *q,
+				       enum blkio_policy_id plid,
+				       bool for_root)
+	__releases(q->queue_lock) __acquires(q->queue_lock)
 {
-	/* Allocate memory for per cpu stats */
-	blkg->stats_cpu = alloc_percpu(struct blkio_group_stats_cpu);
-	if (!blkg->stats_cpu)
-		return -ENOMEM;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(blkio_alloc_blkg_stats);
+	struct blkio_policy_type *pol = blkio_policy[plid];
+	struct blkio_group *blkg, *new_blkg;
 
-void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
-		struct blkio_group *blkg, struct request_queue *q, dev_t dev,
-		enum blkio_policy_id plid)
-{
-	unsigned long flags;
+	WARN_ON_ONCE(!rcu_read_lock_held());
+	lockdep_assert_held(q->queue_lock);
 
-	spin_lock_irqsave(&blkcg->lock, flags);
-	spin_lock_init(&blkg->stats_lock);
-	rcu_assign_pointer(blkg->q, q);
-	blkg->blkcg_id = css_id(&blkcg->css);
+	/*
+	 * This could be the first entry point of blkcg implementation and
+	 * we shouldn't allow anything to go through for a bypassing queue.
+	 * The following can be removed if blkg lookup is guaranteed to
+	 * fail on a bypassing queue.
+	 */
+	if (unlikely(blk_queue_bypass(q)) && !for_root)
+		return ERR_PTR(blk_queue_dead(q) ? -EINVAL : -EBUSY);
+
+	blkg = blkg_lookup(blkcg, q, plid);
+	if (blkg)
+		return blkg;
+
+	if (!css_tryget(&blkcg->css))
+		return ERR_PTR(-EINVAL);
+
+	/*
+	 * Allocate and initialize.
+	 *
+	 * FIXME: The following is broken.  Percpu memory allocation
+	 * requires %GFP_KERNEL context and can't be performed from IO
+	 * path.  Allocation here should inherently be atomic and the
+	 * following lock dancing can be removed once the broken percpu
+	 * allocation is fixed.
+	 */
+	spin_unlock_irq(q->queue_lock);
+	rcu_read_unlock();
+
+	new_blkg = pol->ops.blkio_alloc_group_fn(q, blkcg);
+	if (new_blkg) {
+		new_blkg->stats_cpu = alloc_percpu(struct blkio_group_stats_cpu);
+
+		spin_lock_init(&new_blkg->stats_lock);
+		rcu_assign_pointer(new_blkg->q, q);
+		new_blkg->blkcg_id = css_id(&blkcg->css);
+		new_blkg->plid = plid;
+		cgroup_path(blkcg->css.cgroup, new_blkg->path,
+			    sizeof(new_blkg->path));
+	}
+
+	rcu_read_lock();
+	spin_lock_irq(q->queue_lock);
+	css_put(&blkcg->css);
+
+	/* did bypass get turned on inbetween? */
+	if (unlikely(blk_queue_bypass(q)) && !for_root) {
+		blkg = ERR_PTR(blk_queue_dead(q) ? -EINVAL : -EBUSY);
+		goto out;
+	}
+
+	/* did someone beat us to it? */
+	blkg = blkg_lookup(blkcg, q, plid);
+	if (unlikely(blkg))
+		goto out;
+
+	/* did alloc fail? */
+	if (unlikely(!new_blkg || !new_blkg->stats_cpu)) {
+		blkg = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+
+	/* insert */
+	spin_lock(&blkcg->lock);
+	swap(blkg, new_blkg);
 	hlist_add_head_rcu(&blkg->blkcg_node, &blkcg->blkg_list);
-	blkg->plid = plid;
-	spin_unlock_irqrestore(&blkcg->lock, flags);
-	/* Need to take css reference ? */
-	cgroup_path(blkcg->css.cgroup, blkg->path, sizeof(blkg->path));
-	blkg->dev = dev;
+	pol->ops.blkio_link_group_fn(q, blkg);
+	spin_unlock(&blkcg->lock);
+out:
+	if (new_blkg) {
+		free_percpu(new_blkg->stats_cpu);
+		kfree(new_blkg);
+	}
+	return blkg;
 }
-EXPORT_SYMBOL_GPL(blkiocg_add_blkio_group);
+EXPORT_SYMBOL_GPL(blkg_lookup_create);
 
 static void __blkiocg_del_blkio_group(struct blkio_group *blkg)
 {
@@ -533,9 +588,9 @@ int blkiocg_del_blkio_group(struct blkio_group *blkg)
 EXPORT_SYMBOL_GPL(blkiocg_del_blkio_group);
 
 /* called under rcu_read_lock(). */
-struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg,
-					 struct request_queue *q,
-					 enum blkio_policy_id plid)
+struct blkio_group *blkg_lookup(struct blkio_cgroup *blkcg,
+				struct request_queue *q,
+				enum blkio_policy_id plid)
 {
 	struct blkio_group *blkg;
 	struct hlist_node *n;
@@ -545,7 +600,7 @@ struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg,
 			return blkg;
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(blkiocg_lookup_group);
+EXPORT_SYMBOL_GPL(blkg_lookup);
 
 void blkg_destroy_all(struct request_queue *q)
 {

@@ -1048,10 +1048,12 @@ static void cfq_update_blkio_group_weight(struct request_queue *q,
 	cfqg->needs_update = true;
 }
 
-static void cfq_init_add_cfqg_lists(struct cfq_data *cfqd,
-			struct cfq_group *cfqg, struct blkio_cgroup *blkcg)
+static void cfq_link_blkio_group(struct request_queue *q,
+				 struct blkio_group *blkg)
 {
-	struct backing_dev_info *bdi = &cfqd->queue->backing_dev_info;
+	struct cfq_data *cfqd = q->elevator->elevator_data;
+	struct backing_dev_info *bdi = &q->backing_dev_info;
+	struct cfq_group *cfqg = cfqg_of_blkg(blkg);
 	unsigned int major, minor;
 
 	/*
@@ -1062,34 +1064,26 @@ static void cfq_init_add_cfqg_lists(struct cfq_data *cfqd,
 	 */
 	if (bdi->dev) {
 		sscanf(dev_name(bdi->dev), "%u:%u", &major, &minor);
-		cfq_blkiocg_add_blkio_group(blkcg, &cfqg->blkg,
-					cfqd->queue, MKDEV(major, minor));
-	} else
-		cfq_blkiocg_add_blkio_group(blkcg, &cfqg->blkg,
-					cfqd->queue, 0);
+		blkg->dev = MKDEV(major, minor);
+	}
 
 	cfqd->nr_blkcg_linked_grps++;
-	cfqg->weight = blkcg_get_weight(blkcg, cfqg->blkg.dev);
 
 	/* Add group on cfqd list */
 	hlist_add_head(&cfqg->cfqd_node, &cfqd->cfqg_list);
 }
 
-/*
- * Should be called from sleepable context. No request queue lock as per
- * cpu stats are allocated dynamically and alloc_percpu needs to be called
- * from sleepable context.
- */
-static struct cfq_group * cfq_alloc_cfqg(struct cfq_data *cfqd)
+static struct blkio_group *cfq_alloc_blkio_group(struct request_queue *q,
+						 struct blkio_cgroup *blkcg)
 {
 	struct cfq_group *cfqg;
-	int ret;
 
-	cfqg = kzalloc_node(sizeof(*cfqg), GFP_ATOMIC, cfqd->queue->node);
+	cfqg = kzalloc_node(sizeof(*cfqg), GFP_ATOMIC, q->node);
 	if (!cfqg)
 		return NULL;
 
 	cfq_init_cfqg_base(cfqg);
+	cfqg->weight = blkcg_get_weight(blkcg, cfqg->blkg.dev);
 
 	/*
 	 * Take the initial reference that will be released on destroy
@@ -1099,90 +1093,38 @@ static struct cfq_group * cfq_alloc_cfqg(struct cfq_data *cfqd)
 	 */
 	cfqg->ref = 1;
 
-	ret = blkio_alloc_blkg_stats(&cfqg->blkg);
-	if (ret) {
-		kfree(cfqg);
-		return NULL;
-	}
-
-	return cfqg;
-}
-
-static struct cfq_group *
-cfq_find_cfqg(struct cfq_data *cfqd, struct blkio_cgroup *blkcg)
-{
-	struct cfq_group *cfqg = NULL;
-	struct backing_dev_info *bdi = &cfqd->queue->backing_dev_info;
-	unsigned int major, minor;
-
-	/*
-	 * This is the common case when there are no blkio cgroups.
-	 * Avoid lookup in this case
-	 */
-	if (blkcg == &blkio_root_cgroup)
-		cfqg = cfqd->root_group;
-	else
-		cfqg = cfqg_of_blkg(blkiocg_lookup_group(blkcg, cfqd->queue,
-							 BLKIO_POLICY_PROP));
-
-	if (cfqg && !cfqg->blkg.dev && bdi->dev && dev_name(bdi->dev)) {
-		sscanf(dev_name(bdi->dev), "%u:%u", &major, &minor);
-		cfqg->blkg.dev = MKDEV(major, minor);
-	}
-
-	return cfqg;
+	return &cfqg->blkg;
 }
 
 /*
  * Search for the cfq group current task belongs to. request_queue lock must
  * be held.
  */
-static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd,
-				      struct blkio_cgroup *blkcg)
+static struct cfq_group *cfq_lookup_create_cfqg(struct cfq_data *cfqd,
+						struct blkio_cgroup *blkcg)
 {
-	struct cfq_group *cfqg = NULL, *__cfqg = NULL;
 	struct request_queue *q = cfqd->queue;
+	struct backing_dev_info *bdi = &q->backing_dev_info;
+	struct cfq_group *cfqg = NULL;
 
-	cfqg = cfq_find_cfqg(cfqd, blkcg);
-	if (cfqg)
-		return cfqg;
+	/* avoid lookup for the common case where there's no blkio cgroup */
+	if (blkcg == &blkio_root_cgroup) {
+		cfqg = cfqd->root_group;
+	} else {
+		struct blkio_group *blkg;
 
-	if (!css_tryget(&blkcg->css))
-		return NULL;
-
-	/*
-	 * Need to allocate a group. Allocation of group also needs allocation
-	 * of per cpu stats which in-turn takes a mutex() and can block. Hence
-	 * we need to drop rcu lock and queue_lock before we call alloc.
-	 *
-	 * Not taking any queue reference here and assuming that queue is
-	 * around by the time we return. CFQ queue allocation code does
-	 * the same. It might be racy though.
-	 */
-	rcu_read_unlock();
-	spin_unlock_irq(q->queue_lock);
-
-	cfqg = cfq_alloc_cfqg(cfqd);
-
-	spin_lock_irq(q->queue_lock);
-	rcu_read_lock();
-	css_put(&blkcg->css);
-
-	/*
-	 * If some other thread already allocated the group while we were
-	 * not holding queue lock, free up the group
-	 */
-	__cfqg = cfq_find_cfqg(cfqd, blkcg);
-
-	if (__cfqg) {
-		kfree(cfqg);
-		return __cfqg;
+		blkg = blkg_lookup_create(blkcg, q, BLKIO_POLICY_PROP, false);
+		if (!IS_ERR(blkg))
+			cfqg = cfqg_of_blkg(blkg);
 	}
 
-	if (!cfqg)
-		cfqg = cfqd->root_group;
+	if (cfqg && !cfqg->blkg.dev && bdi->dev && dev_name(bdi->dev)) {
+		unsigned int major, minor;
 
-	cfq_init_add_cfqg_lists(cfqd, cfqg, blkcg);
+		sscanf(dev_name(bdi->dev), "%u:%u", &major, &minor);
+		cfqg->blkg.dev = MKDEV(major, minor);
+	}
+
 	return cfqg;
 }
 
@@ -1294,8 +1236,8 @@ static bool cfq_clear_queue(struct request_queue *q)
 }
 
 #else /* GROUP_IOSCHED */
-static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd,
-				      struct blkio_cgroup *blkcg)
+static struct cfq_group *cfq_lookup_create_cfqg(struct cfq_data *cfqd,
+						struct blkio_cgroup *blkcg)
 {
 	return cfqd->root_group;
 }
@@ -2887,7 +2829,8 @@ retry:
 
 	blkcg = task_blkio_cgroup(current);
 
-	cfqg = cfq_get_cfqg(cfqd, blkcg);
+	cfqg = cfq_lookup_create_cfqg(cfqd, blkcg);
+
 	cic = cfq_cic_lookup(cfqd, ioc);
 	/* cic always exists here */
 	cfqq = cic_to_cfqq(cic, is_sync);
@@ -3694,6 +3637,7 @@ static void cfq_exit_queue(struct elevator_queue *e)
 static int cfq_init_queue(struct request_queue *q)
 {
 	struct cfq_data *cfqd;
+	struct blkio_group *blkg __maybe_unused;
 	int i;
 
 	cfqd = kmalloc_node(sizeof(*cfqd), GFP_KERNEL | __GFP_ZERO, q->node);
@@ -3711,7 +3655,10 @@ static int cfq_init_queue(struct request_queue *q)
 	rcu_read_lock();
 	spin_lock_irq(q->queue_lock);
 
-	cfqd->root_group = cfq_get_cfqg(cfqd, &blkio_root_cgroup);
+	blkg = blkg_lookup_create(&blkio_root_cgroup, q, BLKIO_POLICY_PROP,
+				  true);
+	if (!IS_ERR(blkg))
+		cfqd->root_group = cfqg_of_blkg(blkg);
 
 	spin_unlock_irq(q->queue_lock);
 	rcu_read_unlock();
@@ -3897,6 +3844,8 @@ static struct elevator_type iosched_cfq = {
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
 static struct blkio_policy_type blkio_policy_cfq = {
 	.ops = {
+		.blkio_alloc_group_fn =		cfq_alloc_blkio_group,
+		.blkio_link_group_fn =		cfq_link_blkio_group,
 		.blkio_unlink_group_fn =	cfq_unlink_blkio_group,
 		.blkio_clear_queue_fn = cfq_clear_queue,
 		.blkio_update_group_weight_fn =	cfq_update_blkio_group_weight,

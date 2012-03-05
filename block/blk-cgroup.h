@@ -204,6 +204,10 @@ extern unsigned int blkcg_get_read_iops(struct blkio_cgroup *blkcg,
 extern unsigned int blkcg_get_write_iops(struct blkio_cgroup *blkcg,
 				     dev_t dev);
 
+typedef struct blkio_group *(blkio_alloc_group_fn)(struct request_queue *q,
+						   struct blkio_cgroup *blkcg);
+typedef void (blkio_link_group_fn)(struct request_queue *q,
+			struct blkio_group *blkg);
 typedef void (blkio_unlink_group_fn)(struct request_queue *q,
 			struct blkio_group *blkg);
 typedef bool (blkio_clear_queue_fn)(struct request_queue *q);
@@ -219,6 +223,8 @@ typedef void (blkio_update_group_write_iops_fn)(struct request_queue *q,
 			struct blkio_group *blkg, unsigned int write_iops);
 
 struct blkio_policy_ops {
+	blkio_alloc_group_fn *blkio_alloc_group_fn;
+	blkio_link_group_fn *blkio_link_group_fn;
 	blkio_unlink_group_fn *blkio_unlink_group_fn;
 	blkio_clear_queue_fn *blkio_clear_queue_fn;
 	blkio_update_group_weight_fn *blkio_update_group_weight_fn;
@@ -307,14 +313,14 @@ static inline void blkiocg_set_start_empty_time(struct blkio_group *blkg) {}
 extern struct blkio_cgroup blkio_root_cgroup;
 extern struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup);
 extern struct blkio_cgroup *task_blkio_cgroup(struct task_struct *tsk);
-extern void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
-	struct blkio_group *blkg, struct request_queue *q, dev_t dev,
-	enum blkio_policy_id plid);
-extern int blkio_alloc_blkg_stats(struct blkio_group *blkg);
 extern int blkiocg_del_blkio_group(struct blkio_group *blkg);
-extern struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg,
-						struct request_queue *q,
-						enum blkio_policy_id plid);
+extern struct blkio_group *blkg_lookup(struct blkio_cgroup *blkcg,
+				       struct request_queue *q,
+				       enum blkio_policy_id plid);
+struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
+				       struct request_queue *q,
+				       enum blkio_policy_id plid,
+				       bool for_root);
 void blkiocg_update_timeslice_used(struct blkio_group *blkg,
 					unsigned long time,
 					unsigned long unaccounted_time);
@@ -335,17 +341,11 @@ cgroup_to_blkio_cgroup(struct cgroup *cgroup) { return NULL; }
 static inline struct blkio_cgroup *
 task_blkio_cgroup(struct task_struct *tsk) { return NULL; }
 
-static inline void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
-		struct blkio_group *blkg, void *key, dev_t dev,
-		enum blkio_policy_id plid) {}
-
-static inline int blkio_alloc_blkg_stats(struct blkio_group *blkg) { return 0; }
-
 static inline int
 blkiocg_del_blkio_group(struct blkio_group *blkg) { return 0; }
 
-static inline struct blkio_group *
-blkiocg_lookup_group(struct blkio_cgroup *blkcg, void *key) { return NULL; }
+static inline struct blkio_group *blkg_lookup(struct blkio_cgroup *blkcg,
+					      void *key) { return NULL; }
 static inline void blkiocg_update_timeslice_used(struct blkio_group *blkg,
 						unsigned long time,
 						unsigned long unaccounted_time)
