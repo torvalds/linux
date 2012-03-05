@@ -177,6 +177,8 @@ struct blkio_group {
 	char path[128];
 	/* policy which owns this blk group */
 	enum blkio_policy_id plid;
+	/* reference count */
+	int refcnt;
 
 	/* Configuration */
 	struct blkio_group_conf conf;
@@ -188,6 +190,8 @@ struct blkio_group {
 	struct blkio_group_stats_cpu __percpu *stats_cpu;
 
 	struct blkg_policy_data *pd;
+
+	struct rcu_head rcu_head;
 };
 
 typedef void (blkio_init_group_fn)(struct blkio_group *blkg);
@@ -272,6 +276,35 @@ static inline char *blkg_path(struct blkio_group *blkg)
 	return blkg->path;
 }
 
+/**
+ * blkg_get - get a blkg reference
+ * @blkg: blkg to get
+ *
+ * The caller should be holding queue_lock and an existing reference.
+ */
+static inline void blkg_get(struct blkio_group *blkg)
+{
+	lockdep_assert_held(blkg->q->queue_lock);
+	WARN_ON_ONCE(!blkg->refcnt);
+	blkg->refcnt++;
+}
+
+void __blkg_release(struct blkio_group *blkg);
+
+/**
+ * blkg_put - put a blkg reference
+ * @blkg: blkg to put
+ *
+ * The caller should be holding queue_lock.
+ */
+static inline void blkg_put(struct blkio_group *blkg)
+{
+	lockdep_assert_held(blkg->q->queue_lock);
+	WARN_ON_ONCE(blkg->refcnt <= 0);
+	if (!--blkg->refcnt)
+		__blkg_release(blkg);
+}
+
 #else
 
 struct blkio_group {
@@ -292,6 +325,8 @@ static inline void *blkg_to_pdata(struct blkio_group *blkg,
 static inline struct blkio_group *pdata_to_blkg(void *pdata,
 				struct blkio_policy_type *pol) { return NULL; }
 static inline char *blkg_path(struct blkio_group *blkg) { return NULL; }
+static inline void blkg_get(struct blkio_group *blkg) { }
+static inline void blkg_put(struct blkio_group *blkg) { }
 
 #endif
 

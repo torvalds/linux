@@ -54,7 +54,6 @@ struct throtl_grp {
 	 */
 	unsigned long disptime;
 
-	atomic_t ref;
 	unsigned int flags;
 
 	/* Two lists for READ and WRITE */
@@ -80,8 +79,6 @@ struct throtl_grp {
 
 	/* Some throttle limits got updated for the group */
 	int limits_changed;
-
-	struct rcu_head rcu_head;
 };
 
 struct throtl_data
@@ -151,45 +148,6 @@ static inline unsigned int total_nr_queued(struct throtl_data *td)
 	return td->nr_queued[0] + td->nr_queued[1];
 }
 
-static inline struct throtl_grp *throtl_ref_get_tg(struct throtl_grp *tg)
-{
-	atomic_inc(&tg->ref);
-	return tg;
-}
-
-static void throtl_free_tg(struct rcu_head *head)
-{
-	struct throtl_grp *tg = container_of(head, struct throtl_grp, rcu_head);
-	struct blkio_group *blkg = tg_to_blkg(tg);
-
-	free_percpu(blkg->stats_cpu);
-	kfree(blkg->pd);
-	kfree(blkg);
-}
-
-static void throtl_put_tg(struct throtl_grp *tg)
-{
-	struct blkio_group *blkg = tg_to_blkg(tg);
-
-	BUG_ON(atomic_read(&tg->ref) <= 0);
-	if (!atomic_dec_and_test(&tg->ref))
-		return;
-
-	/* release the extra blkcg reference this blkg has been holding */
-	css_put(&blkg->blkcg->css);
-
-	/*
-	 * A group is freed in rcu manner. But having an rcu lock does not
-	 * mean that one can access all the fields of blkg and assume these
-	 * are valid. For example, don't try to follow throtl_data and
-	 * request queue links.
-	 *
-	 * Having a reference to blkg under an rcu allows acess to only
-	 * values local to groups like group stats and group rate limits
-	 */
-	call_rcu(&tg->rcu_head, throtl_free_tg);
-}
-
 static void throtl_init_blkio_group(struct blkio_group *blkg)
 {
 	struct throtl_grp *tg = blkg_to_tg(blkg);
@@ -204,14 +162,6 @@ static void throtl_init_blkio_group(struct blkio_group *blkg)
 	tg->bps[WRITE] = -1;
 	tg->iops[READ] = -1;
 	tg->iops[WRITE] = -1;
-
-	/*
-	 * Take the initial reference that will be released on destroy
-	 * This can be thought of a joint reference by cgroup and
-	 * request queue which will be dropped by either request queue
-	 * exit or cgroup deletion path depending on who is exiting first.
-	 */
-	atomic_set(&tg->ref, 1);
 }
 
 static void throtl_link_blkio_group(struct request_queue *q,
@@ -648,7 +598,7 @@ static void throtl_add_bio_tg(struct throtl_data *td, struct throtl_grp *tg,
 
 	bio_list_add(&tg->bio_lists[rw], bio);
 	/* Take a bio reference on tg */
-	throtl_ref_get_tg(tg);
+	blkg_get(tg_to_blkg(tg));
 	tg->nr_queued[rw]++;
 	td->nr_queued[rw]++;
 	throtl_enqueue_tg(td, tg);
@@ -681,8 +631,8 @@ static void tg_dispatch_one_bio(struct throtl_data *td, struct throtl_grp *tg,
 
 	bio = bio_list_pop(&tg->bio_lists[rw]);
 	tg->nr_queued[rw]--;
-	/* Drop bio reference on tg */
-	throtl_put_tg(tg);
+	/* Drop bio reference on blkg */
+	blkg_put(tg_to_blkg(tg));
 
 	BUG_ON(td->nr_queued[rw] <= 0);
 	td->nr_queued[rw]--;
@@ -880,7 +830,7 @@ throtl_destroy_tg(struct throtl_data *td, struct throtl_grp *tg)
 	 * Put the reference taken at the time of creation so that when all
 	 * queues are gone, group can be destroyed.
 	 */
-	throtl_put_tg(tg);
+	blkg_put(tg_to_blkg(tg));
 	td->nr_undestroyed_grps--;
 }
 

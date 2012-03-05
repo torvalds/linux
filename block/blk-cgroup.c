@@ -463,6 +463,7 @@ static struct blkio_group *blkg_alloc(struct blkio_cgroup *blkcg,
 	rcu_assign_pointer(blkg->q, q);
 	blkg->blkcg = blkcg;
 	blkg->plid = pol->plid;
+	blkg->refcnt = 1;
 	cgroup_path(blkcg->css.cgroup, blkg->path, sizeof(blkg->path));
 
 	/* alloc per-policy data */
@@ -632,6 +633,29 @@ void blkg_destroy_all(struct request_queue *q)
 		msleep(10);	/* just some random duration I like */
 	}
 }
+
+static void blkg_rcu_free(struct rcu_head *rcu_head)
+{
+	blkg_free(container_of(rcu_head, struct blkio_group, rcu_head));
+}
+
+void __blkg_release(struct blkio_group *blkg)
+{
+	/* release the extra blkcg reference this blkg has been holding */
+	css_put(&blkg->blkcg->css);
+
+	/*
+	 * A group is freed in rcu manner. But having an rcu lock does not
+	 * mean that one can access all the fields of blkg and assume these
+	 * are valid. For example, don't try to follow throtl_data and
+	 * request queue links.
+	 *
+	 * Having a reference to blkg under an rcu allows acess to only
+	 * values local to groups like group stats and group rate limits
+	 */
+	call_rcu(&blkg->rcu_head, blkg_rcu_free);
+}
+EXPORT_SYMBOL_GPL(__blkg_release);
 
 static void blkio_reset_stats_cpu(struct blkio_group *blkg)
 {
