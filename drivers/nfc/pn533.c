@@ -828,6 +828,8 @@ static int pn533_target_found_jewel(struct nfc_target *nfc_tgt, u8 *tgt_data,
 
 	nfc_tgt->supported_protocols = NFC_PROTO_JEWEL_MASK;
 	nfc_tgt->sens_res = be16_to_cpu(tgt_jewel->sens_res);
+	nfc_tgt->nfcid1_len = 4;
+	memcpy(nfc_tgt->nfcid1, tgt_jewel->jewelid, nfc_tgt->nfcid1_len);
 
 	return 0;
 }
