@@ -696,7 +696,7 @@ static inline void blk_free_request(struct request_queue *q, struct request *rq)
 }
 
 static struct request *
-blk_alloc_request(struct request_queue *q, struct io_cq *icq,
+blk_alloc_request(struct request_queue *q, struct bio *bio, struct io_cq *icq,
 		  unsigned int flags, gfp_t gfp_mask)
 {
 	struct request *rq = mempool_alloc(q->rq.rq_pool, gfp_mask);
@@ -710,7 +710,7 @@ blk_alloc_request(struct request_queue *q, struct io_cq *icq,
 
 	if (flags & REQ_ELVPRIV) {
 		rq->elv.icq = icq;
-		if (unlikely(elv_set_request(q, rq, gfp_mask))) {
+		if (unlikely(elv_set_request(q, rq, bio, gfp_mask))) {
 			mempool_free(rq, q->rq.rq_pool);
 			return NULL;
 		}
@@ -810,6 +810,22 @@ static bool blk_rq_should_init_elevator(struct bio *bio)
 }
 
 /**
+ * rq_ioc - determine io_context for request allocation
+ * @bio: request being allocated is for this bio (can be %NULL)
+ *
+ * Determine io_context to use for request allocation for @bio.  May return
+ * %NULL if %current->io_context doesn't exist.
+ */
+static struct io_context *rq_ioc(struct bio *bio)
+{
+#ifdef CONFIG_BLK_CGROUP
+	if (bio && bio->bi_ioc)
+		return bio->bi_ioc;
+#endif
+	return current->io_context;
+}
+
+/**
  * get_request - get a free request
  * @q: request_queue to allocate request from
  * @rw_flags: RW and SYNC flags
@@ -836,7 +852,7 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 	int may_queue;
 retry:
 	et = q->elevator->type;
-	ioc = current->io_context;
+	ioc = rq_ioc(bio);
 
 	if (unlikely(blk_queue_dead(q)))
 		return NULL;
@@ -919,14 +935,16 @@ retry:
 
 	/* create icq if missing */
 	if ((rw_flags & REQ_ELVPRIV) && unlikely(et->icq_cache && !icq)) {
-		ioc = create_io_context(gfp_mask, q->node);
-		if (ioc)
-			icq = ioc_create_icq(ioc, q, gfp_mask);
+		create_io_context(gfp_mask, q->node);
+		ioc = rq_ioc(bio);
+		if (!ioc)
+			goto fail_alloc;
+		icq = ioc_create_icq(ioc, q, gfp_mask);
 		if (!icq)
 			goto fail_alloc;
 	}
 
-	rq = blk_alloc_request(q, icq, rw_flags, gfp_mask);
+	rq = blk_alloc_request(q, bio, icq, rw_flags, gfp_mask);
 	if (unlikely(!rq))
 		goto fail_alloc;
 
