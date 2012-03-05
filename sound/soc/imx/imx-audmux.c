@@ -32,8 +32,8 @@
 static struct clk *audmux_clk;
 static void __iomem *audmux_base;
 
-#define MXC_AUDMUX_V2_PTCR(x)		((x) * 8)
-#define MXC_AUDMUX_V2_PDCR(x)		((x) * 8 + 4)
+#define IMX_AUDMUX_V2_PTCR(x)		((x) * 8)
+#define IMX_AUDMUX_V2_PDCR(x)		((x) * 8 + 4)
 
 #ifdef CONFIG_DEBUG_FS
 static struct dentry *audmux_debugfs_root;
@@ -80,8 +80,8 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 	if (audmux_clk)
 		clk_enable(audmux_clk);
 
-	ptcr = readl(audmux_base + MXC_AUDMUX_V2_PTCR(port));
-	pdcr = readl(audmux_base + MXC_AUDMUX_V2_PDCR(port));
+	ptcr = readl(audmux_base + IMX_AUDMUX_V2_PTCR(port));
+	pdcr = readl(audmux_base + IMX_AUDMUX_V2_PDCR(port));
 
 	if (audmux_clk)
 		clk_disable(audmux_clk);
@@ -89,7 +89,7 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 	ret = snprintf(buf, PAGE_SIZE, "PDCR: %08x\nPTCR: %08x\n",
 		       pdcr, ptcr);
 
-	if (ptcr & MXC_AUDMUX_V2_PTCR_TFSDIR)
+	if (ptcr & IMX_AUDMUX_V2_PTCR_TFSDIR)
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
 				"TxFS output from %s, ",
 				audmux_port_string((ptcr >> 27) & 0x7));
@@ -97,7 +97,7 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
 				"TxFS input, ");
 
-	if (ptcr & MXC_AUDMUX_V2_PTCR_TCLKDIR)
+	if (ptcr & IMX_AUDMUX_V2_PTCR_TCLKDIR)
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
 				"TxClk output from %s",
 				audmux_port_string((ptcr >> 22) & 0x7));
@@ -107,11 +107,11 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 
 	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
 
-	if (ptcr & MXC_AUDMUX_V2_PTCR_SYN) {
+	if (ptcr & IMX_AUDMUX_V2_PTCR_SYN) {
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
 				"Port is symmetric");
 	} else {
-		if (ptcr & MXC_AUDMUX_V2_PTCR_RFSDIR)
+		if (ptcr & IMX_AUDMUX_V2_PTCR_RFSDIR)
 			ret += snprintf(buf + ret, PAGE_SIZE - ret,
 					"RxFS output from %s, ",
 					audmux_port_string((ptcr >> 17) & 0x7));
@@ -119,7 +119,7 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 			ret += snprintf(buf + ret, PAGE_SIZE - ret,
 					"RxFS input, ");
 
-		if (ptcr & MXC_AUDMUX_V2_PTCR_RCLKDIR)
+		if (ptcr & IMX_AUDMUX_V2_PTCR_RCLKDIR)
 			ret += snprintf(buf + ret, PAGE_SIZE - ret,
 					"RxClk output from %s",
 					audmux_port_string((ptcr >> 12) & 0x7));
@@ -201,7 +201,7 @@ static const uint8_t port_mapping[] = {
 	0x0, 0x4, 0x8, 0x10, 0x14, 0x1c,
 };
 
-int mxc_audmux_v1_configure_port(unsigned int port, unsigned int pcr)
+int imx_audmux_v1_configure_port(unsigned int port, unsigned int pcr)
 {
 	if (audmux_type != IMX21_AUDMUX)
 		return -EINVAL;
@@ -216,9 +216,9 @@ int mxc_audmux_v1_configure_port(unsigned int port, unsigned int pcr)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mxc_audmux_v1_configure_port);
+EXPORT_SYMBOL_GPL(imx_audmux_v1_configure_port);
 
-int mxc_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
+int imx_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
 		unsigned int pdcr)
 {
 	if (audmux_type != IMX31_AUDMUX)
@@ -230,15 +230,15 @@ int mxc_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
 	if (audmux_clk)
 		clk_enable(audmux_clk);
 
-	writel(ptcr, audmux_base + MXC_AUDMUX_V2_PTCR(port));
-	writel(pdcr, audmux_base + MXC_AUDMUX_V2_PDCR(port));
+	writel(ptcr, audmux_base + IMX_AUDMUX_V2_PTCR(port));
+	writel(pdcr, audmux_base + IMX_AUDMUX_V2_PDCR(port));
 
 	if (audmux_clk)
 		clk_disable(audmux_clk);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mxc_audmux_v2_configure_port);
+EXPORT_SYMBOL_GPL(imx_audmux_v2_configure_port);
 
 static int __init imx_audmux_probe(struct platform_device *pdev)
 {

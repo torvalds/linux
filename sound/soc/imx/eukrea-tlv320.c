@@ -101,35 +101,35 @@ static int __init eukrea_tlv320_init(void)
 	int int_port = 0, ext_port;
 
 	if (machine_is_eukrea_cpuimx27()) {
-		mxc_audmux_v1_configure_port(MX27_AUDMUX_HPCR1_SSI0,
-			MXC_AUDMUX_V1_PCR_SYN |
-			MXC_AUDMUX_V1_PCR_TFSDIR |
-			MXC_AUDMUX_V1_PCR_TCLKDIR |
-			MXC_AUDMUX_V1_PCR_RFSDIR |
-			MXC_AUDMUX_V1_PCR_RCLKDIR |
-			MXC_AUDMUX_V1_PCR_TFCSEL(MX27_AUDMUX_HPCR3_SSI_PINS_4) |
-			MXC_AUDMUX_V1_PCR_RFCSEL(MX27_AUDMUX_HPCR3_SSI_PINS_4) |
-			MXC_AUDMUX_V1_PCR_RXDSEL(MX27_AUDMUX_HPCR3_SSI_PINS_4)
+		imx_audmux_v1_configure_port(MX27_AUDMUX_HPCR1_SSI0,
+			IMX_AUDMUX_V1_PCR_SYN |
+			IMX_AUDMUX_V1_PCR_TFSDIR |
+			IMX_AUDMUX_V1_PCR_TCLKDIR |
+			IMX_AUDMUX_V1_PCR_RFSDIR |
+			IMX_AUDMUX_V1_PCR_RCLKDIR |
+			IMX_AUDMUX_V1_PCR_TFCSEL(MX27_AUDMUX_HPCR3_SSI_PINS_4) |
+			IMX_AUDMUX_V1_PCR_RFCSEL(MX27_AUDMUX_HPCR3_SSI_PINS_4) |
+			IMX_AUDMUX_V1_PCR_RXDSEL(MX27_AUDMUX_HPCR3_SSI_PINS_4)
 		);
-		mxc_audmux_v1_configure_port(MX27_AUDMUX_HPCR3_SSI_PINS_4,
-			MXC_AUDMUX_V1_PCR_SYN |
-			MXC_AUDMUX_V1_PCR_RXDSEL(MX27_AUDMUX_HPCR1_SSI0)
+		imx_audmux_v1_configure_port(MX27_AUDMUX_HPCR3_SSI_PINS_4,
+			IMX_AUDMUX_V1_PCR_SYN |
+			IMX_AUDMUX_V1_PCR_RXDSEL(MX27_AUDMUX_HPCR1_SSI0)
 		);
 	} else if (machine_is_eukrea_cpuimx25sd() ||
 		   machine_is_eukrea_cpuimx35sd() ||
 		   machine_is_eukrea_cpuimx51sd()) {
 		ext_port = machine_is_eukrea_cpuimx25sd() ? 4 : 3;
-		mxc_audmux_v2_configure_port(int_port,
-			MXC_AUDMUX_V2_PTCR_SYN |
-			MXC_AUDMUX_V2_PTCR_TFSDIR |
-			MXC_AUDMUX_V2_PTCR_TFSEL(ext_port) |
-			MXC_AUDMUX_V2_PTCR_TCLKDIR |
-			MXC_AUDMUX_V2_PTCR_TCSEL(ext_port),
-			MXC_AUDMUX_V2_PDCR_RXDSEL(ext_port)
+		imx_audmux_v2_configure_port(int_port,
+			IMX_AUDMUX_V2_PTCR_SYN |
+			IMX_AUDMUX_V2_PTCR_TFSDIR |
+			IMX_AUDMUX_V2_PTCR_TFSEL(ext_port) |
+			IMX_AUDMUX_V2_PTCR_TCLKDIR |
+			IMX_AUDMUX_V2_PTCR_TCSEL(ext_port),
+			IMX_AUDMUX_V2_PDCR_RXDSEL(ext_port)
 		);
-		mxc_audmux_v2_configure_port(ext_port,
-			MXC_AUDMUX_V2_PTCR_SYN,
-			MXC_AUDMUX_V2_PDCR_RXDSEL(int_port)
+		imx_audmux_v2_configure_port(ext_port,
+			IMX_AUDMUX_V2_PTCR_SYN,
+			IMX_AUDMUX_V2_PDCR_RXDSEL(int_port)
 		);
 	} else {
 		/* return happy. We might run on a totally different machine */
