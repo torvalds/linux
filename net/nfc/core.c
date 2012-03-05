@@ -256,7 +256,7 @@ error:
 }
 
 int nfc_dep_link_is_up(struct nfc_dev *dev, u32 target_idx,
-					u8 comm_mode, u8 rf_mode)
+		       u8 comm_mode, u8 rf_mode)
 {
 	dev->dep_link_up = true;
 	dev->dep_rf_mode = rf_mode;
@@ -336,10 +336,8 @@ error:
  *
  * The user must wait for the callback before calling this function again.
  */
-int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx,
-					struct sk_buff *skb,
-					data_exchange_cb_t cb,
-					void *cb_context)
+int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx, struct sk_buff *skb,
+		      data_exchange_cb_t cb, void *cb_context)
 {
 	int rc;
 
@@ -363,8 +361,7 @@ error:
 
 int nfc_set_remote_general_bytes(struct nfc_dev *dev, u8 *gb, u8 gb_len)
 {
-	pr_debug("dev_name=%s gb_len=%d\n",
-			dev_name(&dev->dev), gb_len);
+	pr_debug("dev_name=%s gb_len=%d\n", dev_name(&dev->dev), gb_len);
 
 	if (gb_len > NFC_MAX_GT_LEN)
 		return -EINVAL;
@@ -380,8 +377,8 @@ EXPORT_SYMBOL(nfc_set_remote_general_bytes);
  * @gfp: gfp flags
  */
 struct sk_buff *nfc_alloc_send_skb(struct nfc_dev *dev, struct sock *sk,
-					unsigned int flags, unsigned int size,
-					unsigned int *err)
+				   unsigned int flags, unsigned int size,
+				   unsigned int *err)
 {
 	struct sk_buff *skb;
 	unsigned int total_size;
@@ -428,8 +425,8 @@ EXPORT_SYMBOL(nfc_alloc_recv_skb);
  * are found. After calling this function, the device driver must stop
  * polling for targets.
  */
-int nfc_targets_found(struct nfc_dev *dev, struct nfc_target *targets,
-							int n_targets)
+int nfc_targets_found(struct nfc_dev *dev,
+		      struct nfc_target *targets, int n_targets)
 {
 	pr_debug("dev_name=%s n_targets=%d\n", dev_name(&dev->dev), n_targets);
 
@@ -441,7 +438,7 @@ int nfc_targets_found(struct nfc_dev *dev, struct nfc_target *targets,
 
 	kfree(dev->targets);
 	dev->targets = kmemdup(targets, n_targets * sizeof(struct nfc_target),
-								GFP_ATOMIC);
+			       GFP_ATOMIC);
 
 	if (!dev->targets) {
 		dev->n_targets = 0;
@@ -501,15 +498,14 @@ struct nfc_dev *nfc_get_device(unsigned idx)
  * @supported_protocols: NFC protocols supported by the device
  */
 struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
-					u32 supported_protocols,
-					int tx_headroom,
-					int tx_tailroom)
+				    u32 supported_protocols,
+				    int tx_headroom, int tx_tailroom)
 {
 	static atomic_t dev_no = ATOMIC_INIT(0);
 	struct nfc_dev *dev;
 
 	if (!ops->start_poll || !ops->stop_poll || !ops->activate_target ||
-		!ops->deactivate_target || !ops->data_exchange)
+	    !ops->deactivate_target || !ops->data_exchange)
 		return NULL;
 
 	if (!supported_protocols)

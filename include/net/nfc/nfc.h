@@ -57,11 +57,11 @@ struct nfc_ops {
 			   u8 *gb, size_t gb_len);
 	int (*dep_link_down)(struct nfc_dev *dev);
 	int (*activate_target)(struct nfc_dev *dev, u32 target_idx,
-							u32 protocol);
+			       u32 protocol);
 	void (*deactivate_target)(struct nfc_dev *dev, u32 target_idx);
 	int (*data_exchange)(struct nfc_dev *dev, u32 target_idx,
-				struct sk_buff *skb, data_exchange_cb_t cb,
-							void *cb_context);
+			     struct sk_buff *skb, data_exchange_cb_t cb,
+			     void *cb_context);
 };
 
 #define NFC_TARGET_IDX_ANY -1
@@ -110,9 +110,9 @@ struct nfc_dev {
 extern struct class nfc_class;
 
 struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
-					u32 supported_protocols,
-					int tx_headroom,
-					int tx_tailroom);
+				    u32 supported_protocols,
+				    int tx_headroom,
+				    int tx_tailroom);
 
 /**
  * nfc_free_device - free nfc device
@@ -135,7 +135,7 @@ void nfc_unregister_device(struct nfc_dev *dev);
  * @dev: The parent device
  */
 static inline void nfc_set_parent_dev(struct nfc_dev *nfc_dev,
-					struct device *dev)
+				      struct device *dev)
 {
 	nfc_dev->dev.parent = dev;
 }
@@ -172,15 +172,15 @@ static inline const char *nfc_device_name(struct nfc_dev *dev)
 }
 
 struct sk_buff *nfc_alloc_send_skb(struct nfc_dev *dev, struct sock *sk,
-					unsigned int flags, unsigned int size,
-					unsigned int *err);
+				   unsigned int flags, unsigned int size,
+				   unsigned int *err);
 struct sk_buff *nfc_alloc_recv_skb(unsigned int size, gfp_t gfp);
 
 int nfc_set_remote_general_bytes(struct nfc_dev *dev,
-					u8 *gt, u8 gt_len);
+				 u8 *gt, u8 gt_len);
 
-int nfc_targets_found(struct nfc_dev *dev, struct nfc_target *targets,
-							int ntargets);
+int nfc_targets_found(struct nfc_dev *dev,
+		      struct nfc_target *targets, int ntargets);
 
 int nfc_dep_link_is_up(struct nfc_dev *dev, u32 target_idx,
 		       u8 comm_mode, u8 rf_mode);
