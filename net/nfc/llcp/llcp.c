@@ -627,8 +627,9 @@ fail:
 
 }
 
-void nfc_llcp_queue_i_frames(struct nfc_llcp_sock *sock)
+int nfc_llcp_queue_i_frames(struct nfc_llcp_sock *sock)
 {
+	int nr_frames = 0;
 	struct nfc_llcp_local *local = sock->local;
 
 	pr_debug("Remote ready %d tx queue len %d remote rw %d",
@@ -651,7 +652,10 @@ void nfc_llcp_queue_i_frames(struct nfc_llcp_sock *sock)
 
 		skb_queue_tail(&local->tx_queue, pdu);
 		skb_queue_tail(&sock->tx_pending_queue, pending_pdu);
+		nr_frames++;
 	}
+
+	return nr_frames;
 }
 
 static void nfc_llcp_recv_hdlc(struct nfc_llcp_local *local,
@@ -716,7 +720,8 @@ static void nfc_llcp_recv_hdlc(struct nfc_llcp_local *local,
         else if (ptype == LLCP_PDU_RNR)
 		llcp_sock->remote_ready = false;
 
-	nfc_llcp_queue_i_frames(llcp_sock);
+	if (nfc_llcp_queue_i_frames(llcp_sock) == 0)
+		nfc_llcp_send_rr(llcp_sock);
 
 	release_sock(sk);
 	nfc_llcp_sock_put(llcp_sock);
