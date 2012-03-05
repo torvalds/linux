@@ -580,7 +580,6 @@ lightweight_exit:
 	mtlr	r3
 	mtxer	r5
 	mtctr	r6
-	mtcr	r7
 	mtsrr0	r8
 	mtsrr1	r9
 
@@ -588,13 +587,19 @@ lightweight_exit:
 	/* save enter time */
 1:
 	mfspr	r6, SPRN_TBRU
-	mfspr	r7, SPRN_TBRL
+	mfspr	r9, SPRN_TBRL
 	mfspr	r8, SPRN_TBRU
 	cmpw	r8, r6
-	PPC_STL	r7, VCPU_TIMING_LAST_ENTER_TBL(r4)
+	PPC_STL	r9, VCPU_TIMING_LAST_ENTER_TBL(r4)
 	bne	1b
 	PPC_STL	r8, VCPU_TIMING_LAST_ENTER_TBU(r4)
 #endif
+
+	/*
+	 * Don't execute any instruction which can change CR after
+	 * below instruction.
+	 */
+	mtcr	r7
 
 	/* Finish loading guest volatiles and jump to guest. */
 	PPC_LL	r5, VCPU_GPR(r5)(r4)
