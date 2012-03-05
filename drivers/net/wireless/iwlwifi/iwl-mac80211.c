@@ -196,6 +196,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 			    WIPHY_FLAG_IBSS_RSN;
 
 	if (nic(priv)->fw.ucode_wowlan.code.len &&
+	    trans(priv)->ops->wowlan_suspend &&
 	    device_can_wakeup(trans(priv)->dev)) {
 		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
 					  WIPHY_WOWLAN_DISCONNECT |
@@ -412,9 +413,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 
 	device_set_wakeup_enable(trans(priv)->dev, true);
 
-	/* Now let the ucode operate on its own */
-	iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_SET,
-			  CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
+	iwl_trans_wowlan_suspend(trans(priv));
 
 	goto out;
 

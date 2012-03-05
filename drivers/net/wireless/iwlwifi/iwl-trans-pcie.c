@@ -1303,6 +1303,17 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 }
 
+static void iwl_trans_pcie_wowlan_suspend(struct iwl_trans *trans)
+{
+	/* let the ucode operate on its own */
+	iwl_write32(trans, CSR_UCODE_DRV_GP1_SET,
+		    CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
+
+	iwl_disable_interrupts(trans);
+	iwl_clear_bit(trans, CSR_GP_CNTRL,
+		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+}
+
 static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
 		u8 sta_id, u8 tid)
@@ -1641,25 +1652,6 @@ static void iwl_trans_pcie_free(struct iwl_trans *trans)
 #ifdef CONFIG_PM_SLEEP
 static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
 {
-	/*
-	 * This function is called when system goes into suspend state
-	 * mac80211 will call iwlagn_mac_stop() from the mac80211 suspend
-	 * function first but since iwlagn_mac_stop() has no knowledge of
-	 * who the caller is,
-	 * it will not call apm_ops.stop() to stop the DMA operation.
-	 * Calling apm_ops.stop here to make sure we stop the DMA.
-	 *
-	 * But of course ... if we have configured WoWLAN then we did other
-	 * things already :-)
-	 */
-	if (!trans->shrd->wowlan) {
-		iwl_apm_stop(trans);
-	} else {
-		iwl_disable_interrupts(trans);
-		iwl_clear_bit(trans, CSR_GP_CNTRL,
-			      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-	}
-
 	return 0;
 }
 
@@ -2226,6 +2218,8 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.fw_alive = iwl_trans_pcie_fw_alive,
 	.start_fw = iwl_trans_pcie_start_fw,
 	.stop_device = iwl_trans_pcie_stop_device,
+
+	.wowlan_suspend = iwl_trans_pcie_wowlan_suspend,
 
 	.wake_any_queue = iwl_trans_pcie_wake_any_queue,
 

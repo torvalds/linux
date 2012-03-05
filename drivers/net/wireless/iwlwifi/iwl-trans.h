@@ -210,6 +210,9 @@ struct iwl_host_cmd {
  * @wake_any_queue: wake all the queues of a specfic context IWL_RXON_CTX_*
  * @stop_device:stops the whole device (embedded CPU put to reset)
  *	May sleep
+ * @wowlan_suspend: put the device into the correct mode for WoWLAN during
+ *	suspend. This is optional, if not implemented WoWLAN will not be
+ *	supported. This callback may sleep.
  * @send_cmd:send a host command
  *	May sleep only if CMD_SYNC is set
  * @tx: send an skb
@@ -246,6 +249,8 @@ struct iwl_trans_ops {
 	int (*start_fw)(struct iwl_trans *trans, struct fw_img *fw);
 	void (*fw_alive)(struct iwl_trans *trans);
 	void (*stop_device)(struct iwl_trans *trans);
+
+	void (*wowlan_suspend)(struct iwl_trans *trans);
 
 	void (*wake_any_queue)(struct iwl_trans *trans,
 			       enum iwl_rxon_context_id ctx,
@@ -394,6 +399,12 @@ static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 	trans->ops->stop_device(trans);
 
 	trans->state = IWL_TRANS_NO_FW;
+}
+
+static inline void iwl_trans_wowlan_suspend(struct iwl_trans *trans)
+{
+	might_sleep();
+	trans->ops->wowlan_suspend(trans);
 }
 
 static inline void iwl_trans_wake_any_queue(struct iwl_trans *trans,
