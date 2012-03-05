@@ -79,15 +79,9 @@ struct async_struct {
 	int			io_type;
 	struct work_struct			work;
 	struct tasklet_struct	tlet;
-#ifdef DECLARE_WAITQUEUE
 	wait_queue_head_t	open_wait;
 	wait_queue_head_t	close_wait;
 	wait_queue_head_t	delta_msr_wait;
-#else	
-	struct wait_queue	*open_wait;
-	struct wait_queue	*close_wait;
-	struct wait_queue	*delta_msr_wait;
-#endif	
 	struct async_struct	*next_port; /* For the linked list */
 	struct async_struct	*prev_port;
 };
