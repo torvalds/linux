@@ -79,11 +79,6 @@ static inline void cfq_blkiocg_update_completion_stats(struct blkio_group *blkg,
 					direction, sync);
 }
 
-static inline int cfq_blkiocg_del_blkio_group(struct blkio_group *blkg)
-{
-	return blkiocg_del_blkio_group(blkg);
-}
-
 #else /* CFQ_GROUP_IOSCHED */
 static inline void cfq_blkiocg_update_io_add_stats(struct blkio_group *blkg,
 			struct blkio_policy_type *pol,
@@ -118,11 +113,6 @@ static inline void cfq_blkiocg_update_dispatch_stats(struct blkio_group *blkg,
 static inline void cfq_blkiocg_update_completion_stats(struct blkio_group *blkg,
 			struct blkio_policy_type *pol, uint64_t start_time,
 			uint64_t io_start_time, bool direction, bool sync) { }
-
-static inline int cfq_blkiocg_del_blkio_group(struct blkio_group *blkg)
-{
-	return 0;
-}
 
 #endif /* CFQ_GROUP_IOSCHED */
 #endif
