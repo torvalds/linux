@@ -561,5 +561,9 @@ asmlinkage ssize_t compat_sys_process_vm_writev(compat_pid_t pid,
 		unsigned long liovcnt, const struct compat_iovec __user *rvec,
 		unsigned long riovcnt, unsigned long flags);
 
+#else
+
+#define is_compat_task() (0)
+
 #endif /* CONFIG_COMPAT */
 #endif /* _LINUX_COMPAT_H */

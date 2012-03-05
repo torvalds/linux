@@ -142,6 +142,11 @@ static inline const char *eeh_pci_name(struct pci_dev *pdev)
 	return pdev ? pci_name(pdev) : "<null>";
 } 
 
+static inline const char *eeh_driver_name(struct pci_dev *pdev)
+{
+	return (pdev && pdev->driver) ? pdev->driver->name : "<null>";
+}
+
 #endif /* CONFIG_EEH */
 
 #else /* CONFIG_PCI */

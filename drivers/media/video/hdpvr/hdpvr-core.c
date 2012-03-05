@@ -154,10 +154,20 @@ static int device_authorization(struct hdpvr_device *dev)
 	}
 #endif
 
-	v4l2_info(&dev->v4l2_dev, "firmware version 0x%x dated %s\n",
-			  dev->usbc_buf[1], &dev->usbc_buf[2]);
+	dev->fw_ver = dev->usbc_buf[1];
 
-	switch (dev->usbc_buf[1]) {
+	v4l2_info(&dev->v4l2_dev, "firmware version 0x%x dated %s\n",
+			  dev->fw_ver, &dev->usbc_buf[2]);
+
+	if (dev->fw_ver > 0x15) {
+		dev->options.brightness	= 0x80;
+		dev->options.contrast	= 0x40;
+		dev->options.hue	= 0xf;
+		dev->options.saturation	= 0x40;
+		dev->options.sharpness	= 0x80;
+	}
+
+	switch (dev->fw_ver) {
 	case HDPVR_FIRMWARE_VERSION:
 		dev->flags &= ~HDPVR_FLAG_AC3_CAP;
 		break;
@@ -169,7 +179,7 @@ static int device_authorization(struct hdpvr_device *dev)
 	default:
 		v4l2_info(&dev->v4l2_dev, "untested firmware, the driver might"
 			  " not work.\n");
-		if (dev->usbc_buf[1] >= HDPVR_FIRMWARE_VERSION_AC3)
+		if (dev->fw_ver >= HDPVR_FIRMWARE_VERSION_AC3)
 			dev->flags |= HDPVR_FLAG_AC3_CAP;
 		else
 			dev->flags &= ~HDPVR_FLAG_AC3_CAP;
@@ -270,6 +280,8 @@ static const struct hdpvr_options hdpvr_default_options = {
 	.bitrate_mode	= HDPVR_CONSTANT,
 	.gop_mode	= HDPVR_SIMPLE_IDR_GOP,
 	.audio_codec	= V4L2_MPEG_AUDIO_ENCODING_AAC,
+	/* original picture controls for firmware version <= 0x15 */
+	/* updated in device_authorization() for newer firmware */
 	.brightness	= 0x86,
 	.contrast	= 0x80,
 	.hue		= 0x80,

@@ -679,10 +679,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 	 * Octets N3-N4: Block-aligned encrypted filename
 	 *  - Consists of a minimum number of random characters, a \0
 	 *    separator, and then the filename */
-	s->max_packet_size = (1                   /* Tag 70 identifier */
-			      + 3                 /* Max Tag 70 packet size */
-			      + ECRYPTFS_SIG_SIZE /* FNEK sig */
-			      + 1                 /* Cipher identifier */
+	s->max_packet_size = (ECRYPTFS_TAG_70_MAX_METADATA_SIZE
 			      + s->block_aligned_filename_size);
 	if (dest == NULL) {
 		(*packet_size) = s->max_packet_size;
@@ -934,10 +931,10 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 		goto out;
 	}
 	s->desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
-	if (max_packet_size < (1 + 1 + ECRYPTFS_SIG_SIZE + 1 + 1)) {
+	if (max_packet_size < ECRYPTFS_TAG_70_MIN_METADATA_SIZE) {
 		printk(KERN_WARNING "%s: max_packet_size is [%zd]; it must be "
 		       "at least [%d]\n", __func__, max_packet_size,
-			(1 + 1 + ECRYPTFS_SIG_SIZE + 1 + 1));
+		       ECRYPTFS_TAG_70_MIN_METADATA_SIZE);
 		rc = -EINVAL;
 		goto out;
 	}

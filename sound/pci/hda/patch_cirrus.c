@@ -988,8 +988,10 @@ static void cs_automic(struct hda_codec *codec)
 			change_cur_input(codec, !spec->automic_idx, 0);
 	} else {
 		if (present) {
-			spec->last_input = spec->cur_input;
-			spec->cur_input = spec->automic_idx;
+			if (spec->cur_input != spec->automic_idx) {
+				spec->last_input = spec->cur_input;
+				spec->cur_input = spec->automic_idx;
+			}
 		} else  {
 			spec->cur_input = spec->last_input;
 		}

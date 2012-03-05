@@ -19,6 +19,7 @@
 #include <mach/mv78xx0.h>
 #include <mach/bridge-regs.h>
 #include <plat/cache-feroceon-l2.h>
+#include <plat/ehci-orion.h>
 #include <plat/orion_nand.h>
 #include <plat/time.h>
 #include <plat/common.h>
@@ -169,7 +170,7 @@ void __init mv78xx0_map_io(void)
  ****************************************************************************/
 void __init mv78xx0_ehci0_init(void)
 {
-	orion_ehci_init(USB0_PHYS_BASE, IRQ_MV78XX0_USB_0);
+	orion_ehci_init(USB0_PHYS_BASE, IRQ_MV78XX0_USB_0, EHCI_PHY_NA);
 }
 
 

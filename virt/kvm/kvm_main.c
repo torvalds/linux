@@ -1543,7 +1543,7 @@ void mark_page_dirty_in_slot(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	if (memslot && memslot->dirty_bitmap) {
 		unsigned long rel_gfn = gfn - memslot->base_gfn;
 
-		if (!__test_and_set_bit_le(rel_gfn, memslot->dirty_bitmap))
+		if (!test_and_set_bit_le(rel_gfn, memslot->dirty_bitmap))
 			memslot->nr_dirty_pages++;
 	}
 }
