@@ -90,7 +90,8 @@ static int pdc_console_setup(struct console *co, char *options)
 
 #define PDC_CONS_POLL_DELAY (30 * HZ / 1000)
 
-static struct timer_list pdc_console_timer;
+static void pdc_console_poll(unsigned long unused);
+static DEFINE_TIMER(pdc_console_timer, pdc_console_poll, 0, 0);
 
 static int pdc_console_tty_open(struct tty_struct *tty, struct file *filp)
 {
@@ -204,10 +205,6 @@ static int __init pdc_console_tty_driver_init(void)
 	}
 
 	pdc_console_tty_driver = drv;
-
-	/* No need to initialize the pdc_console_timer if tty isn't allocated */
-	init_timer(&pdc_console_timer);
-	pdc_console_timer.function = pdc_console_poll;
 
 	return 0;
 }
