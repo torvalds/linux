@@ -473,9 +473,10 @@ static void rs_hangup(struct tty_struct *tty)
 }
 
 
-static int startup(struct tty_struct *tty, struct serial_state *state)
+static int activate(struct tty_port *port, struct tty_struct *tty)
 {
-	struct tty_port *port = &state->port;
+	struct serial_state *state = container_of(port, struct serial_state,
+			port);
 	unsigned long flags;
 	int	retval=0;
 	unsigned long page;
@@ -486,19 +487,10 @@ static int startup(struct tty_struct *tty, struct serial_state *state)
 
 	local_irq_save(flags);
 
-	if (port->flags & ASYNC_INITIALIZED) {
-		free_page(page);
-		goto errout;
-	}
-
 	if (state->xmit.buf)
 		free_page(page);
 	else
 		state->xmit.buf = (unsigned char *) page;
-
-#ifdef SIMSERIAL_DEBUG
-	printk("startup: ttys%d (irq %d)...", state->line, state->irq);
-#endif
 
 	/*
 	 * Allocate the IRQ if necessary
@@ -510,17 +502,7 @@ static int startup(struct tty_struct *tty, struct serial_state *state)
 			goto errout;
 	}
 
-	clear_bit(TTY_IO_ERROR, &tty->flags);
-
 	state->xmit.head = state->xmit.tail = 0;
-
-#if 0
-	/*
-	 * Set up serial timers...
-	 */
-	timer_table[RS_TIMER].expires = jiffies + 2*HZ/100;
-	timer_active |= 1 << RS_TIMER;
-#endif
 
 	/*
 	 * Set up the tty->alt_speed kludge
@@ -533,10 +515,6 @@ static int startup(struct tty_struct *tty, struct serial_state *state)
 		tty->alt_speed = 230400;
 	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
 		tty->alt_speed = 460800;
-
-	port->flags |= ASYNC_INITIALIZED;
-	local_irq_restore(flags);
-	return 0;
 
 errout:
 	local_irq_restore(flags);
@@ -554,39 +532,9 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 {
 	struct serial_state *info = rs_table + tty->index;
 	struct tty_port *port = &info->port;
-	int retval;
 
-	port->count++;
-	tty_port_tty_set(port, tty);
 	tty->driver_data = info;
-	tty->port = port;
-
-#ifdef SIMSERIAL_DEBUG
-	printk("rs_open %s, count = %d\n", tty->name, port->count);
-#endif
 	tty->low_latency = (port->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
-
-	/*
-	 * If the port is the middle of closing, bail out now
-	 */
-	if (tty_hung_up_p(filp) || (port->flags & ASYNC_CLOSING)) {
-		if (port->flags & ASYNC_CLOSING)
-			interruptible_sleep_on(&port->close_wait);
-#ifdef SERIAL_DO_RESTART
-		return ((port->flags & ASYNC_HUP_NOTIFY) ?
-			-EAGAIN : -ERESTARTSYS);
-#else
-		return -EAGAIN;
-#endif
-	}
-
-	/*
-	 * Start up serial port
-	 */
-	retval = startup(tty, info);
-	if (retval) {
-		return retval;
-	}
 
 	/*
 	 * figure out which console to use (should be one already)
@@ -597,10 +545,7 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 		console = console->next;
 	}
 
-#ifdef SIMSERIAL_DEBUG
-	printk("rs_open ttys%d successful\n", info->line);
-#endif
-	return 0;
+	return tty_port_open(port, tty, filp);
 }
 
 /*
@@ -669,6 +614,7 @@ static const struct tty_operations hp_ops = {
 };
 
 static const struct tty_port_operations hp_port_ops = {
+	.activate = activate,
 };
 
 /*
