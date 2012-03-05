@@ -69,11 +69,8 @@ static void rs_poll(unsigned long);
 static int rs_open(struct tty_struct *tty, struct file * filp)
 {
 	spin_lock(&timer_lock);
-
 	if (tty->count == 1) {
-		init_timer(&serial_timer);
-		serial_timer.data = (unsigned long) tty;
-		serial_timer.function = rs_poll;
+		setup_timer(&serial_timer, rs_poll, (unsigned long)tty);
 		mod_timer(&serial_timer, jiffies + SERIAL_TIMER_VALUE);
 	}
 	spin_unlock(&timer_lock);
