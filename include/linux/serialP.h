@@ -23,6 +23,7 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/circ_buf.h>
+#include <linux/tty.h>
 #include <linux/wait.h>
 
 struct serial_state {
@@ -38,6 +39,7 @@ struct serial_state {
 	unsigned short	close_delay;
 	unsigned short	closing_wait; /* time to wait before closing */
 	struct async_icount	icount;	
+	struct tty_port tport;
 
 	/* amiserial */
 	int			read_status_mask;
@@ -46,14 +48,9 @@ struct serial_state {
 	int			quot;
 	int			IER; 	/* Interrupt Enable Register */
 	int			MCR; 	/* Modem control register */
-	wait_queue_head_t	delta_msr_wait;
 	/* simserial */
 	int			x_char;	/* xon/xoff character */
-	int			blocked_open; /* # of blocked opens */
  	struct circ_buf		xmit;
-	wait_queue_head_t	open_wait;
-	wait_queue_head_t	close_wait;
-	struct tty_struct 	*tty;
 	/* /simserial */
 	/* /amiserial */
 };

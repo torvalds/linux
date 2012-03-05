@@ -165,7 +165,7 @@ static irqreturn_t rs_interrupt_single(int irq, void *dev_id)
 {
 	struct serial_state *info = dev_id;
 
-	if (!info->tty) {
+	if (!info->tport.tty) {
 		printk(KERN_INFO "simrs_interrupt_single: info|tty=0 info=%p problem\n", info);
 		return IRQ_NONE;
 	}
@@ -173,7 +173,7 @@ static irqreturn_t rs_interrupt_single(int irq, void *dev_id)
 	 * pretty simple in our case, because we only get interrupts
 	 * on inbound traffic
 	 */
-	receive_chars(info->tty);
+	receive_chars(info->tport.tty);
 	return IRQ_HANDLED;
 }
 
@@ -533,14 +533,14 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	shutdown(tty, info);
 	rs_flush_buffer(tty);
 	tty_ldisc_flush(tty);
-	info->tty = NULL;
-	if (info->blocked_open) {
+	info->tport.tty = NULL;
+	if (info->tport.blocked_open) {
 		if (info->close_delay)
 			schedule_timeout_interruptible(info->close_delay);
-		wake_up_interruptible(&info->open_wait);
+		wake_up_interruptible(&info->tport.open_wait);
 	}
 	info->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
-	wake_up_interruptible(&info->close_wait);
+	wake_up_interruptible(&info->tport.close_wait);
 }
 
 /*
@@ -569,8 +569,8 @@ static void rs_hangup(struct tty_struct *tty)
 
 	info->count = 0;
 	info->flags &= ~ASYNC_NORMAL_ACTIVE;
-	info->tty = NULL;
-	wake_up_interruptible(&info->open_wait);
+	info->tport.tty = NULL;
+	wake_up_interruptible(&info->tport.open_wait);
 }
 
 
@@ -662,8 +662,9 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	unsigned long		page;
 
 	info->count++;
-	info->tty = tty;
+	info->tport.tty = tty;
 	tty->driver_data = info;
+	tty->port = &info->tport;
 
 #ifdef SIMSERIAL_DEBUG
 	printk("rs_open %s, count = %d\n", tty->name, info->count);
@@ -685,7 +686,7 @@ static int rs_open(struct tty_struct *tty, struct file * filp)
 	 */
 	if (tty_hung_up_p(filp) || (info->flags & ASYNC_CLOSING)) {
 		if (info->flags & ASYNC_CLOSING)
-			interruptible_sleep_on(&info->close_wait);
+			interruptible_sleep_on(&info->tport.close_wait);
 #ifdef SERIAL_DO_RESTART
 		return ((info->flags & ASYNC_HUP_NOTIFY) ?
 			-EAGAIN : -ERESTARTSYS);
@@ -827,8 +828,7 @@ simrs_init (void)
 	 * Let's have a little bit of fun !
 	 */
 	for (i = 0, state = rs_table; i < NR_PORTS; i++,state++) {
-		init_waitqueue_head(&state->open_wait);
-		init_waitqueue_head(&state->close_wait);
+		tty_port_init(&state->tport);
 
 		if (state->type == PORT_UNKNOWN) continue;
 
