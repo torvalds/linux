@@ -422,6 +422,70 @@ void blkiocg_update_io_merged_stats(struct blkio_group *blkg, bool direction,
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_io_merged_stats);
 
+/**
+ * blkg_free - free a blkg
+ * @blkg: blkg to free
+ *
+ * Free @blkg which may be partially allocated.
+ */
+static void blkg_free(struct blkio_group *blkg)
+{
+	if (blkg) {
+		free_percpu(blkg->stats_cpu);
+		kfree(blkg->pd);
+		kfree(blkg);
+	}
+}
+
+/**
+ * blkg_alloc - allocate a blkg
+ * @blkcg: block cgroup the new blkg is associated with
+ * @q: request_queue the new blkg is associated with
+ * @pol: policy the new blkg is associated with
+ *
+ * Allocate a new blkg assocating @blkcg and @q for @pol.
+ *
+ * FIXME: Should be called with queue locked but currently isn't due to
+ *        percpu stat breakage.
+ */
+static struct blkio_group *blkg_alloc(struct blkio_cgroup *blkcg,
+				      struct request_queue *q,
+				      struct blkio_policy_type *pol)
+{
+	struct blkio_group *blkg;
+
+	/* alloc and init base part */
+	blkg = kzalloc_node(sizeof(*blkg), GFP_ATOMIC, q->node);
+	if (!blkg)
+		return NULL;
+
+	spin_lock_init(&blkg->stats_lock);
+	rcu_assign_pointer(blkg->q, q);
+	blkg->blkcg = blkcg;
+	blkg->plid = pol->plid;
+	cgroup_path(blkcg->css.cgroup, blkg->path, sizeof(blkg->path));
+
+	/* alloc per-policy data */
+	blkg->pd = kzalloc_node(sizeof(*blkg->pd) + pol->pdata_size, GFP_ATOMIC,
+				q->node);
+	if (!blkg->pd) {
+		blkg_free(blkg);
+		return NULL;
+	}
+
+	/* broken, read comment in the callsite */
+	blkg->stats_cpu = alloc_percpu(struct blkio_group_stats_cpu);
+	if (!blkg->stats_cpu) {
+		blkg_free(blkg);
+		return NULL;
+	}
+
+	/* attach pd to blkg and invoke per-policy init */
+	blkg->pd->blkg = blkg;
+	pol->ops.blkio_init_group_fn(blkg);
+	return blkg;
+}
+
 struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
 				       struct request_queue *q,
 				       enum blkio_policy_id plid,
@@ -463,19 +527,7 @@ struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
 	spin_unlock_irq(q->queue_lock);
 	rcu_read_unlock();
 
-	new_blkg = pol->ops.blkio_alloc_group_fn(q, blkcg);
-	if (new_blkg) {
-		new_blkg->stats_cpu = alloc_percpu(struct blkio_group_stats_cpu);
-
-		spin_lock_init(&new_blkg->stats_lock);
-		rcu_assign_pointer(new_blkg->q, q);
-		new_blkg->blkcg = blkcg;
-		new_blkg->plid = plid;
-		cgroup_path(blkcg->css.cgroup, new_blkg->path,
-			    sizeof(new_blkg->path));
-	} else {
-		css_put(&blkcg->css);
-	}
+	new_blkg = blkg_alloc(blkcg, q, pol);
 
 	rcu_read_lock();
 	spin_lock_irq(q->queue_lock);
@@ -492,7 +544,7 @@ struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
 		goto out;
 
 	/* did alloc fail? */
-	if (unlikely(!new_blkg || !new_blkg->stats_cpu)) {
+	if (unlikely(!new_blkg)) {
 		blkg = ERR_PTR(-ENOMEM);
 		goto out;
 	}
@@ -504,11 +556,7 @@ struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
 	pol->ops.blkio_link_group_fn(q, blkg);
 	spin_unlock(&blkcg->lock);
 out:
-	if (new_blkg) {
-		free_percpu(new_blkg->stats_cpu);
-		kfree(new_blkg);
-		css_put(&blkcg->css);
-	}
+	blkg_free(new_blkg);
 	return blkg;
 }
 EXPORT_SYMBOL_GPL(blkg_lookup_create);

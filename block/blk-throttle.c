@@ -21,6 +21,8 @@ static int throtl_quantum = 32;
 /* Throttling is performed over 100ms slice and after that slice is renewed */
 static unsigned long throtl_slice = HZ/10;	/* 100 ms */
 
+static struct blkio_policy_type blkio_policy_throtl;
+
 /* A workqueue to queue throttle related work */
 static struct workqueue_struct *kthrotld_workqueue;
 static void throtl_schedule_delayed_work(struct throtl_data *td,
@@ -52,7 +54,6 @@ struct throtl_grp {
 	 */
 	unsigned long disptime;
 
-	struct blkio_group blkg;
 	atomic_t ref;
 	unsigned int flags;
 
@@ -108,6 +109,16 @@ struct throtl_data
 	int limits_changed;
 };
 
+static inline struct throtl_grp *blkg_to_tg(struct blkio_group *blkg)
+{
+	return blkg_to_pdata(blkg, &blkio_policy_throtl);
+}
+
+static inline struct blkio_group *tg_to_blkg(struct throtl_grp *tg)
+{
+	return pdata_to_blkg(tg, &blkio_policy_throtl);
+}
+
 enum tg_state_flags {
 	THROTL_TG_FLAG_on_rr = 0,	/* on round-robin busy list */
 };
@@ -130,18 +141,10 @@ THROTL_TG_FNS(on_rr);
 
 #define throtl_log_tg(td, tg, fmt, args...)				\
 	blk_add_trace_msg((td)->queue, "throtl %s " fmt,		\
-				blkg_path(&(tg)->blkg), ##args);      	\
+			  blkg_path(tg_to_blkg(tg)), ##args);		\
 
 #define throtl_log(td, fmt, args...)	\
 	blk_add_trace_msg((td)->queue, "throtl " fmt, ##args)
-
-static inline struct throtl_grp *tg_of_blkg(struct blkio_group *blkg)
-{
-	if (blkg)
-		return container_of(blkg, struct throtl_grp, blkg);
-
-	return NULL;
-}
 
 static inline unsigned int total_nr_queued(struct throtl_data *td)
 {
@@ -156,21 +159,24 @@ static inline struct throtl_grp *throtl_ref_get_tg(struct throtl_grp *tg)
 
 static void throtl_free_tg(struct rcu_head *head)
 {
-	struct throtl_grp *tg;
+	struct throtl_grp *tg = container_of(head, struct throtl_grp, rcu_head);
+	struct blkio_group *blkg = tg_to_blkg(tg);
 
-	tg = container_of(head, struct throtl_grp, rcu_head);
-	free_percpu(tg->blkg.stats_cpu);
-	kfree(tg);
+	free_percpu(blkg->stats_cpu);
+	kfree(blkg->pd);
+	kfree(blkg);
 }
 
 static void throtl_put_tg(struct throtl_grp *tg)
 {
+	struct blkio_group *blkg = tg_to_blkg(tg);
+
 	BUG_ON(atomic_read(&tg->ref) <= 0);
 	if (!atomic_dec_and_test(&tg->ref))
 		return;
 
 	/* release the extra blkcg reference this blkg has been holding */
-	css_put(&tg->blkg.blkcg->css);
+	css_put(&blkg->blkcg->css);
 
 	/*
 	 * A group is freed in rcu manner. But having an rcu lock does not
@@ -184,14 +190,9 @@ static void throtl_put_tg(struct throtl_grp *tg)
 	call_rcu(&tg->rcu_head, throtl_free_tg);
 }
 
-static struct blkio_group *throtl_alloc_blkio_group(struct request_queue *q,
-						    struct blkio_cgroup *blkcg)
+static void throtl_init_blkio_group(struct blkio_group *blkg)
 {
-	struct throtl_grp *tg;
-
-	tg = kzalloc_node(sizeof(*tg), GFP_ATOMIC, q->node);
-	if (!tg)
-		return NULL;
+	struct throtl_grp *tg = blkg_to_tg(blkg);
 
 	INIT_HLIST_NODE(&tg->tg_node);
 	RB_CLEAR_NODE(&tg->rb_node);
@@ -211,15 +212,13 @@ static struct blkio_group *throtl_alloc_blkio_group(struct request_queue *q,
 	 * exit or cgroup deletion path depending on who is exiting first.
 	 */
 	atomic_set(&tg->ref, 1);
-
-	return &tg->blkg;
 }
 
 static void throtl_link_blkio_group(struct request_queue *q,
 				    struct blkio_group *blkg)
 {
 	struct throtl_data *td = q->td;
-	struct throtl_grp *tg = tg_of_blkg(blkg);
+	struct throtl_grp *tg = blkg_to_tg(blkg);
 
 	hlist_add_head(&tg->tg_node, &td->tg_list);
 	td->nr_undestroyed_grps++;
@@ -235,7 +234,7 @@ throtl_grp *throtl_lookup_tg(struct throtl_data *td, struct blkio_cgroup *blkcg)
 	if (blkcg == &blkio_root_cgroup)
 		return td->root_tg;
 
-	return tg_of_blkg(blkg_lookup(blkcg, td->queue, BLKIO_POLICY_THROTL));
+	return blkg_to_tg(blkg_lookup(blkcg, td->queue, BLKIO_POLICY_THROTL));
 }
 
 static struct throtl_grp *throtl_lookup_create_tg(struct throtl_data *td,
@@ -257,7 +256,7 @@ static struct throtl_grp *throtl_lookup_create_tg(struct throtl_data *td,
 
 		/* if %NULL and @q is alive, fall back to root_tg */
 		if (!IS_ERR(blkg))
-			tg = tg_of_blkg(blkg);
+			tg = blkg_to_tg(blkg);
 		else if (!blk_queue_dead(q))
 			tg = td->root_tg;
 	}
@@ -639,7 +638,7 @@ static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
 	tg->bytes_disp[rw] += bio->bi_size;
 	tg->io_disp[rw]++;
 
-	blkiocg_update_dispatch_stats(&tg->blkg, bio->bi_size, rw, sync);
+	blkiocg_update_dispatch_stats(tg_to_blkg(tg), bio->bi_size, rw, sync);
 }
 
 static void throtl_add_bio_tg(struct throtl_data *td, struct throtl_grp *tg,
@@ -901,7 +900,7 @@ static bool throtl_release_tgs(struct throtl_data *td, bool release_root)
 		 * it from cgroup list, then it will take care of destroying
 		 * cfqg also.
 		 */
-		if (!blkiocg_del_blkio_group(&tg->blkg))
+		if (!blkiocg_del_blkio_group(tg_to_blkg(tg)))
 			throtl_destroy_tg(td, tg);
 		else
 			empty = false;
@@ -929,7 +928,7 @@ void throtl_unlink_blkio_group(struct request_queue *q,
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
-	throtl_destroy_tg(q->td, tg_of_blkg(blkg));
+	throtl_destroy_tg(q->td, blkg_to_tg(blkg));
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
@@ -968,7 +967,7 @@ static void throtl_update_blkio_group_common(struct throtl_data *td,
 static void throtl_update_blkio_group_read_bps(struct request_queue *q,
 				struct blkio_group *blkg, u64 read_bps)
 {
-	struct throtl_grp *tg = tg_of_blkg(blkg);
+	struct throtl_grp *tg = blkg_to_tg(blkg);
 
 	tg->bps[READ] = read_bps;
 	throtl_update_blkio_group_common(q->td, tg);
@@ -977,7 +976,7 @@ static void throtl_update_blkio_group_read_bps(struct request_queue *q,
 static void throtl_update_blkio_group_write_bps(struct request_queue *q,
 				struct blkio_group *blkg, u64 write_bps)
 {
-	struct throtl_grp *tg = tg_of_blkg(blkg);
+	struct throtl_grp *tg = blkg_to_tg(blkg);
 
 	tg->bps[WRITE] = write_bps;
 	throtl_update_blkio_group_common(q->td, tg);
@@ -986,7 +985,7 @@ static void throtl_update_blkio_group_write_bps(struct request_queue *q,
 static void throtl_update_blkio_group_read_iops(struct request_queue *q,
 			struct blkio_group *blkg, unsigned int read_iops)
 {
-	struct throtl_grp *tg = tg_of_blkg(blkg);
+	struct throtl_grp *tg = blkg_to_tg(blkg);
 
 	tg->iops[READ] = read_iops;
 	throtl_update_blkio_group_common(q->td, tg);
@@ -995,7 +994,7 @@ static void throtl_update_blkio_group_read_iops(struct request_queue *q,
 static void throtl_update_blkio_group_write_iops(struct request_queue *q,
 			struct blkio_group *blkg, unsigned int write_iops)
 {
-	struct throtl_grp *tg = tg_of_blkg(blkg);
+	struct throtl_grp *tg = blkg_to_tg(blkg);
 
 	tg->iops[WRITE] = write_iops;
 	throtl_update_blkio_group_common(q->td, tg);
@@ -1010,7 +1009,7 @@ static void throtl_shutdown_wq(struct request_queue *q)
 
 static struct blkio_policy_type blkio_policy_throtl = {
 	.ops = {
-		.blkio_alloc_group_fn = throtl_alloc_blkio_group,
+		.blkio_init_group_fn = throtl_init_blkio_group,
 		.blkio_link_group_fn = throtl_link_blkio_group,
 		.blkio_unlink_group_fn = throtl_unlink_blkio_group,
 		.blkio_clear_queue_fn = throtl_clear_queue,
@@ -1024,6 +1023,7 @@ static struct blkio_policy_type blkio_policy_throtl = {
 					throtl_update_blkio_group_write_iops,
 	},
 	.plid = BLKIO_POLICY_THROTL,
+	.pdata_size = sizeof(struct throtl_grp),
 };
 
 bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
@@ -1049,8 +1049,9 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 	tg = throtl_lookup_tg(td, blkcg);
 	if (tg) {
 		if (tg_no_rule_group(tg, rw)) {
-			blkiocg_update_dispatch_stats(&tg->blkg, bio->bi_size,
-					rw, rw_is_sync(bio->bi_rw));
+			blkiocg_update_dispatch_stats(tg_to_blkg(tg),
+						      bio->bi_size, rw,
+						      rw_is_sync(bio->bi_rw));
 			goto out_unlock_rcu;
 		}
 	}
@@ -1176,7 +1177,7 @@ int blk_throtl_init(struct request_queue *q)
 	blkg = blkg_lookup_create(&blkio_root_cgroup, q, BLKIO_POLICY_THROTL,
 				  true);
 	if (!IS_ERR(blkg))
-		td->root_tg = tg_of_blkg(blkg);
+		td->root_tg = blkg_to_tg(blkg);
 
 	spin_unlock_irq(q->queue_lock);
 	rcu_read_unlock();
@@ -1207,7 +1208,7 @@ void blk_throtl_exit(struct request_queue *q)
 	spin_unlock_irq(q->queue_lock);
 
 	/*
-	 * Wait for tg->blkg->q accessors to exit their grace periods.
+	 * Wait for tg_to_blkg(tg)->q accessors to exit their grace periods.
 	 * Do this wait only if there are other undestroyed groups out
 	 * there (other than root group). This can happen if cgroup deletion
 	 * path claimed the responsibility of cleaning up a group before
