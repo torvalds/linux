@@ -1122,16 +1122,18 @@ cfq_find_cfqg(struct cfq_data *cfqd, struct blkio_cgroup *blkcg)
  * Search for the cfq group current task belongs to. request_queue lock must
  * be held.
  */
-static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd)
+static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd,
+				      struct blkio_cgroup *blkcg)
 {
-	struct blkio_cgroup *blkcg;
 	struct cfq_group *cfqg = NULL, *__cfqg = NULL;
 	struct request_queue *q = cfqd->queue;
 
-	blkcg = task_blkio_cgroup(current);
 	cfqg = cfq_find_cfqg(cfqd, blkcg);
 	if (cfqg)
 		return cfqg;
+
+	if (!css_tryget(&blkcg->css))
+		return NULL;
 
 	/*
 	 * Need to allocate a group. Allocation of group also needs allocation
@@ -1142,16 +1144,14 @@ static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd)
 	 * around by the time we return. CFQ queue allocation code does
 	 * the same. It might be racy though.
 	 */
-
 	rcu_read_unlock();
 	spin_unlock_irq(q->queue_lock);
 
 	cfqg = cfq_alloc_cfqg(cfqd);
 
 	spin_lock_irq(q->queue_lock);
-
 	rcu_read_lock();
-	blkcg = task_blkio_cgroup(current);
+	css_put(&blkcg->css);
 
 	/*
 	 * If some other thread already allocated the group while we were
@@ -1278,7 +1278,8 @@ static bool cfq_clear_queue(struct request_queue *q)
 }
 
 #else /* GROUP_IOSCHED */
-static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd)
+static struct cfq_group *cfq_get_cfqg(struct cfq_data *cfqd,
+				      struct blkio_cgroup *blkcg)
 {
 	return &cfqd->root_group;
 }
@@ -2860,6 +2861,7 @@ static struct cfq_queue *
 cfq_find_alloc_queue(struct cfq_data *cfqd, bool is_sync,
 		     struct io_context *ioc, gfp_t gfp_mask)
 {
+	struct blkio_cgroup *blkcg;
 	struct cfq_queue *cfqq, *new_cfqq = NULL;
 	struct cfq_io_cq *cic;
 	struct cfq_group *cfqg;
@@ -2867,7 +2869,9 @@ cfq_find_alloc_queue(struct cfq_data *cfqd, bool is_sync,
 retry:
 	rcu_read_lock();
 
-	cfqg = cfq_get_cfqg(cfqd);
+	blkcg = task_blkio_cgroup(current);
+
+	cfqg = cfq_get_cfqg(cfqd, blkcg);
 	cic = cfq_cic_lookup(cfqd, ioc);
 	/* cic always exists here */
 	cfqq = cic_to_cfqq(cic, is_sync);

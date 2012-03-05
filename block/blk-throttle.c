@@ -303,20 +303,22 @@ throtl_grp *throtl_find_tg(struct throtl_data *td, struct blkio_cgroup *blkcg)
 	return tg;
 }
 
-static struct throtl_grp * throtl_get_tg(struct throtl_data *td)
+static struct throtl_grp *throtl_get_tg(struct throtl_data *td,
+					struct blkio_cgroup *blkcg)
 {
 	struct throtl_grp *tg = NULL, *__tg = NULL;
-	struct blkio_cgroup *blkcg;
 	struct request_queue *q = td->queue;
 
 	/* no throttling for dead queue */
 	if (unlikely(blk_queue_bypass(q)))
 		return NULL;
 
-	blkcg = task_blkio_cgroup(current);
 	tg = throtl_find_tg(td, blkcg);
 	if (tg)
 		return tg;
+
+	if (!css_tryget(&blkcg->css))
+		return NULL;
 
 	/*
 	 * Need to allocate a group. Allocation of group also needs allocation
@@ -331,17 +333,13 @@ static struct throtl_grp * throtl_get_tg(struct throtl_data *td)
 	/* Group allocated and queue is still alive. take the lock */
 	rcu_read_lock();
 	spin_lock_irq(q->queue_lock);
+	css_put(&blkcg->css);
 
 	/* Make sure @q is still alive */
 	if (unlikely(blk_queue_bypass(q))) {
 		kfree(tg);
 		return NULL;
 	}
-
-	/*
-	 * Initialize the new group. After sleeping, read the blkcg again.
-	 */
-	blkcg = task_blkio_cgroup(current);
 
 	/*
 	 * If some other thread already allocated the group while we were
@@ -1163,7 +1161,7 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 	 * IO group
 	 */
 	spin_lock_irq(q->queue_lock);
-	tg = throtl_get_tg(td);
+	tg = throtl_get_tg(td, blkcg);
 	if (unlikely(!tg))
 		goto out_unlock;
 
