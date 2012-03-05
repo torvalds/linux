@@ -2490,6 +2490,8 @@ static void queue_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
 static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 		u32 ep_state, unsigned int num_trbs, gfp_t mem_flags)
 {
+	unsigned int num_trbs_needed;
+
 	/* Make sure the endpoint has been added to xHC schedule */
 	switch (ep_state) {
 	case EP_STATE_DISABLED:
@@ -2517,11 +2519,32 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 		 */
 		return -EINVAL;
 	}
-	if (!room_on_ring(xhci, ep_ring, num_trbs)) {
-		/* FIXME allocate more room */
-		xhci_err(xhci, "ERROR no room on ep ring\n");
-		return -ENOMEM;
-	}
+
+	while (1) {
+		if (room_on_ring(xhci, ep_ring, num_trbs))
+			break;
+
+		if (ep_ring == xhci->cmd_ring) {
+			xhci_err(xhci, "Do not support expand command ring\n");
+			return -ENOMEM;
+		}
+
+		if (ep_ring->enq_seg == ep_ring->deq_seg &&
+				ep_ring->dequeue > ep_ring->enqueue) {
+			xhci_err(xhci, "Can not expand the ring while dequeue "
+				"pointer has not passed the link TRB\n");
+			return -ENOMEM;
+		}
+
+		xhci_dbg(xhci, "ERROR no room on ep ring, "
+					"try ring expansion\n");
+		num_trbs_needed = num_trbs - ep_ring->num_trbs_free;
+		if (xhci_ring_expansion(xhci, ep_ring, num_trbs_needed,
+					mem_flags)) {
+			xhci_err(xhci, "Ring expansion failed\n");
+			return -ENOMEM;
+		}
+	};
 
 	if (enqueue_is_link_trb(ep_ring)) {
 		struct xhci_ring *ring = ep_ring;

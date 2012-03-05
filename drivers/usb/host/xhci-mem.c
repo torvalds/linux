@@ -119,6 +119,34 @@ static void xhci_link_segments(struct xhci_hcd *xhci, struct xhci_segment *prev,
 	}
 }
 
+/*
+ * Link the ring to the new segments.
+ * Set Toggle Cycle for the new ring if needed.
+ */
+static void xhci_link_rings(struct xhci_hcd *xhci, struct xhci_ring *ring,
+		struct xhci_segment *first, struct xhci_segment *last,
+		unsigned int num_segs)
+{
+	struct xhci_segment *next;
+
+	if (!ring || !first || !last)
+		return;
+
+	next = ring->enq_seg->next;
+	xhci_link_segments(xhci, ring->enq_seg, first, ring->type);
+	xhci_link_segments(xhci, last, next, ring->type);
+	ring->num_segs += num_segs;
+	ring->num_trbs_free += (TRBS_PER_SEGMENT - 1) * num_segs;
+
+	if (ring->type != TYPE_EVENT && ring->enq_seg == ring->last_seg) {
+		ring->last_seg->trbs[TRBS_PER_SEGMENT-1].link.control
+			&= ~cpu_to_le32(LINK_TOGGLE);
+		last->trbs[TRBS_PER_SEGMENT-1].link.control
+			|= cpu_to_le32(LINK_TOGGLE);
+		ring->last_seg = last;
+	}
+}
+
 /* XXX: Do we need the hcd structure in all these functions? */
 void xhci_ring_free(struct xhci_hcd *xhci, struct xhci_ring *ring)
 {
@@ -285,6 +313,39 @@ static void xhci_reinit_cached_ring(struct xhci_hcd *xhci,
 	 * but just in case...
 	 */
 	INIT_LIST_HEAD(&ring->td_list);
+}
+
+/*
+ * Expand an existing ring.
+ * Look for a cached ring or allocate a new ring which has same segment numbers
+ * and link the two rings.
+ */
+int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
+				unsigned int num_trbs, gfp_t flags)
+{
+	struct xhci_segment	*first;
+	struct xhci_segment	*last;
+	unsigned int		num_segs;
+	unsigned int		num_segs_needed;
+	int			ret;
+
+	num_segs_needed = (num_trbs + (TRBS_PER_SEGMENT - 1) - 1) /
+				(TRBS_PER_SEGMENT - 1);
+
+	/* Allocate number of segments we needed, or double the ring size */
+	num_segs = ring->num_segs > num_segs_needed ?
+			ring->num_segs : num_segs_needed;
+
+	ret = xhci_alloc_segments_for_ring(xhci, &first, &last,
+			num_segs, ring->cycle_state, ring->type, flags);
+	if (ret)
+		return -ENOMEM;
+
+	xhci_link_rings(xhci, ring, first, last, num_segs);
+	xhci_dbg(xhci, "ring expansion succeed, now has %d segments\n",
+			ring->num_segs);
+
+	return 0;
 }
 
 #define CTX_SIZE(_hcc) (HCC_64BYTE_CONTEXT(_hcc) ? 64 : 32)
@@ -1361,18 +1422,8 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 
 	type = usb_endpoint_type(&ep->desc);
 	/* Set up the endpoint ring */
-	/*
-	 * Isochronous endpoint ring needs bigger size because one isoc URB
-	 * carries multiple packets and it will insert multiple tds to the
-	 * ring.
-	 * This should be replaced with dynamic ring resizing in the future.
-	 */
-	if (usb_endpoint_xfer_isoc(&ep->desc))
-		virt_dev->eps[ep_index].new_ring =
-			xhci_ring_alloc(xhci, 8, 1, type, mem_flags);
-	else
-		virt_dev->eps[ep_index].new_ring =
-			xhci_ring_alloc(xhci, 1, 1, type, mem_flags);
+	virt_dev->eps[ep_index].new_ring =
+		xhci_ring_alloc(xhci, 1, 1, type, mem_flags);
 	if (!virt_dev->eps[ep_index].new_ring) {
 		/* Attempt to use the ring cache */
 		if (virt_dev->num_rings_cached == 0)
