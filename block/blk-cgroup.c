@@ -20,6 +20,7 @@
 #include <linux/genhd.h>
 #include <linux/delay.h>
 #include "blk-cgroup.h"
+#include "blk.h"
 
 #define MAX_KEY_LEN 100
 
@@ -1457,6 +1458,47 @@ done:
 	INIT_HLIST_HEAD(&blkcg->blkg_list);
 
 	return &blkcg->css;
+}
+
+/**
+ * blkcg_init_queue - initialize blkcg part of request queue
+ * @q: request_queue to initialize
+ *
+ * Called from blk_alloc_queue_node(). Responsible for initializing blkcg
+ * part of new request_queue @q.
+ *
+ * RETURNS:
+ * 0 on success, -errno on failure.
+ */
+int blkcg_init_queue(struct request_queue *q)
+{
+	might_sleep();
+
+	return blk_throtl_init(q);
+}
+
+/**
+ * blkcg_drain_queue - drain blkcg part of request_queue
+ * @q: request_queue to drain
+ *
+ * Called from blk_drain_queue().  Responsible for draining blkcg part.
+ */
+void blkcg_drain_queue(struct request_queue *q)
+{
+	lockdep_assert_held(q->queue_lock);
+
+	blk_throtl_drain(q);
+}
+
+/**
+ * blkcg_exit_queue - exit and release blkcg part of request_queue
+ * @q: request_queue being released
+ *
+ * Called from blk_release_queue().  Responsible for exiting blkcg part.
+ */
+void blkcg_exit_queue(struct request_queue *q)
+{
+	blk_throtl_exit(q);
 }
 
 /*

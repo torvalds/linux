@@ -215,6 +215,10 @@ struct blkio_policy_type {
 	enum blkio_policy_id plid;
 };
 
+extern int blkcg_init_queue(struct request_queue *q);
+extern void blkcg_drain_queue(struct request_queue *q);
+extern void blkcg_exit_queue(struct request_queue *q);
+
 /* Blkio controller policy registration */
 extern void blkio_policy_register(struct blkio_policy_type *);
 extern void blkio_policy_unregister(struct blkio_policy_type *);
@@ -233,6 +237,9 @@ struct blkio_group {
 struct blkio_policy_type {
 };
 
+static inline int blkcg_init_queue(struct request_queue *q) { return 0; }
+static inline void blkcg_drain_queue(struct request_queue *q) { }
+static inline void blkcg_exit_queue(struct request_queue *q) { }
 static inline void blkio_policy_register(struct blkio_policy_type *blkiop) { }
 static inline void blkio_policy_unregister(struct blkio_policy_type *blkiop) { }
 static inline void blkg_destroy_all(struct request_queue *q) { }

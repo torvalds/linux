@@ -1226,10 +1226,7 @@ void blk_throtl_exit(struct request_queue *q)
 	 * it.
 	 */
 	throtl_shutdown_wq(q);
-}
 
-void blk_throtl_release(struct request_queue *q)
-{
 	kfree(q->td);
 }
 

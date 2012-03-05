@@ -34,6 +34,7 @@
 #include <trace/events/block.h>
 
 #include "blk.h"
+#include "blk-cgroup.h"
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_remap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_rq_remap);
@@ -280,7 +281,7 @@ EXPORT_SYMBOL(blk_stop_queue);
  *
  *     This function does not cancel any asynchronous activity arising
  *     out of elevator or throttling code. That would require elevaotor_exit()
- *     and blk_throtl_exit() to be called with queue lock initialized.
+ *     and blkcg_exit_queue() to be called with queue lock initialized.
  *
  */
 void blk_sync_queue(struct request_queue *q)
@@ -372,7 +373,7 @@ void blk_drain_queue(struct request_queue *q, bool drain_all)
 		if (q->elevator)
 			elv_drain_elevator(q);
 
-		blk_throtl_drain(q);
+		blkcg_drain_queue(q);
 
 		/*
 		 * This function might be called on a queue which failed
@@ -562,7 +563,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	 */
 	q->queue_lock = &q->__queue_lock;
 
-	if (blk_throtl_init(q))
+	if (blkcg_init_queue(q))
 		goto fail_id;
 
 	return q;
