@@ -1810,7 +1810,11 @@ static void hw_init(void)
 		break;
 	}
 
+	/* magic required on VX900 for correct modesetting on IGA1 */
+	via_write_reg_mask(VIACR, 0x45, 0x00, 0x01);
+
 	/* probably this should go to the scaling code one day */
+	via_write_reg_mask(VIACR, 0xFD, 0, 0x80); /* VX900 hw scale on IGA2 */
 	viafb_write_regx(scaling_parameters, ARRAY_SIZE(scaling_parameters));
 
 	/* Fill VPIT Parameters */

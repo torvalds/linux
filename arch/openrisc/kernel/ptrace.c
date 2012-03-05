@@ -188,11 +188,9 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 		 */
 		ret = -1L;
 
-	/* Are these regs right??? */
-	if (unlikely(current->audit_context))
-		audit_syscall_entry(audit_arch(), regs->syscallno,
-				    regs->gpr[3], regs->gpr[4],
-				    regs->gpr[5], regs->gpr[6]);
+	audit_syscall_entry(audit_arch(), regs->syscallno,
+			    regs->gpr[3], regs->gpr[4],
+			    regs->gpr[5], regs->gpr[6]);
 
 	return ret ? : regs->syscallno;
 }
@@ -201,9 +199,7 @@ asmlinkage void do_syscall_trace_leave(struct pt_regs *regs)
 {
 	int step;
 
-	if (unlikely(current->audit_context))
-		audit_syscall_exit(AUDITSC_RESULT(regs->gpr[11]),
-				   regs->gpr[11]);
+	audit_syscall_exit(regs);
 
 	step = test_thread_flag(TIF_SINGLESTEP);
 	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
