@@ -3462,15 +3462,13 @@ static void cfq_exit_queue(struct elevator_queue *e)
 
 	spin_unlock_irq(q->queue_lock);
 
-	blkg_destroy_all(q, BLKIO_POLICY_PROP, true);
-
 #ifdef CONFIG_BLK_CGROUP
 	/*
 	 * If there are groups which we could not unlink from blkcg list,
 	 * wait for a rcu period for them to be freed.
 	 */
 	spin_lock_irq(q->queue_lock);
-	wait = q->nr_blkgs[BLKIO_POLICY_PROP];
+	wait = q->nr_blkgs;
 	spin_unlock_irq(q->queue_lock);
 #endif
 	cfq_shutdown_timer_wq(cfqd);
@@ -3492,6 +3490,7 @@ static void cfq_exit_queue(struct elevator_queue *e)
 #ifndef CONFIG_CFQ_GROUP_IOSCHED
 	kfree(cfqd->root_group);
 #endif
+	update_root_blkg_pd(q, BLKIO_POLICY_PROP);
 	kfree(cfqd);
 }
 

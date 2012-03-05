@@ -480,14 +480,14 @@ static void blk_release_queue(struct kobject *kobj)
 
 	blk_sync_queue(q);
 
+	blkcg_exit_queue(q);
+
 	if (q->elevator) {
 		spin_lock_irq(q->queue_lock);
 		ioc_clear_queue(q);
 		spin_unlock_irq(q->queue_lock);
 		elevator_exit(q->elevator);
 	}
-
-	blkcg_exit_queue(q);
 
 	if (rl->rq_pool)
 		mempool_destroy(rl->rq_pool);

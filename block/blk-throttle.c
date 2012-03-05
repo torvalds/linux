@@ -167,7 +167,7 @@ throtl_grp *throtl_lookup_tg(struct throtl_data *td, struct blkio_cgroup *blkcg)
 	if (blkcg == &blkio_root_cgroup)
 		return td->root_tg;
 
-	return blkg_to_tg(blkg_lookup(blkcg, td->queue, BLKIO_POLICY_THROTL));
+	return blkg_to_tg(blkg_lookup(blkcg, td->queue));
 }
 
 static struct throtl_grp *throtl_lookup_create_tg(struct throtl_data *td,
@@ -704,8 +704,7 @@ static void throtl_process_limit_change(struct throtl_data *td)
 
 	throtl_log(td, "limits changed");
 
-	list_for_each_entry_safe(blkg, n, &q->blkg_list[BLKIO_POLICY_THROTL],
-				 q_node[BLKIO_POLICY_THROTL]) {
+	list_for_each_entry_safe(blkg, n, &q->blkg_list, q_node) {
 		struct throtl_grp *tg = blkg_to_tg(blkg);
 
 		if (!tg->limits_changed)
@@ -1054,11 +1053,9 @@ void blk_throtl_exit(struct request_queue *q)
 
 	throtl_shutdown_wq(q);
 
-	blkg_destroy_all(q, BLKIO_POLICY_THROTL, true);
-
 	/* If there are other groups */
 	spin_lock_irq(q->queue_lock);
-	wait = q->nr_blkgs[BLKIO_POLICY_THROTL];
+	wait = q->nr_blkgs;
 	spin_unlock_irq(q->queue_lock);
 
 	/*

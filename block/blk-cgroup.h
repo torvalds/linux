@@ -178,13 +178,11 @@ struct blkg_policy_data {
 struct blkio_group {
 	/* Pointer to the associated request_queue, RCU protected */
 	struct request_queue __rcu *q;
-	struct list_head q_node[BLKIO_NR_POLICIES];
+	struct list_head q_node;
 	struct hlist_node blkcg_node;
 	struct blkio_cgroup *blkcg;
 	/* Store cgroup path */
 	char path[128];
-	/* policy which owns this blk group */
-	enum blkio_policy_id plid;
 	/* reference count */
 	int refcnt;
 
@@ -230,8 +228,9 @@ extern void blkcg_exit_queue(struct request_queue *q);
 /* Blkio controller policy registration */
 extern void blkio_policy_register(struct blkio_policy_type *);
 extern void blkio_policy_unregister(struct blkio_policy_type *);
-extern void blkg_destroy_all(struct request_queue *q,
-			     enum blkio_policy_id plid, bool destroy_root);
+extern void blkg_destroy_all(struct request_queue *q, bool destroy_root);
+extern void update_root_blkg_pd(struct request_queue *q,
+				enum blkio_policy_id plid);
 
 /**
  * blkg_to_pdata - get policy private data
@@ -313,8 +312,9 @@ static inline void blkcg_exit_queue(struct request_queue *q) { }
 static inline void blkio_policy_register(struct blkio_policy_type *blkiop) { }
 static inline void blkio_policy_unregister(struct blkio_policy_type *blkiop) { }
 static inline void blkg_destroy_all(struct request_queue *q,
-				    enum blkio_policy_id plid,
 				    bool destory_root) { }
+static inline void update_root_blkg_pd(struct request_queue *q,
+				       enum blkio_policy_id plid) { }
 
 static inline void *blkg_to_pdata(struct blkio_group *blkg,
 				struct blkio_policy_type *pol) { return NULL; }
@@ -382,8 +382,7 @@ extern struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup);
 extern struct blkio_cgroup *task_blkio_cgroup(struct task_struct *tsk);
 extern int blkiocg_del_blkio_group(struct blkio_group *blkg);
 extern struct blkio_group *blkg_lookup(struct blkio_cgroup *blkcg,
-				       struct request_queue *q,
-				       enum blkio_policy_id plid);
+				       struct request_queue *q);
 struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
 				       struct request_queue *q,
 				       enum blkio_policy_id plid,

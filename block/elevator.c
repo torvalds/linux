@@ -876,7 +876,7 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 {
 	struct elevator_queue *old = q->elevator;
 	bool registered = old->registered;
-	int i, err;
+	int err;
 
 	/*
 	 * Turn on BYPASS and drain all requests w/ elevator private data.
@@ -895,8 +895,7 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	ioc_clear_queue(q);
 	spin_unlock_irq(q->queue_lock);
 
-	for (i = 0; i < BLKIO_NR_POLICIES; i++)
-		blkg_destroy_all(q, i, false);
+	blkg_destroy_all(q, false);
 
 	/* allocate, init and register new elevator */
 	err = -ENOMEM;

@@ -548,8 +548,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	INIT_LIST_HEAD(&q->timeout_list);
 	INIT_LIST_HEAD(&q->icq_list);
 #ifdef CONFIG_BLK_CGROUP
-	INIT_LIST_HEAD(&q->blkg_list[0]);
-	INIT_LIST_HEAD(&q->blkg_list[1]);
+	INIT_LIST_HEAD(&q->blkg_list);
 #endif
 	INIT_LIST_HEAD(&q->flush_queue[0]);
 	INIT_LIST_HEAD(&q->flush_queue[1]);
