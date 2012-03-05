@@ -28,6 +28,10 @@ enum llcp_state {
 #define LLCP_DEFAULT_RW  1
 #define LLCP_DEFAULT_MIU 128
 
+#define LLCP_MAX_LTO  0xff
+#define LLCP_MAX_RW   15
+#define LLCP_MAX_MIUX 0x7ff
+
 #define LLCP_WKS_NUM_SAP   16
 #define LLCP_SDP_NUM_SAP   16
 #define LLCP_LOCAL_NUM_SAP 32

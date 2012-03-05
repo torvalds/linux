@@ -284,6 +284,9 @@ int nfc_llcp_send_connect(struct nfc_llcp_sock *sock)
 	struct nfc_llcp_local *local;
 	struct sk_buff *skb;
 	u8 *service_name_tlv = NULL, service_name_tlv_length;
+	u8 *miux_tlv = NULL, miux_tlv_length;
+	u8 *rw_tlv = NULL, rw_tlv_length, rw;
+	__be16 miux;
 	int err;
 	u16 size = 0;
 
@@ -301,6 +304,14 @@ int nfc_llcp_send_connect(struct nfc_llcp_sock *sock)
 		size += service_name_tlv_length;
 	}
 
+	miux = cpu_to_be16(LLCP_MAX_MIUX);
+	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&miux, 0, &miux_tlv_length);
+	size += miux_tlv_length;
+
+	rw = LLCP_MAX_RW;
+	rw_tlv = nfc_llcp_build_tlv(LLCP_TLV_RW, &rw, 0, &rw_tlv_length);
+	size += rw_tlv_length;
+
 	pr_debug("SKB size %d SN length %zu\n", size, sock->service_name_len);
 
 	skb = llcp_allocate_pdu(sock, LLCP_PDU_CONNECT, size);
@@ -313,6 +324,9 @@ int nfc_llcp_send_connect(struct nfc_llcp_sock *sock)
 		skb = llcp_add_tlv(skb, service_name_tlv,
 					service_name_tlv_length);
 
+	skb = llcp_add_tlv(skb, miux_tlv, miux_tlv_length);
+	skb = llcp_add_tlv(skb, rw_tlv, rw_tlv_length);
+
 	skb_queue_tail(&local->tx_queue, skb);
 
 	return 0;
@@ -321,6 +335,8 @@ error_tlv:
 	pr_err("error %d\n", err);
 
 	kfree(service_name_tlv);
+	kfree(miux_tlv);
+	kfree(rw_tlv);
 
 	return err;
 }
@@ -329,6 +345,11 @@ int nfc_llcp_send_cc(struct nfc_llcp_sock *sock)
 {
 	struct nfc_llcp_local *local;
 	struct sk_buff *skb;
+	u8 *miux_tlv = NULL, miux_tlv_length;
+	u8 *rw_tlv = NULL, rw_tlv_length, rw;
+	__be16 miux;
+	int err;
+	u16 size = 0;
 
 	pr_debug("Sending CC\n");
 
@@ -336,13 +357,34 @@ int nfc_llcp_send_cc(struct nfc_llcp_sock *sock)
 	if (local == NULL)
 		return -ENODEV;
 
-	skb = llcp_allocate_pdu(sock, LLCP_PDU_CC, 0);
-	if (skb == NULL)
-		return -ENOMEM;
+	miux = cpu_to_be16(LLCP_MAX_MIUX);
+	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&miux, 0, &miux_tlv_length);
+	size += miux_tlv_length;
+
+	rw = LLCP_MAX_RW;
+	rw_tlv = nfc_llcp_build_tlv(LLCP_TLV_RW, &rw, 0, &rw_tlv_length);
+	size += rw_tlv_length;
+
+	skb = llcp_allocate_pdu(sock, LLCP_PDU_CC, size);
+	if (skb == NULL) {
+		err = -ENOMEM;
+		goto error_tlv;
+	}
+
+	skb = llcp_add_tlv(skb, miux_tlv, miux_tlv_length);
+	skb = llcp_add_tlv(skb, rw_tlv, rw_tlv_length);
 
 	skb_queue_tail(&local->tx_queue, skb);
 
 	return 0;
+
+error_tlv:
+	pr_err("error %d\n", err);
+
+	kfree(miux_tlv);
+	kfree(rw_tlv);
+
+	return err;
 }
 
 int nfc_llcp_send_dm(struct nfc_llcp_local *local, u8 ssap, u8 dsap, u8 reason)
