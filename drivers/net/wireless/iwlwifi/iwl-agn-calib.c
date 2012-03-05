@@ -655,7 +655,6 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv)
 	struct iwl_sensitivity_data *data = NULL;
 	struct statistics_rx_non_phy *rx_info;
 	struct statistics_rx_phy *ofdm, *cck;
-	unsigned long flags;
 	struct statistics_general_data statis;
 
 	if (priv->disable_sens_cal)
@@ -668,13 +667,13 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv)
 		return;
 	}
 
-	spin_lock_irqsave(&priv->shrd->lock, flags);
+	spin_lock_bh(&priv->statistics.lock);
 	rx_info = &priv->statistics.rx_non_phy;
 	ofdm = &priv->statistics.rx_ofdm;
 	cck = &priv->statistics.rx_cck;
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
 		IWL_DEBUG_CALIB(priv, "<< invalid data.\n");
-		spin_unlock_irqrestore(&priv->shrd->lock, flags);
+		spin_unlock_bh(&priv->statistics.lock);
 		return;
 	}
 
@@ -698,7 +697,7 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv)
 	statis.beacon_energy_c =
 			le32_to_cpu(rx_info->beacon_energy_c);
 
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
+	spin_unlock_bh(&priv->statistics.lock);
 
 	IWL_DEBUG_CALIB(priv, "rx_enable_time = %u usecs\n", rx_enable_time);
 
@@ -958,7 +957,6 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	u16 stat_chnum = INITIALIZATION_VALUE;
 	u8 rxon_band24;
 	u8 stat_band24;
-	unsigned long flags;
 	struct statistics_rx_non_phy *rx_info;
 
 	/*
@@ -983,13 +981,13 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 		return;
 	}
 
-	spin_lock_irqsave(&priv->shrd->lock, flags);
+	spin_lock_bh(&priv->statistics.lock);
 
 	rx_info = &priv->statistics.rx_non_phy;
 
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
 		IWL_DEBUG_CALIB(priv, " << Interference data unavailable\n");
-		spin_unlock_irqrestore(&priv->shrd->lock, flags);
+		spin_unlock_bh(&priv->statistics.lock);
 		return;
 	}
 
@@ -1004,7 +1002,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	if ((rxon_chnum != stat_chnum) || (rxon_band24 != stat_band24)) {
 		IWL_DEBUG_CALIB(priv, "Stats not from chan=%d, band24=%d\n",
 				rxon_chnum, rxon_band24);
-		spin_unlock_irqrestore(&priv->shrd->lock, flags);
+		spin_unlock_bh(&priv->statistics.lock);
 		return;
 	}
 
@@ -1023,7 +1021,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	chain_sig_b = le32_to_cpu(rx_info->beacon_rssi_b) & IN_BAND_FILTER;
 	chain_sig_c = le32_to_cpu(rx_info->beacon_rssi_c) & IN_BAND_FILTER;
 
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
+	spin_unlock_bh(&priv->statistics.lock);
 
 	data->beacon_count++;
 

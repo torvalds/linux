@@ -266,6 +266,8 @@ static bool iwlagn_good_ack_health(struct iwl_priv *priv,
 	if (priv->agg_tids_count)
 		return true;
 
+	lockdep_assert_held(&priv->statistics.lock);
+
 	old = &priv->statistics.tx;
 
 	actual_delta = le32_to_cpu(cur->actual_ack_cnt) -
@@ -509,6 +511,8 @@ static int iwlagn_rx_statistics(struct iwl_priv *priv,
 	IWL_DEBUG_RX(priv, "Statistics notification received (%d bytes).\n",
 		     len);
 
+	spin_lock(&priv->statistics.lock);
+
 	if (len == sizeof(struct iwl_bt_notif_statistics)) {
 		struct iwl_bt_notif_statistics *stats;
 		stats = &pkt->u.stats_bt;
@@ -542,6 +546,7 @@ static int iwlagn_rx_statistics(struct iwl_priv *priv,
 		WARN_ONCE(1, "len %d doesn't match BT (%zu) or normal (%zu)\n",
 			  len, sizeof(struct iwl_bt_notif_statistics),
 			  sizeof(struct iwl_notif_statistics));
+		spin_unlock(&priv->statistics.lock);
 		return 0;
 	}
 
@@ -585,6 +590,9 @@ static int iwlagn_rx_statistics(struct iwl_priv *priv,
 	}
 	if (cfg(priv)->lib->temperature && change)
 		cfg(priv)->lib->temperature(priv);
+
+	spin_unlock(&priv->statistics.lock);
+
 	return 0;
 }
 

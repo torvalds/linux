@@ -1233,6 +1233,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans)
 	 */
 	spin_lock_init(&trans(priv)->reg_lock);
 	spin_lock_init(&priv->shrd->lock);
+	spin_lock_init(&priv->statistics.lock);
 
 	/***********************
 	 * 3. Read REV register

@@ -851,6 +851,7 @@ struct iwl_priv {
 		struct statistics_bt_activity bt_activity;
 		__le32 num_bt_kills, accum_num_bt_kills;
 #endif
+		spinlock_t lock;
 	} statistics;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct {
