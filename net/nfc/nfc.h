@@ -54,7 +54,7 @@ void nfc_llcp_mac_is_up(struct nfc_dev *dev, u32 target_idx,
 int nfc_llcp_register_device(struct nfc_dev *dev);
 void nfc_llcp_unregister_device(struct nfc_dev *dev);
 int nfc_llcp_set_remote_gb(struct nfc_dev *dev, u8 *gb, u8 gb_len);
-u8 *nfc_llcp_general_bytes(struct nfc_dev *dev, u8 *general_bytes_len);
+u8 *nfc_llcp_general_bytes(struct nfc_dev *dev, size_t *general_bytes_len);
 int __init nfc_llcp_init(void);
 void nfc_llcp_exit(void);
 
@@ -160,8 +160,7 @@ int nfc_start_poll(struct nfc_dev *dev, u32 protocols);
 
 int nfc_stop_poll(struct nfc_dev *dev);
 
-int nfc_dep_link_up(struct nfc_dev *dev, int target_idx,
-				u8 comm_mode, u8 rf_mode);
+int nfc_dep_link_up(struct nfc_dev *dev, int target_idx, u8 comm_mode);
 
 int nfc_dep_link_down(struct nfc_dev *dev);
 

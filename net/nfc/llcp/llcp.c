@@ -281,7 +281,7 @@ void nfc_llcp_put_ssap(struct nfc_llcp_local *local, u8 ssap)
 	mutex_unlock(&local->sdp_lock);
 }
 
-u8 *nfc_llcp_general_bytes(struct nfc_dev *dev, u8 *general_bytes_len)
+u8 *nfc_llcp_general_bytes(struct nfc_dev *dev, size_t *general_bytes_len)
 {
 	struct nfc_llcp_local *local;
 

@@ -53,8 +53,8 @@ struct nfc_ops {
 	int (*dev_down)(struct nfc_dev *dev);
 	int (*start_poll)(struct nfc_dev *dev, u32 protocols);
 	void (*stop_poll)(struct nfc_dev *dev);
-	int (*dep_link_up)(struct nfc_dev *dev, int target_idx,
-				u8 comm_mode, u8 rf_mode);
+	int (*dep_link_up)(struct nfc_dev *dev, int target_idx, u8 comm_mode,
+			   u8 *gb, size_t gb_len);
 	int (*dep_link_down)(struct nfc_dev *dev);
 	int (*activate_target)(struct nfc_dev *dev, u32 target_idx,
 							u32 protocol);
@@ -178,8 +178,6 @@ struct sk_buff *nfc_alloc_recv_skb(unsigned int size, gfp_t gfp);
 
 int nfc_set_remote_general_bytes(struct nfc_dev *dev,
 					u8 *gt, u8 gt_len);
-
-u8 *nfc_get_local_general_bytes(struct nfc_dev *dev, u8 *gt_len);
 
 int nfc_targets_found(struct nfc_dev *dev, struct nfc_target *targets,
 							int ntargets);
