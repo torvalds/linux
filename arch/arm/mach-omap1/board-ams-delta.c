@@ -18,7 +18,6 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/leds.h>
-#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/fixed.h>
@@ -291,34 +290,7 @@ static struct platform_device modem_nreset_device = {
 
 struct modem_private_data {
 	struct regulator *regulator;
-	struct {
-		struct mutex lock;
-		bool enabled;
-	} consumer;
 };
-
-static int regulator_toggle(struct modem_private_data *priv, bool enable)
-{
-	int err = 0;
-
-	mutex_lock(&priv->consumer.lock);
-	if (IS_ERR(priv->regulator)) {
-		err = PTR_ERR(priv->regulator);
-	} else if (enable) {
-		if (!priv->consumer.enabled) {
-			err = regulator_enable(priv->regulator);
-			priv->consumer.enabled = true;
-		}
-	} else {
-		if (priv->consumer.enabled) {
-			err = regulator_disable(priv->regulator);
-			priv->consumer.enabled = false;
-		}
-	}
-	mutex_unlock(&priv->consumer.lock);
-
-	return err;
-}
 
 static struct modem_private_data modem_priv;
 
@@ -330,8 +302,6 @@ void ams_delta_latch_write(int base, int ngpio, u16 mask, u16 value)
 	for (; bit < ngpio; bit++, bitpos = bitpos << 1) {
 		if (!(mask & bitpos))
 			continue;
-		else if (base + bit == AMS_DELTA_GPIO_PIN_MODEM_NRESET)
-			regulator_toggle(&modem_priv, (value & bitpos) != 0);
 		else
 			gpio_set_value(base + bit, (value & bitpos) != 0);
 	}
@@ -530,10 +500,16 @@ static void modem_pm(struct uart_port *port, unsigned int state, unsigned old)
 {
 	struct modem_private_data *priv = port->private_data;
 
+	if (IS_ERR(priv->regulator))
+		return;
+
 	if (state == old)
 		return;
 
-	regulator_toggle(priv, state == 0);
+	if (state == 0)
+		regulator_enable(priv->regulator);
+	else if (old == 0)
+		regulator_disable(priv->regulator);
 }
 
 static struct plat_serial8250_port ams_delta_modem_ports[] = {
@@ -593,7 +569,6 @@ static int __init late_init(void)
 	gpio_direction_input(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
 
 	/* Initialize the modem_nreset regulator consumer before use */
-	mutex_init(&modem_priv.consumer.lock);
 	modem_priv.regulator = ERR_PTR(-ENODEV);
 
 	ams_delta_latch2_write(AMS_DELTA_LATCH2_MODEM_CODEC,
@@ -606,9 +581,6 @@ static int __init late_init(void)
 	/*
 	 * Once the modem device is registered, the modem_nreset
 	 * regulator can be requested on behalf of that device.
-	 * In addition to the modem .pm callback, that regulator
-	 * is still used via the ams_delta_latch_write() wrapper
-	 * by the ASoC driver until updated.
 	 */
 	modem_priv.regulator = regulator_get(&ams_delta_modem_device.dev,
 			"RESET#");
