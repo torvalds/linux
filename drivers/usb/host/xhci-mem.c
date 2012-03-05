@@ -135,6 +135,12 @@ static void xhci_initialize_ring_info(struct xhci_ring *ring)
 	/* Not necessary for new rings, but needed for re-initialized rings */
 	ring->enq_updates = 0;
 	ring->deq_updates = 0;
+
+	/*
+	 * Each segment has a link TRB, and leave an extra TRB for SW
+	 * accounting purpose
+	 */
+	ring->num_trbs_free = ring->num_segs * (TRBS_PER_SEGMENT - 1) - 1;
 }
 
 /**
