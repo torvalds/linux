@@ -64,32 +64,7 @@ static struct console *console;
 
 extern struct console *console_drivers; /* from kernel/printk.c */
 
-/*
- * ------------------------------------------------------------
- * rs_stop() and rs_start()
- *
- * This routines are called before setting or resetting tty->stopped.
- * They enable or disable transmitter interrupts, as necessary.
- * ------------------------------------------------------------
- */
-static void rs_stop(struct tty_struct *tty)
-{
-#ifdef SIMSERIAL_DEBUG
-	printk("rs_stop: tty->stopped=%d tty->hw_stopped=%d tty->flow_stopped=%d\n",
-		tty->stopped, tty->hw_stopped, tty->flow_stopped);
-#endif
-
-}
-
-static void rs_start(struct tty_struct *tty)
-{
-#ifdef SIMSERIAL_DEBUG
-	printk("rs_start: tty->stopped=%d tty->hw_stopped=%d tty->flow_stopped=%d\n",
-		tty->stopped, tty->hw_stopped, tty->flow_stopped);
-#endif
-}
-
-static  void receive_chars(struct tty_struct *tty)
+static void receive_chars(struct tty_struct *tty)
 {
 	unsigned char ch;
 	static unsigned char seen_esc = 0;
@@ -406,7 +381,6 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	if ((old_termios->c_cflag & CRTSCTS) &&
 	    !(tty->termios->c_cflag & CRTSCTS)) {
 		tty->hw_stopped = 0;
-		rs_start(tty);
 	}
 }
 /*
@@ -512,14 +486,6 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	port->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
 	wake_up_interruptible(&port->close_wait);
 }
-
-/*
- * rs_wait_until_sent() --- wait until the transmitter is empty
- */
-static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
-{
-}
-
 
 /*
  * rs_hangup() --- called by tty_hangup() when a hangup is signaled.
@@ -736,10 +702,7 @@ static const struct tty_operations hp_ops = {
 	.unthrottle = rs_unthrottle,
 	.send_xchar = rs_send_xchar,
 	.set_termios = rs_set_termios,
-	.stop = rs_stop,
-	.start = rs_start,
 	.hangup = rs_hangup,
-	.wait_until_sent = rs_wait_until_sent,
 	.proc_fops = &rs_proc_fops,
 };
 
