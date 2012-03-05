@@ -403,7 +403,7 @@ struct mlx4_profile {
 	int			num_cq;
 	int			num_mcg;
 	int			num_mpt;
-	int			num_mtt;
+	unsigned		num_mtt;
 };
 
 struct mlx4_fw {
