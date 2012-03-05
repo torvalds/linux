@@ -22,6 +22,21 @@ zreladdr-$(CONFIG_SOC_IMX35)	+= 0x80008000
 params_phys-$(CONFIG_SOC_IMX35)	:= 0x80000100
 initrd_phys-$(CONFIG_SOC_IMX35)	:= 0x80800000
 
+zreladdr-$(CONFIG_SOC_IMX50)	+= 0x70008000
+params_phys-$(CONFIG_SOC_IMX50)	:= 0x70000100
+initrd_phys-$(CONFIG_SOC_IMX50)	:= 0x70800000
+
+zreladdr-$(CONFIG_SOC_IMX51)	+= 0x90008000
+params_phys-$(CONFIG_SOC_IMX51)	:= 0x90000100
+initrd_phys-$(CONFIG_SOC_IMX51)	:= 0x90800000
+
+zreladdr-$(CONFIG_SOC_IMX53)	+= 0x70008000
+params_phys-$(CONFIG_SOC_IMX53)	:= 0x70000100
+initrd_phys-$(CONFIG_SOC_IMX53)	:= 0x70800000
+
 zreladdr-$(CONFIG_SOC_IMX6Q)	+= 0x10008000
 params_phys-$(CONFIG_SOC_IMX6Q)	:= 0x10000100
 initrd_phys-$(CONFIG_SOC_IMX6Q)	:= 0x10800000
+
+dtb-$(CONFIG_SOC_IMX6Q)	+= imx6q-arm2.dtb \
+			   imx6q-sabrelite.dtb

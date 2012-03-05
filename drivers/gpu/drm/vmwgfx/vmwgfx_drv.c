@@ -1064,6 +1064,21 @@ static const struct dev_pm_ops vmw_pm_ops = {
 	.resume = vmw_pm_resume,
 };
 
+static const struct file_operations vmwgfx_driver_fops = {
+	.owner = THIS_MODULE,
+	.open = drm_open,
+	.release = drm_release,
+	.unlocked_ioctl = vmw_unlocked_ioctl,
+	.mmap = vmw_mmap,
+	.poll = vmw_fops_poll,
+	.read = vmw_fops_read,
+	.fasync = drm_fasync,
+#if defined(CONFIG_COMPAT)
+	.compat_ioctl = drm_compat_ioctl,
+#endif
+	.llseek = noop_llseek,
+};
+
 static struct drm_driver driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
 	DRIVER_MODESET,
@@ -1088,20 +1103,7 @@ static struct drm_driver driver = {
 	.master_drop = vmw_master_drop,
 	.open = vmw_driver_open,
 	.postclose = vmw_postclose,
-	.fops = {
-		 .owner = THIS_MODULE,
-		 .open = drm_open,
-		 .release = drm_release,
-		 .unlocked_ioctl = vmw_unlocked_ioctl,
-		 .mmap = vmw_mmap,
-		 .poll = vmw_fops_poll,
-		 .read = vmw_fops_read,
-		 .fasync = drm_fasync,
-#if defined(CONFIG_COMPAT)
-		 .compat_ioctl = drm_compat_ioctl,
-#endif
-		 .llseek = noop_llseek,
-	},
+	.fops = &vmwgfx_driver_fops,
 	.name = VMWGFX_DRIVER_NAME,
 	.desc = VMWGFX_DRIVER_DESC,
 	.date = VMWGFX_DRIVER_DATE,

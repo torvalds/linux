@@ -16,7 +16,6 @@
 #include <linux/genhd.h>
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
-#include <linux/buffer_head.h>
 #include <asm/unaligned.h>
 
 #include <scsi/scsicam.h>

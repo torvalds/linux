@@ -941,7 +941,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 		track->db_depth_control = radeon_get_ib_value(p, idx);
 		break;
 	case R_028010_DB_DEPTH_INFO:
-		if (!p->keep_tiling_flags &&
+		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS) &&
 		    r600_cs_packet_next_is_pkt3_nop(p)) {
 			r = r600_cs_packet_next_reloc(p, &reloc);
 			if (r) {
@@ -993,7 +993,7 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case R_0280B4_CB_COLOR5_INFO:
 	case R_0280B8_CB_COLOR6_INFO:
 	case R_0280BC_CB_COLOR7_INFO:
-		if (!p->keep_tiling_flags &&
+		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS) &&
 		     r600_cs_packet_next_is_pkt3_nop(p)) {
 			r = r600_cs_packet_next_reloc(p, &reloc);
 			if (r) {
@@ -1293,7 +1293,7 @@ static int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
 	mip_offset <<= 8;
 
 	word0 = radeon_get_ib_value(p, idx + 0);
-	if (!p->keep_tiling_flags) {
+	if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
 		if (tiling_flags & RADEON_TILING_MACRO)
 			word0 |= S_038000_TILE_MODE(V_038000_ARRAY_2D_TILED_THIN1);
 		else if (tiling_flags & RADEON_TILING_MICRO)
@@ -1625,7 +1625,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 					return -EINVAL;
 				}
 				base_offset = (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
-				if (!p->keep_tiling_flags) {
+				if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
 					if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
 						ib[idx+1+(i*7)+0] |= S_038000_TILE_MODE(V_038000_ARRAY_2D_TILED_THIN1);
 					else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)

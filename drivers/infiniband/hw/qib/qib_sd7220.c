@@ -300,7 +300,7 @@ bail:
 }
 
 static void qib_sd_trimdone_monitor(struct qib_devdata *dd,
-       const char *where)
+	const char *where)
 {
 	int ret, chn, baduns;
 	u64 val;

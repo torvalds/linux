@@ -69,21 +69,21 @@ MODULE_AUTHOR("Bruno Ducrot");
 MODULE_DESCRIPTION("ACPI Video Driver");
 MODULE_LICENSE("GPL");
 
-static int brightness_switch_enabled = 1;
+static bool brightness_switch_enabled = 1;
 module_param(brightness_switch_enabled, bool, 0644);
 
 /*
  * By default, we don't allow duplicate ACPI video bus devices
  * under the same VGA controller
  */
-static int allow_duplicates;
+static bool allow_duplicates;
 module_param(allow_duplicates, bool, 0644);
 
 /*
  * Some BIOSes claim they use minimum backlight at boot,
  * and this may bring dimming screen after boot
  */
-static int use_bios_initial_backlight = 1;
+static bool use_bios_initial_backlight = 1;
 module_param(use_bios_initial_backlight, bool, 0644);
 
 static int register_count = 0;

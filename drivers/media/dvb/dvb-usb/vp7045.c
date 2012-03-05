@@ -294,26 +294,7 @@ static struct usb_driver vp7045_usb_driver = {
 	.id_table	= vp7045_usb_table,
 };
 
-/* module stuff */
-static int __init vp7045_usb_module_init(void)
-{
-	int result;
-	if ((result = usb_register(&vp7045_usb_driver))) {
-		err("usb_register failed. (%d)",result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit vp7045_usb_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&vp7045_usb_driver);
-}
-
-module_init(vp7045_usb_module_init);
-module_exit(vp7045_usb_module_exit);
+module_usb_driver(vp7045_usb_driver);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
 MODULE_DESCRIPTION("Driver for Twinhan MagicBox/Alpha and DNTV tinyUSB2 DVB-T USB2.0");

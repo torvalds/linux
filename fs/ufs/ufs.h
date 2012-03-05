@@ -104,7 +104,7 @@ extern const struct address_space_operations ufs_aops;
 
 /* ialloc.c */
 extern void ufs_free_inode (struct inode *inode);
-extern struct inode * ufs_new_inode (struct inode *, int);
+extern struct inode * ufs_new_inode (struct inode *, umode_t);
 
 /* inode.c */
 extern struct inode *ufs_iget(struct super_block *, unsigned long);

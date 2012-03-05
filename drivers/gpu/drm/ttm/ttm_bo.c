@@ -137,6 +137,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	struct ttm_buffer_object *bo =
 	    container_of(list_kref, struct ttm_buffer_object, list_kref);
 	struct ttm_bo_device *bdev = bo->bdev;
+	size_t acc_size = bo->acc_size;
 
 	BUG_ON(atomic_read(&bo->list_kref.refcount));
 	BUG_ON(atomic_read(&bo->kref.refcount));
@@ -152,9 +153,9 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	if (bo->destroy)
 		bo->destroy(bo);
 	else {
-		ttm_mem_global_free(bdev->glob->mem_glob, bo->acc_size);
 		kfree(bo);
 	}
+	ttm_mem_global_free(bdev->glob->mem_glob, acc_size);
 }
 
 int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo, bool interruptible)
@@ -337,26 +338,10 @@ static int ttm_bo_add_ttm(struct ttm_buffer_object *bo, bool zero_alloc)
 		if (zero_alloc)
 			page_flags |= TTM_PAGE_FLAG_ZERO_ALLOC;
 	case ttm_bo_type_kernel:
-		bo->ttm = ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
-					page_flags, glob->dummy_read_page);
+		bo->ttm = bdev->driver->ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
+						      page_flags, glob->dummy_read_page);
 		if (unlikely(bo->ttm == NULL))
 			ret = -ENOMEM;
-		break;
-	case ttm_bo_type_user:
-		bo->ttm = ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
-					page_flags | TTM_PAGE_FLAG_USER,
-					glob->dummy_read_page);
-		if (unlikely(bo->ttm == NULL)) {
-			ret = -ENOMEM;
-			break;
-		}
-
-		ret = ttm_tt_set_user(bo->ttm, current,
-				      bo->buffer_start, bo->num_pages);
-		if (unlikely(ret != 0)) {
-			ttm_tt_destroy(bo->ttm);
-			bo->ttm = NULL;
-		}
 		break;
 	default:
 		printk(KERN_ERR TTM_PFX "Illegal buffer object type\n");
@@ -419,9 +404,6 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 		}
 	}
 
-	if (bdev->driver->move_notify)
-		bdev->driver->move_notify(bo, mem);
-
 	if (!(old_man->flags & TTM_MEMTYPE_FLAG_FIXED) &&
 	    !(new_man->flags & TTM_MEMTYPE_FLAG_FIXED))
 		ret = ttm_bo_move_ttm(bo, evict, no_wait_reserve, no_wait_gpu, mem);
@@ -433,6 +415,9 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 
 	if (ret)
 		goto out_err;
+
+	if (bdev->driver->move_notify)
+		bdev->driver->move_notify(bo, mem);
 
 moved:
 	if (bo->evicted) {
@@ -472,6 +457,9 @@ out_err:
 
 static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 {
+	if (bo->bdev->driver->move_notify)
+		bo->bdev->driver->move_notify(bo, NULL);
+
 	if (bo->ttm) {
 		ttm_tt_unbind(bo->ttm);
 		ttm_tt_destroy(bo->ttm);
@@ -913,15 +901,11 @@ static uint32_t ttm_bo_select_caching(struct ttm_mem_type_manager *man,
 }
 
 static bool ttm_bo_mt_compatible(struct ttm_mem_type_manager *man,
-				 bool disallow_fixed,
 				 uint32_t mem_type,
 				 uint32_t proposed_placement,
 				 uint32_t *masked_placement)
 {
 	uint32_t cur_flags = ttm_bo_type_flags(mem_type);
-
-	if ((man->flags & TTM_MEMTYPE_FLAG_FIXED) && disallow_fixed)
-		return false;
 
 	if ((cur_flags & proposed_placement & TTM_PL_MASK_MEM) == 0)
 		return false;
@@ -967,7 +951,6 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		man = &bdev->man[mem_type];
 
 		type_ok = ttm_bo_mt_compatible(man,
-						bo->type == ttm_bo_type_user,
 						mem_type,
 						placement->placement[i],
 						&cur_flags);
@@ -1015,7 +998,6 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		if (!man->has_type)
 			continue;
 		if (!ttm_bo_mt_compatible(man,
-						bo->type == ttm_bo_type_user,
 						mem_type,
 						placement->busy_placement[i],
 						&cur_flags))
@@ -1185,6 +1167,17 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 {
 	int ret = 0;
 	unsigned long num_pages;
+	struct ttm_mem_global *mem_glob = bdev->glob->mem_glob;
+
+	ret = ttm_mem_global_alloc(mem_glob, acc_size, false, false);
+	if (ret) {
+		printk(KERN_ERR TTM_PFX "Out of kernel memory.\n");
+		if (destroy)
+			(*destroy)(bo);
+		else
+			kfree(bo);
+		return -ENOMEM;
+	}
 
 	size += buffer_start & ~PAGE_MASK;
 	num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -1255,14 +1248,34 @@ out_err:
 }
 EXPORT_SYMBOL(ttm_bo_init);
 
-static inline size_t ttm_bo_size(struct ttm_bo_global *glob,
-				 unsigned long num_pages)
+size_t ttm_bo_acc_size(struct ttm_bo_device *bdev,
+		       unsigned long bo_size,
+		       unsigned struct_size)
 {
-	size_t page_array_size = (num_pages * sizeof(void *) + PAGE_SIZE - 1) &
-	    PAGE_MASK;
+	unsigned npages = (PAGE_ALIGN(bo_size)) >> PAGE_SHIFT;
+	size_t size = 0;
 
-	return glob->ttm_bo_size + 2 * page_array_size;
+	size += ttm_round_pot(struct_size);
+	size += PAGE_ALIGN(npages * sizeof(void *));
+	size += ttm_round_pot(sizeof(struct ttm_tt));
+	return size;
 }
+EXPORT_SYMBOL(ttm_bo_acc_size);
+
+size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
+			   unsigned long bo_size,
+			   unsigned struct_size)
+{
+	unsigned npages = (PAGE_ALIGN(bo_size)) >> PAGE_SHIFT;
+	size_t size = 0;
+
+	size += ttm_round_pot(struct_size);
+	size += PAGE_ALIGN(npages * sizeof(void *));
+	size += PAGE_ALIGN(npages * sizeof(dma_addr_t));
+	size += ttm_round_pot(sizeof(struct ttm_dma_tt));
+	return size;
+}
+EXPORT_SYMBOL(ttm_bo_dma_acc_size);
 
 int ttm_bo_create(struct ttm_bo_device *bdev,
 			unsigned long size,
@@ -1276,10 +1289,10 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 {
 	struct ttm_buffer_object *bo;
 	struct ttm_mem_global *mem_glob = bdev->glob->mem_glob;
+	size_t acc_size;
 	int ret;
 
-	size_t acc_size =
-	    ttm_bo_size(bdev->glob, (size + PAGE_SIZE - 1) >> PAGE_SHIFT);
+	acc_size = ttm_bo_acc_size(bdev, size, sizeof(struct ttm_buffer_object));
 	ret = ttm_mem_global_alloc(mem_glob, acc_size, false, false);
 	if (unlikely(ret != 0))
 		return ret;
@@ -1464,13 +1477,6 @@ int ttm_bo_global_init(struct drm_global_reference *ref)
 		       "Could not register buffer object swapout.\n");
 		goto out_no_shrink;
 	}
-
-	glob->ttm_bo_extra_size =
-		ttm_round_pot(sizeof(struct ttm_tt)) +
-		ttm_round_pot(sizeof(struct ttm_backend));
-
-	glob->ttm_bo_size = glob->ttm_bo_extra_size +
-		ttm_round_pot(sizeof(struct ttm_buffer_object));
 
 	atomic_set(&glob->bo_count, 0);
 

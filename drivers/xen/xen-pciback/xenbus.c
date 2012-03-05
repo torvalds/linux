@@ -16,7 +16,7 @@
 #define INVALID_EVTCHN_IRQ  (-1)
 struct workqueue_struct *xen_pcibk_wq;
 
-static int __read_mostly passthrough;
+static bool __read_mostly passthrough;
 module_param(passthrough, bool, S_IRUGO);
 MODULE_PARM_DESC(passthrough,
 	"Option to specify how to export PCI topology to guest:\n"\
@@ -241,11 +241,10 @@ static int xen_pcibk_export_device(struct xen_pcibk_device *pdev,
 		goto out;
 
 	dev_dbg(&dev->dev, "registering for %d\n", pdev->xdev->otherend_id);
-	dev->dev_flags |= PCI_DEV_FLAGS_ASSIGNED;
 	if (xen_register_device_domain_owner(dev,
 					     pdev->xdev->otherend_id) != 0) {
-		dev_err(&dev->dev, "device has been assigned to another " \
-			"domain! Over-writting the ownership, but beware.\n");
+		dev_err(&dev->dev, "Stealing ownership from dom%d.\n",
+			xen_find_device_domain_owner(dev));
 		xen_unregister_device_domain_owner(dev);
 		xen_register_device_domain_owner(dev, pdev->xdev->otherend_id);
 	}
@@ -281,7 +280,6 @@ static int xen_pcibk_remove_device(struct xen_pcibk_device *pdev,
 	}
 
 	dev_dbg(&dev->dev, "unregistering for %d\n", pdev->xdev->otherend_id);
-	dev->dev_flags &= ~PCI_DEV_FLAGS_ASSIGNED;
 	xen_unregister_device_domain_owner(dev);
 
 	xen_pcibk_release_pci_dev(pdev, dev);
@@ -707,19 +705,16 @@ static int xen_pcibk_xenbus_remove(struct xenbus_device *dev)
 	return 0;
 }
 
-static const struct xenbus_device_id xenpci_ids[] = {
+static const struct xenbus_device_id xen_pcibk_ids[] = {
 	{"pci"},
 	{""},
 };
 
-static struct xenbus_driver xenbus_xen_pcibk_driver = {
-	.name			= DRV_NAME,
-	.owner			= THIS_MODULE,
-	.ids			= xenpci_ids,
+static DEFINE_XENBUS_DRIVER(xen_pcibk, DRV_NAME,
 	.probe			= xen_pcibk_xenbus_probe,
 	.remove			= xen_pcibk_xenbus_remove,
 	.otherend_changed	= xen_pcibk_frontend_changed,
-};
+);
 
 const struct xen_pcibk_backend *__read_mostly xen_pcibk_backend;
 
@@ -735,11 +730,11 @@ int __init xen_pcibk_xenbus_register(void)
 	if (passthrough)
 		xen_pcibk_backend = &xen_pcibk_passthrough_backend;
 	pr_info(DRV_NAME ": backend is %s\n", xen_pcibk_backend->name);
-	return xenbus_register_backend(&xenbus_xen_pcibk_driver);
+	return xenbus_register_backend(&xen_pcibk_driver);
 }
 
 void __exit xen_pcibk_xenbus_unregister(void)
 {
 	destroy_workqueue(xen_pcibk_wq);
-	xenbus_unregister_driver(&xenbus_xen_pcibk_driver);
+	xenbus_unregister_driver(&xen_pcibk_driver);
 }

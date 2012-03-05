@@ -223,17 +223,7 @@ static struct platform_driver latch_addr_flash_driver = {
 	},
 };
 
-static int __init latch_addr_flash_init(void)
-{
-	return platform_driver_register(&latch_addr_flash_driver);
-}
-module_init(latch_addr_flash_init);
-
-static void __exit latch_addr_flash_exit(void)
-{
-	platform_driver_unregister(&latch_addr_flash_driver);
-}
-module_exit(latch_addr_flash_exit);
+module_platform_driver(latch_addr_flash_driver);
 
 MODULE_AUTHOR("David Griego <dgriego@mvista.com>");
 MODULE_DESCRIPTION("MTD map driver for flashes addressed physically with upper "

@@ -226,7 +226,7 @@ static int tegra_spdif_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static struct snd_soc_dai_ops tegra_spdif_dai_ops = {
+static const struct snd_soc_dai_ops tegra_spdif_dai_ops = {
 	.hw_params	= tegra_spdif_hw_params,
 	.trigger	= tegra_spdif_trigger,
 };
@@ -352,17 +352,7 @@ static struct platform_driver tegra_spdif_driver = {
 	.remove = __devexit_p(tegra_spdif_platform_remove),
 };
 
-static int __init snd_tegra_spdif_init(void)
-{
-	return platform_driver_register(&tegra_spdif_driver);
-}
-module_init(snd_tegra_spdif_init);
-
-static void __exit snd_tegra_spdif_exit(void)
-{
-	platform_driver_unregister(&tegra_spdif_driver);
-}
-module_exit(snd_tegra_spdif_exit);
+module_platform_driver(tegra_spdif_driver);
 
 MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
 MODULE_DESCRIPTION("Tegra SPDIF ASoC driver");

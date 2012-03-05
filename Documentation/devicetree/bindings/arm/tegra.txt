@@ -1,0 +1,14 @@
+NVIDIA Tegra device tree bindings
+-------------------------------------------
+
+Boards with the tegra20 SoC shall have the following properties:
+
+Required root node property:
+
+compatible = "nvidia,tegra20";
+
+Boards with the tegra30 SoC shall have the following properties:
+
+Required root node property:
+
+compatible = "nvidia,tegra30";

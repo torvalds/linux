@@ -210,6 +210,9 @@ static int mwifiex_ret_802_11_snmp_mib(struct mwifiex_private *priv,
 			dev_dbg(priv->adapter->dev,
 				"info: SNMP_RESP: TxRetryCount=%u\n", ul_temp);
 			break;
+		case DTIM_PERIOD_I:
+			dev_dbg(priv->adapter->dev,
+				"info: SNMP_RESP: DTIM period=%u\n", ul_temp);
 		default:
 			break;
 		}

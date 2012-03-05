@@ -752,7 +752,7 @@ struct dev_db_entry {
 	uint8_t res4[0x36];	/* 8A-BF */
 	uint8_t iscsi_name[0xE0];	/* C0-19F : xxzzy Make this a
 					 * pointer to a string so we
-					 * don't have to reserve soooo
+					 * don't have to reserve so
 					 * much RAM */
 	uint8_t link_local_ipv6_addr[0x10]; /* 1A0-1AF */
 	uint8_t res5[0x10];	/* 1B0-1BF */

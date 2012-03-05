@@ -76,21 +76,21 @@ static void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	}
 }
 
-static void hist_entry__add_cpumode_period(struct hist_entry *self,
+static void hist_entry__add_cpumode_period(struct hist_entry *he,
 					   unsigned int cpumode, u64 period)
 {
 	switch (cpumode) {
 	case PERF_RECORD_MISC_KERNEL:
-		self->period_sys += period;
+		he->period_sys += period;
 		break;
 	case PERF_RECORD_MISC_USER:
-		self->period_us += period;
+		he->period_us += period;
 		break;
 	case PERF_RECORD_MISC_GUEST_KERNEL:
-		self->period_guest_sys += period;
+		he->period_guest_sys += period;
 		break;
 	case PERF_RECORD_MISC_GUEST_USER:
-		self->period_guest_us += period;
+		he->period_guest_us += period;
 		break;
 	default:
 		break;
@@ -165,18 +165,18 @@ void hists__decay_entries_threaded(struct hists *hists,
 static struct hist_entry *hist_entry__new(struct hist_entry *template)
 {
 	size_t callchain_size = symbol_conf.use_callchain ? sizeof(struct callchain_root) : 0;
-	struct hist_entry *self = malloc(sizeof(*self) + callchain_size);
+	struct hist_entry *he = malloc(sizeof(*he) + callchain_size);
 
-	if (self != NULL) {
-		*self = *template;
-		self->nr_events = 1;
-		if (self->ms.map)
-			self->ms.map->referenced = true;
+	if (he != NULL) {
+		*he = *template;
+		he->nr_events = 1;
+		if (he->ms.map)
+			he->ms.map->referenced = true;
 		if (symbol_conf.use_callchain)
-			callchain_init(self->callchain);
+			callchain_init(he->callchain);
 	}
 
-	return self;
+	return he;
 }
 
 static void hists__inc_nr_entries(struct hists *hists, struct hist_entry *h)
@@ -677,15 +677,16 @@ static size_t callchain__fprintf_flat(FILE *fp, struct callchain_node *self,
 	return ret;
 }
 
-static size_t hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
-					    u64 total_samples, int left_margin)
+static size_t hist_entry_callchain__fprintf(struct hist_entry *he,
+					    u64 total_samples, int left_margin,
+					    FILE *fp)
 {
 	struct rb_node *rb_node;
 	struct callchain_node *chain;
 	size_t ret = 0;
 	u32 entries_printed = 0;
 
-	rb_node = rb_first(&self->sorted_chain);
+	rb_node = rb_first(&he->sorted_chain);
 	while (rb_node) {
 		double percent;
 
@@ -730,35 +731,35 @@ void hists__output_recalc_col_len(struct hists *hists, int max_rows)
 	}
 }
 
-static int hist_entry__pcnt_snprintf(struct hist_entry *self, char *s,
+static int hist_entry__pcnt_snprintf(struct hist_entry *he, char *s,
 				     size_t size, struct hists *pair_hists,
 				     bool show_displacement, long displacement,
-				     bool color, u64 session_total)
+				     bool color, u64 total_period)
 {
 	u64 period, total, period_sys, period_us, period_guest_sys, period_guest_us;
 	u64 nr_events;
 	const char *sep = symbol_conf.field_sep;
 	int ret;
 
-	if (symbol_conf.exclude_other && !self->parent)
+	if (symbol_conf.exclude_other && !he->parent)
 		return 0;
 
 	if (pair_hists) {
-		period = self->pair ? self->pair->period : 0;
-		nr_events = self->pair ? self->pair->nr_events : 0;
+		period = he->pair ? he->pair->period : 0;
+		nr_events = he->pair ? he->pair->nr_events : 0;
 		total = pair_hists->stats.total_period;
-		period_sys = self->pair ? self->pair->period_sys : 0;
-		period_us = self->pair ? self->pair->period_us : 0;
-		period_guest_sys = self->pair ? self->pair->period_guest_sys : 0;
-		period_guest_us = self->pair ? self->pair->period_guest_us : 0;
+		period_sys = he->pair ? he->pair->period_sys : 0;
+		period_us = he->pair ? he->pair->period_us : 0;
+		period_guest_sys = he->pair ? he->pair->period_guest_sys : 0;
+		period_guest_us = he->pair ? he->pair->period_guest_us : 0;
 	} else {
-		period = self->period;
-		nr_events = self->nr_events;
-		total = session_total;
-		period_sys = self->period_sys;
-		period_us = self->period_us;
-		period_guest_sys = self->period_guest_sys;
-		period_guest_us = self->period_guest_us;
+		period = he->period;
+		nr_events = he->nr_events;
+		total = total_period;
+		period_sys = he->period_sys;
+		period_us = he->period_us;
+		period_guest_sys = he->period_guest_sys;
+		period_guest_us = he->period_guest_us;
 	}
 
 	if (total) {
@@ -812,8 +813,8 @@ static int hist_entry__pcnt_snprintf(struct hist_entry *self, char *s,
 
 		if (total > 0)
 			old_percent = (period * 100.0) / total;
-		if (session_total > 0)
-			new_percent = (self->period * 100.0) / session_total;
+		if (total_period > 0)
+			new_percent = (he->period * 100.0) / total_period;
 
 		diff = new_percent - old_percent;
 
@@ -862,9 +863,10 @@ int hist_entry__snprintf(struct hist_entry *he, char *s, size_t size,
 	return ret;
 }
 
-int hist_entry__fprintf(struct hist_entry *he, size_t size, struct hists *hists,
-			struct hists *pair_hists, bool show_displacement,
-			long displacement, FILE *fp, u64 session_total)
+static int hist_entry__fprintf(struct hist_entry *he, size_t size,
+			       struct hists *hists, struct hists *pair_hists,
+			       bool show_displacement, long displacement,
+			       u64 total_period, FILE *fp)
 {
 	char bf[512];
 	int ret;
@@ -874,14 +876,14 @@ int hist_entry__fprintf(struct hist_entry *he, size_t size, struct hists *hists,
 
 	ret = hist_entry__pcnt_snprintf(he, bf, size, pair_hists,
 					show_displacement, displacement,
-					true, session_total);
+					true, total_period);
 	hist_entry__snprintf(he, bf + ret, size - ret, hists);
 	return fprintf(fp, "%s\n", bf);
 }
 
-static size_t hist_entry__fprintf_callchain(struct hist_entry *self,
-					    struct hists *hists, FILE *fp,
-					    u64 session_total)
+static size_t hist_entry__fprintf_callchain(struct hist_entry *he,
+					    struct hists *hists,
+					    u64 total_period, FILE *fp)
 {
 	int left_margin = 0;
 
@@ -889,11 +891,10 @@ static size_t hist_entry__fprintf_callchain(struct hist_entry *self,
 		struct sort_entry *se = list_first_entry(&hist_entry__sort_list,
 							 typeof(*se), list);
 		left_margin = hists__col_len(hists, se->se_width_idx);
-		left_margin -= thread__comm_len(self->thread);
+		left_margin -= thread__comm_len(he->thread);
 	}
 
-	return hist_entry_callchain__fprintf(fp, self, session_total,
-					     left_margin);
+	return hist_entry_callchain__fprintf(he, total_period, left_margin, fp);
 }
 
 size_t hists__fprintf(struct hists *hists, struct hists *pair,
@@ -903,6 +904,7 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 	struct sort_entry *se;
 	struct rb_node *nd;
 	size_t ret = 0;
+	u64 total_period;
 	unsigned long position = 1;
 	long displacement = 0;
 	unsigned int width;
@@ -917,6 +919,24 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 
 	fprintf(fp, "# %s", pair ? "Baseline" : "Overhead");
 
+	if (symbol_conf.show_cpu_utilization) {
+		if (sep) {
+			ret += fprintf(fp, "%csys", *sep);
+			ret += fprintf(fp, "%cus", *sep);
+			if (perf_guest) {
+				ret += fprintf(fp, "%cguest sys", *sep);
+				ret += fprintf(fp, "%cguest us", *sep);
+			}
+		} else {
+			ret += fprintf(fp, "     sys  ");
+			ret += fprintf(fp, "      us  ");
+			if (perf_guest) {
+				ret += fprintf(fp, "  guest sys  ");
+				ret += fprintf(fp, "  guest us  ");
+			}
+		}
+	}
+
 	if (symbol_conf.show_nr_samples) {
 		if (sep)
 			fprintf(fp, "%cSamples", *sep);
@@ -929,24 +949,6 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 			ret += fprintf(fp, "%cPeriod", *sep);
 		else
 			ret += fprintf(fp, "   Period    ");
-	}
-
-	if (symbol_conf.show_cpu_utilization) {
-		if (sep) {
-			ret += fprintf(fp, "%csys", *sep);
-			ret += fprintf(fp, "%cus", *sep);
-			if (perf_guest) {
-				ret += fprintf(fp, "%cguest sys", *sep);
-				ret += fprintf(fp, "%cguest us", *sep);
-			}
-		} else {
-			ret += fprintf(fp, "  sys  ");
-			ret += fprintf(fp, "  us  ");
-			if (perf_guest) {
-				ret += fprintf(fp, "  guest sys  ");
-				ret += fprintf(fp, "  guest us  ");
-			}
-		}
 	}
 
 	if (pair) {
@@ -993,6 +995,8 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 		goto print_entries;
 
 	fprintf(fp, "# ........");
+	if (symbol_conf.show_cpu_utilization)
+		fprintf(fp, "   .......   .......");
 	if (symbol_conf.show_nr_samples)
 		fprintf(fp, " ..........");
 	if (symbol_conf.show_total_period)
@@ -1025,6 +1029,8 @@ size_t hists__fprintf(struct hists *hists, struct hists *pair,
 		goto out;
 
 print_entries:
+	total_period = hists->stats.total_period;
+
 	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 
@@ -1040,11 +1046,10 @@ print_entries:
 			++position;
 		}
 		ret += hist_entry__fprintf(h, max_cols, hists, pair, show_displacement,
-					   displacement, fp, hists->stats.total_period);
+					   displacement, total_period, fp);
 
 		if (symbol_conf.use_callchain)
-			ret += hist_entry__fprintf_callchain(h, hists, fp,
-							     hists->stats.total_period);
+			ret += hist_entry__fprintf_callchain(h, hists, total_period, fp);
 		if (max_rows && ++nr_rows >= max_rows)
 			goto out;
 

@@ -28,7 +28,6 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/io.h>
-#include <linux/sysdev.h>
 #include <linux/dmi.h>
 #include <linux/efi.h>
 #include <linux/mutex.h>
@@ -165,22 +164,22 @@ static int ibm_rtl_write(u8 value)
 	return ret;
 }
 
-static ssize_t rtl_show_version(struct sysdev_class * dev,
-                                struct sysdev_class_attribute *attr,
+static ssize_t rtl_show_version(struct device *dev,
+                                struct device_attribute *attr,
                                 char *buf)
 {
 	return sprintf(buf, "%d\n", (int)ioread8(&rtl_table->version));
 }
 
-static ssize_t rtl_show_state(struct sysdev_class *dev,
-                              struct sysdev_class_attribute *attr,
+static ssize_t rtl_show_state(struct device *dev,
+                              struct device_attribute *attr,
                               char *buf)
 {
 	return sprintf(buf, "%d\n", ioread8(&rtl_table->rt_status));
 }
 
-static ssize_t rtl_set_state(struct sysdev_class *dev,
-                             struct sysdev_class_attribute *attr,
+static ssize_t rtl_set_state(struct device *dev,
+                             struct device_attribute *attr,
                              const char *buf,
                              size_t count)
 {
@@ -205,27 +204,28 @@ static ssize_t rtl_set_state(struct sysdev_class *dev,
 	return ret;
 }
 
-static struct sysdev_class class_rtl = {
+static struct bus_type rtl_subsys = {
 	.name = "ibm_rtl",
+	.dev_name = "ibm_rtl",
 };
 
-static SYSDEV_CLASS_ATTR(version, S_IRUGO, rtl_show_version, NULL);
-static SYSDEV_CLASS_ATTR(state, 0600, rtl_show_state, rtl_set_state);
+static DEVICE_ATTR(version, S_IRUGO, rtl_show_version, NULL);
+static DEVICE_ATTR(state, 0600, rtl_show_state, rtl_set_state);
 
-static struct sysdev_class_attribute *rtl_attributes[] = {
-	&attr_version,
-	&attr_state,
+static struct device_attribute *rtl_attributes[] = {
+	&dev_attr_version,
+	&dev_attr_state,
 	NULL
 };
 
 
 static int rtl_setup_sysfs(void) {
 	int ret, i;
-	ret = sysdev_class_register(&class_rtl);
 
+	ret = subsys_system_register(&rtl_subsys, NULL);
 	if (!ret) {
 		for (i = 0; rtl_attributes[i]; i ++)
-			sysdev_class_create_file(&class_rtl, rtl_attributes[i]);
+			device_create_file(rtl_subsys.dev_root, rtl_attributes[i]);
 	}
 	return ret;
 }
@@ -233,8 +233,8 @@ static int rtl_setup_sysfs(void) {
 static void rtl_teardown_sysfs(void) {
 	int i;
 	for (i = 0; rtl_attributes[i]; i ++)
-		sysdev_class_remove_file(&class_rtl, rtl_attributes[i]);
-	sysdev_class_unregister(&class_rtl);
+		device_remove_file(rtl_subsys.dev_root, rtl_attributes[i]);
+	bus_unregister(&rtl_subsys);
 }
 
 

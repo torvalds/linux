@@ -50,14 +50,9 @@ enum ad7476_supported_device_ids {
 };
 
 #ifdef CONFIG_IIO_BUFFER
-int ad7476_scan_from_ring(struct iio_dev *indio_dev);
 int ad7476_register_ring_funcs_and_init(struct iio_dev *indio_dev);
 void ad7476_ring_cleanup(struct iio_dev *indio_dev);
 #else /* CONFIG_IIO_BUFFER */
-static inline int ad7476_scan_from_ring(struct iio_dev *indio_dev)
-{
-	return 0;
-}
 
 static inline int
 ad7476_register_ring_funcs_and_init(struct iio_dev *indio_dev)

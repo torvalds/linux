@@ -229,8 +229,7 @@ static void __init goni_radio_init(void)
 	i2c1_devs[0].irq = gpio_to_irq(gpio);
 
 	gpio = S5PV210_GPJ2(5);			/* XMSMDATA_5 */
-	gpio_request(gpio, "FM_RST");
-	gpio_direction_output(gpio, 1);
+	gpio_request_one(gpio, GPIOF_OUT_INIT_HIGH, "FM_RST");
 }
 
 /* TSP */
@@ -266,8 +265,7 @@ static void __init goni_tsp_init(void)
 	int gpio;
 
 	gpio = S5PV210_GPJ1(3);		/* XMSMADDR_11 */
-	gpio_request(gpio, "TSP_LDO_ON");
-	gpio_direction_output(gpio, 1);
+	gpio_request_one(gpio, GPIOF_OUT_INIT_HIGH, "TSP_LDO_ON");
 	gpio_export(gpio, 0);
 
 	gpio = S5PV210_GPJ0(5);		/* XMSMADDR_5 */

@@ -103,23 +103,12 @@ static struct platform_driver ucb1400_gpio_driver = {
 	},
 };
 
-static int __init ucb1400_gpio_init(void)
-{
-	return platform_driver_register(&ucb1400_gpio_driver);
-}
-
-static void __exit ucb1400_gpio_exit(void)
-{
-	platform_driver_unregister(&ucb1400_gpio_driver);
-}
-
 void __init ucb1400_gpio_set_data(struct ucb1400_gpio_data *data)
 {
 	ucbdata = data;
 }
 
-module_init(ucb1400_gpio_init);
-module_exit(ucb1400_gpio_exit);
+module_platform_driver(ucb1400_gpio_driver);
 
 MODULE_DESCRIPTION("Philips UCB1400 GPIO driver");
 MODULE_LICENSE("GPL");

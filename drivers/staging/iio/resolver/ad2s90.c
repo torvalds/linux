@@ -109,6 +109,7 @@ static const struct spi_device_id ad2s90_id[] = {
 	{ "ad2s90" },
 	{}
 };
+MODULE_DEVICE_TABLE(spi, ad2s90_id);
 
 static struct spi_driver ad2s90_driver = {
 	.driver = {
@@ -119,18 +120,7 @@ static struct spi_driver ad2s90_driver = {
 	.remove = __devexit_p(ad2s90_remove),
 	.id_table = ad2s90_id,
 };
-
-static __init int ad2s90_spi_init(void)
-{
-	return spi_register_driver(&ad2s90_driver);
-}
-module_init(ad2s90_spi_init);
-
-static __exit void ad2s90_spi_exit(void)
-{
-	spi_unregister_driver(&ad2s90_driver);
-}
-module_exit(ad2s90_spi_exit);
+module_spi_driver(ad2s90_driver);
 
 MODULE_AUTHOR("Graff Yang <graff.yang@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices AD2S90 Resolver to Digital SPI driver");

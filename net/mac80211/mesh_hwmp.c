@@ -8,6 +8,7 @@
  */
 
 #include <linux/slab.h>
+#include <asm/unaligned.h>
 #include "wme.h"
 #include "mesh.h"
 
@@ -119,12 +120,12 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 	int hdr_len = offsetof(struct ieee80211_mgmt, u.action.u.mesh_action) +
 		      sizeof(mgmt->u.action.u.mesh_action);
 
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
+	skb = dev_alloc_skb(local->tx_headroom +
 			    hdr_len +
 			    2 + 37); /* max HWMP IE */
 	if (!skb)
 		return -1;
-	skb_reserve(skb, local->hw.extra_tx_headroom);
+	skb_reserve(skb, local->tx_headroom);
 	mgmt = (struct ieee80211_mgmt *) skb_put(skb, hdr_len);
 	memset(mgmt, 0, hdr_len);
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
@@ -250,12 +251,12 @@ int mesh_path_error_tx(u8 ttl, u8 *target, __le32 target_sn,
 	if (time_before(jiffies, ifmsh->next_perr))
 		return -EAGAIN;
 
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
+	skb = dev_alloc_skb(local->tx_headroom +
 			    hdr_len +
 			    2 + 15 /* PERR IE */);
 	if (!skb)
 		return -1;
-	skb_reserve(skb, local->tx_headroom + local->hw.extra_tx_headroom);
+	skb_reserve(skb, local->tx_headroom);
 	mgmt = (struct ieee80211_mgmt *) skb_put(skb, hdr_len);
 	memset(mgmt, 0, hdr_len);
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
@@ -575,7 +576,7 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 			ifmsh->mshstats.dropped_frames_ttl++;
 	}
 
-	if (forward) {
+	if (forward && ifmsh->mshcfg.dot11MeshForwarding) {
 		u32 preq_id;
 		u8 hopcount, flags;
 

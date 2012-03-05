@@ -366,7 +366,7 @@ static void ccdc_lsc_free_request(struct isp_ccdc_device *ccdc,
 		dma_unmap_sg(isp->dev, req->iovm->sgt->sgl,
 			     req->iovm->sgt->nents, DMA_TO_DEVICE);
 	if (req->table)
-		omap_iommu_vfree(isp->domain, isp->iommu, req->table);
+		omap_iommu_vfree(isp->domain, isp->dev, req->table);
 	kfree(req);
 }
 
@@ -438,7 +438,7 @@ static int ccdc_lsc_config(struct isp_ccdc_device *ccdc,
 
 		req->enable = 1;
 
-		req->table = omap_iommu_vmalloc(isp->domain, isp->iommu, 0,
+		req->table = omap_iommu_vmalloc(isp->domain, isp->dev, 0,
 					req->config.size, IOMMU_FLAG);
 		if (IS_ERR_VALUE(req->table)) {
 			req->table = 0;
@@ -446,7 +446,7 @@ static int ccdc_lsc_config(struct isp_ccdc_device *ccdc,
 			goto done;
 		}
 
-		req->iovm = omap_find_iovm_area(isp->iommu, req->table);
+		req->iovm = omap_find_iovm_area(isp->dev, req->table);
 		if (req->iovm == NULL) {
 			ret = -ENOMEM;
 			goto done;
@@ -462,7 +462,7 @@ static int ccdc_lsc_config(struct isp_ccdc_device *ccdc,
 		dma_sync_sg_for_cpu(isp->dev, req->iovm->sgt->sgl,
 				    req->iovm->sgt->nents, DMA_TO_DEVICE);
 
-		table = omap_da_to_va(isp->iommu, req->table);
+		table = omap_da_to_va(isp->dev, req->table);
 		if (copy_from_user(table, config->lsc, req->config.size)) {
 			ret = -EFAULT;
 			goto done;
@@ -734,15 +734,15 @@ static int ccdc_config(struct isp_ccdc_device *ccdc,
 			 * already done by omap_iommu_vmalloc().
 			 */
 			size = ccdc->fpc.fpnum * 4;
-			table_new = omap_iommu_vmalloc(isp->domain, isp->iommu,
+			table_new = omap_iommu_vmalloc(isp->domain, isp->dev,
 							0, size, IOMMU_FLAG);
 			if (IS_ERR_VALUE(table_new))
 				return -ENOMEM;
 
-			if (copy_from_user(omap_da_to_va(isp->iommu, table_new),
+			if (copy_from_user(omap_da_to_va(isp->dev, table_new),
 					   (__force void __user *)
 					   ccdc->fpc.fpcaddr, size)) {
-				omap_iommu_vfree(isp->domain, isp->iommu,
+				omap_iommu_vfree(isp->domain, isp->dev,
 								table_new);
 				return -EFAULT;
 			}
@@ -753,7 +753,7 @@ static int ccdc_config(struct isp_ccdc_device *ccdc,
 
 		ccdc_configure_fpc(ccdc);
 		if (table_old != 0)
-			omap_iommu_vfree(isp->domain, isp->iommu, table_old);
+			omap_iommu_vfree(isp->domain, isp->dev, table_old);
 	}
 
 	return ccdc_lsc_config(ccdc, ccdc_struct);
@@ -1406,9 +1406,8 @@ static int __ccdc_handle_stopping(struct isp_ccdc_device *ccdc, u32 event)
 
 static void ccdc_hs_vs_isr(struct isp_ccdc_device *ccdc)
 {
-	struct isp_pipeline *pipe =
-		to_isp_pipeline(&ccdc->video_out.video.entity);
-	struct video_device *vdev = ccdc->subdev.devnode;
+	struct isp_pipeline *pipe = to_isp_pipeline(&ccdc->subdev.entity);
+	struct video_device *vdev = &ccdc->subdev.devnode;
 	struct v4l2_event event;
 
 	memset(&event, 0, sizeof(event));
@@ -1428,8 +1427,11 @@ static void ccdc_lsc_isr(struct isp_ccdc_device *ccdc, u32 events)
 	unsigned long flags;
 
 	if (events & IRQ0STATUS_CCDC_LSC_PREF_ERR_IRQ) {
+		struct isp_pipeline *pipe =
+			to_isp_pipeline(&ccdc->subdev.entity);
+
 		ccdc_lsc_error_handler(ccdc);
-		ccdc->error = 1;
+		pipe->error = true;
 		dev_dbg(to_device(ccdc), "lsc prefetch error\n");
 	}
 
@@ -1504,7 +1506,7 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 		goto done;
 	}
 
-	buffer = omap3isp_video_buffer_next(&ccdc->video_out, ccdc->error);
+	buffer = omap3isp_video_buffer_next(&ccdc->video_out);
 	if (buffer != NULL) {
 		ccdc_set_outaddr(ccdc, buffer->isp_addr);
 		restart = 1;
@@ -1518,7 +1520,6 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 					ISP_PIPELINE_STREAM_SINGLESHOT);
 
 done:
-	ccdc->error = 0;
 	return restart;
 }
 
@@ -1744,7 +1745,6 @@ static int ccdc_set_stream(struct v4l2_subdev *sd, int enable)
 		 */
 		ccdc_config_vp(ccdc);
 		ccdc_enable_vp(ccdc, 1);
-		ccdc->error = 0;
 		ccdc_print_status(ccdc);
 	}
 
@@ -2309,7 +2309,7 @@ void omap3isp_ccdc_cleanup(struct isp_device *isp)
 	ccdc_lsc_free_queue(ccdc, &ccdc->lsc.free_queue);
 
 	if (ccdc->fpc.fpcaddr != 0)
-		omap_iommu_vfree(isp->domain, isp->iommu, ccdc->fpc.fpcaddr);
+		omap_iommu_vfree(isp->domain, isp->dev, ccdc->fpc.fpcaddr);
 
 	mutex_destroy(&ccdc->ioctl_lock);
 }

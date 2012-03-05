@@ -101,6 +101,7 @@ struct acm {
 	int transmitting;
 	spinlock_t write_lock;
 	struct mutex mutex;
+	bool disconnected;
 	struct usb_cdc_line_coding line;		/* bits, stop, parity */
 	struct work_struct work;			/* work queue entry for line discipline waking up */
 	unsigned int ctrlin;				/* input control lines (DCD, DSR, RI, break, overruns) */

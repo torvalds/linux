@@ -390,18 +390,7 @@ static struct platform_driver __refdata sh_csi2_pdrv = {
 	},
 };
 
-static int __init sh_csi2_init(void)
-{
-	return platform_driver_register(&sh_csi2_pdrv);
-}
-
-static void __exit sh_csi2_exit(void)
-{
-	platform_driver_unregister(&sh_csi2_pdrv);
-}
-
-module_init(sh_csi2_init);
-module_exit(sh_csi2_exit);
+module_platform_driver(sh_csi2_pdrv);
 
 MODULE_DESCRIPTION("SH-Mobile MIPI CSI-2 driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <g.liakhovetski@gmx.de>");

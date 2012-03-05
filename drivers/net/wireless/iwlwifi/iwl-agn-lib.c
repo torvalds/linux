@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -77,7 +77,7 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 	tx_power_cmd.flags = IWLAGN_TX_POWER_NO_CLOSED;
 	tx_power_cmd.srv_chan_lmt = IWLAGN_TX_POWER_AUTO;
 
-	if (IWL_UCODE_API(priv->ucode_ver) == 1)
+	if (IWL_UCODE_API(nic(priv)->fw.ucode_ver) == 1)
 		tx_ant_cfg_cmd = REPLY_TX_POWER_DBM_CMD_V1;
 	else
 		tx_ant_cfg_cmd = REPLY_TX_POWER_DBM_CMD;
@@ -700,7 +700,7 @@ static void iwlagn_set_kill_msk(struct iwl_priv *priv,
 		priv->kill_cts_mask = bt_kill_cts_msg[kill_msk];
 
 		/* schedule to send runtime bt_config */
-		queue_work(priv->shrd->workqueue, &priv->bt_runtime_config);
+		queue_work(priv->workqueue, &priv->bt_runtime_config);
 	}
 }
 
@@ -745,7 +745,7 @@ int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 					IWL_BT_COEX_TRAFFIC_LOAD_NONE;
 			}
 			priv->bt_status = coex->bt_status;
-			queue_work(priv->shrd->workqueue,
+			queue_work(priv->workqueue,
 				   &priv->bt_traffic_change_work);
 		}
 	}
@@ -959,7 +959,7 @@ static void iwlagn_wowlan_program_keys(struct ieee80211_hw *hw,
 			       struct ieee80211_key_conf *key,
 			       void *_data)
 {
-	struct iwl_priv *priv = hw->priv;
+	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct wowlan_key_data *data = _data;
 	struct iwl_rxon_context *ctx = data->ctx;
 	struct aes_sc *aes_sc, *aes_tx_sc = NULL;

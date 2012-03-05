@@ -4,7 +4,7 @@
  * Author:       Michael Hennerich <hennerich@blackfin.uclinux.org>
  *
  * Created:
- * Description:  ADSP-BF54x Framebufer driver
+ * Description:  ADSP-BF54x Framebuffer driver
  *
  *
  * Modified:

@@ -135,6 +135,7 @@ static struct snd_soc_dai_link afeb9260_dai = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_machine_afeb9260 = {
 	.name = "AFEB9260",
+	.owner = THIS_MODULE,
 	.dai_link = &afeb9260_dai,
 	.num_links = 1,
 };

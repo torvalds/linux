@@ -104,17 +104,7 @@ static struct platform_driver uio_pdrv = {
 	},
 };
 
-static int __init uio_pdrv_init(void)
-{
-	return platform_driver_register(&uio_pdrv);
-}
-
-static void __exit uio_pdrv_exit(void)
-{
-	platform_driver_unregister(&uio_pdrv);
-}
-module_init(uio_pdrv_init);
-module_exit(uio_pdrv_exit);
+module_platform_driver(uio_pdrv);
 
 MODULE_AUTHOR("Uwe Kleine-Koenig");
 MODULE_DESCRIPTION("Userspace I/O platform driver");

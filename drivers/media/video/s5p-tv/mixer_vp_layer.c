@@ -127,47 +127,77 @@ static void mxr_vp_format_set(struct mxr_layer *layer)
 	mxr_reg_vp_format(layer->mdev, layer->fmt, &layer->geo);
 }
 
-static void mxr_vp_fix_geometry(struct mxr_layer *layer)
+static inline unsigned int do_center(unsigned int center,
+	unsigned int size, unsigned int upper, unsigned int flags)
+{
+	unsigned int lower;
+
+	if (flags & MXR_NO_OFFSET)
+		return 0;
+
+	lower = center - min(center, size / 2);
+	return min(lower, upper - size);
+}
+
+static void mxr_vp_fix_geometry(struct mxr_layer *layer,
+	enum mxr_geometry_stage stage, unsigned long flags)
 {
 	struct mxr_geometry *geo = &layer->geo;
+	struct mxr_crop *src = &geo->src;
+	struct mxr_crop *dst = &geo->dst;
+	unsigned long x_center, y_center;
 
-	/* align horizontal size to 8 pixels */
-	geo->src.full_width = ALIGN(geo->src.full_width, 8);
-	/* limit to boundary size */
-	geo->src.full_width = clamp_val(geo->src.full_width, 8, 8192);
-	geo->src.full_height = clamp_val(geo->src.full_height, 1, 8192);
-	geo->src.width = clamp_val(geo->src.width, 32, geo->src.full_width);
-	geo->src.width = min(geo->src.width, 2047U);
-	geo->src.height = clamp_val(geo->src.height, 4, geo->src.full_height);
-	geo->src.height = min(geo->src.height, 2047U);
+	switch (stage) {
 
-	/* setting size of output window */
-	geo->dst.width = clamp_val(geo->dst.width, 8, geo->dst.full_width);
-	geo->dst.height = clamp_val(geo->dst.height, 1, geo->dst.full_height);
+	case MXR_GEOMETRY_SINK: /* nothing to be fixed here */
+	case MXR_GEOMETRY_COMPOSE:
+		/* remember center of the area */
+		x_center = dst->x_offset + dst->width / 2;
+		y_center = dst->y_offset + dst->height / 2;
 
-	/* ensure that scaling is in range 1/4x to 16x */
-	if (geo->src.width >= 4 * geo->dst.width)
-		geo->src.width = 4 * geo->dst.width;
-	if (geo->dst.width >= 16 * geo->src.width)
-		geo->dst.width = 16 * geo->src.width;
-	if (geo->src.height >= 4 * geo->dst.height)
-		geo->src.height = 4 * geo->dst.height;
-	if (geo->dst.height >= 16 * geo->src.height)
-		geo->dst.height = 16 * geo->src.height;
+		/* ensure that compose is reachable using 16x scaling */
+		dst->width = clamp(dst->width, 8U, 16 * src->full_width);
+		dst->height = clamp(dst->height, 1U, 16 * src->full_height);
 
-	/* setting scaling ratio */
-	geo->x_ratio = (geo->src.width << 16) / geo->dst.width;
-	geo->y_ratio = (geo->src.height << 16) / geo->dst.height;
+		/* setup offsets */
+		dst->x_offset = do_center(x_center, dst->width,
+			dst->full_width, flags);
+		dst->y_offset = do_center(y_center, dst->height,
+			dst->full_height, flags);
+		flags = 0; /* remove possible MXR_NO_OFFSET flag */
+		/* fall through */
+	case MXR_GEOMETRY_CROP:
+		/* remember center of the area */
+		x_center = src->x_offset + src->width / 2;
+		y_center = src->y_offset + src->height / 2;
 
-	/* adjust offsets */
-	geo->src.x_offset = min(geo->src.x_offset,
-		geo->src.full_width - geo->src.width);
-	geo->src.y_offset = min(geo->src.y_offset,
-		geo->src.full_height - geo->src.height);
-	geo->dst.x_offset = min(geo->dst.x_offset,
-		geo->dst.full_width - geo->dst.width);
-	geo->dst.y_offset = min(geo->dst.y_offset,
-		geo->dst.full_height - geo->dst.height);
+		/* ensure scaling is between 0.25x .. 16x */
+		src->width = clamp(src->width, round_up(dst->width / 16, 4),
+			dst->width * 4);
+		src->height = clamp(src->height, round_up(dst->height / 16, 4),
+			dst->height * 4);
+
+		/* hardware limits */
+		src->width = clamp(src->width, 32U, 2047U);
+		src->height = clamp(src->height, 4U, 2047U);
+
+		/* setup offsets */
+		src->x_offset = do_center(x_center, src->width,
+			src->full_width, flags);
+		src->y_offset = do_center(y_center, src->height,
+			src->full_height, flags);
+
+		/* setting scaling ratio */
+		geo->x_ratio = (src->width << 16) / dst->width;
+		geo->y_ratio = (src->height << 16) / dst->height;
+		/* fall through */
+
+	case MXR_GEOMETRY_SOURCE:
+		src->full_width = clamp(src->full_width,
+			ALIGN(src->width + src->x_offset, 8), 8192U);
+		src->full_height = clamp(src->full_height,
+			src->height + src->y_offset, 8192U);
+	};
 }
 
 /* PUBLIC API */

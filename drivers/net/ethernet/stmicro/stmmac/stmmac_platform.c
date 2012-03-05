@@ -62,7 +62,7 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	priv = stmmac_dvr_probe(&(pdev->dev), plat_dat);
 	if (!priv) {
 		pr_err("%s: main drivr probe failed", __func__);
-		goto out_release_region;
+		goto out_unmap;
 	}
 
 	priv->ioaddr = addr;

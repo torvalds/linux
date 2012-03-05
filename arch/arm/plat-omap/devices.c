@@ -20,6 +20,7 @@
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
+#include <asm/memblock.h>
 
 #include <plat/tc.h>
 #include <plat/board.h>
@@ -164,14 +165,12 @@ void __init omap_dsp_reserve_sdram_memblock(void)
 	if (!size)
 		return;
 
-	paddr = memblock_alloc(size, SZ_1M);
+	paddr = arm_memblock_steal(size, SZ_1M);
 	if (!paddr) {
 		pr_err("%s: failed to reserve %x bytes\n",
 				__func__, size);
 		return;
 	}
-	memblock_free(paddr, size);
-	memblock_remove(paddr, size);
 
 	omap_dsp_phys_mempool_base = paddr;
 }

@@ -52,7 +52,7 @@ static int palm_os_4_probe(struct usb_serial *serial,
 					const struct usb_device_id *id);
 
 /* Parameters that may be passed into the module. */
-static int debug;
+static bool debug;
 static __u16 vendor;
 static __u16 product;
 

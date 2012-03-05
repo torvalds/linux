@@ -34,7 +34,7 @@
 /*
  * Show the reason for the previous system reset.
  */
-#if defined(AT91_SHDWC)
+#if defined(AT91_RSTC)
 
 #include <mach/at91_rstc.h>
 #include <mach/at91_shdwc.h>
@@ -58,8 +58,11 @@ static void __init show_reset_status(void)
 	char *reason, *r2 = reset;
 	u32 reset_type, wake_type;
 
+	if (!at91_shdwc_base)
+		return;
+
 	reset_type = at91_sys_read(AT91_RSTC_SR) & AT91_RSTC_RSTTYP;
-	wake_type = at91_sys_read(AT91_SHDW_SR);
+	wake_type = at91_shdwc_read(AT91_SHDW_SR);
 
 	switch (reset_type) {
 	case AT91_RSTC_RSTTYP_GENERAL:
@@ -215,7 +218,7 @@ static int at91_pm_enter(suspend_state_t state)
 					| (1 << AT91_ID_FIQ)
 					| (1 << AT91_ID_SYS)
 					| (at91_extern_irq))
-				& at91_sys_read(AT91_AIC_IMR),
+				& at91_aic_read(AT91_AIC_IMR),
 			state);
 
 	switch (state) {
@@ -283,7 +286,7 @@ static int at91_pm_enter(suspend_state_t state)
 	}
 
 	pr_debug("AT91: PM - wakeup %08x\n",
-			at91_sys_read(AT91_AIC_IPR) & at91_sys_read(AT91_AIC_IMR));
+			at91_aic_read(AT91_AIC_IPR) & at91_aic_read(AT91_AIC_IMR));
 
 error:
 	target_state = PM_SUSPEND_ON;

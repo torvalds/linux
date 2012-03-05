@@ -344,12 +344,11 @@ static int lnc_add(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 		return err;
 	}
 
-	lnc_node = kmalloc(zbr->len, GFP_NOFS);
+	lnc_node = kmemdup(node, zbr->len, GFP_NOFS);
 	if (!lnc_node)
 		/* We don't have to have the cache, so no error */
 		return 0;
 
-	memcpy(lnc_node, node, zbr->len);
 	zbr->leaf = lnc_node;
 	return 0;
 }
@@ -506,7 +505,7 @@ static int fallible_read_node(struct ubifs_info *c, const union ubifs_key *key,
 {
 	int ret;
 
-	dbg_tnc("LEB %d:%d, key %s", zbr->lnum, zbr->offs, DBGKEY(key));
+	dbg_tnck(key, "LEB %d:%d, key ", zbr->lnum, zbr->offs);
 
 	ret = try_read_node(c, node, key_type(c, key), zbr->len, zbr->lnum,
 			    zbr->offs);
@@ -520,8 +519,8 @@ static int fallible_read_node(struct ubifs_info *c, const union ubifs_key *key,
 			ret = 0;
 	}
 	if (ret == 0 && c->replaying)
-		dbg_mnt("dangling branch LEB %d:%d len %d, key %s",
-			zbr->lnum, zbr->offs, zbr->len, DBGKEY(key));
+		dbg_mntk(key, "dangling branch LEB %d:%d len %d, key ",
+			zbr->lnum, zbr->offs, zbr->len);
 	return ret;
 }
 
@@ -996,9 +995,9 @@ static int fallible_resolve_collision(struct ubifs_info *c,
 	if (adding || !o_znode)
 		return 0;
 
-	dbg_mnt("dangling match LEB %d:%d len %d %s",
+	dbg_mntk(key, "dangling match LEB %d:%d len %d key ",
 		o_znode->zbranch[o_n].lnum, o_znode->zbranch[o_n].offs,
-		o_znode->zbranch[o_n].len, DBGKEY(key));
+		o_znode->zbranch[o_n].len);
 	*zn = o_znode;
 	*n = o_n;
 	return 1;
@@ -1180,7 +1179,7 @@ int ubifs_lookup_level0(struct ubifs_info *c, const union ubifs_key *key,
 	struct ubifs_znode *znode;
 	unsigned long time = get_seconds();
 
-	dbg_tnc("search key %s", DBGKEY(key));
+	dbg_tnck(key, "search key ");
 	ubifs_assert(key_type(c, key) < UBIFS_INVALID_KEY);
 
 	znode = c->zroot.znode;
@@ -1316,7 +1315,7 @@ static int lookup_level0_dirty(struct ubifs_info *c, const union ubifs_key *key,
 	struct ubifs_znode *znode;
 	unsigned long time = get_seconds();
 
-	dbg_tnc("search and dirty key %s", DBGKEY(key));
+	dbg_tnck(key, "search and dirty key ");
 
 	znode = c->zroot.znode;
 	if (unlikely(!znode)) {
@@ -1723,8 +1722,8 @@ static int validate_data_node(struct ubifs_info *c, void *buf,
 	if (!keys_eq(c, &zbr->key, &key1)) {
 		ubifs_err("bad key in node at LEB %d:%d",
 			  zbr->lnum, zbr->offs);
-		dbg_tnc("looked for key %s found node's key %s",
-			DBGKEY(&zbr->key), DBGKEY1(&key1));
+		dbg_tnck(&zbr->key, "looked for key ");
+		dbg_tnck(&key1, "found node's key ");
 		goto out_err;
 	}
 
@@ -1777,7 +1776,7 @@ int ubifs_tnc_bulk_read(struct ubifs_info *c, struct bu_info *bu)
 		ubifs_err("failed to read from LEB %d:%d, error %d",
 			  lnum, offs, err);
 		dbg_dump_stack();
-		dbg_tnc("key %s", DBGKEY(&bu->key));
+		dbg_tnck(&bu->key, "key ");
 		return err;
 	}
 
@@ -1812,7 +1811,7 @@ static int do_lookup_nm(struct ubifs_info *c, const union ubifs_key *key,
 	int found, n, err;
 	struct ubifs_znode *znode;
 
-	dbg_tnc("name '%.*s' key %s", nm->len, nm->name, DBGKEY(key));
+	dbg_tnck(key, "name '%.*s' key ", nm->len, nm->name);
 	mutex_lock(&c->tnc_mutex);
 	found = ubifs_lookup_level0(c, key, &znode, &n);
 	if (!found) {
@@ -1986,8 +1985,7 @@ again:
 	zp = znode->parent;
 	if (znode->child_cnt < c->fanout) {
 		ubifs_assert(n != c->fanout);
-		dbg_tnc("inserted at %d level %d, key %s", n, znode->level,
-			DBGKEY(key));
+		dbg_tnck(key, "inserted at %d level %d, key ", n, znode->level);
 
 		insert_zbranch(znode, zbr, n);
 
@@ -2002,7 +2000,7 @@ again:
 	 * Unfortunately, @znode does not have more empty slots and we have to
 	 * split it.
 	 */
-	dbg_tnc("splitting level %d, key %s", znode->level, DBGKEY(key));
+	dbg_tnck(key, "splitting level %d, key ", znode->level);
 
 	if (znode->alt)
 		/*
@@ -2096,7 +2094,7 @@ do_split:
 	}
 
 	/* Insert new key and branch */
-	dbg_tnc("inserting at %d level %d, key %s", n, zn->level, DBGKEY(key));
+	dbg_tnck(key, "inserting at %d level %d, key ", n, zn->level);
 
 	insert_zbranch(zi, zbr, n);
 
@@ -2172,7 +2170,7 @@ int ubifs_tnc_add(struct ubifs_info *c, const union ubifs_key *key, int lnum,
 	struct ubifs_znode *znode;
 
 	mutex_lock(&c->tnc_mutex);
-	dbg_tnc("%d:%d, len %d, key %s", lnum, offs, len, DBGKEY(key));
+	dbg_tnck(key, "%d:%d, len %d, key ", lnum, offs, len);
 	found = lookup_level0_dirty(c, key, &znode, &n);
 	if (!found) {
 		struct ubifs_zbranch zbr;
@@ -2221,8 +2219,8 @@ int ubifs_tnc_replace(struct ubifs_info *c, const union ubifs_key *key,
 	struct ubifs_znode *znode;
 
 	mutex_lock(&c->tnc_mutex);
-	dbg_tnc("old LEB %d:%d, new LEB %d:%d, len %d, key %s", old_lnum,
-		old_offs, lnum, offs, len, DBGKEY(key));
+	dbg_tnck(key, "old LEB %d:%d, new LEB %d:%d, len %d, key ", old_lnum,
+		 old_offs, lnum, offs, len);
 	found = lookup_level0_dirty(c, key, &znode, &n);
 	if (found < 0) {
 		err = found;
@@ -2304,8 +2302,8 @@ int ubifs_tnc_add_nm(struct ubifs_info *c, const union ubifs_key *key,
 	struct ubifs_znode *znode;
 
 	mutex_lock(&c->tnc_mutex);
-	dbg_tnc("LEB %d:%d, name '%.*s', key %s", lnum, offs, nm->len, nm->name,
-		DBGKEY(key));
+	dbg_tnck(key, "LEB %d:%d, name '%.*s', key ",
+		 lnum, offs, nm->len, nm->name);
 	found = lookup_level0_dirty(c, key, &znode, &n);
 	if (found < 0) {
 		err = found;
@@ -2398,7 +2396,7 @@ static int tnc_delete(struct ubifs_info *c, struct ubifs_znode *znode, int n)
 	/* Delete without merge for now */
 	ubifs_assert(znode->level == 0);
 	ubifs_assert(n >= 0 && n < c->fanout);
-	dbg_tnc("deleting %s", DBGKEY(&znode->zbranch[n].key));
+	dbg_tnck(&znode->zbranch[n].key, "deleting key ");
 
 	zbr = &znode->zbranch[n];
 	lnc_free(zbr);
@@ -2508,7 +2506,7 @@ int ubifs_tnc_remove(struct ubifs_info *c, const union ubifs_key *key)
 	struct ubifs_znode *znode;
 
 	mutex_lock(&c->tnc_mutex);
-	dbg_tnc("key %s", DBGKEY(key));
+	dbg_tnck(key, "key ");
 	found = lookup_level0_dirty(c, key, &znode, &n);
 	if (found < 0) {
 		err = found;
@@ -2539,7 +2537,7 @@ int ubifs_tnc_remove_nm(struct ubifs_info *c, const union ubifs_key *key,
 	struct ubifs_znode *znode;
 
 	mutex_lock(&c->tnc_mutex);
-	dbg_tnc("%.*s, key %s", nm->len, nm->name, DBGKEY(key));
+	dbg_tnck(key, "%.*s, key ", nm->len, nm->name);
 	err = lookup_level0_dirty(c, key, &znode, &n);
 	if (err < 0)
 		goto out_unlock;
@@ -2654,7 +2652,7 @@ int ubifs_tnc_remove_range(struct ubifs_info *c, union ubifs_key *from_key,
 				dbg_dump_znode(c, znode);
 				goto out_unlock;
 			}
-			dbg_tnc("removing %s", DBGKEY(key));
+			dbg_tnck(key, "removing key ");
 		}
 		if (k) {
 			for (i = n + 1 + k; i < znode->child_cnt; i++)
@@ -2774,7 +2772,7 @@ struct ubifs_dent_node *ubifs_tnc_next_ent(struct ubifs_info *c,
 	struct ubifs_zbranch *zbr;
 	union ubifs_key *dkey;
 
-	dbg_tnc("%s %s", nm->name ? (char *)nm->name : "(lowest)", DBGKEY(key));
+	dbg_tnck(key, "%s ", nm->name ? (char *)nm->name : "(lowest)");
 	ubifs_assert(is_hash_key(c, key));
 
 	mutex_lock(&c->tnc_mutex);
@@ -3333,9 +3331,9 @@ int dbg_check_inode_size(struct ubifs_info *c, const struct inode *inode,
 
 out_dump:
 	block = key_block(c, key);
-	ubifs_err("inode %lu has size %lld, but there are data at offset %lld "
-		  "(data key %s)", (unsigned long)inode->i_ino, size,
-		  ((loff_t)block) << UBIFS_BLOCK_SHIFT, DBGKEY(key));
+	ubifs_err("inode %lu has size %lld, but there are data at offset %lld",
+		  (unsigned long)inode->i_ino, size,
+		  ((loff_t)block) << UBIFS_BLOCK_SHIFT);
 	mutex_unlock(&c->tnc_mutex);
 	dbg_dump_inode(c, inode);
 	dbg_dump_stack();

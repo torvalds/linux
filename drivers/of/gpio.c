@@ -35,32 +35,27 @@ int of_get_named_gpio_flags(struct device_node *np, const char *propname,
                            int index, enum of_gpio_flags *flags)
 {
 	int ret;
-	struct device_node *gpio_np;
 	struct gpio_chip *gc;
-	int size;
-	const void *gpio_spec;
-	const __be32 *gpio_cells;
+	struct of_phandle_args gpiospec;
 
-	ret = of_parse_phandles_with_args(np, propname, "#gpio-cells", index,
-					  &gpio_np, &gpio_spec);
+	ret = of_parse_phandle_with_args(np, propname, "#gpio-cells", index,
+					 &gpiospec);
 	if (ret) {
 		pr_debug("%s: can't parse gpios property\n", __func__);
 		goto err0;
 	}
 
-	gc = of_node_to_gpiochip(gpio_np);
+	gc = of_node_to_gpiochip(gpiospec.np);
 	if (!gc) {
 		pr_debug("%s: gpio controller %s isn't registered\n",
-			 np->full_name, gpio_np->full_name);
+			 np->full_name, gpiospec.np->full_name);
 		ret = -ENODEV;
 		goto err1;
 	}
 
-	gpio_cells = of_get_property(gpio_np, "#gpio-cells", &size);
-	if (!gpio_cells || size != sizeof(*gpio_cells) ||
-			be32_to_cpup(gpio_cells) != gc->of_gpio_n_cells) {
+	if (gpiospec.args_count != gc->of_gpio_n_cells) {
 		pr_debug("%s: wrong #gpio-cells for %s\n",
-			 np->full_name, gpio_np->full_name);
+			 np->full_name, gpiospec.np->full_name);
 		ret = -EINVAL;
 		goto err1;
 	}
@@ -69,13 +64,13 @@ int of_get_named_gpio_flags(struct device_node *np, const char *propname,
 	if (flags)
 		*flags = 0;
 
-	ret = gc->of_xlate(gc, np, gpio_spec, flags);
+	ret = gc->of_xlate(gc, &gpiospec, flags);
 	if (ret < 0)
 		goto err1;
 
 	ret += gc->base;
 err1:
-	of_node_put(gpio_np);
+	of_node_put(gpiospec.np);
 err0:
 	pr_debug("%s exited with status %d\n", __func__, ret);
 	return ret;
@@ -105,8 +100,8 @@ unsigned int of_gpio_count(struct device_node *np)
 	do {
 		int ret;
 
-		ret = of_parse_phandles_with_args(np, "gpios", "#gpio-cells",
-						  cnt, NULL, NULL);
+		ret = of_parse_phandle_with_args(np, "gpios", "#gpio-cells",
+						 cnt, NULL);
 		/* A hole in the gpios = <> counts anyway. */
 		if (ret < 0 && ret != -EEXIST)
 			break;
@@ -127,12 +122,9 @@ EXPORT_SYMBOL(of_gpio_count);
  * gpio chips. This function performs only one sanity check: whether gpio
  * is less than ngpios (that is specified in the gpio_chip).
  */
-int of_gpio_simple_xlate(struct gpio_chip *gc, struct device_node *np,
-			 const void *gpio_spec, u32 *flags)
+int of_gpio_simple_xlate(struct gpio_chip *gc,
+			 const struct of_phandle_args *gpiospec, u32 *flags)
 {
-	const __be32 *gpio = gpio_spec;
-	const u32 n = be32_to_cpup(gpio);
-
 	/*
 	 * We're discouraging gpio_cells < 2, since that way you'll have to
 	 * write your own xlate function (that will have to retrive the GPIO
@@ -144,13 +136,16 @@ int of_gpio_simple_xlate(struct gpio_chip *gc, struct device_node *np,
 		return -EINVAL;
 	}
 
-	if (n > gc->ngpio)
+	if (WARN_ON(gpiospec->args_count < gc->of_gpio_n_cells))
+		return -EINVAL;
+
+	if (gpiospec->args[0] > gc->ngpio)
 		return -EINVAL;
 
 	if (flags)
-		*flags = be32_to_cpu(gpio[1]);
+		*flags = gpiospec->args[1];
 
-	return n;
+	return gpiospec->args[0];
 }
 EXPORT_SYMBOL(of_gpio_simple_xlate);
 
@@ -198,8 +193,6 @@ int of_mm_gpiochip_add(struct device_node *np,
 	if (ret)
 		goto err2;
 
-	pr_debug("%s: registered as generic GPIO chip, base is %d\n",
-		 np->full_name, gc->base);
 	return 0;
 err2:
 	iounmap(mm_gc->regs);

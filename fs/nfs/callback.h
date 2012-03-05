@@ -162,7 +162,7 @@ struct cb_layoutrecallargs {
 	};
 };
 
-extern unsigned nfs4_callback_layoutrecall(
+extern __be32 nfs4_callback_layoutrecall(
 	struct cb_layoutrecallargs *args,
 	void *dummy, struct cb_process_state *cps);
 

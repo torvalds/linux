@@ -271,7 +271,7 @@ extern int keyring_add_key(struct key *keyring,
 
 extern struct key *key_lookup(key_serial_t id);
 
-static inline key_serial_t key_serial(struct key *key)
+static inline key_serial_t key_serial(const struct key *key)
 {
 	return key ? key->serial : 0;
 }
@@ -292,6 +292,9 @@ static inline bool key_is_instantiated(const struct key *key)
 #define rcu_dereference_key(KEY)					\
 	(rcu_dereference_protected((KEY)->payload.rcudata,		\
 				   rwsem_is_locked(&((struct key *)(KEY))->sem)))
+
+#define rcu_assign_keypointer(KEY, PAYLOAD)				\
+	(rcu_assign_pointer((KEY)->payload.rcudata, PAYLOAD))
 
 #ifdef CONFIG_SYSCTL
 extern ctl_table key_sysctls[];

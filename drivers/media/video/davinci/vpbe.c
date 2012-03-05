@@ -141,11 +141,12 @@ static int vpbe_enum_outputs(struct vpbe_device *vpbe_dev,
 	return 0;
 }
 
-static int vpbe_get_mode_info(struct vpbe_device *vpbe_dev, char *mode)
+static int vpbe_get_mode_info(struct vpbe_device *vpbe_dev, char *mode,
+			      int output_index)
 {
 	struct vpbe_config *cfg = vpbe_dev->cfg;
 	struct vpbe_enc_mode_info var;
-	int curr_output = vpbe_dev->current_out_index;
+	int curr_output = output_index;
 	int i;
 
 	if (NULL == mode)
@@ -245,6 +246,8 @@ static int vpbe_set_output(struct vpbe_device *vpbe_dev, int index)
 	struct encoder_config_info *curr_enc_info =
 			vpbe_current_encoder_info(vpbe_dev);
 	struct vpbe_config *cfg = vpbe_dev->cfg;
+	struct venc_platform_data *venc_device = vpbe_dev->venc_device;
+	enum v4l2_mbus_pixelcode if_params;
 	int enc_out_index;
 	int sd_index;
 	int ret = 0;
@@ -274,6 +277,8 @@ static int vpbe_set_output(struct vpbe_device *vpbe_dev, int index)
 			goto out;
 		}
 
+		if_params = cfg->outputs[index].if_params;
+		venc_device->setup_if_config(if_params);
 		if (ret)
 			goto out;
 	}
@@ -293,7 +298,7 @@ static int vpbe_set_output(struct vpbe_device *vpbe_dev, int index)
 	 * encoder.
 	 */
 	ret = vpbe_get_mode_info(vpbe_dev,
-				 cfg->outputs[index].default_mode);
+				 cfg->outputs[index].default_mode, index);
 	if (!ret) {
 		struct osd_state *osd_device = vpbe_dev->osd_device;
 
@@ -367,6 +372,11 @@ static int vpbe_s_dv_preset(struct vpbe_device *vpbe_dev,
 
 	ret = v4l2_subdev_call(vpbe_dev->encoders[sd_index], video,
 					s_dv_preset, dv_preset);
+	if (!ret && (vpbe_dev->amp != NULL)) {
+		/* Call amplifier subdevice */
+		ret = v4l2_subdev_call(vpbe_dev->amp, video,
+				s_dv_preset, dv_preset);
+	}
 	/* set the lcd controller output for the given mode */
 	if (!ret) {
 		struct osd_state *osd_device = vpbe_dev->osd_device;
@@ -566,6 +576,8 @@ static int platform_device_get(struct device *dev, void *data)
 
 	if (strcmp("vpbe-osd", pdev->name) == 0)
 		vpbe_dev->osd_device = platform_get_drvdata(pdev);
+	if (strcmp("vpbe-venc", pdev->name) == 0)
+		vpbe_dev->venc_device = dev_get_platdata(&pdev->dev);
 
 	return 0;
 }
@@ -584,6 +596,7 @@ static int platform_device_get(struct device *dev, void *data)
 static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 {
 	struct encoder_config_info *enc_info;
+	struct amp_config_info *amp_info;
 	struct v4l2_subdev **enc_subdev;
 	struct osd_state *osd_device;
 	struct i2c_adapter *i2c_adap;
@@ -704,6 +717,32 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 			v4l2_warn(&vpbe_dev->v4l2_dev, "non-i2c encoders"
 				 " currently not supported");
 	}
+	/* Add amplifier subdevice for dm365 */
+	if ((strcmp(vpbe_dev->cfg->module_name, "dm365-vpbe-display") == 0) &&
+			vpbe_dev->cfg->amp != NULL) {
+		amp_info = vpbe_dev->cfg->amp;
+		if (amp_info->is_i2c) {
+			vpbe_dev->amp = v4l2_i2c_new_subdev_board(
+			&vpbe_dev->v4l2_dev, i2c_adap,
+			&amp_info->board_info, NULL);
+			if (!vpbe_dev->amp) {
+				v4l2_err(&vpbe_dev->v4l2_dev,
+					 "amplifier %s failed to register",
+					 amp_info->module_name);
+				ret = -ENODEV;
+				goto vpbe_fail_amp_register;
+			}
+			v4l2_info(&vpbe_dev->v4l2_dev,
+					  "v4l2 sub device %s registered\n",
+					  amp_info->module_name);
+		} else {
+			    vpbe_dev->amp = NULL;
+			    v4l2_warn(&vpbe_dev->v4l2_dev, "non-i2c amplifiers"
+			    " currently not supported");
+		}
+	} else {
+	    vpbe_dev->amp = NULL;
+	}
 
 	/* set the current encoder and output to that of venc by default */
 	vpbe_dev->current_sd_index = 0;
@@ -731,6 +770,8 @@ static int vpbe_initialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	/* TBD handling of bootargs for default output and mode */
 	return 0;
 
+vpbe_fail_amp_register:
+	kfree(vpbe_dev->amp);
 vpbe_fail_sd_register:
 	kfree(vpbe_dev->encoders);
 vpbe_fail_v4l2_device:
@@ -757,6 +798,7 @@ static void vpbe_deinitialize(struct device *dev, struct vpbe_device *vpbe_dev)
 	if (strcmp(vpbe_dev->cfg->module_name, "dm644x-vpbe-display") != 0)
 		clk_put(vpbe_dev->dac_clk);
 
+	kfree(vpbe_dev->amp);
 	kfree(vpbe_dev->encoders);
 	vpbe_dev->initialized = 0;
 	/* disable vpss clocks */
@@ -811,8 +853,10 @@ static __devinit int vpbe_probe(struct platform_device *pdev)
 
 	if (cfg->outputs->num_modes > 0)
 		vpbe_dev->current_timings = vpbe_dev->cfg->outputs[0].modes[0];
-	else
+	else {
+		kfree(vpbe_dev);
 		return -ENODEV;
+	}
 
 	/* set the driver data in platform device */
 	platform_set_drvdata(pdev, vpbe_dev);
@@ -839,26 +883,4 @@ static struct platform_driver vpbe_driver = {
 	.remove = vpbe_remove,
 };
 
-/**
- * vpbe_init: initialize the vpbe driver
- *
- * This function registers device and driver to the kernel
- */
-static __init int vpbe_init(void)
-{
-	return platform_driver_register(&vpbe_driver);
-}
-
-/**
- * vpbe_cleanup : cleanup function for vpbe driver
- *
- * This will un-registers the device and driver to the kernel
- */
-static void vpbe_cleanup(void)
-{
-	platform_driver_unregister(&vpbe_driver);
-}
-
-/* Function for module initialization and cleanup */
-module_init(vpbe_init);
-module_exit(vpbe_cleanup);
+module_platform_driver(vpbe_driver);

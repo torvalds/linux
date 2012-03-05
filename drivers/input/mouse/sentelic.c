@@ -408,7 +408,7 @@ static int fsp_onpad_hscr(struct psmouse *psmouse, bool enable)
 static ssize_t fsp_attr_set_setreg(struct psmouse *psmouse, void *data,
 				   const char *buf, size_t count)
 {
-	unsigned long reg, val;
+	int reg, val;
 	char *rest;
 	ssize_t retval;
 
@@ -416,7 +416,11 @@ static ssize_t fsp_attr_set_setreg(struct psmouse *psmouse, void *data,
 	if (rest == buf || *rest != ' ' || reg > 0xff)
 		return -EINVAL;
 
-	if (strict_strtoul(rest + 1, 16, &val) || val > 0xff)
+	retval = kstrtoint(rest + 1, 16, &val);
+	if (retval)
+		return retval;
+
+	if (val > 0xff)
 		return -EINVAL;
 
 	if (fsp_reg_write_enable(psmouse, true))
@@ -448,10 +452,13 @@ static ssize_t fsp_attr_set_getreg(struct psmouse *psmouse, void *data,
 					const char *buf, size_t count)
 {
 	struct fsp_data *pad = psmouse->private;
-	unsigned long reg;
-	int val;
+	int reg, val, err;
 
-	if (strict_strtoul(buf, 16, &reg) || reg > 0xff)
+	err = kstrtoint(buf, 16, &reg);
+	if (err)
+		return err;
+
+	if (reg > 0xff)
 		return -EINVAL;
 
 	if (fsp_reg_read(psmouse, reg, &val))
@@ -480,9 +487,13 @@ static ssize_t fsp_attr_show_pagereg(struct psmouse *psmouse,
 static ssize_t fsp_attr_set_pagereg(struct psmouse *psmouse, void *data,
 					const char *buf, size_t count)
 {
-	unsigned long val;
+	int val, err;
 
-	if (strict_strtoul(buf, 16, &val) || val > 0xff)
+	err = kstrtoint(buf, 16, &val);
+	if (err)
+		return err;
+
+	if (val > 0xff)
 		return -EINVAL;
 
 	if (fsp_page_reg_write(psmouse, val))
@@ -505,9 +516,14 @@ static ssize_t fsp_attr_show_vscroll(struct psmouse *psmouse,
 static ssize_t fsp_attr_set_vscroll(struct psmouse *psmouse, void *data,
 					const char *buf, size_t count)
 {
-	unsigned long val;
+	unsigned int val;
+	int err;
 
-	if (strict_strtoul(buf, 10, &val) || val > 1)
+	err = kstrtouint(buf, 10, &val);
+	if (err)
+		return err;
+
+	if (val > 1)
 		return -EINVAL;
 
 	fsp_onpad_vscr(psmouse, val);
@@ -529,9 +545,14 @@ static ssize_t fsp_attr_show_hscroll(struct psmouse *psmouse,
 static ssize_t fsp_attr_set_hscroll(struct psmouse *psmouse, void *data,
 					const char *buf, size_t count)
 {
-	unsigned long val;
+	unsigned int val;
+	int err;
 
-	if (strict_strtoul(buf, 10, &val) || val > 1)
+	err = kstrtouint(buf, 10, &val);
+	if (err)
+		return err;
+
+	if (val > 1)
 		return -EINVAL;
 
 	fsp_onpad_hscr(psmouse, val);

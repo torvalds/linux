@@ -328,7 +328,7 @@ iscsi_iface_net_attr(iface, vlan_enabled, ISCSI_NET_PARAM_VLAN_ENABLED);
 iscsi_iface_net_attr(iface, mtu, ISCSI_NET_PARAM_MTU);
 iscsi_iface_net_attr(iface, port, ISCSI_NET_PARAM_PORT);
 
-static mode_t iscsi_iface_attr_is_visible(struct kobject *kobj,
+static umode_t iscsi_iface_attr_is_visible(struct kobject *kobj,
 					  struct attribute *attr, int i)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -1030,6 +1030,7 @@ iscsi_alloc_session(struct Scsi_Host *shost, struct iscsi_transport *transport,
 		return NULL;
 
 	session->transport = transport;
+	session->creator = -1;
 	session->recovery_tmo = 120;
 	session->state = ISCSI_SESSION_FREE;
 	INIT_DELAYED_WORK(&session->recovery_work, session_recovery_timedout);
@@ -1634,8 +1635,9 @@ EXPORT_SYMBOL_GPL(iscsi_session_event);
 
 static int
 iscsi_if_create_session(struct iscsi_internal *priv, struct iscsi_endpoint *ep,
-			struct iscsi_uevent *ev, uint32_t initial_cmdsn,
-			uint16_t cmds_max, uint16_t queue_depth)
+			struct iscsi_uevent *ev, pid_t pid,
+			uint32_t initial_cmdsn,	uint16_t cmds_max,
+			uint16_t queue_depth)
 {
 	struct iscsi_transport *transport = priv->iscsi_transport;
 	struct iscsi_cls_session *session;
@@ -1646,6 +1648,7 @@ iscsi_if_create_session(struct iscsi_internal *priv, struct iscsi_endpoint *ep,
 	if (!session)
 		return -ENOMEM;
 
+	session->creator = pid;
 	shost = iscsi_session_to_shost(session);
 	ev->r.c_session_ret.host_no = shost->host_no;
 	ev->r.c_session_ret.sid = session->sid;
@@ -1938,6 +1941,7 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 	switch (nlh->nlmsg_type) {
 	case ISCSI_UEVENT_CREATE_SESSION:
 		err = iscsi_if_create_session(priv, ep, ev,
+					      NETLINK_CREDS(skb)->pid,
 					      ev->u.c_session.initial_cmdsn,
 					      ev->u.c_session.cmds_max,
 					      ev->u.c_session.queue_depth);
@@ -1950,6 +1954,7 @@ iscsi_if_recv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, uint32_t *group)
 		}
 
 		err = iscsi_if_create_session(priv, ep, ev,
+					NETLINK_CREDS(skb)->pid,
 					ev->u.c_bound_session.initial_cmdsn,
 					ev->u.c_bound_session.cmds_max,
 					ev->u.c_bound_session.queue_depth);
@@ -2199,7 +2204,7 @@ static struct attribute *iscsi_conn_attrs[] = {
 	NULL,
 };
 
-static mode_t iscsi_conn_attr_is_visible(struct kobject *kobj,
+static umode_t iscsi_conn_attr_is_visible(struct kobject *kobj,
 					 struct attribute *attr, int i)
 {
 	struct device *cdev = container_of(kobj, struct device, kobj);
@@ -2298,6 +2303,15 @@ show_priv_session_state(struct device *dev, struct device_attribute *attr,
 }
 static ISCSI_CLASS_ATTR(priv_sess, state, S_IRUGO, show_priv_session_state,
 			NULL);
+static ssize_t
+show_priv_session_creator(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct iscsi_cls_session *session = iscsi_dev_to_session(dev->parent);
+	return sprintf(buf, "%d\n", session->creator);
+}
+static ISCSI_CLASS_ATTR(priv_sess, creator, S_IRUGO, show_priv_session_creator,
+			NULL);
 
 #define iscsi_priv_session_attr_show(field, format)			\
 static ssize_t								\
@@ -2367,10 +2381,11 @@ static struct attribute *iscsi_session_attrs[] = {
 	&dev_attr_sess_targetalias.attr,
 	&dev_attr_priv_sess_recovery_tmo.attr,
 	&dev_attr_priv_sess_state.attr,
+	&dev_attr_priv_sess_creator.attr,
 	NULL,
 };
 
-static mode_t iscsi_session_attr_is_visible(struct kobject *kobj,
+static umode_t iscsi_session_attr_is_visible(struct kobject *kobj,
 					    struct attribute *attr, int i)
 {
 	struct device *cdev = container_of(kobj, struct device, kobj);
@@ -2424,6 +2439,8 @@ static mode_t iscsi_session_attr_is_visible(struct kobject *kobj,
 		return S_IRUGO | S_IWUSR;
 	else if (attr == &dev_attr_priv_sess_state.attr)
 		return S_IRUGO;
+	else if (attr == &dev_attr_priv_sess_creator.attr)
+		return S_IRUGO;
 	else {
 		WARN_ONCE(1, "Invalid session attr");
 		return 0;
@@ -2468,7 +2485,7 @@ static struct attribute *iscsi_host_attrs[] = {
 	NULL,
 };
 
-static mode_t iscsi_host_attr_is_visible(struct kobject *kobj,
+static umode_t iscsi_host_attr_is_visible(struct kobject *kobj,
 					 struct attribute *attr, int i)
 {
 	struct device *cdev = container_of(kobj, struct device, kobj);

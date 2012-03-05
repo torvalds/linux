@@ -230,7 +230,7 @@ static ssize_t max16065_set_limit(struct device *dev,
 	int err;
 	int limit;
 
-	err = strict_strtoul(buf, 10, &val);
+	err = kstrtoul(buf, 10, &val);
 	if (unlikely(err < 0))
 		return err;
 

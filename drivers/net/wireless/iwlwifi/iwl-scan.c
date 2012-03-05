@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -218,7 +218,7 @@ static void iwl_do_scan_abort(struct iwl_priv *priv)
 int iwl_scan_cancel(struct iwl_priv *priv)
 {
 	IWL_DEBUG_SCAN(priv, "Queuing abort scan\n");
-	queue_work(priv->shrd->workqueue, &priv->abort_scan);
+	queue_work(priv->workqueue, &priv->abort_scan);
 	return 0;
 }
 
@@ -354,7 +354,7 @@ static int iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 	 */
 	set_bit(STATUS_SCAN_COMPLETE, &priv->shrd->status);
 	clear_bit(STATUS_SCAN_HW, &priv->shrd->status);
-	queue_work(priv->shrd->workqueue, &priv->scan_completed);
+	queue_work(priv->workqueue, &priv->scan_completed);
 
 	if (priv->iw_mode != NL80211_IFTYPE_ADHOC &&
 	    iwl_advanced_bt_coexist(priv) &&
@@ -374,7 +374,7 @@ static int iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 				IWL_BT_COEX_TRAFFIC_LOAD_NONE;
 		}
 		priv->bt_status = scan_notif->bt_status;
-		queue_work(priv->shrd->workqueue,
+		queue_work(priv->workqueue,
 			   &priv->bt_traffic_change_work);
 	}
 	return 0;
@@ -414,10 +414,25 @@ static u16 iwl_limit_dwell(struct iwl_priv *priv, u16 dwell_time)
 	for_each_context(priv, ctx) {
 		u16 value;
 
-		if (!iwl_is_associated_ctx(ctx))
+		switch (ctx->staging.dev_type) {
+		case RXON_DEV_TYPE_P2P:
+			/* no timing constraints */
 			continue;
-		if (ctx->staging.dev_type == RXON_DEV_TYPE_P2P)
-			continue;
+		case RXON_DEV_TYPE_ESS:
+		default:
+			/* timing constraints if associated */
+			if (!iwl_is_associated_ctx(ctx))
+				continue;
+			break;
+		case RXON_DEV_TYPE_CP:
+		case RXON_DEV_TYPE_2STA:
+			/*
+			 * These seem to always have timers for TBTT
+			 * active in uCode even when not associated yet.
+			 */
+			break;
+		}
+
 		value = ctx->beacon_int;
 		if (!value)
 			value = IWL_PASSIVE_DWELL_BASE;
@@ -569,7 +584,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	struct iwl_scan_cmd *scan;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	u32 rate_flags = 0;
-	u16 cmd_len;
+	u16 cmd_len = 0;
 	u16 rx_chain = 0;
 	enum ieee80211_band band;
 	u8 n_probes = 0;
@@ -935,7 +950,7 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 		return ret;
 	}
 
-	queue_delayed_work(priv->shrd->workqueue, &priv->scan_check,
+	queue_delayed_work(priv->workqueue, &priv->scan_check,
 			   IWL_SCAN_CHECK_WATCHDOG);
 
 	return 0;
@@ -948,7 +963,7 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
  */
 void iwl_internal_short_hw_scan(struct iwl_priv *priv)
 {
-	queue_work(priv->shrd->workqueue, &priv->start_internal_scan);
+	queue_work(priv->workqueue, &priv->start_internal_scan);
 }
 
 static void iwl_bg_start_internal_scan(struct work_struct *work)

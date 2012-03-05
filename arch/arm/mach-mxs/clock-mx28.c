@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/jiffies.h>
 #include <linux/clkdev.h>
+#include <linux/spinlock.h>
 
 #include <asm/clkdev.h>
 #include <asm/div64.h>
@@ -29,6 +30,7 @@
 #include <mach/mx28.h>
 #include <mach/common.h>
 #include <mach/clock.h>
+#include <mach/digctl.h>
 
 #include "regs-clkctrl-mx28.h"
 
@@ -43,6 +45,33 @@ static struct clk emi_clk;
 static struct clk saif0_clk;
 static struct clk saif1_clk;
 static struct clk clk32k_clk;
+static DEFINE_SPINLOCK(clkmux_lock);
+
+/*
+ * HW_SAIF_CLKMUX_SEL:
+ *  DIRECT(0x0): SAIF0 clock pins selected for SAIF0 input clocks, and SAIF1
+ *		clock pins selected for SAIF1 input clocks.
+ *  CROSSINPUT(0x1): SAIF1 clock inputs selected for SAIF0 input clocks, and
+ *		SAIF0 clock inputs selected for SAIF1 input clocks.
+ *  EXTMSTR0(0x2): SAIF0 clock pin selected for both SAIF0 and SAIF1 input
+ *		clocks.
+ *  EXTMSTR1(0x3): SAIF1 clock pin selected for both SAIF0 and SAIF1 input
+ *		clocks.
+ */
+int mxs_saif_clkmux_select(unsigned int clkmux)
+{
+	if (clkmux > 0x3)
+		return -EINVAL;
+
+	spin_lock(&clkmux_lock);
+	__raw_writel(BM_DIGCTL_CTRL_SAIF_CLKMUX,
+			DIGCTRL_BASE_ADDR + HW_DIGCTL_CTRL + MXS_CLR_ADDR);
+	__raw_writel(clkmux << BP_DIGCTL_CTRL_SAIF_CLKMUX,
+			DIGCTRL_BASE_ADDR + HW_DIGCTL_CTRL + MXS_SET_ADDR);
+	spin_unlock(&clkmux_lock);
+
+	return 0;
+}
 
 static int _raw_clk_enable(struct clk *clk)
 {
@@ -775,15 +804,24 @@ int __init mx28_clocks_init(void)
 	clk_set_parent(&ssp0_clk, &ref_io0_clk);
 	clk_set_parent(&ssp1_clk, &ref_io0_clk);
 
-	clk_enable(&cpu_clk);
-	clk_enable(&hbus_clk);
-	clk_enable(&xbus_clk);
-	clk_enable(&emi_clk);
-	clk_enable(&uart_clk);
+	clk_prepare_enable(&cpu_clk);
+	clk_prepare_enable(&hbus_clk);
+	clk_prepare_enable(&xbus_clk);
+	clk_prepare_enable(&emi_clk);
+	clk_prepare_enable(&uart_clk);
 
 	clk_set_parent(&lcdif_clk, &ref_pix_clk);
 	clk_set_parent(&saif0_clk, &pll0_clk);
 	clk_set_parent(&saif1_clk, &pll0_clk);
+
+	/*
+	 * Set an initial clock rate for the saif internal logic to work
+	 * properly. This is important when working in EXTMASTER mode that
+	 * uses the other saif's BITCLK&LRCLK but it still needs a basic
+	 * clock which should be fast enough for the internal logic.
+	 */
+	clk_set_rate(&saif0_clk, 24000000);
+	clk_set_rate(&saif1_clk, 24000000);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 

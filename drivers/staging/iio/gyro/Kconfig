@@ -37,11 +37,11 @@ config ADIS16260
 	  will be called adis16260.
 
 config ADXRS450
-	tristate "Analog Devices ADXRS450 Digital Output Gyroscope SPI driver"
+	tristate "Analog Devices ADXRS450/3 Digital Output Gyroscope SPI driver"
 	depends on SPI
 	help
-	  Say yes here to build support for Analog Devices ADXRS450 programmable
-	  digital output gyroscope.
+	  Say yes here to build support for Analog Devices ADXRS450 and ADXRS453
+	  programmable digital output gyroscope.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called adxrs450.

@@ -36,6 +36,16 @@ config S5P64X0_SETUP_I2C1
 	help
 	  Common setup code for i2c bus 1.
 
+config S5P64X0_SETUP_SPI
+	bool
+	help
+	  Common setup code for SPI GPIO configurations
+
+config S5P64X0_SETUP_SDHCI_GPIO
+	bool
+	help
+	  Common setup code for SDHCI gpio.
+
 # machine support
 
 config MACH_SMDK6440
@@ -45,13 +55,16 @@ config MACH_SMDK6440
 	select S3C_DEV_I2C1
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
-	select S3C64XX_DEV_SPI
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_HSMMC2
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_BACKLIGHT
 	select SAMSUNG_DEV_PWM
 	select SAMSUNG_DEV_TS
 	select S5P64X0_SETUP_FB_24BPP
 	select S5P64X0_SETUP_I2C1
+	select S5P64X0_SETUP_SDHCI_GPIO
 	help
 	  Machine support for the Samsung SMDK6440
 
@@ -62,14 +75,28 @@ config MACH_SMDK6450
 	select S3C_DEV_I2C1
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
-	select S3C64XX_DEV_SPI
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_HSMMC2
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_BACKLIGHT
 	select SAMSUNG_DEV_PWM
 	select SAMSUNG_DEV_TS
 	select S5P64X0_SETUP_FB_24BPP
 	select S5P64X0_SETUP_I2C1
+	select S5P64X0_SETUP_SDHCI_GPIO
 	help
 	  Machine support for the Samsung SMDK6450
+
+menu "Use 8-bit SDHCI bus width"
+
+config S5P64X0_SD_CH1_8BIT
+	bool "SDHCI Channel 1 (Slot 1)"
+	depends on MACH_SMDK6450 || MACH_SMDK6440
+	help
+	  Support SDHCI Channel 1 8-bit bus.
+	  If selected, Channel 2 is disabled.
+
+endmenu
 
 endif

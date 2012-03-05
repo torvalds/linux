@@ -302,7 +302,7 @@ static void buf_unmapped_default_callback(struct rchan_buf *buf,
  */
 static struct dentry *create_buf_file_default_callback(const char *filename,
 						       struct dentry *parent,
-						       int mode,
+						       umode_t mode,
 						       struct rchan_buf *buf,
 						       int *is_global)
 {

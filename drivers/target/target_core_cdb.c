@@ -29,10 +29,11 @@
 #include <scsi/scsi.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_transport.h>
-#include <target/target_core_fabric_ops.h>
+#include <target/target_core_backend.h>
+#include <target/target_core_fabric.h>
+
+#include "target_core_internal.h"
 #include "target_core_ua.h"
-#include "target_core_cdb.h"
 
 static void
 target_fill_alua_data(struct se_port *port, unsigned char *buf)
@@ -94,6 +95,18 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 	buf[2] = dev->transport->get_device_rev(dev);
 
 	/*
+	 * NORMACA and HISUP = 0, RESPONSE DATA FORMAT = 2
+	 *
+	 * SPC4 says:
+	 *   A RESPONSE DATA FORMAT field set to 2h indicates that the
+	 *   standard INQUIRY data is in the format defined in this
+	 *   standard. Response data format values less than 2h are
+	 *   obsolete. Response data format values greater than 2h are
+	 *   reserved.
+	 */
+	buf[3] = 2;
+
+	/*
 	 * Enable SCCS and TPGS fields for Emulated ALUA
 	 */
 	if (dev->se_sub_dev->t10_alua.alua_type == SPC3_ALUA_EMULATED)
@@ -115,11 +128,9 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 		goto out;
 	}
 
-	snprintf((unsigned char *)&buf[8], 8, "LIO-ORG");
-	snprintf((unsigned char *)&buf[16], 16, "%s",
-		 &dev->se_sub_dev->t10_wwn.model[0]);
-	snprintf((unsigned char *)&buf[32], 4, "%s",
-		 &dev->se_sub_dev->t10_wwn.revision[0]);
+	snprintf(&buf[8], 8, "LIO-ORG");
+	snprintf(&buf[16], 16, "%s", dev->se_sub_dev->t10_wwn.model);
+	snprintf(&buf[32], 4, "%s", dev->se_sub_dev->t10_wwn.revision);
 	buf[4] = 31; /* Set additional length to 31 */
 
 out:
@@ -138,8 +149,7 @@ target_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 			SDF_EMULATED_VPD_UNIT_SERIAL) {
 		u32 unit_serial_len;
 
-		unit_serial_len =
-			strlen(&dev->se_sub_dev->t10_wwn.unit_serial[0]);
+		unit_serial_len = strlen(dev->se_sub_dev->t10_wwn.unit_serial);
 		unit_serial_len++; /* For NULL Terminator */
 
 		if (((len + 4) + unit_serial_len) > cmd->data_length) {
@@ -148,8 +158,8 @@ target_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 			buf[3] = (len & 0xff);
 			return 0;
 		}
-		len += sprintf((unsigned char *)&buf[4], "%s",
-			&dev->se_sub_dev->t10_wwn.unit_serial[0]);
+		len += sprintf(&buf[4], "%s",
+			dev->se_sub_dev->t10_wwn.unit_serial);
 		len++; /* Extra Byte for NULL Terminator */
 		buf[3] = len;
 	}
@@ -279,14 +289,13 @@ check_t10_vend_desc:
 			len += (prod_len + unit_serial_len);
 			goto check_port;
 		}
-		id_len += sprintf((unsigned char *)&buf[off+12],
-				"%s:%s", prod,
+		id_len += sprintf(&buf[off+12], "%s:%s", prod,
 				&dev->se_sub_dev->t10_wwn.unit_serial[0]);
 	}
 	buf[off] = 0x2; /* ASCII */
 	buf[off+1] = 0x1; /* T10 Vendor ID */
 	buf[off+2] = 0x0;
-	memcpy((unsigned char *)&buf[off+4], "LIO-ORG", 8);
+	memcpy(&buf[off+4], "LIO-ORG", 8);
 	/* Extra Byte for NULL Terminator */
 	id_len++;
 	/* Identifier Length */

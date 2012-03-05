@@ -3117,7 +3117,7 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 	int rx_ring_size = 0;
 
 #ifdef BCM_CNIC
-	if (IS_MF_ISCSI_SD(bp)) {
+	if (!bp->rx_ring_size && IS_MF_ISCSI_SD(bp)) {
 		rx_ring_size = MIN_RX_SIZE_NONTPA;
 		bp->rx_ring_size = rx_ring_size;
 	} else

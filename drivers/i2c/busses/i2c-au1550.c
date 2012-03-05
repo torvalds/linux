@@ -426,20 +426,9 @@ static struct platform_driver au1xpsc_smbus_driver = {
 	.remove		= __devexit_p(i2c_au1550_remove),
 };
 
-static int __init i2c_au1550_init(void)
-{
-	return platform_driver_register(&au1xpsc_smbus_driver);
-}
-
-static void __exit i2c_au1550_exit(void)
-{
-	platform_driver_unregister(&au1xpsc_smbus_driver);
-}
+module_platform_driver(au1xpsc_smbus_driver);
 
 MODULE_AUTHOR("Dan Malek, Embedded Edge, LLC.");
 MODULE_DESCRIPTION("SMBus adapter Alchemy pb1550");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:au1xpsc_smbus");
-
-module_init (i2c_au1550_init);
-module_exit (i2c_au1550_exit);

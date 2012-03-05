@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -47,9 +47,9 @@
 #include "iwl-power.h"
 #include "iwl-agn-rs.h"
 #include "iwl-agn-tt.h"
-#include "iwl-bus.h"
 #include "iwl-trans.h"
 #include "iwl-shared.h"
+#include "iwl-op-mode.h"
 
 struct iwl_tx_queue;
 
@@ -292,114 +292,6 @@ struct iwl_vif_priv {
 	u8 ibss_bssid_sta_id;
 };
 
-/* v1/v2 uCode file layout */
-struct iwl_ucode_header {
-	__le32 ver;	/* major/minor/API/serial */
-	union {
-		struct {
-			__le32 inst_size;	/* bytes of runtime code */
-			__le32 data_size;	/* bytes of runtime data */
-			__le32 init_size;	/* bytes of init code */
-			__le32 init_data_size;	/* bytes of init data */
-			__le32 boot_size;	/* bytes of bootstrap code */
-			u8 data[0];		/* in same order as sizes */
-		} v1;
-		struct {
-			__le32 build;		/* build number */
-			__le32 inst_size;	/* bytes of runtime code */
-			__le32 data_size;	/* bytes of runtime data */
-			__le32 init_size;	/* bytes of init code */
-			__le32 init_data_size;	/* bytes of init data */
-			__le32 boot_size;	/* bytes of bootstrap code */
-			u8 data[0];		/* in same order as sizes */
-		} v2;
-	} u;
-};
-
-/*
- * new TLV uCode file layout
- *
- * The new TLV file format contains TLVs, that each specify
- * some piece of data. To facilitate "groups", for example
- * different instruction image with different capabilities,
- * bundled with the same init image, an alternative mechanism
- * is provided:
- * When the alternative field is 0, that means that the item
- * is always valid. When it is non-zero, then it is only
- * valid in conjunction with items of the same alternative,
- * in which case the driver (user) selects one alternative
- * to use.
- */
-
-enum iwl_ucode_tlv_type {
-	IWL_UCODE_TLV_INVALID		= 0, /* unused */
-	IWL_UCODE_TLV_INST		= 1,
-	IWL_UCODE_TLV_DATA		= 2,
-	IWL_UCODE_TLV_INIT		= 3,
-	IWL_UCODE_TLV_INIT_DATA		= 4,
-	IWL_UCODE_TLV_BOOT		= 5,
-	IWL_UCODE_TLV_PROBE_MAX_LEN	= 6, /* a u32 value */
-	IWL_UCODE_TLV_PAN		= 7,
-	IWL_UCODE_TLV_RUNT_EVTLOG_PTR	= 8,
-	IWL_UCODE_TLV_RUNT_EVTLOG_SIZE	= 9,
-	IWL_UCODE_TLV_RUNT_ERRLOG_PTR	= 10,
-	IWL_UCODE_TLV_INIT_EVTLOG_PTR	= 11,
-	IWL_UCODE_TLV_INIT_EVTLOG_SIZE	= 12,
-	IWL_UCODE_TLV_INIT_ERRLOG_PTR	= 13,
-	IWL_UCODE_TLV_ENHANCE_SENS_TBL	= 14,
-	IWL_UCODE_TLV_PHY_CALIBRATION_SIZE = 15,
-	IWL_UCODE_TLV_WOWLAN_INST	= 16,
-	IWL_UCODE_TLV_WOWLAN_DATA	= 17,
-	IWL_UCODE_TLV_FLAGS		= 18,
-};
-
-/**
- * enum iwl_ucode_tlv_flag - ucode API flags
- * @IWL_UCODE_TLV_FLAGS_PAN: This is PAN capable microcode; this previously
- *	was a separate TLV but moved here to save space.
- * @IWL_UCODE_TLV_FLAGS_NEWSCAN: new uCode scan behaviour on hidden SSID,
- *	treats good CRC threshold as a boolean
- * @IWL_UCODE_TLV_FLAGS_MFP: This uCode image supports MFP (802.11w).
- * @IWL_UCODE_TLV_FLAGS_P2P: This uCode image supports P2P.
- */
-enum iwl_ucode_tlv_flag {
-	IWL_UCODE_TLV_FLAGS_PAN		= BIT(0),
-	IWL_UCODE_TLV_FLAGS_NEWSCAN	= BIT(1),
-	IWL_UCODE_TLV_FLAGS_MFP		= BIT(2),
-	IWL_UCODE_TLV_FLAGS_P2P		= BIT(3),
-};
-
-struct iwl_ucode_tlv {
-	__le16 type;		/* see above */
-	__le16 alternative;	/* see comment */
-	__le32 length;		/* not including type/length fields */
-	u8 data[0];
-} __packed;
-
-#define IWL_TLV_UCODE_MAGIC	0x0a4c5749
-
-struct iwl_tlv_ucode_header {
-	/*
-	 * The TLV style ucode header is distinguished from
-	 * the v1/v2 style header by first four bytes being
-	 * zero, as such is an invalid combination of
-	 * major/minor/API/serial versions.
-	 */
-	__le32 zero;
-	__le32 magic;
-	u8 human_readable[64];
-	__le32 ver;		/* major/minor/API/serial */
-	__le32 build;
-	__le64 alternatives;	/* bitmask of valid alternatives */
-	/*
-	 * The data contained herein has a TLV layout,
-	 * see above for the TLV header and types.
-	 * Note that each TLV is padded to a length
-	 * that is a multiple of 4 for alignment.
-	 */
-	u8 data[0];
-};
-
 struct iwl_sensitivity_ranges {
 	u16 min_nrg_cck;
 	u16 max_nrg_cck;
@@ -550,9 +442,6 @@ struct iwl_chain_noise_data {
 	u8 state;
 };
 
-#define	EEPROM_SEM_TIMEOUT 10		/* milliseconds */
-#define EEPROM_SEM_RETRY_LIMIT 1000	/* number of attempts (not time) */
-
 enum {
 	MEASUREMENT_READY = (1 << 0),
 	MEASUREMENT_ACTIVE = (1 << 1),
@@ -661,7 +550,7 @@ struct traffic_stats {
  * schedule the timer to wake up every UCODE_TRACE_PERIOD milliseconds
  * to perform continuous uCode event logging operation if enabled
  */
-#define UCODE_TRACE_PERIOD (100)
+#define UCODE_TRACE_PERIOD (10)
 
 /*
  * iwl_event_log: current uCode event log position
@@ -804,11 +693,11 @@ struct iwl_testmode_trace {
 	dma_addr_t dma_addr;
 	bool trace_enabled;
 };
-struct iwl_testmode_sram {
+struct iwl_testmode_mem {
 	u32 buff_size;
 	u32 num_chunks;
 	u8 *buff_addr;
-	bool sram_readed;
+	bool read_in_progress;
 };
 #endif
 
@@ -818,10 +707,16 @@ struct iwl_wipan_noa_data {
 	u8 data[];
 };
 
+#define IWL_OP_MODE_GET_DVM(_iwl_op_mode) \
+	((struct iwl_priv *) ((_iwl_op_mode)->op_mode_specific))
+
+#define IWL_MAC80211_GET_DVM(_hw) \
+	((struct iwl_priv *) ((struct iwl_op_mode *) \
+	(_hw)->priv)->op_mode_specific)
+
 struct iwl_priv {
 
 	/*data shared among all the driver's layers */
-	struct iwl_shared _shrd;
 	struct iwl_shared *shrd;
 
 	/* ieee device used by generic ieee processing code */
@@ -829,6 +724,8 @@ struct iwl_priv {
 	struct ieee80211_channel *ieee_channels;
 	struct ieee80211_rate *ieee_rates;
 	struct kmem_cache *tx_cmd_pool;
+
+	struct workqueue_struct *workqueue;
 
 	enum ieee80211_band band;
 
@@ -894,13 +791,6 @@ struct iwl_priv {
 	/* EEPROM MAC addresses */
 	struct mac_address addresses[2];
 
-	/* uCode images, save to reload in case of failure */
-	int fw_index;			/* firmware we're trying to load */
-	u32 ucode_ver;			/* version of ucode, copy of
-					   iwl_ucode.ver */
-
-	char firmware_name[25];
-
 	struct iwl_rxon_context contexts[NUM_IWL_RXON_CTX];
 
 	__le16 switch_channel;
@@ -910,7 +800,6 @@ struct iwl_priv {
 	u8 start_calib;
 	struct iwl_sensitivity_data sensitivity_data;
 	struct iwl_chain_noise_data chain_noise_data;
-	bool enhance_sensitivity_table;
 	__le16 sensitivity_tbl[HD_TABLE_SIZE];
 	__le16 enhance_sensitivity_tbl[ENHANCE_HD_TABLE_ENTRIES];
 
@@ -977,11 +866,6 @@ struct iwl_priv {
 
 	struct iwl_rx_phy_res last_phy_res;
 	bool last_phy_res_valid;
-
-	struct completion firmware_loading_complete;
-
-	u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
-	u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
 
 	/*
 	 * chain noise reset and gain commands are the
@@ -1073,7 +957,7 @@ struct iwl_priv {
 	bool led_registered;
 #ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 	struct iwl_testmode_trace testmode_trace;
-	struct iwl_testmode_sram testmode_sram;
+	struct iwl_testmode_mem testmode_mem;
 	u32 tm_fixed_rate;
 #endif
 

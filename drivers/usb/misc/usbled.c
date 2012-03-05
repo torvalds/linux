@@ -31,6 +31,8 @@ static const struct usb_device_id id_table[] = {
 			.driver_info = DELCOM_VISUAL_SIGNAL_INDICATOR },
 	{ USB_DEVICE(0x1d34, 0x0004),
 			.driver_info = DREAM_CHEEKY_WEBMAIL_NOTIFIER },
+	{ USB_DEVICE(0x1d34, 0x000a),
+			.driver_info = DREAM_CHEEKY_WEBMAIL_NOTIFIER },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, id_table);
@@ -231,23 +233,7 @@ static struct usb_driver led_driver = {
 	.id_table =	id_table,
 };
 
-static int __init usb_led_init(void)
-{
-	int retval = 0;
-
-	retval = usb_register(&led_driver);
-	if (retval)
-		err("usb_register failed. Error number %d", retval);
-	return retval;
-}
-
-static void __exit usb_led_exit(void)
-{
-	usb_deregister(&led_driver);
-}
-
-module_init(usb_led_init);
-module_exit(usb_led_exit);
+module_usb_driver(led_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

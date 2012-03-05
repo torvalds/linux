@@ -127,6 +127,19 @@ static char *hcfs2string (int state)
 	return "?";
 }
 
+static const char *rh_state_string(struct ohci_hcd *ohci)
+{
+	switch (ohci->rh_state) {
+	case OHCI_RH_HALTED:
+		return "halted";
+	case OHCI_RH_SUSPENDED:
+		return "suspended";
+	case OHCI_RH_RUNNING:
+		return "running";
+	}
+	return "?";
+}
+
 // dump control and status registers
 static void
 ohci_dump_status (struct ohci_hcd *controller, char **next, unsigned *size)
@@ -136,9 +149,10 @@ ohci_dump_status (struct ohci_hcd *controller, char **next, unsigned *size)
 
 	temp = ohci_readl (controller, &regs->revision) & 0xff;
 	ohci_dbg_sw (controller, next, size,
-		"OHCI %d.%d, %s legacy support registers\n",
+		"OHCI %d.%d, %s legacy support registers, rh state %s\n",
 		0x03 & (temp >> 4), (temp & 0x0f),
-		(temp & 0x0100) ? "with" : "NO");
+		(temp & 0x0100) ? "with" : "NO",
+		rh_state_string(controller));
 
 	temp = ohci_readl (controller, &regs->control);
 	ohci_dbg_sw (controller, next, size,

@@ -1269,7 +1269,7 @@ int __devinit cpmac_init(void)
 	}
 
 	cpmac_mii->phy_mask = ~(mask | 0x80000000);
-	snprintf(cpmac_mii->id, MII_BUS_ID_SIZE, "1");
+	snprintf(cpmac_mii->id, MII_BUS_ID_SIZE, "cpmac-1");
 
 	res = mdiobus_register(cpmac_mii);
 	if (res)

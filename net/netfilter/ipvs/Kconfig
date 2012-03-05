@@ -122,7 +122,6 @@ config	IP_VS_RR
  
 config	IP_VS_WRR
 	tristate "weighted round-robin scheduling"
-	select GCD
 	---help---
 	  The weighted robin-robin scheduling algorithm directs network
 	  connections to different real servers based on server weights

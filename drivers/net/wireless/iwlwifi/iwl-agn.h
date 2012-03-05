@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,15 +65,9 @@
 
 #include "iwl-dev.h"
 
-struct iwlagn_ucode_capabilities {
-	u32 max_probe_length;
-	u32 standard_phy_calibration_size;
-	u32 flags;
-};
+struct iwl_ucode_capabilities;
 
 extern struct ieee80211_ops iwlagn_hw_ops;
-
-int iwl_reset_ict(struct iwl_trans *trans);
 
 static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
 {
@@ -83,14 +77,23 @@ static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
 	hdr->data_valid = 1;
 }
 
-void __iwl_down(struct iwl_priv *priv);
 void iwl_down(struct iwl_priv *priv);
+void iwl_cancel_deferred_work(struct iwl_priv *priv);
 void iwlagn_prepare_restart(struct iwl_priv *priv);
+void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb);
+int __must_check iwl_rx_dispatch(struct iwl_op_mode *op_mode,
+				 struct iwl_rx_mem_buffer *rxb,
+				 struct iwl_device_cmd *cmd);
+void iwl_stop_sw_queue(struct iwl_op_mode *op_mode, u8 ac);
+void iwl_wake_sw_queue(struct iwl_op_mode *op_mode, u8 ac);
+void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state);
+void iwl_stop_sw_queue(struct iwl_op_mode *op_mode, u8 ac);
+void iwl_nic_error(struct iwl_op_mode *op_mode);
 
 /* MAC80211 */
 struct ieee80211_hw *iwl_alloc_all(void);
 int iwlagn_mac_setup_register(struct iwl_priv *priv,
-			      struct iwlagn_ucode_capabilities *capa);
+			      struct iwl_ucode_capabilities *capa);
 void iwlagn_mac_unregister(struct iwl_priv *priv);
 
 /* RXON */
@@ -109,6 +112,7 @@ void iwlagn_config_ht40(struct ieee80211_conf *conf,
 int iwlagn_rx_calib_result(struct iwl_priv *priv,
 			    struct iwl_rx_mem_buffer *rxb,
 			    struct iwl_device_cmd *cmd);
+void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags);
 
 /* lib */
 int iwlagn_send_tx_power(struct iwl_priv *priv);
@@ -384,6 +388,16 @@ void iwl_testmode_init(struct iwl_priv *priv)
 }
 static inline
 void iwl_testmode_cleanup(struct iwl_priv *priv)
+{
+}
+#endif
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+void iwl_print_rx_config_cmd(struct iwl_priv *priv,
+			     enum iwl_rxon_context_id ctxid);
+#else
+static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv,
+					   enum iwl_rxon_context_id ctxid)
 {
 }
 #endif

@@ -612,12 +612,23 @@ You can set a pointer to a mutex_lock in struct video_device. Usually this
 will be either a top-level mutex or a mutex per device node. If you want
 finer-grained locking then you have to set it to NULL and do you own locking.
 
+It is up to the driver developer to decide which method to use. However, if
+your driver has high-latency operations (for example, changing the exposure
+of a USB webcam might take a long time), then you might be better off with
+doing your own locking if you want to allow the user to do other things with
+the device while waiting for the high-latency command to finish.
+
 If a lock is specified then all file operations will be serialized on that
 lock. If you use videobuf then you must pass the same lock to the videobuf
 queue initialize function: if videobuf has to wait for a frame to arrive, then
 it will temporarily unlock the lock and relock it afterwards. If your driver
 also waits in the code, then you should do the same to allow other processes
 to access the device node while the first process is waiting for something.
+
+In the case of videobuf2 you will need to implement the wait_prepare and
+wait_finish callbacks to unlock/lock if applicable. In particular, if you use
+the lock in struct video_device then you must unlock/lock this mutex in
+wait_prepare and wait_finish.
 
 The implementation of a hotplug disconnect should also take the lock before
 calling v4l2_device_disconnect.

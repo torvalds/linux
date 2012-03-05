@@ -30,6 +30,7 @@
 
 #define MODULE_NAME "t613"
 
+#include <linux/input.h>
 #include <linux/slab.h>
 #include "gspca.h"
 
@@ -57,6 +58,7 @@ struct sd {
 	u8 effect;
 
 	u8 sensor;
+	u8 button_pressed;
 };
 enum sensors {
 	SENSOR_OM6802,
@@ -1095,15 +1097,35 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 		msleep(20);
 		reg_w(gspca_dev, 0x0309);
 	}
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+	/* If the last button state is pressed, release it now! */
+	if (sd->button_pressed) {
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
+		input_sync(gspca_dev->input_dev);
+		sd->button_pressed = 0;
+	}
+#endif
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	int pkt_type;
 
 	if (data[0] == 0x5a) {
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+		if (len > 20) {
+			u8 state = (data[20] & 0x80) ? 1 : 0;
+			if (sd->button_pressed != state) {
+				input_report_key(gspca_dev->input_dev,
+						 KEY_CAMERA, state);
+				input_sync(gspca_dev->input_dev);
+				sd->button_pressed = state;
+			}
+		}
+#endif
 		/* Control Packet, after this came the header again,
 		 * but extra bytes came in the packet before this,
 		 * sometimes an EOF arrives, sometimes not... */
@@ -1410,6 +1432,9 @@ static const struct sd_desc sd_desc = {
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+	.other_input = 1,
+#endif
 };
 
 /* -- module initialisation -- */
@@ -1438,15 +1463,4 @@ static struct usb_driver sd_driver = {
 #endif
 };
 
-/* -- module insert / remove -- */
-static int __init sd_mod_init(void)
-{
-	return usb_register(&sd_driver);
-}
-static void __exit sd_mod_exit(void)
-{
-	usb_deregister(&sd_driver);
-}
-
-module_init(sd_mod_init);
-module_exit(sd_mod_exit);
+module_usb_driver(sd_driver);

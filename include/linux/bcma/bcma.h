@@ -136,6 +136,7 @@ struct bcma_device {
 	bool dev_registered;
 
 	u8 core_index;
+	u8 core_unit;
 
 	u32 addr;
 	u32 wrap;
@@ -162,7 +163,7 @@ struct bcma_driver {
 
 	int (*probe)(struct bcma_device *dev);
 	void (*remove)(struct bcma_device *dev);
-	int (*suspend)(struct bcma_device *dev, pm_message_t state);
+	int (*suspend)(struct bcma_device *dev);
 	int (*resume)(struct bcma_device *dev);
 	void (*shutdown)(struct bcma_device *dev);
 
@@ -195,6 +196,7 @@ struct bcma_bus {
 	struct list_head cores;
 	u8 nr_cores;
 	u8 init_done:1;
+	u8 num;
 
 	struct bcma_drv_cc drv_cc;
 	struct bcma_drv_pci drv_pci;

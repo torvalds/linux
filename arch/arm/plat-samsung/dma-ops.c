@@ -18,32 +18,33 @@
 
 #include <mach/dma.h>
 
-static inline bool pl330_filter(struct dma_chan *chan, void *param)
-{
-	struct dma_pl330_peri *peri = chan->private;
-	return peri->peri_id == (unsigned)param;
-}
-
 static unsigned samsung_dmadev_request(enum dma_ch dma_ch,
 				struct samsung_dma_info *info)
 {
 	struct dma_chan *chan;
 	dma_cap_mask_t mask;
 	struct dma_slave_config slave_config;
+	void *filter_param;
 
 	dma_cap_zero(mask);
 	dma_cap_set(info->cap, mask);
 
-	chan = dma_request_channel(mask, pl330_filter, (void *)dma_ch);
+	/*
+	 * If a dma channel property of a device node from device tree is
+	 * specified, use that as the fliter parameter.
+	 */
+	filter_param = (dma_ch == DMACH_DT_PROP) ? (void *)info->dt_dmach_prop :
+				(void *)dma_ch;
+	chan = dma_request_channel(mask, pl330_filter, filter_param);
 
-	if (info->direction == DMA_FROM_DEVICE) {
+	if (info->direction == DMA_DEV_TO_MEM) {
 		memset(&slave_config, 0, sizeof(struct dma_slave_config));
 		slave_config.direction = info->direction;
 		slave_config.src_addr = info->fifo;
 		slave_config.src_addr_width = info->width;
 		slave_config.src_maxburst = 1;
 		dmaengine_slave_config(chan, &slave_config);
-	} else if (info->direction == DMA_TO_DEVICE) {
+	} else if (info->direction == DMA_MEM_TO_DEV) {
 		memset(&slave_config, 0, sizeof(struct dma_slave_config));
 		slave_config.direction = info->direction;
 		slave_config.dst_addr = info->fifo;

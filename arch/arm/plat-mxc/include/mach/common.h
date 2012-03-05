@@ -131,6 +131,12 @@ extern void imx53_evk_common_init(void);
 extern void imx53_qsb_common_init(void);
 extern void imx53_smd_common_init(void);
 extern int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode);
-extern void imx6q_pm_init(void);
 extern void imx6q_clock_map_io(void);
+
+#ifdef CONFIG_PM
+extern void imx6q_pm_init(void);
+#else
+static inline void imx6q_pm_init(void) {}
+#endif
+
 #endif

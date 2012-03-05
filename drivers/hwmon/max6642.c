@@ -234,7 +234,7 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
 	struct max6642_data *data = i2c_get_clientdata(client);
 	struct sensor_device_attribute_2 *attr2 = to_sensor_dev_attr_2(attr);
 
-	err = strict_strtoul(buf, 10, &val);
+	err = kstrtoul(buf, 10, &val);
 	if (err < 0)
 		return err;
 

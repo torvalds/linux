@@ -308,7 +308,7 @@ static const struct file_operations raw_ctl_fops = {
 
 static struct cdev raw_cdev;
 
-static char *raw_devnode(struct device *dev, mode_t *mode)
+static char *raw_devnode(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "raw/%s", dev_name(dev));
 }

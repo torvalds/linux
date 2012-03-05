@@ -18,6 +18,11 @@
 /* Forward declaration for NFS v3 */
 struct nfs4_secinfo_flavors;
 
+struct nfs4_string {
+	unsigned int len;
+	char *data;
+};
+
 struct nfs_fsid {
 	uint64_t		major;
 	uint64_t		minor;
@@ -61,6 +66,8 @@ struct nfs_fattr {
 	struct timespec		pre_ctime;	/* pre_op_attr.ctime	  */
 	unsigned long		time_start;
 	unsigned long		gencount;
+	struct nfs4_string	*owner_name;
+	struct nfs4_string	*group_name;
 };
 
 #define NFS_ATTR_FATTR_TYPE		(1U << 0)
@@ -85,6 +92,8 @@ struct nfs_fattr {
 #define NFS_ATTR_FATTR_V4_REFERRAL	(1U << 19)	/* NFSv4 referral */
 #define NFS_ATTR_FATTR_MOUNTPOINT	(1U << 20)	/* Treat as mountpoint */
 #define NFS_ATTR_FATTR_MOUNTED_ON_FILEID		(1U << 21)
+#define NFS_ATTR_FATTR_OWNER_NAME	(1U << 22)
+#define NFS_ATTR_FATTR_GROUP_NAME	(1U << 23)
 
 #define NFS_ATTR_FATTR (NFS_ATTR_FATTR_TYPE \
 		| NFS_ATTR_FATTR_MODE \
@@ -324,6 +333,7 @@ struct nfs_openargs {
 	const struct qstr *	name;
 	const struct nfs_server *server;	 /* Needed for ID mapping */
 	const u32 *		bitmask;
+	const u32 *		dir_bitmask;
 	__u32			claim;
 	struct nfs4_sequence_args	seq_args;
 };
@@ -342,6 +352,8 @@ struct nfs_openres {
 	__u32			do_recall;
 	__u64			maxsize;
 	__u32			attrset[NFS4_BITMAP_SIZE];
+	struct nfs4_string	*owner;
+	struct nfs4_string	*group_owner;
 	struct nfs4_sequence_res	seq_res;
 };
 
@@ -602,11 +614,16 @@ struct nfs_getaclargs {
 	size_t				acl_len;
 	unsigned int			acl_pgbase;
 	struct page **			acl_pages;
+	struct page *			acl_scratch;
 	struct nfs4_sequence_args 	seq_args;
 };
 
+/* getxattr ACL interface flags */
+#define NFS4_ACL_LEN_REQUEST	0x0001	/* zero length getxattr buffer */
 struct nfs_getaclres {
 	size_t				acl_len;
+	size_t				acl_data_offset;
+	int				acl_flags;
 	struct nfs4_sequence_res	seq_res;
 };
 
@@ -771,11 +788,6 @@ struct nfs3_getaclres {
 	unsigned int		acl_default_count;
 	struct posix_acl *	acl_access;
 	struct posix_acl *	acl_default;
-};
-
-struct nfs4_string {
-	unsigned int len;
-	char *data;
 };
 
 #ifdef CONFIG_NFS_V4

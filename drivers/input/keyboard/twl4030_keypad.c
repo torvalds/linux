@@ -460,18 +460,7 @@ static struct platform_driver twl4030_kp_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init twl4030_kp_init(void)
-{
-	return platform_driver_register(&twl4030_kp_driver);
-}
-module_init(twl4030_kp_init);
-
-static void __exit twl4030_kp_exit(void)
-{
-	platform_driver_unregister(&twl4030_kp_driver);
-}
-module_exit(twl4030_kp_exit);
+module_platform_driver(twl4030_kp_driver);
 
 MODULE_AUTHOR("Texas Instruments");
 MODULE_DESCRIPTION("TWL4030 Keypad Driver");

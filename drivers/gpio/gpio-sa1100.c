@@ -47,12 +47,18 @@ static int sa1100_direction_output(struct gpio_chip *chip, unsigned offset, int 
 	return 0;
 }
 
+static int sa1100_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	return offset < 11 ? (IRQ_GPIO0 + offset) : (IRQ_GPIO11 - 11 + offset);
+}
+
 static struct gpio_chip sa1100_gpio_chip = {
 	.label			= "gpio",
 	.direction_input	= sa1100_direction_input,
 	.direction_output	= sa1100_direction_output,
 	.set			= sa1100_gpio_set,
 	.get			= sa1100_gpio_get,
+	.to_irq			= sa1100_to_irq,
 	.base			= 0,
 	.ngpio			= GPIO_MAX + 1,
 };

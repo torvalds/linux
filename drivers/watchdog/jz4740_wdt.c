@@ -295,18 +295,7 @@ static struct platform_driver jz4740_wdt_driver = {
 	},
 };
 
-
-static int __init jz4740_wdt_init(void)
-{
-	return platform_driver_register(&jz4740_wdt_driver);
-}
-module_init(jz4740_wdt_init);
-
-static void __exit jz4740_wdt_exit(void)
-{
-	platform_driver_unregister(&jz4740_wdt_driver);
-}
-module_exit(jz4740_wdt_exit);
+module_platform_driver(jz4740_wdt_driver);
 
 MODULE_AUTHOR("Paul Cercueil <paul@crapouillou.net>");
 MODULE_DESCRIPTION("jz4740 Watchdog Driver");

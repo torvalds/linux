@@ -74,7 +74,7 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 	((struct erase_priv_struct *)instr->priv)->jeb = jeb;
 	((struct erase_priv_struct *)instr->priv)->c = c;
 
-	ret = c->mtd->erase(c->mtd, instr);
+	ret = mtd_erase(c->mtd, instr);
 	if (!ret)
 		return;
 
@@ -336,12 +336,11 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 	uint32_t ofs;
 	size_t retlen;
 	int ret = -EIO;
+	unsigned long *wordebuf;
 
-	if (c->mtd->point) {
-		unsigned long *wordebuf;
-
-		ret = c->mtd->point(c->mtd, jeb->offset, c->sector_size,
-				    &retlen, &ebuf, NULL);
+	ret = mtd_point(c->mtd, jeb->offset, c->sector_size, &retlen,
+			&ebuf, NULL);
+	if (ret != -EOPNOTSUPP) {
 		if (ret) {
 			D1(printk(KERN_DEBUG "MTD point failed %d\n", ret));
 			goto do_flash_read;
@@ -349,7 +348,7 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 		if (retlen < c->sector_size) {
 			/* Don't muck about if it won't let us point to the whole erase sector */
 			D1(printk(KERN_DEBUG "MTD point returned len too short: 0x%zx\n", retlen));
-			c->mtd->unpoint(c->mtd, jeb->offset, retlen);
+			mtd_unpoint(c->mtd, jeb->offset, retlen);
 			goto do_flash_read;
 		}
 		wordebuf = ebuf-sizeof(*wordebuf);
@@ -358,7 +357,7 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 		   if (*++wordebuf != ~0)
 			   break;
 		} while(--retlen);
-		c->mtd->unpoint(c->mtd, jeb->offset, c->sector_size);
+		mtd_unpoint(c->mtd, jeb->offset, c->sector_size);
 		if (retlen) {
 			printk(KERN_WARNING "Newly-erased block contained word 0x%lx at offset 0x%08tx\n",
 			       *wordebuf, jeb->offset + c->sector_size-retlen*sizeof(*wordebuf));
@@ -381,7 +380,7 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 
 		*bad_offset = ofs;
 
-		ret = c->mtd->read(c->mtd, ofs, readlen, &retlen, ebuf);
+		ret = mtd_read(c->mtd, ofs, readlen, &retlen, ebuf);
 		if (ret) {
 			printk(KERN_WARNING "Read of newly-erased block at 0x%08x failed: %d. Putting on bad_list\n", ofs, ret);
 			ret = -EIO;

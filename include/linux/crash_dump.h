@@ -5,6 +5,7 @@
 #include <linux/kexec.h>
 #include <linux/device.h>
 #include <linux/proc_fs.h>
+#include <linux/elf.h>
 
 #define ELFCORE_ADDR_MAX	(-1ULL)
 #define ELFCORE_ADDR_ERR	(-2ULL)

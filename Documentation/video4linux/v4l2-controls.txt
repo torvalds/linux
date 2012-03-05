@@ -666,27 +666,6 @@ a control of this type whenever the first control belonging to a new control
 class is added.
 
 
-Differences from the Spec
-=========================
-
-There are a few places where the framework acts slightly differently from the
-V4L2 Specification. Those differences are described in this section. We will
-have to see whether we need to adjust the spec or not.
-
-1) It is no longer required to have all controls contained in a
-v4l2_ext_control array be from the same control class. The framework will be
-able to handle any type of control in the array. You need to set ctrl_class
-to 0 in order to enable this. If ctrl_class is non-zero, then it will still
-check that all controls belong to that control class.
-
-If you set ctrl_class to 0 and count to 0, then it will only return an error
-if there are no controls at all.
-
-2) Clarified the way error_idx works. For get and set it will be equal to
-count if nothing was done yet. If it is less than count then only the controls
-up to error_idx-1 were successfully applied.
-
-
 Proposals for Extensions
 ========================
 

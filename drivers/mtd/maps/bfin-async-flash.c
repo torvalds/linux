@@ -190,17 +190,7 @@ static struct platform_driver bfin_flash_driver = {
 	},
 };
 
-static int __init bfin_flash_init(void)
-{
-	return platform_driver_register(&bfin_flash_driver);
-}
-module_init(bfin_flash_init);
-
-static void __exit bfin_flash_exit(void)
-{
-	platform_driver_unregister(&bfin_flash_driver);
-}
-module_exit(bfin_flash_exit);
+module_platform_driver(bfin_flash_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MTD map driver for Blackfins with flash/ethernet on same async bank");

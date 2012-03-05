@@ -28,7 +28,6 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/device.h>
-#include <linux/sysdev.h>
 #include <linux/syscore_ops.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -123,7 +122,7 @@ static struct clk s3c2442_clk_cam_upll = {
 	},
 };
 
-static int s3c2442_clk_add(struct sys_device *sysdev)
+static int s3c2442_clk_add(struct device *dev)
 {
 	struct clk *clock_upll;
 	struct clk *clock_h;
@@ -149,20 +148,22 @@ static int s3c2442_clk_add(struct sys_device *sysdev)
 	return 0;
 }
 
-static struct sysdev_driver s3c2442_clk_driver = {
-	.add	= s3c2442_clk_add,
+static struct subsys_interface s3c2442_clk_interface = {
+	.name		= "s3c2442_clk",
+	.subsys		= &s3c2442_subsys,
+	.add_dev	= s3c2442_clk_add,
 };
 
 static __init int s3c2442_clk_init(void)
 {
-	return sysdev_driver_register(&s3c2442_sysclass, &s3c2442_clk_driver);
+	return subsys_interface_register(&s3c2442_clk_interface);
 }
 
 arch_initcall(s3c2442_clk_init);
 
 
-static struct sys_device s3c2442_sysdev = {
-	.cls		= &s3c2442_sysclass,
+static struct device s3c2442_dev = {
+	.bus		= &s3c2442_subsys,
 };
 
 int __init s3c2442_init(void)
@@ -175,7 +176,7 @@ int __init s3c2442_init(void)
 	register_syscore_ops(&s3c244x_pm_syscore_ops);
 	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 
-	return sysdev_register(&s3c2442_sysdev);
+	return device_register(&s3c2442_dev);
 }
 
 void __init s3c2442_map_io(void)

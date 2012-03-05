@@ -197,7 +197,7 @@ static ssize_t adt7411_set_bit(struct device *dev,
 	int ret;
 	unsigned long flag;
 
-	ret = strict_strtoul(buf, 0, &flag);
+	ret = kstrtoul(buf, 0, &flag);
 	if (ret || flag > 1)
 		return -EINVAL;
 

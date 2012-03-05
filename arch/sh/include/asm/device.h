@@ -14,15 +14,5 @@ int platform_resource_setup_memory(struct platform_device *pdev,
 
 void plat_early_device_setup(void);
 
-#define PDEV_ARCHDATA_FLAG_INIT 0
-#define PDEV_ARCHDATA_FLAG_IDLE 1
-#define PDEV_ARCHDATA_FLAG_SUSP 2
-
 struct pdev_archdata {
-	int hwblk_id;
-#ifdef CONFIG_PM_RUNTIME
-	unsigned long flags;
-	struct list_head entry;
-	struct mutex mutex;
-#endif
 };

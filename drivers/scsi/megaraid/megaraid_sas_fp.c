@@ -282,7 +282,9 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 	else {
 		*pDevHandle = MR_PD_INVALID; /* set dev handle as invalid. */
 		if ((raid->level >= 5) &&
-		    (instance->pdev->device != PCI_DEVICE_ID_LSI_INVADER))
+		    ((instance->pdev->device != PCI_DEVICE_ID_LSI_INVADER) ||
+		     (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER &&
+		      raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))
 			pRAID_Context->regLockFlags = REGION_TYPE_EXCLUSIVE;
 		else if (raid->level == 1) {
 			/* Get alternate Pd. */

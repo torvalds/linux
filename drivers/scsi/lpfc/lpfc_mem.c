@@ -389,7 +389,7 @@ lpfc_els_hbq_alloc(struct lpfc_hba *phba)
 {
 	struct hbq_dmabuf *hbqbp;
 
-	hbqbp = kmalloc(sizeof(struct hbq_dmabuf), GFP_KERNEL);
+	hbqbp = kzalloc(sizeof(struct hbq_dmabuf), GFP_KERNEL);
 	if (!hbqbp)
 		return NULL;
 
@@ -441,7 +441,7 @@ lpfc_sli4_rb_alloc(struct lpfc_hba *phba)
 {
 	struct hbq_dmabuf *dma_buf;
 
-	dma_buf = kmalloc(sizeof(struct hbq_dmabuf), GFP_KERNEL);
+	dma_buf = kzalloc(sizeof(struct hbq_dmabuf), GFP_KERNEL);
 	if (!dma_buf)
 		return NULL;
 

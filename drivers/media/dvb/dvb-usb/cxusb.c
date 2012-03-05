@@ -1067,18 +1067,17 @@ static struct dib0070_config dib7070p_dib0070_config = {
 };
 
 struct dib0700_adapter_state {
-	int (*set_param_save) (struct dvb_frontend *,
-			       struct dvb_frontend_parameters *);
+	int (*set_param_save) (struct dvb_frontend *);
 };
 
-static int dib7070_set_param_override(struct dvb_frontend *fe,
-				      struct dvb_frontend_parameters *fep)
+static int dib7070_set_param_override(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct dvb_usb_adapter *adap = fe->dvb->priv;
 	struct dib0700_adapter_state *state = adap->priv;
 
 	u16 offset;
-	u8 band = BAND_OF_FREQUENCY(fep->frequency/1000);
+	u8 band = BAND_OF_FREQUENCY(p->frequency/1000);
 	switch (band) {
 	case BAND_VHF: offset = 950; break;
 	default:
@@ -1087,7 +1086,7 @@ static int dib7070_set_param_override(struct dvb_frontend *fe,
 
 	dib7000p_set_wbd_ref(fe, offset + dib0070_wbd_offset(fe));
 
-	return state->set_param_save(fe, fep);
+	return state->set_param_save(fe);
 }
 
 static int cxusb_dualdig4_rev2_tuner_attach(struct dvb_usb_adapter *adap)
@@ -2034,26 +2033,7 @@ static struct usb_driver cxusb_driver = {
 	.id_table	= cxusb_table,
 };
 
-/* module stuff */
-static int __init cxusb_module_init(void)
-{
-	int result;
-	if ((result = usb_register(&cxusb_driver))) {
-		err("usb_register failed. Error number %d",result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit cxusb_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&cxusb_driver);
-}
-
-module_init (cxusb_module_init);
-module_exit (cxusb_module_exit);
+module_usb_driver(cxusb_driver);
 
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
 MODULE_AUTHOR("Michael Krufky <mkrufky@linuxtv.org>");

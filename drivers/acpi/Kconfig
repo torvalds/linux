@@ -374,7 +374,7 @@ config ACPI_CUSTOM_METHOD
 	depends on DEBUG_FS
 	default n
 	help
-	  This debug facility allows ACPI AML methods to me inserted and/or
+	  This debug facility allows ACPI AML methods to be inserted and/or
 	  replaced without rebooting the system. For details refer to:
 	  Documentation/acpi/method-customizing.txt.
 

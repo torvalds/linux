@@ -1761,24 +1761,7 @@ static struct usb_driver pn533_driver = {
 	.id_table =	pn533_table,
 };
 
-static int __init pn533_init(void)
-{
-	int rc;
-
-	rc = usb_register(&pn533_driver);
-	if (rc)
-		err("usb_register failed. Error number %d", rc);
-
-	return rc;
-}
-
-static void __exit pn533_exit(void)
-{
-	usb_deregister(&pn533_driver);
-}
-
-module_init(pn533_init);
-module_exit(pn533_exit);
+module_usb_driver(pn533_driver);
 
 MODULE_AUTHOR("Lauro Ramos Venancio <lauro.venancio@openbossa.org>,"
 			" Aloisio Almeida Jr <aloisio.almeida@openbossa.org>");

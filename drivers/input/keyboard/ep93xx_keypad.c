@@ -390,19 +390,7 @@ static struct platform_driver ep93xx_keypad_driver = {
 	.suspend	= ep93xx_keypad_suspend,
 	.resume		= ep93xx_keypad_resume,
 };
-
-static int __init ep93xx_keypad_init(void)
-{
-	return platform_driver_register(&ep93xx_keypad_driver);
-}
-
-static void __exit ep93xx_keypad_exit(void)
-{
-	platform_driver_unregister(&ep93xx_keypad_driver);
-}
-
-module_init(ep93xx_keypad_init);
-module_exit(ep93xx_keypad_exit);
+module_platform_driver(ep93xx_keypad_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("H Hartley Sweeten <hsweeten@visionengravers.com>");

@@ -163,14 +163,16 @@ get/set up to 64 properties. The actual meaning of each property is described on
 	<section id="DTV-FREQUENCY">
 		<title><constant>DTV_FREQUENCY</constant></title>
 
-		<para>Central frequency of the channel, in HZ.</para>
+		<para>Central frequency of the channel.</para>
 
 		<para>Notes:</para>
-		<para>1)For ISDB-T, the channels are usually transmitted with an offset of 143kHz.
+		<para>1)For satellital delivery systems, it is measured in kHz.
+			For the other ones, it is measured in Hz.</para>
+		<para>2)For ISDB-T, the channels are usually transmitted with an offset of 143kHz.
 			E.g. a valid frequncy could be 474143 kHz. The stepping is bound to the bandwidth of
 			the channel which is 6MHz.</para>
 
-		<para>2)As in ISDB-Tsb the channel consists of only one or three segments the
+		<para>3)As in ISDB-Tsb the channel consists of only one or three segments the
 			frequency step is 429kHz, 3*429 respectively. As for ISDB-T the
 			central frequency of the channel is expected.</para>
 	</section>
@@ -334,9 +336,10 @@ typedef enum fe_rolloff {
 		<title>fe_delivery_system type</title>
 		<para>Possible values: </para>
 <programlisting>
+
 typedef enum fe_delivery_system {
 	SYS_UNDEFINED,
-	SYS_DVBC_ANNEX_AC,
+	SYS_DVBC_ANNEX_A,
 	SYS_DVBC_ANNEX_B,
 	SYS_DVBT,
 	SYS_DSS,
@@ -353,6 +356,7 @@ typedef enum fe_delivery_system {
 	SYS_DAB,
 	SYS_DVBT2,
 	SYS_TURBO,
+	SYS_DVBC_ANNEX_C,
 } fe_delivery_system_t;
 </programlisting>
 		</section>
@@ -647,6 +651,18 @@ typedef enum fe_hierarchy {
 			many data types via a single multiplex. The API will soon support this
 			at which point this section will be expanded.</para>
 	</section>
+	<section id="DTV_ENUM_DELSYS">
+		<title><constant>DTV_ENUM_DELSYS</constant></title>
+		<para>A Multi standard frontend needs to advertise the delivery systems provided.
+			Applications need to enumerate the provided delivery systems, before using
+			any other operation with the frontend. Prior to it's introduction,
+			FE_GET_INFO was used to determine a frontend type. A frontend which
+			provides more than a single delivery system, FE_GET_INFO doesn't help much.
+			Applications which intends to use a multistandard frontend must enumerate
+			the delivery systems associated with it, rather than trying to use
+			FE_GET_INFO. In the case of a legacy frontend, the result is just the same
+			as with FE_GET_INFO, but in a more structured format </para>
+	</section>
 </section>
 	<section id="frontend-property-terrestrial-systems">
 	<title>Properties used on terrestrial delivery systems</title>
@@ -721,14 +737,10 @@ typedef enum fe_hierarchy {
 			<listitem><para><link linkend="DTV-TUNE"><constant>DTV_TUNE</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-CLEAR"><constant>DTV_CLEAR</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-FREQUENCY"><constant>DTV_FREQUENCY</constant></link></para></listitem>
-			<listitem><para><link linkend="DTV-MODULATION"><constant>DTV_MODULATION</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-BANDWIDTH-HZ"><constant>DTV_BANDWIDTH_HZ</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-INVERSION"><constant>DTV_INVERSION</constant></link></para></listitem>
-			<listitem><para><link linkend="DTV-CODE-RATE-HP"><constant>DTV_CODE_RATE_HP</constant></link></para></listitem>
-			<listitem><para><link linkend="DTV-CODE-RATE-LP"><constant>DTV_CODE_RATE_LP</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-GUARD-INTERVAL"><constant>DTV_GUARD_INTERVAL</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-TRANSMISSION-MODE"><constant>DTV_TRANSMISSION_MODE</constant></link></para></listitem>
-			<listitem><para><link linkend="DTV-HIERARCHY"><constant>DTV_HIERARCHY</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-ISDBT-LAYER-ENABLED"><constant>DTV_ISDBT_LAYER_ENABLED</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-ISDBT-PARTIAL-RECEPTION"><constant>DTV_ISDBT_PARTIAL_RECEPTION</constant></link></para></listitem>
 			<listitem><para><link linkend="DTV-ISDBT-SOUND-BROADCASTING"><constant>DTV_ISDBT_SOUND_BROADCASTING</constant></link></para></listitem>
@@ -767,7 +779,8 @@ typedef enum fe_hierarchy {
 	<title>Properties used on cable delivery systems</title>
 	<section id="dvbc-params">
 		<title>DVB-C delivery system</title>
-		<para>The DVB-C Annex-A/C is the widely used cable standard. Transmission uses QAM modulation.</para>
+		<para>The DVB-C Annex-A is the widely used cable standard. Transmission uses QAM modulation.</para>
+		<para>The DVB-C Annex-C is optimized for 6MHz, and is used in Japan. It supports a subset of the Annex A modulation types, and a roll-off of 0.13, instead of 0.15</para>
 		<para>The following parameters are valid for DVB-C Annex A/C:</para>
 		<itemizedlist mark='opencircle'>
 			<listitem><para><link linkend="DTV-API-VERSION"><constant>DTV_API_VERSION</constant></link></para></listitem>

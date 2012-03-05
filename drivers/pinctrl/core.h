@@ -9,6 +9,10 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#include <linux/pinctrl/pinconf.h>
+
+struct pinctrl_gpio_range;
+
 /**
  * struct pinctrl_dev - pin control class device
  * @node: node to include this pin controller in the global pin controller list
@@ -34,7 +38,7 @@ struct pinctrl_dev {
 	spinlock_t pin_desc_tree_lock;
 	struct list_head gpio_ranges;
 	struct mutex gpio_ranges_lock;
-	struct device dev;
+	struct device *dev;
 	struct module *owner;
 	void *driver_data;
 #ifdef CONFIG_PINMUX
@@ -48,6 +52,7 @@ struct pinctrl_dev {
  * @pctldev: corresponding pin control device
  * @name: a name for the pin, e.g. the name of the pin/pad/finger on a
  *	datasheet or such
+ * @dynamic_name: if the name of this pin was dynamically allocated
  * @lock: a lock to protect the descriptor structure
  * @mux_requested: whether the pin is already requested by pinmux or not
  * @mux_function: a named muxing function for the pin that will be passed to
@@ -56,6 +61,7 @@ struct pinctrl_dev {
 struct pin_desc {
 	struct pinctrl_dev *pctldev;
 	const char *name;
+	bool dynamic_name;
 	spinlock_t lock;
 	/* These fields only added when supporting pinmux drivers */
 #ifdef CONFIG_PINMUX
@@ -65,7 +71,10 @@ struct pin_desc {
 
 struct pinctrl_dev *get_pinctrl_dev_from_dev(struct device *dev,
 					     const char *dev_name);
-struct pin_desc *pin_desc_get(struct pinctrl_dev *pctldev, int pin);
+struct pin_desc *pin_desc_get(struct pinctrl_dev *pctldev, unsigned int pin);
+int pin_get_from_name(struct pinctrl_dev *pctldev, const char *name);
 int pinctrl_get_device_gpio_range(unsigned gpio,
 				  struct pinctrl_dev **outdev,
 				  struct pinctrl_gpio_range **outrange);
+int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
+			       const char *pin_group);

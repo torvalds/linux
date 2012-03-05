@@ -21,11 +21,11 @@
 
 /* Control parameters settable through module/boot flags */
 extern enum audit_mode aa_g_audit;
-extern int aa_g_audit_header;
-extern int aa_g_debug;
-extern int aa_g_lock_policy;
-extern int aa_g_logsyscall;
-extern int aa_g_paranoid_load;
+extern bool aa_g_audit_header;
+extern bool aa_g_debug;
+extern bool aa_g_lock_policy;
+extern bool aa_g_logsyscall;
+extern bool aa_g_paranoid_load;
 extern unsigned int aa_g_path_max;
 
 /*

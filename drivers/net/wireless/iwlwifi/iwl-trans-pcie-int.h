@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -40,6 +40,7 @@
 #include "iwl-trans.h"
 #include "iwl-debug.h"
 #include "iwl-io.h"
+#include "iwl-op-mode.h"
 
 struct iwl_tx_queue;
 struct iwl_queue;
@@ -201,6 +202,7 @@ struct iwl_tx_queue {
  * @rxq: all the RX queue data
  * @rx_replenish: work that will be called when buffers need to be allocated
  * @trans: pointer to the generic transport area
+ * @irq_requested: true when the irq has been requested
  * @scd_base_addr: scheduler sram base address in SRAM
  * @scd_bc_tbls: pointer to the byte count table of the scheduler
  * @kw: keep warm address
@@ -211,6 +213,8 @@ struct iwl_tx_queue {
  * @txq_ctx_active_msk: what queue is active
  * queue_stopped: tracks what queue is stopped
  * queue_stop_count: tracks what SW queue is stopped
+ * @pci_dev: basic pci-network driver stuff
+ * @hw_base: pci hardware address support
  */
 struct iwl_trans_pcie {
 	struct iwl_rx_queue rxq;
@@ -223,9 +227,11 @@ struct iwl_trans_pcie {
 	int ict_index;
 	u32 inta;
 	bool use_ict;
+	bool irq_requested;
 	struct tasklet_struct irq_tasklet;
 	struct isr_statistics isr_stats;
 
+	spinlock_t irq_lock;
 	u32 inta_mask;
 	u32 scd_base_addr;
 	struct iwl_dma_ptr scd_bc_tbls;
@@ -241,6 +247,10 @@ struct iwl_trans_pcie {
 #define IWL_MAX_HW_QUEUES	32
 	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
 	atomic_t queue_stop_count[4];
+
+	/* PCI bus related data */
+	struct pci_dev *pci_dev;
+	void __iomem *hw_base;
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
@@ -258,7 +268,7 @@ void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 /*****************************************************
 * ICT
 ******************************************************/
-int iwl_reset_ict(struct iwl_trans *trans);
+void iwl_reset_ict(struct iwl_trans *trans);
 void iwl_disable_ict(struct iwl_trans *trans);
 int iwl_alloc_isr_ict(struct iwl_trans *trans);
 void iwl_free_isr_ict(struct iwl_trans *trans);
@@ -311,12 +321,12 @@ static inline void iwl_disable_interrupts(struct iwl_trans *trans)
 	clear_bit(STATUS_INT_ENABLED, &trans->shrd->status);
 
 	/* disable interrupts from uCode/NIC to host */
-	iwl_write32(bus(trans), CSR_INT_MASK, 0x00000000);
+	iwl_write32(trans, CSR_INT_MASK, 0x00000000);
 
 	/* acknowledge/clear/reset any interrupts still pending
 	 * from uCode or flow handler (Rx/Tx DMA) */
-	iwl_write32(bus(trans), CSR_INT, 0xffffffff);
-	iwl_write32(bus(trans), CSR_FH_INT_STATUS, 0xffffffff);
+	iwl_write32(trans, CSR_INT, 0xffffffff);
+	iwl_write32(trans, CSR_FH_INT_STATUS, 0xffffffff);
 	IWL_DEBUG_ISR(trans, "Disabled interrupts\n");
 }
 
@@ -327,7 +337,7 @@ static inline void iwl_enable_interrupts(struct iwl_trans *trans)
 
 	IWL_DEBUG_ISR(trans, "Enabling interrupts\n");
 	set_bit(STATUS_INT_ENABLED, &trans->shrd->status);
-	iwl_write32(bus(trans), CSR_INT_MASK, trans_pcie->inta_mask);
+	iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
 }
 
 /*
@@ -365,7 +375,7 @@ static inline void iwl_wake_queue(struct iwl_trans *trans,
 
 	if (test_and_clear_bit(hwq, trans_pcie->queue_stopped)) {
 		if (atomic_dec_return(&trans_pcie->queue_stop_count[ac]) <= 0) {
-			iwl_wake_sw_queue(priv(trans), ac);
+			iwl_op_mode_queue_not_full(trans->op_mode, ac);
 			IWL_DEBUG_TX_QUEUES(trans, "Wake hwq %d ac %d. %s",
 					    hwq, ac, msg);
 		} else {
@@ -388,7 +398,7 @@ static inline void iwl_stop_queue(struct iwl_trans *trans,
 
 	if (!test_and_set_bit(hwq, trans_pcie->queue_stopped)) {
 		if (atomic_inc_return(&trans_pcie->queue_stop_count[ac]) > 0) {
-			iwl_stop_sw_queue(priv(trans), ac);
+			iwl_op_mode_queue_full(trans->op_mode, ac);
 			IWL_DEBUG_TX_QUEUES(trans, "Stop hwq %d ac %d"
 					    " stop count %d. %s",
 					    hwq, ac, atomic_read(&trans_pcie->

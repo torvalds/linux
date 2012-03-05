@@ -64,7 +64,8 @@ USER_CFLAGS = $(patsubst $(KERNEL_DEFINES),,$(patsubst -D__KERNEL__,,\
 #This will adjust *FLAGS accordingly to the platform.
 include $(srctree)/$(ARCH_DIR)/Makefile-os-$(OS)
 
-KBUILD_CPPFLAGS += -I$(srctree)/$(HOST_DIR)/include
+KBUILD_CPPFLAGS += -I$(srctree)/$(HOST_DIR)/include \
+		   -I$(HOST_DIR)/include/generated
 
 # -Derrno=kernel_errno - This turns all kernel references to errno into
 # kernel_errno to separate them from the libc errno.  This allows -fno-common
@@ -95,6 +96,10 @@ define archhelp
 endef
 
 KBUILD_KCONFIG := $(HOST_DIR)/um/Kconfig
+
+archheaders:
+	$(Q)$(MAKE) -C '$(srctree)' KBUILD_SRC= \
+		ARCH=$(SUBARCH) O='$(objtree)' archheaders
 
 archprepare: include/generated/user_constants.h
 
@@ -135,7 +140,7 @@ archclean:
 
 # Generated files
 
-$(HOST_DIR)/um/user-offsets.s: FORCE
+$(HOST_DIR)/um/user-offsets.s: __headers FORCE
 	$(Q)$(MAKE) $(build)=$(HOST_DIR)/um $@
 
 define filechk_gen-asm-offsets

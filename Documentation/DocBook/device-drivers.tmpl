@@ -50,7 +50,9 @@
 
      <sect1><title>Delaying, scheduling, and timer routines</title>
 !Iinclude/linux/sched.h
-!Ekernel/sched.c
+!Ekernel/sched/core.c
+!Ikernel/sched/cpupri.c
+!Ikernel/sched/fair.c
 !Iinclude/linux/completion.h
 !Ekernel/timer.c
      </sect1>
@@ -216,7 +218,6 @@ X!Isound/sound_firmware.c
 
   <chapter id="uart16x50">
      <title>16x50 UART Driver</title>
-!Iinclude/linux/serial_core.h
 !Edrivers/tty/serial/serial_core.c
 !Edrivers/tty/serial/8250.c
   </chapter>

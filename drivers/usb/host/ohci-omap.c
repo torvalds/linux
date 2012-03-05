@@ -516,7 +516,6 @@ static int ohci_omap_suspend(struct platform_device *dev, pm_message_t message)
 	ohci->next_statechange = jiffies;
 
 	omap_ohci_clock_power(0);
-	ohci_to_hcd(ohci)->state = HC_STATE_SUSPENDED;
 	return 0;
 }
 

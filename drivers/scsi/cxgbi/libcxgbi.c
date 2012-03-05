@@ -1868,8 +1868,9 @@ int cxgbi_conn_alloc_pdu(struct iscsi_task *task, u8 opcode)
 
 	tdata->skb = alloc_skb(cdev->skb_tx_rsvd + headroom, GFP_ATOMIC);
 	if (!tdata->skb) {
-		pr_warn("alloc skb %u+%u, opcode 0x%x failed.\n",
-			cdev->skb_tx_rsvd, headroom, opcode);
+		struct cxgbi_sock *csk = cconn->cep->csk;
+		struct net_device *ndev = cdev->ports[csk->port_id];
+		ndev->stats.tx_dropped++;
 		return -ENOMEM;
 	}
 
@@ -2575,7 +2576,7 @@ void cxgbi_iscsi_cleanup(struct iscsi_transport *itp,
 }
 EXPORT_SYMBOL_GPL(cxgbi_iscsi_cleanup);
 
-mode_t cxgbi_attr_is_visible(int param_type, int param)
+umode_t cxgbi_attr_is_visible(int param_type, int param)
 {
 	switch (param_type) {
 	case ISCSI_HOST_PARAM:

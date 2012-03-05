@@ -290,22 +290,7 @@ static struct usb_driver emi62_driver = {
 	.id_table	= id_table,
 };
 
-static int __init emi62_init (void)
-{
-	int retval;
-	retval = usb_register (&emi62_driver);
-	if (retval)
-		printk(KERN_ERR "adi-emi: registration failed\n");
-	return retval;
-}
-
-static void __exit emi62_exit (void)
-{
-	usb_deregister (&emi62_driver);
-}
-
-module_init(emi62_init);
-module_exit(emi62_exit);
+module_usb_driver(emi62_driver);
 
 MODULE_AUTHOR("Tapio Laxström");
 MODULE_DESCRIPTION("Emagic EMI 6|2m firmware loader.");

@@ -90,14 +90,13 @@ static struct mt9t031 *to_mt9t031(const struct i2c_client *client)
 
 static int reg_read(struct i2c_client *client, const u8 reg)
 {
-	s32 data = i2c_smbus_read_word_data(client, reg);
-	return data < 0 ? data : swab16(data);
+	return i2c_smbus_read_word_swapped(client, reg);
 }
 
 static int reg_write(struct i2c_client *client, const u8 reg,
 		     const u16 data)
 {
-	return i2c_smbus_write_word_data(client, reg, swab16(data));
+	return i2c_smbus_write_word_swapped(client, reg, data);
 }
 
 static int reg_set(struct i2c_client *client, const u8 reg,

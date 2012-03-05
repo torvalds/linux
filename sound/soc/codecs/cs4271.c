@@ -402,7 +402,7 @@ static const struct snd_kcontrol_new cs4271_snd_controls[] = {
 		7, 1, 1),
 };
 
-static struct snd_soc_dai_ops cs4271_dai_ops = {
+static const struct snd_soc_dai_ops cs4271_dai_ops = {
 	.hw_params	= cs4271_hw_params,
 	.set_sysclk	= cs4271_set_dai_sysclk,
 	.set_fmt	= cs4271_set_dai_fmt,
@@ -430,7 +430,7 @@ static struct snd_soc_dai_driver cs4271_dai = {
 };
 
 #ifdef CONFIG_PM
-static int cs4271_soc_suspend(struct snd_soc_codec *codec, pm_message_t mesg)
+static int cs4271_soc_suspend(struct snd_soc_codec *codec)
 {
 	int ret;
 	/* Set power-down bit */

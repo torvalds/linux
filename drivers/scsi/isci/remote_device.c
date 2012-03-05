@@ -53,6 +53,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <scsi/sas.h>
+#include <linux/bitops.h>
 #include "isci.h"
 #include "port.h"
 #include "remote_device.h"
@@ -1101,6 +1102,7 @@ static enum sci_status sci_remote_device_da_construct(struct isci_port *iport,
 						       struct isci_remote_device *idev)
 {
 	enum sci_status status;
+	struct sci_port_properties properties;
 	struct domain_device *dev = idev->domain_dev;
 
 	sci_remote_device_construct(iport, idev);
@@ -1110,6 +1112,11 @@ static enum sci_status sci_remote_device_da_construct(struct isci_port *iport,
 	 * entries will be needed to store the remote node.
 	 */
 	idev->is_direct_attached = true;
+
+	sci_port_get_properties(iport, &properties);
+	/* Get accurate port width from port's phy mask for a DA device. */
+	idev->device_port_width = hweight32(properties.phy_mask);
+
 	status = sci_controller_allocate_remote_node_context(iport->owning_controller,
 								  idev,
 								  &idev->rnc.remote_node_index);
@@ -1124,9 +1131,6 @@ static enum sci_status sci_remote_device_da_construct(struct isci_port *iport,
 		return SCI_FAILURE_UNSUPPORTED_PROTOCOL;
 
 	idev->connection_rate = sci_port_get_max_allowed_speed(iport);
-
-	/* / @todo Should I assign the port width by reading all of the phys on the port? */
-	idev->device_port_width = 1;
 
 	return SCI_SUCCESS;
 }

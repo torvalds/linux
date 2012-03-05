@@ -151,13 +151,12 @@ static int cns3xxx_pci_setup(int nr, struct pci_sys_data *sys)
 	struct cns3xxx_pcie *cnspci = sysdata_to_cnspci(sys);
 	struct resource *res_io = &cnspci->res_io;
 	struct resource *res_mem = &cnspci->res_mem;
-	struct resource **sysres = sys->resource;
 
 	BUG_ON(request_resource(&iomem_resource, res_io) ||
 	       request_resource(&iomem_resource, res_mem));
 
-	sysres[0] = res_io;
-	sysres[1] = res_mem;
+	pci_add_resource(&sys->resources, res_io);
+	pci_add_resource(&sys->resources, res_mem);
 
 	return 1;
 }
@@ -169,7 +168,8 @@ static struct pci_ops cns3xxx_pcie_ops = {
 
 static struct pci_bus *cns3xxx_pci_scan_bus(int nr, struct pci_sys_data *sys)
 {
-	return pci_scan_bus(sys->busnr, &cns3xxx_pcie_ops, sys);
+	return pci_scan_root_bus(NULL, sys->busnr, &cns3xxx_pcie_ops, sys,
+				 &sys->resources);
 }
 
 static int cns3xxx_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)

@@ -230,15 +230,15 @@ MODULE_DESCRIPTION("Framebuffer driver for Intel(R) " SUPPORTED_CHIPSETS
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DEVICE_TABLE(pci, intelfb_pci_table);
 
-static int accel        = 1;
+static bool accel       = 1;
 static int vram         = 4;
-static int hwcursor     = 0;
-static int mtrr         = 1;
-static int fixed        = 0;
-static int noinit       = 0;
-static int noregister   = 0;
-static int probeonly    = 0;
-static int idonly       = 0;
+static bool hwcursor    = 0;
+static bool mtrr        = 1;
+static bool fixed       = 0;
+static bool noinit      = 0;
+static bool noregister  = 0;
+static bool probeonly   = 0;
+static bool idonly      = 0;
 static int bailearly    = 0;
 static int voffset	= 48;
 static char *mode       = NULL;
@@ -263,7 +263,7 @@ module_param(probeonly, bool, 0);
 MODULE_PARM_DESC(probeonly, "Do a minimal probe (debug)");
 module_param(idonly, bool, 0);
 MODULE_PARM_DESC(idonly, "Just identify without doing anything else (debug)");
-module_param(bailearly, bool, 0);
+module_param(bailearly, int, 0);
 MODULE_PARM_DESC(bailearly, "Bail out early, depending on value (debug)");
 module_param(mode, charp, S_IRUGO);
 MODULE_PARM_DESC(mode,

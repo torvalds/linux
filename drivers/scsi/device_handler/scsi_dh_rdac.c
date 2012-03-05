@@ -820,6 +820,24 @@ static const struct scsi_dh_devlist rdac_dev_list[] = {
 	{NULL, NULL},
 };
 
+static bool rdac_match(struct scsi_device *sdev)
+{
+	int i;
+
+	if (scsi_device_tpgs(sdev))
+		return false;
+
+	for (i = 0; rdac_dev_list[i].vendor; i++) {
+		if (!strncmp(sdev->vendor, rdac_dev_list[i].vendor,
+			strlen(rdac_dev_list[i].vendor)) &&
+		    !strncmp(sdev->model, rdac_dev_list[i].model,
+			strlen(rdac_dev_list[i].model))) {
+			return true;
+		}
+	}
+	return false;
+}
+
 static int rdac_bus_attach(struct scsi_device *sdev);
 static void rdac_bus_detach(struct scsi_device *sdev);
 
@@ -832,6 +850,7 @@ static struct scsi_device_handler rdac_dh = {
 	.attach = rdac_bus_attach,
 	.detach = rdac_bus_detach,
 	.activate = rdac_activate,
+	.match = rdac_match,
 };
 
 static int rdac_bus_attach(struct scsi_device *sdev)
@@ -934,6 +953,8 @@ static int __init rdac_init(void)
 	if (!kmpath_rdacd) {
 		scsi_unregister_device_handler(&rdac_dh);
 		printk(KERN_ERR "kmpath_rdacd creation failed.\n");
+
+		r = -EINVAL;
 	}
 done:
 	return r;

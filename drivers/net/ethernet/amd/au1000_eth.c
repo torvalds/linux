@@ -1171,7 +1171,8 @@ static int __devinit au1000_probe(struct platform_device *pdev)
 	aup->mii_bus->write = au1000_mdiobus_write;
 	aup->mii_bus->reset = au1000_mdiobus_reset;
 	aup->mii_bus->name = "au1000_eth_mii";
-	snprintf(aup->mii_bus->id, MII_BUS_ID_SIZE, "%x", aup->mac_id);
+	snprintf(aup->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
+		pdev->name, aup->mac_id);
 	aup->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
 	if (aup->mii_bus->irq == NULL)
 		goto err_out;

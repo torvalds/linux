@@ -26,9 +26,35 @@
 #define to_mcp(d)		container_of(d, struct mcp, attached_device)
 #define to_mcp_driver(d)	container_of(d, struct mcp_driver, drv)
 
+static const struct mcp_device_id *mcp_match_id(const struct mcp_device_id *id,
+						const char *codec)
+{
+	while (id->name[0]) {
+		if (strcmp(codec, id->name) == 0)
+			return id;
+		id++;
+	}
+	return NULL;
+}
+
+const struct mcp_device_id *mcp_get_device_id(const struct mcp *mcp)
+{
+	const struct mcp_driver *driver =
+		to_mcp_driver(mcp->attached_device.driver);
+
+	return mcp_match_id(driver->id_table, mcp->codec);
+}
+EXPORT_SYMBOL(mcp_get_device_id);
+
 static int mcp_bus_match(struct device *dev, struct device_driver *drv)
 {
-	return 1;
+	const struct mcp *mcp = to_mcp(dev);
+	const struct mcp_driver *driver = to_mcp_driver(drv);
+
+	if (driver->id_table)
+		return !!mcp_match_id(driver->id_table, mcp->codec);
+
+	return 0;
 }
 
 static int mcp_bus_probe(struct device *dev)
@@ -74,9 +100,18 @@ static int mcp_bus_resume(struct device *dev)
 	return ret;
 }
 
+static int mcp_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct mcp *mcp = to_mcp(dev);
+
+	add_uevent_var(env, "MODALIAS=%s%s", MCP_MODULE_PREFIX, mcp->codec);
+	return 0;
+}
+
 static struct bus_type mcp_bus_type = {
 	.name		= "mcp",
 	.match		= mcp_bus_match,
+	.uevent		= mcp_bus_uevent,
 	.probe		= mcp_bus_probe,
 	.remove		= mcp_bus_remove,
 	.suspend	= mcp_bus_suspend,
@@ -212,9 +247,14 @@ struct mcp *mcp_host_alloc(struct device *parent, size_t size)
 }
 EXPORT_SYMBOL(mcp_host_alloc);
 
-int mcp_host_register(struct mcp *mcp)
+int mcp_host_register(struct mcp *mcp, void *pdata)
 {
+	if (!mcp->codec)
+		return -EINVAL;
+
+	mcp->attached_device.platform_data = pdata;
 	dev_set_name(&mcp->attached_device, "mcp0");
+	request_module("%s%s", MCP_MODULE_PREFIX, mcp->codec);
 	return device_register(&mcp->attached_device);
 }
 EXPORT_SYMBOL(mcp_host_register);

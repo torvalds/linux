@@ -1,6 +1,5 @@
 menu "Kernel hacking"
 
-#bool 'Debug kmalloc/kfree' CONFIG_DEBUG_MALLOC
 config PROFILING
 	bool "Kernel profiling support"
 

@@ -194,6 +194,15 @@ config USB_EHCI_S5P
        help
 	 Enable support for the S5P SOC's on-chip EHCI controller.
 
+config USB_EHCI_MV
+	bool "EHCI support for Marvell on-chip controller"
+	depends on USB_EHCI_HCD
+	select USB_EHCI_ROOT_HUB_TT
+	---help---
+	  Enables support for Marvell (including PXA and MMP series) on-chip
+	  USB SPH and OTG controller. SPH is a single port host, and it can
+	  only be EHCI host. OTG is controller that can switch to host mode.
+
 config USB_W90X900_EHCI
 	bool "W90X900(W90P910) EHCI support"
 	depends on USB_EHCI_HCD && ARCH_W90X900
@@ -210,7 +219,7 @@ config USB_CNS3XXX_EHCI
 
 config USB_EHCI_ATH79
 	bool "EHCI support for AR7XXX/AR9XXX SoCs"
-	depends on USB_EHCI_HCD && (SOC_AR71XX || SOC_AR724X || SOC_AR913X)
+	depends on USB_EHCI_HCD && (SOC_AR71XX || SOC_AR724X || SOC_AR913X || SOC_AR933X)
 	select USB_EHCI_ROOT_HUB_TT
 	default y
 	---help---
@@ -370,6 +379,12 @@ config USB_OHCI_SH
 	---help---
 	  Enables support for the on-chip OHCI controller on the SuperH.
 	  If you use the PCI OHCI controller, this option is not necessary.
+
+config USB_OHCI_EXYNOS
+	boolean "OHCI support for Samsung EXYNOS SoC Series"
+	depends on USB_OHCI_HCD && ARCH_EXYNOS
+	help
+	 Enable support for the Samsung Exynos SOC's on-chip OHCI controller.
 
 config USB_CNS3XXX_OHCI
 	bool "Cavium CNS3XXX OHCI Module"

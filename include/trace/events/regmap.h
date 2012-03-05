@@ -55,6 +55,15 @@ DEFINE_EVENT(regmap_reg, regmap_reg_read,
 
 );
 
+DEFINE_EVENT(regmap_reg, regmap_reg_read_cache,
+
+	TP_PROTO(struct device *dev, unsigned int reg,
+		 unsigned int val),
+
+	TP_ARGS(dev, reg, val)
+
+);
+
 DECLARE_EVENT_CLASS(regmap_block,
 
 	TP_PROTO(struct device *dev, unsigned int reg, int count),

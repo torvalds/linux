@@ -19,7 +19,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/platform_device.h>
 
 #include <linux/mtd/mtd.h>

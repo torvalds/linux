@@ -899,38 +899,7 @@ static void ati_remote_disconnect(struct usb_interface *interface)
 	kfree(ati_remote);
 }
 
-/*
- *	ati_remote_init
- */
-static int __init ati_remote_init(void)
-{
-	int result;
-
-	result = usb_register(&ati_remote_driver);
-	if (result)
-		printk(KERN_ERR KBUILD_MODNAME
-		       ": usb_register error #%d\n", result);
-	else
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-		       DRIVER_DESC "\n");
-
-	return result;
-}
-
-/*
- *	ati_remote_exit
- */
-static void __exit ati_remote_exit(void)
-{
-	usb_deregister(&ati_remote_driver);
-}
-
-/*
- *	module specification
- */
-
-module_init(ati_remote_init);
-module_exit(ati_remote_exit);
+module_usb_driver(ati_remote_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

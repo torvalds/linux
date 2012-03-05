@@ -179,7 +179,7 @@ const struct file_operations proc_net_operations = {
 
 
 struct proc_dir_entry *proc_net_fops_create(struct net *net,
-	const char *name, mode_t mode, const struct file_operations *fops)
+	const char *name, umode_t mode, const struct file_operations *fops)
 {
 	return proc_create(name, mode, net->proc_net, fops);
 }

@@ -104,7 +104,7 @@ static bool parse_options(ntfs_volume *vol, char *opt)
 	int errors = 0, sloppy = 0;
 	uid_t uid = (uid_t)-1;
 	gid_t gid = (gid_t)-1;
-	mode_t fmask = (mode_t)-1, dmask = (mode_t)-1;
+	umode_t fmask = (umode_t)-1, dmask = (umode_t)-1;
 	int mft_zone_multiplier = -1, on_errors = -1;
 	int show_sys_files = -1, case_sensitive = -1, disable_sparse = -1;
 	struct nls_table *nls_map = NULL, *old_nls;
@@ -287,9 +287,9 @@ no_mount_options:
 		vol->uid = uid;
 	if (gid != (gid_t)-1)
 		vol->gid = gid;
-	if (fmask != (mode_t)-1)
+	if (fmask != (umode_t)-1)
 		vol->fmask = fmask;
-	if (dmask != (mode_t)-1)
+	if (dmask != (umode_t)-1)
 		vol->dmask = dmask;
 	if (show_sys_files != -1) {
 		if (show_sys_files)
@@ -3198,7 +3198,7 @@ MODULE_DESCRIPTION("NTFS 1.2/3.x driver - Copyright (c) 2001-2011 Anton Altaparm
 MODULE_VERSION(NTFS_VERSION);
 MODULE_LICENSE("GPL");
 #ifdef DEBUG
-module_param(debug_msgs, bool, 0);
+module_param(debug_msgs, bint, 0);
 MODULE_PARM_DESC(debug_msgs, "Enable debug messages.");
 #endif
 

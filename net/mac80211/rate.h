@@ -14,7 +14,6 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
-#include <linux/kref.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 #include "sta_info.h"
@@ -23,14 +22,11 @@ struct rate_control_ref {
 	struct ieee80211_local *local;
 	struct rate_control_ops *ops;
 	void *priv;
-	struct kref kref;
 };
 
 void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 			   struct sta_info *sta,
 			   struct ieee80211_tx_rate_control *txrc);
-struct rate_control_ref *rate_control_get(struct rate_control_ref *ref);
-void rate_control_put(struct rate_control_ref *ref);
 
 static inline void rate_control_tx_status(struct ieee80211_local *local,
 					  struct ieee80211_supported_band *sband,
@@ -41,7 +37,7 @@ static inline void rate_control_tx_status(struct ieee80211_local *local,
 	struct ieee80211_sta *ista = &sta->sta;
 	void *priv_sta = sta->rate_ctrl_priv;
 
-	if (!ref)
+	if (!ref || !test_sta_flag(sta, WLAN_STA_RATE_CONTROL))
 		return;
 
 	ref->ops->tx_status(ref->priv, sband, ista, priv_sta, skb);
@@ -62,6 +58,7 @@ static inline void rate_control_rate_init(struct sta_info *sta)
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 	ref->ops->rate_init(ref->priv, sband, ista, priv_sta);
+	set_sta_flag(sta, WLAN_STA_RATE_CONTROL);
 }
 
 static inline void rate_control_rate_update(struct ieee80211_local *local,

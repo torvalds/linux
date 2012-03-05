@@ -928,7 +928,7 @@ static int send_cap_msg(struct ceph_mds_session *session,
 			u64 size, u64 max_size,
 			struct timespec *mtime, struct timespec *atime,
 			u64 time_warp_seq,
-			uid_t uid, gid_t gid, mode_t mode,
+			uid_t uid, gid_t gid, umode_t mode,
 			u64 xattr_version,
 			struct ceph_buffer *xattrs_buf,
 			u64 follows)
@@ -1078,7 +1078,7 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	u64 size, max_size;
 	struct timespec mtime, atime;
 	int wake = 0;
-	mode_t mode;
+	umode_t mode;
 	uid_t uid;
 	gid_t gid;
 	struct ceph_mds_session *session;

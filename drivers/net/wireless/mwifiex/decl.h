@@ -102,7 +102,8 @@ struct mwifiex_wait_queue {
 };
 
 struct mwifiex_rxinfo {
-	u8 bss_index;
+	u8 bss_num;
+	u8 bss_type;
 	struct sk_buff *parent;
 	u8 use_count;
 };
@@ -110,7 +111,8 @@ struct mwifiex_rxinfo {
 struct mwifiex_txinfo {
 	u32 status_code;
 	u8 flags;
-	u8 bss_index;
+	u8 bss_num;
+	u8 bss_type;
 };
 
 enum mwifiex_wmm_ac_e {

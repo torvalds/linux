@@ -8,7 +8,9 @@ amcc	Applied Micro Circuits Corporation (APM, formally AMCC)
 apm	Applied Micro Circuits Corporation (APM)
 arm	ARM Ltd.
 atmel	Atmel Corporation
+cavium	Cavium, Inc.
 chrp	Common Hardware Reference Platform
+cortina	Cortina Systems, Inc.
 dallas	Maxim Integrated Products (formerly Dallas Semiconductor)
 denx	Denx Software Engineering
 epson	Seiko Epson Corp.
@@ -32,10 +34,13 @@ powervr	Imagination Technologies
 qcom	Qualcomm, Inc.
 ramtron	Ramtron International
 samsung	Samsung Semiconductor
+sbs	Smart Battery System
 schindler	Schindler
 sil	Silicon Image
 simtek
 sirf	SiRF Technology, Inc.
+st	STMicroelectronics
 stericsson	ST-Ericsson
 ti	Texas Instruments
+wlf	Wolfson Microelectronics
 xlnx	Xilinx

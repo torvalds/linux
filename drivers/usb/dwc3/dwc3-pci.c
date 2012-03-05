@@ -42,51 +42,16 @@
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 
+#include "core.h"
+
 /* FIXME define these in <linux/pci_ids.h> */
 #define PCI_VENDOR_ID_SYNOPSYS		0x16c3
 #define PCI_DEVICE_ID_SYNOPSYS_HAPSUSB3	0xabcd
-
-#define DWC3_PCI_DEVS_POSSIBLE	32
 
 struct dwc3_pci {
 	struct device		*dev;
 	struct platform_device	*dwc3;
 };
-
-static DECLARE_BITMAP(dwc3_pci_devs, DWC3_PCI_DEVS_POSSIBLE);
-
-static int dwc3_pci_get_device_id(struct dwc3_pci *glue)
-{
-	int		id;
-
-again:
-	id = find_first_zero_bit(dwc3_pci_devs, DWC3_PCI_DEVS_POSSIBLE);
-	if (id < DWC3_PCI_DEVS_POSSIBLE) {
-		int old;
-
-		old = test_and_set_bit(id, dwc3_pci_devs);
-		if (old)
-			goto again;
-	} else {
-		dev_err(glue->dev, "no space for new device\n");
-		id = -ENOMEM;
-	}
-
-	return 0;
-}
-
-static void dwc3_pci_put_device_id(struct dwc3_pci *glue, int id)
-{
-	int			ret;
-
-	if (id < 0)
-		return;
-
-	ret = test_bit(id, dwc3_pci_devs);
-	WARN(!ret, "Device: %s\nID %d not in use\n",
-			dev_driver_string(glue->dev), id);
-	clear_bit(id, dwc3_pci_devs);
-}
 
 static int __devinit dwc3_pci_probe(struct pci_dev *pci,
 		const struct pci_device_id *id)
@@ -114,11 +79,11 @@ static int __devinit dwc3_pci_probe(struct pci_dev *pci,
 	pci_set_power_state(pci, PCI_D0);
 	pci_set_master(pci);
 
-	devid = dwc3_pci_get_device_id(glue);
+	devid = dwc3_get_device_id();
 	if (devid < 0)
 		goto err2;
 
-	dwc3 = platform_device_alloc("dwc3-pci", devid);
+	dwc3 = platform_device_alloc("dwc3", devid);
 	if (!dwc3) {
 		dev_err(&pci->dev, "couldn't allocate dwc3 device\n");
 		goto err3;
@@ -163,13 +128,13 @@ err4:
 	platform_device_put(dwc3);
 
 err3:
-	dwc3_pci_put_device_id(glue, devid);
+	dwc3_put_device_id(devid);
 
 err2:
 	pci_disable_device(pci);
 
 err1:
-	kfree(pci);
+	kfree(glue);
 
 err0:
 	return ret;
@@ -179,7 +144,7 @@ static void __devexit dwc3_pci_remove(struct pci_dev *pci)
 {
 	struct dwc3_pci	*glue = pci_get_drvdata(pci);
 
-	dwc3_pci_put_device_id(glue, glue->dwc3->id);
+	dwc3_put_device_id(glue->dwc3->id);
 	platform_device_unregister(glue->dwc3);
 	pci_set_drvdata(pci, NULL);
 	pci_disable_device(pci);
@@ -196,7 +161,7 @@ static DEFINE_PCI_DEVICE_TABLE(dwc3_pci_id_table) = {
 MODULE_DEVICE_TABLE(pci, dwc3_pci_id_table);
 
 static struct pci_driver dwc3_pci_driver = {
-	.name		= "pci-dwc3",
+	.name		= "dwc3-pci",
 	.id_table	= dwc3_pci_id_table,
 	.probe		= dwc3_pci_probe,
 	.remove		= __devexit_p(dwc3_pci_remove),

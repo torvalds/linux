@@ -318,9 +318,6 @@ static int ohci_hcd_tmio_drv_suspend(struct platform_device *dev, pm_message_t s
 		if (ret)
 			return ret;
 	}
-
-	hcd->state = HC_STATE_SUSPENDED;
-
 	return 0;
 }
 

@@ -31,7 +31,7 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/syscore_ops.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -67,12 +67,13 @@ static struct map_desc s3c2416_iodesc[] __initdata = {
 	IODESC_ENT(TIMER),
 };
 
-struct sysdev_class s3c2416_sysclass = {
+struct bus_type s3c2416_subsys = {
 	.name = "s3c2416-core",
+	.dev_name = "s3c2416-core",
 };
 
-static struct sys_device s3c2416_sysdev = {
-	.cls		= &s3c2416_sysclass,
+static struct device s3c2416_dev = {
+	.bus		= &s3c2416_subsys,
 };
 
 void s3c2416_restart(char mode, const char *cmd)
@@ -106,7 +107,7 @@ int __init s3c2416_init(void)
 #endif
 	register_syscore_ops(&s3c24xx_irq_syscore_ops);
 
-	return sysdev_register(&s3c2416_sysdev);
+	return device_register(&s3c2416_dev);
 }
 
 void __init s3c2416_init_uarts(struct s3c2410_uartcfg *cfg, int no)
@@ -134,7 +135,7 @@ void __init s3c2416_map_io(void)
 	iotable_init(s3c2416_iodesc, ARRAY_SIZE(s3c2416_iodesc));
 }
 
-/* need to register class before we actually register the device, and
+/* need to register the subsystem before we actually register the device, and
  * we also need to ensure that it has been initialised before any of the
  * drivers even try to use it (even if not on an s3c2416 based system)
  * as a driver which may support both 2443 and 2440 may try and use it.
@@ -142,7 +143,7 @@ void __init s3c2416_map_io(void)
 
 static int __init s3c2416_core_init(void)
 {
-	return sysdev_class_register(&s3c2416_sysclass);
+	return subsys_system_register(&s3c2416_subsys, NULL);
 }
 
 core_initcall(s3c2416_core_init);

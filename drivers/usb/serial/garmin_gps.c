@@ -42,7 +42,7 @@
 static int initial_mode = 1;
 
 /* debug flag */
-static int debug;
+static bool debug;
 
 #define GARMIN_VENDOR_ID             0x091E
 
@@ -901,7 +901,6 @@ static int garmin_init_session(struct usb_serial_port *port)
 		usb_kill_urb(port->interrupt_in_urb);
 
 		dbg("%s - adding interrupt input", __func__);
-		port->interrupt_in_urb->dev = serial->dev;
 		status = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 		if (status)
 			dev_err(&serial->dev->dev,
@@ -1277,7 +1276,6 @@ static void garmin_read_int_callback(struct urb *urb)
 	unsigned long flags;
 	int retval;
 	struct usb_serial_port *port = urb->context;
-	struct usb_serial *serial = port->serial;
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
@@ -1311,12 +1309,6 @@ static void garmin_read_int_callback(struct urb *urb)
 		if (0 == (garmin_data_p->flags & FLAGS_BULK_IN_ACTIVE)) {
 
 			/* bulk data available */
-			usb_fill_bulk_urb(port->read_urb, serial->dev,
-					usb_rcvbulkpipe(serial->dev,
-						port->bulk_in_endpointAddress),
-					port->read_urb->transfer_buffer,
-					port->read_urb->transfer_buffer_length,
-					garmin_read_bulk_callback, port);
 			retval = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 			if (retval) {
 				dev_err(&port->dev,
@@ -1353,7 +1345,6 @@ static void garmin_read_int_callback(struct urb *urb)
 
 	garmin_read_process(garmin_data_p, data, urb->actual_length, 0);
 
-	port->interrupt_in_urb->dev = port->serial->dev;
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
 		dev_err(&urb->dev->dev,

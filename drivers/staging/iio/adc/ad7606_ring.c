@@ -12,35 +12,11 @@
 #include <linux/slab.h>
 
 #include "../iio.h"
-#include "../buffer_generic.h"
+#include "../buffer.h"
 #include "../ring_sw.h"
 #include "../trigger_consumer.h"
 
 #include "ad7606.h"
-
-int ad7606_scan_from_ring(struct iio_dev *indio_dev, unsigned ch)
-{
-	struct iio_buffer *ring = indio_dev->buffer;
-	int ret;
-	u16 *ring_data;
-
-	ring_data = kmalloc(ring->access->get_bytes_per_datum(ring),
-			    GFP_KERNEL);
-	if (ring_data == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	ret = ring->access->read_last(ring, (u8 *) ring_data);
-	if (ret)
-		goto error_free_ring_data;
-
-	ret = ring_data[ch];
-
-error_free_ring_data:
-	kfree(ring_data);
-error_ret:
-	return ret;
-}
 
 /**
  * ad7606_trigger_handler_th() th/bh of trigger launched polling to ring buffer
@@ -136,8 +112,6 @@ int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 
 	/* Effectively select the ring buffer implementation */
 	indio_dev->buffer->access = &ring_sw_access_funcs;
-	indio_dev->buffer->bpe =
-		st->chip_info->channels[0].scan_type.storagebits / 8;
 	indio_dev->pollfunc = iio_alloc_pollfunc(&ad7606_trigger_handler_th_bh,
 						 &ad7606_trigger_handler_th_bh,
 						 0,
@@ -152,7 +126,7 @@ int ad7606_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 
 	/* Ring buffer functions - here trigger setup related */
 
-	indio_dev->buffer->setup_ops = &ad7606_ring_setup_ops;
+	indio_dev->setup_ops = &ad7606_ring_setup_ops;
 	indio_dev->buffer->scan_timestamp = true ;
 
 	INIT_WORK(&st->poll_work, &ad7606_poll_bh_to_ring);

@@ -1026,19 +1026,19 @@ static int ac97_aux_prepare(struct snd_pcm_substream *substream,
 	(SNDRV_PCM_FORMAT_S16_LE | SNDRV_PCM_FORMAT_S20_3LE | \
 	 SNDRV_PCM_FORMAT_S24_LE)
 
-static struct snd_soc_dai_ops wm9713_dai_ops_hifi = {
+static const struct snd_soc_dai_ops wm9713_dai_ops_hifi = {
 	.prepare	= ac97_hifi_prepare,
 	.set_clkdiv	= wm9713_set_dai_clkdiv,
 	.set_pll	= wm9713_set_dai_pll,
 };
 
-static struct snd_soc_dai_ops wm9713_dai_ops_aux = {
+static const struct snd_soc_dai_ops wm9713_dai_ops_aux = {
 	.prepare	= ac97_aux_prepare,
 	.set_clkdiv	= wm9713_set_dai_clkdiv,
 	.set_pll	= wm9713_set_dai_pll,
 };
 
-static struct snd_soc_dai_ops wm9713_dai_ops_voice = {
+static const struct snd_soc_dai_ops wm9713_dai_ops_voice = {
 	.hw_params	= wm9713_pcm_hw_params,
 	.set_clkdiv	= wm9713_set_dai_clkdiv,
 	.set_pll	= wm9713_set_dai_pll,
@@ -1140,8 +1140,7 @@ static int wm9713_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int wm9713_soc_suspend(struct snd_soc_codec *codec,
-	pm_message_t state)
+static int wm9713_soc_suspend(struct snd_soc_codec *codec)
 {
 	u16 reg;
 
@@ -1277,17 +1276,7 @@ static struct platform_driver wm9713_codec_driver = {
 	.remove = __devexit_p(wm9713_remove),
 };
 
-static int __init wm9713_init(void)
-{
-	return platform_driver_register(&wm9713_codec_driver);
-}
-module_init(wm9713_init);
-
-static void __exit wm9713_exit(void)
-{
-	platform_driver_unregister(&wm9713_codec_driver);
-}
-module_exit(wm9713_exit);
+module_platform_driver(wm9713_codec_driver);
 
 MODULE_DESCRIPTION("ASoC WM9713/WM9714 driver");
 MODULE_AUTHOR("Liam Girdwood");

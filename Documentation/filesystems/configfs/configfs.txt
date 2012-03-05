@@ -192,7 +192,7 @@ attribute value uses the store_attribute() method.
 	struct configfs_attribute {
 		char                    *ca_name;
 		struct module           *ca_owner;
-		mode_t                  ca_mode;
+		umode_t                  ca_mode;
 	};
 
 When a config_item wants an attribute to appear as a file in the item's

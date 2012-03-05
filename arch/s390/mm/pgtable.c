@@ -33,17 +33,6 @@
 #define FRAG_MASK	0x03
 #endif
 
-unsigned long VMALLOC_START = VMALLOC_END - VMALLOC_SIZE;
-EXPORT_SYMBOL(VMALLOC_START);
-
-static int __init parse_vmalloc(char *arg)
-{
-	if (!arg)
-		return -EINVAL;
-	VMALLOC_START = (VMALLOC_END - memparse(arg, &arg)) & PAGE_MASK;
-	return 0;
-}
-early_param("vmalloc", parse_vmalloc);
 
 unsigned long *crst_table_alloc(struct mm_struct *mm)
 {
@@ -267,7 +256,10 @@ static int gmap_alloc_table(struct gmap *gmap,
 	struct page *page;
 	unsigned long *new;
 
+	/* since we dont free the gmap table until gmap_free we can unlock */
+	spin_unlock(&gmap->mm->page_table_lock);
 	page = alloc_pages(GFP_KERNEL, ALLOC_ORDER);
+	spin_lock(&gmap->mm->page_table_lock);
 	if (!page)
 		return -ENOMEM;
 	new = (unsigned long *) page_to_phys(page);

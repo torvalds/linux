@@ -39,7 +39,7 @@
 
 struct hostfs_iattr {
 	unsigned int	ia_valid;
-	mode_t		ia_mode;
+	unsigned short	ia_mode;
 	uid_t		ia_uid;
 	gid_t		ia_gid;
 	loff_t		ia_size;

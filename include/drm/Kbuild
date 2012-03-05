@@ -1,4 +1,5 @@
 header-y += drm.h
+header-y += drm_fourcc.h
 header-y += drm_mode.h
 header-y += drm_sarea.h
 header-y += i810_drm.h

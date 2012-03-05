@@ -36,6 +36,8 @@ static noinline void put_transaction(struct btrfs_transaction *transaction)
 	WARN_ON(atomic_read(&transaction->use_count) == 0);
 	if (atomic_dec_and_test(&transaction->use_count)) {
 		BUG_ON(!list_empty(&transaction->list));
+		WARN_ON(transaction->delayed_refs.root.rb_node);
+		WARN_ON(!list_empty(&transaction->delayed_refs.seq_head));
 		memset(transaction, 0, sizeof(*transaction));
 		kmem_cache_free(btrfs_transaction_cachep, transaction);
 	}
@@ -108,8 +110,11 @@ loop:
 	cur_trans->delayed_refs.num_heads = 0;
 	cur_trans->delayed_refs.flushing = 0;
 	cur_trans->delayed_refs.run_delayed_start = 0;
+	cur_trans->delayed_refs.seq = 1;
+	init_waitqueue_head(&cur_trans->delayed_refs.seq_wait);
 	spin_lock_init(&cur_trans->commit_lock);
 	spin_lock_init(&cur_trans->delayed_refs.lock);
+	INIT_LIST_HEAD(&cur_trans->delayed_refs.seq_head);
 
 	INIT_LIST_HEAD(&cur_trans->pending_snapshots);
 	list_add_tail(&cur_trans->list, &root->fs_info->trans_list);
@@ -321,6 +326,8 @@ again:
 	}
 
 	if (num_bytes) {
+		trace_btrfs_space_reservation(root->fs_info, "transaction",
+					      (u64)h, num_bytes, 1);
 		h->block_rsv = &root->fs_info->trans_block_rsv;
 		h->bytes_reserved = num_bytes;
 	}
@@ -467,19 +474,12 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	btrfs_trans_release_metadata(trans, root);
 	trans->block_rsv = NULL;
-	while (count < 4) {
+	while (count < 2) {
 		unsigned long cur = trans->delayed_ref_updates;
 		trans->delayed_ref_updates = 0;
 		if (cur &&
 		    trans->transaction->delayed_refs.num_heads_ready > 64) {
 			trans->delayed_ref_updates = 0;
-
-			/*
-			 * do a full flush if the transaction is trying
-			 * to close
-			 */
-			if (trans->transaction->delayed_refs.flushing)
-				cur = 0;
 			btrfs_run_delayed_refs(trans, root, cur);
 		} else {
 			break;
@@ -1393,9 +1393,9 @@ int btrfs_clean_old_snapshots(struct btrfs_root *root)
 
 		if (btrfs_header_backref_rev(root->node) <
 		    BTRFS_MIXED_BACKREF_REV)
-			btrfs_drop_snapshot(root, NULL, 0);
+			btrfs_drop_snapshot(root, NULL, 0, 0);
 		else
-			btrfs_drop_snapshot(root, NULL, 1);
+			btrfs_drop_snapshot(root, NULL, 1, 0);
 	}
 	return 0;
 }

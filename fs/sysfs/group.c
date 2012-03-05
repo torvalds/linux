@@ -33,7 +33,7 @@ static int create_files(struct sysfs_dirent *dir_sd, struct kobject *kobj,
 	int error = 0, i;
 
 	for (i = 0, attr = grp->attrs; *attr && !error; i++, attr++) {
-		mode_t mode = 0;
+		umode_t mode = 0;
 
 		/* in update mode, we're changing the permissions or
 		 * visibility.  Do this by first removing then

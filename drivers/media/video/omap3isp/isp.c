@@ -80,13 +80,6 @@
 #include "isph3a.h"
 #include "isphist.h"
 
-/*
- * this is provided as an interim solution until omap3isp doesn't need
- * any omap-specific iommu API
- */
-#define to_iommu(dev)							\
-	(struct omap_iommu *)platform_get_drvdata(to_platform_device(dev))
-
 static unsigned int autoidle;
 module_param(autoidle, int, 0444);
 MODULE_PARM_DESC(autoidle, "Enable OMAP3ISP AUTOIDLE support");
@@ -410,6 +403,7 @@ static inline void isp_isr_dbg(struct isp_device *isp, u32 irqstatus)
 static void isp_isr_sbl(struct isp_device *isp)
 {
 	struct device *dev = isp->dev;
+	struct isp_pipeline *pipe;
 	u32 sbl_pcr;
 
 	/*
@@ -423,27 +417,38 @@ static void isp_isr_sbl(struct isp_device *isp)
 	if (sbl_pcr)
 		dev_dbg(dev, "SBL overflow (PCR = 0x%08x)\n", sbl_pcr);
 
-	if (sbl_pcr & (ISPSBL_PCR_CCDC_WBL_OVF | ISPSBL_PCR_CSIA_WBL_OVF
-		     | ISPSBL_PCR_CSIB_WBL_OVF)) {
-		isp->isp_ccdc.error = 1;
-		if (isp->isp_ccdc.output & CCDC_OUTPUT_PREVIEW)
-			isp->isp_prev.error = 1;
-		if (isp->isp_ccdc.output & CCDC_OUTPUT_RESIZER)
-			isp->isp_res.error = 1;
+	if (sbl_pcr & ISPSBL_PCR_CSIB_WBL_OVF) {
+		pipe = to_isp_pipeline(&isp->isp_ccp2.subdev.entity);
+		if (pipe != NULL)
+			pipe->error = true;
+	}
+
+	if (sbl_pcr & ISPSBL_PCR_CSIA_WBL_OVF) {
+		pipe = to_isp_pipeline(&isp->isp_csi2a.subdev.entity);
+		if (pipe != NULL)
+			pipe->error = true;
+	}
+
+	if (sbl_pcr & ISPSBL_PCR_CCDC_WBL_OVF) {
+		pipe = to_isp_pipeline(&isp->isp_ccdc.subdev.entity);
+		if (pipe != NULL)
+			pipe->error = true;
 	}
 
 	if (sbl_pcr & ISPSBL_PCR_PRV_WBL_OVF) {
-		isp->isp_prev.error = 1;
-		if (isp->isp_res.input == RESIZER_INPUT_VP &&
-		    !(isp->isp_ccdc.output & CCDC_OUTPUT_RESIZER))
-			isp->isp_res.error = 1;
+		pipe = to_isp_pipeline(&isp->isp_prev.subdev.entity);
+		if (pipe != NULL)
+			pipe->error = true;
 	}
 
 	if (sbl_pcr & (ISPSBL_PCR_RSZ1_WBL_OVF
 		       | ISPSBL_PCR_RSZ2_WBL_OVF
 		       | ISPSBL_PCR_RSZ3_WBL_OVF
-		       | ISPSBL_PCR_RSZ4_WBL_OVF))
-		isp->isp_res.error = 1;
+		       | ISPSBL_PCR_RSZ4_WBL_OVF)) {
+		pipe = to_isp_pipeline(&isp->isp_res.subdev.entity);
+		if (pipe != NULL)
+			pipe->error = true;
+	}
 
 	if (sbl_pcr & ISPSBL_PCR_H3A_AF_WBL_OVF)
 		omap3isp_stat_sbl_overflow(&isp->isp_af);
@@ -471,24 +476,17 @@ static irqreturn_t isp_isr(int irq, void *_isp)
 				       IRQ0STATUS_HS_VS_IRQ;
 	struct isp_device *isp = _isp;
 	u32 irqstatus;
-	int ret;
 
 	irqstatus = isp_reg_readl(isp, OMAP3_ISP_IOMEM_MAIN, ISP_IRQ0STATUS);
 	isp_reg_writel(isp, irqstatus, OMAP3_ISP_IOMEM_MAIN, ISP_IRQ0STATUS);
 
 	isp_isr_sbl(isp);
 
-	if (irqstatus & IRQ0STATUS_CSIA_IRQ) {
-		ret = omap3isp_csi2_isr(&isp->isp_csi2a);
-		if (ret)
-			isp->isp_ccdc.error = 1;
-	}
+	if (irqstatus & IRQ0STATUS_CSIA_IRQ)
+		omap3isp_csi2_isr(&isp->isp_csi2a);
 
-	if (irqstatus & IRQ0STATUS_CSIB_IRQ) {
-		ret = omap3isp_ccp2_isr(&isp->isp_ccp2);
-		if (ret)
-			isp->isp_ccdc.error = 1;
-	}
+	if (irqstatus & IRQ0STATUS_CSIB_IRQ)
+		omap3isp_ccp2_isr(&isp->isp_ccp2);
 
 	if (irqstatus & IRQ0STATUS_CCDC_VD0_IRQ) {
 		if (isp->isp_ccdc.output & CCDC_OUTPUT_PREVIEW)
@@ -1114,8 +1112,7 @@ isp_restore_context(struct isp_device *isp, struct isp_reg *reg_list)
 static void isp_save_ctx(struct isp_device *isp)
 {
 	isp_save_context(isp, isp_reg_list);
-	if (isp->iommu)
-		omap_iommu_save_ctx(isp->iommu);
+	omap_iommu_save_ctx(isp->dev);
 }
 
 /*
@@ -1128,8 +1125,7 @@ static void isp_save_ctx(struct isp_device *isp)
 static void isp_restore_ctx(struct isp_device *isp)
 {
 	isp_restore_context(isp, isp_reg_list);
-	if (isp->iommu)
-		omap_iommu_restore_ctx(isp->iommu);
+	omap_iommu_restore_ctx(isp->dev);
 	omap3isp_ccdc_restore_context(isp);
 	omap3isp_preview_restore_context(isp);
 }
@@ -1983,7 +1979,7 @@ static int isp_remove(struct platform_device *pdev)
 	isp_cleanup_modules(isp);
 
 	omap3isp_get(isp);
-	iommu_detach_device(isp->domain, isp->iommu_dev);
+	iommu_detach_device(isp->domain, &pdev->dev);
 	iommu_domain_free(isp->domain);
 	omap3isp_put(isp);
 
@@ -2131,17 +2127,6 @@ static int isp_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* IOMMU */
-	isp->iommu_dev = omap_find_iommu_device("isp");
-	if (!isp->iommu_dev) {
-		dev_err(isp->dev, "omap_find_iommu_device failed\n");
-		ret = -ENODEV;
-		goto error_isp;
-	}
-
-	/* to be removed once iommu migration is complete */
-	isp->iommu = to_iommu(isp->iommu_dev);
-
 	isp->domain = iommu_domain_alloc(pdev->dev.bus);
 	if (!isp->domain) {
 		dev_err(isp->dev, "can't alloc iommu domain\n");
@@ -2149,7 +2134,7 @@ static int isp_probe(struct platform_device *pdev)
 		goto error_isp;
 	}
 
-	ret = iommu_attach_device(isp->domain, isp->iommu_dev);
+	ret = iommu_attach_device(isp->domain, &pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "can't attach iommu device: %d\n", ret);
 		goto free_domain;
@@ -2188,7 +2173,7 @@ error_modules:
 error_irq:
 	free_irq(isp->irq_num, isp);
 detach_dev:
-	iommu_detach_device(isp->domain, isp->iommu_dev);
+	iommu_detach_device(isp->domain, &pdev->dev);
 free_domain:
 	iommu_domain_free(isp->domain);
 error_isp:
@@ -2242,24 +2227,7 @@ static struct platform_driver omap3isp_driver = {
 	},
 };
 
-/*
- * isp_init - ISP module initialization.
- */
-static int __init isp_init(void)
-{
-	return platform_driver_register(&omap3isp_driver);
-}
-
-/*
- * isp_cleanup - ISP module cleanup.
- */
-static void __exit isp_cleanup(void)
-{
-	platform_driver_unregister(&omap3isp_driver);
-}
-
-module_init(isp_init);
-module_exit(isp_cleanup);
+module_platform_driver(omap3isp_driver);
 
 MODULE_AUTHOR("Nokia Corporation");
 MODULE_DESCRIPTION("TI OMAP3 ISP driver");

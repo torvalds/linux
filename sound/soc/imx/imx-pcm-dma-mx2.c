@@ -88,11 +88,13 @@ static int imx_ssi_dma_alloc(struct snd_pcm_substream *substream,
 	iprtd->dma_data.dma_request = dma_params->dma;
 
 	/* Try to grab a DMA channel */
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-	iprtd->dma_chan = dma_request_channel(mask, filter, iprtd);
-	if (!iprtd->dma_chan)
-		return -EINVAL;
+	if (!iprtd->dma_chan) {
+		dma_cap_zero(mask);
+		dma_cap_set(DMA_SLAVE, mask);
+		iprtd->dma_chan = dma_request_channel(mask, filter, iprtd);
+		if (!iprtd->dma_chan)
+			return -EINVAL;
+	}
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -107,12 +109,12 @@ static int imx_ssi_dma_alloc(struct snd_pcm_substream *substream,
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		slave_config.direction = DMA_TO_DEVICE;
+		slave_config.direction = DMA_MEM_TO_DEV;
 		slave_config.dst_addr = dma_params->dma_addr;
 		slave_config.dst_addr_width = buswidth;
 		slave_config.dst_maxburst = dma_params->burstsize;
 	} else {
-		slave_config.direction = DMA_FROM_DEVICE;
+		slave_config.direction = DMA_DEV_TO_MEM;
 		slave_config.src_addr = dma_params->dma_addr;
 		slave_config.src_addr_width = buswidth;
 		slave_config.src_maxburst = dma_params->burstsize;
@@ -159,7 +161,7 @@ static int snd_imx_pcm_hw_params(struct snd_pcm_substream *substream,
 			iprtd->period_bytes * iprtd->periods,
 			iprtd->period_bytes,
 			substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
-			DMA_TO_DEVICE : DMA_FROM_DEVICE);
+			DMA_MEM_TO_DEV : DMA_DEV_TO_MEM);
 	if (!iprtd->desc) {
 		dev_err(&chan->dev->device, "cannot prepare slave dma\n");
 		return -EINVAL;
@@ -326,16 +328,6 @@ static struct platform_driver imx_pcm_driver = {
 	.remove = __devexit_p(imx_soc_platform_remove),
 };
 
-static int __init snd_imx_pcm_init(void)
-{
-	return platform_driver_register(&imx_pcm_driver);
-}
-module_init(snd_imx_pcm_init);
-
-static void __exit snd_imx_pcm_exit(void)
-{
-	platform_driver_unregister(&imx_pcm_driver);
-}
-module_exit(snd_imx_pcm_exit);
+module_platform_driver(imx_pcm_driver);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:imx-pcm-audio");

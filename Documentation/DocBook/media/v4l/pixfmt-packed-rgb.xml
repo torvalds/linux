@@ -428,8 +428,11 @@ colorspace <constant>V4L2_COLORSPACE_SRGB</constant>.</para>
     <para>Bit 7 is the most significant bit. The value of a = alpha
 bits is undefined when reading from the driver, ignored when writing
 to the driver, except when alpha blending has been negotiated for a
-<link linkend="overlay">Video Overlay</link> or <link
-linkend="osd">Video Output Overlay</link>.</para>
+<link linkend="overlay">Video Overlay</link> or <link linkend="osd">
+Video Output Overlay</link> or when alpha component has been configured
+for a <link linkend="capture">Video Capture</link> by means of <link
+linkend="v4l2-alpha-component"> <constant>V4L2_CID_ALPHA_COMPONENT
+</constant> </link> control.</para>
 
     <example>
       <title><constant>V4L2_PIX_FMT_BGR24</constant> 4 &times; 4 pixel
@@ -930,11 +933,3 @@ See &v4l-dvb; for access instructions.</para>
 
   </refsect1>
     </refentry>
-
-  <!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "pixfmt.sgml"
-indent-tabs-mode: nil
-End:
-  -->

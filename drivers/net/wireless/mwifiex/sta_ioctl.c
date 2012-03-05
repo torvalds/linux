@@ -54,7 +54,7 @@ int mwifiex_copy_mcast_addr(struct mwifiex_multicast_list *mlist,
 int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter)
 {
 	bool cancel_flag = false;
-	int status = adapter->cmd_wait_q.status;
+	int status;
 	struct cmd_ctrl_node *cmd_queued;
 
 	if (!adapter->cmd_queued)
@@ -79,6 +79,8 @@ int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter)
 		mwifiex_cancel_pending_ioctl(adapter);
 		dev_dbg(adapter->dev, "cmd cancel\n");
 	}
+
+	status = adapter->cmd_wait_q.status;
 	adapter->cmd_wait_q.status = 0;
 
 	return status;
@@ -240,6 +242,8 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 
 		if (!netif_queue_stopped(priv->netdev))
 			mwifiex_stop_net_dev_queue(priv->netdev, adapter);
+		if (netif_carrier_ok(priv->netdev))
+			netif_carrier_off(priv->netdev);
 
 		/* Clear any past association response stored for
 		 * application retrieval */
@@ -271,6 +275,8 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 
 		if (!netif_queue_stopped(priv->netdev))
 			mwifiex_stop_net_dev_queue(priv->netdev, adapter);
+		if (netif_carrier_ok(priv->netdev))
+			netif_carrier_off(priv->netdev);
 
 		if (!ret) {
 			dev_dbg(adapter->dev, "info: network found in scan"
@@ -465,7 +471,7 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 
 	info->bcn_nf_last = priv->bcn_nf_last;
 
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_ENABLED)
+	if (priv->sec_info.wep_enabled)
 		info->wep_status = true;
 	else
 		info->wep_status = false;
@@ -1014,7 +1020,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 	wep_key = &priv->wep_key[priv->wep_key_curr_index];
 	index = encrypt_key->key_index;
 	if (encrypt_key->key_disable) {
-		priv->sec_info.wep_status = MWIFIEX_802_11_WEP_DISABLED;
+		priv->sec_info.wep_enabled = 0;
 	} else if (!encrypt_key->key_len) {
 		/* Copy the required key as the current key */
 		wep_key = &priv->wep_key[index];
@@ -1024,7 +1030,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 			return -1;
 		}
 		priv->wep_key_curr_index = (u16) index;
-		priv->sec_info.wep_status = MWIFIEX_802_11_WEP_ENABLED;
+		priv->sec_info.wep_enabled = 1;
 	} else {
 		wep_key = &priv->wep_key[index];
 		memset(wep_key, 0, sizeof(struct mwifiex_wep_key));
@@ -1034,7 +1040,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 		       encrypt_key->key_len);
 		wep_key->key_index = index;
 		wep_key->key_length = encrypt_key->key_len;
-		priv->sec_info.wep_status = MWIFIEX_802_11_WEP_ENABLED;
+		priv->sec_info.wep_enabled = 1;
 	}
 	if (wep_key->key_length) {
 		/* Send request to firmware */
@@ -1044,7 +1050,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 		if (ret)
 			return ret;
 	}
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_ENABLED)
+	if (priv->sec_info.wep_enabled)
 		priv->curr_pkt_filter |= HostCmd_ACT_MAC_WEP_ENABLE;
 	else
 		priv->curr_pkt_filter &= ~HostCmd_ACT_MAC_WEP_ENABLE;

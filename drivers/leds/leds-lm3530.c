@@ -457,18 +457,7 @@ static struct i2c_driver lm3530_i2c_driver = {
 	},
 };
 
-static int __init lm3530_init(void)
-{
-	return i2c_add_driver(&lm3530_i2c_driver);
-}
-
-static void __exit lm3530_exit(void)
-{
-	i2c_del_driver(&lm3530_i2c_driver);
-}
-
-module_init(lm3530_init);
-module_exit(lm3530_exit);
+module_i2c_driver(lm3530_i2c_driver);
 
 MODULE_DESCRIPTION("Back Light driver for LM3530");
 MODULE_LICENSE("GPL v2");

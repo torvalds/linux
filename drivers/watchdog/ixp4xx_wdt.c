@@ -181,7 +181,6 @@ static int __init ixp4xx_wdt_init(void)
 
 		return -ENODEV;
 	}
-	spin_lock_init(&wdt_lock);
 	boot_status = (*IXP4XX_OSST & IXP4XX_OSST_TIMER_WARM_RESET) ?
 			WDIOF_CARDRESET : 0;
 	ret = misc_register(&ixp4xx_wdt_miscdev);

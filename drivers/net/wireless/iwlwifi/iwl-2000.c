@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -87,7 +87,7 @@ static void iwl2000_nic_config(struct iwl_priv *priv)
 	iwl_rf_config(priv);
 
 	if (cfg(priv)->iq_invert)
-		iwl_set_bit(bus(priv), CSR_GP_DRIVER_REG,
+		iwl_set_bit(trans(priv), CSR_GP_DRIVER_REG,
 			    CSR_GP_DRIVER_REG_BIT_RADIO_IQ_INVER);
 }
 
@@ -116,7 +116,7 @@ static struct iwl_sensitivity_ranges iwl2000_sensitivity = {
 	.nrg_th_cca = 62,
 };
 
-static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
+static void iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
@@ -124,10 +124,6 @@ static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	hw_params(priv).max_txq_num = cfg(priv)->base_params->num_of_queues;
-	priv->contexts[IWL_RXON_CTX_BSS].bcast_sta_id = IWLAGN_BROADCAST_ID;
-
-	hw_params(priv).max_data_size = IWL60_RTC_DATA_SIZE;
-	hw_params(priv).max_inst_size = IWL60_RTC_INST_SIZE;
 
 	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ);
 
@@ -144,8 +140,6 @@ static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 
 	/* Set initial sensitivity parameters */
 	hw_params(priv).sens = &iwl2000_sensitivity;
-
-	return 0;
 }
 
 static struct iwl_lib_ops iwl2000_lib = {
@@ -244,6 +238,8 @@ static struct iwl_bt_params iwl2030_bt_params = {
 	.ucode_api_max = IWL2000_UCODE_API_MAX,			\
 	.ucode_api_ok = IWL2000_UCODE_API_OK,			\
 	.ucode_api_min = IWL2000_UCODE_API_MIN,			\
+	.max_inst_size = IWL60_RTC_INST_SIZE,			\
+	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.lib = &iwl2000_lib,					\
@@ -270,6 +266,8 @@ struct iwl_cfg iwl2000_2bgn_d_cfg = {
 	.ucode_api_max = IWL2030_UCODE_API_MAX,			\
 	.ucode_api_ok = IWL2030_UCODE_API_OK,			\
 	.ucode_api_min = IWL2030_UCODE_API_MIN,			\
+	.max_inst_size = IWL60_RTC_INST_SIZE,			\
+	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.lib = &iwl2030_lib,					\
@@ -292,6 +290,8 @@ struct iwl_cfg iwl2030_2bgn_cfg = {
 	.ucode_api_max = IWL105_UCODE_API_MAX,			\
 	.ucode_api_ok = IWL105_UCODE_API_OK,			\
 	.ucode_api_min = IWL105_UCODE_API_MIN,			\
+	.max_inst_size = IWL60_RTC_INST_SIZE,			\
+	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.lib = &iwl2000_lib,					\
@@ -320,6 +320,8 @@ struct iwl_cfg iwl105_bgn_d_cfg = {
 	.ucode_api_max = IWL135_UCODE_API_MAX,			\
 	.ucode_api_ok = IWL135_UCODE_API_OK,			\
 	.ucode_api_min = IWL135_UCODE_API_MIN,			\
+	.max_inst_size = IWL60_RTC_INST_SIZE,			\
+	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.lib = &iwl2030_lib,					\

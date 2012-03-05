@@ -33,14 +33,9 @@
 #include <scsi/scsi_cmnd.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_transport.h>
-#include <target/target_core_fabric_ops.h>
+#include <target/target_core_fabric.h>
 #include <target/target_core_fabric_configfs.h>
-#include <target/target_core_fabric_lib.h>
 #include <target/target_core_configfs.h>
-#include <target/target_core_device.h>
-#include <target/target_core_tpg.h>
-#include <target/target_core_tmr.h>
 
 #include "tcm_loop.h"
 
@@ -421,11 +416,11 @@ static struct scsi_host_template tcm_loop_driver_template = {
 	.queuecommand		= tcm_loop_queuecommand,
 	.change_queue_depth	= tcm_loop_change_queue_depth,
 	.eh_device_reset_handler = tcm_loop_device_reset,
-	.can_queue		= TL_SCSI_CAN_QUEUE,
+	.can_queue		= 1024,
 	.this_id		= -1,
-	.sg_tablesize		= TL_SCSI_SG_TABLESIZE,
-	.cmd_per_lun		= TL_SCSI_CMD_PER_LUN,
-	.max_sectors		= TL_SCSI_MAX_SECTORS,
+	.sg_tablesize		= 256,
+	.cmd_per_lun		= 1024,
+	.max_sectors		= 0xFFFF,
 	.use_clustering		= DISABLE_CLUSTERING,
 	.slave_alloc		= tcm_loop_slave_alloc,
 	.slave_configure	= tcm_loop_slave_configure,
@@ -564,8 +559,7 @@ static char *tcm_loop_get_fabric_name(void)
 
 static u8 tcm_loop_get_fabric_proto_ident(struct se_portal_group *se_tpg)
 {
-	struct tcm_loop_tpg *tl_tpg =
-			(struct tcm_loop_tpg *)se_tpg->se_tpg_fabric_ptr;
+	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
 	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
 	/*
 	 * tl_proto_id is set at tcm_loop_configfs.c:tcm_loop_make_scsi_hba()
@@ -592,8 +586,7 @@ static u8 tcm_loop_get_fabric_proto_ident(struct se_portal_group *se_tpg)
 
 static char *tcm_loop_get_endpoint_wwn(struct se_portal_group *se_tpg)
 {
-	struct tcm_loop_tpg *tl_tpg =
-		(struct tcm_loop_tpg *)se_tpg->se_tpg_fabric_ptr;
+	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
 	/*
 	 * Return the passed NAA identifier for the SAS Target Port
 	 */
@@ -602,8 +595,7 @@ static char *tcm_loop_get_endpoint_wwn(struct se_portal_group *se_tpg)
 
 static u16 tcm_loop_get_tag(struct se_portal_group *se_tpg)
 {
-	struct tcm_loop_tpg *tl_tpg =
-		(struct tcm_loop_tpg *)se_tpg->se_tpg_fabric_ptr;
+	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
 	/*
 	 * This Tag is used when forming SCSI Name identifier in EVPD=1 0x83
 	 * to represent the SCSI Target Port.
@@ -623,8 +615,7 @@ static u32 tcm_loop_get_pr_transport_id(
 	int *format_code,
 	unsigned char *buf)
 {
-	struct tcm_loop_tpg *tl_tpg =
-			(struct tcm_loop_tpg *)se_tpg->se_tpg_fabric_ptr;
+	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
 	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
 
 	switch (tl_hba->tl_proto_id) {
@@ -653,8 +644,7 @@ static u32 tcm_loop_get_pr_transport_id_len(
 	struct t10_pr_registration *pr_reg,
 	int *format_code)
 {
-	struct tcm_loop_tpg *tl_tpg =
-			(struct tcm_loop_tpg *)se_tpg->se_tpg_fabric_ptr;
+	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
 	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
 
 	switch (tl_hba->tl_proto_id) {
@@ -687,8 +677,7 @@ static char *tcm_loop_parse_pr_out_transport_id(
 	u32 *out_tid_len,
 	char **port_nexus_ptr)
 {
-	struct tcm_loop_tpg *tl_tpg =
-			(struct tcm_loop_tpg *)se_tpg->se_tpg_fabric_ptr;
+	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
 	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
 
 	switch (tl_hba->tl_proto_id) {

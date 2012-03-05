@@ -521,19 +521,9 @@ static struct spi_driver ade7759_driver = {
 	.probe = ade7759_probe,
 	.remove = __devexit_p(ade7759_remove),
 };
-
-static __init int ade7759_init(void)
-{
-	return spi_register_driver(&ade7759_driver);
-}
-module_init(ade7759_init);
-
-static __exit void ade7759_exit(void)
-{
-	spi_unregister_driver(&ade7759_driver);
-}
-module_exit(ade7759_exit);
+module_spi_driver(ade7759_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADE7759 Active Energy Metering IC Driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:ad7759");

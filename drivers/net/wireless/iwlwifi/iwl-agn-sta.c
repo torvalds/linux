@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -35,9 +35,12 @@
 #include "iwl-trans.h"
 
 /* priv->shrd->sta_lock must be held */
-static void iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
+static int iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
 {
-
+	if (sta_id >= IWLAGN_STATION_COUNT) {
+		IWL_ERR(priv, "invalid sta_id %u", sta_id);
+		return -EINVAL;
+	}
 	if (!(priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE))
 		IWL_ERR(priv, "ACTIVATE a non DRIVER active station id %u "
 			"addr %pM\n",
@@ -53,6 +56,7 @@ static void iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
 		IWL_DEBUG_ASSOC(priv, "Added STA id %u addr %pM to uCode\n",
 				sta_id, priv->stations[sta_id].sta.sta.addr);
 	}
+	return 0;
 }
 
 static int iwl_process_add_sta_resp(struct iwl_priv *priv,
@@ -77,8 +81,7 @@ static int iwl_process_add_sta_resp(struct iwl_priv *priv,
 	switch (pkt->u.add_sta.status) {
 	case ADD_STA_SUCCESS_MSK:
 		IWL_DEBUG_INFO(priv, "REPLY_ADD_STA PASSED\n");
-		iwl_sta_ucode_activate(priv, sta_id);
-		ret = 0;
+		ret = iwl_sta_ucode_activate(priv, sta_id);
 		break;
 	case ADD_STA_NO_ROOM_IN_TABLE:
 		IWL_ERR(priv, "Adding station %d failed, no room in table.\n",
@@ -1187,6 +1190,7 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 	unsigned long flags;
 	struct iwl_addsta_cmd sta_cmd;
 	u8 sta_id = iwlagn_key_sta_id(priv, ctx->vif, sta);
+	__le16 key_flags;
 
 	/* if station isn't there, neither is the key */
 	if (sta_id == IWL_INVALID_STATION)
@@ -1212,7 +1216,14 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 		IWL_ERR(priv, "offset %d not used in uCode key table.\n",
 			keyconf->hw_key_idx);
 
-	sta_cmd.key.key_flags = STA_KEY_FLG_NO_ENC | STA_KEY_FLG_INVALID;
+	key_flags = cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
+	key_flags |= STA_KEY_FLG_MAP_KEY_MSK | STA_KEY_FLG_NO_ENC |
+		     STA_KEY_FLG_INVALID;
+
+	if (!(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE))
+		key_flags |= STA_KEY_MULTICAST_MSK;
+
+	sta_cmd.key.key_flags = key_flags;
 	sta_cmd.key.key_offset = WEP_INVALID_OFFSET;
 	sta_cmd.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	sta_cmd.mode = STA_CONTROL_MODIFY_MSK;

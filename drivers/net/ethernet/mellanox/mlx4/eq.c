@@ -513,25 +513,22 @@ int mlx4_MAP_EQ_wrapper(struct mlx4_dev *dev, int slave,
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_slave_event_eq_info *event_eq =
-		&priv->mfunc.master.slave_state[slave].event_eq;
+		priv->mfunc.master.slave_state[slave].event_eq;
 	u32 in_modifier = vhcr->in_modifier;
 	u32 eqn = in_modifier & 0x1FF;
 	u64 in_param =  vhcr->in_param;
 	int err = 0;
+	int i;
 
 	if (slave == dev->caps.function)
 		err = mlx4_cmd(dev, in_param, (in_modifier & 0x80000000) | eqn,
 			       0, MLX4_CMD_MAP_EQ, MLX4_CMD_TIME_CLASS_B,
 			       MLX4_CMD_NATIVE);
-	if (!err) {
-		if (in_modifier >> 31) {
-			/* unmap */
-			event_eq->event_type &= ~in_param;
-		} else {
-			event_eq->eqn = eqn;
-			event_eq->event_type = in_param;
-		}
-	}
+	if (!err)
+		for (i = 0; i < MLX4_EVENT_TYPES_NUM; ++i)
+			if (in_param & (1LL << i))
+				event_eq[i].eqn = in_modifier >> 31 ? -1 : eqn;
+
 	return err;
 }
 
@@ -546,7 +543,7 @@ static int mlx4_MAP_EQ(struct mlx4_dev *dev, u64 event_mask, int unmap,
 static int mlx4_SW2HW_EQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
 			 int eq_num)
 {
-	return mlx4_cmd(dev, mailbox->dma | dev->caps.function, eq_num, 0,
+	return mlx4_cmd(dev, mailbox->dma, eq_num, 0,
 			MLX4_CMD_SW2HW_EQ, MLX4_CMD_TIME_CLASS_A,
 			MLX4_CMD_WRAPPED);
 }
@@ -554,7 +551,7 @@ static int mlx4_SW2HW_EQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
 static int mlx4_HW2SW_EQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
 			 int eq_num)
 {
-	return mlx4_cmd_box(dev, dev->caps.function, mailbox->dma, eq_num,
+	return mlx4_cmd_box(dev, 0, mailbox->dma, eq_num,
 			    0, MLX4_CMD_HW2SW_EQ, MLX4_CMD_TIME_CLASS_A,
 			    MLX4_CMD_WRAPPED);
 }

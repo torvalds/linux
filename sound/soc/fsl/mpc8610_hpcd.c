@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
+#include <linux/of_i2c.h>
 #include <sound/soc.h>
 #include <asm/fsl_guts.h>
 
@@ -249,8 +250,9 @@ static int get_parent_cell_index(struct device_node *np)
 static int codec_node_dev_name(struct device_node *np, char *buf, size_t len)
 {
 	const u32 *iprop;
-	int bus, addr;
+	int addr;
 	char temp[DAI_NAME_SIZE];
+	struct i2c_client *i2c;
 
 	of_modalias_node(np, temp, DAI_NAME_SIZE);
 
@@ -260,11 +262,12 @@ static int codec_node_dev_name(struct device_node *np, char *buf, size_t len)
 
 	addr = be32_to_cpup(iprop);
 
-	bus = get_parent_cell_index(np);
-	if (bus < 0)
-		return bus;
+	/* We need the adapter number */
+	i2c = of_find_i2c_device_by_node(np);
+	if (!i2c)
+		return -ENODEV;
 
-	snprintf(buf, len, "%s-codec.%u-%04x", temp, bus, addr);
+	snprintf(buf, len, "%s-codec.%u-%04x", temp, i2c->adapter->nr, addr);
 
 	return 0;
 }

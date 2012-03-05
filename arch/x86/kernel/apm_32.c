@@ -383,21 +383,21 @@ static int ignore_sys_suspend;
 static int ignore_normal_resume;
 static int bounce_interval __read_mostly = DEFAULT_BOUNCE_INTERVAL;
 
-static int debug __read_mostly;
-static int smp __read_mostly;
+static bool debug __read_mostly;
+static bool smp __read_mostly;
 static int apm_disabled = -1;
 #ifdef CONFIG_SMP
-static int power_off;
+static bool power_off;
 #else
-static int power_off = 1;
+static bool power_off = 1;
 #endif
-static int realmode_power_off;
+static bool realmode_power_off;
 #ifdef CONFIG_APM_ALLOW_INTS
-static int allow_ints = 1;
+static bool allow_ints = 1;
 #else
-static int allow_ints;
+static bool allow_ints;
 #endif
-static int broken_psr;
+static bool broken_psr;
 
 static DECLARE_WAIT_QUEUE_HEAD(apm_waitqueue);
 static DECLARE_WAIT_QUEUE_HEAD(apm_suspend_waitqueue);

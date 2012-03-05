@@ -587,6 +587,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 			if (smp_conn_security(conn, sec.level))
 				break;
 			sk->sk_state = BT_CONFIG;
+			chan->state = BT_CONFIG;
 
 		/* or for ACL link, under defer_setup time */
 		} else if (sk->sk_state == BT_CONNECT2 &&
@@ -731,6 +732,7 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct ms
 
 	if (sk->sk_state == BT_CONNECT2 && bt_sk(sk)->defer_setup) {
 		sk->sk_state = BT_CONFIG;
+		pi->chan->state = BT_CONFIG;
 
 		__l2cap_connect_rsp_defer(pi->chan);
 		release_sock(sk);
@@ -846,6 +848,8 @@ static struct l2cap_chan *l2cap_sock_new_connection_cb(void *data)
 								GFP_ATOMIC);
 	if (!sk)
 		return NULL;
+
+	bt_sock_reclassify_lock(sk, BTPROTO_L2CAP);
 
 	l2cap_sock_init(sk, parent);
 
@@ -1000,7 +1004,7 @@ static struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock, int p
 	INIT_LIST_HEAD(&bt_sk(sk)->accept_q);
 
 	sk->sk_destruct = l2cap_sock_destruct;
-	sk->sk_sndtimeo = L2CAP_CONN_TIMEOUT;
+	sk->sk_sndtimeo = msecs_to_jiffies(L2CAP_CONN_TIMEOUT);
 
 	sock_reset_flag(sk, SOCK_ZAPPED);
 

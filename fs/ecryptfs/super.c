@@ -69,7 +69,6 @@ static void ecryptfs_i_callback(struct rcu_head *head)
 	struct ecryptfs_inode_info *inode_info;
 	inode_info = ecryptfs_inode_to_private(inode);
 
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(ecryptfs_inode_info_cache, inode_info);
 }
 
@@ -132,9 +131,9 @@ static void ecryptfs_evict_inode(struct inode *inode)
  * Prints the mount options for a given superblock.
  * Returns zero; does not fail.
  */
-static int ecryptfs_show_options(struct seq_file *m, struct vfsmount *mnt)
+static int ecryptfs_show_options(struct seq_file *m, struct dentry *root)
 {
-	struct super_block *sb = mnt->mnt_sb;
+	struct super_block *sb = root->d_sb;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
 		&ecryptfs_superblock_to_private(sb)->mount_crypt_stat;
 	struct ecryptfs_global_auth_tok *walker;

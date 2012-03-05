@@ -18,10 +18,7 @@
 
 /* Registers */
 #define AD5504_ADDR_NOOP		0
-#define AD5504_ADDR_DAC0		1
-#define AD5504_ADDR_DAC1		2
-#define AD5504_ADDR_DAC2		3
-#define AD5504_ADDR_DAC3		4
+#define AD5504_ADDR_DAC(x)		((x) + 1)
 #define AD5504_ADDR_ALL_DAC		5
 #define AD5504_ADDR_CTRL		7
 

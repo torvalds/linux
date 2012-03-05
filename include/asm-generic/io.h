@@ -19,6 +19,8 @@
 #include <asm-generic/iomap.h>
 #endif
 
+#include <asm-generic/pci_iomap.h>
+
 #ifndef mmiowb
 #define mmiowb() do {} while (0)
 #endif
@@ -283,9 +285,7 @@ static inline void writesb(const void __iomem *addr, const void *buf, int len)
 #define __io_virt(x) ((void __force *) (x))
 
 #ifndef CONFIG_GENERIC_IOMAP
-/* Create a virtual mapping cookie for a PCI BAR (memory or IO) */
 struct pci_dev;
-extern void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max);
 static inline void pci_iounmap(struct pci_dev *dev, void __iomem *p)
 {
 }
@@ -327,7 +327,7 @@ static inline void __iomem *ioremap(phys_addr_t offset, unsigned long size)
 #define ioremap_wc ioremap_nocache
 #endif
 
-static inline void iounmap(void *addr)
+static inline void iounmap(void __iomem *addr)
 {
 }
 #endif /* CONFIG_MMU */

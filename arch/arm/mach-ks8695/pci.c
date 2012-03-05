@@ -143,7 +143,8 @@ static struct pci_ops ks8695_pci_ops = {
 
 static struct pci_bus* __init ks8695_pci_scan_bus(int nr, struct pci_sys_data *sys)
 {
-	return pci_scan_bus(sys->busnr, &ks8695_pci_ops, sys);
+	return pci_scan_root_bus(NULL, sys->busnr, &ks8695_pci_ops, sys,
+				 &sys->resources);
 }
 
 static struct resource pci_mem = {
@@ -168,9 +169,8 @@ static int __init ks8695_pci_setup(int nr, struct pci_sys_data *sys)
 	request_resource(&iomem_resource, &pci_mem);
 	request_resource(&ioport_resource, &pci_io);
 
-	sys->resource[0] = &pci_io;
-	sys->resource[1] = &pci_mem;
-	sys->resource[2] = NULL;
+	pci_add_resource(&sys->resources, &pci_io);
+	pci_add_resource(&sys->resources, &pci_mem);
 
 	/* Assign and enable processor bridge */
 	ks8695_local_writeconfig(PCI_BASE_ADDRESS_0, KS8695_PCIMEM_PA);

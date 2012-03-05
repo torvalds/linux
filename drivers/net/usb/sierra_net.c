@@ -900,6 +900,9 @@ struct sk_buff *sierra_net_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	u16 len;
 	bool need_tail;
 
+	BUILD_BUG_ON(FIELD_SIZEOF(struct usbnet, data)
+				< sizeof(struct cdc_state));
+
 	dev_dbg(&dev->udev->dev, "%s", __func__);
 	if (priv->link_up && check_ethip_packet(skb, dev) && is_ip(skb)) {
 		/* enough head room as is? */
@@ -981,21 +984,7 @@ static struct usb_driver sierra_net_driver = {
 	.no_dynamic_id = 1,
 };
 
-static int __init sierra_net_init(void)
-{
-	BUILD_BUG_ON(FIELD_SIZEOF(struct usbnet, data)
-				< sizeof(struct cdc_state));
-
-	return usb_register(&sierra_net_driver);
-}
-
-static void __exit sierra_net_exit(void)
-{
-	usb_deregister(&sierra_net_driver);
-}
-
-module_exit(sierra_net_exit);
-module_init(sierra_net_init);
+module_usb_driver(sierra_net_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

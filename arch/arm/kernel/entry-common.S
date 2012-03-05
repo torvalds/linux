@@ -87,7 +87,7 @@ ENTRY(ret_from_fork)
 	get_thread_info tsk
 	ldr	r1, [tsk, #TI_FLAGS]		@ check for syscall tracing
 	mov	why, #1
-	tst	r1, #_TIF_SYSCALL_TRACE		@ are we tracing syscalls?
+	tst	r1, #_TIF_SYSCALL_WORK		@ are we tracing syscalls?
 	beq	ret_slow_syscall
 	mov	r1, sp
 	mov	r0, #1				@ trace exit [IP = 1]
@@ -443,7 +443,7 @@ ENTRY(vector_swi)
 1:
 #endif
 
-	tst	r10, #_TIF_SYSCALL_TRACE		@ are we tracing syscalls?
+	tst	r10, #_TIF_SYSCALL_WORK		@ are we tracing syscalls?
 	bne	__sys_trace
 
 	cmp	scno, #NR_syscalls		@ check upper syscall limit

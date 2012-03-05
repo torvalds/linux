@@ -153,6 +153,7 @@ static inline int has_dbdma(void)
 {
 	switch (alchemy_get_cputype()) {
 	case ALCHEMY_CPU_AU1200:
+	case ALCHEMY_CPU_AU1300:
 		return 1;
 	default:
 		return 0;
@@ -768,11 +769,15 @@ static void au1xmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	config2 = au_readl(HOST_CONFIG2(host));
 	switch (ios->bus_width) {
+	case MMC_BUS_WIDTH_8:
+		config2 |= SD_CONFIG2_BB;
+		break;
 	case MMC_BUS_WIDTH_4:
+		config2 &= ~SD_CONFIG2_BB;
 		config2 |= SD_CONFIG2_WB;
 		break;
 	case MMC_BUS_WIDTH_1:
-		config2 &= ~SD_CONFIG2_WB;
+		config2 &= ~(SD_CONFIG2_WB | SD_CONFIG2_BB);
 		break;
 	}
 	au_writel(config2, HOST_CONFIG2(host));
@@ -943,7 +948,7 @@ static int __devinit au1xmmc_probe(struct platform_device *pdev)
 	struct mmc_host *mmc;
 	struct au1xmmc_host *host;
 	struct resource *r;
-	int ret;
+	int ret, iflag;
 
 	mmc = mmc_alloc_host(sizeof(struct au1xmmc_host), &pdev->dev);
 	if (!mmc) {
@@ -982,37 +987,43 @@ static int __devinit au1xmmc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no IRQ defined\n");
 		goto out3;
 	}
-
 	host->irq = r->start;
-	/* IRQ is shared among both SD controllers */
-	ret = request_irq(host->irq, au1xmmc_irq, IRQF_SHARED,
-			  DRIVER_NAME, host);
-	if (ret) {
-		dev_err(&pdev->dev, "cannot grab IRQ\n");
-		goto out3;
-	}
 
 	mmc->ops = &au1xmmc_ops;
 
 	mmc->f_min =   450000;
 	mmc->f_max = 24000000;
 
-	switch (alchemy_get_cputype()) {
-	case ALCHEMY_CPU_AU1100:
-		mmc->max_seg_size = AU1100_MMC_DESCRIPTOR_SIZE;
-		mmc->max_segs = AU1XMMC_DESCRIPTOR_COUNT;
-		break;
-	case ALCHEMY_CPU_AU1200:
-		mmc->max_seg_size = AU1200_MMC_DESCRIPTOR_SIZE;
-		mmc->max_segs = AU1XMMC_DESCRIPTOR_COUNT;
-		break;
-	}
-
 	mmc->max_blk_size = 2048;
 	mmc->max_blk_count = 512;
 
 	mmc->ocr_avail = AU1XMMC_OCR;
 	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ;
+	mmc->max_segs = AU1XMMC_DESCRIPTOR_COUNT;
+
+	iflag = IRQF_SHARED;	/* Au1100/Au1200: one int for both ctrls */
+
+	switch (alchemy_get_cputype()) {
+	case ALCHEMY_CPU_AU1100:
+		mmc->max_seg_size = AU1100_MMC_DESCRIPTOR_SIZE;
+		break;
+	case ALCHEMY_CPU_AU1200:
+		mmc->max_seg_size = AU1200_MMC_DESCRIPTOR_SIZE;
+		break;
+	case ALCHEMY_CPU_AU1300:
+		iflag = 0;	/* nothing is shared */
+		mmc->max_seg_size = AU1200_MMC_DESCRIPTOR_SIZE;
+		mmc->f_max = 52000000;
+		if (host->ioarea->start == AU1100_SD0_PHYS_ADDR)
+			mmc->caps |= MMC_CAP_8_BIT_DATA;
+		break;
+	}
+
+	ret = request_irq(host->irq, au1xmmc_irq, iflag, DRIVER_NAME, host);
+	if (ret) {
+		dev_err(&pdev->dev, "cannot grab IRQ\n");
+		goto out3;
+	}
 
 	host->status = HOST_S_IDLE;
 

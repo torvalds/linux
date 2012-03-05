@@ -685,22 +685,24 @@ static void __devinit pci_bus_register_of_sysfs(struct pci_bus *bus)
 struct pci_bus * __devinit pci_scan_one_pbm(struct pci_pbm_info *pbm,
 					    struct device *parent)
 {
+	LIST_HEAD(resources);
 	struct device_node *node = pbm->op->dev.of_node;
 	struct pci_bus *bus;
 
 	printk("PCI: Scanning PBM %s\n", node->full_name);
 
-	bus = pci_create_bus(parent, pbm->pci_first_busno, pbm->pci_ops, pbm);
+	pci_add_resource(&resources, &pbm->io_space);
+	pci_add_resource(&resources, &pbm->mem_space);
+	bus = pci_create_root_bus(parent, pbm->pci_first_busno, pbm->pci_ops,
+				  pbm, &resources);
 	if (!bus) {
 		printk(KERN_ERR "Failed to create bus for %s\n",
 		       node->full_name);
+		pci_free_resource_list(&resources);
 		return NULL;
 	}
 	bus->secondary = pbm->pci_first_busno;
 	bus->subordinate = pbm->pci_last_busno;
-
-	bus->resource[0] = &pbm->io_space;
-	bus->resource[1] = &pbm->mem_space;
 
 	pci_of_scan_bus(pbm, node, bus);
 	pci_bus_add_devices(bus);
@@ -711,13 +713,6 @@ struct pci_bus * __devinit pci_scan_one_pbm(struct pci_pbm_info *pbm,
 
 void __devinit pcibios_fixup_bus(struct pci_bus *pbus)
 {
-	struct pci_pbm_info *pbm = pbus->sysdata;
-
-	/* Generic PCI bus probing sets these to point at
-	 * &io{port,mem}_resouce which is wrong for us.
-	 */
-	pbus->resource[0] = &pbm->io_space;
-	pbus->resource[1] = &pbm->mem_space;
 }
 
 void pcibios_update_irq(struct pci_dev *pdev, int irq)
@@ -1081,6 +1076,11 @@ void pci_resource_to_user(const struct pci_dev *pdev, int bar,
 
 	*start = rp->start - offset;
 	*end = rp->end - offset;
+}
+
+void pcibios_set_master(struct pci_dev *dev)
+{
+	/* No special bus mastering setup handling */
 }
 
 static int __init pcibios_init(void)

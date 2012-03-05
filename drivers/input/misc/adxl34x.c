@@ -452,10 +452,10 @@ static ssize_t adxl34x_disable_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct adxl34x *ac = dev_get_drvdata(dev);
-	unsigned long val;
+	unsigned int val;
 	int error;
 
-	error = strict_strtoul(buf, 10, &val);
+	error = kstrtouint(buf, 10, &val);
 	if (error)
 		return error;
 
@@ -541,10 +541,10 @@ static ssize_t adxl34x_rate_store(struct device *dev,
 				  const char *buf, size_t count)
 {
 	struct adxl34x *ac = dev_get_drvdata(dev);
-	unsigned long val;
+	unsigned char val;
 	int error;
 
-	error = strict_strtoul(buf, 10, &val);
+	error = kstrtou8(buf, 10, &val);
 	if (error)
 		return error;
 
@@ -576,10 +576,10 @@ static ssize_t adxl34x_autosleep_store(struct device *dev,
 				  const char *buf, size_t count)
 {
 	struct adxl34x *ac = dev_get_drvdata(dev);
-	unsigned long val;
+	unsigned int val;
 	int error;
 
-	error = strict_strtoul(buf, 10, &val);
+	error = kstrtouint(buf, 10, &val);
 	if (error)
 		return error;
 
@@ -623,13 +623,13 @@ static ssize_t adxl34x_write_store(struct device *dev,
 				   const char *buf, size_t count)
 {
 	struct adxl34x *ac = dev_get_drvdata(dev);
-	unsigned long val;
+	unsigned int val;
 	int error;
 
 	/*
 	 * This allows basic ADXL register write access for debug purposes.
 	 */
-	error = strict_strtoul(buf, 16, &val);
+	error = kstrtouint(buf, 16, &val);
 	if (error)
 		return error;
 

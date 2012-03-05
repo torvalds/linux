@@ -28,6 +28,19 @@ config ARCH_SH73A0
 	select ARM_GIC
 	select I2C
 
+config ARCH_R8A7740
+	bool "R-Mobile A1 (R8A77400)"
+	select CPU_V7
+	select SH_CLK_CPG
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+
+config ARCH_R8A7779
+	bool "R-Car H1 (R8A77790)"
+	select CPU_V7
+	select SH_CLK_CPG
+	select ARM_GIC
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+
 comment "SH-Mobile Board Type"
 
 config MACH_G3EVM
@@ -75,6 +88,16 @@ config MACH_KOTA2
 	select ARCH_REQUIRE_GPIOLIB
 	depends on ARCH_SH73A0
 
+config MACH_BONITO
+	bool "bonito board"
+	select ARCH_REQUIRE_GPIOLIB
+	depends on ARCH_R8A7740
+
+config MACH_MARZEN
+	bool "MARZEN board"
+	depends on ARCH_R8A7779
+	select ARCH_REQUIRE_GPIOLIB
+
 comment "SH-Mobile System Configuration"
 
 menu "Memory configuration"
@@ -83,7 +106,7 @@ config MEMORY_START
 	hex "Physical memory start address"
 	default "0x50000000" if MACH_G3EVM
 	default "0x40000000" if MACH_G4EVM || MACH_AP4EVB || MACH_AG5EVM || \
-				MACH_MACKEREL
+				MACH_MACKEREL || MACH_BONITO
 	default "0x41000000" if MACH_KOTA2
 	default "0x00000000"
 	---help---
@@ -95,7 +118,7 @@ config MEMORY_SIZE
 	hex "Physical memory size"
 	default "0x08000000" if MACH_G3EVM
 	default "0x08000000" if MACH_G4EVM
-	default "0x20000000" if MACH_AG5EVM
+	default "0x20000000" if MACH_AG5EVM || MACH_BONITO
 	default "0x1e000000" if MACH_KOTA2
 	default "0x10000000" if MACH_AP4EVB || MACH_MACKEREL
 	default "0x04000000"

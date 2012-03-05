@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2012 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -178,19 +178,19 @@ static void iwl_tt_check_exit_ct_kill(unsigned long data)
 
 	if (tt->state == IWL_TI_CT_KILL) {
 		if (priv->thermal_throttle.ct_kill_toggle) {
-			iwl_write32(bus(priv), CSR_UCODE_DRV_GP1_CLR,
+			iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_CLR,
 				    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
 			priv->thermal_throttle.ct_kill_toggle = false;
 		} else {
-			iwl_write32(bus(priv), CSR_UCODE_DRV_GP1_SET,
+			iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_SET,
 				    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
 			priv->thermal_throttle.ct_kill_toggle = true;
 		}
-		iwl_read32(bus(priv), CSR_UCODE_DRV_GP1);
-		spin_lock_irqsave(&bus(priv)->reg_lock, flags);
-		if (!iwl_grab_nic_access(bus(priv)))
-			iwl_release_nic_access(bus(priv));
-		spin_unlock_irqrestore(&bus(priv)->reg_lock, flags);
+		iwl_read32(trans(priv), CSR_UCODE_DRV_GP1);
+		spin_lock_irqsave(&trans(priv)->reg_lock, flags);
+		if (!iwl_grab_nic_access(trans(priv)))
+			iwl_release_nic_access(trans(priv));
+		spin_unlock_irqrestore(&trans(priv)->reg_lock, flags);
 
 		/* Reschedule the ct_kill timer to occur in
 		 * CT_KILL_EXIT_DURATION seconds to ensure we get a
@@ -568,7 +568,7 @@ void iwl_tt_enter_ct_kill(struct iwl_priv *priv)
 		return;
 
 	IWL_DEBUG_TEMP(priv, "Queueing critical temperature enter.\n");
-	queue_work(priv->shrd->workqueue, &priv->ct_enter);
+	queue_work(priv->workqueue, &priv->ct_enter);
 }
 
 void iwl_tt_exit_ct_kill(struct iwl_priv *priv)
@@ -577,7 +577,7 @@ void iwl_tt_exit_ct_kill(struct iwl_priv *priv)
 		return;
 
 	IWL_DEBUG_TEMP(priv, "Queueing critical temperature exit.\n");
-	queue_work(priv->shrd->workqueue, &priv->ct_exit);
+	queue_work(priv->workqueue, &priv->ct_exit);
 }
 
 static void iwl_bg_tt_work(struct work_struct *work)
@@ -600,7 +600,7 @@ void iwl_tt_handler(struct iwl_priv *priv)
 		return;
 
 	IWL_DEBUG_TEMP(priv, "Queueing thermal throttling work.\n");
-	queue_work(priv->shrd->workqueue, &priv->tt_work);
+	queue_work(priv->workqueue, &priv->tt_work);
 }
 
 /* Thermal throttling initialization

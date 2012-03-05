@@ -17,7 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/cpufreq.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -270,7 +270,7 @@ struct s3c_cpufreq_info s3c2440_cpufreq_info = {
 	.debug_io_show  = s3c_cpufreq_debugfs_call(s3c2410_iotiming_debugfs),
 };
 
-static int s3c2440_cpufreq_add(struct sys_device *sysdev)
+static int s3c2440_cpufreq_add(struct device *dev)
 {
 	xtal = s3c_cpufreq_clk_get(NULL, "xtal");
 	hclk = s3c_cpufreq_clk_get(NULL, "hclk");
@@ -285,27 +285,29 @@ static int s3c2440_cpufreq_add(struct sys_device *sysdev)
 	return s3c_cpufreq_register(&s3c2440_cpufreq_info);
 }
 
-static struct sysdev_driver s3c2440_cpufreq_driver = {
-	.add		= s3c2440_cpufreq_add,
+static struct subsys_interface s3c2440_cpufreq_interface = {
+	.name		= "s3c2440_cpufreq",
+	.subsys		= &s3c2440_subsys,
+	.add_dev	= s3c2440_cpufreq_add,
 };
 
 static int s3c2440_cpufreq_init(void)
 {
-	return sysdev_driver_register(&s3c2440_sysclass,
-				      &s3c2440_cpufreq_driver);
+	return subsys_interface_register(&s3c2440_cpufreq_interface);
 }
 
 /* arch_initcall adds the clocks we need, so use subsys_initcall. */
 subsys_initcall(s3c2440_cpufreq_init);
 
-static struct sysdev_driver s3c2442_cpufreq_driver = {
-	.add		= s3c2440_cpufreq_add,
+static struct subsys_interface s3c2442_cpufreq_interface = {
+	.name		= "s3c2442_cpufreq",
+	.subsys		= &s3c2442_subsys,
+	.add_dev	= s3c2440_cpufreq_add,
 };
 
 static int s3c2442_cpufreq_init(void)
 {
-	return sysdev_driver_register(&s3c2442_sysclass,
-				      &s3c2442_cpufreq_driver);
+	return subsys_interface_register(&s3c2442_cpufreq_interface);
 }
 
 subsys_initcall(s3c2442_cpufreq_init);

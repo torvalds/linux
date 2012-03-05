@@ -22,6 +22,8 @@
 #define GFS2_LIVE_LOCK		1
 #define GFS2_TRANS_LOCK		2
 #define GFS2_RENAME_LOCK	3
+#define GFS2_CONTROL_LOCK	4
+#define GFS2_MOUNTED_LOCK	5
 
 /* Format numbers for various metadata types */
 

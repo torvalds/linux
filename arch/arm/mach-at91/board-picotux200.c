@@ -60,13 +60,15 @@ static void __init picotux200_init_early(void)
 	at91_set_serial_console(0);
 }
 
-static struct at91_eth_data __initdata picotux200_eth_data = {
+static struct macb_platform_data __initdata picotux200_eth_data = {
 	.phy_irq_pin	= AT91_PIN_PC4,
 	.is_rmii	= 1,
 };
 
 static struct at91_usbh_data __initdata picotux200_usbh_data = {
 	.ports		= 1,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 static struct at91_mmc_data __initdata picotux200_mmc_data = {
@@ -74,6 +76,7 @@ static struct at91_mmc_data __initdata picotux200_mmc_data = {
 	.slot_b		= 0,
 	.wire4		= 1,
 	.wp_pin		= AT91_PIN_PA17,
+	.vcc_pin	= -EINVAL,
 };
 
 #define PICOTUX200_FLASH_BASE	AT91_CHIPSELECT_0

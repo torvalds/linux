@@ -25,7 +25,6 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/u64_stats_sync.h>
-#include <linux/version.h>
 
 #include "flow.h"
 

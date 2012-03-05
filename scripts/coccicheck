@@ -9,14 +9,23 @@ if [ "$C" = "1" -o "$C" = "2" ]; then
 #    FLAGS="-ignore_unknown_options -very_quiet"
 #    OPTIONS=$*
 
-# Workaround for Coccinelle < 0.2.3
-    FLAGS="-I $srctree/include -very_quiet"
-    shift $(( $# - 1 ))
-    OPTIONS=$1
+    if [ "$KBUILD_EXTMOD" = "" ] ; then
+        # Workaround for Coccinelle < 0.2.3
+        FLAGS="-I $srctree/include -very_quiet"
+        shift $(( $# - 1 ))
+        OPTIONS=$1
+    else
+	echo M= is not currently supported when C=1 or C=2
+	exit 1
+    fi
 else
     ONLINE=0
     FLAGS="-very_quiet"
-    OPTIONS="-dir $srctree"
+    if [ "$KBUILD_EXTMOD" = "" ] ; then
+        OPTIONS="-dir $srctree"
+    else
+        OPTIONS="-dir $KBUILD_EXTMOD -patch $srctree -I $srctree/include -I $KBUILD_EXTMOD/include"
+    fi
 fi
 
 if [ ! -x "$SPATCH" ]; then

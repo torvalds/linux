@@ -313,7 +313,8 @@ static int __devinit davinci_mdio_probe(struct platform_device *pdev)
 	data->bus->reset	= davinci_mdio_reset,
 	data->bus->parent	= dev;
 	data->bus->priv		= data;
-	snprintf(data->bus->id, MII_BUS_ID_SIZE, "%x", pdev->id);
+	snprintf(data->bus->id, MII_BUS_ID_SIZE, "%s-%x",
+		pdev->name, pdev->id);
 
 	data->clk = clk_get(dev, NULL);
 	if (IS_ERR(data->clk)) {

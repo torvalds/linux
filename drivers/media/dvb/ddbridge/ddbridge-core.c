@@ -580,7 +580,7 @@ static int demod_attach_drxk(struct ddb_input *input)
 	memset(&config, 0, sizeof(config));
 	config.adr = 0x29 + (input->nr & 1);
 
-	fe = input->fe = dvb_attach(drxk_attach, &config, i2c, &input->fe2);
+	fe = input->fe = dvb_attach(drxk_attach, &config, i2c);
 	if (!input->fe) {
 		printk(KERN_ERR "No DRXK found!\n");
 		return -ENODEV;
@@ -1480,7 +1480,7 @@ static const struct file_operations ddb_fops = {
 	.open           = ddb_open,
 };
 
-static char *ddb_devnode(struct device *device, mode_t *mode)
+static char *ddb_devnode(struct device *device, umode_t *mode)
 {
 	struct ddb *dev = dev_get_drvdata(device);
 

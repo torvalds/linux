@@ -1,7 +1,7 @@
 /*
  * Driver for the Analog Devices digital potentiometers (I2C bus)
  *
- * Copyright (C) 2010 Michael Hennerich, Analog Devices Inc.
+ * Copyright (C) 2010-2011 Michael Hennerich, Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -11,7 +11,6 @@
 
 #include "ad525x_dpot.h"
 
-/* ------------------------------------------------------------------------- */
 /* I2C bus functions */
 static int write_d8(void *client, u8 val)
 {
@@ -60,18 +59,13 @@ static int __devinit ad_dpot_i2c_probe(struct i2c_client *client,
 		.bops = &bops,
 	};
 
-	struct ad_dpot_id dpot_id = {
-		.name = (char *) &id->name,
-		.devid = id->driver_data,
-	};
-
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WORD_DATA)) {
 		dev_err(&client->dev, "SMBUS Word Data not Supported\n");
 		return -EIO;
 	}
 
-	return ad_dpot_probe(&client->dev, &bdata, &dpot_id);
+	return ad_dpot_probe(&client->dev, &bdata, id->driver_data, id->name);
 }
 
 static int __devexit ad_dpot_i2c_remove(struct i2c_client *client)

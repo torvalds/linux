@@ -144,11 +144,3 @@ CbCr plane has as many pad bytes after its rows.</para>
 	</example>
       </refsect1>
     </refentry>
-
-  <!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "pixfmt.sgml"
-indent-tabs-mode: nil
-End:
-  -->

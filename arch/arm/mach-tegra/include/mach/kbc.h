@@ -53,6 +53,7 @@ struct tegra_kbc_platform_data {
 	struct tegra_kbc_pin_cfg pin_cfg[KBC_MAX_GPIO];
 	const struct matrix_keymap_data *keymap_data;
 
+	u32 wakeup_key;
 	bool wakeup;
 	bool use_fn_map;
 	bool use_ghost_filter;

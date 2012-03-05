@@ -332,7 +332,7 @@ static int ssi_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	 SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_U24_3LE |	\
 	 SNDRV_PCM_FMTBIT_S32_LE  | SNDRV_PCM_FMTBIT_U32_LE)
 
-static struct snd_soc_dai_ops ssi_dai_ops = {
+static const struct snd_soc_dai_ops ssi_dai_ops = {
 	.startup	= ssi_startup,
 	.shutdown	= ssi_shutdown,
 	.trigger	= ssi_trigger,
@@ -401,17 +401,7 @@ static struct platform_driver sh4_ssi_driver = {
 	.remove = __devexit_p(sh4_soc_dai_remove),
 };
 
-static int __init snd_sh4_ssi_init(void)
-{
-	return platform_driver_register(&sh4_ssi_driver);
-}
-module_init(snd_sh4_ssi_init);
-
-static void __exit snd_sh4_ssi_exit(void)
-{
-	platform_driver_unregister(&sh4_ssi_driver);
-}
-module_exit(snd_sh4_ssi_exit);
+module_platform_driver(sh4_ssi_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SuperH onchip SSI (I2S) audio driver");

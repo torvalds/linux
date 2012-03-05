@@ -182,7 +182,7 @@ int drm_stub_open(struct inode *inode, struct file *filp)
 		goto out;
 
 	old_fops = filp->f_op;
-	filp->f_op = fops_get(&dev->driver->fops);
+	filp->f_op = fops_get(dev->driver->fops);
 	if (filp->f_op == NULL) {
 		filp->f_op = old_fops;
 		goto out;

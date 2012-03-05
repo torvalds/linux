@@ -91,7 +91,7 @@ concat_read(struct mtd_info *mtd, loff_t from, size_t len,
 			/* Entire transaction goes into this subdev */
 			size = len;
 
-		err = subdev->read(subdev, from, size, &retsize, buf);
+		err = mtd_read(subdev, from, size, &retsize, buf);
 
 		/* Save information about bitflips! */
 		if (unlikely(err)) {
@@ -148,7 +148,7 @@ concat_write(struct mtd_info *mtd, loff_t to, size_t len,
 		if (!(subdev->flags & MTD_WRITEABLE))
 			err = -EROFS;
 		else
-			err = subdev->write(subdev, to, size, &retsize, buf);
+			err = mtd_write(subdev, to, size, &retsize, buf);
 
 		if (err)
 			break;
@@ -227,8 +227,9 @@ concat_writev(struct mtd_info *mtd, const struct kvec *vecs,
 		if (!(subdev->flags & MTD_WRITEABLE))
 			err = -EROFS;
 		else
-			err = subdev->writev(subdev, &vecs_copy[entry_low],
-				entry_high - entry_low + 1, to, &retsize);
+			err = mtd_writev(subdev, &vecs_copy[entry_low],
+					 entry_high - entry_low + 1, to,
+					 &retsize);
 
 		vecs_copy[entry_high].iov_len = old_iov_len - size;
 		vecs_copy[entry_high].iov_base += size;
@@ -273,7 +274,7 @@ concat_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 		if (from + devops.len > subdev->size)
 			devops.len = subdev->size - from;
 
-		err = subdev->read_oob(subdev, from, &devops);
+		err = mtd_read_oob(subdev, from, &devops);
 		ops->retlen += devops.retlen;
 		ops->oobretlen += devops.oobretlen;
 
@@ -333,7 +334,7 @@ concat_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
 		if (to + devops.len > subdev->size)
 			devops.len = subdev->size - to;
 
-		err = subdev->write_oob(subdev, to, &devops);
+		err = mtd_write_oob(subdev, to, &devops);
 		ops->retlen += devops.oobretlen;
 		if (err)
 			return err;
@@ -379,7 +380,7 @@ static int concat_dev_erase(struct mtd_info *mtd, struct erase_info *erase)
 	 * FIXME: Allow INTERRUPTIBLE. Which means
 	 * not having the wait_queue head on the stack.
 	 */
-	err = mtd->erase(mtd, erase);
+	err = mtd_erase(mtd, erase);
 	if (!err) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		add_wait_queue(&waitq, &wait);
@@ -554,12 +555,9 @@ static int concat_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 		else
 			size = len;
 
-		if (subdev->lock) {
-			err = subdev->lock(subdev, ofs, size);
-			if (err)
-				break;
-		} else
-			err = -EOPNOTSUPP;
+		err = mtd_lock(subdev, ofs, size);
+		if (err)
+			break;
 
 		len -= size;
 		if (len == 0)
@@ -594,12 +592,9 @@ static int concat_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 		else
 			size = len;
 
-		if (subdev->unlock) {
-			err = subdev->unlock(subdev, ofs, size);
-			if (err)
-				break;
-		} else
-			err = -EOPNOTSUPP;
+		err = mtd_unlock(subdev, ofs, size);
+		if (err)
+			break;
 
 		len -= size;
 		if (len == 0)
@@ -619,7 +614,7 @@ static void concat_sync(struct mtd_info *mtd)
 
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
-		subdev->sync(subdev);
+		mtd_sync(subdev);
 	}
 }
 
@@ -630,7 +625,7 @@ static int concat_suspend(struct mtd_info *mtd)
 
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
-		if ((rc = subdev->suspend(subdev)) < 0)
+		if ((rc = mtd_suspend(subdev)) < 0)
 			return rc;
 	}
 	return rc;
@@ -643,7 +638,7 @@ static void concat_resume(struct mtd_info *mtd)
 
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
-		subdev->resume(subdev);
+		mtd_resume(subdev);
 	}
 }
 
@@ -652,7 +647,7 @@ static int concat_block_isbad(struct mtd_info *mtd, loff_t ofs)
 	struct mtd_concat *concat = CONCAT(mtd);
 	int i, res = 0;
 
-	if (!concat->subdev[0]->block_isbad)
+	if (!mtd_can_have_bb(concat->subdev[0]))
 		return res;
 
 	if (ofs > mtd->size)
@@ -666,7 +661,7 @@ static int concat_block_isbad(struct mtd_info *mtd, loff_t ofs)
 			continue;
 		}
 
-		res = subdev->block_isbad(subdev, ofs);
+		res = mtd_block_isbad(subdev, ofs);
 		break;
 	}
 
@@ -678,7 +673,7 @@ static int concat_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	struct mtd_concat *concat = CONCAT(mtd);
 	int i, err = -EINVAL;
 
-	if (!concat->subdev[0]->block_markbad)
+	if (!mtd_can_have_bb(concat->subdev[0]))
 		return 0;
 
 	if (ofs > mtd->size)
@@ -692,7 +687,7 @@ static int concat_block_markbad(struct mtd_info *mtd, loff_t ofs)
 			continue;
 		}
 
-		err = subdev->block_markbad(subdev, ofs);
+		err = mtd_block_markbad(subdev, ofs);
 		if (!err)
 			mtd->ecc_stats.badblocks++;
 		break;
@@ -725,11 +720,7 @@ static unsigned long concat_get_unmapped_area(struct mtd_info *mtd,
 		if (offset + len > subdev->size)
 			return (unsigned long) -EINVAL;
 
-		if (subdev->get_unmapped_area)
-			return subdev->get_unmapped_area(subdev, len, offset,
-							 flags);
-
-		break;
+		return mtd_get_unmapped_area(subdev, len, offset, flags);
 	}
 
 	return (unsigned long) -ENOSYS;

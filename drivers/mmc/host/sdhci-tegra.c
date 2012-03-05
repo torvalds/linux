@@ -324,17 +324,7 @@ static struct platform_driver sdhci_tegra_driver = {
 	.remove		= __devexit_p(sdhci_tegra_remove),
 };
 
-static int __init sdhci_tegra_init(void)
-{
-	return platform_driver_register(&sdhci_tegra_driver);
-}
-module_init(sdhci_tegra_init);
-
-static void __exit sdhci_tegra_exit(void)
-{
-	platform_driver_unregister(&sdhci_tegra_driver);
-}
-module_exit(sdhci_tegra_exit);
+module_platform_driver(sdhci_tegra_driver);
 
 MODULE_DESCRIPTION("SDHCI driver for Tegra");
 MODULE_AUTHOR(" Google, Inc.");

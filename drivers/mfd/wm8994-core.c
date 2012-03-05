@@ -28,11 +28,7 @@
 #include <linux/mfd/wm8994/pdata.h>
 #include <linux/mfd/wm8994/registers.h>
 
-static int wm8994_read(struct wm8994 *wm8994, unsigned short reg,
-		       int bytes, void *dest)
-{
-	return regmap_raw_read(wm8994->regmap, reg, dest, bytes);
-}
+#include "wm8994.h"
 
 /**
  * wm8994_reg_read: Read a single WM8994 register.
@@ -66,12 +62,6 @@ int wm8994_bulk_read(struct wm8994 *wm8994, unsigned short reg,
 		     int count, u16 *buf)
 {
 	return regmap_bulk_read(wm8994->regmap, reg, buf, count);
-}
-
-static int wm8994_write(struct wm8994 *wm8994, unsigned short reg,
-			int bytes, const void *src)
-{
-	return regmap_raw_write(wm8994->regmap, reg, src, bytes);
 }
 
 /**
@@ -252,6 +242,20 @@ static int wm8994_suspend(struct device *dev)
 		break;
 	}
 
+	switch (wm8994->type) {
+	case WM1811:
+		ret = wm8994_reg_read(wm8994, WM8994_ANTIPOP_2);
+		if (ret < 0) {
+			dev_err(dev, "Failed to read jackdet: %d\n", ret);
+		} else if (ret & WM1811_JACKDET_MODE_MASK) {
+			dev_dbg(dev, "CODEC still active, ignoring suspend\n");
+			return 0;
+		}
+		break;
+	default:
+		break;
+	}
+
 	/* Disable LDO pulldowns while the device is suspended if we
 	 * don't know that something will be driving them. */
 	if (!wm8994->ldo_ena_always_driven)
@@ -259,25 +263,14 @@ static int wm8994_suspend(struct device *dev)
 				WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD,
 				WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD);
 
-	/* GPIO configuration state is saved here since we may be configuring
-	 * the GPIO alternate functions even if we're not using the gpiolib
-	 * driver for them.
-	 */
-	ret = wm8994_read(wm8994, WM8994_GPIO_1, WM8994_NUM_GPIO_REGS * 2,
-			  &wm8994->gpio_regs);
-	if (ret < 0)
-		dev_err(dev, "Failed to save GPIO registers: %d\n", ret);
-
-	/* For similar reasons we also stash the regulator states */
-	ret = wm8994_read(wm8994, WM8994_LDO_1, WM8994_NUM_LDO_REGS * 2,
-			  &wm8994->ldo_regs);
-	if (ret < 0)
-		dev_err(dev, "Failed to save LDO registers: %d\n", ret);
-
 	/* Explicitly put the device into reset in case regulators
 	 * don't get disabled in order to ensure consistent restart.
 	 */
-	wm8994_reg_write(wm8994, WM8994_SOFTWARE_RESET, 0x8994);
+	wm8994_reg_write(wm8994, WM8994_SOFTWARE_RESET,
+			 wm8994_reg_read(wm8994, WM8994_SOFTWARE_RESET));
+
+	regcache_cache_only(wm8994->regmap, true);
+	regcache_mark_dirty(wm8994->regmap);
 
 	wm8994->suspended = true;
 
@@ -294,7 +287,7 @@ static int wm8994_suspend(struct device *dev)
 static int wm8994_resume(struct device *dev)
 {
 	struct wm8994 *wm8994 = dev_get_drvdata(dev);
-	int ret, i;
+	int ret;
 
 	/* We may have lied to the PM core about suspending */
 	if (!wm8994->suspended)
@@ -307,26 +300,12 @@ static int wm8994_resume(struct device *dev)
 		return ret;
 	}
 
-	/* Write register at a time as we use the cache on the CPU so store
-	 * it in native endian.
-	 */
-	for (i = 0; i < ARRAY_SIZE(wm8994->irq_masks_cur); i++) {
-		ret = wm8994_reg_write(wm8994, WM8994_INTERRUPT_STATUS_1_MASK
-				       + i, wm8994->irq_masks_cur[i]);
-		if (ret < 0)
-			dev_err(dev, "Failed to restore interrupt masks: %d\n",
-				ret);
+	regcache_cache_only(wm8994->regmap, false);
+	ret = regcache_sync(wm8994->regmap);
+	if (ret != 0) {
+		dev_err(dev, "Failed to restore register map: %d\n", ret);
+		goto err_enable;
 	}
-
-	ret = wm8994_write(wm8994, WM8994_LDO_1, WM8994_NUM_LDO_REGS * 2,
-			   &wm8994->ldo_regs);
-	if (ret < 0)
-		dev_err(dev, "Failed to restore LDO registers: %d\n", ret);
-
-	ret = wm8994_write(wm8994, WM8994_GPIO_1, WM8994_NUM_GPIO_REGS * 2,
-			   &wm8994->gpio_regs);
-	if (ret < 0)
-		dev_err(dev, "Failed to restore GPIO registers: %d\n", ret);
 
 	/* Disable LDO pulldowns while the device is active */
 	wm8994_set_bits(wm8994, WM8994_PULL_CONTROL_2,
@@ -336,6 +315,11 @@ static int wm8994_resume(struct device *dev)
 	wm8994->suspended = false;
 
 	return 0;
+
+err_enable:
+	regulator_bulk_disable(wm8994->num_supplies, wm8994->supplies);
+
+	return ret;
 }
 #endif
 
@@ -361,19 +345,16 @@ static int wm8994_ldo_in_use(struct wm8994_pdata *pdata, int ldo)
 }
 #endif
 
-static struct regmap_config wm8994_regmap_config = {
-	.reg_bits = 16,
-	.val_bits = 16,
-};
-
 /*
  * Instantiate the generic non-control parts of the device.
  */
 static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 {
 	struct wm8994_pdata *pdata = wm8994->dev->platform_data;
+	struct regmap_config *regmap_config;
 	const char *devname;
 	int ret, i;
+	int pulls = 0;
 
 	dev_set_drvdata(wm8994->dev, wm8994);
 
@@ -402,9 +383,9 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		goto err_regmap;
 	}
 
-	wm8994->supplies = kzalloc(sizeof(struct regulator_bulk_data) *
-				   wm8994->num_supplies,
-				   GFP_KERNEL);
+	wm8994->supplies = devm_kzalloc(wm8994->dev,
+					sizeof(struct regulator_bulk_data) *
+					wm8994->num_supplies, GFP_KERNEL);
 	if (!wm8994->supplies) {
 		ret = -ENOMEM;
 		goto err_regmap;
@@ -432,7 +413,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 				 wm8994->supplies);
 	if (ret != 0) {
 		dev_err(wm8994->dev, "Failed to get supplies: %d\n", ret);
-		goto err_supplies;
+		goto err_regmap;
 	}
 
 	ret = regulator_bulk_enable(wm8994->num_supplies,
@@ -482,25 +463,54 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 			ret);
 		goto err_enable;
 	}
+	wm8994->revision = ret;
 
 	switch (wm8994->type) {
 	case WM8994:
-		switch (ret) {
+		switch (wm8994->revision) {
 		case 0:
 		case 1:
 			dev_warn(wm8994->dev,
 				 "revision %c not fully supported\n",
-				 'A' + ret);
+				 'A' + wm8994->revision);
 			break;
 		default:
 			break;
 		}
 		break;
+	case WM1811:
+		/* Revision C did not change the relevant layer */
+		if (wm8994->revision > 1)
+			wm8994->revision++;
+		break;
 	default:
 		break;
 	}
 
-	dev_info(wm8994->dev, "%s revision %c\n", devname, 'A' + ret);
+	dev_info(wm8994->dev, "%s revision %c\n", devname,
+		 'A' + wm8994->revision);
+
+	switch (wm8994->type) {
+	case WM1811:
+		regmap_config = &wm1811_regmap_config;
+		break;
+	case WM8994:
+		regmap_config = &wm8994_regmap_config;
+		break;
+	case WM8958:
+		regmap_config = &wm8958_regmap_config;
+		break;
+	default:
+		dev_err(wm8994->dev, "Unknown device type %d\n", wm8994->type);
+		return -EINVAL;
+	}
+
+	ret = regmap_reinit_cache(wm8994->regmap, regmap_config);
+	if (ret != 0) {
+		dev_err(wm8994->dev, "Failed to reinit register cache: %d\n",
+			ret);
+		return ret;
+	}
 
 	if (pdata) {
 		wm8994->irq_base = pdata->irq_base;
@@ -516,12 +526,16 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		}
 
 		wm8994->ldo_ena_always_driven = pdata->ldo_ena_always_driven;
+
+		if (pdata->spkmode_pu)
+			pulls |= WM8994_SPKMODE_PU;
 	}
 
-	/* Disable LDO pulldowns while the device is active */
+	/* Disable unneeded pulls */
 	wm8994_set_bits(wm8994, WM8994_PULL_CONTROL_2,
-			WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD,
-			0);
+			WM8994_LDO1ENA_PD | WM8994_LDO2ENA_PD |
+			WM8994_SPKMODE_PU | WM8994_CSNADDR_PD,
+			pulls);
 
 	/* In some system designs where the regulators are not in use,
 	 * we can achieve a small reduction in leakage currents by
@@ -560,12 +574,9 @@ err_enable:
 			       wm8994->supplies);
 err_get:
 	regulator_bulk_free(wm8994->num_supplies, wm8994->supplies);
-err_supplies:
-	kfree(wm8994->supplies);
 err_regmap:
 	regmap_exit(wm8994->regmap);
 	mfd_remove_devices(wm8994->dev);
-	kfree(wm8994);
 	return ret;
 }
 
@@ -577,10 +588,16 @@ static void wm8994_device_exit(struct wm8994 *wm8994)
 	regulator_bulk_disable(wm8994->num_supplies,
 			       wm8994->supplies);
 	regulator_bulk_free(wm8994->num_supplies, wm8994->supplies);
-	kfree(wm8994->supplies);
 	regmap_exit(wm8994->regmap);
-	kfree(wm8994);
 }
+
+static const struct of_device_id wm8994_of_match[] = {
+	{ .compatible = "wlf,wm1811", },
+	{ .compatible = "wlf,wm8994", },
+	{ .compatible = "wlf,wm8958", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wm8994_of_match);
 
 static int wm8994_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
@@ -588,7 +605,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	struct wm8994 *wm8994;
 	int ret;
 
-	wm8994 = kzalloc(sizeof(struct wm8994), GFP_KERNEL);
+	wm8994 = devm_kzalloc(&i2c->dev, sizeof(struct wm8994), GFP_KERNEL);
 	if (wm8994 == NULL)
 		return -ENOMEM;
 
@@ -597,12 +614,11 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	wm8994->irq = i2c->irq;
 	wm8994->type = id->driver_data;
 
-	wm8994->regmap = regmap_init_i2c(i2c, &wm8994_regmap_config);
+	wm8994->regmap = regmap_init_i2c(i2c, &wm8994_base_regmap_config);
 	if (IS_ERR(wm8994->regmap)) {
 		ret = PTR_ERR(wm8994->regmap);
 		dev_err(wm8994->dev, "Failed to allocate register map: %d\n",
 			ret);
-		kfree(wm8994);
 		return ret;
 	}
 
@@ -620,6 +636,7 @@ static int wm8994_i2c_remove(struct i2c_client *i2c)
 
 static const struct i2c_device_id wm8994_i2c_id[] = {
 	{ "wm1811", WM1811 },
+	{ "wm1811a", WM1811 },
 	{ "wm8994", WM8994 },
 	{ "wm8958", WM8958 },
 	{ }
@@ -634,6 +651,7 @@ static struct i2c_driver wm8994_i2c_driver = {
 		.name = "wm8994",
 		.owner = THIS_MODULE,
 		.pm = &wm8994_pm_ops,
+		.of_match_table = wm8994_of_match,
 	},
 	.probe = wm8994_i2c_probe,
 	.remove = wm8994_i2c_remove,

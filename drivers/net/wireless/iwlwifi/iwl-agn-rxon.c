@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -549,7 +549,7 @@ void iwlagn_config_ht40(struct ieee80211_conf *conf,
 
 int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 {
-	struct iwl_priv *priv = hw->priv;
+	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_rxon_context *ctx;
 	struct ieee80211_conf *conf = &hw->conf;
 	struct ieee80211_channel *channel = conf->channel;
@@ -805,7 +805,7 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			     struct ieee80211_bss_conf *bss_conf,
 			     u32 changes)
 {
-	struct iwl_priv *priv = hw->priv;
+	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
 	int ret;
 	bool force = false;
@@ -898,6 +898,22 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 			priv->beacon_ctx = NULL;
 		}
+	}
+
+	/*
+	 * If the ucode decides to do beacon filtering before
+	 * association, it will lose beacons that are needed
+	 * before sending frames out on passive channels. This
+	 * causes association failures on those channels. Enable
+	 * receiving beacons in such cases.
+	 */
+
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		if (!bss_conf->assoc)
+			ctx->staging.filter_flags |= RXON_FILTER_BCON_AWARE_MSK;
+		else
+			ctx->staging.filter_flags &=
+						    ~RXON_FILTER_BCON_AWARE_MSK;
 	}
 
 	if (force || memcmp(&ctx->staging, &ctx->active, sizeof(ctx->staging)))

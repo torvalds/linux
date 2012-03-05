@@ -2458,23 +2458,4 @@ static int imon_resume(struct usb_interface *intf)
 	return rc;
 }
 
-static int __init imon_init(void)
-{
-	int rc;
-
-	rc = usb_register(&imon_driver);
-	if (rc) {
-		pr_err("usb register failed(%d)\n", rc);
-		rc = -ENODEV;
-	}
-
-	return rc;
-}
-
-static void __exit imon_exit(void)
-{
-	usb_deregister(&imon_driver);
-}
-
-module_init(imon_init);
-module_exit(imon_exit);
+module_usb_driver(imon_driver);

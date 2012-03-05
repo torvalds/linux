@@ -342,16 +342,9 @@ asmlinkage long compat_sys_fstatfs64(unsigned int fd, compat_size_t sz, struct c
  */
 asmlinkage long compat_sys_ustat(unsigned dev, struct compat_ustat __user *u)
 {
-	struct super_block *sb;
 	struct compat_ustat tmp;
 	struct kstatfs sbuf;
-	int err;
-
-	sb = user_get_super(new_decode_dev(dev));
-	if (!sb)
-		return -EINVAL;
-	err = statfs_by_dentry(sb->s_root, &sbuf);
-	drop_super(sb);
+	int err = vfs_ustat(new_decode_dev(dev), &sbuf);
 	if (err)
 		return err;
 
@@ -1288,7 +1281,7 @@ compat_sys_vmsplice(int fd, const struct compat_iovec __user *iov32,
  * O_LARGEFILE flag.
  */
 asmlinkage long
-compat_sys_open(const char __user *filename, int flags, int mode)
+compat_sys_open(const char __user *filename, int flags, umode_t mode)
 {
 	return do_sys_open(AT_FDCWD, filename, flags, mode);
 }
@@ -1298,7 +1291,7 @@ compat_sys_open(const char __user *filename, int flags, int mode)
  * O_LARGEFILE flag.
  */
 asmlinkage long
-compat_sys_openat(unsigned int dfd, const char __user *filename, int flags, int mode)
+compat_sys_openat(unsigned int dfd, const char __user *filename, int flags, umode_t mode)
 {
 	return do_sys_open(dfd, filename, flags, mode);
 }

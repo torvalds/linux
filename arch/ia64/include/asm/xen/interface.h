@@ -71,7 +71,7 @@
 __DEFINE_GUEST_HANDLE(uchar, unsigned char);
 __DEFINE_GUEST_HANDLE(uint, unsigned int);
 __DEFINE_GUEST_HANDLE(ulong, unsigned long);
-__DEFINE_GUEST_HANDLE(u64, unsigned long);
+
 DEFINE_GUEST_HANDLE(char);
 DEFINE_GUEST_HANDLE(int);
 DEFINE_GUEST_HANDLE(long);

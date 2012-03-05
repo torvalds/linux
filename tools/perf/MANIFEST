@@ -1,4 +1,5 @@
 tools/perf
+include/linux/const.h
 include/linux/perf_event.h
 include/linux/rbtree.h
 include/linux/list.h

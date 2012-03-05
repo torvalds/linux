@@ -488,7 +488,7 @@ static int __init qi_lb60_board_setup(void)
 	board_gpio_setup();
 
 	if (qi_lb60_init_platform_devices())
-		panic("Failed to initialize platform devices\n");
+		panic("Failed to initialize platform devices");
 
 	return 0;
 }

@@ -12,7 +12,6 @@ config MPC5121_ADS
 	bool "Freescale MPC5121E ADS"
 	depends on PPC_MPC512x
 	select DEFAULT_UIMAGE
-	select MPC5121_ADS_CPLD
 	help
 	  This option enables support for the MPC5121E ADS board.
 

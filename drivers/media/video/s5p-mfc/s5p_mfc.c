@@ -18,7 +18,6 @@
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 #include <linux/videodev2.h>
 #include <linux/workqueue.h>
 #include <media/videobuf2-core.h>
@@ -475,7 +474,7 @@ static void s5p_mfc_handle_seq_done(struct s5p_mfc_ctx *ctx,
 			ctx->mv_size = 0;
 		}
 		ctx->dpb_count = s5p_mfc_get_dpb_count();
-		if (ctx->img_width == 0 || ctx->img_width == 0)
+		if (ctx->img_width == 0 || ctx->img_height == 0)
 			ctx->state = MFCINST_ERROR;
 		else
 			ctx->state = MFCINST_HEAD_PARSED;
@@ -1245,27 +1244,7 @@ static struct platform_driver s5p_mfc_driver = {
 	},
 };
 
-static char banner[] __initdata =
-			"S5P MFC V4L2 Driver, (C) 2011 Samsung Electronics\n";
-
-static int __init s5p_mfc_init(void)
-{
-	int ret;
-
-	pr_info("%s", banner);
-	ret = platform_driver_register(&s5p_mfc_driver);
-	if (ret)
-		pr_err("Platform device registration failed.\n");
-	return ret;
-}
-
-static void __exit s5p_mfc_exit(void)
-{
-	platform_driver_unregister(&s5p_mfc_driver);
-}
-
-module_init(s5p_mfc_init);
-module_exit(s5p_mfc_exit);
+module_platform_driver(s5p_mfc_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kamil Debski <k.debski@samsung.com>");
