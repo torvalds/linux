@@ -397,6 +397,9 @@ struct request_queue {
 	struct bsg_class_device bsg_dev;
 #endif
 
+#ifdef CONFIG_BLK_CGROUP
+	struct list_head	all_q_node;
+#endif
 #ifdef CONFIG_BLK_DEV_THROTTLING
 	/* Throttle data */
 	struct throtl_data *td;

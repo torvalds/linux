@@ -27,6 +27,9 @@
 static DEFINE_SPINLOCK(blkio_list_lock);
 static LIST_HEAD(blkio_list);
 
+static DEFINE_MUTEX(all_q_mutex);
+static LIST_HEAD(all_q_list);
+
 struct blkio_cgroup blkio_root_cgroup = { .weight = 2*BLKIO_WEIGHT_DEFAULT };
 EXPORT_SYMBOL_GPL(blkio_root_cgroup);
 
@@ -1472,9 +1475,20 @@ done:
  */
 int blkcg_init_queue(struct request_queue *q)
 {
+	int ret;
+
 	might_sleep();
 
-	return blk_throtl_init(q);
+	ret = blk_throtl_init(q);
+	if (ret)
+		return ret;
+
+	mutex_lock(&all_q_mutex);
+	INIT_LIST_HEAD(&q->all_q_node);
+	list_add_tail(&q->all_q_node, &all_q_list);
+	mutex_unlock(&all_q_mutex);
+
+	return 0;
 }
 
 /**
@@ -1498,6 +1512,10 @@ void blkcg_drain_queue(struct request_queue *q)
  */
 void blkcg_exit_queue(struct request_queue *q)
 {
+	mutex_lock(&all_q_mutex);
+	list_del_init(&q->all_q_node);
+	mutex_unlock(&all_q_mutex);
+
 	blk_throtl_exit(q);
 }
 
@@ -1543,8 +1561,33 @@ static void blkiocg_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
 	}
 }
 
+static void blkcg_bypass_start(void)
+	__acquires(&all_q_mutex)
+{
+	struct request_queue *q;
+
+	mutex_lock(&all_q_mutex);
+
+	list_for_each_entry(q, &all_q_list, all_q_node) {
+		blk_queue_bypass_start(q);
+		blkg_destroy_all(q);
+	}
+}
+
+static void blkcg_bypass_end(void)
+	__releases(&all_q_mutex)
+{
+	struct request_queue *q;
+
+	list_for_each_entry(q, &all_q_list, all_q_node)
+		blk_queue_bypass_end(q);
+
+	mutex_unlock(&all_q_mutex);
+}
+
 void blkio_policy_register(struct blkio_policy_type *blkiop)
 {
+	blkcg_bypass_start();
 	spin_lock(&blkio_list_lock);
 
 	BUG_ON(blkio_policy[blkiop->plid]);
@@ -1552,11 +1595,13 @@ void blkio_policy_register(struct blkio_policy_type *blkiop)
 	list_add_tail(&blkiop->list, &blkio_list);
 
 	spin_unlock(&blkio_list_lock);
+	blkcg_bypass_end();
 }
 EXPORT_SYMBOL_GPL(blkio_policy_register);
 
 void blkio_policy_unregister(struct blkio_policy_type *blkiop)
 {
+	blkcg_bypass_start();
 	spin_lock(&blkio_list_lock);
 
 	BUG_ON(blkio_policy[blkiop->plid] != blkiop);
@@ -1564,5 +1609,6 @@ void blkio_policy_unregister(struct blkio_policy_type *blkiop)
 	list_del_init(&blkiop->list);
 
 	spin_unlock(&blkio_list_lock);
+	blkcg_bypass_end();
 }
 EXPORT_SYMBOL_GPL(blkio_policy_unregister);
