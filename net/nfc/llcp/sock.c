@@ -315,6 +315,7 @@ static int llcp_sock_release(struct socket *sock)
 	struct sock *sk = sock->sk;
 	struct nfc_llcp_local *local;
 	struct nfc_llcp_sock *llcp_sock = nfc_llcp_sock(sk);
+	int err = 0;
 
 	if (!sk)
 		return 0;
@@ -322,15 +323,17 @@ static int llcp_sock_release(struct socket *sock)
 	pr_debug("%p\n", sk);
 
 	local = llcp_sock->local;
-	if (local == NULL)
-		return -ENODEV;
+	if (local == NULL) {
+		err = -ENODEV;
+		goto out;
+	}
 
 	mutex_lock(&local->socket_lock);
 
 	if (llcp_sock == local->sockets[llcp_sock->ssap])
 		local->sockets[llcp_sock->ssap] = NULL;
 	else
-		list_del(&llcp_sock->list);
+		list_del_init(&llcp_sock->list);
 
 	mutex_unlock(&local->socket_lock);
 
@@ -354,9 +357,7 @@ static int llcp_sock_release(struct socket *sock)
 
 			release_sock(accept_sk);
 
-			sock_set_flag(sk, SOCK_DEAD);
 			sock_orphan(accept_sk);
-			sock_put(accept_sk);
 		}
 	}
 
@@ -367,14 +368,13 @@ static int llcp_sock_release(struct socket *sock)
 	    sk->sk_state == LLCP_LISTEN)
 		nfc_llcp_put_ssap(llcp_sock->local, llcp_sock->ssap);
 
-	sock_set_flag(sk, SOCK_DEAD);
-
 	release_sock(sk);
 
+out:
 	sock_orphan(sk);
 	sock_put(sk);
 
-	return 0;
+	return err;
 }
 
 static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
@@ -645,6 +645,8 @@ struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp)
 
 void nfc_llcp_sock_free(struct nfc_llcp_sock *sock)
 {
+	struct nfc_llcp_local *local = sock->local;
+
 	kfree(sock->service_name);
 
 	skb_queue_purge(&sock->tx_queue);
@@ -652,6 +654,11 @@ void nfc_llcp_sock_free(struct nfc_llcp_sock *sock)
 	skb_queue_purge(&sock->tx_backlog_queue);
 
 	list_del_init(&sock->accept_queue);
+
+	if (local != NULL && sock == local->sockets[sock->ssap])
+		local->sockets[sock->ssap] = NULL;
+	else
+		list_del_init(&sock->list);
 
 	sock->parent = NULL;
 }

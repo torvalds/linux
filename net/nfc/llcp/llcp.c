@@ -47,7 +47,7 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local)
 
 		/* Release all child sockets */
 		list_for_each_entry_safe(s, n, &parent->list, list) {
-			list_del(&s->list);
+			list_del_init(&s->list);
 			sk = &s->sk;
 
 			lock_sock(sk);
@@ -56,9 +56,12 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local)
 				nfc_put_device(s->dev);
 
 			sk->sk_state = LLCP_CLOSED;
-			sock_set_flag(sk, SOCK_DEAD);
 
 			release_sock(sk);
+
+			sock_orphan(sk);
+
+			s->local = NULL;
 		}
 
 		parent_sk = &parent->sk;
@@ -77,11 +80,12 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local)
 				nfc_llcp_accept_unlink(accept_sk);
 
 				accept_sk->sk_state = LLCP_CLOSED;
-				sock_set_flag(accept_sk, SOCK_DEAD);
 
 				release_sock(accept_sk);
 
 				sock_orphan(accept_sk);
+
+				lsk->local = NULL;
 			}
 		}
 
@@ -89,9 +93,12 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local)
 			nfc_put_device(parent->dev);
 
 		parent_sk->sk_state = LLCP_CLOSED;
-		sock_set_flag(parent_sk, SOCK_DEAD);
 
 		release_sock(parent_sk);
+
+		sock_orphan(parent_sk);
+
+		parent->local = NULL;
 	}
 
 	mutex_unlock(&local->socket_lock);
