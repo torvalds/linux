@@ -478,13 +478,8 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	rs_flush_buffer(tty);
 	tty_ldisc_flush(tty);
 	port->tty = NULL;
-	if (port->blocked_open) {
-		if (port->close_delay)
-			schedule_timeout_interruptible(port->close_delay);
-		wake_up_interruptible(&port->open_wait);
-	}
-	port->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
-	wake_up_interruptible(&port->close_wait);
+
+	tty_port_close_end(port, tty);
 }
 
 /*
@@ -706,6 +701,9 @@ static const struct tty_operations hp_ops = {
 	.proc_fops = &rs_proc_fops,
 };
 
+static const struct tty_port_operations hp_port_ops = {
+};
+
 /*
  * The serial driver boot-time initialization code!
  */
@@ -742,6 +740,7 @@ static int __init simrs_init(void)
 	 */
 	state = rs_table;
 	tty_port_init(&state->port);
+	state->port.ops = &hp_port_ops;
 	state->port.close_delay = 0; /* XXX really 0? */
 
 	retval = hpsim_get_irq(KEYBOARD_INTR);
