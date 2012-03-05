@@ -1433,6 +1433,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	 * the line discipline to only process XON/XOFF characters.
 	 */
 	tty->closing = 1;
+	local_irq_restore(flags);
 	if (port->closing_wait != ASYNC_CLOSING_WAIT_NONE)
 		tty_wait_until_sent(tty, port->closing_wait);
 	/*
@@ -1461,17 +1462,9 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 	rs_flush_buffer(tty);
 		
 	tty_ldisc_flush(tty);
-	tty->closing = 0;
 	port->tty = NULL;
-	if (port->blocked_open) {
-		if (port->close_delay) {
-			msleep_interruptible(jiffies_to_msecs(port->close_delay));
-		}
-		wake_up_interruptible(&port->open_wait);
-	}
-	port->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
-	wake_up_interruptible(&port->close_wait);
-	local_irq_restore(flags);
+
+	tty_port_close_end(port, tty);
 }
 
 /*
