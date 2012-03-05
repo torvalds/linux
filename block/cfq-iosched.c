@@ -1225,10 +1225,11 @@ static void cfq_destroy_cfqg(struct cfq_data *cfqd, struct cfq_group *cfqg)
 	cfq_put_cfqg(cfqg);
 }
 
-static void cfq_release_cfq_groups(struct cfq_data *cfqd)
+static bool cfq_release_cfq_groups(struct cfq_data *cfqd)
 {
 	struct hlist_node *pos, *n;
 	struct cfq_group *cfqg;
+	bool empty = true;
 
 	hlist_for_each_entry_safe(cfqg, pos, n, &cfqd->cfqg_list, cfqd_node) {
 		/*
@@ -1238,7 +1239,10 @@ static void cfq_release_cfq_groups(struct cfq_data *cfqd)
 		 */
 		if (!cfq_blkiocg_del_blkio_group(&cfqg->blkg))
 			cfq_destroy_cfqg(cfqd, cfqg);
+		else
+			empty = false;
 	}
+	return empty;
 }
 
 /*
@@ -1263,6 +1267,19 @@ static void cfq_unlink_blkio_group(void *key, struct blkio_group *blkg)
 	spin_lock_irqsave(cfqd->queue->queue_lock, flags);
 	cfq_destroy_cfqg(cfqd, cfqg_of_blkg(blkg));
 	spin_unlock_irqrestore(cfqd->queue->queue_lock, flags);
+}
+
+static struct elevator_type iosched_cfq;
+
+static bool cfq_clear_queue(struct request_queue *q)
+{
+	lockdep_assert_held(q->queue_lock);
+
+	/* shoot down blkgs iff the current elevator is cfq */
+	if (!q->elevator || q->elevator->type != &iosched_cfq)
+		return true;
+
+	return cfq_release_cfq_groups(q->elevator->elevator_data);
 }
 
 #else /* GROUP_IOSCHED */
@@ -3875,6 +3892,7 @@ static struct elevator_type iosched_cfq = {
 static struct blkio_policy_type blkio_policy_cfq = {
 	.ops = {
 		.blkio_unlink_group_fn =	cfq_unlink_blkio_group,
+		.blkio_clear_queue_fn = cfq_clear_queue,
 		.blkio_update_group_weight_fn =	cfq_update_blkio_group_weight,
 	},
 	.plid = BLKIO_POLICY_PROP,

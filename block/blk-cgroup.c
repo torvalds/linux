@@ -17,8 +17,9 @@
 #include <linux/err.h>
 #include <linux/blkdev.h>
 #include <linux/slab.h>
-#include "blk-cgroup.h"
 #include <linux/genhd.h>
+#include <linux/delay.h>
+#include "blk-cgroup.h"
 
 #define MAX_KEY_LEN 100
 
@@ -545,6 +546,37 @@ struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg, void *key)
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(blkiocg_lookup_group);
+
+void blkg_destroy_all(struct request_queue *q)
+{
+	struct blkio_policy_type *pol;
+
+	while (true) {
+		bool done = true;
+
+		spin_lock(&blkio_list_lock);
+		spin_lock_irq(q->queue_lock);
+
+		/*
+		 * clear_queue_fn() might return with non-empty group list
+		 * if it raced cgroup removal and lost.  cgroup removal is
+		 * guaranteed to make forward progress and retrying after a
+		 * while is enough.  This ugliness is scheduled to be
+		 * removed after locking update.
+		 */
+		list_for_each_entry(pol, &blkio_list, list)
+			if (!pol->ops.blkio_clear_queue_fn(q))
+				done = false;
+
+		spin_unlock_irq(q->queue_lock);
+		spin_unlock(&blkio_list_lock);
+
+		if (done)
+			break;
+
+		msleep(10);	/* just some random duration I like */
+	}
+}
 
 static void blkio_reset_stats_cpu(struct blkio_group *blkg)
 {

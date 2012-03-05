@@ -989,12 +989,17 @@ throtl_destroy_tg(struct throtl_data *td, struct throtl_grp *tg)
 	td->nr_undestroyed_grps--;
 }
 
-static void throtl_release_tgs(struct throtl_data *td)
+static bool throtl_release_tgs(struct throtl_data *td, bool release_root)
 {
 	struct hlist_node *pos, *n;
 	struct throtl_grp *tg;
+	bool empty = true;
 
 	hlist_for_each_entry_safe(tg, pos, n, &td->tg_list, tg_node) {
+		/* skip root? */
+		if (!release_root && tg == td->root_tg)
+			continue;
+
 		/*
 		 * If cgroup removal path got to blk_group first and removed
 		 * it from cgroup list, then it will take care of destroying
@@ -1002,7 +1007,10 @@ static void throtl_release_tgs(struct throtl_data *td)
 		 */
 		if (!blkiocg_del_blkio_group(&tg->blkg))
 			throtl_destroy_tg(td, tg);
+		else
+			empty = false;
 	}
+	return empty;
 }
 
 /*
@@ -1027,6 +1035,20 @@ void throtl_unlink_blkio_group(void *key, struct blkio_group *blkg)
 	spin_lock_irqsave(td->queue->queue_lock, flags);
 	throtl_destroy_tg(td, tg_of_blkg(blkg));
 	spin_unlock_irqrestore(td->queue->queue_lock, flags);
+}
+
+static bool throtl_clear_queue(struct request_queue *q)
+{
+	lockdep_assert_held(q->queue_lock);
+
+	/*
+	 * Clear tgs but leave the root one alone.  This is necessary
+	 * because root_tg is expected to be persistent and safe because
+	 * blk-throtl can never be disabled while @q is alive.  This is a
+	 * kludge to prepare for unified blkg.  This whole function will be
+	 * removed soon.
+	 */
+	return throtl_release_tgs(q->td, false);
 }
 
 static void throtl_update_blkio_group_common(struct throtl_data *td,
@@ -1097,6 +1119,7 @@ static void throtl_shutdown_wq(struct request_queue *q)
 static struct blkio_policy_type blkio_policy_throtl = {
 	.ops = {
 		.blkio_unlink_group_fn = throtl_unlink_blkio_group,
+		.blkio_clear_queue_fn = throtl_clear_queue,
 		.blkio_update_group_read_bps_fn =
 					throtl_update_blkio_group_read_bps,
 		.blkio_update_group_write_bps_fn =
@@ -1282,7 +1305,7 @@ void blk_throtl_exit(struct request_queue *q)
 	throtl_shutdown_wq(q);
 
 	spin_lock_irq(q->queue_lock);
-	throtl_release_tgs(td);
+	throtl_release_tgs(td, true);
 
 	/* If there are other groups */
 	if (td->nr_undestroyed_grps > 0)

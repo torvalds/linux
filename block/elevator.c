@@ -38,6 +38,7 @@
 #include <trace/events/block.h>
 
 #include "blk.h"
+#include "blk-cgroup.h"
 
 static DEFINE_SPINLOCK(elv_list_lock);
 static LIST_HEAD(elv_list);
@@ -893,6 +894,8 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	spin_lock_irq(q->queue_lock);
 	ioc_clear_queue(q);
 	spin_unlock_irq(q->queue_lock);
+
+	blkg_destroy_all(q);
 
 	/* allocate, init and register new elevator */
 	err = -ENOMEM;
