@@ -816,7 +816,7 @@ static int iwl_nic_init(struct iwl_trans *trans)
 
 	iwl_set_pwr_vmain(trans);
 
-	iwl_nic_config(priv(trans));
+	iwl_op_mode_nic_config(trans->op_mode);
 
 #ifndef CONFIG_IWLWIFI_IDI
 	/* Allocate the RX queue, or reset if it is already allocated */

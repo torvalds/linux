@@ -418,7 +418,6 @@ enum iwl_rxon_context_id {
 };
 
 int iwlagn_hw_valid_rtc_data_addr(u32 addr);
-void iwl_nic_config(struct iwl_priv *priv);
 const char *get_cmd_string(u8 cmd);
 
 #define IWL_CMD(x) case x: return #x

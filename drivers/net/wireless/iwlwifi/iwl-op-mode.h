@@ -123,6 +123,8 @@ struct iwl_fw;
  *	Must be atomic
  * @nic_error: error notification. Must be atomic
  * @cmd_queue_full: Called when the command queue gets full. Must be atomic.
+ * @nic_config: configure NIC, called before firmware is started.
+ *	May sleep
  */
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans,
@@ -136,6 +138,7 @@ struct iwl_op_mode_ops {
 	void (*free_skb)(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 	void (*nic_error)(struct iwl_op_mode *op_mode);
 	void (*cmd_queue_full)(struct iwl_op_mode *op_mode);
+	void (*nic_config)(struct iwl_op_mode *op_mode);
 };
 
 /**
@@ -197,6 +200,12 @@ static inline void iwl_op_mode_nic_error(struct iwl_op_mode *op_mode)
 static inline void iwl_op_mode_cmd_queue_full(struct iwl_op_mode *op_mode)
 {
 	op_mode->ops->cmd_queue_full(op_mode);
+}
+
+static inline void iwl_op_mode_nic_config(struct iwl_op_mode *op_mode)
+{
+	might_sleep();
+	op_mode->ops->nic_config(op_mode);
 }
 
 /*****************************************************

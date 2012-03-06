@@ -1422,6 +1422,13 @@ static void iwl_cmd_queue_full(struct iwl_op_mode *op_mode)
 	}
 }
 
+static void iwl_nic_config(struct iwl_op_mode *op_mode)
+{
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
+	cfg(priv)->lib->nic_config(priv);
+}
+
 const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.start = iwl_op_mode_dvm_start,
 	.stop = iwl_op_mode_dvm_stop,
@@ -1432,6 +1439,7 @@ const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.free_skb = iwl_free_skb,
 	.nic_error = iwl_nic_error,
 	.cmd_queue_full = iwl_cmd_queue_full,
+	.nic_config = iwl_nic_config,
 };
 
 /*****************************************************************************

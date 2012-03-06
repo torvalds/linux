@@ -1468,11 +1468,6 @@ void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 	wiphy_rfkill_set_hw_state(priv->hw->wiphy, state);
 }
 
-void iwl_nic_config(struct iwl_priv *priv)
-{
-	cfg(priv)->lib->nic_config(priv);
-}
-
 void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
