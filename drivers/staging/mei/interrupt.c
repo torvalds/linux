@@ -652,6 +652,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 		} else {
 			dev->version = version_res->me_max_version;
 			/* send stop message */
+			mei_hdr = (struct mei_msg_hdr *)&dev->wr_msg_buf[0];
 			mei_hdr->host_addr = 0;
 			mei_hdr->me_addr = 0;
 			mei_hdr->length = sizeof(struct hbm_host_stop_request);
