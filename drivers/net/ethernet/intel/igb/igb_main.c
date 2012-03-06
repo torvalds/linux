@@ -1964,6 +1964,8 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 				 NETIF_F_IPV6_CSUM |
 				 NETIF_F_SG;
 
+	netdev->priv_flags |= IFF_SUPP_NOFCS;
+
 	if (pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;
 		netdev->vlan_features |= NETIF_F_HIGHDMA;
@@ -4293,6 +4295,8 @@ static void igb_tx_map(struct igb_ring *tx_ring,
 
 	/* write last descriptor with RS and EOP bits */
 	cmd_type |= cpu_to_le32(size) | cpu_to_le32(IGB_TXD_DCMD);
+	if (unlikely(skb->no_fcs))
+		cmd_type &= ~(cpu_to_le32(E1000_ADVTXD_DCMD_IFCS));
 	tx_desc->read.cmd_type_len = cmd_type;
 
 	/* set the timestamp */
