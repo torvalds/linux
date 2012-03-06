@@ -304,7 +304,7 @@ static int pl330_alloc_chan_resources(struct dma_chan *chan)
 
 	spin_lock_irqsave(&pch->lock, flags);
 
-	chan->completed_cookie = chan->cookie = 1;
+	dma_cookie_init(chan);
 	pch->cyclic = false;
 
 	pch->pl330_chid = pl330_request_channel(&pdmac->pif);

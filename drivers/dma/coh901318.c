@@ -915,7 +915,7 @@ static int coh901318_alloc_chan_resources(struct dma_chan *chan)
 	coh901318_config(cohc, NULL);
 
 	cohc->allocated = 1;
-	chan->completed_cookie = chan->cookie = 1;
+	dma_cookie_init(chan);
 
 	spin_unlock_irqrestore(&cohc->lock, flags);
 

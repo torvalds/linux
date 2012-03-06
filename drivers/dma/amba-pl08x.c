@@ -1709,8 +1709,7 @@ static int pl08x_dma_init_virtual_channels(struct pl08x_driver_data *pl08x,
 			 chan->name);
 
 		chan->chan.device = dmadev;
-		chan->chan.cookie = 0;
-		chan->chan.completed_cookie = 0;
+		dma_cookie_init(&chan->chan);
 
 		spin_lock_init(&chan->lock);
 		INIT_LIST_HEAD(&chan->pend_list);

@@ -1021,7 +1021,7 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 		return -EIO;
 	}
 
-	chan->completed_cookie = chan->cookie = 1;
+	dma_cookie_init(chan);
 
 	/*
 	 * NOTE: some controllers may have additional features that we
@@ -1449,7 +1449,7 @@ static int __init dw_probe(struct platform_device *pdev)
 		struct dw_dma_chan	*dwc = &dw->chan[i];
 
 		dwc->chan.device = &dw->dma;
-		dwc->chan.cookie = dwc->chan.completed_cookie = 1;
+		dma_cookie_init(&dwc->chan);
 		if (pdata->chan_allocation_order == CHAN_ALLOCATION_ASCENDING)
 			list_add_tail(&dwc->chan.device_node,
 					&dw->dma.channels);

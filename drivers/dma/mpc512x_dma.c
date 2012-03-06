@@ -733,8 +733,7 @@ static int __devinit mpc_dma_probe(struct platform_device *op)
 		mchan = &mdma->channels[i];
 
 		mchan->chan.device = dma;
-		mchan->chan.cookie = 1;
-		mchan->chan.completed_cookie = mchan->chan.cookie;
+		dma_cookie_init(&mchan->chan);
 
 		INIT_LIST_HEAD(&mchan->free);
 		INIT_LIST_HEAD(&mchan->prepared);

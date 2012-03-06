@@ -854,8 +854,7 @@ static int ep93xx_dma_alloc_chan_resources(struct dma_chan *chan)
 		goto fail_clk_disable;
 
 	spin_lock_irq(&edmac->lock);
-	edmac->chan.completed_cookie = 1;
-	edmac->chan.cookie = 1;
+	dma_cookie_init(&edmac->chan);
 	ret = edmac->edma->hw_setup(edmac);
 	spin_unlock_irq(&edmac->lock);
 

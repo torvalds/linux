@@ -2172,7 +2172,7 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 	bool is_free_phy;
 	spin_lock_irqsave(&d40c->lock, flags);
 
-	chan->completed_cookie = chan->cookie = 1;
+	dma_cookie_init(chan);
 
 	/* If no dma configuration is set use default configuration (memcpy) */
 	if (!d40c->configured) {

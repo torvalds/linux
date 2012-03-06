@@ -477,8 +477,7 @@ static int td_alloc_chan_resources(struct dma_chan *chan)
 	}
 
 	spin_lock_bh(&td_chan->lock);
-	chan->completed_cookie = 1;
-	chan->cookie = 1;
+	dma_cookie_init(chan);
 	spin_unlock_bh(&td_chan->lock);
 
 	return 0;
@@ -755,7 +754,7 @@ static int __devinit td_probe(struct platform_device *pdev)
 		}
 
 		td_chan->chan.device = &td->dma;
-		td_chan->chan.cookie = 1;
+		dma_cookie_init(&td_chan->chan);
 		spin_lock_init(&td_chan->lock);
 		INIT_LIST_HEAD(&td_chan->active_list);
 		INIT_LIST_HEAD(&td_chan->queue);

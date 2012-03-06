@@ -9,6 +9,16 @@
 #include <linux/dmaengine.h>
 
 /**
+ * dma_cookie_init - initialize the cookies for a DMA channel
+ * @chan: dma channel to initialize
+ */
+static inline void dma_cookie_init(struct dma_chan *chan)
+{
+	chan->cookie = DMA_MIN_COOKIE;
+	chan->completed_cookie = DMA_MIN_COOKIE;
+}
+
+/**
  * dma_cookie_assign - assign a DMA engine cookie to the descriptor
  * @tx: descriptor needing cookie
  *
