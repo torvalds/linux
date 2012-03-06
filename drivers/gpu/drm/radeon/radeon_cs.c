@@ -453,6 +453,10 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	int r;
 
 	radeon_mutex_lock(&rdev->cs_mutex);
+	if (!rdev->accel_working) {
+		radeon_mutex_unlock(&rdev->cs_mutex);
+		return -EBUSY;
+	}
 	/* initialize parser */
 	memset(&parser, 0, sizeof(struct radeon_cs_parser));
 	parser.filp = filp;
