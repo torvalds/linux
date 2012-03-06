@@ -33,7 +33,6 @@
 #include <mach/common.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/time.h>
 #include <asm/hardware/gic.h>
 #include <asm/traps.h>
 
@@ -91,17 +90,6 @@ static void __init marzen_init(void)
 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
 }
 
-static void __init marzen_timer_init(void)
-{
-	r8a7779_clock_init();
-	shmobile_timer.init();
-	return;
-}
-
-struct sys_timer marzen_timer = {
-	.init	= marzen_timer_init,
-};
-
 MACHINE_START(MARZEN, "marzen")
 	.map_io		= r8a7779_map_io,
 	.init_early	= r8a7779_add_early_devices,
@@ -109,5 +97,5 @@ MACHINE_START(MARZEN, "marzen")
 	.init_irq	= r8a7779_init_irq,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= marzen_init,
-	.timer		= &marzen_timer,
+	.timer		= &shmobile_timer,
 MACHINE_END

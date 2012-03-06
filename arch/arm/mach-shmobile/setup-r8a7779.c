@@ -33,6 +33,7 @@
 #include <mach/common.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/time.h>
 #include <asm/mach/map.h>
 #include <asm/hardware/cache-l2x0.h>
 
@@ -260,6 +261,12 @@ void __init r8a7779_add_standard_devices(void)
 			    ARRAY_SIZE(r8a7779_late_devices));
 }
 
+static void __init r8a7779_earlytimer_init(void)
+{
+	r8a7779_clock_init();
+	shmobile_earlytimer_init();
+}
+
 void __init r8a7779_add_early_devices(void)
 {
 	early_platform_add_devices(r8a7779_early_devices,
@@ -280,4 +287,7 @@ void __init r8a7779_add_early_devices(void)
 	 * As a final step pass earlyprint=sh-sci.2,115200 on the kernel
 	 * command line in case of the marzen board.
 	 */
+
+	/* override timer setup with soc-specific code */
+	shmobile_timer.init = r8a7779_earlytimer_init;
 }
