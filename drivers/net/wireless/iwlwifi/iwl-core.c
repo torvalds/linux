@@ -1340,7 +1340,7 @@ void iwl_bg_watchdog(unsigned long data)
 	if (iwl_is_rfkill(priv->shrd))
 		return;
 
-	timeout = cfg(priv)->base_params->wd_timeout;
+	timeout = hw_params(priv).wd_timeout;
 	if (timeout == 0)
 		return;
 
@@ -1355,7 +1355,7 @@ void iwl_bg_watchdog(unsigned long data)
 
 void iwl_setup_watchdog(struct iwl_priv *priv)
 {
-	unsigned int timeout = cfg(priv)->base_params->wd_timeout;
+	unsigned int timeout = hw_params(priv).wd_timeout;
 
 	if (!iwlagn_mod_params.wd_disable) {
 		/* use system default */

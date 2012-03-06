@@ -2368,7 +2368,7 @@ static ssize_t iwl_dbgfs_wd_timeout_write(struct file *file,
 	if (timeout < 0 || timeout > IWL_MAX_WD_TIMEOUT)
 		timeout = IWL_DEF_WD_TIMEOUT;
 
-	cfg(priv)->base_params->wd_timeout = timeout;
+	hw_params(priv).wd_timeout = timeout;
 	iwl_setup_watchdog(priv);
 	return count;
 }
