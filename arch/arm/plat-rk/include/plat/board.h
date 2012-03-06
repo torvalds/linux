@@ -105,6 +105,13 @@ struct goodix_platform_data {
     void    (*exit_platform_hw)(void);
 };
 
+struct cm3217_platform_data {
+	int irq_pin;
+	int power_pin;
+	int     (*init_platform_hw)(void);
+	void    (*exit_platform_hw)(void);
+};
+
 
 
 #define BOOT_MODE_NORMAL		0

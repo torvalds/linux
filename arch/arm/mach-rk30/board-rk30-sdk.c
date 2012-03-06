@@ -396,6 +396,48 @@ static struct l3g4200d_platform_data l3g4200d_info = {
 
 #endif
 
+#ifdef CONFIG_LS_CM3217
+
+#define CM3217_POWER_PIN 	INVALID_GPIO
+#define CM3217_IRQ_PIN		INVALID_GPIO
+static int cm3217_init_hw(void)
+{
+#if 0
+	if (gpio_request(CM3217_POWER_PIN, NULL) != 0) {
+	gpio_free(CM3217_POWER_PIN);
+	printk("%s: request cm3217 power pin error\n", __func__);
+	return -EIO;
+	}
+	gpio_pull_updown(CM3217_POWER_PIN, PullDisable);
+
+	if (gpio_request(CM3217_IRQ_PIN, NULL) != 0) {
+	gpio_free(CM3217_IRQ_PIN);
+	printk("%s: request cm3217 int pin error\n", __func__);
+	return -EIO;
+	}
+	gpio_pull_updown(CM3217_IRQ_PIN, PullDisable);
+#endif
+	return 0;
+}
+
+static void cm3217_exit_hw(void)
+{
+#if 0
+	gpio_free(CM3217_POWER_PIN);
+	gpio_free(CM3217_IRQ_PIN);
+#endif
+	return;
+}
+
+struct cm3217_platform_data cm3217_info = {
+	.irq_pin = CM3217_IRQ_PIN,
+	.power_pin = CM3217_POWER_PIN,
+	.init_platform_hw = cm3217_init_hw,
+	.exit_platform_hw = cm3217_exit_hw,
+};
+#endif
+
+
 
 #ifdef CONFIG_FB_ROCKCHIP
 static struct resource resource_fb[] = {
@@ -497,6 +539,15 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 				.irq		=RK30_PIN4_PC2,
 				.platform_data = &goodix_info,
 		    },
+#endif
+#if defined (CONFIG_LS_CM3217)
+	{
+		.type           = "lightsensor",
+		.addr           = 0x20,
+		.flags          = 0,
+		.irq            = CM3217_IRQ_PIN,
+		.platform_data  = &cm3217_info,
+	},
 #endif
 
 };
