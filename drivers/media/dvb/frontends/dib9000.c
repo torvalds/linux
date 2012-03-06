@@ -2208,6 +2208,7 @@ static int dib9000_read_signal_strength(struct dvb_frontend *fe, u16 * strength)
 
 	DibAcquireLock(&state->platform.risc.mem_mbx_lock);
 	if (dib9000_fw_memmbx_sync(state, FE_SYNC_CHANNEL) < 0) {
+		DibReleaseLock(&state->platform.risc.mem_mbx_lock);
 		ret = -EIO;
 		goto error;
 	}
@@ -2233,8 +2234,10 @@ static u32 dib9000_get_snr(struct dvb_frontend *fe)
 	u16 val;
 
 	DibAcquireLock(&state->platform.risc.mem_mbx_lock);
-	if (dib9000_fw_memmbx_sync(state, FE_SYNC_CHANNEL) < 0)
+	if (dib9000_fw_memmbx_sync(state, FE_SYNC_CHANNEL) < 0) {
+		DibReleaseLock(&state->platform.risc.mem_mbx_lock);
 		return -EIO;
+	}
 	dib9000_risc_mem_read(state, FE_MM_R_FE_MONITOR, (u8 *) c, 16 * 2);
 	DibReleaseLock(&state->platform.risc.mem_mbx_lock);
 
@@ -2291,6 +2294,7 @@ static int dib9000_read_unc_blocks(struct dvb_frontend *fe, u32 * unc)
 	DibAcquireLock(&state->demod_lock);
 	DibAcquireLock(&state->platform.risc.mem_mbx_lock);
 	if (dib9000_fw_memmbx_sync(state, FE_SYNC_CHANNEL) < 0) {
+		DibReleaseLock(&state->platform.risc.mem_mbx_lock);
 		ret = -EIO;
 		goto error;
 	}
