@@ -3382,6 +3382,7 @@ int snd_soc_register_platform(struct device *dev,
 	platform->dapm.dev = dev;
 	platform->dapm.platform = platform;
 	platform->dapm.stream_event = platform_drv->stream_event;
+	mutex_init(&platform->mutex);
 
 	mutex_lock(&client_mutex);
 	list_add(&platform->list, &platform_list);
