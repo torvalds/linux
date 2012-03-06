@@ -1058,7 +1058,7 @@ void _nfs_display_fhandle(const struct nfs_fh *fh, const char *caption)
 {
 	unsigned short i;
 
-	if (fh->size == 0 || fh == NULL) {
+	if (fh == NULL || fh->size == 0) {
 		printk(KERN_DEFAULT "%s at %p is empty\n", caption, fh);
 		return;
 	}
