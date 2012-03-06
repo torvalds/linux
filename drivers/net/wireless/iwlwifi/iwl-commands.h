@@ -69,15 +69,9 @@
 #ifndef __iwl_commands_h__
 #define __iwl_commands_h__
 
-#include <linux/etherdevice.h>
 #include <linux/ieee80211.h>
+#include <linux/types.h>
 
-struct iwl_priv;
-
-/* Tx rates */
-#define IWL_CCK_RATES	4
-#define IWL_OFDM_RATES	8
-#define IWL_MAX_RATES	(IWL_CCK_RATES + IWL_OFDM_RATES)
 
 enum {
 	REPLY_ALIVE = 0x1,
@@ -3850,8 +3844,6 @@ struct iwlagn_wowlan_kek_kck_material_cmd {
 	__le16	kek_len;
 	__le64	replay_ctr;
 } __packed;
-
-int iwl_agn_check_rxon_cmd(struct iwl_priv *priv);
 
 /*
  * REPLY_WIPAN_PARAMS = 0xb2 (Commands and Notification)
