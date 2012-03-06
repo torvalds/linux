@@ -79,13 +79,14 @@ static int mlx4_uc_steer_add(struct mlx4_dev *dev, u8 port, u64 mac, int *qpn)
 {
 	struct mlx4_qp qp;
 	u8 gid[16] = {0};
+	__be64 be_mac;
 	int err;
 
 	qp.qpn = *qpn;
 
 	mac &= 0xffffffffffffULL;
-	mac = cpu_to_be64(mac << 16);
-	memcpy(&gid[10], &mac, ETH_ALEN);
+	be_mac = cpu_to_be64(mac << 16);
+	memcpy(&gid[10], &be_mac, ETH_ALEN);
 	gid[5] = port;
 
 	err = mlx4_unicast_attach(dev, &qp, gid, 0, MLX4_PROT_ETH);
@@ -100,11 +101,12 @@ static void mlx4_uc_steer_release(struct mlx4_dev *dev, u8 port,
 {
 	struct mlx4_qp qp;
 	u8 gid[16] = {0};
+	__be64 be_mac;
 
 	qp.qpn = qpn;
 	mac &= 0xffffffffffffULL;
-	mac = cpu_to_be64(mac << 16);
-	memcpy(&gid[10], &mac, ETH_ALEN);
+	be_mac = cpu_to_be64(mac << 16);
+	memcpy(&gid[10], &be_mac, ETH_ALEN);
 	gid[5] = port;
 
 	mlx4_unicast_detach(dev, &qp, gid, MLX4_PROT_ETH);
