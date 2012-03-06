@@ -12,7 +12,7 @@
 #ifndef __LINUX_PINCTRL_MACHINE_H
 #define __LINUX_PINCTRL_MACHINE_H
 
-#include "pinctrl.h"
+#include "pinctrl-state.h"
 
 enum pinctrl_map_type {
 	PIN_MAP_TYPE_INVALID,
