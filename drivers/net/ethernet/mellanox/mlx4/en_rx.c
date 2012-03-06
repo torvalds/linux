@@ -910,7 +910,7 @@ int mlx4_en_config_rss_steer(struct mlx4_en_priv *priv)
 	rss_context->flags = rss_mask;
 	rss_context->hash_fn = MLX4_RSS_HASH_TOP;
 	for (i = 0; i < 10; i++)
-		rss_context->rss_key[i] = rsskey[i];
+		rss_context->rss_key[i] = cpu_to_be32(rsskey[i]);
 
 	err = mlx4_qp_to_ready(mdev->dev, &priv->res.mtt, &context,
 			       &rss_map->indir_qp, &rss_map->indir_state);
