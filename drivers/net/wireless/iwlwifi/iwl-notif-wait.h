@@ -64,8 +64,7 @@
 
 #include <linux/wait.h>
 
-/* TODO: remove later */
-#include "iwl-commands.h"
+#include "iwl-trans.h"
 
 struct iwl_notif_wait_data {
 	struct list_head notif_waits;

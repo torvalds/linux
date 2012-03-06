@@ -57,11 +57,11 @@
 static int iwl_send_scan_abort(struct iwl_priv *priv)
 {
 	int ret;
-	struct iwl_rx_packet *pkt;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_ABORT_CMD,
 		.flags = CMD_SYNC | CMD_WANT_SKB,
 	};
+	__le32 *status;
 
 	/* Exit instantly with error when device is not ready
 	 * to receive scan abort command or it does not perform
@@ -76,15 +76,16 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	if (ret)
 		return ret;
 
-	pkt = cmd.resp_pkt;
-	if (pkt->u.status != CAN_ABORT_STATUS) {
+	status = (void *)cmd.resp_pkt->data;
+	if (*status != CAN_ABORT_STATUS) {
 		/* The scan abort will return 1 for success or
 		 * 2 for "failure".  A failure condition can be
 		 * due to simply not being in an active scan which
 		 * can occur if we send the scan abort before we
 		 * the microcode has notified us that a scan is
 		 * completed. */
-		IWL_DEBUG_SCAN(priv, "SCAN_ABORT ret %d.\n", pkt->u.status);
+		IWL_DEBUG_SCAN(priv, "SCAN_ABORT ret %d.\n",
+			       le32_to_cpu(*status));
 		ret = -EIO;
 	}
 
@@ -265,8 +266,7 @@ static int iwl_rx_reply_scan(struct iwl_priv *priv,
 {
 #ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_scanreq_notification *notif =
-	    (struct iwl_scanreq_notification *)pkt->u.raw;
+	struct iwl_scanreq_notification *notif = (void *)pkt->data;
 
 	IWL_DEBUG_SCAN(priv, "Scan request status = 0x%x\n", notif->status);
 #endif
@@ -279,8 +279,8 @@ static int iwl_rx_scan_start_notif(struct iwl_priv *priv,
 				    struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_scanstart_notification *notif =
-	    (struct iwl_scanstart_notification *)pkt->u.raw;
+	struct iwl_scanstart_notification *notif = (void *)pkt->data;
+
 	priv->scan_start_tsf = le32_to_cpu(notif->tsf_low);
 	IWL_DEBUG_SCAN(priv, "Scan start: "
 		       "%d [802.11%s] "
@@ -307,8 +307,7 @@ static int iwl_rx_scan_results_notif(struct iwl_priv *priv,
 {
 #ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_scanresults_notification *notif =
-	    (struct iwl_scanresults_notification *)pkt->u.raw;
+	struct iwl_scanresults_notification *notif = (void *)pkt->data;
 
 	IWL_DEBUG_SCAN(priv, "Scan ch.res: "
 		       "%d [802.11%s] "
@@ -332,7 +331,7 @@ static int iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 				       struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_scancomplete_notification *scan_notif = (void *)pkt->u.raw;
+	struct iwl_scancomplete_notification *scan_notif = (void *)pkt->data;
 
 	IWL_DEBUG_SCAN(priv, "Scan complete: %d channels (TSF 0x%08X:%08X) - %d\n",
 		       scan_notif->scanned_channels,

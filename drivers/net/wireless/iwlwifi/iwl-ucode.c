@@ -186,7 +186,7 @@ int iwlagn_rx_calib_result(struct iwl_priv *priv,
 			    struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_calib_hdr *hdr = (struct iwl_calib_hdr *)pkt->u.raw;
+	struct iwl_calib_hdr *hdr = (struct iwl_calib_hdr *)pkt->data;
 	int len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 
 	/* reduce the size of the length field itself */
@@ -442,7 +442,7 @@ static void iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	struct iwl_alive_data *alive_data = data;
 	struct iwl_alive_resp *palive;
 
-	palive = &pkt->u.alive_frame;
+	palive = (void *)pkt->data;
 
 	IWL_DEBUG_FW(priv, "Alive ucode status 0x%08X revision "
 		       "0x%01X 0x%01X\n",

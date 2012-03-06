@@ -64,6 +64,7 @@ static int iwl_process_add_sta_resp(struct iwl_priv *priv,
 				    struct iwl_addsta_cmd *addsta,
 				    struct iwl_rx_packet *pkt)
 {
+	struct iwl_add_sta_resp *add_sta_resp = (void *)pkt->data;
 	u8 sta_id = addsta->sta.sta_id;
 	int ret = -EIO;
 
@@ -78,7 +79,7 @@ static int iwl_process_add_sta_resp(struct iwl_priv *priv,
 
 	spin_lock(&priv->sta_lock);
 
-	switch (pkt->u.add_sta.status) {
+	switch (add_sta_resp->status) {
 	case ADD_STA_SUCCESS_MSK:
 		IWL_DEBUG_INFO(priv, "REPLY_ADD_STA PASSED\n");
 		ret = iwl_sta_ucode_activate(priv, sta_id);
@@ -97,7 +98,7 @@ static int iwl_process_add_sta_resp(struct iwl_priv *priv,
 		break;
 	default:
 		IWL_DEBUG_ASSOC(priv, "Received REPLY_ADD_STA:(0x%08X)\n",
-				pkt->u.add_sta.status);
+				add_sta_resp->status);
 		break;
 	}
 
@@ -460,7 +461,8 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 	}
 
 	if (!ret) {
-		switch (pkt->u.rem_sta.status) {
+		struct iwl_rem_sta_resp *rem_sta_resp = (void *)pkt->data;
+		switch (rem_sta_resp->status) {
 		case REM_STA_SUCCESS_MSK:
 			if (!temporary) {
 				spin_lock_bh(&priv->sta_lock);

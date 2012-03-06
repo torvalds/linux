@@ -122,6 +122,62 @@ struct dentry;
 #define SEQ_TO_SN(seq) (((seq) & IEEE80211_SCTL_SEQ) >> 4)
 #define SN_TO_SEQ(ssn) (((ssn) << 4) & IEEE80211_SCTL_SEQ)
 #define MAX_SN ((IEEE80211_SCTL_SEQ) >> 4)
+#define SEQ_TO_QUEUE(s)	(((s) >> 8) & 0x1f)
+#define QUEUE_TO_SEQ(q)	(((q) & 0x1f) << 8)
+#define SEQ_TO_INDEX(s)	((s) & 0xff)
+#define INDEX_TO_SEQ(i)	((i) & 0xff)
+#define SEQ_RX_FRAME	cpu_to_le16(0x8000)
+
+/**
+ * struct iwl_cmd_header
+ *
+ * This header format appears in the beginning of each command sent from the
+ * driver, and each response/notification received from uCode.
+ */
+struct iwl_cmd_header {
+	u8 cmd;		/* Command ID:  REPLY_RXON, etc. */
+	u8 flags;	/* 0:5 reserved, 6 abort, 7 internal */
+	/*
+	 * The driver sets up the sequence number to values of its choosing.
+	 * uCode does not use this value, but passes it back to the driver
+	 * when sending the response to each driver-originated command, so
+	 * the driver can match the response to the command.  Since the values
+	 * don't get used by uCode, the driver may set up an arbitrary format.
+	 *
+	 * There is one exception:  uCode sets bit 15 when it originates
+	 * the response/notification, i.e. when the response/notification
+	 * is not a direct response to a command sent by the driver.  For
+	 * example, uCode issues REPLY_RX when it sends a received frame
+	 * to the driver; it is not a direct response to any driver command.
+	 *
+	 * The Linux driver uses the following format:
+	 *
+	 *  0:7		tfd index - position within TX queue
+	 *  8:12	TX queue id
+	 *  13:14	reserved
+	 *  15		unsolicited RX or uCode-originated notification
+	 */
+	__le16 sequence;
+} __packed;
+
+
+#define FH_RSCSR_FRAME_SIZE_MSK		0x00003FFF	/* bits 0-13 */
+
+struct iwl_rx_packet {
+	/*
+	 * The first 4 bytes of the RX frame header contain both the RX frame
+	 * size and some flags.
+	 * Bit fields:
+	 * 31:    flag flush RB request
+	 * 30:    flag ignore TC (terminal counter) request
+	 * 29:    flag fast IRQ request
+	 * 28-14: Reserved
+	 * 13-00: RX frame size
+	 */
+	__le32 len_n_flags;
+	struct iwl_cmd_header hdr;
+	u8 data[];
+} __packed;
 
 /**
  * enum CMD_MODE - how to send the host commands ?

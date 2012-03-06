@@ -206,48 +206,6 @@ enum {
 /* iwl_cmd_header flags value */
 #define IWL_CMD_FAILED_MSK 0x40
 
-#define SEQ_TO_QUEUE(s)	(((s) >> 8) & 0x1f)
-#define QUEUE_TO_SEQ(q)	(((q) & 0x1f) << 8)
-#define SEQ_TO_INDEX(s)	((s) & 0xff)
-#define INDEX_TO_SEQ(i)	((i) & 0xff)
-#define SEQ_RX_FRAME	cpu_to_le16(0x8000)
-
-/**
- * struct iwl_cmd_header
- *
- * This header format appears in the beginning of each command sent from the
- * driver, and each response/notification received from uCode.
- */
-struct iwl_cmd_header {
-	u8 cmd;		/* Command ID:  REPLY_RXON, etc. */
-	u8 flags;	/* 0:5 reserved, 6 abort, 7 internal */
-	/*
-	 * The driver sets up the sequence number to values of its choosing.
-	 * uCode does not use this value, but passes it back to the driver
-	 * when sending the response to each driver-originated command, so
-	 * the driver can match the response to the command.  Since the values
-	 * don't get used by uCode, the driver may set up an arbitrary format.
-	 *
-	 * There is one exception:  uCode sets bit 15 when it originates
-	 * the response/notification, i.e. when the response/notification
-	 * is not a direct response to a command sent by the driver.  For
-	 * example, uCode issues REPLY_RX when it sends a received frame
-	 * to the driver; it is not a direct response to any driver command.
-	 *
-	 * The Linux driver uses the following format:
-	 *
-	 *  0:7		tfd index - position within TX queue
-	 *  8:12	TX queue id
-	 *  13:14	reserved
-	 *  15		unsolicited RX or uCode-originated notification
-	 */
-	__le16 sequence;
-
-	/* command or response/notification data follows immediately */
-	u8 data[0];
-} __packed;
-
-
 /**
  * iwlagn rate_n_flags bit fields
  *
@@ -3891,48 +3849,6 @@ struct iwlagn_wowlan_kek_kck_material_cmd {
 	__le16	kck_len;
 	__le16	kek_len;
 	__le64	replay_ctr;
-} __packed;
-
-/******************************************************************************
- * (13)
- * Union of all expected notifications/responses:
- *
- *****************************************************************************/
-#define FH_RSCSR_FRAME_SIZE_MSK	(0x00003FFF)	/* bits 0-13 */
-
-struct iwl_rx_packet {
-	/*
-	 * The first 4 bytes of the RX frame header contain both the RX frame
-	 * size and some flags.
-	 * Bit fields:
-	 * 31:    flag flush RB request
-	 * 30:    flag ignore TC (terminal counter) request
-	 * 29:    flag fast IRQ request
-	 * 28-14: Reserved
-	 * 13-00: RX frame size
-	 */
-	__le32 len_n_flags;
-	struct iwl_cmd_header hdr;
-	union {
-		struct iwl_alive_resp alive_frame;
-		struct iwl_spectrum_notification spectrum_notif;
-		struct iwl_csa_notification csa_notif;
-		struct iwl_error_resp err_resp;
-		struct iwl_card_state_notif card_state_notif;
-		struct iwl_add_sta_resp add_sta;
-		struct iwl_rem_sta_resp rem_sta;
-		struct iwl_sleep_notification sleep_notif;
-		struct iwl_spectrum_resp spectrum;
-		struct iwl_notif_statistics stats;
-		struct iwl_bt_notif_statistics stats_bt;
-		struct iwl_compressed_ba_resp compressed_ba;
-		struct iwl_missed_beacon_notif missed_beacon;
-		struct iwl_coex_medium_notification coex_medium_notif;
-		struct iwl_coex_event_resp coex_event;
-		struct iwl_bt_coex_profile_notif bt_coex_profile_notif;
-		__le32 status;
-		u8 raw[0];
-	} u;
 } __packed;
 
 int iwl_agn_check_rxon_cmd(struct iwl_priv *priv);

@@ -710,7 +710,7 @@ int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 				  struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_bt_coex_profile_notif *coex = &pkt->u.bt_coex_profile_notif;
+	struct iwl_bt_coex_profile_notif *coex = (void *)pkt->data;
 	struct iwl_bt_uart_msg *uart_msg = &coex->last_bt_uart_msg;
 
 	if (priv->bt_enable_flag == IWLAGN_BT_FLAG_COEX_MODE_DISABLED) {
