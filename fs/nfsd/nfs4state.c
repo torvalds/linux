@@ -2778,10 +2778,15 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct nfs4_file *fp, struct svc_fh *c
 
 
 static void
-nfs4_set_claim_prev(struct nfsd4_open *open)
+nfs4_set_claim_prev(struct nfsd4_open *open, bool has_session)
 {
 	open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
-	open->op_openowner->oo_owner.so_client->cl_firststate = 1;
+	/*
+	 * On a 4.1+ client, we don't create a state record for a client
+	 * until it performs RECLAIM_COMPLETE:
+	 */
+	if (!has_session)
+		open->op_openowner->oo_owner.so_client->cl_firststate = 1;
 }
 
 /* Should we give out recallable state?: */
@@ -3044,7 +3049,7 @@ out:
 	if (fp)
 		put_nfs4_file(fp);
 	if (status == 0 && open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS)
-		nfs4_set_claim_prev(open);
+		nfs4_set_claim_prev(open, nfsd4_has_session(&resp->cstate));
 	/*
 	* To finish the open response, we just need to set the rflags.
 	*/
