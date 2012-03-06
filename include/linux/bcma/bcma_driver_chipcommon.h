@@ -56,6 +56,9 @@
 #define	 BCMA_CC_OTPS_HW_PROTECT	0x00000001
 #define	 BCMA_CC_OTPS_SW_PROTECT	0x00000002
 #define	 BCMA_CC_OTPS_CID_PROTECT	0x00000004
+#define  BCMA_CC_OTPS_GU_PROG_IND	0x00000F00	/* General Use programmed indication */
+#define  BCMA_CC_OTPS_GU_PROG_IND_SHIFT	8
+#define  BCMA_CC_OTPS_GU_PROG_HW	0x00000100	/* HW region programmed */
 #define BCMA_CC_OTPC			0x0014		/* OTP control */
 #define	 BCMA_CC_OTPC_RECWAIT		0xFF000000
 #define	 BCMA_CC_OTPC_PROGWAIT		0x00FFFF00
@@ -72,6 +75,8 @@
 #define	 BCMA_CC_OTPP_READ		0x40000000
 #define	 BCMA_CC_OTPP_START		0x80000000
 #define	 BCMA_CC_OTPP_BUSY		0x80000000
+#define BCMA_CC_OTPL			0x001C		/* OTP layout */
+#define  BCMA_CC_OTPL_GURGN_OFFSET	0x00000FFF	/* offset of general use region */
 #define BCMA_CC_IRQSTAT			0x0020
 #define BCMA_CC_IRQMASK			0x0024
 #define	 BCMA_CC_IRQ_GPIO		0x00000001	/* gpio intr */
@@ -79,6 +84,10 @@
 #define	 BCMA_CC_IRQ_WDRESET		0x80000000	/* watchdog reset occurred */
 #define BCMA_CC_CHIPCTL			0x0028		/* Rev >= 11 only */
 #define BCMA_CC_CHIPSTAT		0x002C		/* Rev >= 11 only */
+#define  BCMA_CC_CHIPST_4313_SPROM_PRESENT	1
+#define  BCMA_CC_CHIPST_4313_OTP_PRESENT	2
+#define  BCMA_CC_CHIPST_4331_SPROM_PRESENT	2
+#define  BCMA_CC_CHIPST_4331_OTP_PRESENT	4
 #define BCMA_CC_JCMD			0x0030		/* Rev >= 10 only */
 #define  BCMA_CC_JCMD_START		0x80000000
 #define  BCMA_CC_JCMD_BUSY		0x80000000
@@ -256,7 +265,6 @@
 #define BCMA_CC_PLLCTL_ADDR		0x0660
 #define BCMA_CC_PLLCTL_DATA		0x0664
 #define BCMA_CC_SPROM			0x0800 /* SPROM beginning */
-#define BCMA_CC_SPROM_PCIE6		0x0830 /* SPROM beginning on PCIe rev >= 6 */
 
 /* Divider allocation in 4716/47162/5356 */
 #define BCMA_CC_PMU5_MAINPLL_CPU	1

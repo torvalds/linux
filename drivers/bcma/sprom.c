@@ -300,37 +300,128 @@ static void bcma_sprom_extract_r8(struct bcma_bus *bus, const u16 *sprom)
 	     SSB_SROM8_FEM_ANTSWLUT_SHIFT);
 }
 
-static bool bcma_is_sprom_available(struct bcma_bus *bus)
+/*
+ * Indicates the presence of external SPROM.
+ */
+static bool bcma_sprom_ext_available(struct bcma_bus *bus)
 {
-	u32 sromctrl;
+	u32 chip_status;
+	u32 srom_control;
+	u32 present_mask;
 
-	if (!(bus->drv_cc.capabilities & BCMA_CC_CAP_SPROM))
-		return false;
+	if (bus->drv_cc.core->id.rev >= 31) {
+		if (!(bus->drv_cc.capabilities & BCMA_CC_CAP_SPROM))
+			return false;
 
-	if (bus->drv_cc.core->id.rev >= 32) {
-		sromctrl = bcma_read32(bus->drv_cc.core, BCMA_CC_SROM_CONTROL);
-		return sromctrl & BCMA_CC_SROM_CONTROL_PRESENT;
+		srom_control = bcma_read32(bus->drv_cc.core,
+					   BCMA_CC_SROM_CONTROL);
+		return srom_control & BCMA_CC_SROM_CONTROL_PRESENT;
 	}
-	return true;
+
+	/* older chipcommon revisions use chip status register */
+	chip_status = bcma_read32(bus->drv_cc.core, BCMA_CC_CHIPSTAT);
+	switch (bus->chipinfo.id) {
+	case 0x4313:
+		present_mask = BCMA_CC_CHIPST_4313_SPROM_PRESENT;
+		break;
+
+	case 0x4331:
+		present_mask = BCMA_CC_CHIPST_4331_SPROM_PRESENT;
+		break;
+
+	default:
+		return true;
+	}
+
+	return chip_status & present_mask;
+}
+
+/*
+ * Indicates that on-chip OTP memory is present and enabled.
+ */
+static bool bcma_sprom_onchip_available(struct bcma_bus *bus)
+{
+	u32 chip_status;
+	u32 otpsize = 0;
+	bool present;
+
+	chip_status = bcma_read32(bus->drv_cc.core, BCMA_CC_CHIPSTAT);
+	switch (bus->chipinfo.id) {
+	case 0x4313:
+		present = chip_status & BCMA_CC_CHIPST_4313_OTP_PRESENT;
+		break;
+
+	case 0x4331:
+		present = chip_status & BCMA_CC_CHIPST_4331_OTP_PRESENT;
+		break;
+
+	case 43224:
+	case 43225:
+		/* for these chips OTP is always available */
+		present = true;
+		break;
+
+	default:
+		present = false;
+		break;
+	}
+
+	if (present) {
+		otpsize = bus->drv_cc.capabilities & BCMA_CC_CAP_OTPS;
+		otpsize >>= BCMA_CC_CAP_OTPS_SHIFT;
+	}
+
+	return otpsize != 0;
+}
+
+/*
+ * Verify OTP is filled and determine the byte
+ * offset where SPROM data is located.
+ *
+ * On error, returns 0; byte offset otherwise.
+ */
+static int bcma_sprom_onchip_offset(struct bcma_bus *bus)
+{
+	struct bcma_device *cc = bus->drv_cc.core;
+	u32 offset;
+
+	/* verify OTP status */
+	if ((bcma_read32(cc, BCMA_CC_OTPS) & BCMA_CC_OTPS_GU_PROG_HW) == 0)
+		return 0;
+
+	/* obtain bit offset from otplayout register */
+	offset = (bcma_read32(cc, BCMA_CC_OTPL) & BCMA_CC_OTPL_GURGN_OFFSET);
+	return BCMA_CC_SPROM + (offset >> 3);
 }
 
 int bcma_sprom_get(struct bcma_bus *bus)
 {
-	u16 offset;
+	u16 offset = BCMA_CC_SPROM;
 	u16 *sprom;
 	int err = 0;
 
 	if (!bus->drv_cc.core)
 		return -EOPNOTSUPP;
 
-	if (!bcma_is_sprom_available(bus)) {
+	if (!bcma_sprom_ext_available(bus)) {
 		/*
-		 * Maybe there is no SPROM on the device?
-		 * Now we ask the arch code if there is some sprom
-		 * available for this device in some other storage.
+		 * External SPROM takes precedence so check
+		 * on-chip OTP only when no external SPROM
+		 * is present.
 		 */
-		err = bcma_fill_sprom_with_fallback(bus, &bus->sprom);
-		return err;
+		if (bcma_sprom_onchip_available(bus)) {
+			/* determine offset */
+			offset = bcma_sprom_onchip_offset(bus);
+		}
+		if (!offset) {
+			/*
+			 * Maybe there is no SPROM on the device?
+			 * Now we ask the arch code if there is some sprom
+			 * available for this device in some other storage.
+			 */
+			err = bcma_fill_sprom_with_fallback(bus, &bus->sprom);
+			return err;
+		}
 	}
 
 	sprom = kcalloc(SSB_SPROMSIZE_WORDS_R4, sizeof(u16),
@@ -341,11 +432,6 @@ int bcma_sprom_get(struct bcma_bus *bus)
 	if (bus->chipinfo.id == 0x4331)
 		bcma_chipco_bcm4331_ext_pa_lines_ctl(&bus->drv_cc, false);
 
-	/* Most cards have SPROM moved by additional offset 0x30 (48 dwords).
-	 * According to brcm80211 this applies to cards with PCIe rev >= 6
-	 * TODO: understand this condition and use it */
-	offset = (bus->chipinfo.id == 0x4331) ? BCMA_CC_SPROM :
-		BCMA_CC_SPROM_PCIE6;
 	pr_debug("SPROM offset 0x%x\n", offset);
 	bcma_sprom_read(bus, offset, sprom);
 
