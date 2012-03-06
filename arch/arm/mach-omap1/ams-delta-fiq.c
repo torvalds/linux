@@ -22,6 +22,7 @@
 #include <plat/board-ams-delta.h>
 
 #include <asm/fiq.h>
+
 #include <mach/ams-delta-fiq.h>
 
 static struct fiq_handler fh = {

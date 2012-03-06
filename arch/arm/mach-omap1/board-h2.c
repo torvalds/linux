@@ -31,8 +31,6 @@
 #include <linux/i2c/tps65010.h>
 #include <linux/smc91x.h>
 
-#include <mach/hardware.h>
-
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -43,9 +41,11 @@
 #include <plat/irda.h>
 #include <plat/usb.h>
 #include <plat/keypad.h>
-#include "common.h"
 #include <plat/flash.h>
 
+#include <mach/hardware.h>
+
+#include "common.h"
 #include "board-h2.h"
 
 /* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */

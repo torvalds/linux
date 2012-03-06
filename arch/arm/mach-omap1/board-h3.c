@@ -33,21 +33,21 @@
 
 #include <asm/setup.h>
 #include <asm/page.h>
-#include <mach/hardware.h>
-
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/irqs.h>
 #include <plat/mux.h>
 #include <plat/tc.h>
 #include <plat/usb.h>
 #include <plat/keypad.h>
 #include <plat/dma.h>
-#include "common.h"
 #include <plat/flash.h>
 
+#include <mach/hardware.h>
+#include <mach/irqs.h>
+
+#include "common.h"
 #include "board-h3.h"
 
 /* In OMAP1710 H3 the Ethernet is directly connected to CS1 */

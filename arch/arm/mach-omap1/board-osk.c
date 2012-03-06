@@ -34,14 +34,10 @@
 #include <linux/i2c.h>
 #include <linux/leds.h>
 #include <linux/smc91x.h>
-
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
-
 #include <linux/i2c/tps65010.h>
-
-#include <mach/hardware.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -51,6 +47,9 @@
 #include <plat/usb.h>
 #include <plat/mux.h>
 #include <plat/tc.h>
+
+#include <mach/hardware.h>
+
 #include "common.h"
 
 /* At OMAP5912 OSK the Ethernet is directly connected to CS1 */

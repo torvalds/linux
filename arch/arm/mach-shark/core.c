@@ -149,10 +149,16 @@ static struct sys_timer shark_timer = {
 	.init		= shark_timer_init,
 };
 
+static void shark_init_early(void)
+{
+	disable_hlt();
+}
+
 MACHINE_START(SHARK, "Shark")
 	/* Maintainer: Alexander Schulz */
 	.atag_offset	= 0x3000,
 	.map_io		= shark_map_io,
+	.init_early	= shark_init_early,
 	.init_irq	= shark_init_irq,
 	.timer		= &shark_timer,
 	.dma_zone_size	= SZ_4M,

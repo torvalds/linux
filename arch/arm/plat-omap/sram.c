@@ -31,11 +31,10 @@
 
 #include "sram.h"
 
-/* XXX These "sideways" includes are a sign that something is wrong */
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-# include "../mach-omap2/prm2xxx_3xxx.h"
-# include "../mach-omap2/sdrc.h"
-#endif
+/* XXX These "sideways" includes will disappear when sram.c becomes a driver */
+#include "../mach-omap2/iomap.h"
+#include "../mach-omap2/prm2xxx_3xxx.h"
+#include "../mach-omap2/sdrc.h"
 
 #define OMAP1_SRAM_PA		0x20000000
 #define OMAP2_SRAM_PUB_PA	(OMAP2_SRAM_PA + 0xf800)

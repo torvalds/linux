@@ -18,6 +18,7 @@
 
 #include <asm/mach/flash.h>
 
+#include <plat/cpu.h>
 #include <plat/onenand.h>
 #include <plat/board.h>
 #include <plat/gpmc.h>

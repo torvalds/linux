@@ -20,25 +20,27 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/export.h>
+#include <linux/io.h>
 
 #include <media/soc_camera.h>
 
 #include <asm/serial.h>
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/io.h>
 #include <plat/board-ams-delta.h>
 #include <plat/keypad.h>
 #include <plat/mux.h>
 #include <plat/usb.h>
 #include <plat/board.h>
-#include "common.h"
+
+#include <mach/hardware.h>
+#include <mach/ams-delta-fiq.h>
 #include <mach/camera.h>
 
-#include <mach/ams-delta-fiq.h>
+#include "iomap.h"
+#include "common.h"
 
 static u8 ams_delta_latch1_reg;
 static u16 ams_delta_latch2_reg;

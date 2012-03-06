@@ -314,8 +314,6 @@ static void _add_hwmod_clocks_clkdev(struct omap_device *od,
 }
 
 
-static struct dev_pm_domain omap_device_pm_domain;
-
 /**
  * omap_device_build_from_dt - build an omap_device with multiple hwmods
  * @pdev_name: name of the platform_device driver to use
@@ -756,14 +754,12 @@ static int _od_suspend_noirq(struct device *dev)
 	struct omap_device *od = to_omap_device(pdev);
 	int ret;
 
-	if (od->flags & OMAP_DEVICE_NO_IDLE_ON_SUSPEND)
-		return pm_generic_suspend_noirq(dev);
-
 	ret = pm_generic_suspend_noirq(dev);
 
 	if (!ret && !pm_runtime_status_suspended(dev)) {
 		if (pm_generic_runtime_suspend(dev) == 0) {
-			omap_device_idle(pdev);
+			if (!(od->flags & OMAP_DEVICE_NO_IDLE_ON_SUSPEND))
+				omap_device_idle(pdev);
 			od->flags |= OMAP_DEVICE_SUSPENDED;
 		}
 	}
@@ -776,13 +772,11 @@ static int _od_resume_noirq(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
 
-	if (od->flags & OMAP_DEVICE_NO_IDLE_ON_SUSPEND)
-		return pm_generic_resume_noirq(dev);
-
 	if ((od->flags & OMAP_DEVICE_SUSPENDED) &&
 	    !pm_runtime_status_suspended(dev)) {
 		od->flags &= ~OMAP_DEVICE_SUSPENDED;
-		omap_device_enable(pdev);
+		if (!(od->flags & OMAP_DEVICE_NO_IDLE_ON_SUSPEND))
+			omap_device_enable(pdev);
 		pm_generic_runtime_resume(dev);
 	}
 
@@ -793,7 +787,7 @@ static int _od_resume_noirq(struct device *dev)
 #define _od_resume_noirq NULL
 #endif
 
-static struct dev_pm_domain omap_device_pm_domain = {
+struct dev_pm_domain omap_device_pm_domain = {
 	.ops = {
 		SET_RUNTIME_PM_OPS(_od_runtime_suspend, _od_runtime_resume,
 				   _od_runtime_idle)
@@ -815,7 +809,6 @@ int omap_device_register(struct platform_device *pdev)
 {
 	pr_debug("omap_device: %s: registering\n", pdev->name);
 
-	pdev->dev.parent = &omap_device_parent;
 	pdev->dev.pm_domain = &omap_device_pm_domain;
 	return platform_device_add(pdev);
 }
@@ -1124,11 +1117,6 @@ int omap_device_enable_clocks(struct omap_device *od)
 	return 0;
 }
 
-struct device omap_device_parent = {
-	.init_name	= "omap",
-	.parent         = &platform_bus,
-};
-
 static struct notifier_block platform_nb = {
 	.notifier_call = _omap_device_notifier_call,
 };
@@ -1136,6 +1124,6 @@ static struct notifier_block platform_nb = {
 static int __init omap_device_init(void)
 {
 	bus_register_notifier(&platform_bus_type, &platform_nb);
-	return device_register(&omap_device_parent);
+	return 0;
 }
 core_initcall(omap_device_init);

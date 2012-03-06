@@ -1064,13 +1064,6 @@ static void omap_gpio_mod_init(struct gpio_bank *bank, int id)
 						+ OMAP1610_GPIO_IRQSTATUS1);
 			__raw_writew(0x0014, bank->base
 						+ OMAP1610_GPIO_SYSCONFIG);
-
-			/*
-			 * Enable system clock for GPIO module.
-			 * The CAM_CLK_CTRL *is* really the right place.
-			 */
-			omap_writel(omap_readl(ULPD_CAM_CLK_CTRL) | 0x04,
-						ULPD_CAM_CLK_CTRL);
 		}
 		if (cpu_is_omap7xx() && bank->method == METHOD_GPIO_7XX) {
 			__raw_writel(0xffffffff, bank->base

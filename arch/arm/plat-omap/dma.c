@@ -164,6 +164,8 @@ static inline void set_gdma_dev(int req, int dev)
 }
 #else
 #define set_gdma_dev(req, dev)	do {} while (0)
+#define omap_readl(reg)		0
+#define omap_writel(val, reg)	do {} while (0)
 #endif
 
 void omap_set_dma_priority(int lch, int dst_port, int priority)

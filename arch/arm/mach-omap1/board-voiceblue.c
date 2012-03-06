@@ -27,17 +27,19 @@
 #include <linux/smc91x.h>
 #include <linux/export.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
 #include <plat/board-voiceblue.h>
-#include "common.h"
 #include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/tc.h>
 #include <plat/usb.h>
+
+#include <mach/hardware.h>
+
+#include "common.h"
 
 static struct plat_serial8250_port voiceblue_ports[] = {
 	{
