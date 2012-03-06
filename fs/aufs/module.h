@@ -74,9 +74,7 @@ enum {
 	AuCache_FINFO,
 	AuCache_VDIR,
 	AuCache_DEHSTR,
-#ifdef CONFIG_AUFS_HNOTIFY
-	AuCache_HNOTIFY,
-#endif
+	AuCache_HNOTIFY, /* must be last */
 	AuCache_Last
 };
 
