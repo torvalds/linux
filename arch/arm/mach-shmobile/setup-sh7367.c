@@ -33,6 +33,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach/time.h>
 
 static struct map_desc sh7367_io_desc[] __initdata = {
 	/* create a 1:1 entity map for 0xe6xxxxxx
@@ -454,6 +455,12 @@ void __init sh7367_add_standard_devices(void)
 			    ARRAY_SIZE(sh7367_devices));
 }
 
+static void __init sh7367_earlytimer_init(void)
+{
+	sh7367_clock_init();
+	shmobile_earlytimer_init();
+}
+
 #define SYMSTPCR2 0xe6158048
 #define SYMSTPCR2_CMT1 (1 << 29)
 
@@ -467,4 +474,7 @@ void __init sh7367_add_early_devices(void)
 
 	/* setup early console here as well */
 	shmobile_setup_console();
+
+	/* override timer setup with soc-specific code */
+	shmobile_timer.init = sh7367_earlytimer_init;
 }

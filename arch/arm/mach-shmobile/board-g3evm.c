@@ -37,7 +37,6 @@
 #include <mach/common.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/time.h>
 
 /*
  * IrDA
@@ -332,21 +331,11 @@ static void __init g3evm_init(void)
 	platform_add_devices(g3evm_devices, ARRAY_SIZE(g3evm_devices));
 }
 
-static void __init g3evm_timer_init(void)
-{
-	sh7367_clock_init();
-	shmobile_timer.init();
-}
-
-static struct sys_timer g3evm_timer = {
-	.init		= g3evm_timer_init,
-};
-
 MACHINE_START(G3EVM, "g3evm")
 	.map_io		= sh7367_map_io,
 	.init_early	= sh7367_add_early_devices,
 	.init_irq	= sh7367_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= g3evm_init,
-	.timer		= &g3evm_timer,
+	.timer		= &shmobile_timer,
 MACHINE_END
