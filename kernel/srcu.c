@@ -193,7 +193,14 @@ static bool srcu_readers_active_idx_check(struct srcu_struct *sp, int idx)
  */
 static int srcu_readers_active(struct srcu_struct *sp)
 {
-	return srcu_readers_active_idx(sp, 0) + srcu_readers_active_idx(sp, 1);
+	int cpu;
+	unsigned long sum = 0;
+
+	for_each_possible_cpu(cpu) {
+		sum += ACCESS_ONCE(per_cpu_ptr(sp->per_cpu_ref, cpu)->c[0]);
+		sum += ACCESS_ONCE(per_cpu_ptr(sp->per_cpu_ref, cpu)->c[1]);
+	}
+	return sum;
 }
 
 /**
