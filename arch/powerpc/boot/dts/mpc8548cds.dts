@@ -339,6 +339,13 @@
 				  0x0 0x100000>;
 		};
 	};
+
+	rio: rapidio@e00c0000 {
+		reg = <0x0 0xe00c0000 0x0 0x20000>;
+		port1 {
+			ranges = <0x0 0x0 0x0 0xc0000000 0x0 0x20000000>;
+		};
+	};
 };
 
 /include/ "fsl/mpc8548si-post.dtsi"
