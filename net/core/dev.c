@@ -848,21 +848,21 @@ EXPORT_SYMBOL(dev_get_by_flags_rcu);
  *	to allow sysfs to work.  We also disallow any kind of
  *	whitespace.
  */
-int dev_valid_name(const char *name)
+bool dev_valid_name(const char *name)
 {
 	if (*name == '\0')
-		return 0;
+		return false;
 	if (strlen(name) >= IFNAMSIZ)
-		return 0;
+		return false;
 	if (!strcmp(name, ".") || !strcmp(name, ".."))
-		return 0;
+		return false;
 
 	while (*name) {
 		if (*name == '/' || isspace(*name))
-			return 0;
+			return false;
 		name++;
 	}
-	return 1;
+	return true;
 }
 EXPORT_SYMBOL(dev_valid_name);
 
