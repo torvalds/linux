@@ -26,5 +26,11 @@
 			/* set clock-frequency in board dts */
 			status = "disabled";
 		};
+
+		rtc@10300 {
+			compatible = "mrvl,kirkwood-rtc", "mrvl,orion-rtc";
+			reg = <0x10300 0x20>;
+			interrupts = <53>;
+		};
 	};
 };
