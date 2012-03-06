@@ -19,6 +19,7 @@
 #include <linux/seq_file.h>
 #include "pinctrl-state.h"
 
+struct device;
 struct pinctrl_dev;
 struct pinmux_ops;
 struct pinconf_ops;
