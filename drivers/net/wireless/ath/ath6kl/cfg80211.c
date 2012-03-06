@@ -2046,10 +2046,9 @@ int ath6kl_cfg80211_suspend(struct ath6kl *ar,
 		ath6kl_tx_data_cleanup(ar);
 
 		ret = ath6kl_wow_suspend(ar, wow);
-		if (ret) {
-			ath6kl_err("wow suspend failed: %d\n", ret);
+		if (ret)
 			return ret;
-		}
+
 		ar->state = ATH6KL_STATE_WOW;
 		break;
 

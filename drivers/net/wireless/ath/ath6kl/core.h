@@ -636,6 +636,7 @@ struct ath6kl {
 
 	u16 conf_flags;
 	u16 suspend_mode;
+	u16 wow_suspend_mode;
 	wait_queue_head_t event_wq;
 	struct ath6kl_mbox_info mbox_info;
 
