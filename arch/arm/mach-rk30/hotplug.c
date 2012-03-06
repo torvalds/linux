@@ -60,8 +60,10 @@ void platform_cpu_die(unsigned int cpu)
 	/* wait for SoC code in platform_cpu_kill() to shut off CPU core
 	 * power. CPU bring up starts from the reset vector.
 	 */
-	while (1)
-		cpu_do_idle();
+	while (1) {
+		dsb();
+		wfi();
+	}
 }
 
 int platform_cpu_disable(unsigned int cpu)
