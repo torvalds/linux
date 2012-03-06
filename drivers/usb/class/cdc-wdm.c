@@ -631,47 +631,11 @@ static void wdm_rxwork(struct work_struct *work)
 
 /* --- hotplug --- */
 
-static int wdm_probe(struct usb_interface *intf, const struct usb_device_id *id)
+static int wdm_create(struct usb_interface *intf, struct usb_endpoint_descriptor *ep, u16 bufsize)
 {
-	int rv = -EINVAL;
+	int rv = -ENOMEM;
 	struct wdm_device *desc;
-	struct usb_host_interface *iface;
-	struct usb_endpoint_descriptor *ep;
-	struct usb_cdc_dmm_desc *dmhd;
-	u8 *buffer = intf->altsetting->extra;
-	int buflen = intf->altsetting->extralen;
-	u16 maxcom = WDM_DEFAULT_BUFSIZE;
 
-	if (!buffer)
-		goto out;
-
-	while (buflen > 2) {
-		if (buffer [1] != USB_DT_CS_INTERFACE) {
-			dev_err(&intf->dev, "skipping garbage\n");
-			goto next_desc;
-		}
-
-		switch (buffer [2]) {
-		case USB_CDC_HEADER_TYPE:
-			break;
-		case USB_CDC_DMM_TYPE:
-			dmhd = (struct usb_cdc_dmm_desc *)buffer;
-			maxcom = le16_to_cpu(dmhd->wMaxCommand);
-			dev_dbg(&intf->dev,
-				"Finding maximum buffer length: %d", maxcom);
-			break;
-		default:
-			dev_err(&intf->dev,
-				"Ignoring extra header, type %d, length %d\n",
-				buffer[2], buffer[0]);
-			break;
-		}
-next_desc:
-		buflen -= buffer[0];
-		buffer += buffer[0];
-	}
-
-	rv = -ENOMEM;
 	desc = kzalloc(sizeof(struct wdm_device), GFP_KERNEL);
 	if (!desc)
 		goto out;
@@ -679,18 +643,14 @@ next_desc:
 	mutex_init(&desc->wlock);
 	spin_lock_init(&desc->iuspin);
 	init_waitqueue_head(&desc->wait);
-	desc->wMaxCommand = maxcom;
+	desc->wMaxCommand = bufsize;
 	/* this will be expanded and needed in hardware endianness */
 	desc->inum = cpu_to_le16((u16)intf->cur_altsetting->desc.bInterfaceNumber);
 	desc->intf = intf;
 	INIT_WORK(&desc->rxwork, wdm_rxwork);
 
 	rv = -EINVAL;
-	iface = intf->cur_altsetting;
-	if (iface->desc.bNumEndpoints != 1)
-		goto err;
-	ep = &iface->endpoint[0].desc;
-	if (!ep || !usb_endpoint_is_int_in(ep))
+	if (!usb_endpoint_is_int_in(ep))
 		goto err;
 
 	desc->wMaxPacketSize = usb_endpoint_maxp(ep);
@@ -766,13 +726,56 @@ out:
 err2:
 	usb_set_intfdata(intf, NULL);
 err:
-	free_urbs(desc);
-	kfree(desc->inbuf);
-	kfree(desc->sbuf);
-	kfree(desc->ubuf);
-	kfree(desc->orq);
-	kfree(desc->irq);
-	kfree(desc);
+	cleanup(desc);
+	return rv;
+}
+
+static int wdm_probe(struct usb_interface *intf, const struct usb_device_id *id)
+{
+	int rv = -EINVAL;
+	struct usb_host_interface *iface;
+	struct usb_endpoint_descriptor *ep;
+	struct usb_cdc_dmm_desc *dmhd;
+	u8 *buffer = intf->altsetting->extra;
+	int buflen = intf->altsetting->extralen;
+	u16 maxcom = WDM_DEFAULT_BUFSIZE;
+
+	if (!buffer)
+		goto err;
+	while (buflen > 2) {
+		if (buffer[1] != USB_DT_CS_INTERFACE) {
+			dev_err(&intf->dev, "skipping garbage\n");
+			goto next_desc;
+		}
+
+		switch (buffer[2]) {
+		case USB_CDC_HEADER_TYPE:
+			break;
+		case USB_CDC_DMM_TYPE:
+			dmhd = (struct usb_cdc_dmm_desc *)buffer;
+			maxcom = le16_to_cpu(dmhd->wMaxCommand);
+			dev_dbg(&intf->dev,
+				"Finding maximum buffer length: %d", maxcom);
+			break;
+		default:
+			dev_err(&intf->dev,
+				"Ignoring extra header, type %d, length %d\n",
+				buffer[2], buffer[0]);
+			break;
+		}
+next_desc:
+		buflen -= buffer[0];
+		buffer += buffer[0];
+	}
+
+	iface = intf->cur_altsetting;
+	if (iface->desc.bNumEndpoints != 1)
+		goto err;
+	ep = &iface->endpoint[0].desc;
+
+	rv = wdm_create(intf, ep, maxcom);
+
+err:
 	return rv;
 }
 
