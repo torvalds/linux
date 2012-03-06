@@ -38,7 +38,6 @@
 #include <mach/common.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/time.h>
 
 /*
  * SDHI
@@ -375,21 +374,11 @@ static void __init g4evm_init(void)
 	platform_add_devices(g4evm_devices, ARRAY_SIZE(g4evm_devices));
 }
 
-static void __init g4evm_timer_init(void)
-{
-	sh7377_clock_init();
-	shmobile_timer.init();
-}
-
-static struct sys_timer g4evm_timer = {
-	.init		= g4evm_timer_init,
-};
-
 MACHINE_START(G4EVM, "g4evm")
 	.map_io		= sh7377_map_io,
 	.init_early	= sh7377_add_early_devices,
 	.init_irq	= sh7377_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= g4evm_init,
-	.timer		= &g4evm_timer,
+	.timer		= &shmobile_timer,
 MACHINE_END
