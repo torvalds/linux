@@ -4706,6 +4706,7 @@ nfs4_state_start(void)
 out_free_laundry:
 	destroy_workqueue(laundry_wq);
 out_recovery:
+	nfs4_release_reclaim();
 	nfsd4_shutdown_recdir();
 	return ret;
 }
