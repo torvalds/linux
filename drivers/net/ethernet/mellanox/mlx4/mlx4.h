@@ -363,6 +363,10 @@ struct mlx4_eqe {
 		struct {
 			__be32	slave_id;
 		} __packed flr_event;
+		struct {
+			__be16  current_temperature;
+			__be16  warning_threshold;
+		} __packed warming;
 	}			event;
 	u8			slave_id;
 	u8			reserved3[2];
