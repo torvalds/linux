@@ -186,17 +186,7 @@ struct synaptics_platform_data {
 	void	(*exit_platform_hw)(void);
 };
 
-struct mma8452_platform_data {
-    u16     model;
-	u16     swap_xy;
-	u16		swap_xyz;
-	signed char orientation[9];
-    int     (*get_pendown_state)(void);
-    int     (*init_platform_hw)(void);
-    int     (*mma8452_platform_sleep)(void);
-    int     (*mma8452_platform_wakeup)(void);
-    void    (*exit_platform_hw)(void);
-};
+
 struct bma023_platform_data {
     u16     model;
 	u16     swap_xy;
@@ -233,16 +223,6 @@ struct ft5406_platform_data {
     void    (*exit_platform_hw)(void);
 };
 
-struct goodix_platform_data {
-	int model ;
-	int rest_pin;
-	int irq_pin ;
-    int     (*get_pendown_state)(void);
-    int     (*init_platform_hw)(void);
-    int     (*platform_sleep)(void);
-    int     (*platform_wakeup)(void);
-    void    (*exit_platform_hw)(void);
-};
 
 struct cs42l52_platform_data {
     int     (*get_pendown_state)(void);
@@ -279,11 +259,6 @@ struct laibao_platform_data {
 	int		reset_value;
 };
 
-struct akm8975_platform_data {
-	short m_layout[4][3][3];
-	char project_name[64];
-	int gpio_DRDY;
-};
 
 struct rk29_gpio_expander_info {
 	unsigned int gpio_num;
