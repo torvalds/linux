@@ -741,7 +741,7 @@ static void s3c_hsotg_start_req(struct s3c_hsotg *hsotg,
 	/* write size / packets */
 	writel(epsize, hsotg->regs + epsize_reg);
 
-	if (using_dma(hsotg)) {
+	if (using_dma(hsotg) && !continuing) {
 		unsigned int dma_reg;
 
 		/* write DMA address to control register, buffer already
