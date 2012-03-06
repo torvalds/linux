@@ -1348,6 +1348,9 @@ static void __init mackerel_init(void)
 	struct clk *clk;
 	int ret;
 
+	/* External clock source */
+	clk_set_rate(&sh7372_dv_clki_clk, 27000000);
+
 	sh7372_pinmux_init();
 
 	/* enable SCIFA0 */
@@ -1555,9 +1558,6 @@ static void __init mackerel_timer_init(void)
 {
 	sh7372_clock_init();
 	shmobile_timer.init();
-
-	/* External clock source */
-	clk_set_rate(&sh7372_dv_clki_clk, 27000000);
 }
 
 static struct sys_timer mackerel_timer = {
