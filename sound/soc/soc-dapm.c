@@ -208,7 +208,7 @@ static int soc_widget_write(struct snd_soc_dapm_widget *w, int reg, int val)
 
 static inline void soc_widget_lock(struct snd_soc_dapm_widget *w)
 {
-	if (w->codec)
+	if (w->codec && !w->codec->using_regmap)
 		mutex_lock(&w->codec->mutex);
 	else if (w->platform)
 		mutex_lock(&w->platform->mutex);
@@ -216,7 +216,7 @@ static inline void soc_widget_lock(struct snd_soc_dapm_widget *w)
 
 static inline void soc_widget_unlock(struct snd_soc_dapm_widget *w)
 {
-	if (w->codec)
+	if (w->codec && !w->codec->using_regmap)
 		mutex_unlock(&w->codec->mutex);
 	else if (w->platform)
 		mutex_unlock(&w->platform->mutex);
