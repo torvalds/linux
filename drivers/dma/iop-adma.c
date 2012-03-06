@@ -1622,16 +1622,12 @@ static void iop_chan_start_null_memcpy(struct iop_adma_chan *iop_chan)
 		iop_desc_set_dest_addr(grp_start, iop_chan, 0);
 		iop_desc_set_memcpy_src_addr(grp_start, 0);
 
-		cookie = iop_chan->common.cookie;
-		cookie++;
-		if (cookie <= 1)
-			cookie = 2;
+		cookie = dma_cookie_assign(&sw_desc->async_tx);
 
 		/* initialize the completed cookie to be less than
 		 * the most recently used cookie
 		 */
 		iop_chan->common.completed_cookie = cookie - 1;
-		iop_chan->common.cookie = sw_desc->async_tx.cookie = cookie;
 
 		/* channel should not be busy */
 		BUG_ON(iop_chan_is_busy(iop_chan));
@@ -1679,16 +1675,12 @@ static void iop_chan_start_null_xor(struct iop_adma_chan *iop_chan)
 		iop_desc_set_xor_src_addr(grp_start, 0, 0);
 		iop_desc_set_xor_src_addr(grp_start, 1, 0);
 
-		cookie = iop_chan->common.cookie;
-		cookie++;
-		if (cookie <= 1)
-			cookie = 2;
+		cookie = dma_cookie_assign(&sw_desc->async_tx);
 
 		/* initialize the completed cookie to be less than
 		 * the most recently used cookie
 		 */
 		iop_chan->common.completed_cookie = cookie - 1;
-		iop_chan->common.cookie = sw_desc->async_tx.cookie = cookie;
 
 		/* channel should not be busy */
 		BUG_ON(iop_chan_is_busy(iop_chan));

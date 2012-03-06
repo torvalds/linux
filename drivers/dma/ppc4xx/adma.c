@@ -4022,16 +4022,12 @@ static void ppc440spe_chan_start_null_xor(struct ppc440spe_adma_chan *chan)
 		async_tx_ack(&sw_desc->async_tx);
 		ppc440spe_desc_init_null_xor(group_start);
 
-		cookie = chan->common.cookie;
-		cookie++;
-		if (cookie <= 1)
-			cookie = 2;
+		cookie = dma_cookie_assign(&sw_desc->async_tx);
 
 		/* initialize the completed cookie to be less than
 		 * the most recently used cookie
 		 */
 		chan->common.completed_cookie = cookie - 1;
-		chan->common.cookie = sw_desc->async_tx.cookie = cookie;
 
 		/* channel should not be busy */
 		BUG_ON(ppc440spe_chan_is_busy(chan));
