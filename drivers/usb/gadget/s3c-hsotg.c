@@ -1921,7 +1921,8 @@ static void s3c_hsotg_epint(struct s3c_hsotg *hsotg, unsigned int idx,
 		    ints & S3C_DIEPMSK_TxFIFOEmpty) {
 			dev_dbg(hsotg->dev, "%s: ep%d: TxFIFOEmpty\n",
 				__func__, idx);
-			s3c_hsotg_trytx(hsotg, hs_ep);
+			if (!using_dma(hsotg))
+				s3c_hsotg_trytx(hsotg, hs_ep);
 		}
 	}
 }
