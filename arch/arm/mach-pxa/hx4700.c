@@ -664,11 +664,9 @@ static struct platform_device power_supply = {
 
 static struct regulator_consumer_supply bq24022_consumers[] = {
 	{
-		.dev = &gpio_vbus.dev,
 		.supply = "vbus_draw",
 	},
 	{
-		.dev = &power_supply.dev,
 		.supply = "ac_draw",
 	},
 };
