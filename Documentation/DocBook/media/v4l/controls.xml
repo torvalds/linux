@@ -3092,6 +3092,21 @@ sky. It corresponds approximately to 9000...10000 K color temperature.
 	  </row>
 	  <row><entry></entry></row>
 
+	  <row id="v4l2-wide-dynamic-range">
+	    <entry spanname="id"><constant>V4L2_CID_WIDE_DYNAMIC_RANGE</constant></entry>
+	    <entry>boolean</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">Enables or disables the camera's wide dynamic
+range feature. This feature allows to obtain clear images in situations where
+intensity of the illumination varies significantly throughout the scene, i.e.
+there are simultaneously very dark and very bright areas. It is most commonly
+realized in cameras by combining two subsequent frames with different exposure
+times. <footnote id="ctypeconv"><para> This control may be changed to a menu
+control in the future, if more options are required.</para></footnote></entry>
+	  </row>
+	  <row><entry></entry></row>
+
 	</tbody>
       </tgroup>
     </table>
