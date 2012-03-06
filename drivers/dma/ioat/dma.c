@@ -109,6 +109,7 @@ void ioat_init_channel(struct ioatdma_device *device, struct ioat_chan_common *c
 	chan->reg_base = device->reg_base + (0x80 * (idx + 1));
 	spin_lock_init(&chan->cleanup_lock);
 	chan->common.device = dma;
+	dma_cookie_init(&chan->common);
 	list_add_tail(&chan->common.device_node, &dma->channels);
 	device->idx[idx] = chan;
 	init_timer(&chan->timer);

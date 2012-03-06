@@ -347,6 +347,7 @@ static int __init imxdma_probe(struct platform_device *pdev)
 		spin_lock_init(&imxdmac->lock);
 
 		imxdmac->chan.device = &imxdma->dma_device;
+		dma_cookie_init(&imxdmac->chan);
 		imxdmac->channel = i;
 
 		/* Add the channel to the DMAC list */

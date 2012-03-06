@@ -1292,6 +1292,7 @@ static int __devinit fsl_dma_chan_probe(struct fsldma_device *fdev,
 	chan->idle = true;
 
 	chan->common.device = &fdev->common;
+	dma_cookie_init(&chan->common);
 
 	/* find the IRQ line, if it exists in the device tree */
 	chan->irq = irq_of_parse_and_map(node, 0);

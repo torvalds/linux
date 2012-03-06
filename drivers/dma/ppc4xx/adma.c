@@ -4497,6 +4497,7 @@ static int __devinit ppc440spe_adma_probe(struct platform_device *ofdev)
 	INIT_LIST_HEAD(&chan->all_slots);
 	chan->device = adev;
 	chan->common.device = &adev->common;
+	dma_cookie_init(&chan->common);
 	list_add_tail(&chan->common.device_node, &adev->common.channels);
 	tasklet_init(&chan->irq_tasklet, ppc440spe_adma_tasklet,
 		     (unsigned long)chan);

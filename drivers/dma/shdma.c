@@ -1089,6 +1089,7 @@ static int __devinit sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 
 	/* reference struct dma_device */
 	new_sh_chan->common.device = &shdev->common;
+	dma_cookie_init(&new_sh_chan->common);
 
 	new_sh_chan->dev = shdev->common.dev;
 	new_sh_chan->id = id;

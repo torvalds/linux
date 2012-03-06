@@ -618,6 +618,7 @@ static int __init mxs_dma_probe(struct platform_device *pdev)
 
 		mxs_chan->mxs_dma = mxs_dma;
 		mxs_chan->chan.device = &mxs_dma->dma_device;
+		dma_cookie_init(&mxs_chan->chan);
 
 		tasklet_init(&mxs_chan->tasklet, mxs_dma_tasklet,
 			     (unsigned long) mxs_chan);

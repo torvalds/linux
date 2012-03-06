@@ -1193,6 +1193,7 @@ static int __devinit mv_xor_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&mv_chan->completed_slots);
 	INIT_LIST_HEAD(&mv_chan->all_slots);
 	mv_chan->common.device = dma_dev;
+	dma_cookie_init(&mv_chan->common);
 
 	list_add_tail(&mv_chan->common.device_node, &dma_dev->channels);
 

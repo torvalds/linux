@@ -1355,6 +1355,7 @@ static int __init sdma_probe(struct platform_device *pdev)
 		spin_lock_init(&sdmac->lock);
 
 		sdmac->chan.device = &sdma->dma_device;
+		dma_cookie_init(&sdmac->chan);
 		sdmac->channel = i;
 
 		/*
