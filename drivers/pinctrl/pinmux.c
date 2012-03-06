@@ -94,17 +94,28 @@ static int pin_request(struct pinctrl_dev *pctldev,
 		goto out;
 	}
 
-	if (desc->usecount && strcmp(desc->owner, owner)) {
-		dev_err(pctldev->dev,
-			"pin already requested\n");
-		goto out;
+	if (gpio_range) {
+		/* There's no need to support multiple GPIO requests */
+		if (desc->gpio_owner) {
+			dev_err(pctldev->dev,
+				"pin already requested\n");
+			goto out;
+		}
+
+		desc->gpio_owner = owner;
+	} else {
+		if (desc->mux_usecount && strcmp(desc->mux_owner, owner)) {
+			dev_err(pctldev->dev,
+				"pin already requested\n");
+			goto out;
+		}
+
+		desc->mux_usecount++;
+		if (desc->mux_usecount > 1)
+			return 0;
+
+		desc->mux_owner = owner;
 	}
-
-	desc->usecount++;
-	if (desc->usecount > 1)
-		return 0;
-
-	desc->owner = owner;
 
 	/* Let each pin increase references to this module */
 	if (!try_module_get(pctldev->owner)) {
@@ -135,9 +146,13 @@ static int pin_request(struct pinctrl_dev *pctldev,
 
 out_free_pin:
 	if (status) {
-		desc->usecount--;
-		if (!desc->usecount)
-			desc->owner = NULL;
+		if (gpio_range) {
+			desc->gpio_owner = NULL;
+		} else {
+			desc->mux_usecount--;
+			if (!desc->mux_usecount)
+				desc->mux_owner = NULL;
+		}
 	}
 out:
 	if (status)
@@ -172,9 +187,11 @@ static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
 		return NULL;
 	}
 
-	desc->usecount--;
-	if (desc->usecount)
-		return NULL;
+	if (!gpio_range) {
+		desc->mux_usecount--;
+		if (desc->mux_usecount)
+			return NULL;
+	}
 
 	/*
 	 * If there is no kind of request function for the pin we just assume
@@ -185,9 +202,15 @@ static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
 	else if (ops->free)
 		ops->free(pctldev, pin);
 
-	owner = desc->owner;
-	desc->owner = NULL;
-	desc->mux_setting = NULL;
+	if (gpio_range) {
+		owner = desc->gpio_owner;
+		desc->gpio_owner = NULL;
+	} else {
+		owner = desc->mux_owner;
+		desc->mux_owner = NULL;
+		desc->mux_setting = NULL;
+	}
+
 	module_put(pctldev->owner);
 
 	return owner;
@@ -493,7 +516,7 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 	unsigned i, pin;
 
 	seq_puts(s, "Pinmux settings per pin\n");
-	seq_puts(s, "Format: pin (name): owner\n");
+	seq_puts(s, "Format: pin (name): mux_owner gpio_owner hog?\n");
 
 	mutex_lock(&pinctrl_mutex);
 
@@ -508,13 +531,16 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 		if (desc == NULL)
 			continue;
 
-		if (desc->owner &&
-		    !strcmp(desc->owner, pinctrl_dev_get_name(pctldev)))
+		if (desc->mux_owner &&
+		    !strcmp(desc->mux_owner, pinctrl_dev_get_name(pctldev)))
 			is_hog = true;
 
-		seq_printf(s, "pin %d (%s): %s%s", pin,
+		seq_printf(s, "pin %d (%s): %s %s%s", pin,
 			   desc->name ? desc->name : "unnamed",
-			   desc->owner ? desc->owner : "UNCLAIMED",
+			   desc->mux_owner ? desc->mux_owner
+				: "(MUX UNCLAIMED)",
+			   desc->gpio_owner ? desc->gpio_owner
+				: "(GPIO UNCLAIMED)",
 			   is_hog ? " (HOG)" : "");
 
 		if (desc->mux_setting)
