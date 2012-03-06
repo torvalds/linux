@@ -227,33 +227,6 @@ static void iio_device_unregister_debugfs(struct iio_dev *indio_dev)
 	debugfs_remove_recursive(indio_dev->debugfs_dentry);
 }
 
-static ssize_t iio_read_channel_ext_info(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	const struct iio_chan_spec_ext_info *ext_info;
-
-	ext_info = &this_attr->c->ext_info[this_attr->address];
-
-	return ext_info->read(indio_dev, this_attr->c, buf);
-}
-
-static ssize_t iio_write_channel_ext_info(struct device *dev,
-				     struct device_attribute *attr,
-				     const char *buf,
-					 size_t len)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	const struct iio_chan_spec_ext_info *ext_info;
-
-	ext_info = &this_attr->c->ext_info[this_attr->address];
-
-	return ext_info->write(indio_dev, this_attr->c, buf, len);
-}
-
 static int iio_device_register_debugfs(struct iio_dev *indio_dev)
 {
 	struct dentry *d;
@@ -296,6 +269,33 @@ static void iio_device_unregister_debugfs(struct iio_dev *indio_dev)
 {
 }
 #endif /* CONFIG_DEBUG_FS */
+
+static ssize_t iio_read_channel_ext_info(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	const struct iio_chan_spec_ext_info *ext_info;
+
+	ext_info = &this_attr->c->ext_info[this_attr->address];
+
+	return ext_info->read(indio_dev, this_attr->c, buf);
+}
+
+static ssize_t iio_write_channel_ext_info(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf,
+					 size_t len)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	const struct iio_chan_spec_ext_info *ext_info;
+
+	ext_info = &this_attr->c->ext_info[this_attr->address];
+
+	return ext_info->write(indio_dev, this_attr->c, buf, len);
+}
 
 static ssize_t iio_read_channel_info(struct device *dev,
 				     struct device_attribute *attr,
