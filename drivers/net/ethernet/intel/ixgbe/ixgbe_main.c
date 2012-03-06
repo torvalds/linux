@@ -6768,6 +6768,8 @@ static void ixgbe_tx_map(struct ixgbe_ring *tx_ring,
 		tx_buffer_info->dma = dma;
 
 		tx_desc->read.buffer_addr = cpu_to_le64(dma + offset);
+		if (unlikely(skb->no_fcs))
+			cmd_type &= ~(cpu_to_le32(IXGBE_ADVTXD_DCMD_IFCS));
 		tx_desc->read.cmd_type_len = cmd_type | cpu_to_le32(size);
 		tx_desc->read.olinfo_status = olinfo_status;
 
@@ -7778,6 +7780,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	netdev->vlan_features |= NETIF_F_SG;
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
+	netdev->priv_flags |= IFF_SUPP_NOFCS;
 
 	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
 		adapter->flags &= ~(IXGBE_FLAG_RSS_ENABLED |
