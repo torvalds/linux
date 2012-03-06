@@ -16,6 +16,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/gpio.h>
+#include <linux/irq.h>
 
 /* GPIO port for VBUS detecting */
 static int vbus_gpio_port = -1;		/* GPIO port number (-1:Not used) */
