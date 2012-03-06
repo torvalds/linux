@@ -1696,10 +1696,12 @@ static void s3c_hsotg_set_ep_maxpacket(struct s3c_hsotg *hsotg,
 	reg |= mpsval;
 	writel(reg, regs + S3C_DIEPCTL(ep));
 
-	reg = readl(regs + S3C_DOEPCTL(ep));
-	reg &= ~S3C_DxEPCTL_MPS_MASK;
-	reg |= mpsval;
-	writel(reg, regs + S3C_DOEPCTL(ep));
+	if (ep) {
+		reg = readl(regs + S3C_DOEPCTL(ep));
+		reg &= ~S3C_DxEPCTL_MPS_MASK;
+		reg |= mpsval;
+		writel(reg, regs + S3C_DOEPCTL(ep));
+	}
 
 	return;
 
