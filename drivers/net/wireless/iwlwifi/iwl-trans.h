@@ -338,7 +338,6 @@ enum iwl_trans_state {
  * @hw_id: a u32 with the ID of the device / subdevice.
  *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
- * @ucode_write_complete: indicates that the ucode has been copied.
  * @nvm_device_type: indicates OTP or eeprom
  * @pm_support: set to true in start_hw if link pm is supported
  */
@@ -354,8 +353,6 @@ struct iwl_trans {
 	u32 hw_rev;
 	u32 hw_id;
 	char hw_id_str[52];
-
-	u8 ucode_write_complete;
 
 	int    nvm_device_type;
 	bool pm_support;

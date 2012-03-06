@@ -947,11 +947,12 @@ static const u8 iwlagn_pan_ac_to_queue[] = {
 static int iwl_load_section(struct iwl_trans *trans, const char *name,
 			    const struct fw_desc *image, u32 dst_addr)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	dma_addr_t phy_addr = image->p_addr;
 	u32 byte_cnt = image->len;
 	int ret;
 
-	trans->ucode_write_complete = 0;
+	trans_pcie->ucode_write_complete = false;
 
 	iwl_write_direct32(trans,
 		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
@@ -982,8 +983,8 @@ static int iwl_load_section(struct iwl_trans *trans, const char *name,
 		FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
 
 	IWL_DEBUG_FW(trans, "%s uCode section being loaded...\n", name);
-	ret = wait_event_timeout(trans->shrd->wait_command_queue,
-				 trans->ucode_write_complete, 5 * HZ);
+	ret = wait_event_timeout(trans_pcie->ucode_write_waitq,
+				 trans_pcie->ucode_write_complete, 5 * HZ);
 	if (!ret) {
 		IWL_ERR(trans, "Could not load the %s uCode section\n",
 			name);
@@ -2255,6 +2256,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
 	trans->shrd = shrd;
 	trans_pcie->trans = trans;
 	spin_lock_init(&trans_pcie->irq_lock);
+	init_waitqueue_head(&trans_pcie->ucode_write_waitq);
 
 	/* W/A - seems to solve weird behavior. We need to remove this if we
 	 * don't want to stay in L1 all the time. This wastes a lot of power */

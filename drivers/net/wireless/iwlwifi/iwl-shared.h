@@ -367,7 +367,7 @@ struct iwl_cfg {
  * @nic: pointer to the nic data
  * @hw_params: see struct iwl_hw_params
  * @lock: protect general shared data
- * @wait_command_queue: the wait_queue for SYNC host command nad uCode load
+ * @wait_command_queue: the wait_queue for SYNC host commands
  * @eeprom: pointer to the eeprom/OTP image
  * @ucode_type: indicator of loaded ucode image
  * @device_pointers: pointers to ucode event tables

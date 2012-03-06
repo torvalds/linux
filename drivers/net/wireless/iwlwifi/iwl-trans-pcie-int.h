@@ -32,6 +32,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/skbuff.h>
+#include <linux/wait.h>
 #include <linux/pci.h>
 
 #include "iwl-fh.h"
@@ -243,6 +244,8 @@ struct iwl_tx_queue {
  * queue_stop_count: tracks what SW queue is stopped
  * @pci_dev: basic pci-network driver stuff
  * @hw_base: pci hardware address support
+ * @ucode_write_complete: indicates that the ucode has been copied.
+ * @ucode_write_waitq: wait queue for uCode load
  */
 struct iwl_trans_pcie {
 	struct iwl_rx_queue rxq;
@@ -279,6 +282,9 @@ struct iwl_trans_pcie {
 	/* PCI bus related data */
 	struct pci_dev *pci_dev;
 	void __iomem *hw_base;
+
+	bool ucode_write_complete;
+	wait_queue_head_t ucode_write_waitq;
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
