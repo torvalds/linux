@@ -75,6 +75,7 @@
 #include "iwl-agn.h"
 #include "iwl-eeprom.h"
 #include "iwl-io.h"
+#include "iwl-prph.h"
 
 /************************** EEPROM BANDS ****************************
  *
