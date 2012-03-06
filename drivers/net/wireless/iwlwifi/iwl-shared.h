@@ -211,16 +211,6 @@ enum iwl_ucode_type {
 	IWL_UCODE_WOWLAN,
 };
 
-/**
- * enum iwl_pa_type - Power Amplifier type
- * @IWL_PA_SYSTEM:  based on uCode configuration
- * @IWL_PA_INTERNAL: use Internal only
- */
-enum iwl_pa_type {
-	IWL_PA_SYSTEM = 0,
-	IWL_PA_INTERNAL = 1,
-};
-
 /*
  * LED mode
  *    IWL_LED_DEFAULT:  use device default
@@ -301,7 +291,6 @@ struct iwl_base_params {
  * @base_params: pointer to basic parameters
  * @ht_params: point to ht patameters
  * @bt_params: pointer to bt parameters
- * @pa_type: used by 6000 series only to identify the type of Power Amplifier
  * @need_temp_offset_calib: need to perform temperature offset calibration
  * @no_xtal_calib: some devices do not need crystal calibration data,
  *	don't send it to those
@@ -341,7 +330,6 @@ struct iwl_cfg {
 	/* params likely to change within a device family */
 	const struct iwl_ht_params *ht_params;
 	const struct iwl_bt_params *bt_params;
-	enum iwl_pa_type pa_type;	  /* if used set to IWL_PA_SYSTEM */
 	const bool need_temp_offset_calib; /* if used set to true */
 	const bool no_xtal_calib;
 	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];

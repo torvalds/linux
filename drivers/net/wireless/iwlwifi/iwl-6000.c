@@ -96,20 +96,21 @@ static void iwl6150_additional_nic_config(struct iwl_priv *priv)
 		    CSR_GP_DRIVER_REG_BIT_6050_1x2);
 }
 
+static void iwl6000i_additional_nic_config(struct iwl_priv *priv)
+{
+	/* 2x2 IPA phy type */
+	iwl_write32(trans(priv), CSR_GP_DRIVER_REG,
+		     CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_IPA);
+}
+
 /* NIC configuration for 6000 series */
 static void iwl6000_nic_config(struct iwl_priv *priv)
 {
 	iwl_rf_config(priv);
 
-	/* no locking required for register write */
-	if (cfg(priv)->pa_type == IWL_PA_INTERNAL) {
-		/* 2x2 IPA phy type */
-		iwl_write32(trans(priv), CSR_GP_DRIVER_REG,
-			     CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_IPA);
-	}
 	/* do additional nic configuration if needed */
 	if (cfg(priv)->additional_nic_config)
-			cfg(priv)->additional_nic_config(priv);
+		cfg(priv)->additional_nic_config(priv);
 }
 
 static struct iwl_sensitivity_ranges iwl6000_sensitivity = {
@@ -473,8 +474,8 @@ const struct iwl_cfg iwl130_bg_cfg = {
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,	\
 	.lib = &iwl6000_lib,					\
+	.additional_nic_config = iwl6000i_additional_nic_config,\
 	.base_params = &iwl6000_base_params,			\
-	.pa_type = IWL_PA_INTERNAL,				\
 	.led_mode = IWL_LED_BLINK
 
 const struct iwl_cfg iwl6000i_2agn_cfg = {
