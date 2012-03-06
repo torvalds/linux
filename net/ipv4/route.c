@@ -938,6 +938,7 @@ static void rt_cache_invalidate(struct net *net)
 	get_random_bytes(&shuffle, sizeof(shuffle));
 	atomic_add(shuffle + 1U, &net->ipv4.rt_genid);
 	redirect_genid++;
+	inetpeer_invalidate_tree(AF_INET);
 }
 
 /*
