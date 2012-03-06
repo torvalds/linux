@@ -206,7 +206,23 @@ static int soc_widget_write(struct snd_soc_dapm_widget *w, int reg, int val)
 	return -1;
 }
 
-static int soc_widget_update_bits(struct snd_soc_dapm_widget *w,
+static inline void soc_widget_lock(struct snd_soc_dapm_widget *w)
+{
+	if (w->codec)
+		mutex_lock(&w->codec->mutex);
+	else if (w->platform)
+		mutex_lock(&w->platform->mutex);
+}
+
+static inline void soc_widget_unlock(struct snd_soc_dapm_widget *w)
+{
+	if (w->codec)
+		mutex_unlock(&w->codec->mutex);
+	else if (w->platform)
+		mutex_unlock(&w->platform->mutex);
+}
+
+static int soc_widget_update_bits_locked(struct snd_soc_dapm_widget *w,
 	unsigned short reg, unsigned int mask, unsigned int value)
 {
 	bool change;
@@ -219,18 +235,24 @@ static int soc_widget_update_bits(struct snd_soc_dapm_widget *w,
 		if (ret != 0)
 			return ret;
 	} else {
+		soc_widget_lock(w);
 		ret = soc_widget_read(w, reg);
-		if (ret < 0)
+		if (ret < 0) {
+			soc_widget_unlock(w);
 			return ret;
+		}
 
 		old = ret;
 		new = (old & ~mask) | (value & mask);
 		change = old != new;
 		if (change) {
 			ret = soc_widget_write(w, reg, new);
-			if (ret < 0)
+			if (ret < 0) {
+				soc_widget_unlock(w);
 				return ret;
+			}
 		}
+		soc_widget_unlock(w);
 	}
 
 	return change;
@@ -847,7 +869,7 @@ int dapm_reg_event(struct snd_soc_dapm_widget *w,
 	else
 		val = w->off_val;
 
-	soc_widget_update_bits(w, -(w->reg + 1),
+	soc_widget_update_bits_locked(w, -(w->reg + 1),
 			    w->mask << w->shift, val << w->shift);
 
 	return 0;
@@ -1105,7 +1127,7 @@ static void dapm_seq_run_coalesced(struct snd_soc_dapm_context *dapm,
 			"pop test : Applying 0x%x/0x%x to %x in %dms\n",
 			value, mask, reg, card->pop_time);
 		pop_wait(card->pop_time);
-		soc_widget_update_bits(w, reg, mask, value);
+		soc_widget_update_bits_locked(w, reg, mask, value);
 	}
 
 	list_for_each_entry(w, pending, power_list) {
@@ -1235,7 +1257,7 @@ static void dapm_widget_update(struct snd_soc_dapm_context *dapm)
 			       w->name, ret);
 	}
 
-	ret = snd_soc_update_bits(w->codec, update->reg, update->mask,
+	ret = soc_widget_update_bits_locked(w, update->reg, update->mask,
 				  update->val);
 	if (ret < 0)
 		pr_err("%s DAPM update failed: %d\n", w->name, ret);
