@@ -49,7 +49,7 @@ static int _init_omap_device(char *name)
 /*
  * Build omap_devices for processors and bus.
  */
-static void omap2_init_processor_devices(void)
+static void __init omap2_init_processor_devices(void)
 {
 	_init_omap_device("mpu");
 	if (omap3_has_iva())
