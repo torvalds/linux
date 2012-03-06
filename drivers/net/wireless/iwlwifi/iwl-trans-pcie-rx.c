@@ -1016,30 +1016,16 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 
 	/* HW RF KILL switch toggled */
 	if (inta & CSR_INT_BIT_RF_KILL) {
-		int hw_rf_kill = 0;
-		if (!(iwl_read32(trans, CSR_GP_CNTRL) &
-				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
-			hw_rf_kill = 1;
+		bool hw_rfkill;
 
+		hw_rfkill = !(iwl_read32(trans, CSR_GP_CNTRL) &
+				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
 		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
-				hw_rf_kill ? "disable radio" : "enable radio");
+				hw_rfkill ? "disable radio" : "enable radio");
 
 		isr_stats->rfkill++;
 
-		/* driver only loads ucode once setting the interface up.
-		 * the driver allows loading the ucode even if the radio
-		 * is killed. Hence update the killswitch state here. The
-		 * rfkill handler will care about restarting if needed.
-		 */
-		if (!test_bit(STATUS_ALIVE, &trans->shrd->status)) {
-			if (hw_rf_kill)
-				set_bit(STATUS_RF_KILL_HW,
-					&trans->shrd->status);
-			else
-				clear_bit(STATUS_RF_KILL_HW,
-					  &trans->shrd->status);
-			iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rf_kill);
-		}
+		iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
 
 		handled |= CSR_INT_BIT_RF_KILL;
 	}

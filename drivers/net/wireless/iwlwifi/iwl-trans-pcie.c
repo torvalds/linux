@@ -1021,6 +1021,7 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 	int ret;
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
+	bool hw_rfkill;
 
 	trans->shrd->ucode_owner = IWL_OWNERSHIP_DRIVER;
 	trans_pcie->ac_to_queue[IWL_RXON_CTX_BSS] = iwlagn_bss_ac_to_queue;
@@ -1039,14 +1040,11 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 	}
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
-	if (iwl_read32(trans, CSR_GP_CNTRL) &
-			CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
-		clear_bit(STATUS_RF_KILL_HW, &trans->shrd->status);
-	else
-		set_bit(STATUS_RF_KILL_HW, &trans->shrd->status);
+	hw_rfkill = !(iwl_read32(trans, CSR_GP_CNTRL) &
+				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
+	iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
 
-	if (iwl_is_rfkill(trans->shrd)) {
-		iwl_op_mode_hw_rf_kill(trans->op_mode, true);
+	if (hw_rfkill) {
 		iwl_enable_interrupts(trans);
 		return -ERFKILL;
 	}
@@ -1506,6 +1504,7 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 	int err;
+	bool hw_rfkill;
 
 	trans_pcie->inta_mask = CSR_INI_SET_MASK;
 
@@ -1535,16 +1534,9 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 
 	iwl_apm_init(trans);
 
-	/* If platform's RF_KILL switch is NOT set to KILL */
-	if (iwl_read32(trans,
-			CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
-		clear_bit(STATUS_RF_KILL_HW, &trans->shrd->status);
-	else
-		set_bit(STATUS_RF_KILL_HW, &trans->shrd->status);
-
-	iwl_op_mode_hw_rf_kill(trans->op_mode,
-				test_bit(STATUS_RF_KILL_HW,
-					 &trans->shrd->status));
+	hw_rfkill = !(iwl_read32(trans, CSR_GP_CNTRL) &
+				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
+	iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
 
 	return err;
 
@@ -1659,19 +1651,12 @@ static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
 
 static int iwl_trans_pcie_resume(struct iwl_trans *trans)
 {
-	bool hw_rfkill = false;
+	bool hw_rfkill;
 
 	iwl_enable_interrupts(trans);
 
-	if (!(iwl_read32(trans, CSR_GP_CNTRL) &
-				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
-		hw_rfkill = true;
-
-	if (hw_rfkill)
-		set_bit(STATUS_RF_KILL_HW, &trans->shrd->status);
-	else
-		clear_bit(STATUS_RF_KILL_HW, &trans->shrd->status);
-
+	hw_rfkill = !(iwl_read32(trans, CSR_GP_CNTRL) &
+				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
 	iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
 
 	return 0;
