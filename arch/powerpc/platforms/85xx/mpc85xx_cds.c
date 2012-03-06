@@ -48,17 +48,24 @@
 
 #include "mpc85xx.h"
 
-/* CADMUS info */
-/* xxx - galak, move into device tree */
-#define CADMUS_BASE (0xf8004000)
-#define CADMUS_SIZE (256)
-#define CM_VER	(0)
-#define CM_CSR	(1)
-#define CM_RST	(2)
+/*
+ * The CDS board contains an FPGA/CPLD called "Cadmus", which collects
+ * various logic and performs system control functions.
+ * Here is the FPGA/CPLD register map.
+ */
+struct cadmus_reg {
+	u8 cm_ver;		/* Board version */
+	u8 cm_csr;		/* General control/status */
+	u8 cm_rst;		/* Reset control */
+	u8 cm_hsclk;	/* High speed clock */
+	u8 cm_hsxclk;	/* High speed clock extended */
+	u8 cm_led;		/* LED data */
+	u8 cm_pci;		/* PCI control/status */
+	u8 cm_dma;		/* DMA control */
+	u8 res[248];	/* Total 256 bytes */
+};
 
-
-static int cds_pci_slot = 2;
-static volatile u8 *cadmus;
+static struct cadmus_reg *cadmus;
 
 #ifdef CONFIG_PCI
 
@@ -275,20 +282,30 @@ machine_device_initcall(mpc85xx_cds, mpc85xx_cds_8259_attach);
  */
 static void __init mpc85xx_cds_setup_arch(void)
 {
-#ifdef CONFIG_PCI
 	struct device_node *np;
-#endif
+	int cds_pci_slot;
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc85xx_cds_setup_arch()", 0);
 
-	cadmus = ioremap(CADMUS_BASE, CADMUS_SIZE);
-	cds_pci_slot = ((cadmus[CM_CSR] >> 6) & 0x3) + 1;
+	np = of_find_compatible_node(NULL, NULL, "fsl,mpc8548cds-fpga");
+	if (!np) {
+		pr_err("Could not find FPGA node.\n");
+		return;
+	}
+
+	cadmus = of_iomap(np, 0);
+	of_node_put(np);
+	if (!cadmus) {
+		pr_err("Fail to map FPGA area.\n");
+		return;
+	}
 
 	if (ppc_md.progress) {
 		char buf[40];
+		cds_pci_slot = ((in_8(&cadmus->cm_csr) >> 6) & 0x3) + 1;
 		snprintf(buf, 40, "CDS Version = 0x%x in slot %d\n",
-				cadmus[CM_VER], cds_pci_slot);
+				in_8(&cadmus->cm_ver), cds_pci_slot);
 		ppc_md.progress(buf, 0);
 	}
 
@@ -318,7 +335,8 @@ static void mpc85xx_cds_show_cpuinfo(struct seq_file *m)
 	svid = mfspr(SPRN_SVR);
 
 	seq_printf(m, "Vendor\t\t: Freescale Semiconductor\n");
-	seq_printf(m, "Machine\t\t: MPC85xx CDS (0x%x)\n", cadmus[CM_VER]);
+	seq_printf(m, "Machine\t\t: MPC85xx CDS (0x%x)\n",
+			in_8(&cadmus->cm_ver));
 	seq_printf(m, "PVR\t\t: 0x%x\n", pvid);
 	seq_printf(m, "SVR\t\t: 0x%x\n", svid);
 
