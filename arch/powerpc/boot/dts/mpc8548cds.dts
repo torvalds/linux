@@ -1,7 +1,7 @@
 /*
  * MPC8548 CDS Device Tree Source
  *
- * Copyright 2006, 2008 Freescale Semiconductor Inc.
+ * Copyright 2006, 2008, 2011 Freescale Semiconductor Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -34,6 +34,44 @@
 
 	lbc: localbus@e0005000 {
 		reg = <0 0xe0005000 0 0x1000>;
+
+		ranges = <0x0 0x0 0x0 0xff000000 0x01000000>;
+
+		nor@0,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x0 0x0 0x01000000>;
+			bank-width = <2>;
+			device-width = <2>;
+
+			partition@0 {
+				reg = <0x0 0x0b00000>;
+				label = "ramdisk-nor";
+			};
+
+			partition@300000 {
+				reg = <0x0b00000 0x0400000>;
+				label = "kernel-nor";
+			};
+
+			partition@700000 {
+				reg = <0x0f00000 0x060000>;
+				label = "dtb-nor";
+			};
+
+			partition@760000 {
+				reg = <0x0f60000 0x020000>;
+				label = "env-nor";
+				read-only;
+			};
+
+			partition@780000 {
+				reg = <0x0f80000 0x080000>;
+				label = "u-boot-nor";
+				read-only;
+			};
+		};
 	};
 
 	soc: soc8548@e0000000 {
