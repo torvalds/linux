@@ -212,35 +212,6 @@ enum iwl_ucode_type {
 };
 
 /**
- * struct iwl_notification_wait - notification wait entry
- * @list: list head for global list
- * @fn: function called with the notification
- * @cmd: command ID
- *
- * This structure is not used directly, to wait for a
- * notification declare it on the stack, and call
- * iwlagn_init_notification_wait() with appropriate
- * parameters. Then do whatever will cause the ucode
- * to notify the driver, and to wait for that then
- * call iwlagn_wait_notification().
- *
- * Each notification is one-shot. If at some point we
- * need to support multi-shot notifications (which
- * can't be allocated on the stack) we need to modify
- * the code for them.
- */
-struct iwl_notification_wait {
-	struct list_head list;
-
-	void (*fn)(struct iwl_priv *priv, struct iwl_rx_packet *pkt,
-		   void *data);
-	void *fn_data;
-
-	u8 cmd;
-	bool triggered, aborted;
-};
-
-/**
  * enum iwl_pa_type - Power Amplifier type
  * @IWL_PA_SYSTEM:  based on uCode configuration
  * @IWL_PA_INTERNAL: use Internal only
@@ -400,9 +371,6 @@ struct iwl_cfg {
  * @wait_command_queue: the wait_queue for SYNC host command nad uCode load
  * @eeprom: pointer to the eeprom/OTP image
  * @ucode_type: indicator of loaded ucode image
- * @notif_waits: things waiting for notification
- * @notif_wait_lock: lock protecting notification
- * @notif_waitq: head of notification wait queue
  * @device_pointers: pointers to ucode event tables
  */
 struct iwl_shared {
@@ -427,11 +395,6 @@ struct iwl_shared {
 
 	/* ucode related variables */
 	enum iwl_ucode_type ucode_type;
-
-	/* notification wait support */
-	struct list_head notif_waits;
-	spinlock_t notif_wait_lock;
-	wait_queue_head_t notif_waitq;
 
 	struct {
 		u32 error_event_table;
@@ -461,24 +424,6 @@ enum iwl_rxon_context_id {
 int iwlagn_hw_valid_rtc_data_addr(u32 addr);
 void iwl_nic_config(struct iwl_priv *priv);
 const char *get_cmd_string(u8 cmd);
-
-/* notification wait support */
-void iwl_abort_notification_waits(struct iwl_shared *shrd);
-void __acquires(wait_entry)
-iwl_init_notification_wait(struct iwl_shared *shrd,
-			   struct iwl_notification_wait *wait_entry,
-			   u8 cmd,
-			   void (*fn)(struct iwl_priv *priv,
-				      struct iwl_rx_packet *pkt,
-				      void *data),
-			   void *fn_data);
-int __must_check __releases(wait_entry)
-iwl_wait_notification(struct iwl_shared *shrd,
-			 struct iwl_notification_wait *wait_entry,
-			 unsigned long timeout);
-void __releases(wait_entry)
-iwl_remove_notification(struct iwl_shared *shrd,
-			   struct iwl_notification_wait *wait_entry);
 
 #define IWL_CMD(x) case x: return #x
 

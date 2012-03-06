@@ -60,9 +60,9 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 	u8 old_dev_type = send->dev_type;
 	int ret;
 
-	iwl_init_notification_wait(priv->shrd, &disable_wait,
-				      REPLY_WIPAN_DEACTIVATION_COMPLETE,
-				      NULL, NULL);
+	iwl_init_notification_wait(&priv->notif_wait, &disable_wait,
+				   REPLY_WIPAN_DEACTIVATION_COMPLETE,
+				   NULL, NULL);
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	send->dev_type = RXON_DEV_TYPE_P2P;
@@ -74,9 +74,10 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 
 	if (ret) {
 		IWL_ERR(priv, "Error disabling PAN (%d)\n", ret);
-		iwl_remove_notification(priv->shrd, &disable_wait);
+		iwl_remove_notification(&priv->notif_wait, &disable_wait);
 	} else {
-		ret = iwl_wait_notification(priv->shrd, &disable_wait, HZ);
+		ret = iwl_wait_notification(&priv->notif_wait,
+					    &disable_wait, HZ);
 		if (ret)
 			IWL_ERR(priv, "Timed out waiting for PAN disable\n");
 	}

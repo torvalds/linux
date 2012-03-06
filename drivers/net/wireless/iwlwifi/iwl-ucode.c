@@ -29,7 +29,6 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/sched.h>
 
 #include "iwl-dev.h"
 #include "iwl-core.h"
@@ -434,10 +433,12 @@ struct iwl_alive_data {
 	u8 subtype;
 };
 
-static void iwl_alive_fn(struct iwl_priv *priv,
+static void iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 			    struct iwl_rx_packet *pkt,
 			    void *data)
 {
+	struct iwl_priv *priv =
+		container_of(notif_wait, struct iwl_priv, notif_wait);
 	struct iwl_alive_data *alive_data = data;
 	struct iwl_alive_resp *palive;
 
@@ -455,70 +456,6 @@ static void iwl_alive_fn(struct iwl_priv *priv,
 
 	alive_data->subtype = palive->ver_subtype;
 	alive_data->valid = palive->is_valid == UCODE_VALID_OK;
-}
-
-/* notification wait support */
-void iwl_init_notification_wait(struct iwl_shared *shrd,
-				struct iwl_notification_wait *wait_entry,
-				u8 cmd,
-				void (*fn)(struct iwl_priv *priv,
-					   struct iwl_rx_packet *pkt,
-					   void *data),
-				void *fn_data)
-{
-	wait_entry->fn = fn;
-	wait_entry->fn_data = fn_data;
-	wait_entry->cmd = cmd;
-	wait_entry->triggered = false;
-	wait_entry->aborted = false;
-
-	spin_lock_bh(&shrd->notif_wait_lock);
-	list_add(&wait_entry->list, &shrd->notif_waits);
-	spin_unlock_bh(&shrd->notif_wait_lock);
-}
-
-int iwl_wait_notification(struct iwl_shared *shrd,
-			     struct iwl_notification_wait *wait_entry,
-			     unsigned long timeout)
-{
-	int ret;
-
-	ret = wait_event_timeout(shrd->notif_waitq,
-				 wait_entry->triggered || wait_entry->aborted,
-				 timeout);
-
-	spin_lock_bh(&shrd->notif_wait_lock);
-	list_del(&wait_entry->list);
-	spin_unlock_bh(&shrd->notif_wait_lock);
-
-	if (wait_entry->aborted)
-		return -EIO;
-
-	/* return value is always >= 0 */
-	if (ret <= 0)
-		return -ETIMEDOUT;
-	return 0;
-}
-
-void iwl_remove_notification(struct iwl_shared *shrd,
-				struct iwl_notification_wait *wait_entry)
-{
-	spin_lock_bh(&shrd->notif_wait_lock);
-	list_del(&wait_entry->list);
-	spin_unlock_bh(&shrd->notif_wait_lock);
-}
-
-void iwl_abort_notification_waits(struct iwl_shared *shrd)
-{
-	unsigned long flags;
-	struct iwl_notification_wait *wait_entry;
-
-	spin_lock_irqsave(&shrd->notif_wait_lock, flags);
-	list_for_each_entry(wait_entry, &shrd->notif_waits, list)
-		wait_entry->aborted = true;
-	spin_unlock_irqrestore(&shrd->notif_wait_lock, flags);
-
-	wake_up_all(&shrd->notif_waitq);
 }
 
 #define UCODE_ALIVE_TIMEOUT	HZ
@@ -540,13 +477,13 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 	if (!fw)
 		return -EINVAL;
 
-	iwl_init_notification_wait(priv->shrd, &alive_wait, REPLY_ALIVE,
+	iwl_init_notification_wait(&priv->notif_wait, &alive_wait, REPLY_ALIVE,
 				      iwl_alive_fn, &alive_data);
 
 	ret = iwl_trans_start_fw(trans(priv), fw);
 	if (ret) {
 		priv->shrd->ucode_type = old_type;
-		iwl_remove_notification(priv->shrd, &alive_wait);
+		iwl_remove_notification(&priv->notif_wait, &alive_wait);
 		return ret;
 	}
 
@@ -554,7 +491,7 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 	 * Some things may run in the background now, but we
 	 * just wait for the ALIVE notification here.
 	 */
-	ret = iwl_wait_notification(priv->shrd, &alive_wait,
+	ret = iwl_wait_notification(&priv->notif_wait, &alive_wait,
 					UCODE_ALIVE_TIMEOUT);
 	if (ret) {
 		priv->shrd->ucode_type = old_type;
@@ -608,7 +545,7 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
 	if (priv->shrd->ucode_type != IWL_UCODE_NONE)
 		return 0;
 
-	iwl_init_notification_wait(priv->shrd, &calib_wait,
+	iwl_init_notification_wait(&priv->notif_wait, &calib_wait,
 				      CALIBRATION_COMPLETE_NOTIFICATION,
 				      NULL, NULL);
 
@@ -625,13 +562,13 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
 	 * Some things may run in the background now, but we
 	 * just wait for the calibration complete notification.
 	 */
-	ret = iwl_wait_notification(priv->shrd, &calib_wait,
+	ret = iwl_wait_notification(&priv->notif_wait, &calib_wait,
 					UCODE_CALIB_TIMEOUT);
 
 	goto out;
 
  error:
-	iwl_remove_notification(priv->shrd, &calib_wait);
+	iwl_remove_notification(&priv->notif_wait, &calib_wait);
  out:
 	/* Whatever happened, stop the device */
 	iwl_trans_stop_device(trans(priv));

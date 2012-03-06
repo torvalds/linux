@@ -51,6 +51,7 @@
 #include "iwl-trans.h"
 #include "iwl-shared.h"
 #include "iwl-op-mode.h"
+#include "iwl-notif-wait.h"
 
 struct iwl_tx_queue;
 
@@ -738,6 +739,8 @@ struct iwl_priv {
 	int (*rx_handlers[REPLY_MAX])(struct iwl_priv *priv,
 				       struct iwl_rx_cmd_buffer *rxb,
 				       struct iwl_device_cmd *cmd);
+
+	struct iwl_notif_wait_data notif_wait;
 
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 
