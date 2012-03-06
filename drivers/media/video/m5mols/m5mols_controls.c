@@ -360,6 +360,21 @@ static int m5mols_set_iso(struct m5mols_info *info, int auto_iso)
 	return m5mols_write(&info->sd, AE_ISO, iso);
 }
 
+static int m5mols_set_wdr(struct m5mols_info *info, int wdr)
+{
+	int ret;
+
+	ret = m5mols_write(&info->sd, MON_TONE_CTL, wdr ? 9 : 5);
+	if (ret < 0)
+		return ret;
+
+	ret = m5mols_set_mode(info, REG_CAPTURE);
+	if (ret < 0)
+		return ret;
+
+	return m5mols_write(&info->sd, CAPP_WDR_EN, wdr);
+}
+
 static int m5mols_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_sd(ctrl);
@@ -435,6 +450,10 @@ static int m5mols_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	case V4L2_CID_COLORFX:
 		ret = m5mols_set_color_effect(info, ctrl->val);
+		break;
+
+	case V4L2_CID_WIDE_DYNAMIC_RANGE:
+		ret = m5mols_set_wdr(info, ctrl->val);
 		break;
 	}
 
@@ -512,6 +531,9 @@ int m5mols_init_controls(struct v4l2_subdev *sd)
 
 	info->colorfx = v4l2_ctrl_new_std_menu(&info->handle, &m5mols_ctrl_ops,
 			V4L2_CID_COLORFX, 4, 0, V4L2_COLORFX_NONE);
+
+	info->wdr = v4l2_ctrl_new_std(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_WIDE_DYNAMIC_RANGE, 0, 1, 1, 0);
 
 	if (info->handle.error) {
 		int ret = info->handle.error;
