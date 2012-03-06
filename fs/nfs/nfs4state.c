@@ -1065,11 +1065,36 @@ void nfs4_schedule_stateid_recovery(const struct nfs_server *server, struct nfs4
 {
 	struct nfs_client *clp = server->nfs_client;
 
-	if (test_and_clear_bit(NFS_DELEGATED_STATE, &state->flags))
-		nfs_async_inode_return_delegation(state->inode, &state->stateid);
 	nfs4_state_mark_reclaim_nograce(clp, state);
 	nfs4_schedule_state_manager(clp);
 }
+
+void nfs_inode_find_state_and_recover(struct inode *inode,
+		const nfs4_stateid *stateid)
+{
+	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_open_context *ctx;
+	struct nfs4_state *state;
+	bool found = false;
+
+	spin_lock(&inode->i_lock);
+	list_for_each_entry(ctx, &nfsi->open_files, list) {
+		state = ctx->state;
+		if (state == NULL)
+			continue;
+		if (!test_bit(NFS_DELEGATED_STATE, &state->flags))
+			continue;
+		if (memcmp(state->stateid.data, stateid->data, sizeof(state->stateid.data)) != 0)
+			continue;
+		nfs4_state_mark_reclaim_nograce(clp, state);
+		found = true;
+	}
+	spin_unlock(&inode->i_lock);
+	if (found)
+		nfs4_schedule_state_manager(clp);
+}
+
 
 static int nfs4_reclaim_locks(struct nfs4_state *state, const struct nfs4_state_recovery_ops *ops)
 {
