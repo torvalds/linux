@@ -30,8 +30,7 @@
 #include <linux/wait.h>
 #include <linux/gfp.h>
 
-/*TODO: Remove include to iwl-core.h*/
-#include "iwl-core.h"
+#include "iwl-prph.h"
 #include "iwl-io.h"
 #include "iwl-trans-pcie-int.h"
 #include "iwl-op-mode.h"
