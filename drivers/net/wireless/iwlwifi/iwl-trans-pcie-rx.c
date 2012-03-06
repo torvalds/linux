@@ -34,7 +34,6 @@
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-trans-pcie-int.h"
-#include "iwl-wifi.h"
 #include "iwl-op-mode.h"
 
 #ifdef CONFIG_IWLWIFI_IDI

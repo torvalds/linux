@@ -40,7 +40,6 @@
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-agn.h"
-#include "iwl-wifi.h"
 
 /* create and remove of files */
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\

@@ -419,7 +419,7 @@ struct iwl_shared {
 	const struct iwl_cfg *cfg;
 	struct iwl_priv *priv;
 	struct iwl_trans *trans;
-	void *nic;
+	void *drv;
 	struct iwl_hw_params hw_params;
 	const struct iwl_fw *fw;
 

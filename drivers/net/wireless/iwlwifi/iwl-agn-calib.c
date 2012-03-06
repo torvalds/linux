@@ -68,7 +68,6 @@
 #include "iwl-agn-calib.h"
 #include "iwl-trans.h"
 #include "iwl-agn.h"
-#include "iwl-wifi.h"
 
 /*****************************************************************************
  * INIT calibrations framework

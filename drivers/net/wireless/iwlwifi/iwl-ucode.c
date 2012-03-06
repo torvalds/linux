@@ -31,7 +31,6 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 
-#include "iwl-wifi.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"

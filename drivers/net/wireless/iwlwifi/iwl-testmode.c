@@ -70,7 +70,6 @@
 #include <net/mac80211.h>
 #include <net/netlink.h>
 
-#include "iwl-wifi.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-debug.h"
