@@ -122,6 +122,7 @@ static int __devinit max8925_onkey_probe(struct platform_device *pdev)
 	info->idev->evbit[0] = BIT_MASK(EV_KEY);
 	info->idev->keybit[BIT_WORD(KEY_POWER)] = BIT_MASK(KEY_POWER);
 
+	device_init_wakeup(&pdev->dev, 1);
 
 	error = input_register_device(info->idev);
 	if (error) {
@@ -158,10 +159,43 @@ static int __devexit max8925_onkey_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int max8925_onkey_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct max8925_onkey_info *info = platform_get_drvdata(pdev);
+	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
+
+	if (device_may_wakeup(dev)) {
+		chip->wakeup_flag |= 1 << (info->irq[0] - chip->irq_base);
+		chip->wakeup_flag |= 1 << (info->irq[1] - chip->irq_base);
+	}
+
+	return 0;
+}
+
+static int max8925_onkey_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct max8925_onkey_info *info = platform_get_drvdata(pdev);
+	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
+
+	if (device_may_wakeup(dev)) {
+		chip->wakeup_flag &= ~(1 << (info->irq[0] - chip->irq_base));
+		chip->wakeup_flag &= ~(1 << (info->irq[1] - chip->irq_base));
+	}
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(max8925_onkey_pm_ops, max8925_onkey_suspend, max8925_onkey_resume);
+
 static struct platform_driver max8925_onkey_driver = {
 	.driver		= {
 		.name	= "max8925-onkey",
 		.owner	= THIS_MODULE,
+		.pm	= &max8925_onkey_pm_ops,
 	},
 	.probe		= max8925_onkey_probe,
 	.remove		= __devexit_p(max8925_onkey_remove),
