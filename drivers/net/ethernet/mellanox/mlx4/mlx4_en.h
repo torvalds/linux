@@ -482,6 +482,7 @@ struct mlx4_en_priv {
 	struct mlx4_en_stat_out_mbox hw_stats;
 	int vids[128];
 	bool wol;
+	struct device *ddev;
 };
 
 enum mlx4_en_wol {

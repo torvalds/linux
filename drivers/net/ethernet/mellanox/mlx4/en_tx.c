@@ -198,7 +198,6 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 				struct mlx4_en_tx_ring *ring,
 				int index, u8 owner)
 {
-	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_tx_info *tx_info = &ring->tx_info[index];
 	struct mlx4_en_tx_desc *tx_desc = ring->buf + index * TXBB_SIZE;
 	struct mlx4_wqe_data_seg *data = (void *) tx_desc + tx_info->data_offset;
@@ -214,7 +213,7 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 	if (likely((void *) tx_desc + tx_info->nr_txbb * TXBB_SIZE <= end)) {
 		if (!tx_info->inl) {
 			if (tx_info->linear) {
-				pci_unmap_single(mdev->pdev,
+				dma_unmap_single(priv->ddev,
 					(dma_addr_t) be64_to_cpu(data->addr),
 					 be32_to_cpu(data->byte_count),
 					 PCI_DMA_TODEVICE);
@@ -223,7 +222,7 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 
 			for (i = 0; i < frags; i++) {
 				frag = &skb_shinfo(skb)->frags[i];
-				pci_unmap_page(mdev->pdev,
+				dma_unmap_page(priv->ddev,
 					(dma_addr_t) be64_to_cpu(data[i].addr),
 					skb_frag_size(frag), PCI_DMA_TODEVICE);
 			}
@@ -241,7 +240,7 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 			}
 
 			if (tx_info->linear) {
-				pci_unmap_single(mdev->pdev,
+				dma_unmap_single(priv->ddev,
 					(dma_addr_t) be64_to_cpu(data->addr),
 					 be32_to_cpu(data->byte_count),
 					 PCI_DMA_TODEVICE);
@@ -253,7 +252,7 @@ static u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 				if ((void *) data >= end)
 					data = ring->buf;
 				frag = &skb_shinfo(skb)->frags[i];
-				pci_unmap_page(mdev->pdev,
+				dma_unmap_page(priv->ddev,
 					(dma_addr_t) be64_to_cpu(data->addr),
 					 skb_frag_size(frag), PCI_DMA_TODEVICE);
 				++data;
@@ -733,7 +732,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Map fragments */
 		for (i = skb_shinfo(skb)->nr_frags - 1; i >= 0; i--) {
 			frag = &skb_shinfo(skb)->frags[i];
-			dma = skb_frag_dma_map(&mdev->dev->pdev->dev, frag,
+			dma = skb_frag_dma_map(priv->ddev, frag,
 					       0, skb_frag_size(frag),
 					       DMA_TO_DEVICE);
 			data->addr = cpu_to_be64(dma);
@@ -745,7 +744,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/* Map linear part */
 		if (tx_info->linear) {
-			dma = pci_map_single(mdev->dev->pdev, skb->data + lso_header_size,
+			dma = dma_map_single(priv->ddev, skb->data + lso_header_size,
 					     skb_headlen(skb) - lso_header_size, PCI_DMA_TODEVICE);
 			data->addr = cpu_to_be64(dma);
 			data->lkey = cpu_to_be32(mdev->mr.key);
