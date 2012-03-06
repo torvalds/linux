@@ -584,7 +584,7 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb)
 	return skb_tx_hash(dev, skb);
 }
 
-static void mlx4_bf_copy(unsigned long *dst, unsigned long *src, unsigned bytecnt)
+static void mlx4_bf_copy(void __iomem *dst, unsigned long *src, unsigned bytecnt)
 {
 	__iowrite64_copy(dst, src, bytecnt / 8);
 }
