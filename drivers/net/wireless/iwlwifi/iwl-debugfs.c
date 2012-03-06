@@ -2431,7 +2431,7 @@ static ssize_t iwl_dbgfs_protection_mode_read(struct file *file,
 	if (cfg(priv)->ht_params)
 		pos += scnprintf(buf + pos, bufsz - pos,
 			 "use %s for aggregation\n",
-			 (cfg(priv)->ht_params->use_rts_for_aggregation) ?
+			 (hw_params(priv).use_rts_for_aggregation) ?
 				"rts/cts" : "cts-to-self");
 	else
 		pos += scnprintf(buf + pos, bufsz - pos, "N/A");
@@ -2458,9 +2458,9 @@ static ssize_t iwl_dbgfs_protection_mode_write(struct file *file,
 	if (sscanf(buf, "%d", &rts) != 1)
 		return -EINVAL;
 	if (rts)
-		cfg(priv)->ht_params->use_rts_for_aggregation = true;
+		hw_params(priv).use_rts_for_aggregation = true;
 	else
-		cfg(priv)->ht_params->use_rts_for_aggregation = false;
+		hw_params(priv).use_rts_for_aggregation = false;
 	return count;
 }
 

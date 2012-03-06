@@ -174,6 +174,7 @@ struct iwl_mod_params {
  *	relevant for 1000, 6000 and up
  * @wd_timeout: TX queues watchdog timeout
  * @struct iwl_sensitivity_ranges: range of sensitivity values
+ * @use_rts_for_aggregation: use rts/cts protection for HT traffic
  */
 struct iwl_hw_params {
 	u8  max_txq_num;
@@ -183,6 +184,7 @@ struct iwl_hw_params {
 	u8  valid_tx_ant;
 	u8  valid_rx_ant;
 	u8  ht40_channel;
+	bool use_rts_for_aggregation;
 	u16 sku;
 	u32 rx_page_order;
 	u32 ct_kill_threshold;

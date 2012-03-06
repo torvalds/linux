@@ -1119,6 +1119,10 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 
 static void iwl_set_hw_params(struct iwl_priv *priv)
 {
+	if (cfg(priv)->ht_params)
+		hw_params(priv).use_rts_for_aggregation =
+			cfg(priv)->ht_params->use_rts_for_aggregation;
+
 	if (iwlagn_mod_params.amsdu_size_8K)
 		hw_params(priv).rx_page_order =
 			get_order(IWL_RX_BUF_SIZE_8K);
