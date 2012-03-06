@@ -1338,11 +1338,13 @@ static void option_instat_callback(struct urb *urb)
 	int status = urb->status;
 	struct usb_serial_port *port =  urb->context;
 	struct option_port_private *portdata = usb_get_serial_port_data(port);
+	static int err_times = 0;
 
 	dbg("%s", __func__);
 	dbg("%s: urb %p port %p has data %p", __func__, urb, port, portdata);
 
 	if (status == 0) {
+		err_times = 0;
 		struct usb_ctrlrequest *req_pkt =
 				(struct usb_ctrlrequest *)urb->transfer_buffer;
 
@@ -1376,9 +1378,17 @@ static void option_instat_callback(struct urb *urb)
 			dbg("%s: type %x req %x", __func__,
 				req_pkt->bRequestType, req_pkt->bRequest);
 		}
-	} else
-		err("%s: error %d", __func__, status);
-
+	}
+	else{
+		if(status == -EPROTO && err_times++ >10){
+			err_times = 0;
+			printk("%s,recieve -71 error more than 10 times,so reset usb\n",__FUNCTION__);
+			usb_queue_reset_device(port->serial->interface);
+			return;
+		}else		
+			err("%s : error %d",__func__, status);
+	}
+	
 	/* Resubmit urb so we continue receiving IRQ data */
 	if (status != -ESHUTDOWN && status != -ENOENT) {
 		err = usb_submit_urb(urb, GFP_ATOMIC);

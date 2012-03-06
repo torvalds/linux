@@ -20,6 +20,7 @@ struct rk29_mu509_data {
 	unsigned int bp_reset_active_low;
 	unsigned int bp_wakeup_ap;
 	unsigned int ap_wakeup_bp;
+	unsigned int modem_power_en;
 };
 
 #define MODEM_NAME "mu509"

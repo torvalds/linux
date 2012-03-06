@@ -1831,6 +1831,7 @@ static int mu509_io_deinit(void)
 struct rk29_mu509_data rk29_mu509_info = {
 	.io_init = mu509_io_init,
   	.io_deinit = mu509_io_deinit,
+	.modem_power_en = RK29_PIN6_PC2,
 	.bp_power = RK29_PIN6_PB1,//RK29_PIN0_PB4,
 	.bp_power_active_low = 1,
 	.bp_reset = RK29_PIN6_PC7,//RK29_PIN0_PB3,

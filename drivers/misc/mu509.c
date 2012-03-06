@@ -21,6 +21,7 @@
 #include <linux/workqueue.h>
 #include <linux/mu509.h>
 #include <linux/slab.h>
+#include <linux/earlysuspend.h>
 
 MODULE_LICENSE("GPL");
 
@@ -44,7 +45,7 @@ struct class *modem_class = NULL;
 static int do_wakeup_irq = 0;
 static int modem_status;
 static int online = 0;
-
+int suspend_int =0;
 static void ap_wakeup_bp(struct platform_device *pdev, int wake)
 {
 	struct rk29_mu509_data *pdata = pdev->dev.platform_data;
@@ -56,8 +57,12 @@ extern void rk28_send_wakeup_key(void);
 
 static void do_wakeup(struct work_struct *work)
 {
-//    MODEMDBG("%s[%d]: %s\n", __FILE__, __LINE__, __FUNCTION__);
-    //rk28_send_wakeup_key();
+      if(suspend_int)
+         {
+             gpio_set_value(gpdata->ap_wakeup_bp, 0);
+             suspend_int = 0;
+         }
+
 }
 
 static DECLARE_DELAYED_WORK(wakeup_work, do_wakeup);
@@ -68,7 +73,7 @@ static irqreturn_t detect_irq_handler(int irq, void *dev_id)
         do_wakeup_irq = 0;
   //      MODEMDBG("%s[%d]: %s\n", __FILE__, __LINE__, __FUNCTION__);
         wake_lock_timeout(&modem_wakelock, 10 * HZ);
-        schedule_delayed_work(&wakeup_work, HZ / 10);
+        schedule_delayed_work(&wakeup_work, 2*HZ);
     }
     return IRQ_HANDLED;
 }
@@ -209,6 +214,26 @@ static ssize_t online_write(struct class *cls, const char *_buf, size_t _count)
     return _count; 
 }
 static CLASS_ATTR(online, 0777, online_read, online_write);
+static void rk29_early_suspend(struct early_suspend *h)
+{
+        printk("*********************509____suspend\n");
+		 
+}
+static void rk29_early_resume(struct early_suspend *h)
+{
+	 if(suspend_int)
+	{
+         printk("***************509____resume\n");
+        gpio_set_value(gpdata->ap_wakeup_bp, 0);
+	 suspend_int = 0;
+ 	}
+}
+
+static struct early_suspend mu509_early_suspend = {
+	         .suspend = rk29_early_suspend,
+	          .resume = rk29_early_resume,
+	          .level = EARLY_SUSPEND_LEVEL_DISABLE_FB - 1,
+	  };
 static int mu509_probe(struct platform_device *pdev)
 {
 	struct rk29_mu509_data *pdata = gpdata = pdev->dev.platform_data;
@@ -219,9 +244,12 @@ static int mu509_probe(struct platform_device *pdev)
 	pdata->dev = &pdev->dev;
 	if(pdata->io_init)
 		pdata->io_init();
+	gpio_set_value(pdata->modem_power_en, GPIO_HIGH);
+	msleep(1000);
 	modem_poweron_off(1);
 	modem_status = 1;
 	
+	register_early_suspend(&mu509_early_suspend);
 	mu509_data = kzalloc(sizeof(struct modem_dev), GFP_KERNEL);
 	if(mu509_data == NULL)
 	{
@@ -274,6 +302,7 @@ err2:
 
 int mu509_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	suspend_int = 1;
 	do_wakeup_irq = 1;
 	//MODEMDBG("-------------%s\n",__FUNCTION__);
 	if(!online)
@@ -286,8 +315,12 @@ int mu509_suspend(struct platform_device *pdev, pm_message_t state)
 int mu509_resume(struct platform_device *pdev)
 {
 	//MODEMDBG("-------------%s\n",__FUNCTION__);
-	ap_wakeup_bp(pdev, 0);
+	//ap_wakeup_bp(pdev, 0);
 	rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_UART0_RTS_N);
+	if(gpio_get_value(gpdata->bp_wakeup_ap))
+	{
+		schedule_delayed_work(&wakeup_work, 2*HZ);
+	}
 	return 0;
 }
 
@@ -302,6 +335,7 @@ void mu509_shutdown(struct platform_device *pdev)
 	if(pdata->io_deinit)
 		pdata->io_deinit();
 	cancel_work_sync(&mu509_data->work);
+	gpio_free(pdata->modem_power_en);
 	gpio_free(pdata->bp_power);
 	gpio_free(pdata->bp_reset);
 	gpio_free(pdata->ap_wakeup_bp);
