@@ -542,6 +542,7 @@ out:
 	mutex_unlock(&chip->osc_lock);
 	return ret;
 }
+EXPORT_SYMBOL(pm8606_osc_enable);
 
 int pm8606_osc_disable(struct pm860x_chip *chip, unsigned short client)
 {
@@ -580,6 +581,7 @@ out:
 	mutex_unlock(&chip->osc_lock);
 	return ret;
 }
+EXPORT_SYMBOL(pm8606_osc_disable);
 
 static void __devinit device_osc_init(struct i2c_client *i2c)
 {
