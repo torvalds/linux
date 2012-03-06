@@ -466,7 +466,7 @@ static void __init bonito_init(void)
 	}
 }
 
-static void __init bonito_timer_init(void)
+static void __init bonito_earlytimer_init(void)
 {
 	u16 val;
 	u8 md_ck = 0;
@@ -481,18 +481,22 @@ static void __init bonito_timer_init(void)
 		md_ck |= MD_CK0;
 
 	r8a7740_clock_init(md_ck);
-	shmobile_timer.init();
+	shmobile_earlytimer_init();
 }
 
-struct sys_timer bonito_timer = {
-	.init	= bonito_timer_init,
-};
+void __init bonito_add_early_devices(void)
+{
+	r8a7740_add_early_devices();
+
+	/* override timer setup with board-specific code */
+	shmobile_timer.init = bonito_earlytimer_init;
+}
 
 MACHINE_START(BONITO, "bonito")
 	.map_io		= bonito_map_io,
-	.init_early	= r8a7740_add_early_devices,
+	.init_early	= bonito_add_early_devices,
 	.init_irq	= r8a7740_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= bonito_init,
-	.timer		= &bonito_timer,
+	.timer		= &shmobile_timer,
 MACHINE_END

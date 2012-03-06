@@ -29,6 +29,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/time.h>
 
 static struct map_desc r8a7740_io_desc[] __initdata = {
 	 /*
@@ -377,6 +378,12 @@ void __init r8a7740_add_standard_devices(void)
 			     ARRAY_SIZE(r8a7740_late_devices));
 }
 
+static void __init r8a7740_earlytimer_init(void)
+{
+	r8a7740_clock_init(0);
+	shmobile_earlytimer_init();
+}
+
 void __init r8a7740_add_early_devices(void)
 {
 	early_platform_add_devices(r8a7740_early_devices,
@@ -384,4 +391,7 @@ void __init r8a7740_add_early_devices(void)
 
 	/* setup early console here as well */
 	shmobile_setup_console();
+
+	/* override timer setup with soc-specific code */
+	shmobile_timer.init = r8a7740_earlytimer_init;
 }
