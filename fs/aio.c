@@ -248,6 +248,7 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	struct mm_struct *mm;
 	struct kioctx *ctx;
 	int did_sync = 0;
+	int err = -ENOMEM;
 
 	/* Prevent overflows */
 	if ((nr_events > (0x10000000U / sizeof(struct io_event))) ||
@@ -310,16 +311,13 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	return ctx;
 
 out_cleanup:
-	__put_ioctx(ctx);
-	return ERR_PTR(-EAGAIN);
-
+	err = -EAGAIN;
+	aio_free_ring(ctx);
 out_freectx:
 	mmdrop(mm);
 	kmem_cache_free(kioctx_cachep, ctx);
-	ctx = ERR_PTR(-ENOMEM);
-
-	dprintk("aio: error allocating ioctx %p\n", ctx);
-	return ctx;
+	dprintk("aio: error allocating ioctx %d\n", err);
+	return ERR_PTR(err);
 }
 
 /* aio_cancel_all
