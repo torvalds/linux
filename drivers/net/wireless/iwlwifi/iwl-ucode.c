@@ -533,15 +533,15 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 	int ret;
 	enum iwl_ucode_type old_type;
 
-	iwl_init_notification_wait(priv->shrd, &alive_wait, REPLY_ALIVE,
-				      iwl_alive_fn, &alive_data);
-
 	old_type = priv->shrd->ucode_type;
 	priv->shrd->ucode_type = ucode_type;
 	fw = iwl_get_ucode_image(priv, ucode_type);
 
 	if (!fw)
 		return -EINVAL;
+
+	iwl_init_notification_wait(priv->shrd, &alive_wait, REPLY_ALIVE,
+				      iwl_alive_fn, &alive_data);
 
 	ret = iwl_trans_start_fw(trans(priv), fw);
 	if (ret) {
