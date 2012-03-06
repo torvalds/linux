@@ -122,6 +122,7 @@ struct iwl_fw;
  *	there are Tx packets pending in the transport layer.
  *	Must be atomic
  * @nic_error: error notification. Must be atomic
+ * @cmd_queue_full: Called when the command queue gets full. Must be atomic.
  */
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans,
@@ -134,6 +135,7 @@ struct iwl_op_mode_ops {
 	void (*hw_rf_kill)(struct iwl_op_mode *op_mode, bool state);
 	void (*free_skb)(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 	void (*nic_error)(struct iwl_op_mode *op_mode);
+	void (*cmd_queue_full)(struct iwl_op_mode *op_mode);
 };
 
 /**
@@ -190,6 +192,11 @@ static inline void iwl_op_mode_free_skb(struct iwl_op_mode *op_mode,
 static inline void iwl_op_mode_nic_error(struct iwl_op_mode *op_mode)
 {
 	op_mode->ops->nic_error(op_mode);
+}
+
+static inline void iwl_op_mode_cmd_queue_full(struct iwl_op_mode *op_mode)
+{
+	op_mode->ops->cmd_queue_full(op_mode);
 }
 
 /*****************************************************

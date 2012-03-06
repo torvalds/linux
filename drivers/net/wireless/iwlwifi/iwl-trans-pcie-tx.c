@@ -671,7 +671,6 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	dma_addr_t phys_addr;
 	u32 idx;
 	u16 copy_size, cmd_size;
-	bool is_ct_kill = false;
 	bool had_nocopy = false;
 	int i;
 	u8 *cmd_dest;
@@ -727,11 +726,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		spin_unlock_bh(&txq->lock);
 
 		IWL_ERR(trans, "No space in command queue\n");
-		is_ct_kill = iwl_check_for_ct_kill(priv(trans));
-		if (!is_ct_kill) {
-			IWL_ERR(trans, "Restarting adapter queue is full\n");
-			iwl_op_mode_nic_error(trans->op_mode);
-		}
+		iwl_op_mode_cmd_queue_full(trans->op_mode);
 		return -ENOSPC;
 	}
 

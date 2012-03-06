@@ -1403,6 +1403,16 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 	ieee80211_free_hw(priv->hw);
 }
 
+static void iwl_cmd_queue_full(struct iwl_op_mode *op_mode)
+{
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
+	if (!iwl_check_for_ct_kill(priv)) {
+		IWL_ERR(priv, "Restarting adapter queue is full\n");
+		iwl_nic_error(op_mode);
+	}
+}
+
 const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.start = iwl_op_mode_dvm_start,
 	.stop = iwl_op_mode_dvm_stop,
@@ -1412,6 +1422,7 @@ const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.hw_rf_kill = iwl_set_hw_rfkill_state,
 	.free_skb = iwl_free_skb,
 	.nic_error = iwl_nic_error,
+	.cmd_queue_full = iwl_cmd_queue_full,
 };
 
 /*****************************************************************************
