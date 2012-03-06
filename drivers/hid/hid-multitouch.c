@@ -81,6 +81,9 @@ struct mt_device {
 	__u8 num_received;	/* how many contacts we received */
 	__u8 num_expected;	/* expected last contact index */
 	__u8 maxcontacts;
+	__u8 touches_by_report;	/* how many touches are present in one report:
+				* 1 means we should use a serial protocol
+				* > 1 means hybrid (multitouch) protocol */
 	bool curvalid;		/* is the current contact valid? */
 	struct mt_slot *slots;
 };
@@ -365,6 +368,7 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			input_mt_init_slots(hi->input, td->maxcontacts);
 			td->last_slot_field = usage->hid;
 			td->last_field_index = field->index;
+			td->touches_by_report++;
 			return 1;
 		case HID_DG_WIDTH:
 			hid_map_usage(hi, usage, bit, max,
@@ -669,6 +673,15 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret)
 		goto fail;
+
+	if (!id && td->touches_by_report == 1) {
+		/* the device has been sent by hid-generic */
+		mtclass = &td->mtclass;
+		mtclass->quirks |= MT_QUIRK_ALWAYS_VALID;
+		mtclass->quirks &= ~MT_QUIRK_NOT_SEEN_MEANS_UP;
+		mtclass->quirks &= ~MT_QUIRK_VALID_IS_INRANGE;
+		mtclass->quirks &= ~MT_QUIRK_VALID_IS_CONFIDENCE;
+	}
 
 	td->slots = kzalloc(td->maxcontacts * sizeof(struct mt_slot),
 				GFP_KERNEL);
