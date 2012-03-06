@@ -21,11 +21,6 @@
 
 extern int m5mols_debug;
 
-#define to_m5mols(__sd)	container_of(__sd, struct m5mols_info, sd)
-
-#define to_sd(__ctrl) \
-	(&container_of(__ctrl->handler, struct m5mols_info, handle)->sd)
-
 enum m5mols_restype {
 	M5MOLS_RESTYPE_MONITOR,
 	M5MOLS_RESTYPE_CAPTURE,
@@ -295,5 +290,17 @@ int m5mols_set_ctrl(struct v4l2_ctrl *ctrl);
 /* The firmware function */
 int m5mols_update_fw(struct v4l2_subdev *sd,
 		     int (*set_power)(struct m5mols_info *, bool));
+
+static inline struct m5mols_info *to_m5mols(struct v4l2_subdev *subdev)
+{
+	return container_of(subdev, struct m5mols_info, sd);
+}
+
+static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
+{
+	struct m5mols_info *info = container_of(ctrl->handler,
+						struct m5mols_info, handle);
+	return &info->sd;
+}
 
 #endif	/* M5MOLS_H */
