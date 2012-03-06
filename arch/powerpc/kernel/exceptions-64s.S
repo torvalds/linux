@@ -12,6 +12,7 @@
  *
  */
 
+#include <asm/hw_irq.h>
 #include <asm/exception-64s.h>
 #include <asm/ptrace.h>
 
@@ -356,34 +357,60 @@ do_stab_bolted_pSeries:
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf40)
 
 /*
- * An interrupt came in while soft-disabled; clear EE in SRR1,
- * clear paca->hard_enabled and return.
+ * An interrupt came in while soft-disabled. We set paca->irq_happened,
+ * then, if it was a decrementer interrupt, we bump the dec to max and
+ * and return, else we hard disable and return. This is called with
+ * r10 containing the value to OR to the paca field.
  */
-masked_interrupt:
-	stb	r10,PACAHARDIRQEN(r13)
-	mtcrf	0x80,r9
-	ld	r9,PACA_EXGEN+EX_R9(r13)
-	mfspr	r10,SPRN_SRR1
-	rldicl	r10,r10,48,1		/* clear MSR_EE */
-	rotldi	r10,r10,16
-	mtspr	SPRN_SRR1,r10
-	ld	r10,PACA_EXGEN+EX_R10(r13)
-	GET_SCRATCH0(r13)
-	rfid
+#define MASKED_INTERRUPT(_H)				\
+masked_##_H##interrupt:					\
+	std	r11,PACA_EXGEN+EX_R11(r13);		\
+	lbz	r11,PACAIRQHAPPENED(r13);		\
+	or	r11,r11,r10;				\
+	stb	r11,PACAIRQHAPPENED(r13);		\
+	andi.	r10,r10,PACA_IRQ_DEC;			\
+	beq	1f;					\
+	lis	r10,0x7fff;				\
+	ori	r10,r10,0xffff;				\
+	mtspr	SPRN_DEC,r10;				\
+	b	2f;					\
+1:	mfspr	r10,SPRN_##_H##SRR1;			\
+	rldicl	r10,r10,48,1; /* clear MSR_EE */	\
+	rotldi	r10,r10,16;				\
+	mtspr	SPRN_##_H##SRR1,r10;			\
+2:	mtcrf	0x80,r9;				\
+	ld	r9,PACA_EXGEN+EX_R9(r13);		\
+	ld	r10,PACA_EXGEN+EX_R10(r13);		\
+	ld	r11,PACA_EXGEN+EX_R11(r13);		\
+	GET_SCRATCH0(r13);				\
+	##_H##rfid;					\
 	b	.
+	
+	MASKED_INTERRUPT()
+	MASKED_INTERRUPT(H)
 
-masked_Hinterrupt:
-	stb	r10,PACAHARDIRQEN(r13)
-	mtcrf	0x80,r9
-	ld	r9,PACA_EXGEN+EX_R9(r13)
-	mfspr	r10,SPRN_HSRR1
-	rldicl	r10,r10,48,1		/* clear MSR_EE */
-	rotldi	r10,r10,16
-	mtspr	SPRN_HSRR1,r10
-	ld	r10,PACA_EXGEN+EX_R10(r13)
-	GET_SCRATCH0(r13)
-	hrfid
-	b	.
+/*
+ * Called from arch_local_irq_enable when an interrupt needs
+ * to be resent. r3 contains 0x500 or 0x900 to indicate which
+ * kind of interrupt. MSR:EE is already off. We generate a
+ * stackframe like if a real interrupt had happened.
+ *
+ * Note: While MSR:EE is off, we need to make sure that _MSR
+ * in the generated frame has EE set to 1 or the exception
+ * handler will not properly re-enable them.
+ */
+_GLOBAL(__replay_interrupt)
+	/* We are going to jump to the exception common code which
+	 * will retrieve various register values from the PACA which
+	 * we don't give a damn about, so we don't bother storing them.
+	 */
+	mfmsr	r12
+	mflr	r11
+	mfcr	r9
+	ori	r12,r12,MSR_EE
+	andi.	r3,r3,0x0800
+	bne	decrementer_common
+	b	hardware_interrupt_common
 
 #ifdef CONFIG_PPC_PSERIES
 /*
@@ -793,7 +820,8 @@ vsx_unavailable_common:
 	EXCEPTION_PROLOG_COMMON(0xf40, PACA_EXGEN)
 #ifdef CONFIG_VSX
 BEGIN_FTR_SECTION
-	bne	.load_up_vsx
+	beq	1f
+	b	.load_up_vsx
 1:
 END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif
@@ -806,65 +834,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	.align	7
 	.globl	__end_handlers
 __end_handlers:
-
-/*
- * Return from an exception with minimal checks.
- * The caller is assumed to have done EXCEPTION_PROLOG_COMMON.
- * If interrupts have been enabled, or anything has been
- * done that might have changed the scheduling status of
- * any task or sent any task a signal, you should use
- * ret_from_except or ret_from_except_lite instead of this.
- */
-fast_exc_return_irq:			/* restores irq state too */
-	ld	r3,SOFTE(r1)
-	TRACE_AND_RESTORE_IRQ(r3);
-	ld	r12,_MSR(r1)
-	rldicl	r4,r12,49,63		/* get MSR_EE to LSB */
-	stb	r4,PACAHARDIRQEN(r13)	/* restore paca->hard_enabled */
-	b	1f
-
-	.globl	fast_exception_return
-fast_exception_return:
-	ld	r12,_MSR(r1)
-1:	ld	r11,_NIP(r1)
-	andi.	r3,r12,MSR_RI		/* check if RI is set */
-	beq-	unrecov_fer
-
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
-	andi.	r3,r12,MSR_PR
-	beq	2f
-	ACCOUNT_CPU_USER_EXIT(r3, r4)
-2:
-#endif
-
-	ld	r3,_CCR(r1)
-	ld	r4,_LINK(r1)
-	ld	r5,_CTR(r1)
-	ld	r6,_XER(r1)
-	mtcr	r3
-	mtlr	r4
-	mtctr	r5
-	mtxer	r6
-	REST_GPR(0, r1)
-	REST_8GPRS(2, r1)
-
-	ld	r10,PACAKMSR(r13)
-	clrrdi	r10,r10,2		/* clear RI */
-	mtmsrd	r10,1
-
-	mtspr	SPRN_SRR1,r12
-	mtspr	SPRN_SRR0,r11
-	REST_4GPRS(10, r1)
-	ld	r1,GPR1(r1)
-	rfid
-	b	.	/* prevent speculative execution */
-
-unrecov_fer:
-	bl	.save_nvgprs
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.unrecoverable_exception
-	b	1b
-
 
 /*
  * Hash table stuff
@@ -905,19 +874,16 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_SLB)
 	 * r4 contains the required access permissions
 	 * r5 contains the trap number
 	 *
-	 * at return r3 = 0 for success
+	 * at return r3 = 0 for success, 1 for page fault, negative for error
 	 */
 	bl	.hash_page		/* build HPTE if possible */
 	cmpdi	r3,0			/* see if hash_page succeeded */
 
-	/*
-	 * Here we have interrupts hard-disabled, so it is sufficient
-	 * to restore paca->{soft,hard}_enable and get out.
-	 */
+	/* Success */
 	beq	fast_exc_return_irq	/* Return from exception on success */
 
-	/* For a hash failure, we don't bother re-enabling interrupts */
-	ble-	13f
+	/* Error */
+	blt-	13f
 
 /* Here we have a page fault that hash_page can't handle. */
 handle_page_fault:

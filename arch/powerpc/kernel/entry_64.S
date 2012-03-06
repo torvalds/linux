@@ -32,6 +32,7 @@
 #include <asm/ptrace.h>
 #include <asm/irqflags.h>
 #include <asm/ftrace.h>
+#include <asm/hw_irq.h>
 
 /*
  * System calls.
@@ -583,18 +584,72 @@ _GLOBAL(ret_from_except_lite)
 	bne	do_work
 #endif /* !CONFIG_PREEMPT */
 
+	.globl	fast_exc_return_irq
+fast_exc_return_irq:
 restore:
+	/*
+	 * This is the main kernel exit path, we first check if we
+	 * have to change our interrupt state.
+	 */
 	ld	r5,SOFTE(r1)
-	TRACE_AND_RESTORE_IRQ(r5);
+	lbz	r6,PACASOFTIRQEN(r13)
+	cmpwi	cr1,r5,0
+	cmpw	cr0,r5,r6
+	beq	cr0,4f
 
-	/* extract EE bit and use it to restore paca->hard_enabled */
-	ld	r3,_MSR(r1)
-	rldicl	r4,r3,49,63		/* r0 = (r3 >> 15) & 1 */
-	stb	r4,PACAHARDIRQEN(r13)
+	/* We do, handle disable first, which is easy */
+	bne	cr1,3f;
+ 	li	r0,0
+	stb	r0,PACASOFTIRQEN(r13);
+	TRACE_DISABLE_INTS
+	b	4f
 
+3:	/*
+	 * We are about to soft-enable interrupts (we are hard disabled
+	 * at this point). We check if there's anything that needs to
+	 * be replayed first.
+	 */
+	lbz	r0,PACAIRQHAPPENED(r13)
+	cmpwi	cr0,r0,0
+	bne-	restore_check_irq_replay
+
+	/*
+	 * Get here when nothing happened while soft-disabled, just
+	 * soft-enable and move-on. We will hard-enable as a side
+	 * effect of rfi
+	 */
+restore_no_replay:
+	TRACE_ENABLE_INTS
+	li	r0,1
+	stb	r0,PACASOFTIRQEN(r13);
+
+	/*
+	 * Final return path. BookE is handled in a different file
+	 */
+4:
 #ifdef CONFIG_PPC_BOOK3E
 	b	.exception_return_book3e
 #else
+	/*
+	 * Clear the reservation. If we know the CPU tracks the address of
+	 * the reservation then we can potentially save some cycles and use
+	 * a larx. On POWER6 and POWER7 this is significantly faster.
+	 */
+BEGIN_FTR_SECTION
+	stdcx.	r0,0,r1		/* to clear the reservation */
+FTR_SECTION_ELSE
+	ldarx	r4,0,r1
+ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
+
+	/*
+	 * Some code path such as load_up_fpu or altivec return directly
+	 * here. They run entirely hard disabled and do not alter the
+	 * interrupt state. They also don't use lwarx/stwcx. and thus
+	 * are known not to leave dangling reservations.
+	 */
+	.globl	fast_exception_return
+fast_exception_return:
+	ld	r3,_MSR(r1)
 	ld	r4,_CTR(r1)
 	ld	r0,_LINK(r1)
 	mtctr	r4
@@ -608,17 +663,6 @@ restore:
 	beq-	unrecov_restore
 
 	/*
-	 * Clear the reservation. If we know the CPU tracks the address of
-	 * the reservation then we can potentially save some cycles and use
-	 * a larx. On POWER6 and POWER7 this is significantly faster.
-	 */
-BEGIN_FTR_SECTION
-	stdcx.	r0,0,r1		/* to clear the reservation */
-FTR_SECTION_ELSE
-	ldarx	r4,0,r1
-ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
-
-	/*
 	 * Clear RI before restoring r13.  If we are returning to
 	 * userspace and we take an exception after restoring r13,
 	 * we end up corrupting the userspace r13 value.
@@ -629,7 +673,8 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 
 	/*
 	 * r13 is our per cpu area, only restore it if we are returning to
-	 * userspace
+	 * userspace the value stored in the stack frame may belong to
+	 * another CPU.
 	 */
 	andi.	r0,r3,MSR_PR
 	beq	1f
@@ -654,6 +699,55 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 
 #endif /* CONFIG_PPC_BOOK3E */
 
+	/*
+	 * Something did happen, check if a re-emit is needed
+	 * (this also clears paca->irq_happened)
+	 */
+restore_check_irq_replay:
+	/* XXX: We could implement a fast path here where we check
+	 * for irq_happened being just 0x01, in which case we can
+	 * clear it and return. That means that we would potentially
+	 * miss a decrementer having wrapped all the way around.
+	 *
+	 * Still, this might be useful for things like hash_page
+	 */
+	bl	.__check_irq_replay
+	cmpwi	cr0,r3,0
+ 	beq	restore_no_replay
+ 
+	/*
+	 * We need to re-emit an interrupt. We do so by re-using our
+	 * existing exception frame. We first change the trap value,
+	 * but we need to ensure we preserve the low nibble of it
+	 */
+	ld	r4,_TRAP(r1)
+	clrldi	r4,r4,60
+	or	r4,r4,r3
+	std	r4,_TRAP(r1)
+
+	/*
+	 * Then find the right handler and call it. Interrupts are
+	 * still soft-disabled and we keep them that way.
+	*/
+	cmpwi	cr0,r3,0x500
+	bne	1f
+	addi	r3,r1,STACK_FRAME_OVERHEAD;
+ 	bl	.do_IRQ
+	b	.ret_from_except
+1:	cmpwi	cr0,r3,0x900
+	bne	1f
+	addi	r3,r1,STACK_FRAME_OVERHEAD;
+	bl	.timer_interrupt
+	b	.ret_from_except
+#ifdef CONFIG_PPC_BOOK3E
+1:	cmpwi	cr0,r3,0x280
+	bne	1f
+	addi	r3,r1,STACK_FRAME_OVERHEAD;
+	bl	.doorbell_exception
+	b	.ret_from_except
+#endif /* CONFIG_PPC_BOOK3E */
+1:	b	.ret_from_except /* What else to do here ? */
+ 
 do_work:
 #ifdef CONFIG_PREEMPT
 	andi.	r0,r3,MSR_PR	/* Returning to user mode? */
@@ -666,18 +760,11 @@ do_work:
 	crandc	eq,cr1*4+eq,eq
 	bne	restore
 
-	/* Here we are preempting the current task.
-	 *
-	 * Ensure interrupts are soft-disabled. We also properly mark
-	 * the PACA to reflect the fact that they are hard-disabled
-	 * and trace the change
+	/*
+	 * Here we are preempting the current task. We want to make
+	 * sure we are soft-disabled first
 	 */
-	li	r0,0
-	stb	r0,PACASOFTIRQEN(r13)
-	stb	r0,PACAHARDIRQEN(r13)
-	TRACE_DISABLE_INTS
-
-	/* Call the scheduler with soft IRQs off */
+	SOFT_DISABLE_INTS(r3,r4)
 1:	bl	.preempt_schedule_irq
 
 	/* Hard-disable interrupts again (and update PACA) */
@@ -687,8 +774,8 @@ do_work:
 	ld	r10,PACAKMSR(r13) /* Get kernel MSR without EE */
 	mtmsrd	r10,1
 #endif /* CONFIG_PPC_BOOK3E */
-	li	r0,0
-	stb	r0,PACAHARDIRQEN(r13)
+	li	r0,PACA_IRQ_HARD_DIS
+	stb	r0,PACAIRQHAPPENED(r13)
 
 	/* Re-test flags and eventually loop */
 	clrrdi	r9,r1,THREAD_SHIFT
@@ -710,14 +797,12 @@ user_work:
 
 	andi.	r0,r4,_TIF_NEED_RESCHED
 	beq	1f
-	li	r5,1
-	TRACE_AND_RESTORE_IRQ(r5);
+	bl	.restore_interrupts
 	bl	.schedule
 	b	.ret_from_except_lite
 
 1:	bl	.save_nvgprs
-	li	r5,1
-	TRACE_AND_RESTORE_IRQ(r5);
+	bl	.restore_interrupts
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.do_notify_resume
 	b	.ret_from_except

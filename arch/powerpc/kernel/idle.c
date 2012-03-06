@@ -84,7 +84,11 @@ void cpu_idle(void)
 
 				start_critical_timings();
 
-				local_irq_enable();
+				/* Some power_save functions return with
+				 * interrupts enabled, some don't.
+				 */
+				if (irqs_disabled())
+					local_irq_enable();
 				set_thread_flag(TIF_POLLING_NRFLAG);
 
 			} else {

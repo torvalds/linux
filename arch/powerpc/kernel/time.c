@@ -259,7 +259,6 @@ void accumulate_stolen_time(void)
 	u64 sst, ust;
 
 	u8 save_soft_enabled = local_paca->soft_enabled;
-	u8 save_hard_enabled = local_paca->hard_enabled;
 
 	/* We are called early in the exception entry, before
 	 * soft/hard_enabled are sync'ed to the expected state
@@ -268,7 +267,6 @@ void accumulate_stolen_time(void)
 	 * complain
 	 */
 	local_paca->soft_enabled = 0;
-	local_paca->hard_enabled = 0;
 
 	sst = scan_dispatch_log(local_paca->starttime_user);
 	ust = scan_dispatch_log(local_paca->starttime);
@@ -277,7 +275,6 @@ void accumulate_stolen_time(void)
 	local_paca->stolen_time += ust + sst;
 
 	local_paca->soft_enabled = save_soft_enabled;
-	local_paca->hard_enabled = save_hard_enabled;
 }
 
 static inline u64 calculate_stolen_time(u64 stop_tb)
@@ -579,6 +576,11 @@ void timer_interrupt(struct pt_regs * regs)
 	 */
 	if (!cpu_online(smp_processor_id()))
 		return;
+
+	/* Conditionally hard-enable interrupts now that the DEC has been
+	 * bumped to its maximum value
+	 */
+	may_hard_irq_enable();
 
 	trace_timer_interrupt_entry(regs);
 

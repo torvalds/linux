@@ -38,6 +38,7 @@
 #include <asm/irqflags.h>
 #include <asm/kvm_book3s_asm.h>
 #include <asm/ptrace.h>
+#include <asm/hw_irq.h>
 
 /* The physical memory is laid out such that the secondary processor
  * spin code sits at 0x0000...0x00ff. On server, the vectors follow
@@ -550,7 +551,8 @@ _GLOBAL(pmac_secondary_start)
 	 */
 	li	r0,0
 	stb	r0,PACASOFTIRQEN(r13)
-	stb	r0,PACAHARDIRQEN(r13)
+	li	r0,PACA_IRQ_HARD_DIS
+	stb	r0,PACAIRQHAPPENED(r13)
 
 	/* Create a temp kernel stack for use before relocation is on.	*/
 	ld	r1,PACAEMERGSP(r13)
@@ -601,9 +603,12 @@ __secondary_start:
 	li	r7,0
 	mtlr	r7
 
-	/* Mark interrupts both hard and soft disabled */
-	stb	r7,PACAHARDIRQEN(r13)
+	/* Mark interrupts soft and hard disabled (they might be enabled
+	 * in the PACA when doing hotplug)
+	 */
 	stb	r7,PACASOFTIRQEN(r13)
+	li	r0,PACA_IRQ_HARD_DIS
+	stb	r0,PACAIRQHAPPENED(r13)
 
 	/* enable MMU and jump to start_secondary */
 	LOAD_REG_ADDR(r3, .start_secondary_prolog)
@@ -750,13 +755,18 @@ _INIT_GLOBAL(start_here_common)
 	/* Load the TOC (virtual address) */
 	ld	r2,PACATOC(r13)
 
+	/* Do more system initializations in virtual mode */
 	bl	.setup_system
 
-	/* Load up the kernel context */
-5:	li	r5,0
-	stb	r5,PACASOFTIRQEN(r13)	/* Soft Disabled */
-	stb	r5,PACAHARDIRQEN(r13)	/* Hard Disabled on others */
+	/* Mark interrupts soft and hard disabled (they might be enabled
+	 * in the PACA when doing hotplug)
+	 */
+	li	r0,0
+	stb	r0,PACASOFTIRQEN(r13)
+	li	r0,PACA_IRQ_HARD_DIS
+	stb	r0,PACAIRQHAPPENED(r13)
 
+	/* Generic kernel entry */
 	bl	.start_kernel
 
 	/* Not reached */

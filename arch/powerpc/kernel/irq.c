@@ -95,14 +95,14 @@ extern int tau_interrupts(int);
 
 int distribute_irqs = 1;
 
-static inline notrace unsigned long get_hard_enabled(void)
+static inline notrace unsigned long get_irq_happened(void)
 {
-	unsigned long enabled;
+	unsigned long happened;
 
 	__asm__ __volatile__("lbz %0,%1(13)"
-	: "=r" (enabled) : "i" (offsetof(struct paca_struct, hard_enabled)));
+	: "=r" (happened) : "i" (offsetof(struct paca_struct, irq_happened)));
 
-	return enabled;
+	return happened;
 }
 
 static inline notrace void set_soft_enabled(unsigned long enable)
@@ -111,75 +111,41 @@ static inline notrace void set_soft_enabled(unsigned long enable)
 	: : "r" (enable), "i" (offsetof(struct paca_struct, soft_enabled)));
 }
 
-static inline notrace void decrementer_check_overflow(void)
+static inline notrace int decrementer_check_overflow(void)
 {
-	u64 now = get_tb_or_rtc();
-	u64 *next_tb;
-
-	preempt_disable();
-	next_tb = &__get_cpu_var(decrementers_next_tb);
-
+ 	u64 now = get_tb_or_rtc();
+ 	u64 *next_tb = &__get_cpu_var(decrementers_next_tb);
+ 
 	if (now >= *next_tb)
 		set_dec(1);
-	preempt_enable();
+	return now >= *next_tb;
 }
 
-notrace void arch_local_irq_restore(unsigned long en)
+/* This is called whenever we are re-enabling interrupts
+ * and returns either 0 (nothing to do) or 500/900 if there's
+ * either an EE or a DEC to generate.
+ *
+ * This is called in two contexts: From arch_local_irq_restore()
+ * before soft-enabling interrupts, and from the exception exit
+ * path when returning from an interrupt from a soft-disabled to
+ * a soft enabled context. In both case we have interrupts hard
+ * disabled.
+ *
+ * We take care of only clearing the bits we handled in the
+ * PACA irq_happened field since we can only re-emit one at a
+ * time and we don't want to "lose" one.
+ */
+notrace unsigned int __check_irq_replay(void)
 {
 	/*
-	 * get_paca()->soft_enabled = en;
-	 * Is it ever valid to use local_irq_restore(0) when soft_enabled is 1?
-	 * That was allowed before, and in such a case we do need to take care
-	 * that gcc will set soft_enabled directly via r13, not choose to use
-	 * an intermediate register, lest we're preempted to a different cpu.
+	 * We use local_paca rather than get_paca() to avoid all
+	 * the debug_smp_processor_id() business in this low level
+	 * function
 	 */
-	set_soft_enabled(en);
-	if (!en)
-		return;
+	unsigned char happened = local_paca->irq_happened;
 
-#ifdef CONFIG_PPC_STD_MMU_64
-	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
-		/*
-		 * Do we need to disable preemption here?  Not really: in the
-		 * unlikely event that we're preempted to a different cpu in
-		 * between getting r13, loading its lppaca_ptr, and loading
-		 * its any_int, we might call iseries_handle_interrupts without
-		 * an interrupt pending on the new cpu, but that's no disaster,
-		 * is it?  And the business of preempting us off the old cpu
-		 * would itself involve a local_irq_restore which handles the
-		 * interrupt to that cpu.
-		 *
-		 * But use "local_paca->lppaca_ptr" instead of "get_lppaca()"
-		 * to avoid any preemption checking added into get_paca().
-		 */
-		if (local_paca->lppaca_ptr->int_dword.any_int)
-			iseries_handle_interrupts();
-	}
-#endif /* CONFIG_PPC_STD_MMU_64 */
-
-	/*
-	 * if (get_paca()->hard_enabled) return;
-	 * But again we need to take care that gcc gets hard_enabled directly
-	 * via r13, not choose to use an intermediate register, lest we're
-	 * preempted to a different cpu in between the two instructions.
-	 */
-	if (get_hard_enabled())
-		return;
-
-	/*
-	 * Need to hard-enable interrupts here.  Since currently disabled,
-	 * no need to take further asm precautions against preemption; but
-	 * use local_paca instead of get_paca() to avoid preemption checking.
-	 */
-	local_paca->hard_enabled = en;
-
-	/*
-	 * Trigger the decrementer if we have a pending event. Some processors
-	 * only trigger on edge transitions of the sign bit. We might also
-	 * have disabled interrupts long enough that the decrementer wrapped
-	 * to positive.
-	 */
-	decrementer_check_overflow();
+	/* Clear bit 0 which we wouldn't clear otherwise */
+	local_paca->irq_happened &= ~PACA_IRQ_HARD_DIS;
 
 	/*
 	 * Force the delivery of pending soft-disabled interrupts on PS3.
@@ -190,9 +156,122 @@ notrace void arch_local_irq_restore(unsigned long en)
 		lv1_get_version_info(&tmp, &tmp2);
 	}
 
+	/*
+	 * We may have missed a decrementer interrupt. We check the
+	 * decrementer itself rather than the paca irq_happened field
+	 * in case we also had a rollover while hard disabled
+	 */
+	local_paca->irq_happened &= ~PACA_IRQ_DEC;
+	if (decrementer_check_overflow())
+		return 0x900;
+
+	/* Finally check if an external interrupt happened */
+	local_paca->irq_happened &= ~PACA_IRQ_EE;
+	if (happened & PACA_IRQ_EE)
+		return 0x500;
+
+#ifdef CONFIG_PPC_BOOK3E
+	/* Finally check if an EPR external interrupt happened
+	 * this bit is typically set if we need to handle another
+	 * "edge" interrupt from within the MPIC "EPR" handler
+	 */
+	local_paca->irq_happened &= ~PACA_IRQ_EE_EDGE;
+	if (happened & PACA_IRQ_EE_EDGE)
+		return 0x500;
+
+	local_paca->irq_happened &= ~PACA_IRQ_DBELL;
+	if (happened & PACA_IRQ_DBELL)
+		return 0x280;
+#endif /* CONFIG_PPC_BOOK3E */
+
+	/* There should be nothing left ! */
+	BUG_ON(local_paca->irq_happened != 0);
+
+	return 0;
+}
+
+notrace void arch_local_irq_restore(unsigned long en)
+{
+	unsigned char irq_happened;
+	unsigned int replay;
+
+	/* Write the new soft-enabled value */
+	set_soft_enabled(en);
+	if (!en)
+		return;
+	/*
+	 * From this point onward, we can take interrupts, preempt,
+	 * etc... unless we got hard-disabled. We check if an event
+	 * happened. If none happened, we know we can just return.
+	 *
+	 * We may have preempted before the check below, in which case
+	 * we are checking the "new" CPU instead of the old one. This
+	 * is only a problem if an event happened on the "old" CPU.
+	 *
+	 * External interrupt events on non-iseries will have caused
+	 * interrupts to be hard-disabled, so there is no problem, we
+	 * cannot have preempted.
+	 *
+	 * That leaves us with EEs on iSeries or decrementer interrupts,
+	 * which I decided to safely ignore. The preemption would have
+	 * itself been the result of an interrupt, upon which return we
+	 * will have checked for pending events on the old CPU.
+	 */
+	irq_happened = get_irq_happened();
+	if (!irq_happened)
+		return;
+
+	/*
+	 * We need to hard disable to get a trusted value from
+	 * __check_irq_replay(). We also need to soft-disable
+	 * again to avoid warnings in there due to the use of
+	 * per-cpu variables.
+	 *
+	 * We know that if the value in irq_happened is exactly 0x01
+	 * then we are already hard disabled (there are other less
+	 * common cases that we'll ignore for now), so we skip the
+	 * (expensive) mtmsrd.
+	 */
+	if (unlikely(irq_happened != PACA_IRQ_HARD_DIS))
+		__hard_irq_disable();
+	set_soft_enabled(0);
+
+	/*
+	 * Check if anything needs to be re-emitted. We haven't
+	 * soft-enabled yet to avoid warnings in decrementer_check_overflow
+	 * accessing per-cpu variables
+	 */
+	replay = __check_irq_replay();
+
+	/* We can soft-enable now */
+	set_soft_enabled(1);
+
+	/*
+	 * And replay if we have to. This will return with interrupts
+	 * hard-enabled.
+	 */
+	if (replay) {
+		__replay_interrupt(replay);
+		return;
+	}
+
+	/* Finally, let's ensure we are hard enabled */
 	__hard_irq_enable();
 }
 EXPORT_SYMBOL(arch_local_irq_restore);
+
+/*
+ * This is specifically called by assembly code to re-enable interrupts
+ * if they are currently disabled. This is typically called before
+ * schedule() or do_signal() when returning to userspace. We do it
+ * in C to avoid the burden of dealing with lockdep etc...
+ */
+void restore_interrupts(void)
+{
+	if (irqs_disabled())
+		local_irq_enable();
+}
+
 #endif /* CONFIG_PPC64 */
 
 int arch_show_interrupts(struct seq_file *p, int prec)
@@ -360,8 +439,17 @@ void do_IRQ(struct pt_regs *regs)
 
 	check_stack_overflow();
 
+	/*
+	 * Query the platform PIC for the interrupt & ack it.
+	 *
+	 * This will typically lower the interrupt line to the CPU
+	 */
 	irq = ppc_md.get_irq();
 
+	/* We can hard enable interrupts now */
+	may_hard_irq_enable();
+
+	/* And finally process it */
 	if (irq != NO_IRQ && irq != NO_IRQ_IGNORE)
 		handle_one_irq(irq);
 	else if (irq != NO_IRQ_IGNORE)

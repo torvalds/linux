@@ -232,23 +232,30 @@ label##_hv:						\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common,	\
 				 EXC_HV, KVMTEST, vec)
 
-#define __SOFTEN_TEST(h)						\
+/* This associate vector numbers with bits in paca->irq_happened */
+#define SOFTEN_VALUE_0x500	PACA_IRQ_EE
+#define SOFTEN_VALUE_0x502	PACA_IRQ_EE
+#define SOFTEN_VALUE_0x900	PACA_IRQ_DEC
+#define SOFTEN_VALUE_0x982	PACA_IRQ_DEC
+
+#define __SOFTEN_TEST(h, vec)						\
 	lbz	r10,PACASOFTIRQEN(r13);					\
 	cmpwi	r10,0;							\
+	li	r10,SOFTEN_VALUE_##vec;					\
 	beq	masked_##h##interrupt
-#define _SOFTEN_TEST(h)	__SOFTEN_TEST(h)
+#define _SOFTEN_TEST(h, vec)	__SOFTEN_TEST(h, vec)
 
 #define SOFTEN_TEST_PR(vec)						\
 	KVMTEST_PR(vec);						\
-	_SOFTEN_TEST(EXC_STD)
+	_SOFTEN_TEST(EXC_STD, vec)
 
 #define SOFTEN_TEST_HV(vec)						\
 	KVMTEST(vec);							\
-	_SOFTEN_TEST(EXC_HV)
+	_SOFTEN_TEST(EXC_HV, vec)
 
 #define SOFTEN_TEST_HV_201(vec)						\
 	KVMTEST(vec);							\
-	_SOFTEN_TEST(EXC_STD)
+	_SOFTEN_TEST(EXC_STD, vec)
 
 #define __MASKABLE_EXCEPTION_PSERIES(vec, label, h, extra)		\
 	HMT_MEDIUM;							\
@@ -279,22 +286,7 @@ label##_hv:								\
  */
 
 /* Exception addition: Hard disable interrupts */
-#ifdef CONFIG_TRACE_IRQFLAGS
-#define DISABLE_INTS				\
-	lbz	r10,PACASOFTIRQEN(r13);		\
-	li	r11,0;				\
-	cmpwi	cr0,r10,0;			\
-	stb	r11,PACAHARDIRQEN(r13);		\
-	beq	44f;				\
-	stb	r11,PACASOFTIRQEN(r13);		\
-	TRACE_DISABLE_INTS;			\
-44:
-#else
-#define DISABLE_INTS				\
-	li	r11,0;				\
-	stb	r11,PACASOFTIRQEN(r13);		\
-	stb	r11,PACAHARDIRQEN(r13)
-#endif /* CONFIG_TRACE_IRQFLAGS */
+#define DISABLE_INTS	SOFT_DISABLE_INTS(r10,r11)
 
 /* Exception addition: Keep interrupt state */
 #define ENABLE_INTS				\
