@@ -12,6 +12,7 @@
 #include <linux/mutex.h>
 #include <linux/radix-tree.h>
 #include <linux/pinctrl/pinconf.h>
+#include <linux/pinctrl/machine.h>
 
 struct pinctrl_gpio_range;
 
@@ -96,7 +97,7 @@ struct pinctrl_setting_configs {
 };
 
 /**
- * struct pinctrl_setting - an individual mux setting
+ * struct pinctrl_setting - an individual mux or config setting
  * @node: list node for struct pinctrl_settings's @settings field
  * @type: the type of setting
  * @pctldev: pin control device handling to be programmed
