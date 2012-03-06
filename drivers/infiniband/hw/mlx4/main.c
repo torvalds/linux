@@ -225,21 +225,18 @@ static int ib_link_query_port(struct ib_device *ibdev, u8 port,
 
 	/* If reported active speed is QDR, check if is FDR-10 */
 	if (props->active_speed == IB_SPEED_QDR) {
-		if (to_mdev(ibdev)->dev->caps.ext_port_cap[port] &
-		    MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO) {
-			init_query_mad(in_mad);
-			in_mad->attr_id = MLX4_ATTR_EXTENDED_PORT_INFO;
-			in_mad->attr_mod = cpu_to_be32(port);
+		init_query_mad(in_mad);
+		in_mad->attr_id = MLX4_ATTR_EXTENDED_PORT_INFO;
+		in_mad->attr_mod = cpu_to_be32(port);
 
-			err = mlx4_MAD_IFC(to_mdev(ibdev), 1, 1, port,
-					   NULL, NULL, in_mad, out_mad);
-			if (err)
-				return err;
+		err = mlx4_MAD_IFC(to_mdev(ibdev), 1, 1, port,
+				   NULL, NULL, in_mad, out_mad);
+		if (err)
+			return err;
 
-			/* Checking LinkSpeedActive for FDR-10 */
-			if (out_mad->data[15] & 0x1)
-				props->active_speed = IB_SPEED_FDR10;
-		}
+		/* Checking LinkSpeedActive for FDR-10 */
+		if (out_mad->data[15] & 0x1)
+			props->active_speed = IB_SPEED_FDR10;
 	}
 
 	return 0;

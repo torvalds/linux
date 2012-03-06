@@ -1361,13 +1361,6 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 					  "with caps = 0\n", port, err);
 			dev->caps.ib_port_def_cap[port] = ib_port_default_caps;
 
-			err = mlx4_check_ext_port_caps(dev, port);
-			if (err)
-				mlx4_warn(dev, "failed to get port %d extended "
-					  "port capabilities support info (%d)."
-					  " Assuming not supported\n",
-					  port, err);
-
 			err = mlx4_SET_PORT(dev, port);
 			if (err) {
 				mlx4_err(dev, "Failed to set port %d, aborting\n",

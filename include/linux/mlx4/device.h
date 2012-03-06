@@ -101,10 +101,6 @@ enum {
 #define MLX4_ATTR_EXTENDED_PORT_INFO	cpu_to_be16(0xff90)
 
 enum {
-	MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO	= 1 <<  0
-};
-
-enum {
 	MLX4_BMME_FLAG_LOCAL_INV	= 1 <<  6,
 	MLX4_BMME_FLAG_REMOTE_INV	= 1 <<  7,
 	MLX4_BMME_FLAG_TYPE_2_WIN	= 1 <<  9,
@@ -308,7 +304,6 @@ struct mlx4_caps {
 	u32			port_mask[MLX4_MAX_PORTS + 1];
 	enum mlx4_port_type	possible_type[MLX4_MAX_PORTS + 1];
 	u32			max_counters;
-	u8			ext_port_cap[MLX4_MAX_PORTS + 1];
 };
 
 struct mlx4_buf_list {

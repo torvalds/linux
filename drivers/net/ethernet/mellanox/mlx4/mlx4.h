@@ -1025,7 +1025,6 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			    struct mlx4_cmd_mailbox *outbox,
 			    struct mlx4_cmd_info *cmd);
 int mlx4_get_port_ib_caps(struct mlx4_dev *dev, u8 port, __be32 *caps);
-int mlx4_check_ext_port_caps(struct mlx4_dev *dev, u8 port);
 
 
 int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
