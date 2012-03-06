@@ -770,6 +770,8 @@ struct iwl_priv {
 	struct iwl_channel_info *channel_info;	/* channel info array */
 	u8 channel_count;	/* # of channels */
 
+	u8 plcp_delta_threshold;
+
 	/* thermal calibration */
 	s32 temperature;	/* Celsius */
 	s32 last_temperature;

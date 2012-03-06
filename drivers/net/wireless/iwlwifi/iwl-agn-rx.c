@@ -320,7 +320,7 @@ static bool iwlagn_good_plcp_health(struct iwl_priv *priv,
 				 unsigned int msecs)
 {
 	int delta;
-	int threshold = cfg(priv)->base_params->plcp_delta_threshold;
+	int threshold = priv->plcp_delta_threshold;
 
 	if (threshold == IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE) {
 		IWL_DEBUG_RADIO(priv, "plcp_err check disabled\n");

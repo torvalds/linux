@@ -1045,6 +1045,9 @@ static int iwl_init_drv(struct iwl_priv *priv)
 	priv->ieee_rates = NULL;
 	priv->band = IEEE80211_BAND_2GHZ;
 
+	priv->plcp_delta_threshold =
+		cfg(priv)->base_params->plcp_delta_threshold;
+
 	priv->iw_mode = NL80211_IFTYPE_STATION;
 	priv->current_ht_config.smps = IEEE80211_SMPS_STATIC;
 	priv->missed_beacon_threshold = IWL_MISSED_BEACON_THRESHOLD_DEF;

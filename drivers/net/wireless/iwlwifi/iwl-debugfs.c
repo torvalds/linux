@@ -2241,7 +2241,7 @@ static ssize_t iwl_dbgfs_plcp_delta_read(struct file *file,
 	const size_t bufsz = sizeof(buf);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "%u\n",
-			cfg(priv)->base_params->plcp_delta_threshold);
+			priv->plcp_delta_threshold);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
@@ -2263,10 +2263,10 @@ static ssize_t iwl_dbgfs_plcp_delta_write(struct file *file,
 		return -EINVAL;
 	if ((plcp < IWL_MAX_PLCP_ERR_THRESHOLD_MIN) ||
 		(plcp > IWL_MAX_PLCP_ERR_THRESHOLD_MAX))
-		cfg(priv)->base_params->plcp_delta_threshold =
+		priv->plcp_delta_threshold =
 			IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE;
 	else
-		cfg(priv)->base_params->plcp_delta_threshold = plcp;
+		priv->plcp_delta_threshold = plcp;
 	return count;
 }
 
