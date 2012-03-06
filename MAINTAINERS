@@ -6510,7 +6510,7 @@ F:	include/linux/if_team.h
 TEGRA SUPPORT
 M:	Colin Cross <ccross@android.com>
 M:	Olof Johansson <olof@lixom.net>
-M:	Stephen Warren <swarren@nvidia.com>
+M:	Stephen Warren <swarren@wwwdotorg.org>
 L:	linux-tegra@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/olof/tegra.git
 S:	Supported
