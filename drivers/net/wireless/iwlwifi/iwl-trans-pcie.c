@@ -1033,8 +1033,8 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 	trans_pcie->mcast_queue[IWL_RXON_CTX_BSS] = 0;
 	trans_pcie->mcast_queue[IWL_RXON_CTX_PAN] = IWL_IPAN_MCAST_QUEUE;
 
-	if ((hw_params(trans).sku & EEPROM_SKU_CAP_AMT_ENABLE) &&
-	     iwl_prepare_card_hw(trans)) {
+	/* This may fail if AMT took ownership of the device */
+	if (iwl_prepare_card_hw(trans)) {
 		IWL_WARN(trans, "Exit HW not ready\n");
 		return -EIO;
 	}
