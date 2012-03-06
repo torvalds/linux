@@ -334,7 +334,6 @@ enum iwl_trans_state {
  * @shrd - pointer to iwl_shared which holds shared data from the upper layer
  * @reg_lock - protect hw register access
  * @dev - pointer to struct device * that represents the device
- * @irq - the irq number for the device
  * @hw_id: a u32 with the ID of the device / subdevice.
  *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
@@ -349,7 +348,6 @@ struct iwl_trans {
 	spinlock_t reg_lock;
 
 	struct device *dev;
-	unsigned int irq;
 	u32 hw_rev;
 	u32 hw_id;
 	char hw_id_str[52];

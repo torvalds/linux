@@ -1294,7 +1294,7 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
 	/* wait to make sure we flush pending tasklet*/
-	synchronize_irq(trans->irq);
+	synchronize_irq(trans_pcie->irq);
 	tasklet_kill(&trans_pcie->irq_tasklet);
 
 	cancel_work_sync(&trans_pcie->rx_replenish);
@@ -1513,11 +1513,11 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 
 		iwl_alloc_isr_ict(trans);
 
-		err = request_irq(trans->irq, iwl_isr_ict, IRQF_SHARED,
+		err = request_irq(trans_pcie->irq, iwl_isr_ict, IRQF_SHARED,
 			DRV_NAME, trans);
 		if (err) {
 			IWL_ERR(trans, "Error allocating IRQ %d\n",
-				trans->irq);
+				trans_pcie->irq);
 			goto error;
 		}
 
@@ -1540,7 +1540,7 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 	return err;
 
 err_free_irq:
-	free_irq(trans->irq, trans);
+	free_irq(trans_pcie->irq, trans);
 error:
 	iwl_free_isr_ict(trans);
 	tasklet_kill(&trans_pcie->irq_tasklet);
@@ -1629,7 +1629,7 @@ static void iwl_trans_pcie_free(struct iwl_trans *trans)
 	iwl_trans_pcie_rx_free(trans);
 #endif
 	if (trans_pcie->irq_requested == true) {
-		free_irq(trans->irq, trans);
+		free_irq(trans_pcie->irq, trans);
 		iwl_free_isr_ict(trans);
 	}
 
@@ -2318,7 +2318,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
 			"pci_enable_msi failed(0X%x)", err);
 
 	trans->dev = &pdev->dev;
-	trans->irq = pdev->irq;
+	trans_pcie->irq = pdev->irq;
 	trans_pcie->pci_dev = pdev;
 	trans->hw_rev = iwl_read32(trans, CSR_HW_REV);
 	trans->hw_id = (pdev->device << 16) + pdev->subsystem_device;
