@@ -572,6 +572,53 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 	return added;
 }
 
+/**
+ * iwl_fill_probe_req - fill in all required fields and IE for probe request
+ */
+
+static u16 iwl_fill_probe_req(struct ieee80211_mgmt *frame, const u8 *ta,
+			      const u8 *ies, int ie_len, int left)
+{
+	int len = 0;
+	u8 *pos = NULL;
+
+	/* Make sure there is enough space for the probe request,
+	 * two mandatory IEs and the data */
+	left -= 24;
+	if (left < 0)
+		return 0;
+
+	frame->frame_control = cpu_to_le16(IEEE80211_STYPE_PROBE_REQ);
+	memcpy(frame->da, iwl_bcast_addr, ETH_ALEN);
+	memcpy(frame->sa, ta, ETH_ALEN);
+	memcpy(frame->bssid, iwl_bcast_addr, ETH_ALEN);
+	frame->seq_ctrl = 0;
+
+	len += 24;
+
+	/* ...next IE... */
+	pos = &frame->u.probe_req.variable[0];
+
+	/* fill in our indirect SSID IE */
+	left -= 2;
+	if (left < 0)
+		return 0;
+	*pos++ = WLAN_EID_SSID;
+	*pos++ = 0;
+
+	len += 2;
+
+	if (WARN_ON(left < ie_len))
+		return len;
+
+	if (ies && ie_len) {
+		memcpy(pos, ies, ie_len);
+		len += ie_len;
+	}
+
+	return (u16)len;
+}
+
 static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
 	struct iwl_host_cmd cmd = {
@@ -791,7 +838,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	scan->rx_chain = cpu_to_le16(rx_chain);
 	switch (priv->scan_type) {
 	case IWL_SCAN_NORMAL:
-		cmd_len = iwl_fill_probe_req(priv,
+		cmd_len = iwl_fill_probe_req(
 					(struct ieee80211_mgmt *)scan->data,
 					vif->addr,
 					priv->scan_request->ie,
@@ -801,7 +848,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	case IWL_SCAN_RADIO_RESET:
 	case IWL_SCAN_ROC:
 		/* use bcast addr, will not be transmitted but must be valid */
-		cmd_len = iwl_fill_probe_req(priv,
+		cmd_len = iwl_fill_probe_req(
 					(struct ieee80211_mgmt *)scan->data,
 					iwl_bcast_addr, NULL, 0,
 					IWL_MAX_SCAN_SIZE - sizeof(*scan));
@@ -1002,53 +1049,6 @@ static void iwl_bg_scan_check(struct work_struct *data)
 	mutex_lock(&priv->mutex);
 	iwl_force_scan_end(priv);
 	mutex_unlock(&priv->mutex);
-}
-
-/**
- * iwl_fill_probe_req - fill in all required fields and IE for probe request
- */
-
-u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
-		       const u8 *ta, const u8 *ies, int ie_len, int left)
-{
-	int len = 0;
-	u8 *pos = NULL;
-
-	/* Make sure there is enough space for the probe request,
-	 * two mandatory IEs and the data */
-	left -= 24;
-	if (left < 0)
-		return 0;
-
-	frame->frame_control = cpu_to_le16(IEEE80211_STYPE_PROBE_REQ);
-	memcpy(frame->da, iwl_bcast_addr, ETH_ALEN);
-	memcpy(frame->sa, ta, ETH_ALEN);
-	memcpy(frame->bssid, iwl_bcast_addr, ETH_ALEN);
-	frame->seq_ctrl = 0;
-
-	len += 24;
-
-	/* ...next IE... */
-	pos = &frame->u.probe_req.variable[0];
-
-	/* fill in our indirect SSID IE */
-	left -= 2;
-	if (left < 0)
-		return 0;
-	*pos++ = WLAN_EID_SSID;
-	*pos++ = 0;
-
-	len += 2;
-
-	if (WARN_ON(left < ie_len))
-		return len;
-
-	if (ies && ie_len) {
-		memcpy(pos, ies, ie_len);
-		len += ie_len;
-	}
-
-	return (u16)len;
 }
 
 static void iwl_bg_abort_scan(struct work_struct *work)
