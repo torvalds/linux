@@ -1165,7 +1165,7 @@ int iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,
 	iwl_notification_wait_notify(&priv->notif_wait, pkt);
 
 	if (priv->pre_rx_handler &&
-	    priv->shrd->ucode_owner == IWL_OWNERSHIP_TM)
+	    priv->ucode_owner == IWL_OWNERSHIP_TM)
 		priv->pre_rx_handler(priv, rxb);
 	else {
 		/* Based on type of command response or notification,

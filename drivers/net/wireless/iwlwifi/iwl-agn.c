@@ -1053,6 +1053,8 @@ static int iwl_init_drv(struct iwl_priv *priv)
 	priv->missed_beacon_threshold = IWL_MISSED_BEACON_THRESHOLD_DEF;
 	priv->agg_tids_count = 0;
 
+	priv->ucode_owner = IWL_OWNERSHIP_DRIVER;
+
 	/* initialize force reset */
 	priv->force_reset[IWL_RF_RESET].reset_duration =
 		IWL_DELAY_NEXT_FORCE_RF_RESET;

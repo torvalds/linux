@@ -356,7 +356,6 @@ struct iwl_cfg {
 /**
  * struct iwl_shared - shared fields for all the layers of the driver
  *
- * @ucode_owner: IWL_OWNERSHIP_*
  * @cmd_queue: command queue number
  * @status: STATUS_*
  * @wowlan: are we running wowlan uCode
@@ -374,9 +373,6 @@ struct iwl_cfg {
  * @device_pointers: pointers to ucode event tables
  */
 struct iwl_shared {
-#define IWL_OWNERSHIP_DRIVER	0
-#define IWL_OWNERSHIP_TM	1
-	u8 ucode_owner;
 	u8 cmd_queue;
 	unsigned long status;
 	u8 valid_contexts;

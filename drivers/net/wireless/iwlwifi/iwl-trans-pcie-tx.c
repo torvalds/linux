@@ -685,12 +685,6 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		return -EIO;
 	}
 
-	if ((trans->shrd->ucode_owner == IWL_OWNERSHIP_TM) &&
-	    !(cmd->flags & CMD_ON_DEMAND)) {
-		IWL_DEBUG_HC(trans, "tm own the uCode, no regular hcmd send\n");
-		return -EIO;
-	}
-
 	copy_size = sizeof(out_cmd->hdr);
 	cmd_size = sizeof(out_cmd->hdr);
 

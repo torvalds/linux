@@ -1022,7 +1022,6 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 	bool hw_rfkill;
 
-	trans->shrd->ucode_owner = IWL_OWNERSHIP_DRIVER;
 	trans_pcie->ac_to_queue[IWL_RXON_CTX_BSS] = iwlagn_bss_ac_to_queue;
 	trans_pcie->ac_to_queue[IWL_RXON_CTX_PAN] = iwlagn_pan_ac_to_queue;
 

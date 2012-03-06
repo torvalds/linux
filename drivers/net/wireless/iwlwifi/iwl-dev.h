@@ -748,6 +748,10 @@ struct iwl_priv {
 	struct iwl_spectrum_notification measure_report;
 	u8 measurement_status;
 
+#define IWL_OWNERSHIP_DRIVER	0
+#define IWL_OWNERSHIP_TM	1
+	u8 ucode_owner;
+
 	/* ucode beacon time */
 	u32 ucode_beacon_time;
 	int missed_beacon_threshold;
