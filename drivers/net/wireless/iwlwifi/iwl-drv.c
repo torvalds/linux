@@ -71,7 +71,7 @@
 #include "iwl-op-mode.h"
 
 /* private includes */
-#include "iwl-ucode.h"
+#include "iwl-fw-file.h"
 
 /**
  * struct iwl_drv - drv common data

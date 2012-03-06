@@ -60,8 +60,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#ifndef __iwl_ucode_h__
-#define __iwl_ucode_h__
+#ifndef __iwl_fw_file_h__
+#define __iwl_fw_file_h__
 
 #include <linux/netdevice.h>
 
@@ -157,4 +157,4 @@ struct iwl_tlv_ucode_header {
 	u8 data[0];
 };
 
-#endif  /* __iwl_ucode_h__ */
+#endif  /* __iwl_fw_file_h__ */
