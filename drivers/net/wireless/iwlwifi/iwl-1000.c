@@ -122,11 +122,6 @@ static struct iwl_sensitivity_ranges iwl1000_sensitivity = {
 
 static void iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 {
-	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
-	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
-		cfg(priv)->base_params->num_of_queues =
-			iwlagn_mod_params.num_of_queues;
-
 	hw_params(priv).max_txq_num = cfg(priv)->base_params->num_of_queues;
 
 	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ);

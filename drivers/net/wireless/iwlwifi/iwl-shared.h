@@ -115,7 +115,6 @@ extern struct iwl_mod_params iwlagn_mod_params;
  * Holds the module parameters
  *
  * @sw_crypto: using hardware encryption, default = 0
- * @num_of_queues: number of tx queue, HW dependent
  * @disable_11n: disable 11n capabilities, default = 0,
  *	use IWL_DISABLE_HT_* constants
  * @amsdu_size_8K: enable 8K amsdu size, default = 1
@@ -137,7 +136,6 @@ extern struct iwl_mod_params iwlagn_mod_params;
  */
 struct iwl_mod_params {
 	int sw_crypto;
-	int num_of_queues;
 	unsigned int disable_11n;
 	int amsdu_size_8K;
 	int antenna;
