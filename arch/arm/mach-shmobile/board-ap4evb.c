@@ -61,7 +61,6 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/time.h>
 #include <asm/setup.h>
 
 /*
@@ -1436,21 +1435,11 @@ static void __init ap4evb_init(void)
 	pm_clk_add(&lcdc1_device.dev, "hdmi");
 }
 
-static void __init ap4evb_timer_init(void)
-{
-	sh7372_clock_init();
-	shmobile_timer.init();
-}
-
-static struct sys_timer ap4evb_timer = {
-	.init		= ap4evb_timer_init,
-};
-
 MACHINE_START(AP4EVB, "ap4evb")
 	.map_io		= sh7372_map_io,
 	.init_early	= sh7372_add_early_devices,
 	.init_irq	= sh7372_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= ap4evb_init,
-	.timer		= &ap4evb_timer,
+	.timer		= &shmobile_timer,
 MACHINE_END
