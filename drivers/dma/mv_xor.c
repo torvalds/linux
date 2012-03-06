@@ -26,6 +26,8 @@
 #include <linux/platform_device.h>
 #include <linux/memory.h>
 #include <plat/mv_xor.h>
+
+#include "dmaengine.h"
 #include "mv_xor.h"
 
 static void mv_xor_issue_pending(struct dma_chan *chan);

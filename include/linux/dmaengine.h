@@ -18,8 +18,8 @@
  * The full GNU General Public License is included in this distribution in the
  * file called COPYING.
  */
-#ifndef DMAENGINE_H
-#define DMAENGINE_H
+#ifndef LINUX_DMAENGINE_H
+#define LINUX_DMAENGINE_H
 
 #include <linux/device.h>
 #include <linux/uio.h>

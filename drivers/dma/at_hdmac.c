@@ -27,6 +27,7 @@
 #include <linux/of_device.h>
 
 #include "at_hdmac_regs.h"
+#include "dmaengine.h"
 
 /*
  * Glossary

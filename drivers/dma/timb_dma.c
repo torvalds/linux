@@ -31,6 +31,8 @@
 
 #include <linux/timb_dma.h>
 
+#include "dmaengine.h"
+
 #define DRIVER_NAME "timb-dma"
 
 /* Global DMA registers */

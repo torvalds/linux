@@ -85,6 +85,8 @@
 #include <linux/slab.h>
 #include <asm/hardware/pl080.h>
 
+#include "dmaengine.h"
+
 #define DRIVER_NAME	"pl08xdmac"
 
 static struct amba_driver pl08x_amba_driver;

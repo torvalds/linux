@@ -25,6 +25,8 @@
 #include <linux/module.h>
 #include <linux/pch_dma.h>
 
+#include "dmaengine.h"
+
 #define DRV_NAME "pch-dma"
 
 #define DMA_CTL0_DISABLE		0x0

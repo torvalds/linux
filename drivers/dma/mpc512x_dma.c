@@ -44,6 +44,8 @@
 
 #include <linux/random.h>
 
+#include "dmaengine.h"
+
 /* Number of DMA Transfer descriptors allocated per channel */
 #define MPC_DMA_DESCRIPTORS	64
 

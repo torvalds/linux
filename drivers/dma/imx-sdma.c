@@ -43,6 +43,8 @@
 #include <mach/dma.h>
 #include <mach/hardware.h>
 
+#include "dmaengine.h"
+
 /* SDMA registers */
 #define SDMA_H_C0PTR		0x000
 #define SDMA_H_INTR		0x004

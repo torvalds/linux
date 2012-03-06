@@ -36,6 +36,8 @@
 
 #include <mach/adma.h>
 
+#include "dmaengine.h"
+
 #define to_iop_adma_chan(chan) container_of(chan, struct iop_adma_chan, common)
 #define to_iop_adma_device(dev) \
 	container_of(dev, struct iop_adma_device, common)

@@ -24,6 +24,7 @@
 #include <mach/coh901318.h>
 
 #include "coh901318_lli.h"
+#include "dmaengine.h"
 
 #define COHC_2_DEV(cohc) (&cohc->chan.dev->device)
 

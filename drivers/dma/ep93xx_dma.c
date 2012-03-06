@@ -28,6 +28,8 @@
 
 #include <mach/dma.h>
 
+#include "dmaengine.h"
+
 /* M2P registers */
 #define M2P_CONTROL			0x0000
 #define M2P_CONTROL_STALLINT		BIT(0)

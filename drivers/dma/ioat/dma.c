@@ -40,6 +40,8 @@
 #include "registers.h"
 #include "hw.h"
 
+#include "../dmaengine.h"
+
 int ioat_pending_level = 4;
 module_param(ioat_pending_level, int, 0644);
 MODULE_PARM_DESC(ioat_pending_level,

@@ -25,6 +25,7 @@
 
 #include <mach/ipu.h>
 
+#include "../dmaengine.h"
 #include "ipu_intern.h"
 
 #define FS_VF_IN_VALID	0x00000002

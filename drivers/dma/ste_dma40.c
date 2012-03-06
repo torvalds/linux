@@ -21,6 +21,7 @@
 
 #include <plat/ste_dma40.h>
 
+#include "dmaengine.h"
 #include "ste_dma40_ll.h"
 
 #define D40_NAME "dma40"

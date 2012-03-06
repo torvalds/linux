@@ -41,6 +41,8 @@
 #include "registers.h"
 #include "hw.h"
 
+#include "../dmaengine.h"
+
 int ioat_ring_alloc_order = 8;
 module_param(ioat_ring_alloc_order, int, 0644);
 MODULE_PARM_DESC(ioat_ring_alloc_order,

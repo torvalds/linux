@@ -46,6 +46,7 @@
 #include <asm/dcr.h>
 #include <asm/dcr-regs.h>
 #include "adma.h"
+#include "../dmaengine.h"
 
 enum ppc_adma_init_code {
 	PPC_ADMA_INIT_OK = 0,

@@ -28,6 +28,8 @@
 #include <mach/dma.h>
 #include <mach/common.h>
 
+#include "dmaengine.h"
+
 /*
  * NOTE: The term "PIO" throughout the mxs-dma implementation means
  * PIO mode of mxs apbh-dma and apbx-dma.  With this working mode,

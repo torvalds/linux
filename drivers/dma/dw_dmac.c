@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 
 #include "dw_dmac_regs.h"
+#include "dmaengine.h"
 
 /*
  * This supports the Synopsys "DesignWare AHB Central DMA Controller",

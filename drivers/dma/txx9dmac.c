@@ -15,6 +15,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/scatterlist.h>
+
+#include "dmaengine.h"
 #include "txx9dmac.h"
 
 static struct txx9dmac_chan *to_txx9dmac_chan(struct dma_chan *chan)

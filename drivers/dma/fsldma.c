@@ -35,6 +35,7 @@
 #include <linux/dmapool.h>
 #include <linux/of_platform.h>
 
+#include "dmaengine.h"
 #include "fsldma.h"
 
 #define chan_dbg(chan, fmt, arg...)					\
