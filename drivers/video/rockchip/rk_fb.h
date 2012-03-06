@@ -90,16 +90,16 @@ struct layer_par {
     const char *name;
     int id;
     u32	pseudo_pal[16];
-    u32 y_offset;       //yuv/rgb offset
-    u32 c_offset;     //cb cr offset
-    u32 xpos;         //start point in panel
+    u32 y_offset;       //yuv/rgb offset  -->LCDC_WINx_YRGB_MSTx
+    u32 c_offset;     //cb cr offset--->LCDC_WINx_CBR_MSTx
+    u32 xpos;         //start point in panel  --->LCDC_WINx_DSP_ST
     u32 ypos;
-    u16 xsize;        // display window width
-    u16 ysize;          //
-    u16 xact;        //origin display window size
+    u16 xsize;        // display window width/height  -->LCDC_WINx_DSP_INFO
+    u16 ysize;          
+    u16 xact;        //origin display window size -->LCDC_WINx_ACT_INFO
     u16 yact;
-    u16 xres_virtual;
-    u16 yres_virtual;
+    u16 xvir;       //virtual width/height     -->LCDC_WINx_VIR
+    u16 yvir;
     unsigned long smem_start;
     unsigned long cbr_start;  // Cbr memory start address
     enum data_format format;

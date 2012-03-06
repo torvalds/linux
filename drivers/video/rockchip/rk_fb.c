@@ -273,15 +273,13 @@ static int rk_fb_set_par(struct fb_info *info)
     int layer_id = 0;	
     u32 smem_len=0,map_size = 0;
     u32 cblen = 0,crlen = 0;
-    u32 xvir = var->xres_virtual;		/* virtual resolution		*/
-    u32 yvir = var->yres_virtual;
-    u32 xoffset = var->xoffset;			/* offset from virtual to visible */
-    u32 yoffset = var->yoffset;			/* resolution			*/
-
-    
-    u16 xpos = (var->nonstd>>8) & 0xfff;      //visiable pos in panel
+    u16 xsize =0,ysize = 0;              //winx display window height/width --->LCDC_WINx_DSP_INFO
+    u32 xoffset = var->xoffset;			// offset from virtual to visible 
+    u32 yoffset = var->yoffset;			//resolution			
+    u16 xpos = (var->nonstd>>8) & 0xfff; //visiable pos in panel
     u16 ypos = (var->nonstd>>20) & 0xfff;
-    u16 xsize =0,ysize = 0;
+    u32 xvir = var->xres_virtual;
+    u32 yvir = var->yres_virtual;
     u8 data_format = var->nonstd&0x0f;
 
     if(!strcmp(fix->id,"fb1")){
@@ -378,10 +376,10 @@ static int rk_fb_set_par(struct fb_info *info)
     
     par->smem_start =fix->smem_start;
     par->cbr_start = fix->mmio_start;
-    par->xact = var->xres;
+    par->xact = var->xres;              //winx active window height,is a part of vir
     par->yact = var->yres;
-    par->xres_virtual = xvir;		// virtuail resolution	
-    par->yres_virtual = yvir;
+    par->xvir =  var->xres_virtual;		// virtual resolution	 stride --->LCDC_WINx_VIR
+    par->yvir =  var->yres_virtual;
     dev_drv->set_par(dev_drv,layer_id);
     
 	return 0;

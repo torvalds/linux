@@ -280,8 +280,8 @@ static  int win0_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 
     xact = par->xact;			    /*active (origin) picture window width/height		*/
     yact = par->yact;
-    xvir = par->xres_virtual;		/* virtual resolution		*/
-    yvir = par->yres_virtual;
+    xvir = par->xvir;		/* virtual resolution		*/
+    yvir = par->yvir;
     xpos = par->xpos+screen->left_margin + screen->hsync_len;
     ypos = par->ypos+screen->upper_margin + screen->vsync_len;
     y_addr = par->smem_start + par->y_offset;
@@ -355,8 +355,8 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 	u32 y_addr,uv_addr;
 	xact = par->xact;			    /* visible resolution		*/
 	yact = par->yact;
-	xvir = par->xres_virtual;		/* virtual resolution		*/
-	yvir = par->yres_virtual;
+	xvir = par->xvir;		/* virtual resolution		*/
+	yvir = par->yvir;
 	xpos = par->xpos+screen->left_margin + screen->hsync_len;
 	ypos = par->ypos+screen->upper_margin + screen->vsync_len;
 	y_addr = par->smem_start + par->y_offset;
