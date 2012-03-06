@@ -30,6 +30,8 @@
 #include <mach/db8500-regs.h>
 #include <mach/db5500-regs.h>
 
+#define MSP_TX_RX_REG_OFFSET	0
+
 #ifndef __ASSEMBLY__
 
 #include <mach/id.h>

@@ -901,6 +901,7 @@ config ARCH_U300
 
 config ARCH_U8500
 	bool "ST-Ericsson U8500 Series"
+	depends on MMU
 	select CPU_V7
 	select ARM_AMBA
 	select GENERIC_CLOCKEVENTS
@@ -1577,7 +1578,7 @@ config LOCAL_TIMERS
 config ARCH_NR_GPIO
 	int
 	default 1024 if ARCH_SHMOBILE || ARCH_TEGRA
-	default 350 if ARCH_U8500
+	default 355 if ARCH_U8500
 	default 0
 	help
 	  Maximum number of GPIOs in the system.
