@@ -747,8 +747,7 @@ int mlx4_ib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 			break;
 	}
 
-	if (npolled)
-		mlx4_cq_set_ci(&cq->mcq);
+	mlx4_cq_set_ci(&cq->mcq);
 
 	spin_unlock_irqrestore(&cq->lock, flags);
 
