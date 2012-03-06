@@ -304,7 +304,7 @@ static int mlx4_HW2SW_MPT(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox
 			    MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 }
 
-int mlx4_mr_alloc_reserved(struct mlx4_dev *dev, u32 mridx, u32 pd,
+static int mlx4_mr_alloc_reserved(struct mlx4_dev *dev, u32 mridx, u32 pd,
 			   u64 iova, u64 size, u32 access, int npages,
 			   int page_shift, struct mlx4_mr *mr)
 {
@@ -317,7 +317,6 @@ int mlx4_mr_alloc_reserved(struct mlx4_dev *dev, u32 mridx, u32 pd,
 
 	return mlx4_mtt_init(dev, npages, page_shift, &mr->mtt);
 }
-EXPORT_SYMBOL_GPL(mlx4_mr_alloc_reserved);
 
 static int mlx4_WRITE_MTT(struct mlx4_dev *dev,
 			  struct mlx4_cmd_mailbox *mailbox,
@@ -434,7 +433,7 @@ int mlx4_mr_alloc(struct mlx4_dev *dev, u32 pd, u64 iova, u64 size, u32 access,
 }
 EXPORT_SYMBOL_GPL(mlx4_mr_alloc);
 
-void mlx4_mr_free_reserved(struct mlx4_dev *dev, struct mlx4_mr *mr)
+static void mlx4_mr_free_reserved(struct mlx4_dev *dev, struct mlx4_mr *mr)
 {
 	int err;
 
@@ -449,7 +448,6 @@ void mlx4_mr_free_reserved(struct mlx4_dev *dev, struct mlx4_mr *mr)
 	}
 	mlx4_mtt_cleanup(dev, &mr->mtt);
 }
-EXPORT_SYMBOL_GPL(mlx4_mr_free_reserved);
 
 void mlx4_mr_free(struct mlx4_dev *dev, struct mlx4_mr *mr)
 {
