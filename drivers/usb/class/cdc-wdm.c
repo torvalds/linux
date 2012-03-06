@@ -23,6 +23,7 @@
 #include <linux/usb/cdc.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
+#include <linux/usb/cdc-wdm.h>
 
 /*
  * Version Information
@@ -116,6 +117,7 @@ struct wdm_device {
 	int			rerr;
 
 	struct list_head	device_list;
+	int			(*manage_power)(struct usb_interface *, int);
 };
 
 static struct usb_driver wdm_driver;
@@ -580,7 +582,6 @@ static int wdm_open(struct inode *inode, struct file *file)
 		dev_err(&desc->intf->dev, "Error autopm - %d\n", rv);
 		goto out;
 	}
-	intf->needs_remote_wakeup = 1;
 
 	/* using write lock to protect desc->count */
 	mutex_lock(&desc->wlock);
@@ -597,6 +598,8 @@ static int wdm_open(struct inode *inode, struct file *file)
 		rv = 0;
 	}
 	mutex_unlock(&desc->wlock);
+	if (desc->count == 1)
+		desc->manage_power(intf, 1);
 	usb_autopm_put_interface(desc->intf);
 out:
 	mutex_unlock(&wdm_mutex);
@@ -618,7 +621,7 @@ static int wdm_release(struct inode *inode, struct file *file)
 		dev_dbg(&desc->intf->dev, "wdm_release: cleanup");
 		kill_urbs(desc);
 		if (!test_bit(WDM_DISCONNECTING, &desc->flags))
-			desc->intf->needs_remote_wakeup = 0;
+			desc->manage_power(desc->intf, 0);
 	}
 	mutex_unlock(&wdm_mutex);
 	return 0;
@@ -665,7 +668,8 @@ static void wdm_rxwork(struct work_struct *work)
 
 /* --- hotplug --- */
 
-static int wdm_create(struct usb_interface *intf, struct usb_endpoint_descriptor *ep, u16 bufsize)
+static int wdm_create(struct usb_interface *intf, struct usb_endpoint_descriptor *ep,
+		u16 bufsize, int (*manage_power)(struct usb_interface *, int))
 {
 	int rv = -ENOMEM;
 	struct wdm_device *desc;
@@ -750,6 +754,8 @@ static int wdm_create(struct usb_interface *intf, struct usb_endpoint_descriptor
 		desc
 	);
 
+	desc->manage_power = manage_power;
+
 	spin_lock(&wdm_device_list_lock);
 	list_add(&desc->device_list, &wdm_device_list);
 	spin_unlock(&wdm_device_list_lock);
@@ -763,6 +769,19 @@ out:
 	return rv;
 err:
 	cleanup(desc);
+	return rv;
+}
+
+static int wdm_manage_power(struct usb_interface *intf, int on)
+{
+	/* need autopm_get/put here to ensure the usbcore sees the new value */
+	int rv = usb_autopm_get_interface(intf);
+	if (rv < 0)
+		goto err;
+
+	intf->needs_remote_wakeup = on;
+	usb_autopm_put_interface(intf);
+err:
 	return rv;
 }
 
@@ -809,11 +828,47 @@ next_desc:
 		goto err;
 	ep = &iface->endpoint[0].desc;
 
-	rv = wdm_create(intf, ep, maxcom);
+	rv = wdm_create(intf, ep, maxcom, &wdm_manage_power);
 
 err:
 	return rv;
 }
+
+/**
+ * usb_cdc_wdm_register - register a WDM subdriver
+ * @intf: usb interface the subdriver will associate with
+ * @ep: interrupt endpoint to monitor for notifications
+ * @bufsize: maximum message size to support for read/write
+ *
+ * Create WDM usb class character device and associate it with intf
+ * without binding, allowing another driver to manage the interface.
+ *
+ * The subdriver will manage the given interrupt endpoint exclusively
+ * and will issue control requests referring to the given intf. It
+ * will otherwise avoid interferring, and in particular not do
+ * usb_set_intfdata/usb_get_intfdata on intf.
+ *
+ * The return value is a pointer to the subdriver's struct usb_driver.
+ * The registering driver is responsible for calling this subdriver's
+ * disconnect, suspend, resume, pre_reset and post_reset methods from
+ * its own.
+ */
+struct usb_driver *usb_cdc_wdm_register(struct usb_interface *intf,
+					struct usb_endpoint_descriptor *ep,
+					int bufsize,
+					int (*manage_power)(struct usb_interface *, int))
+{
+	int rv = -EINVAL;
+
+	rv = wdm_create(intf, ep, bufsize, manage_power);
+	if (rv < 0)
+		goto err;
+
+	return &wdm_driver;
+err:
+	return ERR_PTR(rv);
+}
+EXPORT_SYMBOL(usb_cdc_wdm_register);
 
 static void wdm_disconnect(struct usb_interface *intf)
 {
