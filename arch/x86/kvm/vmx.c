@@ -2210,6 +2210,9 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 		msr = find_msr_entry(vmx, msr_index);
 		if (msr) {
 			msr->data = data;
+			if (msr - vmx->guest_msrs < vmx->save_nmsrs)
+				kvm_set_shared_msr(msr->index, msr->data,
+						   msr->mask);
 			break;
 		}
 		ret = kvm_set_msr_common(vcpu, msr_index, data);
