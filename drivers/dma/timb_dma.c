@@ -84,7 +84,6 @@ struct timb_dma_chan {
 					especially the lists and descriptors,
 					from races between the tasklet and calls
 					from above */
-	dma_cookie_t		last_completed_cookie;
 	bool			ongoing;
 	struct list_head	active_list;
 	struct list_head	queue;
@@ -284,7 +283,7 @@ static void __td_finish(struct timb_dma_chan *td_chan)
 	else
 		iowrite32(0, td_chan->membase + TIMBDMA_OFFS_TX_DLAR);
 */
-	td_chan->last_completed_cookie = txd->cookie;
+	td_chan->chan.completed_cookie = txd->cookie;
 	td_chan->ongoing = false;
 
 	callback = txd->callback;
@@ -481,7 +480,7 @@ static int td_alloc_chan_resources(struct dma_chan *chan)
 	}
 
 	spin_lock_bh(&td_chan->lock);
-	td_chan->last_completed_cookie = 1;
+	chan->completed_cookie = 1;
 	chan->cookie = 1;
 	spin_unlock_bh(&td_chan->lock);
 
@@ -523,7 +522,7 @@ static enum dma_status td_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 
 	dev_dbg(chan2dev(chan), "%s: Entry\n", __func__);
 
-	last_complete = td_chan->last_completed_cookie;
+	last_complete = chan->completed_cookie;
 	last_used = chan->cookie;
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);

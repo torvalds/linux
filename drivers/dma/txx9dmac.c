@@ -424,7 +424,7 @@ txx9dmac_descriptor_complete(struct txx9dmac_chan *dc,
 	dev_vdbg(chan2dev(&dc->chan), "descriptor %u %p complete\n",
 		 txd->cookie, desc);
 
-	dc->completed = txd->cookie;
+	dc->chan.completed_cookie = txd->cookie;
 	callback = txd->callback;
 	param = txd->callback_param;
 
@@ -976,7 +976,7 @@ txx9dmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	dma_cookie_t last_complete;
 	int ret;
 
-	last_complete = dc->completed;
+	last_complete = chan->completed_cookie;
 	last_used = chan->cookie;
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
@@ -985,7 +985,7 @@ txx9dmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 		txx9dmac_scan_descriptors(dc);
 		spin_unlock_bh(&dc->lock);
 
-		last_complete = dc->completed;
+		last_complete = chan->completed_cookie;
 		last_used = chan->cookie;
 
 		ret = dma_async_is_complete(cookie, last_complete, last_used);
@@ -1057,7 +1057,7 @@ static int txx9dmac_alloc_chan_resources(struct dma_chan *chan)
 		return -EIO;
 	}
 
-	dc->completed = chan->cookie = 1;
+	chan->completed_cookie = chan->cookie = 1;
 
 	dc->ccr = TXX9_DMA_CCR_IMMCHN | TXX9_DMA_CCR_INTENE | CCR_LE;
 	txx9dmac_chan_set_SMPCHN(dc);
@@ -1186,7 +1186,7 @@ static int __init txx9dmac_chan_probe(struct platform_device *pdev)
 	dc->ddev->chan[ch] = dc;
 	dc->chan.device = &dc->dma;
 	list_add_tail(&dc->chan.device_node, &dc->chan.device->channels);
-	dc->chan.cookie = dc->completed = 1;
+	dc->chan.cookie = dc->chan.completed_cookie = 1;
 
 	if (is_dmac64(dc))
 		dc->ch_regs = &__txx9dmac_regs(dc->ddev)->CHAN[ch];

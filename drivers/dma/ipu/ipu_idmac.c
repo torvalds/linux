@@ -1295,7 +1295,7 @@ static irqreturn_t idmac_interrupt(int irq, void *dev_id)
 	/* Flip the active buffer - even if update above failed */
 	ichan->active_buffer = !ichan->active_buffer;
 	if (done)
-		ichan->completed = desc->txd.cookie;
+		ichan->dma_chan.completed_cookie = desc->txd.cookie;
 
 	callback = desc->txd.callback;
 	callback_param = desc->txd.callback_param;
@@ -1511,7 +1511,7 @@ static int idmac_alloc_chan_resources(struct dma_chan *chan)
 	WARN_ON(ichan->status != IPU_CHANNEL_FREE);
 
 	chan->cookie		= 1;
-	ichan->completed	= -ENXIO;
+	chan->completed_cookie	= -ENXIO;
 
 	ret = ipu_irq_map(chan->chan_id);
 	if (ret < 0)
@@ -1600,9 +1600,7 @@ static void idmac_free_chan_resources(struct dma_chan *chan)
 static enum dma_status idmac_tx_status(struct dma_chan *chan,
 		       dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
-	struct idmac_channel *ichan = to_idmac_chan(chan);
-
-	dma_set_tx_state(txstate, ichan->completed, chan->cookie, 0);
+	dma_set_tx_state(txstate, chan->completed_cookie, chan->cookie, 0);
 	if (cookie != chan->cookie)
 		return DMA_ERROR;
 	return DMA_SUCCESS;
@@ -1638,11 +1636,11 @@ static int __init ipu_idmac_init(struct ipu *ipu)
 
 		ichan->status		= IPU_CHANNEL_FREE;
 		ichan->sec_chan_en	= false;
-		ichan->completed	= -ENXIO;
 		snprintf(ichan->eof_name, sizeof(ichan->eof_name), "IDMAC EOF %d", i);
 
 		dma_chan->device	= &idmac->dma;
 		dma_chan->cookie	= 1;
+		dma_chan->completed_cookie	= -ENXIO;
 		dma_chan->chan_id	= i;
 		list_add_tail(&dma_chan->device_node, &dma->channels);
 	}

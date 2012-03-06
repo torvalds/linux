@@ -269,7 +269,7 @@ atc_chain_complete(struct at_dma_chan *atchan, struct at_desc *desc)
 	dev_vdbg(chan2dev(&atchan->chan_common),
 		"descriptor %u complete\n", txd->cookie);
 
-	atchan->completed_cookie = txd->cookie;
+	atchan->chan_common.completed_cookie = txd->cookie;
 
 	/* move children to free_list */
 	list_splice_init(&desc->tx_list, &atchan->free_list);
@@ -1016,14 +1016,14 @@ atc_tx_status(struct dma_chan *chan,
 
 	spin_lock_irqsave(&atchan->lock, flags);
 
-	last_complete = atchan->completed_cookie;
+	last_complete = chan->completed_cookie;
 	last_used = chan->cookie;
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
 	if (ret != DMA_SUCCESS) {
 		atc_cleanup_descriptors(atchan);
 
-		last_complete = atchan->completed_cookie;
+		last_complete = chan->completed_cookie;
 		last_used = chan->cookie;
 
 		ret = dma_async_is_complete(cookie, last_complete, last_used);
@@ -1129,7 +1129,7 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 	spin_lock_irqsave(&atchan->lock, flags);
 	atchan->descs_allocated = i;
 	list_splice(&tmp_list, &atchan->free_list);
-	atchan->completed_cookie = chan->cookie = 1;
+	chan->completed_cookie = chan->cookie = 1;
 	spin_unlock_irqrestore(&atchan->lock, flags);
 
 	/* channel parameters */
@@ -1329,7 +1329,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 		struct at_dma_chan	*atchan = &atdma->chan[i];
 
 		atchan->chan_common.device = &atdma->dma_common;
-		atchan->chan_common.cookie = atchan->completed_cookie = 1;
+		atchan->chan_common.cookie = atchan->chan_common.completed_cookie = 1;
 		list_add_tail(&atchan->chan_common.device_node,
 				&atdma->dma_common.channels);
 

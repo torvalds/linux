@@ -78,7 +78,6 @@ struct mv_xor_device {
 /**
  * struct mv_xor_chan - internal representation of a XOR channel
  * @pending: allows batching of hardware operations
- * @completed_cookie: identifier for the most recently completed operation
  * @lock: serializes enqueue/dequeue operations to the descriptors pool
  * @mmr_base: memory mapped register base
  * @idx: the index of the xor channel
@@ -93,7 +92,6 @@ struct mv_xor_device {
  */
 struct mv_xor_chan {
 	int			pending;
-	dma_cookie_t		completed_cookie;
 	spinlock_t		lock; /* protects the descriptor slot pool */
 	void __iomem		*mmr_base;
 	unsigned int		idx;

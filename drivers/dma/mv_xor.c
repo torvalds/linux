@@ -435,7 +435,7 @@ static void __mv_xor_slot_cleanup(struct mv_xor_chan *mv_chan)
 	}
 
 	if (cookie > 0)
-		mv_chan->completed_cookie = cookie;
+		mv_chan->common.completed_cookie = cookie;
 }
 
 static void
@@ -825,7 +825,7 @@ static enum dma_status mv_xor_status(struct dma_chan *chan,
 	enum dma_status ret;
 
 	last_used = chan->cookie;
-	last_complete = mv_chan->completed_cookie;
+	last_complete = chan->completed_cookie;
 	dma_set_tx_state(txstate, last_complete, last_used, 0);
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
@@ -836,7 +836,7 @@ static enum dma_status mv_xor_status(struct dma_chan *chan,
 	mv_xor_slot_cleanup(mv_chan);
 
 	last_used = chan->cookie;
-	last_complete = mv_chan->completed_cookie;
+	last_complete = chan->completed_cookie;
 
 	dma_set_tx_state(txstate, last_complete, last_used, 0);
 	return dma_async_is_complete(cookie, last_complete, last_used);

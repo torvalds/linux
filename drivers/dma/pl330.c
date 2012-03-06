@@ -51,9 +51,6 @@ struct dma_pl330_chan {
 	/* DMA-Engine Channel */
 	struct dma_chan chan;
 
-	/* Last completed cookie */
-	dma_cookie_t completed;
-
 	/* List of to be xfered descriptors */
 	struct list_head work_list;
 
@@ -234,7 +231,7 @@ static void pl330_tasklet(unsigned long data)
 	/* Pick up ripe tomatoes */
 	list_for_each_entry_safe(desc, _dt, &pch->work_list, node)
 		if (desc->status == DONE) {
-			pch->completed = desc->txd.cookie;
+			pch->chan.completed_cookie = desc->txd.cookie;
 			list_move_tail(&desc->node, &list);
 		}
 
@@ -305,7 +302,7 @@ static int pl330_alloc_chan_resources(struct dma_chan *chan)
 
 	spin_lock_irqsave(&pch->lock, flags);
 
-	pch->completed = chan->cookie = 1;
+	chan->completed_cookie = chan->cookie = 1;
 	pch->cyclic = false;
 
 	pch->pl330_chid = pl330_request_channel(&pdmac->pif);
@@ -400,7 +397,7 @@ pl330_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	dma_cookie_t last_done, last_used;
 	int ret;
 
-	last_done = pch->completed;
+	last_done = chan->completed_cookie;
 	last_used = chan->cookie;
 
 	ret = dma_async_is_complete(cookie, last_done, last_used);

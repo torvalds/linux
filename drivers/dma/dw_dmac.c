@@ -249,7 +249,7 @@ dwc_descriptor_complete(struct dw_dma_chan *dwc, struct dw_desc *desc,
 	dev_vdbg(chan2dev(&dwc->chan), "descriptor %u complete\n", txd->cookie);
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	dwc->completed = txd->cookie;
+	dwc->chan.completed_cookie = txd->cookie;
 	if (callback_required) {
 		callback = txd->callback;
 		param = txd->callback_param;
@@ -997,14 +997,14 @@ dwc_tx_status(struct dma_chan *chan,
 	dma_cookie_t		last_complete;
 	int			ret;
 
-	last_complete = dwc->completed;
+	last_complete = chan->completed_cookie;
 	last_used = chan->cookie;
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
 	if (ret != DMA_SUCCESS) {
 		dwc_scan_descriptors(to_dw_dma(chan->device), dwc);
 
-		last_complete = dwc->completed;
+		last_complete = chan->completed_cookie;
 		last_used = chan->cookie;
 
 		ret = dma_async_is_complete(cookie, last_complete, last_used);
@@ -1046,7 +1046,7 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan)
 		return -EIO;
 	}
 
-	dwc->completed = chan->cookie = 1;
+	chan->completed_cookie = chan->cookie = 1;
 
 	/*
 	 * NOTE: some controllers may have additional features that we
@@ -1474,7 +1474,7 @@ static int __init dw_probe(struct platform_device *pdev)
 		struct dw_dma_chan	*dwc = &dw->chan[i];
 
 		dwc->chan.device = &dw->dma;
-		dwc->chan.cookie = dwc->completed = 1;
+		dwc->chan.cookie = dwc->chan.completed_cookie = 1;
 		if (pdata->chan_allocation_order == CHAN_ALLOCATION_ASCENDING)
 			list_add_tail(&dwc->chan.device_node,
 					&dw->dma.channels);

@@ -105,7 +105,6 @@ struct pch_dma_chan {
 
 	spinlock_t		lock;
 
-	dma_cookie_t		completed_cookie;
 	struct list_head	active_list;
 	struct list_head	queue;
 	struct list_head	free_list;
@@ -544,7 +543,7 @@ static int pd_alloc_chan_resources(struct dma_chan *chan)
 	spin_lock_irq(&pd_chan->lock);
 	list_splice(&tmp_list, &pd_chan->free_list);
 	pd_chan->descs_allocated = i;
-	pd_chan->completed_cookie = chan->cookie = 1;
+	chan->completed_cookie = chan->cookie = 1;
 	spin_unlock_irq(&pd_chan->lock);
 
 	pdc_enable_irq(chan, 1);
@@ -583,7 +582,7 @@ static enum dma_status pd_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	int ret;
 
 	spin_lock_irq(&pd_chan->lock);
-	last_completed = pd_chan->completed_cookie;
+	last_completed = chan->completed_cookie;
 	last_used = chan->cookie;
 	spin_unlock_irq(&pd_chan->lock);
 

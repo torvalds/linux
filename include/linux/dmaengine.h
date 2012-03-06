@@ -258,6 +258,7 @@ struct dma_chan_percpu {
  * struct dma_chan - devices supply DMA channels, clients use them
  * @device: ptr to the dma device who supplies this channel, always !%NULL
  * @cookie: last cookie value returned to client
+ * @completed_cookie: last completed cookie for this channel
  * @chan_id: channel ID for sysfs
  * @dev: class device for sysfs
  * @device_node: used to add this to the device chan list
@@ -269,6 +270,7 @@ struct dma_chan_percpu {
 struct dma_chan {
 	struct dma_device *device;
 	dma_cookie_t cookie;
+	dma_cookie_t completed_cookie;
 
 	/* sysfs */
 	int chan_id;

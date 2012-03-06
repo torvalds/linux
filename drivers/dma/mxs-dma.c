@@ -111,7 +111,6 @@ struct mxs_dma_chan {
 	struct mxs_dma_ccw		*ccw;
 	dma_addr_t			ccw_phys;
 	int				desc_count;
-	dma_cookie_t			last_completed;
 	enum dma_status			status;
 	unsigned int			flags;
 #define MXS_DMA_SG_LOOP			(1 << 0)
@@ -274,7 +273,7 @@ static irqreturn_t mxs_dma_int_handler(int irq, void *dev_id)
 		stat1 &= ~(1 << channel);
 
 		if (mxs_chan->status == DMA_SUCCESS)
-			mxs_chan->last_completed = mxs_chan->desc.cookie;
+			mxs_chan->chan.completed_cookie = mxs_chan->desc.cookie;
 
 		/* schedule tasklet on this channel */
 		tasklet_schedule(&mxs_chan->tasklet);
@@ -538,7 +537,7 @@ static enum dma_status mxs_dma_tx_status(struct dma_chan *chan,
 	dma_cookie_t last_used;
 
 	last_used = chan->cookie;
-	dma_set_tx_state(txstate, mxs_chan->last_completed, last_used, 0);
+	dma_set_tx_state(txstate, chan->completed_cookie, last_used, 0);
 
 	return mxs_chan->status;
 }

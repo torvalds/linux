@@ -288,7 +288,7 @@ static void midc_descriptor_complete(struct intel_mid_dma_chan *midc,
 	struct intel_mid_dma_lli	*llitem;
 	void *param_txd = NULL;
 
-	midc->completed = txd->cookie;
+	midc->chan.completed_cookie = txd->cookie;
 	callback_txd = txd->callback;
 	param_txd = txd->callback_param;
 
@@ -482,12 +482,11 @@ static enum dma_status intel_mid_dma_tx_status(struct dma_chan *chan,
 						dma_cookie_t cookie,
 						struct dma_tx_state *txstate)
 {
-	struct intel_mid_dma_chan	*midc = to_intel_mid_dma_chan(chan);
 	dma_cookie_t		last_used;
 	dma_cookie_t		last_complete;
 	int				ret;
 
-	last_complete = midc->completed;
+	last_complete = chan->completed_cookie;
 	last_used = chan->cookie;
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
@@ -496,7 +495,7 @@ static enum dma_status intel_mid_dma_tx_status(struct dma_chan *chan,
 		midc_scan_descriptors(to_middma_device(chan->device), midc);
 		spin_unlock_bh(&midc->lock);
 
-		last_complete = midc->completed;
+		last_complete = chan->completed_cookie;
 		last_used = chan->cookie;
 
 		ret = dma_async_is_complete(cookie, last_complete, last_used);
@@ -886,7 +885,7 @@ static int intel_mid_dma_alloc_chan_resources(struct dma_chan *chan)
 		pm_runtime_put(&mid->pdev->dev);
 		return -EIO;
 	}
-	midc->completed = chan->cookie = 1;
+	chan->completed_cookie = chan->cookie = 1;
 
 	spin_lock_bh(&midc->lock);
 	while (midc->descs_allocated < DESCS_PER_CHANNEL) {

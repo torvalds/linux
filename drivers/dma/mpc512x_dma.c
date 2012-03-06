@@ -188,7 +188,6 @@ struct mpc_dma_chan {
 	struct list_head		completed;
 	struct mpc_dma_tcd		*tcd;
 	dma_addr_t			tcd_paddr;
-	dma_cookie_t			completed_cookie;
 
 	/* Lock for this structure */
 	spinlock_t			lock;
@@ -365,7 +364,7 @@ static void mpc_dma_process_completed(struct mpc_dma *mdma)
 		/* Free descriptors */
 		spin_lock_irqsave(&mchan->lock, flags);
 		list_splice_tail_init(&list, &mchan->free);
-		mchan->completed_cookie = last_cookie;
+		mchan->chan.completed_cookie = last_cookie;
 		spin_unlock_irqrestore(&mchan->lock, flags);
 	}
 }
@@ -568,7 +567,7 @@ mpc_dma_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 
 	spin_lock_irqsave(&mchan->lock, flags);
 	last_used = mchan->chan.cookie;
-	last_complete = mchan->completed_cookie;
+	last_complete = mchan->chan.completed_cookie;
 	spin_unlock_irqrestore(&mchan->lock, flags);
 
 	dma_set_tx_state(txstate, last_complete, last_used, 0);
@@ -742,7 +741,7 @@ static int __devinit mpc_dma_probe(struct platform_device *op)
 
 		mchan->chan.device = dma;
 		mchan->chan.cookie = 1;
-		mchan->completed_cookie = mchan->chan.cookie;
+		mchan->chan.completed_cookie = mchan->chan.cookie;
 
 		INIT_LIST_HEAD(&mchan->free);
 		INIT_LIST_HEAD(&mchan->prepared);

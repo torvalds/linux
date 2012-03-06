@@ -990,7 +990,7 @@ static enum dma_status fsl_tx_status(struct dma_chan *dchan,
 
 	spin_lock_irqsave(&chan->desc_lock, flags);
 
-	last_complete = chan->completed_cookie;
+	last_complete = dchan->completed_cookie;
 	last_used = dchan->cookie;
 
 	spin_unlock_irqrestore(&chan->desc_lock, flags);
@@ -1088,7 +1088,7 @@ static void dma_do_tasklet(unsigned long data)
 		desc = to_fsl_desc(chan->ld_running.prev);
 		cookie = desc->async_tx.cookie;
 
-		chan->completed_cookie = cookie;
+		chan->common.completed_cookie = cookie;
 		chan_dbg(chan, "completed_cookie=%d\n", cookie);
 	}
 

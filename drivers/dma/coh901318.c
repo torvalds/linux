@@ -59,7 +59,6 @@ struct coh901318_base {
 struct coh901318_chan {
 	spinlock_t lock;
 	int allocated;
-	int completed;
 	int id;
 	int stopped;
 
@@ -705,7 +704,7 @@ static void dma_tasklet(unsigned long data)
 	callback_param = cohd_fin->desc.callback_param;
 
 	/* sign this job as completed on the channel */
-	cohc->completed = cohd_fin->desc.cookie;
+	cohc->chan.completed_cookie = cohd_fin->desc.cookie;
 
 	/* release the lli allocation and remove the descriptor */
 	coh901318_lli_free(&cohc->base->pool, &cohd_fin->lli);
@@ -929,7 +928,7 @@ static int coh901318_alloc_chan_resources(struct dma_chan *chan)
 	coh901318_config(cohc, NULL);
 
 	cohc->allocated = 1;
-	cohc->completed = chan->cookie = 1;
+	chan->completed_cookie = chan->cookie = 1;
 
 	spin_unlock_irqrestore(&cohc->lock, flags);
 
@@ -1169,7 +1168,7 @@ coh901318_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	dma_cookie_t last_complete;
 	int ret;
 
-	last_complete = cohc->completed;
+	last_complete = chan->completed_cookie;
 	last_used = chan->cookie;
 
 	ret = dma_async_is_complete(cookie, last_complete, last_used);

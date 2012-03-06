@@ -41,7 +41,6 @@ struct imxdma_channel {
 	struct dma_chan			chan;
 	spinlock_t			lock;
 	struct dma_async_tx_descriptor	desc;
-	dma_cookie_t			last_completed;
 	enum dma_status			status;
 	int				dma_request;
 	struct scatterlist		*sg_list;
@@ -65,7 +64,7 @@ static void imxdma_handle(struct imxdma_channel *imxdmac)
 {
 	if (imxdmac->desc.callback)
 		imxdmac->desc.callback(imxdmac->desc.callback_param);
-	imxdmac->last_completed = imxdmac->desc.cookie;
+	imxdmac->chan.completed_cookie = imxdmac->desc.cookie;
 }
 
 static void imxdma_irq_handler(int channel, void *data)
@@ -158,8 +157,8 @@ static enum dma_status imxdma_tx_status(struct dma_chan *chan,
 
 	last_used = chan->cookie;
 
-	ret = dma_async_is_complete(cookie, imxdmac->last_completed, last_used);
-	dma_set_tx_state(txstate, imxdmac->last_completed, last_used, 0);
+	ret = dma_async_is_complete(cookie, chan->completed_cookie, last_used);
+	dma_set_tx_state(txstate, chan->completed_cookie, last_used, 0);
 
 	return ret;
 }

@@ -147,7 +147,7 @@ static void __cleanup(struct ioat2_dma_chan *ioat, unsigned long phys_complete)
 		dump_desc_dbg(ioat, desc);
 		if (tx->cookie) {
 			ioat_dma_unmap(chan, tx->flags, desc->len, desc->hw);
-			chan->completed_cookie = tx->cookie;
+			chan->common.completed_cookie = tx->cookie;
 			tx->cookie = 0;
 			if (tx->callback) {
 				tx->callback(tx->callback_param);

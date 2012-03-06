@@ -59,7 +59,6 @@ struct sirfsoc_dma_chan {
 	struct list_head		queued;
 	struct list_head		active;
 	struct list_head		completed;
-	dma_cookie_t			completed_cookie;
 	unsigned long			happened_cyclic;
 	unsigned long			completed_cyclic;
 
@@ -208,7 +207,7 @@ static void sirfsoc_dma_process_completed(struct sirfsoc_dma *sdma)
 			/* Free descriptors */
 			spin_lock_irqsave(&schan->lock, flags);
 			list_splice_tail_init(&list, &schan->free);
-			schan->completed_cookie = last_cookie;
+			schan->chan.completed_cookie = last_cookie;
 			spin_unlock_irqrestore(&schan->lock, flags);
 		} else {
 			/* for cyclic channel, desc is always in active list */
@@ -419,7 +418,7 @@ sirfsoc_dma_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 
 	spin_lock_irqsave(&schan->lock, flags);
 	last_used = schan->chan.cookie;
-	last_complete = schan->completed_cookie;
+	last_complete = schan->chan.completed_cookie;
 	spin_unlock_irqrestore(&schan->lock, flags);
 
 	dma_set_tx_state(txstate, last_complete, last_used, 0);
@@ -636,7 +635,7 @@ static int __devinit sirfsoc_dma_probe(struct platform_device *op)
 
 		schan->chan.device = dma;
 		schan->chan.cookie = 1;
-		schan->completed_cookie = schan->chan.cookie;
+		schan->chan.completed_cookie = schan->chan.cookie;
 
 		INIT_LIST_HEAD(&schan->free);
 		INIT_LIST_HEAD(&schan->prepared);

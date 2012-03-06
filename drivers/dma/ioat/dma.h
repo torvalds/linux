@@ -90,7 +90,6 @@ struct ioat_chan_common {
 	void __iomem *reg_base;
 	unsigned long last_completion;
 	spinlock_t cleanup_lock;
-	dma_cookie_t completed_cookie;
 	unsigned long state;
 	#define IOAT_COMPLETION_PENDING 0
 	#define IOAT_COMPLETION_ACK 1
@@ -153,12 +152,11 @@ static inline enum dma_status
 ioat_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 		 struct dma_tx_state *txstate)
 {
-	struct ioat_chan_common *chan = to_chan_common(c);
 	dma_cookie_t last_used;
 	dma_cookie_t last_complete;
 
 	last_used = c->cookie;
-	last_complete = chan->completed_cookie;
+	last_complete = c->completed_cookie;
 
 	dma_set_tx_state(txstate, last_complete, last_used, 0);
 

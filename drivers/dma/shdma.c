@@ -764,12 +764,12 @@ static dma_async_tx_callback __ld_cleanup(struct sh_dmae_chan *sh_chan, bool all
 			cookie = tx->cookie;
 
 		if (desc->mark == DESC_COMPLETED && desc->chunks == 1) {
-			if (sh_chan->completed_cookie != desc->cookie - 1)
+			if (sh_chan->common.completed_cookie != desc->cookie - 1)
 				dev_dbg(sh_chan->dev,
 					"Completing cookie %d, expected %d\n",
 					desc->cookie,
-					sh_chan->completed_cookie + 1);
-			sh_chan->completed_cookie = desc->cookie;
+					sh_chan->common.completed_cookie + 1);
+			sh_chan->common.completed_cookie = desc->cookie;
 		}
 
 		/* Call callback on the last chunk */
@@ -823,7 +823,7 @@ static dma_async_tx_callback __ld_cleanup(struct sh_dmae_chan *sh_chan, bool all
 		 * Terminating and the loop completed normally: forgive
 		 * uncompleted cookies
 		 */
-		sh_chan->completed_cookie = sh_chan->common.cookie;
+		sh_chan->common.completed_cookie = sh_chan->common.cookie;
 
 	spin_unlock_irqrestore(&sh_chan->desc_lock, flags);
 
@@ -891,7 +891,7 @@ static enum dma_status sh_dmae_tx_status(struct dma_chan *chan,
 	sh_dmae_chan_ld_cleanup(sh_chan, false);
 
 	/* First read completed cookie to avoid a skew */
-	last_complete = sh_chan->completed_cookie;
+	last_complete = chan->completed_cookie;
 	rmb();
 	last_used = chan->cookie;
 	BUG_ON(last_complete < 0);

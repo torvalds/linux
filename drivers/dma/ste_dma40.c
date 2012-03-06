@@ -220,8 +220,6 @@ struct d40_base;
  *
  * @lock: A spinlock to protect this struct.
  * @log_num: The logical number, if any of this channel.
- * @completed: Starts with 1, after first interrupt it is set to dma engine's
- * current cookie.
  * @pending_tx: The number of pending transfers. Used between interrupt handler
  * and tasklet.
  * @busy: Set to true when transfer is ongoing on this channel.
@@ -250,8 +248,6 @@ struct d40_base;
 struct d40_chan {
 	spinlock_t			 lock;
 	int				 log_num;
-	/* ID of the most recent completed transfer */
-	int				 completed;
 	int				 pending_tx;
 	bool				 busy;
 	struct d40_phy_res		*phy_chan;
@@ -1357,7 +1353,7 @@ static void dma_tasklet(unsigned long data)
 		goto err;
 
 	if (!d40d->cyclic)
-		d40c->completed = d40d->txd.cookie;
+		d40c->chan.completed_cookie = d40d->txd.cookie;
 
 	/*
 	 * If terminating a channel pending_tx is set to zero.
@@ -2182,7 +2178,7 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 	bool is_free_phy;
 	spin_lock_irqsave(&d40c->lock, flags);
 
-	d40c->completed = chan->cookie = 1;
+	chan->completed_cookie = chan->cookie = 1;
 
 	/* If no dma configuration is set use default configuration (memcpy) */
 	if (!d40c->configured) {
@@ -2351,7 +2347,7 @@ static enum dma_status d40_tx_status(struct dma_chan *chan,
 		return -EINVAL;
 	}
 
-	last_complete = d40c->completed;
+	last_complete = chan->completed_cookie;
 	last_used = chan->cookie;
 
 	if (d40_is_paused(d40c))

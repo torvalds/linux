@@ -317,7 +317,7 @@ static void __iop_adma_slot_cleanup(struct iop_adma_chan *iop_chan)
 	}
 
 	if (cookie > 0) {
-		iop_chan->completed_cookie = cookie;
+		iop_chan->common.completed_cookie = cookie;
 		pr_debug("\tcompleted cookie %d\n", cookie);
 	}
 }
@@ -909,7 +909,7 @@ static enum dma_status iop_adma_status(struct dma_chan *chan,
 	enum dma_status ret;
 
 	last_used = chan->cookie;
-	last_complete = iop_chan->completed_cookie;
+	last_complete = chan->completed_cookie;
 	dma_set_tx_state(txstate, last_complete, last_used, 0);
 	ret = dma_async_is_complete(cookie, last_complete, last_used);
 	if (ret == DMA_SUCCESS)
@@ -918,7 +918,7 @@ static enum dma_status iop_adma_status(struct dma_chan *chan,
 	iop_adma_slot_cleanup(iop_chan);
 
 	last_used = chan->cookie;
-	last_complete = iop_chan->completed_cookie;
+	last_complete = chan->completed_cookie;
 	dma_set_tx_state(txstate, last_complete, last_used, 0);
 
 	return dma_async_is_complete(cookie, last_complete, last_used);
@@ -1650,7 +1650,7 @@ static void iop_chan_start_null_memcpy(struct iop_adma_chan *iop_chan)
 		/* initialize the completed cookie to be less than
 		 * the most recently used cookie
 		 */
-		iop_chan->completed_cookie = cookie - 1;
+		iop_chan->common.completed_cookie = cookie - 1;
 		iop_chan->common.cookie = sw_desc->async_tx.cookie = cookie;
 
 		/* channel should not be busy */
@@ -1707,7 +1707,7 @@ static void iop_chan_start_null_xor(struct iop_adma_chan *iop_chan)
 		/* initialize the completed cookie to be less than
 		 * the most recently used cookie
 		 */
-		iop_chan->completed_cookie = cookie - 1;
+		iop_chan->common.completed_cookie = cookie - 1;
 		iop_chan->common.cookie = sw_desc->async_tx.cookie = cookie;
 
 		/* channel should not be busy */

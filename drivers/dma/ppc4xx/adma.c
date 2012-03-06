@@ -1930,7 +1930,7 @@ static void __ppc440spe_adma_slot_cleanup(struct ppc440spe_adma_chan *chan)
 				if (end_of_chain && slot_cnt) {
 					/* Should wait for ZeroSum completion */
 					if (cookie > 0)
-						chan->completed_cookie = cookie;
+						chan->common.completed_cookie = cookie;
 					return;
 				}
 
@@ -1960,7 +1960,7 @@ static void __ppc440spe_adma_slot_cleanup(struct ppc440spe_adma_chan *chan)
 	BUG_ON(!seen_current);
 
 	if (cookie > 0) {
-		chan->completed_cookie = cookie;
+		chan->common.completed_cookie = cookie;
 		pr_debug("\tcompleted cookie %d\n", cookie);
 	}
 
@@ -3950,7 +3950,7 @@ static enum dma_status ppc440spe_adma_tx_status(struct dma_chan *chan,
 
 	ppc440spe_chan = to_ppc440spe_adma_chan(chan);
 	last_used = chan->cookie;
-	last_complete = ppc440spe_chan->completed_cookie;
+	last_complete = chan->completed_cookie;
 
 	dma_set_tx_state(txstate, last_complete, last_used, 0);
 
@@ -3961,7 +3961,7 @@ static enum dma_status ppc440spe_adma_tx_status(struct dma_chan *chan,
 	ppc440spe_adma_slot_cleanup(ppc440spe_chan);
 
 	last_used = chan->cookie;
-	last_complete = ppc440spe_chan->completed_cookie;
+	last_complete = chan->completed_cookie;
 
 	dma_set_tx_state(txstate, last_complete, last_used, 0);
 
@@ -4058,7 +4058,7 @@ static void ppc440spe_chan_start_null_xor(struct ppc440spe_adma_chan *chan)
 		/* initialize the completed cookie to be less than
 		 * the most recently used cookie
 		 */
-		chan->completed_cookie = cookie - 1;
+		chan->common.completed_cookie = cookie - 1;
 		chan->common.cookie = sw_desc->async_tx.cookie = cookie;
 
 		/* channel should not be busy */

@@ -122,7 +122,6 @@ struct ep93xx_dma_desc {
  * @lock: lock protecting the fields following
  * @flags: flags for the channel
  * @buffer: which buffer to use next (0/1)
- * @last_completed: last completed cookie value
  * @active: flattened chain of descriptors currently being processed
  * @queue: pending descriptors which are handled next
  * @free_list: list of free descriptors which can be used
@@ -157,7 +156,6 @@ struct ep93xx_dma_chan {
 #define EP93XX_DMA_IS_CYCLIC		0
 
 	int				buffer;
-	dma_cookie_t			last_completed;
 	struct list_head		active;
 	struct list_head		queue;
 	struct list_head		free_list;
@@ -703,7 +701,7 @@ static void ep93xx_dma_tasklet(unsigned long data)
 	desc = ep93xx_dma_get_active(edmac);
 	if (desc) {
 		if (desc->complete) {
-			edmac->last_completed = desc->txd.cookie;
+			edmac->chan.completed_cookie = desc->txd.cookie;
 			list_splice_init(&edmac->active, &list);
 		}
 		callback = desc->txd.callback;
@@ -861,7 +859,7 @@ static int ep93xx_dma_alloc_chan_resources(struct dma_chan *chan)
 		goto fail_clk_disable;
 
 	spin_lock_irq(&edmac->lock);
-	edmac->last_completed = 1;
+	edmac->chan.completed_cookie = 1;
 	edmac->chan.cookie = 1;
 	ret = edmac->edma->hw_setup(edmac);
 	spin_unlock_irq(&edmac->lock);
@@ -1254,7 +1252,7 @@ static enum dma_status ep93xx_dma_tx_status(struct dma_chan *chan,
 
 	spin_lock_irqsave(&edmac->lock, flags);
 	last_used = chan->cookie;
-	last_completed = edmac->last_completed;
+	last_completed = chan->completed_cookie;
 	spin_unlock_irqrestore(&edmac->lock, flags);
 
 	ret = dma_async_is_complete(cookie, last_completed, last_used);

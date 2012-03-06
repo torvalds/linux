@@ -267,7 +267,6 @@ struct sdma_channel {
 	struct dma_chan			chan;
 	spinlock_t			lock;
 	struct dma_async_tx_descriptor	desc;
-	dma_cookie_t			last_completed;
 	enum dma_status			status;
 	unsigned int			chn_count;
 	unsigned int			chn_real_count;
@@ -529,7 +528,7 @@ static void mxc_sdma_handle_channel_normal(struct sdma_channel *sdmac)
 	else
 		sdmac->status = DMA_SUCCESS;
 
-	sdmac->last_completed = sdmac->desc.cookie;
+	sdmac->chan.completed_cookie = sdmac->desc.cookie;
 	if (sdmac->desc.callback)
 		sdmac->desc.callback(sdmac->desc.callback_param);
 }
@@ -1127,7 +1126,7 @@ static enum dma_status sdma_tx_status(struct dma_chan *chan,
 
 	last_used = chan->cookie;
 
-	dma_set_tx_state(txstate, sdmac->last_completed, last_used,
+	dma_set_tx_state(txstate, chan->completed_cookie, last_used,
 			sdmac->chn_count - sdmac->chn_real_count);
 
 	return sdmac->status;
