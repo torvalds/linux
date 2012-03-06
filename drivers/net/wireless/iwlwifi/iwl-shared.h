@@ -70,6 +70,7 @@
 #include <net/mac80211.h>
 
 #include "iwl-commands.h"
+#include "iwl-fw.h"
 
 /**
  * DOC: shared area - role and goal
@@ -418,8 +419,9 @@ struct iwl_shared {
 	const struct iwl_cfg *cfg;
 	struct iwl_priv *priv;
 	struct iwl_trans *trans;
-	struct iwl_nic *nic;
+	void *nic;
 	struct iwl_hw_params hw_params;
+	const struct iwl_fw *fw;
 
 	struct mutex mutex;
 
@@ -446,7 +448,6 @@ struct iwl_shared {
 /*Whatever _m is (iwl_trans, iwl_priv, these macros will work */
 #define priv(_m)	((_m)->shrd->priv)
 #define cfg(_m)		((_m)->shrd->cfg)
-#define nic(_m)		((_m)->shrd->nic)
 #define trans(_m)	((_m)->shrd->trans)
 #define hw_params(_m)	((_m)->shrd->hw_params)
 

@@ -715,6 +715,7 @@ struct iwl_priv {
 
 	/*data shared among all the driver's layers */
 	struct iwl_shared *shrd;
+	const struct iwl_fw *fw;
 
 	spinlock_t sta_lock;
 

@@ -31,7 +31,6 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 
-#include "iwl-ucode.h"
 #include "iwl-wifi.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
@@ -80,16 +79,16 @@ static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
  *
  ******************************************************************************/
 
-static inline struct fw_img *iwl_get_ucode_image(struct iwl_priv *priv,
-						 enum iwl_ucode_type ucode_type)
+static inline const struct fw_img *
+iwl_get_ucode_image(struct iwl_priv *priv, enum iwl_ucode_type ucode_type)
 {
 	switch (ucode_type) {
 	case IWL_UCODE_INIT:
-		return &nic(priv)->fw.ucode_init;
+		return &priv->fw->ucode_init;
 	case IWL_UCODE_WOWLAN:
-		return &nic(priv)->fw.ucode_wowlan;
+		return &priv->fw->ucode_wowlan;
 	case IWL_UCODE_REGULAR:
-		return &nic(priv)->fw.ucode_rt;
+		return &priv->fw->ucode_rt;
 	case IWL_UCODE_NONE:
 		break;
 	}
@@ -355,7 +354,7 @@ static int iwl_alive_notify(struct iwl_priv *priv)
  *   it's a pretty good bet that everything between them is good, too.
  */
 static int iwl_verify_inst_sparse(struct iwl_priv *priv,
-				  struct fw_desc *fw_desc)
+				  const struct fw_desc *fw_desc)
 {
 	__le32 *image = (__le32 *)fw_desc->v_addr;
 	u32 len = fw_desc->len;
@@ -379,7 +378,7 @@ static int iwl_verify_inst_sparse(struct iwl_priv *priv,
 }
 
 static void iwl_print_mismatch_inst(struct iwl_priv *priv,
-				    struct fw_desc *fw_desc)
+				    const struct fw_desc *fw_desc)
 {
 	__le32 *image = (__le32 *)fw_desc->v_addr;
 	u32 len = fw_desc->len;
@@ -413,7 +412,7 @@ static void iwl_print_mismatch_inst(struct iwl_priv *priv,
 static int iwl_verify_ucode(struct iwl_priv *priv,
 			    enum iwl_ucode_type ucode_type)
 {
-	struct fw_img *img = iwl_get_ucode_image(priv, ucode_type);
+	const struct fw_img *img = iwl_get_ucode_image(priv, ucode_type);
 
 	if (!img) {
 		IWL_ERR(priv, "Invalid ucode requested (%d)\n", ucode_type);
@@ -531,7 +530,7 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 {
 	struct iwl_notification_wait alive_wait;
 	struct iwl_alive_data alive_data;
-	struct fw_img *fw;
+	const struct fw_img *fw;
 	int ret;
 	enum iwl_ucode_type old_type;
 
@@ -604,7 +603,7 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
 	lockdep_assert_held(&priv->shrd->mutex);
 
 	/* No init ucode required? Curious, but maybe ok */
-	if (!nic(priv)->fw.ucode_init.code.len)
+	if (!priv->fw->ucode_init.code.len)
 		return 0;
 
 	if (priv->shrd->ucode_type != IWL_UCODE_NONE)

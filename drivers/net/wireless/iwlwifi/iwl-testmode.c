@@ -553,7 +553,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 
 	case IWL_TM_CMD_APP2DEV_GET_FW_VERSION:
 		IWL_INFO(priv, "uCode version raw: 0x%x\n",
-			 nic(priv)->fw.ucode_ver);
+			 priv->fw->ucode_ver);
 
 		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy, 20);
 		if (!skb) {
@@ -561,7 +561,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 			return -ENOMEM;
 		}
 		NLA_PUT_U32(skb, IWL_TM_ATTR_FW_VERSION,
-			    nic(priv)->fw.ucode_ver);
+			    priv->fw->ucode_ver);
 		status = cfg80211_testmode_reply(skb);
 		if (status < 0)
 			IWL_ERR(priv, "Error sending msg : %d\n", status);
@@ -590,16 +590,16 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 		}
 		switch (priv->shrd->ucode_type) {
 		case IWL_UCODE_REGULAR:
-			inst_size = nic(priv)->fw.ucode_rt.code.len;
-			data_size = nic(priv)->fw.ucode_rt.data.len;
+			inst_size = priv->fw->ucode_rt.code.len;
+			data_size = priv->fw->ucode_rt.data.len;
 			break;
 		case IWL_UCODE_INIT:
-			inst_size = nic(priv)->fw.ucode_init.code.len;
-			data_size = nic(priv)->fw.ucode_init.data.len;
+			inst_size = priv->fw->ucode_init.code.len;
+			data_size = priv->fw->ucode_init.data.len;
 			break;
 		case IWL_UCODE_WOWLAN:
-			inst_size = nic(priv)->fw.ucode_wowlan.code.len;
-			data_size = nic(priv)->fw.ucode_wowlan.data.len;
+			inst_size = priv->fw->ucode_wowlan.code.len;
+			data_size = priv->fw->ucode_wowlan.data.len;
 			break;
 		case IWL_UCODE_NONE:
 			IWL_ERR(priv, "No uCode has not been loaded\n");

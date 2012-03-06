@@ -42,7 +42,6 @@
 
 #include <asm/div64.h>
 
-#include "iwl-ucode.h"
 #include "iwl-eeprom.h"
 #include "iwl-wifi.h"
 #include "iwl-dev.h"
@@ -136,7 +135,7 @@ iwlagn_iface_combinations_p2p[] = {
  * other mac80211 functions grouped here.
  */
 int iwlagn_mac_setup_register(struct iwl_priv *priv,
-				  struct iwl_ucode_capabilities *capa)
+			      const struct iwl_ucode_capabilities *capa)
 {
 	int ret;
 	struct ieee80211_hw *hw = priv->hw;
@@ -195,7 +194,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 			    WIPHY_FLAG_DISABLE_BEACON_HINTS |
 			    WIPHY_FLAG_IBSS_RSN;
 
-	if (nic(priv)->fw.ucode_wowlan.code.len &&
+	if (priv->fw->ucode_wowlan.code.len &&
 	    trans(priv)->ops->wowlan_suspend &&
 	    device_can_wakeup(trans(priv)->dev)) {
 		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
@@ -456,17 +455,16 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		if (ret == 0) {
-			struct iwl_nic *nic = nic(priv);
 			if (!priv->wowlan_sram)
 				priv->wowlan_sram =
-					kzalloc(nic->fw.ucode_wowlan.data.len,
+					kzalloc(priv->fw->ucode_wowlan.data.len,
 						GFP_KERNEL);
 
 			if (priv->wowlan_sram)
 				_iwl_read_targ_mem_words(
 					trans(priv), 0x800000,
 					priv->wowlan_sram,
-					nic->fw.ucode_wowlan.data.len / 4);
+					priv->fw->ucode_wowlan.data.len / 4);
 		}
 #endif
 	}

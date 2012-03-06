@@ -41,7 +41,6 @@
 
 #include <asm/div64.h>
 
-#include "iwl-ucode.h"
 #include "iwl-eeprom.h"
 #include "iwl-wifi.h"
 #include "iwl-dev.h"
@@ -616,7 +615,7 @@ static int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
 	  .valid = cpu_to_le32(valid_tx_ant),
 	};
 
-	if (IWL_UCODE_API(nic(priv)->fw.ucode_ver) > 1) {
+	if (IWL_UCODE_API(priv->fw->ucode_ver) > 1) {
 		IWL_DEBUG_HC(priv, "select valid tx ant: %u\n", valid_tx_ant);
 		return iwl_trans_send_cmd_pdu(trans(priv),
 					TX_ANT_CONFIGURATION_CMD,
@@ -1174,9 +1173,9 @@ static void iwl_debug_config(struct iwl_priv *priv)
 #endif
 }
 
-static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans)
+static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
+						 const struct iwl_fw *fw)
 {
-	struct iwl_fw *fw = &nic(trans)->fw;
 	int err = 0;
 	struct iwl_priv *priv;
 	struct ieee80211_hw *hw;
@@ -1200,6 +1199,9 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans)
 	priv = IWL_OP_MODE_GET_DVM(op_mode);
 	priv->shrd = trans->shrd;
 	priv->shrd->priv = priv;
+	priv->fw = fw;
+	/* TODO: remove fw from shared data later */
+	priv->shrd->fw = fw;
 
 	iwl_trans_configure(trans(priv), op_mode);
 

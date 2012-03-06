@@ -602,17 +602,16 @@ static void iwl_dump_nic_error_log(struct iwl_trans *trans)
 {
 	u32 base;
 	struct iwl_error_event_table table;
-	struct iwl_nic *nic = nic(trans);
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	base = trans->shrd->device_pointers.error_event_table;
 	if (trans->shrd->ucode_type == IWL_UCODE_INIT) {
 		if (!base)
-			base = nic->init_errlog_ptr;
+			base = trans->shrd->fw->init_errlog_ptr;
 	} else {
 		if (!base)
-			base = nic->inst_errlog_ptr;
+			base = trans->shrd->fw->inst_errlog_ptr;
 	}
 
 	if (!iwlagn_hw_valid_rtc_data_addr(base)) {
@@ -634,7 +633,7 @@ static void iwl_dump_nic_error_log(struct iwl_trans *trans)
 
 	trans_pcie->isr_stats.err_code = table.error_id;
 
-	trace_iwlwifi_dev_ucode_error(priv(nic), table.error_id, table.tsf_low,
+	trace_iwlwifi_dev_ucode_error(priv(trans), table.error_id, table.tsf_low,
 				      table.data1, table.data2, table.line,
 				      table.blink1, table.blink2, table.ilink1,
 				      table.ilink2, table.bcon_time, table.gp1,
@@ -700,7 +699,7 @@ static void iwl_irq_handle_error(struct iwl_trans *trans)
 	}
 
 	IWL_ERR(trans, "Loaded firmware version: %s\n",
-		nic(trans)->fw.fw_version);
+		trans->shrd->fw->fw_version);
 
 	iwl_dump_nic_error_log(trans);
 	iwl_dump_csr(trans);
@@ -726,7 +725,6 @@ static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
 	u32 ptr;        /* SRAM byte address of log data */
 	u32 ev, time, data; /* event log data */
 	unsigned long reg_flags;
-	struct iwl_nic *nic = nic(trans);
 
 	if (num_events == 0)
 		return pos;
@@ -734,10 +732,10 @@ static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
 	base = trans->shrd->device_pointers.log_event_table;
 	if (trans->shrd->ucode_type == IWL_UCODE_INIT) {
 		if (!base)
-			base = nic->init_evtlog_ptr;
+			base = trans->shrd->fw->init_evtlog_ptr;
 	} else {
 		if (!base)
-			base = nic->inst_evtlog_ptr;
+			base = trans->shrd->fw->inst_evtlog_ptr;
 	}
 
 	if (mode == 0)
@@ -843,17 +841,16 @@ int iwl_dump_nic_event_log(struct iwl_trans *trans, bool full_log,
 	u32 logsize;
 	int pos = 0;
 	size_t bufsz = 0;
-	struct iwl_nic *nic = nic(trans);
 
 	base = trans->shrd->device_pointers.log_event_table;
 	if (trans->shrd->ucode_type == IWL_UCODE_INIT) {
-		logsize = nic->init_evtlog_size;
+		logsize = trans->shrd->fw->init_evtlog_size;
 		if (!base)
-			base = nic->init_evtlog_ptr;
+			base = trans->shrd->fw->init_evtlog_ptr;
 	} else {
-		logsize = nic->inst_evtlog_size;
+		logsize = trans->shrd->fw->inst_evtlog_size;
 		if (!base)
-			base = nic->inst_evtlog_ptr;
+			base = trans->shrd->fw->inst_evtlog_ptr;
 	}
 
 	if (!iwlagn_hw_valid_rtc_data_addr(base)) {

@@ -74,13 +74,6 @@
 
 struct iwl_priv;
 
-/* uCode version contains 4 values: Major/Minor/API/Serial */
-#define IWL_UCODE_MAJOR(ver)	(((ver) & 0xFF000000) >> 24)
-#define IWL_UCODE_MINOR(ver)	(((ver) & 0x00FF0000) >> 16)
-#define IWL_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
-#define IWL_UCODE_SERIAL(ver)	((ver) & 0x000000FF)
-
-
 /* Tx rates */
 #define IWL_CCK_RATES	4
 #define IWL_OFDM_RATES	8
@@ -3151,8 +3144,6 @@ struct iwl_enhance_sensitivity_cmd {
  */
 
 /* Phy calibration command for series */
-/* The default calibrate table size if not specified by firmware */
-#define IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE	18
 enum {
 	IWL_PHY_CALIBRATE_DC_CMD		= 8,
 	IWL_PHY_CALIBRATE_LO_CMD		= 9,
@@ -3161,10 +3152,7 @@ enum {
 	IWL_PHY_CALIBRATE_BASE_BAND_CMD		= 16,
 	IWL_PHY_CALIBRATE_TX_IQ_PERD_CMD	= 17,
 	IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD	= 18,
-	IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE	= 19,
 };
-
-#define IWL_MAX_PHY_CALIBRATE_TBL_SIZE		(253)
 
 /* This enum defines the bitmap of various calibrations to enable in both
  * init ucode and runtime ucode through CALIBRATION_CFG_CMD.

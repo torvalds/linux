@@ -76,7 +76,6 @@
 #include "iwl-eeprom.h"
 #include "iwl-agn-hw.h"
 #include "iwl-core.h"
-#include "iwl-ucode.h"
 
 #define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
 
@@ -947,7 +946,7 @@ static const u8 iwlagn_pan_ac_to_queue[] = {
  * ucode
  */
 static int iwl_load_section(struct iwl_trans *trans, const char *name,
-				struct fw_desc *image, u32 dst_addr)
+			    const struct fw_desc *image, u32 dst_addr)
 {
 	dma_addr_t phy_addr = image->p_addr;
 	u32 byte_cnt = image->len;
@@ -995,7 +994,8 @@ static int iwl_load_section(struct iwl_trans *trans, const char *name,
 	return 0;
 }
 
-static int iwl_load_given_ucode(struct iwl_trans *trans, struct fw_img *image)
+static int iwl_load_given_ucode(struct iwl_trans *trans,
+				const struct fw_img *image)
 {
 	int ret = 0;
 
@@ -1015,7 +1015,8 @@ static int iwl_load_given_ucode(struct iwl_trans *trans, struct fw_img *image)
 	return 0;
 }
 
-static int iwl_trans_pcie_start_fw(struct iwl_trans *trans, struct fw_img *fw)
+static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
+				   const struct fw_img *fw)
 {
 	int ret;
 	struct iwl_trans_pcie *trans_pcie =

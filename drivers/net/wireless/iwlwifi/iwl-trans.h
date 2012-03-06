@@ -272,7 +272,7 @@ struct iwl_trans_ops {
 
 	int (*start_hw)(struct iwl_trans *iwl_trans);
 	void (*stop_hw)(struct iwl_trans *iwl_trans);
-	int (*start_fw)(struct iwl_trans *trans, struct fw_img *fw);
+	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw);
 	void (*fw_alive)(struct iwl_trans *trans);
 	void (*stop_device)(struct iwl_trans *trans);
 
@@ -400,7 +400,8 @@ static inline void iwl_trans_fw_alive(struct iwl_trans *trans)
 	trans->state = IWL_TRANS_FW_ALIVE;
 }
 
-static inline int iwl_trans_start_fw(struct iwl_trans *trans, struct fw_img *fw)
+static inline int iwl_trans_start_fw(struct iwl_trans *trans,
+				     const struct fw_img *fw)
 {
 	might_sleep();
 

@@ -71,6 +71,9 @@
 #include "iwl-shared.h"
 #include "iwl-op-mode.h"
 
+/* private includes */
+#include "iwl-ucode.h"
+
 static void iwl_free_fw_desc(struct iwl_nic *nic, struct fw_desc *desc)
 {
 	if (desc->v_addr)
@@ -641,20 +644,20 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	 * for each event, which is of mode 1 (including timestamp) for all
 	 * new microcodes that include this information.
 	 */
-	nic->init_evtlog_ptr = pieces.init_evtlog_ptr;
+	fw->init_evtlog_ptr = pieces.init_evtlog_ptr;
 	if (pieces.init_evtlog_size)
-		nic->init_evtlog_size = (pieces.init_evtlog_size - 16)/12;
+		fw->init_evtlog_size = (pieces.init_evtlog_size - 16)/12;
 	else
-		nic->init_evtlog_size =
+		fw->init_evtlog_size =
 			cfg->base_params->max_event_log_size;
-	nic->init_errlog_ptr = pieces.init_errlog_ptr;
-	nic->inst_evtlog_ptr = pieces.inst_evtlog_ptr;
+	fw->init_errlog_ptr = pieces.init_errlog_ptr;
+	fw->inst_evtlog_ptr = pieces.inst_evtlog_ptr;
 	if (pieces.inst_evtlog_size)
-		nic->inst_evtlog_size = (pieces.inst_evtlog_size - 16)/12;
+		fw->inst_evtlog_size = (pieces.inst_evtlog_size - 16)/12;
 	else
-		nic->inst_evtlog_size =
+		fw->inst_evtlog_size =
 			cfg->base_params->max_event_log_size;
-	nic->inst_errlog_ptr = pieces.inst_errlog_ptr;
+	fw->inst_errlog_ptr = pieces.inst_errlog_ptr;
 
 	/*
 	 * figure out the offset of chain noise reset and gain commands
@@ -669,7 +672,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	release_firmware(ucode_raw);
 	complete(&nic->request_firmware_complete);
 
-	nic->op_mode = iwl_dvm_ops.start(nic->shrd->trans);
+	nic->op_mode = iwl_dvm_ops.start(nic->shrd->trans, &nic->fw);
 
 	if (!nic->op_mode)
 		goto out_unbind;
@@ -695,24 +698,27 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 int iwl_drv_start(struct iwl_shared *shrd,
 		  struct iwl_trans *trans, const struct iwl_cfg *cfg)
 {
+	struct iwl_nic *nic;
 	int ret;
 
 	shrd->cfg = cfg;
 
-	shrd->nic = kzalloc(sizeof(*shrd->nic), GFP_KERNEL);
-	if (!shrd->nic) {
+	nic = kzalloc(sizeof(*nic), GFP_KERNEL);
+	if (!nic) {
 		dev_printk(KERN_ERR, trans->dev, "Couldn't allocate iwl_nic");
 		return -ENOMEM;
 	}
-	shrd->nic->shrd = shrd;
+	nic->shrd = shrd;
+	shrd->nic = nic;
 
-	init_completion(&shrd->nic->request_firmware_complete);
+	init_completion(&nic->request_firmware_complete);
 
-	ret = iwl_request_firmware(shrd->nic, true);
+	ret = iwl_request_firmware(nic, true);
 
 	if (ret) {
 		dev_printk(KERN_ERR, trans->dev, "Couldn't request the fw");
-		kfree(shrd->nic);
+		kfree(nic);
+		shrd->nic = NULL;
 	}
 
 	return ret;
@@ -720,13 +726,16 @@ int iwl_drv_start(struct iwl_shared *shrd,
 
 void iwl_drv_stop(struct iwl_shared *shrd)
 {
-	wait_for_completion(&shrd->nic->request_firmware_complete);
+	struct iwl_nic *nic = shrd->nic;
+
+	wait_for_completion(&nic->request_firmware_complete);
 
 	/* op_mode can be NULL if its start failed */
-	if (shrd->nic->op_mode)
-		iwl_op_mode_stop(shrd->nic->op_mode);
+	if (nic->op_mode)
+		iwl_op_mode_stop(nic->op_mode);
 
-	iwl_dealloc_ucode(shrd->nic);
+	iwl_dealloc_ucode(nic);
 
-	kfree(shrd->nic);
+	kfree(nic);
+	shrd->nic = NULL;
 }

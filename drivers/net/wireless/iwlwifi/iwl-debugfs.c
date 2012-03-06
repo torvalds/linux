@@ -235,12 +235,11 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 
 	/* default is to dump the entire data segment */
 	if (!priv->dbgfs_sram_offset && !priv->dbgfs_sram_len) {
-		struct iwl_nic *nic = nic(priv);
 		priv->dbgfs_sram_offset = 0x800000;
-		if (nic->shrd->ucode_type == IWL_UCODE_INIT)
-			priv->dbgfs_sram_len = nic->fw.ucode_init.data.len;
+		if (priv->shrd->ucode_type == IWL_UCODE_INIT)
+			priv->dbgfs_sram_len = priv->fw->ucode_init.data.len;
 		else
-			priv->dbgfs_sram_len = nic->fw.ucode_rt.data.len;
+			priv->dbgfs_sram_len = priv->fw->ucode_rt.data.len;
 	}
 	len = priv->dbgfs_sram_len;
 
@@ -343,7 +342,7 @@ static ssize_t iwl_dbgfs_wowlan_sram_read(struct file *file,
 
 	return simple_read_from_buffer(user_buf, count, ppos,
 				       priv->wowlan_sram,
-				       nic(priv)->fw.ucode_wowlan.data.len);
+				       priv->fw->ucode_wowlan.data.len);
 }
 static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 					size_t count, loff_t *ppos)

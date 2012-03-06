@@ -93,7 +93,7 @@ void iwl_nic_error(struct iwl_op_mode *op_mode);
 /* MAC80211 */
 struct ieee80211_hw *iwl_alloc_all(void);
 int iwlagn_mac_setup_register(struct iwl_priv *priv,
-			      struct iwl_ucode_capabilities *capa);
+			      const struct iwl_ucode_capabilities *capa);
 void iwlagn_mac_unregister(struct iwl_priv *priv);
 
 /* RXON */
