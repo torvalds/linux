@@ -1289,7 +1289,7 @@ static irqreturn_t idmac_interrupt(int irq, void *dev_id)
 	/* Flip the active buffer - even if update above failed */
 	ichan->active_buffer = !ichan->active_buffer;
 	if (done)
-		ichan->dma_chan.completed_cookie = desc->txd.cookie;
+		dma_cookie_complete(&desc->txd);
 
 	callback = desc->txd.callback;
 	callback_param = desc->txd.callback_param;

@@ -235,7 +235,7 @@ dwc_descriptor_complete(struct dw_dma_chan *dwc, struct dw_desc *desc,
 	dev_vdbg(chan2dev(&dwc->chan), "descriptor %u complete\n", txd->cookie);
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	dwc->chan.completed_cookie = txd->cookie;
+	dma_cookie_complete(txd);
 	if (callback_required) {
 		callback = txd->callback;
 		param = txd->callback_param;

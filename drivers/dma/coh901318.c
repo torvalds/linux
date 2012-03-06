@@ -691,7 +691,7 @@ static void dma_tasklet(unsigned long data)
 	callback_param = cohd_fin->desc.callback_param;
 
 	/* sign this job as completed on the channel */
-	cohc->chan.completed_cookie = cohd_fin->desc.cookie;
+	dma_cookie_complete(&cohd_fin->desc);
 
 	/* release the lli allocation and remove the descriptor */
 	coh901318_lli_free(&cohc->base->pool, &cohd_fin->lli);

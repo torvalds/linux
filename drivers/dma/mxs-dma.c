@@ -262,7 +262,7 @@ static irqreturn_t mxs_dma_int_handler(int irq, void *dev_id)
 		stat1 &= ~(1 << channel);
 
 		if (mxs_chan->status == DMA_SUCCESS)
-			mxs_chan->chan.completed_cookie = mxs_chan->desc.cookie;
+			dma_cookie_complete(&mxs_chan->desc);
 
 		/* schedule tasklet on this channel */
 		tasklet_schedule(&mxs_chan->tasklet);

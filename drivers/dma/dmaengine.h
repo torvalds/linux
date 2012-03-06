@@ -5,6 +5,7 @@
 #ifndef DMAENGINE_H
 #define DMAENGINE_H
 
+#include <linux/bug.h>
 #include <linux/dmaengine.h>
 
 /**
@@ -25,6 +26,23 @@ static inline dma_cookie_t dma_cookie_assign(struct dma_async_tx_descriptor *tx)
 	tx->cookie = chan->cookie = cookie;
 
 	return cookie;
+}
+
+/**
+ * dma_cookie_complete - complete a descriptor
+ * @tx: descriptor to complete
+ *
+ * Mark this descriptor complete by updating the channels completed
+ * cookie marker.  Zero the descriptors cookie to prevent accidental
+ * repeated completions.
+ *
+ * Note: caller is expected to hold a lock to prevent concurrency.
+ */
+static inline void dma_cookie_complete(struct dma_async_tx_descriptor *tx)
+{
+	BUG_ON(tx->cookie < DMA_MIN_COOKIE);
+	tx->chan->completed_cookie = tx->cookie;
+	tx->cookie = 0;
 }
 
 #endif

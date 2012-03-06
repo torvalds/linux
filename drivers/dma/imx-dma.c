@@ -66,7 +66,7 @@ static void imxdma_handle(struct imxdma_channel *imxdmac)
 {
 	if (imxdmac->desc.callback)
 		imxdmac->desc.callback(imxdmac->desc.callback_param);
-	imxdmac->chan.completed_cookie = imxdmac->desc.cookie;
+	dma_cookie_complete(&imxdmac->desc);
 }
 
 static void imxdma_irq_handler(int channel, void *data)

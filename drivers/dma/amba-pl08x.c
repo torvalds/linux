@@ -1542,7 +1542,7 @@ static void pl08x_tasklet(unsigned long data)
 
 	if (txd) {
 		/* Update last completed */
-		plchan->chan.completed_cookie = txd->tx.cookie;
+		dma_cookie_complete(&txd->tx);
 	}
 
 	/* If a new descriptor is queued, set it up plchan->at is NULL here */

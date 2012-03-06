@@ -703,7 +703,7 @@ static void ep93xx_dma_tasklet(unsigned long data)
 	desc = ep93xx_dma_get_active(edmac);
 	if (desc) {
 		if (desc->complete) {
-			edmac->chan.completed_cookie = desc->txd.cookie;
+			dma_cookie_complete(&desc->txd);
 			list_splice_init(&edmac->active, &list);
 		}
 		callback = desc->txd.callback;

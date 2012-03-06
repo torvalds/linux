@@ -290,7 +290,7 @@ static void midc_descriptor_complete(struct intel_mid_dma_chan *midc,
 	struct intel_mid_dma_lli	*llitem;
 	void *param_txd = NULL;
 
-	midc->chan.completed_cookie = txd->cookie;
+	dma_cookie_complete(txd);
 	callback_txd = txd->callback;
 	param_txd = txd->callback_param;
 

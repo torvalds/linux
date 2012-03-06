@@ -285,7 +285,7 @@ static void __td_finish(struct timb_dma_chan *td_chan)
 	else
 		iowrite32(0, td_chan->membase + TIMBDMA_OFFS_TX_DLAR);
 */
-	td_chan->chan.completed_cookie = txd->cookie;
+	dma_cookie_complete(txd);
 	td_chan->ongoing = false;
 
 	callback = txd->callback;

@@ -411,7 +411,7 @@ txx9dmac_descriptor_complete(struct txx9dmac_chan *dc,
 	dev_vdbg(chan2dev(&dc->chan), "descriptor %u %p complete\n",
 		 txd->cookie, desc);
 
-	dc->chan.completed_cookie = txd->cookie;
+	dma_cookie_complete(txd);
 	callback = txd->callback;
 	param = txd->callback_param;
 

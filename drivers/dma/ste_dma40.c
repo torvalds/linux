@@ -1347,7 +1347,7 @@ static void dma_tasklet(unsigned long data)
 		goto err;
 
 	if (!d40d->cyclic)
-		d40c->chan.completed_cookie = d40d->txd.cookie;
+		dma_cookie_complete(&d40d->txd);
 
 	/*
 	 * If terminating a channel pending_tx is set to zero.

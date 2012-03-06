@@ -1081,8 +1081,8 @@ static void dma_do_tasklet(unsigned long data)
 
 		desc = to_fsl_desc(chan->ld_running.prev);
 		cookie = desc->async_tx.cookie;
+		dma_cookie_complete(&desc->async_tx);
 
-		chan->common.completed_cookie = cookie;
 		chan_dbg(chan, "completed_cookie=%d\n", cookie);
 	}
 
