@@ -49,10 +49,23 @@ int bcma_arch_register_fallback_sprom(int (*sprom_callback)(struct bcma_bus *bus
 static int bcma_fill_sprom_with_fallback(struct bcma_bus *bus,
 					 struct ssb_sprom *out)
 {
-	if (!get_fallback_sprom)
-		return -ENOENT;
+	int err;
 
-	return get_fallback_sprom(bus, out);
+	if (!get_fallback_sprom) {
+		err = -ENOENT;
+		goto fail;
+	}
+
+	err = get_fallback_sprom(bus, out);
+	if (err)
+		goto fail;
+
+	pr_debug("Using SPROM revision %d provided by"
+		 " platform.\n", bus->sprom.revision);
+	return 0;
+fail:
+	pr_warn("Using fallback SPROM failed (err %d)\n", err);
+	return err;
 }
 
 /**************************************************
@@ -317,13 +330,7 @@ int bcma_sprom_get(struct bcma_bus *bus)
 		 * available for this device in some other storage.
 		 */
 		err = bcma_fill_sprom_with_fallback(bus, &bus->sprom);
-		if (err) {
-			pr_warn("Using fallback SPROM failed (err %d)\n", err);
-		} else {
-			pr_debug("Using SPROM revision %d provided by"
-				 " platform.\n", bus->sprom.revision);
-			return 0;
-		}
+		return err;
 	}
 
 	sprom = kcalloc(SSB_SPROMSIZE_WORDS_R4, sizeof(u16),
