@@ -124,6 +124,8 @@ int ath6kl_core_init(struct ath6kl *ar)
 
 	set_bit(FIRST_BOOT, &ar->flag);
 
+	ath6kl_debug_init(ar);
+
 	ret = ath6kl_init_hw_start(ar);
 	if (ret) {
 		ath6kl_err("Failed to start hardware: %d\n", ret);
@@ -138,7 +140,7 @@ int ath6kl_core_init(struct ath6kl *ar)
 	if (ret)
 		goto err_rxbuf_cleanup;
 
-	ret = ath6kl_debug_init(ar);
+	ret = ath6kl_debug_init_fs(ar);
 	if (ret) {
 		wiphy_unregister(ar->wiphy);
 		goto err_rxbuf_cleanup;
@@ -159,7 +161,7 @@ int ath6kl_core_init(struct ath6kl *ar)
 		ath6kl_err("Failed to instantiate a network device\n");
 		ret = -ENOMEM;
 		wiphy_unregister(ar->wiphy);
-		goto err_debug_init;
+		goto err_rxbuf_cleanup;
 	}
 
 	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: name=%s dev=0x%p, ar=0x%p\n",
@@ -167,9 +169,8 @@ int ath6kl_core_init(struct ath6kl *ar)
 
 	return ret;
 
-err_debug_init:
-	ath6kl_debug_cleanup(ar);
 err_rxbuf_cleanup:
+	ath6kl_debug_cleanup(ar);
 	ath6kl_htc_flush_rx_buf(ar->htc_target);
 	ath6kl_cleanup_amsdu_rxbufs(ar);
 	ath6kl_wmi_shutdown(ar->wmi);

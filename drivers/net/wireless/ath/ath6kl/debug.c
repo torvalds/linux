@@ -1722,7 +1722,7 @@ static const struct file_operations fops_power_params = {
 	.llseek = default_llseek,
 };
 
-int ath6kl_debug_init(struct ath6kl *ar)
+void ath6kl_debug_init(struct ath6kl *ar)
 {
 	skb_queue_head_init(&ar->debug.fwlog_queue);
 	init_completion(&ar->debug.fwlog_completion);
@@ -1732,7 +1732,15 @@ int ath6kl_debug_init(struct ath6kl *ar)
 	 * value from the firmware.
 	 */
 	ar->debug.fwlog_mask = 0;
+}
 
+/*
+ * Initialisation needs to happen in two stages as fwlog events can come
+ * before cfg80211 is initialised, and debugfs depends on cfg80211
+ * initialisation.
+ */
+int ath6kl_debug_init_fs(struct ath6kl *ar)
+{
 	ar->debugfs_phy = debugfs_create_dir("ath6kl",
 					     ar->wiphy->debugfsdir);
 	if (!ar->debugfs_phy)
