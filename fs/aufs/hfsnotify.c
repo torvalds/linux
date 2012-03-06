@@ -26,15 +26,17 @@
 static const __u32 AuHfsnMask = (FS_MOVED_TO | FS_MOVED_FROM | FS_DELETE
 				 | FS_CREATE | FS_EVENT_ON_CHILD);
 static DECLARE_WAIT_QUEUE_HEAD(au_hfsn_wq);
+static __cacheline_aligned_in_smp atomic64_t au_hfsn_ifree = ATOMIC64_INIT(0);
 
 static void au_hfsn_free_mark(struct fsnotify_mark *mark)
 {
 	struct au_hnotify *hn = container_of(mark, struct au_hnotify,
 					     hn_mark);
 	AuDbg("here\n");
-	hn->hn_mark_dead = 1;
-	smp_mb();
-	wake_up_all(&au_hfsn_wq);
+	au_cache_free_hnotify(hn);
+	smp_mb__before_atomic_dec();
+	atomic64_dec(&au_hfsn_ifree);
+	wake_up(&au_hfsn_wq);
 }
 
 static int au_hfsn_alloc(struct au_hinode *hinode)
@@ -49,7 +51,6 @@ static int au_hfsn_alloc(struct au_hinode *hinode)
 	sb = hn->hn_aufs_inode->i_sb;
 	bindex = au_br_index(sb, hinode->hi_id);
 	br = au_sbr(sb, bindex);
-	hn->hn_mark_dead = 0;
 	mark = &hn->hn_mark;
 	fsnotify_init_mark(mark, au_hfsn_free_mark);
 	mark->mask = AuHfsnMask;
@@ -61,18 +62,20 @@ static int au_hfsn_alloc(struct au_hinode *hinode)
 				 /*mnt*/NULL, /*allow_dups*/1);
 }
 
-static void au_hfsn_free(struct au_hinode *hinode)
+static int au_hfsn_free(struct au_hinode *hinode, struct au_hnotify *hn)
 {
-	struct au_hnotify *hn;
 	struct fsnotify_mark *mark;
+	unsigned long long ull;
 
-	hn = hinode->hi_notify;
+	ull = atomic64_inc_return(&au_hfsn_ifree);
+	BUG_ON(!ull);
+
 	mark = &hn->hn_mark;
 	fsnotify_destroy_mark(mark);
 	fsnotify_put_mark(mark);
 
-	/* TODO: bad approach */
-	wait_event(au_hfsn_wq, hn->hn_mark_dead);
+	/* free hn by myself */
+	return 0;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -236,10 +239,20 @@ out:
 	return err;
 }
 
+/* ---------------------------------------------------------------------- */
+
+static void au_hfsn_fin(void)
+{
+	AuDbg("au_hfsn_ifree %lld\n", (long long)atomic64_read(&au_hfsn_ifree));
+	wait_event(au_hfsn_wq, !atomic64_read(&au_hfsn_ifree));
+}
+
 const struct au_hnotify_op au_hnotify_op = {
 	.ctl		= au_hfsn_ctl,
 	.alloc		= au_hfsn_alloc,
 	.free		= au_hfsn_free,
+
+	.fin		= au_hfsn_fin,
 
 	.reset_br	= au_hfsn_reset_br,
 	.fin_br		= au_hfsn_fin_br,
