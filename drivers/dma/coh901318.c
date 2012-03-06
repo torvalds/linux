@@ -1151,17 +1151,12 @@ coh901318_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 		 struct dma_tx_state *txstate)
 {
 	struct coh901318_chan *cohc = to_coh901318_chan(chan);
-	dma_cookie_t last_used;
-	dma_cookie_t last_complete;
-	int ret;
+	enum dma_status ret;
 
-	last_complete = chan->completed_cookie;
-	last_used = chan->cookie;
+	ret = dma_cookie_status(chan, cookie, txstate);
+	/* FIXME: should be conditional on ret != DMA_SUCCESS? */
+	dma_set_residue(txstate, coh901318_get_bytes_left(chan));
 
-	ret = dma_async_is_complete(cookie, last_complete, last_used);
-
-	dma_set_tx_state(txstate, last_complete, last_used,
-			 coh901318_get_bytes_left(chan));
 	if (ret == DMA_IN_PROGRESS && cohc->stopped)
 		ret = DMA_PAUSED;
 

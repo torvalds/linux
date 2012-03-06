@@ -879,23 +879,14 @@ static enum dma_status sh_dmae_tx_status(struct dma_chan *chan,
 					struct dma_tx_state *txstate)
 {
 	struct sh_dmae_chan *sh_chan = to_sh_chan(chan);
-	dma_cookie_t last_used;
-	dma_cookie_t last_complete;
 	enum dma_status status;
 	unsigned long flags;
 
 	sh_dmae_chan_ld_cleanup(sh_chan, false);
 
-	/* First read completed cookie to avoid a skew */
-	last_complete = chan->completed_cookie;
-	rmb();
-	last_used = chan->cookie;
-	BUG_ON(last_complete < 0);
-	dma_set_tx_state(txstate, last_complete, last_used, 0);
-
 	spin_lock_irqsave(&sh_chan->desc_lock, flags);
 
-	status = dma_async_is_complete(cookie, last_complete, last_used);
+	status = dma_cookie_status(chan, cookie, txstate);
 
 	/*
 	 * If we don't find cookie on the queue, it has been aborted and we have

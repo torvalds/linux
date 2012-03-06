@@ -407,16 +407,13 @@ sirfsoc_dma_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 {
 	struct sirfsoc_dma_chan *schan = dma_chan_to_sirfsoc_dma_chan(chan);
 	unsigned long flags;
-	dma_cookie_t last_used;
-	dma_cookie_t last_complete;
+	enum dma_status ret;
 
 	spin_lock_irqsave(&schan->lock, flags);
-	last_used = schan->chan.cookie;
-	last_complete = schan->chan.completed_cookie;
+	ret = dma_cookie_status(chan, cookie, txstate);
 	spin_unlock_irqrestore(&schan->lock, flags);
 
-	dma_set_tx_state(txstate, last_complete, last_used, 0);
-	return dma_async_is_complete(cookie, last_complete, last_used);
+	return ret;
 }
 
 static struct dma_async_tx_descriptor *sirfsoc_dma_prep_interleaved(

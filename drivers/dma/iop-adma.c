@@ -894,24 +894,14 @@ static enum dma_status iop_adma_status(struct dma_chan *chan,
 					struct dma_tx_state *txstate)
 {
 	struct iop_adma_chan *iop_chan = to_iop_adma_chan(chan);
-	dma_cookie_t last_used;
-	dma_cookie_t last_complete;
-	enum dma_status ret;
 
-	last_used = chan->cookie;
-	last_complete = chan->completed_cookie;
-	dma_set_tx_state(txstate, last_complete, last_used, 0);
-	ret = dma_async_is_complete(cookie, last_complete, last_used);
+	ret = dma_cookie_status(chan, cookie, txstate);
 	if (ret == DMA_SUCCESS)
 		return ret;
 
 	iop_adma_slot_cleanup(iop_chan);
 
-	last_used = chan->cookie;
-	last_complete = chan->completed_cookie;
-	dma_set_tx_state(txstate, last_complete, last_used, 0);
-
-	return dma_async_is_complete(cookie, last_complete, last_used);
+	return dma_cookie_status(chan, cookie, txstate);
 }
 
 static irqreturn_t iop_adma_eot_handler(int irq, void *data)

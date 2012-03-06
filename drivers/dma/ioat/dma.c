@@ -729,13 +729,15 @@ ioat_dma_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 {
 	struct ioat_chan_common *chan = to_chan_common(c);
 	struct ioatdma_device *device = chan->device;
+	enum dma_status ret;
 
-	if (ioat_tx_status(c, cookie, txstate) == DMA_SUCCESS)
-		return DMA_SUCCESS;
+	ret = dma_cookie_status(c, cookie, txstate);
+	if (ret == DMA_SUCCESS)
+		return ret;
 
 	device->cleanup_fn((unsigned long) c);
 
-	return ioat_tx_status(c, cookie, txstate);
+	return dma_cookie_status(c, cookie, txstate);
 }
 
 static void ioat1_dma_start_null_desc(struct ioat_dma_chan *ioat)

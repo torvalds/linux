@@ -964,31 +964,17 @@ static enum dma_status pl08x_dma_tx_status(struct dma_chan *chan,
 		dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
-	dma_cookie_t last_used;
-	dma_cookie_t last_complete;
 	enum dma_status ret;
-	u32 bytesleft = 0;
 
-	last_used = plchan->chan.cookie;
-	last_complete = plchan->chan.completed_cookie;
-
-	ret = dma_async_is_complete(cookie, last_complete, last_used);
-	if (ret == DMA_SUCCESS) {
-		dma_set_tx_state(txstate, last_complete, last_used, 0);
+	ret = dma_cookie_status(chan, cookie, txstate);
+	if (ret == DMA_SUCCESS)
 		return ret;
-	}
 
 	/*
 	 * This cookie not complete yet
+	 * Get number of bytes left in the active transactions and queue
 	 */
-	last_used = plchan->chan.cookie;
-	last_complete = plchan->chan.completed_cookie;
-
-	/* Get number of bytes left in the active transactions and queue */
-	bytesleft = pl08x_getbytes_chan(plchan);
-
-	dma_set_tx_state(txstate, last_complete, last_used,
-			 bytesleft);
+	dma_set_residue(txstate, pl08x_getbytes_chan(plchan));
 
 	if (plchan->state == PL08X_CHAN_PAUSED)
 		return DMA_PAUSED;

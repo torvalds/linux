@@ -395,18 +395,7 @@ static enum dma_status
 pl330_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 		 struct dma_tx_state *txstate)
 {
-	struct dma_pl330_chan *pch = to_pchan(chan);
-	dma_cookie_t last_done, last_used;
-	int ret;
-
-	last_done = chan->completed_cookie;
-	last_used = chan->cookie;
-
-	ret = dma_async_is_complete(cookie, last_done, last_used);
-
-	dma_set_tx_state(txstate, last_done, last_used, 0);
-
-	return ret;
+	return dma_cookie_status(chan, cookie, txstate);
 }
 
 static void pl330_issue_pending(struct dma_chan *chan)

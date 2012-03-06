@@ -557,17 +557,14 @@ mpc_dma_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	       struct dma_tx_state *txstate)
 {
 	struct mpc_dma_chan *mchan = dma_chan_to_mpc_dma_chan(chan);
+	enum dma_status ret;
 	unsigned long flags;
-	dma_cookie_t last_used;
-	dma_cookie_t last_complete;
 
 	spin_lock_irqsave(&mchan->lock, flags);
-	last_used = mchan->chan.cookie;
-	last_complete = mchan->chan.completed_cookie;
+	ret = dma_cookie_status(chan, cookie, txstate);
 	spin_unlock_irqrestore(&mchan->lock, flags);
 
-	dma_set_tx_state(txstate, last_complete, last_used, 0);
-	return dma_async_is_complete(cookie, last_complete, last_used);
+	return ret;
 }
 
 /* Prepare descriptor for memory to memory copy */

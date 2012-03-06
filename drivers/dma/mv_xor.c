@@ -810,26 +810,16 @@ static enum dma_status mv_xor_status(struct dma_chan *chan,
 					  struct dma_tx_state *txstate)
 {
 	struct mv_xor_chan *mv_chan = to_mv_xor_chan(chan);
-	dma_cookie_t last_used;
-	dma_cookie_t last_complete;
 	enum dma_status ret;
 
-	last_used = chan->cookie;
-	last_complete = chan->completed_cookie;
-	dma_set_tx_state(txstate, last_complete, last_used, 0);
-
-	ret = dma_async_is_complete(cookie, last_complete, last_used);
+	ret = dma_cookie_status(chan, cookie, txstate);
 	if (ret == DMA_SUCCESS) {
 		mv_xor_clean_completed_slots(mv_chan);
 		return ret;
 	}
 	mv_xor_slot_cleanup(mv_chan);
 
-	last_used = chan->cookie;
-	last_complete = chan->completed_cookie;
-
-	dma_set_tx_state(txstate, last_complete, last_used, 0);
-	return dma_async_is_complete(cookie, last_complete, last_used);
+	return dma_cookie_status(chan, cookie, txstate);
 }
 
 static void mv_dump_xor_regs(struct mv_xor_chan *chan)

@@ -978,19 +978,14 @@ static enum dma_status fsl_tx_status(struct dma_chan *dchan,
 					struct dma_tx_state *txstate)
 {
 	struct fsldma_chan *chan = to_fsl_chan(dchan);
-	dma_cookie_t last_complete;
-	dma_cookie_t last_used;
+	enum dma_status ret;
 	unsigned long flags;
 
 	spin_lock_irqsave(&chan->desc_lock, flags);
-
-	last_complete = dchan->completed_cookie;
-	last_used = dchan->cookie;
-
+	ret = dma_cookie_status(dchan, cookie, txstate);
 	spin_unlock_irqrestore(&chan->desc_lock, flags);
 
-	dma_set_tx_state(txstate, last_complete, last_used, 0);
-	return dma_async_is_complete(cookie, last_complete, last_used);
+	return ret;
 }
 
 /*----------------------------------------------------------------------------*/

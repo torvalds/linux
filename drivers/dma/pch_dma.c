@@ -565,18 +565,11 @@ static enum dma_status pd_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 				    struct dma_tx_state *txstate)
 {
 	struct pch_dma_chan *pd_chan = to_pd_chan(chan);
-	dma_cookie_t last_used;
-	dma_cookie_t last_completed;
-	int ret;
+	enum dma_status ret;
 
 	spin_lock_irq(&pd_chan->lock);
-	last_completed = chan->completed_cookie;
-	last_used = chan->cookie;
+	ret = dma_cookie_status(chan, cookie, txstate);
 	spin_unlock_irq(&pd_chan->lock);
-
-	ret = dma_async_is_complete(cookie, last_completed, last_used);
-
-	dma_set_tx_state(txstate, last_completed, last_used, 0);
 
 	return ret;
 }

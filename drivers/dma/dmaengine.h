@@ -45,4 +45,35 @@ static inline void dma_cookie_complete(struct dma_async_tx_descriptor *tx)
 	tx->cookie = 0;
 }
 
+/**
+ * dma_cookie_status - report cookie status
+ * @chan: dma channel
+ * @cookie: cookie we are interested in
+ * @state: dma_tx_state structure to return last/used cookies
+ *
+ * Report the status of the cookie, filling in the state structure if
+ * non-NULL.  No locking is required.
+ */
+static inline enum dma_status dma_cookie_status(struct dma_chan *chan,
+	dma_cookie_t cookie, struct dma_tx_state *state)
+{
+	dma_cookie_t used, complete;
+
+	used = chan->cookie;
+	complete = chan->completed_cookie;
+	barrier();
+	if (state) {
+		state->last = complete;
+		state->used = used;
+		state->residue = 0;
+	}
+	return dma_async_is_complete(cookie, complete, used);
+}
+
+static inline void dma_set_residue(struct dma_tx_state *state, u32 residue)
+{
+	if (state)
+		state->residue = residue;
+}
+
 #endif

@@ -153,16 +153,7 @@ static enum dma_status imxdma_tx_status(struct dma_chan *chan,
 					    dma_cookie_t cookie,
 					    struct dma_tx_state *txstate)
 {
-	struct imxdma_channel *imxdmac = to_imxdma_chan(chan);
-	dma_cookie_t last_used;
-	enum dma_status ret;
-
-	last_used = chan->cookie;
-
-	ret = dma_async_is_complete(cookie, chan->completed_cookie, last_used);
-	dma_set_tx_state(txstate, chan->completed_cookie, last_used, 0);
-
-	return ret;
+	return dma_cookie_status(chan, cookie, txstate);
 }
 
 static dma_cookie_t imxdma_tx_submit(struct dma_async_tx_descriptor *tx)

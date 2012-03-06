@@ -2332,25 +2332,19 @@ static enum dma_status d40_tx_status(struct dma_chan *chan,
 				     struct dma_tx_state *txstate)
 {
 	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
-	dma_cookie_t last_used;
-	dma_cookie_t last_complete;
-	int ret;
+	enum dma_status ret;
 
 	if (d40c->phy_chan == NULL) {
 		chan_err(d40c, "Cannot read status of unallocated channel\n");
 		return -EINVAL;
 	}
 
-	last_complete = chan->completed_cookie;
-	last_used = chan->cookie;
+	ret = dma_cookie_status(chan, cookie, txstate);
+	if (ret != DMA_SUCCESS)
+		dma_set_residue(txstate, stedma40_residue(chan));
 
 	if (d40_is_paused(d40c))
 		ret = DMA_PAUSED;
-	else
-		ret = dma_async_is_complete(cookie, last_complete, last_used);
-
-	dma_set_tx_state(txstate, last_complete, last_used,
-			 stedma40_residue(chan));
 
 	return ret;
 }
