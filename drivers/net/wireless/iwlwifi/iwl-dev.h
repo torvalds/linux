@@ -36,6 +36,7 @@
 #include <linux/wait.h>
 #include <linux/leds.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
 #include <net/ieee80211_radiotap.h>
 
 #include "iwl-eeprom.h"
@@ -718,6 +719,7 @@ struct iwl_priv {
 	const struct iwl_fw *fw;
 
 	spinlock_t sta_lock;
+	struct mutex mutex;
 
 	/* ieee device used by generic ieee processing code */
 	struct ieee80211_hw *hw;

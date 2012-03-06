@@ -132,7 +132,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 	 * beacon contents.
 	 */
 
-	lockdep_assert_held(&priv->shrd->mutex);
+	lockdep_assert_held(&priv->mutex);
 
 	if (!priv->beacon_ctx) {
 		IWL_ERR(priv, "trying to build beacon w/o beacon context!\n");
@@ -206,7 +206,7 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 		container_of(work, struct iwl_priv, beacon_update);
 	struct sk_buff *beacon;
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 	if (!priv->beacon_ctx) {
 		IWL_ERR(priv, "updating beacon w/o beacon context!\n");
 		goto out;
@@ -236,7 +236,7 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 
 	iwlagn_send_beacon_cmd(priv);
  out:
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 }
 
 static void iwl_bg_bt_runtime_config(struct work_struct *work)
@@ -259,7 +259,7 @@ static void iwl_bg_bt_full_concurrency(struct work_struct *work)
 		container_of(work, struct iwl_priv, bt_full_concurrency);
 	struct iwl_rxon_context *ctx;
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
 		goto out;
@@ -283,7 +283,7 @@ static void iwl_bg_bt_full_concurrency(struct work_struct *work)
 
 	iwlagn_send_advance_bt_config(priv);
 out:
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 }
 
 /**
@@ -774,7 +774,7 @@ void iwl_down(struct iwl_priv *priv)
 
 	IWL_DEBUG_INFO(priv, DRV_NAME " is going down\n");
 
-	lockdep_assert_held(&priv->shrd->mutex);
+	lockdep_assert_held(&priv->mutex);
 
 	iwl_scan_cancel_timeout(priv, 200);
 
@@ -844,11 +844,11 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 	struct iwl_priv *priv = container_of(work, struct iwl_priv,
 			run_time_calib_work);
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status) ||
 	    test_bit(STATUS_SCANNING, &priv->shrd->status)) {
-		mutex_unlock(&priv->shrd->mutex);
+		mutex_unlock(&priv->mutex);
 		return;
 	}
 
@@ -857,7 +857,7 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 		iwl_sensitivity_calibration(priv);
 	}
 
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 }
 
 void iwlagn_prepare_restart(struct iwl_priv *priv)
@@ -869,7 +869,7 @@ void iwlagn_prepare_restart(struct iwl_priv *priv)
 	u8 bt_status;
 	bool bt_is_sco;
 
-	lockdep_assert_held(&priv->shrd->mutex);
+	lockdep_assert_held(&priv->mutex);
 
 	for_each_context(priv, ctx)
 		ctx->vif = NULL;
@@ -907,9 +907,9 @@ static void iwl_bg_restart(struct work_struct *data)
 		return;
 
 	if (test_and_clear_bit(STATUS_FW_ERROR, &priv->shrd->status)) {
-		mutex_lock(&priv->shrd->mutex);
+		mutex_lock(&priv->mutex);
 		iwlagn_prepare_restart(priv);
-		mutex_unlock(&priv->shrd->mutex);
+		mutex_unlock(&priv->mutex);
 		iwl_cancel_deferred_work(priv);
 		ieee80211_restart_hw(priv->hw);
 	} else {
@@ -924,7 +924,7 @@ void iwlagn_disable_roc(struct iwl_priv *priv)
 {
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_PAN];
 
-	lockdep_assert_held(&priv->shrd->mutex);
+	lockdep_assert_held(&priv->mutex);
 
 	if (!priv->hw_roc_setup)
 		return;
@@ -947,9 +947,9 @@ static void iwlagn_disable_roc_work(struct work_struct *work)
 	struct iwl_priv *priv = container_of(work, struct iwl_priv,
 					     hw_roc_disable_work.work);
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 	iwlagn_disable_roc(priv);
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 }
 
 /*****************************************************************************
@@ -1036,7 +1036,7 @@ static int iwl_init_drv(struct iwl_priv *priv)
 
 	spin_lock_init(&priv->sta_lock);
 
-	mutex_init(&priv->shrd->mutex);
+	mutex_init(&priv->mutex);
 
 	INIT_LIST_HEAD(&priv->calib_results);
 

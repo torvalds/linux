@@ -599,7 +599,7 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
 	struct iwl_notification_wait calib_wait;
 	int ret;
 
-	lockdep_assert_held(&priv->shrd->mutex);
+	lockdep_assert_held(&priv->mutex);
 
 	/* No init ucode required? Curious, but maybe ok */
 	if (!priv->fw->ucode_init.code.len)

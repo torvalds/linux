@@ -65,7 +65,6 @@
 
 #include <linux/types.h>
 #include <linux/spinlock.h>
-#include <linux/mutex.h>
 #include <linux/gfp.h>
 #include <net/mac80211.h>
 
@@ -399,7 +398,6 @@ struct iwl_cfg {
  * @nic: pointer to the nic data
  * @hw_params: see struct iwl_hw_params
  * @lock: protect general shared data
- * @mutex:
  * @wait_command_queue: the wait_queue for SYNC host command nad uCode load
  * @eeprom: pointer to the eeprom/OTP image
  * @ucode_type: indicator of loaded ucode image
@@ -422,8 +420,6 @@ struct iwl_shared {
 	void *drv;
 	struct iwl_hw_params hw_params;
 	const struct iwl_fw *fw;
-
-	struct mutex mutex;
 
 	wait_queue_head_t wait_command_queue;
 

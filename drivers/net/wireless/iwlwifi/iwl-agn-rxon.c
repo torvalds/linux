@@ -131,7 +131,7 @@ static void iwlagn_update_qos(struct iwl_priv *priv,
 static int iwlagn_update_beacon(struct iwl_priv *priv,
 				struct ieee80211_vif *vif)
 {
-	lockdep_assert_held(&priv->shrd->mutex);
+	lockdep_assert_held(&priv->mutex);
 
 	dev_kfree_skb(priv->beacon_skb);
 	priv->beacon_skb = ieee80211_beacon_get(priv->hw, vif);
@@ -313,7 +313,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 
 	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
 
-	lockdep_assert_held(&priv->shrd->mutex);
+	lockdep_assert_held(&priv->mutex);
 
 	ctx_bss = &priv->contexts[IWL_RXON_CTX_BSS];
 	ctx_pan = &priv->contexts[IWL_RXON_CTX_PAN];
@@ -418,7 +418,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	bool new_assoc = !!(ctx->staging.filter_flags & RXON_FILTER_ASSOC_MSK);
 	int ret;
 
-	lockdep_assert_held(&priv->shrd->mutex);
+	lockdep_assert_held(&priv->mutex);
 
 	if (!iwl_is_alive(priv->shrd))
 		return -EBUSY;
@@ -549,7 +549,7 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 	IWL_DEBUG_MAC80211(priv, "enter: changed %#x", changed);
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	if (unlikely(test_bit(STATUS_SCANNING, &priv->shrd->status))) {
 		IWL_DEBUG_MAC80211(priv, "leave - scanning\n");
@@ -650,7 +650,7 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 		iwlagn_commit_rxon(priv, ctx);
 	}
  out:
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
 	return ret;
@@ -667,7 +667,7 @@ static void iwlagn_check_needed_chains(struct iwl_priv *priv,
 	struct ieee80211_sta_ht_cap *ht_cap;
 	bool need_multiple;
 
-	lockdep_assert_held(&priv->shrd->mutex);
+	lockdep_assert_held(&priv->mutex);
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
@@ -792,17 +792,17 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 	int ret;
 	bool force = false;
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	if (unlikely(!iwl_is_ready(priv->shrd))) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
-		mutex_unlock(&priv->shrd->mutex);
+		mutex_unlock(&priv->mutex);
 		return;
         }
 
 	if (unlikely(!ctx->vif)) {
 		IWL_DEBUG_MAC80211(priv, "leave - vif is NULL\n");
-		mutex_unlock(&priv->shrd->mutex);
+		mutex_unlock(&priv->mutex);
 		return;
 	}
 
@@ -931,7 +931,7 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			IWL_ERR(priv, "Error sending IBSS beacon\n");
 	}
 
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 }
 
 void iwlagn_post_scan(struct iwl_priv *priv)

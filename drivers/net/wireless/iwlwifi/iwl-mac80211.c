@@ -261,7 +261,7 @@ static int __iwl_up(struct iwl_priv *priv)
 	struct iwl_rxon_context *ctx;
 	int ret;
 
-	lockdep_assert_held(&priv->shrd->mutex);
+	lockdep_assert_held(&priv->mutex);
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status)) {
 		IWL_WARN(priv, "Exit pending; will not bring the NIC up\n");
@@ -310,9 +310,9 @@ static int iwlagn_mac_start(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
 	/* we should be verifying the device is ready to be opened */
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 	ret = __iwl_up(priv);
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 	if (ret)
 		return ret;
 
@@ -340,9 +340,9 @@ static void iwlagn_mac_stop(struct ieee80211_hw *hw)
 
 	priv->is_open = 0;
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 	iwl_down(priv);
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 
 	iwl_cancel_deferred_work(priv);
 
@@ -367,7 +367,7 @@ static void iwlagn_mac_set_rekey_data(struct ieee80211_hw *hw,
 		return;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	if (priv->contexts[IWL_RXON_CTX_BSS].vif != vif)
 		goto out;
@@ -379,7 +379,7 @@ static void iwlagn_mac_set_rekey_data(struct ieee80211_hw *hw,
 	priv->have_rekey_data = true;
 
  out:
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
@@ -396,7 +396,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 		return -EINVAL;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	/* Don't attempt WoWLAN when not associated, tear down instead. */
 	if (!ctx->vif || ctx->vif->type != NL80211_IFTYPE_STATION ||
@@ -420,7 +420,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	iwlagn_prepare_restart(priv);
 	ieee80211_restart_hw(priv->hw);
  out:
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
 	return ret;
@@ -436,7 +436,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	int ret = -EIO;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_CLR,
 			  CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
@@ -481,7 +481,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	iwl_connection_init_rx_config(priv, ctx);
 	iwlagn_set_rxon_chain(priv, ctx);
 
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
 	ieee80211_resume_disconnect(vif);
@@ -559,7 +559,7 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (cmd == DISABLE_KEY && key->hw_key_idx == WEP_INVALID_OFFSET)
 		return 0;
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 	iwl_scan_cancel_timeout(priv, 100);
 
 	BUILD_BUG_ON(WEP_INVALID_OFFSET == IWLAGN_HW_KEY_DEFAULT);
@@ -610,7 +610,7 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		ret = -EINVAL;
 	}
 
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
 	return ret;
@@ -633,7 +633,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		return -EACCES;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
@@ -675,7 +675,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		ret = iwlagn_tx_agg_oper(priv, vif, sta, tid, buf_size);
 		break;
 	}
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 	return ret;
 }
@@ -746,7 +746,7 @@ static int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "station %pM state change %d->%d\n",
 			   sta->addr, old_state, new_state);
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 	if (vif->type == NL80211_IFTYPE_STATION) {
 		if (old_state == IEEE80211_STA_NOTEXIST &&
 		    new_state == IEEE80211_STA_NONE)
@@ -807,7 +807,7 @@ static int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
 	if (iwl_is_rfkill(priv->shrd))
 		ret = 0;
 
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
 	return ret;
@@ -834,7 +834,7 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	if (iwl_is_rfkill(priv->shrd))
 		goto out;
@@ -890,7 +890,7 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	}
 
 out:
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
@@ -920,7 +920,7 @@ static void iwlagn_configure_filter(struct ieee80211_hw *hw,
 
 #undef CHK
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	for_each_context(priv, ctx) {
 		ctx->staging.filter_flags &= ~filter_nand;
@@ -932,7 +932,7 @@ static void iwlagn_configure_filter(struct ieee80211_hw *hw,
 		 */
 	}
 
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 
 	/*
 	 * Receiving all multicast frames is always enabled by the
@@ -948,7 +948,7 @@ static void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status)) {
@@ -974,7 +974,7 @@ static void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop)
 	IWL_DEBUG_MAC80211(priv, "wait transmit/flush all frames\n");
 	iwl_trans_wait_tx_queue_empty(trans(priv));
 done:
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
@@ -994,7 +994,7 @@ static int iwlagn_mac_remain_on_channel(struct ieee80211_hw *hw,
 		return -EOPNOTSUPP;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	if (test_bit(STATUS_SCAN_HW, &priv->shrd->status)) {
 		err = -EBUSY;
@@ -1065,7 +1065,7 @@ static int iwlagn_mac_remain_on_channel(struct ieee80211_hw *hw,
 		iwlagn_disable_roc(priv);
 
  out:
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
 	return err;
@@ -1079,10 +1079,10 @@ static int iwlagn_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 		return -EOPNOTSUPP;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 	iwl_scan_cancel_timeout(priv, priv->hw_roc_duration);
 	iwlagn_disable_roc(priv);
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
 	return 0;
@@ -1094,7 +1094,7 @@ static void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	if (cfg(priv)->bt_params &&
 			cfg(priv)->bt_params->advanced_bt_coexist) {
@@ -1109,7 +1109,7 @@ static void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
 				"ignoring RSSI callback\n");
 	}
 
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
@@ -1149,7 +1149,7 @@ static int iwlagn_mac_conf_tx(struct ieee80211_hw *hw,
 
 	q = AC_NUM - 1 - queue;
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	ctx->qos_data.def_qos_parm.ac[q].cw_min =
 		cpu_to_le16(params->cw_min);
@@ -1161,7 +1161,7 @@ static int iwlagn_mac_conf_tx(struct ieee80211_hw *hw,
 
 	ctx->qos_data.def_qos_parm.ac[q].reserved1 = 0;
 
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 	return 0;
@@ -1189,7 +1189,7 @@ static int iwl_setup_interface(struct iwl_priv *priv,
 	struct ieee80211_vif *vif = ctx->vif;
 	int err;
 
-	lockdep_assert_held(&priv->shrd->mutex);
+	lockdep_assert_held(&priv->mutex);
 
 	/*
 	 * This variable will be correct only when there's just
@@ -1234,7 +1234,7 @@ static int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
 
 	cancel_delayed_work_sync(&priv->hw_roc_disable_work);
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	iwlagn_disable_roc(priv);
 
@@ -1281,7 +1281,7 @@ static int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
 	ctx->vif = NULL;
 	priv->iw_mode = NL80211_IFTYPE_STATION;
  out:
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 	return err;
@@ -1293,7 +1293,7 @@ static void iwl_teardown_interface(struct iwl_priv *priv,
 {
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
 
-	lockdep_assert_held(&priv->shrd->mutex);
+	lockdep_assert_held(&priv->mutex);
 
 	if (priv->scan_vif == vif) {
 		iwl_scan_cancel_timeout(priv, 200);
@@ -1325,7 +1325,7 @@ static void iwlagn_mac_remove_interface(struct ieee80211_hw *hw,
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	if (WARN_ON(ctx->vif != vif)) {
 		struct iwl_rxon_context *tmp;
@@ -1338,7 +1338,7 @@ static void iwlagn_mac_remove_interface(struct ieee80211_hw *hw,
 
 	iwl_teardown_interface(priv, vif, false);
 
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
@@ -1360,7 +1360,7 @@ static int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
 
 	newtype = ieee80211_iftype_p2p(newtype, newp2p);
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	if (!ctx->vif || !iwl_is_ready_rf(priv->shrd)) {
 		/*
@@ -1424,7 +1424,7 @@ static int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
 	err = 0;
 
  out:
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
 	return err;
@@ -1442,7 +1442,7 @@ static int iwlagn_mac_hw_scan(struct ieee80211_hw *hw,
 	if (req->n_channels == 0)
 		return -EINVAL;
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	/*
 	 * If an internal scan is in progress, just set
@@ -1471,7 +1471,7 @@ static int iwlagn_mac_hw_scan(struct ieee80211_hw *hw,
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 
 	return ret;
 }
