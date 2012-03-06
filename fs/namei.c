@@ -1374,6 +1374,126 @@ static inline int can_lookup(struct inode *inode)
 	return 1;
 }
 
+/*
+ * We can do the critical dentry name comparison and hashing
+ * operations one word at a time, but we are limited to:
+ *
+ * - Architectures with fast unaligned word accesses. We could
+ *   do a "get_unaligned()" if this helps and is sufficiently
+ *   fast.
+ *
+ * - Little-endian machines (so that we can generate the mask
+ *   of low bytes efficiently). Again, we *could* do a byte
+ *   swapping load on big-endian architectures if that is not
+ *   expensive enough to make the optimization worthless.
+ *
+ * - non-CONFIG_DEBUG_PAGEALLOC configurations (so that we
+ *   do not trap on the (extremely unlikely) case of a page
+ *   crossing operation.
+ *
+ * - Furthermore, we need an efficient 64-bit compile for the
+ *   64-bit case in order to generate the "number of bytes in
+ *   the final mask". Again, that could be replaced with a
+ *   efficient population count instruction or similar.
+ */
+#ifdef CONFIG_DCACHE_WORD_ACCESS
+
+#ifdef CONFIG_64BIT
+
+/*
+ * Jan Achrenius on G+: microoptimized version of
+ * the simpler "(mask & ONEBYTES) * ONEBYTES >> 56"
+ * that works for the bytemasks without having to
+ * mask them first.
+ */
+static inline long count_masked_bytes(unsigned long mask)
+{
+	return mask*0x0001020304050608 >> 56;
+}
+
+static inline unsigned int fold_hash(unsigned long hash)
+{
+	hash += hash >> (8*sizeof(int));
+	return hash;
+}
+
+#else	/* 32-bit case */
+
+/* Carl Chatfield / Jan Achrenius G+ version for 32-bit */
+static inline long count_masked_bytes(long mask)
+{
+	/* (000000 0000ff 00ffff ffffff) -> ( 1 1 2 3 ) */
+	long a = (0x0ff0001+mask) >> 23;
+	/* Fix the 1 for 00 case */
+	return a & mask;
+}
+
+#define fold_hash(x) (x)
+
+#endif
+
+unsigned int full_name_hash(const unsigned char *name, unsigned int len)
+{
+	unsigned long a, mask;
+	unsigned long hash = 0;
+
+	for (;;) {
+		a = *(unsigned long *)name;
+		hash *= 9;
+		if (len < sizeof(unsigned long))
+			break;
+		hash += a;
+		name += sizeof(unsigned long);
+		len -= sizeof(unsigned long);
+		if (!len)
+			goto done;
+	}
+	mask = ~(~0ul << len*8);
+	hash += mask & a;
+done:
+	return fold_hash(hash);
+}
+EXPORT_SYMBOL(full_name_hash);
+
+#define ONEBYTES	0x0101010101010101ul
+#define SLASHBYTES	0x2f2f2f2f2f2f2f2ful
+#define HIGHBITS	0x8080808080808080ul
+
+/* Return the high bit set in the first byte that is a zero */
+static inline unsigned long has_zero(unsigned long a)
+{
+	return ((a - ONEBYTES) & ~a) & HIGHBITS;
+}
+
+/*
+ * Calculate the length and hash of the path component, and
+ * return the length of the component;
+ */
+static inline unsigned long hash_name(const char *name, unsigned int *hashp)
+{
+	unsigned long a, mask, hash, len;
+
+	hash = a = 0;
+	len = -sizeof(unsigned long);
+	do {
+		hash = (hash + a) * 9;
+		len += sizeof(unsigned long);
+		a = *(unsigned long *)(name+len);
+		/* Do we have any NUL or '/' bytes in this word? */
+		mask = has_zero(a) | has_zero(a ^ SLASHBYTES);
+	} while (!mask);
+
+	/* The mask *below* the first high bit set */
+	mask = (mask - 1) & ~mask;
+	mask >>= 7;
+	hash += a & mask;
+	*hashp = fold_hash(hash);
+
+	return len + count_masked_bytes(mask);
+}
+
+#else
+
 unsigned int full_name_hash(const unsigned char *name, unsigned int len)
 {
 	unsigned long hash = init_name_hash();
@@ -1401,6 +1521,8 @@ static inline unsigned long hash_name(const char *name, unsigned int *hashp)
 	*hashp = end_name_hash(hash);
 	return len;
 }
+
+#endif
 
 /*
  * Name resolution.
