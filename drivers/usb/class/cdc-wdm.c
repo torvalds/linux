@@ -78,6 +78,8 @@ MODULE_DEVICE_TABLE (usb, wdm_ids);
 #define WDM_DEFAULT_BUFSIZE	256
 
 static DEFINE_MUTEX(wdm_mutex);
+static DEFINE_SPINLOCK(wdm_device_list_lock);
+static LIST_HEAD(wdm_device_list);
 
 /* --- method tables --- */
 
@@ -112,9 +114,38 @@ struct wdm_device {
 	struct work_struct	rxwork;
 	int			werr;
 	int			rerr;
+
+	struct list_head	device_list;
 };
 
 static struct usb_driver wdm_driver;
+
+/* return intfdata if we own the interface, else look up intf in the list */
+static struct wdm_device *wdm_find_device(struct usb_interface *intf)
+{
+	struct wdm_device *desc = NULL;
+
+	spin_lock(&wdm_device_list_lock);
+	list_for_each_entry(desc, &wdm_device_list, device_list)
+		if (desc->intf == intf)
+			break;
+	spin_unlock(&wdm_device_list_lock);
+
+	return desc;
+}
+
+static struct wdm_device *wdm_find_device_by_minor(int minor)
+{
+	struct wdm_device *desc = NULL;
+
+	spin_lock(&wdm_device_list_lock);
+	list_for_each_entry(desc, &wdm_device_list, device_list)
+		if (desc->intf->minor == minor)
+			break;
+	spin_unlock(&wdm_device_list_lock);
+
+	return desc;
+}
 
 /* --- callbacks --- */
 static void wdm_out_callback(struct urb *urb)
@@ -275,6 +306,9 @@ static void free_urbs(struct wdm_device *desc)
 
 static void cleanup(struct wdm_device *desc)
 {
+	spin_lock(&wdm_device_list_lock);
+	list_del(&desc->device_list);
+	spin_unlock(&wdm_device_list_lock);
 	kfree(desc->sbuf);
 	kfree(desc->inbuf);
 	kfree(desc->orq);
@@ -532,11 +566,11 @@ static int wdm_open(struct inode *inode, struct file *file)
 	struct wdm_device *desc;
 
 	mutex_lock(&wdm_mutex);
-	intf = usb_find_interface(&wdm_driver, minor);
-	if (!intf)
+	desc = wdm_find_device_by_minor(minor);
+	if (!desc)
 		goto out;
 
-	desc = usb_get_intfdata(intf);
+	intf = desc->intf;
 	if (test_bit(WDM_DISCONNECTING, &desc->flags))
 		goto out;
 	file->private_data = desc;
@@ -639,6 +673,7 @@ static int wdm_create(struct usb_interface *intf, struct usb_endpoint_descriptor
 	desc = kzalloc(sizeof(struct wdm_device), GFP_KERNEL);
 	if (!desc)
 		goto out;
+	INIT_LIST_HEAD(&desc->device_list);
 	mutex_init(&desc->rlock);
 	mutex_init(&desc->wlock);
 	spin_lock_init(&desc->iuspin);
@@ -715,16 +750,17 @@ static int wdm_create(struct usb_interface *intf, struct usb_endpoint_descriptor
 		desc
 	);
 
-	usb_set_intfdata(intf, desc);
+	spin_lock(&wdm_device_list_lock);
+	list_add(&desc->device_list, &wdm_device_list);
+	spin_unlock(&wdm_device_list_lock);
+
 	rv = usb_register_dev(intf, &wdm_class);
 	if (rv < 0)
-		goto err2;
+		goto err;
 	else
 		dev_info(&intf->dev, "%s: USB WDM device\n", dev_name(intf->usb_dev));
 out:
 	return rv;
-err2:
-	usb_set_intfdata(intf, NULL);
 err:
 	cleanup(desc);
 	return rv;
@@ -785,8 +821,8 @@ static void wdm_disconnect(struct usb_interface *intf)
 	unsigned long flags;
 
 	usb_deregister_dev(intf, &wdm_class);
+	desc = wdm_find_device(intf);
 	mutex_lock(&wdm_mutex);
-	desc = usb_get_intfdata(intf);
 
 	/* the spinlock makes sure no new urbs are generated in the callbacks */
 	spin_lock_irqsave(&desc->iuspin, flags);
@@ -810,7 +846,7 @@ static void wdm_disconnect(struct usb_interface *intf)
 #ifdef CONFIG_PM
 static int wdm_suspend(struct usb_interface *intf, pm_message_t message)
 {
-	struct wdm_device *desc = usb_get_intfdata(intf);
+	struct wdm_device *desc = wdm_find_device(intf);
 	int rv = 0;
 
 	dev_dbg(&desc->intf->dev, "wdm%d_suspend\n", intf->minor);
@@ -860,7 +896,7 @@ static int recover_from_urb_loss(struct wdm_device *desc)
 #ifdef CONFIG_PM
 static int wdm_resume(struct usb_interface *intf)
 {
-	struct wdm_device *desc = usb_get_intfdata(intf);
+	struct wdm_device *desc = wdm_find_device(intf);
 	int rv;
 
 	dev_dbg(&desc->intf->dev, "wdm%d_resume\n", intf->minor);
@@ -874,7 +910,7 @@ static int wdm_resume(struct usb_interface *intf)
 
 static int wdm_pre_reset(struct usb_interface *intf)
 {
-	struct wdm_device *desc = usb_get_intfdata(intf);
+	struct wdm_device *desc = wdm_find_device(intf);
 
 	/*
 	 * we notify everybody using poll of
@@ -898,7 +934,7 @@ static int wdm_pre_reset(struct usb_interface *intf)
 
 static int wdm_post_reset(struct usb_interface *intf)
 {
-	struct wdm_device *desc = usb_get_intfdata(intf);
+	struct wdm_device *desc = wdm_find_device(intf);
 	int rv;
 
 	clear_bit(WDM_RESETTING, &desc->flags);
