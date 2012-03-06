@@ -825,12 +825,7 @@ vmxnet3_parse_and_copy_hdr(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 				if (iph->protocol == IPPROTO_TCP)
 					ctx->l4_hdr_size = tcp_hdrlen(skb);
 				else if (iph->protocol == IPPROTO_UDP)
-					/*
-					 * Use tcp header size so that bytes to
-					 * be copied are more than required by
-					 * the device.
-					 */
-					ctx->l4_hdr_size = sizeof(struct tcphdr);
+					ctx->l4_hdr_size = sizeof(struct udphdr);
 				else
 					ctx->l4_hdr_size = 0;
 			} else {
