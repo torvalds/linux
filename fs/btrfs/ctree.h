@@ -886,7 +886,7 @@ struct btrfs_block_rsv {
 	u64 reserved;
 	struct btrfs_space_info *space_info;
 	spinlock_t lock;
-	unsigned int full:1;
+	unsigned int full;
 };
 
 /*
