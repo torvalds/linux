@@ -24,7 +24,7 @@
 #include "rk29_pcm.h"
 #include "rk29_i2s.h"
 
-#if 0
+#if 1
 #define	DBG(x...)	printk(KERN_INFO x)
 #else
 #define	DBG(x...)
@@ -34,8 +34,8 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int pll_out = 0;
 	int ret;
 
@@ -43,9 +43,9 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	/*by Vincent Hsiung for EQ Vol Change*/
 	#define HW_PARAMS_FLAG_EQVOL_ON 0x21
 	#define HW_PARAMS_FLAG_EQVOL_OFF 0x22
-	if (codec_dai->ops->hw_params && ((params->flags == HW_PARAMS_FLAG_EQVOL_ON) || (params->flags == HW_PARAMS_FLAG_EQVOL_OFF)))
+	if (codec_dai->driver->ops->hw_params && ((params->flags == HW_PARAMS_FLAG_EQVOL_ON) || (params->flags == HW_PARAMS_FLAG_EQVOL_OFF)))
 	{
-		ret = codec_dai->ops->hw_params(substream, params, codec_dai); //by Vincent
+		ret = codec_dai->driver->ops->hw_params(substream, params, codec_dai); //by Vincent
 		DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	} else {
                 
@@ -114,71 +114,30 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const struct snd_soc_dapm_widget rt5625_dapm_widgets[] = {
-	
-	SND_SOC_DAPM_MIC("Mic Jack", NULL),
-	SND_SOC_DAPM_SPK("Ext Spk", NULL),
-	SND_SOC_DAPM_HP("Headphone Jack", NULL),
-
-};
-
-static const struct snd_soc_dapm_route audio_map[]={
-
-	/* Mic Jack --> MIC_IN*/
-	{"Mic1 Bias", NULL, "Mic Jack"},
-	{"Mic1", NULL, "Mic1 Bias"},
-	/* HP_OUT --> Headphone Jack */
-	{"Headphone Jack", NULL, "HPL"},
-	{"Headphone Jack", NULL, "HPR"},
-	/* LINE_OUT --> Ext Speaker */
-	{"Ext Spk", NULL, "SPKL"},
-	{"Ext Spk", NULL, "SPKR"},
-} ;
-
-/*
- * Logic for a rt5625 as connected on a rockchip board.
- */
-static int rk29_rt5625_init(struct snd_soc_codec *codec)
-{	  
-	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-
-	/* Add specific widgets */
-	snd_soc_dapm_new_controls(codec, rt5625_dapm_widgets,
-	                     ARRAY_SIZE(rt5625_dapm_widgets));
-
-	/* Set up specific audio path audio_mapnects */
-	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
-	//snd_soc_dapm_nc_pin(codec, "HP_L");
-	//snd_soc_dapm_nc_pin(codec, "HP_R");
-	snd_soc_dapm_sync(codec);
-
-	return 0;
-}
-
 static int rt5625_voice_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int pll_out = 0;
 	int ret;
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
        
 	/* set codec DAI configuration */
-	/*#if defined (CONFIG_SND_CODEC_SOC_SLAVE) 
+	//#if defined (CONFIG_SND_CODEC_SOC_SLAVE) 
 	DBG("Enter::%s----codec slave\n",__FUNCTION__);
 
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A |
-				SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
-	#endif*/
+				SND_SOC_DAIFMT_IB_NF | SND_SOC_DAIFMT_CBS_CFS);
+	/*#endif
 	//#if defined (CONFIG_SND_CODEC_SOC_MASTER) 
 	DBG("Enter::%s----codec master\n",__FUNCTION__);
 
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A |
 		SND_SOC_DAIFMT_IB_NF | SND_SOC_DAIFMT_CBM_CFM ); 
-	//#endif
+	#endif*/
 
 	switch(params_rate(params)) {
 		case 8000:
@@ -199,7 +158,7 @@ static int rt5625_voice_hw_params(struct snd_pcm_substream *substream,
 			break;
 	}
 
-	snd_soc_dai_set_pll(codec_dai, RT5625_PLL1_FROM_MCLK, pll_out, 24576000);
+	snd_soc_dai_set_pll(codec_dai, RT5625_PLL_MCLK_TO_VSYSCLK, 0, pll_out, 24576000);
 
 	/*Set the system clk for codec*/
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0, 24576000, SND_SOC_CLOCK_IN);
@@ -224,34 +183,29 @@ static struct snd_soc_ops rt5625_voice_ops = {
 
 static struct snd_soc_dai_link rk29_dai[] = {
 	{
-		.name = "RT5625-1",
-		.stream_name = "RT5625 PCM-1",
-		.cpu_dai = &rk29_i2s_dai,
-		.codec_dai = &rt5625_dai[0],
-		.init = rk29_rt5625_init,
+		.name = "RT5625 I2S1",
+		.stream_name = "RT5625 PCM",
+		.codec_name = "rt5625.0-001f",
+		.platform_name = "rockchip-audio",
+		.cpu_dai_name = "rk29_i2s.0",
+		.codec_dai_name = "rt5625-aif1",
 		.ops = &rk29_ops,
 	},
 	{
-		.name = "RT5625-2",
-		.stream_name = "RT5625 PCM-2",
-		.cpu_dai = &rk29_i2s_dai,
-		.codec_dai = &rt5625_dai[1],
-		.init = rk29_rt5625_init,
+		.name = "RT5625 I2S2",
+		.stream_name = "RT5625 PCM",
+		.codec_name = "rt5625.0-001f",
+		.platform_name = "rockchip-audio",
+		.cpu_dai_name = "rk29_i2s.0",
+		.codec_dai_name = "rt5625-aif2",
 		.ops = &rt5625_voice_ops,
-	}
+	},
 };
 
 static struct snd_soc_card snd_soc_card_rk29 = {
 	.name = "RK29_RT5625",
-	.platform = &rk29_soc_platform,
-	.dai_link = &rk29_dai,
-	.num_links = 1,
-};
-
-
-static struct snd_soc_device rk29_snd_devdata = {
-	.card = &snd_soc_card_rk29,
-	.codec_dev = &soc_codec_dev_rt5625,
+	.dai_link = rk29_dai,
+	.num_links = 2,
 };
 
 static struct platform_device *rk29_snd_device;
@@ -264,18 +218,20 @@ static int __init audio_card_init(void)
 
 	rk29_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!rk29_snd_device) {
-		  DBG("platform device allocation failed\n");
-		  ret = -ENOMEM;
-		  return ret;
+		  printk("platform device allocation failed\n");
+		  return -ENOMEM;
 	}
-	platform_set_drvdata(rk29_snd_device, &rk29_snd_devdata);
-	rk29_snd_devdata.dev = &rk29_snd_device->dev;
+
+	platform_set_drvdata(rk29_snd_device, &snd_soc_card_rk29);
 	ret = platform_device_add(rk29_snd_device);
 	if (ret) {
-	        DBG("platform device add failed\n");
-	        platform_device_put(rk29_snd_device);
+		printk("platform device add failed\n");
+
+		platform_device_put(rk29_snd_device);
+		return ret;
 	}
-	return ret;
+		
+        return ret;
 }
 
 static void __exit audio_card_exit(void)
