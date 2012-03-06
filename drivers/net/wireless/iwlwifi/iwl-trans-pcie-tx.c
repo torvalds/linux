@@ -136,7 +136,7 @@ void iwl_txq_update_write_ptr(struct iwl_trans *trans, struct iwl_tx_queue *txq)
 	if (txq->need_update == 0)
 		return;
 
-	if (hw_params(trans).shadow_reg_enable) {
+	if (cfg(trans)->base_params->shadow_reg_enable) {
 		/* shadow register enabled */
 		iwl_write32(trans, HBUS_TARG_WRPTR,
 			    txq->q.write_ptr | (txq_id << 8));

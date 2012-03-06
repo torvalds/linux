@@ -141,7 +141,7 @@ void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 	if (q->need_update == 0)
 		goto exit_unlock;
 
-	if (hw_params(trans).shadow_reg_enable) {
+	if (cfg(trans)->base_params->shadow_reg_enable) {
 		/* shadow register enabled */
 		/* Device expects a multiple of 8 */
 		q->write_actual = (q->write & ~0x7);

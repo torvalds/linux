@@ -828,7 +828,7 @@ static int iwl_nic_init(struct iwl_trans *trans)
 	if (iwl_tx_init(trans))
 		return -ENOMEM;
 
-	if (hw_params(trans).shadow_reg_enable) {
+	if (cfg(trans)->base_params->shadow_reg_enable) {
 		/* enable shadow regs in HW */
 		iwl_set_bit(trans, CSR_MAC_SHADOW_REG_CTRL,
 			0x800FFFFF);

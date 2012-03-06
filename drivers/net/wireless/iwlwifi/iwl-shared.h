@@ -185,7 +185,6 @@ struct iwl_hw_params {
 	u8  valid_tx_ant;
 	u8  valid_rx_ant;
 	u8  ht40_channel;
-	bool shadow_reg_enable;
 	u16 sku;
 	u32 rx_page_order;
 	u32 ct_kill_threshold;

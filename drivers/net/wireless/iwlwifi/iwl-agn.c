@@ -1127,8 +1127,6 @@ static void iwl_set_hw_params(struct iwl_priv *priv)
 
 	hw_params(priv).num_ampdu_queues =
 		cfg(priv)->base_params->num_of_ampdu_queues;
-	hw_params(priv).shadow_reg_enable =
-		cfg(priv)->base_params->shadow_reg_enable;
 	hw_params(priv).wd_timeout = cfg(priv)->base_params->wd_timeout;
 
 	/* Device-specific setup */
