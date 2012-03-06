@@ -94,6 +94,17 @@ struct akm8975_platform_data {
 	int gpio_DRDY;
 };
 
+struct goodix_platform_data {
+	int model ;
+	int rest_pin;
+	int irq_pin ;
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*platform_sleep)(void);
+    int     (*platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+
 
 
 #define BOOT_MODE_NORMAL		0

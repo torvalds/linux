@@ -116,7 +116,7 @@ config TOUCHSCREEN_ILI2102_IIC
 
 	  If unsure, say N (but it's safe to say "Y").
 config TOUCHSCREEN_GT8XX
-        tristate "Goodix touch screen gt8xx support for rk29"
+        tristate "Goodix touch screen gt8xx support"
         help
           Say Y here if you have a touchscreen interface using the
           goodix gt8xx  , and your board-specific initialization

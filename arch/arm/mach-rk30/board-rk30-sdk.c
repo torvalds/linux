@@ -52,6 +52,45 @@
 #define RK30_FB0_MEM_SIZE 8*SZ_1M
 
 
+#if defined(CONFIG_TOUCHSCREEN_GT8XX)
+#define TOUCH_RESET_PIN  RK30_PIN4_PD0
+#define TOUCH_PWR_PIN    INVALID_GPIO
+int goodix_init_platform_hw(void)
+{
+	int ret;
+	printk("goodix_init_platform_hw\n");
+	ret = gpio_request(TOUCH_PWR_PIN, "goodix power pin");
+	if(ret != 0){
+		gpio_free(TOUCH_PWR_PIN);
+		printk("goodix power error\n");
+		return -EIO;
+	}
+	gpio_direction_output(TOUCH_PWR_PIN, 0);
+	gpio_set_value(TOUCH_PWR_PIN,GPIO_LOW);
+	msleep(100);
+	ret = gpio_request(TOUCH_RESET_PIN, "goodix reset pin");
+	if(ret != 0){
+		gpio_free(TOUCH_RESET_PIN);
+		printk("goodix gpio_request error\n");
+		return -EIO;
+	}
+	gpio_direction_output(TOUCH_RESET_PIN, 0);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	msleep(10);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(500);
+	return 0;
+}
+
+struct goodix_platform_data goodix_info = {
+	  .model= 8105,
+	  .irq_pin = RK30_PIN4_PC2,
+	  .rest_pin  = TOUCH_RESET_PIN,
+	  .init_platform_hw = goodix_init_platform_hw,
+};
+#endif
+
+
 /*****************************************************************************************
  * xpt2046 touch panel
  * author: hhb@rock-chips.com
@@ -450,6 +489,16 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 
 #ifdef CONFIG_I2C2_RK30
 static struct i2c_board_info __initdata i2c2_info[] = {
+#if defined (CONFIG_TOUCHSCREEN_GT8XX)
+		    {
+				.type	= "Goodix-TS",
+				.addr	= 0x55,
+				.flags	    =0,
+				.irq		=RK30_PIN4_PC2,
+				.platform_data = &goodix_info,
+		    },
+#endif
+
 };
 #endif
 

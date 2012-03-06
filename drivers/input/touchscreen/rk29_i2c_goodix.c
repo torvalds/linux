@@ -804,7 +804,7 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 		ret  = request_irq(ts->irq, rk_ts_irq_handler ,IRQ_TYPE_LEVEL_LOW,client->name, ts);
 		if (ret != 0) {
 			printk(KERN_ALERT "Cannot allocate ts INT!ERRNO:%d\n", ret);
-			gpio_free(INT_PORT);
+			gpio_free(irq_to_gpio(ts->irq));
 			goto err_input_register_device_failed;
 		}
 	}
@@ -1383,13 +1383,13 @@ rewrite:
 			{
 				printk(KERN_INFO"Disable TS int!\n");
 				g_enter_isp = 1;
-					disable_irq(TS_INT);
+				disable_irq(gpio_to_irq(ts->irq));
 			}
 			else if(cmd[1] == CMD_ENABLE_TP)
 			{
 				printk(KERN_INFO"Enable TS int!\n");
 				g_enter_isp = 0;
-					enable_irq(TS_INT);
+				enable_irq(gpio_to_irq(ts->irq));
 			}
 			else if(cmd[1] == CMD_READ_VER)
 			{
@@ -1512,7 +1512,7 @@ static int goodix_update_read( char *page, char **start, off_t off, int count, i
 	struct rk_ts_data *ts;
 	int len = 0;
 	char *version_info = NULL;
-	unsigned char read_data[1201] = {80, };
+	static unsigned char read_data[1201] = {80, };
 
 	ts = i2c_get_clientdata(i2c_connect_client);
 	if(ts==NULL)
