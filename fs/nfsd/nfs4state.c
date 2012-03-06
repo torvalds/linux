@@ -4415,7 +4415,9 @@ nfs4_has_reclaimed_state(const char *name, bool use_exchange_id)
 	struct nfs4_client *clp;
 
 	clp = find_confirmed_client_by_str(name, strhashval);
-	return clp ? 1 : 0;
+	if (!clp)
+		return 0;
+	return clp->cl_firststate;
 }
 
 /*
