@@ -1298,6 +1298,14 @@ int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		return -EIO;
 	}
 
+	/*
+	 * Synchronous commands from this op-mode must hold
+	 * the mutex, this ensures we don't try to send two
+	 * (or more) synchronous commands at a time.
+	 */
+	if (cmd->flags & CMD_SYNC)
+		lockdep_assert_held(&priv->shrd->mutex);
+
 	return iwl_trans_send_cmd(trans(priv), cmd);
 }
 

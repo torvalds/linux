@@ -973,8 +973,6 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	int cmd_idx;
 	int ret;
 
-	lockdep_assert_held(&trans->shrd->mutex);
-
 	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n",
 			get_cmd_string(cmd->id));
 
@@ -983,7 +981,14 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 			       get_cmd_string(cmd->id));
 		return -EIO;
 	}
-	set_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
+
+	if (WARN_ON(test_and_set_bit(STATUS_HCMD_ACTIVE,
+				     &trans->shrd->status))) {
+		IWL_ERR(trans, "Command %s: a command is already active!\n",
+			get_cmd_string(cmd->id));
+		return -EIO;
+	}
+
 	IWL_DEBUG_INFO(trans, "Setting HCMD_ACTIVE for command %s\n",
 			get_cmd_string(cmd->id));
 
