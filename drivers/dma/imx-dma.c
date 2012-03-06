@@ -165,19 +165,6 @@ static enum dma_status imxdma_tx_status(struct dma_chan *chan,
 	return ret;
 }
 
-static dma_cookie_t imxdma_assign_cookie(struct imxdma_channel *imxdma)
-{
-	dma_cookie_t cookie = imxdma->chan.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-
-	imxdma->chan.cookie = cookie;
-	imxdma->desc.cookie = cookie;
-
-	return cookie;
-}
-
 static dma_cookie_t imxdma_tx_submit(struct dma_async_tx_descriptor *tx)
 {
 	struct imxdma_channel *imxdmac = to_imxdma_chan(tx->chan);
@@ -185,7 +172,7 @@ static dma_cookie_t imxdma_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	spin_lock_irq(&imxdmac->lock);
 
-	cookie = imxdma_assign_cookie(imxdmac);
+	cookie = dma_cookie_assign(tx);
 
 	spin_unlock_irq(&imxdmac->lock);
 

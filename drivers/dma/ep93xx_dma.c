@@ -783,16 +783,9 @@ static dma_cookie_t ep93xx_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	unsigned long flags;
 
 	spin_lock_irqsave(&edmac->lock, flags);
-
-	cookie = edmac->chan.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
+	cookie = dma_cookie_assign(tx);
 
 	desc = container_of(tx, struct ep93xx_dma_desc, txd);
-
-	edmac->chan.cookie = cookie;
-	desc->txd.cookie = cookie;
 
 	/*
 	 * If nothing is currently prosessed, we push this descriptor

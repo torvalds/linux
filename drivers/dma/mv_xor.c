@@ -536,18 +536,6 @@ retry:
 	return NULL;
 }
 
-static dma_cookie_t
-mv_desc_assign_cookie(struct mv_xor_chan *mv_chan,
-		      struct mv_xor_desc_slot *desc)
-{
-	dma_cookie_t cookie = mv_chan->common.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-	mv_chan->common.cookie = desc->async_tx.cookie = cookie;
-	return cookie;
-}
-
 /************************ DMA engine API functions ****************************/
 static dma_cookie_t
 mv_xor_tx_submit(struct dma_async_tx_descriptor *tx)
@@ -565,7 +553,7 @@ mv_xor_tx_submit(struct dma_async_tx_descriptor *tx)
 	grp_start = sw_desc->group_head;
 
 	spin_lock_bh(&mv_chan->lock);
-	cookie = mv_desc_assign_cookie(mv_chan, sw_desc);
+	cookie = dma_cookie_assign(tx);
 
 	if (list_empty(&mv_chan->chain))
 		list_splice_init(&sw_desc->tx_list, &mv_chan->chain);

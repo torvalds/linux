@@ -281,21 +281,6 @@ static void txx9dmac_desc_put(struct txx9dmac_chan *dc,
 	}
 }
 
-/* Called with dc->lock held and bh disabled */
-static dma_cookie_t
-txx9dmac_assign_cookie(struct txx9dmac_chan *dc, struct txx9dmac_desc *desc)
-{
-	dma_cookie_t cookie = dc->chan.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-
-	dc->chan.cookie = cookie;
-	desc->txd.cookie = cookie;
-
-	return cookie;
-}
-
 /*----------------------------------------------------------------------*/
 
 static void txx9dmac_dump_regs(struct txx9dmac_chan *dc)
@@ -740,7 +725,7 @@ static dma_cookie_t txx9dmac_tx_submit(struct dma_async_tx_descriptor *tx)
 	dma_cookie_t cookie;
 
 	spin_lock_bh(&dc->lock);
-	cookie = txx9dmac_assign_cookie(dc, desc);
+	cookie = dma_cookie_assign(tx);
 
 	dev_vdbg(chan2dev(tx->chan), "tx_submit: queued %u %p\n",
 		 desc->txd.cookie, desc);

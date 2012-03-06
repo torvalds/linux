@@ -440,18 +440,6 @@ retry:
 	return NULL;
 }
 
-static dma_cookie_t
-iop_desc_assign_cookie(struct iop_adma_chan *iop_chan,
-	struct iop_adma_desc_slot *desc)
-{
-	dma_cookie_t cookie = iop_chan->common.cookie;
-	cookie++;
-	if (cookie < 0)
-		cookie = 1;
-	iop_chan->common.cookie = desc->async_tx.cookie = cookie;
-	return cookie;
-}
-
 static void iop_adma_check_threshold(struct iop_adma_chan *iop_chan)
 {
 	dev_dbg(iop_chan->device->common.dev, "pending: %d\n",
@@ -479,7 +467,7 @@ iop_adma_tx_submit(struct dma_async_tx_descriptor *tx)
 	slots_per_op = grp_start->slots_per_op;
 
 	spin_lock_bh(&iop_chan->lock);
-	cookie = iop_desc_assign_cookie(iop_chan, sw_desc);
+	cookie = dma_cookie_assign(tx);
 
 	old_chain_tail = list_entry(iop_chan->chain.prev,
 		struct iop_adma_desc_slot, chain_node);

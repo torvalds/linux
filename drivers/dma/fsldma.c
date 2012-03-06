@@ -414,16 +414,9 @@ static dma_cookie_t fsl_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	 * assign cookies to all of the software descriptors
 	 * that make up this transaction
 	 */
-	cookie = chan->common.cookie;
 	list_for_each_entry(child, &desc->tx_list, node) {
-		cookie++;
-		if (cookie < DMA_MIN_COOKIE)
-			cookie = DMA_MIN_COOKIE;
-
-		child->async_tx.cookie = cookie;
+		cookie = dma_cookie_assign(&child->async_tx);
 	}
-
-	chan->common.cookie = cookie;
 
 	/* put this transaction onto the tail of the pending queue */
 	append_ld_queue(chan, desc);

@@ -2151,22 +2151,6 @@ static int ppc440spe_adma_alloc_chan_resources(struct dma_chan *chan)
 }
 
 /**
- * ppc440spe_desc_assign_cookie - assign a cookie
- */
-static dma_cookie_t ppc440spe_desc_assign_cookie(
-		struct ppc440spe_adma_chan *chan,
-		struct ppc440spe_adma_desc_slot *desc)
-{
-	dma_cookie_t cookie = chan->common.cookie;
-
-	cookie++;
-	if (cookie < 0)
-		cookie = 1;
-	chan->common.cookie = desc->async_tx.cookie = cookie;
-	return cookie;
-}
-
-/**
  * ppc440spe_rxor_set_region_data -
  */
 static void ppc440spe_rxor_set_region(struct ppc440spe_adma_desc_slot *desc,
@@ -2236,8 +2220,7 @@ static dma_cookie_t ppc440spe_adma_tx_submit(struct dma_async_tx_descriptor *tx)
 	slots_per_op = group_start->slots_per_op;
 
 	spin_lock_bh(&chan->lock);
-
-	cookie = ppc440spe_desc_assign_cookie(chan, sw_desc);
+	cookie = dma_cookie_assign(tx);
 
 	if (unlikely(list_empty(&chan->chain))) {
 		/* first peer */

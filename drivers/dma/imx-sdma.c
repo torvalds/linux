@@ -815,19 +815,6 @@ out:
 	return ret;
 }
 
-static dma_cookie_t sdma_assign_cookie(struct sdma_channel *sdmac)
-{
-	dma_cookie_t cookie = sdmac->chan.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-
-	sdmac->chan.cookie = cookie;
-	sdmac->desc.cookie = cookie;
-
-	return cookie;
-}
-
 static struct sdma_channel *to_sdma_chan(struct dma_chan *chan)
 {
 	return container_of(chan, struct sdma_channel, chan);
@@ -841,7 +828,7 @@ static dma_cookie_t sdma_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	spin_lock_irqsave(&sdmac->lock, flags);
 
-	cookie = sdma_assign_cookie(sdmac);
+	cookie = dma_cookie_assign(tx);
 
 	spin_unlock_irqrestore(&sdmac->lock, flags);
 
@@ -1140,7 +1127,6 @@ static void sdma_issue_pending(struct dma_chan *chan)
 	struct sdma_engine *sdma = sdmac->sdma;
 
 	if (sdmac->status == DMA_IN_PROGRESS)
-		sdma_enable_channel(sdma, sdmac->channel);
 }
 
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1	34

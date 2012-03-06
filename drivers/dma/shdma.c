@@ -298,13 +298,7 @@ static dma_cookie_t sh_dmae_tx_submit(struct dma_async_tx_descriptor *tx)
 	else
 		power_up = false;
 
-	cookie = sh_chan->common.cookie;
-	cookie++;
-	if (cookie < 0)
-		cookie = 1;
-
-	sh_chan->common.cookie = cookie;
-	tx->cookie = cookie;
+	cookie = dma_cookie_assign(tx);
 
 	/* Mark all chunks of this descriptor as submitted, move to the queue */
 	list_for_each_entry_safe(chunk, c, desc->node.prev, node) {

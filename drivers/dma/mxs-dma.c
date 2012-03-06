@@ -194,19 +194,6 @@ static void mxs_dma_resume_chan(struct mxs_dma_chan *mxs_chan)
 	mxs_chan->status = DMA_IN_PROGRESS;
 }
 
-static dma_cookie_t mxs_dma_assign_cookie(struct mxs_dma_chan *mxs_chan)
-{
-	dma_cookie_t cookie = mxs_chan->chan.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-
-	mxs_chan->chan.cookie = cookie;
-	mxs_chan->desc.cookie = cookie;
-
-	return cookie;
-}
-
 static struct mxs_dma_chan *to_mxs_dma_chan(struct dma_chan *chan)
 {
 	return container_of(chan, struct mxs_dma_chan, chan);
@@ -218,7 +205,7 @@ static dma_cookie_t mxs_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	mxs_dma_enable_chan(mxs_chan);
 
-	return mxs_dma_assign_cookie(mxs_chan);
+	return dma_cookie_assign(tx);
 }
 
 static void mxs_dma_tasklet(unsigned long data)

@@ -1220,21 +1220,14 @@ static dma_cookie_t d40_tx_submit(struct dma_async_tx_descriptor *tx)
 					     chan);
 	struct d40_desc *d40d = container_of(tx, struct d40_desc, txd);
 	unsigned long flags;
+	dma_cookie_t cookie;
 
 	spin_lock_irqsave(&d40c->lock, flags);
-
-	d40c->chan.cookie++;
-
-	if (d40c->chan.cookie < 0)
-		d40c->chan.cookie = 1;
-
-	d40d->txd.cookie = d40c->chan.cookie;
-
+	cookie = dma_cookie_assign(tx);
 	d40_desc_queue(d40c, d40d);
-
 	spin_unlock_irqrestore(&d40c->lock, flags);
 
-	return tx->cookie;
+	return cookie;
 }
 
 static int d40_start(struct d40_chan *d40c)

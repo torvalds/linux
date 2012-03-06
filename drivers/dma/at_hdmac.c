@@ -193,27 +193,6 @@ static void atc_desc_chain(struct at_desc **first, struct at_desc **prev,
 }
 
 /**
- * atc_assign_cookie - compute and assign new cookie
- * @atchan: channel we work on
- * @desc: descriptor to assign cookie for
- *
- * Called with atchan->lock held and bh disabled
- */
-static dma_cookie_t
-atc_assign_cookie(struct at_dma_chan *atchan, struct at_desc *desc)
-{
-	dma_cookie_t cookie = atchan->chan_common.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-
-	atchan->chan_common.cookie = cookie;
-	desc->txd.cookie = cookie;
-
-	return cookie;
-}
-
-/**
  * atc_dostart - starts the DMA engine for real
  * @atchan: the channel we want to start
  * @first: first descriptor in the list we want to begin with
@@ -548,7 +527,7 @@ static dma_cookie_t atc_tx_submit(struct dma_async_tx_descriptor *tx)
 	unsigned long		flags;
 
 	spin_lock_irqsave(&atchan->lock, flags);
-	cookie = atc_assign_cookie(atchan, desc);
+	cookie = dma_cookie_assign(tx);
 
 	if (list_empty(&atchan->active_list)) {
 		dev_vdbg(chan2dev(tx->chan), "tx_submit: started %u\n",

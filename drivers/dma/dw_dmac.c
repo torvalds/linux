@@ -157,21 +157,6 @@ static void dwc_desc_put(struct dw_dma_chan *dwc, struct dw_desc *desc)
 	}
 }
 
-/* Called with dwc->lock held and bh disabled */
-static dma_cookie_t
-dwc_assign_cookie(struct dw_dma_chan *dwc, struct dw_desc *desc)
-{
-	dma_cookie_t cookie = dwc->chan.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-
-	dwc->chan.cookie = cookie;
-	desc->txd.cookie = cookie;
-
-	return cookie;
-}
-
 static void dwc_initialize(struct dw_dma_chan *dwc)
 {
 	struct dw_dma *dw = to_dw_dma(dwc->chan.device);
@@ -603,7 +588,7 @@ static dma_cookie_t dwc_tx_submit(struct dma_async_tx_descriptor *tx)
 	unsigned long		flags;
 
 	spin_lock_irqsave(&dwc->lock, flags);
-	cookie = dwc_assign_cookie(dwc, desc);
+	cookie = dma_cookie_assign(tx);
 
 	/*
 	 * REVISIT: We should attempt to chain as many descriptors as

@@ -318,20 +318,6 @@ static int coh901318_prep_linked_list(struct coh901318_chan *cohc,
 
 	return 0;
 }
-static dma_cookie_t
-coh901318_assign_cookie(struct coh901318_chan *cohc,
-			struct coh901318_desc *cohd)
-{
-	dma_cookie_t cookie = cohc->chan.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-
-	cohc->chan.cookie = cookie;
-	cohd->desc.cookie = cookie;
-
-	return cookie;
-}
 
 static struct coh901318_desc *
 coh901318_desc_get(struct coh901318_chan *cohc)
@@ -966,16 +952,16 @@ coh901318_tx_submit(struct dma_async_tx_descriptor *tx)
 						   desc);
 	struct coh901318_chan *cohc = to_coh901318_chan(tx->chan);
 	unsigned long flags;
+	dma_cookie_t cookie;
 
 	spin_lock_irqsave(&cohc->lock, flags);
-
-	tx->cookie = coh901318_assign_cookie(cohc, cohd);
+	cookie = dma_cookie_assign(tx);
 
 	coh901318_desc_queue(cohc, cohd);
 
 	spin_unlock_irqrestore(&cohc->lock, flags);
 
-	return tx->cookie;
+	return cookie;
 }
 
 static struct dma_async_tx_descriptor *

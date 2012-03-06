@@ -237,12 +237,7 @@ static dma_cookie_t ioat1_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	spin_lock_bh(&ioat->desc_lock);
 	/* cookie incr and addition to used_list must be atomic */
-	cookie = c->cookie;
-	cookie++;
-	if (cookie < 0)
-		cookie = 1;
-	c->cookie = cookie;
-	tx->cookie = cookie;
+	cookie = dma_cookie_assign(tx);
 	dev_dbg(to_dev(&ioat->base), "%s: cookie: %d\n", __func__, cookie);
 
 	/* write address into NextDescriptor field of last desc in chain */

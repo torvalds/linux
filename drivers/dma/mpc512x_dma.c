@@ -439,13 +439,7 @@ static dma_cookie_t mpc_dma_tx_submit(struct dma_async_tx_descriptor *txd)
 		mpc_dma_execute(mchan);
 
 	/* Update cookie */
-	cookie = mchan->chan.cookie + 1;
-	if (cookie <= 0)
-		cookie = 1;
-
-	mchan->chan.cookie = cookie;
-	mdesc->desc.cookie = cookie;
-
+	cookie = dma_cookie_assign(txd);
 	spin_unlock_irqrestore(&mchan->lock, flags);
 
 	return cookie;

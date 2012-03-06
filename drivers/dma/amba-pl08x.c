@@ -921,13 +921,10 @@ static dma_cookie_t pl08x_tx_submit(struct dma_async_tx_descriptor *tx)
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(tx->chan);
 	struct pl08x_txd *txd = to_pl08x_txd(tx);
 	unsigned long flags;
+	dma_cookie_t cookie;
 
 	spin_lock_irqsave(&plchan->lock, flags);
-
-	plchan->chan.cookie += 1;
-	if (plchan->chan.cookie < 0)
-		plchan->chan.cookie = 1;
-	tx->cookie = plchan->chan.cookie;
+	cookie = dma_cookie_assign(tx);
 
 	/* Put this onto the pending list */
 	list_add_tail(&txd->node, &plchan->pend_list);
@@ -947,7 +944,7 @@ static dma_cookie_t pl08x_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	spin_unlock_irqrestore(&plchan->lock, flags);
 
-	return tx->cookie;
+	return cookie;
 }
 
 static struct dma_async_tx_descriptor *pl08x_prep_dma_interrupt(

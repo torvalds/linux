@@ -400,13 +400,9 @@ static dma_cookie_t ioat2_tx_submit_unlock(struct dma_async_tx_descriptor *tx)
 	struct dma_chan *c = tx->chan;
 	struct ioat2_dma_chan *ioat = to_ioat2_chan(c);
 	struct ioat_chan_common *chan = &ioat->base;
-	dma_cookie_t cookie = c->cookie;
+	dma_cookie_t cookie;
 
-	cookie++;
-	if (cookie < 0)
-		cookie = 1;
-	tx->cookie = cookie;
-	c->cookie = cookie;
+	cookie = dma_cookie_assign(tx);
 	dev_dbg(to_dev(&ioat->base), "%s: cookie: %d\n", __func__, cookie);
 
 	if (!test_and_set_bit(IOAT_COMPLETION_PENDING, &chan->state))

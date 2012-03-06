@@ -867,14 +867,7 @@ static dma_cookie_t idmac_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	dev_dbg(dev, "Submitting sg %p\n", &desc->sg[0]);
 
-	cookie = ichan->dma_chan.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-
-	/* from dmaengine.h: "last cookie value returned to client" */
-	ichan->dma_chan.cookie = cookie;
-	tx->cookie = cookie;
+	cookie = dma_cookie_assign(tx);
 
 	/* ipu->lock can be taken under ichan->lock, but not v.v. */
 	spin_lock_irqsave(&ichan->lock, flags);

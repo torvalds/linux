@@ -429,26 +429,16 @@ static dma_cookie_t pl330_tx_submit(struct dma_async_tx_descriptor *tx)
 	spin_lock_irqsave(&pch->lock, flags);
 
 	/* Assign cookies to all nodes */
-	cookie = tx->chan->cookie;
-
 	while (!list_empty(&last->node)) {
 		desc = list_entry(last->node.next, struct dma_pl330_desc, node);
 
-		if (++cookie < 0)
-			cookie = 1;
-		desc->txd.cookie = cookie;
+		dma_cookie_assign(&desc->txd);
 
 		list_move_tail(&desc->node, &pch->work_list);
 	}
 
-	if (++cookie < 0)
-		cookie = 1;
-	last->txd.cookie = cookie;
-
+	cookie = dma_cookie_assign(&last->txd);
 	list_add_tail(&last->node, &pch->work_list);
-
-	tx->chan->cookie = cookie;
-
 	spin_unlock_irqrestore(&pch->lock, flags);
 
 	return cookie;

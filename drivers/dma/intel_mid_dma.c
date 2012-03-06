@@ -436,14 +436,7 @@ static dma_cookie_t intel_mid_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	dma_cookie_t		cookie;
 
 	spin_lock_bh(&midc->lock);
-	cookie = midc->chan.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-
-	midc->chan.cookie = cookie;
-	desc->txd.cookie = cookie;
-
+	cookie = dma_cookie_assign(tx);
 
 	if (list_empty(&midc->active_list))
 		list_add_tail(&desc->desc_node, &midc->active_list);

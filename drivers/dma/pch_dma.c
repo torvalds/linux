@@ -417,20 +417,6 @@ static void pdc_advance_work(struct pch_dma_chan *pd_chan)
 	}
 }
 
-static dma_cookie_t pdc_assign_cookie(struct pch_dma_chan *pd_chan,
-				      struct pch_dma_desc *desc)
-{
-	dma_cookie_t cookie = pd_chan->chan.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-
-	pd_chan->chan.cookie = cookie;
-	desc->txd.cookie = cookie;
-
-	return cookie;
-}
-
 static dma_cookie_t pd_tx_submit(struct dma_async_tx_descriptor *txd)
 {
 	struct pch_dma_desc *desc = to_pd_desc(txd);
@@ -438,7 +424,7 @@ static dma_cookie_t pd_tx_submit(struct dma_async_tx_descriptor *txd)
 	dma_cookie_t cookie;
 
 	spin_lock(&pd_chan->lock);
-	cookie = pdc_assign_cookie(pd_chan, desc);
+	cookie = dma_cookie_assign(txd);
 
 	if (list_empty(&pd_chan->active_list)) {
 		list_add_tail(&desc->desc_node, &pd_chan->active_list);

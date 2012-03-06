@@ -350,12 +350,7 @@ static dma_cookie_t td_tx_submit(struct dma_async_tx_descriptor *txd)
 	dma_cookie_t cookie;
 
 	spin_lock_bh(&td_chan->lock);
-
-	cookie = txd->chan->cookie;
-	if (++cookie < 0)
-		cookie = 1;
-	txd->chan->cookie = cookie;
-	txd->cookie = cookie;
+	cookie = dma_cookie_assign(txd);
 
 	if (list_empty(&td_chan->active_list)) {
 		dev_dbg(chan2dev(txd->chan), "%s: started %u\n", __func__,

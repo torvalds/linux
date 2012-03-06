@@ -257,13 +257,7 @@ static dma_cookie_t sirfsoc_dma_tx_submit(struct dma_async_tx_descriptor *txd)
 	/* Move descriptor to queue */
 	list_move_tail(&sdesc->node, &schan->queued);
 
-	/* Update cookie */
-	cookie = schan->chan.cookie + 1;
-	if (cookie <= 0)
-		cookie = 1;
-
-	schan->chan.cookie = cookie;
-	sdesc->desc.cookie = cookie;
+	cookie = dma_cookie_assign(txd);
 
 	spin_unlock_irqrestore(&schan->lock, flags);
 
