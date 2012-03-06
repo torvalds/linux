@@ -671,14 +671,14 @@ int iwl_alive_start(struct iwl_priv *priv)
 		priv->bt_valid = IWLAGN_BT_VALID_ENABLE_FLAGS;
 		priv->cur_rssi_ctx = NULL;
 
-		iwl_send_prio_tbl(trans(priv));
+		iwl_send_prio_tbl(priv);
 
 		/* FIXME: w/a to force change uCode BT state machine */
-		ret = iwl_send_bt_env(trans(priv), IWL_BT_COEX_ENV_OPEN,
+		ret = iwl_send_bt_env(priv, IWL_BT_COEX_ENV_OPEN,
 					 BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
 		if (ret)
 			return ret;
-		ret = iwl_send_bt_env(trans(priv), IWL_BT_COEX_ENV_CLOSE,
+		ret = iwl_send_bt_env(priv, IWL_BT_COEX_ENV_CLOSE,
 					 BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
 		if (ret)
 			return ret;
@@ -1040,7 +1040,7 @@ static int iwl_init_drv(struct iwl_priv *priv)
 
 	mutex_init(&priv->shrd->mutex);
 
-	INIT_LIST_HEAD(&trans(priv)->calib_results);
+	INIT_LIST_HEAD(&priv->calib_results);
 
 	priv->ieee_channels = NULL;
 	priv->ieee_rates = NULL;
@@ -1105,6 +1105,7 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 	kfree(priv->scan_cmd);
 	kfree(priv->beacon_cmd);
 	kfree(rcu_dereference_raw(priv->noa_data));
+	iwl_calib_free_results(priv);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	kfree(priv->wowlan_sram);
 #endif

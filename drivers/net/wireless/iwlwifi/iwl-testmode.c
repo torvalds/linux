@@ -422,7 +422,7 @@ static int iwl_testmode_cfg_init_calib(struct iwl_priv *priv)
 	iwl_init_notification_wait(priv->shrd, &calib_wait,
 				      CALIBRATION_COMPLETE_NOTIFICATION,
 				      NULL, NULL);
-	ret = iwl_init_alive_start(trans(priv));
+	ret = iwl_init_alive_start(priv);
 	if (ret) {
 		IWL_ERR(priv, "Fail init calibration: %d\n", ret);
 		goto cfg_init_calib_error;
@@ -484,7 +484,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 		break;
 
 	case IWL_TM_CMD_APP2DEV_LOAD_INIT_FW:
-		status = iwl_load_ucode_wait_alive(trans, IWL_UCODE_INIT);
+		status = iwl_load_ucode_wait_alive(priv, IWL_UCODE_INIT);
 		if (status)
 			IWL_ERR(priv, "Error loading init ucode: %d\n", status);
 		break;
@@ -495,7 +495,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 		break;
 
 	case IWL_TM_CMD_APP2DEV_LOAD_RUNTIME_FW:
-		status = iwl_load_ucode_wait_alive(trans, IWL_UCODE_REGULAR);
+		status = iwl_load_ucode_wait_alive(priv, IWL_UCODE_REGULAR);
 		if (status) {
 			IWL_ERR(priv,
 				"Error loading runtime ucode: %d\n", status);
@@ -510,7 +510,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 	case IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW:
 		iwl_scan_cancel_timeout(priv, 200);
 		iwl_trans_stop_device(trans);
-		status = iwl_load_ucode_wait_alive(trans, IWL_UCODE_WOWLAN);
+		status = iwl_load_ucode_wait_alive(priv, IWL_UCODE_WOWLAN);
 		if (status) {
 			IWL_ERR(priv,
 				"Error loading WOWLAN ucode: %d\n", status);

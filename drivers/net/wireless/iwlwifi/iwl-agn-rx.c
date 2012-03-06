@@ -1177,7 +1177,7 @@ int iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,
 				pkt->hdr.cmd);
 			w->triggered = true;
 			if (w->fn)
-				w->fn(trans(priv), pkt, w->fn_data);
+				w->fn(priv, pkt, w->fn_data);
 		}
 		spin_unlock(&priv->shrd->notif_wait_lock);
 

@@ -315,14 +315,6 @@ struct iwl_trans_ops {
 	u32 (*read32)(struct iwl_trans *trans, u32 ofs);
 };
 
-/* Opaque calibration results */
-struct iwl_calib_result {
-	struct list_head list;
-	size_t cmd_len;
-	struct iwl_calib_hdr hdr;
-	/* data follows */
-};
-
 /**
  * enum iwl_trans_state - state of the transport layer
  *
@@ -349,7 +341,6 @@ enum iwl_trans_state {
  * @ucode_write_complete: indicates that the ucode has been copied.
  * @nvm_device_type: indicates OTP or eeprom
  * @pm_support: set to true in start_hw if link pm is supported
- * @calib_results: list head for init calibration results
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -368,8 +359,6 @@ struct iwl_trans {
 
 	int    nvm_device_type;
 	bool pm_support;
-
-	struct list_head calib_results;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -572,14 +561,6 @@ static inline u32 iwl_trans_read32(struct iwl_trans *trans, u32 ofs)
 {
 	return trans->ops->read32(trans, ofs);
 }
-
-/*****************************************************
-* Utils functions
-******************************************************/
-int iwl_send_calib_results(struct iwl_trans *trans);
-int iwl_calib_set(struct iwl_trans *trans,
-		  const struct iwl_calib_hdr *cmd, int len);
-void iwl_calib_free_results(struct iwl_trans *trans);
 
 /*****************************************************
 * Transport layers implementations + their allocation function

@@ -1632,7 +1632,6 @@ static void iwl_trans_pcie_free(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	iwl_calib_free_results(trans);
 	iwl_trans_pcie_tx_free(trans);
 #ifndef CONFIG_IWLWIFI_IDI
 	iwl_trans_pcie_rx_free(trans);

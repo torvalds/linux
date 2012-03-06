@@ -278,13 +278,13 @@ static int __iwl_up(struct iwl_priv *priv)
 		}
 	}
 
-	ret = iwl_run_init_ucode(trans(priv));
+	ret = iwl_run_init_ucode(priv);
 	if (ret) {
 		IWL_ERR(priv, "Failed to run INIT ucode: %d\n", ret);
 		goto error;
 	}
 
-	ret = iwl_load_ucode_wait_alive(trans(priv), IWL_UCODE_REGULAR);
+	ret = iwl_load_ucode_wait_alive(priv, IWL_UCODE_REGULAR);
 	if (ret) {
 		IWL_ERR(priv, "Failed to start RT ucode: %d\n", ret);
 		goto error;

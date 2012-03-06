@@ -233,7 +233,7 @@ enum iwl_ucode_type {
 struct iwl_notification_wait {
 	struct list_head list;
 
-	void (*fn)(struct iwl_trans *trans, struct iwl_rx_packet *pkt,
+	void (*fn)(struct iwl_priv *priv, struct iwl_rx_packet *pkt,
 		   void *data);
 	void *fn_data;
 
@@ -472,12 +472,12 @@ bool iwl_check_for_ct_kill(struct iwl_priv *priv);
 void iwl_abort_notification_waits(struct iwl_shared *shrd);
 void __acquires(wait_entry)
 iwl_init_notification_wait(struct iwl_shared *shrd,
-			      struct iwl_notification_wait *wait_entry,
-			      u8 cmd,
-			      void (*fn)(struct iwl_trans *trans,
-					 struct iwl_rx_packet *pkt,
-					 void *data),
-			      void *fn_data);
+			   struct iwl_notification_wait *wait_entry,
+			   u8 cmd,
+			   void (*fn)(struct iwl_priv *priv,
+				      struct iwl_rx_packet *pkt,
+				      void *data),
+			   void *fn_data);
 int __must_check __releases(wait_entry)
 iwl_wait_notification(struct iwl_shared *shrd,
 			 struct iwl_notification_wait *wait_entry,

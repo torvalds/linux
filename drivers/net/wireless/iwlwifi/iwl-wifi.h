@@ -95,12 +95,4 @@ struct iwl_nic {
 
 	struct completion request_firmware_complete;
 };
-
-
-int iwl_send_bt_env(struct iwl_trans *trans, u8 action, u8 type);
-void iwl_send_prio_tbl(struct iwl_trans *trans);
-int iwl_init_alive_start(struct iwl_trans *trans);
-int iwl_run_init_ucode(struct iwl_trans *trans);
-int iwl_load_ucode_wait_alive(struct iwl_trans *trans,
-				 enum iwl_ucode_type ucode_type);
 #endif  /* __iwl_wifi_h__ */

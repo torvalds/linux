@@ -1195,7 +1195,7 @@ int iwlagn_suspend(struct iwl_priv *priv,
 
 	priv->wowlan = true;
 
-	ret = iwl_load_ucode_wait_alive(trans(priv), IWL_UCODE_WOWLAN);
+	ret = iwl_load_ucode_wait_alive(priv, IWL_UCODE_WOWLAN);
 	if (ret)
 		goto out;
 
