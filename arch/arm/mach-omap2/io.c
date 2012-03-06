@@ -43,7 +43,6 @@
 #include "clockdomain.h"
 #include <plat/omap_hwmod.h>
 #include <plat/multi.h>
-#include "common.h"
 
 /*
  * The machine specific code may provide the extra mapping besides the

@@ -28,7 +28,6 @@
 #include <plat/mcspi.h>
 #include <plat/mcbsp.h>
 #include <plat/mmc.h>
-#include <plat/i2c.h>
 #include <plat/dmtimer.h>
 #include <plat/common.h>
 
