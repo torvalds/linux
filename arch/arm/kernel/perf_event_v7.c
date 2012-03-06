@@ -809,6 +809,11 @@ static inline int armv7_pmnc_disable_intens(int idx)
 
 	counter = ARMV7_IDX_TO_COUNTER(idx);
 	asm volatile("mcr p15, 0, %0, c9, c14, 2" : : "r" (BIT(counter)));
+	isb();
+	/* Clear the overflow flag in case an interrupt is pending. */
+	asm volatile("mcr p15, 0, %0, c9, c12, 3" : : "r" (BIT(counter)));
+	isb();
+
 	return idx;
 }
 
