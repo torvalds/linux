@@ -593,6 +593,6 @@ struct iscsi_chap_rec {
 	char username[ISCSI_CHAP_AUTH_NAME_MAX_LEN];
 	uint8_t password[ISCSI_CHAP_AUTH_SECRET_MAX_LEN];
 	uint8_t password_length;
-} __packed;
+};
 
 #endif
