@@ -755,6 +755,12 @@ static __devinit int wm8804_i2c_probe(struct i2c_client *i2c,
 	if (!wm8804)
 		return -ENOMEM;
 
+	wm8804->regmap = regmap_init_i2c(i2c, &wm8804_regmap_config);
+	if (IS_ERR(wm8804->regmap)) {
+		ret = PTR_ERR(wm8804->regmap);
+		return ret;
+	}
+
 	i2c_set_clientdata(i2c, wm8804);
 
 	ret = snd_soc_register_codec(&i2c->dev,

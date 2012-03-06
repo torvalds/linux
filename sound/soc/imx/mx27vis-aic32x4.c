@@ -32,11 +32,11 @@
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
 #include <asm/mach-types.h>
-#include <mach/audmux.h>
 #include <mach/iomux-mx27.h>
 
 #include "../codecs/tlv320aic32x4.h"
 #include "imx-ssi.h"
+#include "imx-audmux.h"
 
 #define MX27VIS_AMP_GAIN	0
 #define MX27VIS_AMP_MUTE	1
@@ -207,16 +207,16 @@ static int __init mx27vis_aic32x4_init(void)
 	}
 
 	/* Connect SSI0 as clock slave to SSI1 external pins */
-	mxc_audmux_v1_configure_port(MX27_AUDMUX_HPCR1_SSI0,
-			MXC_AUDMUX_V1_PCR_SYN |
-			MXC_AUDMUX_V1_PCR_TFSDIR |
-			MXC_AUDMUX_V1_PCR_TCLKDIR |
-			MXC_AUDMUX_V1_PCR_TFCSEL(MX27_AUDMUX_PPCR1_SSI_PINS_1) |
-			MXC_AUDMUX_V1_PCR_RXDSEL(MX27_AUDMUX_PPCR1_SSI_PINS_1)
+	imx_audmux_v1_configure_port(MX27_AUDMUX_HPCR1_SSI0,
+			IMX_AUDMUX_V1_PCR_SYN |
+			IMX_AUDMUX_V1_PCR_TFSDIR |
+			IMX_AUDMUX_V1_PCR_TCLKDIR |
+			IMX_AUDMUX_V1_PCR_TFCSEL(MX27_AUDMUX_PPCR1_SSI_PINS_1) |
+			IMX_AUDMUX_V1_PCR_RXDSEL(MX27_AUDMUX_PPCR1_SSI_PINS_1)
 	);
-	mxc_audmux_v1_configure_port(MX27_AUDMUX_PPCR1_SSI_PINS_1,
-			MXC_AUDMUX_V1_PCR_SYN |
-			MXC_AUDMUX_V1_PCR_RXDSEL(MX27_AUDMUX_HPCR1_SSI0)
+	imx_audmux_v1_configure_port(MX27_AUDMUX_PPCR1_SSI_PINS_1,
+			IMX_AUDMUX_V1_PCR_SYN |
+			IMX_AUDMUX_V1_PCR_RXDSEL(MX27_AUDMUX_HPCR1_SSI0)
 	);
 
 	ret = mxc_gpio_setup_multiple_pins(mx27vis_amp_pins,

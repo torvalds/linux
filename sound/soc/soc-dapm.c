@@ -1569,8 +1569,9 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 	out = is_connected_output_ep(w);
 	dapm_clear_walk(w->dapm);
 
-	ret = snprintf(buf, PAGE_SIZE, "%s: %s  in %d out %d",
-		       w->name, w->power ? "On" : "Off", in, out);
+	ret = snprintf(buf, PAGE_SIZE, "%s: %s%s  in %d out %d",
+		       w->name, w->power ? "On" : "Off",
+		       w->force ? " (forced)" : "", in, out);
 
 	if (w->reg >= 0)
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,

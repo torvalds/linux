@@ -1,4 +1,6 @@
 /*
+ * Copyright 2012 Freescale Semiconductor, Inc.
+ * Copyright 2012 Linaro Ltd.
  * Copyright 2009 Pengutronix, Sascha Hauer <s.hauer@pengutronix.de>
  *
  * Initial development of this code was funded by
@@ -15,20 +17,25 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
-#include <linux/err.h>
-#include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/debugfs.h>
+#include <linux/err.h>
+#include <linux/io.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <mach/audmux.h>
-#include <mach/hardware.h>
+
+#include "imx-audmux.h"
+
+#define DRIVER_NAME "imx-audmux"
 
 static struct clk *audmux_clk;
 static void __iomem *audmux_base;
 
-#define MXC_AUDMUX_V2_PTCR(x)		((x) * 8)
-#define MXC_AUDMUX_V2_PDCR(x)		((x) * 8 + 4)
+#define IMX_AUDMUX_V2_PTCR(x)		((x) * 8)
+#define IMX_AUDMUX_V2_PDCR(x)		((x) * 8 + 4)
 
 #ifdef CONFIG_DEBUG_FS
 static struct dentry *audmux_debugfs_root;
@@ -75,8 +82,8 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 	if (audmux_clk)
 		clk_enable(audmux_clk);
 
-	ptcr = readl(audmux_base + MXC_AUDMUX_V2_PTCR(port));
-	pdcr = readl(audmux_base + MXC_AUDMUX_V2_PDCR(port));
+	ptcr = readl(audmux_base + IMX_AUDMUX_V2_PTCR(port));
+	pdcr = readl(audmux_base + IMX_AUDMUX_V2_PDCR(port));
 
 	if (audmux_clk)
 		clk_disable(audmux_clk);
@@ -84,7 +91,7 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 	ret = snprintf(buf, PAGE_SIZE, "PDCR: %08x\nPTCR: %08x\n",
 		       pdcr, ptcr);
 
-	if (ptcr & MXC_AUDMUX_V2_PTCR_TFSDIR)
+	if (ptcr & IMX_AUDMUX_V2_PTCR_TFSDIR)
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
 				"TxFS output from %s, ",
 				audmux_port_string((ptcr >> 27) & 0x7));
@@ -92,7 +99,7 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
 				"TxFS input, ");
 
-	if (ptcr & MXC_AUDMUX_V2_PTCR_TCLKDIR)
+	if (ptcr & IMX_AUDMUX_V2_PTCR_TCLKDIR)
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
 				"TxClk output from %s",
 				audmux_port_string((ptcr >> 22) & 0x7));
@@ -102,11 +109,11 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 
 	ret += snprintf(buf + ret, PAGE_SIZE - ret, "\n");
 
-	if (ptcr & MXC_AUDMUX_V2_PTCR_SYN) {
+	if (ptcr & IMX_AUDMUX_V2_PTCR_SYN) {
 		ret += snprintf(buf + ret, PAGE_SIZE - ret,
 				"Port is symmetric");
 	} else {
-		if (ptcr & MXC_AUDMUX_V2_PTCR_RFSDIR)
+		if (ptcr & IMX_AUDMUX_V2_PTCR_RFSDIR)
 			ret += snprintf(buf + ret, PAGE_SIZE - ret,
 					"RxFS output from %s, ",
 					audmux_port_string((ptcr >> 17) & 0x7));
@@ -114,7 +121,7 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 			ret += snprintf(buf + ret, PAGE_SIZE - ret,
 					"RxFS input, ");
 
-		if (ptcr & MXC_AUDMUX_V2_PTCR_RCLKDIR)
+		if (ptcr & IMX_AUDMUX_V2_PTCR_RCLKDIR)
 			ret += snprintf(buf + ret, PAGE_SIZE - ret,
 					"RxClk output from %s",
 					audmux_port_string((ptcr >> 12) & 0x7));
@@ -140,7 +147,7 @@ static const struct file_operations audmux_debugfs_fops = {
 	.llseek = default_llseek,
 };
 
-static void audmux_debugfs_init(void)
+static void __init audmux_debugfs_init(void)
 {
 	int i;
 	char buf[20];
@@ -159,61 +166,149 @@ static void audmux_debugfs_init(void)
 				   i);
 	}
 }
+
+static void __exit audmux_debugfs_remove(void)
+{
+	debugfs_remove_recursive(audmux_debugfs_root);
+}
 #else
 static inline void audmux_debugfs_init(void)
 {
 }
+
+static inline void audmux_debugfs_remove(void)
+{
+}
 #endif
 
-int mxc_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
+enum imx_audmux_type {
+	IMX21_AUDMUX,
+	IMX31_AUDMUX,
+} audmux_type;
+
+static struct platform_device_id imx_audmux_ids[] = {
+	{
+		.name = "imx21-audmux",
+		.driver_data = IMX21_AUDMUX,
+	}, {
+		.name = "imx31-audmux",
+		.driver_data = IMX31_AUDMUX,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(platform, imx_audmux_ids);
+
+static const struct of_device_id imx_audmux_dt_ids[] = {
+	{ .compatible = "fsl,imx21-audmux", .data = &imx_audmux_ids[0], },
+	{ .compatible = "fsl,imx31-audmux", .data = &imx_audmux_ids[1], },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, imx_audmux_dt_ids);
+
+static const uint8_t port_mapping[] = {
+	0x0, 0x4, 0x8, 0x10, 0x14, 0x1c,
+};
+
+int imx_audmux_v1_configure_port(unsigned int port, unsigned int pcr)
+{
+	if (audmux_type != IMX21_AUDMUX)
+		return -EINVAL;
+
+	if (!audmux_base)
+		return -ENOSYS;
+
+	if (port >= ARRAY_SIZE(port_mapping))
+		return -EINVAL;
+
+	writel(pcr, audmux_base + port_mapping[port]);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(imx_audmux_v1_configure_port);
+
+int imx_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
 		unsigned int pdcr)
 {
+	if (audmux_type != IMX31_AUDMUX)
+		return -EINVAL;
+
 	if (!audmux_base)
 		return -ENOSYS;
 
 	if (audmux_clk)
 		clk_enable(audmux_clk);
 
-	writel(ptcr, audmux_base + MXC_AUDMUX_V2_PTCR(port));
-	writel(pdcr, audmux_base + MXC_AUDMUX_V2_PDCR(port));
+	writel(ptcr, audmux_base + IMX_AUDMUX_V2_PTCR(port));
+	writel(pdcr, audmux_base + IMX_AUDMUX_V2_PDCR(port));
 
 	if (audmux_clk)
 		clk_disable(audmux_clk);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mxc_audmux_v2_configure_port);
+EXPORT_SYMBOL_GPL(imx_audmux_v2_configure_port);
 
-static int mxc_audmux_v2_init(void)
+static int __init imx_audmux_probe(struct platform_device *pdev)
 {
-	int ret;
-	if (cpu_is_mx51()) {
-		audmux_base = MX51_IO_ADDRESS(MX51_AUDMUX_BASE_ADDR);
-	} else if (cpu_is_mx31()) {
-		audmux_base = MX31_IO_ADDRESS(MX31_AUDMUX_BASE_ADDR);
-	} else if (cpu_is_mx35()) {
-		audmux_clk = clk_get(NULL, "audmux");
-		if (IS_ERR(audmux_clk)) {
-			ret = PTR_ERR(audmux_clk);
-			printk(KERN_ERR "%s: cannot get clock: %d\n", __func__,
-					ret);
-			return ret;
-		}
-		audmux_base = MX35_IO_ADDRESS(MX35_AUDMUX_BASE_ADDR);
-	} else if (cpu_is_mx25()) {
-		audmux_clk = clk_get(NULL, "audmux");
-		if (IS_ERR(audmux_clk)) {
-			ret = PTR_ERR(audmux_clk);
-			printk(KERN_ERR "%s: cannot get clock: %d\n", __func__,
-					ret);
-			return ret;
-		}
-		audmux_base = MX25_IO_ADDRESS(MX25_AUDMUX_BASE_ADDR);
+	struct resource *res;
+	const struct of_device_id *of_id =
+			of_match_device(imx_audmux_dt_ids, &pdev->dev);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	audmux_base = devm_request_and_ioremap(&pdev->dev, res);
+	if (!audmux_base)
+		return -EADDRNOTAVAIL;
+
+	audmux_clk = clk_get(&pdev->dev, "audmux");
+	if (IS_ERR(audmux_clk)) {
+		dev_dbg(&pdev->dev, "cannot get clock: %ld\n",
+				PTR_ERR(audmux_clk));
+		audmux_clk = NULL;
 	}
 
-	audmux_debugfs_init();
+	if (of_id)
+		pdev->id_entry = of_id->data;
+	audmux_type = pdev->id_entry->driver_data;
+	if (audmux_type == IMX31_AUDMUX)
+		audmux_debugfs_init();
 
 	return 0;
 }
 
-postcore_initcall(mxc_audmux_v2_init);
+static int __exit imx_audmux_remove(struct platform_device *pdev)
+{
+	if (audmux_type == IMX31_AUDMUX)
+		audmux_debugfs_remove();
+	clk_put(audmux_clk);
+
+	return 0;
+}
+
+static struct platform_driver imx_audmux_driver = {
+	.probe		= imx_audmux_probe,
+	.remove		= __exit_p(imx_audmux_remove),
+	.id_table	= imx_audmux_ids,
+	.driver	= {
+		.name	= DRIVER_NAME,
+		.owner	= THIS_MODULE,
+		.of_match_table = imx_audmux_dt_ids,
+	}
+};
+
+static int __init imx_audmux_init(void)
+{
+	return platform_driver_register(&imx_audmux_driver);
+}
+subsys_initcall(imx_audmux_init);
+
+static void __exit imx_audmux_exit(void)
+{
+	platform_driver_unregister(&imx_audmux_driver);
+}
+module_exit(imx_audmux_exit);
+
+MODULE_DESCRIPTION("Freescale i.MX AUDMUX driver");
+MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
+MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:" DRIVER_NAME);
