@@ -167,15 +167,17 @@
 #define VIDTCON1_HSPW(_x)			((_x) << 0)
 
 #define VIDTCON2				(0x18)
+#define VIDTCON2_LINEVAL_E(_x)			((((_x) & 0x800) >> 11) << 23)
 #define VIDTCON2_LINEVAL_MASK			(0x7ff << 11)
 #define VIDTCON2_LINEVAL_SHIFT			(11)
 #define VIDTCON2_LINEVAL_LIMIT			(0x7ff)
-#define VIDTCON2_LINEVAL(_x)			((_x) << 11)
+#define VIDTCON2_LINEVAL(_x)			(((_x) & 0x7ff) << 11)
 
+#define VIDTCON2_HOZVAL_E(_x)			((((_x) & 0x800) >> 11) << 22)
 #define VIDTCON2_HOZVAL_MASK			(0x7ff << 0)
 #define VIDTCON2_HOZVAL_SHIFT			(0)
 #define VIDTCON2_HOZVAL_LIMIT			(0x7ff)
-#define VIDTCON2_HOZVAL(_x)			((_x) << 0)
+#define VIDTCON2_HOZVAL(_x)			(((_x) & 0x7ff) << 0)
 
 /* WINCONx */
 
@@ -231,25 +233,29 @@
 /* Local input channels (windows 0-2) */
 #define SHADOWCON_CHx_LOCAL_ENABLE(_win)	(1 << (5 + (_win)))
 
+#define VIDOSDxA_TOPLEFT_X_E(_x)		((((_x) & 0x800) >> 11) << 23)
 #define VIDOSDxA_TOPLEFT_X_MASK			(0x7ff << 11)
 #define VIDOSDxA_TOPLEFT_X_SHIFT		(11)
 #define VIDOSDxA_TOPLEFT_X_LIMIT		(0x7ff)
-#define VIDOSDxA_TOPLEFT_X(_x)			((_x) << 11)
+#define VIDOSDxA_TOPLEFT_X(_x)			(((_x) & 0x7ff) << 11)
 
+#define VIDOSDxA_TOPLEFT_Y_E(_x)		((((_x) & 0x800) >> 11) << 22)
 #define VIDOSDxA_TOPLEFT_Y_MASK			(0x7ff << 0)
 #define VIDOSDxA_TOPLEFT_Y_SHIFT		(0)
 #define VIDOSDxA_TOPLEFT_Y_LIMIT		(0x7ff)
-#define VIDOSDxA_TOPLEFT_Y(_x)			((_x) << 0)
+#define VIDOSDxA_TOPLEFT_Y(_x)			(((_x) & 0x7ff) << 0)
 
+#define VIDOSDxB_BOTRIGHT_X_E(_x)		((((_x) & 0x800) >> 11) << 23)
 #define VIDOSDxB_BOTRIGHT_X_MASK		(0x7ff << 11)
 #define VIDOSDxB_BOTRIGHT_X_SHIFT		(11)
 #define VIDOSDxB_BOTRIGHT_X_LIMIT		(0x7ff)
-#define VIDOSDxB_BOTRIGHT_X(_x)			((_x) << 11)
+#define VIDOSDxB_BOTRIGHT_X(_x)			(((_x) & 0x7ff) << 11)
 
+#define VIDOSDxB_BOTRIGHT_Y_E(_x)		((((_x) & 0x800) >> 11) << 22)
 #define VIDOSDxB_BOTRIGHT_Y_MASK		(0x7ff << 0)
 #define VIDOSDxB_BOTRIGHT_Y_SHIFT		(0)
 #define VIDOSDxB_BOTRIGHT_Y_LIMIT		(0x7ff)
-#define VIDOSDxB_BOTRIGHT_Y(_x)			((_x) << 0)
+#define VIDOSDxB_BOTRIGHT_Y(_x)			(((_x) & 0x7ff) << 0)
 
 /* For VIDOSD[1..4]C */
 #define VIDISD14C_ALPHA0_R(_x)			((_x) << 20)
@@ -281,15 +287,17 @@
 #define VIDW_BUF_END1(_buff)			(0xD4 + ((_buff) * 8))
 #define VIDW_BUF_SIZE(_buff)			(0x100 + ((_buff) * 4))
 
+#define VIDW_BUF_SIZE_OFFSET_E(_x)		((((_x) & 0x2000) >> 13) << 27)
 #define VIDW_BUF_SIZE_OFFSET_MASK		(0x1fff << 13)
 #define VIDW_BUF_SIZE_OFFSET_SHIFT		(13)
 #define VIDW_BUF_SIZE_OFFSET_LIMIT		(0x1fff)
-#define VIDW_BUF_SIZE_OFFSET(_x)		((_x) << 13)
+#define VIDW_BUF_SIZE_OFFSET(_x)		(((_x) & 0x1fff) << 13)
 
+#define VIDW_BUF_SIZE_PAGEWIDTH_E(_x)		((((_x) & 0x2000) >> 13) << 26)
 #define VIDW_BUF_SIZE_PAGEWIDTH_MASK		(0x1fff << 0)
 #define VIDW_BUF_SIZE_PAGEWIDTH_SHIFT		(0)
 #define VIDW_BUF_SIZE_PAGEWIDTH_LIMIT		(0x1fff)
-#define VIDW_BUF_SIZE_PAGEWIDTH(_x)		((_x) << 0)
+#define VIDW_BUF_SIZE_PAGEWIDTH(_x)		(((_x) & 0x1fff) << 0)
 
 /* Interrupt controls and status */
 

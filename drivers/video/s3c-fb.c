@@ -89,7 +89,7 @@ struct s3c_fb;
 struct s3c_fb_variant {
 	unsigned int	is_2443:1;
 	unsigned short	nr_windows;
-	unsigned short	vidtcon;
+	unsigned int	vidtcon;
 	unsigned short	wincon;
 	unsigned short	winmap;
 	unsigned short	keycon;
@@ -568,7 +568,9 @@ static int s3c_fb_set_par(struct fb_info *info)
 		writel(data, regs + sfb->variant.vidtcon + 4);
 
 		data = VIDTCON2_LINEVAL(var->yres - 1) |
-		       VIDTCON2_HOZVAL(var->xres - 1);
+		       VIDTCON2_HOZVAL(var->xres - 1) |
+		       VIDTCON2_LINEVAL_E(var->yres - 1) |
+		       VIDTCON2_HOZVAL_E(var->xres - 1);
 		writel(data, regs + sfb->variant.vidtcon + 8);
 	}
 
@@ -584,17 +586,23 @@ static int s3c_fb_set_par(struct fb_info *info)
 
 	pagewidth = (var->xres * var->bits_per_pixel) >> 3;
 	data = VIDW_BUF_SIZE_OFFSET(info->fix.line_length - pagewidth) |
-	       VIDW_BUF_SIZE_PAGEWIDTH(pagewidth);
+	       VIDW_BUF_SIZE_PAGEWIDTH(pagewidth) |
+	       VIDW_BUF_SIZE_OFFSET_E(info->fix.line_length - pagewidth) |
+	       VIDW_BUF_SIZE_PAGEWIDTH_E(pagewidth);
 	writel(data, regs + sfb->variant.buf_size + (win_no * 4));
 
 	/* write 'OSD' registers to control position of framebuffer */
 
-	data = VIDOSDxA_TOPLEFT_X(0) | VIDOSDxA_TOPLEFT_Y(0);
+	data = VIDOSDxA_TOPLEFT_X(0) | VIDOSDxA_TOPLEFT_Y(0) |
+	       VIDOSDxA_TOPLEFT_X_E(0) | VIDOSDxA_TOPLEFT_Y_E(0);
 	writel(data, regs + VIDOSD_A(win_no, sfb->variant));
 
 	data = VIDOSDxB_BOTRIGHT_X(s3c_fb_align_word(var->bits_per_pixel,
 						     var->xres - 1)) |
-	       VIDOSDxB_BOTRIGHT_Y(var->yres - 1);
+	       VIDOSDxB_BOTRIGHT_Y(var->yres - 1) |
+	       VIDOSDxB_BOTRIGHT_X_E(s3c_fb_align_word(var->bits_per_pixel,
+						     var->xres - 1)) |
+	       VIDOSDxB_BOTRIGHT_Y_E(var->yres - 1);
 
 	writel(data, regs + VIDOSD_B(win_no, sfb->variant));
 
@@ -1903,6 +1911,37 @@ static struct s3c_fb_driverdata s3c_fb_data_exynos4 = {
 	.win[4]	= &s3c_fb_data_s5p_wins[4],
 };
 
+static struct s3c_fb_driverdata s3c_fb_data_exynos5 = {
+	.variant = {
+		.nr_windows	= 5,
+		.vidtcon	= VIDTCON0,
+		.wincon		= WINCON(0),
+		.winmap		= WINxMAP(0),
+		.keycon		= WKEYCON,
+		.osd		= VIDOSD_BASE,
+		.osd_stride	= 16,
+		.buf_start	= VIDW_BUF_START(0),
+		.buf_size	= VIDW_BUF_SIZE(0),
+		.buf_end	= VIDW_BUF_END(0),
+
+		.palette = {
+			[0] = 0x2400,
+			[1] = 0x2800,
+			[2] = 0x2c00,
+			[3] = 0x3000,
+			[4] = 0x3400,
+		},
+		.has_shadowcon	= 1,
+		.has_blendcon	= 1,
+		.has_fixvclk	= 1,
+	},
+	.win[0]	= &s3c_fb_data_s5p_wins[0],
+	.win[1]	= &s3c_fb_data_s5p_wins[1],
+	.win[2]	= &s3c_fb_data_s5p_wins[2],
+	.win[3]	= &s3c_fb_data_s5p_wins[3],
+	.win[4]	= &s3c_fb_data_s5p_wins[4],
+};
+
 /* S3C2443/S3C2416 style hardware */
 static struct s3c_fb_driverdata s3c_fb_data_s3c2443 = {
 	.variant = {
@@ -1980,6 +2019,9 @@ static struct platform_device_id s3c_fb_driver_ids[] = {
 	}, {
 		.name		= "exynos4-fb",
 		.driver_data	= (unsigned long)&s3c_fb_data_exynos4,
+	}, {
+		.name		= "exynos5-fb",
+		.driver_data	= (unsigned long)&s3c_fb_data_exynos5,
 	}, {
 		.name		= "s3c2443-fb",
 		.driver_data	= (unsigned long)&s3c_fb_data_s3c2443,
