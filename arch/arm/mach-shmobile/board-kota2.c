@@ -513,17 +513,6 @@ static void __init kota2_init(void)
 	platform_add_devices(kota2_devices, ARRAY_SIZE(kota2_devices));
 }
 
-static void __init kota2_timer_init(void)
-{
-	sh73a0_clock_init();
-	shmobile_timer.init();
-	return;
-}
-
-struct sys_timer kota2_timer = {
-	.init	= kota2_timer_init,
-};
-
 MACHINE_START(KOTA2, "kota2")
 	.map_io		= sh73a0_map_io,
 	.init_early	= sh73a0_add_early_devices,
@@ -531,5 +520,5 @@ MACHINE_START(KOTA2, "kota2")
 	.init_irq	= sh73a0_init_irq,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= kota2_init,
-	.timer		= &kota2_timer,
+	.timer		= &shmobile_timer,
 MACHINE_END
