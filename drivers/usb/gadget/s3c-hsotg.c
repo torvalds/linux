@@ -340,7 +340,7 @@ static void s3c_hsotg_init_fifo(struct s3c_hsotg *hsotg)
 	/* currently we allocate TX FIFOs for all possible endpoints,
 	 * and assume that they are all the same size. */
 
-	for (ep = 0; ep <= 15; ep++) {
+	for (ep = 1; ep <= 15; ep++) {
 		val = addr;
 		val |= size << S3C_DPTXFSIZn_DPTxFSize_SHIFT;
 		addr += size;
