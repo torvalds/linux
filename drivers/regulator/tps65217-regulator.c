@@ -82,11 +82,11 @@ static int tps65217_uv_to_vsel1(int uV, unsigned int *vsel)
 		return -EINVAL;
 
 	if (uV <= 1500000)
-		*vsel = (uV - 875001) / 25000;
+		*vsel = DIV_ROUND_UP(uV - 900000, 25000);
 	else if (uV <= 2900000)
-		*vsel = 24 + (uV - 1450001) / 50000;
+		*vsel = 24 + DIV_ROUND_UP(uV - 1500000, 50000);
 	else if (uV < 3300000)
-		*vsel = 52 + (uV - 2800001) / 100000;
+		*vsel = 52 + DIV_ROUND_UP(uV - 2900000, 100000);
 	else
 		*vsel = 56;
 
@@ -116,11 +116,11 @@ static int tps65217_uv_to_vsel2(int uV, unsigned int *vsel)
 		return -EINVAL;
 
 	if (uV <= 1900000)
-		*vsel = (uV - 1450001) / 50000;
+		*vsel = DIV_ROUND_UP(uV - 1500000, 50000);
 	else if (uV <= 2400000)
-		*vsel = 8 + (uV - 1800001) / 100000;
+		*vsel = 8 + DIV_ROUND_UP(uV - 1900000, 100000);
 	else
-		*vsel = 13 + (uV - 2350001) / 50000;
+		*vsel = 13 + DIV_ROUND_UP(uV - 2400000, 50000);
 
 	return 0;
 }
