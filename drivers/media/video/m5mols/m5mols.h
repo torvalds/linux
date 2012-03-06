@@ -161,6 +161,7 @@ struct m5mols_version {
  * @flags: state variable for the interrupt handler
  * @handle: control handler
  * @auto_exposure: auto/manual exposure control
+ * @exposure_bias: exposure compensation control
  * @exposure: manual exposure control
  * @auto_iso: auto/manual ISO sensitivity control
  * @iso: manual ISO sensitivity control
@@ -191,8 +192,9 @@ struct m5mols_info {
 
 	struct v4l2_ctrl_handler handle;
 	struct {
-		/* exposure/auto-exposure cluster */
+		/* exposure/exposure bias/auto exposure cluster */
 		struct v4l2_ctrl *auto_exposure;
+		struct v4l2_ctrl *exposure_bias;
 		struct v4l2_ctrl *exposure;
 	};
 	struct {

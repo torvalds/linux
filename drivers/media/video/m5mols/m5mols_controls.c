@@ -241,6 +241,11 @@ static int m5mols_set_exposure(struct m5mols_info *info, int exposure)
 		ret = m5mols_write(sd, AE_MODE, REG_AE_ALL);
 		if (ret < 0)
 			return ret;
+
+		v4l2_dbg(1, m5mols_debug, sd, "%s: exposure bias: %#x\n",
+			 __func__, info->exposure_bias->val);
+
+		return m5mols_write(sd, AE_INDEX, info->exposure_bias->val);
 	}
 
 	if (exposure == V4L2_EXPOSURE_MANUAL) {
@@ -251,6 +256,9 @@ static int m5mols_set_exposure(struct m5mols_info *info, int exposure)
 		if (ret == 0)
 			ret = m5mols_write(sd, AE_MAN_GAIN_CAP,
 					   info->exposure->val);
+
+		v4l2_dbg(1, m5mols_debug, sd, "%s: exposure: %#x\n",
+			 __func__, info->exposure->val);
 	}
 
 	return ret;
@@ -447,6 +455,12 @@ static const s64 iso_qmenu[] = {
 	50, 100, 200, 400, 800, 1600, 3200
 };
 
+/* Supported Exposure Bias values, -2.0EV...+2.0EV */
+static const s64 ev_bias_qmenu[] = {
+	/* AE_INDEX: 0x00...0x08 */
+	-2000, -1500, -1000, -500, 0, 500, 1000, 1500, 2000
+};
+
 int m5mols_init_controls(struct v4l2_subdev *sd)
 {
 	struct m5mols_info *info = to_m5mols(sd);
@@ -467,6 +481,7 @@ int m5mols_init_controls(struct v4l2_subdev *sd)
 			&m5mols_ctrl_ops, V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE,
 			9, ~0x3fe, V4L2_WHITE_BALANCE_AUTO);
 
+	/* Exposure control cluster */
 	info->auto_exposure = v4l2_ctrl_new_std_menu(&info->handle,
 			&m5mols_ctrl_ops, V4L2_CID_EXPOSURE_AUTO,
 			1, ~0x03, V4L2_EXPOSURE_AUTO);
@@ -474,6 +489,12 @@ int m5mols_init_controls(struct v4l2_subdev *sd)
 	info->exposure = v4l2_ctrl_new_std(&info->handle,
 			&m5mols_ctrl_ops, V4L2_CID_EXPOSURE,
 			0, exposure_max, 1, exposure_max / 2);
+
+	info->exposure_bias = v4l2_ctrl_new_int_menu(&info->handle,
+			&m5mols_ctrl_ops, V4L2_CID_AUTO_EXPOSURE_BIAS,
+			ARRAY_SIZE(ev_bias_qmenu) - 1,
+			ARRAY_SIZE(ev_bias_qmenu)/2 - 1,
+			ev_bias_qmenu);
 
 	/* ISO control cluster */
 	info->auto_iso = v4l2_ctrl_new_std_menu(&info->handle, &m5mols_ctrl_ops,
@@ -499,8 +520,7 @@ int m5mols_init_controls(struct v4l2_subdev *sd)
 		return ret;
 	}
 
-	v4l2_ctrl_auto_cluster(2, &info->auto_exposure, 1, false);
-
+	v4l2_ctrl_auto_cluster(3, &info->auto_exposure, 1, false);
 	info->auto_iso->flags |= V4L2_CTRL_FLAG_VOLATILE |
 				V4L2_CTRL_FLAG_UPDATE;
 	v4l2_ctrl_auto_cluster(2, &info->auto_iso, 0, false);
