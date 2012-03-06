@@ -14,7 +14,6 @@ iwlwifi-objs		+= iwl-1000.o
 iwlwifi-objs		+= iwl-2000.o
 iwlwifi-objs		+= iwl-pci.o
 iwlwifi-objs		+= iwl-drv.o
-iwlwifi-objs		+= iwl-trans.o
 iwlwifi-objs		+= iwl-trans-pcie.o iwl-trans-pcie-rx.o iwl-trans-pcie-tx.o
 
 iwlwifi-$(CONFIG_IWLWIFI_DEBUGFS) += iwl-debugfs.o

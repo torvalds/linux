@@ -72,7 +72,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	    test_bit(STATUS_FW_ERROR, &priv->shrd->status))
 		return -EIO;
 
-	ret = iwl_trans_send_cmd(trans(priv), &cmd);
+	ret = iwl_dvm_send_cmd(priv, &cmd);
 	if (ret)
 		return ret;
 
@@ -887,7 +887,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	if (ret)
 		return ret;
 
-	ret = iwl_trans_send_cmd(trans(priv), &cmd);
+	ret = iwl_dvm_send_cmd(priv, &cmd);
 	if (ret) {
 		clear_bit(STATUS_SCAN_HW, &priv->shrd->status);
 		iwlagn_set_pan_params(priv);

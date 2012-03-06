@@ -282,7 +282,7 @@ static int iwl_testmode_ucode(struct ieee80211_hw *hw, struct nlattr **tb)
 	IWL_DEBUG_INFO(priv, "testmode ucode command ID 0x%x, flags 0x%x,"
 				" len %d\n", cmd.id, cmd.flags, cmd.len[0]);
 
-	ret = iwl_trans_send_cmd(trans(priv), &cmd);
+	ret = iwl_dvm_send_cmd(priv, &cmd);
 	if (ret) {
 		IWL_ERR(priv, "Failed to send hcmd\n");
 		return ret;

@@ -96,6 +96,11 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 			      const struct iwl_ucode_capabilities *capa);
 void iwlagn_mac_unregister(struct iwl_priv *priv);
 
+/* commands */
+int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
+int iwl_dvm_send_cmd_pdu(struct iwl_priv *priv, u8 id,
+			 u32 flags, u16 len, const void *data);
+
 /* RXON */
 int iwlagn_set_pan_params(struct iwl_priv *priv);
 int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx);

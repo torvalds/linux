@@ -81,7 +81,7 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 	else
 		tx_ant_cfg_cmd = REPLY_TX_POWER_DBM_CMD;
 
-	return iwl_trans_send_cmd_pdu(trans(priv), tx_ant_cfg_cmd, CMD_SYNC,
+	return iwl_dvm_send_cmd_pdu(priv, tx_ant_cfg_cmd, CMD_SYNC,
 			sizeof(tx_power_cmd), &tx_power_cmd);
 }
 
@@ -241,7 +241,7 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 		       flush_cmd.fifo_control);
 	flush_cmd.flush_control = cpu_to_le16(flush_control);
 
-	return iwl_trans_send_cmd(trans(priv), &cmd);
+	return iwl_dvm_send_cmd(priv, &cmd);
 }
 
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
@@ -435,12 +435,12 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	if (cfg(priv)->bt_params->bt_session_2) {
 		memcpy(&bt_cmd_2000.basic, &basic,
 			sizeof(basic));
-		ret = iwl_trans_send_cmd_pdu(trans(priv), REPLY_BT_CONFIG,
+		ret = iwl_dvm_send_cmd_pdu(priv, REPLY_BT_CONFIG,
 			CMD_SYNC, sizeof(bt_cmd_2000), &bt_cmd_2000);
 	} else {
 		memcpy(&bt_cmd_6000.basic, &basic,
 			sizeof(basic));
-		ret = iwl_trans_send_cmd_pdu(trans(priv), REPLY_BT_CONFIG,
+		ret = iwl_dvm_send_cmd_pdu(priv, REPLY_BT_CONFIG,
 			CMD_SYNC, sizeof(bt_cmd_6000), &bt_cmd_6000);
 	}
 	if (ret)
@@ -1115,7 +1115,7 @@ int iwlagn_send_patterns(struct iwl_priv *priv,
 	}
 
 	cmd.data[0] = pattern_cmd;
-	err = iwl_trans_send_cmd(trans(priv), &cmd);
+	err = iwl_dvm_send_cmd(priv, &cmd);
 	kfree(pattern_cmd);
 	return err;
 }
@@ -1241,13 +1241,13 @@ int iwlagn_suspend(struct iwl_priv *priv,
 				.len[0] = sizeof(key_data.rsc_tsc),
 			};
 
-			ret = iwl_trans_send_cmd(trans(priv), &rsc_tsc_cmd);
+			ret = iwl_dvm_send_cmd(priv, &rsc_tsc_cmd);
 			if (ret)
 				goto out;
 		}
 
 		if (key_data.use_tkip) {
-			ret = iwl_trans_send_cmd_pdu(trans(priv),
+			ret = iwl_dvm_send_cmd_pdu(priv,
 						 REPLY_WOWLAN_TKIP_PARAMS,
 						 CMD_SYNC, sizeof(tkip_cmd),
 						 &tkip_cmd);
@@ -1263,7 +1263,7 @@ int iwlagn_suspend(struct iwl_priv *priv,
 			kek_kck_cmd.kek_len = cpu_to_le16(NL80211_KEK_LEN);
 			kek_kck_cmd.replay_ctr = priv->replay_ctr;
 
-			ret = iwl_trans_send_cmd_pdu(trans(priv),
+			ret = iwl_dvm_send_cmd_pdu(priv,
 						 REPLY_WOWLAN_KEK_KCK_MATERIAL,
 						 CMD_SYNC, sizeof(kek_kck_cmd),
 						 &kek_kck_cmd);
@@ -1272,12 +1272,12 @@ int iwlagn_suspend(struct iwl_priv *priv,
 		}
 	}
 
-	ret = iwl_trans_send_cmd_pdu(trans(priv), REPLY_D3_CONFIG, CMD_SYNC,
+	ret = iwl_dvm_send_cmd_pdu(priv, REPLY_D3_CONFIG, CMD_SYNC,
 				     sizeof(d3_cfg_cmd), &d3_cfg_cmd);
 	if (ret)
 		goto out;
 
-	ret = iwl_trans_send_cmd_pdu(trans(priv), REPLY_WOWLAN_WAKEUP_FILTER,
+	ret = iwl_dvm_send_cmd_pdu(priv, REPLY_WOWLAN_WAKEUP_FILTER,
 				 CMD_SYNC, sizeof(wakeup_filter_cmd),
 				 &wakeup_filter_cmd);
 	if (ret)
@@ -1289,3 +1289,21 @@ int iwlagn_suspend(struct iwl_priv *priv,
 	return ret;
 }
 #endif
+
+int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
+{
+	return iwl_trans_send_cmd(trans(priv), cmd);
+}
+
+int iwl_dvm_send_cmd_pdu(struct iwl_priv *priv, u8 id,
+			 u32 flags, u16 len, const void *data)
+{
+	struct iwl_host_cmd cmd = {
+		.id = id,
+		.len = { len, },
+		.data = { data, },
+		.flags = flags,
+	};
+
+	return iwl_dvm_send_cmd(priv, &cmd);
+}

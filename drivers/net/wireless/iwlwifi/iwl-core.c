@@ -369,7 +369,7 @@ int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			le32_to_cpu(ctx->timing.beacon_init_val),
 			le16_to_cpu(ctx->timing.atim_window));
 
-	return iwl_trans_send_cmd_pdu(trans(priv), ctx->rxon_timing_cmd,
+	return iwl_dvm_send_cmd_pdu(priv, ctx->rxon_timing_cmd,
 				CMD_SYNC, sizeof(ctx->timing), &ctx->timing);
 }
 
@@ -958,7 +958,7 @@ void iwl_send_bt_config(struct iwl_priv *priv)
 	IWL_DEBUG_INFO(priv, "BT coex %s\n",
 		(bt_cmd.flags == BT_COEX_DISABLE) ? "disable" : "active");
 
-	if (iwl_trans_send_cmd_pdu(trans(priv), REPLY_BT_CONFIG,
+	if (iwl_dvm_send_cmd_pdu(priv, REPLY_BT_CONFIG,
 			     CMD_SYNC, sizeof(struct iwl_bt_cmd), &bt_cmd))
 		IWL_ERR(priv, "failed to send BT Coex Config\n");
 }
@@ -971,12 +971,12 @@ int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
 	};
 
 	if (flags & CMD_ASYNC)
-		return iwl_trans_send_cmd_pdu(trans(priv), REPLY_STATISTICS_CMD,
+		return iwl_dvm_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
 					      CMD_ASYNC,
 					       sizeof(struct iwl_statistics_cmd),
 					       &statistics_cmd);
 	else
-		return iwl_trans_send_cmd_pdu(trans(priv), REPLY_STATISTICS_CMD,
+		return iwl_dvm_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
 					CMD_SYNC,
 					sizeof(struct iwl_statistics_cmd),
 					&statistics_cmd);
@@ -1300,7 +1300,7 @@ int iwl_cmd_echo_test(struct iwl_priv *priv)
 		.flags = CMD_SYNC,
 	};
 
-	ret = iwl_trans_send_cmd(trans(priv), &cmd);
+	ret = iwl_dvm_send_cmd(priv, &cmd);
 	if (ret)
 		IWL_ERR(priv, "echo testing fail: 0X%x\n", ret);
 	else

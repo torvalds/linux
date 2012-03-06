@@ -443,9 +443,6 @@ static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 	return trans->ops->send_cmd(trans, cmd);
 }
 
-int iwl_trans_send_cmd_pdu(struct iwl_trans *trans, u8 id,
-			   u32 flags, u16 len, const void *data);
-
 static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
 		u8 sta_id, u8 tid)

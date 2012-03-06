@@ -153,7 +153,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 		might_sleep();
 	}
 
-	ret = iwl_trans_send_cmd(trans(priv), &cmd);
+	ret = iwl_dvm_send_cmd(priv, &cmd);
 
 	if (ret || (flags & CMD_ASYNC))
 		return ret;
@@ -447,7 +447,7 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 
 	cmd.flags |= CMD_WANT_SKB;
 
-	ret = iwl_trans_send_cmd(trans(priv), &cmd);
+	ret = iwl_dvm_send_cmd(priv, &cmd);
 
 	if (ret)
 		return ret;
@@ -785,7 +785,7 @@ int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		return -EINVAL;
 
 	if (is_lq_table_valid(priv, ctx, lq))
-		ret = iwl_trans_send_cmd(trans(priv), &cmd);
+		ret = iwl_dvm_send_cmd(priv, &cmd);
 	else
 		ret = -EINVAL;
 
@@ -970,7 +970,7 @@ static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv,
 	cmd.len[0] = cmd_size;
 
 	if (not_empty || send_if_empty)
-		return iwl_trans_send_cmd(trans(priv), &cmd);
+		return iwl_dvm_send_cmd(priv, &cmd);
 	else
 		return 0;
 }
