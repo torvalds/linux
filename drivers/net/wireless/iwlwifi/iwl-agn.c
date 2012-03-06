@@ -353,11 +353,12 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 		ev = iwl_read32(trans(priv), HBUS_TARG_MEM_RDAT);
 		time = iwl_read32(trans(priv), HBUS_TARG_MEM_RDAT);
 		if (mode == 0) {
-			trace_iwlwifi_dev_ucode_cont_event(priv, 0, time, ev);
+			trace_iwlwifi_dev_ucode_cont_event(
+					trans(priv)->dev, 0, time, ev);
 		} else {
 			data = iwl_read32(trans(priv), HBUS_TARG_MEM_RDAT);
-			trace_iwlwifi_dev_ucode_cont_event(priv, time,
-							   data, ev);
+			trace_iwlwifi_dev_ucode_cont_event(
+					trans(priv)->dev, time, data, ev);
 		}
 	}
 	/* Allow device to power down */
@@ -422,7 +423,7 @@ static void iwl_continuous_event_trace(struct iwl_priv *priv)
 		else
 			priv->event_log.wraps_once_count++;
 
-		trace_iwlwifi_dev_ucode_wrap_event(priv,
+		trace_iwlwifi_dev_ucode_wrap_event(trans(priv)->dev,
 				num_wraps - priv->event_log.num_wraps,
 				next_entry, priv->event_log.next_entry);
 

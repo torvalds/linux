@@ -35,20 +35,20 @@
 
 static inline void iwl_write8(struct iwl_trans *trans, u32 ofs, u8 val)
 {
-	trace_iwlwifi_dev_iowrite8(priv(trans), ofs, val);
+	trace_iwlwifi_dev_iowrite8(trans->dev, ofs, val);
 	iwl_trans_write8(trans, ofs, val);
 }
 
 static inline void iwl_write32(struct iwl_trans *trans, u32 ofs, u32 val)
 {
-	trace_iwlwifi_dev_iowrite32(priv(trans), ofs, val);
+	trace_iwlwifi_dev_iowrite32(trans->dev, ofs, val);
 	iwl_trans_write32(trans, ofs, val);
 }
 
 static inline u32 iwl_read32(struct iwl_trans *trans, u32 ofs)
 {
 	u32 val = iwl_trans_read32(trans, ofs);
-	trace_iwlwifi_dev_ioread32(priv(trans), ofs, val);
+	trace_iwlwifi_dev_ioread32(trans->dev, ofs, val);
 	return val;
 }
 

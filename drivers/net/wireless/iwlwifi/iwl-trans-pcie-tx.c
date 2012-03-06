@@ -820,7 +820,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	/* check that tracing gets all possible blocks */
 	BUILD_BUG_ON(IWL_MAX_CMD_TFDS + 1 != 3);
 #ifdef CONFIG_IWLWIFI_DEVICE_TRACING
-	trace_iwlwifi_dev_hcmd(priv(trans), cmd->flags,
+	trace_iwlwifi_dev_hcmd(trans->dev, cmd->flags,
 			       trace_bufs[0], trace_lens[0],
 			       trace_bufs[1], trace_lens[1],
 			       trace_bufs[2], trace_lens[2]);

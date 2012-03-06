@@ -388,7 +388,7 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 
 	len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 	len += sizeof(u32); /* account for status word */
-	trace_iwlwifi_dev_rx(priv(trans), pkt, len);
+	trace_iwlwifi_dev_rx(trans->dev, pkt, len);
 
 	/* Reclaim a command buffer only if this packet is a response
 	 *   to a (driver-originated) command.
@@ -632,7 +632,7 @@ static void iwl_dump_nic_error_log(struct iwl_trans *trans)
 
 	trans_pcie->isr_stats.err_code = table.error_id;
 
-	trace_iwlwifi_dev_ucode_error(priv(trans), table.error_id, table.tsf_low,
+	trace_iwlwifi_dev_ucode_error(trans->dev, table.error_id, table.tsf_low,
 				      table.data1, table.data2, table.line,
 				      table.blink1, table.blink2, table.ilink1,
 				      table.ilink2, table.bcon_time, table.gp1,
@@ -764,7 +764,7 @@ static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
 						"EVT_LOG:0x%08x:%04u\n",
 						time, ev);
 			} else {
-				trace_iwlwifi_dev_ucode_event(priv(trans), 0,
+				trace_iwlwifi_dev_ucode_event(trans->dev, 0,
 					time, ev);
 				IWL_ERR(trans, "EVT_LOG:0x%08x:%04u\n",
 					time, ev);
@@ -778,7 +778,7 @@ static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
 			} else {
 				IWL_ERR(trans, "EVT_LOGT:%010u:0x%08x:%04u\n",
 					time, data, ev);
-				trace_iwlwifi_dev_ucode_event(priv(trans), time,
+				trace_iwlwifi_dev_ucode_event(trans->dev, time,
 					data, ev);
 			}
 		}
@@ -1262,7 +1262,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 	if (!trans)
 		return IRQ_NONE;
 
-	trace_iwlwifi_dev_irq(priv(trans));
+	trace_iwlwifi_dev_irq(trans->dev);
 
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -1352,7 +1352,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	if (!trans_pcie->use_ict)
 		return iwl_isr(irq, data);
 
-	trace_iwlwifi_dev_irq(priv(trans));
+	trace_iwlwifi_dev_irq(trans->dev);
 
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 
@@ -1369,7 +1369,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	 * This may be due to IRQ shared with another device,
 	 * or due to sporadic interrupts thrown from our NIC. */
 	read = le32_to_cpu(trans_pcie->ict_tbl[trans_pcie->ict_index]);
-	trace_iwlwifi_dev_ict_read(priv(trans), trans_pcie->ict_index, read);
+	trace_iwlwifi_dev_ict_read(trans->dev, trans_pcie->ict_index, read);
 	if (!read) {
 		IWL_DEBUG_ISR(trans, "Ignore interrupt, inta == 0\n");
 		goto none;
@@ -1388,7 +1388,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 			iwl_queue_inc_wrap(trans_pcie->ict_index, ICT_COUNT);
 
 		read = le32_to_cpu(trans_pcie->ict_tbl[trans_pcie->ict_index]);
-		trace_iwlwifi_dev_ict_read(priv(trans), trans_pcie->ict_index,
+		trace_iwlwifi_dev_ict_read(trans->dev, trans_pcie->ict_index,
 					   read);
 	} while (read);
 
