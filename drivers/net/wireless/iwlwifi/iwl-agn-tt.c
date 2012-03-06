@@ -34,6 +34,7 @@
 
 #include <net/mac80211.h>
 
+#include "iwl-agn.h"
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"

@@ -508,46 +508,4 @@ iwl_remove_notification(struct iwl_shared *shrd,
 #define STATUS_CHANNEL_SWITCH_PENDING 19
 #define STATUS_SCAN_COMPLETE	20
 
-static inline int iwl_is_ready(struct iwl_shared *shrd)
-{
-	/* The adapter is 'ready' if READY and GEO_CONFIGURED bits are
-	 * set but EXIT_PENDING is not */
-	return test_bit(STATUS_READY, &shrd->status) &&
-	       test_bit(STATUS_GEO_CONFIGURED, &shrd->status) &&
-	       !test_bit(STATUS_EXIT_PENDING, &shrd->status);
-}
-
-static inline int iwl_is_alive(struct iwl_shared *shrd)
-{
-	return test_bit(STATUS_ALIVE, &shrd->status);
-}
-
-static inline int iwl_is_init(struct iwl_shared *shrd)
-{
-	return test_bit(STATUS_INIT, &shrd->status);
-}
-
-static inline int iwl_is_rfkill_hw(struct iwl_shared *shrd)
-{
-	return test_bit(STATUS_RF_KILL_HW, &shrd->status);
-}
-
-static inline int iwl_is_rfkill(struct iwl_shared *shrd)
-{
-	return iwl_is_rfkill_hw(shrd);
-}
-
-static inline int iwl_is_ctkill(struct iwl_shared *shrd)
-{
-	return test_bit(STATUS_CT_KILL, &shrd->status);
-}
-
-static inline int iwl_is_ready_rf(struct iwl_shared *shrd)
-{
-	if (iwl_is_rfkill(shrd))
-		return 0;
-
-	return iwl_is_ready(shrd);
-}
-
 #endif /* #__iwl_shared_h__ */

@@ -383,4 +383,68 @@ static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 }
 #endif
 
+/* status checks */
+
+static inline int iwl_is_ready(struct iwl_shared *shrd)
+{
+	/* The adapter is 'ready' if READY and GEO_CONFIGURED bits are
+	 * set but EXIT_PENDING is not */
+	return test_bit(STATUS_READY, &shrd->status) &&
+	       test_bit(STATUS_GEO_CONFIGURED, &shrd->status) &&
+	       !test_bit(STATUS_EXIT_PENDING, &shrd->status);
+}
+
+static inline int iwl_is_alive(struct iwl_shared *shrd)
+{
+	return test_bit(STATUS_ALIVE, &shrd->status);
+}
+
+static inline int iwl_is_init(struct iwl_shared *shrd)
+{
+	return test_bit(STATUS_INIT, &shrd->status);
+}
+
+static inline int iwl_is_rfkill_hw(struct iwl_shared *shrd)
+{
+	return test_bit(STATUS_RF_KILL_HW, &shrd->status);
+}
+
+static inline int iwl_is_rfkill(struct iwl_shared *shrd)
+{
+	return iwl_is_rfkill_hw(shrd);
+}
+
+static inline int iwl_is_ctkill(struct iwl_shared *shrd)
+{
+	return test_bit(STATUS_CT_KILL, &shrd->status);
+}
+
+static inline int iwl_is_ready_rf(struct iwl_shared *shrd)
+{
+	if (iwl_is_rfkill(shrd))
+		return 0;
+
+	return iwl_is_ready(shrd);
+}
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+#define IWL_DEBUG_QUIET_RFKILL(m, fmt, args...)	\
+do {									\
+	if (!iwl_is_rfkill((m)->shrd))					\
+		IWL_ERR(m, fmt, ##args);				\
+	else								\
+		__iwl_err(trans(m)->dev, true,				\
+			  !iwl_have_debug_level(IWL_DL_RADIO),		\
+			  fmt, ##args);					\
+} while (0)
+#else
+#define IWL_DEBUG_QUIET_RFKILL(m, fmt, args...)	\
+do {									\
+	if (!iwl_is_rfkill((m)->shrd))					\
+		IWL_ERR(m, fmt, ##args);				\
+	else								\
+		__iwl_err(trans(m)->dev, true, true, fmt, ##args);	\
+} while (0)
+#endif				/* CONFIG_IWLWIFI_DEBUG */
+
 #endif /* __iwl_agn_h__ */

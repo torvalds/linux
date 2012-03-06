@@ -76,24 +76,8 @@ do {                                            			\
 		print_hex_dump(KERN_DEBUG, "iwl data: ",		\
 			       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);	\
 } while (0)
-#define IWL_DEBUG_QUIET_RFKILL(m, fmt, args...)	\
-do {									\
-	if (!iwl_is_rfkill((m)->shrd))					\
-		IWL_ERR(m, fmt, ##args);				\
-	else								\
-		__iwl_err(trans(m)->dev, true,				\
-			  !iwl_have_debug_level(IWL_DL_RADIO),		\
-			  fmt, ##args);					\
-} while (0)
 #else
 #define iwl_print_hex_dump(m, level, p, len)
-#define IWL_DEBUG_QUIET_RFKILL(m, fmt, args...)	\
-do {									\
-	if (!iwl_is_rfkill((m)->shrd))					\
-		IWL_ERR(m, fmt, ##args);				\
-	else								\
-		__iwl_err(trans(m)->dev, true, true, fmt, ##args);	\
-} while (0)
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
