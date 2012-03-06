@@ -1918,6 +1918,7 @@ bfad_iocmd_debug_fw_core(struct bfad_s *bfad, void *cmd,
 	struct bfa_bsg_debug_s *iocmd = (struct bfa_bsg_debug_s *)cmd;
 	void	*iocmd_bufptr;
 	unsigned long	flags;
+	u32 offset;
 
 	if (bfad_chk_iocmd_sz(payload_len, sizeof(struct bfa_bsg_debug_s),
 			BFA_DEBUG_FW_CORE_CHUNK_SZ) != BFA_STATUS_OK) {
@@ -1935,8 +1936,10 @@ bfad_iocmd_debug_fw_core(struct bfad_s *bfad, void *cmd,
 
 	iocmd_bufptr = (char *)iocmd + sizeof(struct bfa_bsg_debug_s);
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	offset = iocmd->offset;
 	iocmd->status = bfa_ioc_debug_fwcore(&bfad->bfa.ioc, iocmd_bufptr,
-				(u32 *)&iocmd->offset, &iocmd->bufsz);
+				&offset, &iocmd->bufsz);
+	iocmd->offset = offset;
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 out:
 	return 0;
