@@ -2849,6 +2849,22 @@ remain constant.</entry>
 	  <row><entry></entry></row>
 
 	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_EXPOSURE_BIAS</constant>&nbsp;</entry>
+	    <entry>integer menu</entry>
+	  </row><row><entry spanname="descr"> Determines the automatic
+exposure compensation, it is effective only when <constant>V4L2_CID_EXPOSURE_AUTO</constant>
+control is set to <constant>AUTO</constant>, <constant>SHUTTER_PRIORITY </constant>
+or <constant>APERTURE_PRIORITY</constant>.
+It is expressed in terms of EV, drivers should interpret the values as 0.001 EV
+units, where the value 1000 stands for +1 EV.
+<para>Increasing the exposure compensation value is equivalent to decreasing
+the exposure value (EV) and will increase the amount of light at the image
+sensor. The camera performs the exposure compensation by adjusting absolute
+exposure time and/or aperture.</para></entry>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row>
 	    <entry spanname="id"><constant>V4L2_CID_PAN_RELATIVE</constant>&nbsp;</entry>
 	    <entry>integer</entry>
 	  </row><row><entry spanname="descr">This control turns the
