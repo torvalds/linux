@@ -1345,7 +1345,7 @@ void iwl_bg_watchdog(unsigned long data)
 		return;
 
 	/* monitor and check for stuck queues */
-	for (cnt = 0; cnt < hw_params(priv).max_txq_num; cnt++)
+	for (cnt = 0; cnt < cfg(priv)->base_params->num_of_queues; cnt++)
 		if (iwl_check_stuck_queue(priv, cnt))
 			return;
 
