@@ -721,12 +721,6 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (WARN_ON(copy_size > TFD_MAX_PAYLOAD_SIZE))
 		return -EINVAL;
 
-	if (iwl_is_rfkill(trans->shrd) || iwl_is_ctkill(trans->shrd)) {
-		IWL_WARN(trans, "Not sending command - %s KILL\n",
-			 iwl_is_rfkill(trans->shrd) ? "RF" : "CT");
-		return -EIO;
-	}
-
 	spin_lock_bh(&txq->lock);
 
 	if (iwl_queue_space(q) < ((cmd->flags & CMD_ASYNC) ? 2 : 1)) {
@@ -965,7 +959,7 @@ static int iwl_send_cmd_async(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 	ret = iwl_enqueue_hcmd(trans, cmd);
 	if (ret < 0) {
-		IWL_DEBUG_QUIET_RFKILL(trans,
+		IWL_ERR(trans,
 			"Error sending %s: enqueue_hcmd failed: %d\n",
 			  get_cmd_string(cmd->id), ret);
 		return ret;
@@ -984,11 +978,6 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n",
 			get_cmd_string(cmd->id));
 
-	if (test_bit(STATUS_RF_KILL_HW, &trans->shrd->status)) {
-		IWL_ERR(trans, "Command %s aborted: RF KILL Switch\n",
-			       get_cmd_string(cmd->id));
-		return -ECANCELED;
-	}
 	if (test_bit(STATUS_FW_ERROR, &trans->shrd->status)) {
 		IWL_ERR(trans, "Command %s failed: FW Error\n",
 			       get_cmd_string(cmd->id));
@@ -1002,7 +991,7 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (cmd_idx < 0) {
 		ret = cmd_idx;
 		clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
-		IWL_DEBUG_QUIET_RFKILL(trans,
+		IWL_ERR(trans,
 			"Error sending %s: enqueue_hcmd failed: %d\n",
 			  get_cmd_string(cmd->id), ret);
 		return ret;
@@ -1017,12 +1006,12 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 				&trans_pcie->txq[trans->shrd->cmd_queue];
 			struct iwl_queue *q = &txq->q;
 
-			IWL_DEBUG_QUIET_RFKILL(trans,
+			IWL_ERR(trans,
 				"Error sending %s: time out after %dms.\n",
 				get_cmd_string(cmd->id),
 				jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
 
-			IWL_DEBUG_QUIET_RFKILL(trans,
+			IWL_ERR(trans,
 				"Current CMD queue read_ptr %d write_ptr %d\n",
 				q->read_ptr, q->write_ptr);
 

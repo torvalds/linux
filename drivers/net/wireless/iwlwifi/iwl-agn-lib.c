@@ -1292,6 +1292,12 @@ int iwlagn_suspend(struct iwl_priv *priv,
 
 int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
+	if (iwl_is_rfkill(priv->shrd) || iwl_is_ctkill(priv->shrd)) {
+		IWL_WARN(priv, "Not sending command - %s KILL\n",
+			 iwl_is_rfkill(priv->shrd) ? "RF" : "CT");
+		return -EIO;
+	}
+
 	return iwl_trans_send_cmd(trans(priv), cmd);
 }
 
