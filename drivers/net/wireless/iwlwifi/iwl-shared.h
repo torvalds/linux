@@ -366,10 +366,10 @@ struct iwl_cfg {
 	const struct iwl_lib_ops *lib;
 	void (*additional_nic_config)(struct iwl_priv *priv);
 	/* params not likely to change within a device family */
-	struct iwl_base_params *base_params;
+	const struct iwl_base_params *base_params;
 	/* params likely to change within a device family */
-	struct iwl_ht_params *ht_params;
-	struct iwl_bt_params *bt_params;
+	const struct iwl_ht_params *ht_params;
+	const struct iwl_bt_params *bt_params;
 	enum iwl_pa_type pa_type;	  /* if used set to IWL_PA_SYSTEM */
 	const bool need_temp_offset_calib; /* if used set to true */
 	const bool no_xtal_calib;

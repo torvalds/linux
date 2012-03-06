@@ -157,7 +157,7 @@ static struct iwl_lib_ops iwl1000_lib = {
 	.temperature = iwlagn_temperature,
 };
 
-static struct iwl_base_params iwl1000_base_params = {
+static const struct iwl_base_params iwl1000_base_params = {
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
@@ -172,7 +172,8 @@ static struct iwl_base_params iwl1000_base_params = {
 	.max_event_log_size = 128,
 	.wd_disable = true,
 };
-static struct iwl_ht_params iwl1000_ht_params = {
+
+static const struct iwl_ht_params iwl1000_ht_params = {
 	.ht_greenfield_support = true,
 	.use_rts_for_aggregation = true, /* use rts/cts protection */
 	.smps_mode = IEEE80211_SMPS_DYNAMIC,

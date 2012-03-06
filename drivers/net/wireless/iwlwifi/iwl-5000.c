@@ -310,7 +310,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 	.temperature = iwl5150_temperature,
 };
 
-static struct iwl_base_params iwl5000_base_params = {
+static const struct iwl_base_params iwl5000_base_params = {
 	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
@@ -323,7 +323,8 @@ static struct iwl_base_params iwl5000_base_params = {
 	.no_idle_support = true,
 	.wd_disable = true,
 };
-static struct iwl_ht_params iwl5000_ht_params = {
+
+static const struct iwl_ht_params iwl5000_ht_params = {
 	.ht_greenfield_support = true,
 };
 
