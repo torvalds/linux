@@ -488,7 +488,7 @@ static void iwl_bg_tx_flush(struct work_struct *work)
 	iwlagn_dev_txfifo_flush(priv, IWL_DROP_ALL);
 }
 
-void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
+static void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
 {
 	int i;
 
