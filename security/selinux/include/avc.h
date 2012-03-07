@@ -170,11 +170,7 @@ u32 avc_policy_seqno(void);
 #define AVC_CALLBACK_AUDITDENY_ENABLE	64
 #define AVC_CALLBACK_AUDITDENY_DISABLE	128
 
-int avc_add_callback(int (*callback)(u32 event, u32 ssid, u32 tsid,
-				     u16 tclass, u32 perms,
-				     u32 *out_retained),
-		     u32 events, u32 ssid, u32 tsid,
-		     u16 tclass, u32 perms);
+int avc_add_callback(int (*callback)(u32 event), u32 events);
 
 /* Exported to selinuxfs */
 int avc_get_hash_stats(char *page);
