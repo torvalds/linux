@@ -118,7 +118,6 @@ extern void s3c24xx_setup_clocks(unsigned long fclk,
 extern void s3c2410_setup_clocks(void);
 extern void s3c2412_setup_clocks(void);
 extern void s3c244x_setup_clocks(void);
-extern void s3c2443_setup_clocks(void);
 
 /* S3C2410 specific clock functions */
 
