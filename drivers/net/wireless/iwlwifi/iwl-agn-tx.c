@@ -248,6 +248,35 @@ static void iwlagn_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 	}
 }
 
+/**
+ * iwl_sta_id_or_broadcast - return sta_id or broadcast sta
+ * @context: the current context
+ * @sta: mac80211 station
+ *
+ * In certain circumstances mac80211 passes a station pointer
+ * that may be %NULL, for example during TX or key setup. In
+ * that case, we need to use the broadcast station, so this
+ * inline wraps that pattern.
+ */
+static int iwl_sta_id_or_broadcast(struct iwl_rxon_context *context,
+				   struct ieee80211_sta *sta)
+{
+	int sta_id;
+
+	if (!sta)
+		return context->bcast_sta_id;
+
+	sta_id = iwl_sta_id(sta);
+
+	/*
+	 * mac80211 should not be passing a partially
+	 * initialised station!
+	 */
+	WARN_ON(sta_id == IWL_INVALID_STATION);
+
+	return sta_id;
+}
+
 /*
  * start REPLY_TX command process
  */
@@ -304,7 +333,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		sta_id = ctx->bcast_sta_id;
 	else {
 		/* Find index into station table for destination station */
-		sta_id = iwl_sta_id_or_broadcast(priv, ctx, info->control.sta);
+		sta_id = iwl_sta_id_or_broadcast(ctx, info->control.sta);
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_DROP(priv, "Dropping - INVALID STATION: %pM\n",
 				       hdr->addr1);
