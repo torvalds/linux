@@ -367,7 +367,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	if (info->flags & IEEE80211_TX_CTL_AMPDU)
 		is_agg = true;
 
-	dev_cmd = kmem_cache_alloc(priv->tx_cmd_pool, GFP_ATOMIC);
+	dev_cmd = kmem_cache_alloc(iwl_tx_cmd_pool, GFP_ATOMIC);
 
 	if (unlikely(!dev_cmd))
 		goto drop_unlock_priv;
@@ -458,7 +458,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 drop_unlock_sta:
 	if (dev_cmd)
-		kmem_cache_free(priv->tx_cmd_pool, dev_cmd);
+		kmem_cache_free(iwl_tx_cmd_pool, dev_cmd);
 	spin_unlock(&priv->sta_lock);
 drop_unlock_priv:
 	return -1;
@@ -1078,7 +1078,7 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 
 			info = IEEE80211_SKB_CB(skb);
 			ctx = info->driver_data[0];
-			kmem_cache_free(priv->tx_cmd_pool,
+			kmem_cache_free(iwl_tx_cmd_pool,
 					(info->driver_data[1]));
 
 			memset(&info->status, 0, sizeof(info->status));
@@ -1229,7 +1229,7 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 			WARN_ON_ONCE(1);
 
 		info = IEEE80211_SKB_CB(skb);
-		kmem_cache_free(priv->tx_cmd_pool, (info->driver_data[1]));
+		kmem_cache_free(iwl_tx_cmd_pool, (info->driver_data[1]));
 
 		if (freed == 1) {
 			/* this is the first skb we deliver in this batch */

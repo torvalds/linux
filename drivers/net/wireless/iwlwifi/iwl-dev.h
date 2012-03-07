@@ -725,7 +725,6 @@ struct iwl_priv {
 	struct ieee80211_hw *hw;
 	struct ieee80211_channel *ieee_channels;
 	struct ieee80211_rate *ieee_rates;
-	struct kmem_cache *tx_cmd_pool;
 
 	struct list_head calib_results;
 
@@ -983,6 +982,7 @@ struct iwl_priv {
 	bool have_rekey_data;
 }; /*iwl_priv */
 
+extern struct kmem_cache *iwl_tx_cmd_pool;
 extern struct iwl_mod_params iwlagn_mod_params;
 
 static inline struct iwl_rxon_context *

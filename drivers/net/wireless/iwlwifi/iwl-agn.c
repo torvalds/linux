@@ -1102,8 +1102,6 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 {
 	iwl_free_geos(priv);
 	iwl_free_channel_map(priv);
-	if (priv->tx_cmd_pool)
-		kmem_cache_destroy(priv->tx_cmd_pool);
 	kfree(priv->scan_cmd);
 	kfree(priv->beacon_cmd);
 	kfree(rcu_dereference_raw(priv->noa_data));
@@ -1477,6 +1475,9 @@ const struct iwl_op_mode_ops iwl_dvm_ops = {
  * driver and module entry point
  *
  *****************************************************************************/
+
+struct kmem_cache *iwl_tx_cmd_pool;
+
 static int __init iwl_init(void)
 {
 
@@ -1484,20 +1485,27 @@ static int __init iwl_init(void)
 	pr_info(DRV_DESCRIPTION ", " DRV_VERSION "\n");
 	pr_info(DRV_COPYRIGHT "\n");
 
+	iwl_tx_cmd_pool = kmem_cache_create("iwl_dev_cmd",
+					    sizeof(struct iwl_device_cmd),
+					    sizeof(void *), 0, NULL);
+	if (!iwl_tx_cmd_pool)
+		return -ENOMEM;
+
 	ret = iwlagn_rate_control_register();
 	if (ret) {
 		pr_err("Unable to register rate control algorithm: %d\n", ret);
-		return ret;
+		goto error_rc_register;
 	}
 
 	ret = iwl_pci_register_driver();
-
 	if (ret)
-		goto error_register;
+		goto error_pci_register;
 	return ret;
 
-error_register:
+error_pci_register:
 	iwlagn_rate_control_unregister();
+error_rc_register:
+	kmem_cache_destroy(iwl_tx_cmd_pool);
 	return ret;
 }
 
@@ -1505,6 +1513,7 @@ static void __exit iwl_exit(void)
 {
 	iwl_pci_unregister_driver();
 	iwlagn_rate_control_unregister();
+	kmem_cache_destroy(iwl_tx_cmd_pool);
 }
 
 module_exit(iwl_exit);

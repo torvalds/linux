@@ -1470,10 +1470,9 @@ void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 
 void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
 {
-	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 	struct ieee80211_tx_info *info;
 
 	info = IEEE80211_SKB_CB(skb);
-	kmem_cache_free(priv->tx_cmd_pool, (info->driver_data[1]));
+	kmem_cache_free(iwl_tx_cmd_pool, (info->driver_data[1]));
 	dev_kfree_skb_any(skb);
 }
