@@ -81,6 +81,15 @@ config CPU_S3C2443
 	help
 	  Support for the S3C2443 SoC from the S3C24XX line
 
+# common code
+
+config S3C24XX_SMDK
+	bool
+	help
+	  Common machine code for SMDK2410 and SMDK2440
+
+# cpu-specific sections
+
 if CPU_S3C2410
 
 config S3C2410_DMA
@@ -192,7 +201,7 @@ config MACH_QT2410
 
 config ARCH_SMDK2410
 	bool "SMDK2410/A9M2410"
-	select MACH_SMDK
+	select S3C24XX_SMDK
 	help
 	  Say Y here if you are using the SMDK2410 or the derived module A9M2410
 	  <http://www.fsforth.de>
@@ -279,7 +288,7 @@ config MACH_SMDK2412
 config MACH_SMDK2413
 	bool "SMDK2413"
 	select MACH_S3C2413
-	select MACH_SMDK
+	select S3C24XX_SMDK
 	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
 	help
@@ -317,7 +326,7 @@ comment "S3C2416 Boards"
 
 config MACH_SMDK2416
 	bool "SMDK2416"
-	select MACH_SMDK
+	select S3C24XX_SMDK
 	select S3C_DEV_FB
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
@@ -420,7 +429,7 @@ config MACH_RX3715
 config ARCH_S3C2440
 	bool "SMDK2440"
 	select S3C2440_XTAL_16934400
-	select MACH_SMDK
+	select S3C24XX_SMDK
 	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
 	help
@@ -492,7 +501,7 @@ comment "S3C2443 Boards"
 
 config MACH_SMDK2443
 	bool "SMDK2443"
-	select MACH_SMDK
+	select S3C24XX_SMDK
 	select S3C_DEV_HSMMC1
 	help
 	  Say Y here if you are using an SMDK2443

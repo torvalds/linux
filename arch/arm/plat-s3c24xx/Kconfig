@@ -119,11 +119,6 @@ config S3C2412_IOTIMING
 	  Intel node to select io timing code that is common to the s3c2412
 	  and the s3c2443.
 
-config MACH_SMDK
-	bool
-	help
-	  Common machine code for SMDK2410 and SMDK2440
-
 config S3C24XX_SIMTEC_AUDIO
 	bool
 	depends on (ARCH_BAST || MACH_VR1000 || MACH_OSIRIS || MACH_ANUBIS)

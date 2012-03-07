@@ -39,5 +39,4 @@ obj-$(CONFIG_S3C2410_SETUP_TS)	+= setup-ts.o
 
 # machine common support
 
-obj-$(CONFIG_MACH_SMDK)		+= common-smdk.o
 obj-$(CONFIG_S3C24XX_SIMTEC_AUDIO)	+= simtec-audio.o

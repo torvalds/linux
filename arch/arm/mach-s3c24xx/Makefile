@@ -77,6 +77,7 @@ obj-$(CONFIG_MACH_SMDK2443)		+= mach-smdk2443.o
 
 # common bits of machine support
 
+obj-$(CONFIG_S3C24XX_SMDK)		+= common-smdk.o
 obj-$(CONFIG_SIMTEC_NOR)		+= nor-simtec.o
 
 # machine additions
