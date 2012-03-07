@@ -1672,8 +1672,8 @@ static int htc_parse_trailer(struct htc_target *target,
 		}
 
 		lk_ahd = (struct htc_lookahead_report *) record_buf;
-		if ((lk_ahd->pre_valid == ((~lk_ahd->post_valid) & 0xFF))
-		    && next_lk_ahds) {
+		if ((lk_ahd->pre_valid == ((~lk_ahd->post_valid) & 0xFF)) &&
+		    next_lk_ahds) {
 
 			ath6kl_dbg(ATH6KL_DBG_HTC,
 				   "htc rx lk_ahd found pre_valid 0x%x post_valid 0x%x\n",
@@ -2449,8 +2449,8 @@ int ath6kl_htc_conn_service(struct htc_target *target,
 
 		resp_msg = (struct htc_conn_service_resp *)rx_pkt->buf;
 
-		if ((le16_to_cpu(resp_msg->msg_id) != HTC_MSG_CONN_SVC_RESP_ID)
-		    || (rx_pkt->act_len < sizeof(*resp_msg))) {
+		if ((le16_to_cpu(resp_msg->msg_id) != HTC_MSG_CONN_SVC_RESP_ID) ||
+		    (rx_pkt->act_len < sizeof(*resp_msg))) {
 			status = -ENOMEM;
 			goto fail_tx;
 		}
