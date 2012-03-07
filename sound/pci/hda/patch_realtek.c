@@ -2052,15 +2052,14 @@ static int alc_build_controls(struct hda_codec *codec)
 
 static void alc_init_special_input_src(struct hda_codec *codec);
 static void alc_auto_init_std(struct hda_codec *codec);
-static int alc269_fill_coef(struct hda_codec *codec);
 
 static int alc_init(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	unsigned int i;
 
-	if (codec->vendor_id == 0x10ec0269)
-		alc269_fill_coef(codec);
+	if (spec->init_hook)
+		spec->init_hook(codec);
 
 	alc_fix_pll(codec);
 	alc_auto_init_amp(codec, spec->init_amp);
@@ -2069,9 +2068,6 @@ static int alc_init(struct hda_codec *codec)
 		snd_hda_sequence_write(codec, spec->init_verbs[i]);
 	alc_init_special_input_src(codec);
 	alc_auto_init_std(codec);
-
-	if (spec->init_hook)
-		spec->init_hook(codec);
 
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_INIT);
 
@@ -6124,13 +6120,13 @@ static const struct alc_model_fixup alc269_fixup_models[] = {
 };
 
 
-static int alc269_fill_coef(struct hda_codec *codec)
+static void alc269_fill_coef(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	int val;
 
 	if (spec->codec_variant != ALC269_TYPE_ALC269VB)
-		return 0;
+		return;
 
 	if ((alc_get_coef0(codec) & 0x00ff) < 0x015) {
 		alc_write_coef_idx(codec, 0xf, 0x960b);
@@ -6166,8 +6162,6 @@ static int alc269_fill_coef(struct hda_codec *codec)
 
 	val = alc_read_coef_idx(codec, 0x4); /* HP */
 	alc_write_coef_idx(codec, 0x4, val | (1<<11));
-
-	return 0;
 }
 
 /*
@@ -6211,6 +6205,7 @@ static int patch_alc269(struct hda_codec *codec)
 		}
 		if (err < 0)
 			goto error;
+		spec->init_hook = alc269_fill_coef;
 		alc269_fill_coef(codec);
 	}
 
