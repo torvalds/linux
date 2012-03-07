@@ -59,26 +59,33 @@ int goodix_init_platform_hw(void)
 {
 	int ret;
 	printk("goodix_init_platform_hw\n");
-	ret = gpio_request(TOUCH_PWR_PIN, "goodix power pin");
-	if(ret != 0){
-		gpio_free(TOUCH_PWR_PIN);
-		printk("goodix power error\n");
-		return -EIO;
+	if(TOUCH_PWR_PIN != INVALID_GPIO)
+	{
+		ret = gpio_request(TOUCH_PWR_PIN, "goodix power pin");
+		if(ret != 0){
+			gpio_free(TOUCH_PWR_PIN);
+			printk("goodix power error\n");
+			return -EIO;
+		}
+		gpio_direction_output(TOUCH_PWR_PIN, 0);
+		gpio_set_value(TOUCH_PWR_PIN,GPIO_LOW);
+		msleep(100);
 	}
-	gpio_direction_output(TOUCH_PWR_PIN, 0);
-	gpio_set_value(TOUCH_PWR_PIN,GPIO_LOW);
-	msleep(100);
-	ret = gpio_request(TOUCH_RESET_PIN, "goodix reset pin");
-	if(ret != 0){
-		gpio_free(TOUCH_RESET_PIN);
-		printk("goodix gpio_request error\n");
-		return -EIO;
+	
+	if(TOUCH_RESET_PIN != INVALID_GPIO)
+	{
+		ret = gpio_request(TOUCH_RESET_PIN, "goodix reset pin");
+		if(ret != 0){
+			gpio_free(TOUCH_RESET_PIN);
+			printk("goodix gpio_request error\n");
+			return -EIO;
+		}
+		gpio_direction_output(TOUCH_RESET_PIN, 0);
+		gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+		msleep(10);
+		gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+		msleep(500);
 	}
-	gpio_direction_output(TOUCH_RESET_PIN, 0);
-	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
-	msleep(10);
-	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
-	msleep(500);
 	return 0;
 }
 
