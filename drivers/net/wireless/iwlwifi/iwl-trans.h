@@ -335,7 +335,8 @@ struct iwl_trans_config {
  * @write32: write a u32 to a register at offset ofs from the BAR
  * @read32: read a u32 register at offset ofs from the BAR
  * @configure: configure parameters required by the transport layer from
- *	the op_mode.
+ *	the op_mode. May be called several times before start_fw, can't be
+ *	called after that.
  */
 struct iwl_trans_ops {
 
