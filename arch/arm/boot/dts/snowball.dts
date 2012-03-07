@@ -96,6 +96,18 @@
 			status = "enabled";
 		};
 
+		uart@80120000 {
+			status = "okay";
+		};
+
+		uart@80121000 {
+			status = "okay";
+		};
+
+		uart@80007000 {
+			status = "okay";
+		};
+
 		i2c@80004000 {
 			tc3589x@42 {
 				//compatible = "tc3589x";
