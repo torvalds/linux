@@ -542,7 +542,6 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 	struct s5m_platform_data *pdata = dev_get_platdata(iodev->dev);
 	struct regulator_dev **rdev;
 	struct s5m8767_info *s5m8767;
-	struct i2c_client *i2c;
 	int i, ret, size;
 
 	if (!pdata) {
@@ -565,7 +564,6 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 	s5m8767->iodev = iodev;
 	s5m8767->num_regulators = S5M8767_REG_MAX - 2;
 	platform_set_drvdata(pdev, s5m8767);
-	i2c = s5m8767->iodev->i2c;
 
 	s5m8767->buck_gpioindex = pdata->buck_default_idx;
 	s5m8767->buck2_gpiodvs = pdata->buck2_gpiodvs;
