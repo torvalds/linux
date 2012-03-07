@@ -768,12 +768,11 @@
 /* Max number of TPS65910/11 regulators */
 #define TPS65910_NUM_REGS				13
 
-/* External sleep controls through EN1/EN2/EN3 inputs*/
+/* External sleep controls through EN1/EN2/EN3/SLEEP inputs */
 #define TPS65910_SLEEP_CONTROL_EXT_INPUT_EN1		0x1
 #define TPS65910_SLEEP_CONTROL_EXT_INPUT_EN2		0x2
 #define TPS65910_SLEEP_CONTROL_EXT_INPUT_EN3		0x4
-/* TPS65911 names the EN3 signal as SLEEP */
-#define TPS65911_SLEEP_CONTROL_EXT_INPUT_SLEEP		0x4
+#define TPS65911_SLEEP_CONTROL_EXT_INPUT_SLEEP		0x8
 
 /**
  * struct tps65910_board
