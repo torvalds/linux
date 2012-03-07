@@ -685,6 +685,22 @@ static void dss_set_go_bits(void)
 
 }
 
+static void mgr_clear_shadow_dirty(struct omap_overlay_manager *mgr)
+{
+	struct omap_overlay *ovl;
+	struct mgr_priv_data *mp;
+	struct ovl_priv_data *op;
+
+	mp = get_mgr_priv(mgr);
+	mp->shadow_info_dirty = false;
+
+	list_for_each_entry(ovl, &mgr->overlays, list) {
+		op = get_ovl_priv(ovl);
+		op->shadow_info_dirty = false;
+		op->shadow_extra_info_dirty = false;
+	}
+}
+
 void dss_mgr_start_update(struct omap_overlay_manager *mgr)
 {
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
@@ -712,6 +728,8 @@ void dss_mgr_start_update(struct omap_overlay_manager *mgr)
 		dss_register_vsync_isr();
 
 	dispc_mgr_enable(mgr->id, true);
+
+	mgr_clear_shadow_dirty(mgr);
 
 	spin_unlock_irqrestore(&data_lock, flags);
 }
@@ -756,22 +774,6 @@ static void dss_unregister_vsync_isr(void)
 	dss_data.irq_enabled = false;
 }
 
-static void mgr_clear_shadow_dirty(struct omap_overlay_manager *mgr)
-{
-	struct omap_overlay *ovl;
-	struct mgr_priv_data *mp;
-	struct ovl_priv_data *op;
-
-	mp = get_mgr_priv(mgr);
-	mp->shadow_info_dirty = false;
-
-	list_for_each_entry(ovl, &mgr->overlays, list) {
-		op = get_ovl_priv(ovl);
-		op->shadow_info_dirty = false;
-		op->shadow_extra_info_dirty = false;
-	}
-}
-
 static void dss_apply_irq_handler(void *data, u32 mask)
 {
 	const int num_mgrs = dss_feat_get_num_mgrs();
@@ -800,9 +802,6 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 			mp->busy = dispc_mgr_go_busy(i);
 
 			if (was_busy && !mp->busy)
-				mgr_clear_shadow_dirty(mgr);
-		} else {
-			if (was_updating && !mp->updating)
 				mgr_clear_shadow_dirty(mgr);
 		}
 	}
