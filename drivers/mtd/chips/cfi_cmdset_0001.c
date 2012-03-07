@@ -1017,8 +1017,6 @@ static void put_chip(struct map_info *map, struct flchip *chip, unsigned long ad
 	case FL_READY:
 	case FL_STATUS:
 	case FL_JEDEC_QUERY:
-		/* We should really make set_vpp() count, rather than doing this */
-		DISABLE_VPP(map);
 		break;
 	default:
 		printk(KERN_ERR "%s: put_chip() called with oldstate %d!!\n", map->name, chip->oldstate);
@@ -1552,7 +1550,8 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
 	}
 
 	xip_enable(map, chip, adr);
- out:	put_chip(map, chip, adr);
+ out:	DISABLE_VPP(map);
+	put_chip(map, chip, adr);
 	mutex_unlock(&chip->mutex);
 	return ret;
 }
@@ -1791,7 +1790,8 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 	}
 
 	xip_enable(map, chip, cmd_adr);
- out:	put_chip(map, chip, cmd_adr);
+ out:	DISABLE_VPP(map);
+	put_chip(map, chip, cmd_adr);
 	mutex_unlock(&chip->mutex);
 	return ret;
 }
@@ -1928,6 +1928,7 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 			ret = -EIO;
 		} else if (chipstatus & 0x20 && retries--) {
 			printk(KERN_DEBUG "block erase failed at 0x%08lx: status 0x%lx. Retrying...\n", adr, chipstatus);
+			DISABLE_VPP(map);
 			put_chip(map, chip, adr);
 			mutex_unlock(&chip->mutex);
 			goto retry;
@@ -1940,7 +1941,8 @@ static int __xipram do_erase_oneblock(struct map_info *map, struct flchip *chip,
 	}
 
 	xip_enable(map, chip, adr);
- out:	put_chip(map, chip, adr);
+ out:	DISABLE_VPP(map);
+	put_chip(map, chip, adr);
 	mutex_unlock(&chip->mutex);
 	return ret;
 }
@@ -2082,7 +2084,8 @@ static int __xipram do_xxlock_oneblock(struct map_info *map, struct flchip *chip
 	}
 
 	xip_enable(map, chip, adr);
-out:	put_chip(map, chip, adr);
+ out:	DISABLE_VPP(map);
+	put_chip(map, chip, adr);
 	mutex_unlock(&chip->mutex);
 	return ret;
 }
