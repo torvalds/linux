@@ -523,9 +523,16 @@ struct htc_target {
 	struct ath6kl_htc_credit_info *credit_info;
 	int tgt_creds;
 	unsigned int tgt_cred_sz;
+
+	/* protects free_ctrl_txbuf and free_ctrl_rxbuf */
 	spinlock_t htc_lock;
+
+	/* FIXME: does this protext rx_bufq and endpoint structures or what? */
 	spinlock_t rx_lock;
+
+	/* protects endpoint->txq */
 	spinlock_t tx_lock;
+
 	struct ath6kl_device *dev;
 	u32 htc_flags;
 	u32 rx_st_flags;

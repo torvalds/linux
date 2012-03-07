@@ -223,6 +223,7 @@ struct ath6kl_irq_enable_reg {
 } __packed;
 
 struct ath6kl_device {
+	/* protects irq_proc_reg and irq_en_reg below */
 	spinlock_t lock;
 	struct ath6kl_irq_proc_registers irq_proc_reg;
 	struct ath6kl_irq_enable_reg irq_en_reg;

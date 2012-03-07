@@ -32,6 +32,7 @@
 struct ath6kl_sdio {
 	struct sdio_func *func;
 
+	/* protects access to bus_req_freeq */
 	spinlock_t lock;
 
 	/* free list */
@@ -53,13 +54,17 @@ struct ath6kl_sdio {
 	atomic_t irq_handling;
 	wait_queue_head_t irq_wq;
 
+	/* protects access to scat_req */
 	spinlock_t scat_lock;
+
 	bool scatter_enabled;
 
 	bool is_disabled;
 	const struct sdio_device_id *id;
 	struct work_struct wr_async_work;
 	struct list_head wr_asyncq;
+
+	/* protects access to wr_asyncq */
 	spinlock_t wr_async_lock;
 };
 

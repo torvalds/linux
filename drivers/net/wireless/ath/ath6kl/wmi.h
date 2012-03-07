@@ -111,6 +111,8 @@ struct wmi {
 	u8 fat_pipe_exist;
 	struct ath6kl *parent_dev;
 	u8 pwr_mode;
+
+	/* protects fat_pipe_exist and stream_exist_for_ac */
 	spinlock_t lock;
 	enum htc_endpoint_id ep_id;
 	struct sq_threshold_params
