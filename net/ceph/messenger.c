@@ -61,7 +61,6 @@ static char addr_str[ADDR_STR_COUNT][MAX_ADDR_STR_LEN];
 static atomic_t addr_str_seq = ATOMIC_INIT(0);
 
 static struct page *zero_page;		/* used in certain error cases */
-static void *zero_page_address;		/* kernel virtual addr of zero_page */
 
 const char *ceph_pr_addr(const struct sockaddr_storage *ss)
 {
@@ -111,9 +110,6 @@ void _ceph_msgr_exit(void)
 		ceph_msgr_wq = NULL;
 	}
 
-	BUG_ON(zero_page_address == NULL);
-	zero_page_address = NULL;
-
 	BUG_ON(zero_page == NULL);
 	kunmap(zero_page);
 	page_cache_release(zero_page);
@@ -125,9 +121,6 @@ int ceph_msgr_init(void)
 	BUG_ON(zero_page != NULL);
 	zero_page = ZERO_PAGE(0);
 	page_cache_get(zero_page);
-
-	BUG_ON(zero_page_address != NULL);
-	zero_page_address = kmap(zero_page);
 
 	ceph_msgr_wq = alloc_workqueue("ceph-msgr", WQ_NON_REENTRANT, 0);
 	if (ceph_msgr_wq)
@@ -889,7 +882,7 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 		} else {
 			page = zero_page;
 			if (do_datacrc)
-				kaddr = zero_page_address;
+				kaddr = kmap(page);
 		}
 		len = min_t(int, max_write - con->out_msg_pos.page_pos,
 			    total_max_write);
@@ -908,7 +901,7 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 				      con->out_msg_pos.page_pos + page_shift,
 				      len, 1);
 
-		if (do_datacrc && kaddr != zero_page_address)
+		if (do_datacrc)
 			kunmap(page);
 
 		if (ret <= 0)
