@@ -35,7 +35,6 @@ struct au_hnotify {
 #ifdef CONFIG_AUFS_HFSNOTIFY
 	/* never use fsnotify_add_vfsmount_mark() */
 	struct fsnotify_mark		hn_mark;
-	int				hn_mark_dead;
 #endif
 	struct inode			*hn_aufs_inode;	/* no get/put */
 #endif
@@ -455,7 +454,13 @@ struct au_branch;
 struct au_hnotify_op {
 	void (*ctl)(struct au_hinode *hinode, int do_set);
 	int (*alloc)(struct au_hinode *hinode);
-	void (*free)(struct au_hinode *hinode);
+
+	/*
+	 * if it returns true, the the caller should free hinode->hi_notify,
+	 * otherwise ->free() frees it.
+	 */
+	int (*free)(struct au_hinode *hinode,
+		    struct au_hnotify *hn) __must_check;
 
 	void (*fin)(void);
 	int (*init)(void);

@@ -147,7 +147,7 @@ nearest lower number.
 
 For (an unreleased) example:
 If you are using "linux-3.10" and the "aufs3.10" branch
-does not exit in aufs-util repository, then "aufs3.9", "aufs3.8"
+does not exist in aufs-util repository, then "aufs3.9", "aufs3.8"
 or something numerically smaller is the branch for your kernel.
 
 Also you can view all branches by
@@ -179,7 +179,8 @@ There are several ways to build.
   =m or =y.
 - and build your kernel as usual.
 - install the built kernel.
-- install the header files too by "make headers_install".
+- install the header files too by "make headers_install" to the
+  directory where you specify. By default, it is $PWD/usr.
 - and reboot your system.
 
 2.
@@ -201,7 +202,8 @@ There are several ways to build.
     ./aufs.ko to /lib/modules/... and run depmod -a (or reboot simply).
   + run "make headers_install" to install the aufs header file (you can
     specify DESTDIR), or copty ./usr/include/linux/aufs_type.h to
-    /usr/include/linux or wherever you like.
+    /usr/include/linux or wherever you like. By default, the target
+    directory is $PWD/usr.
 - no need to apply aufs3-kbuild.patch, nor copying source files to your
   kernel source tree.
 
