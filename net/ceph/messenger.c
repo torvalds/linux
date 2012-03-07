@@ -904,17 +904,13 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 			con->out_msg->footer.data_crc = cpu_to_le32(crc);
 			con->out_msg_pos.did_page_crc = true;
 		}
-		ret = kernel_sendpage(con->sock, page,
+		ret = ceph_tcp_sendpage(con->sock, page,
 				      con->out_msg_pos.page_pos + page_shift,
-				      len,
-				      MSG_DONTWAIT | MSG_NOSIGNAL |
-				      MSG_MORE);
+				      len, 1);
 
 		if (do_datacrc && kaddr != zero_page_address)
 			kunmap(page);
 
-		if (ret == -EAGAIN)
-			ret = 0;
 		if (ret <= 0)
 			goto out;
 
