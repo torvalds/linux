@@ -958,8 +958,10 @@ int __devinit omap_mcbsp_init(struct platform_device *pdev)
 	mcbsp->rx_irq = platform_get_irq_byname(pdev, "rx");
 
 	/* From OMAP4 there will be a single irq line */
-	if (mcbsp->tx_irq == -ENXIO)
+	if (mcbsp->tx_irq == -ENXIO) {
 		mcbsp->tx_irq = platform_get_irq(pdev, 0);
+		mcbsp->rx_irq = 0;
+	}
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "rx");
 	if (!res) {
