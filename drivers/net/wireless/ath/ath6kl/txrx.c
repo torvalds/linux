@@ -159,8 +159,8 @@ static bool ath6kl_process_uapsdq(struct ath6kl_sta *conn,
 	 */
 	if (is_apsdq_empty) {
 		ath6kl_wmi_set_apsd_bfrd_traf(ar->wmi,
-				vif->fw_vif_idx,
-				conn->aid, 1, 0);
+					      vif->fw_vif_idx,
+					      conn->aid, 1, 0);
 	}
 	*flags |= WMI_DATA_HDR_FLAGS_UAPSD;
 
@@ -379,7 +379,7 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 
 	if (test_bit(WMI_ENABLED, &ar->flag)) {
 		if ((dev->features & NETIF_F_IP_CSUM) &&
-				(csum == CHECKSUM_PARTIAL)) {
+		    (csum == CHECKSUM_PARTIAL)) {
 			csum_start = skb->csum_start -
 					(skb_network_header(skb) - skb->head) +
 					sizeof(struct ath6kl_llc_snap_hdr);
@@ -403,7 +403,7 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		if ((dev->features & NETIF_F_IP_CSUM) &&
-				(csum == CHECKSUM_PARTIAL)) {
+		    (csum == CHECKSUM_PARTIAL)) {
 			meta_v2.csum_start = csum_start;
 			meta_v2.csum_dest = csum_dest;
 
@@ -428,7 +428,7 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		if ((vif->nw_type == ADHOC_NETWORK) &&
-		     ar->ibss_ps_enable && test_bit(CONNECTED, &vif->flags))
+		    ar->ibss_ps_enable && test_bit(CONNECTED, &vif->flags))
 			chk_adhoc_ps_mapping = true;
 		else {
 			/* get the stream mapping */
@@ -886,7 +886,7 @@ void ath6kl_rx_refill(struct htc_target *target, enum htc_endpoint_id endpoint)
 		if (!IS_ALIGNED((unsigned long) skb->data, 4))
 			skb->data = PTR_ALIGN(skb->data - 4, 4);
 		set_htc_rxpkt_info(packet, skb, skb->data,
-				ATH6KL_BUFFER_SIZE, endpoint);
+				   ATH6KL_BUFFER_SIZE, endpoint);
 		list_add_tail(&packet->list, &queue);
 	}
 
@@ -1266,8 +1266,8 @@ static void ath6kl_uapsd_trigger_frame_rx(struct ath6kl_vif *vif,
 			flags = 0;
 
 		ath6kl_wmi_set_apsd_bfrd_traf(ar->wmi,
-				vif->fw_vif_idx,
-				conn->aid, 0, flags);
+					      vif->fw_vif_idx,
+					      conn->aid, 0, flags);
 	}
 
 	return;
@@ -1575,7 +1575,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 			aggr_conn = vif->aggr_cntxt->aggr_conn;
 
 		if (aggr_process_recv_frm(aggr_conn, tid, seq_no,
-		    is_amsdu, skb)) {
+					  is_amsdu, skb)) {
 			/* aggregation code will handle the skb */
 			return;
 		}

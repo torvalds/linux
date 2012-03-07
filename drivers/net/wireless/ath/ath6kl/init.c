@@ -414,13 +414,13 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 		}
 
 	if (ath6kl_wmi_set_keepalive_cmd(ar->wmi, idx,
-			WLAN_CONFIG_KEEP_ALIVE_INTERVAL)) {
+					 WLAN_CONFIG_KEEP_ALIVE_INTERVAL)) {
 		ath6kl_err("unable to set keep alive interval\n");
 		status = -EIO;
 	}
 
 	if (ath6kl_wmi_disctimeout_cmd(ar->wmi, idx,
-			WLAN_CONFIG_DISCONNECT_TIMEOUT)) {
+				       WLAN_CONFIG_DISCONNECT_TIMEOUT)) {
 		ath6kl_err("unable to set disconnect timeout\n");
 		status = -EIO;
 	}
@@ -833,13 +833,13 @@ static int ath6kl_fetch_testscript_file(struct ath6kl *ar)
 		return 0;
 
 	snprintf(filename, sizeof(filename), "%s/%s",
-		ar->hw.fw.dir, ar->hw.fw.testscript);
+		 ar->hw.fw.dir, ar->hw.fw.testscript);
 
 	ret = ath6kl_get_fw(ar, filename, &ar->fw_testscript,
 				&ar->fw_testscript_len);
 	if (ret) {
 		ath6kl_err("Failed to get testscript file %s: %d\n",
-			filename, ret);
+			   filename, ret);
 		return ret;
 	}
 
@@ -923,7 +923,7 @@ static int ath6kl_fetch_fw_apin(struct ath6kl *ar, const char *name)
 		switch (ie_id) {
 		case ATH6KL_FW_IE_OTP_IMAGE:
 			ath6kl_dbg(ATH6KL_DBG_BOOT, "found otp image ie (%zd B)\n",
-				ie_len);
+				   ie_len);
 
 			ar->fw_otp = kmemdup(data, ie_len, GFP_KERNEL);
 
@@ -936,7 +936,7 @@ static int ath6kl_fetch_fw_apin(struct ath6kl *ar, const char *name)
 			break;
 		case ATH6KL_FW_IE_FW_IMAGE:
 			ath6kl_dbg(ATH6KL_DBG_BOOT, "found fw image ie (%zd B)\n",
-				ie_len);
+				   ie_len);
 
 			/* in testmode we already might have a fw file */
 			if (ar->fw != NULL)
@@ -953,7 +953,7 @@ static int ath6kl_fetch_fw_apin(struct ath6kl *ar, const char *name)
 			break;
 		case ATH6KL_FW_IE_PATCH_IMAGE:
 			ath6kl_dbg(ATH6KL_DBG_BOOT, "found patch image ie (%zd B)\n",
-				ie_len);
+				   ie_len);
 
 			ar->fw_patch = kmemdup(data, ie_len, GFP_KERNEL);
 
@@ -1313,7 +1313,7 @@ static int ath6kl_upload_testscript(struct ath6kl *ar)
 	address = ar->hw.testscript_addr;
 
 	ath6kl_dbg(ATH6KL_DBG_BOOT, "writing testscript to 0x%x (%zd B)\n",
-		address, ar->fw_testscript_len);
+		   address, ar->fw_testscript_len);
 
 	ret = ath6kl_bmi_write(ar, address, ar->fw_testscript,
 		ar->fw_testscript_len);
@@ -1349,7 +1349,7 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 	int status = 0;
 
 	if (ar->target_type != TARGET_TYPE_AR6003 &&
-		ar->target_type != TARGET_TYPE_AR6004)
+	    ar->target_type != TARGET_TYPE_AR6004)
 		return -EINVAL;
 
 	/* temporarily disable system sleep */
@@ -1730,7 +1730,7 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 	 * configure NOT to reset the target during a debug session.
 	 */
 	ath6kl_dbg(ATH6KL_DBG_TRC,
-			"attempting to reset target on instance destroy\n");
+		   "attempting to reset target on instance destroy\n");
 	ath6kl_reset_device(ar, ar->target_type, true, true);
 
 	clear_bit(WLAN_ENABLED, &ar->flag);

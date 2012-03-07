@@ -90,7 +90,7 @@ static void ath6kl_hif_dump_fw_crash(struct ath6kl *ar)
 	}
 
 	ath6kl_dbg(ATH6KL_DBG_IRQ, "register dump data address 0x%x\n",
-		regdump_addr);
+		   regdump_addr);
 	regdump_addr = TARG_VTOP(ar->target_type, regdump_addr);
 
 	/* fetch register dump data */
@@ -285,7 +285,7 @@ static int ath6kl_hif_proc_counter_intr(struct ath6kl_device *dev)
 			     dev->irq_en_reg.cntr_int_status_en;
 
 	ath6kl_dbg(ATH6KL_DBG_IRQ,
-		"valid interrupt source(s) in COUNTER_INT_STATUS: 0x%x\n",
+		   "valid interrupt source(s) in COUNTER_INT_STATUS: 0x%x\n",
 		counter_int_status);
 
 	/*
@@ -360,7 +360,7 @@ static int ath6kl_hif_proc_cpu_intr(struct ath6kl_device *dev)
 	}
 
 	ath6kl_dbg(ATH6KL_DBG_IRQ,
-		"valid interrupt source(s) in CPU_INT_STATUS: 0x%x\n",
+		   "valid interrupt source(s) in CPU_INT_STATUS: 0x%x\n",
 		cpu_int_status);
 
 	/* Clear the interrupt */

@@ -115,8 +115,8 @@ int ath6kl_core_init(struct ath6kl *ar)
 			 ATH6KL_CONF_ENABLE_11N | ATH6KL_CONF_ENABLE_TX_BURST;
 
 	if (suspend_mode &&
-		suspend_mode >= WLAN_POWER_STATE_CUT_PWR &&
-		suspend_mode <= WLAN_POWER_STATE_WOW)
+	    suspend_mode >= WLAN_POWER_STATE_CUT_PWR &&
+	    suspend_mode <= WLAN_POWER_STATE_WOW)
 		ar->suspend_mode = suspend_mode;
 	else
 		ar->suspend_mode = 0;
@@ -174,7 +174,7 @@ int ath6kl_core_init(struct ath6kl *ar)
 	}
 
 	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: name=%s dev=0x%p, ar=0x%p\n",
-			__func__, ndev->name, ndev, ar);
+		   __func__, ndev->name, ndev, ar);
 
 	return ret;
 

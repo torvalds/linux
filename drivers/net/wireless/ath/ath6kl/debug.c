@@ -119,29 +119,29 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 
 	if (irq_proc_reg != NULL) {
 		ath6kl_dbg(ATH6KL_DBG_IRQ,
-			"Host Int status:           0x%x\n",
-			irq_proc_reg->host_int_status);
+			   "Host Int status:           0x%x\n",
+			   irq_proc_reg->host_int_status);
 		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "CPU Int status:            0x%x\n",
-			irq_proc_reg->cpu_int_status);
+			   irq_proc_reg->cpu_int_status);
 		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Error Int status:          0x%x\n",
-			irq_proc_reg->error_int_status);
+			   irq_proc_reg->error_int_status);
 		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Counter Int status:        0x%x\n",
-			irq_proc_reg->counter_int_status);
+			   irq_proc_reg->counter_int_status);
 		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Mbox Frame:                0x%x\n",
-			irq_proc_reg->mbox_frame);
+			   irq_proc_reg->mbox_frame);
 		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Rx Lookahead Valid:        0x%x\n",
-			irq_proc_reg->rx_lkahd_valid);
+			   irq_proc_reg->rx_lkahd_valid);
 		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Rx Lookahead 0:            0x%x\n",
-			irq_proc_reg->rx_lkahd[0]);
+			   irq_proc_reg->rx_lkahd[0]);
 		ath6kl_dbg(ATH6KL_DBG_IRQ,
 			   "Rx Lookahead 1:            0x%x\n",
-			irq_proc_reg->rx_lkahd[1]);
+			   irq_proc_reg->rx_lkahd[1]);
 
 		if (dev->ar->mbox_info.gmbox_addr != 0) {
 			/*
@@ -149,27 +149,27 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 			 * additional state.
 			 */
 			ath6kl_dbg(ATH6KL_DBG_IRQ,
-				"GMBOX Host Int status 2:   0x%x\n",
-				irq_proc_reg->host_int_status2);
+				   "GMBOX Host Int status 2:   0x%x\n",
+				   irq_proc_reg->host_int_status2);
 			ath6kl_dbg(ATH6KL_DBG_IRQ,
-				"GMBOX RX Avail:            0x%x\n",
-				irq_proc_reg->gmbox_rx_avail);
+				   "GMBOX RX Avail:            0x%x\n",
+				   irq_proc_reg->gmbox_rx_avail);
 			ath6kl_dbg(ATH6KL_DBG_IRQ,
-				"GMBOX lookahead alias 0:   0x%x\n",
-				irq_proc_reg->rx_gmbox_lkahd_alias[0]);
+				   "GMBOX lookahead alias 0:   0x%x\n",
+				   irq_proc_reg->rx_gmbox_lkahd_alias[0]);
 			ath6kl_dbg(ATH6KL_DBG_IRQ,
-				"GMBOX lookahead alias 1:   0x%x\n",
-				irq_proc_reg->rx_gmbox_lkahd_alias[1]);
+				   "GMBOX lookahead alias 1:   0x%x\n",
+				   irq_proc_reg->rx_gmbox_lkahd_alias[1]);
 		}
 
 	}
 
 	if (irq_enable_reg != NULL) {
 		ath6kl_dbg(ATH6KL_DBG_IRQ,
-			"Int status Enable:         0x%x\n",
-			irq_enable_reg->int_status_en);
+			   "Int status Enable:         0x%x\n",
+			   irq_enable_reg->int_status_en);
 		ath6kl_dbg(ATH6KL_DBG_IRQ, "Counter Int status Enable: 0x%x\n",
-			irq_enable_reg->cntr_int_status_en);
+			   irq_enable_reg->cntr_int_status_en);
 	}
 	ath6kl_dbg(ATH6KL_DBG_IRQ, "<------------------------------->\n");
 }
@@ -1804,19 +1804,19 @@ int ath6kl_debug_init_fs(struct ath6kl *ar)
 			    ar->debugfs_phy, ar, &fops_disconnect_timeout);
 
 	debugfs_create_file("create_qos", S_IWUSR, ar->debugfs_phy, ar,
-				&fops_create_qos);
+			    &fops_create_qos);
 
 	debugfs_create_file("delete_qos", S_IWUSR, ar->debugfs_phy, ar,
-				&fops_delete_qos);
+			    &fops_delete_qos);
 
 	debugfs_create_file("bgscan_interval", S_IWUSR,
-				ar->debugfs_phy, ar, &fops_bgscan_int);
+			    ar->debugfs_phy, ar, &fops_bgscan_int);
 
 	debugfs_create_file("listen_interval", S_IRUSR | S_IWUSR,
 			    ar->debugfs_phy, ar, &fops_listen_int);
 
 	debugfs_create_file("power_params", S_IWUSR, ar->debugfs_phy, ar,
-						&fops_power_params);
+			    &fops_power_params);
 
 	return 0;
 }

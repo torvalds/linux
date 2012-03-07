@@ -350,7 +350,7 @@ void ath6kl_reset_device(struct ath6kl *ar, u32 target_type,
 	__le32 data;
 
 	if (target_type != TARGET_TYPE_AR6003 &&
-		target_type != TARGET_TYPE_AR6004)
+	    target_type != TARGET_TYPE_AR6004)
 		return;
 
 	data = cold_reset ? cpu_to_le32(RESET_CONTROL_COLD_RST) :
@@ -948,8 +948,8 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 	}
 
 	ath6kl_cfg80211_disconnect_event(vif, reason, bssid,
-				       assoc_resp_len, assoc_info,
-				       prot_reason_status);
+					 assoc_resp_len, assoc_info,
+					 prot_reason_status);
 
 	aggr_reset_state(vif->aggr_cntxt->aggr_conn);
 
@@ -969,7 +969,7 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 	} else {
 		set_bit(CONNECT_PEND, &vif->flags);
 		if (((reason == ASSOC_FAILED) &&
-		    (prot_reason_status == 0x11)) ||
+		     (prot_reason_status == 0x11)) ||
 		    ((reason == ASSOC_FAILED) && (prot_reason_status == 0x0)
 		     && (vif->reconnect_flag == 1))) {
 			set_bit(CONNECTED, &vif->flags);
@@ -1105,7 +1105,7 @@ static void ath6kl_set_multicast_list(struct net_device *ndev)
 	if (mc_all_on || mc_all_off) {
 		/* Enable/disable all multicast */
 		ath6kl_dbg(ATH6KL_DBG_TRC, "%s multicast filter\n",
-			  mc_all_on ? "enabling" : "disabling");
+			   mc_all_on ? "enabling" : "disabling");
 		ret = ath6kl_wmi_mcast_filter_cmd(vif->ar->wmi, vif->fw_vif_idx,
 						  mc_all_on);
 		if (ret)
@@ -1118,7 +1118,7 @@ static void ath6kl_set_multicast_list(struct net_device *ndev)
 		found = false;
 		netdev_for_each_mc_addr(ha, ndev) {
 			if (memcmp(ha->addr, mc_filter->hw_addr,
-			    ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE) == 0) {
+				   ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE) == 0) {
 				found = true;
 				break;
 			}
@@ -1137,7 +1137,7 @@ static void ath6kl_set_multicast_list(struct net_device *ndev)
 					false);
 			if (ret) {
 				ath6kl_warn("Failed to remove multicast filter:%pM\n",
-					     mc_filter->hw_addr);
+					    mc_filter->hw_addr);
 				return;
 			}
 
@@ -1152,7 +1152,7 @@ static void ath6kl_set_multicast_list(struct net_device *ndev)
 		found = false;
 		list_for_each_entry(mc_filter, &vif->mc_filter, list) {
 			if (memcmp(ha->addr, mc_filter->hw_addr,
-			    ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE) == 0) {
+				   ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE) == 0) {
 				found = true;
 				break;
 			}
@@ -1177,7 +1177,7 @@ static void ath6kl_set_multicast_list(struct net_device *ndev)
 					true);
 			if (ret) {
 				ath6kl_warn("Failed to add multicast filter :%pM\n",
-					     mc_filter->hw_addr);
+					    mc_filter->hw_addr);
 				kfree(mc_filter);
 				goto out;
 			}

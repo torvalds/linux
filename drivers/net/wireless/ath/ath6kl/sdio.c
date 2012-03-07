@@ -656,8 +656,8 @@ static int ath6kl_sdio_async_rw_scatter(struct ath6kl *ar,
 		return -EINVAL;
 
 	ath6kl_dbg(ATH6KL_DBG_SCATTER,
-		"hif-scatter: total len: %d scatter entries: %d\n",
-		scat_req->len, scat_req->scat_entries);
+		   "hif-scatter: total len: %d scatter entries: %d\n",
+		   scat_req->len, scat_req->scat_entries);
 
 	if (request & HIF_SYNCHRONOUS)
 		status = ath6kl_sdio_scat_rw(ar_sdio, scat_req->busrequest);
@@ -1019,7 +1019,7 @@ static int ath6kl_sdio_diag_read32(struct ath6kl *ar, u32 address, u32 *data)
 				(u8 *)data, sizeof(u32), HIF_RD_SYNC_BYTE_INC);
 	if (status) {
 		ath6kl_err("%s: failed to read from window data addr\n",
-			__func__);
+			   __func__);
 		return status;
 	}
 
