@@ -740,9 +740,13 @@ static ssize_t ath6kl_endpoint_stats_read(struct file *file,
 		return -ENOMEM;
 
 #define EPSTAT(name)							\
-	len = print_endpoint_stat(target, buf, buf_len, len,		\
-				  offsetof(struct htc_endpoint_stats, name), \
-				  #name)
+	do {								\
+		len = print_endpoint_stat(target, buf, buf_len, len,	\
+					  offsetof(struct htc_endpoint_stats, \
+						   name),		\
+					  #name);			\
+	} while (0)
+
 	EPSTAT(cred_low_indicate);
 	EPSTAT(tx_issued);
 	EPSTAT(tx_pkt_bundled);
