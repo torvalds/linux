@@ -1224,6 +1224,8 @@ static int __remove(struct dm_thin_device *td, dm_block_t block)
 	if (r)
 		return r;
 
+	td->mapped_blocks--;
+	td->changed = 1;
 	pmd->need_commit = 1;
 
 	return 0;
