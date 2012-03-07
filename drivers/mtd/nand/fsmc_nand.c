@@ -604,7 +604,7 @@ static int fsmc_correct_data(struct mtd_info *mtd, uint8_t *dat,
 	struct nand_chip *chip = mtd->priv;
 	struct fsmc_regs *regs = host->regs_va;
 	unsigned int bank = host->bank;
-	uint16_t err_idx[8];
+	uint32_t err_idx[8];
 	uint64_t ecc_data[2];
 	uint32_t num_err, i;
 
