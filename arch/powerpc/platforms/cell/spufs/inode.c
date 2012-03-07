@@ -646,6 +646,7 @@ long spufs_create(struct path *path, struct dentry *dentry,
 
 out:
 	mutex_unlock(&path->dentry->d_inode->i_mutex);
+	dput(dentry);
 	return ret;
 }
 
