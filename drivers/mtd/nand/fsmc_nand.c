@@ -729,27 +729,28 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		goto err_probe1;
 	}
 
-	host->resaddr = request_mem_region(res->start + PLAT_NAND_ALE,
+	host->resaddr = request_mem_region(res->start + pdata->ale_off,
 			resource_size(res), pdev->name);
 	if (!host->resaddr) {
 		ret = -EIO;
 		goto err_probe1;
 	}
 
-	host->addr_va = ioremap(res->start + PLAT_NAND_ALE, resource_size(res));
+	host->addr_va = ioremap(res->start + pdata->ale_off,
+			resource_size(res));
 	if (!host->addr_va) {
 		ret = -EIO;
 		goto err_probe1;
 	}
 
-	host->rescmd = request_mem_region(res->start + PLAT_NAND_CLE,
+	host->rescmd = request_mem_region(res->start + pdata->cle_off,
 			resource_size(res), pdev->name);
 	if (!host->rescmd) {
 		ret = -EIO;
 		goto err_probe1;
 	}
 
-	host->cmd_va = ioremap(res->start + PLAT_NAND_CLE, resource_size(res));
+	host->cmd_va = ioremap(res->start + pdata->cle_off, resource_size(res));
 	if (!host->cmd_va) {
 		ret = -EIO;
 		goto err_probe1;

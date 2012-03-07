@@ -151,6 +151,11 @@ struct fsmc_nand_platform_data {
 	unsigned int		options;
 	unsigned int		width;
 	unsigned int		bank;
+
+	/* CLE, ALE offsets */
+	unsigned long           cle_off;
+	unsigned long           ale_off;
+
 	void			(*select_bank)(uint32_t bank, uint32_t busw);
 };
 
