@@ -88,6 +88,19 @@ config S3C24XX_SMDK
 	help
 	  Common machine code for SMDK2410 and SMDK2440
 
+config S3C24XX_SIMTEC_AUDIO
+	bool
+	depends on (ARCH_BAST || MACH_VR1000 || MACH_OSIRIS || MACH_ANUBIS)
+	default y
+	help
+	  Add audio devices for common Simtec S3C24XX boards
+
+config S3C24XX_SIMTEC_PM
+	bool
+	help
+	  Common power management code for systems that are
+	  compatible with the Simtec style of power management
+
 # cpu-specific sections
 
 if CPU_S3C2410
@@ -125,7 +138,7 @@ comment "S3C2410 Boards"
 
 config MACH_AML_M5900
 	bool "AML M5900 Series"
-	select PM_SIMTEC if PM
+	select S3C24XX_SIMTEC_PM if PM
 	select S3C_DEV_USB_HOST
 	help
 	  Say Y here if you are using the American Microsystems M5900 Series
@@ -134,7 +147,7 @@ config MACH_AML_M5900
 config ARCH_BAST
 	bool "Simtec Electronics BAST (EB2410ITX)"
 	select S3C2410_IOTIMING if S3C2410_CPUFREQ
-	select PM_SIMTEC if PM
+	select S3C24XX_SIMTEC_PM if PM
 	select SIMTEC_NOR
 	select MACH_BAST_IDE
 	select S3C24XX_DCLK
@@ -215,7 +228,7 @@ config MACH_TCT_HAMMER
 
 config MACH_VR1000
 	bool "Thorcom VR1000"
-	select PM_SIMTEC if PM
+	select S3C24XX_SIMTEC_PM if PM
 	select S3C24XX_DCLK
 	select SIMTEC_NOR
 	select MACH_BAST_IDE
@@ -355,7 +368,7 @@ comment "S3C2440 Boards"
 config MACH_ANUBIS
 	bool "Simtec Electronics ANUBIS"
 	select S3C24XX_DCLK
-	select PM_SIMTEC if PM
+	select S3C24XX_SIMTEC_PM if PM
 	select HAVE_PATA_PLATFORM
 	select S3C24XX_GPIO_EXTRA64
 	select S3C2440_XTAL_12000000
@@ -395,7 +408,7 @@ config MACH_NEXCODER_2440
 config MACH_OSIRIS
 	bool "Simtec IM2440D20 (OSIRIS) module"
 	select S3C24XX_DCLK
-	select PM_SIMTEC if PM
+	select S3C24XX_SIMTEC_PM if PM
 	select S3C24XX_GPIO_EXTRA128
 	select S3C2440_XTAL_12000000
 	select S3C2410_IOTIMING if S3C2440_CPUFREQ

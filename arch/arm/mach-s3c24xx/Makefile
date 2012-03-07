@@ -79,6 +79,8 @@ obj-$(CONFIG_MACH_SMDK2443)		+= mach-smdk2443.o
 
 obj-$(CONFIG_S3C24XX_SMDK)		+= common-smdk.o
 obj-$(CONFIG_SIMTEC_NOR)		+= nor-simtec.o
+obj-$(CONFIG_S3C24XX_SIMTEC_AUDIO)	+= simtec-audio.o
+obj-$(CONFIG_S3C24XX_SIMTEC_PM)		+= simtec-pm.o
 
 # machine additions
 
