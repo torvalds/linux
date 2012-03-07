@@ -245,6 +245,13 @@ static int cm3217_probe(struct i2c_client *client, const struct i2c_device_id *i
 	char com1 = CM3217_COM1_VALUE, com2 = CM3217_COM2_VALUE;
 	int err;
 	
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) 
+	{
+		dev_err(&client->dev, "Must have I2C_FUNC_I2C.\n");
+		err = -ENODEV;
+		goto alloc_memory_fail;
+	}
+		
 	cm3217 = kmalloc(sizeof(struct cm3217_data), GFP_KERNEL);
 	if(!cm3217){
 		printk("cm3217 alloc memory err !!!\n");
@@ -327,9 +334,15 @@ static int cm3217_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id cm3217_id[] = {
+	{ "lightsensor", 0 },
+};
+
+
 static struct i2c_driver cm3217_driver = {
 	.probe = cm3217_probe,
 	.remove = __devexit_p(cm3217_remove),
+	.id_table = cm3217_id,
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "lightsensor",
