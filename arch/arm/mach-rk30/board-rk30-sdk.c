@@ -48,6 +48,9 @@
 #if defined(CONFIG_SPIM_RK29)
 #include "../../../drivers/spi/rk29_spim.h"
 #endif
+#if defined(CONFIG_ANDROID_TIMED_GPIO)
+#include "../../../drivers/staging/android/timed_gpio.h"
+#endif
 
 #define RK30_FB0_MEM_SIZE 8*SZ_1M
 
@@ -476,6 +479,33 @@ static struct platform_device device_fb = {
 };
 #endif
 
+#if CONFIG_ANDROID_TIMED_GPIO
+static struct timed_gpio timed_gpios[] = {
+	{
+		.name = "vibrator",
+		.gpio = RK30_PIN0_PA4,
+		.max_timeout = 1000,
+		.active_low = 0,
+		.adjust_time =20,      //adjust for diff product
+	},
+};
+
+struct timed_gpio_platform_data rk29_vibrator_info = {
+	.num_gpios = 1,
+	.gpios = timed_gpios,
+};
+
+struct platform_device rk29_device_vibrator ={
+	.name = "timed-gpio",
+	.id = -1,
+	.dev = {
+		.platform_data = &rk29_vibrator_info,
+		},
+
+};
+#endif 
+
+
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
@@ -483,6 +513,10 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_FB_ROCKCHIP
 	&device_fb,
 #endif
+#ifdef CONFIG_ANDROID_TIMED_GPIO
+	&rk29_device_vibrator,
+#endif
+
 };
 
 // i2c
