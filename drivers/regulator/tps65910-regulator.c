@@ -662,7 +662,7 @@ static int tps65910_set_voltage_dcdc(struct regulator_dev *dev,
 		tps65910_reg_write(pmic, TPS65910_VDD2_OP, vsel);
 		break;
 	case TPS65911_REG_VDDCTRL:
-		vsel = selector;
+		vsel = selector + 3;
 		tps65910_reg_write(pmic, TPS65911_VDDCTRL_OP, vsel);
 	}
 
