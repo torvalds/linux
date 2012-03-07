@@ -879,10 +879,8 @@ static void iwl_find_disconn_antenna(struct iwl_priv *priv, u32* average_sig,
 }
 
 static void iwlagn_gain_computation(struct iwl_priv *priv,
-		u32 average_noise[NUM_RX_CHAINS],
-		u16 min_average_noise_antenna_i,
-		u32 min_average_noise,
-		u8 default_chain)
+				    u32 average_noise[NUM_RX_CHAINS],
+				    u8 default_chain)
 {
 	int i;
 	s32 delta_g;
@@ -1087,7 +1085,6 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 			min_average_noise, min_average_noise_antenna_i);
 
 	iwlagn_gain_computation(priv, average_noise,
-				min_average_noise_antenna_i, min_average_noise,
 				find_first_chain(hw_params(priv).valid_rx_ant));
 
 	/* Some power changes may have been made during the calibration.
