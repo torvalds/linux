@@ -270,6 +270,30 @@ struct iwl_base_params {
 	const bool wd_disable;
 };
 
+/*
+ * @advanced_bt_coexist: support advanced bt coexist
+ * @bt_init_traffic_load: specify initial bt traffic load
+ * @bt_prio_boost: default bt priority boost value
+ * @agg_time_limit: maximum number of uSec in aggregation
+ * @bt_sco_disable: uCode should not response to BT in SCO/ESCO mode
+ */
+struct iwl_bt_params {
+	bool advanced_bt_coexist;
+	u8 bt_init_traffic_load;
+	u8 bt_prio_boost;
+	u16 agg_time_limit;
+	bool bt_sco_disable;
+	bool bt_session_2;
+};
+/*
+ * @use_rts_for_aggregation: use rts/cts protection for HT traffic
+ */
+struct iwl_ht_params {
+	const bool ht_greenfield_support; /* if used set to true */
+	bool use_rts_for_aggregation;
+	enum ieee80211_smps_mode smps_mode;
+};
+
 /**
  * struct iwl_cfg
  * @name: Offical name of the device
