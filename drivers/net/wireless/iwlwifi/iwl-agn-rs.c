@@ -2677,7 +2677,6 @@ out:
  *       which requires station table entry to exist).
  */
 static void rs_initialize_lq(struct iwl_priv *priv,
-			     struct ieee80211_conf *conf,
 			     struct ieee80211_sta *sta,
 			     struct iwl_lq_sta *lq_sta)
 {
@@ -2912,7 +2911,7 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 	lq_sta->dbg_fixed_rate = 0;
 #endif
 
-	rs_initialize_lq(priv, conf, sta, lq_sta);
+	rs_initialize_lq(priv, sta, lq_sta);
 }
 
 static void rs_fill_link_cmd(struct iwl_priv *priv,
