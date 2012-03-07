@@ -225,18 +225,25 @@ struct ath6kl_bmi_target_info {
 
 #define ath6kl_bmi_write_hi32(ar, item, val)				\
 	({								\
-		u32 addr, v;						\
+		u32 addr;						\
+		__le32 v;						\
+									\
 		addr = ath6kl_get_hi_item_addr(ar, HI_ITEM(item));	\
-		v = val;						\
+		v = cpu_to_le32(val);					\
 		ath6kl_bmi_write(ar, addr, (u8 *) &v, sizeof(v));	\
 	})
 
 #define ath6kl_bmi_read_hi32(ar, item, val)				\
 	({								\
 		u32 addr, *check_type = val;				\
+		__le32 tmp;						\
+		int ret;						\
+									\
 		(void) (check_type == val);				\
 		addr = ath6kl_get_hi_item_addr(ar, HI_ITEM(item));	\
-		ath6kl_bmi_read(ar, addr, (u8 *) val, 4);		\
+		ret = ath6kl_bmi_read(ar, addr, (u8 *) &tmp, 4);	\
+		*val = le32_to_cpu(tmp);				\
+		ret;							\
 	})
 
 int ath6kl_bmi_init(struct ath6kl *ar);
