@@ -127,6 +127,7 @@ struct extent_buffer {
 	unsigned long map_start;
 	unsigned long map_len;
 	unsigned long bflags;
+	struct extent_io_tree *tree;
 	atomic_t refs;
 	atomic_t pages_reading;
 	struct list_head leak_list;

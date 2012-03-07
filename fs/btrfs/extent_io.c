@@ -2473,6 +2473,17 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 	return ret;
 }
 
+void attach_extent_buffer_page(struct extent_buffer *eb, struct page *page)
+{
+	if (!PagePrivate(page)) {
+		SetPagePrivate(page);
+		page_cache_get(page);
+		set_page_private(page, (unsigned long)eb);
+	} else {
+		WARN_ON(page->private != (unsigned long)eb);
+	}
+}
+
 void set_page_extent_mapped(struct page *page)
 {
 	if (!PagePrivate(page)) {
@@ -2480,12 +2491,6 @@ void set_page_extent_mapped(struct page *page)
 		page_cache_get(page);
 		set_page_private(page, EXTENT_PAGE_PRIVATE);
 	}
-}
-
-static void set_page_extent_head(struct page *page, unsigned long len)
-{
-	WARN_ON(!PagePrivate(page));
-	set_page_private(page, EXTENT_PAGE_PRIVATE_FIRST_PAGE | len << 2);
 }
 
 /*
@@ -3585,6 +3590,7 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 		return NULL;
 	eb->start = start;
 	eb->len = len;
+	eb->tree = tree;
 	rwlock_init(&eb->lock);
 	atomic_set(&eb->write_locks, 0);
 	atomic_set(&eb->read_locks, 0);
@@ -3637,8 +3643,31 @@ static void btrfs_release_extent_buffer_page(struct extent_buffer *eb,
 	do {
 		index--;
 		page = extent_buffer_page(eb, index);
-		if (page)
+		if (page) {
+			spin_lock(&page->mapping->private_lock);
+			/*
+			 * We do this since we'll remove the pages after we've
+			 * removed the eb from the radix tree, so we could race
+			 * and have this page now attached to the new eb.  So
+			 * only clear page_private if it's still connected to
+			 * this eb.
+			 */
+			if (PagePrivate(page) &&
+			    page->private == (unsigned long)eb) {
+				/*
+				 * We need to make sure we haven't be attached
+				 * to a new eb.
+				 */
+				ClearPagePrivate(page);
+				set_page_private(page, 0);
+				/* One for the page private */
+				page_cache_release(page);
+			}
+			spin_unlock(&page->mapping->private_lock);
+
+			/* One for when we alloced the page */
 			page_cache_release(page);
+		}
 	} while (index != start_idx);
 }
 
@@ -3683,6 +3712,32 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 			WARN_ON(1);
 			goto free_eb;
 		}
+
+		spin_lock(&mapping->private_lock);
+		if (PagePrivate(p)) {
+			/*
+			 * We could have already allocated an eb for this page
+			 * and attached one so lets see if we can get a ref on
+			 * the existing eb, and if we can we know it's good and
+			 * we can just return that one, else we know we can just
+			 * overwrite page->private.
+			 */
+			exists = (struct extent_buffer *)p->private;
+			if (atomic_inc_not_zero(&exists->refs)) {
+				spin_unlock(&mapping->private_lock);
+				unlock_page(p);
+				goto free_eb;
+			}
+
+			/* 
+			 * Do this so attach doesn't complain and we need to
+			 * drop the ref the old guy had.
+			 */
+			ClearPagePrivate(p);
+			page_cache_release(p);
+		}
+		attach_extent_buffer_page(eb, p);
+		spin_unlock(&mapping->private_lock);
 		mark_page_accessed(p);
 		eb->pages[i] = p;
 		if (!PageUptodate(p))
@@ -3705,7 +3760,6 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	if (ret == -EEXIST) {
 		exists = radix_tree_lookup(&tree->buffer,
 						start >> PAGE_CACHE_SHIFT);
-		/* add one reference for the caller */
 		atomic_inc(&exists->refs);
 		spin_unlock(&tree->buffer_lock);
 		radix_tree_preload_end();
@@ -3725,12 +3779,9 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	 * after the extent buffer is in the radix tree so
 	 * it doesn't get lost
 	 */
-	set_page_extent_mapped(eb->pages[0]);
-	set_page_extent_head(eb->pages[0], eb->len);
 	SetPageChecked(eb->pages[0]);
 	for (i = 1; i < num_pages; i++) {
 		p = extent_buffer_page(eb, i);
-		set_page_extent_mapped(p);
 		ClearPageChecked(p);
 		unlock_page(p);
 	}
@@ -3793,10 +3844,6 @@ int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 
 		lock_page(page);
 		WARN_ON(!PagePrivate(page));
-
-		set_page_extent_mapped(page);
-		if (i == 0)
-			set_page_extent_head(page, eb->len);
 
 		clear_page_dirty_for_io(page);
 		spin_lock_irq(&page->mapping->tree_lock);
@@ -4010,9 +4057,6 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	atomic_set(&eb->pages_reading, num_reads);
 	for (i = start_i; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
-		set_page_extent_mapped(page);
-		if (i == 0)
-			set_page_extent_head(page, eb->len);
 		if (!PageUptodate(page)) {
 			ClearPageError(page);
 			err = __extent_read_full_page(tree, page,
@@ -4395,22 +4439,19 @@ static inline void btrfs_release_extent_buffer_rcu(struct rcu_head *head)
 	struct extent_buffer *eb =
 			container_of(head, struct extent_buffer, rcu_head);
 
-	btrfs_release_extent_buffer(eb);
+	__free_extent_buffer(eb);
 }
 
 int try_release_extent_buffer(struct extent_io_tree *tree, struct page *page)
 {
 	u64 start = page_offset(page);
-	struct extent_buffer *eb;
+	struct extent_buffer *eb = (struct extent_buffer *)page->private;
 	int ret = 1;
 
-	spin_lock(&tree->buffer_lock);
-	eb = radix_tree_lookup(&tree->buffer, start >> PAGE_CACHE_SHIFT);
-	if (!eb) {
-		spin_unlock(&tree->buffer_lock);
-		return ret;
-	}
+	if (!PagePrivate(page) || !eb)
+		return 1;
 
+	spin_lock(&tree->buffer_lock);
 	if (atomic_read(&eb->refs) > 1 ||
 	    test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags)) {
 		ret = 0;
@@ -4426,6 +4467,7 @@ int try_release_extent_buffer(struct extent_io_tree *tree, struct page *page)
 		goto out;
 	}
 	radix_tree_delete(&tree->buffer, start >> PAGE_CACHE_SHIFT);
+	btrfs_release_extent_buffer_page(eb, 0);
 out:
 	spin_unlock(&tree->buffer_lock);
 

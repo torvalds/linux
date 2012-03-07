@@ -403,39 +403,28 @@ static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 	struct extent_io_tree *tree;
 	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
 	u64 found_start;
-	unsigned long len;
 	struct extent_buffer *eb;
 
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 
-	if (page->private == EXTENT_PAGE_PRIVATE)
-		goto out;
-	if (!page->private) {
-		WARN_ON(1);
-		goto out;
-	}
-	len = page->private >> 2;
-	WARN_ON(len == 0);
-
-	eb = find_extent_buffer(tree, start, len);
+	eb = (struct extent_buffer *)page->private;
+	if (page != eb->pages[0])
+		return 0;
 
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != start) {
 		WARN_ON(1);
-		goto err;
+		return 0;
 	}
 	if (eb->pages[0] != page) {
 		WARN_ON(1);
-		goto err;
+		return 0;
 	}
 	if (!PageUptodate(page)) {
 		WARN_ON(1);
-		goto err;
+		return 0;
 	}
 	csum_tree_block(root, eb, 0);
-err:
-	free_extent_buffer(eb);
-out:
 	return 0;
 }
 
@@ -566,7 +555,6 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	struct extent_io_tree *tree;
 	u64 found_start;
 	int found_level;
-	unsigned long len;
 	struct extent_buffer *eb;
 	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
 	int ret = 0;
@@ -576,13 +564,8 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 		goto out;
 
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
-	len = page->private >> 2;
+	eb = (struct extent_buffer *)page->private;
 
-	eb = find_eb_for_page(tree, page, max(root->leafsize, root->nodesize));
-	if (!eb) {
-		ret = -EIO;
-		goto out;
-	}
 	reads_done = atomic_dec_and_test(&eb->pages_reading);
 	if (!reads_done)
 		goto err;
@@ -631,7 +614,6 @@ err:
 
 	if (ret && eb)
 		clear_extent_buffer_uptodate(tree, eb, NULL);
-	free_extent_buffer(eb);
 out:
 	return ret;
 }
@@ -640,31 +622,17 @@ static int btree_io_failed_hook(struct bio *failed_bio,
 			 struct page *page, u64 start, u64 end,
 			 int mirror_num, struct extent_state *state)
 {
-	struct extent_io_tree *tree;
-	unsigned long len;
 	struct extent_buffer *eb;
 	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
 
-	tree = &BTRFS_I(page->mapping->host)->io_tree;
-	if (page->private == EXTENT_PAGE_PRIVATE)
-		goto out;
-	if (!page->private)
-		goto out;
-
-	len = page->private >> 2;
-	WARN_ON(len == 0);
-
-	eb = alloc_extent_buffer(tree, start, len);
-	if (eb == NULL)
-		goto out;
+	eb = (struct extent_buffer *)page->private;
+	if (page != eb->pages[0])
+		return -EIO;
 
 	if (test_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags)) {
 		clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags);
 		btree_readahead_hook(root, eb, eb->start, -EIO);
 	}
-	free_extent_buffer(eb);
-
-out:
 	return -EIO;	/* we fixed nothing */
 }
 
@@ -955,10 +923,8 @@ static int btree_readpage(struct file *file, struct page *page)
 
 static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 {
-	struct extent_io_tree *tree;
 	struct extent_map_tree *map;
-	struct extent_buffer *eb;
-	struct btrfs_root *root;
+	struct extent_io_tree *tree;
 	int ret;
 
 	if (PageWriteback(page) || PageDirty(page))
@@ -967,13 +933,6 @@ static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	map = &BTRFS_I(page->mapping->host)->extent_tree;
 
-	root = BTRFS_I(page->mapping->host)->root;
-	if (page->private == EXTENT_PAGE_PRIVATE) {
-		eb = find_eb_for_page(tree, page, max(root->leafsize, root->nodesize));
-		free_extent_buffer(eb);
-		if (eb)
-			return 0;
-	}
 	/*
 	 * We need to mask out eg. __GFP_HIGHMEM and __GFP_DMA32 as we're doing
 	 * slab allocation from alloc_extent_state down the callchain where
@@ -985,14 +944,7 @@ static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 	if (!ret)
 		return 0;
 
-	ret = try_release_extent_buffer(tree, page);
-	if (ret == 1) {
-		ClearPagePrivate(page);
-		set_page_private(page, 0);
-		page_cache_release(page);
-	}
-
-	return ret;
+	return try_release_extent_buffer(tree, page);
 }
 
 static void btree_invalidatepage(struct page *page, unsigned long offset)
@@ -3219,17 +3171,21 @@ static int btree_lock_page_hook(struct page *page, void *data,
 {
 	struct inode *inode = page->mapping->host;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct extent_buffer *eb;
-	unsigned long len;
-	u64 bytenr = page_offset(page);
 
-	if (page->private == EXTENT_PAGE_PRIVATE)
+	/*
+	 * We culled this eb but the page is still hanging out on the mapping,
+	 * carry on.
+	 */
+	if (!PagePrivate(page))
 		goto out;
 
-	len = page->private >> 2;
-	eb = find_extent_buffer(io_tree, bytenr, len);
-	if (!eb)
+	eb = (struct extent_buffer *)page->private;
+	if (!eb) {
+		WARN_ON(1);
+		goto out;
+	}
+	if (page != eb->pages[0])
 		goto out;
 
 	if (!btrfs_try_tree_write_lock(eb)) {
@@ -3248,7 +3204,6 @@ static int btree_lock_page_hook(struct page *page, void *data,
 	}
 
 	btrfs_tree_unlock(eb);
-	free_extent_buffer(eb);
 out:
 	if (!trylock_page(page)) {
 		flush_fn(data);
