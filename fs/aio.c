@@ -273,7 +273,7 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	mm = ctx->mm = current->mm;
 	atomic_inc(&mm->mm_count);
 
-	atomic_set(&ctx->users, 1);
+	atomic_set(&ctx->users, 2);
 	spin_lock_init(&ctx->ctx_lock);
 	spin_lock_init(&ctx->ring_info.ring_lock);
 	init_waitqueue_head(&ctx->wait);
@@ -1256,10 +1256,10 @@ SYSCALL_DEFINE2(io_setup, unsigned, nr_events, aio_context_t __user *, ctxp)
 	ret = PTR_ERR(ioctx);
 	if (!IS_ERR(ioctx)) {
 		ret = put_user(ioctx->user_id, ctxp);
-		if (!ret)
+		if (!ret) {
+			put_ioctx(ioctx);
 			return 0;
-
-		get_ioctx(ioctx); /* io_destroy() expects us to hold a ref */
+		}
 		io_destroy(ioctx);
 	}
 
