@@ -34,11 +34,6 @@
 #include <asm/abs_addr.h>
 #include <asm/page.h>
 #include <asm/hvcall.h>
-#include <asm/iseries/vio.h>
-#include <asm/iseries/hv_types.h>
-#include <asm/iseries/hv_lp_config.h>
-#include <asm/iseries/hv_call_xm.h>
-#include <asm/iseries/iommu.h>
 
 static struct bus_type vio_bus_type;
 
@@ -1042,7 +1037,6 @@ static void vio_cmo_sysfs_init(void)
 	vio_bus_type.bus_attrs = vio_cmo_bus_attrs;
 }
 #else /* CONFIG_PPC_SMLPAR */
-/* Dummy functions for iSeries platform */
 int vio_cmo_entitlement_update(size_t new_entitlement) { return 0; }
 void vio_cmo_set_dev_desired(struct vio_dev *viodev, size_t desired) {}
 static int vio_cmo_bus_probe(struct vio_dev *viodev) { return 0; }
@@ -1059,9 +1053,6 @@ static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 	const unsigned char *dma_window;
 	struct iommu_table *tbl;
 	unsigned long offset, size;
-
-	if (firmware_has_feature(FW_FEATURE_ISERIES))
-		return vio_build_iommu_table_iseries(dev);
 
 	dma_window = of_get_property(dev->dev.of_node,
 				  "ibm,my-dma-window", NULL);
@@ -1195,8 +1186,7 @@ static void __devinit vio_dev_release(struct device *dev)
 {
 	struct iommu_table *tbl = get_iommu_table_base(dev);
 
-	/* iSeries uses a common table for all vio devices */
-	if (!firmware_has_feature(FW_FEATURE_ISERIES) && tbl)
+	if (tbl)
 		iommu_free_table(tbl, dev->of_node ?
 			dev->of_node->full_name : dev_name(dev));
 	of_node_put(dev->of_node);
@@ -1244,12 +1234,6 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	viodev->name = of_node->name;
 	viodev->type = of_node->type;
 	viodev->unit_address = *unit_address;
-	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
-		unit_address = of_get_property(of_node,
-				"linux,unit_address", NULL);
-		if (unit_address != NULL)
-			viodev->unit_address = *unit_address;
-	}
 	viodev->dev.of_node = of_node_get(of_node);
 
 	if (firmware_has_feature(FW_FEATURE_CMO))
