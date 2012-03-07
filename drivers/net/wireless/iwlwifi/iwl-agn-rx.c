@@ -1152,6 +1152,8 @@ int iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+	void (*pre_rx_handler)(struct iwl_priv *,
+			       struct iwl_rx_cmd_buffer *);
 	int err = 0;
 
 	/*
@@ -1161,10 +1163,20 @@ int iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,
 	 */
 	iwl_notification_wait_notify(&priv->notif_wait, pkt);
 
-	if (priv->pre_rx_handler &&
-	    priv->ucode_owner == IWL_OWNERSHIP_TM)
-		priv->pre_rx_handler(priv, rxb);
-	else {
+	/* RX data may be forwarded to userspace (using pre_rx_handler) in one
+	 * of two cases: the first, that the user owns the uCode through
+	 * testmode - in such case the pre_rx_handler is set and no further
+	 * processing takes place. The other case is when the user want to
+	 * monitor the rx w/o affecting the regular flow - the pre_rx_handler
+	 * will be set but the ownership flag != IWL_OWNERSHIP_TM and the flow
+	 * continues.
+	 * We need to use ACCESS_ONCE to prevent a case where the handler
+	 * changes between the check and the call.
+	 */
+	pre_rx_handler = ACCESS_ONCE(priv->pre_rx_handler);
+	if (pre_rx_handler)
+		pre_rx_handler(priv, rxb);
+	if (priv->ucode_owner != IWL_OWNERSHIP_TM) {
 		/* Based on type of command response or notification,
 		 *   handle those that need handling via function in
 		 *   rx_handlers table.  See iwl_setup_rx_handlers() */

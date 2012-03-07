@@ -125,6 +125,8 @@ struct nla_policy iwl_testmode_gnl_msg_policy[IWL_TM_ATTR_MAX] = {
 	[IWL_TM_ATTR_FW_TYPE] = { .type = NLA_U32, },
 	[IWL_TM_ATTR_FW_INST_SIZE] = { .type = NLA_U32, },
 	[IWL_TM_ATTR_FW_DATA_SIZE] = { .type = NLA_U32, },
+
+	[IWL_TM_ATTR_ENABLE_NOTIFICATION] = {.type = NLA_FLAG, },
 };
 
 /*
@@ -194,7 +196,7 @@ nla_put_failure:
 
 void iwl_testmode_init(struct iwl_priv *priv)
 {
-	priv->pre_rx_handler = iwl_testmode_ucode_rx_pkt;
+	priv->pre_rx_handler = NULL;
 	priv->testmode_trace.trace_enabled = false;
 	priv->testmode_mem.read_in_progress = false;
 }
@@ -770,9 +772,13 @@ static int iwl_testmode_ownership(struct ieee80211_hw *hw, struct nlattr **tb)
 	}
 
 	owner = nla_get_u8(tb[IWL_TM_ATTR_UCODE_OWNER]);
-	if ((owner == IWL_OWNERSHIP_DRIVER) || (owner == IWL_OWNERSHIP_TM))
+	if (owner == IWL_OWNERSHIP_DRIVER) {
 		priv->ucode_owner = owner;
-	else {
+		priv->pre_rx_handler = NULL;
+	} else if (owner == IWL_OWNERSHIP_TM) {
+		priv->pre_rx_handler = iwl_testmode_ucode_rx_pkt;
+		priv->ucode_owner = owner;
+	} else {
 		IWL_ERR(priv, "Invalid owner\n");
 		return -EINVAL;
 	}
@@ -937,6 +943,20 @@ static int iwl_testmode_buffer_dump(struct ieee80211_hw *hw,
 	return -ENOBUFS;
 }
 
+static int iwl_testmode_notifications(struct ieee80211_hw *hw,
+	struct nlattr **tb)
+{
+	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
+	bool enable;
+
+	enable = nla_get_flag(tb[IWL_TM_ATTR_ENABLE_NOTIFICATION]);
+	if (enable)
+		priv->pre_rx_handler = iwl_testmode_ucode_rx_pkt;
+	else
+		priv->pre_rx_handler = NULL;
+	return 0;
+}
+
 
 /* The testmode gnl message handler that takes the gnl message from the
  * user space and parses it per the policy iwl_testmode_gnl_msg_policy, then
@@ -1020,6 +1040,12 @@ int iwlagn_mac_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 		IWL_DEBUG_INFO(priv, "testmode indirect memory cmd "
 			"to driver\n");
 		result = iwl_testmode_indirect_mem(hw, tb);
+		break;
+
+	case IWL_TM_CMD_APP2DEV_NOTIFICATIONS:
+		IWL_DEBUG_INFO(priv, "testmode notifications cmd "
+			"to driver\n");
+		result = iwl_testmode_notifications(hw, tb);
 		break;
 
 	default:
