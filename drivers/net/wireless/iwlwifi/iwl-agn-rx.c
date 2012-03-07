@@ -1143,9 +1143,8 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	iwl_notification_wait_init(&priv->notif_wait);
 
 	/* Set up BT Rx handlers */
-	if (cfg(priv)->lib->bt_rx_handler_setup)
-		cfg(priv)->lib->bt_rx_handler_setup(priv);
-
+	if (cfg(priv)->bt_params)
+		iwlagn_bt_rx_handler_setup(priv);
 }
 
 int iwl_rx_dispatch(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,

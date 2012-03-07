@@ -976,8 +976,8 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 
 	iwl_setup_scan_deferred_work(priv);
 
-	if (cfg(priv)->lib->bt_setup_deferred_work)
-		cfg(priv)->lib->bt_setup_deferred_work(priv);
+	if (cfg(priv)->bt_params)
+		iwlagn_bt_setup_deferred_work(priv);
 
 	init_timer(&priv->statistics_periodic);
 	priv->statistics_periodic.data = (unsigned long)priv;
@@ -994,8 +994,8 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 
 void iwl_cancel_deferred_work(struct iwl_priv *priv)
 {
-	if (cfg(priv)->lib->cancel_deferred_work)
-		cfg(priv)->lib->cancel_deferred_work(priv);
+	if (cfg(priv)->bt_params)
+		iwlagn_bt_cancel_deferred_work(priv);
 
 	cancel_work_sync(&priv->run_time_calib_work);
 	cancel_work_sync(&priv->beacon_update);

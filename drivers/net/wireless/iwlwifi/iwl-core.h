@@ -77,12 +77,6 @@ struct iwl_cmd;
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	void (*set_hw_params)(struct iwl_priv *priv);
-	/* setup BT Rx handler */
-	void (*bt_rx_handler_setup)(struct iwl_priv *priv);
-	/* setup BT related deferred work */
-	void (*bt_setup_deferred_work)(struct iwl_priv *priv);
-	/* cancel deferred work */
-	void (*cancel_deferred_work)(struct iwl_priv *priv);
 	int (*set_channel_switch)(struct iwl_priv *priv,
 				  struct ieee80211_channel_switch *ch_switch);
 	/* device specific configuration */
