@@ -96,9 +96,8 @@ static void iwl1000_nic_config(struct iwl_priv *priv)
 				~APMG_SVR_VOLTAGE_CONFIG_BIT_MSK);
 }
 
-static struct iwl_sensitivity_ranges iwl1000_sensitivity = {
+static const struct iwl_sensitivity_ranges iwl1000_sensitivity = {
 	.min_nrg_cck = 95,
-	.max_nrg_cck = 0, /* not used, set to 0 */
 	.auto_corr_min_ofdm = 90,
 	.auto_corr_min_ofdm_mrc = 170,
 	.auto_corr_min_ofdm_x1 = 120,

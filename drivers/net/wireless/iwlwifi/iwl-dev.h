@@ -294,7 +294,6 @@ struct iwl_vif_priv {
 
 struct iwl_sensitivity_ranges {
 	u16 min_nrg_cck;
-	u16 max_nrg_cck;
 
 	u16 nrg_th_cck;
 	u16 nrg_th_ofdm;
