@@ -30,7 +30,7 @@
 #include <mach/bast-map.h>
 #include <mach/bast-cpld.h>
 
-#include "nor-simtec.h"
+#include "simtec.h"
 
 static void simtec_nor_vpp(struct platform_device *pdev, int vpp)
 {

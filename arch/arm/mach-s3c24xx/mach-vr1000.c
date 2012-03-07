@@ -51,8 +51,7 @@
 #include <plat/iic.h>
 #include <plat/audio-simtec.h>
 
-#include "usb-simtec.h"
-#include "nor-simtec.h"
+#include "simtec.h"
 #include "common.h"
 
 /* macros for virtual address mods for the io space entries */

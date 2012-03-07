@@ -27,6 +27,8 @@
 #include <plat/audio-simtec.h>
 #include <plat/devs.h>
 
+#include "simtec.h"
+
 /* platform ops for audio */
 
 static void simtec_audio_startup_lrroute(void)

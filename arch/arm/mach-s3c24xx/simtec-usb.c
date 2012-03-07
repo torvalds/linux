@@ -37,7 +37,7 @@
 #include <plat/usb-control.h>
 #include <plat/devs.h>
 
-#include "usb-simtec.h"
+#include "simtec.h"
 
 /* control power and monitor over-current events on various Simtec
  * designed boards.

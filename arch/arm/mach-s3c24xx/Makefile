@@ -44,7 +44,7 @@ obj-$(CONFIG_S3C2443_COMMON)	+= common-s3c2443.o
 #
 
 obj-$(CONFIG_MACH_AML_M5900)		+= mach-amlm5900.o
-obj-$(CONFIG_ARCH_BAST)			+= mach-bast.o usb-simtec.o
+obj-$(CONFIG_ARCH_BAST)			+= mach-bast.o
 obj-$(CONFIG_BAST_PC104_IRQ)		+= bast-irq.o
 obj-$(CONFIG_ARCH_H1940)		+= mach-h1940.o
 obj-$(CONFIG_H1940BT)			+= h1940-bluetooth.o
@@ -54,7 +54,7 @@ obj-$(CONFIG_MACH_OTOM)			+= mach-otom.o
 obj-$(CONFIG_MACH_QT2410)		+= mach-qt2410.o
 obj-$(CONFIG_ARCH_SMDK2410)		+= mach-smdk2410.o
 obj-$(CONFIG_MACH_TCT_HAMMER)		+= mach-tct_hammer.o
-obj-$(CONFIG_MACH_VR1000)		+= mach-vr1000.o usb-simtec.o
+obj-$(CONFIG_MACH_VR1000)		+= mach-vr1000.o
 
 obj-$(CONFIG_MACH_JIVE)			+= mach-jive.o
 obj-$(CONFIG_MACH_SMDK2413)		+= mach-smdk2413.o
@@ -78,9 +78,10 @@ obj-$(CONFIG_MACH_SMDK2443)		+= mach-smdk2443.o
 # common bits of machine support
 
 obj-$(CONFIG_S3C24XX_SMDK)		+= common-smdk.o
-obj-$(CONFIG_SIMTEC_NOR)		+= nor-simtec.o
 obj-$(CONFIG_S3C24XX_SIMTEC_AUDIO)	+= simtec-audio.o
+obj-$(CONFIG_S3C24XX_SIMTEC_NOR)	+= simtec-nor.o
 obj-$(CONFIG_S3C24XX_SIMTEC_PM)		+= simtec-pm.o
+obj-$(CONFIG_S3C24XX_SIMTEC_USB)	+= simtec-usb.o
 
 # machine additions
 

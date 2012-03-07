@@ -55,6 +55,7 @@
 #include <plat/cpu.h>
 #include <plat/audio-simtec.h>
 
+#include "simtec.h"
 #include "common.h"
 
 #define COPYRIGHT ", Copyright 2005-2009 Simtec Electronics"
