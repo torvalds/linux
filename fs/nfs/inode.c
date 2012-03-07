@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include <linux/compat.h>
 #include <linux/freezer.h>
+#include <linux/crc32.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -1045,7 +1046,23 @@ struct nfs_fh *nfs_alloc_fhandle(void)
 	return fh;
 }
 
-/**
+#ifdef RPC_DEBUG
+/*
+ * _nfs_display_fhandle_hash - calculate the crc32 hash for the filehandle
+ *                             in the same way that wireshark does
+ *
+ * @fh: file handle
+ *
+ * For debugging only.
+ */
+u32 _nfs_display_fhandle_hash(const struct nfs_fh *fh)
+{
+	/* wireshark uses 32-bit AUTODIN crc and does a bitwise
+	 * not on the result */
+	return ~crc32(0xFFFFFFFF, &fh->data[0], fh->size);
+}
+
+/*
  * _nfs_display_fhandle - display an NFS file handle on the console
  *
  * @fh: file handle to display
@@ -1053,7 +1070,6 @@ struct nfs_fh *nfs_alloc_fhandle(void)
  *
  * For debugging only.
  */
-#ifdef RPC_DEBUG
 void _nfs_display_fhandle(const struct nfs_fh *fh, const char *caption)
 {
 	unsigned short i;
@@ -1063,7 +1079,8 @@ void _nfs_display_fhandle(const struct nfs_fh *fh, const char *caption)
 		return;
 	}
 
-	printk(KERN_DEFAULT "%s at %p is %u bytes:\n", caption, fh, fh->size);
+	printk(KERN_DEFAULT "%s at %p is %u bytes, crc: 0x%08x:\n",
+	       caption, fh, fh->size, _nfs_display_fhandle_hash(fh));
 	for (i = 0; i < fh->size; i += 16) {
 		__be32 *pos = (__be32 *)&fh->data[i];
 

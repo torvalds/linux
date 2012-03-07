@@ -396,6 +396,11 @@ static inline void nfs_free_fhandle(const struct nfs_fh *fh)
 }
 
 #ifdef RPC_DEBUG
+extern u32 _nfs_display_fhandle_hash(const struct nfs_fh *fh);
+static inline u32 nfs_display_fhandle_hash(const struct nfs_fh *fh)
+{
+	return _nfs_display_fhandle_hash(fh);
+}
 extern void _nfs_display_fhandle(const struct nfs_fh *fh, const char *caption);
 #define nfs_display_fhandle(fh, caption)			\
 	do {							\
@@ -403,6 +408,9 @@ extern void _nfs_display_fhandle(const struct nfs_fh *fh, const char *caption);
 			_nfs_display_fhandle(fh, caption);	\
 	} while (0)
 #else
+static inline u32 nfs_display_fhandle_hash(const struct nfs_fh *fh)
+{
+}
 static inline void nfs_display_fhandle(const struct nfs_fh *fh,
 				       const char *caption)
 {
