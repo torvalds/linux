@@ -750,7 +750,6 @@ static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
 
 	/* Set starting address; reads will auto-increment */
 	iwl_write32(trans, HBUS_TARG_MEM_RADDR, ptr);
-	rmb();
 
 	/* "time" is actually "data" for mode 0 (no timestamp).
 	* place event id # at far right for easier visual parsing. */

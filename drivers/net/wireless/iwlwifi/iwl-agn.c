@@ -334,7 +334,6 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 
 	/* Set starting address; reads will auto-increment */
 	iwl_write32(trans(priv), HBUS_TARG_MEM_RADDR, ptr);
-	rmb();
 
 	/*
 	 * Refuse to read more than would have fit into the log from

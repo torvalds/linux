@@ -136,6 +136,13 @@ void iwl_release_nic_access(struct iwl_trans *trans)
 	lockdep_assert_held(&trans->reg_lock);
 	__iwl_clear_bit(trans, CSR_GP_CNTRL,
 			CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	/*
+	 * Above we read the CSR_GP_CNTRL register, which will flush
+	 * any previous writes, but we need the write that clears the
+	 * MAC_ACCESS_REQ bit to be performed before any other writes
+	 * scheduled on different CPUs (after we drop reg_lock).
+	 */
+	mmiowb();
 }
 
 u32 iwl_read_direct32(struct iwl_trans *trans, u32 reg)
@@ -182,7 +189,6 @@ int iwl_poll_direct_bit(struct iwl_trans *trans, u32 addr, u32 mask,
 static inline u32 __iwl_read_prph(struct iwl_trans *trans, u32 reg)
 {
 	iwl_write32(trans, HBUS_TARG_PRPH_RADDR, reg | (3 << 24));
-	rmb();
 	return iwl_read32(trans, HBUS_TARG_PRPH_RDAT);
 }
 
@@ -190,7 +196,6 @@ static inline void __iwl_write_prph(struct iwl_trans *trans, u32 addr, u32 val)
 {
 	iwl_write32(trans, HBUS_TARG_PRPH_WADDR,
 		    ((addr & 0x0000FFFF) | (3 << 24)));
-	wmb();
 	iwl_write32(trans, HBUS_TARG_PRPH_WDAT, val);
 }
 
@@ -270,7 +275,6 @@ void _iwl_read_targ_mem_words(struct iwl_trans *trans, u32 addr,
 	spin_lock_irqsave(&trans->reg_lock, flags);
 	if (likely(iwl_grab_nic_access(trans))) {
 		iwl_write32(trans, HBUS_TARG_MEM_RADDR, addr);
-		rmb();
 		for (offs = 0; offs < words; offs++)
 			vals[offs] = iwl_read32(trans, HBUS_TARG_MEM_RDAT);
 		iwl_release_nic_access(trans);
@@ -297,8 +301,6 @@ int _iwl_write_targ_mem_words(struct iwl_trans *trans, u32 addr,
 	spin_lock_irqsave(&trans->reg_lock, flags);
 	if (likely(iwl_grab_nic_access(trans))) {
 		iwl_write32(trans, HBUS_TARG_MEM_WADDR, addr);
-		wmb();
-
 		for (offs = 0; offs < words; offs++)
 			iwl_write32(trans, HBUS_TARG_MEM_WDAT, vals[offs]);
 		iwl_release_nic_access(trans);
