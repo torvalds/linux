@@ -168,6 +168,25 @@ static struct clk clk_prediv = {
 	},
 };
 
+/* hclk divider
+ *
+ * divides the prediv and provides the hclk.
+ */
+
+static unsigned long s3c2443_hclkdiv_getrate(struct clk *clk)
+{
+	unsigned long rate = clk_get_rate(clk->parent);
+	unsigned long clkdiv0 = __raw_readl(S3C2443_CLKDIV0);
+
+	clkdiv0 &= S3C2443_CLKDIV0_HCLKDIV_MASK;
+
+	return rate / (clkdiv0 + 1);
+}
+
+static struct clk_ops clk_h_ops = {
+	.get_rate	= s3c2443_hclkdiv_getrate,
+};
+
 /* armdiv
  *
  * this clock is sourced from msysclk and can have a number of
@@ -524,13 +543,6 @@ static struct clk hsmmc1_clk = {
 	.ctrlbit	= S3C2443_HCLKCON_HSMMC,
 };
 
-static inline unsigned long s3c2443_get_hdiv(unsigned long clkcon0)
-{
-	clkcon0 &= S3C2443_CLKDIV0_HCLKDIV_MASK;
-
-	return clkcon0 + 1;
-}
-
 /* EPLLCON compatible enough to get on/off information */
 
 void __init_or_cpufreq s3c2443_common_setup_clocks(pll_fn get_mpll)
@@ -554,8 +566,7 @@ void __init_or_cpufreq s3c2443_common_setup_clocks(pll_fn get_mpll)
 	clk_msysclk.clk.rate = pll;
 
 	fclk = clk_get_rate(&clk_armdiv);
-	hclk = s3c2443_prediv_getrate(&clk_prediv);
-	hclk /= s3c2443_get_hdiv(clkdiv0);
+	hclk = clk_get_rate(&clk_h);
 	pclk = hclk / ((clkdiv0 & S3C2443_CLKDIV0_HALF_PCLK) ? 2 : 1);
 
 	s3c24xx_setup_clocks(fclk, hclk, pclk);
@@ -621,6 +632,8 @@ void __init s3c2443_common_init_clocks(int xtal, pll_fn get_mpll,
 
 	/* s3c2443 parents h and p clocks from prediv */
 	clk_h.parent = &clk_prediv;
+	clk_h.ops = &clk_h_ops;
+
 	clk_p.parent = &clk_prediv;
 
 	clk_usb_bus.parent = &clk_usb_bus_host.clk;
