@@ -385,6 +385,7 @@ static int init_pmd(struct dm_pool_metadata *pmd,
 		data_sm = dm_sm_disk_create(tm, nr_blocks);
 		if (IS_ERR(data_sm)) {
 			DMERR("sm_disk_create failed");
+			dm_tm_unlock(tm, sblock);
 			r = PTR_ERR(data_sm);
 			goto bad;
 		}
