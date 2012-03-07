@@ -167,7 +167,7 @@ static void __init audmux_debugfs_init(void)
 	}
 }
 
-static void __exit audmux_debugfs_remove(void)
+static void __devexit audmux_debugfs_remove(void)
 {
 	debugfs_remove_recursive(audmux_debugfs_root);
 }
@@ -249,7 +249,7 @@ int imx_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
 }
 EXPORT_SYMBOL_GPL(imx_audmux_v2_configure_port);
 
-static int __init imx_audmux_probe(struct platform_device *pdev)
+static int __devinit imx_audmux_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	const struct of_device_id *of_id =
@@ -276,7 +276,7 @@ static int __init imx_audmux_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit imx_audmux_remove(struct platform_device *pdev)
+static int __devexit imx_audmux_remove(struct platform_device *pdev)
 {
 	if (audmux_type == IMX31_AUDMUX)
 		audmux_debugfs_remove();
@@ -287,7 +287,7 @@ static int __exit imx_audmux_remove(struct platform_device *pdev)
 
 static struct platform_driver imx_audmux_driver = {
 	.probe		= imx_audmux_probe,
-	.remove		= __exit_p(imx_audmux_remove),
+	.remove		= __devexit_p(imx_audmux_remove),
 	.id_table	= imx_audmux_ids,
 	.driver	= {
 		.name	= DRIVER_NAME,
