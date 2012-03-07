@@ -546,6 +546,41 @@ out_err:
 	return -EINVAL;
 }
 
+void iwl_deactivate_station(struct iwl_priv *priv, const u8 sta_id,
+			    const u8 *addr)
+{
+	u8 tid;
+
+	if (!iwl_is_ready(priv)) {
+		IWL_DEBUG_INFO(priv,
+			"Unable to remove station %pM, device not ready.\n",
+			addr);
+		return;
+	}
+
+	IWL_DEBUG_ASSOC(priv, "Deactivating STA: %pM (%d)\n", addr, sta_id);
+
+	if (WARN_ON_ONCE(sta_id == IWL_INVALID_STATION))
+		return;
+
+	spin_lock_bh(&priv->sta_lock);
+
+	WARN_ON_ONCE(!(priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE));
+
+	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++)
+		memset(&priv->tid_data[sta_id][tid], 0,
+			sizeof(priv->tid_data[sta_id][tid]));
+
+	priv->stations[sta_id].used &= ~IWL_STA_DRIVER_ACTIVE;
+
+	priv->num_stations--;
+
+	if (WARN_ON_ONCE(priv->num_stations < 0))
+		priv->num_stations = 0;
+
+	spin_unlock_bh(&priv->sta_lock);
+}
+
 /**
  * iwl_clear_ucode_stations - clear ucode station table bits
  *

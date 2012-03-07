@@ -234,6 +234,8 @@ int iwl_add_station_common(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			   struct ieee80211_sta *sta, u8 *sta_id_r);
 int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 		       const u8 *addr);
+void iwl_deactivate_station(struct iwl_priv *priv, const u8 sta_id,
+			    const u8 *addr);
 u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		    const u8 *addr, bool is_ap, struct ieee80211_sta *sta);
 

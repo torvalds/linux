@@ -724,12 +724,22 @@ static int iwlagn_mac_sta_remove(struct ieee80211_hw *hw,
 	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
 	int ret;
 
-	IWL_DEBUG_INFO(priv, "proceeding to remove station %pM\n",
-			sta->addr);
-	ret = iwl_remove_station(priv, sta_priv->sta_id, sta->addr);
-	if (ret)
-		IWL_DEBUG_QUIET_RFKILL(priv, "Error removing station %pM\n",
-			sta->addr);
+	IWL_DEBUG_INFO(priv, "proceeding to remove station %pM\n", sta->addr);
+
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		/*
+		 * Station will be removed from device when the RXON
+		 * is set to unassociated -- just deactivate it here
+		 * to avoid re-programming it.
+		 */
+		ret = 0;
+		iwl_deactivate_station(priv, sta_priv->sta_id, sta->addr);
+	} else {
+		ret = iwl_remove_station(priv, sta_priv->sta_id, sta->addr);
+		if (ret)
+			IWL_DEBUG_QUIET_RFKILL(priv,
+				"Error removing station %pM\n", sta->addr);
+	}
 	return ret;
 }
 
