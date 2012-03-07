@@ -746,7 +746,6 @@ static u32 sh_mmcif_set_cmd(struct sh_mmcif_host *host,
 	case MMC_SET_WRITE_PROT:
 	case MMC_CLR_WRITE_PROT:
 	case MMC_ERASE:
-	case MMC_GEN_CMD:
 		tmp |= CMD_SET_RBSY;
 		break;
 	}
@@ -829,7 +828,6 @@ static void sh_mmcif_start_cmd(struct sh_mmcif_host *host,
 	case MMC_SET_WRITE_PROT:
 	case MMC_CLR_WRITE_PROT:
 	case MMC_ERASE:
-	case MMC_GEN_CMD:
 		mask = MASK_START_CMD | MASK_MRBSYE;
 		break;
 	default:
