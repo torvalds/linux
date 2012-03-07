@@ -75,7 +75,7 @@ static const struct ath6kl_hw hw_list[] = {
 		},
 
 		.fw_board		= AR6003_HW_2_1_1_BOARD_DATA_FILE,
-		.fw_default_board	= AR6003_HW_2_1_1_DEFAULT_BOARD_DATA_FILE,
+		.fw_default_board = AR6003_HW_2_1_1_DEFAULT_BOARD_DATA_FILE,
 	},
 	{
 		.id				= AR6004_HW_1_0_VERSION,
@@ -394,7 +394,7 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 
 	if (ar->conf_flags & ATH6KL_CONF_IGNORE_PS_FAIL_EVT_IN_SCAN) {
 		ret = ath6kl_wmi_pmparams_cmd(ar->wmi, idx, 0, 1, 0, 0, 1,
-					      IGNORE_POWER_SAVE_FAIL_EVENT_DURING_SCAN);
+					      IGNORE_PS_FAIL_DURING_SCAN);
 		if (ret) {
 			ath6kl_err("unable to set power save fail event policy: %d\n",
 				   ret);
@@ -404,7 +404,7 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 
 	if (!(ar->conf_flags & ATH6KL_CONF_IGNORE_ERP_BARKER)) {
 		ret = ath6kl_wmi_set_lpreamble_cmd(ar->wmi, idx, 0,
-						   WMI_DONOT_IGNORE_BARKER_IN_ERP);
+						   WMI_FOLLOW_BARKER_IN_ERP);
 		if (ret) {
 			ath6kl_err("unable to set barker preamble policy: %d\n",
 				   ret);

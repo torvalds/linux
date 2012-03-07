@@ -172,31 +172,29 @@ static void ath6kl_credit_reduce(struct ath6kl_htc_credit_info *cred_info,
 static void ath6kl_credit_update(struct ath6kl_htc_credit_info *cred_info,
 				 struct list_head *epdist_list)
 {
-	struct htc_endpoint_credit_dist *cur_dist_list;
+	struct htc_endpoint_credit_dist *cur_list;
 
-	list_for_each_entry(cur_dist_list, epdist_list, list) {
-		if (cur_dist_list->endpoint == ENDPOINT_0)
+	list_for_each_entry(cur_list, epdist_list, list) {
+		if (cur_list->endpoint == ENDPOINT_0)
 			continue;
 
-		if (cur_dist_list->cred_to_dist > 0) {
-			cur_dist_list->credits +=
-					cur_dist_list->cred_to_dist;
-			cur_dist_list->cred_to_dist = 0;
-			if (cur_dist_list->credits >
-			    cur_dist_list->cred_assngd)
+		if (cur_list->cred_to_dist > 0) {
+			cur_list->credits += cur_list->cred_to_dist;
+			cur_list->cred_to_dist = 0;
+
+			if (cur_list->credits > cur_list->cred_assngd)
 				ath6kl_credit_reduce(cred_info,
-						     cur_dist_list,
-						     cur_dist_list->cred_assngd);
+						     cur_list,
+						     cur_list->cred_assngd);
 
-			if (cur_dist_list->credits >
-			    cur_dist_list->cred_norm)
-				ath6kl_credit_reduce(cred_info, cur_dist_list,
-						     cur_dist_list->cred_norm);
+			if (cur_list->credits > cur_list->cred_norm)
+				ath6kl_credit_reduce(cred_info, cur_list,
+						     cur_list->cred_norm);
 
-			if (!(cur_dist_list->dist_flags & HTC_EP_ACTIVE)) {
-				if (cur_dist_list->txq_depth == 0)
+			if (!(cur_list->dist_flags & HTC_EP_ACTIVE)) {
+				if (cur_list->txq_depth == 0)
 					ath6kl_credit_reduce(cred_info,
-							     cur_dist_list, 0);
+							     cur_list, 0);
 			}
 		}
 	}
@@ -674,6 +672,7 @@ static int ath6kl_htc_tx_setup_scat_list(struct htc_target *target,
 	struct htc_packet *packet;
 	int i, len, rem_scat, cred_pad;
 	int status = 0;
+	u8 flags;
 
 	rem_scat = target->max_tx_bndl_sz;
 
@@ -700,8 +699,8 @@ static int ath6kl_htc_tx_setup_scat_list(struct htc_target *target,
 
 		scat_req->scat_list[i].packet = packet;
 		/* prepare packet and flag message as part of a send bundle */
-		ath6kl_htc_tx_prep_pkt(packet,
-				       packet->info.tx.flags | HTC_FLAGS_SEND_BUNDLE,
+		flags = packet->info.tx.flags | HTC_FLAGS_SEND_BUNDLE;
+		ath6kl_htc_tx_prep_pkt(packet, flags,
 				       cred_pad, packet->info.tx.seqno);
 		/* Make sure the buffer is 4-byte aligned */
 		ath6kl_htc_tx_buf_align(&packet->buf,
@@ -2405,6 +2404,7 @@ int ath6kl_htc_conn_service(struct htc_target *target,
 	enum htc_endpoint_id assigned_ep = ENDPOINT_MAX;
 	unsigned int max_msg_sz = 0;
 	int status = 0;
+	u16 msg_id;
 
 	ath6kl_dbg(ATH6KL_DBG_HTC,
 		   "htc connect service target 0x%p service id 0x%x\n",
@@ -2448,8 +2448,9 @@ int ath6kl_htc_conn_service(struct htc_target *target,
 		}
 
 		resp_msg = (struct htc_conn_service_resp *)rx_pkt->buf;
+		msg_id = le16_to_cpu(resp_msg->msg_id);
 
-		if ((le16_to_cpu(resp_msg->msg_id) != HTC_MSG_CONN_SVC_RESP_ID) ||
+		if ((msg_id != HTC_MSG_CONN_SVC_RESP_ID) ||
 		    (rx_pkt->act_len < sizeof(*resp_msg))) {
 			status = -ENOMEM;
 			goto fail_tx;
