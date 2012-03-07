@@ -30,6 +30,9 @@
 #include <linux/gpio_keys.h>
 #include <linux/delay.h>
 
+#include <linux/of.h>
+#include <linux/of_platform.h>
+
 #include <linux/leds.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -738,3 +741,34 @@ MACHINE_START(SNOWBALL, "Calao Systems Snowball platform")
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= snowball_init_machine,
 MACHINE_END
+
+#ifdef CONFIG_MACH_UX500_DT
+static void __init u8500_init_machine(void)
+{
+	if (of_machine_is_compatible("calaosystems,snowball-a9500"))
+		return snowball_init_machine();
+	else if (of_machine_is_compatible("st-ericsson,hrefv60+"))
+		return hrefv60_init_machine();
+	else if (of_machine_is_compatible("st-ericsson,mop500"))
+		return mop500_init_machine();
+}
+
+static const char * u8500_dt_board_compat[] = {
+	"calaosystems,snowball-a9500",
+	"st-ericsson,hrefv60+",
+	"st-ericsson,u8500",
+	"st-ericsson,mop500",
+	NULL,
+};
+
+
+DT_MACHINE_START(U8500_DT, "ST-Ericsson U8500 platform (Device Tree Support)")
+	.map_io		= u8500_map_io,
+	.init_irq	= ux500_init_irq,
+	/* we re-use nomadik timer here */
+	.timer		= &ux500_timer,
+	.handle_irq	= gic_handle_irq,
+	.init_machine	= u8500_init_machine,
+	.dt_compat      = u8500_dt_board_compat,
+MACHINE_END
+#endif
