@@ -4768,7 +4768,6 @@ static const struct dev_pm_ops dsi_pm_ops = {
 };
 
 static struct platform_driver omap_dsihw_driver = {
-	.probe          = omap_dsihw_probe,
 	.remove         = omap_dsihw_remove,
 	.driver         = {
 		.name   = "omapdss_dsi",
@@ -4779,7 +4778,7 @@ static struct platform_driver omap_dsihw_driver = {
 
 int dsi_init_platform_driver(void)
 {
-	return platform_driver_register(&omap_dsihw_driver);
+	return platform_driver_probe(&omap_dsihw_driver, omap_dsihw_probe);
 }
 
 void dsi_uninit_platform_driver(void)

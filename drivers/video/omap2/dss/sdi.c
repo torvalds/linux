@@ -187,7 +187,6 @@ static int omap_sdi_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver omap_sdi_driver = {
-	.probe		= omap_sdi_probe,
 	.remove         = omap_sdi_remove,
 	.driver         = {
 		.name   = "omapdss_sdi",
@@ -197,7 +196,7 @@ static struct platform_driver omap_sdi_driver = {
 
 int sdi_init_platform_driver(void)
 {
-	return platform_driver_register(&omap_sdi_driver);
+	return platform_driver_probe(&omap_sdi_driver, omap_sdi_probe);
 }
 
 void sdi_uninit_platform_driver(void)

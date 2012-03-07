@@ -376,7 +376,6 @@ static int omap_dpi_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver omap_dpi_driver = {
-	.probe		= omap_dpi_probe,
 	.remove         = omap_dpi_remove,
 	.driver         = {
 		.name   = "omapdss_dpi",
@@ -386,7 +385,7 @@ static struct platform_driver omap_dpi_driver = {
 
 int dpi_init_platform_driver(void)
 {
-	return platform_driver_register(&omap_dpi_driver);
+	return platform_driver_probe(&omap_dpi_driver, omap_dpi_probe);
 }
 
 void dpi_uninit_platform_driver(void)
