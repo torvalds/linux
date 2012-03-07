@@ -819,15 +819,15 @@ void iwl_down(struct iwl_priv *priv)
 	iwl_trans_stop_device(trans(priv));
 
 	/* Clear out all status bits but a few that are stable across reset */
-	priv->shrd->status &=
-			test_bit(STATUS_RF_KILL_HW, &priv->status) <<
+	priv->status &= test_bit(STATUS_RF_KILL_HW, &priv->status) <<
 				STATUS_RF_KILL_HW |
 			test_bit(STATUS_GEO_CONFIGURED, &priv->status) <<
 				STATUS_GEO_CONFIGURED |
-			test_bit(STATUS_FW_ERROR, &priv->shrd->status) <<
-				STATUS_FW_ERROR |
 			test_bit(STATUS_EXIT_PENDING, &priv->status) <<
 				STATUS_EXIT_PENDING;
+	priv->shrd->status &=
+			test_bit(STATUS_FW_ERROR, &priv->shrd->status) <<
+				STATUS_FW_ERROR;
 
 	dev_kfree_skb(priv->beacon_skb);
 	priv->beacon_skb = NULL;
