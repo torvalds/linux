@@ -316,7 +316,6 @@ int iwl_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 
 static int iwl_alive_notify(struct iwl_priv *priv)
 {
-	struct iwl_rxon_context *ctx;
 	int ret;
 
 	if (!priv->tx_cmd_pool)
@@ -329,8 +328,9 @@ static int iwl_alive_notify(struct iwl_priv *priv)
 		return -ENOMEM;
 
 	iwl_trans_fw_alive(trans(priv));
-	for_each_context(priv, ctx)
-		ctx->last_tx_rejected = false;
+
+	priv->passive_no_rx = false;
+	priv->transport_queue_stop = 0;
 
 	ret = iwl_send_wimax_coex(priv);
 	if (ret)

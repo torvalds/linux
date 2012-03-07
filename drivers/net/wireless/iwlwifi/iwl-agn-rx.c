@@ -807,16 +807,12 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 	* sometimes even after already having transmitted frames for the
 	* association because the new RXON may reset the information.
 	*/
-	if (unlikely(ieee80211_is_beacon(fc))) {
+	if (unlikely(ieee80211_is_beacon(fc) && priv->passive_no_rx)) {
 		for_each_context(priv, ctx) {
-			if (!ctx->last_tx_rejected)
-				continue;
 			if (compare_ether_addr(hdr->addr3,
 					       ctx->active.bssid_addr))
 				continue;
-			ctx->last_tx_rejected = false;
-			iwl_trans_wake_any_queue(trans(priv), ctx->ctxid,
-				"channel got active");
+			iwlagn_lift_passive_no_rx(priv);
 		}
 	}
 

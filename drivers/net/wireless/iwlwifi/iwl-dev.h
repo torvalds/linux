@@ -670,8 +670,6 @@ struct iwl_rxon_context {
 		bool enabled, is_40mhz;
 		u8 extension_chan_offset;
 	} ht;
-
-	bool last_tx_rejected;
 };
 
 enum iwl_scan_type {
@@ -719,6 +717,9 @@ struct iwl_priv {
 
 	spinlock_t sta_lock;
 	struct mutex mutex;
+
+	unsigned long transport_queue_stop;
+	bool passive_no_rx;
 
 	/* ieee device used by generic ieee processing code */
 	struct ieee80211_hw *hw;

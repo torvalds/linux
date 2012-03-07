@@ -833,12 +833,8 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			 * not get stuck in this case either since it
 			 * can happen if userspace gets confused.
 			 */
-			if (ctx->last_tx_rejected) {
-				ctx->last_tx_rejected = false;
-				iwl_trans_wake_any_queue(trans(priv),
-							 ctx->ctxid,
-							 "Disassoc: flush queue");
-			}
+			iwlagn_lift_passive_no_rx(priv);
+
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 
 			if (ctx->ctxid == IWL_RXON_CTX_BSS)

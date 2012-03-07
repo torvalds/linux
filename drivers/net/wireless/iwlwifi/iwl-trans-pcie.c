@@ -1559,8 +1559,7 @@ static void iwl_trans_pcie_stop_hw(struct iwl_trans *trans)
 }
 
 static int iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
-		      int txq_id, int ssn, u32 status,
-		      struct sk_buff_head *skbs)
+		      int txq_id, int ssn, struct sk_buff_head *skbs)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
@@ -1593,9 +1592,7 @@ static int iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 				txq_id, iwl_get_queue_ac(txq), txq->q.read_ptr,
 				tfd_num, ssn);
 		freed = iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
-		if (iwl_queue_space(&txq->q) > txq->q.low_mark &&
-		   (!txq->sched_retry ||
-		   status != TX_STATUS_FAIL_PASSIVE_NO_RX))
+		if (iwl_queue_space(&txq->q) > txq->q.low_mark)
 			iwl_wake_queue(trans, txq, "Packets reclaimed");
 	}
 
@@ -1661,32 +1658,6 @@ static int iwl_trans_pcie_resume(struct iwl_trans *trans)
 	return 0;
 }
 #endif /* CONFIG_PM_SLEEP */
-
-static void iwl_trans_pcie_wake_any_queue(struct iwl_trans *trans,
-					  enum iwl_rxon_context_id ctx,
-					  const char *msg)
-{
-	u8 ac, txq_id;
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans);
-
-	for (ac = 0; ac < AC_NUM; ac++) {
-		txq_id = trans_pcie->ac_to_queue[ctx][ac];
-		IWL_DEBUG_TX_QUEUES(trans, "Queue Status: Q[%d] %s\n",
-			ac,
-			(atomic_read(&trans_pcie->queue_stop_count[ac]) > 0)
-			      ? "stopped" : "awake");
-		iwl_wake_queue(trans, &trans_pcie->txq[txq_id], msg);
-	}
-}
-
-static void iwl_trans_pcie_stop_queue(struct iwl_trans *trans, int txq_id,
-				      const char *msg)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-
-	iwl_stop_queue(trans, &trans_pcie->txq[txq_id], msg);
-}
 
 #define IWL_FLUSH_WAIT_MS	2000
 
@@ -2207,8 +2178,6 @@ const struct iwl_trans_ops trans_ops_pcie = {
 
 	.wowlan_suspend = iwl_trans_pcie_wowlan_suspend,
 
-	.wake_any_queue = iwl_trans_pcie_wake_any_queue,
-
 	.send_cmd = iwl_trans_pcie_send_cmd,
 
 	.tx = iwl_trans_pcie_tx,
@@ -2219,7 +2188,6 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.tx_agg_setup = iwl_trans_pcie_tx_agg_setup,
 
 	.free = iwl_trans_pcie_free,
-	.stop_queue = iwl_trans_pcie_stop_queue,
 
 	.dbgfs_register = iwl_trans_pcie_dbgfs_register,
 

@@ -1427,6 +1427,39 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 	cfg(priv)->lib->nic_config(priv);
 }
 
+static void iwl_stop_sw_queue(struct iwl_op_mode *op_mode, u8 ac)
+{
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
+	set_bit(ac, &priv->transport_queue_stop);
+	ieee80211_stop_queue(priv->hw, ac);
+}
+
+static void iwl_wake_sw_queue(struct iwl_op_mode *op_mode, u8 ac)
+{
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
+	clear_bit(ac, &priv->transport_queue_stop);
+
+	if (!priv->passive_no_rx)
+		ieee80211_wake_queue(priv->hw, ac);
+}
+
+void iwlagn_lift_passive_no_rx(struct iwl_priv *priv)
+{
+	int ac;
+
+	if (!priv->passive_no_rx)
+		return;
+
+	for (ac = IEEE80211_AC_VO; ac < IEEE80211_NUM_ACS; ac++) {
+		if (!test_bit(ac, &priv->transport_queue_stop))
+			ieee80211_wake_queue(priv->hw, ac);
+	}
+
+	priv->passive_no_rx = false;
+}
+
 const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.start = iwl_op_mode_dvm_start,
 	.stop = iwl_op_mode_dvm_stop,

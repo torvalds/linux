@@ -84,13 +84,12 @@ void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 int __must_check iwl_rx_dispatch(struct iwl_op_mode *op_mode,
 				 struct iwl_rx_cmd_buffer *rxb,
 				 struct iwl_device_cmd *cmd);
-void iwl_stop_sw_queue(struct iwl_op_mode *op_mode, u8 ac);
-void iwl_wake_sw_queue(struct iwl_op_mode *op_mode, u8 ac);
 void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state);
-void iwl_stop_sw_queue(struct iwl_op_mode *op_mode, u8 ac);
 void iwl_nic_error(struct iwl_op_mode *op_mode);
 
 bool iwl_check_for_ct_kill(struct iwl_priv *priv);
+
+void iwlagn_lift_passive_no_rx(struct iwl_priv *priv);
 
 /* MAC80211 */
 struct ieee80211_hw *iwl_alloc_all(void);

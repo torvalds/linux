@@ -451,18 +451,6 @@ static inline void iwl_stop_queue(struct iwl_trans *trans,
 	}
 }
 
-#ifdef ieee80211_stop_queue
-#undef ieee80211_stop_queue
-#endif
-
-#define ieee80211_stop_queue DO_NOT_USE_ieee80211_stop_queue
-
-#ifdef ieee80211_wake_queue
-#undef ieee80211_wake_queue
-#endif
-
-#define ieee80211_wake_queue DO_NOT_USE_ieee80211_wake_queue
-
 static inline void iwl_txq_ctx_activate(struct iwl_trans_pcie *trans_pcie,
 					int txq_id)
 {

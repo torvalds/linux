@@ -289,7 +289,6 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
  *	May sleep
  * @fw_alive: called when the fw sends alive notification
  *	May sleep
- * @wake_any_queue: wake all the queues of a specfic context IWL_RXON_CTX_*
  * @stop_device:stops the whole device (embedded CPU put to reset)
  *	May sleep
  * @wowlan_suspend: put the device into the correct mode for WoWLAN during
@@ -312,7 +311,6 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
  *	irq, tasklet etc... From this point on, the device may not issue
  *	any interrupt (incl. RFKILL).
  *	May sleep
- * @stop_queue: stop a specific queue
  * @check_stuck_queue: check if a specific queue is stuck
  * @wait_tx_queue_empty: wait until all tx queues are empty
  *	May sleep
@@ -334,18 +332,13 @@ struct iwl_trans_ops {
 
 	void (*wowlan_suspend)(struct iwl_trans *trans);
 
-	void (*wake_any_queue)(struct iwl_trans *trans,
-			       enum iwl_rxon_context_id ctx,
-			       const char *msg);
-
 	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
 	int (*tx)(struct iwl_trans *trans, struct sk_buff *skb,
 		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
 		u8 sta_id, u8 tid);
 	int (*reclaim)(struct iwl_trans *trans, int sta_id, int tid,
-			int txq_id, int ssn, u32 status,
-			struct sk_buff_head *skbs);
+			int txq_id, int ssn, struct sk_buff_head *skbs);
 
 	int (*tx_agg_disable)(struct iwl_trans *trans,
 			      int sta_id, int tid);
@@ -356,8 +349,6 @@ struct iwl_trans_ops {
 			     int frame_limit, u16 ssn);
 
 	void (*free)(struct iwl_trans *trans);
-
-	void (*stop_queue)(struct iwl_trans *trans, int q, const char *msg);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
 	int (*check_stuck_queue)(struct iwl_trans *trans, int q);
@@ -474,17 +465,6 @@ static inline void iwl_trans_wowlan_suspend(struct iwl_trans *trans)
 	trans->ops->wowlan_suspend(trans);
 }
 
-static inline void iwl_trans_wake_any_queue(struct iwl_trans *trans,
-					    enum iwl_rxon_context_id ctx,
-					    const char *msg)
-{
-	if (trans->state != IWL_TRANS_FW_ALIVE)
-		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
-
-	trans->ops->wake_any_queue(trans, ctx, msg);
-}
-
-
 static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 				struct iwl_host_cmd *cmd)
 {
@@ -505,14 +485,13 @@ static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
 }
 
 static inline int iwl_trans_reclaim(struct iwl_trans *trans, int sta_id,
-				 int tid, int txq_id, int ssn, u32 status,
+				 int tid, int txq_id, int ssn,
 				 struct sk_buff_head *skbs)
 {
 	if (trans->state != IWL_TRANS_FW_ALIVE)
 		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
 
-	return trans->ops->reclaim(trans, sta_id, tid, txq_id, ssn,
-				   status, skbs);
+	return trans->ops->reclaim(trans, sta_id, tid, txq_id, ssn, skbs);
 }
 
 static inline int iwl_trans_tx_agg_disable(struct iwl_trans *trans,
@@ -552,15 +531,6 @@ static inline void iwl_trans_tx_agg_setup(struct iwl_trans *trans,
 static inline void iwl_trans_free(struct iwl_trans *trans)
 {
 	trans->ops->free(trans);
-}
-
-static inline void iwl_trans_stop_queue(struct iwl_trans *trans, int q,
-					const char *msg)
-{
-	if (trans->state != IWL_TRANS_FW_ALIVE)
-		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
-
-	trans->ops->stop_queue(trans, q, msg);
 }
 
 static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans)
