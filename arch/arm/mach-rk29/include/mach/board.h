@@ -62,12 +62,6 @@ struct rk29_adc_battery_platform_data {
 	int charge_set_level;
 };
 
-struct irda_info{
-    u32 intr_pin;
-    int (*iomux_init)(void);
-    int (*iomux_deinit)(void);
-    int (*irda_pwr_ctl)(int en);
-};
 
 struct rk29_button_light_info{
 	u32 led_on_pin;

@@ -479,7 +479,7 @@ static struct platform_device device_fb = {
 };
 #endif
 
-#if CONFIG_ANDROID_TIMED_GPIO
+#ifdef CONFIG_ANDROID_TIMED_GPIO
 static struct timed_gpio timed_gpios[] = {
 	{
 		.name = "vibrator",
@@ -508,7 +508,7 @@ struct platform_device rk29_device_vibrator ={
 #ifdef CONFIG_LEDS_GPIO_PLATFORM
 struct gpio_led rk29_leds[] = {
 		{
-			.name = "rk30_keyboard_led",
+			.name = "button-backlight",
 			.gpio = RK30_PIN4_PD7,
 			.default_trigger = "timer",
 			.active_low = 0,
@@ -531,6 +531,53 @@ struct platform_device rk29_device_gpio_leds = {
 };
 #endif
 
+#ifdef CONFIG_RK_IRDA
+#define IRDA_IRQ_PIN           RK30_PIN6_PA1
+
+int irda_iomux_init(void)
+{
+	int ret = 0;
+
+	//irda irq pin
+	ret = gpio_request(IRDA_IRQ_PIN, NULL);
+	if(ret != 0)
+	{
+	gpio_free(IRDA_IRQ_PIN);
+	printk(">>>>>> IRDA_IRQ_PIN gpio_request err \n ");
+	}
+	gpio_pull_updown(IRDA_IRQ_PIN, PullDisable);
+	gpio_direction_input(IRDA_IRQ_PIN);
+
+	return 0;
+}
+
+int irda_iomux_deinit(void)
+{
+	gpio_free(IRDA_IRQ_PIN);
+	return 0;
+}
+
+static struct irda_info rk29_irda_info = {
+	.intr_pin = IRDA_IRQ_PIN,
+	.iomux_init = irda_iomux_init,
+	.iomux_deinit = irda_iomux_deinit,
+	//.irda_pwr_ctl = bu92747guw_power_ctl,
+};
+
+static struct platform_device irda_device = {
+#ifdef CONFIG_RK_IRDA_NET
+			.name	= "rk_irda",
+#else
+			.name = "bu92747_irda",
+#endif
+    .id		  = -1,
+	.dev            = {
+		.platform_data  = &rk29_irda_info,
+	}
+};
+#endif
+
+
 
 
 static struct platform_device *devices[] __initdata = {
@@ -545,6 +592,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_LEDS_GPIO_PLATFORM
 	&rk29_device_gpio_leds,
+#endif
+#ifdef CONFIG_RK_IRDA
+	&irda_device,
 #endif
 
 

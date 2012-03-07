@@ -112,6 +112,13 @@ struct cm3217_platform_data {
 	void    (*exit_platform_hw)(void);
 };
 
+struct irda_info{
+    u32 intr_pin;
+    int (*iomux_init)(void);
+    int (*iomux_deinit)(void);
+    int (*irda_pwr_ctl)(int en);
+};
+
 
 
 #define BOOT_MODE_NORMAL		0
