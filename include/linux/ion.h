@@ -19,6 +19,15 @@
 
 #include <linux/types.h>
 
+
+#define CACHED          1
+#define UNCACHED        0
+
+#define ION_CACHE_SHIFT 0
+
+#define ION_SET_CACHE(__cache)  ((__cache) << ION_CACHE_SHIFT)
+
+#define ION_IS_CACHED(__flags)	((__flags) & (1 << ION_CACHE_SHIFT))
 struct ion_handle;
 /**
  * enum ion_heap_types - list of all possible types of heaps
@@ -36,6 +45,14 @@ enum ion_heap_type {
 	ION_HEAP_TYPE_CUSTOM, /* must be last so device specific heaps always
 				 are at the end of this enum */
 	ION_NUM_HEAPS,
+};
+enum ion_heap_ids {
+	ION_NOR_HEAP_ID = 0,
+	ION_CMA_HEAP_ID = 1,
+	
+	ION_VPU_ID = 16,
+	ION_CAM_ID = 17,
+	ION_UI_ID = 18,
 };
 
 #define ION_HEAP_SYSTEM_MASK		(1 << ION_HEAP_TYPE_SYSTEM)
@@ -285,6 +302,16 @@ struct ion_custom_data {
 	unsigned long arg;
 };
 
+struct ion_phys_data {
+	struct ion_handle *handle;
+	unsigned long phys;
+	size_t size;
+};
+struct ion_flush_data {
+	struct ion_handle *handle;
+	void *virt;
+	size_t size;
+};
 #define ION_IOC_MAGIC		'I'
 
 /**
@@ -340,5 +367,8 @@ struct ion_custom_data {
  * passes appropriate userdata for that ioctl
  */
 #define ION_IOC_CUSTOM		_IOWR(ION_IOC_MAGIC, 6, struct ion_custom_data)
-
+#define ION_CACHE_FLUSH		_IOWR(ION_IOC_MAGIC, 7, struct ion_flush_data)
+#define ION_CACHE_CLEAN		_IOWR(ION_IOC_MAGIC, 8, struct ion_flush_data)
+#define ION_CACHE_INVALID	_IOWR(ION_IOC_MAGIC, 9, struct ion_flush_data)
+#define ION_GET_PHYS		_IOWR(ION_IOC_MAGIC, 10, unsigned long)
 #endif /* _LINUX_ION_H */

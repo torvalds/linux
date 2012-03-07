@@ -23,6 +23,10 @@
 #include <linux/rbtree.h>
 #include <linux/ion.h>
 
+#include <linux/seq_file.h>
+#include <linux/uaccess.h>
+#include <linux/debugfs.h>
+
 struct ion_mapping;
 
 struct ion_dma_mapping {
@@ -71,6 +75,8 @@ struct ion_buffer {
 	void *vaddr;
 	int dmap_cnt;
 	struct scatterlist *sglist;
+
+	int marked;
 };
 
 /**
@@ -98,7 +104,10 @@ struct ion_heap_ops {
 	void * (*map_kernel) (struct ion_heap *heap, struct ion_buffer *buffer);
 	void (*unmap_kernel) (struct ion_heap *heap, struct ion_buffer *buffer);
 	int (*map_user) (struct ion_heap *mapper, struct ion_buffer *buffer,
-			 struct vm_area_struct *vma);
+			 struct vm_area_struct *vma, unsigned long flags);
+	int (*cache_op)(struct ion_heap *heap, struct ion_buffer *buffer,
+			void *virt, size_t size, unsigned int cmd);
+	int (*print_debug)(struct ion_heap *heap, struct seq_file *s);
 };
 
 /**
@@ -172,9 +181,9 @@ void ion_carveout_heap_destroy(struct ion_heap *);
  * used to back an architecture specific custom heap
  */
 ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap, unsigned long size,
-				      unsigned long align);
+				      unsigned long align, unsigned long flags);
 void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
-		       unsigned long size);
+		       unsigned long size, unsigned long flags);
 /**
  * The carveout heap returns physical addresses, since 0 may be a valid
  * physical address, this is used to indicate allocation failed
