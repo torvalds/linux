@@ -661,7 +661,7 @@ static void exynos4_irq_eint0_15(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-int __init exynos4_init_irq_eint(void)
+static int __init exynos4_init_irq_eint(void)
 {
 	int irq;
 

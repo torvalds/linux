@@ -140,7 +140,7 @@ static struct dm9000_plat_data smdkv210_dm9000_platdata = {
 	.dev_addr	= { 0x00, 0x09, 0xc0, 0xff, 0xec, 0x48 },
 };
 
-struct platform_device smdkv210_dm9000 = {
+static struct platform_device smdkv210_dm9000 = {
 	.name		= "dm9000",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(smdkv210_dm9000_resources),

@@ -1524,7 +1524,7 @@ static void exynos4_clock_resume(void)
 #define exynos4_clock_resume NULL
 #endif
 
-struct syscore_ops exynos4_clock_syscore_ops = {
+static struct syscore_ops exynos4_clock_syscore_ops = {
 	.suspend	= exynos4_clock_suspend,
 	.resume		= exynos4_clock_resume,
 };
