@@ -2945,8 +2945,8 @@ static int qeth_query_ipassists_cb(struct qeth_card *card,
 		card->options.ipa6.enabled_funcs = cmd->hdr.ipa_enabled;
 	}
 	QETH_DBF_TEXT(SETUP, 2, "suppenbl");
-	QETH_DBF_TEXT_(SETUP, 2, "%x", cmd->hdr.ipa_supported);
-	QETH_DBF_TEXT_(SETUP, 2, "%x", cmd->hdr.ipa_enabled);
+	QETH_DBF_TEXT_(SETUP, 2, "%08x", (__u32)cmd->hdr.ipa_supported);
+	QETH_DBF_TEXT_(SETUP, 2, "%08x", (__u32)cmd->hdr.ipa_enabled);
 	return 0;
 }
 
@@ -4322,7 +4322,7 @@ static int qeth_snmp_command_cb(struct qeth_card *card,
 	/* check if there is enough room in userspace */
 	if ((qinfo->udata_len - qinfo->udata_offset) < data_len) {
 		QETH_CARD_TEXT_(card, 4, "scer3%i", -ENOMEM);
-		cmd->hdr.return_code = -ENOMEM;
+		cmd->hdr.return_code = IPA_RC_ENOMEM;
 		return 0;
 	}
 	QETH_CARD_TEXT_(card, 4, "snore%i",

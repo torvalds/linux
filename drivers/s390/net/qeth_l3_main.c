@@ -2430,7 +2430,7 @@ static int qeth_l3_arp_query_cb(struct qeth_card *card,
 
 		if ((qinfo->udata_len - qinfo->udata_offset) < esize) {
 			QETH_CARD_TEXT_(card, 4, "qaer3%i", -ENOMEM);
-			cmd->hdr.return_code = -ENOMEM;
+			cmd->hdr.return_code = IPA_RC_ENOMEM;
 			goto out_error;
 		}
 

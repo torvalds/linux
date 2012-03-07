@@ -190,6 +190,7 @@ enum qeth_ipa_return_codes {
 	IPA_RC_MC_ADDR_ALREADY_DEFINED	= 0xe013,
 	IPA_RC_LAN_OFFLINE		= 0xe080,
 	IPA_RC_INVALID_IP_VERSION2	= 0xf001,
+	IPA_RC_ENOMEM			= 0xfffe,
 	IPA_RC_FFFF			= 0xffff
 };
 /* for DELIP */
