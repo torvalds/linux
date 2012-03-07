@@ -713,7 +713,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int iwl_testmode_trace_dump(struct ieee80211_hw *hw, struct nlattr **tb,
+static int iwl_testmode_trace_dump(struct ieee80211_hw *hw,
 				   struct sk_buff *skb,
 				   struct netlink_callback *cb)
 {
@@ -905,9 +905,9 @@ static int iwl_testmode_indirect_mem(struct ieee80211_hw *hw,
 	}
 }
 
-static int iwl_testmode_buffer_dump(struct ieee80211_hw *hw, struct nlattr **tb,
-				   struct sk_buff *skb,
-				   struct netlink_callback *cb)
+static int iwl_testmode_buffer_dump(struct ieee80211_hw *hw,
+				    struct sk_buff *skb,
+				    struct netlink_callback *cb)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	int idx, length;
@@ -1067,11 +1067,11 @@ int iwlagn_mac_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
 	switch (cmd) {
 	case IWL_TM_CMD_APP2DEV_READ_TRACE:
 		IWL_DEBUG_INFO(priv, "uCode trace cmd to driver\n");
-		result = iwl_testmode_trace_dump(hw, tb, skb, cb);
+		result = iwl_testmode_trace_dump(hw, skb, cb);
 		break;
 	case IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_DUMP:
 		IWL_DEBUG_INFO(priv, "testmode sram dump cmd to driver\n");
-		result = iwl_testmode_buffer_dump(hw, tb, skb, cb);
+		result = iwl_testmode_buffer_dump(hw, skb, cb);
 		break;
 	default:
 		result = -EINVAL;
