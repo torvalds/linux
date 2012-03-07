@@ -36,6 +36,7 @@
 #include <linux/sunrpc/metrics.h>
 
 #include "internal.h"
+#include "delegation.h"
 #include "nfs4filelayout.h"
 
 #define NFSDBG_FACILITY         NFSDBG_PNFS_LD
@@ -86,12 +87,31 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 					 struct nfs_client *clp,
 					 int *reset)
 {
+	struct nfs_server *mds_server = NFS_SERVER(state->inode);
+	struct nfs_client *mds_client = mds_server->nfs_client;
+
 	if (task->tk_status >= 0)
 		return 0;
-
 	*reset = 0;
 
 	switch (task->tk_status) {
+	/* MDS state errors */
+	case -NFS4ERR_DELEG_REVOKED:
+	case -NFS4ERR_ADMIN_REVOKED:
+	case -NFS4ERR_BAD_STATEID:
+		if (state != NULL)
+			nfs_remove_bad_delegation(state->inode);
+	case -NFS4ERR_OPENMODE:
+		if (state == NULL)
+			break;
+		nfs4_schedule_stateid_recovery(mds_server, state);
+		goto wait_on_recovery;
+	case -NFS4ERR_EXPIRED:
+		if (state != NULL)
+			nfs4_schedule_stateid_recovery(mds_server, state);
+		nfs4_schedule_lease_recovery(mds_client);
+		goto wait_on_recovery;
+	/* DS session errors */
 	case -NFS4ERR_BADSESSION:
 	case -NFS4ERR_BADSLOT:
 	case -NFS4ERR_BAD_HIGH_SLOT:
@@ -117,8 +137,15 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 		*reset = 1;
 		break;
 	}
+out:
 	task->tk_status = 0;
 	return -EAGAIN;
+wait_on_recovery:
+	rpc_sleep_on(&mds_client->cl_rpcwaitq, task, NULL);
+	if (test_bit(NFS4CLNT_MANAGER_RUNNING, &mds_client->cl_state) == 0)
+		rpc_wake_up_queued_task(&mds_client->cl_rpcwaitq, task);
+	goto out;
+
 }
 
 /* NFS_PROTO call done callback routines */

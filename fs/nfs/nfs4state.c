@@ -1072,6 +1072,7 @@ void nfs4_schedule_lease_recovery(struct nfs_client *clp)
 		set_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state);
 	nfs4_schedule_state_manager(clp);
 }
+EXPORT_SYMBOL_GPL(nfs4_schedule_lease_recovery);
 
 void nfs4_schedule_path_down_recovery(struct nfs_client *clp)
 {
@@ -1109,6 +1110,7 @@ void nfs4_schedule_stateid_recovery(const struct nfs_server *server, struct nfs4
 	nfs4_state_mark_reclaim_nograce(clp, state);
 	nfs4_schedule_state_manager(clp);
 }
+EXPORT_SYMBOL_GPL(nfs4_schedule_stateid_recovery);
 
 void nfs_inode_find_state_and_recover(struct inode *inode,
 		const nfs4_stateid *stateid)
