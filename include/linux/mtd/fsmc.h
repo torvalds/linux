@@ -26,19 +26,6 @@
 #define FSMC_NAND_BW8		1
 #define FSMC_NAND_BW16		2
 
-/*
- * The placement of the Command Latch Enable (CLE) and
- * Address Latch Enable (ALE) is twisted around in the
- * SPEAR310 implementation.
- */
-#if defined(CONFIG_MACH_SPEAR310)
-#define PLAT_NAND_CLE		(1 << 17)
-#define PLAT_NAND_ALE		(1 << 16)
-#else
-#define PLAT_NAND_CLE		(1 << 16)
-#define PLAT_NAND_ALE		(1 << 17)
-#endif
-
 #define FSMC_MAX_NOR_BANKS	4
 #define FSMC_MAX_NAND_BANKS	4
 
