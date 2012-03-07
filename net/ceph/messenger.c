@@ -837,7 +837,7 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 		struct page *page = NULL;
 		void *kaddr = NULL;
 		int max_write = PAGE_SIZE;
-		int page_shift = 0;
+		int bio_offset = 0;
 
 		total_max_write = data_len - trail_len -
 			con->out_msg_pos.data_pos;
@@ -874,9 +874,9 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 
 			bv = bio_iovec_idx(msg->bio_iter, msg->bio_seg);
 			page = bv->bv_page;
-			page_shift = bv->bv_offset;
+			bio_offset = bv->bv_offset;
 			if (do_datacrc)
-				kaddr = kmap(page) + page_shift;
+				kaddr = kmap(page);
 			max_write = bv->bv_len;
 #endif
 		} else {
@@ -888,17 +888,18 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 			    total_max_write);
 
 		if (do_datacrc && !con->out_msg_pos.did_page_crc) {
+			void *base;
 			u32 crc;
-			void *base = kaddr + con->out_msg_pos.page_pos;
 			u32 tmpcrc = le32_to_cpu(con->out_msg->footer.data_crc);
 
 			BUG_ON(kaddr == NULL);
+			base = kaddr + con->out_msg_pos.page_pos + bio_offset;
 			crc = crc32c(tmpcrc, base, len);
 			con->out_msg->footer.data_crc = cpu_to_le32(crc);
 			con->out_msg_pos.did_page_crc = true;
 		}
 		ret = ceph_tcp_sendpage(con->sock, page,
-				      con->out_msg_pos.page_pos + page_shift,
+				      con->out_msg_pos.page_pos + bio_offset,
 				      len, 1);
 
 		if (do_datacrc)
