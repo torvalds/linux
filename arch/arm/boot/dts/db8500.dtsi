@@ -16,7 +16,18 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "stericsson,db8500";
+		interrupt-parent = <&intc>;
 		ranges;
+
+		intc: interrupt-controller@a0411000 {
+			compatible = "arm,cortex-a9-gic";
+			#interrupt-cells = <3>;
+			#address-cells = <1>;
+			interrupt-controller;
+			interrupt-parent;
+			reg = <0xa0411000 0x1000>,
+			      <0xa0410100 0x100>;
+		};
 
 		pmu {
 			compatible = "arm,cortex-a9-pmu";
