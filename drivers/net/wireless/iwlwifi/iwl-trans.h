@@ -275,6 +275,16 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
 }
 
 /**
+ * struct iwl_trans_config - transport configuration
+ *
+ * @op_mode: pointer to the upper layer.
+ *	Must be set before any other call.
+ */
+struct iwl_trans_config {
+	struct iwl_op_mode *op_mode;
+};
+
+/**
  * struct iwl_trans_ops - transport specific operations
  *
  * All the handlers MUST be implemented
@@ -408,13 +418,13 @@ struct iwl_trans {
 };
 
 static inline void iwl_trans_configure(struct iwl_trans *trans,
-				       struct iwl_op_mode *op_mode)
+				       const struct iwl_trans_config *trans_cfg)
 {
 	/*
 	 * only set the op_mode for the moment. Later on, this function will do
 	 * more
 	 */
-	trans->op_mode = op_mode;
+	trans->op_mode = trans_cfg->op_mode;
 }
 
 static inline int iwl_trans_start_hw(struct iwl_trans *trans)

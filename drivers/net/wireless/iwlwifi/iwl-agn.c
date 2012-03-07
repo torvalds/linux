@@ -1185,6 +1185,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	struct iwl_op_mode *op_mode;
 	u16 num_mac;
 	u32 ucode_flags;
+	struct iwl_trans_config trans_cfg;
 
 	/************************
 	 * 1. Allocating HW data
@@ -1205,7 +1206,14 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	/* TODO: remove fw from shared data later */
 	priv->shrd->fw = fw;
 
-	iwl_trans_configure(trans(priv), op_mode);
+	/*
+	 * Populate the state variables that the transport layer needs
+	 * to know about.
+	 */
+	trans_cfg.op_mode = op_mode;
+
+	/* Configure transport layer */
+	iwl_trans_configure(trans(priv), &trans_cfg);
 
 	/* At this point both hw and priv are allocated. */
 
