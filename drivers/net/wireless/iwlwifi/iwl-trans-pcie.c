@@ -1044,7 +1044,7 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 	iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
 
 	if (hw_rfkill) {
-		iwl_enable_interrupts(trans);
+		iwl_enable_rfkill_int(trans);
 		return -ERFKILL;
 	}
 
@@ -1553,8 +1553,7 @@ static void iwl_trans_pcie_stop_hw(struct iwl_trans *trans)
 	iwl_write32(trans, CSR_INT, 0xFFFFFFFF);
 
 	/* Even if we stop the HW, we still want the RF kill interrupt */
-	IWL_DEBUG_ISR(trans, "Enabling rfkill interrupt\n");
-	iwl_write32(trans, CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
+	iwl_enable_rfkill_int(trans);
 }
 
 static int iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
@@ -1647,10 +1646,14 @@ static int iwl_trans_pcie_resume(struct iwl_trans *trans)
 {
 	bool hw_rfkill;
 
-	iwl_enable_interrupts(trans);
-
 	hw_rfkill = !(iwl_read32(trans, CSR_GP_CNTRL) &
 				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
+
+	if (hw_rfkill)
+		iwl_enable_rfkill_int(trans);
+	else
+		iwl_enable_interrupts(trans);
+
 	iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
 
 	return 0;

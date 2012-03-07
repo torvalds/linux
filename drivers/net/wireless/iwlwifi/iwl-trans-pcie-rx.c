@@ -1134,10 +1134,8 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 	if (test_bit(STATUS_INT_ENABLED, &trans->shrd->status))
 		iwl_enable_interrupts(trans);
 	/* Re-enable RF_KILL if it occurred */
-	else if (handled & CSR_INT_BIT_RF_KILL) {
-		IWL_DEBUG_ISR(trans, "Enabling rfkill interrupt\n");
-		iwl_write32(trans, CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
-	}
+	else if (handled & CSR_INT_BIT_RF_KILL)
+		iwl_enable_rfkill_int(trans);
 }
 
 /******************************************************************************
