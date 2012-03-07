@@ -416,6 +416,12 @@ static bool ath6kl_is_valid_iftype(struct ath6kl *ar, enum nl80211_iftype type,
 	return false;
 }
 
+static bool ath6kl_is_tx_pending(struct ath6kl *ar)
+{
+	return ar->tx_pending[ath6kl_wmi_get_control_ep(ar->wmi)] == 0;
+}
+
+
 static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 				   struct cfg80211_connect_params *sme)
 {
@@ -460,8 +466,8 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		 * sleep until the command queue drains
 		 */
 		wait_event_interruptible_timeout(ar->event_wq,
-			ar->tx_pending[ath6kl_wmi_get_control_ep(ar->wmi)] == 0,
-			WMI_TIMEOUT);
+						 ath6kl_is_tx_pending(ar),
+						 WMI_TIMEOUT);
 		if (signal_pending(current)) {
 			ath6kl_err("cmd queue drain timeout\n");
 			up(&ar->sem);
