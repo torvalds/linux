@@ -52,8 +52,8 @@ static void klist_rproc_put(struct klist_node *n);
  * We need this in order to support name-based lookups (needed by the
  * rproc_get_by_name()).
  *
- * That said, we don't use rproc_get_by_name() anymore within the rpmsg
- * framework. The use cases that do require its existence should be
+ * That said, we don't use rproc_get_by_name() at this point.
+ * The use cases that do require its existence should be
  * scrutinized, and hopefully migrated to rproc_boot() using device-based
  * binding.
  *
@@ -63,9 +63,8 @@ static void klist_rproc_put(struct klist_node *n);
 static DEFINE_KLIST(rprocs, klist_rproc_get, klist_rproc_put);
 
 typedef int (*rproc_handle_resources_t)(struct rproc *rproc,
-				struct fw_resource *rsc, int len);
-typedef int (*rproc_handle_resource_t)(struct rproc *rproc,
-				struct fw_resource *rsc);
+				struct resource_table *table, int len);
+typedef int (*rproc_handle_resource_t)(struct rproc *rproc, void *, int avail);
 
 /*
  * This is the IOMMU fault handler we register with the IOMMU API
@@ -280,120 +279,39 @@ rproc_load_segments(struct rproc *rproc, const u8 *elf_data, size_t len)
 	return ret;
 }
 
-/**
- * rproc_handle_virtio_hdr() - handle a virtio header resource
- * @rproc: the remote processor
- * @rsc: the resource descriptor
- *
- * The existence of this virtio hdr resource entry means that the firmware
- * of this @rproc supports this virtio device.
- *
- * Currently we support only a single virtio device of type VIRTIO_ID_RPMSG,
- * but the plan is to remove this limitation and support any number
- * of virtio devices (and of any type). We'll also add support for dynamically
- * adding (and removing) virtio devices over the rpmsg bus, but small
- * firmwares that doesn't want to get involved with rpmsg will be able
- * to simple use the resource table for this.
- *
- * At this point this virtio header entry is rather simple: it just
- * announces the virtio device id and the supported virtio device features.
- * The plan though is to extend this to include the vring information and
- * the virtio config space, too (but first, some resource table overhaul
- * is needed: move from fixed-sized to variable-length TLV entries).
- *
- * For now, the 'flags' member of the resource entry contains the virtio
- * device id, the 'da' member contains the device features, and 'pa' is
- * where we need to store the guest features once negotiation completes.
- * As usual, the 'id' member of this resource contains the index of this
- * resource type (i.e. is this the first virtio hdr entry, the 2nd, ...).
- *
- * Returns 0 on success, or an appropriate error code otherwise
- */
-static int rproc_handle_virtio_hdr(struct rproc *rproc, struct fw_resource *rsc)
+static int
+__rproc_handle_vring(struct rproc_vdev *rvdev, struct fw_rsc_vdev *rsc, int i)
 {
-	struct rproc_vdev *rvdev;
-
-	/* we only support VIRTIO_ID_RPMSG devices for now */
-	if (rsc->flags != VIRTIO_ID_RPMSG) {
-		dev_warn(rproc->dev, "unsupported vdev: %d\n", rsc->flags);
-		return -EINVAL;
-	}
-
-	/* we only support a single vdev per rproc for now */
-	if (rsc->id || rproc->rvdev) {
-		dev_warn(rproc->dev, "redundant vdev entry: %s\n", rsc->name);
-		return -EINVAL;
-	}
-
-	rvdev = kzalloc(sizeof(struct rproc_vdev), GFP_KERNEL);
-	if (!rvdev)
-		return -ENOMEM;
-
-	/* remember the device features */
-	rvdev->dfeatures = rsc->da;
-
-	rproc->rvdev = rvdev;
-	rvdev->rproc = rproc;
-
-	return 0;
-}
-
-/**
- * rproc_handle_vring() - handle a vring fw resource
- * @rproc: the remote processor
- * @rsc: the vring resource descriptor
- *
- * This resource entry requires allocation of non-cacheable memory
- * for a virtio vring. Currently we only support two vrings per remote
- * processor, required for the virtio rpmsg device.
- *
- * The 'len' member of @rsc should contain the number of buffers this vring
- * support and 'da' should either contain the device address where
- * the remote processor is expecting the vring, or indicate that
- * dynamically allocation of the vring's device address is supported.
- *
- * Note: 'da' is currently not handled. This will be revised when the generic
- * iommu-based DMA API will arrive, or a dynanic & non-iommu use case show
- * up. Meanwhile, statically-addressed iommu-based images should use
- * RSC_DEVMEM resource entries to map their require 'da' to the physical
- * address of their base CMA region.
- *
- * Returns 0 on success, or an appropriate error code otherwise
- */
-static int rproc_handle_vring(struct rproc *rproc, struct fw_resource *rsc)
-{
+	struct rproc *rproc = rvdev->rproc;
 	struct device *dev = rproc->dev;
-	struct rproc_vdev *rvdev = rproc->rvdev;
+	struct fw_rsc_vdev_vring *vring = &rsc->vring[i];
 	dma_addr_t dma;
-	int size, id = rsc->id;
 	void *va;
+	int ret, size, notifyid;
 
-	/* no vdev is in place ? */
-	if (!rvdev) {
-		dev_err(dev, "vring requested without a virtio dev entry\n");
+	dev_dbg(dev, "vdev rsc: vring%d: da %x, qsz %d, align %d\n",
+				i, vring->da, vring->num, vring->align);
+
+	/* make sure reserved bytes are zeroes */
+	if (vring->reserved) {
+		dev_err(dev, "vring rsc has non zero reserved bytes\n");
 		return -EINVAL;
 	}
 
-	/* the firmware must provide the expected queue size */
-	if (!rsc->len) {
-		dev_err(dev, "missing expected queue size\n");
-		return -EINVAL;
-	}
-
-	/* we currently support two vrings per rproc (for rx and tx) */
-	if (id >= ARRAY_SIZE(rvdev->vring)) {
-		dev_err(dev, "%s: invalid vring id %d\n", rsc->name, id);
-		return -EINVAL;
-	}
-
-	/* have we already allocated this vring id ? */
-	if (rvdev->vring[id].len) {
-		dev_err(dev, "%s: duplicated id %d\n", rsc->name, id);
+	/* verify queue size and vring alignment are sane */
+	if (!vring->num || !vring->align) {
+		dev_err(dev, "invalid qsz (%d) or alignment (%d)\n",
+						vring->num, vring->align);
 		return -EINVAL;
 	}
 
 	/* actual size of vring (in bytes) */
-	size = PAGE_ALIGN(vring_size(rsc->len, AMP_VRING_ALIGN));
+	size = PAGE_ALIGN(vring_size(vring->num, vring->align));
+
+	if (!idr_pre_get(&rproc->notifyids, GFP_KERNEL)) {
+		dev_err(dev, "idr_pre_get failed\n");
+		return -ENOMEM;
+	}
 
 	/*
 	 * Allocate non-cacheable memory for the vring. In the future
@@ -402,23 +320,141 @@ static int rproc_handle_vring(struct rproc *rproc, struct fw_resource *rsc)
 	va = dma_alloc_coherent(dev, size, &dma, GFP_KERNEL);
 	if (!va) {
 		dev_err(dev, "dma_alloc_coherent failed\n");
-		return -ENOMEM;
+		return -EINVAL;
 	}
 
-	dev_dbg(dev, "vring%d: va %p dma %x qsz %d ring size %x\n", id, va,
-					dma, rsc->len, size);
+	/* assign an rproc-wide unique index for this vring */
+	/* TODO: assign a notifyid for rvdev updates as well */
+	ret = idr_get_new(&rproc->notifyids, &rvdev->vring[i], &notifyid);
+	if (ret) {
+		dev_err(dev, "idr_get_new failed: %d\n", ret);
+		dma_free_coherent(dev, size, va, dma);
+		return ret;
+	}
 
-	rvdev->vring[id].len = rsc->len;
-	rvdev->vring[id].va = va;
-	rvdev->vring[id].dma = dma;
+	/* let the rproc know the da and notifyid of this vring */
+	/* TODO: expose this to remote processor */
+	vring->da = dma;
+	vring->notifyid = notifyid;
+
+	dev_dbg(dev, "vring%d: va %p dma %x size %x idr %d\n", i, va,
+					dma, size, notifyid);
+
+	rvdev->vring[i].len = vring->num;
+	rvdev->vring[i].align = vring->align;
+	rvdev->vring[i].va = va;
+	rvdev->vring[i].dma = dma;
+	rvdev->vring[i].notifyid = notifyid;
+	rvdev->vring[i].rvdev = rvdev;
 
 	return 0;
+}
+
+static void __rproc_free_vrings(struct rproc_vdev *rvdev, int i)
+{
+	struct rproc *rproc = rvdev->rproc;
+
+	for (i--; i > 0; i--) {
+		struct rproc_vring *rvring = &rvdev->vring[i];
+		int size = PAGE_ALIGN(vring_size(rvring->len, rvring->align));
+
+		dma_free_coherent(rproc->dev, size, rvring->va, rvring->dma);
+		idr_remove(&rproc->notifyids, rvring->notifyid);
+	}
+}
+
+/**
+ * rproc_handle_vdev() - handle a vdev fw resource
+ * @rproc: the remote processor
+ * @rsc: the vring resource descriptor
+ * @avail: size of available data (for sanity checking the image)
+ *
+ * This resource entry requests the host to statically register a virtio
+ * device (vdev), and setup everything needed to support it. It contains
+ * everything needed to make it possible: the virtio device id, virtio
+ * device features, vrings information, virtio config space, etc...
+ *
+ * Before registering the vdev, the vrings are allocated from non-cacheable
+ * physically contiguous memory. Currently we only support two vrings per
+ * remote processor (temporary limitation). We might also want to consider
+ * doing the vring allocation only later when ->find_vqs() is invoked, and
+ * then release them upon ->del_vqs().
+ *
+ * Note: @da is currently not really handled correctly: we dynamically
+ * allocate it using the DMA API, ignoring requested hard coded addresses,
+ * and we don't take care of any required IOMMU programming. This is all
+ * going to be taken care of when the generic iommu-based DMA API will be
+ * merged. Meanwhile, statically-addressed iommu-based firmware images should
+ * use RSC_DEVMEM resource entries to map their required @da to the physical
+ * address of their base CMA region (ouch, hacky!).
+ *
+ * Returns 0 on success, or an appropriate error code otherwise
+ */
+static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
+								int avail)
+{
+	struct device *dev = rproc->dev;
+	struct rproc_vdev *rvdev;
+	int i, ret;
+
+	/* make sure resource isn't truncated */
+	if (sizeof(*rsc) + rsc->num_of_vrings * sizeof(struct fw_rsc_vdev_vring)
+			+ rsc->config_len > avail) {
+		dev_err(rproc->dev, "vdev rsc is truncated\n");
+		return -EINVAL;
+	}
+
+	/* make sure reserved bytes are zeroes */
+	if (rsc->reserved[0] || rsc->reserved[1]) {
+		dev_err(dev, "vdev rsc has non zero reserved bytes\n");
+		return -EINVAL;
+	}
+
+	dev_dbg(dev, "vdev rsc: id %d, dfeatures %x, cfg len %d, %d vrings\n",
+		rsc->id, rsc->dfeatures, rsc->config_len, rsc->num_of_vrings);
+
+	/* we currently support only two vrings per rvdev */
+	if (rsc->num_of_vrings > ARRAY_SIZE(rvdev->vring)) {
+		dev_err(dev, "too many vrings: %d\n", rsc->num_of_vrings);
+		return -EINVAL;
+	}
+
+	rvdev = kzalloc(sizeof(struct rproc_vdev), GFP_KERNEL);
+	if (!rvdev)
+		return -ENOMEM;
+
+	rvdev->rproc = rproc;
+
+	/* allocate the vrings */
+	for (i = 0; i < rsc->num_of_vrings; i++) {
+		ret = __rproc_handle_vring(rvdev, rsc, i);
+		if (ret)
+			goto free_vrings;
+	}
+
+	/* remember the device features */
+	rvdev->dfeatures = rsc->dfeatures;
+
+	list_add_tail(&rvdev->node, &rproc->rvdevs);
+
+	/* it is now safe to add the virtio device */
+	ret = rproc_add_virtio_dev(rvdev, rsc->id);
+	if (ret)
+		goto free_vrings;
+
+	return 0;
+
+free_vrings:
+	__rproc_free_vrings(rvdev, i);
+	kfree(rvdev);
+	return ret;
 }
 
 /**
  * rproc_handle_trace() - handle a shared trace buffer resource
  * @rproc: the remote processor
  * @rsc: the trace resource descriptor
+ * @avail: size of available data (for sanity checking the image)
  *
  * In case the remote processor dumps trace logs into memory,
  * export it via debugfs.
@@ -430,12 +466,24 @@ static int rproc_handle_vring(struct rproc *rproc, struct fw_resource *rsc)
  *
  * Returns 0 on success, or an appropriate error code otherwise
  */
-static int rproc_handle_trace(struct rproc *rproc, struct fw_resource *rsc)
+static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
+								int avail)
 {
 	struct rproc_mem_entry *trace;
 	struct device *dev = rproc->dev;
 	void *ptr;
 	char name[15];
+
+	if (sizeof(*rsc) > avail) {
+		dev_err(rproc->dev, "trace rsc is truncated\n");
+		return -EINVAL;
+	}
+
+	/* make sure reserved bytes are zeroes */
+	if (rsc->reserved) {
+		dev_err(dev, "trace rsc has non zero reserved bytes\n");
+		return -EINVAL;
+	}
 
 	/* what's the kernel address of this resource ? */
 	ptr = rproc_da_to_va(rproc, rsc->da, rsc->len);
@@ -469,7 +517,7 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_resource *rsc)
 
 	rproc->num_traces++;
 
-	dev_dbg(dev, "%s added: va %p, da 0x%llx, len 0x%x\n", name, ptr,
+	dev_dbg(dev, "%s added: va %p, da 0x%x, len 0x%x\n", name, ptr,
 						rsc->da, rsc->len);
 
 	return 0;
@@ -479,6 +527,7 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_resource *rsc)
  * rproc_handle_devmem() - handle devmem resource entry
  * @rproc: remote processor handle
  * @rsc: the devmem resource entry
+ * @avail: size of available data (for sanity checking the image)
  *
  * Remote processors commonly need to access certain on-chip peripherals.
  *
@@ -499,7 +548,8 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_resource *rsc)
  * and not allow firmwares to request access to physical addresses that
  * are outside those ranges.
  */
-static int rproc_handle_devmem(struct rproc *rproc, struct fw_resource *rsc)
+static int rproc_handle_devmem(struct rproc *rproc, struct fw_rsc_devmem *rsc,
+								int avail)
 {
 	struct rproc_mem_entry *mapping;
 	int ret;
@@ -507,6 +557,17 @@ static int rproc_handle_devmem(struct rproc *rproc, struct fw_resource *rsc)
 	/* no point in handling this resource without a valid iommu domain */
 	if (!rproc->domain)
 		return -EINVAL;
+
+	if (sizeof(*rsc) > avail) {
+		dev_err(rproc->dev, "devmem rsc is truncated\n");
+		return -EINVAL;
+	}
+
+	/* make sure reserved bytes are zeroes */
+	if (rsc->reserved) {
+		dev_err(rproc->dev, "devmem rsc has non zero reserved bytes\n");
+		return -EINVAL;
+	}
 
 	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
 	if (!mapping) {
@@ -531,7 +592,7 @@ static int rproc_handle_devmem(struct rproc *rproc, struct fw_resource *rsc)
 	mapping->len = rsc->len;
 	list_add_tail(&mapping->node, &rproc->mappings);
 
-	dev_dbg(rproc->dev, "mapped devmem pa 0x%llx, da 0x%llx, len 0x%x\n",
+	dev_dbg(rproc->dev, "mapped devmem pa 0x%x, da 0x%x, len 0x%x\n",
 					rsc->pa, rsc->da, rsc->len);
 
 	return 0;
@@ -545,6 +606,7 @@ out:
  * rproc_handle_carveout() - handle phys contig memory allocation requests
  * @rproc: rproc handle
  * @rsc: the resource entry
+ * @avail: size of available data (for image validation)
  *
  * This function will handle firmware requests for allocation of physically
  * contiguous memory regions.
@@ -558,13 +620,28 @@ out:
  * needed to map it (in case @rproc is using an IOMMU). Reducing the TLB
  * pressure is important; it may have a substantial impact on performance.
  */
-static int rproc_handle_carveout(struct rproc *rproc, struct fw_resource *rsc)
+static int rproc_handle_carveout(struct rproc *rproc,
+				struct fw_rsc_carveout *rsc, int avail)
 {
 	struct rproc_mem_entry *carveout, *mapping;
 	struct device *dev = rproc->dev;
 	dma_addr_t dma;
 	void *va;
 	int ret;
+
+	if (sizeof(*rsc) > avail) {
+		dev_err(rproc->dev, "carveout rsc is truncated\n");
+		return -EINVAL;
+	}
+
+	/* make sure reserved bytes are zeroes */
+	if (rsc->reserved) {
+		dev_err(dev, "carveout rsc has non zero reserved bytes\n");
+		return -EINVAL;
+	}
+
+	dev_dbg(dev, "carveout rsc: da %x, pa %x, len %x, flags %x\n",
+			rsc->da, rsc->pa, rsc->len, rsc->flags);
 
 	mapping = kzalloc(sizeof(*mapping), GFP_KERNEL);
 	if (!mapping) {
@@ -624,7 +701,7 @@ static int rproc_handle_carveout(struct rproc *rproc, struct fw_resource *rsc)
 		mapping->len = rsc->len;
 		list_add_tail(&mapping->node, &rproc->mappings);
 
-		dev_dbg(dev, "carveout mapped 0x%llx to 0x%x\n", rsc->da, dma);
+		dev_dbg(dev, "carveout mapped 0x%x to 0x%x\n", rsc->da, dma);
 
 		/*
 		 * Some remote processors might need to know the pa
@@ -665,36 +742,44 @@ free_mapping:
  * enum fw_resource_type.
  */
 static rproc_handle_resource_t rproc_handle_rsc[] = {
-	[RSC_CARVEOUT] = rproc_handle_carveout,
-	[RSC_DEVMEM] = rproc_handle_devmem,
-	[RSC_TRACE] = rproc_handle_trace,
-	[RSC_VRING] = rproc_handle_vring,
-	[RSC_VIRTIO_DEV] = NULL, /* handled early upon registration */
+	[RSC_CARVEOUT] = (rproc_handle_resource_t)rproc_handle_carveout,
+	[RSC_DEVMEM] = (rproc_handle_resource_t)rproc_handle_devmem,
+	[RSC_TRACE] = (rproc_handle_resource_t)rproc_handle_trace,
+	[RSC_VDEV] = NULL, /* VDEVs were handled upon registrarion */
 };
 
 /* handle firmware resource entries before booting the remote processor */
 static int
-rproc_handle_boot_rsc(struct rproc *rproc, struct fw_resource *rsc, int len)
+rproc_handle_boot_rsc(struct rproc *rproc, struct resource_table *table, int len)
 {
 	struct device *dev = rproc->dev;
 	rproc_handle_resource_t handler;
-	int ret = 0;
+	int ret = 0, i;
 
-	for (; len >= sizeof(*rsc); rsc++, len -= sizeof(*rsc)) {
-		dev_dbg(dev, "rsc: type %d, da 0x%llx, pa 0x%llx, len 0x%x, "
-			"id %d, name %s, flags %x\n", rsc->type, rsc->da,
-			rsc->pa, rsc->len, rsc->id, rsc->name, rsc->flags);
+	for (i = 0; i < table->num; i++) {
+		int offset = table->offset[i];
+		struct fw_rsc_hdr *hdr = (void *)table + offset;
+		int avail = len - offset - sizeof(*hdr);
+		void *rsc = (void *)hdr + sizeof(*hdr);
 
-		if (rsc->type >= RSC_LAST) {
-			dev_warn(dev, "unsupported resource %d\n", rsc->type);
+		/* make sure table isn't truncated */
+		if (avail < 0) {
+			dev_err(dev, "rsc table is truncated\n");
+			return -EINVAL;
+		}
+
+		dev_dbg(dev, "rsc: type %d\n", hdr->type);
+
+		if (hdr->type >= RSC_LAST) {
+			dev_warn(dev, "unsupported resource %d\n", hdr->type);
 			continue;
 		}
 
-		handler = rproc_handle_rsc[rsc->type];
+		handler = rproc_handle_rsc[hdr->type];
 		if (!handler)
 			continue;
 
-		ret = handler(rproc, rsc);
+		ret = handler(rproc, rsc, avail);
 		if (ret)
 			break;
 	}
@@ -704,47 +789,64 @@ rproc_handle_boot_rsc(struct rproc *rproc, struct fw_resource *rsc, int len)
 
 /* handle firmware resource entries while registering the remote processor */
 static int
-rproc_handle_virtio_rsc(struct rproc *rproc, struct fw_resource *rsc, int len)
+rproc_handle_virtio_rsc(struct rproc *rproc, struct resource_table *table, int len)
 {
 	struct device *dev = rproc->dev;
-	int ret = -ENODEV;
+	int ret = 0, i;
 
-	for (; len >= sizeof(*rsc); rsc++, len -= sizeof(*rsc))
-		if (rsc->type == RSC_VIRTIO_DEV) {
-			dev_dbg(dev, "found vdev %d/%s features %llx\n",
-					rsc->flags, rsc->name, rsc->da);
-			ret = rproc_handle_virtio_hdr(rproc, rsc);
-			break;
+	for (i = 0; i < table->num; i++) {
+		int offset = table->offset[i];
+		struct fw_rsc_hdr *hdr = (void *)table + offset;
+		int avail = len - offset - sizeof(*hdr);
+		struct fw_rsc_vdev *vrsc;
+
+		/* make sure table isn't truncated */
+		if (avail < 0) {
+			dev_err(dev, "rsc table is truncated\n");
+			return -EINVAL;
 		}
+
+		dev_dbg(dev, "%s: rsc type %d\n", __func__, hdr->type);
+
+		if (hdr->type != RSC_VDEV)
+			continue;
+
+		vrsc = (struct fw_rsc_vdev *)hdr->data;
+
+		ret = rproc_handle_vdev(rproc, vrsc, avail);
+		if (ret)
+			break;
+	}
 
 	return ret;
 }
 
 /**
- * rproc_handle_resources() - find and handle the resource table
+ * rproc_find_rsc_table() - find the resource table
  * @rproc: the rproc handle
  * @elf_data: the content of the ELF firmware image
  * @len: firmware size (in bytes)
- * @handler: function that should be used to handle the resource table
+ * @tablesz: place holder for providing back the table size
  *
  * This function finds the resource table inside the remote processor's
- * firmware, and invoke a user-supplied handler with it (we have two
- * possible handlers: one is invoked upon registration of @rproc,
- * in order to register the supported virito devices, and the other is
- * invoked when @rproc is actually booted).
+ * firmware. It is used both upon the registration of @rproc (in order
+ * to look for and register the supported virito devices), and when the
+ * @rproc is booted.
  *
- * Currently this function fails if a resource table doesn't exist.
- * This restriction will be removed when we'll start supporting remote
- * processors that don't need a resource table.
+ * Returns the pointer to the resource table if it is found, and write its
+ * size into @tablesz. If a valid table isn't found, NULL is returned
+ * (and @tablesz isn't set).
  */
-static int rproc_handle_resources(struct rproc *rproc, const u8 *elf_data,
-				size_t len, rproc_handle_resources_t handler)
-
+static struct resource_table *
+rproc_find_rsc_table(struct rproc *rproc, const u8 *elf_data, size_t len,
+							int *tablesz)
 {
 	struct elf32_hdr *ehdr;
 	struct elf32_shdr *shdr;
 	const char *name_table;
-	int i, ret = -EINVAL;
+	struct device *dev = rproc->dev;
+	struct resource_table *table = NULL;
+	int i;
 
 	ehdr = (struct elf32_hdr *)elf_data;
 	shdr = (struct elf32_shdr *)(elf_data + ehdr->e_shoff);
@@ -752,24 +854,50 @@ static int rproc_handle_resources(struct rproc *rproc, const u8 *elf_data,
 
 	/* look for the resource table and handle it */
 	for (i = 0; i < ehdr->e_shnum; i++, shdr++) {
-		if (!strcmp(name_table + shdr->sh_name, ".resource_table")) {
-			struct fw_resource *table = (struct fw_resource *)
-						(elf_data + shdr->sh_offset);
+		int size = shdr->sh_size;
+		int offset = shdr->sh_offset;
 
-			if (shdr->sh_offset + shdr->sh_size > len) {
-				dev_err(rproc->dev,
-					"truncated fw: need 0x%x avail 0x%x\n",
-					shdr->sh_offset + shdr->sh_size, len);
-				ret = -EINVAL;
-			}
+		if (strcmp(name_table + shdr->sh_name, ".resource_table"))
+			continue;
 
-			ret = handler(rproc, table, shdr->sh_size);
+		table = (struct resource_table *)(elf_data + offset);
 
-			break;
+		/* make sure we have the entire table */
+		if (offset + size > len) {
+			dev_err(dev, "resource table truncated\n");
+			return NULL;
 		}
+
+		/* make sure table has at least the header */
+		if (sizeof(struct resource_table) > size) {
+			dev_err(dev, "header-less resource table\n");
+			return NULL;
+		}
+
+		/* we don't support any version beyond the first */
+		if (table->ver != 1) {
+			dev_err(dev, "unsupported fw ver: %d\n", table->ver);
+			return NULL;
+		}
+
+		/* make sure reserved bytes are zeroes */
+		if (table->reserved[0] || table->reserved[1]) {
+			dev_err(dev, "non zero reserved bytes\n");
+			return NULL;
+		}
+
+		/* make sure the offsets array isn't truncated */
+		if (table->num * sizeof(table->offset[0]) +
+				sizeof(struct resource_table) > size) {
+			dev_err(dev, "resource table incomplete\n");
+			return NULL;
+		}
+
+		*tablesz = shdr->sh_size;
+		break;
 	}
 
-	return ret;
+	return table;
 }
 
 /**
@@ -777,14 +905,12 @@ static int rproc_handle_resources(struct rproc *rproc, const u8 *elf_data,
  * @rproc: rproc handle
  *
  * This function will free all resources acquired for @rproc, and it
- * is called when @rproc shuts down, or just failed booting.
+ * is called whenever @rproc either shuts down or fails to boot.
  */
 static void rproc_resource_cleanup(struct rproc *rproc)
 {
 	struct rproc_mem_entry *entry, *tmp;
 	struct device *dev = rproc->dev;
-	struct rproc_vdev *rvdev = rproc->rvdev;
-	int i;
 
 	/* clean up debugfs trace entries */
 	list_for_each_entry_safe(entry, tmp, &rproc->traces, node) {
@@ -792,23 +918,6 @@ static void rproc_resource_cleanup(struct rproc *rproc)
 		rproc->num_traces--;
 		list_del(&entry->node);
 		kfree(entry);
-	}
-
-	/* free the coherent memory allocated for the vrings */
-	for (i = 0; rvdev && i < ARRAY_SIZE(rvdev->vring); i++) {
-		int qsz = rvdev->vring[i].len;
-		void *va = rvdev->vring[i].va;
-		int dma = rvdev->vring[i].dma;
-
-		/* virtqueue size is expressed in number of buffers supported */
-		if (qsz) {
-			/* how many bytes does this vring really occupy ? */
-			int size = PAGE_ALIGN(vring_size(qsz, AMP_VRING_ALIGN));
-
-			dma_free_coherent(rproc->dev, size, va, dma);
-
-			rvdev->vring[i].len = 0;
-		}
 	}
 
 	/* clean up carveout allocations */
@@ -840,6 +949,7 @@ static int rproc_fw_sanity_check(struct rproc *rproc, const struct firmware *fw)
 	const char *name = rproc->firmware;
 	struct device *dev = rproc->dev;
 	struct elf32_hdr *ehdr;
+	char class;
 
 	if (!fw) {
 		dev_err(dev, "failed to load %s\n", name);
@@ -852,6 +962,13 @@ static int rproc_fw_sanity_check(struct rproc *rproc, const struct firmware *fw)
 	}
 
 	ehdr = (struct elf32_hdr *)fw->data;
+
+	/* We only support ELF32 at this point */
+	class = ehdr->e_ident[EI_CLASS];
+	if (class != ELFCLASS32) {
+		dev_err(dev, "Unsupported class: %d\n", class);
+		return -EINVAL;
+	}
 
 	/* We assume the firmware has the same endianess as the host */
 # ifdef __LITTLE_ENDIAN
@@ -894,7 +1011,8 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	struct device *dev = rproc->dev;
 	const char *name = rproc->firmware;
 	struct elf32_hdr *ehdr;
-	int ret;
+	struct resource_table *table;
+	int ret, tablesz;
 
 	ret = rproc_fw_sanity_check(rproc, fw);
 	if (ret)
@@ -921,9 +1039,13 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	 */
 	rproc->bootaddr = ehdr->e_entry;
 
+	/* look for the resource table */
+	table = rproc_find_rsc_table(rproc, fw->data, fw->size, &tablesz);
+	if (!table)
+		goto clean_up;
+
 	/* handle fw resources which are required to boot rproc */
-	ret = rproc_handle_resources(rproc, fw->data, fw->size,
-						rproc_handle_boot_rsc);
+	ret = rproc_handle_boot_rsc(rproc, table, tablesz);
 	if (ret) {
 		dev_err(dev, "Failed to process resources: %d\n", ret);
 		goto clean_up;
@@ -966,22 +1088,19 @@ clean_up:
 static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 {
 	struct rproc *rproc = context;
-	struct device *dev = rproc->dev;
-	int ret;
+	struct resource_table *table;
+	int ret, tablesz;
 
 	if (rproc_fw_sanity_check(rproc, fw) < 0)
 		goto out;
 
-	/* does the fw supports any virtio devices ? */
-	ret = rproc_handle_resources(rproc, fw->data, fw->size,
-						rproc_handle_virtio_rsc);
-	if (ret) {
-		dev_info(dev, "No fw virtio device was found\n");
+	/* look for the resource table */
+	table = rproc_find_rsc_table(rproc, fw->data, fw->size, &tablesz);
+	if (!table)
 		goto out;
-	}
 
-	/* add the virtio device (currently only rpmsg vdevs are supported) */
-	ret = rproc_add_rpmsg_vdev(rproc);
+	/* look for virtio devices and register them */
+	ret = rproc_handle_virtio_rsc(rproc, table, tablesz);
 	if (ret)
 		goto out;
 
@@ -1146,13 +1265,23 @@ EXPORT_SYMBOL(rproc_shutdown);
 void rproc_release(struct kref *kref)
 {
 	struct rproc *rproc = container_of(kref, struct rproc, refcount);
+	struct rproc_vdev *rvdev, *rvtmp;
 
 	dev_info(rproc->dev, "removing %s\n", rproc->name);
 
 	rproc_delete_debug_dir(rproc);
 
-	/* at this point no one holds a reference to rproc anymore */
-	kfree(rproc);
+	/* clean up remote vdev entries */
+	list_for_each_entry_safe(rvdev, rvtmp, &rproc->rvdevs, node) {
+		__rproc_free_vrings(rvdev, RVDEV_NUM_VRINGS);
+		list_del(&rvdev->node);
+	}
+
+	/*
+	 * At this point no one holds a reference to rproc anymore,
+	 * so we can directly unroll rproc_alloc()
+	 */
+	rproc_free(rproc);
 }
 
 /* will be called when an rproc is added to the rprocs klist */
@@ -1196,7 +1325,7 @@ static struct rproc *next_rproc(struct klist_iter *i)
  * use rproc_put() to decrement it back once rproc isn't needed anymore.
  *
  * Note: currently this function (and its counterpart rproc_put()) are not
- * used anymore by the rpmsg subsystem. We need to scrutinize the use cases
+ * being used. We need to scrutinize the use cases
  * that still need them, and see if we can migrate them to use the non
  * name-based boot/shutdown interface.
  */
@@ -1271,11 +1400,8 @@ EXPORT_SYMBOL(rproc_put);
  * firmware.
  *
  * If found, those virtio devices will be created and added, so as a result
- * of registering this remote processor, additional virtio drivers will be
+ * of registering this remote processor, additional virtio drivers might be
  * probed.
- *
- * Currently, though, we only support a single RPMSG virtio vdev per remote
- * processor.
  */
 int rproc_register(struct rproc *rproc)
 {
@@ -1298,7 +1424,7 @@ int rproc_register(struct rproc *rproc)
 
 	/*
 	 * We must retrieve early virtio configuration info from
-	 * the firmware (e.g. whether to register a virtio rpmsg device,
+	 * the firmware (e.g. whether to register a virtio device,
 	 * what virtio features does it support, ...).
 	 *
 	 * We're initiating an asynchronous firmware loading, so we can
@@ -1367,9 +1493,12 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 
 	mutex_init(&rproc->lock);
 
+	idr_init(&rproc->notifyids);
+
 	INIT_LIST_HEAD(&rproc->carveouts);
 	INIT_LIST_HEAD(&rproc->mappings);
 	INIT_LIST_HEAD(&rproc->traces);
+	INIT_LIST_HEAD(&rproc->rvdevs);
 
 	rproc->state = RPROC_OFFLINE;
 
@@ -1389,6 +1518,9 @@ EXPORT_SYMBOL(rproc_alloc);
  */
 void rproc_free(struct rproc *rproc)
 {
+	idr_remove_all(&rproc->notifyids);
+	idr_destroy(&rproc->notifyids);
+
 	kfree(rproc);
 }
 EXPORT_SYMBOL(rproc_free);
@@ -1415,18 +1547,22 @@ EXPORT_SYMBOL(rproc_free);
  */
 int rproc_unregister(struct rproc *rproc)
 {
+	struct rproc_vdev *rvdev;
+
 	if (!rproc)
 		return -EINVAL;
 
 	/* if rproc is just being registered, wait */
 	wait_for_completion(&rproc->firmware_loading_complete);
 
-	/* was an rpmsg vdev created ? */
-	if (rproc->rvdev)
-		rproc_remove_rpmsg_vdev(rproc);
+	/* clean up remote vdev entries */
+	list_for_each_entry(rvdev, &rproc->rvdevs, node)
+		rproc_remove_virtio_dev(rvdev);
 
-	klist_remove(&rproc->node);
+	/* the rproc is downref'ed as soon as it's removed from the klist */
+	klist_del(&rproc->node);
 
+	/* the rproc will only be released after its refcount drops to zero */
 	kref_put(&rproc->refcount, rproc_release);
 
 	return 0;

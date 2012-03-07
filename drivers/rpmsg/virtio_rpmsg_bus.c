@@ -290,6 +290,26 @@ struct rpmsg_endpoint *rpmsg_create_ept(struct rpmsg_channel *rpdev,
 EXPORT_SYMBOL(rpmsg_create_ept);
 
 /**
+ * __rpmsg_destroy_ept() - destroy an existing rpmsg endpoint
+ * @vrp: virtproc which owns this ept
+ * @ept: endpoing to destroy
+ *
+ * An internal function which destroy an ept without assuming it is
+ * bound to an rpmsg channel. This is needed for handling the internal
+ * name service endpoint, which isn't bound to an rpmsg channel.
+ * See also __rpmsg_create_ept().
+ */
+static void
+__rpmsg_destroy_ept(struct virtproc_info *vrp, struct rpmsg_endpoint *ept)
+{
+	mutex_lock(&vrp->endpoints_lock);
+	idr_remove(&vrp->endpoints, ept->addr);
+	mutex_unlock(&vrp->endpoints_lock);
+
+	kfree(ept);
+}
+
+/**
  * rpmsg_destroy_ept() - destroy an existing rpmsg endpoint
  * @ept: endpoing to destroy
  *
@@ -298,13 +318,7 @@ EXPORT_SYMBOL(rpmsg_create_ept);
  */
 void rpmsg_destroy_ept(struct rpmsg_endpoint *ept)
 {
-	struct virtproc_info *vrp = ept->rpdev->vrp;
-
-	mutex_lock(&vrp->endpoints_lock);
-	idr_remove(&vrp->endpoints, ept->addr);
-	mutex_unlock(&vrp->endpoints_lock);
-
-	kfree(ept);
+	__rpmsg_destroy_ept(ept->rpdev->vrp, ept);
 }
 EXPORT_SYMBOL(rpmsg_destroy_ept);
 
@@ -764,6 +778,16 @@ static void rpmsg_recv_done(struct virtqueue *rvq)
 	print_hex_dump(KERN_DEBUG, "rpmsg_virtio RX: ", DUMP_PREFIX_NONE, 16, 1,
 					msg, sizeof(*msg) + msg->len, true);
 
+	/*
+	 * We currently use fixed-sized buffers, so trivially sanitize
+	 * the reported payload length.
+	 */
+	if (len > RPMSG_BUF_SIZE ||
+		msg->len > (len - sizeof(struct rpmsg_hdr))) {
+		dev_warn(dev, "inbound msg too big: (%d, %d)\n", len, msg->len);
+		return;
+	}
+
 	/* use the dst addr to fetch the callback of the appropriate user */
 	mutex_lock(&vrp->endpoints_lock);
 	ept = idr_find(&vrp->endpoints, msg->dst);
@@ -774,7 +798,8 @@ static void rpmsg_recv_done(struct virtqueue *rvq)
 	else
 		dev_warn(dev, "msg received with no recepient\n");
 
-	sg_init_one(&sg, msg, sizeof(*msg) + len);
+	/* publish the real size of the buffer */
+	sg_init_one(&sg, msg, RPMSG_BUF_SIZE);
 
 	/* add the buffer back to the remote processor's virtqueue */
 	err = virtqueue_add_buf(vrp->rvq, &sg, 0, 1, msg, GFP_KERNEL);
@@ -891,8 +916,8 @@ static int rpmsg_probe(struct virtio_device *vdev)
 	if (!bufs_va)
 		goto vqs_del;
 
-	dev_dbg(&vdev->dev, "buffers: va %p, dma 0x%x\n", bufs_va,
-						vrp->bufs_dma);
+	dev_dbg(&vdev->dev, "buffers: va %p, dma 0x%llx\n", bufs_va,
+					(unsigned long long)vrp->bufs_dma);
 
 	/* half of the buffers is dedicated for RX */
 	vrp->rbufs = bufs_va;
@@ -963,6 +988,9 @@ static void __devexit rpmsg_remove(struct virtio_device *vdev)
 	ret = device_for_each_child(&vdev->dev, NULL, rpmsg_remove_device);
 	if (ret)
 		dev_warn(&vdev->dev, "can't remove rpmsg device: %d\n", ret);
+
+	if (vrp->ns_ept)
+		__rpmsg_destroy_ept(vrp, vrp->ns_ept);
 
 	idr_remove_all(&vrp->endpoints);
 	idr_destroy(&vrp->endpoints);

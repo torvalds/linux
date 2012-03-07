@@ -80,16 +80,7 @@ static int omap_rproc_mbox_callback(struct notifier_block *this,
 		dev_info(dev, "received echo reply from %s\n", name);
 		break;
 	default:
-		/* ignore vq indices which are too large to be valid */
-		if (msg >= 2) {
-			dev_warn(dev, "invalid mbox msg: 0x%x\n", msg);
-			break;
-		}
-
-		/*
-		 * At this point, 'msg' contains the index of the vring
-		 * which was just triggered.
-		 */
+		/* msg contains the index of the triggered vring */
 		if (rproc_vq_interrupt(oproc->rproc, msg) == IRQ_NONE)
 			dev_dbg(dev, "no message was found in vqid %d\n", msg);
 	}

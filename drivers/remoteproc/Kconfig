@@ -8,11 +8,10 @@ config REMOTEPROC
 config OMAP_REMOTEPROC
 	tristate "OMAP remoteproc support"
 	depends on ARCH_OMAP4
-	select OMAP_IOMMU
+	depends on OMAP_IOMMU
 	select REMOTEPROC
 	select OMAP_MBOX_FWK
 	select RPMSG
-	default m
 	help
 	  Say y here to support OMAP's remote processors (dual M3
 	  and DSP on OMAP4) via the remote processor framework.

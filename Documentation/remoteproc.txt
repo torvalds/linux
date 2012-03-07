@@ -20,6 +20,11 @@ platform-specific remoteproc drivers only need to provide a few low-level
 handlers, and then all rpmsg drivers will then just work
 (for more information about the virtio-based rpmsg bus and its drivers,
 please read Documentation/rpmsg.txt).
+Registration of other types of virtio devices is now also possible. Firmwares
+just need to publish what kind of virtio devices do they support, and then
+remoteproc will add those devices. This makes it possible to reuse the
+existing virtio drivers with remote processor backends at a minimal development
+cost.
 
 2. User API
 
@@ -136,8 +141,6 @@ int dummy_rproc_example(struct rproc *my_rproc)
       If found, those virtio devices will be created and added, so as a result
       of registering this remote processor, additional virtio drivers might get
       probed.
-      Currently, though, we only support a single RPMSG virtio vdev per remote
-      processor.
 
   int rproc_unregister(struct rproc *rproc)
     - Unregister a remote processor, and decrement its refcount.
@@ -174,7 +177,7 @@ struct rproc_ops {
 };
 
 Every remoteproc implementation should at least provide the ->start and ->stop
-handlers. If rpmsg functionality is also desired, then the ->kick handler
+handlers. If rpmsg/virtio functionality is also desired, then the ->kick handler
 should be provided as well.
 
 The ->start() handler takes an rproc handle and should then power on the
@@ -221,43 +224,52 @@ resource entries that publish the existence of supported features
 or configurations by the remote processor, such as trace buffers and
 supported virtio devices (and their configurations).
 
-Currently the resource table is just an array of:
+The resource table begins with this header:
 
 /**
- * struct fw_resource - describes an entry from the resource section
- * @type: resource type
- * @id: index number of the resource
- * @da: device address of the resource
- * @pa: physical address of the resource
- * @len: size, in bytes, of the resource
- * @flags: properties of the resource, e.g. iommu protection required
- * @reserved: must be 0 atm
- * @name: name of resource
+ * struct resource_table - firmware resource table header
+ * @ver: version number
+ * @num: number of resource entries
+ * @reserved: reserved (must be zero)
+ * @offset: array of offsets pointing at the various resource entries
+ *
+ * The header of the resource table, as expressed by this structure,
+ * contains a version number (should we need to change this format in the
+ * future), the number of available resource entries, and their offsets
+ * in the table.
  */
-struct fw_resource {
+struct resource_table {
+	u32 ver;
+	u32 num;
+	u32 reserved[2];
+	u32 offset[0];
+} __packed;
+
+Immediately following this header are the resource entries themselves,
+each of which begins with the following resource entry header:
+
+/**
+ * struct fw_rsc_hdr - firmware resource entry header
+ * @type: resource type
+ * @data: resource data
+ *
+ * Every resource entry begins with a 'struct fw_rsc_hdr' header providing
+ * its @type. The content of the entry itself will immediately follow
+ * this header, and it should be parsed according to the resource type.
+ */
+struct fw_rsc_hdr {
 	u32 type;
-	u32 id;
-	u64 da;
-	u64 pa;
-	u32 len;
-	u32 flags;
-	u8 reserved[16];
-	u8 name[48];
+	u8 data[0];
 } __packed;
 
 Some resources entries are mere announcements, where the host is informed
 of specific remoteproc configuration. Other entries require the host to
-do something (e.g. reserve a requested resource) and possibly also reply
-by overwriting a member inside 'struct fw_resource' with info about the
-allocated resource.
+do something (e.g. allocate a system resource). Sometimes a negotiation
+is expected, where the firmware requests a resource, and once allocated,
+the host should provide back its details (e.g. address of an allocated
+memory region).
 
-Different resource entries use different members of this struct,
-with different meanings. This is pretty limiting and error-prone,
-so the plan is to move to variable-length TLV-based resource entries,
-where each resource will begin with a type and length fields, followed by
-its own specific structure.
-
-Here are the resource types that are currently being used:
+Here are the various resource types that are currently supported:
 
 /**
  * enum fw_resource_type - types of resource entries
@@ -266,59 +278,45 @@ Here are the resource types that are currently being used:
  *		    memory region.
  * @RSC_DEVMEM:     request to iommu_map a memory-based peripheral.
  * @RSC_TRACE:	    announces the availability of a trace buffer into which
- *		    the remote processor will be writing logs. In this case,
- *		    'da' indicates the device address where logs are written to,
- *		    and 'len' is the size of the trace buffer.
- * @RSC_VRING:	    request for allocation of a virtio vring (address should
- *		    be indicated in 'da', and 'len' should contain the number
- *		    of buffers supported by the vring).
- * @RSC_VIRTIO_DEV: announces support for a virtio device, and serves as
- *		    the virtio header. 'da' contains the virtio device
- *		    features, 'pa' holds the virtio guest features (host
- *		    will write them here after they're negotiated), 'len'
- *		    holds the virtio status, and 'flags' holds the virtio
- *		    device id (currently only VIRTIO_ID_RPMSG is supported).
+ *		    the remote processor will be writing logs.
+ * @RSC_VDEV:       declare support for a virtio device, and serve as its
+ *		    virtio header.
+ * @RSC_LAST:       just keep this one at the end
+ *
+ * Please note that these values are used as indices to the rproc_handle_rsc
+ * lookup table, so please keep them sane. Moreover, @RSC_LAST is used to
+ * check the validity of an index before the lookup table is accessed, so
+ * please update it as needed.
  */
 enum fw_resource_type {
 	RSC_CARVEOUT	= 0,
 	RSC_DEVMEM	= 1,
 	RSC_TRACE	= 2,
-	RSC_VRING	= 3,
-	RSC_VIRTIO_DEV	= 4,
-	RSC_VIRTIO_CFG	= 5,
+	RSC_VDEV	= 3,
+	RSC_LAST	= 4,
 };
 
-Most of the resource entries share the basic idea of address/length
-negotiation with the host: the firmware usually asks for memory
-of size 'len' bytes, and the host needs to allocate it and provide
-the device/physical address (when relevant) in 'da'/'pa' respectively.
-
-If the firmware is compiled with hard coded device addresses, and
-can't handle dynamically allocated 'da' values, then the 'da' field
-will contain the expected device addresses (today we actually only support
-this scheme, as there aren't yet any use cases for dynamically allocated
-device addresses).
+For more details regarding a specific resource type, please see its
+dedicated structure in include/linux/remoteproc.h.
 
 We also expect that platform-specific resource entries will show up
-at some point. When that happens, we could easily add a new RSC_PLAFORM
+at some point. When that happens, we could easily add a new RSC_PLATFORM
 type, and hand those resources to the platform-specific rproc driver to handle.
 
 7. Virtio and remoteproc
 
 The firmware should provide remoteproc information about virtio devices
-that it supports, and their configurations: a RSC_VIRTIO_DEV resource entry
-should specify the virtio device id, and subsequent RSC_VRING resource entries
-should indicate the vring size (i.e. how many buffers do they support) and
-where should they be mapped (i.e. which device address). Note: the alignment
-between the consumer and producer parts of the vring is assumed to be 4096.
+that it supports, and their configurations: a RSC_VDEV resource entry
+should specify the virtio device id (as in virtio_ids.h), virtio features,
+virtio config space, vrings information, etc.
 
-At this point we only support a single virtio rpmsg device per remote
-processor, but the plan is to remove this limitation. In addition, once we
-move to TLV-based resource table, the plan is to have a single RSC_VIRTIO
-entry per supported virtio device, which will include the virtio header,
-the vrings information and the virtio config space.
+When a new remote processor is registered, the remoteproc framework
+will look for its resource table and will register the virtio devices
+it supports. A firmware may support any number of virtio devices, and
+of any type (a single remote processor can also easily support several
+rpmsg virtio devices this way, if desired).
 
-Of course, RSC_VIRTIO resource entries are only good enough for static
+Of course, RSC_VDEV resource entries are only good enough for static
 allocation of virtio devices. Dynamic allocations will also be made possible
 using the rpmsg bus (similar to how we already do dynamic allocations of
 rpmsg channels; read more about it in rpmsg.txt).
