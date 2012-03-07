@@ -501,10 +501,7 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	/* set the firmware mode to STA/IBSS/AP */
 	param = 0;
 
-	if (ath6kl_bmi_read(ar,
-			    ath6kl_get_hi_item_addr(ar,
-			    HI_ITEM(hi_option_flag)),
-			    (u8 *)&param, 4) != 0) {
+	if (ath6kl_bmi_read_hi32(ar, hi_option_flag, &param) != 0) {
 		ath6kl_err("bmi_read_memory for setting fwmode failed\n");
 		return -EIO;
 	}
@@ -1074,17 +1071,11 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 		ath6kl_bmi_write_hi32(ar, hi_board_data,
 				      ar->hw.board_addr);
 	} else {
-		ath6kl_bmi_read(ar,
-				ath6kl_get_hi_item_addr(ar,
-				HI_ITEM(hi_board_data)),
-				(u8 *) &board_address, 4);
+		ath6kl_bmi_read_hi32(ar, hi_board_data, &board_address);
 	}
 
 	/* determine where in target ram to write extended board data */
-	ath6kl_bmi_read(ar,
-			ath6kl_get_hi_item_addr(ar,
-			HI_ITEM(hi_board_ext_data)),
-			(u8 *) &board_ext_address, 4);
+	ath6kl_bmi_read_hi32(ar, hi_board_ext_data, &board_ext_address);
 
 	if (ar->target_type == TARGET_TYPE_AR6003 &&
 	    board_ext_address == 0) {
@@ -1177,10 +1168,7 @@ static int ath6kl_upload_otp(struct ath6kl *ar)
 	}
 
 	/* read firmware start address */
-	ret = ath6kl_bmi_read(ar,
-			      ath6kl_get_hi_item_addr(ar,
-						      HI_ITEM(hi_app_start)),
-			      (u8 *) &address, sizeof(address));
+	ret = ath6kl_bmi_read_hi32(ar, hi_app_start, &address);
 
 	if (ret) {
 		ath6kl_err("Failed to read hi_app_start: %d\n", ret);
