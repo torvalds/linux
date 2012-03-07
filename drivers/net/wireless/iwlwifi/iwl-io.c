@@ -121,10 +121,10 @@ int iwl_grab_nic_access_silent(struct iwl_trans *trans)
 int iwl_grab_nic_access(struct iwl_trans *trans)
 {
 	int ret = iwl_grab_nic_access_silent(trans);
-	if (ret) {
+	if (unlikely(ret)) {
 		u32 val = iwl_read32(trans, CSR_GP_CNTRL);
-		IWL_ERR(trans,
-			"MAC is in deep sleep!. CSR_GP_CNTRL = 0x%08X\n", val);
+		WARN_ONCE(1, "Timeout waiting for hardware access "
+			     "(CSR_GP_CNTRL 0x%08x)\n", val);
 	}
 
 	return ret;
