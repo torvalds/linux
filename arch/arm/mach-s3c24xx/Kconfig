@@ -42,7 +42,7 @@ config CPU_S3C2416
 	select CPU_LLSERIAL_S3C2440
 	select SAMSUNG_CLKSRC
 	select S3C2443_COMMON
-	select S3C2416_DMA if S3C24XX_DMA
+	select S3C2443_DMA if S3C24XX_DMA
 	select S3C2416_PM if PM
 	help
 	  Support for the S3C2416 SoC from the S3C24XX line
@@ -513,14 +513,14 @@ config S3C2443_COMMON
 	  Common code for the S3C2443 and similar processors, which includes
 	  the S3C2416 and S3C2450.
 
-endif	# CPU_S3C2443 || CPU_S3C2416
-
-if CPU_S3C2443
-
 config S3C2443_DMA
 	bool
 	help
 	  Internal config node for S3C2443 DMA support
+
+endif	# CPU_S3C2443 || CPU_S3C2416
+
+if CPU_S3C2443
 
 comment "S3C2443 Boards"
 
