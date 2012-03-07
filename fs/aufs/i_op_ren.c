@@ -907,6 +907,15 @@ int aufs_rename(struct inode *_src_dir, struct dentry *_src_dentry,
 	} else if (unlikely(d_unhashed(a->dst_dentry)))
 		goto out_unlock;
 
+	/*
+	 * is it possible?
+	 * yes, it happend (in linux-3.3-rcN) but I don't know why.
+	 * there may exist a problem somewhere else.
+	 */
+	err = -EINVAL;
+	if (unlikely(a->dst_parent->d_inode == a->src_dentry->d_inode))
+		goto out_unlock;
+
 	au_fset_ren(a->flags, ISSAMEDIR); /* temporary */
 	di_write_lock_parent(a->dst_parent);
 
