@@ -62,6 +62,7 @@ struct sock_msg_q {
 #define AF_IUCV_FLAG_SYN 0x2
 #define AF_IUCV_FLAG_FIN 0x4
 #define AF_IUCV_FLAG_WIN 0x8
+#define AF_IUCV_FLAG_SHT 0x10
 
 struct af_iucv_trans_hdr {
 	u16 magic;

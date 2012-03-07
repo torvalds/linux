@@ -165,8 +165,6 @@ static int afiucv_pm_freeze(struct device *dev)
 	read_lock(&iucv_sk_list.lock);
 	sk_for_each(sk, node, &iucv_sk_list.head) {
 		iucv = iucv_sk(sk);
-		skb_queue_purge(&iucv->send_skb_q);
-		skb_queue_purge(&iucv->backlog_skb_q);
 		switch (sk->sk_state) {
 		case IUCV_DISCONN:
 		case IUCV_CLOSING:
@@ -405,7 +403,19 @@ static struct sock *__iucv_get_sock_by_name(char *nm)
 static void iucv_sock_destruct(struct sock *sk)
 {
 	skb_queue_purge(&sk->sk_receive_queue);
-	skb_queue_purge(&sk->sk_write_queue);
+	skb_queue_purge(&sk->sk_error_queue);
+
+	sk_mem_reclaim(sk);
+
+	if (!sock_flag(sk, SOCK_DEAD)) {
+		pr_err("Attempt to release alive iucv socket %p\n", sk);
+		return;
+	}
+
+	WARN_ON(atomic_read(&sk->sk_rmem_alloc));
+	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
+	WARN_ON(sk->sk_wmem_queued);
+	WARN_ON(sk->sk_forward_alloc);
 }
 
 /* Cleanup Listen */
@@ -1342,6 +1352,8 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	rlen   = skb->len;		/* real length of skb */
 	copied = min_t(unsigned int, rlen, len);
+	if (!rlen)
+		sk->sk_shutdown = sk->sk_shutdown | RCV_SHUTDOWN;
 
 	cskb = skb;
 	if (skb_copy_datagram_iovec(cskb, 0, msg->msg_iov, copied)) {
@@ -1493,42 +1505,47 @@ static int iucv_sock_shutdown(struct socket *sock, int how)
 
 	lock_sock(sk);
 	switch (sk->sk_state) {
+	case IUCV_LISTEN:
 	case IUCV_DISCONN:
 	case IUCV_CLOSING:
 	case IUCV_CLOSED:
 		err = -ENOTCONN;
 		goto fail;
-
 	default:
-		sk->sk_shutdown |= how;
 		break;
 	}
 
 	if (how == SEND_SHUTDOWN || how == SHUTDOWN_MASK) {
-		txmsg.class = 0;
-		txmsg.tag = 0;
-		err = pr_iucv->message_send(iucv->path, &txmsg, IUCV_IPRMDATA,
-					0, (void *) iprm_shutdown, 8);
-		if (err) {
-			switch (err) {
-			case 1:
-				err = -ENOTCONN;
-				break;
-			case 2:
-				err = -ECONNRESET;
-				break;
-			default:
-				err = -ENOTCONN;
-				break;
+		if (iucv->transport == AF_IUCV_TRANS_IUCV) {
+			txmsg.class = 0;
+			txmsg.tag = 0;
+			err = pr_iucv->message_send(iucv->path, &txmsg,
+				IUCV_IPRMDATA, 0, (void *) iprm_shutdown, 8);
+			if (err) {
+				switch (err) {
+				case 1:
+					err = -ENOTCONN;
+					break;
+				case 2:
+					err = -ECONNRESET;
+					break;
+				default:
+					err = -ENOTCONN;
+					break;
+				}
 			}
-		}
+		} else
+			iucv_send_ctrl(sk, AF_IUCV_FLAG_SHT);
 	}
 
+	sk->sk_shutdown |= how;
 	if (how == RCV_SHUTDOWN || how == SHUTDOWN_MASK) {
-		err = pr_iucv->path_quiesce(iucv->path, NULL);
-		if (err)
-			err = -ENOTCONN;
-
+		if (iucv->transport == AF_IUCV_TRANS_IUCV) {
+			err = pr_iucv->path_quiesce(iucv->path, NULL);
+			if (err)
+				err = -ENOTCONN;
+/*			skb_queue_purge(&sk->sk_receive_queue); */
+		}
 		skb_queue_purge(&sk->sk_receive_queue);
 	}
 
@@ -2066,8 +2083,13 @@ static int afiucv_hs_callback_rx(struct sock *sk, struct sk_buff *skb)
 		return NET_RX_SUCCESS;
 	}
 
+	if (sk->sk_shutdown & RCV_SHUTDOWN) {
+		kfree_skb(skb);
+		return NET_RX_SUCCESS;
+	}
+
 		/* write stuff from iucv_msg to skb cb */
-	if (skb->len <= sizeof(struct af_iucv_trans_hdr)) {
+	if (skb->len < sizeof(struct af_iucv_trans_hdr)) {
 		kfree_skb(skb);
 		return NET_RX_SUCCESS;
 	}
@@ -2173,7 +2195,10 @@ static int afiucv_hs_rcv(struct sk_buff *skb, struct net_device *dev,
 			kfree_skb(skb);
 			break;
 		}
-		/* fall through */
+		/* fall through and receive non-zero length data */
+	case (AF_IUCV_FLAG_SHT):
+		/* shutdown request */
+		/* fall through and receive zero length data */
 	case 0:
 		/* plain data frame */
 		memcpy(CB_TRGCLS(skb), &trans_hdr->iucv_hdr.class,
