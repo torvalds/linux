@@ -130,6 +130,42 @@ static struct nand_ecclayout fsmc_ecc4_256_layout = {
 };
 
 /*
+ * ECC4 layout for NAND of pagesize 4096 bytes & OOBsize 224 bytes. 13*8 bytes
+ * of OOB size is reserved for ECC, Byte no. 0 & 1 reserved for bad block & 118
+ * bytes are free for use.
+ */
+static struct nand_ecclayout fsmc_ecc4_224_layout = {
+	.eccbytes = 104,
+	.eccpos = {  2,   3,   4,   5,   6,   7,   8,
+		9,  10,  11,  12,  13,  14,
+		18,  19,  20,  21,  22,  23,  24,
+		25,  26,  27,  28,  29,  30,
+		34,  35,  36,  37,  38,  39,  40,
+		41,  42,  43,  44,  45,  46,
+		50,  51,  52,  53,  54,  55,  56,
+		57,  58,  59,  60,  61,  62,
+		66,  67,  68,  69,  70,  71,  72,
+		73,  74,  75,  76,  77,  78,
+		82,  83,  84,  85,  86,  87,  88,
+		89,  90,  91,  92,  93,  94,
+		98,  99, 100, 101, 102, 103, 104,
+		105, 106, 107, 108, 109, 110,
+		114, 115, 116, 117, 118, 119, 120,
+		121, 122, 123, 124, 125, 126
+	},
+	.oobfree = {
+		{.offset = 15, .length = 3},
+		{.offset = 31, .length = 3},
+		{.offset = 47, .length = 3},
+		{.offset = 63, .length = 3},
+		{.offset = 79, .length = 3},
+		{.offset = 95, .length = 3},
+		{.offset = 111, .length = 3},
+		{.offset = 127, .length = 97}
+	}
+};
+
+/*
  * ECC4 layout for NAND of pagesize 4096 bytes & OOBsize 128 bytes. 13*8 bytes
  * of OOB size is reserved for ECC, Byte no. 0 & 1 reserved for bad block & 22
  * bytes are free for use.
@@ -854,6 +890,10 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 			break;
 		case 128:
 			nand->ecc.layout = &fsmc_ecc4_128_layout;
+			host->ecc_place = &fsmc_ecc4_lp_place;
+			break;
+		case 224:
+			nand->ecc.layout = &fsmc_ecc4_224_layout;
 			host->ecc_place = &fsmc_ecc4_lp_place;
 			break;
 		case 256:
