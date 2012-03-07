@@ -91,3 +91,5 @@ obj-$(CONFIG_MACH_OSIRIS_DVS)		+= mach-osiris-dvs.o
 # device setup
 
 obj-$(CONFIG_S3C2416_SETUP_SDHCI_GPIO)	+= setup-sdhci-gpio.o
+obj-$(CONFIG_ARCH_S3C24XX)		+= setup-i2c.o
+obj-$(CONFIG_S3C24XX_SETUP_TS)		+= setup-ts.o

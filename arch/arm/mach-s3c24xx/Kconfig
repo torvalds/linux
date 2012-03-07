@@ -106,6 +106,11 @@ config S3C24XX_SIMTEC_USB
 	help
 	  USB management code for common Simtec S3C24XX boards
 
+config S3C24XX_SETUP_TS
+	bool
+	help
+	  Compile in platform device definition for Samsung TouchScreen.
+
 # cpu-specific sections
 
 if CPU_S3C2410
@@ -178,7 +183,7 @@ config ARCH_H1940
 	select PM_H1940 if PM
 	select S3C_DEV_USB_HOST
 	select S3C_DEV_NAND
-	select S3C2410_SETUP_TS
+	select S3C24XX_SETUP_TS
 	help
 	  Say Y here if you are using the HP IPAQ H1940
 

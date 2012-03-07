@@ -113,9 +113,4 @@ config S3C2412_IOTIMING
 	  Intel node to select io timing code that is common to the s3c2412
 	  and the s3c2443.
 
-config S3C2410_SETUP_TS
-	bool
-	help
-	  Compile in platform device definition for Samsung TouchScreen.
-
 endif
