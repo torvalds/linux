@@ -1211,7 +1211,7 @@ static void iwl_trans_pcie_fw_alive(struct iwl_trans *trans)
  */
 static int iwl_trans_tx_stop(struct iwl_trans *trans)
 {
-	int ch, txq_id;
+	int ch, txq_id, ret;
 	unsigned long flags;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -1224,9 +1224,10 @@ static int iwl_trans_tx_stop(struct iwl_trans *trans)
 	for (ch = 0; ch < FH_TCSR_CHNL_NUM; ch++) {
 		iwl_write_direct32(trans,
 				   FH_TCSR_CHNL_TX_CONFIG_REG(ch), 0x0);
-		if (iwl_poll_direct_bit(trans, FH_TSSR_TX_STATUS_REG,
+		ret = iwl_poll_direct_bit(trans, FH_TSSR_TX_STATUS_REG,
 				    FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(ch),
-				    1000))
+				    1000);
+		if (ret < 0)
 			IWL_ERR(trans, "Failing on timeout while stopping"
 			    " DMA channel %d [0x%08x]", ch,
 			    iwl_read_direct32(trans,
