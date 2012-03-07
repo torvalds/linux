@@ -237,8 +237,9 @@ int window_protected(struct bat_priv *bat_priv, int32_t seq_num_diff,
 				"old packet received, start protection\n");
 
 			return 0;
-		} else
+		} else {
 			return 1;
+		}
 	}
 	return 0;
 }
