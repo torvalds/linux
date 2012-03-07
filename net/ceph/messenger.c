@@ -835,7 +835,6 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 
 	while (data_len > con->out_msg_pos.data_pos) {
 		struct page *page = NULL;
-		void *kaddr = NULL;
 		int max_write = PAGE_SIZE;
 		int bio_offset = 0;
 
@@ -856,18 +855,12 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 
 			page = list_first_entry(&msg->trail->head,
 						struct page, lru);
-			if (do_datacrc)
-				kaddr = kmap(page);
 			max_write = PAGE_SIZE;
 		} else if (msg->pages) {
 			page = msg->pages[con->out_msg_pos.page];
-			if (do_datacrc)
-				kaddr = kmap(page);
 		} else if (msg->pagelist) {
 			page = list_first_entry(&msg->pagelist->head,
 						struct page, lru);
-			if (do_datacrc)
-				kaddr = kmap(page);
 #ifdef CONFIG_BLOCK
 		} else if (msg->bio) {
 			struct bio_vec *bv;
@@ -875,14 +868,10 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 			bv = bio_iovec_idx(msg->bio_iter, msg->bio_seg);
 			page = bv->bv_page;
 			bio_offset = bv->bv_offset;
-			if (do_datacrc)
-				kaddr = kmap(page);
 			max_write = bv->bv_len;
 #endif
 		} else {
 			page = zero_page;
-			if (do_datacrc)
-				kaddr = kmap(page);
 		}
 		len = min_t(int, max_write - con->out_msg_pos.page_pos,
 			    total_max_write);
@@ -891,7 +880,9 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 			void *base;
 			u32 crc;
 			u32 tmpcrc = le32_to_cpu(con->out_msg->footer.data_crc);
+			char *kaddr;
 
+			kaddr = kmap(page);
 			BUG_ON(kaddr == NULL);
 			base = kaddr + con->out_msg_pos.page_pos + bio_offset;
 			crc = crc32c(tmpcrc, base, len);
