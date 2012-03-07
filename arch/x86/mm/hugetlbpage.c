@@ -333,7 +333,7 @@ try_again:
 		 * Lookup failure means no vma is above this address,
 		 * i.e. return with success:
 		 */
-		vma = find_vma(mm, add);
+		vma = find_vma(mm, addr);
 		if (!vma)
 			return addr;
 
