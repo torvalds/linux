@@ -1450,8 +1450,12 @@ void iwlagn_lift_passive_no_rx(struct iwl_priv *priv)
 		return;
 
 	for (ac = IEEE80211_AC_VO; ac < IEEE80211_NUM_ACS; ac++) {
-		if (!test_bit(ac, &priv->transport_queue_stop))
+		if (!test_bit(ac, &priv->transport_queue_stop)) {
+			IWL_DEBUG_TX_QUEUES(priv, "Wake queue %d");
 			ieee80211_wake_queue(priv->hw, ac);
+		} else {
+			IWL_DEBUG_TX_QUEUES(priv, "Don't wake queue %d");
+		}
 	}
 
 	priv->passive_no_rx = false;
