@@ -211,6 +211,8 @@ struct nvbios {
 		NVBIOS_BIT
 	} type;
 	uint16_t offset;
+	uint32_t length;
+	uint8_t *data;
 
 	uint8_t chip_version;
 
@@ -221,8 +223,6 @@ struct nvbios {
 
 	spinlock_t lock;
 
-	uint8_t data[NV_PROM_SIZE];
-	unsigned int length;
 	bool execute;
 
 	uint8_t major_version;
