@@ -745,7 +745,8 @@ static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
 
 	/* Make sure device is powered up for SRAM reads */
 	spin_lock_irqsave(&trans->reg_lock, reg_flags);
-	iwl_grab_nic_access(trans);
+	if (unlikely(!iwl_grab_nic_access(trans)))
+		goto out_unlock;
 
 	/* Set starting address; reads will auto-increment */
 	iwl_write32(trans, HBUS_TARG_MEM_RADDR, ptr);
@@ -785,6 +786,7 @@ static int iwl_print_event_log(struct iwl_trans *trans, u32 start_idx,
 
 	/* Allow device to power down */
 	iwl_release_nic_access(trans);
+out_unlock:
 	spin_unlock_irqrestore(&trans->reg_lock, reg_flags);
 	return pos;
 }

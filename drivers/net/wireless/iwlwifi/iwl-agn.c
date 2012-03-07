@@ -327,7 +327,7 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 
 	/* Make sure device is powered up for SRAM reads */
 	spin_lock_irqsave(&trans(priv)->reg_lock, reg_flags);
-	if (iwl_grab_nic_access(trans(priv))) {
+	if (unlikely(!iwl_grab_nic_access(trans(priv)))) {
 		spin_unlock_irqrestore(&trans(priv)->reg_lock, reg_flags);
 		return;
 	}

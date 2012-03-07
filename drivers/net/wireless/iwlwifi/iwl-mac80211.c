@@ -445,7 +445,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
 		spin_lock_irqsave(&trans(priv)->reg_lock, flags);
 		ret = iwl_grab_nic_access_silent(trans(priv));
-		if (ret == 0) {
+		if (likely(ret == 0)) {
 			iwl_write32(trans(priv), HBUS_TARG_MEM_RADDR, base);
 			status = iwl_read32(trans(priv), HBUS_TARG_MEM_RDAT);
 			iwl_release_nic_access(trans(priv));
