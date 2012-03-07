@@ -967,9 +967,8 @@ config SCSI_IPS
 
 config SCSI_IBMVSCSI
 	tristate "IBM Virtual SCSI support"
-	depends on PPC_PSERIES || PPC_ISERIES
+	depends on PPC_PSERIES
 	select SCSI_SRP_ATTRS
-	select VIOPATH if PPC_ISERIES
 	help
 	  This is the IBM POWER Virtual SCSI Client
 
