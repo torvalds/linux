@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 
+#include <plat/hardware.h>
 #include <plat/sdrc.h>
 
 #include "iomap.h"
