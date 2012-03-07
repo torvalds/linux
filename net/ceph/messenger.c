@@ -812,7 +812,7 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 	struct ceph_msg *msg = con->out_msg;
 	unsigned data_len = le32_to_cpu(msg->hdr.data_len);
 	size_t len;
-	bool do_crc = con->msgr->nocrc;
+	bool do_datacrc = !con->msgr->nocrc;
 	int ret;
 	int total_max_write;
 	int in_trail = 0;
@@ -850,17 +850,17 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 
 			page = list_first_entry(&msg->trail->head,
 						struct page, lru);
-			if (do_crc)
+			if (do_datacrc)
 				kaddr = kmap(page);
 			max_write = PAGE_SIZE;
 		} else if (msg->pages) {
 			page = msg->pages[con->out_msg_pos.page];
-			if (do_crc)
+			if (do_datacrc)
 				kaddr = kmap(page);
 		} else if (msg->pagelist) {
 			page = list_first_entry(&msg->pagelist->head,
 						struct page, lru);
-			if (do_crc)
+			if (do_datacrc)
 				kaddr = kmap(page);
 #ifdef CONFIG_BLOCK
 		} else if (msg->bio) {
@@ -869,19 +869,19 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 			bv = bio_iovec_idx(msg->bio_iter, msg->bio_seg);
 			page = bv->bv_page;
 			page_shift = bv->bv_offset;
-			if (do_crc)
+			if (do_datacrc)
 				kaddr = kmap(page) + page_shift;
 			max_write = bv->bv_len;
 #endif
 		} else {
 			page = zero_page;
-			if (do_crc)
+			if (do_datacrc)
 				kaddr = zero_page_address;
 		}
 		len = min_t(int, max_write - con->out_msg_pos.page_pos,
 			    total_max_write);
 
-		if (do_crc && !con->out_msg_pos.did_page_crc) {
+		if (do_datacrc && !con->out_msg_pos.did_page_crc) {
 			u32 crc;
 			void *base = kaddr + con->out_msg_pos.page_pos;
 			u32 tmpcrc = le32_to_cpu(con->out_msg->footer.data_crc);
@@ -897,7 +897,7 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 				      MSG_DONTWAIT | MSG_NOSIGNAL |
 				      MSG_MORE);
 
-		if (do_crc && kaddr != zero_page_address)
+		if (do_datacrc && kaddr != zero_page_address)
 			kunmap(page);
 
 		if (ret == -EAGAIN)
@@ -927,7 +927,7 @@ static int write_partial_msg_pages(struct ceph_connection *con)
 	dout("write_partial_msg_pages %p msg %p done\n", con, msg);
 
 	/* prepare and queue up footer, too */
-	if (!do_crc)
+	if (!do_datacrc)
 		con->out_msg->footer.flags |= CEPH_MSG_FOOTER_NOCRC;
 	ceph_con_out_kvec_reset(con);
 	prepare_write_message_footer(con);
@@ -1639,7 +1639,7 @@ static int read_partial_message(struct ceph_connection *con)
 	int ret;
 	int to, left;
 	unsigned front_len, middle_len, data_len;
-	bool do_datacrc = con->msgr->nocrc;
+	bool do_datacrc = !con->msgr->nocrc;
 	int skip;
 	u64 seq;
 	u32 crc;
