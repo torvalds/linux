@@ -57,6 +57,7 @@
 #include <plat/sdhci.h>
 #include <plat/ts.h>
 #include <plat/udc.h>
+#include <plat/udc-hs.h>
 #include <plat/usb-control.h>
 #include <plat/usb-phy.h>
 #include <plat/regs-iic.h>
@@ -1449,6 +1450,19 @@ struct platform_device s3c_device_usb_hsotg = {
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
+
+void __init s3c_hsotg_set_platdata(struct s3c_hsotg_plat *pd)
+{
+	struct s3c_hsotg_plat *npd;
+
+	npd = s3c_set_platdata(pd, sizeof(struct s3c_hsotg_plat),
+			&s3c_device_usb_hsotg);
+
+	if (!npd->phy_init)
+		npd->phy_init = s5p_usb_phy_init;
+	if (!npd->phy_exit)
+		npd->phy_exit = s5p_usb_phy_exit;
+}
 #endif /* CONFIG_S3C_DEV_USB_HSOTG */
 
 /* USB High Spped 2.0 Device (Gadget) */

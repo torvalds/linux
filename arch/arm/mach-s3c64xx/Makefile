@@ -43,6 +43,7 @@ obj-$(CONFIG_S3C64XX_SETUP_IDE)		+= setup-ide.o
 obj-$(CONFIG_S3C64XX_SETUP_KEYPAD)	+= setup-keypad.o
 obj-$(CONFIG_S3C64XX_SETUP_SDHCI_GPIO)	+= setup-sdhci-gpio.o
 obj-$(CONFIG_S3C64XX_SETUP_SPI)		+= setup-spi.o
+obj-$(CONFIG_S3C64XX_SETUP_USB_PHY) += setup-usb-phy.o
 
 # Machine support
 
