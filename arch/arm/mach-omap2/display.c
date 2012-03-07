@@ -243,6 +243,46 @@ err:
 	return ERR_PTR(r);
 }
 
+static struct platform_device *create_simple_dss_pdev(const char *pdev_name,
+		int pdev_id, void *pdata, int pdata_len,
+		struct platform_device *parent)
+{
+	struct platform_device *pdev;
+	int r;
+
+	pdev = platform_device_alloc(pdev_name, pdev_id);
+	if (!pdev) {
+		pr_err("Could not create pdev for %s\n", pdev_name);
+		r = -ENOMEM;
+		goto err;
+	}
+
+	if (parent != NULL)
+		pdev->dev.parent = &parent->dev;
+
+	if (pdev->id != -1)
+		dev_set_name(&pdev->dev, "%s.%d", pdev->name, pdev->id);
+	else
+		dev_set_name(&pdev->dev, "%s", pdev->name);
+
+	r = platform_device_add_data(pdev, pdata, pdata_len);
+	if (r) {
+		pr_err("Could not set pdata for %s\n", pdev_name);
+		goto err;
+	}
+
+	r = omap_device_register(pdev);
+	if (r) {
+		pr_err("Could not register omap_device for %s\n", pdev_name);
+		goto err;
+	}
+
+	return pdev;
+
+err:
+	return ERR_PTR(r);
+}
+
 int __init omap_display_init(struct omap_dss_board_info *board_data)
 {
 	int r = 0;
@@ -308,6 +348,23 @@ int __init omap_display_init(struct omap_dss_board_info *board_data)
 			pr_err("Could not build omap_device for %s\n",
 					curr_dss_hwmod[i].oh_name);
 
+			return PTR_ERR(pdev);
+		}
+	}
+
+	/* Create devices for DPI and SDI */
+
+	pdev = create_simple_dss_pdev("omapdss_dpi", -1, NULL, 0, dss_pdev);
+	if (IS_ERR(pdev)) {
+		pr_err("Could not build platform_device for omapdss_dpi\n");
+		return PTR_ERR(pdev);
+	}
+
+	if (cpu_is_omap34xx()) {
+		pdev = create_simple_dss_pdev("omapdss_sdi", -1, NULL, 0,
+				dss_pdev);
+		if (IS_ERR(pdev)) {
+			pr_err("Could not build platform_device for omapdss_sdi\n");
 			return PTR_ERR(pdev);
 		}
 	}
