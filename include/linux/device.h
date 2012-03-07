@@ -264,10 +264,6 @@ extern int __must_check driver_create_file(struct device_driver *driver,
 extern void driver_remove_file(struct device_driver *driver,
 			       const struct driver_attribute *attr);
 
-extern int __must_check driver_add_kobj(struct device_driver *drv,
-					struct kobject *kobj,
-					const char *fmt, ...);
-
 extern int __must_check driver_for_each_device(struct device_driver *drv,
 					       struct device *start,
 					       void *data,
