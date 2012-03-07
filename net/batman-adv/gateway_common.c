@@ -125,8 +125,8 @@ static bool parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 		ret = kstrtol(slash_ptr + 1, 10, &lup);
 		if (ret) {
 			bat_err(net_dev,
-				"Upload speed of gateway mode invalid: "
-				"%s\n", slash_ptr + 1);
+				"Upload speed of gateway mode invalid: %s\n",
+				slash_ptr + 1);
 			return false;
 		}
 
@@ -163,8 +163,8 @@ ssize_t gw_bandwidth_set(struct net_device *net_dev, char *buff, size_t count)
 	gw_bandwidth_to_kbit((uint8_t)gw_bandwidth_tmp, &down, &up);
 
 	gw_deselect(bat_priv);
-	bat_info(net_dev, "Changing gateway bandwidth from: '%i' to: '%ld' "
-		 "(propagating: %d%s/%d%s)\n",
+	bat_info(net_dev,
+		 "Changing gateway bandwidth from: '%i' to: '%ld' (propagating: %d%s/%d%s)\n",
 		 atomic_read(&bat_priv->gw_bandwidth), gw_bandwidth_tmp,
 		 (down > 2048 ? down / 1024 : down),
 		 (down > 2048 ? "MBit" : "KBit"),

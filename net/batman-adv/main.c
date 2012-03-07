@@ -64,8 +64,8 @@ static int __init batman_init(void)
 
 	register_netdevice_notifier(&hard_if_notifier);
 
-	pr_info("B.A.T.M.A.N. advanced %s (compatibility version %i) "
-		"loaded\n", SOURCE_VERSION, COMPAT_VERSION);
+	pr_info("B.A.T.M.A.N. advanced %s (compatibility version %i) loaded\n",
+		SOURCE_VERSION, COMPAT_VERSION);
 
 	return 0;
 }
@@ -201,8 +201,8 @@ int bat_algo_register(struct bat_algo_ops *bat_algo_ops)
 
 	bat_algo_ops_tmp = bat_algo_get(bat_algo_ops->name);
 	if (bat_algo_ops_tmp) {
-		pr_info("Trying to register already registered routing "
-			"algorithm: %s\n", bat_algo_ops->name);
+		pr_info("Trying to register already registered routing algorithm: %s\n",
+			bat_algo_ops->name);
 		goto out;
 	}
 

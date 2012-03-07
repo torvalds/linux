@@ -255,8 +255,8 @@ static ssize_t store_vis_mode(struct kobject *kobj, struct attribute *attr,
 			buff[count - 1] = '\0';
 
 		bat_info(net_dev,
-			 "Invalid parameter for 'vis mode' setting received: "
-			 "%s\n", buff);
+			 "Invalid parameter for 'vis mode' setting received: %s\n",
+			 buff);
 		return -EINVAL;
 	}
 
@@ -330,8 +330,8 @@ static ssize_t store_gw_mode(struct kobject *kobj, struct attribute *attr,
 
 	if (gw_mode_tmp < 0) {
 		bat_info(net_dev,
-			 "Invalid parameter for 'gw mode' setting received: "
-			 "%s\n", buff);
+			 "Invalid parameter for 'gw mode' setting received: %s\n",
+			 buff);
 		return -EINVAL;
 	}
 
@@ -502,8 +502,8 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 		buff[count - 1] = '\0';
 
 	if (strlen(buff) >= IFNAMSIZ) {
-		pr_err("Invalid parameter for 'mesh_iface' setting received: "
-		       "interface name too long '%s'\n", buff);
+		pr_err("Invalid parameter for 'mesh_iface' setting received: interface name too long '%s'\n",
+		       buff);
 		hardif_free_ref(hard_iface);
 		return -EINVAL;
 	}
@@ -677,8 +677,8 @@ out:
 		hardif_free_ref(primary_if);
 
 	if (ret)
-		bat_dbg(DBG_BATMAN, bat_priv, "Impossible to send "
-			"uevent for (%s,%s,%s) event (err: %d)\n",
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"Impossible to send uevent for (%s,%s,%s) event (err: %d)\n",
 			uev_type_str[type], uev_action_str[action],
 			(action == UEV_DEL ? "NULL" : data), ret);
 	return ret;

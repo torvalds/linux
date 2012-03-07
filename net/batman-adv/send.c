@@ -45,8 +45,8 @@ int send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
 		goto send_skb_err;
 
 	if (!(hard_iface->net_dev->flags & IFF_UP)) {
-		pr_warning("Interface %s is not up - can't send packet via "
-			   "that interface!\n", hard_iface->net_dev->name);
+		pr_warning("Interface %s is not up - can't send packet via that interface!\n",
+			   hard_iface->net_dev->name);
 		goto send_skb_err;
 	}
 
