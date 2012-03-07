@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/pm.h>
 #include <linux/cpufreq.h>
 #include <linux/ioport.h>
@@ -350,6 +351,29 @@ static struct platform_device sa11x0rtc_device = {
 	.id		= -1,
 };
 
+static struct resource sa11x0dma_resources[] = {
+	DEFINE_RES_MEM(__PREG(DDAR(0)), 6 * DMASp),
+	DEFINE_RES_IRQ(IRQ_DMA0),
+	DEFINE_RES_IRQ(IRQ_DMA1),
+	DEFINE_RES_IRQ(IRQ_DMA2),
+	DEFINE_RES_IRQ(IRQ_DMA3),
+	DEFINE_RES_IRQ(IRQ_DMA4),
+	DEFINE_RES_IRQ(IRQ_DMA5),
+};
+
+static u64 sa11x0dma_dma_mask = DMA_BIT_MASK(32);
+
+static struct platform_device sa11x0dma_device = {
+	.name		= "sa11x0-dma",
+	.id		= -1,
+	.dev = {
+		.dma_mask = &sa11x0dma_dma_mask,
+		.coherent_dma_mask = 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(sa11x0dma_resources),
+	.resource	= sa11x0dma_resources,
+};
+
 static struct platform_device *sa11x0_devices[] __initdata = {
 	&sa11x0udc_device,
 	&sa11x0uart1_device,
@@ -358,6 +382,7 @@ static struct platform_device *sa11x0_devices[] __initdata = {
 	&sa11x0pcmcia_device,
 	&sa11x0fb_device,
 	&sa11x0rtc_device,
+	&sa11x0dma_device,
 };
 
 static int __init sa1100_init(void)
