@@ -927,7 +927,8 @@ struct tcp_md5sig_key *tcp_md5_do_lookup(struct sock *sk,
 
 	/* caller either holds rcu_read_lock() or socket lock */
 	md5sig = rcu_dereference_check(tp->md5sig_info,
-				       sock_owned_by_user(sk));
+				       sock_owned_by_user(sk) ||
+				       lockdep_is_held(&sk->sk_lock.slock));
 	if (!md5sig)
 		return NULL;
 #if IS_ENABLED(CONFIG_IPV6)
