@@ -505,6 +505,33 @@ struct platform_device rk29_device_vibrator ={
 };
 #endif 
 
+#ifdef CONFIG_LEDS_GPIO_PLATFORM
+struct gpio_led rk29_leds[] = {
+		{
+			.name = "rk30_keyboard_led",
+			.gpio = RK30_PIN4_PD7,
+			.default_trigger = "timer",
+			.active_low = 0,
+			.retain_state_suspended = 0,
+			.default_state = LEDS_GPIO_DEFSTATE_OFF,
+		},
+};
+
+struct gpio_led_platform_data rk29_leds_pdata = {
+	.leds = &rk29_leds,
+	.num_leds	= ARRAY_SIZE(rk29_leds),
+};
+
+struct platform_device rk29_device_gpio_leds = {
+	.name	= "leds-gpio",
+	.id 	= -1,
+	.dev	= {
+	   .platform_data  = &rk29_leds_pdata,
+	},
+};
+#endif
+
+
 
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BACKLIGHT_RK29_BL
@@ -516,6 +543,10 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_ANDROID_TIMED_GPIO
 	&rk29_device_vibrator,
 #endif
+#ifdef CONFIG_LEDS_GPIO_PLATFORM
+	&rk29_device_gpio_leds,
+#endif
+
 
 };
 
