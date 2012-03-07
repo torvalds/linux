@@ -833,8 +833,6 @@ static int iwl_nic_init(struct iwl_trans *trans)
 			0x800FFFFF);
 	}
 
-	set_bit(STATUS_INIT, &trans->shrd->status);
-
 	return 0;
 }
 

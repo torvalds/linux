@@ -367,11 +367,6 @@ static inline int iwl_is_alive(struct iwl_shared *shrd)
 	return test_bit(STATUS_ALIVE, &shrd->status);
 }
 
-static inline int iwl_is_init(struct iwl_shared *shrd)
-{
-	return test_bit(STATUS_INIT, &shrd->status);
-}
-
 static inline int iwl_is_rfkill_hw(struct iwl_shared *shrd)
 {
 	return test_bit(STATUS_RF_KILL_HW, &shrd->status);
@@ -382,9 +377,9 @@ static inline int iwl_is_rfkill(struct iwl_shared *shrd)
 	return iwl_is_rfkill_hw(shrd);
 }
 
-static inline int iwl_is_ctkill(struct iwl_shared *shrd)
+static inline int iwl_is_ctkill(struct iwl_priv *priv)
 {
-	return test_bit(STATUS_CT_KILL, &shrd->status);
+	return test_bit(STATUS_CT_KILL, &priv->status);
 }
 
 static inline int iwl_is_ready_rf(struct iwl_shared *shrd)

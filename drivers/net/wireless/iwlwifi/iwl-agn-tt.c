@@ -233,7 +233,7 @@ static void iwl_tt_ready_for_ct_kill(unsigned long data)
 		IWL_DEBUG_TEMP(priv, "entering CT_KILL state when "
 				"temperature timer expired\n");
 		tt->state = IWL_TI_CT_KILL;
-		set_bit(STATUS_CT_KILL, &priv->shrd->status);
+		set_bit(STATUS_CT_KILL, &priv->status);
 		iwl_perform_ct_kill_task(priv, true);
 	}
 }
@@ -313,22 +313,21 @@ static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 		}
 		mutex_lock(&priv->mutex);
 		if (old_state == IWL_TI_CT_KILL)
-			clear_bit(STATUS_CT_KILL, &priv->shrd->status);
+			clear_bit(STATUS_CT_KILL, &priv->status);
 		if (tt->state != IWL_TI_CT_KILL &&
 		    iwl_power_update_mode(priv, true)) {
 			/* TT state not updated
 			 * try again during next temperature read
 			 */
 			if (old_state == IWL_TI_CT_KILL)
-				set_bit(STATUS_CT_KILL, &priv->shrd->status);
+				set_bit(STATUS_CT_KILL, &priv->status);
 			tt->state = old_state;
 			IWL_ERR(priv, "Cannot update power mode, "
 					"TT state not updated\n");
 		} else {
 			if (tt->state == IWL_TI_CT_KILL) {
 				if (force) {
-					set_bit(STATUS_CT_KILL,
-						&priv->shrd->status);
+					set_bit(STATUS_CT_KILL, &priv->status);
 					iwl_perform_ct_kill_task(priv, true);
 				} else {
 					iwl_prepare_ct_kill_task(priv);
@@ -454,7 +453,7 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 		}
 		mutex_lock(&priv->mutex);
 		if (old_state == IWL_TI_CT_KILL)
-			clear_bit(STATUS_CT_KILL, &priv->shrd->status);
+			clear_bit(STATUS_CT_KILL, &priv->status);
 		if (tt->state != IWL_TI_CT_KILL &&
 		    iwl_power_update_mode(priv, true)) {
 			/* TT state not updated
@@ -463,7 +462,7 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 			IWL_ERR(priv, "Cannot update power mode, "
 					"TT state not updated\n");
 			if (old_state == IWL_TI_CT_KILL)
-				set_bit(STATUS_CT_KILL, &priv->shrd->status);
+				set_bit(STATUS_CT_KILL, &priv->status);
 			tt->state = old_state;
 		} else {
 			IWL_DEBUG_TEMP(priv,
@@ -474,8 +473,7 @@ static void iwl_advance_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 				if (force) {
 					IWL_DEBUG_TEMP(priv,
 						"Enter IWL_TI_CT_KILL\n");
-					set_bit(STATUS_CT_KILL,
-						&priv->shrd->status);
+					set_bit(STATUS_CT_KILL, &priv->status);
 					iwl_perform_ct_kill_task(priv, true);
 				} else {
 					iwl_prepare_ct_kill_task(priv);

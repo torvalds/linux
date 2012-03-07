@@ -1291,7 +1291,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 
 int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
-	if (iwl_is_rfkill(priv->shrd) || iwl_is_ctkill(priv->shrd)) {
+	if (iwl_is_rfkill(priv->shrd) || iwl_is_ctkill(priv)) {
 		IWL_WARN(priv, "Not sending command - %s KILL\n",
 			 iwl_is_rfkill(priv->shrd) ? "RF" : "CT");
 		return -EIO;

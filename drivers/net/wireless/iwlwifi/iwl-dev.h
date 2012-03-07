@@ -713,6 +713,7 @@ struct iwl_priv {
 	/*data shared among all the driver's layers */
 	struct iwl_shared *shrd;
 	const struct iwl_fw *fw;
+	unsigned long status;
 
 	spinlock_t sta_lock;
 	struct mutex mutex;

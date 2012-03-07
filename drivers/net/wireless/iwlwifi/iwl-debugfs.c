@@ -530,15 +530,11 @@ static ssize_t iwl_dbgfs_status_read(struct file *file,
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_RF_KILL_HW:\t %d\n",
 		test_bit(STATUS_RF_KILL_HW, &priv->shrd->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_CT_KILL:\t\t %d\n",
-		test_bit(STATUS_CT_KILL, &priv->shrd->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_INIT:\t\t %d\n",
-		test_bit(STATUS_INIT, &priv->shrd->status));
+		test_bit(STATUS_CT_KILL, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_ALIVE:\t\t %d\n",
 		test_bit(STATUS_ALIVE, &priv->shrd->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_READY:\t\t %d\n",
 		test_bit(STATUS_READY, &priv->shrd->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_TEMPERATURE:\t %d\n",
-		test_bit(STATUS_TEMPERATURE, &priv->shrd->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_GEO_CONFIGURED:\t %d\n",
 		test_bit(STATUS_GEO_CONFIGURED, &priv->shrd->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_EXIT_PENDING:\t %d\n",
