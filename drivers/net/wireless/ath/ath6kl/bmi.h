@@ -223,6 +223,15 @@ struct ath6kl_bmi_target_info {
 	__le32 type;         /* target type */
 } __packed;
 
+#define ath6kl_bmi_write_hi32(ar, item, val)				\
+	({								\
+		u32 addr, v;						\
+		addr = ath6kl_get_hi_item_addr(ar, HI_ITEM(item));	\
+		v = val;						\
+		ath6kl_bmi_write(ar, addr, (u8 *) &v, sizeof(v));	\
+	})
+
+
 int ath6kl_bmi_init(struct ath6kl *ar);
 void ath6kl_bmi_cleanup(struct ath6kl *ar);
 void ath6kl_bmi_reset(struct ath6kl *ar);
