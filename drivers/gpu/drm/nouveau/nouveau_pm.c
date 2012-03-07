@@ -284,9 +284,11 @@ nouveau_pm_perflvl_get(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 
 	memset(perflvl, 0, sizeof(*perflvl));
 
-	ret = pm->clocks_get(dev, perflvl);
-	if (ret)
-		return ret;
+	if (pm->clocks_get) {
+		ret = pm->clocks_get(dev, perflvl);
+		if (ret)
+			return ret;
+	}
 
 	if (pm->voltage.supported && pm->voltage_get) {
 		ret = pm->voltage_get(dev);
