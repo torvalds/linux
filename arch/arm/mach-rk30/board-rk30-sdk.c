@@ -234,7 +234,7 @@ static struct spi_board_info board_spi_devices[] = {
 //#define BL_EN_MUX_NAME    GPIOF34_UART3_SEL_NAME
 //#define BL_EN_MUX_MODE    IOMUXB_GPIO1_B34
 
-#define BL_EN_PIN         INVALID_GPIO //?
+#define BL_EN_PIN         RK30_PIN6_PB3
 #define BL_EN_VALUE       GPIO_HIGH
 #endif
 static int rk29_backlight_io_init(void)
