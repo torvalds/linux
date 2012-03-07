@@ -559,6 +559,8 @@ data_access_common:
 	mfspr	r10,SPRN_DSISR
 	stw	r10,PACA_EXGEN+EX_DSISR(r13)
 	EXCEPTION_PROLOG_COMMON(0x300, PACA_EXGEN)
+	DISABLE_INTS
+	ld	r12,_MSR(r1)
 	ld	r3,PACA_EXGEN+EX_DAR(r13)
 	lwz	r4,PACA_EXGEN+EX_DSISR(r13)
 	li	r5,0x300
@@ -573,6 +575,7 @@ h_data_storage_common:
         stw     r10,PACA_EXGEN+EX_DSISR(r13)
         EXCEPTION_PROLOG_COMMON(0xe00, PACA_EXGEN)
         bl      .save_nvgprs
+	DISABLE_INTS
         addi    r3,r1,STACK_FRAME_OVERHEAD
         bl      .unknown_exception
         b       .ret_from_except
@@ -581,6 +584,8 @@ h_data_storage_common:
 	.globl instruction_access_common
 instruction_access_common:
 	EXCEPTION_PROLOG_COMMON(0x400, PACA_EXGEN)
+	DISABLE_INTS
+	ld	r12,_MSR(r1)
 	ld	r3,_NIP(r1)
 	andis.	r4,r12,0x5820
 	li	r5,0x400
@@ -884,24 +889,6 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_SLB)
 	lwz	r0,TI_PREEMPT(r11)	/* If we're in an "NMI" */
 	andis.	r0,r0,NMI_MASK@h	/* (i.e. an irq when soft-disabled) */
 	bne	77f			/* then don't call hash_page now */
-
-	/* We run with interrupts both soft and hard disabled */
-	DISABLE_INTS
-
-	/*
-	 * Currently, trace_hardirqs_off() will be called by DISABLE_INTS
-	 * and will clobber volatile registers when irq tracing is enabled
-	 * so we need to reload them. It may be possible to be smarter here
-	 * and move the irq tracing elsewhere but let's keep it simple for
-	 * now
-	 */
-#ifdef CONFIG_TRACE_IRQFLAGS
-	ld	r3,_DAR(r1)
-	ld	r4,_DSISR(r1)
-	ld	r5,_TRAP(r1)
-	ld	r12,_MSR(r1)
-	clrrdi	r5,r5,4
-#endif /* CONFIG_TRACE_IRQFLAGS */
 	/*
 	 * We need to set the _PAGE_USER bit if MSR_PR is set or if we are
 	 * accessing a userspace segment (even from the kernel). We assume
@@ -931,17 +918,22 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_SLB)
 	beq	fast_exc_return_irq	/* Return from exception on success */
 
 	/* For a hash failure, we don't bother re-enabling interrupts */
-	ble-	12f
+	ble-	13f
 
-	/*
-	 * hash_page couldn't handle it, set soft interrupt enable back
-	 * to what it was before the trap.  Note that .arch_local_irq_restore
-	 * handles any interrupts pending at this point.
-	 */
-	ld	r3,SOFTE(r1)
-	TRACE_AND_RESTORE_IRQ_PARTIAL(r3, 11f)
-	bl	.arch_local_irq_restore
-	b	11f
+/* Here we have a page fault that hash_page can't handle. */
+handle_page_fault:
+11:	ld	r4,_DAR(r1)
+	ld	r5,_DSISR(r1)
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.do_page_fault
+	cmpdi	r3,0
+	beq+	12f
+	bl	.save_nvgprs
+	mr	r5,r3
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	lwz	r4,_DAR(r1)
+	bl	.bad_page_fault
+	b	.ret_from_except
 
 /* We have a data breakpoint exception - handle it */
 handle_dabr_fault:
@@ -950,30 +942,13 @@ handle_dabr_fault:
 	ld      r5,_DSISR(r1)
 	addi    r3,r1,STACK_FRAME_OVERHEAD
 	bl      .do_dabr
-	b       .ret_from_except_lite
+12:	b       .ret_from_except_lite
 
-/* Here we have a page fault that hash_page can't handle. */
-handle_page_fault:
-	ENABLE_INTS
-11:	ld	r4,_DAR(r1)
-	ld	r5,_DSISR(r1)
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.do_page_fault
-	cmpdi	r3,0
-	beq+	13f
-	bl	.save_nvgprs
-	mr	r5,r3
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	lwz	r4,_DAR(r1)
-	bl	.bad_page_fault
-	b	.ret_from_except
-
-13:	b	.ret_from_except_lite
 
 /* We have a page fault that hash_page could handle but HV refused
  * the PTE insertion
  */
-12:	bl	.save_nvgprs
+13:	bl	.save_nvgprs
 	mr	r5,r3
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	ld	r4,_DAR(r1)

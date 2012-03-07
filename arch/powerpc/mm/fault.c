@@ -179,6 +179,10 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 	}
 #endif
 
+	/* We restore the interrupt state now */
+	if (!arch_irq_disabled_regs(regs))
+		local_irq_enable();
+
 	if (in_atomic() || mm == NULL) {
 		if (!user_mode(regs))
 			return SIGSEGV;
@@ -213,6 +217,13 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 			goto bad_area_nosemaphore;
 
 		down_read(&mm->mmap_sem);
+	} else {
+		/*
+		 * The above down_read_trylock() might have succeeded in
+		 * which case we'll have missed the might_sleep() from
+		 * down_read():
+		 */
+		might_sleep();
 	}
 
 	vma = find_vma(mm, address);

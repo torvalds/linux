@@ -79,6 +79,11 @@ static inline bool arch_irqs_disabled(void)
 		get_paca()->hard_enabled = 0;	\
 	} while(0)
 
+static inline bool arch_irq_disabled_regs(struct pt_regs *regs)
+{
+	return !regs->softe;
+}
+
 #else /* CONFIG_PPC64 */
 
 #define SET_MSR_EE(x)	mtmsr(x)
@@ -138,6 +143,11 @@ static inline bool arch_irqs_disabled(void)
 }
 
 #define hard_irq_disable()		arch_local_irq_disable()
+
+static inline bool arch_irq_disabled_regs(struct pt_regs *regs)
+{
+	return !(regs->msr & MSR_EE);
+}
 
 #endif /* CONFIG_PPC64 */
 

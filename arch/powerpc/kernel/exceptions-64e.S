@@ -313,7 +313,7 @@ interrupt_end_book3e:
 	NORMAL_EXCEPTION_PROLOG(0x300, PROLOG_ADDITION_2REGS)
 	mfspr	r14,SPRN_DEAR
 	mfspr	r15,SPRN_ESR
-	EXCEPTION_COMMON(0x300, PACA_EXGEN, INTS_KEEP)
+	EXCEPTION_COMMON(0x300, PACA_EXGEN, INTS_DISABLE_ALL)
 	b	storage_fault_common
 
 /* Instruction Storage Interrupt */
@@ -321,7 +321,7 @@ interrupt_end_book3e:
 	NORMAL_EXCEPTION_PROLOG(0x400, PROLOG_ADDITION_2REGS)
 	li	r15,0
 	mr	r14,r10
-	EXCEPTION_COMMON(0x400, PACA_EXGEN, INTS_KEEP)
+	EXCEPTION_COMMON(0x400, PACA_EXGEN, INTS_DISABLE_ALL)
 	b	storage_fault_common
 
 /* External Input Interrupt */
@@ -591,7 +591,6 @@ storage_fault_common:
 	mr	r5,r15
 	ld	r14,PACA_EXGEN+EX_R14(r13)
 	ld	r15,PACA_EXGEN+EX_R15(r13)
-	INTS_RESTORE_HARD
 	bl	.do_page_fault
 	cmpdi	r3,0
 	bne-	1f
