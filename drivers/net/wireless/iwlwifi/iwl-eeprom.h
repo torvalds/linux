@@ -302,7 +302,7 @@ extern const u8 iwl_eeprom_band_1[14];
 
 struct iwl_eeprom_ops {
 	const u32 regulatory_bands[7];
-	void (*update_enhanced_txpower) (struct iwl_priv *priv);
+	bool enhanced_txpower;
 };
 
 

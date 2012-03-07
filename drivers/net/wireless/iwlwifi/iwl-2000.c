@@ -149,7 +149,7 @@ static struct iwl_lib_ops iwl2000_lib = {
 			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REGULATORY_BAND_NO_HT40,
 		},
-		.update_enhanced_txpower = iwl_eeprom_enhanced_txpower,
+		.enhanced_txpower = true,
 	},
 	.temperature = iwlagn_temperature,
 };
@@ -167,7 +167,7 @@ static struct iwl_lib_ops iwl2030_lib = {
 			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REGULATORY_BAND_NO_HT40,
 		},
-		.update_enhanced_txpower = iwl_eeprom_enhanced_txpower,
+		.enhanced_txpower = true,
 	},
 	.temperature = iwlagn_temperature,
 };

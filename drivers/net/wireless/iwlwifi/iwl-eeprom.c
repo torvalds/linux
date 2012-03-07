@@ -589,7 +589,7 @@ iwl_eeprom_enh_txp_read_element(struct iwl_priv *priv,
 #define TXP_CHECK_AND_PRINT(x) ((txp->flags & IWL_EEPROM_ENH_TXP_FL_##x) \
 			    ? # x " " : "")
 
-void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv)
+static void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv)
 {
 	struct iwl_shared *shrd = priv->shrd;
 	struct iwl_eeprom_enhanced_txpwr *txp_array, *txp;
@@ -1025,8 +1025,8 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 	 * driver need to process addition information
 	 * to determine the max channel tx power limits
 	 */
-	if (cfg(priv)->lib->eeprom_ops.update_enhanced_txpower)
-		cfg(priv)->lib->eeprom_ops.update_enhanced_txpower(priv);
+	if (cfg(priv)->lib->eeprom_ops.enhanced_txpower)
+		iwl_eeprom_enhanced_txpower(priv);
 
 	return 0;
 }
