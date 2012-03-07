@@ -559,7 +559,7 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	hash_idx = mesh_table_hash(dst, sdata, tbl);
 	bucket = &tbl->hash_buckets[hash_idx];
 
-	spin_lock_bh(&tbl->hashwlock[hash_idx]);
+	spin_lock(&tbl->hashwlock[hash_idx]);
 
 	err = -EEXIST;
 	hlist_for_each_entry(node, n, bucket, list) {
@@ -576,7 +576,7 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 
 	mesh_paths_generation++;
 
-	spin_unlock_bh(&tbl->hashwlock[hash_idx]);
+	spin_unlock(&tbl->hashwlock[hash_idx]);
 	read_unlock_bh(&pathtbl_resize_lock);
 	if (grow) {
 		set_bit(MESH_WORK_GROW_MPATH_TABLE,  &ifmsh->wrkq_flags);
@@ -585,7 +585,7 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	return 0;
 
 err_exists:
-	spin_unlock_bh(&tbl->hashwlock[hash_idx]);
+	spin_unlock(&tbl->hashwlock[hash_idx]);
 	read_unlock_bh(&pathtbl_resize_lock);
 	kfree(new_node);
 err_node_alloc:
@@ -688,7 +688,7 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	hash_idx = mesh_table_hash(dst, sdata, tbl);
 	bucket = &tbl->hash_buckets[hash_idx];
 
-	spin_lock_bh(&tbl->hashwlock[hash_idx]);
+	spin_lock(&tbl->hashwlock[hash_idx]);
 
 	err = -EEXIST;
 	hlist_for_each_entry(node, n, bucket, list) {
@@ -703,7 +703,7 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	    tbl->mean_chain_len * (tbl->hash_mask + 1))
 		grow = 1;
 
-	spin_unlock_bh(&tbl->hashwlock[hash_idx]);
+	spin_unlock(&tbl->hashwlock[hash_idx]);
 	read_unlock_bh(&pathtbl_resize_lock);
 	if (grow) {
 		set_bit(MESH_WORK_GROW_MPP_TABLE,  &ifmsh->wrkq_flags);
@@ -712,7 +712,7 @@ int mpp_path_add(u8 *dst, u8 *mpp, struct ieee80211_sub_if_data *sdata)
 	return 0;
 
 err_exists:
-	spin_unlock_bh(&tbl->hashwlock[hash_idx]);
+	spin_unlock(&tbl->hashwlock[hash_idx]);
 	read_unlock_bh(&pathtbl_resize_lock);
 	kfree(new_node);
 err_node_alloc:
@@ -811,9 +811,9 @@ void mesh_path_flush_by_nexthop(struct sta_info *sta)
 	for_each_mesh_entry(tbl, p, node, i) {
 		mpath = node->mpath;
 		if (rcu_dereference(mpath->next_hop) == sta) {
-			spin_lock_bh(&tbl->hashwlock[i]);
+			spin_lock(&tbl->hashwlock[i]);
 			__mesh_path_del(tbl, node);
-			spin_unlock_bh(&tbl->hashwlock[i]);
+			spin_unlock(&tbl->hashwlock[i]);
 		}
 	}
 	read_unlock_bh(&pathtbl_resize_lock);
@@ -884,7 +884,7 @@ int mesh_path_del(u8 *addr, struct ieee80211_sub_if_data *sdata)
 	hash_idx = mesh_table_hash(addr, sdata, tbl);
 	bucket = &tbl->hash_buckets[hash_idx];
 
-	spin_lock_bh(&tbl->hashwlock[hash_idx]);
+	spin_lock(&tbl->hashwlock[hash_idx]);
 	hlist_for_each_entry(node, n, bucket, list) {
 		mpath = node->mpath;
 		if (mpath->sdata == sdata &&
@@ -897,7 +897,7 @@ int mesh_path_del(u8 *addr, struct ieee80211_sub_if_data *sdata)
 	err = -ENXIO;
 enddel:
 	mesh_paths_generation++;
-	spin_unlock_bh(&tbl->hashwlock[hash_idx]);
+	spin_unlock(&tbl->hashwlock[hash_idx]);
 	read_unlock_bh(&pathtbl_resize_lock);
 	return err;
 }
