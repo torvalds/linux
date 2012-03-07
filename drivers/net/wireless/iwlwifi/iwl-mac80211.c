@@ -405,7 +405,7 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	ret = iwlagn_suspend(priv, hw, wowlan);
+	ret = iwlagn_suspend(priv, wowlan);
 	if (ret)
 		goto error;
 

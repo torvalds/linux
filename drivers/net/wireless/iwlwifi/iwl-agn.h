@@ -141,8 +141,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
 #ifdef CONFIG_PM_SLEEP
 int iwlagn_send_patterns(struct iwl_priv *priv,
 			 struct cfg80211_wowlan *wowlan);
-int iwlagn_suspend(struct iwl_priv *priv,
-		   struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan);
+int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan);
 #endif
 
 /* rx */
