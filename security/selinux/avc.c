@@ -510,7 +510,7 @@ noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
  * @perms based on @tclass.  Returns %0 on success or
  * -%ENOMEM if insufficient memory exists to add the callback.
  */
-int avc_add_callback(int (*callback)(u32 event, u32 ssid, u32 tsid,
+int __init avc_add_callback(int (*callback)(u32 event, u32 ssid, u32 tsid,
 				     u16 tclass, u32 perms,
 				     u32 *out_retained),
 		     u32 events, u32 ssid, u32 tsid,
@@ -519,7 +519,7 @@ int avc_add_callback(int (*callback)(u32 event, u32 ssid, u32 tsid,
 	struct avc_callback_node *c;
 	int rc = 0;
 
-	c = kmalloc(sizeof(*c), GFP_ATOMIC);
+	c = kmalloc(sizeof(*c), GFP_KERNEL);
 	if (!c) {
 		rc = -ENOMEM;
 		goto out;
