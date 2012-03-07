@@ -206,7 +206,8 @@ struct fec_enet_private {
 
 	struct net_device *netdev;
 
-	struct clk *clk;
+	struct clk *clk_ipg;
+	struct clk *clk_ahb;
 
 	/* The saved address of a sent-in-place packet/buffer, for skfree(). */
 	unsigned char *tx_bounce[TX_RING_SIZE];
@@ -1064,7 +1065,7 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	 * Reference Manual has an error on this, and gets fixed on i.MX6Q
 	 * document.
 	 */
-	fep->phy_speed = DIV_ROUND_UP(clk_get_rate(fep->clk), 5000000);
+	fep->phy_speed = DIV_ROUND_UP(clk_get_rate(fep->clk_ahb), 5000000);
 	if (id_entry->driver_data & FEC_QUIRK_ENET_MAC)
 		fep->phy_speed--;
 	fep->phy_speed <<= 1;
@@ -1609,12 +1610,20 @@ fec_probe(struct platform_device *pdev)
 		}
 	}
 
-	fep->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(fep->clk)) {
-		ret = PTR_ERR(fep->clk);
+	fep->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
+	if (IS_ERR(fep->clk_ipg)) {
+		ret = PTR_ERR(fep->clk_ipg);
 		goto failed_clk;
 	}
-	clk_prepare_enable(fep->clk);
+
+	fep->clk_ahb = devm_clk_get(&pdev->dev, "ahb");
+	if (IS_ERR(fep->clk_ahb)) {
+		ret = PTR_ERR(fep->clk_ahb);
+		goto failed_clk;
+	}
+
+	clk_prepare_enable(fep->clk_ahb);
+	clk_prepare_enable(fep->clk_ipg);
 
 	ret = fec_enet_init(ndev);
 	if (ret)
@@ -1637,8 +1646,8 @@ failed_register:
 	fec_enet_mii_remove(fep);
 failed_mii_init:
 failed_init:
-	clk_disable_unprepare(fep->clk);
-	clk_put(fep->clk);
+	clk_disable_unprepare(fep->clk_ahb);
+	clk_disable_unprepare(fep->clk_ipg);
 failed_clk:
 	for (i = 0; i < FEC_IRQ_NUM; i++) {
 		irq = platform_get_irq(pdev, i);
@@ -1670,8 +1679,8 @@ fec_drv_remove(struct platform_device *pdev)
 		if (irq > 0)
 			free_irq(irq, ndev);
 	}
-	clk_disable_unprepare(fep->clk);
-	clk_put(fep->clk);
+	clk_disable_unprepare(fep->clk_ahb);
+	clk_disable_unprepare(fep->clk_ipg);
 	iounmap(fep->hwp);
 	free_netdev(ndev);
 
@@ -1695,7 +1704,8 @@ fec_suspend(struct device *dev)
 		fec_stop(ndev);
 		netif_device_detach(ndev);
 	}
-	clk_disable_unprepare(fep->clk);
+	clk_disable_unprepare(fep->clk_ahb);
+	clk_disable_unprepare(fep->clk_ipg);
 
 	return 0;
 }
@@ -1706,7 +1716,8 @@ fec_resume(struct device *dev)
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
-	clk_prepare_enable(fep->clk);
+	clk_prepare_enable(fep->clk_ahb);
+	clk_prepare_enable(fep->clk_ipg);
 	if (netif_running(ndev)) {
 		fec_restart(ndev, fep->full_duplex);
 		netif_device_attach(ndev);
