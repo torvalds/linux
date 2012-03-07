@@ -185,7 +185,8 @@ static void iwl_testmode_ucode_rx_pkt(struct iwl_priv *priv,
 		return;
 	}
 	NLA_PUT_U32(skb, IWL_TM_ATTR_COMMAND, IWL_TM_CMD_DEV2APP_UCODE_RX_PKT);
-	NLA_PUT(skb, IWL_TM_ATTR_UCODE_RX_PKT, length, data);
+	/* the length doesn't include len_n_flags field, so add it manually */
+	NLA_PUT(skb, IWL_TM_ATTR_UCODE_RX_PKT, length + sizeof(__le32), data);
 	cfg80211_testmode_event(skb, GFP_ATOMIC);
 	return;
 
