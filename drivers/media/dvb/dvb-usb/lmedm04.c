@@ -177,11 +177,7 @@ static int lme2510_usb_talk(struct dvb_usb_device *d,
 	/* the read/write capped at 64 */
 	memcpy(buff, wbuf, (wlen < 64) ? wlen : 64);
 
-	ret |= usb_clear_halt(d->udev, usb_sndbulkpipe(d->udev, 0x01));
-
 	ret |= lme2510_bulk_write(d->udev, buff, wlen , 0x01);
-
-	ret |= usb_clear_halt(d->udev, usb_rcvbulkpipe(d->udev, 0x01));
 
 	ret |= lme2510_bulk_read(d->udev, buff, (rlen < 64) ?
 			rlen : 64 , 0x01);
@@ -1290,5 +1286,5 @@ module_usb_driver(lme2510_driver);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("LME2510(C) DVB-S USB2.0");
-MODULE_VERSION("1.97");
+MODULE_VERSION("1.98");
 MODULE_LICENSE("GPL");
