@@ -350,18 +350,19 @@ static void prot_queue_add(struct ubi_device *ubi, struct ubi_wl_entry *e)
 /**
  * find_wl_entry - find wear-leveling entry closest to certain erase counter.
  * @root: the RB-tree where to look for
- * @max: highest possible erase counter
+ * @diff: maximum possible difference from the smallest erase counter
  *
  * This function looks for a wear leveling entry with erase counter closest to
- * @max and less than @max.
+ * min + @diff, where min is the smallest erase counter.
  */
-static struct ubi_wl_entry *find_wl_entry(struct rb_root *root, int max)
+static struct ubi_wl_entry *find_wl_entry(struct rb_root *root, int diff)
 {
 	struct rb_node *p;
 	struct ubi_wl_entry *e;
+	int max;
 
 	e = rb_entry(rb_first(root), struct ubi_wl_entry, u.rb);
-	max += e->ec;
+	max = e->ec + diff;
 
 	p = root->rb_node;
 	while (p) {
