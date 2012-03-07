@@ -1206,6 +1206,30 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	/* TODO: remove fw from shared data later */
 	priv->shrd->fw = fw;
 
+	/************************
+	 * 2. Setup HW constants
+	 ************************/
+	iwl_set_hw_params(priv);
+
+	ucode_flags = fw->ucode_capa.flags;
+
+#ifndef CONFIG_IWLWIFI_P2P
+	ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
+#endif
+	if (!(hw_params(priv).sku & EEPROM_SKU_CAP_IPAN_ENABLE))
+		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
+
+	/*
+	 * if not PAN, then don't support P2P -- might be a uCode
+	 * packaging bug or due to the eeprom check above
+	 */
+	if (!(ucode_flags & IWL_UCODE_TLV_FLAGS_PAN))
+		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
+
+
+	/*****************************
+	 * Configure transport layer
+	 *****************************/
 	/*
 	 * Populate the state variables that the transport layer needs
 	 * to know about.
@@ -1285,27 +1309,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		priv->addresses[1].addr[5]++;
 		priv->hw->wiphy->n_addresses++;
 	}
-
-	/************************
-	 * 5. Setup HW constants
-	 ************************/
-	iwl_set_hw_params(priv);
-
-	ucode_flags = fw->ucode_capa.flags;
-
-#ifndef CONFIG_IWLWIFI_P2P
-	ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
-#endif
-	if (!(hw_params(priv).sku & EEPROM_SKU_CAP_IPAN_ENABLE))
-		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
-
-	/*
-	 * if not PAN, then don't support P2P -- might be a uCode
-	 * packaging bug or due to the eeprom check above
-	 */
-	if (!(ucode_flags & IWL_UCODE_TLV_FLAGS_PAN))
-		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
-
 
 	/*******************
 	 * 6. Setup priv
