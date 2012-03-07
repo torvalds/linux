@@ -321,6 +321,19 @@ static int ceph_tcp_sendmsg(struct socket *sock, struct kvec *iov,
 	return r;
 }
 
+static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
+		     int offset, size_t size, int more)
+{
+	int flags = MSG_DONTWAIT | MSG_NOSIGNAL | (more ? MSG_MORE : MSG_EOR);
+	int ret;
+
+	ret = kernel_sendpage(sock, page, offset, size, flags);
+	if (ret == -EAGAIN)
+		ret = 0;
+
+	return ret;
+}
+
 
 /*
  * Shutdown/close the socket for the given connection.
@@ -944,12 +957,9 @@ static int write_partial_skip(struct ceph_connection *con)
 	int ret;
 
 	while (con->out_skip > 0) {
-		struct kvec iov = {
-			.iov_base = zero_page_address,
-			.iov_len = min(con->out_skip, (int)PAGE_CACHE_SIZE)
-		};
+		size_t size = min(con->out_skip, (int) PAGE_CACHE_SIZE);
 
-		ret = ceph_tcp_sendmsg(con->sock, &iov, 1, iov.iov_len, 1);
+		ret = ceph_tcp_sendpage(con->sock, zero_page, 0, size, 1);
 		if (ret <= 0)
 			goto out;
 		con->out_skip -= ret;
