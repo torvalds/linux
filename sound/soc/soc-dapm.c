@@ -2987,37 +2987,61 @@ int snd_soc_dapm_link_dai_widgets(struct snd_soc_card *card)
 	return 0;
 }
 
-static void soc_dapm_stream_event(struct snd_soc_dapm_context *dapm,
-				  int stream, struct snd_soc_dai *dai,
-				  int event)
+static void soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd, int stream,
+	int event)
 {
-	struct snd_soc_dapm_widget *w;
 
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-		w = dai->playback_widget;
-	else
-		w = dai->capture_widget;
+	struct snd_soc_dapm_widget *w_cpu, *w_codec;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 
-	if (!w)
-		return;
-
-	dapm_mark_dirty(w, "stream event");
-
-	switch (event) {
-	case SND_SOC_DAPM_STREAM_START:
-		w->active = 1;
-		break;
-	case SND_SOC_DAPM_STREAM_STOP:
-		w->active = 0;
-		break;
-	case SND_SOC_DAPM_STREAM_SUSPEND:
-	case SND_SOC_DAPM_STREAM_RESUME:
-	case SND_SOC_DAPM_STREAM_PAUSE_PUSH:
-	case SND_SOC_DAPM_STREAM_PAUSE_RELEASE:
-		break;
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		w_cpu = cpu_dai->playback_widget;
+		w_codec = codec_dai->playback_widget;
+	} else {
+		w_cpu = cpu_dai->capture_widget;
+		w_codec = codec_dai->capture_widget;
 	}
 
-	dapm_power_widgets(dapm, event);
+	if (w_cpu) {
+
+		dapm_mark_dirty(w_cpu, "stream event");
+
+		switch (event) {
+		case SND_SOC_DAPM_STREAM_START:
+			w_cpu->active = 1;
+			break;
+		case SND_SOC_DAPM_STREAM_STOP:
+			w_cpu->active = 0;
+			break;
+		case SND_SOC_DAPM_STREAM_SUSPEND:
+		case SND_SOC_DAPM_STREAM_RESUME:
+		case SND_SOC_DAPM_STREAM_PAUSE_PUSH:
+		case SND_SOC_DAPM_STREAM_PAUSE_RELEASE:
+			break;
+		}
+	}
+
+	if (w_codec) {
+
+		dapm_mark_dirty(w_codec, "stream event");
+
+		switch (event) {
+		case SND_SOC_DAPM_STREAM_START:
+			w_codec->active = 1;
+			break;
+		case SND_SOC_DAPM_STREAM_STOP:
+			w_codec->active = 0;
+			break;
+		case SND_SOC_DAPM_STREAM_SUSPEND:
+		case SND_SOC_DAPM_STREAM_RESUME:
+		case SND_SOC_DAPM_STREAM_PAUSE_PUSH:
+		case SND_SOC_DAPM_STREAM_PAUSE_RELEASE:
+			break;
+		}
+	}
+
+	dapm_power_widgets(&rtd->card->dapm, event);
 }
 
 /**
@@ -3031,15 +3055,14 @@ static void soc_dapm_stream_event(struct snd_soc_dapm_context *dapm,
  *
  * Returns 0 for success else error.
  */
-int snd_soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd, int stream,
-			      struct snd_soc_dai *dai, int event)
+void snd_soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd, int stream,
+			      int event)
 {
 	struct snd_soc_card *card = rtd->card;
 
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_PCM);
-	soc_dapm_stream_event(&card->dapm, stream, dai, event);
+	soc_dapm_stream_event(rtd, stream, event);
 	mutex_unlock(&card->dapm_mutex);
-	return 0;
 }
 
 /**

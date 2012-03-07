@@ -573,19 +573,16 @@ int snd_soc_suspend(struct device *dev)
 	}
 
 	for (i = 0; i < card->num_rtd; i++) {
-		struct snd_soc_dai *codec_dai = card->rtd[i].codec_dai;
 
 		if (card->rtd[i].dai_link->ignore_suspend)
 			continue;
 
 		snd_soc_dapm_stream_event(&card->rtd[i],
 					  SNDRV_PCM_STREAM_PLAYBACK,
-					  codec_dai,
 					  SND_SOC_DAPM_STREAM_SUSPEND);
 
 		snd_soc_dapm_stream_event(&card->rtd[i],
 					  SNDRV_PCM_STREAM_CAPTURE,
-					  codec_dai,
 					  SND_SOC_DAPM_STREAM_SUSPEND);
 	}
 
@@ -689,17 +686,16 @@ static void soc_resume_deferred(struct work_struct *work)
 	}
 
 	for (i = 0; i < card->num_rtd; i++) {
-		struct snd_soc_dai *codec_dai = card->rtd[i].codec_dai;
 
 		if (card->rtd[i].dai_link->ignore_suspend)
 			continue;
 
 		snd_soc_dapm_stream_event(&card->rtd[i],
-					  SNDRV_PCM_STREAM_PLAYBACK, codec_dai,
+					  SNDRV_PCM_STREAM_PLAYBACK,
 					  SND_SOC_DAPM_STREAM_RESUME);
 
 		snd_soc_dapm_stream_event(&card->rtd[i],
-					  SNDRV_PCM_STREAM_CAPTURE, codec_dai,
+					  SNDRV_PCM_STREAM_CAPTURE,
 					  SND_SOC_DAPM_STREAM_RESUME);
 	}
 
