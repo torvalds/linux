@@ -35,9 +35,7 @@
 static void simtec_nor_vpp(struct platform_device *pdev, int vpp)
 {
 	unsigned int val;
-	unsigned long flags;
 
-	local_irq_save(flags);
 	val = __raw_readb(BAST_VA_CTRL3);
 
 	printk(KERN_DEBUG "%s(%d)\n", __func__, vpp);
@@ -48,7 +46,6 @@ static void simtec_nor_vpp(struct platform_device *pdev, int vpp)
 		val &= ~BAST_CPLD_CTRL3_ROMWEN;
 
 	__raw_writeb(val, BAST_VA_CTRL3);
-	local_irq_restore(flags);
 }
 
 static struct physmap_flash_data simtec_nor_pdata = {
