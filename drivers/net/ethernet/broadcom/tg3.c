@@ -5352,7 +5352,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 		}
 	}
 
-	netdev_completed_queue(tp->dev, pkts_compl, bytes_compl);
+	netdev_tx_completed_queue(txq, pkts_compl, bytes_compl);
 
 	tnapi->tx_cons = sw_idx;
 
@@ -6793,7 +6793,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	skb_tx_timestamp(skb);
-	netdev_sent_queue(tp->dev, skb->len);
+	netdev_tx_sent_queue(txq, skb->len);
 
 	/* Packets are ready, update Tx producer idx local and on card. */
 	tw32_tx_mbox(tnapi->prodmbox, entry);
@@ -7275,8 +7275,8 @@ static void tg3_free_rings(struct tg3 *tp)
 
 			dev_kfree_skb_any(skb);
 		}
+		netdev_tx_reset_queue(netdev_get_tx_queue(tp->dev, j));
 	}
-	netdev_reset_queue(tp->dev);
 }
 
 /* Initialize tx/rx rings for packet processing.
