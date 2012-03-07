@@ -1069,7 +1069,7 @@ static int enic_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	if (err)
 		return err;
 
-	if (is_valid_ether_addr(mac)) {
+	if (is_valid_ether_addr(mac) || is_zero_ether_addr(mac)) {
 		if (vf == PORT_SELF_VF) {
 			memcpy(pp->vf_mac, mac, ETH_ALEN);
 			return 0;
