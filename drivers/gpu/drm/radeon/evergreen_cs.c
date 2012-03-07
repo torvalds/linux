@@ -85,6 +85,7 @@ struct evergreen_cs_track {
 	u32			db_s_write_offset;
 	struct radeon_bo	*db_s_read_bo;
 	struct radeon_bo	*db_s_write_bo;
+	bool			sx_misc_kill_all_prims;
 };
 
 static u32 evergreen_cs_get_aray_mode(u32 tiling_flags)
@@ -162,6 +163,7 @@ static void evergreen_cs_track_init(struct evergreen_cs_track *track)
 		track->vgt_strmout_bo_offset[i] = 0xFFFFFFFF;
 		track->vgt_strmout_bo_mc[i] = 0xFFFFFFFF;
 	}
+	track->sx_misc_kill_all_prims = false;
 }
 
 struct eg_surface {
@@ -820,6 +822,9 @@ static int evergreen_cs_track_check(struct radeon_cs_parser *p)
 			}
 		}
 	}
+
+	if (track->sx_misc_kill_all_prims)
+		return 0;
 
 	/* check that we have a cb for each enabled target
 	 */
@@ -1747,6 +1752,9 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 			return -EINVAL;
 		}
 		ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+		break;
+	case SX_MISC:
+		track->sx_misc_kill_all_prims = (radeon_get_ib_value(p, idx) & 0x1) != 0;
 		break;
 	default:
 		dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);

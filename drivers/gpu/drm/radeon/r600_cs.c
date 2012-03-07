@@ -74,6 +74,7 @@ struct r600_cs_track {
 	u32			db_offset;
 	struct radeon_bo	*db_bo;
 	u64			db_bo_mc;
+	bool			sx_misc_kill_all_prims;
 };
 
 #define FMT_8_BIT(fmt, vc)   [fmt] = { 1, 1, 1, vc, CHIP_R600 }
@@ -322,6 +323,7 @@ static void r600_cs_track_init(struct r600_cs_track *track)
 		track->vgt_strmout_bo_offset[i] = 0xFFFFFFFF;
 		track->vgt_strmout_bo_mc[i] = 0xFFFFFFFF;
 	}
+	track->sx_misc_kill_all_prims = false;
 }
 
 static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
@@ -478,6 +480,9 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 			}
 		}
 	}
+
+	if (track->sx_misc_kill_all_prims)
+		return 0;
 
 	/* check that we have a cb for each enabled target, we don't check
 	 * shader_mask because it seems mesa isn't always setting it :(
@@ -1278,6 +1283,9 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 			return -EINVAL;
 		}
 		ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+		break;
+	case SX_MISC:
+		track->sx_misc_kill_all_prims = (radeon_get_ib_value(p, idx) & 0x1) != 0;
 		break;
 	default:
 		dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
