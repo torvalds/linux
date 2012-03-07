@@ -853,7 +853,7 @@ config SERIAL_MPC52xx_CONSOLE_BAUD
 
 config SERIAL_ICOM
 	tristate "IBM Multiport Serial Adapter"
-	depends on PCI && (PPC_ISERIES || PPC_PSERIES)
+	depends on PCI && PPC_PSERIES
 	select SERIAL_CORE
 	select FW_LOADER
 	help
