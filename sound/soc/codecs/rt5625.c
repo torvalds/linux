@@ -24,8 +24,9 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-
+#include <linux/gpio.h>
 #include "rt5625.h"
+#include <mach/board.h>
 
 #define RT5625_PROC
 #ifdef RT5625_PROC
@@ -63,6 +64,10 @@ struct rt5625_priv {
 	unsigned int voice_sysclk;
 
 	int vodsp_fun;
+	int spk_ctr_status;
+	int spk_ctr_pin;
+	int spk_ctr_on;
+	int spk_ctr_off;
 #ifdef RT5625_F_SMT_PHO
 	int app_bmp;/* bit{0, 1, 2, 3, 4} = {play, rec, 3g, bt, voip} */
 	int pll_sel;
@@ -544,6 +549,8 @@ err:
 	return ret;
 }
 
+static const char *rt5625_spk_ctr_sel[] = {"Disable", "Enable"};
+
 /* ADCR function select */
 static const char *adcr_fun_sel[] = {
 	"Stereo ADC", "Voice ADC", "VoDSP", "PDM Slave"};
@@ -600,6 +607,10 @@ static const char *rt5625_spkamp_ratio[] = {"2.25 Vdd", "2.00 Vdd",
 static const SOC_ENUM_SINGLE_DECL(rt5625_spkamp_ratio_enum,
 	RT5625_GEN_CTRL1, RT5625_SPK_R_SFT, rt5625_spkamp_ratio);
 
+static const char *rt5625_Pin_mode[] = {"IRQ Out", "GPIO enable", "Reserved", "VoDSP bypass"};  
+static const char *rt5625_Pin_configuration[] = {"Output", "Input"};
+static const char *rt5625_Pin_level[] = {"Low", "High"};
+
 /* Output/Input Mode */
 //static const char *rt5625_auxout_mode[] = {"Differential", "Single ended"};
 
@@ -616,6 +627,12 @@ static const SOC_ENUM_SINGLE_DECL(rt5625_spkamp_ratio_enum,
 
 //static const SOC_ENUM_SINGLE_DECL(rt5625_mic2_mode_enum,
 //	RT5625_MIC_VOL, RT5625_MIC2_DIFF_SFT, rt5625_input_mode);
+
+static const struct soc_enum rt5625_gpio2_enum[] = {
+SOC_ENUM_SINGLE(RT5625_GPIO_SHARING, 0, 4, rt5625_Pin_mode),         /*0*/
+SOC_ENUM_SINGLE(RT5625_GPIO_CONFIG, 2, 2, rt5625_Pin_configuration),/*1*/
+SOC_ENUM_SINGLE(RT5625_GPIO_OUT_CTRL, 2, 2, rt5625_Pin_level),        /*2*/
+};
 
 static int rt5625_adcr_fun_sel_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
@@ -1435,11 +1452,63 @@ static int rt5625_regctl_put(struct snd_kcontrol *kcontrol,
 }
 #endif
 
+/*speaker ext control*/
+static const struct soc_enum spk_ctr_enum =
+	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(rt5625_spk_ctr_sel), rt5625_spk_ctr_sel);
+
+static int rt5625_spk_ctr_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct rt5625_priv *rt5625 = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = rt5625->spk_ctr_status;
+	return 0;
+}
+
+static int rt5625_spk_ctr_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct rt5625_priv *rt5625 = snd_soc_codec_get_drvdata(codec);
+
+	rt5625->spk_ctr_status = ucontrol->value.integer.value[0];
+
+	if(rt5625->spk_ctr_pin != INVALID_GPIO)
+	{
+		if(rt5625->spk_ctr_status)
+			gpio_set_value(rt5625->spk_ctr_pin,rt5625->spk_ctr_on);
+		else
+			gpio_set_value(rt5625->spk_ctr_pin,rt5625->spk_ctr_off);
+	}
+	return 0;
+}
+
 static const struct snd_kcontrol_new rt5625_snd_controls[] = {
+
+	#if defined (CONFIG_SND_SOC_RT5625_SPK_FORM_SPKOUT)
 	SOC_DOUBLE_TLV("SPKOUT Playback Volume", RT5625_SPK_OUT_VOL,
 		RT5625_L_VOL_SFT, RT5625_R_VOL_SFT, 31, 1, out_vol_tlv),
 	SOC_DOUBLE("SPKOUT Playback Switch", RT5625_SPK_OUT_VOL,
-			RT5625_L_MUTE_SFT, RT5625_R_MUTE_SFT, 1, 1),
+		RT5625_L_MUTE_SFT, RT5625_R_MUTE_SFT, 1, 1),
+	SOC_DOUBLE_TLV("Earpiece Playback Volume", RT5625_SPK_OUT_VOL,
+		RT5625_L_VOL_SFT, RT5625_R_VOL_SFT, 31, 1, out_vol_tlv),
+	SOC_DOUBLE("Earpiece Playback Switch", RT5625_SPK_OUT_VOL,
+		RT5625_L_MUTE_SFT, RT5625_R_MUTE_SFT, 1, 1),
+	#endif
+
+	#if defined (CONFIG_SND_SOC_RT5625_SPK_FORM_HPOUT)
+	SOC_DOUBLE_TLV("SPKOUT Playback Volume", RT5625_HP_OUT_VOL,
+		RT5625_L_VOL_SFT, RT5625_R_VOL_SFT, 31, 1, out_vol_tlv),
+	SOC_DOUBLE("SPKOUT Playback Switch", RT5625_HP_OUT_VOL,
+		RT5625_L_MUTE_SFT, RT5625_R_MUTE_SFT, 1, 1),
+	SOC_DOUBLE_TLV("Earpiece Playback Volume", RT5625_HP_OUT_VOL,
+		RT5625_L_VOL_SFT, RT5625_R_VOL_SFT, 31, 1, out_vol_tlv),
+	SOC_DOUBLE("Earpiece Playback Switch", RT5625_HP_OUT_VOL,
+		RT5625_L_MUTE_SFT, RT5625_R_MUTE_SFT, 1, 1),
+	SOC_ENUM_EXT("SPK_CTR",spk_ctr_enum, rt5625_spk_ctr_get, rt5625_spk_ctr_put),
+	#endif
+
 	SOC_ENUM("SPK Amp Type", rt5625_spk_out_enum),
 	SOC_ENUM("Left SPK Source", rt5625_spkl_src_enum),
 	SOC_ENUM("SPK Amp Ratio", rt5625_spkamp_ratio_enum),
@@ -1490,6 +1559,10 @@ static const struct snd_kcontrol_new rt5625_snd_controls[] = {
 	SOC_ENUM("VoDSP Reset Pin Control",  rt5625_rst_ctrl_enum),
 
 #ifdef RT5625_F_SMT_PHO
+	SOC_ENUM("GPIO2 mode", rt5625_gpio2_enum[0]),
+	SOC_ENUM("GPIO2 configuration", rt5625_gpio2_enum[1]),
+	SOC_ENUM("GPIO2 level", rt5625_gpio2_enum[2]),
+
 	SOC_SINGLE_EXT("VoDSP Dump", 0, 0, 1, 0, rt5625_dump_dsp_get, NULL),
 	SOC_SINGLE_EXT("DAC Switch", 0, 0, 1, 0, rt5625_dac_active_get, rt5625_dac_active_put),
 	SOC_SINGLE_EXT("ADC Switch", 0, 0, 1, 0, rt5625_adc_active_get, rt5625_adc_active_put),
@@ -2868,10 +2941,22 @@ static int rt5625_i2c_probe(struct i2c_client *i2c,
 {
 	struct rt5625_priv *rt5625;
 	int ret;
+	struct rt5625_platform_data *pdata = pdata = i2c->dev.platform_data;
 
 	rt5625 = kzalloc(sizeof(struct rt5625_priv), GFP_KERNEL);
 	if (NULL == rt5625)
 		return -ENOMEM;
+
+	rt5625->spk_ctr_pin = pdata->spk_ctr_pin;
+	rt5625->spk_ctr_on = pdata->spk_ctr_on;
+	rt5625->spk_ctr_off = pdata->spk_ctr_off;
+
+	if(rt5625->spk_ctr_pin != INVALID_GPIO)
+	{
+		gpio_request(rt5625->spk_ctr_pin,NULL);
+		gpio_direction_output(rt5625->spk_ctr_pin,rt5625->spk_ctr_off);
+		rt5625->spk_ctr_status = 0;
+	}
 
 	i2c_set_clientdata(i2c, rt5625);
 

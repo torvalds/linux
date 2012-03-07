@@ -320,6 +320,12 @@ struct cs42l52_platform_data {
     void    (*exit_platform_hw)(void);
 };
 
+struct rt5625_platform_data {
+    int spk_ctr_pin;
+	int spk_ctr_on;
+	int spk_ctr_off;
+};
+
 //tcl miaozh add
 /*nas touch */
 struct nas_platform_data {

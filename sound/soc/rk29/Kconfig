@@ -73,10 +73,26 @@ config SND_RK29_SOC_RT5625
 	tristate "SoC I2S Audio support for rockchip - RT5625"
 	depends on SND_RK29_SOC && I2C_RK29
 	select SND_RK29_SOC_I2S
-	select SND_SOC_RT5625
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RT5625.
+
+choice
+	depends on SND_RK29_SOC_RT5625
+	prompt  "RT5625 hardware select"
+
+	config SND_SOC_RT5625_SPK_FORM_SPKOUT
+	bool "spk from spkout"
+	select SND_SOC_RT5625
+	help
+	  if your codec output hardware connect is spk from spkout, choose it
+
+	config SND_SOC_RT5625_SPK_FORM_HPOUT
+	bool "spk from hpout"
+	select SND_SOC_RT5625
+	help
+	  if your codec output hardware connect is spk from spkout, choose it
+endchoice
 
 config SND_RK29_SOC_WM8994
 	tristate "SoC I2S Audio support for rockchip - WM8994"

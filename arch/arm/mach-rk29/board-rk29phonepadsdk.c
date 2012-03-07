@@ -911,6 +911,20 @@ static struct wm8994_pdata wm8994_platform_data = {
 };
 #endif 
 
+#if defined (CONFIG_SND_SOC_RT5625_SPK_FORM_SPKOUT) || defined (CONFIG_SND_SOC_RT5625_SPK_FORM_HPOUT)
+
+//please define level value of power amp control
+#define POWER_AMP_ON 0
+#define POWER_AMP_OFF 1
+#define RT5625_POWER_AMP_PIN INVALID_GPIO  //RK29_PIN6_PB6
+
+struct rt5625_platform_data rt5625_platform_data = {
+	.spk_ctr_pin = RT5625_POWER_AMP_PIN,
+	.spk_ctr_on = POWER_AMP_ON,
+	.spk_ctr_off = POWER_AMP_OFF,
+};
+#endif
+
 #ifdef CONFIG_RK_HEADSET_DET
 
 struct rk_headset_pdata rk_headset_info = {
@@ -1104,11 +1118,14 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
         },
 #endif
 
-#if defined (CONFIG_SND_SOC_RT5625)
+//note: rt5625 support two hardware connect, select the right config
+
+#if defined (CONFIG_SND_SOC_RT5625_SPK_FORM_SPKOUT) || defined (CONFIG_SND_SOC_RT5625_SPK_FORM_HPOUT)
 	{
 		.type			= "rt5625",
 		.addr			= 0x1e,		//need check A1 pin,A1 pin is low,addr=0x1e,A1 pin is high,addr=0x1f.
 		.flags			= 0,
+		.platform_data  = &rt5625_platform_data,
 	},
 #endif
 
