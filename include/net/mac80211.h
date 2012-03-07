@@ -3568,6 +3568,8 @@ enum rate_control_changed {
  * @hw: The hardware the algorithm is invoked for.
  * @sband: The band this frame is being transmitted on.
  * @bss_conf: the current BSS configuration
+ * @skb: the skb that will be transmitted, the control information in it needs
+ *	to be filled in
  * @reported_rate: The rate control algorithm can fill this in to indicate
  *	which rate should be reported to userspace as the current rate and
  *	used for rate calculations in the mesh network.
@@ -3575,12 +3577,11 @@ enum rate_control_changed {
  *	RTS threshold
  * @short_preamble: whether mac80211 will request short-preamble transmission
  *	if the selected rate supports it
- * @max_rate_idx: user-requested maximum rate (not MCS for now)
+ * @max_rate_idx: user-requested maximum (legacy) rate
  *	(deprecated; this will be removed once drivers get updated to use
  *	rate_idx_mask)
- * @rate_idx_mask: user-requested rate mask (not MCS for now)
- * @skb: the skb that will be transmitted, the control information in it needs
- *	to be filled in
+ * @rate_idx_mask: user-requested (legacy) rate mask
+ * @rate_idx_mcs_mask: user-requested MCS rate mask
  * @bss: whether this frame is sent out in AP or IBSS mode
  */
 struct ieee80211_tx_rate_control {
