@@ -1010,8 +1010,7 @@ void iwl_cancel_deferred_work(struct iwl_priv *priv)
 	del_timer_sync(&priv->ucode_trace);
 }
 
-static void iwl_init_hw_rates(struct iwl_priv *priv,
-			      struct ieee80211_rate *rates)
+static void iwl_init_hw_rates(struct ieee80211_rate *rates)
 {
 	int i;
 
@@ -1090,7 +1089,7 @@ static int iwl_init_drv(struct iwl_priv *priv)
 		IWL_ERR(priv, "initializing geos failed: %d\n", ret);
 		goto err_free_channel_map;
 	}
-	iwl_init_hw_rates(priv, priv->ieee_rates);
+	iwl_init_hw_rates(priv->ieee_rates);
 
 	return 0;
 
