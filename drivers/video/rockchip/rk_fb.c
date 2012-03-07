@@ -118,10 +118,23 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 {
  	struct rk_fb_inf *inf = dev_get_drvdata(info->device);
 	struct fb_fix_screeninfo *fix = &info->fix;
+	struct rk_lcdc_device_driver *dev_drv = NULL;
 	u32 yuv_phy[2];
+	u32 panel_size[2];
+	void __user *argp = (void __user *)arg;
 	fbprintk(">>>>>> %s : cmd:0x%x \n",__FUNCTION__,cmd);
 	CHK_SUSPEND(inf);
-	
+	if(!strcmp(fix->id,"fb1")){
+        	dev_drv = inf->rk_lcdc_device[0];
+    	}else if(!strcmp(fix->id,"fb0")){
+        	dev_drv = inf->rk_lcdc_device[0];
+    	}else if(!strcmp(fix->id,"fb3")){
+        	dev_drv = inf->rk_lcdc_device[1];
+    	}else if(!strcmp(fix->id,"fb2")){
+        	dev_drv = inf->rk_lcdc_device[1];
+    	}else{
+        	dev_drv = inf->rk_lcdc_device[0];
+	}
 	switch(cmd)
 	{
  		case FBIOPUT_FBPHYADD:
@@ -137,6 +150,12 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			break;
 		case FBIOGET_OVERLAY_STATE:
 			return inf->video_mode;
+		case FB1_IOCTL_GET_PANEL_SIZE:    //get panel size
+                	panel_size[0] = dev_drv->screen.x_res;
+                	panel_size[1] = dev_drv->screen.y_res;
+            		if(copy_to_user(argp, panel_size, 8)) 
+				return -EFAULT;
+			break;
 		case FBIOGET_SCREEN_STATE:
 		case FBIOPUT_SET_CURSOR_EN:
 		case FBIOPUT_SET_CURSOR_POS:
