@@ -29,15 +29,16 @@
 
 u64 uevent_seqnum;
 char uevent_helper[UEVENT_HELPER_PATH_LEN] = CONFIG_UEVENT_HELPER_PATH;
-static DEFINE_SPINLOCK(sequence_lock);
 #ifdef CONFIG_NET
 struct uevent_sock {
 	struct list_head list;
 	struct sock *sk;
 };
 static LIST_HEAD(uevent_sock_list);
-static DEFINE_MUTEX(uevent_sock_mutex);
 #endif
+
+/* This lock protects uevent_seqnum and uevent_sock_list */
+static DEFINE_MUTEX(uevent_sock_mutex);
 
 /* the strings here must match the enum in include/linux/kobject.h */
 static const char *kobject_actions[] = {
@@ -136,7 +137,6 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	struct kobject *top_kobj;
 	struct kset *kset;
 	const struct kset_uevent_ops *uevent_ops;
-	u64 seq;
 	int i = 0;
 	int retval = 0;
 #ifdef CONFIG_NET
@@ -243,17 +243,16 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	else if (action == KOBJ_REMOVE)
 		kobj->state_remove_uevent_sent = 1;
 
+	mutex_lock(&uevent_sock_mutex);
 	/* we will send an event, so request a new sequence number */
-	spin_lock(&sequence_lock);
-	seq = ++uevent_seqnum;
-	spin_unlock(&sequence_lock);
-	retval = add_uevent_var(env, "SEQNUM=%llu", (unsigned long long)seq);
-	if (retval)
+	retval = add_uevent_var(env, "SEQNUM=%llu", (unsigned long long)++uevent_seqnum);
+	if (retval) {
+		mutex_unlock(&uevent_sock_mutex);
 		goto exit;
+	}
 
 #if defined(CONFIG_NET)
 	/* send netlink message */
-	mutex_lock(&uevent_sock_mutex);
 	list_for_each_entry(ue_sk, &uevent_sock_list, list) {
 		struct sock *uevent_sock = ue_sk->sk;
 		struct sk_buff *skb;
@@ -287,8 +286,8 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 		} else
 			retval = -ENOMEM;
 	}
-	mutex_unlock(&uevent_sock_mutex);
 #endif
+	mutex_unlock(&uevent_sock_mutex);
 
 	/* call uevent_helper, usually only enabled during early boot */
 	if (uevent_helper[0] && !kobj_usermode_filter(kobj)) {
