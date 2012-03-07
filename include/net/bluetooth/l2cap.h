@@ -492,16 +492,16 @@ struct l2cap_chan {
 	struct sk_buff_head	srej_q;
 	struct list_head	srej_l;
 
-	struct list_head list;
-	struct list_head global_l;
+	struct list_head	list;
+	struct list_head	global_l;
 
-	void		*data;
-	struct l2cap_ops *ops;
+	void			*data;
+	struct l2cap_ops	*ops;
 	struct mutex		lock;
 };
 
 struct l2cap_ops {
-	char		*name;
+	char			*name;
 
 	struct l2cap_chan	*(*new_connection) (void *data);
 	int			(*recv) (void *data, struct sk_buff *skb);
@@ -513,35 +513,35 @@ struct l2cap_ops {
 };
 
 struct l2cap_conn {
-	struct hci_conn	*hcon;
-	struct hci_chan	*hchan;
+	struct hci_conn		*hcon;
+	struct hci_chan		*hchan;
 
-	bdaddr_t	*dst;
-	bdaddr_t	*src;
+	bdaddr_t		*dst;
+	bdaddr_t		*src;
 
-	unsigned int	mtu;
+	unsigned int		mtu;
 
-	__u32		feat_mask;
-	__u8		fixed_chan_mask;
+	__u32			feat_mask;
+	__u8			fixed_chan_mask;
 
-	__u8		info_state;
-	__u8		info_ident;
+	__u8			info_state;
+	__u8			info_ident;
 
-	struct delayed_work info_timer;
+	struct delayed_work	info_timer;
 
-	spinlock_t	lock;
+	spinlock_t		lock;
 
-	struct sk_buff *rx_skb;
-	__u32		rx_len;
-	__u8		tx_ident;
+	struct sk_buff		*rx_skb;
+	__u32			rx_len;
+	__u8			tx_ident;
 
-	__u8		disc_reason;
+	__u8			disc_reason;
 
-	struct delayed_work  security_timer;
-	struct smp_chan *smp_chan;
+	struct delayed_work	security_timer;
+	struct smp_chan		*smp_chan;
 
-	struct list_head chan_l;
-	struct mutex	chan_lock;
+	struct list_head	chan_l;
+	struct mutex		chan_lock;
 };
 
 #define L2CAP_INFO_CL_MTU_REQ_SENT	0x01
@@ -556,9 +556,9 @@ struct l2cap_conn {
 #define l2cap_pi(sk) ((struct l2cap_pinfo *) sk)
 
 struct l2cap_pinfo {
-	struct bt_sock	bt;
+	struct bt_sock		bt;
 	struct l2cap_chan	*chan;
-	struct sk_buff	*rx_busy_skb;
+	struct sk_buff		*rx_busy_skb;
 };
 
 enum {

@@ -693,8 +693,8 @@ struct hci_cp_host_buffer_size {
 
 #define HCI_OP_WRITE_EIR		0x0c52
 struct hci_cp_write_eir {
-	__u8		fec;
-	__u8		data[HCI_MAX_EIR_LENGTH];
+	__u8	fec;
+	__u8	data[HCI_MAX_EIR_LENGTH];
 } __packed;
 
 #define HCI_OP_READ_SSP_MODE		0x0c55
@@ -725,8 +725,8 @@ struct hci_rp_read_flow_control_mode {
 
 #define HCI_OP_WRITE_LE_HOST_SUPPORTED	0x0c6d
 struct hci_cp_write_le_host_supported {
-	__u8 le;
-	__u8 simul;
+	__u8	le;
+	__u8	simul;
 } __packed;
 
 #define HCI_OP_READ_LOCAL_VERSION	0x1001

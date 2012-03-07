@@ -57,7 +57,7 @@ struct inquiry_entry {
 };
 
 struct discovery_state {
-	int type;
+	int			type;
 	enum {
 		DISCOVERY_STOPPED,
 		DISCOVERY_STARTING,
@@ -65,10 +65,10 @@ struct discovery_state {
 		DISCOVERY_RESOLVING,
 		DISCOVERY_STOPPING,
 	} state;
-	struct list_head all;		/* All devices found during inquiry */
-	struct list_head unknown;	/* Name state not known */
-	struct list_head resolve;	/* Name needs to be resolved */
-	__u32		timestamp;
+	struct list_head	all;		/* All devices found during inquiry */
+	struct list_head	unknown;	/* Name state not known */
+	struct list_head	resolve;	/* Name needs to be resolved */
+	__u32			timestamp;
 };
 
 struct hci_conn_hash {
