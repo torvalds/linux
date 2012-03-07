@@ -824,7 +824,6 @@ static __devinit int max8998_pmic_probe(struct platform_device *pdev)
 		       buck12_voltage_map_desc.step*i
 		       < (pdata->buck2_voltage2 / 1000))
 			i++;
-		printk(KERN_ERR "i2:%d, buck2_idx:%d\n", i, max8998->buck2_idx);
 		max8998->buck2_vol[1] = i;
 		ret = max8998_write_reg(i2c, MAX8998_REG_BUCK2_VOLTAGE2, i);
 		if (ret)
