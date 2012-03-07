@@ -1487,7 +1487,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			txq->need_update = 1;
 			iwl_txq_update_write_ptr(trans, txq);
 		} else {
-			iwl_stop_queue(trans, txq, "Queue is full");
+			iwl_stop_queue(trans, txq);
 		}
 	}
 	spin_unlock(&txq->lock);
@@ -1591,7 +1591,7 @@ static int iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 				tfd_num, ssn);
 		freed = iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
 		if (iwl_queue_space(&txq->q) > txq->q.low_mark)
-			iwl_wake_queue(trans, txq, "Packets reclaimed");
+			iwl_wake_queue(trans, txq);
 	}
 
 	spin_unlock(&txq->lock);
