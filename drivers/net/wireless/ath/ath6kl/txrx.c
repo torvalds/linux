@@ -285,6 +285,9 @@ int ath6kl_control_tx(void *devt, struct sk_buff *skb,
 	int status = 0;
 	struct ath6kl_cookie *cookie = NULL;
 
+	if (WARN_ON_ONCE(ar->state == ATH6KL_STATE_WOW))
+		return -EACCES;
+
 	spin_lock_bh(&ar->lock);
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_TX,
@@ -356,6 +359,11 @@ int ath6kl_data_tx(struct sk_buff *skb, struct net_device *dev)
 
 	/* If target is not associated */
 	if (!test_bit(CONNECTED, &vif->flags)) {
+		dev_kfree_skb(skb);
+		return 0;
+	}
+
+	if (WARN_ON_ONCE(ar->state != ATH6KL_STATE_ON)) {
 		dev_kfree_skb(skb);
 		return 0;
 	}

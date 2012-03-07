@@ -932,7 +932,14 @@ static int ath6kl_sdio_resume(struct ath6kl *ar)
 
 	case ATH6KL_STATE_WOW:
 		break;
+
 	case ATH6KL_STATE_SCHED_SCAN:
+		break;
+
+	case ATH6KL_STATE_SUSPENDING:
+		break;
+
+	case ATH6KL_STATE_RESUMING:
 		break;
 	}
 
