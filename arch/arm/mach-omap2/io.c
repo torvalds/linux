@@ -43,14 +43,13 @@
 #include "clockdomain.h"
 #include <plat/omap_hwmod.h>
 #include <plat/multi.h>
-#include "common.h"
 
 /*
  * The machine specific code may provide the extra mapping besides the
  * default mapping provided here.
  */
 
-#ifdef CONFIG_ARCH_OMAP2
+#if defined(CONFIG_SOC_OMAP2420) || defined(CONFIG_SOC_OMAP2430)
 static struct map_desc omap24xx_io_desc[] __initdata = {
 	{
 		.virtual	= L3_24XX_VIRT,

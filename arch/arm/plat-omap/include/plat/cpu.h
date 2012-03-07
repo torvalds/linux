@@ -250,7 +250,6 @@ IS_AM_SUBCLASS(335x, 0x335)
  * cpu_is_omap2423():	True for OMAP2423
  * cpu_is_omap2430():	True for OMAP2430
  * cpu_is_omap3430():	True for OMAP3430
- * cpu_is_omap4430():	True for OMAP4430
  * cpu_is_omap3505():	True for OMAP3505
  * cpu_is_omap3517():	True for OMAP3517
  */
@@ -299,7 +298,6 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define cpu_is_omap3505()		0
 #define cpu_is_omap3517()		0
 #define cpu_is_omap3430()		0
-#define cpu_is_omap4430()		0
 #define cpu_is_omap3630()		0
 
 /*

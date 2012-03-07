@@ -339,6 +339,11 @@
 #define AM35XX_VPFE_PCLK_SW_RST		BIT(4)
 
 /*
+ * CONTROL AM33XX STATUS register
+ */
+#define AM33XX_CONTROL_STATUS		0x040
+
+/*
  * CONTROL OMAP STATUS register to identify OMAP3 features
  */
 #define OMAP3_CONTROL_OMAP_STATUS	0x044c

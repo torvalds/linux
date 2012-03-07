@@ -76,13 +76,15 @@ void __init omap_ads7846_init(int bus_num, int gpio_pendown, int gpio_debounce,
 			gpio_set_debounce(gpio_pendown, gpio_debounce);
 	}
 
-	ads7846_config.gpio_pendown = gpio_pendown;
-
 	spi_bi->bus_num	= bus_num;
 	spi_bi->irq	= OMAP_GPIO_IRQ(gpio_pendown);
 
-	if (board_pdata)
+	if (board_pdata) {
+		board_pdata->gpio_pendown = gpio_pendown;
 		spi_bi->platform_data = board_pdata;
+	} else {
+		ads7846_config.gpio_pendown = gpio_pendown;
+	}
 
 	spi_register_board_info(&ads7846_spi_board_info, 1);
 }
