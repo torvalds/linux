@@ -784,7 +784,7 @@ out_free:
 	return NULL;
 }
 
-static void nfs4_free_lock_state(struct nfs4_lock_state *lsp)
+void nfs4_free_lock_state(struct nfs4_lock_state *lsp)
 {
 	struct nfs_server *server = lsp->ls_state->owner->so_server;
 
@@ -842,8 +842,10 @@ void nfs4_put_lock_state(struct nfs4_lock_state *lsp)
 	if (list_empty(&state->lock_states))
 		clear_bit(LK_STATE_IN_USE, &state->flags);
 	spin_unlock(&state->state_lock);
-	if (lsp->ls_flags & NFS_LOCK_INITIALIZED)
-		nfs4_release_lockowner(lsp);
+	if (lsp->ls_flags & NFS_LOCK_INITIALIZED) {
+		if (nfs4_release_lockowner(lsp) == 0)
+			return;
+	}
 	nfs4_free_lock_state(lsp);
 }
 

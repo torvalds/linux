@@ -4745,8 +4745,15 @@ out:
 	return err;
 }
 
+struct nfs_release_lockowner_data {
+	struct nfs4_lock_state *lsp;
+	struct nfs_release_lockowner_args args;
+};
+
 static void nfs4_release_lockowner_release(void *calldata)
 {
+	struct nfs_release_lockowner_data *data = calldata;
+	nfs4_free_lock_state(data->lsp);
 	kfree(calldata);
 }
 
@@ -4754,24 +4761,26 @@ const struct rpc_call_ops nfs4_release_lockowner_ops = {
 	.rpc_release = nfs4_release_lockowner_release,
 };
 
-void nfs4_release_lockowner(const struct nfs4_lock_state *lsp)
+int nfs4_release_lockowner(struct nfs4_lock_state *lsp)
 {
 	struct nfs_server *server = lsp->ls_state->owner->so_server;
-	struct nfs_release_lockowner_args *args;
+	struct nfs_release_lockowner_data *data;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_RELEASE_LOCKOWNER],
 	};
 
 	if (server->nfs_client->cl_mvops->minor_version != 0)
-		return;
-	args = kmalloc(sizeof(*args), GFP_NOFS);
-	if (!args)
-		return;
-	args->lock_owner.clientid = server->nfs_client->cl_clientid;
-	args->lock_owner.id = lsp->ls_seqid.owner_id;
-	args->lock_owner.s_dev = server->s_dev;
-	msg.rpc_argp = args;
-	rpc_call_async(server->client, &msg, 0, &nfs4_release_lockowner_ops, args);
+		return -EINVAL;
+	data = kmalloc(sizeof(*data), GFP_NOFS);
+	if (!data)
+		return -ENOMEM;
+	data->lsp = lsp;
+	data->args.lock_owner.clientid = server->nfs_client->cl_clientid;
+	data->args.lock_owner.id = lsp->ls_seqid.owner_id;
+	data->args.lock_owner.s_dev = server->s_dev;
+	msg.rpc_argp = &data->args;
+	rpc_call_async(server->client, &msg, 0, &nfs4_release_lockowner_ops, data);
+	return 0;
 }
 
 #define XATTR_NAME_NFSV4_ACL "system.nfs4_acl"
