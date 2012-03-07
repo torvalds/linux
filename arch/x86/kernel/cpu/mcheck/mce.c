@@ -191,7 +191,7 @@ static void drain_mcelog_buffer(void)
 {
 	unsigned int next, i, prev = 0;
 
-	next = rcu_dereference_check_mce(mcelog.next);
+	next = ACCESS_ONCE(mcelog.next);
 
 	do {
 		struct mce *m;
