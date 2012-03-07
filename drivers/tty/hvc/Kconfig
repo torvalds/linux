@@ -24,16 +24,6 @@ config HVC_OLD_HVSI
 	depends on HVC_CONSOLE
 	default n
 
-config HVC_ISERIES
-	bool "iSeries Hypervisor Virtual Console support"
-	depends on PPC_ISERIES
-	default y
-	select HVC_DRIVER
-	select HVC_IRQ
-	select VIOPATH
-	help
-	  iSeries machines support a hypervisor virtual console.
-
 config HVC_OPAL
 	bool "OPAL Console support"
 	depends on PPC_POWERNV
