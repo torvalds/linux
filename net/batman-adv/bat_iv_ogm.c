@@ -779,8 +779,7 @@ static int bat_iv_ogm_calc_tq(struct orig_node *orig_node,
 		 * information */
 		tq_own = (TQ_MAX_VALUE * total_count) /	neigh_rq_count;
 
-	/*
-	 * 1 - ((1-x) ** 3), normalized to TQ_MAX_VALUE this does
+	/* 1 - ((1-x) ** 3), normalized to TQ_MAX_VALUE this does
 	 * affect the nearly-symmetric links only a little, but
 	 * punishes asymmetric links more.  This will give a value
 	 * between 0 and TQ_MAX_VALUE
