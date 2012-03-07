@@ -279,6 +279,12 @@ config SPI_PXA2XX
 config SPI_PXA2XX_PCI
 	def_bool SPI_PXA2XX && X86_32 && PCI
 
+config SPI_RSPI
+	tristate "Renesas RSPI controller"
+	depends on SUPERH
+	help
+	  SPI driver for Renesas RSPI blocks.
+
 config SPI_S3C24XX
 	tristate "Samsung S3C24XX series SPI"
 	depends on ARCH_S3C2410 && EXPERIMENTAL
