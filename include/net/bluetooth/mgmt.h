@@ -163,9 +163,9 @@ struct mgmt_cp_remove_uuid {
 
 struct mgmt_link_key_info {
 	struct mgmt_addr_info addr;
-	u8	type;
-	u8	val[16];
-	u8	pin_len;
+	__u8	type;
+	__u8	val[16];
+	__u8	pin_len;
 } __packed;
 
 #define MGMT_OP_LOAD_LINK_KEYS		0x0012
