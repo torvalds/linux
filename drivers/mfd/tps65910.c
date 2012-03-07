@@ -81,7 +81,7 @@ static bool is_volatile_reg(struct device *dev, unsigned int reg)
 	return true;
 }
 
-static const struct regmap_config rc5t583_regmap_config = {
+static const struct regmap_config tps65910_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.volatile_reg = is_volatile_reg,
@@ -120,7 +120,7 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 	tps65910->write = tps65910_i2c_write;
 	mutex_init(&tps65910->io_mutex);
 
-	tps65910->regmap = regmap_init_i2c(i2c, &rc5t583_regmap_config);
+	tps65910->regmap = regmap_init_i2c(i2c, &tps65910_regmap_config);
 	if (IS_ERR(tps65910->regmap)) {
 		ret = PTR_ERR(tps65910->regmap);
 		dev_err(&i2c->dev, "regmap initialization failed: %d\n", ret);
