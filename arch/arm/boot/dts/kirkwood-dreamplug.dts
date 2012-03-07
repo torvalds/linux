@@ -4,7 +4,7 @@
 
 / {
 	model = "Globalscale Technologies Dreamplug";
-	compatible = "globalscale,dreamplug-003-ds2001", "globalscale,dreamplug", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+	compatible = "globalscale,dreamplug-003-ds2001", "globalscale,dreamplug", "mrvl,kirkwood-88f6281", "mrvl,kirkwood";
 
 	memory {
 		device_type = "memory";
@@ -17,7 +17,7 @@
 
 	serial@f1012000 {
 		compatible = "ns16550a";
-		reg = <0xf1012000 0xff>;
+		reg = <0xf1012000 0x100>;
 		reg-shift = <2>;
 		interrupts = <33>;
 		clock-frequency = <200000000>;
