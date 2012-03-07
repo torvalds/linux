@@ -174,7 +174,7 @@ static void iwl_tt_check_exit_ct_kill(unsigned long data)
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
 	unsigned long flags;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	if (tt->state == IWL_TI_CT_KILL) {
@@ -225,7 +225,7 @@ static void iwl_tt_ready_for_ct_kill(unsigned long data)
 	struct iwl_priv *priv = (struct iwl_priv *)data;
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	/* temperature timer expired, ready to go into CT_KILL state */
@@ -504,10 +504,10 @@ static void iwl_bg_ct_enter(struct work_struct *work)
 	struct iwl_priv *priv = container_of(work, struct iwl_priv, ct_enter);
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	if (!iwl_is_ready(priv->shrd))
+	if (!iwl_is_ready(priv))
 		return;
 
 	if (tt->state != IWL_TI_CT_KILL) {
@@ -533,10 +533,10 @@ static void iwl_bg_ct_exit(struct work_struct *work)
 	struct iwl_priv *priv = container_of(work, struct iwl_priv, ct_exit);
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	if (!iwl_is_ready(priv->shrd))
+	if (!iwl_is_ready(priv))
 		return;
 
 	/* stop ct_kill_exit_tm timer */
@@ -563,7 +563,7 @@ static void iwl_bg_ct_exit(struct work_struct *work)
 
 void iwl_tt_enter_ct_kill(struct iwl_priv *priv)
 {
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	IWL_DEBUG_TEMP(priv, "Queueing critical temperature enter.\n");
@@ -572,7 +572,7 @@ void iwl_tt_enter_ct_kill(struct iwl_priv *priv)
 
 void iwl_tt_exit_ct_kill(struct iwl_priv *priv)
 {
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	IWL_DEBUG_TEMP(priv, "Queueing critical temperature exit.\n");
@@ -584,7 +584,7 @@ static void iwl_bg_tt_work(struct work_struct *work)
 	struct iwl_priv *priv = container_of(work, struct iwl_priv, tt_work);
 	s32 temp = priv->temperature; /* degrees CELSIUS except specified */
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	if (!priv->thermal_throttle.advanced_tt)
@@ -595,7 +595,7 @@ static void iwl_bg_tt_work(struct work_struct *work)
 
 void iwl_tt_handler(struct iwl_priv *priv)
 {
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	IWL_DEBUG_TEMP(priv, "Queueing thermal throttling work.\n");

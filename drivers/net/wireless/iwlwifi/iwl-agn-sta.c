@@ -490,7 +490,7 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 {
 	u8 tid;
 
-	if (!iwl_is_ready(priv->shrd)) {
+	if (!iwl_is_ready(priv)) {
 		IWL_DEBUG_INFO(priv,
 			"Unable to remove station %pM, device not ready.\n",
 			addr);
@@ -598,7 +598,7 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	int ret;
 	bool send_lq;
 
-	if (!iwl_is_ready(priv->shrd)) {
+	if (!iwl_is_ready(priv)) {
 		IWL_DEBUG_INFO(priv,
 			       "Not ready yet, not restoring any stations.\n");
 		return;
@@ -997,7 +997,7 @@ int iwl_remove_default_wep_key(struct iwl_priv *priv,
 		      keyconf->keyidx);
 
 	memset(&ctx->wep_keys[keyconf->keyidx], 0, sizeof(ctx->wep_keys[0]));
-	if (iwl_is_rfkill(priv->shrd)) {
+	if (iwl_is_rfkill(priv)) {
 		IWL_DEBUG_WEP(priv,
 			"Not sending REPLY_WEPKEY command due to RFKILL.\n");
 		/* but keys in device are clear anyway so return success */

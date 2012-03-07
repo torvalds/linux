@@ -684,6 +684,7 @@ static void iwl_apm_config(struct iwl_trans *trans)
  */
 static int iwl_apm_init(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret = 0;
 	IWL_DEBUG_INFO(trans, "Init card's basic functions\n");
 
@@ -753,7 +754,7 @@ static int iwl_apm_init(struct iwl_trans *trans)
 	iwl_set_bits_prph(trans, APMG_PCIDEV_STT_REG,
 			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
-	set_bit(STATUS_DEVICE_ENABLED, &trans->shrd->status);
+	set_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status);
 
 out:
 	return ret;
@@ -779,9 +780,10 @@ static int iwl_apm_stop_master(struct iwl_trans *trans)
 
 static void iwl_apm_stop(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	IWL_DEBUG_INFO(trans, "Stop card, put in low power state\n");
 
-	clear_bit(STATUS_DEVICE_ENABLED, &trans->shrd->status);
+	clear_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status);
 
 	/* Stop device's DMA activity */
 	iwl_apm_stop_master(trans);
@@ -1265,7 +1267,7 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	 * restart. So don't process again if the device is
 	 * already dead.
 	 */
-	if (test_bit(STATUS_DEVICE_ENABLED, &trans->shrd->status)) {
+	if (test_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status)) {
 		iwl_trans_tx_stop(trans);
 #ifndef CONFIG_IWLWIFI_IDI
 		iwl_trans_rx_stop(trans);

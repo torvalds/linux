@@ -353,28 +353,23 @@ static inline void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 
 /* status checks */
 
-static inline int iwl_is_ready(struct iwl_shared *shrd)
+static inline int iwl_is_ready(struct iwl_priv *priv)
 {
 	/* The adapter is 'ready' if READY and GEO_CONFIGURED bits are
 	 * set but EXIT_PENDING is not */
-	return test_bit(STATUS_READY, &shrd->status) &&
-	       test_bit(STATUS_GEO_CONFIGURED, &shrd->status) &&
-	       !test_bit(STATUS_EXIT_PENDING, &shrd->status);
+	return test_bit(STATUS_READY, &priv->status) &&
+	       test_bit(STATUS_GEO_CONFIGURED, &priv->status) &&
+	       !test_bit(STATUS_EXIT_PENDING, &priv->status);
 }
 
-static inline int iwl_is_alive(struct iwl_shared *shrd)
+static inline int iwl_is_alive(struct iwl_priv *priv)
 {
-	return test_bit(STATUS_ALIVE, &shrd->status);
+	return test_bit(STATUS_ALIVE, &priv->status);
 }
 
-static inline int iwl_is_rfkill_hw(struct iwl_shared *shrd)
+static inline int iwl_is_rfkill(struct iwl_priv *priv)
 {
-	return test_bit(STATUS_RF_KILL_HW, &shrd->status);
-}
-
-static inline int iwl_is_rfkill(struct iwl_shared *shrd)
-{
-	return iwl_is_rfkill_hw(shrd);
+	return test_bit(STATUS_RF_KILL_HW, &priv->status);
 }
 
 static inline int iwl_is_ctkill(struct iwl_priv *priv)
@@ -382,18 +377,18 @@ static inline int iwl_is_ctkill(struct iwl_priv *priv)
 	return test_bit(STATUS_CT_KILL, &priv->status);
 }
 
-static inline int iwl_is_ready_rf(struct iwl_shared *shrd)
+static inline int iwl_is_ready_rf(struct iwl_priv *priv)
 {
-	if (iwl_is_rfkill(shrd))
+	if (iwl_is_rfkill(priv))
 		return 0;
 
-	return iwl_is_ready(shrd);
+	return iwl_is_ready(priv);
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 #define IWL_DEBUG_QUIET_RFKILL(m, fmt, args...)	\
 do {									\
-	if (!iwl_is_rfkill((m)->shrd))					\
+	if (!iwl_is_rfkill((m)))					\
 		IWL_ERR(m, fmt, ##args);				\
 	else								\
 		__iwl_err(trans(m)->dev, true,				\
@@ -403,7 +398,7 @@ do {									\
 #else
 #define IWL_DEBUG_QUIET_RFKILL(m, fmt, args...)	\
 do {									\
-	if (!iwl_is_rfkill((m)->shrd))					\
+	if (!iwl_is_rfkill((m)))					\
 		IWL_ERR(m, fmt, ##args);				\
 	else								\
 		__iwl_err(trans(m)->dev, true, true, fmt, ##args);	\

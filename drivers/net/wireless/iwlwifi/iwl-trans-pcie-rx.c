@@ -1131,7 +1131,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 
 	/* Re-enable all interrupts */
 	/* only Re-enable if disabled by irq */
-	if (test_bit(STATUS_INT_ENABLED, &trans->shrd->status))
+	if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status))
 		iwl_enable_interrupts(trans);
 	/* Re-enable RF_KILL if it occurred */
 	else if (handled & CSR_INT_BIT_RF_KILL)
@@ -1303,7 +1303,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 	/* iwl_irq_tasklet() will service interrupts and re-enable them */
 	if (likely(inta))
 		tasklet_schedule(&trans_pcie->irq_tasklet);
-	else if (test_bit(STATUS_INT_ENABLED, &trans->shrd->status) &&
+	else if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status) &&
 			!trans_pcie->inta)
 		iwl_enable_interrupts(trans);
 
@@ -1314,7 +1314,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
  none:
 	/* re-enable interrupts here since we don't have anything to service. */
 	/* only Re-enable if disabled by irq  and no schedules tasklet. */
-	if (test_bit(STATUS_INT_ENABLED, &trans->shrd->status) &&
+	if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status) &&
 		!trans_pcie->inta)
 		iwl_enable_interrupts(trans);
 
@@ -1414,7 +1414,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	/* iwl_irq_tasklet() will service interrupts and re-enable them */
 	if (likely(inta))
 		tasklet_schedule(&trans_pcie->irq_tasklet);
-	else if (test_bit(STATUS_INT_ENABLED, &trans->shrd->status) &&
+	else if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status) &&
 		 !trans_pcie->inta) {
 		/* Allow interrupt if was disabled by this handler and
 		 * no tasklet was schedules, We should not enable interrupt,
@@ -1430,7 +1430,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data)
 	/* re-enable interrupts here since we don't have anything to service.
 	 * only Re-enable if disabled by irq.
 	 */
-	if (test_bit(STATUS_INT_ENABLED, &trans->shrd->status) &&
+	if (test_bit(STATUS_INT_ENABLED, &trans_pcie->status) &&
 	    !trans_pcie->inta)
 		iwl_enable_interrupts(trans);
 

@@ -356,7 +356,8 @@ void iwl_dump_csr(struct iwl_trans *trans);
 ******************************************************/
 static inline void iwl_disable_interrupts(struct iwl_trans *trans)
 {
-	clear_bit(STATUS_INT_ENABLED, &trans->shrd->status);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	clear_bit(STATUS_INT_ENABLED, &trans_pcie->status);
 
 	/* disable interrupts from uCode/NIC to host */
 	iwl_write32(trans, CSR_INT_MASK, 0x00000000);
@@ -370,11 +371,10 @@ static inline void iwl_disable_interrupts(struct iwl_trans *trans)
 
 static inline void iwl_enable_interrupts(struct iwl_trans *trans)
 {
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	IWL_DEBUG_ISR(trans, "Enabling interrupts\n");
-	set_bit(STATUS_INT_ENABLED, &trans->shrd->status);
+	set_bit(STATUS_INT_ENABLED, &trans_pcie->status);
 	iwl_write32(trans, CSR_INT_MASK, trans_pcie->inta_mask);
 }
 

@@ -361,7 +361,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 		slot0 = bcnint / 2;
 		slot1 = bcnint - slot0;
 
-		if (test_bit(STATUS_SCAN_HW, &priv->shrd->status) ||
+		if (test_bit(STATUS_SCAN_HW, &priv->status) ||
 		    (!ctx_bss->vif->bss_conf.idle &&
 		     !ctx_bss->vif->bss_conf.assoc)) {
 			slot0 = dtim * bcnint * 3 - IWL_MIN_SLOT_TIME;
@@ -377,7 +377,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 					ctx_pan->beacon_int;
 		slot1 = max_t(int, DEFAULT_BEACON_INTERVAL, slot1);
 
-		if (test_bit(STATUS_SCAN_HW, &priv->shrd->status)) {
+		if (test_bit(STATUS_SCAN_HW, &priv->status)) {
 			slot0 = slot1 * 3 - IWL_MIN_SLOT_TIME;
 			slot1 = IWL_MIN_SLOT_TIME;
 		}
@@ -421,7 +421,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 	lockdep_assert_held(&priv->mutex);
 
-	if (!iwl_is_alive(priv->shrd))
+	if (!iwl_is_alive(priv))
 		return -EBUSY;
 
 	/* This function hardcodes a bunch of dual-mode assumptions */
@@ -457,7 +457,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	 * receive commit_rxon request
 	 * abort any previous channel switch if still in process
 	 */
-	if (test_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->shrd->status) &&
+	if (test_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status) &&
 	    (priv->switch_channel != ctx->staging.channel)) {
 		IWL_DEBUG_11H(priv, "abort channel switch on %d\n",
 			      le16_to_cpu(priv->switch_channel));
@@ -551,12 +551,12 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 	mutex_lock(&priv->mutex);
 
-	if (unlikely(test_bit(STATUS_SCANNING, &priv->shrd->status))) {
+	if (unlikely(test_bit(STATUS_SCANNING, &priv->status))) {
 		IWL_DEBUG_MAC80211(priv, "leave - scanning\n");
 		goto out;
 	}
 
-	if (!iwl_is_ready(priv->shrd)) {
+	if (!iwl_is_ready(priv)) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
 		goto out;
 	}
@@ -794,7 +794,7 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
-	if (unlikely(!iwl_is_ready(priv->shrd))) {
+	if (unlikely(!iwl_is_ready(priv))) {
 		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
 		mutex_unlock(&priv->mutex);
 		return;

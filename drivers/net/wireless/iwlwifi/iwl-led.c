@@ -126,7 +126,7 @@ static int iwl_led_cmd(struct iwl_priv *priv,
 	};
 	int ret;
 
-	if (!test_bit(STATUS_READY, &priv->shrd->status))
+	if (!test_bit(STATUS_READY, &priv->status))
 		return -EBUSY;
 
 	if (priv->blink_on == on && priv->blink_off == off)

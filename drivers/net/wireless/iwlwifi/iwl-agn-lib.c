@@ -51,7 +51,7 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 	struct iwlagn_tx_power_dbm_cmd tx_power_cmd;
 	u8 tx_ant_cfg_cmd;
 
-	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &priv->shrd->status),
+	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &priv->status),
 		      "TX Power requested while scanning!\n"))
 		return -EAGAIN;
 
@@ -575,7 +575,7 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 	 * STATUS_SCANNING to avoid race when queue_work two times from
 	 * different notifications, but quit and not perform any work at all.
 	 */
-	if (test_bit(STATUS_SCAN_HW, &priv->shrd->status))
+	if (test_bit(STATUS_SCAN_HW, &priv->status))
 		goto out;
 
 	iwl_update_chain_flags(priv);
@@ -1291,9 +1291,9 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 
 int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
-	if (iwl_is_rfkill(priv->shrd) || iwl_is_ctkill(priv)) {
+	if (iwl_is_rfkill(priv) || iwl_is_ctkill(priv)) {
 		IWL_WARN(priv, "Not sending command - %s KILL\n",
-			 iwl_is_rfkill(priv->shrd) ? "RF" : "CT");
+			 iwl_is_rfkill(priv) ? "RF" : "CT");
 		return -EIO;
 	}
 

@@ -297,7 +297,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	if (info->control.vif)
 		ctx = iwl_rxon_ctx_from_vif(info->control.vif);
 
-	if (iwl_is_rfkill(priv->shrd)) {
+	if (iwl_is_rfkill(priv)) {
 		IWL_DEBUG_DROP(priv, "Dropping - RF KILL\n");
 		goto drop_unlock_priv;
 	}
@@ -1000,7 +1000,7 @@ static void iwl_check_abort_status(struct iwl_priv *priv,
 {
 	if (frame_count == 1 && status == TX_STATUS_FAIL_RFKILL_FLUSH) {
 		IWL_ERR(priv, "Tx flush command to flush out all frames\n");
-		if (!test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+		if (!test_bit(STATUS_EXIT_PENDING, &priv->status))
 			queue_work(priv->workqueue, &priv->tx_flush);
 	}
 }

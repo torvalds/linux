@@ -159,7 +159,7 @@ static int iwlagn_rx_csa(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwl_rxon_cmd *rxon = (void *)&ctx->active;
 
-	if (!test_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->shrd->status))
+	if (!test_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status))
 		return 0;
 
 	if (!le32_to_cpu(csa->status) && csa->channel == priv->switch_channel) {
@@ -355,7 +355,7 @@ static void iwlagn_recover_from_statistics(struct iwl_priv *priv,
 {
 	unsigned int msecs;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	msecs = jiffies_to_msecs(stamp - priv->rx_statistics_jiffies);
@@ -575,7 +575,7 @@ static int iwlagn_rx_statistics(struct iwl_priv *priv,
 
 	priv->rx_statistics_jiffies = stamp;
 
-	set_bit(STATUS_STATISTICS, &priv->shrd->status);
+	set_bit(STATUS_STATISTICS, &priv->status);
 
 	/* Reschedule the statistics timer to occur in
 	 * reg_recalib_period seconds to ensure we get a
@@ -584,7 +584,7 @@ static int iwlagn_rx_statistics(struct iwl_priv *priv,
 	mod_timer(&priv->statistics_periodic, jiffies +
 		  msecs_to_jiffies(reg_recalib_period * 1000));
 
-	if (unlikely(!test_bit(STATUS_SCANNING, &priv->shrd->status)) &&
+	if (unlikely(!test_bit(STATUS_SCANNING, &priv->status)) &&
 	    (pkt->hdr.cmd == STATISTICS_NOTIFICATION)) {
 		iwlagn_rx_calc_noise(priv);
 		queue_work(priv->workqueue, &priv->run_time_calib_work);
@@ -658,18 +658,18 @@ static int iwlagn_rx_card_state_notif(struct iwl_priv *priv,
 		iwl_tt_exit_ct_kill(priv);
 
 	if (flags & HW_CARD_DISABLED)
-		set_bit(STATUS_RF_KILL_HW, &priv->shrd->status);
+		set_bit(STATUS_RF_KILL_HW, &priv->status);
 	else
-		clear_bit(STATUS_RF_KILL_HW, &priv->shrd->status);
+		clear_bit(STATUS_RF_KILL_HW, &priv->status);
 
 
 	if (!(flags & RXON_CARD_DISABLED))
 		iwl_scan_cancel(priv);
 
 	if ((test_bit(STATUS_RF_KILL_HW, &status) !=
-	     test_bit(STATUS_RF_KILL_HW, &priv->shrd->status)))
+	     test_bit(STATUS_RF_KILL_HW, &priv->status)))
 		wiphy_rfkill_set_hw_state(priv->hw->wiphy,
-			test_bit(STATUS_RF_KILL_HW, &priv->shrd->status));
+			test_bit(STATUS_RF_KILL_HW, &priv->status));
 	else
 		wake_up(&priv->shrd->wait_command_queue);
 	return 0;
@@ -691,7 +691,7 @@ static int iwlagn_rx_missed_beacon_notif(struct iwl_priv *priv,
 		    le32_to_cpu(missed_beacon->total_missed_becons),
 		    le32_to_cpu(missed_beacon->num_recvd_beacons),
 		    le32_to_cpu(missed_beacon->num_expected_beacons));
-		if (!test_bit(STATUS_SCANNING, &priv->shrd->status))
+		if (!test_bit(STATUS_SCANNING, &priv->status))
 			iwl_init_sensitivity(priv);
 	}
 	return 0;

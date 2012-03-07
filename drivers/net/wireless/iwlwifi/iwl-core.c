@@ -113,7 +113,7 @@ int iwl_init_geos(struct iwl_priv *priv)
 	if (priv->bands[IEEE80211_BAND_2GHZ].n_bitrates ||
 	    priv->bands[IEEE80211_BAND_5GHZ].n_bitrates) {
 		IWL_DEBUG_INFO(priv, "Geography modes already initialized.\n");
-		set_bit(STATUS_GEO_CONFIGURED, &priv->shrd->status);
+		set_bit(STATUS_GEO_CONFIGURED, &priv->status);
 		return 0;
 	}
 
@@ -212,7 +212,7 @@ int iwl_init_geos(struct iwl_priv *priv)
 		   priv->bands[IEEE80211_BAND_2GHZ].n_channels,
 		   priv->bands[IEEE80211_BAND_5GHZ].n_channels);
 
-	set_bit(STATUS_GEO_CONFIGURED, &priv->shrd->status);
+	set_bit(STATUS_GEO_CONFIGURED, &priv->status);
 
 	return 0;
 }
@@ -224,7 +224,7 @@ void iwl_free_geos(struct iwl_priv *priv)
 {
 	kfree(priv->ieee_channels);
 	kfree(priv->ieee_rates);
-	clear_bit(STATUS_GEO_CONFIGURED, &priv->shrd->status);
+	clear_bit(STATUS_GEO_CONFIGURED, &priv->status);
 }
 
 static bool iwl_is_channel_extension(struct iwl_priv *priv,
@@ -798,11 +798,10 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
 	 */
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	if (test_and_clear_bit(STATUS_CHANNEL_SWITCH_PENDING,
-				&priv->shrd->status))
+	if (test_and_clear_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status))
 		ieee80211_chswitch_done(ctx->vif, is_success);
 }
 
@@ -849,7 +848,7 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 
 	/* Keep the restart process from trying to send host
 	 * commands by clearing the ready bit */
-	clear_bit(STATUS_READY, &priv->shrd->status);
+	clear_bit(STATUS_READY, &priv->status);
 
 	wake_up(&priv->shrd->wait_command_queue);
 
@@ -874,7 +873,7 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 			priv->reload_count = 0;
 	}
 
-	if (!test_bit(STATUS_EXIT_PENDING, &priv->shrd->status)) {
+	if (!test_bit(STATUS_EXIT_PENDING, &priv->status)) {
 		if (iwlagn_mod_params.restart_fw) {
 			IWL_DEBUG_FW_ERRORS(priv,
 				  "Restarting adapter due to uCode error.\n");
@@ -912,7 +911,7 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 		return -EINVAL;
 	}
 
-	if (!iwl_is_ready_rf(priv->shrd))
+	if (!iwl_is_ready_rf(priv))
 		return -EIO;
 
 	/* scan complete and commit_rxon use tx_power_next value,
@@ -920,7 +919,7 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 	priv->tx_power_next = tx_power;
 
 	/* do not set tx power when scanning or channel changing */
-	defer = test_bit(STATUS_SCANNING, &priv->shrd->status) ||
+	defer = test_bit(STATUS_SCANNING, &priv->status) ||
 		memcmp(&ctx->active, &ctx->staging, sizeof(ctx->staging));
 	if (defer && !force) {
 		IWL_DEBUG_INFO(priv, "Deferring tx power set\n");
@@ -1219,7 +1218,7 @@ void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc, u16 len)
 
 static void iwl_force_rf_reset(struct iwl_priv *priv)
 {
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	if (!iwl_is_any_associated(priv)) {
@@ -1244,7 +1243,7 @@ int iwl_force_reset(struct iwl_priv *priv, int mode, bool external)
 {
 	struct iwl_force_reset *force_reset;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return -EINVAL;
 
 	if (mode >= IWL_MAX_FORCE_RESET) {
@@ -1334,10 +1333,10 @@ void iwl_bg_watchdog(unsigned long data)
 	int cnt;
 	unsigned long timeout;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	if (iwl_is_rfkill(priv->shrd))
+	if (iwl_is_rfkill(priv))
 		return;
 
 	timeout = hw_params(priv).wd_timeout;
@@ -1461,9 +1460,9 @@ void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 
 	if (state)
-		set_bit(STATUS_RF_KILL_HW, &priv->shrd->status);
+		set_bit(STATUS_RF_KILL_HW, &priv->status);
 	else
-		clear_bit(STATUS_RF_KILL_HW, &priv->shrd->status);
+		clear_bit(STATUS_RF_KILL_HW, &priv->status);
 
 	wiphy_rfkill_set_hw_state(priv->hw->wiphy, state);
 }

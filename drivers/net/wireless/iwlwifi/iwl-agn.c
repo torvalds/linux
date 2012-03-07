@@ -244,11 +244,11 @@ static void iwl_bg_bt_runtime_config(struct work_struct *work)
 	struct iwl_priv *priv =
 		container_of(work, struct iwl_priv, bt_runtime_config);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	/* dont send host command if rf-kill is on */
-	if (!iwl_is_ready_rf(priv->shrd))
+	if (!iwl_is_ready_rf(priv))
 		return;
 	iwlagn_send_advance_bt_config(priv);
 }
@@ -261,11 +261,11 @@ static void iwl_bg_bt_full_concurrency(struct work_struct *work)
 
 	mutex_lock(&priv->mutex);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		goto out;
 
 	/* dont send host command if rf-kill is on */
-	if (!iwl_is_ready_rf(priv->shrd))
+	if (!iwl_is_ready_rf(priv))
 		goto out;
 
 	IWL_DEBUG_INFO(priv, "BT coex in %s mode\n",
@@ -300,11 +300,11 @@ static void iwl_bg_statistics_periodic(unsigned long data)
 {
 	struct iwl_priv *priv = (struct iwl_priv *)data;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	/* dont send host command if rf-kill is on */
-	if (!iwl_is_ready_rf(priv->shrd))
+	if (!iwl_is_ready_rf(priv))
 		return;
 
 	iwl_send_statistics_request(priv, CMD_ASYNC, false);
@@ -461,7 +461,7 @@ static void iwl_bg_ucode_trace(unsigned long data)
 {
 	struct iwl_priv *priv = (struct iwl_priv *)data;
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	if (priv->event_log.ucode_trace) {
@@ -477,11 +477,11 @@ static void iwl_bg_tx_flush(struct work_struct *work)
 	struct iwl_priv *priv =
 		container_of(work, struct iwl_priv, tx_flush);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	/* do nothing if rf-kill is on */
-	if (!iwl_is_ready_rf(priv->shrd))
+	if (!iwl_is_ready_rf(priv))
 		return;
 
 	IWL_DEBUG_INFO(priv, "device request: flush all tx frames\n");
@@ -640,12 +640,12 @@ int iwl_alive_start(struct iwl_priv *priv)
 	IWL_DEBUG_INFO(priv, "Runtime Alive received.\n");
 
 	/* After the ALIVE response, we can send host commands to the uCode */
-	set_bit(STATUS_ALIVE, &priv->shrd->status);
+	set_bit(STATUS_ALIVE, &priv->status);
 
 	/* Enable watchdog to monitor the driver tx queues */
 	iwl_setup_watchdog(priv);
 
-	if (iwl_is_rfkill(priv->shrd))
+	if (iwl_is_rfkill(priv))
 		return -ERFKILL;
 
 	if (priv->event_log.ucode_trace) {
@@ -719,7 +719,7 @@ int iwl_alive_start(struct iwl_priv *priv)
 		iwl_reset_run_time_calib(priv);
 	}
 
-	set_bit(STATUS_READY, &priv->shrd->status);
+	set_bit(STATUS_READY, &priv->status);
 
 	/* Configure the adapter for unassociated operation */
 	ret = iwlagn_commit_rxon(priv, ctx);
@@ -786,7 +786,7 @@ void iwl_down(struct iwl_priv *priv)
 	ieee80211_remain_on_channel_expired(priv->hw);
 
 	exit_pending =
-		test_and_set_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
+		test_and_set_bit(STATUS_EXIT_PENDING, &priv->status);
 
 	/* Stop TX queues watchdog. We need to have STATUS_EXIT_PENDING bit set
 	 * to prevent rearm timer */
@@ -811,7 +811,7 @@ void iwl_down(struct iwl_priv *priv)
 	/* Wipe out the EXIT_PENDING status bit if we are not actually
 	 * exiting the module */
 	if (!exit_pending)
-		clear_bit(STATUS_EXIT_PENDING, &priv->shrd->status);
+		clear_bit(STATUS_EXIT_PENDING, &priv->status);
 
 	if (priv->mac80211_registered)
 		ieee80211_stop_queues(priv->hw);
@@ -820,13 +820,13 @@ void iwl_down(struct iwl_priv *priv)
 
 	/* Clear out all status bits but a few that are stable across reset */
 	priv->shrd->status &=
-			test_bit(STATUS_RF_KILL_HW, &priv->shrd->status) <<
+			test_bit(STATUS_RF_KILL_HW, &priv->status) <<
 				STATUS_RF_KILL_HW |
-			test_bit(STATUS_GEO_CONFIGURED, &priv->shrd->status) <<
+			test_bit(STATUS_GEO_CONFIGURED, &priv->status) <<
 				STATUS_GEO_CONFIGURED |
 			test_bit(STATUS_FW_ERROR, &priv->shrd->status) <<
 				STATUS_FW_ERROR |
-			test_bit(STATUS_EXIT_PENDING, &priv->shrd->status) <<
+			test_bit(STATUS_EXIT_PENDING, &priv->status) <<
 				STATUS_EXIT_PENDING;
 
 	dev_kfree_skb(priv->beacon_skb);
@@ -846,8 +846,8 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 
 	mutex_lock(&priv->mutex);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status) ||
-	    test_bit(STATUS_SCANNING, &priv->shrd->status)) {
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status) ||
+	    test_bit(STATUS_SCANNING, &priv->status)) {
 		mutex_unlock(&priv->mutex);
 		return;
 	}
@@ -903,7 +903,7 @@ static void iwl_bg_restart(struct work_struct *data)
 {
 	struct iwl_priv *priv = container_of(data, struct iwl_priv, restart);
 
-	if (test_bit(STATUS_EXIT_PENDING, &priv->shrd->status))
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	if (test_and_clear_bit(STATUS_FW_ERROR, &priv->shrd->status)) {

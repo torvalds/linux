@@ -454,7 +454,7 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 	char *buf;
 	ssize_t ret;
 
-	if (!test_bit(STATUS_GEO_CONFIGURED, &priv->shrd->status))
+	if (!test_bit(STATUS_GEO_CONFIGURED, &priv->status))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -525,28 +525,26 @@ static ssize_t iwl_dbgfs_status_read(struct file *file,
 
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_HCMD_ACTIVE:\t %d\n",
 		test_bit(STATUS_HCMD_ACTIVE, &priv->shrd->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_INT_ENABLED:\t %d\n",
-		test_bit(STATUS_INT_ENABLED, &priv->shrd->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_RF_KILL_HW:\t %d\n",
-		test_bit(STATUS_RF_KILL_HW, &priv->shrd->status));
+		test_bit(STATUS_RF_KILL_HW, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_CT_KILL:\t\t %d\n",
 		test_bit(STATUS_CT_KILL, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_ALIVE:\t\t %d\n",
-		test_bit(STATUS_ALIVE, &priv->shrd->status));
+		test_bit(STATUS_ALIVE, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_READY:\t\t %d\n",
-		test_bit(STATUS_READY, &priv->shrd->status));
+		test_bit(STATUS_READY, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_GEO_CONFIGURED:\t %d\n",
-		test_bit(STATUS_GEO_CONFIGURED, &priv->shrd->status));
+		test_bit(STATUS_GEO_CONFIGURED, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_EXIT_PENDING:\t %d\n",
-		test_bit(STATUS_EXIT_PENDING, &priv->shrd->status));
+		test_bit(STATUS_EXIT_PENDING, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_STATISTICS:\t %d\n",
-		test_bit(STATUS_STATISTICS, &priv->shrd->status));
+		test_bit(STATUS_STATISTICS, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_SCANNING:\t %d\n",
-		test_bit(STATUS_SCANNING, &priv->shrd->status));
+		test_bit(STATUS_SCANNING, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_SCAN_ABORTING:\t %d\n",
-		test_bit(STATUS_SCAN_ABORTING, &priv->shrd->status));
+		test_bit(STATUS_SCAN_ABORTING, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_SCAN_HW:\t\t %d\n",
-		test_bit(STATUS_SCAN_HW, &priv->shrd->status));
+		test_bit(STATUS_SCAN_HW, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_POWER_PMI:\t %d\n",
 		test_bit(STATUS_POWER_PMI, &priv->shrd->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_FW_ERROR:\t %d\n",
@@ -752,7 +750,7 @@ static ssize_t iwl_dbgfs_sleep_level_override_write(struct file *file,
 	if (value != -1 && (value < 0 || value >= IWL_POWER_NUM))
 		return -EINVAL;
 
-	if (!iwl_is_ready_rf(priv->shrd))
+	if (!iwl_is_ready_rf(priv))
 		return -EAGAIN;
 
 	priv->power_data.debug_sleep_level_override = value;
@@ -947,7 +945,7 @@ static ssize_t iwl_dbgfs_ucode_rx_stats_read(struct file *file,
 	struct statistics_rx_non_phy *delta_general, *max_general;
 	struct statistics_rx_ht_phy *ht, *accum_ht, *delta_ht, *max_ht;
 
-	if (!iwl_is_alive(priv->shrd))
+	if (!iwl_is_alive(priv))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -1376,7 +1374,7 @@ static ssize_t iwl_dbgfs_ucode_tx_stats_read(struct file *file,
 	ssize_t ret;
 	struct statistics_tx *tx, *accum_tx, *delta_tx, *max_tx;
 
-	if (!iwl_is_alive(priv->shrd))
+	if (!iwl_is_alive(priv))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -1578,7 +1576,7 @@ static ssize_t iwl_dbgfs_ucode_general_stats_read(struct file *file,
 	struct statistics_dbg *dbg, *accum_dbg, *delta_dbg, *max_dbg;
 	struct statistics_div *div, *accum_div, *delta_div, *max_div;
 
-	if (!iwl_is_alive(priv->shrd))
+	if (!iwl_is_alive(priv))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -1697,7 +1695,7 @@ static ssize_t iwl_dbgfs_ucode_bt_stats_read(struct file *file,
 	ssize_t ret;
 	struct statistics_bt_activity *bt, *accum_bt;
 
-	if (!iwl_is_alive(priv->shrd))
+	if (!iwl_is_alive(priv))
 		return -EAGAIN;
 
 	if (!priv->bt_enable_flag)
@@ -1790,7 +1788,7 @@ static ssize_t iwl_dbgfs_reply_tx_error_read(struct file *file,
 		(sizeof(struct reply_agg_tx_error_statistics) * 24) + 200;
 	ssize_t ret;
 
-	if (!iwl_is_alive(priv->shrd))
+	if (!iwl_is_alive(priv))
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -2148,7 +2146,7 @@ static ssize_t iwl_dbgfs_ucode_tracing_write(struct file *file,
 
 	if (trace) {
 		priv->event_log.ucode_trace = true;
-		if (iwl_is_alive(priv->shrd)) {
+		if (iwl_is_alive(priv)) {
 			/* start collecting data now */
 			mod_timer(&priv->ucode_trace, jiffies);
 		}
@@ -2338,7 +2336,7 @@ static ssize_t iwl_dbgfs_txfifo_flush_write(struct file *file,
 	if (sscanf(buf, "%d", &flush) != 1)
 		return -EINVAL;
 
-	if (iwl_is_rfkill(priv->shrd))
+	if (iwl_is_rfkill(priv))
 		return -EFAULT;
 
 	iwlagn_dev_txfifo_flush(priv, IWL_DROP_ALL);
