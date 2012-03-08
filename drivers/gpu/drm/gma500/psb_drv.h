@@ -397,33 +397,9 @@ struct drm_psb_private {
 	struct oaktrail_vbt vbt_data;
 	struct oaktrail_gct_data gct_data;
 
-	/* MIPI Panel type etc */
-	int panel_id;
-	bool dual_mipi;		/* dual display - DPI & DBI */
-	bool dpi_panel_on;	/* The DPI panel power is on */
-	bool dpi_panel_on2;	/* The DPI panel power is on */
-	bool dbi_panel_on;	/* The DBI panel power is on */
-	bool dbi_panel_on2;	/* The DBI panel power is on */
-	u32 dsr_fb_update;	/* DSR FB update counter */
-
-	/* Moorestown HDMI state */
+	/* Oaktrail HDMI state */
 	struct oaktrail_hdmi_dev *hdmi_priv;
-
-	/* Moorestown pipe config register value cache */
-	uint32_t pipeconf;
-	uint32_t pipeconf1;
-	uint32_t pipeconf2;
-
-	/* Moorestown plane control register value cache */
-	uint32_t dspcntr;
-	uint32_t dspcntr1;
-	uint32_t dspcntr2;
-
-	/* Moorestown MM backlight cache */
-	uint8_t saveBKLTCNT;
-	uint8_t saveBKLTREQ;
-	uint8_t saveBKLTBRTL;
-
+	
 	/*
 	 * Register state
 	 */
@@ -535,77 +511,11 @@ struct drm_psb_private {
 	uint32_t msi_addr;
 	uint32_t msi_data;
 
-	/* Medfield specific register save state */
-	uint32_t saveHDMIPHYMISCCTL;
-	uint32_t saveHDMIB_CONTROL;
-	uint32_t saveDSPCCNTR;
-	uint32_t savePIPECCONF;
-	uint32_t savePIPECSRC;
-	uint32_t saveHTOTAL_C;
-	uint32_t saveHBLANK_C;
-	uint32_t saveHSYNC_C;
-	uint32_t saveVTOTAL_C;
-	uint32_t saveVBLANK_C;
-	uint32_t saveVSYNC_C;
-	uint32_t saveDSPCSTRIDE;
-	uint32_t saveDSPCSIZE;
-	uint32_t saveDSPCPOS;
-	uint32_t saveDSPCSURF;
-	uint32_t saveDSPCSTATUS;
-	uint32_t saveDSPCLINOFF;
-	uint32_t saveDSPCTILEOFF;
-	uint32_t saveDSPCCURSOR_CTRL;
-	uint32_t saveDSPCCURSOR_BASE;
-	uint32_t saveDSPCCURSOR_POS;
-	uint32_t save_palette_c[256];
-	uint32_t saveOV_OVADD_C;
-	uint32_t saveOV_OGAMC0_C;
-	uint32_t saveOV_OGAMC1_C;
-	uint32_t saveOV_OGAMC2_C;
-	uint32_t saveOV_OGAMC3_C;
-	uint32_t saveOV_OGAMC4_C;
-	uint32_t saveOV_OGAMC5_C;
-
-	/* DSI register save */
-	uint32_t saveDEVICE_READY_REG;
-	uint32_t saveINTR_EN_REG;
-	uint32_t saveDSI_FUNC_PRG_REG;
-	uint32_t saveHS_TX_TIMEOUT_REG;
-	uint32_t saveLP_RX_TIMEOUT_REG;
-	uint32_t saveTURN_AROUND_TIMEOUT_REG;
-	uint32_t saveDEVICE_RESET_REG;
-	uint32_t saveDPI_RESOLUTION_REG;
-	uint32_t saveHORIZ_SYNC_PAD_COUNT_REG;
-	uint32_t saveHORIZ_BACK_PORCH_COUNT_REG;
-	uint32_t saveHORIZ_FRONT_PORCH_COUNT_REG;
-	uint32_t saveHORIZ_ACTIVE_AREA_COUNT_REG;
-	uint32_t saveVERT_SYNC_PAD_COUNT_REG;
-	uint32_t saveVERT_BACK_PORCH_COUNT_REG;
-	uint32_t saveVERT_FRONT_PORCH_COUNT_REG;
-	uint32_t saveHIGH_LOW_SWITCH_COUNT_REG;
-	uint32_t saveINIT_COUNT_REG;
-	uint32_t saveMAX_RET_PAK_REG;
-	uint32_t saveVIDEO_FMT_REG;
-	uint32_t saveEOT_DISABLE_REG;
-	uint32_t saveLP_BYTECLK_REG;
-	uint32_t saveHS_LS_DBI_ENABLE_REG;
-	uint32_t saveTXCLKESC_REG;
-	uint32_t saveDPHY_PARAM_REG;
-	uint32_t saveMIPI_CONTROL_REG;
-	uint32_t saveMIPI;
-	uint32_t saveMIPI_C;
-
 	/* DPST register save */
 	uint32_t saveHISTOGRAM_INT_CONTROL_REG;
 	uint32_t saveHISTOGRAM_LOGIC_CONTROL_REG;
 	uint32_t savePWM_CONTROL_LOGIC;
 
-	/*
-	 * DSI info. 
-	 */
-	void * dbi_dsr_info;	
-	void * dbi_dpu_info;
-	void * dsi_configs[2];
 	/*
 	 * LID-Switch
 	 */

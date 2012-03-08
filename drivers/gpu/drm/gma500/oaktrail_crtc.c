@@ -428,9 +428,6 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	else
 		dspcntr |= DISPPLANE_SEL_PIPE_B;
 
-	dev_priv->dspcntr = dspcntr |= DISPLAY_PLANE_ENABLE;
-	dev_priv->pipeconf = pipeconf |= PIPEACONF_ENABLE;
-
 	if (is_mipi)
 		goto oaktrail_crtc_mode_set_exit;
 
