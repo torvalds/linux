@@ -21,7 +21,6 @@
 /*
  * Valid flags for the radix tree
  */
-#define NFS_PAGE_TAG_LOCKED	0
 #define NFS_PAGE_TAG_COMMIT	1
 
 /*
@@ -106,8 +105,6 @@ extern bool nfs_generic_pg_test(struct nfs_pageio_descriptor *desc,
 				struct nfs_page *req);
 extern  int nfs_wait_on_request(struct nfs_page *);
 extern	void nfs_unlock_request(struct nfs_page *req);
-extern	int nfs_set_page_tag_locked(struct nfs_page *req);
-extern  void nfs_clear_page_tag_locked(struct nfs_page *req);
 
 /*
  * Lock the page of an asynchronous request without getting a new reference

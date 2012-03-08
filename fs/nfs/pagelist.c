@@ -107,36 +107,6 @@ void nfs_unlock_request(struct nfs_page *req)
 	nfs_release_request(req);
 }
 
-/**
- * nfs_set_page_tag_locked - Tag a request as locked
- * @req:
- */
-int nfs_set_page_tag_locked(struct nfs_page *req)
-{
-	if (!nfs_lock_request_dontget(req))
-		return 0;
-	if (test_bit(PG_MAPPED, &req->wb_flags))
-		radix_tree_tag_set(&NFS_I(req->wb_context->dentry->d_inode)->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
-	return 1;
-}
-
-/**
- * nfs_clear_page_tag_locked - Clear request tag and wake up sleepers
- */
-void nfs_clear_page_tag_locked(struct nfs_page *req)
-{
-	if (test_bit(PG_MAPPED, &req->wb_flags)) {
-		struct inode *inode = req->wb_context->dentry->d_inode;
-		struct nfs_inode *nfsi = NFS_I(inode);
-
-		spin_lock(&inode->i_lock);
-		radix_tree_tag_clear(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
-		nfs_unlock_request(req);
-		spin_unlock(&inode->i_lock);
-	} else
-		nfs_unlock_request(req);
-}
-
 /*
  * nfs_clear_request - Free up all resources allocated to the request
  * @req:
@@ -469,7 +439,7 @@ int nfs_scan_list(struct nfs_inode *nfsi,
 			if (req->wb_index > idx_end)
 				goto out;
 			idx_start = req->wb_index + 1;
-			if (nfs_set_page_tag_locked(req)) {
+			if (nfs_lock_request_dontget(req)) {
 				kref_get(&req->wb_kref);
 				radix_tree_tag_clear(&nfsi->nfs_page_tree,
 						req->wb_index, tag);
